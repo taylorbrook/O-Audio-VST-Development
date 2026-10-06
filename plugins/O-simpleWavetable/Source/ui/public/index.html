@@ -1,0 +1,2868 @@
+<!DOCTYPE html>
+<!--
+  O-simpleWavetable — production WebView UI (mockup v1, finalized)
+
+  Copied to Source/ui/public/index.html in Stage 3. One file: inline <style> +
+  one inline <script type="module"> controller (the O-Bitrot layout that
+  scripts/check-i18n.js resolves as the controller). The only other authored UI
+  file is js/i18n.js (the en / fr / zh-Hans table, generated as v1-i18n.js).
+
+  Layout, palette and geometry are the finalized v1 mockup (v1-ui.yaml). All
+  control code is regenerated from the house contract
+  (.claude/skills/ui-mockup/references/html-generation.md, O-ReverseDelay is
+  the reference): Family A knobs with the full bindKnob lifecycle, readouts from
+  getScaledValue(), angles from getNormalisedValue(), no range numbers in the
+  page — the C++ NormalisableRange is the only range.
+
+  The three panels draw ONLY what C++ sends. The mockup's JS simulation of the
+  banks, the quantizer and the modulation is gone:
+    cycleUpdate  {cycle[256], harmonics[32] (dB re max, -60 floor), pos, frame,
+                  level, sounding, +optional note, f0, kmax, nyquistH,
+                  harmonicsRaw[32], preQ[256], lfo, menv, amp}
+    bankUpdate   {bank, imported, numFrames, filename, frames[N][128]}
+    importStatus {state: 'idle'|'busy'|'done'|'error', filename, frames, error}
+  The page calls the native `uiReady` once its listeners exist, and again when
+  it becomes visible, because emitEventIfBrowserIsVisible drops events while the
+  browser is hidden — C++ answers with bankUpdate + importStatus.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>O-simpleWavetable</title>
+<!-- The shared EB Garamond face (modules/ui/eb-garamond), embedded by CMake and
+     served at /css/eb-garamond.css + /fonts/*.woff2 (O-simpleAdditive R5). -->
+<link rel="stylesheet" href="css/eb-garamond.css">
+<style>
+  :root {
+    /* Paper (ouaricon-naturalist-001, O-simple* field-guide family) */
+    --bg-paper-light: #FAF0E6;
+    --bg-paper: #F5E6D3;
+    --bg-paper-mid: #EBD9C7;
+    /* Browns */
+    --brown-border: #8B7355;   /* borders and decoration only */
+    --brown-frame: #5C4033;
+    --brown-text: #3C2F2F;
+    /* Greens */
+    --green-light: #8BA870;
+    --green-mid: #6B8E4E;
+    --green-dark: #3C5C1A;
+    --green-darkest: #2C3E10;
+    /* Brass / amber */
+    --brass-1: #E8B04A;
+    --brass-2: #C98F38;
+    --brass-deep: #8a5a1e;
+    --amber: #E8B04A;
+    /* Knob (Family A) */
+    --knob-ring: #C9A27B;
+    --knob-seg-1: #F5DEB3;
+    --knob-seg-2: #E8D5B7;
+    --knob-divider: #8B7355;
+    --knob-core: #FFF8DC;
+    --knob-border: #8B7355;
+    /* Buttons */
+    --btn-active: rgba(107, 142, 35, 0.6);
+    --btn-border-active: #2C3E10;
+    /* Effects */
+    --shadow-light: rgba(0, 0, 0, 0.15);
+    --shadow-medium: rgba(0, 0, 0, 0.25);
+    --text-emboss: rgba(255, 255, 255, 0.5);
+    /* Text inks (AA on every paper tone) */
+    --text-muted: #715D45;
+    --green-text: #4E6838;
+    --green-fill-strong: #55703E;
+    --warn-text: #8a3c1e;
+    /* Plot wells + inks */
+    --well-top: #2a2118;
+    --well-bot: #1c160f;
+    --ink-sage: #9ec46f;
+    --ink-parch: #d6c4a0;
+    --tooltip-bg: #2a2118;
+    --tooltip-text: #f5e6d3;
+    /* The CJK tail goes BEFORE the generic: under a Chinese document language a
+       bare `serif` is already a Chinese face, and a tail written after it is
+       never consulted. */
+    --serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    --symbol-font: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS',
+                   'PingFang SC', 'Microsoft YaHei', serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* NO viewport units anywhere (WebView rule). */
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    width: 1120px;              /* FIXED — v1-ui.yaml window, ui-design-rules.md Rule 4 */
+    height: 780px;
+    position: relative;
+    font-family: var(--serif);
+    color: var(--brown-text);
+    background: var(--bg-paper);
+    -webkit-user-select: none;
+    user-select: none;
+    cursor: default;
+  }
+
+  /* ── Plugin window (1120 x 780, fixed) ─────────────────────────────────── */
+  #plugin {
+    position: relative;
+    width: 1120px;
+    height: 780px;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 30% 20%, var(--bg-paper-light), transparent 60%),
+      repeating-linear-gradient(0deg, rgba(92, 64, 51, 0.015) 0, rgba(92, 64, 51, 0.015) 1px, transparent 1px, transparent 3px),
+      var(--bg-paper);
+  }
+
+  .botanical-overlay {
+    position: absolute;
+    right: -30px;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 86%;
+    opacity: 0.16;
+    pointer-events: none;
+    z-index: 0;
+    filter: sepia(0.35) saturate(0.7) brightness(0.95);
+  }
+
+  .frame {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border: 3px solid var(--brown-frame);
+    border-image: linear-gradient(160deg, #6b5340, #5C4033) 1;
+  }
+  .frame > * { flex-shrink: 0; }
+
+  /* ── Header ────────────────────────────────────────────────────────────── */
+  .header {
+    height: 50px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    border-bottom: 1px solid rgba(139, 115, 85, 0.4);
+    padding-bottom: 6px;
+  }
+  /* Pinned (the widest subtitle, fr, must fit) so the source strip does not
+     move when the language changes (check-ui-labels [7]). 384 = the header's
+     1022 px minus the strip's pinned 638 px. */
+  .title-block { flex: 0 0 auto; width: 384px; }
+  .title {
+    font-size: 25px;
+    font-weight: 400;
+    letter-spacing: 3px;
+    line-height: 1.1;
+    color: var(--brown-frame);
+    text-shadow: 1px 1px 2px var(--text-emboss);
+  }
+  .title-accent { color: var(--green-mid); font-style: italic; }
+  .subtitle {
+    font-size: 11px;
+    letter-spacing: 1.4px;
+    line-height: 1.1;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-top: 3px;
+  }
+
+  .source-strip {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  .strip-label {
+    width: 50px;                /* pinned at the widest language (fr "Banque") */
+    text-align: right;
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    line-height: 1.1;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  select.combo {
+    font-family: inherit;
+    font-size: 14px;
+    letter-spacing: 0.3px;
+    color: var(--green-darkest);
+    background-color: var(--bg-paper-light);
+    border: 1.5px solid var(--brown-border);
+    border-radius: 4px;
+    height: 32px;
+    padding: 0 28px 0 10px;
+    width: 172px;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--brown-frame) 50%),
+      linear-gradient(135deg, var(--brown-frame) 50%, transparent 50%);
+    background-position: calc(100% - 15px) center, calc(100% - 10px) center;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.08), 1px 1px 3px var(--shadow-light);
+    transition: border-color 0.15s ease;
+  }
+  select.combo:hover { border-color: var(--green-dark); }
+  select.combo:focus-visible { outline: 2px solid var(--green-mid); outline-offset: 1px; }
+
+  .import-btn {
+    width: 124px;               /* pinned: the caption is language-dependent */
+    height: 32px;
+    padding: 0 10px 0 11px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 7px;
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    color: var(--green-darkest);
+    background: rgba(139, 168, 112, 0.22);
+    border: 1.5px solid var(--green-mid);
+    border-radius: 4px;
+    cursor: pointer;
+    box-shadow: 1px 1px 3px var(--shadow-light);
+    transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+  }
+  .import-btn .glyph { font-family: var(--symbol-font); font-size: 14px; line-height: 1; }
+  .import-btn:hover { background: rgba(139, 168, 112, 0.42); transform: translateY(-1px); }
+  .import-btn:active { transform: translateY(0); box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.25); }
+  .import-btn:focus-visible { outline: 2px solid var(--green-mid); outline-offset: 2px; }
+  .import-btn.busy { opacity: 0.7; cursor: progress; }
+  /* Empty-Imported prompt: the button is the next step, so it is the lit thing */
+  .import-btn.attention {
+    background: var(--amber);
+    border-color: var(--brass-deep);
+    color: #2a1a06;
+    animation: importPulse 1.6s ease-in-out infinite;
+  }
+  @keyframes importPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(232, 176, 74, 0.0), 1px 1px 3px var(--shadow-light); }
+    50%      { box-shadow: 0 0 0 5px rgba(232, 176, 74, 0.35), 1px 1px 3px var(--shadow-light); }
+  }
+
+  .source-readout {
+    width: 262px;
+    height: 32px;
+    padding: 2px 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background: rgba(235, 217, 199, 0.65);
+    border: 1px solid rgba(139, 115, 85, 0.45);
+    border-radius: 4px;
+    box-shadow: inset 1px 1px 3px rgba(92, 64, 51, 0.12);
+    overflow: hidden;
+  }
+  .src-name {
+    font-size: 13px;
+    font-style: italic;
+    line-height: 1.1;
+    color: var(--brown-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .src-meta {
+    font-size: 10.5px;
+    line-height: 1.1;
+    letter-spacing: 0.4px;
+    color: var(--green-text);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .src-meta.warn { color: var(--warn-text); font-style: italic; }
+
+  /* ── Settings popover (gear: language + hover help) ────────────────────── */
+  .settings-cluster { position: relative; flex: 0 0 auto; display: flex; align-items: center; }
+  .gear-btn {
+    width: 24px; height: 24px; padding: 0;
+    font-family: var(--symbol-font);
+    font-size: 14px; line-height: 1;
+    color: var(--green-darkest);
+    background: rgba(139, 168, 112, 0.25);
+    border: 1.5px solid var(--green-mid);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 1px 1px 3px var(--shadow-light);
+    transition: background 0.15s ease;
+  }
+  .gear-btn:hover { background: rgba(139, 168, 112, 0.45); }
+  .gear-btn[aria-expanded="true"] { background: var(--btn-active); border-color: var(--btn-border-active); }
+  .gear-btn:focus-visible { outline: 2px dotted var(--green-mid); outline-offset: 2px; }
+  .settings-popover {
+    position: absolute; top: calc(100% + 6px); right: 0; z-index: 40;
+    min-width: 236px; padding: 9px 11px;
+    display: flex; flex-direction: column; gap: 8px;
+    background: var(--bg-paper-light);
+    border: 1px solid var(--brown-border); border-radius: 5px;
+    box-shadow: 0 6px 18px var(--shadow-medium);
+  }
+  .settings-popover[hidden] { display: none; }
+  .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .settings-label {
+    flex: 1 1 auto; font-size: 12px; line-height: 1.2; letter-spacing: 0.5px; color: var(--brown-text);
+    white-space: nowrap;
+  }
+  .settings-select {
+    flex: 0 0 auto; width: 100px; height: 24px; padding: 0 4px;
+    font-family: inherit; font-size: 12px; text-align: center;
+    color: var(--brown-text); background: var(--bg-paper-light);
+    border: 1px solid var(--brown-border); border-radius: 4px; cursor: pointer;
+  }
+  .settings-select:focus-visible { outline: 2px dotted var(--green-mid); outline-offset: 2px; }
+  .settings-toggle {
+    flex: 0 0 auto; min-width: 64px; height: 24px; padding: 0 8px;
+    font-family: inherit; font-size: 10px; line-height: 1.1; text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--green-darkest); background: var(--bg-paper-light);
+    border: 1px solid var(--brown-border); border-radius: 4px; cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .settings-toggle[aria-pressed="true"] { background: var(--btn-active); border-color: var(--btn-border-active); }
+  .settings-toggle:focus-visible { outline: 2px dotted var(--green-mid); outline-offset: 2px; }
+
+  /* ── Visual band: three panels ─────────────────────────────────────────── */
+  .viz-band { height: 330px; display: flex; gap: 10px; }
+  .viz-block { display: flex; flex-direction: column; min-width: 0; }
+  .viz-bank  { flex: 0 0 482px; }
+  .viz-cycle { flex: 1 1 0; }
+  .viz-harm  { flex: 1 1 0; }
+  .viz-label {
+    height: 16px;
+    font-size: 10.5px;
+    line-height: 1.3;
+    text-transform: uppercase;
+    letter-spacing: 1.1px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .viz-label b { font-weight: 500; color: var(--green-darkest); letter-spacing: 1.4px; }
+  .viz-hint { text-transform: none; letter-spacing: 0.3px; font-style: italic; font-size: 11.5px; color: var(--green-text); }
+
+  .canvas-wrap {
+    flex: 1;
+    position: relative;
+    background: linear-gradient(180deg, var(--well-top) 0%, var(--well-bot) 100%);
+    border: 2px solid var(--brown-border);
+    border-radius: 4px;
+    box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.55), 1px 1px 0 rgba(255, 248, 220, 0.5);
+    overflow: hidden;
+  }
+  .canvas-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #bankWrap { cursor: grab; touch-action: none; }
+  #bankWrap.dragging { cursor: grabbing; }
+  #bankWrap.empty { cursor: default; }
+  /* A file dragged over the page: the bank stack is where it lands */
+  #bankWrap.drop-hover {
+    border-color: var(--amber);
+    box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.55), 0 0 0 2px rgba(232, 176, 74, 0.55);
+  }
+
+  /* DOM readouts over the wells (real text, not canvas text) */
+  .well-text { position: absolute; pointer-events: none; color: var(--ink-parch); }
+  .bank-readout { left: 14px; top: 10px; }
+  .bank-frame {
+    font-size: 22px; line-height: 1; letter-spacing: 0.4px;
+    color: #f3cd86; font-variant-numeric: tabular-nums;
+  }
+  .bank-frame .of { font-size: 14px; color: rgba(214, 196, 160, 0.75); }
+  /* Pinned: its children are language-dependent labels */
+  .bank-readout { width: 300px; }
+  .bank-name { margin-top: 4px; font-size: 13px; line-height: 1.2; font-style: italic; color: var(--ink-parch);
+               max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bank-mix { margin-top: 2px; font-size: 11.5px; line-height: 1.2; letter-spacing: 0.3px; color: rgba(214, 196, 160, 0.78); font-variant-numeric: tabular-nums; }
+  /* Pinned at the widest language (zh, 101 px) and left-aligned so the glyphs
+     hold still across languages. */
+  .bank-key {
+    right: 12px; top: 10px; width: 104px; text-align: left; white-space: nowrap;
+    font-size: 11px; line-height: 1.45; letter-spacing: 0.3px; color: rgba(214, 196, 160, 0.82);
+  }
+  .bank-key .sym { font-family: var(--symbol-font); font-size: 11px; display: inline-block; width: 14px; text-align: center; }
+  .bank-key .sym-knob { color: var(--brass-1); }
+  .bank-key .sym-ghost { color: var(--ink-sage); }
+  .bank-lesson {
+    left: 14px; right: 14px; bottom: 9px;
+    font-size: 12px; line-height: 1.2; font-style: italic; letter-spacing: 0.2px;
+    color: rgba(158, 196, 111, 0.92);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .bank-empty {
+    left: 0; right: 0; top: 50%;
+    transform: translateY(-50%);
+    text-align: center;
+    display: none;
+  }
+  .canvas-wrap.empty .bank-empty { display: block; }
+  .canvas-wrap.empty .bank-readout,
+  .canvas-wrap.empty .bank-key { opacity: 0.35; }
+  .bank-empty .big { font-size: 20px; line-height: 1.2; color: #f3cd86; letter-spacing: 0.4px; }
+  .bank-empty .small { margin-top: 6px; font-size: 12.5px; line-height: 1.2; font-style: italic; color: rgba(214, 196, 160, 0.8); }
+
+  .cyc-tl { left: 12px; top: 9px; font-size: 13px; line-height: 1.2; color: var(--ink-parch); font-variant-numeric: tabular-nums; }
+  .cyc-tr { right: 12px; top: 9px; font-size: 13px; line-height: 1.2; text-align: right; color: var(--ink-parch); font-variant-numeric: tabular-nums; }
+  .cyc-tr.quant { color: #f3cd86; }
+  .cyc-bl { left: 12px; bottom: 8px; font-size: 11px; line-height: 1.2; font-style: italic; color: rgba(214, 196, 160, 0.62); }
+  .cyc-seam { left: 12px; right: 12px; bottom: 8px; font-size: 11.5px; line-height: 1.2; font-style: italic; color: #f3cd86; display: none; text-align: right; white-space: nowrap; }
+  .cyc-seam.on { display: block; }
+  /* The seam warning takes the footnote's line: both cannot fit in every language */
+  .canvas-wrap.seam .cyc-bl { visibility: hidden; }
+
+  .harm-tr { left: 12px; right: 12px; top: 9px; font-size: 12.5px; text-align: right; color: var(--ink-parch); font-variant-numeric: tabular-nums; line-height: 1.3; }
+  .harm-tr .harm-sub { display: block; font-size: 11px; font-style: italic; color: rgba(214, 196, 160, 0.72); }
+  .harm-tr .harm-sub.warn { color: #e98a5a; }
+
+  /* ── Control groups ───────────────────────────────────────────────────── */
+  .controls { height: 236px; display: flex; gap: 8px; }
+  .group {
+    background: rgba(250, 240, 230, 0.45);
+    border: 1px solid rgba(139, 115, 85, 0.35);
+    border-radius: 5px;
+    padding: 6px 10px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+  .group-osc  { flex: 0 0 258px; }
+  .group-move { flex: 1 1 0; }
+  .group-amp  { flex: 0 0 352px; }
+  .group-title {
+    font-size: 12.5px;
+    font-weight: 500;
+    line-height: 1.25;
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    color: var(--green-darkest);
+    border-bottom: 1px dotted rgba(139, 115, 85, 0.45);
+    padding-bottom: 3px;
+    white-space: nowrap;
+  }
+  .group-route { font-size: 11px; font-style: italic; letter-spacing: 0.4px; text-transform: none; color: var(--green-text); }
+  .group-body { flex: 1; display: flex; gap: 10px; min-height: 0; }
+  .sub-rule { flex: 0 0 1px; background: repeating-linear-gradient(180deg, rgba(139,115,85,0.45) 0 2px, transparent 2px 4px); }
+  .sub { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .sub-title {
+    height: 14px;
+    font-size: 10.5px;
+    line-height: 14px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--green-text);
+    display: flex; align-items: center; gap: 6px;
+    white-space: nowrap;
+  }
+  .lfo-lamp {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex: 0 0 8px;
+    background: rgba(232, 176, 74, 0.12);
+    border: 1px solid rgba(138, 90, 30, 0.6);
+    transition: background 0.05s linear;
+  }
+
+  /* Knobs — Family A (seed cross-section). Only .knob-stem rotates. */
+  .knob-row { display: flex; gap: 4px; align-items: flex-start; justify-content: space-between; }
+  .knob-cell { display: flex; flex-direction: column; align-items: center; width: 58px; position: relative; }
+  .knob-cell.sm { width: 54px; }
+  .knob-cell.sm .knob-label { letter-spacing: 0.3px; }
+  .knob-wrap { position: relative; }
+  .knob {
+    width: 54px; height: 54px;
+    border-radius: 50%;
+    position: relative;
+    border: 2px solid var(--knob-border);
+    cursor: ns-resize;
+    touch-action: none;
+    background:
+      radial-gradient(circle, transparent 88%, var(--knob-ring) 88%, var(--knob-ring) 92%, var(--knob-divider) 92%, var(--knob-divider) 94%, transparent 94%),
+      conic-gradient(from 0deg,
+        var(--knob-seg-1) 0deg,   var(--knob-seg-1) 18deg,  var(--knob-divider) 18deg,  var(--knob-divider) 19deg,
+        var(--knob-seg-2) 19deg,  var(--knob-seg-2) 36deg,  var(--knob-divider) 36deg,  var(--knob-divider) 37deg,
+        var(--knob-seg-1) 37deg,  var(--knob-seg-1) 54deg,  var(--knob-divider) 54deg,  var(--knob-divider) 55deg,
+        var(--knob-seg-2) 55deg,  var(--knob-seg-2) 72deg,  var(--knob-divider) 72deg,  var(--knob-divider) 73deg,
+        var(--knob-seg-1) 73deg,  var(--knob-seg-1) 90deg,  var(--knob-divider) 90deg,  var(--knob-divider) 91deg,
+        var(--knob-seg-2) 91deg,  var(--knob-seg-2) 108deg, var(--knob-divider) 108deg, var(--knob-divider) 109deg,
+        var(--knob-seg-1) 109deg, var(--knob-seg-1) 126deg, var(--knob-divider) 126deg, var(--knob-divider) 127deg,
+        var(--knob-seg-2) 127deg, var(--knob-seg-2) 144deg, var(--knob-divider) 144deg, var(--knob-divider) 145deg,
+        var(--knob-seg-1) 145deg, var(--knob-seg-1) 162deg, var(--knob-divider) 162deg, var(--knob-divider) 163deg,
+        var(--knob-seg-2) 163deg, var(--knob-seg-2) 180deg, var(--knob-divider) 180deg, var(--knob-divider) 181deg,
+        var(--knob-seg-1) 181deg, var(--knob-seg-1) 198deg, var(--knob-divider) 198deg, var(--knob-divider) 199deg,
+        var(--knob-seg-2) 199deg, var(--knob-seg-2) 216deg, var(--knob-divider) 216deg, var(--knob-divider) 217deg,
+        var(--knob-seg-1) 217deg, var(--knob-seg-1) 234deg, var(--knob-divider) 234deg, var(--knob-divider) 235deg,
+        var(--knob-seg-2) 235deg, var(--knob-seg-2) 252deg, var(--knob-divider) 252deg, var(--knob-divider) 253deg,
+        var(--knob-seg-1) 253deg, var(--knob-seg-1) 270deg, var(--knob-divider) 270deg, var(--knob-divider) 271deg,
+        var(--knob-seg-2) 271deg, var(--knob-seg-2) 288deg, var(--knob-divider) 288deg, var(--knob-divider) 289deg,
+        var(--knob-seg-1) 289deg, var(--knob-seg-1) 306deg, var(--knob-divider) 306deg, var(--knob-divider) 307deg,
+        var(--knob-seg-2) 307deg, var(--knob-seg-2) 324deg, var(--knob-divider) 324deg, var(--knob-divider) 325deg,
+        var(--knob-seg-1) 325deg, var(--knob-seg-1) 342deg, var(--knob-divider) 342deg, var(--knob-divider) 343deg,
+        var(--knob-seg-2) 343deg, var(--knob-seg-2) 360deg),
+      radial-gradient(circle, var(--knob-core) 0%, var(--knob-core) 20%, transparent 20%);
+    box-shadow:
+      inset 1px 1px 3px rgba(0, 0, 0, 0.3),
+      inset -1px -1px 2px rgba(255, 248, 220, 0.5),
+      2px 2px 6px var(--shadow-medium);
+    transition: transform 0.1s ease;
+  }
+  .knob:hover { transform: scale(1.05); }
+  .knob:active { transform: scale(0.98); }
+  .knob:focus-visible { outline: 2px dotted var(--green-mid); outline-offset: 3px; }
+  .knob.sm { width: 44px; height: 44px; }
+  .knob.hero { width: 92px; height: 92px; border-width: 2.5px; }
+  .knob.hero:hover { transform: scale(1.03); }
+  /* Indicator: the botanical stem, centre to ~92 % of the radius (scales with the knob) */
+  .knob-stem {
+    position: absolute; left: 50%; top: 50%;
+    width: 3px; height: 46%;
+    background: var(--green-darkest);
+    border-radius: 2px;
+    transform-origin: 50% 100%;
+    transform: translate(-50%, -100%) rotate(0deg);
+    pointer-events: none;
+    box-shadow: 0 0 1px rgba(255, 248, 220, 0.6);
+  }
+  .knob.hero .knob-stem { width: 4px; }
+  /* Detent pips around the stepped knobs (bit_depth, lfo_div) — built by JS
+     from the LIVE properties.choices count */
+  .pip {
+    position: absolute; width: 3px; height: 3px; border-radius: 50%;
+    background: rgba(139, 115, 85, 0.55); pointer-events: none;
+    transform: translate(-50%, -50%);
+  }
+  .pip.on { background: var(--brass-2); width: 5px; height: 5px; box-shadow: 0 0 2px rgba(201, 143, 56, 0.8); }
+  /* Bipolar centre detent mark (env_amount) */
+  .bipolar .knob-wrap::before {
+    content: ""; position: absolute; left: 50%; top: -6px;
+    width: 0; height: 0; transform: translateX(-50%);
+    border-left: 4px solid transparent; border-right: 4px solid transparent;
+    border-top: 5px solid var(--brown-border);
+  }
+  .knob-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--brown-frame);
+    margin-top: 5px;
+    text-align: center;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+  .knob-value {
+    font-size: 12.5px;
+    line-height: 1.2;
+    color: var(--brown-text);
+    margin-top: 1px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .hero-col { flex: 0 0 108px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .hero-col .knob-cell { width: 108px; }
+  .hero-col .knob-label { font-size: 12px; letter-spacing: 1.2px; margin-top: 8px; color: var(--green-darkest); }
+  .hero-col .knob-value { font-size: 16px; }
+  /* NOT .knob-value: that class is a knob census for the UI gates */
+  .hero-sub { font-size: 12px; line-height: 1.2; font-style: italic; color: var(--green-text); margin-top: 1px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* Segmented switches (bool via getToggleState, 2-5 way choice via getComboBoxState) */
+  .seg-cell { display: flex; flex-direction: column; gap: 3px; }
+  .seg-cap { font-size: 10px; letter-spacing: 0.6px; text-transform: uppercase; color: var(--brown-frame); line-height: 1.1; white-space: nowrap; }
+  .seg {
+    display: flex; height: 26px;
+    border: 1.5px solid var(--brown-border);
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--bg-paper-light);
+    box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.1);
+  }
+  .seg button {
+    flex: 1 1 0;
+    min-width: 0;
+    font-family: inherit;
+    font-size: 11px;
+    line-height: 1.1;
+    letter-spacing: 0.9px;
+    text-transform: uppercase;
+    color: var(--brown-frame);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+  .seg button + button { border-left: 1px solid rgba(139, 115, 85, 0.55); }
+  .seg button:hover { background: rgba(139, 168, 112, 0.25); }
+  .seg button[aria-pressed="true"] { background: var(--green-fill-strong); color: #f5f0e6; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25); }
+  .seg button:focus-visible { outline: 2px solid var(--green-mid); outline-offset: -2px; }
+
+  /* LFO shape icons */
+  .shape-seg { height: 28px; }
+  .shape-seg button { display: flex; align-items: center; justify-content: center; }
+  .shape-seg svg { width: 24px; height: 14px; overflow: visible; pointer-events: none; }
+  .shape-seg svg path { fill: none; stroke: var(--brown-frame); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+  .shape-seg button[aria-pressed="true"] svg path { stroke: #f5f0e6; }
+
+  .osc-side { flex: 1 1 auto; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .osc-side .knob-cell { align-self: center; margin-top: 4px; width: 84px; }
+
+  .sub-lfo { flex: 0 0 188px; }
+  .sub-menv { flex: 1 1 0; }
+  .lfo-knobs { display: flex; justify-content: space-around; margin-top: 4px; }
+  /* 78 px cells (was 58): same knob centres under space-around, and room for
+     the French captions (Profondeur, Vitesse). */
+  .rate-slot { position: relative; width: 78px; }
+  .lfo-knobs > .knob-cell, .rate-slot > .knob-cell { width: 78px; }
+  .rate-slot .knob-cell[hidden] { display: none; }
+
+  .env-top { display: flex; gap: 8px; align-items: flex-start; }
+  .adsr-wrap {
+    flex: 1 1 auto;
+    position: relative;
+    height: 64px;
+    background: linear-gradient(180deg, var(--well-top) 0%, var(--well-bot) 100%);
+    border: 1.5px solid var(--brown-border);
+    border-radius: 4px;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+  }
+  .adsr-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .env-knobs { display: flex; justify-content: space-between; }
+
+  .sub-ampenv { flex: 1 1 0; }
+  /* Pinned so the amp knob row lines up with the mod-env knob row */
+  .sub-ampenv .adsr-wrap { flex: 0 0 86px; height: 86px; }
+  .out-col { flex: 0 0 90px; display: flex; flex-direction: column; gap: 10px; align-items: stretch; padding-top: 20px; }
+  .out-col .knob-cell { align-self: center; margin-top: 6px; }
+  .out-col .seg button { letter-spacing: 0.4px; font-size: 10.5px; }
+
+  /* ── Lesson presets ───────────────────────────────────────────────────── */
+  .preset-tour {
+    height: 28px;
+    display: flex; align-items: center; gap: 12px;
+    padding: 4px 4px 0;
+    border-top: 1px solid rgba(139, 115, 85, 0.4);
+  }
+  .tour-label { flex: 0 0 100px; font-size: 10.5px; line-height: 1.2; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-muted); white-space: nowrap; }
+  /* Pinned at the English width: every language's five captions fit inside it */
+  .tour-buttons { display: flex; gap: 8px; flex: 0 0 458px; }
+  .tour-btn {
+    font-family: inherit; font-size: 12px; line-height: 1.1; letter-spacing: 0.4px;
+    color: var(--brown-text); background: var(--bg-paper-light);
+    border: 1px solid var(--brown-border); border-radius: 4px;
+    height: 23px; padding: 0 10px; cursor: pointer; white-space: nowrap;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  }
+  .tour-btn:hover { background: var(--green-light); color: #1f2b08; transform: translateY(-1px); }
+  .tour-btn.active { background: var(--green-fill-strong); color: #f5f0e6; border-color: var(--green-darkest); }
+  .tour-btn:focus-visible { outline: 2px dotted var(--green-mid); outline-offset: 2px; }
+  .tour-caption {
+    margin-left: auto; font-size: 12px; line-height: 1.2; font-style: italic; color: var(--brown-frame);
+    text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+  }
+
+  /* ── Keyboard ─────────────────────────────────────────────────────────── */
+  .keyboard-panel { height: 66px; display: flex; gap: 12px; align-items: stretch; }
+  .kbd-side {
+    flex: 0 0 150px;
+    display: flex; flex-direction: column; justify-content: center; gap: 4px;
+  }
+  .keyboard-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-muted); line-height: 1.2; }
+  .kbd-hint { font-size: 11px; font-style: italic; color: var(--green-text); line-height: 1.2; white-space: nowrap; }
+  .oct-row { display: flex; align-items: center; gap: 5px; }
+  .oct-btn {
+    width: 22px; height: 18px; font-family: var(--symbol-font); font-size: 9px;
+    color: var(--green-darkest); background: var(--bg-paper-light);
+    border: 1px solid var(--brown-border); border-radius: 3px; cursor: pointer;
+  }
+  .oct-btn:hover { background: rgba(139, 168, 112, 0.35); }
+  .oct-btn:focus-visible { outline: 2px dotted var(--green-mid); outline-offset: 1px; }
+  .oct-read { font-size: 11.5px; line-height: 1.2; color: var(--brown-text); font-variant-numeric: tabular-nums; }
+  .keyboard {
+    flex: 1 1 auto;
+    position: relative;
+    display: flex;
+    touch-action: none;
+    border: 1px solid var(--brown-frame);
+    border-radius: 0 0 5px 5px;
+    box-shadow: inset 0 2px 6px rgba(92, 64, 51, 0.25);
+  }
+  .key { position: relative; cursor: pointer; }
+  .key-white {
+    flex: 1 1 0; height: 100%;
+    background: linear-gradient(180deg, var(--bg-paper-light) 0%, var(--knob-core) 72%, #e6d4ba 100%);
+    border: 1px solid var(--brown-border); border-top: none; margin-right: -1px;
+    box-shadow: inset 0 -4px 6px rgba(92, 64, 51, 0.12);
+  }
+  .key-black {
+    position: absolute; top: 0; width: 22px; height: 60%;
+    background: linear-gradient(180deg, #4a3a2c 0%, var(--brown-frame) 100%);
+    border: 1px solid #261a12; border-top: none; border-radius: 0 0 3px 3px; z-index: 2;
+    box-shadow: inset 0 -3px 4px rgba(0, 0, 0, 0.45), 1px 2px 4px rgba(0, 0, 0, 0.4);
+  }
+  .key-white.active { background: linear-gradient(180deg, var(--green-light) 0%, var(--green-mid) 100%); border-color: var(--green-darkest); }
+  .key-black.active { background: linear-gradient(180deg, var(--green-mid) 0%, var(--green-dark) 100%); border-color: var(--green-darkest); }
+  .key-label {
+    position: absolute; bottom: 3px; left: 0; right: 0; text-align: center;
+    font-size: 9.5px; line-height: 1.1; letter-spacing: 0.5px; color: var(--brown-frame); pointer-events: none;
+  }
+
+  /* ── Tooltip (suite style: dark walnut card, sage title) ──────────────── */
+  /* position:fixed so it escapes the frame; measure-then-pin placement in JS. */
+  .tooltip {
+    position: fixed; left: 0; top: 0; z-index: 1000; max-width: 300px;
+    background: var(--tooltip-bg); color: var(--tooltip-text);
+    border: 1px solid var(--brown-border); border-radius: 5px;
+    padding: 8px 11px; font-family: var(--serif);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+    opacity: 0; transition: opacity 0.12s ease; pointer-events: none;
+  }
+  .tooltip.visible { opacity: 1; }
+  .tooltip-title {
+    font-size: 11px; line-height: 1.25; text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--green-light); margin-bottom: 3px;
+  }
+  .tooltip-body { font-size: 13px; line-height: 1.35; }
+  .tooltip::after {
+    content: ''; position: absolute; left: var(--arrow-x, 50%);
+    transform: translateX(-50%); border: 5px solid transparent;
+  }
+  .tooltip[data-placement="above"]::after { top: 100%; border-top-color: var(--brown-border); }
+  .tooltip[data-placement="below"]::after { bottom: 100%; border-bottom-color: var(--brown-border); }
+
+  /* ── Reduced motion: one counterpart per transition / animation above ──── */
+  @media (prefers-reduced-motion: reduce) {
+    .knob { transition: none; }
+    .knob:hover, .knob:active, .knob.hero:hover { transform: none; }
+    select.combo { transition: none; }
+    .import-btn { transition: none; }
+    .import-btn:hover, .import-btn:active { transform: none; }
+    /* The pulse becomes a static amber ring: the prompt survives, the motion does not */
+    .import-btn.attention { animation: none; box-shadow: 0 0 0 3px rgba(232, 176, 74, 0.45), 1px 1px 3px var(--shadow-light); }
+    .gear-btn { transition: none; }
+    .settings-toggle { transition: none; }
+    .lfo-lamp { transition: none; }
+    .seg button { transition: none; }
+    .tour-btn { transition: none; }
+    .tour-btn:hover { transform: none; }
+    .tooltip { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div id="plugin">
+  <img src="img/insects.png" class="botanical-overlay" alt="">
+
+  <div class="frame">
+    <!-- ─── Header ─────────────────────────────────────────────────── -->
+    <header class="header">
+      <div class="title-block">
+        <h1 class="title">O&#8202;&#8211;&#8202;simple<span class="title-accent">Wavetable</span></h1>
+        <p class="subtitle" data-i18n="label.subtitle">Wavetable &#183; Frame Bank &amp; Scan &#183; A Field Guide</p>
+      </div>
+
+      <div class="source-strip">
+        <span class="strip-label" data-i18n="label.bank">Bank</span>
+        <!-- Options come from the LIVE properties.choices (the C++ option strings,
+             which are also the host automation names — they stay English, D-01). -->
+        <select class="combo" id="combo-bank" data-i18n-aria="bank" aria-label="Bank"></select>
+        <button type="button" class="import-btn" id="importBtn"><span class="glyph" aria-hidden="true">&#10515;</span><span id="importLabel" data-i18n="import.label">Import audio&#8230;</span></button>
+        <div class="source-readout" id="sourceReadout">
+          <div class="src-name" id="srcName" data-i18n="src.builtIn">built-in &#183; generated from a formula</div>
+          <div class="src-meta" id="srcMeta" data-i18n="src.builtInMeta">32 frames &#183; 2048 samples each</div>
+        </div>
+      </div>
+
+      <div class="settings-cluster">
+        <button type="button" class="gear-btn" id="gear-btn"
+                aria-haspopup="dialog" aria-expanded="false"
+                data-i18n-aria="settings" aria-label="Settings" data-tip-always>&#9881;</button>
+
+        <div class="settings-popover" id="settings-popover"
+             role="dialog" data-i18n-aria="settings" aria-label="Settings" hidden>
+          <label class="settings-row" for="lang-select">
+            <span class="settings-label" data-i18n="lang-select">Language</span>
+            <!-- Endonyms: never localized -->
+            <select class="settings-select" id="lang-select"
+                    data-i18n-aria="aria.langSelect" aria-label="Interface language">
+              <option value="en">English</option>
+              <option value="fr">Fran&ccedil;ais</option>
+              <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
+            </select>
+          </label>
+          <!-- A <div>, NEVER <label for="tips-toggle">: a label re-dispatches the
+               click to the button and the switch toggles twice. -->
+          <div class="settings-row">
+            <span class="settings-label" data-i18n="label.hoverHelp">Hover help</span>
+            <button type="button" class="settings-toggle" id="tips-toggle"
+                    aria-pressed="true" data-i18n-aria="aria.helpToggle"
+                    aria-label="Toggle hover help"
+                    data-i18n="ui.on" data-tip-always>On</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ─── Visual band ────────────────────────────────────────────── -->
+    <section class="viz-band">
+      <div class="viz-block viz-bank">
+        <div class="viz-label"><b data-i18n="label.bankStack">Bank Stack</b> &#183; <span class="viz-hint" data-i18n="label.bankStackHint">every frame, front to back &#8212; drag to scan</span></div>
+        <div class="canvas-wrap" id="bankWrap">
+          <canvas id="bankCanvas"></canvas>
+          <div class="well-text bank-readout">
+            <div class="bank-frame"><span id="bankFrameNum"></span> <span class="of" id="bankFrameOf"></span></div>
+            <div class="bank-name" id="bankName"></div>
+            <div class="bank-mix" id="bankMix"></div>
+          </div>
+          <div class="well-text bank-key">
+            <div><span class="sym sym-knob" aria-hidden="true">&#9670;</span> <span data-i18n="label.legendKnob">Position knob</span></div>
+            <div><span class="sym sym-ghost" aria-hidden="true">&#9675;</span> <span data-i18n="label.legendEff">after LFO + env</span></div>
+          </div>
+          <div class="well-text bank-lesson" id="bankLesson"></div>
+          <div class="well-text bank-empty">
+            <div class="big" data-i18n="label.emptyBig">Import audio to fill this bank</div>
+            <div class="small" data-i18n="label.emptySmall">any sound file &#8594; sliced into 2048-sample frames (up to 256)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="viz-block viz-cycle">
+        <div class="viz-label"><b data-i18n="label.currentCycle">Current Cycle</b> &#183; <span class="viz-hint" data-i18n="label.currentCycleHint">the one cycle being read</span></div>
+        <div class="canvas-wrap" id="cycleWrap">
+          <canvas id="cycleCanvas"></canvas>
+          <div class="well-text cyc-tl" id="cycTL"></div>
+          <div class="well-text cyc-tr" id="cycTR"></div>
+          <div class="well-text cyc-bl" data-i18n="label.cycleFoot">one cycle &#183; 2048 samples</div>
+          <div class="well-text cyc-seam" id="cycSeam"></div>
+        </div>
+      </div>
+
+      <div class="viz-block viz-harm">
+        <div class="viz-label"><b data-i18n="label.harmonics">Harmonics</b> &#183; <span class="viz-hint" data-i18n="label.harmonicsHint">1&#8211;32 of that cycle, in dB</span></div>
+        <div class="canvas-wrap" id="harmWrap">
+          <canvas id="harmCanvas"></canvas>
+          <div class="well-text harm-tr"><span id="harmHead"></span><span class="harm-sub" id="harmSub"></span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Control groups ─────────────────────────────────────────── -->
+    <main class="controls">
+      <!-- OSCILLATOR -->
+      <section class="group group-osc">
+        <h2 class="group-title" data-i18n="label.oscillator">Oscillator</h2>
+        <div class="group-body">
+          <div class="hero-col">
+            <div class="knob-cell">
+              <div class="knob-wrap"><div class="knob hero" id="knob-position" data-param="position" data-i18n-aria="position" aria-label="Position"><div class="knob-stem"></div></div></div>
+              <div class="knob-label" data-i18n="label.position">Position</div>
+              <div class="knob-value" id="val-position">&#8212;</div>
+              <div class="hero-sub" id="heroSub"></div>
+            </div>
+          </div>
+          <div class="osc-side">
+            <div class="seg-cell">
+              <span class="seg-cap" data-i18n="label.interp">Interpolation</span>
+              <div class="seg" id="seg-interp" role="group" data-i18n-aria="interp" aria-label="Interpolation">
+                <button type="button" data-v="0" aria-pressed="false" data-i18n="ui.off">Off</button><button type="button" data-v="1" aria-pressed="false" data-i18n="ui.on">On</button>
+              </div>
+            </div>
+            <div class="seg-cell">
+              <span class="seg-cap" data-i18n="label.bandlimit">Band-limiting</span>
+              <div class="seg" id="seg-bandlimit" role="group" data-i18n-aria="bandlimit" aria-label="Band-limiting">
+                <button type="button" data-v="0" aria-pressed="false" data-i18n="ui.off">Off</button><button type="button" data-v="1" aria-pressed="false" data-i18n="ui.on">On</button>
+              </div>
+            </div>
+            <div class="knob-cell">
+              <div class="knob-wrap" id="wrap-bit_depth"><div class="knob sm" id="knob-bit_depth" data-param="bit_depth" data-i18n-aria="bit_depth" aria-label="Bit Depth"><div class="knob-stem"></div></div></div>
+              <div class="knob-label" data-i18n="label.bitDepth">Bit Depth</div>
+              <div class="knob-value" id="val-bit_depth">&#8212;</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- MOVEMENT -->
+      <section class="group group-move">
+        <h2 class="group-title"><span data-i18n="label.movement">Movement</span> <span class="group-route" data-i18n="label.route">&#8594; position</span></h2>
+        <div class="group-body">
+          <div class="sub sub-lfo">
+            <div class="sub-title"><span data-i18n="label.lfo">LFO</span> <span class="lfo-lamp" id="lfoLamp"></span></div>
+            <div class="seg-cell">
+              <div class="seg" id="seg-lfo_sync" role="group" data-i18n-aria="lfo_sync" aria-label="LFO Sync">
+                <button type="button" data-v="0" aria-pressed="false" data-i18n="label.free">Free</button><button type="button" data-v="1" aria-pressed="false" data-i18n="label.tempo">Tempo</button>
+              </div>
+            </div>
+            <div class="seg-cell">
+              <div class="seg shape-seg" id="seg-lfo_shape" role="group" data-i18n-aria="lfo_shape" aria-label="LFO Shape">
+                <button type="button" data-v="0" aria-pressed="false" data-i18n-aria="aria.shapeSine" aria-label="Sine"><svg viewBox="0 0 24 14" aria-hidden="true"><path d="M1 7 C 4 -1.5, 8 -1.5, 12 7 S 20 15.5, 23 7"/></svg></button>
+                <button type="button" data-v="1" aria-pressed="false" data-i18n-aria="aria.shapeTriangle" aria-label="Triangle"><svg viewBox="0 0 24 14" aria-hidden="true"><path d="M1 7 L 6.5 1 L 17.5 13 L 23 7"/></svg></button>
+                <button type="button" data-v="2" aria-pressed="false" data-i18n-aria="aria.shapeSaw" aria-label="Saw"><svg viewBox="0 0 24 14" aria-hidden="true"><path d="M1 13 L 12 1 L 12 13 L 23 1"/></svg></button>
+                <button type="button" data-v="3" aria-pressed="false" data-i18n-aria="aria.shapeSquare" aria-label="Square"><svg viewBox="0 0 24 14" aria-hidden="true"><path d="M1 13 L 1 1 L 12 1 L 12 13 L 23 13 L 23 1"/></svg></button>
+                <button type="button" data-v="4" aria-pressed="false" data-i18n-aria="aria.shapeSH" aria-label="Sample and hold"><svg viewBox="0 0 24 14" aria-hidden="true"><path d="M1 9 L 5.5 9 L 5.5 2 L 10 2 L 10 12 L 14.5 12 L 14.5 5 L 19 5 L 19 10 L 23 10"/></svg></button>
+              </div>
+            </div>
+            <div class="lfo-knobs">
+              <div class="rate-slot">
+                <div class="knob-cell" id="cell-lfo_rate">
+                  <div class="knob-wrap"><div class="knob" id="knob-lfo_rate" data-param="lfo_rate" data-i18n-aria="lfo_rate" aria-label="LFO Rate"><div class="knob-stem"></div></div></div>
+                  <div class="knob-label" data-i18n="label.rate">Rate</div>
+                  <div class="knob-value" id="val-lfo_rate">&#8212;</div>
+                </div>
+                <div class="knob-cell" id="cell-lfo_div" hidden>
+                  <div class="knob-wrap" id="wrap-lfo_div"><div class="knob" id="knob-lfo_div" data-param="lfo_div" data-i18n-aria="lfo_div" aria-label="LFO Division"><div class="knob-stem"></div></div></div>
+                  <div class="knob-label" data-i18n="label.division">Division</div>
+                  <div class="knob-value" id="val-lfo_div">&#8212;</div>
+                </div>
+              </div>
+              <div class="knob-cell">
+                <div class="knob-wrap"><div class="knob" id="knob-lfo_depth" data-param="lfo_depth" data-i18n-aria="lfo_depth" aria-label="LFO Depth"><div class="knob-stem"></div></div></div>
+                <div class="knob-label" data-i18n="label.depth">Depth</div>
+                <div class="knob-value" id="val-lfo_depth">&#8212;</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sub-rule"></div>
+
+          <div class="sub sub-menv">
+            <div class="sub-title" data-i18n="label.modEnv">Mod Envelope</div>
+            <div class="env-top">
+              <div class="adsr-wrap" id="menvWrap"><canvas id="menvCanvas"></canvas></div>
+              <div class="knob-cell bipolar">
+                <div class="knob-wrap"><div class="knob" id="knob-env_amount" data-param="env_amount" data-i18n-aria="env_amount" aria-label="Env Amount"><div class="knob-stem"></div></div></div>
+                <div class="knob-label" data-i18n="label.amount">Amount</div>
+                <div class="knob-value" id="val-env_amount">&#8212;</div>
+              </div>
+            </div>
+            <div class="env-knobs">
+              <div class="knob-cell sm">
+                <div class="knob sm" id="knob-menv_attack" data-param="menv_attack" data-i18n-aria="menv_attack" aria-label="Mod Env Attack"><div class="knob-stem"></div></div>
+                <div class="knob-label" data-i18n="label.attack">Attack</div>
+                <div class="knob-value" id="val-menv_attack">&#8212;</div>
+              </div>
+              <div class="knob-cell sm">
+                <div class="knob sm" id="knob-menv_decay" data-param="menv_decay" data-i18n-aria="menv_decay" aria-label="Mod Env Decay"><div class="knob-stem"></div></div>
+                <div class="knob-label" data-i18n="label.decay">Decay</div>
+                <div class="knob-value" id="val-menv_decay">&#8212;</div>
+              </div>
+              <div class="knob-cell sm">
+                <div class="knob sm" id="knob-menv_sustain" data-param="menv_sustain" data-i18n-aria="menv_sustain" aria-label="Mod Env Sustain"><div class="knob-stem"></div></div>
+                <div class="knob-label" data-i18n="label.sustain">Sustain</div>
+                <div class="knob-value" id="val-menv_sustain">&#8212;</div>
+              </div>
+              <div class="knob-cell sm">
+                <div class="knob sm" id="knob-menv_release" data-param="menv_release" data-i18n-aria="menv_release" aria-label="Mod Env Release"><div class="knob-stem"></div></div>
+                <div class="knob-label" data-i18n="label.release">Release</div>
+                <div class="knob-value" id="val-menv_release">&#8212;</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- AMP + OUTPUT -->
+      <section class="group group-amp">
+        <h2 class="group-title" data-i18n="label.ampOutput">Amp + Output</h2>
+        <div class="group-body">
+          <div class="sub sub-ampenv">
+            <div class="sub-title" data-i18n="label.ampEnv">Amp Envelope</div>
+            <div class="adsr-wrap" id="ampWrap"><canvas id="ampCanvas"></canvas></div>
+            <div class="env-knobs">
+              <div class="knob-cell sm">
+                <div class="knob sm" id="knob-amp_attack" data-param="amp_attack" data-i18n-aria="amp_attack" aria-label="Amp Attack"><div class="knob-stem"></div></div>
+                <div class="knob-label" data-i18n="label.attack">Attack</div>
+                <div class="knob-value" id="val-amp_attack">&#8212;</div>
+              </div>
+              <div class="knob-cell sm">
+                <div class="knob sm" id="knob-amp_decay" data-param="amp_decay" data-i18n-aria="amp_decay" aria-label="Amp Decay"><div class="knob-stem"></div></div>
+                <div class="knob-label" data-i18n="label.decay">Decay</div>
+                <div class="knob-value" id="val-amp_decay">&#8212;</div>
+              </div>
+              <div class="knob-cell sm">
+                <div class="knob sm" id="knob-amp_sustain" data-param="amp_sustain" data-i18n-aria="amp_sustain" aria-label="Amp Sustain"><div class="knob-stem"></div></div>
+                <div class="knob-label" data-i18n="label.sustain">Sustain</div>
+                <div class="knob-value" id="val-amp_sustain">&#8212;</div>
+              </div>
+              <div class="knob-cell sm">
+                <div class="knob sm" id="knob-amp_release" data-param="amp_release" data-i18n-aria="amp_release" aria-label="Amp Release"><div class="knob-stem"></div></div>
+                <div class="knob-label" data-i18n="label.release">Release</div>
+                <div class="knob-value" id="val-amp_release">&#8212;</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sub-rule"></div>
+
+          <div class="out-col">
+            <div class="seg-cell">
+              <span class="seg-cap" data-i18n="label.voices">Voices</span>
+              <div class="seg" id="seg-voice_mode" role="group" data-i18n-aria="voice_mode" aria-label="Voice Mode">
+                <button type="button" data-v="0" aria-pressed="false" data-i18n="label.poly">Poly</button><button type="button" data-v="1" aria-pressed="false" data-i18n="label.mono">Mono</button>
+              </div>
+            </div>
+            <div class="knob-cell">
+              <div class="knob-wrap"><div class="knob" id="knob-output_level" data-param="output_level" data-i18n-aria="output_level" aria-label="Output Level"><div class="knob-stem"></div></div></div>
+              <div class="knob-label" data-i18n="label.output">Output</div>
+              <div class="knob-value" id="val-output_level">&#8212;</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ─── Lesson presets (C++ applyFactoryPreset by stable id) ───── -->
+    <section class="preset-tour">
+      <div class="tour-label" data-i18n="label.lessons">Lesson Presets</div>
+      <div class="tour-buttons">
+        <button type="button" class="tour-btn" id="lesson-steppedSmooth" data-preset="steppedSmooth" data-i18n="label.lessonSteppedSmooth">Stepped vs Smooth</button>
+        <button type="button" class="tour-btn" id="lesson-aliasDemo" data-preset="aliasDemo" data-i18n="label.lessonAliasDemo">Alias Demo</button>
+        <button type="button" class="tour-btn" id="lesson-driveSweep" data-preset="driveSweep" data-i18n="label.lessonDriveSweep">Drive Sweep</button>
+        <button type="button" class="tour-btn" id="lesson-vowelPad" data-preset="vowelPad" data-i18n="label.lessonVowelPad">Vowel Pad</button>
+        <button type="button" class="tour-btn" id="lesson-ppg8bit" data-preset="ppg8bit" data-i18n="label.lessonPpg8bit">8-bit PPG</button>
+      </div>
+      <div class="tour-caption" id="tourCaption" data-i18n="tour.hint">Hover any control for an explanation &#183; pick a lesson to hear one idea.</div>
+    </section>
+
+    <!-- ─── Keyboard ───────────────────────────────────────────────── -->
+    <section class="keyboard-panel">
+      <div class="kbd-side">
+        <div class="keyboard-label" data-i18n="label.play">Play</div>
+        <div class="kbd-hint" data-i18n="label.kbdHint">keys A&#8202;S&#8202;D&#8202;F&#8202;G&#8202;H&#8202;J&#8202;K &#183; W&#8202;E&#8202;T&#8202;Y&#8202;U</div>
+        <div class="oct-row">
+          <button type="button" class="oct-btn" id="octDown" data-i18n-aria="aria.octDown" aria-label="Octave down">&#9664;</button>
+          <span class="oct-read" id="octRead"></span>
+          <button type="button" class="oct-btn" id="octUp" data-i18n-aria="aria.octUp" aria-label="Octave up">&#9654;</button>
+        </div>
+      </div>
+      <div class="keyboard" id="keyboard" role="group" data-i18n-aria="keyboard" aria-label="Keyboard"></div>
+    </section>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
+
+<script type="module">
+import * as Juce from './js/juce/index.js';
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';
+
+// ════════════════════════════════════════════════════════════════════════════
+// MODULE STATE — every module-level const/let lives in this block. Everything
+// below it is a hoisted function declaration, and the single init() call is
+// the last line of the module (a TDZ throw here would blank the whole UI while
+// build, auval and pluginval all pass).
+// ════════════════════════════════════════════════════════════════════════════
+
+// 13 continuous parameters → Family A knob + bindKnob (WebSliderRelay).
+const KNOB_IDS = [
+  'position', 'lfo_rate', 'lfo_depth',
+  'menv_attack', 'menv_decay', 'menv_sustain', 'menv_release', 'env_amount',
+  'amp_attack', 'amp_decay', 'amp_sustain', 'amp_release',
+  'output_level',
+];
+
+// 2 stepped choices drawn as Family A knobs with detent pips (WebComboBoxRelay).
+const STEP_KNOB_IDS = ['bit_depth', 'lfo_div'];
+
+// 2 bools as Off | On segment pairs (WebToggleButtonRelay → getToggleState).
+const TOGGLE_IDS = ['interp', 'bandlimit'];
+
+// 3 choices as segment rows (WebComboBoxRelay). `bank` is the <select>.
+const SEGMENT_COMBO_IDS = ['lfo_sync', 'lfo_shape', 'voice_mode'];
+
+// Knobs whose drag snaps to the scaled value 0 near the centre (bipolar).
+const DETENT_IDS = ['env_amount'];
+const DETENT_NORM_WINDOW = 0.018;
+
+// Units and decimals ONLY, applied to st.getScaledValue(). No ranges here: the
+// output floor reads st.properties.start, the one place the range lives.
+const fmtTime = (s) => (s < 1 ? `${Math.round(s * 1000)} ms` : s < 10 ? `${s.toFixed(2)} s` : `${s.toFixed(1)} s`);
+const fmtPct  = (v) => `${Math.round(v * 100)}%`;
+const fmtSignedPct = (v) => {
+  const p = Math.round(v * 100);
+  if (p === 0) return '0%';
+  return p > 0 ? `+${p}%` : `−${-p}%`;
+};
+const fmtDb = (v, st) => {
+  if (st && st.properties && v <= st.properties.start + 0.05) return '-inf';
+  const a = Math.abs(v).toFixed(1);
+  if (a === '0.0') return '0.0 dB';
+  return v > 0 ? `+${a} dB` : `−${a} dB`;
+};
+const FORMAT = {
+  position:     (v) => `${(v * 100).toFixed(1)}%`,
+  lfo_rate:     (v) => (v < 10 ? `${v.toFixed(2)} Hz` : `${v.toFixed(1)} Hz`),
+  lfo_depth:    fmtPct,
+  menv_attack:  fmtTime,
+  menv_decay:   fmtTime,
+  menv_sustain: fmtPct,
+  menv_release: fmtTime,
+  env_amount:   fmtSignedPct,
+  amp_attack:   fmtTime,
+  amp_decay:    fmtTime,
+  amp_sustain:  fmtPct,
+  amp_release:  fmtTime,
+  output_level: fmtDb,
+};
+// Stepped knobs: the C++ choice string, verbatim (index 0 of bit_depth is the
+// option "Full"; the rest are bit counts).
+const STEP_FORMAT = {
+  bit_depth: (choice, idx) => (idx === 0 ? choice : `${choice} bit`),
+  lfo_div:   (choice) => choice,
+};
+
+const KNOB_MIN_DEG       = -135;  // normalised 0.0
+const KNOB_MAX_DEG       = 135;   // normalised 1.0
+const DRAG_TRAVEL_PX     = 220;   // vertical px for a full 0→1 sweep
+const FINE_DRAG_RATE     = 0.2;   // Shift-drag speed
+const NUDGE_STEP         = 0.02;  // wheel / arrow-key step (floored at one param interval)
+const WHEEL_PX_PER_NUDGE = 100;
+const WHEEL_LINE_PX      = 33;    // deltaMode 1 (lines) → px
+const WHEEL_PAGE_PX      = 400;   // deltaMode 2 (pages) → px
+const WHEEL_MAX_NUDGES   = 4;     // per-event clamp
+const WHEEL_GESTURE_MS   = 250;   // one wheel burst = one automation gesture
+const STEP_DRAG_PX       = 14;    // vertical px per detent on a stepped knob
+
+const TOOLTIP_MARGIN     = 8;     // gap between a tip and its control / the frame edge
+const TOOLTIP_DELAY_MS   = 350;   // hover dwell before a tip appears
+const TIPS_STORAGE_KEY   = 'oswt.tipsEnabled';
+
+const SEAM_JUMP_THRESHOLD = 0.12; // |x[0] - x[end]| that reads as an audible loop seam
+const QUANT_LINES_MAX     = 16;   // draw quantizer level lines when 2^(b-1) <= this
+const HARM_FLOOR_DB       = -60;  // harmonics panel floor (UI choice, ARCHITECTURE §14)
+const DROP_MAX_BYTES      = 96 * 1024 * 1024;   // refuse absurd drops before base64-ing them
+const DROP_AUDIO_RE       = /\.(wav|wave|aif|aiff|flac|ogg)$/i;
+const SERIF_CANVAS        = "'EB Garamond', Georgia, 'Times New Roman', serif";
+const TWO_PI              = Math.PI * 2;
+
+const NOTE_NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+const KEYMAP = { a: 0, w: 1, s: 2, e: 3, d: 4, f: 5, t: 6, g: 7, y: 8, h: 9, u: 10, j: 11, k: 12 };
+const KBD_WHITE_KEYS = 15;        // two octaves + the top C
+const OCT_MIN = 1;
+const OCT_MAX = 7;
+// UI-only side of a lesson: which keyboard octave shows the idea best.
+const LESSON_OCTAVE = { aliasDemo: 6 };
+
+const sliderState = {};           // id -> Juce SliderState
+const comboState  = {};           // id -> Juce ComboBoxState
+const toggleState = {};           // id -> Juce ToggleState
+let paramDefaults     = null;     // { id: engineeringDefault } from getParameterDefaults
+
+let tooltipEl         = null;
+let tooltipTimer      = null;
+let tooltipTarget     = null;
+let tooltipSuppressed = false;
+let tipsEnabled       = true;
+
+// Display data pushed by C++ (never simulated here)
+const bankData = { bank: -1, imported: false, numFrames: 0, filename: '', thumbs: null };
+let cycleData  = null;            // last cycleUpdate payload
+let importBusy = false;
+let importError = null;           // error code from the last importStatus, cleared by the next bank
+
+let bankC = null, cycleC = null, harmC = null, menvC = null, ampC = null;
+let bankGeom   = null;            // geometry of the last drawn stack (drag hit-testing)
+let renderRaf  = null;
+
+let baseOct     = 3;
+let uiMidiFn    = null;
+let uiReadyFn   = null;
+let applyPresetFn = null;
+let importAudioFn = null;
+let importBytesFn = null;
+const heldNotes = new Set();      // notes this page has sent note-ons for
+const heldKeys  = new Map();      // computer key -> note
+
+// ════════════════════════════════════════════════════════════════════════════
+// FUNCTION DECLARATIONS (hoisted — safe to call from init())
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── Knob maths: live properties only ────────────────────────────────────────
+function normToDeg(n) {
+  return KNOB_MIN_DEG + n * (KNOB_MAX_DEG - KNOB_MIN_DEG);
+}
+
+// Inverse of getNormalisedValue(), from the LIVE properties the C++ range pushes.
+function scaledToNorm(st, scaled) {
+  const p = st.properties;
+  const span = p.end - p.start;
+  if (!isFinite(span) || span === 0) return 0;
+  const proportion = Math.min(1, Math.max(0, (scaled - p.start) / span));
+  return Math.pow(proportion, p.skew);
+}
+
+// FORMAT[id] is called without a fallback on purpose: every KNOB_IDS member has
+// an entry, and a missing one should fail loudly rather than render a bare number.
+function updateKnobVisual(id) {
+  const st = sliderState[id];
+  if (!st) return;
+  const text = FORMAT[id](st.getScaledValue(), st);   // never a JS range map
+  const knob = document.getElementById(`knob-${id}`);
+  if (knob) {
+    const stem = knob.querySelector('.knob-stem');
+    if (stem) stem.style.transform =
+      `translate(-50%, -100%) rotate(${normToDeg(st.getNormalisedValue())}deg)`;
+    knob.setAttribute('aria-valuetext', text);         // same text as the readout
+  }
+  const valEl = document.getElementById(`val-${id}`);
+  if (valEl) valEl.textContent = text;
+}
+
+function nudgeStep(st) {
+  const p = st.properties;
+  const span = p.end - p.start;
+  if (!(p.interval > 0) || !isFinite(span) || span <= 0) return NUDGE_STEP;
+  return Math.max(NUDGE_STEP, p.interval / span);
+}
+
+// Move by `nudges` nudge-steps (signed). Unbracketed — the caller owns the gesture.
+function stepBy(st, nudges, id) {
+  const n = Math.min(1, Math.max(0, st.getNormalisedValue() + nudges * nudgeStep(st)));
+  st.setNormalisedValue(n);
+  updateKnobVisual(id);
+}
+
+// One-shot adjust for the arrow keys (a full bracketed gesture).
+function nudge(st, dir, id) {
+  st.sliderDragStarted();
+  stepBy(st, dir, id);
+  st.sliderDragEnded();
+}
+
+function resetToDefault(st, id) {
+  if (!paramDefaults || !(id in paramDefaults)) return;
+  const norm = scaledToNorm(st, Number(paramDefaults[id]));
+  st.sliderDragStarted();
+  st.setNormalisedValue(norm);
+  st.sliderDragEnded();
+  updateKnobVisual(id);
+}
+
+// Centre detent for bipolar knobs: snaps to the normalised position of the
+// SCALED value 0, read through the live range (no assumption that it is 0.5).
+function applyDetent(id, st, n) {
+  if (!DETENT_IDS.includes(id)) return n;
+  const centre = scaledToNorm(st, 0);
+  return Math.abs(n - centre) < DETENT_NORM_WINDOW ? centre : n;
+}
+
+// ── Knob binding (relative vertical drag) — O-ReverseDelay's bindKnob ───────
+function bindKnob(juce, id) {
+  const st = juce.getSliderState(id);
+  sliderState[id] = st;
+
+  st.valueChangedEvent.addListener(() => { updateKnobVisual(id); scheduleRender(); });
+  st.propertiesChangedEvent.addListener(() => { updateKnobVisual(id); scheduleRender(); });
+  updateKnobVisual(id);
+
+  const knob = document.getElementById(`knob-${id}`);
+  if (!knob) { console.error(`Missing knob element: knob-${id}`); return; }
+
+  knob.setAttribute('tabindex', '0');
+  knob.setAttribute('role', 'slider');
+  knob.addEventListener('keydown', (e) => {
+    let dir = 0;
+    if (e.key === 'ArrowUp' || e.key === 'ArrowRight') dir = 1;
+    else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') dir = -1;
+    else return;
+    endWheelGesture();
+    nudge(st, dir, id);
+    e.preventDefault();
+  });
+
+  let dragging = false, startY = 0, startNorm = 0, lastY = 0, fine = false;
+
+  // The open wheel gesture, if any. Every other interaction closes it first, so
+  // a key, drag or double-click never nests its own begin/end inside it.
+  let wheelTimer = null;
+  const endWheelGesture = () => {
+    if (wheelTimer === null) return;
+    clearTimeout(wheelTimer);
+    wheelTimer = null;
+    st.sliderDragEnded();
+  };
+
+  const onMove = (e) => {
+    if (!dragging) return;
+    if (e.shiftKey !== fine) {              // re-base on a modifier flip
+      fine = e.shiftKey;
+      startY = lastY;
+      startNorm = st.getNormalisedValue();
+    }
+    lastY = e.clientY;
+    const travel = fine ? DRAG_TRAVEL_PX / FINE_DRAG_RATE : DRAG_TRAVEL_PX;
+    const n = Math.min(1, Math.max(0, startNorm + (startY - e.clientY) / travel));
+    st.setNormalisedValue(applyDetent(id, st, n));
+    updateKnobVisual(id);
+    e.preventDefault();
+  };
+
+  // Idempotent: pointerup, pointercancel and lostpointercapture can all fire.
+  const onUp = (e) => {
+    if (!dragging) return;
+    dragging = false;
+    st.sliderDragEnded();
+    knob.removeEventListener('pointermove', onMove);
+    knob.removeEventListener('pointerup', onUp);
+    knob.removeEventListener('pointercancel', onUp);
+    knob.removeEventListener('lostpointercapture', onUp);
+    if (e && e.pointerId !== undefined) {
+      try { knob.releasePointerCapture(e.pointerId); } catch (_) { /* already released */ }
+    }
+  };
+
+  knob.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    endWheelGesture();
+    dragging = true;
+    startY = lastY = e.clientY;
+    fine = e.shiftKey;
+    startNorm = st.getNormalisedValue();
+    st.sliderDragStarted();
+    // Capture on the KNOB, never window: every later event for this pointer is
+    // routed here even outside the WebView, and a terminating
+    // pointerup / pointercancel / lostpointercapture is guaranteed.
+    try { knob.setPointerCapture(e.pointerId); } catch (_) { /* older backends */ }
+    knob.addEventListener('pointermove', onMove);
+    knob.addEventListener('pointerup', onUp);
+    knob.addEventListener('pointercancel', onUp);
+    knob.addEventListener('lostpointercapture', onUp);
+    e.preventDefault();
+  });
+
+  knob.addEventListener('wheel', (e) => {
+    if (dragging) { e.preventDefault(); return; }
+    if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;   // not ours; no preventDefault
+    e.preventDefault();
+    const px = Math.abs(e.deltaY) *
+      (e.deltaMode === 1 ? WHEEL_LINE_PX : e.deltaMode === 2 ? WHEEL_PAGE_PX : 1);
+    const nudges = Math.min(WHEEL_MAX_NUDGES, Math.max(1, px / WHEEL_PX_PER_NUDGE));
+    if (wheelTimer === null) st.sliderDragStarted();
+    else clearTimeout(wheelTimer);
+    wheelTimer = setTimeout(endWheelGesture, WHEEL_GESTURE_MS);
+    stepBy(st, e.deltaY < 0 ? nudges : -nudges, id);
+  }, { passive: false });
+
+  knob.addEventListener('dblclick', (e) => {
+    endWheelGesture();
+    resetToDefault(st, id);
+    e.preventDefault();
+  });
+}
+
+// ── Stepped knobs (choice parameters drawn as a Family A knob) ──────────────
+// Same interaction lifecycle as bindKnob — pointer capture, idempotent end on
+// up / cancel / lost capture, arrow keys, wheel, dblclick reset — but the value
+// is a choice INDEX on a ComboBoxState. The angle is index / (count - 1); the
+// count and the strings come from the LIVE properties.choices.
+function choiceCount(st) {
+  const c = st.properties && st.properties.choices;
+  return Array.isArray(c) ? c.length : 0;
+}
+
+function buildPips(id, count) {
+  const wrap = document.getElementById(`wrap-${id}`);
+  const knob = document.getElementById(`knob-${id}`);
+  if (!wrap || !knob || count < 2) return;
+  if (wrap.querySelectorAll('.pip').length === count) return;
+  wrap.querySelectorAll('.pip').forEach((p) => p.remove());
+  const size = knob.offsetWidth;
+  if (!size) return;                       // hidden (lfo_div while Free) — rebuilt when shown
+  const r = size / 2 + 6;
+  for (let i = 0; i < count; i++) {
+    const rad = (normToDeg(i / (count - 1)) - 90) * Math.PI / 180;
+    const pip = document.createElement('span');
+    pip.className = 'pip';
+    pip.style.left = `${size / 2 + r * Math.cos(rad)}px`;
+    pip.style.top  = `${size / 2 + r * Math.sin(rad)}px`;
+    wrap.appendChild(pip);
+  }
+}
+
+function updateStepKnobVisual(id) {
+  const st = comboState[id];
+  if (!st) return;
+  const count = choiceCount(st);
+  if (count < 2) return;                   // properties not arrived yet
+  const idx = Math.min(count - 1, Math.max(0, st.getChoiceIndex()));
+  const text = STEP_FORMAT[id](String(st.properties.choices[idx]), idx);
+  const knob = document.getElementById(`knob-${id}`);
+  if (knob) {
+    const stem = knob.querySelector('.knob-stem');
+    if (stem) stem.style.transform =
+      `translate(-50%, -100%) rotate(${normToDeg(idx / (count - 1))}deg)`;
+    knob.setAttribute('aria-valuetext', text);
+  }
+  const valEl = document.getElementById(`val-${id}`);
+  if (valEl) valEl.textContent = text;
+  buildPips(id, count);
+  const wrap = document.getElementById(`wrap-${id}`);
+  if (wrap) wrap.querySelectorAll('.pip').forEach((pip, i) => pip.classList.toggle('on', i === idx));
+}
+
+function bindStepKnob(juce, id) {
+  const st = juce.getComboBoxState(id);
+  comboState[id] = st;
+
+  st.valueChangedEvent.addListener(() => { updateStepKnobVisual(id); scheduleRender(); });
+  st.propertiesChangedEvent.addListener(() => { updateStepKnobVisual(id); scheduleRender(); });
+  updateStepKnobVisual(id);
+
+  const knob = document.getElementById(`knob-${id}`);
+  if (!knob) { console.error(`Missing knob element: knob-${id}`); return; }
+
+  const setIndex = (i) => {
+    const count = choiceCount(st);
+    if (count < 2) return;
+    const idx = Math.min(count - 1, Math.max(0, Math.round(i)));
+    if (idx !== st.getChoiceIndex()) st.setChoiceIndex(idx);
+    updateStepKnobVisual(id);
+  };
+
+  knob.setAttribute('tabindex', '0');
+  knob.setAttribute('role', 'slider');
+  knob.addEventListener('keydown', (e) => {
+    let dir = 0;
+    if (e.key === 'ArrowUp' || e.key === 'ArrowRight') dir = 1;
+    else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') dir = -1;
+    else return;
+    setIndex(st.getChoiceIndex() + dir);
+    e.preventDefault();
+  });
+
+  let dragging = false, startY = 0, startIdx = 0;
+
+  const onMove = (e) => {
+    if (!dragging) return;
+    setIndex(startIdx + Math.round((startY - e.clientY) / STEP_DRAG_PX));
+    e.preventDefault();
+  };
+
+  const onUp = (e) => {
+    if (!dragging) return;
+    dragging = false;
+    knob.removeEventListener('pointermove', onMove);
+    knob.removeEventListener('pointerup', onUp);
+    knob.removeEventListener('pointercancel', onUp);
+    knob.removeEventListener('lostpointercapture', onUp);
+    if (e && e.pointerId !== undefined) {
+      try { knob.releasePointerCapture(e.pointerId); } catch (_) { /* already released */ }
+    }
+  };
+
+  knob.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    dragging = true;
+    startY = e.clientY;
+    startIdx = st.getChoiceIndex();
+    try { knob.setPointerCapture(e.pointerId); } catch (_) { /* older backends */ }
+    knob.addEventListener('pointermove', onMove);
+    knob.addEventListener('pointerup', onUp);
+    knob.addEventListener('pointercancel', onUp);
+    knob.addEventListener('lostpointercapture', onUp);
+    e.preventDefault();
+  });
+
+  let wheelAccum = 0;
+  knob.addEventListener('wheel', (e) => {
+    if (dragging) { e.preventDefault(); return; }
+    if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;   // not ours
+    e.preventDefault();
+    const px = Math.abs(e.deltaY) *
+      (e.deltaMode === 1 ? WHEEL_LINE_PX : e.deltaMode === 2 ? WHEEL_PAGE_PX : 1);
+    wheelAccum += Math.max(WHEEL_PX_PER_NUDGE, px) * Math.sign(-e.deltaY);
+    const steps = Math.trunc(wheelAccum / WHEEL_PX_PER_NUDGE);
+    if (steps !== 0) {
+      wheelAccum -= steps * WHEEL_PX_PER_NUDGE;
+      setIndex(st.getChoiceIndex() + Math.max(-WHEEL_MAX_NUDGES, Math.min(WHEEL_MAX_NUDGES, steps)));
+    }
+  }, { passive: false });
+
+  knob.addEventListener('dblclick', (e) => {
+    if (paramDefaults && id in paramDefaults) setIndex(Number(paramDefaults[id]));
+    e.preventDefault();
+  });
+}
+
+// ── Toggles (Bool parameters) as an Off | On segment pair ───────────────────
+// State is painted with aria-pressed only; the captions are authored markup.
+function bindToggleSegments(juce, id) {
+  const st = juce.getToggleState(id);
+  toggleState[id] = st;
+  const seg = document.getElementById(`seg-${id}`);
+  if (!seg) { console.error(`Missing toggle element: seg-${id}`); return; }
+  const buttons = [...seg.querySelectorAll('button[data-v]')];
+  const paint = () => {
+    const on = !!st.getValue();
+    buttons.forEach((b) => b.setAttribute('aria-pressed', (b.dataset.v === '1') === on ? 'true' : 'false'));
+    scheduleRender();
+  };
+  st.valueChangedEvent.addListener(paint);
+  st.propertiesChangedEvent.addListener(paint);
+  paint();
+  buttons.forEach((b) => b.addEventListener('click', () => {
+    const want = b.dataset.v === '1';
+    if (!!st.getValue() !== want) st.setValue(want);
+  }));
+}
+
+// ── Choices as a segment row (lfo_sync, lfo_shape, voice_mode) ──────────────
+function bindComboSegments(juce, id, onChange) {
+  const st = juce.getComboBoxState(id);
+  comboState[id] = st;
+  const seg = document.getElementById(`seg-${id}`);
+  if (!seg) { console.error(`Missing segment element: seg-${id}`); return; }
+  const buttons = [...seg.querySelectorAll('button[data-v]')];
+  const paint = () => {
+    const idx = st.getChoiceIndex();
+    buttons.forEach((b) => b.setAttribute('aria-pressed', Number(b.dataset.v) === idx ? 'true' : 'false'));
+    if (onChange) onChange(idx);
+    scheduleRender();
+  };
+  st.valueChangedEvent.addListener(paint);
+  st.propertiesChangedEvent.addListener(paint);
+  paint();
+  buttons.forEach((b) => b.addEventListener('click', () => {
+    const v = Number(b.dataset.v);
+    if (v !== st.getChoiceIndex()) st.setChoiceIndex(v);
+  }));
+}
+
+// ── The bank <select>, rebuilt from properties.choices ──────────────────────
+// The option strings are the C++ AudioParameterChoice options — also the host
+// automation names — so they render verbatim (D-01).
+function bindSelectCombo(juce, paramId) {
+  const st = juce.getComboBoxState(paramId);
+  comboState[paramId] = st;
+  const sel = document.getElementById(`combo-${paramId}`);
+  if (!sel) { console.error(`Missing combo element: combo-${paramId}`); return null; }
+
+  const buildOptions = () => {
+    const choices = (st.properties && st.properties.choices) || [];
+    if (choices.length === 0 || sel.options.length === choices.length) return;
+    sel.textContent = '';
+    choices.forEach((c, i) => {
+      const opt = document.createElement('option');
+      opt.value = String(i);
+      opt.textContent = c;
+      sel.appendChild(opt);
+    });
+  };
+
+  const refresh = () => {
+    buildOptions();                        // choices may arrive after first load
+    const idx = st.getChoiceIndex();
+    if (idx >= 0 && idx < sel.options.length) sel.selectedIndex = idx;
+    scheduleRender();
+  };
+
+  st.propertiesChangedEvent.addListener(refresh);
+  st.valueChangedEvent.addListener(refresh);
+  refresh();
+  sel.addEventListener('change', () => st.setChoiceIndex(sel.selectedIndex));
+  return st;
+}
+
+// Rate ↔ Division share one slot; lfo_sync picks which one is shown.
+function applySyncSlot(idx) {
+  const tempo = idx === 1;
+  const rate = document.getElementById('cell-lfo_rate');
+  const div  = document.getElementById('cell-lfo_div');
+  if (rate) rate.hidden = tempo;
+  if (div)  div.hidden = !tempo;
+  if (tempo) updateStepKnobVisual('lfo_div');   // pips need a laid-out knob
+}
+
+async function loadParameterDefaults(juce) {
+  try {
+    const raw = await juce.getNativeFunction('getParameterDefaults')();
+    paramDefaults = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  } catch (e) {
+    console.error('getParameterDefaults failed:', e);
+    paramDefaults = null;   // dblclick becomes a no-op; nothing else is affected
+  }
+}
+
+// ── Small helpers for the readouts ──────────────────────────────────────────
+// A node that holds language-neutral text (numbers, file names, C++ option
+// strings) must LEAVE the label sweep, or the next applyI18n() would repaint a
+// stale caption over it.
+function setRaw(el, text) {
+  if (!el) return;
+  delete el.dataset.i18n;
+  delete el.dataset.i18nVars;
+  delete el.dataset.label;
+  el.textContent = text;
+}
+
+function currentChoice(id) {
+  const st = comboState[id];
+  if (!st || choiceCount(st) === 0) return { idx: st ? st.getChoiceIndex() : 0, text: '' };
+  const idx = Math.min(choiceCount(st) - 1, Math.max(0, st.getChoiceIndex()));
+  return { idx, text: String(st.properties.choices[idx]) };
+}
+
+function noteName(m) {
+  return `${NOTE_NAMES[((m % 12) + 12) % 12]}${Math.floor(m / 12) - 1}`;
+}
+
+function clamp01(x) {
+  return Math.max(0, Math.min(1, x));
+}
+
+// ── Canvases (DPR-aware, element-tracked) ───────────────────────────────────
+function makeCanvas(id) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return null;
+  const ctx = canvas.getContext('2d');
+  const c = { canvas, ctx, w: 1, h: 1 };
+  c.resize = () => {
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.max(1, Math.round(canvas.clientWidth * dpr));
+    const h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+    c.w = canvas.clientWidth; c.h = canvas.clientHeight;
+    if (canvas.width === w && canvas.height === h) return;
+    canvas.width = w; canvas.height = h;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+  c.resize();
+  if (typeof ResizeObserver !== 'undefined')
+    new ResizeObserver(() => { c.resize(); scheduleRender(); }).observe(canvas);
+  return c;
+}
+
+function scheduleRender() {
+  if (renderRaf !== null) return;
+  renderRaf = requestAnimationFrame(() => {
+    renderRaf = null;
+    try { renderAll(); } catch (e) { console.error('render failed:', e); }
+  });
+}
+
+// ── The display model: knob state + what C++ last pushed ────────────────────
+function computeView() {
+  const N = bankData.numFrames;
+  const thumbs = N > 0 ? bankData.thumbs : null;
+  const posSt = sliderState.position;
+  const knobPos = posSt ? clamp01(posSt.getNormalisedValue()) : 0;
+  const sounding = !!(cycleData && cycleData.sounding);
+  const eff = sounding && typeof cycleData.pos === 'number' ? clamp01(cycleData.pos) : knobPos;
+  const interp = toggleState.interp ? !!toggleState.interp.getValue() : true;
+  const bandlimit = toggleState.bandlimit ? !!toggleState.bandlimit.getValue() : true;
+
+  let i0 = 0, i1 = 0, t = 0;
+  if (N > 1) {
+    if (interp) {
+      const idx = eff * (N - 1);
+      i0 = Math.floor(idx); i1 = Math.min(N - 1, i0 + 1); t = idx - i0;
+      if (t > 0.995) { i0 = i1; t = 0; } else if (t < 0.005) { i1 = i0; t = 0; }
+    } else {
+      const latched = sounding && Number.isInteger(cycleData.frame) && cycleData.frame >= 0;
+      i0 = i1 = latched ? Math.min(N - 1, cycleData.frame) : Math.round(eff * (N - 1));
+    }
+  }
+  const effU = interp ? eff : (N > 1 ? i0 / (N - 1) : 0);
+  const bit = currentChoice('bit_depth');
+
+  return {
+    N, thumbs, knobPos, eff, effU, interp, bandlimit, sounding,
+    mix: { i0, i1, t },
+    bitIdx: bit.idx, bits: bit.idx > 0 ? (parseInt(bit.text, 10) || 0) : 0,
+    cycle: cycleData && Array.isArray(cycleData.cycle) ? cycleData.cycle : null,
+    preQ: cycleData && Array.isArray(cycleData.preQ) ? cycleData.preQ : null,
+    harm: cycleData && Array.isArray(cycleData.harmonics) ? cycleData.harmonics : null,
+    harmRaw: cycleData && Array.isArray(cycleData.harmonicsRaw) ? cycleData.harmonicsRaw : null,
+    note: sounding && Number.isFinite(cycleData.note) && cycleData.note >= 0 ? cycleData.note : null,
+    f0: cycleData && Number.isFinite(cycleData.f0) ? cycleData.f0 : null,
+    kmax: cycleData && Number.isFinite(cycleData.kmax) ? cycleData.kmax : null,
+    nyqH: cycleData && Number.isFinite(cycleData.nyquistH) ? cycleData.nyquistH : null,
+    empty: bankData.imported && N === 0,
+  };
+}
+
+// ── Bank stack ──────────────────────────────────────────────────────────────
+function bankGeometry(w, h, N) {
+  const left = 30, frameW = Math.round(w * 0.52), amp = Math.round(h * 0.075);
+  const frontBase = h - 66, backBase = 88;
+  const dx = Math.round(w * 0.235), dy = backBase - frontBase;
+  const origin = (i) => {
+    const u = N > 1 ? i / (N - 1) : 0;
+    return { x: left + dx * u, y: frontBase + dy * u };
+  };
+  const railA = { x: left + frameW + 24, y: frontBase };
+  const railB = { x: left + frameW + 24 + dx, y: backBase };
+  return { left, frameW, amp, frontBase, backBase, dx, dy, origin, railA, railB };
+}
+
+function railPoint(g, u) {
+  return { x: g.railA.x + (g.railB.x - g.railA.x) * u, y: g.railA.y + (g.railB.y - g.railA.y) * u };
+}
+
+function drawBank(bc, view) {
+  const { ctx, w, h } = bc;
+  ctx.clearRect(0, 0, w, h);
+  const N = view.N > 0 ? view.N : 32;
+  const g = bankGeometry(w, h, N);
+  bankGeom = view.N > 0 ? g : null;
+
+  // Floor guide: the receding plane under the stack
+  ctx.save();
+  ctx.strokeStyle = 'rgba(139,115,85,0.22)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([2, 4]);
+  const o0 = g.origin(0), oN = g.origin(N - 1);
+  ctx.beginPath();
+  ctx.moveTo(o0.x, o0.y + g.amp + 6); ctx.lineTo(oN.x, oN.y + g.amp + 6);
+  ctx.moveTo(o0.x + g.frameW, o0.y + g.amp + 6); ctx.lineTo(oN.x + g.frameW, oN.y + g.amp + 6);
+  ctx.stroke();
+  ctx.restore();
+
+  if (!view.thumbs) {
+    // Empty Imported bank (or no bankUpdate yet): hollow stack outline only
+    ctx.save();
+    ctx.setLineDash([3, 5]);
+    for (let i = N - 1; i >= 0; i -= 3) {
+      const o = g.origin(i);
+      ctx.strokeStyle = `rgba(214,196,160,${0.10 + 0.14 * (1 - i / (N - 1))})`;
+      ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + g.frameW, o.y); ctx.stroke();
+    }
+    ctx.restore();
+    return;
+  }
+
+  const th = view.thumbs;
+  const stride = view.N > 40 ? Math.ceil(view.N / 40) : 1;   // decimate long imported banks
+  const { i0, i1, t } = view.mix;
+  const fillCol = 'rgba(30,23,16,0.94)';
+
+  const tracePath = (i) => {
+    const o = g.origin(i), pts = th[i] || [];
+    const P = pts.length;
+    ctx.beginPath();
+    for (let k = 0; k < P; k++) {
+      const x = o.x + (k / Math.max(1, P - 1)) * g.frameW;
+      const y = o.y - pts[k] * g.amp;
+      if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    return o;
+  };
+
+  // Back-to-front, hidden-line style: each card fills below its trace
+  for (let i = N - 1; i >= 0; i--) {
+    const isCur = i === i0 || i === i1;
+    if (!isCur && i % stride !== 0 && i !== N - 1) continue;
+    const depth = N > 1 ? i / (N - 1) : 0;
+    const o = tracePath(i);
+    ctx.lineTo(o.x + g.frameW, o.y + g.amp + 4);
+    ctx.lineTo(o.x, o.y + g.amp + 4);
+    ctx.closePath();
+    ctx.fillStyle = fillCol;
+    ctx.fill();
+    tracePath(i);
+    ctx.strokeStyle = `rgba(214,196,160,${(0.88 - 0.58 * depth).toFixed(3)})`;
+    ctx.lineWidth = 1.1;
+    ctx.stroke();
+  }
+
+  // Current frame(s) re-inked on top in amber, weighted by the crossfade
+  const inkCur = (i, wgt) => {
+    if (wgt <= 0.001) return;
+    const o = tracePath(i);
+    ctx.save();
+    ctx.strokeStyle = `rgba(232,176,74,${(0.22 + 0.78 * wgt).toFixed(3)})`;
+    ctx.lineWidth = 1.2 + 1.6 * wgt;
+    ctx.shadowColor = 'rgba(232,176,74,0.55)';
+    ctx.shadowBlur = 6 * wgt;
+    ctx.stroke();
+    ctx.restore();
+    ctx.save();
+    ctx.strokeStyle = `rgba(232,176,74,${(0.35 * wgt).toFixed(3)})`;
+    ctx.setLineDash([2, 3]);
+    ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + g.frameW, o.y); ctx.stroke();
+    ctx.restore();
+  };
+  if (i1 !== i0) { inkCur(i1, t); inkCur(i0, 1 - t); } else inkCur(i0, 1);
+
+  drawRail(ctx, g, N, view);
+}
+
+function drawRail(ctx, g, N, view) {
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(139,115,85,0.55)';
+  ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(g.railA.x, g.railA.y); ctx.lineTo(g.railB.x, g.railB.y); ctx.stroke();
+  ctx.strokeStyle = 'rgba(20,15,10,0.9)';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(g.railA.x, g.railA.y); ctx.lineTo(g.railB.x, g.railB.y); ctx.stroke();
+
+  // Ticks: one per frame (every 4th past 64 frames)
+  const tickEvery = N > 64 ? 4 : 1;
+  for (let i = 0; i < N; i += tickEvery) {
+    const p = railPoint(g, N > 1 ? i / (N - 1) : 0);
+    const major = (i + 1) % 8 === 0 || i === 0 || i === N - 1;
+    ctx.strokeStyle = major ? 'rgba(214,196,160,0.7)' : 'rgba(214,196,160,0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(p.x + 4, p.y); ctx.lineTo(p.x + (major ? 11 : 7), p.y); ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(214,196,160,0.75)';
+  ctx.font = `11px ${SERIF_CANVAS}`;
+  ctx.textAlign = 'left';
+  ctx.fillText('1', g.railA.x + 14, g.railA.y + 4);
+  ctx.fillText(String(N), g.railB.x + 14, g.railB.y + 4);
+  ctx.fillStyle = 'rgba(214,196,160,0.45)';
+  ctx.font = `10px ${SERIF_CANVAS}`;
+  [0.25, 0.5, 0.75].forEach((q) => {
+    const fi = Math.round(q * (N - 1));
+    const p = railPoint(g, N > 1 ? fi / (N - 1) : 0);
+    ctx.fillText(String(fi + 1), p.x + 14, p.y + 4);
+  });
+  ctx.restore();
+
+  const pk = railPoint(g, view.knobPos);
+  const pe = railPoint(g, view.effU);
+
+  // Leader from the effective marker to the frame it reads
+  const o = g.origin(view.effU * (N - 1));
+  ctx.save();
+  ctx.strokeStyle = 'rgba(158,196,111,0.45)';
+  ctx.setLineDash([2, 3]);
+  ctx.beginPath(); ctx.moveTo(pe.x - 7, pe.y); ctx.lineTo(o.x + g.frameW + 3, o.y); ctx.stroke();
+  ctx.restore();
+
+  // Modulation span (knob -> effective)
+  if (Math.abs(view.effU - view.knobPos) > 0.004) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(158,196,111,0.75)';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(pk.x, pk.y); ctx.lineTo(pe.x, pe.y); ctx.stroke();
+    ctx.restore();
+  }
+
+  // Knob marker: brass diamond (the draggable handle)
+  ctx.save();
+  ctx.translate(pk.x, pk.y);
+  ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(8, 0); ctx.lineTo(0, 8); ctx.lineTo(-8, 0); ctx.closePath();
+  const grd = ctx.createLinearGradient(0, -8, 0, 8);
+  grd.addColorStop(0, '#f6d27a'); grd.addColorStop(0.6, '#c98f38'); grd.addColorStop(1, '#8a5a1e');
+  ctx.fillStyle = grd; ctx.fill();
+  ctx.strokeStyle = '#fbe6b0'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.restore();
+
+  // Effective marker: hollow sage ring
+  ctx.save();
+  ctx.beginPath(); ctx.arc(pe.x, pe.y, 7, 0, TWO_PI);
+  ctx.strokeStyle = '#9ec46f'; ctx.lineWidth = 2;
+  ctx.shadowColor = 'rgba(158,196,111,0.7)'; ctx.shadowBlur = 6;
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ── Current cycle (256 point-sampled points from C++) ───────────────────────
+function seamJump(view) {
+  if (!view.cycle || view.cycle.length < 2) return 0;
+  return view.cycle[0] - view.cycle[view.cycle.length - 1];
+}
+
+function drawCycle(cc, view) {
+  const { ctx, w, h } = cc;
+  ctx.clearRect(0, 0, w, h);
+  const padX = 12, top = 34, bot = h - 28;
+  const mid = (top + bot) / 2, half = (bot - top) / 2;
+  const yOf = (v) => mid - Math.max(-1.05, Math.min(1.05, v)) * half;
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(139,115,85,0.30)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(padX, mid); ctx.lineTo(w - padX, mid); ctx.stroke();
+  ctx.setLineDash([1, 4]);
+  [-1, -0.5, 0.5, 1].forEach((v) => { ctx.beginPath(); ctx.moveTo(padX, yOf(v)); ctx.lineTo(w - padX, yOf(v)); ctx.stroke(); });
+  ctx.setLineDash([]);
+  ctx.strokeStyle = 'rgba(139,115,85,0.22)';
+  [0.25, 0.5, 0.75].forEach((f) => { const x = padX + f * (w - 2 * padX); ctx.beginPath(); ctx.moveTo(x, top - 4); ctx.lineTo(x, bot + 4); ctx.stroke(); });
+  ctx.restore();
+
+  if (!view.cycle || view.cycle.length < 2 || view.empty) return;
+  const n = view.cycle.length;
+  const xOf = (i) => padX + (i / (n - 1)) * (w - 2 * padX);
+  const stepped = view.bitIdx > 0;
+
+  if (stepped && view.bits > 0) {
+    const M = Math.pow(2, view.bits - 1);
+    if (M <= QUANT_LINES_MAX) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(232,176,74,0.16)';
+      for (let k = 0; k < M; k++) {
+        const lv = (k + 0.5) / M;
+        [lv, -lv].forEach((v) => { ctx.beginPath(); ctx.moveTo(padX, yOf(v)); ctx.lineTo(w - padX, yOf(v)); ctx.stroke(); });
+      }
+      ctx.restore();
+    }
+    if (view.preQ && view.preQ.length === n) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(214,196,160,0.35)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i < n; i++) { const x = xOf(i), y = yOf(view.preQ[i]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // The cycle (sage ink); a true staircase when quantized
+  ctx.save();
+  ctx.strokeStyle = '#9ec46f';
+  ctx.lineWidth = 2;
+  ctx.lineJoin = stepped ? 'miter' : 'round';
+  ctx.shadowColor = 'rgba(158,196,111,0.35)';
+  ctx.shadowBlur = 4;
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const x = xOf(i), y = yOf(view.cycle[i]);
+    if (i === 0) ctx.moveTo(x, y);
+    else if (stepped) { ctx.lineTo(x, yOf(view.cycle[i - 1])); ctx.lineTo(x, y); }
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.restore();
+
+  // Loop seam (imported slices are not pitch-synchronous)
+  const jump = seamJump(view);
+  if (bankData.imported && Math.abs(jump) > SEAM_JUMP_THRESHOLD) {
+    const x = w - padX;
+    ctx.save();
+    ctx.strokeStyle = '#e8b04a';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x + 4, yOf(view.cycle[n - 1])); ctx.lineTo(x + 4, yOf(view.cycle[0])); ctx.stroke();
+    ctx.setLineDash([2, 3]);
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x - 10, yOf(view.cycle[0])); ctx.lineTo(x + 4, yOf(view.cycle[0])); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// ── Harmonics 1–32 (dB re max from C++) ─────────────────────────────────────
+function drawHarm(hc, view) {
+  const { ctx, w, h } = hc;
+  ctx.clearRect(0, 0, w, h);
+  const left = 34, right = w - 10, top = 52, bot = h - 26;
+  const toY = (db) => bot - ((Math.max(HARM_FLOOR_DB, db) - HARM_FLOOR_DB) / -HARM_FLOOR_DB) * (bot - top);
+
+  ctx.save();
+  ctx.font = `10.5px ${SERIF_CANVAS}`;
+  ctx.textAlign = 'right';
+  [0, -20, -40, -60].forEach((db) => {
+    const y = toY(db);
+    ctx.strokeStyle = db === HARM_FLOOR_DB ? 'rgba(139,115,85,0.40)' : 'rgba(139,115,85,0.22)';
+    ctx.setLineDash(db === HARM_FLOOR_DB ? [] : [1, 4]);
+    ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y); ctx.stroke();
+    ctx.fillStyle = 'rgba(214,196,160,0.6)';
+    ctx.fillText(db === 0 ? '0' : String(db), left - 6, y + 3.5);
+  });
+  ctx.setLineDash([]);
+  ctx.textAlign = 'center';
+  const slot = (right - left) / 32, barW = Math.max(3, slot - 2.5);
+  const xOf = (k) => left + (k - 1) * slot + (slot - barW) / 2;
+  [1, 8, 16, 24, 32].forEach((k) => {
+    ctx.fillStyle = 'rgba(214,196,160,0.7)';
+    ctx.fillText(String(k), xOf(k) + barW / 2, bot + 15);
+  });
+  ctx.restore();
+
+  if (!view.harm || view.empty) return;
+
+  const held = view.note !== null;
+  for (let k = 1; k <= 32 && k <= view.harm.length; k++) {
+    const x = xOf(k);
+    const removed = view.bandlimit && held && view.kmax !== null && k > view.kmax;
+    const aliasing = !view.bandlimit && held && view.nyqH !== null && k > view.nyqH;
+    if (removed) {
+      // Ghost of what the raw frame holds, removed by this octave's copy
+      const db = view.harmRaw ? view.harmRaw[k - 1] : HARM_FLOOR_DB;
+      if (db > HARM_FLOOR_DB) {
+        ctx.save();
+        ctx.setLineDash([2, 2]);
+        ctx.strokeStyle = 'rgba(214,196,160,0.35)';
+        ctx.strokeRect(x + 0.5, toY(db) + 0.5, barW - 1, bot - toY(db) - 1);
+        ctx.restore();
+      }
+      continue;
+    }
+    const db = view.harm[k - 1];
+    if (!(db > HARM_FLOOR_DB)) continue;
+    const y = toY(db);
+    const grd = ctx.createLinearGradient(0, y, 0, bot);
+    if (aliasing) { grd.addColorStop(0, '#f0a070'); grd.addColorStop(1, '#8a3c1e'); }
+    else if (k === 1) { grd.addColorStop(0, '#f6d27a'); grd.addColorStop(0.6, '#e0a93e'); grd.addColorStop(1, '#9a6a1e'); }
+    else if (k % 2 === 0) { grd.addColorStop(0, '#d9a96f'); grd.addColorStop(0.6, '#b9863f'); grd.addColorStop(1, '#7c4f1c'); }
+    else { grd.addColorStop(0, '#E8B04A'); grd.addColorStop(0.6, '#C98F38'); grd.addColorStop(1, '#8a5a1e'); }
+    ctx.fillStyle = grd;
+    ctx.fillRect(x, y, barW, bot - y);
+    ctx.fillStyle = aliasing ? '#ffd2b0' : '#fbe6b0';
+    ctx.fillRect(x, y, barW, 1.5);
+  }
+
+  // Ceiling marker: band-limit stop (On) or Nyquist (Off)
+  const cutoff = view.bandlimit ? (view.kmax !== null ? view.kmax + 1 : null) : view.nyqH;
+  if (held && cutoff !== null && cutoff <= 32.5) {
+    const x = left + (cutoff - 0.5) * slot;
+    ctx.save();
+    ctx.strokeStyle = view.bandlimit ? 'rgba(158,196,111,0.85)' : 'rgba(233,138,90,0.9)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(x, top - 8); ctx.lineTo(x, bot); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// ── ADSR displays (sqrt time compression; axis = the attack param's live end) ─
+function drawAdsr(c, prefix, colors, liveLevel) {
+  const { ctx, w, h } = c;
+  ctx.clearRect(0, 0, w, h);
+  const A = sliderState[`${prefix}_attack`], D = sliderState[`${prefix}_decay`];
+  const S = sliderState[`${prefix}_sustain`], R = sliderState[`${prefix}_release`];
+  if (!A || !D || !S || !R) return;
+  const maxT = A.properties && A.properties.end > 0 ? A.properties.end : 1;
+  const pad = 6, iw = w - pad * 2, ih = h - pad * 2;
+  const f = (t) => Math.sqrt(Math.max(0, t) / maxT);
+  const sus = clamp01(S.getNormalisedValue());
+  const aW = f(A.getScaledValue()) + 0.02, dW = f(D.getScaledValue()) + 0.02, sW = 0.55, rW = f(R.getScaledValue()) + 0.02;
+  const sx = iw / (aW + dW + sW + rW);
+  const yFor = (l) => pad + ih * (1 - l);
+  const pts = [
+    [pad, yFor(0)], [pad + aW * sx, yFor(1)], [pad + (aW + dW) * sx, yFor(sus)],
+    [pad + (aW + dW + sW) * sx, yFor(sus)], [pad + iw, yFor(0)],
+  ];
+  ctx.strokeStyle = 'rgba(139,115,85,0.25)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad, yFor(0) + 0.5); ctx.lineTo(pad + iw, yFor(0) + 0.5); ctx.stroke();
+  ctx.beginPath();
+  pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+  ctx.closePath();
+  ctx.fillStyle = colors.fill; ctx.fill();
+  ctx.beginPath();
+  pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+  ctx.strokeStyle = colors.line; ctx.lineWidth = 1.8; ctx.lineJoin = 'round'; ctx.stroke();
+  if (Number.isFinite(liveLevel)) {
+    const y = yFor(clamp01(liveLevel));
+    ctx.save();
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = colors.head; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(pad + iw, y); ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = colors.head;
+    ctx.beginPath(); ctx.arc(pad + 4, y, 3, 0, TWO_PI); ctx.fill();
+  }
+}
+
+// ── Readouts (every prose branch is a literal setLabel key) ─────────────────
+function renderBankReadouts(view) {
+  const N = view.N;
+  const numEl = document.getElementById('bankFrameNum');
+  const ofEl  = document.getElementById('bankFrameOf');
+  const mixEl = document.getElementById('bankMix');
+  const heroEl = document.getElementById('heroSub');
+
+  if (N > 0) {
+    const frameNum = view.interp ? (view.eff * (N - 1) + 1).toFixed(1) : String(view.mix.i0 + 1);
+    setLabel(numEl, 'readout.frame', { n: frameNum });
+    setLabel(ofEl, 'readout.frameOf', { total: N });
+    const knobFrame = (view.knobPos * (N - 1) + 1).toFixed(1);
+    setLabel(heroEl, 'readout.heroFrame', { n: knobFrame, total: N });
+  } else {
+    setLabel(numEl, 'readout.frame', { n: '—' });
+    setLabel(ofEl, 'readout.frameOf', { total: 0 });
+    setLabel(heroEl, 'readout.noFrames');
+  }
+
+  if (N === 0) setLabel(mixEl, 'mix.none');
+  else if (!view.interp) setLabel(mixEl, 'mix.stepped', { f: view.mix.i0 + 1 });
+  else if (view.mix.i0 === view.mix.i1) setLabel(mixEl, 'mix.on', { f: view.mix.i0 + 1 });
+  else {
+    const a = Math.round((1 - view.mix.t) * 100), b = Math.round(view.mix.t * 100);
+    setLabel(mixEl, 'mix.blend', { a, i: view.mix.i0 + 1, b, j: view.mix.i1 + 1 });
+  }
+
+  const nameEl = document.getElementById('bankName');
+  if (bankData.imported && bankData.filename) setLabel(nameEl, 'readout.importedName', { file: bankData.filename });
+  else setRaw(nameEl, currentChoice('bank').text);
+
+  renderBankLesson(view);
+}
+
+// One literal key per built-in bank, in choice order (labelers: check-i18n [13]
+// rejects a computed key). The imported lesson only shows once frames exist.
+function renderBankLesson(view) {
+  const el = document.getElementById('bankLesson');
+  if (!el) return;
+  if (bankData.imported) {
+    if (view.N > 0) setLabel(el, 'lesson.bankImported');
+    else setRaw(el, '');
+    return;
+  }
+  const LESSON_LABELERS = [
+    (e) => setLabel(e, 'lesson.bankSineSaw'),
+    (e) => setLabel(e, 'lesson.bankSineSquare'),
+    (e) => setLabel(e, 'lesson.bankPulse'),
+    (e) => setLabel(e, 'lesson.bankFormant'),
+    (e) => setLabel(e, 'lesson.bankDrive'),
+  ];
+  const idx = currentChoice('bank').idx;
+  if (idx >= 0 && idx < LESSON_LABELERS.length) LESSON_LABELERS[idx](el);
+  else setRaw(el, '');
+}
+
+function renderCycleReadouts(view) {
+  const tl = document.getElementById('cycTL');
+  if (view.N === 0) setLabel(tl, 'cyc.silence');
+  else if (view.interp && view.mix.i0 !== view.mix.i1) setLabel(tl, 'cyc.frames', { a: view.mix.i0 + 1, b: view.mix.i1 + 1 });
+  else setLabel(tl, 'cyc.frame', { a: view.mix.i0 + 1 });
+
+  const trEl = document.getElementById('cycTR');
+  if (view.bitIdx === 0 || view.bits === 0) { setLabel(trEl, 'cyc.full'); trEl.classList.remove('quant'); }
+  else { setLabel(trEl, 'cyc.bits', { b: view.bits, lv: Math.pow(2, view.bits) }); trEl.classList.add('quant'); }
+
+  const seam = document.getElementById('cycSeam');
+  const jump = Math.abs(seamJump(view));
+  const showSeam = bankData.imported && view.N > 0 && jump > SEAM_JUMP_THRESHOLD;
+  seam.classList.toggle('on', showSeam);
+  document.getElementById('cycleWrap').classList.toggle('seam', showSeam);
+  if (showSeam) setLabel(seam, 'cyc.seam', { j: jump.toFixed(2) });
+}
+
+function renderHarmReadouts(view) {
+  const head = document.getElementById('harmHead');
+  const sub  = document.getElementById('harmSub');
+  sub.classList.remove('warn');
+  if (view.note === null) {
+    setLabel(head, 'harm.noNote');
+    setLabel(sub, 'harm.noNoteSub');
+    return;
+  }
+  const f0 = view.f0;
+  const freq = f0 === null ? '' : f0 < 1000 ? `${f0.toFixed(1)} Hz` : `${(f0 / 1000).toFixed(2)} kHz`;
+  setRaw(head, freq ? `${noteName(view.note)} · ${freq}` : noteName(view.note));
+  if (view.bandlimit) {
+    if (view.kmax === null) setRaw(sub, '');
+    else if (view.kmax <= 32) setLabel(sub, 'harm.keeps', { k: view.kmax });
+    else setLabel(sub, 'harm.keepsAll', { k: view.kmax });
+  } else if (view.nyqH !== null && view.nyqH <= 32) {
+    setLabel(sub, 'harm.folds', { k: Math.floor(view.nyqH) });
+    sub.classList.add('warn');
+  } else if (view.nyqH !== null) {
+    setLabel(sub, 'harm.raw', { k: Math.floor(view.nyqH) });
+  } else setRaw(sub, '');
+}
+
+function renderLamp() {
+  const lamp = document.getElementById('lfoLamp');
+  if (!lamp) return;
+  const depth = sliderState.lfo_depth;
+  const on = depth && depth.getNormalisedValue() > 0 && cycleData && Number.isFinite(cycleData.lfo);
+  const lv = on ? (clamp01((cycleData.lfo + 1) / 2)) : 0;
+  lamp.style.background = on ? `rgba(232,176,74,${(0.15 + 0.85 * lv).toFixed(2)})` : 'rgba(232,176,74,0.12)';
+  lamp.style.boxShadow = on ? `0 0 ${(6 * lv).toFixed(1)}px rgba(232,176,74,0.8)` : 'none';
+}
+
+function renderAll() {
+  const view = computeView();
+  if (bankC) drawBank(bankC, view);
+  if (cycleC) drawCycle(cycleC, view);
+  if (harmC) drawHarm(harmC, view);
+  const live = view.sounding && cycleData;
+  if (menvC) drawAdsr(menvC, 'menv', { fill: 'rgba(232,176,74,0.16)', line: '#e8b04a', head: '#f3cd86' }, live ? cycleData.menv : NaN);
+  if (ampC)  drawAdsr(ampC,  'amp',  { fill: 'rgba(158,196,111,0.16)', line: '#9ec46f', head: '#c4e0a0' }, live ? cycleData.amp : NaN);
+  renderBankReadouts(view);
+  renderCycleReadouts(view);
+  renderHarmReadouts(view);
+  renderLamp();
+  renderSourceState(view);
+}
+
+// ── Bank / import state (empty-Imported prompt, source readout) ─────────────
+function renderSourceState(view) {
+  const wrap = document.getElementById('bankWrap');
+  const btn = document.getElementById('importBtn');
+  const label = document.getElementById('importLabel');
+  const nameEl = document.getElementById('srcName');
+  const metaEl = document.getElementById('srcMeta');
+
+  wrap.classList.toggle('empty', view.empty);
+  btn.classList.toggle('attention', view.empty && !importBusy);
+  btn.classList.toggle('busy', importBusy);
+  btn.setAttribute('aria-busy', importBusy ? 'true' : 'false');
+  if (importBusy) setLabel(label, 'import.busy');
+  else setLabel(label, 'import.label');
+
+  metaEl.classList.toggle('warn', importError !== null);
+  if (bankData.imported && view.N > 0) {
+    setRaw(nameEl, bankData.filename);
+    if (view.N === 1) setLabel(metaEl, 'src.importedMetaOne');
+    else setLabel(metaEl, 'src.importedMeta', { n: view.N });
+  } else if (bankData.imported) {
+    setLabel(nameEl, 'src.empty');
+    setLabel(metaEl, 'src.emptyMeta');
+  } else {
+    setLabel(nameEl, 'src.builtIn');
+    setLabel(metaEl, 'src.builtInMeta');
+  }
+  if (importError !== null) renderImportError(metaEl);
+}
+
+// One literal key per error code the C++ importer reports (importStatus.error).
+function renderImportError(el) {
+  if (importError === 'tooShort') setLabel(el, 'import.err.tooShort');
+  else if (importError === 'unreadable') setLabel(el, 'import.err.unreadable');
+  else if (importError === 'tooLarge') setLabel(el, 'import.err.tooLarge');
+  else if (importError === 'folder') setLabel(el, 'import.err.folder');
+  else if (importError === 'type') setLabel(el, 'import.err.type');
+  else setLabel(el, 'import.err.generic');
+}
+
+function onBankUpdate(d) {
+  if (!d || typeof d !== 'object') return;
+  const frames = Array.isArray(d.frames) ? d.frames : [];
+  let thumbs = frames;
+  // Accept a flat N*128 array as well as N arrays of 128.
+  if (frames.length > 0 && !Array.isArray(frames[0])) {
+    const n = Number(d.numFrames) || 0;
+    const per = n > 0 ? Math.floor(frames.length / n) : 0;
+    thumbs = [];
+    for (let i = 0; i < n && per > 0; i++) thumbs.push(frames.slice(i * per, (i + 1) * per));
+  }
+  bankData.bank = Number.isFinite(d.bank) ? d.bank : -1;
+  bankData.imported = !!d.imported;
+  bankData.numFrames = thumbs.length;
+  bankData.filename = typeof d.filename === 'string' ? d.filename : '';
+  bankData.thumbs = thumbs;
+  importError = null;
+  scheduleRender();
+}
+
+function onCycleUpdate(d) {
+  if (!d || typeof d !== 'object') return;
+  cycleData = d;
+  scheduleRender();
+}
+
+function onImportStatus(d) {
+  if (!d || typeof d !== 'object') return;
+  importBusy = d.state === 'busy';
+  if (d.state === 'error') importError = typeof d.error === 'string' ? d.error : 'generic';
+  else if (d.state === 'done' || d.state === 'busy') importError = null;
+  scheduleRender();
+}
+
+function requestBackendState() {
+  if (!uiReadyFn) return;
+  uiReadyFn().catch((e) => console.warn('uiReady failed:', e));
+}
+
+function initBackendEvents(juce) {
+  const backend = window.__JUCE__ && window.__JUCE__.backend;
+  if (!backend) { console.warn('JUCE backend missing — panels will stay empty'); return; }
+  backend.addEventListener('cycleUpdate', onCycleUpdate);
+  backend.addEventListener('bankUpdate', onBankUpdate);
+  backend.addEventListener('importStatus', onImportStatus);
+  try { uiReadyFn = juce.getNativeFunction('uiReady'); } catch (e) { uiReadyFn = null; }
+  // emitEventIfBrowserIsVisible drops events while the browser is hidden, so
+  // ask again whenever the page becomes visible.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') requestBackendState();
+  });
+  requestBackendState();
+}
+
+// ── Bank-stack drag / wheel: a second front-end for `position` ─────────────
+function bindBankDrag() {
+  const wrap = document.getElementById('bankWrap');
+  const canvas = document.getElementById('bankCanvas');
+  if (!wrap || !canvas) return;
+
+  // Height in the stack picks the card: the front baseline is frame 1, the back
+  // baseline is the last frame.
+  const project = (e) => {
+    const g = bankGeom;
+    if (!g) return null;
+    const r = canvas.getBoundingClientRect();
+    return clamp01((g.frontBase - (e.clientY - r.top)) / (g.frontBase - g.backBase));
+  };
+
+  let dragging = false;
+  const onMove = (e) => {
+    if (!dragging) return;
+    const st = sliderState.position;
+    const u = project(e);
+    if (st && u !== null) { st.setNormalisedValue(u); updateKnobVisual('position'); }
+    e.preventDefault();
+  };
+  const onUp = (e) => {
+    if (!dragging) return;
+    dragging = false;
+    wrap.classList.remove('dragging');
+    if (sliderState.position) sliderState.position.sliderDragEnded();
+    wrap.removeEventListener('pointermove', onMove);
+    wrap.removeEventListener('pointerup', onUp);
+    wrap.removeEventListener('pointercancel', onUp);
+    wrap.removeEventListener('lostpointercapture', onUp);
+    if (e && e.pointerId !== undefined) {
+      try { wrap.releasePointerCapture(e.pointerId); } catch (_) { /* already released */ }
+    }
+  };
+  wrap.addEventListener('pointerdown', (e) => {
+    const st = sliderState.position;
+    if (e.button !== 0 || !st || !bankGeom) return;
+    endWheel();
+    dragging = true;
+    wrap.classList.add('dragging');
+    st.sliderDragStarted();
+    const u = project(e);
+    if (u !== null) { st.setNormalisedValue(u); updateKnobVisual('position'); }
+    try { wrap.setPointerCapture(e.pointerId); } catch (_) { /* older backends */ }
+    wrap.addEventListener('pointermove', onMove);
+    wrap.addEventListener('pointerup', onUp);
+    wrap.addEventListener('pointercancel', onUp);
+    wrap.addEventListener('lostpointercapture', onUp);
+    e.preventDefault();
+  });
+
+  // One frame per notch, one automation gesture per wheel burst.
+  let wheelTimer = null;
+  const endWheel = () => {
+    if (wheelTimer === null) return;
+    clearTimeout(wheelTimer);
+    wheelTimer = null;
+    if (sliderState.position) sliderState.position.sliderDragEnded();
+  };
+  wrap.addEventListener('wheel', (e) => {
+    const st = sliderState.position;
+    const N = bankData.numFrames;
+    if (!st || N < 2 || dragging) return;
+    if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;
+    e.preventDefault();
+    if (wheelTimer === null) st.sliderDragStarted();
+    else clearTimeout(wheelTimer);
+    wheelTimer = setTimeout(endWheel, WHEEL_GESTURE_MS);
+    st.setNormalisedValue(clamp01(st.getNormalisedValue() + (e.deltaY < 0 ? 1 : -1) / (N - 1)));
+    updateKnobVisual('position');
+  }, { passive: false });
+}
+
+// ── Import: button (native FileChooser) + drop onto the page ────────────────
+function initImport(juce) {
+  try { importAudioFn = juce.getNativeFunction('importAudio'); } catch (e) { importAudioFn = null; }
+  try { importBytesFn = juce.getNativeFunction('importDroppedAudio'); } catch (e) { importBytesFn = null; }
+
+  const btn = document.getElementById('importBtn');
+  if (btn) btn.addEventListener('click', () => {
+    if (importBusy || !importAudioFn) return;
+    // The chooser is async on the C++ side; progress and the result arrive as
+    // importStatus / bankUpdate events, never through this promise.
+    importAudioFn().catch((e) => console.error('importAudio failed:', e));
+  });
+
+  const wrap = document.getElementById('bankWrap');
+  const hover = (on) => { if (wrap) wrap.classList.toggle('drop-hover', on); };
+  document.addEventListener('dragenter', (e) => { e.preventDefault(); hover(true); });
+  document.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    try { e.dataTransfer.dropEffect = 'copy'; } catch (_) { /* read-only in some hosts */ }
+  });
+  document.addEventListener('dragleave', (e) => { if (e.relatedTarget === null) hover(false); });
+  document.addEventListener('drop', (e) => {
+    e.preventDefault();
+    hover(false);
+    handleDrop(e).catch((err) => {
+      console.error('drop import failed:', err);
+      importBusy = false;
+      importError = 'generic';
+      scheduleRender();
+    });
+  });
+}
+
+// WKWebView strips paths from dropped files, so the bytes travel as base64
+// (webview-drop-streaming's encoder, decoded in C++ with
+// juce::Base64::convertFromBase64). The module is imported LAZILY: a missing
+// module costs the drop path only, never the page.
+async function handleDrop(e) {
+  if (!importBytesFn || importBusy) return;
+  const items = Array.from((e.dataTransfer && e.dataTransfer.items) || []);
+  const entry = items.length > 0 && typeof items[0].webkitGetAsEntry === 'function'
+    ? items[0].webkitGetAsEntry() : null;
+  const file = entry ? null : (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) || null;
+  if (!entry && !file) return;
+  if (entry && entry.isDirectory) { importError = 'folder'; scheduleRender(); return; }
+  const name = entry ? entry.name : file.name;
+  if (!DROP_AUDIO_RE.test(name)) { importError = 'type'; scheduleRender(); return; }
+
+  const blob = file || await new Promise((resolve, reject) => entry.file(resolve, reject));
+  if (blob.size > DROP_MAX_BYTES) { importError = 'tooLarge'; scheduleRender(); return; }
+
+  importBusy = true;
+  importError = null;
+  scheduleRender();
+  const mod = await import('./modules/webview-drop-streaming.js');
+  const base64 = mod.arrayBufferToBase64(await blob.arrayBuffer());
+  const ok = await importBytesFn(name, base64);
+  // On success the C++ worker reports progress through importStatus; a refusal
+  // to even start (busy, bad payload) comes back here.
+  if (!ok) { importBusy = false; importError = 'generic'; scheduleRender(); }
+}
+
+// ── Lesson presets (C++ applies a full parameter snapshot; relays sync the UI) ─
+function initLessons(juce) {
+  try { applyPresetFn = juce.getNativeFunction('applyFactoryPreset'); } catch (e) { applyPresetFn = null; }
+  const CAPTION_LABELERS = {
+    steppedSmooth: (el) => setLabel(el, 'tour.caption.steppedSmooth'),
+    aliasDemo:     (el) => setLabel(el, 'tour.caption.aliasDemo'),
+    driveSweep:    (el) => setLabel(el, 'tour.caption.driveSweep'),
+    vowelPad:      (el) => setLabel(el, 'tour.caption.vowelPad'),
+    ppg8bit:       (el) => setLabel(el, 'tour.caption.ppg8bit'),
+  };
+  const caption = document.getElementById('tourCaption');
+  document.querySelectorAll('.tour-btn[data-preset]').forEach((b) => b.addEventListener('click', () => {
+    const id = b.dataset.preset;
+    if (applyPresetFn) applyPresetFn(id).catch((e) => console.error('applyFactoryPreset failed:', e));
+    document.querySelectorAll('.tour-btn').forEach((x) => x.classList.toggle('active', x === b));
+    if (CAPTION_LABELERS[id]) CAPTION_LABELERS[id](caption);
+    if (id in LESSON_OCTAVE) setOctave(LESSON_OCTAVE[id]);
+  }));
+}
+
+// ── Settings popover ────────────────────────────────────────────────────────
+function initSettingsPopover() {
+  const gearBtn = document.getElementById('gear-btn');
+  const popover = document.getElementById('settings-popover');
+  if (gearBtn === null || popover === null) {
+    console.warn('settings popover missing — language selector unavailable');
+    return;
+  }
+  const setOpen = (open) => {
+    popover.hidden = !open;
+    gearBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  };
+  gearBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setOpen(popover.hidden);
+  });
+  // pointerdown in the CAPTURE phase, not mousedown: the knobs preventDefault
+  // their own pointerdown, which suppresses the compat mousedown.
+  document.addEventListener('pointerdown', (e) => {
+    if (popover.hidden) return;
+    if (popover.contains(e.target) || gearBtn.contains(e.target)) return;
+    setOpen(false);
+  }, true);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !popover.hidden) {
+      setOpen(false);
+      gearBtn.focus();
+    }
+  });
+}
+
+// ── On-screen + computer keyboard → uiMidi ──────────────────────────────────
+function noteOn(m) {
+  if (heldNotes.has(m)) return;
+  heldNotes.add(m);
+  if (uiMidiFn) uiMidiFn(m, true, 0.8).catch(() => {});
+  document.querySelectorAll(`.key[data-note="${m}"]`).forEach((k) => k.classList.add('active'));
+}
+
+function noteOff(m) {
+  if (!heldNotes.has(m)) return;
+  heldNotes.delete(m);
+  if (uiMidiFn) uiMidiFn(m, false, 0).catch(() => {});
+  document.querySelectorAll(`.key[data-note="${m}"]`).forEach((k) => k.classList.remove('active'));
+}
+
+function allNotesOff() {
+  [...heldNotes].forEach(noteOff);
+  heldKeys.clear();
+}
+
+function buildKeyboard() {
+  const kb = document.getElementById('keyboard');
+  if (!kb) return;
+  kb.textContent = '';
+  const base = (baseOct + 1) * 12;
+  const whites = [0, 2, 4, 5, 7, 9, 11];
+  const whiteNotes = [];
+  for (let o = 0; o < 3; o++) for (const s of whites) { if (whiteNotes.length < KBD_WHITE_KEYS) whiteNotes.push(base + o * 12 + s); }
+  whiteNotes.forEach((m) => {
+    const k = document.createElement('div');
+    k.className = 'key key-white';
+    k.dataset.note = String(m);
+    if (m % 12 === 0) {
+      const l = document.createElement('span');
+      l.className = 'key-label';
+      l.textContent = noteName(m);
+      k.appendChild(l);
+    }
+    kb.appendChild(k);
+  });
+  const ww = 100 / KBD_WHITE_KEYS;
+  whiteNotes.forEach((m, i) => {
+    if ([0, 2, 5, 7, 9].includes(m % 12) && i < KBD_WHITE_KEYS - 1) {
+      const k = document.createElement('div');
+      k.className = 'key key-black';
+      k.dataset.note = String(m + 1);
+      k.style.left = `calc(${(i + 1) * ww}% - 11px)`;
+      kb.appendChild(k);
+    }
+  });
+  setRaw(document.getElementById('octRead'), `${noteName(base)}–${noteName(base + 24)}`);
+}
+
+function setOctave(o) {
+  allNotesOff();
+  baseOct = Math.max(OCT_MIN, Math.min(OCT_MAX, o));
+  buildKeyboard();
+}
+
+function initKeyboard(juce) {
+  try { uiMidiFn = juce.getNativeFunction('uiMidi'); } catch (e) { uiMidiFn = null; }
+  buildKeyboard();
+  const kb = document.getElementById('keyboard');
+  if (!kb) return;
+
+  let down = null;
+  const release = (e) => {
+    if (down === null) return;
+    noteOff(down);
+    down = null;
+    if (e && e.pointerId !== undefined) {
+      try { kb.releasePointerCapture(e.pointerId); } catch (_) { /* already released */ }
+    }
+  };
+  kb.addEventListener('pointerdown', (e) => {
+    const k = e.target.closest('.key');
+    if (!k || e.button !== 0) return;
+    release();
+    down = Number(k.dataset.note);
+    noteOn(down);
+    try { kb.setPointerCapture(e.pointerId); } catch (_) { /* older backends */ }
+    e.preventDefault();
+  });
+  kb.addEventListener('pointerup', release);
+  kb.addEventListener('pointercancel', release);
+  kb.addEventListener('lostpointercapture', release);
+
+  window.addEventListener('keydown', (e) => {
+    if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = (e.target && e.target.tagName) || '';
+    if (tag === 'SELECT' || tag === 'INPUT' || tag === 'TEXTAREA') return;
+    const key = e.key.toLowerCase();
+    if (key === 'z') { setOctave(baseOct - 1); return; }
+    if (key === 'x') { setOctave(baseOct + 1); return; }
+    if (!(key in KEYMAP) || heldKeys.has(key)) return;
+    const m = (baseOct + 1) * 12 + KEYMAP[key];
+    heldKeys.set(key, m);
+    noteOn(m);
+  });
+  window.addEventListener('keyup', (e) => {
+    const key = e.key.toLowerCase();
+    if (!heldKeys.has(key)) return;
+    noteOff(heldKeys.get(key));
+    heldKeys.delete(key);
+  });
+  // A key released while the WebView has no focus never sends keyup.
+  window.addEventListener('blur', allNotesOff);
+
+  const dn = document.getElementById('octDown');
+  const up = document.getElementById('octUp');
+  if (dn) dn.addEventListener('click', () => setOctave(baseOct - 1));
+  if (up) up.addEventListener('click', () => setOctave(baseOct + 1));
+}
+
+// ── Tooltips — O-ReverseDelay's renderer ────────────────────────────────────
+function handleTooltipOver(e) {
+  const target = e.target.closest ? e.target.closest('[data-tip]') : null;
+  if (!target || target === tooltipTarget) return;
+  tooltipTarget = target;
+  clearTimeout(tooltipTimer);
+  if (tooltipSuppressed) return;
+  tooltipTimer = setTimeout(() => showTooltip(target), TOOLTIP_DELAY_MS);
+}
+
+function handleTooltipOut(e) {
+  const target = e.target.closest ? e.target.closest('[data-tip]') : null;
+  if (!target) return;
+  // Moving between children of the same control is not a real exit.
+  if (e.relatedTarget && target.contains(e.relatedTarget)) return;
+  hideTooltip();
+}
+
+function showTooltip(target) {
+  if (!tooltipEl || tooltipSuppressed || target !== tooltipTarget) return;
+  // The switch is a SHOW gate; data-tip-always survives it (#gear-btn, #tips-toggle).
+  if (!tipsEnabled && !target.hasAttribute('data-tip-always')) return;
+
+  const title = target.getAttribute('data-tip-title');
+  const body  = target.getAttribute('data-tip');
+
+  // textContent, never innerHTML — the copy stays inert.
+  tooltipEl.textContent = '';
+  if (title) {
+    const titleEl = document.createElement('div');
+    titleEl.className = 'tooltip-title';
+    titleEl.textContent = title;
+    tooltipEl.appendChild(titleEl);
+  }
+  const bodyEl = document.createElement('div');
+  bodyEl.className = 'tooltip-body';
+  bodyEl.textContent = body;
+  tooltipEl.appendChild(bodyEl);
+
+  const anchor = target.getBoundingClientRect();
+
+  // MEASURE, THEN PIN, THEN CLAMP: release the width, measure at left 0, pin
+  // the measured width, and only then place — a fixed box measured at its old
+  // offset shrinks to fit and re-wraps into a ribbon at the right edge.
+  tooltipEl.style.width = '';
+  tooltipEl.style.left  = '0px';
+  tooltipEl.style.top   = '0px';
+  const width = tooltipEl.getBoundingClientRect().width;
+  tooltipEl.style.width = `${width}px`;
+  const height = tooltipEl.getBoundingClientRect().height;
+
+  let top = anchor.top - height - TOOLTIP_MARGIN;
+  let placement = 'above';
+  if (top < TOOLTIP_MARGIN) {
+    top = anchor.bottom + TOOLTIP_MARGIN;
+    placement = 'below';
+  }
+  const anchorCentreX = anchor.left + anchor.width / 2;
+  const maxLeft = window.innerWidth - width - TOOLTIP_MARGIN;
+  const left = Math.max(TOOLTIP_MARGIN, Math.min(maxLeft, anchorCentreX - width / 2));
+
+  tooltipEl.style.left = `${left}px`;
+  tooltipEl.style.top  = `${top}px`;
+  tooltipEl.dataset.placement = placement;
+  const arrowX = Math.max(10, Math.min(width - 10, anchorCentreX - left));
+  tooltipEl.style.setProperty('--arrow-x', `${arrowX}px`);
+
+  tooltipEl.classList.add('visible');
+  tooltipEl.setAttribute('aria-hidden', 'false');
+}
+
+function hideTooltip() {
+  clearTimeout(tooltipTimer);
+  tooltipTarget = null;
+  if (!tooltipEl) return;
+  tooltipEl.classList.remove('visible');
+  tooltipEl.setAttribute('aria-hidden', 'true');
+}
+
+function applyTipsEnabled(on) {
+  tipsEnabled = !!on;
+  if (!tipsEnabled) hideTooltip();
+  const btn = document.getElementById('tips-toggle');
+  if (!btn) return;
+  btn.setAttribute('aria-pressed', tipsEnabled ? 'true' : 'false');
+  // Two calls in two branches, never one call with a ternary (check-i18n [13]).
+  if (tipsEnabled) setLabel(btn, 'ui.on');
+  else             setLabel(btn, 'ui.off');
+}
+
+function initTipsToggle() {
+  const btn = document.getElementById('tips-toggle');
+  if (!btn) { console.error('Missing tips-toggle element'); return; }
+  let stored = null;
+  try { stored = localStorage.getItem(TIPS_STORAGE_KEY); } catch (e) { stored = null; }
+  applyTipsEnabled(stored !== 'false');          // first run and private mode → ON
+  btn.addEventListener('click', () => {
+    applyTipsEnabled(!tipsEnabled);
+    try { localStorage.setItem(TIPS_STORAGE_KEY, String(tipsEnabled)); }
+    catch (e) { /* private mode: the switch still works, it just forgets */ }
+  });
+}
+
+function initTooltips() {
+  tooltipEl = document.getElementById('tooltip');
+  if (!tooltipEl) { console.warn('Tooltip element not found — tooltips disabled'); return; }
+  document.addEventListener('mouseover', handleTooltipOver);
+  document.addEventListener('mouseout', handleTooltipOut);
+  // Any press begins a click or a drag: get the tip out of the way until
+  // release. Capture phase, because the knobs preventDefault their own pointerdown.
+  document.addEventListener('pointerdown', () => {
+    tooltipSuppressed = true;
+    hideTooltip();
+  }, true);
+  document.addEventListener('pointerup', () => { tooltipSuppressed = false; }, true);
+}
+
+function initCanvases() {
+  bankC  = makeCanvas('bankCanvas');
+  cycleC = makeCanvas('cycleCanvas');
+  harmC  = makeCanvas('harmCanvas');
+  menvC  = makeCanvas('menvCanvas');
+  ampC   = makeCanvas('ampCanvas');
+  // Canvas text keeps the fallback face until the font loads — repaint after.
+  if (document.fonts && document.fonts.load)
+    document.fonts.load(`11px 'EB Garamond'`).then(() => scheduleRender()).catch(() => {});
+}
+
+// ════ THE CANON — pasted verbatim from scripts/i18n-canon.js ════════════════
+// From I18N_CANON_BODY_START through the closing brace of initI18n. Never
+// retyped, never edited: check-i18n [6] byte-compares it.
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
+
+// LABELS first, I18N as the fallback: a control whose tooltip title already IS
+// its label carries one key, not two copies of the same string.
+function trLabel(key, lang, vars) {
+    const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+    if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+    const s = entry[lang] || entry.en;
+    const resolve = (v) => {
+        const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+    return vars
+        ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(s.t);
+}
+
+function applyLabel(el) {
+    const key = el.dataset.i18n;
+    if (!key) return;
+    let vars = null;
+    try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+    catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+    const s = trLabel(key, uiLanguage, vars);
+    el.dataset.label = s;
+    el.textContent   = s;
+}
+
+function applyI18nAttributes(el) {
+    const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+    for (const [prop, attr] of pairs) {
+        const key = el.dataset[prop];
+        if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+    }
+}
+
+function setLabel(el, key, vars) {
+    if (!el) return;
+    el.dataset.i18n = key;
+    if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+    applyLabel(el);
+}
+
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    // <html lang> follows the selector: screen readers pick the French voice,
+    // and CSS hyphens:auto / quotes resolve in the page's actual language.
+    document.documentElement.lang = uiLanguage;
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
+
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
+// Exposed for the same reason, and so a sibling module can write a localized
+// label without app.js having to export anything — O-Bitrot's controller is an
+// inline <script type="module">, where an export declaration has nowhere to go.
+window.__setLabel = setLabel;
+// Re-runs the sweep at the CURRENT language, for a subtree built AFTER the last
+// one. It cannot be window.__setLanguage, which needs a language argument the
+// caller does not have: uiLanguage lives in this module's scope and nothing
+// outside can read it, so guessing 'en' would silently reset a French page every
+// time a panel remounted.
+//
+// This is in the canon because three plugins wrote it independently, OUTSIDE the
+// byte-compared region, each with a comment explaining that the region "may not
+// gain a line" — O-Bells (index.html:1992), O-Marimba and O-IntonationPad
+// (js/app.js). Three authors hitting the same wall and working around it the
+// same way is the canon's job, not theirs. Declaring it here changes no
+// behaviour on a page that never calls it; it only means a page that needs it no
+// longer has to reach around the gate to get it.
+window.__reapplyI18n = () => applyI18n(uiLanguage);
+
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
+
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
+
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
+}
+
+// ── Entry point ─────────────────────────────────────────────────────────────
+function init() {
+  // Native plugin feel: no browser context menu.
+  document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  try { initCanvases(); } catch (e) { console.error('canvas init failed:', e); }
+
+  KNOB_IDS.forEach((id) => bindKnob(Juce, id));
+  STEP_KNOB_IDS.forEach((id) => bindStepKnob(Juce, id));
+  TOGGLE_IDS.forEach((id) => bindToggleSegments(Juce, id));
+  SEGMENT_COMBO_IDS.forEach((id) => bindComboSegments(Juce, id, id === 'lfo_sync' ? applySyncSlot : null));
+  bindSelectCombo(Juce, 'bank');
+  loadParameterDefaults(Juce);   // async; only dblclick-reset depends on it
+
+  // Order is load-bearing: applyI18n() (inside initI18n) is what writes
+  // data-tip onto the anchors the tooltip renderer resolves.
+  try { initSettingsPopover(); } catch (e) { console.error('settings popover init failed:', e); }
+  try { initI18n(); }            catch (e) { console.error('i18n init failed:', e); }
+  try { initTooltips(); }        catch (e) { console.error('tooltip init failed:', e); }
+  try { initTipsToggle(); }      catch (e) { console.error('tips toggle init failed:', e); }
+
+  try { bindBankDrag(); }        catch (e) { console.error('bank drag init failed:', e); }
+  try { initImport(Juce); }      catch (e) { console.error('import init failed:', e); }
+  try { initLessons(Juce); }     catch (e) { console.error('lesson init failed:', e); }
+  try { initKeyboard(Juce); }    catch (e) { console.error('keyboard init failed:', e); }
+
+  // LAST: listeners exist, so the uiReady answer (bankUpdate + importStatus)
+  // has somewhere to land.
+  try { initBackendEvents(Juce); } catch (e) { console.error('backend events init failed:', e); }
+  scheduleRender();
+}
+
+// ════ ONE call, at the very BOTTOM of the module ════
+init();
+</script>
+</body>
+</html>

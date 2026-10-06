@@ -30,6 +30,7 @@
 #include "PluginProcessor.h"
 
 #include <cmath>
+#include <cstring>
 
 //==============================================================================
 namespace
@@ -329,6 +330,9 @@ void OSimpleWavetableAudioProcessor::prepareToPlay (double sampleRate, int sampl
     dispLfo.store (0.0f, std::memory_order_relaxed);
     dispMenv.store (0.0f, std::memory_order_relaxed);
     dispAmp.store (0.0f, std::memory_order_relaxed);
+    dispNote.store (-1, std::memory_order_relaxed);                    // D-X
+    dispHz.store (0.0f, std::memory_order_relaxed);
+    displayFs.store (sampleRate, std::memory_order_relaxed);
 
     setLatencySamples (0);                                      // getLatencySamples() is non-virtual (JUCE 8)
 }
@@ -577,14 +581,128 @@ void OSimpleWavetableAudioProcessor::updateDisplayFromLeadVoice() noexcept
         dispFrame.store (lead->getLastFrame(), std::memory_order_relaxed);
         dispMenv.store  (lead->getLastModEnv(), std::memory_order_relaxed);
         dispAmp.store   (lead->getLastAmpEnv(), std::memory_order_relaxed);
+        dispNote.store  (lead->getLastNote(), std::memory_order_relaxed);         // D-X
+        dispHz.store    ((float) lead->getCurrentHz(), std::memory_order_relaxed);
         dispSounding.store (true, std::memory_order_relaxed);
     }
     else
     {
         dispMenv.store (0.0f, std::memory_order_relaxed);
         dispAmp.store (0.0f, std::memory_order_relaxed);
+        dispNote.store (-1, std::memory_order_relaxed);                // D-X
+        dispHz.store (0.0f, std::memory_order_relaxed);
         dispSounding.store (false, std::memory_order_relaxed);
     }
+}
+
+//==============================================================================
+// Stage 3 visualization (message thread only; see PluginProcessor.h).
+int OSimpleWavetableAudioProcessor::getSelectedBankIndex() const noexcept
+{
+    return choiceIndex (pBank->load(), kNumBanks);
+}
+
+void OSimpleWavetableAudioProcessor::buildCycleView (CycleView& v)
+{
+    const int bankIdx = getSelectedBankIndex();
+
+    // Imported: a snapshot held for THIS call only (Amendment 12, P6). The
+    // raw audio-thread bank pointer is never read here.
+    std::shared_ptr<const WavetableBank> hold;
+    const WavetableBank* b = nullptr;
+    if (bankIdx < BuiltInBanks::kCount)
+    {
+        b = builtIns->get (bankIdx);
+    }
+    else
+    {
+        hold = getImportedBankSnapshot();
+        b = hold.get();
+    }
+    if (b != nullptr && b->numFrames <= 0)
+        b = nullptr;
+
+    // Same reads as renderBlock (interp / bit_depth).
+    const bool interp   = finiteOr (pInterp->load(), 1.0f) >= 0.5f;
+    const int  bitIdx   = choiceIndex (pBitDepth->load(), kNumBitDepthChoices);
+    const bool sounding = dispSounding.load (std::memory_order_relaxed);
+    const int  nF       = b != nullptr ? b->numFrames : 0;
+
+    // Sounding: the lead voice's effective position, mip level and latched
+    // frame. Silent (D-R, P4): the knob, level 0, the knob's latched frame
+    // (the stale disp* values are ignored).
+    const float pos     = sounding ? dispPos.load (std::memory_order_relaxed) : currentKnob();
+    const int   level   = sounding ? juce::jlimit (0, WavetableBank::kLevels - 1,
+                                                   dispLevel.load (std::memory_order_relaxed))
+                                   : 0;
+    const int   latched = sounding ? dispFrame.load (std::memory_order_relaxed) : wt::latchFrame (pos, nF);
+
+    vizRenderer.render (b, level, interp, pos, latched, bitIdx, v);
+
+    v.pos      = wt::clamp01 (pos);
+    v.frame    = interp ? -1 : juce::jlimit (0, juce::jmax (0, nF - 1), latched);   // P3: dispFrame is rounded with Interp On
+    v.level    = level;
+    v.kmax     = WavetableBank::kmax (level);
+    v.sounding = sounding;
+
+    if (sounding)
+    {
+        const float hz    = dispHz.load (std::memory_order_relaxed);
+        const double fs   = displayFs.load (std::memory_order_relaxed);
+        v.note     = dispNote.load (std::memory_order_relaxed);
+        v.f0       = std::isfinite (hz) && hz > 0.0f ? hz : 0.0f;
+        v.nyquistH = v.f0 > 0.0f && fs > 0.0 ? (float) (0.5 * fs / (double) v.f0) : 0.0f;
+    }
+    else
+    {
+        v.note     = -1;
+        v.f0       = 0.0f;
+        v.nyquistH = 0.0f;
+    }
+
+    // D-P / P1: the free LFO runs at depth 0 (display); the lamp only shows it
+    // when the depth is non-zero, so an idle editor stays quiet.
+    v.lfo  = currentLfoDepth() > 0.0f ? dispLfo.load (std::memory_order_relaxed) : 0.0f;
+    v.menv = dispMenv.load (std::memory_order_relaxed);
+    v.amp  = dispAmp.load (std::memory_order_relaxed);
+}
+
+void OSimpleWavetableAudioProcessor::getBankThumbnails (BankThumbs& t) const
+{
+    const int bankIdx = getSelectedBankIndex();
+    t.bank     = bankIdx;
+    t.imported = bankIdx >= BuiltInBanks::kCount;
+
+    std::shared_ptr<const WavetableBank> hold;
+    const WavetableBank* b = nullptr;
+    juce::String name;
+
+    if (! t.imported)
+    {
+        b = builtIns->get (bankIdx);
+    }
+    else
+    {
+        // D-S / P8: the bank and ITS filename in one scope. importStatus.filename
+        // may already name a later, failed import.
+        const juce::ScopedLock sl (bankStateLock);
+        hold = importedOwner;
+        name = cachedBlob.filename;
+    }
+    if (hold != nullptr)
+        b = hold.get();
+
+    if (b == nullptr || b->numFrames <= 0)
+    {
+        t.numFrames = 0;
+        t.filename  = juce::String();
+        t.points.clear();                          // keeps capacity
+        return;
+    }
+
+    t.numFrames = b->numFrames;
+    t.filename  = t.imported ? name : juce::String();
+    t.points.assign (b->thumbs.begin(), b->thumbs.end());   // reuses capacity (editor reserves 256 * 128)
 }
 
 //==============================================================================
@@ -983,6 +1101,105 @@ void OSimpleWavetableAudioProcessor::handleAsyncUpdate()
             p->setValueNotifyingHost (p->convertTo0to1 ((float) kImportedIdx));
             p->endChangeGesture();
         }
+}
+
+// Drop path (D-Z). Any non-audio thread (the WebView native runs on the
+// message thread). Cap first: never decode a payload that could not pass
+// importFromMemory's byte cap anyway.
+bool OSimpleWavetableAudioProcessor::importFromBase64 (const juce::String& name, const juce::String& base64)
+{
+    constexpr std::size_t kMaxBase64Chars = WavetableImporter::kMaxMemoryBytes / 3 * 4 + 4;
+
+    if (base64.getNumBytesAsUTF8() > kMaxBase64Chars)
+    {
+        setImportStatus (ImportStatus::State::error, WavetableImporter::sanitiseName (name), 0, "tooLarge");
+        return false;
+    }
+
+    // STANDARD base64 (btoa alphabet) via juce::Base64. JUCE's MemoryBlock
+    // base64 is its own non-standard format and rejects the page's payload.
+    juce::MemoryBlock bytes;
+    bool decodedOk = false;
+    {
+        juce::MemoryOutputStream out (bytes, false);   // trims `bytes` to the written size on destruction
+        decodedOk = juce::Base64::convertFromBase64 (out, base64);
+    }
+    if (! decodedOk)
+    {
+        setImportStatus (ImportStatus::State::error, WavetableImporter::sanitiseName (name), 0, "unreadable");
+        return false;
+    }
+
+    return importFromMemory (name, std::move (bytes));   // sanitises the name and re-caps the bytes
+}
+
+//==============================================================================
+// Lesson presets (D-Y). Recipes: v1-integration-checklist.md "Lesson preset
+// ids" (RESEARCH Q7); choice indices: createParameterLayout above (bank
+// 0 Sine->Saw, 1 Sine->Square, 3 Formant, 4 Drive; bit_depth 9 = "8";
+// lfo_shape 0 Sine, 1 Triangle, 4 S&H; lfo_sync 0 Free). Real values;
+// converted with each parameter's own range.
+bool OSimpleWavetableAudioProcessor::applyFactoryPreset (const juce::String& id)
+{
+    namespace ids = OSimpleWavetable::ParamIDs;
+
+    struct RecipeEntry
+    {
+        const char* paramId;
+        float value;
+    };
+
+    std::vector<RecipeEntry> recipe;   // NOT std::initializer_list: assigning a braced list to one dangles
+
+    if (id == "steppedSmooth")
+        recipe = { { ids::bank, 0.0f }, { ids::position, 0.5f }, { ids::interp, 0.0f }, { ids::lfoSync, 0.0f },
+                   { ids::lfoShape, 1.0f }, { ids::lfoRate, 0.18f }, { ids::lfoDepth, 1.0f } };
+    else if (id == "aliasDemo")
+        recipe = { { ids::bank, 0.0f }, { ids::position, 1.0f }, { ids::bandlimit, 0.0f } };
+    else if (id == "driveSweep")
+        recipe = { { ids::bank, 4.0f }, { ids::position, 0.0f }, { ids::envAmount, 1.0f },
+                   { ids::menvAttack, 0.9f }, { ids::menvDecay, 1.6f }, { ids::menvSustain, 0.25f },
+                   { ids::menvRelease, 0.8f } };
+    else if (id == "vowelPad")
+        recipe = { { ids::bank, 3.0f }, { ids::position, 0.5f }, { ids::lfoSync, 0.0f }, { ids::lfoShape, 0.0f },
+                   { ids::lfoRate, 0.12f }, { ids::lfoDepth, 0.9f }, { ids::ampAttack, 0.6f },
+                   { ids::ampRelease, 1.4f } };
+    else if (id == "ppg8bit")
+        recipe = { { ids::bank, 1.0f }, { ids::position, 0.6f }, { ids::interp, 0.0f }, { ids::bitDepth, 9.0f },
+                   { ids::lfoSync, 0.0f }, { ids::lfoShape, 4.0f }, { ids::lfoRate, 3.0f },
+                   { ids::lfoDepth, 0.4f } };
+    else
+        return false;                                     // unknown id: no change
+
+    // A typo in a recipe id is a logged assertion in Debug (G-LESSON).
+    for (const auto& entry : recipe)
+    {
+        jassert (parameters.getParameter (entry.paramId) != nullptr);
+        juce::ignoreUnused (entry);
+    }
+
+    for (const auto* paramId : ids::all)
+    {
+        if (std::strcmp (paramId, ids::outputLevel) == 0)
+            continue;                                     // user-owned: never reset, never set
+
+        auto* param = parameters.getParameter (paramId);
+        if (param == nullptr)
+            continue;
+
+        float target = param->getDefaultValue();          // normalised default = "reset first"
+        for (const auto& entry : recipe)
+            if (std::strcmp (paramId, entry.paramId) == 0)
+                target = param->convertTo0to1 (entry.value);
+
+        if (std::abs (param->getValue() - target) < 1.0e-6f)
+            continue;                                     // already there: no host edit, no gesture
+
+        param->beginChangeGesture();
+        param->setValueNotifyingHost (target);
+        param->endChangeGesture();
+    }
+    return true;
 }
 
 //==============================================================================
