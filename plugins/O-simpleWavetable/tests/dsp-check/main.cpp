@@ -1,0 +1,1388 @@
+/*
+   This file is part of O-simpleWavetable, an Ouaricon Audio plugin.
+   Copyright (C) 2026  Ouaricon Audio
+
+   SPDX-License-Identifier: AGPL-3.0-or-later
+
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Affero General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Affero General Public License for more details.
+
+   You should have received a copy of the GNU Affero General Public License
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+/*
+  ==============================================================================
+
+    O-simpleWavetable dsp-check - Stage 2.2 gates (RESEARCH 6.6 + PLAN Task 8).
+
+    Every gate renders audio through the real processor (or, for the
+    voice-level arms, a WtVoice driven directly) and has a negative control
+    or liveness check.
+
+      G-PITCH     FUNC-01  MIDI 21..108, 44.1k + 48k, pos 0 and pos 1:
+                           |cents| <= 1. Neg: wheel 8192+68 must FAIL.
+      G-BEND               wheel 16383 / 0 on A4 -> 440 * 2^(+/-bend/12) +/- 1 cent
+      G-Q2-C8     QUAL-02  Drive 32, Pulse frame 1, voice-level Saw-1023, MIDI 108,
+                           44.1/48/96k, band-limit On: <= -100 dB
+      G-Q2-SWEEP  QUAL-02  same frames, MIDI 21..108, 3 rates: <= -70 dB (needs D-A)
+      G-Q2-PULSE  D-B      Pulse 16/24/32, equal-RMS sine metric: <= -60 dB
+      G-DSP02     DSP-02   band-limit Off, Saw 32, C7, 44.1k: > -40 dB (analyzer
+                           liveness); On: <= -100 dB
+      G-DSP01     DSP-01   fs 56320, A4 (period 128), position stepped per block:
+                           Off = 32 distinct cycles; On >= 500 and max spectral
+                           step < 1/10 of Off's. Neg: Off != On.
+      G-DSP03     DSP-03   3 bits: exactly the 8 values +/-{1,3,5,7}/16.
+                           Neg: Full > 1000 distinct values.
+      G-FULL      DSP-03   Full = bitwise bypass over 10^6 values; 3 -> Full render
+                           == fresh Full render
+      G-READ      viz seam voice output == wt::readSample + quant, within 1 ulp
+      G-POLY      FUNC-07  16 notes present; 17th steals the oldest unprotected
+      G-MONO      FUNC-07  true legato: pitch only, no re-attack; back to held
+                           note. Neg: Poly shows both notes.
+      G-RETRIG             Mono retrigger from a release tail: no reset click
+      G-NOTEOFF            sustain 0 release tail survives the per-block push.
+                           Neg: raw ADSR with per-block setParameters collapses.
+      G-VEL                vel 64 vs 127 = -11.90 +/- 0.05 dB
+      G-OUT                -60 dB = exact 0; 0 dB peak ~0.5 at 10 ms (seeded).
+                           Neg: unseeded ramp gives ~0.25.
+      G-IMPEMPTY           bank 5 = exact 0 while the env runs; sound after -> bank 0
+      G-BLOCK              prepare(256): one 1024 block == 4 x 256, bitwise
+      G-FINITE             every rendered sample finite, L == R
+
+    --alloc-check: O-Bells malloc_logger gate (volatile flag + counter,
+    audio-thread scoped, liveness malloc(64) must count 1, warm-up block
+    unarmed) over the G-ALLOC stimulus list. Exit 0 only if 0 allocations.
+
+    Off by default; -DOUARICON_BUILD_TESTS=ON (OSIW_TEST_HOOKS=1).
+
+  ==============================================================================
+*/
+
+#include <juce_audio_basics/juce_audio_basics.h>
+#include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_core/juce_core.h>
+#include <juce_dsp/juce_dsp.h>
+
+#include "BankFactory.h"
+#include "BitQuantizer.h"
+#include "BuiltInBanks.h"
+#include "MipmapBuilder.h"
+#include "PluginProcessor.h"
+#include "WavetableBank.h"
+#include "WtRead.h"
+#include "WtVoice.h"
+
+#include <algorithm>
+#include <cmath>
+#include <complex>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <functional>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+#include <memory>
+#include <set>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
+
+#if JUCE_MAC
+ #include <execinfo.h>
+ #include <pthread.h>
+
+// libmalloc's stack-logging hook (what MallocStackLogging / Instruments attach to).
+extern "C"
+{
+    typedef void (malloc_logger_t) (uint32_t type, uintptr_t arg1, uintptr_t arg2, uintptr_t arg3,
+                                    uintptr_t result, uint32_t numHotFramesToSkip);
+    extern malloc_logger_t* malloc_logger;
+}
+#endif
+
+namespace
+{
+    using Proc = OSimpleWavetableAudioProcessor;
+    namespace ids = OSimpleWavetable::ParamIDs;
+
+    constexpr double kPi = 3.14159265358979323846;
+
+    int gFailures = 0;
+    long long gNonFinite = 0;
+    long long gChannelMismatch = 0;
+    long long gSamplesChecked = 0;
+    bool gAllocMode = false;
+
+    void report (const char* gate, bool ok, const std::string& detail)
+    {
+        std::cout << (ok ? "PASS " : "FAIL ") << gate << (ok ? " " : ": ") << detail << "\n";
+        std::cout.flush();
+        if (! ok)
+            ++gFailures;
+    }
+
+    void info (const std::string& line)
+    {
+        std::cout << "  " << line << "\n";
+    }
+
+    std::string fmt (double v, int prec = 2)
+    {
+        std::ostringstream s;
+        s << std::fixed << std::setprecision (prec) << v;
+        return s.str();
+    }
+
+    double dB (double ratio)
+    {
+        return 20.0 * std::log10 (std::max (ratio, 1.0e-300));
+    }
+
+    int secs (double t, double fs)
+    {
+        return (int) std::lround (t * fs);
+    }
+
+    double noteHz (int note)
+    {
+        return 440.0 * std::pow (2.0, (double) (note - 69) / 12.0);
+    }
+
+    //==========================================================================
+    // Alloc gate (O-Bells pattern). volatile: clang treats malloc as a builtin
+    // that cannot touch globals and would fold "armed = true; malloc();
+    // armed = false" otherwise.
+   #if JUCE_MAC
+    volatile bool allocArmed = false;
+    volatile int  allocCount = 0;
+    bool allocTrace = false;
+    pthread_t audioThread;
+
+    void countAllocation (uint32_t type, uintptr_t, uintptr_t, uintptr_t, uintptr_t, uint32_t)
+    {
+        // Process-wide hook: only the thread that calls processBlock counts.
+        if (allocArmed && (type & 2u) != 0 && pthread_equal (pthread_self(), audioThread))   // MALLOC_LOG_TYPE_ALLOCATE
+        {
+            allocArmed = false;   // the first one is the finding; say where it came from
+            allocCount = allocCount + 1;
+            if (allocTrace)
+            {
+                void* frames[32];
+                backtrace_symbols_fd (frames, backtrace (frames, 32), 2);   // does not malloc
+            }
+        }
+    }
+   #endif
+
+    void armAlloc (bool on)
+    {
+       #if JUCE_MAC
+        allocArmed = on;
+       #else
+        juce::ignoreUnused (on);
+       #endif
+    }
+
+    int allocCountNow()
+    {
+       #if JUCE_MAC
+        return allocCount;
+       #else
+        return 0;
+       #endif
+    }
+
+    //==========================================================================
+    struct Ev
+    {
+        int pos;
+        juce::MidiMessage msg;
+    };
+
+    Ev evOn (int pos, int note, int vel = 127)
+    {
+        return { pos, juce::MidiMessage::noteOn (1, note, (juce::uint8) juce::jlimit (1, 127, vel)) };
+    }
+
+    Ev evOff (int pos, int note)
+    {
+        return { pos, juce::MidiMessage::noteOff (1, note) };
+    }
+
+    Ev evWheel (int pos, int value)
+    {
+        return { pos, juce::MidiMessage::pitchWheel (1, juce::jlimit (0, 16383, value)) };
+    }
+
+    using Params = std::vector<std::pair<const char*, float>>;
+
+    void setParam (Proc& p, const char* id, float realValue)
+    {
+        if (auto* rp = p.getAPVTS().getParameter (id))
+            rp->setValueNotifyingHost (rp->convertTo0to1 (realValue));
+    }
+
+    float rawOf (Proc& p, const char* id)
+    {
+        if (auto* v = p.getAPVTS().getRawParameterValue (id))
+            return v->load();
+        return std::numeric_limits<float>::quiet_NaN();
+    }
+
+    // Steady single-voice baseline: instant attack, sustain 1, 0 dB out.
+    Params baseParams (int bank, float pos)
+    {
+        return { { ids::bank, (float) bank }, { ids::position, pos }, { ids::interp, 1.0f },
+                 { ids::bandlimit, 1.0f }, { ids::bitDepth, 0.0f },
+                 { ids::ampAttack, 0.001f }, { ids::ampDecay, 0.001f }, { ids::ampSustain, 1.0f },
+                 { ids::ampRelease, 0.05f }, { ids::voiceMode, 0.0f }, { ids::outputLevel, 0.0f } };
+    }
+
+    Params with (Params p, const char* id, float v)
+    {
+        p.emplace_back (id, v);   // applied in order: the later entry wins
+        return p;
+    }
+
+    //==========================================================================
+    // Processor rig: params set BEFORE prepare (so smoothers seed on them),
+    // events at absolute sample positions from the rig start.
+    struct Rig
+    {
+        std::unique_ptr<Proc> proc;
+        int block;
+        int cursor = 0;
+        int blocksRun = 0;
+        juce::AudioBuffer<float> buf;
+        juce::MidiBuffer midi;
+
+        Rig (double fs, int blockSize, const Params& params)
+            : proc (std::make_unique<Proc>()), block (blockSize), buf (2, blockSize)
+        {
+            for (const auto& pr : params)
+                setParam (*proc, pr.first, pr.second);
+            proc->setPlayConfigDetails (0, 2, fs, blockSize);
+            proc->prepareToPlay (fs, blockSize);
+            midi.ensureSize (16384);
+        }
+
+        void set (const char* id, float v) { setParam (*proc, id, v); }
+
+        std::vector<float> run (int n, const std::vector<Ev>& evs = {}, int blockOverride = 0)
+        {
+            std::vector<float> out;
+            out.reserve ((size_t) juce::jmax (0, n));
+            const int blk = blockOverride > 0 ? blockOverride : block;
+
+            for (int done = 0; done < n;)
+            {
+                const int len = juce::jmin (blk, n - done);
+                buf.setSize (2, len, false, false, true);
+                for (int ch = 0; ch < 2; ++ch)
+                    juce::FloatVectorOperations::fill (buf.getWritePointer (ch), 1.0f, len);   // processBlock must clear
+
+                midi.clear();
+                const int t0 = cursor + done;
+                for (const auto& e : evs)
+                    if (e.pos >= t0 && e.pos < t0 + len)
+                        midi.addEvent (e.msg, e.pos - t0);
+
+                armAlloc (gAllocMode && blocksRun > 0);   // warm-up block unarmed
+                proc->processBlock (buf, midi);
+                armAlloc (false);
+                ++blocksRun;
+
+                const float* l = buf.getReadPointer (0);
+                const float* r = buf.getReadPointer (1);
+                for (int i = 0; i < len; ++i)
+                {
+                    if (! std::isfinite (l[i]) || ! std::isfinite (r[i]))
+                        ++gNonFinite;
+                    if (std::memcmp (&l[i], &r[i], sizeof (float)) != 0)
+                        ++gChannelMismatch;
+                    out.push_back (l[i]);
+                }
+                gSamplesChecked += len;
+                done += len;
+            }
+
+            cursor += n;
+            return out;
+        }
+    };
+
+    //==========================================================================
+    // Voice-level rig: a WtVoice driven directly with its own BlockContext.
+    struct VoiceRig
+    {
+        WtVoice voice;
+        WtSound sound;
+        BlockContext ctx;
+        std::vector<float> knob, zero;
+        int blk;
+        int cursor = 0;
+
+        VoiceRig (const WavetableBank* bank, double fs, int blockSize, bool interp, bool bandlimit, int bitIdx,
+                  const juce::ADSR::Parameters& amp)
+            : knob ((size_t) blockSize, 0.0f), zero ((size_t) blockSize, 0.0f), blk (blockSize)
+        {
+            ctx.knobPos = knob.data();
+            ctx.lfo = zero.data();
+            ctx.lfoDepth = zero.data();
+            ctx.envAmount = zero.data();
+            ctx.bank = bank;
+            ctx.interp = interp;
+            ctx.bandlimit = bandlimit;
+            ctx.bitDepthIndex = bitIdx;
+            voice.setBlockContext (&ctx);
+            voice.prepareToPlay (fs, blockSize, amp);
+            voice.setBlockParams (amp);
+        }
+
+        void start (int note, float vel) { voice.startNote (note, vel, &sound, 8192); }
+
+        std::vector<float> run (int n, const std::function<float (int)>& knobAt)
+        {
+            std::vector<float> out;
+            out.reserve ((size_t) n);
+            juce::AudioBuffer<float> b (1, blk);
+            for (int done = 0; done < n;)
+            {
+                const int len = juce::jmin (blk, n - done);
+                for (int i = 0; i < len; ++i)
+                    knob[(size_t) i] = knobAt (cursor + done + i);
+                b.clear();
+                voice.renderNextBlock (b, 0, len);
+                const float* d = b.getReadPointer (0);
+                out.insert (out.end(), d, d + len);
+                done += len;
+            }
+            cursor += n;
+            return out;
+        }
+    };
+
+    juce::ADSR::Parameters steadyAmp() { return { 0.001f, 0.001f, 1.0f, 0.05f }; }
+
+    //==========================================================================
+    // Analysis helpers
+    double rms (const std::vector<float>& x, int from, int to)
+    {
+        from = juce::jlimit (0, (int) x.size(), from);
+        to   = juce::jlimit (from, (int) x.size(), to);
+        if (to <= from)
+            return 0.0;
+        double s = 0.0;
+        for (int i = from; i < to; ++i)
+            s += (double) x[(size_t) i] * (double) x[(size_t) i];
+        return std::sqrt (s / (double) (to - from));
+    }
+
+    double peakAbs (const std::vector<float>& x, int from, int to)
+    {
+        double p = 0.0;
+        for (int i = juce::jmax (0, from); i < juce::jmin ((int) x.size(), to); ++i)
+            p = std::max (p, (double) std::abs (x[(size_t) i]));
+        return p;
+    }
+
+    double maxStep (const std::vector<float>& x, int from, int to)
+    {
+        double m = 0.0;
+        for (int i = juce::jmax (1, from); i < juce::jmin ((int) x.size(), to); ++i)
+            m = std::max (m, (double) std::abs (x[(size_t) i] - x[(size_t) (i - 1)]));
+        return m;
+    }
+
+    double blackmanHarris (int n, int len)
+    {
+        const double a = 2.0 * kPi * (double) n / (double) (len - 1);
+        return 0.35875 - 0.48829 * std::cos (a) + 0.14128 * std::cos (2.0 * a) - 0.01168 * std::cos (3.0 * a);
+    }
+
+    // Blackman-Harris single-bin DFT at f, demodulated in ABSOLUTE time
+    // (sample index from the start of x), so a component exactly at f has a
+    // phase that does not advance between windows.
+    std::complex<double> binPhasor (const std::vector<float>& x, int start, int len, double f, double fs)
+    {
+        std::complex<double> acc (0.0, 0.0);
+        double wsum = 0.0;
+        for (int n = 0; n < len; ++n)
+        {
+            const int idx = start + n;
+            if (idx < 0 || idx >= (int) x.size())
+                break;
+            const double w = blackmanHarris (n, len);
+            const double cyc = f * (double) idx / fs;
+            const double ang = -2.0 * kPi * (cyc - std::floor (cyc));
+            acc += w * (double) x[(size_t) idx] * std::complex<double> (std::cos (ang), std::sin (ang));
+            wsum += w;
+        }
+        return wsum > 0.0 ? acc * (2.0 / wsum) : acc;
+    }
+
+    double binAmp (const std::vector<float>& x, int start, int len, double f, double fs)
+    {
+        return std::abs (binPhasor (x, start, len, f, fs));
+    }
+
+    // Frequency of the component near fExp: phase advance over 10 hops of
+    // 50 ms (unambiguous within +/-10 Hz), W = 8192. Returns cents vs fExp.
+    double measureCents (const std::vector<float>& x, double fs, double fExp, int startSample)
+    {
+        constexpr int kW = 8192, kHops = 10;
+        const int hop = secs (0.05, fs);
+        double total = 0.0;
+        auto prev = binPhasor (x, startSample, kW, fExp, fs);
+        for (int h = 1; h <= kHops; ++h)
+        {
+            const auto cur = binPhasor (x, startSample + h * hop, kW, fExp, fs);
+            total += std::arg (cur * std::conj (prev));
+            prev = cur;
+        }
+        const double dt = (double) (kHops * hop) / fs;
+        const double df = total / (2.0 * kPi * dt);
+        return 1200.0 * std::log2 ((fExp + df) / fExp);
+    }
+
+    //==========================================================================
+    // QUAL-02 analyzer (RESEARCH 6.5): Kaiser beta 38, FFT 2^17, +/-14-bin mask
+    // around every harmonic k*f0 < fs/2 and DC; metric = max inharmonic bin
+    // relative to the max harmonic bin (or to an equal-RMS sine, D-B).
+    struct Q2Analyzer
+    {
+        static constexpr int kOrder = 17;
+        static constexpr int kSize  = 1 << kOrder;
+        static constexpr int kGuard = 14;
+
+        juce::dsp::FFT fft { kOrder };
+        std::vector<float> window = std::vector<float> ((size_t) kSize, 0.0f);
+        std::vector<float> work   = std::vector<float> ((size_t) (2 * kSize), 0.0f);
+        std::vector<unsigned char> mask = std::vector<unsigned char> ((size_t) (kSize / 2 + 1), 0);
+
+        Q2Analyzer()
+        {
+            juce::dsp::WindowingFunction<float>::fillWindowingTables (window.data(), (size_t) kSize,
+                juce::dsp::WindowingFunction<float>::kaiser, false, 38.0f);
+        }
+
+        struct Result
+        {
+            double inhDb = 0.0;      // max inharmonic rel max harmonic
+            double worstHz = 0.0;
+            double maxHarm = 0.0;
+            double maxInh = 0.0;
+        };
+
+        Result measure (const float* x, double f0, double fs)
+        {
+            for (int i = 0; i < kSize; ++i)
+                work[(size_t) i] = x[i] * window[(size_t) i];
+            std::fill (work.begin() + kSize, work.end(), 0.0f);
+            fft.performFrequencyOnlyForwardTransform (work.data(), true);
+
+            const int nb = kSize / 2;
+            const double binHz = fs / (double) kSize;
+            std::fill (mask.begin(), mask.end(), (unsigned char) 0);
+            for (int b = 0; b <= kGuard && b <= nb; ++b)
+                mask[(size_t) b] = 2;                       // DC: excluded from both
+            for (int h = 1; (double) h * f0 < 0.5 * fs; ++h)
+            {
+                const int c = (int) std::lround ((double) h * f0 / binHz);
+                for (int b = juce::jmax (0, c - kGuard); b <= juce::jmin (nb, c + kGuard); ++b)
+                    if (mask[(size_t) b] == 0)
+                        mask[(size_t) b] = 1;
+            }
+
+            Result r;
+            int worstBin = 0;
+            for (int b = 0; b <= nb; ++b)
+            {
+                const double m = (double) work[(size_t) b];
+                if (mask[(size_t) b] == 1)
+                    r.maxHarm = std::max (r.maxHarm, m);
+                else if (mask[(size_t) b] == 0 && m > r.maxInh)
+                {
+                    r.maxInh = m;
+                    worstBin = b;
+                }
+            }
+            r.worstHz = (double) worstBin * binHz;
+            r.inhDb = dB (r.maxInh / std::max (r.maxHarm, 1.0e-300));
+            return r;
+        }
+
+        // Peak bin of a sine with the same RMS as x (D-B reference).
+        double equalRmsSinePeak (const float* x, double f0, double fs)
+        {
+            double s = 0.0;
+            for (int i = 0; i < kSize; ++i)
+                s += (double) x[i] * (double) x[i];
+            const double amp = std::sqrt (2.0 * s / (double) kSize);
+
+            for (int i = 0; i < kSize; ++i)
+            {
+                const double cyc = f0 * (double) i / fs;
+                work[(size_t) i] = (float) (amp * std::sin (2.0 * kPi * (cyc - std::floor (cyc)))) * window[(size_t) i];
+            }
+            std::fill (work.begin() + kSize, work.end(), 0.0f);
+            fft.performFrequencyOnlyForwardTransform (work.data(), true);
+            double peak = 0.0;
+            for (int b = 0; b <= kSize / 2; ++b)
+                peak = std::max (peak, (double) work[(size_t) b]);
+            return peak;
+        }
+    };
+
+    //==========================================================================
+    // G-PITCH / G-BEND
+    std::vector<float> renderNote (double fs, const Params& params, int note, double seconds,
+                                   int wheel = 8192, int block = 4096)
+    {
+        Rig rig (fs, block, params);
+        std::vector<Ev> evs;
+        if (wheel != 8192)
+            evs.push_back (evWheel (0, wheel));            // before the note: seeds startNote's wheel
+        evs.push_back (evOn (0, note));
+        return rig.run (secs (seconds, fs), evs);
+    }
+
+    void gatePitch()
+    {
+        double worst = 0.0;
+        int worstNote = 0;
+        double worstFs = 0.0;
+        float worstPos = 0.0f;
+        for (const double fs : { 44100.0, 48000.0 })
+            for (const float pos : { 0.0f, 1.0f })
+                for (int note = 21; note <= 108; ++note)
+                {
+                    const auto x = renderNote (fs, baseParams (BankFactory::sineSaw, pos), note, 1.0);
+                    const double c = measureCents (x, fs, noteHz (note), secs (0.1, fs));
+                    const double a = std::isfinite (c) ? std::abs (c) : 1.0e9;
+                    if (a > worst)
+                    {
+                        worst = a;
+                        worstNote = note;
+                        worstFs = fs;
+                        worstPos = pos;
+                    }
+                }
+
+        // Negative control: +68 wheel steps = +1.66 cents must be detected.
+        bool negOk = true;
+        std::string negDetail;
+        for (const int note : { 21, 69, 108 })
+        {
+            const auto x = renderNote (48000.0, baseParams (BankFactory::sineSaw, 0.0f), note, 1.0, 8192 + 68);
+            const double c = measureCents (x, 48000.0, noteHz (note), secs (0.1, 48000.0));
+            if (! (std::abs (c) > 1.0))
+                negOk = false;
+            negDetail += "MIDI " + std::to_string (note) + " " + fmt (c, 3) + " c; ";
+        }
+
+        report ("G-PITCH", worst <= 1.0 && negOk,
+                "worst |cents| " + fmt (worst, 4) + " (MIDI " + std::to_string (worstNote) + ", "
+                + fmt (worstFs, 0) + " Hz, pos " + fmt (worstPos, 0) + ") over MIDI 21..108 x {44.1k,48k} x pos {0,1}"
+                + " (<= 1); neg control wheel+68 (expect ~+1.66 c, must exceed 1): " + negDetail);
+    }
+
+    void gateBend()
+    {
+        bool ok = true;
+        std::string d;
+        for (const int wheel : { 16383, 0 })
+        {
+            const double semis = ((double) wheel - 8192.0) / 8192.0 * 2.0;
+            const double fExp = 440.0 * std::pow (2.0, semis / 12.0);
+            const auto x = renderNote (48000.0, baseParams (BankFactory::sineSaw, 0.0f), 69, 1.0, wheel);
+            const double c = measureCents (x, 48000.0, fExp, secs (0.1, 48000.0));
+            if (! (std::abs (c) <= 1.0))
+                ok = false;
+            d += "wheel " + std::to_string (wheel) + ": expect " + fmt (fExp, 4) + " Hz (" + fmt (semis, 5)
+               + " st), error " + fmt (c, 4) + " c; ";
+        }
+        report ("G-BEND", ok, d);
+    }
+
+    //==========================================================================
+    // QUAL-02
+    int q2Skip (double fs) { return secs (0.05, fs); }
+
+    std::vector<float> q2Proc (double fs, int bank, float pos, int note, bool bandlimit = true)
+    {
+        // Interp Off: the latched frame is exactly round(pos * 31).
+        auto p = with (with (baseParams (bank, pos), ids::interp, 0.0f), ids::bandlimit, bandlimit ? 1.0f : 0.0f);
+        Rig rig (fs, 4096, p);
+        const int skip = q2Skip (fs);
+        auto x = rig.run (skip + Q2Analyzer::kSize, { evOn (0, note) });
+        return std::vector<float> (x.begin() + skip, x.end());
+    }
+
+    std::vector<float> q2Voice (const WavetableBank& bank, double fs, int note)
+    {
+        VoiceRig vr (&bank, fs, 4096, true, true, 0, steadyAmp());
+        vr.start (note, 1.0f);
+        const int skip = q2Skip (fs);
+        auto x = vr.run (skip + Q2Analyzer::kSize, [] (int) { return 0.0f; });
+        return std::vector<float> (x.begin() + skip, x.end());
+    }
+
+    struct Worst
+    {
+        double db = -1000.0;
+        int note = 0;
+        double hz = 0.0;
+        void take (double v, int n, double h)
+        {
+            if (v > db || ! std::isfinite (v)) { db = std::isfinite (v) ? v : 1000.0; note = n; hz = h; }
+        }
+    };
+
+    void gateQual02 (Q2Analyzer& an, const WavetableBank& saw1023)
+    {
+        constexpr double kC8 = -100.0, kSweep = -70.0;
+
+        // White-box: the selected level keeps every harmonic below Nyquist.
+        int levelViolations = 0;
+        for (const double fs : { 44100.0, 48000.0, 96000.0 })
+            for (int note = 21; note <= 108; ++note)
+            {
+                const double f = noteHz (note);
+                const int level = wt::selectLevel (f, fs, true);
+                if (level < wt::kMinBandLimitedLevel || ! ((double) WavetableBank::kmax (level) * f < 0.5 * fs))
+                    ++levelViolations;
+            }
+        report ("G-Q2-LEVEL", levelViolations == 0,
+                "selectLevel: kmax(L) * f < fs/2 and L >= " + std::to_string (wt::kMinBandLimitedLevel)
+                + " for MIDI 21..108 x 3 rates; violations = " + std::to_string (levelViolations));
+
+        struct Arm { const char* name; int bank; float pos; bool voiceLevel; };
+        const Arm arms[] = {
+            { "Drive 32",              BankFactory::drive,      1.0f, false },
+            { "Pulse frame 1",         BankFactory::pulseWidth, 0.0f, false },
+            { "Saw-1023 (voice-level)", -1,                     0.0f, true  },
+        };
+
+        bool c8ok = true, sweepOk = true;
+        double c8Worst = -1000.0, sweepWorst = -1000.0;
+        for (const auto& arm : arms)
+            for (const double fs : { 44100.0, 48000.0, 96000.0 })
+            {
+                Worst w;
+                double c8 = 0.0, c8Hz = 0.0;
+                for (int note = 21; note <= 108; ++note)
+                {
+                    const auto x = arm.voiceLevel ? q2Voice (saw1023, fs, note)
+                                                  : q2Proc (fs, arm.bank, arm.pos, note);
+                    const auto r = an.measure (x.data(), noteHz (note), fs);
+                    w.take (r.inhDb, note, r.worstHz);
+                    if (note == 108) { c8 = r.inhDb; c8Hz = r.worstHz; }
+                }
+                if (! (c8 <= kC8)) c8ok = false;
+                if (! (w.db <= kSweep)) sweepOk = false;
+                c8Worst = std::max (c8Worst, c8);
+                sweepWorst = std::max (sweepWorst, w.db);
+                info (std::string (arm.name) + " @ " + fmt (fs, 0) + " Hz: C8 " + fmt (c8, 1) + " dB (worst bin "
+                      + fmt (c8Hz, 1) + " Hz, margin " + fmt (kC8 - c8, 1) + " dB); sweep worst " + fmt (w.db, 1)
+                      + " dB at MIDI " + std::to_string (w.note) + " (" + fmt (w.hz, 1) + " Hz, margin "
+                      + fmt (kSweep - w.db, 1) + " dB)");
+            }
+
+        report ("G-Q2-C8", c8ok, "worst C8 (MIDI 108) inharmonic " + fmt (c8Worst, 1)
+                                 + " dB over Drive 32 / Pulse 1 / Saw-1023 x 44.1/48/96k (<= -100)");
+        report ("G-Q2-SWEEP", sweepOk, "worst MIDI 21..108 inharmonic " + fmt (sweepWorst, 1)
+                                       + " dB over the same frames and rates (<= -70; D-A floor L >= 1)");
+    }
+
+    void gatePulseException (Q2Analyzer& an)
+    {
+        std::cout << "NAMED EXCEPTION (D-B): narrow pulses judged on equal-RMS metric\n";
+
+        std::vector<int> notes;
+        for (int n = 21; n <= 33; ++n) notes.push_back (n);
+        for (int n = 36; n <= 108; n += 3) notes.push_back (n);
+        if (notes.back() != 108) notes.push_back (108);
+
+        bool ok = true;
+        double worstEq = -1000.0;
+        for (const int k : { 16, 24, 32 })
+        {
+            const float pos = (float) (k - 1) / 31.0f;
+            for (const double fs : { 44100.0, 48000.0, 96000.0 })
+            {
+                Worst eqW, harmW;
+                for (const int note : notes)
+                {
+                    const auto x = q2Proc (fs, BankFactory::pulseWidth, pos, note);
+                    const double f0 = noteHz (note);
+                    const auto r = an.measure (x.data(), f0, fs);
+                    const double ref = an.equalRmsSinePeak (x.data(), f0, fs);
+                    const double eq = dB (r.maxInh / std::max (ref, 1.0e-300));
+                    eqW.take (eq, note, r.worstHz);
+                    harmW.take (r.inhDb, note, r.worstHz);
+                }
+                if (! (eqW.db <= -60.0)) ok = false;
+                worstEq = std::max (worstEq, eqW.db);
+                info ("Pulse " + std::to_string (k) + " @ " + fmt (fs, 0) + " Hz: equal-RMS worst " + fmt (eqW.db, 1)
+                      + " dB at MIDI " + std::to_string (eqW.note) + " (margin " + fmt (-60.0 - eqW.db, 1)
+                      + " dB); strongest-harmonic metric (record only) " + fmt (harmW.db, 1) + " dB at MIDI "
+                      + std::to_string (harmW.note));
+            }
+        }
+        report ("G-Q2-PULSE", ok, "NAMED EXCEPTION (D-B): narrow pulses judged on equal-RMS metric; worst "
+                                  + fmt (worstEq, 1) + " dB rel equal-RMS sine (<= -60)");
+    }
+
+    void gateDsp02 (Q2Analyzer& an)
+    {
+        const double fs = 44100.0;
+        const int note = 96;   // C7
+        const auto off = q2Proc (fs, BankFactory::sineSaw, 1.0f, note, false);
+        const auto on  = q2Proc (fs, BankFactory::sineSaw, 1.0f, note, true);
+        const auto rOff = an.measure (off.data(), noteHz (note), fs);
+        const auto rOn  = an.measure (on.data(), noteHz (note), fs);
+        report ("G-DSP02", rOff.inhDb > -40.0 && rOn.inhDb <= -100.0,
+                "Saw 32 @ C7 44.1k: band-limit Off " + fmt (rOff.inhDb, 1) + " dB at " + fmt (rOff.worstHz, 1)
+                + " Hz (> -40, analyzer liveness); On " + fmt (rOn.inhDb, 1) + " dB (<= -100)");
+    }
+
+    //==========================================================================
+    // G-DSP01: fs 56320, A4 -> inc = 2^-7 exactly, period 128 = block.
+    std::vector<float> dsp01Render (bool interp)
+    {
+        const double fs = 56320.0;
+        constexpr int kBlk = 128, kRamp = 2000, kHold = 40;
+        auto p = with (baseParams (BankFactory::sineSaw, 0.0f), ids::interp, interp ? 1.0f : 0.0f);
+        Rig rig (fs, kBlk, p);
+        std::vector<float> all;
+        for (int b = 0; b < kRamp + kHold; ++b)
+        {
+            const float pos = b < kRamp ? (float) b / (float) (kRamp - 1) : 1.0f;
+            rig.set (ids::position, pos);
+            std::vector<Ev> evs;
+            if (b == 0)
+                evs.push_back (evOn (0, 69));
+            const auto x = rig.run (kBlk, evs);
+            all.insert (all.end(), x.begin(), x.end());
+        }
+        return all;
+    }
+
+    void cycleSpectrum (const float* c, std::vector<double>& mag)
+    {
+        mag.assign (32, 0.0);
+        for (int h = 1; h <= 32; ++h)
+        {
+            std::complex<double> acc (0.0, 0.0);
+            for (int n = 0; n < 128; ++n)
+            {
+                const double ang = -2.0 * kPi * (double) (h * n) / 128.0;
+                acc += (double) c[n] * std::complex<double> (std::cos (ang), std::sin (ang));
+            }
+            mag[(size_t) (h - 1)] = std::abs (acc) / 64.0;
+        }
+    }
+
+    void dsp01Stats (const std::vector<float>& x, int& distinct, double& maxStepOut)
+    {
+        constexpr int kSkipCycles = 10;
+        std::set<std::string> seen;
+        std::vector<double> prev, cur;
+        maxStepOut = 0.0;
+        const int cycles = (int) x.size() / 128;
+        for (int c = kSkipCycles; c < cycles; ++c)
+        {
+            const float* p = x.data() + (size_t) c * 128;
+            seen.insert (std::string (reinterpret_cast<const char*> (p), 128 * sizeof (float)));
+            cycleSpectrum (p, cur);
+            if (! prev.empty())
+            {
+                double s = 0.0;
+                for (size_t h = 0; h < cur.size(); ++h)
+                    s += (cur[h] - prev[h]) * (cur[h] - prev[h]);
+                maxStepOut = std::max (maxStepOut, std::sqrt (s));
+            }
+            prev = cur;
+        }
+        distinct = (int) seen.size();
+    }
+
+    void gateDsp01()
+    {
+        const auto off = dsp01Render (false);
+        const auto on  = dsp01Render (true);
+        int dOff = 0, dOn = 0;
+        double sOff = 0.0, sOn = 0.0;
+        dsp01Stats (off, dOff, sOff);
+        dsp01Stats (on, dOn, sOn);
+        const bool differ = off.size() != on.size()
+                         || std::memcmp (off.data(), on.data(), off.size() * sizeof (float)) != 0;
+
+        report ("G-DSP01", dOff == 32 && dOn >= 500 && sOn < sOff / 10.0 && differ,
+                "Interp Off: " + std::to_string (dOff) + " distinct 128-sample cycles (want 32, so frames change only at"
+                " cycle boundaries); On: " + std::to_string (dOn) + " distinct (>= 500); max spectral step On "
+                + fmt (sOn, 5) + " vs Off " + fmt (sOff, 5) + " (On < Off/10); neg control Off != On: "
+                + (differ ? "yes" : "NO"));
+    }
+
+    //==========================================================================
+    void gateDsp03()
+    {
+        const double fs = 48000.0;
+        auto run = [fs] (int bitIdx)
+        {
+            Rig rig (fs, 512, with (baseParams (BankFactory::sineSaw, 1.0f), ids::bitDepth, (float) bitIdx));
+            const float outDb = rawOf (*rig.proc, ids::outputLevel);
+            auto x = rig.run (secs (0.6, fs), { evOn (0, 69) });
+            return std::make_pair (std::vector<float> (x.begin() + secs (0.1, fs), x.end()), outDb);
+        };
+
+        const auto q = run (14);   // "3"
+        const auto full = run (0);
+
+        std::set<float> vals (q.first.begin(), q.first.end());
+        std::set<float> want;
+        for (const float k : { 1.0f, 3.0f, 5.0f, 7.0f })
+        {
+            want.insert (k / 16.0f);
+            want.insert (-k / 16.0f);
+        }
+        std::set<float> fullVals (full.first.begin(), full.first.end());
+
+        std::string got;
+        for (const float v : vals)
+            got += fmt (v, 5) + " ";
+
+        // The quantizer levels are exact; the output stage then applies the
+        // host-normalised output_level (raw 0.000001 dB at default, i.e. a
+        // gain of 1 + 1e-7), so match each level within 1e-6 after dividing
+        // that gain out. The count must still be exactly 8.
+        const float outGain = juce::Decibels::decibelsToGain (q.second, -60.0f);
+        bool levelsMatch = vals.size() == want.size();
+        if (levelsMatch)
+        {
+            auto w = want.begin();
+            for (const float v : vals)
+                levelsMatch = levelsMatch && std::abs (v / outGain - *w++) <= 1.0e-6f;
+        }
+
+        report ("G-DSP03", levelsMatch && fullVals.size() > 1000,
+                "3 bits: " + std::to_string (vals.size()) + " distinct values {" + got + "} (want exactly +/-{1,3,5,7}/16; "
+                "output_level raw " + fmt (q.second, 6) + " dB); neg control Full: " + std::to_string (fullVals.size())
+                + " distinct (> 1000)");
+    }
+
+    void gateFull()
+    {
+        // (a) Quantizer bypass over 10^6 values, bitwise.
+        BitQuantizer bq;
+        bq.setChoiceIndex (0);
+        juce::Random rng (0x5eed1234);
+        int mismatches = 0;
+        const float specials[] = { 0.0f, -0.0f, 1.3f, -1.3f, 1.0f, -1.0f,
+                                   std::numeric_limits<float>::denorm_min(), -std::numeric_limits<float>::denorm_min(),
+                                   std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
+                                   std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity(),
+                                   std::numeric_limits<float>::quiet_NaN() };
+        int count = 0;
+        for (const float v : specials)
+        {
+            const float y = bq.apply (v);
+            if (std::memcmp (&y, &v, sizeof (float)) != 0) ++mismatches;
+            ++count;
+        }
+        for (; count < 1000000; ++count)
+        {
+            float v;
+            if ((count & 1) == 0)
+            {
+                const auto bits = (std::uint32_t) rng.nextInt();
+                std::memcpy (&v, &bits, sizeof (float));
+            }
+            else
+            {
+                v = (rng.nextFloat() * 2.6f) - 1.3f;
+            }
+            const float y = bq.apply (v);
+            if (std::memcmp (&y, &v, sizeof (float)) != 0) ++mismatches;
+        }
+
+        // (b) Processor: 3 bits for 0.2 s then Full, vs a fresh Full render.
+        const double fs = 48000.0;
+        const int pre = secs (0.2, fs) / 512 * 512, post = secs (0.3, fs);
+        Rig a (fs, 512, with (baseParams (BankFactory::sineSaw, 1.0f), ids::bitDepth, 14.0f));
+        Rig b (fs, 512, baseParams (BankFactory::sineSaw, 1.0f));
+        const std::vector<Ev> evs { evOn (0, 57) };
+        a.run (pre, evs);
+        b.run (pre, evs);
+        a.set (ids::bitDepth, 0.0f);
+        const auto ya = a.run (post, evs);
+        const auto yb = b.run (post, evs);
+        const bool same = ya.size() == yb.size()
+                       && std::memcmp (ya.data(), yb.data(), ya.size() * sizeof (float)) == 0;
+
+        report ("G-FULL", mismatches == 0 && same,
+                "Full bypass: " + std::to_string (mismatches) + " bitwise mismatches over " + std::to_string (count)
+                + " values (incl. +/-0, subnormals, +/-1.3, inf, NaN); processor 3->Full render == fresh Full: "
+                + (same ? "yes" : "NO"));
+    }
+
+    //==========================================================================
+    // G-READ: voice output == the reference read (viz seam), within 1 ulp.
+    void gateRead (const BuiltInBanks& banks)
+    {
+        const double fs = 48000.0;
+        const int total = secs (0.5, fs), cmpFrom = 200, note = 69;
+        const WavetableBank& bank = *banks.get (BankFactory::sineSaw);
+        auto knobAt = [total] (int i) { return (float) i / (float) total; };   // ramp 0 -> 1
+
+        bool ok = true;
+        std::string d;
+        for (const bool interp : { true, false })
+        {
+            VoiceRig vr (&bank, fs, 256, interp, true, 14, steadyAmp());
+            vr.start (note, 1.0f);
+            const auto y = vr.run (total, knobAt);
+
+            BitQuantizer q;
+            q.setChoiceIndex (14);
+            const double hz = juce::MidiMessage::getMidiNoteInHertz (note) * std::pow (2.0, 0.0);
+            const double r = hz / fs;
+            const double inc = r < 0.49 ? r : 0.49;
+            const int level = wt::selectLevel (hz, fs, true);
+            double phase = 0.0;
+            int latched = 0;
+            bool needsLatch = true;
+            int bad = 0;
+            double worstUlp = 0.0;
+            for (int i = 0; i < total; ++i)
+            {
+                const float pos = wt::clamp01 (knobAt (i) + 0.0f * 0.5f * 0.0f);
+                if (needsLatch) { latched = wt::latchFrame (pos, bank.numFrames); needsLatch = false; }
+                const float e = q.apply (wt::readSample (bank, level, phase, interp, pos, latched)) * WtVoice::kVoiceGain;
+                if (i >= cmpFrom)
+                {
+                    const float yi = y[(size_t) i];
+                    const float ulp = std::nextafter (std::abs (e), std::numeric_limits<float>::infinity()) - std::abs (e);
+                    const double diffUlp = ulp > 0.0f ? std::abs ((double) yi - (double) e) / (double) ulp : 0.0;
+                    worstUlp = std::max (worstUlp, diffUlp);
+                    if (diffUlp > 1.0)
+                        ++bad;
+                }
+                phase += inc;
+                if (phase >= 1.0)
+                {
+                    phase -= 1.0;
+                    if (! interp)
+                        latched = wt::latchFrame (pos, bank.numFrames);
+                }
+            }
+            if (bad != 0)
+                ok = false;
+            d += std::string (interp ? "Interp On" : "Interp Off") + ": " + std::to_string (bad)
+               + " samples > 1 ulp (worst " + fmt (worstUlp, 2) + " ulp); ";
+        }
+        report ("G-READ", ok, d + "bit depth 3, Sine->Saw, knob ramp 0->1, A4 48k");
+    }
+
+    //==========================================================================
+    void gatePoly()
+    {
+        const double fs = 48000.0;
+        Rig rig (fs, 512, baseParams (BankFactory::sineSaw, 0.0f));
+        std::vector<Ev> evs;
+        for (int i = 0; i < 16; ++i)
+            evs.push_back (evOn (i * 64, 48 + i));
+        const auto x1 = rig.run (secs (1.2, fs), evs);
+        const int sounding1 = rig.proc->getSoundingVoiceCountForTesting();
+
+        auto amps = [fs] (const std::vector<float>& x, const std::vector<int>& notes)
+        {
+            std::vector<double> a;
+            for (const int n : notes)
+                a.push_back (binAmp (x, secs (0.3, fs), secs (0.8, fs), noteHz (n), fs));
+            return a;
+        };
+
+        std::vector<int> sixteen;
+        for (int i = 0; i < 16; ++i) sixteen.push_back (48 + i);
+        const auto a1 = amps (x1, sixteen);
+        const double max1 = *std::max_element (a1.begin(), a1.end());
+        double weakest = 0.0;
+        for (const double v : a1) weakest = std::min (weakest, dB (v / max1));
+
+        // 17th note: JUCE protects the lowest (48) and highest (63) held notes,
+        // so the oldest UNPROTECTED voice (49) is stolen.
+        const auto x2 = rig.run (secs (1.2, fs), { evOn (rig.cursor, 64) });
+        const int sounding2 = rig.proc->getSoundingVoiceCountForTesting();
+        const auto a2 = amps (x2, { 64, 49, 48 });
+        const double max2 = *std::max_element (a1.begin(), a1.end());
+        const double n64 = dB (a2[0] / max2), n49 = dB (a2[1] / max2), n48 = dB (a2[2] / max2);
+
+        report ("G-POLY", sounding1 == 16 && weakest > -30.0 && sounding2 == 16 && n64 > -30.0 && n49 < -40.0 && n48 > -30.0,
+                "16 notes: sounding " + std::to_string (sounding1) + ", weakest f0 " + fmt (weakest, 2)
+                + " dB rel strongest (> -30); after 17th (MIDI 64): sounding " + std::to_string (sounding2)
+                + ", MIDI 64 " + fmt (n64, 1) + " dB (> -30), stolen MIDI 49 " + fmt (n49, 1)
+                + " dB (< -40), protected lowest MIDI 48 " + fmt (n48, 1) + " dB (> -30)");
+    }
+
+    //==========================================================================
+    Params monoTestParams (bool mono)
+    {
+        auto p = baseParams (BankFactory::sineSaw, 0.0f);
+        p = with (p, ids::voiceMode, mono ? 1.0f : 0.0f);
+        p = with (p, ids::ampAttack, 0.005f);
+        p = with (p, ids::ampDecay, 0.15f);
+        p = with (p, ids::ampSustain, 0.4f);
+        p = with (p, ids::ampRelease, 0.2f);
+        return p;
+    }
+
+    void gateMono()
+    {
+        const double fs = 48000.0;
+        const int c4 = 60, e4 = 64;
+        const std::vector<Ev> evs { evOn (0, c4), evOn (secs (0.2, fs), e4), evOff (secs (0.6, fs), e4),
+                                    evOff (secs (1.0, fs), c4) };
+
+        Rig mono (fs, 512, monoTestParams (true));
+        const auto x = mono.run (secs (1.6, fs), evs);
+
+        const int w1a = secs (0.25, fs), w1n = secs (0.3, fs);
+        const double e4a = binAmp (x, w1a, w1n, noteHz (e4), fs), c4a = binAmp (x, w1a, w1n, noteHz (c4), fs);
+        const int w2a = secs (0.65, fs);
+        const double c4b = binAmp (x, w2a, w1n, noteHz (c4), fs), e4b = binAmp (x, w2a, w1n, noteHz (e4), fs);
+
+        const int t1 = secs (0.2, fs), t2 = secs (0.6, fs), w20 = secs (0.02, fs);
+        const double ra1 = rms (x, t1, t1 + w20) / std::max (rms (x, t1 - w20, t1), 1.0e-12);
+        const double ra2 = rms (x, t2, t2 + w20) / std::max (rms (x, t2 - w20, t2), 1.0e-12);
+        const double releasing = rms (x, secs (1.0, fs), secs (1.02, fs));
+        const double tail = rms (x, secs (1.3, fs), secs (1.6, fs));
+
+        Rig poly (fs, 512, monoTestParams (false));
+        const auto xp = poly.run (secs (1.6, fs), evs);
+        const double pe4 = binAmp (xp, w1a, w1n, noteHz (e4), fs), pc4 = binAmp (xp, w1a, w1n, noteHz (c4), fs);
+
+        const bool legato = e4a >= 4.0 * c4a && c4b >= 4.0 * e4b;
+        const bool noReattack = ra1 >= 0.9 && ra1 <= 1.1 && ra2 >= 0.9 && ra2 <= 1.1;
+        const bool tailOk = releasing > 1.0e-3 && tail < 1.0e-6;
+        const bool negOk = pc4 > 0.25 * pe4;
+
+        report ("G-MONO", legato && noReattack && tailOk && negOk,
+                "Mono 0.25-0.55 s E4/C4 = " + fmt (e4a / std::max (c4a, 1.0e-12), 1) + " (>= 4); 0.65-0.95 s C4/E4 = "
+                + fmt (c4b / std::max (e4b, 1.0e-12), 1) + " (>= 4); RMS after/before E4-on " + fmt (ra1, 3)
+                + ", after/before E4-off " + fmt (ra2, 3) + " (in [0.9, 1.1]: no re-attack); release RMS "
+                + fmt (releasing, 4) + ", tail RMS " + fmt (tail, 8) + " (< 1e-6); neg control Poly C4/E4 = "
+                + fmt (pc4 / std::max (pe4, 1.0e-12), 2) + " (> 0.25: both notes)");
+    }
+
+    void gateRetrig()
+    {
+        const double fs = 48000.0;
+        auto p = with (with (with (with (with (baseParams (BankFactory::sineSaw, 0.0f), ids::voiceMode, 1.0f),
+                       ids::ampAttack, 0.005f), ids::ampDecay, 0.3f), ids::ampSustain, 1.0f), ids::ampRelease, 0.3f);
+        Rig rig (fs, 512, p);
+        const int tOn2 = secs (0.6, fs);
+        const auto x = rig.run (secs (0.8, fs), { evOn (0, 48), evOff (secs (0.5, fs), 48), evOn (tOn2, 48) });
+
+        const double steady = maxStep (x, secs (0.3, fs), secs (0.5, fs));
+        const double around = maxStep (x, tOn2 - 32, tOn2 + secs (0.05, fs));
+        const double tailLevel = peakAbs (x, tOn2 - secs (0.01, fs), tOn2);
+        report ("G-RETRIG", around <= 1.5 * steady && tailLevel > 0.05,
+                "max |step| around the retrigger " + fmt (around, 5) + " vs steady " + fmt (steady, 5)
+                + " (<= 1.5x; a reset-to-0 would jump by ~" + fmt (tailLevel, 3) + ")");
+    }
+
+    void gateNoteOff()
+    {
+        const double fs = 48000.0;
+        auto p = with (with (with (with (baseParams (BankFactory::sineSaw, 0.0f), ids::ampAttack, 0.005f),
+                       ids::ampDecay, 3.0f), ids::ampSustain, 0.0f), ids::ampRelease, 0.3f);
+        Rig rig (fs, 512, p);
+        const int tOff = secs (0.85, fs);
+        const auto x = rig.run (secs (1.0, fs), { evOn (0, 69), evOff (tOff, 69) });
+        const double pre = rms (x, tOff - secs (0.05, fs), tOff);
+        const double post = rms (x, tOff + secs (0.01, fs), tOff + secs (0.06, fs));
+
+        // Negative control (documented, not shipped): a raw ADSR whose params
+        // are re-pushed every block collapses the sustain-0 release tail.
+        juce::ADSR env;
+        env.setSampleRate (fs);
+        const juce::ADSR::Parameters ap { 0.005f, 3.0f, 0.0f, 0.3f };
+        env.setParameters (ap);
+        env.noteOn();
+        std::vector<float> e;
+        for (int i = 0; i < secs (1.0, fs); ++i)
+        {
+            if (i == tOff) env.noteOff();
+            if (i % 512 == 0) env.setParameters (ap);   // the bug
+            e.push_back (env.getNextSample());
+        }
+        const double ePre = rms (e, tOff - secs (0.05, fs), tOff);
+        const double ePost = rms (e, tOff + secs (0.01, fs), tOff + secs (0.06, fs));
+
+        report ("G-NOTEOFF", post > 0.2 * pre && ePost <= 0.2 * ePre,
+                "tail RMS / pre RMS = " + fmt (post / std::max (pre, 1.0e-12), 3) + " (> 0.2); neg control "
+                "(per-block setParameters on a raw ADSR) = " + fmt (ePost / std::max (ePre, 1.0e-12), 3) + " (<= 0.2)");
+    }
+
+    void gateVel()
+    {
+        const double fs = 48000.0;
+        auto level = [fs] (int vel)
+        {
+            Rig rig (fs, 512, baseParams (BankFactory::sineSaw, 0.0f));
+            const auto x = rig.run (secs (0.5, fs), { evOn (0, 69, vel) });
+            return rms (x, secs (0.1, fs), secs (0.5, fs));
+        };
+        const double r = dB (level (64) / level (127));
+        const double want = 20.0 * std::log10 (std::pow (64.0 / 127.0, 2.0));
+        report ("G-VEL", std::abs (r - (-11.90)) <= 0.05,
+                "vel 64 vs 127 = " + fmt (r, 3) + " dB (want -11.90 +/- 0.05; exact (64/127)^2 = " + fmt (want, 3) + " dB)");
+    }
+
+    void gateOut()
+    {
+        const double fs = 48000.0;
+        const std::vector<Ev> evs { evOn (0, 69) };
+
+        Rig silent (fs, 512, with (baseParams (BankFactory::sineSaw, 0.0f), ids::outputLevel, -60.0f));
+        const auto xs = silent.run (secs (0.3, fs), evs);
+        long long nonZero = 0;
+        for (const float v : xs)
+            if (! juce::exactlyEqual (v, 0.0f))
+                ++nonZero;
+
+        Rig loud (fs, 512, baseParams (BankFactory::sineSaw, 0.0f));
+        const auto xl = loud.run (secs (0.05, fs), evs);
+        const double seeded = peakAbs (xl, secs (0.009, fs), secs (0.011, fs) + 1);
+
+        // Negative control: prepared at -60 dB, raised to 0 dB before the first
+        // block -> a 20 ms ramp from silence (the unseeded behaviour).
+        Rig ramp (fs, 512, with (baseParams (BankFactory::sineSaw, 0.0f), ids::outputLevel, -60.0f));
+        ramp.set (ids::outputLevel, 0.0f);
+        const auto xr = ramp.run (secs (0.05, fs), evs);
+        const double ramped = peakAbs (xr, secs (0.009, fs), secs (0.011, fs) + 1);
+
+        report ("G-OUT", nonZero == 0 && seeded >= 0.45 && seeded <= 0.55 && ramped < 0.4,
+                "-60 dB: " + std::to_string (nonZero) + " samples not exactly 0.0f of " + std::to_string (xs.size())
+                + "; 0 dB peak at 10 ms " + fmt (seeded, 4) + " (~0.5, seeded); neg control ramp-from-silence "
+                + fmt (ramped, 4) + " (< 0.4)");
+    }
+
+    void gateImportedEmpty()
+    {
+        const double fs = 48000.0;
+        Rig rig (fs, 512, baseParams (5, 0.0f));
+        const auto x1 = rig.run (secs (0.2, fs), { evOn (0, 69) });
+        const int sounding = rig.proc->getSoundingVoiceCountForTesting();
+        long long nonZero = 0;
+        for (const float v : x1)
+            if (! juce::exactlyEqual (v, 0.0f))
+                ++nonZero;
+        rig.set (ids::bank, 0.0f);
+        const auto x2 = rig.run (secs (0.2, fs));
+        const double after = peakAbs (x2, 0, (int) x2.size());
+        report ("G-IMPEMPTY", nonZero == 0 && sounding == 1 && after > 0.1,
+                "bank Imported (empty): " + std::to_string (nonZero) + " non-zero samples, env running in "
+                + std::to_string (sounding) + " voice(s); after switching to Sine->Saw mid-note peak " + fmt (after, 3) + " (> 0.1)");
+    }
+
+    void gateBlock()
+    {
+        const double fs = 48000.0;
+        bool ok = true;
+        std::string d;
+        for (const bool mono : { false, true })
+        {
+            const auto p = with (baseParams (BankFactory::sineSaw, 0.6f), ids::voiceMode, mono ? 1.0f : 0.0f);
+            const std::vector<Ev> evs { evOn (100, 60), evOn (300, 64), evWheel (900, 12000), evOn (700, 67),
+                                        evOff (1500, 64), evWheel (2100, 4000), evOn (3333, 72), evOff (5000, 60),
+                                        evOff (6000, 67), evOff (7000, 72) };
+            Rig big (fs, 256, p), small (fs, 256, p);
+            const auto a = big.run (8 * 1024, evs, 1024);     // oversized host blocks
+            const auto b = small.run (8 * 1024, evs);         // 256-sample blocks
+            const bool same = a.size() == b.size() && std::memcmp (a.data(), b.data(), a.size() * sizeof (float)) == 0;
+            const double pk = peakAbs (a, 0, (int) a.size());
+            if (! same || pk < 0.1)
+                ok = false;
+            d += std::string (mono ? "Mono" : "Poly") + ": 1024 vs 4x256 bit-identical " + (same ? "yes" : "NO")
+               + " (peak " + fmt (pk, 3) + "); ";
+        }
+        report ("G-BLOCK", ok, d);
+    }
+
+    //==========================================================================
+    // G-ALLOC stimulus list (RESEARCH 6.6). Every render is armed except each
+    // rig's warm-up block; param changes happen between blocks, unarmed.
+    void allocScenario()
+    {
+        const double fs = 48000.0;
+        Rig rig (fs, 512, baseParams (BankFactory::sineSaw, 0.3f));
+        rig.run (512);                                                       // warm-up (unarmed)
+
+        std::vector<Ev> evs;
+        for (int i = 0; i < 8; ++i)
+            evs.push_back (evOn (rig.cursor + i * 40, 48 + i));
+        rig.run (2048, evs);                                                 // note-ons
+
+        evs.clear();
+        for (int i = 0; i < 20; ++i)
+            evs.push_back (evOn (rig.cursor + i, 60 + i));
+        rig.run (1024, evs);                                                 // 20-note steal
+
+        evs.clear();
+        for (int i = 0; i < 64; ++i)
+            evs.push_back (evWheel (rig.cursor + i * 32, (i * 256) % 16384));
+        rig.run (2048, evs);                                                 // wheel sweep
+
+        for (const float b : { 4.0f, 5.0f, 0.0f, 2.0f, 3.0f, 1.0f })
+        {
+            rig.set (ids::bank, b);                                          // bank 0 -> 4 -> 5 -> 0 ...
+            rig.run (1024);
+        }
+        for (const float v : { 0.0f, 1.0f })
+        {
+            rig.set (ids::interp, v);    rig.run (512);
+            rig.set (ids::bandlimit, v); rig.run (512);
+        }
+        for (const float b : { 14.0f, 7.0f, 0.0f })
+        {
+            rig.set (ids::bitDepth, b);
+            rig.run (512);
+        }
+        rig.set (ids::position, 0.9f);
+        rig.run (1024);
+
+        rig.set (ids::voiceMode, 1.0f);                                      // Poly -> Mono
+        evs.clear();
+        evs.push_back (evOn (rig.cursor + 10, 60));
+        evs.push_back (evOn (rig.cursor + 200, 64));
+        evs.push_back (evWheel (rig.cursor + 300, 10000));
+        evs.push_back (evOff (rig.cursor + 600, 64));
+        rig.run (2048, evs);
+        rig.set (ids::voiceMode, 0.0f);                                      // Mono -> Poly
+        evs.clear();
+        for (int i = 0; i < 4; ++i)
+            evs.push_back (evOn (rig.cursor + i * 10, 50 + i));
+        rig.run (2048, evs);
+
+        evs.clear();
+        for (int i = 0; i < 4; ++i)
+            evs.push_back (evOff (rig.cursor + i * 10, 50 + i));
+        rig.run (secs (0.3, fs), evs);                                       // release tails
+
+        evs.clear();
+        evs.push_back (evOn (rig.cursor + 100, 70));
+        evs.push_back (evOn (rig.cursor + 1500, 71));
+        rig.run (4096, evs, 2048);                                           // oversized host block
+        rig.run (512, {}, 1);                                                // 1-sample blocks
+    }
+
+    int runAllocCheck()
+    {
+       #if JUCE_MAC
+        audioThread = pthread_self();
+        malloc_logger = countAllocation;
+
+        allocArmed = true;
+        void* volatile probe = std::malloc (64);
+        allocArmed = false;
+        std::free (probe);
+
+        if (allocCount != 1)
+        {
+            std::cout << "FAIL G-ALLOC: the malloc hook is not live (a deliberate malloc(64) counted "
+                      << allocCount << ", want 1)\n";
+            return 1;
+        }
+        std::cout << "  liveness: deliberate malloc(64) counted 1\n";
+        allocCount = 0;
+        allocTrace = true;
+
+        gAllocMode = true;
+        allocScenario();
+        gAllocMode = false;
+        malloc_logger = nullptr;
+
+        const int n = allocCountNow();
+        report ("G-ALLOC", n == 0, std::to_string (n) + " audio-thread allocation(s) inside processBlock over note-ons, "
+                                   "20-note steal, wheel sweep, bank 0->4->5->0, interp/bandlimit/bit toggles, "
+                                   "Poly<->Mono, release tails, oversized + 1-sample blocks (want 0)");
+        report ("G-FINITE", gNonFinite == 0 && gChannelMismatch == 0,
+                std::to_string (gNonFinite) + " non-finite, " + std::to_string (gChannelMismatch)
+                + " L != R over " + std::to_string (gSamplesChecked) + " samples");
+        return gFailures == 0 ? 0 : 1;
+       #else
+        std::cout << "FAIL G-ALLOC: --alloc-check is macOS-only\n";
+        return 1;
+       #endif
+    }
+}
+
+int main (int argc, char** argv)
+{
+    juce::ScopedJuceInitialiser_GUI juceInit;
+
+    // Keep ONE BuiltInBanks alive for the whole run, so the many short-lived
+    // processors share it instead of rebuilding the banks each time.
+    juce::SharedResourcePointer<BuiltInBanks> banks;
+    std::cout << "dsp-check: built-in banks ready (buildMillis " << fmt (banks->buildMillis, 2) << " ms)\n";
+
+    bool allocCheck = false;
+    for (int i = 1; i < argc; ++i)
+        if (std::string (argv[i]) == "--alloc-check")
+            allocCheck = true;
+
+    if (allocCheck)
+        return runAllocCheck();
+
+    // Saw-1023 test frame through the same builder (voice-level arm, D-F).
+    WavetableBank saw1023;
+    saw1023.name = "Saw-1023";
+    saw1023.allocate (1);
+    {
+        MipmapBuilder builder;
+        std::vector<float> spec ((size_t) MipmapBuilder::kPacked, 0.0f);
+        BankFactory::fillSawSpectrum (spec.data(), 1023);
+        builder.buildFromSpectrum (saw1023, 0, spec.data(), MipmapBuilder::Normalise::peakToUnity);
+    }
+
+    Q2Analyzer analyzer;
+
+    gatePitch();
+    gateBend();
+    gateDsp02 (analyzer);          // analyzer liveness first
+    gateQual02 (analyzer, saw1023);
+    gatePulseException (analyzer);
+    gateDsp01();
+    gateDsp03();
+    gateFull();
+    gateRead (*banks);
+    gatePoly();
+    gateMono();
+    gateRetrig();
+    gateNoteOff();
+    gateVel();
+    gateOut();
+    gateImportedEmpty();
+    gateBlock();
+
+    report ("G-FINITE", gNonFinite == 0 && gChannelMismatch == 0,
+            std::to_string (gNonFinite) + " non-finite, " + std::to_string (gChannelMismatch)
+            + " L != R over " + std::to_string (gSamplesChecked) + " samples");
+
+    std::cout << "dsp-check: " << (gFailures == 0 ? std::string ("ALL PASS") : "FAILURES = " + std::to_string (gFailures))
+              << "\n";
+    return gFailures == 0 ? 0 : 1;
+}

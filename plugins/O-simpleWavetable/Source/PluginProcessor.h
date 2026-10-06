@@ -24,10 +24,16 @@
     Ouaricon Audio
     Developer: Taylor Brook
 
-    Stage 1 (Foundation): a silent 16-voice synth shell with the complete
-    21-parameter APVTS, a MidiMessageCollector for the Stage 3 on-screen
-    keyboard, and APVTS-XML state carrying the uiLanguage property and a
-    strip-on-load IMPORTED_BANK stub.
+    Stage 1 (Foundation): the complete 21-parameter APVTS, a
+    MidiMessageCollector for the Stage 3 on-screen keyboard, and APVTS-XML
+    state carrying the uiLanguage property and a strip-on-load
+    IMPORTED_BANK stub.
+
+    Stage 2.2 (Voice + Oscillator): 16-voice Poly / true-legato Mono
+    wavetable engine over the shared BuiltInBanks, per-block BlockContext
+    (D-H), oversized-block chunk loop with sliced MIDI, seeded output stage,
+    lead-voice display atomics. Imported (bank 5) renders silence until 2.4
+    publishes into importedForAudio.
 
   ==============================================================================
 */
@@ -38,6 +44,12 @@
 #include <juce_audio_utils/juce_audio_utils.h>   // MidiMessageCollector (juce_audio_devices)
 #include <array>
 #include <atomic>
+#include <cstdint>
+#include <vector>
+#include "BuiltInBanks.h"
+#include "MonoStack.h"
+#include "WavetableBank.h"
+#include "WtSynthesiser.h"
 #include "WtVoice.h"
 
 //==============================================================================
@@ -127,14 +139,98 @@ public:
     static juce::String languageCode  (int i)                 { return i == 2 ? "zh-Hans" : i == 1 ? "fr" : "en"; }
     static int          languageIndex (const juce::String& s) { return s == "zh-Hans" ? 2 : s == "fr" ? 1 : 0; }
 
+    //==========================================================================
+    // Lead-voice display snapshot (Stage 3 viz seam). Written by the audio
+    // thread once per block (newest note among sounding voices), relaxed.
+    float getDisplayPosition() const noexcept { return dispPos.load (std::memory_order_relaxed); }
+    int   getDisplayLevel() const noexcept    { return dispLevel.load (std::memory_order_relaxed); }
+    int   getDisplayFrame() const noexcept    { return dispFrame.load (std::memory_order_relaxed); }
+    bool  isDisplaySounding() const noexcept  { return dispSounding.load (std::memory_order_relaxed); }
+
+    // Built-in banks (immutable; shared by all instances). Message thread
+    // readers (Stage 3 cycle view / thumbnails) may use this freely.
+    const BuiltInBanks& getBuiltInBanks() const noexcept { return *builtIns; }
+
+    static constexpr int kNumVoices   = 16;
+    static constexpr int kNumBanks    = 6;    // 0..4 built-in, 5 Imported
+    static constexpr int kImportedIdx = 5;
+
+   #if OSIW_TEST_HOOKS
+    // Test-only accessors (console targets). Call from the thread that runs
+    // processBlock (the harness's main thread).
+    int getSoundingVoiceCountForTesting() const noexcept
+    {
+        int n = 0;
+        for (const auto* v : wtVoices)
+            if (v != nullptr && v->isSounding())
+                ++n;
+        return n;
+    }
+
+    const WtVoice* getVoiceForTesting (int i) const noexcept
+    {
+        return (i >= 0 && i < kNumVoices) ? wtVoices[(size_t) i] : nullptr;
+    }
+   #endif
+
 private:
     //==========================================================================
     juce::AudioProcessorValueTreeState parameters;   // declared BEFORE synth/collector (ctor init order)
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
-    static constexpr int kNumVoices = 16;
-    juce::Synthesiser synth;
+    // Declared before anything that reads it. Built on the message thread
+    // (first instance) inside JUCE's SpinLock; never on the audio thread.
+    juce::SharedResourcePointer<BuiltInBanks> builtIns;
+
+    WtSynthesiser synth;   // alloc-free findVoiceToSteal (see WtSynthesiser.h)
     juce::MidiMessageCollector midiCollector;
+
+    //==========================================================================
+    // Stage 2.2 engine state (audio thread unless noted).
+
+    // 2.4 publishes the imported bank here (seq_cst store); nullptr = the
+    // Imported bank is empty and renders exact silence.
+    std::atomic<const WavetableBank*> importedForAudio { nullptr };
+
+    // Raw parameter pointers (cached in the ctor; atomic loads only).
+    std::atomic<float>* pBank       = nullptr;
+    std::atomic<float>* pPosition   = nullptr;
+    std::atomic<float>* pInterp     = nullptr;
+    std::atomic<float>* pBandlimit  = nullptr;
+    std::atomic<float>* pBitDepth   = nullptr;
+    std::atomic<float>* pAmpAttack  = nullptr;
+    std::atomic<float>* pAmpDecay   = nullptr;
+    std::atomic<float>* pAmpSustain = nullptr;
+    std::atomic<float>* pAmpRelease = nullptr;
+    std::atomic<float>* pVoiceMode  = nullptr;
+    std::atomic<float>* pOutput     = nullptr;
+
+    std::array<WtVoice*, (size_t) kNumVoices> wtVoices {};   // owned by synth
+
+    BlockContext blockCtx;                  // pointer handed to every voice (stable)
+    std::vector<float> knobBuf, zeroBuf;    // [preparedBlock], sized in prepareToPlay
+    juce::MidiBuffer chunkMidi, wheelMidi;  // ensureSize()d in prepareToPlay
+
+    juce::SmoothedValue<float> outputGain { 1.0f };
+    juce::SmoothedValue<float> knobSmooth { 0.0f };   // 20 ms position knob (D-D)
+
+    MonoStack monoStack;
+    int lastVoiceMode = 0;
+    int preparedBlock = 512;
+
+    std::atomic<float> dispPos      { 0.0f };
+    std::atomic<int>   dispLevel    { 0 };
+    std::atomic<int>   dispFrame    { 0 };
+    std::atomic<bool>  dispSounding { false };
+
+    //==========================================================================
+    void renderBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi, int numSamples);
+    void renderMono (juce::AudioBuffer<float>& view, const juce::MidiBuffer& chunk, int numSamples);
+    void updateDisplayFromLeadVoice() noexcept;
+    const WavetableBank* resolveBank (int bankIndex) const noexcept;
+    juce::ADSR::Parameters currentAmpParams() const noexcept;
+    float currentKnob() const noexcept;
+    float currentOutputGain() const noexcept;
 
     //==========================================================================
     // State helpers. The IMPORTED_BANK child is written only from

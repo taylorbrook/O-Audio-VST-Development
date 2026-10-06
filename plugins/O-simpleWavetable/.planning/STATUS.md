@@ -1,12 +1,12 @@
 ---
 plugin: O-simpleWavetable
 stage: 2
-status: stage_2_plan_complete
-last_updated: 2026-10-05 23:59:30
+status: stage_2_part1_complete_listening_pending
+last_updated: 2026-10-05 23:30:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: plugin_execute_stage_2
+next_action: user_listening_checkpoint_then_plugin_execute_stage_2
 next_stage: 2
 ready_for_implementation: true
 latest_mockup_version: 1
@@ -30,7 +30,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — discuss ✓, research ✓, plan ✓; next: execute (Part 1 = 2.1+2.2, then listening checkpoint)
+Stage: 2 of 4 (DSP) — discuss ✓, research ✓, plan ✓, execute Part 1 ✓ (2.1+2.2); next: Task 11 listening checkpoint (Taylor), then `/plugin-execute O-simpleWavetable 2-dsp` resumes at Task 12 (Part 2 = 2.3+2.4)
 Status: Research & Planning complete; UI mockup v1 finalized with implementation scaffolding; parameter-spec.md locked (21 parameters). Ready for Stage 1.
 Progress: [#####...............] 25%
 
@@ -52,6 +52,8 @@ Progress: [#####...............] 25%
 
 **Stage 1 verify:** ✓ 2026-10-05 — VERIFIED (stages/1-foundation/VERIFICATION.md). Independently re-run on the installed binaries: auval (2 benign skew warnings), pluginval VST3+AU strictness 10, pedalboard (21 params + Bypass, instrument, silent MIDI render, state round trip). COMPAT-01 complete. Task 14 DAW smoke left as a non-blocking human checklist.
 
+**Stage 2 execute Part 1 (2.1+2.2):** ✓ 2026-10-05 — five 32-frame built-in banks (strict 11-level mips, buildMillis ~26 ms Debug), WtVoice (band-limited linear read, D-A floor L >= 1, latched/interp frames, mid-rise quantizer, squared velocity, +/-2 st bend), Poly 16 / true-legato Mono, seeded output stage. Gates (Debug, out-of-repo): bank-check ALL PASS (incl. G-NEG); dsp-check ALL PASS — G-Q2-C8 -114.3 dB, G-Q2-SWEEP -74.9 dB, G-Q2-PULSE -67.0 dB equal-RMS (NAMED EXCEPTION D-B), G-PITCH 0.0009 c, G-VEL -11.905 dB; --alloc-check 0 allocs; state-check P6' pass. Orchestrator fix: JUCE 8.0.15 `Synthesiser::findVoiceToSteal` mallocs on every steal (`Array::clear` frees) -> `Source/WtSynthesiser.h` alloc-free port of the same policy. auval (targeted) + pluginval VST3/AU strictness 10 pass; pedalboard on installed VST3: C4 -0.0000 c, Imported = exact 0, C7 Saw32 band-limit Off -21.3 / On -114.1 dB. **Pending: Task 11 listening checkpoint.**
+
 ## Phase Progress
 
 ### Stage 1: Foundation
@@ -71,7 +73,7 @@ Stage 0 open conflicts resolved (user, 2026-10-05): silence+prompt for empty Imp
 | discuss | ✓ | 2026-10-05 | |
 | research | ✓ | 2026-10-05 | |
 | plan | ✓ | 2026-10-05 | |
-| execute | | | |
+| execute | → (Part 1 ✓, listening pending) | 2026-10-05 | |
 | verify | | | |
 
 Stage 2 decisions (user, 2026-10-05): checkpoint after 2.1+2.2 for listening; velocity squared; mono true legato; Interp-Off step click accepted. See stages/2-dsp/CONTEXT.md.
@@ -82,8 +84,9 @@ Stage 2 plan (2026-10-05): stages/2-dsp/PLAN.md, 24 tasks in two parts. User sig
 
 ## Next Steps
 
-1. Stage 2 execute Part 1 — `/plugin-execute O-simpleWavetable 2-dsp` (stops at the listening checkpoint)
-2. Optional: Task 14 DAW smoke (see VERIFICATION.md Human Verification)
+1. Task 11 listening checkpoint (Taylor) — script in stages/2-dsp/PLAN.md Task 11
+2. Stage 2 execute Part 2 — `/plugin-execute O-simpleWavetable 2-dsp` (resumes at Task 12)
+3. Optional: Stage 1 Task 14 DAW smoke (see stages/1-foundation/VERIFICATION.md Human Verification)
 
 ## Context to Preserve
 
