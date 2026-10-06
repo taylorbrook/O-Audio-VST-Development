@@ -39,6 +39,10 @@ target_sources(O-simpleWavetable
         Source/WtRead.h
         Source/BitQuantizer.h
         Source/MonoStack.h
+        Source/PositionLfo.h
+        Source/PositionSmoother.h
+        Source/WavetableImporter.cpp
+        Source/WavetableImporter.h
 )
 
 target_include_directories(O-simpleWavetable PRIVATE Source)
@@ -98,4 +102,15 @@ if(OUARICON_BUILD_TESTS AND APPLE)
     ouaricon_add_processor_console(O-simpleWavetable ${CMAKE_CURRENT_SOURCE_DIR}/Source
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/dsp-check/main.cpp dsp-check)
     target_compile_definitions(O-simpleWavetable-dsp-check PRIVATE OSIW_TEST_HOOKS=1)
+
+    # Stage 2.3 gates (DSP-05, FUNC-05, FUNC-06, S&H determinism, clicks).
+    ouaricon_add_processor_console(O-simpleWavetable ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/mod-check/main.cpp mod-check)
+    target_compile_definitions(O-simpleWavetable-mod-check PRIVATE OSIW_TEST_HOOKS=1)
+
+    # Stage 2.4 gates (QUAL-03, DSP-06, reaper REG-01 + D-C, FUNC-03,
+    # COMPAT-03, FUNC-04).
+    ouaricon_add_processor_console(O-simpleWavetable ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/import-check/main.cpp import-check)
+    target_compile_definitions(O-simpleWavetable-import-check PRIVATE OSIW_TEST_HOOKS=1)
 endif()

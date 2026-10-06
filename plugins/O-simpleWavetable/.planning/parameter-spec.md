@@ -193,7 +193,7 @@ All skews are `juce::NormalisableRange<float> { start, end, interval, skew }` wi
 - **Choices:** `Poly`, `Mono`
 - **Default:** Poly (index 0)
 - **UI Control:** Poly | Mono segment pair (Amp + Output group)
-- **DSP Usage:** Poly = 16 voices; Mono = last-note priority, retrigger, no glide (Subtractive `renderMonoLegato` pattern).
+- **DSP Usage:** Poly = 16 voices; Mono = last-note priority, **true legato** (an overlapping note changes pitch only; amp env, mod env and position smoother continue; release returns to the previous held note), no glide (Subtractive `renderMonoLegato` pattern). Velocity → amplitude is **squared** (`(v/127)²`) in both modes. *(Amended 2026-10-05, Stage 2.)*
 
 ### output_level
 - **Type:** Float

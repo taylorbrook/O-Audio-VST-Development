@@ -75,6 +75,7 @@
 #include "BuiltInBanks.h"
 #include "MipmapBuilder.h"
 #include "PluginProcessor.h"
+#include "PositionSmoother.h"
 #include "WavetableBank.h"
 #include "WtRead.h"
 #include "WtVoice.h"
@@ -965,10 +966,17 @@ namespace
             bool needsLatch = true;
             int bad = 0;
             double worstUlp = 0.0;
+            // Stage 2.3: with Interp On the voice reads at the 2 ms smoothed
+            // position (seeded at the first sample); with Off it reads raw.
+            PositionSmoother sm;
+            sm.prepare (fs);
+            bool seeded = false;
             for (int i = 0; i < total; ++i)
             {
-                const float pos = wt::clamp01 (knobAt (i) + 0.0f * 0.5f * 0.0f);
-                if (needsLatch) { latched = wt::latchFrame (pos, bank.numFrames); needsLatch = false; }
+                const float raw = wt::clamp01 (knobAt (i) + 0.0f * 0.5f * 0.0f);
+                if (! seeded) { sm.seed (raw); seeded = true; }
+                const float pos = interp ? wt::clamp01 (sm.process (raw)) : raw;
+                if (needsLatch) { latched = wt::latchFrame (raw, bank.numFrames); needsLatch = false; }
                 const float e = q.apply (wt::readSample (bank, level, phase, interp, pos, latched)) * WtVoice::kVoiceGain;
                 if (i >= cmpFrom)
                 {
@@ -984,7 +992,7 @@ namespace
                 {
                     phase -= 1.0;
                     if (! interp)
-                        latched = wt::latchFrame (pos, bank.numFrames);
+                        latched = wt::latchFrame (raw, bank.numFrames);
                 }
             }
             if (bad != 0)

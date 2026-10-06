@@ -35,7 +35,8 @@
       P3 IMPORTED_BANK    1 or 2 children load; params restored; the live
                           APVTS tree holds 0 such children
       P4 two-reopen       load -> save -> load -> save: 0 children each save
-                          (Stage 2.4 flips this to exactly 1)
+                          (the fixture child is MALFORMED v1 -> dropped as
+                          "unreadable"; the valid-blob case is P9)
       P5 non-default      9 non-default params survive a fresh-instance load
       P6' render          (Stage 2.2 flip of the Stage 1 silent-render probe)
                           note-on / pitch-wheel / 20-note load / UI MIDI:
@@ -45,6 +46,14 @@
                           tail 5 s, bus-layout support
       P8 hostile blobs    garbage / wrong root / zero-length: no crash and
                           nothing changes
+      P9 valid two-reopen (Stage 2.4) import a WAV -> save -> fresh load ->
+                          save -> fresh load -> save: exactly 1 child per
+                          save, identical data string, bit-identical bank
+                          (all 11 levels), live tree holds 0 children
+      P10 stale child     (Stage 2.4, critical_preset_manager_stale_customstate_child)
+                          reopen file 1 -> import file 2 -> save -> reopen:
+                          the SECOND file is restored (bank == a direct
+                          import of file 2), never file 1
 
     One line per probe: "PASS Pn <name>" or "FAIL Pn <name>: <detail>".
     Exit 0 only if every probe passes. Explicit checks only; jassert is
@@ -64,10 +73,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <vector>
 
 namespace
 {
@@ -667,6 +678,212 @@ namespace
     }
 
     //==========================================================================
+    // Stage 2.4 probes: real imports (fixtures written into a temp dir).
+    juce::File gTempDir;
+
+    // 16-bit mono WAV through the int API (left-justified, exact).
+    bool writeWav16 (const juce::File& f, const std::vector<std::int16_t>& pcm)
+    {
+        f.deleteFile();
+        auto fos = std::make_unique<juce::FileOutputStream> (f);
+        if (! fos->openedOk())
+            return false;
+        std::unique_ptr<juce::OutputStream> os = std::move (fos);
+        juce::WavAudioFormat wav;
+        auto w = wav.createWriterFor (os, juce::AudioFormatWriterOptions{}.withSampleRate (48000.0)
+                                              .withNumChannels (1).withBitsPerSample (16));
+        if (w == nullptr)
+            return false;
+        std::vector<int> wide (pcm.size());
+        for (size_t i = 0; i < pcm.size(); ++i)
+            wide[i] = (int) pcm[i] * 65536;
+        const int* ch[] = { wide.data(), nullptr };
+        return w->write (ch, (int) wide.size());
+    }
+
+    // Deterministic content: harmonic mixtures, different per file.
+    std::vector<std::int16_t> fixturePcm (int numSamples, int seed)
+    {
+        std::vector<std::int16_t> v ((size_t) numSamples);
+        for (int i = 0; i < numSamples; ++i)
+        {
+            const double p = 2.0 * 3.14159265358979323846 * (double) i / 2048.0;
+            const double x = 0.5 * std::sin (p * (double) (1 + seed)) + 0.3 * std::sin (3.0 * p + (double) seed)
+                           + 0.15 * std::cos (7.0 * p * (double) (1 + (i / 2048)));
+            v[(size_t) i] = (std::int16_t) std::lround (juce::jlimit (-1.0, 1.0, x) * 30000.0);
+        }
+        return v;
+    }
+
+    // importFromFile, then poll the status until it is no longer busy
+    // (the console harness has no message loop), then apply the pending
+    // auto-select on this (message) thread.
+    bool importAndWait (Proc& p, const juce::File& f, juce::String& why)
+    {
+        if (! p.importFromFile (f))
+        {
+            why = "importFromFile refused (" + p.getImportStatus().error + ")";
+            return false;
+        }
+        const auto t0 = juce::Time::getMillisecondCounter();
+        for (;;)
+        {
+            const auto st = p.getImportStatus();
+            if (st.state == Proc::ImportStatus::State::done)
+                break;
+            if (st.state == Proc::ImportStatus::State::error)
+            {
+                why = "import error " + st.error;
+                return false;
+            }
+            if (juce::Time::getMillisecondCounter() - t0 > 60000)
+            {
+                why = "import timed out";
+                return false;
+            }
+            juce::Thread::sleep (2);
+        }
+        p.handleUpdateNowIfNeeded();
+        return true;
+    }
+
+    juce::String bankDataAttr (const juce::MemoryBlock& mb, int& children)
+    {
+        children = -1;
+        auto xml = blobToXml (mb);
+        if (xml == nullptr)
+            return {};
+        children = countBankChildren (*xml);
+        if (auto* e = xml->getChildByName (kBankTag))
+            return e->getStringAttribute ("data");
+        return {};
+    }
+
+    bool sameBank (const std::shared_ptr<const WavetableBank>& a, const std::shared_ptr<const WavetableBank>& b)
+    {
+        return a != nullptr && b != nullptr && a->numFrames == b->numFrames && a->name == b->name
+            && a->data.size() == b->data.size()
+            && std::memcmp (a->data.data(), b->data.data(), a->data.size() * sizeof (float)) == 0;
+    }
+
+    bool probeP9 (juce::String& detail)
+    {
+        juce::StringArray problems;
+        const auto f1 = gTempDir.getChildFile ("p9-first.wav");
+        if (! writeWav16 (f1, fixturePcm (3 * 2048 + 77, 1)))
+        {
+            detail = "fixture write failed";
+            return false;
+        }
+
+        auto src = makePrepared();
+        juce::String why;
+        if (! importAndWait (*src, f1, why))
+        {
+            detail = "import: " + why;
+            return false;
+        }
+        const auto bankSrc = src->getImportedBankSnapshot();
+        if (bankSrc == nullptr || bankSrc->numFrames != 3)
+            problems.add ("source bank frames " + juce::String (bankSrc != nullptr ? bankSrc->numFrames : -1) + " want 3");
+        if (! juce::exactlyEqual (rawOf (*src, ids::bank), 5.0f))
+            problems.add ("auto-select: bank = " + juce::String (rawOf (*src, ids::bank), 1) + " want 5 (Imported)");
+
+        const auto save1 = saveState (*src);
+        int n1 = 0;
+        const auto data1 = bankDataAttr (save1, n1);
+
+        auto a = makePrepared();
+        loadState (*a, save1);
+        const auto save2 = saveState (*a);
+        int n2 = 0;
+        const auto data2 = bankDataAttr (save2, n2);
+
+        auto b = makePrepared();
+        loadState (*b, save2);
+        const auto save3 = saveState (*b);
+        int n3 = 0;
+        const auto data3 = bankDataAttr (save3, n3);
+
+        if (n1 != 1 || n2 != 1 || n3 != 1)
+            problems.add ("children per save " + juce::String (n1) + "/" + juce::String (n2) + "/" + juce::String (n3) + " want 1/1/1");
+        if (data1.isEmpty())
+            problems.add ("save 1 data empty");
+        if (data2 != data1 || data3 != data1)
+            problems.add ("data string changed across reopens");
+        if (! sameBank (bankSrc, a->getImportedBankSnapshot()) || ! sameBank (bankSrc, b->getImportedBankSnapshot()))
+            problems.add ("restored bank not bit-identical to the imported one");
+        if (countBankChildren (a->getAPVTS().state) != 0 || countBankChildren (b->getAPVTS().state) != 0)
+            problems.add ("live APVTS tree holds an IMPORTED_BANK child");
+        if (! juce::exactlyEqual (rawOf (*b, ids::bank), 5.0f))
+            problems.add ("bank param after two reopens = " + juce::String (rawOf (*b, ids::bank), 1));
+
+        detail = problems.joinIntoString ("; ");
+        return problems.isEmpty();
+    }
+
+    bool probeP10 (juce::String& detail)
+    {
+        juce::StringArray problems;
+        const auto f1 = gTempDir.getChildFile ("p10-first.wav");
+        const auto f2 = gTempDir.getChildFile ("p10-second.wav");
+        if (! writeWav16 (f1, fixturePcm (3 * 2048, 2)) || ! writeWav16 (f2, fixturePcm (2 * 2048 + 5, 5)))
+        {
+            detail = "fixture write failed";
+            return false;
+        }
+
+        juce::String why;
+        auto src = makePrepared();
+        if (! importAndWait (*src, f1, why))
+        {
+            detail = "import 1: " + why;
+            return false;
+        }
+        const auto save1 = saveState (*src);
+
+        auto ref2 = makePrepared();                 // direct import of file 2: the expected bank
+        if (! importAndWait (*ref2, f2, why))
+        {
+            detail = "reference import 2: " + why;
+            return false;
+        }
+
+        auto a = makePrepared();
+        loadState (*a, save1);                       // reopen with file 1
+        if (! importAndWait (*a, f2, why))           // then import file 2
+        {
+            detail = "import 2: " + why;
+            return false;
+        }
+        const auto saveA = saveState (*a);
+        int nA = 0;
+        const auto dataA = bankDataAttr (saveA, nA);
+
+        auto b = makePrepared();
+        loadState (*b, saveA);                       // reopen
+        const auto bankB = b->getImportedBankSnapshot();
+        const auto save3 = saveState (*b);
+        int nB = 0;
+        const auto dataB = bankDataAttr (save3, nB);
+
+        if (nA != 1 || nB != 1)
+            problems.add ("children per save " + juce::String (nA) + "/" + juce::String (nB) + " want 1/1");
+        if (! sameBank (bankB, ref2->getImportedBankSnapshot()))
+            problems.add ("reopen did not restore the SECOND file");
+        if (sameBank (bankB, src->getImportedBankSnapshot()))
+            problems.add ("reopen restored the FIRST file (stale child)");
+        if (bankB == nullptr || bankB->name != "p10-second.wav" || bankB->numFrames != 2)
+            problems.add ("restored name/frames " + (bankB != nullptr ? bankB->name + "/" + juce::String (bankB->numFrames)
+                                                                      : juce::String ("<none>")) + " want p10-second.wav/2");
+        if (dataB != dataA || dataA.isEmpty())
+            problems.add ("data string not carried verbatim");
+
+        detail = problems.joinIntoString ("; ");
+        return problems.isEmpty();
+    }
+
+    //==========================================================================
     bool report (const char* tag, const char* name, bool (*probe) (juce::String&))
     {
         juce::String detail;
@@ -697,6 +914,17 @@ int main()
     if (! report ("P6'", "render-finite-bounded",  probeP6)) ++failures;
     if (! report ("P7", "shell-identity",          probeP7)) ++failures;
     if (! report ("P8", "hostile-blobs",           probeP8)) ++failures;
+
+    gTempDir = juce::File::getSpecialLocation (juce::File::tempDirectory)
+                   .getChildFile ("osiw-state-check-" + juce::String::toHexString (juce::Random::getSystemRandom().nextInt64()));
+    if (! gTempDir.createDirectory())
+    {
+        std::cout << "FAIL P9/P10: cannot create temp dir " << gTempDir.getFullPathName() << "\n";
+        return 1;
+    }
+    if (! report ("P9", "imported-bank-valid-two-reopen", probeP9)) ++failures;
+    if (! report ("P10", "imported-bank-stale-child",     probeP10)) ++failures;
+    gTempDir.deleteRecursively();
 
     return failures == 0 ? 0 : 1;
 }

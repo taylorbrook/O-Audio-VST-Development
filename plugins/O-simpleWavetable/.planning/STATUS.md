@@ -1,12 +1,12 @@
 ---
 plugin: O-simpleWavetable
 stage: 2
-status: stage_2_part1_complete_listening_pending
-last_updated: 2026-10-05 23:30:00
+status: stage_2_execute_complete
+last_updated: 2026-10-06 08:30:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: user_listening_checkpoint_then_plugin_execute_stage_2
+next_action: plugin_verify_stage_2
 next_stage: 2
 ready_for_implementation: true
 latest_mockup_version: 1
@@ -15,14 +15,14 @@ finalized_version: 1
 stage_0_status: ui_design_complete
 ui_scaffolding_phase_complete: true
 parameter_count: 21
-current_phase: execute
+current_phase: verify
 brief_updated_from_mockup: true
 mockup_version_synced: 1
 brief_update_timestamp: "2026-10-06T02:25:53Z"
 contract_checksums:
   brief: sha256:9cee315a17720edd08c2e635537eb1af1c6e131bcff10fcb8090370688f49e9c
-  parameter_spec: sha256:2650cbe7ed2f55eca78bee5ac9f88beffd1fef3b8f81f59ec780484049f8b531
-  architecture: sha256:b61449b60ba24831dce780f2ba8c3feb7e36c75a609b5007bc4d60594c5d042c
+  parameter_spec: sha256:e77ae9445099369a1a40daef12e0a4be46bfcca37a4937eae069aa56efa2ab2b
+  architecture: sha256:c1f8bc0d45eb8a485e1d04df155b2b2ccbec3bf7f19044b38eab7ed57a6c007d
   roadmap: sha256:f657e02a22d6dee0e4d8f2a08ec8736c6479a4eebed7e14dc78c014bf71f32b5
 ---
 
@@ -30,7 +30,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — discuss ✓, research ✓, plan ✓, execute Part 1 ✓ (2.1+2.2); next: Task 11 listening checkpoint (Taylor), then `/plugin-execute O-simpleWavetable 2-dsp` resumes at Task 12 (Part 2 = 2.3+2.4)
+Stage: 2 of 4 (DSP) — discuss ✓, research ✓, plan ✓, execute ✓ (Part 1 + Task 11 listening + Part 2); next: `/plugin-verify O-simpleWavetable 2-dsp`
 Status: Research & Planning complete; UI mockup v1 finalized with implementation scaffolding; parameter-spec.md locked (21 parameters). Ready for Stage 1.
 Progress: [#####...............] 25%
 
@@ -52,7 +52,9 @@ Progress: [#####...............] 25%
 
 **Stage 1 verify:** ✓ 2026-10-05 — VERIFIED (stages/1-foundation/VERIFICATION.md). Independently re-run on the installed binaries: auval (2 benign skew warnings), pluginval VST3+AU strictness 10, pedalboard (21 params + Bypass, instrument, silent MIDI render, state round trip). COMPAT-01 complete. Task 14 DAW smoke left as a non-blocking human checklist.
 
-**Stage 2 execute Part 1 (2.1+2.2):** ✓ 2026-10-05 — five 32-frame built-in banks (strict 11-level mips, buildMillis ~26 ms Debug), WtVoice (band-limited linear read, D-A floor L >= 1, latched/interp frames, mid-rise quantizer, squared velocity, +/-2 st bend), Poly 16 / true-legato Mono, seeded output stage. Gates (Debug, out-of-repo): bank-check ALL PASS (incl. G-NEG); dsp-check ALL PASS — G-Q2-C8 -114.3 dB, G-Q2-SWEEP -74.9 dB, G-Q2-PULSE -67.0 dB equal-RMS (NAMED EXCEPTION D-B), G-PITCH 0.0009 c, G-VEL -11.905 dB; --alloc-check 0 allocs; state-check P6' pass. Orchestrator fix: JUCE 8.0.15 `Synthesiser::findVoiceToSteal` mallocs on every steal (`Array::clear` frees) -> `Source/WtSynthesiser.h` alloc-free port of the same policy. auval (targeted) + pluginval VST3/AU strictness 10 pass; pedalboard on installed VST3: C4 -0.0000 c, Imported = exact 0, C7 Saw32 band-limit Off -21.3 / On -114.1 dB. **Pending: Task 11 listening checkpoint.**
+**Stage 2 execute Part 1 (2.1+2.2):** ✓ 2026-10-05 — five 32-frame built-in banks (strict 11-level mips, buildMillis ~26 ms Debug), WtVoice (band-limited linear read, D-A floor L >= 1, latched/interp frames, mid-rise quantizer, squared velocity, +/-2 st bend), Poly 16 / true-legato Mono, seeded output stage. Gates (Debug, out-of-repo): bank-check ALL PASS (incl. G-NEG); dsp-check ALL PASS — G-Q2-C8 -114.3 dB, G-Q2-SWEEP -74.9 dB, G-Q2-PULSE -67.0 dB equal-RMS (NAMED EXCEPTION D-B), G-PITCH 0.0009 c, G-VEL -11.905 dB; --alloc-check 0 allocs; state-check P6' pass. Orchestrator fix: JUCE 8.0.15 `Synthesiser::findVoiceToSteal` mallocs on every steal (`Array::clear` frees) -> `Source/WtSynthesiser.h` alloc-free port of the same policy. auval (targeted) + pluginval VST3/AU strictness 10 pass; pedalboard on installed VST3: C4 -0.0000 c, Imported = exact 0, C7 Saw32 band-limit Off -21.3 / On -114.1 dB. **Task 11 listening checkpoint: signed off by Taylor 2026-10-05 (resumed via `/plugin-execute O-simpleWavetable 2-dsp`; no tone/feel notes given).**
+
+**Stage 2 execute Part 2 (2.3+2.4):** ✓ 2026-10-06 — PositionLfo (free / PPQ tempo, splitmix64 S&H), per-voice mod env + 2 ms one-pole smoother (D-N: one-pole shipped, click 1.414), frozen-cycle crossfader (**raised-cosine law — deviation from RESEARCH's linear ramp, ARCHITECTURE amendment 11**) + D-K hysteresis, REG-01 reaper + D-C `audioHeldBank` amendment, worker importer + import API, IMPORTED_BANK flac16/pcm16gz persistence. Gates (Debug, out-of-repo): bank 13/13, dsp 20/20 (+alloc 0), mod 18/18, import 34/34, state 11/11 — QUAL-03 exact ≤ 6e-8, ratio worst 1.31; D-C neg control deref 1 → 0 with fix; soak held ≤ 2, live 5+1; COMPAT-03 9/9 bit-identical; FUNC-04 memcmp equal + neg fails; G-Q2 unchanged after D-K (−114.3 / −74.9 dB). auval + pluginval VST3/AU strictness 10 pass; pedalboard ALL PASS incl. IMPORTED_BANK round trip through the real VST3 raw_state. See stages/2-dsp/SUMMARY.md.
 
 ## Phase Progress
 
@@ -73,7 +75,7 @@ Stage 0 open conflicts resolved (user, 2026-10-05): silence+prompt for empty Imp
 | discuss | ✓ | 2026-10-05 | |
 | research | ✓ | 2026-10-05 | |
 | plan | ✓ | 2026-10-05 | |
-| execute | → (Part 1 ✓, listening pending) | 2026-10-05 | |
+| execute | ✓ | 2026-10-06 | |
 | verify | | | |
 
 Stage 2 decisions (user, 2026-10-05): checkpoint after 2.1+2.2 for listening; velocity squared; mono true legato; Interp-Off step click accepted. See stages/2-dsp/CONTEXT.md.
@@ -84,8 +86,8 @@ Stage 2 plan (2026-10-05): stages/2-dsp/PLAN.md, 24 tasks in two parts. User sig
 
 ## Next Steps
 
-1. Task 11 listening checkpoint (Taylor) — script in stages/2-dsp/PLAN.md Task 11
-2. Stage 2 execute Part 2 — `/plugin-execute O-simpleWavetable 2-dsp` (resumes at Task 12)
+1. Stage 2 verify — `/plugin-verify O-simpleWavetable 2-dsp`
+2. Optional (non-blocking, feeds verify): Task 23 DAW smoke — Square/S&H LFO, bank switch on held notes, octave bend, save/reopen Imported
 3. Optional: Stage 1 Task 14 DAW smoke (see stages/1-foundation/VERIFICATION.md Human Verification)
 
 ## Context to Preserve

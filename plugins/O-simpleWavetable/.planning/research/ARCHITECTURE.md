@@ -45,13 +45,13 @@ All JUCE classes below were checked against the pinned local JUCE **8.0.15** at 
 | # | Question | Decision |
 |---|----------|----------|
 | 1 | In-cycle phase interpolation | **Linear** with 1 guard sample. Measured worst alias is −74 dB (A0); about −90 dB or lower from C3 up; −121 dB at C8. Cubic only helps below C3 and is not needed for QUAL-02. |
-| 2 | Mipmap scheme | **11 levels** L=0..10, `Kmax_L = min(1023, 1024 >> L)`. Built by FFT truncation (DC and Nyquist bins zeroed). Strict level `L = clamp(ceil(log2(f·2048/fs)), 0, 10)`, so no harmonic ever exceeds Nyquist. **No continuous inter-level crossfade.** A level change (pitch bend, or a sample-rate change) fires the 5 ms frozen-cycle crossfade instead. Prism-style trilinear crossfade (one level too rich) measured −15.6 dB alias at C8, so it is rejected. |
+| 2 | Mipmap scheme | **11 levels** L=0..10, `Kmax_L = min(1023, 1024 >> L)`. Built by FFT truncation (DC and Nyquist bins zeroed). Strict level `L = clamp(ceil(log2(f·2048/fs)), 0, 10)`, so no harmonic ever exceeds Nyquist. *(Amended 2026-10-05, see §Stage 2 Amendments.)* **No continuous inter-level crossfade.** A level change (pitch bend, or a sample-rate change) fires the 5 ms frozen-cycle crossfade instead. Prism-style trilinear crossfade (one level too rich) measured −15.6 dB alias at C8, so it is rejected. |
 | 3 | Sine→Square formulation | Reaches **h31 on frame 32**. 16 odd harmonics are spread over 31 frame steps with a fractional "frontier" harmonic, so every frame is distinct and the 1–32 graph changes on every frame. |
 | 4 | Formant bank | Male vowel averages (Peterson & Barney 1952) for **A→E→I→O→U**. Three cascade resonators, B = 90/110/170 Hz. Formant frequencies are interpolated in log-frequency between anchors at frames 1, 8.75, 16.5, 24.25 and 32. Source is 1/n, harmonics 1..48. **Reference fundamental f_ref = 110 Hz**, so F1–F3 (≤ 3010 Hz) land inside harmonics 1–32 of the graph. |
 | 5 | Drive bank | `tanh(g·sin)/tanh(g)`, `g_k = 0.25·100^((k−1)/31)` (−12 dB → +28 dB drive). Verified: frame 1 has h3 at −46 dB; h3, h5, h7 and THD are all strictly monotonic. |
 | 6 | Pulse Width bank | Band-limited Fourier pulse (1023 harmonics). Duty `d_k = 0.5·(1/16)^((k−1)/31)` (50% → 3.125%). The first spectral null moves from h2 to h32. |
 | 7 | RT-safe bank swap | Built-ins are immutable, process-wide and never freed (`SharedResourcePointer`). The imported bank is published by an `std::atomic<const WavetableBank*>` and retired through Prism's **generation reaper (entries/exits, REG-01)**. Click-free behaviour comes from a per-voice **frozen-cycle crossfade** (5 ms), so no voice holds an old bank across blocks. |
-| 8 | Import pipeline | Background job: `AudioFormatManager` → read ≤ 256·2048 samples → average channels to mono → slice into 2048-sample frames (tail dropped) → per frame: DC/Nyquist removal by FFT, peak-normalize with a +24 dB cap → **quantize to int16** → build mips from the int16 data → `callAsync` publish. Files shorter than 2048 samples are rejected with a message. |
+| 8 | Import pipeline | Background job: `AudioFormatManager` → read ≤ 256·2048 samples → average channels to mono → slice into 2048-sample frames (tail dropped) → per frame: DC/Nyquist removal by FFT, peak-normalize with a +24 dB cap → **quantize to int16** → build mips from the int16 data → `callAsync` publish. *(Amended 2026-10-05, see §Stage 2 Amendments.)* Files shorter than 2048 samples are rejected with a message. |
 | 9 | State encoding | `IMPORTED_BANK` child: filename, frame count, `encoding="flac16"`, base64 of **mono 16-bit FLAC** of the concatenated level-0 frames (≈ 0.4–0.8 MB worst case). Encoded once at import and cached. Reload is bit-identical because the live bank is built from the same int16 data. |
 | 10 | "Imported" selected with no import | Oscillator outputs **silence** (null bank; envelopes and voices still run). The UI shows an empty stack with "Import audio to fill this bank" and highlights the Import button. A successful import auto-selects Bank = Imported. *(User sign-off requested: see Open Conflicts.)* |
 | 11 | Bit-depth quantizer | **Mid-rise**, sign-symmetric: levels ±(i+½)/2^(b−1), i=0..2^(b−1)−1, so **3 bits = exactly 8 levels**. Full = early-out bypass (bit-identical). Choice param: Full, 16 … 3 (15 entries). |
@@ -107,7 +107,7 @@ All JUCE classes below were checked against the pinned local JUCE **8.0.15** at 
   Interp Off: s  = read(latchedFrame)  // latchedFrame = round(effPos·(N−1)), updated at phase wrap and note-on
   phase += inc; if (phase >= 1) { phase -= 1; latch… }
   ```
-  - **Level L:** `bandlimit` On → `clamp(ceil(log2(f·2048/fs)), 0, 10)`, recomputed per block (and on a pitch-wheel event). `bandlimit` Off → L = 0 (all 1023 harmonics: the intended aliasing).
+  - **Level L:** `bandlimit` On → `clamp(ceil(log2(f·2048/fs)), 0, 10)`, recomputed per block (and on a pitch-wheel event). *(Amended 2026-10-05, see §Stage 2 Amendments.)* `bandlimit` Off → L = 0 (all 1023 harmonics: the intended aliasing).
   - Phase is reset to 0 at note-on (sine-phase frames start at 0, so there is no onset click and the envelope does the rest). Phase is never reset mid-note.
 
 ### 5. Frozen-Cycle Crossfader (per voice)
@@ -127,7 +127,7 @@ All JUCE classes below were checked against the pinned local JUCE **8.0.15** at 
 
 ### 7. Amplitude Envelope
 - **JUCE Class:** `juce::ADSR` (juce_audio_basics). Same as the siblings.
-- **Parameters Affected:** `amp_attack`, `amp_decay`, `amp_sustain`, `amp_release`; velocity → linear gain.
+- **Parameters Affected:** `amp_attack`, `amp_decay`, `amp_sustain`, `amp_release`; velocity → linear gain. *(Amended 2026-10-05, see §Stage 2 Amendments.)*
 - **Configuration:** `setSampleRate` in the custom `prepareToPlay` before `setParameters`. Push parameters only when they change. Project memory: per-block `setParameters` during release can kill the release, so dirty-check before calling. **Voice lifetime is gated on the amp env only.**
 
 ### 8. Modulation Envelope → Position
@@ -136,7 +136,7 @@ All JUCE classes below were checked against the pinned local JUCE **8.0.15** at 
 - **Configuration:** contribution = `env_amount · modEnv(t)` (env 0..1). Same dirty-checked `setParameters` rule. A long mod release never keeps a voice alive.
 
 ### 9. Global Position LFO
-- **JUCE Class:** Custom phase accumulator (sibling convention; `juce::dsp::Oscillator` is not needed). `juce::AudioPlayHead::PositionInfo` (`getBpm`, `getPpqPosition`, `getIsPlaying` return `juce::Optional`, verified) for sync. `juce::Random` for S&H.
+- **JUCE Class:** Custom phase accumulator (sibling convention; `juce::dsp::Oscillator` is not needed). `juce::AudioPlayHead::PositionInfo` (`getBpm`, `getPpqPosition`, `getIsPlaying` return `juce::Optional`, verified) for sync. `juce::Random` for S&H. *(Amended 2026-10-05, see §Stage 2 Amendments.)*
 - **Parameters Affected:** `lfo_rate`, `lfo_sync`, `lfo_div`, `lfo_shape`, `lfo_depth`.
 - **Configuration:**
   - Rendered **per sample into a preallocated block buffer** `lfoBuf[maxBlock]` once per block (global). Voices read `lfoBuf[n]`. A per-block LFO, as O-simpleAdditive did, would zipper at 20 Hz with Interpolation On.
@@ -149,7 +149,7 @@ All JUCE classes below were checked against the pinned local JUCE **8.0.15** at 
 - **Configuration:** `raw = clamp(knobSmoothed[n] + lfoContribution[n] + env_amount·modEnv, 0, 1)` (DSP-05). Interpolation On: `effPos += α·(raw − effPos)`, α for τ = 2 ms, seeded `effPos = raw` at note-on. Interpolation Off: the latch reads `raw` (smoothing is irrelevant to a cycle-rate latch).
 
 ### 11. Voice Manager (Poly / Mono) + Pitch Bend
-- **JUCE Class:** `juce::Synthesiser` + 16 × `WtVoice : juce::SynthesiserVoice` + `WtSound`. Mono uses O-simpleSubtractive's `renderMonoLegato` pattern (mode "Mono" only: last-note priority, retrigger on every new note, fall back to the held note on release **with retrigger off**, no glide).
+- **JUCE Class:** `juce::Synthesiser` + 16 × `WtVoice : juce::SynthesiserVoice` + `WtSound`. Mono uses O-simpleSubtractive's `renderMonoLegato` pattern (mode "Mono" only: last-note priority, retrigger on every new note, fall back to the held note on release **with retrigger off**, no glide). *(Amended 2026-10-05, see §Stage 2 Amendments.)*
 - **Parameters Affected:** `voice_mode`. Pitch wheel ±2 st.
 - **Configuration:** note stealing on. Poly↔Mono switch → `allNotesOff(0,false)` + clear the stack (sibling). A monotonic `noteAge` stamp at note-on lets the lead voice be found for the display. The custom `prepareToPlay` is dispatched by `dynamic_cast` (JUCE 8 `SynthesiserVoice` has no virtual prepare).
 
@@ -159,7 +159,7 @@ All JUCE classes below were checked against the pinned local JUCE **8.0.15** at 
 - **Configuration:** see System Architecture §Threading. The audio thread resolves `bank` → pointer **once per block** (built-in pointer from the shared array, or `importedBank.load(acquire)`; `nullptr` = silence).
 
 ### 13. Importer
-- **JUCE Class:** `juce::AudioFormatManager` (`registerBasicFormats`: WAV/AIFF/FLAC/Ogg; on macOS also CoreAudio formats), `juce::AudioFormatReader`, `juce::FileChooser::launchAsync` (juce_gui_basics), `webview-drop-streaming` module (macOS WKWebView drops, as in O-simpleGrain), `juce::ThreadPool` (1 thread) or `juce::Thread::launch`, `juce::FlacAudioFormat` (`JUCE_USE_FLAC` defaults to 1, verified), `juce::MemoryOutputStream`, `juce::MemoryBlock::toBase64Encoding`.
+- **JUCE Class:** `juce::AudioFormatManager` (`registerBasicFormats`: WAV/AIFF/FLAC/Ogg; on macOS also CoreAudio formats), `juce::AudioFormatReader`, `juce::FileChooser::launchAsync` (juce_gui_basics), `webview-drop-streaming` module (macOS WKWebView drops, as in O-simpleGrain), `juce::ThreadPool` (1 thread) or `juce::Thread::launch`, `juce::FlacAudioFormat` (`JUCE_USE_FLAC` defaults to 1, verified), `juce::MemoryOutputStream`, `juce::MemoryBlock::toBase64Encoding`. *(Amended 2026-10-05, see §Stage 2 Amendments.)*
 - **Purpose:** FUNC-03, FUNC-04, COMPAT-03.
 - **Configuration:** Algorithm Details §A8.
 
@@ -283,7 +283,7 @@ Resolved values for mockup finalization → `parameter-spec.md`. IDs keep the dr
 | `amp_decay` | Float | 0.001–5 s | 0.3 | skew 0.35 |
 | `amp_sustain` | Float | 0–1 | 0.8 | linear |
 | `amp_release` | Float | 0.001–5 s | 0.2 | skew 0.35 |
-| `voice_mode` | Choice | Poly, Mono | Poly | Poly = 16 voices; Mono = last-note priority, retrigger, no glide |
+| `voice_mode` | Choice | Poly, Mono | Poly | Poly = 16 voices; Mono = last-note priority, true legato, no glide (amended 2026-10-05) |
 | `output_level` | Float | −60…+6 dB | −6 | step 0.1; ≤ −60 → gain 0, text "-inf" |
 
 Choices have ≥ 2 entries (memory: a Choice needs ≥ 2). Param IDs do not shadow `juce::` free functions (memory). The `lfo_div` default changed from the draft's 1/4 to **1/1**: a 1/4-note sweep at 120 BPM is 2 Hz, too fast for a teaching scan.
@@ -448,6 +448,22 @@ No mockup exists (`.planning/mockups/` absent). The parameter set above (22 para
 4. **`lfo_div` default 1/1** instead of the draft's 1/4.
 5. **Imported normalization is per-frame with a +24 dB cap** (bank-wide normalization would preserve the source's dynamics instead).
 6. **Imports shorter than 2048 samples are rejected** (single-cycle libraries such as AKWF, 600 samples, will not import; pitch-synchronous import is out of scope).
+
+## Stage 2 Amendments (2026-10-05)
+
+Dated corrections from Stage 2 (stages/2-dsp/PLAN.md decision table). They override the text above where they disagree; nothing else changed.
+
+1. **Mip level floor (D-A).** Band-limit On: `L = clamp(ceil(log2(f·2048/fs)), 1, 10)` (`wt::kMinBandLimitedLevel = 1`); Off stays L = 0. Worst-case sweep alias is −74.9 dB at 44.1/48/96 kHz; no note changes level at 44.1/48 kHz. A downward-only hysteresis applies to level changes (D-K): up switches at once, down needs `f < boundary·2^(−1/24)`.
+2. **§11 Voice manager.** Mono is **true legato**: an overlapping note changes pitch only; amp env, mod env and position smoother continue. Last-note priority; release returns to the previous held note. A new note from silence or from a release tail retriggers (`noteOn()` without `reset()`).
+3. **Velocity is squared** (§5 / §11 / System Architecture): `velGain = v²`, v = JUCE velocity 0..1.
+4. **REG-01 reaper amendment (D-C).** The audio thread publishes `audioHeldBank` (this block's resolved bank) before the exit increment, and the sweep never frees the held bank. Free rule: `bank != held && (entries == exits || exits >= stamp + 2)`. All reaper atomics are seq_cst (hardening deviation from Prism's acquire/release). `audioHeldBank` is cleared in `prepareToPlay`/`releaseResources`. Reason: the verbatim port is a use-after-free with the frozen-cycle crossfader when the host idles.
+5. **`AudioPlayHead::PositionInfo::getIsPlaying()` returns `bool`**, not `Optional` (`getBpm`/`getPpqPosition` are `Optional`).
+6. **S&H** draws from a splitmix64 hash of (seed, cycleIndex), not a sequential `juce::Random` (D-J): deterministic, block-size independent, repeats on a transport loop.
+7. **Base64:** standard `juce::Base64::toBase64` / `convertFromBase64` only; never `MemoryBlock::toBase64Encoding` (non-standard alphabet).
+8. **Import publish / auto-select (D-M):** the worker publishes under `bankStateLock` (generation re-checked), then sets a pending flag and triggers a `juce::AsyncUpdater`; `handleAsyncUpdate` selects bank = Imported inside a begin/end gesture. Not `MessageManager::callAsync`. Status is polled via a version counter.
+9. **Smoothed depth/amount (D-I):** `lfo_depth` and `env_amount` get the same 20 ms `SmoothedValue` as the position knob.
+10. **State blob size:** the worst case (256 frames) is about 1.05 MB of FLAC16, 1.40 M base64 characters. Restore caps the attribute at 4 M characters.
+11. **Crossfade shape is raised-cosine**, not linear: `w = 0.5 − 0.5·cos(π·k/len)` over the same 5 ms, equal-gain, same fold rule. A linear ramp's slope corners put a second-difference kick of |A−B|/len at both ends of the fade. That failed the QUAL-03 ratio gate on smooth low notes (A1 bank swap 1.73, Imported → empty 14.1, 16 held notes 1.68). With the raised cosine the same cases measure 0.996 / 1.31 / 0.88 (≤ 1.5). The exactness tier is unchanged against the new law (≤ 6e-8).
 
 ---
 
