@@ -37,8 +37,10 @@
       P4 two-reopen       load -> save -> load -> save: 0 children each save
                           (Stage 2.4 flips this to exactly 1)
       P5 non-default      9 non-default params survive a fresh-instance load
-      P6 silent render    note-on / pitch-wheel / 20-note load / UI MIDI:
-                          every sample exactly 0.0f; 0-sample block is safe
+      P6' render          (Stage 2.2 flip of the Stage 1 silent-render probe)
+                          note-on / pitch-wheel / 20-note load / UI MIDI:
+                          finite and |x| <= 4 (note-on block not silent);
+                          0-sample block is safe; output -60 dB = exactly 0
       P7 shell identity   instrument MIDI flags, 0 in / 1 out bus, latency 0,
                           tail 5 s, bus-layout support
       P8 hostile blobs    garbage / wrong root / zero-length: no crash and
@@ -60,6 +62,7 @@
 
 #include "PluginProcessor.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <iostream>
@@ -475,11 +478,33 @@ namespace
         return true;
     }
 
+    // Finite and |x| <= limit everywhere; also reports the peak (non-vacuity).
+    bool allFiniteBounded (const juce::AudioBuffer<float>& buf, float limit, float& peakOut)
+    {
+        peakOut = 0.0f;
+        for (int ch = 0; ch < buf.getNumChannels(); ++ch)
+        {
+            const float* d = buf.getReadPointer (ch);
+            for (int i = 0; i < buf.getNumSamples(); ++i)
+            {
+                if (! std::isfinite (d[i]) || std::abs (d[i]) > limit)
+                    return false;
+                peakOut = std::max (peakOut, std::abs (d[i]));
+            }
+        }
+        return true;
+    }
+
+    // P6' (Stage 2.2 flip): the engine now makes sound, so P6 asserts the
+    // renders are finite and bounded instead of silent. Output -60 dB must
+    // still give exactly 0.
     bool probeP6 (juce::String& detail)
     {
         juce::StringArray problems;
         auto proc = makePrepared();
         juce::AudioBuffer<float> buf (2, kBlock);
+        constexpr float kLimit = 4.0f;
+        float peak = 0.0f;
 
         // Block 1: note-on, pitch-wheel, note-off.
         {
@@ -489,8 +514,10 @@ namespace
             midi.addEvent (juce::MidiMessage::pitchWheel (1, 12000), 100);
             midi.addEvent (juce::MidiMessage::noteOff (1, 60), 400);
             proc->processBlock (buf, midi);
-            if (! allExactZero (buf))
-                problems.add ("note-on/pitch-wheel block not silent");
+            if (! allFiniteBounded (buf, kLimit, peak))
+                problems.add ("note-on/pitch-wheel block not finite/bounded");
+            else if (! (peak > 0.0f))
+                problems.add ("note-on/pitch-wheel block silent (engine not running)");
         }
 
         // Block 2: 20 simultaneous note-ons (more than the 16 voices -> stealing).
@@ -500,8 +527,8 @@ namespace
             for (int i = 0; i < 20; ++i)
                 midi.addEvent (juce::MidiMessage::noteOn (1, 40 + i, 0.7f), i);
             proc->processBlock (buf, midi);
-            if (! allExactZero (buf))
-                problems.add ("20-note block not silent");
+            if (! allFiniteBounded (buf, kLimit, peak))
+                problems.add ("20-note block not finite/bounded (peak " + juce::String (peak, 3) + ")");
         }
 
         // Block 3: zero samples must return cleanly (collector asserts > 0).
@@ -518,8 +545,22 @@ namespace
             fillOnes (buf);
             juce::MidiBuffer midi;
             proc->processBlock (buf, midi);
+            if (! allFiniteBounded (buf, kLimit, peak))
+                problems.add ("UI-MIDI block not finite/bounded");
+        }
+
+        // Block 5: output -60 dB (set before prepare: seeded) -> exactly 0.
+        {
+            auto quiet = std::make_unique<Proc>();
+            setParam (*quiet, ids::outputLevel, -60.0f);
+            quiet->setPlayConfigDetails (0, 2, kFs, kBlock);
+            quiet->prepareToPlay (kFs, kBlock);
+            fillOnes (buf);
+            juce::MidiBuffer midi;
+            midi.addEvent (juce::MidiMessage::noteOn (1, 60, 1.0f), 0);
+            quiet->processBlock (buf, midi);
             if (! allExactZero (buf))
-                problems.add ("UI-MIDI block not silent");
+                problems.add ("output -60 dB block not exactly 0");
         }
 
         detail = problems.joinIntoString ("; ");
@@ -653,7 +694,7 @@ int main()
     if (! report ("P3", "imported-bank-tolerance", probeP3)) ++failures;
     if (! report ("P4", "imported-bank-two-reopen", probeP4)) ++failures;
     if (! report ("P5", "non-default-params",      probeP5)) ++failures;
-    if (! report ("P6", "silent-render",           probeP6)) ++failures;
+    if (! report ("P6'", "render-finite-bounded",  probeP6)) ++failures;
     if (! report ("P7", "shell-identity",          probeP7)) ++failures;
     if (! report ("P8", "hostile-blobs",           probeP8)) ++failures;
 

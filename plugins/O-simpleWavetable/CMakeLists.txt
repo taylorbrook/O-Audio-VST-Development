@@ -27,7 +27,18 @@ target_sources(O-simpleWavetable
         Source/PluginProcessor.h
         Source/PluginEditor.cpp
         Source/PluginEditor.h
+        Source/WtSynthesiser.h
         Source/WtVoice.h
+        Source/WavetableBank.h
+        Source/MipmapBuilder.cpp
+        Source/MipmapBuilder.h
+        Source/BankFactory.cpp
+        Source/BankFactory.h
+        Source/BuiltInBanks.cpp
+        Source/BuiltInBanks.h
+        Source/WtRead.h
+        Source/BitQuantizer.h
+        Source/MonoStack.h
 )
 
 target_include_directories(O-simpleWavetable PRIVATE Source)
@@ -77,4 +88,14 @@ if(OUARICON_BUILD_TESTS AND APPLE)
     ouaricon_add_param_dump(O-simpleWavetable ${CMAKE_CURRENT_SOURCE_DIR}/Source)
     ouaricon_add_processor_console(O-simpleWavetable ${CMAKE_CURRENT_SOURCE_DIR}/Source
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/state-check/main.cpp state-check)
+
+    # Stage 2 Part 1 gates. OSIW_TEST_HOOKS compiles the test-only members;
+    # it is defined ONLY on these console targets, never on the plugin.
+    ouaricon_add_processor_console(O-simpleWavetable ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/bank-check/main.cpp bank-check)
+    target_compile_definitions(O-simpleWavetable-bank-check PRIVATE OSIW_TEST_HOOKS=1)
+
+    ouaricon_add_processor_console(O-simpleWavetable ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/dsp-check/main.cpp dsp-check)
+    target_compile_definitions(O-simpleWavetable-dsp-check PRIVATE OSIW_TEST_HOOKS=1)
 endif()

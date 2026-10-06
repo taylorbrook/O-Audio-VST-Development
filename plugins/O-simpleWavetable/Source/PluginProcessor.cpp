@@ -34,6 +34,27 @@
 //==============================================================================
 namespace
 {
+    // NaN / inf guard for every APVTS read on the audio thread (a NaN that
+    // reaches a SmoothedValue is sticky across reset()).
+    float finiteOr (float v, float fallback) noexcept
+    {
+        return std::isfinite (v) ? v : fallback;
+    }
+
+    // Choice / bool resolve: round + clamp, never a truncating cast.
+    int choiceIndex (float v, int numChoices) noexcept
+    {
+        if (! std::isfinite (v) || numChoices <= 1)
+            return 0;
+        const float c = juce::jlimit (0.0f, (float) (numChoices - 1), v);
+        return juce::jlimit (0, numChoices - 1, (int) std::round (c));
+    }
+
+    constexpr int kNumBitDepthChoices = 15;   // Full, 16..3
+    constexpr int kNumVoiceModes      = 2;    // Poly, Mono
+    constexpr int kMidiChunkBytes     = 32768;
+    constexpr int kWheelMidiBytes     = 4096;
+
     using Range = juce::NormalisableRange<float>;   // plain {start,end,interval,skew} ONLY
 
     Range unitRange()     { return { 0.0f,   1.0f,  0.0f, 1.0f  }; }
@@ -148,8 +169,30 @@ OSimpleWavetableAudioProcessor::OSimpleWavetableAudioProcessor()
     : AudioProcessor (BusesProperties().withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       parameters (*this, nullptr, "PARAMETERS", createParameterLayout())
 {
+    namespace ids = OSimpleWavetable::ParamIDs;
+    pBank       = parameters.getRawParameterValue (ids::bank);
+    pPosition   = parameters.getRawParameterValue (ids::position);
+    pInterp     = parameters.getRawParameterValue (ids::interp);
+    pBandlimit  = parameters.getRawParameterValue (ids::bandlimit);
+    pBitDepth   = parameters.getRawParameterValue (ids::bitDepth);
+    pAmpAttack  = parameters.getRawParameterValue (ids::ampAttack);
+    pAmpDecay   = parameters.getRawParameterValue (ids::ampDecay);
+    pAmpSustain = parameters.getRawParameterValue (ids::ampSustain);
+    pAmpRelease = parameters.getRawParameterValue (ids::ampRelease);
+    pVoiceMode  = parameters.getRawParameterValue (ids::voiceMode);
+    pOutput     = parameters.getRawParameterValue (ids::outputLevel);
+    jassert (pBank != nullptr && pPosition != nullptr && pInterp != nullptr && pBandlimit != nullptr
+             && pBitDepth != nullptr && pAmpAttack != nullptr && pAmpDecay != nullptr
+             && pAmpSustain != nullptr && pAmpRelease != nullptr && pVoiceMode != nullptr
+             && pOutput != nullptr);
+
     for (int i = 0; i < kNumVoices; ++i)
-        synth.addVoice (new WtVoice());            // all allocation here, never on the audio thread
+    {
+        auto* v = new WtVoice();                   // all allocation here, never on the audio thread
+        v->setBlockContext (&blockCtx);            // stable for the processor's lifetime
+        wtVoices[(size_t) i] = v;
+        synth.addVoice (v);                        // synth owns it
+    }
     synth.addSound (new WtSound());
     synth.setNoteStealingEnabled (true);
     midiCollector.reset (44100.0);                 // valid base before the first prepareToPlay (sibling)
@@ -158,19 +201,81 @@ OSimpleWavetableAudioProcessor::OSimpleWavetableAudioProcessor()
 OSimpleWavetableAudioProcessor::~OSimpleWavetableAudioProcessor() = default;
 
 //==============================================================================
+const WavetableBank* OSimpleWavetableAudioProcessor::resolveBank (int bankIndex) const noexcept
+{
+    // 0..4 built-in (never freed while this instance lives: builtIns holds a
+    // ref); 5 Imported (nullptr = empty = silence until 2.4 publishes).
+    return bankIndex < BuiltInBanks::kCount ? builtIns->get (bankIndex)
+                                            : importedForAudio.load();
+}
+
+juce::ADSR::Parameters OSimpleWavetableAudioProcessor::currentAmpParams() const noexcept
+{
+    const float a = juce::jlimit (0.001f, 5.0f, finiteOr (pAmpAttack->load(),  0.005f));
+    const float d = juce::jlimit (0.001f, 5.0f, finiteOr (pAmpDecay->load(),   0.3f));
+    const float s = juce::jlimit (0.0f,   1.0f, finiteOr (pAmpSustain->load(), 0.8f));
+    const float r = juce::jlimit (0.001f, 5.0f, finiteOr (pAmpRelease->load(), 0.2f));
+    return { a, d, s, r };
+}
+
+float OSimpleWavetableAudioProcessor::currentKnob() const noexcept
+{
+    return wt::clamp01 (finiteOr (pPosition->load(), 0.0f));
+}
+
+float OSimpleWavetableAudioProcessor::currentOutputGain() const noexcept
+{
+    const float db = juce::jlimit (-60.0f, 6.0f, finiteOr (pOutput->load(), -6.0f));
+    return juce::Decibels::decibelsToGain (db, -60.0f);   // -60 dB -> exactly 0
+}
+
+//==============================================================================
 void OSimpleWavetableAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
+    preparedBlock = juce::jmax (1, samplesPerBlock);
+
     midiCollector.reset (sampleRate);
     synth.setCurrentPlaybackSampleRate (sampleRate);
-    for (int v = 0; v < synth.getNumVoices(); ++v)              // SynthesiserVoice has no virtual prepare
-        if (auto* wv = dynamic_cast<WtVoice*> (synth.getVoice (v)))
-            wv->prepareToPlay (sampleRate, samplesPerBlock);
+
+    // Per-chunk buffers (the chunk loop never exceeds preparedBlock).
+    knobBuf.assign ((size_t) preparedBlock, 0.0f);
+    zeroBuf.assign ((size_t) preparedBlock, 0.0f);
+    blockCtx.knobPos   = knobBuf.data();
+    blockCtx.lfo       = zeroBuf.data();   // 2.3 replaces these three
+    blockCtx.lfoDepth  = zeroBuf.data();
+    blockCtx.envAmount = zeroBuf.data();
+    blockCtx.bank          = resolveBank (choiceIndex (pBank->load(), kNumBanks));
+    blockCtx.interp        = pInterp->load() >= 0.5f;
+    blockCtx.bandlimit     = pBandlimit->load() >= 0.5f;
+    blockCtx.bitDepthIndex = choiceIndex (pBitDepth->load(), kNumBitDepthChoices);
+
+    chunkMidi.clear();
+    chunkMidi.ensureSize ((size_t) kMidiChunkBytes);
+    wheelMidi.clear();
+    wheelMidi.ensureSize ((size_t) kWheelMidiBytes);
+
+    // SEED the smoothers after reset() so prepareToPlay never fades in from
+    // silence (pattern_gain_ramp_without_seeding_fades_in_from_silence).
+    outputGain.reset (sampleRate, 0.02);
+    outputGain.setCurrentAndTargetValue (currentOutputGain());
+    knobSmooth.reset (sampleRate, 0.02);
+    knobSmooth.setCurrentAndTargetValue (currentKnob());
+
+    const auto amp = currentAmpParams();
+    for (auto* v : wtVoices)                                    // SynthesiserVoice has no virtual prepare
+        v->prepareToPlay (sampleRate, preparedBlock, amp);
+
+    monoStack.clear();
+    lastVoiceMode = choiceIndex (pVoiceMode->load(), kNumVoiceModes);
+    dispSounding.store (false, std::memory_order_relaxed);
+
     setLatencySamples (0);                                      // getLatencySamples() is non-virtual (JUCE 8)
 }
 
 void OSimpleWavetableAudioProcessor::releaseResources()
 {
     synth.allNotesOff (0, false);
+    monoStack.clear();
 }
 
 bool OSimpleWavetableAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -184,12 +289,186 @@ bool OSimpleWavetableAudioProcessor::isBusesLayoutSupported (const BusesLayout& 
 void OSimpleWavetableAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
 {
     juce::ScopedNoDenormals noDenormals;
+
+    // ---- 2.4 seam (REG-01): blockEntries.fetch_add (1) goes HERE, first. ----
+
     const int numSamples = buffer.getNumSamples();
-    buffer.clear();                                            // silent shell; Stage 2 voices ADD into it
-    if (numSamples <= 0)                                       // collector jasserts numSamples > 0
-        return;                                                // (Stage 2: bump the reaper counters here too)
+    buffer.clear();                                            // voices ADD into a cleared buffer
+    if (numSamples > 0 && buffer.getNumChannels() > 0)         // collector jasserts numSamples > 0
+        renderBlock (buffer, midi, numSamples);
+
+    // ---- 2.4 seam: audioHeldBank.store (this block's resolved bank) and then
+    //      blockGeneration.fetch_add (1) go HERE. This is the ONLY exit of
+    //      processBlock (the 0-sample / 0-channel case falls through to it):
+    //      keep it that way so the entry/exit pair stays consistent. ----
+}
+
+void OSimpleWavetableAudioProcessor::renderBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi,
+                                                  int numSamples)
+{
+    const int numCh = buffer.getNumChannels();
     midiCollector.removeNextBlockOfMessages (midi, numSamples);
-    synth.renderNextBlock (buffer, midi, 0, numSamples);       // consumes MIDI; WtVoice renders nothing
+
+    // Poly <-> Mono switch: detected HERE (never call synth.* from the
+    // message thread; the Synthesiser locks inside processNextBlock).
+    const int mode = choiceIndex (pVoiceMode->load(), kNumVoiceModes);
+    if (mode != lastVoiceMode)
+    {
+        synth.allNotesOff (0, false);
+        monoStack.clear();
+        lastVoiceMode = mode;
+    }
+
+    // Resolve the bank ONCE per block (Processing Order 2).
+    blockCtx.bank          = resolveBank (choiceIndex (pBank->load(), kNumBanks));
+    blockCtx.interp        = finiteOr (pInterp->load(), 1.0f) >= 0.5f;
+    blockCtx.bandlimit     = finiteOr (pBandlimit->load(), 1.0f) >= 0.5f;
+    blockCtx.bitDepthIndex = choiceIndex (pBitDepth->load(), kNumBitDepthChoices);
+
+    const auto amp = currentAmpParams();
+    for (auto* v : wtVoices)
+        v->setBlockParams (amp);                               // dirty-checked inside
+
+    knobSmooth.setTargetValue (currentKnob());
+
+    // getWritePointer() clears AudioBuffer's isClear flag. The voices write
+    // through per-chunk views, which the parent buffer cannot see, so this
+    // MUST happen before rendering (else applyGainRamp / copyFrom below would
+    // treat channel 0 as silent).
+    float* ch0 = buffer.getWritePointer (0);
+
+    // Oversized-host-block guard: chunks of at most preparedBlock. Each chunk
+    // is rendered into its own 1-channel VIEW of channel 0 with its MIDI
+    // sliced and re-based to the view, so the voices' in-buffer index
+    // startSample + i addresses the BlockContext arrays directly (D-H), and
+    // a sub-range Synthesiser render never fires later events early.
+    for (int start = 0; start < numSamples; start += preparedBlock)
+    {
+        const int n = juce::jmin (preparedBlock, numSamples - start);
+
+        for (int i = 0; i < n; ++i)
+            knobBuf[(size_t) i] = knobSmooth.getNextValue();
+
+        chunkMidi.clear();                                     // keeps capacity: no allocation
+        for (const auto meta : midi)
+        {
+            const int p = juce::jlimit (0, numSamples - 1, meta.samplePosition);
+            if (p >= start && p < start + n)
+                chunkMidi.addEvent (meta.data, meta.numBytes, p - start);
+        }
+
+        float* chunkChannels[1] = { ch0 + start };
+        juce::AudioBuffer<float> view (chunkChannels, 1, n);   // refers to ch0; no allocation (<= 32 ch)
+
+        if (mode == 0)
+            synth.renderNextBlock (view, chunkMidi, 0, n);
+        else
+            renderMono (view, chunkMidi, n);
+    }
+
+    updateDisplayFromLeadVoice();
+
+    // Output stage: seeded 20 ms gain ramp (-60 dB = exactly 0), isfinite
+    // scrub, then mono -> every output channel.
+    outputGain.setTargetValue (currentOutputGain());
+    const float g0 = outputGain.getCurrentValue();
+    const float g1 = outputGain.skip (numSamples);
+    buffer.applyGainRamp (0, 0, numSamples, g0, g1);
+
+    for (int i = 0; i < numSamples; ++i)
+        if (! std::isfinite (ch0[i]))
+            ch0[i] = 0.0f;
+
+    for (int ch = 1; ch < numCh; ++ch)
+        buffer.copyFrom (ch, 0, buffer, 0, 0, numSamples);
+}
+
+//==============================================================================
+// Mono = true legato (CONTEXT): last-note priority on voice 0. An overlapping
+// note changes pitch only; a note with nothing held retriggers (noteOn from
+// the current level, no reset). Releasing a note returns to the previous
+// held one. Adapted from O-simpleSubtractive renderMonoLegato (mode 2).
+void OSimpleWavetableAudioProcessor::renderMono (juce::AudioBuffer<float>& view, const juce::MidiBuffer& chunk,
+                                                 int numSamples)
+{
+    auto* v0 = wtVoices[0];
+
+    // Keep the Synthesiser's lastPitchWheelValues current while it is bypassed,
+    // so the first Poly note after a Mono -> Poly switch starts with the real
+    // bend. numSamples = 0: no voice renders, every event is just handled.
+    // (No voice is playing a channel in Mono, so none receives the wheel twice.)
+    wheelMidi.clear();
+    for (const auto meta : chunk)
+        if (meta.numBytes >= 3 && (meta.data[0] & 0xf0) == 0xe0)
+            wheelMidi.addEvent (meta.data, meta.numBytes, meta.samplePosition);
+    if (! wheelMidi.isEmpty())
+        synth.renderNextBlock (view, wheelMidi, 0, 0);
+
+    int pos = 0;
+    for (const auto meta : chunk)
+    {
+        const int evPos = juce::jlimit (0, numSamples, meta.samplePosition);
+        if (evPos > pos)
+        {
+            v0->renderNextBlock (view, pos, evPos - pos);
+            pos = evPos;
+        }
+
+        const auto m = meta.getMessage();
+        if (m.isNoteOn())
+        {
+            const bool wasHeld = ! monoStack.empty();
+            monoStack.push (m.getNoteNumber(), m.getFloatVelocity());
+            v0->noteOnDirect (m.getNoteNumber(), m.getFloatVelocity(), ! wasHeld);   // legato while held
+        }
+        else if (m.isNoteOff())
+        {
+            monoStack.remove (m.getNoteNumber());
+            if (monoStack.empty())
+                v0->noteOffDirect (true);                      // release tail
+            else
+                v0->setPitchNote (monoStack.topNote());        // back to the held note, no retrigger
+        }
+        else if (m.isAllNotesOff() || m.isAllSoundOff())
+        {
+            monoStack.clear();
+            v0->noteOffDirect (false);
+        }
+        else if (m.isPitchWheel())
+        {
+            v0->pitchWheelMoved (m.getPitchWheelValue());
+        }
+    }
+
+    if (pos < numSamples)
+        v0->renderNextBlock (view, pos, numSamples - pos);
+}
+
+//==============================================================================
+void OSimpleWavetableAudioProcessor::updateDisplayFromLeadVoice() noexcept
+{
+    // Lead voice = the NEWEST note among sounding voices (isSounding() = amp
+    // env active; not isVoiceActive(), which is false for the Mono voice).
+    const WtVoice* lead = nullptr;
+    std::uint64_t newest = 0;
+    for (const auto* v : wtVoices)
+        if (v->isSounding() && (lead == nullptr || v->getNoteAge() > newest))
+        {
+            lead = v;
+            newest = v->getNoteAge();
+        }
+
+    if (lead != nullptr)
+    {
+        dispPos.store   (lead->getLastPos(),   std::memory_order_relaxed);
+        dispLevel.store (lead->getLastLevel(), std::memory_order_relaxed);
+        dispFrame.store (lead->getLastFrame(), std::memory_order_relaxed);
+        dispSounding.store (true, std::memory_order_relaxed);
+    }
+    else
+    {
+        dispSounding.store (false, std::memory_order_relaxed);
+    }
 }
 
 //==============================================================================
