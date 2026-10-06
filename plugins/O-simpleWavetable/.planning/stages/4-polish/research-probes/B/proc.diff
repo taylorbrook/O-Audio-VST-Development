@@ -1,0 +1,149 @@
+--- /Users/taylorbrook/Dev/VST-development/plugins/O-simpleWavetable/Source/PluginProcessor.cpp	2026-10-06 12:27:20
++++ src-fix/PluginProcessor.cpp	2026-10-06 16:20:16
+@@ -55,7 +55,8 @@
+     constexpr int kNumVoiceModes      = 2;    // Poly, Mono
+     constexpr int kNumLfoSyncModes    = 2;    // Free, Tempo
+     constexpr int kMidiChunkBytes     = 32768;
+-    constexpr int kWheelMidiBytes     = 4096;
++    constexpr int kWheelMidiBytes     = kMidiChunkBytes;   // note 3: wheelMidi is a subset of chunkMidi
++    constexpr int kMidiEventHeader    = (int) (sizeof (juce::int32) + sizeof (juce::uint16));   // MidiBuffer per-event header
+ 
+     using Range = juce::NormalisableRange<float>;   // plain {start,end,interval,skew} ONLY
+ 
+@@ -326,22 +327,35 @@
+     // Voices were just reset (no cfg survives), and prepareToPlay is never
+     // concurrent with processBlock: nothing is audio-held any more.
+     audioHeldBank.store (nullptr);
++    resetDisplayState (sampleRate);
++
++    setLatencySamples (0);                                      // getLatencySamples() is non-virtual (JUCE 8)
++    prepared.store (true);                                      // note 4: LAST
++}
++
++void OSimpleWavetableAudioProcessor::resetDisplayState (double fs) noexcept
++{
+     dispSounding.store (false, std::memory_order_relaxed);
+     dispLfo.store (0.0f, std::memory_order_relaxed);
+     dispMenv.store (0.0f, std::memory_order_relaxed);
+     dispAmp.store (0.0f, std::memory_order_relaxed);
+     dispNote.store (-1, std::memory_order_relaxed);                    // D-X
+     dispHz.store (0.0f, std::memory_order_relaxed);
+-    displayFs.store (sampleRate, std::memory_order_relaxed);
+-
+-    setLatencySamples (0);                                      // getLatencySamples() is non-virtual (JUCE 8)
++    displayFs.store (fs, std::memory_order_relaxed);
+ }
+ 
+ void OSimpleWavetableAudioProcessor::releaseResources()
+ {
++    prepared.store (false);                        // note 4: FIRST
+     synth.allNotesOff (0, false);                  // hard stop: no voice keeps a cfg.bank
+     monoStack.clear();
+     audioHeldBank.store (nullptr);                 // not concurrent with processBlock
++    bool clearDisp = true;
++   #if OSIW_TEST_HOOKS
++    clearDisp = testReleaseClears;
++   #endif
++    if (clearDisp)
++        resetDisplayState (displayFs.load (std::memory_order_relaxed));   // N4: no frozen "sounding" lamp
+ }
+ 
+ bool OSimpleWavetableAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
+@@ -359,7 +373,12 @@
+ 
+     const int numSamples = buffer.getNumSamples();
+     buffer.clear();                                            // voices ADD into a cleared buffer
+-    if (numSamples > 0 && buffer.getNumChannels() > 0)         // collector jasserts numSamples > 0
++    bool ready = prepared.load();                              // note 4: unprepared -> silence
++   #if OSIW_TEST_HOOKS
++    if (! testPreparedGuard)
++        ready = true;
++   #endif
++    if (ready && numSamples > 0 && buffer.getNumChannels() > 0)   // collector jasserts numSamples > 0
+     {
+         const WavetableBank* resolved = renderBlock (buffer, midi, numSamples);
+         audioHeldBank.store (resolved);                        // D-C: BEFORE the exit increment, seq_cst
+@@ -390,6 +409,12 @@
+         synth.allNotesOff (0, false);
+         monoStack.clear();
+         lastVoiceMode = mode;
++        bool seed = mode == 1;
++       #if OSIW_TEST_HOOKS
++        seed = seed && testMonoWheelSeed;
++       #endif
++        if (seed)
++            wtVoices[0]->pitchWheelMoved (wheelNow);           // W3: voice 0 missed the wheel while idle in Poly
+     }
+ 
+     // Resolve the bank ONCE per block (Processing Order 2). Every voice
+@@ -441,10 +466,42 @@
+     // sliced and re-based to the view, so the voices' in-buffer index
+     // startSample + i addresses the BlockContext arrays directly (D-H), and
+     // a sub-range Synthesiser render never fires later events early.
+-    for (int start = 0; start < numSamples; start += preparedBlock)
++    bool guardMidi = true;
++   #if OSIW_TEST_HOOKS
++    guardMidi = testMidiGuard;
++   #endif
++    auto evIt = midi.cbegin();
++    const auto evEnd = midi.cend();
++    for (int start = 0; start < numSamples;)
+     {
+-        const int n = juce::jmin (preparedBlock, numSamples - start);
++        int n = juce::jmin (preparedBlock, numSamples - start);
+ 
++        // note 3: fill the chunk's MIDI only up to the capacity reserved in
++        // prepareToPlay. A chunk that would overflow ends at the first event
++        // that does not fit (n may be 0: the events are then handled with no
++        // render), so the copy never grows chunkMidi on the audio thread.
++        chunkMidi.clear();                                    // keeps capacity: no allocation
++        int chunkBytes = 0;
++        for (; evIt != evEnd; ++evIt)
++        {
++            const auto meta = *evIt;
++            const int p = juce::jlimit (0, numSamples - 1, meta.samplePosition);
++            if (p >= start + n)
++                break;
++            if (guardMidi && meta.numBytes > 3)
++                continue;                                     // sysex / meta: neither path reads them
++            const int need = kMidiEventHeader + meta.numBytes;
++            if (guardMidi && chunkBytes + need > kMidiChunkBytes)
++            {
++                n = p - start;                                // end the chunk at this event
++                break;
++            }
++            chunkMidi.addEvent (meta.data, meta.numBytes, p - start);
++            chunkBytes += need;
++            if (meta.numBytes >= 3 && (meta.data[0] & 0xf0) == 0xe0)
++                wheelNow = (meta.data[1] & 0x7f) | ((meta.data[2] & 0x7f) << 7);   // W3
++        }
++
+         for (int i = 0; i < n; ++i)
+         {
+             knobBuf[(size_t) i]  = knobSmooth.getNextValue();
+@@ -455,15 +512,8 @@
+         // Rendered even at depth 0 (display). Writes into lfo's own buffer,
+         // which blockCtx.lfo already points at. PPQ advanced to this chunk.
+         lfo.render (n, lfoShape, lfoTempo, lfoRate, lfoDiv, lfo.offsetBy (transport, start));
+-        lastChunkLen = n;
+-
+-        chunkMidi.clear();                                    // keeps capacity: no allocation
+-        for (const auto meta : midi)
+-        {
+-            const int p = juce::jlimit (0, numSamples - 1, meta.samplePosition);
+-            if (p >= start && p < start + n)
+-                chunkMidi.addEvent (meta.data, meta.numBytes, p - start);
+-        }
++        if (n > 0)
++            lastChunkLen = n;
+ 
+         float* chunkChannels[1] = { ch0 + start };
+         juce::AudioBuffer<float> view (chunkChannels, 1, n);   // refers to ch0; no allocation (<= 32 ch)
+@@ -472,6 +522,7 @@
+             synth.renderNextBlock (view, chunkMidi, 0, n);
+         else
+             renderMono (view, chunkMidi, n);
++        start += n;
+     }
+ 
+     updateDisplayFromLeadVoice();
