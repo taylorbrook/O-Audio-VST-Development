@@ -268,6 +268,7 @@ public:
         startedFromIdle = ! ampEnv.isActive();
 
         noteHz = juce::MidiMessage::getMidiNoteInHertz (midiNote);
+        lastNote = midiNote;                    // display only (D-X)
         pitchWheelPos = currentPitchWheelPosition;      // SEED the wheel at note-on
         updatePitch();
 
@@ -452,6 +453,7 @@ public:
     {
         const bool wasSounding = ampEnv.isActive();
         noteHz = juce::MidiMessage::getMidiNoteInHertz (midiNote);
+        lastNote = midiNote;                    // display only (D-X)
         updatePitch();
 
         if (retrigger)
@@ -482,6 +484,7 @@ public:
     void setPitchNote (int midiNote)
     {
         noteHz = juce::MidiMessage::getMidiNoteInHertz (midiNote);
+        lastNote = midiNote;                    // display only (D-X)
         updatePitch();
     }
 
@@ -495,6 +498,7 @@ public:
     float         getLastPos() const noexcept   { return lastPos; }
     int           getLastLevel() const noexcept { return lastLevel; }
     int           getLastFrame() const noexcept { return lastFrame; }
+    int           getLastNote() const noexcept  { return lastNote; }    // dispNote (D-X): -1 before any note
     double        getCurrentHz() const noexcept { return hz; }
     bool          wasStartedFromIdle() const noexcept { return startedFromIdle; }
     float         getLastModEnv() const noexcept { return lastMenv; }   // dispMenv
@@ -801,6 +805,7 @@ private:
     float lastPos   = 0.0f;
     int   lastLevel = 0;
     int   lastFrame = 0;
+    int   lastNote  = -1;                   // last startNote / noteOnDirect / setPitchNote note (D-X)
 
    #if OSIW_TEST_HOOKS
     std::vector<float> effTrace;

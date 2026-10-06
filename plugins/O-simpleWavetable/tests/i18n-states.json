@@ -1,0 +1,30 @@
+[
+  {
+    "name": "settings popover open (lang-select, label.hoverHelp, ui.on on the switch)",
+    "eval": "(() => { const p = document.getElementById('settings-popover'); if (p.hidden) document.getElementById('gear-btn').click(); })()"
+  },
+  {
+    "name": "settings popover open, hover-help OFF (ui.off on the switch)",
+    "eval": "(() => { const p = document.getElementById('settings-popover'); if (p.hidden) document.getElementById('gear-btn').click(); const t = document.getElementById('tips-toggle'); if (t.getAttribute('aria-pressed') === 'true') t.click(); })()"
+  },
+  {
+    "name": "LFO sync = Tempo (Division knob shown in the Rate slot)",
+    "click": "#seg-lfo_sync button[data-v=\"1\"]"
+  },
+  {
+    "name": "bank = Imported, nothing imported yet (empty prompt, src.empty, attention button)",
+    "eval": "window.__stubEmit('bankUpdate', { bank: 5, imported: true, numFrames: 0, filename: '', frames: [] })"
+  },
+  {
+    "name": "import running (import.busy)",
+    "eval": "window.__stubEmit('importStatus', { state: 'busy', filename: 'cello_phrase.wav', frames: 0, error: '' })"
+  },
+  {
+    "name": "import refused (import.err.tooShort on the source line)",
+    "eval": "window.__stubEmit('importStatus', { state: 'error', filename: 'click.wav', frames: 0, error: 'tooShort' })"
+  },
+  {
+    "name": "imported bank, high note held, band-limit readouts, loop seam (readout.importedName, harm.*, cyc.seam)",
+    "eval": "(() => { const f = (k) => Array.from({ length: 128 }, (_, i) => Math.sin(2 * Math.PI * (i / 128) * (1 + k * 0.2)) * 0.8); window.__stubEmit('bankUpdate', { bank: 5, imported: true, numFrames: 87, filename: 'cello_phrase.wav', frames: Array.from({ length: 87 }, (_, k) => f(k)) }); window.__stubEmit('cycleUpdate', { cycle: Array.from({ length: 256 }, (_, i) => Math.sin(2 * Math.PI * i / 256) * 0.7 + 0.3 * (i / 255)), harmonics: Array.from({ length: 32 }, (_, k) => -3 * k), harmonicsRaw: Array.from({ length: 32 }, (_, k) => -2 * k), pos: 0.42, frame: -1, level: 6, kmax: 16, nyquistH: 21.3, note: 96, f0: 1046.5, lfo: 0.4, menv: 0.6, amp: 0.8, sounding: true }); })()"
+  }
+]

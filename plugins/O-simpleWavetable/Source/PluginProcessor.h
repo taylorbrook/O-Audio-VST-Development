@@ -72,6 +72,7 @@
 #include <memory>
 #include <vector>
 #include "BuiltInBanks.h"
+#include "CycleView.h"
 #include "MonoStack.h"
 #include "PositionLfo.h"
 #include "WavetableBank.h"
@@ -119,6 +120,12 @@ class OSimpleWavetableAudioProcessor : public juce::AudioProcessor,
                                        private juce::Timer
 {
 public:
+    // Stage 3 viz types (D-W). Declared FIRST in the class so the template's
+    // qualified names (OSimpleWavetableAudioProcessor::CycleView / ::BankThumbs)
+    // compile and no earlier use of the plain names changes meaning.
+    using CycleView  = ::CycleView;
+    using BankThumbs = ::BankThumbs;
+
     OSimpleWavetableAudioProcessor();
     ~OSimpleWavetableAudioProcessor() override;
 
@@ -182,6 +189,30 @@ public:
     float getDisplayLfo() const noexcept      { return dispLfo.load (std::memory_order_relaxed); }    // -1..1, every block
     float getDisplayModEnv() const noexcept   { return dispMenv.load (std::memory_order_relaxed); }   // lead voice, 0..1
     float getDisplayAmpEnv() const noexcept   { return dispAmp.load (std::memory_order_relaxed); }    // lead voice, 0..1
+    int   getDisplayNote() const noexcept     { return dispNote.load (std::memory_order_relaxed); }   // lead MIDI note, -1 silent (D-X)
+    float getDisplayHz() const noexcept       { return dispHz.load (std::memory_order_relaxed); }     // lead Hz incl. bend, 0 silent
+    double getDisplaySampleRate() const noexcept { return displayFs.load (std::memory_order_relaxed); } // prepareToPlay rate
+
+    //==========================================================================
+    // Stage 3 visualization API (D-R, D-S, D-U, D-W). MESSAGE THREAD ONLY and
+    // non-reentrant (one shared renderer; documented, not asserted - the
+    // console harness calls it from main). Never call from the audio thread.
+    //
+    // getSelectedBankIndex: the APVTS bank index 0..5, resolved exactly as
+    //   processBlock does (the editor's bank watch, P2).
+    // buildCycleView: the cycle the lead voice reads now - same bank, mip
+    //   level, position / latched frame and quantizer as the voice, rendered
+    //   through wt::readSample + BitQuantizer, then FFT'd (CycleRenderer).
+    //   Silent: knob position, level 0, frame = Interp ? -1 : latched knob
+    //   frame, note -1, f0 = nyquistH = 0 (D-R). lfo = 0 when lfo_depth is 0
+    //   (D-P). Imported is read through getImportedBankSnapshot(), held for
+    //   THIS call only. No allocation.
+    // getBankThumbnails: level-0 thumbnails of the selected bank. Imported:
+    //   the owner and cachedBlob.filename are copied in ONE bankStateLock
+    //   scope (D-S), the points outside it. points.assign() reuses capacity.
+    int  getSelectedBankIndex() const noexcept;
+    void buildCycleView (CycleView& v);
+    void getBankThumbnails (BankThumbs& t) const;
 
     // Built-in banks (immutable; shared by all instances). Message thread
     // readers (Stage 3 cycle view / thumbnails) may use this freely.
@@ -206,6 +237,24 @@ public:
     // leaves the current Imported bank untouched.
     bool importFromFile   (const juce::File& file);
     bool importFromMemory (const juce::String& name, juce::MemoryBlock&& bytes);
+
+    // Drop path (D-Z). The WebView sends the file as STANDARD base64 text
+    // (the page's arrayBufferToBase64 / btoa alphabet). The length is capped
+    // BEFORE decoding (kMaxMemoryBytes / 3 * 4 + 4 chars -> "tooLarge"), the
+    // text is decoded with juce::Base64::convertFromBase64 (failure ->
+    // "unreadable"), then the bytes go through importFromMemory. Every status
+    // it sets carries WavetableImporter::sanitiseName (name). Any non-audio
+    // thread.
+    bool importFromBase64 (const juce::String& name, const juce::String& base64);
+
+    // Lesson presets (Stage 3, D-Y). Ids: steppedSmooth, aliasDemo, driveSweep,
+    // vowelPad, ppg8bit. ONE pass over ParamIDs::all: each parameter goes to its
+    // recipe value if the recipe lists it, else to its default; output_level is
+    // never touched; parameters already within 1e-6 (normalised) of their
+    // target are skipped; each changed one gets begin -> setValueNotifyingHost
+    // -> end. An unknown id returns false and changes nothing. The Imported
+    // bank is untouched. Message thread (documented, not asserted).
+    bool applyFactoryPreset (const juce::String& id);
 
     ImportStatus getImportStatus() const;
     juce::uint32 getImportStatusVersion() const noexcept   { return importStatusVersion.load(); }   // bumps on every transition
@@ -404,6 +453,10 @@ private:
     std::atomic<float> dispLfo      { 0.0f };
     std::atomic<float> dispMenv     { 0.0f };
     std::atomic<float> dispAmp      { 0.0f };
+    std::atomic<int>    dispNote    { -1 };         // D-X: lead voice note (-1 silent)
+    std::atomic<float>  dispHz      { 0.0f };       // D-X: lead voice Hz incl. bend (0 silent)
+    std::atomic<double> displayFs   { 44100.0 };    // D-X: prepareToPlay rate (getSampleRate() is a plain double)
+    static_assert (std::atomic<double>::is_always_lock_free, "displayFs must be lock-free");
 
    #if OSIW_TEST_HOOKS
     bool testKnobRampOff = false;
@@ -453,6 +506,12 @@ private:
 
     void handleAsyncUpdate() override;   // D-M: auto-select Imported after a publish (message thread)
     void timerCallback() override;       // 250 ms reaper sweep (message thread)
+
+    //==========================================================================
+    // Stage 3 cycle renderer (D-W): message thread only, non-reentrant. Its
+    // FFT and scratch are sized here, in the processor ctor (message thread).
+    // Declared BEFORE importPool, which stays last.
+    CycleRenderer vizRenderer;
 
     //==========================================================================
     // DECLARED LAST so it is destroyed FIRST (jobs capture this); the
