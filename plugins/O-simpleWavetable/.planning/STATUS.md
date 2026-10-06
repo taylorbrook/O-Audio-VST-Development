@@ -1,12 +1,12 @@
 ---
 plugin: O-simpleWavetable
 stage: 2
-status: stage_2_execute_complete
-last_updated: 2026-10-06 08:30:00
+status: stage_2_verify_partial
+last_updated: 2026-10-06 10:30:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: plugin_verify_stage_2
+next_action: decide_w1_w2_fix_or_defer
 next_stage: 2
 ready_for_implementation: true
 latest_mockup_version: 1
@@ -30,7 +30,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — discuss ✓, research ✓, plan ✓, execute ✓ (Part 1 + Task 11 listening + Part 2); next: `/plugin-verify O-simpleWavetable 2-dsp`
+Stage: 2 of 4 (DSP) — discuss ✓, research ✓, plan ✓, execute ✓, verify ⚠ PARTIAL (2026-10-06). Every gate was re-run green; QUAL-01 is partial because of the W1 voice-steal click and the W2 Mono retrigger step.
 Status: Research & Planning complete; UI mockup v1 finalized with implementation scaffolding; parameter-spec.md locked (21 parameters). Ready for Stage 1.
 Progress: [#####...............] 25%
 
@@ -56,6 +56,18 @@ Progress: [#####...............] 25%
 
 **Stage 2 execute Part 2 (2.3+2.4):** ✓ 2026-10-06 — PositionLfo (free / PPQ tempo, splitmix64 S&H), per-voice mod env + 2 ms one-pole smoother (D-N: one-pole shipped, click 1.414), frozen-cycle crossfader (**raised-cosine law — deviation from RESEARCH's linear ramp, ARCHITECTURE amendment 11**) + D-K hysteresis, REG-01 reaper + D-C `audioHeldBank` amendment, worker importer + import API, IMPORTED_BANK flac16/pcm16gz persistence. Gates (Debug, out-of-repo): bank 13/13, dsp 20/20 (+alloc 0), mod 18/18, import 34/34, state 11/11 — QUAL-03 exact ≤ 6e-8, ratio worst 1.31; D-C neg control deref 1 → 0 with fix; soak held ≤ 2, live 5+1; COMPAT-03 9/9 bit-identical; FUNC-04 memcmp equal + neg fails; G-Q2 unchanged after D-K (−114.3 / −74.9 dB). auval + pluginval VST3/AU strictness 10 pass; pedalboard ALL PASS incl. IMPORTED_BANK round trip through the real VST3 raw_state. See stages/2-dsp/SUMMARY.md.
 
+**Stage 2 verify:** ⚠ PARTIAL 2026-10-06 (stages/2-dsp/VERIFICATION.md).
+- **Re-run independently and green:**
+  - all 5 offline drivers, plus `--alloc-check` 0
+  - auval, and pluginval VST3/AU at strictness 10
+  - a new pedalboard probe, 27/27
+- **Requirements:** 17 of 18 stage-2 complete.
+- **Critic review:** 0 blockers.
+- **Confirmed on the installed VST3:**
+  - W1: a voice steal hard-stops, |Δy| 8.7× steady state
+  - W2: a Mono retrigger during release steps velGain, 0.489 → 0.042 in one sample
+- **To do before Stage 3:** the W5 ARCHITECTURE §17 doc fix (Stage 3 must read the bank through `getImportedBankSnapshot()`).
+
 ## Phase Progress
 
 ### Stage 1: Foundation
@@ -76,7 +88,7 @@ Stage 0 open conflicts resolved (user, 2026-10-05): silence+prompt for empty Imp
 | research | ✓ | 2026-10-05 | |
 | plan | ✓ | 2026-10-05 | |
 | execute | ✓ | 2026-10-06 | |
-| verify | | | |
+| verify | ⚠ partial | 2026-10-06 | |
 
 Stage 2 decisions (user, 2026-10-05): checkpoint after 2.1+2.2 for listening; velocity squared; mono true legato; Interp-Off step click accepted. See stages/2-dsp/CONTEXT.md.
 
@@ -86,7 +98,7 @@ Stage 2 plan (2026-10-05): stages/2-dsp/PLAN.md, 24 tasks in two parts. User sig
 
 ## Next Steps
 
-1. Stage 2 verify — `/plugin-verify O-simpleWavetable 2-dsp`
+1. Decide W1 + W2: fix now (re-execute and re-verify) or defer to Stage 4. Also fix the W5 doc before Stage 3.
 2. Optional (non-blocking, feeds verify): Task 23 DAW smoke — Square/S&H LFO, bank switch on held notes, octave bend, save/reopen Imported
 3. Optional: Stage 1 Task 14 DAW smoke (see stages/1-foundation/VERIFICATION.md Human Verification)
 
