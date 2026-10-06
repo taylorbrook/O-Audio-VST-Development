@@ -1,12 +1,12 @@
 ---
 plugin: O-simpleWavetable
-stage: 1
-status: stage_1_complete
+stage: 2
+status: stage_2_research_complete
 last_updated: 2026-10-05 23:59:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: plugin_discuss_stage_2
+next_action: plugin_plan_stage_2
 next_stage: 2
 ready_for_implementation: true
 latest_mockup_version: 1
@@ -15,7 +15,7 @@ finalized_version: 1
 stage_0_status: ui_design_complete
 ui_scaffolding_phase_complete: true
 parameter_count: 21
-current_phase: discuss
+current_phase: plan
 brief_updated_from_mockup: true
 mockup_version_synced: 1
 brief_update_timestamp: "2026-10-06T02:25:53Z"
@@ -30,7 +30,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — ✓ VERIFIED; next: Stage 2 (DSP) discuss
+Stage: 2 of 4 (DSP) — discuss ✓, research ✓; next: plan
 Status: Research & Planning complete; UI mockup v1 finalized with implementation scaffolding; parameter-spec.md locked (21 parameters). Ready for Stage 1.
 Progress: [#####...............] 25%
 
@@ -65,9 +65,22 @@ Progress: [#####...............] 25%
 
 Stage 0 open conflicts resolved (user, 2026-10-05): silence+prompt for empty Imported; keep ±2 st bend; mid-rise quantizer; reject <2048-sample imports. See stages/1-foundation/CONTEXT.md.
 
+### Stage 2: DSP
+| Phase | Status | Date | Skipped |
+|-------|--------|------|---------|
+| discuss | ✓ | 2026-10-05 | |
+| research | ✓ | 2026-10-05 | |
+| plan | | | |
+| execute | | | |
+| verify | | | |
+
+Stage 2 decisions (user, 2026-10-05): checkpoint after 2.1+2.2 for listening; velocity squared; mono true legato; Interp-Off step click accepted. See stages/2-dsp/CONTEXT.md.
+
+Stage 2 research (2026-10-05): stages/2-dsp/RESEARCH.md. Decisions pending for plan: D-A (96 kHz band-limit level floor ≥1), D-B (narrow-pulse QUAL-02 metric), D-C (REG-01 reaper amendment `audioHeldBank` — verbatim port is a UAF with the crossfader).
+
 ## Next Steps
 
-1. Stage 2 discuss — `/plugin-discuss O-simpleWavetable 2-dsp` (Phase 2.1 Bank Engine first)
+1. Stage 2 plan — `/plugin-plan O-simpleWavetable 2-dsp` (resolve D-A/D-B/D-C first)
 2. Optional: Task 14 DAW smoke (see VERIFICATION.md Human Verification)
 
 ## Context to Preserve
