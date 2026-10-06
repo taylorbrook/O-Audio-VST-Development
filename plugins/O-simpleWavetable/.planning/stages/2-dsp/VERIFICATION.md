@@ -93,14 +93,14 @@ Goal-backward against CONTEXT.md and PLAN.md success criteria. Every automated c
 | DSP-05: Effective position | must | ✅ Complete | mod-check DSP-05: the clamp holds, zipper 1.003, and the negative control fires |
 | DSP-06: Off-thread build, RT-safe swap | must | ✅ Complete | G-ALLOC-24: 0 allocations over 200 switches + 50 publishes from a 2nd thread. Reaper gates. |
 | PERF-01: RT-safe processBlock | must | ✅ Complete | dsp-check `--alloc-check` 0, mod-check 0, G-ALLOC-24 0. pluginval strictness 10. |
-| QUAL-01: No unintended artifacts | must | ⚠️ Partial | Click gates, G-FINITE, G-BLOCK, block-size invariance and pluginval fuzz all pass. **But the critic found 2 clicks that pedalboard confirmed:** a voice-steal hard stop (W1) and a Mono retrigger velocity step (W2). See Issues Found. |
+| QUAL-01: No unintended artifacts | must | ✅ Complete (re-verified 2026-10-06 after gap closure) | W1/W2 fixed: G-STEAL 1.076×, G-SWITCH-TAIL 0.656×, G-RETRIG-VEL 0.589× (negative controls 4.99× / 20.0× / 35.8×); installed-VST3 probe W1 0.86×, W2 0.74×. See §Re-verification. *Original finding:* Click gates, G-FINITE, G-BLOCK, block-size invariance and pluginval fuzz all pass. **But the critic found 2 clicks that pedalboard confirmed:** a voice-steal hard stop (W1) and a Mono retrigger velocity step (W2). See Issues Found. |
 | QUAL-02: Alias ≥ 60 dB down to C8 | must | ✅ Complete | Strict set −114.3 / −74.9 dB. Narrow pulses −67.0 dB equal-RMS (**D-B NAMED EXCEPTION**, user-approved). pedalboard C8 Drive32 −93.2 / −93.4 / −98.2 dB @ 44.1/48/96k; this is the analyzer floor. |
 | QUAL-03: No clicks on switch / import / toggles | must | ✅ Complete | import-check exactness + ratio (worst 1.31). pedalboard host-side switches 0.93–1.02. |
 | COMPAT-03: WAV / AIFF / FLAC at any rate | should | ✅ Complete | 9/9 bit-identical banks, plus 24-bit, float NaN scrub, and stereo / 6-ch mean |
 
 **Requirements Summary:**
-- ✅ Complete: 17 (stage-2) + 1 (COMPAT-01, stage-1) = 18
-- ⚠️ Partial: 1 (QUAL-01)
+- ✅ Complete: 18 (stage-2) + 1 (COMPAT-01, stage-1) = 19 *(after the gap-closure re-verification)*
+- ⚠️ Partial: 0 (QUAL-01 was partial in the first pass)
 - ⏸️ Deferred (later stage): 11 (stage-3: 7, stage-4: 4)
 - ❌ Failed: 0
 
@@ -166,7 +166,7 @@ Notes, none blocking:
 - **Harness note:** a first pedalboard state check compared `string_value` after a binary-search parameter set and flagged 1-ulp display-rounding flips (0.4195 → "0.420" vs "0.419"). The render was bit-identical. Re-running with exact normalised values gave 0 mismatches. This is not a defect.
 - The soak block count differs from SUMMARY (2801 vs 3163) because the run is wall-clock driven. The pass criteria are count-independent.
 
-## Stage Verdict
+## Stage Verdict (first pass, superseded)
 
 **Status:** ⚠️ PARTIAL. Every planned gate passes, and 17 of the 18 stage-2 requirements are complete. QUAL-01 is partial because of 2 confirmed clicks in normal playing (W1, W2).
 
@@ -202,3 +202,58 @@ Notes, none blocking:
 - Notes 3–8 (MIDI buffer limit, pre-prepare guard, Mono sustain, import cancel, restore lock comment, `-Wundef` include)
 
 **Blockers:** None from the critic. W1 and W2 are confirmed QUAL-01 shortfalls.
+
+---
+
+## Re-verification after gap closure (2026-10-06)
+
+Gap-closure commit `850df9b9` (W1 hard-stop tail, W2 velGain ramp, W5 doc). Every claim re-run independently; nothing taken on SUMMARY's word.
+
+### Code review of the diff
+
+- **W1** (`WtVoice.h` `startTail` / `renderTail`): on `stopNote(…, false)` with the amp env active, the last output sample (plus any running tail) decays over a 2 ms raised cosine (weight 1 → 0, so the first tail sample equals the last heard sample). Per-voice scalars only, no bank read, so the reaper rules are untouched. The tail renders at the top of every render call, idle or not, and ends at an exact 0. `renderMono` now renders voices 1..15 so Poly→Mono tails play out; idle voices return immediately.
+- **W2** (`setVelocityGain`): the ramp applies only when the voice is still sounding (`! startedFromIdle` / `wasSounding`). A start from idle stays instant, so G-VEL and the goldens hold. The last ramp step lands exactly on `velTarget`.
+- **W5** (`ARCHITECTURE.md`): row 17, §12, the Threading table and the Visualization Data Path now route all UI reads of Imported through `getImportedBankSnapshot()`; `importedOwner` is a `shared_ptr`. Amendments 12 and 13 are recorded.
+- No new findings. W3, W4 and notes 3–8 stay deferred to Stage 4, as scoped.
+
+### Automated checks (re-run)
+
+| Check | Result | Notes |
+|-------|--------|-------|
+| Build current | ✅ | The installed `-dev` VST3/AU are byte-identical to the Release artefacts. The binary (09:15) is newer than the last source edit (09:12). The plugin tree is clean at `850df9b9`. |
+| Offline gates (fresh out-of-repo Debug tree) | ✅ | bank / dsp / mod / import ALL PASS, state-check 11/11. 0 FAIL, 0 JUCE assertions, 0 plugin-source warnings. |
+| New gates | ✅ | **G-STEAL** 1.076× (neg 4.99×), **G-SWITCH-TAIL** 0.656× (neg 20.04×), **G-RETRIG-VEL** 0.589× (neg 35.75×), settled level vs instant 0.0000 dB |
+| Goldens unchanged | ✅ | G-PITCH 0.0009 c, G-Q2-C8 −114.3 dB, G-Q2-SWEEP −74.9 dB, G-Q2-PULSE −67.0 dB, G-POLY (stolen 49 −88.5 dB), G-MONO, G-RETRIG 0.00856/0.00856, G-VEL −11.905 dB, G-BLOCK bit-identical, G-CLICK-SQ 1.414 / G-CLICK-SH 1.144 |
+| `dsp-check --alloc-check` | ✅ | 0 allocations, over a stimulus that includes the 20-note steal and Poly↔Mono. Liveness counted 1. G-FINITE 0 non-finite, L = R. |
+| auval (`aumu OSiW OuDv`) | ✅ | SUCCEEDED, with the same 2 benign skew warnings |
+| pluginval VST3 / AU strictness 10 | ✅ | exit 0, 0 FAILED on both |
+| **New independent pedalboard probe** (`reverify.py`, installed VST3) | ✅ 13/13 | See below |
+
+**Installed-VST3 probe** (written this session; it does not reuse `w12.py`):
+
+| Case | Result | Before the fix |
+|------|--------|----------------|
+| W1 steal: 16 held + 17th, worst over 8 offsets | 0.86× (no-steal control 0.71×) | 8.7× |
+| The steal is exercised | stolen MIDI 49 −18 dB rel. the others; MIDI 64 sounding | — |
+| W2 Mono 127 → off → 38, worst over 8 offsets | 0.74× | ~10× |
+| W2 settled level, retrigger vs idle start | 0.0000 dB | — |
+| Mono same-note retrigger while held, 127 → 38 | 1.00× | (untested) |
+| Poly → Mono switch, 4 held | 0.32×, exact 0 after the tail | hard stop |
+| Mono → Poly switch | 0.45× | hard stop |
+| Poly retrigger during release | 0.81× | — |
+| G-VEL idle start | −11.905 dB (exact) | unchanged |
+| C4 pitch | 0.0000 c | unchanged |
+| Determinism (two renders) / release ends at exact 0 | bit-identical / 0 | unchanged |
+
+### Human verification (non-blocking, unchanged)
+
+- Task 23 DAW smoke: Square/S&H LFO, bank switch on held notes, octave bend, save/reopen Imported.
+- Optional: by ear, a 17-note steal and a fast Mono retrigger in a DAW.
+
+## Stage Verdict
+
+**Status:** ✅ VERIFIED. All 18 stage-2 requirements are complete. QUAL-01 closed by the gap closure, with gates, negative controls and installed-binary repros. Critic blockers: 0.
+
+**Ready for next stage:** Yes. Stage 3 (GUI) must read the Imported bank only through `getImportedBankSnapshot()` (ARCHITECTURE Amendment 12).
+
+**Deferred to Stage 4 (logged):** W3 (Mono wheel seed after Poly→Mono), W4 (upward-legato crossfade source mip), notes 3–8.
