@@ -1,12 +1,12 @@
 ---
 plugin: O-simpleWavetable
-stage: 2
-status: stage_2_complete_verified
-last_updated: 2026-10-06 13:00:00
+stage: 3
+status: stage_3_plan_complete
+last_updated: 2026-10-06 18:00:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: plugin_discuss_stage_3
+next_action: plugin_execute_stage_3
 next_stage: 3
 ready_for_implementation: true
 latest_mockup_version: 1
@@ -15,14 +15,14 @@ finalized_version: 1
 stage_0_status: ui_design_complete
 ui_scaffolding_phase_complete: true
 parameter_count: 21
-current_phase: verify
+current_phase: plan
 brief_updated_from_mockup: true
 mockup_version_synced: 1
 brief_update_timestamp: "2026-10-06T02:25:53Z"
 contract_checksums:
   brief: sha256:9cee315a17720edd08c2e635537eb1af1c6e131bcff10fcb8090370688f49e9c
   parameter_spec: sha256:e77ae9445099369a1a40daef12e0a4be46bfcca37a4937eae069aa56efa2ab2b
-  architecture: sha256:c1f8bc0d45eb8a485e1d04df155b2b2ccbec3bf7f19044b38eab7ed57a6c007d
+  architecture: sha256:7753e1a28f1e7762fd8418d0c7ca3c9f6ac579fca423ad97efd477189bb4b2d5
   roadmap: sha256:f657e02a22d6dee0e4d8f2a08ec8736c6479a4eebed7e14dc78c014bf71f32b5
 ---
 
@@ -30,7 +30,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — ✓ COMPLETE (2026-10-06). discuss ✓, research ✓, plan ✓, execute ✓, verify ✓ after the W1/W2/W5 gap closure. Next: Stage 3 (GUI).
+Stage: 3 of 4 (GUI) — discuss ✓, research ✓, plan ✓ (2026-10-06). Next: execute Part 1. Stage 2 (DSP) ✓ COMPLETE 2026-10-06.
 Status: Research & Planning complete; UI mockup v1 finalized with implementation scaffolding; parameter-spec.md locked (21 parameters). Ready for Stage 1.
 Progress: [##########..........] 50%
 
@@ -104,9 +104,22 @@ Stage 2 research (2026-10-05): stages/2-dsp/RESEARCH.md. Decisions pending for p
 
 Stage 2 plan (2026-10-05): stages/2-dsp/PLAN.md, 24 tasks in two parts. User signed off D-A (level floor 1), D-B (narrow pulses on the equal-RMS metric, named exception), D-C (audioHeldBank amendment + seq_cst). Planner resolved D-D…D-O. Execute stops at Task 11 (listening checkpoint) after the Part 1 commit; re-run `/plugin-execute O-simpleWavetable 2-dsp` to resume Part 2.
 
+### Stage 3: GUI
+| Phase | Status | Date | Skipped |
+|-------|--------|------|---------|
+| discuss | ✓ | 2026-10-06 | |
+| research | ✓ | 2026-10-06 | |
+| plan | ✓ | 2026-10-06 | |
+| execute | | | |
+| verify | | | |
+
+Stage 3 decisions (user, 2026-10-06): 3.1+3.2 → build/install → visual checkpoint → 3.3; lesson buttons wired live now (`applyFactoryPreset`, mockup recipes; FUNC-08 bank stays Stage 4); hands-on in Standalone + one DAW. See stages/3-gui/CONTEXT.md.
+
+Stage 3 plan (2026-10-06): stages/3-gui/PLAN.md, 20 tasks in two parts (Part 1 = 3.1+3.2, Tasks 1–12; Part 2 = 3.3, Tasks 13–20). Planner D-P…D-Z. User sign-offs: D-U dB ref = bins 1..1023; D-Y single-pass lesson apply; D-Z `importFromBase64` in processor (+ G-DROP); DAW pass in Logic. Execute stops at Task 12 (visual checkpoint); re-run `/plugin-execute O-simpleWavetable 3-gui` to resume Part 2. ARCHITECTURE checksum refreshed (W5 gap-closure edit, 850df9b9).
+
 ## Next Steps
 
-1. `/plugin-discuss O-simpleWavetable 3-gui`: Stage 3, integrating mockups/v1-* per v1-integration-checklist.md. UI reads of Imported go **only** through `getImportedBankSnapshot()` (ARCHITECTURE Amendment 12).
+1. `/plugin-execute O-simpleWavetable 3-gui`: Part 1 (Tasks 1–12), stops at the visual checkpoint. UI reads of Imported go **only** through `getImportedBankSnapshot()` (ARCHITECTURE Amendment 12).
 2. Optional (non-blocking): Task 23 DAW smoke (Square/S&H LFO, bank switch on held notes, octave bend, save/reopen Imported), plus by-ear checks of a 17-note steal and a fast Mono retrigger.
 3. Optional: Stage 1 Task 14 DAW smoke (see stages/1-foundation/VERIFICATION.md Human Verification).
 4. Stage 4 backlog: W3, W4, and Stage 2 VERIFICATION notes 3–8.
