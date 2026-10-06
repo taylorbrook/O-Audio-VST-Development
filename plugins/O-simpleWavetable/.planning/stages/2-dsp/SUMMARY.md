@@ -156,3 +156,33 @@ Signed off by Taylor on 2026-10-05 (resumed with `/plugin-execute O-simpleWaveta
 
 - About 23 MB steady state per instance with a full 256-frame import; about 75 MB transient during an import (accepted, RESEARCH §8).
 - Task 23 (DAW smoke) is a non-blocking human check for the verify phase: Square/S&H LFO play, bank switches while notes are held, octave bends, save/reopen with Imported. With no UI yet, an import has to come from session state.
+
+## Gap closure (2026-10-06): W1 + W2 + W5
+
+Scope from VERIFICATION.md §Gap Closure. W3, W4 and notes 3–8 stay deferred to Stage 4.
+
+### Changes
+
+- **W1, hard-stop tail** (`WtVoice.h`): `stopNote(…, false)` on a sounding voice now adds its last output sample (folded with any running tail) back as a **2 ms raised-cosine decay** to 0. Per-voice scalars only (no bank read, so the reaper rules are untouched, no allocation). The tail renders at the top of every render call, idle or not.
+  - `PluginProcessor::renderMono` now also renders voices 1..15, so the tails of a Poly → Mono switch play out (idle voices return at once).
+- **W2, velocity ramp** (`WtVoice.h`): a note that starts on a voice whose amp env is still active (Mono retrigger from a release tail; the `startNote` path too, defensively) ramps `velGain` linearly over **3 ms**. A start from idle stays instant, so G-VEL and the goldens are unchanged.
+- **W5, doc** (`ARCHITECTURE.md`): row 17, §12, the Threading table and the Visualization Data Path now say the UI reads Imported **only** through `getImportedBankSnapshot()`; ownership is a `shared_ptr` (`importedOwner`), not a `unique_ptr`. Amendments 12 (W5) and 13 (W1/W2) added.
+- Test hooks: `setTailFadeForTesting(bool)`, `setVelRampForTesting(bool)` (negative controls).
+
+### Gates (fresh out-of-repo Debug tree)
+
+| Gate | Result | Negative control |
+|------|--------|------------------|
+| **G-STEAL** (16 held + 17th at the stolen voice's phase peak) | 1.076× steady (≤ 1.5) | no tail fade 4.99× (≥ 4) |
+| **G-SWITCH-TAIL** (4 held, Poly → Mono) | 0.656× | 20.04× |
+| **G-RETRIG-VEL** (Mono vel 127 → off → vel 38 at a phase peak) | 0.589×; settled level vs instant 0.0000 dB | instant velGain 35.75× |
+
+- Unchanged goldens: G-POLY (stolen 49 −88.5 dB), G-MONO, G-RETRIG 0.00856 / 0.00856, G-VEL −11.905 dB, G-BLOCK bit-identical, QUAL-03 ratios (worst 0.996 on the bank cases), G-CLICK-SQ 1.414 / G-CLICK-SH 1.144.
+- dsp-check ALL PASS; `--alloc-check` 0 allocations (stimulus includes the 20-note steal and Poly↔Mono); bank / mod / import ALL PASS; state-check 11/11.
+- G-STEAL's negative control (4.99×) is lower than the installed repro (8.7×): the rig's steady step is the 16-voice mix, the pedalboard repro used a different baseline window. It still clears ≥ 4.
+
+### Installed binaries
+
+- `build-and-install.sh O-simpleWavetable` OK (VST3 + AU `-dev`).
+- `auval -v aumu OSiW OuDv` SUCCEEDED (same 2 benign skew warnings); pluginval VST3 and AU strictness 10: exit 0, 0 FAILED.
+- pedalboard repros on the installed VST3 (scratch `w12.py`): **W1** steal worst over 8 phase offsets **1.084×** (was 8.7×); **W2** Mono 127 → 38 retrigger **0.964×** (was ~10×); output finite.

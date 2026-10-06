@@ -47,6 +47,11 @@
       G-MONO      FUNC-07  true legato: pitch only, no re-attack; back to held
                            note. Neg: Poly shows both notes.
       G-RETRIG             Mono retrigger from a release tail: no reset click
+      G-STEAL      QUAL-01 voice steal at the stolen voice's phase peak: max |step|
+                           <= 1.5x steady; neg control (no tail fade) >= 4x  (W1)
+      G-SWITCH-TAIL QUAL-01 Poly -> Mono with 4 held: same ratio rule  (W1)
+      G-RETRIG-VEL QUAL-01 Mono vel 127 -> off -> vel 38 at a phase peak: same ratio
+                           rule (neg: instant velGain); settled level unchanged  (W2)
       G-NOTEOFF            sustain 0 release tail survives the per-block push.
                            Neg: raw ADSR with per-block setParameters collapses.
       G-VEL                vel 64 vs 127 = -11.90 +/- 0.05 dB
@@ -1111,6 +1116,101 @@ namespace
                 + " (<= 1.5x; a reset-to-0 would jump by ~" + fmt (tailLevel, 3) + ")");
     }
 
+    //==========================================================================
+    // Gap closure W1 / W2 (QUAL-01). Every stimulus lands at a phase peak of
+    // the voice that is cut or re-scaled (phase starts at 0 at note-on), so a
+    // hard step is as large as it can be. Ratio = max |step| in the 50 ms
+    // after the event over max |step| at steady state; fix <= 1.5x, the
+    // negative control (fade / ramp disabled through the test hook) >= 4x.
+    int peakSampleNear (double t, int noteOnPos, int note, double fs)
+    {
+        const double f = noteHz (note);
+        const double k = std::floor ((t * fs - (double) noteOnPos) * f / fs);
+        return noteOnPos + (int) std::lround ((k + 0.25) * fs / f);
+    }
+
+    void gateSteal()
+    {
+        const double fs = 48000.0;
+        auto run = [fs] (bool fade, double& steady, double& around)
+        {
+            Rig rig (fs, 512, baseParams (BankFactory::sineSaw, 0.0f));
+            rig.proc->setTailFadeForTesting (fade);
+            std::vector<Ev> evs;
+            for (int i = 0; i < 16; ++i)
+                evs.push_back (evOn (i * 64, 48 + i));
+            // 17th note: the oldest unprotected voice (MIDI 49, on at 64) is stolen (G-POLY).
+            const int tSteal = peakSampleNear (0.5, 64, 49, fs);
+            evs.push_back (evOn (tSteal, 64));
+            const auto x = rig.run (secs (0.7, fs), evs);
+            steady = maxStep (x, secs (0.3, fs), tSteal - 64);
+            around = maxStep (x, tSteal - 32, tSteal + secs (0.05, fs));
+        };
+
+        double s1, a1, s0, a0;
+        run (true, s1, a1);
+        run (false, s0, a0);
+        const double r1 = a1 / std::max (s1, 1.0e-12), r0 = a0 / std::max (s0, 1.0e-12);
+        report ("G-STEAL", r1 <= 1.5 && r0 >= 4.0,
+                "16 held + 17th at the stolen voice's phase peak: max |step| / steady = " + fmt (r1, 3)
+                + " (<= 1.5); neg control (no tail fade) " + fmt (r0, 2) + " (>= 4)");
+    }
+
+    void gateSwitchTail()
+    {
+        const double fs = 48000.0;
+        auto run = [fs] (bool fade, double& steady, double& around)
+        {
+            Rig rig (fs, 512, baseParams (BankFactory::sineSaw, 0.0f));
+            rig.proc->setTailFadeForTesting (fade);
+            const std::vector<Ev> evs { evOn (0, 48), evOn (0, 55), evOn (0, 60), evOn (0, 64) };
+            auto x = rig.run (512 * 47, evs);          // the switch lands on a block boundary
+            rig.set (ids::voiceMode, 1.0f);            // Poly -> Mono: every voice hard-stops
+            const int tSw = (int) x.size();
+            const auto y = rig.run (secs (0.1, fs));
+            x.insert (x.end(), y.begin(), y.end());
+            steady = maxStep (x, secs (0.2, fs), tSw - 64);
+            around = maxStep (x, tSw - 32, tSw + secs (0.05, fs));
+        };
+
+        double s1, a1, s0, a0;
+        run (true, s1, a1);
+        run (false, s0, a0);
+        const double r1 = a1 / std::max (s1, 1.0e-12), r0 = a0 / std::max (s0, 1.0e-12);
+        report ("G-SWITCH-TAIL", r1 <= 1.5 && r0 >= 4.0,
+                "4 held, Poly -> Mono: max |step| / steady = " + fmt (r1, 3) + " (<= 1.5); neg control (no tail fade) "
+                + fmt (r0, 2) + " (>= 4)");
+    }
+
+    void gateRetrigVel()
+    {
+        const double fs = 48000.0;
+        auto run = [fs] (bool ramp, double& steady, double& around, double& level)
+        {
+            auto p = with (with (with (with (with (baseParams (BankFactory::sineSaw, 0.0f), ids::voiceMode, 1.0f),
+                           ids::ampAttack, 0.005f), ids::ampDecay, 0.3f), ids::ampSustain, 1.0f), ids::ampRelease, 0.3f);
+            Rig rig (fs, 512, p);
+            rig.proc->setVelRampForTesting (ramp);
+            // Mono keeps the phase on a sounding retrigger, so the peak is computed from note-on.
+            const int tOn2 = peakSampleNear (0.6, 0, 48, fs);
+            const auto x = rig.run (secs (0.8, fs), { evOn (0, 48, 127), evOff (secs (0.5, fs), 48), evOn (tOn2, 48, 38) });
+            steady = maxStep (x, secs (0.3, fs), secs (0.5, fs));
+            around = maxStep (x, tOn2 - 32, tOn2 + secs (0.05, fs));
+            level  = rms (x, secs (0.7, fs), secs (0.8, fs));
+        };
+
+        double s1, a1, l1, s0, a0, l0;
+        run (true, s1, a1, l1);
+        run (false, s0, a0, l0);
+        const double r1 = a1 / std::max (s1, 1.0e-12), r0 = a0 / std::max (s0, 1.0e-12);
+        // The ramp only changes the first 3 ms: the settled vel-38 level must match the instant path.
+        const double settled = std::abs (dB (l1 / std::max (l0, 1.0e-12)));
+        report ("G-RETRIG-VEL", r1 <= 1.5 && r0 >= 4.0 && settled <= 0.01,
+                "Mono vel 127 -> off -> vel 38 at a phase peak: max |step| / steady = " + fmt (r1, 3)
+                + " (<= 1.5); neg control (instant velGain) " + fmt (r0, 2) + " (>= 4); settled level vs instant "
+                + fmt (settled, 4) + " dB (<= 0.01)");
+    }
+
     void gateNoteOff()
     {
         const double fs = 48000.0;
@@ -1380,6 +1480,9 @@ int main (int argc, char** argv)
     gatePoly();
     gateMono();
     gateRetrig();
+    gateSteal();
+    gateSwitchTail();
+    gateRetrigVel();
     gateNoteOff();
     gateVel();
     gateOut();
