@@ -60,7 +60,7 @@ Ouaricon Plugins:
 | O-MicrotonalSampler | 📦 Installed | 1.28.0 | Synth (Microtonal Sampler) | 2026-09-25 |
 | O-simpleFM | 📦 Installed | 1.5.0 | Synth (Pedagogical 2-Op FM) | 2026-09-06 |
 | O-simpleAdditive | 📦 Installed | 1.4.0 | Synth (Pedagogical Additive + Wavetable) | 2026-09-25 |
-| O-simpleWavetable | 🚧 Stage 0 | — | Synth (Pedagogical Wavetable) | 2026-10-05 |
+| O-simpleWavetable | 🚧 Stage 1 | 0.1.0 | Synth (Pedagogical Wavetable) | 2026-10-05 |
 | O-simpleGrain | 📦 Installed | 1.5.0 | Synth (Pedagogical Granular) | 2026-09-07 |
 | O-simpleSubtractive | 📦 Installed | 1.6.0 | Synth (Pedagogical Subtractive) | 2026-09-25 |
 | O-simpleSampler | 📦 Installed | 1.6.0 | Synth (Pedagogical Sampler) | 2026-09-27 |
