@@ -1,0 +1,1301 @@
+/*
+   This file is part of O-simpleWavetable, an Ouaricon Audio plugin.
+   Copyright (C) 2026  Ouaricon Audio
+
+   SPDX-License-Identifier: AGPL-3.0-or-later
+
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Affero General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Affero General Public License for more details.
+
+   You should have received a copy of the GNU Affero General Public License
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+/*
+  ==============================================================================
+
+    O-simpleWavetable - Audio Processor Implementation
+    Ouaricon Audio
+    Developer: Taylor Brook
+
+  ==============================================================================
+*/
+
+#include "PluginProcessor.h"
+
+#include <cmath>
+#include <cstring>
+
+//==============================================================================
+namespace
+{
+    // NaN / inf guard for every APVTS read on the audio thread (a NaN that
+    // reaches a SmoothedValue is sticky across reset()).
+    float finiteOr (float v, float fallback) noexcept
+    {
+        return std::isfinite (v) ? v : fallback;
+    }
+
+    // Choice / bool resolve: round + clamp, never a truncating cast.
+    int choiceIndex (float v, int numChoices) noexcept
+    {
+        if (! std::isfinite (v) || numChoices <= 1)
+            return 0;
+        const float c = juce::jlimit (0.0f, (float) (numChoices - 1), v);
+        return juce::jlimit (0, numChoices - 1, (int) std::round (c));
+    }
+
+    constexpr int kNumBitDepthChoices = 15;   // Full, 16..3
+    constexpr int kNumVoiceModes      = 2;    // Poly, Mono
+    constexpr int kNumLfoSyncModes    = 2;    // Free, Tempo
+    constexpr int kMidiChunkBytes     = 32768;
+    constexpr int kWheelMidiBytes     = kMidiChunkBytes;   // note 3: wheelMidi is a subset of chunkMidi
+    constexpr int kMidiEventHeader    = (int) (sizeof (juce::int32) + sizeof (juce::uint16));   // MidiBuffer per-event header
+
+    using Range = juce::NormalisableRange<float>;   // plain {start,end,interval,skew} ONLY
+
+    Range unitRange()     { return { 0.0f,   1.0f,  0.0f, 1.0f  }; }
+    Range bipolarRange()  { return { -1.0f,  1.0f,  0.0f, 1.0f  }; }
+    Range menvTimeRange() { return { 0.001f, 10.0f, 0.0f, 0.3f  }; }
+    Range ampTimeRange()  { return { 0.001f, 5.0f,  0.0f, 0.35f }; }
+
+    // Host/generic-editor text only (JUCE's default prints 7 decimals for an
+    // interval-0 range). A TEXT lambda, not a range lambda: the range stays a
+    // plain NormalisableRange the WebView slider frontend can read.
+    juce::AudioParameterFloatAttributes fixed (int decimals, const juce::String& label = {})
+    {
+        return juce::AudioParameterFloatAttributes()
+            .withLabel (label)
+            .withStringFromValueFunction ([decimals] (float v, int maxLen)
+            {
+                juce::String s (v, decimals);
+                return maxLen > 0 ? s.substring (0, maxLen) : s;
+            });
+    }
+
+    // "-inf" at the floor, both directions: the default parser is
+    // text.getFloatValue(), which cannot read "-inf" back.
+    juce::AudioParameterFloatAttributes outputLevelAttributes()
+    {
+        return juce::AudioParameterFloatAttributes()
+            .withLabel ("dB")
+            .withStringFromValueFunction ([] (float db, int maxLen)
+            {
+                const juce::String s = db <= -59.95f ? juce::String ("-inf") : juce::String (db, 1);
+                return maxLen > 0 ? s.substring (0, maxLen) : s;
+            })
+            .withValueFromStringFunction ([] (const juce::String& text)
+            {
+                const auto t = text.trim();
+                return t.startsWithIgnoreCase ("-inf") ? -60.0f
+                                                       : juce::jlimit (-60.0f, 6.0f, t.getFloatValue());
+            });
+    }
+}
+
+//==============================================================================
+juce::AudioProcessorValueTreeState::ParameterLayout
+OSimpleWavetableAudioProcessor::createParameterLayout()
+{
+    namespace ids = OSimpleWavetable::ParamIDs;
+    std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+
+    auto addFloat = [&params] (const char* id, const char* name, Range r, float def,
+                               juce::AudioParameterFloatAttributes a)
+    {
+        params.push_back (std::make_unique<juce::AudioParameterFloat> (
+            juce::ParameterID { id, 1 }, name, r, def, std::move (a)));
+    };
+    auto addChoice = [&params] (const char* id, const char* name, juce::StringArray c, int def)
+    {
+        jassert (c.size() >= 2);   // critical_choice_param_needs_two_choices
+        params.push_back (std::make_unique<juce::AudioParameterChoice> (
+            juce::ParameterID { id, 1 }, name, std::move (c), def));
+    };
+    auto addBool = [&params] (const char* id, const char* name, bool def)
+    {
+        params.push_back (std::make_unique<juce::AudioParameterBool> (
+            juce::ParameterID { id, 1 }, name, def));
+    };
+
+    // U+2192 (right arrow) via hex escapes: juce::String(const char*) is
+    // ASCII-only (critical_juce_string_char_ctor_is_ascii_only). The source
+    // stays ASCII. Keep a non-hex character after every escape.
+    // Imported is LAST (index 5); the UI never hard-codes its index.
+    juce::StringArray bankChoices;
+    bankChoices.add (juce::String (juce::CharPointer_UTF8 ("Sine \xE2\x86\x92 Saw")));
+    bankChoices.add (juce::String (juce::CharPointer_UTF8 ("Sine \xE2\x86\x92 Square")));
+    bankChoices.add ("Pulse Width");
+    bankChoices.add ("Formant");
+    bankChoices.add ("Drive");
+    bankChoices.add ("Imported");
+
+    addChoice (ids::bank,      "Bank", bankChoices, 0);
+    addFloat  (ids::position,  "Position", unitRange(), 0.0f, fixed (3));
+    addBool   (ids::interp,    "Interpolation", true);
+    addBool   (ids::bandlimit, "Band-limiting", true);
+    // Mid-rise quantizer (D3): Full = bit-identical bypass, then 16..3 bits.
+    addChoice (ids::bitDepth,  "Bit Depth", { "Full", "16", "15", "14", "13", "12", "11", "10",
+                                              "9", "8", "7", "6", "5", "4", "3" }, 0);
+    addFloat  (ids::lfoRate,   "LFO Rate", { 0.01f, 20.0f, 0.0f, 0.3f }, 0.5f, fixed (2, "Hz"));
+    addChoice (ids::lfoSync,   "LFO Sync", { "Free", "Tempo" }, 0);
+    // Default index 2 = "1/1" (D5).
+    addChoice (ids::lfoDiv,    "LFO Division", { "4 bars", "2 bars", "1/1", "1/2", "1/4", "1/8", "1/16", "1/32",
+                                                 "1/2.", "1/4.", "1/8.", "1/16.", "1/2T", "1/4T", "1/8T", "1/16T" }, 2);
+    addChoice (ids::lfoShape,  "LFO Shape", { "Sine", "Triangle", "Saw", "Square", "S&H" }, 1);
+    addFloat  (ids::lfoDepth,  "LFO Depth", unitRange(), 0.0f, fixed (3));
+    addFloat  (ids::menvAttack,  "Mod Env Attack",  menvTimeRange(), 0.5f, fixed (3, "s"));
+    addFloat  (ids::menvDecay,   "Mod Env Decay",   menvTimeRange(), 1.0f, fixed (3, "s"));
+    addFloat  (ids::menvSustain, "Mod Env Sustain", unitRange(),     0.0f, fixed (3));
+    addFloat  (ids::menvRelease, "Mod Env Release", menvTimeRange(), 0.5f, fixed (3, "s"));
+    addFloat  (ids::envAmount,   "Env Amount",      bipolarRange(),  0.0f, fixed (3));
+    addFloat  (ids::ampAttack,   "Amp Attack",  ampTimeRange(), 0.005f, fixed (3, "s"));
+    addFloat  (ids::ampDecay,    "Amp Decay",   ampTimeRange(), 0.3f,   fixed (3, "s"));
+    addFloat  (ids::ampSustain,  "Amp Sustain", unitRange(),    0.8f,   fixed (3));
+    addFloat  (ids::ampRelease,  "Amp Release", ampTimeRange(), 0.2f,   fixed (3, "s"));
+    addChoice (ids::voiceMode,   "Voice Mode", { "Poly", "Mono" }, 0);
+    addFloat  (ids::outputLevel, "Output Level", { -60.0f, 6.0f, 0.1f, 1.0f }, -6.0f, outputLevelAttributes());
+
+    jassert (params.size() == 21);   // ROADMAP's 22 is the documented slip (parameter-spec.md)
+    jassert (params.size() == OSimpleWavetable::ParamIDs::all.size());
+    return { params.begin(), params.end() };
+}
+
+//==============================================================================
+OSimpleWavetableAudioProcessor::OSimpleWavetableAudioProcessor()
+    : AudioProcessor (BusesProperties().withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
+      parameters (*this, nullptr, "PARAMETERS", createParameterLayout())
+{
+    namespace ids = OSimpleWavetable::ParamIDs;
+    pBank       = parameters.getRawParameterValue (ids::bank);
+    pPosition   = parameters.getRawParameterValue (ids::position);
+    pInterp     = parameters.getRawParameterValue (ids::interp);
+    pBandlimit  = parameters.getRawParameterValue (ids::bandlimit);
+    pBitDepth   = parameters.getRawParameterValue (ids::bitDepth);
+    pAmpAttack  = parameters.getRawParameterValue (ids::ampAttack);
+    pAmpDecay   = parameters.getRawParameterValue (ids::ampDecay);
+    pAmpSustain = parameters.getRawParameterValue (ids::ampSustain);
+    pAmpRelease = parameters.getRawParameterValue (ids::ampRelease);
+    pVoiceMode  = parameters.getRawParameterValue (ids::voiceMode);
+    pOutput     = parameters.getRawParameterValue (ids::outputLevel);
+    pLfoRate     = parameters.getRawParameterValue (ids::lfoRate);
+    pLfoSync     = parameters.getRawParameterValue (ids::lfoSync);
+    pLfoDiv      = parameters.getRawParameterValue (ids::lfoDiv);
+    pLfoShape    = parameters.getRawParameterValue (ids::lfoShape);
+    pLfoDepth    = parameters.getRawParameterValue (ids::lfoDepth);
+    pMenvAttack  = parameters.getRawParameterValue (ids::menvAttack);
+    pMenvDecay   = parameters.getRawParameterValue (ids::menvDecay);
+    pMenvSustain = parameters.getRawParameterValue (ids::menvSustain);
+    pMenvRelease = parameters.getRawParameterValue (ids::menvRelease);
+    pEnvAmount   = parameters.getRawParameterValue (ids::envAmount);
+    jassert (pBank != nullptr && pPosition != nullptr && pInterp != nullptr && pBandlimit != nullptr
+             && pBitDepth != nullptr && pAmpAttack != nullptr && pAmpDecay != nullptr
+             && pAmpSustain != nullptr && pAmpRelease != nullptr && pVoiceMode != nullptr
+             && pOutput != nullptr);
+    jassert (pLfoRate != nullptr && pLfoSync != nullptr && pLfoDiv != nullptr && pLfoShape != nullptr
+             && pLfoDepth != nullptr && pMenvAttack != nullptr && pMenvDecay != nullptr
+             && pMenvSustain != nullptr && pMenvRelease != nullptr && pEnvAmount != nullptr);
+
+    for (int i = 0; i < kNumVoices; ++i)
+    {
+        auto* v = new WtVoice();                   // all allocation here, never on the audio thread
+        v->setBlockContext (&blockCtx);            // stable for the processor's lifetime
+        wtVoices[(size_t) i] = v;
+        synth.addVoice (v);                        // synth owns it
+    }
+    synth.addSound (new WtSound());
+    synth.setNoteStealingEnabled (true);
+    // D-L: events split the render at their exact sample (JUCE's default 32
+    // non-strict handles events < 32 samples into a sub-block EARLY, which
+    // depends on the host partition). Constructor = no audio thread yet.
+    synth.setMinimumRenderingSubdivisionSize (1, true);
+    midiCollector.reset (44100.0);                 // valid base before the first prepareToPlay (sibling)
+
+    startTimer (250);                              // reaper sweep (no callbacks without a message loop: harness sweeps itself)
+}
+
+OSimpleWavetableAudioProcessor::~OSimpleWavetableAudioProcessor()
+{
+    importGen.fetch_add (1);                       // supersede: an in-flight decode exits at its next chunk
+    importPool.removeAllJobs (true, 10000);        // jobs capture this
+    stopTimer();
+    cancelPendingUpdate();
+}
+
+//==============================================================================
+const WavetableBank* OSimpleWavetableAudioProcessor::resolveBank (int bankIndex) const noexcept
+{
+    // 0..4 built-in (never freed while this instance lives: builtIns holds a
+    // ref); 5 Imported (nullptr = empty = silence until 2.4 publishes).
+    return bankIndex < BuiltInBanks::kCount ? builtIns->get (bankIndex)
+                                            : importedForAudio.load();
+}
+
+juce::ADSR::Parameters OSimpleWavetableAudioProcessor::currentAmpParams() const noexcept
+{
+    const float a = juce::jlimit (0.001f, 5.0f, finiteOr (pAmpAttack->load(),  0.005f));
+    const float d = juce::jlimit (0.001f, 5.0f, finiteOr (pAmpDecay->load(),   0.3f));
+    const float s = juce::jlimit (0.0f,   1.0f, finiteOr (pAmpSustain->load(), 0.8f));
+    const float r = juce::jlimit (0.001f, 5.0f, finiteOr (pAmpRelease->load(), 0.2f));
+    return { a, d, s, r };
+}
+
+juce::ADSR::Parameters OSimpleWavetableAudioProcessor::currentModEnvParams() const noexcept
+{
+    const float a = juce::jlimit (0.001f, 10.0f, finiteOr (pMenvAttack->load(),  0.5f));
+    const float d = juce::jlimit (0.001f, 10.0f, finiteOr (pMenvDecay->load(),   1.0f));
+    const float s = juce::jlimit (0.0f,   1.0f,  finiteOr (pMenvSustain->load(), 0.0f));
+    const float r = juce::jlimit (0.001f, 10.0f, finiteOr (pMenvRelease->load(), 0.5f));
+    return { a, d, s, r };
+}
+
+float OSimpleWavetableAudioProcessor::currentKnob() const noexcept
+{
+    return wt::clamp01 (finiteOr (pPosition->load(), 0.0f));
+}
+
+float OSimpleWavetableAudioProcessor::currentLfoDepth() const noexcept
+{
+    return wt::clamp01 (finiteOr (pLfoDepth->load(), 0.0f));
+}
+
+float OSimpleWavetableAudioProcessor::currentEnvAmount() const noexcept
+{
+    return juce::jlimit (-1.0f, 1.0f, finiteOr (pEnvAmount->load(), 0.0f));   // finite before jlimit (NaN)
+}
+
+float OSimpleWavetableAudioProcessor::currentOutputGain() const noexcept
+{
+    const float db = juce::jlimit (-60.0f, 6.0f, finiteOr (pOutput->load(), -6.0f));
+    return juce::Decibels::decibelsToGain (db, -60.0f);   // -60 dB -> exactly 0
+}
+
+//==============================================================================
+void OSimpleWavetableAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+{
+    preparedBlock = juce::jmax (1, samplesPerBlock);
+
+    midiCollector.reset (sampleRate);
+    synth.setCurrentPlaybackSampleRate (sampleRate);
+
+    // Per-chunk buffers (the chunk loop never exceeds preparedBlock). The
+    // LFO is rendered even at depth 0 (the display needs it), so its buffer
+    // is always valid.
+    knobBuf.assign ((size_t) preparedBlock, 0.0f);
+    depthBuf.assign ((size_t) preparedBlock, 0.0f);
+    amtBuf.assign ((size_t) preparedBlock, 0.0f);
+    lfo.prepare (sampleRate, preparedBlock);           // phase 0, cycle 0: deterministic
+    blockCtx.knobPos   = knobBuf.data();
+    blockCtx.lfo       = lfo.data();
+    blockCtx.lfoDepth  = depthBuf.data();
+    blockCtx.envAmount = amtBuf.data();
+    blockCtx.bank          = resolveBank (choiceIndex (pBank->load(), kNumBanks));
+    blockCtx.interp        = pInterp->load() >= 0.5f;
+    blockCtx.bandlimit     = pBandlimit->load() >= 0.5f;
+    blockCtx.bitDepthIndex = choiceIndex (pBitDepth->load(), kNumBitDepthChoices);
+
+    chunkMidi.clear();
+    chunkMidi.ensureSize ((size_t) kMidiChunkBytes);
+    wheelMidi.clear();
+    wheelMidi.ensureSize ((size_t) kWheelMidiBytes);
+
+    // SEED the smoothers after reset() so prepareToPlay never fades in from
+    // silence (pattern_gain_ramp_without_seeding_fades_in_from_silence).
+    outputGain.reset (sampleRate, 0.02);
+    outputGain.setCurrentAndTargetValue (currentOutputGain());
+    knobSmooth.reset (sampleRate, 0.02);
+    knobSmooth.setCurrentAndTargetValue (currentKnob());
+    depthSmooth.reset (sampleRate, 0.02);
+    depthSmooth.setCurrentAndTargetValue (currentLfoDepth());
+    amtSmooth.reset (sampleRate, 0.02);
+    amtSmooth.setCurrentAndTargetValue (currentEnvAmount());
+
+    const auto amp  = currentAmpParams();
+    const auto menv = currentModEnvParams();
+    for (auto* v : wtVoices)                                    // SynthesiserVoice has no virtual prepare
+        v->prepareToPlay (sampleRate, preparedBlock, amp, menv);
+
+    monoStack.clear();
+    lastVoiceMode = choiceIndex (pVoiceMode->load(), kNumVoiceModes);
+    lastBankIndex = -1;
+    // Voices were just reset (no cfg survives), and prepareToPlay is never
+    // concurrent with processBlock: nothing is audio-held any more.
+    audioHeldBank.store (nullptr);
+    resetDisplayState (sampleRate);
+
+    setLatencySamples (0);                                      // getLatencySamples() is non-virtual (JUCE 8)
+    prepared.store (true);                                      // note 4: LAST
+}
+
+void OSimpleWavetableAudioProcessor::resetDisplayState (double fs) noexcept
+{
+    dispSounding.store (false, std::memory_order_relaxed);
+    dispLfo.store (0.0f, std::memory_order_relaxed);
+    dispMenv.store (0.0f, std::memory_order_relaxed);
+    dispAmp.store (0.0f, std::memory_order_relaxed);
+    dispNote.store (-1, std::memory_order_relaxed);                    // D-X
+    dispHz.store (0.0f, std::memory_order_relaxed);
+    displayFs.store (fs, std::memory_order_relaxed);
+}
+
+void OSimpleWavetableAudioProcessor::releaseResources()
+{
+    prepared.store (false);                        // note 4: FIRST
+    synth.allNotesOff (0, false);                  // hard stop: no voice keeps a cfg.bank
+    monoStack.clear();
+    audioHeldBank.store (nullptr);                 // not concurrent with processBlock
+    bool clearDisp = true;
+   #if OSIW_TEST_HOOKS
+    clearDisp = testReleaseClears;
+   #endif
+    if (clearDisp)
+        resetDisplayState (displayFs.load (std::memory_order_relaxed));   // N4: no frozen "sounding" lamp
+}
+
+bool OSimpleWavetableAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
+{
+    const auto out = layouts.getMainOutputChannelSet();
+    if (out != juce::AudioChannelSet::mono() && out != juce::AudioChannelSet::stereo())
+        return false;
+    return layouts.getMainInputChannelSet().isDisabled();      // instrument: no input bus
+}
+
+void OSimpleWavetableAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
+{
+    juce::ScopedNoDenormals noDenormals;
+    blockEntries.fetch_add (1);                                // REG-01: FIRST statement, seq_cst
+
+    const int numSamples = buffer.getNumSamples();
+    buffer.clear();                                            // voices ADD into a cleared buffer
+    bool ready = prepared.load();                              // note 4: unprepared -> silence
+   #if OSIW_TEST_HOOKS
+    if (! testPreparedGuard)
+        ready = true;
+   #endif
+    if (ready && numSamples > 0 && buffer.getNumChannels() > 0)   // collector jasserts numSamples > 0
+    {
+        const WavetableBank* resolved = renderBlock (buffer, midi, numSamples);
+        audioHeldBank.store (resolved);                        // D-C: BEFORE the exit increment, seq_cst
+    }
+    // 0-sample / 0-channel block: no voice ran, so audioHeldBank is unchanged.
+
+   #if OSIW_TEST_HOOKS
+    if (midBlockFn != nullptr)
+        midBlockFn (midBlockCtx);                              // block still in flight (entries != exits)
+   #endif
+
+    // This is the ONLY exit of processBlock (the 0-sample / 0-channel case
+    // falls through to it): the entry/exit pair stays consistent (REG-01).
+    blockGeneration.fetch_add (1);                             // LAST, seq_cst
+}
+
+const WavetableBank* OSimpleWavetableAudioProcessor::renderBlock (juce::AudioBuffer<float>& buffer,
+                                                                  juce::MidiBuffer& midi, int numSamples)
+{
+    const int numCh = buffer.getNumChannels();
+    midiCollector.removeNextBlockOfMessages (midi, numSamples);
+
+    // Poly <-> Mono switch: detected HERE (never call synth.* from the
+    // message thread; the Synthesiser locks inside processNextBlock).
+    const int mode = choiceIndex (pVoiceMode->load(), kNumVoiceModes);
+    if (mode != lastVoiceMode)
+    {
+        synth.allNotesOff (0, false);
+        monoStack.clear();
+        lastVoiceMode = mode;
+        bool seed = mode == 1;
+       #if OSIW_TEST_HOOKS
+        seed = seed && testMonoWheelSeed;
+       #endif
+        if (seed)
+            wtVoices[0]->pitchWheelMoved (wheelNow);           // W3: voice 0 missed the wheel while idle in Poly
+    }
+
+    // Resolve the bank ONCE per block (Processing Order 2). Every voice
+    // renders this block against this pointer; it becomes audioHeldBank.
+    const int bankIndex = choiceIndex (pBank->load(), kNumBanks);
+    if (bankIndex != lastBankIndex)
+    {
+        bankDisplayGen.fetch_add (1, std::memory_order_relaxed);   // Stage 3 bankUpdate seam
+        lastBankIndex = bankIndex;
+    }
+    const WavetableBank* resolved = resolveBank (bankIndex);
+   #if OSIW_TEST_HOOKS
+    WavetableBank::testNoteDeref (resolved);
+   #endif
+    blockCtx.bank          = resolved;
+    blockCtx.interp        = finiteOr (pInterp->load(), 1.0f) >= 0.5f;
+    blockCtx.bandlimit     = finiteOr (pBandlimit->load(), 1.0f) >= 0.5f;
+    blockCtx.bitDepthIndex = choiceIndex (pBitDepth->load(), kNumBitDepthChoices);
+
+    const auto amp  = currentAmpParams();
+    const auto menv = currentModEnvParams();
+    for (auto* v : wtVoices)
+        v->setBlockParams (amp, menv);                         // dirty-checked inside (both envs)
+
+    knobSmooth.setTargetValue (currentKnob());
+    depthSmooth.setTargetValue (currentLfoDepth());
+    amtSmooth.setTargetValue (currentEnvAmount());
+   #if OSIW_TEST_HOOKS
+    if (testKnobRampOff)
+        knobSmooth.setCurrentAndTargetValue (currentKnob());
+   #endif
+
+    // LFO block settings + host transport, read ONCE per block.
+    const auto lfoShape = (PositionLfo::Shape) choiceIndex (pLfoShape->load(), PositionLfo::kNumShapes);
+    const bool lfoTempo = choiceIndex (pLfoSync->load(), kNumLfoSyncModes) == 1;
+    const int  lfoDiv   = choiceIndex (pLfoDiv->load(), PositionLfo::kNumDivisions);
+    const double lfoRate = (double) juce::jlimit (0.01f, 20.0f, finiteOr (pLfoRate->load(), 0.5f));
+    const auto transport = PositionLfo::readTransport (getPlayHead());
+    int lastChunkLen = 0;
+
+    // getWritePointer() clears AudioBuffer's isClear flag. The voices write
+    // through per-chunk views, which the parent buffer cannot see, so this
+    // MUST happen before rendering (else applyGainRamp / copyFrom below would
+    // treat channel 0 as silent).
+    float* ch0 = buffer.getWritePointer (0);
+
+    // Oversized-host-block guard: chunks of at most preparedBlock. Each chunk
+    // is rendered into its own 1-channel VIEW of channel 0 with its MIDI
+    // sliced and re-based to the view, so the voices' in-buffer index
+    // startSample + i addresses the BlockContext arrays directly (D-H), and
+    // a sub-range Synthesiser render never fires later events early.
+    bool guardMidi = true;
+   #if OSIW_TEST_HOOKS
+    guardMidi = testMidiGuard;
+   #endif
+    auto evIt = midi.cbegin();
+    const auto evEnd = midi.cend();
+    for (int start = 0; start < numSamples;)
+    {
+        int n = juce::jmin (preparedBlock, numSamples - start);
+
+        // note 3: fill the chunk's MIDI only up to the capacity reserved in
+        // prepareToPlay. A chunk that would overflow ends at the first event
+        // that does not fit (n may be 0: the events are then handled with no
+        // render), so the copy never grows chunkMidi on the audio thread.
+        chunkMidi.clear();                                    // keeps capacity: no allocation
+        int chunkBytes = 0;
+        for (; evIt != evEnd; ++evIt)
+        {
+            const auto meta = *evIt;
+            const int p = juce::jlimit (0, numSamples - 1, meta.samplePosition);
+            if (p >= start + n)
+                break;
+            if (guardMidi && meta.numBytes > 3)
+                continue;                                     // sysex / meta: neither path reads them
+            const int need = kMidiEventHeader + meta.numBytes;
+            if (guardMidi && chunkBytes + need > kMidiChunkBytes)
+            {
+                n = p - start;                                // end the chunk at this event
+                break;
+            }
+            chunkMidi.addEvent (meta.data, meta.numBytes, p - start);
+            chunkBytes += need;
+            if (meta.numBytes >= 3 && (meta.data[0] & 0xf0) == 0xe0)
+                wheelNow = (meta.data[1] & 0x7f) | ((meta.data[2] & 0x7f) << 7);   // W3
+        }
+
+        for (int i = 0; i < n; ++i)
+        {
+            knobBuf[(size_t) i]  = knobSmooth.getNextValue();
+            depthBuf[(size_t) i] = depthSmooth.getNextValue();
+            amtBuf[(size_t) i]   = amtSmooth.getNextValue();
+        }
+
+        // Rendered even at depth 0 (display). Writes into lfo's own buffer,
+        // which blockCtx.lfo already points at. PPQ advanced to this chunk.
+        lfo.render (n, lfoShape, lfoTempo, lfoRate, lfoDiv, lfo.offsetBy (transport, start));
+        if (n > 0)
+            lastChunkLen = n;
+
+        float* chunkChannels[1] = { ch0 + start };
+        juce::AudioBuffer<float> view (chunkChannels, 1, n);   // refers to ch0; no allocation (<= 32 ch)
+
+        if (mode == 0)
+            synth.renderNextBlock (view, chunkMidi, 0, n);
+        else
+            renderMono (view, chunkMidi, n);
+        start += n;
+    }
+
+    updateDisplayFromLeadVoice();
+    dispLfo.store (lfo.lastValue (lastChunkLen), std::memory_order_relaxed);
+
+    // Output stage: seeded 20 ms gain ramp (-60 dB = exactly 0), isfinite
+    // scrub, then mono -> every output channel.
+    outputGain.setTargetValue (currentOutputGain());
+    const float g0 = outputGain.getCurrentValue();
+    const float g1 = outputGain.skip (numSamples);
+    buffer.applyGainRamp (0, 0, numSamples, g0, g1);
+
+    for (int i = 0; i < numSamples; ++i)
+        if (! std::isfinite (ch0[i]))
+            ch0[i] = 0.0f;
+
+    for (int ch = 1; ch < numCh; ++ch)
+        buffer.copyFrom (ch, 0, buffer, 0, 0, numSamples);
+
+    return resolved;
+}
+
+//==============================================================================
+// Mono = true legato (CONTEXT): last-note priority on voice 0. An overlapping
+// note changes pitch only; a note with nothing held retriggers (noteOn from
+// the current level, no reset). Releasing a note returns to the previous
+// held one. Adapted from O-simpleSubtractive renderMonoLegato (mode 2).
+void OSimpleWavetableAudioProcessor::renderMono (juce::AudioBuffer<float>& view, const juce::MidiBuffer& chunk,
+                                                 int numSamples)
+{
+    auto* v0 = wtVoices[0];
+
+    // Keep the Synthesiser's lastPitchWheelValues current while it is bypassed,
+    // so the first Poly note after a Mono -> Poly switch starts with the real
+    // bend. numSamples = 0: no voice renders, every event is just handled.
+    // (No voice is playing a channel in Mono, so none receives the wheel twice.)
+    wheelMidi.clear();
+    for (const auto meta : chunk)
+        if (meta.numBytes >= 3 && (meta.data[0] & 0xf0) == 0xe0)
+            wheelMidi.addEvent (meta.data, meta.numBytes, meta.samplePosition);
+    if (! wheelMidi.isEmpty())
+        synth.renderNextBlock (view, wheelMidi, 0, 0);
+
+    int pos = 0;
+    for (const auto meta : chunk)
+    {
+        const int evPos = juce::jlimit (0, numSamples, meta.samplePosition);
+        if (evPos > pos)
+        {
+            v0->renderNextBlock (view, pos, evPos - pos);
+            pos = evPos;
+        }
+
+        const auto m = meta.getMessage();
+        if (m.isNoteOn())
+        {
+            const bool wasHeld = ! monoStack.empty();
+            monoStack.push (m.getNoteNumber(), m.getFloatVelocity());
+            v0->noteOnDirect (m.getNoteNumber(), m.getFloatVelocity(), ! wasHeld);   // legato while held
+        }
+        else if (m.isNoteOff())
+        {
+            monoStack.remove (m.getNoteNumber());
+            if (monoStack.empty())
+                v0->noteOffDirect (true);                      // release tail
+            else
+                v0->setPitchNote (monoStack.topNote());        // back to the held note, no retrigger
+        }
+        else if (m.isAllNotesOff() || m.isAllSoundOff())
+        {
+            monoStack.clear();
+            v0->noteOffDirect (false);
+        }
+        else if (m.isPitchWheel())
+        {
+            v0->pitchWheelMoved (m.getPitchWheelValue());
+        }
+    }
+
+    if (pos < numSamples)
+        v0->renderNextBlock (view, pos, numSamples - pos);
+
+    // Voices 1.. never get a Mono note, but a Poly -> Mono switch hard-stops
+    // them: render their 2 ms hard-stop tails (W1). Idle voices return at once.
+    for (size_t i = 1; i < wtVoices.size(); ++i)
+        wtVoices[i]->renderNextBlock (view, 0, numSamples);
+}
+
+//==============================================================================
+void OSimpleWavetableAudioProcessor::updateDisplayFromLeadVoice() noexcept
+{
+    // Lead voice = the NEWEST note among sounding voices (isSounding() = amp
+    // env active; not isVoiceActive(), which is false for the Mono voice).
+    const WtVoice* lead = nullptr;
+    std::uint64_t newest = 0;
+    for (const auto* v : wtVoices)
+        if (v->isSounding() && (lead == nullptr || v->getNoteAge() > newest))
+        {
+            lead = v;
+            newest = v->getNoteAge();
+        }
+
+    if (lead != nullptr)
+    {
+        dispPos.store   (lead->getLastPos(),   std::memory_order_relaxed);
+        dispLevel.store (lead->getLastLevel(), std::memory_order_relaxed);
+        dispFrame.store (lead->getLastFrame(), std::memory_order_relaxed);
+        dispMenv.store  (lead->getLastModEnv(), std::memory_order_relaxed);
+        dispAmp.store   (lead->getLastAmpEnv(), std::memory_order_relaxed);
+        dispNote.store  (lead->getLastNote(), std::memory_order_relaxed);         // D-X
+        dispHz.store    ((float) lead->getCurrentHz(), std::memory_order_relaxed);
+        dispSounding.store (true, std::memory_order_relaxed);
+    }
+    else
+    {
+        dispMenv.store (0.0f, std::memory_order_relaxed);
+        dispAmp.store (0.0f, std::memory_order_relaxed);
+        dispNote.store (-1, std::memory_order_relaxed);                // D-X
+        dispHz.store (0.0f, std::memory_order_relaxed);
+        dispSounding.store (false, std::memory_order_relaxed);
+    }
+}
+
+//==============================================================================
+// Stage 3 visualization (message thread only; see PluginProcessor.h).
+int OSimpleWavetableAudioProcessor::getSelectedBankIndex() const noexcept
+{
+    return choiceIndex (pBank->load(), kNumBanks);
+}
+
+void OSimpleWavetableAudioProcessor::buildCycleView (CycleView& v)
+{
+    const int bankIdx = getSelectedBankIndex();
+
+    // Imported: a snapshot held for THIS call only (Amendment 12, P6). The
+    // raw audio-thread bank pointer is never read here.
+    std::shared_ptr<const WavetableBank> hold;
+    const WavetableBank* b = nullptr;
+    if (bankIdx < BuiltInBanks::kCount)
+    {
+        b = builtIns->get (bankIdx);
+    }
+    else
+    {
+        hold = getImportedBankSnapshot();
+        b = hold.get();
+    }
+    if (b != nullptr && b->numFrames <= 0)
+        b = nullptr;
+
+    // Same reads as renderBlock (interp / bit_depth).
+    const bool interp   = finiteOr (pInterp->load(), 1.0f) >= 0.5f;
+    const int  bitIdx   = choiceIndex (pBitDepth->load(), kNumBitDepthChoices);
+    const bool sounding = dispSounding.load (std::memory_order_relaxed);
+    const int  nF       = b != nullptr ? b->numFrames : 0;
+
+    // Sounding: the lead voice's effective position, mip level and latched
+    // frame. Silent (D-R, P4): the knob, level 0, the knob's latched frame
+    // (the stale disp* values are ignored).
+    const float pos     = sounding ? dispPos.load (std::memory_order_relaxed) : currentKnob();
+    const int   level   = sounding ? juce::jlimit (0, WavetableBank::kLevels - 1,
+                                                   dispLevel.load (std::memory_order_relaxed))
+                                   : 0;
+    const int   latched = sounding ? dispFrame.load (std::memory_order_relaxed) : wt::latchFrame (pos, nF);
+
+    vizRenderer.render (b, level, interp, pos, latched, bitIdx, v);
+
+    v.pos      = wt::clamp01 (pos);
+    v.frame    = interp ? -1 : juce::jlimit (0, juce::jmax (0, nF - 1), latched);   // P3: dispFrame is rounded with Interp On
+    v.level    = level;
+    v.kmax     = WavetableBank::kmax (level);
+    v.sounding = sounding;
+
+    if (sounding)
+    {
+        const float hz    = dispHz.load (std::memory_order_relaxed);
+        const double fs   = displayFs.load (std::memory_order_relaxed);
+        v.note     = dispNote.load (std::memory_order_relaxed);
+        v.f0       = std::isfinite (hz) && hz > 0.0f ? hz : 0.0f;
+        v.nyquistH = v.f0 > 0.0f && fs > 0.0 ? (float) (0.5 * fs / (double) v.f0) : 0.0f;
+    }
+    else
+    {
+        v.note     = -1;
+        v.f0       = 0.0f;
+        v.nyquistH = 0.0f;
+    }
+
+    // D-P / P1: the free LFO runs at depth 0 (display); the lamp only shows it
+    // when the depth is non-zero, so an idle editor stays quiet.
+    v.lfo  = currentLfoDepth() > 0.0f ? dispLfo.load (std::memory_order_relaxed) : 0.0f;
+    v.menv = dispMenv.load (std::memory_order_relaxed);
+    v.amp  = dispAmp.load (std::memory_order_relaxed);
+}
+
+void OSimpleWavetableAudioProcessor::getBankThumbnails (BankThumbs& t) const
+{
+    const int bankIdx = getSelectedBankIndex();
+    t.bank     = bankIdx;
+    t.imported = bankIdx >= BuiltInBanks::kCount;
+
+    std::shared_ptr<const WavetableBank> hold;
+    const WavetableBank* b = nullptr;
+    juce::String name;
+
+    if (! t.imported)
+    {
+        b = builtIns->get (bankIdx);
+    }
+    else
+    {
+        // D-S / P8: the bank and ITS filename in one scope. importStatus.filename
+        // may already name a later, failed import.
+        const juce::ScopedLock sl (bankStateLock);
+        hold = importedOwner;
+        name = cachedBlob.filename;
+    }
+    if (hold != nullptr)
+        b = hold.get();
+
+    if (b == nullptr || b->numFrames <= 0)
+    {
+        t.numFrames = 0;
+        t.filename  = juce::String();
+        t.points.clear();                          // keeps capacity
+        return;
+    }
+
+    t.numFrames = b->numFrames;
+    t.filename  = t.imported ? name : juce::String();
+    t.points.assign (b->thumbs.begin(), b->thumbs.end());   // reuses capacity (editor reserves 256 * 128)
+}
+
+//==============================================================================
+void OSimpleWavetableAudioProcessor::handleUiMidi (int noteNumber, bool noteOn, float velocity)
+{
+    // Defensive native-boundary validation: the JS side clamps today, but the
+    // bridge itself accepts any int (out-of-range trips a JUCE jassert /
+    // malformed message) and a NaN velocity slips through jlimit (NaN compares
+    // false). Never trust the WebView's arguments.
+    noteNumber = juce::jlimit (0, 127, noteNumber);
+    if (! std::isfinite (velocity))
+        velocity = 0.8f;
+
+    auto msg = noteOn
+        ? juce::MidiMessage::noteOn  (1, noteNumber, juce::jlimit (0.0f, 1.0f, velocity))
+        : juce::MidiMessage::noteOff (1, noteNumber);
+    msg.setTimeStamp (juce::Time::getMillisecondCounterHiRes() * 0.001);   // collector wants seconds
+    midiCollector.addMessageToQueue (msg);
+}
+
+//==============================================================================
+// The editor include sits HERE, not at the top of the file: the console test
+// targets build with JUCE_WEB_BROWSER=0 and never compile the editor TU
+// (pattern_render_harness_breaks_on_webview_editor).
+#if JUCE_WEB_BROWSER
+ #include "PluginEditor.h"
+#endif
+juce::AudioProcessorEditor* OSimpleWavetableAudioProcessor::createEditor()
+{
+#if JUCE_WEB_BROWSER
+    return new OSimpleWavetableAudioProcessorEditor (*this);
+#else
+    return new juce::GenericAudioProcessorEditor (*this);   // console-target build
+#endif
+}
+
+//==============================================================================
+void OSimpleWavetableAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
+{
+    auto state = parameters.copyState();
+    stripImportedBank (state);                    // never re-emit a child that rode in on replaceState
+    state.setProperty (kUiLanguageProp,
+                       languageCode (uiLanguage.load (std::memory_order_acquire)), nullptr);
+    writeImportedBank (state);                    // exactly one child from the cache (or none)
+    if (auto xml = state.createXml())
+        copyXmlToBinary (*xml, destData);
+}
+
+void OSimpleWavetableAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
+{
+    auto xml = getXmlFromBinary (data, sizeInBytes);
+    if (xml == nullptr)
+        return;
+
+    // Untrusted input (ASVS V5): wrong root type -> ignore the whole blob.
+    auto state = juce::ValueTree::fromXml (*xml);
+    if (! state.isValid() || ! state.hasType (parameters.state.getType()))
+        return;
+
+    // Hand-added property: comes back as a STRING var -> isVoid() is the only
+    // honest gate (critical_valuetree_xml_roundtrip_loses_type). Absent leaves
+    // the current value standing; languageIndex() allow-lists the code.
+    const juce::var lang = state.getProperty (kUiLanguageProp);
+    if (! lang.isVoid())
+        uiLanguage.store (languageIndex (lang.toString()), std::memory_order_release);
+
+    // Detach BEFORE replaceState so the live APVTS tree never carries the blob
+    // (stale-child trap, critical_preset_manager_stale_customstate_child).
+    const auto bankChild = state.getChildWithName (kImportedBankTag).createCopy();   // invalid if absent
+    stripImportedBank (state);                    // ALL copies
+
+    parameters.replaceState (state);
+    restoreImportedBank (bankChild);
+}
+
+//==============================================================================
+// IMPORTED_BANK restore (RESEARCH 6.2 / 6.3). Synchronous on the calling
+// (non-audio) thread: a host that calls getStateInformation right after
+// setStateInformation gets the same blob, and the harness needs no message
+// loop. Untrusted input (ASVS V5): every attribute is a STRING var after an
+// XML round trip -> isVoid() gate + getIntValue(); numFrames 1..256; data
+// <= 4 M chars; decoded length must equal numFrames * 2048.
+void OSimpleWavetableAudioProcessor::restoreImportedBank (const juce::ValueTree& child)
+{
+    importGen.fetch_add (1);                      // supersede any in-flight import: restore wins
+
+    auto finishEmpty = [this] (const juce::String& err)
+    {
+        const juce::ScopedLock sl (bankStateLock);
+        publishImportedBank (nullptr);            // RETIRE, never free here
+        cachedBlob = {};
+        pendingAutoSelect = false;
+        importStatus = err.isEmpty() ? ImportStatus {}
+                                     : ImportStatus { ImportStatus::State::error, {}, 0, err };
+        importStatusVersion.fetch_add (1);
+    };
+
+    if (! child.isValid())                        // absent -> empty Imported (pre-import sessions)
+    {
+        finishEmpty ({});
+        return;
+    }
+
+    auto str = [&child] (const char* key)
+    {
+        const juce::var v = child.getProperty (key);
+        return v.isVoid() ? juce::String() : v.toString();
+    };
+
+    const auto versionText = str ("version");
+    const int  version     = versionText.getIntValue();
+    const auto encoding    = str ("encoding");
+
+    // FORWARD COMPAT: a newer save is kept verbatim, never destroyed.
+    if (version > 1 || (version == 1 && encoding != "flac16" && encoding != "pcm16gz"))
+    {
+        const juce::ScopedLock sl (bankStateLock);
+        publishImportedBank (nullptr);
+        cachedBlob = {};
+        cachedBlob.passthrough = child.createCopy();
+        pendingAutoSelect = false;
+        importStatus = { ImportStatus::State::error, WavetableImporter::sanitiseName (str ("filename")), 0, "unsupported" };
+        importStatusVersion.fetch_add (1);
+        return;
+    }
+
+    const int  frames = str ("numFrames").getIntValue();
+    const auto data   = str ("data");
+    if (version != 1 || frames < 1 || frames > WavetableImporter::kMaxFrames
+        || data.isEmpty() || data.length() > WavetableImporter::kMaxDataChars)
+    {
+        finishEmpty ("unreadable");               // malformed v1 is dropped (Stage 1 P3/P4 fixture)
+        return;
+    }
+
+    juce::MemoryBlock bytes;
+    {
+        juce::MemoryOutputStream mos (bytes, false);
+        if (! juce::Base64::convertFromBase64 (mos, data))
+        {
+            finishEmpty ("unreadable");
+            return;
+        }
+    }
+
+    ImportedPcm pcm;
+    pcm.filename  = WavetableImporter::sanitiseName (str ("filename"));
+    pcm.numFrames = frames;
+    const bool decoded = encoding == "flac16" ? WavetableImporter::decodeFlac16 (bytes, frames, pcm.pcm)
+                                              : WavetableImporter::decodePcm16Gz (bytes, frames, pcm.pcm);
+    auto bank = decoded ? WavetableImporter::buildImportedBank (pcm) : nullptr;   // SAME builder as import (FUNC-04)
+    if (bank == nullptr)
+    {
+        finishEmpty ("unreadable");
+        return;
+    }
+
+    const juce::ScopedLock sl (bankStateLock);
+    publishImportedBank (std::move (bank));
+    cachedBlob = { pcm.filename, encoding, data, frames, {} };   // VERBATIM incoming string: save-after-load is identical
+    pendingAutoSelect = false;                    // the restored bank param stands
+    importStatus = { ImportStatus::State::done, pcm.filename, frames, {} };
+    importStatusVersion.fetch_add (1);
+}
+
+void OSimpleWavetableAudioProcessor::writeImportedBank (juce::ValueTree& state) const
+{
+    const juce::ScopedLock sl (bankStateLock);    // never taken on the audio thread
+
+    if (cachedBlob.passthrough.isValid())
+    {
+        state.appendChild (cachedBlob.passthrough.createCopy(), nullptr);
+        return;
+    }
+
+    if (cachedBlob.data.isEmpty())
+        return;                                   // no import -> no child
+
+    juce::ValueTree c (kImportedBankTag);
+    c.setProperty ("version",   1, nullptr);
+    c.setProperty ("filename",  cachedBlob.filename, nullptr);
+    c.setProperty ("numFrames", cachedBlob.numFrames, nullptr);
+    c.setProperty ("encoding",  cachedBlob.encoding, nullptr);
+    c.setProperty ("data",      cachedBlob.data, nullptr);   // EXACTLY one child, cached string, no work here
+    state.appendChild (c, nullptr);
+}
+
+//==============================================================================
+// Publish / retire / sweep: REG-01 (O-Prism 0f7d65ce) + the D-C amendment.
+// Caller holds bankStateLock; any thread except the audio thread.
+void OSimpleWavetableAudioProcessor::publishImportedBank (std::shared_ptr<const WavetableBank> nb)
+{
+    auto old = std::move (importedOwner);
+    importedOwner = std::move (nb);
+    importedForAudio.store (importedOwner.get());             // seq_cst publish
+    retireBank (std::move (old));
+    bankDisplayGen.fetch_add (1, std::memory_order_relaxed);  // Stage 3 bankUpdate seam
+}
+
+void OSimpleWavetableAudioProcessor::retireBank (std::shared_ptr<const WavetableBank> b)
+{
+    sweepRetiredBanks();                                       // producer sweep (REG-01)
+    if (b == nullptr)
+        return;
+    retiredBanks.push_back ({ std::move (b), blockGeneration.load() });   // stamp AFTER the publish store
+}
+
+void OSimpleWavetableAudioProcessor::sweepRetiredBanks()
+{
+    const auto exits     = blockGeneration.load();             // exits FIRST (REG-01)
+    const auto entries   = blockEntries.load();
+    const bool quiescent = entries == exits;
+    const WavetableBank* held = audioHeldBank.load();          // AFTER entries (D-C)
+
+    bool excludeHeld = true;
+   #if OSIW_TEST_HOOKS
+    excludeHeld = ! testDisableHeldExclusion.load();
+   #endif
+
+    size_t keep = 0;
+    for (size_t i = 0; i < retiredBanks.size(); ++i)
+    {
+        auto& r = retiredBanks[i];
+        const bool unreachable = ! (excludeHeld && r.bank.get() == held)   // AMENDMENT: the next block may capture from it
+                              && (quiescent || exits >= r.retiredAt + 2);  // REG-01 verbatim
+        if (! unreachable)
+        {
+            if (keep != i)
+                retiredBanks[keep] = std::move (r);
+            ++keep;
+            continue;
+        }
+
+       #if OSIW_TEST_HOOKS
+        if (testGraveyard.load())
+        {
+            r.bank->testReaped.store (true);                   // parked, not freed: a later read is counted
+            graveyard.push_back (std::move (r.bank));
+            continue;
+        }
+       #endif
+        r.bank.reset();                                        // freed HERE (never on the audio thread)
+    }
+    retiredBanks.erase (retiredBanks.begin() + (std::ptrdiff_t) keep, retiredBanks.end());
+}
+
+void OSimpleWavetableAudioProcessor::timerCallback()
+{
+    const juce::ScopedLock sl (bankStateLock);
+    sweepRetiredBanks();
+}
+
+//==============================================================================
+// Import API (D-E). Any non-audio thread.
+void OSimpleWavetableAudioProcessor::setImportStatus (ImportStatus::State state, const juce::String& filename,
+                                                      int frames, const juce::String& error)
+{
+    const juce::ScopedLock sl (bankStateLock);
+    importStatus = { state, filename, frames, error };
+    importStatusVersion.fetch_add (1);
+}
+
+OSimpleWavetableAudioProcessor::ImportStatus OSimpleWavetableAudioProcessor::getImportStatus() const
+{
+    const juce::ScopedLock sl (bankStateLock);
+    return importStatus;
+}
+
+std::shared_ptr<const WavetableBank> OSimpleWavetableAudioProcessor::getImportedBankSnapshot() const
+{
+    const juce::ScopedLock sl (bankStateLock);
+    return importedOwner;
+}
+
+bool OSimpleWavetableAudioProcessor::importFromFile (const juce::File& file)
+{
+    const auto name = WavetableImporter::sanitiseName (file.getFileName());
+    if (! file.existsAsFile())
+    {
+        setImportStatus (ImportStatus::State::error, name, 0, "unreadable");
+        return false;
+    }
+
+    const auto gen = importGen.fetch_add (1) + 1;             // supersedes any in-flight job
+    setImportStatus (ImportStatus::State::busy, name, 0, {});
+
+    importPool.addJob ([this, file, name, gen]
+    {
+        if (importGen.load() != gen)
+            return;                                            // superseded while queued
+        juce::AudioFormatManager fm;
+        fm.registerBasicFormats();
+        std::unique_ptr<juce::AudioFormatReader> r (fm.createReaderFor (file));
+        runImportJob (std::move (r), name, gen);
+    });
+    return true;
+}
+
+bool OSimpleWavetableAudioProcessor::importFromMemory (const juce::String& rawName, juce::MemoryBlock&& bytes)
+{
+    const auto name = WavetableImporter::sanitiseName (rawName);   // JS-supplied: persisted + displayed
+    if (bytes.getSize() > WavetableImporter::kMaxMemoryBytes)
+    {
+        setImportStatus (ImportStatus::State::error, name, 0, "tooLarge");
+        return false;
+    }
+    if (bytes.getSize() == 0)
+    {
+        setImportStatus (ImportStatus::State::error, name, 0, "unreadable");
+        return false;
+    }
+
+    const auto gen = importGen.fetch_add (1) + 1;
+    setImportStatus (ImportStatus::State::busy, name, 0, {});
+
+    auto block = std::make_shared<juce::MemoryBlock> (std::move (bytes));   // std::function needs a copyable capture
+    importPool.addJob ([this, block, name, gen]
+    {
+        if (importGen.load() != gen)
+            return;
+        juce::AudioFormatManager fm;
+        fm.registerBasicFormats();
+        std::unique_ptr<juce::AudioFormatReader> r (fm.createReaderFor (std::make_unique<juce::MemoryInputStream> (*block, false)));
+        runImportJob (std::move (r), name, gen);              // the reader dies inside, before the block
+    });
+    return true;
+}
+
+// Worker thread. Decode -> canonical int16 -> blob -> bank, then re-check the
+// generation UNDER the lock and publish. Publish BEFORE auto-select.
+void OSimpleWavetableAudioProcessor::runImportJob (std::unique_ptr<juce::AudioFormatReader> reader,
+                                                   const juce::String& name, juce::uint32 gen)
+{
+    auto stale = [this, gen] { return importGen.load() != gen; };
+
+    if (reader == nullptr)
+    {
+        if (! stale())
+            setImportStatus (ImportStatus::State::error, name, 0, "unreadable");
+        return;
+    }
+
+    auto res = WavetableImporter::decode (*reader, name, stale);
+    reader.reset();
+
+    if (res.error == ImportError::cancelled || stale())
+        return;                                               // superseded: never surfaced
+    if (res.error != ImportError::none)
+    {
+        setImportStatus (ImportStatus::State::error, name, 0, WavetableImporter::errorCode (res.error));
+        return;                                               // bank untouched
+    }
+
+    juce::String encoding = "flac16";
+    auto data = WavetableImporter::encodeFlac16 (res.pcm.pcm);
+    if (data.isEmpty())
+    {
+        encoding = "pcm16gz";                                 // FLAC writer refused: lossless fallback
+        data = WavetableImporter::encodePcm16Gz (res.pcm.pcm);
+    }
+
+    auto bank = WavetableImporter::buildImportedBank (res.pcm);   // ~23 MB worst case, on the worker
+    if (bank == nullptr || data.isEmpty())
+    {
+        if (! stale())
+            setImportStatus (ImportStatus::State::error, name, 0, "unreadable");
+        return;
+    }
+
+    {
+        const juce::ScopedLock sl (bankStateLock);
+        if (importGen.load() != gen)
+            return;                                           // superseded at the last moment: the bank dies here (worker)
+        publishImportedBank (std::move (bank));               // atomic store + retire + producer sweep
+        cachedBlob = { name, encoding, data, res.pcm.numFrames, {} };
+        importStatus = { ImportStatus::State::done, name, res.pcm.numFrames, {} };
+        importStatusVersion.fetch_add (1);
+        pendingAutoSelect = true;                             // set with the publish (a later restore clears it)
+    }
+    triggerAsyncUpdate();                                     // handleAsyncUpdate (message thread): bank = Imported
+}
+
+void OSimpleWavetableAudioProcessor::handleAsyncUpdate()
+{
+    bool select = false;
+    {
+        const juce::ScopedLock sl (bankStateLock);
+        select = pendingAutoSelect;
+        pendingAutoSelect = false;
+    }
+
+    if (select)
+        if (auto* p = parameters.getParameter (OSimpleWavetable::ParamIDs::bank))
+        {
+            p->beginChangeGesture();
+            p->setValueNotifyingHost (p->convertTo0to1 ((float) kImportedIdx));
+            p->endChangeGesture();
+        }
+}
+
+// Drop path (D-Z). Any non-audio thread (the WebView native runs on the
+// message thread). Cap first: never decode a payload that could not pass
+// importFromMemory's byte cap anyway.
+bool OSimpleWavetableAudioProcessor::importFromBase64 (const juce::String& name, const juce::String& base64)
+{
+    constexpr std::size_t kMaxBase64Chars = WavetableImporter::kMaxMemoryBytes / 3 * 4 + 4;
+
+    if (base64.getNumBytesAsUTF8() > kMaxBase64Chars)
+    {
+        setImportStatus (ImportStatus::State::error, WavetableImporter::sanitiseName (name), 0, "tooLarge");
+        return false;
+    }
+
+    // STANDARD base64 (btoa alphabet) via juce::Base64. JUCE's MemoryBlock
+    // base64 is its own non-standard format and rejects the page's payload.
+    juce::MemoryBlock bytes;
+    bool decodedOk = false;
+    {
+        juce::MemoryOutputStream out (bytes, false);   // trims `bytes` to the written size on destruction
+        decodedOk = juce::Base64::convertFromBase64 (out, base64);
+    }
+    if (! decodedOk)
+    {
+        setImportStatus (ImportStatus::State::error, WavetableImporter::sanitiseName (name), 0, "unreadable");
+        return false;
+    }
+
+    return importFromMemory (name, std::move (bytes));   // sanitises the name and re-caps the bytes
+}
+
+//==============================================================================
+// Lesson presets (D-Y). Recipes: v1-integration-checklist.md "Lesson preset
+// ids" (RESEARCH Q7); choice indices: createParameterLayout above (bank
+// 0 Sine->Saw, 1 Sine->Square, 3 Formant, 4 Drive; bit_depth 9 = "8";
+// lfo_shape 0 Sine, 1 Triangle, 4 S&H; lfo_sync 0 Free). Real values;
+// converted with each parameter's own range.
+bool OSimpleWavetableAudioProcessor::applyFactoryPreset (const juce::String& id)
+{
+    namespace ids = OSimpleWavetable::ParamIDs;
+
+    struct RecipeEntry
+    {
+        const char* paramId;
+        float value;
+    };
+
+    std::vector<RecipeEntry> recipe;   // NOT std::initializer_list: assigning a braced list to one dangles
+
+    if (id == "steppedSmooth")
+        recipe = { { ids::bank, 0.0f }, { ids::position, 0.5f }, { ids::interp, 0.0f }, { ids::lfoSync, 0.0f },
+                   { ids::lfoShape, 1.0f }, { ids::lfoRate, 0.18f }, { ids::lfoDepth, 1.0f } };
+    else if (id == "aliasDemo")
+        recipe = { { ids::bank, 0.0f }, { ids::position, 1.0f }, { ids::bandlimit, 0.0f } };
+    else if (id == "driveSweep")
+        recipe = { { ids::bank, 4.0f }, { ids::position, 0.0f }, { ids::envAmount, 1.0f },
+                   { ids::menvAttack, 0.9f }, { ids::menvDecay, 1.6f }, { ids::menvSustain, 0.25f },
+                   { ids::menvRelease, 0.8f } };
+    else if (id == "vowelPad")
+        recipe = { { ids::bank, 3.0f }, { ids::position, 0.5f }, { ids::lfoSync, 0.0f }, { ids::lfoShape, 0.0f },
+                   { ids::lfoRate, 0.12f }, { ids::lfoDepth, 0.9f }, { ids::ampAttack, 0.6f },
+                   { ids::ampRelease, 1.4f } };
+    else if (id == "ppg8bit")
+        recipe = { { ids::bank, 1.0f }, { ids::position, 0.6f }, { ids::interp, 0.0f }, { ids::bitDepth, 9.0f },
+                   { ids::lfoSync, 0.0f }, { ids::lfoShape, 4.0f }, { ids::lfoRate, 3.0f },
+                   { ids::lfoDepth, 0.4f } };
+    else
+        return false;                                     // unknown id: no change
+
+    // A typo in a recipe id is a logged assertion in Debug (G-LESSON).
+    for (const auto& entry : recipe)
+    {
+        jassert (parameters.getParameter (entry.paramId) != nullptr);
+        juce::ignoreUnused (entry);
+    }
+
+    for (const auto* paramId : ids::all)
+    {
+        if (std::strcmp (paramId, ids::outputLevel) == 0)
+            continue;                                     // user-owned: never reset, never set
+
+        auto* param = parameters.getParameter (paramId);
+        if (param == nullptr)
+            continue;
+
+        float target = param->getDefaultValue();          // normalised default = "reset first"
+        for (const auto& entry : recipe)
+            if (std::strcmp (paramId, entry.paramId) == 0)
+                target = param->convertTo0to1 (entry.value);
+
+        if (std::abs (param->getValue() - target) < 1.0e-6f)
+            continue;                                     // already there: no host edit, no gesture
+
+        param->beginChangeGesture();
+        param->setValueNotifyingHost (target);
+        param->endChangeGesture();
+    }
+    return true;
+}
+
+//==============================================================================
+#if OSIW_TEST_HOOKS
+int OSimpleWavetableAudioProcessor::getHeldBankCountForTesting() const
+{
+    const juce::ScopedLock sl (bankStateLock);
+    return (importedOwner != nullptr ? 1 : 0) + (int) retiredBanks.size();
+}
+
+int OSimpleWavetableAudioProcessor::getRetiredBankCountForTesting() const
+{
+    const juce::ScopedLock sl (bankStateLock);
+    return (int) retiredBanks.size();
+}
+
+int OSimpleWavetableAudioProcessor::getGraveyardCountForTesting() const
+{
+    const juce::ScopedLock sl (bankStateLock);
+    return (int) graveyard.size();
+}
+
+void OSimpleWavetableAudioProcessor::clearGraveyardForTesting()
+{
+    const juce::ScopedLock sl (bankStateLock);
+    graveyard.clear();
+}
+
+void OSimpleWavetableAudioProcessor::sweepNowForTesting()
+{
+    const juce::ScopedLock sl (bankStateLock);
+    sweepRetiredBanks();
+}
+
+void OSimpleWavetableAudioProcessor::publishImportedBankForTesting (std::shared_ptr<const WavetableBank> b)
+{
+    const juce::ScopedLock sl (bankStateLock);
+    importGen.fetch_add (1);
+    publishImportedBank (std::move (b));
+}
+#endif
+
+//==============================================================================
+// Factory
+juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
+{
+    return new OSimpleWavetableAudioProcessor();
+}
