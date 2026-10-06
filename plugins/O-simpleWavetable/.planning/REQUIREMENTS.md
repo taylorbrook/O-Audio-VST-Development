@@ -4,7 +4,7 @@
 version: 1.0.0
 plugin: O-simpleWavetable
 created: 2026-10-05
-lastUpdated: 2026-10-05
+lastUpdated: 2026-10-05 (stage-1 verify)
 ---
 
 ## Overview
@@ -62,7 +62,7 @@ lastUpdated: 2026-10-05
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | pending | stage-1 |
+| COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | complete | stage-1 |
 | COMPAT-02 | Windows VST3 build with WebView2 static linking | should | pending | stage-4 |
 | COMPAT-03 | Import accepts WAV / AIFF / FLAC at any sample rate | should | pending | stage-2 |
 
@@ -132,7 +132,8 @@ lastUpdated: 2026-10-05
 - [ ] Import shows filename and frame count
 
 ### PERF-01 / COMPAT-01 / QUAL-01..03
-- [ ] Alloc gate passes in processBlock; pluginval passes VST3 + AU
+- [ ] Alloc gate passes in processBlock (stage-2)
+- [x] pluginval passes VST3 + AU (stage-1, 2026-10-05, strictness 10)
 - [ ] No clicks on bank switch / import / toggles (click detector)
 - [ ] Band-limited aliasing ≥ 60 dB down up to C8
 
