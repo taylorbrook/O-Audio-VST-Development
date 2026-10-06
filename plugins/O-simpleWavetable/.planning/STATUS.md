@@ -1,13 +1,13 @@
 ---
 plugin: O-simpleWavetable
 stage: 2
-status: stage_2_gap_closure_executed_verify_pending
-last_updated: 2026-10-06 12:00:00
+status: stage_2_complete_verified
+last_updated: 2026-10-06 13:00:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: plugin_verify_stage_2
-next_stage: 2
+next_action: plugin_discuss_stage_3
+next_stage: 3
 ready_for_implementation: true
 latest_mockup_version: 1
 mockup_finalized: true
@@ -15,7 +15,7 @@ finalized_version: 1
 stage_0_status: ui_design_complete
 ui_scaffolding_phase_complete: true
 parameter_count: 21
-current_phase: execute
+current_phase: verify
 brief_updated_from_mockup: true
 mockup_version_synced: 1
 brief_update_timestamp: "2026-10-06T02:25:53Z"
@@ -30,9 +30,9 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — discuss ✓, research ✓, plan ✓, execute ✓, verify ⚠ PARTIAL (2026-10-06). Every gate was re-run green; QUAL-01 is partial because of the W1 voice-steal click and the W2 Mono retrigger step.
+Stage: 2 of 4 (DSP) — ✓ COMPLETE (2026-10-06). discuss ✓, research ✓, plan ✓, execute ✓, verify ✓ after the W1/W2/W5 gap closure. Next: Stage 3 (GUI).
 Status: Research & Planning complete; UI mockup v1 finalized with implementation scaffolding; parameter-spec.md locked (21 parameters). Ready for Stage 1.
-Progress: [#####...............] 25%
+Progress: [##########..........] 50%
 
 ## Completed So Far
 
@@ -70,6 +70,12 @@ Progress: [#####...............] 25%
 
 **Stage 2 gap closure execute:** ✓ 2026-10-06 — W1 2 ms hard-stop tail (steal, Poly↔Mono, all-sound-off), W2 3 ms velGain ramp on a sounding retrigger, W5 ARCHITECTURE row 17 / §12 / Threading / Amendments 12–13. New gates G-STEAL 1.076× (neg 4.99×), G-SWITCH-TAIL 0.656× (neg 20.0×), G-RETRIG-VEL 0.589× (neg 35.8×); all 5 drivers + alloc 0 green, goldens unchanged. auval + pluginval VST3/AU s10 pass; installed-VST3 repros W1 1.084× (was 8.7×), W2 0.964× (was ~10×). See SUMMARY.md §Gap closure.
 
+**Stage 2 re-verify:** ✓ VERIFIED 2026-10-06 (stages/2-dsp/VERIFICATION.md §Re-verification). All re-run independently:
+- the 5 drivers in a fresh Debug tree: ALL PASS, state 11/11, `--alloc-check` 0. New gates G-STEAL 1.076×, G-SWITCH-TAIL 0.656×, G-RETRIG-VEL 0.589×, with their negative controls firing. Goldens unchanged.
+- auval, and pluginval VST3/AU strictness 10
+- a new pedalboard probe on the installed VST3, 13/13: W1 0.86× (was 8.7×), W2 0.74× (was ~10×), Poly↔Mono tails 0.32× / 0.45×
+- QUAL-01 complete, so all 18 stage-2 requirements are complete. W3, W4 and notes 3–8 are deferred to Stage 4.
+
 ## Phase Progress
 
 ### Stage 1: Foundation
@@ -90,7 +96,7 @@ Stage 0 open conflicts resolved (user, 2026-10-05): silence+prompt for empty Imp
 | research | ✓ | 2026-10-05 | |
 | plan | ✓ | 2026-10-05 | |
 | execute | ✓ | 2026-10-06 | |
-| verify | ⚠ partial → gap closure executed | 2026-10-06 | |
+| verify | ✓ (partial → gap closure → re-verified) | 2026-10-06 | |
 
 Stage 2 decisions (user, 2026-10-05): checkpoint after 2.1+2.2 for listening; velocity squared; mono true legato; Interp-Off step click accepted. See stages/2-dsp/CONTEXT.md.
 
@@ -100,9 +106,10 @@ Stage 2 plan (2026-10-05): stages/2-dsp/PLAN.md, 24 tasks in two parts. User sig
 
 ## Next Steps
 
-1. `/plugin-verify O-simpleWavetable 2-dsp` — re-verify after the gap closure (W1/W2/W5 executed 2026-10-06; QUAL-01 should now be complete).
-2. Optional (non-blocking, feeds verify): Task 23 DAW smoke — Square/S&H LFO, bank switch on held notes, octave bend, save/reopen Imported
-3. Optional: Stage 1 Task 14 DAW smoke (see stages/1-foundation/VERIFICATION.md Human Verification)
+1. `/plugin-discuss O-simpleWavetable 3-gui`: Stage 3, integrating mockups/v1-* per v1-integration-checklist.md. UI reads of Imported go **only** through `getImportedBankSnapshot()` (ARCHITECTURE Amendment 12).
+2. Optional (non-blocking): Task 23 DAW smoke (Square/S&H LFO, bank switch on held notes, octave bend, save/reopen Imported), plus by-ear checks of a 17-note steal and a fast Mono retrigger.
+3. Optional: Stage 1 Task 14 DAW smoke (see stages/1-foundation/VERIFICATION.md Human Verification).
+4. Stage 4 backlog: W3, W4, and Stage 2 VERIFICATION notes 3–8.
 
 ## Context to Preserve
 

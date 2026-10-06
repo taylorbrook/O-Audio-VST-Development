@@ -70,7 +70,7 @@ lastUpdated: 2026-10-06 (stage-2 verify)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| QUAL-01 | No audio artifacts at normal parameter ranges (beyond the deliberate ones: stepping, aliasing, quantization) | must | partial | stage-2 |
+| QUAL-01 | No audio artifacts at normal parameter ranges (beyond the deliberate ones: stepping, aliasing, quantization) | must | complete | stage-2 |
 | QUAL-02 | Band-limiting On is alias-free (aliases ≥ 60 dB down) up to C8 on the brightest frame | must | complete | stage-2 |
 | QUAL-03 | No clicks on bank switch, import swap, or toggle changes | must | complete | stage-2 |
 | QUAL-04 | Each teaching contrast is clearly audible (stepped vs smooth, aliasing vs clean, bit depth) | nice | pending | stage-4 |
@@ -133,7 +133,8 @@ lastUpdated: 2026-10-06 (stage-2 verify)
 - [ ] Import shows filename and frame count
 
 ### PERF-01 / COMPAT-01 / QUAL-01..03
-- **QUAL-01 partial (2026-10-06 stage-2 verify):** two confirmed clicks in normal playing: a voice-steal hard stop (W1) and the Mono retrigger velocity step (W2). See stages/2-dsp/VERIFICATION.md.
+- **QUAL-01 complete (2026-10-06 re-verify after gap closure):** the first pass found 2 clicks, W1 (voice-steal hard stop) and W2 (Mono retrigger velocity step). Both are fixed: G-STEAL 1.076×, G-RETRIG-VEL 0.589×, G-SWITCH-TAIL 0.656×, each with a negative control. Installed VST3: W1 0.86×, W2 0.74×. See stages/2-dsp/VERIFICATION.md §Re-verification.
+- [x] No clicks on voice steal, Poly↔Mono switch, or Mono retrigger (stage-2 gap closure)
 - [x] Alloc gate passes in processBlock (stage-2, 2026-10-06: 0 allocs)
 - [x] pluginval passes VST3 + AU (stage-1, 2026-10-05, strictness 10)
 - [x] No clicks on bank switch / import / toggles (click detector; import-check ratio worst 1.31)
