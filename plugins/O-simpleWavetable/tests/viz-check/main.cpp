@@ -72,7 +72,23 @@
                       probes (malloc(64) counts 1) before and after.
       G-VIZ-TIME      log only (no wall-clock verdict).
 
-    Task 14 (a later dispatch) adds G-DROP / G-IMPORT-ERR.
+    Task 14 (UI-04, D-Z, P8), through the processor API the natives call:
+      G-DROP[a]       a 3-frame 16-bit WAV as STANDARD base64 (Base64::toBase64)
+                      -> importFromBase64 true -> done -> bank 5, thumbnails
+                      "drop me.wav" / 3 frames, all 11 mip levels memcmp-equal
+                      to importFromMemory of the same bytes (fresh processor).
+      G-DROP[b]       cap + 1 chars -> false, error / tooLarge, snapshot same.
+      G-DROP[c]       "@@@@" -> false, error / unreadable, snapshot same.
+      G-DROP[d]       name "../../x\n.wav" -> status + thumbnails "x.wav".
+      G-DROP-N1       negative control: the same bytes through JUCE's
+                      non-standard MemoryBlock::toBase64Encoding must NOT
+                      import ("FAILS as designed").
+      G-IMPORT-ERR    2047 samples -> error / tooShort naming the new file;
+                      bank index + thumbnails filename unchanged (P8);
+                      importToVar keys exactly state, filename, frames, error;
+                      every code PluginProcessor.cpp can emit (scanned from
+                      the source) is in {tooShort, unreadable, tooLarge,
+                      unsupported}.
 
     Scaffold: report() / info(); dsp-check's setParam + Rig; the O-Bells
     malloc_logger hook with a SETTABLE counted thread (gArmedThread).
@@ -1867,6 +1883,339 @@ namespace
                   << "thumbs + hash + var + JSON::toString " << fmt (usBank, 1) << " us, " << bankBytes
                   << " bytes; budget 33333 us/tick at 30 Hz (fold " << (acc % 1000u) << ")\n";
     }
+
+    //==========================================================================
+    // Task 14: G-DROP / G-IMPORT-ERR (UI-04, D-Z, P8).
+
+    // numSamples of int16: frame f (2048 samples each) = a sine at harmonic
+    // f + 1 (G-VIZ-IMPORTED's content; a partial last frame continues it).
+    std::vector<std::int16_t> harmonicPcm (int numSamples)
+    {
+        std::vector<std::int16_t> pcm ((std::size_t) juce::jmax (0, numSamples));
+        for (int i = 0; i < numSamples; ++i)
+        {
+            const int f = i / kTable;
+            const int k = i % kTable;
+            pcm[(std::size_t) i] = (std::int16_t) std::lround (
+                20000.0 * std::sin (2.0 * kPi * (double) (f + 1) * (double) k / (double) kTable));
+        }
+        return pcm;
+    }
+
+    // Polls the status until it leaves busy (<= 10 s; no message loop in the
+    // harness), then applies the pending auto-select (D-M).
+    void waitImportSettled (Proc& p, Proc::ImportStatus& st)
+    {
+        const double t0 = juce::Time::getMillisecondCounterHiRes();
+        for (;;)
+        {
+            st = p.getImportStatus();
+            if (st.state == Proc::ImportStatus::State::done || st.state == Proc::ImportStatus::State::error)
+                break;
+            if (juce::Time::getMillisecondCounterHiRes() - t0 > 10000.0)
+                break;
+            juce::Thread::sleep (2);
+        }
+        p.handleUpdateNowIfNeeded();
+    }
+
+    // Number of the 11 mip levels that are memcmp-equal between two banks
+    // (0 when the shapes differ).
+    int equalMipLevels (const WavetableBank* a, const WavetableBank* b)
+    {
+        if (a == nullptr || b == nullptr || a->numFrames <= 0 || a->numFrames != b->numFrames)
+            return 0;
+        const std::size_t per = (std::size_t) a->numFrames * (std::size_t) WavetableBank::kStride;
+        if (a->data.size() != per * (std::size_t) WavetableBank::kLevels || b->data.size() != a->data.size())
+            return 0;
+        int n = 0;
+        for (int l = 0; l < WavetableBank::kLevels; ++l)
+            if (std::memcmp (a->data.data() + (std::size_t) l * per, b->data.data() + (std::size_t) l * per,
+                             per * sizeof (float)) == 0)
+                ++n;
+        return n;
+    }
+
+    // true = the name holds a control character (< 0x20, 0x7f) or a path separator.
+    bool hasControlOrSeparator (const juce::String& s)
+    {
+        for (auto cp = s.getCharPointer(); ! cp.isEmpty();)
+        {
+            const juce::juce_wchar c = cp.getAndAdvance();
+            if (c < 0x20 || c == 0x7f || c == '/' || c == '\\')
+                return true;
+        }
+        return false;
+    }
+
+    // Printable form for the report lines (control characters as \xNN).
+    std::string printable (const juce::String& s)
+    {
+        std::string out;
+        for (auto cp = s.getCharPointer(); ! cp.isEmpty();)
+        {
+            const juce::juce_wchar c = cp.getAndAdvance();
+            if (c >= 0x20 && c < 0x7f)
+            {
+                out += (char) c;
+            }
+            else
+            {
+                std::ostringstream h;
+                h << "\\x" << std::hex << std::setw (2) << std::setfill ('0') << (unsigned int) c;
+                out += h.str();
+            }
+        }
+        return out;
+    }
+
+    std::string statusText (const Proc::ImportStatus& st)
+    {
+        return std::string (viz::importStateName (st.state)) + " / " + (st.error.isEmpty() ? std::string ("-") : st.error.toStdString())
+             + " / \"" + printable (st.filename) + "\" / " + std::to_string (st.frames) + " frames";
+    }
+
+    void gateDrop()
+    {
+        using S = Proc::ImportStatus::State;
+
+        Rig rig (48000.0, 512, vizBase (0, 0.5f, true, 0));
+        Proc& p = *rig.proc;
+
+        const juce::MemoryBlock wav = makeWav16 (harmonicPcm (3 * kTable));
+        const juce::String b64 = juce::Base64::toBase64 (wav.getData(), wav.getSize());   // standard alphabet (btoa)
+
+        // (a) The drop path end to end vs importFromMemory of the same bytes.
+        const bool accepted = p.importFromBase64 ("drop me.wav", b64);
+        Proc::ImportStatus st;
+        waitImportSettled (p, st);
+        const auto snap = p.getImportedBankSnapshot();
+        Proc::BankThumbs t;
+        p.getBankThumbnails (t);
+
+        Rig refRig (48000.0, 512, vizBase (0, 0.5f, true, 0));
+        Proc::ImportStatus refSt;
+        const bool refDone = importMemAndWait (*refRig.proc, "drop me.wav", juce::MemoryBlock (wav), refSt);
+        const auto refSnap = refRig.proc->getImportedBankSnapshot();
+        const int levels = equalMipLevels (snap.get(), refSnap.get());
+        const bool thumbsEq = snap != nullptr && refSnap != nullptr && sameFloats (snap->thumbs, refSnap->thumbs);
+
+        const bool okA = wav.getSize() > 0 && accepted && st.state == S::done && st.filename == "drop me.wav"
+                      && st.frames == 3 && snap != nullptr && p.getSelectedBankIndex() == Proc::kImportedIdx
+                      && t.bank == Proc::kImportedIdx && t.imported && t.numFrames == 3 && t.filename == "drop me.wav"
+                      && sameFloats (t.points, snap->thumbs) && refDone && levels == WavetableBank::kLevels && thumbsEq;
+        report ("G-DROP[a]", okA,
+                std::to_string (wav.getSize()) + " WAV bytes -> " + std::to_string (b64.length())
+                + " standard base64 chars; importFromBase64 " + (accepted ? "true" : "FALSE") + ", status " + statusText (st)
+                + "; bank " + std::to_string (p.getSelectedBankIndex()) + " (want 5), thumbnails \"" + printable (t.filename)
+                + "\" / " + std::to_string (t.numFrames) + " frames; " + std::to_string (levels)
+                + "/11 mip levels memcmp-equal to importFromMemory (fresh processor, " + (refDone ? "done" : "NOT done")
+                + "), thumbs " + (thumbsEq ? "equal" : "DIFFER"));
+
+        // (b) One char over the cap: refused BEFORE decoding.
+        const auto before = p.getImportedBankSnapshot();
+        {
+            const std::size_t cap = WavetableImporter::kMaxMemoryBytes / 3 * 4 + 4;
+            const juce::String big = juce::String::repeatedString ("A", (int) (cap + 1));
+            const bool r = p.importFromBase64 ("big.wav", big);
+            const auto sb = p.getImportStatus();
+            const bool okB = (std::size_t) big.getNumBytesAsUTF8() == cap + 1 && ! r && sb.state == S::error
+                          && sb.error == "tooLarge" && sb.filename == "big.wav"
+                          && p.getImportedBankSnapshot() == before && before != nullptr
+                          && p.getSelectedBankIndex() == Proc::kImportedIdx;
+            report ("G-DROP[b]", okB,
+                    std::to_string (cap + 1) + " chars (cap " + std::to_string (cap) + ") -> " + (r ? "TRUE" : "false")
+                    + ", status " + statusText (sb) + " (want error / tooLarge / \"big.wav\"), snapshot "
+                    + (p.getImportedBankSnapshot() == before ? "unchanged" : "CHANGED"));
+        }
+
+        // (c) Not base64 at all.
+        {
+            const bool r = p.importFromBase64 ("at.wav", "@@@@");
+            const auto sc = p.getImportStatus();
+            const bool okC = ! r && sc.state == S::error && sc.error == "unreadable" && sc.filename == "at.wav"
+                          && p.getImportedBankSnapshot() == before && before != nullptr;
+            report ("G-DROP[c]", okC,
+                    std::string ("\"@@@@\" -> ") + (r ? "TRUE" : "false") + ", status " + statusText (sc)
+                    + " (want error / unreadable / \"at.wav\"), snapshot "
+                    + (p.getImportedBankSnapshot() == before ? "unchanged" : "CHANGED"));
+        }
+
+        // (d) A hostile name: basename only, control characters removed.
+        {
+            const juce::String hostile ("../../x\n.wav");
+            const bool r = p.importFromBase64 (hostile, b64);
+            Proc::ImportStatus sd;
+            waitImportSettled (p, sd);
+            Proc::BankThumbs td;
+            p.getBankThumbnails (td);
+            const auto wd = wireBank (td);
+            const bool okD = r && sd.state == S::done && sd.filename == "x.wav" && ! hasControlOrSeparator (sd.filename)
+                          && td.imported && td.filename == "x.wav" && ! hasControlOrSeparator (td.filename)
+                          && wd.ok && wd.filename == "x.wav";
+            report ("G-DROP[d]", okD,
+                    "name \"" + printable (hostile) + "\" -> status \"" + printable (sd.filename) + "\" (" + statusText (sd)
+                    + "), thumbnails \"" + printable (td.filename) + "\", wire \"" + printable (wd.filename)
+                    + "\" (want \"x.wav\", no control chars / separators)" + (wd.ok ? std::string() : " | bank wire: " + wd.why));
+        }
+
+        // Negative control: the same bytes in JUCE's own MemoryBlock base64
+        // ("<size>.<chars>", a different alphabet) must NOT import.
+        {
+            const auto snapNc = p.getImportedBankSnapshot();
+            const juce::String juceEnc = wav.toBase64Encoding();
+            const bool r = p.importFromBase64 ("nc.wav", juceEnc);
+            Proc::ImportStatus sn;
+            if (r)
+                waitImportSettled (p, sn);
+            else
+                sn = p.getImportStatus();
+            const bool unchanged = p.getImportedBankSnapshot() == snapNc && snapNc != nullptr;
+            const bool rejected = juceEnc != b64 && unchanged
+                               && sn.state == S::error && (! r || sn.error == "unreadable");
+            if (rejected)
+                report ("G-DROP-N1", true,
+                        "MemoryBlock::toBase64Encoding payload FAILS as designed: importFromBase64 "
+                        + std::string (r ? "true" : "false") + ", status " + statusText (sn) + ", snapshot unchanged");
+            else
+                report ("G-DROP-N1", false,
+                        "the non-standard payload was NOT rejected (importFromBase64 " + std::string (r ? "true" : "false")
+                        + ", status " + statusText (sn) + ", snapshot " + (unchanged ? "unchanged" : "CHANGED")
+                        + "): the gate cannot tell the alphabets apart");
+        }
+    }
+
+    // Every error code PluginProcessor.cpp can put on the status: the last
+    // string literal of each setImportStatus / importStatus = / finishEmpty
+    // line, plus WavetableImporter::errorCode of every ImportError the worker
+    // can surface (cancelled only if the source no longer filters it).
+    bool scanEmittedCodes (std::set<std::string>& codes, int& literalLines, std::string& why)
+    {
+        const juce::String here (__FILE__);
+        if (! juce::File::isAbsolutePath (here))
+        {
+            why += "__FILE__ is not absolute (" + here.toStdString() + "); ";
+            return false;
+        }
+        const auto cpp = juce::File (here).getParentDirectory().getParentDirectory().getParentDirectory()
+                             .getChildFile ("Source").getChildFile ("PluginProcessor.cpp");
+        if (! cpp.existsAsFile())
+        {
+            why += "cannot read " + cpp.getFullPathName().toStdString() + "; ";
+            return false;
+        }
+
+        const juce::String text = cpp.loadFileAsString();
+        juce::StringArray lines;
+        lines.addLines (text);
+
+        bool usesErrorCode = false;
+        for (const auto& raw : lines)
+        {
+            const auto line = raw.upToFirstOccurrenceOf ("//", false, false);
+            if (line.contains ("WavetableImporter::errorCode ("))
+                usesErrorCode = true;
+            if (! (line.contains ("setImportStatus (") || line.contains ("importStatus = ") || line.contains ("finishEmpty (")))
+                continue;
+            const int closeQ = line.lastIndexOfChar ('"');
+            if (closeQ <= 0)
+                continue;
+            const int openQ = line.substring (0, closeQ).lastIndexOfChar ('"');
+            if (openQ < 0)
+                continue;
+            codes.insert (line.substring (openQ + 1, closeQ).toStdString());
+            ++literalLines;
+        }
+
+        if (usesErrorCode)
+        {
+            for (const auto e : { ImportError::unreadable, ImportError::tooShort, ImportError::tooLarge })
+                codes.insert (WavetableImporter::errorCode (e));
+            if (! text.contains ("res.error == ImportError::cancelled"))
+                codes.insert (WavetableImporter::errorCode (ImportError::cancelled));   // no longer filtered: surfaced
+        }
+        return true;
+    }
+
+    void gateImportErr()
+    {
+        using S = Proc::ImportStatus::State;
+
+        Rig rig (48000.0, 512, vizBase (0, 0.5f, true, 0));
+        Proc& p = *rig.proc;
+
+        // A good 2-frame import first, then a too-short one.
+        Proc::ImportStatus good;
+        const bool goodDone = importMemAndWait (p, "keep.wav", makeWav16 (harmonicPcm (2 * kTable)), good);
+        Proc::BankThumbs before;
+        p.getBankThumbnails (before);
+        const auto snapBefore = p.getImportedBankSnapshot();
+        const int bankBefore = p.getSelectedBankIndex();
+
+        Proc::ImportStatus st;
+        const bool shortDone = importMemAndWait (p, "short.wav", makeWav16 (harmonicPcm (kTable - 1)), st);
+        Proc::BankThumbs after;
+        p.getBankThumbnails (after);
+        const auto wa = wireBank (after);
+
+        const bool okShort = goodDone && bankBefore == Proc::kImportedIdx && before.filename == "keep.wav"
+                          && before.numFrames == 2 && snapBefore != nullptr
+                          && ! shortDone && st.state == S::error && st.error == "tooShort" && st.filename == "short.wav"
+                          && st.frames == 0 && p.getSelectedBankIndex() == bankBefore
+                          && after.filename == "keep.wav" && after.numFrames == 2 && sameFloats (after.points, before.points)
+                          && wa.ok && wa.filename == "keep.wav" && p.getImportedBankSnapshot() == snapBefore;
+        report ("G-IMPORT-ERR[tooShort]", okShort,
+                std::to_string (kTable - 1) + " samples -> status " + statusText (st)
+                + " (want error / tooShort / \"short.wav\"); bank " + std::to_string (p.getSelectedBankIndex())
+                + " (was " + std::to_string (bankBefore) + "), thumbnails \"" + printable (after.filename) + "\" / "
+                + std::to_string (after.numFrames) + " frames (want \"keep.wav\" / 2), snapshot "
+                + (p.getImportedBankSnapshot() == snapBefore ? "unchanged" : "CHANGED")
+                + (wa.ok ? std::string() : " | bank wire: " + wa.why));
+
+        // importToVar: exactly 4 keys, on an error and on a done status.
+        {
+            std::string why;
+            bool ok = true;
+            for (const auto* s : { &st, &good })
+            {
+                juce::var parsed;
+                std::size_t bytes = 0;
+                const bool wireOk = throughWire (viz::importToVar (*s), parsed, bytes, why)
+                                 && exactKeys (parsed, { "state", "filename", "frames", "error" }, why);
+                const bool valuesOk = wireOk
+                    && parsed.getProperty ("state", juce::var()).toString() == juce::String (viz::importStateName (s->state))
+                    && parsed.getProperty ("filename", juce::var()).toString() == s->filename
+                    && parsed.getProperty ("error", juce::var()).toString() == s->error
+                    && parsed.getProperty ("frames", juce::var()).isInt()
+                    && (int) parsed.getProperty ("frames", juce::var()) == s->frames;
+                if (wireOk && ! valuesOk)
+                    why += "values do not round-trip; ";
+                ok = ok && valuesOk;
+            }
+            report ("G-IMPORT-ERR[keys]", ok,
+                    "importToVar keys exactly {error,filename,frames,state} for the error and the done status, values round-trip"
+                    + (why.empty() ? std::string() : " | " + why));
+        }
+
+        // The error vocabulary the page localizes (PluginProcessor.h ImportStatus::error).
+        {
+            const std::set<std::string> allowed { "tooShort", "unreadable", "tooLarge", "unsupported" };
+            std::set<std::string> codes;
+            int literalLines = 0;
+            std::string why;
+            const bool scanned = scanEmittedCodes (codes, literalLines, why);
+            std::set<std::string> stray;
+            for (const auto& c : codes)
+                if (allowed.count (c) == 0)
+                    stray.insert (c.empty() ? std::string ("<empty>") : c);
+            const bool ok = scanned && literalLines > 0 && ! codes.empty() && stray.empty();
+            report ("G-IMPORT-ERR[codes]", ok,
+                    "PluginProcessor.cpp emits {" + joinKeys (codes) + "} (" + std::to_string (literalLines)
+                    + " literal sites + errorCode), all in {tooLarge,tooShort,unreadable,unsupported}"
+                    + (stray.empty() ? std::string() : " | STRAY {" + joinKeys (stray) + "}")
+                    + (why.empty() ? std::string() : " | " + why));
+        }
+    }
 }
 
 int main (int, char**)
@@ -1890,6 +2239,9 @@ int main (int, char**)
     gateVizAllocConcurrent();
     gateVizAllocIdle();
     logVizTime();
+
+    gateDrop();
+    gateImportErr();
 
     report ("G-FINITE", gNonFinite == 0 && gChannelMismatch == 0,
             std::to_string (gNonFinite) + " non-finite, " + std::to_string (gChannelMismatch)

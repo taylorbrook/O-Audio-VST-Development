@@ -1,12 +1,12 @@
 ---
 plugin: O-simpleWavetable
 stage: 3
-status: stage_3_part1_complete_visual_pending
-last_updated: 2026-10-06 19:30:00
+status: stage_3_execute_complete
+last_updated: 2026-10-06 22:30:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: user_visual_checkpoint_then_plugin_execute_stage_3
+next_action: plugin_verify_stage_3
 next_stage: 3
 ready_for_implementation: true
 latest_mockup_version: 1
@@ -15,14 +15,14 @@ finalized_version: 1
 stage_0_status: ui_design_complete
 ui_scaffolding_phase_complete: true
 parameter_count: 21
-current_phase: execute
+current_phase: verify
 brief_updated_from_mockup: true
 mockup_version_synced: 1
 brief_update_timestamp: "2026-10-06T02:25:53Z"
 contract_checksums:
   brief: sha256:9cee315a17720edd08c2e635537eb1af1c6e131bcff10fcb8090370688f49e9c
   parameter_spec: sha256:e77ae9445099369a1a40daef12e0a4be46bfcca37a4937eae069aa56efa2ab2b
-  architecture: sha256:7753e1a28f1e7762fd8418d0c7ca3c9f6ac579fca423ad97efd477189bb4b2d5
+  architecture: sha256:b7ddf56f37f57e68f6f2945d1ccb88a2388edc1a499b9e3d0c88dec18c38150b
   roadmap: sha256:f657e02a22d6dee0e4d8f2a08ec8736c6479a4eebed7e14dc78c014bf71f32b5
 ---
 
@@ -30,9 +30,9 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 3 of 4 (GUI) — discuss ✓, research ✓, plan ✓, execute Part 1 ✓ (2026-10-06). **Next: Task 12 visual checkpoint (Taylor, Release Standalone), then `/plugin-execute O-simpleWavetable 3-gui` resumes Part 2 at Task 13.** Stage 2 (DSP) ✓ COMPLETE 2026-10-06.
+Stage: 3 of 4 (GUI) — discuss ✓, research ✓, plan ✓, execute ✓ (2026-10-06, Parts 1+2). **Next: `/plugin-verify O-simpleWavetable 3-gui`.** Stage 2 (DSP) ✓ COMPLETE 2026-10-06.
 Status: Research & Planning complete; UI mockup v1 finalized with implementation scaffolding; parameter-spec.md locked (21 parameters). Ready for Stage 1.
-Progress: [##########..........] 50%
+Progress: [###############.....] 75%
 
 ## Completed So Far
 
@@ -78,6 +78,10 @@ Progress: [##########..........] 50%
 
 **Stage 3 execute Part 1 (3.1+3.2):** ✓ 2026-10-06 — WebView "Wavetable Field Guide" (v1 mockup byte-identical; 21 relays/attachments, 8 natives, 11 resource branches, 10 binary-data files), `applyFactoryPreset` (D-Y single pass, output_level untouched), `importFromBase64` (D-Z), display state `dispNote`/`dispHz`/`displayFs` + `WtVoice::lastNote` (+5/−0), `CycleRenderer` (FFT 11, ref bins 1..1023 = D-U), `VizPayload.h` (quantized-payload FNV hash, D-P), editor bank/cycle push (D-T order, index watch). Gates (Debug, out-of-repo): 0 warnings; bank/dsp/mod/import ALL PASS, state 11/11, `--alloc-check` 0, R-GOLD clean (timing/soak counts only); viz-check ALL PASS — G-LESSON 5 ids + reapply + unknown (NC FAILS as designed), G-VIZ-EXACT 90/90 worst cycle 3.8e-5 (tol 2e-4) / bar 0.005 dB (tol 0.02) vs direct DFT, CEIL On/Off, SILENT idle-quiet (+NC), NOTE poly/mono, IMPORTED import/P8/empty, ALLOC (a) 0 audio-thread / (b) 0 idle, N1 ×348 / N2 ×60 / N3 ×1886 / N4 ×2491; TIME (Debug) cycleUpdate 813 µs, 5.2 KB; bankUpdate N=256 38 ms, 238 KB. UI: check-i18n PASS, fr CLEAN, zh 142 entries 0 findings, boot-all-uis --strict-tips clean 0 DEAD / 0 late. Release: auval SUCCEEDED (2 benign skew warnings), pluginval VST3+AU strictness 10 SUCCESS (editor tests on); Standalone rebuilt + `strings` fresh. Deviations: S9 grep excludes the generated `modules/` dir; N4 split into liveness (N4-LIVE) + dead-payload NC; Formant liveness anchored at its strongest bar (D-U consequence).
 
+**Stage 3 Task 12 visual checkpoint:** ✓ signed off by Taylor 2026-10-06 (resumed via `/plugin-execute O-simpleWavetable 3-gui`; no visual/behaviour notes given). Part 2 (3.3) started.
+
+**Stage 3 execute Part 2 (3.3):** ✓ 2026-10-06 — Task 14 import-path gates in viz-check (no `Source/` change): G-DROP (a) base64 drop → 11/11 mip levels memcmp-equal to `importFromMemory`, (b) cap+1 → `tooLarge`, (c) `unreadable`, (d) `../../x\n.wav` → `x.wav`; G-DROP-N1 (`MemoryBlock::toBase64Encoding`) FAILS as designed; G-IMPORT-ERR tooShort keeps bank/filename (P8), `importToVar` keys exact, codes ⊆ {tooLarge, tooShort, unreadable, unsupported}. Task 15 five UI gates green on the real tree, no fixes (check-i18n 0 FAIL; fr CLEAN; zh 142 / 0; check-ui-labels 8 states; boot-all-uis 0 DEAD / 0 late). Task 16: Debug 0 warnings, 6 drivers + viz ALL PASS, `--alloc-check` 0, R-GOLD clean (timing/soak counts only); auval SUCCEEDED (2 benign skew), pluginval VST3+AU s10 SUCCESS, 0 `ForTesting` symbols shipped. **Task 17 Standalone hands-on + Task 18 Logic AU pass: all pass (Taylor)** — closes Stage 2 deferred save/reopen-with-Imported and Stage 1 AU-under-Instruments. ARCHITECTURE Stage 3 Amendments 14–18. See stages/3-gui/SUMMARY.md.
+
 ## Phase Progress
 
 ### Stage 1: Foundation
@@ -112,7 +116,7 @@ Stage 2 plan (2026-10-05): stages/2-dsp/PLAN.md, 24 tasks in two parts. User sig
 | discuss | ✓ | 2026-10-06 | |
 | research | ✓ | 2026-10-06 | |
 | plan | ✓ | 2026-10-06 | |
-| execute | → Part 1 ✓, visual checkpoint pending | 2026-10-06 | |
+| execute | ✓ (Part 1 + visual sign-off + Part 2 + hands-on) | 2026-10-06 | |
 | verify | | | |
 
 Stage 3 decisions (user, 2026-10-06): 3.1+3.2 → build/install → visual checkpoint → 3.3; lesson buttons wired live now (`applyFactoryPreset`, mockup recipes; FUNC-08 bank stays Stage 4); hands-on in Standalone + one DAW. See stages/3-gui/CONTEXT.md.
@@ -121,10 +125,9 @@ Stage 3 plan (2026-10-06): stages/3-gui/PLAN.md, 20 tasks in two parts (Part 1 =
 
 ## Next Steps
 
-1. **Task 12 visual checkpoint** (Taylor): Release Standalone `build/plugins/O-simpleWavetable/O-simpleWavetable_artefacts/Release/Standalone/O-simpleWavetable-dev.app`, audio output ON; script in stages/3-gui/PLAN.md Task 12. Then `/plugin-execute O-simpleWavetable 3-gui` resumes Part 2 (Task 13).
-2. Optional (non-blocking): Task 23 DAW smoke (Square/S&H LFO, bank switch on held notes, octave bend, save/reopen Imported), plus by-ear checks of a 17-note steal and a fast Mono retrigger.
-3. Optional: Stage 1 Task 14 DAW smoke (see stages/1-foundation/VERIFICATION.md Human Verification).
-4. Stage 4 backlog: W3, W4, and Stage 2 VERIFICATION notes 3–8.
+1. `/plugin-verify O-simpleWavetable 3-gui` (goal-backward verification; flips UI-01..06 / PERF-03 in REQUIREMENTS).
+2. Optional (non-blocking): Stage 2 Task 23 by-ear checks (17-note steal, fast Mono retrigger).
+3. Stage 4 backlog: W3, W4, Stage 2 VERIFICATION notes 3–8; FUNC-08 / §A9 lesson recipes.
 
 ## Context to Preserve
 
