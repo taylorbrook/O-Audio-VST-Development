@@ -1,0 +1,73 @@
+# ==============================================================================
+# O-simpleWavetable — WebView UI CMake snippet (mockup v1 finalization)
+#
+# NOT a standalone CMakeLists.txt. gui-agent merges this into
+# plugins/O-simpleWavetable/CMakeLists.txt in Stage 3 (most of the juce_add_plugin
+# flags below are set already at Stage 1 — verify, don't duplicate).
+# Mirrors O-simpleAdditive (EB Garamond from modules/) and O-simpleGrain
+# (webview-drop-streaming via ouaricon_add_module).
+# ==============================================================================
+
+# ── 1. juce_add_plugin flags (Stage 1 sets these; Stage 3 verifies) ───────────
+#   IS_SYNTH TRUE
+#   NEEDS_MIDI_INPUT TRUE
+#   NEEDS_MIDI_OUTPUT FALSE
+#   IS_MIDI_EFFECT FALSE
+#   NEEDS_WEB_BROWSER TRUE
+#   NEEDS_WEBVIEW2 TRUE
+#   EDITOR_WANTS_KEYBOARD_FOCUS FALSE
+#   FORMATS VST3 AU Standalone
+
+# ── 2. Shared modules ─────────────────────────────────────────────────────────
+# OuariconModules.cmake is already included at the top for the branding vars.
+# webview-drop-streaming: copies js/webview-drop-streaming.js into
+# Source/ui/public/modules/ (GITIGNORED — it is regenerated at configure time,
+# so a git-archive snapshot of the UI tree lacks it) and adds the header-only C++
+# to the include path. The editor does NOT use its SessionManager: the page
+# sends one base64 payload to the `importDroppedAudio` native.
+ouaricon_add_module(O-simpleWavetable webview-drop-streaming)
+
+# ── 3. WebView UI resources (embedded as BinaryData) ──────────────────────────
+# Every file the page loads is BOTH listed here AND served by a getResource()
+# branch in PluginEditor.cpp — one without the other is a 404 that shows up as a
+# blank page or a missing panel, nothing else (check-i18n [8] for js/i18n.js).
+#
+# Default NAMESPACE BinaryData / BinaryData.h: the built-in banks are generated
+# from formulas, so there is no second binary-data target to collide with. If a
+# later stage adds one, give THIS target NAMESPACE UIBinaryData + HEADER_NAME
+# UIBinaryData.h (critical_dual_binary_data_namespace_collision).
+#
+# Symbol names strip hyphens: webview-drop-streaming.js → webviewdropstreaming_js,
+# eb-garamond.css → ebgaramond_css (critical_binary_data_strips_hyphens).
+juce_add_binary_data(O-simpleWavetable_UIResources
+    SOURCES
+        Source/ui/public/index.html                        # ← v1-ui.html
+        Source/ui/public/js/i18n.js                        # ← v1-i18n.js
+        Source/ui/public/js/juce/index.js                  # JUCE 8 frontend (copy from O-simpleAdditive)
+        Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/modules/webview-drop-streaming.js # written by ouaricon_add_module above
+        Source/ui/public/img/insects.png                   # botanical overlay (copy from O-simpleAdditive)
+        # The shared EB Garamond face, embedded straight from the module and
+        # served at /css/eb-garamond.css + /fonts/*.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
+)
+
+# ── 4. Link ───────────────────────────────────────────────────────────────────
+target_link_libraries(O-simpleWavetable
+    PRIVATE
+        O-simpleWavetable_UIResources
+        juce::juce_gui_extra          # WebBrowserComponent (already linked at Stage 1)
+)
+
+# ── 5. Compile definitions (Stage 1 sets these; Stage 3 verifies) ─────────────
+# JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1 is MANDATORY alongside
+# NEEDS_WEBVIEW2 TRUE, else Windows silently shows a blank UI.
+target_compile_definitions(O-simpleWavetable
+    PUBLIC
+        JUCE_WEB_BROWSER=1
+        JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
+        JUCE_USE_CURL=0
+)
