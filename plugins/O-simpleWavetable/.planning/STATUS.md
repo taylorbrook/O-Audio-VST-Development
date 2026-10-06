@@ -1,12 +1,12 @@
 ---
 plugin: O-simpleWavetable
 stage: 2
-status: stage_2_research_complete
-last_updated: 2026-10-05 23:59:00
+status: stage_2_plan_complete
+last_updated: 2026-10-05 23:59:30
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: plugin_plan_stage_2
+next_action: plugin_execute_stage_2
 next_stage: 2
 ready_for_implementation: true
 latest_mockup_version: 1
@@ -15,7 +15,7 @@ finalized_version: 1
 stage_0_status: ui_design_complete
 ui_scaffolding_phase_complete: true
 parameter_count: 21
-current_phase: plan
+current_phase: execute
 brief_updated_from_mockup: true
 mockup_version_synced: 1
 brief_update_timestamp: "2026-10-06T02:25:53Z"
@@ -30,7 +30,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — discuss ✓, research ✓; next: plan
+Stage: 2 of 4 (DSP) — discuss ✓, research ✓, plan ✓; next: execute (Part 1 = 2.1+2.2, then listening checkpoint)
 Status: Research & Planning complete; UI mockup v1 finalized with implementation scaffolding; parameter-spec.md locked (21 parameters). Ready for Stage 1.
 Progress: [#####...............] 25%
 
@@ -70,7 +70,7 @@ Stage 0 open conflicts resolved (user, 2026-10-05): silence+prompt for empty Imp
 |-------|--------|------|---------|
 | discuss | ✓ | 2026-10-05 | |
 | research | ✓ | 2026-10-05 | |
-| plan | | | |
+| plan | ✓ | 2026-10-05 | |
 | execute | | | |
 | verify | | | |
 
@@ -78,9 +78,11 @@ Stage 2 decisions (user, 2026-10-05): checkpoint after 2.1+2.2 for listening; ve
 
 Stage 2 research (2026-10-05): stages/2-dsp/RESEARCH.md. Decisions pending for plan: D-A (96 kHz band-limit level floor ≥1), D-B (narrow-pulse QUAL-02 metric), D-C (REG-01 reaper amendment `audioHeldBank` — verbatim port is a UAF with the crossfader).
 
+Stage 2 plan (2026-10-05): stages/2-dsp/PLAN.md, 24 tasks in two parts. User signed off D-A (level floor 1), D-B (narrow pulses on the equal-RMS metric, named exception), D-C (audioHeldBank amendment + seq_cst). Planner resolved D-D…D-O. Execute stops at Task 11 (listening checkpoint) after the Part 1 commit; re-run `/plugin-execute O-simpleWavetable 2-dsp` to resume Part 2.
+
 ## Next Steps
 
-1. Stage 2 plan — `/plugin-plan O-simpleWavetable 2-dsp` (resolve D-A/D-B/D-C first)
+1. Stage 2 execute Part 1 — `/plugin-execute O-simpleWavetable 2-dsp` (stops at the listening checkpoint)
 2. Optional: Task 14 DAW smoke (see VERIFICATION.md Human Verification)
 
 ## Context to Preserve
