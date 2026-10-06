@@ -469,6 +469,16 @@ Dated corrections from Stage 2 (stages/2-dsp/PLAN.md decision table). They overr
 
 ---
 
+## Stage 3 Amendments (2026-10-06)
+
+14. **Viz change detection hashes the quantized output payload (D-P).** Every wire value is quantized once (`q = llround(x·10^d)`, non-finite → 0; 4 dp cycle / preQ / pos / f0 / nyquistH, 3 dp thumbs / lfo / menv / amp, 2 dp dB), FNV-1a runs over the int64 quanta, and the var is built from the same quanta only on emit. `lfo` is gated on depth (`lfo_depth > 0 ? dispLfo : 0`). Idle = 0 `cycleUpdate` events and 0 heap allocations per tick. Supersedes "when the inputs changed" in §Visualization Data Path.
+15. **Display state additions (D-X).** `std::atomic<int> dispNote { -1 }`, `std::atomic<float> dispHz`, `std::atomic<double> displayFs` (relaxed, lock-free asserted) and `WtVoice::lastNote` (set in `startNote`, `noteOnDirect`, `setPitchNote`; named to avoid `-Wshadow-all` against the `midiNote` parameters). The `cycleUpdate` payload is the integration-checklist superset. With Interp On, `frame = -1`; silent = knob position, level 0, note -1, f0 = nyquistH = 0 (D-R).
+16. **Harmonic dB reference = max |X_k| over bins 1..1023 (D-U)** of the heard cycle, kept at plan sign-off. A frame whose strongest partial lies above h32 shows honestly lower bars. One named constant `kRefMaxBin` flips it to 1..32.
+17. **Lesson recipes (D-V, D-Y).** Stage 3 uses the integration checklist's five recipes (Alias Demo = Sine→Saw, Pos 1.0, Band-limit Off; octave jump page-side). §A9 (Alias Demo on Drive) remains the FUNC-08 Stage 4 target. `applyFactoryPreset` is a single pass over `ParamIDs::all`: target = normalized default unless the recipe overrides it, `output_level` skipped, params within 1e-6 skipped, one begin/set/end gesture per changed param, unknown id → false and no change, Imported untouched. Drops are decoded in the processor (`importFromBase64`: length cap before decode, standard Base64 only, localized error codes; D-Z).
+18. **`bankUpdate` triggers and filename (D-S, D-T).** The editor timer emits `bankUpdate` when `getBankDisplayGeneration()` **or** the APVTS bank index changes (the gen bump is audio-thread only, so an idle host would otherwise leave the stack stale), with a content-hash dedupe; `uiReady` forces it. Order every tick: `bankUpdate` → `importStatus` → `cycleUpdate`. The `bankUpdate` filename comes from the cached blob read in the same `bankStateLock` scope as the imported-bank copy; `ImportStatus.filename` feeds only `importStatus`, so a failed import never renames the loaded bank.
+
+---
+
 ## Research References
 
 **Professional / historical:** PPG Wave 2.x and Waldorf Microwave (stepped wavetable scanning, 8-bit grit). Xfer Serum (2048-sample frames, audio import by slicing). Vital (open source; 11-level mip pyramid from 1023 harmonics to 1, with the same frame size: matches this design's level count). u-he Hive/Zebra (mip-pyramid approach, per the KVR discussion). Arturia Pigments (3D frame view).
