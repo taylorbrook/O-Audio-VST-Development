@@ -1,13 +1,13 @@
 ---
 plugin: O-simpleWavetable
 stage: 3
-status: stage_3_execute_complete
-last_updated: 2026-10-06 22:30:00
+status: stage_3_complete_verified
+last_updated: 2026-10-06 23:59:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: plugin_verify_stage_3
-next_stage: 3
+next_action: plugin_discuss_stage_4
+next_stage: 4
 ready_for_implementation: true
 latest_mockup_version: 1
 mockup_finalized: true
@@ -15,7 +15,7 @@ finalized_version: 1
 stage_0_status: ui_design_complete
 ui_scaffolding_phase_complete: true
 parameter_count: 21
-current_phase: verify
+current_phase: discuss
 brief_updated_from_mockup: true
 mockup_version_synced: 1
 brief_update_timestamp: "2026-10-06T02:25:53Z"
@@ -30,9 +30,9 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 3 of 4 (GUI) — discuss ✓, research ✓, plan ✓, execute ✓ (2026-10-06, Parts 1+2). **Next: `/plugin-verify O-simpleWavetable 3-gui`.** Stage 2 (DSP) ✓ COMPLETE 2026-10-06.
+Stage: 3 of 4 (GUI) ✓ COMPLETE — VERIFIED 2026-10-06. **Next: `/plugin-discuss O-simpleWavetable 4-polish`.**
 Status: Research & Planning complete; UI mockup v1 finalized with implementation scaffolding; parameter-spec.md locked (21 parameters). Ready for Stage 1.
-Progress: [###############.....] 75%
+Progress: [################....] 80%
 
 ## Completed So Far
 
@@ -82,6 +82,15 @@ Progress: [###############.....] 75%
 
 **Stage 3 execute Part 2 (3.3):** ✓ 2026-10-06 — Task 14 import-path gates in viz-check (no `Source/` change): G-DROP (a) base64 drop → 11/11 mip levels memcmp-equal to `importFromMemory`, (b) cap+1 → `tooLarge`, (c) `unreadable`, (d) `../../x\n.wav` → `x.wav`; G-DROP-N1 (`MemoryBlock::toBase64Encoding`) FAILS as designed; G-IMPORT-ERR tooShort keeps bank/filename (P8), `importToVar` keys exact, codes ⊆ {tooLarge, tooShort, unreadable, unsupported}. Task 15 five UI gates green on the real tree, no fixes (check-i18n 0 FAIL; fr CLEAN; zh 142 / 0; check-ui-labels 8 states; boot-all-uis 0 DEAD / 0 late). Task 16: Debug 0 warnings, 6 drivers + viz ALL PASS, `--alloc-check` 0, R-GOLD clean (timing/soak counts only); auval SUCCEEDED (2 benign skew), pluginval VST3+AU s10 SUCCESS, 0 `ForTesting` symbols shipped. **Task 17 Standalone hands-on + Task 18 Logic AU pass: all pass (Taylor)** — closes Stage 2 deferred save/reopen-with-Imported and Stage 1 AU-under-Instruments. ARCHITECTURE Stage 3 Amendments 14–18. See stages/3-gui/SUMMARY.md.
 
+**Stage 3 verify:** ✓ VERIFIED 2026-10-06 (stages/3-gui/VERIFICATION.md). Re-run independently at `f4eea85a`:
+- a fresh Debug tree with 0 warnings: 6 drivers + viz ALL PASS, state 11/11, `--alloc-check` 0, 0 assertions. R-GOLD equals the Stage 2 reference.
+- **a binary null test:** the installed Stage 3 VST3 vs an out-of-tree build of `850df9b9` (Stage 2) in pedalboard, 6/6 cases bit-exact.
+- a bridge cross-check: 21/21 params, 8/8 natives, 5/5 lesson ids.
+- all five UI gates green.
+- auval, and pluginval VST3/AU strictness 10 with the editor tests on.
+
+UI-01..06 and PERF-03 are complete. The critic review found 0 blockers, 5 warnings and 13 notes. **Taylor chose VERIFIED, with W1–W5 and N1–N13 carried into Stage 4.**
+
 ## Phase Progress
 
 ### Stage 1: Foundation
@@ -117,7 +126,7 @@ Stage 2 plan (2026-10-05): stages/2-dsp/PLAN.md, 24 tasks in two parts. User sig
 | research | ✓ | 2026-10-06 | |
 | plan | ✓ | 2026-10-06 | |
 | execute | ✓ (Part 1 + visual sign-off + Part 2 + hands-on) | 2026-10-06 | |
-| verify | | | |
+| verify | ✓ | 2026-10-06 | |
 
 Stage 3 decisions (user, 2026-10-06): 3.1+3.2 → build/install → visual checkpoint → 3.3; lesson buttons wired live now (`applyFactoryPreset`, mockup recipes; FUNC-08 bank stays Stage 4); hands-on in Standalone + one DAW. See stages/3-gui/CONTEXT.md.
 
@@ -125,9 +134,16 @@ Stage 3 plan (2026-10-06): stages/3-gui/PLAN.md, 20 tasks in two parts (Part 1 =
 
 ## Next Steps
 
-1. `/plugin-verify O-simpleWavetable 3-gui` (goal-backward verification; flips UI-01..06 / PERF-03 in REQUIREMENTS).
-2. Optional (non-blocking): Stage 2 Task 23 by-ear checks (17-note steal, fast Mono retrigger).
-3. Stage 4 backlog: W3, W4, Stage 2 VERIFICATION notes 3–8; FUNC-08 / §A9 lesson recipes.
+1. `/plugin-discuss O-simpleWavetable 4-polish`.
+2. Stage 4 entry items:
+   - Stage 3 critic W1–W5: the uiReady counter race, the 96 MB drop freeze, trackpad wheel stepping, the stale import error, and a stuck UI-held note on editor close
+   - Stage 3 critic N1–N13 (stages/3-gui/VERIFICATION.md §Issues Found)
+3. Stage 4 backlog:
+   - Stage 2 W3, W4 and notes 3–8
+   - FUNC-08 / §A9 lesson recipes
+   - PERF-02, COMPAT-02 (Windows) and QUAL-04
+   - VERSION 1.0.0, CHANGELOG and CODE_REVIEW
+4. Optional (non-blocking): Stage 2 Task 23 by-ear checks (17-note steal, fast Mono retrigger).
 
 ## Context to Preserve
 

@@ -43,12 +43,12 @@ lastUpdated: 2026-10-06 (stage-2 verify)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| UI-01 | Bank panel: 3D/stacked view of all frames, current frame highlighted, Position marker | must | pending | stage-3 |
-| UI-02 | Current-cycle panel: the interpolated, bit-quantized cycle being read now | must | pending | stage-3 |
-| UI-03 | Harmonics panel: live bar graph of harmonics 1–32 of the cycle being heard (incl. band-limit level) | must | pending | stage-3 |
-| UI-04 | Import button showing source filename and frame count | must | pending | stage-3 |
-| UI-05 | Plain-language tooltips on every control, localized per suite convention | should | pending | stage-3 |
-| UI-06 | Projector-readable single page, consistent with O-simpleFM / O-simpleAdditive | should | pending | stage-3 |
+| UI-01 | Bank panel: 3D/stacked view of all frames, current frame highlighted, Position marker | must | complete | stage-3 |
+| UI-02 | Current-cycle panel: the interpolated, bit-quantized cycle being read now | must | complete | stage-3 |
+| UI-03 | Harmonics panel: live bar graph of harmonics 1–32 of the cycle being heard (incl. band-limit level) | must | complete | stage-3 |
+| UI-04 | Import button showing source filename and frame count | must | complete | stage-3 |
+| UI-05 | Plain-language tooltips on every control, localized per suite convention | should | complete | stage-3 |
+| UI-06 | Projector-readable single page, consistent with O-simpleFM / O-simpleAdditive | should | complete | stage-3 |
 
 ### Performance (PERF)
 
@@ -56,7 +56,7 @@ lastUpdated: 2026-10-06 (stage-2 verify)
 |----|-------------|----------|--------|-------------|
 | PERF-01 | Real-time safe audio processing (no allocations/locks in processBlock) | must | complete | stage-2 |
 | PERF-02 | 16 voices at 44.1–96 kHz well within a typical CPU budget | should | pending | stage-4 |
-| PERF-03 | Visual panels update smoothly (≥ 30 fps) without stalling the audio thread | should | pending | stage-3 |
+| PERF-03 | Visual panels update smoothly (≥ 30 fps) without stalling the audio thread | should | complete | stage-3 |
 
 ### Compatibility (COMPAT)
 
