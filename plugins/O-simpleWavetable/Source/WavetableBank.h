@@ -114,5 +114,16 @@ struct WavetableBank
    #if OSIW_TEST_HOOKS
     mutable std::atomic<bool> testReaped { false };      // graveyard flag (2.4 reaper gate)
     static inline std::atomic<int> testLiveCount { 0 };  // ctor ++ / dtor -- (leak gate)
+
+    // D-C proof without ASan: in graveyard mode the reaper parks banks and
+    // sets testReaped instead of freeing them. Every audio-thread dereference
+    // site (block resolve, frozen-cycle capture) reports here; a reaped bank
+    // being touched is the use-after-free the amendment prevents.
+    static inline std::atomic<int> testDerefAfterReap { 0 };
+    static void testNoteDeref (const WavetableBank* b) noexcept
+    {
+        if (b != nullptr && b->testReaped.load (std::memory_order_relaxed))
+            testDerefAfterReap.fetch_add (1);
+    }
    #endif
 };

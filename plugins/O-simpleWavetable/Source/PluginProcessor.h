@@ -35,6 +35,30 @@
     lead-voice display atomics. Imported (bank 5) renders silence until 2.4
     publishes into importedForAudio.
 
+    Stage 2.3 (Modulation -> Position): global per-sample PositionLfo (free
+    or PPQ-locked tempo, deterministic S&H), 20 ms smoothed lfo_depth and
+    env_amount (D-I), per-voice mod env + 2 ms smoother (WtVoice), display
+    atomics dispLfo / dispMenv / dispAmp, strict 1-sample Synthesiser
+    subdivision (D-L) so renders are block-size invariant.
+
+    Stage 2.4 (Bank switch / Import / Persistence):
+      - frozen-cycle crossfader + D-K level hysteresis live in WtVoice.
+      - Imported bank: built off the audio thread (import worker or the
+        thread calling setStateInformation), published lock-free through
+        importedForAudio (seq_cst), owned by importedOwner under
+        bankStateLock, retired into retiredBanks and freed by the REG-01
+        reaper (O-Prism 0f7d65ce) with the D-C amendment: the audio thread
+        publishes audioHeldBank (this block's resolved pointer = every active
+        voice's cfg.bank, the only bank the next block may capture a frozen
+        cycle from) and the sweep never frees it. seq_cst on every reaper
+        atomic (documented hardening deviation from Prism's acq/rel).
+      - import API (D-E): importFromFile / importFromMemory on a
+        single-thread pool, importGen supersedes in-flight jobs, status is
+        POLLED through getImportStatusVersion(), publish then auto-select
+        Imported through an AsyncUpdater (D-M).
+      - IMPORTED_BANK state child (version 1, flac16 | pcm16gz, standard
+        base64), synchronous restore through the same builder as import.
+
   ==============================================================================
 */
 
@@ -45,10 +69,13 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <memory>
 #include <vector>
 #include "BuiltInBanks.h"
 #include "MonoStack.h"
+#include "PositionLfo.h"
 #include "WavetableBank.h"
+#include "WavetableImporter.h"
 #include "WtSynthesiser.h"
 #include "WtVoice.h"
 
@@ -87,11 +114,17 @@ namespace OSimpleWavetable::ParamIDs
 }
 
 //==============================================================================
-class OSimpleWavetableAudioProcessor : public juce::AudioProcessor
+class OSimpleWavetableAudioProcessor : public juce::AudioProcessor,
+                                       private juce::AsyncUpdater,
+                                       private juce::Timer
 {
 public:
     OSimpleWavetableAudioProcessor();
     ~OSimpleWavetableAudioProcessor() override;
+
+    // The console harnesses have no message loop: they apply the pending
+    // auto-select (D-M) by calling this on the message (main) thread.
+    using juce::AsyncUpdater::handleUpdateNowIfNeeded;
 
     //==========================================================================
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
@@ -146,6 +179,9 @@ public:
     int   getDisplayLevel() const noexcept    { return dispLevel.load (std::memory_order_relaxed); }
     int   getDisplayFrame() const noexcept    { return dispFrame.load (std::memory_order_relaxed); }
     bool  isDisplaySounding() const noexcept  { return dispSounding.load (std::memory_order_relaxed); }
+    float getDisplayLfo() const noexcept      { return dispLfo.load (std::memory_order_relaxed); }    // -1..1, every block
+    float getDisplayModEnv() const noexcept   { return dispMenv.load (std::memory_order_relaxed); }   // lead voice, 0..1
+    float getDisplayAmpEnv() const noexcept   { return dispAmp.load (std::memory_order_relaxed); }    // lead voice, 0..1
 
     // Built-in banks (immutable; shared by all instances). Message thread
     // readers (Stage 3 cycle view / thumbnails) may use this freely.
@@ -154,6 +190,31 @@ public:
     static constexpr int kNumVoices   = 16;
     static constexpr int kNumBanks    = 6;    // 0..4 built-in, 5 Imported
     static constexpr int kImportedIdx = 5;
+
+    //==========================================================================
+    // Import API (D-E; the Stage 3 template names). Any non-audio thread.
+    struct ImportStatus
+    {
+        enum class State { idle, busy, done, error };
+        State state = State::idle;
+        juce::String filename;
+        int frames = 0;
+        juce::String error;        // "tooShort" | "unreadable" | "tooLarge" | "unsupported"
+    };
+
+    // false = refused to start (status says why). A rejected or failed import
+    // leaves the current Imported bank untouched.
+    bool importFromFile   (const juce::File& file);
+    bool importFromMemory (const juce::String& name, juce::MemoryBlock&& bytes);
+
+    ImportStatus getImportStatus() const;
+    juce::uint32 getImportStatusVersion() const noexcept   { return importStatusVersion.load(); }   // bumps on every transition
+    juce::uint32 getBankDisplayGeneration() const noexcept { return bankDisplayGen.load (std::memory_order_relaxed); }
+
+    // The current Imported bank (nullptr = empty). A shared_ptr copy taken
+    // under bankStateLock: safe to read on the message thread (Stage 3
+    // thumbnails / cycle view). NEVER call from the audio thread.
+    std::shared_ptr<const WavetableBank> getImportedBankSnapshot() const;
 
    #if OSIW_TEST_HOOKS
     // Test-only accessors (console targets). Call from the thread that runs
@@ -171,6 +232,54 @@ public:
     {
         return (i >= 0 && i < kNumVoices) ? wtVoices[(size_t) i] : nullptr;
     }
+
+    // 2.3 hooks.
+    void setLfoSeedForTesting (std::uint64_t s) noexcept { lfo.setSeed (s); }        // lfoSeed: one per render job
+    const PositionLfo& getLfoForTesting() const noexcept { return lfo; }             // data() = last chunk's LFO
+    void setSmootherBypassForTesting (bool b) noexcept
+    {
+        for (auto* v : wtVoices)
+            v->smootherBypass = b;
+    }
+    // Negative control for the zipper gate: the knob jumps to its target
+    // every block (no 20 ms ramp).
+    void setKnobRampOffForTesting (bool b) noexcept { testKnobRampOff = b; }
+
+    // 2.4 hooks (crossfader).
+    void setXfadeLenOverrideForTesting (int len) noexcept      // xfadeLenOverride (0 = hard switch)
+    {
+        for (auto* v : wtVoices)
+            v->xfadeLenOverride = len;
+    }
+    void setForceLevelForTesting (int level) noexcept          // forceLevel (-1 = off)
+    {
+        for (auto* v : wtVoices)
+            v->forceLevel = level;
+    }
+
+    // 2.4 hooks (reaper). Lock-taking ones: never from inside processBlock
+    // except through the midBlockCallback (test only).
+    void setDisableHeldExclusionForTesting (bool b) noexcept { testDisableHeldExclusion.store (b); }   // D-C negative control
+    void setGraveyardModeForTesting (bool b) noexcept        { testGraveyard.store (b); }              // park + testReaped
+    static int  getDerefAfterReapForTesting() noexcept       { return WavetableBank::testDerefAfterReap.load(); }
+    static void resetDerefAfterReapForTesting() noexcept     { WavetableBank::testDerefAfterReap.store (0); }
+    int  getHeldBankCountForTesting() const;                 // imported banks the processor keeps: owner + retired
+    int  getRetiredBankCountForTesting() const;
+    int  getGraveyardCountForTesting() const;
+    void clearGraveyardForTesting();                         // frees parked banks (no render in flight!)
+    void sweepNowForTesting();                               // sweepNow
+    // Publishes a harness-built bank synchronously (exactly the worker's
+    // publish path, without the worker): deterministic reaper scenarios.
+    void publishImportedBankForTesting (std::shared_ptr<const WavetableBank> b);
+    // midBlockCallback: invoked inside processBlock between the entry and the
+    // exit increment (a block "in flight"). Plain function pointer: no
+    // std::function on the audio path, even in test builds.
+    using MidBlockFn = void (*) (void*);
+    void setMidBlockCallbackForTesting (MidBlockFn fn, void* context) noexcept { midBlockFn = fn; midBlockCtx = context; }
+    const WavetableBank* getAudioHeldBankForTesting() const noexcept    { return audioHeldBank.load(); }
+    const WavetableBank* getImportedForAudioForTesting() const noexcept { return importedForAudio.load(); }
+    std::uint64_t getBlockEntriesForTesting() const noexcept { return blockEntries.load(); }
+    std::uint64_t getBlockExitsForTesting() const noexcept   { return blockGeneration.load(); }
    #endif
 
 private:
@@ -188,9 +297,54 @@ private:
     //==========================================================================
     // Stage 2.2 engine state (audio thread unless noted).
 
-    // 2.4 publishes the imported bank here (seq_cst store); nullptr = the
-    // Imported bank is empty and renders exact silence.
+    // The imported bank as the audio thread sees it (seq_cst publish by
+    // publishImportedBank; loaded ONCE per block). nullptr = empty = silence.
     std::atomic<const WavetableBank*> importedForAudio { nullptr };
+
+    //==========================================================================
+    // REG-01 reaper (+ D-C amendment). seq_cst throughout.
+    std::atomic<std::uint64_t> blockGeneration { 0 };   // blocks FINISHED (exit increment, every exit)
+    std::atomic<std::uint64_t> blockEntries    { 0 };   // blocks STARTED  (first statement of processBlock)
+    // D-C: the bank every ACTIVE voice holds as cfg.bank after the last
+    // finished block = that block's resolved pointer. The next block may
+    // dereference it once (frozen-cycle capture), so it is never freed.
+    std::atomic<const WavetableBank*> audioHeldBank { nullptr };
+
+    struct RetiredBank
+    {
+        std::shared_ptr<const WavetableBank> bank;
+        std::uint64_t retiredAt = 0;                    // blockGeneration at retire (after the publish store)
+    };
+
+    // Everything below up to the import status is guarded by bankStateLock.
+    // The audio thread NEVER takes it (it only loads importedForAudio).
+    mutable juce::CriticalSection bankStateLock;
+    std::shared_ptr<const WavetableBank> importedOwner;
+    std::vector<RetiredBank> retiredBanks;
+
+    // Persisted form of the current import (no work in getStateInformation).
+    struct CachedBlob
+    {
+        juce::String filename, encoding, data;
+        int numFrames = 0;
+        juce::ValueTree passthrough;                    // unknown version / encoding: re-emitted verbatim
+    };
+    CachedBlob cachedBlob;
+    ImportStatus importStatus;
+    bool pendingAutoSelect = false;                     // set with the publish; consumed by handleAsyncUpdate
+
+    std::atomic<juce::uint32> importGen { 0 };          // bumped by every import request and every restore
+    std::atomic<juce::uint32> importStatusVersion { 0 };
+    std::atomic<juce::uint32> bankDisplayGen { 0 };
+    int lastBankIndex = -1;                             // audio thread: bank-param change -> bankDisplayGen
+
+   #if OSIW_TEST_HOOKS
+    std::atomic<bool> testDisableHeldExclusion { false };
+    std::atomic<bool> testGraveyard { false };
+    std::vector<std::shared_ptr<const WavetableBank>> graveyard;   // under bankStateLock
+    MidBlockFn midBlockFn = nullptr;
+    void* midBlockCtx = nullptr;
+   #endif
 
     // Raw parameter pointers (cached in the ctor; atomic loads only).
     std::atomic<float>* pBank       = nullptr;
@@ -204,15 +358,28 @@ private:
     std::atomic<float>* pAmpRelease = nullptr;
     std::atomic<float>* pVoiceMode  = nullptr;
     std::atomic<float>* pOutput     = nullptr;
+    std::atomic<float>* pLfoRate     = nullptr;
+    std::atomic<float>* pLfoSync     = nullptr;
+    std::atomic<float>* pLfoDiv      = nullptr;
+    std::atomic<float>* pLfoShape    = nullptr;
+    std::atomic<float>* pLfoDepth    = nullptr;
+    std::atomic<float>* pMenvAttack  = nullptr;
+    std::atomic<float>* pMenvDecay   = nullptr;
+    std::atomic<float>* pMenvSustain = nullptr;
+    std::atomic<float>* pMenvRelease = nullptr;
+    std::atomic<float>* pEnvAmount   = nullptr;
 
     std::array<WtVoice*, (size_t) kNumVoices> wtVoices {};   // owned by synth
 
     BlockContext blockCtx;                  // pointer handed to every voice (stable)
-    std::vector<float> knobBuf, zeroBuf;    // [preparedBlock], sized in prepareToPlay
+    std::vector<float> knobBuf, depthBuf, amtBuf;   // [preparedBlock], sized in prepareToPlay
+    PositionLfo lfo;                        // global LFO; its buffer is blockCtx.lfo
     juce::MidiBuffer chunkMidi, wheelMidi;  // ensureSize()d in prepareToPlay
 
-    juce::SmoothedValue<float> outputGain { 1.0f };
-    juce::SmoothedValue<float> knobSmooth { 0.0f };   // 20 ms position knob (D-D)
+    juce::SmoothedValue<float> outputGain  { 1.0f };
+    juce::SmoothedValue<float> knobSmooth  { 0.0f };   // 20 ms position knob (D-D)
+    juce::SmoothedValue<float> depthSmooth { 0.0f };   // 20 ms lfo_depth  (D-I)
+    juce::SmoothedValue<float> amtSmooth   { 0.0f };   // 20 ms env_amount (D-I)
 
     MonoStack monoStack;
     int lastVoiceMode = 0;
@@ -222,14 +389,25 @@ private:
     std::atomic<int>   dispLevel    { 0 };
     std::atomic<int>   dispFrame    { 0 };
     std::atomic<bool>  dispSounding { false };
+    std::atomic<float> dispLfo      { 0.0f };
+    std::atomic<float> dispMenv     { 0.0f };
+    std::atomic<float> dispAmp      { 0.0f };
+
+   #if OSIW_TEST_HOOKS
+    bool testKnobRampOff = false;
+   #endif
 
     //==========================================================================
-    void renderBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi, int numSamples);
+    // Returns this block's resolved bank (published as audioHeldBank).
+    const WavetableBank* renderBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi, int numSamples);
     void renderMono (juce::AudioBuffer<float>& view, const juce::MidiBuffer& chunk, int numSamples);
     void updateDisplayFromLeadVoice() noexcept;
     const WavetableBank* resolveBank (int bankIndex) const noexcept;
     juce::ADSR::Parameters currentAmpParams() const noexcept;
+    juce::ADSR::Parameters currentModEnvParams() const noexcept;
     float currentKnob() const noexcept;
+    float currentLfoDepth() const noexcept;
+    float currentEnvAmount() const noexcept;
     float currentOutputGain() const noexcept;
 
     //==========================================================================
@@ -239,8 +417,8 @@ private:
     static constexpr const char* kImportedBankTag = "IMPORTED_BANK";
     static constexpr const char* kUiLanguageProp  = "uiLanguage";
 
-    void restoreImportedBank (const juce::ValueTree& childOrInvalid);   // Stage 1: no-op stub
-    void writeImportedBank   (juce::ValueTree& state) const;            // Stage 1: writes nothing
+    void restoreImportedBank (const juce::ValueTree& childOrInvalid);   // synchronous; any non-audio thread
+    void writeImportedBank   (juce::ValueTree& state) const;            // exactly one child from the cache, or none
 
     static void stripImportedBank (juce::ValueTree& tree)
     {
@@ -249,6 +427,25 @@ private:
                   c = tree.getChildWithName (kImportedBankTag))
             tree.removeChild (c, nullptr);
     }
+
+    //==========================================================================
+    // Publish / retire / sweep. The caller holds bankStateLock (any thread
+    // except the audio thread).
+    void publishImportedBank (std::shared_ptr<const WavetableBank> nb);
+    void retireBank (std::shared_ptr<const WavetableBank> b);
+    void sweepRetiredBanks();
+
+    // Import worker.
+    void runImportJob (std::unique_ptr<juce::AudioFormatReader> reader, const juce::String& name, juce::uint32 gen);
+    void setImportStatus (ImportStatus::State state, const juce::String& filename, int frames, const juce::String& error);
+
+    void handleAsyncUpdate() override;   // D-M: auto-select Imported after a publish (message thread)
+    void timerCallback() override;       // 250 ms reaper sweep (message thread)
+
+    //==========================================================================
+    // DECLARED LAST so it is destroyed FIRST (jobs capture this); the
+    // destructor also supersedes and drains it (removeAllJobs (true, 10000)).
+    juce::ThreadPool importPool { juce::ThreadPoolOptions{}.withThreadName ("OSiW import").withNumberOfThreads (1) };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OSimpleWavetableAudioProcessor)
 };

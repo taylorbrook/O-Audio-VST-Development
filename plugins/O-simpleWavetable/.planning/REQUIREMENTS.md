@@ -112,6 +112,7 @@ lastUpdated: 2026-10-05 (stage-1 verify)
 ### DSP-02: Band-limiting
 - [ ] Off: Sine→Saw last frame at C7 shows aliased components below the fundamental
 - [ ] On: same note shows no components above Nyquist folding back (see QUAL-02)
+- **QUAL-02 note (2026-10-05, Stage 2 D-B — NAMED EXCEPTION):** the strict gates (C8 ≤ −100 dB inharmonic, A0–C8 sweep ≤ −70 dB at 44.1/48/96 kHz) run on Drive 32, Pulse frame 1 and a Saw-1023. Narrow pulses (Pulse 16/24/32) are judged on an **equal-RMS metric** instead: worst alias ≤ −60 dB relative to an equal-RMS sine (measured −67.0 dB). Their energy is spread over many weak harmonics, so measuring aliases against the strongest single harmonic makes them look louder than they sound.
 
 ### DSP-03: Bit depth
 - [ ] At 3 bits the output has 8 amplitude levels; Full is bit-identical to bypass
