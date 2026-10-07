@@ -21,9 +21,10 @@
                   harmonicsRaw[32], preQ[256], lfo, menv, amp}
     bankUpdate   {bank, imported, numFrames, filename, frames[N][128]}
     importStatus {state: 'idle'|'busy'|'done'|'error', filename, frames, error}
+    presetState  {name, id, factory, modified}   (Stage 4, D-AG)
   The page calls the native `uiReady` once its listeners exist, and again when
   it becomes visible, because emitEventIfBrowserIsVisible drops events while the
-  browser is hidden — C++ answers with bankUpdate + importStatus.
+  browser is hidden — C++ answers with bankUpdate + importStatus + presetState.
 -->
 <html lang="en">
 <head>
@@ -718,6 +719,94 @@
     font-size: 9.5px; line-height: 1.1; letter-spacing: 0.5px; color: var(--brown-frame); pointer-events: none;
   }
 
+  /* ── Preset browser (FUNC-08, D-AI) ───────────────────────────────────────
+     Keyboard row: [kbd-side 150] 12 [keyboard 556, flex] 12 [panel 352] = 1082.
+     The panel is right-anchored and 352 wide, the same as .group-amp above it,
+     so the two left edges line up. Every caption box is PINNED at its widest
+     language (measured en / fr / zh in the comment beside it). */
+  .preset-panel {
+    flex: 0 0 352px;
+    position: relative;
+    display: flex; flex-direction: column; justify-content: center; gap: 6px;
+  }
+  .preset-row { display: flex; align-items: center; }
+  .preset-row-top { height: 20px; gap: 6px; }
+  .preset-row-nav { height: 26px; gap: 6px; }
+  /* 88: en 50.3 / fr 85.0 / zh 23.9 (10.5 px caps, ls 1.2) */
+  .preset-label {
+    flex: 0 0 88px; width: 88px; margin-right: auto;
+    font-size: 10.5px; line-height: 1.2; text-transform: uppercase; letter-spacing: 1.2px;
+    color: var(--text-muted); white-space: nowrap;
+  }
+  /* Modified marker: a brass dot, no text (the select's tooltip explains it) */
+  .preset-panel.modified::before {
+    content: ""; position: absolute; left: 96px; top: 14px;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--brass-2); box-shadow: 0 0 2px rgba(201, 143, 56, 0.8);
+    pointer-events: none;
+  }
+  .preset-btn {
+    flex: 0 0 auto; height: 20px; padding: 0 8px;
+    font-family: inherit; font-size: 12px; line-height: 1.1; letter-spacing: 0.4px; text-align: center;
+    color: var(--brown-text); background: var(--bg-paper-light);
+    border: 1px solid var(--brown-border); border-radius: 4px;
+    cursor: pointer; white-space: nowrap;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .preset-btn:hover { background: var(--green-light); color: #1f2b08; }
+  .preset-btn:focus-visible { outline: 2px dotted var(--green-mid); outline-offset: 2px; }
+  /* aria-disabled, not disabled: a disabled button gets no hover, and its tip
+     is the one place that says why a factory preset cannot be deleted. */
+  .preset-btn[aria-disabled="true"],
+  .preset-btn[aria-disabled="true"]:hover { opacity: 0.45; cursor: default; background: var(--bg-paper-light); color: var(--brown-text); }
+  /* 74: Save / OK = en 21.4 / fr 54.7 / zh 25.3 (+ 8 + 8 padding, 2 border) */
+  #preset-save, #preset-pop-ok { width: 74px; }
+  /* 72: en 32.1 / fr 52.9 / zh 25.3 */
+  #preset-delete { width: 72px; }
+  /* 62: en 34.3 / fr 41.7 / zh 25.3 */
+  #preset-pop-cancel { width: 62px; }
+  .preset-arrow { flex: 0 0 22px; height: 22px; }
+  /* 296 = the widest factory name (fr "Init · construction additive", 140.3 at
+     13 px) inside a 255 px text box (296 - 10 - 28 - 3). Explicit width: the
+     select never shrink-wraps to a language. */
+  select.combo.preset-select { flex: 0 0 296px; width: 296px; height: 26px; font-size: 13px; }
+  .preset-panel.unavailable { opacity: 0.5; pointer-events: none; }
+
+  /* Save / Replace? / Delete? popover: FIXED 352 x 92 so its rectangle is the
+     same in every language; the message line never wraps (330 px; widest =
+     preset.errFactoryName en 224.5 / fr 252.3 / zh 196.1; the Delete? title
+     with "Bright Pad" en 133.5 / fr 200.9 / zh 126.4). */
+  .preset-popover {
+    position: absolute; bottom: calc(100% + 6px); right: 0; z-index: 40;
+    width: 352px; height: 92px; padding: 8px 10px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    background: var(--bg-paper-light);
+    border: 1px solid var(--brown-border); border-radius: 5px;
+    box-shadow: 0 6px 18px var(--shadow-medium);
+  }
+  .preset-popover[hidden] { display: none; }
+  .preset-pop-title {
+    height: 15px; font-size: 12px; line-height: 15px; letter-spacing: 0.4px;
+    color: var(--brown-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .preset-pop-row { display: flex; align-items: center; gap: 6px; height: 24px; }
+  .preset-pop-row .preset-btn { height: 24px; }
+  .preset-name-input {
+    flex: 1 1 auto; min-width: 0; height: 24px; padding: 0 6px;
+    font-family: inherit; font-size: 13px; letter-spacing: 0.3px;
+    color: var(--green-darkest); background: #fffaf2;
+    border: 1px solid var(--brown-border); border-radius: 3px;
+    box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.08);
+    -webkit-user-select: text; user-select: text;   /* WebKit will not edit an inherited none */
+  }
+  .preset-name-input:focus-visible { outline: 2px solid var(--green-mid); outline-offset: 0; }
+  /* Delete confirm: the input keeps its slot so the buttons do not move */
+  .preset-popover.confirm .preset-name-input { visibility: hidden; }
+  .preset-pop-msg {
+    height: 15px; font-size: 12px; line-height: 15px; font-style: italic; letter-spacing: 0.2px;
+    color: var(--warn-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
   /* ── Tooltip (suite style: dark walnut card, sage title) ──────────────── */
   /* position:fixed so it escapes the frame; measure-then-pin placement in JS. */
   .tooltip {
@@ -756,6 +845,7 @@
     .seg button { transition: none; }
     .tour-btn { transition: none; }
     .tour-btn:hover { transform: none; }
+    .preset-btn { transition: none; }
     .tooltip { transition: none; }
   }
 </style>
@@ -1047,6 +1137,35 @@
         </div>
       </div>
       <div class="keyboard" id="keyboard" role="group" data-i18n-aria="keyboard" aria-label="Keyboard"></div>
+
+      <!-- Preset browser (FUNC-08). Static markup: every TIP_BINDINGS anchor
+           exists at settle. Options are built from getPresetCatalog; factory
+           names localize through FACTORY_LABELERS, user names stay raw. -->
+      <section class="preset-panel" id="preset-panel">
+        <div class="preset-row preset-row-top">
+          <div class="preset-label" id="preset-label" data-i18n="label.presets">Presets</div>
+          <button type="button" class="preset-btn" id="preset-save" data-i18n="preset.save">Save</button>
+          <button type="button" class="preset-btn" id="preset-delete" aria-disabled="true" data-i18n="preset.delete">Delete</button>
+        </div>
+        <div class="preset-row preset-row-nav">
+          <button type="button" class="oct-btn preset-arrow" id="preset-prev" data-i18n-aria="aria.presetPrev" aria-label="Previous preset">&#9664;</button>
+          <select class="combo preset-select" id="preset-select" data-i18n-aria="label.presets" aria-label="Presets"></select>
+          <button type="button" class="oct-btn preset-arrow" id="preset-next" data-i18n-aria="aria.presetNext" aria-label="Next preset">&#9654;</button>
+        </div>
+
+        <div class="preset-popover" id="preset-popover" role="dialog" aria-labelledby="preset-pop-title" hidden>
+          <div class="preset-pop-title" id="preset-pop-title" data-i18n="preset.saveTitle">Save preset</div>
+          <div class="preset-pop-row">
+            <input type="text" class="preset-name-input" id="preset-name" maxlength="64"
+                   autocomplete="off" spellcheck="false"
+                   data-i18n-placeholder="preset.namePlaceholder" placeholder="Preset name"
+                   data-i18n-aria="preset.namePlaceholder" aria-label="Preset name">
+            <button type="button" class="preset-btn" id="preset-pop-ok" data-i18n="preset.save">Save</button>
+            <button type="button" class="preset-btn" id="preset-pop-cancel" data-i18n="preset.cancel">Cancel</button>
+          </div>
+          <div class="preset-pop-msg" id="preset-pop-msg" aria-live="polite"></div>
+        </div>
+      </section>
     </section>
   </div>
 </div>
@@ -1095,7 +1214,8 @@ const fmtSignedPct = (v) => {
   return p > 0 ? `+${p}%` : `−${-p}%`;
 };
 const fmtDb = (v, st) => {
-  if (st && st.properties && v <= st.properties.start + 0.05) return '-inf';
+  // U+2212, matching the page's −6.0 dB (N12). The host string stays ASCII -inf.
+  if (st && st.properties && v <= st.properties.start + 0.05) return '−inf';
   const a = Math.abs(v).toFixed(1);
   if (a === '0.0') return '0.0 dB';
   return v > 0 ? `+${a} dB` : `−${a} dB`;
@@ -1127,11 +1247,12 @@ const KNOB_MAX_DEG       = 135;   // normalised 1.0
 const DRAG_TRAVEL_PX     = 220;   // vertical px for a full 0→1 sweep
 const FINE_DRAG_RATE     = 0.2;   // Shift-drag speed
 const NUDGE_STEP         = 0.02;  // wheel / arrow-key step (floored at one param interval)
+// Wheel (W3 / W3b, D-AO): a discrete event (a mouse notch, deltaMode != 0, or
+// the FIRST event of a burst) steps exactly once; the later pixel events of a
+// burst accumulate, one step per WHEEL_PX_PER_NUDGE.
 const WHEEL_PX_PER_NUDGE = 100;
-const WHEEL_LINE_PX      = 33;    // deltaMode 1 (lines) → px
-const WHEEL_PAGE_PX      = 400;   // deltaMode 2 (pages) → px
 const WHEEL_MAX_NUDGES   = 4;     // per-event clamp
-const WHEEL_GESTURE_MS   = 250;   // one wheel burst = one automation gesture
+const WHEEL_GESTURE_MS   = 250;   // one wheel burst = one automation gesture; also the burst gap
 const STEP_DRAG_PX       = 14;    // vertical px per detent on a stepped knob
 
 const TOOLTIP_MARGIN     = 8;     // gap between a tip and its control / the frame edge
@@ -1141,7 +1262,7 @@ const TIPS_STORAGE_KEY   = 'oswt.tipsEnabled';
 const SEAM_JUMP_THRESHOLD = 0.12; // |x[0] - x[end]| that reads as an audible loop seam
 const QUANT_LINES_MAX     = 16;   // draw quantizer level lines when 2^(b-1) <= this
 const HARM_FLOOR_DB       = -60;  // harmonics panel floor (UI choice, ARCHITECTURE §14)
-const DROP_MAX_BYTES      = 96 * 1024 * 1024;   // refuse absurd drops before base64-ing them
+const DROP_MAX_BYTES      = 16 * 1024 * 1024;   // == WavetableImporter::kMaxMemoryBytes (viz-check G-DROP-CAPSYNC); larger files: the Import button
 const DROP_AUDIO_RE       = /\.(wav|wave|aif|aiff|flac|ogg)$/i;
 const SERIF_CANVAS        = "'EB Garamond', Georgia, 'Times New Roman', serif";
 const TWO_PI              = Math.PI * 2;
@@ -1183,6 +1304,52 @@ let importAudioFn = null;
 let importBytesFn = null;
 const heldNotes = new Set();      // notes this page has sent note-ons for
 const heldKeys  = new Map();      // computer key -> note
+
+// N8: one automation gesture per parameter, however many front-ends hold it
+// (the hero knob and the bank stack both drive `position`). id -> open count.
+const gestureCounts = {};
+// N13: stepped-knob drags go through the native gesture bracket.
+let stepKnobDragFn = null;
+const stepDragIdx = {};           // id -> index shown while a drag is open
+
+// Presets (FUNC-08). The C++ presetState push is the only authority for the
+// name / lesson / modified display; nothing here is inferred from a click.
+const PRESET_UNNAMED   = '—';     // a session with no preset name (raw, no key)
+const PRESET_SEPARATOR = '────';  // between the factory and user groups
+let presetMgr       = null;       // preset-manager.js PresetManager (◀ / ▶)
+let presetsReady    = false;
+let presetCatalog   = { factory: [], user: [] };   // getPresetCatalog
+let presetCurrent   = { name: '', id: '', factory: false, modified: false };
+let presetLoadFn    = null;
+let presetSaveFn    = null;
+let presetDeleteFn  = null;
+let presetCatalogFn = null;
+let presetPopMode   = null;       // 'save' | 'delete' | null (closed)
+let presetReplaceName = '';       // a user name awaiting the Replace? confirmation
+let presetDeleteName  = '';       // captured when the Delete? popover opens
+
+// Factory option captions: one literal key per table id (check-i18n [13] /
+// [15]; R-BRIDGE reads the ids). Ids not listed fall back to the raw file name.
+const FACTORY_LABELERS = {
+  init:           (el) => setLabel(el, 'preset.init'),
+  steppedSmooth:  (el) => setLabel(el, 'preset.steppedScan'),
+  smoothScan:     (el) => setLabel(el, 'preset.smoothScan'),
+  aliasDemo:      (el) => setLabel(el, 'label.lessonAliasDemo'),
+  driveSweep:     (el) => setLabel(el, 'label.lessonDriveSweep'),
+  vowelPad:       (el) => setLabel(el, 'label.lessonVowelPad'),
+  pulseNarrowing: (el) => setLabel(el, 'preset.pulseNarrowing'),
+  ppg8bit:        (el) => setLabel(el, 'label.lessonPpg8bit'),
+  ppg4bit:        (el) => setLabel(el, 'preset.ppg4bit'),
+};
+
+// Lesson captions by table id; any other id shows tour.hint.
+const CAPTION_LABELERS = {
+  steppedSmooth: (el) => setLabel(el, 'tour.caption.steppedSmooth'),
+  aliasDemo:     (el) => setLabel(el, 'tour.caption.aliasDemo'),
+  driveSweep:    (el) => setLabel(el, 'tour.caption.driveSweep'),
+  vowelPad:      (el) => setLabel(el, 'tour.caption.vowelPad'),
+  ppg8bit:       (el) => setLabel(el, 'tour.caption.ppg8bit'),
+};
 
 // ════════════════════════════════════════════════════════════════════════════
 // FUNCTION DECLARATIONS (hoisted — safe to call from init())
@@ -1233,19 +1400,71 @@ function stepBy(st, nudges, id) {
   updateKnobVisual(id);
 }
 
+// ── N8: one gesture per parameter, refcounted across front-ends ────────────
+// The hero knob and the bank stack both drive `position`. A stack wheel burst
+// still open when a knob drag starts used to nest a second begin (a debug
+// jassert in AudioProcessorParameter, and the host gesture closed mid-drag).
+// sliderDragStarted fires only on 0 -> 1, sliderDragEnded only on 1 -> 0.
+function gestureBegin(id) {
+  const st = sliderState[id];
+  if (!st) return;
+  gestureCounts[id] = (gestureCounts[id] || 0) + 1;
+  if (gestureCounts[id] === 1) st.sliderDragStarted();
+}
+
+function gestureEnd(id) {
+  const st = sliderState[id];
+  const n = gestureCounts[id] || 0;
+  if (!st || n <= 0) return;           // unbalanced end: ignored, never negative
+  gestureCounts[id] = n - 1;
+  if (n === 1) st.sliderDragEnded();
+}
+
+// ── W3 / W3b: the burst-aware wheel accumulator (D-AO) ──────────────────────
+// One instance per control. Returns the signed number of steps THIS event
+// makes (0 = keep accumulating). Rules:
+//   - a discrete event (deltaMode != 0, or the first event after a gap of
+//     WHEEL_GESTURE_MS) steps exactly once — one mouse notch = one step;
+//   - later pixel events of the burst add their px; a direction reversal
+//     zeroes the sum; each WHEEL_PX_PER_NUDGE px is one step (clamped to
+//     WHEEL_MAX_NUDGES per event), and the remainder is kept;
+//   - the sum resets when the burst ends (the next event is a burst start).
+// A trackpad flick of ~200 px therefore moves ~3 steps, not one per event.
+function makeWheelAccumulator() {
+  let acc = 0;
+  let lastAt = -Infinity;
+  let lastDir = 0;
+  return (e) => {
+    const now = performance.now();
+    const dir = e.deltaY < 0 ? 1 : -1;
+    const burstStart = now - lastAt > WHEEL_GESTURE_MS;
+    lastAt = now;
+    if (e.deltaMode !== 0 || burstStart) {
+      acc = 0;
+      lastDir = dir;
+      return dir;
+    }
+    if (dir !== lastDir) { acc = 0; lastDir = dir; }
+    acc += Math.abs(e.deltaY);
+    const steps = Math.min(WHEEL_MAX_NUDGES, Math.trunc(acc / WHEEL_PX_PER_NUDGE));
+    acc -= steps * WHEEL_PX_PER_NUDGE;
+    return dir * steps;
+  };
+}
+
 // One-shot adjust for the arrow keys (a full bracketed gesture).
 function nudge(st, dir, id) {
-  st.sliderDragStarted();
+  gestureBegin(id);
   stepBy(st, dir, id);
-  st.sliderDragEnded();
+  gestureEnd(id);
 }
 
 function resetToDefault(st, id) {
   if (!paramDefaults || !(id in paramDefaults)) return;
   const norm = scaledToNorm(st, Number(paramDefaults[id]));
-  st.sliderDragStarted();
+  gestureBegin(id);
   st.setNormalisedValue(norm);
-  st.sliderDragEnded();
+  gestureEnd(id);
   updateKnobVisual(id);
 }
 
@@ -1286,11 +1505,12 @@ function bindKnob(juce, id) {
   // The open wheel gesture, if any. Every other interaction closes it first, so
   // a key, drag or double-click never nests its own begin/end inside it.
   let wheelTimer = null;
+  const wheelSteps = makeWheelAccumulator();
   const endWheelGesture = () => {
     if (wheelTimer === null) return;
     clearTimeout(wheelTimer);
     wheelTimer = null;
-    st.sliderDragEnded();
+    gestureEnd(id);
   };
 
   const onMove = (e) => {
@@ -1312,7 +1532,7 @@ function bindKnob(juce, id) {
   const onUp = (e) => {
     if (!dragging) return;
     dragging = false;
-    st.sliderDragEnded();
+    gestureEnd(id);
     knob.removeEventListener('pointermove', onMove);
     knob.removeEventListener('pointerup', onUp);
     knob.removeEventListener('pointercancel', onUp);
@@ -1329,7 +1549,7 @@ function bindKnob(juce, id) {
     startY = lastY = e.clientY;
     fine = e.shiftKey;
     startNorm = st.getNormalisedValue();
-    st.sliderDragStarted();
+    gestureBegin(id);
     // Capture on the KNOB, never window: every later event for this pointer is
     // routed here even outside the WebView, and a terminating
     // pointerup / pointercancel / lostpointercapture is guaranteed.
@@ -1345,13 +1565,11 @@ function bindKnob(juce, id) {
     if (dragging) { e.preventDefault(); return; }
     if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;   // not ours; no preventDefault
     e.preventDefault();
-    const px = Math.abs(e.deltaY) *
-      (e.deltaMode === 1 ? WHEEL_LINE_PX : e.deltaMode === 2 ? WHEEL_PAGE_PX : 1);
-    const nudges = Math.min(WHEEL_MAX_NUDGES, Math.max(1, px / WHEEL_PX_PER_NUDGE));
-    if (wheelTimer === null) st.sliderDragStarted();
+    const steps = wheelSteps(e);         // W3b: the shared accumulator, same nudge size
+    if (wheelTimer === null) gestureBegin(id);
     else clearTimeout(wheelTimer);
     wheelTimer = setTimeout(endWheelGesture, WHEEL_GESTURE_MS);
-    stepBy(st, e.deltaY < 0 ? nudges : -nudges, id);
+    if (steps !== 0) stepBy(st, steps, id);
   }, { passive: false });
 
   knob.addEventListener('dblclick', (e) => {
@@ -1395,7 +1613,10 @@ function updateStepKnobVisual(id) {
   if (!st) return;
   const count = choiceCount(st);
   if (count < 2) return;                   // properties not arrived yet
-  const idx = Math.min(count - 1, Math.max(0, st.getChoiceIndex()));
+  // While a pointer drag is open the knob shows the dragged index; the relay's
+  // echo of the same value catches up through valueChangedEvent (N13).
+  const shown = Number.isInteger(stepDragIdx[id]) ? stepDragIdx[id] : st.getChoiceIndex();
+  const idx = Math.min(count - 1, Math.max(0, shown));
   const text = STEP_FORMAT[id](String(st.properties.choices[idx]), idx);
   const knob = document.getElementById(`knob-${id}`);
   if (knob) {
@@ -1441,17 +1662,37 @@ function bindStepKnob(juce, id) {
     e.preventDefault();
   });
 
+  // N13 (D-AP): a pointer drag is ONE host gesture. setChoiceIndex would make
+  // every detent its own complete gesture (WebComboBoxParameterAttachment), so
+  // the drag goes through the native bracket instead: begin on press, move per
+  // detent change, end on up / cancel / lost capture. Arrows, wheel and
+  // dblclick keep setChoiceIndex — a discrete step IS one gesture.
+  const dragNative = (phase, idx) => {
+    if (!stepKnobDragFn) return;
+    stepKnobDragFn(id, phase, idx).catch((err) => console.warn('stepKnobDrag failed:', err));
+  };
+
   let dragging = false, startY = 0, startIdx = 0;
 
   const onMove = (e) => {
     if (!dragging) return;
-    setIndex(startIdx + Math.round((startY - e.clientY) / STEP_DRAG_PX));
+    const count = choiceCount(st);
+    if (count >= 2) {
+      const idx = Math.min(count - 1, Math.max(0, startIdx + Math.round((startY - e.clientY) / STEP_DRAG_PX)));
+      if (idx !== stepDragIdx[id]) {
+        stepDragIdx[id] = idx;
+        updateStepKnobVisual(id);
+        dragNative(1, idx);
+      }
+    }
     e.preventDefault();
   };
 
   const onUp = (e) => {
     if (!dragging) return;
     dragging = false;
+    dragNative(2, stepDragIdx[id]);
+    delete stepDragIdx[id];
     knob.removeEventListener('pointermove', onMove);
     knob.removeEventListener('pointerup', onUp);
     knob.removeEventListener('pointercancel', onUp);
@@ -1466,6 +1707,8 @@ function bindStepKnob(juce, id) {
     dragging = true;
     startY = e.clientY;
     startIdx = st.getChoiceIndex();
+    stepDragIdx[id] = startIdx;
+    dragNative(0, startIdx);
     try { knob.setPointerCapture(e.pointerId); } catch (_) { /* older backends */ }
     knob.addEventListener('pointermove', onMove);
     knob.addEventListener('pointerup', onUp);
@@ -1474,19 +1717,15 @@ function bindStepKnob(juce, id) {
     e.preventDefault();
   });
 
-  let wheelAccum = 0;
+  // W3 (D-AO): the shared accumulator — one notch = one detent, a trackpad
+  // flick ~3 detents (it used to floor every pixel event to a full detent).
+  const wheelSteps = makeWheelAccumulator();
   knob.addEventListener('wheel', (e) => {
     if (dragging) { e.preventDefault(); return; }
     if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;   // not ours
     e.preventDefault();
-    const px = Math.abs(e.deltaY) *
-      (e.deltaMode === 1 ? WHEEL_LINE_PX : e.deltaMode === 2 ? WHEEL_PAGE_PX : 1);
-    wheelAccum += Math.max(WHEEL_PX_PER_NUDGE, px) * Math.sign(-e.deltaY);
-    const steps = Math.trunc(wheelAccum / WHEEL_PX_PER_NUDGE);
-    if (steps !== 0) {
-      wheelAccum -= steps * WHEEL_PX_PER_NUDGE;
-      setIndex(st.getChoiceIndex() + Math.max(-WHEEL_MAX_NUDGES, Math.min(WHEEL_MAX_NUDGES, steps)));
-    }
+    const steps = wheelSteps(e);
+    if (steps !== 0) setIndex(st.getChoiceIndex() + steps);
   }, { passive: false });
 
   knob.addEventListener('dblclick', (e) => {
@@ -2228,6 +2467,9 @@ function renderImportError(el) {
   else if (importError === 'tooLarge') setLabel(el, 'import.err.tooLarge');
   else if (importError === 'folder') setLabel(el, 'import.err.folder');
   else if (importError === 'type') setLabel(el, 'import.err.type');
+  // N9: a session saved by a NEWER build (restoreImportedBank) — no import was
+  // attempted, so "import failed" would be untrue.
+  else if (importError === 'unsupported') setLabel(el, 'import.err.unsupported');
   else setLabel(el, 'import.err.generic');
 }
 
@@ -2276,11 +2518,15 @@ function initBackendEvents(juce) {
   backend.addEventListener('cycleUpdate', onCycleUpdate);
   backend.addEventListener('bankUpdate', onBankUpdate);
   backend.addEventListener('importStatus', onImportStatus);
+  backend.addEventListener('presetState', onPresetState);
   try { uiReadyFn = juce.getNativeFunction('uiReady'); } catch (e) { uiReadyFn = null; }
   // emitEventIfBrowserIsVisible drops events while the browser is hidden, so
-  // ask again whenever the page becomes visible.
+  // ask again whenever the page becomes visible. W5 (D-AM): hidden releases
+  // every note this page holds (the processor also releases them when the
+  // editor closes; this covers a host that hides without destroying).
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') requestBackendState();
+    if (document.visibilityState === 'hidden') allNotesOff();
   });
   requestBackendState();
 }
@@ -2312,7 +2558,7 @@ function bindBankDrag() {
     if (!dragging) return;
     dragging = false;
     wrap.classList.remove('dragging');
-    if (sliderState.position) sliderState.position.sliderDragEnded();
+    gestureEnd('position');
     wrap.removeEventListener('pointermove', onMove);
     wrap.removeEventListener('pointerup', onUp);
     wrap.removeEventListener('pointercancel', onUp);
@@ -2327,7 +2573,7 @@ function bindBankDrag() {
     endWheel();
     dragging = true;
     wrap.classList.add('dragging');
-    st.sliderDragStarted();
+    gestureBegin('position');
     const u = project(e);
     if (u !== null) { st.setNormalisedValue(u); updateKnobVisual('position'); }
     try { wrap.setPointerCapture(e.pointerId); } catch (_) { /* older backends */ }
@@ -2338,13 +2584,16 @@ function bindBankDrag() {
     e.preventDefault();
   });
 
-  // One frame per notch, one automation gesture per wheel burst.
+  // One frame per notch, ~3 frames per trackpad flick (W3, the shared
+  // accumulator); one automation gesture per wheel burst, refcounted with the
+  // hero knob (N8).
   let wheelTimer = null;
+  const wheelSteps = makeWheelAccumulator();
   const endWheel = () => {
     if (wheelTimer === null) return;
     clearTimeout(wheelTimer);
     wheelTimer = null;
-    if (sliderState.position) sliderState.position.sliderDragEnded();
+    gestureEnd('position');
   };
   wrap.addEventListener('wheel', (e) => {
     const st = sliderState.position;
@@ -2352,10 +2601,12 @@ function bindBankDrag() {
     if (!st || N < 2 || dragging) return;
     if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;
     e.preventDefault();
-    if (wheelTimer === null) st.sliderDragStarted();
+    const steps = wheelSteps(e);
+    if (wheelTimer === null) gestureBegin('position');
     else clearTimeout(wheelTimer);
     wheelTimer = setTimeout(endWheel, WHEEL_GESTURE_MS);
-    st.setNormalisedValue(clamp01(st.getNormalisedValue() + (e.deltaY < 0 ? 1 : -1) / (N - 1)));
+    if (steps === 0) return;
+    st.setNormalisedValue(clamp01(st.getNormalisedValue() + steps / (N - 1)));
     updateKnobVisual('position');
   }, { passive: false });
 }
@@ -2418,28 +2669,347 @@ async function handleDrop(e) {
   const base64 = mod.arrayBufferToBase64(await blob.arrayBuffer());
   const ok = await importBytesFn(name, base64);
   // On success the C++ worker reports progress through importStatus; a refusal
-  // to even start (busy, bad payload) comes back here.
-  if (!ok) { importBusy = false; importError = 'generic'; scheduleRender(); }
+  // to even start (busy, bad payload) comes back here. W2 (D-AK): the
+  // processor may already have reported WHY (tooLarge, unreadable) through
+  // importStatus, and that event can land before this promise — keep it;
+  // `generic` only when nothing specific arrived for this drop.
+  if (!ok) {
+    importBusy = false;
+    if (importError === null) importError = 'generic';
+    scheduleRender();
+  }
 }
 
 // ── Lesson presets (C++ applies a full parameter snapshot; relays sync the UI) ─
+// The lit button and the caption are NOT set here: presetState drives both
+// (D-AG / N10), so an edit, a preset load or a session restore can never leave
+// a stale lesson lit. The octave is UI-only and click-driven.
 function initLessons(juce) {
   try { applyPresetFn = juce.getNativeFunction('applyFactoryPreset'); } catch (e) { applyPresetFn = null; }
-  const CAPTION_LABELERS = {
-    steppedSmooth: (el) => setLabel(el, 'tour.caption.steppedSmooth'),
-    aliasDemo:     (el) => setLabel(el, 'tour.caption.aliasDemo'),
-    driveSweep:    (el) => setLabel(el, 'tour.caption.driveSweep'),
-    vowelPad:      (el) => setLabel(el, 'tour.caption.vowelPad'),
-    ppg8bit:       (el) => setLabel(el, 'tour.caption.ppg8bit'),
-  };
-  const caption = document.getElementById('tourCaption');
   document.querySelectorAll('.tour-btn[data-preset]').forEach((b) => b.addEventListener('click', () => {
     const id = b.dataset.preset;
     if (applyPresetFn) applyPresetFn(id).catch((e) => console.error('applyFactoryPreset failed:', e));
-    document.querySelectorAll('.tour-btn').forEach((x) => x.classList.toggle('active', x === b));
-    if (CAPTION_LABELERS[id]) CAPTION_LABELERS[id](caption);
-    if (id in LESSON_OCTAVE) setOctave(LESSON_OCTAVE[id]);
+    if (Object.prototype.hasOwnProperty.call(LESSON_OCTAVE, id)) setOctave(LESSON_OCTAVE[id]);
   }));
+}
+
+// ── Preset browser (FUNC-08, D-AE … D-AI) ──────────────────────────────────
+// The select, prev / next and the C++ walk order are ONE order: factory table
+// order, then user presets (case-insensitive). preset-manager.js owns ◀ / ▶
+// only (its selectNext / selectPrevious natives return the neighbour in that
+// order). Save and Delete are page-owned and keyed on the last presetState —
+// the module's cached name goes stale after a lesson click or a restore.
+function hasOwn(o, k) {
+  return Object.prototype.hasOwnProperty.call(o, k);
+}
+
+function normaliseCatalog(c) {
+  const out = { factory: [], user: [] };
+  if (!c || typeof c !== 'object') return out;
+  if (Array.isArray(c.factory))
+    for (const f of c.factory)
+      if (f && typeof f.name === 'string' && f.name !== '')
+        out.factory.push({ name: f.name, id: typeof f.id === 'string' ? f.id : '' });
+  if (Array.isArray(c.user))
+    for (const u of c.user) if (typeof u === 'string' && u !== '') out.user.push(u);
+  return out;
+}
+
+async function refreshPresetCatalog() {
+  if (!presetCatalogFn) return;
+  try {
+    const raw = await presetCatalogFn();
+    presetCatalog = normaliseCatalog(typeof raw === 'string' ? JSON.parse(raw) : raw);
+  } catch (e) {
+    console.warn('getPresetCatalog failed:', e);
+    return;
+  }
+  buildPresetOptions();
+  renderPresetState();
+}
+
+// Factory options localize (FACTORY_LABELERS -> setLabel, so the applyI18n
+// sweep re-labels them on a language change); user names are raw. No
+// optgroups: an optgroup label is invisible to every gate.
+function buildPresetOptions() {
+  const sel = document.getElementById('preset-select');
+  if (!sel) return;
+  sel.textContent = '';
+  for (const f of presetCatalog.factory) {
+    const opt = document.createElement('option');
+    opt.value = f.name;
+    if (hasOwn(FACTORY_LABELERS, f.id)) FACTORY_LABELERS[f.id](opt);
+    else setRaw(opt, f.name);
+    sel.appendChild(opt);
+  }
+  if (presetCatalog.user.length > 0) {
+    const sep = document.createElement('option');
+    sep.disabled = true;
+    sep.value = '';
+    sep.className = 'preset-separator';
+    setRaw(sep, PRESET_SEPARATOR);
+    sel.appendChild(sep);
+  }
+  for (const u of presetCatalog.user) {
+    const opt = document.createElement('option');
+    opt.value = u;
+    setRaw(opt, u);
+    sel.appendChild(opt);
+  }
+}
+
+// Show presetCurrent.name: its catalog option, or a transient raw option (the
+// unnamed `—`, or a name not in the catalog yet — e.g. a restored user preset
+// whose file is gone).
+function syncPresetSelect() {
+  const sel = document.getElementById('preset-select');
+  if (!sel) return;
+  sel.querySelectorAll('option.preset-transient').forEach((o) => o.remove());
+  const name = presetCurrent.name;
+  const match = name !== '' && [...sel.options].some((o) => !o.disabled && o.value === name);
+  if (match) { sel.value = name; return; }
+  const opt = document.createElement('option');
+  opt.className = 'preset-transient';
+  opt.value = name;
+  opt.disabled = true;                 // shown, never re-selectable
+  setRaw(opt, name === '' ? PRESET_UNNAMED : name);
+  sel.insertBefore(opt, sel.firstChild);
+  sel.selectedIndex = 0;
+}
+
+function presetDeletable() {
+  return presetCurrent.name !== '' && presetCurrent.factory === false
+      && presetCatalog.user.includes(presetCurrent.name);
+}
+
+// D-AG: the select, the modified dot, the lit lesson and the caption all
+// follow the C++ push, never a click.
+function renderPresetState() {
+  const panel = document.getElementById('preset-panel');
+  if (panel) panel.classList.toggle('modified', presetCurrent.modified);
+  syncPresetSelect();
+
+  const del = document.getElementById('preset-delete');
+  if (del) del.setAttribute('aria-disabled', presetDeletable() ? 'false' : 'true');
+
+  const lit = presetCurrent.modified ? '' : presetCurrent.id;
+  document.querySelectorAll('.tour-btn[data-preset]').forEach((b) =>
+    b.classList.toggle('active', lit !== '' && b.dataset.preset === lit));
+
+  const caption = document.getElementById('tourCaption');
+  if (caption) {
+    if (hasOwn(CAPTION_LABELERS, presetCurrent.id)) CAPTION_LABELERS[presetCurrent.id](caption);
+    else setLabel(caption, 'tour.hint');
+  }
+}
+
+function onPresetState(d) {
+  if (!d || typeof d !== 'object') return;
+  presetCurrent = {
+    name:     typeof d.name === 'string' ? d.name : '',
+    id:       typeof d.id === 'string' ? d.id : '',
+    factory:  d.factory === true,
+    modified: d.modified === true,
+  };
+  // A name the catalog does not know yet (saved elsewhere, or a restore) —
+  // re-read it; the transient option covers the gap.
+  if (presetCurrent.name !== '' && presetsReady
+      && !presetCatalog.factory.some((f) => f.name === presetCurrent.name)
+      && !presetCatalog.user.includes(presetCurrent.name))
+    refreshPresetCatalog();
+  renderPresetState();
+}
+
+// LESSON_OCTAVE on a BROWSER load of a lesson preset (select or ◀ / ▶), the
+// same as a lesson click. Never on a restore: presetState does not call this.
+function applyLessonOctaveForName(name) {
+  const f = presetCatalog.factory.find((e) => e.name === name);
+  if (f && hasOwn(LESSON_OCTAVE, f.id)) setOctave(LESSON_OCTAVE[f.id]);
+}
+
+// Every factory display label in every language: a user preset must not wear
+// a factory name in ANY of them (a user "Repliement" beside the factory one).
+function factoryDisplayNames() {
+  const out = [];
+  for (const id of Object.keys(FACTORY_LABELERS)) {
+    const probe = document.createElement('span');
+    FACTORY_LABELERS[id](probe);
+    const key = probe.dataset.i18n;
+    if (key) for (const lang of LANGUAGES) out.push(trLabel(key, lang, null));
+  }
+  return out;
+}
+
+function presetPopoverEls() {
+  return {
+    pop:    document.getElementById('preset-popover'),
+    title:  document.getElementById('preset-pop-title'),
+    input:  document.getElementById('preset-name'),
+    ok:     document.getElementById('preset-pop-ok'),
+    msg:    document.getElementById('preset-pop-msg'),
+  };
+}
+
+function closePresetPopover() {
+  const { pop } = presetPopoverEls();
+  if (!pop || pop.hidden) return;
+  pop.hidden = true;
+  presetPopMode = null;
+  presetReplaceName = '';
+  presetDeleteName = '';
+}
+
+function openPresetSave() {
+  const { pop, title, input, ok, msg } = presetPopoverEls();
+  if (!pop) return;
+  presetPopMode = 'save';
+  presetReplaceName = '';
+  pop.classList.remove('confirm');
+  setLabel(title, 'preset.saveTitle');
+  setLabel(ok, 'preset.save');
+  setRaw(msg, '');
+  // A user preset pre-fills its own name (the common case: save over it).
+  input.value = presetDeletable() ? presetCurrent.name : '';
+  pop.hidden = false;
+  input.focus();
+  input.select();
+}
+
+function openPresetDelete() {
+  if (!presetDeletable()) return;
+  const { pop, title, ok, msg } = presetPopoverEls();
+  if (!pop) return;
+  presetPopMode = 'delete';
+  presetDeleteName = presetCurrent.name;
+  pop.classList.add('confirm');
+  setLabel(title, 'preset.confirmDelete', { name: presetDeleteName });
+  setLabel(ok, 'preset.delete');
+  setRaw(msg, '');
+  pop.hidden = false;
+  ok.focus();
+}
+
+async function submitPresetPopover() {
+  const { input, msg } = presetPopoverEls();
+  if (presetPopMode === 'delete') {
+    const target = presetDeleteName;
+    // Success or refusal (the file was already gone, or the name turned out to
+    // be factory), the honest next view is the re-read catalog.
+    if (target !== '' && presetDeleteFn)
+      await presetDeleteFn(target).catch((e) => console.warn('deletePreset failed:', e));
+    closePresetPopover();
+    refreshPresetCatalog();
+    return;
+  }
+  if (presetPopMode !== 'save') return;
+
+  const name = input.value.trim();
+  if (name === '') { presetReplaceName = ''; setLabel(msg, 'preset.errEmpty'); return; }
+  const low = name.toLowerCase();
+  if (presetCatalog.factory.some((f) => f.name.toLowerCase() === low)
+      || factoryDisplayNames().some((n) => n.toLowerCase() === low)) {
+    presetReplaceName = '';
+    setLabel(msg, 'preset.errFactoryName');
+    return;
+  }
+  const existing = presetCatalog.user.find((u) => u.toLowerCase() === low);
+  if (existing !== undefined && presetReplaceName.toLowerCase() !== low) {
+    presetReplaceName = name;          // OK again = replace
+    setLabel(msg, 'preset.confirmReplace', { name: existing });
+    return;
+  }
+  const saved = presetSaveFn ? await presetSaveFn(name).catch(() => false) : false;
+  if (saved) { closePresetPopover(); refreshPresetCatalog(); }
+  else { presetReplaceName = ''; setLabel(msg, 'preset.errSave'); }
+}
+
+function setPresetPanelAvailable(on) {
+  const panel = document.getElementById('preset-panel');
+  if (!panel) return;
+  panel.classList.toggle('unavailable', !on);
+  panel.querySelectorAll('button, select, input').forEach((el) => { el.disabled = !on; });
+  if (!on) closePresetPopover();
+}
+
+function bindPresetControls() {
+  const sel    = document.getElementById('preset-select');
+  const save   = document.getElementById('preset-save');
+  const del    = document.getElementById('preset-delete');
+  const cancel = document.getElementById('preset-pop-cancel');
+  const { pop, input, ok, msg } = presetPopoverEls();
+  if (!sel || !save || !del || !pop || !input || !ok || !cancel) {
+    console.warn('preset panel markup missing — presets unavailable');
+    return false;
+  }
+
+  sel.addEventListener('change', () => {
+    const name = sel.value;
+    if (!presetLoadFn || name === '') { renderPresetState(); return; }
+    presetLoadFn(name)
+      .then((loaded) => { if (loaded) applyLessonOctaveForName(name); else renderPresetState(); })
+      .catch((e) => { console.error('loadPreset failed:', e); renderPresetState(); });
+  });
+
+  save.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (presetPopMode === 'save') closePresetPopover(); else openPresetSave();
+  });
+  del.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (presetPopMode === 'delete') closePresetPopover(); else openPresetDelete();
+  });
+  ok.addEventListener('click', () => { submitPresetPopover(); });
+  cancel.addEventListener('click', () => closePresetPopover());
+  input.addEventListener('input', () => { presetReplaceName = ''; setRaw(msg, ''); });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); submitPresetPopover(); }
+  });
+
+  // Capture-phase pointerdown, not mousedown: the knobs preventDefault their
+  // own pointerdown, which suppresses the compat mousedown (the settings
+  // popover's rule).
+  document.addEventListener('pointerdown', (e) => {
+    if (pop.hidden) return;
+    if (pop.contains(e.target) || save.contains(e.target) || del.contains(e.target)) return;
+    closePresetPopover();
+  }, true);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !pop.hidden) closePresetPopover();
+  });
+  return true;
+}
+
+// Called from init() in its own try / catch. The module is imported
+// DYNAMICALLY: a static import that 404s would blank the whole page (the
+// i18n.js failure mode); here a failure disables the panel and nothing else.
+async function initPresets(juce) {
+  try { presetCatalogFn = juce.getNativeFunction('getPresetCatalog'); } catch (e) { presetCatalogFn = null; }
+  try { presetLoadFn    = juce.getNativeFunction('loadPreset'); }       catch (e) { presetLoadFn = null; }
+  try { presetSaveFn    = juce.getNativeFunction('savePreset'); }       catch (e) { presetSaveFn = null; }
+  try { presetDeleteFn  = juce.getNativeFunction('deletePreset'); }     catch (e) { presetDeleteFn = null; }
+  if (!bindPresetControls()) return;
+
+  let mod = null;
+  try {
+    mod = await import('./modules/preset-manager.js');
+  } catch (e) {
+    console.error('preset-manager.js failed to load — preset panel disabled:', e);
+    setPresetPanelAvailable(false);
+    return;
+  }
+  // Only these five options (D-AI): no displayElement (names localize here),
+  // no save / load / delete buttons (the dialog natives are refusal stubs, and
+  // the module's delete keys on a cached name that goes stale).
+  presetMgr = new mod.PresetManager({
+    getNativeFunction: juce.getNativeFunction,
+    prevButton: document.getElementById('preset-prev'),
+    nextButton: document.getElementById('preset-next'),
+    onPresetChanged: (name) => applyLessonOctaveForName(name),
+    onPresetListUpdated: () => { refreshPresetCatalog(); },
+  });
+  await presetMgr.initialize();   // its refresh() reports the list -> catalog
+  presetsReady = true;
+  await refreshPresetCatalog();
 }
 
 // ── Settings popover ────────────────────────────────────────────────────────
@@ -2836,6 +3406,7 @@ function init() {
 
   try { initCanvases(); } catch (e) { console.error('canvas init failed:', e); }
 
+  try { stepKnobDragFn = Juce.getNativeFunction('stepKnobDrag'); } catch (e) { stepKnobDragFn = null; }
   KNOB_IDS.forEach((id) => bindKnob(Juce, id));
   STEP_KNOB_IDS.forEach((id) => bindStepKnob(Juce, id));
   TOGGLE_IDS.forEach((id) => bindToggleSegments(Juce, id));
@@ -2854,9 +3425,12 @@ function init() {
   try { initImport(Juce); }      catch (e) { console.error('import init failed:', e); }
   try { initLessons(Juce); }     catch (e) { console.error('lesson init failed:', e); }
   try { initKeyboard(Juce); }    catch (e) { console.error('keyboard init failed:', e); }
+  try {
+    initPresets(Juce).catch((e) => { console.error('preset init failed:', e); setPresetPanelAvailable(false); });
+  } catch (e) { console.error('preset init failed:', e); }
 
-  // LAST: listeners exist, so the uiReady answer (bankUpdate + importStatus)
-  // has somewhere to land.
+  // LAST: listeners exist, so the uiReady answer (bankUpdate + importStatus +
+  // presetState) has somewhere to land.
   try { initBackendEvents(Juce); } catch (e) { console.error('backend events init failed:', e); }
   scheduleRender();
 }

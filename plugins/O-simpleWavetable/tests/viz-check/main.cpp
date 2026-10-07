@@ -23,9 +23,11 @@
     O-simpleWavetable viz-check - Stage 3 gates (3-gui/PLAN Tasks 4, 9, 14).
 
     Task 4:
-      G-LESSON    CTX-lessons, D-Y. All 21 params at fixed-seed random
-                  normalised values, output_level -17.3 dB, an Imported bank
-                  published. For each of the 5 lesson ids:
+      G-LESSON    CTX-lessons, D-Y (4-polish: re-transcribed from
+                  ARCHITECTURE A9 + the D-AD fill rule, 9 ids; the preset
+                  name / unmodified identity checked too). All 21 params at
+                  fixed-seed random normalised values, output_level -17.3 dB,
+                  an Imported bank published. For each of the 9 ids:
                     - applyFactoryPreset returns true;
                     - output_level still -17.3 dB (normalised, 1e-6), 0 gestures;
                     - every other param = its recipe value if listed, else its
@@ -90,6 +92,46 @@
                       the source) is in {tooShort, unreadable, tooLarge,
                       unsupported}.
 
+    Stage 4 (4-polish PLAN Task 4; each with a negative control):
+      G-VIZ-RELEASE   N4: held note -> releaseResources -> sounding false, note
+                      -1, hz 0, amp 0, silent cycle view. NC (hook off): the
+                      display stays "sounding".
+      G-SANITISE      N7: (a) isStrippedNameChar table + kept neighbours;
+                      (b) "a" + cp + "b.wav" -> "ab.wav", ZWNJ / ZWJ kept;
+                      (c) NC: the legacy rule keeps every non-C0 row;
+                      (d) U+202E through importFromBase64 and through a state
+                      blob (filename="a&#x202E;b.wav").
+      G-DROP-CAPSYNC  W2: page DROP_MAX_BYTES == kMaxMemoryBytes (16 MiB). NC: a
+                      96 MiB page copy is caught.
+
+    Stage 4 (4-polish PLAN Tasks 6-8; pure functions only - no gate touches
+    ~/Library or the module's file I/O):
+      G-FACTORY       the recipe table (finite, raw round trip, ids, names, no
+                      output_level / Imported), the skew arm after
+                      applyFactoryPreset, kInit == defaults + a fresh instance
+                      is "Init - Additive Build" unmodified, load by name ==
+                      apply by id, buildFactoryPresetDefs. NC: a LINEAR
+                      normalisation fails the skew arm.
+      G-S3N5          N5: an import's queued auto-select loses to a later
+                      preset apply (bank 4); sensitivity: without the apply it
+                      wins (bank 5).
+      G-PRESET-USER   applyUserPresetJson: round trip, malformed / missing /
+                      clamped values, refusals. NC: an apply that copies
+                      output_level fails the output arm.
+      G-PRESET-NAME   sanitisePresetName (trim, C0 / C1 / bidi, legal file
+                      name, leading dots, 64 chars, "" refused).
+      G-PRESET-WALK   buildWalkOrder / neighbourInOrder (D-AE entry rules).
+      G-PRESET-STATE  presetState identity through apply / nudge / output edit /
+                      state round trip / a missing user file / an old session.
+      G-PRESET-IMPORTED a preset apply never touches the imported bank. NC: a
+                      module-style XML restore does.
+      G-S3W4-ERRCLEAR W4: an import error clears on the next bank change only
+                      (control, sensitivity, restore arm with seeding).
+      G-S3W5-UIHELD   W5: releaseUiHeldNotes silences an on-screen note. NC:
+                      without it the note still sounds.
+      G-S3N13         N13: one gesture per stepped-knob drag. NC: per-detent
+                      complete gestures give 3 pairs.
+
     Scaffold: report() / info(); dsp-check's setParam + Rig; the O-Bells
     malloc_logger hook with a SETTABLE counted thread (gArmedThread).
 
@@ -107,6 +149,7 @@
 #include "BuiltInBanks.h"
 #include "CycleView.h"
 #include "PluginProcessor.h"
+#include "PresetRecipes.h"
 #include "VizPayload.h"
 #include "WavetableBank.h"
 #include "WavetableImporter.h"
@@ -128,6 +171,7 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -375,9 +419,11 @@ namespace
     }
 
     //==========================================================================
-    // G-LESSON. The expected recipes are transcribed here INDEPENDENTLY from
-    // the checklist (v1-integration-checklist.md "Lesson preset ids"), not
-    // read back from the processor.
+    // G-LESSON. The expected recipes are typed HERE, independently, from
+    // ARCHITECTURE A9 + the 4-polish D-AD fill rule (A9 wins where it names a
+    // value; the Stage 3 lesson recipe fills where A9 is silent; the 4-bit PPG
+    // variant is the 9th id). Never read back from the processor or its recipe
+    // table (R-STATIC S11): a table that drifts from A9 fails here.
     struct Want
     {
         const char* paramId;
@@ -387,24 +433,54 @@ namespace
     struct Lesson
     {
         const char* id;
+        const char* name;   // the preset's file / display name
         std::vector<Want> recipe;
     };
 
+    // Choice indices: bank 0 Sine->Saw, 1 Sine->Square, 2 Pulse Width,
+    // 3 Formant, 4 Drive; lfo_shape 1 Triangle, 2 Saw, 4 S&H; bit_depth 0 Full,
+    // 9 "8", 13 "4"; lfo_sync 0 Free.
     std::vector<Lesson> lessonTable()
     {
         return {
-            { "steppedSmooth", { { "bank", 0.0f }, { "position", 0.5f }, { "interp", 0.0f }, { "lfo_sync", 0.0f },
-                                 { "lfo_shape", 1.0f }, { "lfo_rate", 0.18f }, { "lfo_depth", 1.0f } } },
-            { "aliasDemo",     { { "bank", 0.0f }, { "position", 1.0f }, { "bandlimit", 0.0f } } },
-            { "driveSweep",    { { "bank", 4.0f }, { "position", 0.0f }, { "env_amount", 1.0f },
-                                 { "menv_attack", 0.9f }, { "menv_decay", 1.6f }, { "menv_sustain", 0.25f },
-                                 { "menv_release", 0.8f } } },
-            { "vowelPad",      { { "bank", 3.0f }, { "position", 0.5f }, { "lfo_sync", 0.0f }, { "lfo_shape", 0.0f },
-                                 { "lfo_rate", 0.12f }, { "lfo_depth", 0.9f }, { "amp_attack", 0.6f },
-                                 { "amp_release", 1.4f } } },
-            { "ppg8bit",       { { "bank", 1.0f }, { "position", 0.6f }, { "interp", 0.0f }, { "bit_depth", 9.0f },
-                                 { "lfo_sync", 0.0f }, { "lfo_shape", 4.0f }, { "lfo_rate", 3.0f },
-                                 { "lfo_depth", 0.4f } } },
+            // A9: Sine->Saw, Pos 0, everything off (= the defaults).
+            { "init",           "Init - Additive Build",
+                                { { "bank", 0.0f }, { "position", 0.0f }, { "lfo_depth", 0.0f }, { "env_amount", 0.0f },
+                                  { "bit_depth", 0.0f } } },
+            // A9: Sine->Saw, Interp Off, LFO Saw 0.25 Hz depth 100%, Pos 50%. Fill: free LFO.
+            { "steppedSmooth",  "Stepped Scan",
+                                { { "bank", 0.0f }, { "position", 0.5f }, { "interp", 0.0f }, { "lfo_sync", 0.0f },
+                                  { "lfo_shape", 2.0f }, { "lfo_rate", 0.25f }, { "lfo_depth", 1.0f } } },
+            // A9: same, Interp On.
+            { "smoothScan",     "Smooth Scan",
+                                { { "bank", 0.0f }, { "position", 0.5f }, { "interp", 1.0f }, { "lfo_sync", 0.0f },
+                                  { "lfo_shape", 2.0f }, { "lfo_rate", 0.25f }, { "lfo_depth", 1.0f } } },
+            // A9: Drive, Pos 100%, Band-limit Off.
+            { "aliasDemo",      "Alias Demo",
+                                { { "bank", 4.0f }, { "position", 1.0f }, { "bandlimit", 0.0f } } },
+            // A9: Drive, Env Amount +100%, menv A 0.01 D 1.5 S 0. Fill: Pos 0, menv R 0.8.
+            { "driveSweep",     "Drive Sweep",
+                                { { "bank", 4.0f }, { "position", 0.0f }, { "env_amount", 1.0f },
+                                  { "menv_attack", 0.01f }, { "menv_decay", 1.5f }, { "menv_sustain", 0.0f },
+                                  { "menv_release", 0.8f } } },
+            // A9: Formant, LFO Tri 0.1 Hz depth 100%, Pos 50%, slow amp. Fill: free LFO, amp A 0.6 R 1.4.
+            { "vowelPad",       "Vowel Pad",
+                                { { "bank", 3.0f }, { "position", 0.5f }, { "lfo_sync", 0.0f }, { "lfo_shape", 1.0f },
+                                  { "lfo_rate", 0.1f }, { "lfo_depth", 1.0f }, { "amp_attack", 0.6f },
+                                  { "amp_release", 1.4f } } },
+            // A9: Pulse Width, Env Amount +80%.
+            { "pulseNarrowing", "Pulse Narrowing",
+                                { { "bank", 2.0f }, { "env_amount", 0.8f } } },
+            // A9: Sine->Square, Bit 8, Interp Off, LFO S&H 4 Hz. Fill: Pos 0.6, free LFO, depth 0.4.
+            { "ppg8bit",        "8-bit PPG",
+                                { { "bank", 1.0f }, { "position", 0.6f }, { "interp", 0.0f }, { "bit_depth", 9.0f },
+                                  { "lfo_sync", 0.0f }, { "lfo_shape", 4.0f }, { "lfo_rate", 4.0f },
+                                  { "lfo_depth", 0.4f } } },
+            // A9: "and a 4-bit variant".
+            { "ppg4bit",        "4-bit PPG",
+                                { { "bank", 1.0f }, { "position", 0.6f }, { "interp", 0.0f }, { "bit_depth", 13.0f },
+                                  { "lfo_sync", 0.0f }, { "lfo_shape", 4.0f }, { "lfo_rate", 4.0f },
+                                  { "lfo_depth", 0.4f } } },
         };
     }
 
@@ -627,6 +703,14 @@ namespace
 
         juce::Random rng (0x05157A7Eull);
 
+        // The preset identity a lesson click leaves behind (4-polish D-AG).
+        auto identity = [&p] (const char* wantName)
+        {
+            const bool ok = p.getPresetName() == juce::String (wantName) && ! p.isPresetModified();
+            return std::make_pair (ok, "name \"" + p.getPresetName().toStdString() + "\" (want \"" + wantName
+                                       + "\"), modified " + (p.isPresetModified() ? "true" : "false") + " (want false)");
+        };
+
         for (const auto& l : lessons)
         {
             randomise (p, rng);
@@ -634,8 +718,9 @@ namespace
             g.reset();
             const bool ok = p.applyFactoryPreset (l.id);
             const auto r = checkLesson (p, g, before, &l.recipe, ok, true, importedPtr);
+            const auto who = identity (l.name);
             const std::string gate = std::string ("G-LESSON[") + l.id + "]";
-            report (gate.c_str(), r.all(), describe (r));
+            report (gate.c_str(), r.all() && who.first, describe (r) + "; " + who.second);
 
             // Re-apply the same id: everything already at target -> 0 gestures.
             const auto again = snapshot (p);
@@ -643,26 +728,35 @@ namespace
             const bool ok2 = p.applyFactoryPreset (l.id);
             const auto r2 = checkLesson (p, g, again, &l.recipe, ok2, true, importedPtr);
             const bool zero = r2.changed == 0;
+            const auto who2 = identity (l.name);
             const std::string gate2 = std::string ("G-LESSON[") + l.id + " reapply]";
-            report (gate2.c_str(), r2.all() && zero,
-                    std::to_string (r2.changed) + " params changed (want 0); " + describe (r2));
+            report (gate2.c_str(), r2.all() && zero && who2.first,
+                    std::to_string (r2.changed) + " params changed (want 0); " + describe (r2) + "; " + who2.second);
         }
 
-        // Unknown ids: false, nothing changes, no gestures.
+        // Unknown ids: false, nothing changes (values, gestures, preset name).
         for (const char* unknown : { "nope", "" })
         {
             randomise (p, rng);
             const auto before = snapshot (p);
+            const auto nameBefore = p.getPresetName();
             g.reset();
             const bool ok = p.applyFactoryPreset (unknown);
             const auto r = checkLesson (p, g, before, nullptr, ok, false, importedPtr);
+            const bool nameKept = p.getPresetName() == nameBefore;
             const std::string gate = std::string ("G-LESSON[unknown \"") + unknown + "\"]";
-            report (gate.c_str(), r.all() && r.changed == 0, describe (r));
+            report (gate.c_str(), r.all() && r.changed == 0 && nameKept,
+                    describe (r) + "; preset name " + (nameKept ? "unchanged" : "CHANGED"));
         }
 
         // Negative control: the naive loop must FAIL the output_level check.
         {
-            const auto& l = lessons[1];   // aliasDemo
+            const Lesson* alias = nullptr;
+            for (const auto& cand : lessons)
+                if (std::strcmp (cand.id, "aliasDemo") == 0)
+                    alias = &cand;
+            jassert (alias != nullptr);
+            const auto& l = *alias;
             randomise (p, rng);
             const auto before = snapshot (p);
             g.reset();
@@ -2216,6 +2310,1370 @@ namespace
                     + (why.empty() ? std::string() : " | " + why));
         }
     }
+
+    //==========================================================================
+    //==========================================================================
+    // Stage 4 (4-polish PLAN Task 4): Stage 3 N4, N7, W2.
+
+    // G-VIZ-RELEASE (N4): releaseResources clears the display snapshot, so the
+    // editor's lamp never freezes on "sounding".
+    struct ReleaseProbe
+    {
+        bool liveBefore = false, sounding = true;
+        int note = 0;
+        float hz = -1.0f, amp = -1.0f;
+        int viewNote = 0;
+        float viewF0 = -1.0f;
+        bool viewSounding = true;
+    };
+
+    ReleaseProbe probeRelease (bool clears)
+    {
+        ReleaseProbe r;
+        Rig rig (48000.0, 512, vizBase (BankFactory::sineSaw, 0.3f, true, 0));
+        rig.proc->setReleaseClearsDisplayForTesting (clears);
+        rig.run ((int) std::lround (0.2 * 48000.0), { evOn (0, 64) });   // held note, 0.2 s
+        r.liveBefore = rig.proc->isDisplaySounding();
+        rig.proc->releaseResources();
+        r.sounding = rig.proc->isDisplaySounding();
+        r.note     = rig.proc->getDisplayNote();
+        r.hz       = rig.proc->getDisplayHz();
+        r.amp      = rig.proc->getDisplayAmpEnv();
+        Proc::CycleView v;
+        rig.proc->buildCycleView (v);
+        r.viewNote     = v.note;
+        r.viewF0       = v.f0;
+        r.viewSounding = v.sounding;
+        return r;
+    }
+
+    std::string describeRelease (const ReleaseProbe& r)
+    {
+        return std::string ("sounding before release ") + (r.liveBefore ? "1" : "0") + "; after: sounding "
+             + (r.sounding ? "1" : "0") + ", note " + std::to_string (r.note) + ", hz " + fmt (r.hz, 1) + ", amp "
+             + fmt (r.amp, 2) + "; cycle view note " + std::to_string (r.viewNote) + ", f0 " + fmt (r.viewF0, 1)
+             + ", sounding " + (r.viewSounding ? "true" : "false");
+    }
+
+    void gateVizRelease()
+    {
+        const auto fix = probeRelease (true);
+        const bool ok = fix.liveBefore && ! fix.sounding && fix.note == -1 && juce::exactlyEqual (fix.hz, 0.0f)
+                     && juce::exactlyEqual (fix.amp, 0.0f) && fix.viewNote == -1 && juce::exactlyEqual (fix.viewF0, 0.0f)
+                     && ! fix.viewSounding;
+        report ("G-VIZ-RELEASE", ok, describeRelease (fix) + " (want 1; 0 / -1 / 0 / 0; silent payload -1 / 0)");
+
+        const auto nc = probeRelease (false);
+        if (nc.liveBefore && nc.sounding)
+            report ("G-VIZ-RELEASE-NC", true,
+                    "release keeps the display (setReleaseClearsDisplayForTesting (false)): " + describeRelease (nc)
+                    + " - frozen lamp FAILS as designed");
+        else
+            report ("G-VIZ-RELEASE-NC", false,
+                    "release keeps the display: " + describeRelease (nc) + " - still cleared; the gate is vacuous");
+    }
+
+    //==========================================================================
+    // G-SANITISE (N7): WavetableImporter::isStrippedNameChar / sanitiseName.
+    // Non-ASCII test strings are built from hex (ASCII-only source); lone
+    // surrogates and values above U+10FFFF go through the predicate only.
+    struct StripRow
+    {
+        juce::juce_wchar cp;
+        bool viaString;   // BMP non-surrogate (or U+E0001): also tested as "a" + cp + "b.wav"
+    };
+
+    std::vector<StripRow> strippedRows()
+    {
+        return {
+            { 0x00, true }, { 0x01, true }, { 0x09, true }, { 0x0a, true }, { 0x1f, true }, { 0x7f, true },
+            { 0x80, true }, { 0x85, true }, { 0x9f, true },
+            { 0x061c, true }, { 0x200b, true }, { 0x200e, true }, { 0x200f, true },
+            { 0x202a, true }, { 0x202b, true }, { 0x202c, true }, { 0x202d, true }, { 0x202e, true },
+            { 0x2028, true }, { 0x2029, true }, { 0x2060, true },
+            { 0x2066, true }, { 0x2067, true }, { 0x2068, true }, { 0x2069, true },
+            { 0xfeff, true }, { 0xfffe, true }, { 0xffff, true },
+            { 0xd800, false }, { 0xdbff, false }, { 0xdc00, false }, { 0xdfff, false },
+            { 0x110000, false }, { 0x7fffffff, false },
+            { 0xe0000, false }, { 0xe0001, true }, { 0xe007f, false },
+        };
+    }
+
+    // Kept: ZWNJ, ZWJ, 'a', e-acute, plus the neighbours of every stripped range.
+    std::vector<juce::juce_wchar> keptRows()
+    {
+        return { 0x200c, 0x200d, 'a', 0xe9, 0x20, 0x7e, 0xa0, 0x061b, 0x061d, 0x200a, 0x2010, 0x2027, 0x202f,
+                 0x205f, 0x2061, 0x2065, 0x206a, 0xd7ff, 0xe000, 0xfefe, 0xfffd, 0x10000, 0x10ffff, 0xdffff, 0xe0080 };
+    }
+
+    juce::String hexCp (juce::juce_wchar c)
+    {
+        return "U+" + juce::String::toHexString ((int) c).toUpperCase().paddedLeft ('0', 4);
+    }
+
+    juce::String embedded (juce::juce_wchar c)
+    {
+        return juce::String ("a") + juce::String::charToString (c) + "b.wav";
+    }
+
+    // The pre-N7 rule, verbatim: keep c >= 0x20 && c != 0x7f.
+    bool legacyKeeps (juce::juce_wchar c)
+    {
+        return c >= 0x20 && c != 0x7f;
+    }
+
+    juce::String legacySanitise (const juce::String& raw)
+    {
+        juce::String clean;
+        for (auto cp = raw.getCharPointer(); ! cp.isEmpty();)
+        {
+            const juce::juce_wchar c = cp.getAndAdvance();
+            if (legacyKeeps (c))
+                clean += c;
+        }
+        return clean.trim();
+    }
+
+    void gateSanitise()
+    {
+        using S = Proc::ImportStatus::State;
+        const auto rows = strippedRows();
+        const auto kept = keptRows();
+
+        // (a) The predicate table.
+        {
+            int bad = 0;
+            std::string badList;
+            for (const auto& r : rows)
+                if (! WavetableImporter::isStrippedNameChar (r.cp))
+                {
+                    ++bad;
+                    badList += hexCp (r.cp).toStdString() + " kept; ";
+                }
+            for (const auto c : kept)
+                if (WavetableImporter::isStrippedNameChar (c))
+                {
+                    ++bad;
+                    badList += hexCp (c).toStdString() + " stripped; ";
+                }
+            report ("G-SANITISE[a]", bad == 0,
+                    std::to_string (rows.size()) + " listed code points / range endpoints stripped, " + std::to_string (kept.size())
+                    + " kept (ZWNJ, ZWJ, a, U+00E9 and every range neighbour): " + std::to_string (bad) + " wrong (want 0)"
+                    + (badList.empty() ? std::string() : " | " + badList));
+        }
+
+        // (b) Strings through sanitiseName.
+        {
+            int n = 0, bad = 0;
+            std::string badList;
+            for (const auto& r : rows)
+            {
+                if (! r.viaString)
+                    continue;
+                ++n;
+                const auto got = WavetableImporter::sanitiseName (embedded (r.cp));
+                if (got != "ab.wav")
+                {
+                    ++bad;
+                    badList += hexCp (r.cp).toStdString() + " -> \"" + printable (got) + "\"; ";
+                }
+            }
+            for (const juce::juce_wchar c : { (juce::juce_wchar) 0x200c, (juce::juce_wchar) 0x200d })
+            {
+                ++n;
+                const auto in = embedded (c);
+                if (WavetableImporter::sanitiseName (in) != in)
+                {
+                    ++bad;
+                    badList += hexCp (c).toStdString() + " not kept; ";
+                }
+            }
+            report ("G-SANITISE[b]", bad == 0,
+                    std::to_string (n) + " strings \"a\" + cp + \"b.wav\" (BMP non-surrogate rows + U+E0001 -> \"ab.wav\"; "
+                    "ZWNJ / ZWJ kept verbatim): " + std::to_string (bad) + " wrong (want 0)"
+                    + (badList.empty() ? std::string() : " | " + badList));
+        }
+
+        // (c) Per-class negative control: the legacy rule keeps every stripped
+        // row outside C0 / DEL, so each such row exercises the new rule.
+        {
+            int newRows = 0, legacyMisses = 0;
+            for (const auto& r : rows)
+            {
+                if (r.cp < 0x20 || r.cp == 0x7f)
+                    continue;                                   // legacy already stripped these
+                ++newRows;
+                const bool legacyKeptIt = r.viaString ? legacySanitise (embedded (r.cp)) != "ab.wav"
+                                                      : legacyKeeps (r.cp);
+                if (legacyKeptIt)
+                    ++legacyMisses;
+            }
+            if (newRows > 0 && legacyMisses == newRows)
+                report ("G-SANITISE-NC", true,
+                        "legacy predicate (c >= 0x20 && c != 0x7f) keeps " + std::to_string (legacyMisses) + " / "
+                        + std::to_string (newRows) + " non-C0 rows - the old sanitiser FAILS as designed");
+            else
+                report ("G-SANITISE-NC", false,
+                        "legacy predicate keeps only " + std::to_string (legacyMisses) + " / " + std::to_string (newRows)
+                        + " non-C0 rows - some rows do not exercise the new rule; the gate is vacuous");
+        }
+
+        // (d) End to end: the drop path, then a state blob.
+        {
+            Rig rig (48000.0, 512, vizBase (0, 0.5f, true, 0));
+            Proc& p = *rig.proc;
+            const juce::MemoryBlock wav = makeWav16 (harmonicPcm (3 * kTable));
+            const juce::String b64 = juce::Base64::toBase64 (wav.getData(), wav.getSize());
+            const juce::String hostile = juce::String ("x") + juce::String::charToString ((juce::juce_wchar) 0x202e) + "gnp.wav";
+
+            const bool accepted = p.importFromBase64 (hostile, b64);
+            Proc::ImportStatus st;
+            waitImportSettled (p, st);
+            Proc::BankThumbs t;
+            p.getBankThumbnails (t);
+            const auto w = wireBank (t);
+            const bool okDrop = accepted && st.state == S::done && st.filename == "xgnp.wav" && t.imported
+                             && t.filename == "xgnp.wav" && w.ok && w.filename == "xgnp.wav";
+            report ("G-SANITISE[d-drop]", okDrop,
+                    "importFromBase64 name \"" + printable (hostile) + "\" -> status " + statusText (st) + ", thumbnails \""
+                    + printable (t.filename) + "\", wire \"" + printable (w.filename) + "\" (want \"xgnp.wav\")"
+                    + (w.ok ? std::string() : " | bank wire: " + w.why));
+
+            // State blob: the IMPORTED_BANK filename attribute carries a numeric
+            // character reference to U+202E (RLO).
+            juce::MemoryBlock saved;
+            p.getStateInformation (saved);
+            std::string why;
+            bool okState = false;
+            juce::String restoredStatus, restoredThumb;
+            if (auto xml = juce::AudioProcessor::getXmlFromBinary (saved.getData(), (int) saved.getSize()))
+            {
+                const juce::String text = xml->toString();
+                const juce::String from ("filename=\"xgnp.wav\"");
+                const juce::String to ("filename=\"a&#x202E;b.wav\"");
+                if (text.contains (from))
+                {
+                    if (auto edited = juce::parseXML (text.replace (from, to)))
+                    {
+                        juce::MemoryBlock blob;
+                        juce::AudioProcessor::copyXmlToBinary (*edited, blob);
+                        Rig fresh (48000.0, 512, vizBase (0, 0.5f, true, 0));
+                        fresh.proc->setStateInformation (blob.getData(), (int) blob.getSize());
+                        const auto rs = fresh.proc->getImportStatus();
+                        Proc::BankThumbs rt;
+                        fresh.proc->getBankThumbnails (rt);
+                        restoredStatus = rs.filename;
+                        restoredThumb  = rt.filename;
+                        okState = rs.state == S::done && rs.filename == "ab.wav" && rt.imported && rt.filename == "ab.wav";
+                        if (! okState)
+                            why = "restore status " + statusText (rs) + ", thumbnails imported "
+                                + (rt.imported ? std::string ("yes") : std::string ("no"));
+                    }
+                    else
+                    {
+                        why = "the edited XML did not parse";
+                    }
+                }
+                else
+                {
+                    why = "no filename=\"xgnp.wav\" attribute in the saved state";
+                }
+            }
+            else
+            {
+                why = "getStateInformation produced no XML";
+            }
+            report ("G-SANITISE[d-state]", okState,
+                    "IMPORTED_BANK filename=\"a&#x202E;b.wav\" -> restored status \"" + printable (restoredStatus)
+                    + "\", thumbnails \"" + printable (restoredThumb) + "\" (want \"ab.wav\")"
+                    + (why.empty() ? std::string() : " | " + why));
+        }
+    }
+
+    //==========================================================================
+    // G-DROP-CAPSYNC (W2, D-AK): the page refuses drops above DROP_MAX_BYTES
+    // before base64; the C++ cap is WavetableImporter::kMaxMemoryBytes. The
+    // two must be the same number (and the C++ comment must keep naming the
+    // page constant).
+    juce::File pluginRoot()
+    {
+        const juce::String here (__FILE__);
+        if (! juce::File::isAbsolutePath (here))
+            return {};
+        return juce::File (here).getParentDirectory().getParentDirectory().getParentDirectory();
+    }
+
+    // Parses the ONE "const DROP_MAX_BYTES = A * 1024 * 1024;" line.
+    bool parseDropCap (const juce::String& page, std::size_t& bytes, juce::String& lineOut, std::string& why)
+    {
+        juce::StringArray lines;
+        lines.addLines (page);
+        int found = 0;
+        bool parsed = false;
+        for (const auto& l : lines)
+        {
+            const auto code = l.upToFirstOccurrenceOf ("//", false, false).trim();
+            if (! code.startsWith ("const DROP_MAX_BYTES"))
+                continue;
+            ++found;
+            lineOut = l;
+            const auto expr = code.fromFirstOccurrenceOf ("=", false, false)
+                                  .upToFirstOccurrenceOf (";", false, false)
+                                  .removeCharacters (" \t");
+            juce::StringArray parts;
+            parts.addTokens (expr, "*", "");
+            if (parts.size() == 3 && parts[0].isNotEmpty() && parts[0].containsOnly ("0123456789")
+                && parts[1] == "1024" && parts[2] == "1024")
+            {
+                bytes = (std::size_t) parts[0].getLargeIntValue() * (std::size_t) 1024 * (std::size_t) 1024;
+                parsed = true;
+            }
+            else
+            {
+                why += "unexpected form \"" + expr.toStdString() + "\"; ";
+            }
+        }
+        if (found != 1)
+            why += std::to_string (found) + " DROP_MAX_BYTES lines (want 1); ";
+        return found == 1 && parsed;
+    }
+
+    void gateDropCapSync()
+    {
+        const auto root = pluginRoot();
+        const auto page = root.getChildFile ("Source").getChildFile ("ui").getChildFile ("public").getChildFile ("index.html");
+        const auto hdr  = root.getChildFile ("Source").getChildFile ("WavetableImporter.h");
+        if (! page.existsAsFile() || ! hdr.existsAsFile())
+        {
+            report ("G-DROP-CAPSYNC", false, "cannot read " + page.getFullPathName().toStdString() + " / "
+                                             + hdr.getFullPathName().toStdString());
+            return;
+        }
+
+        const juce::String text = page.loadFileAsString();
+        std::size_t pageBytes = 0;
+        juce::String line;
+        std::string why;
+        const bool parsed = parseDropCap (text, pageBytes, line, why);
+
+        // The C++ comment names the page constant (the copy the gate guards).
+        bool commentOk = false;
+        {
+            juce::StringArray hl;
+            hl.addLines (hdr.loadFileAsString());
+            for (const auto& l : hl)
+                if (l.contains ("kMaxMemoryBytes =") && l.contains ("DROP_MAX_BYTES"))
+                    commentOk = true;
+        }
+
+        const std::size_t cap = WavetableImporter::kMaxMemoryBytes;
+        report ("G-DROP-CAPSYNC", parsed && pageBytes == cap && commentOk,
+                "index.html \"" + line.trim().toStdString() + "\" = " + std::to_string (pageBytes)
+                + " B; WavetableImporter::kMaxMemoryBytes = " + std::to_string (cap) + " B (" + std::to_string (cap >> 20)
+                + " MiB); equal " + (pageBytes == cap ? "yes" : "NO") + "; C++ comment names DROP_MAX_BYTES "
+                + (commentOk ? "yes" : "NO") + (why.empty() ? std::string() : " | " + why));
+
+        // Negative control: an in-memory copy of the page with 96 MiB (the
+        // Stage 3 value) must be caught as a mismatch.
+        {
+            std::size_t ncBytes = 0;
+            juce::String ncLine;
+            std::string ncWhy;
+            const juce::String ncPage = parsed ? text.replace (line, "const DROP_MAX_BYTES      = 96 * 1024 * 1024;")
+                                               : juce::String();
+            const bool ncParsed = parsed && parseDropCap (ncPage, ncBytes, ncLine, ncWhy);
+            if (ncParsed && ncBytes != cap)
+                report ("G-DROP-CAPSYNC-NC", true,
+                        "page copy with 96 * 1024 * 1024 = " + std::to_string (ncBytes) + " B vs C++ " + std::to_string (cap)
+                        + " B: mismatch detected - FAILS as designed");
+            else
+                report ("G-DROP-CAPSYNC-NC", false,
+                        "page copy with 96 MiB: parsed " + std::string (ncParsed ? "yes" : "no") + ", " + std::to_string (ncBytes)
+                        + " B vs C++ " + std::to_string (cap) + " B - no mismatch; the gate is vacuous"
+                        + (ncWhy.empty() ? std::string() : " | " + ncWhy));
+        }
+    }
+
+    //==========================================================================
+    //==========================================================================
+    // Stage 4 (4-polish PLAN Tasks 6-8): presets, N5, W4, W5, N13. Every gate
+    // drives pure processor functions; none touches ~/Library or the
+    // preset-manager module's file I/O (D-AH).
+
+    int paramIndexOf (const char* id)
+    {
+        for (int i = 0; i < kNumParams; ++i)
+            if (std::strcmp (ids::all[(size_t) i], id) == 0)
+                return i;
+        return -1;
+    }
+
+    bool isChoiceOrBool (juce::RangedAudioParameter& rp)
+    {
+        return dynamic_cast<juce::AudioParameterChoice*> (&rp) != nullptr
+            || dynamic_cast<juce::AudioParameterBool*> (&rp) != nullptr;
+    }
+
+    // Raw round-trip tolerance: relative 1e-4 plus a 1e-6 floor (raw 0).
+    bool rawClose (double got, double want)
+    {
+        return std::abs (got - want) <= 1.0e-4 * std::abs (want) + 1.0e-6;
+    }
+
+    // The value a parameter actually holds after setValueNotifyingHost (t):
+    // choice / bool snap (AudioParameterBool::getValue returns what was set).
+    float quantised (juce::RangedAudioParameter& rp, float t)
+    {
+        return rp.convertTo0to1 (rp.convertFrom0to1 (juce::jlimit (0.0f, 1.0f, t)));
+    }
+
+    // The literal factory names, typed independently of the table, in table order.
+    const std::array<const char*, 9>& expectedFactoryNames()
+    {
+        static const std::array<const char*, 9> names { "Init - Additive Build", "Stepped Scan", "Smooth Scan",
+                                                        "Alias Demo", "Drive Sweep", "Vowel Pad", "Pulse Narrowing",
+                                                        "8-bit PPG", "4-bit PPG" };
+        return names;
+    }
+
+    //==========================================================================
+    // G-FACTORY (D-AD). This gate MAY read PresetRecipes.h (G-LESSON may not).
+    void gateFactory()
+    {
+        Rig rig (48000.0, 512, {});
+        Proc& p = *rig.proc;
+
+        // [table] every entry: finite, raw round trip (no clamp, choice
+        // integral), known parameter, never output_level, never bank 5; ids
+        // unique; names ASCII, no / \ :, == createLegalFileName.
+        {
+            std::string why;
+            int entries = 0;
+            double worstRel = 0.0;
+            std::set<std::string> seen;
+            if (wtpresets::kNumFactory != 9)
+                why += std::to_string (wtpresets::kNumFactory) + " recipes (want 9); ";
+            for (const auto& r : wtpresets::kFactory)
+            {
+                if (! seen.insert (r.id).second)
+                    why += std::string ("duplicate id ") + r.id + "; ";
+
+                bool ascii = true;
+                for (const char* c = r.name; *c != 0; ++c)
+                    if ((unsigned char) *c < 0x20 || (unsigned char) *c > 0x7e)
+                        ascii = false;
+                const juce::String nm (r.name);
+                if (! ascii || nm.isEmpty() || nm.containsAnyOf ("/\\:") || nm != juce::File::createLegalFileName (nm))
+                    why += std::string ("bad name \"") + r.name + "\"; ";
+
+                for (int e = 0; e < r.count; ++e)
+                {
+                    const auto& en = r.entries[e];
+                    ++entries;
+                    if (std::strcmp (en.paramId, ids::outputLevel) == 0)
+                    {
+                        why += std::string (r.id) + " lists the output level; ";
+                        continue;
+                    }
+                    auto* rp = p.getAPVTS().getParameter (en.paramId);
+                    if (rp == nullptr)
+                    {
+                        why += std::string (r.id) + "." + en.paramId + " names no parameter; ";
+                        continue;
+                    }
+                    if (! std::isfinite (en.raw))
+                    {
+                        why += std::string (r.id) + "." + en.paramId + " not finite; ";
+                        continue;
+                    }
+                    if (std::strcmp (en.paramId, ids::bank) == 0 && std::lround (en.raw) == (long) Proc::kImportedIdx)
+                        why += std::string (r.id) + " selects Imported; ";
+                    if (isChoiceOrBool (*rp) && ! juce::exactlyEqual (en.raw, std::round (en.raw)))
+                        why += std::string (r.id) + "." + en.paramId + " = " + fmt (en.raw, 3) + " not integral; ";
+                    const double back = rp->convertFrom0to1 (rp->convertTo0to1 (en.raw));
+                    worstRel = std::max (worstRel, std::abs (back - (double) en.raw) / (std::abs ((double) en.raw) + 1.0e-6));
+                    if (! rawClose (back, en.raw))
+                        why += std::string (r.id) + "." + en.paramId + " raw " + fmt (en.raw, 4) + " -> " + fmt (back, 4)
+                             + " (clamped or off-grid); ";
+                }
+            }
+            report ("G-FACTORY[table]", why.empty(),
+                    std::to_string (wtpresets::kNumFactory) + " recipes, " + std::to_string (entries)
+                    + " entries: finite, raw round trip worst rel " + sci (worstRel)
+                    + " (tol 1e-4), choices integral, ids unique, names ASCII + legal, no output level, no Imported"
+                    + (why.empty() ? std::string() : " | " + why));
+        }
+
+        // [apply] the SKEW arm: after applyFactoryPreset (id), every listed
+        // parameter reads back its raw value; output_level (-17.3 dB) untouched
+        // by all 9; the name is the recipe's, unmodified.
+        const int outIdx = paramIndexOf (ids::outputLevel);
+        {
+            setParam (p, ids::outputLevel, kOutputDb);
+            const float outNorm = paramAt (p, outIdx).getValue();
+            std::string why;
+            int checked = 0;
+            double worstRel = 0.0;
+            for (const auto& r : wtpresets::kFactory)
+            {
+                if (! p.applyFactoryPreset (r.id))
+                    why += std::string (r.id) + " returned false; ";
+                for (int e = 0; e < r.count; ++e)
+                {
+                    const auto& en = r.entries[e];
+                    auto* rp = p.getAPVTS().getParameter (en.paramId);
+                    if (rp == nullptr)
+                        continue;
+                    const double got = rp->convertFrom0to1 (rp->getValue());
+                    ++checked;
+                    worstRel = std::max (worstRel, std::abs (got - (double) en.raw) / (std::abs ((double) en.raw) + 1.0e-6));
+                    if (! rawClose (got, en.raw))
+                        why += std::string (r.id) + "." + en.paramId + " reads " + fmt (got, 4) + " (want "
+                             + fmt (en.raw, 4) + "); ";
+                }
+                if (std::abs (paramAt (p, outIdx).getValue() - outNorm) > kTolNorm)
+                    why += std::string (r.id) + " moved the output level; ";
+                if (p.getPresetName() != juce::String (r.name) || p.getPresetId() != juce::String (r.id)
+                    || ! p.isPresetFactory() || p.isPresetModified())
+                    why += std::string (r.id) + " identity \"" + p.getPresetName().toStdString() + "\" / "
+                         + p.getPresetId().toStdString() + " / modified " + (p.isPresetModified() ? "true" : "false") + "; ";
+            }
+            report ("G-FACTORY[apply]", why.empty() && checked > 0,
+                    std::to_string (checked) + " listed values read back through convertFrom0to1 (getValue()), worst rel "
+                    + sci (worstRel) + " (tol 1e-4); output level " + fmt (kOutputDb, 1)
+                    + " dB untouched by all 9; name / id / factory / unmodified per recipe"
+                    + (why.empty() ? std::string() : " | " + why));
+        }
+
+        // [init] kInit == the APVTS defaults; a fresh instance IS Init, unmodified.
+        {
+            auto fresh = std::make_unique<Proc>();
+            std::string why;
+            const auto* init = wtpresets::findById ("init");
+            if (init == nullptr)
+            {
+                why += "no \"init\" recipe; ";
+            }
+            else
+            {
+                const auto t = fresh->recipeTargets (*init);
+                for (int i = 0; i < kNumParams; ++i)
+                {
+                    if (isOutput (i) || ! std::isfinite (t[(size_t) i]))
+                        continue;
+                    auto& rp = paramAt (*fresh, i);
+                    if (std::abs (t[(size_t) i] - rp.getDefaultValue()) > kTolNorm)
+                        why += std::string (ids::all[(size_t) i]) + " target " + fmt (t[(size_t) i], 6) + " != default "
+                             + fmt (rp.getDefaultValue(), 6) + "; ";
+                }
+            }
+            const bool idOk = fresh->getPresetName() == "Init - Additive Build" && fresh->getPresetId() == "init"
+                           && fresh->isPresetFactory() && ! fresh->isPresetModified();
+            if (! idOk)
+                why += "fresh instance \"" + fresh->getPresetName().toStdString() + "\" / \"" + fresh->getPresetId().toStdString()
+                     + "\" / factory " + (fresh->isPresetFactory() ? "true" : "false") + " / modified "
+                     + (fresh->isPresetModified() ? "true" : "false") + "; ";
+            report ("G-FACTORY[init]", why.empty(),
+                    "kInit targets == APVTS defaults; fresh instance \"" + fresh->getPresetName().toStdString()
+                    + "\", id \"" + fresh->getPresetId().toStdString() + "\", factory, unmodified"
+                    + (why.empty() ? std::string() : " | " + why));
+        }
+
+        // [load-by-name] the factory load path (any case) == apply by id. No
+        // disk: a factory name never reaches the User folder.
+        {
+            juce::Random rng (0x0F4C7041ull);
+            std::string why;
+            float worst = 0.0f;
+            for (const auto& r : wtpresets::kFactory)
+            {
+                randomise (p, rng);
+                p.applyFactoryPreset (r.id);
+                const auto a = snapshot (p);
+                randomise (p, rng);
+                const bool ok = p.loadPresetByName (juce::String (r.name).toUpperCase());
+                const auto b = snapshot (p);
+                for (int i = 0; i < kNumParams; ++i)
+                    if (! isOutput (i))
+                        worst = std::max (worst, std::abs (a[(size_t) i] - b[(size_t) i]));
+                if (! ok || p.getPresetName() != juce::String (r.name))
+                    why += std::string (r.name) + ": ok " + (ok ? "1" : "0") + ", name \"" + p.getPresetName().toStdString() + "\"; ";
+            }
+            report ("G-FACTORY[load-by-name]", why.empty() && worst <= kTolNorm,
+                    "loadPresetByName (UPPER-CASE name) vs applyFactoryPreset (id): worst |diff| " + sci (worst)
+                    + " (tol 1e-6), canonical names kept" + (why.empty() ? std::string() : " | " + why));
+        }
+
+        // [defs] buildFactoryPresetDefs: 9 defs, table order, exactly the 20
+        // non-output ids, values = recipe targets else defaults.
+        {
+            const auto defs = p.buildFactoryPresetDefs();
+            const auto& names = expectedFactoryNames();
+            std::string why;
+            if (defs.size() != names.size())
+                why += std::to_string (defs.size()) + " defs (want 9); ";
+            for (size_t k = 0; k < std::min (defs.size(), names.size()); ++k)
+            {
+                const auto& d = defs[k];
+                if (d.name != juce::String (names[k]) || d.name != juce::String (wtpresets::kFactory[k].name))
+                    why += "def " + std::to_string (k) + " \"" + d.name.toStdString() + "\" (want \"" + names[k] + "\"); ";
+                if (d.parameters.size() != (size_t) (kNumParams - 1))
+                    why += d.name.toStdString() + ": " + std::to_string (d.parameters.size()) + " keys (want 20); ";
+                if (d.parameters.count (juce::String (ids::outputLevel)) != 0)
+                    why += d.name.toStdString() + " carries the output level; ";
+                const auto& rec = wtpresets::kFactory[k];
+                for (int i = 0; i < kNumParams; ++i)
+                {
+                    if (isOutput (i))
+                        continue;
+                    auto& rp = paramAt (p, i);
+                    float want = rp.getDefaultValue();
+                    for (int e = 0; e < rec.count; ++e)
+                        if (std::strcmp (rec.entries[e].paramId, ids::all[(size_t) i]) == 0)
+                            want = rp.convertTo0to1 (rec.entries[e].raw);
+                    const auto it = d.parameters.find (juce::String (ids::all[(size_t) i]));
+                    if (it == d.parameters.end())
+                        why += d.name.toStdString() + " misses " + ids::all[(size_t) i] + "; ";
+                    else if (std::abs (it->second - want) > kTolNorm)
+                        why += d.name.toStdString() + "." + ids::all[(size_t) i] + " = " + fmt (it->second, 6) + " (want "
+                             + fmt (want, 6) + "); ";
+                }
+            }
+            report ("G-FACTORY[defs]", why.empty(),
+                    std::to_string (defs.size()) + " defs in table order, 20 keys each (no output level), values = recipe "
+                    "targets else defaults (tol 1e-6)" + (why.empty() ? std::string() : " | " + why));
+        }
+
+        // NC (pattern_factory_preset_normalized_ignores_skew): a test-local apply
+        // that normalises LINEARLY, (raw - start) / (end - start), must fail the
+        // skew arm on lfo_rate and on the envelope times.
+        {
+            std::set<std::string> failed;
+            for (const auto& r : wtpresets::kFactory)
+                for (int e = 0; e < r.count; ++e)
+                {
+                    const auto& en = r.entries[e];
+                    auto* rp = p.getAPVTS().getParameter (en.paramId);
+                    if (rp == nullptr)
+                        continue;
+                    const auto& range = rp->getNormalisableRange();
+                    const float lin = (en.raw - range.start) / (range.end - range.start);
+                    rp->setValueNotifyingHost (juce::jlimit (0.0f, 1.0f, lin));
+                    if (! rawClose (rp->convertFrom0to1 (rp->getValue()), en.raw))
+                        failed.insert (en.paramId);
+                }
+            const bool lfo = failed.count ("lfo_rate") != 0;
+            const bool env = failed.count ("menv_attack") != 0 || failed.count ("menv_decay") != 0
+                          || failed.count ("menv_release") != 0 || failed.count ("amp_attack") != 0
+                          || failed.count ("amp_release") != 0;
+            std::string list;
+            for (const auto& f : failed)
+                list += (list.empty() ? "" : ", ") + f;
+            if (lfo && env)
+                report ("G-FACTORY-NC", true, "linear normalisation misses the skew on {" + list + "} - FAILS as designed");
+            else
+                report ("G-FACTORY-NC", false, "linear normalisation failed only {" + list
+                                                + "}: lfo_rate and an envelope time must fail - the skew arm is vacuous");
+        }
+    }
+
+    //==========================================================================
+    // G-S3N5: a preset apply cancels the queued Imported auto-select.
+    // importFromMemory -> poll until settled WITHOUT applying the queued
+    // auto-select -> [applyFactoryPreset ("aliasDemo")] -> handleUpdateNowIfNeeded.
+    int probeN5 (bool applyPreset, Proc::ImportStatus& st)
+    {
+        Rig rig (48000.0, 512, vizBase (0, 0.5f, true, 0));
+        Proc& p = *rig.proc;
+        if (! p.importFromMemory ("n5.wav", makeWav16 (harmonicPcm (3 * kTable))))
+        {
+            st = p.getImportStatus();
+            return -1;
+        }
+        const double t0 = juce::Time::getMillisecondCounterHiRes();
+        for (;;)
+        {
+            st = p.getImportStatus();
+            if (st.state == Proc::ImportStatus::State::done || st.state == Proc::ImportStatus::State::error)
+                break;
+            if (juce::Time::getMillisecondCounterHiRes() - t0 > 10000.0)
+                break;
+            juce::Thread::sleep (2);
+        }
+        if (applyPreset)
+            p.applyFactoryPreset ("aliasDemo");
+        p.handleUpdateNowIfNeeded();
+        return p.getSelectedBankIndex();
+    }
+
+    void gateS3N5()
+    {
+        Proc::ImportStatus st;
+        const int fixed = probeN5 (true, st);
+        const bool doneFix = st.state == Proc::ImportStatus::State::done;
+        report ("G-S3N5", doneFix && fixed == 4,
+                "import " + statusText (st) + " -> applyFactoryPreset (aliasDemo) -> pending auto-select run: bank "
+                + std::to_string (fixed) + " (want 4 = Drive, the preset's bank)");
+
+        Proc::ImportStatus st2;
+        const int sens = probeN5 (false, st2);
+        const bool doneSens = st2.state == Proc::ImportStatus::State::done;
+        report ("G-S3N5[sensitivity]", doneSens && sens == Proc::kImportedIdx,
+                "same import, no preset apply: bank " + std::to_string (sens)
+                + " (want 5 = Imported): the auto-select WAS pending, so the fix arm can fail");
+    }
+
+    //==========================================================================
+    // G-PRESET-USER (D-AB caller 2): applyUserPresetJson on in-memory
+    // module-format JSON, through JSON::toString / parse (as a file would be).
+    juce::var wrapParams (juce::DynamicObject* paramsObj)
+    {
+        auto* root = new juce::DynamicObject();
+        root->setProperty ("parameters", juce::var (paramsObj));
+        root->setProperty ("version", "1.0.0");
+        root->setProperty ("plugin", "O-simpleWavetable");
+        return juce::var (root);
+    }
+
+    juce::var throughJson (const juce::var& v)
+    {
+        return juce::JSON::parse (juce::JSON::toString (v, true));
+    }
+
+    // NC apply: copies EVERY numeric key, output_level included (the module's
+    // own apply behaviour).
+    void naiveUserApply (Proc& p, const juce::var& json)
+    {
+        const auto* paramsObj = json.getProperty ("parameters", juce::var()).getDynamicObject();
+        if (paramsObj == nullptr)
+            return;
+        for (int i = 0; i < kNumParams; ++i)
+        {
+            auto& rp = paramAt (p, i);
+            const juce::var v = paramsObj->getProperty (juce::Identifier (ids::all[(size_t) i]));
+            const float t = isNumber (v) ? juce::jlimit (0.0f, 1.0f, (float) (double) v) : rp.getDefaultValue();
+            rp.beginChangeGesture();
+            rp.setValueNotifyingHost (t);
+            rp.endChangeGesture();
+        }
+    }
+
+    void gatePresetUser()
+    {
+        Rig rig (48000.0, 512, {});
+        Proc& p = *rig.proc;
+        juce::Random rng (0x5E7E5E7Eull);
+        const int outIdx = paramIndexOf (ids::outputLevel);
+
+        // Source state: random, output_level 0.9 normalised; saved the way the
+        // module saves it (every parameter, output_level included) + an unknown key.
+        for (int i = 0; i < kNumParams; ++i)
+            paramAt (p, i).setValueNotifyingHost (isOutput (i) ? 0.9f : rng.nextFloat());
+        const auto src = snapshot (p);
+        auto* po = new juce::DynamicObject();
+        for (int i = 0; i < kNumParams; ++i)
+            po->setProperty (juce::Identifier (ids::all[(size_t) i]), (double) src[(size_t) i]);
+        po->setProperty ("bogus_param", 0.5);
+        const juce::var json = throughJson (wrapParams (po));
+
+        // [roundtrip]
+        {
+            randomise (p, rng);                                     // live: another state, output -17.3 dB
+            const float outBefore = paramAt (p, outIdx).getValue();
+            const bool ok = p.applyUserPresetJson (json);
+            float worst = 0.0f;
+            for (int i = 0; i < kNumParams; ++i)
+                if (! isOutput (i))
+                {
+                    auto& rp = paramAt (p, i);
+                    worst = std::max (worst, std::abs (rp.getValue() - quantised (rp, src[(size_t) i])));
+                }
+            const float outNow = paramAt (p, outIdx).getValue();
+            const bool outOk = std::abs (outNow - outBefore) <= kTolNorm;
+            report ("G-PRESET-USER[roundtrip]", ok && worst <= kTolNorm && outOk,
+                    std::string ("returned ") + (ok ? "true" : "false") + "; 20 params worst |diff| " + sci (worst)
+                    + " (tol 1e-6); output level " + fmt (paramAt (p, outIdx).convertFrom0to1 (outNow), 2)
+                    + " dB (file says " + fmt (paramAt (p, outIdx).convertFrom0to1 (0.9f), 2) + " dB; want "
+                    + fmt (kOutputDb, 1) + " untouched); unknown key ignored");
+        }
+
+        // [malformed] / [missing] / [clamp]: one apply.
+        {
+            randomise (p, rng);
+            const float outBefore = paramAt (p, outIdx).getValue();
+            auto* bad = new juce::DynamicObject();
+            bad->setProperty ("position", "0.5");                                   // string
+            juce::Array<juce::var> arr;
+            arr.add (1.0);
+            bad->setProperty ("lfo_rate", juce::var (arr));                          // array
+            bad->setProperty ("env_amount", juce::var (new juce::DynamicObject()));  // object
+            bad->setProperty ("amp_decay", juce::var());                             // null
+            bad->setProperty ("interp", false);                                      // bool
+            bad->setProperty ("bandlimit", true);                                    // bool
+            bad->setProperty ("lfo_depth", 0.25);                                    // number
+            bad->setProperty ("menv_sustain", 1.7);                                  // clamp -> 1
+            bad->setProperty ("amp_sustain", -0.5);                                  // clamp -> 0
+            const bool ok = p.applyUserPresetJson (throughJson (wrapParams (bad)));
+
+            std::string whyMal, whyMiss, whyClamp;
+            const std::set<std::string> malformed { "position", "lfo_rate", "env_amount", "amp_decay" };
+            const std::set<std::string> present { "interp", "bandlimit", "lfo_depth", "menv_sustain", "amp_sustain" };
+            int missing = 0;
+            for (int i = 0; i < kNumParams; ++i)
+            {
+                if (isOutput (i))
+                    continue;
+                auto& rp = paramAt (p, i);
+                const std::string pid = ids::all[(size_t) i];
+                const float now = rp.getValue();
+                if (malformed.count (pid) != 0)
+                {
+                    if (std::abs (now - rp.getDefaultValue()) > kTolNorm)
+                        whyMal += pid + " = " + fmt (now, 4) + " (want default " + fmt (rp.getDefaultValue(), 4) + "); ";
+                }
+                else if (present.count (pid) == 0)
+                {
+                    ++missing;
+                    if (std::abs (now - rp.getDefaultValue()) > kTolNorm)
+                        whyMiss += pid + " = " + fmt (now, 4) + " (want default " + fmt (rp.getDefaultValue(), 4) + "); ";
+                }
+            }
+            auto expect = [&p] (const char* pid, float want, std::string& why)
+            {
+                auto* rp = p.getAPVTS().getParameter (pid);
+                if (rp == nullptr || std::abs (rp->getValue() - want) > kTolNorm)
+                    why += std::string (pid) + " = " + (rp != nullptr ? fmt (rp->getValue(), 4) : std::string ("?"))
+                         + " (want " + fmt (want, 4) + "); ";
+            };
+            expect ("interp", 0.0f, whyMal);
+            expect ("bandlimit", 1.0f, whyMal);
+            expect ("lfo_depth", 0.25f, whyMal);
+            expect ("menv_sustain", 1.0f, whyClamp);
+            expect ("amp_sustain", 0.0f, whyClamp);
+            const bool outOk = std::abs (paramAt (p, outIdx).getValue() - outBefore) <= kTolNorm;
+            if (! outOk)
+                whyMiss += "output level moved; ";
+
+            report ("G-PRESET-USER[malformed]", ok && whyMal.empty(),
+                    "string / array / object / null -> default; bools true / false and a number apply"
+                    + (whyMal.empty() ? std::string() : " | " + whyMal));
+            report ("G-PRESET-USER[missing]", ok && whyMiss.empty() && missing == 11,
+                    std::to_string (missing) + " absent params (want 11) at their defaults; output level untouched"
+                    + (whyMiss.empty() ? std::string() : " | " + whyMiss));
+            report ("G-PRESET-USER[clamp]", ok && whyClamp.empty(),
+                    "1.7 -> 1.0, -0.5 -> 0.0" + (whyClamp.empty() ? std::string() : " | " + whyClamp));
+        }
+
+        // [refuse] nothing applies, nothing changes.
+        {
+            auto* notObj = new juce::DynamicObject();
+            notObj->setProperty ("parameters", 5);
+            auto* strObj = new juce::DynamicObject();
+            strObj->setProperty ("parameters", "x");
+            auto* noParams = new juce::DynamicObject();
+            noParams->setProperty ("version", "1.0.0");
+            juce::Array<juce::var> topArr;
+            topArr.add (1.0);
+            const std::vector<std::pair<const char*, juce::var>> cases {
+                { "parameters absent",     throughJson (juce::var (noParams)) },
+                { "parameters = 5",        throughJson (juce::var (notObj)) },
+                { "parameters = \"x\"",    throughJson (juce::var (strObj)) },
+                { "top-level array",       juce::var (topArr) },
+                { "top-level string",      juce::var ("x") },
+                { "void",                  juce::var() },
+            };
+            std::string why;
+            for (const auto& c : cases)
+            {
+                randomise (p, rng);
+                const auto before = snapshot (p);
+                const bool ok = p.applyUserPresetJson (c.second);
+                const auto after = snapshot (p);
+                const bool same = std::memcmp (before.data(), after.data(), sizeof (float) * before.size()) == 0;
+                if (ok || ! same)
+                    why += std::string (c.first) + ": returned " + (ok ? "true" : "false") + ", values "
+                         + (same ? "unchanged" : "CHANGED") + "; ";
+            }
+            report ("G-PRESET-USER[refuse]", why.empty(),
+                    std::to_string (cases.size()) + " non-object / no-parameters inputs -> false, all 21 values bit-identical"
+                    + (why.empty() ? std::string() : " | " + why));
+        }
+
+        // NC: an apply that also copies output_level fails the output arm.
+        {
+            randomise (p, rng);
+            const float outBefore = paramAt (p, outIdx).getValue();
+            naiveUserApply (p, json);
+            const float outNow = paramAt (p, outIdx).getValue();
+            if (std::abs (outNow - outBefore) > kTolNorm)
+                report ("G-PRESET-USER-NC", true,
+                        "an apply that copies the output level moved it " + fmt (paramAt (p, outIdx).convertFrom0to1 (outBefore), 2)
+                        + " -> " + fmt (paramAt (p, outIdx).convertFrom0to1 (outNow), 2) + " dB - FAILS as designed");
+            else
+                report ("G-PRESET-USER-NC", false, "the output-copying apply left the output level alone - the output arm is vacuous");
+        }
+    }
+
+    //==========================================================================
+    // G-PRESET-NAME (D-AE): sanitisePresetName is pure.
+    void gatePresetName()
+    {
+        const auto rlo  = juce::String::charToString ((juce::juce_wchar) 0x202e);
+        const auto lrm  = juce::String::charToString ((juce::juce_wchar) 0x200e);
+        const auto nel  = juce::String::charToString ((juce::juce_wchar) 0x0085);
+        const auto lri  = juce::String::charToString ((juce::juce_wchar) 0x2066);
+        const auto eAcute = juce::String::charToString ((juce::juce_wchar) 0x00e9);
+        const std::vector<std::pair<juce::String, juce::String>> cases {
+            { "  Bright Pad  ",                         "Bright Pad" },
+            { juce::String ("../x") + rlo + "y",        "xy" },
+            { "a\tb\nc",                                "abc" },
+            { ".hidden",                                "hidden" },
+            { ". .x",                                   "x" },
+            { "   ",                                    "" },
+            { "/\\:",                                   "" },
+            { "a:b/c\\d?",                              "abcd" },
+            { juce::String ("p") + nel + "q" + lrm + "r" + lri + "s", "pqrs" },
+            { juce::String ("caf") + eAcute,            juce::String ("caf") + eAcute },
+            { juce::String::repeatedString ("a", 100),  juce::String::repeatedString ("a", 64) },
+            { "Init - Additive Build",                  "Init - Additive Build" },
+        };
+        std::string why;
+        for (const auto& c : cases)
+        {
+            const auto got = Proc::sanitisePresetName (c.first);
+            if (got != c.second)
+                why += "\"" + printable (c.first) + "\" -> \"" + printable (got) + "\" (want \"" + printable (c.second) + "\"); ";
+        }
+        report ("G-PRESET-NAME", why.empty(),
+                std::to_string (cases.size()) + " cases: trim, C0 / C1 / bidi stripped, legal file name, leading dots, 64 chars, "
+                "\"\" refused; non-ASCII letters kept" + (why.empty() ? std::string() : " | " + why));
+    }
+
+    //==========================================================================
+    // G-PRESET-WALK (D-AE): one walk order; prev / next entry rules.
+    void gatePresetWalk()
+    {
+        juce::StringArray users;
+        users.add ("zeta");
+        users.add ("Alpha");
+        users.add ("alias demo");     // a factory name in another case: dropped
+        users.add ("beta");
+        users.add ("ALPHA");          // a case-insensitive duplicate: dropped
+        const auto order = Proc::buildWalkOrder (users);
+
+        std::string why;
+        const auto& names = expectedFactoryNames();
+        const int nf = (int) names.size();
+        if (order.size() != nf + 3)
+            why += std::to_string (order.size()) + " entries (want 12); ";
+        for (int k = 0; k < std::min (nf, order.size()); ++k)
+            if (order[k] != juce::String (names[(size_t) k]))
+                why += "slot " + std::to_string (k) + " \"" + order[k].toStdString() + "\"; ";
+        // "Alpha" / "ALPHA" sort equal: whichever comes first is kept.
+        if (order.size() == nf + 3 && (! order[nf].equalsIgnoreCase ("Alpha") || order[nf + 1] != "beta" || order[nf + 2] != "zeta"))
+            why += "user tail \"" + order[nf].toStdString() + "\", \"" + order[nf + 1].toStdString() + "\", \""
+                 + order[nf + 2].toStdString() + "\" (want Alpha, beta, zeta); ";
+
+        auto step = [&order] (const char* cur, int dir) { return Proc::neighbourInOrder (order, cur, dir); };
+        const std::vector<std::tuple<const char*, int, juce::String>> moves {
+            { "",                      1, names[0] },
+            { "",                     -1, "zeta" },
+            { "nope",                  1, names[0] },
+            { "nope",                 -1, "zeta" },
+            { "Init - Additive Build", 1, names[1] },
+            { "Init - Additive Build",-1, "zeta" },
+            { "4-bit PPG",             1, order.size() > nf ? order[nf] : juce::String() },   // the first user stem
+            { "zeta",                  1, names[0] },
+            { "drive sweep",           1, names[5] },
+        };
+        for (const auto& m : moves)
+        {
+            const auto got = step (std::get<0> (m), std::get<1> (m));
+            if (got != std::get<2> (m))
+                why += std::string ("from \"") + std::get<0> (m) + "\" " + (std::get<1> (m) > 0 ? "next" : "prev") + " -> \""
+                     + got.toStdString() + "\" (want \"" + std::get<2> (m).toStdString() + "\"); ";
+        }
+        const bool emptyOk = Proc::neighbourInOrder ({}, "x", 1).isEmpty();
+        if (! emptyOk)
+            why += "empty order returned a name; ";
+
+        report ("G-PRESET-WALK", why.empty(),
+                "9 factory names in table order + users sorted case-insensitively (factory-name and duplicate stems dropped); "
+                + std::to_string (moves.size()) + " prev / next moves incl. unnamed / unknown entry and wrap"
+                + (why.empty() ? std::string() : " | " + why));
+    }
+
+    //==========================================================================
+    // G-PRESET-STATE (D-AF / D-AG): the identity presetState reports.
+    std::string identityText (Proc& p)
+    {
+        return "\"" + p.getPresetName().toStdString() + "\" / id \"" + p.getPresetId().toStdString() + "\" / factory "
+             + (p.isPresetFactory() ? "true" : "false") + " / modified " + (p.isPresetModified() ? "true" : "false");
+    }
+
+    bool identityIs (Proc& p, const juce::String& name, const juce::String& id, bool factory, bool modified)
+    {
+        return p.getPresetName() == name && p.getPresetId() == id && p.isPresetFactory() == factory
+            && p.isPresetModified() == modified;
+    }
+
+    // Saved state with the currentPreset attribute replaced (nullptr = removed).
+    juce::MemoryBlock stateWithPreset (Proc& p, const char* presetAttr)
+    {
+        juce::MemoryBlock saved, out;
+        p.getStateInformation (saved);
+        if (auto xml = juce::AudioProcessor::getXmlFromBinary (saved.getData(), (int) saved.getSize()))
+        {
+            if (presetAttr == nullptr)
+                xml->removeAttribute ("currentPreset");
+            else
+                xml->setAttribute ("currentPreset", juce::String (presetAttr));
+            juce::AudioProcessor::copyXmlToBinary (*xml, out);
+        }
+        return out;
+    }
+
+    void gatePresetState()
+    {
+        std::string why;
+        auto p = std::make_unique<Proc>();
+
+        if (! identityIs (*p, "Init - Additive Build", "init", true, false))
+            why += "fresh " + identityText (*p) + "; ";
+
+        const auto rev0 = p->getPresetRevision();
+        const bool applied = p->applyFactoryPreset ("driveSweep");
+        if (! applied || ! identityIs (*p, "Drive Sweep", "driveSweep", true, false) || p->getPresetRevision() == rev0)
+            why += "after driveSweep " + identityText (*p) + ", revision " + std::to_string (rev0) + " -> "
+                 + std::to_string (p->getPresetRevision()) + "; ";
+
+        auto& pos = *p->getAPVTS().getParameter (ids::position);
+        pos.setValueNotifyingHost (pos.getValue() + 0.01f);
+        const bool nudged = p->isPresetModified();
+        if (! nudged)
+            why += "position +0.01 not modified; ";
+
+        p->applyFactoryPreset ("driveSweep");
+        const bool reapplied = ! p->isPresetModified();
+        if (! reapplied)
+            why += "re-apply still modified; ";
+
+        setParam (*p, ids::outputLevel, kOutputDb);
+        const bool outOnly = ! p->isPresetModified();
+        if (! outOnly)
+            why += "output level alone made it modified; ";
+
+        // State round trip.
+        juce::MemoryBlock saved;
+        p->getStateInformation (saved);
+        auto restored = std::make_unique<Proc>();
+        restored->setStateInformation (saved.getData(), (int) saved.getSize());
+        if (! identityIs (*restored, "Drive Sweep", "driveSweep", true, false))
+            why += "restored " + identityText (*restored) + "; ";
+
+        // A restored user name whose file is missing: kept, unmodified (no
+        // folder needed - the name cannot exist on disk).
+        const juce::String missing ("osiw gate missing " + juce::String::toHexString (juce::Random::getSystemRandom().nextInt64()));
+        const auto blobMissing = stateWithPreset (*p, missing.toRawUTF8());
+        auto user = std::make_unique<Proc>();
+        user->setStateInformation (blobMissing.getData(), (int) blobMissing.getSize());
+        const bool userBefore = identityIs (*user, missing, "", false, false);
+        user->refreshPresetTargetsIfNeeded();
+        const bool userAfter = identityIs (*user, missing, "", false, false);
+        if (! userBefore || ! userAfter)
+            why += "missing user file: " + identityText (*user) + "; ";
+
+        // An old session (no property): unnamed, unmodified.
+        const auto blobOld = stateWithPreset (*p, nullptr);
+        auto old = std::make_unique<Proc>();
+        old->setStateInformation (blobOld.getData(), (int) blobOld.getSize());
+        if (! identityIs (*old, "", "", false, false))
+            why += "old session " + identityText (*old) + "; ";
+
+        report ("G-PRESET-STATE", why.empty(),
+                "fresh Init/init/factory/unmodified; driveSweep -> \"Drive Sweep\" (revision bumped); position +0.01 -> modified "
+                + std::string (nudged ? "yes" : "NO") + "; re-apply -> unmodified " + (reapplied ? "yes" : "NO")
+                + "; output level only -> unmodified " + (outOnly ? "yes" : "NO") + "; state round trip -> "
+                + identityText (*restored) + "; missing user file -> " + identityText (*user) + "; no property -> "
+                + identityText (*old) + (why.empty() ? std::string() : " | " + why));
+    }
+
+    //==========================================================================
+    // G-PRESET-IMPORTED (D-AC): a user preset stores the bank CHOICE only; its
+    // apply never touches the imported bank, its blob or the import status.
+    juce::String importedDataString (Proc& p)
+    {
+        juce::MemoryBlock mb;
+        p.getStateInformation (mb);
+        if (auto xml = juce::AudioProcessor::getXmlFromBinary (mb.getData(), (int) mb.getSize()))
+            if (auto* child = xml->getChildByName ("IMPORTED_BANK"))
+                return child->getStringAttribute ("data");
+        return {};
+    }
+
+    juce::var bankOnlyPreset (float bankNorm)
+    {
+        auto* po = new juce::DynamicObject();
+        po->setProperty ("bank", (double) bankNorm);
+        return throughJson (wrapParams (po));
+    }
+
+    void gatePresetImported()
+    {
+        Rig rig (48000.0, 512, vizBase (0, 0.5f, true, 0));
+        Proc& p = *rig.proc;
+        Proc::ImportStatus st;
+        const bool done = importMemAndWait (p, "keep me.wav", makeWav16 (harmonicPcm (3 * kTable)), st);
+        const auto hold = p.getImportedBankSnapshot();             // kept alive: the address cannot be reused
+        const auto data0 = importedDataString (p);
+        const auto ver0 = p.getImportStatusVersion();
+        auto& bankParam = *p.getAPVTS().getParameter (ids::bank);
+
+        const bool ok1 = p.applyUserPresetJson (bankOnlyPreset (1.0f));
+        const int bank1 = p.getSelectedBankIndex();
+        const bool same1 = p.getImportedBankSnapshot() == hold && importedDataString (p) == data0;
+
+        const bool ok2 = p.applyUserPresetJson (bankOnlyPreset (bankParam.convertTo0to1 (4.0f)));
+        const int bank2 = p.getSelectedBankIndex();
+        const bool same2 = p.getImportedBankSnapshot() == hold && importedDataString (p) == data0;
+        const bool statusSame = p.getImportStatusVersion() == ver0 && p.getImportStatus().state == Proc::ImportStatus::State::done;
+
+        report ("G-PRESET-IMPORTED", done && hold != nullptr && data0.isNotEmpty() && ok1 && ok2 && bank1 == Proc::kImportedIdx
+                                     && bank2 == 4 && same1 && same2 && statusSame,
+                "import " + statusText (st) + " (" + std::to_string (data0.length()) + " data chars); user JSON bank 1.0 -> bank "
+                + std::to_string (bank1) + " (want 5), bank Drive -> " + std::to_string (bank2) + " (want 4); snapshot pointer + "
+                "IMPORTED_BANK data " + (same1 && same2 ? "unchanged" : "CHANGED") + "; import status "
+                + (statusSame ? "untouched" : "CHANGED"));
+
+        // NC: a module-style XML restore (the whole tree, no IMPORTED_BANK
+        // child) replaces the session bank -> the pointer arm fails.
+        {
+            juce::MemoryBlock mb, stripped;
+            p.getStateInformation (mb);
+            if (auto xml = juce::AudioProcessor::getXmlFromBinary (mb.getData(), (int) mb.getSize()))
+            {
+                while (auto* c = xml->getChildByName ("IMPORTED_BANK"))
+                    xml->removeChildElement (c, true);
+                juce::AudioProcessor::copyXmlToBinary (*xml, stripped);
+            }
+            p.setStateInformation (stripped.getData(), (int) stripped.getSize());
+            const bool pointerKept = p.getImportedBankSnapshot() == hold;
+            if (! pointerKept)
+                report ("G-PRESET-IMPORTED-NC", true,
+                        "module-style XML restore: snapshot pointer changed (now "
+                        + std::string (p.getImportedBankSnapshot() == nullptr ? "empty" : "another bank") + ") - FAILS as designed");
+            else
+                report ("G-PRESET-IMPORTED-NC", false, "module-style XML restore kept the pointer - the pointer arm is vacuous");
+        }
+    }
+
+    //==========================================================================
+    // G-S3W4-ERRCLEAR (D-AL): an import error lives until the next bank change.
+    void gateS3W4()
+    {
+        using S = Proc::ImportStatus::State;
+
+        // Live arm: a too-short import on bank 0.
+        {
+            Rig rig (48000.0, 512, vizBase (0, 0.5f, true, 0));
+            Proc& p = *rig.proc;
+            p.importFromMemory ("short.wav", makeWav16 (harmonicPcm (kTable - 1)));
+            Proc::ImportStatus st;
+            waitImportSettled (p, st);
+            const bool errOk = st.state == S::error && st.error == "tooShort" && p.getSelectedBankIndex() == 0;
+            const auto v0 = p.getImportStatusVersion();
+
+            p.pollBankForImportStatus();                            // control: no bank change
+            const auto ctl = p.getImportStatus();
+            const bool persists = ctl.state == S::error && p.getImportStatusVersion() == v0;
+            report ("G-S3W4-ERRCLEAR[control]", errOk && persists,
+                    "too-short import -> " + statusText (st) + "; poll with no bank change -> " + statusText (ctl)
+                    + " (want the error to persist, version unchanged)");
+
+            rig.set (ids::bank, 1.0f);                              // bank change, no poll yet
+            const auto sens = p.getImportStatus();
+            const bool sensOk = sens.state == S::error && p.getImportStatusVersion() == v0;
+            report ("G-S3W4-ERRCLEAR[sensitivity]", sensOk,
+                    "bank 0 -> 1 without a poll -> " + statusText (sens) + " (want the error: the poll is what clears it)");
+
+            p.pollBankForImportStatus();
+            const auto after = p.getImportStatus();
+            const auto v1 = p.getImportStatusVersion();
+            report ("G-S3W4-ERRCLEAR", after.state == S::idle && v1 > v0,
+                    "poll after the bank change -> " + statusText (after) + ", version " + std::to_string (v0) + " -> "
+                    + std::to_string (v1) + " (want idle, bumped)");
+        }
+
+        // Restore arm: bank = Imported + a version-2 child -> unsupported; the
+        // seeded lastStatusBank keeps it through the first poll.
+        {
+            Rig src (48000.0, 512, vizBase (Proc::kImportedIdx, 0.5f, true, 0));
+            juce::MemoryBlock saved, blob;
+            src.proc->getStateInformation (saved);
+            if (auto xml = juce::AudioProcessor::getXmlFromBinary (saved.getData(), (int) saved.getSize()))
+            {
+                auto* c = xml->createNewChildElement ("IMPORTED_BANK");
+                c->setAttribute ("version", "2");
+                c->setAttribute ("encoding", "future");
+                c->setAttribute ("filename", "future.wav");
+                c->setAttribute ("numFrames", "1");
+                c->setAttribute ("data", "AAAA");
+                juce::AudioProcessor::copyXmlToBinary (*xml, blob);
+            }
+            Rig dst (48000.0, 512, vizBase (0, 0.5f, true, 0));
+            Proc& p = *dst.proc;
+            p.setStateInformation (blob.getData(), (int) blob.getSize());
+            const auto st = p.getImportStatus();
+            const bool restoredOk = st.state == S::error && st.error == "unsupported" && p.getSelectedBankIndex() == Proc::kImportedIdx;
+            p.pollBankForImportStatus();
+            const auto kept = p.getImportStatus();
+            const bool seeded = kept.state == S::error && kept.error == "unsupported";
+            dst.set (ids::bank, 0.0f);
+            p.pollBankForImportStatus();
+            const auto cleared = p.getImportStatus();
+            report ("G-S3W4-ERRCLEAR[restore]", restoredOk && seeded && cleared.state == S::idle,
+                    "restore bank 5 + version-2 child -> " + statusText (st) + "; first poll -> " + statusText (kept)
+                    + " (want kept: seeded); bank 0 + poll -> " + statusText (cleared) + " (want idle)");
+        }
+    }
+
+    //==========================================================================
+    // G-S3W5-UIHELD (D-AM): an on-screen note must not outlive the editor.
+    struct UiHeldProbe
+    {
+        int before = 0, released = 0, after = 0, second = -1;
+    };
+
+    UiHeldProbe probeUiHeld (bool release)
+    {
+        UiHeldProbe r;
+        Rig rig (48000.0, 512, {});                                 // default amp release 0.2 s
+        rig.proc->handleUiMidi (60, true, 0.8f);
+        rig.run ((int) std::lround (0.1 * 48000.0));
+        r.before = rig.proc->getSoundingVoiceCountForTesting();
+        if (release)
+            r.released = rig.proc->releaseUiHeldNotes();
+        rig.run ((int) std::lround (0.25 * 48000.0));               // release 0.2 s + 50 ms
+        r.after = rig.proc->getSoundingVoiceCountForTesting();
+        if (release)
+            r.second = rig.proc->releaseUiHeldNotes();
+        return r;
+    }
+
+    void gateS3W5()
+    {
+        const auto fix = probeUiHeld (true);
+        report ("G-S3W5-UIHELD", fix.before >= 1 && fix.released == 1 && fix.after == 0 && fix.second == 0,
+                "UI note 60 sounding " + std::to_string (fix.before) + " voice(s) after 100 ms; releaseUiHeldNotes queued "
+                + std::to_string (fix.released) + " (want 1); after 250 ms " + std::to_string (fix.after)
+                + " sounding (want 0); a second release queued " + std::to_string (fix.second) + " (want 0)");
+
+        const auto nc = probeUiHeld (false);
+        if (nc.before >= 1 && nc.after >= 1)
+            report ("G-S3W5-UIHELD-NC", true,
+                    "without releaseUiHeldNotes the UI note still sounds (" + std::to_string (nc.after)
+                    + " voice) after 250 ms - FAILS as designed");
+        else
+            report ("G-S3W5-UIHELD-NC", false,
+                    "without the release: " + std::to_string (nc.before) + " -> " + std::to_string (nc.after)
+                    + " sounding - the gate is vacuous");
+    }
+
+    //==========================================================================
+    // G-S3N13 (D-AP): one host gesture per stepped-knob DRAG.
+    void gateS3N13()
+    {
+        auto proc = std::make_unique<Proc>();
+        Proc& p = *proc;
+        auto* bd = dynamic_cast<juce::AudioParameterChoice*> (p.getAPVTS().getParameter (ids::bitDepth));
+        auto* div = dynamic_cast<juce::AudioParameterChoice*> (p.getAPVTS().getParameter (ids::lfoDiv));
+        if (bd == nullptr || div == nullptr)
+        {
+            report ("G-S3N13", false, "bit_depth / lfo_div are not choice parameters");
+            return;
+        }
+
+        GestureCounter g ((int) p.getParameters().size());
+        for (auto* prm : p.getParameters())
+            prm->addListener (&g);
+        const auto bi = (size_t) bd->getParameterIndex();
+        const auto di = (size_t) div->getParameterIndex();
+        auto total = [] (const std::vector<int>& v) { int n = 0; for (int x : v) n += x; return n; };
+
+        // [drag] begin -> move 3 -> 7 -> 12 -> end.
+        g.reset();
+        const bool d0 = p.stepKnobGesture ("bit_depth", 0, 0);
+        const bool d1 = p.stepKnobGesture ("bit_depth", 1, 3);
+        const bool d2 = p.stepKnobGesture ("bit_depth", 1, 7);
+        const bool d3 = p.stepKnobGesture ("bit_depth", 1, 12);
+        const bool d4 = p.stepKnobGesture ("bit_depth", 2, 12);
+        const bool dragOk = d0 && d1 && d2 && d3 && d4 && g.begins[bi] == 1 && g.ends[bi] == 1 && bd->getIndex() == 12;
+        report ("G-S3N13", dragOk,
+                "bit_depth drag begin / 3 / 7 / 12 / end: " + std::to_string (g.begins[bi]) + " begin + "
+                + std::to_string (g.ends[bi]) + " end (want 1 + 1), final index " + std::to_string (bd->getIndex()) + " (want 12)");
+
+        // [refusals] a move without a begin; a non-allow-listed id; an end
+        // without a begin.
+        g.reset();
+        const int idxBefore = bd->getIndex();
+        const bool strayMove = p.stepKnobGesture ("bit_depth", 1, 5);
+        const bool strayEnd  = p.stepKnobGesture ("bit_depth", 2, 5);
+        const bool posBegin  = p.stepKnobGesture ("position", 0, 0);
+        const bool posMove   = p.stepKnobGesture ("position", 1, 3);
+        const bool badPhase  = p.stepKnobGesture ("bit_depth", 7, 3);
+        const bool refuseOk = ! strayMove && ! strayEnd && ! posBegin && ! posMove && ! badPhase && bd->getIndex() == idxBefore
+                           && total (g.begins) == 0 && total (g.ends) == 0;
+        report ("G-S3N13[refuse]", refuseOk,
+                std::string ("move / end without a begin -> ") + (strayMove || strayEnd ? "ACCEPTED" : "false")
+                + "; id position -> " + (posBegin || posMove ? "ACCEPTED" : "false") + "; phase 7 -> "
+                + (badPhase ? "ACCEPTED" : "false") + "; index " + std::to_string (bd->getIndex()) + " (was "
+                + std::to_string (idxBefore) + "); gestures " + std::to_string (total (g.begins)) + " / "
+                + std::to_string (total (g.ends)) + " (want 0 / 0)");
+
+        // [close] begin + closeStepKnobGestures -> exactly 1 end (twice = still 1).
+        g.reset();
+        p.stepKnobGesture ("bit_depth", 0, 0);
+        p.closeStepKnobGestures();
+        p.closeStepKnobGestures();
+        const bool closeOk = g.begins[bi] == 1 && g.ends[bi] == 1;
+        report ("G-S3N13[close]", closeOk,
+                "begin + closeStepKnobGestures x2: " + std::to_string (g.begins[bi]) + " begin + " + std::to_string (g.ends[bi])
+                + " end (want 1 + 1)");
+
+        // [double-begin] + lfo_div clamp.
+        g.reset();
+        p.stepKnobGesture ("bit_depth", 0, 0);
+        p.stepKnobGesture ("bit_depth", 0, 0);
+        p.stepKnobGesture ("bit_depth", 2, 0);
+        p.stepKnobGesture ("lfo_div", 0, 0);
+        p.stepKnobGesture ("lfo_div", 1, 999);
+        p.stepKnobGesture ("lfo_div", 2, 999);
+        const int nDiv = div->choices.size();
+        const bool dblOk = g.begins[bi] == 1 && g.ends[bi] == 1 && g.begins[di] == 1 && g.ends[di] == 1
+                        && div->getIndex() == nDiv - 1;
+        report ("G-S3N13[double-begin]", dblOk,
+                "bit_depth begin x2 + end: " + std::to_string (g.begins[bi]) + " + " + std::to_string (g.ends[bi])
+                + " (want 1 + 1); lfo_div move 999 -> index " + std::to_string (div->getIndex()) + " (want "
+                + std::to_string (nDiv - 1) + ")");
+
+        // NC: the ComboBoxState path - one complete gesture per detent.
+        g.reset();
+        for (int idx : { 3, 7, 12 })
+        {
+            bd->beginChangeGesture();
+            bd->setValueNotifyingHost (bd->convertTo0to1 ((float) idx));
+            bd->endChangeGesture();
+        }
+        if (g.begins[bi] != 1 || g.ends[bi] != 1)
+            report ("G-S3N13-NC", true,
+                    "per-detent complete gestures: " + std::to_string (g.begins[bi]) + " begin / " + std::to_string (g.ends[bi])
+                    + " end pairs for one 3-detent drag - FAILS as designed");
+        else
+            report ("G-S3N13-NC", false, "per-detent gestures counted 1 + 1 - the gesture count is vacuous");
+
+        for (auto* prm : p.getParameters())
+            prm->removeListener (&g);
+    }
 }
 
 int main (int, char**)
@@ -2242,6 +3700,23 @@ int main (int, char**)
 
     gateDrop();
     gateImportErr();
+
+    // Stage 4 (4-polish Task 4).
+    gateVizRelease();
+    gateSanitise();
+    gateDropCapSync();
+
+    // Stage 4 (4-polish Tasks 6-8).
+    gateFactory();
+    gateS3N5();
+    gatePresetUser();
+    gatePresetName();
+    gatePresetWalk();
+    gatePresetState();
+    gatePresetImported();
+    gateS3W4();
+    gateS3W5();
+    gateS3N13();
 
     report ("G-FINITE", gNonFinite == 0 && gChannelMismatch == 0,
             std::to_string (gNonFinite) + " non-finite, " + std::to_string (gChannelMismatch)

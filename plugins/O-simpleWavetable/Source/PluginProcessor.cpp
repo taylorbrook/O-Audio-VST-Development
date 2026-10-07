@@ -31,6 +31,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <limits>
 
 //==============================================================================
 namespace
@@ -55,7 +56,8 @@ namespace
     constexpr int kNumVoiceModes      = 2;    // Poly, Mono
     constexpr int kNumLfoSyncModes    = 2;    // Free, Tempo
     constexpr int kMidiChunkBytes     = 32768;
-    constexpr int kWheelMidiBytes     = 4096;
+    constexpr int kWheelMidiBytes     = kMidiChunkBytes;   // note 3: wheelMidi is a subset of chunkMidi
+    constexpr int kMidiEventHeader    = (int) (sizeof (juce::int32) + sizeof (juce::uint16));   // MidiBuffer per-event header
 
     using Range = juce::NormalisableRange<float>;   // plain {start,end,interval,skew} ONLY
 
@@ -216,6 +218,11 @@ OSimpleWavetableAudioProcessor::OSimpleWavetableAudioProcessor()
     synth.setMinimumRenderingSubdivisionSize (1, true);
     midiCollector.reset (44100.0);                 // valid base before the first prepareToPlay (sibling)
 
+    // Stage 4: a fresh instance IS the Init preset (kInit == the APVTS
+    // defaults), unmodified (D-AD). No file I/O here (D-AH).
+    setCurrentPreset (wtpresets::kFactory[0].name, resolveTargets (recipeTargets (wtpresets::kFactory[0])), true, false);
+    lastStatusBank.store (getSelectedBankIndex());  // W4 seed (D-AL)
+
     startTimer (250);                              // reaper sweep (no callbacks without a message loop: harness sweeps itself)
 }
 
@@ -326,22 +333,36 @@ void OSimpleWavetableAudioProcessor::prepareToPlay (double sampleRate, int sampl
     // Voices were just reset (no cfg survives), and prepareToPlay is never
     // concurrent with processBlock: nothing is audio-held any more.
     audioHeldBank.store (nullptr);
+    resetDisplayState (sampleRate);
+
+    setLatencySamples (0);                                      // getLatencySamples() is non-virtual (JUCE 8)
+    prepared.store (true);                                      // note 4: LAST (buffers sized above)
+}
+
+void OSimpleWavetableAudioProcessor::resetDisplayState (double fs) noexcept
+{
     dispSounding.store (false, std::memory_order_relaxed);
     dispLfo.store (0.0f, std::memory_order_relaxed);
     dispMenv.store (0.0f, std::memory_order_relaxed);
     dispAmp.store (0.0f, std::memory_order_relaxed);
     dispNote.store (-1, std::memory_order_relaxed);                    // D-X
     dispHz.store (0.0f, std::memory_order_relaxed);
-    displayFs.store (sampleRate, std::memory_order_relaxed);
-
-    setLatencySamples (0);                                      // getLatencySamples() is non-virtual (JUCE 8)
+    displayFs.store (fs, std::memory_order_relaxed);
 }
 
 void OSimpleWavetableAudioProcessor::releaseResources()
 {
+    // Note 4: prepared is NOT cleared here (D-AJ(1)): the buffers stay valid,
+    // and a host that processes after release must not go silent.
     synth.allNotesOff (0, false);                  // hard stop: no voice keeps a cfg.bank
     monoStack.clear();
     audioHeldBank.store (nullptr);                 // not concurrent with processBlock
+    bool clearDisp = true;
+   #if OSIW_TEST_HOOKS
+    clearDisp = testReleaseClears;
+   #endif
+    if (clearDisp)
+        resetDisplayState (displayFs.load (std::memory_order_relaxed));   // N4: no frozen "sounding" lamp
 }
 
 bool OSimpleWavetableAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -359,7 +380,12 @@ void OSimpleWavetableAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
 
     const int numSamples = buffer.getNumSamples();
     buffer.clear();                                            // voices ADD into a cleared buffer
-    if (numSamples > 0 && buffer.getNumChannels() > 0)         // collector jasserts numSamples > 0
+    bool ready = prepared.load();                              // note 4: unprepared -> silence
+   #if OSIW_TEST_HOOKS
+    if (! testPreparedGuard)
+        ready = true;
+   #endif
+    if (ready && numSamples > 0 && buffer.getNumChannels() > 0)   // collector jasserts numSamples > 0
     {
         const WavetableBank* resolved = renderBlock (buffer, midi, numSamples);
         audioHeldBank.store (resolved);                        // D-C: BEFORE the exit increment, seq_cst
@@ -390,6 +416,12 @@ const WavetableBank* OSimpleWavetableAudioProcessor::renderBlock (juce::AudioBuf
         synth.allNotesOff (0, false);
         monoStack.clear();
         lastVoiceMode = mode;
+        bool seed = mode == 1;
+       #if OSIW_TEST_HOOKS
+        seed = seed && testMonoWheelSeed;
+       #endif
+        if (seed)
+            wtVoices[0]->pitchWheelMoved (wheelNow);           // W3: voice 0 missed the wheel while idle in Poly
     }
 
     // Resolve the bank ONCE per block (Processing Order 2). Every voice
@@ -441,9 +473,41 @@ const WavetableBank* OSimpleWavetableAudioProcessor::renderBlock (juce::AudioBuf
     // sliced and re-based to the view, so the voices' in-buffer index
     // startSample + i addresses the BlockContext arrays directly (D-H), and
     // a sub-range Synthesiser render never fires later events early.
-    for (int start = 0; start < numSamples; start += preparedBlock)
+    bool guardMidi = true;
+   #if OSIW_TEST_HOOKS
+    guardMidi = testMidiGuard;
+   #endif
+    auto evIt = midi.cbegin();
+    const auto evEnd = midi.cend();
+    for (int start = 0; start < numSamples;)
     {
-        const int n = juce::jmin (preparedBlock, numSamples - start);
+        int n = juce::jmin (preparedBlock, numSamples - start);
+
+        // note 3: fill the chunk's MIDI only up to the capacity reserved in
+        // prepareToPlay. A chunk that would overflow ends at the first event
+        // that does not fit (n may be 0: the events are then handled with no
+        // render), so the copy never grows chunkMidi on the audio thread.
+        chunkMidi.clear();                                    // keeps capacity: no allocation
+        int chunkBytes = 0;
+        for (; evIt != evEnd; ++evIt)
+        {
+            const auto meta = *evIt;
+            const int p = juce::jlimit (0, numSamples - 1, meta.samplePosition);
+            if (p >= start + n)
+                break;
+            if (guardMidi && meta.numBytes > 3)
+                continue;                                     // sysex / meta: neither path reads them
+            const int need = kMidiEventHeader + meta.numBytes;
+            if (guardMidi && chunkBytes + need > kMidiChunkBytes)
+            {
+                n = p - start;                                // end the chunk at this event
+                break;
+            }
+            chunkMidi.addEvent (meta.data, meta.numBytes, p - start);
+            chunkBytes += need;
+            if (meta.numBytes >= 3 && (meta.data[0] & 0xf0) == 0xe0)
+                wheelNow = (meta.data[1] & 0x7f) | ((meta.data[2] & 0x7f) << 7);   // W3
+        }
 
         for (int i = 0; i < n; ++i)
         {
@@ -455,15 +519,8 @@ const WavetableBank* OSimpleWavetableAudioProcessor::renderBlock (juce::AudioBuf
         // Rendered even at depth 0 (display). Writes into lfo's own buffer,
         // which blockCtx.lfo already points at. PPQ advanced to this chunk.
         lfo.render (n, lfoShape, lfoTempo, lfoRate, lfoDiv, lfo.offsetBy (transport, start));
-        lastChunkLen = n;
-
-        chunkMidi.clear();                                    // keeps capacity: no allocation
-        for (const auto meta : midi)
-        {
-            const int p = juce::jlimit (0, numSamples - 1, meta.samplePosition);
-            if (p >= start && p < start + n)
-                chunkMidi.addEvent (meta.data, meta.numBytes, p - start);
-        }
+        if (n > 0)
+            lastChunkLen = n;
 
         float* chunkChannels[1] = { ch0 + start };
         juce::AudioBuffer<float> view (chunkChannels, 1, n);   // refers to ch0; no allocation (<= 32 ch)
@@ -472,6 +529,7 @@ const WavetableBank* OSimpleWavetableAudioProcessor::renderBlock (juce::AudioBuf
             synth.renderNextBlock (view, chunkMidi, 0, n);
         else
             renderMono (view, chunkMidi, n);
+        start += n;
     }
 
     updateDisplayFromLeadVoice();
@@ -721,6 +779,22 @@ void OSimpleWavetableAudioProcessor::handleUiMidi (int noteNumber, bool noteOn, 
         : juce::MidiMessage::noteOff (1, noteNumber);
     msg.setTimeStamp (juce::Time::getMillisecondCounterHiRes() * 0.001);   // collector wants seconds
     midiCollector.addMessageToQueue (msg);
+
+    // W5 (D-AM): what the on-screen keyboard holds (a velocity-0 note-on is a
+    // note-off). Message thread (the uiMidi native).
+    uiHeld[(size_t) noteNumber] = noteOn && velocity > 0.0f;
+}
+
+int OSimpleWavetableAudioProcessor::releaseUiHeldNotes()
+{
+    int n = 0;
+    for (int note = 0; note < (int) uiHeld.size(); ++note)
+        if (uiHeld[(size_t) note])
+        {
+            handleUiMidi (note, false, 0.0f);      // queues the note-off and clears the entry
+            ++n;
+        }
+    return n;
 }
 
 //==============================================================================
@@ -746,6 +820,7 @@ void OSimpleWavetableAudioProcessor::getStateInformation (juce::MemoryBlock& des
     stripImportedBank (state);                    // never re-emit a child that rode in on replaceState
     state.setProperty (kUiLanguageProp,
                        languageCode (uiLanguage.load (std::memory_order_acquire)), nullptr);
+    state.setProperty (kCurrentPresetProp, getPresetName(), nullptr);   // D-AF ("" = unnamed)
     writeImportedBank (state);                    // exactly one child from the cache (or none)
     if (auto xml = state.createXml())
         copyXmlToBinary (*xml, destData);
@@ -769,6 +844,11 @@ void OSimpleWavetableAudioProcessor::setStateInformation (const void* data, int 
     if (! lang.isVoid())
         uiLanguage.store (languageIndex (lang.toString()), std::memory_order_release);
 
+    // D-AF: the preset name. Same isVoid gate; ABSENT -> "" (an older session
+    // is unnamed, never the ctor's Init name). Untrusted: sanitised.
+    const juce::var cp = state.getProperty (kCurrentPresetProp);
+    const juce::String restoredPreset = cp.isVoid() ? juce::String() : sanitisePresetName (cp.toString());
+
     // Detach BEFORE replaceState so the live APVTS tree never carries the blob
     // (stale-child trap, critical_preset_manager_stale_customstate_child).
     const auto bankChild = state.getChildWithName (kImportedBankTag).createCopy();   // invalid if absent
@@ -776,6 +856,15 @@ void OSimpleWavetableAudioProcessor::setStateInformation (const void* data, int 
 
     parameters.replaceState (state);
     restoreImportedBank (bankChild);
+
+    // A factory name rebuilds its targets from the table; a user name is
+    // stale until refreshPresetTargetsIfNeeded re-reads its file (D-AF).
+    if (const auto* recipe = wtpresets::findByName (restoredPreset))
+        setCurrentPreset (recipe->name, resolveTargets (recipeTargets (*recipe)), true, false);
+    else
+        setCurrentPreset (restoredPreset, Targets {}, false, restoredPreset.isNotEmpty());
+
+    lastStatusBank.store (getSelectedBankIndex());   // W4 seed: LAST (a restored notice survives the first poll)
 }
 
 //==============================================================================
@@ -951,8 +1040,26 @@ void OSimpleWavetableAudioProcessor::sweepRetiredBanks()
 
 void OSimpleWavetableAudioProcessor::timerCallback()
 {
+    pollBankForImportStatus();                     // W4: takes bankStateLock itself
     const juce::ScopedLock sl (bankStateLock);
     sweepRetiredBanks();
+}
+
+// W4 (D-AL): mirrors the page rule "an error lives until the next bank
+// change", with the editor open or closed. The passthrough blob is untouched.
+void OSimpleWavetableAudioProcessor::pollBankForImportStatus()
+{
+    const int idx = getSelectedBankIndex();
+    if (idx == lastStatusBank.load())
+        return;
+    lastStatusBank.store (idx);
+
+    const juce::ScopedLock sl (bankStateLock);
+    if (importStatus.state == ImportStatus::State::error)
+    {
+        importStatus = {};
+        importStatusVersion.fetch_add (1);
+    }
 }
 
 //==============================================================================
@@ -1134,72 +1241,515 @@ bool OSimpleWavetableAudioProcessor::importFromBase64 (const juce::String& name,
 }
 
 //==============================================================================
-// Lesson presets (D-Y). Recipes: v1-integration-checklist.md "Lesson preset
-// ids" (RESEARCH Q7); choice indices: createParameterLayout above (bank
-// 0 Sine->Saw, 1 Sine->Square, 3 Formant, 4 Drive; bit_depth 9 = "8";
-// lfo_shape 0 Sine, 1 Triangle, 4 S&H; lfo_sync 0 Free). Real values;
-// converted with each parameter's own range.
-bool OSimpleWavetableAudioProcessor::applyFactoryPreset (const juce::String& id)
+// Stage 4 presets (FUNC-08; D-AA .. D-AH). The factory recipes live in ONE
+// table, PresetRecipes.h (D-AD). Message thread unless noted. presetLock
+// guards the identity (name / targets / validity); it is never taken on the
+// audio thread and never held across setValueNotifyingHost.
+namespace
+{
+    bool isPresetOutputSlot (size_t i) noexcept
+    {
+        return std::strcmp (OSimpleWavetable::ParamIDs::all[i], OSimpleWavetable::ParamIDs::outputLevel) == 0;
+    }
+
+    // D-AE strip set for preset names: C0, DEL, C1, bidi controls.
+    bool isStrippedPresetChar (juce::juce_wchar c) noexcept
+    {
+        return c < 0x20 || c == 0x7f || (c >= 0x80 && c <= 0x9f)
+            || c == 0x200e || c == 0x200f
+            || (c >= 0x202a && c <= 0x202e)
+            || (c >= 0x2066 && c <= 0x2069);
+    }
+
+    bool isJsonNumberOrBool (const juce::var& v) noexcept
+    {
+        return v.isDouble() || v.isInt() || v.isInt64() || v.isBool();
+    }
+
+    constexpr int   kMaxPresetNameChars = 64;
+    constexpr float kApplySkipTolerance = 1.0e-6f;   // D-AB (4)
+    constexpr float kModifiedTolerance  = 1.0e-4f;   // D-AG
+}
+
+//------------------------------------------------------------------------------
+OSimpleWavetableAudioProcessor::Targets
+OSimpleWavetableAudioProcessor::recipeTargets (const wtpresets::Recipe& recipe) const
 {
     namespace ids = OSimpleWavetable::ParamIDs;
+    Targets t;
+    t.fill (std::numeric_limits<float>::quiet_NaN());
 
-    struct RecipeEntry
+    int matched = 0;
+    for (int e = 0; e < recipe.count; ++e)
     {
-        const char* paramId;
-        float value;
-    };
+        const auto& entry = recipe.entries[e];
+        for (size_t i = 0; i < ids::all.size(); ++i)
+        {
+            if (isPresetOutputSlot (i) || std::strcmp (entry.paramId, ids::all[i]) != 0)
+                continue;
+            if (auto* p = parameters.getParameter (ids::all[i]))
+            {
+                t[i] = p->convertTo0to1 (entry.raw);
+                ++matched;
+            }
+        }
+    }
+    jassert (matched == recipe.count);            // a typo in a recipe id (G-FACTORY)
+    juce::ignoreUnused (matched);
+    return t;
+}
 
-    std::vector<RecipeEntry> recipe;   // NOT std::initializer_list: assigning a braced list to one dangles
-
-    if (id == "steppedSmooth")
-        recipe = { { ids::bank, 0.0f }, { ids::position, 0.5f }, { ids::interp, 0.0f }, { ids::lfoSync, 0.0f },
-                   { ids::lfoShape, 1.0f }, { ids::lfoRate, 0.18f }, { ids::lfoDepth, 1.0f } };
-    else if (id == "aliasDemo")
-        recipe = { { ids::bank, 0.0f }, { ids::position, 1.0f }, { ids::bandlimit, 0.0f } };
-    else if (id == "driveSweep")
-        recipe = { { ids::bank, 4.0f }, { ids::position, 0.0f }, { ids::envAmount, 1.0f },
-                   { ids::menvAttack, 0.9f }, { ids::menvDecay, 1.6f }, { ids::menvSustain, 0.25f },
-                   { ids::menvRelease, 0.8f } };
-    else if (id == "vowelPad")
-        recipe = { { ids::bank, 3.0f }, { ids::position, 0.5f }, { ids::lfoSync, 0.0f }, { ids::lfoShape, 0.0f },
-                   { ids::lfoRate, 0.12f }, { ids::lfoDepth, 0.9f }, { ids::ampAttack, 0.6f },
-                   { ids::ampRelease, 1.4f } };
-    else if (id == "ppg8bit")
-        recipe = { { ids::bank, 1.0f }, { ids::position, 0.6f }, { ids::interp, 0.0f }, { ids::bitDepth, 9.0f },
-                   { ids::lfoSync, 0.0f }, { ids::lfoShape, 4.0f }, { ids::lfoRate, 3.0f },
-                   { ids::lfoDepth, 0.4f } };
-    else
-        return false;                                     // unknown id: no change
-
-    // A typo in a recipe id is a logged assertion in Debug (G-LESSON).
-    for (const auto& entry : recipe)
+// NaN -> the parameter's default; finite -> clamped to 0..1; then quantised to
+// the value the parameter will actually hold (choice / bool snap), so the
+// cached targets equal what getValue() reads back. output_level -> NaN.
+OSimpleWavetableAudioProcessor::Targets
+OSimpleWavetableAudioProcessor::resolveTargets (const Targets& targets) const
+{
+    namespace ids = OSimpleWavetable::ParamIDs;
+    Targets r;
+    r.fill (std::numeric_limits<float>::quiet_NaN());
+    for (size_t i = 0; i < ids::all.size(); ++i)
     {
-        jassert (parameters.getParameter (entry.paramId) != nullptr);
-        juce::ignoreUnused (entry);
+        if (isPresetOutputSlot (i))
+            continue;                              // user-owned: never reset, never set
+        auto* p = parameters.getParameter (ids::all[i]);
+        if (p == nullptr)
+            continue;
+        const float t = std::isfinite (targets[i]) ? juce::jlimit (0.0f, 1.0f, targets[i])
+                                                   : p->getDefaultValue();   // reset-to-defaults first
+        r[i] = p->convertTo0to1 (p->convertFrom0to1 (t));
+    }
+    return r;
+}
+
+// D-AB: the ONE apply core.
+bool OSimpleWavetableAudioProcessor::applyNormalisedTargets (const Targets& targets)
+{
+    {
+        // Stage 3 N5: a queued Imported auto-select must not override the
+        // preset's bank. handleAsyncUpdate reads and clears this flag under the
+        // same lock, so a queued callback becomes a no-op (the flag, not the
+        // queue, is the authority). A later import publish re-arms it.
+        const juce::ScopedLock sl (bankStateLock);
+        pendingAutoSelect = false;
     }
 
-    for (const auto* paramId : ids::all)
+    namespace ids = OSimpleWavetable::ParamIDs;
+    const auto resolved = resolveTargets (targets);
+    for (size_t i = 0; i < ids::all.size(); ++i)
     {
-        if (std::strcmp (paramId, ids::outputLevel) == 0)
-            continue;                                     // user-owned: never reset, never set
-
-        auto* param = parameters.getParameter (paramId);
-        if (param == nullptr)
+        if (isPresetOutputSlot (i))
             continue;
-
-        float target = param->getDefaultValue();          // normalised default = "reset first"
-        for (const auto& entry : recipe)
-            if (std::strcmp (paramId, entry.paramId) == 0)
-                target = param->convertTo0to1 (entry.value);
-
-        if (std::abs (param->getValue() - target) < 1.0e-6f)
-            continue;                                     // already there: no host edit, no gesture
-
-        param->beginChangeGesture();
-        param->setValueNotifyingHost (target);
-        param->endChangeGesture();
+        auto* p = parameters.getParameter (ids::all[i]);
+        if (p == nullptr || ! std::isfinite (resolved[i]))
+            continue;
+        if (std::abs (p->getValue() - resolved[i]) < kApplySkipTolerance)
+            continue;                              // already there: no host edit, no gesture
+        p->beginChangeGesture();
+        p->setValueNotifyingHost (resolved[i]);
+        p->endChangeGesture();
     }
     return true;
+}
+
+OSimpleWavetableAudioProcessor::Targets OSimpleWavetableAudioProcessor::currentNormalisedValues() const
+{
+    namespace ids = OSimpleWavetable::ParamIDs;
+    Targets t;
+    t.fill (std::numeric_limits<float>::quiet_NaN());
+    for (size_t i = 0; i < ids::all.size(); ++i)
+        if (! isPresetOutputSlot (i))
+            if (auto* p = parameters.getParameter (ids::all[i]))
+                t[i] = p->getValue();
+    return t;
+}
+
+void OSimpleWavetableAudioProcessor::setCurrentPreset (const juce::String& newName, const Targets& resolved,
+                                                       bool valid, bool stale)
+{
+    {
+        const juce::ScopedLock sl (presetLock);
+        curPresetName      = newName;
+        presetTargets      = resolved;
+        presetTargetsValid = valid;
+        presetTargetsStale = stale;
+    }
+    presetRevision.fetch_add (1);
+}
+
+juce::String OSimpleWavetableAudioProcessor::getPresetName() const
+{
+    const juce::ScopedLock sl (presetLock);
+    return curPresetName;
+}
+
+juce::String OSimpleWavetableAudioProcessor::getPresetId() const
+{
+    const auto* recipe = wtpresets::findByName (getPresetName());
+    return recipe != nullptr ? juce::String (recipe->id) : juce::String();
+}
+
+bool OSimpleWavetableAudioProcessor::isPresetFactory() const
+{
+    return isFactoryPresetName (getPresetName());
+}
+
+bool OSimpleWavetableAudioProcessor::isPresetModified() const
+{
+    Targets t;
+    {
+        const juce::ScopedLock sl (presetLock);
+        if (curPresetName.isEmpty() || ! presetTargetsValid)
+            return false;
+        t = presetTargets;
+    }
+
+    namespace ids = OSimpleWavetable::ParamIDs;
+    for (size_t i = 0; i < ids::all.size(); ++i)
+    {
+        if (isPresetOutputSlot (i) || ! std::isfinite (t[i]))
+            continue;                              // output_level never makes a preset "modified"
+        if (auto* p = parameters.getParameter (ids::all[i]))
+            if (std::abs (p->getValue() - t[i]) > kModifiedTolerance)
+                return true;
+    }
+    return false;
+}
+
+//------------------------------------------------------------------------------
+// Factory presets by stable id: the table, never the disk (D-AD).
+bool OSimpleWavetableAudioProcessor::applyFactoryPreset (const juce::String& id)
+{
+    const auto* recipe = wtpresets::findById (id);
+    if (recipe == nullptr)
+        return false;                              // unknown id: no change
+
+    const auto targets = recipeTargets (*recipe);
+    applyNormalisedTargets (targets);
+    setCurrentPreset (recipe->name, resolveTargets (targets), true, false);
+    return true;
+}
+
+//------------------------------------------------------------------------------
+juce::String OSimpleWavetableAudioProcessor::sanitisePresetName (const juce::String& raw)
+{
+    juce::String clean;
+    const auto trimmed = raw.trim();
+    for (auto cp = trimmed.getCharPointer(); ! cp.isEmpty();)
+    {
+        const juce::juce_wchar c = cp.getAndAdvance();
+        if (! isStrippedPresetChar (c))
+            clean += c;
+    }
+
+    clean = juce::File::createLegalFileName (clean);   // removes "#@,;:<>*^|?\/
+
+    // Leading dots (hidden files, "..") and any whitespace the strip exposed.
+    for (;;)
+    {
+        auto next = clean.trimStart();
+        while (next.startsWithChar ('.'))
+            next = next.substring (1);
+        if (next == clean)
+            break;
+        clean = next;
+    }
+
+    return clean.substring (0, kMaxPresetNameChars).trimEnd();   // "" = refused
+}
+
+std::vector<OuariconPresetManager::FactoryPresetDef> OSimpleWavetableAudioProcessor::buildFactoryPresetDefs() const
+{
+    namespace ids = OSimpleWavetable::ParamIDs;
+    std::vector<OuariconPresetManager::FactoryPresetDef> defs;
+    defs.reserve ((size_t) wtpresets::kNumFactory);
+
+    for (const auto& recipe : wtpresets::kFactory)
+    {
+        OuariconPresetManager::FactoryPresetDef def;
+        def.name = recipe.name;
+        const auto t = resolveTargets (recipeTargets (recipe));
+        for (size_t i = 0; i < ids::all.size(); ++i)
+            if (! isPresetOutputSlot (i) && std::isfinite (t[i]))
+                def.parameters[juce::String (ids::all[i])] = t[i];
+        defs.push_back (std::move (def));
+    }
+    return defs;
+}
+
+void OSimpleWavetableAudioProcessor::ensureFactoryBankOnDisk()
+{
+    if (factoryBankEnsured)
+        return;
+    factoryBankEnsured = true;
+    presetManager.initializeFactoryPresets (buildFactoryPresetDefs());   // sentinel-gated inside the module
+}
+
+//------------------------------------------------------------------------------
+juce::StringArray OSimpleWavetableAudioProcessor::buildWalkOrder (const juce::StringArray& userStems)
+{
+    juce::StringArray order;
+    for (const auto& recipe : wtpresets::kFactory)
+        order.add (recipe.name);
+
+    auto users = userStems;
+    users.sort (true);                             // case-insensitive
+    for (const auto& u : users)
+    {
+        if (u.isEmpty() || isFactoryPresetName (u) || order.contains (u, true))
+            continue;
+        order.add (u);
+    }
+    return order;
+}
+
+juce::StringArray OSimpleWavetableAudioProcessor::getPresetWalkOrder() const
+{
+    juce::StringArray stems;
+    const auto dir = presetManager.getUserPresetsDirectory();   // a path only: nothing is created
+    if (dir.isDirectory())
+        for (const auto& f : dir.findChildFiles (juce::File::findFiles, false, "*.json"))
+            stems.add (f.getFileNameWithoutExtension());
+    return buildWalkOrder (stems);
+}
+
+juce::String OSimpleWavetableAudioProcessor::neighbourInOrder (const juce::StringArray& order,
+                                                                const juce::String& current, int dir)
+{
+    const int n = order.size();
+    if (n == 0)
+        return {};
+
+    int idx = current.isEmpty() ? -1 : order.indexOf (current);
+    if (idx < 0 && current.isNotEmpty())
+        idx = order.indexOf (current, true);
+    if (idx < 0)
+        return dir >= 0 ? order[0] : order[n - 1];   // unnamed / unknown: top going forward, bottom going back
+
+    const int step = dir >= 0 ? 1 : -1;
+    return order[(idx + step + n) % n];
+}
+
+juce::String OSimpleWavetableAudioProcessor::getNeighbourPreset (int dir) const
+{
+    return neighbourInOrder (getPresetWalkOrder(), getPresetName(), dir);
+}
+
+//------------------------------------------------------------------------------
+bool OSimpleWavetableAudioProcessor::userJsonTargets (const juce::var& presetJson, Targets& out) const
+{
+    namespace ids = OSimpleWavetable::ParamIDs;
+    out.fill (std::numeric_limits<float>::quiet_NaN());
+
+    const auto* root = presetJson.getDynamicObject();
+    if (! presetJson.isObject() || root == nullptr)
+        return false;
+
+    const juce::var paramsVar = root->getProperty ("parameters");
+    const auto* paramsObj = paramsVar.getDynamicObject();
+    if (! paramsVar.isObject() || paramsObj == nullptr)
+        return false;
+
+    for (size_t i = 0; i < ids::all.size(); ++i)
+    {
+        if (isPresetOutputSlot (i))
+            continue;                              // stored by the module's save, never applied
+        const juce::var v = paramsObj->getProperty (juce::Identifier (ids::all[i]));
+        if (isJsonNumberOrBool (v))
+            out[i] = (float) (double) v;           // anything else stays NaN -> default
+    }
+    return true;
+}
+
+bool OSimpleWavetableAudioProcessor::applyUserPresetJson (const juce::var& presetJson)
+{
+    Targets t;
+    if (! userJsonTargets (presetJson, t))
+        return false;                              // nothing changed
+    return applyNormalisedTargets (t);
+}
+
+bool OSimpleWavetableAudioProcessor::loadPresetByName (const juce::String& presetName)
+{
+    if (const auto* recipe = wtpresets::findByName (presetName))
+        return applyFactoryPreset (recipe->id);    // the table, never the disk copy
+
+    if (presetName.isEmpty())
+        return false;
+
+    // Only a listed user preset loads: the name must BE a stem of the User
+    // folder listing, which also blocks any path traversal.
+    const auto order = getPresetWalkOrder();
+    const int idx = order.indexOf (presetName);
+    if (idx < wtpresets::kNumFactory)
+        return false;
+
+    const auto stem = order[idx];
+    const auto file = presetManager.getUserPresetsDirectory().getChildFile (stem + ".json");
+    if (! file.existsAsFile())
+        return false;
+
+    Targets t;
+    if (! userJsonTargets (juce::JSON::parse (file.loadFileAsString()), t))
+        return false;
+
+    applyNormalisedTargets (t);
+    setCurrentPreset (stem, resolveTargets (t), true, false);
+    return true;
+}
+
+bool OSimpleWavetableAudioProcessor::saveUserPreset (const juce::String& raw)
+{
+    const auto clean = sanitisePresetName (raw);
+    if (clean.isEmpty() || isFactoryPresetName (clean))
+        return false;                              // refused BEFORE the module
+
+    ensureFactoryBankOnDisk();
+    if (! presetManager.savePreset (clean))
+        return false;
+
+    // The module tracks the on-disk (sanitised) name.
+    setCurrentPreset (presetManager.getCurrentPresetName(), resolveTargets (currentNormalisedValues()), true, false);
+    return true;
+}
+
+bool OSimpleWavetableAudioProcessor::deleteUserPreset (const juce::String& presetName)
+{
+    if (presetName.isEmpty() || isFactoryPresetName (presetName))
+        return false;
+
+    const auto order = getPresetWalkOrder();
+    const int idx = order.indexOf (presetName);
+    if (idx < wtpresets::kNumFactory)
+        return false;                              // not a listed user preset
+
+    ensureFactoryBankOnDisk();
+    if (! presetManager.deletePreset (order[idx]))
+        return false;
+
+    bool wasCurrent = false;
+    {
+        const juce::ScopedLock sl (presetLock);
+        wasCurrent = curPresetName == order[idx];
+    }
+    if (wasCurrent)
+        setCurrentPreset ({}, Targets {}, false, false);   // unnamed (never the module's "Default")
+    else
+        presetRevision.fetch_add (1);
+    return true;
+}
+
+juce::var OSimpleWavetableAudioProcessor::getPresetCatalog() const
+{
+    juce::Array<juce::var> factory, user;
+    for (const auto& recipe : wtpresets::kFactory)
+    {
+        auto* entry = new juce::DynamicObject();
+        entry->setProperty ("name", juce::String (recipe.name));
+        entry->setProperty ("id",   juce::String (recipe.id));
+        factory.add (juce::var (entry));
+    }
+
+    const auto order = getPresetWalkOrder();
+    for (int i = wtpresets::kNumFactory; i < order.size(); ++i)
+        user.add (order[i]);
+
+    auto* root = new juce::DynamicObject();
+    root->setProperty ("factory", juce::var (std::move (factory)));
+    root->setProperty ("user",    juce::var (std::move (user)));
+    return juce::var (root);
+}
+
+void OSimpleWavetableAudioProcessor::refreshPresetTargetsIfNeeded()
+{
+    juce::String stale;
+    {
+        const juce::ScopedLock sl (presetLock);
+        if (! presetTargetsStale)
+            return;
+        presetTargetsStale = false;                // ONE attempt per restore
+        stale = curPresetName;
+    }
+    if (stale.isEmpty())
+        return;
+
+    // The name was sanitised on restore (no separators, no leading dots).
+    const auto file = presetManager.getUserPresetsDirectory().getChildFile (stale + ".json");
+    if (! file.existsAsFile())
+        return;                                    // missing: targets stay unknown -> unmodified
+
+    Targets t;
+    if (! userJsonTargets (juce::JSON::parse (file.loadFileAsString()), t))
+        return;
+    const auto resolved = resolveTargets (t);
+
+    {
+        const juce::ScopedLock sl (presetLock);
+        if (curPresetName != stale || presetTargetsValid)
+            return;                                // superseded meanwhile
+        presetTargets      = resolved;
+        presetTargetsValid = true;
+    }
+    presetRevision.fetch_add (1);
+}
+
+//------------------------------------------------------------------------------
+// N13 (D-AP): one host gesture per stepped-knob DRAG (a ComboBoxState change
+// is a complete gesture per detent).
+bool OSimpleWavetableAudioProcessor::stepKnobGesture (const juce::String& paramId, int phase, int index)
+{
+    namespace ids = OSimpleWavetable::ParamIDs;
+    const int slot = paramId == ids::bitDepth ? 0 : paramId == ids::lfoDiv ? 1 : -1;
+    if (slot < 0)
+        return false;                              // allow-list
+
+    auto* choice = dynamic_cast<juce::AudioParameterChoice*> (parameters.getParameter (paramId));
+    if (choice == nullptr || choice->choices.size() < 1)
+        return false;
+
+    bool& isOpen = stepGestureOpen[(size_t) slot];
+    if (phase == 0)
+    {
+        if (! isOpen)
+        {
+            choice->beginChangeGesture();
+            isOpen = true;
+        }
+        return true;
+    }
+    if (phase == 1)
+    {
+        if (! isOpen)
+            return false;                          // a move outside a drag changes nothing
+        const int n = choice->choices.size();
+        const int target = juce::jlimit (0, n - 1, index);
+        if (choice->getIndex() != target)
+            choice->setValueNotifyingHost (choice->convertTo0to1 ((float) target));
+        return true;
+    }
+    if (phase == 2)
+    {
+        if (! isOpen)
+            return false;
+        choice->endChangeGesture();
+        isOpen = false;
+        return true;
+    }
+    return false;
+}
+
+void OSimpleWavetableAudioProcessor::closeStepKnobGestures()
+{
+    namespace ids = OSimpleWavetable::ParamIDs;
+    const std::array<const char*, 2> slotIds { ids::bitDepth, ids::lfoDiv };
+    for (size_t s = 0; s < slotIds.size(); ++s)
+    {
+        if (! stepGestureOpen[s])
+            continue;
+        if (auto* p = parameters.getParameter (slotIds[s]))
+            p->endChangeGesture();
+        stepGestureOpen[s] = false;
+    }
 }
 
 //==============================================================================

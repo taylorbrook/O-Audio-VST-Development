@@ -50,6 +50,8 @@
 
 #pragma once
 
+#include "TestHooks.h"   // first: the OSIW_TEST_HOOKS default (Stage 2 note 8)
+
 #include <juce_core/juce_core.h>
 #include <juce_dsp/juce_dsp.h>
 

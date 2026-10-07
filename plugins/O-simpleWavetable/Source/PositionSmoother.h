@@ -42,6 +42,8 @@
 
 #pragma once
 
+#include "TestHooks.h"   // first: the OSIW_TEST_HOOKS default (Stage 2 note 8)
+
 #include <cmath>
 
 struct PositionSmoother

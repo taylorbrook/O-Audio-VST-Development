@@ -54,6 +54,12 @@
                           reopen file 1 -> import file 2 -> save -> reopen:
                           the SECOND file is restored (bank == a direct
                           import of file 2), never file 1
+      P11 currentPreset   (Stage 4, D-AF) the preset name is a root property:
+                          a fresh save carries "Init - Additive Build";
+                          "Bright Pad" survives a fresh-instance load and its
+                          next save; absent -> "" (an old session is unnamed);
+                          a hostile "../x" + U+202E + "y" is sanitised (no
+                          separator, no bidi control). No preset file is read.
 
     One line per probe: "PASS Pn <name>" or "FAIL Pn <name>: <detail>".
     Exit 0 only if every probe passes. Explicit checks only; jassert is
@@ -884,6 +890,79 @@ namespace
     }
 
     //==========================================================================
+    // P11 (4-polish D-AF).
+    juce::MemoryBlock blobWithPreset (const juce::XmlElement& base, const juce::String* value)
+    {
+        juce::XmlElement copy (base);
+        if (value != nullptr)
+            copy.setAttribute ("currentPreset", *value);
+        else
+            copy.removeAttribute ("currentPreset");
+        juce::MemoryBlock mb;
+        juce::AudioProcessor::copyXmlToBinary (copy, mb);
+        return mb;
+    }
+
+    bool probeP11 (juce::String& detail)
+    {
+        juce::StringArray problems;
+
+        auto src = makePrepared();
+        const auto xml = blobToXml (saveState (*src));
+        if (xml == nullptr)
+        {
+            detail = "fresh save has no XML";
+            return false;
+        }
+        if (! xml->hasAttribute ("currentPreset") || xml->getStringAttribute ("currentPreset") != "Init - Additive Build")
+            problems.add ("fresh save currentPreset \"" + xml->getStringAttribute ("currentPreset") + "\" (want Init - Additive Build)");
+
+        // (a) a user name survives a fresh-instance load and the next save.
+        {
+            const juce::String bright ("Bright Pad");
+            auto dst = makePrepared();
+            loadState (*dst, blobWithPreset (*xml, &bright));
+            const auto again = blobToXml (saveState (*dst));
+            const auto resaved = again != nullptr ? again->getStringAttribute ("currentPreset") : juce::String ("<no xml>");
+            if (dst->getPresetName() != bright || resaved != bright)
+                problems.add ("(a) restored \"" + dst->getPresetName() + "\", re-saved \"" + resaved + "\" (want Bright Pad)");
+        }
+
+        // (b) absent -> "" (and saved as "").
+        {
+            auto dst = makePrepared();
+            loadState (*dst, blobWithPreset (*xml, nullptr));
+            const auto again = blobToXml (saveState (*dst));
+            const bool savedEmpty = again != nullptr && again->hasAttribute ("currentPreset")
+                                 && again->getStringAttribute ("currentPreset").isEmpty();
+            if (dst->getPresetName().isNotEmpty() || ! savedEmpty)
+                problems.add ("(b) absent -> \"" + dst->getPresetName() + "\" (want \"\"), re-saved empty "
+                              + juce::String (savedEmpty ? "yes" : "no"));
+        }
+
+        // (c) hostile: path separators, dots and a bidi override (U+202E).
+        {
+            const juce::String hostile = juce::String ("../x") + juce::String::charToString ((juce::juce_wchar) 0x202e) + "y";
+            auto dst = makePrepared();
+            loadState (*dst, blobWithPreset (*xml, &hostile));
+            const auto got = dst->getPresetName();
+            bool bidi = false;
+            for (auto cp = got.getCharPointer(); ! cp.isEmpty();)
+            {
+                const juce::juce_wchar c = cp.getAndAdvance();
+                if (c == 0x202e || (c >= 0x202a && c <= 0x202e) || (c >= 0x2066 && c <= 0x2069) || c == 0x200e || c == 0x200f)
+                    bidi = true;
+            }
+            if (got.containsAnyOf ("/\\") || got.startsWithChar ('.') || bidi || got != "xy")
+                problems.add ("(c) hostile name restored as \"" + got.replace (juce::String::charToString ((juce::juce_wchar) 0x202e), "<U+202E>")
+                              + "\" (want \"xy\")");
+        }
+
+        detail = problems.joinIntoString ("; ");
+        return problems.isEmpty();
+    }
+
+    //==========================================================================
     bool report (const char* tag, const char* name, bool (*probe) (juce::String&))
     {
         juce::String detail;
@@ -924,6 +1003,7 @@ int main()
     }
     if (! report ("P9", "imported-bank-valid-two-reopen", probeP9)) ++failures;
     if (! report ("P10", "imported-bank-stale-child",     probeP10)) ++failures;
+    if (! report ("P11", "currentPreset-roundtrip",       probeP11)) ++failures;
     gTempDir.deleteRecursively();
 
     return failures == 0 ? 0 : 1;

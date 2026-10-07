@@ -37,17 +37,16 @@
 
 #pragma once
 
+// Test hooks compile ONLY on the console test targets (CMake defines
+// OSIW_TEST_HOOKS=1 there). The shipped plugin never contains them. The
+// default lives in TestHooks.h (Stage 2 note 8), included first.
+#include "TestHooks.h"
+
 #include <juce_core/juce_core.h>
 
 #include <atomic>
 #include <cstddef>
 #include <vector>
-
-// Test hooks compile ONLY on the console test targets (CMake defines
-// OSIW_TEST_HOOKS=1 there). The shipped plugin never contains them.
-#ifndef OSIW_TEST_HOOKS
- #define OSIW_TEST_HOOKS 0
-#endif
 
 struct WavetableBank
 {

@@ -164,6 +164,16 @@ namespace WavetableImporter
     }
 
     //==========================================================================
+    bool isStrippedNameChar (juce::juce_wchar c) noexcept
+    {
+        return c < 0x20 || c == 0x7f || (c >= 0x80 && c <= 0x9f)                       // C0, DEL, C1
+            || c == 0x061c || c == 0x200b || c == 0x200e || c == 0x200f                // ALM, ZWSP, LRM, RLM
+            || (c >= 0x202a && c <= 0x202e) || c == 0x2028 || c == 0x2029 || c == 0x2060   // LRE..RLO, LS, PS, WJ
+            || (c >= 0x2066 && c <= 0x2069) || c == 0xfeff                             // LRI..PDI, BOM
+            || (c >= 0xd800 && c <= 0xdfff) || c == 0xfffe || c == 0xffff || c > 0x10ffff // non-scalar / XML-excluded
+            || (c >= 0xe0000 && c <= 0xe007f);                                         // tag characters
+    }
+
     juce::String sanitiseName (const juce::String& raw)
     {
         auto base = raw.fromLastOccurrenceOf ("/", false, false)
@@ -173,7 +183,7 @@ namespace WavetableImporter
         for (auto p = base.getCharPointer(); ! p.isEmpty();)
         {
             const juce::juce_wchar c = p.getAndAdvance();
-            if (c >= 0x20 && c != 0x7f)
+            if (! isStrippedNameChar (c))
                 clean += c;
         }
 

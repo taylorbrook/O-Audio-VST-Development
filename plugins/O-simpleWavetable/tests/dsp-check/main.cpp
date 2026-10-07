@@ -61,6 +61,23 @@
       G-BLOCK              prepare(256): one 1024 block == 4 x 256, bitwise
       G-FINITE             every rendered sample finite, L == R
 
+    Stage 4 (4-polish PLAN Tasks 2-3; each with a negative control):
+      G-UNPREPARED  note 4  self-exec child (posix_spawn, never fork): exactly 0
+                            before prepareToPlay, sound after prepare and after
+                            releaseResources. NC (guard off): child dies by signal.
+      G-MIDI-FLOOD  note 3  6000 events in one host block (Poly CC / Mono wheel):
+                            wheel after the flood +2 st +/- 1 c, note-off lands.
+                            --alloc-check: flood blocks 0 allocations; NC (guard
+                            off, fresh rig) >= 1.
+      G-MONO-WHEEL  S2 W3   Poly wheel history -> Mono: |cents| <= 1 (arms A, B, C).
+                            NC (no seed): A >= +150 c, B >= +75 c.
+      G-LEGATO-XF   S2 W4   5 pitch-change triggers: fade == (1-w) y_old + w y_hard
+                            <= 1e-6; NC (keep-rate off) >= 0.1; fix vs NC
+                            bit-identical outside [t, t+240).
+      G-LEGATO-ALIAS        48 kHz, 2 s magnifier: <= no-jump floor + 1 dB; NC
+                            >= floor + 40 dB.
+      G-LEGATO-CLICK        max |dy| fade / steady <= 1.5; NC > 1.5.
+
     --alloc-check: O-Bells malloc_logger gate (volatile flag + counter,
     audio-thread scoped, liveness malloc(64) must count 1, warm-up block
     unarmed) over the G-ALLOC stimulus list. Exit 0 only if 0 allocations.
@@ -86,9 +103,11 @@
 #include "WtVoice.h"
 
 #include <algorithm>
+#include <cerrno>
 #include <cmath>
 #include <complex>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <functional>
@@ -104,7 +123,10 @@
 
 #if JUCE_MAC
  #include <execinfo.h>
+ #include <fcntl.h>
  #include <pthread.h>
+ #include <spawn.h>
+ #include <sys/wait.h>
 
 // libmalloc's stack-logging hook (what MallocStackLogging / Instruments attach to).
 extern "C"
@@ -113,6 +135,8 @@ extern "C"
                                     uintptr_t result, uint32_t numHotFramesToSkip);
     extern malloc_logger_t* malloc_logger;
 }
+
+extern char** environ;   // posix_spawn of the G-UNPREPARED child
 #endif
 
 namespace
@@ -145,6 +169,13 @@ namespace
     {
         std::ostringstream s;
         s << std::fixed << std::setprecision (prec) << v;
+        return s.str();
+    }
+
+    std::string sciStr (double v)
+    {
+        std::ostringstream s;
+        s << std::scientific << std::setprecision (2) << v;
         return s.str();
     }
 
@@ -1331,6 +1362,487 @@ namespace
     }
 
     //==========================================================================
+    //==========================================================================
+    // Stage 4 (4-polish PLAN Tasks 2-3): Stage 2 notes 3 / 4, W3, W4. Every
+    // gate has a negative control through its OSIW_TEST_HOOKS hook.
+
+    constexpr int kFloodEvents  = 6000;    // one host block, all at one sample
+    constexpr int kFloodReserve = 49160;   // chunkMidi.ensureSize (32768) reserves (n + n/2 + 8) & ~7 bytes
+
+    // Frequency from rising zero crossings over [a, b) (linear interpolation).
+    double zeroCrossHz (const std::vector<float>& x, int a, int b, double fs)
+    {
+        std::vector<double> crossings;
+        const int end = juce::jmin (b, (int) x.size());
+        for (int i = juce::jmax (a, 0); i + 1 < end; ++i)
+        {
+            const double x0 = (double) x[(size_t) i];
+            const double x1 = (double) x[(size_t) (i + 1)];
+            if (x0 < 0.0 && x1 >= 0.0)
+                crossings.push_back ((double) i + x0 / (x0 - x1));
+        }
+        if (crossings.size() < 3)
+            return 0.0;
+        return (double) (crossings.size() - 1) / ((crossings.back() - crossings.front()) / fs);
+    }
+
+    double centsVs (double f, double fExp)
+    {
+        return (f > 0.0 && fExp > 0.0) ? 1200.0 * std::log2 (f / fExp) : 1.0e9;
+    }
+
+    //==========================================================================
+    // G-UNPREPARED (note 4). The child runs in a SELF-EXEC process
+    // (posix_spawn of this executable with --child-unprepared), never a fork:
+    // a fork after JUCE's timer / pool threads start can deadlock the child on
+    // an inherited lock. Exit 0 = pass; 3 / 4 / 5 = arm a / b / c failed.
+   #if JUCE_MAC
+    int runUnpreparedChild (bool guardOff)
+    {
+        auto p = std::make_unique<Proc>();
+        p->setPreparedGuardForTesting (! guardOff);
+        p->setPlayConfigDetails (0, 2, 48000.0, 512);
+
+        juce::AudioBuffer<float> b (2, 512);
+        juce::MidiBuffer m;
+        auto renderOne = [&b, &m, &p] (int note)
+        {
+            for (int ch = 0; ch < 2; ++ch)
+                juce::FloatVectorOperations::fill (b.getWritePointer (ch), 1.0f, 512);   // processBlock must clear
+            m.clear();
+            if (note >= 0)
+                m.addEvent (juce::MidiMessage::noteOn (1, note, (juce::uint8) 100), 0);
+            p->processBlock (b, m);
+            float mx = 0.0f;
+            for (int ch = 0; ch < 2; ++ch)
+            {
+                const float* d = b.getReadPointer (ch);
+                for (int i = 0; i < 512; ++i)
+                    mx = std::max (mx, std::isfinite (d[i]) ? std::abs (d[i]) : 1.0e9f);
+            }
+            return mx;
+        };
+
+        // (a) never prepared: two blocks with a note-on -> exactly 0.
+        const float a1 = renderOne (60);
+        const float a2 = renderOne (60);
+        if (! (juce::exactlyEqual (a1, 0.0f) && juce::exactlyEqual (a2, 0.0f)))
+            return 3;
+
+        // (b) prepareToPlay -> note-on -> sound.
+        p->prepareToPlay (48000.0, 512);
+        const float b1 = renderOne (60);
+        const float b2 = renderOne (-1);
+        if (! (std::max (b1, b2) > 0.01f))
+            return 4;
+
+        // (c) releaseResources -> note-on -> sound (prepared is NOT cleared, D-AJ(1)).
+        p->releaseResources();
+        const float c1 = renderOne (64);
+        const float c2 = renderOne (-1);
+        if (! (std::max (c1, c2) > 0.01f))
+            return 5;
+
+        return 0;
+    }
+
+    struct ChildResult
+    {
+        bool spawned = false;
+        bool signalled = false;
+        int  sig = 0;
+        int  exitCode = -1;
+        std::string why;
+    };
+
+    std::string describeChild (const ChildResult& r)
+    {
+        if (! r.spawned)
+            return "NOT RUN (" + r.why + ")";
+        if (r.signalled)
+            return "killed by signal " + std::to_string (r.sig);
+        return "exit " + std::to_string (r.exitCode);
+    }
+
+    ChildResult spawnUnpreparedChild (const std::string& self, bool guardOff)
+    {
+        ChildResult r;
+        std::vector<std::string> args { self, "--child-unprepared" };
+        if (guardOff)
+            args.emplace_back ("--guard-off");
+        std::vector<char*> cargv;
+        for (auto& s : args)
+            cargv.push_back (s.data());
+        cargv.push_back (nullptr);
+
+        posix_spawn_file_actions_t fa;
+        posix_spawn_file_actions_init (&fa);
+        if (guardOff)
+        {
+            // The negative control dies mid-render: keep its output (and any
+            // assertion text on the way down) out of this log.
+            posix_spawn_file_actions_addopen (&fa, 1, "/dev/null", O_WRONLY, 0);
+            posix_spawn_file_actions_addopen (&fa, 2, "/dev/null", O_WRONLY, 0);
+        }
+
+        std::cout.flush();
+        std::fflush (stdout);
+        std::fflush (stderr);
+
+        pid_t pid = 0;
+        const int rc = posix_spawn (&pid, self.c_str(), &fa, nullptr, cargv.data(), environ);
+        posix_spawn_file_actions_destroy (&fa);
+        if (rc != 0)
+        {
+            r.why = "posix_spawn error " + std::to_string (rc);
+            return r;
+        }
+
+        int status = 0;
+        pid_t waited = -1;
+        do
+        {
+            waited = waitpid (pid, &status, 0);
+        } while (waited < 0 && errno == EINTR);
+        if (waited != pid)
+        {
+            r.why = "waitpid failed";
+            return r;
+        }
+
+        r.spawned = true;
+        if (WIFSIGNALED (status))
+        {
+            r.signalled = true;
+            r.sig = WTERMSIG (status);
+        }
+        else if (WIFEXITED (status))
+        {
+            r.exitCode = WEXITSTATUS (status);
+        }
+        return r;
+    }
+
+    void gateUnprepared (const std::string& self)
+    {
+        const auto fixed = spawnUnpreparedChild (self, false);
+        report ("G-UNPREPARED", fixed.spawned && ! fixed.signalled && fixed.exitCode == 0,
+                "self-exec child: (a) 2 x processBlock before prepareToPlay on a 1.0-filled buffer + note-on -> exactly 0; "
+                "(b) prepareToPlay -> note-on -> peak > 0.01; (c) releaseResources -> note-on -> peak > 0.01: child "
+                + describeChild (fixed) + " (want exit 0; 3 = a, 4 = b, 5 = c failed)");
+
+        const auto nc = spawnUnpreparedChild (self, true);
+        if (nc.spawned && nc.signalled)
+            report ("G-UNPREPARED-NC", true,
+                    "guard off (setPreparedGuardForTesting (false)): child killed by signal " + std::to_string (nc.sig)
+                    + " - unprepared render FAILS as designed");
+        else
+            report ("G-UNPREPARED-NC", false,
+                    "guard off: child " + describeChild (nc) + " - not killed by a signal; the gate is vacuous");
+    }
+   #endif
+
+    //==========================================================================
+    // G-MIDI-FLOOD (note 3): one 512-sample host block with a held note, a
+    // 6000-event flood at one sample (Poly: CC 1; Mono: pitch wheel, which
+    // also fills wheelMidi), then a wheel +2 st after the flood. The wheel
+    // and a later note-off must both still land.
+    std::vector<Ev> floodEvents (int b0, bool mono)
+    {
+        std::vector<Ev> evs;
+        evs.reserve ((size_t) kFloodEvents + 2);
+        evs.push_back (evOn (b0, 69));
+        for (int i = 0; i < kFloodEvents; ++i)
+            evs.push_back (mono ? evWheel (b0 + 100, 8192 + (i % 2))
+                                : Ev { b0 + 100, juce::MidiMessage::controllerEvent (1, 1, i & 127) });
+        evs.push_back (evWheel (b0 + 101, 16383));
+        return evs;
+    }
+
+    void gateMidiFlood()
+    {
+        const double fs = 48000.0;
+        const double want = 440.0 * std::pow (2.0, 2.0 / 12.0);
+        const bool exceeds = kFloodEvents * 9 > kFloodReserve;   // the flood must overflow the reserve
+        const std::string reserve = std::to_string (kFloodEvents) + " x 9 B = " + std::to_string (kFloodEvents * 9)
+                                  + " B > reserve " + std::to_string (kFloodReserve) + " B: " + (exceeds ? "yes" : "NO");
+
+        for (const bool mono : { false, true })
+        {
+            Rig rig (fs, 512, with (baseParams (BankFactory::sineSaw, 0.0f), ids::voiceMode, mono ? 1.0f : 0.0f));
+            rig.run (512);
+            const int b0 = rig.cursor;
+            rig.run (512, floodEvents (b0, mono));
+            const int tOff = rig.cursor + secs (0.3, fs);
+            const auto y = rig.run (secs (0.5, fs), { evOff (tOff, 69) });
+            const double hz = zeroCrossHz (y, secs (0.05, fs), secs (0.28, fs), fs);
+            const double c = centsVs (hz, want);
+            const double tail = rms (y, secs (0.45, fs), secs (0.5, fs));
+            const std::string gate = std::string ("G-MIDI-FLOOD[") + (mono ? "Mono" : "Poly") + "]";
+            report (gate.c_str(), exceeds && std::abs (c) <= 1.0 && tail < 1.0e-6,
+                    std::to_string (kFloodEvents) + (mono ? " wheel" : " CC") + " events at one sample + wheel 16383 after: "
+                    "pitch " + fmt (hz, 3) + " Hz vs " + fmt (want, 3) + " (+2 st) = " + fmt (c, 3)
+                    + " c (|c| <= 1); tail RMS after note-off " + sciStr (tail) + " (< 1e-6); " + reserve);
+        }
+    }
+
+    //==========================================================================
+    // G-MONO-WHEEL (Stage 2 W3): Poly wheel history -> Poly -> Mono on a block
+    // boundary -> Mono A4 at +64 samples, f by zero crossings over 0.2-0.9 s.
+    double monoWheelCents (const std::vector<Ev>& history, double expectHz, bool seed)
+    {
+        const double fs = 48000.0;
+        Rig rig (fs, 512, baseParams (BankFactory::sineSaw, 0.0f));
+        rig.proc->setMonoWheelSeedForTesting (seed);
+        rig.run (512 * 56, history);                 // ~0.6 s of Poly history
+        rig.set (ids::voiceMode, 1.0f);              // the switch lands on a block boundary
+        const int t0 = rig.cursor;
+        const auto y = rig.run (secs (1.0, fs), { evOn (t0 + 64, 69) });
+        return centsVs (zeroCrossHz (y, secs (0.2, fs), secs (0.9, fs), fs), expectHz);
+    }
+
+    void gateMonoWheel()
+    {
+        const double fs = 48000.0;
+        const std::vector<Ev> armA { evOn (0, 69), evWheel (secs (0.1, fs), 16383), evOff (secs (0.15, fs), 69),
+                                     evWheel (secs (0.5, fs), 8192) };   // up, note off, back to centre while idle
+        const std::vector<Ev> armB { evWheel (secs (0.1, fs), 4096) };  // -1 st while idle
+        const std::vector<Ev> armC {};                                  // control: no wheel
+        const double hzA = 440.0, hzB = 440.0 * std::pow (2.0, -1.0 / 12.0), hzC = 440.0;
+
+        const double a = monoWheelCents (armA, hzA, true);
+        const double b = monoWheelCents (armB, hzB, true);
+        const double c = monoWheelCents (armC, hzC, true);
+        report ("G-MONO-WHEEL", std::abs (a) <= 1.0 && std::abs (b) <= 1.0 && std::abs (c) <= 1.0,
+                "Poly history -> Mono A4: [A] wheel up, off, centre while idle " + fmt (a, 2) + " c; [B] -1 st while idle "
+                + fmt (b, 2) + " c; [C] no wheel " + fmt (c, 2) + " c (|c| <= 1 each)");
+
+        const double na = monoWheelCents (armA, hzA, false);
+        const double nb = monoWheelCents (armB, hzB, false);
+        if (na >= 150.0 && nb >= 75.0)
+            report ("G-MONO-WHEEL-NC", true,
+                    "seed off (setMonoWheelSeedForTesting (false)): [A] " + fmt (na, 2) + " c (>= +150), [B] " + fmt (nb, 2)
+                    + " c (>= +75) - stale Mono wheel FAILS as designed");
+        else
+            report ("G-MONO-WHEEL-NC", false,
+                    "seed off: [A] " + fmt (na, 2) + " c (want >= +150), [B] " + fmt (nb, 2)
+                    + " c (want >= +75) - the stale wheel was not reproduced; the gate is vacuous");
+    }
+
+    //==========================================================================
+    // G-LEGATO-* (Stage 2 W4): the frozen outgoing cycle keeps the rate it
+    // was heard at. 48 kHz, processor Rig, block 64, position 1.
+    struct XfArm
+    {
+        const char* name;
+        int bank;
+        bool mono;
+        std::vector<Ev> evs, evsOld;   // evsOld = the same render without the pitch change
+        std::vector<int> pitchAt;      // every pitch-change event e in evs: its fade [e+1, e+239] may differ fix vs NC
+    };
+
+    constexpr double kXfFs = 48000.0;
+
+    std::vector<float> renderXf (const XfArm& arm, int xfOverride, bool keepRate, bool old, double seconds)
+    {
+        Rig rig (kXfFs, 64, with (baseParams (arm.bank, 1.0f), ids::voiceMode, arm.mono ? 1.0f : 0.0f));
+        if (xfOverride >= 0)
+            rig.proc->setXfadeLenOverrideForTesting (xfOverride);
+        rig.proc->setXfadeKeepRateForTesting (keepRate);
+        return rig.run (secs (seconds, kXfFs), old ? arm.evsOld : arm.evs);
+    }
+
+    std::vector<XfArm> xfArms (int t)
+    {
+        return {
+            { "legato 60->96 Sine->Saw", BankFactory::sineSaw, true, { evOn (0, 60), evOn (t, 96) }, { evOn (0, 60) }, { t } },
+            { "legato 60->96 Drive", BankFactory::drive, true, { evOn (0, 60), evOn (t, 96) }, { evOn (0, 60) }, { t } },
+            // The note-on 60 at 100 with 96 held is itself a (downward) legato pitch change.
+            { "fallback 60->96 Drive", BankFactory::drive, true, { evOn (0, 96), evOn (100, 60), evOff (t, 60) },
+                                                                 { evOn (0, 96), evOn (100, 60) }, { 100, t } },
+            { "sounding retrigger 60->96 Drive", BankFactory::drive, true,
+                { evOn (0, 60), evOff (t - 480, 60), evOn (t, 96) }, { evOn (0, 60), evOff (t - 480, 60), evOn (t, 60) }, { t } },
+            { "Poly wheel F#4 +2 st Drive", BankFactory::drive, false, { evOn (0, 66), evWheel (t, 16383) }, { evOn (0, 66) }, { t } },
+        };
+    }
+
+    // max |y - ((1 - w_k) yOld + w_k yHard)| over the fade k = 0 .. len-1.
+    double xfResidual (const std::vector<float>& y, const std::vector<float>& yOld, const std::vector<float>& yHard,
+                       int t, int len)
+    {
+        double r = 0.0;
+        for (int k = 0; k < len; ++k)
+        {
+            const double w = 0.5 - 0.5 * std::cos (kPi * (double) k / (double) len);
+            const auto at = (size_t) (t + k);
+            const double ref = (1.0 - w) * (double) yOld[at] + w * (double) yHard[at];
+            r = std::max (r, std::abs ((double) y[at] - ref));
+        }
+        return r;
+    }
+
+    void gateLegatoXf()
+    {
+        const int t   = secs (0.25, kXfFs);
+        const int len = (int) std::lround (0.005 * kXfFs);       // 240 = the voice's real fade
+        const double total = 0.6;
+
+        bool fixOk = true, ncOk = true;
+        long long outside = 0;
+        std::string dFix, dNc;
+        for (const auto& arm : xfArms (t))
+        {
+            const auto y      = renderXf (arm, -1, true, false, total);
+            const auto yOld   = renderXf (arm, -1, true, true, total);
+            const auto yHard  = renderXf (arm, 0, true, false, total);
+            const auto yN     = renderXf (arm, -1, false, false, total);
+            const auto yOldN  = renderXf (arm, -1, false, true, total);
+            const auto yHardN = renderXf (arm, 0, false, false, total);
+
+            const double rFix = xfResidual (y, yOld, yHard, t, len);
+            const double rNc  = xfResidual (yN, yOldN, yHardN, t, len);
+            if (! (rFix <= 1.0e-6)) fixOk = false;
+            if (! (rNc >= 0.1))     ncOk = false;
+
+            // Confinement: the fix changes nothing outside the arm's own
+            // pitch-change fades [e+1, e+len-1] (every pitch change, W4).
+            auto inFade = [&arm, len] (size_t i)
+            {
+                for (const int e : arm.pitchAt)
+                    if (i >= (size_t) (e + 1) && i <= (size_t) (e + len - 1))
+                        return true;
+                return false;
+            };
+            long long diff = 0;
+            for (size_t i = 0; i < y.size() && i < yN.size(); ++i)
+                if (! inFade (i) && std::memcmp (&y[i], &yN[i], sizeof (float)) != 0)
+                    ++diff;
+            if (y.size() != yN.size())
+                ++diff;
+            outside += diff;
+
+            std::string windows;
+            for (const int e : arm.pitchAt)
+                windows += (windows.empty() ? "" : ",") + std::string ("[") + std::to_string (e + 1) + "," + std::to_string (e + len - 1) + "]";
+
+            dFix += std::string (arm.name) + " " + sciStr (rFix) + " (" + std::to_string (diff) + " diffs outside "
+                  + windows + "); ";
+            dNc  += std::string (arm.name) + " " + fmt (rNc, 3) + "; ";
+        }
+
+        report ("G-LEGATO-XF", fixOk && outside == 0,
+                "max |y - ((1-w) y_old + w y_hard)| over the real " + std::to_string (len) + "-sample fade (<= 1e-6): " + dFix
+                + "fix vs NC bit-identical outside each arm's pitch-change fades [e+1, e+" + std::to_string (len - 1) + "]: "
+                + std::to_string (outside) + " differing samples (want 0)");
+        if (ncOk)
+            report ("G-LEGATO-XF-NC", true,
+                    "keep-rate off (setXfadeKeepRateForTesting (false)): " + dNc + "(>= 0.1 each) - live-phase read FAILS as designed");
+        else
+            report ("G-LEGATO-XF-NC", false,
+                    "keep-rate off: " + dNc + "(want >= 0.1 each) - the old read was not caught; the gate is vacuous");
+    }
+
+    // Magnifier (RESEARCH B 2, metric C): Kaiser-38 FFT 2^15 at `start`; the
+    // max bin outside +/-14 bins of every k * f0 (and DC) relative to the max
+    // harmonic bin.
+    double inharmonicDb (const std::vector<float>& x, int start, double f0, double fs)
+    {
+        constexpr int kOrd = 15, kN = 1 << kOrd, kGuardBins = 14;
+        if (start < 0 || start + kN > (int) x.size())
+            return 1000.0;                                     // out of range: fails every verdict
+
+        juce::dsp::FFT fft (kOrd);
+        std::vector<float> win ((size_t) kN, 0.0f), work ((size_t) (2 * kN), 0.0f);
+        juce::dsp::WindowingFunction<float>::fillWindowingTables (win.data(), (size_t) kN,
+            juce::dsp::WindowingFunction<float>::kaiser, false, 38.0f);
+        for (int i = 0; i < kN; ++i)
+            work[(size_t) i] = x[(size_t) (start + i)] * win[(size_t) i];
+        fft.performFrequencyOnlyForwardTransform (work.data(), true);
+
+        const int nb = kN / 2;
+        const double binHz = fs / (double) kN;
+        std::vector<unsigned char> mask ((size_t) (nb + 1), 0);
+        for (int b = 0; b <= kGuardBins; ++b)
+            mask[(size_t) b] = 2;                              // DC: excluded from both
+        for (int h = 1; (double) h * f0 < 0.5 * fs; ++h)
+        {
+            const int c = (int) std::lround ((double) h * f0 / binHz);
+            for (int b = juce::jmax (0, c - kGuardBins); b <= juce::jmin (nb, c + kGuardBins); ++b)
+                if (mask[(size_t) b] == 0)
+                    mask[(size_t) b] = 1;
+        }
+
+        double mh = 0.0, mi = 0.0;
+        for (int b = 0; b <= nb; ++b)
+        {
+            const double m = (double) work[(size_t) b];
+            if (mask[(size_t) b] == 1)
+                mh = std::max (mh, m);
+            else if (mask[(size_t) b] == 0)
+                mi = std::max (mi, m);
+        }
+        return dB (mi / std::max (mh, 1.0e-300));
+    }
+
+    void gateLegatoAlias()
+    {
+        const int t = secs (0.25, kXfFs);
+        const int magLen = secs (2.0, kXfFs);                  // 2 s fade (the magnifier)
+        const int at = t + secs (0.35, kXfFs);
+        const double f60 = juce::MidiMessage::getMidiNoteInHertz (60);
+
+        bool fixOk = true, ncOk = true;
+        std::string dFix, dNc;
+        for (const int bank : { (int) BankFactory::sineSaw, (int) BankFactory::drive })
+        {
+            const XfArm arm { bank == (int) BankFactory::sineSaw ? "Sine->Saw" : "Drive", bank, true,
+                              { evOn (0, 60), evOn (t, 96) }, { evOn (0, 60) }, { t } };
+            const double floorDb = inharmonicDb (renderXf (arm, magLen, true, true, 2.0), at, f60, kXfFs);
+            const double fixDb   = inharmonicDb (renderXf (arm, magLen, true, false, 2.0), at, f60, kXfFs);
+            const double ncDb    = inharmonicDb (renderXf (arm, magLen, false, false, 2.0), at, f60, kXfFs);
+            if (! (fixDb <= floorDb + 1.0)) fixOk = false;
+            if (! (ncDb >= floorDb + 40.0)) ncOk = false;
+            dFix += std::string (arm.name) + " " + fmt (fixDb, 1) + " dB vs no-jump floor " + fmt (floorDb, 1) + " dB; ";
+            dNc  += std::string (arm.name) + " " + fmt (ncDb, 1) + " dB (floor " + fmt (floorDb, 1) + ", margin "
+                  + fmt (ncDb - floorDb, 1) + " dB); ";
+        }
+
+        report ("G-LEGATO-ALIAS", fixOk,
+                "48 kHz, Mono legato 60->96, pos 1, 2 s fade, Kaiser-38 2^15 at t+0.35 s, +/-14 bins around k*f60: " + dFix
+                + "(<= floor + 1 dB)");
+        if (ncOk)
+            report ("G-LEGATO-ALIAS-NC", true,
+                    "keep-rate off: " + dNc + "(>= floor + 40 dB) - folded alias FAILS as designed");
+        else
+            report ("G-LEGATO-ALIAS-NC", false,
+                    "keep-rate off: " + dNc + "(want >= floor + 40 dB) - the alias was not seen; the gate is vacuous");
+    }
+
+    void gateLegatoClick()
+    {
+        const int t = secs (0.25, kXfFs);
+        const XfArm arm { "legato 60->96 Drive", BankFactory::drive, true, { evOn (0, 60), evOn (t, 96) }, { evOn (0, 60) }, { t } };
+        auto ratio = [t] (const std::vector<float>& y)
+        {
+            const double fade   = maxStep (y, t - 32, t + 2400);
+            const double steady = maxStep (y, t + 2400, t + 7200);
+            return fade / std::max (steady, 1.0e-12);
+        };
+        const double rFix = ratio (renderXf (arm, -1, true, false, 0.6));
+        const double rNc  = ratio (renderXf (arm, -1, false, false, 0.6));
+
+        report ("G-LEGATO-CLICK", rFix <= 1.5,
+                "Drive Mono legato 60->96: max |dy| over [t-32, t+2400) / steady max |dy| over [t+2400, t+7200) = "
+                + fmt (rFix, 3) + " (<= 1.5); keep-rate off " + fmt (rNc, 3));
+        if (rNc > 1.5)
+            report ("G-LEGATO-CLICK-NC", true,
+                    "keep-rate off: ratio " + fmt (rNc, 3) + " (> 1.5) - the live-phase fade FAILS as designed");
+        else
+            report ("G-LEGATO-CLICK-NC", false,
+                    "keep-rate off: ratio " + fmt (rNc, 3) + " (want > 1.5) - the click was not seen; the gate is vacuous");
+    }
+
+    //==========================================================================
     // G-ALLOC stimulus list (RESEARCH 6.6). Every render is armed except each
     // rig's warm-up block; param changes happen between blocks, unarmed.
     void allocScenario()
@@ -1395,6 +1907,26 @@ namespace
         evs.push_back (evOn (rig.cursor + 1500, 71));
         rig.run (4096, evs, 2048);                                           // oversized host block
         rig.run (512, {}, 1);                                                // 1-sample blocks
+
+        // Stage 2 note 3: one host block carrying a 6000-event flood, Poly
+        // then Mono (the capacity guard ends the chunk instead of growing).
+        rig.set (ids::voiceMode, 0.0f);
+        rig.run (512, floodEvents (rig.cursor, false));                      // Poly flood (CC)
+        rig.set (ids::voiceMode, 1.0f);
+        rig.run (512, floodEvents (rig.cursor, true));                       // Mono flood (wheel)
+        rig.run (1024);
+    }
+
+    // Note 3 negative control: the same flood block on a fresh rig with the
+    // capacity guard off. Returns the allocations counted in that block.
+    int floodAllocsGuardOff (bool mono)
+    {
+        Rig rig (48000.0, 512, with (baseParams (BankFactory::sineSaw, 0.0f), ids::voiceMode, mono ? 1.0f : 0.0f));
+        rig.proc->setMidiCapacityGuardForTesting (false);
+        rig.run (512);                                                       // warm-up (unarmed)
+        const int before = allocCountNow();
+        rig.run (512, floodEvents (rig.cursor, mono));
+        return allocCountNow() - before;
     }
 
     int runAllocCheck()
@@ -1421,12 +1953,29 @@ namespace
         gAllocMode = true;
         allocScenario();
         gAllocMode = false;
-        malloc_logger = nullptr;
 
         const int n = allocCountNow();
         report ("G-ALLOC", n == 0, std::to_string (n) + " audio-thread allocation(s) inside processBlock over note-ons, "
                                    "20-note steal, wheel sweep, bank 0->4->5->0, interp/bandlimit/bit toggles, "
-                                   "Poly<->Mono, release tails, oversized + 1-sample blocks (want 0)");
+                                   "Poly<->Mono, release tails, oversized + 1-sample blocks, 6000-event MIDI flood "
+                                   "Poly + Mono (want 0)");
+
+        // Note 3 negative control: guard off -> the flood grows the chunk buffers on the audio thread.
+        allocTrace = false;
+        gAllocMode = true;
+        const int ncPoly = floodAllocsGuardOff (false);
+        const int ncMono = floodAllocsGuardOff (true);
+        gAllocMode = false;
+        malloc_logger = nullptr;
+        if (ncPoly >= 1 && ncMono >= 1)
+            report ("G-MIDI-FLOOD[alloc-NC]", true,
+                    "capacity guard off (setMidiCapacityGuardForTesting (false)): flood block allocations Poly "
+                    + std::to_string (ncPoly) + ", Mono " + std::to_string (ncMono)
+                    + " (>= 1 each) - uncapped copy FAILS as designed");
+        else
+            report ("G-MIDI-FLOOD[alloc-NC]", false,
+                    "capacity guard off: flood block allocations Poly " + std::to_string (ncPoly) + ", Mono "
+                    + std::to_string (ncMono) + " (want >= 1 each) - the growth was not seen; the alloc gate is vacuous");
         report ("G-FINITE", gNonFinite == 0 && gChannelMismatch == 0,
                 std::to_string (gNonFinite) + " non-finite, " + std::to_string (gChannelMismatch)
                 + " L != R over " + std::to_string (gSamplesChecked) + " samples");
@@ -1441,6 +1990,19 @@ namespace
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
+
+   #if JUCE_MAC
+    // G-UNPREPARED child (self-exec): prints nothing; the exit code is the verdict.
+    for (int i = 1; i < argc; ++i)
+        if (std::string (argv[i]) == "--child-unprepared")
+        {
+            bool guardOff = false;
+            for (int j = 1; j < argc; ++j)
+                if (std::string (argv[j]) == "--guard-off")
+                    guardOff = true;
+            return runUnpreparedChild (guardOff);
+        }
+   #endif
 
     // Keep ONE BuiltInBanks alive for the whole run, so the many short-lived
     // processors share it instead of rebuilding the banks each time.
@@ -1488,6 +2050,23 @@ int main (int argc, char** argv)
     gateOut();
     gateImportedEmpty();
     gateBlock();
+
+    // Stage 4 (4-polish Tasks 2-3).
+   #if JUCE_MAC
+    {
+        auto self = juce::File::getSpecialLocation (juce::File::currentExecutableFile).getFullPathName().toStdString();
+        if (self.empty() && argc > 0)
+            self = argv[0];
+        gateUnprepared (self);
+    }
+   #else
+    report ("G-UNPREPARED", false, "the self-exec child gate is macOS-only");
+   #endif
+    gateMidiFlood();
+    gateMonoWheel();
+    gateLegatoXf();
+    gateLegatoAlias();
+    gateLegatoClick();
 
     report ("G-FINITE", gNonFinite == 0 && gChannelMismatch == 0,
             std::to_string (gNonFinite) + " non-finite, " + std::to_string (gChannelMismatch)
