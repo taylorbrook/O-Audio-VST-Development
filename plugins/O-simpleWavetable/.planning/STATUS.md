@@ -1,12 +1,12 @@
 ---
 plugin: O-simpleWavetable
 stage: 4
-status: stage_4_execute_complete
-last_updated: 2026-10-06 19:10:00
+status: stage_4_complete_verified
+last_updated: 2026-10-07 21:00:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: plugin_verify_stage_4
+next_action: install_or_publish
 s4_part2_scratch: /private/tmp/claude-501/-Users-taylorbrook-Dev-VST-development/809fc72b-8c8b-496a-8e82-73c395d95a46/scratchpad
 s4_part1_scratch: /private/tmp/claude-501/-Users-taylorbrook-Dev-VST-development/63650402-ebd8-40b1-94ff-7ac100afdda5/scratchpad
 next_stage: 4
@@ -17,7 +17,7 @@ finalized_version: 1
 stage_0_status: ui_design_complete
 ui_scaffolding_phase_complete: true
 parameter_count: 21
-current_phase: verify
+current_phase: complete
 brief_updated_from_mockup: true
 mockup_version_synced: 1
 brief_update_timestamp: "2026-10-06T02:25:53Z"
@@ -32,9 +32,9 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 4 of 4 (Polish) — discuss ✓, research ✓, plan ✓, execute ✓ 2026-10-07 (Part 1 + visual sign-off + Part 2 + CI + listening). **Next: `/plugin-verify O-simpleWavetable 4-polish`.**
-Status: Stage 4 Part 1 (critic fixes + preset manager) built, gated, installed; awaiting the visual sign-off.
-Progress: [################....] 80%
+Stage: 4 of 4 (Polish) — all 5 phases ✓; verify ✓ 2026-10-07 (VERIFIED). **Plugin complete (v1.0.0, untagged).**
+Status: all 30 requirements complete. Next: `/install-plugin O-simpleWavetable`, then `/publish` when ready.
+Progress: [####################] 100%
 
 ## Completed So Far
 
@@ -149,7 +149,9 @@ Stage 3 plan (2026-10-06): stages/3-gui/PLAN.md, 20 tasks in two parts (Part 1 =
 | research | ✓ | 2026-10-06 | |
 | plan | ✓ | 2026-10-06 | |
 | execute | ✓ (Part 1 + visual + Part 2 + CI + listening) | 2026-10-07 | |
-| verify | | | |
+| verify | ✓ | 2026-10-07 | |
+
+**Stage 4 verify:** ✓ 2026-10-07 — VERIFIED (stages/4-polish/VERIFICATION.md). Independently re-run at `ea7d6fad`: fresh Debug tree 0 warnings, 6 drivers ALL PASS + state 12/12 + alloc 0 (27 NCs fire, 0 vacuous); fresh Release perf-check ALL PASS (worst steady p99 1.006 %, crossfade 2.140 % @ 96k); auval + pluginval VST3/AU s10 on the installed 1.0.0 binaries; R-STATIC / R-BRIDGE / 5 UI gates + wheel probe green; CI run 37670481560 read directly (Windows 25/25 pluginval groups, 0 FAILED); new §A9 ↔ PresetRecipes.h cross-check 9/9. FUNC-08, PERF-02, COMPAT-02, QUAL-04 → complete.
 
 Stage 4 research (2026-10-06): stages/4-polish/RESEARCH.md (synthesis + Parts A/B/C; probes in research-probes/). Preset-manager v1.0.9 still has the stale-child + output_level apply → use for files only, plugin keeps own state/apply; Imported × presets = (a) bank choice only; panel in keyboard row at 352 px; S2 W3/W4 + notes 3/4/8 prototyped with gates + NCs; W2 → 16 MiB drop cap; QUAL-04 + PERF-02 measured (0.75 % core @ 96 kHz). **Open for Taylor:** Drive Sweep copy vs §A9, W3b continuous-knob wheel, 37 px keys, CI push/dispatch go-ahead.
 
@@ -159,8 +161,8 @@ Stage 4 plan (2026-10-06): stages/4-polish/PLAN.md, 24 tasks in two parts (Part 
 
 ## Next Steps
 
-1. `/plugin-verify O-simpleWavetable 4-polish`.
-2. After verify: `/publish O-simpleWavetable 1.0.0` (tag `O-simpleWavetable-v1.0.0`) — a separate decision.
+1. `/install-plugin O-simpleWavetable`.
+2. Then: `/publish O-simpleWavetable 1.0.0` (tag `O-simpleWavetable-v1.0.0`) — a separate decision.
 
 ## Context to Preserve
 
