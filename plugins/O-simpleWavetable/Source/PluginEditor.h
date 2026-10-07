@@ -39,10 +39,14 @@
       bankUpdate    N x 128 level-0 thumbnails; on a bank-generation OR bank
                     index change (P2), content-hash gated, forced by uiReady
       importStatus  idle | busy | done | error, on every importer transition
+      presetState   { name, id, factory, modified } (Stage 4, D-AG); on a
+                    preset revision change or a modified flip, forced by uiReady
       cycleUpdate   the heard cycle, its harmonics 1..32 and the lead-voice
                     readouts; hash-gated over the quantized payload (D-P), so
                     an idle editor sends nothing
     Payload building lives in VizPayload.h (shared with viz-check).
+    20 natives (Stage 4 adds the 10 preset-manager.js resolves, plus
+    getPresetCatalog and stepKnobDrag).
 
   ==============================================================================
 */
@@ -77,6 +81,7 @@ private:
     void emitImportStatus();
     void emitBankUpdate (bool force);    // skipped when ! force and the content hash is unchanged
     void emitCycleUpdate (bool force);   // skipped when ! force and the payload hash is unchanged
+    void emitPresetState (bool force);   // skipped when ! force and neither the revision nor modified changed
 
     OSimpleWavetableAudioProcessor& processorRef;
 
@@ -92,6 +97,16 @@ private:
     juce::uint64 lastBankHash       = 0;
     juce::uint64 lastCycleHash      = 0;
     bool         forceCycleEmit     = true;
+    juce::uint32 lastPresetRevision = 0;           // D-AG
+    bool         lastPresetModified = false;
+
+    // N1 (D-AP): ONE import dialog at a time. The chooser must outlive its
+    // async dialog, so it is a member; it is only ever replaced on the NEXT
+    // launch (never reset inside its own callback, which would destroy the
+    // running std::function). The flag, not the pointer, is the in-flight
+    // test (O-AnalogEQ IN-08).
+    std::unique_ptr<juce::FileChooser> importChooser;
+    bool importDialogInFlight = false;
 
     // =====================================================================
     // CRITICAL MEMBER DECLARATION ORDER

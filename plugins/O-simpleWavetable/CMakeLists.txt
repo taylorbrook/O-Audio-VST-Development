@@ -27,6 +27,8 @@ target_sources(O-simpleWavetable
         Source/PluginProcessor.h
         Source/PluginEditor.cpp
         Source/PluginEditor.h
+        Source/PresetRecipes.h
+        Source/TestHooks.h
         Source/WtSynthesiser.h
         Source/WtVoice.h
         Source/WavetableBank.h
@@ -54,6 +56,12 @@ target_include_directories(O-simpleWavetable PRIVATE Source)
 # and puts the header-only C++ on the include path. Consumed in Stage 2.4/3.
 ouaricon_add_module(O-simpleWavetable webview-drop-streaming)
 
+# Stage 4 (FUNC-08): preset-manager. Copies preset-manager.js into
+# Source/ui/public/modules/ (gitignored) BEFORE juce_add_binary_data below
+# lists it, and puts OuariconPresetManager.h on the include path. Only its
+# folders, user save / delete and the factory sentinel are used (D-AA).
+ouaricon_add_module(O-simpleWavetable preset-manager)
+
 # WebView UI resources (embedded as BinaryData). Every file listed here is also
 # served by a getResource() branch in PluginEditor.cpp. Default BinaryData
 # namespace: there is no second binary-data target. BinaryData.h is included
@@ -66,6 +74,7 @@ juce_add_binary_data(O-simpleWavetable_UIResources
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/modules/webview-drop-streaming.js
+        Source/ui/public/modules/preset-manager.js
         Source/ui/public/img/insects.png
         ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
         ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2

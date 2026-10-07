@@ -59,22 +59,35 @@
       - IMPORTED_BANK state child (version 1, flac16 | pcm16gz, standard
         base64), synchronous restore through the same builder as import.
 
+    Stage 4 (Polish): presets (FUNC-08) from ONE recipe table
+    (PresetRecipes.h) through ONE apply core (applyNormalisedTargets), the
+    preset-manager module for folders / user save / delete only, a
+    currentPreset root property in the plugin's own state; Stage 3 critic
+    fixes W4 (import error cleared on a bank change), W5 (UI-held notes),
+    N5 (a preset apply cancels a queued Imported auto-select), N13 (one
+    gesture per stepped-knob drag).
+
   ==============================================================================
 */
 
 #pragma once
+
+#include "TestHooks.h"   // first: the OSIW_TEST_HOOKS default (Stage 2 note 8)
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_utils/juce_audio_utils.h>   // MidiMessageCollector (juce_audio_devices)
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <map>        // before the preset-manager header: its FactoryPresetDef uses std::map
 #include <memory>
 #include <vector>
+#include "OuariconPresetManager.h"
 #include "BuiltInBanks.h"
 #include "CycleView.h"
 #include "MonoStack.h"
 #include "PositionLfo.h"
+#include "PresetRecipes.h"
 #include "WavetableBank.h"
 #include "WavetableImporter.h"
 #include "WtSynthesiser.h"
@@ -247,14 +260,99 @@ public:
     // thread.
     bool importFromBase64 (const juce::String& name, const juce::String& base64);
 
-    // Lesson presets (Stage 3, D-Y). Ids: steppedSmooth, aliasDemo, driveSweep,
-    // vowelPad, ppg8bit. ONE pass over ParamIDs::all: each parameter goes to its
-    // recipe value if the recipe lists it, else to its default; output_level is
-    // never touched; parameters already within 1e-6 (normalised) of their
-    // target are skipped; each changed one gets begin -> setValueNotifyingHost
-    // -> end. An unknown id returns false and changes nothing. The Imported
-    // bank is untouched. Message thread (documented, not asserted).
+    // Factory presets by STABLE table id (Stage 3 D-Y, Stage 4 D-AD): the 9 ids
+    // of PresetRecipes.h (the 5 lesson ids are a subset). Table -> recipeTargets
+    // -> applyNormalisedTargets, then the preset name becomes the recipe's file
+    // name (unmodified). An unknown id returns false and changes nothing. The
+    // Imported bank is untouched. Message thread (documented, not asserted).
     bool applyFactoryPreset (const juce::String& id);
+
+    //==========================================================================
+    // Stage 4 presets (FUNC-08; D-AA .. D-AH). MESSAGE THREAD unless noted.
+    using Targets = std::array<float, 21>;   // normalised, ParamIDs::all order; NaN = "not in the preset"
+
+    // D-AB: the ONE apply core. (1) pendingAutoSelect = false under
+    // bankStateLock (Stage 3 N5); (2) one pass over ParamIDs::all, output_level
+    // skipped; (3) target = the clamped, parameter-quantised value if finite,
+    // else the parameter's default; (4) skipped when within 1e-6; (5) begin ->
+    // setValueNotifyingHost -> end per changed parameter. Never touches the
+    // imported bank or the import status.
+    bool applyNormalisedTargets (const Targets& targets);
+
+    // Recipe -> targets: convertTo0to1 (raw) for each listed entry, NaN for the
+    // rest (and for output_level). Pure.
+    Targets recipeTargets (const wtpresets::Recipe& recipe) const;
+
+    // Preset identity (D-AF / D-AG). Any non-audio thread (presetLock).
+    juce::String getPresetName() const;
+    juce::String getPresetId() const;                 // table id, or "" (user / unnamed)
+    bool isPresetFactory() const;
+    juce::uint32 getPresetRevision() const noexcept { return presetRevision.load(); }   // bumps on every name / target change
+    // Any parameter except output_level differs from the cached targets by
+    // more than 1e-4. Unnamed, or targets not (yet) known -> false.
+    bool isPresetModified() const;
+
+    // D-AE name cleaning (save and restore): trim -> strip C0, DEL, C1 and the
+    // bidi controls -> juce::File::createLegalFileName -> strip leading dots
+    // -> cap 64 characters. "" = refused. Pure.
+    static juce::String sanitisePresetName (const juce::String& raw);
+    static bool isFactoryPresetName (const juce::String& presetName) { return wtpresets::findByName (presetName) != nullptr; }
+
+    // The module-format factory definitions: 9 defs in table order, each a full
+    // 20-parameter normalised map (recipe targets, else defaults; output_level
+    // omitted). Pure (no file I/O).
+    std::vector<OuariconPresetManager::FactoryPresetDef> buildFactoryPresetDefs() const;
+
+    // Lazily materialises the factory bank on disk (once per instance, through
+    // the module and its version sentinel). Called by the preset natives only:
+    // never by the ctor, so auval, pluginval and the console gates do no I/O.
+    void ensureFactoryBankOnDisk();
+
+    // D-AE walk order: the 9 factory names in table order, then the user stems
+    // sorted case-insensitively, minus any that match a factory name. The list,
+    // prev / next and the page select all use this ONE order.
+    juce::StringArray getPresetWalkOrder() const;                       // reads the User folder (no create)
+    static juce::StringArray buildWalkOrder (const juce::StringArray& userStems);   // pure
+    // Neighbour of `current` in `order` (wraps). An unnamed or unknown current
+    // enters at the top going forward and at the bottom going back. Pure.
+    static juce::String neighbourInOrder (const juce::StringArray& order, const juce::String& current, int dir);
+    juce::String getNeighbourPreset (int dir) const;                    // no load
+
+    // D-AB caller 2 (untrusted file content, ASVS V5): the object's
+    // "parameters" object; known ids only; numeric / bool values only, any
+    // other value -> that parameter's default; output_level and unknown keys
+    // ignored. A non-object, or "parameters" absent / not an object -> false,
+    // nothing changed. Does not rename the preset.
+    bool applyUserPresetJson (const juce::var& presetJson);
+
+    // Factory name -> applyFactoryPreset (the table, never the disk copy).
+    // User name -> must be in the walk order (blocks traversal) -> file ->
+    // applyUserPresetJson -> name = the stem.
+    bool loadPresetByName (const juce::String& presetName);
+    bool saveUserPreset (const juce::String& raw);                      // refuses "" and factory names
+    bool deleteUserPreset (const juce::String& presetName);             // refuses factory names
+    juce::var getPresetCatalog() const;                                 // { factory: [{ name, id }], user: [names] }
+
+    // D-AF: a restored user name re-reads its file ONCE (the first editor tick).
+    // A missing or unreadable file leaves the targets unknown (unmodified).
+    // Creates nothing.
+    void refreshPresetTargetsIfNeeded();
+
+    //==========================================================================
+    // Stage 3 W4 (D-AL): an import error lives until the next bank change. The
+    // processor's 250 ms timer calls this; public for the console gate.
+    void pollBankForImportStatus();
+
+    // Stage 3 W5 (D-AM): notes the on-screen keyboard holds. Message thread.
+    // Queues a note-off for every held note and clears them; returns how many.
+    int releaseUiHeldNotes();
+
+    // Stage 3 N13 (D-AP): one host gesture per stepped-knob DRAG. paramId must
+    // be bit_depth or lfo_div; phase 0 begin (opens once), 1 move (sets
+    // jlimit (0, n - 1, index) if it differs; needs an open gesture), 2 end
+    // (closes once). false = refused / nothing done. Message thread.
+    bool stepKnobGesture (const juce::String& paramId, int phase, int index);
+    void closeStepKnobGestures();
 
     ImportStatus getImportStatus() const;
     juce::uint32 getImportStatusVersion() const noexcept   { return importStatusVersion.load(); }   // bumps on every transition
@@ -300,6 +398,13 @@ public:
         for (auto* v : wtVoices)
             v->xfadeLenOverride = len;
     }
+    // Stage 4 (W4) negative control: false = the frozen cycle is read at the
+    // live phase (the pre-v1.0.0 behaviour).
+    void setXfadeKeepRateForTesting (bool on) noexcept
+    {
+        for (auto* v : wtVoices)
+            v->xfKeepRate = on;
+    }
     void setForceLevelForTesting (int level) noexcept          // forceLevel (-1 = off)
     {
         for (auto* v : wtVoices)
@@ -341,12 +446,49 @@ public:
     const WavetableBank* getImportedForAudioForTesting() const noexcept { return importedForAudio.load(); }
     std::uint64_t getBlockEntriesForTesting() const noexcept { return blockEntries.load(); }
     std::uint64_t getBlockExitsForTesting() const noexcept   { return blockGeneration.load(); }
+
+    // Stage 4 hooks (negative controls; every default = the shipped fix).
+    void setPreparedGuardForTesting (bool on) noexcept        { testPreparedGuard = on; }   // note 4: false = render unprepared
+    void setMidiCapacityGuardForTesting (bool on) noexcept    { testMidiGuard = on; }       // note 3: false = uncapped chunk copy
+    void setMonoWheelSeedForTesting (bool on) noexcept        { testMonoWheelSeed = on; }   // W3: false = no seed at Poly -> Mono
+    void setReleaseClearsDisplayForTesting (bool on) noexcept { testReleaseClears = on; }   // N4: false = release keeps the display
    #endif
 
 private:
     //==========================================================================
     juce::AudioProcessorValueTreeState parameters;   // declared BEFORE synth/collector (ctor init order)
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    // Stage 4 (D-AA): used ONLY for the Factory / User folders, the user save
+    // (factory guard + sanitize), the user delete (factory guard) and the
+    // factory-bank sentinel. Never its state, load, dialog or prev / next
+    // paths. Message thread only. Declared after `parameters` (it holds a ref).
+    OuariconPresetManager presetManager { parameters, "O-simpleWavetable" };
+
+    // Preset identity (D-AF). Never taken on the audio thread, never held
+    // across setValueNotifyingHost.
+    mutable juce::CriticalSection presetLock;
+    juce::String curPresetName;                    // "" = unnamed
+    Targets presetTargets {};                      // resolved (clamped, quantised) normalised targets
+    bool presetTargetsValid = false;               // false = unknown -> never "modified"
+    bool presetTargetsStale = false;               // a restored user name: re-read its file once
+    std::atomic<juce::uint32> presetRevision { 0 };
+    bool factoryBankEnsured = false;               // message thread
+
+    // W4 (D-AL): the bank index the import status last saw. Seeded in the ctor
+    // and at the end of setStateInformation.
+    std::atomic<int> lastStatusBank { 0 };
+
+    // W5 (D-AM): notes held by the on-screen keyboard. Message thread.
+    std::array<bool, 128> uiHeld {};
+
+    // N13 (D-AP): open stepped-knob drag gestures [bit_depth, lfo_div]. Message thread.
+    std::array<bool, 2> stepGestureOpen {};
+
+    Targets resolveTargets (const Targets& targets) const;   // NaN -> default; clamp; quantise; output_level NaN
+    bool userJsonTargets (const juce::var& presetJson, Targets& out) const;
+    void setCurrentPreset (const juce::String& newName, const Targets& resolved, bool valid, bool stale);
+    Targets currentNormalisedValues() const;
 
     // Declared before anything that reads it. Built on the message thread
     // (first instance) inside JUCE's SpinLock; never on the audio thread.
@@ -445,6 +587,11 @@ private:
     MonoStack monoStack;
     int lastVoiceMode = 0;
     int preparedBlock = 512;
+    int wheelNow = 8192;                    // W3: last pitch-wheel value on ANY channel (Mono is omni)
+    // Note 4: set as the LAST statement of prepareToPlay; processBlock renders
+    // only once it is true (silence before). Never cleared in releaseResources
+    // (the buffers stay valid; a host that processes after release keeps sound).
+    std::atomic<bool> prepared { false };
 
     std::atomic<float> dispPos      { 0.0f };
     std::atomic<int>   dispLevel    { 0 };
@@ -460,6 +607,10 @@ private:
 
    #if OSIW_TEST_HOOKS
     bool testKnobRampOff = false;
+    bool testPreparedGuard = true;
+    bool testMidiGuard = true;
+    bool testMonoWheelSeed = true;
+    bool testReleaseClears = true;
    #endif
 
     //==========================================================================
@@ -467,6 +618,7 @@ private:
     const WavetableBank* renderBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi, int numSamples);
     void renderMono (juce::AudioBuffer<float>& view, const juce::MidiBuffer& chunk, int numSamples);
     void updateDisplayFromLeadVoice() noexcept;
+    void resetDisplayState (double fs) noexcept;   // N4: prepareToPlay + releaseResources
     const WavetableBank* resolveBank (int bankIndex) const noexcept;
     juce::ADSR::Parameters currentAmpParams() const noexcept;
     juce::ADSR::Parameters currentModEnvParams() const noexcept;
@@ -481,6 +633,7 @@ private:
     // tree: it is stripped before replaceState and from every copyState().
     static constexpr const char* kImportedBankTag = "IMPORTED_BANK";
     static constexpr const char* kUiLanguageProp  = "uiLanguage";
+    static constexpr const char* kCurrentPresetProp = "currentPreset";   // D-AF: root property, "" = unnamed
 
     void restoreImportedBank (const juce::ValueTree& childOrInvalid);   // synchronous; any non-audio thread
     void writeImportedBank   (juce::ValueTree& state) const;            // exactly one child from the cache, or none

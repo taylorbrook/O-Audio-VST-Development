@@ -86,7 +86,7 @@ namespace WavetableImporter
     constexpr int   kReadChunk           = 8192;
     constexpr int   kMaxNameChars        = 128;
     constexpr int   kMaxDataChars        = 4 * 1024 * 1024;             // state blob cap (base64 chars)
-    constexpr std::size_t kMaxMemoryBytes = (std::size_t) 96 * 1024 * 1024;   // importFromMemory cap (page DROP_MAX_BYTES)
+    constexpr std::size_t kMaxMemoryBytes = (std::size_t) 16 * 1024 * 1024;   // importFromMemory cap (page DROP_MAX_BYTES; G-DROP-CAPSYNC)
 
     // Stage 3 error vocabulary ("cancelled" is internal, never surfaced).
     const char* errorCode (ImportError e) noexcept;
@@ -104,8 +104,15 @@ namespace WavetableImporter
     std::shared_ptr<const WavetableBank> buildImportedBank (const ImportedPcm& p);
 
     // Untrusted names (file names, JS-supplied names, state XML): basename
-    // only, control characters removed, at most 128 characters, never empty.
+    // only, control, C1, bidi and invisible characters removed
+    // (isStrippedNameChar), at most 128 characters, never empty.
     juce::String sanitiseName (const juce::String& raw);
+
+    // Stage 3 N7: true for a code point sanitiseName drops: C0, DEL, C1, the
+    // 12 Bidi_Control characters, LS / PS, ZWSP / WJ / BOM, surrogates,
+    // U+FFFE / U+FFFF, values above U+10FFFF and the tag block. ZWNJ / ZWJ
+    // (U+200C / U+200D) are kept.
+    bool isStrippedNameChar (juce::juce_wchar c) noexcept;
 
     // Codecs. Encoders return the base64 text (empty on failure); decoders
     // take the base64-DECODED bytes and the declared frame count.

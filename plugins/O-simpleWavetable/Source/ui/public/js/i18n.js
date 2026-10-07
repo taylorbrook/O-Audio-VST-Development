@@ -363,12 +363,12 @@ export const I18N = Object.freeze({
     },
     'output_level': {
         en: { t: 'Output Level',
-              b: 'The master volume. All the way down is silence (-inf).' },
+              b: 'The master volume. All the way down is silence (−inf).' },
         fr: { t: 'Niveau de sortie',
-              b: 'Le volume général. Tout en bas, c’est le silence (-inf).',
+              b: 'Le volume général. Tout en bas, c’est le silence (−inf).',
               reviewed: false },
         'zh-Hans': { t: '输出电平',
-                     b: '总音量。调到最低就是静音（-inf）。',
+                     b: '总音量。调到最低就是静音（−inf）。',
                      reviewed: 'mt' },
     },
 
@@ -395,12 +395,12 @@ export const I18N = Object.freeze({
     },
     'lessonDriveSweep': {
         en: { t: 'Lesson · Drive Sweep',
-              b: 'The envelope pushes each note through the Drive bank: every note starts clean and grows gritty, like turning up a drive knob.' },
+              b: 'The envelope sweeps each note back through the Drive bank: every note strikes fully driven and relaxes to a clean sine as the envelope decays, like turning a drive knob down.' },
         fr: { t: 'Leçon · Balayage saturé',
-              b: 'L’enveloppe fait traverser la banque Drive à chaque note : chaque note commence propre et devient granuleuse, comme si l’on montait un bouton de saturation.',
+              b: 'L’enveloppe fait retraverser la banque Drive à chaque note : chaque note attaque pleinement saturée, puis revient à une sinusoïde propre à mesure que l’enveloppe décroît, comme si l’on baissait un bouton de saturation.',
               reviewed: false },
         'zh-Hans': { t: '课程 · 过载扫描',
-                     b: '包络推动每个音符穿过 Drive 波表库：每个音符开始时干净，然后逐渐变粗糙，就像调高过载旋钮。',
+                     b: '包络让每个音符反向扫过 Drive 波表库：每个音符起音时过载最强，随着包络衰减回到干净的正弦波，就像把过载旋钮调低。',
                      reviewed: 'mt' },
     },
     'lessonVowelPad': {
@@ -435,6 +435,78 @@ export const I18N = Object.freeze({
                      b: '无需 MIDI 控制器即可演奏：点击琴键，或使用电脑键盘的 A 到 K。面板跟随最新的音符。Z 和 X 或箭头按钮可切换八度。',
                      reviewed: 'mt' },
     },
+    'octDown': {
+        en: { t: 'Octave down',
+              b: 'Moves the on-screen keyboard and the computer keys down one octave. Shortcut: Z.' },
+        fr: { t: 'Octave inférieure',
+              b: 'Descend le clavier à l’écran et les touches de l’ordinateur d’une octave. Raccourci : Z.',
+              reviewed: false },
+        'zh-Hans': { t: '降八度',
+                     b: '将屏幕键盘和电脑按键降低一个八度。快捷键：Z。',
+                     reviewed: 'mt' },
+    },
+    'octUp': {
+        en: { t: 'Octave up',
+              b: 'Moves the on-screen keyboard and the computer keys up one octave. Shortcut: X.' },
+        fr: { t: 'Octave supérieure',
+              b: 'Monte le clavier à l’écran et les touches de l’ordinateur d’une octave. Raccourci : X.',
+              reviewed: false },
+        'zh-Hans': { t: '升八度',
+                     b: '将屏幕键盘和电脑按键升高一个八度。快捷键：X。',
+                     reviewed: 'mt' },
+    },
+
+    // ── Presets (FUNC-08) ───────────────────────────────────────────────────
+    'presetSelect': {
+        en: { t: 'Presets',
+              b: 'Factory presets come first — each one shows one idea. Your own presets follow. Loading a preset never changes Output Level or the imported audio. A dot means you have changed it since loading.' },
+        fr: { t: 'Préréglages',
+              b: 'Les préréglages d’usine d’abord — chacun montre une idée. Les vôtres suivent. Charger un préréglage ne change jamais le niveau de sortie ni l’audio importé. Un point signale une modification depuis le chargement.',
+              reviewed: false },
+        'zh-Hans': { t: '预设',
+                     b: '出厂预设在前——每个演示一个概念，你自己的预设在后。载入预设不会改变输出电平，也不会改变导入的音频。圆点表示载入后你已作修改。',
+                     reviewed: 'mt' },
+    },
+    'presetPrev': {
+        en: { t: 'Previous preset',
+              b: 'Loads the previous preset in the list.' },
+        fr: { t: 'Préréglage précédent',
+              b: 'Charge le préréglage précédent de la liste.',
+              reviewed: false },
+        'zh-Hans': { t: '上一个预设',
+                     b: '载入列表中的上一个预设。',
+                     reviewed: 'mt' },
+    },
+    'presetNext': {
+        en: { t: 'Next preset',
+              b: 'Loads the next preset in the list.' },
+        fr: { t: 'Préréglage suivant',
+              b: 'Charge le préréglage suivant de la liste.',
+              reviewed: false },
+        'zh-Hans': { t: '下一个预设',
+                     b: '载入列表中的下一个预设。',
+                     reviewed: 'mt' },
+    },
+    'presetSave': {
+        en: { t: 'Save preset',
+              b: 'Saves every setting except Output Level as one of your presets. On the Imported bank only the bank choice is saved, not the audio.' },
+        fr: { t: 'Enregistrer le préréglage',
+              b: 'Enregistre tous les réglages sauf le niveau de sortie dans un de vos préréglages. Avec la banque Imported, seul le choix de banque est enregistré, pas l’audio.',
+              reviewed: false },
+        'zh-Hans': { t: '保存预设',
+                     b: '将除输出电平外的所有设置保存为你的预设。使用 Imported 波表库时只保存所选波表库，不保存音频。',
+                     reviewed: 'mt' },
+    },
+    'presetDelete': {
+        en: { t: 'Delete preset',
+              b: 'Deletes the selected preset of your own. Factory presets cannot be deleted.' },
+        fr: { t: 'Supprimer le préréglage',
+              b: 'Supprime le préréglage sélectionné, s’il est à vous. Les préréglages d’usine ne peuvent pas être supprimés.',
+              reviewed: false },
+        'zh-Hans': { t: '删除预设',
+                     b: '删除所选的用户预设。出厂预设无法删除。',
+                     reviewed: 'mt' },
+    },
 });
 
 // ============================================================================
@@ -466,9 +538,14 @@ export const LABELS = Object.freeze({
     'src.importedMetaOne': { en: { t: '1 frame · sliced every 2048 samples' }, fr: { t: '1 trame · découpée tous les 2048 échantillons', reviewed: false }, 'zh-Hans': { t: '1 帧 · 每 2048 个采样切分一次', reviewed: 'mt' } },
     'import.err.tooShort':   { en: { t: 'too short — needs one 2048-sample frame (≈ 46 ms)' }, fr: { t: 'trop court — il faut 2048 échantillons (≈ 46 ms)', reviewed: false }, 'zh-Hans': { t: '太短——至少需要一帧 2048 个采样（约 46 ms）', reviewed: 'mt' } },
     'import.err.unreadable': { en: { t: 'could not read that file' }, fr: { t: 'ce fichier n’a pas pu être ouvert', reviewed: false }, 'zh-Hans': { t: '无法读取该文件', reviewed: 'mt' } },
-    'import.err.tooLarge':   { en: { t: 'file too large to import' }, fr: { t: 'fichier trop volumineux pour l’import', reviewed: false }, 'zh-Hans': { t: '文件过大，无法导入', reviewed: 'mt' } },
+    // W2 (D-AK): the DROP cap (16 MiB); the Import button streams and has none.
+    // .src-meta content is 240 px (10.5 px italic): en 175.4 / fr 218.4 / zh 197.6.
+    'import.err.tooLarge':   { en: { t: 'too large to drop — use the Import button' }, fr: { t: 'trop volumineux pour un dépôt — utilisez Importer', reviewed: false }, 'zh-Hans': { t: '文件过大，无法拖放——请使用导入按钮', reviewed: 'mt' } },
     'import.err.folder':     { en: { t: 'drop one audio file, not a folder' }, fr: { t: 'déposez un fichier audio, pas un dossier', reviewed: false }, 'zh-Hans': { t: '请拖放单个音频文件，而不是文件夹', reviewed: 'mt' } },
     'import.err.type':       { en: { t: 'not an audio file (WAV, AIFF, FLAC, Ogg)' }, fr: { t: 'pas un fichier audio (WAV, AIFF, FLAC, Ogg)', reviewed: false }, 'zh-Hans': { t: '不是音频文件（WAV、AIFF、FLAC、Ogg）', reviewed: 'mt' } },
+    // N9: a session saved by a newer build; the blob is kept, never played.
+    // en 213.9 / fr 224.6 / zh 208.8 of the 240 px .src-meta content.
+    'import.err.unsupported': { en: { t: 'saved by a newer version — kept, not playable here' }, fr: { t: 'd’une version plus récente — conservé, non jouable ici', reviewed: false }, 'zh-Hans': { t: '由更新版本保存——已保留，此处无法播放', reviewed: 'mt' } },
     'import.err.generic':    { en: { t: 'import failed — the current bank is unchanged' }, fr: { t: 'échec de l’import — la banque actuelle est inchangée', reviewed: false }, 'zh-Hans': { t: '导入失败——当前波表库未改变', reviewed: 'mt' } },
 
     // ── Panel captions ──────────────────────────────────────────────────────
@@ -563,7 +640,7 @@ export const LABELS = Object.freeze({
     'tour.hint':                 { en: { t: 'Hover any control for an explanation · pick a lesson to hear one idea.' }, fr: { t: 'Survolez une commande pour une explication · choisissez une leçon pour entendre une idée.', reviewed: false }, 'zh-Hans': { t: '悬停在任意控件上查看说明 · 选择一节课来聆听一个概念。', reviewed: 'mt' } },
     'tour.caption.steppedSmooth': { en: { t: 'Interpolation Off: the scan jumps frame by frame. Switch it On to hear the morph.' }, fr: { t: 'Interpolation désactivée : le balayage saute de trame en trame. Activez-la pour entendre la transformation.', reviewed: false }, 'zh-Hans': { t: '插值关闭：扫描逐帧跳变。打开插值即可听到平滑过渡。', reviewed: 'mt' } },
     'tour.caption.aliasDemo':     { en: { t: 'Band-limiting Off: play these high keys, hear the wrong-way tones, then switch it On.' }, fr: { t: 'Bande limitée désactivée : jouez ces touches aiguës, écoutez les sons à contresens, puis activez-la.', reviewed: false }, 'zh-Hans': { t: '带限关闭：弹这些高音键，听那些反向移动的音，然后打开带限。', reviewed: 'mt' } },
-    'tour.caption.driveSweep':    { en: { t: 'Each note starts as a sine and the envelope drives it into clipping.' }, fr: { t: 'Chaque note commence en sinusoïde et l’enveloppe la pousse vers l’écrêtage.', reviewed: false }, 'zh-Hans': { t: '每个音符从正弦波开始，包络把它推向削波。', reviewed: 'mt' } },
+    'tour.caption.driveSweep':    { en: { t: 'Each note strikes driven and relaxes back to a sine as the envelope decays.' }, fr: { t: 'Chaque note attaque saturée, puis revient à une sinusoïde à mesure que l’enveloppe décroît.', reviewed: false }, 'zh-Hans': { t: '每个音符起音时过载最强，随着包络衰减回到正弦波。', reviewed: 'mt' } },
     'tour.caption.vowelPad':      { en: { t: 'A slow LFO drifts A → E → I → O → U. Play an octave up: the vowels move too.' }, fr: { t: 'Un LFO lent dérive de A → E → I → O → U. Jouez une octave plus haut : les voyelles bougent aussi.', reviewed: false }, 'zh-Hans': { t: '慢速 LFO 在 A → E → I → O → U 之间漂移。高八度弹奏：元音也会随之移动。', reviewed: 'mt' } },
     'tour.caption.ppg8bit':       { en: { t: '8 bits, stepped frames and a random LFO — early digital wavetable grit.' }, fr: { t: '8 bits, trames par paliers et LFO aléatoire — le grain des premières tables d’ondes numériques.', reviewed: false }, 'zh-Hans': { t: '8 bit、阶梯式帧和随机 LFO——早期数字波表的粗粝感。', reviewed: 'mt' } },
 
@@ -574,6 +651,31 @@ export const LABELS = Object.freeze({
                        'zh-Hans': { t: '按键 ASDFGHJK · WETYU', reviewed: 'mt' } },
     'aria.octDown':  { en: { t: 'Octave down' }, fr: { t: 'Octave inférieure', reviewed: false }, 'zh-Hans': { t: '降八度', reviewed: 'mt' } },
     'aria.octUp':    { en: { t: 'Octave up' }, fr: { t: 'Octave supérieure', reviewed: false }, 'zh-Hans': { t: '升八度', reviewed: 'mt' } },
+
+    // ── Presets (FUNC-08) ───────────────────────────────────────────────────
+    // Widths (EB Garamond + PingFang, headless Chromium) are in index.html
+    // beside each pin. The popover message line is 330 px, nowrap.
+    'label.presets':          { en: { t: 'Presets' }, fr: { t: 'Préréglages', reviewed: false }, 'zh-Hans': { t: '预设', reviewed: 'mt' } },
+    'preset.save':            { en: { t: 'Save' }, fr: { t: 'Enregistrer', reviewed: false }, 'zh-Hans': { t: '保存', reviewed: 'mt' } },
+    'preset.delete':          { en: { t: 'Delete' }, fr: { t: 'Supprimer', reviewed: false }, 'zh-Hans': { t: '删除', reviewed: 'mt' } },
+    'preset.cancel':          { en: { t: 'Cancel' }, fr: { t: 'Annuler', reviewed: false }, 'zh-Hans': { t: '取消', reviewed: 'mt' } },
+    'preset.saveTitle':       { en: { t: 'Save preset' }, fr: { t: 'Enregistrer le préréglage', reviewed: false }, 'zh-Hans': { t: '保存预设', reviewed: 'mt' } },
+    'preset.namePlaceholder': { en: { t: 'Preset name' }, fr: { t: 'Nom du préréglage', reviewed: false }, 'zh-Hans': { t: '预设名称', reviewed: 'mt' } },
+    'preset.errFactoryName':  { en: { t: 'A factory preset has that name — choose another.' }, fr: { t: 'Nom d’un préréglage d’usine — choisissez-en un autre.', reviewed: false }, 'zh-Hans': { t: '该名称属于出厂预设——请换一个。', reviewed: 'mt' } },
+    'preset.errEmpty':        { en: { t: 'Type a name first.' }, fr: { t: 'Saisissez d’abord un nom.', reviewed: false }, 'zh-Hans': { t: '请先输入名称。', reviewed: 'mt' } },
+    'preset.errSave':         { en: { t: 'Could not save the preset.' }, fr: { t: 'Impossible d’enregistrer le préréglage.', reviewed: false }, 'zh-Hans': { t: '无法保存预设。', reviewed: 'mt' } },
+    'preset.confirmReplace':  { en: { t: 'Replace “{name}”?' }, fr: { t: 'Remplacer « {name} » ?', reviewed: false }, 'zh-Hans': { t: '替换“{name}”？', reviewed: 'mt' } },
+    // Straight quotes in the en: the zh glossary key is 'delete preset "{name}"?'.
+    'preset.confirmDelete':   { en: { t: 'Delete preset "{name}"?' }, fr: { t: 'Supprimer le préréglage « {name} » ?', reviewed: false }, 'zh-Hans': { t: '删除预设“{name}”？', reviewed: 'mt' } },
+    'aria.presetPrev':        { en: { t: 'Previous preset' }, fr: { t: 'Préréglage précédent', reviewed: false }, 'zh-Hans': { t: '上一个预设', reviewed: 'mt' } },
+    'aria.presetNext':        { en: { t: 'Next preset' }, fr: { t: 'Préréglage suivant', reviewed: false }, 'zh-Hans': { t: '下一个预设', reviewed: 'mt' } },
+    // Factory display names (13 px in the select; the file names stay ASCII).
+    // The other four factory presets reuse the label.lesson* captions.
+    'preset.init':            { en: { t: 'Init · Additive Build' }, fr: { t: 'Init · construction additive', reviewed: false }, 'zh-Hans': { t: '初始 · 加法叠加', reviewed: 'mt' } },
+    'preset.steppedScan':     { en: { t: 'Stepped Scan' }, fr: { t: 'Balayage par paliers', reviewed: false }, 'zh-Hans': { t: '阶梯扫描', reviewed: 'mt' } },
+    'preset.smoothScan':      { en: { t: 'Smooth Scan' }, fr: { t: 'Balayage fondu', reviewed: false }, 'zh-Hans': { t: '平滑扫描', reviewed: 'mt' } },
+    'preset.pulseNarrowing':  { en: { t: 'Pulse Narrowing' }, fr: { t: 'Impulsion qui rétrécit', reviewed: false }, 'zh-Hans': { t: '脉冲收窄', reviewed: 'mt' } },
+    'preset.ppg4bit':         { en: { t: '4-bit PPG' }, fr: { t: 'PPG 4 bits', reviewed: false }, 'zh-Hans': { t: '4 bit PPG', reviewed: 'mt' } },
 });
 
 // ============================================================================
@@ -586,7 +688,7 @@ export const I18N_EXEMPT = [
     ['O – simple', 'first half of the product name O–simpleWavetable — a product name is never translated'],
     ['Wavetable',  'the italic half of the product name, in .title-accent — a product name is never translated', '.title-accent'],
     // Readouts (D-03): written by FORMAT / STEP_FORMAT, never a [data-i18n] node.
-    ['-inf', 'output_level readout at the range floor — the same text the C++ parameter reports to the host (D-03)'],
+    ['−inf', 'output_level readout at the range floor — typographic minus, matching the page’s −6.0 dB; the host string stays ASCII -inf (N12)'],
     ['Full', 'bit_depth readout at index 0 — byte-identical to the AudioParameterChoice option, which is also the host automation name (D-01)'],
 ];
 
@@ -636,6 +738,14 @@ export const TIP_BINDINGS = [
     ['#lesson-ppg8bit',       'lessonPpg8bit'],
 
     ['#keyboard',            'keyboard'],
+    ['#octDown',             'octDown'],
+    ['#octUp',               'octUp'],
+
+    ['#preset-select',       'presetSelect'],
+    ['#preset-prev',         'presetPrev'],
+    ['#preset-next',         'presetNext'],
+    ['#preset-save',         'presetSave'],
+    ['#preset-delete',       'presetDelete'],
 ];
 
 export function tr(key, lang, vars) {

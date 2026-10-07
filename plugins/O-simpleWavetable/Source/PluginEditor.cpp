@@ -44,6 +44,7 @@
 #include "BinaryData.h"
 #include "VizPayload.h"
 
+#include <cmath>
 #include <cstddef>
 #include <utility>
 #include <vector>
@@ -71,6 +72,29 @@ namespace
         auto* p = apvts.getParameter (paramId);
         jassert (p != nullptr);
         return p != nullptr ? std::make_unique<Attachment> (*p, relay, nullptr) : nullptr;
+    }
+
+    bool isNumberVar (const juce::var& v)
+    {
+        return v.isInt() || v.isInt64() || v.isDouble();
+    }
+
+    juce::var stringsToVar (const juce::StringArray& names)
+    {
+        juce::Array<juce::var> out;
+        for (const auto& n : names)
+            out.add (n);
+        return juce::var (std::move (out));
+    }
+
+    // The two dialog natives preset-manager.js resolves but this page never
+    // binds: registered so no promise can hang and the bridge stays exact.
+    juce::var refusedDialog()
+    {
+        auto* o = new juce::DynamicObject();
+        o->setProperty ("success", false);
+        o->setProperty ("name", juce::String());
+        return juce::var (o);
     }
 }
 
@@ -103,6 +127,11 @@ OSimpleWavetableAudioProcessorEditor::getResource (const juce::String& url)
     if (url == "/modules/webview-drop-streaming.js")
         return makeBinaryResource (BinaryData::webviewdropstreaming_js,
                                    BinaryData::webviewdropstreaming_jsSize, "application/javascript; charset=utf-8");
+
+    // preset-manager (Stage 4, D-AA): copied the same way; the page imports it
+    // DYNAMICALLY inside initPresets, so a miss disables the panel only.
+    if (url == "/modules/preset-manager.js")
+        return makeBinaryResource (BinaryData::presetmanager_js, BinaryData::presetmanager_jsSize, "application/javascript; charset=utf-8");
 
     if (url == "/img/insects.png")
         return makeBinaryResource (BinaryData::insects_png, BinaryData::insects_pngSize, "image/png");
@@ -178,11 +207,17 @@ OSimpleWavetableAudioProcessorEditor::OSimpleWavetableAudioProcessorEditor (OSim
         .withOptionsFrom (*outputLevelRelay);
 
     // -- Native functions -----------------------------------------------------
-    // EVERY name the page calls through getNativeFunction() is registered here;
-    // an unregistered one never settles its promise and its control is silently
-    // dead while build, auval and pluginval all pass. The page calls:
-    //   getParameterDefaults, getUiLanguage, setUiLanguage, uiReady,
-    //   importAudio, importDroppedAudio, uiMidi, applyFactoryPreset.
+    // EVERY name the page (or a module it imports) calls through
+    // getNativeFunction() is registered here; an unregistered one never settles
+    // its promise and its control is silently dead while build, auval and
+    // pluginval all pass. 20 names:
+    //   page:            getParameterDefaults, getUiLanguage, setUiLanguage,
+    //                    uiReady, importAudio, importDroppedAudio, uiMidi,
+    //                    applyFactoryPreset, getPresetCatalog, stepKnobDrag
+    //   preset-manager:  savePreset, savePresetWithDialog, loadPreset,
+    //                    loadPresetFromFile, getPresetList, getCurrentPreset,
+    //                    selectNextPreset, selectPreviousPreset, deletePreset,
+    //                    isFactoryPreset
 
     // dblclick reset: the relay's properties carry no default, and a JS default
     // table would drift from C++. Sliders report the engineering default;
@@ -221,39 +256,54 @@ OSimpleWavetableAudioProcessorEditor::OSimpleWavetableAudioProcessorEditor (OSim
     // The page's handshake: called once its event listeners exist, and again
     // whenever it becomes visible. Events emitted before the page listens are
     // lost, so state is re-sent on request rather than assumed delivered.
-    // Order (P10): bankUpdate -> importStatus -> (next tick) forced cycleUpdate.
-    // The counters are refreshed AFTER the emits so the next tick does not
-    // resend the same bank.
+    // W1 (D-AN): SNAPSHOT the counters FIRST, then emit in the timer's order
+    // (bankUpdate -> importStatus -> presetState -> next-tick cycleUpdate). A
+    // transition inside this window re-sends on the next tick: a duplicate,
+    // never a loss.
     options = options.withNativeFunction ("uiReady",
         [this] (auto&, auto complete)
         {
-            emitBankUpdate (true);
-            emitImportStatus();
-            forceCycleEmit = true;
             lastBankGeneration = processorRef.getBankDisplayGeneration();
             lastBankIndex      = processorRef.getSelectedBankIndex();
             lastImportVersion  = processorRef.getImportStatusVersion();
+            lastPresetRevision = processorRef.getPresetRevision();
+            lastPresetModified = processorRef.isPresetModified();
+            emitBankUpdate (true);
+            emitImportStatus();
+            emitPresetState (true);
+            forceCycleEmit = true;
             complete (juce::var (true));
         });
 
     // Import button -> native FileChooser. Completes IMMEDIATELY: progress and
-    // the result reach the page as importStatus events.
+    // the result reach the page as importStatus events. N1 (D-AP): one dialog
+    // at a time - a second click while it is open does nothing.
     options = options.withNativeFunction ("importAudio",
         [this] (auto&, auto complete)
         {
             complete (juce::var (true));
 
-            auto chooser = std::make_shared<juce::FileChooser> (
+            if (importDialogInFlight)
+                return;
+            importDialogInFlight = true;
+
+            importChooser = std::make_unique<juce::FileChooser> (
                 "Import audio", juce::File{}, "*.wav;*.wave;*.aif;*.aiff;*.flac;*.ogg");
             juce::Component::SafePointer<OSimpleWavetableAudioProcessorEditor> safeThis (this);
 
-            chooser->launchAsync (juce::FileBrowserComponent::openMode
-                                    | juce::FileBrowserComponent::canSelectFiles,
-                [safeThis, chooser] (const juce::FileChooser& fc)
+            importChooser->launchAsync (juce::FileBrowserComponent::openMode
+                                          | juce::FileBrowserComponent::canSelectFiles,
+                [safeThis] (const juce::FileChooser& fc)
                 {
                     // Editor gone while the dialog was open: bail WITHOUT touching
                     // the bridge (pattern_webview_launchasync_safepointer_no_complete).
+                    // The flag died with the editor.
                     if (safeThis == nullptr) return;
+
+                    // Cleared first, above every other return, so a cancelled
+                    // dialog never latches the guard shut. Only the flag: the
+                    // chooser is replaced on the next launch, never here.
+                    safeThis->importDialogInFlight = false;
 
                     const auto file = fc.getResult();
                     if (file.existsAsFile())
@@ -295,6 +345,118 @@ OSimpleWavetableAudioProcessorEditor::OSimpleWavetableAudioProcessorEditor (OSim
         {
             const bool ok = args.size() > 0 && processorRef.applyFactoryPreset (args[0].toString());
             forceCycleEmit = true;   // the bank change itself reaches the page through the index watch
+            complete (juce::var (ok));   // the name / revision bump happens in the processor
+        });
+
+    // -- Stage 4 presets (D-AH) -----------------------------------------------
+    // Every preset native first materialises the factory bank on disk (lazy,
+    // once per instance; never in the processor ctor). Arguments are untrusted
+    // (ASVS V5): types are checked here; names are validated by the processor
+    // (walk-order membership, sanitise, factory refusal). The sound of a
+    // factory preset always comes from the recipe table, never the disk copy.
+    options = options.withNativeFunction ("getPresetList",
+        [this] (auto&, auto complete)
+        {
+            processorRef.ensureFactoryBankOnDisk();
+            complete (stringsToVar (processorRef.getPresetWalkOrder()));
+        });
+
+    options = options.withNativeFunction ("getCurrentPreset",
+        [this] (auto&, auto complete)
+        {
+            processorRef.ensureFactoryBankOnDisk();
+            complete (juce::var (processorRef.getPresetName()));
+        });
+
+    // The neighbour in the walk order, NOT loaded: preset-manager.js loads the
+    // returned name through loadPreset.
+    options = options.withNativeFunction ("selectNextPreset",
+        [this] (auto&, auto complete)
+        {
+            processorRef.ensureFactoryBankOnDisk();
+            complete (juce::var (processorRef.getNeighbourPreset (1)));
+        });
+
+    options = options.withNativeFunction ("selectPreviousPreset",
+        [this] (auto&, auto complete)
+        {
+            processorRef.ensureFactoryBankOnDisk();
+            complete (juce::var (processorRef.getNeighbourPreset (-1)));
+        });
+
+    options = options.withNativeFunction ("loadPreset",
+        [this] (const juce::Array<juce::var>& args, auto complete)
+        {
+            processorRef.ensureFactoryBankOnDisk();
+            const bool ok = args.size() > 0 && args[0].isString()
+                         && processorRef.loadPresetByName (args[0].toString());
+            forceCycleEmit = true;
+            complete (juce::var (ok));
+        });
+
+    options = options.withNativeFunction ("savePreset",
+        [this] (const juce::Array<juce::var>& args, auto complete)
+        {
+            processorRef.ensureFactoryBankOnDisk();
+            const bool ok = args.size() > 0 && args[0].isString()
+                         && processorRef.saveUserPreset (args[0].toString());
+            complete (juce::var (ok));
+        });
+
+    options = options.withNativeFunction ("deletePreset",
+        [this] (const juce::Array<juce::var>& args, auto complete)
+        {
+            processorRef.ensureFactoryBankOnDisk();
+            const bool ok = args.size() > 0 && args[0].isString()
+                         && processorRef.deleteUserPreset (args[0].toString());
+            complete (juce::var (ok));
+        });
+
+    // Table lookup, never the disk (a stale disk copy cannot lie).
+    options = options.withNativeFunction ("isFactoryPreset",
+        [this] (const juce::Array<juce::var>& args, auto complete)
+        {
+            processorRef.ensureFactoryBankOnDisk();
+            const bool factory = args.size() > 0 && args[0].isString()
+                              && OSimpleWavetableAudioProcessor::isFactoryPresetName (args[0].toString());
+            complete (juce::var (factory));
+        });
+
+    options = options.withNativeFunction ("savePresetWithDialog",
+        [this] (auto&, auto complete)
+        {
+            processorRef.ensureFactoryBankOnDisk();
+            complete (refusedDialog());
+        });
+
+    options = options.withNativeFunction ("loadPresetFromFile",
+        [this] (auto&, auto complete)
+        {
+            processorRef.ensureFactoryBankOnDisk();
+            complete (refusedDialog());
+        });
+
+    options = options.withNativeFunction ("getPresetCatalog",
+        [this] (auto&, auto complete)
+        {
+            processorRef.ensureFactoryBankOnDisk();
+            complete (processorRef.getPresetCatalog());
+        });
+
+    // N13 (D-AP): [id, phase (0 begin / 1 move / 2 end), index]. The gesture
+    // bracket lives in the processor (stepKnobGesture: allow-list, clamp).
+    options = options.withNativeFunction ("stepKnobDrag",
+        [this] (const juce::Array<juce::var>& args, auto complete)
+        {
+            bool ok = false;
+            if (args.size() >= 3 && args[0].isString() && isNumberVar (args[1]) && isNumberVar (args[2]))
+            {
+                const double phase = (double) args[1];
+                const double index = (double) args[2];
+                if (std::isfinite (phase) && std::isfinite (index) && std::abs (phase) < 1.0e6 && std::abs (index) < 1.0e6)
+                    ok = processorRef.stepKnobGesture (args[0].toString(), (int) std::lround (phase),
+                                                       (int) std::lround (index));
+            }
             complete (juce::var (ok));
         });
 
@@ -348,6 +510,8 @@ OSimpleWavetableAudioProcessorEditor::OSimpleWavetableAudioProcessorEditor (OSim
     lastImportVersion  = processorRef.getImportStatusVersion();
     lastBankGeneration = processorRef.getBankDisplayGeneration();
     lastBankIndex      = processorRef.getSelectedBankIndex();
+    lastPresetRevision = processorRef.getPresetRevision();
+    lastPresetModified = processorRef.isPresetModified();
 
     // Fixed frame, <= 800 px tall. The headless UI gates parse this literal,
     // so it stays the numeric setSize.
@@ -359,6 +523,10 @@ OSimpleWavetableAudioProcessorEditor::OSimpleWavetableAudioProcessorEditor (OSim
 
 OSimpleWavetableAudioProcessorEditor::~OSimpleWavetableAudioProcessorEditor()
 {
+    // W5 (D-AM): a note held on the on-screen keyboard must not outlive the
+    // page. N13: a stepped-knob drag in progress closes its host gesture.
+    processorRef.releaseUiHeldNotes();
+    processorRef.closeStepKnobGestures();
     stopTimer();
 }
 
@@ -379,6 +547,27 @@ void OSimpleWavetableAudioProcessorEditor::emitBankUpdate (bool force)
     lastBankHash = h;
 
     webView->emitEventIfBrowserIsVisible ("bankUpdate", viz::bankToVar (bankThumbs));
+}
+
+// presetState { name, id, factory, modified } (D-AG). id = the table id or "".
+void OSimpleWavetableAudioProcessorEditor::emitPresetState (bool force)
+{
+    if (webView == nullptr)
+        return;
+
+    const auto rev = processorRef.getPresetRevision();
+    const bool mod = processorRef.isPresetModified();
+    if (! force && rev == lastPresetRevision && mod == lastPresetModified)
+        return;
+    lastPresetRevision = rev;
+    lastPresetModified = mod;
+
+    auto* o = new juce::DynamicObject();
+    o->setProperty ("name",     processorRef.getPresetName());
+    o->setProperty ("id",       processorRef.getPresetId());
+    o->setProperty ("factory",  processorRef.isPresetFactory());
+    o->setProperty ("modified", mod);
+    webView->emitEventIfBrowserIsVisible ("presetState", juce::var (o));
 }
 
 // importStatus { state: "idle"|"busy"|"done"|"error", filename, frames, error }
@@ -407,11 +596,16 @@ void OSimpleWavetableAudioProcessorEditor::emitCycleUpdate (bool force)
 }
 
 // -- Timer (30 Hz, message thread) --------------------------------------------
-// Order every tick (P10, D-T): bankUpdate -> importStatus -> cycleUpdate.
+// Order every tick (P10, D-T, D-AG): bankUpdate -> importStatus -> presetState
+// -> cycleUpdate.
 void OSimpleWavetableAudioProcessorEditor::timerCallback()
 {
     if (webView == nullptr)
         return;
+
+    // D-AF: a restored user preset name re-reads its file once (here, on the
+    // message thread, never in setStateInformation).
+    processorRef.refreshPresetTargetsIfNeeded();
 
     // P2: the generation bump for a bank-PARAM change happens on the audio
     // thread only; a host that idles the instrument would leave the stack
@@ -431,6 +625,8 @@ void OSimpleWavetableAudioProcessorEditor::timerCallback()
         lastImportVersion = v;
         emitImportStatus();
     }
+
+    emitPresetState (false);   // revision changed or modified flipped
 
     emitCycleUpdate (std::exchange (forceCycleEmit, false));
 }

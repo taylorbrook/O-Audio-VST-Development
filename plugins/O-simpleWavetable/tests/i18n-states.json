@@ -26,5 +26,37 @@
   {
     "name": "imported bank, high note held, band-limit readouts, loop seam (readout.importedName, harm.*, cyc.seam)",
     "eval": "(() => { const f = (k) => Array.from({ length: 128 }, (_, i) => Math.sin(2 * Math.PI * (i / 128) * (1 + k * 0.2)) * 0.8); window.__stubEmit('bankUpdate', { bank: 5, imported: true, numFrames: 87, filename: 'cello_phrase.wav', frames: Array.from({ length: 87 }, (_, k) => f(k)) }); window.__stubEmit('cycleUpdate', { cycle: Array.from({ length: 256 }, (_, i) => Math.sin(2 * Math.PI * i / 256) * 0.7 + 0.3 * (i / 255)), harmonics: Array.from({ length: 32 }, (_, k) => -3 * k), harmonicsRaw: Array.from({ length: 32 }, (_, k) => -2 * k), pos: 0.42, frame: -1, level: 6, kmax: 16, nyquistH: 21.3, note: 96, f0: 1046.5, lfo: 0.4, menv: 0.6, amp: 0.8, sounding: true }); })()"
+  },
+  {
+    "name": "preset Init, unmodified (preset.init — the widest fr factory name, 140.3 px)",
+    "eval": "window.__stubEmit('presetState', { name: 'Init - Additive Build', id: 'init', factory: true, modified: false })"
+  },
+  {
+    "name": "preset Init, modified (the brass dot)",
+    "eval": "window.__stubEmit('presetState', { name: 'Init - Additive Build', id: 'init', factory: true, modified: true })"
+  },
+  {
+    "name": "save popover open (preset.saveTitle, preset.namePlaceholder, preset.save / preset.cancel)",
+    "click": "#preset-save"
+  },
+  {
+    "name": "save popover, a factory name typed and submitted (preset.errFactoryName)",
+    "eval": "(() => { const i = document.getElementById('preset-name'); i.value = 'Alias Demo'; i.dispatchEvent(new Event('input', { bubbles: true })); document.getElementById('preset-pop-ok').click(); })()"
+  },
+  {
+    "name": "user preset Bright Pad, delete popover open (preset.confirmDelete with the name, preset.delete)",
+    "eval": "(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); window.__stubEmit('presetState', { name: 'Bright Pad', id: '', factory: false, modified: false }); document.getElementById('preset-delete').click(); })()"
+  },
+  {
+    "name": "restored session from a newer build (import.err.unsupported, N9); the delete popover closed first",
+    "eval": "(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); window.__stubEmit('importStatus', { state: 'error', filename: 'future.wav', frames: 0, error: 'unsupported' }); })()"
+  },
+  {
+    "name": "drop refused, too large (import.err.tooLarge, W2 copy)",
+    "eval": "window.__stubEmit('importStatus', { state: 'error', filename: 'huge.wav', frames: 0, error: 'tooLarge' })"
+  },
+  {
+    "name": "preset Drive Sweep, unmodified (lit lesson button + tour.caption.driveSweep)",
+    "eval": "window.__stubEmit('presetState', { name: 'Drive Sweep', id: 'driveSweep', factory: true, modified: false })"
   }
 ]

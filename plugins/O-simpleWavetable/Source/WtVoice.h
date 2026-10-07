@@ -95,6 +95,8 @@
 
 #pragma once
 
+#include "TestHooks.h"   // first: the OSIW_TEST_HOOKS default (Stage 2 note 8)
+
 #include <juce_audio_basics/juce_audio_basics.h>
 
 #include <algorithm>
@@ -401,9 +403,16 @@ public:
             if (xfActive)                               // frozen-cycle crossfade (QUAL-03)
             {
                 const float w = xfWeight (xfPos, xfLenActive);
+                bool keepRate = true;
+               #if OSIW_TEST_HOOKS
+                keepRate = xfKeepRate;
+               #endif
                 const float fz = frozenSilent[frozenActive] ? 0.0f
-                                                            : quant.apply (readFrozen (frozen[frozenActive], phase));
+                                                            : quant.apply (readFrozen (frozen[frozenActive], keepRate ? xfPhase : phase));
                 s = (1.0f - w) * fz + w * s;
+                xfPhase += xfInc;                       // W4: the outgoing cycle keeps the rate it was heard at
+                if (xfPhase >= 1.0)
+                    xfPhase -= 1.0;
                 if (++xfPos >= xfLenActive)
                     xfActive = false;
             }
@@ -429,6 +438,7 @@ public:
                 break;
         }
 
+        renderedInc = inc;                              // W4: rate of the last rendered sample
         effPos    = eff;
         lastMenv  = menv;
         lastAmp   = env;
@@ -526,6 +536,7 @@ public:
     bool tailFadeEnabled = true;
     bool velRampEnabled  = true;
     bool isTailActive() const noexcept { return tailLeft > 0; }
+    bool xfKeepRate = true;            // W4 negative control: false = frozen read at the live phase
    #endif
 
 private:
@@ -710,15 +721,31 @@ private:
         const bool  curSilent = frozenSilent[frozenActive];
         float* dst          = frozen[1 - frozenActive];
         const float capPos  = effPos;                 // position read by the last rendered sample
+        bool keepRate = true;
+       #if OSIW_TEST_HOOKS
+        keepRate = xfKeepRate;
+       #endif
+        // W4: a running frozen cycle is read at xfPhase, the live one at phase.
+        // Fold it phase-aligned (offset 0 when the rates never differed: exact).
+        const double curOffset = (folding && keepRate) ? xfPhase - phase : 0.0;
 
         for (int i = 0; i < WavetableBank::kTableSize; ++i)
         {
             const double ph = (double) i / (double) WavetableBank::kTableSize;
             const float liveOld = liveSilent ? 0.0f
                                              : wt::readSample (*ob, oldCfg.level, ph, oldCfg.interp, capPos, latchedFrame);
-            dst[i] = folding ? (1.0f - w) * (curSilent ? 0.0f : cur[i]) + w * liveOld   // FOLD, never drop
+            float curVal = 0.0f;
+            if (folding && ! curSilent)
+            {
+                double cp = ph + curOffset;
+                cp -= std::floor (cp);
+                curVal = juce::exactlyEqual (curOffset, 0.0) ? cur[i] : readFrozen (cur, cp);
+            }
+            dst[i] = folding ? (1.0f - w) * curVal + w * liveOld   // FOLD, never drop
                              : liveOld;
         }
+        xfPhase = phase;
+        xfInc   = keepRate ? renderedInc : inc;
         dst[WavetableBank::kTableSize] = dst[0];      // guard
 
         frozenSilent[1 - frozenActive] = liveSilent && (! folding || curSilent);
@@ -799,6 +826,9 @@ private:
     int   xfPos        = 0;
     int   xfLenActive  = 1;
     int   xfadeLen     = 1;                 // round(0.005 * fs), set in prepareToPlay
+    double xfPhase = 0.0;                   // W4: the frozen cycle's own phase ...
+    double xfInc   = 0.0;                   // ... and rate (= the rate it was heard at)
+    double renderedInc = 0.0;               // inc of the last rendered sample
 
     bool startedFromIdle = true;
     std::uint64_t noteAge = 0;

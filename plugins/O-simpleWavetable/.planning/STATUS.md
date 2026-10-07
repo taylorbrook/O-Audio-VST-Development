@@ -1,12 +1,13 @@
 ---
 plugin: O-simpleWavetable
 stage: 4
-status: stage_4_plan_complete
-last_updated: 2026-10-06 23:59:59
+status: stage_4_part1_complete_visual_pending
+last_updated: 2026-10-06 19:10:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: plugin_execute_stage_4
+next_action: user_visual_checkpoint_then_plugin_execute_stage_4
+s4_part1_scratch: /private/tmp/claude-501/-Users-taylorbrook-Dev-VST-development/63650402-ebd8-40b1-94ff-7ac100afdda5/scratchpad
 next_stage: 4
 ready_for_implementation: true
 latest_mockup_version: 1
@@ -30,8 +31,8 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 4 of 4 (Polish) — discuss ✓, research ✓, plan ✓ 2026-10-06. **Next: `/plugin-execute O-simpleWavetable 4-polish`.**
-Status: Research & Planning complete; UI mockup v1 finalized with implementation scaffolding; parameter-spec.md locked (21 parameters). Ready for Stage 1.
+Stage: 4 of 4 (Polish) — discuss ✓, research ✓, plan ✓, execute Part 1 ✓ 2026-10-06. **Next: Task 14 visual checkpoint (Taylor, Standalone), then `/plugin-execute O-simpleWavetable 4-polish` resumes Part 2 at Task 15.**
+Status: Stage 4 Part 1 (critic fixes + preset manager) built, gated, installed; awaiting the visual sign-off.
 Progress: [################....] 80%
 
 ## Completed So Far
@@ -91,6 +92,8 @@ Progress: [################....] 80%
 
 UI-01..06 and PERF-03 are complete. The critic review found 0 blockers, 5 warnings and 13 notes. **Taylor chose VERIFIED, with W1–W5 and N1–N13 carried into Stage 4.**
 
+**Stage 4 execute Part 1 (Tasks 1–13):** ✓ 2026-10-06 — critic fixes S2 W3/W4 + notes 3/4/8, S3 W1–W5 + N1/N4/N5/N7–N13; FUNC-08 preset manager (`PresetRecipes.h` 9-entry §A9 table, one apply core, module for files/guards/sentinel/JS only, `currentPreset` root property, 20 natives, `presetState` event, panel 352 px, keyboard 556 px). Gates (Debug, out-of-repo; 0 plugin + 0 module warnings): 7 drivers ALL PASS, state 12/12 (P11), `--alloc-check` 0 incl. 6000-event flood; G-MONO-WHEEL 0.00 / −0.00 / 0.00 c (NC +199.98 / +100.00); G-LEGATO-XF ≤ 7.1e-8 (NC ≥ 0.544; confinement per pitch-change fade); G-LEGATO-ALIAS −102.0 / −107.2 dB = floor (NC −24.3 / −26.0); G-LEGATO-CLICK 1.000 (NC 1.532); G-MIDI-FLOOD −0.024 c (alloc NC 1/1); G-UNPREPARED (NC SIGSEGV); G-VIZ-RELEASE, G-SANITISE, G-DROP-CAPSYNC, G-FACTORY (skew NC on 6 params), G-S3N5, G-PRESET-USER/-NAME/-WALK/-STATE/-IMPORTED, G-S3W4-ERRCLEAR, G-S3W5-UIHELD, G-S3N13 — all PASS, every NC FAILS as designed. R-UNDEF clean (NC: WtVoice 2 / PositionSmoother 1 / PositionLfo 5). R-GOLD diffs on the allowlist only (G-TIME, soak/G-FINITE/G-ALLOC counts, G-LESSON 5 → 9 ids, G-DROP[b] 22,369,625; G-BLOCK peak unmoved). UI: check-i18n PASS (44 tips), fr CLEAN, zh 168 entries 0 findings; check-ui-labels 16 states PASS; boot-all-uis 0 DEAD / 0 late; G-S3W3-WHEEL 6/6 (Stage 3 page NC: 5 arms FAIL as designed). R-NULL vs the installed Stage 3 VST3: 5 untouched cases bit-exact, mono_legato diff only at 28801–29039, legato_60_96_drive diff only in t+1…t+239 of each pitch change, w3_poly_to_mono +199.98 c → 0.000 c, Stage 4 deterministic. auval SUCCEEDED (2 benign skew warnings); pluginval VST3 + AU strictness 10 SUCCESS; 0 `ForTesting` shipped; Standalone rebuilt + fresh. Orchestrator fixes: G-LEGATO-XF confinement scoped to each arm's pitch-change fades; N13 move compares choice indices (`AudioParameterChoice::getValue` is private). Copy deviation: fr `import.err.tooLarge` shortened to "… utilisez Importer" (draft 259.8 px > 240).
+
 ## Phase Progress
 
 ### Stage 1: Foundation
@@ -149,7 +152,7 @@ Stage 4 plan (2026-10-06): stages/4-polish/PLAN.md, 24 tasks in two parts (Part 
 
 ## Next Steps
 
-1. `/plugin-execute O-simpleWavetable 4-polish` (Part 1, Tasks 1–14; Task 1 snapshots the installed Stage 3 VST3/AU before any install).
+1. **Task 14 visual checkpoint** (Taylor, Release Standalone; script in stages/4-polish/PLAN.md Task 14). Sign-off → `/plugin-execute O-simpleWavetable 4-polish` resumes Part 2 at Task 15; a finding → fix in Part 1 and repeat.
 2. Stage 4 entry items:
    - Stage 3 critic W1–W5: the uiReady counter race, the 96 MB drop freeze, trackpad wheel stepping, the stale import error, and a stuck UI-held note on editor close
    - Stage 3 critic N1–N13 (stages/3-gui/VERIFICATION.md §Issues Found)

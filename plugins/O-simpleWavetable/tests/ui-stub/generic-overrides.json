@@ -1,0 +1,24 @@
+{
+  "_why": "Stage 4 preset browser: the generic stub's bland 'Default / Preset A' list would leave the select, the factory labelers and the delete popover unmeasured at real widths. These are the 9 factory file names in table order (PresetRecipes.h) plus one user preset, in the shapes PluginEditor.cpp returns: getPresetList = the walk order (string array), getPresetCatalog = { factory: [{ name, id }], user: [names] } (object), getCurrentPreset = the fresh-instance name.",
+  "natives": {
+    "getPresetList": [
+      "Init - Additive Build", "Stepped Scan", "Smooth Scan", "Alias Demo", "Drive Sweep",
+      "Vowel Pad", "Pulse Narrowing", "8-bit PPG", "4-bit PPG", "Bright Pad"
+    ],
+    "getPresetCatalog": {
+      "factory": [
+        { "name": "Init - Additive Build", "id": "init" },
+        { "name": "Stepped Scan",          "id": "steppedSmooth" },
+        { "name": "Smooth Scan",           "id": "smoothScan" },
+        { "name": "Alias Demo",            "id": "aliasDemo" },
+        { "name": "Drive Sweep",           "id": "driveSweep" },
+        { "name": "Vowel Pad",             "id": "vowelPad" },
+        { "name": "Pulse Narrowing",       "id": "pulseNarrowing" },
+        { "name": "8-bit PPG",             "id": "ppg8bit" },
+        { "name": "4-bit PPG",             "id": "ppg4bit" }
+      ],
+      "user": ["Bright Pad"]
+    },
+    "getCurrentPreset": "Init - Additive Build"
+  }
+}
