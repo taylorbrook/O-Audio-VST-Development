@@ -1,12 +1,13 @@
 ---
 plugin: O-simpleWavetable
 stage: 4
-status: stage_4_part1_complete_visual_pending
+status: stage_4_part2_signoff_pending
 last_updated: 2026-10-06 19:10:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: user_visual_checkpoint_then_plugin_execute_stage_4
+next_action: user_ci_goahead_and_listening_signoff
+s4_part2_scratch: /private/tmp/claude-501/-Users-taylorbrook-Dev-VST-development/809fc72b-8c8b-496a-8e82-73c395d95a46/scratchpad
 s4_part1_scratch: /private/tmp/claude-501/-Users-taylorbrook-Dev-VST-development/63650402-ebd8-40b1-94ff-7ac100afdda5/scratchpad
 next_stage: 4
 ready_for_implementation: true
@@ -23,7 +24,7 @@ brief_update_timestamp: "2026-10-06T02:25:53Z"
 contract_checksums:
   brief: sha256:9cee315a17720edd08c2e635537eb1af1c6e131bcff10fcb8090370688f49e9c
   parameter_spec: sha256:e77ae9445099369a1a40daef12e0a4be46bfcca37a4937eae069aa56efa2ab2b
-  architecture: sha256:b7ddf56f37f57e68f6f2945d1ccb88a2388edc1a499b9e3d0c88dec18c38150b
+  architecture: sha256:68b3f7a240cc7ed2e093a915e79a438f31e9e548e5e69aa737e2316d14524b5b
   roadmap: sha256:f657e02a22d6dee0e4d8f2a08ec8736c6479a4eebed7e14dc78c014bf71f32b5
 ---
 
@@ -31,7 +32,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 4 of 4 (Polish) — discuss ✓, research ✓, plan ✓, execute Part 1 ✓ 2026-10-06. **Next: Task 14 visual checkpoint (Taylor, Standalone), then `/plugin-execute O-simpleWavetable 4-polish` resumes Part 2 at Task 15.**
+Stage: 4 of 4 (Polish) — discuss ✓, research ✓, plan ✓, execute Part 1 ✓ + visual sign-off + Part 2 Tasks 15–21 ✓ 2026-10-06. **Next: Task 22 CI go-ahead + Task 23 listening sign-off (Taylor), then Task 24.**
 Status: Stage 4 Part 1 (critic fixes + preset manager) built, gated, installed; awaiting the visual sign-off.
 Progress: [################....] 80%
 
@@ -94,6 +95,10 @@ UI-01..06 and PERF-03 are complete. The critic review found 0 blockers, 5 warnin
 
 **Stage 4 execute Part 1 (Tasks 1–13):** ✓ 2026-10-06 — critic fixes S2 W3/W4 + notes 3/4/8, S3 W1–W5 + N1/N4/N5/N7–N13; FUNC-08 preset manager (`PresetRecipes.h` 9-entry §A9 table, one apply core, module for files/guards/sentinel/JS only, `currentPreset` root property, 20 natives, `presetState` event, panel 352 px, keyboard 556 px). Gates (Debug, out-of-repo; 0 plugin + 0 module warnings): 7 drivers ALL PASS, state 12/12 (P11), `--alloc-check` 0 incl. 6000-event flood; G-MONO-WHEEL 0.00 / −0.00 / 0.00 c (NC +199.98 / +100.00); G-LEGATO-XF ≤ 7.1e-8 (NC ≥ 0.544; confinement per pitch-change fade); G-LEGATO-ALIAS −102.0 / −107.2 dB = floor (NC −24.3 / −26.0); G-LEGATO-CLICK 1.000 (NC 1.532); G-MIDI-FLOOD −0.024 c (alloc NC 1/1); G-UNPREPARED (NC SIGSEGV); G-VIZ-RELEASE, G-SANITISE, G-DROP-CAPSYNC, G-FACTORY (skew NC on 6 params), G-S3N5, G-PRESET-USER/-NAME/-WALK/-STATE/-IMPORTED, G-S3W4-ERRCLEAR, G-S3W5-UIHELD, G-S3N13 — all PASS, every NC FAILS as designed. R-UNDEF clean (NC: WtVoice 2 / PositionSmoother 1 / PositionLfo 5). R-GOLD diffs on the allowlist only (G-TIME, soak/G-FINITE/G-ALLOC counts, G-LESSON 5 → 9 ids, G-DROP[b] 22,369,625; G-BLOCK peak unmoved). UI: check-i18n PASS (44 tips), fr CLEAN, zh 168 entries 0 findings; check-ui-labels 16 states PASS; boot-all-uis 0 DEAD / 0 late; G-S3W3-WHEEL 6/6 (Stage 3 page NC: 5 arms FAIL as designed). R-NULL vs the installed Stage 3 VST3: 5 untouched cases bit-exact, mono_legato diff only at 28801–29039, legato_60_96_drive diff only in t+1…t+239 of each pitch change, w3_poly_to_mono +199.98 c → 0.000 c, Stage 4 deterministic. auval SUCCEEDED (2 benign skew warnings); pluginval VST3 + AU strictness 10 SUCCESS; 0 `ForTesting` shipped; Standalone rebuilt + fresh. Orchestrator fixes: G-LEGATO-XF confinement scoped to each arm's pitch-change fades; N13 move compares choice indices (`AudioParameterChoice::getValue` is private). Copy deviation: fr `import.err.tooLarge` shortened to "… utilisez Importer" (draft 259.8 px > 240).
 
+**Stage 4 Task 14 visual checkpoint:** ✓ signed off by Taylor 2026-10-06 (resumed via `/plugin-execute O-simpleWavetable 4-polish`; no visual/behaviour notes given). Part 2 (Tasks 15–24) started.
+
+**Stage 4 execute Part 2 (Tasks 15–21):** ✓ 2026-10-06 — QUAL-04 gates in dsp-check (dispatch E): G-Q4-STEP R 54.09 (≥ 10; NC1 R 1.000, NC2 0 steps); G-Q4-ALIAS worst A_8k(Off) −41.3 dB, min contrast 69.0 dB, worst A_full(On) −107.3 dB (NC1 Stage 3 recipe −101.9, NC2 0.0 dB); G-Q4-BITS SNR 95.1 → 16.5 dB, steps 5.70–6.27 dB, slope 6.03 dB/bit (NCa/b/c fire). PERF-02 `tests/perf-check` (no hooks, Release, out-of-repo): ALL PASS, duty 92 % — steady bs 512 median 0.31 / 0.34 / 0.62 / 0.67 % at 44.1 / 48 / 88.2 / 96 kHz, worst p99 1.93 % (bs 64); crossfade-every-block bs 512 worst 1.93 %; SCALE 10.5×, LIVE 4.44. Cross-checks on the installed VST3: pedalboard steady 0.72 % @ 96k (within 2×); ALIAS / BITS identical ±0.1 dB; STEP R 53.9 (±10 %). Task 19: VERSION 1.0.0, CHANGELOG (one `## [1.0.0]`), CODE_REVIEW (31 findings, open none), ARCHITECTURE Amendments 19–23. Task 20: R-STATIC S1–S14 + R-BRIDGE 20/20 + 4 events clean; Debug 0 plugin / 0 module warnings; 7 drivers ALL PASS, state 12/12, alloc 0; R-GOLD vs p1 timing/G-FINITE counts only; R-UNDEF clean; check-i18n PASS, fr CLEAN, zh 168 / 0; check-ui-labels PASS; boot-all-uis clean; G-S3W3-WHEEL 6/6 (Stage 3 page NC 5 arms FAIL as designed). Installed 1.0.0 (VST3 / AU / Standalone), 0 plugin `ForTesting`; auval SUCCEEDED (2 benign skew); pluginval VST3 + AU s10 SUCCESS. R-NULL Part 2 vs Part 1: 8/8 bit-identical; deterministic. Deviations: dispatch E stalled after Task 16 — orchestrator added the perf-check CMake target (file itself was complete); sandboxed perf run starved (duty 3 % → 77, witness worked) → re-run unsandboxed; `nm` shows JUCE's own `juce::Path::defaultToleranceForTesting` (not a plugin hook; `nm -gU` on the plugin = 0); G-REAP-SOAK liveness failed once while the sweep ran alongside build-and-install (reaped 0; safety terms clean) → 3/3 PASS quiet (reaped 38–40).
+
 ## Phase Progress
 
 ### Stage 1: Foundation
@@ -141,7 +146,7 @@ Stage 3 plan (2026-10-06): stages/3-gui/PLAN.md, 20 tasks in two parts (Part 1 =
 | discuss | ✓ | 2026-10-06 | |
 | research | ✓ | 2026-10-06 | |
 | plan | ✓ | 2026-10-06 | |
-| execute | | | |
+| execute | ◐ (Part 1 + visual + Part 2 T15–21; T22/T23 pending) | 2026-10-06 | |
 | verify | | | |
 
 Stage 4 research (2026-10-06): stages/4-polish/RESEARCH.md (synthesis + Parts A/B/C; probes in research-probes/). Preset-manager v1.0.9 still has the stale-child + output_level apply → use for files only, plugin keeps own state/apply; Imported × presets = (a) bank choice only; panel in keyboard row at 352 px; S2 W3/W4 + notes 3/4/8 prototyped with gates + NCs; W2 → 16 MiB drop cap; QUAL-04 + PERF-02 measured (0.75 % core @ 96 kHz). **Open for Taylor:** Drive Sweep copy vs §A9, W3b continuous-knob wheel, 37 px keys, CI push/dispatch go-ahead.
@@ -152,16 +157,9 @@ Stage 4 plan (2026-10-06): stages/4-polish/PLAN.md, 24 tasks in two parts (Part 
 
 ## Next Steps
 
-1. **Task 14 visual checkpoint** (Taylor, Release Standalone; script in stages/4-polish/PLAN.md Task 14). Sign-off → `/plugin-execute O-simpleWavetable 4-polish` resumes Part 2 at Task 15; a finding → fix in Part 1 and repeat.
-2. Stage 4 entry items:
-   - Stage 3 critic W1–W5: the uiReady counter race, the 96 MB drop freeze, trackpad wheel stepping, the stale import error, and a stuck UI-held note on editor close
-   - Stage 3 critic N1–N13 (stages/3-gui/VERIFICATION.md §Issues Found)
-3. Stage 4 backlog:
-   - Stage 2 W3, W4 and notes 3–8
-   - FUNC-08 / §A9 lesson recipes
-   - PERF-02, COMPAT-02 (Windows) and QUAL-04
-   - VERSION 1.0.0, CHANGELOG and CODE_REVIEW
-4. Optional (non-blocking): Stage 2 Task 23 by-ear checks (17-note steal, fast Mono retrigger).
+1. **Task 22 COMPAT-02 CI go-ahead** (Taylor; BLOCKING): push `main` + `workflow_dispatch` validate-only (`version=1.0.0-validate`) only on an explicit "yes".
+2. **Task 23 QUAL-04 listening sign-off** (Taylor; installed v1.0.0; script in stages/4-polish/PLAN.md Task 23).
+3. Task 24: SUMMARY.md, STATUS, docs commit → `/plugin-verify O-simpleWavetable 4-polish`. If the session ends first, `/plugin-execute O-simpleWavetable 4-polish` resumes at result intake.
 
 ## Context to Preserve
 
