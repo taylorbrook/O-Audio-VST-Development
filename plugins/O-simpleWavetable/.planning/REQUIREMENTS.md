@@ -4,7 +4,7 @@
 version: 1.0.0
 plugin: O-simpleWavetable
 created: 2026-10-05
-lastUpdated: 2026-10-06 (stage-2 verify)
+lastUpdated: 2026-10-07 (stage-4 verify)
 ---
 
 ## Overview
@@ -26,7 +26,7 @@ lastUpdated: 2026-10-06 (stage-2 verify)
 | FUNC-05 | Global LFO hard-wired to Position: rate (free Hz / tempo sync), depth, 5 shapes | must | complete | stage-2 |
 | FUNC-06 | Per-voice mod ADSR with bipolar amount hard-wired to Position | must | complete | stage-2 |
 | FUNC-07 | Poly (16 voices) / Mono (last-note priority) voice modes with amp ADSR and velocity → amplitude | must | complete | stage-2 |
-| FUNC-08 | Factory presets, each isolating one concept (stepped vs smooth, alias demo, drive sweep, vowel pad, low bit) | should | pending | stage-4 |
+| FUNC-08 | Factory presets, each isolating one concept (stepped vs smooth, alias demo, drive sweep, vowel pad, low bit) | should | complete | stage-4 |
 
 ### DSP (DSP)
 
@@ -55,7 +55,7 @@ lastUpdated: 2026-10-06 (stage-2 verify)
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | PERF-01 | Real-time safe audio processing (no allocations/locks in processBlock) | must | complete | stage-2 |
-| PERF-02 | 16 voices at 44.1–96 kHz well within a typical CPU budget | should | pending | stage-4 |
+| PERF-02 | 16 voices at 44.1–96 kHz well within a typical CPU budget | should | complete | stage-4 |
 | PERF-03 | Visual panels update smoothly (≥ 30 fps) without stalling the audio thread | should | complete | stage-3 |
 
 ### Compatibility (COMPAT)
@@ -63,7 +63,7 @@ lastUpdated: 2026-10-06 (stage-2 verify)
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | complete | stage-1 |
-| COMPAT-02 | Windows VST3 build with WebView2 static linking | should | pending | stage-4 |
+| COMPAT-02 | Windows VST3 build with WebView2 static linking | should | complete | stage-4 |
 | COMPAT-03 | Import accepts WAV / AIFF / FLAC at any sample rate | should | complete | stage-2 |
 
 ### Quality (QUAL)
@@ -73,7 +73,7 @@ lastUpdated: 2026-10-06 (stage-2 verify)
 | QUAL-01 | No audio artifacts at normal parameter ranges (beyond the deliberate ones: stepping, aliasing, quantization) | must | complete | stage-2 |
 | QUAL-02 | Band-limiting On is alias-free (aliases ≥ 60 dB down) up to C8 on the brightest frame | must | complete | stage-2 |
 | QUAL-03 | No clicks on bank switch, import swap, or toggle changes | must | complete | stage-2 |
-| QUAL-04 | Each teaching contrast is clearly audible (stepped vs smooth, aliasing vs clean, bit depth) | nice | pending | stage-4 |
+| QUAL-04 | Each teaching contrast is clearly audible (stepped vs smooth, aliasing vs clean, bit depth) | nice | complete | stage-4 |
 
 ## Acceptance Criteria Details
 
@@ -127,10 +127,16 @@ lastUpdated: 2026-10-06 (stage-2 verify)
 - [x] No allocation on the audio thread during bank switch or import (alloc gate)
 
 ### UI-01..04
-- [ ] Bank highlight and marker follow the effective Position, including LFO/env motion
-- [ ] Cycle panel shows the stair-steps at low bit depth
-- [ ] Harmonics bars match an offline FFT of the cycle being heard
-- [ ] Import shows filename and frame count
+- [x] Bank highlight and marker follow the effective Position, including LFO/env motion
+- [x] Cycle panel shows the stair-steps at low bit depth
+- [x] Harmonics bars match an offline FFT of the cycle being heard
+- [x] Import shows filename and frame count
+
+### FUNC-08 / PERF-02 / COMPAT-02 / QUAL-04 (stage-4 verify, 2026-10-07)
+- [x] FUNC-08: 9 factory presets from one table = §A9 + the 4-bit variant (G-FACTORY; §A9 cross-check 9/9); never set `output_level`; Imported untouched
+- [x] PERF-02: Release perf-check worst steady p99 1.006 %, worst crossfade 2.140 % of the real-time budget (16 voices, 44.1–96 kHz)
+- [x] COMPAT-02: CI run 37670481560 — Windows MSVC + static WebView2 VST3, pluginval s10 25/25 groups, 0 FAILED
+- [x] QUAL-04: G-Q4-STEP / ALIAS / BITS with negative controls + Taylor by-ear sign-off (Task 23)
 
 ### PERF-01 / COMPAT-01 / QUAL-01..03
 - **QUAL-01 complete (2026-10-06 re-verify after gap closure):** the first pass found 2 clicks, W1 (voice-steal hard stop) and W2 (Mono retrigger velocity step). Both are fixed: G-STEAL 1.076×, G-RETRIG-VEL 0.589×, G-SWITCH-TAIL 0.656×, each with a negative control. Installed VST3: W1 0.86×, W2 0.74×. See stages/2-dsp/VERIFICATION.md §Re-verification.
