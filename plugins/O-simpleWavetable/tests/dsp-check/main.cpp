@@ -78,6 +78,23 @@
                             >= floor + 40 dB.
       G-LEGATO-CLICK        max |dy| fade / steady <= 1.5; NC > 1.5.
 
+    Stage 4 Part 2 (4-polish PLAN Task 16, D-AR; QUAL-04). Recipes through
+    applyFactoryPreset (id) before prepareToPlay; only the contrast
+    parameter is overridden:
+      G-Q4-STEP   A4 @ 56320 Hz, Stepped Scan vs Smooth Scan, cycle-difference
+                  energy over t in [1.0, 3.8] s: R = S_Off / S_On >= 10, Off
+                  steps == latched-frame changes +/- 1 (>= 10), On >= 90 %
+                  of cycles differ, RMS > 0.05. NC1 R(Off, Off); NC2 lfo_depth
+                  0 (liveness); record-only W across the LFO reset.
+      G-Q4-ALIAS  Alias Demo, MIDI 84/96/108 x 4 rates x Band-limit Off/On:
+                  A_8k(Off) >= -50, contrast >= 40, A_full(On) <= -90,
+                  max harmonic > -40 dBFS. NC1 Stage 3 recipe C6 44.1k; NC2
+                  On vs On.
+      G-Q4-BITS   Sine->Saw frame 32, A4 48k, SNR vs Full per bit: steps in
+                  [4.5, 7.5] dB, LS slope 6.02 +/- 0.6, SNR(3) <= 25,
+                  SNR(16) >= 85. NCs (a) Full copies, (b) reversed, (c)
+                  1-sample offset; record-only 8-bit PPG arm.
+
     --alloc-check: O-Bells malloc_logger gate (volatile flag + counter,
     audio-thread scoped, liveness malloc(64) must count 1, warm-up block
     unarmed) over the G-ALLOC stimulus list. Exit 0 only if 0 allocations.
@@ -312,6 +329,22 @@ namespace
             midi.ensureSize (16384);
         }
 
+        // Stage 4 (G-Q4-*): a factory recipe through the processor's own
+        // applyFactoryPreset (the shipped table), then the overrides, all
+        // BEFORE prepareToPlay (so smoothers seed on them).
+        Rig (double fs, int blockSize, const char* presetId, const Params& overrides)
+            : proc (std::make_unique<Proc>()), block (blockSize), buf (2, blockSize)
+        {
+            presetApplied = proc->applyFactoryPreset (juce::String (presetId));
+            for (const auto& pr : overrides)
+                setParam (*proc, pr.first, pr.second);
+            proc->setPlayConfigDetails (0, 2, fs, blockSize);
+            proc->prepareToPlay (fs, blockSize);
+            midi.ensureSize (16384);
+        }
+
+        bool presetApplied = false;
+
         void set (const char* id, float v) { setParam (*proc, id, v); }
 
         std::vector<float> run (int n, const std::vector<Ev>& evs = {}, int blockOverride = 0)
@@ -506,10 +539,14 @@ namespace
         std::vector<float> work   = std::vector<float> ((size_t) (2 * kSize), 0.0f);
         std::vector<unsigned char> mask = std::vector<unsigned char> ((size_t) (kSize / 2 + 1), 0);
 
+        double windowSum = 0.0;   // coherent gain: a full-scale sine's bin = 0.5 * windowSum
+
         Q2Analyzer()
         {
             juce::dsp::WindowingFunction<float>::fillWindowingTables (window.data(), (size_t) kSize,
                 juce::dsp::WindowingFunction<float>::kaiser, false, 38.0f);
+            for (const float w : window)
+                windowSum += (double) w;
         }
 
         struct Result
@@ -518,9 +555,20 @@ namespace
             double worstHz = 0.0;
             double maxHarm = 0.0;
             double maxInh = 0.0;
+            // Stage 4 (G-Q4-ALIAS): the same metric with inharmonic bins
+            // restricted to b * fs / N <= bandHiHz (only when bandHiHz > 0).
+            double inhBandDb = 0.0;
+            double bandWorstHz = 0.0;
+            double maxInhBand = 0.0;
         };
 
-        Result measure (const float* x, double f0, double fs)
+        // A bin magnitude in dB re a full-scale sine (Kaiser coherent gain).
+        double binDbfs (double magnitude) const
+        {
+            return dB (magnitude / std::max (0.5 * windowSum, 1.0e-300));
+        }
+
+        Result measure (const float* x, double f0, double fs, double bandHiHz = 0.0)
         {
             for (int i = 0; i < kSize; ++i)
                 work[(size_t) i] = x[i] * window[(size_t) i];
@@ -541,20 +589,30 @@ namespace
             }
 
             Result r;
-            int worstBin = 0;
+            int worstBin = 0, bandBin = 0;
             for (int b = 0; b <= nb; ++b)
             {
                 const double m = (double) work[(size_t) b];
                 if (mask[(size_t) b] == 1)
                     r.maxHarm = std::max (r.maxHarm, m);
-                else if (mask[(size_t) b] == 0 && m > r.maxInh)
+                else if (mask[(size_t) b] == 0)
                 {
-                    r.maxInh = m;
-                    worstBin = b;
+                    if (m > r.maxInh)
+                    {
+                        r.maxInh = m;
+                        worstBin = b;
+                    }
+                    if (bandHiHz > 0.0 && (double) b * binHz <= bandHiHz && m > r.maxInhBand)
+                    {
+                        r.maxInhBand = m;
+                        bandBin = b;
+                    }
                 }
             }
             r.worstHz = (double) worstBin * binHz;
             r.inhDb = dB (r.maxInh / std::max (r.maxHarm, 1.0e-300));
+            r.bandWorstHz = (double) bandBin * binHz;
+            r.inhBandDb = dB (r.maxInhBand / std::max (r.maxHarm, 1.0e-300));
             return r;
         }
 
@@ -1843,6 +1901,472 @@ namespace
     }
 
     //==========================================================================
+    //==========================================================================
+    // Stage 4 Part 2 (4-polish PLAN Task 16, D-AR; RESEARCH C 1): QUAL-04
+    // measured contrast gates. Every recipe comes from the processor's own
+    // applyFactoryPreset (id) before prepareToPlay (the shipped table); only
+    // the contrast parameter is then overridden. Ratio verdicts, each with
+    // negative controls.
+
+    std::string q4Row (const std::vector<double>& v, int prec)
+    {
+        std::string s;
+        for (const double x : v)
+            s += (s.empty() ? "" : " ") + fmt (x, prec);
+        return s;
+    }
+
+    //--------------------------------------------------------------------------
+    // G-Q4-STEP: fs 56320, A4 -> inc = 2^-7, period P = 128 exactly. The Rig
+    // block is one period, so block k is cycle k and, after it, the lead
+    // voice's latched frame (Interp Off) is the frame of cycle k + 1.
+    constexpr double kQ4StepFs = 56320.0;
+    constexpr int    kQ4StepP  = 128;
+    constexpr int    kQ4MinSteps = 10;    // Off liveness floor (RESEARCH: 21 steps in W)
+
+    struct Q4StepRender
+    {
+        std::vector<float> y;
+        std::vector<int> nextFrame;       // [k] = frame latched for cycle k + 1 (-1 = no voice)
+        bool presetOk = false;
+    };
+
+    Q4StepRender q4StepRender (const char* presetId, const Params& overrides, double seconds)
+    {
+        Rig rig (kQ4StepFs, kQ4StepP, presetId, overrides);
+        Q4StepRender r;
+        r.presetOk = rig.presetApplied;
+        const int cycles = (int) (seconds * kQ4StepFs) / kQ4StepP;
+        r.y.reserve ((size_t) cycles * (size_t) kQ4StepP);
+        r.nextFrame.assign ((size_t) cycles, -1);
+        const std::vector<Ev> evs { evOn (0, 69, 100) };
+        const WtVoice* lead = nullptr;
+        for (int k = 0; k < cycles; ++k)
+        {
+            const auto x = rig.run (kQ4StepP, evs);
+            r.y.insert (r.y.end(), x.begin(), x.end());
+            for (int v = 0; v < Proc::kNumVoices && lead == nullptr; ++v)
+            {
+                const WtVoice* cand = rig.proc->getVoiceForTesting (v);
+                if (cand != nullptr && cand->isSounding())
+                    lead = cand;
+            }
+            r.nextFrame[(size_t) k] = lead != nullptr ? lead->getLastFrame() : -1;
+        }
+        return r;
+    }
+
+    struct Q4StepStats
+    {
+        double sumD = 0.0;        // S = sum of D_k over W
+        double maxD = 0.0;
+        int inW = 0;              // number of D_k in W
+        int steps = 0;            // D_k > 1e-3 * max D (over W)
+        int nonZero = 0;          // D_k > 0
+        int latchChanges = 0;     // frame (k + 1) != frame (k), k in W
+        double rmsW = 0.0;
+    };
+
+    // D_k = sum_n (c_{k+1}[n] - c_k[n])^2 at t_k = (k + 1) P / fs; W = t0 <= t_k <= t1.
+    Q4StepStats q4StepStats (const Q4StepRender& r, double t0, double t1)
+    {
+        Q4StepStats st;
+        const int cycles = (int) r.y.size() / kQ4StepP;
+        std::vector<double> dk;
+        std::vector<int> kk;
+        for (int k = 0; k + 1 < cycles; ++k)
+        {
+            const double tk = (double) ((k + 1) * kQ4StepP) / kQ4StepFs;
+            if (tk < t0 || tk > t1)
+                continue;
+            const float* a = r.y.data() + (size_t) k * (size_t) kQ4StepP;
+            const float* b = a + kQ4StepP;
+            double acc = 0.0;
+            for (int n = 0; n < kQ4StepP; ++n)
+            {
+                const double e = (double) b[n] - (double) a[n];
+                acc += e * e;
+            }
+            dk.push_back (acc);
+            kk.push_back (k);
+        }
+
+        st.inW = (int) dk.size();
+        for (const double v : dk)
+        {
+            st.sumD += v;
+            st.maxD = std::max (st.maxD, v);
+        }
+        for (size_t i = 0; i < dk.size(); ++i)
+        {
+            if (st.maxD > 0.0 && dk[i] > 1.0e-3 * st.maxD)
+                ++st.steps;
+            if (dk[i] > 0.0)
+                ++st.nonZero;
+            const int k = kk[i];
+            if (k >= 1 && r.nextFrame[(size_t) k] != r.nextFrame[(size_t) (k - 1)])
+                ++st.latchChanges;
+        }
+        st.rmsW = rms (r.y, secs (t0, kQ4StepFs), secs (t1, kQ4StepFs));
+        return st;
+    }
+
+    bool q4OffLive (const Q4StepStats& st)
+    {
+        return st.steps >= kQ4MinSteps && std::abs (st.steps - st.latchChanges) <= 1;
+    }
+
+    bool q4OnLive (const Q4StepStats& st)
+    {
+        return st.sumD > 0.0 && st.inW > 0 && (double) st.nonZero >= 0.9 * (double) st.inW;
+    }
+
+    void gateQ4Step()
+    {
+        constexpr double kT0 = 1.0, kT1 = 3.8, kStretchT1 = 4.3, kSeconds = 4.4;
+        constexpr double kMinR = 10.0, kMinRms = 0.05;
+
+        const auto off  = q4StepRender ("steppedSmooth", {}, kSeconds);
+        const auto on   = q4StepRender ("smoothScan", {}, kSeconds);
+        const auto sOff = q4StepStats (off, kT0, kT1);
+        const auto sOn  = q4StepStats (on, kT0, kT1);
+        const double ratio = sOff.sumD / std::max (sOn.sumD, 1.0e-300);
+        const bool liveOff = q4OffLive (sOff);
+        const bool liveOn  = q4OnLive (sOn);
+        const bool rmsOk   = sOff.rmsW > kMinRms && sOn.rmsW > kMinRms;
+        const bool presetOk = off.presetOk && on.presetOk;
+
+        report ("G-Q4-STEP", presetOk && ratio >= kMinR && liveOff && liveOn && rmsOk,
+                "A4 vel 100 @ 56320 Hz (P = 128), applyFactoryPreset steppedSmooth (Interp Off) vs smoothScan (Interp On); "
+                "W = t_k in [1.0, 3.8] s (" + std::to_string (sOff.inW) + " cycle diffs): S_Off " + sciStr (sOff.sumD)
+                + ", S_On " + sciStr (sOn.sumD) + ", R = S_Off / S_On = " + fmt (ratio, 2)
+                + " (>= 10; RESEARCH 54.3 model / 53.9 installed); liveness Off: " + std::to_string (sOff.steps)
+                + " steps (D_k > 1e-3 max D) vs " + std::to_string (sOff.latchChanges)
+                + " latched-frame changes in W (equal +/- 1, >= " + std::to_string (kQ4MinSteps) + "; RESEARCH 21); On: "
+                + std::to_string (sOn.nonZero) + " / " + std::to_string (sOn.inW) + " cycles with D_k > 0 (>= 90 %), S_On > 0; RMS in W Off "
+                + fmt (sOff.rmsW, 4) + ", On " + fmt (sOn.rmsW, 4) + " (> 0.05 each); presets applied: " + (presetOk ? "yes" : "NO"));
+
+        // NC1: no contrast (Off vs a second, identical Off render) -> R = 1.
+        const auto off2  = q4StepRender ("steppedSmooth", {}, kSeconds);
+        const auto sOff2 = q4StepStats (off2, kT0, kT1);
+        const double rNc1 = sOff.sumD / std::max (sOff2.sumD, 1.0e-300);
+        if (! (rNc1 >= kMinR) && off2.presetOk)
+            report ("G-Q4-STEP-NC1", true,
+                    "R (Off, Off) = " + fmt (rNc1, 3) + " (< 10) - a pair without contrast FAILS as designed");
+        else
+            report ("G-Q4-STEP-NC1", false,
+                    "R (Off, Off) = " + fmt (rNc1, 3) + " (want < 10) - the ratio passes without contrast; the gate is vacuous");
+
+        // NC2: LFO depth 0 -> both renders static -> no Off steps -> the liveness term fails.
+        const auto flat  = q4StepRender ("steppedSmooth", { { ids::lfoDepth, 0.0f } }, kSeconds);
+        const auto sFlat = q4StepStats (flat, kT0, kT1);
+        if (! q4OffLive (sFlat) && flat.presetOk)
+            report ("G-Q4-STEP-NC2", true,
+                    "lfo_depth 0: Off " + std::to_string (sFlat.steps) + " steps, " + std::to_string (sFlat.latchChanges)
+                    + " latched-frame changes (liveness wants >= " + std::to_string (kQ4MinSteps)
+                    + ") - a static scan FAILS as designed");
+        else
+            report ("G-Q4-STEP-NC2", false,
+                    "lfo_depth 0: Off " + std::to_string (sFlat.steps) + " steps, " + std::to_string (sFlat.latchChanges)
+                    + " latched-frame changes - the liveness term passed a static scan; the gate is vacuous");
+
+        // Record-only: W stretched across the Saw LFO reset at 4.000 s.
+        const auto xOff = q4StepStats (off, kT0, kStretchT1);
+        const auto xOn  = q4StepStats (on, kT0, kStretchT1);
+        info ("G-Q4-STEP record-only: W stretched to [1.0, 4.3] s across the Saw LFO reset at 4.000 s: R = "
+              + fmt (xOff.sumD / std::max (xOn.sumD, 1.0e-300), 2) + " (RESEARCH ~3-5; why W must end before the wrap); Off steps "
+              + std::to_string (xOff.steps) + ", latched-frame changes " + std::to_string (xOff.latchChanges));
+    }
+
+    //--------------------------------------------------------------------------
+    // G-Q4-ALIAS: Alias Demo (Drive, Pos 1, Band-limit Off) vs the same with
+    // Band-limit On. A_full = Q2Analyzer inhDb; A_8k = the same with the
+    // inharmonic bins restricted to <= 8 kHz.
+    constexpr double kQ4BandHz = 8000.0;
+
+    struct Q4AliasCell
+    {
+        double fs = 0.0;
+        int note = 0;
+        bool gated = false;
+        Q2Analyzer::Result off, on;
+        double offHarmDbfs = 0.0, onHarmDbfs = 0.0;
+    };
+
+    std::vector<float> q4AliasRender (double fs, int note, bool bandlimit, int bankOverride, bool& presetOk)
+    {
+        Params ov { { ids::bandlimit, bandlimit ? 1.0f : 0.0f } };
+        if (bankOverride >= 0)
+            ov.emplace_back (ids::bank, (float) bankOverride);
+        Rig rig (fs, 4096, "aliasDemo", ov);
+        presetOk = presetOk && rig.presetApplied;
+        const int skip = q2Skip (fs);
+        auto x = rig.run (skip + Q2Analyzer::kSize, { evOn (0, note) });
+        return std::vector<float> (x.begin() + skip, x.end());
+    }
+
+    // Term 2: min over the gated cells of A_8k(subject) - A_8k(On). The
+    // subject is Off (the gate) or On itself (NC2).
+    double q4MinContrast (const std::vector<Q4AliasCell>& cells, bool onVsOn)
+    {
+        double m = 1.0e9;
+        for (const auto& c : cells)
+            if (c.gated)
+                m = std::min (m, (onVsOn ? c.on.inhBandDb : c.off.inhBandDb) - c.on.inhBandDb);
+        return m;
+    }
+
+    void gateQ4Alias (Q2Analyzer& an)
+    {
+        constexpr double kAudible = -50.0, kContrast = 40.0, kClean = -90.0, kLiveDbfs = -40.0;
+
+        std::vector<Q4AliasCell> cells;
+        bool presetOk = true, allFinite = true;
+        for (const double rate : { 44100.0, 48000.0, 88200.0, 96000.0 })
+            for (const int midi : { 84, 96, 108 })
+            {
+                Q4AliasCell c;
+                c.fs = rate;
+                c.note = midi;
+                c.gated = midi >= 96 || rate < 50000.0;    // C7 + C8 everywhere, C6 at 44.1 / 48 only
+                const double f0 = noteHz (midi);
+                const auto xo = q4AliasRender (rate, midi, false, -1, presetOk);
+                c.off = an.measure (xo.data(), f0, rate, kQ4BandHz);
+                c.offHarmDbfs = an.binDbfs (c.off.maxHarm);
+                const auto xn = q4AliasRender (rate, midi, true, -1, presetOk);
+                c.on = an.measure (xn.data(), f0, rate, kQ4BandHz);
+                c.onHarmDbfs = an.binDbfs (c.on.maxHarm);
+                for (const double v : { c.off.inhDb, c.off.inhBandDb, c.on.inhDb, c.on.inhBandDb, c.offHarmDbfs, c.onHarmDbfs })
+                    if (! std::isfinite (v))
+                        allFinite = false;
+                cells.push_back (c);
+
+                info ("G-Q4-ALIAS fs " + fmt (rate, 0) + " MIDI " + std::to_string (midi) + (c.gated ? " [gated]" : " [record-only]")
+                      + ": Off full " + fmt (c.off.inhDb, 1) + " | <=8k " + fmt (c.off.inhBandDb, 1) + " dB (at "
+                      + fmt (c.off.bandWorstHz, 0) + " Hz); On full " + fmt (c.on.inhDb, 1) + " | <=8k " + fmt (c.on.inhBandDb, 1)
+                      + " dB; contrast <=8k " + fmt (c.off.inhBandDb - c.on.inhBandDb, 1) + " dB; max harmonic Off "
+                      + fmt (c.offHarmDbfs, 1) + " / On " + fmt (c.onHarmDbfs, 1) + " dBFS");
+            }
+
+        double worstAudible = 1.0e9, worstClean = -1.0e9, worstLive = 1.0e9;
+        for (const auto& c : cells)
+        {
+            if (c.gated)
+                worstAudible = std::min (worstAudible, c.off.inhBandDb);
+            worstClean = std::max (worstClean, c.on.inhDb);
+            worstLive = std::min (worstLive, std::min (c.offHarmDbfs, c.onHarmDbfs));
+        }
+        const double minContrast = q4MinContrast (cells, false);
+        const bool t1 = worstAudible >= kAudible;
+        const bool t2 = minContrast >= kContrast;
+        const bool t3 = worstClean <= kClean;
+        const bool t4 = worstLive > kLiveDbfs;
+
+        report ("G-Q4-ALIAS", presetOk && allFinite && t1 && t2 && t3 && t4,
+                "applyFactoryPreset aliasDemo (Drive, Pos 1), MIDI 84/96/108 x 44.1/48/88.2/96k x Band-limit Off/On, "
+                "skip 50 ms + 2^17 (gated: C7 + C8 every rate, C6 at 44.1/48): (1) worst A_8k(Off) " + fmt (worstAudible, 1)
+                + " dB (>= -50; RESEARCH -41.3); (2) min contrast A_8k(Off) - A_8k(On) " + fmt (minContrast, 1)
+                + " dB (>= 40; RESEARCH 69.1); (3) worst A_full(On) " + fmt (worstClean, 1)
+                + " dB over all 12 cells (<= -90; RESEARCH -107.3); (4) min max-harmonic " + fmt (worstLive, 1)
+                + " dBFS over 24 renders (> -40); finite: " + (allFinite ? "yes" : "NO") + "; presets applied: "
+                + (presetOk ? "yes" : "NO"));
+
+        // NC1: the Stage 3 recipe (Sine->Saw, Pos 1, Band-limit Off) at C6 44.1k: no in-band alias -> term 1 fails.
+        bool ncPreset = true;
+        const auto xs = q4AliasRender (44100.0, 84, false, (int) BankFactory::sineSaw, ncPreset);
+        const auto rs = an.measure (xs.data(), noteHz (84), 44100.0, kQ4BandHz);
+        if (! (rs.inhBandDb >= kAudible) && ncPreset)
+            report ("G-Q4-ALIAS-NC1", true,
+                    "Stage 3 recipe Sine->Saw Pos 1 Band-limit Off, C6 @ 44.1k: A_8k " + fmt (rs.inhBandDb, 1)
+                    + " dB (< -50; RESEARCH -101.9), full band " + fmt (rs.inhDb, 1) + " dB - a weak demo FAILS as designed");
+        else
+            report ("G-Q4-ALIAS-NC1", false,
+                    "Stage 3 recipe C6 @ 44.1k: A_8k " + fmt (rs.inhBandDb, 1)
+                    + " dB (want < -50) - term 1 cannot tell the weak demo apart; the gate is vacuous");
+
+        // NC2: On vs On -> contrast 0 -> term 2 fails.
+        const double ncContrast = q4MinContrast (cells, true);
+        if (! (ncContrast >= kContrast))
+            report ("G-Q4-ALIAS-NC2", true,
+                    "On vs On: min contrast " + fmt (ncContrast, 1) + " dB (< 40) - no band-limit contrast FAILS as designed");
+        else
+            report ("G-Q4-ALIAS-NC2", false,
+                    "On vs On: min contrast " + fmt (ncContrast, 1) + " dB (want < 40) - term 2 passes without contrast; the gate is vacuous");
+    }
+
+    //--------------------------------------------------------------------------
+    // G-Q4-BITS: SNR (b) = 10 log10 (sum y_Full^2 / sum (y_b - y_Full)^2) over
+    // t in [0.25, 1.0) s, sample-aligned; bit_depth index i = 1..14 -> bits
+    // 17 - i. The quantizer runs before the amp env and the output gain, so
+    // the ratio is independent of both.
+    constexpr int kQ4Bits = 14;
+    constexpr double kQ4BitsFs = 48000.0;
+
+    std::vector<float> q4BitsRender (const char* presetId, const Params& base, int bitIdx, bool& presetOk)
+    {
+        Rig rig (kQ4BitsFs, 512, presetId, with (base, ids::bitDepth, (float) bitIdx));
+        presetOk = presetOk && rig.presetApplied;
+        return rig.run (secs (1.0, kQ4BitsFs), { evOn (0, 69) });
+    }
+
+    // shift > 0 compares ref[i] with sub[i - shift] (the misalignment NC).
+    double q4SnrDb (const std::vector<float>& ref, const std::vector<float>& sub, int from, int to, int shift)
+    {
+        double ps = 0.0, pe = 0.0;
+        const int end = juce::jmin (to, (int) ref.size(), (int) sub.size() + shift);
+        for (int i = juce::jmax (from, shift); i < end; ++i)
+        {
+            const double r = (double) ref[(size_t) i];
+            const double e = (double) sub[(size_t) (i - shift)] - r;
+            ps += r * r;
+            pe += e * e;
+        }
+        if (! (pe > 0.0))
+            return std::numeric_limits<double>::infinity();
+        return 10.0 * std::log10 (ps / pe);
+    }
+
+    struct Q4BitsVerdict
+    {
+        bool okFinite = false, okSteps = false, okSlope = false, okAudible = false;
+        double stepLo = 0.0, stepHi = 0.0, slopeDb = 0.0;
+    };
+
+    // snr[0] = 16 bits ... snr[13] = 3 bits.
+    Q4BitsVerdict q4BitsVerdict (const std::vector<double>& snr)
+    {
+        Q4BitsVerdict v;
+        const bool sized = (int) snr.size() == kQ4Bits;
+
+        v.okFinite = sized;
+        for (const double s : snr)
+            if (! std::isfinite (s))
+                v.okFinite = false;
+
+        // (2) SNR (b) - SNR (b - 1) in [4.5, 7.5] dB for b = 16..4 (13 steps).
+        v.okSteps = sized;
+        v.stepLo = 1.0e9;
+        v.stepHi = -1.0e9;
+        for (size_t j = 0; j + 1 < snr.size(); ++j)
+        {
+            const double step = snr[j] - snr[j + 1];
+            if (! (step >= 4.5 && step <= 7.5))
+                v.okSteps = false;
+            v.stepLo = std::min (v.stepLo, step);
+            v.stepHi = std::max (v.stepHi, step);
+        }
+
+        // (3) least-squares slope of SNR vs bits over 16..3: 6.02 +/- 0.6 dB/bit.
+        double mx = 0.0, my = 0.0;
+        const double n = (double) snr.size();
+        for (size_t j = 0; j < snr.size(); ++j)
+        {
+            mx += (double) (16 - (int) j);
+            my += snr[j];
+        }
+        mx /= std::max (n, 1.0);
+        my /= std::max (n, 1.0);
+        double sxy = 0.0, sxx = 0.0;
+        for (size_t j = 0; j < snr.size(); ++j)
+        {
+            const double dx = (double) (16 - (int) j) - mx;
+            sxy += dx * (snr[j] - my);
+            sxx += dx * dx;
+        }
+        v.slopeDb = sxx > 0.0 ? sxy / sxx : std::numeric_limits<double>::quiet_NaN();
+        v.okSlope = sized && std::abs (v.slopeDb - 6.02) <= 0.6;
+
+        // (4) audibility at both ends.
+        v.okAudible = sized && snr[(size_t) (kQ4Bits - 1)] <= 25.0 && snr[0] >= 85.0;
+        return v;
+    }
+
+    std::string q4BitsTerms (const Q4BitsVerdict& v)
+    {
+        return std::string ("(1) finite ") + (v.okFinite ? "yes" : "NO") + "; (2) steps " + fmt (v.stepLo, 2) + " .. "
+             + fmt (v.stepHi, 2) + " dB " + (v.okSteps ? "in" : "NOT in") + " [4.5, 7.5]; (3) LS slope " + fmt (v.slopeDb, 3)
+             + " dB/bit " + (v.okSlope ? "in" : "NOT in") + " 6.02 +/- 0.6; (4) SNR(3) <= 25 and SNR(16) >= 85: "
+             + (v.okAudible ? "yes" : "NO");
+    }
+
+    void gateQ4Bits()
+    {
+        // Sine->Saw (the Init recipe's bank) Pos 1.0 = frame 32, A4, amp sustain 1.0, no LFO.
+        const Params base { { ids::position, 1.0f }, { ids::ampSustain, 1.0f } };
+        bool presetOk = true;
+        const auto full = q4BitsRender ("init", base, 0, presetOk);
+        const int from = secs (0.25, kQ4BitsFs);
+        const int to   = (int) full.size();                              // 1.0 s
+
+        std::vector<double> snr, snrShift, snrSame;
+        for (int i = 1; i <= kQ4Bits; ++i)
+        {
+            const auto y = q4BitsRender ("init", base, i, presetOk);
+            snr.push_back (q4SnrDb (full, y, from, to, 0));
+            snrShift.push_back (q4SnrDb (full, y, from, to, 1));         // NC (c): 1-sample misalignment
+            snrSame.push_back (q4SnrDb (full, full, from, to, 0));       // NC (a): the knob never reaches the voice
+        }
+
+        const auto v = q4BitsVerdict (snr);
+        std::vector<double> steps;
+        for (size_t j = 0; j + 1 < snr.size(); ++j)
+            steps.push_back (snr[j] - snr[j + 1]);
+        info ("G-Q4-BITS SNR dB, bits 16..3: " + q4Row (snr, 1));
+        info ("G-Q4-BITS steps dB, 16-15 .. 4-3: " + q4Row (steps, 2));
+
+        report ("G-Q4-BITS", presetOk && v.okFinite && v.okSteps && v.okSlope && v.okAudible,
+                "applyFactoryPreset init + Pos 1.0 (Sine->Saw frame 32), A4 48k, amp sustain 1.0, SNR vs Full over [0.25, 1.0) s: SNR(16) "
+                + fmt (snr.front(), 1) + " dB (RESEARCH 95.1), SNR(3) " + fmt (snr.back(), 1) + " dB (RESEARCH 16.5); "
+                + q4BitsTerms (v) + " (RESEARCH steps 5.70 .. 6.27, slope 6.029); presets applied: " + (presetOk ? "yes" : "NO"));
+
+        // NC (a): 14 copies of the Full render -> SNR +inf -> term 1 fails.
+        const auto va = q4BitsVerdict (snrSame);
+        if (! va.okFinite)
+            report ("G-Q4-BITS-NCa", true,
+                    "14 copies of Full: SNR " + fmt (snrSame.front(), 1) + " - a bit-depth knob that never reaches the voice FAILS as designed");
+        else
+            report ("G-Q4-BITS-NCa", false,
+                    "14 copies of Full: SNR " + fmt (snrSame.front(), 1) + " - term 1 passed; the gate is vacuous");
+
+        // NC (b): the reversed SNR vector -> term 2 fails.
+        const std::vector<double> reversed (snr.rbegin(), snr.rend());
+        const auto vb = q4BitsVerdict (reversed);
+        if (! vb.okSteps)
+            report ("G-Q4-BITS-NCb", true,
+                    "reversed mapping: steps " + fmt (vb.stepLo, 2) + " .. " + fmt (vb.stepHi, 2)
+                    + " dB (not in [4.5, 7.5]) - a reversed bit mapping FAILS as designed");
+        else
+            report ("G-Q4-BITS-NCb", false,
+                    "reversed mapping: steps " + fmt (vb.stepLo, 2) + " .. " + fmt (vb.stepHi, 2)
+                    + " dB - term 2 passed; the gate is vacuous");
+
+        // NC (c): a 1-sample offset between reference and subject -> terms 2 and 4 fail.
+        const auto vc = q4BitsVerdict (snrShift);
+        info ("G-Q4-BITS NC (c) SNR dB, 1-sample offset, bits 16..3: " + q4Row (snrShift, 1));
+        if (! vc.okSteps && ! vc.okAudible)
+            report ("G-Q4-BITS-NCc", true,
+                    "1-sample offset: SNR(16) " + fmt (snrShift.front(), 1) + ", SNR(3) " + fmt (snrShift.back(), 1) + " dB; "
+                    + q4BitsTerms (vc) + " - a misaligned reference FAILS as designed");
+        else
+            report ("G-Q4-BITS-NCc", false,
+                    "1-sample offset: " + q4BitsTerms (vc) + " - terms 2 and 4 did not both fail; the gate is vacuous");
+
+        // Record-only: the 8-bit PPG recipe (Sine->Square Pos 0.6, Interp Off, S&H 4 Hz):
+        // irregular steps at low bits, but monotonic.
+        bool ppgOk = true;
+        const auto pFull = q4BitsRender ("ppg8bit", {}, 0, ppgOk);
+        std::vector<double> pSnr;
+        for (int i = 1; i <= kQ4Bits; ++i)
+            pSnr.push_back (q4SnrDb (pFull, q4BitsRender ("ppg8bit", {}, i, ppgOk), from, to, 0));
+        bool monotonic = true;
+        for (size_t j = 0; j + 1 < pSnr.size(); ++j)
+            if (! (pSnr[j] > pSnr[j + 1]))
+                monotonic = false;
+        info ("G-Q4-BITS record-only (applyFactoryPreset ppg8bit, bit_depth overridden): SNR dB 16..3: " + q4Row (pSnr, 1)
+              + "; monotonic " + (monotonic ? "yes" : "NO") + "; preset applied " + (ppgOk ? "yes" : "NO"));
+    }
+
+    //==========================================================================
     // G-ALLOC stimulus list (RESEARCH 6.6). Every render is armed except each
     // rig's warm-up block; param changes happen between blocks, unarmed.
     void allocScenario()
@@ -2038,6 +2562,12 @@ int main (int argc, char** argv)
     gateDsp01();
     gateDsp03();
     gateFull();
+
+    // Stage 4 Part 2 (4-polish Task 16): QUAL-04 measured contrast gates.
+    gateQ4Step();
+    gateQ4Alias (analyzer);
+    gateQ4Bits();
+
     gateRead (*banks);
     gatePoly();
     gateMono();

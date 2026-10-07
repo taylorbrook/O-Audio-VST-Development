@@ -11,7 +11,7 @@ juce_add_plugin(O-simpleWavetable
     PLUGIN_CODE OSiW
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-simpleWavetable${OUARICON_DEV_SUFFIX}"
-    VERSION "0.1.0"
+    VERSION "1.0.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -149,4 +149,10 @@ if(OUARICON_BUILD_TESTS AND APPLE)
     # Stage 3 gates (G-LESSON, G-VIZ-*; later G-DROP / G-IMPORT-ERR).
     ouaricon_add_processor_console(O-simpleWavetable ${CMAKE_CURRENT_SOURCE_DIR}/Source ${CMAKE_CURRENT_SOURCE_DIR}/tests/viz-check/main.cpp viz-check)
     target_compile_definitions(O-simpleWavetable-viz-check PRIVATE OSIW_TEST_HOOKS=1)
+
+    # Stage 4 PERF-02 harness. Deliberately WITHOUT OSIW_TEST_HOOKS: the hooks
+    # add branches in the voice loop, so the timed code must equal the plugin's.
+    # Build it in a Release tree.
+    ouaricon_add_processor_console(O-simpleWavetable ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/perf-check/main.cpp perf-check)
 endif()
