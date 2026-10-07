@@ -1,12 +1,12 @@
 ---
 plugin: O-simpleWavetable
 stage: 4
-status: stage_4_research_complete
+status: stage_4_plan_complete
 last_updated: 2026-10-06 23:59:59
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: plugin_plan_stage_4
+next_action: plugin_execute_stage_4
 next_stage: 4
 ready_for_implementation: true
 latest_mockup_version: 1
@@ -15,7 +15,7 @@ finalized_version: 1
 stage_0_status: ui_design_complete
 ui_scaffolding_phase_complete: true
 parameter_count: 21
-current_phase: plan
+current_phase: execute
 brief_updated_from_mockup: true
 mockup_version_synced: 1
 brief_update_timestamp: "2026-10-06T02:25:53Z"
@@ -30,7 +30,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 4 of 4 (Polish) — discuss ✓, research ✓ 2026-10-06. **Next: `/plugin-plan O-simpleWavetable 4-polish`.**
+Stage: 4 of 4 (Polish) — discuss ✓, research ✓, plan ✓ 2026-10-06. **Next: `/plugin-execute O-simpleWavetable 4-polish`.**
 Status: Research & Planning complete; UI mockup v1 finalized with implementation scaffolding; parameter-spec.md locked (21 parameters). Ready for Stage 1.
 Progress: [################....] 80%
 
@@ -137,7 +137,7 @@ Stage 3 plan (2026-10-06): stages/3-gui/PLAN.md, 20 tasks in two parts (Part 1 =
 |-------|--------|------|---------|
 | discuss | ✓ | 2026-10-06 | |
 | research | ✓ | 2026-10-06 | |
-| plan | | | |
+| plan | ✓ | 2026-10-06 | |
 | execute | | | |
 | verify | | | |
 
@@ -145,9 +145,11 @@ Stage 4 research (2026-10-06): stages/4-polish/RESEARCH.md (synthesis + Parts A/
 
 Stage 4 decisions (user, 2026-10-06): full preset-manager module + browser panel, factory = Init + 8 §A9, lessons reconciled to §A9 (Alias Demo → Drive); fix all W (S2 W3/W4, S3 W1–W5) + triaged N; Windows = CI `workflow_dispatch` validate-only build + pluginval (no hands-on); QUAL-04 measured gates + by-ear sign-off; v1.0.0 + CHANGELOG + CODE_REVIEW, no tag. See stages/4-polish/CONTEXT.md.
 
+Stage 4 plan (2026-10-06): stages/4-polish/PLAN.md, 24 tasks in two parts (Part 1 = fixes + preset manager, Tasks 1–14; Part 2 = QUAL-04/PERF-02 gates, release docs, CI, listening, Tasks 15–24). Planner D-AA…D-AW. Plan-time sign-offs (Taylor): Drive Sweep keeps §A9 + copy rewritten en/fr/zh; W3b continuous-knob wheel fixed with the W3 accumulator; 37 px keyboard confirmed at the Task 14 checkpoint; CI push + validate-only dispatch = blocking go-ahead at Task 22; listening adds C4→C7 Mono legato on Drive (Task 23). Execute stops at Task 14 (visual checkpoint); re-run `/plugin-execute O-simpleWavetable 4-polish` to resume Part 2.
+
 ## Next Steps
 
-1. `/plugin-plan O-simpleWavetable 4-polish` (resolve the 4 open decisions in RESEARCH.md §Decisions for Taylor).
+1. `/plugin-execute O-simpleWavetable 4-polish` (Part 1, Tasks 1–14; Task 1 snapshots the installed Stage 3 VST3/AU before any install).
 2. Stage 4 entry items:
    - Stage 3 critic W1–W5: the uiReady counter race, the 96 MB drop freeze, trackpad wheel stepping, the stale import error, and a stuck UI-held note on editor close
    - Stage 3 critic N1–N13 (stages/3-gui/VERIFICATION.md §Issues Found)
