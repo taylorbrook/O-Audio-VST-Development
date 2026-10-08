@@ -56,11 +56,14 @@
 #include <juce_gui_extra/juce_gui_extra.h>
 #include "PluginProcessor.h"
 
+#include <array>
+#include <atomic>
 #include <memory>
 #include <optional>
 
 class OSimpleWavetableAudioProcessorEditor : public juce::AudioProcessorEditor,
-                                             private juce::Timer
+                                             private juce::Timer,
+                                             private juce::AudioProcessorParameter::Listener
 {
 public:
     explicit OSimpleWavetableAudioProcessorEditor (OSimpleWavetableAudioProcessor&);
@@ -71,6 +74,17 @@ public:
 
 private:
     void timerCallback() override;
+
+    // v1.0.1: a page drag opens a host gesture through the slider attachment
+    // (sliderDragStarted -> beginChangeGesture); if the host closes the editor
+    // mid-drag no sliderDragEnded ever arrives and ~WebSliderParameterAttachment
+    // does not end it. Every begin / end on every parameter is tracked here
+    // and the destructor ends whatever is still open (the stepped knobs'
+    // native bracket is closed first by closeStepKnobGestures).
+    void parameterValueChanged (int, float) override {}
+    void parameterGestureChanged (int parameterIndex, bool gestureIsStarting) override;
+    void closeOpenGestures();
+    std::array<std::atomic<bool>, OSimpleWavetable::ParamIDs::kNumParams> gestureOpen {};
 
     // Resource provider - serves the embedded UI files (bare-path matching).
     std::optional<juce::WebBrowserComponent::Resource> getResource (const juce::String& url);

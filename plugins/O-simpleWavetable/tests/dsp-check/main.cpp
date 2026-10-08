@@ -414,7 +414,7 @@ namespace
             ctx.bandlimit = bandlimit;
             ctx.bitDepthIndex = bitIdx;
             voice.setBlockContext (&ctx);
-            voice.prepareToPlay (fs, blockSize, amp);
+            voice.prepareToPlay (fs, blockSize, amp, { 0.5f, 1.0f, 0.0f, 0.5f });   // mod env at the parameter-spec defaults
             voice.setBlockParams (amp);
         }
 

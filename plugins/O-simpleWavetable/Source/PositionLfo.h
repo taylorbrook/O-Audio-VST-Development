@@ -84,8 +84,6 @@ public:
         shValue = draw (cycleIndex);
     }
 
-    std::uint64_t getSeed() const noexcept { return seed; }
-
     void prepare (double sampleRate, int maxBlock)
     {
         fs = (sampleRate > 0.0 && std::isfinite (sampleRate)) ? sampleRate : 44100.0;
@@ -97,9 +95,6 @@ public:
         blockStartPhase = 0.0;
        #endif
     }
-
-    double getSampleRate() const noexcept { return fs; }
-    int    getCapacity() const noexcept   { return (int) buf.size(); }
 
     struct Transport
     {
@@ -143,7 +138,7 @@ public:
         return r;
     }
 
-    // numSamples <= getCapacity() (the processor chunks at preparedBlock).
+    // numSamples <= the prepared capacity (the processor chunks at preparedBlock).
     const float* render (int numSamples, Shape shape, bool tempoMode, double rateHz, int divIndex,
                          const Transport& t) noexcept
     {
@@ -216,16 +211,6 @@ public:
     std::int64_t getCycleIndex() const noexcept { return cycleIndex; }
    #endif
 
-    // splitmix64 finaliser of (seed, cycleIndex) -> uniform [-1, 1).
-    static float hashDraw (std::uint64_t s, std::int64_t ci) noexcept
-    {
-        std::uint64_t z = s ^ ((std::uint64_t) ci * 0x9E3779B97F4A7C15ull);
-        z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;
-        z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
-        z ^= z >> 31;
-        return (float) ((double) (z >> 40) * (1.0 / 16777216.0) * 2.0 - 1.0);
-    }
-
 private:
     void advanceCycle (std::int64_t ci) noexcept
     {
@@ -236,7 +221,15 @@ private:
         }
     }
 
-    float draw (std::int64_t ci) const noexcept { return hashDraw (seed, ci); }
+    // splitmix64 finaliser of (seed, cycleIndex) -> uniform [-1, 1).
+    float draw (std::int64_t ci) const noexcept
+    {
+        std::uint64_t z = seed ^ ((std::uint64_t) ci * 0x9E3779B97F4A7C15ull);
+        z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;
+        z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
+        z ^= z >> 31;
+        return (float) ((double) (z >> 40) * (1.0 / 16777216.0) * 2.0 - 1.0);
+    }
 
     float shapeAt (Shape s, double p) const noexcept
     {

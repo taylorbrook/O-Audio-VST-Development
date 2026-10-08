@@ -143,9 +143,6 @@ public:
     static constexpr double kVelRampSeconds = 0.003;            // sounding-retrigger velocity ramp (W2)
     static constexpr double kLevelHysteresis = 1.0293022366434921;   // 2^(1/24): D-K downward margin
 
-    // parameter-spec defaults for the mod env (menv_attack/decay/sustain/release).
-    static juce::ADSR::Parameters defaultModEnvParams() noexcept { return { 0.5f, 1.0f, 0.0f, 0.5f }; }
-
     // Read configuration: a change of any field is a crossfade trigger in 2.4.
     struct ReadCfg
     {
@@ -167,11 +164,6 @@ public:
     // Non-virtual: SynthesiserVoice has no prepare hook, so the processor
     // dispatches here directly. setSampleRate BEFORE setParameters (jassert),
     // for BOTH envelopes.
-    void prepareToPlay (double newSampleRate, int maxBlock, const juce::ADSR::Parameters& amp)
-    {
-        prepareToPlay (newSampleRate, maxBlock, amp, defaultModEnvParams());
-    }
-
     void prepareToPlay (double newSampleRate, int maxBlock, const juce::ADSR::Parameters& amp,
                         const juce::ADSR::Parameters& menv)
     {
@@ -267,7 +259,7 @@ public:
         // Synthesiser sets currentlyPlayingNote BEFORE startNote, so the env is
         // the only honest "was idle" signal. The Synthesiser hard-stops a busy
         // voice before startVoice, so this is normally true.
-        startedFromIdle = ! ampEnv.isActive();
+        const bool fromIdle = ! ampEnv.isActive();
 
         noteHz = juce::MidiMessage::getMidiNoteInHertz (midiNote);
         lastNote = midiNote;                    // display only (D-X)
@@ -275,7 +267,7 @@ public:
         updatePitch();
 
         const float v = velocity >= 0.0f ? (velocity <= 1.0f ? velocity : 1.0f) : 0.0f;   // NaN -> 0
-        setVelocityGain (v * v, ! startedFromIdle);     // squared velocity (CONTEXT); ramp only if sounding
+        setVelocityGain (v * v, ! fromIdle);            // squared velocity (CONTEXT); ramp only if sounding
         noteAge = ++sNoteCounter;
 
         phase      = 0.0;
@@ -283,7 +275,6 @@ public:
         cfgFresh   = true;                              // adopt the config with no capture (2.4)
         needsSeed  = true;                              // smoother seeded at the first rendered sample
 
-        applyDeferredParams();
         releasing = false;
         ampEnv.noteOn();
 
@@ -291,15 +282,27 @@ public:
         // may have been mid-release when the amp env ended the voice).
         modEnv.reset();
         modEnv.noteOn();
+
+        // AFTER noteOn (v1.0.1): juce::ADSR::setParameters recomputes the
+        // rates and, in the RELEASE state with sustain 0, resets the envelope
+        // to idle (envelopeVal = 0). In the attack state it never resets.
+        applyDeferredParams();
     }
 
     void stopNote (float, bool allowTailOff) override
     {
         if (allowTailOff)
         {
-            releasing = true;
-            ampEnv.noteOff();
-            modEnv.noteOff();
+            // v1.0.1: a repeated note-off (overlapping same-pitch notes) must
+            // not restart the release: juce::ADSR::noteOff recomputes the
+            // release rate from the CURRENT level, which would lengthen the
+            // tail every time.
+            if (! releasing)
+            {
+                releasing = true;
+                ampEnv.noteOff();
+                modEnv.noteOff();
+            }
             if (! ampEnv.isActive())
                 endVoice();
         }
@@ -480,12 +483,15 @@ public:
             }
             // Sounding (release tail): the smoother keeps tracking and both
             // envelopes re-attack from their CURRENT level (no reset, no click).
-            startedFromIdle = ! wasSounding;
             noteAge = ++sNoteCounter;
-            applyDeferredParams();
             releasing = false;
             ampEnv.noteOn();
             modEnv.noteOn();
+            // AFTER noteOn (v1.0.1): a deferred ADSR change applied while the
+            // envelope is still in RELEASE with sustain 0 resets it to 0
+            // (juce::ADSR::recalculateRates), so the re-attack would step from
+            // the tail level to silence. In the attack state it never resets.
+            applyDeferredParams();
         }
         // Legato move: pitch only. Amp env, mod env and smoother continue.
     }
@@ -510,14 +516,12 @@ public:
     int           getLastFrame() const noexcept { return lastFrame; }
     int           getLastNote() const noexcept  { return lastNote; }    // dispNote (D-X): -1 before any note
     double        getCurrentHz() const noexcept { return hz; }
-    bool          wasStartedFromIdle() const noexcept { return startedFromIdle; }
     float         getLastModEnv() const noexcept { return lastMenv; }   // dispMenv
     float         getLastAmpEnv() const noexcept { return lastAmp; }    // dispAmp
 
    #if OSIW_TEST_HOOKS
     // Test hooks (console targets only).
     bool smootherBypass = false;                                         // negative control: no 2 ms pole
-    float getEffPos() const noexcept { return effPos; }                  // effective position, last sample
     // effPos per in-buffer index of the last render(s) (stale where the
     // voice did not render). Sized maxBlock in prepareToPlay.
     const std::vector<float>& getEffPosTrace() const noexcept { return effTrace; }
@@ -527,9 +531,6 @@ public:
     // replaces the mip level selection (QUAL-03 level-change exactness).
     int xfadeLenOverride = -1;
     int forceLevel = -1;
-    bool isCrossfading() const noexcept { return xfActive; }
-    int  getXfadeLen() const noexcept    { return xfadeLen; }
-    int  getActiveLevel() const noexcept { return cfg.level; }
 
     // Gap-closure hooks (W1/W2 negative controls): false = the pre-fix
     // behaviour (hard stop to 0, instant velGain on a sounding retrigger).
@@ -679,7 +680,7 @@ private:
 
         if (! next.sameAs (cfg))
         {
-            checkConfig (cfg, next);
+            checkConfig (cfg);
 
             // A stale latchedFrame from a larger bank would be out of range
             // (readSample clamps anyway); re-latch on bank or interp change.
@@ -694,10 +695,8 @@ private:
     // (old config; folded with the running fade, if any) and restarts the
     // fade. Capture ONLY from oldCfg.bank = this voice's config of the
     // previous render = the bank the reaper's audioHeldBank protects.
-    void checkConfig (const ReadCfg& oldCfg, const ReadCfg& newCfg) noexcept
+    void checkConfig (const ReadCfg& oldCfg) noexcept
     {
-        juce::ignoreUnused (newCfg);
-
         int len = xfadeLen;
        #if OSIW_TEST_HOOKS
         if (xfadeLenOverride >= 0)
@@ -830,7 +829,6 @@ private:
     double xfInc   = 0.0;                   // ... and rate (= the rate it was heard at)
     double renderedInc = 0.0;               // inc of the last rendered sample
 
-    bool startedFromIdle = true;
     std::uint64_t noteAge = 0;
     float lastPos   = 0.0f;
     int   lastLevel = 0;

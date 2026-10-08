@@ -1,7 +1,7 @@
 ---
 phase: stage-4-polish
-reviewed: 2026-10-06
-version_reviewed: 1.0.0
+reviewed: 2026-10-07
+version_reviewed: 1.0.1
 depth: deep
 files_reviewed: 37
 files_reviewed_list:
@@ -44,9 +44,9 @@ files_reviewed_list:
   - plugins/O-simpleWavetable/tests/ui-probes/wheel-gesture-probe.mjs
 findings:
   critical: 0
-  warning: 10
-  info: 21
-  total: 31
+  warning: 14
+  info: 28
+  total: 42
 status: resolved
 open_findings: none
 sources: .planning/stages/2-dsp/VERIFICATION.md (critic W1-W5, notes 1-8);
@@ -236,6 +236,56 @@ A stepped-knob drag wrote one begin / end pair per detent (`index.html:1414-1498
 > | IN-21 | ✅ Resolved in **v1.0.0** | Processor `stepKnobGesture (id, phase, index)` + `closeStepKnobGestures()`; the page brackets a pointer drag as one begin / move / end; the editor destructor closes open gestures. **G-S3N13** 1 begin + 1 end (negative control: 3 pairs); the probe's N13 arm. |
 > | WR-04 residual | Reviewed, not changed | If a second crossfade trigger (bank, interp, band-limit or another level change) lands within 5 ms of a level-crossing pitch change, the unfinished part of the first fade continues at the newest pitch (the pre-v1.0.0 behaviour for that remainder). Measured not worse than before (magnifier −24.3 vs −24.5 dB; click ratio 1.000 vs 1.765). |
 > | IN-03 adjacent | Reviewed, not changed | UI keyboard notes are merged into the host-owned MIDI buffer by `MidiMessageCollector`; that buffer's capacity belongs to the host or wrapper. |
+
+## v1.0.1 review addendum (2026-10-07)
+
+A second full review (three parallel reviewers: DSP core; processor / state / import;
+editor / page), every claim re-verified against the plugin and the JUCE 8.0.15 source
+before it was kept. All findings below are **resolved in v1.0.1**; the installed VST3
+was measured with pedalboard (B-1 re-attack continues from the tail level 0.502 ->
+0.501; B-2 single vs double note-off tails identical at 2.0 s, 0.3895 / 0.3895; B-3
+0.556 still sounding 20 ms after CC123).
+
+### Warnings
+
+| ID | Finding | Anchor (pre-fix) | Resolution |
+|----|---------|------------------|------------|
+| WR-11 | Mono retrigger from a release tail re-attacks from 0 when a deferred ADSR change is applied: `juce::ADSR::setParameters` in `release` with sustain 0 resets the envelope (`recalculateRates` -> `goToNextState` -> `reset`). Same for the mod env at its default sustain 0. | `WtVoice.h:485-488` | `applyDeferredParams()` moved after `noteOn()` in `noteOnDirect` and `startNote`. |
+| WR-12 | A repeated note-off restarts the release ramp from the current level (`juce::ADSR::noteOff` recomputes `releaseRate`): overlapping same-pitch notes lengthen the tail up to 2x, both modes. | `WtVoice.h:298-305`, `PluginProcessor.cpp:593-600` | `stopNote (…, true)` is a no-op while `releasing`; Mono releases only on the held-stack's non-empty -> empty transition. |
+| WR-13 | Editor closed mid-drag leaves a host gesture open on the 13 slider parameters: `~WebSliderParameterAttachment` only removes its listener (`juce_ParameterAttachments.cpp:290`). | `PluginEditor.cpp:524-531` | The editor is an `AudioProcessorParameter::Listener`; `closeOpenGestures()` in the destructor ends whatever is still open. |
+| WR-14 | Saving under a case-variant of an existing user preset overwrites the file but records the typed spelling (case-insensitive FS): greyed panel name, Delete disabled, next / previous enter at the top. | `index.html:2915-2923` | A confirmed replace saves under the existing stem. |
+
+### Info
+
+| ID | Finding | Resolution |
+|----|---------|------------|
+| IN-22 | Mono treated CC123 / CC120 as a hard stop; Poly (JUCE) releases. | Mono releases too. |
+| IN-23 | Worker error status could overwrite a newer import's `busy` (stale check outside the lock). | `setImportStatusForJob (gen, …)`: checked under `bankStateLock`. |
+| IN-24 | Drop-target ring blinks off across inner element boundaries (`dragleave` with `relatedTarget` null). | `dragover` re-asserts hover. |
+| IN-25 | A clicked knob never takes focus (`preventDefault` on pointerdown), so arrow keys do nothing after a click. | Explicit `focus({ preventScroll: true })`. |
+| IN-26 | The same note held by a computer key and the mouse cuts off when either is released. | Per-note holder count. |
+| IN-27 | An arrow key during an open stepped-knob drag nests a complete gesture inside the native bracket. | Keydown ignored while dragging. |
+| IN-28 | A parameter absent from an incoming state restores to the LIVE value, not the default (APVTS `updateParameterConnectionsToChildTrees` flushes the current value into a fresh child). Latent until the first parameter added after 1.0. | Missing `PARAM` children are appended with defaults before `replaceState`. |
+
+### Reviewed, not changed (design decisions)
+
+Table-driven relays / attachments in the editor; dropping the two page modules
+(`webview-drop-streaming.js` is used for one 10-line export, `preset-manager.js` for
+two arrow buttons plus five natives that exist only for it); the write-only on-disk
+Factory preset folder; visual polish (the modified dot pinned to the label box, seven
+button heights, inconsistent `:active` states, 14 colour literals outside the token
+set, ARIA value attributes, a localised file-chooser title). Candidates for a later
+version.
+
+### Verified OK in this pass
+
+Audio path allocation-free (chunked MIDI, fixed arrays, `MidiMessageMetadata` under 4
+bytes); REG-01 reaper with the D-C held exclusion and the entry counter; `WtSynthesiser`
+steal policy equal to JUCE 8.0.15; mip-level math and read bounds; sample-rate change
+refresh; crossfader fold; `SmoothedValue` seeding; state root gate, `isVoid` gates,
+blob caps and passthrough; every page native registered with matching arity; every
+i18n key present in en / fr / zh-Hans; width pins measured at the widest language;
+resource provider serves every referenced path; teardown order.
 
 ## Upstream (not plugin code; not called)
 

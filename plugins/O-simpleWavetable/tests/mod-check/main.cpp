@@ -1285,21 +1285,14 @@ namespace
 
             const auto r = runClick (shape, seed, tOn, edges, n);
 
-            // D-N probe (information only; the verdict above is the shipping kPoles).
-            PositionSmoother::testPolesOverride = PositionSmoother::kPoles == 1 ? 2 : 1;
-            const auto alt = runClick (shape, seed, tOn, edges, n);
-            PositionSmoother::testPolesOverride = 0;
-
             const bool pass = setupOk && r.maxRatio <= 1.5 && minLive >= 0.25 && r.minNeg >= 4.0;
             report (gate, pass,
                     std::string (shape == 3 ? "Square" : "S&H") + " 2 Hz depth 1, Sine->Saw pos 0.5, A2 note-on at "
-                    + std::to_string (tOn) + ", Interp On, kPoles " + std::to_string (PositionSmoother::kPoles) + ": "
+                    + std::to_string (tOn) + ", Interp On, one 2 ms pole: "
                     + setup + std::to_string (edges.size()) + " edges (want " + std::to_string (wantEdges) + "); max excess ratio "
                     + fmt (r.maxRatio, 3) + " (<= 1.5); min liveness |A-B| " + fmt (minLive, 4) + " (>= 0.25); neg smootherBypass min ratio "
                     + fmt (r.minNeg, 3) + " (>= 4)");
             info ("per edge: " + r.perEdge);
-            info (std::string ("D-N probe (info, not a verdict): kPoles ") + std::to_string (PositionSmoother::kPoles == 1 ? 2 : 1)
-                  + " would give max ratio " + fmt (alt.maxRatio, 3));
         }
     }
 
@@ -1647,8 +1640,7 @@ int main (int, char**)
 
     // ONE BuiltInBanks for the whole run (shared by the short-lived processors).
     juce::SharedResourcePointer<BuiltInBanks> banks;
-    std::cout << "mod-check: built-in banks ready (buildMillis " << fmt (banks->buildMillis, 2) << " ms); PositionSmoother kPoles "
-              << PositionSmoother::kPoles << "\n";
+    std::cout << "mod-check: built-in banks ready (buildMillis " << fmt (banks->buildMillis, 2) << " ms)\n";
 
     gateLfoShapes();
     gateLfoFree();

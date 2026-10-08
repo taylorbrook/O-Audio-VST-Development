@@ -2209,7 +2209,8 @@ namespace
             const auto line = raw.upToFirstOccurrenceOf ("//", false, false);
             if (line.contains ("WavetableImporter::errorCode ("))
                 usesErrorCode = true;
-            if (! (line.contains ("setImportStatus (") || line.contains ("importStatus = ") || line.contains ("finishEmpty (")))
+            if (! (line.contains ("setImportStatus (") || line.contains ("setImportStatusForJob (")
+                   || line.contains ("importStatus = ") || line.contains ("finishEmpty (")))
                 continue;
             const int closeQ = line.lastIndexOfChar ('"');
             if (closeQ <= 0)

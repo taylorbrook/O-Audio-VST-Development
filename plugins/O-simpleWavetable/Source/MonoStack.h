@@ -41,20 +41,21 @@ public:
     bool empty() const noexcept { return count == 0; }
 
     // Push a note (most recent = top). If already present, move it to the top.
-    void push (int note, float vel) noexcept
+    // Velocity is not kept: a fallback to a held note keeps the sounding
+    // velocity (true legato), so only the note numbers matter.
+    void push (int note) noexcept
     {
         remove (note);
         if (count < kCap)
         {
-            notes[(size_t) count] = note;
-            vels [(size_t) count] = vel;
-            ++count;
+            notes[(size_t) count++] = note;
         }
         else
         {
             // Full: drop the oldest, append newest (extremely rare - 32 held notes).
-            for (int i = 1; i < kCap; ++i) { notes[(size_t)(i-1)] = notes[(size_t)i]; vels[(size_t)(i-1)] = vels[(size_t)i]; }
-            notes[(size_t)(kCap-1)] = note; vels[(size_t)(kCap-1)] = vel;
+            for (int i = 1; i < kCap; ++i)
+                notes[(size_t) (i - 1)] = notes[(size_t) i];
+            notes[(size_t) (kCap - 1)] = note;
         }
     }
 
@@ -63,21 +64,14 @@ public:
         int w = 0;
         for (int r = 0; r < count; ++r)
             if (notes[(size_t) r] != note)
-            {
-                notes[(size_t) w] = notes[(size_t) r];
-                vels [(size_t) w] = vels [(size_t) r];
-                ++w;
-            }
+                notes[(size_t) w++] = notes[(size_t) r];
         count = w;
     }
 
-    int   topNote() const noexcept { return count > 0 ? notes[(size_t)(count-1)] : -1; }
-    float topVel()  const noexcept { return count > 0 ? vels [(size_t)(count-1)] : 1.0f; }
-    int   size()    const noexcept { return count; }
+    int topNote() const noexcept { return count > 0 ? notes[(size_t) (count - 1)] : -1; }
 
 private:
     static constexpr int kCap = 32;
-    std::array<int,   kCap> notes {};
-    std::array<float, kCap> vels  {};
+    std::array<int, kCap> notes {};
     int count = 0;
 };

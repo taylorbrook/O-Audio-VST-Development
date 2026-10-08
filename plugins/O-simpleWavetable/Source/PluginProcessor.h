@@ -125,6 +125,15 @@ namespace OSimpleWavetable::ParamIDs
         bank, position, interp, bandlimit, bitDepth, lfoRate, lfoSync, lfoDiv, lfoShape,
         lfoDepth, menvAttack, menvDecay, menvSustain, menvRelease, envAmount,
         ampAttack, ampDecay, ampSustain, ampRelease, voiceMode, outputLevel };
+
+    // Slot indices into `all` (and into the processor's raw-value table).
+    enum Slot : size_t { sBank, sPosition, sInterp, sBandlimit, sBitDepth, sLfoRate, sLfoSync, sLfoDiv, sLfoShape,
+                         sLfoDepth, sMenvAttack, sMenvDecay, sMenvSustain, sMenvRelease, sEnvAmount,
+                         sAmpAttack, sAmpDecay, sAmpSustain, sAmpRelease, sVoiceMode, sOutputLevel, kNumParams };
+    static_assert (kNumParams == all.size(), "Slot order must match `all`");
+    static_assert (all[sBank] == bank && all[sBitDepth] == bitDepth && all[sEnvAmount] == envAmount
+                   && all[sVoiceMode] == voiceMode && all[sOutputLevel] == outputLevel,
+                   "Slot order must match `all`");
 }
 
 //==============================================================================
@@ -195,16 +204,12 @@ public:
     //==========================================================================
     // Lead-voice display snapshot (Stage 3 viz seam). Written by the audio
     // thread once per block (newest note among sounding voices), relaxed.
-    float getDisplayPosition() const noexcept { return dispPos.load (std::memory_order_relaxed); }
-    int   getDisplayLevel() const noexcept    { return dispLevel.load (std::memory_order_relaxed); }
-    int   getDisplayFrame() const noexcept    { return dispFrame.load (std::memory_order_relaxed); }
+    // The position / level / frame / LFO atomics are read through
+    // buildCycleView only (no public getters: v1.0.1 removed the unused ones).
     bool  isDisplaySounding() const noexcept  { return dispSounding.load (std::memory_order_relaxed); }
-    float getDisplayLfo() const noexcept      { return dispLfo.load (std::memory_order_relaxed); }    // -1..1, every block
-    float getDisplayModEnv() const noexcept   { return dispMenv.load (std::memory_order_relaxed); }   // lead voice, 0..1
     float getDisplayAmpEnv() const noexcept   { return dispAmp.load (std::memory_order_relaxed); }    // lead voice, 0..1
     int   getDisplayNote() const noexcept     { return dispNote.load (std::memory_order_relaxed); }   // lead MIDI note, -1 silent (D-X)
     float getDisplayHz() const noexcept       { return dispHz.load (std::memory_order_relaxed); }     // lead Hz incl. bend, 0 silent
-    double getDisplaySampleRate() const noexcept { return displayFs.load (std::memory_order_relaxed); } // prepareToPlay rate
 
     //==========================================================================
     // Stage 3 visualization API (D-R, D-S, D-U, D-W). MESSAGE THREAD ONLY and
@@ -329,7 +334,7 @@ public:
     // User name -> must be in the walk order (blocks traversal) -> file ->
     // applyUserPresetJson -> name = the stem.
     bool loadPresetByName (const juce::String& presetName);
-    bool saveUserPreset (const juce::String& raw);                      // refuses "" and factory names
+    bool saveUserPreset (const juce::String& rawName);                  // refuses "" and factory names
     bool deleteUserPreset (const juce::String& presetName);             // refuses factory names
     juce::var getPresetCatalog() const;                                 // { factory: [{ name, id }], user: [names] }
 
@@ -549,28 +554,10 @@ private:
     void* midBlockCtx = nullptr;
    #endif
 
-    // Raw parameter pointers (cached in the ctor; atomic loads only).
-    std::atomic<float>* pBank       = nullptr;
-    std::atomic<float>* pPosition   = nullptr;
-    std::atomic<float>* pInterp     = nullptr;
-    std::atomic<float>* pBandlimit  = nullptr;
-    std::atomic<float>* pBitDepth   = nullptr;
-    std::atomic<float>* pAmpAttack  = nullptr;
-    std::atomic<float>* pAmpDecay   = nullptr;
-    std::atomic<float>* pAmpSustain = nullptr;
-    std::atomic<float>* pAmpRelease = nullptr;
-    std::atomic<float>* pVoiceMode  = nullptr;
-    std::atomic<float>* pOutput     = nullptr;
-    std::atomic<float>* pLfoRate     = nullptr;
-    std::atomic<float>* pLfoSync     = nullptr;
-    std::atomic<float>* pLfoDiv      = nullptr;
-    std::atomic<float>* pLfoShape    = nullptr;
-    std::atomic<float>* pLfoDepth    = nullptr;
-    std::atomic<float>* pMenvAttack  = nullptr;
-    std::atomic<float>* pMenvDecay   = nullptr;
-    std::atomic<float>* pMenvSustain = nullptr;
-    std::atomic<float>* pMenvRelease = nullptr;
-    std::atomic<float>* pEnvAmount   = nullptr;
+    // Raw parameter values in ParamIDs::all order (cached in the ctor; atomic
+    // loads only). Indexed by ParamIDs::Slot.
+    using Slot = OSimpleWavetable::ParamIDs::Slot;
+    std::array<std::atomic<float>*, OSimpleWavetable::ParamIDs::kNumParams> raw {};
 
     std::array<WtVoice*, (size_t) kNumVoices> wtVoices {};   // owned by synth
 
@@ -656,6 +643,11 @@ private:
     // Import worker.
     void runImportJob (std::unique_ptr<juce::AudioFormatReader> reader, const juce::String& name, juce::uint32 gen);
     void setImportStatus (ImportStatus::State state, const juce::String& filename, int frames, const juce::String& error);
+    // Worker-side variant (v1.0.1): the write happens only if `gen` is still
+    // the current import generation, checked UNDER bankStateLock, so a
+    // superseded job's error can never overwrite the newer job's `busy`.
+    void setImportStatusForJob (juce::uint32 gen, ImportStatus::State state, const juce::String& filename,
+                                int frames, const juce::String& error);
 
     void handleAsyncUpdate() override;   // D-M: auto-select Imported after a publish (message thread)
     void timerCallback() override;       // 250 ms reaper sweep (message thread)

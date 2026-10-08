@@ -3,6 +3,69 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.0.1] - 2026-10-07
+
+Maintenance release from a full code review (DSP core, processor / state, editor /
+page). No parameter, range, preset or state-format change: v1.0.0 sessions and
+presets load unchanged.
+
+### Fixed
+- **Mono retrigger from a release tail could re-attack from silence.** A deferred
+  ADSR change was applied before `noteOn()`; `juce::ADSR::setParameters` in the
+  release state with sustain 0 resets the envelope to idle, so a note played into a
+  plucky tail after an envelope knob had moved stepped to 0 in one sample. The same
+  path reset the mod envelope (default sustain 0) and restarted the position
+  contour. Root cause: call order in `WtVoice::noteOnDirect` / `startNote`; the
+  deferred parameters now apply after `noteOn()`, where the attack state never resets.
+- **A repeated note-off lengthened the release.** `juce::ADSR::noteOff` recomputes
+  the release rate from the current level, so overlapping same-pitch notes (a second
+  note-off while already releasing) restarted the ramp, up to 2x the set time. The
+  voice now ignores a note-off while releasing, and Mono releases only on the
+  held-stack's non-empty-to-empty transition.
+- **Mono cut CC123 All Notes Off in 2 ms where Poly rang out.** Both modes now treat
+  CC120 / CC123 as a release (JUCE's Poly mapping), so a transport stop sounds the
+  same in both.
+- **Import error status race.** A superseded worker's error could overwrite the newer
+  job's "busy" (the stale check ran outside the lock). Worker-side status writes are
+  now generation-checked under the lock.
+- **Editor closed mid-drag left a host gesture open** on the 13 slider parameters
+  (`~WebSliderParameterAttachment` does not end it). The editor now tracks every
+  gesture and ends any still open in its destructor; the stepped knobs already did.
+- **Saving a preset under a case-variant of an existing name** overwrote the file but
+  recorded the typed spelling, leaving the panel on a greyed name with Delete
+  disabled. A confirmed replace saves under the existing stem.
+- **Drop-target ring blinked off** while a file was dragged across the page
+  (`dragover` never re-asserted hover after an inner `dragleave`).
+- **Forward compatibility of session restore.** A parameter absent from an incoming
+  state now restores to its default instead of the instance's live value (APVTS
+  fills a missing child from the current value). Matters for the first parameter
+  added after 1.0.
+- Page: a clicked knob now takes keyboard focus (arrow keys work after a click); a
+  note held by both a computer key and the mouse no longer cuts off when one is
+  released; an arrow key during a stepped-knob drag no longer nests a gesture.
+
+### Changed (internal, no behaviour change)
+- Removed the never-adopted two-pole position-smoother scaffolding, the unused
+  velocity side of the mono note stack, four unused voice test getters, three unused
+  LFO getters, six unused display getters, an unused crossfade argument, a redundant
+  block-context seed and the 3-argument voice `prepareToPlay` (moved to the test rig).
+- The 21 named raw-parameter pointers are one array indexed by `ParamIDs::Slot`;
+  `isPresetOutputSlot` is a constexpr index compare; the restore path's three
+  "empty Imported" branches share one helper; `WtSynthesiser::findVoiceToSteal`
+  iterates `voices` directly (no per-voice lock).
+- Page: the knob ring is a `repeating-conic-gradient`; one `capturePointer` helper
+  replaces three copies of the pointer-capture lifecycle; one `bindSegments` serves
+  toggles and choice rows; one `paintKnob` serves both knob kinds; a dead flat-array
+  thumbnail fallback and ten no-op `try / catch` wrappers are gone.
+
+### Testing
+- Debug gate tree, 0 warnings: bank-check 14 / 14, dsp-check ALL PASS
+  (`--alloc-check` 0 allocations), mod-check 19 / 19, import-check 34 / 34
+  (G-REAP-SOAK 44 reaped), state-check 12 / 12, viz-check 88 / 88.
+- UI: check-i18n ALL PASS, check-ui-labels ALL PASS, boot-all-uis 0 DEAD / 0 late,
+  G-S3W3-WHEEL 6 / 6 (the shared pointer helper keeps N8 / N13 exact).
+- Installed VST3 (pedalboard): see the review addendum in CODE_REVIEW.md.
+
 ## [1.0.0] - 2026-10-06
 
 First release. A pedagogical 16-voice wavetable synth with a "Wavetable Field Guide"
