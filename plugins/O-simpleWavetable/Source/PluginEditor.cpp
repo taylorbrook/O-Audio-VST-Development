@@ -501,6 +501,11 @@ OSimpleWavetableAudioProcessorEditor::OSimpleWavetableAudioProcessorEditor (OSim
     voiceModeAttachment   = attach<juce::WebComboBoxParameterAttachment>     (apvts, ids::voiceMode,   *voiceModeRelay);
     outputLevelAttachment = attach<juce::WebSliderParameterAttachment>       (apvts, ids::outputLevel, *outputLevelRelay);
 
+    // v1.0.1: gesture tracking for the destructor (see PluginEditor.h).
+    jassert (processorRef.getParameters().size() == (int) gestureOpen.size());
+    for (auto* param : processorRef.getParameters())
+        param->addListener (this);
+
     addAndMakeVisible (*webView);
     webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
 
@@ -527,7 +532,26 @@ OSimpleWavetableAudioProcessorEditor::~OSimpleWavetableAudioProcessorEditor()
     // page. N13: a stepped-knob drag in progress closes its host gesture.
     processorRef.releaseUiHeldNotes();
     processorRef.closeStepKnobGestures();
+    closeOpenGestures();                           // v1.0.1: a slider drag cut short by the close
+    for (auto* param : processorRef.getParameters())
+        param->removeListener (this);
     stopTimer();
+}
+
+// Any thread per the JUCE contract; in this plugin every gesture source is the
+// message thread (the attachments, the processor's apply core, stepKnobGesture).
+void OSimpleWavetableAudioProcessorEditor::parameterGestureChanged (int parameterIndex, bool gestureIsStarting)
+{
+    if (parameterIndex >= 0 && parameterIndex < (int) gestureOpen.size())
+        gestureOpen[(size_t) parameterIndex].store (gestureIsStarting, std::memory_order_relaxed);
+}
+
+void OSimpleWavetableAudioProcessorEditor::closeOpenGestures()
+{
+    const auto& params = processorRef.getParameters();
+    for (int i = 0; i < params.size() && i < (int) gestureOpen.size(); ++i)
+        if (gestureOpen[(size_t) i].exchange (false, std::memory_order_relaxed))
+            params[i]->endChangeGesture();
 }
 
 // -- C++ -> page pushes -------------------------------------------------------

@@ -27,13 +27,9 @@
     Locked spec: one pole, alpha = 1 - exp(-1 / (tau * fs)), tau = 2 ms,
     seeded at the first rendered sample after note-on.
 
-    D-N (pre-authorized fallback): if the Square / S&H 100%-depth click gate
-    fails against its negative control, set kPoles = 2 (two 1 ms poles in
-    series, zero initial velocity on a step). Log the change in SUMMARY.
-
-    Test builds (OSIW_TEST_HOOKS) can override the pole count at runtime
-    (testPolesOverride, set before prepare) so mod-check can print the D-N
-    candidate next to the shipping verdict. Shipping builds: compile-time.
+    The D-N two-pole fallback (two 1 ms poles in series) was pre-authorized
+    for Stage 2.3 but never needed: the click gate passed with one pole
+    (click ratio 1.414), so v1.0.1 removed the pole-count scaffolding.
 
     Float state is fine (it settles in about 10 ms).
 
@@ -42,48 +38,26 @@
 
 #pragma once
 
-#include "TestHooks.h"   // first: the OSIW_TEST_HOOKS default (Stage 2 note 8)
-
 #include <cmath>
 
 struct PositionSmoother
 {
-    static constexpr int kPoles = 1;                                      // D-N: flip to 2 only if the click gate fails
+    static constexpr double kTauSeconds = 0.002;
 
-   #if OSIW_TEST_HOOKS
-    static inline int testPolesOverride = 0;                              // 0 = kPoles; 1 or 2 = forced (set before prepare)
-    static int activePoles() noexcept
-    {
-        return (testPolesOverride == 1 || testPolesOverride == 2) ? testPolesOverride : kPoles;
-    }
-   #else
-    static constexpr int activePoles() noexcept { return kPoles; }
-   #endif
-
-    static double tauSeconds() noexcept { return activePoles() == 1 ? 0.002 : 0.001; }
-
-    float a  = 1.0f;
-    float s1 = 0.0f;
-    float s2 = 0.0f;
+    float a = 1.0f;
+    float s = 0.0f;
 
     void prepare (double fs) noexcept
     {
         const double f = (fs > 0.0 && std::isfinite (fs)) ? fs : 44100.0;
-        a = (float) (1.0 - std::exp (-1.0 / (tauSeconds() * f)));
+        a = (float) (1.0 - std::exp (-1.0 / (kTauSeconds * f)));
     }
 
-    void seed (float v) noexcept
-    {
-        s1 = v;
-        s2 = v;
-    }
+    void seed (float v) noexcept   { s = v; }
 
     float process (float x) noexcept
     {
-        s1 += a * (x - s1);
-        if (activePoles() == 1)
-            return s1;
-        s2 += a * (s1 - s2);
-        return s2;
+        s += a * (x - s);
+        return s;
     }
 };

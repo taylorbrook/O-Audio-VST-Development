@@ -40,12 +40,14 @@ protected:
         juce::SynthesiserVoice* low = nullptr;   // lowest sounding note (not released)
         juce::SynthesiserVoice* top = nullptr;   // highest sounding note (not released)
 
-        const int n = getNumVoices();
-        jassert (n <= kMaxStealVoices);
+        jassert (voices.size() <= kMaxStealVoices);
 
-        for (int i = 0; i < n && numUsable < kMaxStealVoices; ++i)
+        // `voices` directly (like JUCE): getVoice (i) would take the
+        // Synthesiser's recursive lock once per voice.
+        for (auto* voice : voices)
         {
-            auto* voice = getVoice (i);
+            if (numUsable >= kMaxStealVoices)
+                break;
 
             if (voice == nullptr || ! voice->canPlaySound (soundToPlay))
                 continue;

@@ -174,34 +174,11 @@ OSimpleWavetableAudioProcessor::OSimpleWavetableAudioProcessor()
       parameters (*this, nullptr, "PARAMETERS", createParameterLayout())
 {
     namespace ids = OSimpleWavetable::ParamIDs;
-    pBank       = parameters.getRawParameterValue (ids::bank);
-    pPosition   = parameters.getRawParameterValue (ids::position);
-    pInterp     = parameters.getRawParameterValue (ids::interp);
-    pBandlimit  = parameters.getRawParameterValue (ids::bandlimit);
-    pBitDepth   = parameters.getRawParameterValue (ids::bitDepth);
-    pAmpAttack  = parameters.getRawParameterValue (ids::ampAttack);
-    pAmpDecay   = parameters.getRawParameterValue (ids::ampDecay);
-    pAmpSustain = parameters.getRawParameterValue (ids::ampSustain);
-    pAmpRelease = parameters.getRawParameterValue (ids::ampRelease);
-    pVoiceMode  = parameters.getRawParameterValue (ids::voiceMode);
-    pOutput     = parameters.getRawParameterValue (ids::outputLevel);
-    pLfoRate     = parameters.getRawParameterValue (ids::lfoRate);
-    pLfoSync     = parameters.getRawParameterValue (ids::lfoSync);
-    pLfoDiv      = parameters.getRawParameterValue (ids::lfoDiv);
-    pLfoShape    = parameters.getRawParameterValue (ids::lfoShape);
-    pLfoDepth    = parameters.getRawParameterValue (ids::lfoDepth);
-    pMenvAttack  = parameters.getRawParameterValue (ids::menvAttack);
-    pMenvDecay   = parameters.getRawParameterValue (ids::menvDecay);
-    pMenvSustain = parameters.getRawParameterValue (ids::menvSustain);
-    pMenvRelease = parameters.getRawParameterValue (ids::menvRelease);
-    pEnvAmount   = parameters.getRawParameterValue (ids::envAmount);
-    jassert (pBank != nullptr && pPosition != nullptr && pInterp != nullptr && pBandlimit != nullptr
-             && pBitDepth != nullptr && pAmpAttack != nullptr && pAmpDecay != nullptr
-             && pAmpSustain != nullptr && pAmpRelease != nullptr && pVoiceMode != nullptr
-             && pOutput != nullptr);
-    jassert (pLfoRate != nullptr && pLfoSync != nullptr && pLfoDiv != nullptr && pLfoShape != nullptr
-             && pLfoDepth != nullptr && pMenvAttack != nullptr && pMenvDecay != nullptr
-             && pMenvSustain != nullptr && pMenvRelease != nullptr && pEnvAmount != nullptr);
+    for (size_t i = 0; i < ids::all.size(); ++i)
+    {
+        raw[i] = parameters.getRawParameterValue (ids::all[i]);
+        jassert (raw[i] != nullptr);
+    }
 
     for (int i = 0; i < kNumVoices; ++i)
     {
@@ -245,40 +222,40 @@ const WavetableBank* OSimpleWavetableAudioProcessor::resolveBank (int bankIndex)
 
 juce::ADSR::Parameters OSimpleWavetableAudioProcessor::currentAmpParams() const noexcept
 {
-    const float a = juce::jlimit (0.001f, 5.0f, finiteOr (pAmpAttack->load(),  0.005f));
-    const float d = juce::jlimit (0.001f, 5.0f, finiteOr (pAmpDecay->load(),   0.3f));
-    const float s = juce::jlimit (0.0f,   1.0f, finiteOr (pAmpSustain->load(), 0.8f));
-    const float r = juce::jlimit (0.001f, 5.0f, finiteOr (pAmpRelease->load(), 0.2f));
+    const float a = juce::jlimit (0.001f, 5.0f, finiteOr (raw[Slot::sAmpAttack]->load(),  0.005f));
+    const float d = juce::jlimit (0.001f, 5.0f, finiteOr (raw[Slot::sAmpDecay]->load(),   0.3f));
+    const float s = juce::jlimit (0.0f,   1.0f, finiteOr (raw[Slot::sAmpSustain]->load(), 0.8f));
+    const float r = juce::jlimit (0.001f, 5.0f, finiteOr (raw[Slot::sAmpRelease]->load(), 0.2f));
     return { a, d, s, r };
 }
 
 juce::ADSR::Parameters OSimpleWavetableAudioProcessor::currentModEnvParams() const noexcept
 {
-    const float a = juce::jlimit (0.001f, 10.0f, finiteOr (pMenvAttack->load(),  0.5f));
-    const float d = juce::jlimit (0.001f, 10.0f, finiteOr (pMenvDecay->load(),   1.0f));
-    const float s = juce::jlimit (0.0f,   1.0f,  finiteOr (pMenvSustain->load(), 0.0f));
-    const float r = juce::jlimit (0.001f, 10.0f, finiteOr (pMenvRelease->load(), 0.5f));
+    const float a = juce::jlimit (0.001f, 10.0f, finiteOr (raw[Slot::sMenvAttack]->load(),  0.5f));
+    const float d = juce::jlimit (0.001f, 10.0f, finiteOr (raw[Slot::sMenvDecay]->load(),   1.0f));
+    const float s = juce::jlimit (0.0f,   1.0f,  finiteOr (raw[Slot::sMenvSustain]->load(), 0.0f));
+    const float r = juce::jlimit (0.001f, 10.0f, finiteOr (raw[Slot::sMenvRelease]->load(), 0.5f));
     return { a, d, s, r };
 }
 
 float OSimpleWavetableAudioProcessor::currentKnob() const noexcept
 {
-    return wt::clamp01 (finiteOr (pPosition->load(), 0.0f));
+    return wt::clamp01 (finiteOr (raw[Slot::sPosition]->load(), 0.0f));
 }
 
 float OSimpleWavetableAudioProcessor::currentLfoDepth() const noexcept
 {
-    return wt::clamp01 (finiteOr (pLfoDepth->load(), 0.0f));
+    return wt::clamp01 (finiteOr (raw[Slot::sLfoDepth]->load(), 0.0f));
 }
 
 float OSimpleWavetableAudioProcessor::currentEnvAmount() const noexcept
 {
-    return juce::jlimit (-1.0f, 1.0f, finiteOr (pEnvAmount->load(), 0.0f));   // finite before jlimit (NaN)
+    return juce::jlimit (-1.0f, 1.0f, finiteOr (raw[Slot::sEnvAmount]->load(), 0.0f));   // finite before jlimit (NaN)
 }
 
 float OSimpleWavetableAudioProcessor::currentOutputGain() const noexcept
 {
-    const float db = juce::jlimit (-60.0f, 6.0f, finiteOr (pOutput->load(), -6.0f));
+    const float db = juce::jlimit (-60.0f, 6.0f, finiteOr (raw[Slot::sOutputLevel]->load(), -6.0f));
     return juce::Decibels::decibelsToGain (db, -60.0f);   // -60 dB -> exactly 0
 }
 
@@ -301,10 +278,8 @@ void OSimpleWavetableAudioProcessor::prepareToPlay (double sampleRate, int sampl
     blockCtx.lfo       = lfo.data();
     blockCtx.lfoDepth  = depthBuf.data();
     blockCtx.envAmount = amtBuf.data();
-    blockCtx.bank          = resolveBank (choiceIndex (pBank->load(), kNumBanks));
-    blockCtx.interp        = pInterp->load() >= 0.5f;
-    blockCtx.bandlimit     = pBandlimit->load() >= 0.5f;
-    blockCtx.bitDepthIndex = choiceIndex (pBitDepth->load(), kNumBitDepthChoices);
+    // bank / interp / bandlimit / bitDepthIndex are set by renderBlock before
+    // any voice renders (no voice renders outside it).
 
     chunkMidi.clear();
     chunkMidi.ensureSize ((size_t) kMidiChunkBytes);
@@ -328,7 +303,7 @@ void OSimpleWavetableAudioProcessor::prepareToPlay (double sampleRate, int sampl
         v->prepareToPlay (sampleRate, preparedBlock, amp, menv);
 
     monoStack.clear();
-    lastVoiceMode = choiceIndex (pVoiceMode->load(), kNumVoiceModes);
+    lastVoiceMode = choiceIndex (raw[Slot::sVoiceMode]->load(), kNumVoiceModes);
     lastBankIndex = -1;
     // Voices were just reset (no cfg survives), and prepareToPlay is never
     // concurrent with processBlock: nothing is audio-held any more.
@@ -410,7 +385,7 @@ const WavetableBank* OSimpleWavetableAudioProcessor::renderBlock (juce::AudioBuf
 
     // Poly <-> Mono switch: detected HERE (never call synth.* from the
     // message thread; the Synthesiser locks inside processNextBlock).
-    const int mode = choiceIndex (pVoiceMode->load(), kNumVoiceModes);
+    const int mode = choiceIndex (raw[Slot::sVoiceMode]->load(), kNumVoiceModes);
     if (mode != lastVoiceMode)
     {
         synth.allNotesOff (0, false);
@@ -426,7 +401,7 @@ const WavetableBank* OSimpleWavetableAudioProcessor::renderBlock (juce::AudioBuf
 
     // Resolve the bank ONCE per block (Processing Order 2). Every voice
     // renders this block against this pointer; it becomes audioHeldBank.
-    const int bankIndex = choiceIndex (pBank->load(), kNumBanks);
+    const int bankIndex = choiceIndex (raw[Slot::sBank]->load(), kNumBanks);
     if (bankIndex != lastBankIndex)
     {
         bankDisplayGen.fetch_add (1, std::memory_order_relaxed);   // Stage 3 bankUpdate seam
@@ -437,9 +412,9 @@ const WavetableBank* OSimpleWavetableAudioProcessor::renderBlock (juce::AudioBuf
     WavetableBank::testNoteDeref (resolved);
    #endif
     blockCtx.bank          = resolved;
-    blockCtx.interp        = finiteOr (pInterp->load(), 1.0f) >= 0.5f;
-    blockCtx.bandlimit     = finiteOr (pBandlimit->load(), 1.0f) >= 0.5f;
-    blockCtx.bitDepthIndex = choiceIndex (pBitDepth->load(), kNumBitDepthChoices);
+    blockCtx.interp        = finiteOr (raw[Slot::sInterp]->load(), 1.0f) >= 0.5f;
+    blockCtx.bandlimit     = finiteOr (raw[Slot::sBandlimit]->load(), 1.0f) >= 0.5f;
+    blockCtx.bitDepthIndex = choiceIndex (raw[Slot::sBitDepth]->load(), kNumBitDepthChoices);
 
     const auto amp  = currentAmpParams();
     const auto menv = currentModEnvParams();
@@ -455,10 +430,10 @@ const WavetableBank* OSimpleWavetableAudioProcessor::renderBlock (juce::AudioBuf
    #endif
 
     // LFO block settings + host transport, read ONCE per block.
-    const auto lfoShape = (PositionLfo::Shape) choiceIndex (pLfoShape->load(), PositionLfo::kNumShapes);
-    const bool lfoTempo = choiceIndex (pLfoSync->load(), kNumLfoSyncModes) == 1;
-    const int  lfoDiv   = choiceIndex (pLfoDiv->load(), PositionLfo::kNumDivisions);
-    const double lfoRate = (double) juce::jlimit (0.01f, 20.0f, finiteOr (pLfoRate->load(), 0.5f));
+    const auto lfoShape = (PositionLfo::Shape) choiceIndex (raw[Slot::sLfoShape]->load(), PositionLfo::kNumShapes);
+    const bool lfoTempo = choiceIndex (raw[Slot::sLfoSync]->load(), kNumLfoSyncModes) == 1;
+    const int  lfoDiv   = choiceIndex (raw[Slot::sLfoDiv]->load(), PositionLfo::kNumDivisions);
+    const double lfoRate = (double) juce::jlimit (0.01f, 20.0f, finiteOr (raw[Slot::sLfoRate]->load(), 0.5f));
     const auto transport = PositionLfo::readTransport (getPlayHead());
     int lastChunkLen = 0;
 
@@ -587,21 +562,24 @@ void OSimpleWavetableAudioProcessor::renderMono (juce::AudioBuffer<float>& view,
         if (m.isNoteOn())
         {
             const bool wasHeld = ! monoStack.empty();
-            monoStack.push (m.getNoteNumber(), m.getFloatVelocity());
+            monoStack.push (m.getNoteNumber());
             v0->noteOnDirect (m.getNoteNumber(), m.getFloatVelocity(), ! wasHeld);   // legato while held
         }
         else if (m.isNoteOff())
         {
+            const bool wasHeld = ! monoStack.empty();
             monoStack.remove (m.getNoteNumber());
-            if (monoStack.empty())
-                v0->noteOffDirect (true);                      // release tail
-            else
+            if (! monoStack.empty())
                 v0->setPitchNote (monoStack.topNote());        // back to the held note, no retrigger
+            else if (wasHeld)
+                v0->noteOffDirect (true);                      // held -> empty: ONE release (v1.0.1)
         }
         else if (m.isAllNotesOff() || m.isAllSoundOff())
         {
+            // Same as Poly (juce::Synthesiser::handleMidiEvent maps both to a
+            // release), so a transport stop rings out in both modes (v1.0.1).
             monoStack.clear();
-            v0->noteOffDirect (false);
+            v0->noteOffDirect (true);
         }
         else if (m.isPitchWheel())
         {
@@ -657,7 +635,7 @@ void OSimpleWavetableAudioProcessor::updateDisplayFromLeadVoice() noexcept
 // Stage 3 visualization (message thread only; see PluginProcessor.h).
 int OSimpleWavetableAudioProcessor::getSelectedBankIndex() const noexcept
 {
-    return choiceIndex (pBank->load(), kNumBanks);
+    return choiceIndex (raw[Slot::sBank]->load(), kNumBanks);
 }
 
 void OSimpleWavetableAudioProcessor::buildCycleView (CycleView& v)
@@ -681,8 +659,8 @@ void OSimpleWavetableAudioProcessor::buildCycleView (CycleView& v)
         b = nullptr;
 
     // Same reads as renderBlock (interp / bit_depth).
-    const bool interp   = finiteOr (pInterp->load(), 1.0f) >= 0.5f;
-    const int  bitIdx   = choiceIndex (pBitDepth->load(), kNumBitDepthChoices);
+    const bool interp   = finiteOr (raw[Slot::sInterp]->load(), 1.0f) >= 0.5f;
+    const int  bitIdx   = choiceIndex (raw[Slot::sBitDepth]->load(), kNumBitDepthChoices);
     const bool sounding = dispSounding.load (std::memory_order_relaxed);
     const int  nF       = b != nullptr ? b->numFrames : 0;
 
@@ -854,6 +832,24 @@ void OSimpleWavetableAudioProcessor::setStateInformation (const void* data, int 
     const auto bankChild = state.getChildWithName (kImportedBankTag).createCopy();   // invalid if absent
     stripImportedBank (state);                    // ALL copies
 
+    // Forward compat (v1.0.1): a parameter ABSENT from the incoming state (a
+    // session saved before that parameter existed) restores to its DEFAULT.
+    // Without this, APVTS::replaceState creates the missing child from the
+    // instance's LIVE value (updateParameterConnectionsToChildTrees flushes
+    // the current value), i.e. whatever the last preset left behind.
+    for (const auto* id : OSimpleWavetable::ParamIDs::all)
+    {
+        if (state.getChildWithProperty ("id", id).isValid())
+            continue;
+        if (auto* p = parameters.getParameter (id))
+        {
+            juce::ValueTree c ("PARAM");
+            c.setProperty ("id", id, nullptr);
+            c.setProperty ("value", p->convertFrom0to1 (p->getDefaultValue()), nullptr);
+            state.appendChild (c, nullptr);
+        }
+    }
+
     parameters.replaceState (state);
     restoreImportedBank (bankChild);
 
@@ -878,14 +874,19 @@ void OSimpleWavetableAudioProcessor::restoreImportedBank (const juce::ValueTree&
 {
     importGen.fetch_add (1);                      // supersede any in-flight import: restore wins
 
-    auto finishEmpty = [this] (const juce::String& err)
+    // Empty Imported bank: RETIRE the old one (never free here), clear the
+    // cache, and set the status. `passthrough` keeps a newer-format blob
+    // verbatim so it is re-emitted on save.
+    auto finishEmpty = [this] (const juce::String& err, const juce::String& filename = {},
+                               juce::ValueTree passthrough = {})
     {
         const juce::ScopedLock sl (bankStateLock);
-        publishImportedBank (nullptr);            // RETIRE, never free here
+        publishImportedBank (nullptr);
         cachedBlob = {};
+        cachedBlob.passthrough = std::move (passthrough);
         pendingAutoSelect = false;
         importStatus = err.isEmpty() ? ImportStatus {}
-                                     : ImportStatus { ImportStatus::State::error, {}, 0, err };
+                                     : ImportStatus { ImportStatus::State::error, filename, 0, err };
         importStatusVersion.fetch_add (1);
     };
 
@@ -908,13 +909,8 @@ void OSimpleWavetableAudioProcessor::restoreImportedBank (const juce::ValueTree&
     // FORWARD COMPAT: a newer save is kept verbatim, never destroyed.
     if (version > 1 || (version == 1 && encoding != "flac16" && encoding != "pcm16gz"))
     {
-        const juce::ScopedLock sl (bankStateLock);
-        publishImportedBank (nullptr);
-        cachedBlob = {};
-        cachedBlob.passthrough = child.createCopy();
-        pendingAutoSelect = false;
-        importStatus = { ImportStatus::State::error, WavetableImporter::sanitiseName (str ("filename")), 0, "unsupported" };
-        importStatusVersion.fetch_add (1);
+        const auto shownName = WavetableImporter::sanitiseName (str ("filename"));
+        finishEmpty ("unsupported", shownName, child.createCopy());
         return;
     }
 
@@ -1072,6 +1068,17 @@ void OSimpleWavetableAudioProcessor::setImportStatus (ImportStatus::State state,
     importStatusVersion.fetch_add (1);
 }
 
+void OSimpleWavetableAudioProcessor::setImportStatusForJob (juce::uint32 gen, ImportStatus::State state,
+                                                            const juce::String& filename, int frames,
+                                                            const juce::String& error)
+{
+    const juce::ScopedLock sl (bankStateLock);
+    if (importGen.load() != gen)
+        return;                                   // superseded: the newer job owns the status
+    importStatus = { state, filename, frames, error };
+    importStatusVersion.fetch_add (1);
+}
+
 OSimpleWavetableAudioProcessor::ImportStatus OSimpleWavetableAudioProcessor::getImportStatus() const
 {
     const juce::ScopedLock sl (bankStateLock);
@@ -1147,8 +1154,7 @@ void OSimpleWavetableAudioProcessor::runImportJob (std::unique_ptr<juce::AudioFo
 
     if (reader == nullptr)
     {
-        if (! stale())
-            setImportStatus (ImportStatus::State::error, name, 0, "unreadable");
+        setImportStatusForJob (gen, ImportStatus::State::error, name, 0, "unreadable");
         return;
     }
 
@@ -1159,7 +1165,7 @@ void OSimpleWavetableAudioProcessor::runImportJob (std::unique_ptr<juce::AudioFo
         return;                                               // superseded: never surfaced
     if (res.error != ImportError::none)
     {
-        setImportStatus (ImportStatus::State::error, name, 0, WavetableImporter::errorCode (res.error));
+        setImportStatusForJob (gen, ImportStatus::State::error, name, 0, WavetableImporter::errorCode (res.error));
         return;                                               // bank untouched
     }
 
@@ -1174,8 +1180,7 @@ void OSimpleWavetableAudioProcessor::runImportJob (std::unique_ptr<juce::AudioFo
     auto bank = WavetableImporter::buildImportedBank (res.pcm);   // ~23 MB worst case, on the worker
     if (bank == nullptr || data.isEmpty())
     {
-        if (! stale())
-            setImportStatus (ImportStatus::State::error, name, 0, "unreadable");
+        setImportStatusForJob (gen, ImportStatus::State::error, name, 0, "unreadable");
         return;
     }
 
@@ -1247,9 +1252,10 @@ bool OSimpleWavetableAudioProcessor::importFromBase64 (const juce::String& name,
 // audio thread and never held across setValueNotifyingHost.
 namespace
 {
-    bool isPresetOutputSlot (size_t i) noexcept
+    // output_level is user-owned: never in a preset, never "modified".
+    constexpr bool isPresetOutputSlot (size_t i) noexcept
     {
-        return std::strcmp (OSimpleWavetable::ParamIDs::all[i], OSimpleWavetable::ParamIDs::outputLevel) == 0;
+        return i == OSimpleWavetable::ParamIDs::sOutputLevel;
     }
 
     // D-AE strip set for preset names: C0, DEL, C1, bidi controls.
@@ -1598,9 +1604,9 @@ bool OSimpleWavetableAudioProcessor::loadPresetByName (const juce::String& prese
     return true;
 }
 
-bool OSimpleWavetableAudioProcessor::saveUserPreset (const juce::String& raw)
+bool OSimpleWavetableAudioProcessor::saveUserPreset (const juce::String& rawName)
 {
-    const auto clean = sanitisePresetName (raw);
+    const auto clean = sanitisePresetName (rawName);
     if (clean.isEmpty() || isFactoryPresetName (clean))
         return false;                              // refused BEFORE the module
 

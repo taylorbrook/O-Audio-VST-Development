@@ -490,27 +490,11 @@
     touch-action: none;
     background:
       radial-gradient(circle, transparent 88%, var(--knob-ring) 88%, var(--knob-ring) 92%, var(--knob-divider) 92%, var(--knob-divider) 94%, transparent 94%),
-      conic-gradient(from 0deg,
-        var(--knob-seg-1) 0deg,   var(--knob-seg-1) 18deg,  var(--knob-divider) 18deg,  var(--knob-divider) 19deg,
-        var(--knob-seg-2) 19deg,  var(--knob-seg-2) 36deg,  var(--knob-divider) 36deg,  var(--knob-divider) 37deg,
-        var(--knob-seg-1) 37deg,  var(--knob-seg-1) 54deg,  var(--knob-divider) 54deg,  var(--knob-divider) 55deg,
-        var(--knob-seg-2) 55deg,  var(--knob-seg-2) 72deg,  var(--knob-divider) 72deg,  var(--knob-divider) 73deg,
-        var(--knob-seg-1) 73deg,  var(--knob-seg-1) 90deg,  var(--knob-divider) 90deg,  var(--knob-divider) 91deg,
-        var(--knob-seg-2) 91deg,  var(--knob-seg-2) 108deg, var(--knob-divider) 108deg, var(--knob-divider) 109deg,
-        var(--knob-seg-1) 109deg, var(--knob-seg-1) 126deg, var(--knob-divider) 126deg, var(--knob-divider) 127deg,
-        var(--knob-seg-2) 127deg, var(--knob-seg-2) 144deg, var(--knob-divider) 144deg, var(--knob-divider) 145deg,
-        var(--knob-seg-1) 145deg, var(--knob-seg-1) 162deg, var(--knob-divider) 162deg, var(--knob-divider) 163deg,
-        var(--knob-seg-2) 163deg, var(--knob-seg-2) 180deg, var(--knob-divider) 180deg, var(--knob-divider) 181deg,
-        var(--knob-seg-1) 181deg, var(--knob-seg-1) 198deg, var(--knob-divider) 198deg, var(--knob-divider) 199deg,
-        var(--knob-seg-2) 199deg, var(--knob-seg-2) 216deg, var(--knob-divider) 216deg, var(--knob-divider) 217deg,
-        var(--knob-seg-1) 217deg, var(--knob-seg-1) 234deg, var(--knob-divider) 234deg, var(--knob-divider) 235deg,
-        var(--knob-seg-2) 235deg, var(--knob-seg-2) 252deg, var(--knob-divider) 252deg, var(--knob-divider) 253deg,
-        var(--knob-seg-1) 253deg, var(--knob-seg-1) 270deg, var(--knob-divider) 270deg, var(--knob-divider) 271deg,
-        var(--knob-seg-2) 271deg, var(--knob-seg-2) 288deg, var(--knob-divider) 288deg, var(--knob-divider) 289deg,
-        var(--knob-seg-1) 289deg, var(--knob-seg-1) 306deg, var(--knob-divider) 306deg, var(--knob-divider) 307deg,
-        var(--knob-seg-2) 307deg, var(--knob-seg-2) 324deg, var(--knob-divider) 324deg, var(--knob-divider) 325deg,
-        var(--knob-seg-1) 325deg, var(--knob-seg-1) 342deg, var(--knob-divider) 342deg, var(--knob-divider) 343deg,
-        var(--knob-seg-2) 343deg, var(--knob-seg-2) 360deg),
+      /* 20 alternating 17deg segments with 1deg dividers at 18, 36 ... 342deg
+         (period 36deg from 1deg: the same stops as the former hand-unrolled list). */
+      repeating-conic-gradient(from 1deg,
+        var(--knob-seg-1) 0deg 17deg,  var(--knob-divider) 17deg 18deg,
+        var(--knob-seg-2) 18deg 35deg, var(--knob-divider) 35deg 36deg),
       radial-gradient(circle, var(--knob-core) 0%, var(--knob-core) 20%, transparent 20%);
     box-shadow:
       inset 1px 1px 3px rgba(0, 0, 0, 0.3),
@@ -1302,7 +1286,7 @@ let uiReadyFn   = null;
 let applyPresetFn = null;
 let importAudioFn = null;
 let importBytesFn = null;
-const heldNotes = new Set();      // notes this page has sent note-ons for
+const heldNotes = new Map();      // note -> holder count (computer key, mouse) this page has sent a note-on for
 const heldKeys  = new Map();      // computer key -> note
 
 // N8: one automation gesture per parameter, however many front-ends hold it
@@ -1369,21 +1353,50 @@ function scaledToNorm(st, scaled) {
   return Math.pow(proportion, p.skew);
 }
 
+// Stem angle, aria-valuetext and the readout, shared by the continuous and the
+// stepped knobs. `norm` is 0..1; `text` is the readout string.
+function paintKnob(id, norm, text) {
+  const knob = document.getElementById(`knob-${id}`);
+  if (knob) {
+    const stem = knob.querySelector('.knob-stem');
+    if (stem) stem.style.transform = `translate(-50%, -100%) rotate(${normToDeg(norm)}deg)`;
+    knob.setAttribute('aria-valuetext', text);         // same text as the readout
+  }
+  const valEl = document.getElementById(`val-${id}`);
+  if (valEl) valEl.textContent = text;
+}
+
+// Pointer-capture lifecycle shared by the knobs and the bank stack: capture on
+// the ELEMENT (never window) so every later event for this pointer is routed
+// here even outside the WebView, bind move / up, and tear down exactly once on
+// whichever of pointerup, pointercancel or lostpointercapture fires first.
+function capturePointer(el, e, onMove, onUp) {
+  let live = true;
+  const up = (ev) => {
+    if (!live) return;
+    live = false;
+    el.removeEventListener('pointermove', onMove);
+    el.removeEventListener('pointerup', up);
+    el.removeEventListener('pointercancel', up);
+    el.removeEventListener('lostpointercapture', up);
+    if (ev && ev.pointerId !== undefined) {
+      try { el.releasePointerCapture(ev.pointerId); } catch (_) { /* already released */ }
+    }
+    onUp(ev);
+  };
+  try { el.setPointerCapture(e.pointerId); } catch (_) { /* older backends */ }
+  el.addEventListener('pointermove', onMove);
+  el.addEventListener('pointerup', up);
+  el.addEventListener('pointercancel', up);
+  el.addEventListener('lostpointercapture', up);
+}
+
 // FORMAT[id] is called without a fallback on purpose: every KNOB_IDS member has
 // an entry, and a missing one should fail loudly rather than render a bare number.
 function updateKnobVisual(id) {
   const st = sliderState[id];
   if (!st) return;
-  const text = FORMAT[id](st.getScaledValue(), st);   // never a JS range map
-  const knob = document.getElementById(`knob-${id}`);
-  if (knob) {
-    const stem = knob.querySelector('.knob-stem');
-    if (stem) stem.style.transform =
-      `translate(-50%, -100%) rotate(${normToDeg(st.getNormalisedValue())}deg)`;
-    knob.setAttribute('aria-valuetext', text);         // same text as the readout
-  }
-  const valEl = document.getElementById(`val-${id}`);
-  if (valEl) valEl.textContent = text;
+  paintKnob(id, st.getNormalisedValue(), FORMAT[id](st.getScaledValue(), st));   // never a JS range map
 }
 
 function nudgeStep(st) {
@@ -1528,36 +1541,22 @@ function bindKnob(juce, id) {
     e.preventDefault();
   };
 
-  // Idempotent: pointerup, pointercancel and lostpointercapture can all fire.
-  const onUp = (e) => {
+  const onUp = () => {
     if (!dragging) return;
     dragging = false;
     gestureEnd(id);
-    knob.removeEventListener('pointermove', onMove);
-    knob.removeEventListener('pointerup', onUp);
-    knob.removeEventListener('pointercancel', onUp);
-    knob.removeEventListener('lostpointercapture', onUp);
-    if (e && e.pointerId !== undefined) {
-      try { knob.releasePointerCapture(e.pointerId); } catch (_) { /* already released */ }
-    }
   };
 
   knob.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
     endWheelGesture();
+    knob.focus({ preventScroll: true });   // preventDefault below suppresses the default focus
     dragging = true;
     startY = lastY = e.clientY;
     fine = e.shiftKey;
     startNorm = st.getNormalisedValue();
     gestureBegin(id);
-    // Capture on the KNOB, never window: every later event for this pointer is
-    // routed here even outside the WebView, and a terminating
-    // pointerup / pointercancel / lostpointercapture is guaranteed.
-    try { knob.setPointerCapture(e.pointerId); } catch (_) { /* older backends */ }
-    knob.addEventListener('pointermove', onMove);
-    knob.addEventListener('pointerup', onUp);
-    knob.addEventListener('pointercancel', onUp);
-    knob.addEventListener('lostpointercapture', onUp);
+    capturePointer(knob, e, onMove, onUp);
     e.preventDefault();
   });
 
@@ -1617,16 +1616,7 @@ function updateStepKnobVisual(id) {
   // echo of the same value catches up through valueChangedEvent (N13).
   const shown = Number.isInteger(stepDragIdx[id]) ? stepDragIdx[id] : st.getChoiceIndex();
   const idx = Math.min(count - 1, Math.max(0, shown));
-  const text = STEP_FORMAT[id](String(st.properties.choices[idx]), idx);
-  const knob = document.getElementById(`knob-${id}`);
-  if (knob) {
-    const stem = knob.querySelector('.knob-stem');
-    if (stem) stem.style.transform =
-      `translate(-50%, -100%) rotate(${normToDeg(idx / (count - 1))}deg)`;
-    knob.setAttribute('aria-valuetext', text);
-  }
-  const valEl = document.getElementById(`val-${id}`);
-  if (valEl) valEl.textContent = text;
+  paintKnob(id, idx / (count - 1), STEP_FORMAT[id](String(st.properties.choices[idx]), idx));
   buildPips(id, count);
   const wrap = document.getElementById(`wrap-${id}`);
   if (wrap) wrap.querySelectorAll('.pip').forEach((pip, i) => pip.classList.toggle('on', i === idx));
@@ -1658,8 +1648,9 @@ function bindStepKnob(juce, id) {
     if (e.key === 'ArrowUp' || e.key === 'ArrowRight') dir = 1;
     else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') dir = -1;
     else return;
-    setIndex(st.getChoiceIndex() + dir);
     e.preventDefault();
+    if (dragging) return;                  // never nest a step inside the open drag bracket
+    setIndex(st.getChoiceIndex() + dir);
   });
 
   // N13 (D-AP): a pointer drag is ONE host gesture. setChoiceIndex would make
@@ -1688,32 +1679,22 @@ function bindStepKnob(juce, id) {
     e.preventDefault();
   };
 
-  const onUp = (e) => {
+  const onUp = () => {
     if (!dragging) return;
     dragging = false;
     dragNative(2, stepDragIdx[id]);
     delete stepDragIdx[id];
-    knob.removeEventListener('pointermove', onMove);
-    knob.removeEventListener('pointerup', onUp);
-    knob.removeEventListener('pointercancel', onUp);
-    knob.removeEventListener('lostpointercapture', onUp);
-    if (e && e.pointerId !== undefined) {
-      try { knob.releasePointerCapture(e.pointerId); } catch (_) { /* already released */ }
-    }
   };
 
   knob.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
+    knob.focus({ preventScroll: true });   // preventDefault below suppresses the default focus
     dragging = true;
     startY = e.clientY;
     startIdx = st.getChoiceIndex();
     stepDragIdx[id] = startIdx;
     dragNative(0, startIdx);
-    try { knob.setPointerCapture(e.pointerId); } catch (_) { /* older backends */ }
-    knob.addEventListener('pointermove', onMove);
-    knob.addEventListener('pointerup', onUp);
-    knob.addEventListener('pointercancel', onUp);
-    knob.addEventListener('lostpointercapture', onUp);
+    capturePointer(knob, e, onMove, onUp);
     e.preventDefault();
   });
 
@@ -1734,37 +1715,15 @@ function bindStepKnob(juce, id) {
   });
 }
 
-// ── Toggles (Bool parameters) as an Off | On segment pair ───────────────────
+// ── Segment rows: Off | On toggles and small choice lists ────────────────────
 // State is painted with aria-pressed only; the captions are authored markup.
-function bindToggleSegments(juce, id) {
-  const st = juce.getToggleState(id);
-  toggleState[id] = st;
-  const seg = document.getElementById(`seg-${id}`);
-  if (!seg) { console.error(`Missing toggle element: seg-${id}`); return; }
-  const buttons = [...seg.querySelectorAll('button[data-v]')];
-  const paint = () => {
-    const on = !!st.getValue();
-    buttons.forEach((b) => b.setAttribute('aria-pressed', (b.dataset.v === '1') === on ? 'true' : 'false'));
-    scheduleRender();
-  };
-  st.valueChangedEvent.addListener(paint);
-  st.propertiesChangedEvent.addListener(paint);
-  paint();
-  buttons.forEach((b) => b.addEventListener('click', () => {
-    const want = b.dataset.v === '1';
-    if (!!st.getValue() !== want) st.setValue(want);
-  }));
-}
-
-// ── Choices as a segment row (lfo_sync, lfo_shape, voice_mode) ──────────────
-function bindComboSegments(juce, id, onChange) {
-  const st = juce.getComboBoxState(id);
-  comboState[id] = st;
+// `read` returns the current index (0 | 1 for a toggle), `write` sets one.
+function bindSegments(id, st, read, write, onChange) {
   const seg = document.getElementById(`seg-${id}`);
   if (!seg) { console.error(`Missing segment element: seg-${id}`); return; }
   const buttons = [...seg.querySelectorAll('button[data-v]')];
   const paint = () => {
-    const idx = st.getChoiceIndex();
+    const idx = read();
     buttons.forEach((b) => b.setAttribute('aria-pressed', Number(b.dataset.v) === idx ? 'true' : 'false'));
     if (onChange) onChange(idx);
     scheduleRender();
@@ -1774,8 +1733,22 @@ function bindComboSegments(juce, id, onChange) {
   paint();
   buttons.forEach((b) => b.addEventListener('click', () => {
     const v = Number(b.dataset.v);
-    if (v !== st.getChoiceIndex()) st.setChoiceIndex(v);
+    if (v !== read()) write(v);
   }));
+}
+
+// Toggles (Bool parameters) as an Off | On pair.
+function bindToggleSegments(juce, id) {
+  const st = juce.getToggleState(id);
+  toggleState[id] = st;
+  bindSegments(id, st, () => (st.getValue() ? 1 : 0), (v) => st.setValue(v === 1));
+}
+
+// Choices as a segment row (lfo_sync, lfo_shape, voice_mode).
+function bindComboSegments(juce, id, onChange) {
+  const st = juce.getComboBoxState(id);
+  comboState[id] = st;
+  bindSegments(id, st, () => st.getChoiceIndex(), (v) => st.setChoiceIndex(v), onChange);
 }
 
 // ── The bank <select>, rebuilt from properties.choices ──────────────────────
@@ -2475,15 +2448,7 @@ function renderImportError(el) {
 
 function onBankUpdate(d) {
   if (!d || typeof d !== 'object') return;
-  const frames = Array.isArray(d.frames) ? d.frames : [];
-  let thumbs = frames;
-  // Accept a flat N*128 array as well as N arrays of 128.
-  if (frames.length > 0 && !Array.isArray(frames[0])) {
-    const n = Number(d.numFrames) || 0;
-    const per = n > 0 ? Math.floor(frames.length / n) : 0;
-    thumbs = [];
-    for (let i = 0; i < n && per > 0; i++) thumbs.push(frames.slice(i * per, (i + 1) * per));
-  }
+  const thumbs = Array.isArray(d.frames) ? d.frames : [];   // N arrays of 128 (VizPayload bankToVar)
   bankData.bank = Number.isFinite(d.bank) ? d.bank : -1;
   bankData.imported = !!d.imported;
   bankData.numFrames = thumbs.length;
@@ -2519,7 +2484,7 @@ function initBackendEvents(juce) {
   backend.addEventListener('bankUpdate', onBankUpdate);
   backend.addEventListener('importStatus', onImportStatus);
   backend.addEventListener('presetState', onPresetState);
-  try { uiReadyFn = juce.getNativeFunction('uiReady'); } catch (e) { uiReadyFn = null; }
+  uiReadyFn = juce.getNativeFunction('uiReady');
   // emitEventIfBrowserIsVisible drops events while the browser is hidden, so
   // ask again whenever the page becomes visible. W5 (D-AM): hidden releases
   // every note this page holds (the processor also releases them when the
@@ -2554,18 +2519,11 @@ function bindBankDrag() {
     if (st && u !== null) { st.setNormalisedValue(u); updateKnobVisual('position'); }
     e.preventDefault();
   };
-  const onUp = (e) => {
+  const onUp = () => {
     if (!dragging) return;
     dragging = false;
     wrap.classList.remove('dragging');
     gestureEnd('position');
-    wrap.removeEventListener('pointermove', onMove);
-    wrap.removeEventListener('pointerup', onUp);
-    wrap.removeEventListener('pointercancel', onUp);
-    wrap.removeEventListener('lostpointercapture', onUp);
-    if (e && e.pointerId !== undefined) {
-      try { wrap.releasePointerCapture(e.pointerId); } catch (_) { /* already released */ }
-    }
   };
   wrap.addEventListener('pointerdown', (e) => {
     const st = sliderState.position;
@@ -2576,11 +2534,7 @@ function bindBankDrag() {
     gestureBegin('position');
     const u = project(e);
     if (u !== null) { st.setNormalisedValue(u); updateKnobVisual('position'); }
-    try { wrap.setPointerCapture(e.pointerId); } catch (_) { /* older backends */ }
-    wrap.addEventListener('pointermove', onMove);
-    wrap.addEventListener('pointerup', onUp);
-    wrap.addEventListener('pointercancel', onUp);
-    wrap.addEventListener('lostpointercapture', onUp);
+    capturePointer(wrap, e, onMove, onUp);
     e.preventDefault();
   });
 
@@ -2613,8 +2567,8 @@ function bindBankDrag() {
 
 // ── Import: button (native FileChooser) + drop onto the page ────────────────
 function initImport(juce) {
-  try { importAudioFn = juce.getNativeFunction('importAudio'); } catch (e) { importAudioFn = null; }
-  try { importBytesFn = juce.getNativeFunction('importDroppedAudio'); } catch (e) { importBytesFn = null; }
+  importAudioFn = juce.getNativeFunction('importAudio');
+  importBytesFn = juce.getNativeFunction('importDroppedAudio');
 
   const btn = document.getElementById('importBtn');
   if (btn) btn.addEventListener('click', () => {
@@ -2629,6 +2583,7 @@ function initImport(juce) {
   document.addEventListener('dragenter', (e) => { e.preventDefault(); hover(true); });
   document.addEventListener('dragover', (e) => {
     e.preventDefault();
+    hover(true);   // re-assert: an inner dragleave (relatedTarget null in Chromium) cleared it
     try { e.dataTransfer.dropEffect = 'copy'; } catch (_) { /* read-only in some hosts */ }
   });
   document.addEventListener('dragleave', (e) => { if (e.relatedTarget === null) hover(false); });
@@ -2685,7 +2640,7 @@ async function handleDrop(e) {
 // (D-AG / N10), so an edit, a preset load or a session restore can never leave
 // a stale lesson lit. The octave is UI-only and click-driven.
 function initLessons(juce) {
-  try { applyPresetFn = juce.getNativeFunction('applyFactoryPreset'); } catch (e) { applyPresetFn = null; }
+  applyPresetFn = juce.getNativeFunction('applyFactoryPreset');
   document.querySelectorAll('.tour-btn[data-preset]').forEach((b) => b.addEventListener('click', () => {
     const id = b.dataset.preset;
     if (applyPresetFn) applyPresetFn(id).catch((e) => console.error('applyFactoryPreset failed:', e));
@@ -2918,7 +2873,11 @@ async function submitPresetPopover() {
     setLabel(msg, 'preset.confirmReplace', { name: existing });
     return;
   }
-  const saved = presetSaveFn ? await presetSaveFn(name).catch(() => false) : false;
+  // A confirmed replace saves under the EXISTING spelling: on a case-insensitive
+  // file system the typed case would overwrite the file but keep the old
+  // directory entry, leaving the panel on a name the catalog does not list.
+  const saveAs = existing !== undefined ? existing : name;
+  const saved = presetSaveFn ? await presetSaveFn(saveAs).catch(() => false) : false;
   if (saved) { closePresetPopover(); refreshPresetCatalog(); }
   else { presetReplaceName = ''; setLabel(msg, 'preset.errSave'); }
 }
@@ -2983,10 +2942,10 @@ function bindPresetControls() {
 // DYNAMICALLY: a static import that 404s would blank the whole page (the
 // i18n.js failure mode); here a failure disables the panel and nothing else.
 async function initPresets(juce) {
-  try { presetCatalogFn = juce.getNativeFunction('getPresetCatalog'); } catch (e) { presetCatalogFn = null; }
-  try { presetLoadFn    = juce.getNativeFunction('loadPreset'); }       catch (e) { presetLoadFn = null; }
-  try { presetSaveFn    = juce.getNativeFunction('savePreset'); }       catch (e) { presetSaveFn = null; }
-  try { presetDeleteFn  = juce.getNativeFunction('deletePreset'); }     catch (e) { presetDeleteFn = null; }
+  presetCatalogFn = juce.getNativeFunction('getPresetCatalog');
+  presetLoadFn    = juce.getNativeFunction('loadPreset');
+  presetSaveFn    = juce.getNativeFunction('savePreset');
+  presetDeleteFn  = juce.getNativeFunction('deletePreset');
   if (!bindPresetControls()) return;
 
   let mod = null;
@@ -3044,22 +3003,27 @@ function initSettingsPopover() {
 }
 
 // ── On-screen + computer keyboard → uiMidi ──────────────────────────────────
+// A note can be held by a computer key AND the mouse at once: it goes off only
+// when the last holder releases it (refcount), or on a forced all-notes-off.
 function noteOn(m) {
-  if (heldNotes.has(m)) return;
-  heldNotes.add(m);
+  const holders = heldNotes.get(m) || 0;
+  heldNotes.set(m, holders + 1);
+  if (holders > 0) return;
   if (uiMidiFn) uiMidiFn(m, true, 0.8).catch(() => {});
   document.querySelectorAll(`.key[data-note="${m}"]`).forEach((k) => k.classList.add('active'));
 }
 
-function noteOff(m) {
-  if (!heldNotes.has(m)) return;
+function noteOff(m, force = false) {
+  const holders = heldNotes.get(m) || 0;
+  if (holders === 0) return;
+  if (!force && holders > 1) { heldNotes.set(m, holders - 1); return; }
   heldNotes.delete(m);
   if (uiMidiFn) uiMidiFn(m, false, 0).catch(() => {});
   document.querySelectorAll(`.key[data-note="${m}"]`).forEach((k) => k.classList.remove('active'));
 }
 
 function allNotesOff() {
-  [...heldNotes].forEach(noteOff);
+  [...heldNotes.keys()].forEach((m) => noteOff(m, true));
   heldKeys.clear();
 }
 
@@ -3103,7 +3067,7 @@ function setOctave(o) {
 }
 
 function initKeyboard(juce) {
-  try { uiMidiFn = juce.getNativeFunction('uiMidi'); } catch (e) { uiMidiFn = null; }
+  uiMidiFn = juce.getNativeFunction('uiMidi');
   buildKeyboard();
   const kb = document.getElementById('keyboard');
   if (!kb) return;
@@ -3406,7 +3370,7 @@ function init() {
 
   try { initCanvases(); } catch (e) { console.error('canvas init failed:', e); }
 
-  try { stepKnobDragFn = Juce.getNativeFunction('stepKnobDrag'); } catch (e) { stepKnobDragFn = null; }
+  stepKnobDragFn = Juce.getNativeFunction('stepKnobDrag');
   KNOB_IDS.forEach((id) => bindKnob(Juce, id));
   STEP_KNOB_IDS.forEach((id) => bindStepKnob(Juce, id));
   TOGGLE_IDS.forEach((id) => bindToggleSegments(Juce, id));

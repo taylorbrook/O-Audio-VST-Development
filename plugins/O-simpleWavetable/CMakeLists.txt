@@ -11,7 +11,7 @@ juce_add_plugin(O-simpleWavetable
     PLUGIN_CODE OSiW
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-simpleWavetable${OUARICON_DEV_SUFFIX}"
-    VERSION "1.0.0"
+    VERSION "1.0.1"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
