@@ -186,6 +186,14 @@ static void resetDefaults (juce::AudioProcessorValueTreeState& a)
     setParam (a, ampSustain, 0.80f);      setParam (a, ampRelease, 0.10f);
     setParam (a, voiceMode, 0.0f);        // Poly
     setParam (a, glide, 0.0f);            setParam (a, outputLevel, 0.0f);
+    // v1.7.0 — every new parameter at its neutral default.
+    setParam (a, pulseWidth, 0.5f);
+    setParam (a, osc2Wave, 0.0f);         setParam (a, osc2Coarse, 0.0f);
+    setParam (a, osc2Fine, 0.0f);         setParam (a, osc2Level, 0.0f);
+    setParam (a, velToFilter, 0.0f);
+    setParam (a, lfoShape, 0.0f);         setParam (a, lfoRate, 2.0f);
+    setParam (a, lfoToCutoff, 0.0f);      setParam (a, lfoToPitch, 0.0f);
+    setParam (a, lfoToPw, 0.0f);
 }
 
 //==============================================================================
@@ -586,6 +594,178 @@ int main()
                preRms > 0.01 && tailRms > 0.2 * preRms && allFinite (y),
                juce::String ("preRms=") + juce::String (preRms, 4)
                  + " tailRms=" + juce::String (tailRms, 4));
+    }
+
+    // ═══ v1.7.0 — pulse width, oscillator 2, velocity → filter, the LFO ═══════
+
+    // --- 16: pulse width — a 25% pulse has the even harmonics a 50% square lacks
+    {
+        resetDefaults (apvts);
+        setParam (apvts, oscWave, 1.0f);           // Square
+        setParam (apvts, cutoff, 12000.0f);        // open
+        setParam (apvts, filterEnvAmount, 0.0f);
+        setParam (apvts, ampSustain, 1.0f);
+
+        setParam (apvts, pulseWidth, 0.5f);
+        auto y50 = renderHold (proc, note, 1.5, fs);
+        const double even50 = binAmplitude (y50, aOff, aLen, 2.0 * f0, fs) + binAmplitude (y50, aOff, aLen, 4.0 * f0, fs);
+        const double odd50  = binAmplitude (y50, aOff, aLen, f0, fs);
+
+        setParam (apvts, pulseWidth, 0.25f);
+        auto y25 = renderHold (proc, note, 1.5, fs);
+        const double even25 = binAmplitude (y25, aOff, aLen, 2.0 * f0, fs) + binAmplitude (y25, aOff, aLen, 4.0 * f0, fs);
+        const double dc25   = std::abs (binAmplitude (y25, aOff, aLen, 0.0, fs)) * 0.5;   // DC term (bin at 0 Hz is 2x)
+
+        check ("pulse-width", allFinite (y25) && even50 < odd50 * 0.05 && even25 > even50 * 8.0 && even25 > 0.02
+                 && dc25 < 0.02,
+               juce::String ("even@50%=") + juce::String (even50, 5) + " even@25%=" + juce::String (even25, 4)
+                 + " dc@25%=" + juce::String (dc25, 4));
+    }
+
+    // --- 17: osc 2 — at level 1, coarse +12: energy an octave up; at level 0: none
+    {
+        resetDefaults (apvts);
+        setParam (apvts, oscWave, 3.0f);           // Osc 1 Sine at f0 — only f0 from it
+        setParam (apvts, osc2Wave, 3.0f);          // Osc 2 Sine
+        setParam (apvts, osc2Coarse, 12.0f);       // +1 octave
+        setParam (apvts, cutoff, 12000.0f);
+        setParam (apvts, filterEnvAmount, 0.0f);
+        setParam (apvts, ampSustain, 1.0f);
+
+        setParam (apvts, osc2Level, 0.0f);
+        auto yOff = renderHold (proc, note, 1.5, fs);
+        const double octOff = binAmplitude (yOff, aOff, aLen, 2.0 * f0, fs);
+
+        setParam (apvts, osc2Level, 1.0f);
+        auto yOn = renderHold (proc, note, 1.5, fs);
+        const double octOn = binAmplitude (yOn, aOff, aLen, 2.0 * f0, fs);
+        const double fund  = binAmplitude (yOn, aOff, aLen, f0, fs);
+
+        check ("osc2-octave", allFinite (yOn) && octOff < 0.01 && octOn > 0.05 && octOn > fund * 0.5 && octOn < fund * 2.0,
+               juce::String ("2f0@off=") + juce::String (octOff, 5) + " 2f0@on=" + juce::String (octOn, 4)
+                 + " f0=" + juce::String (fund, 4));
+
+        // Fine: +50 cents puts osc 2 at f0 · 2^(50/1200); the peak near f0 splits.
+        setParam (apvts, osc2Coarse, 0.0f);
+        setParam (apvts, osc2Fine, 50.0f);
+        auto yFine = renderHold (proc, note, 1.5, fs);
+        const double fDet = f0 * std::pow (2.0, 50.0 / 1200.0);
+        const double atDet = binAmplitude (yFine, aOff, aLen, fDet, fs);
+        const double atF0  = binAmplitude (yFine, aOff, aLen, f0, fs);
+        check ("osc2-fine", allFinite (yFine) && atDet > 0.05 && atF0 > 0.05 && atDet > atF0 * 0.5 && atDet < atF0 * 2.0,
+               juce::String ("f0=") + juce::String (atF0, 4) + " f0+50ct=" + juce::String (atDet, 4));
+    }
+
+    // --- 18: velocity → filter — at depth 1 a soft note is darker than a hard one;
+    //         at depth 0 they match (after the amp's own velocity scaling) --------
+    {
+        const std::vector<double> highs { f0 * 4, f0 * 6, f0 * 8 };
+        auto hfRatio = [&] (float vel)
+        {
+            auto y = renderEvents (proc, { { 0.0, true, note, vel }, { 1.3, false, note, 0.0f } }, 1.5, fs);
+            return bandEnergy (y, aOff, aLen, highs, fs) / juce::jmax (1.0e-9, binAmplitude (y, aOff, aLen, f0, fs));
+        };
+        resetDefaults (apvts);
+        setParam (apvts, cutoff, 400.0f);
+        setParam (apvts, filterEnvAmount, 0.9f);
+        setParam (apvts, filterDecay, 1.0f);  setParam (apvts, filterSustain, 1.0f);
+        setParam (apvts, ampSustain, 1.0f);
+
+        setParam (apvts, velToFilter, 0.0f);
+        const double soft0 = hfRatio (0.2f), hard0 = hfRatio (1.0f);
+        setParam (apvts, velToFilter, 1.0f);
+        const double soft1 = hfRatio (0.2f), hard1 = hfRatio (1.0f);
+
+        check ("vel-to-filter", std::abs (soft0 - hard0) < 0.1 * hard0 && hard1 > soft1 * 3.0,
+               juce::String ("depth0 soft/hard=") + juce::String (soft0, 3) + "/" + juce::String (hard0, 3)
+                 + " depth1 soft/hard=" + juce::String (soft1, 3) + "/" + juce::String (hard1, 3));
+    }
+
+    // --- 19: LFO → pitch — a Square LFO at 1 Hz, ±12 st: the pitch alternates
+    //         between 2·f0 and f0/2 half-cycle by half-cycle ----------------------
+    {
+        resetDefaults (apvts);
+        setParam (apvts, oscWave, 3.0f);           // Sine — one clean peak to find
+        setParam (apvts, cutoff, 12000.0f);
+        setParam (apvts, filterEnvAmount, 0.0f);
+        setParam (apvts, ampSustain, 1.0f);
+        setParam (apvts, lfoShape, 1.0f);          // Square
+        setParam (apvts, lfoRate, 1.0f);
+        setParam (apvts, lfoToPitch, 12.0f);       // ±1 octave
+
+        // prepareToPlay restarts the LFO at phase 0 → +1 for [0, 0.5) s, −1 for [0.5, 1) s.
+        proc.prepareToPlay (fs, 512);
+        auto y = renderHold (proc, note, 1.5, fs, 0.9);
+        const int wLen = (int) (0.25 * fs);
+        const double pHi = peakFreq (y, (int) (0.15 * fs), wLen, 150.0, 2000.0, fs);   // inside the +1 half
+        const double pLo = peakFreq (y, (int) (0.65 * fs), wLen, 150.0, 2000.0, fs);   // inside the −1 half
+        check ("lfo-pitch", allFinite (y) && std::abs (pHi - 2.0 * f0) / (2.0 * f0) < 0.06
+                 && std::abs (pLo - 0.5 * f0) / (0.5 * f0) < 0.06,
+               juce::String ("firstHalf=") + juce::String (pHi, 1) + " (exp 880) secondHalf=" + juce::String (pLo, 1) + " (exp 220)");
+    }
+
+    // --- 20: LFO → cutoff — a Square LFO opens the filter for one half-cycle and
+    //         closes it for the other: HF content alternates -----------------------
+    {
+        const std::vector<double> highs { f0 * 4, f0 * 6, f0 * 8 };
+        resetDefaults (apvts);
+        setParam (apvts, cutoff, 800.0f);
+        setParam (apvts, filterEnvAmount, 0.0f);
+        setParam (apvts, ampSustain, 1.0f);
+        setParam (apvts, lfoShape, 1.0f);          // Square
+        setParam (apvts, lfoRate, 1.0f);
+        setParam (apvts, lfoToCutoff, 1.0f);       // ±3 octaves → 6.4 kHz / 100 Hz
+
+        proc.prepareToPlay (fs, 512);
+        auto y = renderHold (proc, note, 1.5, fs, 0.9);
+        const int wLen = (int) (0.25 * fs);
+        const double hfOpen   = bandEnergy (y, (int) (0.15 * fs), wLen, highs, fs);
+        const double hfClosed = bandEnergy (y, (int) (0.65 * fs), wLen, highs, fs);
+        check ("lfo-cutoff", allFinite (y) && hfOpen > hfClosed * 4.0 && hfOpen > 0.01,
+               juce::String ("hfOpen=") + juce::String (hfOpen, 4) + " hfClosed=" + juce::String (hfClosed, 5));
+    }
+
+    // --- 21: LFO → pulse width — with a Square source the even harmonics breathe;
+    //         the two half-cycles of a Square LFO give two different widths ---------
+    {
+        resetDefaults (apvts);
+        setParam (apvts, oscWave, 1.0f);           // Square source
+        setParam (apvts, cutoff, 12000.0f);
+        setParam (apvts, filterEnvAmount, 0.0f);
+        setParam (apvts, ampSustain, 1.0f);
+        setParam (apvts, pulseWidth, 0.5f);
+        setParam (apvts, lfoShape, 2.0f);          // Saw: width sweeps 0.95 → 0.05 over the cycle
+        setParam (apvts, lfoRate, 1.0f);
+        setParam (apvts, lfoToPw, 1.0f);
+
+        proc.prepareToPlay (fs, 512);
+        auto y = renderHold (proc, note, 1.5, fs, 0.9);
+        const int wLen = (int) (0.12 * fs);
+        const double evenNarrow = binAmplitude (y, (int) (0.10 * fs), wLen, 2.0 * f0, fs);  // width ≈ 0.86 → strong 2nd
+        const double evenMid    = binAmplitude (y, (int) (0.44 * fs), wLen, 2.0 * f0, fs);  // width ≈ 0.5 → none
+        check ("lfo-pw", allFinite (y) && evenNarrow > evenMid * 5.0 && evenNarrow > 0.02 && peakAbs (y) < 4.0,
+               juce::String ("2f0@wide=") + juce::String (evenNarrow, 4) + " 2f0@50%=" + juce::String (evenMid, 5));
+    }
+
+    // --- 22: S&H is finite and bounded, and all-neutral defaults still sound ----
+    {
+        resetDefaults (apvts);
+        setParam (apvts, lfoShape, 3.0f);          // S&H
+        setParam (apvts, lfoRate, 8.0f);
+        setParam (apvts, lfoToPitch, 12.0f);
+        setParam (apvts, lfoToCutoff, 1.0f);
+        setParam (apvts, lfoToPw, 1.0f);
+        setParam (apvts, oscWave, 1.0f);
+        setParam (apvts, ampSustain, 1.0f);
+        auto y = renderHold (proc, note, 1.5, fs);
+        check ("lfo-sh-finite", allFinite (y) && peakAbs (y) < 4.0 && rms (y, aOff, aLen) > 0.01,
+               juce::String ("peak=") + juce::String (peakAbs (y), 3) + " rms=" + juce::String (rms (y, aOff, aLen), 4));
+
+        resetDefaults (apvts);
+        setParam (apvts, ampSustain, 1.0f);
+        auto yDef = renderHold (proc, note, 1.5, fs);
+        check ("defaults-sound", allFinite (yDef) && rms (yDef, aOff, aLen) > 0.02,
+               juce::String ("rms=") + juce::String (rms (yDef, aOff, aLen), 4));
     }
 
     proc.releaseResources();

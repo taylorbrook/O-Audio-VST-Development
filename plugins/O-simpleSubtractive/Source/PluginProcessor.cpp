@@ -65,11 +65,33 @@ OSimpleSubtractiveAudioProcessor::createParameterLayout()
         juce::ParameterID { oscWave, 1 }, "Oscillator Wave",
         juce::StringArray { "Saw", "Square", "Triangle", "Sine" }, 0)); // Saw
 
+    // v1.7.0 — Square duty cycle. 0.5 is the pre-1.7.0 square, bit for bit.
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { pulseWidth, 1 }, "Pulse Width",
+        juce::NormalisableRange<float> { 0.05f, 0.95f, 0.0001f }, 0.5f));
+
     params.push_back (std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { subLevel, 1 }, "Sub Level", unitRange(), 0.0f));
 
     params.push_back (std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { noiseLevel, 1 }, "Noise Level", unitRange(), 0.0f));
+
+    //--- Oscillator 2 (v1.7.0) — silent by default (level 0) ---------------
+    params.push_back (std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { osc2Wave, 1 }, "Osc 2 Wave",
+        juce::StringArray { "Saw", "Square", "Triangle", "Sine" }, 0)); // Saw
+
+    params.push_back (std::make_unique<juce::AudioParameterInt>(
+        juce::ParameterID { osc2Coarse, 1 }, "Osc 2 Coarse", -24, 24, 0,
+        juce::AudioParameterIntAttributes().withLabel ("st")));
+
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { osc2Fine, 1 }, "Osc 2 Fine",
+        juce::NormalisableRange<float> { -50.0f, 50.0f, 0.1f }, 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("ct")));
+
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { osc2Level, 1 }, "Osc 2 Level", unitRange(), 0.0f));
 
     //--- Filter ------------------------------------------------------------
     params.push_back (std::make_unique<juce::AudioParameterChoice>(
@@ -96,6 +118,34 @@ OSimpleSubtractiveAudioProcessor::createParameterLayout()
 
     params.push_back (std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { keyTrack, 1 }, "Key Track", unitRange(), 0.0f));
+
+    // v1.7.0 — velocity scales the filter-envelope depth. 0 = ignore velocity.
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { velToFilter, 1 }, "Velocity to Filter", unitRange(), 0.0f));
+
+    //--- The one global LFO (v1.7.0) — every depth defaults to 0 ------------
+    params.push_back (std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { lfoShape, 1 }, "LFO Shape",
+        juce::StringArray { "Triangle", "Square", "Saw", "S&H" }, 0)); // Triangle
+
+    // 0.02–20 Hz, log-ish skew so 2 Hz sits near the middle of the knob.
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { lfoRate, 1 }, "LFO Rate",
+        juce::NormalisableRange<float> { 0.02f, 20.0f, 0.0f, 0.3f }, 2.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("Hz")));
+
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { lfoToCutoff, 1 }, "LFO to Cutoff", unitRange(), 0.0f));
+
+    // Semitones of swing at full LFO; skewed so the first half of the knob is
+    // vibrato territory (0–2 st) and the top reaches an octave.
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { lfoToPitch, 1 }, "LFO to Pitch",
+        juce::NormalisableRange<float> { 0.0f, 12.0f, 0.0f, 0.4f }, 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("st")));
+
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { lfoToPw, 1 }, "LFO to Pulse Width", unitRange(), 0.0f));
 
     //--- Filter envelope (ADSR -> cutoff) ----------------------------------
     params.push_back (std::make_unique<juce::AudioParameterFloat>(
@@ -184,6 +234,11 @@ void OSimpleSubtractiveAudioProcessor::prepareToPlay (double sampleRate, int sam
 
     monoStack.clear();
     lastVoiceMode = (int) parameters.getRawParameterValue (OSimpleSubtractive::ParamIDs::voiceMode)->load();
+
+    // The LFO restarts from phase 0 at prepare (a transport restart on most
+    // hosts), never on a note — it is free-running across the whole instrument.
+    lfoPhase = 0.0;
+    lfoCycle = 0;
 }
 
 void OSimpleSubtractiveAudioProcessor::releaseResources()
@@ -208,34 +263,66 @@ bool OSimpleSubtractiveAudioProcessor::isBusesLayoutSupported (const BusesLayout
 }
 
 //==============================================================================
-void OSimpleSubtractiveAudioProcessor::pushParamsToVoices()
+void OSimpleSubtractiveAudioProcessor::pushParamsToVoices (int numSamples)
 {
     using namespace OSimpleSubtractive::ParamIDs;
     auto get = [this] (const char* id) { return parameters.getRawParameterValue (id)->load(); };
 
-    const int   waveV    = (int) get (oscWave);
-    const float subV     = get (subLevel);
-    const float noiseV   = get (noiseLevel);
-    const int   typeV    = (int) get (filterType);
-    const int   slopeV   = (int) get (filterSlope);
-    const float cutoffV  = get (cutoff);
-    const float resV     = get (resonance);
-    const float envAmtV  = get (filterEnvAmount);
-    const float keyTrkV  = get (keyTrack);
-    const float glideV   = get (glide);
+    SubVoiceParams p;
+    p.wave            = (int) get (oscWave);
+    p.pulseWidth      = get (pulseWidth);
+    p.subLevel        = get (subLevel);
+    p.noiseLevel      = get (noiseLevel);
 
-    const juce::ADSR::Parameters filtP { get (filterAttack), get (filterDecay), get (filterSustain), get (filterRelease) };
-    const juce::ADSR::Parameters ampP  { get (ampAttack),    get (ampDecay),    get (ampSustain),    get (ampRelease) };
+    p.osc2Wave        = (int) get (osc2Wave);
+    p.osc2Ratio       = (float) std::exp2 (((double) get (osc2Coarse) + (double) get (osc2Fine) / 100.0) / 12.0);
+    p.osc2Level       = get (osc2Level);
+
+    p.filterType      = (int) get (filterType);
+    p.slope           = (int) get (filterSlope);
+    p.cutoffHz        = get (cutoff);
+    p.resonance       = get (resonance);
+    p.filterEnvAmount = get (filterEnvAmount);
+    p.keyTrack        = get (keyTrack);
+    p.velToFilter     = get (velToFilter);
+
+    p.filt = { get (filterAttack), get (filterDecay), get (filterSustain), get (filterRelease) };
+    p.amp  = { get (ampAttack),    get (ampDecay),    get (ampSustain),    get (ampRelease) };
+    p.glideSeconds    = get (glide);
+
+    // The global LFO: this block's start state. The rate is read once per block,
+    // so a rate move lands at the next block boundary with the phase continuous.
+    lfoIncThisBlock   = (double) get (lfoRate) / juce::jmax (1.0, currentSampleRate);
+    p.lfo.shape       = (int) get (lfoShape);
+    p.lfo.phase0      = lfoPhase;
+    p.lfo.inc         = lfoIncThisBlock;
+    p.lfo.cycle0      = lfoCycle;
+    p.lfoToCutoff     = get (lfoToCutoff);
+    p.lfoToPitchSemis = get (lfoToPitch);
+    p.lfoToPw         = get (lfoToPw);
 
     for (int v = 0; v < synth.getNumVoices(); ++v)
         if (auto* sv = dynamic_cast<SubVoice*> (synth.getVoice (v)))
-            sv->setParams (waveV, subV, noiseV, typeV, slopeV, cutoffV, resV, envAmtV, keyTrkV,
-                           filtP, ampP, glideV);
+            sv->setParams (p);
 
     // Publish the static filter selectors for the display (cutoff/k come from the
-    // live lead voice after rendering).
-    displayType.store (typeV, std::memory_order_relaxed);
-    displaySlope.store (slopeV, std::memory_order_relaxed);
+    // live lead voice after rendering), and the LFO's value at the END of this
+    // block for the LFO canvas playhead.
+    displayType.store (p.filterType, std::memory_order_relaxed);
+    displaySlope.store (p.slope, std::memory_order_relaxed);
+    lfoDisplayValue.store (p.lfo.at (numSamples), std::memory_order_relaxed);
+    {
+        const double pe = lfoPhase + (double) numSamples * lfoIncThisBlock;
+        lfoDisplayPhase.store ((float) (pe - std::floor (pe)), std::memory_order_relaxed);
+    }
+}
+
+void OSimpleSubtractiveAudioProcessor::advanceLfo (int numSamples)
+{
+    const double p = lfoPhase + (double) numSamples * lfoIncThisBlock;
+    const double c = std::floor (p);
+    lfoCycle += (uint32_t) c;
+    lfoPhase  = p - c;
 }
 
 void OSimpleSubtractiveAudioProcessor::handleUiMidi (int noteNumber, bool noteOn, float velocity)
@@ -355,6 +442,55 @@ void OSimpleSubtractiveAudioProcessor::applyFactoryPreset (const juce::String& n
         setReal (filterSustain, 1.0f);
         setReal (ampAttack, 0.05f); setReal (ampDecay, 0.20f); setReal (ampSustain, 0.90f); setReal (ampRelease, 0.40f);
     }
+    // ── v1.7.0 — the four lessons for the new sections. lfoShape: 0 Triangle
+    //    1 Square 2 Saw 3 S&H; lfoRate Hz; lfoToPitch in semitones; lfoToCutoff /
+    //    lfoToPw are 0–1 depths; osc2Coarse semitones; osc2Fine cents.
+    //
+    // ── PWM Pad — a square whose width the LFO sweeps. The harmonic mix
+    //    changes continuously (even harmonics come and go), which the ear hears
+    //    as the chorus-like motion of a string machine. No second oscillator.
+    else if (name == "PWM Pad")
+    {
+        setChoice (oscWave, 1);  setReal (pulseWidth, 0.5f);
+        setChoice (lfoShape, 0);  setReal (lfoRate, 0.7f);  setReal (lfoToPw, 0.8f);
+        setChoice (filterType, 0);  setChoice (filterSlope, 2);
+        setReal (cutoff, 1800.0f);  setReal (resonance, 0.15f);  setReal (filterEnvAmount, 0.3f);
+        setReal (filterAttack, 0.80f); setReal (filterDecay, 1.50f); setReal (filterSustain, 0.60f); setReal (filterRelease, 1.20f);
+        setReal (ampAttack, 0.60f); setReal (ampDecay, 0.80f); setReal (ampSustain, 0.85f); setReal (ampRelease, 1.20f);
+    }
+    // ── Vibrato Lead — the LFO on PITCH, a third of a semitone at 5.5 Hz: the
+    //    singer's vibrato. Legato with a little glide so phrases slur.
+    else if (name == "Vibrato Lead")
+    {
+        setChoice (oscWave, 0);  setChoice (filterType, 0);  setChoice (filterSlope, 2);
+        setReal (cutoff, 1500.0f);  setReal (resonance, 0.20f);  setReal (filterEnvAmount, 0.4f);  setReal (keyTrack, 0.30f);
+        setChoice (lfoShape, 0);  setReal (lfoRate, 5.5f);  setReal (lfoToPitch, 0.35f);
+        setReal (filterAttack, 0.03f); setReal (filterDecay, 0.40f); setReal (filterSustain, 0.50f); setReal (filterRelease, 0.20f);
+        setReal (ampAttack, 0.01f); setReal (ampDecay, 0.30f); setReal (ampSustain, 0.90f); setReal (ampRelease, 0.20f);
+        setChoice (voiceMode, 2);  setReal (glide, 0.05f);
+    }
+    // ── Wobble Bass — the LFO on CUTOFF: a resonant low-pass opened and closed
+    //    at 2 Hz over a saw + sub. The filter sweep IS the rhythm.
+    else if (name == "Wobble Bass")
+    {
+        setChoice (oscWave, 0);  setReal (subLevel, 0.40f);  setChoice (filterType, 0);  setChoice (filterSlope, 2);
+        setReal (cutoff, 250.0f);  setReal (resonance, 0.55f);  setReal (filterEnvAmount, 0.2f);
+        setChoice (lfoShape, 0);  setReal (lfoRate, 2.0f);  setReal (lfoToCutoff, 0.6f);
+        setReal (filterAttack, 0.005f); setReal (filterDecay, 0.30f); setReal (filterSustain, 0.50f); setReal (filterRelease, 0.15f);
+        setReal (ampAttack, 0.003f); setReal (ampDecay, 0.30f); setReal (ampSustain, 0.90f); setReal (ampRelease, 0.15f);
+        setChoice (voiceMode, 1);
+    }
+    // ── Detuned Saws — the second oscillator at equal level, 12 cents sharp.
+    //    Two saws almost in tune beat against each other: the "fat" sound every
+    //    two-oscillator synth is bought for. Poly, so chords stack the beating.
+    else if (name == "Detuned Saws")
+    {
+        setChoice (oscWave, 0);  setChoice (osc2Wave, 0);  setReal (osc2Fine, 12.0f);  setReal (osc2Level, 1.0f);
+        setChoice (filterType, 0);  setChoice (filterSlope, 2);
+        setReal (cutoff, 2500.0f);  setReal (resonance, 0.10f);  setReal (filterEnvAmount, 0.3f);
+        setReal (filterAttack, 0.30f); setReal (filterDecay, 1.00f); setReal (filterSustain, 0.50f); setReal (filterRelease, 0.40f);
+        setReal (ampAttack, 0.05f); setReal (ampDecay, 0.50f); setReal (ampSustain, 0.85f); setReal (ampRelease, 0.40f);
+    }
 }
 
 //==============================================================================
@@ -450,7 +586,7 @@ void OSimpleSubtractiveAudioProcessor::processBlock (juce::AudioBuffer<float>& b
     // Merge any on-screen-keyboard notes into the host MIDI stream.
     midiCollector.removeNextBlockOfMessages (midiMessages, numSamples);
 
-    pushParamsToVoices();
+    pushParamsToVoices (numSamples);
 
     const int mode = (int) parameters.getRawParameterValue (OSimpleSubtractive::ParamIDs::voiceMode)->load();
 
@@ -472,6 +608,9 @@ void OSimpleSubtractiveAudioProcessor::processBlock (juce::AudioBuffer<float>& b
         // allocation) is bypassed, so pass nothing to renderNextBlock.
         renderMonoLegato (buffer, midiMessages, numSamples, mode);
     }
+
+    // The global LFO ran this block in every voice; move its clock on.
+    advanceLfo (numSamples);
 
     // Master output trim (dB->lin, smoothed).
     const float outDb = parameters.getRawParameterValue (OSimpleSubtractive::ParamIDs::outputLevel)->load();

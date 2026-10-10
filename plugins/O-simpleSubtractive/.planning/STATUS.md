@@ -22,6 +22,15 @@ contract_checksums:
 
 ## Current Position
 
+### Improve — v1.7.0 (2026-10-10): osc 2, pulse width, velocity → filter, LFO
+
+Scope chosen from a proposed menu after a survey of the v1.6.0 parameter set
+(21 params, no LFO, square fixed at 50 %, velocity → amp only). Delivered:
+11 new params (all neutral by default), two-row controls at 1180×1000, LFO node
+in the diagram, four lesson presets, three-language copy, harness 16–22.
+Backup: `backups/O-simpleSubtractive/v1.6.0/`. Details: CHANGELOG [1.7.0].
+
+
 Stage: 4 of 4 (Polish) — ✅ complete — **v1.0.0 ready to ship**
 Status: All 4 stages complete. Stage 4 filled the 8-preset concept tour (FUNC-06) and confirmed playability (FUNC-07) with ZERO DSP/parameter change. Build clean (VST3+AU), AU VALIDATION SUCCEEDED, pluginval s10 SUCCESS. CHANGELOG v1.0.0 written. Only manual UAT (on-screen look/feel of preset loads) remains before distribution.
 Progress: [####################] 100%

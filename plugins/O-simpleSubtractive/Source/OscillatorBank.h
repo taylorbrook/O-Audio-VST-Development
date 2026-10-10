@@ -24,12 +24,22 @@
 
     Generates the harmonically-rich source the filter shapes (DSP-01):
 
-      src = mainOsc(oscWave, f0) + subLevel * subSquare(f0/2) + noiseLevel * white
+      src = osc1(wave1, f0, pw) + osc2Level * osc2(wave2, f0 · ratio, pw)
+          + subLevel * subSquare(f0/2) + noiseLevel * white
+
+    v1.7.0 added the second oscillator and the pulse width. Osc 2 is a full
+    second PolyBLEP oscillator at its own frequency (coarse semitones + fine
+    cents, folded into `ratio` by the voice); its level defaults to 0 and its
+    phase is ALWAYS advanced, so raising the level mid-note never jumps phase.
+    The pulse width applies to a Square on either oscillator (one Width knob
+    for "the square"); the sub stays a 50 % square.
 
     Anti-aliasing (ARCHITECTURE.md §"Anti-Aliasing — PolyBLEP / polyBLAMP"):
       - Saw    : naive 2φ-1 minus a two-sided PolyBLEP residual at the φ=0 wrap.
       - Square : naive ±1 pulse plus PolyBLEP at the rising edge (φ=0) minus
-                 PolyBLEP at the falling edge (φ=0.5).
+                 PolyBLEP at the falling edge (φ=pw), DC-corrected so a narrow
+                 pulse sits on zero. At pw = 0.5 this is bit-identical to the
+                 pre-1.7.0 square.
       - Triangle: naive /\ wave plus polyBLAMP slope-corrections at both corners
                  (already 1/n² dark — minimal correction; amplitude is pitch-
                  independent because the naive triangle dominates).
@@ -61,37 +71,40 @@ public:
     void reset() noexcept
     {
         mainPhase = 0.0f;
+        osc2Phase = 0.0f;
         subPhase  = 0.0f;
         rngState  = 0x9E3779B9u;   // deterministic seed (xorshift)
     }
 
     //==========================================================================
-    // One sample of the mixed source. f0 is the (possibly glided) note frequency.
-    float next (int wave, float f0, float subLevel, float noiseLevel) noexcept
+    // One sample of the mixed source. f0 is the (possibly glided, LFO-bent) note
+    // frequency; osc2Ratio the second oscillator's frequency multiple; pw the
+    // pulse width in (0,1) for a Square on either oscillator.
+    float next (int wave, float f0, float pw,
+                int wave2, float osc2Ratio, float osc2Level,
+                float subLevel, float noiseLevel) noexcept
     {
         const float dtMain = (float) (f0 / fs);
-
-        float main = 0.0f;
-        switch (wave)
-        {
-            case Saw:      main = sawSample      (mainPhase, dtMain); break;
-            case Square:   main = squareSample   (mainPhase, dtMain); break;
-            case Triangle: main = triangleSample (mainPhase, dtMain); break;
-            case Sine:     main = sineSample     (mainPhase);         break;
-            default:       main = sawSample      (mainPhase, dtMain); break;
-        }
+        const float main   = oscSample (wave, mainPhase, dtMain, pw);
         advance (mainPhase, dtMain);
 
+        // Osc 2: its own PolyBLEP oscillator at f0 · ratio. Always advanced (so
+        // raising osc2Level mid-note never jumps phase); one extra osc per sample.
+        const float dt2  = (float) ((f0 * osc2Ratio) / fs);
+        const float osc2 = oscSample (wave2, osc2Phase, dt2, pw);
+        advance (osc2Phase, dt2);
+
         // Sub: square one octave below. Always advanced (so toggling subLevel
-        // never jumps phase); cost is negligible.
+        // never jumps phase); cost is negligible. Fixed 50 % — the Width knob
+        // is for the main oscillators.
         const float f0sub = 0.5f * f0;
         const float dtSub  = (float) (f0sub / fs);
-        const float sub    = squareSample (subPhase, dtSub);
+        const float sub    = squareSample (subPhase, dtSub, 0.5f);
         advance (subPhase, dtSub);
 
         const float noise = whiteNoise();
 
-        return main + subLevel * sub + noiseLevel * noise;
+        return main + osc2Level * osc2 + subLevel * sub + noiseLevel * noise;
     }
 
 private:
@@ -128,13 +141,30 @@ private:
         return s;
     }
 
-    static float squareSample (float phase, float dt) noexcept
+    static float oscSample (int wave, float phase, float dt, float pw) noexcept
     {
-        float s = (phase < 0.5f) ? 1.0f : -1.0f;            // naive 50% pulse
+        switch (wave)
+        {
+            case Saw:      return sawSample      (phase, dt);
+            case Square:   return squareSample   (phase, dt, pw);
+            case Triangle: return triangleSample (phase, dt);
+            case Sine:     return sineSample     (phase);
+            default:       return sawSample      (phase, dt);
+        }
+    }
+
+    // Pulse with width pw: high for φ in [0, pw), low after. The falling edge
+    // sits at φ = pw, so its BLEP is evaluated at (φ − pw) wrapped — at pw = 0.5
+    // that is the former `phase + 0.5` wrap exactly. The DC term 2pw − 1 is
+    // removed so a narrow pulse does not ride a bias into the filter (and so
+    // sweeping the width with the LFO does not pump the level); it is 0 at 0.5.
+    static float squareSample (float phase, float dt, float pw) noexcept
+    {
+        float s = (phase < pw) ? 1.0f : -1.0f;              // naive pulse
         s += polyBlep (phase, dt);                          // rising edge at φ=0
-        float ph2 = phase + 0.5f; if (ph2 >= 1.0f) ph2 -= 1.0f;
-        s -= polyBlep (ph2, dt);                            // falling edge at φ=0.5
-        return s;
+        float ph2 = phase - pw; if (ph2 < 0.0f) ph2 += 1.0f;
+        s -= polyBlep (ph2, dt);                            // falling edge at φ=pw
+        return s - (2.0f * pw - 1.0f);
     }
 
     static float triangleSample (float phase, float dt) noexcept
@@ -179,6 +209,7 @@ private:
 
     double   fs        = 44100.0;
     float    mainPhase = 0.0f;
+    float    osc2Phase = 0.0f;
     float    subPhase  = 0.0f;
     uint32_t rngState  = 0x9E3779B9u;
 };

@@ -19,8 +19,8 @@
 */
 // ============================================================================
 // O-simpleSubtractive — WebView UI controller
-// Binds all 20 APVTS params two-way (16 knobs + 4 combos), draws the headline
-// filter-curve-over-spectrum, the oscilloscope, and the dual-ADSR display, and
+// Binds all 31 APVTS params two-way (25 knobs + 6 combos), draws the headline
+// filter-curve-over-spectrum, the oscilloscope, the dual-ADSR and LFO displays, and
 // runs the pedagogical layer (signal-path diagram, tooltips, preset tour).
 //
 // NOTE: getSliderState / getComboBoxState / getNativeFunction live on the `Juce`
@@ -148,23 +148,33 @@ function initI18n() {
 
 
 // ── Parameter inventory (must match OSimpleSubtractive::ParamIDs exactly) ───
+// v1.7.0: 25 sliders + 6 combos (was 16 + 4).
 const SLIDER_IDS = [
-  "subLevel", "noiseLevel",
-  "cutoff", "resonance", "filterEnvAmount", "keyTrack",
+  "pulseWidth", "subLevel", "noiseLevel",
+  "osc2Coarse", "osc2Fine", "osc2Level",
+  "cutoff", "resonance", "filterEnvAmount", "keyTrack", "velToFilter",
+  "lfoRate", "lfoToCutoff", "lfoToPitch", "lfoToPw",
   "filterAttack", "filterDecay", "filterSustain", "filterRelease",
   "ampAttack", "ampDecay", "ampSustain", "ampRelease",
   "glide", "outputLevel",
 ];
-const COMBO_IDS = ["oscWave", "filterType", "filterSlope", "voiceMode"];
+const COMBO_IDS = ["oscWave", "osc2Wave", "filterType", "filterSlope", "lfoShape", "voiceMode"];
 
 // ── Display formatters (keyed by param id; receive the *scaled* value) ──────
 const fmtMs = (s) => (s < 1 ? `${Math.round(s * 1000)} ms` : `${s.toFixed(2)} s`);
 const fmtPct = (v) => `${Math.round(v * 100)}%`;
 const fmtHz = (v) => (v >= 1000 ? `${(v / 1000).toFixed(2)} kHz` : `${Math.round(v)} Hz`);
 const fmtSignedPct = (v) => `${v >= 0 ? "+" : ""}${Math.round(v * 100)}%`;
+const fmtSemis = (v) => `${v > 0 ? "+" : ""}${Math.round(v)} st`;
+const fmtCents = (v) => `${v > 0 ? "+" : ""}${Math.round(v)} ct`;
+const fmtLfoHz = (v) => (v < 10 ? `${v.toFixed(2)} Hz` : `${v.toFixed(1)} Hz`);
+// LFO → pitch: under a semitone the readout is in cents (vibrato territory).
+const fmtPitchDepth = (v) => (v < 1 ? `${Math.round(v * 100)} ct` : `${v.toFixed(2)} st`);
 const FORMAT = {
-  subLevel: fmtPct, noiseLevel: fmtPct,
-  cutoff: fmtHz, resonance: fmtPct, filterEnvAmount: fmtSignedPct, keyTrack: fmtPct,
+  pulseWidth: fmtPct, subLevel: fmtPct, noiseLevel: fmtPct,
+  osc2Coarse: fmtSemis, osc2Fine: fmtCents, osc2Level: fmtPct,
+  cutoff: fmtHz, resonance: fmtPct, filterEnvAmount: fmtSignedPct, keyTrack: fmtPct, velToFilter: fmtPct,
+  lfoRate: fmtLfoHz, lfoToCutoff: fmtPct, lfoToPitch: fmtPitchDepth, lfoToPw: fmtPct,
   filterAttack: fmtMs, filterDecay: fmtMs, filterSustain: fmtPct, filterRelease: fmtMs,
   ampAttack: fmtMs, ampDecay: fmtMs, ampSustain: fmtPct, ampRelease: fmtMs,
   glide: fmtMs, outputLevel: (v) => `${v.toFixed(1)} dB`,
@@ -172,6 +182,8 @@ const FORMAT = {
 
 // ── Choice labels (for the signal-path diagram) ────────────────────────────
 const WAVE_NAMES = ["Saw", "Square", "Triangle", "Sine"];
+const WAVE_SHORT = ["Saw", "Sqr", "Tri", "Sin"];   // when both oscillators show in one node
+const LFO_SHAPE_NAMES = ["Triangle", "Square", "Saw", "S&H"];
 const TYPE_SHORT = ["LP", "HP", "BP", "Notch"];
 const TYPE_LONG = ["low-pass", "high-pass", "band-pass", "notch"];
 const SLOPE_SHORT = ["6 dB", "12 dB", "24 dB"];
@@ -339,9 +351,9 @@ function makeCanvas(id) {
   return { canvas, ctx, resize };
 }
 
-let headline = null, scope = null, filterAdsr = null, ampAdsr = null;
+let headline = null, scope = null, filterAdsr = null, ampAdsr = null, lfoCv = null;
 let lastSpectrum = null, lastCurve = null, lastScope = null;
-let lastEnv = { filterEnv: 0, ampEnv: 0 };
+let lastEnv = { filterEnv: 0, ampEnv: 0, lfo: 0, lfoPhase: 0 };
 
 // Shared dB window. Curve peaks exceed 0 dB at resonance/self-osc, so DB_MAX is
 // well above 0 to keep the peak on-canvas (Risk R2).
@@ -524,13 +536,103 @@ function drawDualAdsr() {
   drawOneAdsr(ampAdsr, "amp", lastEnv.ampEnv, ADSR_COLORS.amp);
 }
 
+// ── LFO display (v1.7.0) ───────────────────────────────────────────────────
+// One cycle of the selected shape, drawn from the same piecewise definitions
+// SubLfo.h uses, with a dot riding the live phase pushed from C++ (the shape's
+// own value at that phase — S&H is the exception: its level is random per
+// cycle, so the dot sits on the live VALUE instead of on the drawn curve).
+function lfoShapeValue(shape, p) {
+  switch (shape) {
+    case 0: return p < 0.25 ? 4 * p : p < 0.75 ? 2 - 4 * p : 4 * p - 4;   // triangle
+    case 1: return p < 0.5 ? 1 : -1;                                       // square
+    case 2: return 1 - 2 * p;                                              // saw (falling)
+    default: return 0;
+  }
+}
+
+function drawLfo() {
+  if (!lfoCv) return;
+  const { canvas, ctx } = lfoCv;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  ctx.clearRect(0, 0, w, h);
+
+  const pad = 4, innerW = w - pad * 2, innerH = h - pad * 2;
+  const yFor = (v) => pad + innerH * (1 - (Math.max(-1, Math.min(1, v)) + 1) / 2);
+  const shape = comboState.lfoShape ? comboState.lfoShape.getChoiceIndex() : 0;
+
+  // zero line
+  ctx.strokeStyle = "rgba(139,115,85,0.25)";
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, yFor(0)); ctx.lineTo(w, yFor(0)); ctx.stroke();
+
+  // one cycle of the shape
+  ctx.strokeStyle = "#e8b04a";
+  ctx.lineWidth = 2;
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  if (shape === 3) {
+    // S&H: four held steps as a schematic (the real levels are random per cycle)
+    const steps = [0.55, -0.7, 0.2, -0.3];
+    steps.forEach((v, i) => {
+      const x0 = pad + (i / 4) * innerW, x1 = pad + ((i + 1) / 4) * innerW;
+      if (i === 0) ctx.moveTo(x0, yFor(v)); else ctx.lineTo(x0, yFor(v));
+      ctx.lineTo(x1, yFor(v));
+    });
+  } else {
+    const n = 96;
+    for (let i = 0; i <= n; i++) {
+      const p = i / n;
+      const x = pad + p * innerW, y = yFor(lfoShapeValue(shape, p));
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+  }
+  ctx.stroke();
+
+  // live playhead: a dot at the current phase, on the curve (S&H: on the value)
+  const p = Math.max(0, Math.min(1, lastEnv.lfoPhase));
+  const v = shape === 3 ? lastEnv.lfo : lfoShapeValue(shape, p);
+  ctx.fillStyle = "#f3cd86";
+  ctx.beginPath(); ctx.arc(pad + p * innerW, yFor(v), 3.2, 0, Math.PI * 2); ctx.fill();
+}
+
 // ── Signal-path diagram (UI-03) ────────────────────────────────────────────
 function updateDiagram() {
-  // OSC node reflects the wave choice.
+  // OSC node reflects the wave choice — both waves, abbreviated, once osc 2 is up.
   const oscEl = document.getElementById("oscModeText");
   if (oscEl && comboState.oscWave) {
     const i = comboState.oscWave.getChoiceIndex();
-    oscEl.textContent = WAVE_NAMES[i] || "";
+    const lvl2 = sliderState.osc2Level ? sliderState.osc2Level.getScaledValue() : 0;
+    if (lvl2 > 0 && comboState.osc2Wave) {
+      const j = comboState.osc2Wave.getChoiceIndex();
+      oscEl.textContent = `${WAVE_SHORT[i] || ""}+${WAVE_SHORT[j] || ""}`;
+    } else {
+      oscEl.textContent = WAVE_NAMES[i] || "";
+    }
+  }
+
+  // LFO node + its two routes (v1.7.0): each route's weight follows its depth,
+  // the OSC route taking the larger of the pitch and width depths; the node
+  // brightens with the live LFO value.
+  const styleRoute = (lineId, headId, mag) => {
+    const line = document.getElementById(lineId), head = document.getElementById(headId);
+    const op = (0.15 + mag * 0.85).toFixed(2);
+    if (line) { line.style.strokeWidth = (1 + mag * 3).toFixed(2); line.style.opacity = op; }
+    if (head) head.style.opacity = op;
+  };
+  const get01 = (id) => (sliderState[id] ? Math.min(1, Math.max(0, sliderState[id].getScaledValue())) : 0);
+  const pitchMag = sliderState.lfoToPitch ? Math.min(1, sliderState.lfoToPitch.getScaledValue() / 2) : 0;
+  styleRoute("arrowLfoOsc", "arrowLfoOscHead", Math.max(pitchMag, get01("lfoToPw")));
+  styleRoute("arrowLfoFilt", "arrowLfoFiltHead", get01("lfoToCutoff"));
+  const lfoNode = document.getElementById("nodeLfo");
+  if (lfoNode) lfoNode.style.filter = `brightness(${(0.9 + Math.max(0, lastEnv.lfo) * 0.35).toFixed(2)})`;
+  // The readout is a composed template, so it goes through setLabel with its
+  // two tokens (check-i18n assertion 12): the shape is the choice value, English
+  // under D-01; the rate is a value readout, English under D-03.
+  const lfoMeta = document.getElementById("lfoMeta");
+  if (lfoMeta && comboState.lfoShape && sliderState.lfoRate) {
+    const shapeName = LFO_SHAPE_NAMES[comboState.lfoShape.getChoiceIndex()] || "";
+    const rateText = fmtLfoHz(sliderState.lfoRate.getScaledValue());
+    setLabel(lfoMeta, "label.lfoMeta", { shape: shapeName, rate: rateText });
   }
 
   // FILTER node reflects slope + type.
@@ -583,9 +685,12 @@ function setupVizEvents() {
       if (obj) {
         lastEnv.filterEnv = Number(obj.filterEnv) || 0;
         lastEnv.ampEnv = Number(obj.ampEnv) || 0;
+        lastEnv.lfo = Number(obj.lfo) || 0;
+        lastEnv.lfoPhase = Number(obj.lfoPhase) || 0;
       }
       drawDualAdsr();
-      updateDiagram();   // VCA/FILTER pulse with the live envelopes
+      drawLfo();
+      updateDiagram();   // VCA/FILTER/LFO pulse with the live modulators
     });
   } else {
     console.error("window.__JUCE__.backend unavailable — viz events will not arrive.");
@@ -599,8 +704,10 @@ function rewireResize() {
     if (scope) scope.resize();
     if (filterAdsr) filterAdsr.resize();
     if (ampAdsr) ampAdsr.resize();
+    if (lfoCv) lfoCv.resize();
     drawHeadline();
     drawDualAdsr();
+    drawLfo();
     if (lastScope) drawScope(lastScope);
   });
 }
@@ -755,6 +862,10 @@ const LESSON_CAPTION_WRITERS = {
   "Square Bass":      (el) => setLabel(el, "label.captionSquareBass"),
   "Noise Wind":       (el) => setLabel(el, "label.captionNoiseWind"),
   "Self-Oscillation": (el) => setLabel(el, "label.captionSelfOsc"),
+  "PWM Pad":          (el) => setLabel(el, "label.captionPwm"),
+  "Vibrato Lead":     (el) => setLabel(el, "label.captionVibrato"),
+  "Wobble Bass":      (el) => setLabel(el, "label.captionWobble"),
+  "Detuned Saws":     (el) => setLabel(el, "label.captionDetuned"),
 };
 
 let applyPresetFn = null;
@@ -953,15 +1064,23 @@ function boot() {
   scope = makeCanvas("scopeCanvas");
   filterAdsr = makeCanvas("filterAdsrCanvas");
   ampAdsr = makeCanvas("ampAdsrCanvas");
+  lfoCv = makeCanvas("lfoCanvas");
 
   SLIDER_IDS.forEach(bindKnob);
   COMBO_IDS.forEach(bindCombo);
 
-  // The signal-path readout/arrow track cutoff / resonance / filterEnvAmount.
-  ["cutoff", "resonance", "filterEnvAmount"].forEach((id) => {
+  // The signal-path readout/arrows track cutoff / resonance / filterEnvAmount,
+  // and (v1.7.0) the osc 2 level, the LFO rate and the three LFO depths.
+  ["cutoff", "resonance", "filterEnvAmount", "osc2Level", "lfoRate", "lfoToCutoff", "lfoToPitch", "lfoToPw"].forEach((id) => {
     const st = sliderState[id];
     if (st) { st.valueChangedEvent.addListener(updateDiagram); st.propertiesChangedEvent.addListener(updateDiagram); }
   });
+  // The LFO canvas redraws when the shape changes (bindCombo already calls
+  // updateDiagram on every combo change, which carries the rate/shape readout).
+  if (comboState.lfoShape) {
+    comboState.lfoShape.valueChangedEvent.addListener(drawLfo);
+    comboState.lfoShape.propertiesChangedEvent.addListener(drawLfo);
+  }
 
   // The dual-ADSR shapes redraw when any of the 8 ADSR knobs move.
   ["filterAttack", "filterDecay", "filterSustain", "filterRelease",
@@ -990,6 +1109,7 @@ function boot() {
 
   updateDiagram();
   drawDualAdsr();
+  drawLfo();
 
   // initial empty frames so the canvases aren't black
   drawHeadline();

@@ -384,6 +384,12 @@ body {
 .node-filter { fill: var(--knob-seg-1); }
 .node-vca { fill: var(--green-light); }
 .node-text { font-family: inherit; font-size: 11px; letter-spacing: 1px; fill: var(--brown-frame); }
+/* v1.7.0 — the LFO node: smaller (r 17) and amber like the modulation routes.
+   .node-text-sm renders 10 viewBox units = 9.06px on screen, on the floor. */
+.node-lfo { fill: #e9cf9a; }
+.node-text-sm { font-size: 10px; letter-spacing: 0.6px; }
+.route-arc-lfo { stroke: var(--amber); stroke-dasharray: 2 3; stroke-width: 1.5; }
+.route-head-lfo { fill: var(--amber); }
 .node-sub { font-family: inherit; font-size: 10px; letter-spacing: 0; fill: var(--green-darkest); }
 .node-out { font-size: 18px; fill: var(--green-text); font-family: var(--symbol-font); }
 .route-line, .route-arc { stroke: var(--green-dark); stroke-width: 2.5; }
@@ -414,9 +420,20 @@ body {
   white-space: nowrap;
 }
 
-/* ── Controls (5-column signal path) ────────────────────────────────────── */
+/* ── Controls ───────────────────────────────────────────────────────────── */
+/* v1.7.0 — TWO rows (.ctrl-row), stacked. Row 1 is the signal path: the
+   two-column Oscillators group, Filter, Voice/Output. Row 2 is the three
+   modulators: Filter Envelope, Amp Envelope, LFO — each with its own canvas, so
+   the row reads as "three shapes that move something". Through v1.6.0 the five
+   groups shared one 199px row; the stack is now ~390px and the editor opens 180px
+   taller (1180x1000) so the headline visualization keeps its height. */
 .controls {
   flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ctrl-row {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
@@ -432,15 +449,35 @@ body {
   flex-direction: column;
   gap: 6px;
 }
-/* v1.6.0 — ONE row at the shipping frame. Oscillator, Filter and Voice/Output
-   are content-sized (152 / 270 / 152px) and the two envelopes split the rest
-   equally (276px each at 1180 wide). Each envelope's four knobs sit on one line,
-   spread edge to edge, so RELEASE no longer wraps under ATTACK. The row still
-   wraps when the window is resized narrower than its min-content (~1070px). */
+/* v1.7.0 — row 1: Oscillators and Voice/Output are content-sized; Filter takes
+   the row's slack and spreads its four knobs across it. Row 2: the three
+   modulator groups split the width equally. Each row still wraps when the
+   window is resized narrower than its min-content. */
 .group-osc      { flex: 0 0 auto; }
-.group-filter   { flex: 0 0 auto; }
+.group-filter   { flex: 1 1 auto; }
 .group-env      { flex: 1 1 0; }
 .group-output   { flex: 0 0 auto; }
+
+/* The two oscillator columns: a small caption, the wave selector, three knobs. */
+.osc-cols { display: flex; gap: 14px; }
+.osc-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.osc-col-2 {
+  border-left: 1px dotted rgba(139, 115, 85, 0.4);
+  padding-left: 14px;
+}
+.osc-col-title {
+  align-self: stretch;
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--green-text);
+  text-align: center;
+}
 .group-title {
   font-size: 12px;
   font-weight: 500;
@@ -464,11 +501,26 @@ body {
   gap: 10px;
   align-items: flex-start;
 }
-.group-filter .knob-row { gap: 8px; }
-/* max-width: at the shipping frame the envelope row is 254px and the cap is
-   inert; on a window resized wider it stops four knobs spreading across a
-   500px group, and centres them under the canvas instead. */
-.group-env .knob-row    { gap: 4px; justify-content: space-between; padding: 0 2px; max-width: 272px; width: 100%; margin: 0 auto; }
+/* v1.7.0 — the Filter group grows into row 1's slack (~230px at the shipping
+   frame), so its knobs are spread evenly rather than left-packed; max-width
+   stops them drifting apart on a very wide window. */
+.group-filter .knob-row { gap: 8px; justify-content: space-evenly; max-width: 460px; width: 100%; margin: 0 auto; }
+.group-filter .select-row { justify-content: center; }
+/* max-width: the envelope row is five knobs wide at most (Filter Envelope grew
+   a Velocity knob in v1.7.0); on a window resized wider it stops the knobs
+   spreading across the whole group and centres them under the canvas instead. */
+.group-env .knob-row    { gap: 4px; justify-content: space-between; padding: 0 2px; max-width: 330px; width: 100%; margin: 0 auto; }
+/* The LFO row holds a selector cell among the knobs; align their tops so the
+   selector's caption lines up with the knob captions' row. */
+.group-lfo .lfo-row { align-items: flex-start; max-width: 352px; }
+.group-lfo .lfo-row .select-cell { width: 96px; }
+/* 60px cells (the envelope cells are 50): the three destination captions carry
+   an arrow joined to the word by a no-break space, so they cannot leave the
+   arrow alone on a line. "→ CUTOFF" measures 53px; the French "→ HAUTEUR" /
+   "→ COUPURE" / "→ LARGEUR" measure ~59px untracked. 96 + 4x60 + 3x4 = 352,
+   inside the group's 359px content box at the shipping frame. */
+.group-lfo .lfo-row .knob-cell { width: 60px; }
+.group-lfo .lfo-row .select-cell .knob-label { margin-top: 2px; }
 
 .knob-cell {
   display: flex;
@@ -621,6 +673,10 @@ select.combo:focus { outline: 2px solid var(--green-mid); outline-offset: 1px; }
    (English's tightest envelope gap is ~25px), and a caption is a label, so
    nothing else moves. */
 html[lang="fr"] .group-env .knob-label { letter-spacing: 0; }
+/* v1.7.0 — five cells to the envelope row now (Velocity joined the Filter
+   Envelope). Reserve two caption lines in every envelope/LFO cell so a caption
+   that wraps in one language (→ COUPURE, VÉLOCITÉ) cannot push its readout. */
+.group-env .knob-label { min-height: 2.2em; }
 .knob-value {
   font-size: 11px;
   color: var(--brown-text);
@@ -655,6 +711,12 @@ html[lang="fr"] .group-env .knob-label { letter-spacing: 0; }
   letter-spacing: 1.2px;
   color: var(--text-muted);
 }
+/* v1.7.0 — twelve buttons (four new lessons) share this one flex line with
+   the 99px label. Measured at the shipping frame with 10px button padding:
+   English 960px, French 966px (bare-term faces: PWM / Vibrato / Wobble /
+   Désaccord), Chinese 875px, in a 1009px line. A row that wraps drops the
+   caption and the keyboard by a line in one language only, which assertion 7
+   of check-ui-labels names. */
 .tour-buttons { flex: 1 1 auto; min-width: 0; display: flex; gap: 8px; flex-wrap: wrap; }
 .tour-btn {
   font-family: inherit;
@@ -664,7 +726,7 @@ html[lang="fr"] .group-env .knob-label { letter-spacing: 0; }
   background: var(--bg-paper-light);
   border: 1px solid var(--brown-border);
   border-radius: 4px;
-  padding: 5px 11px;
+  padding: 5px 10px;   /* v1.7.0 — 11 -> 10: twelve buttons share the line now (see .tour-buttons) */
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -840,6 +902,7 @@ html[lang="zh-Hans"] .tour-btn        { line-height: 1.0476190; }  /* 10.5px but
 html[lang="zh-Hans"] .routing-label   { line-height: 1.1; }        /* 10px, en content 11 */
 html[lang="zh-Hans"] .tour-label      { line-height: 1.1; }        /* 10px, en content 11 */
 html[lang="zh-Hans"] .group-title     { line-height: 1.25; }       /* 12px: en rect 19 less 3 padding less 1 border = 15 */
+html[lang="zh-Hans"] .osc-col-title   { line-height: 1.0526316; }  /* v1.7.0 — 9.5px, en content 10; Han measured 13 and grew .osc-cols 3px */
 
 /* ── Caption ROWS. Each grew while every inline child inside it reported an
       identical box: getBoundingClientRect on an inline element returns its FONT

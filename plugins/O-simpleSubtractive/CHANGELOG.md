@@ -3,6 +3,112 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.7.0] — 2026-10-10
+
+The synth grows the four things every common subtractive synth has that it
+lacked: a second oscillator, a pulse-width control, velocity to the filter, and
+an LFO. Eleven new parameters, 21 → 32. MINOR because it is additive: every new
+parameter defaults to neutral (osc 2 level 0, width 50 %, velocity 0, all three
+LFO depths 0), so a pre-1.7.0 session and all eight existing lessons render the
+signal they did. No existing parameter's ID, range, type or default changed, and
+the state format is the same tree with eleven more children.
+
+### Added
+
+- **Oscillator 2** — `osc2Wave` (Saw / Square / Triangle / Sine), `osc2Coarse`
+  (−24…+24 st, an `AudioParameterInt`), `osc2Fine` (±50 ct), `osc2Level` (0–1,
+  default 0). A full second PolyBLEP oscillator in `OscillatorBank`, at
+  `f0 · 2^((coarse + fine/100)/12)`, summed additively like the sub and the
+  noise ("Osc 2 Level", not a crossfade, so two saws at equal level are both at
+  full level). Its phase always advances, so raising the level mid-note never
+  jumps phase.
+- **Pulse Width** — `pulseWidth` (0.05–0.95, default 0.5). Applies to a Square
+  on either oscillator; the sub stays a 50 % square. The falling-edge PolyBLEP
+  is evaluated at `(φ − pw) mod 1`, which at 0.5 is the former `φ + 0.5` wrap
+  exactly, and the DC term `2pw − 1` is removed so a narrow pulse does not ride
+  a bias into the filter or pump the level under PWM. At pw = 0.5 the square is
+  bit-identical to v1.6.0's.
+- **Velocity → Filter** — `velToFilter` (0–1, default 0). The filter envelope's
+  depth is scaled by `1 − v + v · velocity`: 0 leaves the depth alone, 1 makes it
+  proportional to velocity. Lives in the Filter Envelope group as its fifth
+  knob.
+- **The LFO** — `lfoShape` (Triangle / Square / Saw / S&H), `lfoRate`
+  (0.02–20 Hz, skew 0.3, default 2 Hz), `lfoToCutoff` (0–1 → ±3 octaves),
+  `lfoToPitch` (0–12 st, skew 0.4, readout in cents under a semitone),
+  `lfoToPw` (0–1 → ±0.45 of duty, clamped 0.05–0.95). ONE global LFO for the
+  whole instrument, free-running, restarted at `prepareToPlay` and never by a
+  note. It is stateless on the voice side (new `Source/SubLfo.h`): the
+  processor owns the phase and advances it once per block, and each voice
+  evaluates the shape at `phase0 + sampleIndex · inc`, so sixteen voices read
+  the same curve at the same sample without a shared buffer — and so there is
+  no per-block array to size against the host's block length. S&H derives its
+  held level from the absolute cycle index through an integer hash (lowbias32),
+  which keeps it a pure function of (phase, cycle). A 0-depth LFO costs nothing:
+  the voice skips the evaluation when all three depths are 0.
+- **`SubVoiceParams`** — the per-block parameter push is one struct now instead
+  of a twelve-argument `setParams`. The ADSR change-detect / never-while-
+  releasing guard (v1.2.5) is unchanged inside it.
+- **Four lesson presets**, one per new section: *PWM Pad* (LFO → width),
+  *Vibrato Lead* (LFO → pitch, Legato), *Wobble Bass* (LFO → cutoff, Mono),
+  *Detuned Saws* (osc 2 at equal level, +12 ct). Twelve buttons share the tour
+  line; see Changed for the French faces.
+- **Render harness** — seven new checks (16–22): pulse width (a 25 % pulse has
+  the even harmonics a 50 % square lacks, and no DC), osc 2 at +12 st and at
+  +50 ct, velocity → filter (depth 0 soft = hard; depth 1 soft is 20× darker),
+  LFO → pitch (a Square LFO at ±12 st reads 878.7 / 219.8 Hz in its two
+  halves), LFO → cutoff (HF alternates), LFO → width (the 2nd harmonic breathes),
+  S&H finite + bounded, and all-neutral defaults still sound. 28 / 28 pass.
+
+### Changed
+
+- **The editor opens at 1180×1000** (was 820); resize ceiling 1700×1300. The
+  controls are two rows now: row 1 is the signal path (the two-column
+  Oscillators group, Filter, Voice / Output), row 2 the three modulators
+  (Filter Envelope, Amp Envelope, LFO), each with its own canvas. The stack is
+  +180 px and the headline visualization keeps its height (181 px at the new
+  frame, 203 before). `.frame` scroll / client 994 / 994 in all three
+  languages.
+- **Signal-path diagram** — an LFO node below OSC with dashed amber routes up
+  into OSC (pitch, width; weight = the larger of the two depths) and across
+  into FILTER (cutoff); the node brightens with the live LFO value. The OSC
+  node reads `Saw+Sqr` once osc 2 is up. A third readout line,
+  `LFO · {shape} · {rate}`, is a composed template through `setLabel`
+  (check-i18n assertion 12), not a raw `textContent` write.
+- **`envUpdate`** carries `lfo` (−1…1) and `lfoPhase` (0…1) alongside the two
+  envelope levels, for the LFO canvas playhead and the diagram node.
+- **Interface copy** — 16 new tooltip entries and 22 new captions, in all
+  three languages. French machine-drafted against the glossary (largeur,
+  grossier, fin, vélocité, vitesse, forme, désaccord) at `reviewed: false`;
+  Chinese against the zh glossary (宽度, 粗调, 微调, 力度, 速率, 形状, 失谐; LFO
+  stays LFO) at `reviewed: 'mt'`. The `lang-select` body now says six
+  drop-down menus. The `routing` tooltip gained the LFO sentence on all three
+  arms. `i18n-fr-lint` CLEAN, `i18n-zh-lint` 0 findings, `check-i18n` ALL PASS.
+- **The four French lesson faces are the bare term** — PWM / Vibrato / Wobble /
+  Désaccord. The two-word drafts ran the twelve-button row to 1102 px in a
+  1009 px line, dropping the whole row (and the keyboard) 25 px in French
+  only; the bare faces measure 966 px. `.tour-btn` padding 11 → 10 px for
+  the margin. The lesson's full French name lives in its tooltip title and
+  its caption.
+- **The three LFO destination captions** join the arrow to the word with
+  U+00A0 (`→ Cutoff`) and sit in 60 px cells, so the arrow never wraps alone
+  onto its own line. `.group-env .knob-label` reserves two lines in every
+  modulator cell (VÉLOCITÉ, → COUPURE), scoped the way v1.3.0 scoped the
+  Filter group's.
+- **`html[lang="zh-Hans"] .osc-col-title`** line-height pinned to 1.0526 (the
+  English 10 px content box): the Han caption measured 13 px and grew
+  `.osc-cols` 3 px, which assertion 7 named.
+
+### Measured (served page at 1180×1000, every state in `tests/i18n-states.json`)
+
+| Gate | v1.7.0 |
+|---|---|
+| `check-ui-labels.js` (en / fr / zh-Hans) | ALL CHECKS PASSED |
+| `check-i18n.js` | ALL PASS |
+| `i18n-fr-lint.js` / `i18n-zh-lint.js` | CLEAN / 0 findings (40 at `mt`) |
+| `boot-all-uis.js` | rendered, 0 warn, 0 failed, 0 dead tip bindings |
+| render harness | 28 / 28 |
+| tour row (en / fr / zh) | 960 / 966 / 875 px of 1009 |
+
 ## [1.6.0] — 2026-09-25
 
 The UI pass from the 260924-nho design review (R4 AA text colours and the 9px

@@ -102,16 +102,20 @@ OSimpleSubtractiveAudioProcessorEditor::OSimpleSubtractiveAudioProcessorEditor (
 {
     using namespace OSimpleSubtractive::ParamIDs;
 
-    // 20 APVTS params = 16 float sliders + 4 combos (oscWave / filterType /
-    // filterSlope / voiceMode are choices). 0 toggles.
+    // 31 APVTS params = 25 sliders + 6 combos (oscWave / osc2Wave / filterType /
+    // filterSlope / lfoShape / voiceMode are choices). 0 toggles. v1.7.0 added
+    // the 9 sliders and 2 combos of the second oscillator, pulse width,
+    // velocity → filter and the LFO.
     const juce::StringArray sliderIds {
-        subLevel, noiseLevel,
-        cutoff, resonance, filterEnvAmount, keyTrack,
+        pulseWidth, subLevel, noiseLevel,
+        osc2Coarse, osc2Fine, osc2Level,
+        cutoff, resonance, filterEnvAmount, keyTrack, velToFilter,
+        lfoRate, lfoToCutoff, lfoToPitch, lfoToPw,
         filterAttack, filterDecay, filterSustain, filterRelease,
         ampAttack, ampDecay, ampSustain, ampRelease,
         glide, outputLevel
     };
-    const juce::StringArray comboIds { oscWave, filterType, filterSlope, voiceMode };
+    const juce::StringArray comboIds { oscWave, osc2Wave, filterType, filterSlope, lfoShape, voiceMode };
 
     // 1. RELAYS (before the WebView) ----------------------------------------
     for (const auto& id : sliderIds)
@@ -217,9 +221,12 @@ OSimpleSubtractiveAudioProcessorEditor::OSimpleSubtractiveAudioProcessorEditor (
     addAndMakeVisible (*webView);
     webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
 
-    setSize (1180, 820);   // five signal-path columns + headline + keyboard; the frame scrolls on shorter screens
+    // v1.7.0 — 1000 tall (was 820): the controls are two rows now (sources /
+    // filter / output, then the three modulators), +180px. The headline
+    // visualization keeps the height it had; the frame scrolls on shorter screens.
+    setSize (1180, 1000);
     setResizable (true, true);
-    setResizeLimits (820, 560, 1700, 1200);
+    setResizeLimits (820, 560, 1700, 1300);
     startTimerHz (30);
 }
 
@@ -255,10 +262,14 @@ void OSimpleSubtractiveAudioProcessorEditor::timerCallback()
     for (float v : spec)  specArr.add (v);
     for (float v : scope) scopeArr.add (v);
 
-    // Live dual-envelope levels (0..1) for the ADSR playheads + diagram pulse.
+    // Live dual-envelope levels (0..1) for the ADSR playheads + diagram pulse,
+    // and (v1.7.0) the global LFO's value (−1..1) + phase (0..1) for the LFO
+    // canvas playhead and the diagram's LFO node.
     auto* envObj = new juce::DynamicObject();
     envObj->setProperty ("filterEnv", processorRef.getFilterEnvValue());
     envObj->setProperty ("ampEnv",    processorRef.getAmpEnvValue());
+    envObj->setProperty ("lfo",       processorRef.getLfoValue());
+    envObj->setProperty ("lfoPhase",  processorRef.getLfoPhase());
 
     // Curve BEFORE spectrum — the curve annotates the bars it sits over.
     webView->emitEventIfBrowserIsVisible ("filterCurveUpdate", juce::var (std::move (curveArr)));
