@@ -48,8 +48,15 @@ namespace OSimpleSubtractive::ParamIDs
 {
     // Oscillator / sources
     inline constexpr auto oscWave         = "oscWave";          // Saw / Square / Triangle / Sine
+    inline constexpr auto pulseWidth      = "pulseWidth";       // v1.7.0 — Square duty (both oscs), 0.05..0.95
     inline constexpr auto subLevel        = "subLevel";         // sub-osc (-1 oct square) mix
     inline constexpr auto noiseLevel      = "noiseLevel";       // white-noise mix
+
+    // Oscillator 2 (v1.7.0)
+    inline constexpr auto osc2Wave        = "osc2Wave";         // Saw / Square / Triangle / Sine
+    inline constexpr auto osc2Coarse      = "osc2Coarse";       // semitones, -24..+24
+    inline constexpr auto osc2Fine        = "osc2Fine";         // cents, -50..+50
+    inline constexpr auto osc2Level       = "osc2Level";        // mix, 0..1 (default 0 = off)
 
     // Filter (state-variable)
     inline constexpr auto filterType      = "filterType";       // LP / HP / BP / Notch
@@ -58,6 +65,14 @@ namespace OSimpleSubtractive::ParamIDs
     inline constexpr auto resonance       = "resonance";        // resonance / self-osc
     inline constexpr auto filterEnvAmount = "filterEnvAmount";  // filter ADSR -> cutoff (bipolar)
     inline constexpr auto keyTrack        = "keyTrack";         // cutoff key-tracking
+    inline constexpr auto velToFilter     = "velToFilter";      // v1.7.0 — velocity scales the env depth, 0..1
+
+    // The one global LFO (v1.7.0)
+    inline constexpr auto lfoShape        = "lfoShape";         // Triangle / Square / Saw / S&H
+    inline constexpr auto lfoRate         = "lfoRate";          // Hz, 0.02..20 (log)
+    inline constexpr auto lfoToCutoff     = "lfoToCutoff";      // depth 0..1 → ±3 octaves
+    inline constexpr auto lfoToPitch      = "lfoToPitch";       // semitones 0..12 (skewed)
+    inline constexpr auto lfoToPw         = "lfoToPw";          // depth 0..1 → ±0.45 duty
 
     // Filter envelope (ADSR -> cutoff)
     inline constexpr auto filterAttack    = "filterAttack";
@@ -180,6 +195,10 @@ public:
     int    getDisplaySlope()    const noexcept { return displaySlope.load (std::memory_order_relaxed); }
     float  getFilterEnvValue()  const noexcept { return filterEnvValue.load (std::memory_order_relaxed); }
     float  getAmpEnvValue()     const noexcept { return ampEnvValue.load (std::memory_order_relaxed); }
+    // v1.7.0 — the global LFO's value (−1..+1) and phase (0..1) at the end of the
+    // last block, for the LFO canvas playhead and the diagram's LFO node.
+    float  getLfoValue()        const noexcept { return lfoDisplayValue.load (std::memory_order_relaxed); }
+    float  getLfoPhase()        const noexcept { return lfoDisplayPhase.load (std::memory_order_relaxed); }
 
     // On-screen keyboard: editor injects note on/off from the WebView (Stage 3).
     void handleUiMidi (int noteNumber, bool noteOn, float velocity);
@@ -227,7 +246,14 @@ private:
     static constexpr int kMaxChannels = 2;
 
     juce::Synthesiser synth;
-    void pushParamsToVoices();
+    void pushParamsToVoices (int numSamples);
+
+    // v1.7.0 — the one global LFO. The processor owns the running phase; voices
+    // evaluate the shape statelessly from this block's start state (SubLfo.h).
+    double   lfoPhase = 0.0;       // [0,1) at the start of the current block
+    uint32_t lfoCycle = 0;         // absolute cycle index at the start of the block
+    double   lfoIncThisBlock = 0.0;
+    void advanceLfo (int numSamples);
 
     // Mono/Legato note management (processor-side, drives synth voice 0).
     MonoStack monoStack;
@@ -252,6 +278,8 @@ private:
     std::atomic<int>    displaySlope    { 2 };
     std::atomic<float>  filterEnvValue  { 0.0f };
     std::atomic<float>  ampEnvValue     { 0.0f };
+    std::atomic<float>  lfoDisplayValue { 0.0f };
+    std::atomic<float>  lfoDisplayPhase { 0.0f };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OSimpleSubtractiveAudioProcessor)
 };

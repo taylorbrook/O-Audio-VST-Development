@@ -18,7 +18,17 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-simpleSubtractive interface copy (v1.5.0)
+// i18n.js — O-simpleSubtractive interface copy (v1.7.0)
+//
+// ── v1.7.0: OSCILLATOR 2, PULSE WIDTH, VELOCITY → FILTER, THE LFO ───────────
+// 16 tooltip entries and 22 captions added, on all three arms. French is
+// machine-drafted against scripts/i18n-fr-glossary.js (largeur, grossier, fin,
+// vélocité, vitesse, forme, désaccord) at reviewed: false; Chinese against
+// i18n-zh-glossary.js (宽度, 粗调, 微调, 力度, 速率, 形状, 失谐; LFO stays LFO)
+// at reviewed: 'mt'. The four French LESSON FACES are the bare term (PWM /
+// Vibrato / Wobble / Désaccord) for the tour row's width — see the LABELS
+// comment there. `label.lfoMeta` is a composed TEMPLATE with {shape} / {rate}
+// tokens, written through setLabel by updateDiagram.
 //
 // ── v1.5.0: SIMPLIFIED CHINESE (Stage 4, wave 4g, 2026-09-07) ──────────────
 // 133 rows added: a 'zh-Hans' arm on all 36 I18N entries (title + body) and on
@@ -215,14 +225,15 @@ export const I18N = Object.freeze({
     // body says only what does not follow it. The exception list stays, and its
     // count was re-verified against the markup: five select elements minus the
     // language selector itself is four.
+    // v1.7.0: SIX drop-downs (osc2Wave and lfoShape joined the four).
     'lang-select': {
         en: { t: 'Language',
-              b: 'The language of the labels on this page and of this hover help. Value readouts and the four drop-down menus stay in English.' },
+              b: 'The language of the labels on this page and of this hover help. Value readouts and the six drop-down menus stay in English.' },
         fr: { t: 'Langue',
-              b: "La langue des libellés de cette page et de ces infobulles. Les valeurs affichées et les quatre menus déroulants restent en anglais.",
+              b: "La langue des libellés de cette page et de ces infobulles. Les valeurs affichées et les six menus déroulants restent en anglais.",
               reviewed: true },
         'zh-Hans': { t: "语言",
-                     b: "本页面标签与这些悬停帮助的语言。数值读数和四个下拉菜单保持英文。",
+                     b: "本页面标签与这些悬停帮助的语言。数值读数和六个下拉菜单保持英文。",
                      reviewed: 'bt' },
     },
     'help-toggle': {
@@ -266,6 +277,61 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: "噪声",
                      b: "混入白噪声 —— 所有频率同时出现。让它通过滤波器，可以单独听见滤波器的形状，也可以为音色添加气息与空气感。",
                      reviewed: 'bt' },
+    },
+
+    // ── v1.7.0: pulse width, oscillator 2 ───────────────────────────────────
+    // French machine-drafted against scripts/i18n-fr-glossary.js (largeur,
+    // grossier, fin, désaccord); Chinese against i18n-zh-glossary.js (宽度, 粗调,
+    // 微调, 失谐). No native speaker has read either arm.
+    pulseWidth: {
+        en: { t: 'Pulse Width',
+              b: 'How long the Square stays high in each cycle. 50% is the hollow square (odd harmonics only); narrower pulses bring the even harmonics back and sound thinner and more nasal. Applies to a Square on either oscillator. Sweep it with the LFO for PWM.' },
+        fr : { t : 'Largeur d’impulsion',
+              b : "La part de chaque cycle pendant laquelle Square reste en haut. À 50 % c’est l’onde carrée creuse (harmoniques impairs seulement) ; une impulsion plus étroite ramène les harmoniques pairs et sonne plus mince et plus nasillarde. S’applique à une onde Square sur l’un ou l’autre oscillateur. Balayez-la avec le LFO pour la PWM.",
+              reviewed : false },
+        'zh-Hans': { t: "脉冲宽度",
+                     b: "Square 在每个周期中保持高电平的时间比例。50% 是空心的方波（只有奇次谐波）；更窄的脉冲把偶次谐波带回来，听起来更薄、更带鼻音。对任一振荡器上的 Square 都有效。用 LFO 扫动它就是 PWM。",
+                     reviewed: 'mt' },
+    },
+    osc2Wave: {
+        en: { t: 'Oscillator 2 Wave',
+              b: 'The second oscillator’s raw tone. Same four shapes as Osc 1; it has its own pitch offset (Coarse, Fine) and its own Level. Off until the Level comes up.' },
+        fr : { t : 'Onde de l’oscillateur 2',
+              b : "Le timbre brut du second oscillateur. Les mêmes quatre formes que l’osc 1 ; il a son propre décalage de hauteur (Grossier, Fin) et son propre niveau. Muet tant que le niveau reste à zéro.",
+              reviewed : false },
+        'zh-Hans': { t: "振荡器 2 波形",
+                     b: "第二个振荡器的原始音色。与振荡器 1 同样的四种波形；它有自己的音高偏移（粗调、微调）和自己的电平。电平抬起之前它是静音的。",
+                     reviewed: 'mt' },
+    },
+    osc2Coarse: {
+        en: { t: 'Oscillator 2 Coarse',
+              b: 'Tunes Osc 2 in whole semitones, −24 to +24. +12 is an octave up (brighter, thicker); +7 a fifth (power-chord stacks); 0 for pure detune work with Fine.' },
+        fr : { t : 'Accord grossier de l’osc 2',
+              b : "Accorde l’osc 2 par demi-tons entiers, de −24 à +24. +12 est l’octave supérieure (plus brillant, plus épais) ; +7 la quinte (empilements façon power chord) ; 0 pour un pur travail de désaccord avec Fin.",
+              reviewed : false },
+        'zh-Hans': { t: "振荡器 2 粗调",
+                     b: "以整半音为单位给振荡器 2 调音，从 −24 到 +24。+12 是高一个八度（更亮、更厚）；+7 是五度（强力和弦式的叠置）；0 则留给与微调配合的纯失谐。",
+                     reviewed: 'mt' },
+    },
+    osc2Fine: {
+        en: { t: 'Oscillator 2 Fine',
+              b: 'Detunes Osc 2 in cents, ±50. A few cents against Osc 1 makes the two beat slowly — the fat, moving sound of every two-oscillator synth. More cents, faster beating.' },
+        fr : { t : 'Accord fin de l’osc 2',
+              b : "Désaccorde l’osc 2 en cents, ±50. Quelques cents par rapport à l’osc 1 font battre lentement les deux — le son gras et mouvant de tout synthé à deux oscillateurs. Plus de cents, battement plus rapide.",
+              reviewed : false },
+        'zh-Hans': { t: "振荡器 2 微调",
+                     b: "以音分为单位让振荡器 2 失谐，±50。相对振荡器 1 偏几个音分，两者就会缓慢地拍动 —— 这是每台双振荡器合成器那种肥厚而流动的声音。音分越多，拍动越快。",
+                     reviewed: 'mt' },
+    },
+    osc2Level: {
+        en: { t: 'Oscillator 2 Level',
+              b: 'How much of Osc 2 joins the mix. 0 keeps the synth single-oscillator, exactly as before; 100% is equal level with Osc 1 — the setting for detuned stacks.' },
+        fr : { t : 'Niveau de l’osc 2',
+              b : "La part de l’osc 2 dans le mélange. À 0 le synthé reste à un seul oscillateur, exactement comme avant ; à 100 % il est au même niveau que l’osc 1 — le réglage des empilements désaccordés.",
+              reviewed : false },
+        'zh-Hans': { t: "振荡器 2 电平",
+                     b: "振荡器 2 进入混合的多少。为 0 时合成器仍是单振荡器，与从前完全一样；100% 时与振荡器 1 等电平 —— 这是失谐叠置的设置。",
+                     reviewed: 'mt' },
     },
 
     // ── Filter group ────────────────────────────────────────────────────────
@@ -328,6 +394,18 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: "键位跟踪",
                      b: "让截止点跟随音符的音高 —— 越高的音符把滤波器打得越开。在 100% 时滤波器完全跟随键盘，音色在整个音域上保持一致。",
                      reviewed: 'bt' },
+    },
+
+    // v1.7.0
+    velToFilter: {
+        en: { t: 'Velocity → Filter',
+              b: 'How much the note’s velocity scales the filter envelope’s depth. At 0 every note gets the full Env Amt; at 100% a soft note barely opens the filter and a hard one opens it fully — play dynamics become brightness.' },
+        fr : { t : 'Vélocité → filtre',
+              b : "De combien la vélocité de la note met à l’échelle le taux de l’enveloppe du filtre. À 0 chaque note reçoit tout le taux d’enveloppe ; à 100 % une note douce ouvre à peine le filtre et une note forte l’ouvre en entier — le jeu devient brillance.",
+              reviewed : false },
+        'zh-Hans': { t: "力度 → 滤波器",
+                     b: "音符的力度对滤波器包络量的缩放程度。为 0 时每个音符都得到全部包络量；100% 时轻弹的音几乎打不开滤波器，重弹的音则完全打开 —— 演奏的力度变成了明亮度。",
+                     reviewed: 'mt' },
     },
 
     // ── Filter envelope ─────────────────────────────────────────────────────
@@ -414,6 +492,69 @@ export const I18N = Object.freeze({
                      reviewed: 'bt' },
     },
 
+    // ── The LFO (v1.7.0) ────────────────────────────────────────────────────
+    // "LFO" stays as is in both languages (fr glossary; zh SAME_AS_EN).
+    lfoShape: {
+        en: { t: 'LFO Shape',
+              b: 'The curve the LFO repeats. Triangle glides up and down (vibrato, gentle sweeps); Square jumps between two values (trills, on/off wobble); Saw falls then snaps back; S&H holds a new random level each cycle (the classic "computer" burble).' },
+        fr : { t : 'Forme du LFO',
+              b : "La courbe que le LFO répète. Triangle monte et descend en glissant (vibrato, balayages doux) ; Square saute entre deux valeurs (trilles, wobble tout ou rien) ; Saw descend puis revient d’un coup ; S&H tient un nouveau niveau aléatoire à chaque cycle (le gargouillis « ordinateur » classique).",
+              reviewed : false },
+        'zh-Hans': { t: "LFO 形状",
+                     b: "LFO 反复画出的曲线。Triangle 上下滑行（颤音、柔和的扫描）；Square 在两个值之间跳变（颠音、开关式摆动）；Saw 下降后猛地弹回；S&H 每个周期保持一个新的随机电平（经典的“电脑”咕噜声）。",
+                     reviewed: 'mt' },
+    },
+    lfoRate: {
+        en: { t: 'LFO Rate',
+              b: 'How fast the LFO cycles, in hertz. Around 5–7 Hz is vibrato; 0.1–1 Hz is a slow sweep; 2–4 Hz is a wobble. One LFO runs for the whole instrument, free of the keyboard.' },
+        fr : { t : 'Vitesse du LFO',
+              b : "La vitesse de cycle du LFO, en hertz. Vers 5–7 Hz c’est un vibrato ; 0,1–1 Hz un balayage lent ; 2–4 Hz un wobble. Un seul LFO tourne pour tout l’instrument, indépendamment du clavier.",
+              reviewed : false },
+        'zh-Hans': { t: "LFO 速率",
+                     b: "LFO 循环的快慢，以赫兹计。约 5–7 Hz 是颤音；0.1–1 Hz 是缓慢的扫描；2–4 Hz 是摆动。整台乐器共用一个 LFO，不受键盘触发影响。",
+                     reviewed: 'mt' },
+    },
+    lfoToPitch: {
+        en: { t: 'LFO → Pitch',
+              b: 'How far the LFO bends the pitch, in cents or semitones each way. 20–40 cents at 5–7 Hz is a singer’s vibrato; whole semitones with a Square LFO make a trill; an octave with S&H is a random arpeggio.' },
+        fr : { t : 'LFO → hauteur',
+              b : "De combien le LFO infléchit la hauteur, en cents ou en demi-tons de chaque côté. 20–40 cents à 5–7 Hz, c’est le vibrato d’un chanteur ; des demi-tons entiers avec un LFO Square font un trille ; une octave en S&H, un arpège aléatoire.",
+              reviewed : false },
+        'zh-Hans': { t: "LFO → 音高",
+                     b: "LFO 把音高向两侧各弯多远，以音分或半音计。5–7 Hz 下 20–40 音分是歌者的颤音；用 Square LFO 配整半音就是颠音；S&H 配一个八度则是随机琶音。",
+                     reviewed: 'mt' },
+    },
+    lfoToCutoff: {
+        en: { t: 'LFO → Cutoff',
+              b: 'How far the LFO sweeps the cutoff — up to three octaves each way. With resonance up, a slow Triangle is the classic filter sweep and a 2–4 Hz one is a wobble bass. Watch the curve above move.' },
+        fr : { t : 'LFO → coupure',
+              b : "De combien le LFO balaie la coupure — jusqu’à trois octaves de chaque côté. Avec de la résonance, un Triangle lent est le balayage de filtre classique et un Triangle à 2–4 Hz une basse wobble. Regardez la courbe au-dessus bouger.",
+              reviewed : false },
+        'zh-Hans': { t: "LFO → 截止",
+                     b: "LFO 把截止点扫过多远 —— 向两侧各最多三个八度。共振抬高时，缓慢的 Triangle 是经典的滤波扫描，2–4 Hz 的则是摆动贝斯。看着上方的曲线动起来。",
+                     reviewed: 'mt' },
+    },
+    lfoToPw: {
+        en: { t: 'LFO → Pulse Width',
+              b: 'How far the LFO sweeps the Square’s width around the Width knob. The harmonic mix changes continuously, which the ear hears as a chorus-like shimmer: pulse-width modulation, the string-machine sound. Only a Square responds.' },
+        fr : { t : 'LFO → largeur d’impulsion',
+              b : "De combien le LFO balaie la largeur de l’onde Square autour du bouton Largeur. Le mélange d’harmoniques change en continu, ce que l’oreille entend comme un scintillement façon chorus : la modulation de largeur d’impulsion, le son des string machines. Seule une onde Square y répond.",
+              reviewed : false },
+        'zh-Hans': { t: "LFO → 脉冲宽度",
+                     b: "LFO 围绕宽度旋钮把 Square 的宽度扫过多远。谐波成分连续变化，耳朵听来像合唱般的闪烁：这就是脉宽调制，弦乐机的声音。只有 Square 会响应。",
+                     reviewed: 'mt' },
+    },
+    lfoCanvas: {
+        en: { t: 'LFO → pitch · cutoff · width',
+              b: 'One cycle of the LFO’s shape; the dot rides its live position. Unlike the envelopes it never stops and does not restart with a note — it is a slow oscillator, the same one for every voice.' },
+        fr : { t : 'LFO → hauteur · coupure · largeur',
+              b : "Un cycle de la forme du LFO ; le point suit sa position en direct. Contrairement aux enveloppes il ne s’arrête jamais et ne repart pas avec une note — c’est un oscillateur lent, le même pour toutes les voix.",
+              reviewed : false },
+        'zh-Hans': { t: "LFO → 音高 · 截止 · 宽度",
+                     b: "LFO 形状的一个周期；圆点跟着它的实时位置走。与包络不同，它永不停止，也不随音符重新开始 —— 它是一个慢振荡器，所有声部共用同一个。",
+                     reviewed: 'mt' },
+    },
+
     // ── Voice / Output ──────────────────────────────────────────────────────
     voiceMode: {
         en: { t: 'Voice Mode',
@@ -487,15 +628,17 @@ export const I18N = Object.freeze({
                      b: "随时间控制响度的形状。虚线标记显示它的实时输出 —— 与滤波器包络各自独立的一条标尺，因此明亮度和音量可以分开变化。",
                      reviewed: 'bt' },
     },
+    // v1.7.0 — the body gained the LFO sentence; the three arms were extended
+    // together.
     routing: {
         en: { t: 'Signal Path',
-              b: 'Oscillator → Filter → Amplifier. The filter envelope routes up into the filter (sweeping cutoff); the amp envelope routes up into the VCA (shaping loudness). Two envelopes, two destinations.' },
-        fr: { t: 'Chaîne du signal',
-              b: "Oscillateur → filtre → amplificateur. L’enveloppe du filtre remonte dans le filtre (elle balaie la coupure) ; l’enveloppe d’amplitude remonte dans le VCA (elle façonne le volume). Deux enveloppes, deux destinations.",
-              reviewed: true },
+              b: 'Oscillators → Filter → Amplifier. The filter envelope routes up into the filter (sweeping cutoff); the amp envelope routes up into the VCA (shaping loudness). The LFO, below the oscillators, reaches into pitch and pulse width and across into cutoff — its dashed routes thicken with their depth knobs.' },
+        fr : { t : 'Chaîne du signal',
+              b : "Oscillateurs → filtre → amplificateur. L’enveloppe du filtre remonte dans le filtre (elle balaie la coupure) ; l’enveloppe d’amplitude remonte dans le VCA (elle façonne le volume). Le LFO, sous les oscillateurs, atteint la hauteur et la largeur d’impulsion, et la coupure en face — ses routes en pointillé s’épaississent avec leurs boutons de profondeur.",
+              reviewed : false },
         'zh-Hans': { t: "信号路径",
-                     b: "振荡器 → 滤波器 → 放大器。滤波器包络向上接入滤波器（扫动截止点）；振幅包络向上接入 VCA（塑造响度）。两条包络，两个目的地。",
-                     reviewed: 'bt' },
+                     b: "振荡器 → 滤波器 → 放大器。滤波器包络向上接入滤波器（扫动截止点）；振幅包络向上接入 VCA（塑造响度）。振荡器下方的 LFO 伸向音高与脉冲宽度，也横跨到截止点 —— 它的虚线路径随各自的深度旋钮变粗。",
+                     reviewed: 'mt' },
     },
 
     // ── The eight lesson presets ────────────────────────────────────────────
@@ -578,6 +721,48 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: "滤波噪声 · 如何做成",
                      b: "把噪声源推上去，再给它一个带通：没有谐波源，滤波器就把没有音高的空气雕成风。缓慢的包络让它涨起又退去 —— 这就是减法合成除了音符之外，做出气息与打击声的办法。",
                      reviewed: 'bt' },
+    },
+
+    // ── The four v1.7.0 lessons ─────────────────────────────────────────────
+    lessonPwm: {
+        en: { t: "PWM Pad · how it's built",
+              b: 'A Square whose width the LFO sweeps slowly (→ Width up, Triangle at 0.7 Hz). The even harmonics come and go as the pulse narrows and widens — the chorus-like motion of a string machine, from one oscillator.' },
+        fr : { t : 'Nappe PWM · comment c’est fait',
+              b : "Une onde Square dont le LFO balaie lentement la largeur (→ largeur montée, Triangle à 0,7 Hz). Les harmoniques pairs vont et viennent à mesure que l’impulsion se resserre et s’élargit — le mouvement façon chorus d’une string machine, avec un seul oscillateur.",
+              reviewed : false },
+        'zh-Hans': { t: "PWM 音垫 · 如何做成",
+                     b: "一段 Square，由 LFO 缓慢扫动其宽度（→ 宽度抬高，Triangle 0.7 Hz）。脉冲变窄又变宽时，偶次谐波时来时去 —— 这是弦乐机那种合唱般的流动感，只用一个振荡器。",
+                     reviewed: 'mt' },
+    },
+    lessonVibrato: {
+        en: { t: "Vibrato Lead · how it's built",
+              b: 'The LFO on pitch: a third of a semitone at 5.5 Hz, Triangle — the depth and speed of a singer’s vibrato. Legato with a little glide so phrases slur instead of retriggering.' },
+        fr : { t : 'Solo vibrato · comment c’est fait',
+              b : "Le LFO sur la hauteur : un tiers de demi-ton à 5,5 Hz, en Triangle — la profondeur et la vitesse du vibrato d’un chanteur. En Legato avec un peu de portamento, pour que les phrases se lient au lieu de se redéclencher.",
+              reviewed : false },
+        'zh-Hans': { t: "颤音主奏 · 如何做成",
+                     b: "LFO 作用于音高：5.5 Hz 的 Triangle，三分之一个半音 —— 歌者颤音的深度与速度。Legato 加一点滑音，让乐句连起来而不是重新触发。",
+                     reviewed: 'mt' },
+    },
+    lessonWobble: {
+        en: { t: "Wobble Bass · how it's built",
+              b: 'The LFO on cutoff: a resonant 24 dB low-pass over a saw + sub, swept almost two octaves at 2 Hz. The filter sweep becomes the rhythm — the whole genre is this one routing.' },
+        fr : { t : 'Basse wobble · comment c’est fait',
+              b : "Le LFO sur la coupure : un passe-bas 24 dB résonant sur une dent de scie + sub, balayé sur presque deux octaves à 2 Hz. Le balayage du filtre devient le rythme — tout le genre tient dans ce seul routage.",
+              reviewed : false },
+        'zh-Hans': { t: "摆动贝斯 · 如何做成",
+                     b: "LFO 作用于截止点：锯齿波加副振荡器，经过一个带共振的 24 dB 低通，以 2 Hz 扫过近两个八度。滤波扫描成了节奏 —— 整个流派就靠这一条路径。",
+                     reviewed: 'mt' },
+    },
+    lessonDetuned: {
+        en: { t: "Detuned Saws · how it's built",
+              b: 'Osc 2 at equal level, 12 cents sharp of Osc 1. Two saws almost in tune beat slowly against each other — the "fat" sound a two-oscillator synth is bought for. Poly, so chords stack the beating.' },
+        fr : { t : 'Scies désaccordées · comment c’est fait',
+              b : "L’osc 2 au même niveau, 12 cents au-dessus de l’osc 1. Deux dents de scie presque à l’unisson battent lentement l’une contre l’autre — le son « gras » pour lequel on achète un synthé à deux oscillateurs. En Poly, pour que les accords empilent les battements.",
+              reviewed : false },
+        'zh-Hans': { t: "失谐锯齿 · 如何做成",
+                     b: "振荡器 2 与振荡器 1 等电平，高 12 音分。两段几乎同度的锯齿波缓慢地互相拍动 —— 这就是人们为之购买双振荡器合成器的“肥厚”声音。Poly 模式下，和弦把拍动层层叠起。",
+                     reviewed: 'mt' },
     },
 });
 
@@ -678,6 +863,20 @@ export const LABELS = Object.freeze({
         fr: { t: 'VCA', sameAsEn: true, reviewed: true },
         'zh-Hans': { t: "VCA", reviewed: 'bt' },
     },
+    // v1.7.0 — the LFO node. The initialism is the term in all three languages.
+    'label.nodeLfo': {
+        en: { t: 'LFO' },
+        fr : { t : 'LFO', sameAsEn : true, reviewed : false },
+        'zh-Hans': { t: "LFO", reviewed: 'mt' },
+    },
+    // The LFO readout beside the diagram — a TEMPLATE. {shape} is the lfoShape
+    // choice value and {rate} the Hz readout, both passed literally by
+    // updateDiagram (neither is a table key, so trLabel leaves them as given).
+    'label.lfoMeta': {
+        en: { t: 'LFO · {shape} · {rate}' },
+        fr : { t : 'LFO · {shape} · {rate}', sameAsEn : true, reviewed : false },
+        'zh-Hans': { t: "LFO · {shape} · {rate}", reviewed: 'mt' },
+    },
     // The abbreviation beside the resonance numeral. Its own span, so the
     // fleuron and the hair space around it stay literal text nodes: applyLabel
     // writes textContent, which on the parent would delete both readout spans.
@@ -689,8 +888,8 @@ export const LABELS = Object.freeze({
 
     // ── Oscillator group ────────────────────────────────────────────────────
     'label.groupOsc': {
-        en: { t: 'Oscillator' },
-        fr: { t: 'Oscillateur', reviewed: true },
+        en: { t: 'Oscillators' },
+        fr: { t: 'Oscillateurs', reviewed: true },
         'zh-Hans': { t: "振荡器", reviewed: 'bt' },
     },
     'label.wave': { en: { t: 'Wave' },  fr: { t: 'Onde',  reviewed: true },
@@ -704,6 +903,18 @@ export const LABELS = Object.freeze({
                      termNote: "the SUB-OSCILLATOR mix level, not a bass band. The glossary root for this caption is the low-frequency BAND word, and both of its other corpus sites are band controls: O-Bells pairs it with an octave-up blend and O-FreqPulse uses it as a crossover band name. Here the control mixes in a square wave one octave below the note, and this entry carries a tooltip title that already names the sub-oscillator. A blind reverse pass returned the root as Bass, which is a caption and its own body naming two different things about one control. Shortened from the three-character title to match the English caption register, which is likewise the abbreviation of its own tooltip title." }, },
     'label.noise': { en: { t: 'Noise' }, fr: { t: 'Bruit', reviewed: true },
         'zh-Hans': { t: "噪声", reviewed: 'bt' }, },
+    // v1.7.0 — the two oscillator columns. "Osc 1" / "Osc 2" stay as written
+    // in French (the abbreviation is the same) and take the full word in Chinese.
+    'label.osc1': { en: { t: 'Osc 1' }, fr: { t: 'Osc 1', sameAsEn: true, reviewed: false },
+        'zh-Hans': { t: "振荡器 1", reviewed: 'mt' }, },
+    'label.osc2': { en: { t: 'Osc 2' }, fr: { t: 'Osc 2', sameAsEn: true, reviewed: false },
+        'zh-Hans': { t: "振荡器 2", reviewed: 'mt' }, },
+    'label.width':  { en: { t: 'Width' },  fr: { t: 'Largeur', reviewed: false },
+        'zh-Hans': { t: "宽度", reviewed: 'mt' }, },
+    'label.coarse': { en: { t: 'Coarse' }, fr: { t: 'Grossier', reviewed: false },
+        'zh-Hans': { t: "粗调", reviewed: 'mt' }, },
+    'label.fine':   { en: { t: 'Fine' },   fr: { t: 'Fin', reviewed: false },
+        'zh-Hans': { t: "微调", reviewed: 'mt' }, },
 
     // ── Filter group ────────────────────────────────────────────────────────
     'label.groupFilter': { en: { t: 'Filter' }, fr: { t: 'Filtre', reviewed: true },
@@ -755,6 +966,34 @@ export const LABELS = Object.freeze({
         'zh-Hans': { t: "延音", reviewed: 'bt' }, },
     'label.release': { en: { t: 'Release' }, fr: { t: 'Relâchement', reviewed: true },
         'zh-Hans': { t: "释音", reviewed: 'bt' }, },
+    // v1.7.0 — the fifth knob of the Filter Envelope group.
+    'label.velocity': { en: { t: 'Velocity' }, fr: { t: 'Vélocité', reviewed: false },
+        'zh-Hans': { t: "力度", reviewed: 'mt' }, },
+
+    // ── The LFO group (v1.7.0) ──────────────────────────────────────────────
+    // Title + routing suffix in its own .group-route span, like the envelopes.
+    'label.groupLfo': {
+        en: { t: 'LFO' },
+        fr : { t : 'LFO', sameAsEn : true, reviewed : false },
+        'zh-Hans': { t: "LFO", reviewed: 'mt' },
+    },
+    'label.routeLfo': {
+        en: { t: '→ pitch · cutoff · width' },
+        fr : { t : '→ hauteur · coupure · largeur', reviewed : false },
+        'zh-Hans': { t: "→ 音高 · 截止 · 宽度", reviewed: 'mt' },
+    },
+    'label.shape':     { en: { t: 'Shape' },    fr: { t: 'Forme', reviewed: false },
+        'zh-Hans': { t: "形状", reviewed: 'mt' }, },
+    'label.rate':      { en: { t: 'Rate' },     fr: { t: 'Vitesse', reviewed: false },
+        'zh-Hans': { t: "速率", reviewed: 'mt' }, },
+    // The three destination captions join the arrow to the word with U+00A0 so
+    // the arrow never wraps alone onto its own line (css: .group-lfo .knob-cell).
+    'label.lfoPitch':  { en: { t: '→ Pitch' },  fr: { t: '→ Hauteur', reviewed: false },
+        'zh-Hans': { t: "→ 音高", reviewed: 'mt' }, },
+    'label.lfoCutoff': { en: { t: '→ Cutoff' }, fr: { t: '→ Coupure', reviewed: false },
+        'zh-Hans': { t: "→ 截止", reviewed: 'mt' }, },
+    'label.lfoWidth':  { en: { t: '→ Width' },  fr: { t: '→ Largeur', reviewed: false },
+        'zh-Hans': { t: "→ 宽度", reviewed: 'mt' }, },
 
     // ── Voice / Output group ────────────────────────────────────────────────
     'label.groupOutput': {
@@ -794,6 +1033,21 @@ export const LABELS = Object.freeze({
         'zh-Hans': { t: "噪声风声", reviewed: 'bt' }, },
     'label.lessonSelfOsc':    { en: { t: 'Self-Oscillation' }, fr: { t: 'Auto-oscillation', reviewed: true },
         'zh-Hans': { t: "自激振荡", reviewed: 'bt' }, },
+    // v1.7.0 — the four new lessons. The French FACES are the bare term (PWM,
+    // Vibrato, Wobble, Désaccord): the twelve buttons share one flex line with
+    // the 99px label, and the English row has ~25px to spare at the shipping
+    // frame (984 of 1009px). The first French draft, two words each, ran to
+    // 1102px and dropped the whole button row to a second line, moving the
+    // keyboard 25px. The lesson's full French name lives in its tooltip title
+    // and its caption, which are not width-bound.
+    'label.lessonPwm':     { en: { t: 'PWM Pad' },      fr: { t: 'PWM', reviewed: false },
+        'zh-Hans': { t: "PWM 音垫", reviewed: 'mt' }, },
+    'label.lessonVibrato': { en: { t: 'Vibrato Lead' }, fr: { t: 'Vibrato', reviewed: false },
+        'zh-Hans': { t: "颤音主奏", reviewed: 'mt' }, },
+    'label.lessonWobble':  { en: { t: 'Wobble Bass' },  fr: { t: 'Wobble', reviewed: false },
+        'zh-Hans': { t: "摆动贝斯", reviewed: 'mt' }, },
+    'label.lessonDetuned': { en: { t: 'Detuned Saws' }, fr: { t: 'Désaccord', reviewed: false },
+        'zh-Hans': { t: "失谐锯齿", reviewed: 'mt' }, },
 
     // The tour caption. Nine entries: the resting one authored in the markup,
     // and one per lesson written by setLabel when a button is clicked. Through
@@ -854,6 +1108,31 @@ export const LABELS = Object.freeze({
         fr: { t: 'Auto-oscillation — résonance à la limite : le filtre sonne en une sinusoïde pure qui joue juste sur tout le clavier. Le filtre devient la source.',
               reviewed: true },
         'zh-Hans': { t: "自激振荡 —— 共振推到极限：滤波器鸣响成一条纯正弦，在整个键盘上都奏得准。滤波器变成了声源。", reviewed: 'bt' },
+    },
+    // v1.7.0
+    'label.captionPwm': {
+        en: { t: 'PWM Pad — the LFO sweeps the square’s width; even harmonics come and go and one oscillator shimmers like a string machine.' },
+        fr : { t : 'Nappe PWM — le LFO balaie la largeur de l’onde carrée ; les harmoniques pairs vont et viennent et un seul oscillateur scintille comme une string machine.',
+              reviewed : false },
+        'zh-Hans': { t: "PWM 音垫 —— LFO 扫动方波的宽度；偶次谐波时来时去，一个振荡器便像弦乐机一样闪烁。", reviewed: 'mt' },
+    },
+    'label.captionVibrato': {
+        en: { t: 'Vibrato Lead — the LFO on pitch, a third of a semitone at 5.5 Hz: a singer’s vibrato. Legato with a little glide.' },
+        fr : { t : 'Solo vibrato — le LFO sur la hauteur, un tiers de demi-ton à 5,5 Hz : le vibrato d’un chanteur. En Legato avec un peu de portamento.',
+              reviewed : false },
+        'zh-Hans': { t: "颤音主奏 —— LFO 作用于音高，5.5 Hz 下三分之一个半音：歌者的颤音。Legato 加一点滑音。", reviewed: 'mt' },
+    },
+    'label.captionWobble': {
+        en: { t: 'Wobble Bass — the LFO on cutoff: a resonant low-pass swept almost two octaves at 2 Hz. The filter sweep is the rhythm.' },
+        fr : { t : 'Basse wobble — le LFO sur la coupure : un passe-bas résonant balayé sur presque deux octaves à 2 Hz. Le balayage du filtre est le rythme.',
+              reviewed : false },
+        'zh-Hans': { t: "摆动贝斯 —— LFO 作用于截止点：带共振的低通以 2 Hz 扫过近两个八度。滤波扫描就是节奏。", reviewed: 'mt' },
+    },
+    'label.captionDetuned': {
+        en: { t: 'Detuned Saws — Osc 2 at equal level, 12 cents sharp: two saws beat slowly against each other. The fat two-oscillator sound.' },
+        fr : { t : 'Scies désaccordées — l’osc 2 au même niveau, 12 cents au-dessus : deux dents de scie battent lentement l’une contre l’autre. Le son gras à deux oscillateurs.',
+              reviewed : false },
+        'zh-Hans': { t: "失谐锯齿 —— 振荡器 2 等电平、高 12 音分：两段锯齿波缓慢地互相拍动。肥厚的双振荡器声音。", reviewed: 'mt' },
     },
 
     // ── Keyboard ────────────────────────────────────────────────────────────
@@ -985,6 +1264,11 @@ export const TIP_BINDINGS = [
     ['[data-param="oscWave"]',          'oscWave'],
     ['[data-param="subLevel"]',         'subLevel'],
     ['[data-param="noiseLevel"]',       'noiseLevel'],
+    ['[data-param="pulseWidth"]',       'pulseWidth'],
+    ['[data-param="osc2Wave"]',         'osc2Wave'],
+    ['[data-param="osc2Coarse"]',       'osc2Coarse'],
+    ['[data-param="osc2Fine"]',         'osc2Fine'],
+    ['[data-param="osc2Level"]',        'osc2Level'],
 
     ['[data-param="filterType"]',       'filterType'],
     ['[data-param="filterSlope"]',      'filterSlope'],
@@ -998,6 +1282,14 @@ export const TIP_BINDINGS = [
     ['[data-param="filterDecay"]',      'filterDecay'],
     ['[data-param="filterSustain"]',    'filterSustain'],
     ['[data-param="filterRelease"]',    'filterRelease'],
+    ['[data-param="velToFilter"]',      'velToFilter'],
+
+    ['#lfoWrap',                        'lfoCanvas'],
+    ['[data-param="lfoShape"]',         'lfoShape'],
+    ['[data-param="lfoRate"]',          'lfoRate'],
+    ['[data-param="lfoToPitch"]',       'lfoToPitch'],
+    ['[data-param="lfoToCutoff"]',      'lfoToCutoff'],
+    ['[data-param="lfoToPw"]',          'lfoToPw'],
 
     ['#ampAdsrWrap',                    'ampAdsr'],
     ['[data-param="ampAttack"]',        'ampAttack'],
@@ -1017,6 +1309,10 @@ export const TIP_BINDINGS = [
     ['.tour-btn[data-preset="Square Bass"]',      'lessonSquareBass'],
     ['.tour-btn[data-preset="Noise Wind"]',       'lessonNoiseWind'],
     ['.tour-btn[data-preset="Self-Oscillation"]', 'lessonSelfOsc'],
+    ['.tour-btn[data-preset="PWM Pad"]',          'lessonPwm'],
+    ['.tour-btn[data-preset="Vibrato Lead"]',     'lessonVibrato'],
+    ['.tour-btn[data-preset="Wobble Bass"]',      'lessonWobble'],
+    ['.tour-btn[data-preset="Detuned Saws"]',     'lessonDetuned'],
 ];
 
 export function tr(key, lang, vars) {

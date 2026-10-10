@@ -29,7 +29,13 @@
     (bipolar, in octaves) and the AMP env drives the VCA and governs voice
     lifetime.
 
-    Per sample:  src → fcEff(cutoff·keyTrack·filterEnv) → SVF → mode select → VCA
+    Per sample:  src → fcEff(cutoff·keyTrack·filterEnv·lfo) → SVF → mode select → VCA
+
+    v1.7.0 added the one global LFO (SubLfo.h — pitch, cutoff and pulse width
+    destinations), the second oscillator, the pulse width and velocity → filter
+    depth. All of it rides one SubVoiceParams struct pushed once per block; the
+    defaults of every new field are neutral, so a pre-1.7.0 session renders the
+    same signal it did.
 
     Two drive paths share this voice:
       - Poly  : juce::Synthesiser calls startNote()/stopNote() (instant pitch).
@@ -47,7 +53,43 @@
 #include <JuceHeader.h>
 #include "OscillatorBank.h"
 #include "SvfZDF.h"
+#include "SubLfo.h"
 #include <cmath>
+
+//==============================================================================
+// Everything a voice reads from the APVTS, pushed by the processor ONCE per
+// block (voices never read parameters). Defaults are the parameter defaults.
+struct SubVoiceParams
+{
+    // Sources
+    int   wave        = 0;       // osc 1: Saw / Square / Triangle / Sine
+    float pulseWidth  = 0.5f;    // Square duty, (0,1); 0.5 = the pre-1.7.0 square
+    int   osc2Wave    = 0;
+    float osc2Ratio   = 1.0f;    // 2^((coarse + fine/100)/12)
+    float osc2Level   = 0.0f;
+    float subLevel    = 0.0f;
+    float noiseLevel  = 0.0f;
+
+    // Filter
+    int   filterType      = 0;
+    int   slope           = 2;
+    float cutoffHz        = 2000.0f;
+    float resonance       = 0.10f;
+    float filterEnvAmount = 0.5f;   // bipolar, octaves/kEnvOctaves
+    float keyTrack        = 0.0f;
+    float velToFilter     = 0.0f;   // 0 = env depth ignores velocity; 1 = depth ∝ velocity
+
+    // Envelopes + glide
+    juce::ADSR::Parameters filt { 0.005f, 0.3f, 0.4f, 0.2f };
+    juce::ADSR::Parameters amp  { 0.005f, 0.3f, 0.8f, 0.1f };
+    float glideSeconds = 0.0f;
+
+    // The global LFO: block state + three depths
+    SubLfo::BlockState lfo;
+    float lfoToCutoff     = 0.0f;   // 0..1 → ±(depth · kLfoCutoffOctaves) octaves
+    float lfoToPitchSemis = 0.0f;   // ± semitones at full LFO swing
+    float lfoToPw         = 0.0f;   // 0..1 → ±(depth · kLfoPwSwing) of duty
+};
 
 //==============================================================================
 class SubSound : public juce::SynthesiserSound
@@ -66,7 +108,11 @@ public:
     // Slope order matches the APVTS `filterSlope` choice list (6/12/24 dB).
     enum Slope { Slope6 = 0, Slope12 = 1, Slope24 = 2 };
 
-    static constexpr double kEnvOctaves = 7.0;   // ±100% filterEnvAmount ⇒ ±7 octaves
+    static constexpr double kEnvOctaves       = 7.0;   // ±100% filterEnvAmount ⇒ ±7 octaves
+    static constexpr double kLfoCutoffOctaves = 3.0;   // lfoToCutoff = 1 ⇒ ±3 octaves of swing
+    static constexpr float  kLfoPwSwing       = 0.45f; // lfoToPw = 1 ⇒ duty swings ±0.45 (clamped 0.05..0.95)
+    static constexpr float  kPwMin            = 0.05f;
+    static constexpr float  kPwMax            = 0.95f;
 
     SubVoice() = default;
     ~SubVoice() override = default;
@@ -98,23 +144,27 @@ public:
 
     //==========================================================================
     // Block param-push from the processor (once per block). Voices never read APVTS.
-    void setParams (int waveIn, float subLevelIn, float noiseLevelIn,
-                    int filterTypeIn, int slopeIn,
-                    float cutoffHzIn, float resonanceIn,
-                    float filterEnvAmountIn, float keyTrackIn,
-                    const juce::ADSR::Parameters& fp,
-                    const juce::ADSR::Parameters& ap,
-                    float glideSeconds) noexcept
+    void setParams (const SubVoiceParams& p) noexcept
     {
-        wave            = waveIn;
-        subLevel        = juce::jlimit (0.0f, 1.0f, subLevelIn);
-        noiseLevel      = juce::jlimit (0.0f, 1.0f, noiseLevelIn);
-        filterType      = filterTypeIn;
-        slope           = slopeIn;
-        cutoffHz        = cutoffHzIn;
-        resonance       = juce::jlimit (0.0f, 1.0f, resonanceIn);
-        filterEnvAmount = juce::jlimit (-1.0f, 1.0f, filterEnvAmountIn);
-        keyTrack        = juce::jlimit (0.0f, 1.0f, keyTrackIn);
+        wave            = p.wave;
+        pulseWidth      = juce::jlimit (kPwMin, kPwMax, p.pulseWidth);
+        osc2Wave        = p.osc2Wave;
+        osc2Ratio       = juce::jmax (1.0e-3f, p.osc2Ratio);
+        osc2Level       = juce::jlimit (0.0f, 1.0f, p.osc2Level);
+        subLevel        = juce::jlimit (0.0f, 1.0f, p.subLevel);
+        noiseLevel      = juce::jlimit (0.0f, 1.0f, p.noiseLevel);
+        filterType      = p.filterType;
+        slope           = p.slope;
+        cutoffHz        = p.cutoffHz;
+        resonance       = juce::jlimit (0.0f, 1.0f, p.resonance);
+        filterEnvAmount = juce::jlimit (-1.0f, 1.0f, p.filterEnvAmount);
+        keyTrack        = juce::jlimit (0.0f, 1.0f, p.keyTrack);
+        velToFilter     = juce::jlimit (0.0f, 1.0f, p.velToFilter);
+
+        lfo             = p.lfo;
+        lfoToCutoff     = juce::jlimit (0.0f, 1.0f, p.lfoToCutoff);
+        lfoToPitchSemis = juce::jmax (0.0f, p.lfoToPitchSemis);
+        lfoToPw         = juce::jlimit (0.0f, 1.0f, p.lfoToPw);
 
         // Push envelope params only when they actually CHANGED, and never while
         // the voice is releasing. juce::ADSR::setParameters() recalculates
@@ -124,15 +174,15 @@ public:
         // on every note-off. Changes made mid-release apply at the next noteOn.
         // (O-simpleFM v1.2.5 pattern; guards BOTH envelopes — a killed filter
         // env is a cutoff jump, a killed amp env is the audible click.)
-        filterParams = fp;
-        ampParams    = ap;
+        filterParams = p.filt;
+        ampParams    = p.amp;
         if (! releasing)
         {
-            if (! sameAdsr (fp, appliedFilterParams)) { filterEnv.setParameters (fp); appliedFilterParams = fp; }
-            if (! sameAdsr (ap, appliedAmpParams))    { ampEnv.setParameters (ap);    appliedAmpParams    = ap; }
+            if (! sameAdsr (p.filt, appliedFilterParams)) { filterEnv.setParameters (p.filt); appliedFilterParams = p.filt; }
+            if (! sameAdsr (p.amp, appliedAmpParams))     { ampEnv.setParameters (p.amp);     appliedAmpParams    = p.amp; }
         }
 
-        setGlideTime (glideSeconds);
+        setGlideTime (p.glideSeconds);
     }
 
     void setGlideTime (float seconds) noexcept
@@ -270,20 +320,38 @@ public:
 
         const int numCh = out.getNumChannels();
 
+        // Velocity → filter: scale the envelope depth by (1 − v + v · velocity),
+        // so 0 leaves the depth alone and 1 makes it proportional to velocity.
+        const double envDepth = (double) filterEnvAmount
+                              * (1.0 - (double) velToFilter + (double) velToFilter * (double) velLevel);
+        const double keyTrackOct = (double) keyTrack * ((double) currentNote - 60.0) / 12.0;
+
         for (int i = 0; i < numSamples; ++i)
         {
             const float eF = filterEnv.getNextSample();   // [0,1]
             const float eA = ampEnv.getNextSample();      // [0,1]
 
+            // The global LFO at this sample (stateless; see SubLfo.h). Evaluated
+            // only if any destination is live — a 0-depth LFO costs nothing.
+            const bool  lfoLive = (lfoToCutoff > 0.0f || lfoToPitchSemis > 0.0f || lfoToPw > 0.0f);
+            const float l       = lfoLive ? lfo.at (startSample + i) : 0.0f;
+
             const float baseHz = freqSmoothed.getNextValue();
-            const float fOsc   = baseHz * bendFactor;
+            float fOsc = baseHz * bendFactor;
+            if (lfoToPitchSemis > 0.0f)
+                fOsc *= std::exp2 (l * lfoToPitchSemis * (1.0f / 12.0f));
 
-            const float src = osc.next (wave, fOsc, subLevel, noiseLevel);
+            float pw = pulseWidth;
+            if (lfoToPw > 0.0f)
+                pw = juce::jlimit (kPwMin, kPwMax, pw + l * lfoToPw * kLfoPwSwing);
 
-            // --- Effective cutoff: base · key-track · bipolar filter env (octaves) ---
-            double fcEff = (double) cutoffHz
-                         * std::pow (2.0, (double) keyTrack * ((double) currentNote - 60.0) / 12.0)
-                         * std::pow (2.0, (double) filterEnvAmount * (double) eF * kEnvOctaves);
+            const float src = osc.next (wave, fOsc, pw, osc2Wave, osc2Ratio, osc2Level, subLevel, noiseLevel);
+
+            // --- Effective cutoff: base · 2^(key-track + bipolar filter env + LFO), in octaves ---
+            const double octaves = keyTrackOct
+                                 + envDepth * (double) eF * kEnvOctaves
+                                 + (double) l * (double) lfoToCutoff * kLfoCutoffOctaves;
+            double fcEff = (double) cutoffHz * std::exp2 (octaves);
             fcEff = juce::jlimit (20.0, juce::jmin (20000.0, 0.45 * sampleRate), fcEff);
 
             const double g = std::tan (juce::MathConstants<double>::pi * fcEff / sampleRate);
@@ -445,9 +513,12 @@ private:
     double glideTimeSeconds = 0.0;
 
     // Cached block params.
-    int   wave = 0, filterType = LP, slope = Slope24;
+    int   wave = 0, osc2Wave = 0, filterType = LP, slope = Slope24;
+    float pulseWidth = 0.5f, osc2Ratio = 1.0f, osc2Level = 0.0f;
     float subLevel = 0.0f, noiseLevel = 0.0f;
-    float cutoffHz = 2000.0f, resonance = 0.1f, filterEnvAmount = 0.5f, keyTrack = 0.0f;
+    float cutoffHz = 2000.0f, resonance = 0.1f, filterEnvAmount = 0.5f, keyTrack = 0.0f, velToFilter = 0.0f;
+    SubLfo::BlockState lfo;
+    float lfoToCutoff = 0.0f, lfoToPitchSemis = 0.0f, lfoToPw = 0.0f;
 
     int   currentNote = 69, pitchWheelPos = 8192;
     float velLevel = 1.0f, bendFactor = 1.0f;

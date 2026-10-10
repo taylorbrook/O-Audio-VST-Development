@@ -141,6 +141,16 @@
         <text class="env-route-label" x="180" y="118" text-anchor="middle" data-i18n="label.routeFilterEnv">filter env &#8594; cutoff</text>
         <text class="env-route-label" x="308" y="118" text-anchor="middle" data-i18n="label.routeAmpEnv">amp env &#8594; level</text>
 
+        <!-- v1.7.0 — the LFO: a smaller node below OSC, dashed routes up into
+             OSC (pitch, pulse width) and across into FILTER (cutoff). Each
+             route's weight follows its depth knob, like the env arrow. -->
+        <line id="arrowLfoOsc" class="route-arc route-arc-lfo" x1="52" y1="86" x2="52" y2="76" />
+        <polygon id="arrowLfoOscHead" class="route-head route-head-lfo" points="47,80 57,80 52,72" />
+        <line id="arrowLfoFilt" class="route-arc route-arc-lfo" x1="70" y1="98" x2="156" y2="68" />
+        <polygon id="arrowLfoFiltHead" class="route-head route-head-lfo" points="153,74 158,63 163,70" />
+        <circle id="nodeLfo" class="path-node node-lfo" cx="52" cy="104" r="17" />
+        <text class="node-text node-text-sm" x="52" y="108" text-anchor="middle" data-i18n="label.nodeLfo">LFO</text>
+
         <!-- nodes -->
         <circle id="nodeOsc" class="path-node node-osc" cx="52" cy="46" r="26" />
         <text class="node-text" x="52" y="44" text-anchor="middle" data-i18n="label.nodeOsc">OSC</text>
@@ -158,28 +168,72 @@
       <div class="routing-readout-col">
         <div class="routing-readout"><span id="readCutoff">2.0 kHz</span> &#183; <span data-i18n="label.res">Res</span>&#8201;<span id="readRes">0.10</span></div>
         <div class="routing-meta" id="routeMeta">low-pass &#183; 24 dB/oct</div>
+        <!-- v1.7.0 — the LFO's shape and rate. A composed template: updateDiagram
+             rewrites it through setLabel with the lfoShape choice value (English
+             under D-01) and the rate readout (D-03) as its two tokens. -->
+        <div class="routing-meta" id="lfoMeta" data-i18n="label.lfoMeta"
+             data-i18n-vars='{"shape":"Triangle","rate":"2.00 Hz"}'>LFO &#183; Triangle &#183; 2.00 Hz</div>
       </div>
     </section>
 
-    <!-- ─── Control groups (5-column signal path) ──────────────── -->
+    <!-- ─── Control groups ─────────────────────────────────────────
+         v1.7.0 — two rows. Row 1 is the signal path (sources → filter →
+         voice/output); row 2 is the three modulators (filter envelope, amp
+         envelope, LFO), each with its own canvas. Through v1.6.0 the five
+         groups shared one row. -->
     <main class="controls">
-      <!-- OSC / MIX -->
+      <div class="ctrl-row">
+      <!-- OSC / MIX — two columns, one per oscillator -->
       <section class="group group-osc">
-        <h2 class="group-title" data-i18n="label.groupOsc">Oscillator</h2>
-        <div class="select-cell" data-param="oscWave">
-          <select class="combo" id="combo-oscWave" data-i18n-aria="oscWave" aria-label="Oscillator wave"></select>
-          <div class="knob-label" data-i18n="label.wave">Wave</div>
-        </div>
-        <div class="knob-row">
-          <div class="knob-cell" data-param="subLevel">
-            <div class="knob" id="knob-subLevel" data-i18n-aria="subLevel"><div class="knob-stem"></div></div>
-            <div class="knob-label" data-i18n="label.sub">Sub</div>
-            <div class="knob-value" id="val-subLevel">0%</div>
+        <h2 class="group-title" data-i18n="label.groupOsc">Oscillators</h2>
+        <div class="osc-cols">
+          <div class="osc-col">
+            <div class="osc-col-title" data-i18n="label.osc1">Osc 1</div>
+            <div class="select-cell" data-param="oscWave">
+              <select class="combo combo-sm" id="combo-oscWave" data-i18n-aria="oscWave" aria-label="Oscillator wave"></select>
+              <div class="knob-label" data-i18n="label.wave">Wave</div>
+            </div>
+            <div class="knob-row">
+              <div class="knob-cell" data-param="pulseWidth">
+                <div class="knob" id="knob-pulseWidth" data-i18n-aria="pulseWidth"><div class="knob-stem"></div></div>
+                <div class="knob-label" data-i18n="label.width">Width</div>
+                <div class="knob-value" id="val-pulseWidth">50%</div>
+              </div>
+              <div class="knob-cell" data-param="subLevel">
+                <div class="knob" id="knob-subLevel" data-i18n-aria="subLevel"><div class="knob-stem"></div></div>
+                <div class="knob-label" data-i18n="label.sub">Sub</div>
+                <div class="knob-value" id="val-subLevel">0%</div>
+              </div>
+              <div class="knob-cell" data-param="noiseLevel">
+                <div class="knob" id="knob-noiseLevel" data-i18n-aria="noiseLevel"><div class="knob-stem"></div></div>
+                <div class="knob-label" data-i18n="label.noise">Noise</div>
+                <div class="knob-value" id="val-noiseLevel">0%</div>
+              </div>
+            </div>
           </div>
-          <div class="knob-cell" data-param="noiseLevel">
-            <div class="knob" id="knob-noiseLevel" data-i18n-aria="noiseLevel"><div class="knob-stem"></div></div>
-            <div class="knob-label" data-i18n="label.noise">Noise</div>
-            <div class="knob-value" id="val-noiseLevel">0%</div>
+          <div class="osc-col osc-col-2">
+            <div class="osc-col-title" data-i18n="label.osc2">Osc 2</div>
+            <div class="select-cell" data-param="osc2Wave">
+              <select class="combo combo-sm" id="combo-osc2Wave" data-i18n-aria="osc2Wave" aria-label="Oscillator 2 wave"></select>
+              <div class="knob-label" data-i18n="label.wave">Wave</div>
+            </div>
+            <div class="knob-row">
+              <div class="knob-cell" data-param="osc2Coarse">
+                <div class="knob" id="knob-osc2Coarse" data-i18n-aria="osc2Coarse"><div class="knob-stem"></div></div>
+                <div class="knob-label" data-i18n="label.coarse">Coarse</div>
+                <div class="knob-value" id="val-osc2Coarse">0 st</div>
+              </div>
+              <div class="knob-cell" data-param="osc2Fine">
+                <div class="knob" id="knob-osc2Fine" data-i18n-aria="osc2Fine"><div class="knob-stem"></div></div>
+                <div class="knob-label" data-i18n="label.fine">Fine</div>
+                <div class="knob-value" id="val-osc2Fine">0 ct</div>
+              </div>
+              <div class="knob-cell" data-param="osc2Level">
+                <div class="knob" id="knob-osc2Level" data-i18n-aria="osc2Level"><div class="knob-stem"></div></div>
+                <div class="knob-label" data-i18n="label.level">Level</div>
+                <div class="knob-value" id="val-osc2Level">0%</div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -221,7 +275,30 @@
         </div>
       </section>
 
-      <!-- FILTER ADSR -->
+      <!-- VOICE / OUT -->
+      <section class="group group-output">
+        <h2 class="group-title" data-i18n="label.groupOutput">Voice / Output</h2>
+        <div class="select-cell" data-param="voiceMode">
+          <select class="combo" id="combo-voiceMode" data-i18n-aria="voiceMode" aria-label="Voice mode"></select>
+          <div class="knob-label" data-i18n="label.mode">Mode</div>
+        </div>
+        <div class="knob-row">
+          <div class="knob-cell" data-param="glide">
+            <div class="knob" id="knob-glide" data-i18n-aria="glide"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.glide">Glide</div>
+            <div class="knob-value" id="val-glide">0 ms</div>
+          </div>
+          <div class="knob-cell" data-param="outputLevel">
+            <div class="knob" id="knob-outputLevel" data-i18n-aria="outputLevel"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.level">Level</div>
+            <div class="knob-value" id="val-outputLevel">0.0 dB</div>
+          </div>
+        </div>
+      </section>
+      </div>
+
+      <div class="ctrl-row">
+      <!-- FILTER ADSR (+ v1.7.0 velocity → depth) -->
       <section class="group group-env">
         <h2 class="group-title"><span data-i18n="label.groupFilterEnv">Filter Envelope</span> <span class="group-route" data-i18n="label.routeToCutoff">&#8594; cutoff</span></h2>
         <div class="adsr-canvas-wrap" id="filterAdsrWrap"><canvas id="filterAdsrCanvas"></canvas></div>
@@ -245,6 +322,11 @@
             <div class="knob knob-sm" id="knob-filterRelease" data-i18n-aria="filterRelease"><div class="knob-stem"></div></div>
             <div class="knob-label" data-i18n="label.release">Release</div>
             <div class="knob-value" id="val-filterRelease">200 ms</div>
+          </div>
+          <div class="knob-cell" data-param="velToFilter">
+            <div class="knob knob-sm" id="knob-velToFilter" data-i18n-aria="velToFilter"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.velocity">Velocity</div>
+            <div class="knob-value" id="val-velToFilter">0%</div>
           </div>
         </div>
       </section>
@@ -277,26 +359,38 @@
         </div>
       </section>
 
-      <!-- VOICE / OUT -->
-      <section class="group group-output">
-        <h2 class="group-title" data-i18n="label.groupOutput">Voice / Output</h2>
-        <div class="select-cell" data-param="voiceMode">
-          <select class="combo" id="combo-voiceMode" data-i18n-aria="voiceMode" aria-label="Voice mode"></select>
-          <div class="knob-label" data-i18n="label.mode">Mode</div>
-        </div>
-        <div class="knob-row">
-          <div class="knob-cell" data-param="glide">
-            <div class="knob" id="knob-glide" data-i18n-aria="glide"><div class="knob-stem"></div></div>
-            <div class="knob-label" data-i18n="label.glide">Glide</div>
-            <div class="knob-value" id="val-glide">0 ms</div>
+      <!-- LFO (v1.7.0) — one global low-frequency oscillator, three destinations -->
+      <section class="group group-env group-lfo">
+        <h2 class="group-title"><span data-i18n="label.groupLfo">LFO</span> <span class="group-route" data-i18n="label.routeLfo">&#8594; pitch &#183; cutoff &#183; width</span></h2>
+        <div class="adsr-canvas-wrap" id="lfoWrap"><canvas id="lfoCanvas"></canvas></div>
+        <div class="knob-row lfo-row">
+          <div class="select-cell" data-param="lfoShape">
+            <select class="combo combo-sm" id="combo-lfoShape" data-i18n-aria="lfoShape" aria-label="LFO shape"></select>
+            <div class="knob-label" data-i18n="label.shape">Shape</div>
           </div>
-          <div class="knob-cell" data-param="outputLevel">
-            <div class="knob" id="knob-outputLevel" data-i18n-aria="outputLevel"><div class="knob-stem"></div></div>
-            <div class="knob-label" data-i18n="label.level">Level</div>
-            <div class="knob-value" id="val-outputLevel">0.0 dB</div>
+          <div class="knob-cell" data-param="lfoRate">
+            <div class="knob knob-sm" id="knob-lfoRate" data-i18n-aria="lfoRate"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.rate">Rate</div>
+            <div class="knob-value" id="val-lfoRate">2.00 Hz</div>
+          </div>
+          <div class="knob-cell" data-param="lfoToPitch">
+            <div class="knob knob-sm" id="knob-lfoToPitch" data-i18n-aria="lfoToPitch"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.lfoPitch">&#8594;&#160;Pitch</div>
+            <div class="knob-value" id="val-lfoToPitch">0 ct</div>
+          </div>
+          <div class="knob-cell" data-param="lfoToCutoff">
+            <div class="knob knob-sm" id="knob-lfoToCutoff" data-i18n-aria="lfoToCutoff"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.lfoCutoff">&#8594;&#160;Cutoff</div>
+            <div class="knob-value" id="val-lfoToCutoff">0%</div>
+          </div>
+          <div class="knob-cell" data-param="lfoToPw">
+            <div class="knob knob-sm" id="knob-lfoToPw" data-i18n-aria="lfoToPw"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.lfoWidth">&#8594;&#160;Width</div>
+            <div class="knob-value" id="val-lfoToPw">0%</div>
           </div>
         </div>
       </section>
+      </div>
     </main>
 
     <!-- ─── Preset tour (hook now; content Stage 4) ────────────── -->
@@ -311,6 +405,10 @@
         <button class="tour-btn" data-preset="Square Bass" data-i18n="label.lessonSquareBass">Square Bass</button>
         <button class="tour-btn" data-preset="Noise Wind" data-i18n="label.lessonNoiseWind">Noise Wind</button>
         <button class="tour-btn" data-preset="Self-Oscillation" data-i18n="label.lessonSelfOsc">Self-Oscillation</button>
+        <button class="tour-btn" data-preset="PWM Pad" data-i18n="label.lessonPwm">PWM Pad</button>
+        <button class="tour-btn" data-preset="Vibrato Lead" data-i18n="label.lessonVibrato">Vibrato Lead</button>
+        <button class="tour-btn" data-preset="Wobble Bass" data-i18n="label.lessonWobble">Wobble Bass</button>
+        <button class="tour-btn" data-preset="Detuned Saws" data-i18n="label.lessonDetuned">Detuned Saws</button>
       </div>
       <div class="tour-caption" id="tourCaption" data-i18n="label.captionDefault">Hover any control for an explanation &#183; pick a lesson to hear a concept.</div>
     </section>
