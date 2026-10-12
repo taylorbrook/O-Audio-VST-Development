@@ -36,6 +36,7 @@
 
 #include "../Data/VenueGeometry.h"
 #include "../Data/VenueSnapshot.h"
+#include "AirFilter.h"
 #include "DbapSolver.h"
 #include "Decorrelator.h"
 #include "HullProcessor.h"
@@ -44,6 +45,7 @@
 #include "MotionPath.h"
 #include "PerlinNoise.h"
 #include "SourceShaper.h"
+#include "TapCrossfade.h"
 
 namespace oo
 {
@@ -155,8 +157,11 @@ public:
     /// them in would have silently rewritten that probe's subject.
     static constexpr std::size_t kNumSmoothers = 2 * kNumSpeakers + 1;
 
-    /// v1.4.0. The eight alignment-delay ramps — counted separately, per the note above.
-    static constexpr std::size_t kNumDelaySmoothers = kNumSpeakers;
+    /// v1.15.0 (B13) — the alignment delay's two-tap crossfade, in ms. Inside the queue's 10-20 ms
+    /// window: long against one period of the lowest programme a hall carries, so the blend of two
+    /// taps never reads as a gap, and short enough that a calibration nudge lands promptly.
+    static constexpr double kDelayFadeMs = 15.0;
+
 
     /** The longest alignment delay a line is sized for, in ms.
 
@@ -189,14 +194,12 @@ public:
         else would jump every gain, and QUAL-03 would still pass because both renders would teleport
         identically. Only QUAL-01 would catch it, and only by luck.
 
-        `filter.prepare()` performs the ANALOGOUS teleport — it does `sampleRate = ...;
-        s1.resize (n); update(); reset();` — so it belongs in step 2 beside the seventeen, which is
-        what makes the rule read "step 2 is the only place any DSP state is initialised, ever".
-
-        ── prepare() on the filters is MANDATORY, not advisable (RESEARCH-2.3 H6) ─────────────────
-        `std::vector<SampleType> s1 { 2 }` in juce_FirstOrderTPTFilter.h:149 is the INITIALIZER-LIST
-        constructor: the default vector has size 1 holding the value 2.0f. An unprepared filter
-        decays from 2.0 on its first outputs, and processSample (1, ...) on one is out of bounds.
+        `filter.prepare()` performs the ANALOGOUS teleport — it sets the rate and zeroes the state —
+        so it belongs in step 2 beside the seventeen, which is what makes the rule read "step 2 is
+        the only place any DSP state is initialised, ever". (v1.15.0: the filters are oo::AirFilter,
+        which has no uninitialised-vector trap; RESEARCH-2.3 H6's `s1 { 2 }` hazard was the JUCE
+        class's and left with it. step 4 also snaps the air blend and its G ramp, and the delay
+        taps, for the gains' reason.)
 
         ── THE ONE OTHER reset() ON A FILTER IS A RECOVERY SITE, AND IS LABELLED AS SUCH ──────────
         renderChunk()'s per-block NaN guard calls airL/airR.reset() on a non-finite output (DSP-07/8,
@@ -316,20 +319,23 @@ private:
     //
     // ── LINEAR INTERPOLATION, AND popSample() RATHER THAN setDelay() ──────────────────────────
     //
-    // The delay is read at a SMOOTHED, fractional sample position that ramps over 5 ms on a venue
-    // edit. Calling setDelay() at the control boundary and stepping the read pointer by whole
-    // samples would click on every edit; popSample (ch, d) takes the position per sample and
-    // interpolates, so a delay change glides. Linear is the right order here: the position moves
-    // only during a 5 ms ramp and is stationary the rest of the time, so Lagrange3rd's extra taps
-    // would buy accuracy on a signal that is not moving.
+    // v1.15.0 (B13): the read position NO LONGER MOVES. Until v1.14.1 it ramped over 5 ms on a
+    // venue edit, which resampled the programme — 5 -> 50 ms played the line backwards at -8x, a
+    // chirp on every Derive, `.venue` load and in-hall calibration. An edit now reads the OLD and
+    // NEW positions side by side (popSample's multi-tap form) and crossfades them over
+    // kDelayFadeMs — see TapCrossfade.h. Linear interpolation stays for fractional delays that
+    // are not on a whole sample; both taps are stationary, so Lagrange3rd would buy nothing.
     using AlignDelayLine = juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear>;
 
     std::array<AlignDelayLine, kNumSpeakers> alignDelay {};
 
-    /// Target is the venue delay in SAMPLES (converted from the snapshot's ms at the control
-    /// boundary, where `sampleRate` is known). Advances once per sample UNCONDITIONALLY, in both
-    /// mode arms, for the same reason the seventeen do — see the SAFE arm's comment.
-    std::array<Smoother, kNumSpeakers> delaySamples {};
+    /// The venue delay in SAMPLES (converted from the snapshot's ms at the control boundary, where
+    /// `sampleRate` is known).
+    std::array<float, kNumSpeakers> delayTarget {};
+
+    /// v1.15.0 (B13) — each lane's two-tap crossfade toward delayTarget. Advances once per sample
+    /// UNCONDITIONALLY, in both mode arms, for the reason the seventeen do — see the SAFE arm.
+    std::array<TapCrossfade<float>, kNumSpeakers> delayTap {};
 
     /// Per-speaker: does this lane READ from its line this chunk? False when the speaker's delay is
     /// 0 and settled, which makes `out[i][n] = y` the literal v1.3.5 expression — the zero-delay
@@ -452,7 +458,27 @@ private:
     //
     // PER SUB-POINT, NOT PER SPEAKER: the filter sits on the source feed BEFORE the gain matrix.
     // Per-speaker would be 4x the cost and would not be what §3.5.2 describes.
-    juce::dsp::FirstOrderTPTFilter<float> airL, airR;
+    //
+    // v1.15.0 (B8): oo::AirFilter, not juce::dsp::FirstOrderTPTFilter — the same arithmetic with
+    // its coefficient interpolated per sample across the control block. See AirFilter.h.
+    AirFilter airL, airR;
+
+    /** v1.15.0 (B8) — per sub-point, the filtered/dry blend: fL = sL + airMix·(LP(sL) − sL).
+
+        Until v1.14.1 the exit was the hard switch `fL = airActive ? LP(sL) : sL`, which steps the
+        feed by |LP(x) − x| — and since v1.13.0 the filter runs everywhere beyond the near field
+        down to 552 Hz, so Motion off, a preset change or an air lane touching 0 clicked at up to
+        207x (B8). Target 1 while airActive, 0 otherwise, on the same 5 ms as everything else.
+
+        SETTLED AT 0 THE FILTER IS NOT RUN AT ALL and fL is literally sL; settled at 1 fL is
+        literally LP(sL). Only in between is the lerp evaluated — so the default patch stays
+        bit-transparent and an engaged steady state stays bit-identical to v1.14.1. */
+    Smoother airMixL {}, airMixR {};
+
+    /** Is the filter RUN this chunk? airActive, or the blend still fading out. The airMixed
+        counterpart of decorrEngaged: dropping the filter the instant airActive fell would cut the
+        fade off at its start. Its false->true edge is what arms the entry seed (P27). */
+    bool airRunL { false }, airRunR { false };
 
     /// Needed by airCutoffHz()'s Nyquist clamp at every control block, so it is a member rather
     /// than re-derived (H4 / P28). Set in prepare(), before step 3's updateControl().
@@ -463,7 +489,7 @@ private:
     /// (v1.13.0 — was: inside the hull) is bit-transparent at any airAmount.
     bool airActiveL { false }, airActiveR { false };
 
-    /** Set on the airActive false->true edge; consumed at the top of the next REAL renderChunk,
+    /** Set on the airRun false->true edge (v1.15.0; was airActive's); consumed at the top of the next REAL renderChunk,
         which seeds the filter state with the incoming sample (PLAN-2.3 P27 / RESEARCH-2.3 H1).
 
         WHY A PENDING FLAG RATHER THAN AN IMMEDIATE reset() AT THE BOUNDARY: the seed value is a
@@ -476,9 +502,6 @@ private:
     */
     bool airSeedPendingL { false }, airSeedPendingR { false };
 
-    /// Tracks the `airAmount > 0` edge so DSP-07/7's reset is a TRANSITION rather than a state
-    /// test. Initialised false so prepare()'s first solve arms it correctly from silence.
-    bool airWasEnabled { false };
 
     /** Absolute samples rendered since prepareToPlay(). Monotonic, reset THERE AND NOWHERE ELSE.
 

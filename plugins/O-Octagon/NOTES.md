@@ -3,7 +3,7 @@
 ## Status
 - **Current Status:** 📦 Installed — stage-4 roll-up re-verify ✅ VERIFIED 2026-08-14, all four
   stages complete; dev-branded build (`O-Octagon-dev`), not yet released
-- **Version:** 1.14.1 (dev build installed; v1.13.0 is the public release)
+- **Version:** 1.15.0 (dev build installed; v1.13.0 is the public release)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
 - **Complexity:** 5.0 (capped; raw 13.0) — staged implementation
@@ -492,3 +492,13 @@ fact was refused twice), and none affects a recorded result:
 - AU: `~/Library/Audio/Plug-Ins/Components/O-Octagon-dev.component`
 - Installed binaries byte-identical to freeze `378fb4cd` (VST3 `928cd447…`, AU `cc54db02…`)
   — **superseded at v1.6.0/v1.7.0;** the installed build is newer than that freeze
+- **2026-10-12 (v1.15.0 — `/improve`, Round 3a: clean transitions, B8 B9 B13 + G6):** the air
+  filter is `oo::AirFilter` (JUCE's TPT arithmetic, its coefficient walking to each cutoff over 5 ms
+  on a smoothstep, one change in flight) behind a per-sub-point smoothstep-shaped 5 ms blend,
+  `fL = sL + airMix·(LP(sL) − sL)`, literally `sL` at 0. The cutoff is held through a fade-out,
+  and the `airAmount → 0` reset is gone (the entry seed always overwrote it). Decorrelator taps
+  crossfade over 128 samples @48k; alignment-delay edits crossfade two fixed taps over 15 ms. Both
+  use the new `TapCrossfade.h`. Deviations, measured: 5 ms G ramp rather than per-block (DU
+  cutoff jump at 200 Hz 4.2x → 1.58x), 128-sample decorr fade rather than 32–64 (DV 2.4x →
+  1.6x). BB's |H − 1| is now a ceiling; BC is re-derived for the ramp; new click probes
+  DU/DV/DW, red on v1.14.1 (to 542x). Render 81/0, geometry 60/0, CU/DC unchanged.

@@ -1,5 +1,71 @@
 # O-Octagon Changelog
 
+## [1.15.0] - 2026-10-12
+
+Round 3a of the v1.13.1 four-goal review (`.planning/REVIEW-v1.13.1.md`): clean transitions.
+MINOR because audio changes **during transitions** — an air change, a decorr or width move, an
+alignment-delay edit. Steady state does not change: the CU and DC digests are bit-identical, and
+an engaged air filter that has settled computes the same floats as before. No parameter, preset or
+session change.
+
+### Fixed
+
+- **B8 — the air filter clicked on every exit and every cutoff jump.** The exit was a hard switch
+  (`fL = airActive ? LP(sL) : sL`), and the cutoff stepped once per 64-sample block. Since
+  v1.13.0 the filter runs everywhere beyond the 0.79 m near field, down to 552 Hz. Turning Motion
+  off, loading a preset, an air lane touching 0 or a stepped position each clicked at 4.5x–540x a
+  matched air-0 control. **Now:**
+  - Each sub-point has an air blend, `fL = sL + airMix·(LP(sL) − sL)`, on the class's 5 ms ramp
+    with a smoothstep shape. Settled at 0 the filter does not run and `fL` is literally `sL`. Settled
+    at 1, `fL` is literally `LP(sL)`.
+  - The filter is now `oo::AirFilter` — JUCE's TPT arithmetic, statement for statement. Its
+    coefficient walks to each new cutoff over 5 ms on a smoothstep, one change in flight, and lands
+    exactly on the solved value.
+  - While the blend fades out, the cutoff is held rather than swept to 20 kHz underneath it.
+  - The entry seed (P27) is now armed on the edge where the filter starts running. The coefficient
+    snaps on that edge too.
+  - The `airAmount → 0` reset (DSP-07/7) is removed. It zeroed the state on the very block the
+    fade begins, and the entry seed always overwrote that state before it was read.
+- **B9 — the decorrelator zippered on every decorr move and on width moves below 2 m.** Each
+  all-pass section's integer tap stepped as depth ramped. **Now** a changed tap crossfades the old
+  and new integer reads over 128 samples at 48 kHz (2.67 ms, rate-scaled), one change in flight.
+  The reads stay integer, so every section is still exactly all-pass, and a static depth runs the
+  old single read (probe CV unchanged).
+- **B13 — alignment-delay edits chirped.** The read position used to slide over 5 ms, which
+  played the line backwards at up to −8x on every Derive, `.venue` load and calibration nudge.
+  **Now** the old and new positions are read side by side (multi-tap `popSample`) and crossfaded
+  over 15 ms, one change in flight. A settled delay is still the single read v1.4.0 made, so CS's
+  bit-exact shift holds.
+
+### Deviations from the queue, measured
+
+- **The air coefficient ramps over 5 ms, not across one 64-sample block.** The queue's per-block
+  interpolation was built first. A linear ramp left an air 1 → 0.05 jump at 10x a control on a
+  200 Hz tone, and smoothstep across 64 samples still left 4.2x. 5 ms brings it to 1.58x. Under
+  motion the cutoff now trails the puck by up to ~10 ms, alongside the gain vector's own 5 ms ramp.
+- **The decorrelator fade is 128 samples, not 32–64.** Probe DV at 200 Hz: 48 → 3.2x, 64 → 2.4x,
+  96 → 1.9x, 128 → 1.6x / 1.4x. The tap settles within 2.7 ms of the depth ramp ending.
+
+### Testing
+
+- **G6 — probe BB** asserted the exit amplitude as an *equality* with |H − 1|, on a "fc near
+  ceiling" premise v1.13.0 killed (its outside point now runs at 7.4 kHz). The exit amplitude is
+  now a ceiling; the exit *transition* moves to DU.
+- **BC re-derived.** Its separation bound modelled one ΔG jump per 64 samples. It now uses the
+  ramp's own per-sample bound, `1.5·maxΔG(64)·(N + 64)/(64·N)`, built from
+  `AirFilter::kRampMs`. The upper bound is unchanged.
+- **New probes**, each measuring the worst second difference against a matched control render,
+  with a 2x ceiling:
+  - **DU** — air transitions, at 200 Hz and 1 kHz, against an air-0 control: air 1→0 outside,
+    air 1→0.05, orbit 16 m → Motion OFF, outside → centre.
+  - **DV** — decorr 0.5→1 and width 0.5→2 m at 200 Hz, against a decorr-0 control.
+  - **DW** — delay 5↔46.5 ms on one speaker, at 200 Hz and 1 kHz, against a held-delay control.
+- **Negative control:** against the unfixed v1.14.1 DSP these three probes fail at DU 4.5x–542x,
+  DV 26x / 23x and DW 24x–147x; every other probe passed.
+- Render harness 81/0 (78 + DU, DV, DW); geometry 60/0. CU `0x8ae2ed8c37b3be56` and DC
+  `0xdef4e5ef94849f76` unchanged.
+- pluginval strictness 10 (VST3) SUCCESS; `auval -v aufx OuOc OuDv` PASS.
+
 ## [1.14.1] - 2026-10-12
 
 Four regressions in v1.14.0's preset rail. PATCH: no parameter, preset-format or session change.

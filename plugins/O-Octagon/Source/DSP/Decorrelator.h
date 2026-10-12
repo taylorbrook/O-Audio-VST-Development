@@ -22,6 +22,8 @@
 #include <array>
 #include <cstddef>
 
+#include "TapCrossfade.h"
+
 namespace oo
 {
 
@@ -127,6 +129,16 @@ namespace decorr
         differ enough to place the feeds separately at all; below it they are landing on the same
         speakers regardless. */
     inline constexpr float kFullDepthWidthMetres = 2.0f;
+
+    /** v1.15.0 (B9) — the tap crossfade, in samples at 48 kHz (2.67 ms), scaled to the running rate.
+
+        LONGER THAN THE QUEUE'S 32-64, MEASURED. During a 5 ms depth ramp the tap is chased in
+        fade-length strides, so the gap between the two taps being blended grows with the fade
+        while the blend's curvature falls with its square: the zipper falls roughly as 1/N. Probe
+        DV (200 Hz, against a decorr-0 control, ceiling 2x): 48 -> 3.2x / 2.9x, 64 -> 2.1x / 2.4x,
+        96 -> 1.7x / 1.9x, 128 -> 1.6x / 1.4x. The cost is lag: the tap lands on its target
+        within one fade (2.7 ms) of the depth ramp stopping, inside the 5 ms the ramp itself takes. */
+    inline constexpr int kTapFadeSamplesAt48k = 128;
 }
 
 //==============================================================================
@@ -189,9 +201,9 @@ public:
         sweeps nine depths and asserts the gain at every one.
 
         An integer read has no interpolator, so every section is exactly all-pass at every depth.
-        The cost is that a delay STEPS by a sample as depth sweeps rather than gliding; see
-        Decorrelator::process for why that is inaudible here and is not the alignment delay's
-        situation.
+        The cost is that a delay STEPS by a sample as depth sweeps rather than gliding. That was
+        once argued inaudible; it was not (B9), and since v1.15.0 Decorrelator::process crossfades
+        the old and new integer taps through processBlend() below instead of stepping.
     */
     float process (float x, int delaySamples, float g) noexcept
     {
@@ -208,6 +220,25 @@ public:
         writeIndex = (writeIndex + 1) & kMask;
 
         return delayed - g * w;
+    }
+
+    /** v1.15.0 (B9) — the same section reading TWO integer taps and crossfading them, while a
+        delay change is in flight. Each tap is still an integer read (no interpolator, so nothing
+        lowpasses); only the blend between them is fractional, and only for TapCrossfade's
+        fade length. Off the fade, process() above runs unchanged. */
+    float processBlend (float x, int fromSamples, int toSamples, float w, float g) noexcept
+    {
+        const float a = buffer[static_cast<std::size_t> ((writeIndex - fromSamples) & kMask)];
+        const float b = buffer[static_cast<std::size_t> ((writeIndex - toSamples)   & kMask)];
+
+        const float delayed = a + w * (b - a);
+
+        const float wv = x + g * delayed;
+
+        buffer[static_cast<std::size_t> (writeIndex)] = wv;
+        writeIndex = (writeIndex + 1) & kMask;
+
+        return delayed - g * wv;
     }
 
 private:
@@ -248,6 +279,13 @@ public:
             baseSamples[static_cast<std::size_t> (k)] = scaled < ceiling ? scaled : ceiling;
         }
 
+        // v1.15.0 (B9) — 128 samples at 48 kHz (2.67 ms), scaled so the fade is the same TIME at
+        // every rate, for the bases' own reason above.
+        const auto fade = static_cast<int> (static_cast<float> (decorr::kTapFadeSamplesAt48k) * scale + 0.5f);
+
+        for (auto& t : taps)
+            t.setLength (fade);
+
         reset();
     }
 
@@ -255,6 +293,11 @@ public:
     {
         for (auto& s : sections)
             s.reset();
+
+        // The rings are empty, so there is nothing to fade FROM: the first sample after a reset
+        // adopts whatever depth is wanted then.
+        for (auto& t : taps)
+            t.unprime();
     }
 
     /** @param x      the feed
@@ -281,9 +324,14 @@ public:
             // follow it. The delays are also 56-521 samples long, so a one-sample step is under
             // 2% of the shortest — a change in the diffusion pattern, not in the waveform.
             //
-            // And it only happens while the control is MOVING. Depth is a set-and-forget control
-            // reached through a 5 ms ramp; a static setting re-derives the same integers every
-            // control block and nothing steps at all.
+            // v1.15.0 (B9) — THE STEP WAS NOT INAUDIBLE. The argument above held for the
+            // "set-and-forget" control it assumed, and depth is not one: it ramps over 5 ms on
+            // every decorr move and TRACKS wEff below 2 m, so a width lane moving there steps every
+            // tap many times a second. Measured 28x / 34x a decorr-0 control (REVIEW-v1.13.1 B9,
+            // probe DV). The integer read stays — it is what keeps the section all-pass — and a
+            // change now crossfades the old and new taps over kTapFadeSamplesAt48k, one change in
+            // flight. A static setting still re-derives the same integer every sample, next()
+            // returns exactly 1, and process() runs as before: CV's static depths are untouched.
             const auto wanted = static_cast<int> (baseSamples[static_cast<std::size_t> (k)] * depth
                                                   + 0.5f);
 
@@ -291,7 +339,13 @@ public:
                         : wanted > AllPassSection::kMaxDelaySamples ? AllPassSection::kMaxDelaySamples
                                                                     : wanted;
 
-            y = sections[static_cast<std::size_t> (k)].process (y, d, decorr::kFeedback);
+            auto& tap = taps[static_cast<std::size_t> (k)];
+            auto& sec = sections[static_cast<std::size_t> (k)];
+
+            const float w = tap.next (d);
+
+            y = w == 1.0f ? sec.process (y, tap.to, decorr::kFeedback)
+                          : sec.processBlend (y, tap.from, tap.to, w, decorr::kFeedback);
         }
 
         return y;
@@ -302,6 +356,9 @@ private:
 
     /// The rate-scaled bases. Multiplied by depth at every sample — see process().
     std::array<float, kNumSections> baseSamples {};
+
+    /// v1.15.0 (B9) — each section's read position, crossfaded on change.
+    std::array<TapCrossfade<int>, kNumSections> taps {};
 };
 
 } // namespace oo

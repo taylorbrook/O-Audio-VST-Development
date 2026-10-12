@@ -32,6 +32,13 @@ namespace oo
 
 namespace
 {
+    /// v1.15.0 (B8) — the air blend's shape. Exact at 0 and 1, C1 at both ends.
+    inline float smoothstep (float t) noexcept { return t * t * (3.0f - 2.0f * t); }
+}
+
+
+namespace
+{
     //==========================================================================
     // v1.3.0 — the srcZ proximity cue (§ audibility fix).
     //
@@ -162,7 +169,14 @@ void GainStage::prepare (double sampleRateToUse, int samplesPerBlock,
     //     Same ramp length as the gains and that is deliberate: a venue edit moves a trim and a
     //     delay together, and two different ramp lengths would make the pair audibly disagree
     //     about when the edit landed.
-    for (auto& s : delaySamples) s.reset (sampleRateToUse, 0.005);
+    //
+    //     v1.15.0 (B13): not ramps any more — two-tap crossfades over kDelayFadeMs. Same step, same
+    //     reason; the fade length is the rate-dependent part.
+    for (auto& t : delayTap)
+    {
+        t.setLength (static_cast<int> (std::lround (kDelayFadeMs * 0.001 * sampleRateToUse)));
+        t.unprime();
+    }
 
     //     ── v1.5.0's two decorrelator ramps, on the SAME 5 ms, in the SAME step ──────────────
     //     The mix is a bypass crossfade and the depth is a control ramp, but both want the length
@@ -170,6 +184,10 @@ void GainStage::prepare (double sampleRateToUse, int samplesPerBlock,
     //     than the width ramp it belongs to would make one gesture arrive twice.
     decorrMix.reset   (sampleRateToUse, 0.005);
     decorrDepth.reset (sampleRateToUse, 0.005);
+
+    //     ── v1.15.0's two air blends (B8), on the SAME 5 ms, in the SAME step ─────────────────
+    airMixL.reset (sampleRateToUse, 0.005);
+    airMixR.reset (sampleRateToUse, 0.005);
 
     //     ── and the air filters, in the SAME step (PLAN-2.3 P30) ─────────────────────────────
     //     filter.prepare() is the analogous state teleport, so it belongs beside the seventeen
@@ -186,8 +204,8 @@ void GainStage::prepare (double sampleRateToUse, int samplesPerBlock,
                                         static_cast<juce::uint32> (samplesPerBlock),
                                         1 };
 
-    airL.prepare (spec);
-    airR.prepare (spec);
+    airL.prepare (sampleRateToUse);
+    airR.prepare (sampleRateToUse);
 
     //     ── and the eight alignment lines, in the same step, for the same reason (v1.4.0) ────
     //
@@ -235,6 +253,7 @@ void GainStage::prepare (double sampleRateToUse, int samplesPerBlock,
     // from the first solve, so a render that begins outside the hull takes the false->true edge and
     // gets its seed exactly as a mid-render crossing would.
     airActiveL = airActiveR = false;
+    airRunL    = airRunR    = false;
     airSeedPendingL = airSeedPendingR = false;
 
     // 3 — force a solve. haveSolved is cleared so the dirty check cannot short-circuit the one
@@ -264,7 +283,17 @@ void GainStage::prepare (double sampleRateToUse, int samplesPerBlock,
     //     would slide the read pointer across the head of every bounce, which is both audible and
     //     NOT block-size invariant to measure — QUAL-03 would still pass (both renders would slide
     //     identically) and QUAL-01's lead-in would be wrong.
-    for (auto& s : delaySamples) s.setCurrentAndTargetValue (s.getTargetValue());
+    for (std::size_t i = 0; i < static_cast<std::size_t> (kNumSpeakers); ++i)
+        delayTap[i].snap (delayTarget[i]);
+
+    //     v1.15.0 (B8) — the air blends and the G ramps, for the gains' reason: a render that
+    //     BEGINS outside the near field must start filtered, not 5 ms into a fade from dry. The
+    //     run flags need no re-derivation: updateControl() above took the run edge (and armed the
+    //     seed) on the target alone, and a teleported blend at 0 means airActive was false there.
+    airMixL.setCurrentAndTargetValue (airMixL.getTargetValue());
+    airMixR.setCurrentAndTargetValue (airMixR.getTargetValue());
+    airL.snapToTarget();
+    airR.snapToTarget();
 
     //     And the decorrelator's two, for the gains' reason rather than the delays': a render that
     //     BEGINS decorrelated must start at full mix, or its first 5 ms would be a crossfade out
@@ -293,7 +322,7 @@ void GainStage::prepare (double sampleRateToUse, int samplesPerBlock,
 
     for (std::size_t i = 0; i < static_cast<std::size_t> (kNumSpeakers); ++i)
     {
-        delayActive[i] = delaySamples[i].getCurrentValue() > 0.0f;
+        delayActive[i] = delayTap[i].to > 0.0f;
         delayEngaged   = delayEngaged || delayActive[i];
     }
 
@@ -515,14 +544,18 @@ void GainStage::updateControl (const VenueSnapshot& snapshot, const ParamSnapsho
                                                      snapshot.centroid.x, snapshot.centroid.y,
                                                      snapshot.rigScale);
 
-    // The cutoff is set UNCONDITIONALLY, even on a filter that is about to be skipped. Setting it
-    // is free at control rate, it keeps the counter identity airCutoffUpdates == solveRuns * 2
-    // exact (P32), and it means a filter re-entering the active state already carries the right
-    // coefficient rather than one control block of a stale one.
-    airL.setCutoffFrequency (hullproc::airCutoffHz (p[params::airAmount], dAirL,
-                                                    snapshot.rigScale, sampleRate));
-    airR.setCutoffFrequency (hullproc::airCutoffHz (p[params::airAmount], dAirR,
-                                                    snapshot.rigScale, sampleRate));
+    // The cutoff is EVALUATED unconditionally, even for a filter that is about to be skipped: it
+    // is free at control rate and it keeps the counter identity airCutoffUpdates == solveRuns * 2
+    // exact (P32).
+    //
+    // v1.15.0 (B8): it is APPLIED only while the filter is WANTED, below — the decorrDepth rule.
+    // airAmount -> 0 and a source entering the near field both drive the cutoff to the CEILING
+    // at the same boundary the blend starts fading the filter out, so applying it there would
+    // sweep the filter from ~550 Hz to 20 kHz underneath the fade (measured: 12x a control at
+    // 200 Hz, against 1.5x with the cutoff held). Held, the fade-out is a clean blend at the
+    // cutoff the listener was hearing.
+    const float fcL = hullproc::airCutoffHz (p[params::airAmount], dAirL, snapshot.rigScale, sampleRate);
+    const float fcR = hullproc::airCutoffHz (p[params::airAmount], dAirR, snapshot.rigScale, sampleRate);
 
     instr::countAirCutoffUpdate();
     instr::countAirCutoffUpdate();
@@ -533,41 +566,52 @@ void GainStage::updateControl (const VenueSnapshot& snapshot, const ParamSnapsho
     // near field at ANY airAmount (DSP-07/6, boundary moved from the hull to the near field in
     // v1.13.0), which is what keeps the shipping default patch bit-transparent. Both halves are
     // the same test.
-    const bool wasActiveL = airActiveL;
-    const bool wasActiveR = airActiveR;
-
     airActiveL = p[params::airAmount] > 0.0f && dAirL > 0.0f;
     airActiveR = p[params::airAmount] > 0.0f && dAirR > 0.0f;
 
-    // P27 / H1 — the false->true edge arms a re-seed, and the seed makes the entry BIT-EXACT.
+    // ── v1.15.0 (B8) — THE BLEND, AND THE RUN FLAG IT KEEPS ALIVE ─────────────────────────────
+    //
+    // airActive no longer switches the filter; it sets the blend's target. The filter keeps RUNNING
+    // while the blend fades out beneath it — the decorrelator's exact shape (decorrEngaged).
+    airMixL.setTargetValue (airActiveL ? 1.0f : 0.0f);
+    airMixR.setTargetValue (airActiveR ? 1.0f : 0.0f);
+
+    // The G ramp's TARGET — the block that follows interpolates to it per sample from the previous
+    // boundary's value instead of stepping (AirFilter.h). Only while wanted; see above.
+    if (airActiveL) airL.setCutoff (fcL);
+    if (airActiveR) airR.setCutoff (fcR);
+
+    const bool wasRunL = airRunL;
+    const bool wasRunR = airRunR;
+
+    airRunL = airActiveL || airMixL.getCurrentValue() > 0.0f || airMixL.isSmoothing();
+    airRunR = airActiveR || airMixR.getCurrentValue() > 0.0f || airMixR.isSmoothing();
+
+    // P27 / H1 — the false->true RUN edge arms a re-seed, and the seed makes the entry BIT-EXACT.
     // processSample computes v = G*(x - s), so seeding s = x gives v = 0.0f exactly and y = x on
     // every toolchain, at every cutoff, at every entry speed. §3.5.2's original policy (reset to 0)
     // produces a click at 430% of the signal's own maximum per-sample slew at 1 kHz, and D2's
-    // "leave the state resident" produces 521%. This produces zero.
-    if (airActiveL && ! wasActiveL) airSeedPendingL = true;
-    if (airActiveR && ! wasActiveR) airSeedPendingR = true;
-
-    // ── DSP-07/7 — reset ONLY on the airAmount -> 0 TRANSITION ────────────────────────────────
+    // "leave the state resident" produces 521%. This produces zero — and since v1.15.0 the blend
+    // then fades the filter in from that exact start.
     //
-    // A transition, not a state test: `if (airAmount == 0) reset()` would re-zero on every control
-    // block for as long as the control stays down, which is observationally the same here but is
-    // not what the criterion says, and it invites the collapse below.
+    // THE RUN EDGE, NOT THE airActive EDGE. A source re-entering while its fade-out is still
+    // running has a LIVE filter whose state is the programme's own; re-seeding it there would
+    // step the output the blend is in the middle of carrying.
     //
-    // AND NOT ON EVERY d_air == 0 BLOCK — the distinction is the single most likely thing to be
-    // "simplified" away later. A puck oscillating across the near-field edge crosses d_air == 0
-    // repeatedly; re-zeroing there would be the self-inflicted damage D2 rejected, and it would
-    // also destroy the bit-exact entry above, because a filter that was just zeroed has s = 0
-    // rather than s = x. Turning the CONTROL off is a different act: the user has defeated the
-    // stage, so there is no continuity left to preserve.
-    const bool airEnabled = p[params::airAmount] > 0.0f;
+    // The coefficient SNAPS on the same edge: a filter that was not running has no trajectory to
+    // continue, and ramping G in from whatever it was held at last time would sweep the cutoff
+    // under the fade-in for no reason.
+    if (airRunL && ! wasRunL) { airSeedPendingL = true; airL.snapToTarget(); }
+    if (airRunR && ! wasRunR) { airSeedPendingR = true; airR.snapToTarget(); }
 
-    if (airWasEnabled && ! airEnabled)
-    {
-        airL.reset();
-        airR.reset();
-    }
-
-    airWasEnabled = airEnabled;
+    // ── DSP-07/7 — THE airAmount -> 0 RESET IS GONE (v1.15.0) ─────────────────────────────────
+    //
+    // It zeroed both filters on the edge — the very block the new blend starts fading the filtered
+    // signal OUT, so it would have stepped the output to 0 under a mix of 1 (B8's "air lane to 0",
+    // 52x). Nothing needed it: a filter that stops running is seeded with s = x by the run edge
+    // above before it produces another sample, so a zeroed state was always overwritten unread
+    // (BD's scope note already said the two policies are observationally equivalent). The
+    // criterion's intent — no stale state carried into a re-engage — is met by the seed.
 
     // ── v1.5.0 — THE DECORRELATOR'S GATE AND ITS DEPTH ────────────────────────────────────────
     //
@@ -680,7 +724,7 @@ void GainStage::updateControl (const VenueSnapshot& snapshot, const ParamSnapsho
                                             static_cast<float> (static_cast<double> (snapshot.delayMs[k])
                                                                 * 0.001 * sampleRate));
 
-        delaySamples[k].setTargetValue (samples);
+        delayTarget[k] = samples;
 
         // ACTIVE WHILE RAMPING DOWN, NOT ONLY WHILE THE TARGET IS NONZERO. A speaker returning
         // 12 ms -> 0 has a target of 0 the instant the edit lands; gating on the target alone
@@ -688,7 +732,10 @@ void GainStage::updateControl (const VenueSnapshot& snapshot, const ParamSnapsho
         // that has been written to the line and not yet read — an audible click on exactly the
         // edit that was supposed to remove one. isSmoothing() keeps it reading until the ramp
         // reaches zero, where the two paths meet continuously.
-        delayActive[k] = samples > 0.0f || delaySamples[k].isSmoothing();
+        //
+        // v1.15.0 (B13): "still ramping" is now "the tap still reads a nonzero position, or is
+        // fading" — a target of 0 is reached when the sample loop's crossfade lands on it.
+        delayActive[k] = samples > 0.0f || delayTap[k].to > 0.0f || delayTap[k].isFading();
 
         anyDelay = anyDelay || delayActive[k];
     }
@@ -829,11 +876,41 @@ void GainStage::renderChunk (juce::AudioBuffer<float>& buffer, int start, int co
             // The skip gates processSample AND NOTHING ELSE — every getNextValue() below still runs
             // exactly once, unconditionally (constraint 6, H10). That is what keeps QUAL-03 true
             // across a hull crossing.
-            const float fL = airActiveL ? airL.processSample (0, sL) : sL;
-            const float fR = airActiveR ? airR.processSample (0, sR) : sR;
+            //
+            // v1.15.0 (B8): the blends advance unconditionally too, and the filter runs on airRun
+            // (active, or fading out). LERP, the decorrelator's form: at a blend of exactly 0 it is
+            // `sL + 0.0f * (y - sL)` = sL, and at exactly 1 y is taken directly rather than through
+            // `sL + (y - sL)`, which is NOT always y in float.
+            //
+            // The blend is SHAPED by smoothstep on top of the linear 5 ms ramp, which keeps both
+            // ends exact (S(0) = 0, S(1) = 1) and removes the ramp's corners. Unshaped, those
+            // corners alone left an air 1 -> 0 fade at 2.7x a control at 200 Hz (probe DU): the
+            // filter runs as low as 552 Hz, so LP(x) − x is a large fraction of the programme.
+            const float mL = smoothstep (airMixL.getNextValue());
+            const float mR = smoothstep (airMixR.getNextValue());
 
-            if (airActiveL) { instr::countAirSampleFiltered(); lastL = fL; }
-            if (airActiveR) { instr::countAirSampleFiltered(); lastR = fR; }
+            // The G ramps advance unconditionally as well — run or not — for the same reason.
+            const float GL = airL.nextGain();
+            const float GR = airR.nextGain();
+
+            float fL = sL;
+            float fR = sR;
+
+            if (airRunL)
+            {
+                const float y = airL.process (sL, GL);
+                fL = mL == 1.0f ? y : sL + mL * (y - sL);
+                instr::countAirSampleFiltered();
+                lastL = y;
+            }
+
+            if (airRunR)
+            {
+                const float y = airR.process (sR, GR);
+                fR = mR == 1.0f ? y : sR + mR * (y - sR);
+                instr::countAirSampleFiltered();
+                lastR = y;
+            }
 
             // ── v1.5.0 — THE DECORRELATOR ─────────────────────────────────────────────────────
             //
@@ -881,9 +958,12 @@ void GainStage::renderChunk (juce::AudioBuffer<float>& buffer, int start, int co
 
                 // v1.4.0. ADVANCED UNCONDITIONALLY, OUTSIDE THE delayEngaged BRANCH — the same
                 // rule the seventeen live under (§3.6.4), and it matters here for the same reason:
-                // delayEngaged can flip between chunks, and a ramp that froze while unengaged
-                // would resume from a stale currentValue on the chunk that re-engages it.
-                const float d = delaySamples[k].getNextValue();
+                // delayEngaged can flip between chunks, and a fade that froze while unengaged
+                // would resume mid-flight on the chunk that re-engages it.
+                //
+                // v1.15.0 (B13): a two-tap crossfade, not a sliding read position.
+                auto&       tap = delayTap[k];
+                const float w   = tap.next (delayTarget[k]);
 
                 // ── THE ZERO-DELAY VENUE IS THE LITERAL v1.3.5 EXPRESSION ────────────────────
                 //
@@ -900,7 +980,21 @@ void GainStage::renderChunk (juce::AudioBuffer<float>& buffer, int start, int co
                     // the gate is global rather than per-speaker — see the header.
                     alignDelay[k].pushSample (0, y);
 
-                    const float delayed = alignDelay[k].popSample (0, d);
+                    // Settled (w == 1): the single read v1.4.0 made, at a stationary position —
+                    // CS's bit-exact shift is this line. Fading: the old tap WITHOUT advancing the
+                    // read pointer, then the new one WITH it, so the pair is still one pop per push.
+                    float delayed;
+
+                    if (w == 1.0f)
+                    {
+                        delayed = alignDelay[k].popSample (0, tap.to);
+                    }
+                    else
+                    {
+                        const float a = alignDelay[k].popSample (0, tap.from, false);
+                        const float b = alignDelay[k].popSample (0, tap.to);
+                        delayed = a + w * (b - a);
+                    }
 
                     out[i][n - off] = delayActive[k] ? delayed : y;
                 }
@@ -1071,6 +1165,14 @@ void GainStage::renderChunk (juce::AudioBuffer<float>& buffer, int start, int co
             const float g = outGain.getNextValue();
             juce::ignoreUnused (g);
 
+            // v1.15.0 (B8) — the air blends and G ramps advance here for the seventeen's reason.
+            // The filter STATES are untouched, exactly as before.
+            const float advancedML = airMixL.getNextValue();
+            const float advancedMR = airMixR.getNextValue();
+            const float advancedGL = airL.nextGain();
+            const float advancedGR = airR.nextGain();
+            juce::ignoreUnused (advancedML, advancedMR, advancedGL, advancedGR);
+
             for (int i = 0; i < kNumSpeakers; ++i)
             {
                 const float advancedL = gL[static_cast<std::size_t> (i)].getNextValue();
@@ -1083,7 +1185,8 @@ void GainStage::renderChunk (juce::AudioBuffer<float>& buffer, int start, int co
                 // REAL mode. The lines themselves are NOT clocked here — SAFE mode writes the dry
                 // input at unity and there is no speaker N to align — which is the same split the
                 // air filter uses (state untouched, pending seed left pending).
-                const float advancedD = delaySamples[static_cast<std::size_t> (i)].getNextValue();
+                const float advancedD = delayTap[static_cast<std::size_t> (i)]
+                                            .next (delayTarget[static_cast<std::size_t> (i)]);
 
                 juce::ignoreUnused (advancedL, advancedR, advancedD);
             }

@@ -7,7 +7,8 @@ status: in_progress
 completed:
   - "Round 1 — stereo bus first-class + silent data loss (v1.13.2, 2026-10-11)"
   - "Round 2 — presets that behave (v1.14.0, 2026-10-11)"
-next: "/improve-verify + /publish (Rounds 1-2 fix publicly shipped defects), then Round 3a"
+  - "Round 3a — clean transitions, the smoothing trio (v1.15.0, 2026-10-12)"
+next: "/improve-verify + /publish (Rounds 1-2 fix publicly shipped defects), then Round 3b"
 supersedes: >
   The 2026-08-25 queue (last committed at 0c7154f2). Its rounds 1–3 shipped as v1.3.1–v1.3.2; its
   round 5 was partly applied (v1.3.3–v1.3.5); its rounds 6–8 and the motion milestone shipped as
@@ -75,7 +76,12 @@ Rounds 1–2 fix defects that shipped publicly in v1.13.0, so publish once they 
 
 ---
 
-## Round 3a — clean transitions, the smoothing trio → MINOR v1.15.0
+## ~~Round 3a — clean transitions, the smoothing trio → MINOR v1.15.0~~ ✅ DONE (v1.15.0, 2026-10-12)
+
+Shipped with two measured deviations recorded in the CHANGELOG: the air coefficient ramps over
+5 ms (one change in flight) rather than across one control block, and the decorrelator tap fade
+is 128 samples @48k rather than 32–64. Probes DU/DV/DW use a worst-second-difference ratio against
+a matched control, with a 2x ceiling.
 
 ```
 /clear
