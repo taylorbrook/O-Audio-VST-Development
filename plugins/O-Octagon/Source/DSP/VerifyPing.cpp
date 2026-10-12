@@ -77,13 +77,13 @@ void VerifyPing::prepare (double sampleRateToUse)
     // GainStage::prepare() states for the seventeen smoothers. Nothing below ever calls reset().
     b0 = b1 = b2 = 0.0f;
 
-    phase        = Phase::idle;
-    phaseCounter = 0;
+    clearRun();
     runCounter   = 0;
     speaker      = 0;
     mode         = 0;
 
     command.store (kCmdNone, std::memory_order_release);
+    killPending.store (false, std::memory_order_release);
     activeFlag.store (false, std::memory_order_release);
     publish();
 }
@@ -109,17 +109,46 @@ void VerifyPing::stop()
 
 void VerifyPing::abort()
 {
-    // ATOMICS ONLY. This is what makes the call safe from the message thread (editor destructor)
-    // AND from the audio thread (bypass, and the mapped -> not-mapped flip) without a lock and
-    // without touching a single audio-thread-private member. The stale phase state left behind is
-    // irrelevant: beginRun() re-initialises all of it.
+    // v1.15.2 (B14) — stop()'s release, with the published state cleared NOW. activeFlag stays
+    // true so the audio thread is still called and can run the fade; it clears the flag itself.
+    // The UI atomics are zeroed here as well as by the audio thread's publish() (`aborting`), so
+    // the editor never reads the withdrawn speaker, not even for the block before the command lands.
     command.store (kCmdAbort, std::memory_order_release);
+
+    modeOut.store (0, std::memory_order_release);
+    speakerOut.store (0, std::memory_order_release);
+    elapsedMsOut.store (0, std::memory_order_release);
+    remainingMsOut.store (0, std::memory_order_release);
+}
+
+void VerifyPing::kill()
+{
+    // ATOMICS ONLY. This is what makes the call safe from the message thread AND from the audio
+    // thread (bypass, the mapped -> not-mapped flip, an offline render) without a lock and without
+    // touching a single audio-thread-private member. The run state left behind is cleared by the
+    // next overwrite() through killPending — before it reads the command, so a start() posted after
+    // this kill still begins from silence (v1.15.2: the envelopes are positions, and a stale one
+    // would make that start a "retarget" of a run nobody can hear).
+    killPending.store (true, std::memory_order_release);
+    command.store (kCmdNone, std::memory_order_release);
     activeFlag.store (false, std::memory_order_release);
 
     modeOut.store (0, std::memory_order_release);
     speakerOut.store (0, std::memory_order_release);
     elapsedMsOut.store (0, std::memory_order_release);
     remainingMsOut.store (0, std::memory_order_release);
+}
+
+void VerifyPing::clearRun() noexcept
+{
+    phase         = Phase::idle;
+    phaseCounter  = 0;
+    envPos        = 0;
+    duckPos       = 0;
+    pendingTarget = 0;
+    ending        = false;
+    stopping      = false;
+    aborting      = false;
 }
 
 //==============================================================================
@@ -136,13 +165,23 @@ VerifyPing::State VerifyPing::getState() const noexcept
 
 void VerifyPing::publish() noexcept
 {
-    const bool live = phase != Phase::idle;
+    // v1.15.2 — an abort's fade is not a run the operator can see.
+    const bool live = phase != Phase::idle && ! aborting;
 
     modeOut.store (live ? mode : 0, std::memory_order_release);
 
     // The speaker is 0 during a gap, so a UI that lights the returned index goes dark between
     // steps rather than holding the previous one lit through 400 ms of silence.
-    speakerOut.store (phase == Phase::gap || ! live ? 0 : speaker, std::memory_order_release);
+    //
+    // v1.15.2: a retarget names its NEW speaker at once, while the old one fades out beneath it —
+    // the operator asked for that speaker, and the fade is 20 ms of the previous answer.
+    const int pendingSpeaker = pendingTarget == kAuto ? 1 : pendingTarget;
+
+    speakerOut.store (! live ? 0
+                      : pendingTarget != 0 ? pendingSpeaker
+                      : phase == Phase::gap ? 0
+                      : speaker,
+                      std::memory_order_release);
 
     const double msPerSample = sampleRate > 0.0 ? 1000.0 / sampleRate : 0.0;
     const int total = mode == 2 ? juce::jmax (1, kNumSpeakers * (onSamples + gapSamples)) : latchSamples;
@@ -155,11 +194,18 @@ void VerifyPing::publish() noexcept
 //==============================================================================
 void VerifyPing::beginRun (int target) noexcept
 {
+    // The ping envelope is at 0 here by construction — a retarget waits for the old speaker's
+    // fade-out — so the fade-in below is the v1.15.1 one sample for sample. duckPos is NOT touched:
+    // a retarget keeps the programme ducked, and a fresh run raises it with this fade-in.
+    jassert (envPos == 0);
+
     mode         = target == kAuto ? 2 : 1;
     speaker      = target == kAuto ? 1 : target;
     phase        = Phase::fadeIn;
     phaseCounter = 0;
     runCounter   = 0;
+
+    pendingTarget = 0;
 }
 
 //==============================================================================
@@ -186,29 +232,49 @@ float VerifyPing::nextSample() noexcept
 //==============================================================================
 void VerifyPing::overwrite (float* const* out, int numSpeakers, int start, int count) noexcept
 {
+    // ── v1.15.2 — a kill() lands first. Its run is gone, and a start() posted after it must begin
+    //    from silence rather than "retarget" a fade position nobody can hear. ─────────────────────
+    if (killPending.exchange (false, std::memory_order_acq_rel))
+        clearRun();
+
     // ── Consume the pending command. exchange() so a command posted between two blocks is seen
     //    exactly once, without the message thread ever reading audio-thread state. ───────────────
     const int cmd = command.exchange (kCmdNone, std::memory_order_acq_rel);
 
-    if (cmd == kCmdAbort)
+    if (cmd == kCmdStop || cmd == kCmdAbort)
     {
-        phase = Phase::idle;
-        activeFlag.store (false, std::memory_order_release);
-        publish();
-        return;                                     // NOTHING is written — normal audio stands
-    }
-
-    if (cmd == kCmdStop)
-    {
-        if (phase != Phase::idle && phase != Phase::fadeOut)
+        // v1.15.2 (B14). Both are the release now; abort() differs only in what it publishes.
+        // FROM WHEREVER THE ENVELOPES ARE: entering fadeOut no longer restarts a counter at full
+        // level, so a stop in a gap (ping at 0) just brings the programme back, and a stop during
+        // the fade-in falls from the level it had reached.
+        if (phase != Phase::idle)
         {
-            phase        = Phase::fadeOut;
-            phaseCounter = 0;
+            phase         = Phase::fadeOut;
+            phaseCounter  = 0;
+            pendingTarget = 0;
+            ending        = true;
+            stopping      = true;
+            aborting      = aborting || cmd == kCmdAbort;
         }
     }
     else if (cmd == kAuto || (cmd >= 1 && cmd <= kNumSpeakers))
     {
-        beginRun (cmd);
+        ending   = false;
+        stopping = false;
+        aborting = false;
+
+        if (envPos == 0)
+        {
+            beginRun (cmd);                         // nothing sounding: start now
+        }
+        else
+        {
+            // v1.15.2 (B14) — A RETARGET FADES THE OLD SPEAKER OUT FIRST. Through v1.15.1
+            // beginRun() restarted the envelope at 0 on the next sample: a hard cut of the ping.
+            pendingTarget = cmd;
+            phase         = Phase::fadeOut;
+            phaseCounter  = 0;
+        }
     }
 
     if (phase == Phase::idle)
@@ -225,27 +291,16 @@ void VerifyPing::overwrite (float* const* out, int numSpeakers, int start, int c
     // sample it would be the most expensive thing in the routine by an order of magnitude.
     const float ceiling = juce::Decibels::decibelsToGain (kPeakCeilDb);
 
+    const float invFade = 1.0f / static_cast<float> (fadeSamples);
+
     for (int n = start; n < last; ++n)
     {
-        float env = 0.0f;
-
-        switch (phase)
-        {
-            case Phase::fadeIn:
-                env = raisedCosine (static_cast<float> (phaseCounter) / static_cast<float> (fadeSamples));
-                break;
-            case Phase::sustain:
-                env = 1.0f;
-                break;
-            case Phase::fadeOut:
-                env = raisedCosine (1.0f - static_cast<float> (phaseCounter) / static_cast<float> (fadeSamples));
-                break;
-            case Phase::gap:
-            case Phase::idle:
-            default:
-                env = 0.0f;
-                break;
-        }
+        // ── v1.15.2 — BOTH ENVELOPES ARE POSITIONS ──────────────────────────────────────────────
+        // The fade-in reads raisedCosine (envPos / fadeSamples) with envPos counting 0, 1, ... —
+        // v1.15.1's fadeIn expression exactly. A fade-out walks the same position back down, so
+        // it starts from wherever the fade-in had got to.
+        const float env  = envPos  >= fadeSamples ? 1.0f : raisedCosine (static_cast<float> (envPos)  * invFade);
+        const float duck = duckPos >= fadeSamples ? 1.0f : raisedCosine (static_cast<float> (duckPos) * invFade);
 
         // The generator runs even through the gap. Stopping and restarting it would put a
         // deterministic transient at every step boundary, which is precisely what the envelope
@@ -257,12 +312,34 @@ void VerifyPing::overwrite (float* const* out, int numSpeakers, int start, int c
         // change to the network cannot quietly raise what leaves the PA.
         const float y = juce::jlimit (-ceiling, ceiling, s);
 
-        // ── EXACTLY ONE LANE SOUNDS; THE OTHER SEVEN ARE EXACT ZERO ─────────────────────────────
+        // ── EXACTLY ONE LANE SOUNDS; THE OTHER SEVEN ARE EXACT ZERO — WHILE THE DUCK IS DOWN ────
         // Not "attenuated" — zero. Probe BQ asserts the seven against 0.0f rather than against a
         // threshold, on a NON-IDENTITY map, which is what makes it a test of speakerToBuffer rather
         // than of whatever out[i] happened to be.
-        for (int i = 0; i < lanes; ++i)
-            out[i][n] = (i + 1) == speaker ? y : 0.0f;
+        //
+        // v1.15.2 (B14): the duck at exactly 1 is a BRANCH to that v1.15.1 write, so the zero is
+        // structural. Anywhere below 1 the programme the sample loop wrote is still in out[] and is
+        // crossfaded against the ping: `ping + (1 − duck)·programme`.
+        if (duckPos >= fadeSamples)
+        {
+            for (int i = 0; i < lanes; ++i)
+                out[i][n] = (i + 1) == speaker ? y : 0.0f;
+        }
+        else
+        {
+            const float keep = 1.0f - duck;
+
+            for (int i = 0; i < lanes; ++i)
+                out[i][n] = ((i + 1) == speaker ? y : 0.0f) + keep * out[i][n];
+        }
+
+        // Step both positions toward their targets. The ping is up in fadeIn and sustain; the duck
+        // is up for the whole run until it is ENDING — a stop, an abort, the 120 s latch, or speaker
+        // 8's fade-out at the end of the auto cycle.
+        const bool envUp = phase == Phase::fadeIn || phase == Phase::sustain;
+
+        envPos  = envUp    ? juce::jmin (fadeSamples, envPos + 1)  : juce::jmax (0, envPos - 1);
+        duckPos = ! ending ? juce::jmin (fadeSamples, duckPos + 1) : juce::jmax (0, duckPos - 1);
 
         ++phaseCounter;
         ++runCounter;
@@ -279,6 +356,10 @@ void VerifyPing::overwrite (float* const* out, int numSpeakers, int start, int c
                 {
                     phase = Phase::fadeOut;
                     phaseCounter = 0;
+
+                    // v1.15.2 — the last step's fade-out hands the programme back with it, so the
+                    // cycle still ends at exactly 12.8 s (speaker 8's gap plays the programme).
+                    ending = speaker >= kNumSpeakers;
                 }
                 else if (mode == 1 && runCounter >= latchSamples - fadeSamples)
                 {
@@ -286,17 +367,35 @@ void VerifyPing::overwrite (float* const* out, int numSpeakers, int start, int c
                     // measure it offline; a juce::Timer could not be measured at all.
                     phase = Phase::fadeOut;
                     phaseCounter = 0;
+                    ending   = true;
+                    stopping = true;
                 }
                 break;
 
             case Phase::fadeOut:
-                if (phaseCounter >= fadeSamples)
+                // Done when the ping has reached zero AND, if the run is ending, the programme is
+                // fully back. From full level both take exactly fadeSamples, the v1.15.1 length.
+                if (envPos == 0 && (! ending || duckPos == 0))
                 {
-                    // EVERY on-segment is followed by its gap, INCLUDING speaker 8's — that is what
-                    // makes the cycle exactly 8 x (on + gap) rather than 8 x on + 7 x gap, which
-                    // would come to 12.4 s and fail probe BS by one gap.
-                    phase        = mode == 2 ? Phase::gap : Phase::idle;
                     phaseCounter = 0;
+
+                    if (pendingTarget != 0)
+                    {
+                        // EVERY on-segment is followed by its gap in the auto cycle; a retarget is
+                        // not part of a cycle, so it goes straight to the new speaker's fade-in.
+                        beginRun (pendingTarget);
+                    }
+                    else if (mode == 2 && ! stopping)
+                    {
+                        // EVERY on-segment is followed by its gap, INCLUDING speaker 8's — that is
+                        // what makes the cycle exactly 8 x (on + gap) rather than 8 x on + 7 x gap,
+                        // which would come to 12.4 s and fail probe BS by one gap.
+                        phase = Phase::gap;
+                    }
+                    else
+                    {
+                        phase = Phase::idle;
+                    }
                 }
                 break;
 
@@ -324,12 +423,9 @@ void VerifyPing::overwrite (float* const* out, int numSpeakers, int start, int c
 
         if (phase == Phase::idle)
         {
-            // Zero the remainder of the chunk so a run that ends mid-block leaves silence rather
-            // than the previous sample's value smeared across the tail.
-            for (int m = n + 1; m < last; ++m)
-                for (int i = 0; i < lanes; ++i)
-                    out[i][m] = 0.0f;
-
+            // Both envelopes are at 0 here, so the rest of the chunk is the programme the sample
+            // loop already wrote. v1.15.1 zeroed it instead — the step this release removes.
+            clearRun();
             break;
         }
     }

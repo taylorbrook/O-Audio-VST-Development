@@ -3,7 +3,7 @@
 ## Status
 - **Current Status:** 📦 Installed — stage-4 roll-up re-verify ✅ VERIFIED 2026-08-14, all four
   stages complete; dev-branded build (`O-Octagon-dev`), not yet released
-- **Version:** 1.15.1 (dev build installed; v1.13.0 is the public release)
+- **Version:** 1.15.2 (dev build installed; v1.13.0 is the public release)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
 - **Complexity:** 5.0 (capped; raw 13.0) — staged implementation
@@ -492,6 +492,14 @@ fact was refused twice), and none affects a recorded result:
 - AU: `~/Library/Audio/Plug-Ins/Components/O-Octagon-dev.component`
 - Installed binaries byte-identical to freeze `378fb4cd` (VST3 `928cd447…`, AU `cc54db02…`)
   — **superseded at v1.6.0/v1.7.0;** the installed build is newer than that freeze
+- **2026-10-12 (v1.15.2 — `/improve`, Round 3b: B14 B15 B17 B20 B25):** the verify ping ducks
+  the programme on its own raised cosine (held through auto gaps), fades on stop/abort/retarget
+  from its current level, and is `kill()`ed for bypass/unmapped/`isNonRealtime()`. The fold lands at
+  mix 1 on its first engage after prepare. A motion render teleports at its first boundary when only
+  the offset is new. Headphones is a 5 ms dry↔fold blend. Tail is 0.35 s. SAFE/bypass mark the REAL
+  state stale and the next REAL chunk clears it. Entering the free run re-bases the motion phase.
+  New probes DY DZ EA EB EC, all red on v1.15.1. Render 87/0, geometry 60/0, monitor-fold 20/0,
+  CU/DC unchanged. B18 deferred (changes existing session levels).
 - **2026-10-12 (v1.15.1 — `/improve`, run-flag latch):** `airRun`, `decorrEngaged` and
   `delayActive`/`delayEngaged` ("wanted, or still fading") were derived only past the dirty check,
   so with Motion off they latched true after any fade-out, and the air filter's re-entry lost its

@@ -45,6 +45,16 @@ namespace oo::motion
     observation point is a grid boundary, which is absolute, so the re-base is deterministic and
     block-size invariant. `phaseBase` is a constant of integration, not an integral.
 
+    ── v1.15.2 (B25) — ENTERING THE FREE RUN RE-BASES TOO ────────────────────────────────────────
+    The same jump happens when the BRANCH changes: Sync with a PPQ (or the stopped hold) hands
+    over to the free run, whose `phaseBase` and `lastRate` were last written minutes ago, if ever.
+    Free <-> Sync was a phase jump (v1.8.0 IN-03). At the first free-run boundary after any other
+    branch, phaseBase is re-based so the free run continues from the last returned cycles, at
+    the new rate, from the last observation point: `phaseBase = lastCycles − rate · lastT`.
+    One way only, and deliberately: ENTERING Sync with a PPQ still lands on the host's bar. That
+    branch is a lock, not a clock. Re-basing it would make a bounce depend on when the switch was
+    made, and the gains' 5 ms ramps smooth the snap.
+
     ── The four situations (Q7) ─────────────────────────────────────────────────────────────────
       Free                          cycles = rate·t + phaseBase, t = absoluteSample / sr
       Synced, host rolling with PPQ cycles = (ppqBlockStart + (Δsamples/sr)·bpm/60) · mult
@@ -72,6 +82,11 @@ struct MotionClockState
     float  lastRate    { -1.0f };   // < 0: no rate observed yet, so the first call does not re-base
     double heldCycles  { 0.0 };
     bool   haveHeld    { false };
+
+    // v1.15.2 (B25) — where the last boundary was, whichever branch computed it.
+    double lastCycles   { 0.0 };
+    double lastT        { 0.0 };
+    bool   lastFreeRun  { true };   // true at start: the first free-run call re-bases nothing
 };
 
 /// Sync choices, in MENU ORDER: index 0 is Free; 1..14 are the fourteen note divisions O-Orbit
@@ -108,13 +123,37 @@ inline double freeRunCycles (std::uint64_t absoluteSample, double sr, float rate
 {
     const double t = static_cast<double> (absoluteSample) / sr;
 
+    // v1.15.2 (B25) — arriving from the PPQ lock or the hold: continue from where that branch
+    // left the phase, at this rate. lastRate is set so the rate test below re-bases nothing more.
+    if (! st.lastFreeRun)
+    {
+        st.phaseBase = st.lastCycles - static_cast<double> (rate) * st.lastT;
+        st.lastRate  = rate;
+    }
+
     // Bitwise, not ==: -Wfloat-equal, and a rate that is the same bits is the same rate.
     if (st.lastRate >= 0.0f && std::memcmp (&rate, &st.lastRate, sizeof (float)) != 0)
         st.phaseBase += (static_cast<double> (st.lastRate) - static_cast<double> (rate)) * t;
 
     st.lastRate = rate;
 
-    return static_cast<double> (rate) * t + st.phaseBase;
+    const double cycles = static_cast<double> (rate) * t + st.phaseBase;
+
+    st.lastCycles  = cycles;
+    st.lastT       = t;
+    st.lastFreeRun = true;
+
+    return cycles;
+}
+
+/** v1.15.2 (B25) — the non-free branches record where they left the phase. */
+inline double lockedCycles (double cycles, std::uint64_t absoluteSample, double sr,
+                            MotionClockState& st) noexcept
+{
+    st.lastCycles  = cycles;
+    st.lastT       = static_cast<double> (absoluteSample) / sr;
+    st.lastFreeRun = false;
+    return cycles;
 }
 
 /** Cycles at `absoluteSample`.
@@ -146,19 +185,19 @@ inline double cyclesAt (std::uint64_t absoluteSample, double sr,
                                + (static_cast<double> (samplesSinceBlockStart) / sr) * (bpm / 60.0);
             st.heldCycles = beats * mult;
             st.haveHeld   = true;
-            return st.heldCycles;
+            return lockedCycles (st.heldCycles, absoluteSample, sr, st);
         }
 
         // Stopped, PPQ supplied: the host's own (constant) position — where playback resumes.
         st.heldCycles = clock->ppq * mult;
         st.haveHeld   = true;
-        return st.heldCycles;
+        return lockedCycles (st.heldCycles, absoluteSample, sr, st);
     }
 
     // No PPQ. If the transport has stopped feeding us one after rolling, hold; otherwise free-run
     // at the tempo-derived rate (Standalone).
     if (clock != nullptr && ! clock->playing && st.haveHeld)
-        return st.heldCycles;
+        return lockedCycles (st.heldCycles, absoluteSample, sr, st);
 
     return freeRunCycles (absoluteSample, sr, static_cast<float> ((bpm / 60.0) * mult), st);
 }

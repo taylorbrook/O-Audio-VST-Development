@@ -193,6 +193,26 @@ public:
     /** Control boundary, audio thread. Arms or disarms; the crossfade does the rest. */
     void setEngaged (bool shouldBeEngaged) noexcept;
 
+    /** v1.15.2 (B15) — ENGAGED AND ALREADY AT MIX 1. Control boundary, audio thread.
+        For the two engages whose crossfade is somebody else's job, or nobody's:
+          * the first boundary after prepare(), which forces the fold disarmed at mix 0 — a render
+            that starts folded (every offline bounce of a stereo track in Logic) opened with a
+            240-sample swell from the RAW speaker 1/2 lanes into the fold, up to 9.5 dB;
+          * the binaural arm engaging from SAFE, where GainStage's own SAFE <-> binaural blend
+            crossfades the dry pair against this fold — a second ramp here would fade raw lanes in
+            underneath it.
+        Takes setEngaged()'s clear on a false -> true edge, then lands the crossfade on 1. */
+    void engageNow() noexcept;
+
+    /** v1.15.2 — disengaged and already at mix 0: isRunning() false at once. For a disengage no
+        arm will clock — the stereo bus once the binaural blend has faded out. Left to setEngaged()
+        the fade-out would sit un-advanced, isRunning() true, until the next engage. */
+    void disengageNow() noexcept;
+
+    /** v1.15.2 (B20) — clears the lines and the shadow filters, leaving every ramp alone. For a
+        discontinuity the fold did not see: a bypass, a SAFE stretch. Audio thread. */
+    void clearState() noexcept;
+
     /** Is there anything to do? False when disengaged AND the crossfade has reached zero — which
         is the STRUCTURAL BYPASS the bit-identity claim rests on. GainStage must not call fold()
         when this is false. */

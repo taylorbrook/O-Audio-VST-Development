@@ -9,7 +9,8 @@ completed:
   - "Round 2 — presets that behave (v1.14.0, 2026-10-11)"
   - "Round 3a — clean transitions, the smoothing trio (v1.15.0, 2026-10-12)"
   - "B19 (pulled forward from Round 3b) — run flags re-derived on the dirty-check skip; air + decorr + delay (v1.15.1, 2026-10-12)"
-next: "/improve-verify + /publish (Rounds 1-2 fix publicly shipped defects), then Round 3b"
+  - "Round 3b — B14 B15 B17 B20 B25: ping ducks, render start, Headphones blend, tail, SAFE/bypass stale state, Sync->Free re-base (v1.15.2, 2026-10-12)"
+next: "/improve-verify + /publish (Rounds 1-3b fix publicly shipped defects), then Round 4"
 supersedes: >
   The 2026-08-25 queue (last committed at 0c7154f2). Its rounds 1–3 shipped as v1.3.1–v1.3.2; its
   round 5 was partly applied (v1.3.3–v1.3.5); its rounds 6–8 and the motion milestone shipped as
@@ -101,6 +102,9 @@ digests stay bit-identical.
 
 B19 is DONE in v1.15.1 (`deriveAirRun/DecorrEngaged/DelayEngaged()` called from both
 `updateControl()` exits; probe DX). B20 builds on those helpers.
+
+**DONE in v1.15.2 (2026-10-12)** — probes DY DZ EA EB EC, each red on v1.15.1. B18 was raised and
+**deferred** by the user: it stays open for a later MINOR.
 
 Open decision to raise during this round: **B18**. Decorrelate costs a mono source about 2.8 dB.
 Level-compensating it changes existing sessions that use decorr > 0, so it is the user's call.
