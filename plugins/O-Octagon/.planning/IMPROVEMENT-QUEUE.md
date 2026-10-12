@@ -8,6 +8,7 @@ completed:
   - "Round 1 — stereo bus first-class + silent data loss (v1.13.2, 2026-10-11)"
   - "Round 2 — presets that behave (v1.14.0, 2026-10-11)"
   - "Round 3a — clean transitions, the smoothing trio (v1.15.0, 2026-10-12)"
+  - "B19 (pulled forward from Round 3b) — run flags re-derived on the dirty-check skip; air + decorr + delay (v1.15.1, 2026-10-12)"
 next: "/improve-verify + /publish (Rounds 1-2 fix publicly shipped defects), then Round 3b"
 supersedes: >
   The 2026-08-25 queue (last committed at 0c7154f2). Its rounds 1–3 shipped as v1.3.1–v1.3.2; its
@@ -91,12 +92,15 @@ a matched control, with a 2x ceiling.
 Each of these changes audio during transitions, so the version is MINOR. Steady state and the CU/DC
 digests stay bit-identical.
 
-## Round 3b — render-start, ping and SAFE/bypass transitions → PATCH v1.15.1
+## Round 3b — render-start, ping and SAFE/bypass transitions → PATCH v1.15.2
 
 ```
 /clear
-/improve O-Octagon Round 3b of .planning/IMPROVEMENT-QUEUE.md — fix B14, B15, B17, B19, B20, B25 from .planning/REVIEW-v1.13.1.md. (B14) the verify ping hard-cuts programme at start and steps it back at stop/abort/retarget: duck programme by (1-env) with the ping's own raised-cosine, fade on abort, and abort when isNonRealtime(). (B15) every Logic offline bounce of a stereo track opens with a 240-sample swell from raw speaker-1/2 lanes into the fold (MonitorFold::prepare forces mix 0) — teleport the fold mix on first engage after prepare; defer prepare's motion teleport to the first process() boundary so motion renders don't start at the anchor; crossfade the SAFE<->binaural switch on the Headphones toggle. (B17) getTailLengthSeconds >= 0.35 s. (B19) don't skip re-evaluating the decorr/delay engage flags while a mix or delay smoother ramps. (B20) clear or clock alignment lines, decorrelator rings, decorr smoothers and Air state across SAFE<->REAL and bypass (IN-04). (B25) re-base the motion phase on Free<->Sync (v1.8.0 IN-03). Each fix needs a probe that fails on the unfixed tree.
+/improve O-Octagon Round 3b of .planning/IMPROVEMENT-QUEUE.md — fix B14, B15, B17, B20, B25 from .planning/REVIEW-v1.13.1.md. (B14) the verify ping hard-cuts programme at start and steps it back at stop/abort/retarget: duck programme by (1-env) with the ping's own raised-cosine, fade on abort, and abort when isNonRealtime(). (B15) every Logic offline bounce of a stereo track opens with a 240-sample swell from raw speaker-1/2 lanes into the fold (MonitorFold::prepare forces mix 0) — teleport the fold mix on first engage after prepare; defer prepare's motion teleport to the first process() boundary so motion renders don't start at the anchor; crossfade the SAFE<->binaural switch on the Headphones toggle. (B17) getTailLengthSeconds >= 0.35 s. (B20) clear or clock alignment lines, decorrelator rings, decorr smoothers and Air state across SAFE<->REAL and bypass (IN-04). (B25) re-base the motion phase on Free<->Sync (v1.8.0 IN-03). Each fix needs a probe that fails on the unfixed tree.
 ```
+
+B19 is DONE in v1.15.1 (`deriveAirRun/DecorrEngaged/DelayEngaged()` called from both
+`updateControl()` exits; probe DX). B20 builds on those helpers.
 
 Open decision to raise during this round: **B18**. Decorrelate costs a mono source about 2.8 dB.
 Level-compensating it changes existing sessions that use decorr > 0, so it is the user's call.
