@@ -41,6 +41,14 @@ target_sources(O-simpleAmbisonics
         Source/PluginProcessor.h
         Source/dsp/SpatialEngine.h
         Source/dsp/FixedDelay.h
+        Source/dsp/Smoothers.h
+        Source/dsp/ShEncoder.h
+        Source/dsp/DistanceModel.h
+        Source/dsp/OrbitLfo.h
+        Source/dsp/StereoDecoder.h
+        Source/dsp/DecoderMixer.h
+        Source/dsp/MeterFrame.h
+        Source/dsp/TripleBuffer.h
 )
 
 # Include paths

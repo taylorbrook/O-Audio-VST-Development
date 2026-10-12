@@ -31,9 +31,11 @@
 #include <JuceHeader.h>
 
 #include <atomic>
+#include <vector>
 
-#include "dsp/FixedDelay.h"
 #include "dsp/SpatialEngine.h"
+#include "dsp/MeterFrame.h"
+#include "dsp/TripleBuffer.h"
 
 namespace OSimpleAmbisonics::ParamIDs
 {
@@ -87,17 +89,51 @@ public:
     // Public APVTS member for direct UI / harness access (house pattern).
     juce::AudioProcessorValueTreeState apvts;
 
+    // Visualisation tap (ARCHITECTURE §Visualization Tap). Public like apvts
+    // so the Stage-3 editor Timer and the harness read() it directly. One
+    // publish() per host block from the audio thread; read() from exactly
+    // one thread (the message thread / the harness thread).
+    OSimpleAmbisonics::dsp::TripleBuffer<OSimpleAmbisonics::dsp::MeterFrame> meterFrames;
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
-    // Cached raw-value atomics (the only two parameters the Stage-1 pass-through reads).
+    // Engine Params from the cached atomics — once per host block, and once
+    // in prepareToPlay BEFORE engine.prepare (A7).
+    OSimpleAmbisonics::dsp::Params fillParams() const noexcept;
+
+    // Cached raw-value atomics for all 12 parameters.
+    std::atomic<float>* azimuthParam     = nullptr;
+    std::atomic<float>* elevationParam   = nullptr;
+    std::atomic<float>* distanceParam    = nullptr;
+    std::atomic<float>* orderParam       = nullptr;
+    std::atomic<float>* yawParam         = nullptr;
+    std::atomic<float>* pitchParam       = nullptr;
+    std::atomic<float>* rollParam        = nullptr;
+    std::atomic<float>* decoderParam     = nullptr;
+    std::atomic<float>* orbitParam       = nullptr;
+    std::atomic<float>* orbitRateParam   = nullptr;
     std::atomic<float>* inputModeParam   = nullptr;
     std::atomic<float>* outputLevelParam = nullptr;
 
-    // Pass-through chain: conditioner → 64-sample delay → seeded gain.
-    // Stage 2 replaces `delay` with a SpatialEngine call inside the slice loop.
-    OSimpleAmbisonics::dsp::DecoderDelay delay;
+    // The two stepped+skewed ranges, for snapping the raw value in fillParams
+    // (see the JUCE legacy note there). Owned by the parameters; never null
+    // after construction.
+    const juce::NormalisableRange<float>* distanceRange  = nullptr;
+    const juce::NormalisableRange<float>* orbitRateRange = nullptr;
+
+    // Chain: conditioner (processor) → SpatialEngine (per slice) → seeded gain.
+    OSimpleAmbisonics::dsp::SpatialEngine engine;
     juce::LinearSmoothedValue<float> outputGain;
+
+    // Prepared-size scratch (sized in prepareToPlay only): the conditioned
+    // mono slice, and a right-output sink for a 1-channel buffer.
+    std::vector<float> monoScratch;
+    std::vector<float> rightScratch;
+
+    // Post-gain output peaks, peak-since-the-UI-last-read (A8 / R7).
+    float outPeakAccL = 0.0f;
+    float outPeakAccR = 0.0f;
 
     int numInputLegs = 2;   // negotiated input bus width (1 or 2), NOT the buffer width
     int maxBlock     = 0;   // samplesPerBlock from prepareToPlay; slice bound
