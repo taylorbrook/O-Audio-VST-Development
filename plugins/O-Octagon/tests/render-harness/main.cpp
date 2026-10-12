@@ -8194,6 +8194,616 @@ int main()
     }
 
     //==========================================================================
+    // ── v1.15.2 — Round 3b: render-start, ping and SAFE/bypass transitions ─────────────────────
+    //
+    // Shared by DY and DZ: a low tone, so a step in the programme stands out against a curvature
+    // of A·ω² (pattern: worstCurvature's note), and a lane subset that leaves out what the probe
+    // is not about — the ping's own lane is noise by design.
+    const auto toneAt = [] (int n, float hz)
+    {
+        return 0.5f * std::sin (2.0f * juce::MathConstants<float>::pi * hz
+                                * static_cast<float> (n) / static_cast<float> (kSampleRate));
+    };
+
+    const auto withoutLanes = [] (const juce::AudioBuffer<float>& b, std::initializer_list<int> drop)
+    {
+        juce::AudioBuffer<float> keep (b.getNumChannels(), b.getNumSamples());
+        keep.clear();
+
+        int k = 0;
+
+        for (int ch = 0; ch < b.getNumChannels(); ++ch)
+            if (std::find (drop.begin(), drop.end(), ch) == drop.end())
+                keep.copyFrom (k++, 0, b, ch, 0, b.getNumSamples());
+
+        keep.setSize (juce::jmax (1, k), b.getNumSamples(), true, true, true);
+        return keep;
+    };
+
+    //==========================================================================
+    // DY — v1.15.2 / B14. THE VERIFY PING DUCKS THE PROGRAMME; IT DOES NOT CUT IT.
+    //
+    // Through v1.15.1 the ping replaced the programme from its first sample (envelope 0) and
+    // handed it back on the sample after the release: a step at start, stop, abort and retarget.
+    // Five parts:
+    //   1. start + stop, and 2. start + monitor-arm abort — click ratio on the lanes the ping does
+    //      not sound on, against a matched control with no ping (the abort's control arms the
+    //      monitor at the same sample, so its own 5 ms fold crossfade is in both);
+    //   3. a retarget fades the OLD speaker out instead of cutting it;
+    //   4. a stop during an auto-cycle gap is silent (it used to fire a 20 ms burst);
+    //   5. an offline render carries no ping at all — bit-identical to a never-pinged render.
+    {
+        constexpr int total   = 32768;
+        constexpr int startAt = 2048;
+        constexpr int stopAt  = startAt + 19200;      // 0.4 s: through the fade-in, into sustain
+        constexpr float hz    = 100.0f;
+
+        static_assert (startAt % 64 == 0 && stopAt % 64 == 0, "grid-aligned");
+
+        bool         ok = true;
+        juce::String detail;
+
+        const auto tone = [&] (int n) { return toneAt (n, hz); };
+
+        int pingLane = 0;
+        {
+            OOctagonProcessor scout;
+            negotiate (scout, mono, set71);
+            pingLane = expectedLane (scout, set71, 0);
+        }
+
+        // ── 1 + 2: click ratios ──────────────────────────────────────────────────────────────
+        // mode 0: start/stop; 1: start/monitor-arm. withPing false is the control.
+        const auto render = [&] (int mode, bool withPing, juce::AudioBuffer<float>& dest)
+        {
+            OOctagonProcessor proc;
+            negotiate (proc, mono, set71);
+
+            renderHooked (proc, dest, total, tone, [&] (int n)
+            {
+                if (n == startAt && withPing)  proc.startVerifyPing (1);
+                if (n == stopAt)
+                {
+                    if (mode == 0 && withPing) proc.stopVerifyPing();
+                    if (mode == 1)             proc.setMonitorArmed (true);
+                }
+            });
+        };
+
+        const std::array<const char*, 2> names { "start/stop", "start/monitor-arm abort" };
+
+        for (int mode = 0; mode < 2; ++mode)
+        {
+            juce::AudioBuffer<float> ev (8, total), ctl (8, total);
+            render (mode, true,  ev);
+            render (mode, false, ctl);
+
+            // Mode 1 also drops the monitor pair (buffer 0 and 1 on 7.1): it carries the fold of
+            // every lane, the ping's included.
+            const auto evK  = mode == 0 ? withoutLanes (ev,  { pingLane }) : withoutLanes (ev,  { pingLane, 0, 1 });
+            const auto ctlK = mode == 0 ? withoutLanes (ctl, { pingLane }) : withoutLanes (ctl, { pingLane, 0, 1 });
+
+            ClickReading r { worstCurvature (evK, startAt - 64, total),
+                             worstCurvature (ctlK, startAt - 64, total) };
+
+            // Non-vacuity: the programme really is ducked mid-run (a ping that never touched the
+            // other lanes would pass the ratio for free).
+            const float midEv  = evK.getMagnitude (0, startAt + 4800, 2400);
+            const float midCtl = ctlK.getMagnitude (0, startAt + 4800, 2400);
+            const bool  ducked = midCtl > 1.0e-3f && midEv < 1.0e-6f;
+
+            const bool good = r.ratio() <= kClickRatioCeiling && ducked && allFinite (ev);
+            ok = ok && good;
+
+            detail << names[(std::size_t) mode] << ": " << juce::String (r.ratio(), 2) << "x"
+                   << (good ? "" : (ducked ? " CLICK" : " (VACUOUS — not ducked)")) << "; ";
+        }
+
+        // ── 3: a retarget fades the old speaker out ──────────────────────────────────────────
+        {
+            OOctagonProcessor proc;
+            negotiate (proc, mono, set71);
+
+            const int lane2 = expectedLane (proc, set71, 1);
+            constexpr int retargetAt = startAt + 9600;
+
+            juce::AudioBuffer<float> out (8, retargetAt + 4096);
+            renderHooked (proc, out, out.getNumSamples(), [] (int) { return 0.0f; }, [&] (int n)
+            {
+                if (n == startAt)    proc.startVerifyPing (1);
+                if (n == retargetAt) proc.startVerifyPing (2);
+            });
+
+            const float before = out.getRMSLevel (pingLane, retargetAt - 480, 480);
+            const float after  = out.getRMSLevel (pingLane, retargetAt, 480);
+            const float newOn  = out.getRMSLevel (lane2, retargetAt + 2048, 1024);
+
+            const bool faded = before > 1.0e-3f && after > 0.25f * before && newOn > 1.0e-3f;
+            ok = ok && faded;
+
+            detail << "retarget 1 -> 2: old lane " << juce::String (after / juce::jmax (1.0e-9f, before), 2)
+                   << " of its level in the next 10 ms" << (faded ? "" : " — CUT") << "; ";
+        }
+
+        // ── 4: stop during an auto-cycle gap ─────────────────────────────────────────────────
+        {
+            OOctagonProcessor proc;
+            negotiate (proc, mono, set71);
+
+            const int onSamples = (int) std::lround (oo::VerifyPing::kOnSeconds * kSampleRate);
+            const int gapStopAt = ((onSamples + 4800) / 64) * 64;   // 100 ms into the first gap
+
+            juce::AudioBuffer<float> out (8, gapStopAt + 4096);
+            renderHooked (proc, out, out.getNumSamples(), [] (int) { return 0.0f; }, [&] (int n)
+            {
+                if (n == 0)         proc.startVerifyPing (oo::VerifyPing::kAuto);
+                if (n == gapStopAt) proc.stopVerifyPing();
+            });
+
+            float burst = 0.0f;
+            for (int ch = 0; ch < 8; ++ch)
+                burst = juce::jmax (burst, out.getMagnitude (ch, gapStopAt, 4096));
+
+            const bool sounded = out.getMagnitude (pingLane, 4096, 4096) > 1.0e-3f;
+            const bool silent  = burst == 0.0f;
+            ok = ok && sounded && silent;
+
+            detail << "stop in a gap: peak " << juce::String (burst, 5)
+                   << (silent ? "" : " — BURST") << (sounded ? "" : " (VACUOUS — never sounded)") << "; ";
+        }
+
+        // ── 5: an offline render never carries a ping ────────────────────────────────────────
+        {
+            juce::AudioBuffer<float> ev (8, 8192), ctl (8, 8192);
+
+            for (int pass = 0; pass < 2; ++pass)
+            {
+                OOctagonProcessor proc;
+                negotiate (proc, mono, set71);
+
+                if (pass == 0)
+                    proc.startVerifyPing (3);
+
+                proc.setNonRealtime (true);
+                renderHooked (proc, pass == 0 ? ev : ctl, 8192, tone, [] (int) {});
+            }
+
+            const bool clean = bitIdentical (ev, ctl);
+            ok = ok && clean;
+
+            detail << "offline render: " << (clean ? "bit-identical to never-pinged" : "PING PRINTED INTO THE BOUNCE");
+        }
+
+        check ("DY ping-ducks-programme", ok, detail);
+    }
+
+    //==========================================================================
+    // DZ — v1.15.2 / B15. RENDERS START WHERE THEY ARE, AND HEADPHONES CROSSFADES.
+    //
+    //   1. A stereo-bus render that starts folded (every Logic offline bounce of a stereo track)
+    //      must be bit-identical to the same programme arriving 1024 samples into a render that
+    //      was already folding silence — the fold's lines and filters hold zeros either way. Through
+    //      v1.15.1 the first 240 samples swelled from the raw speaker 1/2 lanes.
+    //   2. A motion render whose state was set before prepare() (a bounce) starts at the moving
+    //      position: its first 64 samples match a static render placed there, to float rounding,
+    //      where v1.15.1 started at the anchor. Held by a stopped synced transport (DD's fixture).
+    //   3. Headphones off and on, mid-programme: click ratio against the worse of the two steady
+    //      states over the same window.
+    {
+        bool         ok = true;
+        juce::String detail;
+
+        const auto stereo = juce::AudioChannelSet::stereo();
+
+        const auto renderStereo = [&] (OOctagonProcessor& proc, juce::AudioBuffer<float>& dest,
+                                       int silentLead, auto&& hook)
+        {
+            juce::MidiBuffer midi;
+            juce::AudioBuffer<float> buf (2, 64);
+            dest.clear();
+
+            for (int n = 0; n < dest.getNumSamples(); n += 64)
+            {
+                hook (n);
+                buf.clear();
+
+                for (int s = 0; s < 64; ++s)
+                {
+                    const int m = n + s - silentLead;
+
+                    if (m >= 0)
+                    {
+                        buf.setSample (0, s, toneAt (m, 200.0f));
+                        // A TONE, not noise: noise's own curvature is ~1 and would bury a step the
+                        // size of the dry/fold difference (part 3 read 1.0x on v1.15.1 with noise).
+                        buf.setSample (1, s, 0.6f * toneAt (m, 330.0f));
+                    }
+                }
+
+                proc.processBlock (buf, midi);
+
+                for (int ch = 0; ch < 2; ++ch)
+                    dest.copyFrom (ch, n, buf, ch, 0, 64);
+            }
+        };
+
+        // ── 1 ──
+        {
+            constexpr int lead = 1024, len = 4096;
+
+            OOctagonProcessor a, b;
+            const bool neg = negotiate (a, stereo, stereo) && negotiate (b, stereo, stereo);
+
+            // Air OFF: a running air filter takes the P27 seed from the first programme sample in
+            // A and has been filtering silence in B — a difference by design, not a fold swell.
+            for (auto* pr : { &a, &b })
+            {
+                setParam (*pr, "srcX", 0.8f);  setParam (*pr, "srcY", 0.3f);
+                setParam (*pr, "airAmount", 0.0f);
+            }
+            a.prepareToPlay (kSampleRate, kBlockSize);   // params before prepare, as a bounce
+            b.prepareToPlay (kSampleRate, kBlockSize);
+
+            juce::AudioBuffer<float> outA (2, len), outB (2, lead + len);
+            renderStereo (a, outA, 0,    [] (int) {});
+            renderStereo (b, outB, lead, [] (int) {});
+
+            juce::AudioBuffer<float> tailB (2, len);
+            for (int ch = 0; ch < 2; ++ch)
+                tailB.copyFrom (ch, 0, outB, ch, lead, len);
+
+            const bool same = neg && a.isBinauralActive() && bitIdentical (outA, tailB);
+            ok = ok && same;
+
+            detail << "stereo bounce starts folded: "
+                   << (same ? "bit-identical to a warm fold" : "DIFFERS — " + firstDifference (outA, tailB)) << "; ";
+        }
+
+        // ── 2 ──
+        {
+            const auto build = [&] (OOctagonProcessor& proc, HarnessPlayHead* ph, bool motion,
+                                    float nx, float ny)
+            {
+                juce::AudioProcessor::BusesLayout layout;
+                layout.inputBuses.add (mono);
+                layout.outputBuses.add (set71);
+                proc.setBusesLayout (layout);
+
+                setParam (proc, "srcX", nx);
+                setParam (proc, "srcY", ny);
+                setParam (proc, "width", 0.0f);
+                setParam (proc, "blur", 0.0f);
+                setParam (proc, "airAmount", 0.0f);
+
+                if (motion)
+                {
+                    setParam (proc, "motionOn",   1.0f);
+                    setParam (proc, "motionPath", 0.0f);     // orbit
+                    setParam (proc, "motionSync", 12.0f);    // 1 Bar; stopped at ppq 1 -> 0.25 cycles
+                    setParam (proc, "motionSize", 6.0f);
+                    setParam (proc, "motionPhase", 0.0f);
+                }
+
+                if (ph != nullptr)
+                    proc.setPlayHead (ph);
+
+                proc.setRateAndBufferSizeDetails (kSampleRate, kBlockSize);
+                proc.prepareToPlay (kSampleRate, kBlockSize);   // AFTER the state: a bounce
+            };
+
+            constexpr float ax = 0.45f, ay = 0.5f;
+
+            HarnessPlayHead stopped;
+            stopped.ppqStart = 1.0; stopped.playing = false;
+
+            OOctagonProcessor moving;
+            build (moving, &stopped, true, ax, ay);
+
+            juce::AudioBuffer<float> outM (8, 2048);
+            renderInto (moving, outM, 2048, { 64 }, {}, &stopped);
+            const auto off = moving.liveMotionOffset();
+
+            const auto& v = moving.getVenue();
+            const float nx = ax + off[0] / (v.bbMaxX() - v.bbMinX());
+            const float ny = ay + off[1] / (v.bbMaxY() - v.bbMinY());
+
+            OOctagonProcessor placed, anchor;
+            build (placed, nullptr, false, nx, ny);
+            build (anchor, nullptr, false, ax, ay);
+
+            juce::AudioBuffer<float> outP (8, 2048), outA (8, 2048);
+            renderInto (placed, outP, 2048, { 64 }, {});
+            renderInto (anchor, outA, 2048, { 64 }, {});
+
+            const auto worstDiff = [] (const juce::AudioBuffer<float>& x, const juce::AudioBuffer<float>& y,
+                                       int from, int to)
+            {
+                float w = 0.0f;
+                for (int ch = 0; ch < 8; ++ch)
+                    for (int n = from; n < to; ++n)
+                        w = juce::jmax (w, std::abs (x.getSample (ch, n) - y.getSample (ch, n)));
+                return w;
+            };
+
+            const float head    = worstDiff (outM, outP, 0, 64);
+            const float settled = worstDiff (outM, outP, 1024, 2048);
+            const float vsAnchor = worstDiff (outA, outP, 1024, 2048);
+
+            // Non-vacuity: the offset must move the source enough that "started at the anchor"
+            // is visible, and the settled pair must agree, or the head comparison means nothing.
+            const bool moved = vsAnchor > 1.0e-2f && std::hypot (off[0], off[1]) > 1.0f;
+            const bool good  = moved && settled < 1.0e-4f && head < 1.0e-4f;
+            ok = ok && good;
+
+            detail << "motion render head vs placed static: " << juce::String (head, 6)
+                   << " (settled " << juce::String (settled, 6) << ", anchor " << juce::String (vsAnchor, 4) << ")"
+                   << (good ? "" : (moved ? " — STARTS AT THE ANCHOR" : " (VACUOUS)")) << "; ";
+        }
+
+        // ── 3 ──
+        {
+            constexpr int total = 16384, offAt = 4096, onAt = 10240;
+
+            // mode 0: event (on -> off -> on); 1: binaural throughout; 2: dry throughout.
+            const auto render = [&] (int mode, juce::AudioBuffer<float>& dest)
+            {
+                OOctagonProcessor proc;
+                negotiate (proc, stereo, stereo);
+                setParam (proc, "srcX", 0.8f);  setParam (proc, "srcY", 0.3f);
+                proc.prepareToPlay (kSampleRate, kBlockSize);
+                proc.setStereoBinauralEnabled (mode != 2);
+
+                renderStereo (proc, dest, 0, [&] (int n)
+                {
+                    if (mode == 0 && n == offAt) proc.setStereoBinauralEnabled (false);
+                    if (mode == 0 && n == onAt)  proc.setStereoBinauralEnabled (true);
+                });
+            };
+
+            juce::AudioBuffer<float> ev (2, total), bin (2, total), dry (2, total);
+            render (0, ev);
+            render (1, bin);
+            render (2, dry);
+
+            bool good = ! bitIdentical (bin, dry);
+
+            for (const int at : { offAt, onAt })
+            {
+                const float steady = juce::jmax (worstCurvature (bin, at - 64, at + 1024),
+                                                 worstCurvature (dry, at - 64, at + 1024));
+                ClickReading r { worstCurvature (ev, at - 64, at + 1024), steady };
+
+                good = good && r.ratio() <= kClickRatioCeiling;
+                detail << "Headphones " << (at == offAt ? "off" : "on") << ": "
+                       << juce::String (r.ratio(), 2) << "x" << (r.ratio() <= kClickRatioCeiling ? "" : " CLICK") << "; ";
+            }
+
+            ok = ok && good;
+        }
+
+        check ("DZ render-start-and-headphones-clean", ok, detail);
+    }
+
+    //==========================================================================
+    // EA — v1.15.2 / B17. getTailLengthSeconds() COVERS THE REAL TAIL.
+    //
+    // decorr 1 at full width plus a 50 ms alignment delay on every speaker, an impulse, then
+    // silence: the last sample above -100 dBFS is the tail a host must keep rendering. Through
+    // v1.15.1 the plugin reported 0 s, so a host that trims tails or suspends on silent input cut
+    // the lanes off mid-ring.
+    {
+        OOctagonProcessor proc;
+        negotiate (proc, mono, set71);
+
+        oo::VenueModel v = proc.getVenue();
+        for (int i = 0; i < 8; ++i)
+            v.setSpeakerDelayMs (i, 50.0f);
+        proc.applyVenueEdit (v);
+
+        setParam (proc, "srcX", 0.28f);
+        setParam (proc, "srcY", 0.66f);
+        setParam (proc, "width", 12.0f);
+        setParam (proc, "decorr", 1.0f);
+        setParam (proc, "blur", 0.0f);
+
+        // Settle every ramp on silence, then the impulse.
+        constexpr int lead = 4096, len = 48000;
+        juce::AudioBuffer<float> out (8, lead + len);
+        renderHooked (proc, out, lead + len, [] (int n) { return n == lead ? 1.0f : 0.0f; }, [] (int) {});
+
+        int lastLoud = -1;
+        for (int ch = 0; ch < 8; ++ch)
+            for (int n = lead; n < lead + len; ++n)
+                if (std::abs (out.getSample (ch, n)) > 1.0e-5f)
+                    lastLoud = juce::jmax (lastLoud, n - lead);
+
+        const double tail     = lastLoud / kSampleRate;
+        const double reported = proc.getTailLengthSeconds();
+
+        // Non-vacuity: a tail that ends inside the 50 ms delay means the chains never rang.
+        const bool rang = tail > 0.1;
+        const bool ok   = rang && lastLoud < len - 1 && reported >= tail;
+
+        check ("EA tail-length-covers-the-ring", ok,
+               juce::String ("measured tail ") + juce::String (tail, 3) + " s to -100 dBFS (decorr 1, 50 ms delay); reported "
+                   + juce::String (reported, 3) + " s" + (reported >= tail ? "" : " — TRUNCATES THE TAIL")
+                   + (rang ? "" : " (VACUOUS — no ring)"));
+    }
+
+    //==========================================================================
+    // EB — v1.15.2 / B20 (v1.3.0 IN-04). NOTHING STALE COMES BACK FROM SAFE OR BYPASS.
+    //
+    // A REAL render with every stateful stage busy (50 ms delays, decorr 1, air on outside the
+    // near field), then a stretch that does not clock the REAL arm, then SILENCE in REAL again.
+    // Whatever comes out after the gap can only be held-over audio: it must be exactly zero.
+    //   1. a host bypass (processBlockBypassed);
+    //   2. the F3 SAFE flip — the same 7.1 processor handed a 2-channel buffer.
+    // Plus the SAFE arm's decorr smoothers: decorr 1 -> 0 during the SAFE stretch must have landed
+    // by the time REAL resumes, so the chains do not run there at all.
+    {
+        bool         ok = true;
+        juce::String detail;
+
+        OOctagonProcessor scout;
+        negotiate (scout, mono, set71);
+        float onx = 0.0f, ony = 0.0f;
+        const bool found = findOutside (scout, onx, ony);
+
+        for (int gap = 0; gap < 2; ++gap)
+        {
+            OOctagonProcessor proc;
+            negotiate (proc, mono, set71);
+
+            oo::VenueModel v = proc.getVenue();
+            for (int i = 0; i < 8; ++i)
+                v.setSpeakerDelayMs (i, 50.0f);
+            proc.applyVenueEdit (v);
+
+            setParam (proc, "srcX", onx);
+            setParam (proc, "srcY", ony);
+            setParam (proc, "width", 6.0f);
+            setParam (proc, "decorr", 1.0f);
+            setParam (proc, "airAmount", 1.0f);
+            setParam (proc, "blur", 0.0f);
+
+            juce::MidiBuffer midi;
+            juce::AudioBuffer<float> blk (8, 64), narrow (2, 64);
+
+            for (int n = 0; n < 8192; n += 64)
+            {
+                for (int s = 0; s < 64; ++s) blk.setSample (0, s, noiseAt (n + s));
+                for (int ch = 1; ch < 8; ++ch) blk.clear (ch, 0, 64);
+                proc.processBlock (blk, midi);
+            }
+
+            for (int k = 0; k < 16; ++k)
+            {
+                if (gap == 0)
+                {
+                    blk.clear();
+                    proc.processBlockBypassed (blk, midi);
+                }
+                else
+                {
+                    narrow.clear();
+                    for (int s = 0; s < 64; ++s) narrow.setSample (0, s, noiseAt (s));
+                    proc.processBlock (narrow, midi);
+                }
+            }
+
+            oo::instr::resetCounters();
+
+            float stale = 0.0f;
+            for (int n = 0; n < 4096; n += 64)
+            {
+                blk.clear();
+                proc.processBlock (blk, midi);
+                for (int ch = 0; ch < 8; ++ch)
+                    stale = juce::jmax (stale, blk.getMagnitude (ch, 0, 64));
+            }
+
+            const bool clean = stale == 0.0f;
+            ok = ok && clean;
+            detail << (gap == 0 ? "bypass" : "SAFE flip") << ": peak after " << juce::String (stale, 6)
+                   << (clean ? "" : " — STALE AUDIO") << "; ";
+        }
+
+        // The SAFE arm's decorr smoothers.
+        {
+            OOctagonProcessor proc;
+            negotiate (proc, mono, set71);
+            setParam (proc, "srcX", 0.28f);
+            setParam (proc, "srcY", 0.66f);
+            setParam (proc, "width", 6.0f);
+            setParam (proc, "decorr", 1.0f);
+
+            juce::MidiBuffer midi;
+            juce::AudioBuffer<float> blk (8, 64), narrow (2, 64);
+
+            for (int n = 0; n < 4096; n += 64) { blk.clear(); blk.setSample (0, 0, 0.1f); proc.processBlock (blk, midi); }
+
+            oo::instr::resetCounters();
+            for (int n = 0; n < 1024; n += 64) { blk.clear(); proc.processBlock (blk, midi); }
+            const auto running = oo::instr::get (oo::instr::decorrSamples);
+
+            setParam (proc, "decorr", 0.0f);
+            for (int k = 0; k < 32; ++k) { narrow.clear(); proc.processBlock (narrow, midi); }   // 43 ms SAFE
+
+            oo::instr::resetCounters();
+            for (int n = 0; n < 1024; n += 64) { blk.clear(); proc.processBlock (blk, midi); }
+            const auto after = oo::instr::get (oo::instr::decorrSamples);
+
+            const bool landed = running > 0 && after == 0;
+            ok = ok && landed;
+            detail << "decorr 1 -> 0 inside SAFE: " << juce::String ((juce::int64) after)
+                   << " chain samples after REAL resumes" << (landed ? "" : (running > 0 ? " — FROZEN FADE" : " (VACUOUS)"));
+        }
+
+        if (! found)
+        {
+            ok = false;
+            detail << "; NO OUTSIDE POSITION";
+        }
+
+        check ("EB nothing-stale-after-safe-or-bypass", ok, detail);
+    }
+
+    //==========================================================================
+    // EC — v1.15.2 / B25 (v1.8.0 IN-03). LEAVING SYNC FOR FREE DOES NOT JUMP THE PHASE.
+    //
+    // Orbit at 1/4 against a rolling transport that starts at ppq 0.37 (so the synced phase and
+    // Free's rate·t disagree), then Free at 1 Hz. The offset step across the switch must be no
+    // larger than twice the steady per-block step. Entering Sync again is the lock, and is
+    // asserted to STILL snap — re-basing it would make a bounce depend on when the switch was made.
+    // Free runs at HALF the synced rate so the two phases have drifted 0.27 cycles apart by then;
+    // at the same rate a continuous Free would land back on the bar and the snap would be vacuous.
+    {
+        HarnessPlayHead ph;
+        ph.ppqStart = 0.37;
+        ph.bpm      = 120.0;
+        ph.playing  = true;
+
+        OOctagonProcessor proc;
+        negotiate (proc, mono, set71);
+        proc.setPlayHead (&ph);
+        setParam (proc, "motionOn",   1.0f);
+        setParam (proc, "motionPath", 0.0f);
+        setParam (proc, "motionSize", 6.0f);
+        setParam (proc, "motionRate", 2.0f);
+        setParam (proc, "motionSync", 8.0f);          // 1/4 = 1 cycle per beat = 2 Hz at 120
+
+        constexpr int toFree = 200, toSync = 400;
+
+        const auto series = renderOffsets (proc, 600, 64, &ph, nullptr, [&] (int i)
+        {
+            if (i == toFree) { setParam (proc, "motionSync", 0.0f); setParam (proc, "motionRate", 1.0f); }
+            if (i == toSync) setParam (proc, "motionSync", 8.0f);
+        });
+
+        const auto stepAt = [&] (int i)
+        {
+            return std::hypot (series[(std::size_t) i][0] - series[(std::size_t) i - 1][0],
+                               series[(std::size_t) i][1] - series[(std::size_t) i - 1][1]);
+        };
+
+        float steady = 0.0f;
+        for (int i = 100; i < toFree; ++i)
+            steady = juce::jmax (steady, stepAt (i));
+
+        const float intoFree = stepAt (toFree);
+        const float intoSync = stepAt (toSync);
+
+        const bool continuous = steady > 1.0e-3f && intoFree <= 2.0f * steady;
+        const bool locked     = intoSync > 4.0f * steady;
+
+        check ("EC sync-to-free-continuous", continuous && locked,
+               juce::String ("steady step ") + juce::String (steady, 4) + " m; Sync -> Free "
+                   + juce::String (intoFree, 4) + " m" + (continuous ? "" : " — PHASE JUMP")
+                   + "; Free -> Sync " + juce::String (intoSync, 4) + " m"
+                   + (locked ? " (still locks to the bar)" : " — LOCK LOST"));
+    }
+
+    //==========================================================================
     std::printf ("\n----------------------------------------------------\n");
     std::printf ("  %d probe(s), %d failure(s)\n\n", probes, failures);
 

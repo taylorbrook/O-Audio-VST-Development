@@ -758,6 +758,10 @@ bool OOctagonProcessor::setMonitorArmed (bool shouldArm)
         return false;
 
     // See startVerifyPing() for why these two cannot both be up.
+    //
+    // v1.15.2 (B14): abort() is a FADE now — the ping out and the programme back over its 20 ms,
+    // with the published state idle at once. The REAL arm keeps rendering here, so there is
+    // something to fade; kill() is kept for the stops where there is not.
     verifyPing.abort();
 
     monitorArmed.store (true, std::memory_order_release);
@@ -771,13 +775,21 @@ void OOctagonProcessor::processBlockBypassed (juce::AudioBuffer<float>& buffer,
     // D11's second stop. JUCE's default passthrough would silence the ping INCIDENTALLY — it simply
     // never calls processBlock — but it would leave the state machine running and the 120 s latch
     // counting, so un-bypassing would resume a ping mid-cycle from a clock the operator cannot see.
-    // abort() touches only atomics, which is what makes it safe to call from here.
-    verifyPing.abort();
+    // kill() touches only atomics, which is what makes it safe to call from here. v1.15.2: kill and
+    // not the faded abort() — a bypassed processBlock never reaches the overwrite that would run
+    // the fade, so the fade would wait out the bypass and play on un-bypass.
+    verifyPing.kill();
 
     // v1.7.0. D11's rule extended to the monitor, and the argument transfers exactly: a bypassed
     // plugin that still folds is confusing to debug on a stage, because the first instinct IS to
     // bypass. Guard 4 of 4.
     monitorArmed.store (false, std::memory_order_release);
+
+    // v1.15.2 (B20, v1.3.0 IN-04). Nothing in the gain stage is clocked while bypassed, so the
+    // alignment lines, decorrelator rings, air filters and fold come back holding audio from
+    // before the bypass. Flagged here; the first REAL chunk after it clears them. Audio thread
+    // (this override runs where processBlock would), a plain member write.
+    gainStage.markDiscontinuity();
 
     juce::AudioProcessor::processBlockBypassed (buffer, midiMessages);
 }
@@ -813,9 +825,16 @@ void OOctagonProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     // in hand, and the flip it catches can happen BETWEEN BLOCKS with no intervening
     // prepareToPlay(). Pinging "speaker 5" on a stereo fold names a speaker that does not exist
     // during the one procedure whose purpose is confirming that it does — R1 reproduced inside its
-    // own diagnostic tool. abort() is atomics-only and therefore RT-safe.
-    if (! mapped && verifyPing.isActive())
-        verifyPing.abort();
+    // own diagnostic tool. kill() is atomics-only and therefore RT-safe — the hard stop, because
+    // the unmapped arm has no speaker lanes to fade the ping out of (v1.15.2).
+    //
+    // ── v1.15.2 (B14) — AND A SIXTH: AN OFFLINE RENDER NEVER CARRIES A PING ───────────────────
+    // isNonRealtime() is the wrapper's flag for an offline bounce (guard 3 below, for the monitor).
+    // A ping left running when the operator bounced would otherwise be printed into the file —
+    // VST3 sets the flag for a realtime-path bounce too (P). Killed, not faded: a bounce has no
+    // previous output to be continuous with, and a fade would put 20 ms of it into the file.
+    if ((! mapped || isNonRealtime()) && verifyPing.isActive())
+        verifyPing.kill();
 
     // Acquired ONCE per block and held. Re-reading mid-block would let a venue edit land between two
     // speakers of one gain vector.
@@ -1189,7 +1208,11 @@ const juce::String OOctagonProcessor::getName() const       { return "O-Octagon"
 bool OOctagonProcessor::acceptsMidi() const                 { return false; }
 bool OOctagonProcessor::producesMidi() const                { return false; }
 bool OOctagonProcessor::isMidiEffect() const                { return false; }
-double OOctagonProcessor::getTailLengthSeconds() const      { return 0.0; }
+// v1.15.2 (B17) — the lanes ring on after the input stops: the decorrelator's all-pass chains
+// (~240 ms at decorr 1), plus a 50 ms alignment delay, plus the fold's ITD line, ~290 ms measured.
+// Returning 0 told hosts that size render tails, or suspend a plugin on silent input, to cut
+// that off. kTailSeconds is the bound, with margin; probe EA measures the real tail against it.
+double OOctagonProcessor::getTailLengthSeconds() const      { return kTailSeconds; }
 
 int OOctagonProcessor::getNumPrograms()                     { return 1; }
 int OOctagonProcessor::getCurrentProgram()                  { return 0; }

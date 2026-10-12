@@ -261,6 +261,12 @@ public:
         binaural arm writes them; both other arms leave them at zero. */
     std::array<float, kNumSpeakers> readAndZeroBinauralLanePeaks() noexcept;
 
+    /** v1.15.2 (B20) — the host bypassed us: processBlockBypassed() ran instead of process(), so
+        nothing here was clocked. The alignment lines, the decorrelator rings, the air filters and
+        the fold are holding audio from before the bypass; the next REAL chunk clears them (or, for
+        the air filters, re-seeds them from its first sample). Audio thread. */
+    void markDiscontinuity() noexcept { realStale = true; }
+
     /** v1.8.0 — the offset the last control boundary applied, in anchor-relative metres, for the
         live puck on the venue map (rides the getMeters poll). Zero when motion is off. */
     std::array<float, 3> liveMotionOffset() const noexcept
@@ -293,6 +299,10 @@ private:
     void deriveAirRun() noexcept;
     void deriveDecorrEngaged() noexcept;
     void deriveDelayEngaged() noexcept;
+    /** v1.15.2 — prepare()'s step 4, in one place: every smoother and tap teleported to the target
+        the last solve set, and the run flags re-derived under them. Also called at the FIRST
+        motion boundary after prepare() (B15), whose solve is the first to see an offset. */
+    void teleportToTargets() noexcept;
 
     void renderChunk (juce::AudioBuffer<float>& buffer, int start, int count,
                       int numIn, int numOut, bool mapped, bool binauralOn,
@@ -518,6 +528,26 @@ private:
         divides 2^64 so even the wrap preserves grid phase. Do not "fix" this to an int.
     */
     std::uint64_t absoluteSampleCounter { 0 };
+
+    /** v1.15.2 (B15) — set by prepare(), cleared by the first control boundary of process(). That
+        boundary is the first with a host clock, so it is where a motion render's first offset is
+        solved and teleported to (a render used to start at the ANCHOR and converge over ~15 ms),
+        and where the binaural blend and the fold land on the state the first block asks for. */
+    bool firstBoundary { false };
+
+    /** v1.15.2 (B15) — the SAFE <-> binaural blend on a stereo bus, 0 dry (the SAFE pair) to 1
+        folded, 5 ms smoothstep like the air blend. Through v1.15.1 the Headphones toggle was a
+        hard switch on the way out (24x) and a swell from the raw speaker 1/2 lanes on the way in.
+        Advanced once per sample in every arm. */
+    Smoother binauralMix {};
+    /// The binaural arm runs this chunk: wanted, or the blend still fading. Set at the boundary.
+    bool binauralRun { false };
+
+    /** v1.15.2 (B20, v1.3.0 IN-04) — a chunk that is not the REAL arm (SAFE, or a bypass) has
+        rendered without clocking the alignment lines, the decorrelator rings, the air filters or
+        the fold. Set by the SAFE arm and by markDiscontinuity(); the next REAL chunk clears them
+        before its first sample. */
+    bool realStale { false };
 
     ParamSnapshot lastSolvedParams {};
     std::uint32_t lastSolvedGeneration { 0 };

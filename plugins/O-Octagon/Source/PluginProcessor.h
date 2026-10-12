@@ -82,6 +82,10 @@ public:
     bool isMidiEffect() const override;
     double getTailLengthSeconds() const override;
 
+    /** v1.15.2 (B17) — what getTailLengthSeconds() reports. Public so probe EA measures the real
+        tail against THIS symbol rather than a transcribed 0.35. */
+    static constexpr double kTailSeconds = 0.35;
+
     //==============================================================================
     int getNumPrograms() override;
     int getCurrentProgram() override;

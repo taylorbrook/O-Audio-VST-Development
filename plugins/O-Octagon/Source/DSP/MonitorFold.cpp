@@ -298,6 +298,28 @@ void MonitorFold::setEngaged (bool shouldBeEngaged) noexcept
     mix.setTargetValue (engaged ? 1.0f : 0.0f);
 }
 
+void MonitorFold::engageNow() noexcept
+{
+    setEngaged (true);
+    mix.setCurrentAndTargetValue (1.0f);
+}
+
+void MonitorFold::disengageNow() noexcept
+{
+    setEngaged (false);
+    mix.setCurrentAndTargetValue (0.0f);
+}
+
+void MonitorFold::clearState() noexcept
+{
+    for (int i = 0; i < kNumSpeakers; ++i)
+    {
+        itd[(std::size_t) i].reset();
+        shadowL[(std::size_t) i].reset();
+        shadowR[(std::size_t) i].reset();
+    }
+}
+
 //==============================================================================
 void MonitorFold::fold (float* const* out, int slotL, int slotR, int start, int count) noexcept
 {

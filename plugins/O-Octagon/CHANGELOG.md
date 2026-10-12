@@ -1,5 +1,78 @@
 # O-Octagon Changelog
 
+## [1.15.2] - 2026-10-12
+
+Round 3b of the v1.13.1 four-goal review (`.planning/REVIEW-v1.13.1.md`): render start, the verify
+ping, and the SAFE/bypass transitions. Fixes B14, B15, B17, B20 and B25. PATCH: settled output is
+bit-identical, so the CU and DC digests are unchanged. What changes is the audio during a
+transition. No parameter, preset or session change. B18 (decorr level compensation) is deferred:
+it would change the level of existing sessions.
+
+### Fixed
+
+- **B14 — the verify ping cut the programme instead of ducking it.** The ping replaced the
+  programme from its first sample, while its own envelope was still at 0. It then handed the
+  programme back on the sample after the release: a step at start, stop, abort and retarget
+  (23x / 36x a matched control). **Now:**
+  - The lanes are `ping + (1 − duck)·programme`. The duck follows the ping's own 20 ms raised
+    cosine: it rises with the run's first fade-in and falls with its last fade-out.
+  - The duck holds through the auto cycle's gaps, so the 1→8 walk still sounds as it did, and
+    still takes exactly 12.8 s. At full duck the seven quiet lanes are still exact 0.0f (probe BQ).
+  - Both envelopes are positions that walk toward their targets, so a stop, abort or retarget fades
+    from the level it is at. A stop during a gap no longer fires a 20 ms burst at full level.
+  - A retarget fades the old speaker out before the new one fades in. The UI names the new
+    speaker at once.
+  - `abort()` (arming the monitor) is now that fade, with the published state idle at once. The
+    hard stop is `kill()`. It is used for bypass, for a rig that goes unmapped, and — new — for
+    `isNonRealtime()`: a ping left running is never printed into a bounce.
+- **B15 — render-start and Headphones transients.**
+  - **Every Logic offline bounce of a stereo track opened with a 240-sample swell** from the raw
+    speaker 1/2 lanes into the fold (up to 9.5 dB). `MonitorFold::prepare()` forces mix 0, and the
+    first engage ramped from there. The first engage after prepare now lands at mix 1
+    (`MonitorFold::engageNow()`).
+  - **Motion renders started at the anchor** and converged over ~15 ms: `prepare()` has no host
+    clock, so it solved and teleported with Motion off. The first control boundary now repeats
+    `prepare()`'s teleport against its own solve, when only the offset is new. If parameters or the
+    venue moved between prepare and the first block, the render takes the ordinary ramp a static
+    render takes. Teleporting there too moved the CU/DC digests, and made a moving render and its
+    static equivalent disagree (probe DD).
+  - **Headphones on a stereo bus was a hard switch** (24x on the way out, a swell from the raw
+    lanes on the way in). It is now a 5 ms smoothstep blend between the dry SAFE pair and the fold.
+    The binaural arm keeps running until the blend has faded out. A fold nothing will clock is
+    disengaged at once (`disengageNow()`).
+- **B17 — `getTailLengthSeconds()` returned 0.** With decorr 1 and a 50 ms delay the lanes ring for
+  0.307 s (to −100 dBFS). It now returns 0.35 s (`kTailSeconds`).
+- **B20 (v1.3.0 IN-04) — SAFE and bypass left stale state.** A SAFE stretch (the F3 flip, or
+  Headphones off on a stereo bus) or a host bypass renders without clocking the alignment lines,
+  the decorrelator rings, the air filters or the fold. The first REAL chunk back played out what
+  they still held: up to 50 ms of old programme. The SAFE arm and `processBlockBypassed()` now
+  mark the state stale, and the next REAL chunk clears it before its first sample. The air filters
+  take the P27 seed instead of a zero. The SAFE arm now also advances `decorrMix` and
+  `decorrDepth`, which it skipped against its own advance-everything rule.
+- **B25 (v1.8.0 IN-03) — Free↔Sync jumped the motion phase.** The PPQ branch never re-based the
+  free run, so leaving Sync resumed Free from a phase base written long before. Entering the free run
+  from the PPQ lock or the stopped hold now continues from the last phase, at the new rate. Entering
+  Sync with a PPQ still snaps to the bar, deliberately: re-basing it would make a bounce depend on
+  when the switch was made.
+
+### Testing
+
+- **Five new render probes**, each red on v1.15.1 (sources swapped back, same harness) in every part:
+  - **DY** — the ping. Start/stop 1.02x (v1.15.1: 5471x); monitor-arm abort 0.14x (231x). A
+    retarget keeps 0.62 of the old lane's level in the next 10 ms (0.00, cut). A gap stop is
+    silent (peak 0.31). An offline render is bit-identical to a never-pinged one (the ping was
+    printed into it).
+  - **DZ** — a stereo render that starts folded is bit-identical to a warm fold (differed). A motion
+    render's first 64 samples match a static render placed at the moving position (0.035 off, at
+    the anchor). Headphones off 1.03x and on 1.00x (238x / 812x).
+  - **EA** — measured tail 0.307 s, reported 0.350 s (0.000).
+  - **EB** — after a bypass and after a SAFE flip, silence in gives exactly 0 out (0.061 of
+    stale audio). A decorr 1→0 made inside SAFE has landed when REAL resumes (256 chain samples ran).
+  - **EC** — the Sync→Free step is 0.025 m against a steady 0.050 m (5.48 m jump). Free→Sync still
+    snaps to the bar (4.49 m).
+- No pre-existing probe changed result under the swap. Render harness 87/0 (82 + 5), geometry 60/0,
+  monitor-fold 20/0. CU `0x8ae2ed8c37b3be56` and DC `0xdef4e5ef94849f76` unchanged.
+
 ## [1.15.1] - 2026-10-12
 
 v1.15.0's run flags latched. PATCH: settled output is bit-identical (CU and DC digests unchanged).

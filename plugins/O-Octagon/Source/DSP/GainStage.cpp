@@ -189,6 +189,18 @@ void GainStage::prepare (double sampleRateToUse, int samplesPerBlock,
     airMixL.reset (sampleRateToUse, 0.005);
     airMixR.reset (sampleRateToUse, 0.005);
 
+    //     ── v1.15.2's SAFE <-> binaural blend (B15), on the SAME 5 ms, in the SAME step ────────
+    //     Its starting value is the first boundary's job, not this one's: prepare() has no
+    //     binauralOn. Parked at 0 until then, so nothing reads a stale target.
+    binauralMix.reset (sampleRateToUse, 0.005);
+    binauralMix.setCurrentAndTargetValue (0.0f);
+    binauralRun = false;
+
+    //     v1.15.2 — everything below starts cleared, so nothing is stale; the first boundary of
+    //     process() finishes the job prepare() cannot (it has no host clock and no bus facts).
+    realStale     = false;
+    firstBoundary = true;
+
     //     ── and the air filters, in the SAME step (PLAN-2.3 P30) ─────────────────────────────
     //     filter.prepare() is the analogous state teleport, so it belongs beside the seventeen
     //     rather than in a fourth place. See the header for why it is mandatory (H6: the default
@@ -273,7 +285,15 @@ void GainStage::prepare (double sampleRateToUse, int samplesPerBlock,
     updateControl (snapshot, p, {}, false);
 
     // 4 — teleport to that solve, so sample 0 is already correct rather than 5 ms into a fade-in
-    //     from silence.
+    //     from silence. v1.15.2: in teleportToTargets(), because the first motion boundary of
+    //     process() needs exactly the same teleport (B15).
+    teleportToTargets();
+}
+
+//==============================================================================
+void GainStage::teleportToTargets() noexcept
+{
+    // The gains — so sample 0 is already correct rather than 5 ms into a fade-in from silence.
     for (auto& s : gL) s.setCurrentAndTargetValue (s.getTargetValue());
     for (auto& s : gR) s.setCurrentAndTargetValue (s.getTargetValue());
     outGain.setCurrentAndTargetValue (outGain.getTargetValue());
@@ -404,7 +424,31 @@ void GainStage::process (juce::AudioBuffer<float>& buffer, int numIn, int numOut
             liveOffset[1].store (offset.y, std::memory_order_relaxed);
             liveOffset[2].store (offset.z, std::memory_order_relaxed);
 
+            // Read BEFORE updateControl() overwrites lastSolvedParams — prepare()'s solve stored
+            // exactly what it was handed, so equality here means nothing moved since.
+            const bool unchangedSincePrepare
+                = firstBoundary && haveSolved
+               && snapshot.generation == lastSolvedGeneration
+               && std::memcmp (p.data(), lastSolvedParams.data(), sizeof (float) * params::kCount) == 0;
+
             updateControl (snapshot, p, offset, motionOn);
+
+            // ── v1.15.2 (B15) — PREPARE'S MOTION TELEPORT, DEFERRED TO HERE ──────────────────
+            //
+            // prepare() solves with Motion OFF — it has no host clock — and teleports to THAT,
+            // the anchor. The first boundary then solved anchor + offset and the gains walked
+            // there over their ramp, so every motion render opened at the anchor and converged
+            // over ~15 ms. This boundary is the first that knows the offset, so it repeats
+            // prepare()'s step 4 against its own solve.
+            //
+            // ONLY WHEN THE OFFSET IS ALL THAT IS NEW. If the parameters or the venue moved
+            // between prepare() and here, the walk from prepare()'s values is the ordinary 5 ms
+            // ramp every static render also takes from the same place — teleporting would make a
+            // moving render and its static equivalent disagree on sample 0 (probe DD's Z
+            // companion), and doing it for static renders too moves the CU/DC anchored digests.
+            // A bounce restores its state before prepare(), so it lands on this branch.
+            if (firstBoundary && motionOn && unchangedSincePrepare)
+                teleportToTargets();
 
             // ── v1.7.0 — THE MONITOR, DRIVEN FROM THE CONTROL BOUNDARY ───────────────────────
             //
@@ -421,13 +465,47 @@ void GainStage::process (juce::AudioBuffer<float>& buffer, int numIn, int numOut
             // v1.11.0: the binaural arm engages the SAME fold. It needs no resolved monitor pair —
             // it folds a scratch whose slots are {0, 1} by construction — so the pair check
             // belongs only to the 8-channel monitor term.
-            monitorFold.setEngaged ((monitorOn && snapshot.monitorSlot[0] >= 0) || binauralOn);
+            //
+            // ── v1.15.2 (B15) — THE SAFE <-> BINAURAL BLEND, AND HOW THE FOLD ENGAGES ────────
+            //
+            // binauralOn no longer switches the stereo bus between the dry SAFE pair and the fold;
+            // it sets the blend's target, and the arm keeps running while the blend fades out
+            // (airRun's shape). The processor already guarantees binauralOn implies !mapped and a
+            // two-channel buffer; the arm re-checks both so a fade-out the layout has overtaken
+            // cannot select it.
+            binauralMix.setTargetValue (binauralOn ? 1.0f : 0.0f);
+
+            if (firstBoundary)
+                binauralMix.setCurrentAndTargetValue (binauralOn ? 1.0f : 0.0f);
+
+            binauralRun = ! mapped && numOut == 2
+                       && (binauralOn || binauralMix.getCurrentValue() > 0.0f || binauralMix.isSmoothing());
+
+            const bool foldWanted = (monitorOn && snapshot.monitorSlot[0] >= 0) || binauralRun;
+
+            // Two engages land at mix 1 rather than ramping from the raw lanes: the first after
+            // prepare() (which forces the fold to mix 0 — every Logic offline bounce of a stereo
+            // track opened with a 240-sample swell from speaker 1/2 into the fold), and a binaural
+            // engage from a stopped fold, whose crossfade the blend above already makes.
+            //
+            // Unmapped, nothing clocks the fold once the binaural arm stops — its blend has
+            // already faded the fold out — so the disengage lands at once rather than leaving a
+            // fade-out parked half-run with isRunning() true.
+            if (foldWanted && (firstBoundary || (binauralRun && ! monitorFold.isRunning())))
+                monitorFold.engageNow();
+            else if (! foldWanted && ! mapped)
+                monitorFold.disengageNow();
+            else
+                monitorFold.setEngaged (foldWanted);
+
+            firstBoundary = false;
         }
 
         const int toBoundary = static_cast<int> (kControlBlock) - phase;
         const int chunk      = juce::jmin (numSamples - n, toBoundary);
 
-        renderChunk (buffer, n, chunk, numIn, numOut, mapped, binauralOn, snapshot, ping);
+        // v1.15.2: the arm is binauralRun (wanted, or fading out), not the processor's flag.
+        renderChunk (buffer, n, chunk, numIn, numOut, mapped, binauralRun, snapshot, ping);
 
         n                     += chunk;
         absoluteSampleCounter += static_cast<std::uint64_t> (chunk);
@@ -881,6 +959,32 @@ void GainStage::renderChunk (juce::AudioBuffer<float>& buffer, int start, int co
                 out[i] = buffer.getWritePointer (snapshot.speakerToBuffer[static_cast<std::size_t> (i)]);
         }
 
+        // ── v1.15.2 (B20, v1.3.0 IN-04) — BACK FROM A STRETCH THAT DID NOT CLOCK THIS ARM ─────
+        //
+        // A SAFE chunk (the F3 flip, or a stereo bus with Headphones off) or a host bypass renders
+        // without pushing the alignment lines, running the decorrelator rings or the air filters,
+        // or folding. Each was left holding audio from before — up to 50 ms of it in a line — and
+        // the first REAL chunk back played it out. They are cleared here, before this chunk's
+        // first sample, which is the engage edges' own policy (delayEngaged, decorrEngaged,
+        // MonitorFold::setEngaged): a network that last ran before the gap has no continuity
+        // worth keeping. The air filters take the P27 seed instead of a zero, so a running filter
+        // re-enters bit-exact on this chunk's first sample.
+        if (realStale)
+        {
+            for (auto& line : alignDelay)
+                line.reset();
+
+            decorrL.reset();
+            decorrR.reset();
+
+            airSeedPendingL = airRunL;
+            airSeedPendingR = airRunR;
+
+            monitorFold.clearState();
+
+            realStale = false;
+        }
+
         // ── P27's re-seed, HOISTED OUT OF THE LOOP ────────────────────────────────────────────
         //
         // renderChunk is called immediately after the control boundary that set the flag, so the
@@ -1178,13 +1282,47 @@ void GainStage::renderChunk (juce::AudioBuffer<float>& buffer, int start, int co
 
             const int numWrite = juce::jmin (numOut, 2);
 
-            for (int ch = 0; ch < numWrite; ++ch)
-                juce::FloatVectorOperations::copy (buffer.getWritePointer (ch) + start, out[ch], count);
+            // ── v1.15.2 (B15) — THE SAFE <-> BINAURAL BLEND ───────────────────────────────────
+            //
+            // Settled at 1: the v1.15.1 copy, unchanged. Otherwise each sample is
+            // `dry + m·(fold − dry)`, where dry is EXACTLY what the SAFE arm writes (the input at
+            // unity, in1 = in0 on a mono input) and m is the 5 ms ramp through smoothstep. Both
+            // dry values are read before either channel is written: in0 and in1 alias channels 0
+            // and 1, and on a mono input in1 IS channel 0.
+            if (binauralMix.getCurrentValue() == 1.0f && ! binauralMix.isSmoothing())
+            {
+                binauralMix.skip (count);
+
+                for (int ch = 0; ch < numWrite; ++ch)
+                    juce::FloatVectorOperations::copy (buffer.getWritePointer (ch) + start, out[ch], count);
+            }
+            else
+            {
+                float* const w0 = buffer.getWritePointer (0);
+                float* const w1 = numWrite > 1 ? buffer.getWritePointer (1) : nullptr;
+
+                for (int j = 0; j < count; ++j)
+                {
+                    const int   n  = start + j;
+                    const float dL = in0 != nullptr ? in0[n] : 0.0f;
+                    const float dR = in1 != nullptr ? in1[n] : 0.0f;
+                    const float m  = smoothstep (binauralMix.getNextValue());
+
+                    w0[n] = dL + m * (out[0][j] - dL);
+
+                    if (w1 != nullptr)
+                        w1[n] = dR + m * (out[1][j] - dR);
+                }
+            }
         }
         else if (monitorFold.isRunning())
         {
             monitorFold.fold (out, snapshot.monitorSlot[0], snapshot.monitorSlot[1], start, count);
         }
+
+        // v1.15.2 — the blend advances in every arm; on the 8-channel bus it is parked at 0.
+        if (! binaural)
+            binauralMix.skip (count);
     }
     else
     {
@@ -1238,6 +1376,13 @@ void GainStage::renderChunk (juce::AudioBuffer<float>& buffer, int start, int co
             const float advancedGR = airR.nextGain();
             juce::ignoreUnused (advancedML, advancedMR, advancedGL, advancedGR);
 
+            // v1.15.2 (B20) — and the decorrelator's two. Until v1.15.1 this arm skipped them,
+            // against the rule this arm opens with: a decorr move made in SAFE resumed its 5 ms
+            // ramp on the first REAL chunk, from where it had frozen.
+            const float advancedDM = decorrMix.getNextValue();
+            const float advancedDD = decorrDepth.getNextValue();
+            juce::ignoreUnused (advancedDM, advancedDD);
+
             for (int i = 0; i < kNumSpeakers; ++i)
             {
                 const float advancedL = gL[static_cast<std::size_t> (i)].getNextValue();
@@ -1261,6 +1406,11 @@ void GainStage::renderChunk (juce::AudioBuffer<float>& buffer, int start, int co
 
             instr::countSampleAdvance();
         }
+
+        // v1.15.2 — the binaural blend advances here too (parked at 0: binauralRun is false), and
+        // this chunk clocked nothing in the REAL arm, so its state is stale (B20).
+        binauralMix.skip (count);
+        realStale = true;
     }
 }
 

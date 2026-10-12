@@ -39,6 +39,23 @@ namespace oo
     Every other channel is hard-zeroed, so "exactly one lane sounds" is a property of the routine
     rather than of the material.
 
+    ── v1.15.2 (B14) — THE PROGRAMME IS DUCKED, NOT CUT ───────────────────────────────────────────
+    "Hard-zeroed" is true while the run is sounding, and only then. Through v1.15.1 the overwrite
+    replaced the programme from the run's first sample, at a ping envelope of 0, and handed it back
+    on the sample after the release ended: a step at the start, a step at every stop, abort and
+    retarget (23x / 36x a matched control). The lanes are now `ping + (1 − duck)·programme`, and
+    `duck` is a second envelope on the ping's own 20 ms raised cosine:
+      * it rises with the run's first fade-in and falls with its last fade-out, in lockstep, so the
+        start and the end are a crossfade between the programme and the ping;
+      * it HOLDS at 1 through the auto cycle's gaps and step boundaries, so the 1->8 walk sounds as
+        it always did — silence between speakers, not 400 ms of programme;
+      * at exactly 1 the lanes are written as before (ping on one, exact 0.0f on seven) — the duck
+        is a branch, not `+ 0.0f · programme`, so probe BQ's exact zero is structural.
+    Both envelopes are a POSITION that walks toward its target one sample at a time rather than a
+    counter from the phase start, so a stop, abort or retarget that lands mid-fade fades from the
+    level it is at instead of jumping to 1 (a stop during a gap used to fire a 20 ms burst).
+    A retarget fades the old speaker out, then fades the new one in; the duck stays up.
+
     ── NO reset() ANYWHERE, AND THAT PRESERVES P23/P30's ONE-RESET-SITE-EVER ─────────────────────
     Two reasons, and neither is an oversight:
 
@@ -130,18 +147,29 @@ public:
     /** @param speakerOrAuto  1..8, or kAuto. Out-of-range values are ignored. */
     void start (int speakerOrAuto);
 
-    /** GRACEFUL: the audio thread runs the 20 ms release, then goes idle. */
+    /** GRACEFUL: the audio thread runs the 20 ms release — the ping out, the programme back in
+        (v1.15.2: from whatever level each envelope is at) — then goes idle. */
     void stop();
 
-    /** IMMEDIATE, and callable from EITHER thread because it touches only atomics.
-
-        Three callers, all of them D11 stops that cannot wait for a fade: the editor destructor, the
-        `processBlockBypassed()` override, and the audio thread when `mapped` goes false mid-ping. A
-        bypassed plugin still emitting noise is a genuinely confusing thing to debug on a stage —
-        the first instinct is to bypass, and if that does not silence it the diagnosis goes somewhere
-        wrong.
+    /** v1.15.2 (B14) — A FADED STOP, for a caller that has asked for something else: arming the
+        monitor. The audio thread runs stop()'s release, but the published state reads idle at once,
+        so the editor does not show a speaker that is being withdrawn. Atomics only — callable from
+        either thread. Until v1.15.1 this was the hard cut kill() now is, and it stepped the
+        programme back in on the next sample.
     */
     void abort();
+
+    /** IMMEDIATE, and callable from EITHER thread because it touches only atomics.
+        For the three stops where the REAL arm is no longer rendering the lanes the ping lives in,
+        so there is nothing to fade: `processBlockBypassed()`, the audio thread when `mapped` goes
+        false mid-ping, and (v1.15.2) an offline render — isNonRealtime() is killed before the
+        render so not one sample of a ping reaches a bounce. A bypassed plugin still emitting
+        noise is a genuinely confusing thing to debug on a stage — the first instinct is to bypass,
+        and if that does not silence it the diagnosis goes somewhere wrong.
+        Clears the audio-thread run state at the next overwrite() through `killPending`, so a
+        later start() begins from silence rather than from a fade position the kill abandoned.
+    */
+    void kill();
 
     //==============================================================================
     /** The processor's guard before calling overwrite(). Becomes true on start() IMMEDIATELY, so the
@@ -164,6 +192,9 @@ public:
 private:
     //==============================================================================
     enum Command { kCmdNone = 0, kCmdStop = -2, kCmdAbort = -3 };
+
+    /** v1.15.2 — the run-level state kill() abandons: phase idle, both envelopes at 0. */
+    void clearRun() noexcept;
     enum class Phase { idle, fadeIn, sustain, fadeOut, gap };
 
     float nextSample() noexcept;
@@ -173,6 +204,7 @@ private:
     //==============================================================================
     // ── Cross-thread surface ────────────────────────────────────────────────────────────────────
     std::atomic<int>  command     { kCmdNone };
+    std::atomic<bool> killPending { false };   ///< v1.15.2 — set by kill(), consumed by overwrite()
     std::atomic<bool> activeFlag  { false };
     std::atomic<int>  modeOut     { 0 };
     std::atomic<int>  speakerOut  { 0 };
@@ -194,6 +226,14 @@ private:
     int   speaker      { 0 };
     int   mode         { 0 };
     int   runCounter   { 0 };   ///< samples since this run started — the 120 s / 12.8 s clock
+
+    // ── v1.15.2 (B14) — the two envelopes, as POSITIONS in [0, fadeSamples] ─────────────────────
+    int   envPos        { 0 };      ///< the ping: walks up in fadeIn/sustain, down otherwise
+    int   duckPos       { 0 };      ///< the programme duck: up while the run lasts, down when ending
+    int   pendingTarget { 0 };      ///< a retarget waiting for the old speaker's fade-out; 0 none
+    bool  ending        { false };  ///< the duck is falling: stop, abort, the latch, speaker 8's fade
+    bool  stopping      { false };  ///< the fade-out in progress ends the run (stop/abort/latch)
+    bool  aborting      { false };  ///< publish idle while the abort's fade runs
 
     // ── The signal (§OQ2) ───────────────────────────────────────────────────────────────────────
     juce::Random rng;                                  // MEMBER-OWNED, never getSystemRandom()
