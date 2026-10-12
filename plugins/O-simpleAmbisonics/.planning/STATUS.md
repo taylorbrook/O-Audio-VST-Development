@@ -1,15 +1,20 @@
 ---
 plugin: O-simpleAmbisonics
-stage: 1
-status: stage_1_complete
+stage: 2
+stage_name: dsp
+stage_phase: 1
+stage_phase_name: chain-and-stereo
+stage_phase_total: 3
+artifact_suffix: "-2.1"
+status: stage_2_phase_2_1_discuss_complete
 last_updated: 2026-10-12
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-current_phase: verify
-next_phase: discuss
-next_action: plugin-discuss
+current_phase: discuss
+next_phase: research
+next_action: plugin-research
 next_stage: 2
 ready_for_implementation: true
 parameter_count: 12
@@ -21,9 +26,10 @@ plugin_code: OSAm
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — ✅ VERIFIED (2026-10-12)
-Status: Stage 1 complete. Verify re-ran everything independently on the INSTALLED bundles (byte-identical to the build): harness P0–P5 ALL PASS (digest 6a1df555bc125ae3 reproduced), 0 warnings on a forced TU rebuild, auval SUCCEEDED (caps [1,2] [2,2]), pluginval s10 SUCCESS VST3 + AU, pedalboard V1–V3 (12-param contract, pass-through with reported == measured latency, 12-value state round-trip) ALL PASS. COMPAT-01 + FUNC-07 complete. Next: Stage 2 / discuss (Phase 2.1).
-Progress: [#######.............] 35%
+Stage: 2 of 4 (DSP) — Phase 2.1 of 3 (chain + stereo) — discuss ✓ (2026-10-12)
+Status: Stage 2 runs as THREE per-phase GSD cycles (D1, Taylor's call; O-Octagon artifact naming `*-2.N.md`). Phase 2.1 CONTEXT-2.1.md written: audible chain without rotation/HRTF, 9 decisions (D6: binaural leg = stereo placeholder so the Binaural default is not silent; D7: air-LP wet mix so d ≤ 1 m is exactly transparent; D8: P1 → double-precision reference null), 7 research questions (R1 click metric first). SADIE II D1 SOFA confirmed downloadable (Zenodo 12092466, 38.2 MB, Apache-2.0) and `sofar` 1.3.0 via uv — 2.3's fallback not expected. Next: 2.1 / research.
+Stage 1 was: Stage 1 complete. Verify re-ran everything independently on the INSTALLED bundles (byte-identical to the build): harness P0–P5 ALL PASS (digest 6a1df555bc125ae3 reproduced), 0 warnings on a forced TU rebuild, auval SUCCEEDED (caps [1,2] [2,2]), pluginval s10 SUCCESS VST3 + AU, pedalboard V1–V3 (12-param contract, pass-through with reported == measured latency, 12-value state round-trip) ALL PASS. COMPAT-01 + FUNC-07 complete. Next: Stage 2 / discuss (Phase 2.1).
+Progress: [########............] 38%
 
 ## Phase Progress
 
@@ -35,6 +41,18 @@ Progress: [#######.............] 35%
 | plan | ✓ | 2026-10-12 | |
 | execute | ✓ | 2026-10-12 | |
 | verify | ✓ | 2026-10-12 | |
+
+### Stage 2: DSP — Phase 2.1 (chain + stereo)
+| Phase | Status | Date | Skipped |
+|-------|--------|------|---------|
+| discuss | ✓ | 2026-10-12 | |
+| research | | | |
+| plan | | | |
+| execute | | | |
+| verify | | | |
+
+### Stage 2: DSP — Phase 2.2 (rotation) · Phase 2.3 (binaural)
+Not started. Per-phase cycles (D1); roll-up `stages/2-dsp/VERIFICATION.md` at the 2.3 verify.
 
 ## Completed So Far
 
@@ -78,9 +96,14 @@ Progress: [#######.............] 35%
 - Test-harness lesson (not a defect): a live VST3 instance's `raw_value` is the wrapper's cached un-snapped host float — round-trip gates compare DECODED values (memory written)
 - Human DAW checks listed as non-blocking; COMPAT-02 (Stage 4) repeats them in Logic + Live
 
+**Stage 2 / Phase 2.1 / discuss:** ✓ Complete (2026-10-12)
+- `stages/2-dsp/CONTEXT-2.1.md` — D1 three per-phase cycles; D2 Stage-1 engine seam kept (processor owns conditioner + TripleBuffer, publish once per host block); D3 2.1 headers JUCE-free; D4 own TPT one-pole with per-sample-lerped G; D5 block-rate smoothers keyed to the slice length; D6 binaural leg = stereo placeholder (2.3 obligation); D7 air-LP wet mix m(d) = clamp(d − 1, 0, 1); D8 P1 → reference null, front/1 m/order 1/Stereo = exactly 0.75·s[n−64]; D9 gate discipline (ratios, fresh instance, analytic goldens, alloc counter)
+- Open for research: R1 click metric, R2 alloc-counter precedent, R3 lerp chord error at 4096-sample orbit, R4 independent DSP-01 table, R5 HF/LF ratio bands, R6 TripleBuffer module status, R7 meter publish cadence
+- External risks retired early: SADIE II D1 HRIR SOFA at Zenodo 12092466 (38.2 MB, apache2.0, HTTP 200); `sofar` 1.3.0 resolves via `uv run --with sofar`
+
 ## Next Steps
 
-1. Stage 2 / discuss: `/plugin-discuss O-simpleAmbisonics 2-dsp` — Phase 2.1 (source → encoder → stereo decode; ROADMAP §Phase 2.1; SUMMARY §Stage-2 handoff)
+1. Stage 2 / Phase 2.1 / research: `/plugin-research O-simpleAmbisonics 2-dsp` — answer R1–R7 of `stages/2-dsp/CONTEXT-2.1.md`, pin the sibling harness patterns (alloc counter, click metric), produce `RESEARCH-2.1.md`
 2. Non-blocking human checks from `stages/1-foundation/VERIFICATION.md` (Logic stereo + mono track, Generic editor 12 rows, project save/reopen) — repeated formally under COMPAT-02 at Stage 4
 3. UI mockup (`/start O-simpleAmbisonics` → option 3) before Stage 3; it finalises `parameter-spec.md` and must keep the 12-parameter set
 
@@ -119,3 +142,4 @@ Progress: [#######.............] 35%
 - plugins/O-simpleAmbisonics/Source/dsp/SpatialEngine.h, FixedDelay.h (Stage 1 execute)
 - plugins/O-simpleAmbisonics/Source/ui/.gitkeep (Stage 1 execute)
 - plugins/O-simpleAmbisonics/tests/render-harness/CMakeLists.txt, main.cpp (Stage 1 execute)
+- plugins/O-simpleAmbisonics/.planning/stages/2-dsp/CONTEXT-2.1.md (Stage 2 / 2.1 discuss)
