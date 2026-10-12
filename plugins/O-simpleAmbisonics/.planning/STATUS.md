@@ -6,15 +6,15 @@ stage_phase: 2
 stage_phase_name: rotation
 stage_phase_total: 3
 artifact_suffix: "-2.2"
-status: stage_2_phase_2_1_verify_complete
+status: stage_2_phase_2_2_discuss_complete
 last_updated: 2026-10-12
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-current_phase: verify
-next_phase: discuss
-next_action: plugin-discuss
+current_phase: discuss
+next_phase: research
+next_action: plugin-research
 next_stage: 2
 ready_for_implementation: true
 parameter_count: 12
@@ -26,13 +26,14 @@ plugin_code: OSAm
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — Phase 2.1 of 3 (chain + stereo) — verify ✓ (2026-10-12) → Phase 2.2 (rotation) discuss next
-Status: Phase 2.1 VERIFIED (VERIFICATION-2.1.md): every SUMMARY claim re-run independently on the installed bundles (byte-identical to the build) — harness 118/118 PASS with digest 9189d911a1fe98d5 reproduced, 0 warnings on a forced TU rebuild, auval SUCCEEDED, pluginval s10 ×2 VST3 + AU SUCCESS, and an independent pedalboard measurer (tests/pedalboard/verify_2_1.py, 25 checks ALL PASS: +90° = 22.88 dB left, impulse exactly 0.75 at the compensated index in both decoder modes, distance anchors +8.895 / 0 / −24.178 dB and HF/LF −10.788 dB at 20 m, orders bit-equal in Stereo mode, orbit 17.6 dB swing, +170 → −170 the short way, 32 corners finite, state round-trip). REQUIREMENTS: FUNC-02, FUNC-06, DSP-01, DSP-04, DSP-05, DSP-06, PERF-01 → complete; FUNC-01, FUNC-03, QUAL-01 → partial (rotation 2.2, HRTF/decoder-switch 2.3, preset-load Stage 4). Human DAW hands-on listed as non-blocking. Next: Phase 2.2 (SH rotation) / discuss.
+Stage: 2 of 4 (DSP) — Phase 2.2 of 3 (rotation) — discuss ✓ (2026-10-12) → research next
+Status: Phase 2.2 discuss complete (CONTEXT-2.2.md): the algorithm is closed by ARCHITECTURE (matrices, signs, Euler composition, Ivanic–Ruedenberg recursion, per-sample matrix lerp, DSP-02 gate); discuss settled ten execution-level decisions — D1 rotate the 16-channel bus per sample (83 multiplies, W implicit 1), not folded into c_eff; D2 per-element lerp prevR + t·(curR − prevR) on the control grid, all blocks always applied; D3 zero rotation is BIT-TRANSPARENT so the whole 2.1 probe set and digest 9189d911a1fe98d5 become the 2.2 regression verdict (digest-2.1) with a separate digest-2.2; D4 three independent WrapSmoothers; D5 tap + shPeak move POST-rotation; D6 ReferenceModel stays recursion-free (own 3×3 builder, re-encode at dir(R·d) = the oracle by construction); D7 cardinal signs + yaw = −azimuth pinned through the engine frame against the harness builder; D8 azRot/elRot = dir(R·d) per control step; D9 own transcription of the 1996 + 1998-erratum formulas, IEM/Green for index cross-check only; D10 yaw-only fallback stays armed. Open for research R1–R7 (formulas validated numerically in a scratch script BEFORE planning, lerp chord error per band at 11.6°/0.48° per grid, identity exactness element-by-element, dir() convention, 83-element index helper, sweep liveness, hook automation of the angles). Next: 2.2 / research.
+Verify was: Phase 2.1 VERIFIED (VERIFICATION-2.1.md): every SUMMARY claim re-run independently on the installed bundles (byte-identical to the build) — harness 118/118 PASS with digest 9189d911a1fe98d5 reproduced, 0 warnings on a forced TU rebuild, auval SUCCEEDED, pluginval s10 ×2 VST3 + AU SUCCESS, and an independent pedalboard measurer (tests/pedalboard/verify_2_1.py, 25 checks ALL PASS). REQUIREMENTS: FUNC-02, FUNC-06, DSP-01, DSP-04, DSP-05, DSP-06, PERF-01 → complete; FUNC-01, FUNC-03, QUAL-01 → partial (rotation 2.2, HRTF/decoder-switch 2.3, preset-load Stage 4). Human DAW hands-on listed as non-blocking.
 Execute was: Phase 2.1 executed (T1–T12, SUMMARY-2.1.md written): the audible chain — DistanceModel (soft-knee gain + TPT air LP with the D7 wet mix) → ShEncoder (encodeSH16 lifted verbatim, LinearRamp order gates) → identity rotation slot → 16-ch bus with busTap + peak scan → ±60° StereoDecoder (exact literals) → DecoderMixer (FixedDelay<64> ×2, mix ramp, A14 placeholder explicit at the engine call site) — on the persistent 64-sample control grid (D5 amendment as A1). Processor caches all 12 atomics, fills Params before engine.prepare, slices through monoScratch, applies the seeded gain per sample and publishes one MeterFrame per host block through a public TripleBuffer with the hasNewData()-gated peak reset. Harness: 118 checks ALL PASS on a fresh binary ×4 — P1 null 4.6e-08 vs the double ReferenceModel, P1 anchor bit-exact 0.75·s[n−64] in both decoder modes + engine-direct, P2b/P3b bit-equal with orbit On 2 Hz / order 3, P4 impulse exactly 0.75 at 164, DSP-01 2.07e-07, DSP-04 22.88 dB, DSP-05 anchors −10.788 / +8.874 / 0.000 / −24.198 dB with d ≤ 1 m bit-exact, DSP-06a through 180° (residual 8.4e-04 at 0.2 s), DSP-06b click ratios 1.0003 / 1.0000 (negative control 24.8 FAIL-as-expected, liveness 8.35 dB), order fade exact arrival in 14 / 15 steps with bus-tap ratios 0.9999 / 1.0000 (negative control 66.9), meter frame 4/9/16 + accumulate-then-reset, extremes finite at 48 k / 96 k, PERF-01 0 allocations (liveness 1); digest 9189d911a1fe98d5. Build 0 warnings; build-and-install OK; auval SUCCEEDED; pluginval s10 ×2 VST3 + AU SUCCESS. One real defect found and fixed in the loop: the APVTS raw default of the skewed+stepped distance range is unsnapped (JUCE legacy) → 1.0000001 m → fillParams now snaps distance / orbitRate through their ranges. Next: 2.1 / verify.
 Plan was: Phase 2.1 PLAN-2.1.md written: 13 tasks (T1–T13) with decisions A1–A15 adopted from RESEARCH-2.1 — the D5 amendment (persistent 64-sample control grid, constant k = 1 − exp(−64/(τ·fs)) and ramp step 64/(τ·fs)), linear ramps for order gains + decoder mix with exact arrival, 1e-6 snap on the one-poles, every blend as b + t·(a − b), decoder matrix as exact literals 0.5f/0.25f/0.4330127f, per-sample lerp t = (j+1)/64, Params filled before engine.prepare, engine-owned peak accumulation with a hasNewData()-gated reset, D6 placeholder explicit at the engine call site. The control step is written once as a shared spec for SpatialEngine (T7) and the double-precision ReferenceModel (T9, generic SN3D table, snap switches for the negative controls).
 Research was: R1–R7 answered with computed numbers (click metric = second-difference ratio ≤ 2.0 vs matched control on a 100 Hz tone; allocation counter = O-Octagon probe AO verbatim; chord error −1.3/−3.75/−5.56 dB per band at 4096-sample slices → D5 AMENDMENT: fixed 64-sample control grid; DSP-01 generic table verified to 4.7e-16 / float 2.8e-08; DSP-05 two-tone 200 Hz + 12 kHz with closed-form anchors, flat on [0.2, 1] by design; TripleBuffer not a module — copy with provenance; peaks = max-since-UI-last-read via hasNewData()). F1–F9: linear ramps for order gains + decoder mix and a 1e-6 snap; b + t·(a − b) forms; D7 motivation corrected (−0.06 dB at 10 kHz at the clamp).
 Stage 1 was: Stage 1 complete. Verify re-ran everything independently on the INSTALLED bundles (byte-identical to the build): harness P0–P5 ALL PASS (digest 6a1df555bc125ae3 reproduced), 0 warnings on a forced TU rebuild, auval SUCCEEDED (caps [1,2] [2,2]), pluginval s10 SUCCESS VST3 + AU, pedalboard V1–V3 (12-param contract, pass-through with reported == measured latency, 12-value state round-trip) ALL PASS. COMPAT-01 + FUNC-07 complete. Next: Stage 2 / discuss (Phase 2.1).
-Progress: [###########.........] 52%
+Progress: [###########.........] 54%
 
 ## Phase Progress
 
@@ -57,7 +58,7 @@ Progress: [###########.........] 52%
 ### Stage 2: DSP — Phase 2.2 (rotation)
 | Phase | Status | Date | Skipped |
 |-------|--------|------|---------|
-| discuss | | | |
+| discuss | ✓ | 2026-10-12 | |
 | research | | | |
 | plan | | | |
 | execute | | | |
@@ -131,6 +132,12 @@ Not started. Per-phase cycles (D1); roll-up `stages/2-dsp/VERIFICATION.md` at th
 - Measurer lessons recorded (pedalboard `distance_m` set quantises to ≈ 1.004 m and engages the air LP — leave the default or set `raw_value`; short-way gates relative to the static cardioid asymmetry at the start angle; `orbit` reads back as numpy bool)
 - Human DAW hands-on (pan sign, distance, orbit, default not silent) listed non-blocking; repeated formally under COMPAT-02 / QUAL-02 at Stage 4
 
+**Stage 2 / Phase 2.2 / discuss:** ✓ Complete (2026-10-12)
+- `stages/2-dsp/CONTEXT-2.2.md` — entry check re-read (tap + peak scan are PRE-rotation in 2.1 and must move; `Params` already carries yaw/pitch/roll; all three angles ±180° continuous; every 2.1 probe leaves rotation at 0°)
+- Decisions D1–D10: rotate the bus per sample (83 elements, W implicit); per-element matrix lerp on the control grid, all blocks always applied; zero rotation bit-transparent → digest-2.1 `9189d911a1fe98d5` is a VERDICT, digest-2.2 separate; three `WrapSmoother`s; tap/`shPeak`/`busTap()` post-rotation; ReferenceModel recursion-free (re-encode at the rotated direction through its own Cartesian builder); cardinal signs ×3 + `yaw = −azimuth → front` asserted through the engine frame; `azRot/elRot = dir(R·d)` per control step; own transcription of Ivanic–Ruedenberg 1996 + 1998 erratum (IEM / Green consulted for indices only); yaw-only fallback armed
+- Gate set named: DSP-02 (200 tuples × 3 orders < 1e-4) + per-block orthogonality, P1 null at a non-zero tuple, yaw-sweep + yaw-step click gates on all 16 bus-tap channels (negative control = ReferenceModel `snapCoefficientsPerGrid`), P2b/P3b with rotation automation, PERF-01 with rotation moving, meter-frame rotated fields, extremes; `tests/pedalboard/verify_2_2.py` at verify
+- Open for research R1–R7 — R1 validates the recursion formulas numerically in a scratch script before RESEARCH-2.2 closes; R3 proves identity exactness element-by-element (fallback: < 1e-6 null)
+
 **Stage 2 / Phase 2.1 / execute:** ✓ Complete (2026-10-12)
 - `stages/2-dsp/SUMMARY-2.1.md` — files: `Source/dsp/{Smoothers,ShEncoder,DistanceModel,OrbitLfo,StereoDecoder,DecoderMixer,MeterFrame,TripleBuffer}.h` (created, JUCE-free), `Source/dsp/SpatialEngine.h` (composition on the 64-sample control grid, `busTap[16]`, no allocation), `Source/PluginProcessor.{h,cpp}` (12 cached atomics, `fillParams()` with range snapping, scratch sized in `prepareToPlay`, slice loop → `engine.process`, per-sample seeded gain, public `meterFrames` published once per block), `CMakeLists.txt` (sources), `tests/render-harness/ReferenceModel.h` (double transcription with the generic SN3D table and two negative-control switches), `tests/render-harness/main.cpp` (rtcheck counter verbatim from O-Octagon, click helpers, `checkFailsAsExpected`, drivers, the full 2.1 probe set)
 - Harness 118 checks ALL PASS (×4 runs, digest `9189d911a1fe98d5` reproduced); build 0 warnings; `build-and-install.sh` OK; `auval -v aufx OSAm OuDv` SUCCEEDED; pluginval strictness 10 ×2 SUCCESS for VST3 and AU
@@ -140,7 +147,7 @@ Not started. Per-phase cycles (D1); roll-up `stages/2-dsp/VERIFICATION.md` at th
 
 ## Next Steps
 
-1. Stage 2 / Phase 2.2 / discuss: `/plugin-discuss O-simpleAmbisonics 2-dsp` — SH rotation (ROADMAP §Phase 2.2): `ShRotator.h` with `R = Rz(yaw)·Ry′(pitch)·Rx(roll)` (signs per ARCHITECTURE), order-1 block permuted to ACN (Y, Z, X), Ivanic–Ruedenberg 5×5 / 7×7, 83-element contiguous storage, per-sample lerp of the block matrices on the 64-sample control grid; wrap-aware smoothing on all three angles; `shGain = R·c_eff` and `azRot/elRot` in the MeterFrame; DSP-02 gate (200 random tuples < 1e-4 at every order) + three cardinal sign assertions + yaw-sweep click gate; ReferenceModel extended with the rotation; P1 null / 0.75 anchor / digest carry forward
+1. Stage 2 / Phase 2.2 / research: `/plugin-research O-simpleAmbisonics 2-dsp` — answer R1–R7 of CONTEXT-2.2.md: validate the Ivanic–Ruedenberg `u/v/w` + `P(i,a,b,l)` formulas (1998 erratum) and the ACN index map numerically in a scratch script against re-encoding at 200 tuples before closing RESEARCH-2.2; chord error of the per-element matrix lerp per band at 11.6° and 0.48° per grid; identity exactness of the recursion in float; `dir()` convention; the 83-element index helper; yaw-sweep liveness; hook automation of yaw/pitch/roll in the existing harness drivers
 2. Non-blocking human item from VERIFICATION-2.1.md: installed plugin hands-on in a DAW (Stereo mode pans with Azimuth, +90° louder LEFT; Distance 1 → 20 m darkens and attenuates; Orbit On moves, Off glides back the short way; default Binaural setting is NOT silent)
 3. Non-blocking human checks from `stages/1-foundation/VERIFICATION.md` (Logic stereo + mono track, Generic editor 12 rows, project save/reopen) — repeated formally under COMPAT-02 at Stage 4
 4. UI mockup (`/start O-simpleAmbisonics` → option 3) before Stage 3; it finalises `parameter-spec.md` and must keep the 12-parameter set
@@ -188,3 +195,4 @@ Not started. Per-phase cycles (D1); roll-up `stages/2-dsp/VERIFICATION.md` at th
 - plugins/O-simpleAmbisonics/tests/render-harness/ReferenceModel.h (Stage 2 / 2.1 execute)
 - plugins/O-simpleAmbisonics/.planning/stages/2-dsp/VERIFICATION-2.1.md (Stage 2 / 2.1 verify)
 - plugins/O-simpleAmbisonics/tests/pedalboard/verify_2_1.py (Stage 2 / 2.1 verify)
+- plugins/O-simpleAmbisonics/.planning/stages/2-dsp/CONTEXT-2.2.md (Stage 2 / 2.2 discuss)
