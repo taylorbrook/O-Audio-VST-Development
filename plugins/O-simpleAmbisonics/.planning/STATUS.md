@@ -1,15 +1,15 @@
 ---
 plugin: O-simpleAmbisonics
 stage: 1
-status: stage_1_plan_complete
+status: stage_1_execute_complete
 last_updated: 2026-10-12
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-current_phase: plan
-next_phase: execute
-next_action: plugin-execute
+current_phase: execute
+next_phase: verify
+next_action: plugin-verify
 next_stage: 1
 ready_for_implementation: true
 parameter_count: 12
@@ -21,9 +21,9 @@ plugin_code: OSAm
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — plan phase complete
-Status: Stage 1 PLAN.md written — 7 tasks (CMake, dsp seam, processor, inline Generic editor, harness scaffold with probes P0–P5, build/validate, status). Planner picks: O-Emulator editor shape, FixedDelay<64>, pluginVersion state stamp. Next: execute (foundation-shell-agent).
-Progress: [#####...............] 25%
+Stage: 1 of 4 (Foundation) — execute phase complete
+Status: Shell built, installed (`O-simpleAmbisonics-dev.{vst3,component}`) and validated — harness P0–P5 ALL PASS (digest 6a1df555bc125ae3), 0 build warnings, auval SUCCEEDED (caps [1,2] [2,2]), pluginval s10 ×2 SUCCESS on VST3 and AU. One plan deviation: degree params use interval 0 (0.01 snapped the 0° default to −4e-06). Next: verify.
+Progress: [######..............] 30%
 
 ## Phase Progress
 
@@ -33,8 +33,8 @@ Progress: [#####...............] 25%
 | discuss | ✓ | 2026-10-11 | |
 | research | ✓ | 2026-10-11 | |
 | plan | ✓ | 2026-10-12 | |
-| execute | → | | |
-| verify | | | |
+| execute | ✓ | 2026-10-12 | |
+| verify | → | | |
 
 ## Completed So Far
 
@@ -64,9 +64,18 @@ Progress: [#####...............] 25%
 - `stages/1-foundation/PLAN.md` — T1 CMake (effect, `OSAm`, no BinaryData) · T2 `Source/dsp/{SpatialEngine,FixedDelay}.h` seam with `kPartition = 64` · T3 processor (buses, 12-param table, seeded pass-through with slice loop, XML state + `pluginVersion`) · T4 inline `GenericAudioProcessorEditor` (no editor TU) · T5 `tests/render-harness` scaffold from O-Emulator 8ec32da9 with probes P0–P5 + FNV digest · T6 build / harness / build-and-install / `auval -v aufx OSAm OuDv` / pluginval s10 ×2 · T7 SUMMARY + status
 - Success criteria mirror CONTEXT.md; gotchas checklist from RESEARCH §8 embedded for the executor
 
+**Stage 1 / execute:** ✓ Complete (2026-10-12)
+- `stages/1-foundation/SUMMARY.md` — files: `CMakeLists.txt` (effect, `OSAm`, VST3+AU+Standalone, WebView2 flags, no BinaryData), `Source/PluginProcessor.{h,cpp}` (12-param APVTS, mono/stereo-in → stereo-out, pass-through conditioner → `FixedDelay<64>` → seeded gain, slice loop, finite scrub, Generic editor inline, XML state + `pluginVersion`), `Source/dsp/{SpatialEngine,FixedDelay}.h` seam (`kPartition = 64`, no-op engine), `tests/render-harness/{CMakeLists.txt,main.cpp}` (derived version, probes P0–P5 + digest)
+- Gate 0→1 bypassed with `--force` (no source tree yet — standing pattern; logged)
+- Harness: P0 (45 checks) / P1 / P1b / P2 / P3 / P4 (impulse 100 → 164) / P5 ALL PASS; digest `6a1df555bc125ae3`
+- Build 0 warnings; `build-and-install.sh` OK; `auval -v aufx OSAm OuDv` SUCCEEDED; pluginval strictness 10 ×2 SUCCESS for VST3 and AU
+- **Deviation:** the five degree parameters use `NormalisableRange` interval **0** (continuous) instead of 0.01 — JUCE snaps every host value to `start + interval·floor(…)`, and `−180 + 0.01f·18000 = −4.02e-06`, so the 0° default was never exactly 0 (P0 caught it). Siblings carry the same latent offset unobserved.
+- Build-time corrections: namespace alias `osa_dsp` (bare `dsp::` ambiguous with `juce::dsp` under JuceHeader's `using namespace juce`); input legs via `getChannelLayoutOfBus(true, 0)`
+
 ## Next Steps
 
-1. `/plugin-execute O-simpleAmbisonics 1-foundation` (foundation-shell-agent) → `/plugin-verify O-simpleAmbisonics 1-foundation`
+1. `/plugin-verify O-simpleAmbisonics 1-foundation` — goal-backward check + DAW hands-on (stereo + mono track, Generic editor shows 12 params, state round-trip)
+2. Then Stage 2 / discuss: `/plugin-discuss O-simpleAmbisonics 2-dsp`
 3. UI mockup (`/start O-simpleAmbisonics` → option 3) before Stage 3; it finalises `parameter-spec.md` and must keep the 12-parameter set
 
 ## Context to Preserve
@@ -97,3 +106,9 @@ Progress: [#####...............] 25%
 - plugins/O-simpleAmbisonics/.planning/stages/1-foundation/CONTEXT.md (Stage 1 discuss)
 - plugins/O-simpleAmbisonics/.planning/stages/1-foundation/RESEARCH.md (Stage 1 research)
 - plugins/O-simpleAmbisonics/.planning/stages/1-foundation/PLAN.md (Stage 1 plan)
+- plugins/O-simpleAmbisonics/.planning/stages/1-foundation/SUMMARY.md (Stage 1 execute)
+- plugins/O-simpleAmbisonics/CMakeLists.txt (Stage 1 execute)
+- plugins/O-simpleAmbisonics/Source/PluginProcessor.h, PluginProcessor.cpp (Stage 1 execute)
+- plugins/O-simpleAmbisonics/Source/dsp/SpatialEngine.h, FixedDelay.h (Stage 1 execute)
+- plugins/O-simpleAmbisonics/Source/ui/.gitkeep (Stage 1 execute)
+- plugins/O-simpleAmbisonics/tests/render-harness/CMakeLists.txt, main.cpp (Stage 1 execute)

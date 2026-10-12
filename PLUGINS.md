@@ -66,7 +66,7 @@ Ouaricon Plugins:
 | O-simpleSampler | 📦 Installed | 1.6.0 | Synth (Pedagogical Sampler) | 2026-09-27 |
 | O-simpleBeatmaker | 📦 Installed | 1.4.0 | Synth (Pedagogical Step-Sequencer Drum Machine) | 2026-09-25 |
 | O-simplePhysicalModelSynth | 📦 Installed | 1.4.0 | Synth (Pedagogical Physical Modeling) | 2026-09-25 |
-| O-simpleAmbisonics | 🚧 Stage 1 | - | Audio Effect (Pedagogical Ambisonic Spatializer) | 2026-10-11 |
+| O-simpleAmbisonics | 🚧 Stage 1 | - | Audio Effect (Pedagogical Ambisonic Spatializer) | 2026-10-12 |
 | O-ReverseDelay | 📦 Installed | 1.22.1 | Audio Effect (Granular Reverse Delay) | 2026-09-27 |
 | O-Octagon | 📦 Installed | 1.14.1 | Audio Effect (8-Channel DBAP Spatializer) | 2026-10-12 |
 | O-Bitrot | 📦 Installed | 1.17.1 | Audio Effect (Broken-Media Degradation) | 2026-09-30 |
