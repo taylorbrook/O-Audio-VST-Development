@@ -171,6 +171,10 @@ export function createVenueScreen(deps) {
   const presetCurrentNode = need("vpreset-current");
   const pingStateNode = need("vping-state");
 
+  // v1.13.2 (B7) — where the result of a venue write is shown.
+  const tableStateNode = need("vtable-state");
+  const fileStateNode = need("vfile-state");
+
   // ── State ────────────────────────────────────────────────────────────────
   // `committed` is the last model the PLUGIN reported. `pending` holds raw text
   // the operator has typed and that has not been accepted yet. A geometry
@@ -222,33 +226,58 @@ export function createVenueScreen(deps) {
     return raw === undefined ? committed.speakers[n - 1].label : String(raw).trim();
   }
 
-  // The 50 values, assembled ONCE, for the ONE setVenue call site below.
+  // The payload for the ONE setVenue call site below.
+  //
+  // ── v1.13.2 (B2) — ONLY WHAT WAS TYPED GOES ON THE WIRE ─────────────────
+  // Through v1.13.1 this sent all 50 values and filled every untouched one from
+  // `committed` — the page's copy of the plugin's venue, refreshed only when the
+  // 2 Hz status poll sees venueGen move. So a second commit inside one poll tick
+  // carried the FIRST commit's field at its pre-edit value, and C++ applied it:
+  // trim 1 -> -3 dB, Tab, trim 2 -> -6 dB, and speaker 1 was back at 0 dB. The
+  // same path reverted an L <-> R swap behind a quick numeric edit, and the
+  // reverted set is a valid permutation, so no MAP banner said so (R1's class).
+  //
+  // C++ setVenue starts from the LIVE venue and falls back PER FIELD — finiteOr()
+  // for every number, hasProperty("label") for the label — so a row carrying
+  // only `n` changes nothing. The page's cache no longer has any way onto the
+  // wire. Eight rows are still sent, because setVenue checks the row count.
   function buildPayload() {
     const speakers = rows.map((r) => {
-      const base = committed.speakers[r.n - 1];
-      return {
-        n: r.n,
-        label: labelOf(r.n),
-        x: pendingNumber(r.n, "x") ?? base.x,
-        y: pendingNumber(r.n, "y") ?? base.y,
-        z: pendingNumber(r.n, "z") ?? base.z,
-        trimDb: pendingNumber(r.n, "trim") ?? base.trimDb,
+      const row = { n: r.n };
 
-        // ALWAYS MILLISECONDS ON THE WIRE. A pending edit is in whatever unit
-        // the toggle is showing, so it converts here; the committed fallback is
-        // already ms and must NOT be converted a second time. Clamped to the
-        // rail C++ reports, so a typed 900 m rails in the field the operator is
-        // looking at rather than silently at publishSnapshot().
-        delayMs: clampDelayMs(pendingNumber(r.n, "delay") === undefined
-          ? base.delayMs
-          : displayToMs(pendingNumber(r.n, "delay"))),
-      };
+      if (pending.has(fieldId(r.n, "label"))) row.label = labelOf(r.n);
+
+      const x = pendingNumber(r.n, "x");
+      if (x !== undefined) row.x = x;
+
+      const y = pendingNumber(r.n, "y");
+      if (y !== undefined) row.y = y;
+
+      const z = pendingNumber(r.n, "z");
+      if (z !== undefined) row.z = z;
+
+      const trim = pendingNumber(r.n, "trim");
+      if (trim !== undefined) row.trimDb = trim;
+
+      // ALWAYS MILLISECONDS ON THE WIRE. A pending edit is in whatever unit the
+      // toggle is showing, so it converts here, exactly once. Clamped to the
+      // rail C++ reports, so a typed 900 m rails in the field the operator is
+      // looking at rather than silently at publishSnapshot().
+      const delay = pendingNumber(r.n, "delay");
+      if (delay !== undefined) row.delayMs = clampDelayMs(displayToMs(delay));
+
+      return row;
     });
 
-    const front = pendingNumber(0, "rakeFront") ?? committed.rake.front;
-    const rear = pendingNumber(0, "rakeRear") ?? committed.rake.rear;
+    const rake = {};
 
-    return { speakers, rake: { front, rear } };
+    const front = pendingNumber(0, "rakeFront");
+    if (front !== undefined) rake.front = front;
+
+    const rear = pendingNumber(0, "rakeRear");
+    if (rear !== undefined) rake.rear = rear;
+
+    return { speakers, rake };
   }
 
   // ── THE LABEL PREDICATE ──────────────────────────────────────────────────
@@ -325,9 +354,11 @@ export function createVenueScreen(deps) {
   }
 
   // The mini-plan. Fitted to the SMALLER of its two bounds by the same fitBox()
-  // the Room plan uses — a width-bound portrait plan wants 348 px of height in a
-  // rail that has 337, and overflows it while document.scrollHeight stays 720
-  // (Q11). Section 11 of the layout gate measures the RAIL for exactly that.
+  // the Room plan uses — a width-bound portrait plan wants more height than its
+  // stage has, and overflows it while document.scrollHeight stays 720 (Q11).
+  // Section 11 of the layout gate measures the fitted box against the stage for
+  // exactly that, and section 12 its minimum size (v1.13.2: the stage moved from
+  // the rail, where later groups had crushed it to 25 px, to under the table).
   function drawMini() {
     if (geometry === null) return;
 
@@ -356,6 +387,43 @@ export function createVenueScreen(deps) {
 
       placeGlyph(g, s, view);
     });
+  }
+
+  // ── v1.13.2 (B7) — WHAT THE PLUGIN SAID, ON SCREEN ──────────────────────
+  //
+  // Every venue write answers { ok, reason, speaker }. Through v1.13.1 this page
+  // dropped all of them except the output-order line, which printed the raw C++
+  // code — on the French page too. A refusal now reads as a sentence in the
+  // page's language: the three map failures through the ladder app.js owns
+  // (window.__setReasonLabel), the file codes through the literal ladder below.
+  // A code neither knows is printed AS the code, with the label mirror torn down
+  // first, for the reason renderMapBanner gives. Still ADVISORY: the model
+  // converges on the venueGen poll either way (N4).
+  function renderRefusal(node, result) {
+    const reason = String(result?.reason ?? "");
+    const speaker = Number(result?.speaker);
+
+    node.dataset.tone = "alert";
+    if (window.__setReasonLabel(node, reason, speaker)) return;
+
+    if (reason === "malformedRoot") {
+      window.__setLabel(node, "vfile.malformed");
+    } else if (reason === "unreadable") {
+      window.__setLabel(node, "vfile.unreadable");
+    } else {
+      delete node.dataset.i18n;
+      delete node.dataset.label;
+      node.textContent = reason;
+    }
+  }
+
+  // Back to the idle text, with the mirror torn down so a later language sweep
+  // cannot resurrect a result that no longer applies.
+  function clearResult(node, idle) {
+    delete node.dataset.tone;
+    delete node.dataset.i18n;
+    delete node.dataset.label;
+    node.textContent = idle;
   }
 
   // ── THE ONE WRITE PATH ───────────────────────────────────────────────────
@@ -414,6 +482,12 @@ export function createVenueScreen(deps) {
           // hold-and-mark semantics intact — reverting there would make an
           // L <-> R swap unreachable (P53).
           paintFields();
+
+          // v1.13.2 (B7) — and SAY WHY. The repaint shows what the plugin
+          // holds; this line shows that it refused, and on which row.
+          renderRefusal(tableStateNode, result);
+        } else if (result !== null && typeof result === "object" && result.ok === true) {
+          clearResult(tableStateNode, "");
         }
       })
       .catch((err) => console.error("setVenue failed", err));
@@ -506,17 +580,68 @@ export function createVenueScreen(deps) {
   bindNumeric(rakeFront, () => fmt(committed.rake.front, 2));
   bindNumeric(rakeRear, () => fmt(committed.rake.rear, 2));
 
+  // v1.13.2 (B11) — THE ROW BEING TYPED INTO LIGHTS ITS DOT on the mini-plan,
+  // which is the question the plan exists to answer while 24 coordinates go
+  // in. focusin/focusout bubble from any of the row's six fields; moving between
+  // two fields of one row is an out-then-in, so the dot stays lit.
+  for (const r of rows) {
+    const rowNode = need(`vrow-${r.n}`);
+    const glyph = miniGlyphs[r.n - 1];
+    rowNode.addEventListener("focusin", () => glyph.classList.add("is-editing"));
+    rowNode.addEventListener("focusout", () => glyph.classList.remove("is-editing"));
+  }
+
   // ── The .venue store ─────────────────────────────────────────────────────
   // Both open a NATIVE MODAL through FileChooser::launchAsync on the C++ side.
   // Nothing here waits on the chooser's promise: a LOAD that succeeds moves
   // venueGen, and the table repaints from the refresh that follows.
 
+  // v1.13.2 (B7) — and the result is SHOWN. Through v1.13.1 both completions
+  // were dropped: a newer-format file that loaded with values missing, a
+  // malformed or unreadable one that changed nothing, a label set the plugin
+  // refused, and a save that never reached the disk all looked like success.
+  // A cancelled chooser changes nothing, so it leaves the line as it was.
+  function renderFileResult(op, result) {
+    if (result === null || typeof result !== "object") return;
+
+    const reason = String(result.reason ?? "");
+    if (reason === "cancelled") return;
+
+    if (result.ok === true) {
+      if (reason === "forwardVersion") {
+        fileStateNode.dataset.tone = "alert";
+        window.__setLabel(fileStateNode, "vfile.forward");
+      } else if (op === "save") {
+        delete fileStateNode.dataset.tone;
+        window.__setLabel(fileStateNode, "vfile.saved");
+      } else {
+        delete fileStateNode.dataset.tone;
+        window.__setLabel(fileStateNode, "vfile.loaded");
+      }
+      return;
+    }
+
+    // A failed SAVE is reported by C++ as "unreadable" — the same code a
+    // failed read uses — so the direction comes from which button was pressed.
+    if (op === "save") {
+      fileStateNode.dataset.tone = "alert";
+      window.__setLabel(fileStateNode, "vfile.writeFailed");
+      return;
+    }
+
+    renderRefusal(fileStateNode, result);
+  }
+
   need("btn-venue-save").addEventListener("click", () => {
-    nativeFn("saveVenue")().catch((err) => console.error("saveVenue failed", err));
+    nativeFn("saveVenue")()
+      .then((result) => renderFileResult("save", result))
+      .catch((err) => console.error("saveVenue failed", err));
   });
 
   need("btn-venue-load").addEventListener("click", () => {
-    nativeFn("loadVenue")().catch((err) => console.error("loadVenue failed", err));
+    nativeFn("loadVenue")()
+      .then((result) => renderFileResult("load", result))
+      .catch((err) => console.error("loadVenue failed", err));
   });
 
   // ── The musical preset store ─────────────────────────────────────────────
@@ -589,7 +714,12 @@ export function createVenueScreen(deps) {
 
     rows.forEach((r) => r.pingButton.classList.toggle("is-pinging", active && lit === r.n));
 
+    // v1.13.2 — a refusal is now written through setLabel (below), so tear its
+    // mirror down before writing state text, or the next language sweep would
+    // put the refusal back over a running ping.
     const value = pingStateNode;
+    delete value.dataset.i18n;
+    delete value.dataset.label;
     value.textContent = active ? `${String(state.mode ?? "")} ${lit}` : "—";
   }
 
@@ -630,8 +760,19 @@ export function createVenueScreen(deps) {
           renderPing(null);
           // ADVISORY: the refusal reason. The refusal itself is already visible
           // as "nothing is lit", which is what P64 requires.
+          //
+          // v1.13.2 (B7) — as a sentence, not the C++ code: through v1.13.1 the
+          // line printed "mapInvalid", on the French page too. The ping is
+          // refused for the same reason the monitor is — no mapped rig on this
+          // output — so it says the same words.
           const value = pingStateNode;
-          value.textContent = String(result.reason ?? "");
+          if (String(result.reason ?? "") === "mapInvalid") {
+            window.__setLabel(value, "monitor.unavailable");
+          } else {
+            delete value.dataset.i18n;
+            delete value.dataset.label;
+            value.textContent = String(result.reason ?? "");
+          }
           return;
         }
         renderPing(result);
@@ -682,8 +823,15 @@ export function createVenueScreen(deps) {
     // which output sets count as stereo (P43). The setter is never refused,
     // so there is no refusal branch to render — the ACTIVE state arrives on
     // the next poll as binauralActive.
+    //
+    // v1.13.2 (B12) — it toggles the stored PREFERENCE, which renderMonitor()
+    // writes to data-binaural-pref from getStatus().stereoBinaural. Through
+    // v1.13.1 it sent the inverse of aria-pressed, which reflects what the
+    // audio thread DID: with audio idle (preference on, nothing rendered yet)
+    // every click sent `true` and the fold could not be switched off.
     if (monitorBtn.dataset.stereoBus === "true") {
-      nativeFn("setStereoBinaural")(!armed)
+      const preferred = monitorBtn.dataset.binauralPref !== "false";
+      nativeFn("setStereoBinaural")(!preferred)
         .catch((err) => console.error("setStereoBinaural failed", err));
       return;
     }
@@ -725,16 +873,16 @@ export function createVenueScreen(deps) {
         // code in it.
         const value = ooStateNode;
         if (result.ok !== true) {
-          // A REFUSAL REASON FROM C++, not authored prose. It is a diagnostic
-          // code, so it is printed as sent — and the stale mirror is cleared so
-          // dataset.label cannot end up disagreeing with textContent, which is
-          // the invariant §6 and check-ui-labels assertion 3 both assert.
-          delete value.dataset.i18n;
-          delete value.dataset.label;
-          value.textContent = String(result.reason ?? "");
+          // A REFUSAL REASON FROM C++. Until v1.13.2 it was printed as the raw
+          // code ("notEightChannels" on every stereo bus, on the French page
+          // too); it now reads as the same sentence the MAP banner uses, and
+          // only a code no ladder knows is printed as sent.
+          renderRefusal(value, result);
         } else if (id === "direct") {
+          delete value.dataset.tone;
           window.__setLabel(value, "oo.direct");
         } else {
+          delete value.dataset.tone;
           window.__setLabel(value, "oo.roles");
         }
       })
@@ -782,7 +930,14 @@ export function createVenueScreen(deps) {
       r.fields.delay.classList.remove("is-invalid");
     }
 
+    // v1.13.2 (B7) — a refusal (labels that no longer resolve on this rig) is
+    // said in the venue head, beside the table it was meant to fill.
     nativeFn("applySuggestedDelays")()
+      .then((result) => {
+        if (result === null || typeof result !== "object") return;
+        if (result.ok === false) renderRefusal(tableStateNode, result);
+        else clearResult(tableStateNode, "");
+      })
       .catch((err) => console.error("applySuggestedDelays failed", err));
   });
 

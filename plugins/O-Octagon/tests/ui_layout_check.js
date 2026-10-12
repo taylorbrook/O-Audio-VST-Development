@@ -737,8 +737,19 @@ async function nudge(page, id) {
     check(near(miniFacts.w / miniFacts.h, miniFacts.aspect, 0.02),
         `mini-plan aspect ${(miniFacts.w / miniFacts.h).toFixed(4)} follows the returned envelope ${miniFacts.aspect.toFixed(4)}`);
 
+    // v1.13.2 (B11) — AND IT IS LEGIBLE. Until now the only size claim above was w > 0 && h > 0,
+    // and the plan passed it at 19.5 x 24.4 px: it was the rail's flex:1 residual, every rail group
+    // added after Stage 3 came out of it (213 -> 119 at v1.1.0 -> 25 at v1.7.0), and its eight
+    // r = 6 dots sat in a knot larger than the plan itself. The aspect clause above passed too —
+    // a crushed box keeps its proportions. A floor is the claim that was missing. 120 px on the
+    // smaller side cannot be met by a knot and is cleared with room to spare by any honest fit of
+    // the stage under the table.
+    const MINI_MIN_PX = 120;
+    check(Math.min(miniFacts.w, miniFacts.h) >= MINI_MIN_PX,
+        `the mini-plan is LEGIBLE — smaller side ${Math.min(miniFacts.w, miniFacts.h).toFixed(1)} px >= ${MINI_MIN_PX}`);
+
     // ── 13 ───────────────────────────────────────────────────────────────────
-    head(13, 'invalid input MARKS and REVERTS; a metre commits ONE setVenue of 50 (FUNC-02/1)');
+    head(13, 'invalid input MARKS and REVERTS; a metre commits ONE setVenue carrying ONLY that value (FUNC-02/1, B2)');
 
     const beforeBad = await venueWriteCount();
     const goodValue = await page.evaluate(() => document.getElementById('vf-3-y').value);
@@ -775,7 +786,10 @@ async function nudge(page, id) {
     }, afterBad);
 
     check(goodFacts.calls === 1, `a valid metre committed EXACTLY ONE setVenue call — ${goodFacts.calls}`);
-    check(goodFacts.values === 50, `and it carried all 50 values in one payload — ${goodFacts.values}`);
+    // v1.13.2 (B2) — this asserted "all 50 values in one payload" through v1.13.1, which certified
+    // the defect: the 49 untouched values came from the page's stale cache, and section 35 shows
+    // what a second commit inside one poll tick then did to the first. Only the typed value travels.
+    check(goodFacts.values === 1, `and it carried ONLY the typed value — ${goodFacts.values} value(s) on the wire`);
     check(goodFacts.y3 === 7.25, `the typed value reached the payload — speakers[2].y = ${goodFacts.y3}`);
     check(!goodFacts.marked, 'the invalid mark cleared once the field parsed');
 
@@ -1010,12 +1024,19 @@ async function nudge(page, id) {
     await page.waitForFunction(() => document.getElementById('vping-state').textContent.trim() !== '—',
         null, { timeout: SETTLE_MS }).catch(() => {});
 
-    const refusal = await page.evaluate(() => ({
-        copy: document.getElementById('vping-state').textContent.trim(),
-        lit: [1, 2, 3, 4, 5, 6, 7, 8].filter(n => document.getElementById(`btn-ping-${n}`).classList.contains('is-pinging')).length,
-    }));
+    const refusal = await page.evaluate(() => {
+        const s = document.getElementById('vping-state');
+        return {
+            copy: s.textContent.trim(), key: s.dataset.i18n || '', mirror: s.dataset.label === s.textContent,
+            lit: [1, 2, 3, 4, 5, 6, 7, 8].filter(n => document.getElementById(`btn-ping-${n}`).classList.contains('is-pinging')).length,
+        };
+    });
     check(refusal.lit === 0, 'the ping REFUSED to start on an invalid map — nothing is lit');
-    check(/mapInvalid/i.test(refusal.copy), `and the refusal reason is on screen — "${refusal.copy}"`);
+    // v1.13.2 (B7) — the reason is on screen AS A SENTENCE, through setLabel. Through v1.13.1
+    // this asserted the raw C++ code "mapInvalid", which is what the line printed — on the
+    // French page too.
+    check(refusal.key === 'monitor.unavailable' && refusal.mirror && !/mapInvalid/.test(refusal.copy),
+        `and the refusal reason is on screen, in words — "${refusal.copy}" (key ${refusal.key})`);
 
     await page.evaluate(() => window.__OCTAGON_STUB__.setMapInvalid('none', -1));
 
@@ -2203,12 +2224,14 @@ async function nudge(page, id) {
     // went on displaying a number the model does not hold and the NEXT commit
     // would silently send the old one.
     //
-    // Armed with the SAFE-mode shape (`speaker: -1`), which is the reachable
-    // unbounded case: on a mono or stereo output — supported AU configurations —
-    // buildSpeakerToBuffer fails with notEightChannels on EVERY commit, the
-    // venue inputs are not disabled, and a -1 row index means not even the
-    // is-colliding mark appears. No commit can ever succeed there, so nothing
-    // ever heals the desync.
+    // Armed with the `speaker: -1` shape — a refusal with no row to mark. Until
+    // v1.13.2 that was EVERY commit on a mono or stereo output, where
+    // buildSpeakerToBuffer failed with notEightChannels and no commit could
+    // ever succeed. v1.13.2 (B6) made such a bus validate the labels against
+    // the real rigs instead, so the shape now arrives only from a malformed
+    // payload or a renegotiation racing the edit — but the repaint contract
+    // does not depend on which refusal arrives, and with no row mark the
+    // repaint and the result line (B7, asserted below) are the only feedback.
     await showVenue();
     await page.evaluate(() => window.__OCTAGON_STUB__.resetVenue());
 
@@ -2279,14 +2302,335 @@ async function nudge(page, id) {
         `the field went back to the value the plugin HOLDS — showed "${REJECTED_TEXT}", `
         + `now "${rej.shown}" (committed "${rejCommitted}")`);
 
-    // Why the repaint is the only feedback in this shape.
+    // Why the repaint is not enough on its own in this shape.
     check(!rej.marked,
-        'and with speaker = -1 there is no is-colliding mark to fall back on — the repaint IS the feedback');
+        'and with speaker = -1 there is no is-colliding mark to fall back on');
+
+    // v1.13.2 (B7) — THE REFUSAL IS SAID, not only repainted. Through v1.13.1 a
+    // repaint was the whole of the feedback: the typed number quietly turned back
+    // into the old one. The venue head now carries the reason as a sentence in
+    // the page's language — through setLabel, so the mirror holds.
+    const said = await page.evaluate(() => {
+        const s = document.getElementById('vtable-state');
+        return { key: s.dataset.i18n || '', tone: s.dataset.tone || '', text: s.textContent,
+                 mirror: s.dataset.label === s.textContent };
+    });
+    check(said.key === 'map.notEightChannels' && said.tone === 'alert' && said.text.trim() !== ''
+          && said.text !== 'notEightChannels' && said.mirror,
+        `the refusal is SAID in the venue head, as a sentence — key "${said.key}", tone "${said.tone}", "${said.text}"`);
 
     await page.evaluate(() => {
         window.__OCTAGON_STUB__.rejectVenueWrites(null);
         window.__OCTAGON_STUB__.resetVenue();
     });
+
+    // ── v1.13.2 — shared by sections 35-38 ──────────────────────────────────
+    //
+    // QUIESCE BEFORE THE STIMULUS (section 31's lesson, factored out): a reset
+    // bumps venueGen and its refresh lands up to a poll period later, and a
+    // refresh landing inside a section repaints the table for the wrong reason.
+    const quiesceVenue = async () => {
+        const seen = [];
+        for (let i = 0; i < 8; ++i) {
+            await page.waitForTimeout(STATUS_POLL_MS);
+            seen.push(await page.evaluate(() =>
+                `${document.getElementById('readout-envelope').textContent}|`
+                + `${document.getElementById('vf-1-trim').value}|${document.getElementById('vf-label-1').value}`));
+            if (seen.length >= 3 && seen.slice(-3).every(v => v === seen[seen.length - 1])) return true;
+        }
+        return false;
+    };
+
+    // ── 35 ───────────────────────────────────────────────────────────────────
+    head(35, 'two commits inside ONE status-poll tick BOTH land — trims, and an L <-> R swap (B2)');
+
+    // THE DEFECT, as it shipped through v1.13.1: buildPayload filled every field
+    // the operator had not typed from `committed`, the page's copy of the venue,
+    // which refreshes only when the 2 Hz poll sees venueGen move. Tab through two
+    // fields inside one tick and the SECOND commit carried the FIRST field at its
+    // pre-edit value — and setVenue applied it.
+    //
+    // DETERMINISTIC, NOT WALL-CLOCK. Both commits run inside ONE page.evaluate,
+    // i.e. one synchronous task: focusing the next field blurs the last, the
+    // blur handler commits, and no timer, poll or completion can run in between.
+    // That is "two Tabs inside 500 ms" with the race removed rather than hoped for.
+    await showVenue();
+    await page.evaluate(() => window.__OCTAGON_STUB__.resetVenue());
+    check(await quiesceVenue(), '[precondition] the venue refresh QUIESCED before anything was typed');
+
+    const b2Before = await page.evaluate(() => {
+        const g = window.__OCTAGON_STUB__.geometry();
+        return { writes: window.__OCTAGON_STUB__.venueWrites.length,
+                 l1: g.speakers[0].label, l2: g.speakers[1].label };
+    });
+
+    await page.evaluate(() => {
+        const type = (id, v) => {
+            const el = document.getElementById(id);
+            el.focus();
+            el.value = v;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+        type('vf-1-trim', '-3');
+        type('vf-2-trim', '-6');                  // focusing field 2 blurs field 1: commit #1
+        document.getElementById('vf-3-trim').focus();   // blurs field 2:           commit #2
+        document.activeElement.blur();
+    });
+
+    await page.waitForFunction(n => window.__OCTAGON_STUB__.venueWrites.length >= n + 2,
+        b2Before.writes, { timeout: SETTLE_MS }).catch(() => {});
+    await page.waitForFunction(() => document.getElementById('vf-1-trim').value === '-3.0'
+                                     && document.getElementById('vf-2-trim').value === '-6.0',
+        null, { timeout: SETTLE_MS }).catch(() => {});
+
+    const trims = await page.evaluate(n => {
+        const w = window.__OCTAGON_STUB__.venueWrites;
+        const g = window.__OCTAGON_STUB__.geometry();
+        return { calls: w.length - n,
+                 secondCarriesFirst: w.length >= 2 && w[w.length - 1].speakers[0].trimDb !== undefined,
+                 held: [g.speakers[0].trimDb, g.speakers[1].trimDb],
+                 shown: [document.getElementById('vf-1-trim').value, document.getElementById('vf-2-trim').value] };
+    }, b2Before.writes);
+
+    check(trims.calls === 2, `[non-vacuity] two setVenue calls were made inside one task — ${trims.calls}`);
+    check(!trims.secondCarriesFirst,
+        'the SECOND payload does not carry speaker 1\'s trim at all — the stale cache has no route onto the wire');
+    check(trims.held[0] === -3 && trims.held[1] === -6,
+        `the plugin holds BOTH edits — trims ${trims.held.join(' / ')} dB (v1.13.1 held 0 / -6)`);
+    check(trims.shown[0] === '-3.0' && trims.shown[1] === '-6.0',
+        `and the table shows both once the poll repaints it — "${trims.shown.join('" / "')}"`);
+
+    // THE ROUTING VARIANT, which is the one that matters in a hall: an L <-> R
+    // swap followed by a quick numeric edit. Through v1.13.1 the swap reverted —
+    // to a set that is still a valid permutation, so no MAP banner said so (R1).
+    await page.evaluate(() => window.__OCTAGON_STUB__.resetVenue());
+    check(await quiesceVenue(), '[precondition] quiesced again before the swap');
+    const swapWrites = await venueWriteCount();
+
+    await page.evaluate(([l1, l2]) => {
+        const type = (id, v) => {
+            const el = document.getElementById(id);
+            el.focus();
+            el.value = v;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+        type('vf-label-1', l2);                   // a duplicate for now: held and marked, no call
+        type('vf-label-2', l1);                   // blurs label 1 (still blocked)
+        type('vf-3-trim', '-1');                  // blurs label 2: the swap commits (#1)
+        document.activeElement.blur();            // blurs the trim: commit #2
+    }, [b2Before.l1, b2Before.l2]);
+
+    await page.waitForFunction(n => window.__OCTAGON_STUB__.venueWrites.length >= n + 2,
+        swapWrites, { timeout: SETTLE_MS }).catch(() => {});
+    await page.waitForTimeout(STATUS_POLL_MS * 3);
+
+    const swap = await page.evaluate(n => {
+        const g = window.__OCTAGON_STUB__.geometry();
+        return { calls: window.__OCTAGON_STUB__.venueWrites.length - n,
+                 labels: [g.speakers[0].label, g.speakers[1].label], trim3: g.speakers[2].trimDb };
+    }, swapWrites);
+
+    check(swap.calls === 2, `[non-vacuity] the swap and the trim were two calls — ${swap.calls}`);
+    check(swap.labels[0] === b2Before.l2 && swap.labels[1] === b2Before.l1 && swap.trim3 === -1,
+        `the swap SURVIVED the trim edit behind it — labels ${swap.labels.join(' / ')} `
+        + `(was ${b2Before.l1} / ${b2Before.l2}), trim 3 = ${swap.trim3} dB`);
+
+    await page.evaluate(() => window.__OCTAGON_STUB__.resetVenue());
+
+    // ── 36 ───────────────────────────────────────────────────────────────────
+    head(36, 'a STEREO bus — the REAL status — fits 1100 px with ONE banner, on both screens, in every language (B1/U1)');
+
+    // THE STATE THE PLUGIN ACTUALLY REPORTS ON A STEREO BUS: safeMode, a map that
+    // cannot be built (notEightChannels — the binaural arm runs precisely then),
+    // and, by default since v1.11.0, the binaural fold. Through v1.13.1 the
+    // fixture for this state set the map to 'none', a combination C++ cannot
+    // produce, and the header that the real combination built — MAP and MONITOR
+    // together, 1317 px — was never rendered by any gate. document.scrollWidth
+    // stays 1100 throughout (.frame clips), which is why section 8 passed.
+    let LANGS36 = null;
+    {
+        const m = fs.readFileSync(path.join(publicDir, 'js', 'i18n.js'), 'utf8')
+            .match(/export\s+const\s+LANGUAGES\s*=\s*\[([^\]]*)\]/);
+        if (m) {
+            const parsed = m[1].split(',').map(t => t.trim().replace(/^['"`]|['"`]$/g, '')).filter(Boolean);
+            if (parsed.length >= 2 && parsed[0] === 'en') LANGS36 = parsed;
+        }
+    }
+    check(LANGS36 !== null, `LANGUAGES read from js/i18n.js — ${LANGS36 ? LANGS36.join(', ') : 'NOTHING (this section fails rather than assume)'}`);
+
+    const stereoFacts = () => page.evaluate(() => {
+        const header = document.querySelector('.header');
+        const title = document.querySelector('.title');
+        const column = document.querySelector('.controls-column');
+        const rail = document.getElementById('venue-rail');
+        const banners = [...document.querySelectorAll('.header [role="status"]')]
+            .filter(b => !b.hidden && b.getBoundingClientRect().width > 0).map(b => b.id);
+        const right = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 ? r.right : null; };
+        return { headerScroll: header.scrollWidth, headerClient: header.clientWidth,
+                 titleH: title.getBoundingClientRect().height,
+                 columnRight: right(column), railRight: right(rail), banners,
+                 face: document.getElementById('monitor-banner').dataset.face || '' };
+    });
+
+    for (const [faceName, patch] of [
+        ['binaural', { safeMode: true, stereoBus: true, binauralActive: true,  stereoBinaural: true,
+                       monitorArmed: false, monitorAvailable: false }],
+        ['dry',      { safeMode: true, stereoBus: true, binauralActive: false, stereoBinaural: false,
+                       monitorArmed: false, monitorAvailable: false }],
+    ]) {
+        await page.evaluate((p) => {
+            window.__OCTAGON_STUB__.setMapInvalid('notEightChannels', -1);
+            window.__OCTAGON_STUB__.setStatus(p);
+        }, patch);
+        await page.waitForTimeout(STATUS_POLL_MS * 2);
+
+        for (const lang of LANGS36 || []) {
+            await page.evaluate(l => window.__setLanguage(l), lang);
+            for (const screen of ['room', 'venue']) {
+                if (screen === 'room') await showRoom(); else await showVenue();
+                const f = await stereoFacts();
+                const edge = screen === 'room' ? f.columnRight : f.railRight;
+                const where = `[${faceName}][${lang}][${screen}]`;
+                check(f.headerScroll <= f.headerClient + 0.5,
+                    `${where} the header holds its content — scrollWidth ${f.headerScroll} <= ${f.headerClient}`);
+                check(edge !== null && edge <= SHIP_W + 0.5,
+                    `${where} the right-hand ${screen === 'room' ? 'controls column' : 'venue rail'} ends inside the frame — ${edge === null ? 'NOT RENDERED' : edge.toFixed(1)} <= ${SHIP_W}`);
+                check(f.titleH < 40,
+                    `${where} the wordmark is ONE line — ${f.titleH.toFixed(1)} px tall`);
+                check(f.banners.length === 1,
+                    `${where} exactly ONE banner says "not the rig" — {${f.banners.join(', ')}}`);
+            }
+        }
+
+        if (faceName === 'binaural') {
+            const f = await stereoFacts();
+            check(f.banners[0] === 'monitor-banner' && f.face === 'binaural',
+                `[binaural] the one banner is MONITOR wearing the calm binaural face (U1) — ${f.banners[0]} / "${f.face}"`);
+        } else {
+            const f = await stereoFacts();
+            check(f.banners[0] === 'safe-banner', `[dry] the one banner is SAFE — ${f.banners[0]}`);
+        }
+    }
+
+    await page.evaluate(() => {
+        window.__setLanguage('en');
+        window.__OCTAGON_STUB__.setMapInvalid('none', -1);
+        window.__OCTAGON_STUB__.setStatus({ safeMode: false, stereoBus: false, binauralActive: false,
+                                            stereoBinaural: true, monitorArmed: false, monitorAvailable: true });
+    });
+    await page.waitForTimeout(STATUS_POLL_MS * 2);
+
+    // ── 37 ───────────────────────────────────────────────────────────────────
+    head(37, 'what a .venue Save or Load did is SHOWN — refused, malformed, newer, unwritable, saved (B7)');
+
+    // Through v1.13.1 both completions were dropped. Driven through the stub's
+    // one-shot result lever, because the real chooser is a native modal no
+    // browser can click (Gate 13 covers it by hand).
+    await showVenue();
+
+    const fileLine = () => page.evaluate(() => {
+        const s = document.getElementById('vfile-state');
+        return { key: s.dataset.i18n || '', tone: s.dataset.tone || '', text: s.textContent,
+                 mirror: s.dataset.label === s.textContent };
+    });
+
+    for (const c of [
+        { op: 'load', forced: { ok: false, reason: 'malformedRoot', speaker: -1 }, key: 'vfile.malformed',         tone: 'alert' },
+        { op: 'load', forced: { ok: false, reason: 'labelNotInSet', speaker: 4 },  key: 'map.labelNotInSet.spk',   tone: 'alert', row: '5' },
+        { op: 'load', forced: { ok: false, reason: 'unreadable', speaker: -1 },    key: 'vfile.unreadable',        tone: 'alert' },
+        { op: 'load', forced: { ok: true,  reason: 'forwardVersion', speaker: -1 },key: 'vfile.forward',           tone: 'alert' },
+        { op: 'save', forced: { ok: false, reason: 'unreadable', speaker: -1 },    key: 'vfile.writeFailed',       tone: 'alert' },
+        { op: 'save', forced: null,                                                key: 'vfile.saved',             tone: '' },
+        { op: 'load', forced: null,                                                key: 'vfile.loaded',            tone: '' },
+    ]) {
+        await page.evaluate(f => window.__OCTAGON_STUB__.setNextFileResult(f), c.forced);
+        await page.click(c.op === 'save' ? '#btn-venue-save' : '#btn-venue-load', { force: true });
+        await page.waitForFunction(k => document.getElementById('vfile-state').dataset.i18n === k,
+            c.key, { timeout: SETTLE_MS }).catch(() => {});
+        const f = await fileLine();
+        check(f.key === c.key && f.tone === c.tone && f.mirror && f.text.trim() !== ''
+              && (c.row === undefined || f.text.includes(c.row)),
+            `${c.op} -> ${c.forced ? c.forced.reason : 'round trip'}: "${f.text}" (key ${f.key}, tone "${f.tone}")`);
+    }
+
+    // A cancelled chooser changed nothing, so the line keeps what it said.
+    const beforeCancel = await fileLine();
+    await page.evaluate(() => window.__OCTAGON_STUB__.setNextFileResult({ ok: false, reason: 'cancelled', speaker: -1 }));
+    await page.click('#btn-venue-load', { force: true });
+    await page.waitForTimeout(STATUS_POLL_MS);
+    const afterCancel = await fileLine();
+    check(afterCancel.key === beforeCancel.key && afterCancel.text === beforeCancel.text,
+        `a CANCELLED chooser leaves the line as it was — "${afterCancel.text}"`);
+
+    // The line belongs to the language sweep: switch, and it re-renders.
+    await page.evaluate(() => window.__setLanguage('fr'));
+    const fr = await fileLine();
+    check(fr.mirror && fr.text !== afterCancel.text,
+        `and it follows the language — fr "${fr.text}" vs en "${afterCancel.text}"`);
+    await page.evaluate(() => window.__setLanguage('en'));
+
+    // ── 38 ───────────────────────────────────────────────────────────────────
+    head(38, 'the PUCK is above the weight cells, and a puck drag closes the settings panel (B4/B12)');
+
+    // Through v1.13.1 the puck preceded the w-cells in DOM order with no
+    // z-index on either, so a puck dragged onto a speaker sat UNDER that
+    // speaker's weight cell and the next grab moved the WEIGHT (1.00 -> 0.07,
+    // audible, recorded in Touch/Latch).
+    await showRoom();
+
+    const cellCentre = await page.evaluate(() => {
+        const r = document.getElementById('ctl-w1').getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    const puckCentre = () => page.evaluate(() => {
+        const r = document.getElementById('puck').getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+
+    {
+        const p0 = await puckCentre();
+        await page.mouse.move(p0.x, p0.y);
+        await page.mouse.down();
+        await page.mouse.move(cellCentre.x, cellCentre.y, { steps: 12 });
+        await page.mouse.up();
+    }
+
+    const stack = await page.evaluate(() => {
+        const r = document.getElementById('puck').getBoundingClientRect();
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        const cell = document.getElementById('wcell-1').getBoundingClientRect();
+        const overlaps = !(r.right < cell.left || r.left > cell.right || r.bottom < cell.top || r.top > cell.bottom);
+        return { onPuck: hit !== null && hit.closest('#puck') !== null, hit: hit ? (hit.id || hit.className) : null,
+                 overlaps, w1: document.getElementById('ctl-w1').value };
+    });
+
+    check(stack.overlaps, '[non-vacuity] the puck was dragged ONTO speaker 1\'s weight cell');
+    check(stack.onPuck, `what the cursor finds at the puck's centre is the PUCK — got "${stack.hit}"`);
+
+    {
+        const p = await puckCentre();
+        await page.mouse.move(p.x, p.y);
+        await page.mouse.down();
+        await page.mouse.move(p.x + 6, p.y + 6, { steps: 4 });
+        await page.mouse.up();
+    }
+    const w1After = await page.evaluate(() => document.getElementById('ctl-w1').value);
+    check(w1After === stack.w1, `and grabbing it there moves the PUCK, not Weight 1 — ${stack.w1} -> ${w1After}`);
+
+    // B12 — the settings panel used to survive a puck drag: it dismissed on
+    // mousedown, which the puck's pointerdown preventDefault suppresses.
+    await page.click('#gear-btn', { force: true });
+    const openBefore = await page.evaluate(() => !document.getElementById('settings-popover').hidden);
+    {
+        const p = await puckCentre();
+        await page.mouse.move(p.x, p.y);
+        await page.mouse.down();
+        await page.mouse.move(p.x - 10, p.y + 4, { steps: 4 });
+        await page.mouse.up();
+    }
+    const openAfter = await page.evaluate(() => !document.getElementById('settings-popover').hidden);
+    check(openBefore, '[non-vacuity] the settings panel was open before the drag');
+    check(!openAfter, 'a puck drag CLOSES the settings panel');
 
     // ════════════════════════════════════════════════════════════════════════
     // SECTION 34 — LANGUAGE INVARIANCE OF EVERY PINNED BOX (v1.12.0, ZH3-04)

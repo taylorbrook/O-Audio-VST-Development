@@ -1376,6 +1376,28 @@ export const LABELS = Object.freeze({
                                                     'zh-Hans': { t: '直达 1–8', reviewed: 'bt' } },
     'oo.roles':          { en: { t: 'roles' },   fr: { t: 'rôles', reviewed: true },
                                                  'zh-Hans': { t: '角色', reviewed: 'bt' } },
+
+    // v1.13.2 (B7) — the Venue file rail's result line, written by venue.js on
+    // the completion of saveVenue / loadVenue (and, for the two failure codes,
+    // by its refusal ladder wherever a .venue code can arrive). SHORT BY
+    // CONSTRUCTION: the rail is 300 px of 11 px mono, about 40 characters before
+    // the line wraps. Through v1.13.1 all of these outcomes were silent.
+    'vfile.saved':       { en: { t: 'saved' },   fr: { t: 'enregistré', reviewed: false },
+                                                 'zh-Hans': { t: '已保存', reviewed: 'bt' } },
+    'vfile.loaded':      { en: { t: 'loaded' },  fr: { t: 'chargé', reviewed: false },
+                                                 'zh-Hans': { t: '已载入', reviewed: 'bt' } },
+    'vfile.forward':     { en: { t: 'loaded — newer format, check values' },
+                           fr: { t: 'chargé — format plus récent, à vérifier', reviewed: false },
+                           'zh-Hans': { t: '已载入——格式较新，请检查数值', reviewed: 'bt' } },
+    'vfile.malformed':   { en: { t: 'invalid venue file — nothing changed' },
+                           fr: { t: 'fichier invalide — lieu inchangé', reviewed: false },
+                           'zh-Hans': { t: '无效的场地文件——未作更改', reviewed: 'bt' } },
+    'vfile.unreadable':  { en: { t: 'could not read the file' },
+                           fr: { t: 'lecture du fichier impossible', reviewed: false },
+                           'zh-Hans': { t: '无法读取文件', reviewed: 'bt' } },
+    'vfile.writeFailed': { en: { t: 'could not write the file' },
+                           fr: { t: 'écriture du fichier impossible', reviewed: false },
+                           'zh-Hans': { t: '无法写入文件', reviewed: 'bt' } },
 });
 
 // ============================================================================

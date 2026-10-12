@@ -645,26 +645,25 @@ const MAP_REASON_KEY = {
   duplicateLabel: "map.duplicateLabel",
 };
 
-function renderMapBanner(status) {
-  const bad = status.mapInvalid === true;
-  const reason = String(status.mapInvalidReason ?? "none");
-  const speaker = Number(status.mapInvalidSpeaker);
-  const key = `${bad}|${reason}|${speaker}`;
+// ── v1.13.2 (B7) — ONE LADDER FROM A C++ REFUSAL CODE TO ITS SENTENCE ──────
+//
+// The MAP banner below, the venue table's result line, the .venue rail line,
+// the output-order line and the Room plan's popover all answer with the same
+// three map failures, so the code -> key ladder lives here ONCE and the sibling
+// modules reach it through window.__setReasonLabel, the way they reach
+// setLabel. A second copy in venue.js would be the drift this page has already
+// paid for twice.
+//
+// EVERY setLabel KEY IS A PLAIN STRING LITERAL. A computed key — the obvious
+// `setLabel(el, MAP_REASON_KEY[reason])` — cannot be checked by assertion 15
+// for danglingness, which is the same rule assertion 13 already applies. The
+// if/else ladder is the cost of a checkable key, and it is three branches.
+//
+// Returns false for a code it does not know, so each caller decides what an
+// unknown code becomes.
+function setReasonLabel(el, reason, speaker) {
+  if (el === null || el === undefined) return false;
 
-  if (key === lastMapKey) return;
-  lastMapKey = key;
-
-  const banner = document.getElementById("map-banner");
-  if (banner !== null) banner.hidden = !bad;
-  if (!bad) return;
-
-  const el = document.getElementById("map-invalid-copy");
-  if (el === null) return;
-
-  // EVERY setLabel KEY IS A PLAIN STRING LITERAL. A computed key — the obvious
-  // `setLabel(el, MAP_REASON_KEY[reason])` — cannot be checked by assertion 15
-  // for danglingness, which is the same rule assertion 13 already applies. The
-  // if/else ladder is the cost of a checkable key, and it is three branches.
   const hasRow = Number.isFinite(speaker) && speaker >= 0;
   const vars = { n: String(speaker + 1) };
 
@@ -678,6 +677,40 @@ function renderMapBanner(status) {
     if (hasRow) setLabel(el, "map.duplicateLabel.spk", vars);
     else        setLabel(el, "map.duplicateLabel");
   } else {
+    return false;
+  }
+
+  return true;
+}
+
+window.__setReasonLabel = setReasonLabel;
+
+function renderMapBanner(status) {
+  const reason = String(status.mapInvalidReason ?? "none");
+
+  // ── v1.13.2 (B1) — NOT ON A BUS THAT HAS NO SPEAKERS ────────────────────
+  // notEightChannels is reported for EVERY mono or stereo negotiation — the
+  // v1.11.0 binaural arm runs precisely when the map is unavailable — and that
+  // bus is SAFE by definition, so the SAFE banner or the binaural MONITOR
+  // banner is already saying "not the rig". Raising MAP beside it put two
+  // banners in the header of every stereo session and widened the frame past
+  // 1100 px. MAP is about LABELS that do not resolve on an 8-channel set; it
+  // stays exactly as it was for that.
+  const bad = status.mapInvalid === true && reason !== "notEightChannels";
+  const speaker = Number(status.mapInvalidSpeaker);
+  const key = `${bad}|${reason}|${speaker}`;
+
+  if (key === lastMapKey) return;
+  lastMapKey = key;
+
+  const banner = document.getElementById("map-banner");
+  if (banner !== null) banner.hidden = !bad;
+  if (!bad) return;
+
+  const el = document.getElementById("map-invalid-copy");
+  if (el === null) return;
+
+  if (!setReasonLabel(el, reason, speaker)) {
     // A reason code this build does not know. Printing the CODE is right: it
     // is a diagnostic, not prose, and inventing a sentence for it would be
     // inventing a claim about a state the page cannot describe. It is not a
@@ -716,7 +749,12 @@ function renderMonitor(status) {
   const stereoBus = status.stereoBus === true;
   const binaural = status.binauralActive === true;
 
-  const key = `${armed}|${suppressed}|${available}|${stereoBus}|${binaural}`;
+  // v1.13.2 (B12) — the stored PREFERENCE, as distinct from what the audio
+  // thread did last block. They differ whenever audio is idle: the preference
+  // is on, nothing has rendered yet, binauralActive is false.
+  const binauralPref = status.stereoBinaural !== false;
+
+  const key = `${armed}|${suppressed}|${available}|${stereoBus}|${binaural}|${binauralPref}`;
   if (key === lastMonitorKey) return;
   lastMonitorKey = key;
 
@@ -730,7 +768,14 @@ function renderMonitor(status) {
   // feeds and not the rig — which is what the SAFE banner said, and SAFE is
   // hidden while this is up (applyStatus) so the header carries one claim.
   const banner = document.getElementById("monitor-banner");
-  if (banner !== null) banner.hidden = !(armed || binaural);
+  if (banner !== null) {
+    banner.hidden = !(armed || binaural);
+
+    // v1.13.2 (U1) — the face, for the CSS. Binaural is the normal state of a
+    // stereo session and wears an outlined status; the armed 8-channel fold
+    // keeps the filled alarm, because that one mutes a rig.
+    banner.dataset.face = binaural ? "binaural" : "monitor";
+  }
 
   const monitorCopy = document.getElementById("monitor-copy");
   if (monitorCopy !== null) {
@@ -754,6 +799,7 @@ function renderMonitor(status) {
   if (btn !== null) {
     btn.setAttribute("aria-pressed", armed || binaural ? "true" : "false");
     btn.dataset.stereoBus = stereoBus ? "true" : "false";
+    btn.dataset.binauralPref = binauralPref ? "true" : "false";
     btn.disabled = stereoBus ? false : (!available && !armed);
   }
 
@@ -1042,14 +1088,20 @@ function initSettingsPopover() {
     setOpen(popover.hidden);
   });
 
-  // Dismiss on a press anywhere else, and on Escape. mousedown rather than
+  // Dismiss on a press anywhere else, and on Escape. A press rather than a
   // click, so the panel is gone before a drag on a control underneath it
-  // begins — the puck calls preventDefault in its own pointerdown.
-  document.addEventListener("mousedown", (e) => {
+  // begins.
+  //
+  // v1.13.2 (B12) — POINTERDOWN, IN THE CAPTURE PHASE. This was mousedown, and
+  // the puck calls preventDefault in its own pointerdown, which suppresses the
+  // compatibility mousedown: dragging the puck left the panel open over the
+  // plan (pattern_pointerdown_preventdefault_kills_document_mousedown). Capture
+  // runs before any element's handler can intervene.
+  document.addEventListener("pointerdown", (e) => {
     if (popover.hidden) return;
     if (popover.contains(e.target) || gearBtn.contains(e.target)) return;
     setOpen(false);
-  });
+  }, true);
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !popover.hidden) {
@@ -1281,8 +1333,17 @@ async function init() {
       // device-order table and the swap (D19). No state is established here:
       // badges and the venue table converge on the venueGen poll (P64), and a
       // dropped completion costs only this log line.
+      //
+      // v1.13.2 (B7) — a REFUSAL reopens the popover to say why. Through
+      // v1.13.1 it was dropped and the popover had simply closed, so an
+      // assignment the plugin refused looked exactly like one it accepted.
       assignOutput: (speakerN, outputK) =>
         nativeFn("assignSpeakerOutput")(speakerN, outputK)
+          .then((result) => {
+            if (result !== null && typeof result === "object" && result.ok === false
+                && roomPlan !== null)
+              roomPlan.showOutputRefusal(speakerN, result);
+          })
           .catch((err) => console.error("assignSpeakerOutput failed", err)),
     });
   } catch (err) {

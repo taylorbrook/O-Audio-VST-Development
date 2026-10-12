@@ -1188,7 +1188,7 @@ head(21, 'the page-module registry is non-empty and EQUALS the embedded set (P51
 const VENUE_CODE = stripComments(S.venueJs);
 
 // ────────────────────────────────────── 22. ONE setVenue, and 42 ids closed ──
-head(22, 'ONE setVenue carrying all 50; no per-field write surface; the ids close FOUR ways (D8/P52)');
+head(22, 'ONE setVenue; only TYPED fields on the wire and C++ falls back per field (B2); no per-field write surface; the ids close FOUR ways (D8/P52)');
 {
     // 42 async round trips whose promises may resolve out of order, against a model that recomputes
     // bbox, centroid, rigScale and the convex hull on every one, is P38's torn read arriving on the
@@ -1220,33 +1220,78 @@ head(22, 'ONE setVenue carrying all 50; no per-field write surface; the ids clos
         `DOM ids == venue.js's derived table${setsEqual(htmlIds, jsIds) ? ''
             : ` — dom-only [${diff(htmlIds, jsIds)}], js-only [${diff(jsIds, htmlIds)}]`}`);
 
-    // ── (3) the payload venue.js builds ──
+    // ── (3) the payload venue.js builds — v1.13.2 (B2): ONLY WHAT WAS TYPED ──
+    //
+    // Through v1.13.1 this section asserted the OPPOSITE — "each row carries all six, 50 in one
+    // call" — and so it certified the defect: the untouched 49 were filled from `committed`, the
+    // page's copy of the venue that refreshes only on the 2 Hz venueGen poll, and a second commit
+    // inside one tick carried the first commit's field at its PRE-edit value. C++ applied it. A
+    // trim reverted; an L <-> R swap reverted behind a quick numeric edit, to a set that is still
+    // a valid permutation, so no MAP banner said so.
+    //
+    // The contract now has two halves and both are asserted: the page puts a field on the wire
+    // only when it is PENDING, and C++ falls back to the LIVE venue for every field that is absent.
+    // Either half alone re-opens the hole.
     const payload = blockAt(VENUE_CODE, VENUE_CODE.indexOf('function buildPayload'));
-    const rowKeys = new Set([...payload.matchAll(/^\s+([a-zA-Z]+):/gm)].map(m => m[1]));
-    check(setsEqual(rowKeys, new Set(['n', 'label', 'x', 'y', 'z', 'trimDb', 'delayMs'])),
-        `each speaker row carries exactly label + x + y + z + trimDb + delayMs — {${[...rowKeys].sort().join(', ')}}`);
-    check(/rake:\s*\{\s*front,\s*rear\s*\}/.test(payload),
-        'and the payload carries the two rake heights — 8 x 6 + 2 = 50 in ONE call');
+    const payloadCode = payload.replace(/\/\/[^\n]*/g, '');
+
+    check(payload.length > 0 && ! /\bcommitted\b/.test(payloadCode),
+        'buildPayload never reads `committed` — the page\'s stale copy has no route onto the wire');
+    check(/const row = \{ n: r\.n \};/.test(payloadCode),
+        'each row starts as { n } alone — setVenue still gets its eight rows');
+
+    const rowKeys = new Set([...payloadCode.matchAll(/\brow\.([a-zA-Z]+)\s*=/g)].map(m => m[1]));
+    check(setsEqual(rowKeys, new Set(['label', 'x', 'y', 'z', 'trimDb', 'delayMs'])),
+        `the six per-speaker fields are each ADDED, never pre-filled — {${[...rowKeys].sort().join(', ')}}`);
+
+    // Every addition sits under its own pending test. A numeric field is pending when
+    // pendingNumber() returns a value; the label when its id is in `pending`.
+    const guardedNumeric = ['x', 'y', 'z'].every(k =>
+        new RegExp(`const ${k} = pendingNumber\\(r\\.n, "${k}"\\);\\s*if \\(${k} !== undefined\\) row\\.${k} = ${k};`)
+            .test(payloadCode));
+    check(guardedNumeric
+          && /const trim = pendingNumber\(r\.n, "trim"\);\s*if \(trim !== undefined\) row\.trimDb = trim;/.test(payloadCode)
+          && /if \(pending\.has\(fieldId\(r\.n, "label"\)\)\) row\.label = labelOf\(r\.n\);/.test(payloadCode),
+        'x, y, z, trimDb and label reach the row ONLY when that field is pending');
+    check(/rake\.front = front;/.test(payloadCode) && /rake\.rear = rear;/.test(payloadCode)
+          && /if \(front !== undefined\)/.test(payloadCode) && /if \(rear !== undefined\)/.test(payloadCode),
+        'and the two rake heights the same way');
 
     // ── (3b) v1.4.0 — THE WIRE UNIT IS ALWAYS MILLISECONDS ──
     //
-    // The column can DISPLAY metres, so the one thing that must never happen is a payload
-    // carrying whatever the toggle happened to be showing. buildPayload must run the pending
-    // edit — and ONLY the pending edit — through displayToMs; the committed fallback is already
-    // ms and converting it a second time would scale every untouched delay by 343 on any commit
-    // made while the column was in metres.
-    check(/delayMs:\s*clampDelayMs\(/.test(payload),
-        'the delay on the wire is railed by clampDelayMs before it leaves the page');
-    check(/pendingNumber\(r\.n, "delay"\) === undefined\s*\?\s*base\.delayMs/.test(payload),
-        'and an UNTOUCHED delay falls back to committed ms WITHOUT a second conversion');
-    check(/:\s*displayToMs\(pendingNumber\(r\.n, "delay"\)\)/.test(payload),
-        'while a PENDING delay converts from the displayed unit exactly once');
+    // The column can DISPLAY metres, so the one thing that must never happen is a payload carrying
+    // whatever the toggle happened to be showing. The pending edit converts through displayToMs
+    // EXACTLY ONCE and is railed by clampDelayMs. (Through v1.13.1 this also asserted that an
+    // UNTOUCHED delay fell back to committed ms without a second conversion; since v1.13.2 an
+    // untouched delay is not on the wire at all, which removes that hazard rather than guarding it.)
+    check(/const delay = pendingNumber\(r\.n, "delay"\);\s*if \(delay !== undefined\) row\.delayMs = clampDelayMs\(displayToMs\(delay\)\);/
+              .test(payloadCode),
+        'a PENDING delay converts from the displayed unit exactly once and is railed before it leaves');
+    check((payloadCode.match(/displayToMs\(/g) || []).length === 1,
+        `and displayToMs appears exactly once in buildPayload — ${(payloadCode.match(/displayToMs\(/g) || []).length}`);
 
     // ── (4) the VenueModel setters the C++ side reaches for ──
     const setVenueBody = blockAt(S.editorCpp, S.editorCpp.indexOf('withNativeFunction ("setVenue"'));
     for (const setter of ['setSpeakerPosition', 'setSpeakerTrimDb', 'setSpeakerDelayMs',
                           'setSpeakerLabel', 'setRake'])
         check(setVenueBody.includes(setter), `setVenue reaches VenueModel::${setter}() — 50 covered`);
+
+    // ── (4b) v1.13.2 — THE OTHER HALF OF (3): AN ABSENT FIELD KEEPS ITS LIVE VALUE ──
+    //
+    // A sparse row is only safe because setVenue starts from the LIVE venue and falls back per
+    // field. Asserted literally, field by field, because the failure if one of these became a
+    // plain read is silent: an untouched value would be zeroed (a number) or blanked (a label).
+    check(/oo::VenueModel edited = processorRef\.getVenue\(\);/.test(setVenueBody),
+        'setVenue starts from the LIVE venue');
+    for (const [key, fallback] of [['x', 'pos.x'], ['y', 'pos.y'], ['z', 'pos.z'],
+                                   ['trimDb', 'edited.trimDb (i)'], ['delayMs', 'edited.delayMs (i)']])
+        check(setVenueBody.includes(`finiteOr (row, "${key}", ${fallback})`),
+            `and an absent ${key} falls back to the live value — finiteOr (row, "${key}", ${fallback})`);
+    check(/hasProperty \("label"\)/.test(setVenueBody),
+        'and an absent label is not written at all');
+    check(/finiteOr \(rakeVar, "front", edited\.rakeFront\(\)\)/.test(setVenueBody)
+          && /finiteOr \(rakeVar, "rear",\s+edited\.rakeRear\(\)\)/.test(setVenueBody),
+        'and so are the two rake heights');
 
     // THE ABSENCE THAT KEEPS applyVenueEdit PUBLIC FROM BEING A HOLE (P52). Probe BL calls it
     // directly and must keep being able to; the editor must reach the venue ONLY through the

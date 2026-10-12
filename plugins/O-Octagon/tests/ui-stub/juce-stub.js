@@ -748,16 +748,28 @@ function setVenue(payload) {
     return { ok: false, reason: "notEightChannels", speaker: -1 };
 
   const rows = Array.isArray(payload.speakers) ? payload.speakers : [];
-  const why = diagnoseLabels(rows.map((s) => s.label));
+  if (rows.length !== speakers.length) return { ok: false, reason: "notEightChannels", speaker: -1 };
+
+  // v1.13.2 (B2) — PER-FIELD FALLBACK TO THE LIVE VENUE, as PluginEditor.cpp's
+  // setVenue does: finiteOr() for every number, hasProperty("label") for the
+  // label. The page now sends only the fields that were typed, so a stub that
+  // applied the whole payload would write `undefined` into every other one —
+  // and, the other way round, the page's v1.13.1 habit of filling untouched
+  // fields from its stale cache is exactly what this fallback makes harmless.
+  const has = (row, key) => row !== null && typeof row === "object"
+    && Object.prototype.hasOwnProperty.call(row, key);
+
+  const labels = speakers.map((s, i) => (has(rows[i], "label") ? String(rows[i].label) : s.label));
+  const why = diagnoseLabels(labels);
   if (why.reason !== "none") return { ok: false, ...why };
 
-  // Applied only after the whole 50-value set has been accepted.
+  // Applied only after the whole edited set has been accepted.
   speakers = speakers.map((s, i) => ({
     ...s,
     x: finite(rows[i].x, s.x),
     y: finite(rows[i].y, s.y),
     z: finite(rows[i].z, s.z),
-    label: rows[i].label,
+    label: labels[i],
     trimDb: finite(rows[i].trimDb, s.trimDb),
     // v1.4.0. Railed here as publishSnapshot() rails it, so the stub cannot
     // accept a value the plugin would clamp — which is the only way a UI probe
@@ -875,14 +887,32 @@ function applySuggestedDelays() {
 let venueFileSlot = null;
 const FILE_OPS = [];
 
+// v1.13.2 (B7) — a lever for the outcomes the page now renders. The real
+// chooser cannot be driven, so the next save or load can be told to come back
+// with a given C++ result instead: { ok, reason, speaker }. One-shot — it is
+// consumed by the next call, so a section cannot leak it into the next one.
+let nextFileResult = null;
+
+function takeFileResult() {
+  const r = nextFileResult;
+  nextFileResult = null;
+  return r;
+}
+
 function saveVenue() {
-  venueFileSlot = { speakers: speakers.map((s) => ({ ...s })), rake: { ...rake } };
   FILE_OPS.push("save");
+  const forced = takeFileResult();
+  if (forced !== null) return { path: "", ...forced };
+
+  venueFileSlot = { speakers: speakers.map((s) => ({ ...s })), rake: { ...rake } };
   return { ok: true, path: "/stub/venue.venue", reason: "none" };
 }
 
 function loadVenue() {
   FILE_OPS.push("load");
+  const forced = takeFileResult();
+  if (forced !== null) return { path: "", ...forced };
+
   if (venueFileSlot === null) return { ok: false, path: "", reason: "unreadable" };
 
   speakers = venueFileSlot.speakers.map((s) => ({ ...s }));
@@ -951,7 +981,7 @@ function startPing(target) {
   else {
     const n = Number(target);
     if (!Number.isFinite(n) || n < 1 || n > 8)
-      return { ok: false, reason: "range", speaker: 0, ...pingState() };
+      return { ok: false, reason: "badSpeaker", speaker: 0, ...pingState() };
     ping = { active: true, mode: "manual", speaker: Math.round(n), elapsedMs: 0 };
   }
 
@@ -1161,6 +1191,13 @@ if (typeof window !== "undefined") {
     // Drive the SAFE banner the way a host re-negotiating a track's output
     // format drives it.
     setStatus(patch) { status = { ...status, ...patch }; },
+
+    // v1.13.2 (B7) — make the NEXT saveVenue / loadVenue answer with this C++
+    // result instead of doing the round trip. One-shot; null clears it.
+    setNextFileResult(result) {
+      nextFileResult = result === null || result === undefined ? null : { ...result };
+      return nextFileResult;
+    },
 
     // Arm / disarm the C++ backstop's refusal (WR-05). Pass null to disarm.
     // The payload is still RECORDED in `writes` — "the page asked and was told

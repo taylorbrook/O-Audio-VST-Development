@@ -21,6 +21,8 @@
 
 #include <juce_audio_basics/juce_audio_basics.h>
 
+#include <array>
+
 namespace oo
 {
 
@@ -68,11 +70,23 @@ namespace oo
 */
 namespace rig
 {
+    /** The three real rigs, PRIMARY FIRST. v1.13.2 lifted the literal into this list so that
+        applyVenueEditChecked() can validate labels against "the rigs this venue will be mapped to"
+        on a bus that is not one of them — without a second copy of the literal. */
+    inline std::array<juce::AudioChannelSet, 3> realRigSets()
+    {
+        return { juce::AudioChannelSet::create7point1(),         // primary
+                 juce::AudioChannelSet::create7point1SDDS(),     // Logic/Emagic order
+                 juce::AudioChannelSet::create5point1point2() }; // third 8-ch container
+    }
+
     inline bool isRealRig (const juce::AudioChannelSet& s) noexcept
     {
-        return s == juce::AudioChannelSet::create7point1()        // primary
-            || s == juce::AudioChannelSet::create7point1SDDS()    // Logic/Emagic order
-            || s == juce::AudioChannelSet::create5point1point2(); // third 8-ch container
+        for (const auto& rig : realRigSets())
+            if (s == rig)
+                return true;
+
+        return false;
     }
 }
 

@@ -53,6 +53,74 @@ namespace
 
         return n;
     }
+
+    /** v1.13.2 (v1.3.0 review IN-03) — does EVERY speaker resolve, and resolve UNAMBIGUOUSLY?
+
+        Counting SPEAKER children is not enough. Eight children where two claim @index 5 and none
+        claims 4, or one written `index="03"`, pass that count — and readFromState() then leaves the
+        unresolved speaker at its placeholder default and the load reports `ok`. A room that is
+        seven-eighths measured, presented as measured.
+
+        The test is written as the LOOKUP readFromState() performs, not as a parallel reading of the
+        schema: getChildWithProperty (propIndex, i + 1) — a juce::var equality, under which the
+        attribute text "03" never equals 3 — then the positional fallback onto an UN-indexed SPEAKER
+        child at that position. A claim is counted the same way, so "resolves here" and "resolves
+        there" cannot disagree. Two children claiming one speaker is refused as ambiguous: the reader
+        would take the first, and nothing on screen would say which. */
+    bool everySpeakerResolves (const juce::ValueTree& venue)
+    {
+        for (int i = 0; i < VenueModel::kNumSpeakers; ++i)
+        {
+            const juce::var index (i + 1);
+            int claims = 0;
+
+            for (int c = 0; c < venue.getNumChildren(); ++c)
+            {
+                const auto child = venue.getChild (c);
+
+                if (child.hasType (VenueModel::speakerTag)
+                    && child.hasProperty (VenueModel::propIndex)
+                    && child.getProperty (VenueModel::propIndex) == index)
+                    ++claims;
+            }
+
+            if (claims > 1)
+                return false;
+
+            if (claims == 1)
+                continue;
+
+            if (i >= venue.getNumChildren())
+                return false;
+
+            const auto positional = venue.getChild (i);
+
+            if (! positional.hasType (VenueModel::speakerTag)
+                || positional.hasProperty (VenueModel::propIndex))
+                return false;
+        }
+
+        return true;
+    }
+
+    /** v1.13.2 (v1.3.0 review IN-23) — @schemaVersion, when present, must be a positive integer.
+        Through v1.13.1 `static_cast<int>` read "abc" as 0 and the load reported `ok`. Absent is
+        still accepted as the current schema, which is what every hand-built file relies on. */
+    bool readSchemaVersion (const juce::ValueTree& venue, int& version)
+    {
+        version = VenueModel::kSchemaVersion;
+
+        if (! venue.hasProperty (VenueModel::propSchemaVersion))
+            return true;
+
+        const auto text = venue.getProperty (VenueModel::propSchemaVersion).toString().trim();
+
+        if (text.isEmpty() || ! text.containsOnly ("0123456789"))
+            return false;
+
+        version = text.getIntValue();
+        return version >= 1;
+    }
 } // namespace
 
 //==============================================================================
@@ -101,9 +169,16 @@ LoadResult load (const juce::File& source, VenueModel& out, int* fileVersion)
     if (countSpeakerChildren (tree) < VenueModel::kNumSpeakers)
         return LoadResult::malformedRoot;
 
+    // v1.13.2 — the two remaining ways a file could half-apply while reporting `ok` (see the
+    // helpers above). Both are refused before `out` is touched, like the two checks above.
+    if (! everySpeakerResolves (tree))
+        return LoadResult::malformedRoot;
+
     // The root parsed, so the version is reportable even when it is one this build does not know.
-    const int version = static_cast<int> (tree.getProperty (VenueModel::propSchemaVersion,
-                                                            VenueModel::kSchemaVersion));
+    int version = VenueModel::kSchemaVersion;
+
+    if (! readSchemaVersion (tree, version))
+        return LoadResult::malformedRoot;
 
     if (fileVersion != nullptr)
         *fileVersion = version;
