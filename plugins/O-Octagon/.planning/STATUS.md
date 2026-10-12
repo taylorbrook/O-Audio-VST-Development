@@ -1625,9 +1625,23 @@ architecture_checksum_superseded:
                                                                             # as LIVE in §3.2.2 and §R2 three phases after Phase 2.1's manual gate
                                                                             # settled it by observation). Recorded HERE at the 4.1 plan boundary:
                                                                             # the discuss boundary re-pinned the artifact and not this file
+active_improvement: false
 ---
 
 # O-Octagon Status
+
+## Completed Improvements
+
+### v1.13.2 — Round 1 of `.planning/IMPROVEMENT-QUEUE.md` (2026-10-11) ✅
+
+Bugs B1, B2, B4, B6, B7, B11, B12, B23 + U1 + gate defects G1, G2, G4 from `.planning/REVIEW-v1.13.1.md`.
+Built, installed (AU/VST3 1.13.2), auval PASS, pluginval s10 SUCCESS. Gates: render 77/0, geometry 60/0,
+ui_frontend 43/43, ui_layout 38/38, check-i18n pass, check-ui-labels pass, fr lint clean, zh lint 0 findings
+(6 new zh rows promoted to 'bt' by a blind back-translation; 6 new fr rows at reviewed:false for review).
+Every new assertion shown FAILING with its fix reverted (six page NCs, one C++ NC). NOT COMMITTED at the
+end of the session — see the completion message. Next: Round 2 (`/improve O-Octagon Round 2 of
+.planning/IMPROVEMENT-QUEUE.md …`).
+---
 
 ## Current Position
 

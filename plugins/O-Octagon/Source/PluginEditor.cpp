@@ -1068,13 +1068,26 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
             if (args.size() > 0 && ! args[0].toString().equalsIgnoreCase ("auto"))
                 target = static_cast<int> (args[0]);
 
-            const bool ok = processorRef.startVerifyPing (target);
+            // v1.13.2 (B12). Named separately so the page is told WHICH refusal it got: a target
+            // outside 1..8 is a page bug, and reporting it as an invalid map would send the operator
+            // to the venue table looking for a fault that is not there.
+            const bool validTarget = target == oo::VerifyPing::kAuto
+                                  || (target >= 1 && target <= oo::VerifyPing::kNumSpeakers);
+
+            const bool ok = validTarget && processorRef.startVerifyPing (target);
 
             const auto state = processorRef.verifyPingState();
 
+            const char* reason = "none";
+
+            if (! validTarget)
+                reason = "badSpeaker";
+            else if (! ok)
+                reason = "mapInvalid";
+
             auto* obj = new juce::DynamicObject();
             obj->setProperty ("ok",          ok);
-            obj->setProperty ("reason",      juce::String (ok ? "none" : "mapInvalid"));
+            obj->setProperty ("reason",      juce::String (reason));
             obj->setProperty ("active",      state.active);
             obj->setProperty ("mode",        state.mode);
             obj->setProperty ("speaker",     state.speaker);

@@ -640,6 +640,52 @@ bool OOctagonProcessor::applyVenueEditChecked (const oo::VenueModel& newVenue,
 
     const auto outSet = getBusesLayout().getMainOutputChannelSet();
 
+    // ── v1.13.2 (B6) — ON A BUS THAT IS NOT A RIG, VALIDATE AGAINST THE RIGS ──────────────────────
+    //
+    // On mono or stereo buildSpeakerToBuffer() fails with notEightChannels for ANY label set, so
+    // through v1.13.1 every venue write was refused there — the table, a .venue load, Derive, the
+    // output-order presets and the popover — while the v1.11.0 binaural arm renders exactly that
+    // venue on a stereo bus. A laptop could not load the hall it was preparing for.
+    //
+    // A bus with no speaker channels cannot judge the labels, so they are judged against the
+    // containers they WILL be mapped to: accepted when they resolve on at least one real rig,
+    // refused with the PRIMARY rig's diagnosis when they resolve on none. The live map is not this
+    // branch's business — rebuildChannelMap() still flags it on this bus and re-checks it when the
+    // host renegotiates.
+    if (! oo::rig::isRealRig (outSet))
+    {
+        bool resolvesSomewhere = false;
+        ochan::MapDiagnosis primary {};
+        bool first = true;
+
+        for (const auto& rig : oo::rig::realRigSets())
+        {
+            ochan::MapDiagnosis d {};
+
+            if (ochan::buildSpeakerToBuffer (rig, newVenue.labelTypes(), scratch, &d))
+            {
+                resolvesSomewhere = true;
+                break;
+            }
+
+            if (first)
+                primary = d;
+
+            first = false;
+        }
+
+        if (! resolvesSomewhere)
+        {
+            if (whyNot != nullptr)
+                *whyNot = primary;
+
+            return false;
+        }
+
+        applyVenueEdit (newVenue);
+        return true;
+    }
+
     if (! ochan::buildSpeakerToBuffer (outSet, newVenue.labelTypes(), scratch, &diagnosis))
     {
         // NOTHING is applied: not the coordinates, not the trims, not the rake. A partial apply is
@@ -657,6 +703,13 @@ bool OOctagonProcessor::applyVenueEditChecked (const oo::VenueModel& newVenue,
 //==============================================================================
 bool OOctagonProcessor::startVerifyPing (int speakerOrAuto)
 {
+    // v1.13.2 (B12) — AN IMPOSSIBLE TARGET IS REFUSED BEFORE ANYTHING IS TOUCHED. VerifyPing::start()
+    // ignores it, and through v1.13.1 this function had already disarmed the monitor below and then
+    // reported success: the operator's headphone fold went off for a ping that never sounded.
+    if (speakerOrAuto != oo::VerifyPing::kAuto
+        && (speakerOrAuto < 1 || speakerOrAuto > oo::VerifyPing::kNumSpeakers))
+        return false;
+
     // THE PRECONDITION (Q5 / P60). getTotalNumOutputChannels() is the accessor that LIES under the
     // F3 hazard — a 3-7 channel device leaves it reporting 8 while the buffer is narrower — so this
     // check alone is not sufficient, and it is not asked to be: the audio thread carries the second

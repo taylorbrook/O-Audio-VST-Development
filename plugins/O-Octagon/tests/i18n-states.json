@@ -16,12 +16,12 @@
     "dblclick": "#glyph-1"
   },
   {
-    "name": "SAFE banner alone",
-    "eval": "window.__OCTAGON_STUB__.setMapInvalid('none', -1); window.__OCTAGON_STUB__.setStatus({ safeMode: true, monitorArmed: false });"
+    "name": "SAFE banner alone — a dry STEREO bus, as C++ reports it (v1.13.2: notEightChannels, which no longer raises MAP beside SAFE)",
+    "eval": "window.__OCTAGON_STUB__.setMapInvalid('notEightChannels', -1); window.__OCTAGON_STUB__.setStatus({ safeMode: true, stereoBus: true, binauralActive: false, stereoBinaural: false, monitorArmed: false });"
   },
   {
     "name": "MAP INVALID banner alone, with its reason and row (the setLabel map keys)",
-    "eval": "window.__OCTAGON_STUB__.setStatus({ safeMode: false, monitorArmed: false }); window.__OCTAGON_STUB__.setMapInvalid('labelNotInSet', 3);"
+    "eval": "window.__OCTAGON_STUB__.setStatus({ safeMode: false, stereoBus: false, stereoBinaural: true, monitorArmed: false }); window.__OCTAGON_STUB__.setMapInvalid('labelNotInSet', 3);"
   },
   {
     "name": "MONITOR banner alone (monitorAvailable is !safeMode && !mapInvalid, so it cannot stack with either)",
@@ -33,7 +33,7 @@
     "click": "#tab-venue"
   },
   {
-    "name": "BINAURAL banner (v1.11.0 — stereo bus, fold active; SAFE yields). LAST: the stub status is not reset between states, so binauralActive must not leak into a banner state after it",
-    "eval": "window.__OCTAGON_STUB__.setMapInvalid('none', -1); window.__OCTAGON_STUB__.setStatus({ safeMode: true, stereoBus: true, binauralActive: true, stereoBinaural: true, monitorArmed: false });"
+    "name": "BINAURAL banner (v1.11.0 — stereo bus, fold active; SAFE yields). The REAL status since v1.13.2: the map is notEightChannels, which C++ always reports on a stereo bus; through v1.13.1 this fixture said 'none', a combination C++ cannot produce, and the two-banner header the real one built was never measured (B1). LAST: the stub status is not reset between states, so binauralActive must not leak into a banner state after it",
+    "eval": "window.__OCTAGON_STUB__.setMapInvalid('notEightChannels', -1); window.__OCTAGON_STUB__.setStatus({ safeMode: true, stereoBus: true, binauralActive: true, stereoBinaural: true, monitorArmed: false });"
   }
 ]

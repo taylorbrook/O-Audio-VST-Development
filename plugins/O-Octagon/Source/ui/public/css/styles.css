@@ -156,6 +156,13 @@ html, body {
   height: 720px;
   display: grid;
   grid-template-rows: var(--header-h) 1fr var(--footer-h);
+  /* v1.13.2 (B1) — THE COLUMN IS THE FRAME, NEVER ITS WIDEST CHILD. With no
+     template the implicit column sized itself to the header's min-content, so a
+     header carrying two banners (a stereo bus showed MAP and MONITOR together)
+     widened the grid to 1317 px and pushed the right-hand column out of the
+     1100 px window. document.scrollWidth stayed 1100 because .frame clips, which
+     is why the fit gate never saw it. */
+  grid-template-columns: minmax(0, 1fr);
   overflow: hidden;
   background:
     radial-gradient(120% 90% at 20% 0%, #221C18 0%, var(--ground) 62%);
@@ -188,6 +195,7 @@ html, body {
   gap: 14px;
   padding: 0 20px;
   border-bottom: 1px solid var(--rule);
+  min-width: 0;   /* v1.13.2 (B1) — a grid item, so it may not grow past its track */
 }
 
 .title {
@@ -198,6 +206,10 @@ html, body {
   text-transform: uppercase;
   color: var(--ink);
   align-self: center;
+  /* v1.13.2 (B1) — the wordmark never breaks. Squeezed by an over-full header it
+     wrapped "O – / OCTAGON" onto two lines inside a 56 px bar. */
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .title-accent { color: var(--level-mid); }
@@ -209,6 +221,8 @@ html, body {
   text-transform: uppercase;
   color: var(--ink-faint);
   align-self: center;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .screens {
@@ -366,6 +380,22 @@ html, body {
   white-space: nowrap;
 }
 
+/* v1.13.2 (U1) — THE BINAURAL FACE IS A STATE, NOT AN ALARM. On a stereo bus the
+   fold is the NORMAL condition of every session (the default since v1.11.0), and
+   wearing the filled --alert treatment there made the page's loudest signal into
+   wallpaper — which teaches an operator to stop reading the one banner that
+   matters, the armed 8-channel fold muting a rig on delivery. So the stereo face
+   drops to an outlined gold status, and the filled orange is kept for the arm
+   the operator switched on. Same box, same copy; renderMonitor() writes the
+   face from the poll. Measured on --ground: tag 9.6:1, copy 5.8:1. */
+.monitor-banner[data-face="binaural"] {
+  border-color: var(--level-lo);
+  background: rgba(194, 154, 74, 0.10);
+}
+
+.monitor-banner[data-face="binaural"] .monitor-tag  { color: var(--level-hi); }
+.monitor-banner[data-face="binaural"] .monitor-copy { color: var(--ink-dim); }
+
 /* The rail toggle. Armed borrows the banner's fill so the control and the
    warning are visibly the same fact, which is what stops an operator reading the
    banner as someone else's problem. */
@@ -455,6 +485,11 @@ html, body {
   width: calc(var(--plan-w) * 1px);
   height: calc(var(--plan-h) * 1px);
   overflow: visible;
+  /* v1.13.2 (B23) — double-clicking a glyph opens the output popover; it must
+     not also select the glyph's numeral, which stayed highlighted after the
+     popover closed. */
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .hull {
@@ -644,6 +679,10 @@ html, body {
   font-size: 9.5px;
 }
 
+/* v1.13.2 (B7) — the plugin refused the assignment, and the popover reopened to
+   say why. Through v1.13.1 the refusal was dropped and the popover simply closed. */
+.out-pop-note.is-refusal { color: var(--alert); }
+
 .puck {
   position: absolute;
   width: 22px;
@@ -657,6 +696,12 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* v1.13.2 (B4) — ABOVE THE WEIGHT CELLS. They follow the puck in DOM order and
+     neither had a z-index, so a puck dragged onto a speaker sat UNDER that
+     speaker's 68 x 30 px weight cell: the next grab landed on the weight slider
+     and moved Weight 1 from 1.00 to 0.07 — audible, and recorded in Touch or
+     Latch. The output popover (3) still covers the puck. */
+  z-index: 2;
 }
 
 .puck.is-dragging { cursor: grabbing; background: rgba(232, 200, 122, 0.34); }
@@ -1047,6 +1092,12 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
   cursor: not-allowed;
   text-decoration: line-through;
 }
+
+/* v1.13.2 (B23) — AND AN EMPTY USER SLOT IS NOT STRUCK THROUGH. The rule above
+   outranked .is-slot, so the four never-captured slots read as forbidden scenes,
+   the exact confusion the .is-slot comment says the two styles exist to prevent.
+   The dashed border is what says "empty". */
+.scene-btn.is-slot:disabled { text-decoration: none; }
 
 /* The armed STORE toggle (D22). State lives in aria-pressed and NOWHERE ELSE —
    the word STORE is HTML-authored and JS never rewrites it. */
@@ -1515,21 +1566,23 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
 }
 
 /* ── The mini-plan ───────────────────────────────────────────────────────
-   .miniplan is the AVAILABLE box — the rail's residual height, exactly as
-   #plan-stage is the Room plan's available box. #mini-geometry is the FITTED
-   box, sized from --mini-w / --mini-h which venue.js writes from fitBox().
-   There is no aspect literal here, and flex:none on the svg is what makes a
-   width-bound fit OVERFLOW VISIBLY instead of being silently squashed — which
-   is what NC3 has to be able to demonstrate. */
+   .miniplan is the AVAILABLE box — since v1.13.2 the Venue screen's residual
+   height under the table, exactly as #plan-stage is the Room plan's available
+   box. #mini-geometry is the FITTED box, sized from --mini-w / --mini-h which
+   venue.js writes from fitBox(). There is no aspect literal here, and flex:none
+   on the svg is what makes a width-bound fit OVERFLOW VISIBLY instead of being
+   silently squashed — which is what NC3 has to be able to demonstrate.
+
+   The STAGE is transparent and the PLAN carries the panel: the stage is the
+   full width of the table, and a 752 px panel holding a 160 px portrait room
+   read as an empty frame. The hairline is a box-shadow so it adds nothing to
+   the box fitBox() sized. */
 .miniplan {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--panel);
-  border: 1px solid var(--rule-soft);
-  border-radius: 3px;
 }
 
 #mini-geometry {
@@ -1537,8 +1590,12 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
   width: calc(var(--mini-w) * 1px);
   height: calc(var(--mini-h) * 1px);
   overflow: visible;
+  background: var(--panel);
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px var(--rule-soft);
 }
 
+/* r = 8 since v1.13.2, so each dot can carry its speaker number. */
 .mini-dot {
   fill: var(--panel-lift);
   stroke: var(--level-mid);
@@ -1548,6 +1605,39 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
 .mini-glyph.is-vertex   .mini-dot { stroke: var(--level-hi); stroke-width: 1.75; }
 .mini-glyph.is-onedge   .mini-dot { stroke: var(--level-mid); stroke-dasharray: 2.5 2; }
 .mini-glyph.is-interior .mini-dot { stroke: var(--ink-quiet); }
+
+.mini-num {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  fill: var(--ink);
+  pointer-events: none;
+}
+
+/* The row being typed into lights its dot — "which one is row 5?" is the
+   question the mini-plan exists to answer while 24 coordinates go in. */
+.mini-glyph.is-editing .mini-dot { fill: var(--level-hi); stroke: var(--level-hi); }
+.mini-glyph.is-editing .mini-num { fill: var(--ground); }
+
+/* ── v1.13.2 (B7) — the result lines ─────────────────────────────────────
+   What the plugin said about the last venue write. Advisory: the model
+   converges on the venueGen poll either way. A refusal is set in --alert; a
+   plain result in the value ink. Wraps rather than overflowing the 300 px rail. */
+.vresult {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.vresult[data-tone="alert"] { color: var(--alert); }
+
+/* In the venue head it shares one line with the venue name and ellipsizes with
+   it, so a refusal never pushes the table down by a line. */
+.venue-head .vresult {
+  flex: 0 1 auto;
+  margin-left: auto;
+  text-align: right;
+  white-space: nowrap;
+}
 
 /* ══ Footer ══════════════════════════════════════════════════════════════ */
 

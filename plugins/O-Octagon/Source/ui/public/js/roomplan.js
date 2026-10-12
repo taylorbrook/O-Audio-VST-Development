@@ -238,6 +238,7 @@ export function createRoomPlan(deps) {
   // venueGen poll, never on the completion (P64).
   const outPop = document.getElementById("out-pop");
   const outPopButtons = deps.weightIds.map((_, i) => document.getElementById(`out-btn-${i + 1}`));
+  const outPopNote = outPop === null ? null : outPop.querySelector(".out-pop-note");
   let outPopSpeaker = 0;   // 1-based; 0 = closed
 
   // 2 * pi * 15, the meter arc's radius in index.html. Authored ONCE, here,
@@ -598,6 +599,14 @@ export function createRoomPlan(deps) {
     if (outPop === null) return;
     outPopSpeaker = speakerN;
     outPop.hidden = false;
+
+    // v1.13.2 — every ordinary open shows the AUTHORED note, so a refusal
+    // written there by showOutputRefusal() never outlives the attempt it
+    // described. Through setLabel, so the language sweep keeps owning it.
+    if (outPopNote !== null && outPopNote.classList.contains("is-refusal")) {
+      outPopNote.classList.remove("is-refusal");
+      window.__setLabel(outPopNote, "label.out-pop-note");
+    }
     renderOutPop();
   }
 
@@ -827,6 +836,28 @@ export function createRoomPlan(deps) {
       relayout();
     },
     relayout,
+
+    /** v1.13.2 (B7) — the plugin REFUSED an assignment. Reopen the popover on
+        that speaker with the reason in the note line. Advisory, as every
+        completion on this page is: if the completion is dropped the popover
+        simply stays closed, which is what it did for every refusal before. */
+    showOutputRefusal(speakerN, result) {
+      const n = Number(speakerN);
+      if (!Number.isFinite(n) || n < 1 || n > deps.weightIds.length) return;
+
+      openOutPop(n);
+      if (outPopNote === null) return;
+
+      const reason = String(result?.reason ?? "");
+      const speaker = Number(result?.speaker);
+
+      outPopNote.classList.add("is-refusal");
+      if (!window.__setReasonLabel(outPopNote, reason, speaker)) {
+        delete outPopNote.dataset.i18n;
+        delete outPopNote.dataset.label;
+        outPopNote.textContent = reason;
+      }
+    },
 
     // ── v1.8.0 hooks. Hooks ONLY — this module keeps the view transform. ────
 

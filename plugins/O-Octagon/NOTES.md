@@ -3,7 +3,7 @@
 ## Status
 - **Current Status:** 📦 Installed — stage-4 roll-up re-verify ✅ VERIFIED 2026-08-14, all four
   stages complete; dev-branded build (`O-Octagon-dev`), not yet released
-- **Version:** 1.13.1 (dev build installed; not released)
+- **Version:** 1.13.2 (dev build installed; v1.13.0 is the public release)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
 - **Complexity:** 5.0 (capped; raw 13.0) — staged implementation
@@ -274,6 +274,17 @@
   strokes and `.scene-btn:disabled`. `.elev-spk-num` 8 → 9 px. measure-ui `--contrast`:
   69/202 → 4/202 below AA per language (the 4 = disabled empty U1–U4, exempt), < 9 px 8 → 0.
   UI only; no DSP/param/state change.
+
+- **2026-10-11 (v1.13.2 — `/improve`, Round 1 of the v1.13.1 four-goal review):** a five-reviewer
+  review (`.planning/REVIEW-v1.13.1.md`) found five High defects shipping in v1.13.0 with every gate
+  green; the queue is `.planning/IMPROVEMENT-QUEUE.md`. Round 1 fixed the stereo-bus header overflow
+  (MAP no longer rises for `notEightChannels`; frame/header hardened; calm binaural face), the venue
+  table's stale-cache revert (only typed fields on the wire), the puck under the weight cells,
+  stereo-bus venue writes (labels validated against the real rigs), unrendered venue/file/popover
+  results (localized; `vfile.*` French at `reviewed: false`), half-applying `.venue` files (IN-03 /
+  IN-23), the crushed mini-plan (moved under the table, numbered), the settings dismiss, the
+  Headphones preference toggle and the ping's bad-target disarm. New: layout §35-38, unit DQ,
+  render DR/DS; each fix's gate shown failing with that fix reverted. Rounds 2-7 remain queued.
 
 **Still open from the v1.8.0 CODE_REVIEW after the v1.10.1 sweep:** design calls IN-03, 04, 11,
 13, 14, 20, 22 and the fail-first test work IN-23 … IN-30 (DF's `motionSolves > 0` liveness gate,

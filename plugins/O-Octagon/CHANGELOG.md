@@ -1,5 +1,88 @@
 # O-Octagon Changelog
 
+## [1.13.2] - 2026-10-11
+
+Round 1 of the v1.13.1 four-goal review (`.planning/REVIEW-v1.13.1.md`): the stereo bus made a
+first-class state, and two silent data-loss paths closed. PATCH: no parameter, range, preset or
+session-format change. Every gate was green while each of these shipped in v1.13.0, so each fix
+comes with the assertion that should have caught it, shown FAILING on the unfixed code first.
+
+### Fixed
+
+- **B1 — On any stereo or mono bus the header widened the window and clipped the right-hand
+  column.** Root cause: a stereo bus always reports `mapInvalid` with `notEightChannels` (the
+  v1.11.0 binaural arm runs precisely when the map is unavailable), and the MAP banner rose beside
+  the binaural MONITOR banner. Two pinned banners made the header 1317 px; `.frame` had no
+  `grid-template-columns`, so its implicit column grew to the header's min-content and pushed the
+  Room controls and the Venue rail past 1100 px (Source Y, Width, Blur, Air, U3/U4, the Elevation
+  readouts, Load, Roles, half the ping grid). `document.scrollWidth` stayed 1100 because the frame
+  clips, so the fit gate passed. **Fix:** MAP no longer rises for `notEightChannels` (SAFE or the
+  binaural banner already says "not the rig"); `.frame` is `minmax(0, 1fr)`, the header
+  `min-width: 0`, the wordmark never wraps.
+- **U1 — the binaural banner is a calm status, not the alarm.** It is the normal state of every
+  stereo session; it now wears an outlined gold face (tag 9.6:1, copy 5.8:1), and the filled
+  orange stays with the armed 8-channel fold that mutes a rig.
+- **B2 — a second venue-table edit inside one 500 ms poll silently reverted the first.** Root
+  cause: `buildPayload()` sent all 50 values, filling the untouched ones from the page's cached
+  copy of the venue, which refreshes only on the 2 Hz `venueGen` poll; C++ applied them. A trim
+  went back to 0 dB, and an L↔R swap reverted behind a quick numeric edit to a set that is still a
+  valid permutation, so no banner said so. **Fix:** only typed fields go on the wire; `setVenue`
+  already falls back to the live venue per field.
+- **B4 — the puck could sit under a weight cell, and the next grab moved that speaker's weight**
+  (1.00 → 0.07, audible, recorded in Touch/Latch). The puck now stacks above the weight cells.
+- **B6 — on a stereo or mono bus every venue write was refused** — the table, `.venue` Load,
+  Derive, Direct/Roles and the output popover — while the binaural fold renders exactly that
+  venue. A laptop could not load the hall it was preparing for. **Fix:** on a bus that is not a
+  real rig the labels are validated against the real rigs (`oo::rig::realRigSets()`, the
+  three-container literal still written once): accepted if they resolve on at least one, refused
+  with the primary rig's diagnosis otherwise. The map stays flagged on that bus and is re-checked
+  on renegotiation.
+- **B7 — what the plugin said about a venue write never reached the screen.** Save, Load, Derive,
+  table refusals and the output popover dropped their results; the output-order and ping lines
+  printed raw C++ codes, on the French page too. Each result now renders as a sentence in the
+  page's language: a new line under the Venue file buttons, a refusal line in the venue head, the
+  popover reopening with the reason. The three map failures share one ladder in `app.js`
+  (`setReasonLabel`). Six new strings (`vfile.*`), French at `reviewed: false` for review, Chinese
+  promoted to `'bt'` by a blind back-translation. `venuefile::describe()` was NOT wired: it builds
+  English prose in C++, and the page maps codes to keys instead.
+- **`.venue` files that half-applied now refuse** (v1.3.0 review IN-03 / IN-23). Two rows claiming
+  one speaker, a zero-padded `index="03"`, and a non-numeric `schemaVersion` all loaded `ok` with a
+  speaker left at its placeholder; each is now `malformedRoot`, before anything is touched.
+  Session restores are unchanged (still lenient).
+- **B11 — the Venue mini-plan was crushed to about 20 × 25 px.** It was the rail's flex residual,
+  and each rail group added since Stage 3 came out of it (213 px → 119 at v1.1.0 → 25 at v1.7.0).
+  It now lives under the venue table (160 × 201 px on the default room), its dots carry their
+  speaker numbers, and the row being edited lights its dot.
+- **B12 — small interaction defects.** The settings panel now closes on a puck drag (it dismissed
+  on `mousedown`, which the puck's `preventDefault` suppresses). On a stereo bus the Headphones
+  button toggles the stored preference (it sent the inverse of the ACTIVE state, so with audio idle
+  it could not switch off). `startPing` refuses a target outside 1–8 before it disarms the monitor
+  (it disarmed it and reported success for a ping that never sounded).
+- **B23** — empty user scene slots are no longer struck through; double-clicking a glyph no longer
+  selects its numeral.
+
+### Tests
+
+- `ui_frontend_check` §22 restated for the sparse payload, plus the C++ half (live venue,
+  per-field `finiteOr`, `hasProperty("label")`): 43/43.
+- `ui_layout_check` 34 → 38 sections: §12 gains a 120 px legibility floor for the mini-plan; §13
+  asserts one value on the wire, not 50; §18 and §31 assert localized refusals; new §35 (two commits
+  in one poll tick, trims and an L↔R swap), §36 (the REAL stereo status fits 1100 px with one banner,
+  both screens, en/fr/zh-Hans, binaural and dry), §37 (every `.venue` result shown), §38 (puck above
+  the weight cells; a puck drag closes the settings panel).
+- `tests/i18n-states.json`: the SAFE and BINAURAL states now carry the real `notEightChannels` map
+  status (they said `none`, which C++ cannot produce on a stereo bus).
+- `juce-stub.js`: per-field `setVenue` like C++, a one-shot file-result lever, `badSpeaker`.
+- New probes: geometry **DQ** (strict `.venue`, with reordered and un-indexed positive controls),
+  render **DR** (stereo-bus venue edits; labels still guarded; 5.1.2-only set accepted on stereo and
+  refused on 7.1; renegotiation builds the map) and **DS** (bad ping target keeps the monitor).
+- **Negative controls, each fix reverted alone:** B1 → §36 fails (header 1234–1340 px, two banners);
+  B2 → §13, §35 and static §22 fail; B4 → §38 fails (hit `ctl-w1`, weight 1 → 0.605); B7 → §37 fails;
+  B11 → §12 fails (4 px); B12 → §38 fails; v1.13.1 `VenueFile.cpp` + `PluginProcessor.cpp` → DQ,
+  DR, DS fail.
+- Geometry 60/0, render 77/0 (every existing golden and digest unchanged), check-i18n pass,
+  check-ui-labels pass, French lint clean, zh lint 0 findings.
+
 ## [1.13.1] - 2026-09-25
 
 Text contrast brought to WCAG AA inside O-Octagon's own dark palette. PATCH:

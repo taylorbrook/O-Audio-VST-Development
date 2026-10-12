@@ -2696,6 +2696,106 @@ int main()
     }
 
     //==========================================================================
+    // DQ — v1.13.2 (v1.3.0 review IN-03 / IN-23): A .venue THAT WOULD HALF-APPLY IS REFUSED.
+    //
+    //      BO's count check (eight SPEAKER children) let three shapes through that readFromState()
+    //      cannot fully resolve, and each loaded as `ok` with one speaker left at its placeholder:
+    //      two children claiming @index 5 and none claiming 4; a zero-padded index="03", which the
+    //      var-equality lookup never matches; and a schemaVersion of "abc", read as 0. A room that
+    //      is seven-eighths measured, presented as measured.
+    //
+    //      Two POSITIVE controls, because a load that refused everything would pass the three
+    //      negative ones: a file with REORDERED children (readFromState() locates by @index, so it
+    //      must still load whole) and a LEGACY file with no @index at all (the positional fallback).
+    {
+        bool         ok = true;
+        juce::String detail;
+
+        const auto refused = [&] (const char* name, juce::ValueTree tree)
+        {
+            const auto file = scratchDir.getChildFile (juce::String (name) + ".venue");
+            file.deleteFile();
+
+            if (auto xml = tree.createXml())
+                xml->writeTo (file);
+
+            oo::VenueModel live = makeMeasuredVenue();
+            const auto result = oo::venuefile::load (file, live, nullptr);
+
+            int firstBad = -1;
+            const bool untouched = sameFifty (makeMeasuredVenue(), live, firstBad);
+            const bool rejected  = result == oo::venuefile::LoadResult::malformedRoot;
+
+            ok = ok && rejected && untouched;
+            detail << name << ": " << (rejected ? "rejected" : "LOADED AS " + juce::String (static_cast<int> (result)))
+                   << "/" << (untouched ? "out untouched" : "OUT WAS MODIFIED") << "; ";
+            file.deleteFile();
+        };
+
+        const auto loadsWhole = [&] (const char* name, juce::ValueTree tree)
+        {
+            const auto file = scratchDir.getChildFile (juce::String (name) + ".venue");
+            file.deleteFile();
+
+            if (auto xml = tree.createXml())
+                xml->writeTo (file);
+
+            oo::VenueModel loaded;
+            const auto result = oo::venuefile::load (file, loaded, nullptr);
+
+            int firstBad = -1;
+            const bool whole = sameFifty (makeMeasuredVenue(), loaded, firstBad);
+            const bool clean = result == oo::venuefile::LoadResult::ok;
+
+            ok = ok && clean && whole;
+            detail << name << ": " << (clean ? "ok" : "REFUSED") << "/"
+                   << (whole ? "all 50 values" : "speaker " + juce::String (firstBad + 1) + " WRONG") << "; ";
+            file.deleteFile();
+        };
+
+        // 1. Two rows claim speaker 5, none claims speaker 4.
+        {
+            auto tree = makeMeasuredVenue().toValueTree();
+            tree.getChild (3).setProperty (oo::VenueModel::propIndex, 5, nullptr);
+            refused ("dup-index", tree);
+        }
+
+        // 2. A zero-padded index — the lookup's var equality never matches "03" to 3.
+        {
+            auto tree = makeMeasuredVenue().toValueTree();
+            tree.getChild (2).setProperty (oo::VenueModel::propIndex, "03", nullptr);
+            refused ("padded-index", tree);
+        }
+
+        // 3. A schemaVersion that is not a number.
+        {
+            auto tree = makeMeasuredVenue().toValueTree();
+            tree.setProperty (oo::VenueModel::propSchemaVersion, "abc", nullptr);
+            refused ("garbage-version", tree);
+        }
+
+        // 4. POSITIVE — reordered children, every @index intact.
+        {
+            auto tree = makeMeasuredVenue().toValueTree();
+            tree.moveChild (0, tree.getNumChildren() - 1, nullptr);
+            tree.moveChild (2, 5, nullptr);
+            loadsWhole ("reordered", tree);
+        }
+
+        // 5. POSITIVE — a legacy file with no @index anywhere: the positional fallback.
+        {
+            auto tree = makeMeasuredVenue().toValueTree();
+
+            for (int i = 0; i < tree.getNumChildren(); ++i)
+                tree.getChild (i).removeProperty (oo::VenueModel::propIndex, nullptr);
+
+            loadsWhole ("unindexed", tree);
+        }
+
+        check ("DQ venue-file-every-speaker-resolves", ok, detail);
+    }
+
+    //==========================================================================
     // CQ — v1.4.0: THE ALIGN-TO-FARTHEST LAW, INCLUDING THE DIRECTION.
     //
     //      Four claims, and the third is the one that matters. `d_i / c` — absolute propagation

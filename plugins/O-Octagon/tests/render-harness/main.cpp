@@ -7313,6 +7313,144 @@ int main()
     }
 
     //==========================================================================
+    // DR — v1.13.2 (B6): ON A STEREO BUS THE VENUE IS EDITABLE, AND THE LABELS ARE STILL GUARDED.
+    //
+    //      Through v1.13.1 applyVenueEditChecked() validated the labels against the NEGOTIATED set,
+    //      and on mono or stereo buildSpeakerToBuffer() fails with notEightChannels for ANY label
+    //      set — so every venue write was refused there: the table, a .venue load, Derive, the
+    //      output-order presets, the popover. And DP shows what the stereo bus is FOR since
+    //      v1.11.0: a binaural fold rendered from that very venue. A laptop could not load the hall
+    //      it was preparing for. Five clauses:
+    //
+    //      (a) a coordinate edit APPLIES on a stereo bus, and the map stays flagged there;
+    //      (b) a duplicate label is still REFUSED there, with the row named — the guard moved to
+    //          the real rigs, it was not removed;
+    //      (c) a set that resolves ONLY on 5.1.2 is accepted on stereo — "some real rig", not "7.1";
+    //      (d) and that same set is refused on a 7.1 bus, so (c) is not "stereo accepts anything";
+    //      (e) renegotiating the stereo processor of (a) to 7.1 builds the map from what was edited.
+    {
+        const auto stereoOut = juce::AudioChannelSet::stereo();
+        const auto set512    = juce::AudioChannelSet::create5point1point2();
+        bool         ok = true;
+        juce::String detail;
+
+        OOctagonProcessor proc;
+        negotiate (proc, mono, stereoOut);
+
+        // (a)
+        {
+            const auto before = proc.getVenue();
+            oo::VenueModel moved = before;
+            moved.setSpeakerPosition (0, { before.speaker (0).x + 1.25f, before.speaker (0).y, before.speaker (0).z });
+
+            ochan::MapDiagnosis why {};
+            const bool applied = proc.applyVenueEditChecked (moved, &why);
+            const bool tookIt  = bitExact (proc.getVenue().speaker (0).x, before.speaker (0).x + 1.25f);
+            const bool flagged = proc.isChannelMapInvalid();
+
+            ok = ok && applied && tookIt && flagged;
+            detail << "(a) stereo coordinate edit " << (applied ? "APPLIED" : "REFUSED (the v1.13.1 defect)")
+                   << (tookIt ? "" : ", VENUE UNCHANGED") << (flagged ? ", map still flagged" : ", MAP CLAIMS VALID")
+                   << "; ";
+        }
+
+        // (b)
+        {
+            const auto before = proc.getVenue();
+            oo::VenueModel bad = before;
+            bad.setSpeakerLabel (3, before.labelAbbreviation (1));
+
+            ochan::MapDiagnosis why {};
+            const bool applied = proc.applyVenueEditChecked (bad, &why);
+            int firstBad = -1;
+            const bool untouched = sameFifty (before, proc.getVenue(), firstBad);
+            const bool named = why.reason == ochan::MapFailure::duplicateLabel && why.speakerIndex == 3;
+
+            ok = ok && ! applied && untouched && named;
+            detail << "(b) stereo duplicate " << (applied ? "APPLIED" : "refused")
+                   << (named ? ", row 4 named" : ", REASON/ROW WRONG") << (untouched ? "" : ", VENUE MODIFIED") << "; ";
+        }
+
+        // The 5.1.2 label set, DERIVED from JUCE's own table rather than transcribed.
+        oo::VenueModel only512 = proc.getVenue();
+        for (int i = 0; i < oo::VenueModel::kNumSpeakers; ++i)
+            only512.setSpeakerLabel (i, juce::AudioChannelSet::getAbbreviatedChannelTypeName (
+                                            set512.getTypeOfChannel (i)));
+
+        // (c)
+        {
+            ochan::MapDiagnosis why {};
+            const bool applied = proc.applyVenueEditChecked (only512, &why);
+            ok = ok && applied;
+            detail << "(c) 5.1.2-only labels on stereo " << (applied ? "accepted" : "REFUSED") << "; ";
+        }
+
+        // (d)
+        {
+            OOctagonProcessor rig;
+            negotiate (rig, mono, set71);
+            ochan::MapDiagnosis why {};
+            const bool applied = rig.applyVenueEditChecked (only512, &why);
+            ok = ok && ! applied;
+            detail << "(d) the same labels on 7.1 " << (applied ? "ACCEPTED" : "refused") << "; ";
+        }
+
+        // (e) — back to the factory labels on the stereo processor, then renegotiate it to 7.1.
+        {
+            oo::VenueModel roles = proc.getVenue();
+            const oo::VenueModel factory;
+            for (int i = 0; i < oo::VenueModel::kNumSpeakers; ++i)
+                roles.setSpeakerLabel (i, factory.labelAbbreviation (i));
+
+            ochan::MapDiagnosis why {};
+            const bool applied = proc.applyVenueEditChecked (roles, &why);
+            const float editedX = proc.getVenue().speaker (0).x;
+
+            proc.releaseResources();          // what a host does before it renegotiates
+            negotiate (proc, mono, set71);
+            const bool built  = ! proc.isChannelMapInvalid();
+            const bool kept   = bitExact (proc.getVenue().speaker (0).x, editedX);
+
+            ok = ok && applied && built && kept;
+            detail << "(e) renegotiated to 7.1: map " << (built ? "BUILT" : "STILL INVALID")
+                   << (kept ? ", the stereo edit survived" : ", EDIT LOST");
+        }
+
+        check ("DR stereo-bus-venue-edit-accepted", ok, detail);
+    }
+
+    //==========================================================================
+    // DS — v1.13.2 (B12): AN IMPOSSIBLE PING TARGET IS REFUSED BEFORE THE MONITOR IS TOUCHED.
+    //
+    //      VerifyPing::start() ignores a target outside 1..8, but through v1.13.1
+    //      startVerifyPing() had already disarmed the monitor and then reported success: the
+    //      operator's fold went off for a ping that never sounded. The positive control is the
+    //      shipped mutual exclusion — a REAL ping still takes the monitor down.
+    {
+        OOctagonProcessor proc;
+        bool         ok = negotiate (proc, mono, set71);
+        juce::String detail;
+
+        const bool armed = proc.setMonitorArmed (true);
+        const bool zeroRefused  = ! proc.startVerifyPing (0);
+        const bool nineRefused  = ! proc.startVerifyPing (9);
+        const bool stillArmed   = proc.isMonitorArmed();
+        const bool realStarted  = proc.startVerifyPing (1);
+        const bool exclusion    = ! proc.isMonitorArmed();
+
+        ok = ok && armed && zeroRefused && nineRefused && stillArmed && realStarted && exclusion;
+        detail << "monitor " << (armed ? "armed" : "WOULD NOT ARM — probe is vacuous")
+               << "; target 0 " << (zeroRefused ? "refused" : "ACCEPTED")
+               << ", target 9 " << (nineRefused ? "refused" : "ACCEPTED")
+               << "; monitor " << (stillArmed ? "still armed" : "DISARMED BY A PING THAT NEVER SOUNDED")
+               << "; positive control: ping 1 " << (realStarted ? "started" : "REFUSED")
+               << (exclusion ? " and took the monitor down" : ", MONITOR STILL UP");
+
+        proc.stopVerifyPing();
+        check ("DS ping-bad-target-keeps-monitor", ok, detail);
+    }
+
+    //==========================================================================
     std::printf ("\n----------------------------------------------------\n");
     std::printf ("  %d probe(s), %d failure(s)\n\n", probes, failures);
 

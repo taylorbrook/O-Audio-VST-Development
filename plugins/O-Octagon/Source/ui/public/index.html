@@ -663,6 +663,11 @@
           <div class="venue-head">
             <span class="cell-label" data-i18n="tab-venue">Venue</span>
             <span class="vcell-value" id="vvenue-name">&#8212;</span>
+            <!-- v1.13.2 (B7) — the result of the last TABLE or DERIVE write. Empty
+                 unless the plugin refused one: through v1.13.1 a refusal only
+                 repainted the field, and on a refusal with no row there was no
+                 other feedback at all. Advisory, like every completion here. -->
+            <span class="vcell-value vresult" id="vtable-state" role="status"></span>
           </div>
 
           <table class="vtable">
@@ -799,6 +804,36 @@
             <button type="button" class="vbtn" id="btn-delay-derive" data-i18n="label.derive">Derive</button>
           </div>
 
+          <!-- The mini-plan. A SECOND VIEW, NOT A SECOND PROJECTION (Q8): it is
+               drawn by the same metresToPx() the Room plan uses, through a view
+               built by the same makeView(), fitted by the same fitBox(). Its box
+               is written into --mini-w / --mini-h by venue.js from the RETURNED
+               envelope; there is no aspect literal anywhere, here or in CSS.
+
+               v1.13.2 (B11) — MOVED HERE FROM THE RAIL. It was the rail's
+               flex:1 residual, and every rail group added since Stage 3 came out
+               of it: 213 px tall at 3.2, 119 after v1.1.0's Output order, 25
+               after v1.7.0's Monitor — eight dots in a 20 x 25 px knot, with
+               every gate green. Under the table it gets the screen's own
+               residual height, and the dots carry their speaker numbers so the
+               plan can answer "which one is row 5?" while the row is typed. -->
+          <div class="miniplan" id="miniplan">
+            <svg id="mini-geometry" xmlns="http://www.w3.org/2000/svg"
+                 preserveAspectRatio="none" aria-hidden="true">
+              <polygon id="mini-hull" class="hull" points="" />
+              <g id="mini-glyphs">
+                  <g class="mini-glyph" id="mglyph-1" data-speaker="1"><circle class="mini-dot" r="8" /><text class="mini-num" text-anchor="middle" dy="0.35em">1</text></g>
+                  <g class="mini-glyph" id="mglyph-2" data-speaker="2"><circle class="mini-dot" r="8" /><text class="mini-num" text-anchor="middle" dy="0.35em">2</text></g>
+                  <g class="mini-glyph" id="mglyph-3" data-speaker="3"><circle class="mini-dot" r="8" /><text class="mini-num" text-anchor="middle" dy="0.35em">3</text></g>
+                  <g class="mini-glyph" id="mglyph-4" data-speaker="4"><circle class="mini-dot" r="8" /><text class="mini-num" text-anchor="middle" dy="0.35em">4</text></g>
+                  <g class="mini-glyph" id="mglyph-5" data-speaker="5"><circle class="mini-dot" r="8" /><text class="mini-num" text-anchor="middle" dy="0.35em">5</text></g>
+                  <g class="mini-glyph" id="mglyph-6" data-speaker="6"><circle class="mini-dot" r="8" /><text class="mini-num" text-anchor="middle" dy="0.35em">6</text></g>
+                  <g class="mini-glyph" id="mglyph-7" data-speaker="7"><circle class="mini-dot" r="8" /><text class="mini-num" text-anchor="middle" dy="0.35em">7</text></g>
+                  <g class="mini-glyph" id="mglyph-8" data-speaker="8"><circle class="mini-dot" r="8" /><text class="mini-num" text-anchor="middle" dy="0.35em">8</text></g>
+              </g>
+            </svg>
+          </div>
+
         </div>
 
         <div class="venue-rail" id="venue-rail">
@@ -810,34 +845,16 @@
             <span class="vcell-value" id="vset-name">&#8212;</span>
           </div>
 
-          <!-- The mini-plan. A SECOND VIEW, NOT A SECOND PROJECTION (Q8): it is
-               drawn by the same metresToPx() the Room plan uses, through a view
-               built by the same makeView(), fitted by the same fitBox(). Its box
-               is written into --mini-w / --mini-h by venue.js from the RETURNED
-               envelope; there is no aspect literal anywhere, here or in CSS. -->
-          <div class="miniplan" id="miniplan">
-            <svg id="mini-geometry" xmlns="http://www.w3.org/2000/svg"
-                 preserveAspectRatio="none" aria-hidden="true">
-              <polygon id="mini-hull" class="hull" points="" />
-              <g id="mini-glyphs">
-                  <g class="mini-glyph" id="mglyph-1" data-speaker="1"><circle class="mini-dot" r="6" /></g>
-                  <g class="mini-glyph" id="mglyph-2" data-speaker="2"><circle class="mini-dot" r="6" /></g>
-                  <g class="mini-glyph" id="mglyph-3" data-speaker="3"><circle class="mini-dot" r="6" /></g>
-                  <g class="mini-glyph" id="mglyph-4" data-speaker="4"><circle class="mini-dot" r="6" /></g>
-                  <g class="mini-glyph" id="mglyph-5" data-speaker="5"><circle class="mini-dot" r="6" /></g>
-                  <g class="mini-glyph" id="mglyph-6" data-speaker="6"><circle class="mini-dot" r="6" /></g>
-                  <g class="mini-glyph" id="mglyph-7" data-speaker="7"><circle class="mini-dot" r="6" /></g>
-                  <g class="mini-glyph" id="mglyph-8" data-speaker="8"><circle class="mini-dot" r="6" /></g>
-              </g>
-            </svg>
-          </div>
-
           <div class="rail-group">
             <h3 class="group-title" data-i18n="label.group.venue-file">Venue file</h3>
             <div class="rail-buttons">
               <button type="button" class="vbtn" id="btn-venue-save" data-i18n="label.save">Save</button>
               <button type="button" class="vbtn" id="btn-venue-load" data-i18n="label.load">Load</button>
             </div>
+            <!-- v1.13.2 (B7) — what the last Save or Load did. Through v1.13.1
+                 both completions were dropped: a refused, malformed or
+                 newer-format file and a failed write all looked like success. -->
+            <span class="vcell-value vresult" id="vfile-state" role="status">&#8212;</span>
           </div>
 
           <!-- The preset rail. FOUR native functions, O-Octagon's own DOM, and
