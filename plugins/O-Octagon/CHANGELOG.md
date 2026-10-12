@@ -1,5 +1,56 @@
 # O-Octagon Changelog
 
+## [1.15.1] - 2026-10-12
+
+v1.15.0's run flags latched. PATCH: settled output is bit-identical (CU and DC digests unchanged).
+What changes is that a faded-out stage stops running, and the air filter's next entry is a real
+entry again. No parameter, preset or session change.
+
+### Fixed
+
+- **The air filter kept running after it faded out, and re-entry skipped its seed.** `airRun` is
+  "airActive, or the blend still fading". The second half changes while the parameters do not, but
+  it was derived only past the dirty check. With Motion off, the solve that *started* a fade-out
+  (Motion off, air to 0, a source moving inside the near field) was the last one to look. Every
+  later control block hit the `memcmp` skip, so `airRun` stayed true for the rest of the render.
+  The filter ran on every sample at mix 0. That output is exactly `sL`, so no click or digest probe
+  saw it. Its real effect showed on the next re-entry: there was no false→true edge, so no P27 seed
+  and no G snap, and the filter faded back in carrying the programme's own state. **Now**
+  `deriveAirRun()` holds the derivation and its edge, and `updateControl()` calls it from both
+  exits, the full solve and the skip. On the skip only a falling edge is possible.
+- **`prepare()` could hand over a latched `airRun`.** `SmoothedValue::reset (rate, ramp)` keeps the
+  old target. A re-prepare after a run that ended filtered, into an inactive patch, started step 3
+  with the blend at 1. Step 3 took the run edge, then step 4 teleported the blend to 0 under a true
+  flag. v1.15.0's comment said the flags "need no re-derivation". They do, so step 4 now calls
+  `deriveAirRun()` after the teleport. A seed still pending on a filter that is not running is
+  cleared.
+- **The decorrelator and the alignment delay latched the same way.** `decorrEngaged` and
+  `delayActive` / `delayEngaged` are the same "wanted, or still fading" shape, also derived only
+  past the skip. After a decorr move to 0 or a delay edit to 0 ms, the chains and lines stayed
+  clocked indefinitely. That cost CPU only: they ran on live programme, so nothing stale was heard.
+  They move into `deriveDecorrEngaged()` / `deriveDelayEngaged()` and are called from both exits.
+  "Wanted" is read from members (`decorrMix`'s target, `delayTarget`), which hold the same values
+  the solve computed.
+
+### Testing
+
+- **New render probe DX** on 64-sample blocks with Motion off. It counts the branch rather than
+  listening, 2048 samples after each fade has landed:
+  - air 1→0, outside→centre and orbit→Motion OFF via `airSamplesFiltered`;
+  - decorr 1→0 via `decorrSamples`;
+  - a 10→0 ms speaker delay via a new `delayLaneSamples` counter (instrumented build only);
+  - a re-prepare into air 0.
+
+  Each must be non-zero before the event (non-vacuity) and **zero** after. It also bit-compares
+  the tail after an air 1→0→1 re-entry against a control whose filter first runs at that sample,
+  with a dry render to show the tail really is filtered.
+- **Negative control:** with v1.15.0's `GainStage.cpp/.h` and only the counter line added, all seven
+  DX parts fail (filtered 8192, decorr 4096 and delay 32768 after the fade; re-prepare 4096; the
+  re-entry tail differs). No other probe fails. The prepare re-derive is belt-and-braces: with the
+  skip fixed, sample 0's boundary (a skip) would clear it too, so no probe isolates that half.
+- Render harness 82/0 (81 + DX); geometry 60/0. CU `0x8ae2ed8c37b3be56` and DC
+  `0xdef4e5ef94849f76` unchanged.
+
 ## [1.15.0] - 2026-10-12
 
 Round 3a of the v1.13.1 four-goal review (`.planning/REVIEW-v1.13.1.md`): clean transitions.

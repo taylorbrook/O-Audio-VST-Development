@@ -106,6 +106,11 @@ namespace instr
     /// is > 0, which is what keeps a block-size-invariance probe from passing on the off path.
     inline std::atomic<std::uint64_t> motionSolves { 0 };
 
+    /// v1.15.1. Lane-samples clocked through the alignment delay lines (one per speaker per sample
+    /// while delayEngaged). decorrSamples' sibling: probe DX asserts it returns to ZERO once a delay
+    /// edit back to 0 ms has landed, which is the delay gate's latch made a number.
+    inline std::atomic<std::uint64_t> delayLaneSamples { 0 };
+
     inline void resetCounters() noexcept
     {
         motionSolves.store       (0, std::memory_order_relaxed);
@@ -117,6 +122,7 @@ namespace instr
         airSamplesFiltered.store (0, std::memory_order_relaxed);
         decorrSamples.store      (0, std::memory_order_relaxed);
         monitorSamples.store     (0, std::memory_order_relaxed);
+        delayLaneSamples.store   (0, std::memory_order_relaxed);
     }
 
     inline std::uint64_t get (const std::atomic<std::uint64_t>& c) noexcept
@@ -174,6 +180,13 @@ namespace instr
     {
        #if OOCTAGON_INSTRUMENT
         monitorSamples.fetch_add (1, std::memory_order_relaxed);
+       #endif
+    }
+
+    inline void countDelaySample() noexcept
+    {
+       #if OOCTAGON_INSTRUMENT
+        delayLaneSamples.fetch_add (1, std::memory_order_relaxed);
        #endif
     }
 

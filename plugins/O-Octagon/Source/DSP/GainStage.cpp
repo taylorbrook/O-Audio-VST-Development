@@ -287,13 +287,21 @@ void GainStage::prepare (double sampleRateToUse, int samplesPerBlock,
         delayTap[i].snap (delayTarget[i]);
 
     //     v1.15.0 (B8) — the air blends and the G ramps, for the gains' reason: a render that
-    //     BEGINS outside the near field must start filtered, not 5 ms into a fade from dry. The
-    //     run flags need no re-derivation: updateControl() above took the run edge (and armed the
-    //     seed) on the target alone, and a teleported blend at 0 means airActive was false there.
+    //     BEGINS outside the near field must start filtered, not 5 ms into a fade from dry.
     airMixL.setCurrentAndTargetValue (airMixL.getTargetValue());
     airMixR.setCurrentAndTargetValue (airMixR.getTargetValue());
     airL.snapToTarget();
     airR.snapToTarget();
+
+    //     v1.15.1 — and the run flags re-derive, for decorrEngaged's reason below. v1.15.0 said
+    //     they needed none; they do. SmoothedValue::reset (rate, ramp) in step 2 KEEPS the old
+    //     target, so a prepare() after a run that ended filtered starts step 3 with a blend at 1.
+    //     If the incoming patch is inactive, step 3 sets the target to 0, sees the blend still at
+    //     1 and fading, and takes the run edge — then the teleport above lands the blend on 0
+    //     under a flag that stays true, which the dirty check then never revisits. Settled now,
+    //     so this is airRun = airActive, the pending seed survives exactly when the filter runs,
+    //     and a later re-entry takes a real edge (seed + G snap).
+    deriveAirRun();
 
     //     And the decorrelator's two, for the gains' reason rather than the delays': a render that
     //     BEGINS decorrelated must start at full mix, or its first 5 ms would be a crossfade out
@@ -453,7 +461,14 @@ void GainStage::updateControl (const VenueSnapshot& snapshot, const ParamSnapsho
         && ! motionOn
         && snapshot.generation == lastSolvedGeneration
         && std::memcmp (p.data(), lastSolvedParams.data(), sizeof (float) * params::kCount) == 0)
+    {
+        // v1.15.1 — NOT a bare return. The solve is skipped; the run flags are not, because a
+        // fade begun by the last solve is still landing (see deriveAirRun()).
+        deriveAirRun();
+        deriveDecorrEngaged();
+        deriveDelayEngaged();
         return;
+    }
 
     lastSolvedParams     = p;
     lastSolvedGeneration = snapshot.generation;
@@ -581,28 +596,9 @@ void GainStage::updateControl (const VenueSnapshot& snapshot, const ParamSnapsho
     if (airActiveL) airL.setCutoff (fcL);
     if (airActiveR) airR.setCutoff (fcR);
 
-    const bool wasRunL = airRunL;
-    const bool wasRunR = airRunR;
-
-    airRunL = airActiveL || airMixL.getCurrentValue() > 0.0f || airMixL.isSmoothing();
-    airRunR = airActiveR || airMixR.getCurrentValue() > 0.0f || airMixR.isSmoothing();
-
-    // P27 / H1 — the false->true RUN edge arms a re-seed, and the seed makes the entry BIT-EXACT.
-    // processSample computes v = G*(x - s), so seeding s = x gives v = 0.0f exactly and y = x on
-    // every toolchain, at every cutoff, at every entry speed. §3.5.2's original policy (reset to 0)
-    // produces a click at 430% of the signal's own maximum per-sample slew at 1 kHz, and D2's
-    // "leave the state resident" produces 521%. This produces zero — and since v1.15.0 the blend
-    // then fades the filter in from that exact start.
-    //
-    // THE RUN EDGE, NOT THE airActive EDGE. A source re-entering while its fade-out is still
-    // running has a LIVE filter whose state is the programme's own; re-seeding it there would
-    // step the output the blend is in the middle of carrying.
-    //
-    // The coefficient SNAPS on the same edge: a filter that was not running has no trajectory to
-    // continue, and ramping G in from whatever it was held at last time would sweep the cutoff
-    // under the fade-in for no reason.
-    if (airRunL && ! wasRunL) { airSeedPendingL = true; airL.snapToTarget(); }
-    if (airRunR && ! wasRunR) { airSeedPendingR = true; airR.snapToTarget(); }
+    // The run flags and their entry edge (P27). In a helper since v1.15.1 because the dirty-check
+    // skip above must re-derive them too — see deriveAirRun().
+    deriveAirRun();
 
     // ── DSP-07/7 — THE airAmount -> 0 RESET IS GONE (v1.15.0) ─────────────────────────────────
     //
@@ -651,24 +647,8 @@ void GainStage::updateControl (const VenueSnapshot& snapshot, const ParamSnapsho
     if (decorrWanted)
         decorrDepth.setTargetValue (p[params::decorr] * widthRamp);
 
-    // Clocked while wanted AND for as long as the fade-out still has something to fade. Dropping
-    // the chains the moment the parameter hit zero would cut the crossfade off at its start, which
-    // is the click the crossfade exists to prevent.
-    const bool wasDecorrEngaged = decorrEngaged;
-
-    decorrEngaged = decorrWanted
-                 || decorrMix.getCurrentValue() > 0.0f
-                 || decorrMix.isSmoothing();
-
-    // The engage edge. A memset over eight rings plus two index fills — no allocation, RT-safe,
-    // and the same class of operation as the alignment lines' reset a few lines down.
-    if (decorrEngaged && ! wasDecorrEngaged)
-    {
-        decorrL.reset();
-        decorrR.reset();
-    }
-
-    decorrWasEngaged = decorrEngaged;
+    // The engage flag and its edge — deriveDecorrEngaged(), shared with the dirty-check skip.
+    deriveDecorrEngaged();
 
     // ── §5 step 7 — set the 17 targets ────────────────────────────────────────────────────────
     for (int i = 0; i < kNumSpeakers; ++i)
@@ -697,8 +677,6 @@ void GainStage::updateControl (const VenueSnapshot& snapshot, const ParamSnapsho
     // Without it a rate the host raised after prepare() — hosts do — would hand popSample a
     // position past the end of the buffer, where DelayLine jasserts in Debug and silently
     // jlimits in Release into a delay quietly shorter than the table shows.
-    bool anyDelay = false;
-
     for (int i = 0; i < kNumSpeakers; ++i)
     {
         const auto k = static_cast<std::size_t> (i);
@@ -726,6 +704,94 @@ void GainStage::updateControl (const VenueSnapshot& snapshot, const ParamSnapsho
 
         delayTarget[k] = samples;
 
+    }
+
+    // The per-lane active flags, the global gate and its engage edge — deriveDelayEngaged(),
+    // shared with the dirty-check skip.
+    deriveDelayEngaged();
+
+    instr::countSolveRun();
+}
+
+//==============================================================================
+// v1.15.1 — THE THREE RUN FLAGS, DERIVED IN ONE PLACE EACH
+//
+// Each flag below is "wanted, OR its fade still has something to fade". The second half changes
+// while the parameters do NOT: a 5 ms fade outlives the one control block that started it, so the
+// flag has to be re-derived on every boundary until the fade lands. Until v1.15.0 these lived
+// inline past the dirty check, so with Motion off the solve that STARTED a fade-out was the last
+// one ever to look — every later block skipped, and the flag latched true for the rest of the
+// render. Settled at 0 the output stayed exact (mix 0 -> sL, a zero tap -> y), but the stage kept
+// running, and the latched air flag swallowed the next false->true edge: re-entry was neither
+// re-seeded nor snapped.
+//
+// So updateControl() calls all three from BOTH exits — the full solve and the skip — and
+// prepare() re-derives after its step-4 teleport. On the skip only a falling edge is possible:
+// nothing that sets a "wanted" half changed, so a flag that is false stays false.
+//==============================================================================
+
+void GainStage::deriveAirRun() noexcept
+{
+    const bool wasRunL = airRunL;
+    const bool wasRunR = airRunR;
+
+    airRunL = airActiveL || airMixL.getCurrentValue() > 0.0f || airMixL.isSmoothing();
+    airRunR = airActiveR || airMixR.getCurrentValue() > 0.0f || airMixR.isSmoothing();
+
+    // P27 / H1 — the false->true RUN edge arms a re-seed, and the seed makes the entry BIT-EXACT.
+    // processSample computes v = G*(x - s), so seeding s = x gives v = 0.0f exactly and y = x on
+    // every toolchain, at every cutoff, at every entry speed. §3.5.2's original policy (reset to 0)
+    // produces a click at 430% of the signal's own maximum per-sample slew at 1 kHz, and D2's
+    // "leave the state resident" produces 521%. This produces zero — and since v1.15.0 the blend
+    // then fades the filter in from that exact start.
+    //
+    // THE RUN EDGE, NOT THE airActive EDGE. A source re-entering while its fade-out is still
+    // running has a LIVE filter whose state is the programme's own; re-seeding it there would
+    // step the output the blend is in the middle of carrying.
+    //
+    // The coefficient SNAPS on the same edge: a filter that was not running has no trajectory to
+    // continue, and ramping G in from whatever it was held at last time would sweep the cutoff
+    // under the fade-in for no reason.
+    if (airRunL && ! wasRunL) { airSeedPendingL = true; airL.snapToTarget(); }
+    if (airRunR && ! wasRunR) { airSeedPendingR = true; airR.snapToTarget(); }
+
+    // A filter that is not running has nothing to seed. Normally the pending flag is consumed by
+    // the very next renderChunk, before any boundary could get here; the one exception is
+    // prepare(), whose step-3 solve can take the edge on a blend left at 1 by the previous run
+    // (SmoothedValue::reset keeps the target) that step 4 then teleports to 0.
+    if (! airRunL) airSeedPendingL = false;
+    if (! airRunR) airSeedPendingR = false;
+}
+
+void GainStage::deriveDecorrEngaged() noexcept
+{
+    // Clocked while wanted AND for as long as the fade-out still has something to fade. Dropping
+    // the chains the moment the parameter hit zero would cut the crossfade off at its start, which
+    // is the click the crossfade exists to prevent. "Wanted" is the mix's target: updateControl()
+    // sets it to exactly 1 or 0 from decorrWanted, and only there.
+    const bool wasDecorrEngaged = decorrEngaged;
+
+    decorrEngaged = decorrMix.getTargetValue() > 0.0f
+                 || decorrMix.getCurrentValue() > 0.0f
+                 || decorrMix.isSmoothing();
+
+    // The engage edge. A memset over eight rings plus two index fills — no allocation, RT-safe,
+    // and the same class of operation as the alignment lines' reset below.
+    if (decorrEngaged && ! wasDecorrEngaged)
+    {
+        decorrL.reset();
+        decorrR.reset();
+    }
+
+    decorrWasEngaged = decorrEngaged;
+}
+
+void GainStage::deriveDelayEngaged() noexcept
+{
+    bool anyDelay = false;
+
+    for (std::size_t k = 0; k < static_cast<std::size_t> (kNumSpeakers); ++k)
+    {
         // ACTIVE WHILE RAMPING DOWN, NOT ONLY WHILE THE TARGET IS NONZERO. A speaker returning
         // 12 ms -> 0 has a target of 0 the instant the edit lands; gating on the target alone
         // would drop it out of the delayed path on that same control block and CUT 12 ms of audio
@@ -735,7 +801,7 @@ void GainStage::updateControl (const VenueSnapshot& snapshot, const ParamSnapsho
         //
         // v1.15.0 (B13): "still ramping" is now "the tap still reads a nonzero position, or is
         // fading" — a target of 0 is reached when the sample loop's crossfade lands on it.
-        delayActive[k] = samples > 0.0f || delayTap[k].to > 0.0f || delayTap[k].isFading();
+        delayActive[k] = delayTarget[k] > 0.0f || delayTap[k].to > 0.0f || delayTap[k].isFading();
 
         anyDelay = anyDelay || delayActive[k];
     }
@@ -745,7 +811,7 @@ void GainStage::updateControl (const VenueSnapshot& snapshot, const ParamSnapsho
     // reset() on the false->true transition, so a line that last ran before the operator zeroed
     // every delay cannot emit the audio it was still holding. It is a memset over bufferData plus
     // two index fills — no allocation, RT-safe, and the same class of operation as the air
-    // filter's recovery reset() a few lines up.
+    // filter's recovery reset().
     //
     // A RECOVERY/ARMING SITE, NOT AN INITIALISATION SITE. P23/P30's "step 2 of prepare() is the
     // only place any DSP state is initialised, ever" is untouched: this restores the invariant
@@ -755,8 +821,6 @@ void GainStage::updateControl (const VenueSnapshot& snapshot, const ParamSnapsho
             line.reset();
 
     delayEngaged = anyDelay;
-
-    instr::countSolveRun();
 }
 
 //==============================================================================
@@ -979,6 +1043,7 @@ void GainStage::renderChunk (juce::AudioBuffer<float>& buffer, int start, int co
                     // walks them apart and the delay grows by a sample per sample. This is why
                     // the gate is global rather than per-speaker — see the header.
                     alignDelay[k].pushSample (0, y);
+                    instr::countDelaySample();
 
                     // Settled (w == 1): the single read v1.4.0 made, at a stationary position —
                     // CS's bit-exact shift is this line. Fading: the old tap WITHOUT advancing the

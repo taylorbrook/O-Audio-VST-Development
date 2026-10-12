@@ -3,7 +3,7 @@
 ## Status
 - **Current Status:** 📦 Installed — stage-4 roll-up re-verify ✅ VERIFIED 2026-08-14, all four
   stages complete; dev-branded build (`O-Octagon-dev`), not yet released
-- **Version:** 1.15.0 (dev build installed; v1.13.0 is the public release)
+- **Version:** 1.15.1 (dev build installed; v1.13.0 is the public release)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
 - **Complexity:** 5.0 (capped; raw 13.0) — staged implementation
@@ -492,6 +492,13 @@ fact was refused twice), and none affects a recorded result:
 - AU: `~/Library/Audio/Plug-Ins/Components/O-Octagon-dev.component`
 - Installed binaries byte-identical to freeze `378fb4cd` (VST3 `928cd447…`, AU `cc54db02…`)
   — **superseded at v1.6.0/v1.7.0;** the installed build is newer than that freeze
+- **2026-10-12 (v1.15.1 — `/improve`, run-flag latch):** `airRun`, `decorrEngaged` and
+  `delayActive`/`delayEngaged` ("wanted, or still fading") were derived only past the dirty check,
+  so with Motion off they latched true after any fade-out, and the air filter's re-entry lost its
+  seed and G snap. They are now `derive*()` helpers called from both `updateControl()` exits, and
+  `deriveAirRun()` runs again after `prepare()`'s step-4 teleport (`SmoothedValue::reset` keeps the
+  old target). New probe DX, red on v1.15.0 in all seven parts. Render 82/0, geometry 60/0, CU/DC
+  unchanged.
 - **2026-10-12 (v1.15.0 — `/improve`, Round 3a: clean transitions, B8 B9 B13 + G6):** the air
   filter is `oo::AirFilter` (JUCE's TPT arithmetic, its coefficient walking to each cutoff over 5 ms
   on a smoothstep, one change in flight) behind a per-sub-point smoothstep-shaped 5 ms blend,
