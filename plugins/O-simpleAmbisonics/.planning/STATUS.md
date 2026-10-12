@@ -1,15 +1,15 @@
 ---
 plugin: O-simpleAmbisonics
 stage: 1
-status: stage_1_discuss_complete
+status: stage_1_research_complete
 last_updated: 2026-10-11
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-current_phase: discuss
-next_phase: research
-next_action: plugin-research
+current_phase: research
+next_phase: plan
+next_action: plugin-plan
 next_stage: 1
 ready_for_implementation: true
 parameter_count: 12
@@ -21,9 +21,9 @@ plugin_code: OSAm
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — discuss phase complete
-Status: Stage 1 CONTEXT.md compiled from the locked Stage 0 contracts (no open contract-level decisions). Next: research phase.
-Progress: [###.................] 15%
+Stage: 1 of 4 (Foundation) — research phase complete
+Status: Stage 1 RESEARCH.md written — sibling templates pinned (O-simpleSubtractive CMake/APVTS, O-Emulator effect shell + Stage-1 harness scaffold), pass-through chain designed against JUCE 8.0.15 source, 12-param construction table verified, Stage-1 harness probes specified. No blocking questions. Next: plan phase.
+Progress: [####................] 20%
 
 ## Phase Progress
 
@@ -31,8 +31,8 @@ Progress: [###.................] 15%
 | Phase | Status | Date | Skipped |
 |-------|--------|------|---------|
 | discuss | ✓ | 2026-10-11 | |
-| research | → | | |
-| plan | | | |
+| research | ✓ | 2026-10-11 | |
+| plan | → | | |
 | execute | | | |
 | verify | | | |
 
@@ -53,10 +53,17 @@ Progress: [###.................] 15%
 - `stages/1-foundation/CONTEXT.md` — foundation scope: effect CMake (VST3 + AU + Standalone, WebView2 flags, `juce_dsp`), mono/stereo-in → stereo-out buses, 12-param APVTS, pass-through `processBlock` (input conditioner → 64-sample delay → seeded output gain), `setLatencySamples(64)`, placeholder editor, `Source/dsp/SpatialEngine.h` seam, `tests/render-harness/` scaffold
 - Decisions: `PLUGIN_CODE OSAm` (Stage 0's `OSiA` is taken by O-simpleAdditive); proceed without `parameter-spec.md` (sibling precedent — ARCHITECTURE.md §Parameter Mapping is the authoritative 12-param contract; the mockup may not add parameters)
 
+**Stage 1 / research:** ✓ Complete (2026-10-11)
+- `stages/1-foundation/RESEARCH.md` — templates pinned: O-simpleSubtractive `CMakeLists.txt` + Stage-1 APVTS skeleton (commit 62d4c0e8), O-Emulator Stage-1 effect shell + `tests/render-harness` scaffold with derived version code (commit 8ec32da9), O-Orbit mono/stereo-in → stereo-out bus check
+- Pass-through chain designed from JUCE 8.0.15 source: `setLatencySamples(64)` once in `prepareToPlay`; recommended `Source/dsp/FixedDelay.h` (`FixedDelay<kPartition>`, std::array, zero alloc, survives into Stage 2's `DecoderMixer`) over `dsp::DelayLine`; `LinearSmoothedValue` output gain seeded via `setCurrentAndTargetValue(decibelsToGain(dB, −60))`; slice loop for oversized host blocks; finite scrub
+- 12-parameter construction table verified (`setSkewForCentre(2 m)` / `(0.2 Hz)` — skews transmit to the WebView frontend, lambda ranges do not); JUCE headers scanned — no `juce::` name collisions with any of the 12 IDs
+- Editor recommendation: O-Emulator shape (inline `GenericAudioProcessorEditor`, harness at `JUCE_WEB_BROWSER=0`); Stage-1 harness probes P0–P5 specified (contract, pass-through bit-equal + no fade-in, Left-only + mono-in, ragged blocks, oversized block, impulse latency = 64, −60 dB silence)
+- Verify tooling: pluginval strictness 10 (CI parity), targeted `auval -v aufx OSAm OuDv`
+
 ## Next Steps
 
-1. `/plugin-research O-simpleAmbisonics` — Stage 1 research (effect bus boilerplate in the suite, sibling CMake/harness template, APVTS skew pattern safe for the WebView frontend, 64-sample delay + seeded gain pattern)
-2. `/plugin-plan O-simpleAmbisonics` → `/plugin-execute O-simpleAmbisonics` (foundation-shell-agent) → `/plugin-verify O-simpleAmbisonics`
+1. `/plugin-plan O-simpleAmbisonics` — Stage 1 plan (task breakdown from CONTEXT.md + RESEARCH.md §1–6)
+2. `/plugin-execute O-simpleAmbisonics` (foundation-shell-agent) → `/plugin-verify O-simpleAmbisonics`
 3. UI mockup (`/start O-simpleAmbisonics` → option 3) before Stage 3; it finalises `parameter-spec.md` and must keep the 12-parameter set
 
 ## Context to Preserve
@@ -85,3 +92,4 @@ Progress: [###.................] 15%
 - plugins/O-simpleAmbisonics/.planning/ROADMAP.md (Stage 0)
 - plugins/O-simpleAmbisonics/.planning/stages/0-ideation/CONTEXT.md (Stage 0)
 - plugins/O-simpleAmbisonics/.planning/stages/1-foundation/CONTEXT.md (Stage 1 discuss)
+- plugins/O-simpleAmbisonics/.planning/stages/1-foundation/RESEARCH.md (Stage 1 research)
