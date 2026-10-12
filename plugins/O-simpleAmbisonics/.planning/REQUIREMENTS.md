@@ -19,12 +19,12 @@ lastUpdated: 2026-10-12
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| FUNC-01 | Complete ambisonic chain inside one stereo-out plugin: mono source → SH encoder → SH-domain rotation → decoder → L/R; no multichannel bus required | must | pending | stage-2 |
-| FUNC-02 | Source positioned by Azimuth (-180…+180°), Elevation (-90…+90°) and Distance (0.2–20 m) | must | pending | stage-2 |
-| FUNC-03 | Ambisonic order selectable 1 / 2 / 3 (4 / 9 / 16 channels), switchable while audio runs | must | pending | stage-2 |
+| FUNC-01 | Complete ambisonic chain inside one stereo-out plugin: mono source → SH encoder → SH-domain rotation → decoder → L/R; no multichannel bus required | must | partial | stage-2 |
+| FUNC-02 | Source positioned by Azimuth (-180…+180°), Elevation (-90…+90°) and Distance (0.2–20 m) | must | complete | stage-2 |
+| FUNC-03 | Ambisonic order selectable 1 / 2 / 3 (4 / 9 / 16 channels), switchable while audio runs | must | partial | stage-2 |
 | FUNC-04 | Scene rotation via Yaw (must), Pitch and Roll (should), applied in the ambisonic domain after encoding so the scene rotates, not the source | must | pending | stage-2 |
 | FUNC-05 | Decoder selectable: Binaural (HRTF, headphones) or Stereo (plain amplitude decode for speakers/projector) | must | pending | stage-2 |
-| FUNC-06 | Orbit: automatic azimuth motion with an on/off switch and a rate (0.02–2 Hz) so movement is audible without DAW automation | should | pending | stage-2 |
+| FUNC-06 | Orbit: automatic azimuth motion with an on/off switch and a rate (0.02–2 Hz) so movement is audible without DAW automation | should | complete | stage-2 |
 | FUNC-07 | Stereo input accepted and summed to the single mono source (Input Mode: Mono sum / Left only); mono input accepted | must | complete | stage-1 |
 | FUNC-08 | Concept-preset tour (Point Source FOA, Order 1→2→3, Behind You, Overhead, Rotate the Room, Far Away / Up Close, Slow Orbit, Speakers vs Headphones) loadable as factory presets | should | pending | stage-4 |
 | FUNC-09 | Usable as a lightweight creative binaural panner with orbit motion for headphone mixes | nice | pending | stage-4 |
@@ -33,12 +33,12 @@ lastUpdated: 2026-10-12
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| DSP-01 | SH encoder in AmbiX convention (ACN order, SN3D normalisation) for orders 1–3; coefficients match the reference table in `research/ambisonics-encoding-deep-dive.md` within 1e-5 | must | pending | stage-2 |
+| DSP-01 | SH encoder in AmbiX convention (ACN order, SN3D normalisation) for orders 1–3; coefficients match the reference table in `research/ambisonics-encoding-deep-dive.md` within 1e-5 | must | complete | stage-2 |
 | DSP-02 | SH-domain rotation matrix per order (yaw/pitch/roll), mathematically equivalent to re-encoding the source at the rotated direction | must | pending | stage-2 |
 | DSP-03 | HRTF binaural decoder (MagLS or virtual-loudspeaker + HRTF; Stage 0 decides) from an embedded, precomputed filter set per order; partitioned convolution; latency reported via `setLatencySamples()` | must | pending | stage-2 |
-| DSP-04 | Stereo decode mode (±30° virtual pair or equivalent) without HRTF | should | pending | stage-2 |
-| DSP-05 | Distance model: inverse-distance gain with near-field clamp plus a gentle air-absorption low-pass; monotonic and explainable | should | pending | stage-2 |
-| DSP-06 | Angle parameters smoothed along the shortest path around ±180° (no long-way sweep, no zipper noise); distance/gain smoothed | must | pending | stage-2 |
+| DSP-04 | Stereo decode mode (±30° virtual pair or equivalent) without HRTF | should | complete | stage-2 |
+| DSP-05 | Distance model: inverse-distance gain with near-field clamp plus a gentle air-absorption low-pass; monotonic and explainable | should | complete | stage-2 |
+| DSP-06 | Angle parameters smoothed along the shortest path around ±180° (no long-way sweep, no zipper noise); distance/gain smoothed | must | complete | stage-2 |
 | DSP-07 | Order and decoder changes are click-free (crossfaded filter-bank swap; unused channels zeroed, buffers pre-sized for 16 channels) | must | pending | stage-2 |
 
 ### UI (UI)
@@ -58,7 +58,7 @@ lastUpdated: 2026-10-12
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| PERF-01 | Real-time safe audio processing (no allocations/locks in processBlock); meters and position cross to UI via lock-free handoff | must | pending | stage-2 |
+| PERF-01 | Real-time safe audio processing (no allocations/locks in processBlock); meters and position cross to UI via lock-free handoff | must | complete | stage-2 |
 | PERF-02 | 3rd-order binaural decode (16 channels × 2 ears) runs without dropouts at 64–1024 sample buffers on an Apple-silicon laptop; convolution sized for the maximum host block | must | pending | stage-2 |
 
 ### Compatibility (COMPAT)
@@ -72,7 +72,7 @@ lastUpdated: 2026-10-12
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| QUAL-01 | No audio artifacts at normal parameter ranges (no clicks on order/decoder switch, no zipper on angle sweeps, no NaN/denormal) | must | pending | stage-2 |
+| QUAL-01 | No audio artifacts at normal parameter ranges (no clicks on order/decoder switch, no zipper on angle sweeps, no NaN/denormal) | must | partial | stage-2 |
 | QUAL-02 | Localisation sanity on headphones: front, back, left, right, above are audibly distinct; left/right ILD sign matches the AmbiX convention (+90° azimuth = left) | must | pending | stage-4 |
 
 ## Acceptance Criteria Details
@@ -82,21 +82,21 @@ lastUpdated: 2026-10-12
 **Description:** Mono source → encoder → rotation → decoder → L/R, all inside a stereo effect.
 
 **Acceptance Criteria:**
-- [ ] Plugin declares only stereo/mono input and stereo output buses
-- [ ] With Order 1, Azimuth +90°, Binaural decoder, a test tone is louder in the left ear than the right
+- [x] Plugin declares only stereo/mono input and stereo output buses — auval caps `[1, 2] [2, 2]` (Stage 2 / 2.1 verify, 2026-10-12)
+- [x] With Order 1, Azimuth +90°, Binaural decoder, a test tone is louder in the left ear than the right — 22.88 dB L/R, Binaural == Stereo bit-equal under the 2.1 placeholder; re-gated with the real HRTF leg at 2.3 (Stage 2 / 2.1 verify, 2026-10-12)
 - [ ] Bypassing rotation (all 0°) and setting Yaw = -Azimuth brings the source back to front (audibly and in the meters)
 
 ### FUNC-02: Source position
 
 **Acceptance Criteria:**
-- [ ] Azimuth, Elevation, Distance are automatable host parameters with the stated ranges and units
-- [ ] Elevation +90° yields a W/Z-dominated encode (X, Y ≈ 0) at order 1
+- [x] Azimuth, Elevation, Distance are automatable host parameters with the stated ranges and units — pedalboard −180…180 / −90…90 / 0.2…20 m (Stage 2 / 2.1 verify, 2026-10-12)
+- [x] Elevation +90° yields a W/Z-dominated encode (X, Y ≈ 0) at order 1 — DSP-01 grid at el ±90 (2.07e-07 vs the generic table), DSP-04 e = ±90 → L == R == 0.5f bit (Stage 2 / 2.1 verify, 2026-10-12)
 
 ### FUNC-03: Order select
 
 **Acceptance Criteria:**
-- [ ] Orders 1, 2, 3 produce 4, 9, 16 active channels in the meter view
-- [ ] Switching order during playback produces no click (gate: peak discontinuity below -60 dBFS relative)
+- [x] Orders 1, 2, 3 produce 4, 9, 16 active channels in the meter view — `MeterFrame.orderActive` 4 / 9 / 16, `shGain[active..15] == 0` (Stage 2 / 2.1 verify, 2026-10-12); the drawn view is UI-01 (stage-3)
+- [x] Switching order during playback produces no click — bus-tap second-difference ratio ≤ 2.0 (0.9999 / 1.0000; negative control 66.9), bands arrive exactly at 0 / Y (Stage 2 / 2.1 verify, 2026-10-12); the decoder filter-bank swap is DSP-07 (2.3)
 
 ### FUNC-04: Scene rotation
 
@@ -119,8 +119,8 @@ lastUpdated: 2026-10-12
 ### DSP-01: Encoder correctness
 
 **Acceptance Criteria:**
-- [ ] Unit gate compares all 16 SN3D coefficients at a grid of directions against the reference table, max abs error < 1e-5
-- [ ] W channel is direction-independent (constant 1.0 under SN3D)
+- [x] Unit gate compares all 16 SN3D coefficients at a grid of directions against the reference table, max abs error < 1e-5 — 13 × 7 grid vs an independent double table, max 2.07e-07 (Stage 2 / 2.1 verify, 2026-10-12)
+- [x] W channel is direction-independent (constant 1.0 under SN3D) — W == 1.0f at every grid point (Stage 2 / 2.1 verify, 2026-10-12)
 
 ### DSP-02: Rotation correctness
 
@@ -137,8 +137,8 @@ lastUpdated: 2026-10-12
 ### DSP-06: Angle smoothing
 
 **Acceptance Criteria:**
-- [ ] A jump from +170° to -170° passes through 180°, not through 0° (gate on the smoothed trajectory)
-- [ ] No zipper noise in a 1-second full-circle azimuth sweep (spectral flatness / click gate)
+- [x] A jump from +170° to -170° passes through 180°, not through 0° — harness DSP-06a trajectory + pedalboard V7 on the installed VST3 (Stage 2 / 2.1 verify, 2026-10-12)
+- [x] No zipper noise in a 1-second full-circle azimuth sweep — second-difference click ratio 1.0003 / 1.0000 vs a matched static control (negative control 24.8) (Stage 2 / 2.1 verify, 2026-10-12)
 
 ### DSP-07: Click-free switching
 
@@ -167,8 +167,8 @@ lastUpdated: 2026-10-12
 ### PERF-01: Real-time safety
 
 **Acceptance Criteria:**
-- [ ] Allocation gate on `processBlock` at all orders and both decoders
-- [ ] Meter/position data crosses via lock-free FIFO or atomics
+- [x] Allocation gate on `processBlock` at all orders and both decoders — global new/delete counter 0 across 200 calls, liveness 1 (Stage 2 / 2.1 verify, 2026-10-12); re-run with the 2.3 convolver
+- [x] Meter/position data crosses via lock-free FIFO or atomics — `TripleBuffer<MeterFrame>`, two atomics, no locks (inspection) (Stage 2 / 2.1 verify, 2026-10-12)
 
 ### PERF-02: CPU budget
 
@@ -190,7 +190,7 @@ lastUpdated: 2026-10-12
 ### QUAL-01: No artifacts
 
 **Acceptance Criteria:**
-- [ ] No NaN/denormal under any parameter extreme (pluginval s10 + offline sweep)
+- [~] No NaN/denormal under any parameter extreme — pluginval s10 ×2, 16-corner harness render at 48 k / 96 k, 32-corner pedalboard render all finite (Stage 2 / 2.1 verify, 2026-10-12); full offline sweep with the HRTF leg at 2.3
 - [ ] No clicks on preset load
 
 ### QUAL-02: Localisation sanity
