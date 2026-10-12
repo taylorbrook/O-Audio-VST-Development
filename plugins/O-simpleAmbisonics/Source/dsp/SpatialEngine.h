@@ -20,24 +20,59 @@
 /*
   ==============================================================================
 
-    SpatialEngine — the Stage-2 DSP seam (DECLARED, NO-OP at Stage 1).
+    SpatialEngine — the Stage-2 DSP composition. Phase 2.1: the audible chain
+    minus rotation and HRTF.
 
-    Stage 1 does NOT call this from processBlock; the pass-through
-    (conditioner → FixedDelay<kPartition> → seeded gain) is wired directly in
-    PluginProcessor.cpp. The interface exists now so the render harness can
-    compile against it today and so Phase 2.1 has a fixed shape to fill:
+      mono (conditioned by the processor)
+        → DistanceModel   g(d) · x → TPT air LP with the D7 wet mix
+        → ShEncoder       × c_eff[16] = Y_acn(az_eff, el_eff) · orderGain[band]
+        → [identity rotation slot — ShRotator drops in here at Phase 2.2]
+        → 16-channel bus  (busTap[16] = the bus of the last sample; shPeak scan)
+        → StereoDecoder   ±60° cardioid pair on W / Y / X
+        → DecoderMixer    FixedDelay<kPartition> × 2 on the stereo leg,
+                          20 ms mix ramp; binaural leg = PLACEHOLDER (A14,
+                          see the call site) until Phase 2.3's convolver
+      outL / outR         (the processor applies outputLevel per sample)
 
-      encoder (ACN/SN3D, up to order 3) → distance model → rotator
-      → always-running binaural (UPOLS, P = kPartition) + stereo decoders
-      → 20 ms decoder crossfade.
+    THE CONTROL GRID (PLAN-2.1 A1 — the D5 amendment). Every control quantity
+    moves ONCE PER 64 SAMPLES on a grid that PERSISTS across process() calls
+    (gridPos ∈ [0, 64)). Inside a grid the per-sample path lerps between the
+    previous and the current endpoints with t = (j + 1)/64 (A5), every blend
+    in the form b + t·(a − b) (A3).
 
-    Stage-2 handoff: the processor's slice loop (≤ maxBlock per call) is
-    already present; replace `delay.process(s)` with a per-slice
-    `engine.process(mono, outL, outR, len)`. The host-visible latency stays
-    kPartition in both decoder modes at every sample rate (ARCHITECTURE.md
-    §Latency) — never change setLatencySamples.
+    Why not "one step per process() call" (CONTEXT-2.1 D5 as first written):
+    at 4096-sample host blocks a 2 Hz orbit moves 61° per call, and the lerp
+    across that chord dips the band-3 coefficient norm by −5.56 dB mid-block
+    (band 1: −1.31 dB, band 2: −3.75 dB — RESEARCH-2.1 R3). On the 64-sample
+    grid the chord error is ≤ 0.002 dB at the fastest orbit, AND the render
+    becomes bit-identical across any host slicing with parameters moving and
+    orbit On, because the same operations run in the same order at the same
+    absolute sample positions (harness P2b / P3b pin this). A host block
+    shorter than 64 may contain no control step — correct: the lerp just
+    continues toward the endpoints set at the last step.
 
-    Headless: <cstddef>, <algorithm> only. No JUCE.
+    Smoother constants come from the grid, never from the slice length:
+    kOnePole = 1 − exp(−64/(τ·fs)), kRampStep = 64/(τ·fs), τ = 20 ms (A1).
+
+    Allocation: NONE. The chain is strictly per-sample feed-forward, so the
+    bus for one sample lives in busTap[16]; there is no 16 × maxBlock scratch.
+    maxBlock is kept for Phase 2.3's convolver FIFO sizing.
+
+    prepare() snaps every smoother / ramp / orbit phase from the Params the
+    processor copied in BEFORE calling it (A7), so block 0 is at steady state
+    (no fade-in — pattern_gain_ramp_without_seeding_fades_in_from_silence) and
+    every value is finite by construction (the engine's own smoothers replace
+    juce::SmoothedValue, whose reset() does not clear a NaN).
+
+    Meters (A8): the engine owns peak accumulation across process() calls
+    (resetPeaks() / frame()); the processor gates the reset on
+    meterFrames.hasNewData() and publishes once per host block.
+
+    Latency: kPartition = 64 in both decoder modes at every sample rate
+    (ARCHITECTURE §Latency). setLatencySamples is the processor's ONE call
+    site and is never touched by Stage 2.
+
+    Headless: <algorithm>, <cmath>, <cstddef> + the Source/dsp headers. No JUCE.
 
   ==============================================================================
 */
@@ -45,9 +80,17 @@
 #pragma once
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 
 #include "FixedDelay.h"
+#include "Smoothers.h"
+#include "ShEncoder.h"
+#include "DistanceModel.h"
+#include "OrbitLfo.h"
+#include "StereoDecoder.h"
+#include "DecoderMixer.h"
+#include "MeterFrame.h"
 
 namespace OSimpleAmbisonics::dsp
 {
@@ -57,8 +100,11 @@ namespace OSimpleAmbisonics::dsp
 // every sample rate and in both decoder modes.
 inline constexpr int kPartition = 64;
 
+// The 2.3 UPOLS step must land on the control grid.
+static_assert (kControlGrid == kPartition, "control grid and UPOLS partition must coincide");
+
 // The stereo-decoder path delay that time-aligns it with the binaural UPOLS
-// path. Stage 1 uses it as the pass-through delay.
+// path. Owned by the DecoderMixer from Phase 2.1.
 using DecoderDelay = FixedDelay<kPartition>;
 
 struct Params
@@ -80,30 +126,197 @@ class SpatialEngine
 public:
     SpatialEngine() = default;
 
+    // Call setParams() BEFORE prepare() (A7): prepare snaps everything to the
+    // stored Params.
     void prepare (double sampleRate, int maxBlockSize) noexcept
     {
-        fs       = sampleRate;
-        maxBlock = maxBlockSize;
+        sampleRateHz = sampleRate;
+        maxBlock     = maxBlockSize;
+
+        kOnePole  = (float) (1.0 - std::exp (-(double) kControlGrid / (kSmoothingTauSeconds * sampleRateHz)));
+        kRampStep = (float) ((double) kControlGrid / (kSmoothingTauSeconds * sampleRateHz));
+
+        dist.prepare (sampleRateHz);
+        mixer.prepare();
+        snapToParams();
     }
 
-    void reset() noexcept {}
+    // Delays + filter state zeroed, grid restarted, everything re-snapped.
+    // No allocation.
+    void reset() noexcept
+    {
+        mixer.reset();
+        dist.reset();
+        snapToParams();
+    }
 
+    // Copied once per host block by the processor; SAMPLED at the next
+    // control step.
     void setParams (const Params& p) noexcept { params = p; }
 
-    // Stage 1 stub: writes silence. Stage 2 fills in the real chain.
+    // The control-step spec (PLAN-2.1 §The control step), op-for-op with the
+    // harness ReferenceModel.
     void process (const float* monoIn, float* outL, float* outR, int numSamples) noexcept
     {
-        (void) monoIn;
-        std::fill (outL, outL + numSamples, 0.0f);
-        std::fill (outR, outR + numSamples, 0.0f);
+        int i = 0;
+
+        while (i < numSamples)
+        {
+            if (gridPos == 0)
+                controlStep();
+
+            const int run = std::min (numSamples - i, kControlGrid - gridPos);
+
+            for (int j = 0; j < run; ++j)
+            {
+                const float t = (float) (gridPos + j + 1) * kInvGrid;
+                renderSample (monoIn[i + j], t, outL[i + j], outR[i + j]);
+            }
+
+            i += run;
+            gridPos += run;
+
+            if (gridPos == kControlGrid)
+                gridPos = 0;
+        }
     }
 
     static constexpr int latencySamples() noexcept { return kPartition; }
 
+    // Peak accumulation restarts here; the processor calls this at the top of
+    // a host block only when the UI has consumed the last published frame.
+    void resetPeaks() noexcept
+    {
+        std::fill (std::begin (meterFrame.shPeak), std::end (meterFrame.shPeak), 0.0f);
+    }
+
+    // State fields are refreshed at every control step (and by prepare/reset);
+    // shPeak accumulates per sample. outPeakL/R are the processor's.
+    const MeterFrame& frame() const noexcept { return meterFrame; }
+
+    // The 16-channel bus of the LAST processed sample (post order gating,
+    // pre-decode). Harness tap for the order-fade click gate; zero extra cost
+    // because the peak scan computes it anyway.
+    const float* busTap() const noexcept { return tap; }
+
+    int maxBlockSize() const noexcept { return maxBlock; }
+
 private:
-    double fs       = 48000.0;
-    int    maxBlock = 0;
+    static constexpr float kInvGrid = 1.0f / (float) kControlGrid;
+
+    void snapToParams() noexcept
+    {
+        az.snapTo (params.azimuthDeg);
+        el.snapTo (params.elevationDeg);
+        dist.snapTo (params.distanceM);
+
+        for (int b = 0; b < 3; ++b)
+            orderGain[b].snapTo (b + 1 <= params.order ? 1.0f : 0.0f);
+
+        mixer.snapTo (params.decoder);
+        orbit.reset();
+
+        evaluateCoefficients();
+        std::copy (std::begin (curC), std::end (curC), std::begin (prevC));
+        std::fill (std::begin (tap), std::end (tap), 0.0f);
+
+        gridPos = 0;
+        resetPeaks();
+        fillFrameState();
+    }
+
+    // One control step: endpoints for the next kControlGrid samples.
+    void controlStep() noexcept
+    {
+        const float azTarget = orbit.targetAzimuthDeg (params.orbit, params.orbitRateHz,
+                                                       params.azimuthDeg, sampleRateHz);
+        az.step (azTarget, kOnePole);
+        el.step (params.elevationDeg, kOnePole);
+        dist.controlStep (params.distanceM, kOnePole);
+
+        for (int b = 0; b < 3; ++b)
+            orderGain[b].step (b + 1 <= params.order ? 1.0f : 0.0f, kRampStep);
+
+        mixer.controlStep (params.decoder, kRampStep);
+
+        std::copy (std::begin (curC), std::end (curC), std::begin (prevC));
+        evaluateCoefficients();
+        fillFrameState();
+    }
+
+    // curC = Y(az, el) · orderGain[band] — encodeSH16 takes radians.
+    void evaluateCoefficients() noexcept
+    {
+        float y[kNumSh];
+        encodeSH16 (az.cur * kDegToRad, el.cur * kDegToRad, y);
+
+        const float og[4] = { 1.0f, orderGain[0].cur, orderGain[1].cur, orderGain[2].cur };
+        applyOrderGains (y, og, curC);
+    }
+
+    void fillFrameState() noexcept
+    {
+        std::copy (std::begin (curC), std::end (curC), std::begin (meterFrame.shGain));
+        meterFrame.azEffDeg = az.cur;
+        meterFrame.elEffDeg = el.cur;
+        meterFrame.azRotDeg = az.cur;   // identity rotation until Phase 2.2
+        meterFrame.elRotDeg = el.cur;
+        meterFrame.orderActive    = (params.order + 1) * (params.order + 1);
+        meterFrame.decoderMix     = mixer.currentMix();
+        meterFrame.latencySamples = kPartition;
+    }
+
+    void renderSample (float x, float t, float& outL, float& outR) noexcept
+    {
+        const float y = dist.processSample (x, t);
+
+        for (int acn = 0; acn < kNumSh; ++acn)
+        {
+            const float c = prevC[acn] + t * (curC[acn] - prevC[acn]);
+            const float b = y * c;
+            tap[acn] = b;
+            meterFrame.shPeak[acn] = std::max (meterFrame.shPeak[acn], std::abs (b));
+        }
+
+        // ── identity rotation slot: ShRotator (Phase 2.2) applies R to tap[] here ──
+
+        float stL, stR;
+        StereoDecoder::decode (tap, stL, stR);
+
+        float dL, dR;
+        mixer.delayStereo (stL, stR, dL, dR);
+
+        // A14 PLACEHOLDER (Phase 2.1 only — a 2.3 obligation): the binaural leg
+        // IS the delayed stereo leg, so the output equals the stereo leg
+        // bit-exactly in BOTH decoder modes (A3 blend form). Phase 2.3
+        // replaces these two lines with the UPOLS convolver output.
+        const float binL = dL;
+        const float binR = dR;
+
+        mixer.blend (dL, dR, binL, binR, t, outL, outR);
+    }
+
+    // ── state ──────────────────────────────────────────────────────────────
+    double sampleRateHz = 48000.0;
+    int    maxBlock     = 0;
+    float  kOnePole     = 0.0f;
+    float  kRampStep    = 1.0f;
+    int    gridPos      = 0;
+
     Params params;
+
+    WrapSmoother            az;
+    OnePoleSmoother         el;
+    DistanceModel           dist;
+    OrbitLfo                orbit;
+    LinearRamp              orderGain[3];
+    DecoderMixer<kPartition> mixer;
+
+    float prevC[kNumSh] {};
+    float curC[kNumSh] {};
+    float tap[kNumSh] {};
+
+    MeterFrame meterFrame;
 };
 
 } // namespace OSimpleAmbisonics::dsp

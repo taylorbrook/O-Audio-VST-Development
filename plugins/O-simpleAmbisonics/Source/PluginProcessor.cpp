@@ -24,17 +24,20 @@
     Ouaricon Audio
     Developer: Taylor Brook
 
-    Stage 1 (Foundation): stereo-effect shell. The 12 APVTS parameters below
-    are the BINDING contract from research/ARCHITECTURE.md §Parameter Mapping.
-    processBlock is a pass-through with the FINAL latency already in place:
+    The 12 APVTS parameters below are the BINDING contract from
+    research/ARCHITECTURE.md §Parameter Mapping.
 
-        input conditioner (Mono sum / Left only)
-          → FixedDelay<kPartition = 64>
-          → seeded output gain (−60 dB = silence)
-          → both outputs
+    Phase 2.1 chain (Stage 2 — DSP), per host block:
 
-    Stage 2 swaps the delay for SpatialEngine inside the existing slice loop;
-    the host-visible latency (setLatencySamples(kPartition)) never changes.
+        input conditioner (Mono sum / Left only / mono bus)   → monoScratch (per slice ≤ maxBlock)
+          → SpatialEngine::process (distance model → SN3D encoder with order
+            gating → [identity rotation] → 16-ch bus + meter tap → ±60° stereo
+            decode → FixedDelay<kPartition = 64> → decoder mixer)
+          → seeded output gain (−60 dB = silence), per sample
+          → both outputs; finite scrub; MeterFrame published once per block
+
+    The host-visible latency (setLatencySamples(kPartition), the ONE call site
+    in prepareToPlay) never changes — Stage 1 put it in place.
 
   ==============================================================================
 */
@@ -143,12 +146,56 @@ OSimpleAmbisonicsAudioProcessor::OSimpleAmbisonicsAudioProcessor()
                           .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       apvts (*this, nullptr, "Parameters", createParameterLayout())
 {
+    azimuthParam     = apvts.getRawParameterValue (ParamIDs::azimuth);
+    elevationParam   = apvts.getRawParameterValue (ParamIDs::elevation);
+    distanceParam    = apvts.getRawParameterValue (ParamIDs::distance);
+    orderParam       = apvts.getRawParameterValue (ParamIDs::order);
+    yawParam         = apvts.getRawParameterValue (ParamIDs::yaw);
+    pitchParam       = apvts.getRawParameterValue (ParamIDs::pitch);
+    rollParam        = apvts.getRawParameterValue (ParamIDs::roll);
+    decoderParam     = apvts.getRawParameterValue (ParamIDs::decoder);
+    orbitParam       = apvts.getRawParameterValue (ParamIDs::orbit);
+    orbitRateParam   = apvts.getRawParameterValue (ParamIDs::orbitRate);
     inputModeParam   = apvts.getRawParameterValue (ParamIDs::inputMode);
     outputLevelParam = apvts.getRawParameterValue (ParamIDs::outputLevel);
-    jassert (inputModeParam != nullptr && outputLevelParam != nullptr);
+
+    jassert (azimuthParam != nullptr && elevationParam != nullptr && distanceParam != nullptr);
+    jassert (orderParam != nullptr && yawParam != nullptr && pitchParam != nullptr);
+    jassert (rollParam != nullptr && decoderParam != nullptr && orbitParam != nullptr);
+    jassert (orbitRateParam != nullptr && inputModeParam != nullptr && outputLevelParam != nullptr);
+
+    distanceRange  = &dynamic_cast<juce::AudioParameterFloat*> (apvts.getParameter (ParamIDs::distance))->range;
+    orbitRateRange = &dynamic_cast<juce::AudioParameterFloat*> (apvts.getParameter (ParamIDs::orbitRate))->range;
+    jassert (distanceRange != nullptr && orbitRateRange != nullptr);
 }
 
 OSimpleAmbisonicsAudioProcessor::~OSimpleAmbisonicsAudioProcessor() = default;
+
+osa_dsp::Params OSimpleAmbisonicsAudioProcessor::fillParams() const noexcept
+{
+    // JUCE legacy (juce_AudioProcessorValueTreeState.cpp, ParameterAdapter
+    // ctor: "the unnormalised value should *not* be snapped on construction"):
+    // the raw default of a skewed, stepped range is the UNSNAPPED
+    // exp(log(p)/skew) round-trip — distance's default read 1.0000001, not
+    // 1.0, until a host touched it (harness P1 anchor / P4 caught it: g(d) was
+    // 1 − 1 ulp). Every host-set value goes through
+    // RangedAudioParameter::convertFrom0to1 → snapToLegalValue, so snapping
+    // here makes the construction default and the host path identical, and
+    // "1 m = exactly no effect" holds from block 0. One floor() per range per
+    // block; noexcept, no allocation.
+    osa_dsp::Params p;
+    p.azimuthDeg   = azimuthParam->load();
+    p.elevationDeg = elevationParam->load();
+    p.distanceM    = distanceRange->snapToLegalValue (distanceParam->load());
+    p.order        = (int) orderParam->load() + 1;      // choice index 0..2 → order 1..3
+    p.yawDeg       = yawParam->load();
+    p.pitchDeg     = pitchParam->load();
+    p.rollDeg      = rollParam->load();
+    p.decoder      = (int) decoderParam->load();        // 0 Binaural, 1 Stereo
+    p.orbit        = orbitParam->load() > 0.5f;
+    p.orbitRateHz  = orbitRateRange->snapToLegalValue (orbitRateParam->load());
+    return p;
+}
 
 void OSimpleAmbisonicsAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
@@ -163,7 +210,14 @@ void OSimpleAmbisonicsAudioProcessor::prepareToPlay (double sampleRate, int samp
     // max(in, out) = 2 in every accepted layout (pattern_stereo_in_mono_out_buffer_width_lies).
     numInputLegs = juce::jlimit (1, 2, getChannelLayoutOfBus (true, 0).size());
 
-    delay.reset();
+    // The only allocations in the processor: prepared-size scratch.
+    monoScratch.assign ((size_t) maxBlock, 0.0f);
+    rightScratch.assign ((size_t) maxBlock, 0.0f);
+
+    // Params BEFORE prepare (A7): the engine snaps every smoother, ramp and
+    // the orbit phase to the current setting, so block 0 is at steady state.
+    engine.setParams (fillParams());
+    engine.prepare (sampleRate, maxBlock);
 
     // Seeded: current == target at the stored outputLevel, so block 0 is at
     // full level — an unseeded ramp fades 0 → target over the first 20 ms at
@@ -171,6 +225,8 @@ void OSimpleAmbisonicsAudioProcessor::prepareToPlay (double sampleRate, int samp
     outputGain.reset (sampleRate, 0.02);
     outputGain.setCurrentAndTargetValue (
         juce::Decibels::decibelsToGain (outputLevelParam->load(), -60.0f));
+
+    outPeakAccL = outPeakAccR = 0.0f;
 }
 
 void OSimpleAmbisonicsAudioProcessor::releaseResources()
@@ -203,8 +259,17 @@ void OSimpleAmbisonicsAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
     if (n <= 0 || numCh <= 0)
         return;
 
+    // Peak-since-the-UI-last-read (A8 / R7): restart the accumulators only
+    // when the reader has consumed the last published frame.
+    if (! meterFrames.hasNewData())
+    {
+        engine.resetPeaks();
+        outPeakAccL = outPeakAccR = 0.0f;
+    }
+
     // Parameters are read once per block.
     const int mode = (int) inputModeParam->load();   // 0 Mono sum, 1 Left only
+    engine.setParams (fillParams());
     outputGain.setTargetValue (juce::Decibels::decibelsToGain (outputLevelParam->load(), -60.0f));
 
     const float* in0 = buffer.getReadPointer (0);
@@ -212,27 +277,43 @@ void OSimpleAmbisonicsAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
     float* out0 = buffer.getWritePointer (0);
     float* out1 = numOut > 1 ? buffer.getWritePointer (1) : nullptr;
 
+    float* mono  = monoScratch.data();
+    float* right = rightScratch.data();
+
     // Slice loop: a host block larger than samplesPerBlock is processed in
-    // ≤ maxBlock pieces. Nothing here has a prepared-size buffer yet, but
-    // Stage 2's engine will, and the harness P3 gate carries forward unchanged
-    // (pattern_oversampler_overruns_on_oversized_host_block).
+    // ≤ maxBlock pieces so the prepared-size scratch is never overrun
+    // (pattern_oversampler_overruns_on_oversized_host_block). The engine's
+    // control grid persists across slices, so slicing is render-invisible.
     for (int start = 0; start < n; start += maxBlock)
     {
-        const int end = juce::jmin (n, start + maxBlock);
+        const int len = juce::jmin (n - start, maxBlock);
 
-        for (int i = start; i < end; ++i)
+        // Conditioner into the scratch for the WHOLE slice before the engine
+        // writes out0/out1 (in place: in0 == out0).
+        for (int i = 0; i < len; ++i)
         {
-            // In-place: read L,R for sample i BEFORE writing out0/out1 at i.
-            const float l = in0[i];
-            const float s = (in1 != nullptr)
-                                ? (mode == 0 ? 0.5f * (l + in1[i]) : l)
-                                : l;
+            const float l = in0[start + i];
+            mono[i] = (in1 != nullptr)
+                          ? (mode == 0 ? 0.5f * (l + in1[start + i]) : l)
+                          : l;
+        }
 
-            const float y = delay.process (s) * outputGain.getNextValue();
+        engine.process (mono, out0 + start, out1 != nullptr ? out1 + start : right, len);
 
-            out0[i] = y;
+        for (int i = 0; i < len; ++i)
+        {
+            const float gain = outputGain.getNextValue();
+
+            const float yL = out0[start + i] * gain;
+            out0[start + i] = yL;
+            outPeakAccL = juce::jmax (outPeakAccL, std::abs (yL));
+
             if (out1 != nullptr)
-                out1[i] = y;
+            {
+                const float yR = out1[start + i] * gain;
+                out1[start + i] = yR;
+                outPeakAccR = juce::jmax (outPeakAccR, std::abs (yR));
+            }
         }
     }
 
@@ -254,6 +335,14 @@ void OSimpleAmbisonicsAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
     // layout, but bounded by numCh regardless).
     for (int ch = 2; ch < numCh; ++ch)
         buffer.clear (ch, 0, n);
+
+    // One MeterFrame per host block: the engine's state after the last slice,
+    // its accumulated bus peaks, and the processor's post-gain output peaks.
+    auto& w = meterFrames.getWriteBuffer();
+    w = engine.frame();
+    w.outPeakL = outPeakAccL;
+    w.outPeakR = outPeakAccR;
+    meterFrames.publish();
 }
 
 juce::AudioProcessorEditor* OSimpleAmbisonicsAudioProcessor::createEditor()
