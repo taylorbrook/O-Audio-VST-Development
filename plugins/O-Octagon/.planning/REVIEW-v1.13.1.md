@@ -23,6 +23,7 @@ status: in_progress
 resolved:
   - "v1.13.2 (2026-10-11): B1, B2, B4, B6, B7, B11, B12, B23, U1, G1, G2, G4 — Round 1"
   - "v1.14.0 (2026-10-11): B3, B5, B10, B16, U4, G5, G3 (stub preset half) — Round 2"
+  - "v1.15.0 (2026-10-12): B8, B9, B13, G6 — Round 3a"
 previous_reviews:
   - CODE_REVIEW.md (v1.8.0) — open items re-checked below
   - .planning/CODE_REVIEW-v1.3.0.md — IN-01..IN-34 re-checked below (never swept)

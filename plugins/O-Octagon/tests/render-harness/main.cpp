@@ -962,6 +962,75 @@ constexpr int kFilterLeadIn = 2048;
 static_assert (kFilterLeadIn >= 2000, "RESEARCH-2.3 H9 requires at least 2000 samples");
 
 //==============================================================================
+// ── v1.15.0 (Round 3a) — the transition-click helpers ─────────────────────────────────────────
+
+/** The CLICK METRIC: the worst |second difference| over [from, to), across all eight lanes.
+
+    Second difference, not first: a sine's own per-sample step is A·ω and dwarfs a small
+    discontinuity, but its curvature is A·ω² — 1.7e-4 at 200 Hz for a 0.25 lane — while a step of
+    size s puts s straight into the second difference. That is what lets a low tone expose a click
+    that a first-difference reading would bury under the programme's own slope. */
+float worstCurvature (const juce::AudioBuffer<float>& b, int from, int to) noexcept
+{
+    float worst = 0.0f;
+
+    for (int ch = 0; ch < b.getNumChannels(); ++ch)
+        for (int n = juce::jmax (2, from); n < juce::jmin (to, b.getNumSamples()); ++n)
+            worst = std::max (worst, std::abs (b.getSample (ch, n)
+                                               - 2.0f * b.getSample (ch, n - 1)
+                                               + b.getSample (ch, n - 2)));
+
+    return worst;
+}
+
+/** Renders in fixed 64-sample blocks — every call lands on the control grid — calling
+    `hook (n)` before the block that starts at absolute sample n. The hook may set parameters or
+    apply a venue edit; either then takes effect at exactly sample n. */
+template <typename Gen, typename Hook>
+void renderHooked (OOctagonProcessor& proc, juce::AudioBuffer<float>& dest, int totalSamples,
+                   Gen&& gen, Hook&& hook)
+{
+    juce::MidiBuffer midi;
+    dest.clear();
+
+    constexpr int block = 64;
+    juce::AudioBuffer<float> buf (dest.getNumChannels(), block);
+
+    for (int n = 0; n < totalSamples; n += block)
+    {
+        hook (n);
+
+        const int count = juce::jmin (block, totalSamples - n);
+        buf.setSize (dest.getNumChannels(), count, false, false, true);
+        buf.clear();
+
+        for (int s = 0; s < count; ++s)
+            buf.setSample (0, s, gen (n + s));
+
+        proc.processBlock (buf, midi);
+
+        for (int ch = 0; ch < dest.getNumChannels(); ++ch)
+            dest.copyFrom (ch, n, buf, ch, 0, count);
+    }
+}
+
+/** A click ratio: the event render's worst curvature over the event window, against a MATCHED
+    CONTROL render — the same events with only the stage under test defeated. The control carries
+    every other transition (gain ramps, position teleports), so a ratio near 1 says the stage adds
+    nothing of its own. */
+struct ClickReading
+{
+    float event { 0.0f }, control { 0.0f };
+
+    float ratio() const noexcept { return control > 1.0e-12f ? event / control : 0.0f; }
+};
+
+/** The ceiling every Round 3a click probe asserts. The stage under test may add AT MOST as much
+    curvature again as the matched control already carries — a factor the unfixed code exceeded by
+    17x to 100x (REVIEW-v1.13.1 B8/B9/B13), and a fixed transition sits close to 1. */
+constexpr float kClickRatioCeiling = 2.0f;
+
+//==============================================================================
 // ── Phase 3.2 helpers ─────────────────────────────────────────────────────────────────────────
 
 /** Per-lane energy and peak over a render.
@@ -2734,8 +2803,12 @@ int main()
         bool         ok = true;
         juce::String detail;
 
-        // Locate a crossing NEAR the boundary: 0.25 m outside. That is the realistic gesture, and
-        // it is the case the |H − 1| bound is derived for (d_hull small -> fc near the ceiling).
+        // Locate a crossing NEAR the boundary: 0.25 m outside. That is the realistic gesture.
+        //
+        // v1.15.0 (G6): this used to say "d_hull small -> fc near the ceiling". That premise died
+        // in v1.13.0 — the cutoff follows the LISTENER distance, so 0.25 m outside the hull is
+        // ~6.5 m from the centroid and the filter runs at ~7.4 kHz, not near 20 kHz. Nothing below
+        // depends on fc being high; the exit TRANSITION is DU's subject, not this probe's.
         OOctagonProcessor scout;
         negotiate (scout, mono, set71);
 
@@ -2866,11 +2939,12 @@ int main()
                     // worst step an arbitrarily-timed crossing could produce, and it is the number
                     // D5 listens to.
                     //
-                    // AND IT IS ASSERTED AS AN EQUALITY, NOT A CEILING (P34). D is exactly the
-                    // signal (H − 1)·x scaled by the lane's gain, so its amplitude must MATCH
-                    // ampDry·|H(f) − 1| — which makes this a statement that the filter really is
-                    // the specified one-pole at the specified cutoff, and makes it fail loudly if
-                    // either ever changes.
+                    // v1.15.0 (G6): A CEILING, NOT AN EQUALITY. P34 asserted |ratio − 1| <= 1e-3,
+                    // which is a statement about the STEADY-STATE filter, and it was being read as
+                    // a statement about the exit — it never looked at a single sample after exitAt.
+                    // The exit's transition is now DU's subject, against an air-0 control. What
+                    // this keeps is the property that cannot regress silently: the filter's
+                    // contribution never EXCEEDS ampDry·|H(f) − 1| at the cutoff it was set to.
                     const float ampDry = sineAmplitude (dry, ch, exitAt - measureWindow, exitAt);
                     const float ampD   = sineAmplitudeOfDiff (wet, dry, ch,
                                                               exitAt - measureWindow, exitAt);
@@ -2880,11 +2954,11 @@ int main()
 
                     worstExit  = std::max (worstExit,  ampD);
                     worstBound = std::max (worstBound, predicted);
-                    worstRatio = std::max (worstRatio, std::abs (ratio - 1.0f));
+                    worstRatio = std::max (worstRatio, ratio);
 
                     // 1e-3 is a float-precision allowance, not a fitted tolerance: over whole
-                    // cycles the two RMS figures are analytically equal.
-                    exitBounded = exitBounded && std::abs (ratio - 1.0f) <= 1.0e-3f;
+                    // cycles the two RMS figures are analytically equal at the ceiling.
+                    exitBounded = exitBounded && ratio <= 1.0f + 1.0e-3f;
                 }
 
                 ok = ok && entryExact && filterRuns && exitBounded;
@@ -2892,10 +2966,10 @@ int main()
                 detail << juce::String (static_cast<int> (f)) << " Hz: entry "
                        << (entryExact ? "BIT-EXACT" : "NOT BIT-EXACT — P27's SEED IS GONE")
                        << (filterRuns ? "" : " (VACUOUS — filter never ran)")
-                       << ", exit amp " << juce::String (worstExit, 6) << " vs predicted "
-                       << juce::String (worstBound, 6) << " (err "
-                       << juce::String (worstRatio * 100.0f, 3) << "%)"
-                       << (exitBounded ? "; " : " — DOES NOT MATCH |H−1|; ");
+                       << ", exit amp " << juce::String (worstExit, 6) << " <= ceiling "
+                       << juce::String (worstBound, 6) << " (ratio "
+                       << juce::String (worstRatio, 5) << ")"
+                       << (exitBounded ? "; " : " — EXCEEDS |H−1|; ");
             }
 
             detail << "d_hull " << juce::String (dHullOut, 3) << " m, d_air "
@@ -2922,17 +2996,28 @@ int main()
     // would have passed for a reason unrelated to the code. (RESEARCH-2.3 Q6.)
     //
     // ── WHAT IS MEASURED INSTEAD ──────────────────────────────────────────────────────────────
-    // Q3 gives the perturbation in closed form: Δy = (G_new − G_old)(x − s), so a cutoff staircase
-    // of step ΔG perturbs the output by at most ΔG · 2 · peak. Render the SAME sweep with the
-    // cutoff quantised to the 64-sample control grid and to a 4096-sample grid, and difference
+    // Q3 gives the perturbation in closed form: Δy = (G_new − G_old)(x − s), so a coefficient
+    // that moves by ΔG perturbs the output by at most ΔG · 2 · peak. Render the SAME sweep with
+    // airAmount quantised to the 64-sample control grid and to a 4096-sample grid, and difference
     // them: D = A − B is the perturbation, with the sine removed by construction.
     //
-    //   UPPER BOUND   max|D| <= maxΔG(4096) · 2 · peak   — the analytic model bounds what is
-    //                                                      actually observed, at both tones.
-    //   SEPARATION    max|D| >  maxΔG(64)   · 2 · peak   — the coarse grid diverges by far more
-    //                                                      than any 64-grid update could, so the
-    //                                                      measurement demonstrably CAN see a
-    //                                                      regression that coarsened the grid.
+    // ── v1.15.0 (B8) RE-DERIVED: THERE IS NO STAIRCASE ANY MORE ──────────────────────────────
+    // Until v1.14.1 G jumped once per 64-sample block, and the separation bound below was the size
+    // of ONE such jump. G now walks to each target over AirFilter::kRampMs (N samples) on a
+    // smoothstep, one change in flight, so its largest PER-SAMPLE move is smoothstep's peak slope
+    // (1.5) times one ramp's span over N. A ramp chasing a 64-grid sweep spans at most the target
+    // drift over the ramp plus the block that started it, (N + 64)/64 grid steps:
+    //
+    //     ΔG_sample <= 1.5 · maxΔG(64) · (N + 64) / (64 · N)
+    //
+    //   UPPER BOUND   max|D| <= maxΔG(4096) · 2 · peak   — unchanged: the two realised trajectories
+    //                                                      are never further apart than one coarse
+    //                                                      step, ramped or not.
+    //   SEPARATION    max|D| >  ΔG_sample   · 2 · peak   — the coarse grid diverges by far more
+    //                                                      than any one sample of the fine render's
+    //                                                      ramp could, so the measurement still
+    //                                                      CAN see a regression that coarsened the
+    //                                                      grid — now against the ramp's own model.
     //
     // Both bounds are computed IN-PROBE from the sweep schedule the probe itself drives. Nothing is
     // tuned and nothing mirrors a constant (pattern_test_fixture_mirrors_drift_silently).
@@ -3006,6 +3091,10 @@ int main()
             const double dG64   = maxDeltaG (64);
             const double dG4096 = maxDeltaG (4096);
 
+            // v1.15.0 — the ramp model, from the plugin's OWN constant and the probe's rate.
+            const double rampN       = std::round (oo::AirFilter::kRampMs * 0.001 * kSampleRate);
+            const double dGPerSample = 1.5 * dG64 * (rampN + 64.0) / (64.0 * rampN);
+
             const auto fine   = eventsOnGrid (64);
             const auto coarse = eventsOnGrid (4096);
 
@@ -3044,7 +3133,7 @@ int main()
                     }
 
                 const float upper = static_cast<float> (dG4096) * 2.0f * peakLane;
-                const float lower = static_cast<float> (dG64)   * 2.0f * peakLane;
+                const float lower = static_cast<float> (dGPerSample) * 2.0f * peakLane;
 
                 const bool bounded   = worstD <= upper;
                 const bool separated = worstD > lower;
@@ -3057,7 +3146,7 @@ int main()
                 detail << juce::String (static_cast<int> (f)) << " Hz: |D| "
                        << juce::String (worstD, 6) << " <= " << juce::String (upper, 6)
                        << (bounded ? "" : " OVER")
-                       << ", vs 64-grid bound " << juce::String (lower, 6) << " ("
+                       << ", vs per-sample ramp bound " << juce::String (lower, 6) << " ("
                        << juce::String (worstD / juce::jmax (lower, 1.0e-12f), 1) << "x"
                        << (separated ? "" : ", NOT SEPARATED")
                        << (f > 4000.0f ? ", asserted" : ", reported only") << "); ";
@@ -3066,9 +3155,10 @@ int main()
             detail << "maxΔG 64-grid " << juce::String (dG64, 7)
                    << " vs 4096-grid " << juce::String (dG4096, 7)
                    << " (" << juce::String (dG4096 / juce::jmax (dG64, 1.0e-12), 1) << "x); "
-                   << "the 64-grid per-update step is therefore bounded by "
-                   << juce::String (dG64 * 2.0 * static_cast<double> (peakAmp), 7)
-                   << " at the source feed";
+                   << "G ramps over " << juce::String (static_cast<int> (rampN))
+                   << " samples, so its per-sample step is bounded by "
+                   << juce::String (dGPerSample, 7) << " (was one " << juce::String (dG64, 7)
+                   << " jump per 64 samples)";
 
             check ("BC air-sweep-differential", ok, detail);
         }
@@ -7576,6 +7666,315 @@ int main()
                << (legacyCleared ? "unstamped and unsaved" : "KEEPING THE PREVIOUS INSTANCE'S VALUES");
 
         check ("DT session-stamps-version-and-preset-name", ok, detail);
+    }
+
+    //==========================================================================
+    // DU — v1.15.0 / B8 + G6. THE AIR FILTER'S TRANSITIONS DO NOT CLICK.
+    //
+    // Until v1.15.0 the exit was a hard switch (`fL = airActive ? LP(sL) : sL`) and the cutoff
+    // stepped once per 64-sample block. v1.13.0's listener-distance law made both common: the
+    // filter now runs beyond the 0.79 m near field down to 552 Hz, so a Motion-off teleport, an air
+    // lane touching 0 or a cutoff jump stepped the feed by |LP(x) − x| — measured at 34x-207x the
+    // matched control. BB could not see it: it asserted the exit AMPLITUDE (a steady-state number),
+    // never the transition.
+    //
+    // Every scenario renders twice with IDENTICAL events: once with air up, once with air 0 (the
+    // control). Air does not enter the DBAP solve, so both renders carry the same gain ramps and
+    // the same teleports; the ratio is what the filter's own transition adds.
+    {
+        constexpr int total   = 8192;
+        constexpr int eventAt = 4096;                 // a 64-multiple: the edit lands on the grid
+        constexpr int winFrom = eventAt - 64;
+        constexpr int winTo   = eventAt + 1024;       // the 5 ms fade plus a 64-sample G ramp
+
+        static_assert (eventAt % 64 == 0 && eventAt >= kFilterLeadIn, "H9 lead-in, grid-aligned");
+
+        OOctagonProcessor scout;
+        negotiate (scout, mono, set71);
+
+        float onx = 0.0f, ony = 0.0f;
+        const bool found = findOutside (scout, onx, ony);
+
+        const auto& sv = scout.getVenue();
+        const float inNx = (sv.centroid().x - sv.bbMinX()) / (sv.bbMaxX() - sv.bbMinX());
+        const float inNy = (sv.centroid().y - sv.bbMinY()) / (sv.bbMaxY() - sv.bbMinY());
+
+        const float dAirOut = found ? dAirAtNorm (scout, onx, ony) : 0.0f;
+
+        struct Scenario
+        {
+            const char* name;
+            float       airOn;      // the air setting of the EVENT render (control: 0)
+            int         kind;       // 0 air -> 0, 1 air -> 0.05, 2 Motion off, 3 back to centre
+        };
+
+        const std::array<Scenario, 4> scenarios
+            { { { "air 1 -> 0 outside",          1.0f,  0 },
+                { "air 1 -> 0.05 (cutoff jump)",  1.0f,  1 },
+                { "orbit 16 m, Motion OFF",       1.0f,  2 },
+                { "outside -> centre, air 0.35",  0.35f, 3 } } };
+
+        const auto render = [&] (const Scenario& s, float air, float freqHz,
+                                 juce::AudioBuffer<float>& dest)
+        {
+            OOctagonProcessor proc;
+            setParam (proc, "blur", 0.0f);
+            setParam (proc, "airAmount", air);
+
+            if (s.kind == 2)
+            {
+                setParam (proc, "srcX", inNx);
+                setParam (proc, "srcY", inNy);
+                setParam (proc, "motionOn",   1.0f);
+                setParam (proc, "motionPath", 0.0f);       // orbit
+                setParam (proc, "motionSize", 16.0f);
+                setParam (proc, "motionRate", 0.25f);
+            }
+            else
+            {
+                setParam (proc, "srcX", onx);
+                setParam (proc, "srcY", ony);
+            }
+
+            negotiate (proc, mono, set71);
+
+            renderHooked (proc, dest, total, Sine { freqHz, 0.5f }, [&] (int n)
+            {
+                if (n != eventAt)
+                    return;
+
+                switch (s.kind)
+                {
+                    case 0:  setParam (proc, "airAmount", 0.0f); break;
+                    case 1:  if (air > 0.0f) setParam (proc, "airAmount", 0.05f); break;
+                    case 2:  setParam (proc, "motionOn", 0.0f); break;
+                    default: setParam (proc, "srcX", inNx); setParam (proc, "srcY", inNy); break;
+                }
+            });
+        };
+
+        if (! found || dAirOut <= 0.0f)
+        {
+            check ("DU air-transitions-do-not-click", false,
+                   "NO POSITION BEYOND THE NEAR FIELD — every scenario would be vacuous");
+        }
+        else
+        {
+            bool         ok = true;
+            juce::String detail;
+
+            for (const auto& s : scenarios)
+            {
+                detail << s.name << ":";
+
+                for (float f : { 200.0f, 1000.0f })
+                {
+                    juce::AudioBuffer<float> ev (8, total), ctl (8, total);
+
+                    render (s, s.airOn, f, ev);
+                    render (s, 0.0f,    f, ctl);
+
+                    ClickReading r { worstCurvature (ev, winFrom, winTo),
+                                     worstCurvature (ctl, winFrom, winTo) };
+
+                    // NON-VACUITY: the filter must actually have been colouring the event render
+                    // before the edge, or a ratio of 1 only says the stage never engaged.
+                    float diff = 0.0f;
+
+                    for (int ch = 0; ch < 8; ++ch)
+                        for (int n = eventAt - 512; n < eventAt; ++n)
+                            diff = std::max (diff, std::abs (ev.getSample (ch, n)
+                                                             - ctl.getSample (ch, n)));
+
+                    const bool engaged = diff > 1.0e-4f;
+                    const bool clean   = r.ratio() <= kClickRatioCeiling
+                                      && allFinite (ev) && allFinite (ctl);
+
+                    ok = ok && engaged && clean;
+
+                    detail << " " << static_cast<int> (f) << " Hz "
+                           << juce::String (r.ratio(), 2) << "x"
+                           << (clean ? "" : " CLICK")
+                           << (engaged ? "" : " (VACUOUS — filter idle)");
+                }
+
+                detail << "; ";
+            }
+
+            detail << "ceiling " << juce::String (kClickRatioCeiling, 1) << "x vs air-0 control, d_air "
+                   << juce::String (dAirOut, 2) << " m";
+
+            check ("DU air-transitions-do-not-click", ok, detail);
+        }
+    }
+
+    //==========================================================================
+    // DV — v1.15.0 / B9. THE DECORRELATOR'S INTEGER TAPS DO NOT ZIPPER.
+    //
+    // Each all-pass section reads at int(base·depth + 0.5); depth ramps over 5 ms on a decorr move
+    // and tracks wEff below 2 m, so a tap stepped by whole samples many times per ramp — 28-34x the
+    // control. The fix crossfades old/new taps; one change in flight per section.
+    //
+    // Control: the SAME events at decorr 0. The decorrelator is all-pass, so a 200 Hz tone through
+    // it carries the same curvature as the dry tone — anything above that is the tap step.
+    {
+        constexpr int total   = 8192;
+        constexpr int eventAt = 4096;
+        constexpr int winFrom = eventAt - 64;
+        constexpr int winTo   = eventAt + 2048;
+
+        struct Scenario { const char* name; float decorrFrom, decorrTo, widthFrom, widthTo; };
+
+        const std::array<Scenario, 2> scenarios
+            { { { "decorr 0.5 -> 1.0 at 6 m", 0.5f, 1.0f, 6.0f, 6.0f },
+                { "width 0.5 -> 2 m at decorr 1", 1.0f, 1.0f, 0.5f, 2.0f } } };
+
+        const auto render = [&] (const Scenario& s, bool live, float freqHz,
+                                 juce::AudioBuffer<float>& dest)
+        {
+            OOctagonProcessor proc;
+            setParam (proc, "blur", 0.0f);
+            setParam (proc, "airAmount", 0.0f);
+            setParam (proc, "srcX", 0.28f);          // off-centre: wEff is the dialled width
+            setParam (proc, "srcY", 0.66f);
+            setParam (proc, "width",  s.widthFrom);
+            setParam (proc, "decorr", live ? s.decorrFrom : 0.0f);
+
+            negotiate (proc, mono, set71);
+
+            renderHooked (proc, dest, total, Sine { freqHz, 0.5f }, [&] (int n)
+            {
+                if (n != eventAt)
+                    return;
+
+                setParam (proc, "width", s.widthTo);
+
+                if (live)
+                    setParam (proc, "decorr", s.decorrTo);
+            });
+        };
+
+        bool         ok = true;
+        juce::String detail;
+
+        for (const auto& s : scenarios)
+        {
+            juce::AudioBuffer<float> ev (8, total), ctl (8, total);
+
+            render (s, true,  200.0f, ev);
+            render (s, false, 200.0f, ctl);
+
+            ClickReading r { worstCurvature (ev, winFrom, winTo),
+                             worstCurvature (ctl, winFrom, winTo) };
+
+            const bool differs = ! bitIdentical (ev, ctl);
+            const bool clean   = r.ratio() <= kClickRatioCeiling && allFinite (ev);
+
+            ok = ok && differs && clean;
+
+            detail << s.name << ": 200 Hz " << juce::String (r.ratio(), 2) << "x"
+                   << (clean ? "" : " ZIPPER") << (differs ? "" : " (VACUOUS — chains idle)")
+                   << "; ";
+        }
+
+        detail << "ceiling " << juce::String (kClickRatioCeiling, 1) << "x vs decorr-0 control";
+
+        check ("DV decorr-depth-moves-do-not-zipper", ok, detail);
+    }
+
+    //==========================================================================
+    // DW — v1.15.0 / B13. AN ALIGNMENT-DELAY EDIT DOES NOT CHIRP.
+    //
+    // The read tap used to slide over the 5 ms ramp: 5 -> 50 ms plays the line BACKWARDS at -8x,
+    // 50 -> 5 ms forwards at 10x — a chirp across every Derive, `.venue` load and in-hall
+    // calibration with programme running. The fix crossfades two fixed taps over 15 ms.
+    //
+    // Control: the same render with the delay HELD. Only one speaker is edited, so the window's
+    // other seven lanes are identical between the two and the ratio isolates the edited lane.
+    {
+        constexpr int   total    = 8192;
+        constexpr int   eventAt  = 4096;
+        constexpr int   winFrom  = eventAt - 64;
+        constexpr int   winTo    = eventAt + 2048;
+        constexpr int   kSpeaker = 3;
+
+        struct Scenario { const char* name; float fromMs, toMs; };
+
+        const std::array<Scenario, 2> scenarios
+            { { { "5 -> 46.5 ms", 5.0f, 46.5f }, { "46.5 -> 5 ms", 46.5f, 5.0f } } };
+
+        // 41.5 ms, NOT 45: a 45 ms change is a whole number of cycles at BOTH test tones (9 at
+        // 200 Hz, 45 at 1 kHz), so the settled render equals the control and the non-vacuity check
+        // below cannot tell an edit that landed from one that did not. 41.5 ms is 8.3 and 41.5.
+
+        const auto render = [&] (const Scenario& s, bool edit, float freqHz,
+                                 juce::AudioBuffer<float>& dest)
+        {
+            OOctagonProcessor proc;
+
+            {
+                oo::VenueModel v = proc.getVenue();
+                v.setSpeakerDelayMs (kSpeaker, s.fromMs);
+                proc.applyVenueEdit (v);
+            }
+
+            setParam (proc, "blur", 0.0f);
+            setParam (proc, "airAmount", 0.0f);
+            setParam (proc, "srcX", 0.18f);
+            setParam (proc, "srcY", 0.72f);
+
+            negotiate (proc, mono, set71);
+
+            renderHooked (proc, dest, total, Sine { freqHz, 0.5f }, [&] (int n)
+            {
+                if (n != eventAt || ! edit)
+                    return;
+
+                oo::VenueModel v = proc.getVenue();
+                v.setSpeakerDelayMs (kSpeaker, s.toMs);
+                proc.applyVenueEdit (v);
+            });
+        };
+
+        bool         ok = true;
+        juce::String detail;
+
+        for (const auto& s : scenarios)
+        {
+            detail << s.name << ":";
+
+            for (float f : { 200.0f, 1000.0f })
+            {
+                juce::AudioBuffer<float> ev (8, total), ctl (8, total);
+
+                render (s, true,  f, ev);
+                render (s, false, f, ctl);
+
+                ClickReading r { worstCurvature (ev, winFrom, winTo),
+                                 worstCurvature (ctl, winFrom, winTo) };
+
+                // NON-VACUITY: the edit must have changed the render after the window — the new
+                // delay is in force — or the probe measured a venue edit that never landed.
+                bool landed = false;
+
+                for (int ch = 0; ch < 8 && ! landed; ++ch)
+                    for (int n = winTo; n < total && ! landed; ++n)
+                        landed = std::abs (ev.getSample (ch, n) - ctl.getSample (ch, n)) > 1.0e-4f;
+
+                const bool clean = r.ratio() <= kClickRatioCeiling && allFinite (ev);
+
+                ok = ok && landed && clean;
+
+                detail << " " << static_cast<int> (f) << " Hz " << juce::String (r.ratio(), 2) << "x"
+                       << (clean ? "" : " CHIRP") << (landed ? "" : " (VACUOUS — edit never landed)");
+            }
+
+            detail << "; ";
+        }
+
+        detail << "ceiling " << juce::String (kClickRatioCeiling, 1) << "x vs held-delay control";
+
+        check ("DW delay-edit-does-not-chirp", ok, detail);
     }
 
     //==========================================================================
