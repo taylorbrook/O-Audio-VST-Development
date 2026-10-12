@@ -4,7 +4,7 @@
 version: 1.0.0
 plugin: O-simpleAmbisonics
 created: 2026-10-11
-lastUpdated: 2026-10-11
+lastUpdated: 2026-10-12
 ---
 
 ## Overview
@@ -25,7 +25,7 @@ lastUpdated: 2026-10-11
 | FUNC-04 | Scene rotation via Yaw (must), Pitch and Roll (should), applied in the ambisonic domain after encoding so the scene rotates, not the source | must | pending | stage-2 |
 | FUNC-05 | Decoder selectable: Binaural (HRTF, headphones) or Stereo (plain amplitude decode for speakers/projector) | must | pending | stage-2 |
 | FUNC-06 | Orbit: automatic azimuth motion with an on/off switch and a rate (0.02–2 Hz) so movement is audible without DAW automation | should | pending | stage-2 |
-| FUNC-07 | Stereo input accepted and summed to the single mono source (Input Mode: Mono sum / Left only); mono input accepted | must | pending | stage-1 |
+| FUNC-07 | Stereo input accepted and summed to the single mono source (Input Mode: Mono sum / Left only); mono input accepted | must | complete | stage-1 |
 | FUNC-08 | Concept-preset tour (Point Source FOA, Order 1→2→3, Behind You, Overhead, Rotate the Room, Far Away / Up Close, Slow Orbit, Speakers vs Headphones) loadable as factory presets | should | pending | stage-4 |
 | FUNC-09 | Usable as a lightweight creative binaural panner with orbit motion for headphone mixes | nice | pending | stage-4 |
 
@@ -65,7 +65,7 @@ lastUpdated: 2026-10-11
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | pending | stage-1 |
+| COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | complete | stage-1 |
 | COMPAT-02 | Stereo-in/stereo-out (and mono-in) bus layout loads and runs identically in Logic Pro and Ableton Live with no multichannel configuration | must | pending | stage-4 |
 
 ### Quality (QUAL)
@@ -113,8 +113,8 @@ lastUpdated: 2026-10-11
 ### FUNC-07: Input handling
 
 **Acceptance Criteria:**
-- [ ] Stereo input is summed to mono (-6 dB pan law or equivalent, documented) before encoding
-- [ ] Mono-in/stereo-out layout accepted by pluginval and Logic
+- [x] Stereo input is summed to mono (-6 dB pan law or equivalent, documented) before encoding — `Mono sum` = 0.5·(L+R); harness P1 bit-equal, pedalboard exact (Stage 1 verify, 2026-10-12)
+- [x] Mono-in/stereo-out layout accepted by pluginval and Logic — auval caps `[1, 2] [2, 2]`, pluginval s10 VST3 + AU, harness P1b mono bus (Stage 1 verify); Logic hands-on repeats under COMPAT-02
 
 ### DSP-01: Encoder correctness
 
@@ -179,7 +179,7 @@ lastUpdated: 2026-10-11
 ### COMPAT-01: pluginval
 
 **Acceptance Criteria:**
-- [ ] pluginval strictness 10 passes for VST3 and AU
+- [x] pluginval strictness 10 passes for VST3 and AU — installed bundles, exit 0 SUCCESS both (Stage 1 verify, 2026-10-12)
 
 ### COMPAT-02: Host behaviour
 

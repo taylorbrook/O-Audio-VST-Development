@@ -30,8 +30,8 @@
 
 - Stage 0: Research ✓
 - Stage 0: Planning ✓
-- Stage 1: Foundation ← Next (after mockup finalisation produces `parameter-spec.md`)
-- Stage 2: DSP (phased — 3 phases)
+- Stage 1: Foundation ✓ (verified 2026-10-12; ran on the parameter-spec draft — ARCHITECTURE.md §Parameter Mapping is the contract)
+- Stage 2: DSP (phased — 3 phases) ← Next
 - Stage 3: GUI (phased — 3 phases)
 - Stage 4: Validation / Polish
 

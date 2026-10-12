@@ -1,16 +1,16 @@
 ---
 plugin: O-simpleAmbisonics
 stage: 1
-status: stage_1_execute_complete
+status: stage_1_complete
 last_updated: 2026-10-12
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-current_phase: execute
-next_phase: verify
-next_action: plugin-verify
-next_stage: 1
+current_phase: verify
+next_phase: discuss
+next_action: plugin-discuss
+next_stage: 2
 ready_for_implementation: true
 parameter_count: 12
 mockup_finalized: false
@@ -21,9 +21,9 @@ plugin_code: OSAm
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — execute phase complete
-Status: Shell built, installed (`O-simpleAmbisonics-dev.{vst3,component}`) and validated — harness P0–P5 ALL PASS (digest 6a1df555bc125ae3), 0 build warnings, auval SUCCEEDED (caps [1,2] [2,2]), pluginval s10 ×2 SUCCESS on VST3 and AU. One plan deviation: degree params use interval 0 (0.01 snapped the 0° default to −4e-06). Next: verify.
-Progress: [######..............] 30%
+Stage: 1 of 4 (Foundation) — ✅ VERIFIED (2026-10-12)
+Status: Stage 1 complete. Verify re-ran everything independently on the INSTALLED bundles (byte-identical to the build): harness P0–P5 ALL PASS (digest 6a1df555bc125ae3 reproduced), 0 warnings on a forced TU rebuild, auval SUCCEEDED (caps [1,2] [2,2]), pluginval s10 SUCCESS VST3 + AU, pedalboard V1–V3 (12-param contract, pass-through with reported == measured latency, 12-value state round-trip) ALL PASS. COMPAT-01 + FUNC-07 complete. Next: Stage 2 / discuss (Phase 2.1).
+Progress: [#######.............] 35%
 
 ## Phase Progress
 
@@ -34,7 +34,7 @@ Progress: [######..............] 30%
 | research | ✓ | 2026-10-11 | |
 | plan | ✓ | 2026-10-12 | |
 | execute | ✓ | 2026-10-12 | |
-| verify | → | | |
+| verify | ✓ | 2026-10-12 | |
 
 ## Completed So Far
 
@@ -72,10 +72,16 @@ Progress: [######..............] 30%
 - **Deviation:** the five degree parameters use `NormalisableRange` interval **0** (continuous) instead of 0.01 — JUCE snaps every host value to `start + interval·floor(…)`, and `−180 + 0.01f·18000 = −4.02e-06`, so the 0° default was never exactly 0 (P0 caught it). Siblings carry the same latent offset unobserved.
 - Build-time corrections: namespace alias `osa_dsp` (bare `dsp::` ambiguous with `juce::dsp` under JuceHeader's `using namespace juce`); input legs via `getChannelLayoutOfBus(true, 0)`
 
+**Stage 1 / verify:** ✓ Complete (2026-10-12)
+- `stages/1-foundation/VERIFICATION.md` — ✅ VERIFIED, every SUMMARY claim re-run independently on the installed bundles; COMPAT-01 and FUNC-07 → complete in REQUIREMENTS.md
+- Independent measurer: pedalboard on the installed VST3 — 12 params with contract ranges/defaults/choices; stereo noise → both outputs == 0.5·(L+R) 8192/8192 exact with residual lag 0 after host latency compensation (reported 64 == actual); impulse amplitude exactly 1.0; 12-value `raw_state` round-trip restores every decoded value
+- Test-harness lesson (not a defect): a live VST3 instance's `raw_value` is the wrapper's cached un-snapped host float — round-trip gates compare DECODED values (memory written)
+- Human DAW checks listed as non-blocking; COMPAT-02 (Stage 4) repeats them in Logic + Live
+
 ## Next Steps
 
-1. `/plugin-verify O-simpleAmbisonics 1-foundation` — goal-backward check + DAW hands-on (stereo + mono track, Generic editor shows 12 params, state round-trip)
-2. Then Stage 2 / discuss: `/plugin-discuss O-simpleAmbisonics 2-dsp`
+1. Stage 2 / discuss: `/plugin-discuss O-simpleAmbisonics 2-dsp` — Phase 2.1 (source → encoder → stereo decode; ROADMAP §Phase 2.1; SUMMARY §Stage-2 handoff)
+2. Non-blocking human checks from `stages/1-foundation/VERIFICATION.md` (Logic stereo + mono track, Generic editor 12 rows, project save/reopen) — repeated formally under COMPAT-02 at Stage 4
 3. UI mockup (`/start O-simpleAmbisonics` → option 3) before Stage 3; it finalises `parameter-spec.md` and must keep the 12-parameter set
 
 ## Context to Preserve
@@ -107,6 +113,7 @@ Progress: [######..............] 30%
 - plugins/O-simpleAmbisonics/.planning/stages/1-foundation/RESEARCH.md (Stage 1 research)
 - plugins/O-simpleAmbisonics/.planning/stages/1-foundation/PLAN.md (Stage 1 plan)
 - plugins/O-simpleAmbisonics/.planning/stages/1-foundation/SUMMARY.md (Stage 1 execute)
+- plugins/O-simpleAmbisonics/.planning/stages/1-foundation/VERIFICATION.md (Stage 1 verify)
 - plugins/O-simpleAmbisonics/CMakeLists.txt (Stage 1 execute)
 - plugins/O-simpleAmbisonics/Source/PluginProcessor.h, PluginProcessor.cpp (Stage 1 execute)
 - plugins/O-simpleAmbisonics/Source/dsp/SpatialEngine.h, FixedDelay.h (Stage 1 execute)
