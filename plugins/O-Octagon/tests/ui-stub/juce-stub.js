@@ -963,13 +963,17 @@ function takeForcedPresetResult() {
 function savePreset(name) {
   const forced = takeForcedPresetResult();
   if (forced !== null) return forced;
-  const n = String(name ?? "").trim();
-  if (n === "") return { ok: false, reason: "emptyName", speaker: -1 };
+  const typed = String(name ?? "").trim();
+  if (typed === "") return { ok: false, reason: "emptyName", speaker: -1 };
+  // v1.14.1 (R1) — the module STORES a sanitized name ("A/B" -> A_B.json, listed
+  // as "A_B"; OuariconPresetManager::sanitizePresetName). Through v1.14.0 this
+  // stub kept the typed name, so the page's typed-vs-stored confusion was invisible.
+  const n = typed.replace(/[\/\\:]/g, "_");
   if (isFactoryName(n)) return { ok: false, reason: "factoryName", speaker: -1 };
   if (!userPresets.includes(n)) userPresets = userPresets.concat([n]);
   currentPreset = n;
-  PRESET_WRITES.push({ op: "save", name: n });
-  return { ok: true, reason: "none", speaker: -1 };
+  PRESET_WRITES.push({ op: "save", name: typed });
+  return { ok: true, reason: "none", speaker: -1, name: n };
 }
 
 function loadPreset(name) {

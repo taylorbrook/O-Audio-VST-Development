@@ -3,7 +3,7 @@
 ## Status
 - **Current Status:** 📦 Installed — stage-4 roll-up re-verify ✅ VERIFIED 2026-08-14, all four
   stages complete; dev-branded build (`O-Octagon-dev`), not yet released
-- **Version:** 1.14.0 (dev build installed; v1.13.0 is the public release)
+- **Version:** 1.14.1 (dev build installed; v1.13.0 is the public release)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
 - **Complexity:** 5.0 (capped; raw 13.0) — staged implementation
@@ -293,6 +293,13 @@
   weights and the level no longer swing through their defaults mid-load (CP now counts callbacks).
   Gestures open only on value keys, and the editor closes counted open gestures on teardown. Sessions
   carry a `pluginVersion` stamp. G5 (§28 vacuous since `loadPreserving`) fixed. Rounds 3a-7 remain.
+- **2026-10-12 (v1.14.1 — `/improve`, v1.14.0 preset-rail regressions R1–R4):** Save as now selects
+  and compares on the name the store HOLDS (`/ \ :` → `_`; C++ returns it as `result.name`), so a
+  separator no longer leaves a blank select or skips the "replaces" warning; `fileSafeName` no
+  longer trims (the module does not); the name field ignores an IME-commit Enter; the Save as
+  tooltip title matches its caption. The UI stub now sanitizes as the module does — the reason R1
+  was invisible. Layout 39/39 (+9 checks, all 8 regression checks seen FAILING on v1.14.0's page),
+  frontend 44/44, check-i18n pass, fr/zh lint clean for O-Octagon.
 
 **Still open from the v1.8.0 CODE_REVIEW after the v1.10.1 sweep:** design calls IN-03, 04, 11,
 13, 14, 20, 22 and the fail-first test work IN-23 … IN-30 (DF's `motionSolves > 0` liveness gate,

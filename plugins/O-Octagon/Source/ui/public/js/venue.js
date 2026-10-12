@@ -716,8 +716,14 @@ export function createVenueScreen(deps) {
   // named "my hall" replaces "My Hall".
   const hasName = (set, name) => [...set].some((n) => n.toLowerCase() === name.toLowerCase());
 
+  // v1.14.1 (R1) — the name the STORE holds. The module writes "A/B" as
+  // A_B.json and lists it as "A_B" (OuariconPresetManager::sanitizePresetName,
+  // mirrored by oo::presets::fileSafeName). Every comparison against the list
+  // goes through this, so typing "A/B" over a saved "A_B" warns that it replaces.
+  const storedName = (name) => name.replace(/[\/\\:]/g, "_");
+
   function syncPresetSave(showHint) {
-    const name = presetNameInput.value.trim();
+    const name = storedName(presetNameInput.value.trim());
     const isFactory = hasName(presetFactory, name);
     presetSaveButton.disabled = name === "" || isFactory;
     presetLoadButton.disabled = presetSelect.value === "";
@@ -787,6 +793,10 @@ export function createVenueScreen(deps) {
 
   presetNameInput.addEventListener("input", () => syncPresetSave(true));
   presetNameInput.addEventListener("keydown", (e) => {
+    // v1.14.1 (R3) — the Enter that COMMITS an IME composition (Japanese,
+    // Chinese pinyin) is not a save. WebKit reports it as keyCode 229 with
+    // isComposing sometimes already false, so both are checked.
+    if (e.isComposing || e.keyCode === 229) return;
     if (e.key === "Enter" && !presetSaveButton.disabled) presetSaveButton.click();
   });
   presetSelect.addEventListener("change", () => syncPresetSave(false));
@@ -802,12 +812,14 @@ export function createVenueScreen(deps) {
 
   presetSaveButton.addEventListener("click", () => {
     const name = presetNameInput.value.trim();
-    if (name === "" || hasName(presetFactory, name)) { syncPresetSave(true); return; }
+    if (name === "" || hasName(presetFactory, storedName(name))) { syncPresetSave(true); return; }
     nativeFn("savePreset")(name)
       .then(async (result) => {
         await refreshPresets();
-        if (result?.ok === true) presetSelect.value = name;
-        renderPresetResult("save", name, result);
+        // C++ answers with the name it stored; the mirror covers an older host.
+        const stored = typeof result?.name === "string" && result.name !== "" ? result.name : storedName(name);
+        if (result?.ok === true) presetSelect.value = stored;
+        renderPresetResult("save", stored, result);
         syncPresetSave(false);
       })
       .catch((err) => console.error("savePreset failed", err));

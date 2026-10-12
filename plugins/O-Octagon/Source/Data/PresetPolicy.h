@@ -242,10 +242,13 @@ factoryDefs (const juce::AudioProcessorValueTreeState& apvts)
 
 //==============================================================================
 /** The module's filename rule, mirrored: OuariconPresetManager::sanitizePresetName is private, and
-    a load that resolved a different file from the one savePreset wrote would be a quiet miss. */
+    a load that resolved a different file from the one savePreset wrote would be a quiet miss.
+    v1.14.1 (R2): NO trim. The module does not trim, so " Hall" resolved to "Hall.json" here and to
+    " Hall.json" in the module — exactly the quiet miss this mirror exists to prevent. Callers that
+    want a trimmed name trim it themselves (savePreset does, before the module sees it). */
 inline juce::String fileSafeName (const juce::String& presetName)
 {
-    return presetName.trim().replaceCharacters ("/\\:", "___");
+    return presetName.replaceCharacters ("/\\:", "___");
 }
 
 /** Factory first, then User — the module's own lookup order, so a user file can never shadow a
