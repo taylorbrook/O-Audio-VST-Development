@@ -1,56 +1,67 @@
 ---
 plugin: O-simpleAmbisonics
-stage: ideation
-status: creative_brief_complete
-last_updated: 2026-10-11 00:00:00
+stage: 0
+status: complete
+last_updated: 2026-10-11
+complexity_score: 5.0
+staged_implementation: true
+orchestration_mode: true
+next_action: create_mockup_then_invoke_foundation_shell_agent
+next_stage: 1
+ready_for_implementation: true
+parameter_count: 12
+mockup_finalized: false
 ---
 
-# Resume Point
+# O-simpleAmbisonics Status
 
-## Current State: Creative Brief Complete
+## Current Position
 
-Creative brief has been finalized for O-simpleAmbisonics. Ready to proceed to Stage 0 planning (DSP research + architecture) or a UI mockup.
+Stage: 0 of 4 (Ideation / Research & Planning) — complete
+Status: ARCHITECTURE.md and ROADMAP.md documented (complexity 5.0, phased). Ready for the UI mockup (which finalises `parameter-spec.md`) and then Stage 1 (Foundation).
+Progress: [##..................] 10%
 
 ## Completed So Far
 
 **Ideation:** ✓ Complete
-- Core concept defined (pedagogical ambisonic spatializer: mono source → SH encoder → SH rotation → binaural decoder → L/R, all in one stereo-out plugin)
-- Architecture decided via 4 ideation questions
-- Parameters specified
-- UI vision captured (mirrors O-simpleFM / O-simpleSubtractive)
-- Use cases identified
-- Requirements extracted with acceptance criteria
+- Core concept, architecture, parameters, UI vision, use cases, 27 requirements with acceptance criteria.
 
-## Key Architecture Decisions (from ideation)
-
-- **Output:** encode + decode in ONE plugin, stereo in / stereo out. No multichannel bus — students are on headphones in Logic Pro and Ableton Live, neither of which offers an ambisonic bus.
-- **Order:** 1 / 2 / 3 selectable (4 / 9 / 16 channels), default 1 so the order step-up is the lesson. Nothing above 3rd.
-- **Source:** one mono source positioned by azimuth / elevation / distance; stereo input summed.
-- **Rotation:** yaw (must), pitch/roll (should) applied in the SH domain — the "rotate the scene, not the source" lesson.
-- **Decoder:** Binaural (HRTF, embedded precomputed filters, partitioned convolution) default; plain Stereo decode for speakers/projector.
-- **Conventions:** AmbiX (ACN / SN3D). Reuse the 3rd-order encoder in `plugins/O-GrainScatter/Source/dsp/SpatialEncoder.h` and the two research docs `research/ambisonics-encoding-deep-dive.md`, `research/ambisonics-binaural-decoding-deep-dive.md`.
-- **Headline visual:** live B-format channel meters with SH pattern icons; spatial-resolution polar plot sharpening with order.
+**Stage 0:** ✓ Complete — Research & Planning (2026-10-11)
+- Plugin type: audio effect, stereo/mono in → stereo out, 12 parameters, WebView UI
+- Prior art reused: O-GrainScatter `SpatialEncoder.h` (encoder), `TripleBuffer.h`, header-generation pipeline; both in-house ambisonics deep-dives
+- JUCE 8.0.15 classes verified in local source: `dsp::FFT`, `Interpolators::WindowedSinc`, `dsp::FirstOrderTPTFilter`, `SmoothedValue`; `dsp::Convolution` read and rejected for the 16→2 topology
+- Eight research questions resolved (see `stages/0-ideation/CONTEXT.md`): MagLS from SADIE II KU100 (Apache-2.0), fixed-partition UPOLS P=64 → constant 64-sample latency, Ivanic–Ruedenberg rotation, soft-knee distance + air LP, always-running decoders with 20 ms crossfades, FIFO block-size independence, wrap-aware smoothing, ±60° virtual-cardioid stereo pair, 12-parameter v1.0 set (spread / weighting / solo deferred to v1.1)
+- Complexity score: 5.0 (capped; raw 10.0) → staged implementation (DSP 3 phases, GUI 3 phases)
+- ROADMAP covers every must-priority requirement by ID with a named phase and gate
 
 ## Next Steps
 
-1. Start Stage 0 planning / DSP research (recommended): `/plan O-simpleAmbisonics`
-2. Create UI mockup to visualize design: `/start O-simpleAmbisonics` → option 3
+1. Create the UI mockup: `/start O-simpleAmbisonics` → option 3 (mockup finalisation produces `parameter-spec.md`; it must keep the 12-parameter set from ARCHITECTURE.md)
+2. Stage 1 Foundation: `/implement O-simpleAmbisonics` (foundation-shell-agent) — effect shell, 12-param APVTS, mono/stereo-in → stereo-out buses, `setLatencySamples(64)` from day one, harness scaffold
+3. Review `research/ARCHITECTURE.md` and `ROADMAP.md`
 
 ## Context to Preserve
 
-**Key Decisions:**
-- Plugin type: Audio Effect (Pedagogical Ambisonic Spatializer)
-- Core concept: collapse encoder → rotator → decoder into one stereo plugin; gesture → visible consequence; teaching tool first
+**Key decisions (contract — see ARCHITECTURE.md Architecture Decisions §1–10):**
+- Binaural = MagLS, SADIE II D1 (KU100), 256 taps @ 48 kHz, three per-order sets in a generated constexpr header `Source/dsp/BinauralFilterData.h` (no second BinaryData target); runtime fixed-partition UPOLS P=64 on `juce::dsp::FFT`; **latency 64 samples constant** in both modes at all sample rates
+- Rotation = Ivanic–Ruedenberg recursion; `R = Rz(yaw)·Ry′(pitch)·Rx(roll)`; yaw + = scene CCW from above, pitch + = front rises, roll + = left rises
+- Distance: `g = 1.25/(d+0.25)`, air LP `f_c = 20 kHz·min(1, 1/√d)` clamped to 0.45·fs, pre-encode
+- Stereo decode: ±60° first-order cardioid pair on rotated W/Y/X, delayed 64; decoders always run; 20 ms crossfades everywhere
+- Smoothing: wrap-aware one-pole (τ 20 ms) at block rate + per-sample lerp of coefficient vector / rotation matrix
+- Meters: post-rotation `shGain = R·c_eff` (signed) + peaks via `TripleBuffer<MeterFrame>`; polar plot from `order` in JS
+- Mono sum = 0.5·(L+R); presets never set `outputLevel`
 
-**Open research questions (Stage 0):**
-- Binaural decoder method: MagLS vs virtual-loudspeaker + HRTF; which free HRTF set (KU100 / SADIE II); offline filter precomputation pipeline and embedding as binary data
-- SH rotation matrix construction for orders 2–3 (recursive vs Euler Z-Y-Z) and its cost
-- Distance model details (near-field clamp, air-absorption cutoff); whether to expose source width / spread in v1.0
-- Click-free order/decoder switching strategy (crossfaded filter banks) and latency equality between Binaural and Stereo modes
-- Convolution engine sizing for max host block (oversampler-overrun pattern) and CPU budget at order 3 / 64-sample buffers
+**Open until later stages:**
+- Mockup (Stage 3 input) — no mockup exists yet; `parameter-spec.md` to be produced at finalisation
+- PLUGIN_CODE uniqueness check at Stage 1 (suggested `OSiA`)
+- SADIE II SOFA download + `sofar` availability at Phase 2.3 (fallback: synthetic spherical-head generator)
 
-**Sibling references:** O-simpleFM (1.6.0), O-simpleSubtractive (1.7.0), O-simpleWavetable (1.0.1) — same pedagogical template. O-GrainScatter (in-house SH encoder + binaural decoder), O-Octagon / O-Orbit (Logic surround constraints).
+**Sibling references:** O-simpleSubtractive (editor/CMake/harness template), O-simpleWavetable (latest WebView + gate conventions), O-simpleFM (viz Timer), O-GrainScatter (encoder, TripleBuffer, generator, fallback decoder).
 
-**Files Created:**
-- plugins/O-simpleAmbisonics/.planning/BRIEF.md
-- plugins/O-simpleAmbisonics/.planning/REQUIREMENTS.md
+## Files Created
+- plugins/O-simpleAmbisonics/.planning/BRIEF.md (ideation)
+- plugins/O-simpleAmbisonics/.planning/REQUIREMENTS.md (ideation)
+- plugins/O-simpleAmbisonics/.planning/parameter-spec-draft.md (ideation)
+- plugins/O-simpleAmbisonics/.planning/research/ARCHITECTURE.md (Stage 0)
+- plugins/O-simpleAmbisonics/.planning/ROADMAP.md (Stage 0)
+- plugins/O-simpleAmbisonics/.planning/stages/0-ideation/CONTEXT.md (Stage 0)
