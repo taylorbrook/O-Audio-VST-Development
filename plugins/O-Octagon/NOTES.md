@@ -3,7 +3,7 @@
 ## Status
 - **Current Status:** 📦 Installed — stage-4 roll-up re-verify ✅ VERIFIED 2026-08-14, all four
   stages complete; dev-branded build (`O-Octagon-dev`), not yet released
-- **Version:** 1.15.2 (dev build installed; v1.13.0 is the public release)
+- **Version:** 1.15.3 (dev build installed; v1.13.0 is the public release)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
 - **Complexity:** 5.0 (capped; raw 13.0) — staged implementation
@@ -492,6 +492,13 @@ fact was refused twice), and none affects a recorded result:
 - AU: `~/Library/Audio/Plug-Ins/Components/O-Octagon-dev.component`
 - Installed binaries byte-identical to freeze `378fb4cd` (VST3 `928cd447…`, AU `cc54db02…`)
   — **superseded at v1.6.0/v1.7.0;** the installed build is newer than that freeze
+- **2026-10-12 (v1.15.3 — `/improve`, v1.15.2 regressions):** arming the monitor during a ping
+  folded the 20 ms abort fade into the headphones — `monitorOn` is now held off while
+  `verifyPing.isActive()` (the banner keys on `monitorAllowed`, so it does not flash). `getState()`
+  read active=true with mode/speaker 0 through the fade (page drew "0 0") — `abortedOut` masks it
+  from abort() to the next start(). The ping RNG was clock-seeded, so every ping figure was one draw
+  (DY retarget 0.62 / 0.77 / 0.84 on three runs); seeded in `prepare()`. Probe ED, red on v1.15.2
+  in both parts. Render 88/0, CU/DC unchanged.
 - **2026-10-12 (v1.15.2 — `/improve`, Round 3b: B14 B15 B17 B20 B25):** the verify ping ducks
   the programme on its own raised cosine (held through auto gaps), fades on stop/abort/retarget
   from its current level, and is `kill()`ed for bypass/unmapped/`isNonRealtime()`. The fold lands at

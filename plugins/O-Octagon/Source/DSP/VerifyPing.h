@@ -153,7 +153,8 @@ public:
 
     /** v1.15.2 (B14) — A FADED STOP, for a caller that has asked for something else: arming the
         monitor. The audio thread runs stop()'s release, but the published state reads idle at once,
-        so the editor does not show a speaker that is being withdrawn. Atomics only — callable from
+        so the editor does not show a speaker that is being withdrawn (v1.15.3: `active` included —
+        it read true with mode/speaker 0, and the page drew "0 0"). Atomics only — callable from
         either thread. Until v1.15.1 this was the hard cut kill() now is, and it stepped the
         programme back in on the next sample.
     */
@@ -205,6 +206,7 @@ private:
     // ── Cross-thread surface ────────────────────────────────────────────────────────────────────
     std::atomic<int>  command     { kCmdNone };
     std::atomic<bool> killPending { false };   ///< v1.15.2 — set by kill(), consumed by overwrite()
+    std::atomic<bool> abortedOut  { false };   ///< v1.15.3 — abort() to the next start(): getState() reads idle
     std::atomic<bool> activeFlag  { false };
     std::atomic<int>  modeOut     { 0 };
     std::atomic<int>  speakerOut  { 0 };
@@ -236,7 +238,7 @@ private:
     bool  aborting      { false };  ///< publish idle while the abort's fade runs
 
     // ── The signal (§OQ2) ───────────────────────────────────────────────────────────────────────
-    juce::Random rng;                                  // MEMBER-OWNED, never getSystemRandom()
+    juce::Random rng;                                  // MEMBER-OWNED, never getSystemRandom(); seeded in prepare()
     float b0 { 0.0f }, b1 { 0.0f }, b2 { 0.0f };       // fixed-coefficient pinking network
 
     juce::dsp::FirstOrderTPTFilter<float> hp, lp;

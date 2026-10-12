@@ -761,7 +761,8 @@ bool OOctagonProcessor::setMonitorArmed (bool shouldArm)
     //
     // v1.15.2 (B14): abort() is a FADE now — the ping out and the programme back over its 20 ms,
     // with the published state idle at once. The REAL arm keeps rendering here, so there is
-    // something to fade; kill() is kept for the stops where there is not.
+    // something to fade; kill() is kept for the stops where there is not. v1.15.3: processBlock
+    // holds the fold off until that fade has finished, so the ping is never folded.
     verifyPing.abort();
 
     monitorArmed.store (true, std::memory_order_release);
@@ -865,10 +866,19 @@ void OOctagonProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     // eight-channel map means nothing on a stereo fold.
     const bool armed = monitorArmed.load (std::memory_order_acquire);
 
-    const bool monitorOn = armed && mapped && ! isNonRealtime();
+    const bool monitorAllowed = armed && mapped && ! isNonRealtime();
 
-    // Published for the banner: armed, but not folding. The operator is told WHY.
-    monitorSuppressed.store (armed && ! monitorOn, std::memory_order_release);
+    // v1.15.3 — and not while a ping is still sounding. setMonitorArmed() aborts the ping as a
+    // 20 ms FADE (v1.15.2, B14) and arms in the same call, so for that fade the fold read the ping
+    // lane and put it in the headphones. Held off until the fade has finished (isActive() goes
+    // false on the sample the run goes idle): the fold engages up to one control block late, on its
+    // own 5 ms crossfade, and the ping never reaches it. Kill semantics would have cut it instead —
+    // the step B14 removed.
+    const bool monitorOn = monitorAllowed && ! verifyPing.isActive();
+
+    // Published for the banner: armed, but not folding. The operator is told WHY. monitorAllowed,
+    // not monitorOn: the ping's fade is not a reason to show, and would flash the banner for 20 ms.
+    monitorSuppressed.store (armed && ! monitorAllowed, std::memory_order_release);
 
     // ══ v1.11.0 — THE STEREO-BUS BINAURAL ARM ════════════════════════════════════════════════
     //
