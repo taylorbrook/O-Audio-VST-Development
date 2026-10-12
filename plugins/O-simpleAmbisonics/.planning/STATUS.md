@@ -1,25 +1,40 @@
 ---
 plugin: O-simpleAmbisonics
-stage: 0
-status: complete
+stage: 1
+status: stage_1_discuss_complete
 last_updated: 2026-10-11
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: create_mockup_then_invoke_foundation_shell_agent
+workflow_mode: manual
+current_phase: discuss
+next_phase: research
+next_action: plugin-research
 next_stage: 1
 ready_for_implementation: true
 parameter_count: 12
 mockup_finalized: false
+plugin_code: OSAm
 ---
 
 # O-simpleAmbisonics Status
 
 ## Current Position
 
-Stage: 0 of 4 (Ideation / Research & Planning) — complete
-Status: ARCHITECTURE.md and ROADMAP.md documented (complexity 5.0, phased). Ready for the UI mockup (which finalises `parameter-spec.md`) and then Stage 1 (Foundation).
-Progress: [##..................] 10%
+Stage: 1 of 4 (Foundation) — discuss phase complete
+Status: Stage 1 CONTEXT.md compiled from the locked Stage 0 contracts (no open contract-level decisions). Next: research phase.
+Progress: [###.................] 15%
+
+## Phase Progress
+
+### Stage 1: Foundation
+| Phase | Status | Date | Skipped |
+|-------|--------|------|---------|
+| discuss | ✓ | 2026-10-11 | |
+| research | → | | |
+| plan | | | |
+| execute | | | |
+| verify | | | |
 
 ## Completed So Far
 
@@ -34,11 +49,15 @@ Progress: [##..................] 10%
 - Complexity score: 5.0 (capped; raw 10.0) → staged implementation (DSP 3 phases, GUI 3 phases)
 - ROADMAP covers every must-priority requirement by ID with a named phase and gate
 
+**Stage 1 / discuss:** ✓ Complete (2026-10-11)
+- `stages/1-foundation/CONTEXT.md` — foundation scope: effect CMake (VST3 + AU + Standalone, WebView2 flags, `juce_dsp`), mono/stereo-in → stereo-out buses, 12-param APVTS, pass-through `processBlock` (input conditioner → 64-sample delay → seeded output gain), `setLatencySamples(64)`, placeholder editor, `Source/dsp/SpatialEngine.h` seam, `tests/render-harness/` scaffold
+- Decisions: `PLUGIN_CODE OSAm` (Stage 0's `OSiA` is taken by O-simpleAdditive); proceed without `parameter-spec.md` (sibling precedent — ARCHITECTURE.md §Parameter Mapping is the authoritative 12-param contract; the mockup may not add parameters)
+
 ## Next Steps
 
-1. Create the UI mockup: `/start O-simpleAmbisonics` → option 3 (mockup finalisation produces `parameter-spec.md`; it must keep the 12-parameter set from ARCHITECTURE.md)
-2. Stage 1 Foundation: `/implement O-simpleAmbisonics` (foundation-shell-agent) — effect shell, 12-param APVTS, mono/stereo-in → stereo-out buses, `setLatencySamples(64)` from day one, harness scaffold
-3. Review `research/ARCHITECTURE.md` and `ROADMAP.md`
+1. `/plugin-research O-simpleAmbisonics` — Stage 1 research (effect bus boilerplate in the suite, sibling CMake/harness template, APVTS skew pattern safe for the WebView frontend, 64-sample delay + seeded gain pattern)
+2. `/plugin-plan O-simpleAmbisonics` → `/plugin-execute O-simpleAmbisonics` (foundation-shell-agent) → `/plugin-verify O-simpleAmbisonics`
+3. UI mockup (`/start O-simpleAmbisonics` → option 3) before Stage 3; it finalises `parameter-spec.md` and must keep the 12-parameter set
 
 ## Context to Preserve
 
@@ -50,13 +69,13 @@ Progress: [##..................] 10%
 - Smoothing: wrap-aware one-pole (τ 20 ms) at block rate + per-sample lerp of coefficient vector / rotation matrix
 - Meters: post-rotation `shGain = R·c_eff` (signed) + peaks via `TripleBuffer<MeterFrame>`; polar plot from `order` in JS
 - Mono sum = 0.5·(L+R); presets never set `outputLevel`
+- `PLUGIN_CODE OSAm`
 
 **Open until later stages:**
 - Mockup (Stage 3 input) — no mockup exists yet; `parameter-spec.md` to be produced at finalisation
-- PLUGIN_CODE uniqueness check at Stage 1 (suggested `OSiA`)
 - SADIE II SOFA download + `sofar` availability at Phase 2.3 (fallback: synthetic spherical-head generator)
 
-**Sibling references:** O-simpleSubtractive (editor/CMake/harness template), O-simpleWavetable (latest WebView + gate conventions), O-simpleFM (viz Timer), O-GrainScatter (encoder, TripleBuffer, generator, fallback decoder).
+**Sibling references:** O-simpleSubtractive (editor/CMake/harness template), O-simpleWavetable (latest WebView + gate conventions), O-simpleFM (viz Timer), O-GrainScatter (encoder, TripleBuffer, generator, fallback decoder); a suite stereo effect (O-Freeze / O-Gain) for effect bus boilerplate.
 
 ## Files Created
 - plugins/O-simpleAmbisonics/.planning/BRIEF.md (ideation)
@@ -65,3 +84,4 @@ Progress: [##..................] 10%
 - plugins/O-simpleAmbisonics/.planning/research/ARCHITECTURE.md (Stage 0)
 - plugins/O-simpleAmbisonics/.planning/ROADMAP.md (Stage 0)
 - plugins/O-simpleAmbisonics/.planning/stages/0-ideation/CONTEXT.md (Stage 0)
+- plugins/O-simpleAmbisonics/.planning/stages/1-foundation/CONTEXT.md (Stage 1 discuss)
