@@ -61,7 +61,7 @@
 //     getScenes · applyScene · storeScene
 //   write and read, from js/venue.js:
 //     setVenue · saveVenue · loadVenue
-//     savePreset · loadPreset · getPresetList · getCurrentPreset
+//     savePreset · loadPreset · getPresetList   (getCurrentPreset removed v1.14.0)
 //     startPing · stopPing · getPingState
 // The count is grep-diffed against PluginEditor.cpp in BOTH directions by
 // ui_frontend_check.js section 3, whose count literal moved 3 -> 13 at 3.2 and
@@ -273,6 +273,11 @@ function formatValue(id, scaled) {
 // CLOSES every one of them — including on pointercancel and lostpointercapture.
 // An interrupted drag that never closes leaves the host in an open write region.
 
+// The keys a native <input type="range"> moves on — and nothing else.
+const VALUE_KEYS = new Set([
+  "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End",
+]);
+
 function bindSlider(id) {
   const state = Juce.getSliderState(id);
   const input = document.getElementById(`ctl-${id}`);
@@ -320,7 +325,11 @@ function bindSlider(id) {
   input.addEventListener("pointerup", closeGesture);
   input.addEventListener("pointercancel", closeGesture);
   input.addEventListener("lostpointercapture", closeGesture);
-  input.addEventListener("keydown", openGesture);
+  // v1.14.0 (B10) — ONLY A KEY THAT MOVES THE VALUE OPENS A GESTURE. Through
+  // v1.13.2 every keydown on a focused slider did: Tab through four sliders put
+  // four empty touch pairs on four lanes, and ⌘W with a slider focused opened one
+  // on the Meta keydown that the closing window never ended.
+  input.addEventListener("keydown", (e) => { if (VALUE_KEYS.has(e.key)) openGesture(); });
   input.addEventListener("keyup", closeGesture);
   input.addEventListener("blur", closeGesture);
 

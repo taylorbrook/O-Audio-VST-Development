@@ -384,6 +384,25 @@ public:
     juce::var    scenesToVar() const;
     void         scenesFromVar (const juce::var& payload);
 
+    /** v1.14.0 (B3) — THE CURRENT PRESET NAME, OWNED HERE AND NOT BY THE EDITOR.
+
+        Through v1.13.2 it lived only in the editor-owned OuariconPresetManager, so the rail opened
+        on "Default" (a name no preset has) after every editor reopen and every session restore.
+        It now rides the session as a root XML attribute beside uiLanguage. EMPTY means "no preset
+        loaded or saved yet", which the page renders as its "— unsaved —" placeholder.
+
+        Written by the editor on the message thread; read by getStateInformation, which a host may
+        call from any thread — hence the lock rather than an atomic (a String is not trivially
+        copyable). Never touched by the audio thread. */
+    juce::String getPresetName() const;
+    void         setPresetName (const juce::String& name);
+
+    /** v1.14.0 (B16) — the plugin version that WROTE the session being restored, read from the
+        root `pluginVersion` attribute getStateInformation now stamps. EMPTY for every session
+        written before v1.14.0 — which is itself the signal: v1.13.0's blur law re-reads those
+        (0.5 → radius x2), and the next law change can migrate on this instead of guessing. */
+    juce::String getRestoredSessionVersion() const;
+
     /** The published room, for the editor's field sampler. Message thread.
 
         `dbap::solve` is a free function with no state and no allocation (Q1), so sampling the field
@@ -397,6 +416,12 @@ public:
         whose XML round-trip rebuilds every property as a string so an isBool() guard on restore
         would never fire (critical_valuetree_xml_roundtrip_loses_type). */
     std::atomic<bool> tooltipsEnabled { false };
+
+    // v1.14.0 — see getPresetName / getRestoredSessionVersion. One lock for both: neither is ever
+    // read on the audio thread, and both are written at most once per user action or restore.
+    mutable juce::SpinLock nameLock;
+    juce::String           presetName;
+    juce::String           restoredSessionVersion;
 
     /** v1.7.0 — the monitor fold arm. UI/transport state, NOT a parameter and NOT persisted.
 

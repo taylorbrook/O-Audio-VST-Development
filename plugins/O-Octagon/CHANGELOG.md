@@ -1,5 +1,99 @@
 # O-Octagon Changelog
 
+## [1.14.0] - 2026-10-11
+
+Round 2 of the v1.13.1 four-goal review (`.planning/REVIEW-v1.13.1.md`): presets that behave.
+MINOR because preset semantics change: a load never writes the output level any more, the factory
+files are rewritten without their gain column, a stored user preset's gain (and its source and
+weights, as before) is ignored, and the rail gains a name field. No parameter, range or
+session-format change; v1.13.x sessions open unchanged.
+
+### Fixed
+
+- **B3 / U4 — no user preset could ever be created.** The rail was a `<select>` of existing names,
+  and Save sent the selected one. On a stock install every name is a factory preset, so the
+  module's guard refused it, and the page dropped the refusal (`.then(refreshPresets)`). Broken
+  since Stage 3.2; the stub seeded a writable "Init" with no guard, so no gate could see it.
+  **Now:** a name field with **Save as** beside it; the list is grouped **Factory / User**; Save as
+  is disabled on a factory name (case-insensitive, as the file system is) with the hint "factory
+  presets are read-only", and warns "replaces the user preset" before overwriting one; every
+  result is shown on one line (saved / loaded / factory name / empty name / not found / could not
+  write), and C++ returns a distinct `factoryName` reason instead of `writeFailed`. A fresh
+  instance shows "— unsaved —" instead of a blank select. The redundant current-name line is gone,
+  so the rail keeps its four rows and does not grow.
+- **B3 — the current preset name reset to "Default" on every editor open.** It lived only in the
+  editor-owned preset manager. It now lives on the processor and rides the session as a root
+  `presetName` attribute; a session saved before 1.14.0 opens as "— unsaved —".
+- **B5 — presets moved the hall's master level.** Three factory rows authored −1.5 / −3 / −2 dB and
+  every other load reset output gain to 0 dB, so an operator at −9 dB for the PA who loaded Concert
+  Default got +9 dB mid-show — against the suite rule that presets never touch output gain.
+  `outputGain` moved from `kAuthored` to `kPreserved` (13 + 15 = 28, still asserted) and the column
+  is gone from the factory rows.
+- **B5 — every preset load swung the source and the weights through their defaults.** The load
+  snapshotted the preserved set, let the module reset and apply all 28 parameters, then wrote the
+  snapshot back. The end state was bit-exact, but srcX went 0.17 → 0.5 → 0.17 and silenced speakers
+  went 0 → 1 → 0 through `setValueNotifyingHost` inside open gesture brackets: recorded on a
+  Touch/Latch lane, and audible for any block that started in the window. **Now** `loadPreserving`
+  no longer calls the module's apply: it reads the file itself, runs the same migration, and writes
+  only the fifteen authored parameters (the stored value, or the default for an omitted key),
+  skipping any that already hold the value. The preserved thirteen are never written. The v1.3.0 /
+  v1.13.0 migration moved from an editor lambda into `oo::presets::migrateParameters` so the two
+  paths cannot diverge. The load's gesture brackets now cover those fifteen only.
+- **B10 — host gestures leaked.** Any key on a focused slider opened a gesture (Tab through four
+  sliders put four empty touch pairs on four lanes); now only the eight keys a range input moves on
+  do. And a gesture cut off by the editor closing (⌘W mid-drag, a track switch, a project close) was
+  never ended, so the host kept the parameter "touched": the editor now counts every begin/end per
+  parameter and ends whatever is still open in its destructor. A **counter**, not
+  O-simpleWavetable's bool, because a preset load and a scene apply open brackets on parameters a
+  live drag may already hold.
+- **B16 — no session version stamp.** v1.13.0 changed blur's law with nothing to gate a migration
+  on (every pre-1.13 session re-reads its blur). `getStateInformation` now stamps a root
+  `pluginVersion`; a restore reads it back (`getRestoredSessionVersion()`), empty for any session
+  written before 1.14.0. Nothing migrates on it yet; the next law change can.
+- `getCurrentPreset` is no longer registered: the page stopped calling it (`current` rides
+  `getPresetList`), and §3 flags a registered-but-uncalled function. 28 → 27 native functions.
+
+### Tests
+
+- **G5** — `ui_frontend_check` §28's "close after load" compared against
+  `indexOf('presetManager.loadPreset')`, which had been −1 since the call moved into
+  `loadPreserving`, so it held against nothing. §28 now asserts its anchor exists, brackets bounded
+  by `oo::presets::kAuthored`, no call to the module's `loadPreset` / `loadPresetFromFile` /
+  `applyPresetData` anywhere in `Source/`, and that `loadPreserving` never touches `kPreserved`.
+- Render probe **CP** (renamed `preset-load-never-writes-the-preserved`): outputGain set to −9 dB
+  joins the preserved set and must hold; a listener on the thirteen must see **zero** value
+  callbacks during the load; the old −3 dB expectation is gone.
+- Render probe **DK** now loads its v1.7.0-shaped preset through `loadPreserving` from the user
+  directory (it drove the module's `loadPresetFromFile`, a path O-Octagon never takes): 5 authored
+  keys applied bit-exact (blur through the square-law migration), 13 preserved held, motion off.
+- New render probe **DT**: the `pluginVersion` stamp and the preset name round-trip, and a
+  pre-1.14.0 session (no attributes) restores unstamped and unsaved instead of keeping the instance's
+  previous values.
+- `ui_frontend_check` 43 → 44 sections: new §44 (value keys only; counted gestures closed in the
+  destructor, listener off first); §3 count 28 → 27; §23 scopes the decimal rule to the venue table
+  and asserts `#preset-name` is the only other input.
+- `ui_layout_check` 38 → 39 sections: new §39 — the stock-install rail, factory names refused in
+  either case, a user preset created and listed under User, the replace warning, a factory load,
+  three C++ refusals rendered, the group captions in French, the rail fitting in en/fr/zh-Hans with
+  no wrapped or clipped caption, and the B10 key rule at runtime (Shift/Meta/Control/Alt/"a" open
+  nothing; ArrowRight opens and closes one gesture).
+- `juce-stub.js` (G3's preset half): the eight real factory names, no user presets, nothing current,
+  a case-insensitive factory guard returning `factoryName`, `notFound` on load, a one-shot
+  `setNextPresetResult` lever.
+- `tests/i18n-states.json`: a state that renders the longest result line, so check-ui-labels
+  measures it in all three languages.
+- **Negative controls:** v1.13.2's `loadPreserving` body → CP fails (26 callbacks on the preserved
+  set, end state still bit-exact — exactly what the old gate could not see); stamp removed → DT
+  fails; v1.13.2 page + editor → §3, §6, §18, §23, §28 (4 clauses), §44 (7 clauses) fail and layout
+  §39 cannot run; only the keydown rule reverted → §39 fails (10 gesture entries).
+- New strings (14 labels, 1 tooltip, 2 tooltips rewritten for the new preset scope): French at
+  `reviewed: false`, Chinese at `'mt'` (glossary-drafted, not yet back-translated).
+- Render 78/0 (77 + DT; every other probe's detail line byte-identical to v1.13.2 except BY's
+  session size, +37 bytes for the two attributes, and BR's ping RMS, which varies run to run with its
+  random noise), geometry 60/0, `ui_frontend_check` 44/44, `ui_layout_check` 39/39, check-i18n pass,
+  check-ui-labels pass (89 labels measured), French lint clean, zh lint 0 findings for O-Octagon,
+  `auval -v aufx OuOc OuDv` PASS, pluginval strictness 10 SUCCESS on the installed VST3.
+
 ## [1.13.2] - 2026-10-11
 
 Round 1 of the v1.13.1 four-goal review (`.planning/REVIEW-v1.13.1.md`): the stereo bus made a

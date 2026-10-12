@@ -121,7 +121,8 @@
 // at O-Octagon's call site instead.
 #include "OuariconPresetManager.h"
 
-class OctagonEditor : public juce::AudioProcessorEditor
+class OctagonEditor : public juce::AudioProcessorEditor,
+                      private juce::AudioProcessorParameter::Listener
 {
 public:
     explicit OctagonEditor (OOctagonProcessor&);
@@ -131,6 +132,22 @@ public:
     void resized() override;
 
 private:
+    // ── v1.14.0 (B10) — NO HOST GESTURE OUTLIVES THE EDITOR ─────────────────────────────────────
+    //
+    // A slider drag opens a host gesture through the attachment (sliderDragStarted ->
+    // beginChangeGesture). If the window dies mid-drag — ⌘W, a track switch, a project close — no
+    // sliderDragEnded ever arrives, and ~WebSliderParameterAttachment only removes its listener. The
+    // host then keeps the parameter "touched" and Touch/Latch keeps writing. Every begin / end on
+    // every parameter is COUNTED here and the destructor ends whatever is still open.
+    //
+    // A COUNTER, NOT O-simpleWavetable's bool: loadPreset and applySceneWeights open their own
+    // brackets on parameters a live drag may already hold, so one parameter can legitimately be
+    // two deep. A bool would read the inner end as "closed" and leave the drag's gesture open.
+    void parameterValueChanged (int, float) override {}
+    void parameterGestureChanged (int parameterIndex, bool gestureIsStarting) override;
+    void closeOpenGestures();
+    std::array<std::atomic<int>, oo::params::kCount> openGestures {};
+
     // Serves the embedded UI files. The callback receives a BARE PATH — there is
     // no scheme or host to strip, and the scheme differs per platform
     // (critical_webview_resource_provider_and_schemes).
@@ -149,9 +166,13 @@ private:
         bit-compare (probe CL) rather than inheriting 3.2's result: the tree shape the guarantee
         holds over has changed.
 
-        A preset WITHOUT scenes leaves the slots untouched rather than clearing them —
-        `applyPresetJson` calls `customLoad` only when the "customState" property exists
-        (OuariconPresetManager.h:346-349), verified in module source.
+        A preset WITHOUT scenes leaves the slots untouched rather than clearing them: the load
+        (oo::presets::loadPreserving since v1.14.0) hands scenesFromVar a void var, which it treats
+        as "leave the slots alone".
+
+        ITS CURRENT NAME IS NOT ITS OWN. Since v1.14.0 (B3) the processor holds the name, so it
+        rides the session and survives an editor reopen; this manager's copy is seeded from it at
+        construction and every successful save / load writes it back.
     */
     OuariconPresetManager presetManager;
 

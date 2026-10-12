@@ -3,7 +3,7 @@
 ## Status
 - **Current Status:** 📦 Installed — stage-4 roll-up re-verify ✅ VERIFIED 2026-08-14, all four
   stages complete; dev-branded build (`O-Octagon-dev`), not yet released
-- **Version:** 1.13.2 (dev build installed; v1.13.0 is the public release)
+- **Version:** 1.14.0 (dev build installed; v1.13.0 is the public release)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
 - **Complexity:** 5.0 (capped; raw 13.0) — staged implementation
@@ -285,6 +285,14 @@
   IN-23), the crushed mini-plan (moved under the table, numbered), the settings dismiss, the
   Headphones preference toggle and the ping's bad-target disarm. New: layout §35-38, unit DQ,
   render DR/DS; each fix's gate shown failing with that fix reverted. Rounds 2-7 remain queued.
+- **2026-10-11 (v1.14.0 — `/improve`, Round 2 of the v1.13.1 four-goal review):** presets that
+  behave. A user preset can be created at last (name field + Save as, Factory / User groups, the
+  factory guard surfaced as its own `factoryName` reason, every result rendered); the current preset
+  name lives on the processor and rides the session. `outputGain` is preserved, never authored; the
+  load reads the file itself and writes only the fifteen authored parameters, so the source, the
+  weights and the level no longer swing through their defaults mid-load (CP now counts callbacks).
+  Gestures open only on value keys, and the editor closes counted open gestures on teardown. Sessions
+  carry a `pluginVersion` stamp. G5 (§28 vacuous since `loadPreserving`) fixed. Rounds 3a-7 remain.
 
 **Still open from the v1.8.0 CODE_REVIEW after the v1.10.1 sweep:** design calls IN-03, 04, 11,
 13, 14, 20, 22 and the fail-first test work IN-23 … IN-30 (DF's `motionSolves > 0` liveness gate,

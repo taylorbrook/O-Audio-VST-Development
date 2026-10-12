@@ -251,8 +251,11 @@ head(3, 'bridge closure in BOTH directions; the surface is exactly THIRTEEN (P65
     // read side rides getStatus (stereoBus / binauralActive / stereoBinaural) on the same poll
     // the monitor uses, for the same reason: the audio thread decides per block whether the arm
     // applies, and a one-shot reader would go stale the moment the host re-negotiated.
-    check(registered.size === 28,
-        `PluginEditor.cpp registers exactly 28 native functions — ${registered.size}: ${[...registered].sort().join(', ')}`);
+    // v1.14.0 REMOVES ONE: getCurrentPreset. The preset name now lives on the processor and rides
+    // getPresetList as `current`; the page stopped calling the reader, so keeping it would be the
+    // registered-not-called dead weight this section exists to flag.
+    check(registered.size === 27,
+        `PluginEditor.cpp registers exactly 27 native functions — ${registered.size}: ${[...registered].sort().join(', ')}`);
     check(setsEqual(called, registered),
         `JS calls == C++ registers${setsEqual(called, registered) ? ''
             : ` — called-not-registered: [${diff(called, registered)}], registered-not-called: [${diff(registered, called)}]`}`);
@@ -518,7 +521,7 @@ head(6, 'no textContent write erases an authored label — the dataset.label mir
     // when that thing gets more complicated is the vacuity class this file
     // already catches three times elsewhere — found here by a control rather
     // than reasoned about, which is why the controls are run at all.
-    const VENUE_EL_ALIASES = new Set(['venueNameNode', 'presetCurrentNode']);
+    const VENUE_EL_ALIASES = new Set(['venueNameNode']);
     const venueAliases = [...venueSrc.matchAll(/const el = ([^;\n]+);/g)].map(m => m[1].trim());
     check(venueAliases.length > 0,
         `[non-vacuity] venue.js does alias \`el\` — ${venueAliases.length} site(s)`);
@@ -1058,7 +1061,7 @@ head(18, 'font-variant-numeric: tabular-nums on every value readout class');
     // header written wholesale would carry .vcol-head and fail the treatment check below.
     //
     // 84 -> 85 at v1.5.0: val-decorr, the readout of the 18th parameter.
-    const VALUE_IDS = /^(?:val-[A-Za-z0-9_]+|readout-[a-z]+|venue-name|vf-[A-Za-z0-9-]+|vclass-[0-9]+|vvenue-name|vset-name|vping-state|vpreset-current|map-invalid-copy|vcol-delay-unit)$/;
+    const VALUE_IDS = /^(?:val-[A-Za-z0-9_]+|readout-[a-z]+|venue-name|vf-[A-Za-z0-9-]+|vclass-[0-9]+|vvenue-name|vset-name|vping-state|vpreset-state|map-invalid-copy|vcol-delay-unit)$/;
     const valueNodes = [...S.html.matchAll(/<[a-z]+\b[^>]*\bid="([^"]+)"[^>]*>/g)]
         .filter(m => VALUE_IDS.test(m[1]))
         .map(m => m[0]);
@@ -1309,7 +1312,15 @@ head(23, 'every venue field is type="text" + inputmode="decimal", and the parse 
     // "typed abc" and "cleared the field" are INDISTINGUISHABLE and FUNC-02 criterion 1 becomes
     // untestable. This is the assertion that keeps that door shut.
     const venueSection = S.html.slice(S.html.indexOf('id="screen-venue"'));
-    const inputs = [...venueSection.matchAll(/<input\b[^>]*>/g)].map(m => m[0]);
+    const allInputs = [...venueSection.matchAll(/<input\b[^>]*>/g)].map(m => m[0]);
+
+    // v1.14.0 (U4): the preset rail's NAME field is the one Venue-screen input that is not a
+    // measured value. It is scoped out BY ID, and asserted to be the only exception, so a new
+    // venue field cannot slip past the decimal rule by being "not a vf-".
+    const inputs = allInputs.filter(t => /\bid="vf-/.test(t));
+    const others = allInputs.filter(t => ! /\bid="vf-/.test(t)).map(t => (t.match(/\bid="([^"]+)"/) || [, '?'])[1]);
+    check(others.length === 1 && others[0] === 'preset-name',
+        `the only non-table input on the Venue screen is #preset-name — [${others.join(', ')}]`);
 
     // 42 -> 50 at v1.4.0 (the eight vf-N-delay fields). The delay column is type="text" for
     // exactly the reason the other four are: on invalid content a number input cannot tell
@@ -1519,8 +1530,8 @@ head(27, 'EXACTLY ONE setCustomStateCallbacks, touching only SCENES (FUNC-05, re
     check(! /createPresetBar/.test(htmlCode) && ! PAGE_MODULES.some(m => /createPresetBar/.test(m.code)),
         'createPresetBar() is never called (comments stripped)');
 
-    // Four functions, not the module's ten.
-    const presetFns = ['savePreset', 'loadPreset', 'getPresetList', 'getCurrentPreset'];
+    // Three functions, not the module's ten (four until v1.14.0 dropped getCurrentPreset).
+    const presetFns = ['savePreset', 'loadPreset', 'getPresetList'];
     for (const fn of presetFns)
         check(new RegExp(`withNativeFunction \\("${fn}"`).test(S.editorCpp),
             `${fn} is registered`);
@@ -1531,31 +1542,51 @@ head(27, 'EXACTLY ONE setCustomStateCallbacks, touching only SCENES (FUNC-05, re
     check(! /innerHTML/.test(VENUE_CODE), 'venue.js never assigns innerHTML');
 }
 
-// ──────────────────────────────────── 28. the preset load brackets all 18 (N5) ──
-head(28, 'the loadPreset call site brackets ALL 18 parameters (N5/P59)');
+// ───────────────────────── 28. the preset load brackets what it writes (N5 / B5 / G5) ──
+head(28, 'the loadPreset call site brackets the fifteen it writes, and never reaches the module apply (N5/P59, B5, G5)');
 {
-    // applyPresetJson calls setValueNotifyingHost DIRECTLY on the parameter, not through a
-    // ParameterAttachment — so F3's unchanged-write skip does NOT apply (callIfParameterValueChanged
-    // is a member of the ATTACHMENT), and setValueNotifyingHost carries no brackets of its own. Up
-    // to 34 bare host writes per load, which in Logic with a lane in Latch or Touch is a recorded
-    // sweep the operator never performed.
+    // A preset write is setValueNotifyingHost DIRECTLY on the parameter, not through a
+    // ParameterAttachment — so it carries no brackets of its own. In Logic with a lane in Latch or
+    // Touch an unbracketed load is a recorded sweep the operator never performed.
     const body = blockAt(S.editorCpp, S.editorCpp.indexOf('withNativeFunction ("loadPreset"'));
 
     check(body.length > 0, 'the loadPreset registration is present');
     check(/beginChangeGesture\(\)/.test(body), 'it opens a gesture');
     check(/endChangeGesture\(\)/.test(body), 'and closes one');
 
-    // Bounded by oo::params::kCount, never by a literal 18 — the same rule §16 enforces on the
-    // relay loop, so adding a parameter cannot leave one unbracketed.
-    check(/oo::params::kCount/.test(body),
-        'the bracket loops are bounded by oo::params::kCount, not by a literal 18');
-    check(/oo::params::id \(i\)/.test(body),
-        'and the ids come from oo::params::id(i), not a second transcribed list');
+    // v1.14.0 (B5): the load writes ONLY kAuthored, so the brackets are bounded by that list — the
+    // same single source PresetPolicy.h's partition static_assert holds against kCount.
+    check(/oo::presets::kAuthored\.size\(\)/.test(body),
+        'the bracket loops are bounded by oo::presets::kAuthored.size(), not by a literal');
+    check(/oo::presets::kAuthored\[i\]/.test(body),
+        'and the ids come from oo::presets::kAuthored, not a second transcribed list');
 
-    // The close must be reachable on BOTH paths — an interrupted load that never closed would
-    // leave the host in an open automation-write region on all seventeen.
-    check(body.indexOf('endChangeGesture') > body.indexOf('presetManager.loadPreset'),
-        'endChangeGesture runs AFTER the load, unconditionally');
+    // G5 — THROUGH v1.13.2 THIS COMPARED AGAINST indexOf('presetManager.loadPreset'), WHICH WAS -1
+    // (the call had moved into loadPreserving), so "close after load" held against nothing. The
+    // anchor is now asserted to EXIST before the order is compared.
+    const loadAt = body.indexOf('oo::presets::loadPreserving');
+    check(loadAt >= 0, `[non-vacuity] the body calls oo::presets::loadPreserving (index ${loadAt})`);
+    check(loadAt >= 0 && body.lastIndexOf('endChangeGesture') > loadAt
+                      && body.indexOf('beginChangeGesture') < loadAt,
+        'the brackets OPEN before loadPreserving and CLOSE after it, unconditionally');
+
+    // B5 — the module's apply resets ALL 28 before applying, which swings the preserved thirteen
+    // through their defaults inside these brackets. No O-Octagon source may reach it.
+    const srcFiles = fs.readdirSync(path.join(pluginRoot, 'Source'), { recursive: true })
+        .filter(f => typeof f === 'string' && /\.(cpp|h)$/.test(f))
+        .map(f => path.join(pluginRoot, 'Source', f));
+    const applyCallers = srcFiles.filter(f =>
+        /\.(loadPreset|loadPresetFromFile|applyPresetData)\s*\(/.test(stripComments(fs.readFileSync(f, 'utf8'))));
+    check(srcFiles.length > 5 && applyCallers.length === 0,
+        `no call to the module's loadPreset / loadPresetFromFile / applyPresetData in ${srcFiles.length} source files`
+        + (applyCallers.length ? ` — ${applyCallers.map(f => path.basename(f)).join(', ')}` : ''));
+
+    // ...and the local apply walks kAuthored, never kPreserved.
+    const policySrc = stripComments(fs.readFileSync(path.join(pluginRoot, 'Source', 'Data', 'PresetPolicy.h'), 'utf8'));
+    // From the BODY's brace: the signature's `applyCustomState = {}` default is a brace too.
+    const lp = blockAt(policySrc, policySrc.indexOf('\n{', policySrc.indexOf('inline bool loadPreserving')));
+    check(lp.length > 0 && /for \(const char\* id : kAuthored\)/.test(lp) && ! /kPreserved/.test(lp),
+        'loadPreserving writes from kAuthored and never touches kPreserved');
 
     // And never by editing the shared module: four other plugins depend on it.
     const moduleH = path.join(pluginRoot, '..', '..', 'modules', 'persistence', 'preset-manager',
@@ -2206,6 +2237,41 @@ head(43, 'the ms/metres conversion divides by what C++ SENT — the page owns no
         'and the rail comes from OOctagonProcessor::kVenueDelayClampMs');
 }
 
+// ───────────────────────────── 44. no gesture without a value, none outlives the editor (B10) ──
+head(44, 'a slider gesture opens only on a VALUE key, and the editor closes every open one — counted (B10)');
+{
+    // (a) Through v1.13.2 ANY keydown on a focused slider opened a gesture: Tab through four
+    //     sliders = four empty touch pairs on four lanes; ⌘W = a Meta-keydown gesture the closing
+    //     window never ended.
+    const bind = blockAt(S.appJs, S.appJs.indexOf('function bindSlider'));
+    check(bind.length > 0, 'bindSlider is present');
+    check(! /addEventListener\("keydown", openGesture\)/.test(bind),
+        'keydown is NOT wired straight to openGesture');
+    check(/addEventListener\("keydown", \(e\) => \{ if \(VALUE_KEYS\.has\(e\.key\)\) openGesture\(\); \}\)/.test(bind),
+        'keydown opens a gesture only through VALUE_KEYS');
+    const keysDecl = S.appJs.match(/const VALUE_KEYS = new Set\(\[([\s\S]*?)\]\)/);
+    const keys = keysDecl ? [...keysDecl[1].matchAll(/"([A-Za-z]+)"/g)].map(m => m[1]).sort() : [];
+    const want = ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'End', 'Home', 'PageDown', 'PageUp'];
+    check(JSON.stringify(keys) === JSON.stringify(want),
+        `VALUE_KEYS is exactly the eight keys a range input moves on — [${keys.join(', ')}]`);
+
+    // (b) The C++ half: every begin/end COUNTED (loadPreset and applySceneWeights nest brackets
+    //     inside a live drag, so a bool would lose the outer one), the listener off BEFORE the
+    //     drain, and the drain in the destructor.
+    check(/std::array<std::atomic<int>, oo::params::kCount> openGestures/.test(S.editorH),
+        'the editor counts gestures per parameter in std::atomic<int>, not a bool');
+    const dtor = blockAt(S.editorCpp, S.editorCpp.indexOf('OctagonEditor::~OctagonEditor()'));
+    const offAt = dtor.indexOf('removeListener (this)');
+    const closeAt = dtor.indexOf('closeOpenGestures()');
+    check(offAt >= 0 && closeAt > offAt,
+        'the destructor removes its listener and THEN calls closeOpenGestures()');
+    const close = blockAt(S.editorCpp, S.editorCpp.indexOf('void OctagonEditor::closeOpenGestures'));
+    check(/exchange \(0/.test(close) && /endChangeGesture\(\)/.test(close),
+        'closeOpenGestures drains each counter and ends that many gestures');
+    check(/param->addListener \(this\)/.test(S.editorCpp),
+        'and the editor actually listens — or every counter reads 0 and the drain is vacuous');
+}
+
 // ─────────────────────────────────────────────────────────────────── done ──
-console.log(`\n${failed === 0 ? 'ALL SECTIONS PASS' : `${failed} FAILED`} — 43 sections`);
+console.log(`\n${failed === 0 ? 'ALL SECTIONS PASS' : `${failed} FAILED`} — 44 sections`);
 process.exit(failed);

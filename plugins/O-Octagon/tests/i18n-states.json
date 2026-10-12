@@ -33,6 +33,10 @@
     "click": "#tab-venue"
   },
   {
+    "name": "Preset rail, the LONGEST result line (v1.14.0 U4): a C++ factoryName refusal, rendered through setLabel into #vpreset-state on the Venue screen. The stub's one-shot lever makes the refusal reachable, as C++ can only send it on a race the page's own guard loses",
+    "eval": "(() => { const n = document.getElementById('preset-name'); n.value = 'Another'; n.dispatchEvent(new Event('input', { bubbles: true })); window.__OCTAGON_STUB__.setNextPresetResult({ ok: false, reason: 'factoryName', speaker: -1 }); document.getElementById('btn-preset-save').click(); })();"
+  },
+  {
     "name": "BINAURAL banner (v1.11.0 — stereo bus, fold active; SAFE yields). The REAL status since v1.13.2: the map is notEightChannels, which C++ always reports on a stereo bus; through v1.13.1 this fixture said 'none', a combination C++ cannot produce, and the two-banner header the real one built was never measured (B1). LAST: the stub status is not reset between states, so binauralActive must not leak into a banner state after it",
     "eval": "window.__OCTAGON_STUB__.setMapInvalid('notEightChannels', -1); window.__OCTAGON_STUB__.setStatus({ safeMode: true, stereoBus: true, binauralActive: true, stereoBinaural: true, monitorArmed: false });"
   }

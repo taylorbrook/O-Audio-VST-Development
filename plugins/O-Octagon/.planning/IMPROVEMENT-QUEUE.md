@@ -6,7 +6,8 @@ starting_version: 1.13.1
 status: in_progress
 completed:
   - "Round 1 — stereo bus first-class + silent data loss (v1.13.2, 2026-10-11)"
-next: "Round 2 — presets that behave (v1.14.0)"
+  - "Round 2 — presets that behave (v1.14.0, 2026-10-11)"
+next: "/improve-verify + /publish (Rounds 1-2 fix publicly shipped defects), then Round 3a"
 supersedes: >
   The 2026-08-25 queue (last committed at 0c7154f2). Its rounds 1–3 shipped as v1.3.1–v1.3.2; its
   round 5 was partly applied (v1.3.3–v1.3.5); its rounds 6–8 and the motion milestone shipped as
@@ -46,7 +47,15 @@ Load .venue, typed edits) and on a 7.1 track (no regression).
 
 ---
 
-## ▶ Round 2 — presets that behave → MINOR v1.14.0
+## ~~Round 2 — presets that behave → MINOR v1.14.0~~ ✅ DONE (v1.14.0, 2026-10-11)
+
+Shipped as specified. Deviations, all recorded in the CHANGELOG: the preserved-set fix is a LOCAL
+apply in `PresetPolicy.h` (no module opt-in — nine plugins share the header), and the v1.3.0 /
+v1.13.0 migration moved into `oo::presets::migrateParameters` so both paths share it;
+`getCurrentPreset` was unregistered (the page stopped calling it; 28 → 27 native functions); the
+B10 counter is gated statically (§44) plus the key rule at runtime (layout §39) — the editor cannot
+be built into the render harness, so the destructor drain is a hand check in a host.
+
 
 ```
 /clear
