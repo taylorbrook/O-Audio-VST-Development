@@ -168,7 +168,12 @@ export function createVenueScreen(deps) {
   const miniGlyphs = rows.map((r) => need(`mglyph-${r.n}`));
 
   const presetSelect = need("preset-list");
-  const presetCurrentNode = need("vpreset-current");
+  const presetNameInput = need("preset-name");
+  const presetSaveButton = need("btn-preset-save");
+  const presetLoadButton = need("btn-preset-load");
+  const presetStateNode = need("vpreset-state");
+  const presetGroupCaptions = { factory: need("preset-group-factory"), user: need("preset-group-user") };
+  const presetUnsavedCaption = need("preset-unsaved");
   const pingStateNode = need("vping-state");
 
   // v1.13.2 (B7) — where the result of a venue write is shown.
@@ -650,55 +655,173 @@ export function createVenueScreen(deps) {
   // markup, which erases authored labels by construction
   // (pattern_js_state_updater_overwrites_html_labels). The options below are
   // built with createElement and appended.
+  //
+  // ── v1.14.0 (B3/U4) — A RAIL THAT CAN CREATE A PRESET ─────────────────────
+  // Through v1.13.2 Save sent presetSelect.value — always an existing name, and
+  // on a stock install always a FACTORY name — the module refused it, and the
+  // refusal was dropped (.then(refreshPresets)). Now the NAME FIELD is what Save
+  // writes, Save is disabled on a factory name with the read-only hint, every
+  // completion is rendered through setLabel, and the current name comes from
+  // the PROCESSOR (it rides the session, so a reopen shows the preset that is
+  // actually loaded instead of "Default").
+  let presetFactory = new Set();
+  let presetUser = new Set();
+  let presetCurrent = "";
+
+  // The last RESULT, as a CODE, so a hint that stops applying hands the line
+  // back to it. One switch turns a code into a LITERAL setLabel key — check-i18n
+  // [13] refuses a computed key, because a computed key cannot be checked.
+  let presetResult = "idle";
+
+  function setPresetLine(code) {
+    const node = presetStateNode;
+    node.dataset.tone = code === "readOnly" || code === "replaces" ? "hint"
+      : code === "idle" || code === "saved" || code === "loaded" ? "" : "alert";
+    if (node.dataset.tone === "") delete node.dataset.tone;
+
+    switch (code) {
+      case "saved":       window.__setLabel(node, "preset.saved"); break;
+      case "loaded":      window.__setLabel(node, "preset.loaded"); break;
+      case "readOnly":    window.__setLabel(node, "preset.readOnly"); break;
+      case "replaces":    window.__setLabel(node, "preset.replaces"); break;
+      case "factoryName": window.__setLabel(node, "preset.factoryName"); break;
+      case "emptyName":   window.__setLabel(node, "preset.emptyName"); break;
+      case "notFound":    window.__setLabel(node, "preset.notFound"); break;
+      case "idle":        window.__setLabel(node, "preset.idle"); break;
+      default:            window.__setLabel(node, "preset.writeFailed"); break;
+    }
+  }
+
+  // The optgroup captions and the placeholder live on hidden data-i18n spans
+  // (index.html), because an <optgroup> displays its label ATTRIBUTE and the
+  // i18n sweep writes textContent. Copied across on every render and whenever
+  // a language switch rewrites the spans.
+  function relabelPresetList() {
+    for (const group of presetSelect.querySelectorAll("optgroup")) {
+      const caption = presetGroupCaptions[group.dataset.group];
+      if (caption) group.label = caption.textContent;
+    }
+    const placeholder = presetSelect.querySelector("option[data-placeholder]");
+    // .label, not textContent: an <option> displays its label when one is set.
+    if (placeholder) placeholder.label = presetUnsavedCaption.textContent;
+  }
+  new MutationObserver(relabelPresetList).observe(presetGroupCaptions.factory.parentNode,
+    { subtree: true, childList: true, characterData: true });
+
+  // Save is possible for any non-empty name that is not a factory preset. The
+  // hint says why it is not, or that the name replaces a user preset — the
+  // module overwrites without asking, so the page says so before the click.
+  // CASE-INSENSITIVE, because the store is: on a stock macOS / Windows volume
+  // "chamber" opens Chamber.json, so C++'s guard refuses it and a user file
+  // named "my hall" replaces "My Hall".
+  const hasName = (set, name) => [...set].some((n) => n.toLowerCase() === name.toLowerCase());
+
+  function syncPresetSave(showHint) {
+    const name = presetNameInput.value.trim();
+    const isFactory = hasName(presetFactory, name);
+    presetSaveButton.disabled = name === "" || isFactory;
+    presetLoadButton.disabled = presetSelect.value === "";
+    if (!showHint) return;
+    if (isFactory) setPresetLine("readOnly");
+    else if (hasName(presetUser, name)) setPresetLine("replaces");
+    else if (presetStateNode.dataset.tone === "hint") setPresetLine(presetResult);
+  }
 
   function renderPresets(payload) {
     if (payload === null || typeof payload !== "object") return;
 
-    const names = Array.isArray(payload.presets) ? payload.presets : [];
-    const keep = presetSelect.value;
+    const names = Array.isArray(payload.presets) ? payload.presets.map(String) : [];
+    presetFactory = new Set(Array.isArray(payload.factory) ? payload.factory.map(String) : []);
+    presetUser = new Set(names.filter((n) => !presetFactory.has(n)));
+    presetCurrent = typeof payload.current === "string" ? payload.current : "";
 
+    const keep = presetSelect.value;
     presetSelect.replaceChildren();
 
-    for (const name of names) {
-      const value = document.createElement("option");
-      value.value = String(name);
-      value.textContent = String(name);
-      presetSelect.appendChild(value);
+    // "— unsaved —" stands in for a blank select whenever the current name is
+    // not in the list: a fresh instance, or a session whose preset file is gone.
+    if (!names.includes(presetCurrent)) {
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.disabled = true;
+      placeholder.dataset.placeholder = "";
+      presetSelect.appendChild(placeholder);
     }
 
-    if (names.includes(keep)) presetSelect.value = keep;
-    else if (typeof payload.current === "string") presetSelect.value = payload.current;
+    for (const [group, members] of [["factory", presetFactory], ["user", presetUser]]) {
+      const list = names.filter((n) => members.has(n));
+      if (list.length === 0) continue;
+      const optgroup = document.createElement("optgroup");
+      optgroup.dataset.group = group;
+      for (const name of list) {
+        const value = document.createElement("option");
+        value.value = name;
+        value.textContent = name;
+        optgroup.appendChild(value);
+      }
+      presetSelect.appendChild(optgroup);
+    }
+    relabelPresetList();
 
-    const el = presetCurrentNode;
-    el.textContent = String(payload.current ?? "");
+    presetSelect.value = names.includes(keep) ? keep : (names.includes(presetCurrent) ? presetCurrent : "");
+    syncPresetSave(false);
   }
 
   async function refreshPresets() {
     try {
       renderPresets(await nativeFn("getPresetList")());
-      const current = await nativeFn("getCurrentPreset")();
-      if (current !== null && typeof current === "object") {
-        const el = presetCurrentNode;
-        el.textContent = String(current.name ?? "");
-      }
     } catch (err) {
       console.error("preset list failed", err);
     }
   }
 
-  need("btn-preset-save").addEventListener("click", () => {
-    const name = String(presetSelect.value ?? "").trim();
-    if (name === "") return;
+  // The name field starts on the CURRENT preset, and follows a successful load
+  // or save — so "Save as" after a tweak to a user preset is one click.
+  async function initPresets() {
+    await refreshPresets();
+    presetSelect.value = presetCurrent !== "" && (presetFactory.has(presetCurrent) || presetUser.has(presetCurrent))
+      ? presetCurrent : "";
+    presetNameInput.value = presetCurrent;
+    syncPresetSave(false);
+  }
+
+  presetNameInput.addEventListener("input", () => syncPresetSave(true));
+  presetNameInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !presetSaveButton.disabled) presetSaveButton.click();
+  });
+  presetSelect.addEventListener("change", () => syncPresetSave(false));
+
+  function renderPresetResult(op, name, result) {
+    if (result === null || typeof result !== "object") return;
+    // An unknown refusal code falls through setPresetLine's default to
+    // "could not write the preset" — the honest reading of any failed write.
+    presetResult = result.ok === true ? (op === "save" ? "saved" : "loaded") : String(result.reason ?? "");
+    if (result.ok === true) presetNameInput.value = name;
+    setPresetLine(presetResult);
+  }
+
+  presetSaveButton.addEventListener("click", () => {
+    const name = presetNameInput.value.trim();
+    if (name === "" || hasName(presetFactory, name)) { syncPresetSave(true); return; }
     nativeFn("savePreset")(name)
-      .then(refreshPresets)
+      .then(async (result) => {
+        await refreshPresets();
+        if (result?.ok === true) presetSelect.value = name;
+        renderPresetResult("save", name, result);
+        syncPresetSave(false);
+      })
       .catch((err) => console.error("savePreset failed", err));
   });
 
-  need("btn-preset-load").addEventListener("click", () => {
+  presetLoadButton.addEventListener("click", () => {
     const name = String(presetSelect.value ?? "").trim();
     if (name === "") return;
     nativeFn("loadPreset")(name)
-      .then(refreshPresets)
+      .then(async (result) => {
+        await refreshPresets();
+        renderPresetResult("load", name, result);
+        syncPresetSave(false);
+      })
       .catch((err) => console.error("loadPreset failed", err));
   });
 
@@ -941,7 +1064,7 @@ export function createVenueScreen(deps) {
       .catch((err) => console.error("applySuggestedDelays failed", err));
   });
 
-  refreshPresets();
+  initPresets();
 
   // ── The surface app.js drives ────────────────────────────────────────────
   return {

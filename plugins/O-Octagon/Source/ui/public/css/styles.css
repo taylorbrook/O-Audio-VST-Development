@@ -1549,6 +1549,24 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
   border-radius: 2px;
 }
 
+/* v1.14.0 (U4) — the preset rail's two rows. The buttons are a FIXED width so
+   the select and the name field line up, and so the widest caption ("Enregistrer
+   sous") is the budget rather than whatever the list happens to hold. */
+.preset-row { display: flex; gap: 8px; min-width: 0; }
+.preset-row .vselect,
+.preset-row .vfield { flex: 1 1 auto; min-width: 0; width: auto; height: 26px; }
+/* 132 px: "ENREGISTRER SOUS" is ~107 px of 10 px uppercase mono at 0.06em, and
+   it must stay ONE line — nowrap turns a too-narrow box into a measurable
+   overflow (layout §39 checks scrollWidth) instead of a silent second line. */
+.preset-row .vbtn { flex: 0 0 132px; white-space: nowrap; }
+/* Disabled reads FLAT: the ground drops to the panel, so it stops looking like a
+   raised button, and the caption stays in --ink-faint (AA on --panel). */
+.preset-group .vbtn:disabled,
+.preset-group .vbtn:disabled:hover { opacity: 1; color: var(--ink-faint); background: var(--panel);
+                                     border-color: var(--rule-soft); cursor: default; }
+.preset-group .vresult { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.preset-group .vresult[data-tone="hint"] { color: var(--ink-dim); }
+
 .ping-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

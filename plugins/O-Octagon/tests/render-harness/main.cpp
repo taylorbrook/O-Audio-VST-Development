@@ -5363,12 +5363,31 @@ int main()
             // one the WR-01 reset cannot be observed to move — the liveness gate below caught
             // exactly that when this line began with 1.0f.
             setWeights (proc, { 0.95f, 0.85f, 0.7f, 0.0f, 0.0f, 0.0f, 0.25f, 0.9f });
+            //
+            // v1.14.0 (B5). The hall's level: an operator at -9 dB for the PA. Through v1.13.2
+            // Distant Field authored -3 dB here, i.e. +6 dB on this rig mid-show.
+            setParam (proc, "outputGain", -9.0f);
 
             const auto readNorm = [&proc] (const char* id)
             {
                 auto* p = proc.getAPVTS().getParameter (id);
                 return p != nullptr ? p->getValue() : -1.0f;
             };
+
+            // v1.14.0 (B5) — THE TRANSIENT CLAUSE. "Bit-unchanged afterwards" passed while every
+            // load swung srcX 0.17 -> 0.5 -> 0.17 and w4 0 -> 1 -> 0 through setValueNotifyingHost,
+            // inside open gesture brackets: recorded on a Touch/Latch lane, and audible for any
+            // block that started inside the window. The end state cannot see that; a listener can.
+            struct WriteCounter final : juce::AudioProcessorParameter::Listener
+            {
+                int writes { 0 };
+                void parameterValueChanged (int, float) override { ++writes; }
+                void parameterGestureChanged (int, bool) override {}
+            } preservedWrites;
+
+            for (const char* id : oo::presets::kPreserved)
+                if (auto* p = proc.getAPVTS().getParameter (id))
+                    p->addListener (&preservedWrites);
 
             const auto defaultNorm = [&proc] (const char* id)
             {
@@ -5394,8 +5413,15 @@ int main()
 
             const bool loaded = oo::presets::loadPreserving (presets, proc.getAPVTS(), "Distant Field");
 
-            // Clause 3a — the six moved to the preset's ENGINEERING values. Passes with the bug
-            // present; here for coverage, and as NC2's control.
+            for (const char* id : oo::presets::kPreserved)
+                if (auto* p = proc.getAPVTS().getParameter (id))
+                    p->removeListener (&preservedWrites);
+
+            const bool noTransient = preservedWrites.writes == 0;
+
+            // Clause 3a — the five moved to the preset's ENGINEERING values. Passes with the bug
+            // present; here for coverage, and as NC2's control. outputGain is no longer one of
+            // them (v1.14.0, B5): it is preserved, and clause 3b holds it at -9 dB.
             const auto readEng = [&proc] (const char* id)
             {
                 auto* p = proc.getAPVTS().getParameter (id);
@@ -5406,8 +5432,7 @@ int main()
                                  && near (readEng ("rolloff"),    3.0f,  1.0e-3f)
                                  && near (readEng ("blur"),       0.21f, 1.0e-3f)   // v1.13.0 square-law remap (0.55 → 0.18 → 0.21)
                                  && near (readEng ("hullAtten"),  0.4f,  1.0e-3f)
-                                 && near (readEng ("airAmount"),  0.85f, 1.0e-3f)
-                                 && near (readEng ("outputGain"), -3.0f, 1.0e-2f);
+                                 && near (readEng ("airAmount"),  0.85f, 1.0e-3f);
 
             // Clause 3b — THE PROBE. Bit-exact, not near().
             int         moved     = 0;
@@ -5426,35 +5451,40 @@ int main()
 
             const bool twelveHeld = moved == 0;
 
-            ok = loaded && armed && sixApplied && twelveHeld;
+            ok = loaded && armed && sixApplied && twelveHeld && noTransient;
 
             detail << "load " << (loaded ? "ok" : "FAILED")
-                   << "; the SIX -> width " << juce::String (readEng ("width"), 2)
+                   << "; the FIVE -> width " << juce::String (readEng ("width"), 2)
                    << " rolloff " << juce::String (readEng ("rolloff"), 2)
                    << " blur " << juce::String (readEng ("blur"), 2)
                    << " hullAtten " << juce::String (readEng ("hullAtten"), 2)
                    << " air " << juce::String (readEng ("airAmount"), 2)
-                   << " gain " << juce::String (readEng ("outputGain"), 2)
                    << (sixApplied ? " (applied)" : " — DID NOT MATCH Distant Field")
-                   << "; the TWELVE " << (twelveHeld ? "BIT-UNCHANGED" : "MOVED")
+                   << "; gain " << juce::String (readEng ("outputGain"), 2) << " dB"
+                   << "; the " << (int) oo::presets::kPreserved.size() << " "
+                   << (twelveHeld ? "BIT-UNCHANGED" : "MOVED")
                    << (firstMoved != nullptr ? juce::String (" (first: ") + firstMoved
                                                    + " -> reset to default)"
                                              : juce::String())
+                   << "; " << preservedWrites.writes << " value callback(s) on them DURING the load"
+                   << (noTransient ? "" : " — THEY SWUNG THROUGH THEIR DEFAULTS")
                    << "; armed ";
 
             // Built with << onto the named local rather than juce::String("...") + ... : that
             // constructor is ASCII-ONLY and silently mangles the em-dash
             // (critical_juce_string_char_ctor_is_ascii_only). It did, and this is the fix.
             if (armed)
-                detail << "yes (11/11 away from default)";
+                detail << "yes (" << (int) oo::presets::kPreserved.size() << "/"
+                       << (int) oo::presets::kPreserved.size() << " away from default)";
             else
                 detail << "NO — " << atDefault
-                       << " of 12 SAT AT THEIR DEFAULT, THIS PROBE IS VACUOUS";
+                       << " of " << (int) oo::presets::kPreserved.size()
+                       << " SAT AT THEIR DEFAULT, THIS PROBE IS VACUOUS";
 
             presets.getPresetsDirectory().getParentDirectory().deleteRecursively();
         }
 
-        check ("CP preset-load-preserves-the-twelve", ok, detail);
+        check ("CP preset-load-never-writes-the-preserved", ok, detail);
     }
 
     //==========================================================================
@@ -6511,13 +6541,20 @@ int main()
     }
 
     //==========================================================================
-    // DK — A v1.7.0-SHAPED PRESET (18 keys, no motion) LOADS MOTION-OFF WITH THE 18 UNCHANGED (R7).
+    // DK — A v1.7.0-SHAPED PRESET (18 keys, no motion) LOADS MOTION-OFF (R7), THROUGH THE REAL PATH.
     //
     // No migration hook exists for v1.8.0 — no range moved — so THIS is the compatibility gate.
-    // WR-01 resets omitted keys to their defaults, and the ten motion defaults are "off"; the
-    // probe writes the file by hand in the module's own JSON shape (parameters object of
+    // The probe writes the file by hand in the module's own JSON shape (parameters object of
     // NORMALISED values + version string), dials motion fully ON first, and asserts the load
-    // (a) turned it off, (b) left the other nine at default, (c) restored the 18 BIT-EXACT.
+    // (a) turned it off, (b) left the other nine at default, (c) applied the AUTHORED keys among
+    // the 18 bit-exact — blur through the v1.13.0 square-law migration, because a "1.7.0" stamp is
+    // below that gate — and (d) left the PRESERVED keys among the 18 exactly where they were,
+    // although the file carries them (v1.14.0, B5: a stored user preset's outputGain, source and
+    // weights are ignored).
+    //
+    // v1.14.0: loaded through oo::presets::loadPreserving from the USER directory, which is the
+    // path the editor takes. Through v1.13.2 this probe drove the module's loadPresetFromFile,
+    // which O-Octagon never calls — it certified a path the plugin does not use.
     {
         OOctagonProcessor proc;
         bool ok = negotiate (proc, mono, set71);
@@ -6526,6 +6563,7 @@ int main()
         if (ok)
         {
             OuariconPresetManager presets (proc.getAPVTS(), "O-Octagon-DK-probe");
+            presets.getPresetsDirectory().getParentDirectory().deleteRecursively();
 
             // The 18 pre-1.8.0 ids, each with a NON-DEFAULT normalised value.
             auto* params = new juce::DynamicObject();
@@ -6545,8 +6583,9 @@ int main()
             preset->setProperty ("version", "1.7.0");
             preset->setProperty ("plugin", "O-Octagon");
 
-            const auto file = scratch32.getChildFile ("dk-v170.json");
-            file.replaceWithText (juce::JSON::toString (juce::var (preset)));
+            presets.getUserPresetsDirectory().createDirectory();
+            presets.getUserPresetsDirectory().getChildFile ("dk-v170.json")
+                .replaceWithText (juce::JSON::toString (juce::var (preset)));
 
             // Motion fully on and every motion knob away from default, so a load that did nothing
             // to the group would fail every clause.
@@ -6561,8 +6600,6 @@ int main()
             setParam (proc, "motionPhase",  90.0f);
             setParam (proc, "motionSeed",   9.0f);
 
-            const bool loaded = presets.loadPresetFromFile (file);
-
             const auto readNorm = [&proc] (const char* id)
             {
                 auto* p = proc.getAPVTS().getParameter (id);
@@ -6573,18 +6610,46 @@ int main()
                 auto* p = proc.getAPVTS().getParameter (id);
                 return p != nullptr ? p->getDefaultValue() : -2.0f;
             };
+            const auto isPreserved = [] (const char* id)
+            {
+                for (const char* k : oo::presets::kPreserved)
+                    if (std::strcmp (k, id) == 0)
+                        return true;
+                return false;
+            };
 
-            int          mismatched = 0;
+            std::array<float, 18> held {};
+            for (int i = 0; i < 18; ++i)
+                held[(size_t) i] = readNorm (oo::params::id (i));
+
+            const bool loaded = oo::presets::loadPreserving (presets, proc.getAPVTS(), "dk-v170");
+
+            int          authored = 0, preserved = 0, mismatched = 0;
             juce::String firstMismatch;
             for (int i = 0; i < 18; ++i)
-                if (! bitExact (readNorm (oo::params::id (i)), want[(size_t) i]))
+            {
+                const char* id = oo::params::id (i);
+                float expect   = held[(size_t) i];
+
+                if (isPreserved (id))
+                    ++preserved;
+                else
+                {
+                    ++authored;
+                    expect = std::strcmp (id, "blur") == 0
+                                 ? oo::dbap::blurFractionLinearToSquare (want[(size_t) i])
+                                 : want[(size_t) i];
+                }
+
+                if (! bitExact (readNorm (id), expect))
                 {
                     if (mismatched == 0)
-                        firstMismatch = juce::String (" (first: ") + oo::params::id (i) + " "
-                                      + juce::String (readNorm (oo::params::id (i)), 9) + " vs "
-                                      + juce::String (want[(size_t) i], 9) + ")";
+                        firstMismatch = juce::String (" (first: ") + id + " "
+                                      + juce::String (readNorm (id), 9) + " vs "
+                                      + juce::String (expect, 9) + ")";
                     ++mismatched;
                 }
+            }
 
             int motionNotDefault = 0;
             for (int i = oo::params::motionOn; i < (int) oo::params::kCount; ++i)
@@ -6592,11 +6657,16 @@ int main()
                     ++motionNotDefault;
 
             const bool motionOff = readNorm ("motionOn") < 0.5f;
+            const bool split     = authored == 5 && preserved == 13;
 
-            ok = loaded && mismatched == 0 && motionNotDefault == 0 && motionOff;
+            presets.getPresetsDirectory().getParentDirectory().deleteRecursively();
 
-            detail << "v1.7.0-shaped 18-key preset: load " << (loaded ? "ok" : "FAILED")
-                   << ", 18 restored bit-exact: " << (18 - mismatched) << "/18" << firstMismatch
+            ok = loaded && split && mismatched == 0 && motionNotDefault == 0 && motionOff;
+
+            detail << "v1.7.0-shaped 18-key user preset via loadPreserving: load " << (loaded ? "ok" : "FAILED")
+                   << ", " << authored << " authored applied (blur migrated) + " << preserved
+                   << " preserved held, " << (18 - mismatched) << "/18 bit-exact" << firstMismatch
+                   << (split ? "" : " — EXPECTED 5 + 13")
                    << ", motionOn " << (motionOff ? "OFF" : "ON (WRONG)")
                    << ", motion params at default " << (10 - motionNotDefault) << "/10";
         }
@@ -7448,6 +7518,64 @@ int main()
 
         proc.stopVerifyPing();
         check ("DS ping-bad-target-keeps-monitor", ok, detail);
+    }
+
+    //==========================================================================
+    // DT — v1.14.0 (B16 + B3): THE SESSION CARRIES WHO WROTE IT, AND WHICH PRESET WAS CURRENT.
+    //
+    //      (a) getStateInformation stamps a root pluginVersion = JucePlugin_VersionString, and a
+    //          restore reads it back. v1.13.0 changed blur's law with nothing to gate a migration
+    //          on; this is the stamp the NEXT law change needs.
+    //      (b) The current preset name rides the session (through v1.13.2 it lived only in the
+    //          editor-owned manager, so every reopen showed "Default").
+    //      (c) A PRE-1.14.0 session carries neither attribute, and restoring one onto an instance
+    //          that held a name must CLEAR it — "no stamp" and "— unsaved —", never the instance's
+    //          previous values. The source instance is the control: its name is non-empty, so a
+    //          restore that skipped absent attributes would be visible.
+    {
+        OOctagonProcessor source;
+        bool         ok = negotiate (source, mono, set71);
+        juce::String detail;
+
+        source.setPresetName ("Hall A / main");
+
+        juce::MemoryBlock blob;
+        source.getStateInformation (blob);
+
+        const auto xml     = juce::AudioProcessor::getXmlFromBinary (blob.getData(), (int) blob.getSize());
+        const bool stamped = xml != nullptr
+                          && xml->getStringAttribute ("pluginVersion") == JucePlugin_VersionString;
+
+        OOctagonProcessor restored;
+        restored.setStateInformation (blob.getData(), (int) blob.getSize());
+        const bool roundTrip = restored.getRestoredSessionVersion() == JucePlugin_VersionString
+                            && restored.getPresetName() == "Hall A / main";
+
+        // (c) the same session with both attributes removed — the shape every pre-1.14.0 save has.
+        bool legacyCleared = false;
+        if (xml != nullptr)
+        {
+            auto legacy = std::make_unique<juce::XmlElement> (*xml);
+            legacy->removeAttribute ("pluginVersion");
+            legacy->removeAttribute ("presetName");
+
+            juce::MemoryBlock legacyBlob;
+            juce::AudioProcessor::copyXmlToBinary (*legacy, legacyBlob);
+
+            restored.setStateInformation (legacyBlob.getData(), (int) legacyBlob.getSize());
+            legacyCleared = restored.getRestoredSessionVersion().isEmpty()
+                         && restored.getPresetName().isEmpty();
+        }
+
+        ok = ok && stamped && roundTrip && legacyCleared;
+        detail << "pluginVersion " << (stamped ? juce::String ("stamped ") + JucePlugin_VersionString
+                                               : juce::String ("NOT STAMPED"))
+               << "; restore reads back version + preset name "
+               << (roundTrip ? "exactly" : "WRONG (" + restored.getRestoredSessionVersion() + ")")
+               << "; a pre-1.14.0 session (no attributes) restores "
+               << (legacyCleared ? "unstamped and unsaved" : "KEEPING THE PREVIOUS INSTANCE'S VALUES");
+
+        check ("DT session-stamps-version-and-preset-name", ok, detail);
     }
 
     //==========================================================================

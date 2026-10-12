@@ -2632,6 +2632,159 @@ async function nudge(page, id) {
     check(openBefore, '[non-vacuity] the settings panel was open before the drag');
     check(!openAfter, 'a puck drag CLOSES the settings panel');
 
+    // ── 39 ───────────────────────────────────────────────────────────────────
+    head(39, 'a user preset CAN be created: Save as, the factory guard, the result line, and the rail still fits (B3/U4)');
+    {
+
+    // Through v1.13.2 Save sent the SELECTED name — on a stock install always a
+    // factory name — and the module refused it silently. The stub was writable
+    // "Init" with no guard, so this was never exercised. It now starts as a stock
+    // install does (eight factory names, no user preset, nothing current).
+    await page.evaluate(() => window.__setLanguage('en'));
+    await showVenue();
+
+    const rail = () => page.evaluate(() => {
+        const sel = document.getElementById('preset-list');
+        const line = document.getElementById('vpreset-state');
+        const groups = [...sel.querySelectorAll('optgroup')].map(g => ({
+            group: g.dataset.group, label: g.label, n: g.querySelectorAll('option').length }));
+        const opt = sel.selectedOptions[0];
+        return {
+            value: sel.value, shown: opt ? (opt.label || opt.textContent) : '', groups,
+            name: document.getElementById('preset-name').value,
+            saveDisabled: document.getElementById('btn-preset-save').disabled,
+            loadDisabled: document.getElementById('btn-preset-load').disabled,
+            key: line.dataset.i18n || '', tone: line.dataset.tone || '', text: line.textContent,
+            mirror: line.dataset.label === line.textContent,
+        };
+    });
+    const typeName = async (text) => {
+        await page.fill('#preset-name', text);
+        await page.waitForTimeout(50);
+    };
+    const waitLine = (k) => page.waitForFunction(
+        key => document.getElementById('vpreset-state').dataset.i18n === key, k, { timeout: SETTLE_MS }).catch(() => {});
+
+    // (a) the fresh rail: "— unsaved —", Factory group only, nothing to save.
+    const fresh = await rail();
+    const stubList = await page.evaluate(() => window.__OCTAGON_STUB__.presets());
+    check(fresh.value === '' && fresh.shown === '— unsaved —',
+        `a fresh instance shows the "— unsaved —" placeholder, not a blank select — "${fresh.shown}"`);
+    check(fresh.groups.length === 1 && fresh.groups[0].group === 'factory'
+          && fresh.groups[0].label === 'Factory' && fresh.groups[0].n === stubList.factory.length,
+        `the list is ONE "Factory" group of ${stubList.factory.length} — ${JSON.stringify(fresh.groups)}`);
+    check(fresh.saveDisabled && fresh.loadDisabled, 'with no name and no selection, Save as and Load are both disabled');
+
+    // (b) a factory name — any case, as the file system sees it — is refused BEFORE the click.
+    for (const n of ['Chamber', 'chamber']) {
+        await typeName(n);
+        const r = await rail();
+        check(r.saveDisabled && r.key === 'preset.readOnly' && r.tone === 'hint' && r.mirror,
+            `"${n}": Save as disabled, hint "${r.text}" (key ${r.key}, tone "${r.tone}")`);
+    }
+
+    // (c) a new name SAVES, and the store gains a User group.
+    const writesBefore = await page.evaluate(() => window.__OCTAGON_STUB__.presetWrites.length);
+    await typeName('My Hall');
+    const ready = await rail();
+    check(!ready.saveDisabled && ready.key !== 'preset.readOnly',
+        `"My Hall": Save as enabled, and the read-only hint is gone ("${ready.text}")`);
+    await page.click('#btn-preset-save');
+    await waitLine('preset.saved');
+    const saved = await rail();
+    const writes = await page.evaluate(() => window.__OCTAGON_STUB__.presetWrites.slice());
+    check(writes.length === writesBefore + 1 && writes[writes.length - 1].op === 'save'
+          && writes[writes.length - 1].name === 'My Hall',
+        `the stub received save "My Hall" — ${JSON.stringify(writes.slice(writesBefore))}`);
+    check(saved.key === 'preset.saved' && saved.tone === '' && saved.mirror,
+        `the result line says "${saved.text}" (key ${saved.key})`);
+    check(saved.groups.some(g => g.group === 'user' && g.label === 'User' && g.n === 1)
+          && saved.value === 'My Hall' && saved.shown === 'My Hall',
+        `a "User" group now holds it and the select shows it — ${JSON.stringify(saved.groups)}, "${saved.shown}"`);
+
+    // (d) the same name again says it REPLACES — the module overwrites without asking.
+    await typeName('my hall');
+    const again = await rail();
+    check(again.key === 'preset.replaces' && again.tone === 'hint' && !again.saveDisabled,
+        `"my hall" again: "${again.text}" (key ${again.key}), still saveable`);
+
+    // (e) LOAD a factory preset: the line, the name field, and Save is read-only again.
+    await page.selectOption('#preset-list', 'Wide Hall');
+    await page.click('#btn-preset-load');
+    await waitLine('preset.loaded');
+    const loaded = await rail();
+    check(loaded.key === 'preset.loaded' && loaded.name === 'Wide Hall' && loaded.saveDisabled,
+        `Load "Wide Hall": "${loaded.text}", the name field follows (${loaded.name}), Save as disabled on it`);
+
+    // (f) C++ refusals the page cannot cause by itself are RENDERED, not dropped.
+    for (const c of [
+        { forced: { ok: false, reason: 'factoryName', speaker: -1 }, key: 'preset.factoryName' },
+        { forced: { ok: false, reason: 'writeFailed', speaker: -1 }, key: 'preset.writeFailed' },
+    ]) {
+        await typeName('Another');
+        await page.evaluate(f => window.__OCTAGON_STUB__.setNextPresetResult(f), c.forced);
+        await page.click('#btn-preset-save');
+        await waitLine(c.key);
+        const r = await rail();
+        check(r.key === c.key && r.tone === 'alert' && r.mirror && r.text.trim() !== '',
+            `save -> ${c.forced.reason}: "${r.text}" (key ${r.key}, tone "${r.tone}")`);
+    }
+    await page.evaluate(() => window.__OCTAGON_STUB__.setNextPresetResult({ ok: false, reason: 'notFound', speaker: -1 }));
+    await page.click('#btn-preset-load');
+    await waitLine('preset.notFound');
+    const nf = await rail();
+    check(nf.key === 'preset.notFound' && nf.tone === 'alert', `load -> notFound: "${nf.text}"`);
+
+    // (g) the group captions follow the language (an <optgroup> shows its label
+    //     ATTRIBUTE, which the data-i18n sweep cannot reach on its own).
+    await page.evaluate(() => window.__setLanguage('fr'));
+    await page.waitForTimeout(100);
+    const fr = await rail();
+    check(fr.groups.find(g => g.group === 'factory')?.label === 'Usine'
+          && fr.groups.find(g => g.group === 'user')?.label === 'Utilisateur',
+        `fr: the groups read ${JSON.stringify(fr.groups.map(g => g.label))}`);
+
+    // (h) THE RAIL STILL FITS, in every language: same four rows as before, no
+    //     clipped caption, the result line on ONE line inside the group.
+    for (const lang of ['en', 'fr', 'zh-Hans']) {
+        await page.evaluate(l => window.__setLanguage(l), lang);
+        await page.waitForTimeout(100);
+        const fit = await page.evaluate(() => {
+            const g = document.getElementById('vpreset-state').closest('.rail-group').getBoundingClientRect();
+            const railEl = document.getElementById('venue-rail');
+            const line = document.getElementById('vpreset-state');
+            const btns = ['btn-preset-save', 'btn-preset-load'].map(id => document.getElementById(id));
+            const lh = parseFloat(getComputedStyle(line).lineHeight) || 13;
+            return {
+                groupRight: g.right, railRight: railEl.getBoundingClientRect().right,
+                railOverflow: railEl.scrollHeight - railEl.clientHeight,
+                lineH: line.getBoundingClientRect().height, lh,
+                clipped: btns.filter(b => b.scrollWidth > b.clientWidth + 0.5).map(b => b.id),
+            };
+        });
+        check(fit.groupRight <= fit.railRight + 0.5 && fit.railOverflow <= 0
+              && fit.lineH <= fit.lh * 1.5 && fit.clipped.length === 0,
+            `[${lang}] the preset group sits inside the rail (rail overflow ${fit.railOverflow} px), `
+            + `the result line is one line (${fit.lineH.toFixed(1)} px), no clipped button`
+            + (fit.clipped.length ? ` — CLIPPED: ${fit.clipped.join(', ')}` : ''));
+    }
+    await page.evaluate(() => window.__setLanguage('en'));
+
+    // ── B10 — only a VALUE key opens a slider gesture ───────────────────────
+    // Through v1.13.2 every keydown on a focused slider did: Tab through four
+    // sliders put four empty touch pairs on four host lanes.
+    await showRoom();
+    await page.focus('#ctl-width');
+    const g0 = await page.evaluate(() => window.__OCTAGON_STUB__.gestures.length);
+    for (const k of ['Shift', 'Meta', 'Control', 'Alt', 'a']) await page.keyboard.press(k);
+    const g1 = await page.evaluate(() => window.__OCTAGON_STUB__.gestures.length);
+    check(g1 === g0, `Shift / Meta / Control / Alt / "a" on a focused slider open NO gesture — ${g1 - g0} entries`);
+    await page.keyboard.press('ArrowRight');
+    const added = await page.evaluate(from => window.__OCTAGON_STUB__.gestures.slice(from), g1);
+    check(added.length === 2 && added[0].phase === 'start' && added[1].phase === 'end' && added[0].id === 'width',
+        `[positive control] ArrowRight opens and closes ONE gesture on width — ${JSON.stringify(added)}`);
+    }
+
     // ════════════════════════════════════════════════════════════════════════
     // SECTION 34 — LANGUAGE INVARIANCE OF EVERY PINNED BOX (v1.12.0, ZH3-04)
     //

@@ -926,25 +926,60 @@ function loadVenue() {
 // vendored and createPresetBar is never called — it writes container.innerHTML
 // and then queries its own injected markup, which is
 // pattern_js_state_updater_overwrites_html_labels by construction.
+//
+// v1.14.0 (G3's preset half, B3) — C++-SHAPED. Through v1.13.2 this seeded a
+// WRITABLE "Init" and had no factory guard, so every gate exercised a Save the
+// plugin could never perform: on a stock install every name is a factory name
+// and the module refuses it. Now the store starts as a stock install does —
+// the eight factory names (PresetPolicy.h factoryDefs, in getPresetList's
+// case-insensitive order), NO user presets, and no current preset — and Save
+// refuses a factory name with the reason C++ sends.
 const PRESET_WRITES = [];
-let presetNames = ["Init"];
-let currentPreset = "Init";
+const FACTORY_PRESETS = ["Chamber", "Concert Default", "Distant Field", "Dry Point",
+                         "Enveloping", "Slow Orbit", "Wander", "Wide Hall"];
+let userPresets = [];
+let currentPreset = "";
+// One-shot, like nextFileResult: the next savePreset / loadPreset returns this
+// instead of running, so a gate can drive a C++ refusal the page cannot cause.
+let nextPresetResult = null;
+
+// The guard compares the way the module's does on a stock macOS / Windows
+// volume — the FILE SYSTEM is case-insensitive, so "chamber" IS Chamber.json.
+const isFactoryName = (n) => FACTORY_PRESETS.some((f) => f.toLowerCase() === n.toLowerCase());
+
+const presetNamesSorted = () => FACTORY_PRESETS.concat(userPresets)
+  .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+
+const presetListPayload = () => ({
+  presets: presetNamesSorted(), factory: FACTORY_PRESETS.slice(), current: currentPreset,
+});
+
+function takeForcedPresetResult() {
+  const r = nextPresetResult;
+  nextPresetResult = null;
+  return r;
+}
 
 function savePreset(name) {
+  const forced = takeForcedPresetResult();
+  if (forced !== null) return forced;
   const n = String(name ?? "").trim();
-  if (n === "") return { ok: false, name: "" };
-  if (!presetNames.includes(n)) presetNames = presetNames.concat([n]);
+  if (n === "") return { ok: false, reason: "emptyName", speaker: -1 };
+  if (isFactoryName(n)) return { ok: false, reason: "factoryName", speaker: -1 };
+  if (!userPresets.includes(n)) userPresets = userPresets.concat([n]);
   currentPreset = n;
   PRESET_WRITES.push({ op: "save", name: n });
-  return { ok: true, name: n };
+  return { ok: true, reason: "none", speaker: -1 };
 }
 
 function loadPreset(name) {
+  const forced = takeForcedPresetResult();
+  if (forced !== null) return forced;
   const n = String(name ?? "");
-  if (!presetNames.includes(n)) return { ok: false, name: n };
+  if (!presetNamesSorted().includes(n)) return { ok: false, reason: "notFound", speaker: -1 };
   currentPreset = n;
   PRESET_WRITES.push({ op: "load", name: n });
-  return { ok: true, name: n };
+  return { ok: true, reason: "none", speaker: -1 };
 }
 
 // ── The verify ping ────────────────────────────────────────────────────────
@@ -1040,9 +1075,7 @@ const NATIVE_FNS = {
 
   loadPreset: (name) => loadPreset(name),
 
-  getPresetList: () => ({ presets: presetNames.slice(), current: currentPreset }),
-
-  getCurrentPreset: () => ({ name: currentPreset }),
+  getPresetList: () => presetListPayload(),
 
   startPing: (target) => startPing(target),
 
@@ -1194,6 +1227,11 @@ if (typeof window !== "undefined") {
 
     // v1.13.2 (B7) — make the NEXT saveVenue / loadVenue answer with this C++
     // result instead of doing the round trip. One-shot; null clears it.
+    setNextPresetResult(result) {
+      nextPresetResult = result === null || result === undefined ? null : { ...result };
+      return nextPresetResult;
+    },
+
     setNextFileResult(result) {
       nextFileResult = result === null || result === undefined ? null : { ...result };
       return nextFileResult;
@@ -1249,7 +1287,7 @@ if (typeof window !== "undefined") {
     venueWrites: VENUE_WRITES,
     presetWrites: PRESET_WRITES,
     fileOps: FILE_OPS,
-    presets: () => ({ presets: presetNames.slice(), current: currentPreset }),
+    presets: () => presetListPayload(),
     ping: () => pingState(),
 
     // ── Phase 3.3 ──

@@ -960,97 +960,99 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
                 return;
             }
 
+            // v1.14.0 (B3) — the factory guard gets its OWN reason. Through v1.13.2 the module's
+            // refusal came back as "writeFailed" and the page dropped it, so Save on a stock
+            // install (every option a factory name) failed silently and no user preset could ever
+            // be created. Checked here, before the module's own guard, so the two are never
+            // conflated.
+            if (presetManager.isFactoryPreset (name.trim()))
+            {
+                complete (makeResult (false, "factoryName", -1));
+                return;
+            }
+
             const bool ok = presetManager.savePreset (name.trim());
+
+            if (ok)
+                processorRef.setPresetName (presetManager.getCurrentPresetName());
+
             complete (makeResult (ok, ok ? "none" : "writeFailed", -1));
         });
 
-    // (8) loadPreset — AND THE SEVENTEEN GESTURE BRACKETS (N5 / P59).
+    // (8) loadPreset — AND ITS GESTURE BRACKETS (N5 / P59).
     //
-    // OuariconPresetManager::applyPresetJson calls setValueNotifyingHost DIRECTLY
-    // on the parameter object, not through a ParameterAttachment. Two consequences,
-    // both verified through the chain rather than assumed:
+    // A preset write is setValueNotifyingHost DIRECTLY on the parameter object, not
+    // through a ParameterAttachment, so THERE ARE NO BRACKETS of its own: the wrappers
+    // turn it into a bare kAudioUnitEvent_ParameterValueChange (AU_1.mm:1341-1360) and
+    // a bare paramChanged (VST3.cpp:1498-1501), which in Logic with a lane in Latch or
+    // Touch is a recorded sweep the operator did not perform. P39's rule applies: open
+    // a gesture on every parameter you will write, and close every one of them.
     //
-    //   * F3's unchanged-write skip DOES NOT APPLY. callIfParameterValueChanged is
-    //     a member of the ATTACHMENT (juce_ParameterAttachments.cpp:88-95) and this
-    //     path never goes through one, so a load from an untouched default patch
-    //     still emits 18 reset writes of values the parameters already hold.
-    //   * THERE ARE NO BRACKETS. setValueNotifyingHost is setValue +
-    //     sendValueChangedMessageToListeners and nothing else. The wrappers turn
-    //     that into a bare kAudioUnitEvent_ParameterValueChange (AU_1.mm:1341-1360)
-    //     and a bare paramChanged (VST3.cpp:1498-1501) — up to 34 UNBRACKETED host
-    //     writes per load, which in Logic with a lane in Latch or Touch is a
-    //     recorded sweep the operator did not perform.
-    //
-    // THE FIX IS HERE, AT O-OCTAGON'S CALL SITE, and never in the shared module:
-    // four other plugins depend on it. This also GENERALISES P39's rule — open a
-    // gesture on every parameter you will write, and close every one of them —
-    // from the puck to the preset store.
-    //
-    // ── PHASE 4.1 (N5 / P93): A SECOND DEFECT ON THE SAME PATH ───────────────
-    //
-    // applyPresetJson does not merely apply the keys a preset carries. WR-01
-    // RESETS ALL 18 TO THEIR DEFAULTS FIRST, so a factory preset scoped to the
-    // six room-character parameters does not LEAVE the other eleven alone — it
-    // re-centres srcX/srcY, drops srcZ to 0 m and returns all eight weights to
-    // 1.0, wiping whatever scene is applied. Mid-cue, in a hall.
-    //
-    // oo::presets::loadPreserving is the fix, and it lives in a header the
-    // RENDER HARNESS can reach so probe CP can assert the eleven BIT-unchanged.
-    // The eighteen brackets below are unchanged and still enclose everything:
-    // the restore's writes land inside a bracket established at Phase 3.2, so
-    // no new bracketing obligation is created here.
+    // v1.14.0 (B5): the load is oo::presets::loadPreserving, which reads the file
+    // itself and writes ONLY the fifteen kAuthored parameters (the module's apply
+    // reset all 28 first, so the source and the scene swung through their defaults
+    // inside these brackets). So the brackets cover those fifteen and nothing else.
     options = options.withNativeFunction ("loadPreset",
         [this] (auto& args, auto complete)
         {
             const auto name = args.size() > 0 ? args[0].toString() : juce::String();
 
-            std::array<juce::RangedAudioParameter*, oo::params::kCount> params {};
+            // v1.14.0 (B5) — brackets on the FIFTEEN a load can write, and on nothing else. The
+            // thirteen kPreserved parameters are never written by a load any more, so opening a
+            // gesture on them would put an empty touch on every one of their lanes.
+            std::array<juce::RangedAudioParameter*, oo::presets::kAuthored.size()> params {};
 
-            for (int i = 0; i < static_cast<int> (oo::params::kCount); ++i)
-                params[static_cast<std::size_t> (i)] =
-                    processorRef.getAPVTS().getParameter (juce::String (oo::params::id (i)));
+            for (std::size_t i = 0; i < oo::presets::kAuthored.size(); ++i)
+                params[i] = processorRef.getAPVTS().getParameter (oo::presets::kAuthored[i]);
 
             for (auto* param : params)
                 if (param != nullptr)
                     param->beginChangeGesture();
 
-            const bool ok = oo::presets::loadPreserving (presetManager,
-                                                         processorRef.getAPVTS(),
-                                                         name);
+            const bool ok = oo::presets::loadPreserving (
+                presetManager, processorRef.getAPVTS(), name,
+                [this] (const juce::var& payload) { processorRef.scenesFromVar (payload); });
 
             // Closed on BOTH paths. An interrupted load that never closed would
-            // leave the host in an open automation-write region on all 17.
+            // leave the host in an open automation-write region on all fifteen.
             for (auto* param : params)
                 if (param != nullptr)
                     param->endChangeGesture();
 
+            if (ok)
+                processorRef.setPresetName (presetManager.getCurrentPresetName());
+
             complete (makeResult (ok, ok ? "none" : "notFound", -1));
         });
 
-    // (9) getPresetList / (10) getCurrentPreset — the two reads the rail needs.
-    // FOUR functions total, not the module's TEN: any one of those ten that C++
-    // did not register would be an N4-class never-settling promise the moment the
-    // page called it.
+    // (9) getPresetList — the one read the rail needs (v1.14.0 removed
+    // getCurrentPreset: `current` rides this payload, and the page stopped calling
+    // it, so it was dead weight §3 would flag). THREE functions total, not the
+    // module's TEN: any one of those ten that C++ did not register would be an
+    // N4-class never-settling promise the moment the page called it.
     options = options.withNativeFunction ("getPresetList",
         [this] (auto&, auto complete)
         {
             juce::Array<juce::var> names;
 
+            // v1.14.0 (U4) — `factory` names the read-only subset, so the rail can group the list
+            // into Factory / User and disable Save on a factory name. `presets` keeps the whole
+            // sorted list, as before.
+            juce::Array<juce::var> factory;
+
             for (const auto& name : presetManager.getPresetList())
+            {
                 names.add (juce::var (name));
+
+                if (presetManager.isFactoryPreset (name))
+                    factory.add (juce::var (name));
+            }
 
             auto* obj = new juce::DynamicObject();
             obj->setProperty ("presets", juce::var (names));
-            obj->setProperty ("current", presetManager.getCurrentPresetName());
+            obj->setProperty ("factory", juce::var (factory));
+            obj->setProperty ("current", processorRef.getPresetName());
 
-            complete (juce::var (obj));
-        });
-
-    options = options.withNativeFunction ("getCurrentPreset",
-        [this] (auto&, auto complete)
-        {
-            auto* obj = new juce::DynamicObject();
-            obj->setProperty ("name", presetManager.getCurrentPresetName());
             complete (juce::var (obj));
         });
 
@@ -1547,10 +1549,10 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
     // it now holds for a stated reason instead of by the absence of any registration, which is
     // exactly why FUNC-06 criterion 5 RE-MEASURES it (probe CL) rather than inheriting 3.2's pass.
     //
-    // A PRESET WITHOUT SCENES LEAVES THE SLOTS UNTOUCHED. `applyPresetJson` calls `customLoad` only
-    // when the "customState" property exists (OuariconPresetManager.h:346-349) — verified in module
-    // source, not assumed — so every preset written before 3.3 is inert here rather than clearing
-    // four slots the operator measured.
+    // A PRESET WITHOUT SCENES LEAVES THE SLOTS UNTOUCHED: the load hands scenesFromVar a void var,
+    // which it ignores, so every preset written before 3.3 is inert here rather than clearing four
+    // slots the operator measured. Since v1.14.0 the load is oo::presets::loadPreserving, which
+    // calls scenesFromVar itself (loadPreset below); this registration serves the SAVE half.
     //
     // AND `setStateFromXml` IS NEVER CALLED. That path (`:585-604`) invokes `customLoad` on a
     // DIFFERENT condition and, above it, does `parameters.replaceState(...)` — which would replace
@@ -1560,69 +1562,17 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
         [this] { return processorRef.scenesToVar(); },
         [this] (const juce::var& payload) { processorRef.scenesFromVar (payload); });
 
-    // ── v1.3.0 PRESET MIGRATION (preset-manager v1.0.6 hook) ────────────────────────────────
+    // ── v1.3.0 / v1.13.0 PRESET MIGRATION (preset-manager v1.0.6 hook) ──────────────────────
     //
-    // Presets store NORMALISED 0..1 fractions, and v1.3.0 moved three encodings:
-    //   rolloff  range 3-6  → 3-12 dB/2x   (same engineering value ⇒ old fraction ÷ 3)
-    //   width    range 0-6  → 0-12 m       (same metres            ⇒ old fraction ÷ 2)
-    //   blur     kBlurScale 0.5 → 1.5      (same RADIUS            ⇒ old fraction ÷ 3;
-    //                                       the 0-1 range itself is unchanged)
-    // Sessions are unaffected — the APVTS stores denormalised values
-    // (critical_apvts_denormalised_vs_preset_normalised) — so only this JSON path migrates.
-    //
-    // The gate is the MAJOR.MINOR pair, parsed leniently: any preset stamped < 1.3 migrates, and
-    // an unparseable version string is treated as pre-1.3 (every shipped version that wrote
-    // presets predates 1.3, so the failure mode of a mangled stamp is the migration running —
-    // correct for all presets that exist today).
-    presetManager.setMigrationCallback (
-        [] (juce::DynamicObject& parameters, const juce::String& presetVersion)
-        {
-            const auto tokens = juce::StringArray::fromTokens (presetVersion, ".", {});
-            const int  major  = tokens.size() > 0 ? tokens[0].getIntValue() : 0;
-            const int  minor  = tokens.size() > 1 ? tokens[1].getIntValue() : 0;
+    // The arms themselves live in oo::presets::migrateParameters (PresetPolicy.h) since v1.14.0,
+    // because the preset LOAD no longer goes through the module's apply (B5) and runs the same
+    // function itself. Still registered here so any module path migrates identically.
+    presetManager.setMigrationCallback (oo::presets::migrateParameters);
 
-            const auto before = [major, minor] (int gateMinor)
-            {
-                return ! (major > 1 || (major == 1 && minor >= gateMinor));
-            };
+    // v1.14.0 (B3) — the processor owns the current preset name; seed the manager from it.
+    presetManager.setCurrentPresetName (processorRef.getPresetName());
 
-            const auto rescale = [&parameters] (const char* id, float factor)
-            {
-                const juce::Identifier key { id };
-
-                if (parameters.hasProperty (key))
-                    parameters.setProperty (key,
-                        juce::jlimit (0.0f, 1.0f,
-                                      static_cast<float> (parameters.getProperty (key)) * factor));
-            };
-
-            // ── < 1.3: the three v1.3.0 range moves ──────────────────────────────────────
-            if (before (3))
-            {
-                rescale ("rolloff", 1.0f / 3.0f);
-                rescale ("width",   1.0f / 2.0f);
-                rescale ("blur",    1.0f / 3.0f);
-            }
-
-            // ── < 1.13: blur's law went SQUARE with kBlurScale 1.5 → 6 (v1.13.0) ─────────
-            //
-            // ITS OWN GATE, not a widening of the v1.3 one
-            // (pattern_preset_migration_per_param_version_gate): every preset stamped 1.3
-            // through 1.12 carries a fraction against the LINEAR law. Same authored radius ⇒
-            //   1.5 · b_old = 6 · b_new²  ⇒  b_new = ½ √b_old   (rigScale cancels).
-            // A pre-1.3 preset passes through both arms in order: ÷3 first, then the root.
-            if (before (13))
-            {
-                const juce::Identifier key { "blur" };
-
-                if (parameters.hasProperty (key))
-                    parameters.setProperty (key,
-                        oo::dbap::blurFractionLinearToSquare (
-                            static_cast<float> (parameters.getProperty (key))));
-            }
-        });
-
-    // ── THE SIX FACTORY PRESETS (Phase 4.1, P92) ───────────────────────────────────────────
+    // ── THE FACTORY PRESETS (Phase 4.1, P92) ───────────────────────────────────────────
     //
     // FROM THE EDITOR, NEVER THE PROCESSOR. Every one of ~20 precedent plugins calls this from the
     // processor constructor with a processor-owned manager; O-Octagon's manager is editor-owned, so
@@ -1676,6 +1626,13 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
         }
     }
 
+    // v1.14.0 (B10) — every gesture on every parameter is counted, so the destructor can close
+    // what a cut-off drag left open (see closeOpenGestures).
+    jassert (processorRef.getParameters().size() == static_cast<int> (openGestures.size()));
+
+    for (auto* param : processorRef.getParameters())
+        param->addListener (this);
+
     addAndMakeVisible (*webView);
     webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
 
@@ -1722,6 +1679,46 @@ OctagonEditor::~OctagonEditor()
     // re-arm. That is the correct side to err on: the failure this prevents is a delivered file
     // with six silent channels, and the failure it causes is one extra click.
     processorRef.setMonitorArmed (false);
+
+    // v1.14.0 (B10) — NO GESTURE OUTLIVES THE WINDOW. Our listener comes off FIRST, so the ends
+    // below are not counted back into the array they are draining.
+    for (auto* param : processorRef.getParameters())
+        param->removeListener (this);
+
+    closeOpenGestures();
+}
+
+// Any thread per the JUCE contract; in this plugin every gesture source is the message thread
+// (the attachments, loadPreset, applySceneWeights).
+void OctagonEditor::parameterGestureChanged (int parameterIndex, bool gestureIsStarting)
+{
+    if (parameterIndex < 0 || parameterIndex >= static_cast<int> (openGestures.size()))
+        return;
+
+    auto& depth = openGestures[static_cast<std::size_t> (parameterIndex)];
+
+    if (gestureIsStarting)
+    {
+        depth.fetch_add (1, std::memory_order_relaxed);
+        return;
+    }
+
+    // Floored at zero: an end with no matching begin (a page that sends sliderDragEnded twice) must
+    // not bank a negative that would swallow the next real begin.
+    int current = depth.load (std::memory_order_relaxed);
+
+    while (current > 0 && ! depth.compare_exchange_weak (current, current - 1, std::memory_order_relaxed))
+    {
+    }
+}
+
+void OctagonEditor::closeOpenGestures()
+{
+    const auto& params = processorRef.getParameters();
+
+    for (int i = 0; i < params.size() && i < static_cast<int> (openGestures.size()); ++i)
+        for (int n = openGestures[static_cast<std::size_t> (i)].exchange (0, std::memory_order_relaxed); n > 0; --n)
+            params[i]->endChangeGesture();
 }
 
 // ── Layout ──────────────────────────────────────────────────────────────────

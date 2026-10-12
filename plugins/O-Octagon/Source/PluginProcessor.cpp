@@ -1098,6 +1098,24 @@ juce::var OOctagonProcessor::scenesToVar() const
     return juce::var (obj);
 }
 
+juce::String OOctagonProcessor::getPresetName() const
+{
+    const juce::SpinLock::ScopedLockType lock (nameLock);
+    return presetName;
+}
+
+void OOctagonProcessor::setPresetName (const juce::String& name)
+{
+    const juce::SpinLock::ScopedLockType lock (nameLock);
+    presetName = name;
+}
+
+juce::String OOctagonProcessor::getRestoredSessionVersion() const
+{
+    const juce::SpinLock::ScopedLockType lock (nameLock);
+    return restoredSessionVersion;
+}
+
 void OOctagonProcessor::scenesFromVar (const juce::var& payload)
 {
     auto* obj = payload.getDynamicObject();
@@ -1207,6 +1225,17 @@ void OOctagonProcessor::getStateInformation (juce::MemoryBlock& destData)
         // so the argument that keeps monitorArmed out of this function does not apply to it.
         xml->setAttribute ("stereoBinaural", stereoBinaural.load (std::memory_order_acquire));
 
+        // v1.14.0 (B16) — THE SESSION VERSION STAMP. Nothing reads it to migrate yet; it exists so
+        // that the NEXT law change can. v1.13.0 changed blur's law with no stamp to gate on, so every
+        // pre-1.13 session re-reads its blur (0.5 → radius x2) and nothing can tell which sessions
+        // those are. From here on, an absent attribute means "written before v1.14.0".
+        xml->setAttribute ("pluginVersion", JucePlugin_VersionString);
+
+        // v1.14.0 (B3) — the current preset name, the same root-attribute idiom. Written even when
+        // empty, so a session that had no preset restores as "— unsaved —" and not as whatever the
+        // instance held before the restore.
+        xml->setAttribute ("presetName", getPresetName());
+
         // ── v1.7.0 — monitorArmed IS DELIBERATELY ABSENT FROM THIS FUNCTION ───────────────────
         //
         // GUARD 2 OF 4, and the only one that covers the case isNonRealtime() cannot: a REALTIME
@@ -1256,6 +1285,14 @@ void OOctagonProcessor::setStateInformation (const void* data, int sizeInBytes)
         if (xml->hasAttribute ("uiLanguage"))
             uiLanguage.store (languageIndex (xml->getStringAttribute ("uiLanguage")),
                               std::memory_order_release);
+
+        // v1.14.0 — both read unconditionally: a pre-1.14.0 session carries neither, and that
+        // must restore as "no stamp" and "— unsaved —", not keep this instance's previous values.
+        {
+            const juce::SpinLock::ScopedLockType lock (nameLock);
+            restoredSessionVersion = xml->getStringAttribute ("pluginVersion");
+            presetName             = xml->getStringAttribute ("presetName");
+        }
     }
 
     // ── ORDERING HAZARD (ARCHITECTURE §4.1). This sequence is not interchangeable ───────────────

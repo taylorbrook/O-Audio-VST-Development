@@ -862,14 +862,32 @@
                container.innerHTML and then queries its own injected markup
                (PLAN-3.2 P58). The option elements below are created with
                document.createElement, never assigned as HTML. -->
-          <div class="rail-group">
+          <!-- v1.14.0 (B3/U4) — a rail that SAVES. Through v1.13.2 Save sent the
+               selected name, which on a stock install is always a factory
+               preset, and the module refused it silently: no user preset could
+               ever be created. Now: pick + Load on one row, a name + Save as on
+               the next, and one line for what happened. The list is grouped
+               Factory / User; the two group captions are the hidden spans
+               below, copied onto the <optgroup> label by venue.js (an optgroup
+               displays its label ATTRIBUTE, which data-i18n cannot reach). The
+               same four rows as before, so the rail does not grow. -->
+          <div class="rail-group preset-group">
             <h3 class="group-title" data-i18n="label.group.preset">Preset</h3>
-            <select class="vselect" id="preset-list" aria-label="Preset" data-i18n-aria="preset-list"></select>
-            <div class="rail-buttons">
-              <button type="button" class="vbtn" id="btn-preset-save" data-i18n="label.save">Save</button>
+            <div class="preset-row">
+              <select class="vselect" id="preset-list" aria-label="Preset" data-i18n-aria="preset-list"></select>
               <button type="button" class="vbtn" id="btn-preset-load" data-i18n="label.load">Load</button>
             </div>
-            <span class="vcell-value" id="vpreset-current">&#8212;</span>
+            <div class="preset-row">
+              <input type="text" class="vfield preset-name" id="preset-name" maxlength="64"
+                     autocomplete="off" spellcheck="false"
+                     aria-label="Preset name" data-i18n-aria="preset-name"
+                     placeholder="name" data-i18n-placeholder="preset.namePlaceholder">
+              <button type="button" class="vbtn" id="btn-preset-save" data-i18n="label.saveAs">Save as</button>
+            </div>
+            <span class="vcell-value vresult" id="vpreset-state" role="status">&#8212;</span>
+            <span hidden id="preset-group-factory" data-i18n="preset.group.factory">Factory</span>
+            <span hidden id="preset-group-user" data-i18n="preset.group.user">User</span>
+            <span hidden id="preset-unsaved" data-i18n="preset.unsaved">&#8212; unsaved &#8212;</span>
           </div>
 
           <!-- v1.1.0 — output order. Two one-click LABEL sets, applied whole in
