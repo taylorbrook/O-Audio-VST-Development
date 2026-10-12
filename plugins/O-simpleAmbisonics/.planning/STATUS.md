@@ -1,15 +1,15 @@
 ---
 plugin: O-simpleAmbisonics
 stage: 1
-status: stage_1_research_complete
-last_updated: 2026-10-11
+status: stage_1_plan_complete
+last_updated: 2026-10-12
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-current_phase: research
-next_phase: plan
-next_action: plugin-plan
+current_phase: plan
+next_phase: execute
+next_action: plugin-execute
 next_stage: 1
 ready_for_implementation: true
 parameter_count: 12
@@ -21,9 +21,9 @@ plugin_code: OSAm
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — research phase complete
-Status: Stage 1 RESEARCH.md written — sibling templates pinned (O-simpleSubtractive CMake/APVTS, O-Emulator effect shell + Stage-1 harness scaffold), pass-through chain designed against JUCE 8.0.15 source, 12-param construction table verified, Stage-1 harness probes specified. No blocking questions. Next: plan phase.
-Progress: [####................] 20%
+Stage: 1 of 4 (Foundation) — plan phase complete
+Status: Stage 1 PLAN.md written — 7 tasks (CMake, dsp seam, processor, inline Generic editor, harness scaffold with probes P0–P5, build/validate, status). Planner picks: O-Emulator editor shape, FixedDelay<64>, pluginVersion state stamp. Next: execute (foundation-shell-agent).
+Progress: [#####...............] 25%
 
 ## Phase Progress
 
@@ -32,8 +32,8 @@ Progress: [####................] 20%
 |-------|--------|------|---------|
 | discuss | ✓ | 2026-10-11 | |
 | research | ✓ | 2026-10-11 | |
-| plan | → | | |
-| execute | | | |
+| plan | ✓ | 2026-10-12 | |
+| execute | → | | |
 | verify | | | |
 
 ## Completed So Far
@@ -60,10 +60,13 @@ Progress: [####................] 20%
 - Editor recommendation: O-Emulator shape (inline `GenericAudioProcessorEditor`, harness at `JUCE_WEB_BROWSER=0`); Stage-1 harness probes P0–P5 specified (contract, pass-through bit-equal + no fade-in, Left-only + mono-in, ragged blocks, oversized block, impulse latency = 64, −60 dB silence)
 - Verify tooling: pluginval strictness 10 (CI parity), targeted `auval -v aufx OSAm OuDv`
 
+**Stage 1 / plan:** ✓ Complete (2026-10-12)
+- `stages/1-foundation/PLAN.md` — T1 CMake (effect, `OSAm`, no BinaryData) · T2 `Source/dsp/{SpatialEngine,FixedDelay}.h` seam with `kPartition = 64` · T3 processor (buses, 12-param table, seeded pass-through with slice loop, XML state + `pluginVersion`) · T4 inline `GenericAudioProcessorEditor` (no editor TU) · T5 `tests/render-harness` scaffold from O-Emulator 8ec32da9 with probes P0–P5 + FNV digest · T6 build / harness / build-and-install / `auval -v aufx OSAm OuDv` / pluginval s10 ×2 · T7 SUMMARY + status
+- Success criteria mirror CONTEXT.md; gotchas checklist from RESEARCH §8 embedded for the executor
+
 ## Next Steps
 
-1. `/plugin-plan O-simpleAmbisonics` — Stage 1 plan (task breakdown from CONTEXT.md + RESEARCH.md §1–6)
-2. `/plugin-execute O-simpleAmbisonics` (foundation-shell-agent) → `/plugin-verify O-simpleAmbisonics`
+1. `/plugin-execute O-simpleAmbisonics 1-foundation` (foundation-shell-agent) → `/plugin-verify O-simpleAmbisonics 1-foundation`
 3. UI mockup (`/start O-simpleAmbisonics` → option 3) before Stage 3; it finalises `parameter-spec.md` and must keep the 12-parameter set
 
 ## Context to Preserve
@@ -93,3 +96,4 @@ Progress: [####................] 20%
 - plugins/O-simpleAmbisonics/.planning/stages/0-ideation/CONTEXT.md (Stage 0)
 - plugins/O-simpleAmbisonics/.planning/stages/1-foundation/CONTEXT.md (Stage 1 discuss)
 - plugins/O-simpleAmbisonics/.planning/stages/1-foundation/RESEARCH.md (Stage 1 research)
+- plugins/O-simpleAmbisonics/.planning/stages/1-foundation/PLAN.md (Stage 1 plan)
