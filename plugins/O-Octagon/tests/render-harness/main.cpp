@@ -8804,6 +8804,81 @@ int main()
     }
 
     //==========================================================================
+    // ED — v1.15.3. ARMING THE MONITOR DURING A PING: THE FADE IS NEVER FOLDED, AND THE PAGE
+    // READS IDLE.
+    //
+    // v1.15.2 made setMonitorArmed()'s abort a 20 ms fade and armed the fold in the same call, so
+    // the fold read the fading ping lane into the headphones; and getState() reported active=true
+    // with mode/speaker 0 for that fade (venue.js drew "0 0"). Ping on speaker 5 — a lane that is
+    // not the monitor pair (buffers 0/1 on 7.1) — over a SILENT programme, arm mid-sustain:
+    //   1. the monitor pair is exact 0.0f from the arm through the fade (any ping is the fold's);
+    //   2. getState().active is false straight after the arm, true straight before it;
+    //   3. once a tone starts after the fade, all eight lanes are bit-identical to a render armed
+    //      at the same sample with no ping — the fold engaged, and carries nothing of the ping.
+    // Non-vacuity: the ping lane is still sounding after the arm (the abort really is a fade), and
+    // the control's monitor pair carries the tone.
+    {
+        constexpr int total   = 16384;
+        constexpr int startAt = 2048;
+        constexpr int armAt   = startAt + 9600;    // 200 ms: in sustain
+        constexpr int toneAt0 = armAt + 2048;      // the 960-sample fade + a control block, clear
+
+        static_assert (armAt % 64 == 0 && toneAt0 % 64 == 0, "grid-aligned");
+
+        const auto gen = [&] (int n) { return n >= toneAt0 ? toneAt (n, 100.0f) : 0.0f; };
+
+        int  pingLane     = 0;
+        bool activeBefore = false, activeAfter = true;
+
+        juce::AudioBuffer<float> ev (8, total), ctl (8, total);
+
+        for (int pass = 0; pass < 2; ++pass)
+        {
+            OOctagonProcessor proc;
+            negotiate (proc, mono, set71);
+            pingLane = expectedLane (proc, set71, 4);
+
+            renderHooked (proc, pass == 0 ? ev : ctl, total, gen, [&] (int n)
+            {
+                if (n == startAt && pass == 0) proc.startVerifyPing (5);
+                if (n == armAt)
+                {
+                    if (pass == 0) activeBefore = proc.verifyPingState().active;
+                    proc.setMonitorArmed (true);
+                    if (pass == 0) activeAfter = proc.verifyPingState().active;
+                }
+            });
+        }
+
+        const bool laneOk   = pingLane != 0 && pingLane != 1;
+        const float folded  = juce::jmax (ev.getMagnitude (0, armAt, toneAt0 - armAt),
+                                          ev.getMagnitude (1, armAt, toneAt0 - armAt));
+        const bool fading   = ev.getMagnitude (pingLane, armAt, 480) > 1.0e-3f;
+        const bool ctlFolds = ctl.getMagnitude (0, toneAt0 + 1024, 2048) > 1.0e-3f;
+
+        juce::AudioBuffer<float> evTail (8, total - toneAt0), ctlTail (8, total - toneAt0);
+        for (int ch = 0; ch < 8; ++ch)
+        {
+            evTail.copyFrom  (ch, 0, ev,  ch, toneAt0, total - toneAt0);
+            ctlTail.copyFrom (ch, 0, ctl, ch, toneAt0, total - toneAt0);
+        }
+        const bool same = bitIdentical (evTail, ctlTail);
+
+        const bool ok = laneOk && fading && ctlFolds && folded == 0.0f && activeBefore && ! activeAfter
+                     && same && allFinite (ev);
+
+        check ("ED arm-during-ping-not-folded", ok,
+               juce::String ("monitor pair peak during the abort fade ") + juce::String (folded, 6)
+                   + (folded == 0.0f ? "" : " — PING FOLDED")
+                   + "; state active " + (activeBefore ? "true" : "false") + " -> "
+                   + (activeAfter ? "true — '0 0'" : "false")
+                   + "; after the fade " + (same ? "bit-identical to a no-ping arm" : "DIFFERS from a no-ping arm")
+                   + (fading ? "" : " (VACUOUS — ping not fading)")
+                   + (ctlFolds ? "" : " (VACUOUS — control fold silent)")
+                   + (laneOk ? "" : " (VACUOUS — ping on the monitor pair)"));
+    }
+
+    //==========================================================================
     std::printf ("\n----------------------------------------------------\n");
     std::printf ("  %d probe(s), %d failure(s)\n\n", probes, failures);
 

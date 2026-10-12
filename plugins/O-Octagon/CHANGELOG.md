@@ -1,5 +1,38 @@
 # O-Octagon Changelog
 
+## [1.15.3] - 2026-10-12
+
+Two regressions from 1.15.2's faded `abort()` (B14), both on the one path that uses it: arming the
+monitor while a ping runs. PATCH: no parameter, preset or session change; the CU and DC digests are
+unchanged.
+
+### Fixed
+
+- **Arming the monitor during a ping folded the ping into the headphones.** `setMonitorArmed()`
+  aborts the ping as a 20 ms fade and arms the fold in the same call. The fold reads all eight lanes,
+  so for that fade it carried the ping lane into the monitor pair (peak 0.042 on a silent
+  programme). The fold is now held off while the ping is still active, and engages on its own 5 ms
+  crossfade once the fade has finished — at most 20 ms plus one 64-sample control block later. The
+  fade itself is kept; cutting the ping instead would bring back the step B14 removed. The "armed
+  but suppressed" banner is not raised for that wait.
+- **The ping readout showed "0 0" after arming the monitor.** `getState()` reported `active` true
+  for the abort's fade, with mode and speaker already 0. `active` is now false from the abort to the
+  next start. The page shows "—" and stops polling at once.
+- **The ping's noise was seeded from the clock**, so every figure measured on it was one draw: the
+  1.15.2 DY retarget level read 0.62, 0.77 and 0.84 on three runs of the same build. The RNG is now
+  seeded in `prepare()`, and the ping is identical from every prepare. It is still pink noise; how it
+  sounds does not change.
+
+### Testing
+
+- **New render probe ED** — ping on speaker 5 over a silent programme, monitor armed mid-sustain.
+  The monitor pair stays exact 0.0f through the fade (v1.15.2: 0.042, the ping folded). State
+  `active` goes true → false at the arm (v1.15.2: stayed true). Once a tone starts after the fade,
+  all eight lanes are bit-identical to a render armed with no ping. Both parts are red on the
+  v1.15.2 sources, with the same harness.
+- DY, seeded: start/stop 1.02x; monitor-arm abort 1.00x against its control (was 0.14x); retarget keeps 0.93 of the old lane's level, the same on every run.
+- Render harness 88/0 (87 + ED). CU `0x8ae2ed8c37b3be56` and DC `0xdef4e5ef94849f76` unchanged.
+
 ## [1.15.2] - 2026-10-12
 
 Round 3b of the v1.13.1 four-goal review (`.planning/REVIEW-v1.13.1.md`): render start, the verify
@@ -59,7 +92,8 @@ it would change the level of existing sessions.
 
 - **Five new render probes**, each red on v1.15.1 (sources swapped back, same harness) in every part:
   - **DY** — the ping. Start/stop 1.02x (v1.15.1: 5471x); monitor-arm abort 0.14x (231x). A
-    retarget keeps 0.62 of the old lane's level in the next 10 ms (0.00, cut). A gap stop is
+    retarget keeps 0.62 of the old lane's level in the next 10 ms (0.00, cut) — one unseeded draw;
+    see 1.15.3, seeded 0.93. A gap stop is
     silent (peak 0.31). An offline render is bit-identical to a never-pinged one (the ping was
     printed into it).
   - **DZ** — a stereo render that starts folded is bit-identical to a warm fold (differed). A motion

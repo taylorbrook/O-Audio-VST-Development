@@ -77,6 +77,12 @@ void VerifyPing::prepare (double sampleRateToUse)
     // GainStage::prepare() states for the seventeen smoothers. Nothing below ever calls reset().
     b0 = b1 = b2 = 0.0f;
 
+    // v1.15.3 — SEEDED. A default-constructed juce::Random seeds from the clock, so every figure a
+    // probe measured on the ping was one draw (DY's retarget level read 0.62, 0.77 and 0.84 on three
+    // runs of the same build). Fixed here, at the single initialisation site, so the noise — and
+    // everything measured on it — repeats from every prepare(). Inaudible: it is still pink noise.
+    rng.setSeed (0x4f4f6374);
+
     clearRun();
     runCounter   = 0;
     speaker      = 0;
@@ -84,6 +90,7 @@ void VerifyPing::prepare (double sampleRateToUse)
 
     command.store (kCmdNone, std::memory_order_release);
     killPending.store (false, std::memory_order_release);
+    abortedOut.store (false, std::memory_order_release);
     activeFlag.store (false, std::memory_order_release);
     publish();
 }
@@ -97,6 +104,7 @@ void VerifyPing::start (int speakerOrAuto)
     // Order matters: the command must be visible before the audio thread is allowed in, or the
     // first overwrite() would consume kCmdNone and render nothing while isActive() reads true.
     command.store (speakerOrAuto, std::memory_order_release);
+    abortedOut.store (false, std::memory_order_release);
     activeFlag.store (true, std::memory_order_release);
 }
 
@@ -115,6 +123,11 @@ void VerifyPing::abort()
     // the editor never reads the withdrawn speaker, not even for the block before the command lands.
     command.store (kCmdAbort, std::memory_order_release);
 
+    // v1.15.3 — `active` too. activeFlag has to stay true for the fade, so it cannot be what the
+    // editor reads: getState() masks it with this until the next start(). The page saw active=true
+    // with mode/speaker 0 and drew "0 0".
+    abortedOut.store (true, std::memory_order_release);
+
     modeOut.store (0, std::memory_order_release);
     speakerOut.store (0, std::memory_order_release);
     elapsedMsOut.store (0, std::memory_order_release);
@@ -131,6 +144,7 @@ void VerifyPing::kill()
     // would make that start a "retarget" of a run nobody can hear).
     killPending.store (true, std::memory_order_release);
     command.store (kCmdNone, std::memory_order_release);
+    abortedOut.store (false, std::memory_order_release);
     activeFlag.store (false, std::memory_order_release);
 
     modeOut.store (0, std::memory_order_release);
@@ -155,7 +169,8 @@ void VerifyPing::clearRun() noexcept
 VerifyPing::State VerifyPing::getState() const noexcept
 {
     State s;
-    s.active      = activeFlag.load (std::memory_order_acquire);
+    s.active      = activeFlag.load (std::memory_order_acquire)
+                 && ! abortedOut.load (std::memory_order_acquire);
     s.mode        = modeOut.load (std::memory_order_acquire);
     s.speaker     = speakerOut.load (std::memory_order_acquire);
     s.elapsedMs   = elapsedMsOut.load (std::memory_order_acquire);
