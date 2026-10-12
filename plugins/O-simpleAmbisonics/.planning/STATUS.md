@@ -6,15 +6,15 @@ stage_phase: 1
 stage_phase_name: chain-and-stereo
 stage_phase_total: 3
 artifact_suffix: "-2.1"
-status: stage_2_phase_2_1_research_complete
+status: stage_2_phase_2_1_plan_complete
 last_updated: 2026-10-12
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-current_phase: research
-next_phase: plan
-next_action: plugin-plan
+current_phase: plan
+next_phase: execute
+next_action: plugin-execute
 next_stage: 2
 ready_for_implementation: true
 parameter_count: 12
@@ -26,8 +26,9 @@ plugin_code: OSAm
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — Phase 2.1 of 3 (chain + stereo) — research ✓ (2026-10-12)
-Status: Phase 2.1 RESEARCH-2.1.md written: R1–R7 answered with computed numbers (click metric = second-difference ratio ≤ 2.0 vs matched control on a 100 Hz tone; allocation counter = O-Octagon probe AO verbatim; chord error −1.3/−3.75/−5.56 dB per band at 4096-sample slices → D5 AMENDMENT: fixed 64-sample control grid, which also makes moving-parameter renders bit-identical across slicing; DSP-01 generic table verified to 4.7e-16 / float 2.8e-08; DSP-05 two-tone 200 Hz + 12 kHz with closed-form anchors, flat on [0.2, 1] by design; TripleBuffer not a module — copy with provenance; peaks = max-since-UI-last-read via hasNewData()). Findings F1–F9: one-poles never reach exact 0/1 → linear ramps for order gains + decoder mix and a 1e-6 snap; mixer/lerp form b + t·(a − b) so the D6 placeholder and the P1 anchor are bit-exact; D7 motivation corrected (TPT pole at 0.45·fs is −0.06 dB at 10 kHz, not −0.85). Next: 2.1 / plan.
+Stage: 2 of 4 (DSP) — Phase 2.1 of 3 (chain + stereo) — plan ✓ (2026-10-12)
+Status: Phase 2.1 PLAN-2.1.md written: 13 tasks (T1–T13) with decisions A1–A15 adopted from RESEARCH-2.1 — the D5 amendment (persistent 64-sample control grid, constant k = 1 − exp(−64/(τ·fs)) and ramp step 64/(τ·fs)), linear ramps for order gains + decoder mix with exact arrival, 1e-6 snap on the one-poles, every blend as b + t·(a − b), decoder matrix as exact literals 0.5f/0.25f/0.4330127f, per-sample lerp t = (j+1)/64, Params filled before engine.prepare, engine-owned peak accumulation with a hasNewData()-gated reset, D6 placeholder explicit at the engine call site. The control step is written once as a shared spec for SpatialEngine (T7) and the double-precision ReferenceModel (T9, generic SN3D table, snap switches for the negative controls). Harness probe set: P0–P5 kept (P1 → reference null + bit-exact 0.75·s[n−64] anchor in BOTH decoder modes; P4 amplitude 0.75), P2b/P3b orbit-On slicing invariance, DSP-01/04/05(+clamp target at 44.1 k and an fs 22050 audible-clamp render)/06a/06b (hook-driven at 64 blocks + orbit-driven at 64 and 4096 bit-equal; snap-model negative control; liveness ≥ 6 dB), order fade on a per-sample bus tap (the stereo output cannot see bands 2–3 — vacuous there), PERF-01 counter with liveness new, meter-frame 4/9/16 + accumulate-then-reset, extremes at 48 k/96 k. Next: 2.1 / execute.
+Research was: R1–R7 answered with computed numbers (click metric = second-difference ratio ≤ 2.0 vs matched control on a 100 Hz tone; allocation counter = O-Octagon probe AO verbatim; chord error −1.3/−3.75/−5.56 dB per band at 4096-sample slices → D5 AMENDMENT: fixed 64-sample control grid; DSP-01 generic table verified to 4.7e-16 / float 2.8e-08; DSP-05 two-tone 200 Hz + 12 kHz with closed-form anchors, flat on [0.2, 1] by design; TripleBuffer not a module — copy with provenance; peaks = max-since-UI-last-read via hasNewData()). F1–F9: linear ramps for order gains + decoder mix and a 1e-6 snap; b + t·(a − b) forms; D7 motivation corrected (−0.06 dB at 10 kHz at the clamp).
 Stage 1 was: Stage 1 complete. Verify re-ran everything independently on the INSTALLED bundles (byte-identical to the build): harness P0–P5 ALL PASS (digest 6a1df555bc125ae3 reproduced), 0 warnings on a forced TU rebuild, auval SUCCEEDED (caps [1,2] [2,2]), pluginval s10 SUCCESS VST3 + AU, pedalboard V1–V3 (12-param contract, pass-through with reported == measured latency, 12-value state round-trip) ALL PASS. COMPAT-01 + FUNC-07 complete. Next: Stage 2 / discuss (Phase 2.1).
 Progress: [#########...........] 42%
 
@@ -47,7 +48,7 @@ Progress: [#########...........] 42%
 |-------|--------|------|---------|
 | discuss | ✓ | 2026-10-12 | |
 | research | ✓ | 2026-10-12 | |
-| plan | | | |
+| plan | ✓ | 2026-10-12 | |
 | execute | | | |
 | verify | | | |
 
@@ -106,9 +107,15 @@ Not started. Per-phase cycles (D1); roll-up `stages/2-dsp/VERIFICATION.md` at th
 - Findings: F1 one-pole smoothers never reach exactly 0/1 (1.75 s to FTZ) → order gains + decoder mix as 20 ms linear ramps, one-poles snap at 1e-6; F2 mixer/lerp form `b + t·(a − b)` (D6 placeholder exact in Binaural mode); F3 P1 anchor bit-exact with literal `0.25f`/`0.4330127f` matrix; F4 `wrapTo180` is [−180, 180); F5 `Params` filled before `engine.prepare`, every smoother snapped; F6 engine-direct gates under `ScopedNoDenormals`; F7 DSP-04 margin 22.9 dB vs 20, non-negative for all directions incl. elevation; F8 P2b/P3b orbit-On slicing invariance; F9 `tests/render-harness/ReferenceModel.h`
 - Correction recorded: D7's "−0.85 dB at 10 kHz" is the analog pole; the TPT (bilinear) pole at 0.45·fs is −0.06 dB at 10 kHz — D7's wet mix stands for exactness, not for tone
 
+**Stage 2 / Phase 2.1 / plan:** ✓ Complete (2026-10-12)
+- `stages/2-dsp/PLAN-2.1.md` — decisions A1–A15 (D5 amendment adopted as A1: persistent `gridPos`, constant `kOnePole`/`kRampStep` from 64 samples; A2 ramps with exact arrival + 1e-6 snap; A3 `b + t·(a − b)`; A4 exact decoder literals; A5 `t = (j+1)/64`; A6 `[−180, 180)`; A7 `setParams` before `prepare`; A8 engine-owned peaks, public `meterFrames`; A9 DSP-05 wording; A10 click metric; A11 alloc counter; A12 TripleBuffer copy; A13 JUCE-free; A14 D6 placeholder explicit at the call site; A15 −0.06 dB number)
+- Shared control-step spec (one block, op-for-op) binds T7 `SpatialEngine` and T9 `ReferenceModel`
+- Tasks: T1 `Smoothers.h` · T2 `ShEncoder.h` (verbatim lift + provenance) · T3 `DistanceModel.h` (`clampedCutoffHz()` accessor) · T4 `OrbitLfo.h` · T5 `StereoDecoder.h` + `DecoderMixer.h` · T6 `MeterFrame.h` + `TripleBuffer.h` · T7 engine composition (no bus buffer, `busTap[16]`) · T8 processor wiring + CMake sources · T9 `tests/render-harness/ReferenceModel.h` · T10 harness infra (rtcheck, click helpers, `checkFailsAsExpected`, drivers) · T11 probes (P0–P5, P2b/P3b, DSP-01/04/05+clamp/06a/06b, order fade on the bus tap, PERF-01, meter frame, extremes, digest) · T12 build / harness / install / auval / pluginval ×2 · T13 SUMMARY-2.1 + STATUS + temp-index commit
+- Gate design notes: the order-fade click gate reads the 16-channel bus (Stereo output is blind to bands 2–3); the hook-driven sweep verdict is at 64-sample blocks only (large-block parameter steps are automation granularity under τ = 20 ms, printed informationally); orbit-driven 64 vs 4096 renders must be bit-equal
+
 ## Next Steps
 
-1. Stage 2 / Phase 2.1 / plan: `/plugin-plan O-simpleAmbisonics 2-dsp` — adopt the D5 amendment (64-sample control grid) and F1–F3 forms, write the task list from RESEARCH-2.1 §Open items 1–10, produce `PLAN-2.1.md`
+1. Stage 2 / Phase 2.1 / execute: `/plugin-execute O-simpleAmbisonics 2-dsp` — implement T1–T13 of `PLAN-2.1.md`; produce `SUMMARY-2.1.md`
 2. Non-blocking human checks from `stages/1-foundation/VERIFICATION.md` (Logic stereo + mono track, Generic editor 12 rows, project save/reopen) — repeated formally under COMPAT-02 at Stage 4
 3. UI mockup (`/start O-simpleAmbisonics` → option 3) before Stage 3; it finalises `parameter-spec.md` and must keep the 12-parameter set
 
@@ -149,3 +156,4 @@ Not started. Per-phase cycles (D1); roll-up `stages/2-dsp/VERIFICATION.md` at th
 - plugins/O-simpleAmbisonics/tests/render-harness/CMakeLists.txt, main.cpp (Stage 1 execute)
 - plugins/O-simpleAmbisonics/.planning/stages/2-dsp/CONTEXT-2.1.md (Stage 2 / 2.1 discuss)
 - plugins/O-simpleAmbisonics/.planning/stages/2-dsp/RESEARCH-2.1.md (Stage 2 / 2.1 research)
+- plugins/O-simpleAmbisonics/.planning/stages/2-dsp/PLAN-2.1.md (Stage 2 / 2.1 plan)
