@@ -6,15 +6,15 @@ stage_phase: 1
 stage_phase_name: chain-and-stereo
 stage_phase_total: 3
 artifact_suffix: "-2.1"
-status: stage_2_phase_2_1_discuss_complete
+status: stage_2_phase_2_1_research_complete
 last_updated: 2026-10-12
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-current_phase: discuss
-next_phase: research
-next_action: plugin-research
+current_phase: research
+next_phase: plan
+next_action: plugin-plan
 next_stage: 2
 ready_for_implementation: true
 parameter_count: 12
@@ -26,10 +26,10 @@ plugin_code: OSAm
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — Phase 2.1 of 3 (chain + stereo) — discuss ✓ (2026-10-12)
-Status: Stage 2 runs as THREE per-phase GSD cycles (D1, Taylor's call; O-Octagon artifact naming `*-2.N.md`). Phase 2.1 CONTEXT-2.1.md written: audible chain without rotation/HRTF, 9 decisions (D6: binaural leg = stereo placeholder so the Binaural default is not silent; D7: air-LP wet mix so d ≤ 1 m is exactly transparent; D8: P1 → double-precision reference null), 7 research questions (R1 click metric first). SADIE II D1 SOFA confirmed downloadable (Zenodo 12092466, 38.2 MB, Apache-2.0) and `sofar` 1.3.0 via uv — 2.3's fallback not expected. Next: 2.1 / research.
+Stage: 2 of 4 (DSP) — Phase 2.1 of 3 (chain + stereo) — research ✓ (2026-10-12)
+Status: Phase 2.1 RESEARCH-2.1.md written: R1–R7 answered with computed numbers (click metric = second-difference ratio ≤ 2.0 vs matched control on a 100 Hz tone; allocation counter = O-Octagon probe AO verbatim; chord error −1.3/−3.75/−5.56 dB per band at 4096-sample slices → D5 AMENDMENT: fixed 64-sample control grid, which also makes moving-parameter renders bit-identical across slicing; DSP-01 generic table verified to 4.7e-16 / float 2.8e-08; DSP-05 two-tone 200 Hz + 12 kHz with closed-form anchors, flat on [0.2, 1] by design; TripleBuffer not a module — copy with provenance; peaks = max-since-UI-last-read via hasNewData()). Findings F1–F9: one-poles never reach exact 0/1 → linear ramps for order gains + decoder mix and a 1e-6 snap; mixer/lerp form b + t·(a − b) so the D6 placeholder and the P1 anchor are bit-exact; D7 motivation corrected (TPT pole at 0.45·fs is −0.06 dB at 10 kHz, not −0.85). Next: 2.1 / plan.
 Stage 1 was: Stage 1 complete. Verify re-ran everything independently on the INSTALLED bundles (byte-identical to the build): harness P0–P5 ALL PASS (digest 6a1df555bc125ae3 reproduced), 0 warnings on a forced TU rebuild, auval SUCCEEDED (caps [1,2] [2,2]), pluginval s10 SUCCESS VST3 + AU, pedalboard V1–V3 (12-param contract, pass-through with reported == measured latency, 12-value state round-trip) ALL PASS. COMPAT-01 + FUNC-07 complete. Next: Stage 2 / discuss (Phase 2.1).
-Progress: [########............] 38%
+Progress: [#########...........] 42%
 
 ## Phase Progress
 
@@ -46,7 +46,7 @@ Progress: [########............] 38%
 | Phase | Status | Date | Skipped |
 |-------|--------|------|---------|
 | discuss | ✓ | 2026-10-12 | |
-| research | | | |
+| research | ✓ | 2026-10-12 | |
 | plan | | | |
 | execute | | | |
 | verify | | | |
@@ -101,9 +101,14 @@ Not started. Per-phase cycles (D1); roll-up `stages/2-dsp/VERIFICATION.md` at th
 - Open for research: R1 click metric, R2 alloc-counter precedent, R3 lerp chord error at 4096-sample orbit, R4 independent DSP-01 table, R5 HF/LF ratio bands, R6 TripleBuffer module status, R7 meter publish cadence
 - External risks retired early: SADIE II D1 HRIR SOFA at Zenodo 12092466 (38.2 MB, apache2.0, HTTP 200); `sofar` 1.3.0 resolves via `uv run --with sofar`
 
+**Stage 2 / Phase 2.1 / research:** ✓ Complete (2026-10-12)
+- `stages/2-dsp/RESEARCH-2.1.md` — R1 click metric: worst |second difference| over the event vs a matched static control, ratio ≤ 2.0 (O-Octagon v1.15.0 `worstCurvature`), 100 Hz tone (a 1 kHz tone cannot see a 64-block zipper: step/2nd-diff 0.24 vs 24 at 100 Hz), negative control = the harness reference model with per-block snap, liveness half-circle ≥ 6 dB; R2 allocation counter: O-Octagon `main.cpp:111-241` verbatim (8 new/delete variants, thread-filtered, `foreignNote()`), pre-sized buffers + warm-up block + liveness `new`, standing coverage statement; R3 chord error at D5's slice-rate control: −1.31 / −3.75 / −5.56 dB per band at 4096-sample slices @ 2 Hz → **D5 amendment proposed: fixed 64-sample control grid** (≤ 0.002 dB, constant k = 0.0645, renders bit-identical across slicing with moving parameters → new P2b/P3b gates); R4 generic SN3D table (factorials + §2.5 Legendre) vs `encodeSH16`: 4.7e-16 double, 2.8e-08 float — AmbiX sign/ACN confirmed; R5 DSP-05 = two-tone 200 Hz + 12 kHz exact-bin DFT, closed-form bilinear anchors (0 dB at ≤ 1 m, −10.79 dB at 20 m; level +8.87 / 0 / −24.19 dB), ratio flat on [0.2, 1] and strictly decreasing on (1, 20] — criterion reworded; R6 TripleBuffer not in `modules/registry.yaml` (copies in O-GrainScatter + O-simpleGrain) → copy with provenance, module candidate after Stage 2; R7 publish once per host block, peaks accumulate until the reader consumed (`hasNewData()` false → reset), engine owns accumulation
+- Findings: F1 one-pole smoothers never reach exactly 0/1 (1.75 s to FTZ) → order gains + decoder mix as 20 ms linear ramps, one-poles snap at 1e-6; F2 mixer/lerp form `b + t·(a − b)` (D6 placeholder exact in Binaural mode); F3 P1 anchor bit-exact with literal `0.25f`/`0.4330127f` matrix; F4 `wrapTo180` is [−180, 180); F5 `Params` filled before `engine.prepare`, every smoother snapped; F6 engine-direct gates under `ScopedNoDenormals`; F7 DSP-04 margin 22.9 dB vs 20, non-negative for all directions incl. elevation; F8 P2b/P3b orbit-On slicing invariance; F9 `tests/render-harness/ReferenceModel.h`
+- Correction recorded: D7's "−0.85 dB at 10 kHz" is the analog pole; the TPT (bilinear) pole at 0.45·fs is −0.06 dB at 10 kHz — D7's wet mix stands for exactness, not for tone
+
 ## Next Steps
 
-1. Stage 2 / Phase 2.1 / research: `/plugin-research O-simpleAmbisonics 2-dsp` — answer R1–R7 of `stages/2-dsp/CONTEXT-2.1.md`, pin the sibling harness patterns (alloc counter, click metric), produce `RESEARCH-2.1.md`
+1. Stage 2 / Phase 2.1 / plan: `/plugin-plan O-simpleAmbisonics 2-dsp` — adopt the D5 amendment (64-sample control grid) and F1–F3 forms, write the task list from RESEARCH-2.1 §Open items 1–10, produce `PLAN-2.1.md`
 2. Non-blocking human checks from `stages/1-foundation/VERIFICATION.md` (Logic stereo + mono track, Generic editor 12 rows, project save/reopen) — repeated formally under COMPAT-02 at Stage 4
 3. UI mockup (`/start O-simpleAmbisonics` → option 3) before Stage 3; it finalises `parameter-spec.md` and must keep the 12-parameter set
 
@@ -143,3 +148,4 @@ Not started. Per-phase cycles (D1); roll-up `stages/2-dsp/VERIFICATION.md` at th
 - plugins/O-simpleAmbisonics/Source/ui/.gitkeep (Stage 1 execute)
 - plugins/O-simpleAmbisonics/tests/render-harness/CMakeLists.txt, main.cpp (Stage 1 execute)
 - plugins/O-simpleAmbisonics/.planning/stages/2-dsp/CONTEXT-2.1.md (Stage 2 / 2.1 discuss)
+- plugins/O-simpleAmbisonics/.planning/stages/2-dsp/RESEARCH-2.1.md (Stage 2 / 2.1 research)
