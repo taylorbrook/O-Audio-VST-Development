@@ -287,6 +287,13 @@ private:
     void updateControl (const VenueSnapshot& snapshot, const ParamSnapshot& p,
                         Vec3 offset, bool motionOn) noexcept;
 
+    /** v1.15.1 — the three "wanted, or still fading" run flags and their engage edges. Called from
+        BOTH of updateControl()'s exits (full solve and dirty-check skip), because a fade outlives
+        the solve that starts it; deriveAirRun() also after prepare()'s step-4 teleport. */
+    void deriveAirRun() noexcept;
+    void deriveDecorrEngaged() noexcept;
+    void deriveDelayEngaged() noexcept;
+
     void renderChunk (juce::AudioBuffer<float>& buffer, int start, int count,
                       int numIn, int numOut, bool mapped, bool binauralOn,
                       const VenueSnapshot& snapshot, VerifyPing* ping) noexcept;

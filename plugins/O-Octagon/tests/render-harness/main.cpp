@@ -7978,6 +7978,222 @@ int main()
     }
 
     //==========================================================================
+    // DX — v1.15.1. A STAGE THAT HAS FADED OUT STOPS RUNNING, AND ITS NEXT ENTRY IS A REAL ENTRY.
+    //
+    // airRun / decorrEngaged / delayActive are each "wanted, or the fade still has something to
+    // fade", and the second half changes while the parameters do not. Through v1.15.0 they were
+    // derived only past the dirty check, so with Motion off the solve that STARTED a fade-out was
+    // the last to look: every later block skipped and the flag latched true. The output stayed
+    // exact (mix 0 -> sL, a zero tap -> y), which is why no click or digest probe could see it —
+    // so this probe counts the branch instead, after the fade has long landed.
+    //
+    // The air latch also swallowed the next false->true edge: re-entry was neither re-seeded nor
+    // snapped. Part 2 makes that a bit-compare against a render whose filter has never run.
+    {
+        constexpr int total   = 8192;
+        constexpr int eventAt = 2048;
+        constexpr int quietAt = eventAt + 2048;   // 5 ms air/decorr fades, 15 ms delay fade, long gone
+        constexpr int reenter = 6144;
+
+        static_assert (eventAt % 64 == 0 && quietAt % 64 == 0 && reenter % 64 == 0, "grid-aligned");
+
+        const auto noise = [] (int n) { return noiseAt (n); };
+
+        OOctagonProcessor scout;
+        negotiate (scout, mono, set71);
+
+        float onx = 0.0f, ony = 0.0f;
+        const bool found = findOutside (scout, onx, ony);
+
+        const auto& sv = scout.getVenue();
+        const float inNx = (sv.centroid().x - sv.bbMinX()) / (sv.bbMaxX() - sv.bbMinX());
+        const float inNy = (sv.centroid().y - sv.bbMinY()) / (sv.bbMaxY() - sv.bbMinY());
+
+        bool         ok = found;
+        juce::String detail;
+
+        if (! found)
+            detail << "NO OUTSIDE POSITION — the air scenarios would be vacuous; ";
+
+        // ── 1. The latch, per stage: running before the event, NOT running once it has landed ──
+        struct Latch { const char* name; int kind; };   // 0-2 air, 3 decorr, 4 delay
+
+        const std::array<Latch, 5> latches
+            { { { "air 1 -> 0",                 0 },
+                { "outside -> centre",          1 },
+                { "orbit 16 m, Motion OFF",     2 },
+                { "decorr 1 -> 0",              3 },
+                { "speaker 4 delay 10 -> 0 ms", 4 } } };
+
+        const auto counterFor = [] (int kind)
+        {
+            return kind <= 2 ? oo::instr::get (oo::instr::airSamplesFiltered)
+                 : kind == 3 ? oo::instr::get (oo::instr::decorrSamples)
+                             : oo::instr::get (oo::instr::delayLaneSamples);
+        };
+
+        for (const auto& l : latches)
+        {
+            OOctagonProcessor proc;
+
+            if (l.kind == 4)
+            {
+                oo::VenueModel v = proc.getVenue();
+                v.setSpeakerDelayMs (3, 10.0f);
+                proc.applyVenueEdit (v);
+            }
+
+            setParam (proc, "blur", 0.0f);
+            setParam (proc, "airAmount", l.kind <= 2 ? 1.0f : 0.0f);
+
+            if (l.kind == 2)
+            {
+                setParam (proc, "srcX", inNx);
+                setParam (proc, "srcY", inNy);
+                setParam (proc, "motionOn",   1.0f);
+                setParam (proc, "motionPath", 0.0f);       // orbit
+                setParam (proc, "motionSize", 16.0f);
+                setParam (proc, "motionRate", 0.25f);
+            }
+            else if (l.kind == 3)
+            {
+                setParam (proc, "srcX", 0.28f);            // off-centre: wEff is the dialled width
+                setParam (proc, "srcY", 0.66f);
+                setParam (proc, "width", 6.0f);
+                setParam (proc, "decorr", 1.0f);
+            }
+            else
+            {
+                setParam (proc, "srcX", onx);
+                setParam (proc, "srcY", ony);
+            }
+
+            negotiate (proc, mono, set71);
+            oo::instr::resetCounters();
+
+            std::uint64_t before = 0;
+            juce::AudioBuffer<float> out (8, total);
+
+            renderHooked (proc, out, total, noise, [&] (int n)
+            {
+                if (n == eventAt)
+                {
+                    before = counterFor (l.kind);
+
+                    switch (l.kind)
+                    {
+                        case 0:  setParam (proc, "airAmount", 0.0f); break;
+                        case 1:  setParam (proc, "srcX", inNx); setParam (proc, "srcY", inNy); break;
+                        case 2:  setParam (proc, "motionOn", 0.0f); break;
+                        case 3:  setParam (proc, "decorr", 0.0f); break;
+                        default:
+                        {
+                            oo::VenueModel v = proc.getVenue();
+                            v.setSpeakerDelayMs (3, 0.0f);
+                            proc.applyVenueEdit (v);
+                            break;
+                        }
+                    }
+                }
+                else if (n == quietAt)
+                {
+                    oo::instr::resetCounters();
+                }
+            });
+
+            const auto after = counterFor (l.kind);
+            const bool live  = before > 0;
+            const bool quiet = after == 0;
+
+            ok = ok && live && quiet && allFinite (out);
+
+            detail << l.name << ": " << juce::String ((juce::int64) before) << " before, "
+                   << juce::String ((juce::int64) after) << " after"
+                   << (quiet ? "" : " LATCHED") << (live ? "" : " (VACUOUS — never ran)") << "; ";
+        }
+
+        // ── 2. prepare() after a filtered run, into an inactive patch ──────────────────────────
+        //
+        // SmoothedValue::reset (rate, ramp) keeps the old target, so step 3 used to see the blend at
+        // 1 and fading and take the run edge, and step 4 teleported it to 0 under a true flag.
+        {
+            OOctagonProcessor proc;
+            setParam (proc, "blur", 0.0f);
+            setParam (proc, "airAmount", 1.0f);
+            setParam (proc, "srcX", onx);
+            setParam (proc, "srcY", ony);
+            negotiate (proc, mono, set71);
+
+            juce::AudioBuffer<float> out (8, eventAt);
+            renderHooked (proc, out, eventAt, noise, [] (int) {});
+
+            setParam (proc, "airAmount", 0.0f);
+            proc.prepareToPlay (kSampleRate, kBlockSize);
+            oo::instr::resetCounters();
+
+            renderHooked (proc, out, eventAt, noise, [] (int) {});
+
+            const auto after = oo::instr::get (oo::instr::airSamplesFiltered);
+            ok = ok && after == 0;
+
+            detail << "re-prepare into air 0: " << juce::String ((juce::int64) after) << " filtered"
+                   << (after == 0 ? "" : " LATCHED") << "; ";
+        }
+
+        // ── 3. Re-entry is a real entry: bit-identical to a filter that never ran before ──────
+        //
+        // Event render: air 1 -> 0 at eventAt, -> 1 at reenter. Control: air 0 until reenter. Air
+        // does not enter the DBAP solve, so both carry the same gains; from reenter on both take
+        // a run edge (seed s = x, G snapped to the same cutoff) from a blend at 0. A latched run
+        // flag takes no edge and carries the programme's own state in instead.
+        {
+            // mode 0: event (1 -> 0 -> 1); 1: control (0 -> 1 at reenter); 2: dry (0 throughout).
+            const auto render = [&] (int mode, juce::AudioBuffer<float>& dest)
+            {
+                OOctagonProcessor proc;
+                setParam (proc, "blur", 0.0f);
+                setParam (proc, "airAmount", mode == 0 ? 1.0f : 0.0f);
+                setParam (proc, "srcX", onx);
+                setParam (proc, "srcY", ony);
+                negotiate (proc, mono, set71);
+
+                renderHooked (proc, dest, total, noise, [&] (int n)
+                {
+                    if (n == eventAt && mode == 0) setParam (proc, "airAmount", 0.0f);
+                    if (n == reenter && mode != 2) setParam (proc, "airAmount", 1.0f);
+                });
+            };
+
+            const auto tailOf = [&] (const juce::AudioBuffer<float>& b)
+            {
+                juce::AudioBuffer<float> t (8, total - reenter);
+
+                for (int ch = 0; ch < 8; ++ch)
+                    t.copyFrom (ch, 0, b, ch, reenter, total - reenter);
+
+                return t;
+            };
+
+            juce::AudioBuffer<float> ev (8, total), ctl (8, total), dry (8, total);
+            render (0, ev);
+            render (1, ctl);
+            render (2, dry);
+
+            // NON-VACUITY: the re-entered filter must actually change the tail, or two tails that
+            // never filtered would compare equal for free.
+            const bool filtered = ! bitIdentical (tailOf (ctl), tailOf (dry));
+            const bool same     = bitIdentical (tailOf (ev), tailOf (ctl));
+
+            ok = ok && filtered && same;
+
+            detail << "re-entry vs never-ran control: " << (same ? "bit-identical" : "DIFFERS (no seed/snap)")
+                   << (filtered ? "" : " (VACUOUS — tail unfiltered)");
+        }
+
+        check ("DX faded-stage-stops-and-reenters-clean", ok, detail);
+    }
+
+    //==========================================================================
     std::printf ("\n----------------------------------------------------\n");
     std::printf ("  %d probe(s), %d failure(s)\n\n", probes, failures);
 
