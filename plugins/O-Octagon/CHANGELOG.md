@@ -1,5 +1,39 @@
 # O-Octagon Changelog
 
+## [1.14.1] - 2026-10-12
+
+Four regressions in v1.14.0's preset rail. PATCH: no parameter, preset-format or session change.
+
+### Fixed
+
+- **R1 — after Save as, the page used the name it TYPED, not the name C++ stored.** The module
+  writes `/ \ :` as `_` ("Front/Back" → `Front_Back.json`, listed as "Front_Back"), but the page set
+  the select to "Front/Back" — no option matched, so the select went blank — and compared the
+  next typed name against the list unsanitized, so saving "Front/Back" again overwrote
+  Front_Back.json without the "replaces the user preset" warning. **Now** C++'s `savePreset`
+  answers with the stored name (`result.name`), the page selects and shows that, and every
+  comparison against the list (factory guard, "replaces" hint) goes through the same `/ \ :` → `_`
+  rule. Invisible to every gate because the UI stub stored names verbatim; the stub now sanitizes
+  as the module does and returns `name`.
+- **R2 — `oo::presets::fileSafeName` trimmed; the module's `sanitizePresetName` does not.** A name
+  with outer whitespace resolved to a different file in `loadPreserving` than the one the module
+  wrote — the quiet miss the mirror exists to prevent. The `.trim()` is gone; `savePreset` still
+  trims before the module sees the name.
+- **R3 — Enter that commits an IME composition saved the preset.** The name field now ignores a
+  keydown with `isComposing` or `keyCode` 229 (WebKit reports the commit Enter as 229).
+- **R4 — the Save as button's tooltip title still read "Save preset".** Now "Save as" /
+  "Enregistrer sous" / "另存为", matching the button's caption in each language.
+
+### Testing
+
+- `ui_layout_check` 39/39 sections, nine new checks in §39: the stored name is selected and shown
+  after saving "Front/Back"; "Front/Back", "front:back" and "Front\Back" each warn "replaces";
+  composing Enter (both shapes) does not save while a plain Enter does (non-vacuity); the tooltip
+  title equals the caption in en / fr / zh-Hans. **Negative control:** with v1.14.0's `venue.js`
+  and `i18n.js` restored, exactly those 8 regression checks FAIL and nothing else does.
+- `ui_frontend_check` 44/44; `check-i18n` pass; `check-ui-labels` pass; `i18n-fr-lint` and
+  `i18n-zh-lint` 0 findings for O-Octagon.
+
 ## [1.14.0] - 2026-10-11
 
 Round 2 of the v1.13.1 four-goal review (`.planning/REVIEW-v1.13.1.md`): presets that behave.

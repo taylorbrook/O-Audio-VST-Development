@@ -976,7 +976,15 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
             if (ok)
                 processorRef.setPresetName (presetManager.getCurrentPresetName());
 
-            complete (makeResult (ok, ok ? "none" : "writeFailed", -1));
+            // v1.14.1 (R1) — the name the store HOLDS, not the one typed: the module writes
+            // "A/B" as A_B.json and lists it as "A_B". The page selects and compares on this, so a
+            // typed separator no longer leaves a blank select and a missing "replaces" warning.
+            auto result = makeResult (ok, ok ? "none" : "writeFailed", -1);
+
+            if (ok)
+                result.getDynamicObject()->setProperty ("name", presetManager.getCurrentPresetName());
+
+            complete (result);
         });
 
     // (8) loadPreset — AND ITS GESTURE BRACKETS (N5 / P59).

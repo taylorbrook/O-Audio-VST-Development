@@ -2708,6 +2708,59 @@ async function nudge(page, id) {
     check(again.key === 'preset.replaces' && again.tone === 'hint' && !again.saveDisabled,
         `"my hall" again: "${again.text}" (key ${again.key}), still saveable`);
 
+    // (d2) v1.14.1 (R1) — a name with / \ : is STORED as "_". Through v1.14.0 the
+    //      page selected the TYPED name: no option matched (blank select), and the
+    //      next save of the same name never said it replaces. The stub now
+    //      sanitizes as the module does, so this is the real C++ answer's shape.
+    await typeName('Front/Back');
+    await page.click('#btn-preset-save');
+    await waitLine('preset.saved');
+    const sep = await rail();
+    check(sep.value === 'Front_Back' && sep.shown === 'Front_Back' && sep.name === 'Front_Back',
+        `"Front/Back" saved: the select shows the STORED "${sep.shown}" (value "${sep.value}"), field "${sep.name}"`);
+    for (const n of ['Front/Back', 'front:back', 'Front\\Back']) {
+        await typeName(n);
+        const r = await rail();
+        check(r.key === 'preset.replaces' && !r.saveDisabled,
+            `"${n}" over the stored "Front_Back": "${r.text}" (key ${r.key})`);
+    }
+
+    // (d3) v1.14.1 (R3) — the Enter that commits an IME composition is not a save.
+    //      Both shapes are dispatched: isComposing (Chromium), keyCode 229 (WebKit).
+    //      A plain Enter is the positive control — the listener IS live.
+    await typeName('IME Test');
+    const imeWrites = await page.evaluate(() => {
+        const field = document.getElementById('preset-name');
+        const count = () => window.__OCTAGON_STUB__.presetWrites.length;
+        const before = count();
+        field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true }));
+        const k229 = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true });
+        Object.defineProperty(k229, 'keyCode', { get: () => 229 });
+        field.dispatchEvent(k229);
+        const afterIme = count();
+        field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        return { before, afterIme, afterPlain: count() };
+    });
+    check(imeWrites.afterIme === imeWrites.before,
+        `a composing Enter (isComposing / keyCode 229) does NOT save — writes ${imeWrites.before} -> ${imeWrites.afterIme}`);
+    check(imeWrites.afterPlain === imeWrites.afterIme + 1,
+        `[non-vacuity] a plain Enter DOES save — writes ${imeWrites.afterIme} -> ${imeWrites.afterPlain}`);
+    await waitLine('preset.saved');
+
+    // (d4) v1.14.1 (R4) — the button's tooltip title is the button's own caption
+    //      ("Save as"), in every language; v1.14.0 left it "Save preset".
+    for (const lang of ['en', 'fr', 'zh-Hans']) {
+        await page.evaluate(l => window.__setLanguage(l), lang);
+        await page.waitForTimeout(50);
+        const tip = await page.evaluate(() => {
+            const b = document.getElementById('btn-preset-save');
+            return { title: b.getAttribute('data-tip-title') || '', caption: b.textContent.trim() };
+        });
+        check(tip.title !== '' && tip.title === tip.caption,
+            `[${lang}] the Save as tooltip title "${tip.title}" is the button's caption "${tip.caption}"`);
+    }
+    await page.evaluate(() => window.__setLanguage('en'));
+
     // (e) LOAD a factory preset: the line, the name field, and Save is read-only again.
     await page.selectOption('#preset-list', 'Wide Hall');
     await page.click('#btn-preset-load');
