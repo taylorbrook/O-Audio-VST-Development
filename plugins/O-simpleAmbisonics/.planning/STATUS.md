@@ -18,8 +18,12 @@ next_action: ui-mockup-then-plugin-research
 next_stage: 3
 ready_for_implementation: true
 parameter_count: 12
-mockup_finalized: false
+mockup_finalized: true
+finalized_version: 1
 latest_mockup_version: 1
+brief_updated_from_mockup: true
+mockup_version_synced: 1
+brief_update_timestamp: "2026-10-13T17:45:31Z"
 mockup_required_before: research
 plugin_code: OSAm
 ---

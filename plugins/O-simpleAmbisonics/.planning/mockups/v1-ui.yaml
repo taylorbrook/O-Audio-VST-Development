@@ -435,4 +435,6 @@ notes:
   - "Height budget: header 50 + viz 356 + signal path 34 + controls 214 + lessons 28 + footer 14 + 5 gaps × 8 = 736 of 750 inner (footer margin-top: auto)"
 
 # Finalization metadata
-finalized: false
+finalized: true
+finalized_at: 2026-10-13T17:44:51Z
+finalized_by_phase: 5.5

@@ -73,6 +73,13 @@ Everything stays in the plugin; the host only ever sees a stereo effect. Student
 - **On-hover pedagogical tooltips** — short plain-language explanation per control (what W/X/Y/Z are, why order adds channels, why Yaw rotates the scene and not the source, what SN3D/ACN mean, why front/back is hard on headphones).
 - **Concept-preset tour** — named scenes each isolating one idea: *Point Source (FOA)*, *Order 1 → 2 → 3*, *Behind You* (front/back confusion), *Overhead*, *Rotate the Room*, *Far Away / Up Close*, *Slow Orbit*, *Speakers vs Headphones* — so students reverse-engineer each move from the minimal control set.
 
+**Finalized mockup (v1, 2026-10-13)** — `.planning/mockups/v1-ui.yaml` is the source of truth for the UI; this section is its summary.
+- **Window:** 1180 × 780 landscape design frame, resizable at fixed aspect (0.6×–1.5×) through the O-simpleFM scale pattern (`transform: scale()` on the frame, DPR-aware canvases, `editorScale` persisted on the processor).
+- **Visual band:** sphere view (top-down canvas with compass rose, distance rings and the order-N polar beam overlaid and centred on the rotated direction; side canvas for elevation) | B-format channel wall (16 rows grouped by order band, ACN index + AmbiX letter + SH pattern icon + signed `shGain` bar with `shPeak` overlay) | decoder view (KU100 head for Binaural, cardioid pair for Stereo, crossfaded by `decoderMix`).
+- **Signal-path strip** under the visual band with one station over each control group: Source · Encoder · Rotation · Decoder · Output, channel count from `orderActive`, highlight by recency of parameter change.
+- **Controls band** in signal order: Source (azimuth, elevation, distance, orbit + orbit rate, input mode) | Encoder (order as a 3-way segmented control) | Rotation (yaw hero knob, pitch, roll) | Decoder (Binaural / Stereo segmented) | Output (level knob + L/R peak meter).
+- **Lesson row** of the eight concept presets with the caption in the footer; tooltips on every control, well, station and lesson. 12 parameters, IDs exactly as `ParamIDs`, no additions.
+
 ## Use Cases
 
 - **Classroom demonstration** — instructor projects the plugin, drags a source around the sphere while the B-format meters move, steps the order up and shows the beam sharpening, then spins Yaw to rotate the whole scene — each concept visible and audible in real time on headphones or the room's stereo pair.
@@ -112,5 +119,6 @@ Everything stays in the plugin; the host only ever sees a stereo effect. Student
 
 ## Next Steps
 
-- [ ] Create UI mockup (`/start O-simpleAmbisonics` → option 3)
-- [ ] Start planning / DSP research (`/plan O-simpleAmbisonics`)
+- [x] Create UI mockup (`/start O-simpleAmbisonics` → option 3) — v1 finalized 2026-10-13
+- [x] Start planning / DSP research (`/plan O-simpleAmbisonics`) — Stages 0–2 complete
+- [ ] Stage 3 GUI research (`/plugin-research O-simpleAmbisonics 3-gui`)
