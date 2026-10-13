@@ -43,6 +43,7 @@ target_sources(O-simpleAmbisonics
         Source/dsp/FixedDelay.h
         Source/dsp/Smoothers.h
         Source/dsp/ShEncoder.h
+        Source/dsp/ShRotator.h
         Source/dsp/DistanceModel.h
         Source/dsp/OrbitLfo.h
         Source/dsp/StereoDecoder.h

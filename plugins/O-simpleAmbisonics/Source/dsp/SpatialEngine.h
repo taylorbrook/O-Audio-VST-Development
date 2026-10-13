@@ -21,18 +21,51 @@
   ==============================================================================
 
     SpatialEngine — the Stage-2 DSP composition. Phase 2.1: the audible chain
-    minus rotation and HRTF.
+    minus rotation and HRTF. Phase 2.2: scene rotation in the SH domain.
 
       mono (conditioned by the processor)
         → DistanceModel   g(d) · x → TPT air LP with the D7 wet mix
         → ShEncoder       × c_eff[16] = Y_acn(az_eff, el_eff) · orderGain[band]
-        → [identity rotation slot — ShRotator drops in here at Phase 2.2]
-        → 16-channel bus  (busTap[16] = the bus of the last sample; shPeak scan)
-        → StereoDecoder   ±60° cardioid pair on W / Y / X
+        → ShRotator       bus → tap = R_SH(ψ, θ, φ) · bus, 83 elements lerped
+                          per sample between the previous and current control
+                          step (W implicit)
+        → 16-channel bus  (busTap[16] = the ROTATED bus of the last sample;
+                          shPeak scan POST-rotation — D5)
+        → StereoDecoder   ±60° cardioid pair on W / Y / X of the rotated bus
         → DecoderMixer    FixedDelay<kPartition> × 2 on the stereo leg,
                           20 ms mix ramp; binaural leg = PLACEHOLDER (A14,
                           see the call site) until Phase 2.3's convolver
       outL / outR         (the processor applies outputLevel per sample)
+
+    ROTATION (Phase 2.2, CONTEXT-2.2 D1 / D2 / RESEARCH-2.2). The BUS is
+    rotated, not the coefficient vector: the same block-diagonal matrix would
+    rotate any number of encoded sources, and Phase 2.3's binaural decoder
+    consumes the rotated bus — that is the lesson. Per control step the three
+    wrap-smoothed angles (τ = 20 ms, shortest path, D4) build R₃ =
+    Rz(ψ)·Ry′(θ)·Rx(φ), the order-1 block is its ACN permutation and the
+    5 × 5 / 7 × 7 blocks come from the Ivanic–Ruedenberg recursion
+    (ShRotator.h). The 83 nonzero elements are lerped per sample with the
+    same t as the coefficient vector (A5, A3 form) and all three blocks are
+    always applied. The identity is EXACT in float, so at zero rotation the
+    tap equals the bus to the bit and the Phase 2.1 render digest
+    (9189d911a1fe98d5) is this phase's regression verdict (D3).
+
+    Meter frame: shGain = R_SH · c_eff (post-rotation); azEff / elEff stay
+    PRE-rotation (the puck); azRot / elRot = dir (R₃ · d (azEff, elEff)) —
+    with an identity FAST PATH when all three smoothed angles are exactly 0
+    (azRot = azEff, elRot = elEff). The fast path exists because atan2f does
+    not round-trip the encoder's own trig (37° → 36.999992) and the UI wants
+    the compass exactly on the puck at zero rotation; the matrix itself is
+    still built and applied. The wrap smoothers' snap rule delivers exact 0
+    after any motion, so the fast path is reachable again (F2).
+
+    Step response (RESEARCH-2.2 R2): a 180° yaw STEP through the one-pole
+    produces grid-boundary kinks (piecewise-linear interpolation of an
+    exponential) that read 12 / 25 / 44× on bands 1 / 2 / 3 against a STATIC
+    control, but 1.000 against the same-motion reference — identical to the
+    2.1 azimuth path's response to a 180° azimuth step. Continuous motion
+    (360°/s) reads 1.13. v1.1 candidates if the ear objects: a longer τ for
+    jumps only, or quadratic (prev / cur / next) element interpolation.
 
     THE CONTROL GRID (PLAN-2.1 A1 — the D5 amendment). Every control quantity
     moves ONCE PER 64 SAMPLES on a grid that PERSISTS across process() calls
@@ -86,6 +119,7 @@
 #include "FixedDelay.h"
 #include "Smoothers.h"
 #include "ShEncoder.h"
+#include "ShRotator.h"
 #include "DistanceModel.h"
 #include "OrbitLfo.h"
 #include "StereoDecoder.h"
@@ -138,6 +172,7 @@ public:
 
         dist.prepare (sampleRateHz);
         mixer.prepare();
+        rot.prepare();          // u / v / w tables — before the first build()
         snapToParams();
     }
 
@@ -191,12 +226,14 @@ public:
     }
 
     // State fields are refreshed at every control step (and by prepare/reset);
-    // shPeak accumulates per sample. outPeakL/R are the processor's.
+    // shPeak accumulates per sample (post-rotation). shGain is R_SH · c_eff.
+    // outPeakL/R are the processor's.
     const MeterFrame& frame() const noexcept { return meterFrame; }
 
-    // The 16-channel bus of the LAST processed sample (post order gating,
-    // pre-decode). Harness tap for the order-fade click gate; zero extra cost
-    // because the peak scan computes it anyway.
+    // The 16-channel bus of the LAST processed sample — POST-rotation (D5),
+    // post order gating, pre-decode. Harness tap for the order-fade and the
+    // 2.2 rotation click gates; zero extra cost because the peak scan reads
+    // it anyway.
     const float* busTap() const noexcept { return tap; }
 
     int maxBlockSize() const noexcept { return maxBlock; }
@@ -216,8 +253,17 @@ private:
         mixer.snapTo (params.decoder);
         orbit.reset();
 
+        yaw.snapTo (params.yawDeg);
+        pitch.snapTo (params.pitchDeg);
+        roll.snapTo (params.rollDeg);
+
         evaluateCoefficients();
         std::copy (std::begin (curC), std::end (curC), std::begin (prevC));
+
+        rot.build (yaw.cur, pitch.cur, roll.cur, curR, curR3);
+        std::copy (std::begin (curR), std::end (curR), std::begin (prevR));
+
+        std::fill (std::begin (bus), std::end (bus), 0.0f);
         std::fill (std::begin (tap), std::end (tap), 0.0f);
 
         gridPos = 0;
@@ -239,8 +285,17 @@ private:
 
         mixer.controlStep (params.decoder, kRampStep);
 
+        // Phase 2.2: the three rotation angles, same k, same snap rule (D4).
+        yaw.step (params.yawDeg, kOnePole);
+        pitch.step (params.pitchDeg, kOnePole);
+        roll.step (params.rollDeg, kOnePole);
+
         std::copy (std::begin (curC), std::end (curC), std::begin (prevC));
         evaluateCoefficients();
+
+        std::copy (std::begin (curR), std::end (curR), std::begin (prevR));
+        rot.build (yaw.cur, pitch.cur, roll.cur, curR, curR3);
+
         fillFrameState();
     }
 
@@ -256,11 +311,36 @@ private:
 
     void fillFrameState() noexcept
     {
-        std::copy (std::begin (curC), std::end (curC), std::begin (meterFrame.shGain));
+        // shGain = R_SH · c_eff (W passes through) — post-rotation (D5).
+        ShRotator::apply (curR, curC, meterFrame.shGain);
+
+        // The puck: pre-rotation (UI-02).
         meterFrame.azEffDeg = az.cur;
         meterFrame.elEffDeg = el.cur;
-        meterFrame.azRotDeg = az.cur;   // identity rotation until Phase 2.2
-        meterFrame.elRotDeg = el.cur;
+
+        if (yaw.cur == 0.0f && pitch.cur == 0.0f && roll.cur == 0.0f)
+        {
+            // Identity fast path (B6 / F1): exact, and the compass sits on the puck.
+            meterFrame.azRotDeg = az.cur;
+            meterFrame.elRotDeg = el.cur;
+        }
+        else
+        {
+            // D8: d = (cos e·cos a, cos e·sin a, sin e); d′ = R₃·d; back to angles.
+            const float a = az.cur * kDegToRad, e = el.cur * kDegToRad;
+            const float ce = std::cos (e);
+            const float d[3] = { ce * std::cos (a), ce * std::sin (a), std::sin (e) };
+
+            const float x = curR3[0][0] * d[0] + curR3[0][1] * d[1] + curR3[0][2] * d[2];
+            const float y = curR3[1][0] * d[0] + curR3[1][1] * d[1] + curR3[1][2] * d[2];
+            const float z = curR3[2][0] * d[0] + curR3[2][1] * d[1] + curR3[2][2] * d[2];
+
+            // clamp is mandatory: |d′| can exceed 1 by an ulp (R4). azRot is
+            // undefined within ≈ 0.01° of the pole (MeterFrame.h).
+            meterFrame.azRotDeg = wrapTo180 (std::atan2 (y, x) * kRadToDeg);
+            meterFrame.elRotDeg = std::asin (std::clamp (z, -1.0f, 1.0f)) * kRadToDeg;
+        }
+
         meterFrame.orderActive    = (params.order + 1) * (params.order + 1);
         meterFrame.decoderMix     = mixer.currentMix();
         meterFrame.latencySamples = kPartition;
@@ -270,15 +350,16 @@ private:
     {
         const float y = dist.processSample (x, t);
 
+        // Encode: the pre-rotation bus (lerped coefficient vector, A3 / A5).
         for (int acn = 0; acn < kNumSh; ++acn)
-        {
-            const float c = prevC[acn] + t * (curC[acn] - prevC[acn]);
-            const float b = y * c;
-            tap[acn] = b;
-            meterFrame.shPeak[acn] = std::max (meterFrame.shPeak[acn], std::abs (b));
-        }
+            bus[acn] = y * (prevC[acn] + t * (curC[acn] - prevC[acn]));
 
-        // ── identity rotation slot: ShRotator (Phase 2.2) applies R to tap[] here ──
+        // Rotate (Phase 2.2, B5): tap = lerp (prevR, curR, t) · bus, W implicit.
+        ShRotator::applyLerped (prevR, curR, t, bus, tap);
+
+        // Peak scan POST-rotation (D5).
+        for (int acn = 0; acn < kNumSh; ++acn)
+            meterFrame.shPeak[acn] = std::max (meterFrame.shPeak[acn], std::abs (tap[acn]));
 
         float stL, stR;
         StereoDecoder::decode (tap, stL, stR);
@@ -307,14 +388,20 @@ private:
 
     WrapSmoother            az;
     OnePoleSmoother         el;
+    WrapSmoother            yaw, pitch, roll;
     DistanceModel           dist;
     OrbitLfo                orbit;
     LinearRamp              orderGain[3];
     DecoderMixer<kPartition> mixer;
+    ShRotator               rot;
 
     float prevC[kNumSh] {};
     float curC[kNumSh] {};
-    float tap[kNumSh] {};
+    float prevR[kNumRotElems] {};
+    float curR[kNumRotElems] {};
+    float curR3[3][3] {};
+    float bus[kNumSh] {};     // pre-rotation, local to the sample
+    float tap[kNumSh] {};     // post-rotation — busTap()
 
     MeterFrame meterFrame;
 };

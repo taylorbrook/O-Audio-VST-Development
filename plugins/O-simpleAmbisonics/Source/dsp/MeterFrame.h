@@ -28,23 +28,31 @@
     STAGE-3 READER CONTRACT (RESEARCH-2.1 R7) — fields are plain float / int,
     the struct is trivially copyable (static_assert below), and:
 
-      shGain[16]    SIGNED, program-independent effective coefficient vector
+      shGain[16]    SIGNED, program-independent effective coefficient vector —
+                    from Phase 2.2 the POST-ROTATION vector R_SH · c_eff with
                     c_eff[acn] = Y_acn(az_eff, el_eff) · orderGain[band] — the
                     lobe values the channel meters animate (polarity colour =
-                    sign). From Phase 2.2 this is the POST-ROTATION vector
-                    R·c_eff; in 2.1 the rotation is the identity.
-      shPeak[16]    per-channel |bus| peak, PEAK-SINCE-THE-UI-LAST-READ: the
-                    audio thread accumulates across blocks until it sees the
-                    reader has consumed a frame (hasNewData() false) and only
-                    then resets. A 30 Hz reader therefore never misses a
-                    transient at 64-sample host blocks (96 % of frames are
-                    never read). It is already a HOLD value — JS applies decay
-                    only, never a second max().
-      azEffDeg,     post-orbit, smoothed source direction (pre-rotation),
+                    sign). At zero rotation R_SH is exactly the identity.
+      shPeak[16]    per-channel |bus| peak of the ROTATED bus (Phase 2.2),
+                    PEAK-SINCE-THE-UI-LAST-READ: the audio thread accumulates
+                    across blocks until it sees the reader has consumed a
+                    frame (hasNewData() false) and only then resets. A 30 Hz
+                    reader therefore never misses a transient at 64-sample
+                    host blocks (96 % of frames are never read). It is already
+                    a HOLD value — JS applies decay only, never a second max().
+      azEffDeg,     post-orbit, smoothed source direction (PRE-rotation),
       elEffDeg      [−180, 180) / [−90, 90]. The UI puck follows this.
       azRotDeg,     the rotated direction (where the listener hears it) for
-      elRotDeg      the polar-plot centre and compass. == azEff / elEff until
-                    Phase 2.2.
+      elRotDeg      the polar-plot centre and compass:
+                    dir (R₃ · d (azEff, elEff)), degrees, az in [−180, 180).
+                    EXACTLY equal to azEff / elEff when all three smoothed
+                    rotation angles are 0 (identity fast path — the compass
+                    sits on the puck, bit for bit). azRotDeg is UNDEFINED
+                    within ≈ 0.01° of the pole (|elRotDeg| → 90: atan2 of
+                    rounding noise) — the Stage-3 compass holds its last
+                    value there. Gimbal lock at pitch = ±90° is a display
+                    matter only (yaw and roll axes coincide; the bus is
+                    still correctly rotated).
       orderActive   (order + 1)² = 4 / 9 / 16 — the FUNC-03 meter-count
                     criterion ("orders light 4 / 9 / 16 channels").
       decoderMix    1 = Binaural, 0 = Stereo, ramps between over 20 ms.

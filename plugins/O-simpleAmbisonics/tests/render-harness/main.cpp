@@ -20,7 +20,7 @@
 /*
   ==============================================================================
 
-    O-simpleAmbisonics render-harness — Stage 2 / Phase 2.1 DSP gate.
+    O-simpleAmbisonics render-harness — Stage 2 / Phase 2.1 + 2.2 DSP gate.
 
     Discipline (CONTEXT-2.1 D9 / PLAN-2.1 A10–A11): every probe renders on a
     FRESH instance; verdicts are ratios or exact anchors (no wall-clock, no
@@ -80,8 +80,49 @@
                           silenced.
       PERF-01           — global operator new/delete counter: 0 allocations
                           across 200 processBlock calls with every fade armed
-                          and one 4096-sample block; liveness new == 1.
-      digest            — FNV-1a 64 of the P1-null render (informational).
+                          (incl. yaw / pitch / roll moving from 2.2) and one
+                          4096-sample block; liveness new == 1.
+      digest-2.1        — FNV-1a 64 of the P1-null render. From Phase 2.2 this
+                          is a VERDICT (D3): zero rotation is bit-transparent,
+                          so 9189d911a1fe98d5 must reproduce.
+
+    Phase 2.2 probes (scene rotation; CONTEXT-2.2 / RESEARCH-2.2 / PLAN-2.2 T6):
+
+      digest-2.1 verdict — fnv1a64 (nullRender) == 9189d911a1fe98d5 asserted.
+      DSP-02            — 200 tuples × orders 1 / 2 / 3: ShRotator (float) applied
+                          to the gated SN3D table vs re-encoding at dir (R3·d)
+                          (double): max |err| < 1e-4; W exact; block
+                          orthogonality < 1e-5; transpose trap FAILS as
+                          expected; yaw-only closed form (psi 73) within 1e-6;
+                          identity exact (0 / 1 to the bit).
+      cardinal ×3       — through the processor frame: psi +90 → azRot +90;
+                          theta +90 → elRot +90; phi +90 on a left source →
+                          elRot +90 (elRot only at the pole, R4).
+      yaw = −azimuth    — az +90 / psi −90: shGain == refSh16 (0, 0), azEff
+                          unchanged, Stereo |L − R| < 1e-5 (FUNC-01 third box).
+      P1 null rotated   — the P1 tuple + psi 25 / theta −40 / phi 70 vs the
+                          ReferenceModel: < 1e-5. Input of digest-2.2.
+      meter frame 2.2   — shGain / azRot / elRot vs the reference's rotated
+                          direction; azEff / elEff pinned to the parameters
+                          under a yaw hook; azRot moves.
+      round trip        — psi 0 → 90 → 0: identity fast path reachable again,
+                          tail memcmp-equal to a fresh static render.
+      yaw sweep click   — 16-channel bus tap vs 24 static parks (15°), ratio
+                          ≤ 2.0, sweep started AT the prepared 0° (R6);
+                          snapped-reference negative control on m ≠ 0;
+                          zonal channels 0 / 2 / 6 / 12 bit-identical (F3).
+      cross-gate        — front source: yaw sweep ≡ azimuth sweep within 1e-5
+                          on all 16 channels; Stereo liveness ≥ 6 dB.
+      yaw step click    — 0 → 180: vs the same-motion reference ≤ 2.0 (expect
+                          1.000); snapped negative control; vs-static ratios
+                          PRINTED only (R2: grid-boundary kinks, same as the
+                          2.1 azimuth path).
+      P2c / P3c / P2d   — slicing bit-equality with a static non-identity
+                          rotation + orbit, and with yaw / pitch / roll stepped
+                          at 4096-sample boundaries (64 vs 4096 blocks).
+      extremes 2.2      — ±180° on all three angles × fs 48 k / 96 k finite and
+                          live; gimbal theta = +90 under a yaw sweep finite.
+      digest-2.2        — FNV-1a 64 of the rotated P1-null render (informational).
 
   ==============================================================================
 */
@@ -90,6 +131,7 @@
 #include "PluginProcessor.h"
 #include "dsp/SpatialEngine.h"
 #include "dsp/ShEncoder.h"
+#include "dsp/ShRotator.h"
 #include "dsp/DistanceModel.h"
 #include "dsp/StereoDecoder.h"
 #include "ReferenceModel.h"
@@ -342,6 +384,9 @@ namespace
         r.elevationDeg = rawParam (p, ParamIDs::elevation);
         r.distanceM    = rawParam (p, ParamIDs::distance);
         r.order        = (int) rawParam (p, ParamIDs::order) + 1;
+        r.yawDeg       = rawParam (p, ParamIDs::yaw);
+        r.pitchDeg     = rawParam (p, ParamIDs::pitch);
+        r.rollDeg      = rawParam (p, ParamIDs::roll);
         r.decoder      = (int) rawParam (p, ParamIDs::decoder);
         r.orbit        = rawParam (p, ParamIDs::orbit) > 0.5f;
         r.orbitRateHz  = rawParam (p, ParamIDs::orbitRate);
@@ -355,6 +400,9 @@ namespace
         r.elevationDeg = p.elevationDeg;
         r.distanceM    = p.distanceM;
         r.order        = p.order;
+        r.yawDeg       = p.yawDeg;
+        r.pitchDeg     = p.pitchDeg;
+        r.rollDeg      = p.rollDeg;
         r.decoder      = p.decoder;
         r.orbit        = p.orbit;
         r.orbitRateHz  = p.orbitRateHz;
@@ -464,10 +512,11 @@ namespace
 
     // Engine-direct render under ScopedNoDenormals (F6). hook (n, params) runs
     // before every block; with recordTaps the block is processed one sample at
-    // a time (the grid persists across calls) and busTap[4] / [9] are logged.
+    // a time (the grid persists across calls) and busTap[4] / [9] are logged,
+    // plus (Phase 2.2, R7) all 16 channels per sample in tap16 (stride 16).
     struct EngineRender
     {
-        std::vector<float> lr, tap4, tap9;
+        std::vector<float> lr, tap4, tap9, tap16;
     };
 
     template <typename Gen, typename Hook>
@@ -505,6 +554,8 @@ namespace
                     e.process (&mono[(size_t) i], &L[(size_t) i], &R[(size_t) i], 1);
                     r.tap4.push_back (e.busTap()[4]);
                     r.tap9.push_back (e.busTap()[9]);
+                    for (int c = 0; c < 16; ++c)
+                        r.tap16.push_back (e.busTap()[c]);
                 }
             }
             else
@@ -527,7 +578,7 @@ namespace
     // The same driver for the double-precision reference model.
     struct RefRender
     {
-        std::vector<double> lr, tap4, tap9;
+        std::vector<double> lr, tap4, tap9, tap16;
     };
 
     template <typename Gen, typename Hook>
@@ -560,6 +611,8 @@ namespace
                     model.process (&mono[(size_t) i], &L[(size_t) i], &R[(size_t) i], 1);
                     r.tap4.push_back (model.busTap()[4]);
                     r.tap9.push_back (model.busTap()[9]);
+                    for (int c = 0; c < 16; ++c)
+                        r.tap16.push_back (model.busTap()[c]);
                 }
             }
             else
@@ -718,6 +771,103 @@ namespace
     // Allocation-liveness sink: the pointer escapes through an atomic so the
     // new/delete pair cannot be elided.
     std::atomic<void*> livenessSink { nullptr };
+
+    //==========================================================================
+    // ── Phase 2.2 helpers (PLAN-2.2 T5) ────────────────────────────────────────
+
+    struct Tuple { double az, el, yaw, pitch, roll; };
+
+    // Deterministic tuple set — fixed seed, printed by the DSP-02 probe.
+    constexpr juce::int64 kTupleSeed = 0x2D5A2D5A;
+
+    std::vector<Tuple> makeTuples (int count)
+    {
+        juce::Random rng (kTupleSeed);
+        std::vector<Tuple> t;
+        t.reserve ((size_t) count);
+        for (int i = 0; i < count; ++i)
+            t.push_back ({ -180.0 + 360.0 * rng.nextDouble(),
+                           -90.0  + 180.0 * rng.nextDouble(),
+                           -180.0 + 360.0 * rng.nextDouble(),
+                           -180.0 + 360.0 * rng.nextDouble(),
+                           -180.0 + 360.0 * rng.nextDouble() });
+        return t;
+    }
+
+    // The generic SN3D table with the bands above `order` zeroed (order gating).
+    void gatedRefSh16 (double azDeg, double elDeg, int order, double out[16])
+    {
+        ReferenceModel::refSh16 (azDeg, elDeg, out);
+        for (int i = 0; i < 16; ++i)
+            if (ReferenceModel::band (i) > order)
+                out[i] = 0.0;
+    }
+
+    // The DSP-02 oracle: re-encode at the rotated direction (double, D6).
+    void oracleSh16 (const Tuple& q, int order, double out[16])
+    {
+        double azR, elR;
+        ReferenceModel::rotatedDirection (q.az, q.el, q.yaw, q.pitch, q.roll, azR, elR);
+        gatedRefSh16 (azR, elR, order, out);
+    }
+
+    double maxAbsDiff16 (const float a[16], const double b[16])
+    {
+        double m = 0.0;
+        for (int i = 0; i < 16; ++i)
+            m = std::max (m, std::abs ((double) a[i] - b[i]));
+        return m;
+    }
+
+    // Each block transposed — the R1 convention trap, for the negative control.
+    void transposeBlocks (const float R[osa::kNumRotElems], float Rt[osa::kNumRotElems])
+    {
+        for (int l = 1; l <= 3; ++l)
+            for (int m = -l; m <= l; ++m)
+                for (int n = -l; n <= l; ++n)
+                    Rt[osa::rotIndex (l, m, n)] = R[osa::rotIndex (l, n, m)];
+    }
+
+    // max |R_l^T R_l − I| over the three blocks (double accumulation of float elements).
+    double blockOrthoError (const float R[osa::kNumRotElems])
+    {
+        double worst = 0.0;
+        for (int l = 1; l <= 3; ++l)
+            for (int m = -l; m <= l; ++m)
+                for (int n = -l; n <= l; ++n)
+                {
+                    double s = 0.0;
+                    for (int k = -l; k <= l; ++k)
+                        s += (double) R[osa::rotIndex (l, k, m)] * (double) R[osa::rotIndex (l, k, n)];
+                    worst = std::max (worst, std::abs (s - (m == n ? 1.0 : 0.0)));
+                }
+        return worst;
+    }
+
+    double orthoError3 (const float R3[3][3])
+    {
+        double worst = 0.0;
+        for (int i = 0; i < 3; ++i)
+            for (int j = 0; j < 3; ++j)
+            {
+                double s = 0.0;
+                for (int k = 0; k < 3; ++k)
+                    s += (double) R3[k][i] * (double) R3[k][j];
+                worst = std::max (worst, std::abs (s - (i == j ? 1.0 : 0.0)));
+            }
+        return worst;
+    }
+
+    // Per-channel click ratio over a 16-stride tap against a per-channel control.
+    double tapRatio (const std::vector<float>& tap16, int ch, const double control[16], int from, int to)
+    {
+        return control[ch] > 1.0e-300 ? worstCurvature (tap16, ch, 16, from, to) / control[ch] : 0.0;
+    }
+
+    double tapRatio (const std::vector<double>& tap16, int ch, const double control[16], int from, int to)
+    {
+        return control[ch] > 1.0e-300 ? worstCurvature (tap16, ch, 16, from, to) / control[ch] : 0.0;
+    }
 } // namespace
 
 int main()
@@ -725,7 +875,7 @@ int main()
     juce::ScopedJuceInitialiser_GUI juceInit;
     using namespace OSimpleAmbisonics;
 
-    std::printf ("O-simpleAmbisonics render-harness (Stage 2 / Phase 2.1) — fs=%.0f, latency=%d\n",
+    std::printf ("O-simpleAmbisonics render-harness (Stage 2 / Phase 2.1 + 2.2) — fs=%.0f, latency=%d\n",
                  kFs, kLatency);
 
     //==========================================================================
@@ -1757,7 +1907,669 @@ int main()
     }
 
     //==========================================================================
-    // PERF-01 — allocation counter across processBlock (A11).
+    //==========================================================================
+    // ── Phase 2.2 — scene rotation in the SH domain (PLAN-2.2 T6) ────────────
+    //==========================================================================
+
+    // digest-2.1 VERDICT (D3 / B12): zero rotation is bit-transparent, so the
+    // Phase 2.1 P1-null digest must reproduce exactly through the rotator. If
+    // this ever fails, suspect a signed zero (R3) FIRST — memcmp the render
+    // against a 2.1 build before anything else.
+    check ("digest-2.1 verdict: fnv1a64 (P1-null render) == 9189d911a1fe98d5 (zero rotation bit-transparent, D3)",
+           fnv1a64 (nullRender) == 0x9189d911a1fe98d5ULL,
+           fmt ("%016llx", (unsigned long long) fnv1a64 (nullRender)));
+
+    //==========================================================================
+    // DSP-02 — R_SH (float, ShRotator) applied to the gated SN3D table vs
+    // re-encoding at dir (R3·d) (double, ReferenceModel's own builder), 200
+    // tuples × orders 1 / 2 / 3; orthogonality; transpose trap; yaw-only closed
+    // form; identity exact.
+    {
+        const auto tuples = makeTuples (200);
+        std::printf ("  DSP-02 tuple set: %d tuples from juce::Random seed 0x%llx (az/el/psi/theta/phi uniform)\n",
+                     (int) tuples.size(), (unsigned long long) kTupleSeed);
+
+        osa::ShRotator rot;
+        rot.prepare();
+
+        double maxErr[4] = { 0.0, 0.0, 0.0, 0.0 }, maxOrtho = 0.0, maxOrthoR3 = 0.0, maxTransposed = 0.0;
+        Tuple  worst[4] = {};
+        bool   wExact = true;
+        float  R[osa::kNumRotElems], Rt[osa::kNumRotElems], R3[3][3];
+
+        for (const auto& q : tuples)
+        {
+            rot.build ((float) q.yaw, (float) q.pitch, (float) q.roll, R, R3);
+
+            for (int order = 1; order <= 3; ++order)
+            {
+                double c[16], ref[16];
+                gatedRefSh16 (q.az, q.el, order, c);
+                oracleSh16 (q, order, ref);
+
+                float in[16], out[16];
+                for (int i = 0; i < 16; ++i)
+                    in[i] = (float) c[i];
+                osa::ShRotator::apply (R, in, out);
+
+                const double e = maxAbsDiff16 (out, ref);
+                if (e > maxErr[order])
+                {
+                    maxErr[order] = e;
+                    worst[order]  = q;
+                }
+                wExact = wExact && out[0] == 1.0f;
+
+                if (order == 3)
+                {
+                    transposeBlocks (R, Rt);
+                    float outT[16];
+                    osa::ShRotator::apply (Rt, in, outT);
+                    maxTransposed = std::max (maxTransposed, maxAbsDiff16 (outT, ref));
+                }
+            }
+
+            maxOrtho   = std::max (maxOrtho, blockOrthoError (R));
+            maxOrthoR3 = std::max (maxOrthoR3, orthoError3 (R3));
+        }
+
+        for (int order = 1; order <= 3; ++order)
+            check ((juce::String ("DSP-02 order ") + juce::String (order)
+                    + ": R_SH * refSh16 (az, el) vs refSh16 (dir (R3 * d)) over 200 tuples, max|err| < 1e-4").toRawUTF8(),
+                   maxErr[order] < 1.0e-4,
+                   fmt ("max|err| %.3e (expect ~2e-7); worst tuple az %.2f el %.2f psi %.2f theta %.2f phi %.2f",
+                        maxErr[order], worst[order].az, worst[order].el, worst[order].yaw, worst[order].pitch, worst[order].roll));
+        check ("DSP-02 W passes exactly (out[0] == 1.0f) on every tuple and order (W implicit)", wExact);
+        check ("DSP-02 orthogonality: max |R_l^T R_l - I| < 1e-5 over blocks 1-3 x 200 tuples", maxOrtho < 1.0e-5,
+               fmt ("%.3e (expect ~1e-7)", maxOrtho));
+        check ("DSP-02 orthogonality: engine buildCartesian max |R3^T R3 - I| < 1e-5", maxOrthoR3 < 1.0e-5,
+               fmt ("%.3e", maxOrthoR3));
+        checkFailsAsExpected (maxTransposed < 1.0e-4,
+                              "DSP-02 transpose trap: R_SH^T (each block transposed) vs the oracle FAILS the 1e-4 gate (expect >= 1)",
+                              fmt ("max|err| %.3f", maxTransposed));
+
+        // Yaw-only closed form (D10 fallback written down): per order, the (−m, +m)
+        // pair rotates by [[cos m*psi, sin m*psi], [−sin m*psi, cos m*psi]], m = 0 unchanged.
+        {
+            constexpr double psi = 73.0;
+            rot.build ((float) psi, 0.0f, 0.0f, R, R3);
+            double maxD = 0.0;
+            for (int l = 1; l <= 3; ++l)
+                for (int m = -l; m <= l; ++m)
+                    for (int n = -l; n <= l; ++n)
+                    {
+                        const int    am  = m < 0 ? -m : m;
+                        const double ang = (double) am * psi * kPi / 180.0;
+                        double expected = 0.0;
+                        if (m == 0 && n == 0)          expected = 1.0;
+                        else if (m != 0 && n == m)     expected = std::cos (ang);
+                        else if (m < 0 && n == -m)     expected = std::sin (ang);     // [−m][+m] slot: +sin
+                        else if (m > 0 && n == -m)     expected = -std::sin (ang);    // [+m][−m] slot: −sin
+                        maxD = std::max (maxD, std::abs ((double) R[osa::rotIndex (l, m, n)] - expected));
+                    }
+            check ("DSP-02 yaw-only closed form (psi 73): blocks 1-3 vs [[cos, sin], [-sin, cos]] on (-m, +m), max|err| < 1e-6",
+                   maxD < 1.0e-6, fmt ("%.3e (expect ~1e-7 float)", maxD));
+        }
+
+        // Identity exact (R3 made mechanical): build (0, 0, 0) is 0 / 1 to the bit.
+        {
+            rot.build (0.0f, 0.0f, 0.0f, R, R3);
+            bool zeros = true, ones = true;
+            int  negZeros = 0;
+            for (int l = 1; l <= 3; ++l)
+                for (int m = -l; m <= l; ++m)
+                    for (int n = -l; n <= l; ++n)
+                    {
+                        const float v = R[osa::rotIndex (l, m, n)];
+                        if (m == n)
+                            ones = ones && bitEqual (v, 1.0f);
+                        else
+                        {
+                            zeros = zeros && v == 0.0f;
+                            if (v == 0.0f && std::signbit (v))
+                                ++negZeros;
+                        }
+                    }
+            bool r3Identity = true;
+            for (int i = 0; i < 3; ++i)
+                for (int j = 0; j < 3; ++j)
+                    r3Identity = r3Identity && bitEqual (R3[i][j], i == j ? 1.0f : 0.0f);
+            check ("identity exact: build (0, 0, 0) — all 83 elements exactly 0 or 1, diagonal bit-equal 1.0f, R3 bit-equal I (R3)",
+                   zeros && ones && r3Identity,
+                   fmt ("%d negative zero(s) among the off-diagonals (harmless: the lerp maps -0 to +0)", negZeros));
+        }
+    }
+
+    //==========================================================================
+    // Cardinal signs ×3 (D7) — through the processor FRAME, against literals.
+    // Each a fresh instance with the tuple set BEFORE prepare (snapped: the
+    // first frame is at steady state). A transposed Rz reads −90 at (a).
+    {
+        const auto frameAfterOneBlock = [] (float azDeg, float yawDeg, float pitchDeg, float rollDeg)
+        {
+            auto p = makeProc (2, 64, [azDeg, yawDeg, pitchDeg, rollDeg] (Proc& q)
+            {
+                setParam (q, ParamIDs::azimuth, azDeg);
+                setParam (q, ParamIDs::order,   2.0f);
+                setParam (q, ParamIDs::yaw,     yawDeg);
+                setParam (q, ParamIDs::pitch,   pitchDeg);
+                setParam (q, ParamIDs::roll,    rollDeg);
+            });
+            std::vector<float> out;
+            renderWith (*p, 2, { 64 }, noiseAt, out, 64);
+            const osa::MeterFrame f = p->meterFrames.read();
+            return f;
+        };
+
+        const auto a = frameAfterOneBlock (0.0f, 90.0f, 0.0f, 0.0f);
+        check ("cardinal (a): psi = +90 on a front source -> azRot = +90 and elRot = 0 (1e-3) [a transposed Rz reads -90]",
+               std::abs (a.azRotDeg - 90.0f) < 1.0e-3f && std::abs (a.elRotDeg) < 1.0e-3f,
+               fmt ("azRot %.5f, elRot %.5f", (double) a.azRotDeg, (double) a.elRotDeg));
+
+        const auto b = frameAfterOneBlock (0.0f, 0.0f, 90.0f, 0.0f);
+        check ("cardinal (b): theta = +90 on a front source -> elRot = +90 (1e-3); azRot undefined at the pole, printed (R4)",
+               std::abs (b.elRotDeg - 90.0f) < 1.0e-3f,
+               fmt ("elRot %.5f, azRot %.3f (pole)", (double) b.elRotDeg, (double) b.azRotDeg));
+
+        const auto c = frameAfterOneBlock (90.0f, 0.0f, 0.0f, 90.0f);
+        check ("cardinal (c): phi = +90 on a LEFT source (az +90) -> elRot = +90 (1e-3); azRot printed (R4)",
+               std::abs (c.elRotDeg - 90.0f) < 1.0e-3f,
+               fmt ("elRot %.5f, azRot %.3f (pole)", (double) c.elRotDeg, (double) c.azRotDeg));
+    }
+
+    //==========================================================================
+    // FUNC-01 third box — yaw = −azimuth brings the source back to the front:
+    // processor az +90 / psi −90 / order 3 / Stereo, 100 Hz tone, 1 s.
+    {
+        constexpr int total = 48000;
+        auto p = makeProc (2, 64, [] (Proc& q)
+        {
+            setParam (q, ParamIDs::azimuth,  90.0f);
+            setParam (q, ParamIDs::yaw,     -90.0f);
+            setParam (q, ParamIDs::order,     2.0f);
+            setParam (q, ParamIDs::decoder,   1.0f);
+        });
+        const auto out = renderHooked (*p, total, [] (int n) { return tone100 (n); }, [] (int) {});
+        const osa::MeterFrame f = p->meterFrames.read();
+
+        double front[16];
+        ReferenceModel::refSh16 (0.0, 0.0, front);
+        const double maxG = maxAbsDiff16 (f.shGain, front);
+        check ("FUNC-01 yaw = -azimuth (az +90, psi -90, order 3): frame shGain == refSh16 (0, 0) within 1e-5 on all 16",
+               maxG < 1.0e-5, fmt ("max|diff| %.3e", maxG));
+        check ("FUNC-01 yaw = -azimuth: azEffDeg == 90.0f and elEffDeg == 0 bit-equal (the puck does not move)",
+               bitEqual (f.azEffDeg, 90.0f) && f.elEffDeg == 0.0f,
+               fmt ("azEff %.6f elEff %.6f, azRot %.5f elRot %.5f", (double) f.azEffDeg, (double) f.elEffDeg,
+                    (double) f.azRotDeg, (double) f.elRotDeg));
+
+        double maxLR = 0.0, maxL = 0.0;
+        for (int n = 0; n < total; ++n)
+        {
+            const double L = out[(size_t) n * 2], R = out[(size_t) n * 2 + 1];
+            maxLR = std::max (maxLR, std::abs (L - R));
+            maxL  = std::max (maxL, std::abs (L));
+        }
+        check ("FUNC-01 yaw = -azimuth: Stereo output max |L - R| < 1e-5 over 48000 samples (front symmetry), max |L| > 0.1 (live)",
+               maxLR < 1.0e-5 && maxL > 0.1, fmt ("max|L - R| %.3e, max|L| %.3f", maxLR, maxL));
+    }
+
+    //==========================================================================
+    // P1 null ROTATED — the P1 tuple + psi 25 / theta −40 / phi 70 vs the
+    // ReferenceModel (which rotates by re-encoding, D6). digest-2.2's input.
+    const auto rotatedNullSetup = [] (Proc& q)
+    {
+        setParam (q, ParamIDs::azimuth,   37.0f);
+        setParam (q, ParamIDs::elevation, -12.0f);
+        setParam (q, ParamIDs::distance,  3.3f);
+        setParam (q, ParamIDs::order,     2.0f);
+        setParam (q, ParamIDs::decoder,   1.0f);
+        setParam (q, ParamIDs::yaw,       25.0f);
+        setParam (q, ParamIDs::pitch,    -40.0f);
+        setParam (q, ParamIDs::roll,      70.0f);
+    };
+    std::vector<float> rotRender;
+    rotRender.reserve ((size_t) kRenderSamples * 2);
+    {
+        auto p = makeProc (2, kDefaultBlock, rotatedNullSetup);
+        renderWith (*p, 2, { kDefaultBlock }, noiseAt, rotRender);
+
+        ReferenceModel model;
+        model.setParams (refParamsFrom (*p));
+        model.prepare (kFs);
+
+        std::vector<float>  mono ((size_t) kRenderSamples);
+        std::vector<double> L ((size_t) kRenderSamples), R ((size_t) kRenderSamples);
+        for (int n = 0; n < kRenderSamples; ++n)
+            mono[(size_t) n] = monoNoiseAt (n);
+        model.process (mono.data(), L.data(), R.data(), kRenderSamples);
+
+        double maxErr = 0.0, maxAbs = 0.0;
+        for (int n = 0; n < kRenderSamples; ++n)
+        {
+            maxErr = std::max (maxErr, std::abs ((double) rotRender[(size_t) n * 2]     - L[(size_t) n]));
+            maxErr = std::max (maxErr, std::abs ((double) rotRender[(size_t) n * 2 + 1] - R[(size_t) n]));
+            maxAbs = std::max (maxAbs, std::abs (L[(size_t) n]));
+        }
+        check ("P1 null rotated: processor vs ReferenceModel max|err| < 1e-5 (az 37, el -12, d 3.3, order 3, Stereo, psi 25, theta -40, phi 70)",
+               maxErr < 1.0e-5 && maxAbs > 0.01,
+               fmt ("max|err| %.3e over %d samples x 2 ch, peak |L| %.3f", maxErr, kRenderSamples, maxAbs));
+        check ("P1 null rotated liveness: the rotated render differs from the 2.1 null render", ! buffersBitEqual (rotRender, nullRender));
+    }
+
+    //==========================================================================
+    // Meter frame (2.2) — shGain / azRot / elRot vs the reference's rotated
+    // direction; azEff / elEff pinned to the parameters; then under a yaw hook.
+    {
+        auto p = makeProc (2, kDefaultBlock, rotatedNullSetup);
+        std::vector<float> out;
+        renderWith (*p, 2, { kDefaultBlock }, noiseAt, out, 1536);
+        const osa::MeterFrame f = p->meterFrames.read();
+
+        double azR, elR;
+        ReferenceModel::rotatedDirection (37.0, -12.0, 25.0, -40.0, 70.0, azR, elR);
+        double ref[16];
+        gatedRefSh16 (azR, elR, 3, ref);
+        const double maxG = maxAbsDiff16 (f.shGain, ref);
+        check ("meter frame (2.2): shGain == refSh16 (rotatedDirection (37, -12 | 25, -40, 70)) within 1e-5 (order 3, all 16)",
+               maxG < 1.0e-5, fmt ("max|diff| %.3e", maxG));
+        check ("meter frame (2.2): azRot / elRot within 1e-3 of the reference's rotated direction",
+               std::abs ((double) f.azRotDeg - azR) < 1.0e-3 && std::abs ((double) f.elRotDeg - elR) < 1.0e-3,
+               fmt ("azRot %.4f (ref %.4f), elRot %.4f (ref %.4f)", (double) f.azRotDeg, azR, (double) f.elRotDeg, elR));
+        // Against the host-visible RAW values, not the literals: the APVTS float
+        // round-trip of −12 is −11.999999 (−90 + 180·(78/180) in float) — the
+        // same reason refParamsFrom reads the raw atomics. The engine must
+        // publish exactly what the host holds.
+        const float rawAz = rawParam (*p, ParamIDs::azimuth), rawEl = rawParam (*p, ParamIDs::elevation);
+        check ("meter frame (2.2): azEffDeg / elEffDeg bit-equal to the raw azimuth / elevation parameters (pre-rotation puck, UI-02)",
+               bitEqual (f.azEffDeg, rawAz) && bitEqual (f.elEffDeg, rawEl),
+               fmt ("azEff %.7f (raw %.7f), elEff %.7f (raw %.7f)", (double) f.azEffDeg, (double) rawAz, (double) f.elEffDeg, (double) rawEl));
+    }
+    {
+        // Yaw hook 0 → 90° at 0.25 s across 10 frame reads: azEff pinned, azRot moves ≥ 60°.
+        auto p = makeProc (2, 64, [] (Proc& q)
+        {
+            setParam (q, ParamIDs::azimuth,   37.0f);
+            setParam (q, ParamIDs::elevation, -12.0f);
+            setParam (q, ParamIDs::order,     2.0f);
+        });
+        bool  azPinned = true;
+        float firstRot = 0.0f, lastRot = 0.0f;
+        juce::String detail;
+        int pos = 0;
+        for (int k = 0; k < 10; ++k)
+        {
+            const int start = pos;
+            renderHooked (*p, 2432, [start] (int n) { return monoNoiseAt (start + n); },
+                          [&p, start] (int n) { setParam (*p, ParamIDs::yaw, start + n >= 12000 ? 90.0f : 0.0f); });
+            pos += 2432;
+            const osa::MeterFrame f = p->meterFrames.read();
+            azPinned = azPinned && bitEqual (f.azEffDeg, 37.0f);
+            if (k == 0)
+                firstRot = f.azRotDeg;
+            lastRot = f.azRotDeg;
+            detail << fmt ("%.1f ", (double) f.azRotDeg);
+        }
+        check ("meter frame (2.2): under a yaw hook 0 -> 90 at 0.25 s, azEffDeg == 37.0f bit-equal at all 10 reads and azRot moves >= 60 deg",
+               azPinned && std::abs (osa::wrapTo180 (lastRot - firstRot)) >= 60.0f,
+               fmt ("azRot reads: %s", detail.toRawUTF8()));
+    }
+
+    //==========================================================================
+    // Round trip (D2 / F2) — psi 0 → 90 → 0 on the 2.1 null tuple: the identity
+    // fast path is reachable again and a static render after a move is
+    // bit-identical to a fresh render, through the recursion.
+    const auto nullTupleSetup = [] (Proc& q)
+    {
+        setParam (q, ParamIDs::azimuth,   37.0f);
+        setParam (q, ParamIDs::elevation, -12.0f);
+        setParam (q, ParamIDs::distance,  3.3f);
+        setParam (q, ParamIDs::order,     2.0f);
+        setParam (q, ParamIDs::decoder,   1.0f);
+    };
+    {
+        constexpr int total = 72000, win = 8192;
+        const auto gen = [] (int n) { return monoNoiseAt (n); };
+
+        auto ps = makeProc (2, 64, nullTupleSetup);
+        const auto stat = renderHooked (*ps, total, gen, [] (int) {});
+
+        auto pm = makeProc (2, 64, nullTupleSetup);
+        const auto moved = renderHooked (*pm, total, gen, [&pm] (int n)
+        {
+            if (n == 0)     setParam (*pm, ParamIDs::yaw, 90.0f);
+            if (n == 24000) setParam (*pm, ParamIDs::yaw, 0.0f);
+        });
+        const osa::MeterFrame f = pm->meterFrames.read();
+        check ("round trip: after psi 0 -> 90 -> 0 the frame's azRotDeg == azEffDeg bit-equal (identity fast path reachable again, F2)",
+               bitEqual (f.azRotDeg, f.azEffDeg) && bitEqual (f.elRotDeg, f.elEffDeg),
+               fmt ("azRot %.6f azEff %.6f", (double) f.azRotDeg, (double) f.azEffDeg));
+
+        const size_t tail = (size_t) (total - win) * 2, mid = (size_t) (24000 - win) * 2, winBytes = (size_t) win * 2 * sizeof (float);
+        int firstDiff = -1;
+        for (size_t i = tail; i < (size_t) total * 2 && firstDiff < 0; ++i)
+            if (! bitEqual (stat[i], moved[i]))
+                firstDiff = (int) (i / 2);
+        check ("round trip: last 8192 samples memcmp-equal to a fresh static render (static after a move == fresh render)",
+               std::memcmp (stat.data() + tail, moved.data() + tail, winBytes) == 0,
+               firstDiff < 0 ? juce::String ("identical") : juce::String ("first differing sample ") + juce::String (firstDiff));
+        check ("round trip liveness: the window before the return differs from the static render",
+               std::memcmp (stat.data() + mid, moved.data() + mid, winBytes) != 0);
+    }
+
+    //==========================================================================
+    // Yaw sweep click gate (B8 / B9) — engine-direct 16-channel bus tap, az 37 /
+    // el −12 / d 1 / order 3 / Stereo (every channel live, R6), sweep started AT
+    // the prepared 0° (the 2.1 −180 idiom hides a 180° step in the render head),
+    // vs 24 static parks at 15°. Negative control: snapped reference on the
+    // m ≠ 0 channels. Zonal invariance (F3) on 0 / 2 / 6 / 12.
+    constexpr int kSkip22  = 64 + 960;
+    constexpr int kTotal22 = kSkip22 + 48000;
+    const auto toneGen22 = [] (int n) { return tone100 (n); };
+    const auto yawSweepHook = [] (int pos, auto& p) { p.yawDeg = osa::wrapTo180 (0.48f * (float) (pos / 64)); };
+
+    osa::Params sweepPrm;
+    sweepPrm.azimuthDeg   = 37.0f;
+    sweepPrm.elevationDeg = -12.0f;
+    sweepPrm.distanceM    = 1.0f;
+    sweepPrm.order        = 3;
+    sweepPrm.decoder      = 1;
+
+    std::vector<EngineRender> parks;
+    double parkControl[16] = {};
+    for (int k = 0; k < 24; ++k)
+    {
+        osa::Params pk = sweepPrm;
+        pk.yawDeg = 15.0f * (float) k;
+        parks.push_back (renderEngine (pk, kFs, 64, kTotal22, { 64 }, toneGen22, [] (int, osa::Params&) {}, true));
+        for (int ch = 0; ch < 16; ++ch)
+            parkControl[ch] = std::max (parkControl[ch], worstCurvature (parks.back().tap16, ch, 16, kSkip22, kTotal22));
+    }
+    {
+        const auto ev = renderEngine (sweepPrm, kFs, 64, kTotal22, { 64 }, toneGen22, yawSweepHook, true);
+
+        double worstRatio = 0.0;
+        int    worstCh    = -1;
+        juce::String perCh;
+        for (int ch = 0; ch < 16; ++ch)
+        {
+            const double r = tapRatio (ev.tap16, ch, parkControl, kSkip22, kTotal22);
+            perCh << fmt ("%d:%.3f ", ch, r);
+            if (r > worstRatio)
+            {
+                worstRatio = r;
+                worstCh    = ch;
+            }
+        }
+        check ("yaw sweep click (B8/B9): engine bus tap vs 24 static parks (15 deg), ratio <= 2.0 on all 16 channels (az 37 / el -12 / order 3, +0.48 deg/block from the prepared 0)",
+               worstRatio <= kClickRatioCeiling,
+               fmt ("worst ratio %.4f at ACN %d (expect ~1.13 at ACN 9); per channel: %s", worstRatio, worstCh, perCh.toRawUTF8()));
+
+        // Negative control on the m ≠ 0 channels (0 / 2 / 6 / 12 are yaw-invariant and read exactly 1 — F3).
+        ReferenceModel snapped;
+        snapped.snapCoefficientsPerGrid = true;
+        const auto bad = renderRef (snapped, refParamsFrom (sweepPrm), kFs, kTotal22, 64, toneGen22, yawSweepHook, true);
+        const int mNonZero[12] = { 1, 3, 4, 5, 7, 8, 9, 10, 11, 13, 14, 15 };
+        double badMax = 0.0, badMin = 1.0e300;
+        for (int ch : mNonZero)
+        {
+            const double r = tapRatio (bad.tap16, ch, parkControl, kSkip22, kTotal22);
+            badMax = std::max (badMax, r);
+            badMin = std::min (badMin, r);
+        }
+        checkFailsAsExpected (badMax <= kClickRatioCeiling,
+                              "yaw sweep negative control: snapped-per-grid reference FAILS the bus-tap gate on the 12 m != 0 channels (expect >= 49)",
+                              fmt ("ratio min %.1f, max %.1f", badMin, badMax));
+
+        // Zonal invariance (F3): rotation about z preserves the m = 0 harmonics.
+        bool zonal = true;
+        int  firstBad = -1;
+        for (int n = 0; n < kTotal22 && zonal; ++n)
+            for (int ch : { 0, 2, 6, 12 })
+                if (! bitEqual (ev.tap16[(size_t) (n * 16 + ch)], parks[0].tap16[(size_t) (n * 16 + ch)]))
+                {
+                    zonal    = false;
+                    firstBad = n;
+                    break;
+                }
+        check ("zonal invariance (F3): ACN 0 / 2 / 6 / 12 of the yaw-sweep tap bit-identical to the yaw = 0 park (rotation about z preserves the zonal harmonics)",
+               zonal, firstBad < 0 ? juce::String ("identical over the render") : juce::String ("first differing sample ") + juce::String (firstBad));
+
+        //──────────────────────────────────────────────────────────────────────
+        // Yaw step click (B8): 0 → 180 at 0.5 s. Verdict vs the SAME-MOTION
+        // reference (lerped); negative control = snapped reference; the
+        // vs-static numbers are printed as information only (R2).
+        {
+            const auto stepHook = [] (int pos, auto& p) { p.yawDeg = pos >= 24000 ? 180.0f : 0.0f; };
+            const auto evStep = renderEngine (sweepPrm, kFs, 64, kTotal22, { 64 }, toneGen22, stepHook, true);
+
+            ReferenceModel lerped, snappedStep;
+            snappedStep.snapCoefficientsPerGrid = true;
+            const RefParams rp = refParamsFrom (sweepPrm);
+            const auto ctrl = renderRef (lerped, rp, kFs, kTotal22, 64, toneGen22, stepHook, true);
+            const auto badS = renderRef (snappedStep, rp, kFs, kTotal22, 64, toneGen22, stepHook, true);
+
+            double ctrlC[16];
+            for (int ch = 0; ch < 16; ++ch)
+                ctrlC[ch] = worstCurvature (ctrl.tap16, ch, 16, kSkip22, kTotal22);
+
+            double worstStep = 0.0;
+            int    worstStepCh = -1;
+            juce::String perChS;
+            for (int ch = 0; ch < 16; ++ch)
+            {
+                const double r = tapRatio (evStep.tap16, ch, ctrlC, kSkip22, kTotal22);
+                perChS << fmt ("%d:%.4f ", ch, r);
+                if (r > worstStep)
+                {
+                    worstStep   = r;
+                    worstStepCh = ch;
+                }
+            }
+            check ("yaw step click (B8): 0 -> 180 at 0.5 s, engine bus tap vs the same-motion ReferenceModel, ratio <= 2.0 on all 16 channels",
+                   worstStep <= kClickRatioCeiling,
+                   fmt ("worst %.4f at ACN %d (expect 1.000); per channel: %s", worstStep, worstStepCh, perChS.toRawUTF8()));
+
+            // On the m ≠ 0 channels: a pure yaw leaves the zonal 2 / 6 / 12 untouched,
+            // so snapped == lerped there (ratio exactly 1, F3) — not a zipper to detect.
+            double badSMax = 0.0, badSMin = 1.0e300;
+            for (int ch : mNonZero)
+            {
+                const double r = tapRatio (badS.tap16, ch, ctrlC, kSkip22, kTotal22);
+                badSMax = std::max (badSMax, r);
+                badSMin = std::min (badSMin, r);
+            }
+            checkFailsAsExpected (badSMax <= kClickRatioCeiling,
+                                  "yaw step negative control: snapped reference vs the lerped reference FAILS on the 12 m != 0 channels (expect >> 2)",
+                                  fmt ("ratio min %.1f, max %.1f", badSMin, badSMax));
+
+            // Informational: vs the max of the yaw 0 / yaw 180 parks, per band.
+            juce::String bands;
+            for (int band = 1; band <= 3; ++band)
+            {
+                double worstBand = 0.0;
+                for (int ch = band * band; ch < (band + 1) * (band + 1); ++ch)
+                {
+                    const double parkC = std::max (worstCurvature (parks[0].tap16, ch, 16, kSkip22, kTotal22),
+                                                   worstCurvature (parks[12].tap16, ch, 16, kSkip22, kTotal22));
+                    worstBand = std::max (worstBand, parkC > 1.0e-300 ? worstCurvature (evStep.tap16, ch, 16, kSkip22, kTotal22) / parkC : 0.0);
+                }
+                bands << fmt ("band %d: %.1fx  ", band, worstBand);
+            }
+            std::printf ("  yaw step info (R2, NOT a verdict): engine vs the max of the yaw 0 / yaw 180 static parks — %s"
+                         "(expect ~12 / 25 / 44): grid-boundary kinks of the one-pole + per-sample lerp, identical in kind to the 2.1 azimuth "
+                         "path's response to a 180 deg azimuth step; audibility is a hands-on item at verify (v1.1: longer tau for jumps, "
+                         "quadratic element interpolation)\n", bands.toRawUTF8());
+        }
+    }
+
+    //==========================================================================
+    // Yaw ≡ azimuth cross-gate + liveness (R6) — a FRONT source: the yaw sweep
+    // must equal the identical azimuth sweep (binds 2.2 to 2.1's proven path,
+    // independent of any rotation matrix in the reference).
+    {
+        osa::Params front = sweepPrm;
+        front.azimuthDeg   = 0.0f;
+        front.elevationDeg = 0.0f;
+
+        const auto A = renderEngine (front, kFs, 64, kTotal22, { 64 }, toneGen22, yawSweepHook, true);
+        const auto B = renderEngine (front, kFs, 64, kTotal22, { 64 }, toneGen22,
+                                     [] (int pos, osa::Params& p) { p.azimuthDeg = osa::wrapTo180 (0.48f * (float) (pos / 64)); }, true);
+
+        double maxTap = 0.0, maxLr = 0.0;
+        for (int n = kSkip22; n < kTotal22; ++n)
+        {
+            for (int ch = 0; ch < 16; ++ch)
+                maxTap = std::max (maxTap, std::abs ((double) A.tap16[(size_t) (n * 16 + ch)] - (double) B.tap16[(size_t) (n * 16 + ch)]));
+            for (int ch = 0; ch < 2; ++ch)
+                maxLr = std::max (maxLr, std::abs ((double) A.lr[(size_t) (n * 2 + ch)] - (double) B.lr[(size_t) (n * 2 + ch)]));
+        }
+        check ("yaw == azimuth cross-gate (R6): front source, yaw sweep vs the identical azimuth sweep — max |tap16 diff| < 1e-5 on all 16 channels after the skip",
+               maxTap < 1.0e-5, fmt ("%.3e (expect ~1.5e-7)", maxTap));
+        check ("yaw == azimuth cross-gate: max |L / R diff| < 1e-5", maxLr < 1.0e-5, fmt ("%.3e", maxLr));
+
+        const double e1 = energy (A.lr, 0, 2, kSkip22, kSkip22 + 24000), e2 = energy (A.lr, 0, 2, kSkip22 + 24000, kTotal22);
+        const double live = 10.0 * std::log10 (e2 / e1);
+        check ("yaw sweep liveness: Stereo L energy second half-circle vs first differs >= 6 dB (front source)", std::abs (live) >= 6.0,
+               fmt ("%.2f dB (expect ~8.2)", live));
+    }
+
+    //==========================================================================
+    // P2c / P3c (B10) — the P2b / P3b shape with a STATIC non-identity rotation
+    // + orbit On: ragged / oversized ≡ flat. P2b / P3b themselves are untouched.
+    const auto rotatedMovingSetup = [&movingSetup] (Proc& q)
+    {
+        movingSetup (q);
+        setParam (q, ParamIDs::yaw,    25.0f);
+        setParam (q, ParamIDs::pitch, -40.0f);
+        setParam (q, ParamIDs::roll,   70.0f);
+    };
+    {
+        auto p = makeProc (2, kDefaultBlock, rotatedMovingSetup);
+        std::vector<float> flatRot;
+        flatRot.reserve ((size_t) kRenderSamples * 2);
+        renderWith (*p, 2, { kDefaultBlock }, noiseAt, flatRot);
+        check ("P2c liveness: a static non-identity rotation changes the orbit render (flat != 2.1 flatMoving)",
+               ! buffersBitEqual (flatRot, flatMoving));
+
+        auto q = makeProc (2, 4096, rotatedMovingSetup);
+        std::vector<float> ragged;
+        ragged.reserve ((size_t) kRenderSamples * 2);
+        renderWith (*q, 2, { 1, 7, 64, 333, 4096, 13, 512, 2 }, noiseAt, ragged);
+        check ("P2c ragged == flat with orbit On 2 Hz / order 3 / psi 25 theta -40 phi 70", buffersBitEqual (ragged, flatRot));
+
+        auto small = makeProc (2, 64, rotatedMovingSetup);
+        std::vector<float> outSmall;
+        outSmall.reserve ((size_t) kRenderSamples * 2);
+        renderWith (*small, 2, { 4096 }, noiseAt, outSmall);
+
+        auto big = makeProc (2, 4096, rotatedMovingSetup);
+        std::vector<float> outBig;
+        outBig.reserve ((size_t) kRenderSamples * 2);
+        renderWith (*big, 2, { 4096 }, noiseAt, outBig);
+
+        check ("P3c oversized (prep 64, feed 4096) == prep 4096 with rotation + orbit On", buffersBitEqual (outSmall, outBig));
+        check ("P3c oversized == flat with rotation + orbit On", buffersBitEqual (outBig, flatRot));
+    }
+
+    //==========================================================================
+    // P2d (B10) — yaw / pitch / roll stepped ONLY at 4096-sample boundaries:
+    // 64-block render == 4096-block render (host-side changes land on a block
+    // boundary of both renders).
+    {
+        constexpr int total = 32768;
+        const auto gen = [] (int n) { return monoNoiseAt (n); };
+        const auto hookFor = [] (Proc& p)
+        {
+            return [&p] (int n)
+            {
+                if (n % 4096 == 0)
+                {
+                    const float k = (float) (n / 4096);
+                    setParam (p, ParamIDs::yaw,   osa::wrapTo180 (30.0f * k));
+                    setParam (p, ParamIDs::pitch, osa::wrapTo180 (-20.0f * k));
+                    setParam (p, ParamIDs::roll,  osa::wrapTo180 (45.0f * k));
+                }
+            };
+        };
+
+        auto p64 = makeProc (2, 64, nullTupleSetup);
+        const auto r64 = renderHooked (*p64, total, gen, hookFor (*p64), 64);
+
+        auto p4096 = makeProc (2, 4096, nullTupleSetup);
+        const auto r4096 = renderHooked (*p4096, total, gen, hookFor (*p4096), 4096);
+
+        auto p0 = makeProc (2, 64, nullTupleSetup);
+        const auto r0 = renderHooked (*p0, total, gen, [] (int) {}, 64);
+
+        check ("P2d: yaw / pitch / roll stepped at every 4096-sample boundary — 64-block render == 4096-block render (bit)",
+               buffersBitEqual (r64, r4096));
+        check ("P2d liveness: the hooked render differs from the hook-less render", ! buffersBitEqual (r64, r0));
+    }
+
+    //==========================================================================
+    // Extremes (2.2) — 8 corners over the signs of (psi, theta, phi) = ±180°,
+    // az ±180 / el ±90 / d 0.2 | 20 / decoder alternating, order 3, orbit On
+    // 2 Hz, at 48 k and 96 k; plus gimbal theta = +90 under a yaw sweep.
+    {
+        for (double sr : { 48000.0, 96000.0 })
+        {
+            bool finite = true, live = true;
+            int  badCase = -1;
+            for (int i = 0; i < 8; ++i)
+            {
+                auto p = makeProcAt (sr, 2, kDefaultBlock, [i] (Proc& q)
+                {
+                    setParam (q, ParamIDs::yaw,       (i & 1) ? 180.0f : -180.0f);
+                    setParam (q, ParamIDs::pitch,     (i & 2) ? 180.0f : -180.0f);
+                    setParam (q, ParamIDs::roll,      (i & 4) ? 180.0f : -180.0f);
+                    setParam (q, ParamIDs::azimuth,   (i & 1) ? 180.0f : -180.0f);
+                    setParam (q, ParamIDs::elevation, (i & 2) ? 90.0f : -90.0f);
+                    setParam (q, ParamIDs::distance,  (i & 4) ? 20.0f : 0.2f);
+                    setParam (q, ParamIDs::decoder,   (i & 1) ? 1.0f : 0.0f);
+                    setParam (q, ParamIDs::order,     2.0f);
+                    setParam (q, ParamIDs::orbit,     1.0f);
+                    setParam (q, ParamIDs::orbitRate, 2.0f);
+                });
+                std::vector<float> out;
+                renderWith (*p, 2, { kDefaultBlock }, noiseAt, out, 4096);
+                const bool f = allFinite (out);
+                bool nonZero = false;
+                for (float v : out)
+                    if (v != 0.0f) { nonZero = true; break; }
+                finite = finite && f;
+                live   = live && nonZero;
+                if ((! f || ! nonZero) && badCase < 0)
+                    badCase = i;
+            }
+            check ((juce::String ("extremes (2.2): 8 corners of (psi, theta, phi) = +/-180 x 4096 samples at fs ") + juce::String ((int) sr)
+                    + " finite and not silenced").toRawUTF8(), finite && live,
+                   badCase < 0 ? juce::String ("all 8 ok") : juce::String ("first bad case ") + juce::String (badCase));
+        }
+
+        // Gimbal lock (F5): theta = +90 exactly, yaw sweeping — finite, live, frame finite.
+        {
+            auto p = makeProc (2, 64, [] (Proc& q)
+            {
+                setParam (q, ParamIDs::azimuth,   37.0f);
+                setParam (q, ParamIDs::elevation, -12.0f);
+                setParam (q, ParamIDs::pitch,     90.0f);
+                setParam (q, ParamIDs::order,     2.0f);
+            });
+            const auto out = renderHooked (*p, 8192, [] (int n) { return monoNoiseAt (n); },
+                                           [&p] (int n) { setParam (*p, ParamIDs::yaw, osa::wrapTo180 (0.48f * (float) (n / 64))); });
+            bool nonZero = false;
+            for (float v : out)
+                if (v != 0.0f) { nonZero = true; break; }
+            const osa::MeterFrame f = p->meterFrames.read();
+            check ("extremes (2.2): gimbal theta = +90 under a yaw sweep — every sample finite and live, frame angles finite",
+                   allFinite (out) && nonZero && std::isfinite (f.azRotDeg) && std::isfinite (f.elRotDeg),
+                   fmt ("azRot %.3f elRot %.3f", (double) f.azRotDeg, (double) f.elRotDeg));
+        }
+    }
+
+    //==========================================================================
+    // PERF-01 — allocation counter across processBlock (A11); 2.2 adds the
+    // three rotation angles moving inside the window.
     {
         auto p = makeProc (2, 64);
 
@@ -1785,11 +2597,16 @@ int main()
             switch (k)
             {
                 case 10:  setParam (*p, ParamIDs::orbit, 1.0f); setParam (*p, ParamIDs::orbitRate, 2.0f); break;
+                case 15:  setParam (*p, ParamIDs::yaw, 90.0f); break;
                 case 20:  setParam (*p, ParamIDs::order, 2.0f); break;
+                case 25:  setParam (*p, ParamIDs::pitch, -45.0f); break;
                 case 30:  setParam (*p, ParamIDs::distance, 0.2f); break;
+                case 35:  setParam (*p, ParamIDs::roll, 30.0f); break;
                 case 40:  setParam (*p, ParamIDs::decoder, 1.0f); break;
                 case 60:  setParam (*p, ParamIDs::order, 1.0f); break;
+                case 70:  setParam (*p, ParamIDs::yaw, -180.0f); break;
                 case 80:  setParam (*p, ParamIDs::distance, 20.0f); break;
+                case 90:  setParam (*p, ParamIDs::pitch, 0.0f); setParam (*p, ParamIDs::roll, 0.0f); break;
                 case 100: setParam (*p, ParamIDs::decoder, 0.0f); break;
                 default: break;
             }
@@ -1811,7 +2628,7 @@ int main()
         rtcheck::disarm();
         const long long counted = rtcheck::allocations.load();
 
-        check ("PERF-01 zero allocations across 200 processBlock calls (order 1->3->2, decoder B->S->B, orbit On, d 0.2->20, one 4096 block)",
+        check ("PERF-01 zero allocations across 200 processBlock calls (order 1->3->2, decoder B->S->B, orbit On, d 0.2->20, yaw / pitch / roll moving, one 4096 block)",
                counted == 0, juce::String ((int) counted) + " allocation(s)" + rtcheck::foreignNote());
 
         // Liveness: the counter must see one deliberate new/delete pair.
@@ -1828,9 +2645,13 @@ int main()
     }
 
     //==========================================================================
-    // Digest — Phase 2.1 baseline over the P1-null render (informational).
+    // Digests — 2.1 baseline over the P1-null render (a VERDICT from 2.2, D3 —
+    // asserted above) and the 2.2 rotated P1-null render (informational; 2.3
+    // may adopt it as the Stereo-mode regression anchor).
     std::printf ("  digest: fnv1a64=%016llx (P1-null render: %d samples x 2ch, flat %d, az 37 el -12 d 3.3 order 3 Stereo)\n",
                  (unsigned long long) fnv1a64 (nullRender), kRenderSamples, kDefaultBlock);
+    std::printf ("  digest-2.2: fnv1a64=%016llx (rotated P1-null render: the same + psi 25 theta -40 phi 70; informational)\n",
+                 (unsigned long long) fnv1a64 (rotRender));
 
     std::printf ("%s (%d failure%s)\n", failures == 0 ? "ALL PASS" : "FAILED",
                  failures, failures == 1 ? "" : "s");
