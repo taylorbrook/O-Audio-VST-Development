@@ -12,7 +12,8 @@ unchanged.
   aborts the ping as a 20 ms fade and arms the fold in the same call. The fold reads all eight lanes,
   so for that fade it carried the ping lane into the monitor pair (peak 0.042 on a silent
   programme). The fold is now held off while the ping is still active, and engages on its own 5 ms
-  crossfade once the fade has finished — at most 20 ms plus one 64-sample control block later. The
+  crossfade once the fade has finished — at most 20 ms plus one host block later (the hold is read
+  once per `processBlock`, so a fade that ends mid-block keeps the whole block held off). The
   fade itself is kept; cutting the ping instead would bring back the step B14 removed. The "armed
   but suppressed" banner is not raised for that wait.
 - **The ping readout showed "0 0" after arming the monitor.** `getState()` reported `active` true
