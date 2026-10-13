@@ -40,10 +40,13 @@
     channel are ignored — a coincident pair can only carry what two
     microphones hear; switch to Binaural for what orders 2 and 3 add.
 
-    kStereoLevelMatch is a 1.0f PLACEHOLDER in 2.1. Phase 2.3's filter
-    generator emits the real value (front source at order 3, equal A-weighted
-    level in both decoder modes, ±1 dB) into BinauralFilterData.h, and this
-    header then reads it from there.
+    kStereoLevelMatch is 1.0f BY DESIGN (Phase 2.3, CONTEXT-2.3 D2). The
+    decoder level match (front source at order 3, equal A-weighted white
+    level in both decoder modes) is baked into the FILTER SCALE by the
+    generator — kBinauralLevelMatchDb in BinauralFilterData.h, +0.53 dB on
+    the three MagLS banks — so this leg's exact literals, the P1 anchor and
+    the 2.1 / 2.2 render digests all stand untouched. The multiply stays
+    (× 1.0f is exact).
 
     Headless: no includes. No JUCE.
 
@@ -55,8 +58,8 @@
 namespace OSimpleAmbisonics::dsp
 {
 
-// 2.1 placeholder — see the header comment. 2.3 replaces this with the value
-// generated into BinauralFilterData.h.
+// Exactly 1.0f by design (D2): the level match lives in the filter scale
+// (kBinauralLevelMatchDb, BinauralFilterData.h), never on this leg.
 inline constexpr float kStereoLevelMatch = 1.0f;
 
 struct StereoDecoder

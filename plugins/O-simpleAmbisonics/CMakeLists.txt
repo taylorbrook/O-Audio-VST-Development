@@ -48,6 +48,8 @@ target_sources(O-simpleAmbisonics
         Source/dsp/OrbitLfo.h
         Source/dsp/StereoDecoder.h
         Source/dsp/DecoderMixer.h
+        Source/dsp/BinauralConvolver.h
+        Source/dsp/BinauralFilterData.h
         Source/dsp/MeterFrame.h
         Source/dsp/TripleBuffer.h
 )

@@ -22,6 +22,7 @@
 
     SpatialEngine — the Stage-2 DSP composition. Phase 2.1: the audible chain
     minus rotation and HRTF. Phase 2.2: scene rotation in the SH domain.
+    Phase 2.3: the real binaural leg (SADIE II MagLS banks, UPOLS).
 
       mono (conditioned by the processor)
         → DistanceModel   g(d) · x → TPT air LP with the D7 wet mix
@@ -31,11 +32,35 @@
                           step (W implicit)
         → 16-channel bus  (busTap[16] = the ROTATED bus of the last sample;
                           shPeak scan POST-rotation — D5)
+        → BinauralConvolver  on the ROTATED bus: grid-synchronous UPOLS with
+                          the per-order MagLS filter bank (256 taps at 48 k,
+                          resampled + DC-calibrated elsewhere), dual-bank
+                          20 ms order crossfade, queued latest-wins requests
         → StereoDecoder   ±60° cardioid pair on W / Y / X of the rotated bus
-        → DecoderMixer    FixedDelay<kPartition> × 2 on the stereo leg,
-                          20 ms mix ramp; binaural leg = PLACEHOLDER (A14,
-                          see the call site) until Phase 2.3's convolver
+        → DecoderMixer    FixedDelay<kPartition> × 2 on the stereo leg (time-
+                          aligns it with the convolver's intrinsic 64), 20 ms
+                          mix ramp; when both mix endpoints are exactly 1 the
+                          convolver output is COPIED (D3), else the A3 blend
       outL / outR         (the processor applies outputLevel per sample)
+
+    THE BINAURAL LEG (Phase 2.3, CONTEXT-2.3 D1 / D3 / D4, PLAN-2.3 C6).
+    D1: the convolver is GRID-SYNCHRONOUS — stepped from controlStep() at
+    gridPos == 0 on the 16 rotated-bus samples push()ed during the grid that
+    just ended; the output it writes is read during the grid that now begins,
+    so the latency is exactly kPartition = 64 by construction, with no FIFO
+    and no host-sized buffer (maxBlock is the processor's scratch size — the
+    convolver is grid-sized). Inside controlStep the order is MANDATORY:
+    conv.arrive() → conv.requestSet (params.order) → conv.step (kRampStep)
+    (R10: a request sampled on the arrival step must see fading == false),
+    then binauralOnly = mixer.bothEndpointsAtOne(), then fillFrameState().
+    D3: one bool per grid; renderSample copies the convolver output when it
+    is set (Binaural mode bit-exact to the convolver), else blends. D4: the
+    16 input FFTs always run, the accumulate loop covers (order + 1)²
+    channels; an order change is a dual-bank equal-gain fade with the 2.1
+    LinearRamp shape, requests during a fade are queued (latest wins) and
+    applied on arrival. The decoder level match is BAKED INTO THE FILTER
+    SCALE by the generator (kBinauralLevelMatchDb, +0.53 dB), so the Stereo
+    leg's exact literals and digest-2.1 / digest-2.2 are untouched (D2).
 
     ROTATION (Phase 2.2, CONTEXT-2.2 D1 / D2 / RESEARCH-2.2). The BUS is
     rotated, not the coefficient vector: the same block-diagonal matrix would
@@ -87,9 +112,11 @@
     Smoother constants come from the grid, never from the slice length:
     kOnePole = 1 − exp(−64/(τ·fs)), kRampStep = 64/(τ·fs), τ = 20 ms (A1).
 
-    Allocation: NONE. The chain is strictly per-sample feed-forward, so the
-    bus for one sample lives in busTap[16]; there is no 16 × maxBlock scratch.
-    maxBlock is kept for Phase 2.3's convolver FIFO sizing.
+    Allocation: NONE in process(). The chain is strictly per-sample feed-
+    forward, so the bus for one sample lives in busTap[16]; there is no
+    16 × maxBlock scratch. The convolver's tables are std::vectors assigned
+    in prepare() only (K and L depend on fs); maxBlock is the processor's
+    scratch size (accessor) — the convolver is grid-sized (D1).
 
     prepare() snaps every smoother / ramp / orbit phase from the Params the
     processor copied in BEFORE calling it (A7), so block 0 is at steady state
@@ -105,7 +132,9 @@
     (ARCHITECTURE §Latency). setLatencySamples is the processor's ONE call
     site and is never touched by Stage 2.
 
-    Headless: <algorithm>, <cmath>, <cstddef> + the Source/dsp headers. No JUCE.
+    Headless: <algorithm>, <cmath>, <cstddef> + the Source/dsp headers. JUCE
+    reaches this header only through BinauralConvolver.h (juce_dsp FFT +
+    WindowedSinc — the ONE JUCE-including DSP header, CONTEXT-2.3 D6).
 
   ==============================================================================
 */
@@ -124,6 +153,7 @@
 #include "OrbitLfo.h"
 #include "StereoDecoder.h"
 #include "DecoderMixer.h"
+#include "BinauralConvolver.h"
 #include "MeterFrame.h"
 
 namespace OSimpleAmbisonics::dsp
@@ -161,8 +191,9 @@ public:
     SpatialEngine() = default;
 
     // Call setParams() BEFORE prepare() (A7): prepare snaps everything to the
-    // stored Params.
-    void prepare (double sampleRate, int maxBlockSize) noexcept
+    // stored Params. Allocates (the convolver's tables for this fs) — the
+    // only place in the engine that does.
+    void prepare (double sampleRate, int maxBlockSize)
     {
         sampleRateHz = sampleRate;
         maxBlock     = maxBlockSize;
@@ -173,6 +204,7 @@ public:
         dist.prepare (sampleRateHz);
         mixer.prepare();
         rot.prepare();          // u / v / w tables — before the first build()
+        conv.prepare (sampleRateHz);   // tables / spectra / FDL for this fs (C3 / C14) — before snapToParams
         snapToParams();
     }
 
@@ -205,7 +237,7 @@ public:
             for (int j = 0; j < run; ++j)
             {
                 const float t = (float) (gridPos + j + 1) * kInvGrid;
-                renderSample (monoIn[i + j], t, outL[i + j], outR[i + j]);
+                renderSample (monoIn[i + j], t, gridPos + j, outL[i + j], outR[i + j]);
             }
 
             i += run;
@@ -238,6 +270,11 @@ public:
 
     int maxBlockSize() const noexcept { return maxBlock; }
 
+    // The convolver, read-only — the harness reads the resampled tables
+    // (filterTaps / tapsAtRate / resamplerDcGain) and the bank state
+    // (activeSet / isFading / bankMixCur) for its gates.
+    const BinauralConvolver& convolver() const noexcept { return conv; }
+
 private:
     static constexpr float kInvGrid = 1.0f / (float) kControlGrid;
 
@@ -265,6 +302,12 @@ private:
 
         std::fill (std::begin (bus), std::end (bus), 0.0f);
         std::fill (std::begin (tap), std::end (tap), 0.0f);
+
+        // Phase 2.3: grid buffers + FDL zeroed, bank state snapped to the order
+        // (no fade pending), the D3 copy flag from the snapped mixer.
+        conv.reset();
+        conv.snapToSet (params.order);
+        binauralOnly = mixer.bothEndpointsAtOne();
 
         gridPos = 0;
         resetPeaks();
@@ -295,6 +338,13 @@ private:
 
         std::copy (std::begin (curR), std::end (curR), std::begin (prevR));
         rot.build (yaw.cur, pitch.cur, roll.cur, curR, curR3);
+
+        // Phase 2.3 (C6 / R10): arrive → requestSet → step — in this order.
+        // requestSet runs EVERY step (latest wins by construction).
+        conv.arrive();
+        conv.requestSet (params.order);
+        conv.step (kRampStep);
+        binauralOnly = mixer.bothEndpointsAtOne();      // D3: one bool per grid
 
         fillFrameState();
     }
@@ -346,7 +396,8 @@ private:
         meterFrame.latencySamples = kPartition;
     }
 
-    void renderSample (float x, float t, float& outL, float& outR) noexcept
+    // pos = gridPos + j ∈ [0, 64): the convolver's slot for this sample.
+    void renderSample (float x, float t, int pos, float& outL, float& outR) noexcept
     {
         const float y = dist.processSample (x, t);
 
@@ -361,20 +412,30 @@ private:
         for (int acn = 0; acn < kNumSh; ++acn)
             meterFrame.shPeak[acn] = std::max (meterFrame.shPeak[acn], std::abs (tap[acn]));
 
+        // Binaural leg (Phase 2.3, D1): this grid's rotated bus goes in (consumed
+        // by the NEXT control step); what comes out was convolved at this step
+        // from the previous grid — 64 samples of structural latency. During a
+        // bank fade outputAt blends the two banks in the A3 form.
+        conv.push (tap, pos);
+        const float binL = conv.outputAt (0, pos, t);
+        const float binR = conv.outputAt (1, pos, t);
+
         float stL, stR;
         StereoDecoder::decode (tap, stL, stR);
 
         float dL, dR;
-        mixer.delayStereo (stL, stR, dL, dR);
+        mixer.delayStereo (stL, stR, dL, dR);      // the stereo leg's delay ALWAYS runs
 
-        // A14 PLACEHOLDER (Phase 2.1 only — a 2.3 obligation): the binaural leg
-        // IS the delayed stereo leg, so the output equals the stereo leg
-        // bit-exactly in BOTH decoder modes (A3 blend form). Phase 2.3
-        // replaces these two lines with the UPOLS convolver output.
-        const float binL = dL;
-        const float binR = dR;
-
-        mixer.blend (dL, dR, binL, binR, t, outL, outR);
+        if (binauralOnly)
+        {
+            // D3: both mix endpoints exactly 1 → bit-exact copy of the convolver.
+            outL = binL;
+            outR = binR;
+        }
+        else
+        {
+            mixer.blend (dL, dR, binL, binR, t, outL, outR);
+        }
     }
 
     // ── state ──────────────────────────────────────────────────────────────
@@ -394,6 +455,8 @@ private:
     LinearRamp              orderGain[3];
     DecoderMixer<kPartition> mixer;
     ShRotator               rot;
+    BinauralConvolver       conv;
+    bool                    binauralOnly = false;   // D3: set once per grid
 
     float prevC[kNumSh] {};
     float curC[kNumSh] {};
