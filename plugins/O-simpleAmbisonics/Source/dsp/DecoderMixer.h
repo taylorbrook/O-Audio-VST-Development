@@ -31,17 +31,22 @@
       out = stereoDelayed + mix·(binaural − stereoDelayed)      ← A3 form
 
     THE BLEND FORM MATTERS (RESEARCH-2.1 F2): b + mix·(a − b) returns exactly
-    b when a == b for any mix. That is what makes the 2.1 placeholder (A14 —
-    the binaural input IS the delayed stereo leg) bit-exact in BOTH decoder
-    modes, and it removes one rounding from the real 2.3 crossfade.
+    b when a == b for any mix. In 2.1 that made the A14 placeholder (the
+    binaural input WAS the delayed stereo leg) bit-exact in both decoder
+    modes; from Phase 2.3 the placeholder is gone (the binaural leg is the
+    BinauralConvolver output) and the A3 form still removes one rounding from
+    the live crossfade.
 
-    The API is split in two so the engine can pass the delayed stereo leg as
-    the binaural input explicitly AT THE CALL SITE (A14 asks for the
-    placeholder to be visible there, not hidden in here):
+    The API stays split in two because the engine applies the D3 copy at the
+    call site: when both mix endpoints are exactly 1 (bothEndpointsAtOne(),
+    one bool per grid) the engine copies the convolver output instead of
+    blending, so Binaural mode is bit-exact to the convolver and the D7 null
+    holds to the float path alone:
 
       delayStereo (stL, stR, dL, dR)                — run the two delays
       blend (dL, dR, binL, binR, t, outL, outR)      — lerp mix, blend
-      processSample (…)                              — both, for 2.3's real use
+      processSample (…)                              — both
+      bothEndpointsAtOne()                           — prevMix == curMix == 1
 
     Headless: FixedDelay.h + Smoothers.h only. No JUCE.
 
@@ -109,6 +114,10 @@ struct DecoderMixer
 
     // The ramp's current value (published in MeterFrame::decoderMix).
     float currentMix() const noexcept { return curMix; }
+
+    // D3 (Phase 2.3): true when the whole grid sits at mix == 1 — the engine
+    // then copies the binaural leg instead of blending.
+    bool bothEndpointsAtOne() const noexcept { return prevMix == 1.0f && curMix == 1.0f; }
 
 private:
     static float targetFor (int decoder) noexcept { return decoder == 0 ? 1.0f : 0.0f; }

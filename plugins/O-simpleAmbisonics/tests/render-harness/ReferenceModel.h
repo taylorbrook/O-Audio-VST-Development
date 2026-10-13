@@ -36,9 +36,11 @@
     same TPT one-pole, same D7 mix, same ±60° literals (0.5, 0.25, 0.4330127
     as doubles), same 64-sample delay, same orbit, same A14 placeholder.
 
-    Two switches for the negative controls (default off):
+    Four switches for the negative controls (default off):
       snapCoefficientsPerGrid — the 16-vector is NOT lerped per sample (c = cur)
       snapOrderGains          — order gains step instead of ramping
+      snapBankFade            — (2.3) the binaural bank switches instead of fading
+      snapDecoderMix          — (2.3) the decoder mix steps instead of ramping
 
     Uses: P1 null, DSP-06b negative control, order-fade control + negative
     control, DSP-01 table (refSh16).
@@ -56,6 +58,24 @@
     dir (direction (az, el)) round-trips to 9e-13°, so every Phase 2.1
     reference render is unchanged.
 
+    Phase 2.3: DIRECT-FORM DOUBLE CONVOLUTION of the model's own rotated bus
+    with the header filters — the definition UPOLS must reproduce; never an
+    FFT or a partition (CONTEXT-2.3 D7). bin[ear][n] = Σ_ch<(order+1)²
+    Σ_t<hLen h[order][ch][ear][t] · tap[ch][n − 64 − t], the 64 being the
+    structural latency the convolver has by construction. The filters are
+    the header floats widened at 48 k (the ARTIFACT — never a re-declared
+    copy); at fs ≠ 48 k the harness seeds the engine's resampled table via
+    setExternalFilters (the resampler has its own golden gate). The bank
+    state machine (cur / pending / queued / fading) is written from the
+    PLAN-2.3 shared spec, op-for-op with the engine's: arrive → requestSet →
+    stepBank at the control step, after the 2.2 angle steps. THE BANK RAMP IS
+    FLOAT (RESEARCH-2.3 F1: a float LinearRamp arrives at step 15, a double
+    one at 16 — a null spanning the fade needs the float), formed as
+    (double) (prevBank + (float) t · (curBank − prevBank)); og[3] / mix stay
+    double so every 2.1 / 2.2 reference literal is untouched. The A14
+    placeholder is gone: binauralOnlyRef (both decoder-mix endpoints exactly
+    1) copies the convolution, else the A3 blend with the delayed stereo leg.
+
   ==============================================================================
 */
 
@@ -63,6 +83,11 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <vector>
+
+#include "dsp/BinauralFilterData.h"
 
 struct RefParams
 {
@@ -87,6 +112,11 @@ public:
 
     bool snapCoefficientsPerGrid = false;
     bool snapOrderGains          = false;
+    bool snapBankFade            = false;   // 2.3 negative control
+    bool snapDecoderMix          = false;   // 2.3 negative control
+
+    // Ring length ≥ 64 + the longest resampled table (1024 at 192 k).
+    static constexpr int kRefRing = 64 + 1024;
 
     // ── generic SN3D table (RESEARCH-2.1 R4) ─────────────────────────────────
     static double factorial (int n)
@@ -239,6 +269,19 @@ public:
         }
     };
 
+    // The engine's LinearRamp text in FLOAT — for the bank fade only (F1 / C5).
+    struct FloatRamp
+    {
+        float cur = 0.0f;
+        void  snapTo (float v) { cur = v; }
+        float step (float target, float stepSize)
+        {
+            const float d = target - cur;
+            cur = std::abs (d) <= stepSize ? target : cur + std::copysign (stepSize, d);
+            return cur;
+        }
+    };
+
     // ── distance law (double twins of DistanceModel.h) ────────────────────────
     static double gainFor (double d) { return 1.25 / (d + 0.25); }
     static double cutoffFor (double d, double fs)
@@ -255,12 +298,72 @@ public:
     // ── API ───────────────────────────────────────────────────────────────────
     void setParams (const RefParams& p) { params = p; }
 
+    // Phase 2.3: at fs ≠ 48 000 the harness copies the engine's resampled table
+    // here (one call per (order, ch, ear), all the same len) BEFORE prepare().
+    void setExternalFilters (int order, int ch, int ear, const float* tapsIn, int len)
+    {
+        auto& e = ext[(size_t) (order - 1)];
+        const int nch = (order + 1) * (order + 1);
+        if ((int) e.size() != nch * 2 * len)
+            e.assign ((size_t) nch * 2 * (size_t) len, 0.0);
+        extLen = len;
+        for (int t = 0; t < len; ++t)
+            e[(size_t) ((ch * 2 + ear) * len + t)] = (double) tapsIn[t];
+    }
+
     // setParams() first, then prepare(): snaps everything (A7).
     void prepare (double sampleRate)
     {
         fs        = sampleRate;
         kOnePole  = 1.0 - std::exp (-(double) kGrid / (kTau * fs));
         kRampStep = (double) kGrid / (kTau * fs);
+        kRampStepF = (float) ((double) kGrid / (kTau * fs));   // the engine's expression, so the float is identical
+
+        // Filters: the header floats widened (48 k) or the external table.
+        if (extLen > 0)
+        {
+            hLen = extLen;
+            for (int o = 0; o < 3; ++o)
+                h[o] = ext[(size_t) o];
+        }
+        else
+        {
+            if (fs != 48000.0)
+            {
+                std::printf ("ReferenceModel: fs %.0f != 48000 and no external filters set — call setExternalFilters first\n", fs);
+                std::abort();
+            }
+            hLen = OSimpleAmbisonics::dsp::kBinauralFilterTaps;
+            for (int order = 1; order <= 3; ++order)
+            {
+                const int nch = (order + 1) * (order + 1);
+                auto& table = h[order - 1];
+                table.assign ((size_t) nch * 2 * (size_t) hLen, 0.0);
+                for (int ch = 0; ch < nch; ++ch)
+                    for (int ear = 0; ear < 2; ++ear)
+                    {
+                        const float* src = order == 1 ? OSimpleAmbisonics::dsp::kMagLsFilters1[ch][ear]
+                                         : order == 2 ? OSimpleAmbisonics::dsp::kMagLsFilters2[ch][ear]
+                                                      : OSimpleAmbisonics::dsp::kMagLsFilters3[ch][ear];
+                        for (int t = 0; t < hLen; ++t)
+                            table[(size_t) ((ch * 2 + ear) * hLen + t)] = (double) src[t];
+                    }
+            }
+        }
+        if (hLen + kGrid > kRefRing)
+        {
+            std::printf ("ReferenceModel: table length %d exceeds the ring (%d)\n", hLen, kRefRing);
+            std::abort();
+        }
+        hist.assign ((size_t) 16 * kRefRing, 0.0);
+        hIdx = 0;
+
+        // Bank state machine snapped to the order (no fade pending).
+        convCur = params.order;
+        convPending = convQueued = -1;
+        convFading = false;
+        bankMix.snapTo (0.0f);
+        prevBank = curBank = 0.0f;
 
         az.snapTo (params.azimuthDeg);
         el.snapTo (params.elevationDeg);
@@ -280,6 +383,7 @@ public:
 
         mix.snapTo (params.decoder == 0 ? 1.0 : 0.0);
         prevMixD = curMixD = mix.cur;
+        binauralOnlyRef = (prevMixD == 1.0 && curMixD == 1.0);
 
         orbitPhase = 0.0;
         orbitWasOn = false;
@@ -319,7 +423,75 @@ public:
     double        currentAzEff() const { return az.cur; }
     const double* busTap() const { return tap; }
 
+    // 2.3 bank state, for the queue probe.
+    int   activeSet() const { return convCur; }
+    bool  isFading() const { return convFading; }
+    float bankMixCur() const { return curBank; }
+
 private:
+    // ── Phase 2.3: bank state machine (PLAN-2.3 shared spec, op-for-op) ──────
+    void convArrive()
+    {
+        if (convFading && curBank == 1.0f)
+        {
+            convCur = convPending;
+            convPending = -1;
+            convFading = false;
+            curBank = prevBank = 0.0f;
+            if (convQueued >= 0)
+            {
+                const int q = convQueued;
+                convQueued = -1;
+                convRequestSet (q);
+            }
+        }
+    }
+
+    void convRequestSet (int n)
+    {
+        if (convFading)
+        {
+            convQueued = n;
+            return;
+        }
+        if (n != convCur)
+        {
+            convPending = n;
+            convFading = true;
+            bankMix.snapTo (0.0f);
+            prevBank = curBank = 0.0f;
+        }
+    }
+
+    void convStepBank()
+    {
+        prevBank = curBank;
+        if (convFading)
+            curBank = bankMix.step (1.0f, kRampStepF);
+    }
+
+    // Direct form, double: Σ_ch<(order+1)² Σ_t<hLen h[ch][ear][t] · tap[ch][n − 64 − t],
+    // read AFTER this sample's tap was written at hIdx (so hIdx ↔ n).
+    double direct (int order, int ear) const
+    {
+        const int nch = (order + 1) * (order + 1);
+        const std::vector<double>& table = h[order - 1];
+        double s = 0.0;
+        for (int ch = 0; ch < nch; ++ch)
+        {
+            const double* hh = table.data() + (size_t) ((ch * 2 + ear) * hLen);
+            const double* ring = hist.data() + (size_t) ch * kRefRing;
+            int idx = hIdx - kGrid;                        // n − 64
+            if (idx < 0) idx += kRefRing;
+            for (int t = 0; t < hLen; ++t)
+            {
+                s += hh[t] * ring[idx];
+                if (--idx < 0) idx += kRefRing;            // n − 64 − t
+            }
+        }
+        return s;
+    }
+
     void controlStep()
     {
         // orbit
@@ -355,7 +527,9 @@ private:
         }
 
         prevMixD = curMixD;
-        curMixD  = mix.step (params.decoder == 0 ? 1.0 : 0.0, kRampStep);
+        if (snapDecoderMix)
+            mix.snapTo (params.decoder == 0 ? 1.0 : 0.0);
+        curMixD  = snapDecoderMix ? mix.cur : mix.step (params.decoder == 0 ? 1.0 : 0.0, kRampStep);
 
         // Phase 2.2: the three rotation angles, after the mixer, before the copy.
         yaw.step (params.yawDeg, kOnePole);
@@ -365,6 +539,12 @@ private:
         for (int i = 0; i < 16; ++i)
             prevC[i] = curC[i];
         evaluateC();
+
+        // Phase 2.3: arrive → requestSet → stepBank (ramp only — no FFT step here).
+        convArrive();
+        convRequestSet (params.order);
+        convStepBank();
+        binauralOnlyRef = (prevMixD == 1.0 && curMixD == 1.0);
     }
 
     // c = encode (dir (R₃ · d (az, el))) × band gains — the rotated vector, by
@@ -409,10 +589,44 @@ private:
         if (++dlIdx == kGrid)
             dlIdx = 0;
 
-        const double binL = dL, binR = dR;                   // A14 placeholder
-        const double mixS = prevMixD + t * (curMixD - prevMixD);
-        outL = dL + mixS * (binL - dL);
-        outR = dR + mixS * (binR - dR);
+        // Phase 2.3: write this sample's rotated bus into the ring, then convolve.
+        for (int i = 0; i < 16; ++i)
+            hist[(size_t) i * kRefRing + (size_t) hIdx] = tap[i];
+
+        double binL, binR;
+        if (! convFading)
+        {
+            binL = direct (convCur, 0);
+            binR = direct (convCur, 1);
+        }
+        else if (snapBankFade)
+        {
+            binL = direct (convPending, 0);                  // the pending set from the request step
+            binR = direct (convPending, 1);
+        }
+        else
+        {
+            const double mb = (double) (prevBank + (float) t * (curBank - prevBank));   // C5: float, widened
+            const double aL = direct (convCur, 0), aR = direct (convCur, 1);
+            const double bL = direct (convPending, 0), bR = direct (convPending, 1);
+            binL = aL + mb * (bL - aL);
+            binR = aR + mb * (bR - aR);
+        }
+
+        if (++hIdx == kRefRing)
+            hIdx = 0;
+
+        if (binauralOnlyRef)
+        {
+            outL = binL;
+            outR = binR;
+        }
+        else
+        {
+            const double mixS = prevMixD + t * (curMixD - prevMixD);
+            outL = dL + mixS * (binL - dL);
+            outR = dR + mixS * (binR - dR);
+        }
     }
 
     RefParams params;
@@ -432,4 +646,17 @@ private:
     double prevC[16] {}, curC[16] {}, tap[16] {};
     double dlL[kGrid] {}, dlR[kGrid] {};
     int    dlIdx = 0;
+
+    // ── Phase 2.3 ────────────────────────────────────────────────────────────
+    std::vector<double> h[3];            // [order-1] → [ch][ear][hLen]
+    std::vector<double> ext[3];          // external (resampled) tables, if set
+    int    hLen = 0, extLen = 0;
+    std::vector<double> hist;            // [ch][kRefRing]
+    int    hIdx = 0;
+
+    int       convCur = 1, convPending = -1, convQueued = -1;
+    bool      convFading = false;
+    FloatRamp bankMix;
+    float     prevBank = 0.0f, curBank = 0.0f, kRampStepF = 1.0f;
+    bool      binauralOnlyRef = true;
 };

@@ -20,7 +20,7 @@
 /*
   ==============================================================================
 
-    O-simpleAmbisonics render-harness — Stage 2 / Phase 2.1 + 2.2 DSP gate.
+    O-simpleAmbisonics render-harness — Stage 2 / Phase 2.1 + 2.2 + 2.3 DSP gate.
 
     Discipline (CONTEXT-2.1 D9 / PLAN-2.1 A10–A11): every probe renders on a
     FRESH instance; verdicts are ratios or exact anchors (no wall-clock, no
@@ -122,7 +122,59 @@
                           at 4096-sample boundaries (64 vs 4096 blocks).
       extremes 2.2      — ±180° on all three angles × fs 48 k / 96 k finite and
                           live; gimbal theta = +90 under a yaw sweep finite.
-      digest-2.2        — FNV-1a 64 of the rotated P1-null render (informational).
+      digest-2.2        — FNV-1a 64 of the rotated P1-null render. From Phase
+                          2.3 a VERDICT (D13): the Stereo path is untouched by
+                          the binaural leg, so 7f35bc9f91e321b9 must reproduce.
+
+    Phase 2.3 — the C15 MIGRATION (entry-check correction). Six 2.1 probes
+    anchored on the default (Binaural) output while it was the A14 placeholder
+    (P1 anchor default / out[64] / Stereo == Binaural / engine-direct, P1b ×2,
+    P4). Each now renders in STEREO mode ("(Stereo)" in its verdict string) so
+    the exact 0.75f·s[n−64] anchor stays a verdict, and gains a BINAURAL TWIN
+    gated against the ReferenceModel's direct-form convolution (< 1e-5).
+    `flat` (defaults, Binaural) is still the P2 / P3 reference — those gates
+    now exercise the convolver under slicing for free. The "Stereo ==
+    Binaural" equality probe is INVERTED ("A14 placeholder gone"). Every other
+    2.1 / 2.2 probe body and verdict string is untouched; digest-2.1 and
+    digest-2.2 are verdicts from 2.3 (D13).
+
+    Phase 2.3 probes (binaural leg; CONTEXT-2.3 / RESEARCH-2.3 / PLAN-2.3 T7):
+
+      header sanity     — constants, every float finite, level match ±3 dB,
+                          tap 0 exactly 0.
+      UPOLS null (D7)   — processor at the rotated null tuple, Binaural, orders
+                          1 / 2 / 3 × host blocks 32 / 64 / 100 / 512 / 1024 /
+                          4096 vs the direct-form double reference: < 1e-5.
+      null at 96 k      — engine-direct, K = 8, reference seeded with the
+                          engine's resampled table: < 1e-5.
+      resampler (C3)    — engine tables at 44.1 k / 96 k vs the scipy
+                          resample_poly goldens: ≤ 1.5e-2 / 6e-3 of peak, |H|
+                          within 0.1 dB below 16 kHz; un-calibrated negative
+                          control FAILS; 48 k table bit-exact to the header.
+      DSP-03 onset      — 10 %-of-peak onset == in + 64 + kBinauralOnsetFront
+                          Samples[n] (± 2 / ± 3) at 44.1 / 48 / 96 k;
+                          getLatencySamples() == 64 both modes every rate.
+      DSP-03 ILD / ITD  — ±90°: ILD ≥ 6 dB with the AmbiX sign; ITD by low-
+                          passed cross-correlation 25–45 samples (C10).
+      FUNC-05 level     — front / order 3: A-weighted Binaural vs Stereo
+                          < 1 dB (orders 1 / 2 printed).
+      DSP-07 clicks     — order 1→3 / 3→1 and Binaural→Stereo→Binaural on a
+                          100 Hz tone at az +90° at 64 and 1024 blocks: ratio
+                          ≤ 2.0 vs the same-motion reference; snapped-bank /
+                          snapped-mix negative controls FAIL; spectral
+                          liveness 3 kHz R ear ≥ 3 dB between orders 1 / 3.
+      bank-fade queue   — queued latest-wins requests null to the reference;
+                          float ramp arrives EXACTLY at step 15.
+      P2e / P3e / P2f   — slicing bit-equality in Binaural mode, with order /
+                          decoder / yaw stepped at 4096 boundaries.
+      FDL decay         — exact 0 within K grids of silence at 48 k / 96 k.
+      placeholder gone  — Binaural ≠ Stereo; kStereoLevelMatch == 1.0f (D2).
+      extremes 2.3      — the 2.2 corners forced Binaural, orders 1 / 3,
+                          48 k / 96 k; gimbal in Binaural; headroom printed.
+      PERF-01           — 0 allocations with the convolver live.
+      digest-2.3        — FNV-1a 64 of the Binaural null render (informational,
+                          D6: vDSP vs Fallback FFT).
+      PERF-02 (C9)      — ≥ 20× real time, Release only, best of three, LAST.
 
   ==============================================================================
 */
@@ -134,10 +186,13 @@
 #include "dsp/ShRotator.h"
 #include "dsp/DistanceModel.h"
 #include "dsp/StereoDecoder.h"
+#include "dsp/BinauralConvolver.h"
 #include "ReferenceModel.h"
+#include "BinauralFilterGoldens.h"
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cmath>
 #include <cstdarg>
 #include <cstdio>
@@ -868,6 +923,242 @@ namespace
     {
         return control[ch] > 1.0e-300 ? worstCurvature (tap16, ch, 16, from, to) / control[ch] : 0.0;
     }
+
+    //==========================================================================
+    // ── Phase 2.3 helpers (PLAN-2.3 T5) ────────────────────────────────────────
+
+    constexpr int kFft4096 = 4096;
+
+    // A 4096-point real FFT with the R6 contract (bins 0 … 2048 interleaved).
+    struct Fft4096
+    {
+        juce::dsp::FFT fft { 12 };
+        std::vector<float> buf = std::vector<float> ((size_t) 2 * kFft4096, 0.0f);
+
+        // x[0 … n) zero-padded (or truncated) to 4096; bins in buf[0 … 4098).
+        void forward (const float* x, int n)
+        {
+            std::fill (buf.begin(), buf.end(), 0.0f);
+            std::copy (x, x + std::min (n, kFft4096), buf.begin());
+            fft.performRealOnlyForwardTransform (buf.data(), true);
+        }
+
+        double magnitude (int bin) const
+        {
+            const double re = buf[(size_t) 2 * (size_t) bin], im = buf[(size_t) 2 * (size_t) bin + 1];
+            return std::sqrt (re * re + im * im);
+        }
+
+        // Zero every bin above cutoffHz, inverse → buf[0 … 4096) is the low-passed signal.
+        void brickWallInverse (double fs, double cutoffHz)
+        {
+            for (int k = 0; k <= kFft4096 / 2; ++k)
+                if ((double) k * fs / kFft4096 > cutoffHz)
+                    buf[(size_t) 2 * (size_t) k] = buf[(size_t) 2 * (size_t) k + 1] = 0.0f;
+            fft.performRealOnlyInverseTransform (buf.data());
+        }
+    };
+
+    // IEC 61672 A-weighting magnitude, normalised to 1 at 1 kHz (R4).
+    double aWeight (double f)
+    {
+        const auto ra = [] (double x)
+        {
+            const double x2 = x * x;
+            return 12194.0 * 12194.0 * x2 * x2
+                 / ((x2 + 20.6 * 20.6) * std::sqrt ((x2 + 107.7 * 107.7) * (x2 + 737.9 * 737.9)) * (x2 + 12194.0 * 12194.0));
+        };
+        return ra (f) / ra (1000.0);
+    }
+
+    // A-weighted RMS gain-like level of one channel of an interleaved stereo render over
+    // [from, from + len): Hann-windowed 4096-point frames averaged (hop 4096), power
+    // weighted by A²(f), DC excluded: sqrt (Σ A²·P / Σ A²). Absolute scale is arbitrary
+    // but identical for every caller, so RATIOS between renders are exact (FUNC-05).
+    double aWeightedLevel (const std::vector<float>& lr, int ch, int from, int len, double fs = kFs)
+    {
+        Fft4096 f;
+        std::vector<double> power ((size_t) kFft4096 / 2 + 1, 0.0);
+        std::vector<float> frame ((size_t) kFft4096);
+        int frames = 0;
+        for (int start = from; start + kFft4096 <= from + len; start += kFft4096, ++frames)
+        {
+            for (int i = 0; i < kFft4096; ++i)
+            {
+                const double w = 0.5 - 0.5 * std::cos (2.0 * kPi * (double) i / (double) kFft4096);
+                frame[(size_t) i] = (float) (w * (double) lr[(size_t) ((start + i) * 2 + ch)]);
+            }
+            f.forward (frame.data(), kFft4096);
+            for (int k = 0; k <= kFft4096 / 2; ++k)
+            {
+                const double m = f.magnitude (k);
+                power[(size_t) k] += m * m;
+            }
+        }
+        double num = 0.0, den = 0.0;
+        for (int k = 1; k <= kFft4096 / 2; ++k)
+        {
+            const double a2 = std::pow (aWeight ((double) k * fs / kFft4096), 2.0);
+            num += a2 * power[(size_t) k] / (double) std::max (frames, 1);
+            den += a2;
+        }
+        return std::sqrt (num / den);
+    }
+
+    // C10: both ears brick-wall low-passed at cutoffHz on a 4096-point FFT, then the lag d
+    // maximising Σ_n L[n]·R[n + d] over |d| ≤ 200. POSITIVE = R lags = L LEADS. Same
+    // definition as the generator's itd_lp_xcorr (sign anchored there on a synthetic pair).
+    int itdLowPassXcorr (const std::vector<float>& lr, double fs, double cutoffHz, int from, int len)
+    {
+        Fft4096 fL, fR;
+        std::vector<float> L ((size_t) len), R ((size_t) len);
+        for (int i = 0; i < len; ++i)
+        {
+            L[(size_t) i] = lr[(size_t) ((from + i) * 2)];
+            R[(size_t) i] = lr[(size_t) ((from + i) * 2 + 1)];
+        }
+        fL.forward (L.data(), len);
+        fR.forward (R.data(), len);
+        fL.brickWallInverse (fs, cutoffHz);
+        fR.brickWallInverse (fs, cutoffHz);
+
+        int    best = 0;
+        double bestC = -1.0e300;
+        for (int d = -200; d <= 200; ++d)
+        {
+            double c = 0.0;
+            for (int n = 0; n < kFft4096; ++n)
+            {
+                const int m = n + d;
+                if (m >= 0 && m < kFft4096)
+                    c += (double) fL.buf[(size_t) n] * (double) fR.buf[(size_t) m];
+            }
+            if (c > bestC)
+            {
+                bestC = c;
+                best = d;
+            }
+        }
+        return best;
+    }
+
+    // Broadband rms ratio L / R in dB over [from, from + len).
+    double ildDb (const std::vector<float>& lr, int from, int len)
+    {
+        return dB (rms (lr, 0, 2, from, from + len) / rms (lr, 1, 2, from, from + len));
+    }
+
+    // Band-limited power ratio L / R in dB (4096-point FFT of [from, from + len)).
+    double ildBandDb (const std::vector<float>& lr, int from, int len, double fs, double lo, double hi)
+    {
+        Fft4096 fL, fR;
+        std::vector<float> L ((size_t) len), R ((size_t) len);
+        for (int i = 0; i < len; ++i)
+        {
+            L[(size_t) i] = lr[(size_t) ((from + i) * 2)];
+            R[(size_t) i] = lr[(size_t) ((from + i) * 2 + 1)];
+        }
+        fL.forward (L.data(), len);
+        fR.forward (R.data(), len);
+        double pl = 0.0, pr = 0.0;
+        for (int k = 0; k <= kFft4096 / 2; ++k)
+        {
+            const double f = (double) k * fs / kFft4096;
+            if (f >= lo && f < hi)
+            {
+                pl += std::pow (fL.magnitude (k), 2.0);
+                pr += std::pow (fR.magnitude (k), 2.0);
+            }
+        }
+        return 10.0 * std::log10 (pl / pr);
+    }
+
+    // First index at which |x| ≥ 10 % of that channel's peak (F6 — never "first nonzero").
+    int onset10 (const std::vector<float>& lr, int ch)
+    {
+        float peak = 0.0f;
+        const int n = (int) lr.size() / 2;
+        for (int i = 0; i < n; ++i)
+            peak = std::max (peak, std::abs (lr[(size_t) (i * 2 + ch)]));
+        for (int i = 0; i < n; ++i)
+            if (std::abs (lr[(size_t) (i * 2 + ch)]) >= 0.1f * peak)
+                return i;
+        return -1;
+    }
+
+    int firstNonZero (const std::vector<float>& lr)
+    {
+        const int n = (int) lr.size() / 2;
+        for (int i = 0; i < n; ++i)
+            if (lr[(size_t) (i * 2)] != 0.0f || lr[(size_t) (i * 2 + 1)] != 0.0f)
+                return i;
+        return -1;
+    }
+
+    // The reference reads the engine's resampled table at fs ≠ 48 k (D7).
+    void loadExternalFilters (ReferenceModel& model, const osa::SpatialEngine& engine)
+    {
+        const auto& c = engine.convolver();
+        for (int order = 1; order <= 3; ++order)
+            for (int ch = 0; ch < osa::BinauralConvolver::channelsFor (order); ++ch)
+                for (int ear = 0; ear < 2; ++ear)
+                    model.setExternalFilters (order, ch, ear, c.filterTaps (order, ch, ear), c.tapsAtRate());
+    }
+
+    // max |engine − reference| over an interleaved float render vs an interleaved double one.
+    double maxErrLr (const std::vector<float>& a, const std::vector<double>& b, double& peakL)
+    {
+        double worst = 0.0;
+        peakL = 0.0;
+        const size_t n = std::min (a.size(), b.size());
+        for (size_t i = 0; i < n; ++i)
+        {
+            worst = std::max (worst, std::abs ((double) a[i] - b[i]));
+            if ((i & 1) == 0)
+                peakL = std::max (peakL, std::abs (b[i]));
+        }
+        return worst;
+    }
+
+    // ReferenceModel render on the mono equivalent of a processor render: gen (n) is the
+    // mono input; params from the processor's raw atomics.
+    template <typename Gen>
+    std::vector<double> refRenderStatic (const RefParams& rp, double fs, int total, Gen gen, ReferenceModel* seeded = nullptr)
+    {
+        ReferenceModel local;
+        ReferenceModel& model = seeded != nullptr ? *seeded : local;
+        model.setParams (rp);
+        model.prepare (fs);
+        std::vector<float>  mono ((size_t) total);
+        std::vector<double> L ((size_t) total), R ((size_t) total), lr ((size_t) total * 2);
+        for (int n = 0; n < total; ++n)
+            mono[(size_t) n] = gen (n);
+        model.process (mono.data(), L.data(), R.data(), total);
+        for (int n = 0; n < total; ++n)
+        {
+            lr[(size_t) n * 2]     = L[(size_t) n];
+            lr[(size_t) n * 2 + 1] = R[(size_t) n];
+        }
+        return lr;
+    }
+
+    const float* headerTaps (int order, int ch, int ear)
+    {
+        switch (order)
+        {
+            case 1:  return osa::kMagLsFilters1[ch][ear];
+            case 2:  return osa::kMagLsFilters2[ch][ear];
+            default: return osa::kMagLsFilters3[ch][ear];
+        }
+    }
+
+    const float* goldenTaps (int fs, int order, int ch, int ear)
+    {
+        using namespace OSimpleAmbisonics::test;
+        if (fs == 44100)
+            return order == 1 ? kBinauralGolden44100_1[ch][ear] : order == 2 ? kBinauralGolden44100_2[ch][ear] : kBinauralGolden44100_3[ch][ear];
+        return order == 1 ? kBinauralGolden96000_1[ch][ear] : order == 2 ? kBinauralGolden96000_2[ch][ear] : kBinauralGolden96000_3[ch][ear];
+    }
 } // namespace
 
 int main()
@@ -875,7 +1166,7 @@ int main()
     juce::ScopedJuceInitialiser_GUI juceInit;
     using namespace OSimpleAmbisonics;
 
-    std::printf ("O-simpleAmbisonics render-harness (Stage 2 / Phase 2.1 + 2.2) — fs=%.0f, latency=%d\n",
+    std::printf ("O-simpleAmbisonics render-harness (Stage 2 / Phase 2.1 + 2.2 + 2.3) — fs=%.0f, latency=%d\n",
                  kFs, kLatency);
 
     //==========================================================================
@@ -988,9 +1279,10 @@ int main()
     }
 
     //==========================================================================
-    // P1 anchor — front / 1 m / order 1: out == 0.75f·s[n−64] BIT-EQUAL in both
-    // decoder modes (F2 / F3) and engine-direct. `flat` (defaults, Binaural)
-    // is the P2 / P3 reference.
+    // P1 anchor — front / 1 m / order 1: out == 0.75f·s[n−64] BIT-EQUAL in
+    // STEREO mode (F2 / F3; C15 — the A14 placeholder is gone, so the exact
+    // anchor is a Stereo-leg property) and engine-direct. `flat` (defaults,
+    // Binaural) is STILL the P2 / P3 reference and the P1 Binaural twin.
     std::vector<float> flat;
     flat.reserve ((size_t) kRenderSamples * 2);
     const auto anchorExpected = [] (int n) { return 0.75f * monoNoiseAt (n); };
@@ -1008,55 +1300,94 @@ int main()
 
         renderWith (*p, 2, { kDefaultBlock }, noiseAt, flat);
 
-        const int mm = firstMismatch (flat, anchorExpected);
-        check ("P1 anchor Binaural (default): out == 0.75f*s[n-64] bit-equal both ch", mm < 0, juce::String (mm));
-
         bool headZero = true;
         for (int n = 0; n < kLatency && headZero; ++n)
             headZero = flat[(size_t) n * 2] == 0.0f && flat[(size_t) n * 2 + 1] == 0.0f;
         check ("P1 anchor out[0..63] == 0", headZero);
 
-        check ("P1 anchor out[64] exact (no fade-in)",
-               bitEqual (flat[(size_t) kLatency * 2], anchorExpected (0))
-                   && bitEqual (flat[(size_t) kLatency * 2 + 1], anchorExpected (0)),
-               juce::String (flat[(size_t) kLatency * 2], 7) + " vs " + juce::String (anchorExpected (0), 7));
+        // Binaural twin (C15): the default render vs the direct-form reference.
+        double peak = 0.0;
+        const double err = maxErrLr (flat, refRenderStatic (refParamsFrom (*p), kFs, kRenderSamples, monoNoiseAt), peak);
+        check ("P1 Binaural (defaults) vs ReferenceModel direct-form: max|err| < 1e-5, peak |L| > 0.01", err < 1.0e-5 && peak > 0.01,
+               fmt ("max|err| %.3e, peak |L| %.3f", err, peak));
     }
+    std::vector<float> stereoAnchor;
+    stereoAnchor.reserve ((size_t) kRenderSamples * 2);
     {
         auto p = makeProc (2, kDefaultBlock, [] (Proc& q) { setParam (q, ParamIDs::decoder, 1.0f); });
-        std::vector<float> out;
-        out.reserve ((size_t) kRenderSamples * 2);
-        renderWith (*p, 2, { kDefaultBlock }, noiseAt, out);
-        const int mm = firstMismatch (out, anchorExpected);
-        check ("P1 anchor Stereo: out == 0.75f*s[n-64] bit-equal both ch", mm < 0, juce::String (mm));
-        check ("P1 anchor Stereo == Binaural render bit-equal (A14 placeholder exact in both modes)",
-               buffersBitEqual (out, flat));
+        renderWith (*p, 2, { kDefaultBlock }, noiseAt, stereoAnchor);
+        const int mm = firstMismatch (stereoAnchor, anchorExpected);
+        check ("P1 anchor Stereo (default tuple): out == 0.75f*s[n-64] bit-equal both ch", mm < 0, juce::String (mm));
+
+        check ("P1 anchor out[64] exact (no fade-in) (Stereo)",
+               bitEqual (stereoAnchor[(size_t) kLatency * 2], anchorExpected (0))
+                   && bitEqual (stereoAnchor[(size_t) kLatency * 2 + 1], anchorExpected (0)),
+               juce::String (stereoAnchor[(size_t) kLatency * 2], 7) + " vs " + juce::String (anchorExpected (0), 7));
+
+        // D13: the equality probe INVERTED — the binaural leg is real now.
+        double maxDiff = 0.0;
+        for (int n = 0; n < kRenderSamples; ++n)
+            maxDiff = std::max (maxDiff, std::abs ((double) flat[(size_t) n * 2] - (double) stereoAnchor[(size_t) n * 2]));
+        check ("A14 placeholder gone: Binaural render != Stereo render, max|L_bin - L_st| > 0.05", maxDiff > 0.05,
+               fmt ("max|L_bin - L_st| %.4f", maxDiff));
     }
     {
         osa::Params defaults;
+        defaults.decoder = 1;
         const auto r = renderEngine (defaults, kFs, kDefaultBlock, kRenderSamples, { kDefaultBlock },
                                      monoNoiseAt, [] (int, osa::Params&) {});
         const int mm = firstMismatch (r.lr, anchorExpected);
-        check ("P1 anchor engine-direct: out == 0.75f*s[n-64] bit-equal", mm < 0, juce::String (mm));
+        check ("P1 anchor engine-direct (Stereo): out == 0.75f*s[n-64] bit-equal", mm < 0, juce::String (mm));
+
+        osa::Params bin;
+        const auto rb = renderEngine (bin, kFs, kDefaultBlock, kRenderSamples, { kDefaultBlock },
+                                      monoNoiseAt, [] (int, osa::Params&) {});
+        double peak = 0.0;
+        const double err = maxErrLr (rb.lr, refRenderStatic (refParamsFrom (bin), kFs, kRenderSamples, monoNoiseAt), peak);
+        check ("P1 engine-direct Binaural twin vs ReferenceModel: max|err| < 1e-5", err < 1.0e-5 && peak > 0.01,
+               fmt ("max|err| %.3e, peak |L| %.3f", err, peak));
     }
 
     //==========================================================================
-    // P1b — Left only (stereo in), then a mono input bus — both with the 0.75 factor.
+    // P1b — Left only (stereo in), then a mono input bus — both with the 0.75
+    // factor in Stereo mode (C15), each with a Binaural twin vs the reference.
     {
-        auto p = makeProc (2, kDefaultBlock,
-                           [] (Proc& q) { setParam (q, ParamIDs::inputMode, 1.0f); });
+        auto p = makeProc (2, kDefaultBlock, [] (Proc& q)
+        {
+            setParam (q, ParamIDs::inputMode, 1.0f);
+            setParam (q, ParamIDs::decoder,   1.0f);
+        });
         std::vector<float> out;
         out.reserve ((size_t) kRenderSamples * 2);
         renderWith (*p, 2, { kDefaultBlock }, noiseAt, out);
         const int mm = firstMismatch (out, [] (int n) { return 0.75f * noiseAt (0, n); });
-        check ("P1b Left only == 0.75f*L[n-64] on both ch", mm < 0, juce::String (mm));
+        check ("P1b Left only == 0.75f*L[n-64] on both ch (Stereo)", mm < 0, juce::String (mm));
+
+        auto pb = makeProc (2, kDefaultBlock, [] (Proc& q) { setParam (q, ParamIDs::inputMode, 1.0f); });
+        std::vector<float> outB;
+        outB.reserve ((size_t) kRenderSamples * 2);
+        renderWith (*pb, 2, { kDefaultBlock }, noiseAt, outB);
+        double peak = 0.0;
+        const double err = maxErrLr (outB, refRenderStatic (refParamsFrom (*pb), kFs, kRenderSamples, [] (int n) { return noiseAt (0, n); }), peak);
+        check ("P1b Left only Binaural twin vs ReferenceModel (mono = L): max|err| < 1e-5", err < 1.0e-5 && peak > 0.01,
+               fmt ("max|err| %.3e, peak |L| %.3f", err, peak));
     }
     {
-        auto p = makeProc (1, kDefaultBlock);   // mono input bus, stereo out
+        auto p = makeProc (1, kDefaultBlock, [] (Proc& q) { setParam (q, ParamIDs::decoder, 1.0f); });   // mono input bus, stereo out
         std::vector<float> out;
         out.reserve ((size_t) kRenderSamples * 2);
         renderWith (*p, 1, { kDefaultBlock }, noiseAt, out);
         const int mm = firstMismatch (out, [] (int n) { return 0.75f * noiseAt (0, n); });
-        check ("P1b mono-in == 0.75f*in0[n-64] on both ch", mm < 0, juce::String (mm));
+        check ("P1b mono-in == 0.75f*in0[n-64] on both ch (Stereo)", mm < 0, juce::String (mm));
+
+        auto pb = makeProc (1, kDefaultBlock);
+        std::vector<float> outB;
+        outB.reserve ((size_t) kRenderSamples * 2);
+        renderWith (*pb, 1, { kDefaultBlock }, noiseAt, outB);
+        double peak = 0.0;
+        const double err = maxErrLr (outB, refRenderStatic (refParamsFrom (*pb), kFs, kRenderSamples, [] (int n) { return noiseAt (0, n); }), peak);
+        check ("P1b mono-in Binaural twin vs ReferenceModel (mono = in0): max|err| < 1e-5", err < 1.0e-5 && peak > 0.01,
+               fmt ("max|err| %.3e, peak |L| %.3f", err, peak));
     }
 
     //==========================================================================
@@ -1136,9 +1467,10 @@ int main()
 
     //==========================================================================
     // P4 — latency measured: impulse at 100 → first nonzero at 100 + latency,
-    // amplitude exactly 0.75f (front / 1 m / order 1 anchor).
+    // amplitude exactly 0.75f (front / 1 m / order 1 anchor) — Stereo (C15);
+    // the Binaural impulse is DSP-03 (2.3).
     {
-        auto p = makeProc (2, kDefaultBlock);
+        auto p = makeProc (2, kDefaultBlock, [] (Proc& q) { setParam (q, ParamIDs::decoder, 1.0f); });
         std::vector<float> out;
         out.reserve ((size_t) kRenderSamples * 2);
         renderWith (*p, 2, { kDefaultBlock },
@@ -1150,10 +1482,10 @@ int main()
                 firstNonZero = n;
 
         const int reported = p->getLatencySamples();
-        check ("P4 measured latency == reported", firstNonZero == 100 + reported,
+        check ("P4 measured latency == reported (Stereo)", firstNonZero == 100 + reported,
                juce::String ("first nonzero ") + juce::String (firstNonZero)
                    + ", reported " + juce::String (reported));
-        check ("P4 impulse amplitude exactly 0.75f", firstNonZero >= 0
+        check ("P4 impulse amplitude exactly 0.75f (Stereo)", firstNonZero >= 0
                    && bitEqual (out[(size_t) firstNonZero * 2], 0.75f)
                    && bitEqual (out[(size_t) firstNonZero * 2 + 1], 0.75f),
                firstNonZero >= 0 ? juce::String (out[(size_t) firstNonZero * 2], 7) : juce::String ("n/a"));
@@ -1914,7 +2246,9 @@ int main()
     // digest-2.1 VERDICT (D3 / B12): zero rotation is bit-transparent, so the
     // Phase 2.1 P1-null digest must reproduce exactly through the rotator. If
     // this ever fails, suspect a signed zero (R3) FIRST — memcmp the render
-    // against a 2.1 build before anything else.
+    // against a 2.1 build before anything else. From 2.3 (D13): the Stereo
+    // path must not have moved either — suspect StereoDecoder / DecoderMixer
+    // edits or the renderSample signature change before anything else.
     check ("digest-2.1 verdict: fnv1a64 (P1-null render) == 9189d911a1fe98d5 (zero rotation bit-transparent, D3)",
            fnv1a64 (nullRender) == 0x9189d911a1fe98d5ULL,
            fmt ("%016llx", (unsigned long long) fnv1a64 (nullRender)));
@@ -2155,6 +2489,12 @@ int main()
                fmt ("max|err| %.3e over %d samples x 2 ch, peak |L| %.3f", maxErr, kRenderSamples, maxAbs));
         check ("P1 null rotated liveness: the rotated render differs from the 2.1 null render", ! buffersBitEqual (rotRender, nullRender));
     }
+
+    // digest-2.2 VERDICT (2.3, D13 / C16): the rotated P1-null render is a
+    // Stereo render; the binaural leg must not move it by a bit.
+    check ("digest-2.2 verdict: fnv1a64 (rotated P1-null render) == 7f35bc9f91e321b9 (Stereo path untouched by 2.3, D2 / D13)",
+           fnv1a64 (rotRender) == 0x7f35bc9f91e321b9ULL,
+           fmt ("%016llx", (unsigned long long) fnv1a64 (rotRender)));
 
     //==========================================================================
     // Meter frame (2.2) — shGain / azRot / elRot vs the reference's rotated
@@ -2568,8 +2908,760 @@ int main()
     }
 
     //==========================================================================
+    //==========================================================================
+    // ── Phase 2.3 — the binaural leg (PLAN-2.3 T7) ───────────────────────────
+    //==========================================================================
+
+    const auto noEngineHook = [] (int, osa::Params&) {};
+
+    //==========================================================================
+    // header sanity — the generated artifact's contract.
+    {
+        bool finite = true, tap0 = true;
+        for (int order = 1; order <= 3; ++order)
+            for (int ch = 0; ch < osa::BinauralConvolver::channelsFor (order); ++ch)
+                for (int ear = 0; ear < 2; ++ear)
+                {
+                    const float* h = headerTaps (order, ch, ear);
+                    tap0 = tap0 && h[0] == 0.0f;
+                    for (int t = 0; t < osa::kBinauralFilterTaps; ++t)
+                        finite = finite && std::isfinite (h[t]);
+                }
+        check ("header sanity: fs 48000, 256 taps, onsets[1..3] > 0, every float finite (3 sets), level match within +/-3 dB, tap 0 of every FIR exactly 0",
+               osa::kBinauralFilterSampleRate == 48000 && osa::kBinauralFilterTaps == 256
+                   && osa::kBinauralOnsetFrontSamples[1] > 0 && osa::kBinauralOnsetFrontSamples[2] > 0 && osa::kBinauralOnsetFrontSamples[3] > 0
+                   && finite && std::abs (osa::kBinauralLevelMatchDb) <= 3.0f && tap0,
+               fmt ("onsets {%d, %d, %d, %d}, level match %+.3f dB, trim %d, blend %s, f_a {%.1f, %.1f, %.1f} Hz, DFE %s",
+                    osa::kBinauralOnsetFrontSamples[0], osa::kBinauralOnsetFrontSamples[1], osa::kBinauralOnsetFrontSamples[2], osa::kBinauralOnsetFrontSamples[3],
+                    (double) osa::kBinauralLevelMatchDb, osa::kBinauralFilterTrimSamples, osa::kBinauralFilterBlend,
+                    (double) osa::kBinauralAliasingHz[1], (double) osa::kBinauralAliasingHz[2], (double) osa::kBinauralAliasingHz[3],
+                    osa::kBinauralFilterDfe ? "as shipped" : "none"));
+    }
+
+    //==========================================================================
+    // UPOLS-vs-direct null (D7) — the rotated null tuple in BINAURAL mode,
+    // orders 1 / 2 / 3 × six host blocks vs the direct-form double reference.
+    constexpr int kNullTotal = kRenderSamples + 64;
+    const auto binauralNullSetup = [] (Proc& q, int orderIdx)
+    {
+        setParam (q, ParamIDs::azimuth,   37.0f);
+        setParam (q, ParamIDs::elevation, -12.0f);
+        setParam (q, ParamIDs::distance,  3.3f);
+        setParam (q, ParamIDs::order,     (float) orderIdx);
+        setParam (q, ParamIDs::decoder,   0.0f);
+        setParam (q, ParamIDs::yaw,       25.0f);
+        setParam (q, ParamIDs::pitch,    -40.0f);
+        setParam (q, ParamIDs::roll,      70.0f);
+    };
+    std::vector<float> binauralNullRender;   // order 3 / block 512 — digest-2.3's input
+    {
+        for (int order = 1; order <= 3; ++order)
+        {
+            auto p0 = makeProc (2, kDefaultBlock, [&] (Proc& q) { binauralNullSetup (q, order - 1); });
+            const auto ref = refRenderStatic (refParamsFrom (*p0), kFs, kNullTotal, monoNoiseAt);
+
+            for (int block : { 32, 64, 100, 512, 1024, 4096 })
+            {
+                auto p = makeProc (2, block, [&] (Proc& q) { binauralNullSetup (q, order - 1); });
+                std::vector<float> out;
+                out.reserve ((size_t) kNullTotal * 2);
+                renderWith (*p, 2, { block }, noiseAt, out, kNullTotal);
+
+                double peak = 0.0;
+                const double err = maxErrLr (out, ref, peak);
+                check (fmt ("UPOLS null (D7): processor order %d / host block %d vs ReferenceModel direct-form: max|err| < 1e-5 (az 37 el -12 d 3.3 psi 25 theta -40 phi 70, Binaural)", order, block).toRawUTF8(),
+                       err < 1.0e-5 && peak > 0.01, fmt ("max|err| %.3e (expect ~1e-6), peak |L| %.3f", err, peak));
+
+                if (order == 3 && block == kDefaultBlock)
+                    binauralNullRender = out;
+            }
+        }
+    }
+
+    //==========================================================================
+    // null at 96 k (K = 8) — engine-direct, the reference seeded with the
+    // engine's resampled table (D7; the resampler itself is gated below).
+    {
+        osa::Params prm;
+        prm.azimuthDeg = 37.0f; prm.elevationDeg = -12.0f; prm.distanceM = 3.3f; prm.order = 3;
+        prm.yawDeg = 25.0f; prm.pitchDeg = -40.0f; prm.rollDeg = 70.0f; prm.decoder = 0;
+
+        osa::SpatialEngine seed;
+        seed.setParams (prm);
+        seed.prepare (96000.0, kDefaultBlock);
+        ReferenceModel model;
+        loadExternalFilters (model, seed);
+        const auto ref = refRenderStatic (refParamsFrom (prm), 96000.0, kNullTotal, monoNoiseAt, &model);
+        const auto r   = renderEngine (prm, 96000.0, kDefaultBlock, kNullTotal, { kDefaultBlock }, monoNoiseAt, noEngineHook);
+
+        double peak = 0.0;
+        const double err = maxErrLr (r.lr, ref, peak);
+        check ("null at 96 k (K = 8): engine-direct Binaural vs ReferenceModel seeded with the engine's resampled table: max|err| < 1e-5",
+               err < 1.0e-5 && peak > 0.01,
+               fmt ("max|err| %.3e, peak |L| %.3f, K %d, L %d", err, peak, seed.convolver().partitions(), seed.convolver().tapsAtRate()));
+    }
+
+    //==========================================================================
+    // resampler vs golden (C3) — the engine's tables at 44.1 k / 96 k vs the
+    // scipy resample_poly goldens; un-calibrated negative control; 48 k bit-exact.
+    {
+        for (int fs : { 44100, 96000 })
+        {
+            osa::SpatialEngine e;
+            osa::Params prm;
+            e.setParams (prm);
+            e.prepare ((double) fs, kDefaultBlock);
+            const auto& c = e.convolver();
+            const int L = c.tapsAtRate();
+            const double tol = fs == 44100 ? 1.5e-2 : 6.0e-3;
+
+            // Dev aid: OSA_DUMP_TABLES=<dir> writes every engine table and golden as text.
+            if (const char* dir = std::getenv ("OSA_DUMP_TABLES"))
+            {
+                for (int order = 1; order <= 3; ++order)
+                    for (int ch = 0; ch < osa::BinauralConvolver::channelsFor (order); ++ch)
+                        for (int ear = 0; ear < 2; ++ear)
+                        {
+                            const juce::String path = juce::String (dir) + fmt ("/t%d_o%d_c%d_e%d.txt", fs, order, ch, ear);
+                            if (FILE* f = std::fopen (path.toRawUTF8(), "w"))
+                            {
+                                for (int i = 0; i < L; ++i)
+                                    std::fprintf (f, "%.9g %.9g\n", (double) c.filterTaps (order, ch, ear)[i], (double) goldenTaps (fs, order, ch, ear)[i]);
+                                std::fclose (f);
+                            }
+                        }
+            }
+
+            // EXECUTE FINDING (a C3 gate correction): the two resamplers agree within ±0.02 dB
+            // below 18 kHz, and differ only in their anti-alias TRANSITION BANDS above it
+            // (WindowedSinc passes up to +6 dB more at 20–22 kHz at 44.1 k than scipy's
+            // Kaiser β = 5) — inaudible HRTF content, but the HF-rich order-3 channels put
+            // it straight into a raw time-domain max|err| (0.22 of peak), which research's
+            // LF-heavy test FIR never showed. So the gate is taken where BOTH designs are
+            // transparent: both tables brick-wall low-passed at 16 kHz (4096-point FFT), the
+            // research tolerances on that; |H| within 0.1 dB below 16 kHz on bins ≥ −20 dB re
+            // the FIR's spectral peak; the 16–22 kHz design difference printed.
+            // Band: 16 kHz, or 0.68 × the output Nyquist when that is lower — WindowedSinc's
+            // 44.1 k downsampling roll-off starts at ≈ 15.7 kHz (−0.14 dB there), so 15.0 kHz.
+            const double kBandHz = std::min (16000.0, 0.68 * (double) fs / 2.0);
+            double worstRel = 0.0, worstRelRaw = 0.0, worstDb = 0.0, worstRawTd = 0.0;
+            int worstOrder = 0, worstCh = 0;
+            double hiBandMaxDb = 0.0;
+            Fft4096 fe, fg, feRaw;
+            std::vector<float> tabLp ((size_t) kFft4096), gLp ((size_t) kFft4096), rawLp ((size_t) kFft4096);
+            std::vector<float> scaled ((size_t) L);
+            for (int order = 1; order <= 3; ++order)
+                for (int ch = 0; ch < osa::BinauralConvolver::channelsFor (order); ++ch)
+                    for (int ear = 0; ear < 2; ++ear)
+                    {
+                        const float* tab = c.filterTaps (order, ch, ear);
+                        const float* g   = goldenTaps (fs, order, ch, ear);
+                        for (int i = 0; i < L; ++i)
+                        {
+                            worstRawTd = std::max (worstRawTd, std::abs ((double) tab[i] - (double) g[i]));
+                            scaled[(size_t) i] = tab[i] * c.resamplerKernelGain();   // un-calibrated: the kernel's −0.087 dB left in
+                        }
+
+                        fe.forward (tab, L);
+                        fg.forward (g, L);
+                        feRaw.forward (scaled.data(), L);
+
+                        // |H| on the raw spectra below 16 kHz, −20 dB mask; the design difference above.
+                        double gmax = 0.0;
+                        for (int k = 0; k <= kFft4096 / 2; ++k)
+                            gmax = std::max (gmax, fg.magnitude (k));
+                        for (int k = 1; k <= kFft4096 / 2; ++k)
+                        {
+                            const double f = (double) k * fs / kFft4096;
+                            if (fg.magnitude (k) < 0.1 * gmax)
+                                continue;
+                            const double d = std::abs (dB (fe.magnitude (k) / fg.magnitude (k)));
+                            if (f < kBandHz)
+                                worstDb = std::max (worstDb, d);
+                            else if (f < 20000.0)
+                                hiBandMaxDb = std::max (hiBandMaxDb, d);
+                        }
+
+                        // Both low-passed at 16 kHz → time domain.
+                        fe.brickWallInverse (fs, kBandHz);
+                        fg.brickWallInverse (fs, kBandHz);
+                        feRaw.brickWallInverse (fs, kBandHz);
+                        double peak = 0.0, err = 0.0, errRaw = 0.0;
+                        for (int i = 0; i < kFft4096; ++i)
+                        {
+                            peak   = std::max (peak, std::abs ((double) fg.buf[(size_t) i]));
+                            err    = std::max (err, std::abs ((double) fe.buf[(size_t) i] - (double) fg.buf[(size_t) i]));
+                            errRaw = std::max (errRaw, std::abs ((double) feRaw.buf[(size_t) i] - (double) fg.buf[(size_t) i]));
+                        }
+                        if (err / peak > worstRel)
+                        {
+                            worstRel = err / peak;
+                            worstOrder = order;
+                            worstCh = ch;
+                        }
+                        worstRelRaw = std::max (worstRelRaw, errRaw / peak);
+                    }
+
+            const int expectL = fs == 44100 ? 256 : 512, expectK = expectL / 64;
+            check (fmt ("resampler vs scipy golden at %d: both low-passed at %.0f Hz, max|err| <= %.1e of peak on all 29 x 2 FIRs; |H| within 0.1 dB below %.0f Hz (bins >= -20 dB); L %d / K %d",
+                        fs, kBandHz, tol, kBandHz, expectL, expectK).toRawUTF8(),
+                   worstRel <= tol && worstDb <= 0.1 && L == expectL && c.partitions() == expectK,
+                   fmt ("worst rel err %.3e (order %d ch %d; expect ~%s), worst |H| diff %.4f dB in band; design difference band-20 kHz up to %.2f dB (raw unfiltered max|err| %.3e, info); resamplerKernelGain %.6f (expect ~0.99), divisor %.6f (= kernel / ratio), prefix %d, delay %d",
+                        worstRel, worstOrder, worstCh, fs == 44100 ? "4e-3" : "2e-3", worstDb, hiBandMaxDb, worstRawTd,
+                        (double) c.resamplerKernelGain(), (double) c.resamplerDcGain(), c.resamplerPrefix(), c.resamplerDelay()));
+
+            if (fs == 96000)
+                checkFailsAsExpected (worstRelRaw <= tol,
+                                      "resampler negative control at 96 k: the UN-calibrated table (x resamplerKernelGain, the kernel's -0.087 dB left in) FAILS the 6e-3 gate (expect ~1.0e-2)",
+                                      fmt ("raw rel err %.3e", worstRelRaw));
+        }
+
+        // Cross-rate level (execute finding): a 1 kHz front tone at order 3 / Binaural reads the
+        // same amplitude at 44.1 / 96 k as at 48 k — an amplitude-preserving resample would be
+        // +6 dB at 96 k, which no relative gate above can see. 1 s windows → exact bins.
+        {
+            double amp[3] = {};
+            int idx = 0;
+            for (double sr : { 48000.0, 44100.0, 96000.0 })
+            {
+                osa::Params prm;
+                prm.order = 3;
+                const int settle = 4096, win = (int) sr;
+                const auto r = renderEngine (prm, sr, kDefaultBlock, settle + win, { kDefaultBlock },
+                                             [sr] (int n) { return Sine { 1000.0, 0.5, sr }(n); }, noEngineHook);
+                amp[idx++] = binMagnitude (r.lr, 0, 2, settle, win, 1000);
+            }
+            check ("resampler level: 1 kHz front tone, order 3 Binaural — 44.1 k and 96 k within 0.1 dB of 48 k (the resampled bank keeps its frequency response, not its waveform amplitude)",
+                   std::abs (dB (amp[1] / amp[0])) <= 0.1 && std::abs (dB (amp[2] / amp[0])) <= 0.1,
+                   fmt ("L amplitude 48 k %.5f, 44.1 k %.5f (%+.3f dB), 96 k %.5f (%+.3f dB)", amp[0], amp[1], dB (amp[1] / amp[0]), amp[2], dB (amp[2] / amp[0])));
+        }
+
+        osa::SpatialEngine e48;
+        osa::Params prm;
+        e48.setParams (prm);
+        e48.prepare (48000.0, kDefaultBlock);
+        bool exact = true;
+        for (int order = 1; order <= 3 && exact; ++order)
+            for (int ch = 0; ch < osa::BinauralConvolver::channelsFor (order) && exact; ++ch)
+                for (int ear = 0; ear < 2 && exact; ++ear)
+                    exact = std::memcmp (e48.convolver().filterTaps (order, ch, ear), headerTaps (order, ch, ear), 256 * sizeof (float)) == 0;
+        check ("48 k table bit-exact to the header arrays (all 29 x 2 FIRs), resamplerDcGain == resamplerKernelGain == 1.0f, L 256 / K 4",
+               exact && e48.convolver().resamplerDcGain() == 1.0f && e48.convolver().resamplerKernelGain() == 1.0f
+                   && e48.convolver().tapsAtRate() == 256 && e48.convolver().partitions() == 4);
+    }
+
+    //==========================================================================
+    // DSP-03 onset (C4) — front / d 1 / Binaural, impulse at 100, orders 1 / 3
+    // at 44.1 / 48 / 96 k; latency 64 in both modes at every rate.
+    {
+        const auto impulse = [] (int, int n) { return n == 100 ? 1.0f : 0.0f; };
+
+        // The expected onset comes from the ENGINE TABLE's own front response (Σ_ch Y_front[ch] ·
+        // taps[ch]) at this rate — at 48 k that is the generator's definition on the same
+        // floats, asserted EXACTLY equal to kBinauralOnsetFrontSamples[n]; at 44.1 / 96 k the
+        // resampled waveform moves a 10 %-threshold crossing by a few samples (the L ear read
+        // 237 vs a scaled 241 at 44.1 k while R read 241), so the scaled constant is printed,
+        // not asserted. Tolerance ±2 at every rate (the engine's float path).
+        const auto tableFrontOnset = [] (const osa::SpatialEngine& e, int order, int ear)
+        {
+            float y[16];
+            osa::encodeSH16 (0.0f, 0.0f, y);
+            const auto& c = e.convolver();
+            std::vector<float> resp ((size_t) c.tapsAtRate(), 0.0f);
+            for (int ch = 0; ch < osa::BinauralConvolver::channelsFor (order); ++ch)
+                for (int t = 0; t < c.tapsAtRate(); ++t)
+                    resp[(size_t) t] += y[ch] * c.filterTaps (order, ch, ear)[t];
+            float peak = 0.0f;
+            for (float v : resp)
+                peak = std::max (peak, std::abs (v));
+            for (int t = 0; t < c.tapsAtRate(); ++t)
+                if (std::abs (resp[(size_t) t]) >= 0.1f * peak)
+                    return t;
+            return -1;
+        };
+
+        for (double sr : { 44100.0, 48000.0, 96000.0 })
+            for (int order : { 1, 3 })
+            {
+                auto p = makeProcAt (sr, 2, kDefaultBlock, [order] (Proc& q) { setParam (q, ParamIDs::order, (float) (order - 1)); });
+                std::vector<float> out;
+                renderWith (*p, 2, { kDefaultBlock }, impulse, out, 4096);
+
+                osa::SpatialEngine e;
+                osa::Params prm;
+                e.setParams (prm);
+                e.prepare (sr, kDefaultBlock);
+                const int tableOnset = tableFrontOnset (e, order, 0);
+                const int scaledConst = (int) std::lround ((double) osa::kBinauralOnsetFrontSamples[order] * sr / 48000.0);
+                const int expected = 100 + 64 + tableOnset;
+                const int tol = 2;
+                const int on = onset10 (out, 0), onR = onset10 (out, 1), fnz = firstNonZero (out);
+                if (sr == 48000.0)
+                    check (fmt ("DSP-03 onset constant at 48 k order %d: the engine table's front onset10 == kBinauralOnsetFrontSamples[%d] == %d exactly (generator definition)",
+                                order, order, osa::kBinauralOnsetFrontSamples[order]).toRawUTF8(),
+                           tableOnset == osa::kBinauralOnsetFrontSamples[order], fmt ("table onset %d", tableOnset));
+                // Before the impulse's grid is transformed the FDL is all-zero → out[0 … 127] is
+                // EXACTLY 0. From 128 (the grid after the impulse's) the FFT circular path leaves
+                // roundoff (~1e-8) where the exact convolution is 0 — "first nonzero" is not a
+                // property of an FFT convolver (F6); the pre-onset floor is gated at 1e-6 instead.
+                bool headExact = true;
+                double preOnset = 0.0;
+                for (int n = 0; n < 128; ++n)
+                    headExact = headExact && out[(size_t) n * 2] == 0.0f && out[(size_t) n * 2 + 1] == 0.0f;
+                for (int n = 128; n < 164; ++n)
+                    preOnset = std::max (preOnset, std::max (std::abs ((double) out[(size_t) n * 2]), std::abs ((double) out[(size_t) n * 2 + 1])));
+                check (fmt ("DSP-03 onset at fs %.0f order %d: onset10 (L) == 100 + 64 + table front onset (%d) = %d +/- %d; out[0..127] exactly 0; |out[128..163]| < 1e-6 (FFT roundoff floor)",
+                            sr, order, tableOnset, expected, tol).toRawUTF8(),
+                       std::abs (on - expected) <= tol && headExact && preOnset < 1.0e-6 && allFinite (out),
+                       fmt ("onset10 L %d (R %d; table R %d), scaled constant round (%d * fs / 48000) = %d (info), first nonzero %d (roundoff), pre-onset floor %.2e, reported latency %d",
+                            on, onR, tableFrontOnset (e, order, 1), osa::kBinauralOnsetFrontSamples[order], scaledConst, fnz, preOnset, p->getLatencySamples()));
+            }
+
+        bool lat = true;
+        juce::String detail;
+        for (double sr : { 44100.0, 48000.0, 96000.0 })
+            for (int dec : { 0, 1 })
+            {
+                auto p = makeProcAt (sr, 2, kDefaultBlock, [dec] (Proc& q) { setParam (q, ParamIDs::decoder, (float) dec); });
+                lat = lat && p->getLatencySamples() == 64;
+                detail << fmt ("%.0f/%s:%d ", sr, dec == 0 ? "bin" : "st", p->getLatencySamples());
+            }
+        check ("DSP-03 getLatencySamples() == 64 in both decoder modes at 44.1 / 48 / 96 k", lat, detail);
+    }
+
+    //==========================================================================
+    // DSP-03 ILD / ITD (C10) — impulse at 100, el 0, d 1, orders 1 / 3, az ±90.
+    {
+        const auto impulse = [] (int, int n) { return n == 100 ? 1.0f : 0.0f; };
+        for (int order : { 1, 3 })
+            for (float azd : { 90.0f, -90.0f })
+            {
+                auto p = makeProc (2, kDefaultBlock, [order, azd] (Proc& q)
+                {
+                    setParam (q, ParamIDs::azimuth, azd);
+                    setParam (q, ParamIDs::order,   (float) (order - 1));
+                });
+                std::vector<float> out;
+                renderWith (*p, 2, { kDefaultBlock }, impulse, out, 4096);
+                const int from = 164, len = 512;
+                const double ild = ildDb (out, from, len);
+                const double fc  = std::min (1500.0, 0.8 * (double) osa::kBinauralAliasingHz[order]);
+                const int itd = itdLowPassXcorr (out, kFs, fc, from, len);
+                const bool left = azd > 0.0f;
+                check (fmt ("DSP-03 order %d az %+.0f: ILD %s 6 dB (%s louder, AmbiX sign) and ITD by LP < %.0f Hz xcorr in [25, 45] with %s leading",
+                            order, (double) azd, left ? ">=" : "<=", left ? "L" : "R", fc, left ? "L" : "R").toRawUTF8(),
+                       left ? (ild >= 6.0 && itd >= 25 && itd <= 45) : (ild <= -6.0 && itd <= -25 && itd >= -45),
+                       fmt ("ILD %+.2f dB (expect %s), ITD %+d samples (expect %s); per band 200-1k/1-3k/3-8k/8-16k: %+.1f / %+.1f / %+.1f / %+.1f dB",
+                            ild, order == 1 ? "+12.3 / -11.9" : "+13.9 / -14.6", itd, order == 1 ? "+/-36" : "+/-37",
+                            ildBandDb (out, from, len, kFs, 200.0, 1000.0), ildBandDb (out, from, len, kFs, 1000.0, 3000.0),
+                            ildBandDb (out, from, len, kFs, 3000.0, 8000.0), ildBandDb (out, from, len, kFs, 8000.0, 16000.0)));
+            }
+    }
+
+    //==========================================================================
+    // FUNC-05 level delta (C11) — front / d 1, static white noise, A-weighted
+    // mean-of-ears power, Binaural vs Stereo at order 3 (orders 1 / 2 printed).
+    {
+        constexpr int total = 48000;
+        double lvl[2][4] = {};
+        for (int dec : { 0, 1 })
+            for (int order = 1; order <= 3; ++order)
+            {
+                auto p = makeProc (2, kDefaultBlock, [dec, order] (Proc& q)
+                {
+                    setParam (q, ParamIDs::order,   (float) (order - 1));
+                    setParam (q, ParamIDs::decoder, (float) dec);
+                });
+                std::vector<float> out;
+                out.reserve ((size_t) total * 2);
+                renderWith (*p, 2, { kDefaultBlock }, noiseAt, out, total);
+                const double l = aWeightedLevel (out, 0, 1024, total - 1024), r = aWeightedLevel (out, 1, 1024, total - 1024);
+                lvl[dec][order] = std::sqrt (0.5 * (l * l + r * r));
+            }
+        const double d1 = dB (lvl[0][1] / lvl[1][1]), d2 = dB (lvl[0][2] / lvl[1][2]), d3 = dB (lvl[0][3] / lvl[1][3]);
+        check ("FUNC-05 level delta (front, order 3, A-weighted white, mean-of-ears power): |Binaural - Stereo| < 1 dB",
+               std::abs (d3) < 1.0,
+               fmt ("order 3 %+.3f dB (expect ~0.0); order 1 %+.3f (expect -0.37), order 2 %+.3f (expect -0.03)", d3, d1, d2));
+    }
+
+    //==========================================================================
+    // DSP-07 order 1→3 / 3→1 click (C11) — 100 Hz tone at az +90°, Binaural,
+    // at 64 and 1024 host blocks vs the same-motion reference; snapped-bank
+    // negative control; spectral liveness on a 3 kHz tone.
+    constexpr int kSkip23  = 64 + 960 + 256;
+    constexpr int kTotal23 = kSkip23 + 48000;
+    const auto toneGen23 = [] (int n) { return tone100 (n); };
+    {
+        for (int block : { 64, 1024 })
+            for (int dir = 0; dir < 2; ++dir)
+            {
+                const int from = dir == 0 ? 1 : 3, to = dir == 0 ? 3 : 1;
+                auto p = makeProc (2, block, [from] (Proc& q)
+                {
+                    setParam (q, ParamIDs::azimuth, 90.0f);
+                    setParam (q, ParamIDs::order,   (float) (from - 1));
+                });
+                const RefParams rp = refParamsFrom (*p);
+                const auto ev = renderHooked (*p, kTotal23, toneGen23, [&p, to] (int n)
+                {
+                    if (n >= 24000)
+                        setParam (*p, ParamIDs::order, (float) (to - 1));
+                }, block);
+                const auto refHook = [to] (int n, RefParams& r) { if (n >= 24000) r.order = to; };
+
+                ReferenceModel lerped, snapped;
+                snapped.snapBankFade   = true;
+                snapped.snapOrderGains = true;
+                const auto ctrl = renderRef (lerped,  rp, kFs, kTotal23, block, toneGen23, refHook);
+                const auto bad  = renderRef (snapped, rp, kFs, kTotal23, block, toneGen23, refHook);
+
+                ClickReading rL { worstCurvature (ev, 0, 2, kSkip23, kTotal23), worstCurvature (ctrl.lr, 0, 2, kSkip23, kTotal23) };
+                ClickReading rR { worstCurvature (ev, 1, 2, kSkip23, kTotal23), worstCurvature (ctrl.lr, 1, 2, kSkip23, kTotal23) };
+                const juce::String nm = fmt ("DSP-07 order %d->%d click at %d-sample blocks (100 Hz, az +90, Binaural) vs the same-motion reference", from, to, block);
+                clickVerdict ((nm + " [L]").toRawUTF8(), rL,
+                              fmt ("; static endpoints L %.3e / %.3e", worstCurvature (ev, 0, 2, kSkip23, 24000), worstCurvature (ev, 0, 2, 24000 + kSkip23, kTotal23)));
+                clickVerdict ((nm + " [R]").toRawUTF8(), rR);
+
+                ClickReading bL { worstCurvature (bad.lr, 0, 2, kSkip23, kTotal23), rL.control };
+                ClickReading bR { worstCurvature (bad.lr, 1, 2, kSkip23, kTotal23), rR.control };
+                checkFailsAsExpected (bL.ratio() <= kClickRatioCeiling && bR.ratio() <= kClickRatioCeiling,
+                                      (fmt ("DSP-07 negative control order %d->%d at %d blocks: snapped bank + snapped order gains FAIL the gate (expect >= 100, predicted 239 / 345)", from, to, block)).toRawUTF8(),
+                                      fmt ("L ratio %.1f, R ratio %.1f", bL.ratio(), bR.ratio()));
+            }
+    }
+    {
+        // Spectral liveness: 3 kHz tone (16 samples per cycle), az +90, orders 1 vs 3, R ear.
+        constexpr int settle = 1024, win = 4800;
+        double mag[4][2] = {};
+        for (int order : { 1, 3 })
+        {
+            osa::Params prm;
+            prm.azimuthDeg = 90.0f;
+            prm.order = order;
+            const auto r = renderEngine (prm, kFs, kDefaultBlock, settle + win, { kDefaultBlock },
+                                         [] (int n) { return Sine { 3000.0, 0.5, kFs }(n); }, noEngineHook);
+            mag[order][0] = binMagnitude (r.lr, 0, 2, settle, win, 300);
+            mag[order][1] = binMagnitude (r.lr, 1, 2, settle, win, 300);
+        }
+        const double dR = dB (mag[3][1] / mag[1][1]), dL = dB (mag[3][0] / mag[1][0]);
+        check ("DSP-07 spectral liveness: 3 kHz at az +90, R ear |dB (order 3 / order 1)| >= 3 (the banks differ where the click gate must be live)",
+               std::abs (dR) >= 3.0, fmt ("R %+.2f dB (expect +6.2), L %+.2f dB (expect -2.2); R mags %.4f / %.4f", dR, dL, mag[1][1], mag[3][1]));
+    }
+
+    //==========================================================================
+    // DSP-07 decoder Binaural → Stereo → Binaural click — same stimulus, hook
+    // decoder = 1 at 24000 and 0 at 48000; snapped-mix negative control.
+    {
+        constexpr int total = kSkip23 + 72000;
+        for (int block : { 64, 1024 })
+        {
+            auto p = makeProc (2, block, [] (Proc& q) { setParam (q, ParamIDs::azimuth, 90.0f); });
+            const RefParams rp = refParamsFrom (*p);
+            const auto decoderAt = [] (int n) { return n >= 48000 ? 0 : n >= 24000 ? 1 : 0; };
+            const auto ev = renderHooked (*p, total, toneGen23, [&p, decoderAt] (int n)
+            {
+                setParam (*p, ParamIDs::decoder, (float) decoderAt (n));
+            }, block);
+            const auto refHook = [decoderAt] (int n, RefParams& r) { r.decoder = decoderAt (n); };
+
+            ReferenceModel lerped, snapped;
+            snapped.snapDecoderMix = true;
+            const auto ctrl = renderRef (lerped,  rp, kFs, total, block, toneGen23, refHook);
+            const auto bad  = renderRef (snapped, rp, kFs, total, block, toneGen23, refHook);
+
+            ClickReading rL { worstCurvature (ev, 0, 2, kSkip23, total), worstCurvature (ctrl.lr, 0, 2, kSkip23, total) };
+            ClickReading rR { worstCurvature (ev, 1, 2, kSkip23, total), worstCurvature (ctrl.lr, 1, 2, kSkip23, total) };
+            const juce::String nm = fmt ("DSP-07 decoder B->S->B click at %d-sample blocks (100 Hz, az +90, order 1) vs the same-motion reference", block);
+            clickVerdict ((nm + " [L]").toRawUTF8(), rL);
+            clickVerdict ((nm + " [R]").toRawUTF8(), rR);
+
+            ClickReading bL { worstCurvature (bad.lr, 0, 2, kSkip23, total), rL.control };
+            ClickReading bR { worstCurvature (bad.lr, 1, 2, kSkip23, total), rR.control };
+            checkFailsAsExpected (bL.ratio() <= kClickRatioCeiling && bR.ratio() <= kClickRatioCeiling,
+                                  fmt ("DSP-07 decoder negative control at %d blocks: snapped decoder mix FAILS the gate", block).toRawUTF8(),
+                                  fmt ("L ratio %.1f, R ratio %.1f", bL.ratio(), bR.ratio()));
+
+            if (block == 64)
+            {
+                const double rBin = rms (ev, 1, 2, kSkip23, 24000), rSt = rms (ev, 1, 2, 24000 + kSkip23, 48000);
+                check ("DSP-07 decoder endpoints differ: R ear rms |dB (Binaural / Stereo)| >= 6 at az +90 (the switch is a live event)",
+                       std::abs (dB (rBin / rSt)) >= 6.0, fmt ("%+.2f dB (expect ~19)", dB (rBin / rSt)));
+            }
+        }
+    }
+
+    //==========================================================================
+    // bank-fade queue — order 1 → 3 at 1024, 2 at +7 grids (mid-fade → queued),
+    // 1 at +9 (latest wins), 2 at 4096 (idle → immediate); null to the reference
+    // at 64 and 1024 blocks; liveness; float-ramp arrival EXACTLY at step 15.
+    {
+        constexpr int total = 8192;
+        const auto queueHook = [] (int n, auto& p)
+        {
+            p.order = n >= 4096 ? 2 : n >= 1600 ? 1 : n >= 1472 ? 2 : n >= 1024 ? 3 : 1;
+        };
+        osa::Params prm;
+        prm.azimuthDeg = 37.0f;
+        prm.elevationDeg = -12.0f;
+        prm.order = 1;
+
+        std::vector<float> queue64;
+        for (int block : { 64, 1024 })
+        {
+            juce::ScopedNoDenormals noDenormals;
+            osa::SpatialEngine e;
+            osa::Params p = prm;
+            e.setParams (p);
+            e.prepare (kFs, block);
+            std::vector<float> mono ((size_t) block), L ((size_t) block), R ((size_t) block), lr;
+            lr.reserve ((size_t) total * 2);
+            for (int pos = 0; pos < total; pos += block)
+            {
+                queueHook (pos, p);
+                e.setParams (p);
+                for (int i = 0; i < block; ++i)
+                    mono[(size_t) i] = monoNoiseAt (pos + i);
+                e.process (mono.data(), L.data(), R.data(), block);
+                for (int i = 0; i < block; ++i)
+                {
+                    lr.push_back (L[(size_t) i]);
+                    lr.push_back (R[(size_t) i]);
+                }
+            }
+
+            ReferenceModel m;
+            const auto ref = renderRef (m, refParamsFrom (prm), kFs, total, block, monoNoiseAt, queueHook);
+            double peak = 0.0;
+            const double err = maxErrLr (lr, ref.lr, peak);
+            check (fmt ("bank-fade queue at %d blocks: engine vs reference under the queued schedule max|err| < 1e-5; final activeSet == 2, not fading", block).toRawUTF8(),
+                   err < 1.0e-5 && peak > 0.01 && e.convolver().activeSet() == 2 && ! e.convolver().isFading(),
+                   fmt ("max|err| %.3e, peak |L| %.3f, final set %d fading %d (reference set %d fading %d)", err, peak,
+                        e.convolver().activeSet(), (int) e.convolver().isFading(), m.activeSet(), (int) m.isFading()));
+            if (block == 64)
+                queue64 = lr;
+        }
+
+        // Liveness: the mid-fade window differs from the static order-1 and order-2 renders.
+        {
+            osa::Params p1 = prm, p2 = prm;
+            p2.order = 2;
+            const auto s1 = renderEngine (p1, kFs, 64, total, { 64 }, monoNoiseAt, noEngineHook);
+            const auto s2 = renderEngine (p2, kFs, 64, total, { 64 }, monoNoiseAt, noEngineHook);
+            double d1 = 0.0, d2 = 0.0;
+            for (int n = 1100; n < 1900; ++n)
+            {
+                d1 = std::max (d1, std::abs ((double) queue64[(size_t) n * 2] - (double) s1.lr[(size_t) n * 2]));
+                d2 = std::max (d2, std::abs ((double) queue64[(size_t) n * 2] - (double) s2.lr[(size_t) n * 2]));
+            }
+            check ("bank-fade queue liveness: the mid-fade window [1100, 1900) differs from both the order-1 and order-2 static renders by > 0.1",
+                   d1 > 0.1 && d2 > 0.1, fmt ("|q - o1| %.3f, |q - o2| %.3f", d1, d2));
+        }
+
+        // Arrival exactness: order 1 → 3 at n = 1024 only; the float ramp reads exactly
+        // 1.0f on the block starting at 1920 (step 15) and the arrival step at 1984
+        // leaves activeSet 3, not fading, bankMix exactly 0.
+        {
+            juce::ScopedNoDenormals noDenormals;
+            osa::SpatialEngine e;
+            osa::Params p = prm;
+            e.setParams (p);
+            e.prepare (kFs, 64);
+            std::vector<float> mono (64), L (64), R (64);
+            float mixAt1920 = -1.0f, mixAt1984 = -1.0f, mixAt1856 = -1.0f;
+            bool fadingAt1920 = false, fadingAt1984 = true;
+            int setAt1920 = 0, setAt1984 = 0;
+            for (int pos = 0; pos < 4096; pos += 64)
+            {
+                p.order = pos >= 1024 ? 3 : 1;
+                e.setParams (p);
+                for (int i = 0; i < 64; ++i)
+                    mono[(size_t) i] = monoNoiseAt (pos + i);
+                e.process (mono.data(), L.data(), R.data(), 64);
+                if (pos == 1856) mixAt1856 = e.convolver().bankMixCur();
+                if (pos == 1920) { mixAt1920 = e.convolver().bankMixCur(); fadingAt1920 = e.convolver().isFading(); setAt1920 = e.convolver().activeSet(); }
+                if (pos == 1984) { mixAt1984 = e.convolver().bankMixCur(); fadingAt1984 = e.convolver().isFading(); setAt1984 = e.convolver().activeSet(); }
+            }
+            check ("bank-fade arrival exactness: request at 1024 -> bankMix == 1.0f exactly at step 15 (block 1920, still fading, set 1); block 1984: activeSet 3, not fading, bankMix == 0 (float ramp, F1)",
+                   mixAt1920 == 1.0f && fadingAt1920 && setAt1920 == 1 && mixAt1984 == 0.0f && ! fadingAt1984 && setAt1984 == 3 && mixAt1856 < 1.0f,
+                   fmt ("step 14 %.6f, step 15 %.6f (fading %d, set %d), after arrival %.6f (fading %d, set %d)",
+                        (double) mixAt1856, (double) mixAt1920, (int) fadingAt1920, setAt1920, (double) mixAt1984, (int) fadingAt1984, setAt1984));
+        }
+    }
+
+    //==========================================================================
+    // P2e / P3e / P2f — slicing bit-equality in BINAURAL mode.
+    const auto binauralMovingSetup = [&rotatedMovingSetup] (Proc& q)
+    {
+        rotatedMovingSetup (q);
+        setParam (q, ParamIDs::decoder, 0.0f);
+    };
+    {
+        auto p = makeProc (2, kDefaultBlock, binauralMovingSetup);
+        std::vector<float> flatBin;
+        flatBin.reserve ((size_t) kRenderSamples * 2);
+        renderWith (*p, 2, { kDefaultBlock }, noiseAt, flatBin);
+
+        auto pr = makeProc (2, kDefaultBlock, rotatedMovingSetup);
+        std::vector<float> flatRot;
+        flatRot.reserve ((size_t) kRenderSamples * 2);
+        renderWith (*pr, 2, { kDefaultBlock }, noiseAt, flatRot);
+        check ("P2e liveness: the Binaural moving render differs from the 2.2 Stereo moving render (flatRot)", ! buffersBitEqual (flatBin, flatRot));
+
+        auto q = makeProc (2, 4096, binauralMovingSetup);
+        std::vector<float> ragged;
+        ragged.reserve ((size_t) kRenderSamples * 2);
+        renderWith (*q, 2, { 1, 7, 64, 333, 4096, 13, 512, 2 }, noiseAt, ragged);
+        check ("P2e ragged == flat in Binaural with orbit On 2 Hz / order 3 / psi 25 theta -40 phi 70", buffersBitEqual (ragged, flatBin));
+
+        auto small = makeProc (2, 64, binauralMovingSetup);
+        std::vector<float> outSmall;
+        outSmall.reserve ((size_t) kRenderSamples * 2);
+        renderWith (*small, 2, { 4096 }, noiseAt, outSmall);
+        auto big = makeProc (2, 4096, binauralMovingSetup);
+        std::vector<float> outBig;
+        outBig.reserve ((size_t) kRenderSamples * 2);
+        renderWith (*big, 2, { 4096 }, noiseAt, outBig);
+        check ("P3e oversized (prep 64, feed 4096) == prep 4096 in Binaural with rotation + orbit On", buffersBitEqual (outSmall, outBig));
+        check ("P3e oversized == flat in Binaural", buffersBitEqual (outBig, flatBin));
+    }
+    {
+        constexpr int total = 32768;
+        const auto gen = [] (int n) { return monoNoiseAt (n); };
+        const auto binauralTupleSetup = [&nullTupleSetup] (Proc& q)
+        {
+            nullTupleSetup (q);
+            setParam (q, ParamIDs::decoder, 0.0f);
+        };
+        const auto hookFor = [] (Proc& p)
+        {
+            return [&p] (int n)
+            {
+                if (n % 4096 == 0)
+                {
+                    const int k = n / 4096;
+                    setParam (p, ParamIDs::order,   (float) (k % 3));
+                    setParam (p, ParamIDs::decoder, (float) (k % 2));
+                    setParam (p, ParamIDs::yaw,     osa::wrapTo180 (30.0f * (float) k));
+                }
+            };
+        };
+        auto p64 = makeProc (2, 64, binauralTupleSetup);
+        const auto r64 = renderHooked (*p64, total, gen, hookFor (*p64), 64);
+        auto p4096 = makeProc (2, 4096, binauralTupleSetup);
+        const auto r4096 = renderHooked (*p4096, total, gen, hookFor (*p4096), 4096);
+        auto p0 = makeProc (2, 64, binauralTupleSetup);
+        const auto r0 = renderHooked (*p0, total, gen, [] (int) {}, 64);
+        check ("P2f: order / decoder / yaw stepped at every 4096-sample boundary (bank fades + mixer fades under slicing) — 64-block render == 4096-block render (bit)",
+               buffersBitEqual (r64, r4096));
+        check ("P2f liveness: the hooked render differs from the hook-less render", ! buffersBitEqual (r64, r0));
+    }
+
+    //==========================================================================
+    // FDL decays to exact 0 — 2048 samples of noise then silence, 48 k / 96 k.
+    {
+        for (double sr : { 48000.0, 96000.0 })
+        {
+            osa::Params prm;
+            prm.order = 3;
+            const int K = sr == 48000.0 ? 4 : 8;
+            const int total = 2048 + 4096;
+            const auto r = renderEngine (prm, sr, kDefaultBlock, total, { kDefaultBlock },
+                                         [] (int n) { return n < 2048 ? monoNoiseAt (n) : 0.0f; }, noEngineHook);
+            int lastNonZero = -1;
+            for (int n = 0; n < total; ++n)
+                if (r.lr[(size_t) n * 2] != 0.0f || r.lr[(size_t) n * 2 + 1] != 0.0f)
+                    lastNonZero = n;
+            const int bound = 2048 + 64 + K * 64;
+            check (fmt ("FDL decays to exact 0 at fs %.0f (K %d): every sample from %d on is exactly 0.0f", sr, K, bound).toRawUTF8(),
+                   lastNonZero < bound && lastNonZero > 2048, fmt ("last nonzero sample %d (bound %d)", lastNonZero, bound));
+        }
+    }
+
+    //==========================================================================
+    // "placeholder gone" (D13 / D2) — the T6 inversion above, plus the constant.
+    check ("placeholder gone (D2): kStereoLevelMatch == 1.0f by design — the level match lives in the filter scale (kBinauralLevelMatchDb)",
+           osa::kStereoLevelMatch == 1.0f,
+           fmt ("kStereoLevelMatch %.7f, kBinauralLevelMatchDb %+.3f dB", (double) osa::kStereoLevelMatch, (double) osa::kBinauralLevelMatchDb));
+
+    //==========================================================================
+    // extremes (2.3) — the 2.2 corners forced BINAURAL, orders 1 / 3 alternating,
+    // 48 k / 96 k; gimbal in Binaural at order 3; headroom printed.
+    {
+        for (double sr : { 48000.0, 96000.0 })
+        {
+            bool finite = true, live = true;
+            int  badCase = -1;
+            for (int i = 0; i < 8; ++i)
+            {
+                auto p = makeProcAt (sr, 2, kDefaultBlock, [i] (Proc& q)
+                {
+                    setParam (q, ParamIDs::yaw,       (i & 1) ? 180.0f : -180.0f);
+                    setParam (q, ParamIDs::pitch,     (i & 2) ? 180.0f : -180.0f);
+                    setParam (q, ParamIDs::roll,      (i & 4) ? 180.0f : -180.0f);
+                    setParam (q, ParamIDs::azimuth,   (i & 1) ? 180.0f : -180.0f);
+                    setParam (q, ParamIDs::elevation, (i & 2) ? 90.0f : -90.0f);
+                    setParam (q, ParamIDs::distance,  (i & 4) ? 20.0f : 0.2f);
+                    setParam (q, ParamIDs::decoder,   0.0f);
+                    setParam (q, ParamIDs::order,     (i & 1) ? 2.0f : 0.0f);
+                    setParam (q, ParamIDs::orbit,     1.0f);
+                    setParam (q, ParamIDs::orbitRate, 2.0f);
+                });
+                std::vector<float> out;
+                renderWith (*p, 2, { kDefaultBlock }, noiseAt, out, 4096);
+                const bool f = allFinite (out);
+                bool nonZero = false;
+                for (float v : out)
+                    if (v != 0.0f) { nonZero = true; break; }
+                finite = finite && f;
+                live   = live && nonZero;
+                if ((! f || ! nonZero) && badCase < 0)
+                    badCase = i;
+            }
+            check ((juce::String ("extremes (2.3): 8 corners forced Binaural, orders 1 / 3 alternating, x 4096 samples at fs ") + juce::String ((int) sr)
+                    + " finite and not silenced").toRawUTF8(), finite && live,
+                   badCase < 0 ? juce::String ("all 8 ok") : juce::String ("first bad case ") + juce::String (badCase));
+        }
+        {
+            auto p = makeProc (2, 64, [] (Proc& q)
+            {
+                setParam (q, ParamIDs::azimuth,   37.0f);
+                setParam (q, ParamIDs::elevation, -12.0f);
+                setParam (q, ParamIDs::pitch,     90.0f);
+                setParam (q, ParamIDs::order,     2.0f);
+                setParam (q, ParamIDs::decoder,   0.0f);
+            });
+            const auto out = renderHooked (*p, 8192, [] (int n) { return monoNoiseAt (n); },
+                                           [&p] (int n) { setParam (*p, ParamIDs::yaw, osa::wrapTo180 (0.48f * (float) (n / 64))); });
+            bool nonZero = false;
+            for (float v : out)
+                if (v != 0.0f) { nonZero = true; break; }
+            check ("extremes (2.3): gimbal theta = +90 under a yaw sweep in Binaural at order 3 — finite and live", allFinite (out) && nonZero);
+        }
+        {
+            // Headroom (F7): the hottest legal setting — d 0.2 (g 2.78), az +90, order 3, Binaural, outputLevel 0.
+            auto p = makeProc (2, kDefaultBlock, [] (Proc& q)
+            {
+                setParam (q, ParamIDs::azimuth,  90.0f);
+                setParam (q, ParamIDs::distance, 0.2f);
+                setParam (q, ParamIDs::order,    2.0f);
+                setParam (q, ParamIDs::decoder,  0.0f);
+            });
+            std::vector<float> out;
+            renderWith (*p, 2, { kDefaultBlock }, noiseAt, out, 8192);
+            float peak = 0.0f;
+            for (float v : out)
+                peak = std::max (peak, std::abs (v));
+            check ("extremes (2.3): headroom corner (d 0.2, az +90, order 3, Binaural, full-scale noise) finite", allFinite (out),
+                   fmt ("peak |out| %.3f (%+.1f dBFS) — printed, not asserted < 1 (F7: the bank peaks at %+.1f dB; outputLevel is the user's tool)",
+                        (double) peak, dB ((double) peak), 6.5));
+        }
+    }
+
+    //==========================================================================
     // PERF-01 — allocation counter across processBlock (A11); 2.2 adds the
-    // three rotation angles moving inside the window.
+    // three rotation angles moving inside the window; 2.3 runs it with the
+    // convolver live (the order / decoder fades inside the window exercise the
+    // dual-bank path).
     {
         auto p = makeProc (2, 64);
 
@@ -2628,7 +3720,7 @@ int main()
         rtcheck::disarm();
         const long long counted = rtcheck::allocations.load();
 
-        check ("PERF-01 zero allocations across 200 processBlock calls (order 1->3->2, decoder B->S->B, orbit On, d 0.2->20, yaw / pitch / roll moving, one 4096 block)",
+        check ("PERF-01 zero allocations across 200 processBlock calls (order 1->3->2, decoder B->S->B, orbit On, d 0.2->20, yaw / pitch / roll moving, one 4096 block; convolver live, order fades 1->3->2 with the bank fades inside the window)",
                counted == 0, juce::String ((int) counted) + " allocation(s)" + rtcheck::foreignNote());
 
         // Liveness: the counter must see one deliberate new/delete pair.
@@ -2645,13 +3737,82 @@ int main()
     }
 
     //==========================================================================
-    // Digests — 2.1 baseline over the P1-null render (a VERDICT from 2.2, D3 —
-    // asserted above) and the 2.2 rotated P1-null render (informational; 2.3
-    // may adopt it as the Stereo-mode regression anchor).
+    // Digests — 2.1 baseline over the P1-null render (a VERDICT from 2.2, D3)
+    // and the 2.2 rotated P1-null render (a VERDICT from 2.3, D13) — both
+    // asserted above; 2.3's Binaural null render (informational, D6).
     std::printf ("  digest: fnv1a64=%016llx (P1-null render: %d samples x 2ch, flat %d, az 37 el -12 d 3.3 order 3 Stereo)\n",
                  (unsigned long long) fnv1a64 (nullRender), kRenderSamples, kDefaultBlock);
-    std::printf ("  digest-2.2: fnv1a64=%016llx (rotated P1-null render: the same + psi 25 theta -40 phi 70; informational)\n",
+    std::printf ("  digest-2.2: fnv1a64=%016llx (rotated P1-null render: the same + psi 25 theta -40 phi 70; a verdict from 2.3)\n",
                  (unsigned long long) fnv1a64 (rotRender));
+    std::printf ("  digest-2.3: fnv1a64=%016llx (Binaural null render: the rotated tuple, order 3, block %d, %d samples; informational — vDSP vs Fallback FFT, D6)\n",
+                 (unsigned long long) fnv1a64 (binauralNullRender), kDefaultBlock, kNullTotal);
+
+    //==========================================================================
+    // PERF-02 (C9 / R9) — throughput, LAST: steady_clock around exactly 480 000
+    // samples at 64-sample blocks through the processor (order 3 / Binaural /
+    // the digest tuple + yaw 25, white noise), 1 s warm-up excluded, best of
+    // three; asserted ≥ 20× only under NDEBUG; 1024-block and 96 k printed;
+    // never ANDed with anything; rtcheck disarmed.
+    {
+        rtcheck::disarm();
+        const auto perfSetup = [] (Proc& q)
+        {
+            setParam (q, ParamIDs::azimuth,   37.0f);
+            setParam (q, ParamIDs::elevation, -12.0f);
+            setParam (q, ParamIDs::distance,  3.3f);
+            setParam (q, ParamIDs::order,     2.0f);
+            setParam (q, ParamIDs::yaw,       25.0f);
+            setParam (q, ParamIDs::decoder,   0.0f);
+        };
+        constexpr int kPerfSamples = 480000;
+        std::vector<float> tmpl ((size_t) 4096 * 2);
+        for (int n = 0; n < 4096; ++n)
+            for (int ch = 0; ch < 2; ++ch)
+                tmpl[(size_t) (n * 2 + ch)] = noiseAt (ch, n);
+
+        const auto measure = [&] (double sr, int block)
+        {
+            auto p = makeProcAt (sr, 2, block, perfSetup);
+            juce::MidiBuffer midi;
+            juce::AudioBuffer<float> buf (2, block);
+            int n0 = 0;
+            const auto feed = [&]
+            {
+                for (int i = 0; i < block; ++i)
+                {
+                    const int m = (n0 + i) % 4096;
+                    buf.setSample (0, i, tmpl[(size_t) (m * 2)]);
+                    buf.setSample (1, i, tmpl[(size_t) (m * 2 + 1)]);
+                }
+                p->processBlock (buf, midi);
+                n0 += block;
+            };
+            for (int n = 0; n < (int) sr; n += block)      // 1 s warm-up, not timed
+                feed();
+            double best = 1.0e300;
+            for (int rep = 0; rep < 3; ++rep)
+            {
+                const auto t0 = std::chrono::steady_clock::now();
+                for (int n = 0; n < kPerfSamples; n += block)
+                    feed();
+                best = std::min (best, std::chrono::duration<double> (std::chrono::steady_clock::now() - t0).count());
+            }
+            livenessSink.store (p.get());                  // the renders are not elided
+            livenessSink.store (nullptr);
+            return ((double) kPerfSamples / sr) / best;    // audio seconds per wall second
+        };
+
+        const double r64   = measure (kFs, 64);
+        const double r1024 = measure (kFs, 1024);
+        const double r96   = measure (96000.0, 64);
+        const juce::String detail = fmt ("%.0fx real time at 48 k / 64 blocks (best of 3 over %d samples; expect >= 150); 1024 blocks %.0fx; 96 k / 64 blocks (K 8) %.0fx",
+                                         r64, kPerfSamples, r1024, r96);
+#ifdef NDEBUG
+        check ("PERF-02 >= 20x real time (Release, dev machine, order 3 Binaural, 64-sample blocks, best of three)", r64 >= 20.0, detail);
+#else
+        std::printf ("  info: PERF-02 debug build — printed, not asserted: %s\n", detail.toRawUTF8());
+#endif
+    }
 
     std::printf ("%s (%d failure%s)\n", failures == 0 ? "ALL PASS" : "FAILED",
                  failures, failures == 1 ? "" : "s");
