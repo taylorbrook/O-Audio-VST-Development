@@ -10,6 +10,7 @@ completed:
   - "Round 3a — clean transitions, the smoothing trio (v1.15.0, 2026-10-12)"
   - "B19 (pulled forward from Round 3b) — run flags re-derived on the dirty-check skip; air + decorr + delay (v1.15.1, 2026-10-12)"
   - "Round 3b — B14 B15 B17 B20 B25: ping ducks, render start, Headphones blend, tail, SAFE/bypass stale state, Sync->Free re-base (v1.15.2, 2026-10-12)"
+  - "Round 3b follow-up — monitor fold held through the ping's abort fade, getState active=false while aborting, ping RNG seeded (v1.15.3, 2026-10-12; /improve-verify PASS, DAW hands-on open)"
 next: "/improve-verify + /publish (Rounds 1-3b fix publicly shipped defects), then Round 4"
 supersedes: >
   The 2026-08-25 queue (last committed at 0c7154f2). Its rounds 1–3 shipped as v1.3.1–v1.3.2; its

@@ -499,6 +499,14 @@ fact was refused twice), and none affects a recorded result:
   from abort() to the next start(). The ping RNG was clock-seeded, so every ping figure was one draw
   (DY retarget 0.62 / 0.77 / 0.84 on three runs); seeded in `prepare()`. Probe ED, red on v1.15.2
   in both parts. Render 88/0, CU/DC unchanged.
+
+  ### Verified 1.15.3 — 2026-10-12
+  `/improve-verify` PASS against bd7430e6: all three fixes present on disk; version coherent
+  (CMake / bundle / CHANGELOG / PLUGINS.md = 1.15.3); installed VST3 `cmp`-identical to the build;
+  harness 88/0 twice with byte-identical logs (the seed holds); auval PASS; pluginval s10 PASS.
+  Note: the fold comes in one HOST block after the fade ends, not one 64-sample control block —
+  `monitorOn` is read once per processBlock. The behaviour is harmless; the CHANGELOG and code
+  comment that said otherwise were corrected in e7caa16b. Hands-on DAW check still open.
 - **2026-10-12 (v1.15.2 — `/improve`, Round 3b: B14 B15 B17 B20 B25):** the verify ping ducks
   the programme on its own raised cosine (held through auto gaps), fades on stop/abort/retarget
   from its current level, and is `kill()`ed for bypass/unmapped/`isNonRealtime()`. The fold lands at
