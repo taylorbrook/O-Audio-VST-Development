@@ -1,0 +1,2427 @@
+<!DOCTYPE html>
+<!--
+  O-simpleAmbisonics — production WebView page (mockup v1, finalized).
+  Copied to Source/ui/public/index.html in Stage 3 (3.1 bindings + 3.2 visuals).
+
+  Family: O-simple* field guide (O-simpleAdditive / O-simpleSubtractive /
+  O-simpleWavetable) — aged paper, EB Garamond (modules/ui/eb-garamond), Family A
+  seed knobs, walnut plot wells with sage / amber / brass inks.
+
+  Frame: landscape 1180 x 780 design frame, FIXED COMPOSITION, resizable at a
+  fixed aspect through the O-simpleFM scale pattern: #plugin lays out at the
+  design size and scales itself by CSS transform (applyUiScale on resize);
+  canvases fold uiScale into their backing store; pointer maths divide by it.
+  The editor constrains 0.6x..1.5x and persists editorScale on the processor.
+
+  Contracts honoured (ui-design-rules.md + html-generation.md):
+    - no viewport units; html, body { height: 100% }; user-select: none;
+      context menu disabled
+    - JUCE 8 relay-state API only: Juce.getSliderState / getToggleState /
+      getComboBoxState; readouts format getScaledValue(), angles from
+      getNormalisedValue(); the C++ NormalisableRange is the only range
+    - Family A knob (conic seed ring, only .knob-stem rotates), full bindKnob
+      lifecycle (pointer capture, idempotent onUp, arrow keys, wheel gesture,
+      dblclick reset through getParameterDefaults)
+    - i18n canon pasted VERBATIM from scripts/i18n-canon.js; js/i18n.js is the
+      table; every visible label carries data-i18n; zero authored data-tip,
+      zero native title=
+    - exactly one hover-help switch (#tips-toggle) in the settings popover
+      beside #lang-select; 9.5 px text floor; prefers-reduced-motion block
+
+  DSP conventions (ARCHITECTURE.md): azimuth +90° = LEFT (AmbiX); the puck
+  follows azEffDeg / elEffDeg (pre-rotation) and never moves with yaw; the
+  compass rose, the beam and the rim ticks follow yaw / azRotDeg / elRotDeg;
+  numeric readouts format the host PARAMETER, never the frame.
+
+  Events / natives: one `meterFrame` event from the editor's 30 Hz Timer
+  (TripleBuffer<MeterFrame>::read(), hash-gated, emitEventIfBrowserIsVisible);
+  the page calls getParameterDefaults, getUiLanguage, setUiLanguage, uiReady
+  (again on visibilitychange -> visible) and applyFactoryPreset(lessonId).
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>O-simpleAmbisonics</title>
+<!-- Shared EB Garamond (modules/ui/eb-garamond): served at /css/, faces at /fonts/ -->
+<link rel="stylesheet" href="css/eb-garamond.css">
+<style>
+  :root {
+    /* Paper + ink (ouaricon-naturalist-001, as the O-simple* family ships it) */
+    --bg-paper-light: #FAF0E6;
+    --bg-paper: #F5E6D3;
+    --bg-paper-mid: #EBD9C7;
+    --bg-accent: #D4C4B0;
+    --brown-border: #8B7355;     /* borders and decoration only */
+    --brown-frame: #5C4033;
+    --brown-text: #3C2F2F;       /* all text */
+    --brown-soft: #5C4033;
+    --green-light: #8BA870;
+    --green-mid: #6B8E4E;
+    --green-dark: #3C5C1A;
+    --green-darkest: #2C3E10;
+    --brass-1: #E8B04A;
+    --brass-2: #C98F38;
+    --brass-deep: #8a5a1e;
+    /* Family A knob */
+    --knob-ring: #C9A27B;
+    --knob-seg-1: #F5DEB3;
+    --knob-seg-2: #E8D5B7;
+    --knob-divider: #8B7355;
+    --knob-core: #FFF8DC;
+    --knob-border: #8B7355;
+    --btn-active: rgba(107, 142, 35, 0.6);
+    --btn-border-active: #2C3E10;
+    --shadow-light: rgba(0, 0, 0, 0.15);
+    --shadow-medium: rgba(0, 0, 0, 0.25);
+    --text-emboss: rgba(255, 255, 255, 0.5);
+    /* Text inks (AA on every paper tone) */
+    --text-muted: #715D45;
+    --green-text: #4E6838;
+    --green-fill-strong: #55703E;
+    /* Plot wells + inks */
+    --well-top: #2a2118;
+    --well-bot: #1c160f;
+    --ink-sage: #9ec46f;
+    --ink-parch: #d6c4a0;
+    --ink-amber: #e8b04a;
+    --ink-rust: #e98a5a;
+    /* The CJK tail goes BEFORE the generic serif: under a Chinese document
+       language a bare `serif` is already a Chinese face. */
+    --serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    --symbol-font: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS',
+                   'PingFang SC', 'Microsoft YaHei', serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { height: 100%; width: 100%; overflow: hidden; }
+
+  body {
+    position: relative;
+    font-family: var(--serif);
+    color: var(--brown-text);
+    background: var(--bg-paper);
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    cursor: default;
+  }
+
+  /* ── Plugin frame: 1180 x 780 design size, scaled by transform (O-simpleFM) ── */
+  #plugin {
+    position: absolute;
+    left: 0; top: 0;
+    width: 1180px;
+    height: 780px;
+    transform-origin: 0 0;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 30% 20%, var(--bg-paper-light), transparent 60%),
+      repeating-linear-gradient(0deg, rgba(92, 64, 51, 0.015) 0, rgba(92, 64, 51, 0.015) 1px, transparent 1px, transparent 3px),
+      var(--bg-paper);
+  }
+
+  .botanical-overlay {
+    position: absolute;
+    right: -30px;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 86%;
+    opacity: 0.14;
+    pointer-events: none;
+    z-index: 0;
+    filter: sepia(0.35) saturate(0.7) brightness(0.95);
+  }
+
+  .frame {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border: 3px solid var(--brown-frame);
+    border-image: linear-gradient(160deg, #6b5340, #5C4033) 1;
+  }
+  .frame > * { flex-shrink: 0; }
+
+  /* ── Header ────────────────────────────────────────────────────────────── */
+  .header {
+    height: 50px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    border-bottom: 1px solid rgba(139, 115, 85, 0.4);
+    padding-bottom: 6px;
+  }
+  .title-block { flex: 0 0 auto; }
+  .title {
+    font-size: 25px;
+    font-weight: 400;
+    letter-spacing: 3px;
+    line-height: 1.1;
+    color: var(--brown-frame);
+    text-shadow: 1px 1px 2px var(--text-emboss);
+    white-space: nowrap;
+  }
+  .title-accent { color: var(--green-mid); font-style: italic; }
+  .subtitle {
+    font-size: 11px;
+    letter-spacing: 1.4px;
+    line-height: 1.1;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-top: 3px;
+    white-space: nowrap;
+    max-width: 460px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .header-strip {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  /* Chips are width-pinned so a longer French head cannot move the settings cluster. */
+  .chip {
+    height: 32px;
+    padding: 2px 11px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background: rgba(235, 217, 199, 0.65);
+    border: 1px solid rgba(139, 115, 85, 0.45);
+    border-radius: 4px;
+    box-shadow: inset 1px 1px 3px rgba(92, 64, 51, 0.12);
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  #chipFormat  { width: 236px; }
+  #chipLatency { width: 196px; }
+  .chip-head { font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-muted); line-height: 1.1; overflow: hidden; text-overflow: ellipsis; }
+  .chip-body { font-size: 12.5px; letter-spacing: 0.3px; color: var(--green-text); line-height: 1.15; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; }
+  .chip-body i { color: var(--brown-text); }
+
+  select.combo {
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 0.3px;
+    color: var(--green-darkest);
+    background-color: var(--bg-paper-light);
+    border: 1.5px solid var(--brown-border);
+    border-radius: 4px;
+    height: 28px;
+    padding: 0 26px 0 9px;
+    width: 150px;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--brown-soft) 50%),
+      linear-gradient(135deg, var(--brown-soft) 50%, transparent 50%);
+    background-position: calc(100% - 14px) center, calc(100% - 9px) center;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.08), 1px 1px 3px var(--shadow-light);
+    transition: border-color 0.15s ease;
+  }
+  select.combo:hover { border-color: var(--green-dark); }
+  select.combo:focus-visible { outline: 2px solid var(--green-mid); outline-offset: 1px; }
+
+  /* ── Settings popover (#gear-btn, #lang-select, #tips-toggle) ──────────── */
+  .settings-cluster { position: relative; flex: 0 0 auto; display: flex; align-items: center; }
+  .gear-btn {
+    width: 26px; height: 26px; padding: 0;
+    font-family: var(--symbol-font);
+    font-size: 14px; line-height: 1;
+    color: var(--green-darkest);
+    background: rgba(139, 168, 112, 0.25);
+    border: 1.5px solid var(--green-mid);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 1px 1px 3px var(--shadow-light);
+    transition: background 0.15s ease;
+  }
+  .gear-btn:hover { background: rgba(139, 168, 112, 0.45); }
+  .gear-btn[aria-expanded="true"] { background: var(--btn-active); border-color: var(--btn-border-active); }
+  .gear-btn:focus-visible { outline: 2px dotted var(--green-mid); outline-offset: 2px; }
+  .settings-popover {
+    position: absolute; top: calc(100% + 6px); right: 0; z-index: 40;
+    width: 236px; padding: 9px 10px;
+    display: flex; flex-direction: column; gap: 8px;
+    background: var(--bg-paper-light);
+    border: 1px solid var(--brown-border); border-radius: 5px;
+    box-shadow: 0 6px 18px var(--shadow-medium);
+  }
+  .settings-popover[hidden] { display: none; }
+  .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .settings-label { flex: 1 1 auto; min-width: 0; font-size: 11px; letter-spacing: 0.8px; text-transform: uppercase; color: var(--brown-frame); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .settings-select {
+    flex: 0 0 104px; width: 104px; height: 26px;
+    font-family: inherit; font-size: 12px; letter-spacing: 0.3px; text-align: center;
+    color: var(--brown-text); background: var(--bg-paper-light);
+    border: 1.5px solid var(--brown-border); border-radius: 4px; cursor: pointer;
+    box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.12);
+  }
+  .settings-select:focus-visible { outline: 2px dotted var(--green-mid); outline-offset: 2px; }
+  .settings-toggle {
+    flex: 0 0 104px; width: 104px; height: 26px;
+    font-family: inherit; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px;
+    color: var(--green-darkest); background: var(--bg-paper-light);
+    border: 1.5px solid var(--brown-border); border-radius: 4px; cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .settings-toggle[aria-pressed="true"] { background: var(--green-dark); border-color: var(--green-dark); color: var(--bg-paper-light); }
+  .settings-toggle:focus-visible { outline: 2px dotted var(--green-mid); outline-offset: 2px; }
+
+  /* ── Visual band: sphere | channels | decoder ─────────────────────────── */
+  .viz-band { height: 356px; display: flex; gap: 10px; }
+  .viz-block { display: flex; flex-direction: column; min-width: 0; }
+  .viz-sphere { flex: 0 0 442px; }
+  .viz-chan   { flex: 0 0 450px; }
+  .viz-dec    { flex: 1 1 0; }
+  .viz-label {
+    height: 18px;
+    font-size: 10.5px;
+    line-height: 1.3;
+    text-transform: uppercase;
+    letter-spacing: 1.1px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    display: flex; align-items: baseline; gap: 5px;
+  }
+  .viz-label b { font-weight: 500; color: var(--green-darkest); letter-spacing: 1.4px; flex: 0 0 auto; }
+  .viz-hint { text-transform: none; letter-spacing: 0.3px; font-style: italic; font-size: 11.5px; color: var(--green-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .viz-hint .pos { color: var(--green-text); font-style: normal; }
+  .viz-hint .neg { color: #a8661f; font-style: normal; }
+
+  .canvas-wrap {
+    flex: 1;
+    position: relative;
+    background: linear-gradient(180deg, var(--well-top) 0%, var(--well-bot) 100%);
+    border: 2px solid var(--brown-border);
+    border-radius: 4px;
+    box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.55), 1px 1px 0 rgba(255, 248, 220, 0.5);
+    overflow: hidden;
+  }
+  .canvas-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  .sphere-row { flex: 1; display: flex; gap: 6px; min-height: 0; }
+  #topWrap  { flex: 0 0 300px; cursor: crosshair; touch-action: none; }
+  #sideWrap { flex: 1 1 0; cursor: crosshair; touch-action: none; }
+  #topWrap.dragging, #sideWrap.dragging { cursor: grabbing; }
+
+  /* DOM readouts over the wells (real text, never canvas text) */
+  .well-text { position: absolute; pointer-events: none; color: var(--ink-parch); }
+  .sph-tl { left: 11px; top: 8px; }
+  .sph-big { font-size: 20px; line-height: 1; letter-spacing: 0.3px; color: #f3cd86; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .sph-big .unit { font-size: 13px; color: rgba(214, 196, 160, 0.75); }
+  .sph-sub { margin-top: 3px; font-size: 11.5px; font-style: italic; color: rgba(214, 196, 160, 0.85); white-space: nowrap; }
+  .sph-sub .orb { color: var(--ink-amber); }
+  .sph-sub .orb[hidden] { display: none; }
+  .sph-tr { right: 10px; top: 8px; text-align: right; font-size: 11px; line-height: 1.3; letter-spacing: 0.3px; color: rgba(214, 196, 160, 0.82); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .sph-tr .k { color: var(--ink-sage); }
+  .sph-tr .v { color: #f3cd86; }
+  .sph-tr .tilt[hidden] { display: none; }
+  .sph-bl { left: 11px; bottom: 7px; font-size: 11px; line-height: 1.45; letter-spacing: 0.3px; color: rgba(214, 196, 160, 0.82); white-space: nowrap; }
+  .sph-bl .sym { font-family: var(--symbol-font); font-size: 11px; display: inline-block; width: 14px; text-align: center; }
+  .sph-bl .sym-puck { color: var(--brass-1); }
+  .sph-bl .sym-beam { color: var(--ink-sage); }
+  .sph-br { right: 10px; bottom: 7px; text-align: right; font-size: 11px; font-style: italic; color: rgba(158, 196, 111, 0.92); white-space: nowrap; }
+  .side-tl { left: 8px; top: 8px; font-size: 11px; letter-spacing: 0.8px; text-transform: uppercase; color: rgba(214, 196, 160, 0.7); }
+  .side-bl { left: 8px; bottom: 7px; font-size: 11px; color: rgba(214, 196, 160, 0.82); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .side-bl .v { color: #f3cd86; }
+
+  /* Channel view: DOM row labels + one canvas for all bars */
+  .chan-well { padding: 6px 8px 0 8px; }
+  .chan-rows { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+  .band { display: grid; grid-template-columns: 34px 22px 20px 22px 1fr; grid-auto-rows: 18px; column-gap: 2px; align-items: center; }
+  .band-tag { grid-column: 1; grid-row: 1 / span var(--rows); align-self: stretch; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding-left: 6px; border-left: 2px dotted rgba(214, 196, 160, 0.35); transition: border-color 0.25s ease; overflow: hidden; }
+  .band.on .band-tag { border-left: 2px solid var(--ink-sage); }
+  .band-num { font-size: 15px; line-height: 1; color: rgba(214, 196, 160, 0.4); transition: color 0.25s ease; }
+  .band.on .band-num { color: var(--ink-sage); }
+  .band-ch { font-size: 9.5px; line-height: 1.1; letter-spacing: 0.4px; color: rgba(214, 196, 160, 0.4); margin-top: 2px; transition: color 0.25s ease; white-space: nowrap; }
+  .band.on .band-ch { color: rgba(158, 196, 111, 0.85); }
+  .acn { grid-column: 2; font-size: 10.5px; color: rgba(214, 196, 160, 0.55); font-variant-numeric: tabular-nums; text-align: right; padding-right: 4px; transition: color 0.25s ease; }
+  .band.on .acn { color: rgba(214, 196, 160, 0.85); }
+  .ltr { grid-column: 3; font-size: 13px; color: rgba(214, 196, 160, 0.4); text-align: center; transition: color 0.25s ease; }
+  .band.on .ltr { color: #f3cd86; }
+  .sh-icon { grid-column: 4; width: 18px; height: 18px; justify-self: center; opacity: 0.3; transition: opacity 0.25s ease; }
+  .band.on .sh-icon { opacity: 1; }
+  .sh-icon svg { width: 18px; height: 18px; display: block; overflow: visible; }
+  .bar-cell { grid-column: 5; height: 18px; }
+  .chan-scale { position: absolute; left: 8px; right: 8px; bottom: 1px; height: 13px; pointer-events: none; }
+  .chan-scale span { position: absolute; top: 0; font-size: 9.5px; letter-spacing: 0.3px; color: rgba(214, 196, 160, 0.55); transform: translateX(-50%); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .chan-scale .sc-gain { color: rgba(158, 196, 111, 0.6); }
+  .chan-scale .sc-peak { color: rgba(214, 196, 160, 0.5); }
+  #chanCanvas { z-index: 0; }
+
+  /* Decoder view */
+  .dec-cap { left: 10px; right: 10px; bottom: 8px; text-align: center; }
+  .dec-name { font-size: 15px; letter-spacing: 1.2px; text-transform: uppercase; color: #f3cd86; line-height: 1.2; }
+  .dec-line { margin-top: 2px; font-size: 11px; font-style: italic; color: rgba(214, 196, 160, 0.85); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dec-tl { left: 10px; top: 8px; font-size: 11px; letter-spacing: 0.8px; text-transform: uppercase; color: rgba(214, 196, 160, 0.7); }
+  .dec-tr { right: 10px; top: 8px; text-align: right; font-size: 11px; color: var(--ink-sage); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* ── Signal path strip (UI-04): five stations on a rail, columns = the groups ── */
+  .sigpath { height: 34px; position: relative; display: flex; gap: 8px; align-items: center; }
+  .sigpath::before {
+    content: ""; position: absolute; left: 8px; right: 8px; top: 50%; height: 0;
+    border-top: 1.5px solid rgba(139, 115, 85, 0.55);
+  }
+  .sig-col { position: relative; display: flex; justify-content: center; align-items: center; min-width: 0; }
+  .sig-col.c-source { flex: 0 0 326px; }
+  .sig-col.c-encoder { flex: 0 0 166px; }
+  .sig-col.c-rotation { flex: 0 0 290px; }
+  .sig-col.c-decoder { flex: 0 0 176px; }
+  .sig-col.c-output { flex: 0 0 152px; }
+  .sig-col + .sig-col::before {
+    content: ""; position: absolute; left: -5px; top: 50%;
+    width: 0; height: 0; transform: translateY(-50%);
+    border-top: 4px solid transparent; border-bottom: 4px solid transparent;
+    border-left: 6px solid rgba(139, 115, 85, 0.75);
+  }
+  /* Stations are width-pinned per column: a longer French sub-line ellipsizes
+     instead of widening the pill (check-ui-labels [7] measures the pill). */
+  .station {
+    position: relative; height: 30px; padding: 0 10px;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    background: var(--bg-paper-light);
+    border: 1.5px solid var(--brown-border);
+    border-radius: 15px;
+    box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.08), 1px 1px 3px var(--shadow-light);
+    transition: background 0.5s ease, color 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  #st-source   { width: 150px; }
+  #st-encoder  { width: 118px; }
+  #st-rotation { width: 126px; }
+  #st-decoder  { width: 150px; }
+  #st-output   { width: 110px; }
+  .station .st-name { font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--green-darkest); line-height: 1.1; transition: color 0.5s ease; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .station .st-sub { font-size: 10px; letter-spacing: 0.3px; font-style: italic; color: var(--text-muted); line-height: 1.1; margin-top: 1px; font-variant-numeric: tabular-nums; transition: color 0.5s ease; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .station.on { background: var(--green-fill-strong); border-color: var(--green-darkest); box-shadow: 0 0 0 3px rgba(139, 168, 112, 0.35), inset 0 1px 2px rgba(0,0,0,0.25); transition-duration: 0.08s; }
+  .station.on .st-name { color: #f5f0e6; transition-duration: 0.08s; }
+  .station.on .st-sub { color: #e8e0c8; transition-duration: 0.08s; }
+
+  /* ── Control groups (signal order) ────────────────────────────────────── */
+  .controls { height: 214px; display: flex; gap: 8px; }
+  .group {
+    background: rgba(250, 240, 230, 0.45);
+    border: 1px solid rgba(139, 115, 85, 0.35);
+    border-radius: 5px;
+    padding: 6px 10px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+  .group-source   { flex: 0 0 326px; }
+  .group-encoder  { flex: 0 0 166px; }
+  .group-rotation { flex: 0 0 290px; }
+  .group-decoder  { flex: 0 0 176px; }
+  .group-output   { flex: 0 0 152px; }
+  .group-title {
+    font-size: 12.5px;
+    font-weight: 500;
+    line-height: 1.25;
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    color: var(--green-darkest);
+    border-bottom: 1px dotted rgba(139, 115, 85, 0.45);
+    padding-bottom: 3px;
+    display: flex; align-items: baseline; gap: 6px;
+    white-space: nowrap;
+  }
+  .group-title > span:first-child { flex: 0 0 auto; }
+  .group-route { font-size: 11px; font-style: italic; letter-spacing: 0.4px; text-transform: none; color: var(--green-text); font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .group-body { flex: 1; display: flex; gap: 10px; min-height: 0; }
+  .sub-rule { flex: 0 0 1px; background: repeating-linear-gradient(180deg, rgba(139,115,85,0.45) 0 2px, transparent 2px 4px); }
+  .col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+
+  /* ── Knobs: Family A seed cross-section (ui-design-rules Rule 8) ─────────── */
+  .knob-row { display: flex; gap: 8px; align-items: flex-start; }
+  .knob-cell { display: flex; flex-direction: column; align-items: center; width: 58px; position: relative; }
+  .knob-cell.sm { width: 52px; }
+  .knob-wrap { position: relative; }
+  .knob {
+    width: 54px; height: 54px;
+    border-radius: 50%;
+    position: relative;
+    border: 2px solid var(--knob-border);
+    cursor: ns-resize;
+    background:
+      radial-gradient(circle, transparent 88%, var(--knob-ring) 88%, var(--knob-ring) 92%, var(--knob-divider) 92%, var(--knob-divider) 94%, transparent 94%),
+      conic-gradient(from 0deg,
+        var(--knob-seg-1) 0deg,   var(--knob-seg-1) 18deg,  var(--knob-divider) 18deg,  var(--knob-divider) 19deg,
+        var(--knob-seg-2) 19deg,  var(--knob-seg-2) 36deg,  var(--knob-divider) 36deg,  var(--knob-divider) 37deg,
+        var(--knob-seg-1) 37deg,  var(--knob-seg-1) 54deg,  var(--knob-divider) 54deg,  var(--knob-divider) 55deg,
+        var(--knob-seg-2) 55deg,  var(--knob-seg-2) 72deg,  var(--knob-divider) 72deg,  var(--knob-divider) 73deg,
+        var(--knob-seg-1) 73deg,  var(--knob-seg-1) 90deg,  var(--knob-divider) 90deg,  var(--knob-divider) 91deg,
+        var(--knob-seg-2) 91deg,  var(--knob-seg-2) 108deg, var(--knob-divider) 108deg, var(--knob-divider) 109deg,
+        var(--knob-seg-1) 109deg, var(--knob-seg-1) 126deg, var(--knob-divider) 126deg, var(--knob-divider) 127deg,
+        var(--knob-seg-2) 127deg, var(--knob-seg-2) 144deg, var(--knob-divider) 144deg, var(--knob-divider) 145deg,
+        var(--knob-seg-1) 145deg, var(--knob-seg-1) 162deg, var(--knob-divider) 162deg, var(--knob-divider) 163deg,
+        var(--knob-seg-2) 163deg, var(--knob-seg-2) 180deg, var(--knob-divider) 180deg, var(--knob-divider) 181deg,
+        var(--knob-seg-1) 181deg, var(--knob-seg-1) 198deg, var(--knob-divider) 198deg, var(--knob-divider) 199deg,
+        var(--knob-seg-2) 199deg, var(--knob-seg-2) 216deg, var(--knob-divider) 216deg, var(--knob-divider) 217deg,
+        var(--knob-seg-1) 217deg, var(--knob-seg-1) 234deg, var(--knob-divider) 234deg, var(--knob-divider) 235deg,
+        var(--knob-seg-2) 235deg, var(--knob-seg-2) 252deg, var(--knob-divider) 252deg, var(--knob-divider) 253deg,
+        var(--knob-seg-1) 253deg, var(--knob-seg-1) 270deg, var(--knob-divider) 270deg, var(--knob-divider) 271deg,
+        var(--knob-seg-2) 271deg, var(--knob-seg-2) 288deg, var(--knob-divider) 288deg, var(--knob-divider) 289deg,
+        var(--knob-seg-1) 289deg, var(--knob-seg-1) 306deg, var(--knob-divider) 306deg, var(--knob-divider) 307deg,
+        var(--knob-seg-2) 307deg, var(--knob-seg-2) 324deg, var(--knob-divider) 324deg, var(--knob-divider) 325deg,
+        var(--knob-seg-1) 325deg, var(--knob-seg-1) 342deg, var(--knob-divider) 342deg, var(--knob-divider) 343deg,
+        var(--knob-seg-2) 343deg, var(--knob-seg-2) 360deg),
+      radial-gradient(circle, var(--knob-core) 0%, var(--knob-core) 20%, transparent 20%);
+    box-shadow:
+      inset 1px 1px 3px rgba(0, 0, 0, 0.3),
+      inset -1px -1px 2px rgba(255, 248, 220, 0.5),
+      2px 2px 6px var(--shadow-medium);
+    transition: transform 0.1s ease;
+  }
+  .knob:hover { transform: scale(1.05); }
+  .knob:active { transform: scale(0.98); }
+  .knob:focus-visible { outline: 2px dotted var(--green-mid); outline-offset: 3px; }
+  .knob.sm { width: 44px; height: 44px; }
+  .knob.hero { width: 92px; height: 92px; border-width: 2.5px; }
+  .knob.hero:hover { transform: scale(1.03); }
+  /* Indicator: botanical stem from the centre to ~86% of the radius; ONLY this rotates. */
+  .knob-stem {
+    position: absolute; left: 50%; top: 50%;
+    width: 2.5px; height: 23px;
+    background: var(--green-darkest);
+    border-radius: 1.5px;
+    transform-origin: 50% 100%;
+    transform: translate(-50%, -100%) rotate(0deg);
+    pointer-events: none;
+    box-shadow: 0 0 1px rgba(255, 248, 220, 0.6);
+  }
+  .knob.sm .knob-stem { height: 18px; }
+  .knob.hero .knob-stem { width: 3.5px; height: 39px; }
+  /* Bipolar centre detent mark (the five degree knobs) */
+  .bipolar .knob-wrap::before {
+    content: ""; position: absolute; left: 50%; top: -6px;
+    width: 0; height: 0; transform: translateX(-50%);
+    border-left: 4px solid transparent; border-right: 4px solid transparent;
+    border-top: 5px solid var(--brown-border);
+  }
+  .knob-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--brown-soft);
+    margin-top: 5px;
+    text-align: center;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+  .knob-value {
+    font-size: 12.5px;
+    color: var(--brown-text);
+    margin-top: 1px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .knob-sub { font-size: 10.5px; font-style: italic; color: var(--green-text); margin-top: 0; text-align: center; white-space: nowrap; line-height: 1.1; max-width: 100px; overflow: hidden; text-overflow: ellipsis; }
+  .hero-col { flex: 0 0 108px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .hero-col .knob-cell { width: 108px; }
+  .hero-col .knob-label { font-size: 12px; letter-spacing: 1.2px; margin-top: 8px; color: var(--green-darkest); }
+  .hero-col .knob-value { font-size: 16px; }
+  .hero-sub { font-size: 12px; font-style: italic; color: var(--green-text); margin-top: 1px; font-variant-numeric: tabular-nums; white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ── Segmented rows (the bool, and the 2- / 3-way choices) ─────────────── */
+  .seg-cell { display: flex; flex-direction: column; gap: 3px; }
+  .seg-cap { font-size: 10px; letter-spacing: 0.6px; text-transform: uppercase; color: var(--brown-soft); line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .seg {
+    display: flex; height: 26px;
+    border: 1.5px solid var(--brown-border);
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--bg-paper-light);
+    box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.1);
+  }
+  .seg button {
+    flex: 1 1 0;
+    min-width: 0;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 0.9px;
+    text-transform: uppercase;
+    color: var(--brown-soft);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+  .seg button + button { border-left: 1px solid rgba(139, 115, 85, 0.55); }
+  .seg button:hover { background: rgba(139, 168, 112, 0.25); }
+  .seg button.on { background: var(--green-fill-strong); color: #f5f0e6; box-shadow: inset 0 1px 2px rgba(0,0,0,0.25); }
+  .seg button:focus-visible { outline: 2px solid var(--green-mid); outline-offset: -2px; }
+  .seg.order-seg { height: 28px; }
+  .seg.order-seg button { font-size: 13px; letter-spacing: 0.4px; text-transform: none; font-variant-numeric: tabular-nums; }
+
+  /* Source */
+  .src-left { flex: 0 0 190px; }
+  .src-right { flex: 1 1 0; align-items: center; }
+  .src-right .knob-cell { margin-top: 2px; }
+  .src-left .seg-cell { width: 150px; }
+  .seg-cell.orbit-cell { width: 100px; }
+
+  /* Encoder */
+  .enc-read { font-size: 12.5px; color: var(--brown-text); font-variant-numeric: tabular-nums; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .enc-read .n { color: var(--green-text); font-style: italic; }
+  .enc-letters { display: flex; flex-direction: column; gap: 2px; padding: 5px 8px; background: rgba(235, 217, 199, 0.6); border: 1px solid rgba(139, 115, 85, 0.4); border-radius: 4px; box-shadow: inset 1px 1px 3px rgba(92, 64, 51, 0.12); }
+  .enc-letters div { display: flex; align-items: baseline; gap: 6px; font-size: 12px; line-height: 1.15; letter-spacing: 1.4px; color: var(--brown-text); transition: color 0.25s ease, opacity 0.25s ease; white-space: nowrap; }
+  .enc-letters div .o { flex: 0 0 36px; font-size: 9.5px; letter-spacing: 0.4px; color: var(--text-muted); font-style: italic; overflow: hidden; text-overflow: ellipsis; }
+  .enc-letters div.off { opacity: 0.35; }
+  .enc-letters div.on .l { color: var(--green-text); }
+
+  /* Rotation */
+  .rot-side { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+  .rot-side .knob-row { justify-content: space-around; }
+  .rot-note { font-size: 10.5px; font-style: italic; color: var(--green-text); text-align: center; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Decoder */
+  .dec-read { font-size: 11.5px; font-style: italic; color: var(--green-text); line-height: 1.25; max-height: 29px; overflow: hidden; }
+  .dec-note { font-size: 11.5px; color: var(--brown-text); line-height: 1.3; padding: 6px 8px; background: rgba(235, 217, 199, 0.6); border: 1px solid rgba(139, 115, 85, 0.4); border-radius: 4px; box-shadow: inset 1px 1px 3px rgba(92, 64, 51, 0.12); height: 92px; overflow: hidden; }
+  .dec-note b { font-weight: 500; color: var(--green-darkest); letter-spacing: 0.8px; }
+
+  /* Output */
+  .out-meter-wrap { flex: 1 1 0; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .out-meter {
+    position: relative; height: 126px;
+    background: linear-gradient(180deg, var(--well-top) 0%, var(--well-bot) 100%);
+    border: 1.5px solid var(--brown-border); border-radius: 4px;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5); overflow: hidden;
+  }
+  .out-meter canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .meter-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--brown-soft); margin-top: 2px; text-align: center; line-height: 1.1; white-space: nowrap; }
+
+  /* ── Lesson row (UI-08) ───────────────────────────────────────────────── */
+  .preset-tour {
+    height: 28px;
+    display: flex; align-items: center; gap: 10px;
+    padding: 4px 4px 0;
+    border-top: 1px solid rgba(139, 115, 85, 0.4);
+  }
+  .tour-label { flex: 0 0 auto; font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-muted); white-space: nowrap; }
+  .tour-buttons { display: flex; gap: 6px; flex: 0 0 auto; }
+  .tour-btn {
+    font-family: inherit; font-size: 12px; letter-spacing: 0.4px;
+    color: var(--brown-text); background: var(--bg-paper-light);
+    border: 1px solid var(--brown-border); border-radius: 4px;
+    height: 23px; padding: 0 8px; cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+    white-space: nowrap;
+  }
+  .tour-btn:hover { background: var(--green-light); color: #1f2b08; transform: translateY(-1px); }
+  .tour-btn.active { background: var(--green-fill-strong); color: #f5f0e6; border-color: var(--green-darkest); }
+  .tour-btn:focus-visible { outline: 2px dotted var(--green-mid); outline-offset: 2px; }
+  .tour-hint {
+    margin-left: auto; font-size: 12px; font-style: italic; color: var(--brown-soft);
+    text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+  }
+
+  /* ── Footer (colophon) ────────────────────────────────────────────────── */
+  .footer {
+    margin-top: auto; height: 14px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    font-size: 10px; letter-spacing: 0.9px; text-transform: uppercase; color: var(--text-muted);
+    white-space: nowrap; overflow: hidden;
+  }
+  .footer > span { flex: 0 0 auto; }
+  .footer i { text-transform: none; letter-spacing: 0.3px; font-size: 11.5px; color: var(--green-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: center; flex: 1 1 auto; }
+
+  /* ── Tooltip (O-ReverseDelay renderer, suite walnut card; body child, never scaled) ── */
+  .tooltip {
+    position: fixed; left: 0; top: 0; z-index: 1000; max-width: 300px;
+    background: #2a2118; color: #f5e6d3;
+    border: 1px solid var(--brown-border); border-radius: 5px;
+    padding: 8px 11px; font-family: var(--serif);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+    opacity: 0; transition: opacity 0.11s ease-out;
+  }
+  .tooltip.visible { opacity: 1; }
+  .tooltip-title {
+    font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--green-light); margin-bottom: 3px;
+  }
+  .tooltip-body { font-size: 13px; line-height: 1.35; color: #f5e6d3; }
+  .tooltip::after {
+    content: ''; position: absolute;
+    left: var(--arrow-x, 50%); transform: translateX(-50%);
+    border: 5px solid transparent;
+  }
+  .tooltip[data-placement="above"]::after { top: 100%; border-top-color: var(--brown-border); }
+  .tooltip[data-placement="below"]::after { bottom: 100%; border-bottom-color: var(--brown-border); }
+
+  /* ── Motion: one counterpart per transition / animation above ──────────── */
+  @media (prefers-reduced-motion: reduce) {
+    select.combo { transition: none; }
+    .gear-btn { transition: none; }
+    .settings-toggle { transition: none; }
+    .band-tag, .band-num, .band-ch, .acn, .ltr, .sh-icon { transition: none; }
+    .station, .station .st-name, .station .st-sub { transition: none; }
+    .station.on, .station.on .st-name, .station.on .st-sub { transition: none; }
+    .knob { transition: none; }
+    .knob:hover, .knob:active, .knob.hero:hover { transform: none; }
+    .seg button { transition: none; }
+    .enc-letters div { transition: none; }
+    .tour-btn { transition: none; }
+    .tour-btn:hover { transform: none; }
+    .tooltip { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="plugin">
+  <img src="img/insects.png" class="botanical-overlay" alt="">
+
+  <div class="frame">
+    <!-- ─── Header ─────────────────────────────────────────────────── -->
+    <header class="header">
+      <div class="title-block">
+        <!-- Product name: an I18N_EXEMPT split wordmark, never a key -->
+        <h1 class="title">O&#8202;&#8211;&#8202;simple<span class="title-accent">Ambisonics</span></h1>
+        <p class="subtitle" data-i18n="label.subtitle">Encode &#183; Rotate &#183; Decode &#183; A Field Guide to the Soundfield</p>
+      </div>
+
+      <div class="header-strip">
+        <div class="chip" id="chipFormat">
+          <div class="chip-head" data-i18n="chipFormat">Format</div>
+          <div class="chip-body"><span data-i18n="label.formatBody">AmbiX &#183; ACN &#183; SN3D &#183;</span> <i id="chipOrder" data-i18n="label.chipOrder" data-i18n-vars='{"ord":"label.ord1","ch":"4"}'>1st order, 4 ch</i></div>
+        </div>
+        <div class="chip" id="chipLatency">
+          <div class="chip-head" data-i18n="chipLatency">Latency</div>
+          <div class="chip-body"><span data-i18n="label.latencyBody">64 samples &#183;</span> <i data-i18n="label.latencyDetail">1.33 ms at 48 kHz</i></div>
+        </div>
+      </div>
+
+      <div class="settings-cluster">
+        <button type="button" class="gear-btn" id="gear-btn"
+                aria-haspopup="dialog" aria-expanded="false"
+                data-i18n-aria="settings" aria-label="Settings" data-tip-always>&#9881;</button>
+
+        <div class="settings-popover" id="settings-popover"
+             role="dialog" data-i18n-aria="settings" aria-label="Settings" hidden>
+          <label class="settings-row" for="lang-select">
+            <span class="settings-label" data-i18n="lang-select">Language</span>
+            <!-- Endonyms: never localized -->
+            <select class="settings-select" id="lang-select"
+                    data-i18n-aria="aria.langSelect" aria-label="Interface language">
+              <option value="en">English</option>
+              <option value="fr">Fran&ccedil;ais</option>
+              <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
+            </select>
+          </label>
+          <!-- A <div>, NEVER <label for="tips-toggle">: a label re-dispatches the
+               click to the button and the switch toggles twice. -->
+          <div class="settings-row">
+            <span class="settings-label" data-i18n="label.hoverHelp">Hover help</span>
+            <button type="button" class="settings-toggle" id="tips-toggle"
+                    aria-pressed="true" data-i18n-aria="aria.helpToggle"
+                    aria-label="Toggle hover help"
+                    data-i18n="ui.on" data-tip-always>On</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ─── Visual band ────────────────────────────────────────────── -->
+    <section class="viz-band">
+      <!-- UI-02 + UI-03: source on the sphere, polar beam overlay -->
+      <div class="viz-block viz-sphere">
+        <div class="viz-label"><b data-i18n="label.sphereTitle">Source on the Sphere</b> &#183; <span class="viz-hint" data-i18n="label.sphereHint">drag from above = azimuth, from the side = elevation</span></div>
+        <div class="sphere-row">
+          <div class="canvas-wrap" id="topWrap">
+            <canvas id="topCanvas"></canvas>
+            <div class="well-text sph-tl">
+              <div class="sph-big"><span id="sphAz">&#8212;</span> <span class="unit" data-i18n="label.unitAz">az</span></div>
+              <div class="sph-sub"><span id="sphWord" data-i18n="label.az.front">in front</span> &#183; <span id="sphDist">&#8212;</span><span class="orb" id="sphOrbit" hidden> &#183; <span id="sphOrbitText" data-i18n="label.orbiting" data-i18n-vars='{"rate":"0.10 Hz"}'>orbiting 0.10 Hz</span></span></div>
+            </div>
+            <div class="well-text sph-tr">
+              <div><span class="k" data-i18n="label.heardAt">heard at</span> <span class="v" id="sphHeard">&#8212;</span></div>
+              <div><span class="k" data-i18n="label.wellYaw">yaw</span> <span class="v" id="sphYaw">&#8212;</span><span class="tilt" id="sphTilt" hidden> <span class="k" data-i18n="label.wellPitch">pitch</span> <span class="v" id="sphPitch">&#8212;</span> <span class="k" data-i18n="label.wellRoll">roll</span> <span class="v" id="sphRoll">&#8212;</span></span></div>
+            </div>
+            <div class="well-text sph-bl">
+              <div><span class="sym sym-puck">&#9670;</span> <span data-i18n="label.keySource">source (azimuth, distance)</span></div>
+              <div><span class="sym sym-beam">&#9711;</span> <span data-i18n="label.keyBeam">beam &#183; where it is heard</span></div>
+            </div>
+            <div class="well-text sph-br"><span id="sphOrderNote" data-i18n="label.orderNote" data-i18n-vars='{"n":"1"}'>order 1 &#183;</span> <span id="sphBeam" data-i18n="label.beamWide">wide beam</span></div>
+          </div>
+          <div class="canvas-wrap" id="sideWrap">
+            <canvas id="sideCanvas"></canvas>
+            <div class="well-text side-tl" data-i18n="label.sideCap">side</div>
+            <div class="well-text side-bl"><span class="v" id="sideEl">&#8212;</span> <span data-i18n="label.unitEl">el</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- UI-01: B-format channel view (headline) -->
+      <div class="viz-block viz-chan">
+        <div class="viz-label"><b data-i18n="label.chanTitle">B-Format Channels</b> &#183; <span class="viz-hint"><span data-i18n="label.chanHint1">signed gain per ACN channel &#183;</span> <span class="pos" data-i18n="label.chanHintPos">+ sage</span> / <span class="neg" data-i18n="label.chanHintNeg">&#8722; amber</span> <span data-i18n="label.chanHint2">&#183; level beneath</span></span></div>
+        <div class="canvas-wrap chan-well" id="chanWell">
+          <canvas id="chanCanvas"></canvas>
+          <div class="chan-rows" id="chanRows"></div>
+          <div class="chan-scale" id="chanScale"></div>
+        </div>
+      </div>
+
+      <!-- UI-05: decoder view -->
+      <div class="viz-block viz-dec">
+        <div class="viz-label"><b data-i18n="decoder">Decoder</b> &#183; <span class="viz-hint" data-i18n="label.decHint">to your two ears</span></div>
+        <div class="canvas-wrap" id="decWrap">
+          <canvas id="decCanvas"></canvas>
+          <div class="well-text dec-tl" data-i18n="label.decToLR">to L / R</div>
+          <div class="well-text dec-tr" id="decCh" data-i18n="label.decChAll" data-i18n-vars='{"n":"4"}'>4 ch in</div>
+          <div class="well-text dec-cap">
+            <!-- The decoder's name is the AudioParameterChoice string (I18N_EXEMPT, scoped) -->
+            <div class="dec-name" id="decName">Binaural</div>
+            <div class="dec-line" id="decLine" data-i18n="label.decLineBin">MagLS &#183; SADIE II KU100 &#183; 64-sample latency</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── UI-04 signal path strip (columns = the five groups below) ── -->
+    <section class="sigpath" id="sigpath">
+      <div class="sig-col c-source"><div class="station" id="st-source"><span class="st-name" data-i18n="label.source">Source</span><span class="st-sub" id="stSourceSub" data-i18n="label.stSourceMono">mono sum &#183; level + air</span></div></div>
+      <div class="sig-col c-encoder"><div class="station" id="st-encoder"><span class="st-name" data-i18n="label.encoder">Encoder</span><span class="st-sub" id="stEncoderSub" data-i18n="label.stEncoder" data-i18n-vars='{"n":"4"}'>B-format &#183; 4 ch</span></div></div>
+      <div class="sig-col c-rotation"><div class="station" id="st-rotation"><span class="st-name" data-i18n="label.rotation">Rotation</span><span class="st-sub" id="stRotationSub" data-i18n="label.stRotation" data-i18n-vars='{"n":"4"}'>4 &#215; 4 matrix</span></div></div>
+      <div class="sig-col c-decoder"><div class="station" id="st-decoder"><span class="st-name" data-i18n="decoder">Decoder</span><span class="st-sub" id="stDecoderSub" data-i18n="label.stDecoderBin" data-i18n-vars='{"n":"4"}'>binaural &#183; 4 ch &#8594; 2</span></div></div>
+      <div class="sig-col c-output"><div class="station" id="st-output"><span class="st-name" data-i18n="label.output">Output</span><span class="st-sub" id="stOutputSub" data-i18n="label.stOutput" data-i18n-vars='{"db":"0.0 dB"}'>L / R &#183; 0.0 dB</span></div></div>
+    </section>
+
+    <!-- ─── Control groups (signal order) ──────────────────────────── -->
+    <main class="controls">
+      <!-- SOURCE -->
+      <section class="group group-source">
+        <h2 class="group-title"><span data-i18n="label.source">Source</span> <span class="group-route" data-i18n="label.routeSource">where the sound is</span></h2>
+        <div class="group-body">
+          <div class="col src-left">
+            <div class="knob-row">
+              <div class="knob-cell bipolar" data-param="azimuth">
+                <div class="knob-wrap"><div class="knob" id="knob-azimuth" data-i18n-aria="azimuth" aria-label="Azimuth"><div class="knob-stem"></div></div></div>
+                <div class="knob-label" data-i18n="azimuth">Azimuth</div>
+                <div class="knob-value" id="val-azimuth">&#8212;</div>
+                <div class="knob-sub" id="sub-azimuth" data-i18n="label.az.front">in front</div>
+              </div>
+              <div class="knob-cell bipolar" data-param="elevation">
+                <div class="knob-wrap"><div class="knob" id="knob-elevation" data-i18n-aria="elevation" aria-label="Elevation"><div class="knob-stem"></div></div></div>
+                <div class="knob-label" data-i18n="elevation">Elevation</div>
+                <div class="knob-value" id="val-elevation">&#8212;</div>
+                <div class="knob-sub" id="sub-elevation" data-i18n="label.el.level">level</div>
+              </div>
+              <div class="knob-cell" data-param="distance">
+                <div class="knob-wrap"><div class="knob" id="knob-distance" data-i18n-aria="distance" aria-label="Distance"><div class="knob-stem"></div></div></div>
+                <div class="knob-label" data-i18n="distance">Distance</div>
+                <div class="knob-value" id="val-distance">&#8212;</div>
+                <div class="knob-sub" id="sub-distance" data-i18n="label.distOpen" data-i18n-vars='{"db":"0.0 dB"}'>0.0 dB &#183; air open</div>
+              </div>
+            </div>
+            <div class="seg-cell" data-param="inputMode">
+              <span class="seg-cap" data-i18n="label.input">Input</span>
+              <select class="combo" id="combo-inputMode" data-i18n-aria="inputMode" aria-label="Input"></select>
+            </div>
+          </div>
+          <div class="sub-rule"></div>
+          <div class="col src-right">
+            <div class="seg-cell orbit-cell" data-param="orbit">
+              <span class="seg-cap" data-i18n="orbit">Orbit</span>
+              <div class="seg" id="seg-orbit" role="radiogroup" data-i18n-aria="orbit" aria-label="Orbit">
+                <button type="button" data-v="0" data-i18n="label.orbitOff">Off</button><button type="button" data-v="1" data-i18n="label.orbitOn">On</button>
+              </div>
+            </div>
+            <div class="knob-cell sm" data-param="orbitRate">
+              <div class="knob-wrap"><div class="knob sm" id="knob-orbitRate" data-i18n-aria="orbitRate" aria-label="Orbit Rate"><div class="knob-stem"></div></div></div>
+              <div class="knob-label" data-i18n="label.orbitRate">Orbit Rate</div>
+              <div class="knob-value" id="val-orbitRate">&#8212;</div>
+              <div class="knob-sub" id="sub-orbitRate" data-i18n="label.orbitTurnIn" data-i18n-vars='{"s":"10"}'>one turn in 10 s</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ENCODER -->
+      <section class="group group-encoder">
+        <h2 class="group-title"><span data-i18n="label.encoder">Encoder</span> <span class="group-route" data-i18n="label.routeEncoder">to B-format</span></h2>
+        <div class="group-body">
+          <div class="col" style="flex: 1 1 0;">
+            <div class="seg-cell" data-param="order">
+              <span class="seg-cap" data-i18n="order">Order</span>
+              <div class="seg order-seg" id="seg-order" role="radiogroup" data-i18n-aria="order" aria-label="Order">
+                <button type="button" data-v="0" data-i18n="label.ord1">1st</button><button type="button" data-v="1" data-i18n="label.ord2">2nd</button><button type="button" data-v="2" data-i18n="label.ord3">3rd</button>
+              </div>
+            </div>
+            <div class="enc-read"><span id="encReadOrd" data-i18n="label.encReadOrd" data-i18n-vars='{"ord":"label.ord1"}'>1st order &#183;</span> <span class="n" id="encReadN" data-i18n="label.encReadN" data-i18n-vars='{"n":"1","ch":"4"}'>(1+1)&#178; = 4 channels</span></div>
+            <div class="enc-letters" id="encLetters">
+              <div data-band="0"><span class="o" data-i18n="label.encOrderN" data-i18n-vars='{"n":"0"}'>order 0</span><span class="l">W</span></div>
+              <div data-band="1"><span class="o" data-i18n="label.encOrderN" data-i18n-vars='{"n":"1"}'>order 1</span><span class="l">Y Z X</span></div>
+              <div data-band="2"><span class="o" data-i18n="label.encOrderN" data-i18n-vars='{"n":"2"}'>order 2</span><span class="l">V T R S U</span></div>
+              <div data-band="3"><span class="o" data-i18n="label.encOrderN" data-i18n-vars='{"n":"3"}'>order 3</span><span class="l">Q O M K L N P</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ROTATION -->
+      <section class="group group-rotation">
+        <h2 class="group-title"><span data-i18n="label.rotation">Rotation</span> <span class="group-route" data-i18n="label.routeRotation">turns the room, not the source</span></h2>
+        <div class="group-body">
+          <div class="hero-col">
+            <div class="knob-cell bipolar" data-param="yaw">
+              <div class="knob-wrap"><div class="knob hero" id="knob-yaw" data-i18n-aria="yaw" aria-label="Yaw"><div class="knob-stem"></div></div></div>
+              <div class="knob-label" data-i18n="yaw">Yaw</div>
+              <div class="knob-value" id="val-yaw">&#8212;</div>
+              <div class="hero-sub" id="sub-yaw" data-i18n="label.yawIdle">scene turns about the top</div>
+            </div>
+          </div>
+          <div class="rot-side">
+            <div class="knob-row">
+              <div class="knob-cell bipolar" data-param="pitch">
+                <div class="knob-wrap"><div class="knob" id="knob-pitch" data-i18n-aria="pitch" aria-label="Pitch"><div class="knob-stem"></div></div></div>
+                <div class="knob-label" data-i18n="pitch">Pitch</div>
+                <div class="knob-value" id="val-pitch">&#8212;</div>
+                <div class="knob-sub" data-i18n="label.pitchSub">front tilts up</div>
+              </div>
+              <div class="knob-cell bipolar" data-param="roll">
+                <div class="knob-wrap"><div class="knob" id="knob-roll" data-i18n-aria="roll" aria-label="Roll"><div class="knob-stem"></div></div></div>
+                <div class="knob-label" data-i18n="roll">Roll</div>
+                <div class="knob-value" id="val-roll">&#8212;</div>
+                <div class="knob-sub" data-i18n="label.rollSub">left side rises</div>
+              </div>
+            </div>
+            <div class="rot-note" id="rotNote" data-i18n="label.rotNote" data-i18n-vars='{"n":"4"}'>4 &#215; 4 matrix in the SH domain</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- DECODER -->
+      <section class="group group-decoder">
+        <h2 class="group-title"><span data-i18n="decoder">Decoder</span> <span class="group-route" data-i18n="label.routeDecoder">to two ears</span></h2>
+        <div class="group-body">
+          <div class="col" style="flex: 1 1 0;">
+            <div class="seg-cell" data-param="decoder">
+              <span class="seg-cap" data-i18n="decoder">Decoder</span>
+              <!-- Faces are the AudioParameterChoice strings (I18N_EXEMPT, scoped #seg-decoder) -->
+              <div class="seg" id="seg-decoder" role="radiogroup" data-i18n-aria="decoder" aria-label="Decoder">
+                <button type="button" data-v="0">Binaural</button><button type="button" data-v="1">Stereo</button>
+              </div>
+            </div>
+            <div class="dec-read" id="decRead" data-i18n="label.decReadBin">HRTF filters for every channel &#183; headphones</div>
+            <div class="dec-note"><b id="decNoteHead">4 &#8594; 2</b> <span id="decNoteBody" data-i18n="label.decNoteBin">&#183; every channel reaches both ears through a measured head (KU100), so height and behind survive.</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- OUTPUT -->
+      <section class="group group-output">
+        <h2 class="group-title"><span data-i18n="label.output">Output</span> <span class="group-route">L / R</span></h2>
+        <div class="group-body">
+          <div class="knob-cell" data-param="outputLevel" style="margin-top: 14px;">
+            <div class="knob-wrap"><div class="knob" id="knob-outputLevel" data-i18n-aria="outputLevel" aria-label="Output Level"><div class="knob-stem"></div></div></div>
+            <div class="knob-label" data-i18n="label.level">Level</div>
+            <div class="knob-value" id="val-outputLevel">&#8212;</div>
+          </div>
+          <div class="out-meter-wrap" id="outMeterWrap">
+            <div class="out-meter"><canvas id="outCanvas"></canvas></div>
+            <div class="meter-label" data-i18n="label.peak">Peak</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ─── UI-08 lesson row (stable ids → applyFactoryPreset) ──────── -->
+    <section class="preset-tour">
+      <div class="tour-label" data-i18n="label.lessons">Lessons</div>
+      <div class="tour-buttons">
+        <button type="button" class="tour-btn" id="lesson-pointSource" data-preset="pointSource" data-i18n="label.lesson.pointSource">Point Source (FOA)</button>
+        <button type="button" class="tour-btn" id="lesson-orderStep" data-preset="orderStep" data-i18n="label.lesson.orderStep">Order 1 &#8594; 2 &#8594; 3</button>
+        <button type="button" class="tour-btn" id="lesson-behindYou" data-preset="behindYou" data-i18n="label.lesson.behindYou">Behind You</button>
+        <button type="button" class="tour-btn" id="lesson-overhead" data-preset="overhead" data-i18n="label.lesson.overhead">Overhead</button>
+        <button type="button" class="tour-btn" id="lesson-rotateRoom" data-preset="rotateRoom" data-i18n="label.lesson.rotateRoom">Rotate the Room</button>
+        <button type="button" class="tour-btn" id="lesson-farNear" data-preset="farNear" data-i18n="label.lesson.farNear">Far Away / Up Close</button>
+        <button type="button" class="tour-btn" id="lesson-slowOrbit" data-preset="slowOrbit" data-i18n="label.lesson.slowOrbit">Slow Orbit</button>
+        <button type="button" class="tour-btn" id="lesson-speakersHeadphones" data-preset="speakersHeadphones" data-i18n="label.lesson.speakersHeadphones">Speakers vs Headphones</button>
+      </div>
+      <div class="tour-hint" data-i18n="label.tourHint">hover anything for help</div>
+    </section>
+
+    <!-- ─── Footer ─────────────────────────────────────────────────── -->
+    <footer class="footer">
+      <span>Ouaricon Audio &#183; O-simpleAmbisonics</span>
+      <i id="tourCaption" data-i18n="label.tourDefault">one mono source &#8594; B-format &#8594; rotated &#8594; decoded to your ears</i>
+      <span data-i18n="label.footerRight">AmbiX &#183; MagLS on SADIE II</span>
+    </footer>
+  </div>
+</div>
+
+<!-- Outside #plugin: a transformed ancestor would become the containing block of position: fixed -->
+<div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
+
+<script type="module">
+import * as Juce from './js/juce/index.js';
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';
+
+// ════ MODULE STATE — every module-level const/let lives in this block ════
+// (The canon's own three `let` lines below are the one sanctioned exception.)
+
+// The 12 frozen camelCase APVTS ids (ARCHITECTURE §Parameter Mapping).
+const KNOB_IDS   = ['azimuth', 'elevation', 'distance', 'yaw', 'pitch', 'roll', 'orbitRate', 'outputLevel'];
+const BIPOLAR    = new Set(['azimuth', 'elevation', 'yaw', 'pitch', 'roll']);   // centre detent at 0.5
+const COMBO_SEGS = ['order', 'decoder'];        // WebComboBoxRelay, segmented faces
+const TOGGLE_SEGS = ['orbit'];                   // WebToggleButtonRelay, Off | On faces
+const SELECT_IDS = ['inputMode'];                // WebComboBoxRelay, a <select>
+
+// Signal-path station each parameter lights (UI-04 recency highlight, page-side).
+const STAGE_OF = {
+  azimuth: 'encoder', elevation: 'encoder', distance: 'encoder', order: 'encoder', orbit: 'encoder', orbitRate: 'encoder',
+  inputMode: 'source', yaw: 'rotation', pitch: 'rotation', roll: 'rotation', decoder: 'decoder', outputLevel: 'output',
+};
+
+// Units and decimals ONLY. Applied to st.getScaledValue(). No ranges here.
+const MINUS = '−';
+const FORMAT = {
+  azimuth:     (v) => fmtDeg(v, 1),
+  elevation:   (v) => fmtDeg(v, 1),
+  distance:    (v) => (v < 10 ? `${v.toFixed(2)} m` : `${v.toFixed(1)} m`),
+  yaw:         (v) => fmtDeg(v, 1),
+  pitch:       (v) => fmtDeg(v, 1),
+  roll:        (v) => fmtDeg(v, 1),
+  orbitRate:   (v) => `${v.toFixed(2)} Hz`,
+  outputLevel: (v) => (v <= -59.95 ? `${MINUS}inf` : `${v < 0 ? MINUS : ''}${Math.abs(v).toFixed(1)} dB`),
+};
+
+const KNOB_MIN_DEG       = -135;  // normalised 0.0
+const KNOB_MAX_DEG       = 135;   // normalised 1.0
+const DRAG_TRAVEL_PX     = 220;   // vertical window px for a full 0→1 sweep
+const FINE_DRAG_RATE     = 0.2;   // Shift-drag speed
+const DETENT_HALF_WIDTH  = 0.018; // bipolar knobs snap to 0.5 inside this band
+const NUDGE_STEP         = 0.02;  // wheel / arrow-key step (floored at one param interval)
+const WHEEL_PX_PER_NUDGE = 100;
+const WHEEL_LINE_PX      = 33;    // deltaMode 1 (lines) → px
+const WHEEL_PAGE_PX      = 400;   // deltaMode 2 (pages) → px
+const WHEEL_MAX_NUDGES   = 4;     // per-event clamp
+const WHEEL_GESTURE_MS   = 250;   // one wheel burst = one automation gesture
+
+const TOOLTIP_MARGIN     = 8;     // gap between a tip and its control / the frame edge
+const TOOLTIP_DELAY_MS   = 350;   // hover dwell before a tip appears
+const TIPS_STORAGE_KEY   = 'osamb.tipsEnabled';
+
+const DESIGN_W = 1180, DESIGN_H = 780;   // the composition the page is authored at (editor designW/H)
+const STAGE_HOLD_MS = 1400;              // UI-04 highlight hold after the last change
+const BALL_ATTACK = 0.4, BALL_DECAY = 0.15, OUT_DECAY = 0.12, DEC_EASE = 0.18;
+
+// Spherical harmonics — real SN3D, ACN order, up to order 3 (x front, y LEFT, z up).
+const ACN_LETTER = ['W', 'Y', 'Z', 'X', 'V', 'T', 'R', 'S', 'U', 'Q', 'O', 'M', 'K', 'L', 'N', 'P'];
+const BAND_OF    = [0, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3];
+const BANDS      = [[0], [1, 2, 3], [4, 5, 6, 7, 8], [9, 10, 11, 12, 13, 14, 15]];
+const S3 = Math.sqrt(3), S15 = Math.sqrt(15), S58 = Math.sqrt(5 / 8), S38 = Math.sqrt(3 / 8);
+const D2R = Math.PI / 180, R2D = 180 / Math.PI, TWO_PI = Math.PI * 2;
+const LEGENDRE = [(x) => 1, (x) => x, (x) => (3 * x * x - 1) / 2, (x) => (5 * x * x * x - 3 * x) / 2];
+const SERIF_CANVAS = "'EB Garamond', Georgia, 'Times New Roman', serif";
+const INK = { parch: '#d6c4a0', sage: '#9ec46f', amber: '#e8b04a', brass: '#f3cd86', rust: '#e98a5a' };
+const ORD_KEYS  = ['label.ord1', 'label.ord2', 'label.ord3'];
+// One labeler per lesson, each with a LITERAL key (check-i18n [13] rejects a computed key).
+const LESSON_CAPTIONERS = {
+  pointSource:        (el) => setLabel(el, 'label.tourCaption.pointSource'),
+  orderStep:          (el) => setLabel(el, 'label.tourCaption.orderStep'),
+  behindYou:          (el) => setLabel(el, 'label.tourCaption.behindYou'),
+  overhead:           (el) => setLabel(el, 'label.tourCaption.overhead'),
+  rotateRoom:         (el) => setLabel(el, 'label.tourCaption.rotateRoom'),
+  farNear:            (el) => setLabel(el, 'label.tourCaption.farNear'),
+  slowOrbit:          (el) => setLabel(el, 'label.tourCaption.slowOrbit'),
+  speakersHeadphones: (el) => setLabel(el, 'label.tourCaption.speakersHeadphones'),
+};
+
+const sliderState = {};           // id -> Juce SliderState
+const comboState  = {};           // id -> Juce ComboBoxState
+const toggleState = {};           // id -> Juce ToggleState
+let paramDefaults     = null;     // { id: engineeringDefault } from getParameterDefaults
+let tooltipEl         = null;
+let tooltipTimer      = null;
+let tooltipTarget     = null;
+let tooltipSuppressed = false;
+let tipsEnabled       = true;
+let uiReadyFn         = null;
+let applyPresetFn     = null;
+
+let uiScale = 1;
+const canvases = [];              // every makeCanvas() handle, resized on applyUiScale
+let topC = null, sideC = null, chanC = null, decC = null, outC = null;
+const TOP  = { cx: 150, cy: 170, R: 138, rHead: 20 };   // measured each drawTop, read by the drag
+const SIDE = { cx: 24,  cy: 170, R: 100, rHead: 16 };
+let barRects = [];                // per ACN: { x, y, w, h } in well px (design space)
+const beamCache = {};             // order -> Float32Array(361)
+const stageHit = {};              // station -> performance.now() of the last change
+let lastFrame = null;             // the latest meterFrame payload
+let readoutsDirty = true;         // parameter changed since the last renderReadouts()
+let rafId = null;
+const disp = {                    // display-side ballistics (attack 0.4 / decay 0.15; shPeak decay only)
+  gain: new Float32Array(16), peak: new Float32Array(16), outL: 0, outR: 0,
+  decoderMix: 1, az: 0, el: 0, azRot: 0, elRot: 0, orderActive: 4, yaw: 0, pitch: 0,
+};
+
+// ════ FUNCTION DECLARATIONS (hoisted — safe to call from init()) ════
+
+// ── Formatting helpers (readouts format the host PARAMETER, never the frame) ──
+function fmtDeg(v, dp) {
+  const r = Math.abs(v) < Math.pow(10, -dp) / 2 ? 0 : v;
+  return `${r < 0 ? MINUS : r > 0 ? '+' : ''}${Math.abs(r).toFixed(dp)}°`;
+}
+function scaledOf(id)  { const st = sliderState[id]; return st ? st.getScaledValue() : 0; }
+function choiceOf(id)  { const st = comboState[id];  return st ? st.getChoiceIndex() : 0; }
+function toggleOf(id)  { const st = toggleState[id]; return st ? !!st.getValue() : false; }
+function wrap180(a)    { return ((a + 180) % 360 + 360) % 360 - 180; }
+
+// Distance law (ARCHITECTURE §Distance law), display only.
+function distGain(d)   { return 1.25 / (d + 0.25); }
+function distCutoff(d) { return 20000 * Math.min(1, 1 / Math.sqrt(d)); }
+
+// Word readouts are written through setLabel with a LITERAL key per branch
+// (check-i18n [13] rejects a computed key), so the language sweep owns them.
+function applyAzWord(el, az) {
+  const a = wrap180(az), m = Math.abs(a), left = a > 0;
+  if (m < 10)        setLabel(el, 'label.az.front');
+  else if (m > 170)  setLabel(el, 'label.az.behind');
+  else if (m < 60)   { if (left) setLabel(el, 'label.az.frontLeft');  else setLabel(el, 'label.az.frontRight'); }
+  else if (m <= 120) { if (left) setLabel(el, 'label.az.left');       else setLabel(el, 'label.az.right'); }
+  else               { if (left) setLabel(el, 'label.az.behindLeft'); else setLabel(el, 'label.az.behindRight'); }
+}
+function applyElWord(el, elev) {
+  if (Math.abs(elev) < 5) setLabel(el, 'label.el.level');
+  else if (elev > 80)     setLabel(el, 'label.el.up');
+  else if (elev < -80)    setLabel(el, 'label.el.down');
+  else if (elev > 0)      setLabel(el, 'label.el.above');
+  else                    setLabel(el, 'label.el.below');
+}
+function applyBeamWord(el, order) {
+  if (order === 0)      setLabel(el, 'label.beamWide');
+  else if (order === 1) setLabel(el, 'label.beamNarrower');
+  else                  setLabel(el, 'label.beamSharpest');
+}
+
+// ── Parameter binding (html-generation.md "Parameter Binding and Readouts") ──
+function normToDeg(n) {
+  return KNOB_MIN_DEG + n * (KNOB_MAX_DEG - KNOB_MIN_DEG);
+}
+
+// Inverse of getNormalisedValue(), from the LIVE properties the C++ range pushes.
+function scaledToNorm(st, scaled) {
+  const p = st.properties;
+  const span = p.end - p.start;
+  if (!isFinite(span) || span === 0) return 0;
+  const proportion = Math.min(1, Math.max(0, (scaled - p.start) / span));
+  return Math.pow(proportion, p.skew);
+}
+
+function updateKnobVisual(id) {
+  const st = sliderState[id];
+  if (!st) return;
+  const text = FORMAT[id](st.getScaledValue());          // never a JS range map
+  const knob = document.getElementById(`knob-${id}`);
+  if (knob) {
+    const stem = knob.querySelector('.knob-stem');
+    if (stem) stem.style.transform =
+      `translate(-50%, -100%) rotate(${normToDeg(st.getNormalisedValue())}deg)`;
+    knob.setAttribute('aria-valuetext', text);         // same text as the readout
+  }
+  const valEl = document.getElementById(`val-${id}`);
+  if (valEl) valEl.textContent = text;
+}
+
+function nudgeStep(st) {
+  const p = st.properties;
+  const span = p.end - p.start;
+  if (!(p.interval > 0) || !isFinite(span) || span <= 0) return NUDGE_STEP;
+  return Math.max(NUDGE_STEP, p.interval / span);
+}
+
+async function loadParameterDefaults(juce) {
+  try {
+    const raw = await juce.getNativeFunction('getParameterDefaults')();
+    paramDefaults = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  } catch (e) {
+    console.error('getParameterDefaults failed:', e);
+    paramDefaults = null;   // dblclick becomes a no-op; nothing else is affected
+  }
+}
+
+function stepBy(st, nudges, id) {
+  const n = Math.min(1, Math.max(0, st.getNormalisedValue() + nudges * nudgeStep(st)));
+  st.setNormalisedValue(n);
+  updateKnobVisual(id);
+}
+
+function nudge(st, dir, id) {
+  st.sliderDragStarted();
+  stepBy(st, dir, id);
+  st.sliderDragEnded();
+}
+
+function resetToDefault(st, id) {
+  if (!paramDefaults || !(id in paramDefaults)) return;
+  const norm = scaledToNorm(st, Number(paramDefaults[id]));
+  st.sliderDragStarted();
+  st.setNormalisedValue(norm);
+  st.sliderDragEnded();
+  updateKnobVisual(id);
+}
+
+function onParamTouched(id) {
+  readoutsDirty = true;
+  touchStage(STAGE_OF[id]);
+}
+
+function bindKnob(juce, id) {
+  const st = juce.getSliderState(id);
+  sliderState[id] = st;
+
+  st.valueChangedEvent.addListener(() => { updateKnobVisual(id); onParamTouched(id); });
+  st.propertiesChangedEvent.addListener(() => { updateKnobVisual(id); readoutsDirty = true; });
+  updateKnobVisual(id);
+
+  const knob = document.getElementById(`knob-${id}`);
+  if (!knob) { console.error(`Missing knob element: knob-${id}`); return; }
+
+  knob.setAttribute('tabindex', '0');
+  knob.setAttribute('role', 'slider');
+  knob.addEventListener('keydown', (e) => {
+    let dir = 0;
+    if (e.key === 'ArrowUp' || e.key === 'ArrowRight') dir = 1;
+    else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') dir = -1;
+    else return;
+    endWheelGesture();
+    nudge(st, dir, id);
+    e.preventDefault();
+  });
+
+  let dragging = false, startY = 0, startNorm = 0, lastY = 0, fine = false;
+
+  let wheelTimer = null;
+  const endWheelGesture = () => {
+    if (wheelTimer === null) return;
+    clearTimeout(wheelTimer);
+    wheelTimer = null;
+    st.sliderDragEnded();
+  };
+
+  const onMove = (e) => {
+    if (!dragging) return;
+    if (e.shiftKey !== fine) {              // re-base on a modifier flip
+      fine = e.shiftKey;
+      startY = lastY;
+      startNorm = st.getNormalisedValue();
+    }
+    lastY = e.clientY;
+    const travel = fine ? DRAG_TRAVEL_PX / FINE_DRAG_RATE : DRAG_TRAVEL_PX;
+    let n = Math.min(1, Math.max(0, startNorm + (startY - e.clientY) / travel));
+    if (BIPOLAR.has(id) && Math.abs(n - 0.5) < DETENT_HALF_WIDTH) n = 0.5;   // centre detent → exactly 0°
+    st.setNormalisedValue(n);
+    updateKnobVisual(id);
+    e.preventDefault();
+  };
+
+  // Idempotent: pointerup, pointercancel and lostpointercapture can all fire.
+  const onUp = (e) => {
+    if (!dragging) return;
+    dragging = false;
+    st.sliderDragEnded();
+    knob.removeEventListener('pointermove', onMove);
+    knob.removeEventListener('pointerup', onUp);
+    knob.removeEventListener('pointercancel', onUp);
+    knob.removeEventListener('lostpointercapture', onUp);
+    if (e && e.pointerId !== undefined) {
+      try { knob.releasePointerCapture(e.pointerId); } catch (_) { /* already released */ }
+    }
+  };
+
+  knob.addEventListener('pointerdown', (e) => {
+    endWheelGesture();
+    dragging = true;
+    startY = lastY = e.clientY;
+    fine = e.shiftKey;
+    startNorm = st.getNormalisedValue();
+    st.sliderDragStarted();
+    try { knob.setPointerCapture(e.pointerId); } catch (_) { /* older backends */ }
+    knob.addEventListener('pointermove', onMove);
+    knob.addEventListener('pointerup', onUp);
+    knob.addEventListener('pointercancel', onUp);
+    knob.addEventListener('lostpointercapture', onUp);
+    knob.focus({ preventScroll: true });   // a clicked knob takes keyboard focus (arrow keys work after a click)
+    e.preventDefault();
+  });
+
+  knob.addEventListener('wheel', (e) => {
+    if (dragging) { e.preventDefault(); return; }
+    if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;   // not ours; no preventDefault
+    e.preventDefault();
+    const px = Math.abs(e.deltaY) *
+      (e.deltaMode === 1 ? WHEEL_LINE_PX : e.deltaMode === 2 ? WHEEL_PAGE_PX : 1);
+    const nudges = Math.min(WHEEL_MAX_NUDGES, Math.max(1, px / WHEEL_PX_PER_NUDGE));
+    if (wheelTimer === null) st.sliderDragStarted();
+    else clearTimeout(wheelTimer);
+    wheelTimer = setTimeout(endWheelGesture, WHEEL_GESTURE_MS);
+    stepBy(st, e.deltaY < 0 ? nudges : -nudges, id);
+  }, { passive: false });
+
+  knob.addEventListener('dblclick', (e) => {
+    endWheelGesture();
+    resetToDefault(st, id);
+    e.preventDefault();
+  });
+}
+
+// A <select> rebuilt from properties.choices (O-ReverseDelay's bindSelectCombo).
+// The choice strings are the host automation names and stay English (I18N_EXEMPT).
+function bindSelectCombo(juce, paramId) {
+  const st = juce.getComboBoxState(paramId);
+  comboState[paramId] = st;
+  const sel = document.getElementById(`combo-${paramId}`);
+  if (!sel) { console.error(`Missing combo element: combo-${paramId}`); return null; }
+
+  const buildOptions = () => {
+    const choices = (st.properties && st.properties.choices) || [];
+    if (choices.length === 0 || sel.options.length === choices.length) return;
+    sel.textContent = '';
+    choices.forEach((c, i) => {
+      const opt = document.createElement('option');
+      opt.value = String(i);
+      opt.textContent = c;
+      sel.appendChild(opt);
+    });
+  };
+
+  const refresh = () => {
+    buildOptions();                          // choices may arrive after first load
+    const idx = st.getChoiceIndex();
+    if (idx >= 0 && idx < sel.options.length) sel.selectedIndex = idx;
+  };
+
+  st.propertiesChangedEvent.addListener(() => { refresh(); readoutsDirty = true; });
+  st.valueChangedEvent.addListener(() => { refresh(); onParamTouched(paramId); });
+  refresh();
+  sel.addEventListener('change', () => st.setChoiceIndex(sel.selectedIndex));
+  return st;
+}
+
+// A segmented row of <button data-v> faces over a ComboBoxState (order, decoder).
+function bindSegCombo(juce, paramId) {
+  const st = juce.getComboBoxState(paramId);
+  comboState[paramId] = st;
+  const seg = document.getElementById(`seg-${paramId}`);
+  if (!seg) { console.error(`Missing segment element: seg-${paramId}`); return null; }
+  const buttons = [...seg.querySelectorAll('button')];
+  const paint = () => {
+    const c = st.getChoiceIndex();
+    buttons.forEach((b) => {
+      const on = Number(b.dataset.v) === c;
+      b.classList.toggle('on', on);
+      b.setAttribute('role', 'radio');
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+  };
+  buttons.forEach((b) => b.addEventListener('click', () => st.setChoiceIndex(Number(b.dataset.v))));
+  st.valueChangedEvent.addListener(() => { paint(); onParamTouched(paramId); });
+  st.propertiesChangedEvent.addListener(() => { paint(); readoutsDirty = true; });
+  paint();
+  return st;
+}
+
+// A two-face segment (Off | On) over a ToggleState (orbit). A Bool parameter has a
+// ToggleState, never a SliderState; the C++ side registers the toggle relay too.
+function bindSegToggle(juce, paramId) {
+  const st = juce.getToggleState(paramId);
+  toggleState[paramId] = st;
+  const seg = document.getElementById(`seg-${paramId}`);
+  if (!seg) { console.error(`Missing segment element: seg-${paramId}`); return null; }
+  const buttons = [...seg.querySelectorAll('button')];
+  const paint = () => {
+    const c = st.getValue() ? 1 : 0;
+    buttons.forEach((b) => {
+      const on = Number(b.dataset.v) === c;
+      b.classList.toggle('on', on);
+      b.setAttribute('role', 'radio');
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+  };
+  buttons.forEach((b) => b.addEventListener('click', () => st.setValue(Number(b.dataset.v) === 1)));
+  st.valueChangedEvent.addListener(() => { paint(); onParamTouched(paramId); });
+  st.propertiesChangedEvent.addListener(() => { paint(); readoutsDirty = true; });
+  paint();
+  return st;
+}
+
+// ── Settings popover ──
+function initSettingsPopover() {
+  const gearBtn = document.getElementById('gear-btn');
+  const popover = document.getElementById('settings-popover');
+  if (gearBtn === null || popover === null) {
+    console.warn('settings popover missing — language selector unavailable');
+    return;
+  }
+  const setOpen = (open) => {
+    popover.hidden = !open;
+    gearBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  };
+  gearBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setOpen(popover.hidden);
+  });
+  // pointerdown, NOT mousedown: the canvas drags and the knobs preventDefault
+  // their pointerdown, which suppresses the compatibility mousedown
+  // (pattern_pointerdown_preventdefault_kills_document_mousedown).
+  document.addEventListener('pointerdown', (e) => {
+    if (popover.hidden) return;
+    if (popover.contains(e.target) || gearBtn.contains(e.target)) return;
+    setOpen(false);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !popover.hidden) {
+      setOpen(false);
+      gearBtn.focus();
+    }
+  });
+}
+
+// ── Hover help: the switch ──
+function applyTipsEnabled(on) {
+  tipsEnabled = !!on;
+  if (!tipsEnabled) hideTooltip();
+  const btn = document.getElementById('tips-toggle');
+  if (!btn) return;
+  btn.setAttribute('aria-pressed', tipsEnabled ? 'true' : 'false');
+  if (tipsEnabled) setLabel(btn, 'ui.on');
+  else             setLabel(btn, 'ui.off');
+}
+
+function initTipsToggle() {
+  const btn = document.getElementById('tips-toggle');
+  if (!btn) { console.error('Missing tips-toggle element'); return; }
+  let stored = null;
+  try { stored = localStorage.getItem(TIPS_STORAGE_KEY); } catch (e) { stored = null; }
+  applyTipsEnabled(stored !== 'false');          // first run and private mode → ON
+  btn.addEventListener('click', () => {
+    applyTipsEnabled(!tipsEnabled);
+    try { localStorage.setItem(TIPS_STORAGE_KEY, String(tipsEnabled)); }
+    catch (e) { /* private mode: the switch still works, it just forgets */ }
+  });
+}
+
+// ── Hover help: the renderer (O-ReverseDelay) ──
+function handleTooltipOver(e) {
+  const target = e.target.closest ? e.target.closest('[data-tip]') : null;
+  if (!target || target === tooltipTarget) return;
+  tooltipTarget = target;
+  clearTimeout(tooltipTimer);
+  if (tooltipSuppressed) return;
+  tooltipTimer = setTimeout(() => showTooltip(target), TOOLTIP_DELAY_MS);
+}
+function handleTooltipOut(e) {
+  const target = e.target.closest ? e.target.closest('[data-tip]') : null;
+  if (!target) return;
+  // Moving between children of the same control is not a real exit.
+  if (e.relatedTarget && target.contains(e.relatedTarget)) return;
+  hideTooltip();
+}
+function showTooltip(target) {
+  // The pointer may have moved on, or gone down, during the delay.
+  if (!tooltipEl || tooltipSuppressed || target !== tooltipTarget) return;
+  // A SHOW gate, not a bind gate: the renderer is delegated on document.
+  // data-tip-always survives it (the gear and the switch keep explaining themselves).
+  if (!tipsEnabled && !target.hasAttribute('data-tip-always')) return;
+
+  const title = target.getAttribute('data-tip-title');
+  const body  = target.getAttribute('data-tip');
+
+  // textContent, not innerHTML — the copy stays inert.
+  tooltipEl.textContent = '';
+  if (title) {
+    const titleEl = document.createElement('div');
+    titleEl.className = 'tooltip-title';
+    titleEl.textContent = title;
+    tooltipEl.appendChild(titleEl);
+  }
+  const bodyEl = document.createElement('div');
+  bodyEl.className = 'tooltip-body';
+  bodyEl.textContent = body;
+  tooltipEl.appendChild(bodyEl);
+
+  const anchor = target.getBoundingClientRect();
+
+  // MEASURE-THEN-PIN: release the width, measure from the left edge, pin the
+  // result in px, then place — a fixed box measured at its previous offset
+  // shrinks to fit and re-wraps into a ribbon at the right edge
+  // (pattern_fixed_tooltip_shrink_to_fit_edge).
+  tooltipEl.style.width = '';
+  tooltipEl.style.left  = '0px';
+  tooltipEl.style.top   = '0px';
+  const width = tooltipEl.getBoundingClientRect().width;
+  tooltipEl.style.width = `${width}px`;
+  const height = tooltipEl.getBoundingClientRect().height;
+
+  // Prefer above; flip below only when there is no room at the top.
+  let top = anchor.top - height - TOOLTIP_MARGIN;
+  let placement = 'above';
+  if (top < TOOLTIP_MARGIN) {
+    top = anchor.bottom + TOOLTIP_MARGIN;
+    placement = 'below';
+  }
+  const anchorCentreX = anchor.left + anchor.width / 2;
+  const maxLeft = window.innerWidth - width - TOOLTIP_MARGIN;
+  const left = Math.max(TOOLTIP_MARGIN, Math.min(maxLeft, anchorCentreX - width / 2));
+
+  tooltipEl.style.left = `${left}px`;
+  tooltipEl.style.top  = `${top}px`;
+  tooltipEl.dataset.placement = placement;
+  const arrowX = Math.max(10, Math.min(width - 10, anchorCentreX - left));
+  tooltipEl.style.setProperty('--arrow-x', `${arrowX}px`);
+
+  tooltipEl.classList.add('visible');
+  tooltipEl.setAttribute('aria-hidden', 'false');
+}
+function hideTooltip() {
+  clearTimeout(tooltipTimer);
+  tooltipTarget = null;
+  if (!tooltipEl) return;
+  tooltipEl.classList.remove('visible');
+  tooltipEl.setAttribute('aria-hidden', 'true');
+}
+function initTooltips() {
+  tooltipEl = document.getElementById('tooltip');
+  if (!tooltipEl) { console.warn('Tooltip element not found — tooltips disabled'); return; }
+  document.addEventListener('mouseover', handleTooltipOver);
+  document.addEventListener('mouseout', handleTooltipOut);
+  // Any press begins a click or a drag: get the tip out of the way and keep it
+  // away until release. Capture phase — the knobs preventDefault their pointerdown.
+  document.addEventListener('pointerdown', () => {
+    tooltipSuppressed = true;
+    hideTooltip();
+  }, true);
+  document.addEventListener('pointerup', () => { tooltipSuppressed = false; }, true);
+}
+
+// ── UI scale (O-simpleFM): the page lays out at DESIGN_W x DESIGN_H and #plugin
+//    is scaled by a CSS transform; the editor locks the aspect, so s is one number. ──
+function applyUiScale() {
+  const plugin = document.getElementById('plugin');
+  if (!plugin) return;
+  const s = Math.min(window.innerWidth / DESIGN_W, window.innerHeight / DESIGN_H);
+  uiScale = (s > 0 && Math.abs(s - 1) > 0.002) ? s : 1;
+  plugin.style.transform = uiScale === 1 ? '' : `scale(${uiScale})`;
+  plugin.style.left = `${Math.max(0, Math.round((window.innerWidth - DESIGN_W * uiScale) / 2))}px`;
+  plugin.style.top  = `${Math.max(0, Math.round((window.innerHeight - DESIGN_H * uiScale) / 2))}px`;
+  canvases.forEach((c) => c.resize());
+  measureBarRects();
+  readoutsDirty = true;
+}
+
+// ── Canvases (DPR-aware; uiScale folded into the backing store) ──
+function makeCanvas(id) {
+  const canvas = document.getElementById(id);
+  const ctx = canvas.getContext('2d');
+  const c = { canvas, ctx, w: 1, h: 1 };
+  c.resize = () => {
+    // clientWidth is the UNSCALED layout width; fold uiScale into the backing store
+    const dpr = (window.devicePixelRatio || 1) * uiScale;
+    const w = Math.max(1, Math.round(canvas.clientWidth * dpr));
+    const h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+    c.w = canvas.clientWidth; c.h = canvas.clientHeight;
+    if (canvas.width === w && canvas.height === h) return;
+    canvas.width = w; canvas.height = h;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+  c.resize();
+  canvases.push(c);
+  return c;
+}
+function rgba(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
+// ── Spherical harmonics and the UI-03 beam ──
+function shVec(x, y, z, out) {
+  out = out || new Float32Array(16);
+  out[0] = 1;
+  out[1] = y; out[2] = z; out[3] = x;
+  out[4] = S3 * x * y; out[5] = S3 * y * z; out[6] = (3 * z * z - 1) / 2; out[7] = S3 * x * z; out[8] = S3 * (x * x - y * y) / 2;
+  out[9] = S58 * y * (3 * x * x - y * y); out[10] = S15 * x * y * z; out[11] = S38 * y * (5 * z * z - 1);
+  out[12] = z * (5 * z * z - 3) / 2; out[13] = S38 * x * (5 * z * z - 1); out[14] = S15 * z * (x * x - y * y) / 2;
+  out[15] = S58 * x * (x * x - 3 * y * y);
+  return out;
+}
+function dirOf(azDeg, elDeg) {
+  const a = azDeg * D2R, e = elDeg * D2R, ce = Math.cos(e);
+  return [ce * Math.cos(a), ce * Math.sin(a), Math.sin(e)];
+}
+// R = Rz(yaw) · Ry'(pitch) · Rx(roll)  (ARCHITECTURE §SH rotation, signs as documented) — display only
+function rotMatrix(yawDeg, pitchDeg, rollDeg) {
+  const cy = Math.cos(yawDeg * D2R), sy = Math.sin(yawDeg * D2R);
+  const cp = Math.cos(pitchDeg * D2R), sp = Math.sin(pitchDeg * D2R);
+  const cr = Math.cos(rollDeg * D2R), sr = Math.sin(rollDeg * D2R);
+  const Rz = [[cy, -sy, 0], [sy, cy, 0], [0, 0, 1]];
+  const Ry = [[cp, 0, -sp], [0, 1, 0], [sp, 0, cp]];
+  const Rx = [[1, 0, 0], [0, cr, -sr], [0, sr, cr]];
+  const mul = (A, B) => A.map((row) => [0, 1, 2].map((j) => row[0] * B[0][j] + row[1] * B[1][j] + row[2] * B[2][j]));
+  return mul(mul(Rz, Ry), Rx);
+}
+function applyR(R, v) {
+  return [R[0][0] * v[0] + R[0][1] * v[1] + R[0][2] * v[2],
+          R[1][0] * v[0] + R[1][1] * v[1] + R[1][2] * v[2],
+          R[2][0] * v[0] + R[2][1] * v[1] + R[2][2] * v[2]];
+}
+// g_N(γ) = Σ (2n+1)·P_n(cos γ) / (N+1)², cached per order (361 samples)
+function beamGain(N, cosG) {
+  let s = 0;
+  for (let n = 0; n <= N; n++) s += (2 * n + 1) * LEGENDRE[n](cosG);
+  return s / ((N + 1) * (N + 1));
+}
+function beamCurve(N) {
+  if (!beamCache[N]) {
+    const c = new Float32Array(361);
+    for (let g = 0; g <= 360; g++) c[g] = beamGain(N, Math.cos(g * D2R));
+    beamCache[N] = c;
+  }
+  return beamCache[N];
+}
+
+// ── SH pattern icons: procedural SVG built with the DOM (never innerHTML).
+//    Stage 3 may swap in the 16 offline-generated SVGs — same 18 px box. ──
+function shIconSvg(acn) {
+  const planes = {
+    xy: (t) => [Math.cos(t), Math.sin(t), 0],
+    xz: (t) => [Math.cos(t), 0, Math.sin(t)],
+    yz: (t) => [0, Math.cos(t), Math.sin(t)],
+    dz: (t) => [Math.cos(t) * Math.SQRT1_2, Math.cos(t) * Math.SQRT1_2, Math.sin(t)],
+  };
+  const screen = {   // direction -> unit screen vector (x right, y down); left is LEFT
+    xy: (d) => [-d[1], -d[0]],
+    xz: (d) => [d[0], -d[2]],
+    yz: (d) => [-d[1], -d[2]],
+    dz: (d) => [(d[0] + d[1]) * Math.SQRT1_2, -d[2]],
+  };
+  const tmp = new Float32Array(16);
+  let best = 'xy', bestMax = -1;
+  for (const key in planes) {
+    let mx = 0;
+    for (let i = 0; i < 72; i++) { const d = planes[key](i * TWO_PI / 72); mx = Math.max(mx, Math.abs(shVec(d[0], d[1], d[2], tmp)[acn])); }
+    if (mx > bestMax + 1e-6) { bestMax = mx; best = key; }
+  }
+  const R = 8.6, pos = [], neg = [];
+  for (let i = 0; i <= 96; i++) {
+    const t = i * TWO_PI / 96;
+    const d = planes[best](t);
+    const v = shVec(d[0], d[1], d[2], tmp)[acn] / Math.max(bestMax, 1e-6);
+    const sc = screen[best](d);
+    const r = Math.abs(v) * R;
+    const px = (9 + sc[0] * r).toFixed(2), py = (9 + sc[1] * r).toFixed(2);
+    pos.push(v > 0 ? `${px},${py}` : '9,9');
+    neg.push(v < 0 ? `${px},${py}` : '9,9');
+  }
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 18 18');
+  svg.setAttribute('aria-hidden', 'true');
+  const ring = document.createElementNS(NS, 'circle');
+  ring.setAttribute('cx', '9'); ring.setAttribute('cy', '9'); ring.setAttribute('r', '8.6');
+  ring.setAttribute('fill', 'none'); ring.setAttribute('stroke', 'rgba(214,196,160,0.18)'); ring.setAttribute('stroke-width', '0.5');
+  svg.appendChild(ring);
+  const poly = (pts, fill, stroke) => {
+    const p = document.createElementNS(NS, 'polygon');
+    p.setAttribute('points', pts.join(' '));
+    p.setAttribute('fill', fill); p.setAttribute('stroke', stroke);
+    p.setAttribute('stroke-width', '0.6'); p.setAttribute('stroke-linejoin', 'round');
+    return p;
+  };
+  svg.appendChild(poly(pos, 'rgba(158,196,111,0.78)', '#b9dc8c'));
+  svg.appendChild(poly(neg, 'rgba(232,176,74,0.72)', '#f0c66a'));
+  return svg;
+}
+
+// ── UI-01 channel rows (DOM) + bar rects for the canvas ──
+function buildChannelRows() {
+  const rows = document.getElementById('chanRows');
+  rows.textContent = '';
+  BANDS.forEach((acns, b) => {
+    const band = document.createElement('div');
+    band.className = 'band'; band.dataset.band = String(b);
+    band.style.setProperty('--rows', String(acns.length));
+    const tag = document.createElement('div');
+    tag.className = 'band-tag';
+    const num = document.createElement('span'); num.className = 'band-num'; num.textContent = String(b);
+    tag.appendChild(num);
+    if (b > 0) {
+      const ch = document.createElement('span'); ch.className = 'band-ch';
+      const n = String(acns.length);
+      setLabel(ch, 'label.bandCh', { n });
+      tag.appendChild(ch);
+    }
+    band.appendChild(tag);
+    acns.forEach((acn) => {
+      const n = document.createElement('div'); n.className = 'acn'; n.textContent = String(acn);
+      const l = document.createElement('div'); l.className = 'ltr'; l.textContent = ACN_LETTER[acn];
+      const ic = document.createElement('div'); ic.className = 'sh-icon'; ic.appendChild(shIconSvg(acn));
+      const bar = document.createElement('div'); bar.className = 'bar-cell'; bar.dataset.acn = String(acn);
+      band.appendChild(n); band.appendChild(l); band.appendChild(ic); band.appendChild(bar);
+    });
+    rows.appendChild(band);
+  });
+  const scale = document.getElementById('chanScale');
+  scale.textContent = '';
+  measureBarRects();
+  if (barRects[0]) {
+    const r = barRects[0];
+    [['−1', r.x], ['0', r.x + r.w / 2], ['+1', r.x + r.w]].forEach(([t, x]) => {
+      const s = document.createElement('span'); s.textContent = t; s.style.left = `${x - 8}px`; scale.appendChild(s);
+    });
+    const k = document.createElement('span'); k.className = 'sc-gain'; k.style.left = `${r.x + r.w * 0.25}px`;
+    setLabel(k, 'label.scaleGain'); scale.appendChild(k);
+    const k2 = document.createElement('span'); k2.className = 'sc-peak'; k2.style.left = `${r.x + r.w * 0.75}px`;
+    setLabel(k2, 'label.scalePeak'); scale.appendChild(k2);
+  }
+}
+function measureBarRects() {
+  const well = document.getElementById('chanWell');
+  if (!well) return;
+  const wr = well.getBoundingClientRect();
+  const s = uiScale;   // rects are window px; the canvas draws in design px
+  barRects = [];
+  well.querySelectorAll('.bar-cell').forEach((cell) => {
+    const r = cell.getBoundingClientRect();
+    barRects[Number(cell.dataset.acn)] = { x: (r.left - wr.left) / s - 2, y: (r.top - wr.top) / s - 2, w: r.width / s, h: r.height / s };
+  });
+}
+
+// ── The frame consumer: ballistics on requestAnimationFrame ──
+function onMeterFrame(f) {
+  lastFrame = typeof f === 'string' ? JSON.parse(f) : f;
+}
+function stepBallistics() {
+  const f = lastFrame; if (!f) return;
+  for (let i = 0; i < 16; i++) {
+    const t = f.shGain[i], c = disp.gain[i];
+    disp.gain[i] = c + (t - c) * (Math.abs(t) > Math.abs(c) ? BALL_ATTACK : BALL_DECAY);
+    const p = f.shPeak[i];                         // already a hold value: decay only, never a second max()
+    disp.peak[i] = p >= disp.peak[i] ? p : disp.peak[i] + (p - disp.peak[i]) * BALL_DECAY;
+  }
+  disp.outL = f.outPeakL >= disp.outL ? f.outPeakL : disp.outL + (f.outPeakL - disp.outL) * OUT_DECAY;
+  disp.outR = f.outPeakR >= disp.outR ? f.outPeakR : disp.outR + (f.outPeakR - disp.outR) * OUT_DECAY;
+  disp.az = f.azEffDeg; disp.el = f.elEffDeg; disp.azRot = f.azRotDeg; disp.elRot = f.elRotDeg;
+  disp.orderActive = f.orderActive;
+  // page-side ease of the decoder drawing (the frame's 20 ms ramp is one tick at 30 Hz)
+  disp.decoderMix += (f.decoderMix - disp.decoderMix) * DEC_EASE;
+}
+// The compass turns by the yaw PARAMETER (the frame carries no yaw); eased page-side.
+function stepCompass() {
+  disp.yaw = wrap180(disp.yaw + 0.25 * wrap180(scaledOf('yaw') - disp.yaw));
+  disp.pitch = wrap180(disp.pitch + 0.25 * wrap180(scaledOf('pitch') - disp.pitch));
+}
+
+// ── Drawing ──
+function distRadius(d, rIn, rOut) { return rIn + (rOut - rIn) * Math.log(Math.max(0.2, d) / 0.2) / Math.log(100); }
+// AmbiX (x front, y LEFT) -> screen (x right, y down): sx = -y, sy = -x
+function azToScreen(azDeg, r, cx, cy) { return [cx - Math.sin(azDeg * D2R) * r, cy - Math.cos(azDeg * D2R) * r]; }
+
+function drawHeadTop(ctx, cx, cy, r) {
+  ctx.save();
+  ctx.lineWidth = 1.5; ctx.strokeStyle = rgba(INK.parch, 0.9); ctx.fillStyle = 'rgba(30,23,16,0.95)';
+  ctx.beginPath(); ctx.arc(cx, cy, r * 0.62, 0, TWO_PI); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(cx - r * 0.66, cy, r * 0.11, r * 0.2, 0, 0, TWO_PI); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(cx + r * 0.66, cy, r * 0.11, r * 0.2, 0, 0, TWO_PI); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx - r * 0.16, cy - r * 0.58); ctx.lineTo(cx, cy - r * 0.9); ctx.lineTo(cx + r * 0.16, cy - r * 0.58); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+
+function drawTop() {
+  const { ctx, w, h } = topC;
+  ctx.clearRect(0, 0, w, h);
+  const cx = w / 2, cy = h / 2 + 3, R = Math.min(w, h) / 2 - 14, rHead = 20;
+  TOP.cx = cx; TOP.cy = cy; TOP.R = R; TOP.rHead = rHead;
+  const yaw = disp.yaw, pitch = disp.pitch;
+  const order = choiceOf('order');
+
+  // Distance rings (log 0.2-20 m); canvas text is numeric + unit only
+  ctx.save();
+  ctx.font = `9.5px ${SERIF_CANVAS}`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  [0.5, 1, 2, 5, 10].forEach((d) => {
+    const r = distRadius(d, rHead, R);
+    ctx.strokeStyle = d === 1 ? 'rgba(214,196,160,0.30)' : 'rgba(214,196,160,0.14)';
+    ctx.setLineDash(d === 1 ? [] : [2, 4]);
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, TWO_PI); ctx.stroke();
+    ctx.fillStyle = 'rgba(214,196,160,0.45)';
+    ctx.fillText(`${d} m`, cx + r * 0.72 + 2, cy + r * 0.72 + 9);
+  });
+  ctx.setLineDash([]);
+  ctx.strokeStyle = 'rgba(214,196,160,0.55)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, TWO_PI); ctx.stroke();
+  ctx.fillStyle = 'rgba(214,196,160,0.45)';
+  ctx.fillText('20 m', cx + R * 0.72 + 2, cy + R * 0.72 + 9);
+  ctx.restore();
+
+  // Fixed body axes: the listener's own front/left never rotate
+  ctx.save();
+  ctx.strokeStyle = 'rgba(214,196,160,0.12)'; ctx.setLineDash([1, 3]);
+  ctx.beginPath(); ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R); ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy); ctx.stroke();
+  ctx.restore();
+
+  // Compass rose: the scene's own frame, turned by yaw (+ = CCW from above = toward screen left)
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(-yaw * D2R);
+  for (let a = 0; a < 360; a += 15) {
+    const major = a % 90 === 0, mid = a % 45 === 0;
+    const len = major ? 12 : mid ? 8 : 4;
+    ctx.strokeStyle = major ? rgba(INK.sage, 0.9) : rgba(INK.sage, mid ? 0.55 : 0.35);
+    ctx.lineWidth = major ? 1.6 : 1;
+    ctx.beginPath();
+    ctx.moveTo(Math.sin(a * D2R) * -(R - 1), -Math.cos(a * D2R) * (R - 1));
+    ctx.lineTo(Math.sin(a * D2R) * -(R - 1 - len), -Math.cos(a * D2R) * (R - 1 - len));
+    ctx.stroke();
+  }
+  // Cardinal marks as glyphs, not words: the rose is the scene's frame and the
+  // DOM key beneath the well names what the puck and the beam are.
+  ctx.font = `11px ${SERIF_CANVAS}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = rgba(INK.sage, 0.95);
+  const glyph = (a, s) => { const x = -Math.sin(a * D2R) * (R - 22), y = -Math.cos(a * D2R) * (R - 22); ctx.save(); ctx.translate(x, y); ctx.rotate(yaw * D2R); ctx.fillText(s, 0, 0); ctx.restore(); };
+  glyph(0, '▲'); glyph(90, '+90°'); glyph(180, '±180°'); glyph(270, '−90°');
+  if (Math.abs(pitch) > 0.25) {   // pitch tilt mark at the scene's front
+    ctx.save();
+    ctx.translate(0, -(R - 1));
+    ctx.rotate(-pitch * D2R * 0.5);
+    ctx.strokeStyle = INK.amber; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(-5, 6); ctx.lineTo(0, -1); ctx.lineTo(5, 6); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+
+  // Beam (UI-03): horizontal slice of g_N at the rotated direction
+  const curve = beamCurve(order + 1);
+  const azRot = disp.azRot, elRot = disp.elRot;
+  const cosEl = Math.cos(elRot * D2R);
+  const rBeam = (g) => rHead + Math.abs(g) * (R - rHead) * 0.94;
+  const drawLobe = (sign, fill, stroke) => {
+    ctx.beginPath();
+    let started = false;
+    for (let a = 0; a <= 360; a += 2) {
+      const cosG = cosEl * Math.cos((a - azRot) * D2R);
+      const gi = Math.round(Math.acos(Math.max(-1, Math.min(1, cosG))) * R2D);
+      const g = curve[gi];
+      const r = (sign > 0 ? g > 0 : g < 0) ? rBeam(g) : rHead;
+      const p = azToScreen(a, r, cx, cy);
+      if (!started) { ctx.moveTo(p[0], p[1]); started = true; } else ctx.lineTo(p[0], p[1]);
+    }
+    ctx.closePath();
+    ctx.fillStyle = fill; ctx.fill();
+    ctx.strokeStyle = stroke; ctx.lineWidth = 1.2; ctx.stroke();
+  };
+  ctx.save();
+  drawLobe(-1, rgba(INK.amber, 0.14), rgba(INK.amber, 0.5));
+  drawLobe(+1, rgba(INK.sage, 0.20), rgba(INK.sage, 0.8));
+  const t1 = azToScreen(azRot, R + 2, cx, cy), t2 = azToScreen(azRot, R + 11, cx, cy);
+  ctx.strokeStyle = INK.sage; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(t1[0], t1[1]); ctx.lineTo(t2[0], t2[1]); ctx.stroke();
+  ctx.restore();
+
+  drawHeadTop(ctx, cx, cy, rHead);
+
+  // Source puck (pre-rotation azEff / elEff, radius by the distance PARAMETER) — never moves with yaw
+  const rP = distRadius(scaledOf('distance'), rHead + 6, R - 6);
+  const P = azToScreen(disp.az, rP, cx, cy);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(214,196,160,0.35)'; ctx.setLineDash([2, 3]);
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(P[0], P[1]); ctx.stroke();
+  ctx.setLineDash([]);
+  const alt = Math.abs(Math.sin(disp.el * D2R));
+  if (alt > 0.02) {   // altitude halo grows as the source leaves the horizon
+    ctx.strokeStyle = rgba(INK.brass, 0.5); ctx.lineWidth = 1; ctx.setLineDash([2, 2]);
+    ctx.beginPath(); ctx.arc(P[0], P[1], 8 + 10 * alt, 0, TWO_PI); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = rgba(INK.brass, 0.9); ctx.font = `9.5px ${SERIF_CANVAS}`; ctx.textAlign = 'center';
+    ctx.fillText(disp.el > 0 ? '▲' : '▼', P[0], P[1] - 12 - 10 * alt);
+  }
+  ctx.shadowColor = 'rgba(243,205,134,0.7)'; ctx.shadowBlur = 8;
+  const grd = ctx.createRadialGradient(P[0] - 2, P[1] - 2, 1, P[0], P[1], 7);
+  grd.addColorStop(0, '#f6d27a'); grd.addColorStop(0.7, '#c98f38'); grd.addColorStop(1, '#8a5a1e');
+  ctx.fillStyle = grd;
+  ctx.beginPath(); ctx.arc(P[0], P[1], 7, 0, TWO_PI); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = '#fbe6b0'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.restore();
+}
+
+function drawSide() {
+  const { ctx, w, h } = sideC;
+  ctx.clearRect(0, 0, w, h);
+  const cx = 24, cy = h / 2 + 3, R = Math.min(w - cx - 10, h / 2 - 16), rHead = 16;
+  SIDE.cx = cx; SIDE.cy = cy; SIDE.R = R; SIDE.rHead = rHead;
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(214,196,160,0.14)'; ctx.setLineDash([2, 4]);
+  [0.5, 1, 2, 5, 10].forEach((d) => { const r = distRadius(d, rHead, R); ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, Math.PI / 2); ctx.stroke(); });
+  ctx.setLineDash([]);
+  ctx.strokeStyle = 'rgba(214,196,160,0.55)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(cx, cy, R, -Math.PI / 2, Math.PI / 2); ctx.stroke();
+  ctx.strokeStyle = 'rgba(214,196,160,0.30)'; ctx.lineWidth = 1;   // horizon
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + R, cy); ctx.stroke();
+  ctx.font = `9.5px ${SERIF_CANVAS}`; ctx.fillStyle = 'rgba(158,196,111,0.9)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (let e = -90; e <= 90; e += 30) {
+    const major = e % 90 === 0, len = major ? 10 : 6;
+    const a = -e * D2R;
+    ctx.strokeStyle = rgba(INK.sage, major ? 0.9 : 0.45); ctx.lineWidth = major ? 1.5 : 1;
+    ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * (R - 1), cy + Math.sin(a) * (R - 1)); ctx.lineTo(cx + Math.cos(a) * (R - 1 - len), cy + Math.sin(a) * (R - 1 - len)); ctx.stroke();
+    if (e === 90) ctx.fillText('+90°', cx + 16, cy - R + 8);
+    if (e === -90) ctx.fillText('−90°', cx + 16, cy + R - 8);
+    if (e === 0) { ctx.textAlign = 'right'; ctx.fillText('0°', cx + R - 13, cy - 7); ctx.textAlign = 'center'; }
+  }
+  const ar = -disp.elRot * D2R;   // heard-at elevation tick (rotated)
+  ctx.strokeStyle = INK.sage; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(cx + Math.cos(ar) * (R + 2), cy + Math.sin(ar) * (R + 2)); ctx.lineTo(cx + Math.cos(ar) * (R + 10), cy + Math.sin(ar) * (R + 10)); ctx.stroke();
+  ctx.restore();
+
+  // Head in profile (nose to the right = front)
+  ctx.save();
+  ctx.lineWidth = 1.5; ctx.strokeStyle = rgba(INK.parch, 0.9); ctx.fillStyle = 'rgba(30,23,16,0.95)';
+  ctx.beginPath(); ctx.arc(cx, cy, rHead * 0.62, 0, TWO_PI); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx + rHead * 0.55, cy - rHead * 0.2); ctx.lineTo(cx + rHead * 0.9, cy + rHead * 0.05); ctx.lineTo(cx + rHead * 0.55, cy + rHead * 0.22); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(cx - rHead * 0.1, cy, rHead * 0.1, rHead * 0.18, 0, 0, TWO_PI); ctx.stroke();
+  ctx.strokeStyle = rgba(INK.parch, 0.5);
+  ctx.beginPath(); ctx.moveTo(cx - 4, cy + rHead * 0.62); ctx.lineTo(cx - 4, cy + rHead * 1.1); ctx.moveTo(cx - 14, cy + rHead * 1.1); ctx.lineTo(cx + 8, cy + rHead * 1.1); ctx.stroke();
+  ctx.restore();
+
+  // Puck
+  const rP = distRadius(scaledOf('distance'), rHead + 6, R - 6);
+  const a = -disp.el * D2R;
+  const px = cx + Math.cos(a) * rP, py = cy + Math.sin(a) * rP;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(214,196,160,0.35)'; ctx.setLineDash([2, 3]);
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(px, py); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.shadowColor = 'rgba(243,205,134,0.7)'; ctx.shadowBlur = 8;
+  const grd = ctx.createRadialGradient(px - 2, py - 2, 1, px, py, 6.5);
+  grd.addColorStop(0, '#f6d27a'); grd.addColorStop(0.7, '#c98f38'); grd.addColorStop(1, '#8a5a1e');
+  ctx.fillStyle = grd;
+  ctx.beginPath(); ctx.arc(px, py, 6.5, 0, TWO_PI); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = '#fbe6b0'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.restore();
+}
+
+function drawChannels() {
+  const { ctx, w, h } = chanC;
+  ctx.clearRect(0, 0, w, h);
+  if (!barRects.length) return;
+  const order = choiceOf('order');
+  for (let acn = 0; acn < 16; acn++) {
+    const r = barRects[acn]; if (!r) continue;
+    const active = BAND_OF[acn] <= order + 1;
+    const xc = r.x + r.w / 2, half = r.w / 2 - 2;
+    const y0 = r.y + 3, bh = 9;
+    ctx.fillStyle = active ? 'rgba(214,196,160,0.07)' : 'rgba(214,196,160,0.035)';
+    ctx.fillRect(r.x, y0, r.w, bh);
+    ctx.strokeStyle = active ? 'rgba(214,196,160,0.35)' : 'rgba(214,196,160,0.18)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(xc + 0.5, y0 - 1); ctx.lineTo(xc + 0.5, y0 + bh + 1); ctx.stroke();
+    ctx.strokeStyle = 'rgba(214,196,160,0.12)';
+    [-0.5, 0.5].forEach((q) => { ctx.beginPath(); ctx.moveTo(xc + q * half + 0.5, y0); ctx.lineTo(xc + q * half + 0.5, y0 + bh); ctx.stroke(); });
+    // signed gain bar: sage to the RIGHT is positive, amber to the LEFT is negative
+    const v = Math.max(-1, Math.min(1, disp.gain[acn]));
+    if (Math.abs(v) > 0.004) {
+      const len = Math.abs(v) * half;
+      const g = ctx.createLinearGradient(xc, 0, xc + Math.sign(v) * len, 0);
+      if (v > 0) { g.addColorStop(0, '#7fa65a'); g.addColorStop(1, '#b9dc8c'); }
+      else { g.addColorStop(0, '#b8802c'); g.addColorStop(1, '#f0c66a'); }
+      ctx.fillStyle = g;
+      ctx.fillRect(v > 0 ? xc : xc - len, y0, len, bh);
+      ctx.fillStyle = v > 0 ? '#dcefc0' : '#fbe6b0';
+      ctx.fillRect(v > 0 ? xc + len - 1.5 : xc - len, y0, 1.5, bh);
+    }
+    // peak overlay (level, unsigned): thin parchment bar beneath, symmetric about the centre
+    const p = Math.min(1, disp.peak[acn]);
+    if (p > 0.004) {
+      ctx.fillStyle = 'rgba(214,196,160,0.75)';
+      ctx.fillRect(xc - p * half, y0 + bh + 2, 2 * p * half, 2);
+    }
+  }
+}
+
+function drawDecoder() {
+  const { ctx, w, h } = decC;
+  ctx.clearRect(0, 0, w, h);
+  const mix = disp.decoderMix;
+  const cx = w / 2, cy = h / 2 - 14;
+
+  if (mix > 0.01) {   // Binaural: KU100 dummy head seen from behind, L cup on the LEFT
+    ctx.save();
+    ctx.globalAlpha = mix;
+    const r = 44;
+    ctx.lineWidth = 1.6; ctx.strokeStyle = rgba(INK.parch, 0.95); ctx.fillStyle = 'rgba(30,23,16,0.92)';
+    ctx.beginPath(); ctx.moveTo(cx - 78, cy + 92); ctx.quadraticCurveTo(cx - 70, cy + 52, cx - 26, cy + 46); ctx.lineTo(cx + 26, cy + 46); ctx.quadraticCurveTo(cx + 70, cy + 52, cx + 78, cy + 92); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - 14, cy + r - 6); ctx.lineTo(cx - 14, cy + 48); ctx.moveTo(cx + 14, cy + r - 6); ctx.lineTo(cx + 14, cy + 48); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(cx, cy, r * 0.88, r, 0, 0, TWO_PI); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = rgba(INK.parch, 0.35);
+    ctx.beginPath(); ctx.ellipse(cx, cy - 6, r * 0.5, r * 0.3, 0, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
+    ctx.strokeStyle = INK.brass; ctx.lineWidth = 3;   // headband
+    ctx.beginPath(); ctx.arc(cx, cy + 2, r + 7, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke();
+    [[-1, 'L'], [1, 'R']].forEach(([s, lab]) => {   // cups
+      const x = cx + s * (r * 0.88 + 5);
+      ctx.fillStyle = '#3a2c1c'; ctx.strokeStyle = INK.brass; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.ellipse(x, cy + 4, 9, 14, 0, 0, TWO_PI); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = INK.brass; ctx.font = `12px ${SERIF_CANVAS}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(lab, x + s * 18, cy + 4);
+      ctx.strokeStyle = rgba(INK.sage, 0.6); ctx.lineWidth = 1.2;
+      for (let k = 1; k <= 2; k++) { ctx.beginPath(); ctx.arc(x + s * 8, cy + 4, 14 + k * 7, s > 0 ? -0.6 : Math.PI - 0.6, s > 0 ? 0.6 : Math.PI + 0.6); ctx.stroke(); }
+    });
+    ctx.fillStyle = rgba(INK.parch, 0.6); ctx.font = `italic 11px ${SERIF_CANVAS}`; ctx.textAlign = 'center';
+    ctx.fillText('KU100', cx, cy + 68);
+    ctx.restore();
+  }
+  if (mix < 0.99) {   // Stereo: two virtual cardioids at ±60° around the listener, W X Y only
+    ctx.save();
+    ctx.globalAlpha = 1 - mix;
+    const lc = cx, ly = cy + 40, RR = 66;
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = 'rgba(214,196,160,0.3)'; ctx.setLineDash([2, 3]);
+    ctx.beginPath(); ctx.arc(lc, ly, RR, 0, TWO_PI); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(lc, ly); ctx.lineTo(lc, ly - RR - 6); ctx.stroke();
+    ctx.setLineDash([]);
+    [[+60, INK.sage, 'L'], [-60, INK.amber, 'R']].forEach(([aim, col, lab]) => {
+      ctx.beginPath();
+      for (let a = 0; a <= 360; a += 3) {
+        const g = 0.5 * (1 + Math.cos((a - aim) * D2R));
+        const p = azToScreen(a, g * RR, lc, ly);
+        if (a === 0) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]);
+      }
+      ctx.closePath();
+      ctx.fillStyle = rgba(col, 0.22); ctx.fill();
+      ctx.strokeStyle = rgba(col, 0.9); ctx.lineWidth = 1.5; ctx.stroke();
+      const t = azToScreen(aim, RR + 12, lc, ly);
+      ctx.fillStyle = col; ctx.font = `12px ${SERIF_CANVAS}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(lab, t[0], t[1]);
+      ctx.fillStyle = rgba(col, 0.75); ctx.font = `9.5px ${SERIF_CANVAS}`;
+      const t2 = azToScreen(aim, RR * 0.55, lc, ly);
+      ctx.fillText(`${aim > 0 ? '+' : MINUS}60°`, t2[0], t2[1]);
+    });
+    drawHeadTop(ctx, lc, ly, 14);
+    ctx.restore();
+  }
+}
+
+function drawOut() {
+  const { ctx, w, h } = outC;
+  ctx.clearRect(0, 0, w, h);
+  const top = 8, bot = h - 16, left = 22;
+  const toY = (db) => bot - ((Math.max(-60, db) + 60) / 60) * (bot - top);
+  ctx.font = `9.5px ${SERIF_CANVAS}`; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  [0, -12, -24, -48].forEach((db) => {
+    const y = toY(db);
+    ctx.strokeStyle = 'rgba(139,115,85,0.35)'; ctx.setLineDash(db === 0 ? [] : [1, 3]);
+    ctx.beginPath(); ctx.moveTo(left, y + 0.5); ctx.lineTo(w - 6, y + 0.5); ctx.stroke();
+    ctx.fillStyle = 'rgba(214,196,160,0.6)'; ctx.fillText(db === 0 ? '0' : `${MINUS}${-db}`, left - 4, y);
+  });
+  ctx.setLineDash([]);
+  const bw = Math.floor((w - left - 6 - 8) / 2);
+  [['L', disp.outL], ['R', disp.outR]].forEach(([lab, v], i) => {   // outPeak is already post output gain
+    const x = left + 2 + i * (bw + 6);
+    const db = 20 * Math.log10(Math.max(1e-6, v));
+    const y = toY(db);
+    ctx.fillStyle = 'rgba(214,196,160,0.06)'; ctx.fillRect(x, top, bw, bot - top);
+    const g = ctx.createLinearGradient(0, bot, 0, top);
+    g.addColorStop(0, '#6f9a4c'); g.addColorStop(0.75, '#9ec46f'); g.addColorStop(0.92, '#e8b04a'); g.addColorStop(1, '#e98a5a');
+    ctx.fillStyle = g; ctx.fillRect(x, y, bw, bot - y);
+    ctx.fillStyle = 'rgba(214,196,160,0.8)'; ctx.textAlign = 'center'; ctx.fillText(lab, x + bw / 2, bot + 8);
+  });
+}
+
+// ── DOM readouts: parameter-derived, localized through setLabel ──
+function heardAtFromParams() {
+  // Display-only mirror of the DSP rotation from the PARAMETER values (not the frame)
+  const d = dirOf(scaledOf('azimuth'), scaledOf('elevation'));
+  const dr = applyR(rotMatrix(scaledOf('yaw'), scaledOf('pitch'), scaledOf('roll')), d);
+  const el = Math.asin(Math.max(-1, Math.min(1, dr[2]))) * R2D;
+  const az = Math.abs(el) > 89.99 ? scaledOf('azimuth') : Math.atan2(dr[1], dr[0]) * R2D;
+  return { az, el };
+}
+function renderReadouts() {
+  const az = scaledOf('azimuth'), el = scaledOf('elevation'), dist = scaledOf('distance');
+  const order = choiceOf('order'), dec = choiceOf('decoder');
+  const nCh = String((order + 2) * (order + 2));
+  const n1 = String(order + 1);
+  const ordKey = ORD_KEYS[order];
+
+  // top-down well
+  document.getElementById('sphAz').textContent = fmtDeg(az, 1);
+  document.getElementById('sphDist').textContent = FORMAT.distance(dist);
+  applyAzWord(document.getElementById('sphWord'), az);
+  const orbitOn = toggleOf('orbit');
+  document.getElementById('sphOrbit').hidden = !orbitOn;
+  if (orbitOn) {
+    const rate = FORMAT.orbitRate(scaledOf('orbitRate'));
+    setLabel(document.getElementById('sphOrbitText'), 'label.orbiting', { rate });
+  }
+  const hAt = heardAtFromParams();
+  document.getElementById('sphHeard').textContent = `${fmtDeg(hAt.az, 1)} · ${fmtDeg(hAt.el, 1)}`;
+  // Values are computed into consts FIRST: an id literal inside a textContent
+  // assignment reads as prose to check-i18n [12].
+  const yawDeg = scaledOf('yaw'), pitchDeg = scaledOf('pitch'), rollDeg = scaledOf('roll');
+  const yawText = fmtDeg(yawDeg, 0), pitchText = fmtDeg(pitchDeg, 0), rollText = fmtDeg(rollDeg, 0);
+  document.getElementById('sphYaw').textContent = yawText;
+  const tilted = Math.abs(pitchDeg) >= 0.5 || Math.abs(rollDeg) >= 0.5;
+  document.getElementById('sphTilt').hidden = !tilted;
+  document.getElementById('sphPitch').textContent = pitchText;
+  document.getElementById('sphRoll').textContent = rollText;
+  setLabel(document.getElementById('sphOrderNote'), 'label.orderNote', { n: n1 });
+  applyBeamWord(document.getElementById('sphBeam'), order);
+  document.getElementById('sideEl').textContent = fmtDeg(el, 1);
+
+  // the italic words under the knobs
+  applyAzWord(document.getElementById('sub-azimuth'), az);
+  applyElWord(document.getElementById('sub-elevation'), el);
+  const dbv = 20 * Math.log10(distGain(dist));
+  const db = `${dbv < -0.05 ? MINUS : dbv > 0.05 ? '+' : ''}${Math.abs(dbv).toFixed(1)} dB`;
+  const fcHz = distCutoff(dist);
+  if (fcHz >= 19999) setLabel(document.getElementById('sub-distance'), 'label.distOpen', { db });
+  else {
+    const fc = `${fcHz >= 10000 ? (fcHz / 1000).toFixed(0) : (fcHz / 1000).toFixed(1)} kHz`;
+    setLabel(document.getElementById('sub-distance'), 'label.distAir', { db, fc });
+  }
+  const rate = scaledOf('orbitRate');
+  if (rate >= 1) setLabel(document.getElementById('sub-orbitRate'), 'label.orbitTurnsPerSec', { n: rate.toFixed(1) });
+  else {
+    const s = (1 / rate) < 10 ? (1 / rate).toFixed(1) : String(Math.round(1 / rate));
+    setLabel(document.getElementById('sub-orbitRate'), 'label.orbitTurnIn', { s });
+  }
+  if (Math.abs(yawDeg) < 0.5) setLabel(document.getElementById('sub-yaw'), 'label.yawIdle');
+  else {
+    const deg = yawText;
+    setLabel(document.getElementById('sub-yaw'), 'label.yawHeard', { deg });
+  }
+
+  // encoder group + header chip + rotation note
+  setLabel(document.getElementById('encReadOrd'), 'label.encReadOrd', { ord: ordKey });
+  setLabel(document.getElementById('encReadN'), 'label.encReadN', { n: n1, ch: nCh });
+  document.querySelectorAll('#encLetters div').forEach((row) => {
+    const b = Number(row.dataset.band);
+    row.classList.toggle('on', b <= order + 1); row.classList.toggle('off', b > order + 1);
+  });
+  document.querySelectorAll('#chanRows .band').forEach((band) => band.classList.toggle('on', Number(band.dataset.band) <= order + 1));
+  setLabel(document.getElementById('chipOrder'), 'label.chipOrder', { ord: ordKey, ch: nCh });
+  setLabel(document.getElementById('rotNote'), 'label.rotNote', { n: nCh });
+
+  // decoder group + well (the name is the AudioParameterChoice string, English in every language)
+  if (dec === 0) {
+    setLabel(document.getElementById('decCh'), 'label.decChAll', { n: nCh });
+    document.getElementById('decName').textContent = 'Binaural';
+    setLabel(document.getElementById('decLine'), 'label.decLineBin');
+    setLabel(document.getElementById('decRead'), 'label.decReadBin');
+    document.getElementById('decNoteHead').textContent = `${nCh} → 2`;
+    setLabel(document.getElementById('decNoteBody'), 'label.decNoteBin');
+  } else {
+    setLabel(document.getElementById('decCh'), 'label.decChSome', { n: nCh });
+    document.getElementById('decName').textContent = 'Stereo';
+    setLabel(document.getElementById('decLine'), 'label.decLineSt');
+    setLabel(document.getElementById('decRead'), 'label.decReadSt');
+    document.getElementById('decNoteHead').textContent = 'W X Y → 2';
+    setLabel(document.getElementById('decNoteBody'), 'label.decNoteSt');
+  }
+
+  // signal-path sub-lines
+  if (choiceOf('inputMode') === 0) setLabel(document.getElementById('stSourceSub'), 'label.stSourceMono');
+  else                             setLabel(document.getElementById('stSourceSub'), 'label.stSourceLeft');
+  setLabel(document.getElementById('stEncoderSub'), 'label.stEncoder', { n: nCh });
+  setLabel(document.getElementById('stRotationSub'), 'label.stRotation', { n: nCh });
+  if (dec === 0) setLabel(document.getElementById('stDecoderSub'), 'label.stDecoderBin', { n: nCh });
+  else           setLabel(document.getElementById('stDecoderSub'), 'label.stDecoderSt', { n: nCh });
+  const outDb = FORMAT.outputLevel(scaledOf('outputLevel'));
+  setLabel(document.getElementById('stOutputSub'), 'label.stOutput', { db: outDb });
+}
+
+// ── UI-04 signal path: page-side recency highlight ──
+function touchStage(stage) { if (stage) stageHit[stage] = performance.now(); }
+function paintStages() {
+  const now = performance.now();
+  ['source', 'encoder', 'rotation', 'decoder', 'output'].forEach((s) => {
+    const el = document.getElementById(`st-${s}`);
+    if (el) el.classList.toggle('on', (now - (stageHit[s] || -1e9)) < STAGE_HOLD_MS);
+  });
+}
+
+// ── Render loop ──
+function renderAll() {
+  stepBallistics();
+  stepCompass();
+  drawTop(); drawSide(); drawChannels(); drawDecoder(); drawOut();
+  if (readoutsDirty) { renderReadouts(); readoutsDirty = false; }
+  paintStages();
+}
+function tick() { renderAll(); rafId = requestAnimationFrame(tick); }
+
+// ── Sphere drags: a second front-end for azimuth / elevation through the same
+//    slider state, with gesture begin / end so host automation records. ──
+function bindSphereDrags() {
+  const bind = (wrapId, canvasId, paramId, project) => {
+    const wrap = document.getElementById(wrapId), canvas = document.getElementById(canvasId);
+    const st = sliderState[paramId];
+    if (!wrap || !canvas || !st) { console.error(`Sphere drag: missing ${wrapId} / ${paramId}`); return; }
+    let dragging = false;
+    const local = (e) => { const r = canvas.getBoundingClientRect(); return [(e.clientX - r.left) / uiScale, (e.clientY - r.top) / uiScale]; };
+    const apply = (e) => {
+      const v = project(...local(e));
+      if (v != null) { st.setNormalisedValue(scaledToNorm(st, v)); updateKnobVisual(paramId); }
+    };
+    const onMove = (e) => { if (dragging) { apply(e); e.preventDefault(); } };
+    // Idempotent: pointerup, pointercancel and lostpointercapture can all fire.
+    const onUp = (e) => {
+      if (!dragging) return;
+      dragging = false;
+      wrap.classList.remove('dragging');
+      st.sliderDragEnded();
+      wrap.removeEventListener('pointermove', onMove);
+      wrap.removeEventListener('pointerup', onUp);
+      wrap.removeEventListener('pointercancel', onUp);
+      wrap.removeEventListener('lostpointercapture', onUp);
+      if (e && e.pointerId !== undefined) {
+        try { wrap.releasePointerCapture(e.pointerId); } catch (_) { /* already released */ }
+      }
+    };
+    wrap.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      dragging = true; wrap.classList.add('dragging');
+      st.sliderDragStarted();
+      apply(e);
+      try { wrap.setPointerCapture(e.pointerId); } catch (_) { /* older backends */ }
+      wrap.addEventListener('pointermove', onMove);
+      wrap.addEventListener('pointerup', onUp);
+      wrap.addEventListener('pointercancel', onUp);
+      wrap.addEventListener('lostpointercapture', onUp);
+      e.preventDefault();   // suppresses the compatibility mousedown — dismissers listen on pointerdown
+    });
+  };
+  // Top-down: screen up = front (0°), screen LEFT = +90°; atan2 wraps cleanly across the rear (±180°)
+  bind('topWrap', 'topCanvas', 'azimuth', (px, py) => {
+    const dx = px - TOP.cx, dy = py - TOP.cy;
+    if (dx * dx + dy * dy < 9) return null;
+    return Math.atan2(-dx, -dy) * R2D;
+  });
+  // Side: angle above the horizon from the head, clamped to ±90°
+  bind('sideWrap', 'sideCanvas', 'elevation', (px, py) => {
+    const dx = Math.max(0.001, px - SIDE.cx), dy = py - SIDE.cy;
+    return Math.max(-90, Math.min(90, Math.atan2(-dy, dx) * R2D));
+  });
+}
+
+// ── Lessons (UI-08): applyFactoryPreset(lessonId) on the message thread; the
+//    relays sync every control back. The caption is page-side. ──
+function initLessons(juce) {
+  try { applyPresetFn = juce.getNativeFunction('applyFactoryPreset'); }
+  catch (e) { console.warn('applyFactoryPreset not available:', e); }
+  const caption = document.getElementById('tourCaption');
+  document.querySelectorAll('.tour-btn').forEach((b) => b.addEventListener('click', () => {
+    const id = b.dataset.preset;
+    document.querySelectorAll('.tour-btn').forEach((x) => x.classList.toggle('active', x === b));
+    const captioner = LESSON_CAPTIONERS[id];
+    if (captioner && caption) captioner(caption);
+    if (applyPresetFn) applyPresetFn(id).catch((e) => console.warn('applyFactoryPreset failed:', e));
+  }));
+}
+
+// ── Backend events + the uiReady handshake ──
+function requestBackendState() {
+  if (!uiReadyFn) return;
+  uiReadyFn().catch((e) => console.warn('uiReady failed:', e));
+}
+function initBackendEvents(juce) {
+  const backend = window.__JUCE__ && window.__JUCE__.backend;
+  if (!backend) { console.warn('JUCE backend missing — the meters will stay empty'); return; }
+  backend.addEventListener('meterFrame', onMeterFrame);
+  try { uiReadyFn = juce.getNativeFunction('uiReady'); }
+  catch (e) { console.warn('uiReady not available:', e); }
+  // emitEventIfBrowserIsVisible drops events while the browser is hidden, so
+  // ask again whenever the page becomes visible (C++ answers with a forced frame).
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') requestBackendState();
+  });
+  requestBackendState();
+}
+
+// ════ THE CANON — pasted verbatim from scripts/i18n-canon.js ════
+// From I18N_CANON_BODY_START through the closing brace of initI18n.
+// Never retyped, never edited (check-i18n [6] byte-compares it).
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
+
+// LABELS first, I18N as the fallback: a control whose tooltip title already IS
+// its label carries one key, not two copies of the same string.
+function trLabel(key, lang, vars) {
+    const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+    if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+    const s = entry[lang] || entry.en;
+    const resolve = (v) => {
+        const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+    return vars
+        ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(s.t);
+}
+
+function applyLabel(el) {
+    const key = el.dataset.i18n;
+    if (!key) return;
+    let vars = null;
+    try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+    catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+    const s = trLabel(key, uiLanguage, vars);
+    el.dataset.label = s;
+    el.textContent   = s;
+}
+
+function applyI18nAttributes(el) {
+    const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+    for (const [prop, attr] of pairs) {
+        const key = el.dataset[prop];
+        if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+    }
+}
+
+function setLabel(el, key, vars) {
+    if (!el) return;
+    el.dataset.i18n = key;
+    if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+    applyLabel(el);
+}
+
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    // <html lang> follows the selector: screen readers pick the French voice,
+    // and CSS hyphens:auto / quotes resolve in the page's actual language.
+    document.documentElement.lang = uiLanguage;
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
+
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
+// Exposed for the same reason, and so a sibling module can write a localized
+// label without app.js having to export anything — O-Bitrot's controller is an
+// inline <script type="module">, where an export declaration has nowhere to go.
+window.__setLabel = setLabel;
+// Re-runs the sweep at the CURRENT language, for a subtree built AFTER the last
+// one. It cannot be window.__setLanguage, which needs a language argument the
+// caller does not have: uiLanguage lives in this module's scope and nothing
+// outside can read it, so guessing 'en' would silently reset a French page every
+// time a panel remounted.
+//
+// This is in the canon because three plugins wrote it independently, OUTSIDE the
+// byte-compared region, each with a comment explaining that the region "may not
+// gain a line" — O-Bells (index.html:1992), O-Marimba and O-IntonationPad
+// (js/app.js). Three authors hitting the same wall and working around it the
+// same way is the canon's job, not theirs. Declaring it here changes no
+// behaviour on a page that never calls it; it only means a page that needs it no
+// longer has to reach around the gate to get it.
+window.__reapplyI18n = () => applyI18n(uiLanguage);
+
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
+
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
+
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
+}
+
+function init() {
+  // Native plugin feel (ui-design-rules Rule 3)
+  document.addEventListener('contextmenu', (e) => { e.preventDefault(); return false; });
+  document.addEventListener('dragstart', (e) => { e.preventDefault(); });
+
+  applyUiScale();   // before makeCanvas: the backing store reads uiScale
+  topC  = makeCanvas('topCanvas');
+  sideC = makeCanvas('sideCanvas');
+  chanC = makeCanvas('chanCanvas');
+  decC  = makeCanvas('decCanvas');
+  outC  = makeCanvas('outCanvas');
+
+  // The channel rows FIRST: they carry data-i18n via setLabel, and initI18n's
+  // sweep can only reach elements that exist.
+  buildChannelRows();
+
+  // Bindings: 8 knobs, 2 segmented choices, 1 segmented bool, 1 <select>.
+  KNOB_IDS.forEach((id) => bindKnob(Juce, id));
+  COMBO_SEGS.forEach((id) => bindSegCombo(Juce, id));
+  TOGGLE_SEGS.forEach((id) => bindSegToggle(Juce, id));
+  SELECT_IDS.forEach((id) => bindSelectCombo(Juce, id));
+  bindSphereDrags();
+  loadParameterDefaults(Juce);   // async; only dblclick-reset depends on it
+
+  // Order is load-bearing: applyI18n() (inside initI18n) is what writes
+  // data-tip onto the anchors the tooltip renderer resolves.
+  try { initSettingsPopover(); } catch (e) { console.error('settings popover init failed:', e); }
+  try { initI18n(); }            catch (e) { console.error('i18n init failed:', e); }
+  try { initTooltips(); }        catch (e) { console.error('tooltip init failed:', e); }
+  try { initTipsToggle(); }      catch (e) { console.error('tips toggle init failed:', e); }
+  try { initLessons(Juce); }     catch (e) { console.error('lessons init failed:', e); }
+
+  window.addEventListener('resize', applyUiScale);
+  // Canvas text keeps the fallback face until the font loads — repaint after
+  if (document.fonts && document.fonts.load) {
+    document.fonts.load(`11px 'EB Garamond'`).then(() => { readoutsDirty = true; }).catch(() => {});
+  }
+
+  // LAST: listeners exist, so the uiReady answer (a forced meterFrame) has somewhere to land.
+  try { initBackendEvents(Juce); } catch (e) { console.error('backend events init failed:', e); }
+  renderReadouts();
+  rafId = requestAnimationFrame(tick);
+}
+
+// ════ ONE call, at the very BOTTOM of the module ════
+init();
+</script>
+</body>
+</html>

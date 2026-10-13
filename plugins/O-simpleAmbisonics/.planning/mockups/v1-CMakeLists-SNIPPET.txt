@@ -1,0 +1,61 @@
+# ==============================================================================
+# O-simpleAmbisonics — Stage 3 CMake additions (mockup v1 finalization)
+#
+# NOT a standalone file. gui-agent merges these blocks into the plugin's
+# existing CMakeLists.txt. What is ALREADY there (read it, do not duplicate):
+#   - juce_add_plugin(... NEEDS_WEB_BROWSER TRUE NEEDS_WEBVIEW2 TRUE ...)
+#   - target_link_libraries(... juce::juce_gui_extra ...)
+#   - target_compile_definitions(... JUCE_WEB_BROWSER=1
+#                                    JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
+#                                    JUCE_USE_CURL=0)
+#   - juce_generate_juce_header() after target_link_libraries
+# So only three edits are needed: the two editor sources, the ONE binary-data
+# target, and linking it.
+# ==============================================================================
+
+# ── 1. Editor sources: add to the existing target_sources(O-simpleAmbisonics PRIVATE ...) ──
+#        Source/PluginEditor.cpp
+#        Source/PluginEditor.h
+# (PluginProcessor.cpp includes PluginEditor.h ONLY under #if JUCE_WEB_BROWSER
+#  in createEditor(), so tests/render-harness — JUCE_WEB_BROWSER=0, no editor
+#  sources — keeps building. BinaryData.h is included by PluginEditor.cpp only.)
+
+# ── 2. WebView UI resources (embedded as BinaryData) ─────────────────────────
+# THE ONLY juce_add_binary_data TARGET THIS PLUGIN EVER HAS: the HRTF bank is a
+# generated header (Source/dsp/BinauralFilterData.h), never a second target
+# (critical_dual_binary_data_namespace_collision). Default namespace BinaryData.
+#
+# Every file listed here is served by a getResource() branch in
+# PluginEditor.cpp. juce_add_binary_data STRIPS hyphens from symbol names:
+#   eb-garamond.css -> ebgaramond_css, EBGaramond-Regular.woff2 -> EBGaramondRegular_woff2.
+# Place this block AFTER target_sources and BEFORE target_link_libraries.
+juce_add_binary_data(O-simpleAmbisonics_UIResources
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/js/i18n.js
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/img/insects.png
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
+)
+
+# ── 3. Link the resources: add as the FIRST PRIVATE entry of the existing
+#      target_link_libraries(O-simpleAmbisonics ...) ──
+#        O-simpleAmbisonics_UIResources
+
+# ── Notes ─────────────────────────────────────────────────────────────────────
+# - No ouaricon_add_module() call in v1.0: the page imports no shared JS module
+#   (no preset-manager until Stage 4 / FUNC-08, no drop streaming). When one is
+#   added, its configure-time copy lands in Source/ui/public/modules/*.js, which
+#   is GITIGNORED — list the copy here and serve it, never commit it; a
+#   `git archive` snapshot lacks it (pattern_git_archive_ui_tree_misses_gitignored_module_copies).
+# - eb-garamond is a DIRECT EMBED (modules/ui/eb-garamond/README.md): there is
+#   no CMake helper for it; the four ${CMAKE_SOURCE_DIR} entries above are the
+#   whole integration, plus the four getResource() branches.
+# - Windows: NEEDS_WEBVIEW2 TRUE + JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
+#   are already set (Stage 1); the editor sets withUserDataFolder(). The Windows
+#   build itself stays a Stage-4 item (COMPAT-02).
+# - The render harness option block (OUARICON_BUILD_TESTS) is untouched.
