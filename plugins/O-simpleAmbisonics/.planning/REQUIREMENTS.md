@@ -4,7 +4,7 @@
 version: 1.0.0
 plugin: O-simpleAmbisonics
 created: 2026-10-11
-lastUpdated: 2026-10-12
+lastUpdated: 2026-10-13
 ---
 
 ## Overview
@@ -19,11 +19,11 @@ lastUpdated: 2026-10-12
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| FUNC-01 | Complete ambisonic chain inside one stereo-out plugin: mono source → SH encoder → SH-domain rotation → decoder → L/R; no multichannel bus required | must | partial | stage-2 |
+| FUNC-01 | Complete ambisonic chain inside one stereo-out plugin: mono source → SH encoder → SH-domain rotation → decoder → L/R; no multichannel bus required | must | complete | stage-2 |
 | FUNC-02 | Source positioned by Azimuth (-180…+180°), Elevation (-90…+90°) and Distance (0.2–20 m) | must | complete | stage-2 |
-| FUNC-03 | Ambisonic order selectable 1 / 2 / 3 (4 / 9 / 16 channels), switchable while audio runs | must | partial | stage-2 |
+| FUNC-03 | Ambisonic order selectable 1 / 2 / 3 (4 / 9 / 16 channels), switchable while audio runs | must | complete | stage-2 |
 | FUNC-04 | Scene rotation via Yaw (must), Pitch and Roll (should), applied in the ambisonic domain after encoding so the scene rotates, not the source | must | complete | stage-2 |
-| FUNC-05 | Decoder selectable: Binaural (HRTF, headphones) or Stereo (plain amplitude decode for speakers/projector) | must | pending | stage-2 |
+| FUNC-05 | Decoder selectable: Binaural (HRTF, headphones) or Stereo (plain amplitude decode for speakers/projector) | must | complete | stage-2 |
 | FUNC-06 | Orbit: automatic azimuth motion with an on/off switch and a rate (0.02–2 Hz) so movement is audible without DAW automation | should | complete | stage-2 |
 | FUNC-07 | Stereo input accepted and summed to the single mono source (Input Mode: Mono sum / Left only); mono input accepted | must | complete | stage-1 |
 | FUNC-08 | Concept-preset tour (Point Source FOA, Order 1→2→3, Behind You, Overhead, Rotate the Room, Far Away / Up Close, Slow Orbit, Speakers vs Headphones) loadable as factory presets | should | pending | stage-4 |
@@ -35,11 +35,11 @@ lastUpdated: 2026-10-12
 |----|-------------|----------|--------|-------------|
 | DSP-01 | SH encoder in AmbiX convention (ACN order, SN3D normalisation) for orders 1–3; coefficients match the reference table in `research/ambisonics-encoding-deep-dive.md` within 1e-5 | must | complete | stage-2 |
 | DSP-02 | SH-domain rotation matrix per order (yaw/pitch/roll), mathematically equivalent to re-encoding the source at the rotated direction | must | complete | stage-2 |
-| DSP-03 | HRTF binaural decoder (MagLS or virtual-loudspeaker + HRTF; Stage 0 decides) from an embedded, precomputed filter set per order; partitioned convolution; latency reported via `setLatencySamples()` | must | pending | stage-2 |
+| DSP-03 | HRTF binaural decoder (MagLS or virtual-loudspeaker + HRTF; Stage 0 decides) from an embedded, precomputed filter set per order; partitioned convolution; latency reported via `setLatencySamples()` | must | complete | stage-2 |
 | DSP-04 | Stereo decode mode (±30° virtual pair or equivalent) without HRTF | should | complete | stage-2 |
 | DSP-05 | Distance model: inverse-distance gain with near-field clamp plus a gentle air-absorption low-pass; monotonic and explainable | should | complete | stage-2 |
 | DSP-06 | Angle parameters smoothed along the shortest path around ±180° (no long-way sweep, no zipper noise); distance/gain smoothed | must | complete | stage-2 |
-| DSP-07 | Order and decoder changes are click-free (crossfaded filter-bank swap; unused channels zeroed, buffers pre-sized for 16 channels) | must | pending | stage-2 |
+| DSP-07 | Order and decoder changes are click-free (crossfaded filter-bank swap; unused channels zeroed, buffers pre-sized for 16 channels) | must | complete | stage-2 |
 
 ### UI (UI)
 
@@ -59,7 +59,7 @@ lastUpdated: 2026-10-12
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | PERF-01 | Real-time safe audio processing (no allocations/locks in processBlock); meters and position cross to UI via lock-free handoff | must | complete | stage-2 |
-| PERF-02 | 3rd-order binaural decode (16 channels × 2 ears) runs without dropouts at 64–1024 sample buffers on an Apple-silicon laptop; convolution sized for the maximum host block | must | pending | stage-2 |
+| PERF-02 | 3rd-order binaural decode (16 channels × 2 ears) runs without dropouts at 64–1024 sample buffers on an Apple-silicon laptop; convolution sized for the maximum host block | must | complete | stage-2 |
 
 ### Compatibility (COMPAT)
 
@@ -83,8 +83,8 @@ lastUpdated: 2026-10-12
 
 **Acceptance Criteria:**
 - [x] Plugin declares only stereo/mono input and stereo output buses — auval caps `[1, 2] [2, 2]` (Stage 2 / 2.1 verify, 2026-10-12)
-- [x] With Order 1, Azimuth +90°, Binaural decoder, a test tone is louder in the left ear than the right — 22.88 dB L/R, Binaural == Stereo bit-equal under the 2.1 placeholder; re-gated with the real HRTF leg at 2.3 (Stage 2 / 2.1 verify, 2026-10-12)
-- [x] Bypassing rotation (all 0°) and setting Yaw = -Azimuth brings the source back to front (audibly and in the meters) — harness frame `shGain == refSh16 (0, 0)` 2.2e-8 with |L − R| = 0 at order 3; pedalboard on the installed VST3: az +90 / 37 / −150 with the opposite yaw gives |L − R| ≤ 1.5e-8 and matches the front render (Stage 2 / 2.2 verify, 2026-10-12); the real binaural leg re-gates the first two boxes at 2.3
+- [x] With Order 1, Azimuth +90°, Binaural decoder, a test tone is louder in the left ear than the right — 22.88 dB L/R under the 2.1 placeholder (Stage 2 / 2.1 verify, 2026-10-12); with the real SADIE II leg: white noise LEFT louder by +12.31 dB on the installed VST3, impulse ILD +12.28 dB with ITD +36 samples (L leads), harness DSP-03 identical (Stage 2 / 2.3 verify, 2026-10-13)
+- [x] Bypassing rotation (all 0°) and setting Yaw = -Azimuth brings the source back to front (audibly and in the meters) — harness frame `shGain == refSh16 (0, 0)` 2.2e-8 with |L − R| = 0 at order 3; pedalboard on the installed VST3: az +90 / 37 / −150 with the opposite yaw gives |L − R| ≤ 1.5e-8 and matches the front render (Stage 2 / 2.2 verify, 2026-10-12); the convolver consumes the rotated bus: yaw +90 on a front source == azimuth +90 in Binaural at order 3, max diff 0.0 (Stage 2 / 2.3 verify, 2026-10-13)
 
 ### FUNC-02: Source position
 
@@ -96,7 +96,7 @@ lastUpdated: 2026-10-12
 
 **Acceptance Criteria:**
 - [x] Orders 1, 2, 3 produce 4, 9, 16 active channels in the meter view — `MeterFrame.orderActive` 4 / 9 / 16, `shGain[active..15] == 0` (Stage 2 / 2.1 verify, 2026-10-12); the drawn view is UI-01 (stage-3)
-- [x] Switching order during playback produces no click — bus-tap second-difference ratio ≤ 2.0 (0.9999 / 1.0000; negative control 66.9), bands arrive exactly at 0 / Y (Stage 2 / 2.1 verify, 2026-10-12); the decoder filter-bank swap is DSP-07 (2.3)
+- [x] Switching order during playback produces no click — bus-tap second-difference ratio ≤ 2.0 (0.9999 / 1.0000; negative control 66.9), bands arrive exactly at 0 / Y (Stage 2 / 2.1 verify, 2026-10-12); the decoder filter-bank swap: DSP-07 order 1→3 / 3→1 ratios 0.998–1.004 vs the same-motion reference at 64 and 1024 blocks, 1.00–1.53 on the installed VST3 vs the static pair (snapped control 67×) (Stage 2 / 2.3 verify, 2026-10-13)
 
 ### FUNC-04: Scene rotation
 
@@ -107,8 +107,8 @@ lastUpdated: 2026-10-12
 ### FUNC-05: Decoder select
 
 **Acceptance Criteria:**
-- [ ] Binaural and Stereo modes both produce output; switching is click-free
-- [ ] Reported latency equals the binaural convolution partition size; Stereo mode reports the same latency (or compensates) so switching does not shift time
+- [x] Binaural and Stereo modes both produce output; switching is click-free — Binaural ≠ Stereo by 1.3988 (harness) / 0.75 (installed impulse); B→S→B click ratios 1.0000–1.0007 at 64 / 1024 blocks vs the same-motion reference (negative control 12–28×); on the installed VST3 the residual ratio reads 1.000 (snapped control 41–68×); level delta at the front, order 3: +0.004 dB harness / −0.005 dB pedalboard (Stage 2 / 2.3 verify, 2026-10-13)
+- [x] Reported latency equals the binaural convolution partition size; Stereo mode reports the same latency (or compensates) so switching does not shift time — `getLatencySamples() == 64` = kPartition in both modes at 44.1 / 48 / 96 k; the stereo leg runs through `FixedDelay<64>`; pedalboard: the Stereo impulse at the compensated index 100 (0.75 exactly) and the Binaural onset at 100 + the header onset constant exactly, at every rate (Stage 2 / 2.3 verify, 2026-10-13)
 
 ### FUNC-07: Input handling
 
@@ -130,9 +130,9 @@ lastUpdated: 2026-10-12
 ### DSP-03: Binaural decoder
 
 **Acceptance Criteria:**
-- [ ] Filter sets for orders 1/2/3 embedded as binary data; no file I/O at runtime
-- [ ] `getLatencySamples()` equals the convolution's intrinsic latency; offline render of an impulse confirms it
-- [ ] A source at +90° produces an interaural level difference with the correct sign and an ITD consistent with the HRTF set
+- [x] Filter sets for orders 1/2/3 embedded as binary data; no file I/O at runtime — `Source/dsp/BinauralFilterData.h`: `inline constexpr float kMagLsFilters{1,2,3}` (SADIE II D1 KU100 MagLS, 256 taps at 48 k, sha256-pinned source, regenerates byte-identical); the installed plugin's impulse responses equal Σ Y·h from the header floats within 5.6e-8 (Stage 2 / 2.3 verify, 2026-10-13)
+- [x] `getLatencySamples()` equals the convolution's intrinsic latency; offline render of an impulse confirms it — 64 in both modes at 44.1 / 48 / 96 k; impulse onsets 248 / 214 at 48 k (= 100 + 64 + the table onset 84 / 50, exactly the generator constant), 237 / 210 at 44.1 k, 332 / 263 at 96 k; UPOLS null vs direct-form ≤ 1.4e-7 (Stage 2 / 2.3 verify, 2026-10-13)
+- [x] A source at +90° produces an interaural level difference with the correct sign and an ITD consistent with the HRTF set — ILD +12.28 / +13.79 / +13.87 dB (L louder, AmbiX) and ITD +36 / +38 / +37 samples (L leads, LP-xcorr below 0.8·f_a) at orders 1 / 2 / 3, mirrored at −90° (−11.89 / −13.98 / −14.58 dB, −36 / −38 / −37); harness and pedalboard agree to the printed digit (Stage 2 / 2.3 verify, 2026-10-13)
 
 ### DSP-06: Angle smoothing
 
@@ -144,8 +144,8 @@ lastUpdated: 2026-10-12
 ### DSP-07: Click-free switching
 
 **Acceptance Criteria:**
-- [ ] Order 1→3 and Binaural→Stereo switches mid-tone show no discontinuity above the click threshold
-- [ ] All buffers allocated in `prepareToPlay()` for 16 channels and the maximum block size
+- [x] Order 1→3 and Binaural→Stereo switches mid-tone show no discontinuity above the click threshold — 100 Hz at az +90°, Binaural: order 1→3 / 3→1 ratios 0.9984 / 1.0037 and 1.0004 / 0.9995 at 64 blocks, 1.0001–1.0004 at 1024, vs the same-motion reference (ceiling 2.0; snapped-bank negative controls 11–179×); B→S→B 1.0000–1.0007 (negative 12–28×); spectral liveness +6.28 dB; queued latest-wins request null 3.1e-7; on the installed VST3 1.00–1.53 vs the static pair with snapped controls 41–68× (Stage 2 / 2.3 verify, 2026-10-13)
+- [x] All buffers allocated in `prepareToPlay()` for 16 channels and the maximum block size — every `BinauralConvolver` vector assigned in `prepare()` (spectra for the three sets, FDL for K(fs)); the convolver is grid-sized and the processor slices, so oversized host blocks are bit-equal (P3e prep 64 / feed 4096); FDL decays to exact 0; PERF-01 0 allocations with the convolver live (Stage 2 / 2.3 verify, 2026-10-13)
 
 ### UI-01: B-format channel view
 
@@ -168,14 +168,14 @@ lastUpdated: 2026-10-12
 ### PERF-01: Real-time safety
 
 **Acceptance Criteria:**
-- [x] Allocation gate on `processBlock` at all orders and both decoders — global new/delete counter 0 across 200 calls, liveness 1 (Stage 2 / 2.1 verify, 2026-10-12); re-gated with yaw / pitch / roll moving, 0 allocations (Stage 2 / 2.2 verify, 2026-10-12); re-run with the 2.3 convolver
+- [x] Allocation gate on `processBlock` at all orders and both decoders — global new/delete counter 0 across 200 calls, liveness 1 (Stage 2 / 2.1 verify, 2026-10-12); re-gated with yaw / pitch / roll moving, 0 allocations (Stage 2 / 2.2 verify, 2026-10-12); re-gated with the convolver live and the order / decoder fades inside the window, 0 allocations (Stage 2 / 2.3 verify, 2026-10-13)
 - [x] Meter/position data crosses via lock-free FIFO or atomics — `TripleBuffer<MeterFrame>`, two atomics, no locks (inspection) (Stage 2 / 2.1 verify, 2026-10-12)
 
 ### PERF-02: CPU budget
 
 **Acceptance Criteria:**
-- [ ] Order 3 binaural at 64-sample buffer renders faster than real time with margin (measured in Release)
-- [ ] Block sizes larger than the prepared size are handled without overrun
+- [x] Order 3 binaural at 64-sample buffer renders faster than real time with margin (measured in Release) — `steady_clock`, 480 000 samples, best of 3: 203× at execute, 193× / 197× at verify (under a concurrent pluginval) at 48 k / 64 blocks; 195–206× at 1024; 72–76× at 96 k (K 8); gate ≥ 20 (Stage 2 / 2.3 verify, 2026-10-13)
+- [x] Block sizes larger than the prepared size are handled without overrun — the engine is grid-sized (no host-sized buffer) and the processor slices; P3e: prepare 64 then feed 4096 == prepare 4096 == flat, bit-equal, in Binaural with rotation + orbit (Stage 2 / 2.3 verify, 2026-10-13)
 
 ### COMPAT-01: pluginval
 
@@ -191,7 +191,7 @@ lastUpdated: 2026-10-12
 ### QUAL-01: No artifacts
 
 **Acceptance Criteria:**
-- [~] No NaN/denormal under any parameter extreme — pluginval s10 ×2, 16-corner harness render at 48 k / 96 k, 32-corner pedalboard render all finite (Stage 2 / 2.1 verify, 2026-10-12); ±180° on all three rotation angles at 48 k / 96 k + gimbal θ = 90° under a yaw sweep finite, 32 rotation corners on the installed VST3 finite (Stage 2 / 2.2 verify, 2026-10-12); full offline sweep with the HRTF leg at 2.3
+- [~] No NaN/denormal under any parameter extreme — pluginval s10 ×2, 16-corner harness render at 48 k / 96 k, 32-corner pedalboard render all finite (Stage 2 / 2.1 verify, 2026-10-12); ±180° on all three rotation angles at 48 k / 96 k + gimbal θ = 90° under a yaw sweep finite, 32 rotation corners on the installed VST3 finite (Stage 2 / 2.2 verify, 2026-10-12); with the HRTF leg: harness 8 + 8 Binaural corners at 48 k / 96 k, gimbal under a yaw sweep, headroom corner (+14.5 dBFS, finite), 32 Binaural corners on the installed VST3 (48 k / 96 k × orders × pole sources × 0.2 / 20 m × ±180 rotation, orbit 2 Hz) finite and live (Stage 2 / 2.3 verify, 2026-10-13)
 - [ ] No clicks on preset load
 
 ### QUAL-02: Localisation sanity
