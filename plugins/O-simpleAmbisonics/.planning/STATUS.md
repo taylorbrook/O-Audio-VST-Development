@@ -19,6 +19,7 @@ next_stage: 3
 ready_for_implementation: true
 parameter_count: 12
 mockup_finalized: false
+latest_mockup_version: 1
 mockup_required_before: research
 plugin_code: OSAm
 ---
