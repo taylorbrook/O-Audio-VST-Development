@@ -871,9 +871,10 @@ void OOctagonProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     // v1.15.3 — and not while a ping is still sounding. setMonitorArmed() aborts the ping as a
     // 20 ms FADE (v1.15.2, B14) and arms in the same call, so for that fade the fold read the ping
     // lane and put it in the headphones. Held off until the fade has finished (isActive() goes
-    // false on the sample the run goes idle): the fold engages up to one control block late, on its
-    // own 5 ms crossfade, and the ping never reaches it. Kill semantics would have cut it instead —
-    // the step B14 removed.
+    // false on the sample the run goes idle). monitorOn is read once per processBlock, so the fold
+    // engages up to one HOST block late — a fade that ends mid-block holds the whole block off — on
+    // its own 5 ms crossfade, and the ping never reaches it. Kill semantics would have cut it
+    // instead — the step B14 removed.
     const bool monitorOn = monitorAllowed && ! verifyPing.isActive();
 
     // Published for the banner: armed, but not folding. The operator is told WHY. monitorAllowed,
