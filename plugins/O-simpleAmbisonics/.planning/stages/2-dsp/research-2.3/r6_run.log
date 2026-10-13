@@ -1,0 +1,35 @@
+Part A — juce::dsp::FFT (order 7, N 128) contract
+  [PASS] A1 forward(flag=true): bins 0..64 interleaved re/im = DFT (no scale), impulse at 3 — 0.000000128
+    bin0 (1.000000, 0.000000) bin64 (-1.000000, 0.000000) float[128..129] ; floats 130..133 = 0 0 0 0
+  [PASS] A2 forward(flag=false): bins 65..127 = conj (bins 63..1) — 0.000000000
+  [PASS] A3 alternating ±1 → bin 64 (floats 128/129) = (128, 0), bin 0 = (0, 0) — bin64 (128.0000, 0.0000) bin0 (0.0000, 0.0000)
+  [PASS] A4 forward(flag=true) → inverse == x (inverse carries 1/N; no explicit scaling needed) — 0.000000410 tail max 0.000
+  [PASS] A5 inverse with garbage in bins 65..127 still == x (only bins 0..64 are read) — 0.000000410
+  [PASS] A6 overlap-save: IFFT(X⊙H)[64..127] == linear convolution (complex MAC on bins 0..64 only) — 0.000000373
+Part B — UPOLS (D1 grid-synchronous) vs direct-form double, random bank
+  [PASS] B taps 256 (K 4) host block 32: max|err| < 1e-5, out[0..63] == 0 — max|err| 7.132e-07, ref peak 3.798
+  [PASS] B taps 256 (K 4) host block 64: max|err| < 1e-5, out[0..63] == 0 — max|err| 7.132e-07, ref peak 3.798
+  [PASS] B taps 256 (K 4) host block 100: max|err| < 1e-5, out[0..63] == 0 — max|err| 7.132e-07, ref peak 3.798
+  [PASS] B taps 256 (K 4) host block 1024: max|err| < 1e-5, out[0..63] == 0 — max|err| 7.132e-07, ref peak 3.798
+  [PASS] B taps 256 (K 4) host block 4096: max|err| < 1e-5, out[0..63] == 0 — max|err| 7.132e-07, ref peak 3.798
+  [PASS] B taps 256: ragged slicing {1,7,100,4096,33} bit-equal to 64
+  [PASS] B taps 512 (K 8) host block 32: max|err| < 1e-5, out[0..63] == 0 — max|err| 8.824e-07, ref peak 3.624
+  [PASS] B taps 512 (K 8) host block 64: max|err| < 1e-5, out[0..63] == 0 — max|err| 8.824e-07, ref peak 3.624
+  [PASS] B taps 512 (K 8) host block 100: max|err| < 1e-5, out[0..63] == 0 — max|err| 8.824e-07, ref peak 3.624
+  [PASS] B taps 512 (K 8) host block 1024: max|err| < 1e-5, out[0..63] == 0 — max|err| 8.824e-07, ref peak 3.624
+  [PASS] B taps 512 (K 8) host block 4096: max|err| < 1e-5, out[0..63] == 0 — max|err| 8.824e-07, ref peak 3.624
+  [PASS] B taps 512: ragged slicing {1,7,100,4096,33} bit-equal to 64
+  [PASS] B bank fade A->B @1024, C queued @+7, A queued @+9 (latest wins), C @4096, block 64: max|err| vs direct-form fade < 1e-5 — max|err| 8.061e-07 at n 5043; final cur 2 fading 0; liveness |L-A| 3.517 |L-C| 3.387 over 2048..3000
+  [PASS] B bank fade A->B @1024, C queued @+7, A queued @+9 (latest wins), C @4096, block 1024: max|err| vs direct-form fade < 1e-5 — max|err| 8.061e-07 at n 5043; final cur 2 fading 0; liveness |L-A| 3.517 |L-C| 3.387 over 2048..3000
+  [PASS] B negative control: snapped A->B switch differs from the faded reference by >> 1e-5 — max|diff| 3.157e+00
+Part C — WindowedSinc resample dumps
+    fs 96000 ratio 0.500000 zpre 0 nIn 656 nOut 1312 used 656 expected delay (100+zpre)/ratio = 200.000 out samples
+    fs 44100 ratio 1.088435 zpre 60 nIn 716 nOut 657 used 715 expected delay (100+zpre)/ratio = 147.000 out samples
+    fs 88200 ratio 0.544218 zpre 60 nIn 716 nOut 1315 used 716 expected delay (100+zpre)/ratio = 294.000 out samples
+    fs 192000 ratio 0.250000 zpre 0 nIn 656 nOut 2624 used 656 expected delay (100+zpre)/ratio = 400.000 out samples
+    ratio 1.0: best integer delay 100, max|err| 8.878e-03 (identity at integer positions?)
+Part D — throughput (Release? yes)
+    taps 256 (K 4): 480000 samples in 0.037 s → 273× real time at 48 k (sink 0.317)
+    taps 512 (K 8): 480000 samples in 0.055 s → 91× real time at 96 k (sink 0.281)
+ALL PASS (0 failures)
+exit 0

@@ -1,0 +1,68 @@
+spaudiopy HRIRs dtype: float64
+order 1: own loop on spaudiopy's N3D Y vs decoder.magls_bin: max|Δ| 2.849e-01 (peak 1.166)
+   projector Y·Y⁺ SN3D vs N3D: max|Δ| 2.06e-17
+order 3: own loop on spaudiopy's N3D Y vs decoder.magls_bin: max|Δ| 1.038e+00 (peak 0.827)
+   projector Y·Y⁺ SN3D vs N3D: max|Δ| 1.43e-16
+
+order 1 (f_a 624 Hz, bin 13) — magnitude fit error, RMS dB over 8802 dirs × bins (after 256-tap truncation+taper):
+   band        own-hard  own-phasor  spaudiopy  LS-only
+   50–0k          0.897       0.890      0.897    0.926
+   600–2k         1.379       1.675      1.379    5.139
+   2k–5k          2.976       2.976      2.976   14.426
+   5k–10k         5.418       5.418      5.418   18.412
+   10k–20k        6.929       6.929      6.929   24.554
+   untruncated: own-hard == LS below f_a: 0.00e+00
+   R3 energy outside taps [0,256): 0.0010%  outside [0,192): 0.0125%  wrap-around tail (taps 900..1023): 5.52e-04%
+   R3 first tap where bank envelope > 0.01·peak: 53   R3 first tap where bank envelope > 0.001·peak: 8   R3 first tap where bank envelope > 0.0001·peak: 0; envelope peak at tap 124; peak |h| 0.5351
+   R3 reconstructed onsets (10 %) over directions: min 93 median 110 max 120  (raw SADIE: 64 / 90 / 120)
+   R4 front/order 1: A-weighted white gain 0.6761 (-3.40 dBFS-ish), unweighted 0.6560; match to stereo 0.75 = +0.90 dB
+   R4 W-channel LF flatness 50–500 Hz: L +0.24/-2.33 dB  R +0.24/-2.45 dB
+   R8 az +90: broadband ILD L/R +12.28 dB; per-band ['+4.7', '+11.4', '+15.8', '+12.6']; onset L 118 R 113 (Δ -5); xcorr lag (L vs R) +1, LP<1.5k lag -14 samples
+   R8 az -90: broadband ILD L/R -11.89 dB; per-band ['-4.9', '-11.2', '-14.8', '-12.5']; onset L 115 R 118 (Δ +3); xcorr lag (L vs R) +1, LP<1.5k lag +15 samples
+
+order 2 (f_a 1248 Hz, bin 27) — magnitude fit error, RMS dB over 8802 dirs × bins (after 256-tap truncation+taper):
+   band        own-hard  own-phasor  spaudiopy  LS-only
+   50–0k          0.580       0.580      0.580    0.580
+   600–2k         1.420       2.100      1.420    2.876
+   2k–5k          2.425       2.435      2.425    9.577
+   5k–10k         4.166       4.069      4.166   16.349
+   10k–20k        5.652       5.652      5.652   20.991
+   untruncated: own-hard == LS below f_a: 0.00e+00
+   R3 energy outside taps [0,256): 0.0022%  outside [0,192): 0.0166%  wrap-around tail (taps 900..1023): 1.50e-03%
+   R3 first tap where bank envelope > 0.01·peak: 37   R3 first tap where bank envelope > 0.001·peak: 0   R3 first tap where bank envelope > 0.0001·peak: 0; envelope peak at tap 116; peak |h| 0.4487
+   R3 reconstructed onsets (10 %) over directions: min 79 median 99 max 112  (raw SADIE: 64 / 90 / 120)
+   R4 front/order 2: A-weighted white gain 0.7031 (-3.06 dBFS-ish), unweighted 0.7006; match to stereo 0.75 = +0.56 dB
+   R4 W-channel LF flatness 50–500 Hz: L +0.37/-2.40 dB  R +0.39/-2.52 dB
+   R8 az +90: broadband ILD L/R +13.79 dB; per-band ['+4.8', '+8.6', '+14.9', '+16.7']; onset L 102 R 87 (Δ -15); xcorr lag (L vs R) +3, LP<1.5k lag -32 samples
+   R8 az -90: broadband ILD L/R -13.98 dB; per-band ['-5.3', '-8.9', '-14.9', '-18.7']; onset L 86 R 103 (Δ +17); xcorr lag (L vs R) -1, LP<1.5k lag +32 samples
+
+order 3 (f_a 1872 Hz, bin 40) — magnitude fit error, RMS dB over 8802 dirs × bins (after 256-tap truncation+taper):
+   band        own-hard  own-phasor  spaudiopy  LS-only
+   50–0k          0.565       0.565      0.565    0.565
+   600–2k         1.527       1.686      1.527    1.713
+   2k–5k          1.869       2.446      1.869    7.248
+   5k–10k         3.571       3.585      3.571   14.592
+   10k–20k        4.901       4.901      4.901   19.189
+   untruncated: own-hard == LS below f_a: 0.00e+00
+   R3 energy outside taps [0,256): 0.0043%  outside [0,192): 0.0152%  wrap-around tail (taps 900..1023): 3.13e-03%
+   R3 first tap where bank envelope > 0.01·peak: 34   R3 first tap where bank envelope > 0.001·peak: 0   R3 first tap where bank envelope > 0.0001·peak: 0; envelope peak at tap 98; peak |h| 0.4061
+   R3 reconstructed onsets (10 %) over directions: min 55 median 83 max 92  (raw SADIE: 64 / 90 / 120)
+   R4 front/order 3: A-weighted white gain 0.7055 (-3.03 dBFS-ish), unweighted 0.7416; match to stereo 0.75 = +0.53 dB
+   R4 W-channel LF flatness 50–500 Hz: L +0.36/-2.44 dB  R +0.36/-2.58 dB
+   R8 az +90: broadband ILD L/R +13.87 dB; per-band ['+5.1', '+6.2', '+17.3', '+20.0']; onset L 91 R 70 (Δ -21); xcorr lag (L vs R) +0, LP<1.5k lag -37 samples
+   R8 az -90: broadband ILD L/R -14.58 dB; per-band ['-5.3', '-6.8', '-17.3', '-20.3']; onset L 72 R 86 (Δ +14); xcorr lag (L vs R) +1, LP<1.5k lag +37 samples
+
+R4 cross-order front level (A-weighted white gain), own-hard, common scale NOT yet applied:
+   order 1: 0.6761  (-0.37 dB re order 3); match-to-0.75 would be +0.90 dB
+   order 2: 0.7031  (-0.03 dB re order 3); match-to-0.75 would be +0.56 dB
+   order 3: 0.7055  (+0.00 dB re order 3); match-to-0.75 would be +0.53 dB
+   → common scale s = 0.75/level3 = 1.0631 (+0.53 dB); after it: order1 -0.37 dB, order2 -0.03 dB vs stereo
+   headroom: max |H(f)| over 1/5 of the directions × bins at order 3 after scale: 2.117 (+6.51 dB) at f 9562 Hz; peak tap after scale 0.4317
+   R7 front tone 100 Hz: |H| order1 L/R 0.694/0.705, order3 0.676/0.685 → Δ -0.22/-0.25 dB; vs stereo 0.75: order3 -0.90 dB
+   R7 front tone 1000 Hz: |H| order1 L/R 0.588/0.610, order3 0.700/0.732 → Δ +1.52/+1.58 dB; vs stereo 0.75: order3 -0.60 dB
+   R7 front tone 3000 Hz: |H| order1 L/R 0.808/0.864, order3 0.823/0.894 → Δ +0.16/+0.30 dB; vs stereo 0.75: order3 +0.81 dB
+   R7 front tone 6000 Hz: |H| order1 L/R 0.732/0.731, order3 0.743/0.693 → Δ +0.13/-0.46 dB; vs stereo 0.75: order3 -0.08 dB
+   R7 az +90 tone 3 kHz order 1: L 1.167 R 0.212 (ILD +14.8 dB)
+   R7 az +90 tone 3 kHz order 3: L 0.903 R 0.435 (ILD +6.3 dB)
+done
+exit 0
