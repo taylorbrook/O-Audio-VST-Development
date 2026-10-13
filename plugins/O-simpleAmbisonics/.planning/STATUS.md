@@ -14,7 +14,8 @@ orchestration_mode: true
 workflow_mode: manual
 current_phase: discuss
 next_phase: research
-next_action: ui-mockup-then-plugin-research
+next_action: plugin-research-3-gui
+ui_scaffolding_phase_complete: true
 next_stage: 3
 ready_for_implementation: true
 parameter_count: 12
