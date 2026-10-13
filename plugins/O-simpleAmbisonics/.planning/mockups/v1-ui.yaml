@@ -1,0 +1,438 @@
+# v1 UI Design Specification
+# Generated: 2026-10-13
+# Plugin: O-simpleAmbisonics
+# Aesthetic: O-simple* field-guide family (O-simpleAdditive / O-simpleSubtractive / O-simpleWavetable):
+#   aged paper ground, EB Garamond, seed cross-section knobs (Family A stem),
+#   walnut plot wells with sage / amber / brass inks, suite tooltip + header / footer.
+#   The sphere view and the harmonic meter wall are the specimen plates.
+# Geometry below is MEASURED from v1-ui-test.html (Chromium via Playwright, 1180x780 viewport,
+# uiScale 1, plugin-frame coordinates), not hand-estimated. Knob rects are the knob disc only.
+# Parameter IDs / ranges / defaults: ARCHITECTURE.md §Parameter Mapping — 12 params, IDs FROZEN
+# (camelCase APVTS IDs used verbatim; no snake_case conversion; no additions).
+# Design brief: .planning/stages/3-gui/CONTEXT.md (UI-01 … UI-08).
+
+window:
+  width: 1180               # design frame (DESIGN_W)
+  height: 780               # design frame (DESIGN_H), <= 800 (Rule 4)
+  resizable: true           # fixed aspect 1180:780 through the O-simpleFM scale pattern
+  scale_pattern: "O-simpleFM applyUiScale (fixed aspect, 0.6x–1.5x)"
+  design_w: 1180
+  design_h: 780
+  scale_notes:
+    - "#plugin lays out at 1180x780 and scales itself with transform: scale(s), s = min(innerWidth/1180, innerHeight/780), transform-origin 0 0, on a resize listener; at s == 1 the transform is removed"
+    - "Canvases fold uiScale into the DPR backing store (makeCanvas: dpr = devicePixelRatio * uiScale) so a scaled-up frame stays sharp"
+    - "Pointer maths divide by uiScale (knob drag travel, canvas drag projection, bar-rect measurement)"
+    - "The tooltip is a body child positioned in viewport px (clientX/Y) and is never scaled"
+    - "Editor: ResizableCornerComponent limits 0.6x–1.5x, editorScale persisted on the processor (CONTEXT.md)"
+    - "Test HTML: 1x preview centred on black by default (Rule 10); the MOCK 'fit window' button simulates the resizable editor"
+
+colors:
+  paper: "#F5E6D3"
+  paper_light: "#FAF0E6"
+  paper_mid: "#EBD9C7"
+  frame_brown: "#5C4033"
+  border_brown: "#8B7355"
+  text: "#3C2F2F"
+  text_muted: "#715D45"       # AA on all paper tones
+  green_text: "#4E6838"       # AA on all paper tones
+  green_fill_strong: "#55703E" # active segment / station fill under #F5F0E6 text
+  green_darkest: "#2C3E10"    # knob stem, group titles
+  well_top: "#2a2118"         # plot wells (sibling canvas-wrap)
+  well_bottom: "#1c160f"
+  ink_parchment: "#d6c4a0"    # rings, axis text, shPeak overlay, head outline
+  ink_sage: "#9ec46f"         # positive lobes / bars, compass rose, beam, heard-at ticks
+  ink_amber: "#e8b04a"        # negative lobes / bars, beam rear lobe, pitch mark, stereo R cardioid
+  brass: ["#f6d27a", "#c98f38", "#8a5a1e"]  # source puck, headphone band / cups, azimuth big readout #f3cd86
+  meter_hot: "#e98a5a"        # output meter top of scale
+  tooltip_bg: "#2a2118"
+  tooltip_text: "#f5e6d3"
+
+typography:
+  serif: "'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif"
+  symbol_font: "'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS', 'PingFang SC', 'Microsoft YaHei', serif"
+  size:
+    title: "25px"            # O – simple*Ambisonics*
+    subtitle: "11px"         # uppercase, 1.4px tracking
+    group_title: "12.5px"    # uppercase, 1.4px tracking
+    station: "11px"          # signal-path chips, uppercase 1.2px tracking; sub-line 10px italic
+    knob_label: "10px"       # uppercase
+    knob_value: "12.5px"     # tabular numerals
+    knob_sub: "10.5px"       # italic word under the value ("in front", "level", "0.0 dB · air open")
+    hero_value: "16px"
+    well_readout_large: "20px"   # "+60.0° az"
+    well_readout: "11px"
+    channel_letter: "13px"   # AmbiX letter per row; ACN index 10.5px; band numeral 15px
+    tooltip: "13px"
+    floor: "9.5px"           # nothing smaller (projector readable): ring labels, scale labels, band "+3 ch"
+
+layout:
+  type: vertical-sections
+  frame: { border: 3, padding: [12, 16], gap: 8 }
+  signal_order: [source, encoder, rotation, decoder, output]   # UI-07: left-to-right as the signal path, single page
+  sections:
+    - id: header
+      rect: { x: 19, y: 15, width: 1142, height: 50 }
+      contents: [title, subtitle, format_chip, latency_chip, language_select, settings_gear]
+    - id: visual_band
+      rect: { x: 19, y: 73, width: 1142, height: 356 }
+      panels:
+        - { id: sphere_view,   rect: { x: 19,  y: 95, width: 442, height: 334 }, note: "top-down 300 + side 136, gap 6" }
+        - { id: channel_view,  rect: { x: 471, y: 95, width: 450, height: 334 }, note: "headline visual (UI-01), most area" }
+        - { id: decoder_view,  rect: { x: 931, y: 95, width: 230, height: 334 } }
+    - id: signal_path
+      rect: { x: 19, y: 437, width: 1142, height: 34 }
+      note: "UI-04 rail with five stations; column widths equal the five control groups below so each station sits over its group"
+    - id: controls
+      rect: { x: 19, y: 479, width: 1142, height: 214 }
+      groups:
+        - { id: source,   rect: { x: 19,   y: 479, width: 326, height: 214 }, controls: [azimuth, elevation, distance, inputMode, orbit, orbitRate] }
+        - { id: encoder,  rect: { x: 353,  y: 479, width: 166, height: 214 }, controls: [order], readouts: ["1st order · (1+1)² = 4 channels", "letters-by-band box W / Y Z X / V T R S U / Q O M K L N P, inactive bands dimmed"] }
+        - { id: rotation, rect: { x: 527,  y: 479, width: 290, height: 214 }, controls: [yaw, pitch, roll], readouts: ["N × N matrix in the SH domain"] }
+        - { id: decoder,  rect: { x: 825,  y: 479, width: 176, height: 214 }, controls: [decoder], readouts: ["HRTF filters for every channel · headphones | two virtual microphones · speakers or headphones", "note box: 'N → 2 …' | 'W X Y → 2 · a first-order cardioid pair: orders 2–3 are ignored, height is folded flat.'"] }
+        - { id: output,   rect: { x: 1009, y: 479, width: 152, height: 214 }, controls: [outputLevel], elements: [output_peak_meter] }
+    - id: lesson_row
+      rect: { x: 19, y: 701, width: 1142, height: 28 }
+      presets: ["Point Source (FOA)", "Order 1 → 2 → 3", "Behind You", "Overhead", "Rotate the Room", "Far Away / Up Close", "Slow Orbit", "Speakers vs Headphones"]
+      note: "label 'Lessons' + 8 buttons (x 84 … 943) + right-aligned hint 'hover anything for help'; the lesson CAPTION lives in the footer centre"
+    - id: footer
+      rect: { x: 19, y: 751, width: 1142, height: 14 }
+      contents: ["Ouaricon Audio · O-simpleAmbisonics", "tour caption (default: 'one mono source → B-format → rotated → decoded to your ears')", "AmbiX · MagLS on SADIE II"]
+
+controls:
+  # ── Source ──────────────────────────────────────────────────────────────
+  - id: azimuth
+    type: knob
+    widget: bipolar-knob       # centre detent mark; drag snaps to 0 within ±1.8 %; ALSO driven by the top-down sphere drag
+    relay: WebSliderRelay
+    label: "Azimuth"
+    parameter: azimuth
+    range: [-180.0, 180.0]
+    interval: 0
+    unit: "°"                  # "+60.0°" / "−45.0°" / "0.0°"; sub-readout word: in front / front left / to the left / behind …
+    default: 0.0
+    convention: "+90° = LEFT (AmbiX); ±180° behind; wraps"
+    position: { x: 32, y: 512 }
+    size: { width: 54, height: 54 }
+
+  - id: elevation
+    type: knob
+    widget: bipolar-knob       # ALSO driven by the side-view drag
+    relay: WebSliderRelay
+    label: "Elevation"
+    parameter: elevation
+    range: [-90.0, 90.0]
+    interval: 0
+    unit: "°"                  # "+90.0°" overhead; sub-readout: level / above / below / straight up / straight down
+    default: 0.0
+    position: { x: 98, y: 512 }
+    size: { width: 54, height: 54 }
+
+  - id: distance
+    type: knob
+    relay: WebSliderRelay
+    label: "Distance"
+    parameter: distance
+    range: [0.2, 20.0]
+    skew: 0.2890               # skew-for-centre 2 m: log(0.5)/log((2-0.2)/(20-0.2))
+    interval: 0.001
+    unit: "m"                  # "1.00 m" / "12.0 m"; sub-readout from the distance law: "−21.4 dB · air 5.8 kHz"
+    default: 1.0
+    position: { x: 164, y: 512 }
+    size: { width: 54, height: 54 }
+
+  - id: inputMode
+    type: combo
+    widget: select             # <select class="combo"> (choice strings stay English: automation names)
+    relay: WebComboBoxRelay
+    label: "Input"
+    parameter: inputMode
+    parameter_type: choice
+    choices: ["Mono sum", "Left only"]
+    default: 0
+    position: { x: 30, y: 631 }
+    size: { width: 150, height: 28 }
+
+  - id: orbit
+    type: toggle
+    widget: segmented-2        # Off | On
+    relay: WebToggleButtonRelay
+    label: "Orbit"
+    parameter: orbit
+    parameter_type: bool
+    default: false
+    position: { x: 242, y: 526 }
+    size: { width: 92, height: 26 }
+
+  - id: orbitRate
+    type: knob
+    widget: small-knob         # 44 px
+    relay: WebSliderRelay
+    label: "Orbit Rate"
+    parameter: orbitRate
+    range: [0.02, 2.0]
+    skew: 0.2890               # skew-for-centre 0.2 Hz
+    interval: 0.001
+    unit: "Hz"                 # "0.10 Hz"; sub-readout "one turn in 10 s"
+    default: 0.1
+    position: { x: 266, y: 562 }
+    size: { width: 44, height: 44 }
+
+  # ── Encoder ─────────────────────────────────────────────────────────────
+  - id: order
+    type: combo
+    widget: segmented-3        # 1st | 2nd | 3rd (choice param "1" / "2" / "3"); readout "1st order · (1+1)² = 4 channels"
+    relay: WebComboBoxRelay
+    label: "Order"
+    parameter: order
+    parameter_type: choice
+    choices: ["1", "2", "3"]
+    default: 0
+    position: { x: 364, y: 526 }
+    size: { width: 144, height: 28 }
+
+  # ── Rotation ────────────────────────────────────────────────────────────
+  - id: yaw
+    type: knob
+    widget: hero-knob          # 92 px seed knob, bipolar detent
+    relay: WebSliderRelay
+    label: "Yaw"
+    parameter: yaw
+    range: [-180.0, 180.0]
+    interval: 0
+    unit: "°"                  # hero value 16px; hero-sub "scene turns about the top" / "front is heard at +120°"
+    default: 0.0
+    convention: "+ = scene turns CCW from above (a front source moves LEFT); rotates the ROOM, not the puck"
+    position: { x: 546, y: 524 }
+    size: { width: 92, height: 92 }
+
+  - id: pitch
+    type: knob
+    widget: bipolar-knob
+    relay: WebSliderRelay
+    label: "Pitch"
+    parameter: pitch
+    range: [-180.0, 180.0]
+    interval: 0
+    unit: "°"                  # sub "front tilts up"; gimbal note in the tooltip (display only)
+    default: 0.0
+    position: { x: 665, y: 539 }
+    size: { width: 54, height: 54 }
+
+  - id: roll
+    type: knob
+    widget: bipolar-knob
+    relay: WebSliderRelay
+    label: "Roll"
+    parameter: roll
+    range: [-180.0, 180.0]
+    interval: 0
+    unit: "°"                  # sub "left side rises"
+    default: 0.0
+    position: { x: 744, y: 539 }
+    size: { width: 54, height: 54 }
+
+  # ── Decoder ─────────────────────────────────────────────────────────────
+  - id: decoder
+    type: combo
+    widget: segmented-2        # Binaural | Stereo (choice param)
+    relay: WebComboBoxRelay
+    label: "Decoder"
+    parameter: decoder
+    parameter_type: choice
+    choices: ["Binaural", "Stereo"]
+    default: 0
+    position: { x: 836, y: 526 }
+    size: { width: 154, height: 26 }
+
+  # ── Output ──────────────────────────────────────────────────────────────
+  - id: outputLevel
+    type: knob
+    relay: WebSliderRelay
+    label: "Level"
+    parameter: outputLevel
+    range: [-60.0, 0.0]
+    interval: 0.1
+    unit: "dB"                 # "0.0 dB"; "−inf" at −60
+    default: 0.0
+    position: { x: 1022, y: 526 }
+    size: { width: 54, height: 54 }
+
+special_elements:
+  - id: channel_view
+    requirement: UI-01
+    type: meter-rows + canvas
+    position: { x: 471, y: 95 }
+    size: { width: 450, height: 334 }
+    data_source: "meterFrame.shGain[16] (signed, post-rotation, program-independent) + meterFrame.shPeak[16] (peak-since-last-read hold) + orderActive"
+    layout:
+      - "DOM grid per band: [band tag 30px][ACN 22px][AmbiX letter 20px][SH icon 22px][bar 1fr]; row 18px; 4 bands with 8px gaps; rows 0 | 1 2 3 | 4–8 | 9–15"
+      - "Band tag: numeral 0/1/2/3 + '+3 ch' / '+5 ch' / '+7 ch' with a left bracket (dotted parchment inactive → solid sage active)"
+      - "One canvas under the rows draws every bar from the measured bar-cell rects (measureBarRects, rescaled on resize)"
+      - "Scale labels along the well bottom: −1 · gain (pattern) · 0 · peak · +1"
+    drawing:
+      - "Signed centre-zero bar 9px tall: positive sage gradient to the RIGHT, negative amber gradient to the LEFT, pale end cap; range ±1 (SN3D max |Y| = 1)"
+      - "shPeak overlay: 2px parchment bar beneath, symmetric about the centre (unsigned level), length ∝ peak"
+      - "Inactive bands (above orderActive): rows dimmed to 0.3–0.4 (CSS transition 0.25s), track drawn faint and empty; the order step-up reads as a band switching on (the frame's 20 ms band-gain ramp grows the bars)"
+    ballistics: "JS on requestAnimationFrame: shGain attack 0.4 / decay 0.15 by |target| vs |display|; shPeak decay only (0.15), never a second max()"
+    sh_icons: "MOCKUP: procedural inline SVG per ACN (polar plot of Y_acn sampled in the plane where it is largest — horizontal plane for W Y X V U Q P with front up / left LEFT, a vertical slice for Z R K S T L M N, the 45° vertical plane for O; positive lobe sage, negative lobe amber). PRODUCTION: 16 offline-generated SVGs (Stage-3 research item), same 18px box"
+    acceptance: "Source front → left visibly swaps energy from X (ACN 3) to Y (ACN 1) while W (ACN 0) stays at +1 (verified in the probe: X 1→0, Y 0→1, W 1)"
+
+  - id: sphere_top
+    requirement: UI-02 + UI-03
+    type: canvas-visualizer
+    position: { x: 19, y: 95 }
+    size: { width: 300, height: 334 }
+    data_source: "meterFrame.azEffDeg / elEffDeg (puck), azRotDeg / elRotDeg (beam + rim tick), smoothed yaw/pitch (compass) + parameters order, distance"
+    drawing:
+      - "Listener head at the centre (parchment outline, nose marking FRONT = up, ears), fixed; faint body cross never rotates"
+      - "Distance rings 0.5 / 1 / 2 / 5 / 10 / 20 m, log-mapped: r(d) = rHead + (R − rHead) · ln(d / 0.2) / ln(100); 1 m ring solid"
+      - "Compass rose turns by yaw (+ = CCW from above = toward screen left): ticks every 15°, labels front / left / back / right in sage; a small amber chevron at the scene's front leans by pitch (tilt mark)"
+      - "UI-03 beam: g_N(γ) = Σ_{n=0..N} (2n+1)·P_n(cos γ) / (N+1)², P0..P3 closed form, cached as a 361-sample curve per order; drawn as the horizontal slice cos γ = cos(elRot)·cos(a − azRot) centred on azRot: positive lobe sage (fill 0.20, stroke 0.8), negative lobes amber; visibly sharpens 1 → 3"
+      - "Sage tick on the rim at azRot (where it is heard)"
+      - "Source puck: brass radial-gradient disc r 7 with a pale ring and glow at (azEff, r(distance)); dashed leader from the head; an 'altitude halo' (dotted ring + ▲/▼) grows with |sin(elEff)|"
+    readouts:
+      - "top-left: azimuth PARAMETER formatted ('+60.0° az') + word + distance ('to the left · 1.00 m'), '· orbiting 0.10 Hz' in amber when orbit is on"
+      - "top-right: 'heard at ±az · ±el' + 'yaw ±N° [pitch ±N° roll ±N°]' — all derived from PARAMETER values (display-side rotation), never %f of the frame"
+      - "bottom-left key: ◆ source (azimuth, distance) / ◯ beam · where it is heard; bottom-right 'order N · wide beam / narrower / sharpest'"
+    interaction: "pointerdown/move/up with pointer capture: azimuth = atan2(−dx, −dy) in degrees (screen up = 0°, screen LEFT = +90°); atan2 wraps cleanly across the rear at ±180°; gesture = sliderDragStarted → setNormalisedValue → sliderDragEnded on the azimuth slider state; preventDefault on pointerdown (dismissers listen on pointerdown); distance is knob-only"
+
+  - id: sphere_side
+    requirement: UI-02
+    type: canvas-visualizer
+    position: { x: 325, y: 95 }
+    size: { width: 136, height: 334 }
+    drawing:
+      - "Head in profile at the left (nose = front = right), horizon line, front half-plane arcs at the same log distances, elevation ticks every 30° with 'up' / 'level' / 'down'"
+      - "Puck at angle elEff, radius r(distance); dashed leader; sage rim tick at elRot (heard-at elevation after pitch / roll)"
+    readouts: ["bottom-left: elevation PARAMETER formatted ('+25.0° el')"]
+    interaction: "drag sets elevation = atan2(−dy, max(dx, 0)) clamped ±90°, through the elevation slider state with gestures"
+
+  - id: decoder_view
+    requirement: UI-05
+    type: canvas-visualizer
+    position: { x: 931, y: 95 }
+    size: { width: 230, height: 334 }
+    data_source: "meterFrame.decoderMix (1 Binaural → 0 Stereo, 20 ms ramp) + orderActive + decoder parameter"
+    drawing:
+      - "Binaural: KU100 dummy head seen from behind (L cup on the LEFT), brass headband and cups, sage sound arcs at each ear, 'KU100' caption"
+      - "Stereo: two virtual cardioids r = ½(1 + cos(θ − θ0)) at +60° (L, sage) and −60° (R, amber) around a small top-down head, ±60° labels"
+      - "Crossfade by decoderMix via globalAlpha (page-side 0.18 ease on top of the frame value so the 20 ms ramp reads as a transition)"
+      - "NO bank-fade indicator (v1.0 decision)"
+    readouts: ["top-left 'to L / R'; top-right 'N ch in' | '4 of N ch in'; bottom: BINAURAL 'MagLS · SADIE II KU100 · 64-sample latency' | STEREO 'cardioids at ±60° · W X Y only · 64 samples'"]
+
+  - id: signal_path
+    requirement: UI-04
+    type: diagram-strip
+    position: { x: 19, y: 437 }
+    size: { width: 1142, height: 34 }
+    stations:
+      - { id: st-source,   rect: { x: 125,  y: 439, width: 115, height: 30 }, sub: "<inputMode> · level + air" }
+      - { id: st-encoder,  rect: { x: 392,  y: 439, width: 88,  height: 30 }, sub: "B-format · <orderActive> ch" }
+      - { id: st-rotation, rect: { x: 626,  y: 439, width: 93,  height: 30 }, sub: "<N> × <N> matrix" }
+      - { id: st-decoder,  rect: { x: 861,  y: 439, width: 104, height: 30 }, sub: "binaural · N ch → 2 | stereo · 4 of N ch → 2" }
+      - { id: st-output,   rect: { x: 1045, y: 439, width: 80,  height: 30 }, sub: "L / R · <outputLevel>" }
+    drawing: "1.5px brown rail across the strip; paper pill stations centred in columns of the same widths as the five groups; arrowheads in the column gaps"
+    highlight: "page-side recency of parameter change per group, 1.4 s hold then a 0.5 s fade: encoder ← azimuth / elevation / distance / order / orbit / orbitRate; rotation ← yaw / pitch / roll; decoder ← decoder; source ← inputMode; output ← outputLevel. No frame field."
+
+  - id: output_peak_meter
+    type: canvas-meter
+    position: { x: 1088, y: 512 }
+    size: { width: 62, height: 172 }
+    data_source: "meterFrame.outPeakL / outPeakR (post output gain) with decay-only ballistics (0.12)"
+    drawing: "two bars, dB scale 0 / −12 / −24 / −48 (floor −60), sage → amber → rust gradient, L / R labels"
+
+  - id: format_chip
+    type: readout
+    position: { x: 601, y: 21 }
+    size: { width: 216, height: 32 }
+    content: "FORMAT · AmbiX · ACN · SN3D · <Nth order, N ch>"
+  - id: latency_chip
+    type: readout
+    position: { x: 827, y: 21 }
+    size: { width: 178, height: 32 }
+    content: "LATENCY · 64 samples · 1.33 ms at 48 kHz (constant in both modes)"
+  - id: language_select
+    type: select-placeholder
+    position: { x: 1023, y: 21 }
+    size: { width: 104, height: 32 }
+    content: "English / Français / 简体中文 → setUiLanguage native (3.3 i18n)"
+  - id: settings
+    type: gear-popover
+    position: { x: 1137, y: 25 }
+    size: { width: 24, height: 24 }
+    content: "Hover help On/Off"
+
+  - id: lesson_row
+    requirement: UI-08
+    type: button-row
+    position: { x: 84, y: 706 }
+    size: { width: 859, height: 23 }
+    wiring: "button → Juce.getNativeFunction('applyFactoryPreset')(lessonId); production applies on the message thread (APVTS, gesture begin/end per parameter). Mock recipes below: reset ALL parameters to defaults first, NEVER touch outputLevel; the caption is written to the footer centre"
+    recipes:
+      "Point Source (FOA)":     { order: 0, azimuth: 30, elevation: 0, distance: 1 }
+      "Order 1 → 2 → 3":        { order: 2, azimuth: 45 }
+      "Behind You":             { azimuth: 180 }
+      "Overhead":               { elevation: 90, order: 1 }
+      "Rotate the Room":        { azimuth: 60, yaw: 120, order: 1 }
+      "Far Away / Up Close":    { distance: 12 }
+      "Slow Orbit":             { orbit: true, orbitRate: 0.05, order: 1 }
+      "Speakers vs Headphones": { decoder: 1, order: 2, azimuth: 45 }
+    captions:
+      "Point Source (FOA)":     "One source at 30° left, first order. W holds; X and Y share the direction."
+      "Order 1 → 2 → 3":        "3rd order at 45°. Step Order back to 1: bands switch off and the beam blurs."
+      "Behind You":             "Straight behind: the X row flips sign. On headphones, front and back are easily confused."
+      "Overhead":               "Straight up: only the Z-bearing rows carry it; X and Y fall to zero."
+      "Rotate the Room":        "Puck at 60°, yaw 120°: heard behind. Yaw turns the room, not the source."
+      "Far Away / Up Close":    "12 m: level drops and the air dulls the top. Try 0.2 m — the bars never change."
+      "Slow Orbit":             "One lap every 20 s. Watch X and Y trade places while W stays still."
+      "Speakers vs Headphones": "3rd order into Stereo: only W, X, Y are used. Switch back to Binaural to hear 2–3."
+    headroom_note: "Binaural recipes keep headroom (order-3 bank +6.5 dB peak, 0.2 m adds +8.9 dB) — Stage 4 refines; none sets outputLevel"
+
+  - id: mock_frame_engine
+    type: test-only
+    note: >
+      TEST HTML ONLY. Every 33 ms the page computes a MeterFrame from the control state and emits it through the
+      window.__JUCE__.backend 'meterFrame' event the production page listens to: azEff = azimuth (+ orbit phase advancing
+      CCW at orbitRate Hz) through a wrap-aware 20 ms one-pole; elEff one-pole; d(az, el) = (cos el cos az, cos el sin az, sin el)
+      with AmbiX axes (x front, y LEFT, z up); R = Rz(yaw)·Ry'(pitch)·Rx(roll) with the ARCHITECTURE signs → azRot / elRot
+      (azRot held within 0.01° of the pole); shGain[acn] = Y_acn(R·d) real SN3D ACN 0–15 × bandGain[band] (1 for bands ≤ order,
+      0 above, 20 ms ramp); shPeak[acn] = |shGain| · (0.5 + 0.4·|sin(2π·0.7·t)|) · min(1, 1.25/(d + 0.25)); orderActive = (order+1)²;
+      decoderMix ramps toward 1 / 0; outPeakL/R from the same envelope with a small ILD from sin(azRot); latencySamples 64.
+      PRODUCTION replaces this with the 30 Hz editor Timer reading TripleBuffer<MeterFrame> (hash-gated, emitEventIfBrowserIsVisible);
+      the page re-sends uiReady on visibilitychange → visible and C++ answers with a forced frame + the current language.
+
+  - id: mock_juce_backend
+    type: test-only
+    note: "window.Juce.getSliderState(id) {getNormalisedValue, setNormalisedValue, getScaledValue (interval snapped), sliderDragStarted/Ended, valueChangedEvent, properties {start, end, skew, interval, name, parameterIndex}}, getToggleState, getComboBoxState(choices), getNativeFunction: getParameterDefaults, getUiLanguage, setUiLanguage, uiReady, applyFactoryPreset (all logged). Same 12 IDs as the table."
+
+tooltips:
+  requirement: UI-06
+  convention: "Plain-language hover tips on every control, every visual's well, every signal-path station, the header chips and every lesson button (suite style: dark walnut card, sage uppercase title; fixed-position, shrink-to-fit at the window edge, viewport-sensitive clamp; hidden on pointerdown). Mockup keeps copy in a TIPS table + TIP_BINDINGS; finalization moves it to js/i18n.js (en / fr / zh-Hans)."
+  lessons_named:
+    chanWell: what W / X / Y / Z are; ACN order, SN3D normalisation, AmbiX; polarity colour
+    order: order ↔ channel count (N+1)²; a step up switches on one band, lower bands unchanged
+    yaw: Yaw rotates the ROOM, not the puck; + = CCW from above, front → left
+    pitch: the gimbal note (at ±90° yaw and roll coincide — display only)
+    azimuth: +90° = LEFT; X → Y hand-over, W constant
+    decoder / decWrap: why Stereo ignores orders 2–3 (first-order cardioid pair); front/back confusion on headphones
+    distance: distance = level + air (the exaggerated air model, 0 dB at 1 m)
+    topWrap: puck = source, beam = where it is heard, compass turns with yaw
+
+conventions:
+  - "azimuth +90° = LEFT (AmbiX); 0° front; ±180° behind; yaw + = scene CCW from above (front source moves left); pitch + = front rises; roll + = left side rises"
+  - "The puck follows azEff / elEff (pre-rotation) and NEVER moves with yaw; the compass rose, the beam and the rim ticks follow yaw / azRot / elRot"
+  - "Readouts beside knobs and in the wells format the host PARAMETER (getScaledValue()), never the frame; 'heard at' is a display-side rotation of parameter values"
+  - "No bank-fade indicator in the decoder view (v1.0)"
+  - "12 parameters, IDs exactly as ParamIDs (camelCase), no additions; choice strings stay English"
+  - "Single page, no modal menus; text floor 9.5px; no viewport units; html, body { height: 100% }; user-select: none; context menu disabled"
+
+notes:
+  - All positions in pixels from the plugin frame's top-left (0,0) at uiScale 1, measured from v1-ui-test.html
+  - "`type: knob` = rotary widget; the relay column is the binding (WebSliderRelay / WebToggleButtonRelay / WebComboBoxRelay)"
+  - "Choice params shown as segmented toggles (order 3-way, decoder 2-way) bind through getComboBoxState; inputMode is a <select>; orbit (bool) through getToggleState"
+  - "azimuth and elevation have two front-ends each: knob + sphere-canvas drag (same relay, with gestures)"
+  - Readouts use getScaledValue(); never JS-mirrored ranges
+  - "Height budget: header 50 + viz 356 + signal path 34 + controls 214 + lessons 28 + footer 14 + 5 gaps × 8 = 736 of 750 inner (footer margin-top: auto)"
+
+# Finalization metadata
+finalized: false
