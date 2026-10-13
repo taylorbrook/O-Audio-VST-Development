@@ -41,7 +41,20 @@
       snapOrderGains          — order gains step instead of ramping
 
     Uses: P1 null, DSP-06b negative control, order-fade control + negative
-    control, DSP-01 table (refSh16). Phase 2.2 extends it with a rotation.
+    control, DSP-01 table (refSh16).
+
+    Phase 2.2: rotation by RE-ENCODING AT THE ROTATED DIRECTION — this file
+    never contains R_SH (CONTEXT-2.2 D6). For one source,
+    R_SH · encode (d) == encode (R₃ · d) is an identity, so the model is the
+    oracle by construction: it builds R₃ (double, from the ARCHITECTURE
+    matrices written below — NOT by reading Source/dsp/ShRotator.h), rotates
+    the smoothed source direction, and evaluates the generic SN3D table there.
+    The three rotation angles run through the same Wrap smoother (same k,
+    same snap) at the same place in the control step as the engine's. The
+    negative-control switches are untouched — snapCoefficientsPerGrid is the
+    yaw zipper by construction. At zero rotation buildR3 is exactly I and
+    dir (direction (az, el)) round-trips to 9e-13°, so every Phase 2.1
+    reference render is unchanged.
 
   ==============================================================================
 */
@@ -57,6 +70,9 @@ struct RefParams
     float elevationDeg = 0.0f;
     float distanceM    = 1.0f;
     int   order        = 1;
+    float yawDeg       = 0.0f;   // Phase 2.2
+    float pitchDeg     = 0.0f;
+    float rollDeg      = 0.0f;
     int   decoder      = 0;      // 0 Binaural, 1 Stereo
     bool  orbit        = false;
     float orbitRateHz  = 0.1f;
@@ -125,6 +141,62 @@ public:
 
     static int band (int acn) { return acn == 0 ? 0 : acn < 4 ? 1 : acn < 9 ? 2 : 3; }
 
+    // ── Phase 2.2: the Cartesian rotation and the direction round trip ───────
+    //
+    // ARCHITECTURE §SH rotation (x front, y left, z up), composed Rz·Ry′·Rx:
+    //   Rz(ψ)  = [[ c, −s, 0], [ s, c, 0], [ 0, 0, 1]]   +ψ: front → left
+    //   Ry′(θ) = [[ c, 0, −s], [ 0, 1, 0], [ s, 0, c]]   +θ: front rises
+    //   Rx(φ)  = [[ 1, 0, 0], [ 0, c, −s], [ 0, s, c]]   +φ: left rises
+    static void buildR3 (double yawDeg, double pitchDeg, double rollDeg, double R[3][3])
+    {
+        const double psi = yawDeg * kPi / 180.0, theta = pitchDeg * kPi / 180.0, phi = rollDeg * kPi / 180.0;
+        const double cz = std::cos (psi),   sz = std::sin (psi);
+        const double cy = std::cos (theta), sy = std::sin (theta);
+        const double cx = std::cos (phi),   sx = std::sin (phi);
+
+        const double Rz[3][3] = { {  cz, -sz, 0.0 }, {  sz,  cz, 0.0 }, { 0.0, 0.0, 1.0 } };
+        const double Ry[3][3] = { {  cy, 0.0, -sy }, { 0.0, 1.0, 0.0 }, {  sy, 0.0,  cy } };
+        const double Rx[3][3] = { { 1.0, 0.0, 0.0 }, { 0.0,  cx, -sx }, { 0.0,  sx,  cx } };
+
+        double YX[3][3];
+        for (int i = 0; i < 3; ++i)
+            for (int j = 0; j < 3; ++j)
+                YX[i][j] = Ry[i][0] * Rx[0][j] + Ry[i][1] * Rx[1][j] + Ry[i][2] * Rx[2][j];
+
+        for (int i = 0; i < 3; ++i)
+            for (int j = 0; j < 3; ++j)
+                R[i][j] = Rz[i][0] * YX[0][j] + Rz[i][1] * YX[1][j] + Rz[i][2] * YX[2][j];
+    }
+
+    // d (az, el) = (cos e·cos a, cos e·sin a, sin e).
+    static void direction (double azDeg, double elDeg, double d[3])
+    {
+        const double a = azDeg * kPi / 180.0, e = elDeg * kPi / 180.0;
+        d[0] = std::cos (e) * std::cos (a);
+        d[1] = std::cos (e) * std::sin (a);
+        d[2] = std::sin (e);
+    }
+
+    // Back to degrees: az = atan2 (y, x) wrapped to [−180, 180), el = asin (clamp z).
+    // Azimuth is undefined at the pole (|z| → 1) — callers compare el only there.
+    static void dir (const double d[3], double& azDeg, double& elDeg)
+    {
+        azDeg = wrap180 (std::atan2 (d[1], d[0]) * 180.0 / kPi);
+        elDeg = std::asin (std::clamp (d[2], -1.0, 1.0)) * 180.0 / kPi;
+    }
+
+    // The oracle for the frame's azRot / elRot: dir (R₃ · d (az, el)).
+    static void rotatedDirection (double azDeg, double elDeg, double yawDeg, double pitchDeg, double rollDeg,
+                                  double& azR, double& elR)
+    {
+        double R[3][3], d[3], dp[3];
+        buildR3 (yawDeg, pitchDeg, rollDeg, R);
+        direction (azDeg, elDeg, d);
+        for (int i = 0; i < 3; ++i)
+            dp[i] = R[i][0] * d[0] + R[i][1] * d[1] + R[i][2] * d[2];
+        dir (dp, azR, elR);
+    }
+
     // ── control-rate primitives (double twins of Smoothers.h) ─────────────────
     static double wrap180 (double x) { return x - 360.0 * std::floor ((x + 180.0) / 360.0); }
 
@@ -192,6 +264,9 @@ public:
 
         az.snapTo (params.azimuthDeg);
         el.snapTo (params.elevationDeg);
+        yaw.snapTo (params.yawDeg);
+        pitch.snapTo (params.pitchDeg);
+        roll.snapTo (params.rollDeg);
 
         const double d = params.distanceM;
         g.snapTo (gainFor (d));
@@ -240,7 +315,7 @@ public:
         }
     }
 
-    const double* currentC() const { return curC; }
+    const double* currentC() const { return curC; }       // ROTATED from Phase 2.2
     double        currentAzEff() const { return az.cur; }
     const double* busTap() const { return tap; }
 
@@ -282,15 +357,25 @@ private:
         prevMixD = curMixD;
         curMixD  = mix.step (params.decoder == 0 ? 1.0 : 0.0, kRampStep);
 
+        // Phase 2.2: the three rotation angles, after the mixer, before the copy.
+        yaw.step (params.yawDeg, kOnePole);
+        pitch.step (params.pitchDeg, kOnePole);
+        roll.step (params.rollDeg, kOnePole);
+
         for (int i = 0; i < 16; ++i)
             prevC[i] = curC[i];
         evaluateC();
     }
 
+    // c = encode (dir (R₃ · d (az, el))) × band gains — the rotated vector, by
+    // re-encoding (D6). At zero rotation this is refSh16 (az, el) to 9e-13°.
     void evaluateC()
     {
+        double azR, elR;
+        rotatedDirection (az.cur, el.cur, yaw.cur, pitch.cur, roll.cur, azR, elR);
+
         double y[16];
-        refSh16 (az.cur, el.cur, y);
+        refSh16 (azR, elR, y);
         const double gains[4] = { 1.0, og[0].cur, og[1].cur, og[2].cur };
         for (int i = 0; i < 16; ++i)
             curC[i] = y[i] * gains[band (i)];
@@ -335,6 +420,7 @@ private:
     int    gridPos = 0;
 
     Wrap    az;
+    Wrap    yaw, pitch, roll;
     OnePole el, g, G, m;
     Ramp    og[3], mix;
     double  prevG = 1.0, curG = 1.0, prevCoef = 0.0, curCoef = 0.0, prevMix = 0.0, curMix = 0.0;

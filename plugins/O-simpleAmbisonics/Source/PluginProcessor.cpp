@@ -27,11 +27,12 @@
     The 12 APVTS parameters below are the BINDING contract from
     research/ARCHITECTURE.md §Parameter Mapping.
 
-    Phase 2.1 chain (Stage 2 — DSP), per host block:
+    Phase 2.1 + 2.2 chain (Stage 2 — DSP), per host block:
 
         input conditioner (Mono sum / Left only / mono bus)   → monoScratch (per slice ≤ maxBlock)
           → SpatialEngine::process (distance model → SN3D encoder with order
-            gating → [identity rotation] → 16-ch bus + meter tap → ±60° stereo
+            gating → ShRotator (yaw / pitch / roll in the SH domain, Phase 2.2)
+            → 16-ch ROTATED bus + meter tap (post-rotation) → ±60° stereo
             decode → FixedDelay<kPartition = 64> → decoder mixer)
           → seeded output gain (−60 dB = silence), per sample
           → both outputs; finite scrub; MeterFrame published once per block
