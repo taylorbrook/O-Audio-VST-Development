@@ -1,0 +1,80 @@
+# Stage 3: GUI - Context
+
+## Discussion Summary
+
+**Date:** 2026-10-13
+**Participants:** User, Claude
+**Source contracts:** BRIEF.md (§UI Concept — the five pedagogical visuals, tooltips, preset tour), ROADMAP.md §Stage 3 (phases 3.1 / 3.2 / 3.3), REQUIREMENTS.md (UI-01…08), research/ARCHITECTURE.md (§Visualization Tap, §Parameter Mapping, §Polar plot, §Meters, §Thread Boundaries, Decisions 9–10), `Source/dsp/MeterFrame.h` (the Stage-3 reader contract), stages/2-dsp/VERIFICATION.md (§Issues Found — items carried to Stage 3), the O-simpleWavetable Stage-3 CONTEXT (sibling precedent).
+
+**Entry check (re-read at the boundary):**
+- `mockup_finalized: false`, `Source/ui/` holds only `.gitkeep`, no `.planning/mockups/` and no `parameter-spec.md` — the mockup is the Stage-3 prerequisite named by the Stage-2 roll-up and has not been made.
+- `createEditor()` returns the Generic editor inline (`PluginProcessor.cpp:352`) with the `#if JUCE_WEB_BROWSER` guard pattern already described in its comment, so the render harness (`JUCE_WEB_BROWSER=0`, no editor sources) keeps building after the editor TU arrives.
+- The 12 APVTS IDs are camelCase and frozen (`azimuth`, `elevation`, `distance`, `order`, `yaw`, `pitch`, `roll`, `decoder`, `orbit`, `orbitRate`, `inputMode`, `outputLevel`): 8 floats, 3 choices (`order` "1/2/3", `decoder` "Binaural/Stereo", `inputMode` "Mono sum/Left only"), 1 bool. Degree parameters are continuous (interval 0); `distance` and `orbitRate` are skewed + stepped.
+- `processor.meterFrames` is a public `TripleBuffer<MeterFrame>` (one publish per host block); `MeterFrame` carries `shGain[16]` (signed, post-rotation), `shPeak[16]` (peak-since-last-read, a hold value), `azEff/elEff` (pre-rotation, the puck), `azRot/elRot` (rotated, the compass / polar centre; undefined within ≈ 0.01° of the pole), `orderActive`, `decoderMix`, `outPeakL/R`, `latencySamples`. No field is added in Stage 3.
+- Stage-2 regression verdicts for anything touching the processor: harness 241/241 with digest-2.1 `9189d911a1fe98d5` + digest-2.2 `7f35bc9f91e321b9` asserted, auval, pluginval s10 VST3 + AU, `verify_2_1/2/3.py`.
+
+This discussion settled the sequencing (mockup first), the cadence, the i18n scope and the lesson-button wiring, and wrote down the design brief the mockup must honour so the ui-mockup workflow does not re-derive the DSP's conventions.
+
+## Requirements Confirmed
+
+- **UI-07 (must) — single page, projector-readable, left-to-right as the signal path:** Source | Encoder | Rotation | Decoder | Output. No modal menus. Landscape design frame (the mockup fixes the exact pixels; ≈ 1180 × 800 is the working assumption), rendered through the O-simpleFM scale pattern: the page lays out at the design size and scales itself by CSS transform; the editor is resizable at a fixed aspect (0.6×–1.5×), fits the display it opens on, and keeps a user-chosen size for the session. Rationale: a 13" laptop must fit it unscaled and a projector must be able to blow it up; a fixed window (O-simpleWavetable) serves only one of those.
+- **UI-01 (must) — B-format channel view, the headline visual:** 4 / 9 / 16 rows by `orderActive`, grouped by order band (0 | 1 | 2 | 3) so the order step-up appears as a band lighting up. Each row: ACN index, AmbiX letter name (W · Y Z X · V T R S U · Q O M K L N P), a static SVG of the spherical-harmonic pattern (16 icons, generated offline), a signed bar driven by `shGain` with polarity colour, and a `shPeak` overlay (level, program-dependent). Ballistics in JS on `requestAnimationFrame` (attack 0.4 / decay 0.15); `shPeak` is already a hold value, so JS applies decay only. Acceptance: front → left visibly swaps energy from X (ACN 3) to Y (ACN 1) while W (ACN 0) stays constant.
+- **UI-02 (must) — source-on-a-sphere view:** two canvases, top-down (azimuth; listener head with a nose marking front, +90° drawn to the LEFT per AmbiX) and side (elevation), distance drawn as the puck's radius. The puck follows `azEff/elEff` from the frame; the compass rose turns by `yaw` (plus a tilt mark for pitch), and the puck never moves with yaw. Dragging: top-down drag sets `azimuth` from the pointer angle; side drag sets `elevation`; `distance` stays a knob (radius is display only) so the drag is one-dimensional and unambiguous. Drags go through the slider relay states with gesture begin / end so host automation records correctly.
+- **UI-03 (should) — spatial-resolution polar plot:** `g_N(γ) = Σ (2n+1)·P_n(cos γ) / (N+1)²` computed in JS from `order` only, drawn as a beam centred on `azRot` **as an overlay inside the top-down sphere canvas** (ARCHITECTURE §Polar plot), not a separate panel. Visibly sharpens 1 → 3.
+- **UI-04 (should) — live signal-path diagram:** five blocks (source → encoder → rotation → decoder → L/R), channel count label = `orderActive`, active-stage highlight driven page-side by recency of parameter change per group (encoder when az/el/distance/order move, rotation when yaw/pitch/roll move, decoder on mode change). No frame field.
+- **UI-05 (nice) — decoder view:** Binaural = KU100 head glyph + "MagLS · SADIE II KU100 · 64-sample latency"; Stereo = two cardioid mics at ±60°. The `decoderMix` ramp drives the crossfade between the two drawings. **No bank-fade indicator in v1.0** (`BinauralConvolver::bankMixCur()` / `isFading()` are audio-thread state; exposing them would mean touching the frame or the engine — not worth re-opening the Stage-2 verdicts for a 20 ms animation).
+- **UI-06 (should) — pedagogical tooltips on every control and on every visual's title:** W/X/Y/Z meaning; order ↔ channel count ((N+1)²); scene vs source rotation (Yaw rotates the room, not the puck); ACN / SN3D / AmbiX; front/back confusion on headphones; why Stereo ignores orders 2–3 (first-order cardioid pair); the exaggerated air model (distance = level + air); the gimbal note on Pitch (at ±90° yaw and roll coincide — display only); +90° = LEFT.
+- **UI-08 (should) — preset tour from the UI:** a row of 8 lesson buttons — Point Source (FOA), Order 1 → 2 → 3, Behind You, Overhead, Rotate the Room, Far Away / Up Close, Slow Orbit, Speakers vs Headphones — wired live in 3.3 through `applyFactoryPreset(lessonId)` with **provisional recipes** (reset to defaults first, never set `outputLevel`; Binaural recipes keep headroom — order-3 bank +6.5 dB peak, 0.2 m adds +8.9 dB). Stage 4 refines the recipes and adds the preset-manager bank (FUNC-08).
+- **Bindings (3.1):** 8 × `WebSliderRelay`, 3 × `WebComboBoxRelay`, 1 × `WebToggleButtonRelay`; member order relays → `webView` → attachments; 3-arg attachments with `nullptr` undoManager; `.withOptionsFrom()` for all 12; the O-simpleWavetable v1.0.1 fix for the `WebSliderParameterAttachment` dtor leaving a gesture open on editor close; `withUserDataFolder()` on Windows, static WebView2 linking (already in CMake).
+- **Native functions** (all registered or the control is silently dead): `getParameterDefaults`, `getUiLanguage`, `setUiLanguage`, `uiReady`, `applyFactoryPreset`. The preset-manager natives (`getPresetList` etc.) arrive with the bank in Stage 4.
+- **Event contract:** one `meterFrame` event from a 30 Hz editor Timer reading `meterFrames.read()`; hash-gated on a quantised payload so a static scene emits nothing; `emitEventIfBrowserIsVisible`; the page re-sends `uiReady` on `visibilitychange` → visible and C++ answers with a forced frame + the current language.
+- **Readouts format the host PARAMETER, never the frame** (the frame carries −11.999999 for −12 and lands at −180 for a +180 parameter). The puck and compass draw from the frame; the numeric readouts beside the knobs draw from the slider state. `azEff` readout in the sphere view is a formatted parameter-derived value, not `%f` of the frame.
+- **Family look:** the O-simple* field-guide aesthetic (O-simpleAdditive / O-simpleSubtractive / O-simpleWavetable): EB Garamond embedded from `modules/ui/eb-garamond`, paper ground, chips, JUCE 8 frontend + `check_native_interop.js`, `type="module"`, relative-drag knobs, explicit bare-path resource provider.
+- **i18n:** en / fr / zh-Hans in 3.3. Glossary first (order, ACN, SN3D, AmbiX, azimuth, elevation, yaw / pitch / roll, binaural, HRTF, decoder, soundfield, B-format, W/X/Y/Z stay as symbols), then the parallel localizers, then `i18n-fr-lint` + `i18n-zh-lint` (zh at `reviewed: 'mt'`) and `check-ui-labels` width pins at the widest language. Choice strings in the three `<select>`s stay English (automation names).
+
+## Constraints Identified
+
+- **The mockup is a hard prerequisite for research / plan / execute.** `/start O-simpleAmbisonics` → option 3 runs the ui-mockup workflow, producing `.planning/mockups/v1-ui.yaml` + `v1-ui-test.html` (design iteration) and, after approval, `v1-ui.html`, `v1-i18n.js`, `v1-PluginEditor.{h,cpp}`, `v1-CMakeLists.txt`, `v1-integration-checklist.md`, and finalises `parameter-spec.md` from ARCHITECTURE §Parameter Mapping — **12 parameters, IDs exactly as `ParamIDs`, no additions** (spread / weighting / solo are v1.1). This CONTEXT.md is the mockup's design brief; the mockup may overturn the layout assumptions here (frame size, panel proportions, the drag model) but not the DSP conventions (sign of azimuth, what the puck / compass / meters follow, the 12-parameter set).
+- **Message-thread only:** the editor Timer reads the triple buffer, builds one JSON payload (32 floats + 6 scalars) and emits; no per-tick allocation beyond the payload string; the audio thread is untouched (PERF-01 stays verified).
+- **Processor changes are limited to:** the `#if JUCE_WEB_BROWSER` editor hook in `createEditor()`, `applyFactoryPreset` (message thread, APVTS only, gesture begin / end per parameter), `uiLanguage` + `editorScale` in the state XML (state round-trip gates grow from 12 values accordingly), and nothing in `processBlock` / the engine. After any processor edit: harness 241/241 with both digests asserted, then `verify_2_1/2/3.py` on the installed VST3.
+- **Harness build stays green:** the editor TU is guarded so `tests/render-harness` (`JUCE_WEB_BROWSER=0`) compiles without it; the UI BinaryData target is the only `juce_add_binary_data` this plugin ever has (the filter bank is a header).
+- `Source/ui/public/modules/*.js` are gitignored copies written at configure time — never commit them; a `git archive` snapshot lacks them (project memory).
+- Canvas drags: `pointerdown` + `preventDefault` suppresses the compatibility `mousedown`, so document-level dismissers must listen on `pointerdown`; Chromium's implicit pointer capture makes drag-outside behave (project memory). Canvas text needs `document.fonts.load()` then a repaint or it keeps the fallback face (project memory).
+- Tooltips: fixed-position with shrink-to-fit at the window edge and the viewport-sensitive clamp gate (project memory); `boot-all-uis --strict-tips` must report 0 dead / 0 late.
+- UI gates before the Stage-3 commit, on the real tree (not the finalization fixture): `check-i18n`, `i18n-fr-lint`, `i18n-zh-lint`, `check-ui-labels`, `boot-all-uis --strict-tips`. Exit 77 = Playwright not resolved = nothing verified.
+- Build / install via `./scripts/build-and-install.sh O-simpleAmbisonics`; rebuild the Standalone explicitly for the hands-on (it stays stale under that script — project memory). Commits path-scoped with the temp-index discipline; re-check branch + staging immediately before each commit.
+- Windows build itself stays a Stage-4 item (COMPAT-02); the CMake flags are already correct.
+
+## Approach Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Mockup sequencing | **Mockup first, then `/plugin-research`** (user) | The design must be iterated in a browser before C++ wiring; the mockup also produces `parameter-spec.md` and the v1-* scaffolding research and plan work from, as O-simpleWavetable did. This CONTEXT.md is its brief. |
+| Cadence | **One GSD cycle; execute in two parts: 3.1 + 3.2 → build / install → user visual checkpoint → 3.3** (user) | The finalized mockup carries the design, so per-phase discuss adds little; the checkpoint lets the meters, puck and compass be checked by eye before tooltips, presets and i18n land on top. Single RESEARCH / PLAN / SUMMARY / VERIFICATION (no suffix). |
+| i18n scope | **en / fr / zh-Hans in 3.3** (user) | Family parity; the ambisonics vocabulary needs the glossary-first pass before parallel localizers. |
+| Lesson buttons | **Live with provisional recipes in 3.3** (user) | The tour is how a class demos each concept; the hands-on needs it working. Stage 4 refines and adds the FUNC-08 bank. Never `outputLevel`; Binaural recipes keep headroom. |
+| Window | **Resizable at a fixed aspect with the O-simpleFM scale pattern; landscape design frame** | UI-07 is a must: fit a 13" laptop unscaled, scale up on a projector. `editorScale` persisted on the processor. |
+| Polar plot placement | **Overlay in the top-down sphere canvas, centred on `azRot`** | ARCHITECTURE §Polar plot; one picture shows direction, rotation and sharpness together. |
+| Sphere drag model | **Top-down angle → `azimuth`; side → `elevation`; `distance` by knob only** | One-dimensional drags are unambiguous and gesture-safe; the radius still shows distance. Mockup may overturn. |
+| Meter rows | **Grouped by order band, signed `shGain` bars with `shPeak` overlay** | ARCHITECTURE Decision 9: the pattern value is program-independent and polarity-visible; the band grouping makes the order step-up the picture. |
+| Signal-path highlight | **Page-side recency of parameter change** | No frame change; the highlight is a teaching cue, not a measurement. |
+| Decoder-view fade indicator | **Omitted in v1.0** | Would need a frame / engine touch for a 20 ms animation; Stage-2 digests stay the verdicts. |
+| Readouts | **Host parameter value, never the frame** | Carried from Stage 2 (−11.999999, −180 for +180). |
+| Hands-on venue | **Standalone + Logic Pro** | Standalone covers drags, tooltips and the tour; Logic covers automation → UI, hide / re-show (`uiReady` re-send), save / reopen with `editorScale`, and clears the AU hands-on list carried from Stage 2. |
+
+## Open Questions (for research)
+
+- Reference editor to adapt from: O-simpleFM (scale pattern, viz Timer) vs O-simpleWavetable (latest WebView + gate conventions, lesson buttons). Likely both: FM for the window / scale, Wavetable for the relays, natives and gates.
+- How the mockup's `v1-PluginEditor.{h,cpp}` template handles an effect (no keyboard, no import) — what to delete vs adapt.
+- Generating the 16 SH pattern icons offline (a script rendering `Y_acn` lobes to SVG, polarity-coloured) vs hand-drawn; consistent sizing in a meter row.
+- Canvas drag → slider state: the exact gesture begin / end calls through the JUCE 8 frontend slider state for a non-knob control, and how the wrap at ±180° is handled when the pointer crosses the rear.
+- `meterFrame` payload at 30 Hz: quantisation for the hash (shGain 1e-3, peaks 1e-3 of full scale, angles 0.01°) and whether `juce::var` building or a pre-formatted string is cheaper; what the rest state emits (nothing).
+- UI-01 / UI-02 gates: a Playwright probe fed synthetic frames must use states the C++ can actually produce (derive from `MeterFrame` semantics — project memory); whether a headless capture of the live payload is feasible for the "X → Y swap, W constant" acceptance.
+- Compass under yaw with pitch / roll non-zero: what the top-down rose shows when `elRot` leaves the horizon; the hold rule near the pole.
+- `editorScale` + `uiLanguage` in the state XML: the `verify_2_*` state round-trip gates and the 12-value contract; migration-safe defaults.
+- Polar-plot rendering cost per frame (Legendre at 360 angles) and whether to cache per order.
+- i18n glossary draft and the width budget for the French lesson-button row (project memory: lesson rows are a French width budget).
+
+## Next Phase
+
+Ready for: **UI mockup** (`/start O-simpleAmbisonics` → option 3, with this file as the brief) → then the **research** phase (`/plugin-research O-simpleAmbisonics 3-gui`).
