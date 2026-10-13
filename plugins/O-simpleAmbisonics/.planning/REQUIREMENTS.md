@@ -22,7 +22,7 @@ lastUpdated: 2026-10-12
 | FUNC-01 | Complete ambisonic chain inside one stereo-out plugin: mono source → SH encoder → SH-domain rotation → decoder → L/R; no multichannel bus required | must | partial | stage-2 |
 | FUNC-02 | Source positioned by Azimuth (-180…+180°), Elevation (-90…+90°) and Distance (0.2–20 m) | must | complete | stage-2 |
 | FUNC-03 | Ambisonic order selectable 1 / 2 / 3 (4 / 9 / 16 channels), switchable while audio runs | must | partial | stage-2 |
-| FUNC-04 | Scene rotation via Yaw (must), Pitch and Roll (should), applied in the ambisonic domain after encoding so the scene rotates, not the source | must | pending | stage-2 |
+| FUNC-04 | Scene rotation via Yaw (must), Pitch and Roll (should), applied in the ambisonic domain after encoding so the scene rotates, not the source | must | complete | stage-2 |
 | FUNC-05 | Decoder selectable: Binaural (HRTF, headphones) or Stereo (plain amplitude decode for speakers/projector) | must | pending | stage-2 |
 | FUNC-06 | Orbit: automatic azimuth motion with an on/off switch and a rate (0.02–2 Hz) so movement is audible without DAW automation | should | complete | stage-2 |
 | FUNC-07 | Stereo input accepted and summed to the single mono source (Input Mode: Mono sum / Left only); mono input accepted | must | complete | stage-1 |
@@ -34,7 +34,7 @@ lastUpdated: 2026-10-12
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | DSP-01 | SH encoder in AmbiX convention (ACN order, SN3D normalisation) for orders 1–3; coefficients match the reference table in `research/ambisonics-encoding-deep-dive.md` within 1e-5 | must | complete | stage-2 |
-| DSP-02 | SH-domain rotation matrix per order (yaw/pitch/roll), mathematically equivalent to re-encoding the source at the rotated direction | must | pending | stage-2 |
+| DSP-02 | SH-domain rotation matrix per order (yaw/pitch/roll), mathematically equivalent to re-encoding the source at the rotated direction | must | complete | stage-2 |
 | DSP-03 | HRTF binaural decoder (MagLS or virtual-loudspeaker + HRTF; Stage 0 decides) from an embedded, precomputed filter set per order; partitioned convolution; latency reported via `setLatencySamples()` | must | pending | stage-2 |
 | DSP-04 | Stereo decode mode (±30° virtual pair or equivalent) without HRTF | should | complete | stage-2 |
 | DSP-05 | Distance model: inverse-distance gain with near-field clamp plus a gentle air-absorption low-pass; monotonic and explainable | should | complete | stage-2 |
@@ -84,7 +84,7 @@ lastUpdated: 2026-10-12
 **Acceptance Criteria:**
 - [x] Plugin declares only stereo/mono input and stereo output buses — auval caps `[1, 2] [2, 2]` (Stage 2 / 2.1 verify, 2026-10-12)
 - [x] With Order 1, Azimuth +90°, Binaural decoder, a test tone is louder in the left ear than the right — 22.88 dB L/R, Binaural == Stereo bit-equal under the 2.1 placeholder; re-gated with the real HRTF leg at 2.3 (Stage 2 / 2.1 verify, 2026-10-12)
-- [ ] Bypassing rotation (all 0°) and setting Yaw = -Azimuth brings the source back to front (audibly and in the meters)
+- [x] Bypassing rotation (all 0°) and setting Yaw = -Azimuth brings the source back to front (audibly and in the meters) — harness frame `shGain == refSh16 (0, 0)` 2.2e-8 with |L − R| = 0 at order 3; pedalboard on the installed VST3: az +90 / 37 / −150 with the opposite yaw gives |L − R| ≤ 1.5e-8 and matches the front render (Stage 2 / 2.2 verify, 2026-10-12); the real binaural leg re-gates the first two boxes at 2.3
 
 ### FUNC-02: Source position
 
@@ -101,8 +101,8 @@ lastUpdated: 2026-10-12
 ### FUNC-04: Scene rotation
 
 **Acceptance Criteria:**
-- [ ] Yaw rotates the decoded image while the source puck stays fixed
-- [ ] Rotated encode equals direct encode at the rotated direction within 1e-4 (DSP-02 gate)
+- [x] Yaw rotates the decoded image while the source puck stays fixed — frame `azEff / elEff` bit-equal to the host parameters under yaw while `azRot` moves (harness), yaw ψ on a front source bit-equal to azimuth ψ on the installed VST3 with the azimuth host parameter untouched (pedalboard V2 / V3); pitch + raises the front and roll + raises the left: cardinal probes elRot 90.00000 ×3, pedalboard V4 / V5 anchors exact (Stage 2 / 2.2 verify, 2026-10-12)
+- [x] Rotated encode equals direct encode at the rotated direction within 1e-4 (DSP-02 gate) — max 2.6e-7 / 5.2e-7 / 7.2e-7 at orders 1 / 2 / 3 over 200 tuples (Stage 2 / 2.2 verify, 2026-10-12)
 
 ### FUNC-05: Decoder select
 
@@ -125,7 +125,7 @@ lastUpdated: 2026-10-12
 ### DSP-02: Rotation correctness
 
 **Acceptance Criteria:**
-- [ ] For random (az, el, yaw, pitch, roll), rotate(encode(az, el)) == encode(rotated direction) within 1e-4 at every order
+- [x] For random (az, el, yaw, pitch, roll), rotate(encode(az, el)) == encode(rotated direction) within 1e-4 at every order — 200 seeded tuples × orders 1 / 2 / 3: 2.613e-07 / 5.248e-07 / 7.157e-07; block orthogonality 5.6e-7; transpose trap FAILs as expected (1.974); identity exact in float (digest-2.1 `9189d911a1fe98d5` reproduced); yaw ≡ azimuth bit-equal on the installed VST3 (Stage 2 / 2.2 verify, 2026-10-12)
 
 ### DSP-03: Binaural decoder
 
@@ -139,6 +139,7 @@ lastUpdated: 2026-10-12
 **Acceptance Criteria:**
 - [x] A jump from +170° to -170° passes through 180°, not through 0° — harness DSP-06a trajectory + pedalboard V7 on the installed VST3 (Stage 2 / 2.1 verify, 2026-10-12)
 - [x] No zipper noise in a 1-second full-circle azimuth sweep — second-difference click ratio 1.0003 / 1.0000 vs a matched static control (negative control 24.8) (Stage 2 / 2.1 verify, 2026-10-12)
+- [x] Extended to yaw / pitch / roll — 360°/s yaw sweep bus-tap ratio 1.127 ≤ 2.0 on all 16 channels (negative control 49–156), 0 → 180 yaw step 1.0003 vs the same-motion reference (negative control 98–544); on the installed VST3 the sweep's normalised second-difference ratio reads 1.000 (negative control 24.8) (Stage 2 / 2.2 verify, 2026-10-12)
 
 ### DSP-07: Click-free switching
 
@@ -167,7 +168,7 @@ lastUpdated: 2026-10-12
 ### PERF-01: Real-time safety
 
 **Acceptance Criteria:**
-- [x] Allocation gate on `processBlock` at all orders and both decoders — global new/delete counter 0 across 200 calls, liveness 1 (Stage 2 / 2.1 verify, 2026-10-12); re-run with the 2.3 convolver
+- [x] Allocation gate on `processBlock` at all orders and both decoders — global new/delete counter 0 across 200 calls, liveness 1 (Stage 2 / 2.1 verify, 2026-10-12); re-gated with yaw / pitch / roll moving, 0 allocations (Stage 2 / 2.2 verify, 2026-10-12); re-run with the 2.3 convolver
 - [x] Meter/position data crosses via lock-free FIFO or atomics — `TripleBuffer<MeterFrame>`, two atomics, no locks (inspection) (Stage 2 / 2.1 verify, 2026-10-12)
 
 ### PERF-02: CPU budget
@@ -190,7 +191,7 @@ lastUpdated: 2026-10-12
 ### QUAL-01: No artifacts
 
 **Acceptance Criteria:**
-- [~] No NaN/denormal under any parameter extreme — pluginval s10 ×2, 16-corner harness render at 48 k / 96 k, 32-corner pedalboard render all finite (Stage 2 / 2.1 verify, 2026-10-12); full offline sweep with the HRTF leg at 2.3
+- [~] No NaN/denormal under any parameter extreme — pluginval s10 ×2, 16-corner harness render at 48 k / 96 k, 32-corner pedalboard render all finite (Stage 2 / 2.1 verify, 2026-10-12); ±180° on all three rotation angles at 48 k / 96 k + gimbal θ = 90° under a yaw sweep finite, 32 rotation corners on the installed VST3 finite (Stage 2 / 2.2 verify, 2026-10-12); full offline sweep with the HRTF leg at 2.3
 - [ ] No clicks on preset load
 
 ### QUAL-02: Localisation sanity
