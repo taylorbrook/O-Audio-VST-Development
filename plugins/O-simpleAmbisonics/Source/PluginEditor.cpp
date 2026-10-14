@@ -108,6 +108,10 @@ OSimpleAmbisonicsAudioProcessorEditor::getResource (const juce::String& url)
     if (url == "/js/i18n.js")
         return makeBinaryResource (BinaryData::i18n_js, BinaryData::i18n_jsSize, "application/javascript; charset=utf-8");
 
+    // The 16 generated SN3D pattern icons (scripts/generate_sh_icons.mjs).
+    if (url == "/js/shicons.js")
+        return makeBinaryResource (BinaryData::shicons_js, BinaryData::shicons_jsSize, "application/javascript; charset=utf-8");
+
     if (url == "/js/juce/index.js")
         return makeBinaryResource (BinaryData::index_js, BinaryData::index_jsSize, "application/javascript; charset=utf-8");
 
