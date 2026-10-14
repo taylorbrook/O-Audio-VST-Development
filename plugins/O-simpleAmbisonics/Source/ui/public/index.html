@@ -366,6 +366,9 @@
   .chan-scale .sc-gain { color: rgba(158, 196, 111, 0.6); }
   .chan-scale .sc-peak { color: rgba(214, 196, 160, 0.5); }
   #chanCanvas { z-index: 0; }
+  /* U1: host idle — the well dims slightly while the picture comes from the parameters */
+  .chan-well { transition: opacity 0.3s ease; }
+  .chan-well.idle { opacity: 0.8; }
 
   /* Decoder view */
   .dec-cap { left: 10px; right: 10px; bottom: 8px; text-align: center; }
@@ -679,6 +682,7 @@
     .gear-btn { transition: none; }
     .settings-toggle { transition: none; }
     .band-tag, .band-num, .band-ch, .acn, .ltr, .sh-icon { transition: none; }
+    .chan-well { transition: none; }
     .station, .station .st-name, .station .st-sub { transition: none; }
     .station.on, .station.on .st-name, .station.on .st-sub { transition: none; }
     .knob { transition: none; }
@@ -981,6 +985,7 @@
 <script type="module">
 import * as Juce from './js/juce/index.js';
 import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';
+import { SH_ICONS, SH_ICON_COLOURS } from './js/shicons.js';
 
 // ════ MODULE STATE — every module-level const/let lives in this block ════
 // (The canon's own three `let` lines below are the one sanctioned exception.)
@@ -1041,6 +1046,12 @@ const LEGENDRE = [(x) => 1, (x) => x, (x) => (3 * x * x - 1) / 2, (x) => (5 * x 
 const SERIF_CANVAS = "'EB Garamond', Georgia, 'Times New Roman', serif";
 const INK = { parch: '#d6c4a0', sage: '#9ec46f', amber: '#e8b04a', brass: '#f3cd86', rust: '#e98a5a' };
 const ORD_KEYS  = ['label.ord1', 'label.ord2', 'label.ord3'];
+// Pattern icons: '3d' = the generated SN3D balloons (js/shicons.js), 'slice' =
+// the procedural 2D slices (shIconSvg). The visual checkpoint picks (R4).
+const SH_ICON_STYLE = '3d';
+const EASE_EPS = 1e-3;            // a display value within this of its target snaps (and stops redrawing)
+const POLE_HOLD_DEG = 89.99;      // azRot is undefined this close to the pole (MeterFrame.h): hold it
+const COMPASS_HOLD_COS = 1.75e-4; // |cos pitch| below this: the rose heading is undefined, hold it
 // One labeler per lesson, each with a LITERAL key (check-i18n [13] rejects a computed key).
 const LESSON_CAPTIONERS = {
   pointSource:        (el) => setLabel(el, 'label.tourCaption.pointSource'),
@@ -1073,23 +1084,31 @@ const SIDE = { cx: 24,  cy: 170, R: 100, rHead: 16 };
 let barRects = [];                // per ACN: { x, y, w, h } in well px (design space)
 const beamCache = {};             // order -> Float32Array(361)
 const stageHit = {};              // station -> performance.now() of the last change
-let lastFrame = null;             // the latest meterFrame payload
+let lastFrame = null;             // the latest meterFrame payload (live or idle)
+const dirty = { top: true, side: true, chan: true, dec: true, out: true };   // per-canvas redraw flags
+const puckSprites = {};           // radius -> { canvas, key } pre-rendered gradient + glow
 let readoutsDirty = true;         // parameter changed since the last renderReadouts()
 let rafId = null;
 const disp = {                    // display-side ballistics (attack 0.4 / decay 0.15; shPeak decay only)
   gain: new Float32Array(16), peak: new Float32Array(16), outL: 0, outR: 0,
   decoderMix: 1, az: 0, el: 0, azRot: 0, elRot: 0, orderActive: 4, yaw: 0, pitch: 0,
+  azRotHeld: false, heading: 0, roseAlpha: 1, frontSin: 0, idle: null,
 };
 
 // ════ FUNCTION DECLARATIONS (hoisted — safe to call from init()) ════
 
 // ── Formatting helpers (readouts format the host PARAMETER, never the frame) ──
 function fmtDeg(v, dp) {
+  // ±180 is one direction: shown unsigned (Stage-2 carry "−180 displays as 180")
+  if (Math.abs(v) >= 180 - Math.pow(10, -dp) / 2) return `${(180).toFixed(dp)}°`;
   const r = Math.abs(v) < Math.pow(10, -dp) / 2 ? 0 : v;
   return `${r < 0 ? MINUS : r > 0 ? '+' : ''}${Math.abs(r).toFixed(dp)}°`;
 }
 function scaledOf(id)  { const st = sliderState[id]; return st ? st.getScaledValue() : 0; }
 function choiceOf(id)  { const st = comboState[id];  return st ? st.getChoiceIndex() : 0; }
+// The order index, clamped to the three real choices (an empty choices list
+// before the relay's first properties update must never reach beamCurve(4)).
+function orderIdx()    { const i = Math.round(Number(choiceOf('order'))); return Number.isFinite(i) ? Math.max(0, Math.min(2, i)) : 0; }
 function toggleOf(id)  { const st = toggleState[id]; return st ? !!st.getValue() : false; }
 function wrap180(a)    { return ((a + 180) % 360 + 360) % 360 - 180; }
 
@@ -1187,8 +1206,10 @@ function resetToDefault(st, id) {
   updateKnobVisual(id);
 }
 
+function markAllDirty() { dirty.top = dirty.side = dirty.chan = dirty.dec = dirty.out = true; }
+function paramsChanged() { readoutsDirty = true; markAllDirty(); }   // the idle picture follows every parameter
 function onParamTouched(id) {
-  readoutsDirty = true;
+  paramsChanged();
   touchStage(STAGE_OF[id]);
 }
 
@@ -1197,7 +1218,7 @@ function bindKnob(juce, id) {
   sliderState[id] = st;
 
   st.valueChangedEvent.addListener(() => { updateKnobVisual(id); onParamTouched(id); });
-  st.propertiesChangedEvent.addListener(() => { updateKnobVisual(id); readoutsDirty = true; });
+  st.propertiesChangedEvent.addListener(() => { updateKnobVisual(id); paramsChanged(); });
   updateKnobVisual(id);
 
   const knob = document.getElementById(`knob-${id}`);
@@ -1317,7 +1338,7 @@ function bindSelectCombo(juce, paramId) {
     if (idx >= 0 && idx < sel.options.length) sel.selectedIndex = idx;
   };
 
-  st.propertiesChangedEvent.addListener(() => { refresh(); readoutsDirty = true; });
+  st.propertiesChangedEvent.addListener(() => { refresh(); paramsChanged(); });
   st.valueChangedEvent.addListener(() => { refresh(); onParamTouched(paramId); });
   refresh();
   sel.addEventListener('change', () => st.setChoiceIndex(sel.selectedIndex));
@@ -1342,7 +1363,7 @@ function bindSegCombo(juce, paramId) {
   };
   buttons.forEach((b) => b.addEventListener('click', () => st.setChoiceIndex(Number(b.dataset.v))));
   st.valueChangedEvent.addListener(() => { paint(); onParamTouched(paramId); });
-  st.propertiesChangedEvent.addListener(() => { paint(); readoutsDirty = true; });
+  st.propertiesChangedEvent.addListener(() => { paint(); paramsChanged(); });
   paint();
   return st;
 }
@@ -1366,7 +1387,7 @@ function bindSegToggle(juce, paramId) {
   };
   buttons.forEach((b) => b.addEventListener('click', () => st.setValue(Number(b.dataset.v) === 1)));
   st.valueChangedEvent.addListener(() => { paint(); onParamTouched(paramId); });
-  st.propertiesChangedEvent.addListener(() => { paint(); readoutsDirty = true; });
+  st.propertiesChangedEvent.addListener(() => { paint(); paramsChanged(); });
   paint();
   return st;
 }
@@ -1533,6 +1554,7 @@ function applyUiScale() {
   canvases.forEach((c) => c.resize());
   measureBarRects();
   readoutsDirty = true;
+  markAllDirty();   // puck sprites re-render themselves on a uiScale / DPR change
 }
 
 // ── Canvases (DPR-aware; uiScale folded into the backing store) ──
@@ -1658,6 +1680,30 @@ function shIconSvg(acn) {
   return svg;
 }
 
+// The generated 3D balloon for one ACN channel (js/shicons.js), built with
+// createElementNS — the module is data only.
+function shIcon3d(acn) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const icon = SH_ICONS[acn];
+  if (!icon) return shIconSvg(acn);
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 18 18');
+  svg.setAttribute('aria-hidden', 'true');
+  const ring = document.createElementNS(NS, 'circle');
+  ring.setAttribute('cx', '9'); ring.setAttribute('cy', '9'); ring.setAttribute('r', '8.6');
+  ring.setAttribute('fill', 'none'); ring.setAttribute('stroke', 'rgba(214,196,160,0.18)'); ring.setAttribute('stroke-width', '0.6');
+  svg.appendChild(ring);
+  for (const p of icon.paths) {
+    const col = (p.pol > 0 ? SH_ICON_COLOURS.pos : SH_ICON_COLOURS.neg)[p.shade];
+    const path = document.createElementNS(NS, 'path');
+    path.setAttribute('d', p.d);
+    path.setAttribute('fill', col); path.setAttribute('stroke', col);
+    path.setAttribute('stroke-width', '0.6'); path.setAttribute('stroke-linejoin', 'round');
+    svg.appendChild(path);
+  }
+  return svg;
+}
+
 // ── UI-01 channel rows (DOM) + bar rects for the canvas ──
 function buildChannelRows() {
   const rows = document.getElementById('chanRows');
@@ -1680,7 +1726,7 @@ function buildChannelRows() {
     acns.forEach((acn) => {
       const n = document.createElement('div'); n.className = 'acn'; n.textContent = String(acn);
       const l = document.createElement('div'); l.className = 'ltr'; l.textContent = ACN_LETTER[acn];
-      const ic = document.createElement('div'); ic.className = 'sh-icon'; ic.appendChild(shIconSvg(acn));
+      const ic = document.createElement('div'); ic.className = 'sh-icon'; ic.appendChild(SH_ICON_STYLE === '3d' ? shIcon3d(acn) : shIconSvg(acn));
       const bar = document.createElement('div'); bar.className = 'bar-cell'; bar.dataset.acn = String(acn);
       band.appendChild(n); band.appendChild(l); band.appendChild(ic); band.appendChild(bar);
     });
@@ -1715,32 +1761,133 @@ function measureBarRects() {
 // ── The frame consumer: ballistics on requestAnimationFrame ──
 function onMeterFrame(f) {
   lastFrame = typeof f === 'string' ? JSON.parse(f) : f;
+  markAllDirty();
+}
+// U1 (host-idle display, user decision 2026-10-13): with live === 1 the frame
+// drives the puck, bars and beam exactly; while idle (live === 0, or before any
+// frame) they are drawn from the PARAMETERS with the page's own display maths,
+// and the peaks are the payload's zeros.
+function effectiveFrame() {
+  const f = lastFrame;
+  if (f && f.live === 1) return f;   // [probe-anchor:idle-fallback]
+  return paramFrame(f);
+}
+function paramFrame(f) {
+  const az = scaledOf('azimuth'), el = scaledOf('elevation');
+  const yaw = scaledOf('yaw'), pitch = scaledOf('pitch'), roll = scaledOf('roll');
+  const order = orderIdx();
+  const identity = yaw === 0 && pitch === 0 && roll === 0;
+  const d = dirOf(az, el);
+  const dr = identity ? d : applyR(rotMatrix(yaw, pitch, roll), d);
+  const sh = shVec(dr[0], dr[1], dr[2]);
+  const shGain = new Array(16);
+  for (let i = 0; i < 16; i++) shGain[i] = BAND_OF[i] <= order + 1 ? sh[i] : 0;
+  const elRot = Math.asin(Math.max(-1, Math.min(1, dr[2]))) * R2D;
+  return {
+    shGain,
+    shPeak: f && f.shPeak ? f.shPeak : new Array(16).fill(0),
+    azEffDeg: wrap180(az), elEffDeg: el,
+    azRotDeg: identity ? wrap180(az) : Math.atan2(dr[1], dr[0]) * R2D, elRotDeg: elRot,
+    orderActive: (order + 2) * (order + 2),
+    decoderMix: choiceOf('decoder') === 0 ? 1 : 0,
+    outPeakL: f ? f.outPeakL : 0, outPeakR: f ? f.outPeakR : 0,
+    latencySamples: 64, live: 0,
+  };
+}
+// Ease toward a target; within EASE_EPS snap to it. Returns true while moving.
+function easeTo(cur, target, k) {
+  const next = cur + (target - cur) * k;
+  return Math.abs(target - next) <= EASE_EPS ? target : next;
 }
 function stepBallistics() {
-  const f = lastFrame; if (!f) return;
+  const f = effectiveFrame();
+  let chan = false, out = false, top = false, side = false, dec = false;
   for (let i = 0; i < 16; i++) {
     const t = f.shGain[i], c = disp.gain[i];
-    disp.gain[i] = c + (t - c) * (Math.abs(t) > Math.abs(c) ? BALL_ATTACK : BALL_DECAY);
+    const g = easeTo(c, t, Math.abs(t) > Math.abs(c) ? BALL_ATTACK : BALL_DECAY);
     const p = f.shPeak[i];                         // already a hold value: decay only, never a second max()
-    disp.peak[i] = p >= disp.peak[i] ? p : disp.peak[i] + (p - disp.peak[i]) * BALL_DECAY;
+    const q = p >= disp.peak[i] ? p : easeTo(disp.peak[i], p, BALL_DECAY);
+    if (g !== c || q !== disp.peak[i]) chan = true;
+    disp.gain[i] = g; disp.peak[i] = q;
   }
-  disp.outL = f.outPeakL >= disp.outL ? f.outPeakL : disp.outL + (f.outPeakL - disp.outL) * OUT_DECAY;
-  disp.outR = f.outPeakR >= disp.outR ? f.outPeakR : disp.outR + (f.outPeakR - disp.outR) * OUT_DECAY;
-  disp.az = f.azEffDeg; disp.el = f.elEffDeg; disp.azRot = f.azRotDeg; disp.elRot = f.elRotDeg;
-  disp.orderActive = f.orderActive;
+  const oL = f.outPeakL >= disp.outL ? f.outPeakL : easeTo(disp.outL, f.outPeakL, OUT_DECAY);
+  const oR = f.outPeakR >= disp.outR ? f.outPeakR : easeTo(disp.outR, f.outPeakR, OUT_DECAY);
+  if (oL !== disp.outL || oR !== disp.outR) out = true;
+  disp.outL = oL; disp.outR = oR;
+  if (disp.az !== f.azEffDeg || disp.el !== f.elEffDeg) { top = side = true; }
+  disp.az = f.azEffDeg; disp.el = f.elEffDeg;
+  // azRot is undefined within ~0.01° of the pole: hold the last value (the rim tick dims)
+  const held = !(Math.abs(f.elRotDeg) < POLE_HOLD_DEG);
+  if (!held) disp.azRot = f.azRotDeg;   // [probe-anchor:pole-hold]
+  if (held !== disp.azRotHeld || disp.elRot !== f.elRotDeg) top = side = true;
+  disp.azRotHeld = held; disp.elRot = f.elRotDeg;
+  if (disp.orderActive !== f.orderActive) { disp.orderActive = f.orderActive; readoutsDirty = true; chan = top = true; }
   // page-side ease of the decoder drawing (the frame's 20 ms ramp is one tick at 30 Hz)
-  disp.decoderMix += (f.decoderMix - disp.decoderMix) * DEC_EASE;
+  const m = easeTo(disp.decoderMix, f.decoderMix, DEC_EASE);
+  if (m !== disp.decoderMix) dec = true;
+  disp.decoderMix = m;
+  const idle = f.live !== 1;
+  if (idle !== disp.idle) {
+    disp.idle = idle;
+    const well = document.getElementById('chanWell');
+    if (well) well.classList.toggle('idle', idle);
+  }
+  if (chan) dirty.chan = true;
+  if (out) dirty.out = true;
+  if (top) dirty.top = true;
+  if (side) dirty.side = true;
+  if (dec) dirty.dec = true;
 }
-// The compass turns by the yaw PARAMETER (the frame carries no yaw); eased page-side.
+// The rose turns by the heading of the scene's front R·x̂ = (cψcθ, sψcθ, sθ),
+// eased from the parameters: equal to yaw whenever |pitch| < 90°, and correct
+// beyond (pitch spans ±180°). Roll does not move the front.
 function stepCompass() {
-  disp.yaw = wrap180(disp.yaw + 0.25 * wrap180(scaledOf('yaw') - disp.yaw));
-  disp.pitch = wrap180(disp.pitch + 0.25 * wrap180(scaledOf('pitch') - disp.pitch));
+  const yaw = wrap180(disp.yaw + 0.25 * wrap180(scaledOf('yaw') - disp.yaw));
+  const pitch = wrap180(disp.pitch + 0.25 * wrap180(scaledOf('pitch') - disp.pitch));
+  const ny = Math.abs(wrap180(scaledOf('yaw') - yaw)) <= EASE_EPS ? scaledOf('yaw') : yaw;
+  const np = Math.abs(wrap180(scaledOf('pitch') - pitch)) <= EASE_EPS ? scaledOf('pitch') : pitch;
+  if (ny === disp.yaw && np === disp.pitch) return;
+  disp.yaw = ny; disp.pitch = np;
+  const cp = Math.cos(np * D2R), sp = Math.sin(np * D2R);
+  if (Math.abs(cp) >= COMPASS_HOLD_COS)
+    disp.heading = Math.atan2(Math.sin(ny * D2R) * cp, Math.cos(ny * D2R) * cp) * R2D;
+  disp.roseAlpha = Math.max(0.35, Math.abs(cp));
+  disp.frontSin = sp;
+  dirty.top = true;
 }
 
 // ── Drawing ──
 function distRadius(d, rIn, rOut) { return rIn + (rOut - rIn) * Math.log(Math.max(0.2, d) / 0.2) / Math.log(100); }
 // AmbiX (x front, y LEFT) -> screen (x right, y down): sx = -y, sy = -x
 function azToScreen(azDeg, r, cx, cy) { return [cx - Math.sin(azDeg * D2R) * r, cy - Math.cos(azDeg * D2R) * r]; }
+
+// The source puck (radial gradient + glow) pre-rendered once per radius × uiScale
+// × DPR and drawImage'd: shadowBlur is the costliest op per frame.
+function puckSprite(r) {
+  const dpr = (window.devicePixelRatio || 1) * uiScale;
+  const key = `${r}@${dpr}`;
+  const hit = puckSprites[r];
+  if (hit && hit.key === key) return hit;
+  const pad = 10, size = 2 * (r + pad);
+  const c = document.createElement('canvas');
+  c.width = Math.ceil(size * dpr); c.height = Math.ceil(size * dpr);
+  const g = c.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const x = size / 2, y = size / 2;
+  g.shadowColor = 'rgba(243,205,134,0.7)'; g.shadowBlur = 8 * dpr;
+  const grd = g.createRadialGradient(x - 2, y - 2, 1, x, y, r);
+  grd.addColorStop(0, '#f6d27a'); grd.addColorStop(0.7, '#c98f38'); grd.addColorStop(1, '#8a5a1e');
+  g.fillStyle = grd;
+  g.beginPath(); g.arc(x, y, r, 0, TWO_PI); g.fill();
+  g.shadowBlur = 0;
+  g.strokeStyle = '#fbe6b0'; g.lineWidth = 1; g.stroke();
+  puckSprites[r] = { canvas: c, key, size };
+  return puckSprites[r];
+}
+function drawPuck(ctx, x, y, r) {
+  const sp = puckSprite(r);
+  ctx.drawImage(sp.canvas, x - sp.size / 2, y - sp.size / 2, sp.size, sp.size);
+}
 
 function drawHeadTop(ctx, cx, cy, r) {
   ctx.save();
@@ -1758,7 +1905,7 @@ function drawTop() {
   const cx = w / 2, cy = h / 2 + 3, R = Math.min(w, h) / 2 - 14, rHead = 20;
   TOP.cx = cx; TOP.cy = cy; TOP.R = R; TOP.rHead = rHead;
   const yaw = disp.yaw, pitch = disp.pitch;
-  const order = choiceOf('order');
+  const order = orderIdx();
 
   // Distance rings (log 0.2-20 m); canvas text is numeric + unit only
   ctx.save();
@@ -1784,10 +1931,13 @@ function drawTop() {
   ctx.beginPath(); ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R); ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy); ctx.stroke();
   ctx.restore();
 
-  // Compass rose: the scene's own frame, turned by yaw (+ = CCW from above = toward screen left)
+  // Compass rose: the scene's own frame, turned by the heading of its front
+  // (= yaw while |pitch| < 90°), faded as that heading becomes ill-defined.
+  const heading = disp.heading;
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.rotate(-yaw * D2R);
+  ctx.rotate(-heading * D2R);
+  ctx.globalAlpha = disp.roseAlpha;
   for (let a = 0; a < 360; a += 15) {
     const major = a % 90 === 0, mid = a % 45 === 0;
     const len = major ? 12 : mid ? 8 : 4;
@@ -1802,14 +1952,18 @@ function drawTop() {
   // DOM key beneath the well names what the puck and the beam are.
   ctx.font = `11px ${SERIF_CANVAS}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillStyle = rgba(INK.sage, 0.95);
-  const glyph = (a, s) => { const x = -Math.sin(a * D2R) * (R - 22), y = -Math.cos(a * D2R) * (R - 22); ctx.save(); ctx.translate(x, y); ctx.rotate(yaw * D2R); ctx.fillText(s, 0, 0); ctx.restore(); };
+  const glyph = (a, s) => { const x = -Math.sin(a * D2R) * (R - 22), y = -Math.cos(a * D2R) * (R - 22); ctx.save(); ctx.translate(x, y); ctx.rotate(heading * D2R); ctx.fillText(s, 0, 0); ctx.restore(); };
   glyph(0, '▲'); glyph(90, '+90°'); glyph(180, '±180°'); glyph(270, '−90°');
-  if (Math.abs(pitch) > 0.25) {   // pitch tilt mark at the scene's front
+  ctx.globalAlpha = 1;
+  // Front-elevation chevron at the scene's front: ▲ when the front rises, ▼ when
+  // it sinks, length ∝ |sin pitch| (roll is not drawn — it does not move the front).
+  const fs = disp.frontSin;
+  if (Math.abs(fs) >= 0.004) {
+    const len = 3 + 9 * Math.abs(fs), dir = fs > 0 ? -1 : 1;
     ctx.save();
-    ctx.translate(0, -(R - 1));
-    ctx.rotate(-pitch * D2R * 0.5);
-    ctx.strokeStyle = INK.amber; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(-5, 6); ctx.lineTo(0, -1); ctx.lineTo(5, 6); ctx.stroke();
+    ctx.translate(0, -(R - 40));   // inside the ▲ glyph (R − 22 ± 6), clear of it
+    ctx.strokeStyle = INK.amber; ctx.lineWidth = 1.6; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(-5, -dir * len / 2); ctx.lineTo(0, dir * len / 2); ctx.lineTo(5, -dir * len / 2); ctx.stroke();
     ctx.restore();
   }
   ctx.restore();
@@ -1838,6 +1992,7 @@ function drawTop() {
   drawLobe(-1, rgba(INK.amber, 0.14), rgba(INK.amber, 0.5));
   drawLobe(+1, rgba(INK.sage, 0.20), rgba(INK.sage, 0.8));
   const t1 = azToScreen(azRot, R + 2, cx, cy), t2 = azToScreen(azRot, R + 11, cx, cy);
+  ctx.globalAlpha = disp.azRotHeld ? 0.5 : 1;   // held at the pole: half alpha
   ctx.strokeStyle = INK.sage; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(t1[0], t1[1]); ctx.lineTo(t2[0], t2[1]); ctx.stroke();
   ctx.restore();
@@ -1859,13 +2014,7 @@ function drawTop() {
     ctx.fillStyle = rgba(INK.brass, 0.9); ctx.font = `9.5px ${SERIF_CANVAS}`; ctx.textAlign = 'center';
     ctx.fillText(disp.el > 0 ? '▲' : '▼', P[0], P[1] - 12 - 10 * alt);
   }
-  ctx.shadowColor = 'rgba(243,205,134,0.7)'; ctx.shadowBlur = 8;
-  const grd = ctx.createRadialGradient(P[0] - 2, P[1] - 2, 1, P[0], P[1], 7);
-  grd.addColorStop(0, '#f6d27a'); grd.addColorStop(0.7, '#c98f38'); grd.addColorStop(1, '#8a5a1e');
-  ctx.fillStyle = grd;
-  ctx.beginPath(); ctx.arc(P[0], P[1], 7, 0, TWO_PI); ctx.fill();
-  ctx.shadowBlur = 0;
-  ctx.strokeStyle = '#fbe6b0'; ctx.lineWidth = 1; ctx.stroke();
+  drawPuck(ctx, P[0], P[1], 7);
   ctx.restore();
 }
 
@@ -1916,24 +2065,21 @@ function drawSide() {
   ctx.strokeStyle = 'rgba(214,196,160,0.35)'; ctx.setLineDash([2, 3]);
   ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(px, py); ctx.stroke();
   ctx.setLineDash([]);
-  ctx.shadowColor = 'rgba(243,205,134,0.7)'; ctx.shadowBlur = 8;
-  const grd = ctx.createRadialGradient(px - 2, py - 2, 1, px, py, 6.5);
-  grd.addColorStop(0, '#f6d27a'); grd.addColorStop(0.7, '#c98f38'); grd.addColorStop(1, '#8a5a1e');
-  ctx.fillStyle = grd;
-  ctx.beginPath(); ctx.arc(px, py, 6.5, 0, TWO_PI); ctx.fill();
-  ctx.shadowBlur = 0;
-  ctx.strokeStyle = '#fbe6b0'; ctx.lineWidth = 1; ctx.stroke();
+  drawPuck(ctx, px, py, 6.5);
   ctx.restore();
 }
+
+// Highest lit order band from the effective frame's orderActive (4 / 9 / 16 → 1 / 2 / 3).
+function litBand() { return Math.max(0, Math.min(3, Math.round(Math.sqrt(disp.orderActive)) - 1)); }
 
 function drawChannels() {
   const { ctx, w, h } = chanC;
   ctx.clearRect(0, 0, w, h);
   if (!barRects.length) return;
-  const order = choiceOf('order');
+  const order = orderIdx();
   for (let acn = 0; acn < 16; acn++) {
     const r = barRects[acn]; if (!r) continue;
-    const active = BAND_OF[acn] <= order + 1;
+    const active = BAND_OF[acn] <= litBand();
     const xc = r.x + r.w / 2, half = r.w / 2 - 2;
     const y0 = r.y + 3, bh = 9;
     ctx.fillStyle = active ? 'rgba(214,196,160,0.07)' : 'rgba(214,196,160,0.035)';
@@ -2062,7 +2208,7 @@ function heardAtFromParams() {
 }
 function renderReadouts() {
   const az = scaledOf('azimuth'), el = scaledOf('elevation'), dist = scaledOf('distance');
-  const order = choiceOf('order'), dec = choiceOf('decoder');
+  const order = orderIdx(), dec = choiceOf('decoder');
   const nCh = String((order + 2) * (order + 2));
   const n1 = String(order + 1);
   const ordKey = ORD_KEYS[order];
@@ -2122,7 +2268,8 @@ function renderReadouts() {
     const b = Number(row.dataset.band);
     row.classList.toggle('on', b <= order + 1); row.classList.toggle('off', b > order + 1);
   });
-  document.querySelectorAll('#chanRows .band').forEach((band) => band.classList.toggle('on', Number(band.dataset.band) <= order + 1));
+  const lit = litBand(), nAct = String(disp.orderActive);   // the effective frame's orderActive (C15)
+  document.querySelectorAll('#chanRows .band').forEach((band) => band.classList.toggle('on', Number(band.dataset.band) <= lit));
   setLabel(document.getElementById('chipOrder'), 'label.chipOrder', { ord: ordKey, ch: nCh });
   setLabel(document.getElementById('rotNote'), 'label.rotNote', { n: nCh });
 
@@ -2146,10 +2293,10 @@ function renderReadouts() {
   // signal-path sub-lines
   if (choiceOf('inputMode') === 0) setLabel(document.getElementById('stSourceSub'), 'label.stSourceMono');
   else                             setLabel(document.getElementById('stSourceSub'), 'label.stSourceLeft');
-  setLabel(document.getElementById('stEncoderSub'), 'label.stEncoder', { n: nCh });
-  setLabel(document.getElementById('stRotationSub'), 'label.stRotation', { n: nCh });
-  if (dec === 0) setLabel(document.getElementById('stDecoderSub'), 'label.stDecoderBin', { n: nCh });
-  else           setLabel(document.getElementById('stDecoderSub'), 'label.stDecoderSt', { n: nCh });
+  setLabel(document.getElementById('stEncoderSub'), 'label.stEncoder', { n: nAct });
+  setLabel(document.getElementById('stRotationSub'), 'label.stRotation', { n: nAct });
+  if (dec === 0) setLabel(document.getElementById('stDecoderSub'), 'label.stDecoderBin', { n: nAct });
+  else           setLabel(document.getElementById('stDecoderSub'), 'label.stDecoderSt', { n: nAct });
   const outDb = FORMAT.outputLevel(scaledOf('outputLevel'));
   setLabel(document.getElementById('stOutputSub'), 'label.stOutput', { db: outDb });
 }
@@ -2165,10 +2312,17 @@ function paintStages() {
 }
 
 // ── Render loop ──
+// One rAF loop that early-outs: a canvas redraws only when its flag is set (a
+// new frame, a parameter event, a resize, the font load) or while its eases /
+// ballistics have not converged.
 function renderAll() {
   stepBallistics();
   stepCompass();
-  drawTop(); drawSide(); drawChannels(); drawDecoder(); drawOut();
+  if (dirty.top)  { dirty.top = false;  drawTop(); }
+  if (dirty.side) { dirty.side = false; drawSide(); }
+  if (dirty.chan) { dirty.chan = false; drawChannels(); }
+  if (dirty.dec)  { dirty.dec = false;  drawDecoder(); }
+  if (dirty.out)  { dirty.out = false;  drawOut(); }
   if (readoutsDirty) { renderReadouts(); readoutsDirty = false; }
   paintStages();
 }
@@ -2218,7 +2372,7 @@ function bindSphereDrags() {
   // Top-down: screen up = front (0°), screen LEFT = +90°; atan2 wraps cleanly across the rear (±180°)
   bind('topWrap', 'topCanvas', 'azimuth', (px, py) => {
     const dx = px - TOP.cx, dy = py - TOP.cy;
-    if (dx * dx + dy * dy < 9) return null;
+    if (dx * dx + dy * dy < TOP.rHead * TOP.rHead) return null;   // a click on the head never throws the source
     return Math.atan2(-dx, -dy) * R2D;
   });
   // Side: angle above the horizon from the head, clamped to ±90°
@@ -2409,9 +2563,11 @@ function init() {
   try { initLessons(Juce); }     catch (e) { console.error('lessons init failed:', e); }
 
   window.addEventListener('resize', applyUiScale);
+  const langSel = document.getElementById('lang-select');
+  if (langSel) langSel.addEventListener('change', () => { readoutsDirty = true; markAllDirty(); });
   // Canvas text keeps the fallback face until the font loads — repaint after
   if (document.fonts && document.fonts.load) {
-    document.fonts.load(`11px 'EB Garamond'`).then(() => { readoutsDirty = true; }).catch(() => {});
+    document.fonts.load(`11px 'EB Garamond'`).then(() => { readoutsDirty = true; markAllDirty(); }).catch(() => {});
   }
 
   // LAST: listeners exist, so the uiReady answer (a forced meterFrame) has somewhere to land.

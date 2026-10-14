@@ -66,6 +66,7 @@ juce_add_binary_data(O-simpleAmbisonics_UIResources
     SOURCES
         Source/ui/public/index.html
         Source/ui/public/js/i18n.js
+        Source/ui/public/js/shicons.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/img/insects.png
