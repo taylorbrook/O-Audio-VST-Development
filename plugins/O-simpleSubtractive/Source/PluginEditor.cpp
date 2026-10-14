@@ -184,9 +184,14 @@ OSimpleSubtractiveAudioProcessorEditor::OSimpleSubtractiveAudioProcessorEditor (
         });
 
    #if JUCE_WINDOWS
+    // v1.7.1 — the backend MUST be named. Backend::defaultBackend is the legacy
+    // IE control on Windows, which ignores withWinWebView2Options and has no
+    // resource provider, so https://juce.backend/ answered "page not found".
     // WebView2 user-data folder MUST be a writable temp dir (DAW hosts deny the
     // default location → silent IE fallback → blank page).
-    options = options.withWinWebView2Options (
+    options = options
+        .withBackend (juce::WebBrowserComponent::Options::Backend::webview2)
+        .withWinWebView2Options (
         juce::WebBrowserComponent::Options::WinWebView2{}
             .withUserDataFolder (
                 juce::File::getSpecialLocation (juce::File::tempDirectory)

@@ -3,6 +3,19 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.7.1] — 2026-10-14
+
+### Fixed
+
+- **Windows: the interface showed "page not found" instead of the UI.** The
+  editor never chose a WebView backend, and on Windows JUCE's
+  `Backend::defaultBackend` is the legacy IE control. That control ignores
+  `withWinWebView2Options` and has no resource provider, so navigating to
+  `https://juce.backend/` found nothing. The editor now passes
+  `.withBackend (Backend::webview2)`, so the WebView2 options (temp-dir user-data
+  folder, built-in error page disabled) and the resource provider take effect.
+  macOS (WKWebView) and the DSP are unchanged.
+
 ## [1.7.0] — 2026-10-10
 
 The synth grows the four things every common subtractive synth has that it
