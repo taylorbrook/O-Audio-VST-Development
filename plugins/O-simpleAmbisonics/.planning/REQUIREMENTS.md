@@ -4,7 +4,7 @@
 version: 1.0.0
 plugin: O-simpleAmbisonics
 created: 2026-10-11
-lastUpdated: 2026-10-13
+lastUpdated: 2026-10-14
 ---
 
 ## Overview
@@ -45,14 +45,14 @@ lastUpdated: 2026-10-13
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| UI-01 | Live B-format channel view: one meter per ambisonic channel labelled by ACN index/name with its spherical-harmonic pattern icon, rows added/removed with order (the headline visual) | must | pending | stage-3 |
-| UI-02 | Source-on-a-sphere view: draggable puck in top-down and side views, distance as radius, listener head with front marker; dragging sets azimuth/elevation; rotation shown as the scene compass turning | must | pending | stage-3 |
-| UI-03 | Spatial-resolution polar plot of the panning function for the current direction, visibly sharpening from order 1 to 3 | should | pending | stage-3 |
-| UI-04 | Live signal-path diagram (source → encoder → rotation → decoder → L/R) with active stage highlighted and channel count updating with order | should | pending | stage-3 |
-| UI-05 | Decoder view showing the virtual-loudspeaker / HRTF directions in use | nice | pending | stage-3 |
-| UI-06 | On-hover pedagogical tooltips on every control (W/X/Y/Z meaning, order vs channels, scene vs source rotation, ACN/SN3D, front/back confusion) | should | pending | stage-3 |
-| UI-07 | Single-page, projector-readable layout laid out left-to-right as the signal path, consistent with the O-simple* family | must | pending | stage-3 |
-| UI-08 | Preset tour selectable from the UI | should | pending | stage-3 |
+| UI-01 | Live B-format channel view: one meter per ambisonic channel labelled by ACN index/name with its spherical-harmonic pattern icon, rows added/removed with order (the headline visual) | must | complete | stage-3 |
+| UI-02 | Source-on-a-sphere view: draggable puck in top-down and side views, distance as radius, listener head with front marker; dragging sets azimuth/elevation; rotation shown as the scene compass turning | must | complete | stage-3 |
+| UI-03 | Spatial-resolution polar plot of the panning function for the current direction, visibly sharpening from order 1 to 3 | should | complete | stage-3 |
+| UI-04 | Live signal-path diagram (source → encoder → rotation → decoder → L/R) with active stage highlighted and channel count updating with order | should | complete | stage-3 |
+| UI-05 | Decoder view showing the virtual-loudspeaker / HRTF directions in use | nice | complete | stage-3 |
+| UI-06 | On-hover pedagogical tooltips on every control (W/X/Y/Z meaning, order vs channels, scene vs source rotation, ACN/SN3D, front/back confusion) | should | complete | stage-3 |
+| UI-07 | Single-page, projector-readable layout laid out left-to-right as the signal path, consistent with the O-simple* family | must | complete | stage-3 |
+| UI-08 | Preset tour selectable from the UI | should | complete | stage-3 |
 
 ### Performance (PERF)
 
@@ -150,20 +150,20 @@ lastUpdated: 2026-10-13
 ### UI-01: B-format channel view
 
 **Acceptance Criteria:**
-- [ ] 4 / 9 / 16 labelled meters appear for orders 1 / 2 / 3
-- [ ] Moving the source from front to left visibly swaps energy from X to Y while W stays constant
+- [x] 4 / 9 / 16 labelled meters appear for orders 1 / 2 / 3 — frame-probe A3 (bands 2/3/4, 16 SN3D icons), harness PL2 (Stage 3 verify, 2026-10-14)
+- [x] Moving the source from front to left visibly swaps energy from X to Y while W stays constant — PL2 left Y 1000 / X 0; frame-probe A1 W / X / Y 0.997 / 0.997 / 0, `fuma` negative control FAILS (Stage 3 verify, 2026-10-14)
 
 ### UI-02: Source-on-a-sphere view
 
 **Acceptance Criteria:**
-- [ ] Dragging the puck updates Azimuth/Elevation host parameters (gesture begin/end correct)
-- [ ] Yaw rotates the compass/scene overlay, not the puck
+- [x] Dragging the puck updates Azimuth/Elevation host parameters (gesture begin/end correct) — frame-probe A6 / A7 one gesture each, 0 rear samples across ±180; real-host recording carried to Stage 4 hands-on (Stage 3 verify, 2026-10-14)
+- [x] Yaw rotates the compass/scene overlay, not the puck — frame-probe A5 (puck unchanged, rose turns), A9 pole hold (Stage 3 verify, 2026-10-14)
 
 ### UI-07: Layout
 
 **Acceptance Criteria:**
-- [ ] Single page, no modal menus; all controls readable at projector distance
-- [ ] Section order matches the signal path left-to-right
+- [x] Single page, no modal menus; all controls readable at projector distance — 1180×780 design frame, scale 0.6–1.5 (ST3 / ST4, verify_3_state S1–S3); visual checkpoint approved by the user 2026-10-13 (Stage 3 verify, 2026-10-14)
+- [x] Section order matches the signal path left-to-right — Source | Encoder | Rotation | Decoder | Output, A11 stations (Stage 3 verify, 2026-10-14)
 
 ### PERF-01: Real-time safety
 
