@@ -187,12 +187,25 @@ jobs:
           echo "JUCE overrides applied."
 
       - name: Configure CMake
+        shell: bash
         run: |
+          # Configure ONLY the target plugin — see the build-windows Configure
+          # step: a sibling's FetchContent (O-TextureForge's Eigen from
+          # gitlab.com) otherwise runs on, and can fail, every release.
+          PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
+          SKIP="O-Orbit"
+          for d in plugins/*/; do
+            name="$(basename "$d")"
+            if [ -f "${d}CMakeLists.txt" ] && [ "$name" != "$PLUGIN" ]; then
+              SKIP="$SKIP;$name"
+            fi
+          done
+          echo "SKIP_PLUGINS=$SKIP"
           cmake -B build \
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
             -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
             -DOUARICON_RELEASE=ON \
-            -DSKIP_PLUGINS="O-Orbit"
+            -DSKIP_PLUGINS="$SKIP"
 
       - name: Resolve CMake Target
         id: resolve
@@ -570,19 +583,19 @@ jobs:
         run: |
           PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
           SKIP="O-Orbit"
-          if [ "${{ needs.parse-tag.outputs.validate_only }}" = "true" ]; then
-            # Validate-only: configure ONLY the target plugin. This CMake path
-            # configures every plugins/* dir, but the Windows build has only ever
-            # run per-tagged-plugin — ~30 siblings are unverified on windows-latest,
-            # and a single Windows-hostile sibling configure would fail the target's
-            # build. Skip all siblings to de-risk (and speed) the validation run.
-            for d in plugins/*/; do
-              name="$(basename "$d")"
-              if [ -f "${d}CMakeLists.txt" ] && [ "$name" != "$PLUGIN" ]; then
-                SKIP="$SKIP;$name"
-              fi
-            done
-          fi
+          # Configure ONLY the target plugin — release and validate-only alike.
+          # This CMake path configures every plugins/* dir, so a sibling's
+          # FetchContent runs on every release: O-TextureForge's Eigen (via
+          # umappp/anira, cloned from gitlab.com) failed 9 releases on 2026-10-14
+          # with "GitLab is currently unable to handle this request due to load".
+          # ~30 siblings are also unverified on windows-latest, and a single
+          # Windows-hostile sibling configure would fail the target's build.
+          for d in plugins/*/; do
+            name="$(basename "$d")"
+            if [ -f "${d}CMakeLists.txt" ] && [ "$name" != "$PLUGIN" ]; then
+              SKIP="$SKIP;$name"
+            fi
+          done
           echo "SKIP_PLUGINS=$SKIP"
           cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DOUARICON_RELEASE=ON -DSKIP_PLUGINS="$SKIP"
 
