@@ -36,7 +36,9 @@
 //
 // A second arm checks the wiring the stub CAN see: clicking each button calls
 // the applyFactoryPreset native once with its stable id (the stub only logs the
-// call; the parameter moves are gated in C++ by harness ST6).
+// call; the parameter moves are gated in C++ by harness ST6). Stage 4 (P11):
+// a click alone lights NOTHING — the lit button follows the C++ presetState
+// push, which the arm then emits for the last lesson.
 //
 // Serves the REAL page tree through scripts/serve-ui.js (generic stub, the
 // plugin's generic-overrides.json — the banner must read seed=overrides) at the
@@ -137,8 +139,16 @@ function arm(ok, what) {
     .filter((c) => c.name === 'applyFactoryPreset').map((c) => c.args[0]), before);
   console.log(`  applyFactoryPreset calls: ${JSON.stringify(calls)}`);
   arm(JSON.stringify(calls) === JSON.stringify(LESSON_IDS), `[natives] 8 clicks → 8 applyFactoryPreset calls with the 8 stable ids, in order`);
+  const litByClick = await page.evaluate(() => [...document.querySelectorAll('.tour-btn.active')].map((b) => b.id));
+  arm(litByClick.length === 0, `[P11] the clicks alone light nothing (${JSON.stringify(litByClick)})`);
+  await page.evaluate(() => window.__stubEmit('presetState', { name: 'Speakers vs Headphones', id: 'speakersHeadphones', factory: true, modified: false }));
+  await page.waitForTimeout(40);
   const lit = await page.evaluate(() => [...document.querySelectorAll('.tour-btn.active')].map((b) => b.id));
-  arm(lit.length === 1 && lit[0] === 'lesson-speakersHeadphones', `[natives] exactly the last-clicked button is lit (${JSON.stringify(lit)})`);
+  arm(lit.length === 1 && lit[0] === 'lesson-speakersHeadphones', `[P11] presetState { speakersHeadphones, unmodified } lights exactly that button (${JSON.stringify(lit)})`);
+  await page.evaluate(() => window.__stubEmit('presetState', { name: 'Speakers vs Headphones', id: 'speakersHeadphones', factory: true, modified: true }));
+  await page.waitForTimeout(40);
+  const litMod = await page.evaluate(() => document.querySelectorAll('.tour-btn.active').length);
+  arm(litMod === 0, `[P11] the same preset MODIFIED lights nothing (${litMod} lit)`);
 
   arm(errors.length === 0, `no page error (${errors.length}${errors.length ? ': ' + errors[0] : ''})`);
 

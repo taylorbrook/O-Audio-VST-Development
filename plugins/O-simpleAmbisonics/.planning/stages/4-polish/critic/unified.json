@@ -1,0 +1,332 @@
+{
+  "stage": "4-polish",
+  "plugin": "O-simpleAmbisonics",
+  "timestamp": "2026-10-14T18:47:51Z",
+  "critics_run": [
+    "architecture-critic",
+    "dsp-critic",
+    "foundation-critic",
+    "ui-critic"
+  ],
+  "unified_issues": [
+    {
+      "severity": "blocker",
+      "critic": "architecture-critic",
+      "id": "ARCH-001",
+      "category": "moduleUsage",
+      "location": "Source/PluginEditor.cpp:162-179 (and 254-264)",
+      "description": "WebBrowserComponent::Options never calls .withBackend (juce::WebBrowserComponent::Options::Backend::webview2). On Windows Backend::defaultBackend is the legacy IE control: withWinWebView2Options (lines 258-263) is ignored and there is no resource provider, so the editor shows 'page not found' / a blank page in every Windows host. macOS is unaffected, so build, auval, pluginval, boot-all-uis and the Stage-4 Windows CI build (T13) all pass while COMPAT-02 is broken. This plugin was named in the 2026-10-14 census (memory critical_webview2_runtime_gotchas_windows) but was not in fix commit b477dc83, and the Stage-4 PLAN has no task for it.",
+      "fixSuggestion": "Add .withBackend (juce::WebBrowserComponent::Options::Backend::webview2) to the options chain in PluginEditor.cpp (same shape as b477dc83 for the siblings), keep the withUserDataFolder block, and add a source gate (grep -L withBackend over editors with withResourceProvider) to the Stage-4 T10/T12 sweep so it cannot regress. Do it in T3 so it lands before the CP2 Windows CI run."
+    },
+    {
+      "severity": "blocker",
+      "critic": "foundation-critic",
+      "id": "FND-001",
+      "category": "cmake_correctness",
+      "location": "Source/PluginEditor.cpp:162-179 (options chain) and :254-264 (WinWebView2 block)",
+      "description": "WebBrowserComponent::Options never calls .withBackend(Backend::webview2). On Windows Backend::defaultBackend is the legacy IE control: withWinWebView2Options (user-data folder) is ignored and there is no resource provider, so https://juce.backend/ shows 'page not found' and the whole UI is dead. macOS is unaffected, so every Mac gate (auval, pluginval, UI probes) passes. This plugin is on the 2026-10-14 census list (memory critical_webview2_runtime_gotchas_windows); commit b477dc83 fixed 9 siblings and 8a83d78f O-simpleSubtractive, but O-simpleAmbisonics was not patched. Stage 4 plans a Windows VST3 CI build: CI compiles green and the shipped Windows binary is still blank. PLAN S5 invariant grep checks withUserDataFolder / NEEDS_WEBVIEW2 / static linking but not withBackend, so no gate catches it.",
+      "fixSuggestion": "Add .withBackend (juce::WebBrowserComponent::Options::Backend::webview2) to the Options chain in the editor constructor (same placement as plugins/O-simpleSubtractive/Source/PluginEditor.cpp:193), and add 'grep -c withBackend Source/PluginEditor.cpp = 1' to the PLAN S5 invariants so the Windows-only failure is gated on macOS."
+    },
+    {
+      "severity": "blocker",
+      "critic": "ui-critic",
+      "id": "UI-001",
+      "category": "webviewIntegrity",
+      "location": "Source/PluginEditor.cpp:254-264",
+      "description": "The #if JUCE_WINDOWS block sets withWinWebView2Options(withUserDataFolder(...)) but never calls .withBackend(juce::WebBrowserComponent::Options::Backend::webview2). On Windows, Backend::defaultBackend is the legacy IE control. It ignores withWinWebView2Options and has no resource provider, so goToURL(getResourceProviderRoot()) at cpp:291 shows 'page not found' and the whole UI is dead on every Windows DAW. This is the same defect fixed in O-simpleSubtractive v1.7.1 (8a83d78f) and in 9 plugins in b477dc83. O-simpleAmbisonics is named in that census (memory critical_webview2_runtime_gotchas_windows) but was not included in the sweep. `grep -n withBackend Source/*.cpp` returns nothing at HEAD. Every macOS gate (auval, pluginval, ui-stub probes) passes regardless.",
+      "fixSuggestion": "Chain .withBackend(juce::WebBrowserComponent::Options::Backend::webview2) onto options inside the JUCE_WINDOWS block before withWinWebView2Options, mirroring O-simpleSubtractive PluginEditor.cpp:192-200. Keep the temp-dir user-data folder. Then confirm on a Windows build that the page loads."
+    },
+    {
+      "severity": "warning",
+      "critic": "architecture-critic",
+      "id": "ARCH-002",
+      "category": "contractAlignment",
+      "location": "Source/dsp/DistanceModel.h:125-137; Source/PluginProcessor.cpp:304-312, 331-343",
+      "description": "One NaN/Inf input sample permanently poisons the TPT state z (z = lp + v), so every later sample is NaN. This happens even at d <= 1 m, because the D7 mix does u + 0\u00b7(lp \u2212 u) and 0\u00b7NaN = NaN. The bus, the convolver FDL and the stereo delay then carry NaN, and the processBlock scrub clears the whole block: the plugin goes silent for the rest of the session. Nothing recovers it: z is only cleared by snapTo/reset, which run only from prepareToPlay, and the processor does not override AudioProcessor::reset(). Inf input reaches the same state one sample later (inf \u2212 inf). QUAL-01 ('no NaN under any extreme') and the harness cover parameter extremes only; there is no non-finite input stimulus, so every gate stays green.",
+      "fixSuggestion": "Scrub non-finite samples out of the conditioner loop in PluginProcessor.cpp:304-310 (std::isfinite \u2192 0) so the engine never sees NaN or Inf. Alternatively, have the finite scrub at :331-343 set a flag that calls engine.reset() at the start of the next block. Override AudioProcessor::reset() to call engine.reset(). Add a harness gate: one NaN sample at n = 1000, then assert the output is finite and non-zero again within K + 2 grids, at d = 1 m and d = 12 m, in both decoders."
+    },
+    {
+      "severity": "warning",
+      "critic": "architecture-critic",
+      "id": "ARCH-003",
+      "category": "testCoverage",
+      "location": "Source/PluginProcessor.cpp:431-440; Source/ui/public/index.html:988-995, 2418-2424; tests/render-harness/main.cpp:4085-4092; tests/ui-probes/lesson-row-budget.mjs:65",
+      "description": "The 8 lesson ids/recipes exist in four hand-kept copies: kLessons (C++), the data-preset buttons plus LESSON_CAPTIONERS (page), the ST6 recipe mirror (harness) and LESSON_IDS (probe). ST6 checks C++ against the harness copy, and lesson-row-budget checks the page against the probe copy. No gate checks the C++ table against the page. During the Stage-4 PresetRecipes.h move, a renamed or misspelled id passes both gates: applyFactoryPreset returns false, and the page ignores the result (index.html:2423 only .catch()es a rejection) while it still toggles .active and shows the caption. The button looks like it worked but nothing moves.",
+      "fixSuggestion": "When PresetRecipes.h lands (T6), have the harness emit the kFactory id list (e.g. into tests/ui-fixtures) and make lesson-row-budget.mjs read that list instead of its literal LESSON_IDS. Also assert that the page's data-preset set equals it. In the page, check the native's boolean result and console.warn plus skip the .active/caption change when it is false."
+    },
+    {
+      "severity": "warning",
+      "critic": "dsp-critic",
+      "id": "DSP-001",
+      "category": "numerical_stability",
+      "location": "Source/dsp/DistanceModel.h:131-136 (with Source/PluginProcessor.cpp:304-310 and :332-343)",
+      "description": "The air-LP integrator state z (z = lp + v, :134) is updated on every sample at every distance, and the input is never sanitised before it (conditioner :304-310). A single NaN reaching processBlock (e.g. from a misbehaving upstream plugin), or an Inf, which becomes NaN on the next sample as Inf - Inf, latches z = NaN for good. At d <= 1 m the wet mix is m = 0, but u + 0*(NaN - u) is still NaN (0*NaN = NaN), so every later sample is NaN in both decoder modes. The block-level scrub (:332-343) then clears the whole output on every block. Result: the plugin goes silent and stays silent until the next prepareToPlay. A transport stop does not recover it, because reset() is not overridden (DSP-002). The FDL, prev[] and FixedDelay states flush themselves within K grids or 64 samples; z is the one permanent latch. No harness probe feeds non-finite input.",
+      "fixSuggestion": "Sanitise the conditioned mono sample in the processor's conditioner loop (replace a non-finite value with 0) so nothing non-finite reaches the engine state. Also add a cheap per-control-step guard in DistanceModel::controlStep that zeroes z when it is not finite. Add a harness probe: inject one NaN and one Inf sample mid-render, then assert the output is finite and non-silent again within K+1 grids."
+    },
+    {
+      "severity": "warning",
+      "critic": "dsp-critic",
+      "id": "DSP-002",
+      "category": "buffer_handling",
+      "location": "Source/PluginProcessor.h:58-85 (no reset() override); Source/dsp/SpatialEngine.h:213-218 (engine reset() never called)",
+      "description": "AudioProcessor::reset() is not overridden. The JUCE VST3 wrapper calls it from setProcessing(false) (vendored juce_audio_plugin_client_VST3.cpp:3470-3473) and AU calls it from Reset. Nothing is cleared at transport stop/start or offline-bounce start: the convolver FDL/prev/out buffers, the 64-sample stereo delays and the air-LP state survive. The next playback then begins with up to about 64 + L samples (6.7 ms at 48 k) of the previous material's tail, and smoothers resume mid-glide. SpatialEngine::reset() already exists (delays/filter zeroed, conv.reset via snapToParams, allocation-free) but is dead code.",
+      "fixSuggestion": "Override reset() in the processor so it copies fillParams() into the engine, calls engine.reset(), re-seeds outputGain to the current outputLevel, and zeroes the output-peak accumulators. That mirrors prepareToPlay without the allocations. This also gives DSP-001 a host-driven recovery path."
+    },
+    {
+      "severity": "warning",
+      "critic": "dsp-critic",
+      "id": "DSP-003",
+      "category": "parameter_integration",
+      "location": "Source/PluginProcessor.cpp:282, :307-308",
+      "description": "inputMode (Mono sum / Left only) is applied as a hard per-block switch in the conditioner, with no ramp. On a stereo input whose channels differ, toggling it or automating it (or a lesson/preset changing it in future) during playback steps the source signal from 0.5(L+R) to L in one sample. That step is an audible click, which is the zipper class every other parameter in this plugin was built to avoid with the 20 ms ramps.",
+      "fixSuggestion": "Add a LinearRamp (or LinearSmoothedValue) for the left-only weight. Step it on the same 20 ms kRampStep, or per sample with a seeded 20 ms smoother set in prepareToPlay. Blend in the A3 form mono = sum + w*(L - sum), so each endpoint stays bit-exact (w = 0 gives Mono sum, w = 1 gives Left only) and the existing digests are unaffected."
+    },
+    {
+      "severity": "warning",
+      "critic": "foundation-critic",
+      "id": "FND-002",
+      "category": "build_health",
+      "location": "Source/PluginProcessor.h:76",
+      "description": "getTailLengthSeconds() returns 0.0, but after input goes silent the plugin keeps producing output: the 64-sample decoder delay/UPOLS latency (SpatialEngine.h:165) plus the 256-tap binaural HRIR at 48 kHz (BinauralFilterData.h:56, about 5.3 ms, rescaled at higher rates) plus the 20 ms smoothers. The VST3 wrapper reports kNoTail and AU reports TailTime 0. Failure: in hosts that suspend processing on silent input from the reported tail (Cubase/Nuendo 'suspend VST3 processing when no audio signals are received', Studio One silence detection, Logic AU tail-based render cut-off), the last ~1.5 ms of delayed audio and the HRIR decay are cut at every region or phrase end, which is audible as a click. auval's Tail Time check passes with 0, so no existing gate catches this.",
+      "fixSuggestion": "Return a real tail from getTailLengthSeconds(): (kPartition + ceil(kBinauralFilterTaps * sr / 48000)) / sr using the prepared sample rate (store it in prepareToPlay; fall back to 48 kHz before prepare). A fixed 0.02 s also works and covers the smoother ramp. Re-run auval and confirm Tail Time reports the new value."
+    },
+    {
+      "severity": "warning",
+      "critic": "foundation-critic",
+      "id": "FND-003",
+      "category": "apvts_integration",
+      "location": "Source/PluginProcessor.cpp:461-465",
+      "description": "The provisional applyFactoryPreset excludes only outputLevel. inputMode is reset to its default (Mono sum) by every lesson. This breaks the Stage-4 invariant R-D3 (presets and lessons never set outputLevel OR inputMode). Scenario: a user on 'Left only' (for example a dual-mono feed with the right channel unused or carrying something else) clicks any lesson button. The input silently switches to 0.5*(L+R) and the source level and content change with no visible cause. kLessons is being replaced this stage, but the bug is live at HEAD and the replacement must not carry it over.",
+      "fixSuggestion": "In the shared recipe apply core (T6, PresetRecipes.h path) skip both ParamIDs::outputLevel and ParamIDs::inputMode in the reset-to-default pass, and add a G-LESSON assertion that inputMode at index 1 is bit-unchanged after each of the 8 lessons."
+    },
+    {
+      "severity": "note",
+      "critic": "architecture-critic",
+      "id": "ARCH-004",
+      "category": "contractAlignment",
+      "location": "Source/PluginProcessor.h:76",
+      "description": "getTailLengthSeconds() returns 0.0, but the chain has a real tail after input stops: the 64-sample structural latency plus the 256-tap MagLS FIR (512 at 96 kHz) plus the air LP. That is about 6.7 ms at 48 kHz. Hosts that use the tail to decide when to stop processing, or how far a bounce/freeze/offline render runs past the region end, can truncate the last few ms of the binaural response. It is inaudible on most material, but on percussive tails it is a measurable cut.",
+      "fixSuggestion": "Return (kPartition + convolver tapsAtRate()) / sampleRate (cache it in prepareToPlay; \u2248 0.0067 s) or a fixed conservative 0.01 s from getTailLengthSeconds()."
+    },
+    {
+      "severity": "note",
+      "critic": "architecture-critic",
+      "id": "ARCH-005",
+      "category": "moduleUsage",
+      "location": "Source/PluginProcessor.cpp:455-480",
+      "description": "Maintainability hotspot for the Stage-4 refactor. applyFactoryPreset hard-codes the user-owned exclusion as a string compare on outputLevel only, so inputMode is currently RESET to Mono sum by every lesson, and ST6 (main.cpp:4120-4130) asserts exactly that. R-D3 makes inputMode user-owned. If the new apply core (P2) and ST6 are not changed in the same commit, either ST6 goes red or, worse, the mirror gets 'fixed' to match whatever the code does.",
+      "fixSuggestion": "Put the user-owned set in one constexpr list beside the recipe table (e.g. ambpresets::kUserOwned = {outputLevel, inputMode}). The apply core, the 'modified' check and ST6 should all read that list, and ST6 should assert inputMode is bit-unchanged the same way it asserts outputLevel."
+    },
+    {
+      "severity": "note",
+      "critic": "architecture-critic",
+      "id": "ARCH-006",
+      "category": "threadModel",
+      "location": "Source/dsp/TripleBuffer.h:62-67",
+      "description": "read() does newData.exchange(false) and THEN middle.exchange(readIdx). If the audio thread publishes between those two steps, the reader still gets the newest frame, but newData is left true while middle now holds the slot the reader just handed back, which is older. If no further publish arrives before the next 30 Hz tick (host idling right after a block), sampleFrame() sees fresh = true and re-shows the older frame. Because hasNewData() was briefly false, the writer also reset its peaks once, so the peaks of the frame that was overwritten are never shown. The effect is display-only and lasts one tick. The copy is verbatim from O-GrainScatter, so the siblings share it.",
+      "fixSuggestion": "No change is needed for v1.0. When core/triple-buffer is extracted (the deferred item in SUMMARY-2.1), switch to the standard form that packs the dirty bit into the middle index (one atomic exchange), so the swap and the clear are a single step."
+    },
+    {
+      "severity": "note",
+      "critic": "architecture-critic",
+      "id": "ARCH-007",
+      "category": "contractAlignment",
+      "location": ".planning/research/ARCHITECTURE.md:71, 121-126, 135, 139, 214, 429",
+      "description": "ARCHITECTURE.md still describes the pre-implementation design: a FIFO front-end, kStereoLevelMatch computed by the script, juce::dsp::FirstOrderTPTFilter, SmoothedValue for the decoder mix, WrapSmoother.h, and 'Custom state: none'. All of these were replaced by documented decisions (CONTEXT-2.3 D1/D2/D4, Stage-3 editorScale/uiLanguage), and Stage 4 adds presetState. A reader or a later critic working from the contract alone will flag correct code as drift, or re-introduce the FIFO.",
+      "fixSuggestion": "Append an 'Implementation deltas (Stages 2\u20134)' section to ARCHITECTURE.md listing each replaced item and its decision reference (CONTEXT-2.3 D1/D2/D4, Stage-3 CONTEXT, Stage-4 R-D3/P1/P2) instead of editing the original text. Include the new state properties."
+    },
+    {
+      "severity": "note",
+      "critic": "architecture-critic",
+      "id": "ARCH-008",
+      "category": "contractAlignment",
+      "location": "Source/ui/public/index.html:744, 830, 1887",
+      "description": "C++ facts are duplicated as page literals. The latency chip and the decoder line hard-code '64 samples' / '64-sample latency' and ignore the frame's latencySamples. distRadius() hard-codes the distance range as 0.2 m and log(100) instead of reading the relay's start/end. These are correct today, but they are a second source of truth: a range change is a frozen-param migration, and these literals would drift silently.",
+      "fixSuggestion": "The chip is retired by R-D1. For decLine, format from the frame's latencySamples. For distRadius, derive rMin/rMax from the distance slider state's properties (start/end) once at init."
+    },
+    {
+      "severity": "note",
+      "critic": "dsp-critic",
+      "id": "DSP-004",
+      "category": "realtime_safety",
+      "location": "Source/PluginProcessor.cpp:298 (maxBlock initialised 0 at Source/PluginProcessor.h:177)",
+      "description": "If processBlock ever runs before prepareToPlay (a host contract violation, but seen with some hosts during scanning or after a failed re-prepare), maxBlock == 0. The slice loop 'for (start = 0; start < n; start += maxBlock)' never advances and the audio thread spins forever. The convolver vectors are also still empty at that point.",
+      "fixSuggestion": "At the top of processBlock, clear the buffer and return when maxBlock <= 0 (or when monoScratch is empty), so an unprepared instance outputs silence instead of hanging the audio thread."
+    },
+    {
+      "severity": "note",
+      "critic": "dsp-critic",
+      "id": "DSP-005",
+      "category": "buffer_handling",
+      "location": "Source/PluginProcessor.h:76",
+      "description": "getTailLengthSeconds() returns 0, but the Binaural leg is a 256-tap (L at the host rate) FIR on top of the 64-sample structural latency. With a reported tail of 0, hosts that suspend plugins on silent input or end offline bounces at the tail boundary can drop the last ~(64 + L)/fs (about 6.7 ms at 48 k) of HRIR decay.",
+      "fixSuggestion": "Return (kPartition + kBinauralFilterTaps) / 48000.0 plus a small margin (the FIR length in seconds is rate-independent after resampling), or compute it from the convolver's L and the current sample rate."
+    },
+    {
+      "severity": "note",
+      "critic": "dsp-critic",
+      "id": "DSP-006",
+      "category": "numerical_stability",
+      "location": "Source/dsp/DistanceModel.h:69-72; Source/dsp/BinauralFilterData.h:45",
+      "description": "Worst-case gain from the documented design: distance 0.2 m is +8.9 dB and the order-3 MagLS bank peaks at +6.52 dB (9.5 kHz), so a 0 dBFS input can produce roughly +15 dBFS in Binaural mode. Only the lesson table avoids that corner (PluginProcessor.cpp:424-425). A user can reach it by hand, and no output safety stage exists. In float this is not internal clipping, but it is a level surprise for a teaching plugin, and a clip on any fixed-point output stage.",
+      "fixSuggestion": "Decide this explicitly in Stage 4. Either document it in the manual/tooltips (distance near-field boost plus order-3 HRTF peaks), or add a transparent output safety: a soft clip above 0 dBFS that is bypassed bit-exactly below threshold, so the digests and anchors are untouched."
+    },
+    {
+      "severity": "note",
+      "critic": "dsp-critic",
+      "id": "DSP-007",
+      "category": "architecture_alignment",
+      "location": "Source/dsp/BinauralFilterData.h:58; Source/dsp/SpatialEngine.h:427",
+      "description": "CONTEXT-2.3 D9 planned to trim the bank's common leading delay to a guard of about 8 samples (about 0.17 ms) and justified the 64-only stereo delay on that number. The shipped front onsets are 84 / 70 / 50 samples at 48 k (1.75 / 1.46 / 1.04 ms; 168 / 99 at 96 k). So during the 20 ms Binaural<->Stereo fade the two legs are offset by about 1-1.75 ms, which gives transient comb notches (first notch about 290-480 Hz). Order fades crossfade banks offset by 14-34 samples. The audible effect is brief and the reported latency is correctly the structural 64, but the documented rationale no longer matches the data.",
+      "fixSuggestion": "Either re-trim the generator's common delay toward the planned guard (it will move the digests and onset gates, so re-baseline), or update CONTEXT/ARCHITECTURE to record the real 50-84 sample onset and accept the brief crossfade comb. Optionally, align the stereo leg by delaying it an extra kBinauralOnsetFrontSamples[3] samples, but only if digest-2.1/2.2 re-baselining is acceptable."
+    },
+    {
+      "severity": "note",
+      "critic": "foundation-critic",
+      "id": "FND-004",
+      "category": "apvts_integration",
+      "location": "Source/PluginEditor.cpp:398 (with :300, :313-316)",
+      "description": "resized() writes editorScale on every resize, including the editor's own setSize(1180,780) and auto-fit setSize during construction. As a result the 'storedScale == 0 means fit the display at open' branch (:313-314) only applies until the editor is first opened, and from then on the auto-fit scale is persisted as if the user had chosen it. Scenario: a session created on a 13-inch laptop auto-fits to 0.8 and is saved. Reopened on a 27-inch display it stays at 0.8, because the clamp at :313 only lowers a stored scale. This may be acceptable under the CONTEXT rule 'save/reopen keeps the window size'. It is flagged so the behaviour is a deliberate choice.",
+      "fixSuggestion": "If only user-chosen sizes should persist, set a member flag once construction finishes and have resized() store editorScale only when the flag is set and the width differs from the open-time fit. Otherwise document in ARCHITECTURE Stage-4 amendment A1 that the open-time fit is persisted on purpose."
+    },
+    {
+      "severity": "note",
+      "critic": "foundation-critic",
+      "id": "FND-005",
+      "category": "apvts_integration",
+      "location": "Source/PluginProcessor.cpp:410-418",
+      "description": "When a restored state has no editorScale, or carries one outside 0.6..1.5, the atomic keeps whatever the instance held before. The comment says 'a pre-Stage-3 session has neither property: ... fit-to-display', but that is true only for a fresh instance. A host that loads a different state into a live instance (preset menu, project switch with instance reuse) carries the previous window scale over. Impact is cosmetic.",
+      "fixSuggestion": "Add an else branch that stores 0.0f into editorScale when the property is absent or rejected, so restore matches the documented fit-to-display behaviour. Leave uiLanguage as is (keeping the current language is the better default)."
+    },
+    {
+      "severity": "note",
+      "critic": "ui-critic",
+      "id": "UI-002",
+      "category": "webviewIntegrity",
+      "location": "Source/ui/public/index.html:2547-2551 / Source/PluginProcessor.cpp:410-411",
+      "description": "The language is a one-shot pull. The page calls getUiLanguage once at init, while setStateInformation can later overwrite uiLanguage (and editorScale) while the editor is open. Example: a host loads a session or preset chunk saved in French into an open English editor. The atomic changes, the page stays English, and the next getStateInformation writes the restored 'fr' back. The page and the saved state then disagree until the editor is reopened (pattern_webview_one_shot_state_push_stale_on_preset_load). Low impact because language is not a parameter.",
+      "fixSuggestion": "Bump a counter in setStateInformation. Have the editor timer compare it and emit a 'uiLanguage' event the page applies with applyI18n. Alternatively, document the reopen-to-apply behaviour as intentional."
+    },
+    {
+      "severity": "note",
+      "critic": "ui-critic",
+      "id": "UI-003",
+      "category": "responsiveness",
+      "location": "Source/ui/public/index.html:2592 (with 1594, 1894)",
+      "description": "Canvas backing stores are resized only from applyUiScale, which listens to window 'resize'. Dragging the plugin window from a Retina display to a 1x display (or back) changes devicePixelRatio without a resize event. All five canvases then keep the old backing size: blurry on 2x, wasted fill rate on 1x. The puck sprite cache keys on DPR, but it is only consulted on redraw and the canvas itself is not resized.",
+      "fixSuggestion": "Add a matchMedia('(resolution: <dpr>dppx)') change listener, re-armed after each change, that calls applyUiScale. This is the standard DPR-change idiom."
+    },
+    {
+      "severity": "note",
+      "critic": "ui-critic",
+      "id": "UI-004",
+      "category": "accessibility",
+      "location": "Source/ui/public/index.html:1945, 1951, 2211",
+      "description": "Canvas text is drawn in parchment at low alpha on the #2a2118 well. The distance ring labels ('0.5 m'...'20 m') use 0.45 alpha, about 3.0:1. The output meter dB ruler uses 0.6 alpha at 9.5 px, about 4.3:1. Both are below AA 4.5:1 for small text. The DOM contrast gates cannot see canvas pixels (canvas AA is gate-blind).",
+      "fixSuggestion": "Raise the alpha of these ruler labels to at least 0.75 (about 5.5:1), or draw them in the --ink-parch solid. Keep the ring strokes faint; only the text needs more contrast."
+    },
+    {
+      "severity": "note",
+      "critic": "ui-critic",
+      "id": "UI-005",
+      "category": "accessibility",
+      "location": "Source/ui/public/index.html:1254-1264, 1192",
+      "description": "Knobs set role=slider and aria-valuetext but never aria-valuemin, aria-valuemax or aria-valuenow, so assistive tech reports an incomplete slider. The keydown handler handles only the arrow keys. Home/End (min/max) and PageUp/PageDown (coarse step), which ARIA expects for a slider, do nothing.",
+      "fixSuggestion": "In bindKnob, set aria-valuemin=0, aria-valuemax=1 and update aria-valuenow with the normalised value in updateKnobVisual. Add Home/End to set 0 or 1, and PageUp/PageDown for a 10-step nudge, each wrapped in sliderDragStarted/Ended like nudge()."
+    },
+    {
+      "severity": "note",
+      "critic": "ui-critic",
+      "id": "UI-006",
+      "category": "consistency",
+      "location": "Source/ui/public/index.html:1035-1044 vs Source/ui/public/js/i18n.js:695",
+      "description": "The French lesson captions use a decimal comma ('Essayez 0,2 m'), but every numeric readout and every composed var (FORMAT.distance, orbitRate, dB, kHz) prints a decimal point in all languages. A French user sees '0,2 m' in the footer caption and '0.20 m' under the Distance knob at the same moment. Also, all 150 French entries in i18n.js are still reviewed:false, so Stage 4 owes a French review pass.",
+      "fixSuggestion": "Pick one convention for fr. Either keep points everywhere and change the caption to '0.2 m', or route FORMAT and the composed vars through a uiLanguage-aware decimal separator. Settle it during the French review of the 150 unreviewed entries."
+    },
+    {
+      "severity": "note",
+      "critic": "ui-critic",
+      "id": "UI-007",
+      "category": "consistency",
+      "location": "Source/ui/public/index.html:1306-1320",
+      "description": "Knob pointerdown has no e.button check, unlike the sphere drags (index.html:2387: if (e.button !== 0) return). A right-click or middle-click on a knob opens a host automation gesture (sliderDragStarted), and any vertical jitter before release writes values. Since the context menu is suppressed globally, a right-click that looks like a no-op can still leave a touched-parameter automation point in Logic or Cubase.",
+      "fixSuggestion": "Return early from the knob pointerdown handler when e.button !== 0, matching bindSphereDrags."
+    },
+    {
+      "severity": "info",
+      "critic": "architecture-critic",
+      "id": "ARCH-009",
+      "category": "contractAlignment",
+      "location": "Source/PluginProcessor.cpp:431-440",
+      "description": "Known intentional: the kLessons table is provisional and is being replaced by PresetRecipes.h plus the preset manager this stage. It has no defects beyond ARCH-003/ARCH-005. Also confirmed: latency is a fixed 64 at one call site (PluginProcessor.cpp:216), there are 12 frozen params, lessons never set outputLevel (cpp:462-463, gated by ST6), and the verify_2_1 V3 Binaural arm, the encReadN ellipsis and the chevron/puck overlap are carried items.",
+      "fixSuggestion": "No action from this critic beyond the T4/T5/T6 tasks already planned."
+    },
+    {
+      "severity": "info",
+      "critic": "dsp-critic",
+      "id": "DSP-008",
+      "category": "buffer_handling",
+      "location": "Source/dsp/BinauralConvolver.h:130, :245",
+      "description": "At 352.8 / 384 kHz, L = ceil(256*fs/48000) = 2048, so K = 32 > kConvMaxK = 16 and the jassert fires in Debug builds (pluginval in Debug, harness). Release behaviour is correct, since every K-dependent store is a std::vector sized by K, and CPU at K = 32 is still small.",
+      "fixSuggestion": "Raise kConvMaxK to 32 (it is a documented expectation, not a buffer bound), or limit the jassert to the rates the plugin claims to support."
+    },
+    {
+      "severity": "info",
+      "critic": "dsp-critic",
+      "id": "DSP-009",
+      "category": "realtime_safety",
+      "location": "Source/dsp/BinauralConvolver.h:350, :459 (JUCE juce_FFT.cpp:115)",
+      "description": "On Windows/Linux, juce::dsp::FFT uses FFTFallback, which takes a SpinLock inside every perform and uses alloca scratch below 256 KB, so there is no heap allocation at N = 128. The lock is per-instance and is only touched by prepare() (message thread, never concurrent with processing) and the audio thread, so it is uncontended. This is listed for completeness; it is not a defect.",
+      "fixSuggestion": "No change needed. If a cross-platform RT audit is ever wanted, note it in ARCHITECTURE alongside the vDSP/Fallback determinism note (D6)."
+    },
+    {
+      "severity": "info",
+      "critic": "dsp-critic",
+      "id": "DSP-010",
+      "category": "architecture_alignment",
+      "location": "Source/PluginProcessor.cpp:426-482; Source/dsp/ShRotator.h:187-234; Source/dsp/ShEncoder.h:108-136",
+      "description": "Verified clean (no findings): SN3D/ACN encoder constants and the AmbiX azimuth sign; the I-R recursion U/V/W coefficients, delta handling and P() edge cases; the order-1 ACN permutation; the UPOLS overlap-save layout and FDL indexing; bank fade arrive -> requestSet -> step ordering with latest-wins queue; the D3 copy flag computed after mixer.controlStep; TripleBuffer peak-since-last-read gating; the 44.1 k-family resampler DC calibration; state save/restore of DSP params via APVTS replaceState. The provisional kLessons recipes map choice indices correctly (order 0/1/2 -> 1/2/3, decoder 1 = Stereo) and never touch outputLevel. Acknowledged and not flagged: fixed 64 latency, 12 frozen params, verify_2_1 V3 stale Binaural arm, encReadN ellipsis, chevron/puck overlap.",
+      "fixSuggestion": "None."
+    },
+    {
+      "severity": "info",
+      "critic": "foundation-critic",
+      "id": "FND-006",
+      "category": "cmake_correctness",
+      "location": "CMakeLists.txt:18-32",
+      "description": "No VST3_CATEGORIES is set, so the plugin registers as plain 'Fx'. A spatializer can also declare 'Spatial' (only O-Octagon in the suite does), which helps browsing in Cubase and Bitwig. This is optional; it does not affect AU, which defaults correctly to kAudioUnitType_Effect.",
+      "fixSuggestion": "Optionally add VST3_CATEGORIES \"Fx\" \"Spatial\" to juce_add_plugin(). This does not change the plugin UID or its saved state."
+    },
+    {
+      "severity": "info",
+      "critic": "foundation-critic",
+      "id": "FND-007",
+      "category": "apvts_integration",
+      "location": "Source/PluginProcessor.cpp:379, :398-420",
+      "description": "pluginVersion is stamped on save but never read on restore. That is correct for 1.0.0 because nothing needs migrating yet. The first post-1.0.0 range or default change will need a per-parameter version-gated migration (memory pattern_preset_migration_per_param_version_gate) at the top of setStateInformation.",
+      "fixSuggestion": "No action at 1.0.0. Note in ARCHITECTURE amendment A1 that setStateInformation is the migration hook site and that pluginVersion is its key."
+    },
+    {
+      "severity": "info",
+      "critic": "ui-critic",
+      "id": "UI-008",
+      "category": "accessibility",
+      "location": "Source/PluginEditor.h:82 / Source/ui/public/index.html:212, 377, 388, 618",
+      "description": "Many captions are authored at 9.5-10 px (chip heads, band-ch, chan-scale, enc order tags, station subs, seg caps). The page scales by CSS transform down to minScale 0.6, where these render at about 5.7-6 px. They stay legible at 1.0x, but they are below the 12 px guideline at the scales a small laptop's fit-to-display picks (fitScaleForDisplay can choose 0.6-0.9).",
+      "fixSuggestion": "Consider raising minScale to about 0.75, or bumping the 9.5 px tier to 10.5 px, so that the smallest text never renders below about 7.5 px. This is a design decision; flagged for awareness."
+    },
+    {
+      "severity": "info",
+      "critic": "ui-critic",
+      "id": "UI-009",
+      "category": "polish",
+      "location": "Source/ui/public/index.html:2418-2424",
+      "description": "The lesson button 'active' highlight and the footer caption persist after the user moves any parameter away from the lesson state. They are also not restored on editor reopen, so the page can claim 'Behind You' is active while the source sits in front. The kLessons table is being replaced this stage, so this is low priority.",
+      "fixSuggestion": "When the shared recipe table and preset manager land, clear .active and restore label.tourDefault on the first user-originated parameter change after a lesson (valueChanged outside the apply window), or derive 'active' from a C++ current-preset field."
+    }
+  ],
+  "progression_allowed": false,
+  "blocking_count": 3,
+  "warning_count": 7,
+  "note_count": 25
+}

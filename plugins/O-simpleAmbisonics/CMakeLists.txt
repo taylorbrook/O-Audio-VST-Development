@@ -29,6 +29,9 @@ juce_add_plugin(O-simpleAmbisonics
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
+    # Stage 4 IN-20: browsable as a spatializer in VST3 hosts (Cubase,
+    # Bitwig). Metadata only: the plugin UID and the saved state are unchanged.
+    VST3_CATEGORIES "Fx" "Spatial"
 )
 
 # Source files. PluginProcessor.cpp includes PluginEditor.h only under
@@ -42,6 +45,7 @@ target_sources(O-simpleAmbisonics
         Source/PluginEditor.cpp
         Source/PluginEditor.h
         Source/MeterFramePayload.h
+        Source/PresetRecipes.h
         Source/dsp/SpatialEngine.h
         Source/dsp/FixedDelay.h
         Source/dsp/Smoothers.h
@@ -57,6 +61,14 @@ target_sources(O-simpleAmbisonics
         Source/dsp/TripleBuffer.h
 )
 
+# Stage 4 (FUNC-08): the preset-manager module (v1.0.9) — its C++ header on the
+# include path, and preset-manager.js copied into Source/ui/public/modules/
+# (gitignored) at configure time, BEFORE the binary-data target below lists it.
+# Used narrowly (PLAN P7): folders, savePreset / deletePreset, the factory
+# sentinel and the JS — never its XML state path or its JSON apply. Factory
+# storage is in code (PresetRecipes.h): no second binary-data target.
+ouaricon_add_module(O-simpleAmbisonics preset-manager)
+
 # WebView UI resources (embedded as BinaryData). THE ONLY juce_add_binary_data
 # TARGET THIS PLUGIN EVER HAS (critical_dual_binary_data_namespace_collision).
 # Every file here has a getResource() branch in PluginEditor.cpp; hyphens are
@@ -69,6 +81,7 @@ juce_add_binary_data(O-simpleAmbisonics_UIResources
         Source/ui/public/js/shicons.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/modules/preset-manager.js
         Source/ui/public/img/insects.png
         ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
         ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2

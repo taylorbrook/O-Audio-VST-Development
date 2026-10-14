@@ -6,15 +6,16 @@ stage_phase: 0
 stage_phase_name: single-cycle
 stage_phase_total: 1
 artifact_suffix: ""
-status: stage_4_plan_complete
+status: stage_4_execute_part1_complete_visual_pending
 last_updated: 2026-10-14
+s4_part1_scratch: /private/tmp/claude-501/-Users-taylorbrook-Dev-VST-development/5706f535-bac7-4a9d-8a61-0650a8587fe4/scratchpad
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-current_phase: plan
-next_phase: execute
-next_action: plugin-execute
+current_phase: execute
+next_phase: verify
+next_action: user_visual_checkpoint_then_plugin_execute
 ui_scaffolding_phase_complete: true
 next_stage: 4
 ready_for_implementation: true
@@ -32,6 +33,8 @@ plugin_code: OSAm
 # O-simpleAmbisonics Status
 
 ## Current Position
+
+Stage: 4 of 4 (Polish) — **execute Part 1 ✓ 2026-10-14** (T1–T11) · ⏸ **CP1 preset-bar visual checkpoint (Taylor)** · then `/plugin-execute O-simpleAmbisonics` resumes at T12. Critic pass: 1 blocker (withBackend, ×3 critics) + 6 warnings + 21 notes triaged in `CODE_REVIEW.md` (draft); all T3 fixes gated with NCs. Presets: `PresetRecipes.h` (Init + 8), one apply core, orderStep walk, user-owned outputLevel + inputMode, preset-manager v1.0.9 narrow, header bar (latency chip retired), presetState. Harness 289/289 (digests unchanged), auval + pluginval s10 VST3/AU SUCCESS, verify_2_1/2_2/2_3/3_state ALL PASS, all UI gates green. CP1 also carries tracer item 6 (live Standalone lesson click) and the IN-07 DPR eye-check. `stages/4-polish/SUMMARY.md` Part 1.
 
 Stage: 4 of 4 (Polish) — discuss ✓ research ✓ plan ✓ 2026-10-14 · next: execute. `PLAN.md`: Part 1 T1–T11 (critic pass → carried fixes → recipes/apply core → preset-manager + header bar → gates → build) → CP1 preset-bar visual; Part 2 T12–T15 (validation sweep → CP2 push/dispatch go-ahead → Windows CI → release docs) → CP3 hands-on + QUAL-02. Planner deltas vs RESEARCH: ST6 amended for R-D3, orderStep caption rewrite, G-PRESET-CLICK (QUAL-01) added. `RESEARCH.md` decisions R-D1 retire #chipLatency for header preset bar · R-D2 lessons = full reset (as today) · R-D3 inputMode user-owned · R-D4 orderStep walks 1→2→3→1. Prior discuss: `stages/4-polish/CONTEXT.md`: preset-manager + browser (Init + 8 lessons, shared recipe table), carried fixes (verify_2_1 V3 → Stereo, encReadN, chevron/puck), critic pass, CI Windows validate-only, i18n flags unchanged, 1.0.0 no tag.
 

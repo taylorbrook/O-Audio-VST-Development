@@ -192,6 +192,38 @@
       PL4               — the UI fixture set built twice is byte-identical;
                           OSAMB_UI_FIXTURES=<dir> also writes <dir>/frames.json.
 
+    Stage 4 (Polish; PLAN-4 P15) adds one block after PL4 and before the digest
+    prints, on fresh processors only (rtcheck armed only inside S4 PERF). ST6 is
+    AMENDED (R-D3: inputMode bit-unchanged too; orderStep's first click = order
+    1; idempotence on the 7 non-walking ids); every other earlier line keeps its
+    text. Each negative control is its own line, PASS only when it FAILS.
+    251 + 38 = 289.
+
+      S4 WR-02 / -NC     — a NaN / Inf input sample is scrubbed in the conditioner
+                          (bit-equal to the zeroed input); engine-direct NaN latches.
+      S4 WR-03 / -NC     — reset() clears the tail; a tone after reset == fresh.
+      S4 WR-04 / -NC     — Input Mode ramps: <= 2.0 vs the same-motion reference
+                          (the 20 ms ramp's own corner reads ~2.5 vs a static
+                          tone); a hard splice reads ~580.
+      S4 WR-05 / -NC     — getTailLengthSeconds() covers the measured decay.
+      S4 IN-01 / -NC     — processBlock before prepare: silence, no hang.
+      S4 IN-04 / -NC     — K at 352.8 / 384 k within kConvMaxK.
+      S4 IN-19           — a restore without editorScale fits the display.
+      S4 PERF            — 0 allocations with Input Mode ramps, a NaN and reset().
+      G-FACTORY[table / init / apply / skew-NC / defs] — PresetRecipes.h against
+                          the LITERAL PLAN table; skew-correct loads.
+      G-LESSON[walk / restart / owned] + NC — the orderStep walk (R-D4).
+      G-ORDER3-DIST + NC — no state reaches order 3 below 1 m.
+      G-PRESET-STATE[identity / restore] — name / id / factory / modified;
+                          currentPreset through two reopens, absent, hostile.
+      G-PRESET-CLICK + NC (QUAL-01) — 12 loads mid-tone <= 2.0 vs the static
+                          pair, or (an arm whose smoothed move already exceeds
+                          it) vs the same-motion ReferenceModel reference.
+      G-PRESET-USER[roundtrip / malformed / missing / clamp / refuse] + NC,
+      G-PRESET-NAME, G-PRESET-WALK — the strict user-JSON parser, refusal, names
+                          and the one walk order; in-memory only — the harness
+                          never writes ~/Library/O-simpleAmbisonics (last S4 line).
+
   ==============================================================================
 */
 
@@ -1380,6 +1412,64 @@ namespace st3
         return nullptr;
     }
 } // namespace st3
+
+//==============================================================================
+// Stage 4 (PLAN-4) helpers — critic-fix gates (T3) and the preset gates (T6 / T7).
+namespace st4
+{
+    namespace ids = OSimpleAmbisonics::ParamIDs;
+
+    // Stereo render with DIFFERENT legs (fillL / fillR), fixed blocks, hook (n)
+    // before the block that starts at n. Output interleaved L, R.
+    template <typename FL, typename FR, typename Hook>
+    std::vector<float> renderLR (Proc& p, int total, FL fillL, FR fillR, Hook hook, int block = 64)
+    {
+        juce::MidiBuffer midi;
+        juce::AudioBuffer<float> buf (2, block);
+        std::vector<float> out;
+        out.reserve ((size_t) total * 2);
+        for (int n = 0; n < total; n += block)
+        {
+            hook (n);
+            const int count = juce::jmin (block, total - n);
+            buf.setSize (2, count, false, false, true);
+            for (int s = 0; s < count; ++s)
+            {
+                buf.setSample (0, s, fillL (n + s));
+                buf.setSample (1, s, fillR (n + s));
+            }
+            p.processBlock (buf, midi);
+            for (int s = 0; s < count; ++s)
+            {
+                out.push_back (buf.getSample (0, s));
+                out.push_back (buf.getSample (1, s));
+            }
+        }
+        return out;
+    }
+
+    bool bitEqual (const std::vector<float>& a, const std::vector<float>& b)
+    {
+        return a.size() == b.size() && (a.empty() || std::memcmp (a.data(), b.data(), a.size() * sizeof (float)) == 0);
+    }
+
+    bool allZero (const std::vector<float>& v, size_t from = 0)
+    {
+        for (size_t i = from; i < v.size(); ++i)
+            if (v[i] != 0.0f)
+                return false;
+        return true;
+    }
+
+    // Last interleaved FRAME index whose |L| or |R| exceeds thr (-1 if none).
+    int lastAbove (const std::vector<float>& v, float thr)
+    {
+        for (int n = (int) v.size() / 2 - 1; n >= 0; --n)
+            if (std::abs (v[(size_t) (2 * n)]) > thr || std::abs (v[(size_t) (2 * n + 1)]) > thr)
+                return n;
+        return -1;
+    }
+}
 } // namespace
 
 int main()
@@ -4083,7 +4173,7 @@ int main()
             struct Recipe { const char* id; std::vector<std::pair<const char*, float>> sets; };
             const std::vector<Recipe> recipes = {
                 { "pointSource",        { { ParamIDs::order, 0.0f }, { ParamIDs::azimuth, 30.0f }, { ParamIDs::elevation, 0.0f }, { ParamIDs::distance, 1.0f } } },
-                { "orderStep",          { { ParamIDs::order, 2.0f }, { ParamIDs::azimuth, 45.0f } } },
+                { "orderStep",          { { ParamIDs::order, 0.0f }, { ParamIDs::azimuth, 45.0f } } },   // Stage 4 R-D4: the first click = order 1
                 { "behindYou",          { { ParamIDs::azimuth, 180.0f } } },
                 { "overhead",           { { ParamIDs::elevation, 90.0f }, { ParamIDs::order, 1.0f } } },
                 { "rotateRoom",         { { ParamIDs::azimuth, 60.0f }, { ParamIDs::yaw, 120.0f }, { ParamIDs::order, 1.0f } } },
@@ -4111,6 +4201,7 @@ int main()
                 Proc q;
                 offDefault (q);
                 const float outBefore = rawParam (q, ParamIDs::outputLevel);
+                const float inBefore  = rawParam (q, ParamIDs::inputMode);
                 std::vector<float> before;
                 for (const char* id : kAllIds) before.push_back (q.apvts.getParameter (id)->getValue());
 
@@ -4126,6 +4217,7 @@ int main()
                     const float now = prm->getValue();
                     if (std::memcmp (&now, &before[i], sizeof (float)) != 0) ++changed;
                     if (std::strcmp (kAllIds[i], ParamIDs::outputLevel) == 0) continue;
+                    if (std::strcmp (kAllIds[i], ParamIDs::inputMode) == 0) continue;   // Stage 4 R-D3: user-owned
                     float target = prm->getDefaultValue();
                     for (const auto& s : r.sets)
                         if (std::strcmp (s.first, kAllIds[i]) == 0)
@@ -4141,13 +4233,18 @@ int main()
                 // The host path snaps -12 dB to raw -11.999999 (range -60..0 step 0.1:
                 // -60 + 0.1f * 480 in float), so "untouched" is BIT-EQUAL to the value
                 // the host set, not the literal -12.0f (PLAN-3 ST6 deviation, SUMMARY).
+                const float inRaw = rawParam (q, ParamIDs::inputMode);
                 const bool outUntouched = std::memcmp (&outRaw, &outBefore, sizeof (float)) == 0
-                                       && std::abs (outRaw + 12.0f) < 1.0e-5f;
+                                       && std::abs (outRaw + 12.0f) < 1.0e-5f
+                                       && std::memcmp (&inRaw, &inBefore, sizeof (float)) == 0 && inRaw == 1.0f;
                 const bool gesturesOk   = gc.begins == changed && gc.ends == changed;
 
+                // Re-apply = 0 gestures on the 7 non-walking ids; the orderStep
+                // second click walks the order by design (R-D4, harness G-LESSON).
                 gc.begins = gc.ends = 0;
-                const bool again   = q.applyFactoryPreset (r.id);
-                const bool idemOk  = again && gc.begins == 0 && gc.ends == 0;
+                const bool walks   = std::strcmp (r.id, "orderStep") == 0;
+                const bool again   = walks || q.applyFactoryPreset (r.id);
+                const bool idemOk  = again && (walks || (gc.begins == 0 && gc.ends == 0));
 
                 for (auto* prm : q.getParameters()) prm->removeListener (&gc);
 
@@ -4183,8 +4280,8 @@ int main()
                 }
             }
 
-            check ("ST6 lessons: 8 ids apply exactly recipe-or-default from an off-default state, outputLevel raw bit-unchanged at the host-set -12 dB, begins == ends == changed, re-apply = 0 gestures; \"nope\" / \"\" -> false, no change, 0 gestures",
-                   ok, detail.isEmpty() ? fmt ("%d parameter changes over 8 lessons, outputLevel raw %.9g (bit-unchanged)", totalChanged, (double) outRaw) : detail.trim());
+            check ("ST6 lessons: 8 ids apply exactly recipe-or-default from an off-default state, outputLevel raw bit-unchanged at the host-set -12 dB and inputMode raw bit-unchanged at 1 (Stage 4 R-D3), begins == ends == changed, re-apply = 0 gestures on the 7 non-walking ids; \"nope\" / \"\" -> false, no change, 0 gestures",
+                   ok, detail.isEmpty() ? fmt ("%d parameter changes over 8 lessons, outputLevel raw %.9g, inputMode raw 1 (bit-unchanged)", totalChanged, (double) outRaw) : detail.trim());
         }
 
         // ── PL1 payload format ────────────────────────────────────────────────
@@ -4358,6 +4455,1023 @@ int main()
                 std::printf ("  info: OSAMB_UI_FIXTURES -> %s (%s)\n", out.getFullPathName().toRawUTF8(), wrote ? "written" : "WRITE FAILED");
             }
         }
+    }
+
+    //==========================================================================
+    // Stage 4 (PLAN-4 P15) — critic fixes (T3, "S4 " lines) and the preset
+    // gates (T6 / T7, "G-" lines). Fresh processors only, rtcheck disarmed
+    // except inside the S4 PERF window; after PL4 and before the digest prints,
+    // so no Stage-2 render, Stage-3 line or digest verdict is touched. Every
+    // negative control is its own line, PASS only when the control FAILS.
+    {
+        rtcheck::disarm();
+        namespace ids = OSimpleAmbisonics::ParamIDs;
+
+        // ── S4 WR-02: a NaN / Inf input sample is scrubbed in the conditioner ──
+        {
+            const int total = 8192;
+            const auto bad = [] (int ch, int n) -> float
+            {
+                if (n == 1000 && ch == 0) return std::numeric_limits<float>::quiet_NaN();
+                if (n == 3000 && ch == 1) return std::numeric_limits<float>::infinity();
+                if (n == 5000)            return -std::numeric_limits<float>::infinity();
+                return tone100 (n);
+            };
+            const auto zeroed = [] (int, int n) -> float
+            {
+                return (n == 1000 || n == 3000 || n == 5000) ? 0.0f : tone100 (n);
+            };
+
+            bool ok = true;
+            juce::String detail;
+            for (int dec = 0; dec < 2; ++dec)
+                for (float d : { 1.0f, 12.0f })
+                {
+                    auto setup = [dec, d] (Proc& q)
+                    {
+                        setParam (q, ids::decoder, (float) dec);
+                        setParam (q, ids::distance, d);
+                        setParam (q, ids::order, 2.0f);
+                    };
+                    auto pa = makeProc (2, 64, setup);
+                    auto pb = makeProc (2, 64, setup);
+                    std::vector<float> ya, yb;
+                    renderWith (*pa, 2, { 64 }, bad, ya, total);
+                    renderWith (*pb, 2, { 64 }, zeroed, yb, total);
+                    const bool same = st4::bitEqual (ya, yb), fin = allFinite (ya);
+                    const bool alive = st4::lastAbove (ya, 1.0e-3f) > total - 64;
+                    if (! (same && fin && alive))
+                    {
+                        ok = false;
+                        detail << (dec == 0 ? "Bin" : "St") << " d" << d << (same ? "" : " !=zeroed") << (fin ? "" : " non-finite") << (alive ? "" : " silent") << " ";
+                    }
+                }
+            check ("S4 WR-02 NaN at n 1000 (L), +Inf at 3000 (R), -Inf at 5000 (both): output finite, alive to the end and bit-equal to the same input with those samples zeroed (Binaural / Stereo x d 1 / 12 m, order 3)",
+                   ok, ok ? juce::String ("4 / 4 renders bit-equal to the zeroed input") : detail.trim());
+
+            // NC: the same NaN fed to the ENGINE directly (no conditioner scrub —
+            // the pre-fix path) latches the air-LP state; the tail is not finite.
+            osa::Params prm;
+            prm.order = 3;
+            const auto er = renderEngine (prm, kFs, 64, total, { 64 },
+                                          [] (int n) { return n == 1000 ? std::numeric_limits<float>::quiet_NaN() : tone100 (n); },
+                                          [] (int, osa::Params&) {});
+            std::vector<float> tail (er.lr.end() - 2048, er.lr.end());
+            const bool tailFinite = allFinite (tail);
+            checkFailsAsExpected (tailFinite,
+                                  "S4 WR-02-NC engine-direct NaN at n 1000 (no conditioner scrub): the last 1024 frames are finite",
+                                  tailFinite ? juce::String ("tail finite") : juce::String ("tail NaN — the latch the scrub prevents"));
+        }
+
+        // ── S4 WR-03: reset() clears the engine state ─────────────────────────
+        {
+            const int total = 4096;
+            auto setup = [] (Proc& q) { setParam (q, ids::order, 2.0f); setParam (q, ids::distance, 3.3f); setParam (q, ids::azimuth, 37.0f); };
+            const auto tone = [] (int, int n) { return tone100 (n); };
+            const auto silence = [] (int, int) { return 0.0f; };
+
+            auto pr = makeProc (2, 64, setup);
+            std::vector<float> warm, afterReset, again;
+            renderWith (*pr, 2, { 64 }, tone, warm, total);
+            pr->reset();
+            renderWith (*pr, 2, { 64 }, silence, afterReset, 2048);
+            pr->reset();
+            renderWith (*pr, 2, { 64 }, tone, again, total);
+
+            auto fresh = makeProc (2, 64, setup);
+            std::vector<float> freshTone;
+            renderWith (*fresh, 2, { 64 }, tone, freshTone, total);
+
+            Proc unprepared;
+            unprepared.reset();   // a no-op before prepare (must not touch empty convolver tables)
+
+            const bool silent = st4::allZero (afterReset), same = st4::bitEqual (again, freshTone);
+            check ("S4 WR-03 reset() after a tone: the next 2048 silent-input frames are exactly 0 (no tail), and tone after reset() is bit-equal to a fresh instance; reset() before prepare is a no-op",
+                   silent && same,
+                   fmt ("silence after reset: %s; tone vs fresh: %s", silent ? "all 0" : "TAIL", same ? "bit-equal" : "DIFFERS"));
+
+            // NC: the same sequence WITHOUT reset() (the pre-fix behaviour).
+            auto pn = makeProc (2, 64, setup);
+            std::vector<float> w2, tail;
+            renderWith (*pn, 2, { 64 }, tone, w2, total);
+            renderWith (*pn, 2, { 64 }, silence, tail, 2048);
+            const bool ncSilent = st4::allZero (tail);
+            checkFailsAsExpected (ncSilent, "S4 WR-03-NC no reset(): the 2048 silent-input frames after the tone are exactly 0",
+                                  fmt ("last non-zero frame %d", st4::lastAbove (tail, 0.0f)));
+        }
+
+        // ── S4 WR-04: Input Mode changes ramp (no click) ──────────────────────
+        // SAME-MOTION reference (PLAN K7; memory pattern_step_click_gate_needs_same_motion_
+        // control): a 20 ms linear blend has a slope corner at each end, which already reads
+        // ≈ 2.5x the curvature of a static tone at 100 Hz — the same corner every 20 ms ramp in
+        // this plugin has. So the verdict compares the switch against the INTENDED motion: the
+        // two legs pre-blended with that exact ramp (w = (i + 1) / 960 from the switch block,
+        // JUCE LinearSmoothedValue's sequence) and fed as identical legs in Mono sum, where the
+        // conditioner passes them through unchanged. The ratio vs the static pair is printed.
+        {
+            static constexpr int total = 14400, n0 = 4928, n1 = 9728;   // block boundaries, tone phase ~96 deg at both
+            static constexpr int rampLen = 960;                          // 20 ms at 48 k
+            const auto fL = [] (int n) { return tone100 (n); };
+            const auto fR = [] (int n) { return 0.5f * tone100 (n); };   // Mono sum = 0.75 L, Left only = L
+            const auto weight = [] (int n) -> float
+            {
+                if (n < n0) return 0.0f;
+                if (n < n1) return (float) juce::jmin (1.0, (double) (n - n0 + 1) / (double) rampLen);
+                return 1.0f - (float) juce::jmin (1.0, (double) (n - n1 + 1) / (double) rampLen);
+            };
+            const auto blended = [fL, fR, weight] (int n)
+            {
+                const float l = fL (n), sum = 0.5f * (l + fR (n)), w = weight (n);
+                return (w == 0.0f) ? sum : (w == 1.0f ? l : sum + w * (l - sum));
+            };
+            const int win = (int) (0.060 * kFs);
+
+            bool ok = true;
+            juce::String detail, staticInfo;
+            for (int dec = 0; dec < 2; ++dec)
+            {
+                auto setup = [dec] (Proc& q) { setParam (q, ids::decoder, (float) dec); setParam (q, ids::order, 2.0f); };
+                auto pe = makeProc (2, 64, setup);
+                Proc* pep = pe.get();
+                const auto ev = st4::renderLR (*pe, total, fL, fR, [pep] (int n)
+                {
+                    if (n == n0) setParam (*pep, ids::inputMode, 1.0f);
+                    if (n == n1) setParam (*pep, ids::inputMode, 0.0f);
+                });
+                auto pr = makeProc (2, 64, setup);
+                const auto ref = st4::renderLR (*pr, total, blended, blended, [] (int) {});
+                auto ps0 = makeProc (2, 64, setup);
+                auto ps1 = makeProc (2, 64, [setup] (Proc& q) { setup (q); setParam (q, ids::inputMode, 1.0f); });
+                const auto s0 = st4::renderLR (*ps0, total, fL, fR, [] (int) {});
+                const auto s1 = st4::renderLR (*ps1, total, fL, fR, [] (int) {});
+
+                for (int e = 0; e < 2; ++e)
+                {
+                    const int a = e == 0 ? n0 : n1;
+                    for (int ch = 0; ch < 2; ++ch)
+                    {
+                        ClickReading r;
+                        r.event   = worstCurvature (ev, ch, 2, a, a + win);
+                        r.control = worstCurvature (ref, ch, 2, a, a + win);
+                        const double vsStatic = r.event / std::max (worstCurvature (s0, ch, 2, a, a + win), worstCurvature (s1, ch, 2, a, a + win));
+                        if (r.ratio() > kClickRatioCeiling)
+                        {
+                            ok = false;
+                            detail << (dec == 0 ? "Bin" : "St") << (e == 0 ? " sum->L" : " L->sum") << " ch" << ch << " " << clickDetail (r) << "; ";
+                        }
+                        else if (dec == 1 && e == 0 && ch == 0)
+                            detail = clickDetail (r, fmt (" (Stereo, sum -> Left only, L; vs the static pair %.2f)", vsStatic));
+                        if (dec == 0 && e == 0 && ch == 0)
+                            staticInfo = fmt ("; Binaural vs the static pair %.2f", vsStatic);
+                    }
+                }
+            }
+            check ("S4 WR-04 Input Mode sum -> Left only -> sum mid-tone (L = 100 Hz, R = L/2): worst |d2y| over 60 ms <= 2.0 x the same-motion reference (the legs pre-blended by the 20 ms ramp), both channels, Binaural and Stereo",
+                   ok, ok ? detail + staticInfo : detail);
+
+            // NC: a hard splice of the two static Stereo renders at the output
+            // sample the switch reaches (n0 + 64) — the pre-fix one-sample step —
+            // against the same same-motion reference.
+            auto setupS = [] (Proc& q) { setParam (q, ids::decoder, 1.0f); setParam (q, ids::order, 2.0f); };
+            auto ps0 = makeProc (2, 64, setupS);
+            auto ps1 = makeProc (2, 64, [setupS] (Proc& q) { setupS (q); setParam (q, ids::inputMode, 1.0f); });
+            auto prS = makeProc (2, 64, setupS);
+            const auto s0 = st4::renderLR (*ps0, total, fL, fR, [] (int) {});
+            const auto s1 = st4::renderLR (*ps1, total, fL, fR, [] (int) {});
+            const auto refS = st4::renderLR (*prS, total, blended, blended, [] (int) {});
+            std::vector<float> splice (s0);
+            for (size_t i = (size_t) (2 * (n0 + kLatency)); i < splice.size(); ++i)
+                splice[i] = s1[i];
+            ClickReading r;
+            r.event   = worstCurvature (splice, 0, 2, n0, n0 + win);
+            r.control = worstCurvature (refS, 0, 2, n0, n0 + win);
+            checkFailsAsExpected (r.ratio() <= kClickRatioCeiling,
+                                  "S4 WR-04-NC hard splice Mono sum -> Left only at the switch sample (Stereo, L) vs the same-motion reference: ratio <= 2.0",
+                                  clickDetail (r));
+        }
+
+        // ── S4 WR-05: the reported tail covers the measured decay ─────────────
+        {
+            bool ok = true;
+            juce::String detail;
+            int measured48 = 0;
+            for (double fs : { 44100.0, 48000.0, 96000.0 })
+                for (int dec = 0; dec < 2; ++dec)
+                {
+                    auto p = makeProcAt (fs, 2, 64, [dec] (Proc& q) { setParam (q, ids::decoder, (float) dec); setParam (q, ids::order, 2.0f); });
+                    std::vector<float> y;
+                    renderWith (*p, 2, { 64 }, [] (int, int n) { return n == 100 ? 1.0f : 0.0f; }, y, 100 + 8192);
+                    const int last = st4::lastAbove (y, 1.0e-6f);
+                    const int measured = last < 0 ? 0 : last - 100 + 1;
+                    const double tail = p->getTailLengthSeconds();
+                    const int reported = (int) std::lround (tail * fs);
+                    if (fs == 48000.0 && dec == 0) measured48 = measured;
+                    if (! (measured <= reported && measured > 0))
+                    {
+                        ok = false;
+                        detail << fmt ("%.0f %s measured %d > reported %d; ", fs, dec == 0 ? "Bin" : "St", measured, reported);
+                    }
+                    else if (fs == 48000.0 && dec == 0)
+                        detail = fmt ("48 k Binaural: measured %d, reported %d samples (%.3f ms)", measured, reported, tail * 1000.0);
+                }
+            check ("S4 WR-05 getTailLengthSeconds() >= the measured impulse decay (|y| > 1e-6) at 44.1 / 48 / 96 k, Binaural and Stereo, order 3",
+                   ok, detail);
+            checkFailsAsExpected (measured48 <= 0,
+                                  "S4 WR-05-NC the pre-fix tail 0 s covers the measured 48 k Binaural decay",
+                                  fmt ("measured %d samples > 0", measured48));
+        }
+
+        // ── S4 IN-01: processBlock before prepareToPlay is silence, not a hang ──
+        {
+            juce::MidiBuffer midi;
+            juce::AudioBuffer<float> buf (2, 512);
+            for (int ch = 0; ch < 2; ++ch)
+                for (int i = 0; i < 512; ++i)
+                    buf.setSample (ch, i, 0.5f);
+            Proc unprepared;
+            unprepared.processBlock (buf, midi);   // pre-fix: the slice loop never advanced
+            bool zero = true;
+            for (int ch = 0; ch < 2; ++ch)
+                for (int i = 0; i < 512; ++i)
+                    zero = zero && buf.getSample (ch, i) == 0.0f;
+            check ("S4 IN-01 processBlock on an unprepared instance returns and clears the buffer", zero);
+
+            auto prepared = makeProc (2, 512);
+            for (int ch = 0; ch < 2; ++ch)
+                for (int i = 0; i < 512; ++i)
+                    buf.setSample (ch, i, 0.5f);
+            prepared->processBlock (buf, midi);
+            bool zero2 = true;
+            for (int ch = 0; ch < 2; ++ch)
+                for (int i = 0; i < 512; ++i)
+                    zero2 = zero2 && buf.getSample (ch, i) == 0.0f;
+            checkFailsAsExpected (zero2, "S4 IN-01-NC a PREPARED instance clears the same buffer (liveness: the silence arm can see output)");
+        }
+
+        // ── S4 IN-04: the partition count at 352.8 / 384 k is within kConvMaxK ──
+        {
+            int k352 = 0, k384 = 0;
+            {
+                osa::BinauralConvolver c; c.prepare (352800.0); k352 = c.tapsAtRate() / osa::kConvPartition;
+            }
+            {
+                osa::BinauralConvolver c; c.prepare (384000.0); k384 = c.tapsAtRate() / osa::kConvPartition;
+            }
+            check ("S4 IN-04 K at 352.8 k and 384 k <= kConvMaxK (the Debug jassert holds at every supported rate)",
+                   k352 <= osa::kConvMaxK && k384 <= osa::kConvMaxK && k352 >= 1 && k384 >= 1,
+                   fmt ("K %d / %d, kConvMaxK %d", k352, k384, osa::kConvMaxK));
+            checkFailsAsExpected (k384 <= 16, "S4 IN-04-NC the pre-fix limit 16 holds at 384 k", fmt ("K %d", k384));
+        }
+
+        // ── S4 IN-19: a restore without / with a rejected editorScale fits the display ──
+        {
+            Proc src;
+            auto xml = st3::stateXml (src);           // a fresh instance writes no editorScale
+            bool ok = xml != nullptr && ! xml->hasAttribute ("editorScale");
+            float absentGot = -1.0f, rejectedGot = -1.0f;
+            if (ok)
+            {
+                Proc b;
+                b.editorScale.store (1.25f);
+                st3::restoreXml (b, *xml);
+                absentGot = b.editorScale.load();
+                xml->setAttribute ("editorScale", "3.0");
+                b.editorScale.store (1.25f);
+                st3::restoreXml (b, *xml);
+                rejectedGot = b.editorScale.load();
+                ok = absentGot == 0.0f && rejectedGot == 0.0f;
+            }
+            check ("S4 IN-19 an instance at editorScale 1.25 restored from a state without editorScale (and with \"3.0\") stores 0 (fit-to-display)",
+                   ok, fmt ("absent -> %.3f, \"3.0\" -> %.3f", (double) absentGot, (double) rejectedGot));
+        }
+
+        // ── S4 PERF: PERF-01 re-gated over the Stage-4 audio paths ────────────
+        {
+            auto p = makeProc (2, 64);
+            juce::MidiBuffer midi;
+            midi.ensureSize (256);
+            juce::AudioBuffer<float> small (2, 64);
+            const auto fill = [] (juce::AudioBuffer<float>& b, int n0)
+            {
+                for (int ch = 0; ch < 2; ++ch)
+                    for (int i = 0; i < b.getNumSamples(); ++i)
+                        b.setSample (ch, i, noiseAt (ch, n0 + i));
+            };
+            fill (small, 0);
+            p->processBlock (small, midi);             // warm-up, NOT counted
+
+            rtcheck::arm();
+            int n0 = 64;
+            for (int k = 0; k < 200; ++k)
+            {
+                if (k % 20 == 5)  setParam (*p, ids::inputMode, 1.0f);
+                if (k % 20 == 15) setParam (*p, ids::inputMode, 0.0f);
+                if (k == 100) p->reset();
+                fill (small, n0);
+                if (k == 60) small.setSample (0, 10, std::numeric_limits<float>::quiet_NaN());
+                p->processBlock (small, midi);
+                n0 += 64;
+            }
+            rtcheck::disarm();
+            const long long counted = rtcheck::allocations.load();
+            check ("S4 PERF zero allocations across 200 processBlock calls with Input Mode ramps every 10 blocks, a NaN input sample and a reset() inside the window",
+                   counted == 0, juce::String ((int) counted) + " allocation(s)" + rtcheck::foreignNote());
+        }
+        // ════ Stage 4 T6 — the recipe table, the apply core, lessons, identity, state ════
+        // The expected table is LITERAL (never ambpresets::): it is what the
+        // PLAN factory table says, transcribed, so a drifted PresetRecipes.h fails.
+        struct ExpRow { const char* id; const char* file; std::vector<std::pair<const char*, float>> sets; };
+        const std::vector<ExpRow> kExpected = {
+            { "init",               "Init",                   { { ids::azimuth, 0.0f } } },
+            { "pointSource",        "Point Source (FOA)",     { { ids::order, 0.0f }, { ids::azimuth, 30.0f }, { ids::elevation, 0.0f }, { ids::distance, 1.0f } } },
+            { "orderStep",          "Order 1-2-3",            { { ids::order, 0.0f }, { ids::azimuth, 45.0f } } },
+            { "behindYou",          "Behind You",             { { ids::azimuth, 180.0f } } },
+            { "overhead",           "Overhead",               { { ids::elevation, 90.0f }, { ids::order, 1.0f } } },
+            { "rotateRoom",         "Rotate the Room",        { { ids::azimuth, 60.0f }, { ids::yaw, 120.0f }, { ids::order, 1.0f } } },
+            { "farNear",            "Far Away - Up Close",    { { ids::distance, 12.0f } } },
+            { "slowOrbit",          "Slow Orbit",             { { ids::orbit, 1.0f }, { ids::orbitRate, 0.05f }, { ids::order, 1.0f } } },
+            { "speakersHeadphones", "Speakers vs Headphones", { { ids::decoder, 1.0f }, { ids::order, 2.0f }, { ids::azimuth, 45.0f } } },
+        };
+        const auto plainOf = [] (Proc& q, const char* id) { auto* p = q.apvts.getParameter (id); return p->convertFrom0to1 (p->getValue()); };
+        const auto orderIdxOf = [] (Proc& q) { return (int) std::lround (rawParam (q, ids::order)); };
+        const auto nearRel = [] (float got, float want) { return std::abs (got - want) <= 1.0e-4f * std::max (1.0f, std::abs (want)); };
+        const auto ownedSetup = [] (Proc& q) { setParam (q, ids::outputLevel, -12.0f); setParam (q, ids::inputMode, 1.0f); };
+
+        // ── G-FACTORY[table] ──────────────────────────────────────────────────
+        {
+            bool ok = (int) kExpected.size() == ambpresets::kNumFactory;
+            juce::String detail;
+            juce::StringArray seenIds, seenFiles;
+            Proc probe;
+            for (int r = 0; ok && r < ambpresets::kNumFactory; ++r)
+            {
+                const auto& row = ambpresets::kFactory[r];
+                const auto& want = kExpected[(size_t) r];
+                const juce::String file (row.fileName);
+                bool rowOk = std::strcmp (row.id, want.id) == 0 && file == want.file
+                          && row.count == (int) want.sets.size() && row.count >= 1 && row.count <= 4
+                          && ! seenIds.contains (row.id) && ! seenFiles.contains (file, true)
+                          && file == juce::File::createLegalFileName (file)
+                          && ! file.containsAnyOf ("/\\:");
+                for (auto c = file.getCharPointer(); ! c.isEmpty();)
+                    rowOk = rowOk && c.getAndAdvance() < 0x80;
+                for (int e = 0; rowOk && e < row.count; ++e)
+                {
+                    const auto& en = row.entries[e];
+                    auto* p = dynamic_cast<juce::RangedAudioParameter*> (probe.apvts.getParameter (en.paramId));
+                    const bool owned = std::strcmp (en.paramId, ids::outputLevel) == 0 || std::strcmp (en.paramId, ids::inputMode) == 0;
+                    const bool same = std::strcmp (en.paramId, want.sets[(size_t) e].first) == 0 && juce::exactlyEqual (en.raw, want.sets[(size_t) e].second);
+                    bool roundTrip = false, inRange = false;
+                    if (p != nullptr && std::isfinite (en.raw))
+                    {
+                        const auto& rg = p->getNormalisableRange();
+                        inRange   = en.raw >= rg.start && en.raw <= rg.end;
+                        roundTrip = nearRel (p->convertFrom0to1 (p->convertTo0to1 (en.raw)), en.raw)
+                                 && ((dynamic_cast<juce::AudioParameterChoice*> (p) == nullptr && dynamic_cast<juce::AudioParameterBool*> (p) == nullptr)
+                                     || juce::exactlyEqual (en.raw, std::floor (en.raw)));
+                    }
+                    if (! (p != nullptr && ! owned && same && inRange && roundTrip))
+                    {
+                        rowOk = false;
+                        detail << row.id << ":" << en.paramId << (p ? "" : " unknown-id") << (owned ? " OWNED" : "") << (same ? "" : " != PLAN") << (roundTrip ? "" : " round-trip") << (inRange ? "" : " clamped") << " ";
+                    }
+                }
+                seenIds.add (row.id);
+                seenFiles.add (file);
+                if (! rowOk) { ok = false; if (detail.isEmpty()) detail << "row " << r << " (" << row.id << ") "; }
+            }
+            check ("G-FACTORY[table] 9 rows = the PLAN table (ids, file names, entries) in order; ids unique; file names ASCII, legal, no / \\ :, unique ignoring case; every raw finite, in range and round-tripping (choices integral); no row lists outputLevel / inputMode; 1..4 entries",
+                   ok, ok ? juce::String ("9 rows, ") + seenIds.joinIntoString (" ") : detail.trim());
+        }
+
+        // ── G-FACTORY[init] ───────────────────────────────────────────────────
+        {
+            Proc q;
+            bool ok = q.getPresetName() == "Init" && q.getPresetId() == "init" && q.isPresetFactory() && ! q.isPresetModified();
+            const auto t = q.resolveTargets (q.recipeTargets (ambpresets::kFactory[0]));
+            int off = 0;
+            for (size_t i = 0; i < 12; ++i)
+            {
+                if (std::strcmp (st3::kAllIds[i], ids::outputLevel) == 0 || std::strcmp (st3::kAllIds[i], ids::inputMode) == 0)
+                    continue;
+                auto* p = q.apvts.getParameter (st3::kAllIds[i]);
+                if (! (std::abs (t[i] - p->getDefaultValue()) <= 1.0e-6f)) ++off;
+            }
+            ok = ok && off == 0;
+            check ("G-FACTORY[init] Init's targets == every parameter's default (1e-6); a fresh instance reports { \"Init\", \"init\", factory, unmodified }",
+                   ok, fmt ("name \"%s\" id \"%s\" factory %d modified %d, %d target(s) off default",
+                            q.getPresetName().toRawUTF8(), q.getPresetId().toRawUTF8(), (int) q.isPresetFactory(), (int) q.isPresetModified(), off));
+        }
+
+        // ── G-FACTORY[apply] (+ the skew negative control) ────────────────────
+        {
+            bool ok = true;
+            juce::String detail;
+            int checked = 0;
+            for (const auto& row : kExpected)
+            {
+                Proc q;
+                ownedSetup (q);
+                setParam (q, ids::azimuth, -70.0f); setParam (q, ids::distance, 5.0f); setParam (q, ids::orbitRate, 1.0f);
+                const bool loaded = q.loadPresetByName (row.file);
+                for (const auto& [pid, raw] : row.sets)
+                {
+                    ++checked;
+                    const float got = plainOf (q, pid);
+                    if (! (loaded && nearRel (got, raw)))
+                    {
+                        ok = false;
+                        detail << row.id << ":" << pid << fmt (" %.6g != %.6g ", (double) got, (double) raw);
+                    }
+                }
+                if (! (q.getPresetName() == row.file && q.getPresetId() == row.id && ! q.isPresetModified()))
+                {
+                    ok = false;
+                    detail << row.id << " identity ";
+                }
+            }
+            Proc d; d.loadPresetByName ("Far Away - Up Close");
+            Proc o; o.loadPresetByName ("Slow Orbit");
+            check ("G-FACTORY[apply] after each factory load (by file name) every listed parameter's convertFrom0to1 (getValue()) == its raw (rel 1e-4) and the identity is { file name, id, unmodified } — the skew arms: farNear distance 12, slowOrbit orbitRate 0.05",
+                   ok, ok ? fmt ("%d values over 9 loads; distance %.4f m, orbitRate %.4f Hz", checked, (double) plainOf (d, ids::distance), (double) plainOf (o, ids::orbitRate)) : detail.trim());
+
+            // NC: a LINEAR normalise of the same raws ((raw - start) / (end - start)) — the
+            // skew trap (memory pattern_factory_preset_normalized_ignores_skew).
+            Proc n;
+            bool skewOk = true;
+            for (const auto& [pid, raw] : std::vector<std::pair<const char*, float>> { { ids::distance, 12.0f }, { ids::orbitRate, 0.05f } })
+            {
+                auto* p = dynamic_cast<juce::RangedAudioParameter*> (n.apvts.getParameter (pid));
+                const auto& rg = p->getNormalisableRange();
+                p->setValueNotifyingHost ((raw - rg.start) / (rg.end - rg.start));
+                skewOk = skewOk && nearRel (plainOf (n, pid), raw);
+            }
+            checkFailsAsExpected (skewOk, "G-FACTORY[skew-NC] a linear normalise of distance 12 / orbitRate 0.05 reads back the raw values",
+                                  fmt ("distance %.3f m, orbitRate %.4f Hz", (double) plainOf (n, ids::distance), (double) plainOf (n, ids::orbitRate)));
+        }
+
+        // ── G-LESSON[walk] / [restart] / [owned] (+ NC) ───────────────────────
+        {
+            Proc q;
+            ownedSetup (q);
+            const float out0 = rawParam (q, ids::outputLevel), in0 = rawParam (q, ids::inputMode);
+            std::vector<int> walk;
+            bool restOk = true;
+            for (int k = 0; k < 4; ++k)
+            {
+                q.applyFactoryPreset ("orderStep");
+                walk.push_back (orderIdxOf (q));
+                restOk = restOk && nearRel (plainOf (q, ids::azimuth), 45.0f) && std::abs (plainOf (q, ids::distance) - 1.0f) < 1.0e-3f
+                      && plainOf (q, ids::elevation) == 0.0f && plainOf (q, ids::yaw) == 0.0f && plainOf (q, ids::decoder) == 0.0f
+                      && ! q.isPresetModified() && q.getPresetId() == "orderStep";
+            }
+            const float out1 = rawParam (q, ids::outputLevel), in1 = rawParam (q, ids::inputMode);
+            const bool ownedOk = std::memcmp (&out0, &out1, sizeof (float)) == 0 && std::memcmp (&in0, &in1, sizeof (float)) == 0;
+            const bool walkOk = walk == std::vector<int> { 0, 1, 2, 0 };
+            check ("G-LESSON[walk] a fresh instance: orderStep x4 -> order index 0, 1, 2, 0; every step azimuth 45, distance 1 m, all else default, unmodified; outputLevel -12 dB and inputMode 1 bit-unchanged",
+                   walkOk && restOk && ownedOk, fmt ("walk %d %d %d %d; recipe %s; owned %s", walk[0], walk[1], walk[2], walk[3], restOk ? "ok" : "WRONG", ownedOk ? "bit-unchanged" : "MOVED"));
+
+            Proc r;
+            r.applyFactoryPreset ("orderStep");
+            r.applyFactoryPreset ("orderStep");                  // step 2 = order index 1
+            setParam (r, ids::azimuth, 50.0f);                     // azimuth +5 -> modified
+            const bool modified = r.isPresetModified();
+            r.applyFactoryPreset ("orderStep");
+            check ("G-LESSON[restart] after step 2, azimuth +5 -> modified; the next click starts again at order index 0",
+                   modified && orderIdxOf (r) == 0, fmt ("modified %d, next order index %d", (int) modified, orderIdxOf (r)));
+
+            Proc w;
+            w.applyFactoryPreset ("orderStep");                   // step 1 = order index 0
+            ownedSetup (w);                                        // only the user-owned pair moves
+            const bool stillUnmod = ! w.isPresetModified();
+            w.applyFactoryPreset ("orderStep");
+            const bool ownedArm = stillUnmod && orderIdxOf (w) == 1;
+            check ("G-LESSON[owned] after step 1, moving only outputLevel and inputMode keeps the scene unmodified; the next click continues to order index 1",
+                   ownedArm, fmt ("unmodified %d, next order index %d", (int) stillUnmod, orderIdxOf (w)));
+
+            // NC: a naive reset loop over ALL 12 parameters (the pre-R-D3 shape) moves the owned pair.
+            Proc nv;
+            ownedSetup (nv);
+            const float o0 = rawParam (nv, ids::outputLevel), i0 = rawParam (nv, ids::inputMode);
+            for (const char* id : st3::kAllIds)
+            {
+                auto* p = nv.apvts.getParameter (id);
+                float t = p->getDefaultValue();
+                if (std::strcmp (id, ids::azimuth) == 0) t = p->convertTo0to1 (45.0f);
+                p->setValueNotifyingHost (t);
+            }
+            const float o1 = rawParam (nv, ids::outputLevel), i1 = rawParam (nv, ids::inputMode);
+            checkFailsAsExpected (std::memcmp (&o0, &o1, sizeof (float)) == 0 && std::memcmp (&i0, &i1, sizeof (float)) == 0,
+                                  "G-LESSON-NC a naive reset loop over all 12 parameters leaves outputLevel and inputMode bit-unchanged",
+                                  fmt ("outputLevel %.2f -> %.2f dB, inputMode %.0f -> %.0f", (double) o0, (double) o1, (double) i0, (double) i1));
+        }
+
+        // ── G-ORDER3-DIST (+ NC) ──────────────────────────────────────────────
+        {
+            const auto violates = [] (Proc& q) { return (int) std::lround (rawParam (q, ids::order)) == 2 && rawParam (q, ids::distance) < 1.0f - 1.0e-6f; };
+            int states = 0, bad = 0;
+            juce::String detail;
+            for (const auto& row : kExpected)
+            {
+                Proc q;
+                setParam (q, ids::distance, 0.3f);                  // a near-field start: the load must reset it
+                q.loadPresetByName (row.file);
+                ++states;
+                if (violates (q)) { ++bad; detail << row.id << " "; }
+                Proc l;
+                setParam (l, ids::distance, 0.3f);
+                l.applyFactoryPreset (row.id);
+                ++states;
+                if (violates (l)) { ++bad; detail << row.id << "(lesson) "; }
+            }
+            Proc s;
+            setParam (s, ids::distance, 0.3f);
+            for (int k = 0; k < 4; ++k)
+            {
+                s.applyFactoryPreset ("orderStep");
+                ++states;
+                if (violates (s)) { ++bad; detail << "orderStep step " << (k + 1) << " "; }
+            }
+            check ("G-ORDER3-DIST no factory load, lesson click or orderStep step (from a 0.3 m start) yields order index 2 with distance < 1 m",
+                   bad == 0, bad == 0 ? fmt ("%d applied states, 0 violations", states) : detail.trim());
+
+            // NC: an injected test-local row { order 2, distance 0.5 } through the same apply core is flagged.
+            Proc n;
+            Proc::Targets t;
+            t.fill (std::numeric_limits<float>::quiet_NaN());
+            t[3] = n.apvts.getParameter (ids::order)->convertTo0to1 (2.0f);
+            t[2] = n.apvts.getParameter (ids::distance)->convertTo0to1 (0.5f);
+            n.applyNormalisedTargets (t);
+            checkFailsAsExpected (! violates (n), "G-ORDER3-DIST-NC an injected row { order 2, distance 0.5 } passes the headroom rule",
+                                  fmt ("order index %d, distance %.3f m", (int) std::lround (rawParam (n, ids::order)), (double) rawParam (n, ids::distance)));
+        }
+
+        // ── G-PRESET-STATE[identity] ──────────────────────────────────────────
+        {
+            Proc q;
+            const auto rev0 = q.getPresetRevision();
+            q.applyFactoryPreset ("behindYou");
+            const bool idOk = q.getPresetName() == "Behind You" && q.getPresetId() == "behindYou" && q.isPresetFactory()
+                           && ! q.isPresetModified() && q.getPresetRevision() != rev0;
+            setParam (q, ids::azimuth, 179.0f);
+            const bool modAz = q.isPresetModified();
+
+            Proc a; a.applyFactoryPreset ("behindYou"); setParam (a, ids::outputLevel, -20.0f);
+            Proc b; b.applyFactoryPreset ("behindYou"); setParam (b, ids::inputMode, 1.0f);
+            const bool ownedUnmod = ! a.isPresetModified() && ! b.isPresetModified();
+            check ("G-PRESET-STATE[identity] lesson behindYou -> { \"Behind You\", \"behindYou\", factory, unmodified }, revision bumped; azimuth -1 deg -> modified; only outputLevel / only inputMode moved -> unmodified",
+                   idOk && modAz && ownedUnmod, fmt ("identity %d, azimuth-moved modified %d, owned-moved unmodified %d", (int) idOk, (int) modAz, (int) ownedUnmod));
+        }
+
+        // ── G-PRESET-STATE[restore] ───────────────────────────────────────────
+        {
+            bool ok = true;
+            juce::String detail;
+
+            // Two reopens: get -> fresh set -> get -> second fresh set.
+            Proc a; a.applyFactoryPreset ("overhead");
+            Proc b; st3::roundTrip (a, b);
+            Proc c; st3::roundTrip (b, c);
+            if (! (c.getPresetName() == "Overhead" && c.getPresetId() == "overhead" && ! c.isPresetModified()))
+            { ok = false; detail << "two-reopen \"" << c.getPresetName() << "\" "; }
+
+            // Absent -> "" (unnamed), unmodified.
+            {
+                Proc src; auto xml = st3::stateXml (src);
+                xml->removeAttribute ("currentPreset");
+                Proc d; st3::restoreXml (d, *xml);
+                if (! (d.getPresetName().isEmpty() && ! d.isPresetModified() && d.getPresetId().isEmpty()))
+                { ok = false; detail << "absent -> \"" << d.getPresetName() << "\" "; }
+            }
+
+            // Hostile name (built from code points: the char* String ctor is ASCII-only).
+            {
+                Proc src; auto xml = st3::stateXml (src);
+                juce::String hostile ("../x");
+                hostile += juce::String::charToString ((juce::juce_wchar) 0x202e);
+                hostile += "y";
+                hostile += juce::String::charToString ((juce::juce_wchar) 0x0007);
+                xml->setAttribute ("currentPreset", hostile);
+                Proc d; st3::restoreXml (d, *xml);
+                const auto got = d.getPresetName();
+                const bool clean = ! got.containsChar ('/') && ! got.containsChar ((juce::juce_wchar) 0x202e)
+                                && ! got.containsChar ((juce::juce_wchar) 0x0007) && ! got.startsWithChar ('.') && got.isNotEmpty();
+                if (! clean) { ok = false; detail << "hostile -> \"" << got << "\" "; }
+                else detail << "hostile -> \"" << got << "\"; ";
+            }
+
+            // orderStep saved at step 3 -> restored unmodified at order index 2; the next click wraps to 0.
+            {
+                Proc s;
+                for (int k = 0; k < 3; ++k) s.applyFactoryPreset ("orderStep");
+                Proc d; st3::roundTrip (s, d);
+                const bool unmod = d.getPresetId() == "orderStep" && ! d.isPresetModified() && orderIdxOf (d) == 2;
+                d.applyFactoryPreset ("orderStep");
+                if (! (unmod && orderIdxOf (d) == 0)) { ok = false; detail << "orderStep restore unmod " << (int) unmod << " next " << orderIdxOf (d) << " "; }
+            }
+            check ("G-PRESET-STATE[restore] currentPreset survives get -> fresh set -> get -> second fresh set; absent -> \"\" unmodified; a hostile \"../x\" + U+202E + BEL name is sanitised; orderStep saved at step 3 restores unmodified and the next click wraps to order index 0",
+                   ok, detail.trim());
+        }
+
+        // ── G-PRESET-CLICK (QUAL-01 "no clicks on preset load") (+ NC) ─────────
+        {
+            static constexpr int kGap = 9600;                   // 200 ms between loads (smoothers + bank fades settle)
+            struct Step { const char* label; bool lesson; const char* key; };
+            const std::vector<Step> steps = {
+                { "pointSource", false, "Point Source (FOA)" }, { "orderStep", false, "Order 1-2-3" }, { "behindYou", false, "Behind You" },
+                { "overhead", false, "Overhead" }, { "rotateRoom", false, "Rotate the Room" }, { "farNear", false, "Far Away - Up Close" },
+                { "slowOrbit", false, "Slow Orbit" }, { "speakersHeadphones", false, "Speakers vs Headphones" },
+                { "orderStep 0", true, "orderStep" }, { "orderStep 1", true, "orderStep" }, { "orderStep 2", true, "orderStep" }, { "orderStep 0'", true, "orderStep" },
+            };
+            const int total = kGap * ((int) steps.size() + 1) + kGap;
+            const Sine tone12 { 100.0, 0.2511886, kFs };      // -12 dBFS
+            const auto gen = [tone12] (int n) { return tone12 (n); };
+            const int win = (int) (0.060 * kFs);
+
+            // Event render: Init, then one load per kGap at a block boundary mid-tone.
+            auto pe = makeProc (2, 64);
+            Proc* pep = pe.get();
+            std::vector<std::vector<float>> stateTargetsDummy;
+            const auto ev = renderHooked (*pe, total, gen, [pep, &steps] (int n)
+            {
+                if (n > 0 && n % kGap == 0)
+                {
+                    const int k = n / kGap - 1;
+                    if (k >= 0 && k < (int) steps.size())
+                    {
+                        if (steps[(size_t) k].lesson) pep->applyFactoryPreset (steps[(size_t) k].key);
+                        else                          pep->loadPresetByName (steps[(size_t) k].key);
+                    }
+                }
+            });
+
+            // Static renders at every state the event render passes through:
+            // a fresh instance put in that state BEFORE prepare (no transition).
+            const auto staticAt = [&] (int k)                 // k = -1: Init; else the state after steps[k]
+            {
+                auto p = makeProc (2, 64, [&steps, k] (Proc& q)
+                {
+                    for (int j = 0; j <= k; ++j)
+                    {
+                        if (steps[(size_t) j].lesson) q.applyFactoryPreset (steps[(size_t) j].key);
+                        else                          q.loadPresetByName (steps[(size_t) j].key);
+                    }
+                });
+                return renderHooked (*p, total, gen, [] (int) {});
+            };
+            std::vector<std::vector<float>> statics;
+            for (int k = -1; k < (int) steps.size(); ++k)
+                statics.push_back (staticAt (k));
+
+            // Verdict per transition: vs the static pair first; an arm whose LEGITIMATE
+            // smoothed move (20 ms ramps, the decoder crossfade, the bank fade) already
+            // exceeds 2.0 against a static tone switches to the SAME-MOTION reference —
+            // the double-precision ReferenceModel driven through the same parameter jump
+            // at the same block (the Stage-2 DSP-07 / B8 method; PLAN T6, K7). The
+            // ceiling is never raised. The load must add nothing to the smoothed move.
+            std::vector<RefParams> refAt;                      // [0] = Init, [k + 1] = after steps[k]
+            for (int k = -1; k < (int) steps.size(); ++k)
+            {
+                Proc q;
+                for (int j = 0; j <= k; ++j)
+                {
+                    if (steps[(size_t) j].lesson) q.applyFactoryPreset (steps[(size_t) j].key);
+                    else                          q.loadPresetByName (steps[(size_t) j].key);
+                }
+                refAt.push_back (refParamsFrom (q));
+            }
+            ReferenceModel model;
+            const auto ref = renderRef (model, refAt[0], kFs, total, 64, gen, [&refAt] (int n, RefParams& r)
+            {
+                if (n > 0 && n % kGap == 0)
+                {
+                    const int k = n / kGap - 1;
+                    if (k >= 0 && k + 1 < (int) refAt.size()) r = refAt[(size_t) k + 1];
+                }
+            });
+
+            bool ok = true;
+            juce::String detail, switched;
+            double worstStatic = 0.0, worstSame = 0.0;
+            juce::String worstStaticAt;
+            for (int k = 0; k < (int) steps.size(); ++k)
+            {
+                const int nL = kGap * (k + 1);
+                bool armSwitched = false;
+                for (int ch = 0; ch < 2; ++ch)
+                {
+                    ClickReading r;
+                    r.event   = worstCurvature (ev, ch, 2, nL, nL + win);
+                    r.control = std::max (worstCurvature (statics[(size_t) k], ch, 2, nL, nL + win),
+                                          worstCurvature (statics[(size_t) k + 1], ch, 2, nL, nL + win));
+                    if (r.ratio() > worstStatic) { worstStatic = r.ratio(); worstStaticAt = juce::String (steps[(size_t) k].label) + " ch" + juce::String (ch); }
+                    if (r.ratio() <= kClickRatioCeiling)
+                        continue;
+
+                    ClickReading m;
+                    m.event   = r.event;
+                    m.control = worstCurvature (ref.lr, ch, 2, nL, nL + win);
+                    worstSame = std::max (worstSame, m.ratio());
+                    if (! armSwitched)
+                    {
+                        armSwitched = true;
+                        switched << steps[(size_t) k].label << fmt (" (static %.2f -> same-motion %.4f) ", r.ratio(), m.ratio());
+                    }
+                    if (m.ratio() > kClickRatioCeiling)
+                    {
+                        ok = false;
+                        detail << steps[(size_t) k].label << " ch" << ch << " static " << clickDetail (r) << " / same-motion " << clickDetail (m) << "; ";
+                    }
+                }
+            }
+            check ("G-PRESET-CLICK the factory bank in table order then orderStep clicks 0 -> 1 -> 2 -> 0, each at a block boundary mid-tone (48 k, 64 blocks, 100 Hz -12 dBFS): worst |d2y| over 60 ms after the load <= 2.0 x the static renders at the source and destination states, both channels; an arm whose legitimate smoothed move exceeds that switches to the same-motion ReferenceModel reference",
+                   ok, ok ? fmt ("12 transitions; worst vs static %.4f at ", worstStatic) + worstStaticAt
+                                + (switched.isEmpty() ? juce::String() : "; switched: " + switched.trim()) : detail);
+
+            // NC: a hard splice of the two static renders at the load sample, on
+            // the transitions with a decoder or order change.
+            bool anyPassed = false;
+            juce::String ncDetail;
+            for (int k : { 7, 9, 11 })                          // speakersHeadphones load, orderStep 0 -> 1, 2 -> 0
+            {
+                const int nL = kGap * (k + 1);
+                std::vector<float> splice (statics[(size_t) k]);
+                for (size_t i = (size_t) (2 * nL); i < splice.size(); ++i)
+                    splice[i] = statics[(size_t) k + 1][i];
+                ClickReading r;
+                r.event   = worstCurvature (splice, 0, 2, nL, nL + win);
+                r.control = std::max (worstCurvature (statics[(size_t) k], 0, 2, nL, nL + win),
+                                      worstCurvature (statics[(size_t) k + 1], 0, 2, nL, nL + win));
+                anyPassed = anyPassed || r.ratio() <= kClickRatioCeiling;
+                ncDetail << steps[(size_t) k].label << fmt (" ratio %.1f; ", r.ratio());
+            }
+            checkFailsAsExpected (anyPassed, "G-PRESET-CLICK-NC a hard splice of the static renders at the load sample (speakersHeadphones load, orderStep 0 -> 1, 2 -> 0) stays <= 2.0",
+                                  ncDetail.trim());
+        }
+        // ════ Stage 4 T7 — factory defs, user JSON, names, walk ════
+        // Pure functions + in-memory JSON only: the harness never calls
+        // ensureFactoryBankOnDisk, a legal-name save, a delete or a user-name
+        // load (it stamps the real version, so any of them would write the
+        // real ~/Library/O-simpleAmbisonics — memory
+        // pattern_factory_bank_sentinel_makes_preset_gates_read_stale_bank).
+        const juce::File realFolder = juce::File::getSpecialLocation (juce::File::userHomeDirectory)
+                                          .getChildFile ("Library").getChildFile ("O-simpleAmbisonics");
+        const auto folderListing = [realFolder]
+        {
+            juce::StringArray out;
+            out.add (realFolder.exists() ? "exists" : "absent");
+            if (realFolder.isDirectory())
+                for (const auto& f : realFolder.findChildFiles (juce::File::findFilesAndDirectories, true, "*"))
+                    out.add (f.getRelativePathFrom (realFolder) + fmt (" %lld", (long long) f.getSize()));
+            return out.joinIntoString ("|");
+        };
+        const auto folderBefore = folderListing();
+
+        // ── G-FACTORY[defs] ───────────────────────────────────────────────────
+        {
+            Proc q;
+            const auto defs = q.buildFactoryPresetDefs();
+            bool ok = (int) defs.size() == 9;
+            juce::String detail;
+            for (size_t r = 0; ok && r < defs.size(); ++r)
+            {
+                const auto& def = defs[r];
+                const auto& want = kExpected[r];
+                if (def.name != want.file || def.parameters.size() != 10
+                    || def.parameters.count (ids::outputLevel) != 0 || def.parameters.count (ids::inputMode) != 0)
+                { ok = false; detail << "row " << (int) r << " \"" << def.name << "\" keys " << (int) def.parameters.size() << " "; break; }
+                for (const char* id : st3::kAllIds)
+                {
+                    if (std::strcmp (id, ids::outputLevel) == 0 || std::strcmp (id, ids::inputMode) == 0) continue;
+                    auto* p = q.apvts.getParameter (id);
+                    float t = p->getDefaultValue();
+                    for (const auto& [pid, raw] : want.sets)
+                        if (std::strcmp (pid, id) == 0) t = p->convertTo0to1 (raw);
+                    t = p->convertTo0to1 (p->convertFrom0to1 (t));
+                    const auto it = def.parameters.find (juce::String (id));
+                    if (it == def.parameters.end() || std::abs (it->second - t) > 1.0e-6f)
+                    { ok = false; detail << want.id << ":" << id << " "; }
+                }
+            }
+            check ("G-FACTORY[defs] buildFactoryPresetDefs() = 9 defs, names = the file names in table order, exactly 10 keys each (no outputLevel / inputMode), values = recipe targets else defaults (1e-6)",
+                   ok, ok ? juce::String ("9 defs x 10 keys") : detail.trim());
+        }
+
+        // A module-format user preset: { parameters: { id: normalised x 12 }, version, plugin }.
+        const auto moduleJson = [] (Proc& from)
+        {
+            auto* params = new juce::DynamicObject();
+            for (auto* base : from.getParameters())
+                if (auto* p = dynamic_cast<juce::RangedAudioParameter*> (base))
+                    params->setProperty (p->getParameterID(), p->getValue());
+            auto* root = new juce::DynamicObject();
+            root->setProperty ("parameters", juce::var (params));
+            root->setProperty ("version", "1.0.0");
+            root->setProperty ("plugin", "O-simpleAmbisonics");
+            return juce::var (root);
+        };
+        const auto offState = [] (Proc& q)
+        {
+            setParam (q, ids::azimuth, -70.0f); setParam (q, ids::elevation, 20.0f); setParam (q, ids::distance, 5.0f);
+            setParam (q, ids::order, 2.0f);     setParam (q, ids::yaw, 30.0f);       setParam (q, ids::pitch, 10.0f);
+            setParam (q, ids::roll, -15.0f);    setParam (q, ids::decoder, 1.0f);    setParam (q, ids::orbit, 1.0f);
+            setParam (q, ids::orbitRate, 1.0f);
+        };
+
+        // ── G-PRESET-USER[roundtrip] (+ NC) ───────────────────────────────────
+        {
+            Proc src;
+            offState (src);
+            src.apvts.getParameter (ids::outputLevel)->setValueNotifyingHost (0.9f);
+            setParam (src, ids::inputMode, 1.0f);
+            const auto json = moduleJson (src);
+
+            Proc dst;
+            ownedSetup (dst);
+            setParam (dst, ids::inputMode, 0.0f);
+            const float out0 = rawParam (dst, ids::outputLevel), in0 = rawParam (dst, ids::inputMode);
+            const bool applied = dst.applyUserPresetJson (json);
+            int off = 0;
+            for (const char* id : st3::kAllIds)
+            {
+                if (std::strcmp (id, ids::outputLevel) == 0 || std::strcmp (id, ids::inputMode) == 0) continue;
+                if (std::abs (dst.apvts.getParameter (id)->getValue() - src.apvts.getParameter (id)->getValue()) > 1.0e-6f) ++off;
+            }
+            const float out1 = rawParam (dst, ids::outputLevel), in1 = rawParam (dst, ids::inputMode);
+            const bool owned = std::memcmp (&out0, &out1, sizeof (float)) == 0 && std::memcmp (&in0, &in1, sizeof (float)) == 0;
+            check ("G-PRESET-USER[roundtrip] module-format JSON from an off-default state (outputLevel 0.9, inputMode 1) applied to an instance at -12 dB / inputMode 0: the 10 match (1e-6), the two owned parameters bit-unchanged",
+                   applied && off == 0 && owned, fmt ("applied %d, %d off, owned %s", (int) applied, off, owned ? "bit-unchanged" : "MOVED"));
+
+            // NC: a test-local apply that copies EVERY key (the module's own JSON-apply shape).
+            Proc nv;
+            ownedSetup (nv);
+            setParam (nv, ids::inputMode, 0.0f);
+            const float o0 = rawParam (nv, ids::outputLevel), i0 = rawParam (nv, ids::inputMode);
+            if (auto* obj = json.getDynamicObject()->getProperty ("parameters").getDynamicObject())
+                for (auto& prop : obj->getProperties())
+                    if (auto* p = nv.apvts.getParameter (prop.name.toString()))
+                        p->setValueNotifyingHost ((float) (double) prop.value);
+            const float o1 = rawParam (nv, ids::outputLevel), i1 = rawParam (nv, ids::inputMode);
+            checkFailsAsExpected (std::memcmp (&o0, &o1, sizeof (float)) == 0 && std::memcmp (&i0, &i1, sizeof (float)) == 0,
+                                  "G-PRESET-USER-NC a copy-every-key apply leaves outputLevel and inputMode bit-unchanged",
+                                  fmt ("outputLevel %.2f -> %.2f dB, inputMode %.0f -> %.0f", (double) o0, (double) o1, (double) i0, (double) i1));
+        }
+
+        // ── G-PRESET-USER[malformed] / [missing] / [clamp] ────────────────────
+        {
+            const auto paramsJson = [] (std::function<void (juce::DynamicObject&)> fill)
+            {
+                auto* params = new juce::DynamicObject();
+                fill (*params);
+                auto* root = new juce::DynamicObject();
+                root->setProperty ("parameters", juce::var (params));
+                return juce::var (root);
+            };
+            const auto valuesOf = [] (Proc& q) { std::vector<float> v; for (const char* id : st3::kAllIds) v.push_back (q.apvts.getParameter (id)->getValue()); return v; };
+
+            // malformed values -> that parameter's default
+            bool malOk = true;
+            {
+                Proc q; offState (q);
+                juce::Array<juce::var> arr; arr.add (1);
+                const auto j = paramsJson ([&arr] (juce::DynamicObject& o)
+                {
+                    o.setProperty (ids::azimuth, "0.9");                       // string
+                    o.setProperty (ids::elevation, juce::var (arr));           // array
+                    o.setProperty (ids::distance, juce::var (new juce::DynamicObject()));   // object
+                    o.setProperty (ids::yaw, juce::var());                     // null / void
+                });
+                q.applyUserPresetJson (j);
+                for (const char* id : { ids::azimuth, ids::elevation, ids::distance, ids::yaw })
+                {
+                    auto* p = q.apvts.getParameter (id);
+                    malOk = malOk && std::abs (p->getValue() - p->getDefaultValue()) < 1.0e-6f;
+                }
+            }
+            // non-object roots / parameters -> false, nothing changed, 0 gestures
+            int rejected = 0;
+            {
+                const std::vector<juce::var> bad = {
+                    juce::var ("text"), juce::var (3.0), juce::var(),
+                    [] { auto* o = new juce::DynamicObject(); o->setProperty ("version", "1"); return juce::var (o); }(),
+                    [] { auto* o = new juce::DynamicObject(); o->setProperty ("parameters", "nope"); return juce::var (o); }(),
+                    [] { auto* o = new juce::DynamicObject(); juce::Array<juce::var> a; a.add (0.5); o->setProperty ("parameters", juce::var (a)); return juce::var (o); }(),
+                };
+                for (const auto& j : bad)
+                {
+                    Proc q; offState (q);
+                    const auto before = valuesOf (q);
+                    st3::GestureCounter gc;
+                    for (auto* prm : q.getParameters()) prm->addListener (&gc);
+                    const bool r = q.applyUserPresetJson (j);
+                    for (auto* prm : q.getParameters()) prm->removeListener (&gc);
+                    if (! r && valuesOf (q) == before && gc.begins == 0 && gc.ends == 0) ++rejected;
+                }
+                malOk = malOk && rejected == (int) bad.size();
+            }
+            check ("G-PRESET-USER[malformed] string / array / object / null values -> that parameter's default; a top-level non-object, a missing or non-object \"parameters\" -> false, nothing changed, 0 gestures",
+                   malOk, fmt ("%d / 6 malformed roots rejected cleanly", rejected));
+
+            bool missOk = true;
+            {
+                Proc q; offState (q);
+                q.applyUserPresetJson (paramsJson ([] (juce::DynamicObject& o) { o.setProperty (ids::azimuth, 0.75); }));
+                for (const char* id : st3::kAllIds)
+                {
+                    if (std::strcmp (id, ids::outputLevel) == 0 || std::strcmp (id, ids::inputMode) == 0) continue;
+                    auto* p = q.apvts.getParameter (id);
+                    const float want = std::strcmp (id, ids::azimuth) == 0 ? p->convertTo0to1 (p->convertFrom0to1 (0.75f)) : p->getDefaultValue();
+                    missOk = missOk && std::abs (p->getValue() - want) < 1.0e-6f;
+                }
+            }
+            check ("G-PRESET-USER[missing] keys absent from the JSON go to their defaults", missOk);
+
+            Proc c;
+            c.applyUserPresetJson (paramsJson ([] (juce::DynamicObject& o) { o.setProperty (ids::azimuth, 1.7); o.setProperty (ids::yaw, -0.3); }));
+            const float az = c.apvts.getParameter (ids::azimuth)->getValue(), yw = c.apvts.getParameter (ids::yaw)->getValue();
+            check ("G-PRESET-USER[clamp] 1.7 -> 1.0, -0.3 -> 0.0", juce::exactlyEqual (az, 1.0f) && juce::exactlyEqual (yw, 0.0f),
+                   fmt ("azimuth %.3f, yaw %.3f", (double) az, (double) yw));
+        }
+
+        // ── G-PRESET-USER[refuse] ─────────────────────────────────────────────
+        {
+            Proc q;
+            int refused = 0, total = 0;
+            juce::StringArray names;
+            for (const auto& row : kExpected) names.add (row.file);
+            names.addArray ({ "behind you", "INIT", "order 1-2-3", "", "   ", "..", "/", "...", "\\" });
+            const auto revBefore = q.getPresetRevision();
+            for (const auto& n : names) { ++total; if (! q.saveUserPreset (n)) ++refused; }
+            const bool untouched = folderListing() == folderBefore && q.getPresetRevision() == revBefore;
+            check ("G-PRESET-USER[refuse] saveUserPreset of every factory file name (any case), \"\", \"   \", \"..\", \"/\", \"...\", \"\\\\\" -> false, nothing written (~/Library/O-simpleAmbisonics listing unchanged), identity unchanged",
+                   refused == total && untouched, fmt ("%d / %d refused; folder %s", refused, total, untouched ? "unchanged" : "CHANGED"));
+        }
+
+        // ── G-PRESET-NAME ─────────────────────────────────────────────────────
+        {
+            const auto cp = [] (juce::juce_wchar c) { return juce::String::charToString (c); };
+            struct Case { juce::String in, want; };
+            std::vector<Case> cases = {
+                { "  My Scene  ", "My Scene" },
+                { "a" + cp (0x01) + "b" + cp (0x7f) + "c" + cp (0x85) + "d", "abcd" },
+                { "x" + cp (0x200e) + cp (0x200f) + cp (0x202a) + cp (0x202e) + cp (0x2066) + cp (0x2069) + "y", "xy" },
+                { "a/b\\c:d", "abcd" },
+                { "...hidden", "hidden" },
+                { " . . x", "x" },
+                { juce::String::repeatedString ("z", 80), juce::String::repeatedString ("z", 64) },
+                { cp (0x202e) + cp (0x0007) + "   ", "" },
+                { juce::String (juce::CharPointer_UTF8 ("Sc\xc3\xa8ne \xe5\xa3\xb0")), juce::String (juce::CharPointer_UTF8 ("Sc\xc3\xa8ne \xe5\xa3\xb0")) },
+            };
+            int okN = 0;
+            juce::String detail;
+            for (const auto& c : cases)
+            {
+                const auto got = Proc::sanitisePresetName (c.in);
+                if (got == c.want) ++okN;
+                else detail << "\"" << got << "\" != \"" << c.want << "\"; ";
+            }
+            check ("G-PRESET-NAME sanitise: trim; C0 / DEL / C1 and each bidi control stripped (code points from hex); / \\ : removed by createLegalFileName; leading dots stripped; 64-char cap; all-stripped -> \"\"; non-ASCII letters kept",
+                   okN == (int) cases.size(), okN == (int) cases.size() ? fmt ("%d / %d cases", okN, (int) cases.size()) : detail.trim());
+        }
+
+        // ── G-PRESET-WALK ─────────────────────────────────────────────────────
+        {
+            const auto order = Proc::buildWalkOrder ({ "b", "A", "behind you", "Zed" });
+            juce::StringArray want;
+            for (const auto& row : kExpected) want.add (row.file);
+            want.addArray ({ "A", "b", "Zed" });
+            const bool orderOk = order == want;
+
+            const bool nb = Proc::neighbourIn (order, "Init", 1) == "Point Source (FOA)"
+                         && Proc::neighbourIn (order, "Init", -1) == "Zed"                      // wraps at the top
+                         && Proc::neighbourIn (order, "Zed", 1) == "Init"                       // wraps at the bottom
+                         && Proc::neighbourIn (order, "Speakers vs Headphones", 1) == "A"       // factory -> user
+                         && Proc::neighbourIn (order, "", 1) == "Init" && Proc::neighbourIn (order, "", -1) == "Zed"
+                         && Proc::neighbourIn (order, "gone", 1) == "Init" && Proc::neighbourIn (order, "gone", -1) == "Zed"
+                         && Proc::neighbourIn (order, "behind you", 1) == "Overhead";           // case-insensitive current
+
+            Proc q;
+            offState (q);
+            q.applyFactoryPreset ("behindYou");
+            std::vector<float> before;
+            for (const char* id : st3::kAllIds) before.push_back (q.apvts.getParameter (id)->getValue());
+            const auto rev = q.getPresetRevision();
+            const auto nNext = q.getNeighbourPreset (1), nPrev = q.getNeighbourPreset (-1);
+            bool untouched = q.getPresetRevision() == rev;
+            for (size_t i = 0; i < 12; ++i)
+            {
+                const float now = q.apvts.getParameter (st3::kAllIds[i])->getValue();
+                untouched = untouched && std::memcmp (&now, &before[i], sizeof (float)) == 0;
+            }
+            check ("G-PRESET-WALK buildWalkOrder ({ b, A, behind you, Zed }) = the 9 file names then A, b, Zed; neighbourIn wraps both ends, enters an unnamed / unknown current at the top (forward) / bottom (back); getNeighbourPreset (+-1) touches no parameter and no revision",
+                   orderOk && nb && untouched && nNext == "Overhead" && nPrev == "Order 1-2-3",
+                   fmt ("order %s; neighbours %s; from Behind You: next \"%s\", prev \"%s\"; untouched %d",
+                        orderOk ? "ok" : order.joinIntoString (",").toRawUTF8(), nb ? "ok" : "WRONG",
+                        nNext.toRawUTF8(), nPrev.toRawUTF8(), (int) untouched));
+        }
+
+        check ("S4 the Stage-4 block never wrote the real preset folder (~/Library/O-simpleAmbisonics listing unchanged)",
+               folderListing() == folderBefore, folderBefore.upToFirstOccurrenceOf ("|", false, false));
     }
 
     //==========================================================================

@@ -15,6 +15,11 @@ exposes no property API, so this file decodes the VST3 state itself:
   S2  same-length patch uiLanguage="en" -> "fr", re-encode, assign raw_state, decode again -> "fr"
       (the installed binary restores the property and re-saves it)
   S3  the 12 parameter values (decoded by pedalboard) are unchanged through S2
+  S4  (Stage 4) a fresh instance's XML carries currentPreset="Init"; patched to a 4-char user name
+      "Test", re-encoded, assigned and decoded again -> "Test" (the installed binary restores and
+      re-saves the preset name; no preset file is read — an unknown user name stays unnamed-safe)
+  S5  (Stage 4) the currentPreset attribute removed -> round-trips as currentPreset="" (an older
+      session is unnamed, never the ctor's Init); the 12 values unchanged through S4 / S5
 
 Nothing here shares code with the project harness.
 """
@@ -96,6 +101,27 @@ after = params(q)
 diff = {k: (before[k], after[k]) for k in before if str(before[k]) != str(after[k])}
 check("S3 the 12 parameter values unchanged through S2", len(before) == 12 and not diff,
       f"{len(before)} parameters, differences: {diff or 'none'}")
+
+# ---------- S4 (Stage 4) ----------
+cp = re.search(r'currentPreset="([^"]*)"', xml)
+check("S4a fresh instance: currentPreset=\"Init\"", cp is not None and cp.group(1) == "Init",
+      f"currentPreset={cp.group(1) if cp else None!r}")
+r = load_plugin(PATH)
+r.raw_state = with_component_xml(p.raw_state, xml.replace('currentPreset="Init"', 'currentPreset="Test"', 1))
+cp4 = re.search(r'currentPreset="([^"]*)"', component_xml(r.raw_state))
+check("S4b currentPreset \"Test\" restored by the installed binary and re-saved",
+      cp4 is not None and cp4.group(1) == "Test", f"re-saved currentPreset={cp4.group(1) if cp4 else None!r}")
+
+# ---------- S5 (Stage 4) ----------
+t = load_plugin(PATH)
+t.raw_state = with_component_xml(p.raw_state, re.sub(r'\s*currentPreset="[^"]*"', "", xml, count=1))
+cp5 = re.search(r'currentPreset="([^"]*)"', component_xml(t.raw_state))
+check("S5 currentPreset absent -> round-trips as currentPreset=\"\" (unnamed)",
+      cp5 is not None and cp5.group(1) == "", f"re-saved currentPreset={cp5.group(1) if cp5 else None!r}")
+d45 = {k: (before[k], v) for k, v in {**params(r), **{}}.items() if str(before[k]) != str(v)}
+d5 = {k: (before[k], v) for k, v in params(t).items() if str(before[k]) != str(v)}
+check("S5b the 12 parameter values unchanged through S4 / S5", not d45 and not d5,
+      f"differences: {d45 or d5 or 'none'}")
 
 print()
 print("ALL PASS" if not fails else f"{len(fails)} FAILED: {fails}")

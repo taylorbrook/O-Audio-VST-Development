@@ -33,10 +33,14 @@
   compass rose, the beam and the rim ticks follow yaw / azRotDeg / elRotDeg;
   numeric readouts format the host PARAMETER, never the frame.
 
-  Events / natives: one `meterFrame` event from the editor's 30 Hz Timer
-  (TripleBuffer<MeterFrame>::read(), hash-gated, emitEventIfBrowserIsVisible);
-  the page calls getParameterDefaults, getUiLanguage, setUiLanguage, uiReady
-  (again on visibilitychange -> visible) and applyFactoryPreset(lessonId).
+  Events / natives: `meterFrame` from the editor's 30 Hz Timer
+  (TripleBuffer<MeterFrame>::read(), hash-gated, emitEventIfBrowserIsVisible)
+  and `presetState` {name, id, factory, modified} (Stage 4, on change); the
+  page calls getParameterDefaults, getUiLanguage, setUiLanguage, uiReady
+  (again on visibilitychange -> visible), applyFactoryPreset(lessonId),
+  getPresetCatalog, loadPreset, savePreset, deletePreset; the dynamically
+  imported modules/preset-manager.js owns ◀ / ▶ (selectNext / selectPrevious
+  natives return the neighbour, then loadPreset).
 -->
 <html lang="en">
 <head>
@@ -208,10 +212,108 @@
     overflow: hidden;
   }
   #chipFormat  { width: 236px; }
-  #chipLatency { width: 196px; }
   .chip-head { font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-muted); line-height: 1.1; overflow: hidden; text-overflow: ellipsis; }
   .chip-body { font-size: 12.5px; letter-spacing: 0.3px; color: var(--green-text); line-height: 1.15; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; }
   .chip-body i { color: var(--brown-text); }
+
+  /* ── Preset bar (Stage 4, FUNC-08; R-D1: in the retired latency chip's slot) ─────────
+     O-simpleFM visual language (◀ name ▶ Save Delete, gap 5), hand-written and
+     localized — never the module's createPresetBar(). Every width is a PIN,
+     measured in headless Chromium (EB Garamond + PingFang) per language, caption
+     text width + 20 px padding:
+       Save   — en SAVE 24.9 · fr ENREG. 39.5 · zh 保存 21.6  → widest 59.5 → 64 (the FM pin)
+       Delete — en DELETE 40.6 · fr SUPPR. 36.1 · zh 删除 21.6 → widest 60.6 → 64
+       #presetName — the widest factory label is fr "Source ponctuelle (FOA)"
+         119.8 (en "Speakers vs Headphones" 115.9, zh 点声源（FOA） 84.2) → ≥ 139.8;
+         the largest width that keeps the header strip's 4 px slack is 213 → 213.
+     The strip: #chipFormat 236 + gap 10 + bar (22 + 213 + 22 + 64 + 64 + 4 × 5)
+     = 651 of 655 px (slack 4); .title-block 425 and the gear do not move. */
+  .preset-bar { position: relative; flex: 0 0 auto; display: flex; align-items: center; gap: 5px; }
+  .preset-bar button {
+    font-family: inherit;
+    color: var(--green-darkest);
+    background: var(--bg-paper-light);
+    border: 1px solid var(--brown-border);
+    border-radius: 4px;
+    height: 24px;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+    white-space: nowrap;
+  }
+  .preset-bar button:hover { background: var(--green-light); color: #1f2b08; }
+  .preset-bar button:active { transform: translateY(1px); }
+  .preset-bar button:disabled { opacity: 0.4; cursor: default; background: var(--bg-paper-light); color: var(--green-darkest); transform: none; }
+  .preset-bar button:focus-visible { outline: 2px dotted var(--green-mid); outline-offset: 2px; }
+  .preset-nav { flex: 0 0 22px; width: 22px; padding: 0; font-family: var(--symbol-font) !important; font-size: 10px; line-height: 1; }
+  .preset-name {
+    position: relative;
+    flex: 0 0 213px; width: 213px;
+    padding: 0 14px 0 10px;
+    font-size: 11.5px; letter-spacing: 0.4px; text-align: center;
+  }
+  .preset-name-text { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Modified = a small dot on the name box (no text, no width change). */
+  .preset-name::after {
+    content: ''; position: absolute; top: 4px; right: 5px;
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--brass-2); opacity: 0;
+  }
+  .preset-bar.modified .preset-name::after { opacity: 1; }
+  .preset-act { flex: 0 0 64px; width: 64px; padding: 0 10px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; overflow: hidden; }
+  .preset-bar.unavailable { opacity: 0.55; }
+  /* The list: a page-built listbox under the name box. */
+  .preset-list {
+    position: absolute; top: calc(100% + 5px); left: 27px; z-index: 60;
+    width: 213px; max-height: 330px; overflow-y: auto;
+    padding: 4px;
+    background: rgba(250, 240, 230, 0.99);
+    border: 1.5px solid var(--brown-frame); border-radius: 5px;
+    box-shadow: 2px 6px 16px rgba(0, 0, 0, 0.4);
+  }
+  .preset-list[hidden] { display: none; }
+  /* Height pinned at the zh line box (PingFang 24 vs EB Garamond 20 px): the list
+     must not grow 36 px in Chinese (check-ui-labels [7]). */
+  .preset-option {
+    height: 24px; line-height: 16px;
+    padding: 4px 9px; font-size: 11.5px; color: var(--brown-text); border-radius: 3px; cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    transition: background 0.12s ease;
+  }
+  .preset-option:hover, .preset-option:focus { background: rgba(139, 168, 112, 0.35); outline: none; }
+  .preset-option.current { background: rgba(107, 142, 35, 0.32); font-weight: 600; }
+  .preset-separator { margin: 3px 6px; border-top: 1px dotted rgba(139, 115, 85, 0.6); height: 0; }
+  /* Save / Replace? / Delete? — one page-owned popover under the bar. */
+  .preset-popover {
+    position: absolute; top: calc(100% + 6px); right: 0; z-index: 60;
+    width: 330px; padding: 9px 10px;
+    display: flex; flex-direction: column; gap: 7px;
+    background: var(--bg-paper-light);
+    border: 1px solid var(--brown-border); border-radius: 5px;
+    box-shadow: 0 6px 18px var(--shadow-medium);
+  }
+  .preset-popover[hidden] { display: none; }
+  /* Title and message lines pinned at the zh line box (16 px); the two buttons
+     at the widest caption + 20 px pad: fr ANNULER 53.0 (en CANCEL 44.1, zh 取消
+     21.6; OK 15.6 / 确定 21.6) → 74. */
+  .preset-pop-title { height: 16px; line-height: 16px; font-size: 11px; letter-spacing: 0.8px; text-transform: uppercase; color: var(--brown-frame); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .preset-pop-input {
+    height: 26px; padding: 0 8px;
+    font-family: inherit; font-size: 13px; color: var(--brown-text);
+    background: #fffaf2; border: 1.5px solid var(--brown-border); border-radius: 4px;
+    -webkit-user-select: text; user-select: text;
+  }
+  .preset-pop-input:focus { outline: 2px solid var(--green-mid); outline-offset: 0; }
+  .preset-popover.confirm .preset-pop-input { display: none; }
+  .preset-pop-msg { height: 16px; line-height: 16px; font-size: 11px; font-style: italic; color: var(--brown-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .preset-pop-buttons { display: flex; justify-content: flex-end; gap: 6px; }
+  .preset-pop-buttons button {
+    font-family: inherit; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px;
+    height: 24px; width: 74px; padding: 0 10px; overflow: hidden; white-space: nowrap;
+    color: var(--green-darkest); background: var(--bg-paper-light);
+    border: 1px solid var(--brown-border); border-radius: 4px; cursor: pointer;
+  }
+  .preset-pop-buttons button:hover { background: var(--green-light); color: #1f2b08; }
+  .preset-pop-buttons button:focus-visible { outline: 2px dotted var(--green-mid); outline-offset: 2px; }
 
   select.combo {
     font-family: inherit;
@@ -705,6 +807,8 @@
   @media (prefers-reduced-motion: reduce) {
     select.combo { transition: none; }
     .gear-btn { transition: none; }
+    .preset-bar button, .preset-option { transition: none; }
+    .preset-bar button:active { transform: none; }
     .settings-toggle { transition: none; }
     .band-tag, .band-num, .band-ch, .acn, .ltr, .sh-icon { transition: none; }
     .chan-well { transition: none; }
@@ -739,9 +843,35 @@
           <div class="chip-head" data-i18n="chipFormat">Format</div>
           <div class="chip-body"><span data-i18n="label.formatBody">AmbiX &#183; ACN &#183; SN3D &#183;</span> <i id="chipOrder" data-i18n="label.chipOrder" data-i18n-vars='{"ord":"label.ord1","ch":"4"}'>1st order, 4 ch</i></div>
         </div>
-        <div class="chip" id="chipLatency">
-          <div class="chip-head" data-i18n="chipLatency">Latency</div>
-          <div class="chip-body"><span data-i18n="label.latencyBody">64 samples &#183;</span> <i data-i18n="label.latencyDetail">1.33 ms at 48 kHz</i></div>
+        <!-- Stage 4 (FUNC-08, R-D1): the preset bar takes the retired latency chip's slot; the
+             latency now lives in the Decoder tooltip. The name, the lit lesson and
+             the modified dot follow the C++ presetState push, never a click. -->
+        <div class="preset-bar" id="presetBar">
+          <button type="button" class="preset-nav" id="presetPrev"
+                  data-i18n-aria="aria.presetPrev" aria-label="Previous preset">&#9664;</button>
+          <button type="button" class="preset-name" id="presetName"
+                  data-i18n-aria="aria.presetName" aria-label="Browse presets"
+                  aria-haspopup="listbox" aria-expanded="false"><span class="preset-name-text" id="presetNameText" data-i18n="preset.init">Init</span></button>
+          <button type="button" class="preset-nav" id="presetNext"
+                  data-i18n-aria="aria.presetNext" aria-label="Next preset">&#9654;</button>
+          <button type="button" class="preset-act" id="presetSave"
+                  data-i18n-aria="aria.presetSave" aria-label="Save as a user preset"><span data-i18n="label.presetSave">Save</span></button>
+          <button type="button" class="preset-act" id="presetDelete" disabled
+                  data-i18n-aria="aria.presetDelete" aria-label="Delete the current user preset"><span data-i18n="label.presetDelete">Delete</span></button>
+          <div class="preset-list" id="presetList" role="listbox"
+               data-i18n-aria="aria.presetList" aria-label="Presets" hidden></div>
+          <div class="preset-popover" id="presetPopover" role="dialog" aria-labelledby="presetPopTitle" hidden>
+            <div class="preset-pop-title" id="presetPopTitle" data-i18n="preset.saveTitle">Save preset</div>
+            <input type="text" class="preset-pop-input" id="presetPopInput" maxlength="64"
+                   spellcheck="false" autocomplete="off"
+                   data-i18n-placeholder="preset.namePlaceholder" placeholder="Preset name"
+                   data-i18n-aria="preset.namePlaceholder" aria-label="Preset name">
+            <div class="preset-pop-msg" id="presetPopMsg"></div>
+            <div class="preset-pop-buttons">
+              <button type="button" id="presetPopCancel"><span data-i18n="preset.cancel">Cancel</span></button>
+              <button type="button" id="presetPopOk"><span data-i18n="preset.ok">OK</span></button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -903,7 +1033,7 @@
                 <button type="button" data-v="0" data-i18n="label.ord1">1st</button><button type="button" data-v="1" data-i18n="label.ord2">2nd</button><button type="button" data-v="2" data-i18n="label.ord3">3rd</button>
               </div>
             </div>
-            <div class="enc-read"><span id="encReadOrd" data-i18n="label.encReadOrd" data-i18n-vars='{"ord":"label.ord1"}'>1st order &#183;</span> <span class="n" id="encReadN" data-i18n="label.encReadN" data-i18n-vars='{"n":"1","ch":"4"}'>(1+1)&#178; = 4 channels</span></div>
+            <div class="enc-read"><span id="encReadOrd" data-i18n="label.encReadOrd" data-i18n-vars='{"ord":"label.ord1"}'>1st order &#183;</span> <span class="n" id="encReadN" data-i18n="label.encReadN" data-i18n-vars='{"n":"1","ch":"4"}'>(1+1)&#178; = 4 ch</span></div>
             <div class="enc-letters" id="encLetters">
               <div data-band="0"><span class="o" data-i18n="label.encOrderN" data-i18n-vars='{"n":"0"}'>order 0</span><span class="l">W</span></div>
               <div data-band="1"><span class="o" data-i18n="label.encOrderN" data-i18n-vars='{"n":"1"}'>order 1</span><span class="l">Y Z X</span></div>
@@ -1054,6 +1184,7 @@ const WHEEL_LINE_PX      = 33;    // deltaMode 1 (lines) → px
 const WHEEL_PAGE_PX      = 400;   // deltaMode 2 (pages) → px
 const WHEEL_MAX_NUDGES   = 4;     // per-event clamp
 const WHEEL_GESTURE_MS   = 250;   // one wheel burst = one automation gesture
+const PAGE_NUDGES        = 10;    // PageUp / PageDown step, in nudges (Stage 4 IN-09)
 
 const TOOLTIP_MARGIN     = 8;     // gap between a tip and its control / the frame edge
 const TOOLTIP_DELAY_MS   = 350;   // hover dwell before a tip appears
@@ -1090,6 +1221,37 @@ const LESSON_CAPTIONERS = {
   slowOrbit:          (el) => setLabel(el, 'label.tourCaption.slowOrbit'),
   speakersHeadphones: (el) => setLabel(el, 'label.tourCaption.speakersHeadphones'),
 };
+
+// Presets (FUNC-08). The C++ presetState push is the only authority for the
+// name, the lit lesson, the caption and the modified dot (P5 / P11) — nothing
+// here is inferred from a click.
+const PRESET_UNNAMED = '—';       // a session with no preset name (raw, no key)
+// Factory display labels: one LITERAL key per table id, one id per line
+// (check-i18n [13]; R-STATIC S3 reads the ids). Unknown ids show the file name raw.
+const FACTORY_LABELERS = {
+  init:               (el) => setLabel(el, 'preset.init'),
+  pointSource:        (el) => setLabel(el, 'label.lesson.pointSource'),
+  orderStep:          (el) => setLabel(el, 'label.lesson.orderStep'),
+  behindYou:          (el) => setLabel(el, 'label.lesson.behindYou'),
+  overhead:           (el) => setLabel(el, 'label.lesson.overhead'),
+  rotateRoom:         (el) => setLabel(el, 'label.lesson.rotateRoom'),
+  farNear:            (el) => setLabel(el, 'label.lesson.farNear'),
+  slowOrbit:          (el) => setLabel(el, 'label.lesson.slowOrbit'),
+  speakersHeadphones: (el) => setLabel(el, 'label.lesson.speakersHeadphones'),
+};
+let presetMgr        = null;      // preset-manager.js PresetManager (◀ / ▶ only)
+let presetsReady     = false;
+let presetCatalog    = { factory: [], user: [] };   // getPresetCatalog
+let presetCurrent    = { name: '', id: '', factory: false, modified: false };
+let presetStateSeen  = false;     // until the first push the static "Init" markup stands (no "—" flash)
+let presetLoadFn     = null;
+let presetSaveFn     = null;
+let presetDeleteFn   = null;
+let presetCatalogFn  = null;
+let presetAvailable  = true;
+let presetPopMode    = null;      // 'save' | 'delete' | null (closed)
+let presetReplaceName = '';       // a typed name awaiting the Replace? confirmation
+let presetDeleteName  = '';       // captured when the Delete? popover opens
 
 const sliderState = {};           // id -> Juce SliderState
 const comboState  = {};           // id -> Juce ComboBoxState
@@ -1190,6 +1352,7 @@ function updateKnobVisual(id) {
     if (stem) stem.style.transform =
       `translate(-50%, -100%) rotate(${normToDeg(st.getNormalisedValue())}deg)`;
     knob.setAttribute('aria-valuetext', text);         // same text as the readout
+    knob.setAttribute('aria-valuenow', st.getNormalisedValue().toFixed(3));   // Stage 4 IN-09 (0..1, min / max set in bindKnob)
   }
   const valEl = document.getElementById(`val-${id}`);
   if (valEl) valEl.textContent = text;
@@ -1253,10 +1416,25 @@ function bindKnob(juce, id) {
 
   knob.setAttribute('tabindex', '0');
   knob.setAttribute('role', 'slider');
+  knob.setAttribute('aria-valuemin', '0');
+  knob.setAttribute('aria-valuemax', '1');
+  // Stage 4 IN-09: the ARIA slider keys. Home / End go to the range ends,
+  // PageUp / PageDown move ten nudges; each is one gesture, like nudge().
   knob.addEventListener('keydown', (e) => {
     let dir = 0;
     if (e.key === 'ArrowUp' || e.key === 'ArrowRight') dir = 1;
     else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') dir = -1;
+    else if (e.key === 'PageUp') dir = PAGE_NUDGES;
+    else if (e.key === 'PageDown') dir = -PAGE_NUDGES;
+    else if (e.key === 'Home' || e.key === 'End') {
+      endWheelGesture();
+      st.sliderDragStarted();
+      st.setNormalisedValue(e.key === 'Home' ? 0 : 1);
+      st.sliderDragEnded();
+      updateKnobVisual(id);
+      e.preventDefault();
+      return;
+    }
     else return;
     endWheelGesture();
     nudge(st, dir, id);
@@ -1304,6 +1482,9 @@ function bindKnob(juce, id) {
   };
 
   knob.addEventListener('pointerdown', (e) => {
+    // Stage 4 IN-11: primary button only (as the sphere drags) — a right or
+    // middle click must not open a host automation gesture.
+    if (e.button !== 0) return;
     endWheelGesture();
     dragging = true;
     startY = lastY = e.clientY;
@@ -1582,6 +1763,16 @@ function applyUiScale() {
   measureBarRects();
   readoutsDirty = true;
   markAllDirty();   // puck sprites re-render themselves on a uiScale / DPR change
+}
+
+// Stage 4 IN-07: moving the window to a display of another pixel density
+// changes devicePixelRatio WITHOUT a resize event; the canvases would keep
+// the old backing store. One media query per ratio, re-armed after each change.
+function watchPixelRatio() {
+  if (!window.matchMedia) return;
+  const mq = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+  const onChange = () => { mq.removeEventListener('change', onChange); applyUiScale(); watchPixelRatio(); };
+  mq.addEventListener('change', onChange);
 }
 
 // ── Canvases (DPR-aware; uiScale folded into the backing store) ──
@@ -1942,13 +2133,13 @@ function drawTop() {
     ctx.strokeStyle = d === 1 ? 'rgba(214,196,160,0.30)' : 'rgba(214,196,160,0.14)';
     ctx.setLineDash(d === 1 ? [] : [2, 4]);
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, TWO_PI); ctx.stroke();
-    ctx.fillStyle = 'rgba(214,196,160,0.45)';
+    ctx.fillStyle = 'rgba(214,196,160,0.75)';   // ≥ 5.5:1 on the well (Stage 4 IN-08; the rings stay faint)
     ctx.fillText(`${d} m`, cx + r * 0.72 + 2, cy + r * 0.72 + 9);
   });
   ctx.setLineDash([]);
   ctx.strokeStyle = 'rgba(214,196,160,0.55)'; ctx.lineWidth = 1.2;
   ctx.beginPath(); ctx.arc(cx, cy, R, 0, TWO_PI); ctx.stroke();
-  ctx.fillStyle = 'rgba(214,196,160,0.45)';
+  ctx.fillStyle = 'rgba(214,196,160,0.75)';
   ctx.fillText('20 m', cx + R * 0.72 + 2, cy + R * 0.72 + 9);
   ctx.restore();
 
@@ -1982,18 +2173,8 @@ function drawTop() {
   const glyph = (a, s) => { const x = -Math.sin(a * D2R) * (R - 22), y = -Math.cos(a * D2R) * (R - 22); ctx.save(); ctx.translate(x, y); ctx.rotate(heading * D2R); ctx.fillText(s, 0, 0); ctx.restore(); };
   glyph(0, '▲'); glyph(90, '+90°'); glyph(180, '±180°'); glyph(270, '−90°');
   ctx.globalAlpha = 1;
-  // Front-elevation chevron at the scene's front: ▲ when the front rises, ▼ when
-  // it sinks, length ∝ |sin pitch| (roll is not drawn — it does not move the front).
-  const fs = disp.frontSin;
-  if (Math.abs(fs) >= 0.004) {
-    const len = 3 + 9 * Math.abs(fs), dir = fs > 0 ? -1 : 1;
-    ctx.save();
-    ctx.translate(0, -(R - 40));   // inside the ▲ glyph (R − 22 ± 6), clear of it
-    ctx.strokeStyle = INK.amber; ctx.lineWidth = 1.6; ctx.lineJoin = 'round';
-    ctx.beginPath(); ctx.moveTo(-5, -dir * len / 2); ctx.lineTo(0, dir * len / 2); ctx.lineTo(5, -dir * len / 2); ctx.stroke();
-    ctx.restore();
-  }
   ctx.restore();
+  // (The front-elevation chevron is drawn LAST, after the puck — drawFrontChevron.)
 
   // Beam (UI-03): horizontal slice of g_N at the rotated direction
   const curve = beamCurve(order + 1);
@@ -2042,6 +2223,41 @@ function drawTop() {
     ctx.fillText(disp.el > 0 ? '▲' : '▼', P[0], P[1] - 12 - 10 * alt);
   }
   drawPuck(ctx, P[0], P[1], 7);
+  ctx.restore();
+
+  drawFrontChevron(ctx, cx, cy, R, heading, P, alt);
+}
+
+// Front-elevation chevron at the scene's front: ▲ when the front rises, ▼ when
+// it sinks, length ∝ |sin pitch| (roll is not drawn — it does not move the front).
+// Stage 4 (P13): drawn AFTER the puck over a 3 px well-coloured backing stroke,
+// and slid tangentially off the puck when azimuth ≈ heading put both on one ray
+// (the puck at d ≈ 4.4 m sits on the chevron's R − 40 radius). The slide keeps
+// it a clear 6 px outside the puck's altitude halo.
+function drawFrontChevron(ctx, cx, cy, R, heading, P, alt) {
+  const fs = disp.frontSin;
+  if (Math.abs(fs) < 0.004) return;
+  const len = 3 + 9 * Math.abs(fs), dir = fs > 0 ? -1 : 1;
+  const h = heading * D2R;
+  // The puck in the rose frame (the frame the chevron is drawn in): R(+h)·(P − c).
+  const qx = (P[0] - cx) * Math.cos(h) - (P[1] - cy) * Math.sin(h);
+  const qy = (P[0] - cx) * Math.sin(h) + (P[1] - cy) * Math.cos(h);
+  const ay = -(R - 40);                       // inside the ▲ glyph (R − 22 ± 6), clear of it
+  const clear = 7 + (8 + 10 * alt) + 6;       // chevron half-size + halo radius + air
+  const dy = qy - ay;
+  const need = Math.sqrt(Math.max(0, clear * clear - dy * dy));
+  let ax = 0;
+  if (Math.abs(qx) < need) ax = qx + (qx >= 0 ? -need : need);   // [probe-anchor:chevron-slide]
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(-h);
+  ctx.translate(ax, ay);
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const path = () => { ctx.beginPath(); ctx.moveTo(-5, -dir * len / 2); ctx.lineTo(0, dir * len / 2); ctx.lineTo(5, -dir * len / 2); };
+  ctx.globalAlpha = disp.roseAlpha;
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--well-bot').trim() || '#1c160f';
+  ctx.lineWidth = 1.6 + 3; path(); ctx.stroke();
+  ctx.strokeStyle = INK.amber; ctx.lineWidth = 1.6; path(); ctx.stroke();
   ctx.restore();
 }
 
@@ -2208,7 +2424,7 @@ function drawOut() {
     const y = toY(db);
     ctx.strokeStyle = 'rgba(139,115,85,0.35)'; ctx.setLineDash(db === 0 ? [] : [1, 3]);
     ctx.beginPath(); ctx.moveTo(left, y + 0.5); ctx.lineTo(w - 6, y + 0.5); ctx.stroke();
-    ctx.fillStyle = 'rgba(214,196,160,0.6)'; ctx.fillText(db === 0 ? '0' : `${MINUS}${-db}`, left - 4, y);
+    ctx.fillStyle = 'rgba(214,196,160,0.75)'; ctx.fillText(db === 0 ? '0' : `${MINUS}${-db}`, left - 4, y);   // ≥ 5.5:1 (IN-08)
   });
   ctx.setLineDash([]);
   const bw = Math.floor((w - left - 6 - 8) / 2);
@@ -2410,18 +2626,377 @@ function bindSphereDrags() {
 }
 
 // ── Lessons (UI-08): applyFactoryPreset(lessonId) on the message thread; the
-//    relays sync every control back. The caption is page-side. ──
+//    relays sync every control back. Stage 4 (P11): the click ONLY applies —
+//    the lit button and the caption follow the presetState push, so an edit,
+//    a browser load or a session restore can never leave a stale lesson lit,
+//    and a refused id lights nothing. ──
 function initLessons(juce) {
   try { applyPresetFn = juce.getNativeFunction('applyFactoryPreset'); }
   catch (e) { console.warn('applyFactoryPreset not available:', e); }
-  const caption = document.getElementById('tourCaption');
   document.querySelectorAll('.tour-btn').forEach((b) => b.addEventListener('click', () => {
     const id = b.dataset.preset;
-    document.querySelectorAll('.tour-btn').forEach((x) => x.classList.toggle('active', x === b));
-    const captioner = LESSON_CAPTIONERS[id];
-    if (captioner && caption) captioner(caption);
     if (applyPresetFn) applyPresetFn(id).catch((e) => console.warn('applyFactoryPreset failed:', e));
   }));
+}
+
+// ── Preset browser (FUNC-08; P8 .. P11) ──────────────────────────────────────
+// The list, ◀ / ▶ and the C++ walk order are ONE order: factory table order,
+// then user presets (case-insensitive). preset-manager.js owns ◀ / ▶ only (its
+// selectNext / selectPrevious natives return the neighbour, then loadPreset).
+// The list, Save and Delete are page-owned and keyed on the last presetState —
+// the module's cached name goes stale after a lesson click or a restore.
+function hasOwn(o, k) {
+  return Object.prototype.hasOwnProperty.call(o, k);
+}
+
+// Raw (never-translated) text — a user preset name, the unnamed dash: clears
+// any i18n key so the language sweep leaves the node alone.
+function setRaw(el, text) {
+  if (!el) return;
+  delete el.dataset.i18n;
+  delete el.dataset.i18nVars;
+  delete el.dataset.label;
+  el.textContent = text;
+}
+
+function normaliseCatalog(c) {
+  const out = { factory: [], user: [] };
+  if (!c || typeof c !== 'object') return out;
+  if (Array.isArray(c.factory))
+    for (const f of c.factory)
+      if (f && typeof f.name === 'string' && f.name !== '')
+        out.factory.push({ name: f.name, id: typeof f.id === 'string' ? f.id : '' });
+  if (Array.isArray(c.user))
+    for (const u of c.user) if (typeof u === 'string' && u !== '') out.user.push(u);
+  return out;
+}
+
+async function refreshPresetCatalog() {
+  if (!presetCatalogFn) return;
+  try {
+    const raw = await presetCatalogFn();
+    presetCatalog = normaliseCatalog(typeof raw === 'string' ? JSON.parse(raw) : raw);
+  } catch (e) {
+    console.warn('getPresetCatalog failed:', e);
+    return;
+  }
+  const list = document.getElementById('presetList');
+  if (list && !list.hidden) buildPresetList();
+  renderPresetState();
+}
+
+// A factory label (localized, the applyI18n sweep re-labels it) or a raw name.
+function labelPresetName(el, name, id) {
+  if (id !== '' && hasOwn(FACTORY_LABELERS, id)) FACTORY_LABELERS[id](el);
+  else setRaw(el, name === '' ? PRESET_UNNAMED : name);
+}
+
+function buildPresetList() {
+  const list = document.getElementById('presetList');
+  if (!list) return;
+  list.textContent = '';
+  const add = (name, id) => {
+    const opt = document.createElement('div');
+    opt.className = 'preset-option';
+    opt.setAttribute('role', 'option');
+    opt.setAttribute('tabindex', '-1');
+    opt.dataset.name = name;
+    const current = name === presetCurrent.name;
+    opt.classList.toggle('current', current);
+    opt.setAttribute('aria-selected', current ? 'true' : 'false');
+    labelPresetName(opt, name, id);
+    list.appendChild(opt);
+  };
+  for (const f of presetCatalog.factory) add(f.name, f.id);
+  if (presetCatalog.user.length > 0) {
+    const sep = document.createElement('div');
+    sep.className = 'preset-separator';
+    sep.setAttribute('role', 'separator');
+    sep.setAttribute('aria-disabled', 'true');
+    list.appendChild(sep);
+  }
+  for (const u of presetCatalog.user) add(u, '');
+}
+
+function openPresetList() {
+  const list = document.getElementById('presetList');
+  const btn = document.getElementById('presetName');
+  if (!list || !btn || !presetAvailable) return;
+  closePresetPopover();
+  buildPresetList();
+  list.hidden = false;
+  btn.setAttribute('aria-expanded', 'true');
+  const cur = list.querySelector('.preset-option.current') || list.querySelector('.preset-option');
+  if (cur) { cur.focus({ preventScroll: true }); cur.scrollIntoView({ block: 'nearest' }); }
+}
+
+function closePresetList() {
+  const list = document.getElementById('presetList');
+  const btn = document.getElementById('presetName');
+  if (!list || list.hidden) return;
+  list.hidden = true;
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+function loadPresetNamed(name) {
+  if (!presetLoadFn || name === '') return;
+  presetLoadFn(name)
+    .then((ok) => { if (!ok) refreshPresetCatalog(); })   // a vanished user file: re-read the catalog
+    .catch((e) => console.error('loadPreset failed:', e));
+}
+
+function presetDeletable() {
+  return presetCurrent.factory === false && presetCurrent.name !== '';
+}
+
+// The name box, the modified dot, Delete, the lit lesson and the caption all
+// follow the C++ push (P5 / P11).
+function renderPresetState() {
+  const bar = document.getElementById('presetBar');
+  if (bar) bar.classList.toggle('modified', presetCurrent.modified);
+  const text = document.getElementById('presetNameText');
+  if (text && presetStateSeen) labelPresetName(text, presetCurrent.name, presetCurrent.factory ? presetCurrent.id : '');
+
+  const del = document.getElementById('presetDelete');
+  if (del) del.disabled = !presetAvailable || !presetDeletable();
+
+  const lit = presetCurrent.modified ? '' : presetCurrent.id;
+  document.querySelectorAll('.tour-btn[data-preset]').forEach((b) =>
+    b.classList.toggle('active', lit !== '' && b.dataset.preset === lit));
+
+  const caption = document.getElementById('tourCaption');
+  if (caption) {
+    if (lit !== '' && hasOwn(LESSON_CAPTIONERS, lit)) LESSON_CAPTIONERS[lit](caption);
+    else setLabel(caption, 'label.tourDefault');
+  }
+}
+
+function onPresetState(d) {
+  const o = typeof d === 'string' ? (() => { try { return JSON.parse(d); } catch (e) { return null; } })() : d;
+  if (!o || typeof o !== 'object') return;
+  presetCurrent = {
+    name:     typeof o.name === 'string' ? o.name : '',
+    id:       typeof o.id === 'string' ? o.id : '',
+    factory:  o.factory === true,
+    modified: o.modified === true,
+  };
+  presetStateSeen = true;
+  // A name the catalog does not know yet (saved elsewhere, or a restore) — re-read it.
+  if (presetCurrent.name !== '' && presetsReady
+      && !presetCatalog.factory.some((f) => f.name === presetCurrent.name)
+      && !presetCatalog.user.includes(presetCurrent.name))
+    refreshPresetCatalog();
+  renderPresetState();
+}
+
+// Every factory display label in every language: a user preset must not wear
+// a factory name in ANY of them.
+function factoryDisplayNames() {
+  const out = [];
+  for (const id of Object.keys(FACTORY_LABELERS)) {
+    const probe = document.createElement('span');
+    FACTORY_LABELERS[id](probe);
+    const key = probe.dataset.i18n;
+    if (key) for (const lang of LANGUAGES) out.push(trLabel(key, lang, null));
+  }
+  return out;
+}
+
+function presetPopoverEls() {
+  return {
+    pop:   document.getElementById('presetPopover'),
+    title: document.getElementById('presetPopTitle'),
+    input: document.getElementById('presetPopInput'),
+    ok:    document.getElementById('presetPopOk'),
+    msg:   document.getElementById('presetPopMsg'),
+  };
+}
+
+function closePresetPopover() {
+  const { pop } = presetPopoverEls();
+  if (!pop || pop.hidden) return;
+  pop.hidden = true;
+  presetPopMode = null;
+  presetReplaceName = '';
+  presetDeleteName = '';
+}
+
+function openPresetSave() {
+  const { pop, title, input, msg } = presetPopoverEls();
+  if (!pop || !presetAvailable) return;
+  closePresetList();
+  presetPopMode = 'save';
+  presetReplaceName = '';
+  pop.classList.remove('confirm');
+  setLabel(title, 'preset.saveTitle');
+  setRaw(msg, '');
+  // A user preset pre-fills its own name (the common case: save over it).
+  input.value = presetDeletable() ? presetCurrent.name : '';
+  pop.hidden = false;
+  input.focus();
+  input.select();
+}
+
+function openPresetDelete() {
+  if (!presetDeletable() || !presetAvailable) return;
+  const { pop, title, ok, msg } = presetPopoverEls();
+  if (!pop) return;
+  closePresetList();
+  presetPopMode = 'delete';
+  presetDeleteName = presetCurrent.name;
+  pop.classList.add('confirm');
+  setLabel(title, 'preset.confirmDelete', { name: presetDeleteName });
+  setRaw(msg, '');
+  pop.hidden = false;
+  ok.focus();
+}
+
+async function submitPresetPopover() {
+  const { input, msg } = presetPopoverEls();
+  if (presetPopMode === 'delete') {
+    const target = presetDeleteName;
+    // Success or refusal (the file was already gone), the honest next view is
+    // the re-read catalog.
+    if (target !== '' && presetDeleteFn)
+      await presetDeleteFn(target).catch((e) => console.warn('deletePreset failed:', e));
+    closePresetPopover();
+    refreshPresetCatalog();
+    return;
+  }
+  if (presetPopMode !== 'save') return;
+
+  const name = input.value.trim();
+  if (name === '') { presetReplaceName = ''; setLabel(msg, 'preset.errEmpty'); return; }
+  const low = name.toLowerCase();
+  if (presetCatalog.factory.some((f) => f.name.toLowerCase() === low)
+      || factoryDisplayNames().some((n) => n.toLowerCase() === low)) {
+    presetReplaceName = '';
+    setLabel(msg, 'preset.errFactoryName');
+    return;
+  }
+  const existing = presetCatalog.user.find((u) => u.toLowerCase() === low);
+  if (existing !== undefined && presetReplaceName.toLowerCase() !== low) {
+    presetReplaceName = name;          // OK again = replace
+    setLabel(msg, 'preset.confirmReplace', { name: existing });
+    return;
+  }
+  // A confirmed replace saves under the EXISTING spelling: on a case-insensitive
+  // file system the typed case would overwrite the file but keep the old entry.
+  const saveAs = existing !== undefined ? existing : name;
+  const saved = presetSaveFn ? await presetSaveFn(saveAs).catch(() => false) : false;
+  if (saved) { closePresetPopover(); refreshPresetCatalog(); }
+  else { presetReplaceName = ''; setLabel(msg, 'preset.errSave'); }
+}
+
+function setPresetBarAvailable(on) {
+  presetAvailable = !!on;
+  const bar = document.getElementById('presetBar');
+  if (!bar) return;
+  bar.classList.toggle('unavailable', !on);
+  bar.querySelectorAll('button, input').forEach((el) => { el.disabled = !on; });
+  if (!on) { closePresetPopover(); closePresetList(); }
+  else renderPresetState();
+}
+
+function bindPresetControls() {
+  const bar    = document.getElementById('presetBar');
+  const name   = document.getElementById('presetName');
+  const list   = document.getElementById('presetList');
+  const save   = document.getElementById('presetSave');
+  const del    = document.getElementById('presetDelete');
+  const cancel = document.getElementById('presetPopCancel');
+  const { pop, input, ok, msg } = presetPopoverEls();
+  if (!bar || !name || !list || !save || !del || !pop || !input || !ok || !cancel) {
+    console.warn('preset bar markup missing — presets unavailable');
+    return false;
+  }
+
+  name.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (list.hidden) openPresetList(); else closePresetList();
+  });
+  list.addEventListener('click', (e) => {
+    const opt = e.target.closest ? e.target.closest('.preset-option') : null;
+    if (!opt) return;
+    closePresetList();
+    name.focus({ preventScroll: true });
+    loadPresetNamed(opt.dataset.name || '');
+  });
+  list.addEventListener('keydown', (e) => {
+    if (e.target && e.target.tagName === 'INPUT') return;
+    const opts = [...list.querySelectorAll('.preset-option')];
+    const i = opts.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      const next = opts[Math.max(0, Math.min(opts.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)))];
+      if (next) next.focus({ preventScroll: false });
+      e.preventDefault();
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      if (i >= 0) { closePresetList(); name.focus({ preventScroll: true }); loadPresetNamed(opts[i].dataset.name || ''); }
+      e.preventDefault();
+    }
+  });
+
+  save.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (presetPopMode === 'save') closePresetPopover(); else openPresetSave();
+  });
+  del.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (presetPopMode === 'delete') closePresetPopover(); else openPresetDelete();
+  });
+  ok.addEventListener('click', () => { submitPresetPopover(); });
+  cancel.addEventListener('click', () => closePresetPopover());
+  input.addEventListener('input', () => { presetReplaceName = ''; setRaw(msg, ''); });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); submitPresetPopover(); }
+  });
+
+  // Capture-phase pointerdown, never mousedown: the knobs and the sphere drags
+  // preventDefault their own pointerdown, which suppresses the compat mousedown
+  // (memory pattern_pointerdown_preventdefault_kills_document_mousedown).
+  document.addEventListener('pointerdown', (e) => {
+    if (!list.hidden && !list.contains(e.target) && !name.contains(e.target)) closePresetList();
+    if (!pop.hidden && !pop.contains(e.target) && !save.contains(e.target) && !del.contains(e.target)) closePresetPopover();
+  }, true);
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (!list.hidden) { closePresetList(); name.focus({ preventScroll: true }); }
+    if (!pop.hidden) closePresetPopover();
+  });
+  return true;
+}
+
+// Called from init() in its own try / catch. The module is imported
+// DYNAMICALLY: a static import that 404s would blank the whole page (the
+// i18n.js failure mode); here a failure disables the bar and nothing else.
+async function initPresets(juce) {
+  presetCatalogFn = juce.getNativeFunction('getPresetCatalog');
+  presetLoadFn    = juce.getNativeFunction('loadPreset');
+  presetSaveFn    = juce.getNativeFunction('savePreset');
+  presetDeleteFn  = juce.getNativeFunction('deletePreset');
+  if (!bindPresetControls()) return;
+
+  let mod = null;
+  try {
+    mod = await import('./modules/preset-manager.js');
+  } catch (e) {
+    console.error('preset-manager.js failed to load — preset bar disabled:', e);
+    setPresetBarAvailable(false);
+    return;
+  }
+  // Only these five options (P10): no displayElement (names localize here), no
+  // save / load / delete buttons (the dialog natives are refusal stubs, and the
+  // module's delete keys on a cached name that goes stale).
+  presetMgr = new mod.PresetManager({
+    getNativeFunction: juce.getNativeFunction,
+    prevButton: document.getElementById('presetPrev'),
+    nextButton: document.getElementById('presetNext'),
+    onPresetChanged: () => {},          // presetState carries the name
+    onPresetListUpdated: () => { refreshPresetCatalog(); },
+  });
+  await presetMgr.initialize();       // its refresh() reports the list -> catalog
+  presetsReady = true;
+  await refreshPresetCatalog();
 }
 
 // ── Backend events + the uiReady handshake ──
@@ -2433,6 +3008,7 @@ function initBackendEvents(juce) {
   const backend = window.__JUCE__ && window.__JUCE__.backend;
   if (!backend) { console.warn('JUCE backend missing — the meters will stay empty'); return; }
   backend.addEventListener('meterFrame', onMeterFrame);
+  backend.addEventListener('presetState', onPresetState);
   try { uiReadyFn = juce.getNativeFunction('uiReady'); }
   catch (e) { console.warn('uiReady not available:', e); }
   // emitEventIfBrowserIsVisible drops events while the browser is hidden, so
@@ -2588,8 +3164,11 @@ function init() {
   try { initTooltips(); }        catch (e) { console.error('tooltip init failed:', e); }
   try { initTipsToggle(); }      catch (e) { console.error('tips toggle init failed:', e); }
   try { initLessons(Juce); }     catch (e) { console.error('lessons init failed:', e); }
+  try { initPresets(Juce).catch((e) => { console.error('preset init failed:', e); setPresetBarAvailable(false); }); }
+  catch (e) { console.error('preset init failed:', e); setPresetBarAvailable(false); }
 
   window.addEventListener('resize', applyUiScale);
+  watchPixelRatio();
   const langSel = document.getElementById('lang-select');
   if (langSel) langSel.addEventListener('change', () => { readoutsDirty = true; markAllDirty(); });
   // Canvas text keeps the fallback face until the font loads — repaint after

@@ -36,15 +36,18 @@
                                orbitRate, outputLevel
        3 WebComboBoxRelay      order, decoder, inputMode
        1 WebToggleButtonRelay  orbit
-    and on the 30 Hz message-thread Timer pushes ONE event:
+    and on the 30 Hz message-thread Timer pushes TWO events:
       meterFrame   ui::sampleFrame() (MeterFramePayload.h — the same code the
                    render harness uses for its fixtures): quantised, hashed with
                    the `live` flag, emitted only on change or when forced;
                    emitEventIfBrowserIsVisible. A static scene emits nothing.
+      presetState  { name, id, factory, modified } (Stage 4) — when the
+                   processor's preset revision changes or `modified` flips.
     Natives (every name the page calls — an unregistered one never settles its
     promise and its control is silently dead while build / auval / pluginval
-    all pass): getParameterDefaults, getUiLanguage, setUiLanguage, uiReady,
-    applyFactoryPreset.
+    all pass), 16: getParameterDefaults, getUiLanguage, setUiLanguage,
+    uiReady, applyFactoryPreset, getPresetCatalog + the 10 preset-manager.js
+    names (see the registry comment in PluginEditor.cpp).
 
   ==============================================================================
 */
@@ -104,6 +107,9 @@ private:
     // uiReady handshake can never count as a stale tick.
     void emitFrame (bool force);
 
+    // presetState when the revision changed or `modified` flipped (or `force`).
+    void emitPresetState (bool force);
+
     OSimpleAmbisonicsAudioProcessor& processorRef;
 
     // meterFrame state (message thread only). payloadBuf is a member: the
@@ -114,6 +120,10 @@ private:
     std::uint64_t lastFrameHash  = 0;
     bool          forceFrameEmit = true;
     char          payloadBuf[1024] {};
+
+    // presetState change detection (message thread only; Stage 4 P5).
+    juce::uint32 lastPresetRevision = 0;
+    bool         lastPresetModified = false;
 
     // =====================================================================
     // CRITICAL MEMBER DECLARATION ORDER

@@ -1,0 +1,95 @@
+{
+  "critic": "foundation-critic",
+  "plugin": "O-simpleAmbisonics",
+  "stage": "4-polish",
+  "attempt": 1,
+  "maxAttempts": 3,
+  "timestamp": "2026-10-14T19:30:00Z",
+  "scores": {
+    "cmake_correctness": {
+      "score": 7,
+      "threshold": 8,
+      "passed": false,
+      "details": "juce_add_plugin complete and correct (CMakeLists.txt:18-32): COMPANY_NAME/PLUGIN_MANUFACTURER_CODE from root branding (OuDv/-dev local, OuAu release), PLUGIN_CODE OSAm (unique across plugins/*/CMakeLists.txt), FORMATS VST3 AU Standalone, PRODUCT_NAME carries OUARICON_DEV_SUFFIX, effect flags explicit, NEEDS_WEB_BROWSER + NEEDS_WEBVIEW2 TRUE, JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1 (:117). One binary-data target (:65-77); all 10 SOURCES have a bare-path getResource branch (PluginEditor.cpp:103-135) with hyphen-stripped symbols; no basename collisions. target_sources lists every file on disk. Score held below threshold by FND-001: the WebView2 integration is incomplete on the C++ side (no withBackend(webview2)), so the Windows build compiles but shows 'page not found'."
+    },
+    "apvts_integration": {
+      "score": 10,
+      "threshold": 7,
+      "passed": true,
+      "details": "All 12 spec params match createParameterLayout (PluginProcessor.cpp:72-152) exactly: ids, order (= getParameters index), types (8 Float / 3 Choice / 1 Bool), ranges, intervals (degrees interval 0 avoids the stepped-zero trap), defaults, setSkewForCentre(2 m / 0.2 Hz) plain skews, labels, ParameterID version 1. ParamIDs (PluginProcessor.h:44-55) = relays/attachments (PluginEditor.cpp:146-157, 272-283) = JS KNOB_IDS/COMBO_SEGS/TOGGLE_SEGS/SELECT_IDS (index.html:1021-1025). Every page getNativeFunction name (5) is registered. Choice/bool decode via raw index; skewed+stepped defaults snapped in fillParams. State: copy-only custom properties, tag check, isVoid()+toString() restore (bool/XML-type trap avoided), pluginVersion stamped. Buses: mono|stereo in, stereo out, disabled rejected; numInputLegs from the negotiated bus, not buffer width. setLatencySamples(kPartition) single call in prepareToPlay."
+    },
+    "build_health": {
+      "score": 8,
+      "threshold": 8,
+      "passed": true,
+      "details": "ninja -n for _VST3/_AU/_Standalone could not be evaluated read-only: it first requires a CMake re-run (shared build/ dirty from other sessions' CMake edits), which this critic must not trigger. Relying on Stage-3 VERIFICATION.md:73 (forced rebuild, 0 warnings, VST3+AU+Standalone+render-test) and auval/pluginval s10 passes; no source or CMake change since 03ee6671. Includes resolve; harness guard (#if JUCE_WEB_BROWSER at PluginProcessor.cpp:359-370) intact. Deduction: getTailLengthSeconds() = 0 while output continues after input stops (FND-002)."
+    },
+    "module_integration": {
+      "score": 9,
+      "threshold": 6,
+      "passed": true,
+      "details": "OuariconModules.cmake included (CMakeLists.txt:3); no shared C++ modules linked yet (preset-manager v1.0.9 arrives in T7). eb-garamond is a direct embed from ${CMAKE_SOURCE_DIR}/modules/ui (not a gitignored copy), served at /css and /fonts matching its relative url(). No version conflicts."
+    }
+  },
+  "overallStatus": "NEEDS_FIXES",
+  "overallScore": 8.5,
+  "issues": [
+    {
+      "id": "FND-001",
+      "severity": "error",
+      "category": "cmake_correctness",
+      "location": "Source/PluginEditor.cpp:162-179 (options chain) and :254-264 (WinWebView2 block)",
+      "description": "WebBrowserComponent::Options never calls .withBackend(Backend::webview2). On Windows Backend::defaultBackend is the legacy IE control: withWinWebView2Options (user-data folder) is ignored and there is no resource provider, so https://juce.backend/ shows 'page not found' and the whole UI is dead. macOS is unaffected, so every Mac gate (auval, pluginval, UI probes) passes. This plugin is on the 2026-10-14 census list (memory critical_webview2_runtime_gotchas_windows); commit b477dc83 fixed 9 siblings and 8a83d78f O-simpleSubtractive, but O-simpleAmbisonics was not patched. Stage 4 plans a Windows VST3 CI build: CI compiles green and the shipped Windows binary is still blank. PLAN S5 invariant grep checks withUserDataFolder / NEEDS_WEBVIEW2 / static linking but not withBackend, so no gate catches it.",
+      "fixSuggestion": "Add .withBackend (juce::WebBrowserComponent::Options::Backend::webview2) to the Options chain in the editor constructor (same placement as plugins/O-simpleSubtractive/Source/PluginEditor.cpp:193), and add 'grep -c withBackend Source/PluginEditor.cpp = 1' to the PLAN S5 invariants so the Windows-only failure is gated on macOS."
+    },
+    {
+      "id": "FND-002",
+      "severity": "warning",
+      "category": "build_health",
+      "location": "Source/PluginProcessor.h:76",
+      "description": "getTailLengthSeconds() returns 0.0, but after input goes silent the plugin keeps producing output: the 64-sample decoder delay/UPOLS latency (SpatialEngine.h:165) plus the 256-tap binaural HRIR at 48 kHz (BinauralFilterData.h:56, about 5.3 ms, rescaled at higher rates) plus the 20 ms smoothers. The VST3 wrapper reports kNoTail and AU reports TailTime 0. Failure: in hosts that suspend processing on silent input from the reported tail (Cubase/Nuendo 'suspend VST3 processing when no audio signals are received', Studio One silence detection, Logic AU tail-based render cut-off), the last ~1.5 ms of delayed audio and the HRIR decay are cut at every region or phrase end, which is audible as a click. auval's Tail Time check passes with 0, so no existing gate catches this.",
+      "fixSuggestion": "Return a real tail from getTailLengthSeconds(): (kPartition + ceil(kBinauralFilterTaps * sr / 48000)) / sr using the prepared sample rate (store it in prepareToPlay; fall back to 48 kHz before prepare). A fixed 0.02 s also works and covers the smoother ramp. Re-run auval and confirm Tail Time reports the new value."
+    },
+    {
+      "id": "FND-003",
+      "severity": "warning",
+      "category": "apvts_integration",
+      "location": "Source/PluginProcessor.cpp:461-465",
+      "description": "The provisional applyFactoryPreset excludes only outputLevel. inputMode is reset to its default (Mono sum) by every lesson. This breaks the Stage-4 invariant R-D3 (presets and lessons never set outputLevel OR inputMode). Scenario: a user on 'Left only' (for example a dual-mono feed with the right channel unused or carrying something else) clicks any lesson button. The input silently switches to 0.5*(L+R) and the source level and content change with no visible cause. kLessons is being replaced this stage, but the bug is live at HEAD and the replacement must not carry it over.",
+      "fixSuggestion": "In the shared recipe apply core (T6, PresetRecipes.h path) skip both ParamIDs::outputLevel and ParamIDs::inputMode in the reset-to-default pass, and add a G-LESSON assertion that inputMode at index 1 is bit-unchanged after each of the 8 lessons."
+    },
+    {
+      "id": "FND-004",
+      "severity": "note",
+      "category": "apvts_integration",
+      "location": "Source/PluginEditor.cpp:398 (with :300, :313-316)",
+      "description": "resized() writes editorScale on every resize, including the editor's own setSize(1180,780) and auto-fit setSize during construction. As a result the 'storedScale == 0 means fit the display at open' branch (:313-314) only applies until the editor is first opened, and from then on the auto-fit scale is persisted as if the user had chosen it. Scenario: a session created on a 13-inch laptop auto-fits to 0.8 and is saved. Reopened on a 27-inch display it stays at 0.8, because the clamp at :313 only lowers a stored scale. This may be acceptable under the CONTEXT rule 'save/reopen keeps the window size'. It is flagged so the behaviour is a deliberate choice.",
+      "fixSuggestion": "If only user-chosen sizes should persist, set a member flag once construction finishes and have resized() store editorScale only when the flag is set and the width differs from the open-time fit. Otherwise document in ARCHITECTURE Stage-4 amendment A1 that the open-time fit is persisted on purpose."
+    },
+    {
+      "id": "FND-005",
+      "severity": "note",
+      "category": "apvts_integration",
+      "location": "Source/PluginProcessor.cpp:410-418",
+      "description": "When a restored state has no editorScale, or carries one outside 0.6..1.5, the atomic keeps whatever the instance held before. The comment says 'a pre-Stage-3 session has neither property: ... fit-to-display', but that is true only for a fresh instance. A host that loads a different state into a live instance (preset menu, project switch with instance reuse) carries the previous window scale over. Impact is cosmetic.",
+      "fixSuggestion": "Add an else branch that stores 0.0f into editorScale when the property is absent or rejected, so restore matches the documented fit-to-display behaviour. Leave uiLanguage as is (keeping the current language is the better default)."
+    },
+    {
+      "id": "FND-006",
+      "severity": "info",
+      "category": "cmake_correctness",
+      "location": "CMakeLists.txt:18-32",
+      "description": "No VST3_CATEGORIES is set, so the plugin registers as plain 'Fx'. A spatializer can also declare 'Spatial' (only O-Octagon in the suite does), which helps browsing in Cubase and Bitwig. This is optional; it does not affect AU, which defaults correctly to kAudioUnitType_Effect.",
+      "fixSuggestion": "Optionally add VST3_CATEGORIES \"Fx\" \"Spatial\" to juce_add_plugin(). This does not change the plugin UID or its saved state."
+    },
+    {
+      "id": "FND-007",
+      "severity": "info",
+      "category": "apvts_integration",
+      "location": "Source/PluginProcessor.cpp:379, :398-420",
+      "description": "pluginVersion is stamped on save but never read on restore. That is correct for 1.0.0 because nothing needs migrating yet. The first post-1.0.0 range or default change will need a per-parameter version-gated migration (memory pattern_preset_migration_per_param_version_gate) at the top of setStateInformation.",
+      "fixSuggestion": "No action at 1.0.0. Note in ARCHITECTURE amendment A1 that setStateInformation is the migration hook site and that pluginVersion is its key."
+    }
+  ],
+  "nextAction": "fix_and_resubmit"
+}

@@ -36,35 +36,83 @@
     "eval": "(() => { const P = {\"azimuth\":0,\"elevation\":0,\"distance\":1,\"order\":0,\"yaw\":30,\"pitch\":10,\"roll\":-15,\"decoder\":0,\"orbit\":0,\"orbitRate\":0.1,\"inputMode\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } })()"
   },
   {
-    "name": "lesson pointSource: recipe values set through the stub states (everything else default, outputLevel untouched) + the button click for its caption (label.tourCaption.pointSource, the lit button)",
-    "eval": "(() => { const P = {\"azimuth\":30,\"elevation\":0,\"distance\":1,\"order\":0,\"yaw\":0,\"pitch\":0,\"roll\":0,\"decoder\":0,\"orbit\":0,\"orbitRate\":0.1,\"inputMode\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-pointSource').click(); })()"
+    "name": "lesson pointSource: recipe values set through the stub states (everything else default, outputLevel untouched) + the button click and the C++ presetState push (the click no longer lights: P11) for its caption (label.tourCaption.pointSource, the lit button)",
+    "eval": "(() => { const P = {\"azimuth\":30,\"elevation\":0,\"distance\":1,\"order\":0,\"yaw\":0,\"pitch\":0,\"roll\":0,\"decoder\":0,\"orbit\":0,\"orbitRate\":0.1,\"inputMode\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-pointSource').click(); window.__stubEmit('presetState', {\"name\": \"Point Source (FOA)\", \"id\": \"pointSource\", \"factory\": true, \"modified\": false}); })()"
   },
   {
-    "name": "lesson orderStep: recipe values set through the stub states (everything else default, outputLevel untouched) + the button click for its caption (label.tourCaption.orderStep, the lit button)",
-    "eval": "(() => { const P = {\"azimuth\":45,\"elevation\":0,\"distance\":1,\"order\":2,\"yaw\":0,\"pitch\":0,\"roll\":0,\"decoder\":0,\"orbit\":0,\"orbitRate\":0.1,\"inputMode\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-orderStep').click(); })()"
+    "name": "lesson orderStep (first click = order 1, R-D4): recipe values set through the stub states (everything else default, outputLevel untouched) + the button click and the C++ presetState push (the click no longer lights: P11) for its caption (label.tourCaption.orderStep, the lit button)",
+    "eval": "(() => { const P = {\"azimuth\":45,\"elevation\":0,\"distance\":1,\"order\":0,\"yaw\":0,\"pitch\":0,\"roll\":0,\"decoder\":0,\"orbit\":0,\"orbitRate\":0.1,\"inputMode\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-orderStep').click(); window.__stubEmit('presetState', {\"name\": \"Order 1-2-3\", \"id\": \"orderStep\", \"factory\": true, \"modified\": false}); })()"
   },
   {
-    "name": "lesson behindYou: recipe values set through the stub states (everything else default, outputLevel untouched) + the button click for its caption (label.tourCaption.behindYou, the lit button)",
-    "eval": "(() => { const P = {\"azimuth\":180,\"elevation\":0,\"distance\":1,\"order\":0,\"yaw\":0,\"pitch\":0,\"roll\":0,\"decoder\":0,\"orbit\":0,\"orbitRate\":0.1,\"inputMode\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-behindYou').click(); })()"
+    "name": "lesson behindYou: recipe values set through the stub states (everything else default, outputLevel untouched) + the button click and the C++ presetState push (the click no longer lights: P11) for its caption (label.tourCaption.behindYou, the lit button)",
+    "eval": "(() => { const P = {\"azimuth\":180,\"elevation\":0,\"distance\":1,\"order\":0,\"yaw\":0,\"pitch\":0,\"roll\":0,\"decoder\":0,\"orbit\":0,\"orbitRate\":0.1,\"inputMode\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-behindYou').click(); window.__stubEmit('presetState', {\"name\": \"Behind You\", \"id\": \"behindYou\", \"factory\": true, \"modified\": false}); })()"
   },
   {
-    "name": "lesson overhead: recipe values set through the stub states (everything else default, outputLevel untouched) + the button click for its caption (label.tourCaption.overhead, the lit button)",
-    "eval": "(() => { const P = {\"azimuth\":0,\"elevation\":90,\"distance\":1,\"order\":1,\"yaw\":0,\"pitch\":0,\"roll\":0,\"decoder\":0,\"orbit\":0,\"orbitRate\":0.1,\"inputMode\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-overhead').click(); })()"
+    "name": "lesson overhead: recipe values set through the stub states (everything else default, outputLevel untouched) + the button click and the C++ presetState push (the click no longer lights: P11) for its caption (label.tourCaption.overhead, the lit button)",
+    "eval": "(() => { const P = {\"azimuth\":0,\"elevation\":90,\"distance\":1,\"order\":1,\"yaw\":0,\"pitch\":0,\"roll\":0,\"decoder\":0,\"orbit\":0,\"orbitRate\":0.1,\"inputMode\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-overhead').click(); window.__stubEmit('presetState', {\"name\": \"Overhead\", \"id\": \"overhead\", \"factory\": true, \"modified\": false}); })()"
   },
   {
-    "name": "lesson rotateRoom: recipe values set through the stub states (everything else default, outputLevel untouched) + the button click for its caption (label.tourCaption.rotateRoom, the lit button)",
-    "eval": "(() => { const P = {\"azimuth\":60,\"elevation\":0,\"distance\":1,\"order\":1,\"yaw\":120,\"pitch\":0,\"roll\":0,\"decoder\":0,\"orbit\":0,\"orbitRate\":0.1,\"inputMode\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-rotateRoom').click(); })()"
+    "name": "lesson rotateRoom: recipe values set through the stub states (everything else default, outputLevel untouched) + the button click and the C++ presetState push (the click no longer lights: P11) for its caption (label.tourCaption.rotateRoom, the lit button)",
+    "eval": "(() => { const P = {\"azimuth\":60,\"elevation\":0,\"distance\":1,\"order\":1,\"yaw\":120,\"pitch\":0,\"roll\":0,\"decoder\":0,\"orbit\":0,\"orbitRate\":0.1,\"inputMode\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-rotateRoom').click(); window.__stubEmit('presetState', {\"name\": \"Rotate the Room\", \"id\": \"rotateRoom\", \"factory\": true, \"modified\": false}); })()"
   },
   {
-    "name": "lesson farNear: recipe values set through the stub states (everything else default, outputLevel untouched) + the button click for its caption (label.tourCaption.farNear, the lit button)",
-    "eval": "(() => { const P = {\"azimuth\":0,\"elevation\":0,\"distance\":12,\"order\":0,\"yaw\":0,\"pitch\":0,\"roll\":0,\"decoder\":0,\"orbit\":0,\"orbitRate\":0.1,\"inputMode\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-farNear').click(); })()"
+    "name": "lesson farNear: recipe values set through the stub states (everything else default, outputLevel untouched) + the button click and the C++ presetState push (the click no longer lights: P11) for its caption (label.tourCaption.farNear, the lit button)",
+    "eval": "(() => { const P = {\"azimuth\":0,\"elevation\":0,\"distance\":12,\"order\":0,\"yaw\":0,\"pitch\":0,\"roll\":0,\"decoder\":0,\"orbit\":0,\"orbitRate\":0.1,\"inputMode\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-farNear').click(); window.__stubEmit('presetState', {\"name\": \"Far Away - Up Close\", \"id\": \"farNear\", \"factory\": true, \"modified\": false}); })()"
   },
   {
-    "name": "lesson slowOrbit: recipe values set through the stub states (everything else default, outputLevel untouched) + the button click for its caption (label.tourCaption.slowOrbit, the lit button)",
-    "eval": "(() => { const P = {\"azimuth\":0,\"elevation\":0,\"distance\":1,\"order\":1,\"yaw\":0,\"pitch\":0,\"roll\":0,\"decoder\":0,\"orbit\":1,\"orbitRate\":0.05,\"inputMode\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-slowOrbit').click(); })()"
+    "name": "lesson slowOrbit: recipe values set through the stub states (everything else default, outputLevel untouched) + the button click and the C++ presetState push (the click no longer lights: P11) for its caption (label.tourCaption.slowOrbit, the lit button)",
+    "eval": "(() => { const P = {\"azimuth\":0,\"elevation\":0,\"distance\":1,\"order\":1,\"yaw\":0,\"pitch\":0,\"roll\":0,\"decoder\":0,\"orbit\":1,\"orbitRate\":0.05,\"inputMode\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-slowOrbit').click(); window.__stubEmit('presetState', {\"name\": \"Slow Orbit\", \"id\": \"slowOrbit\", \"factory\": true, \"modified\": false}); })()"
   },
   {
-    "name": "lesson speakersHeadphones: recipe values set through the stub states (everything else default, outputLevel untouched) + the button click for its caption (label.tourCaption.speakersHeadphones, the lit button)",
-    "eval": "(() => { const P = {\"azimuth\":45,\"elevation\":0,\"distance\":1,\"order\":2,\"yaw\":0,\"pitch\":0,\"roll\":0,\"decoder\":1,\"orbit\":0,\"orbitRate\":0.1,\"inputMode\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-speakersHeadphones').click(); })()"
+    "name": "lesson speakersHeadphones: recipe values set through the stub states (everything else default, outputLevel untouched) + the button click and the C++ presetState push (the click no longer lights: P11) for its caption (label.tourCaption.speakersHeadphones, the lit button)",
+    "eval": "(() => { const P = {\"azimuth\":45,\"elevation\":0,\"distance\":1,\"order\":2,\"yaw\":0,\"pitch\":0,\"roll\":0,\"decoder\":1,\"orbit\":0,\"orbitRate\":0.1,\"inputMode\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-speakersHeadphones').click(); window.__stubEmit('presetState', {\"name\": \"Speakers vs Headphones\", \"id\": \"speakersHeadphones\", \"factory\": true, \"modified\": false}); })()"
+  },
+  {
+    "name": "preset Init (preset.init on the name box, nothing lit, label.tourDefault)",
+    "eval": "(() => { window.__stubEmit('presetState', {\"name\": \"Init\", \"id\": \"init\", \"factory\": true, \"modified\": false}); })()"
+  },
+  {
+    "name": "preset Point Source (FOA) MODIFIED (the widest factory label in fr, the modified dot, nothing lit)",
+    "eval": "(() => { window.__stubEmit('presetState', {\"name\": \"Point Source (FOA)\", \"id\": \"pointSource\", \"factory\": true, \"modified\": true}); })()"
+  },
+  {
+    "name": "a 64-character user preset name (ellipsised in the pinned name box; Delete enabled)",
+    "eval": "(() => { window.__stubEmit('presetState', {\"name\": \"A very long user preset name that runs past the edge of the box!\", \"id\": \"\", \"factory\": false, \"modified\": false}); })()"
+  },
+  {
+    "name": "a user preset (My Scene) current, then the preset list open (factory labels via FACTORY_LABELERS, the separator, the raw user names)",
+    "eval": "(() => { window.__stubEmit('presetState', {\"name\": \"My Scene\", \"id\": \"\", \"factory\": false, \"modified\": false}); const l = document.getElementById('presetList'); if (l.hidden) document.getElementById('presetName').click(); })()"
+  },
+  {
+    "name": "preset list closed (Escape)",
+    "eval": "(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); })()"
+  },
+  {
+    "name": "Save popover open (preset.saveTitle, the placeholder, preset.cancel / preset.ok)",
+    "eval": "(() => { const p = document.getElementById('presetPopover'); if (p.hidden) document.getElementById('presetSave').click(); document.getElementById('presetPopInput').value = ''; })()"
+  },
+  {
+    "name": "Save with an empty name (preset.errEmpty)",
+    "eval": "(() => { document.getElementById('presetPopOk').click(); })()"
+  },
+  {
+    "name": "Save refused: a factory label in another language (preset.errFactoryName)",
+    "eval": "(() => { const i = document.getElementById('presetPopInput'); i.value = 'Derrière vous'; i.dispatchEvent(new Event('input')); document.getElementById('presetPopOk').click(); })()"
+  },
+  {
+    "name": "Save over an existing user name in another case: Replace? (preset.confirmReplace)",
+    "eval": "(() => { const i = document.getElementById('presetPopInput'); i.value = 'my scene'; i.dispatchEvent(new Event('input')); document.getElementById('presetPopOk').click(); })()"
+  },
+  {
+    "name": "Save popover closed (Escape)",
+    "eval": "(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); })()"
+  },
+  {
+    "name": "Delete? confirm on the user preset My Scene (preset.confirmDelete)",
+    "eval": "(() => { window.__stubEmit('presetState', {\"name\": \"My Scene\", \"id\": \"\", \"factory\": false, \"modified\": false}); const p = document.getElementById('presetPopover'); if (p.hidden) document.getElementById('presetDelete').click(); })()"
+  },
+  {
+    "name": "Delete popover closed (Escape), back to Init",
+    "eval": "(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); window.__stubEmit('presetState', {\"name\": \"Init\", \"id\": \"init\", \"factory\": true, \"modified\": false}); })()"
   }
 ]

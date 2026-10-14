@@ -1,0 +1,125 @@
+{
+  "critic": "dsp-critic",
+  "plugin": "O-simpleAmbisonics",
+  "stage": "4-polish",
+  "attempt": 1,
+  "maxAttempts": 3,
+  "timestamp": "2026-10-14T12:00:00Z",
+  "scores": {
+    "realtime_safety": {
+      "score": 9,
+      "threshold": 8,
+      "passed": true,
+      "details": "processBlock path (PluginProcessor.cpp:262-357 -> SpatialEngine::process -> DistanceModel / ShRotator / BinauralConvolver / DecoderMixer) has no new/malloc/make_unique, no vector growth (all std::vector assign() in prepare only: PluginProcessor.cpp:225-226, BinauralConvolver.h:165,224,252,267), no std::function, no locks, no logging, no callAsync. ScopedNoDenormals at :264. juce::dsp::FFT constructed once as a member (BinauralConvolver.h:465). Meter payload crosses via a wait-free SPSC TripleBuffer of a trivially-copyable MeterFrame, single reader on the message thread (PluginEditor.cpp:322,383). Only nits: JUCE FFTFallback (Windows/Linux) takes an uncontended SpinLock per transform, and processBlock-before-prepare would spin forever (DSP-004)."
+    },
+    "buffer_handling": {
+      "score": 8,
+      "threshold": 7,
+      "passed": true,
+      "details": "Zero-length / zero-channel early return (:270), oversized host block sliced to <= maxBlock (:298-329), negotiated input width from the bus layout not the buffer (:222, :287), extra channels cleared (:347-348), finite scrub (:332-343), sample rate stored and every constant re-derived in prepare (SpatialEngine.h:196-209, BinauralConvolver.h:149-269), control grid persists across slices. Gaps: AudioProcessor::reset() not overridden so the engine's reset() is dead code (DSP-002); getTailLengthSeconds() = 0 with an FIR tail (DSP-005); no guard for maxBlock == 0 (DSP-004)."
+    },
+    "parameter_integration": {
+      "score": 8,
+      "threshold": 6,
+      "passed": true,
+      "details": "All 12 parameters read once per block through cached raw atomics (PluginProcessor.cpp:185-209, :282, :284) and all affect DSP: azimuth/elevation/yaw/pitch/roll via wrap-aware one-poles on the 64-sample grid + per-sample lerp; distance via one-pole g/G/m; order via LinearRamp band gains + dual-bank convolver fade; decoder via 20 ms LinearRamp mix; orbit/orbitRate via OrbitLfo; outputLevel via seeded LinearSmoothedValue (dB->gain, -60 = 0). Stepped+skewed ranges are snapped (:200, :207) so defaults are exact. Only inputMode switches instantaneously (DSP-003)."
+    },
+    "numerical_stability": {
+      "score": 6,
+      "threshold": 6,
+      "passed": true,
+      "details": "Denormals handled (FTZ), atan2/asin clamp for the meter (SpatialEngine.h:388-391), TPT cutoff clamped to 0.45 fs before tan (DistanceModel.h:75-79), meter JSON maps non-finite to 0. Main gap: one non-finite input sample permanently poisons the DistanceModel TPT integrator state z; because the wet-mix form u + m*(lp - u) yields NaN even at m = 0, and the block scrub then clears every block, the plugin goes silent until the next prepareToPlay (DSP-001). No output safety against the documented +15 dB worst-case gain (DSP-006, note)."
+    },
+    "architecture_alignment": {
+      "score": 8,
+      "threshold": 5,
+      "passed": true,
+      "details": "Chain matches ARCHITECTURE / CONTEXT-2.x: SN3D/ACN/AmbiX encoder (signs verified: ACN1 = sin a cos e, +90 = left), Ivanic-Ruedenberg rotation with ACN permutation p = (1,2,0) (U/V/W terms and P() boundary cases checked against the paper), W/Y/X +/-60 deg cardioid stereo decode, grid-synchronous UPOLS (128-pt FFT, overlap-save [prev|in], valid half [64,128), newest FDL slot paired with partition 0) giving exactly 64 samples structural latency, set via setLatencySamples in prepareToPlay. SN3D/N3D: rotation blocks commute with per-order scaling; the generator builds the MagLS banks against its own SN3D matrix with an N3D->SN3D oracle check. Deviation: CONTEXT-2.3 D9 planned a ~8-sample onset guard; shipped bank onsets are 50-84 samples (DSP-007, note)."
+    }
+  },
+  "overallStatus": "PASSED",
+  "overallScore": 7.8,
+  "issues": [
+    {
+      "id": "DSP-001",
+      "severity": "warning",
+      "category": "numerical_stability",
+      "location": "Source/dsp/DistanceModel.h:131-136 (with Source/PluginProcessor.cpp:304-310 and :332-343)",
+      "description": "The air-LP integrator state z (z = lp + v, :134) is updated on every sample at every distance, and the input is never sanitised before it (conditioner :304-310). A single NaN reaching processBlock (e.g. from a misbehaving upstream plugin), or an Inf, which becomes NaN on the next sample as Inf - Inf, latches z = NaN for good. At d <= 1 m the wet mix is m = 0, but u + 0*(NaN - u) is still NaN (0*NaN = NaN), so every later sample is NaN in both decoder modes. The block-level scrub (:332-343) then clears the whole output on every block. Result: the plugin goes silent and stays silent until the next prepareToPlay. A transport stop does not recover it, because reset() is not overridden (DSP-002). The FDL, prev[] and FixedDelay states flush themselves within K grids or 64 samples; z is the one permanent latch. No harness probe feeds non-finite input.",
+      "fixSuggestion": "Sanitise the conditioned mono sample in the processor's conditioner loop (replace a non-finite value with 0) so nothing non-finite reaches the engine state. Also add a cheap per-control-step guard in DistanceModel::controlStep that zeroes z when it is not finite. Add a harness probe: inject one NaN and one Inf sample mid-render, then assert the output is finite and non-silent again within K+1 grids."
+    },
+    {
+      "id": "DSP-002",
+      "severity": "warning",
+      "category": "buffer_handling",
+      "location": "Source/PluginProcessor.h:58-85 (no reset() override); Source/dsp/SpatialEngine.h:213-218 (engine reset() never called)",
+      "description": "AudioProcessor::reset() is not overridden. The JUCE VST3 wrapper calls it from setProcessing(false) (vendored juce_audio_plugin_client_VST3.cpp:3470-3473) and AU calls it from Reset. Nothing is cleared at transport stop/start or offline-bounce start: the convolver FDL/prev/out buffers, the 64-sample stereo delays and the air-LP state survive. The next playback then begins with up to about 64 + L samples (6.7 ms at 48 k) of the previous material's tail, and smoothers resume mid-glide. SpatialEngine::reset() already exists (delays/filter zeroed, conv.reset via snapToParams, allocation-free) but is dead code.",
+      "fixSuggestion": "Override reset() in the processor so it copies fillParams() into the engine, calls engine.reset(), re-seeds outputGain to the current outputLevel, and zeroes the output-peak accumulators. That mirrors prepareToPlay without the allocations. This also gives DSP-001 a host-driven recovery path."
+    },
+    {
+      "id": "DSP-003",
+      "severity": "warning",
+      "category": "parameter_integration",
+      "location": "Source/PluginProcessor.cpp:282, :307-308",
+      "description": "inputMode (Mono sum / Left only) is applied as a hard per-block switch in the conditioner, with no ramp. On a stereo input whose channels differ, toggling it or automating it (or a lesson/preset changing it in future) during playback steps the source signal from 0.5(L+R) to L in one sample. That step is an audible click, which is the zipper class every other parameter in this plugin was built to avoid with the 20 ms ramps.",
+      "fixSuggestion": "Add a LinearRamp (or LinearSmoothedValue) for the left-only weight. Step it on the same 20 ms kRampStep, or per sample with a seeded 20 ms smoother set in prepareToPlay. Blend in the A3 form mono = sum + w*(L - sum), so each endpoint stays bit-exact (w = 0 gives Mono sum, w = 1 gives Left only) and the existing digests are unaffected."
+    },
+    {
+      "id": "DSP-004",
+      "severity": "note",
+      "category": "realtime_safety",
+      "location": "Source/PluginProcessor.cpp:298 (maxBlock initialised 0 at Source/PluginProcessor.h:177)",
+      "description": "If processBlock ever runs before prepareToPlay (a host contract violation, but seen with some hosts during scanning or after a failed re-prepare), maxBlock == 0. The slice loop 'for (start = 0; start < n; start += maxBlock)' never advances and the audio thread spins forever. The convolver vectors are also still empty at that point.",
+      "fixSuggestion": "At the top of processBlock, clear the buffer and return when maxBlock <= 0 (or when monoScratch is empty), so an unprepared instance outputs silence instead of hanging the audio thread."
+    },
+    {
+      "id": "DSP-005",
+      "severity": "note",
+      "category": "buffer_handling",
+      "location": "Source/PluginProcessor.h:76",
+      "description": "getTailLengthSeconds() returns 0, but the Binaural leg is a 256-tap (L at the host rate) FIR on top of the 64-sample structural latency. With a reported tail of 0, hosts that suspend plugins on silent input or end offline bounces at the tail boundary can drop the last ~(64 + L)/fs (about 6.7 ms at 48 k) of HRIR decay.",
+      "fixSuggestion": "Return (kPartition + kBinauralFilterTaps) / 48000.0 plus a small margin (the FIR length in seconds is rate-independent after resampling), or compute it from the convolver's L and the current sample rate."
+    },
+    {
+      "id": "DSP-006",
+      "severity": "note",
+      "category": "numerical_stability",
+      "location": "Source/dsp/DistanceModel.h:69-72; Source/dsp/BinauralFilterData.h:45",
+      "description": "Worst-case gain from the documented design: distance 0.2 m is +8.9 dB and the order-3 MagLS bank peaks at +6.52 dB (9.5 kHz), so a 0 dBFS input can produce roughly +15 dBFS in Binaural mode. Only the lesson table avoids that corner (PluginProcessor.cpp:424-425). A user can reach it by hand, and no output safety stage exists. In float this is not internal clipping, but it is a level surprise for a teaching plugin, and a clip on any fixed-point output stage.",
+      "fixSuggestion": "Decide this explicitly in Stage 4. Either document it in the manual/tooltips (distance near-field boost plus order-3 HRTF peaks), or add a transparent output safety: a soft clip above 0 dBFS that is bypassed bit-exactly below threshold, so the digests and anchors are untouched."
+    },
+    {
+      "id": "DSP-007",
+      "severity": "note",
+      "category": "architecture_alignment",
+      "location": "Source/dsp/BinauralFilterData.h:58; Source/dsp/SpatialEngine.h:427",
+      "description": "CONTEXT-2.3 D9 planned to trim the bank's common leading delay to a guard of about 8 samples (about 0.17 ms) and justified the 64-only stereo delay on that number. The shipped front onsets are 84 / 70 / 50 samples at 48 k (1.75 / 1.46 / 1.04 ms; 168 / 99 at 96 k). So during the 20 ms Binaural<->Stereo fade the two legs are offset by about 1-1.75 ms, which gives transient comb notches (first notch about 290-480 Hz). Order fades crossfade banks offset by 14-34 samples. The audible effect is brief and the reported latency is correctly the structural 64, but the documented rationale no longer matches the data.",
+      "fixSuggestion": "Either re-trim the generator's common delay toward the planned guard (it will move the digests and onset gates, so re-baseline), or update CONTEXT/ARCHITECTURE to record the real 50-84 sample onset and accept the brief crossfade comb. Optionally, align the stereo leg by delaying it an extra kBinauralOnsetFrontSamples[3] samples, but only if digest-2.1/2.2 re-baselining is acceptable."
+    },
+    {
+      "id": "DSP-008",
+      "severity": "info",
+      "category": "buffer_handling",
+      "location": "Source/dsp/BinauralConvolver.h:130, :245",
+      "description": "At 352.8 / 384 kHz, L = ceil(256*fs/48000) = 2048, so K = 32 > kConvMaxK = 16 and the jassert fires in Debug builds (pluginval in Debug, harness). Release behaviour is correct, since every K-dependent store is a std::vector sized by K, and CPU at K = 32 is still small.",
+      "fixSuggestion": "Raise kConvMaxK to 32 (it is a documented expectation, not a buffer bound), or limit the jassert to the rates the plugin claims to support."
+    },
+    {
+      "id": "DSP-009",
+      "severity": "info",
+      "category": "realtime_safety",
+      "location": "Source/dsp/BinauralConvolver.h:350, :459 (JUCE juce_FFT.cpp:115)",
+      "description": "On Windows/Linux, juce::dsp::FFT uses FFTFallback, which takes a SpinLock inside every perform and uses alloca scratch below 256 KB, so there is no heap allocation at N = 128. The lock is per-instance and is only touched by prepare() (message thread, never concurrent with processing) and the audio thread, so it is uncontended. This is listed for completeness; it is not a defect.",
+      "fixSuggestion": "No change needed. If a cross-platform RT audit is ever wanted, note it in ARCHITECTURE alongside the vDSP/Fallback determinism note (D6)."
+    },
+    {
+      "id": "DSP-010",
+      "severity": "info",
+      "category": "architecture_alignment",
+      "location": "Source/PluginProcessor.cpp:426-482; Source/dsp/ShRotator.h:187-234; Source/dsp/ShEncoder.h:108-136",
+      "description": "Verified clean (no findings): SN3D/ACN encoder constants and the AmbiX azimuth sign; the I-R recursion U/V/W coefficients, delta handling and P() edge cases; the order-1 ACN permutation; the UPOLS overlap-save layout and FDL indexing; bank fade arrive -> requestSet -> step ordering with latest-wins queue; the D3 copy flag computed after mixer.controlStep; TripleBuffer peak-since-last-read gating; the 44.1 k-family resampler DC calibration; state save/restore of DSP params via APVTS replaceState. The provisional kLessons recipes map choice indices correctly (order 0/1/2 -> 1/2/3, decoder 1 = Stereo) and never touch outputLevel. Acknowledged and not flagged: fixed 64 latency, 12 frozen params, verify_2_1 V3 stale Binaural arm, encReadN ellipsis, chevron/puck overlap.",
+      "fixSuggestion": "None."
+    }
+  ],
+  "nextAction": "gate_pass"
+}

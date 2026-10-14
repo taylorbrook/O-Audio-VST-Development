@@ -3,6 +3,9 @@
 # Measurer notes: a pedalboard set of distance_m quantises to its own grid (1.0 -> ~1.004 m, engages the air LP);
 # leave distance at the APVTS default (or set raw_value) for the 0.75 anchor. Short-way gates are relative to the
 # static cardioid asymmetry at the start angle. `orbit` reads back as a numpy bool.
+# Stage 4: the Binaural V3 arm was retired — it asserted the 2.1 single-sample response, which the 2.3 MagLS
+# filters replaced by design. The real Binaural onset / latency is verify_2_3.py V2 (onset = 100 +
+# kBinauralOnsetFrontSamples[order], same 64-sample latency) and its IR identity is verify_2_3.py V1.
 """Independent measurer for O-simpleAmbisonics Phase 2.1 — installed VST3 via pedalboard.
 
 Nothing here shares code with the project harness or ReferenceModel.
@@ -44,7 +47,7 @@ noise = rng.standard_normal((2, N)).astype(np.float32) * 0.1
 tone = (0.5 * np.sin(2 * np.pi * 200 * np.arange(N) / FS)).astype(np.float32)
 tone2 = np.stack([tone, tone])
 
-# ---------- V1: default (Binaural placeholder) is NOT silent ----------
+# ---------- V1: default (Binaural) is NOT silent ----------
 p = fresh()
 y = run(p, noise)
 check("V1 default (Binaural, az 0, d 1) not silent, both channels", rms(y[0]) > 0.01 and rms(y[1]) > 0.01,
@@ -76,7 +79,7 @@ check("V2 front: L in phase with the (delayed) source — corr computed after ho
 
 # ---------- V3: impulse latency + anchor level ----------
 imp = np.zeros((2, 4096), np.float32); imp[:, 100] = 1.0
-for dec in ("Stereo", "Binaural"):
+for dec in ("Stereo",):  # Binaural onset is gated by verify_2_3.py V2 (see header)
     p = fresh(); setp(p, decoder=dec, azimuth=0.0, elevation=0.0, order="1")  # distance left at the APVTS default (1 m); a pedalboard set quantises to ~1.004 m
     print(f"    (fresh distance_m reads {p.distance_m}, raw {p.parameters['distance_m'].raw_value:.6f})")
     y = run(p, imp)

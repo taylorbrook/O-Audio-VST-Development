@@ -1,0 +1,123 @@
+{
+  "critic": "architecture-critic",
+  "plugin": "O-simpleAmbisonics",
+  "stage": "4-polish",
+  "attempt": 1,
+  "maxAttempts": 3,
+  "timestamp": "2026-10-14T18:44:45Z",
+  "scores": {
+    "contractAlignment": {
+      "score": 8,
+      "threshold": 7,
+      "passed": true,
+      "details": "Signal chain matches ARCHITECTURE Processing Chain exactly (conditioner -> DistanceModel -> ShEncoder w/ order gating -> ShRotator -> {BinauralConvolver | StereoDecoder + FixedDelay<64>} -> DecoderMixer -> seeded outputGain -> isfinite scrub -> MeterFrame publish): SpatialEngine.h:400-439, PluginProcessor.cpp:262-357. Every listed component has a header in Source/dsp/. Deviations are all decided and documented in CONTEXT/RESEARCH (grid-synchronous UPOLS without FIFO, D1; kStereoLevelMatch == 1 with the level match baked into the filter scale, D2; own TPT instead of juce::dsp::FirstOrderTPTFilter, D4; LinearRamp instead of SmoothedValue for the decoder mix; Smoothers.h instead of WrapSmoother.h; uiLanguage + editorScale custom state vs 'Custom state: none'), but ARCHITECTURE.md itself was never amended (ARCH-007). Real gap: a single non-finite input sample latches the engine silent until the next prepareToPlay (ARCH-002)."
+    },
+    "moduleUsage": {
+      "score": 5,
+      "threshold": 6,
+      "passed": false,
+      "details": "eb-garamond direct embed correct (CMakeLists.txt:73-76, PluginEditor.cpp:128-135). TripleBuffer is a third verbatim copy (documented deferral). Blocker: the WebView options never select Backend::webview2, so on Windows JUCE uses the legacy IE backend, ignores withWinWebView2Options and has no resource provider -> 'page not found' (ARCH-001). The 2026-10-14 cross-plugin fix (b477dc83 + 8a83d78f) covered 10 plugins but not this one, and the Stage-4 PLAN does not list it."
+    },
+    "namingConventions": {
+      "score": 9,
+      "threshold": 5,
+      "passed": true,
+      "details": "O- prefix, PascalCase classes, camelCase methods and parameter IDs (PluginProcessor.h:44-55), namespaces OSimpleAmbisonics::{ParamIDs,dsp,ui} with the osa_dsp alias to avoid the juce::dsp ambiguity (PluginProcessor.cpp:69-70). Only drift is doc-level (ARCHITECTURE names WrapSmoother.h; code has Smoothers.h)."
+    },
+    "dependencyDirection": {
+      "score": 9,
+      "threshold": 7,
+      "passed": true,
+      "details": "Include graph is acyclic and one-directional: Source/dsp/* includes only sibling dsp headers (+ juce_dsp in BinauralConvolver.h only); MeterFramePayload.h is JUCE-free and depends only on dsp/MeterFrame.h + dsp/TripleBuffer.h; PluginProcessor.h never includes the editor (the .cpp includes it under #if JUCE_WEB_BROWSER at PluginProcessor.cpp:359-361). Editor touches the processor only through apvts, meterFrames, uiLanguage, editorScale and applyFactoryPreset. UI-only state (uiLanguage/editorScale/language codec) lives on the processor (house pattern; acceptable coupling)."
+    },
+    "threadModel": {
+      "score": 8,
+      "threshold": 7,
+      "passed": true,
+      "details": "Supplementary category. Audio thread: atomic loads once per block (fillParams), no locks, no allocation (gated PERF-01). Audio->UI: TripleBuffer<MeterFrame> SPSC, single consumer (editor Timer; ctor drain at PluginEditor.cpp:322 is the same thread). UI->audio: APVTS only. State: uiLanguage/editorScale atomics, safe for off-message-thread getStateInformation. Gesture tracking atomics. Minor: TripleBuffer::read clears newData before swapping middle, so a publish landing between the two can make the next tick re-show an older frame (ARCH-006, display-only)."
+    },
+    "testCoverage": {
+      "score": 8,
+      "threshold": 7,
+      "passed": true,
+      "details": "Supplementary category. Harness is strong and non-vacuous: independent double ReferenceModel (shares only BinauralFilterData.h, ReferenceModel.h:84-90), negative controls for every click gate, liveness checks on every bit-equality gate, slicing/oversized-block bit-equality in Stereo and Binaural, allocation counter with a positive control, payload fuzz (PL1). Gaps: no non-finite INPUT gate (ARCH-002 passes every gate because all stimuli are finite); lesson ids live in three hand-maintained copies with no cross-link between the C++ table and the page (ARCH-003), which the Stage-4 recipe-table move will exercise."
+    }
+  },
+  "overallStatus": "NEEDS_FIXES",
+  "overallScore": 7.8,
+  "issues": [
+    {
+      "id": "ARCH-001",
+      "severity": "error",
+      "category": "moduleUsage",
+      "location": "Source/PluginEditor.cpp:162-179 (and 254-264)",
+      "description": "WebBrowserComponent::Options never calls .withBackend (juce::WebBrowserComponent::Options::Backend::webview2). On Windows Backend::defaultBackend is the legacy IE control: withWinWebView2Options (lines 258-263) is ignored and there is no resource provider, so the editor shows 'page not found' / a blank page in every Windows host. macOS is unaffected, so build, auval, pluginval, boot-all-uis and the Stage-4 Windows CI build (T13) all pass while COMPAT-02 is broken. This plugin was named in the 2026-10-14 census (memory critical_webview2_runtime_gotchas_windows) but was not in fix commit b477dc83, and the Stage-4 PLAN has no task for it.",
+      "fixSuggestion": "Add .withBackend (juce::WebBrowserComponent::Options::Backend::webview2) to the options chain in PluginEditor.cpp (same shape as b477dc83 for the siblings), keep the withUserDataFolder block, and add a source gate (grep -L withBackend over editors with withResourceProvider) to the Stage-4 T10/T12 sweep so it cannot regress. Do it in T3 so it lands before the CP2 Windows CI run."
+    },
+    {
+      "id": "ARCH-002",
+      "severity": "warning",
+      "category": "contractAlignment",
+      "location": "Source/dsp/DistanceModel.h:125-137; Source/PluginProcessor.cpp:304-312, 331-343",
+      "description": "One NaN/Inf input sample permanently poisons the TPT state z (z = lp + v), so every later sample is NaN. This happens even at d <= 1 m, because the D7 mix does u + 0·(lp − u) and 0·NaN = NaN. The bus, the convolver FDL and the stereo delay then carry NaN, and the processBlock scrub clears the whole block: the plugin goes silent for the rest of the session. Nothing recovers it: z is only cleared by snapTo/reset, which run only from prepareToPlay, and the processor does not override AudioProcessor::reset(). Inf input reaches the same state one sample later (inf − inf). QUAL-01 ('no NaN under any extreme') and the harness cover parameter extremes only; there is no non-finite input stimulus, so every gate stays green.",
+      "fixSuggestion": "Scrub non-finite samples out of the conditioner loop in PluginProcessor.cpp:304-310 (std::isfinite → 0) so the engine never sees NaN or Inf. Alternatively, have the finite scrub at :331-343 set a flag that calls engine.reset() at the start of the next block. Override AudioProcessor::reset() to call engine.reset(). Add a harness gate: one NaN sample at n = 1000, then assert the output is finite and non-zero again within K + 2 grids, at d = 1 m and d = 12 m, in both decoders."
+    },
+    {
+      "id": "ARCH-003",
+      "severity": "warning",
+      "category": "testCoverage",
+      "location": "Source/PluginProcessor.cpp:431-440; Source/ui/public/index.html:988-995, 2418-2424; tests/render-harness/main.cpp:4085-4092; tests/ui-probes/lesson-row-budget.mjs:65",
+      "description": "The 8 lesson ids/recipes exist in four hand-kept copies: kLessons (C++), the data-preset buttons plus LESSON_CAPTIONERS (page), the ST6 recipe mirror (harness) and LESSON_IDS (probe). ST6 checks C++ against the harness copy, and lesson-row-budget checks the page against the probe copy. No gate checks the C++ table against the page. During the Stage-4 PresetRecipes.h move, a renamed or misspelled id passes both gates: applyFactoryPreset returns false, and the page ignores the result (index.html:2423 only .catch()es a rejection) while it still toggles .active and shows the caption. The button looks like it worked but nothing moves.",
+      "fixSuggestion": "When PresetRecipes.h lands (T6), have the harness emit the kFactory id list (e.g. into tests/ui-fixtures) and make lesson-row-budget.mjs read that list instead of its literal LESSON_IDS. Also assert that the page's data-preset set equals it. In the page, check the native's boolean result and console.warn plus skip the .active/caption change when it is false."
+    },
+    {
+      "id": "ARCH-004",
+      "severity": "note",
+      "category": "contractAlignment",
+      "location": "Source/PluginProcessor.h:76",
+      "description": "getTailLengthSeconds() returns 0.0, but the chain has a real tail after input stops: the 64-sample structural latency plus the 256-tap MagLS FIR (512 at 96 kHz) plus the air LP. That is about 6.7 ms at 48 kHz. Hosts that use the tail to decide when to stop processing, or how far a bounce/freeze/offline render runs past the region end, can truncate the last few ms of the binaural response. It is inaudible on most material, but on percussive tails it is a measurable cut.",
+      "fixSuggestion": "Return (kPartition + convolver tapsAtRate()) / sampleRate (cache it in prepareToPlay; ≈ 0.0067 s) or a fixed conservative 0.01 s from getTailLengthSeconds()."
+    },
+    {
+      "id": "ARCH-005",
+      "severity": "note",
+      "category": "moduleUsage",
+      "location": "Source/PluginProcessor.cpp:455-480",
+      "description": "Maintainability hotspot for the Stage-4 refactor. applyFactoryPreset hard-codes the user-owned exclusion as a string compare on outputLevel only, so inputMode is currently RESET to Mono sum by every lesson, and ST6 (main.cpp:4120-4130) asserts exactly that. R-D3 makes inputMode user-owned. If the new apply core (P2) and ST6 are not changed in the same commit, either ST6 goes red or, worse, the mirror gets 'fixed' to match whatever the code does.",
+      "fixSuggestion": "Put the user-owned set in one constexpr list beside the recipe table (e.g. ambpresets::kUserOwned = {outputLevel, inputMode}). The apply core, the 'modified' check and ST6 should all read that list, and ST6 should assert inputMode is bit-unchanged the same way it asserts outputLevel."
+    },
+    {
+      "id": "ARCH-006",
+      "severity": "note",
+      "category": "threadModel",
+      "location": "Source/dsp/TripleBuffer.h:62-67",
+      "description": "read() does newData.exchange(false) and THEN middle.exchange(readIdx). If the audio thread publishes between those two steps, the reader still gets the newest frame, but newData is left true while middle now holds the slot the reader just handed back, which is older. If no further publish arrives before the next 30 Hz tick (host idling right after a block), sampleFrame() sees fresh = true and re-shows the older frame. Because hasNewData() was briefly false, the writer also reset its peaks once, so the peaks of the frame that was overwritten are never shown. The effect is display-only and lasts one tick. The copy is verbatim from O-GrainScatter, so the siblings share it.",
+      "fixSuggestion": "No change is needed for v1.0. When core/triple-buffer is extracted (the deferred item in SUMMARY-2.1), switch to the standard form that packs the dirty bit into the middle index (one atomic exchange), so the swap and the clear are a single step."
+    },
+    {
+      "id": "ARCH-007",
+      "severity": "note",
+      "category": "contractAlignment",
+      "location": ".planning/research/ARCHITECTURE.md:71, 121-126, 135, 139, 214, 429",
+      "description": "ARCHITECTURE.md still describes the pre-implementation design: a FIFO front-end, kStereoLevelMatch computed by the script, juce::dsp::FirstOrderTPTFilter, SmoothedValue for the decoder mix, WrapSmoother.h, and 'Custom state: none'. All of these were replaced by documented decisions (CONTEXT-2.3 D1/D2/D4, Stage-3 editorScale/uiLanguage), and Stage 4 adds presetState. A reader or a later critic working from the contract alone will flag correct code as drift, or re-introduce the FIFO.",
+      "fixSuggestion": "Append an 'Implementation deltas (Stages 2–4)' section to ARCHITECTURE.md listing each replaced item and its decision reference (CONTEXT-2.3 D1/D2/D4, Stage-3 CONTEXT, Stage-4 R-D3/P1/P2) instead of editing the original text. Include the new state properties."
+    },
+    {
+      "id": "ARCH-008",
+      "severity": "note",
+      "category": "contractAlignment",
+      "location": "Source/ui/public/index.html:744, 830, 1887",
+      "description": "C++ facts are duplicated as page literals. The latency chip and the decoder line hard-code '64 samples' / '64-sample latency' and ignore the frame's latencySamples. distRadius() hard-codes the distance range as 0.2 m and log(100) instead of reading the relay's start/end. These are correct today, but they are a second source of truth: a range change is a frozen-param migration, and these literals would drift silently.",
+      "fixSuggestion": "The chip is retired by R-D1. For decLine, format from the frame's latencySamples. For distRadius, derive rMin/rMax from the distance slider state's properties (start/end) once at init."
+    },
+    {
+      "id": "ARCH-009",
+      "severity": "info",
+      "category": "contractAlignment",
+      "location": "Source/PluginProcessor.cpp:431-440",
+      "description": "Known intentional: the kLessons table is provisional and is being replaced by PresetRecipes.h plus the preset manager this stage. It has no defects beyond ARCH-003/ARCH-005. Also confirmed: latency is a fixed 64 at one call site (PluginProcessor.cpp:216), there are 12 frozen params, lessons never set outputLevel (cpp:462-463, gated by ST6), and the verify_2_1 V3 Binaural arm, the encReadN ellipsis and the chevron/puck overlap are carried items.",
+      "fixSuggestion": "No action from this critic beyond the T4/T5/T6 tasks already planned."
+    }
+  ],
+  "nextAction": "fix_and_resubmit"
+}
