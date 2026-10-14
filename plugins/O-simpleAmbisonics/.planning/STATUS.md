@@ -6,17 +6,17 @@ stage_phase: 0
 stage_phase_name: single-cycle
 stage_phase_total: 1
 artifact_suffix: ""
-status: stage_3_execute_complete
-last_updated: 2026-10-13
+status: stage_3_complete_verified
+last_updated: 2026-10-14
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-current_phase: execute
-next_phase: verify
-next_action: plugin-verify
+current_phase: verify
+next_phase: discuss
+next_action: plugin-discuss
 ui_scaffolding_phase_complete: true
-next_stage: 3
+next_stage: 4
 ready_for_implementation: true
 parameter_count: 12
 mockup_finalized: true
@@ -33,8 +33,11 @@ plugin_code: OSAm
 
 ## Current Position
 
-Stage: 3 of 4 (GUI) — discuss ✓ · mockup v1 ✓ · research ✓ · plan ✓ · **execute ✓ (3.1 ✓ 3.2 ✓ · visual checkpoint ✓ 2026-10-13, icon style `3d` · 3.3 ✓)** · verify next
-Status: **Stage 3 / execute complete (3.3 done).** T10 shared glossaries: an "ambisonics" section in `scripts/i18n-{fr,zh}-glossary.js` (own commit `bf3e12d9`; suite zh-lint 0 findings, suite fr-lint byte-identical to baseline — its one finding is the pre-existing O-DigiDelay T4). T11: en copy freeze (chanWell "FuMa letters, ACN order", azimuth ±180 automation note), fr pass to "format B", 16 copy width fixes + layout pins (title block 425, corner readouts, line boxes, lesson row, band-tag column 40, B-format caption unwrap, `label.routeOutput`). T12: `tests/i18n-states.json` (17 C++-producible states, 0 never-visible labels), `lesson-row-budget.mjs` (slack en 118.4 / fr 74.0 / zh 295.6 px; 8 natives with stable ids), `tooltip-clamp-probe.mjs` (31/31 at 1180×780 and 708×468). T13: check-i18n / fr-lint / zh-lint / check-ui-labels / boot-all-uis --strict-tips all exit 0 (0 DEAD, 0 late), frame-probe 13/13 + fuma / pole / idle FAIL as designed, icons --check 0; build 0 warnings, harness 251/251 (digests 2.1 / 2.2 PASS, 2.3 reproduced), installed, auval SUCCEEDED (pluginval not re-run — no editor / CMake change in 3.3). Open for verify: Logic R1–R3 + general hands-on, Standalone page → C++ (lesson moves its recipe, never Output — not drivable headless), eye-check of the 3.3 reflow, en `encReadN` ellipsis nit, verify_2_1 V3 decision. See `stages/3-gui/SUMMARY.md` Part 2.
+Stage: 3 of 4 (GUI) — **✅ VERIFIED 2026-10-14** · next: Stage 4 (Polish) discuss
+Status: **Stage 3 verified.** `stages/3-gui/VERIFICATION.md`: UI-01…08 complete (8/8). Independent re-run from a forced rebuild: 0 warnings; harness 251/251 ×2 (digests 2.1 `9189d911a1fe98d5` / 2.2 `7f35bc9f91e321b9` PASS, 2.3 reproduced); installed VST3 + AU cmp-identical; auval SUCCEEDED; pluginval s10 SUCCESS ×2 VST3 + ×2 AU with the WebView editor; verify_2_2 / 2_3 / 3_state pass; check-i18n / fr-lint / zh-lint / check-ui-labels / boot-all-uis --strict-tips exit 0; frame-probe 13/13 + 3 negative controls FAIL as designed; lesson-row-budget + tooltip-clamp ALL PASS; icons --check 0. Carried to Stage 4: human hands-on list (Logic R1–R3 + general, Standalone page → C++ lessons, D16 reflow eye-check), `verify_2_1` V3 Binaural arm stale since 2.3 (recommend narrowing to Stereo — user decision), `encReadN` ellipsis + chevron/puck nits, fr / zh review flags.
+
+Previous: Stage: 3 of 4 (GUI) — execute ✓ (3.1 ✓ 3.2 ✓ · visual checkpoint ✓ 2026-10-13 · 3.3 ✓)
+Previous: Status: **Stage 3 / execute complete (3.3 done).** T10 shared glossaries: an "ambisonics" section in `scripts/i18n-{fr,zh}-glossary.js` (own commit `bf3e12d9`; suite zh-lint 0 findings, suite fr-lint byte-identical to baseline — its one finding is the pre-existing O-DigiDelay T4). T11: en copy freeze (chanWell "FuMa letters, ACN order", azimuth ±180 automation note), fr pass to "format B", 16 copy width fixes + layout pins (title block 425, corner readouts, line boxes, lesson row, band-tag column 40, B-format caption unwrap, `label.routeOutput`). T12: `tests/i18n-states.json` (17 C++-producible states, 0 never-visible labels), `lesson-row-budget.mjs` (slack en 118.4 / fr 74.0 / zh 295.6 px; 8 natives with stable ids), `tooltip-clamp-probe.mjs` (31/31 at 1180×780 and 708×468). T13: check-i18n / fr-lint / zh-lint / check-ui-labels / boot-all-uis --strict-tips all exit 0 (0 DEAD, 0 late), frame-probe 13/13 + fuma / pole / idle FAIL as designed, icons --check 0; build 0 warnings, harness 251/251 (digests 2.1 / 2.2 PASS, 2.3 reproduced), installed, auval SUCCEEDED (pluginval not re-run — no editor / CMake change in 3.3). Open for verify: Logic R1–R3 + general hands-on, Standalone page → C++ (lesson moves its recipe, never Output — not drivable headless), eye-check of the 3.3 reflow, en `encReadN` ellipsis nit, verify_2_1 V3 decision. See `stages/3-gui/SUMMARY.md` Part 2.
 
 Previous: Status: **Stage 3 / execute parts 3.1 + 3.2 complete — waiting for the user's visual sign-off.** 3.2: SN3D icon generator (5 self-checks, `--check` clean) → `js/shicons.js` + contact sheet `stages/3-gui/sh-icons-contact.html` (pick 3D vs slice); page fixes U1 param fallback + `#chanWell.idle`, compass heading / fade / ▲▼ chevron, azRot pole hold, `180.0°`, head-sized dead zone, order clamp, bands + station counts from `orderActive`, dirty-flag rendering + puck sprites; `tests/ui-probes/frame-probe.mjs` **13/13** with fuma / pole / idle controls FAILING as designed; build 0 warnings, harness 251/251 (digests 2.1 / 2.2 PASS, 2.3 reproduced), installed, auval SUCCEEDED, pluginval s10 VST3 + AU SUCCESS. Checkpoint list: 8 plan items + page→C++ input hands-on (not drivable headless). Open: verify_2_1 V3 Binaural arm (3 checks) stale since Phase 2.3 — pre-existing, Stage-2 file not edited. SUMMARY.md content is in the gui-agent report (subagent file-write guard blocked it) — to be written by the invoking session.
 
@@ -106,7 +109,7 @@ Roll-up `stages/2-dsp/VERIFICATION.md` written at the 2.3 verify — **Stage 2 c
 | research | ✓ | 2026-10-13 | |
 | plan | ✓ | 2026-10-13 | |
 | execute | ✓ (3.1 ✓ 3.2 ✓ · checkpoint ✓ · 3.3 ✓) | 2026-10-13 | |
-| verify | | | |
+| verify | ✓ | 2026-10-14 | |
 
 ## Completed So Far
 
@@ -260,7 +263,8 @@ Roll-up `stages/2-dsp/VERIFICATION.md` written at the 2.3 verify — **Stage 2 c
 
 ## Next Steps
 
-0. **Stage 3 verify (next)**: `/plugin-verify O-simpleAmbisonics` — closes UI-01…08 against PLAN §Success criteria; human checklist in `stages/3-gui/SUMMARY.md` Part 2 (Logic R1–R3 + general, Standalone page → C++ lessons, eye-check of the 3.3 reflow); decide the verify_2_1 V3 arm and the en `encReadN` ellipsis nit
+0. **Stage 4 discuss (next)**: `/plugin-discuss O-simpleAmbisonics 4-polish` — scope: FUNC-08 preset bank (refine the 8 provisional lesson recipes), FUNC-09, COMPAT-02 (Logic + Ableton, Windows build), QUAL-01 preset-load clause, QUAL-02 headphone listening; fold in the Stage-3 carried human list, the `verify_2_1` V3 decision, the two UI nits, i18n review flags
+0a. ~~**Stage 3 verify**~~ done 2026-10-14 (`stages/3-gui/VERIFICATION.md`, ✅ VERIFIED): was `/plugin-verify O-simpleAmbisonics` — closes UI-01…08 against PLAN §Success criteria; human checklist in `stages/3-gui/SUMMARY.md` Part 2 (Logic R1–R3 + general, Standalone page → C++ lessons, eye-check of the 3.3 reflow); decide the verify_2_1 V3 arm and the en `encReadN` ellipsis nit
 1. ~~**UI mockup (prerequisite)**~~ done (mockup v1; kept for history): `/start O-simpleAmbisonics` → option 3 with `stages/3-gui/CONTEXT.md` as the brief — finalises `parameter-spec.md`, must keep the 12-parameter set; then `/plugin-research O-simpleAmbisonics 3-gui`. Stage-3 DSP contract: `MeterFrame` (shGain[16] post-rotation, shPeak[16], azEff / elEff pre-rotation, azRot / elRot, orderActive, decoderMix, latencySamples 64) via `TripleBuffer`; the puck readout formats the PARAMETER (the frame carries −11.999999 for −12); −180 displays as 180; gimbal-lock tooltip (compass holds within ≈ 0.01° of the pole); bank-fade progress from `BinauralConvolver::bankMixCur()` / `isFading()` if the decoder view wants it; both Stereo digests + digest-2.3 are the regression verdicts for any Stage-3 change touching the processor
 2. Human hands-on from the 2.2 verify (installed plugin in a DAW, non-blocking): Yaw spins the image while the Generic editor's Azimuth value stays put; Pitch + raises the front; Roll + raises the left; **flick Yaw 0 → 180 at order 3 on a low tone and listen for a zip** (RESEARCH-2.2 R2); plus the 2.1 list (Stereo mode pans with Azimuth, +90° louder LEFT; Distance 1 → 20 m darkens and attenuates; Orbit On moves, Off glides back the short way; default Binaural setting is NOT silent)
 3. Non-blocking human checks from `stages/1-foundation/VERIFICATION.md` (Logic stereo + mono track, Generic editor 12 rows, project save/reopen) — repeated formally under COMPAT-02 at Stage 4
