@@ -6,13 +6,13 @@ stage_phase: 0
 stage_phase_name: single-cycle
 stage_phase_total: 1
 artifact_suffix: ""
-status: stage_3_plan_complete
+status: stage_3_execute_in_progress
 last_updated: 2026-10-13
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-current_phase: plan
+current_phase: execute
 next_phase: execute
 next_action: plugin-execute-3-gui
 ui_scaffolding_phase_complete: true
@@ -33,8 +33,10 @@ plugin_code: OSAm
 
 ## Current Position
 
-Stage: 3 of 4 (GUI) — discuss ✓ · mockup v1 ✓ · research ✓ · plan ✓ 2026-10-13 → **execute next** (`/plugin-execute O-simpleAmbisonics 3-gui`)
-Status: **Stage 3 / plan complete.** `stages/3-gui/PLAN.md` — 13 tasks, gui-agent. Part 3.1 (T1–T5): JUCE-free `MeterFramePayload.h` shared with the harness; one batched processor edit (guarded createEditor, uiLanguage, persisted editorScale, applyFactoryPreset 8 recipes skipping outputLevel); editor from template + 5 fixes with tracer gate; harness ST1–ST6 + PL1–PL4 (241 → **251/251**, digests 2.1/2.2 unchanged, 2.3 reproduced) + `verify_3_state.py`; full regression + 3.1 commit. Part 3.2 (T6–T9): SN3D icon generator + contact sheet, page fixes (param fallback, compass heading, pole hold, 180.0°, dead zone, redraw-on-change), 13-arm `frame-probe.mjs` with 3 negative controls, build/install → **STOP: visual checkpoint** (8 items incl. icon pick + idle check). Part 3.3 (T10–T13): shared glossaries (own commit, R6), en freeze → fr/zh, i18n states + lesson-row budget + tooltip clamp, 5 UI gates, SUMMARY, handoff to verify. **User decision U1: host-idle = param fallback** (`live` flag, peaks zeroed, page draws puck/bars/beam from parameters + dims the well; Logic confirmation at hands-on). New risk R9: blocks > ~100 ms would flicker idle (`kStaleTicksIdle` = 3, kept as decided).
+Stage: 3 of 4 (GUI) — discuss ✓ · mockup v1 ✓ · research ✓ · plan ✓ · **execute → 3.1 ✓** (3.2 next, then the visual checkpoint)
+Status: **Stage 3 / execute part 3.1 complete.** WebView editor (template + C1 fixes), `MeterFramePayload.h`, processor batch (guarded createEditor, uiLanguage, persisted editorScale, applyFactoryPreset), harness **251/251** (241 Stage-2 + ST1–ST6 + PL1–PL4; digest-2.1 `9189d911a1fe98d5` / digest-2.2 `7f35bc9f91e321b9` PASS, digest-2.3 `edd1acfd21f54bcd`), `tests/ui-fixtures/frames.json` (15 fixtures, byte-identical twice), auval SUCCEEDED, pluginval s10 ×2 VST3 + ×2 AU SUCCESS (WebView editor), verify_2_2 35/35, verify_2_3 42/42, verify_3_state S1–S3 PASS; verify_2_1 22/25 — its 3 Binaural V3 checks assert the 2.1 A14 placeholder impulse (stale since 2.3, pre-existing, not a Stage-3 change; Stage-2 verdict file not edited).
+
+Previous: Status: **Stage 3 / plan complete.** `stages/3-gui/PLAN.md` — 13 tasks, gui-agent. Part 3.1 (T1–T5): JUCE-free `MeterFramePayload.h` shared with the harness; one batched processor edit (guarded createEditor, uiLanguage, persisted editorScale, applyFactoryPreset 8 recipes skipping outputLevel); editor from template + 5 fixes with tracer gate; harness ST1–ST6 + PL1–PL4 (241 → **251/251**, digests 2.1/2.2 unchanged, 2.3 reproduced) + `verify_3_state.py`; full regression + 3.1 commit. Part 3.2 (T6–T9): SN3D icon generator + contact sheet, page fixes (param fallback, compass heading, pole hold, 180.0°, dead zone, redraw-on-change), 13-arm `frame-probe.mjs` with 3 negative controls, build/install → **STOP: visual checkpoint** (8 items incl. icon pick + idle check). Part 3.3 (T10–T13): shared glossaries (own commit, R6), en freeze → fr/zh, i18n states + lesson-row budget + tooltip clamp, 5 UI gates, SUMMARY, handoff to verify. **User decision U1: host-idle = param fallback** (`live` flag, peaks zeroed, page draws puck/bars/beam from parameters + dims the well; Logic confirmation at hands-on). New risk R9: blocks > ~100 ms would flicker idle (`kStaleTicksIdle` = 3, kept as decided).
 
 Previous: **Stage 3 / research complete.** `stages/3-gui/RESEARCH.md` — template base = mockup v1 editor with 5 fixes (lesson reset must skip `outputLevel`, one-pass apply from O-simpleWavetable; scale pattern from O-simpleAdditive, O-simpleFM's is uncommitted); all processor edits batched into one 3.1 task + one regression run (harness 241 → 246+, both digests unchanged), new `verify_3_state.py` for `editorScale`/`uiLanguage`; 16 SN3D balloon icons via a dependency-free Node generator (letters are FuMa names, fix tooltip wording); canvas drag verified against JUCE 8.0.15 (head-sized dead zone, ±180 shown as 180.0°; rear-crossing automation sweep documented only); fixed-point `meterFrame` string from a header shared with the harness, nothing emitted at rest; compass from scene-front direction (= yaw for |pitch| < 90°) + pole freeze; UI-01/02 gates = harness-generated frames + Playwright canvas pixel probe; redraw-on-change (27% → ~1% core); polar plot + decoder view move into 3.2. **Open decision for plan:** host-idle display (stale frame before first block / stopped transport) — recommended editor-only peak decay + W fallback, parameter-drawn puck would bend the frame rule; confirm Logic idles at hands-on.
 
@@ -96,10 +98,10 @@ Roll-up `stages/2-dsp/VERIFICATION.md` written at the 2.3 verify — **Stage 2 c
 | Phase | Status | Date | Skipped |
 |-------|--------|------|---------|
 | discuss | ✓ | 2026-10-13 | |
-| mockup (prerequisite) | → | | |
-| research | | | |
-| plan | | | |
-| execute | | | |
+| mockup (prerequisite) | ✓ | 2026-10-13 | |
+| research | ✓ | 2026-10-13 | |
+| plan | ✓ | 2026-10-13 | |
+| execute | → 3.1 ✓ | 2026-10-13 | |
 | verify | | | |
 
 ## Completed So Far

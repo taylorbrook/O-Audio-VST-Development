@@ -95,6 +95,44 @@ public:
     // one thread (the message thread / the harness thread).
     OSimpleAmbisonics::dsp::TripleBuffer<OSimpleAmbisonics::dsp::MeterFrame> meterFrames;
 
+    //==========================================================================
+    // INTERFACE LANGUAGE (Stage 3) — the WebView page's own language.
+    //
+    // Deliberately NOT a parameter: it must not reach an automation lane, and a
+    // lesson must not change which language somebody reads. It rides the state
+    // XML as a plain PROPERTY written as the ASCII code ("en" / "fr" /
+    // "zh-Hans"), restored only when present (isVoid() — the XML round-trip
+    // rebuilds every property as a string var,
+    // critical_valuetree_xml_roundtrip_loses_type). The editor PULLS it once at
+    // page init (getUiLanguage native); nothing pushes. O-simpleAdditive shape.
+    std::atomic<int> uiLanguage { 0 };   // 0 en, 1 fr, 2 zh-Hans
+
+    /** languageIndex() maps anything that is neither "fr" nor "zh-Hans" to 0,
+        so a hand-edited session or an unexpected page argument degrades to
+        English instead of being stored unvalidated. */
+    static juce::String languageCode  (int i)                 { return i == 2 ? "zh-Hans" : i == 1 ? "fr" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "zh-Hans" ? 2 : s == "fr" ? 1 : 0; }
+
+    //==========================================================================
+    // EDITOR SCALE (Stage 3, UI-07) — window width / 1180, PERSISTED in the
+    // state XML (CONTEXT locked: "save / reopen keeps the window size"; this
+    // overrides the siblings' session-only member and ARCHITECTURE "Custom
+    // state: none"). 0 = never sized → the editor fits the display at open.
+    // Written as "0.850" only when > 0 (removed from the saved copy otherwise),
+    // restored only when finite and within 0.6 .. 1.5. Atomic: hosts may call
+    // getStateInformation off the message thread.
+    std::atomic<float> editorScale { 0.0f };
+
+    //==========================================================================
+    // LESSON TOUR (Stage 3, UI-08) — apply a lesson by STABLE id (pointSource,
+    // orderStep, behindYou, overhead, rotateRoom, farNear, slowOrbit,
+    // speakersHeadphones). One pass over the 12 parameters: recipe value or the
+    // default; outputLevel is NEVER reset and NEVER set; a parameter already at
+    // its target is skipped (no host edit, no gesture); every other one gets
+    // begin / setValueNotifyingHost / end. Unknown id → false, nothing touched.
+    // Message thread, APVTS only; the relays sync the page back.
+    bool applyFactoryPreset (const juce::String& lessonId);
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 

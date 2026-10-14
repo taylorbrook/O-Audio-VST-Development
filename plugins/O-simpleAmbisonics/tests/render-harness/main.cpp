@@ -176,6 +176,22 @@
                           D6: vDSP vs Fallback FFT).
       PERF-02 (C9)      — ≥ 20× real time, Release only, best of three, LAST.
 
+    Stage 3 (GUI; PLAN-3 T4) adds ST1–ST6 / PL1–PL4 after PERF-01 and before
+    the digest prints, on fresh processors only. The 241 Stage-2 checks and
+    both digest verdicts are untouched; the denominator becomes 241 + 10 = 251.
+
+      ST1–ST5           — uiLanguage / editorScale state round-trips: code
+                          string, absent / unknown → en, scale reject list
+                          removed from the re-saved copy, 12 values bit-equal.
+      ST6 (UI-08)       — applyFactoryPreset: recipe-or-default from an
+                          off-default state, outputLevel untouched, begins ==
+                          ends == changed, idempotent, unknown ids inert.
+      PL1–PL3           — MeterFramePayload.h (the editor's own code): bytes,
+                          hash, locale-free zero, fuzz-safe; UI-01 / UI-02
+                          facts from real processors; the U1 live rule.
+      PL4               — the UI fixture set built twice is byte-identical;
+                          OSAMB_UI_FIXTURES=<dir> also writes <dir>/frames.json.
+
   ==============================================================================
 */
 
@@ -189,6 +205,7 @@
 #include "dsp/BinauralConvolver.h"
 #include "ReferenceModel.h"
 #include "BinauralFilterGoldens.h"
+#include "MeterFramePayload.h"
 
 #include <algorithm>
 #include <atomic>
@@ -199,6 +216,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <functional>
+#include <initializer_list>
+#include <limits>
+#include <string>
 #include <memory>
 #include <new>
 #include <thread>
@@ -1159,6 +1179,207 @@ namespace
             return order == 1 ? kBinauralGolden44100_1[ch][ear] : order == 2 ? kBinauralGolden44100_2[ch][ear] : kBinauralGolden44100_3[ch][ear];
         return order == 1 ? kBinauralGolden96000_1[ch][ear] : order == 2 ? kBinauralGolden96000_2[ch][ear] : kBinauralGolden96000_3[ch][ear];
     }
+} // namespace
+
+//==============================================================================
+// ── Stage 3 helpers (PLAN-3 T4): state round-trips, lesson gestures, the
+//    meterFrame payload (MeterFramePayload.h — the editor's own code) and the
+//    UI fixture set (tests/ui-fixtures/frames.json). Fresh processors only;
+//    no Stage-2 render is touched.
+namespace
+{
+namespace st3
+{
+    namespace ui  = OSimpleAmbisonics::ui;
+    namespace ids = OSimpleAmbisonics::ParamIDs;
+
+    constexpr const char* kAllIds[12] = {
+        ids::azimuth, ids::elevation, ids::distance, ids::order, ids::yaw, ids::pitch,
+        ids::roll, ids::decoder, ids::orbit, ids::orbitRate, ids::inputMode, ids::outputLevel };
+
+    std::unique_ptr<juce::XmlElement> stateXml (Proc& p)
+    {
+        juce::MemoryBlock mb;
+        p.getStateInformation (mb);
+        return std::unique_ptr<juce::XmlElement> (Proc::getXmlFromBinary (mb.getData(), (int) mb.getSize()));
+    }
+
+    void restoreXml (Proc& p, const juce::XmlElement& xml)
+    {
+        juce::MemoryBlock mb;
+        Proc::copyXmlToBinary (xml, mb);
+        p.setStateInformation (mb.getData(), (int) mb.getSize());
+    }
+
+    void roundTrip (Proc& from, Proc& to)
+    {
+        juce::MemoryBlock mb;
+        from.getStateInformation (mb);
+        to.setStateInformation (mb.getData(), (int) mb.getSize());
+    }
+
+    // Counts begin / end gestures on every parameter.
+    struct GestureCounter : juce::AudioProcessorParameter::Listener
+    {
+        int begins = 0, ends = 0;
+        void parameterValueChanged (int, float) override {}
+        void parameterGestureChanged (int, bool starting) override { ++(starting ? begins : ends); }
+    };
+
+    // ── fixtures ──────────────────────────────────────────────────────────────
+    struct ParamSet { const char* id; float plain; };
+
+    constexpr int kFixtureBlock   = 64;
+    constexpr int kFixtureSamples = 24000;   // 0.5 s at 48 k
+
+    void play (Proc& p, int samples, bool silent)
+    {
+        juce::MidiBuffer midi;
+        juce::AudioBuffer<float> buf (2, kFixtureBlock);
+        for (int n0 = 0; n0 < samples; n0 += kFixtureBlock)
+        {
+            for (int ch = 0; ch < 2; ++ch)
+                for (int i = 0; i < kFixtureBlock; ++i)
+                    buf.setSample (ch, i, silent ? 0.0f : noiseAt (ch, n0 + i));
+            p.processBlock (buf, midi);
+        }
+    }
+
+    std::string payloadOf (const ui::QuantisedFrame& q)
+    {
+        char buf[1024];
+        const int n = ui::format (q, buf, (int) sizeof (buf));
+        return std::string (buf, (size_t) juce::jmax (0, n));
+    }
+
+    std::unique_ptr<Proc> fixtureProc (std::initializer_list<ParamSet> params)
+    {
+        std::vector<ParamSet> ps (params);
+        return makeProc (2, kFixtureBlock, [ps] (Proc& q)
+        {
+            for (const auto& s : ps)
+                setParam (q, s.id, s.plain);
+        });
+    }
+
+    struct Fixture
+    {
+        std::string name;
+        std::string paramsJson;
+        ui::QuantisedFrame frame;
+        std::string payload;
+    };
+
+    std::string paramsJsonOf (Proc& p)
+    {
+        std::string s = "{";
+        for (int i = 0; i < 12; ++i)
+        {
+            if (i != 0) s += ",";
+            s += "\"";
+            s += kAllIds[i];
+            s += "\":";
+            s += fmt ("%.6g", (double) rawParam (p, kAllIds[i])).toStdString();
+        }
+        return s + "}";
+    }
+
+    // The standard recipe: prepared with the params set BEFORE prepare, 0.5 s
+    // of noise in 64-sample blocks, one tick.
+    Fixture standard (const char* name, std::initializer_list<ParamSet> params)
+    {
+        auto p = fixtureProc (params);
+        play (*p, kFixtureSamples, false);
+        ui::LiveTracker t;
+        Fixture f { name, paramsJsonOf (*p), ui::sampleFrame (p->meterFrames, t), {} };
+        f.payload = payloadOf (f.frame);
+        return f;
+    }
+
+    std::vector<Fixture> buildFixtures()
+    {
+        std::vector<Fixture> v;
+        v.push_back (standard ("front_o1",    { { ids::azimuth, 0.0f } }));
+        v.push_back (standard ("left_o1",     { { ids::azimuth, 90.0f } }));
+        v.push_back (standard ("behind_o1",   { { ids::azimuth, 180.0f } }));
+        v.push_back (standard ("right_o1",    { { ids::azimuth, -90.0f } }));
+        v.push_back (standard ("overhead_o2", { { ids::elevation, 90.0f }, { ids::order, 1.0f } }));
+        v.push_back (standard ("o1_az45",     { { ids::azimuth, 45.0f }, { ids::order, 0.0f } }));
+        v.push_back (standard ("o2_az45",     { { ids::azimuth, 45.0f }, { ids::order, 1.0f } }));
+        v.push_back (standard ("o3_az45",     { { ids::azimuth, 45.0f }, { ids::order, 2.0f } }));
+        v.push_back (standard ("yaw90_front", { { ids::azimuth, 0.0f }, { ids::yaw, 90.0f } }));
+        v.push_back (standard ("pole_a",      { { ids::elevation, 89.999f }, { ids::yaw, 30.0f } }));
+        v.push_back (standard ("pole_b",      { { ids::elevation, 89.999f }, { ids::yaw, 150.0f } }));
+        v.push_back (standard ("stereo_o3",   { { ids::decoder, 1.0f }, { ids::order, 2.0f }, { ids::azimuth, 45.0f } }));
+
+        {   // live but silent: noise, tick, zeros, tick, zeros, tick. The FIRST
+            // silent tick still holds the output tail (64-sample latency + the
+            // binaural FIR) as peak-since-last-read — correct semantics, so the
+            // fixture is the SECOND silent tick, what a 30 Hz reader sees next.
+            auto p = fixtureProc ({ { ids::azimuth, 45.0f }, { ids::order, 2.0f } });
+            ui::LiveTracker t;
+            play (*p, kFixtureSamples, false);
+            (void) ui::sampleFrame (p->meterFrames, t);
+            play (*p, kFixtureSamples, true);
+            (void) ui::sampleFrame (p->meterFrames, t);
+            play (*p, kFixtureSamples, true);
+            Fixture f { "silent_after_play", paramsJsonOf (*p), ui::sampleFrame (p->meterFrames, t), {} };
+            f.payload = payloadOf (f.frame);
+            v.push_back (f);
+        }
+        {   // prepared, no processBlock, one tick
+            auto p = fixtureProc ({ { ids::azimuth, 90.0f } });
+            ui::LiveTracker t;
+            Fixture f { "idle_before_first_block", paramsJsonOf (*p), ui::sampleFrame (p->meterFrames, t), {} };
+            f.payload = payloadOf (f.frame);
+            v.push_back (f);
+        }
+        {   // play, tick 1 (fresh), ticks 2..4 without processBlock: the tick-4 payload
+            auto p = fixtureProc ({ { ids::azimuth, 90.0f } });
+            ui::LiveTracker t;
+            play (*p, kFixtureSamples, false);
+            ui::QuantisedFrame q = ui::sampleFrame (p->meterFrames, t);
+            for (int k = 2; k <= 4; ++k)
+                q = ui::sampleFrame (p->meterFrames, t);
+            Fixture f { "idle_stale_after_publish", paramsJsonOf (*p), q, {} };
+            f.payload = payloadOf (f.frame);
+            v.push_back (f);
+        }
+        return v;
+    }
+
+    std::string escapeJsonString (const std::string& s)
+    {
+        std::string o;
+        o.reserve (s.size() + 64);
+        for (char c : s)
+        {
+            if (c == '"' || c == '\\') o += '\\';
+            o += c;
+        }
+        return o;
+    }
+
+    std::string fixturesJson (const std::vector<Fixture>& v)
+    {
+        std::string s = "[\n";
+        for (size_t i = 0; i < v.size(); ++i)
+        {
+            s += "  {\"name\":\"" + v[i].name + "\",\"params\":" + v[i].paramsJson
+               + ",\"payload\":\"" + escapeJsonString (v[i].payload) + "\"}";
+            s += (i + 1 < v.size()) ? ",\n" : "\n";
+        }
+        return s + "]\n";
+    }
+
+    const Fixture* find (const std::vector<Fixture>& v, const char* name)
+    {
+        for (const auto& f : v)
+            if (f.name == name)
+                return &f;
+        return nullptr;
+    }
+} // namespace st3
 } // namespace
 
 int main()
@@ -3734,6 +3955,409 @@ int main()
         const long long seen = rtcheck::allocations.load();
         check ("PERF-01 liveness: one deliberate new counts exactly 1", seen == 1,
                juce::String ((int) seen) + rtcheck::foreignNote());
+    }
+
+    //==========================================================================
+    // Stage 3 (PLAN-3 T4) — ST1–ST6 state + lessons, PL1–PL4 meterFrame payload.
+    // Fresh processors only, rtcheck disarmed, after PERF-01 and before the
+    // digest prints: no Stage-2 render or verdict is touched (241 + 10 = 251).
+    {
+        rtcheck::disarm();
+        namespace ui = OSimpleAmbisonics::ui;
+        using st3::kAllIds;
+
+        // ── ST1 uiLanguage round-trip ─────────────────────────────────────────
+        {
+            Proc a, b;
+            a.uiLanguage.store (2);
+            auto xml = st3::stateXml (a);
+            st3::roundTrip (a, b);
+            const auto attr = xml != nullptr ? xml->getStringAttribute ("uiLanguage") : juce::String();
+            check ("ST1 uiLanguage 2 round-trips through get/setStateInformation; the XML attribute is \"zh-Hans\"",
+                   b.uiLanguage.load() == 2 && attr == "zh-Hans",
+                   fmt ("restored %d, attribute \"%s\"", b.uiLanguage.load(), attr.toRawUTF8()));
+        }
+
+        // ── ST2 absent / unknown → English ────────────────────────────────────
+        {
+            Proc src;
+            auto xml = st3::stateXml (src);
+            bool ok = xml != nullptr;
+            int absentGot = -1, unknownGot = -1;
+            if (ok)
+            {
+                xml->removeAttribute ("uiLanguage");
+                Proc c;
+                st3::restoreXml (c, *xml);
+                absentGot = c.uiLanguage.load();
+
+                xml->setAttribute ("uiLanguage", "de");
+                Proc d;
+                st3::restoreXml (d, *xml);
+                unknownGot = d.uiLanguage.load();
+                ok = absentGot == 0 && unknownGot == 0;
+            }
+            check ("ST2 uiLanguage absent -> 0 (English), \"de\" -> 0", ok,
+                   fmt ("absent %d, \"de\" %d", absentGot, unknownGot));
+        }
+
+        // ── ST3 editorScale round-trip; a fresh instance writes none ──────────
+        {
+            Proc a, b, fresh;
+            a.editorScale.store (0.85f);
+            st3::roundTrip (a, b);
+            auto freshXml = st3::stateXml (fresh);
+            const bool noAttr = freshXml != nullptr && ! freshXml->hasAttribute ("editorScale");
+            const auto lang   = freshXml != nullptr ? freshXml->getStringAttribute ("uiLanguage") : juce::String();
+            check ("ST3 editorScale 0.85 round-trips (within 1e-3); a fresh instance writes no editorScale and uiLanguage=\"en\"",
+                   std::abs (b.editorScale.load() - 0.85f) < 1.0e-3f && noAttr && lang == "en",
+                   fmt ("restored %.4f, fresh has editorScale: %s, uiLanguage \"%s\"",
+                        (double) b.editorScale.load(), noAttr ? "no" : "YES", lang.toRawUTF8()));
+        }
+
+        // ── ST4 editorScale rejected and removed from the re-saved copy ───────
+        {
+            Proc src;
+            auto xml = st3::stateXml (src);
+            bool ok = xml != nullptr;
+            juce::String detail;
+            for (const char* bad : { "abc", "3.0", "0.1", "1.6", "nan", "inf" })
+            {
+                if (xml == nullptr) break;
+                xml->setAttribute ("editorScale", bad);
+                Proc b;
+                st3::restoreXml (b, *xml);
+                auto resaved = st3::stateXml (b);
+                const bool rejected = juce::exactlyEqual (b.editorScale.load(), 0.0f);
+                const bool removed  = resaved != nullptr && ! resaved->hasAttribute ("editorScale");
+                ok = ok && rejected && removed;
+                detail << "\"" << bad << "\"->" << juce::String (b.editorScale.load(), 3)
+                       << (removed ? " (absent) " : " (RE-SAVED) ");
+            }
+            check ("ST4 editorScale \"abc\" / \"3.0\" / \"0.1\" / \"1.6\" / \"nan\" / \"inf\" rejected (stays 0) and absent from the re-saved XML",
+                   ok, detail.trim());
+        }
+
+        // ── ST5 12 values bit-equal through the round-trip, two passes ────────
+        {
+            bool ok = true;
+            int mismatches = 0;
+            juce::String detail;
+            for (int pass = 0; pass < 2; ++pass)
+            {
+                Proc a, b;
+                if (pass == 1)
+                {
+                    setParam (a, ParamIDs::azimuth, -70.0f);   setParam (a, ParamIDs::elevation, 20.0f);
+                    setParam (a, ParamIDs::distance, 5.0f);    setParam (a, ParamIDs::order, 2.0f);
+                    setParam (a, ParamIDs::yaw, 30.0f);        setParam (a, ParamIDs::pitch, 10.0f);
+                    setParam (a, ParamIDs::roll, -15.0f);      setParam (a, ParamIDs::decoder, 1.0f);
+                    setParam (a, ParamIDs::orbit, 1.0f);       setParam (a, ParamIDs::orbitRate, 1.0f);
+                    setParam (a, ParamIDs::inputMode, 1.0f);   setParam (a, ParamIDs::outputLevel, -12.0f);
+                    a.uiLanguage.store (1);
+                    a.editorScale.store (1.25f);
+                }
+                st3::roundTrip (a, b);
+                for (const char* id : kAllIds)
+                {
+                    const float va = a.apvts.getParameter (id)->getValue(), vb = b.apvts.getParameter (id)->getValue();
+                    const float ra = rawParam (a, id), rb = rawParam (b, id);
+                    if (std::memcmp (&va, &vb, sizeof (float)) != 0 || std::memcmp (&ra, &rb, sizeof (float)) != 0)
+                    {
+                        ++mismatches;
+                        detail << id << " " << juce::String (ra, 9) << "!=" << juce::String (rb, 9) << " ";
+                    }
+                }
+                const bool props = pass == 0 ? (b.uiLanguage.load() == 0 && juce::exactlyEqual (b.editorScale.load(), 0.0f))
+                                             : (b.uiLanguage.load() == 1 && std::abs (b.editorScale.load() - 1.25f) < 1.0e-3f);
+                ok = ok && props;
+                if (! props) detail << "pass " << pass << " properties not restored ";
+            }
+            ok = ok && mismatches == 0;
+            check ("ST5 all 12 getValue() and raw atomics bit-equal through the round-trip (defaults incl. distance raw, and an off-default set with uiLanguage 1 / editorScale 1.25); both properties restored",
+                   ok, detail.isEmpty() ? fmt ("0 mismatches over 2 x 12; distance default raw %.15g", (double) rawParam (*std::make_unique<Proc>(), ParamIDs::distance)) : detail.trim());
+        }
+
+        // ── ST6 lessons (UI-08) ───────────────────────────────────────────────
+        {
+            struct Recipe { const char* id; std::vector<std::pair<const char*, float>> sets; };
+            const std::vector<Recipe> recipes = {
+                { "pointSource",        { { ParamIDs::order, 0.0f }, { ParamIDs::azimuth, 30.0f }, { ParamIDs::elevation, 0.0f }, { ParamIDs::distance, 1.0f } } },
+                { "orderStep",          { { ParamIDs::order, 2.0f }, { ParamIDs::azimuth, 45.0f } } },
+                { "behindYou",          { { ParamIDs::azimuth, 180.0f } } },
+                { "overhead",           { { ParamIDs::elevation, 90.0f }, { ParamIDs::order, 1.0f } } },
+                { "rotateRoom",         { { ParamIDs::azimuth, 60.0f }, { ParamIDs::yaw, 120.0f }, { ParamIDs::order, 1.0f } } },
+                { "farNear",            { { ParamIDs::distance, 12.0f } } },
+                { "slowOrbit",          { { ParamIDs::orbit, 1.0f }, { ParamIDs::orbitRate, 0.05f }, { ParamIDs::order, 1.0f } } },
+                { "speakersHeadphones", { { ParamIDs::decoder, 1.0f }, { ParamIDs::order, 2.0f }, { ParamIDs::azimuth, 45.0f } } },
+            };
+
+            const auto offDefault = [] (Proc& q)
+            {
+                setParam (q, ParamIDs::azimuth, -70.0f);   setParam (q, ParamIDs::elevation, 20.0f);
+                setParam (q, ParamIDs::distance, 5.0f);    setParam (q, ParamIDs::order, 2.0f);
+                setParam (q, ParamIDs::yaw, 30.0f);        setParam (q, ParamIDs::pitch, 10.0f);
+                setParam (q, ParamIDs::roll, -15.0f);      setParam (q, ParamIDs::decoder, 1.0f);
+                setParam (q, ParamIDs::orbit, 1.0f);       setParam (q, ParamIDs::orbitRate, 1.0f);
+                setParam (q, ParamIDs::inputMode, 1.0f);   setParam (q, ParamIDs::outputLevel, -12.0f);
+            };
+
+            bool ok = true;
+            juce::String detail;
+            int totalChanged = 0;
+            float outRaw = 0.0f;
+            for (const auto& r : recipes)
+            {
+                Proc q;
+                offDefault (q);
+                const float outBefore = rawParam (q, ParamIDs::outputLevel);
+                std::vector<float> before;
+                for (const char* id : kAllIds) before.push_back (q.apvts.getParameter (id)->getValue());
+
+                st3::GestureCounter gc;
+                for (auto* prm : q.getParameters()) prm->addListener (&gc);
+
+                const bool applied = q.applyFactoryPreset (r.id);
+
+                int changed = 0, wrong = 0;
+                for (size_t i = 0; i < 12; ++i)
+                {
+                    auto* prm = q.apvts.getParameter (kAllIds[i]);
+                    const float now = prm->getValue();
+                    if (std::memcmp (&now, &before[i], sizeof (float)) != 0) ++changed;
+                    if (std::strcmp (kAllIds[i], ParamIDs::outputLevel) == 0) continue;
+                    float target = prm->getDefaultValue();
+                    for (const auto& s : r.sets)
+                        if (std::strcmp (s.first, kAllIds[i]) == 0)
+                            target = prm->convertTo0to1 (s.second);
+                    target = prm->convertTo0to1 (prm->convertFrom0to1 (target));
+                    if (std::abs (now - target) > 1.0e-6f)
+                    {
+                        ++wrong;
+                        detail << r.id << ":" << kAllIds[i] << " ";
+                    }
+                }
+                outRaw = rawParam (q, ParamIDs::outputLevel);
+                // The host path snaps -12 dB to raw -11.999999 (range -60..0 step 0.1:
+                // -60 + 0.1f * 480 in float), so "untouched" is BIT-EQUAL to the value
+                // the host set, not the literal -12.0f (PLAN-3 ST6 deviation, SUMMARY).
+                const bool outUntouched = std::memcmp (&outRaw, &outBefore, sizeof (float)) == 0
+                                       && std::abs (outRaw + 12.0f) < 1.0e-5f;
+                const bool gesturesOk   = gc.begins == changed && gc.ends == changed;
+
+                gc.begins = gc.ends = 0;
+                const bool again   = q.applyFactoryPreset (r.id);
+                const bool idemOk  = again && gc.begins == 0 && gc.ends == 0;
+
+                for (auto* prm : q.getParameters()) prm->removeListener (&gc);
+
+                totalChanged += changed;
+                if (! (applied && wrong == 0 && outUntouched && gesturesOk && idemOk))
+                {
+                    ok = false;
+                    detail << r.id << (applied ? "" : " not-applied") << (outUntouched ? "" : fmt (" OUTPUT-MOVED(%.9g->%.9g)", (double) outBefore, (double) outRaw))
+                           << (gesturesOk ? "" : " gestures") << (idemOk ? "" : " not-idempotent") << " ";
+                }
+            }
+
+            {   // unknown ids: false, nothing changed, no gesture
+                Proc q;
+                offDefault (q);
+                std::vector<float> before;
+                for (const char* id : kAllIds) before.push_back (q.apvts.getParameter (id)->getValue());
+                st3::GestureCounter gc;
+                for (auto* prm : q.getParameters()) prm->addListener (&gc);
+                const bool a = q.applyFactoryPreset ("nope");
+                const bool b = q.applyFactoryPreset ("");
+                int changed = 0;
+                for (size_t i = 0; i < 12; ++i)
+                {
+                    const float now = q.apvts.getParameter (kAllIds[i])->getValue();
+                    if (std::memcmp (&now, &before[i], sizeof (float)) != 0) ++changed;
+                }
+                for (auto* prm : q.getParameters()) prm->removeListener (&gc);
+                if (a || b || changed != 0 || gc.begins != 0 || gc.ends != 0)
+                {
+                    ok = false;
+                    detail << "unknown-id: " << (int) a << (int) b << " changed " << changed << " gestures " << gc.begins << " ";
+                }
+            }
+
+            check ("ST6 lessons: 8 ids apply exactly recipe-or-default from an off-default state, outputLevel raw bit-unchanged at the host-set -12 dB, begins == ends == changed, re-apply = 0 gestures; \"nope\" / \"\" -> false, no change, 0 gestures",
+                   ok, detail.isEmpty() ? fmt ("%d parameter changes over 8 lessons, outputLevel raw %.9g (bit-unchanged)", totalChanged, (double) outRaw) : detail.trim());
+        }
+
+        // ── PL1 payload format ────────────────────────────────────────────────
+        {
+            osa::MeterFrame f;
+            for (int i = 0; i < 16; ++i) { f.shGain[i] = 0.1f * (float) (i - 7); f.shPeak[i] = 0.05f * (float) i; }
+            f.shGain[0] = -4.4e-8f;
+            f.azEffDeg = -179.996f; f.elEffDeg = 12.345f; f.azRotDeg = 33.3f; f.elRotDeg = -89.999f;
+            f.decoderMix = 0.25f; f.outPeakL = 0.301f; f.outPeakR = 1.25f;
+
+            const auto q1 = ui::quantise (f, true), q2 = ui::quantise (f, true);
+            const auto t1 = st3::payloadOf (q1), t2 = st3::payloadOf (q2);
+            auto f3 = f; f3.shPeak[5] += 0.002f;
+            const auto q3 = ui::quantise (f3, true);
+            const bool sameBytes = t1 == t2 && ui::hash (q1) == ui::hash (q2);
+            const bool peakMoves = ui::hash (q3) != ui::hash (q1);
+            const bool zeroOk    = t1.rfind ("{\"shGain\":[0.000,", 0) == 0 && t1.find ("-0.000") == std::string::npos;
+
+            const auto parsed = juce::JSON::parse (juce::String (t1));
+            bool shapeOk = false;
+            if (auto* obj = parsed.getDynamicObject())
+            {
+                const auto& props = obj->getProperties();
+                const auto* g = obj->getProperty ("shGain").getArray();
+                const auto* pk = obj->getProperty ("shPeak").getArray();
+                shapeOk = props.size() == 12 && g != nullptr && pk != nullptr && g->size() == 16 && pk->size() == 16;
+            }
+
+            osa::MeterFrame bad;
+            const float inf = std::numeric_limits<float>::infinity();
+            for (int i = 0; i < 16; ++i) { bad.shGain[i] = (i % 3 == 0) ? std::nanf ("") : (i % 3 == 1 ? inf : -1.0e9f); bad.shPeak[i] = (i % 2) ? -inf : 1.0e9f; }
+            bad.azEffDeg = std::nanf (""); bad.elEffDeg = inf; bad.azRotDeg = -inf; bad.elRotDeg = 1.0e9f;
+            bad.decoderMix = -1.0e9f; bad.outPeakL = inf; bad.outPeakR = std::nanf ("");
+            bad.orderActive = 2000000000; bad.latencySamples = -2000000000;
+            char big[1024];
+            const int n = ui::format (ui::quantise (bad, true), big, (int) sizeof (big));
+            const auto badParsed = juce::JSON::parse (juce::String (big, (size_t) juce::jmax (0, n)));
+            bool badOk = n > 0 && n < 1024 && badParsed.getDynamicObject() != nullptr;
+            if (badOk)
+                for (auto& nv : badParsed.getDynamicObject()->getProperties())
+                {
+                    if (auto* arr = nv.value.getArray())
+                        { for (auto& e : *arr) badOk = badOk && std::isfinite ((double) e); }
+                    else
+                        badOk = badOk && std::isfinite ((double) nv.value);
+                }
+
+            check ("PL1 payload: same frame -> identical bytes + hash; a peak change -> new hash; q3(-4.4e-8) prints 0.000 (no -0.000); JSON.parse has 12 keys + two 16-arrays; NaN / +-inf / 1e9 fields format finite within 1024 bytes",
+                   sameBytes && peakMoves && zeroOk && shapeOk && badOk,
+                   fmt ("%d bytes typical, %d bytes worst case; same %d, peak-moves %d, zero %d, shape %d, fuzz %d",
+                        (int) t1.size(), n, (int) sameBytes, (int) peakMoves, (int) zeroOk, (int) shapeOk, (int) badOk));
+        }
+
+        // ── fixtures (built twice for PL4) ────────────────────────────────────
+        const auto fixtures  = st3::buildFixtures();
+        const auto fixtures2 = st3::buildFixtures();
+
+        // ── PL2 UI-01 / UI-02 facts from the real processor ───────────────────
+        {
+            const auto get = [&] (const char* n) -> const ui::QuantisedFrame&
+            {
+                static const ui::QuantisedFrame none {};
+                const auto* f = st3::find (fixtures, n);
+                return f != nullptr ? f->frame : none;
+            };
+            const auto& fr = get ("front_o1");
+            const auto& le = get ("left_o1");
+            const auto& be = get ("behind_o1");
+            const auto& ov = get ("overhead_o2");
+            const auto& o1 = get ("o1_az45");
+            const auto& o2 = get ("o2_az45");
+            const auto& o3 = get ("o3_az45");
+            const auto& yw = get ("yaw90_front");
+            const auto& pa = get ("pole_a");
+            const auto& pb = get ("pole_b");
+            const auto& so = get ("stereo_o3");
+
+            juce::String bad;
+            const auto need = [&] (bool c, const char* what) { if (! c) bad << what << " "; };
+            need (fr.gain[0] == 1000 && fr.gain[3] == 1000 && fr.gain[1] == 0, "front");
+            need (le.gain[0] == 1000 && le.gain[1] == 1000 && le.gain[3] == 0, "left");
+            need (be.gain[3] == -1000, "behind");
+            need (ov.gain[2] == 1000 && ov.gain[1] == 0 && ov.gain[3] == 0, "overhead");
+            need (o1.orderActive == 4 && o2.orderActive == 9 && o3.orderActive == 16, "orderActive");
+            bool o1High = true;
+            for (int i = 4; i < 16; ++i) o1High = o1High && o1.gain[i] == 0;
+            need (o1High, "o1-bands");
+            need (yw.azEff == 0 && std::abs (yw.azRot - 9000) <= 1, "yaw90");
+            int dAz = std::abs (pa.azRot - pb.azRot);
+            if (dAz > 18000) dAz = 36000 - dAz;
+            need (std::abs (pa.elRot) >= 8999 && std::abs (pb.elRot) >= 8999 && dAz >= 6000, "pole");
+            need (so.mix == 0, "stereo-mix");
+
+            check ("PL2 UI-01 / UI-02 facts: front W=X=1 Y=0; left W=Y=1 X=0; behind X=-1; overhead Z=1; orderActive 4/9/16 with o1 bands 2-3 zero; yaw90 azEff 0 azRot 90; pole pair |elRot|>=89.99 with |dAzRot|>=60; stereo mix 0",
+                   bad.isEmpty(),
+                   bad.isEmpty() ? fmt ("left Y %d X %d; yaw90 azRot %d; pole elRot %d / %d azRot %d / %d; stereo mix %d",
+                                        le.gain[1], le.gain[3], yw.azRot, pa.elRot, pb.elRot, pa.azRot, pb.azRot, so.mix)
+                                 : "FAILED: " + bad.trim());
+        }
+
+        // ── PL3 U1 live rule (both idle states produced by C++) ───────────────
+        {
+            juce::String bad;
+            const auto need = [&] (bool c, const char* what) { if (! c) bad << what << " "; };
+
+            if (const auto* f = st3::find (fixtures, "idle_before_first_block"))
+            {
+                bool allZero = true;
+                for (int i = 0; i < 16; ++i) allZero = allZero && f->frame.peak[i] == 0 && f->frame.gain[i] == 0;
+                need (! f->frame.live && allZero && f->frame.orderActive == 4, "before-first-block");
+            }
+            else need (false, "before-first-block-missing");
+
+            {
+                auto p = st3::fixtureProc ({ { ParamIDs::azimuth, 90.0f } });
+                ui::LiveTracker t;
+                st3::play (*p, st3::kFixtureSamples, false);
+                ui::QuantisedFrame tk[6];
+                tk[1] = ui::sampleFrame (p->meterFrames, t);
+                tk[2] = ui::sampleFrame (p->meterFrames, t);
+                tk[3] = ui::sampleFrame (p->meterFrames, t);
+                tk[4] = ui::sampleFrame (p->meterFrames, t);
+                tk[5] = ui::sampleFrame (p->meterFrames, t);
+                bool peaksZero = tk[4].outL == 0 && tk[4].outR == 0, gainsSame = true, t1Peaks = false;
+                for (int i = 0; i < 16; ++i)
+                {
+                    peaksZero = peaksZero && tk[4].peak[i] == 0;
+                    gainsSame = gainsSame && tk[4].gain[i] == tk[1].gain[i];
+                    t1Peaks   = t1Peaks || tk[1].peak[i] != 0;
+                }
+                need (tk[1].live && tk[2].live && tk[3].live && ! tk[4].live, "live-sequence");
+                need (t1Peaks, "tick1-has-peaks");
+                need (peaksZero && gainsSame, "tick4-zero-peaks-same-gains");
+                need (ui::hash (tk[4]) != ui::hash (tk[3]), "one-emission");
+                need (ui::hash (tk[5]) == ui::hash (tk[4]), "then-silence");
+
+                juce::MidiBuffer midi;
+                juce::AudioBuffer<float> buf (2, st3::kFixtureBlock);
+                buf.clear();
+                p->processBlock (buf, midi);
+                need (ui::sampleFrame (p->meterFrames, t).live, "publish-revives");
+            }
+
+            if (const auto* f = st3::find (fixtures, "silent_after_play"))
+            {
+                bool z = f->frame.outL == 0 && f->frame.outR == 0;
+                for (int i = 0; i < 16; ++i) z = z && f->frame.peak[i] == 0;
+                need (f->frame.live && z, "silent-after-play");
+            }
+            else need (false, "silent-missing");
+
+            check ("PL3 U1 live rule: before the first block live 0 / peaks 0 / shGain 0 / orderActive 4; stale ticks 1-3 live, tick 4 live 0 with zero peaks and tick-1 gains, one emission then silence, a publish revives; silent_after_play live 1 with peaks 0",
+                   bad.isEmpty(), bad.isEmpty() ? juce::String ("idle edge = 1 emission, kStaleTicksIdle ") + juce::String (ui::kStaleTicksIdle)
+                                                : "FAILED: " + bad.trim());
+        }
+
+        // ── PL4 fixture determinism (+ opt-in write) ──────────────────────────
+        {
+            const auto j1 = st3::fixturesJson (fixtures);
+            const auto j2 = st3::fixturesJson (fixtures2);
+            check ("PL4 frames.json built twice from independent processor sets is byte-identical",
+                   j1 == j2 && fixtures.size() == 15,
+                   fmt ("%d fixtures, %d bytes", (int) fixtures.size(), (int) j1.size()));
+
+            if (const char* dir = std::getenv ("OSAMB_UI_FIXTURES"); dir != nullptr && *dir != '\0')
+            {
+                const juce::File d = juce::File::getCurrentWorkingDirectory().getChildFile (dir);
+                d.createDirectory();
+                const auto out = d.getChildFile ("frames.json");
+                const bool wrote = out.replaceWithText (juce::String::fromUTF8 (j1.data(), (int) j1.size()), false, false, "\n");
+                std::printf ("  info: OSAMB_UI_FIXTURES -> %s (%s)\n", out.getFullPathName().toRawUTF8(), wrote ? "written" : "WRITE FAILED");
+            }
+        }
     }
 
     //==========================================================================
