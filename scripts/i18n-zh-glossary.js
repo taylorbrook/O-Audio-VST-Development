@@ -493,6 +493,32 @@ const TERMS = {
     'frozen pad':                 ['冻结铺垫'],
     'looped pad':                 ['循环铺垫'],
     'reverse':                    ['反向'],
+    // ── ambisonics (O-simpleAmbisonics Stage 3; renderings [ASSUMED] — standard
+    //    technical usage, not checked against a terminology base) ────────────
+    // 'azimuth' 方位角 / 'elevation' 仰角 / 'rotation' 旋转 / 'distance' 距离 are
+    // already settled in the section above. Rotation PITCH is 俯仰, never the
+    // musical 音高, and the ear-level 'level' under an elevation readout is 水平,
+    // never the gain 电平: both carry a termNote in the plugin's table rather than
+    // a second rendering here. The order counter is 阶 inside 一阶 / 二阶 / 三阶
+    // (or "1 阶"). ACN, SN3D, AmbiX, FuMa, HRTF, MagLS, KU100, FOA and the channel
+    // letters stay Latin, with one U+0020 between them and the Han around them.
+    'yaw':                        ['偏航'],
+    'roll':                       ['横滚'],
+    'order':                      ['阶数'],
+    'channel':                    ['声道'],
+    'channels':                   ['声道'],
+    'b-format':                   ['B 格式'],
+    'b-format channels':          ['B 格式声道'],
+    'encoder':                    ['编码器'],
+    'decoder':                    ['解码器'],
+    'binaural':                   ['双耳'],
+    'headphones':                 ['耳机'],
+    'speakers':                   ['音箱'],
+    'soundfield':                 ['声场'],
+    'spherical harmonic':         ['球谐函数'],
+    'beam':                       ['波束'],
+    'orbit':                      ['环绕', '环形', '轨道'],   // 环绕 = the moving source of O-simpleAmbisonics; 环形 is O-Orbit's ring-path face (label.pathOrbit), 轨道 O-Strata's orbit control (label.orbit) — both were settled before this section and stay accepted
+    'latency':                    ['延迟'],
     // ── transport, tempo and sequencing ─────────────────────────────────────
     'tempo':                      ['速度', '节奏速度'],   // the BPM sense; 速度 is what Chinese DAWs print for tempo
     'tempo sync':                 ['节拍同步'],
