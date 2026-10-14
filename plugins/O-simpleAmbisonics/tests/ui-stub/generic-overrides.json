@@ -1,0 +1,25 @@
+{
+  "_why": "Real ranges, choices and defaults from createParameterLayout() (PluginProcessor.cpp), so the probes and the label gate run the page at C++-producible states: readouts measure at real widths, scaledToNorm() inverts the real skews, and beamCurve() never sees an order index of 3 (the neutral seed's four choices did). Degree parameters are continuous (interval 0); distance / orbitRate use setSkewForCentre (skew = log 0.5 / log ((centre - start) / (end - start)) = 0.2890648); the plugin, not this file, is the source of truth — update both together.",
+  "sliders": {
+    "azimuth":     { "start": -180, "end": 180, "skew": 1, "interval": 0, "def": 0, "label": "°" },
+    "elevation":   { "start": -90,  "end": 90,  "skew": 1, "interval": 0, "def": 0, "label": "°" },
+    "distance":    { "start": 0.2,  "end": 20,  "skew": 0.2890648, "interval": 0.001, "def": 1, "label": "m" },
+    "yaw":         { "start": -180, "end": 180, "skew": 1, "interval": 0, "def": 0, "label": "°" },
+    "pitch":       { "start": -180, "end": 180, "skew": 1, "interval": 0, "def": 0, "label": "°" },
+    "roll":        { "start": -180, "end": 180, "skew": 1, "interval": 0, "def": 0, "label": "°" },
+    "orbitRate":   { "start": 0.02, "end": 2,   "skew": 0.2890648, "interval": 0.001, "def": 0.1, "label": "Hz" },
+    "outputLevel": { "start": -60,  "end": 0,   "skew": 1, "interval": 0.1, "def": 0, "label": "dB" }
+  },
+  "combos": {
+    "order":     { "choices": ["1", "2", "3"], "def": 0 },
+    "decoder":   { "choices": ["Binaural", "Stereo"], "def": 0 },
+    "inputMode": { "choices": ["Mono sum", "Left only"], "def": 0 }
+  },
+  "toggles": { "orbit": false },
+  "natives": {
+    "getParameterDefaults": {
+      "azimuth": 0, "elevation": 0, "distance": 1, "order": 0, "yaw": 0, "pitch": 0,
+      "roll": 0, "decoder": 0, "orbit": 0, "orbitRate": 0.1, "inputMode": 0, "outputLevel": 0
+    }
+  }
+}

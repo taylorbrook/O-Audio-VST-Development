@@ -43,6 +43,15 @@
     The host-visible latency (setLatencySamples(kPartition), the ONE call site
     in prepareToPlay) never changes — Stage 1 put it in place.
 
+    Stage 3 (GUI): createEditor() returns the WebView editor behind
+    #if JUCE_WEB_BROWSER (Generic editor in the #else, so the render harness —
+    JUCE_WEB_BROWSER=0, no editor sources — keeps compiling this TU). The state
+    XML gains two non-parameter properties on the saved COPY: uiLanguage (the
+    code string) and editorScale (only when > 0). applyFactoryPreset() applies
+    the eight provisional lesson recipes and never touches outputLevel.
+    processBlock / prepareToPlay / fillParams / createParameterLayout are
+    unchanged from Stage 2.
+
   ==============================================================================
 */
 
@@ -50,11 +59,9 @@
 
 #include <cmath>
 
-// NOTE: no PluginEditor.h include in this TU at Stage 1. When Stage 3 adds the
-// WebView editor, its include goes inside a #if JUCE_WEB_BROWSER guard directly
-// above createEditor() (Generic editor in the #else) so the render harness
-// (JUCE_WEB_BROWSER=0, no editor sources) keeps compiling this file
-// (pattern_render_harness_breaks_on_webview_editor).
+// The editor include is guarded and sits directly above createEditor() (Generic
+// editor in the #else) so the render harness (JUCE_WEB_BROWSER=0, no editor
+// sources) keeps compiling this file (pattern_render_harness_breaks_on_webview_editor).
 
 // Alias, not `using namespace OSimpleAmbisonics;` — JuceHeader.h brings
 // `using namespace juce;` into this TU, so a bare `dsp::` would be ambiguous
@@ -349,13 +356,18 @@ void OSimpleAmbisonicsAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
     meterFrames.publish();
 }
 
+#if JUCE_WEB_BROWSER
+ #include "PluginEditor.h"
+#endif
+
 juce::AudioProcessorEditor* OSimpleAmbisonicsAudioProcessor::createEditor()
 {
-    // Stages 1–2: Generic editor, inline (no editor TU). Stage 3 wraps this in
-    //   #if JUCE_WEB_BROWSER  return new OSimpleAmbisonicsEditor (*this);
-    //   #else                 return new juce::GenericAudioProcessorEditor (*this);
-    // so the render harness (JUCE_WEB_BROWSER=0) keeps building.
+   #if JUCE_WEB_BROWSER
+    return new OSimpleAmbisonicsAudioProcessorEditor (*this);
+   #else
+    // Render harness (JUCE_WEB_BROWSER=0, no editor sources).
     return new juce::GenericAudioProcessorEditor (*this);
+   #endif
 }
 
 void OSimpleAmbisonicsAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
@@ -366,6 +378,19 @@ void OSimpleAmbisonicsAudioProcessor::getStateInformation (juce::MemoryBlock& de
     // this attribute, and adding it at v1.0.0 costs nothing.
     state.setProperty ("pluginVersion", JucePlugin_VersionString, nullptr);
 
+    // Stage 3: the two non-parameter properties, on the COPY only (never
+    // mutate apvts.state here). The language is written as its code string.
+    state.setProperty ("uiLanguage", languageCode (uiLanguage.load (std::memory_order_acquire)), nullptr);
+
+    // editorScale only when the editor has sized itself; otherwise REMOVE it,
+    // because a rejected value restored by replaceState would still sit in the
+    // tree and be re-saved.
+    const float es = editorScale.load (std::memory_order_relaxed);
+    if (es > 0.0f)
+        state.setProperty ("editorScale", juce::String (es, 3), nullptr);
+    else
+        state.removeProperty ("editorScale", nullptr);
+
     if (auto xml = state.createXml())
         copyXmlToBinary (*xml, destData);
 }
@@ -375,7 +400,85 @@ void OSimpleAmbisonicsAudioProcessor::setStateInformation (const void* data, int
     std::unique_ptr<juce::XmlElement> xmlState (getXmlFromBinary (data, sizeInBytes));
 
     if (xmlState != nullptr && xmlState->hasTagName (apvts.state.getType()))
+    {
         apvts.replaceState (juce::ValueTree::fromXml (*xmlState));
+
+        // Presence by isVoid() and parse the STRING — never isInt() / isDouble():
+        // every property comes back as a string var after the XML round-trip
+        // (critical_valuetree_xml_roundtrip_loses_type). A pre-Stage-3 session
+        // has neither property: English, fit-to-display.
+        if (const auto lang = apvts.state.getProperty ("uiLanguage"); ! lang.isVoid())
+            uiLanguage.store (languageIndex (lang.toString()), std::memory_order_release);
+
+        if (const auto sv = apvts.state.getProperty ("editorScale"); ! sv.isVoid())
+        {
+            const float s = sv.toString().getFloatValue();
+            if (std::isfinite (s) && s >= 0.6f && s <= 1.5f)
+                editorScale.store (s, std::memory_order_relaxed);
+        }
+    }
+}
+
+//==============================================================================
+// Lesson tour (UI-08). Provisional recipes (v1-ui.yaml:371-379); Stage 4 refines
+// them and adds the FUNC-08 bank. No recipe combines order 3 with distance < 1 m
+// (Binaural headroom: order-3 bank +6.5 dB peak, 0.2 m +8.9 dB).
+namespace
+{
+    struct LessonEntry { const char* paramId; float plain; };   // engineering units; choices / bool by index
+    struct Lesson      { const char* id; int count; LessonEntry entries[4]; };
+
+    constexpr Lesson kLessons[8] = {
+        { "pointSource",        4, { { ParamIDs::order, 0.0f }, { ParamIDs::azimuth, 30.0f }, { ParamIDs::elevation, 0.0f }, { ParamIDs::distance, 1.0f } } },
+        { "orderStep",          2, { { ParamIDs::order, 2.0f }, { ParamIDs::azimuth, 45.0f }, {}, {} } },
+        { "behindYou",          1, { { ParamIDs::azimuth, 180.0f }, {}, {}, {} } },
+        { "overhead",           2, { { ParamIDs::elevation, 90.0f }, { ParamIDs::order, 1.0f }, {}, {} } },
+        { "rotateRoom",         3, { { ParamIDs::azimuth, 60.0f }, { ParamIDs::yaw, 120.0f }, { ParamIDs::order, 1.0f }, {} } },
+        { "farNear",            1, { { ParamIDs::distance, 12.0f }, {}, {}, {} } },
+        { "slowOrbit",          3, { { ParamIDs::orbit, 1.0f }, { ParamIDs::orbitRate, 0.05f }, { ParamIDs::order, 1.0f }, {} } },
+        { "speakersHeadphones", 3, { { ParamIDs::decoder, 1.0f }, { ParamIDs::order, 2.0f }, { ParamIDs::azimuth, 45.0f }, {} } },
+    };
+
+    constexpr float kLessonSkipTolerance = 1.0e-6f;
+}
+
+bool OSimpleAmbisonicsAudioProcessor::applyFactoryPreset (const juce::String& lessonId)
+{
+    const Lesson* lesson = nullptr;
+    for (const auto& l : kLessons)
+        if (lessonId == l.id)
+            lesson = &l;
+
+    if (lesson == nullptr)
+        return false;                                   // unknown id: nothing touched
+
+    for (auto* base : getParameters())
+    {
+        auto* p = dynamic_cast<juce::RangedAudioParameter*> (base);
+        if (p == nullptr)
+            continue;
+
+        const auto& pid = p->getParameterID();
+        if (pid == ParamIDs::outputLevel)
+            continue;                                   // user-owned: never reset, never set
+
+        float target = p->getDefaultValue();            // reset-to-default unless the recipe names it
+        for (int e = 0; e < lesson->count; ++e)
+            if (pid == lesson->entries[e].paramId)
+                target = p->convertTo0to1 (lesson->entries[e].plain);
+
+        // Snap to the value the parameter will actually hold (choice / bool /
+        // stepped range), so the skip test compares like with like.
+        target = p->convertTo0to1 (p->convertFrom0to1 (juce::jlimit (0.0f, 1.0f, target)));
+
+        if (std::abs (p->getValue() - target) < kLessonSkipTolerance)
+            continue;                                   // already there: no host edit, no gesture
+
+        p->beginChangeGesture();
+        p->setValueNotifyingHost (target);
+        p->endChangeGesture();
+    }
+    return true;
 }
 
 // Factory function
