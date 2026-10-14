@@ -353,6 +353,34 @@ const TERMS = {
     'hull atten':               ['atténuation hors enveloppe', 'att. env'],
     'distance':                 ['distance'],
 
+    // ── ambisonics (O-simpleAmbisonics Stage 3; renderings [ASSUMED] — standard
+    //    technical usage, not checked against a terminology base) ────────────
+    // Rotation PITCH is `tangage`, never the musical `hauteur` above, and the
+    // ear-level `level` word under an elevation readout is `à l'horizontale`,
+    // never the gain `niveau`: both carry a termNote in the plugin's table
+    // rather than a second rendering here, so 'pitch' / 'level' stay strict.
+    // ACN, SN3D, AmbiX, FuMa, HRTF, MagLS, KU100, FOA and the channel letters
+    // W Y Z X … P are symbols and stay as written (sameAsEn where whole-string).
+    'azimuth':                  ['azimut'],                 // O-GrainScatter precedent
+    'elevation':                ['élévation', 'élév'],      // ×5 suite-wide; élév. as in 'elev range'
+    'yaw':                      ['lacet'],
+    'roll':                     ['roulis'],
+    'order':                    ['ordre'],                  // the ambisonic order (1er / 2e / 3e ordre)
+    'channel':                  ['canal'],
+    'channels':                 ['canaux', 'can'],
+    'b-format':                 ['format b', 'b-format'],   // le format B; B-format is the accepted loan
+    'b-format channels':        ['canaux du format b', 'canaux b-format'],
+    'encoder':                  ['encodeur'],
+    'decoder':                  ['décodeur'],
+    'binaural':                 ['binaural'],               // O-Octagon precedent
+    'headphones':               ['casque'],                 // O-Octagon precedent
+    'speakers':                 ['enceintes'],
+    'soundfield':               ['champ sonore'],
+    'spherical harmonic':       ['harmonique sphérique'],
+    'beam':                     ['faisceau'],
+    'orbit':                    ['orbite'],
+    'latency':                  ['latence'],
+
     // ── pedagogic family (O-simple*) ────────────────────────────────────────
     'lesson presets':           ['préréglages de leçon', 'leçons'],
     'concept presets':          ['préréglages pédagogiques'],
