@@ -3,6 +3,18 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.6.1] — 2026-10-14
+
+### Fixed
+
+- **Windows: the interface showed "page not found" instead of the UI.** The
+  editor never chose a WebView backend, and on Windows JUCE's
+  `Backend::defaultBackend` is the legacy IE control. That control ignores
+  `withWinWebView2Options` and has no resource provider, so navigating to
+  `https://juce.backend/` found nothing. The editor now passes
+  `.withBackend (Backend::webview2)`. macOS (WKWebView) and the DSP are
+  unchanged.
+
 ## [1.6.0] — 2026-09-27
 
 UI legibility pass: AA text inks, a 9 px text floor, and the bundled EB

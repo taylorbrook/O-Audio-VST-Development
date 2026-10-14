@@ -4,6 +4,18 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.22.2] — 2026-10-14
+
+### Fixed
+
+- **Windows: the interface showed "page not found" instead of the UI.** The
+  editor never chose a WebView backend, and on Windows JUCE's
+  `Backend::defaultBackend` is the legacy IE control. That control ignores
+  `withWinWebView2Options` and has no resource provider, so navigating to
+  `https://juce.backend/` found nothing. The editor now passes
+  `.withBackend (Backend::webview2)`. macOS (WKWebView) and the DSP are
+  unchanged.
+
 ## [1.22.1] — 2026-09-27
 
 The four decorative fleurons now meet WCAG AA. PATCH: one colour token.
