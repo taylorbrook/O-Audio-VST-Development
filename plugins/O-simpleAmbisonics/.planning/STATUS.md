@@ -1,20 +1,20 @@
 ---
 plugin: O-simpleAmbisonics
-stage: 3
-stage_name: gui
+stage: 4
+stage_name: polish
 stage_phase: 0
 stage_phase_name: single-cycle
 stage_phase_total: 1
 artifact_suffix: ""
-status: stage_3_complete_verified
+status: stage_4_plan_complete
 last_updated: 2026-10-14
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-current_phase: verify
-next_phase: discuss
-next_action: plugin-discuss
+current_phase: plan
+next_phase: execute
+next_action: plugin-execute
 ui_scaffolding_phase_complete: true
 next_stage: 4
 ready_for_implementation: true
@@ -32,6 +32,9 @@ plugin_code: OSAm
 # O-simpleAmbisonics Status
 
 ## Current Position
+
+Stage: 4 of 4 (Polish) — discuss ✓ research ✓ plan ✓ 2026-10-14 · next: execute. `PLAN.md`: Part 1 T1–T11 (critic pass → carried fixes → recipes/apply core → preset-manager + header bar → gates → build) → CP1 preset-bar visual; Part 2 T12–T15 (validation sweep → CP2 push/dispatch go-ahead → Windows CI → release docs) → CP3 hands-on + QUAL-02. Planner deltas vs RESEARCH: ST6 amended for R-D3, orderStep caption rewrite, G-PRESET-CLICK (QUAL-01) added. `RESEARCH.md` decisions R-D1 retire #chipLatency for header preset bar · R-D2 lessons = full reset (as today) · R-D3 inputMode user-owned · R-D4 orderStep walks 1→2→3→1. Prior discuss: `stages/4-polish/CONTEXT.md`: preset-manager + browser (Init + 8 lessons, shared recipe table), carried fixes (verify_2_1 V3 → Stereo, encReadN, chevron/puck), critic pass, CI Windows validate-only, i18n flags unchanged, 1.0.0 no tag.
+
 
 Stage: 3 of 4 (GUI) — **✅ VERIFIED 2026-10-14** · next: Stage 4 (Polish) discuss
 Status: **Stage 3 verified.** `stages/3-gui/VERIFICATION.md`: UI-01…08 complete (8/8). Independent re-run from a forced rebuild: 0 warnings; harness 251/251 ×2 (digests 2.1 `9189d911a1fe98d5` / 2.2 `7f35bc9f91e321b9` PASS, 2.3 reproduced); installed VST3 + AU cmp-identical; auval SUCCEEDED; pluginval s10 SUCCESS ×2 VST3 + ×2 AU with the WebView editor; verify_2_2 / 2_3 / 3_state pass; check-i18n / fr-lint / zh-lint / check-ui-labels / boot-all-uis --strict-tips exit 0; frame-probe 13/13 + 3 negative controls FAIL as designed; lesson-row-budget + tooltip-clamp ALL PASS; icons --check 0. Carried to Stage 4: human hands-on list (Logic R1–R3 + general, Standalone page → C++ lessons, D16 reflow eye-check), `verify_2_1` V3 Binaural arm stale since 2.3 (recommend narrowing to Stereo — user decision), `encReadN` ellipsis + chevron/puck nits, fr / zh review flags.
