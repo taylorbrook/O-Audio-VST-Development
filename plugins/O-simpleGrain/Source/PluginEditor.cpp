@@ -243,7 +243,12 @@ OSimpleGrainAudioProcessorEditor::OSimpleGrainAudioProcessorEditor (OSimpleGrain
     // WebView2 user-data folder MUST be a writable temp dir (DAW hosts deny the
     // default location → silent IE fallback → blank page). Unique prefix so the
     // stale-session reaper can't touch another plugin's in-flight sessions.
-    options = options.withWinWebView2Options (
+    // v1.5.1 — name the backend: Backend::defaultBackend is the legacy IE control on
+    // Windows, which ignores withWinWebView2Options and has no resource provider,
+    // so https://juce.backend/ answered "page not found".
+    options = options
+        .withBackend (juce::WebBrowserComponent::Options::Backend::webview2)
+        .withWinWebView2Options (
         juce::WebBrowserComponent::Options::WinWebView2{}
             .withUserDataFolder (
                 juce::File::getSpecialLocation (juce::File::tempDirectory)

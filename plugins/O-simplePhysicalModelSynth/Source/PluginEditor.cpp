@@ -277,7 +277,12 @@ OSimplePhysicalModelSynthAudioProcessorEditor::OSimplePhysicalModelSynthAudioPro
         });
 
    #if JUCE_WINDOWS
-    options = options.withWinWebView2Options (
+    // v1.4.1 — name the backend: Backend::defaultBackend is the legacy IE control on
+    // Windows, which ignores withWinWebView2Options and has no resource provider,
+    // so https://juce.backend/ answered "page not found".
+    options = options
+        .withBackend (juce::WebBrowserComponent::Options::Backend::webview2)
+        .withWinWebView2Options (
         juce::WebBrowserComponent::Options::WinWebView2{}
             .withUserDataFolder (
                 juce::File::getSpecialLocation (juce::File::tempDirectory)
