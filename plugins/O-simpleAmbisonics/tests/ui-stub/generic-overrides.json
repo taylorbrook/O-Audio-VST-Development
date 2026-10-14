@@ -1,5 +1,5 @@
 {
-  "_why": "Real ranges, choices and defaults from createParameterLayout() (PluginProcessor.cpp), so the probes and the label gate run the page at C++-producible states: readouts measure at real widths, scaledToNorm() inverts the real skews, and beamCurve() never sees an order index of 3 (the neutral seed's four choices did). Degree parameters are continuous (interval 0); distance / orbitRate use setSkewForCentre (skew = log 0.5 / log ((centre - start) / (end - start)) = 0.2890648); the plugin, not this file, is the source of truth — update both together.",
+  "_why": "Real ranges, choices and defaults from createParameterLayout() (PluginProcessor.cpp), so the probes and the label gate run the page at C++-producible states: readouts measure at real widths, scaledToNorm() inverts the real skews, and beamCurve() never sees an order index of 3 (the neutral seed's four choices did). Degree parameters are continuous (interval 0); distance / orbitRate use setSkewForCentre (skew = log 0.5 / log ((centre - start) / (end - start)) = 0.2890648); the plugin, not this file, is the source of truth — update both together. Stage 4: the preset natives answer with the real factory bank (PresetRecipes.h file names and ids, in table order) plus two user presets, so the bar, the list and the save / replace / delete states render C++-producible content.",
   "sliders": {
     "azimuth":     { "start": -180, "end": 180, "skew": 1, "interval": 0, "def": 0, "label": "°" },
     "elevation":   { "start": -90,  "end": 90,  "skew": 1, "interval": 0, "def": 0, "label": "°" },
@@ -20,6 +20,26 @@
     "getParameterDefaults": {
       "azimuth": 0, "elevation": 0, "distance": 1, "order": 0, "yaw": 0, "pitch": 0,
       "roll": 0, "decoder": 0, "orbit": 0, "orbitRate": 0.1, "inputMode": 0, "outputLevel": 0
-    }
+    },
+    "getPresetList": [
+      "Init", "Point Source (FOA)", "Order 1-2-3", "Behind You", "Overhead", "Rotate the Room",
+      "Far Away - Up Close", "Slow Orbit", "Speakers vs Headphones", "My Scene", "Night Walk"
+    ],
+    "getPresetCatalog": {
+      "factory": [
+        { "name": "Init", "id": "init" },
+        { "name": "Point Source (FOA)", "id": "pointSource" },
+        { "name": "Order 1-2-3", "id": "orderStep" },
+        { "name": "Behind You", "id": "behindYou" },
+        { "name": "Overhead", "id": "overhead" },
+        { "name": "Rotate the Room", "id": "rotateRoom" },
+        { "name": "Far Away - Up Close", "id": "farNear" },
+        { "name": "Slow Orbit", "id": "slowOrbit" },
+        { "name": "Speakers vs Headphones", "id": "speakersHeadphones" }
+      ],
+      "user": ["My Scene", "Night Walk"]
+    },
+    "getCurrentPreset": "Init",
+    "isFactoryPreset": true
   }
 }

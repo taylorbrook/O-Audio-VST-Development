@@ -47,10 +47,17 @@
     #if JUCE_WEB_BROWSER (Generic editor in the #else, so the render harness —
     JUCE_WEB_BROWSER=0, no editor sources — keeps compiling this TU). The state
     XML gains two non-parameter properties on the saved COPY: uiLanguage (the
-    code string) and editorScale (only when > 0). applyFactoryPreset() applies
-    the eight provisional lesson recipes and never touches outputLevel.
-    processBlock / prepareToPlay / fillParams / createParameterLayout are
-    unchanged from Stage 2.
+    code string) and editorScale (only when > 0).
+
+    Stage 4 (Polish): the critic fixes in the audio path (a NaN / Inf input
+    sample scrubbed in the conditioner, a ramped Input Mode, reset(), the real
+    tail length, the unprepared-processBlock guard); presets (FUNC-08) from ONE
+    recipe table (PresetRecipes.h) through ONE apply core
+    (applyNormalisedTargets) for the lesson buttons, the factory bank and user
+    scenes; outputLevel AND inputMode are user-owned (never reset, set or
+    counted as "modified", R-D3); the "orderStep" lesson walks the order
+    1 -> 2 -> 3 -> 1 (R-D4); a third state property, currentPreset.
+    createParameterLayout and fillParams are unchanged from Stage 2.
 
   ==============================================================================
 */
@@ -58,6 +65,8 @@
 #include "PluginProcessor.h"
 
 #include <cmath>
+#include <cstring>
+#include <limits>
 
 // The editor include is guarded and sits directly above createEditor() (Generic
 // editor in the #else) so the render harness (JUCE_WEB_BROWSER=0, no editor
@@ -178,6 +187,12 @@ OSimpleAmbisonicsAudioProcessor::OSimpleAmbisonicsAudioProcessor()
     distanceRange  = &dynamic_cast<juce::AudioParameterFloat*> (apvts.getParameter (ParamIDs::distance))->range;
     orbitRateRange = &dynamic_cast<juce::AudioParameterFloat*> (apvts.getParameter (ParamIDs::orbitRate))->range;
     jassert (distanceRange != nullptr && orbitRateRange != nullptr);
+
+    // Stage 4 (P5): a fresh instance IS Init — its name, its targets (the
+    // defaults), unmodified. No disk access here (P7: the factory bank is
+    // written lazily by the editor's preset natives only).
+    setCurrentPreset (ambpresets::kFactory[0].fileName,
+                      resolveTargets (recipeTargets (ambpresets::kFactory[0])), true, false);
 }
 
 OSimpleAmbisonicsAudioProcessor::~OSimpleAmbisonicsAudioProcessor() = default;
@@ -237,11 +252,41 @@ void OSimpleAmbisonicsAudioProcessor::prepareToPlay (double sampleRate, int samp
     outputGain.setCurrentAndTargetValue (
         juce::Decibels::decibelsToGain (outputLevelParam->load(), -60.0f));
 
+    // Stage 4 WR-04: seeded the same way, so block 0 takes the exact branch.
+    leftOnlyWeight.reset (sampleRate, 0.02);
+    leftOnlyWeight.setCurrentAndTargetValue ((int) inputModeParam->load() == 1 ? 1.0f : 0.0f);
+
+    // Stage 4 WR-05: the tail is the structural latency plus the Binaural FIR
+    // at THIS rate (the convolver's resampled length, a multiple of 64).
+    tailSeconds.store ((double) (osa_dsp::kPartition + engine.convolver().tapsAtRate()) / sampleRate,
+                       std::memory_order_relaxed);
+
     outPeakAccL = outPeakAccR = 0.0f;
 }
 
 void OSimpleAmbisonicsAudioProcessor::releaseResources()
 {
+}
+
+// Stage 4 WR-03: VST3 setProcessing (false) and AU Reset land here. The
+// engine reset zeroes the convolver grid buffers + FDL, the stereo delays
+// and the air-LP state, and re-snaps every smoother to the CURRENT
+// parameters — prepareToPlay without the allocations, so a restart never
+// plays the previous material's tail. Before the first prepare there is no
+// state to clear (and no convolver tables): nothing to do.
+void OSimpleAmbisonicsAudioProcessor::reset()
+{
+    if (maxBlock <= 0)
+        return;
+
+    engine.setParams (fillParams());
+    engine.reset();
+
+    outputGain.setCurrentAndTargetValue (
+        juce::Decibels::decibelsToGain (outputLevelParam->load(), -60.0f));
+    leftOnlyWeight.setCurrentAndTargetValue ((int) inputModeParam->load() == 1 ? 1.0f : 0.0f);
+
+    outPeakAccL = outPeakAccR = 0.0f;
 }
 
 bool OSimpleAmbisonicsAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -270,6 +315,15 @@ void OSimpleAmbisonicsAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
     if (n <= 0 || numCh <= 0)
         return;
 
+    // Stage 4 IN-01: a host that calls processBlock before prepareToPlay
+    // (seen during some scans) would spin the slice loop forever on
+    // maxBlock == 0, over empty convolver tables. Silence instead.
+    if (maxBlock <= 0 || monoScratch.empty())
+    {
+        buffer.clear();
+        return;
+    }
+
     // Peak-since-the-UI-last-read (A8 / R7): restart the accumulators only
     // when the reader has consumed the last published frame.
     if (! meterFrames.hasNewData())
@@ -280,6 +334,7 @@ void OSimpleAmbisonicsAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
 
     // Parameters are read once per block.
     const int mode = (int) inputModeParam->load();   // 0 Mono sum, 1 Left only
+    leftOnlyWeight.setTargetValue (mode == 1 ? 1.0f : 0.0f);
     engine.setParams (fillParams());
     outputGain.setTargetValue (juce::Decibels::decibelsToGain (outputLevelParam->load(), -60.0f));
 
@@ -301,12 +356,31 @@ void OSimpleAmbisonicsAudioProcessor::processBlock (juce::AudioBuffer<float>& bu
 
         // Conditioner into the scratch for the WHOLE slice before the engine
         // writes out0/out1 (in place: in0 == out0).
+        //
+        // Stage 4 WR-04: a Mono sum <-> Left only change ramps the Left-only
+        // weight over 20 ms (sum + w (L - sum)); outside a ramp the exact
+        // branches run, so both settings are bit-identical to Stage 2. A mono
+        // bus has no R leg to blend: the weight is parked at its target.
+        //
+        // Stage 4 WR-02: a non-finite input sample becomes 0 HERE, before any
+        // engine state sees it — one NaN used to latch the air-LP integrator
+        // and silence the plugin until the next prepare.
+        if (in1 == nullptr)
+            leftOnlyWeight.setCurrentAndTargetValue (leftOnlyWeight.getTargetValue());
+
         for (int i = 0; i < len; ++i)
         {
             const float l = in0[start + i];
-            mono[i] = (in1 != nullptr)
-                          ? (mode == 0 ? 0.5f * (l + in1[start + i]) : l)
-                          : l;
+            float x = l;
+            if (in1 != nullptr)
+            {
+                const float sum = 0.5f * (l + in1[start + i]);
+                if (leftOnlyWeight.isSmoothing())
+                    x = sum + leftOnlyWeight.getNextValue() * (l - sum);
+                else
+                    x = mode == 0 ? sum : l;
+            }
+            mono[i] = std::isfinite (x) ? x : 0.0f;
         }
 
         engine.process (mono, out0 + start, out1 != nullptr ? out1 + start : right, len);
@@ -382,6 +456,10 @@ void OSimpleAmbisonicsAudioProcessor::getStateInformation (juce::MemoryBlock& de
     // mutate apvts.state here). The language is written as its code string.
     state.setProperty ("uiLanguage", languageCode (uiLanguage.load (std::memory_order_acquire)), nullptr);
 
+    // Stage 4 (P6): the preset name ("" = unnamed), a plain root property —
+    // never the preset module's XML state path.
+    state.setProperty ("currentPreset", getPresetName(), nullptr);
+
     // editorScale only when the editor has sized itself; otherwise REMOVE it,
     // because a rejected value restored by replaceState would still sit in the
     // tree and be re-saved.
@@ -410,75 +488,506 @@ void OSimpleAmbisonicsAudioProcessor::setStateInformation (const void* data, int
         if (const auto lang = apvts.state.getProperty ("uiLanguage"); ! lang.isVoid())
             uiLanguage.store (languageIndex (lang.toString()), std::memory_order_release);
 
+        // Stage 4 IN-19: absent or rejected -> 0 (fit-to-display, as
+        // documented), never the previous instance's scale carried over.
+        float restoredScale = 0.0f;
         if (const auto sv = apvts.state.getProperty ("editorScale"); ! sv.isVoid())
         {
             const float s = sv.toString().getFloatValue();
             if (std::isfinite (s) && s >= 0.6f && s <= 1.5f)
-                editorScale.store (s, std::memory_order_relaxed);
+                restoredScale = s;
+        }
+        editorScale.store (restoredScale, std::memory_order_relaxed);
+
+        // Stage 4 (P6): the preset name — the same isVoid() + string read;
+        // ABSENT -> "" (an older session is unnamed, never the ctor's Init).
+        // Untrusted: sanitised. A factory name rebuilds its targets from the
+        // table (orderStep with the RESTORED order index, so a reopened
+        // session shows the lesson lit and continues the walk, P4); a user
+        // name stays stale until refreshPresetTargetsIfNeeded re-reads its
+        // file on the message thread.
+        const juce::var cp = apvts.state.getProperty ("currentPreset");
+        const juce::String restored = cp.isVoid() ? juce::String() : sanitisePresetName (cp.toString());
+        if (const auto* recipe = ambpresets::findByName (restored))
+        {
+            const auto t = juce::String (recipe->id) == ambpresets::kOrderStepId
+                               ? orderStepTargets ((int) orderParam->load())
+                               : recipeTargets (*recipe);
+            setCurrentPreset (recipe->fileName, resolveTargets (t), true, false);
+        }
+        else
+        {
+            setCurrentPreset (restored, Targets {}, false, restored.isNotEmpty());
         }
     }
 }
 
 //==============================================================================
-// Lesson tour (UI-08). Provisional recipes (v1-ui.yaml:371-379); Stage 4 refines
-// them and adds the FUNC-08 bank. No recipe combines order 3 with distance < 1 m
-// (Binaural headroom: order-3 bank +6.5 dB peak, 0.2 m +8.9 dB).
+// Stage 4 presets + lessons (FUNC-08; PLAN P1 .. P9). The recipes live in ONE
+// table, PresetRecipes.h. Message thread unless noted; presetLock guards the
+// identity (name / targets / validity), is never taken on the audio thread and
+// is never held across setValueNotifyingHost.
 namespace
 {
-    struct LessonEntry { const char* paramId; float plain; };   // engineering units; choices / bool by index
-    struct Lesson      { const char* id; int count; LessonEntry entries[4]; };
+    // APVTS order = the layout order = Targets index order.
+    constexpr const char* kPresetParamIds[12] = {
+        ParamIDs::azimuth, ParamIDs::elevation, ParamIDs::distance, ParamIDs::order, ParamIDs::yaw,
+        ParamIDs::pitch, ParamIDs::roll, ParamIDs::decoder, ParamIDs::orbit, ParamIDs::orbitRate,
+        ParamIDs::inputMode, ParamIDs::outputLevel };
+    constexpr int kOrderSlot = 3;
 
-    constexpr Lesson kLessons[8] = {
-        { "pointSource",        4, { { ParamIDs::order, 0.0f }, { ParamIDs::azimuth, 30.0f }, { ParamIDs::elevation, 0.0f }, { ParamIDs::distance, 1.0f } } },
-        { "orderStep",          2, { { ParamIDs::order, 2.0f }, { ParamIDs::azimuth, 45.0f }, {}, {} } },
-        { "behindYou",          1, { { ParamIDs::azimuth, 180.0f }, {}, {}, {} } },
-        { "overhead",           2, { { ParamIDs::elevation, 90.0f }, { ParamIDs::order, 1.0f }, {}, {} } },
-        { "rotateRoom",         3, { { ParamIDs::azimuth, 60.0f }, { ParamIDs::yaw, 120.0f }, { ParamIDs::order, 1.0f }, {} } },
-        { "farNear",            1, { { ParamIDs::distance, 12.0f }, {}, {}, {} } },
-        { "slowOrbit",          3, { { ParamIDs::orbit, 1.0f }, { ParamIDs::orbitRate, 0.05f }, { ParamIDs::order, 1.0f }, {} } },
-        { "speakersHeadphones", 3, { { ParamIDs::decoder, 1.0f }, { ParamIDs::order, 2.0f }, { ParamIDs::azimuth, 45.0f }, {} } },
-    };
+    // P9 strip set for preset names: C0, DEL, C1, bidi controls.
+    bool isStrippedPresetChar (juce::juce_wchar c) noexcept
+    {
+        return c < 0x20 || c == 0x7f || (c >= 0x80 && c <= 0x9f)
+            || c == 0x200e || c == 0x200f
+            || (c >= 0x202a && c <= 0x202e)
+            || (c >= 0x2066 && c <= 0x2069);
+    }
 
-    constexpr float kLessonSkipTolerance = 1.0e-6f;
+    bool isJsonNumberOrBool (const juce::var& v) noexcept
+    {
+        return v.isDouble() || v.isInt() || v.isInt64() || v.isBool();
+    }
+
+    constexpr int   kMaxPresetNameChars = 64;
+    constexpr float kApplySkipTolerance = 1.0e-6f;   // P2
+    constexpr float kModifiedTolerance  = 1.0e-4f;   // P5
+
+    OSimpleAmbisonicsAudioProcessor::Targets nanTargets()
+    {
+        OSimpleAmbisonicsAudioProcessor::Targets t;
+        t.fill (std::numeric_limits<float>::quiet_NaN());
+        return t;
+    }
 }
 
-bool OSimpleAmbisonicsAudioProcessor::applyFactoryPreset (const juce::String& lessonId)
+// R-D3: the one user-owned list.
+bool OSimpleAmbisonicsAudioProcessor::isUserOwnedParam (const juce::String& paramId)
 {
-    const Lesson* lesson = nullptr;
-    for (const auto& l : kLessons)
-        if (lessonId == l.id)
-            lesson = &l;
+    return paramId == ParamIDs::outputLevel || paramId == ParamIDs::inputMode;
+}
 
-    if (lesson == nullptr)
-        return false;                                   // unknown id: nothing touched
-
-    for (auto* base : getParameters())
+OSimpleAmbisonicsAudioProcessor::Targets
+OSimpleAmbisonicsAudioProcessor::recipeTargets (const ambpresets::Recipe& recipe, int orderIndex) const
+{
+    auto t = nanTargets();
+    int matched = 0;
+    for (int e = 0; e < recipe.count; ++e)
     {
-        auto* p = dynamic_cast<juce::RangedAudioParameter*> (base);
+        const auto& entry = recipe.entries[e];
+        for (size_t i = 0; i < t.size(); ++i)
+        {
+            if (std::strcmp (entry.paramId, kPresetParamIds[i]) != 0 || isUserOwnedParam (kPresetParamIds[i]))
+                continue;
+            if (auto* p = apvts.getParameter (kPresetParamIds[i]))
+            {
+                t[i] = p->convertTo0to1 (entry.raw);   // the parameter's OWN mapping: skew-correct
+                ++matched;
+            }
+        }
+    }
+    jassert (matched == recipe.count);            // a typo in a recipe id (harness G-FACTORY[table])
+    juce::ignoreUnused (matched);
+
+    if (orderIndex >= 0)
+        if (auto* p = apvts.getParameter (ParamIDs::order))
+            t[(size_t) kOrderSlot] = p->convertTo0to1 ((float) juce::jlimit (0, 2, orderIndex));
+    return t;
+}
+
+OSimpleAmbisonicsAudioProcessor::Targets
+OSimpleAmbisonicsAudioProcessor::resolveTargets (const Targets& targets) const
+{
+    auto r = nanTargets();
+    for (size_t i = 0; i < r.size(); ++i)
+    {
+        if (isUserOwnedParam (kPresetParamIds[i]))
+            continue;                              // never reset, never set
+        auto* p = apvts.getParameter (kPresetParamIds[i]);
         if (p == nullptr)
             continue;
+        const float t = std::isfinite (targets[i]) ? juce::jlimit (0.0f, 1.0f, targets[i])
+                                                   : p->getDefaultValue();   // reset-to-defaults first
+        r[i] = p->convertTo0to1 (p->convertFrom0to1 (t));   // the value the parameter will hold
+    }
+    return r;
+}
 
-        const auto& pid = p->getParameterID();
-        if (pid == ParamIDs::outputLevel)
-            continue;                                   // user-owned: never reset, never set
+OSimpleAmbisonicsAudioProcessor::Targets OSimpleAmbisonicsAudioProcessor::currentNormalisedValues() const
+{
+    auto t = nanTargets();
+    for (size_t i = 0; i < t.size(); ++i)
+        if (! isUserOwnedParam (kPresetParamIds[i]))
+            if (auto* p = apvts.getParameter (kPresetParamIds[i]))
+                t[i] = p->getValue();
+    return t;
+}
 
-        float target = p->getDefaultValue();            // reset-to-default unless the recipe names it
-        for (int e = 0; e < lesson->count; ++e)
-            if (pid == lesson->entries[e].paramId)
-                target = p->convertTo0to1 (lesson->entries[e].plain);
-
-        // Snap to the value the parameter will actually hold (choice / bool /
-        // stepped range), so the skip test compares like with like.
-        target = p->convertTo0to1 (p->convertFrom0to1 (juce::jlimit (0.0f, 1.0f, target)));
-
-        if (std::abs (p->getValue() - target) < kLessonSkipTolerance)
-            continue;                                   // already there: no host edit, no gesture
-
+// P2: the ONE apply core.
+bool OSimpleAmbisonicsAudioProcessor::applyNormalisedTargets (const Targets& targets)
+{
+    const auto resolved = resolveTargets (targets);
+    for (size_t i = 0; i < resolved.size(); ++i)
+    {
+        if (isUserOwnedParam (kPresetParamIds[i]))
+            continue;
+        auto* p = apvts.getParameter (kPresetParamIds[i]);
+        if (p == nullptr || ! std::isfinite (resolved[i]))
+            continue;
+        if (std::abs (p->getValue() - resolved[i]) < kApplySkipTolerance)
+            continue;                              // already there: no host edit, no gesture
         p->beginChangeGesture();
-        p->setValueNotifyingHost (target);
+        p->setValueNotifyingHost (resolved[i]);
         p->endChangeGesture();
     }
     return true;
+}
+
+void OSimpleAmbisonicsAudioProcessor::setCurrentPreset (const juce::String& newName, const Targets& resolved,
+                                                        bool valid, bool stale)
+{
+    {
+        const juce::ScopedLock sl (presetLock);
+        presetName         = newName;
+        presetTargets      = resolved;
+        presetTargetsValid = valid;
+        presetTargetsStale = stale;
+    }
+    presetRevision.fetch_add (1);
+}
+
+juce::String OSimpleAmbisonicsAudioProcessor::getPresetName() const
+{
+    const juce::ScopedLock sl (presetLock);
+    return presetName;
+}
+
+juce::String OSimpleAmbisonicsAudioProcessor::getPresetId() const
+{
+    const auto* recipe = ambpresets::findByName (getPresetName());
+    return recipe != nullptr ? juce::String (recipe->id) : juce::String();
+}
+
+bool OSimpleAmbisonicsAudioProcessor::isPresetFactory() const
+{
+    return isFactoryPresetName (getPresetName());
+}
+
+bool OSimpleAmbisonicsAudioProcessor::isPresetModified() const
+{
+    Targets t;
+    {
+        const juce::ScopedLock sl (presetLock);
+        if (presetName.isEmpty() || ! presetTargetsValid)
+            return false;
+        t = presetTargets;
+    }
+    for (size_t i = 0; i < t.size(); ++i)
+    {
+        if (isUserOwnedParam (kPresetParamIds[i]) || ! std::isfinite (t[i]))
+            continue;                              // outputLevel / inputMode never make a preset "modified"
+        if (auto* p = apvts.getParameter (kPresetParamIds[i]))
+            if (std::abs (p->getValue() - t[i]) > kModifiedTolerance)
+                return true;
+    }
+    return false;
+}
+
+OSimpleAmbisonicsAudioProcessor::Targets OSimpleAmbisonicsAudioProcessor::orderStepTargets (int orderIndex) const
+{
+    const auto* recipe = ambpresets::findById (ambpresets::kOrderStepId);
+    jassert (recipe != nullptr);
+    return recipe != nullptr ? recipeTargets (*recipe, juce::jlimit (0, 2, orderIndex)) : nanTargets();
+}
+
+// P3 / P4: the LESSON entry.
+bool OSimpleAmbisonicsAudioProcessor::applyFactoryPreset (const juce::String& id)
+{
+    const auto* recipe = ambpresets::findById (id);
+    if (recipe == nullptr)
+        return false;                              // unknown id: nothing touched
+
+    Targets targets;
+    if (id == ambpresets::kOrderStepId)
+    {
+        // R-D4: continue the walk only while the scene is still the unmodified
+        // orderStep scene (owned-parameter moves never break it); else order 1.
+        const bool continuing = getPresetId() == ambpresets::kOrderStepId && ! isPresetModified();
+        const int current = juce::jlimit (0, 2, (int) orderParam->load());
+        targets = orderStepTargets (continuing ? (current + 1) % 3 : 0);
+    }
+    else
+    {
+        targets = recipeTargets (*recipe);
+    }
+
+    applyNormalisedTargets (targets);
+    setCurrentPreset (recipe->fileName, resolveTargets (targets), true, false);
+    return true;
+}
+
+// P3: the BROWSER entry.
+bool OSimpleAmbisonicsAudioProcessor::loadPresetByName (const juce::String& name)
+{
+    if (const auto* recipe = ambpresets::findByName (name))
+    {
+        const auto targets = recipeTargets (*recipe);   // NO walk: orderStep loads order 1
+        applyNormalisedTargets (targets);
+        setCurrentPreset (recipe->fileName, resolveTargets (targets), true, false);
+        return true;                               // the table, never the disk copy
+    }
+
+    if (name.isEmpty())
+        return false;
+
+    // Only a LISTED user preset loads: the name must BE a stem of the User
+    // folder listing, which also blocks any path traversal (T-4-02).
+    const auto order = getPresetWalkOrder();
+    const int idx = order.indexOf (name);
+    if (idx < ambpresets::kNumFactory)
+        return false;
+
+    const auto stem = order[idx];
+    const auto file = presetManager.getUserPresetsDirectory().getChildFile (stem + ".json");
+    if (! file.existsAsFile())
+        return false;
+
+    Targets t;
+    if (! userJsonTargets (juce::JSON::parse (file.loadFileAsString()), t))
+        return false;
+
+    applyNormalisedTargets (t);
+    setCurrentPreset (stem, resolveTargets (t), true, false);
+    return true;
+}
+
+juce::StringArray OSimpleAmbisonicsAudioProcessor::buildWalkOrder (const juce::StringArray& userStems)
+{
+    juce::StringArray order;
+    for (const auto& recipe : ambpresets::kFactory)
+        order.add (recipe.fileName);
+
+    auto users = userStems;
+    users.sort (true);                             // case-insensitive
+    for (const auto& u : users)
+    {
+        if (u.isEmpty() || isFactoryPresetName (u) || order.contains (u, true))
+            continue;
+        order.add (u);
+    }
+    return order;
+}
+
+juce::String OSimpleAmbisonicsAudioProcessor::neighbourIn (const juce::StringArray& order,
+                                                           const juce::String& current, int dir)
+{
+    const int n = order.size();
+    if (n == 0)
+        return {};
+
+    int idx = current.isEmpty() ? -1 : order.indexOf (current);
+    if (idx < 0 && current.isNotEmpty())
+        idx = order.indexOf (current, true);
+    if (idx < 0)
+        return dir >= 0 ? order[0] : order[n - 1];   // unnamed / unknown: top going forward, bottom going back
+
+    const int step = dir >= 0 ? 1 : -1;
+    return order[(idx + step + n) % n];
+}
+
+juce::StringArray OSimpleAmbisonicsAudioProcessor::getPresetWalkOrder() const
+{
+    juce::StringArray stems;
+    const auto dir = presetManager.getUserPresetsDirectory();   // a path only: nothing is created
+    if (dir.isDirectory())
+        for (const auto& f : dir.findChildFiles (juce::File::findFiles, false, "*.json"))
+            stems.add (f.getFileNameWithoutExtension());
+    return buildWalkOrder (stems);
+}
+
+juce::String OSimpleAmbisonicsAudioProcessor::getNeighbourPreset (int dir) const
+{
+    return neighbourIn (getPresetWalkOrder(), getPresetName(), dir);
+}
+
+std::vector<OuariconPresetManager::FactoryPresetDef> OSimpleAmbisonicsAudioProcessor::buildFactoryPresetDefs() const
+{
+    std::vector<OuariconPresetManager::FactoryPresetDef> defs;
+    defs.reserve ((size_t) ambpresets::kNumFactory);
+    for (const auto& recipe : ambpresets::kFactory)
+    {
+        OuariconPresetManager::FactoryPresetDef def;
+        def.name = recipe.fileName;
+        const auto t = resolveTargets (recipeTargets (recipe));
+        for (size_t i = 0; i < t.size(); ++i)
+            if (! isUserOwnedParam (kPresetParamIds[i]) && std::isfinite (t[i]))
+                def.parameters[juce::String (kPresetParamIds[i])] = t[i];
+        defs.push_back (std::move (def));
+    }
+    return defs;
+}
+
+void OSimpleAmbisonicsAudioProcessor::ensureFactoryBankOnDisk()
+{
+    if (factoryBankEnsured)
+        return;
+    factoryBankEnsured = true;
+    presetManager.initializeFactoryPresets (buildFactoryPresetDefs());   // sentinel-gated inside the module
+}
+
+bool OSimpleAmbisonicsAudioProcessor::saveUserPreset (const juce::String& rawName)
+{
+    const auto clean = sanitisePresetName (rawName);
+    if (clean.isEmpty() || isFactoryPresetName (clean))
+        return false;                              // refused BEFORE the module or the disk
+
+    ensureFactoryBankOnDisk();
+    if (! presetManager.savePreset (clean))
+        return false;
+
+    // The module tracks the on-disk name; the identity follows it.
+    setCurrentPreset (presetManager.getCurrentPresetName(), resolveTargets (currentNormalisedValues()), true, false);
+    return true;
+}
+
+bool OSimpleAmbisonicsAudioProcessor::deleteUserPreset (const juce::String& name)
+{
+    if (name.isEmpty() || isFactoryPresetName (name))
+        return false;
+
+    const auto order = getPresetWalkOrder();
+    const int idx = order.indexOf (name);
+    if (idx < ambpresets::kNumFactory)
+        return false;                              // not a listed user preset
+
+    ensureFactoryBankOnDisk();
+    if (! presetManager.deletePreset (order[idx]))
+        return false;
+
+    bool wasCurrent = false;
+    {
+        const juce::ScopedLock sl (presetLock);
+        wasCurrent = presetName == order[idx];
+    }
+    if (wasCurrent)
+        setCurrentPreset ({}, Targets {}, false, false);   // unnamed (never the module's "Default")
+    else
+        presetRevision.fetch_add (1);
+    return true;
+}
+
+juce::var OSimpleAmbisonicsAudioProcessor::getPresetCatalog() const
+{
+    juce::Array<juce::var> factory, user;
+    for (const auto& recipe : ambpresets::kFactory)
+    {
+        auto* entry = new juce::DynamicObject();
+        entry->setProperty ("name", juce::String (recipe.fileName));
+        entry->setProperty ("id",   juce::String (recipe.id));
+        factory.add (juce::var (entry));
+    }
+
+    const auto order = getPresetWalkOrder();
+    for (int i = ambpresets::kNumFactory; i < order.size(); ++i)
+        user.add (order[i]);
+
+    auto* root = new juce::DynamicObject();
+    root->setProperty ("factory", juce::var (std::move (factory)));
+    root->setProperty ("user",    juce::var (std::move (user)));
+    return juce::var (root);
+}
+
+bool OSimpleAmbisonicsAudioProcessor::userJsonTargets (const juce::var& presetJson, Targets& out) const
+{
+    out = nanTargets();
+
+    const auto* root = presetJson.getDynamicObject();
+    if (! presetJson.isObject() || root == nullptr)
+        return false;
+
+    const juce::var paramsVar = root->getProperty ("parameters");
+    const auto* paramsObj = paramsVar.getDynamicObject();
+    if (! paramsVar.isObject() || paramsObj == nullptr)
+        return false;
+
+    for (size_t i = 0; i < out.size(); ++i)
+    {
+        if (isUserOwnedParam (kPresetParamIds[i]))
+            continue;                              // stored by the module's save, never applied
+        const juce::var v = paramsObj->getProperty (juce::Identifier (kPresetParamIds[i]));
+        if (isJsonNumberOrBool (v))
+            out[i] = (float) (double) v;           // anything else stays NaN -> default
+    }
+    return true;
+}
+
+bool OSimpleAmbisonicsAudioProcessor::applyUserPresetJson (const juce::var& presetJson)
+{
+    Targets t;
+    if (! userJsonTargets (presetJson, t))
+        return false;                              // nothing changed
+    return applyNormalisedTargets (t);
+}
+
+void OSimpleAmbisonicsAudioProcessor::refreshPresetTargetsIfNeeded()
+{
+    juce::String stale;
+    {
+        const juce::ScopedLock sl (presetLock);
+        if (! presetTargetsStale)
+            return;
+        presetTargetsStale = false;                // ONE attempt per restore
+        stale = presetName;
+    }
+    if (stale.isEmpty())
+        return;
+
+    // The name was sanitised on restore (no separators, no leading dots).
+    const auto file = presetManager.getUserPresetsDirectory().getChildFile (stale + ".json");
+    if (! file.existsAsFile())
+        return;                                    // missing: targets stay unknown -> unmodified
+
+    Targets t;
+    if (! userJsonTargets (juce::JSON::parse (file.loadFileAsString()), t))
+        return;
+    const auto resolved = resolveTargets (t);
+
+    {
+        const juce::ScopedLock sl (presetLock);
+        if (presetName != stale || presetTargetsValid)
+            return;                                // superseded meanwhile
+        presetTargets      = resolved;
+        presetTargetsValid = true;
+    }
+    presetRevision.fetch_add (1);
+}
+
+juce::String OSimpleAmbisonicsAudioProcessor::sanitisePresetName (const juce::String& raw)
+{
+    juce::String clean;
+    const auto trimmed = raw.trim();
+    for (auto cp = trimmed.getCharPointer(); ! cp.isEmpty();)
+    {
+        const juce::juce_wchar c = cp.getAndAdvance();
+        if (! isStrippedPresetChar (c))
+            clean += c;
+    }
+
+    clean = juce::File::createLegalFileName (clean);   // removes "#@,;:<>*^|?\/
+
+    // Leading dots (hidden files, "..") and any whitespace the strip exposed.
+    for (;;)
+    {
+        auto next = clean.trimStart();
+        while (next.startsWithChar ('.'))
+            next = next.substring (1);
+        if (next == clean)
+            break;
+        clean = next;
+    }
+
+    return clean.substring (0, kMaxPresetNameChars).trimEnd();   // "" = refused
 }
 
 // Factory function

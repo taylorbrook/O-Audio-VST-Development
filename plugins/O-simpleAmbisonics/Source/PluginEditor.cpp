@@ -88,6 +88,25 @@ namespace
         jassert (p != nullptr);
         return p != nullptr ? std::make_unique<Attachment> (*p, relay, nullptr) : nullptr;
     }
+
+    juce::var stringsToVar (const juce::StringArray& names)
+    {
+        juce::Array<juce::var> out;
+        for (const auto& n : names)
+            out.add (n);
+        return juce::var (std::move (out));
+    }
+
+    // The two dialog natives preset-manager.js resolves but this page never
+    // binds: registered so no promise can hang and the bridge stays exact
+    // (memory pattern_webview_native_fn_bridge_gap).
+    juce::var refusedDialog()
+    {
+        auto* o = new juce::DynamicObject();
+        o->setProperty ("success", false);
+        o->setProperty ("name", juce::String());
+        return juce::var (o);
+    }
 }
 
 // ── Resource provider ───────────────────────────────────────────────────────
@@ -118,6 +137,12 @@ OSimpleAmbisonicsAudioProcessorEditor::getResource (const juce::String& url)
     if (url == "/js/juce/check_native_interop.js")
         return makeBinaryResource (BinaryData::check_native_interop_js,
                                    BinaryData::check_native_interop_jsSize, "application/javascript; charset=utf-8");
+
+    // preset-manager.js (Stage 4, P7): copied from the module into
+    // Source/ui/public/modules/ at configure time (gitignored); the page
+    // imports it DYNAMICALLY, so a missing branch disables the bar, never the page.
+    if (url == "/modules/preset-manager.js")
+        return makeBinaryResource (BinaryData::presetmanager_js, BinaryData::presetmanager_jsSize, "application/javascript; charset=utf-8");
 
     if (url == "/img/insects.png")
         return makeBinaryResource (BinaryData::insects_png, BinaryData::insects_pngSize, "image/png");
@@ -179,10 +204,14 @@ OSimpleAmbisonicsAudioProcessorEditor::OSimpleAmbisonicsAudioProcessorEditor (OS
         .withOptionsFrom (*outputLevelRelay);
 
     // -- Native functions ------------------------------------------------------
-    // EVERY name the page calls through getNativeFunction() is registered here.
-    // 5 names: getParameterDefaults, getUiLanguage, setUiLanguage, uiReady,
-    // applyFactoryPreset. (The preset-manager natives arrive with the FUNC-08
-    // bank in Stage 4.)
+    // EVERY name the page (or preset-manager.js) calls through
+    // getNativeFunction() is registered here — 16 names:
+    //   page:            getParameterDefaults, getUiLanguage, setUiLanguage,
+    //                    uiReady, applyFactoryPreset, getPresetCatalog
+    //   preset-manager:  savePreset, savePresetWithDialog, loadPreset,
+    //                    loadPresetFromFile, getPresetList, getCurrentPreset,
+    //                    selectNextPreset, selectPreviousPreset, deletePreset,
+    //                    isFactoryPreset
 
     // dblclick reset: the relay's properties payload carries start / end / skew
     // but no default, and a JS default table would drift from C++. Engineering
@@ -223,25 +252,30 @@ OSimpleAmbisonicsAudioProcessorEditor::OSimpleAmbisonicsAudioProcessorEditor (OS
             complete (juce::var());
         });
 
-    // The page's handshake: called once its meterFrame listener exists, and
-    // again whenever it becomes visible, so the frame is re-sent on request
-    // rather than assumed delivered. The language is PULLED by the canon, so
-    // nothing is pushed here.
+    // The page's handshake: called once its event listeners exist, and again
+    // whenever it becomes visible, so state is re-sent on request rather than
+    // assumed delivered. The language is PULLED by the canon, so nothing is
+    // pushed for it. Stage 4 (P5): the preset counters are SNAPSHOTTED FIRST,
+    // then both events are forced — a transition inside this window re-sends
+    // on the next tick (a duplicate, never a loss).
     options = options.withNativeFunction ("uiReady",
         [this] (auto&, auto complete)
         {
+            lastPresetRevision = processorRef.getPresetRevision();
+            lastPresetModified = processorRef.isPresetModified();
             // Emits the stored `current` — no read(), no tracker tick (the
             // timer is the only sampler; a handshake is never a stale tick).
             emitFrame (true);
+            emitPresetState (true);
             complete (juce::var (true));
         });
 
-    // Lesson presets by STABLE id (the button captions localize; the ids do not):
-    // pointSource, orderStep, behindYou, overhead, rotateRoom, farNear,
-    // slowOrbit, speakersHeadphones. One pass in the processor: recipe value or
-    // default for every parameter EXCEPT outputLevel (never reset, never set),
-    // skip-if-equal, begin / setValueNotifyingHost / end per changed parameter;
-    // the relays sync the controls back. Message thread, APVTS only.
+    // Lesson presets by STABLE table id (the button captions localize; the ids
+    // do not). The processor's ONE apply core: every parameter to its default
+    // or its recipe value EXCEPT outputLevel and inputMode (user-owned, R-D3);
+    // "orderStep" walks the order (R-D4). The relays sync the controls back;
+    // the lit button and the caption follow the presetState push, never this
+    // click. Message thread, APVTS only.
     options = options.withNativeFunction ("applyFactoryPreset",
         [this] (const juce::Array<juce::var>& args, auto complete)
         {
@@ -251,11 +285,114 @@ OSimpleAmbisonicsAudioProcessorEditor::OSimpleAmbisonicsAudioProcessorEditor (OS
             complete (juce::var (ok));
         });
 
+    // -- Stage 4 presets (FUNC-08; P7 .. P9) -----------------------------------
+    // Every preset native first materialises the factory bank on disk (lazy,
+    // once per instance; never in the processor ctor, prepare, state or the
+    // harness). Arguments are untrusted (T-4-05): types are checked here and
+    // every path completes; names are validated by the processor (walk-order
+    // membership, sanitise, factory refusal). The sound of a factory preset
+    // always comes from the recipe table, never the disk copy.
+    options = options.withNativeFunction ("getPresetList",
+        [this] (auto&, auto complete)
+        {
+            processorRef.ensureFactoryBankOnDisk();
+            complete (stringsToVar (processorRef.getPresetWalkOrder()));
+        });
+
+    options = options.withNativeFunction ("getCurrentPreset",
+        [this] (auto&, auto complete)
+        {
+            processorRef.ensureFactoryBankOnDisk();
+            complete (juce::var (processorRef.getPresetName()));
+        });
+
+    // The neighbour in the walk order, NOT loaded: preset-manager.js loads the
+    // returned name through loadPreset.
+    options = options.withNativeFunction ("selectNextPreset",
+        [this] (auto&, auto complete)
+        {
+            processorRef.ensureFactoryBankOnDisk();
+            complete (juce::var (processorRef.getNeighbourPreset (1)));
+        });
+
+    options = options.withNativeFunction ("selectPreviousPreset",
+        [this] (auto&, auto complete)
+        {
+            processorRef.ensureFactoryBankOnDisk();
+            complete (juce::var (processorRef.getNeighbourPreset (-1)));
+        });
+
+    options = options.withNativeFunction ("loadPreset",
+        [this] (const juce::Array<juce::var>& args, auto complete)
+        {
+            processorRef.ensureFactoryBankOnDisk();
+            const bool ok = args.size() > 0 && args[0].isString()
+                         && processorRef.loadPresetByName (args[0].toString());
+            forceFrameEmit = true;
+            complete (juce::var (ok));
+        });
+
+    options = options.withNativeFunction ("savePreset",
+        [this] (const juce::Array<juce::var>& args, auto complete)
+        {
+            processorRef.ensureFactoryBankOnDisk();
+            const bool ok = args.size() > 0 && args[0].isString()
+                         && processorRef.saveUserPreset (args[0].toString());
+            complete (juce::var (ok));
+        });
+
+    options = options.withNativeFunction ("deletePreset",
+        [this] (const juce::Array<juce::var>& args, auto complete)
+        {
+            processorRef.ensureFactoryBankOnDisk();
+            const bool ok = args.size() > 0 && args[0].isString()
+                         && processorRef.deleteUserPreset (args[0].toString());
+            complete (juce::var (ok));
+        });
+
+    // Table lookup, never the disk (a stale disk copy cannot lie).
+    options = options.withNativeFunction ("isFactoryPreset",
+        [this] (const juce::Array<juce::var>& args, auto complete)
+        {
+            processorRef.ensureFactoryBankOnDisk();
+            const bool factory = args.size() > 0 && args[0].isString()
+                              && OSimpleAmbisonicsAudioProcessor::isFactoryPresetName (args[0].toString());
+            complete (juce::var (factory));
+        });
+
+    options = options.withNativeFunction ("savePresetWithDialog",
+        [this] (auto&, auto complete)
+        {
+            processorRef.ensureFactoryBankOnDisk();
+            complete (refusedDialog());
+        });
+
+    options = options.withNativeFunction ("loadPresetFromFile",
+        [this] (auto&, auto complete)
+        {
+            processorRef.ensureFactoryBankOnDisk();
+            complete (refusedDialog());
+        });
+
+    options = options.withNativeFunction ("getPresetCatalog",
+        [this] (auto&, auto complete)
+        {
+            processorRef.ensureFactoryBankOnDisk();
+            complete (processorRef.getPresetCatalog());
+        });
+
    #if JUCE_WINDOWS
+    // Stage 4 WR-01: the backend MUST be named. Backend::defaultBackend is the
+    // legacy IE control on Windows, which ignores withWinWebView2Options and
+    // has no resource provider, so https://juce.backend/ answered "page not
+    // found" (O-simpleSubtractive v1.7.1; memory
+    // critical_webview2_runtime_gotchas_windows).
     // WebView2 user-data folder ALWAYS set to a writable temp dir: hosts deny
     // the default location -> silent fallback -> blank page. Static linking is
     // JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1 in CMakeLists (already set).
-    options = options.withWinWebView2Options (
+    options = options
+        .withBackend (juce::WebBrowserComponent::Options::Backend::webview2)
+        .withWinWebView2Options (
         juce::WebBrowserComponent::Options::WinWebView2{}
             .withUserDataFolder (juce::File::getSpecialLocation (juce::File::tempDirectory)
                                      .getChildFile ("OsimpleAmbisonics_WebView"))
@@ -324,6 +461,11 @@ OSimpleAmbisonicsAudioProcessorEditor::OSimpleAmbisonicsAudioProcessorEditor (OS
     lastFrameHash  = 0;
     forceFrameEmit = true;
 
+    // Snapshot the preset counters: the page's uiReady covers the current
+    // state; the timer only signals changes that happen after this.
+    lastPresetRevision = processorRef.getPresetRevision();
+    lastPresetModified = processorRef.isPresetModified();
+
     startTimerHz (kTimerHz);
 }
 
@@ -374,14 +516,41 @@ void OSimpleAmbisonicsAudioProcessorEditor::emitFrame (bool force)
                                           juce::var (juce::String::fromUTF8 (payloadBuf, len)));
 }
 
+// ── presetState { name, id, factory, modified } (Stage 4, P5) ───────────────
+// id = the table id or "". Emitted when the revision changed or `modified`
+// flipped (a one-shot push goes stale on a lesson click or a session restore:
+// memory pattern_webview_one_shot_state_push_stale_on_preset_load).
+void OSimpleAmbisonicsAudioProcessorEditor::emitPresetState (bool force)
+{
+    if (webView == nullptr)
+        return;
+
+    const auto rev = processorRef.getPresetRevision();
+    const bool mod = processorRef.isPresetModified();
+    if (! force && rev == lastPresetRevision && mod == lastPresetModified)
+        return;
+    lastPresetRevision = rev;
+    lastPresetModified = mod;
+
+    auto* o = new juce::DynamicObject();
+    o->setProperty ("name",     processorRef.getPresetName());
+    o->setProperty ("id",       processorRef.getPresetId());
+    o->setProperty ("factory",  processorRef.isPresetFactory());
+    o->setProperty ("modified", mod);
+    webView->emitEventIfBrowserIsVisible ("presetState", juce::var (o));
+}
+
 // ── Timer (30 Hz, message thread) — the only sampler ────────────────────────
 // sampleFrame() polls hasNewData() BEFORE read() (the read consumes it; the
 // audio side's peak reset keys off that), applies the U1 live rule and
-// quantises. Read every tick whether or not anything is emitted.
+// quantises. Read every tick whether or not anything is emitted. Order every
+// tick: a restored user preset re-reads its file -> meterFrame -> presetState.
 void OSimpleAmbisonicsAudioProcessorEditor::timerCallback()
 {
+    processorRef.refreshPresetTargetsIfNeeded();
     current = OSimpleAmbisonics::ui::sampleFrame (processorRef.meterFrames, liveTracker);
     emitFrame (std::exchange (forceFrameEmit, false));
+    emitPresetState (false);   // revision changed or modified flipped
 }
 
 // ── Layout ──────────────────────────────────────────────────────────────────

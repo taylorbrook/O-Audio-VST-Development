@@ -30,11 +30,11 @@
 // Verdicts are read from CANVAS PIXELS (and, for the drags, the relay states),
 // polled until two consecutive reads agree — never a blind sleep.
 //
-// Arms: A1–A13 (PLAN T8 table).
+// Arms: A1–A13 (PLAN T8 table); A14 (Stage 4 PLAN T5 — chevron / puck separation).
 //
 // Usage:
 //   node plugins/O-simpleAmbisonics/tests/ui-probes/frame-probe.mjs
-//        [--negative-control fuma|pole|idle] [--verbose]
+//        [--negative-control fuma|pole|idle|chevron] [--verbose]
 //
 //   --negative-control fuma   left_o1 is emitted with shGain[1] / shGain[3]
 //                             swapped (FuMa-style WXYZ order): A1 must FAIL
@@ -42,10 +42,13 @@
 //                             removed: A9 must FAIL
 //   --negative-control idle   the page's `probe-anchor:idle-fallback` branch
 //                             is forced to the frame: A12 must FAIL
+//   --negative-control chevron the page's `probe-anchor:chevron-slide` slide is
+//                             disabled (the chevron stays on the puck's ray):
+//                             A14 must FAIL
 //   A control whose patch matches zero or more than one line exits 6 (a
 //   control that patches nothing is vacuous).
 //
-// Exit: normal run — 0 = 13/13 PASS, n = failed arms. Control run — 0 = the
+// Exit: normal run — 0 = 14/14 PASS, n = failed arms. Control run — 0 = the
 // target arm FAILS as designed, 1 = it passed (the control is VACUOUS).
 // 77 = Playwright / Chromium unavailable: NOTHING was verified, never a pass.
 //
@@ -68,7 +71,7 @@ const argv = process.argv.slice(2);
 const argVal = (f) => { const i = argv.indexOf(f); return i >= 0 && i + 1 < argv.length ? argv[i + 1] : null; };
 const CONTROL = argVal('--negative-control');
 const VERBOSE = argv.includes('--verbose');
-const CONTROL_TARGET = { fuma: 'A1', pole: 'A9', idle: 'A12' };
+const CONTROL_TARGET = { fuma: 'A1', pole: 'A9', idle: 'A12', chevron: 'A14' };
 if (CONTROL && !CONTROL_TARGET[CONTROL]) { console.error(`unknown --negative-control ${CONTROL}`); process.exit(6); }
 
 const FIXTURES = JSON.parse(fs.readFileSync(path.join(PLUGIN, 'tests', 'ui-fixtures', 'frames.json'), 'utf8'));
@@ -182,6 +185,23 @@ const PAGE_HELPERS = () => {
       }
       return n * 0.5;
     },
+    // A14: the top canvas as a WARM mask (design-px coordinates). strict = the
+    // full-alpha brass / amber inks (puck disc, ▲ glyph, chevron); relaxed adds
+    // the half-alpha brass halo. The beam's amber lobe (≤ 0.5 alpha) and every
+    // sage / parchment ink fall outside both.
+    warmMask(strict) {
+      const c = document.getElementById('topCanvas');
+      const d = dprOf(c), W = c.width, H = c.height;
+      const img = read(c);
+      const out = [];
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const [r, g, b] = px(img, W, x, y);
+        const hit = strict ? (r > 180 && r - b > 90 && g > 120 && r >= g)
+                           : (r > 120 && r - b > 55 && r > g + 10 && g > 90);
+        if (hit) out.push([x / d, y / d]);
+      }
+      return out;
+    },
     canvasBytes(id) {
       const c = document.getElementById(id);
       const data = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
@@ -227,6 +247,7 @@ async function main() {
   const built = S.buildRoot(NAME);
   if (CONTROL === 'pole') patchAnchor(built.root, 'probe-anchor:pole-hold', (l) => l.replace('if (!held) ', ''));
   if (CONTROL === 'idle') patchAnchor(built.root, 'probe-anchor:idle-fallback', (l) => l.replace('if (f && f.live === 1) return f;', 'if (f) return f;'));
+  if (CONTROL === 'chevron') patchAnchor(built.root, 'probe-anchor:chevron-slide', (l) => l.replace('if (Math.abs(qx) < need) ax', 'if (false) ax'));
 
   const es = S.readEditorSize(NAME); const vw = es.w, vh = es.h;
   const srv = await S.serve(built.root);
@@ -484,6 +505,41 @@ async function main() {
       { what: 'live: the same stub change does NOT move the puck', ok: !!t3.puck && !!t4.puck && near(t3.puck[0], t4.puck[0], SAME_TOL_PX) && t4.puck[0] < t4.cx - 20, got: `${JSON.stringify(t3.puck)} → ${JSON.stringify(t4.puck)}` },
       { what: 'silent_after_play: peaks 0 and the well NOT dimmed', ok: peaks5 === 0 && well5 === false, got: `${peaks5} peak px, idle ${well5}` },
     ]);
+  }
+
+  // ── A14 chevron / puck separation (Stage 4 PLAN T5, P13) ──
+  // Idle frame, so the puck follows the PARAMETERS. az = yaw = 20 puts the puck
+  // and the front-elevation chevron on one ray; d 4.4 m puts the puck on the
+  // chevron's R − 40 radius; el 30 grows the altitude halo and the ▲ glyph.
+  // Render A (pitch 0: no chevron) gives the puck / halo / ▲ mask; render B
+  // (pitch 40) adds the chevron: B's strict warm pixels that A does not have.
+  {
+    const scene = { azimuth: 20, yaw: 20, elevation: 30, distance: 4.4, roll: 0, order: 2, decoder: 0 };
+    await show('idle_before_first_block', { ...scene, pitch: 0 });
+    await page.waitForTimeout(600);   // the compass ease converges
+    await top();
+    const A = await page.evaluate(() => ({ strict: window.__probe.warmMask(true), relaxed: window.__probe.warmMask(false), t: window.__probe.top() }));
+    await page.evaluate(() => window.__probe.setParams({ pitch: 40 }));
+    await page.waitForTimeout(600);
+    await top();
+    const B = await page.evaluate(() => window.__probe.warmMask(true));
+    const key = (p) => `${Math.round(p[0] * 2)},${Math.round(p[1] * 2)}`;
+    const inA = new Set(A.relaxed.map(key));
+    const puck = A.t.puck;
+    // Chevron pixels: new in B, and within 60 px of the puck (the chevron's
+    // whole neighbourhood; nothing else warm changes with pitch there).
+    const chev = B.filter((p) => !inA.has(key(p)) && puck && Math.hypot(p[0] - puck[0], p[1] - puck[1]) < 60);
+    let gap = Infinity;
+    for (const c of chev) for (const a of A.relaxed) {
+      if (puck && Math.hypot(a[0] - puck[0], a[1] - puck[1]) > 40) continue;   // the puck cluster only
+      const dd = Math.hypot(c[0] - a[0], c[1] - a[1]);
+      if (dd < gap) gap = dd;
+    }
+    arm('A14', 'P13 chevron', [
+      { what: 'chevron drawn: ≥ 12 new full-alpha amber px at pitch 40 near the puck', ok: chev.length >= 12, got: `${chev.length} px (puck ${JSON.stringify(puck)})` },
+      { what: 'gap between the chevron and the puck / halo / ▲ mask ≥ 4 px', ok: chev.length > 0 && gap >= 4, got: `${Number.isFinite(gap) ? gap.toFixed(2) : '—'} px` },
+    ]);
+    await page.evaluate(() => window.__probe.setParams({ azimuth: 0, yaw: 0, elevation: 0, distance: 1, pitch: 0 }));
   }
 
   console.log(errors.length ? `  page errors (${errors.length}): ${errors.slice(0, 3).join(' | ')}` : '  page errors: 0');

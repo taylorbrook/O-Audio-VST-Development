@@ -110,19 +110,6 @@ export const I18N = Object.freeze({
               b: 'AmbiX = ACN 声道顺序 + SN3D 归一化。这就是声道视图所显示的，也是任何 AmbiX 插件所期望的。',
               reviewed: 'mt' },
     },
-    'chipLatency': {
-        en: { t: 'Latency',
-              b: 'The decoder adds a constant 64 samples in both modes (one convolver partition) and reports it to the '
-               + 'host, which lines the track up automatically.' },
-        fr: { t: 'Latence',
-              b: 'Le décodeur ajoute 64 échantillons constants dans les deux modes (une partition du convolueur) et '
-               + 'le signale à l’hôte, qui réaligne la piste automatiquement.',
-              reviewed: false },
-        'zh-Hans': { t: '延迟',
-              b: '解码器在两种模式下都增加固定的 64 个采样（一个卷积分区），并报告给宿主，宿主会自动对齐音轨。',
-              reviewed: 'mt' },
-    },
-
     // ── Source ──────────────────────────────────────────────────────────────
     'azimuth': {
         en: { t: 'Azimuth',
@@ -373,15 +360,18 @@ export const I18N = Object.freeze({
               b: 'Binaural shows the dummy head whose ears were measured for the filters (KU100). Stereo shows the two '
                + 'virtual microphones. On headphones a source straight ahead is easy to confuse with one straight '
                + 'behind — the ears receive almost the same thing — which is one reason Overhead and Behind You are '
-               + 'lessons.' },
+               + 'lessons. The decoder adds a constant 64 samples in both modes (one convolver partition) and reports '
+               + 'it to the host, which lines the track up automatically.' },
         fr: { t: 'Décodeur',
               b: 'Binaural montre la tête artificielle dont les oreilles ont été mesurées pour les filtres (KU100). '
                + 'Stereo montre les deux microphones virtuels. Au casque, une source droit devant se confond '
                + 'facilement avec une source droit derrière — les oreilles reçoivent presque la même chose — et c’est '
-               + 'une des raisons pour lesquelles Au-dessus et Derrière vous sont des leçons.',
+               + 'une des raisons pour lesquelles Au-dessus et Derrière vous sont des leçons. Le décodeur ajoute 64 '
+               + 'échantillons constants dans les deux modes (une partition du convolueur) et le signale à l’hôte, qui '
+               + 'réaligne la piste automatiquement.',
               reviewed: false },
         'zh-Hans': { t: '解码器',
-              b: 'Binaural 显示为滤波器测量过耳朵的人工头（KU100）。Stereo 显示两个虚拟话筒。在耳机上，正前方的声源很容易与正后方的混淆——双耳收到的几乎一样——这正是“头顶”和“在你身后”成为课程的原因之一。',
+              b: 'Binaural 显示为滤波器测量过耳朵的人工头（KU100）。Stereo 显示两个虚拟话筒。在耳机上，正前方的声源很容易与正后方的混淆——双耳收到的几乎一样——这正是“头顶”和“在你身后”成为课程的原因之一。解码器在两种模式下都增加固定的 64 个采样（一个卷积分区），并报告给宿主，宿主会自动对齐音轨。',
               reviewed: 'mt' },
     },
 
@@ -537,6 +527,64 @@ export const I18N = Object.freeze({
               b: '三阶，解码为 Stereo：一阶心形话筒对只使用 W、X 和 Y。切回 Binaural，听听 2–3 阶增加了什么。',
               reviewed: 'mt' },
     },
+
+    // ── Preset bar (Stage 4, FUNC-08) ───────────────────────────────────────
+    'presetPrev': {
+        en: { t: 'Previous preset',
+              b: 'Loads the previous preset in the list: the factory presets first, then your own.' },
+        fr: { t: 'Préréglage précédent',
+              b: 'Charge le préréglage précédent de la liste : les préréglages d’usine d’abord, puis les vôtres.',
+              reviewed: false },
+        'zh-Hans': { t: '上一个预设',
+              b: '载入列表中的上一个预设：先是出厂预设，然后是你自己的预设。',
+              reviewed: 'mt' },
+    },
+    'presetName': {
+        en: { t: 'Presets',
+              b: 'Click to browse the presets. Init and the eight lessons come first — each one shows one idea — then '
+               + 'your own. A preset never changes Output Level or Input Mode. A dot means you have changed something '
+               + 'since it loaded.' },
+        fr: { t: 'Préréglages',
+              b: 'Cliquez pour parcourir les préréglages. Init et les huit leçons d’abord — chacune montre une idée — '
+               + 'puis les vôtres. Un préréglage ne change jamais le niveau de sortie ni le mode d’entrée. Un point '
+               + 'signale une modification depuis le chargement.',
+              reviewed: false },
+        'zh-Hans': { t: '预设',
+              b: '点击浏览预设。先是 Init 和八个课程——每个演示一个概念——然后是你自己的预设。预设不会改变输出电平或输入模式。圆点表示载入后你已作修改。',
+              reviewed: 'mt' },
+    },
+    'presetNext': {
+        en: { t: 'Next preset',
+              b: 'Loads the next preset in the list: the factory presets first, then your own.' },
+        fr: { t: 'Préréglage suivant',
+              b: 'Charge le préréglage suivant de la liste : les préréglages d’usine d’abord, puis les vôtres.',
+              reviewed: false },
+        'zh-Hans': { t: '下一个预设',
+              b: '载入列表中的下一个预设：先是出厂预设，然后是你自己的预设。',
+              reviewed: 'mt' },
+    },
+    'presetSave': {
+        en: { t: 'Save preset',
+              b: 'Saves the scene as one of your presets — every setting except Output Level and Input Mode, which '
+               + 'stay yours.' },
+        fr: { t: 'Enregistrer le préréglage',
+              b: 'Enregistre la scène dans un de vos préréglages — tous les réglages sauf le niveau de sortie et le '
+               + 'mode d’entrée, qui restent les vôtres.',
+              reviewed: false },
+        'zh-Hans': { t: '保存预设',
+              b: '将场景保存为你的预设——保存除输出电平和输入模式以外的所有设置，这两项始终由你决定。',
+              reviewed: 'mt' },
+    },
+    'presetDelete': {
+        en: { t: 'Delete preset',
+              b: 'Deletes the current preset if it is one of your own. Factory presets cannot be deleted.' },
+        fr: { t: 'Supprimer le préréglage',
+              b: 'Supprime le préréglage actuel s’il est à vous. Les préréglages d’usine ne peuvent pas être supprimés.',
+              reviewed: false },
+        'zh-Hans': { t: '删除预设',
+              b: '若当前预设是你自己的，则将其删除。出厂预设无法删除。',
+              reviewed: 'mt' },
+    },
 });
 
 // key -> { en: {t}, fr: {t, reviewed}, 'zh-Hans': {t, reviewed} } — visible
@@ -560,8 +608,6 @@ export const LABELS = Object.freeze({
     },
     'label.formatBody':    { en: { t: 'AmbiX · ACN · SN3D ·' }, fr: { t: 'AmbiX · ACN · SN3D ·', reviewed: false, sameAsEn: true }, 'zh-Hans': { t: 'AmbiX · ACN · SN3D ·', reviewed: 'mt', sameAsEn: true } },
     'label.chipOrder':     { en: { t: '{ord} order, {ch} ch' }, fr: { t: '{ord} ordre, {ch} can.', reviewed: false }, 'zh-Hans': { t: '{ord}，{ch} 声道', reviewed: 'mt' } },
-    'label.latencyBody':   { en: { t: '64 samples ·' }, fr: { t: '64 éch. ·', reviewed: false }, 'zh-Hans': { t: '64 个采样 ·', reviewed: 'mt' } },
-    'label.latencyDetail': { en: { t: '1.33 ms at 48 kHz' }, fr: { t: '1,33 ms à 48 kHz', reviewed: false }, 'zh-Hans': { t: '48 kHz 下 1.33 ms', reviewed: 'mt' } },
     // Ordinals: the Order segment faces and the {ord} token of the readouts.
     'label.ord1': { en: { t: '1st' }, fr: { t: '1er', reviewed: false }, 'zh-Hans': { t: '1 阶', reviewed: 'mt' } },
     'label.ord2': { en: { t: '2nd' }, fr: { t: '2e', reviewed: false },  'zh-Hans': { t: '2 阶', reviewed: 'mt' } },
@@ -660,7 +706,7 @@ export const LABELS = Object.freeze({
 
     // encoder group
     'label.encReadOrd': { en: { t: '{ord} order ·' }, fr: { t: '{ord} ordre ·', reviewed: false }, 'zh-Hans': { t: '{ord} ·', reviewed: 'mt' } },
-    'label.encReadN':   { en: { t: '({n}+1)² = {ch} channels' }, fr: { t: '({n}+1)² = {ch} canaux', reviewed: false }, 'zh-Hans': { t: '({n}+1)² = {ch} 个声道', reviewed: 'mt' } },
+    'label.encReadN':   { en: { t: '({n}+1)² = {ch} ch' }, fr: { t: '({n}+1)² = {ch} can.', reviewed: false }, 'zh-Hans': { t: '({n}+1)² = {ch} 声道', reviewed: 'mt' } },
     'label.encOrderN':  { en: { t: 'order {n}' }, fr: { t: 'ordre {n}', reviewed: false }, 'zh-Hans': { t: '{n} 阶', reviewed: 'mt' } },
     'label.bandCh':     { en: { t: '+{n} ch' }, fr: { t: '+{n} can.', reviewed: false }, 'zh-Hans': { t: '+{n} 声道', reviewed: 'mt' } },
     'label.scaleGain':  { en: { t: 'gain (pattern)' }, fr: { t: 'gain (motif)', reviewed: false }, 'zh-Hans': { t: '增益（图样）', reviewed: 'mt' } },
@@ -688,7 +734,7 @@ export const LABELS = Object.freeze({
     'label.tourHint':    { en: { t: 'hover anything for help' }, fr: { t: 'survolez n’importe quoi pour l’aide', reviewed: false }, 'zh-Hans': { t: '悬停任意处查看帮助', reviewed: 'mt' } },
     'label.tourDefault': { en: { t: 'one mono source → B-format → rotated → decoded to your ears' }, fr: { t: 'une source mono → format B → tournée → décodée vers vos oreilles', reviewed: false }, 'zh-Hans': { t: '一个单声道声源 → B 格式 → 旋转 → 解码到你的双耳', reviewed: 'mt' } },
     'label.tourCaption.pointSource':        { en: { t: 'One source at 30° left, first order. W holds; X and Y share the direction.' }, fr: { t: 'Une source à 30° à gauche, premier ordre. W tient ; X et Y se partagent la direction.', reviewed: false }, 'zh-Hans': { t: '一个声源在左侧 30°，一阶。W 保持不变；X 和 Y 分担方向。', reviewed: 'mt' } },
-    'label.tourCaption.orderStep':          { en: { t: '3rd order at 45°. Step Order back to 1: bands switch off and the beam blurs.' }, fr: { t: '3e ordre à 45°. Ramenez l’ordre à 1 : les bandes s’éteignent et le faisceau se brouille.', reviewed: false }, 'zh-Hans': { t: '3 阶，45°。把阶数降回 1：各带关闭，波束变模糊。', reviewed: 'mt' } },
+    'label.tourCaption.orderStep':          { en: { t: 'Click again to step the order 1 → 2 → 3: each step lights a band and narrows the beam.' }, fr: { t: 'Cliquez encore pour passer l’ordre de 1 à 2 puis 3 : chaque pas allume une bande et resserre le faisceau.', reviewed: false }, 'zh-Hans': { t: '再次点击，阶数依次为 1 → 2 → 3：每一步点亮一个带，波束变窄。', reviewed: 'mt' } },
     'label.tourCaption.behindYou':          { en: { t: 'Straight behind: the X row flips sign. On headphones, front and back are easily confused.' }, fr: { t: 'Droit derrière : la rangée X change de signe. Au casque, l’avant et l’arrière se confondent facilement.', reviewed: false }, 'zh-Hans': { t: '正后方：X 行翻转符号。在耳机上，前方和后方很容易混淆。', reviewed: 'mt' } },
     'label.tourCaption.overhead':           { en: { t: 'Straight up: only the Z-bearing rows carry it; X and Y fall to zero.' }, fr: { t: 'À la verticale : seules les rangées portant un Z le transmettent ; X et Y tombent à zéro.', reviewed: false }, 'zh-Hans': { t: '正上方：只有带 Z 的行承载它；X 和 Y 降为零。', reviewed: 'mt' } },
     'label.tourCaption.rotateRoom':         { en: { t: 'Puck at 60°, yaw 120°: heard behind. Yaw turns the room, not the source.' }, fr: { t: 'Palet à 60°, lacet 120° : entendu derrière. Le lacet tourne la pièce, pas la source.', reviewed: false }, 'zh-Hans': { t: '圆点在 60°，偏航 120°：被听成在后方。偏航旋转的是房间，不是声源。', reviewed: 'mt' } },
@@ -696,6 +742,29 @@ export const LABELS = Object.freeze({
     'label.tourCaption.slowOrbit':          { en: { t: 'One lap every 20 s. Watch X and Y trade places while W stays still.' }, fr: { t: 'Un tour toutes les 20 s. Regardez X et Y échanger leurs places pendant que W reste immobile.', reviewed: false }, 'zh-Hans': { t: '每 20 s 一圈。看 X 和 Y 互换位置，而 W 保持不动。', reviewed: 'mt' } },
     'label.tourCaption.speakersHeadphones': { en: { t: '3rd order into Stereo: only W, X, Y are used. Switch back to Binaural to hear 2–3.' }, fr: { t: '3e ordre en Stereo : seuls W, X, Y sont utilisés. Repassez en Binaural pour entendre 2–3.', reviewed: false }, 'zh-Hans': { t: '3 阶进入 Stereo：只使用 W、X、Y。切回 Binaural 听听 2–3 阶。', reviewed: 'mt' } },
     'label.footerRight': { en: { t: 'AmbiX · MagLS on SADIE II' }, fr: { t: 'AmbiX · MagLS sur SADIE II', reviewed: false }, 'zh-Hans': { t: 'AmbiX · 基于 SADIE II 的 MagLS', reviewed: 'mt' } },
+
+    // ── Preset bar (Stage 4, FUNC-08) ───────────────────────────────────────
+    // Widths (EB Garamond + PingFang, headless Chromium) are in index.html
+    // beside each pin. The popover message line is nowrap.
+    'label.presetSave':       { en: { t: 'Save' }, fr: { t: 'Enreg.', reviewed: false }, 'zh-Hans': { t: '保存', reviewed: 'mt' } },
+    'label.presetDelete':     { en: { t: 'Delete' }, fr: { t: 'Suppr.', reviewed: false }, 'zh-Hans': { t: '删除', reviewed: 'mt' } },
+    'preset.init':            { en: { t: 'Init' }, fr: { t: 'Initial', reviewed: false }, 'zh-Hans': { t: '初始', reviewed: 'mt' } },
+    'preset.saveTitle':       { en: { t: 'Save preset' }, fr: { t: 'Enregistrer le préréglage', reviewed: false }, 'zh-Hans': { t: '保存预设', reviewed: 'mt' } },
+    'preset.namePlaceholder': { en: { t: 'Preset name' }, fr: { t: 'Nom du préréglage', reviewed: false }, 'zh-Hans': { t: '预设名称', reviewed: 'mt' } },
+    'preset.ok':              { en: { t: 'OK' }, fr: { t: 'OK', reviewed: false, sameAsEn: true }, 'zh-Hans': { t: '确定', reviewed: 'mt' } },
+    'preset.cancel':          { en: { t: 'Cancel' }, fr: { t: 'Annuler', reviewed: false }, 'zh-Hans': { t: '取消', reviewed: 'mt' } },
+    'preset.errEmpty':        { en: { t: 'Type a name first.' }, fr: { t: 'Saisissez d’abord un nom.', reviewed: false }, 'zh-Hans': { t: '请先输入名称。', reviewed: 'mt' } },
+    'preset.errFactoryName':  { en: { t: 'A factory preset has that name — choose another.' }, fr: { t: 'Nom d’un préréglage d’usine — choisissez-en un autre.', reviewed: false }, 'zh-Hans': { t: '该名称属于出厂预设——请换一个。', reviewed: 'mt' } },
+    'preset.errSave':         { en: { t: 'Could not save the preset.' }, fr: { t: 'Impossible d’enregistrer le préréglage.', reviewed: false }, 'zh-Hans': { t: '无法保存预设。', reviewed: 'mt' } },
+    'preset.confirmReplace':  { en: { t: 'Replace “{name}”?' }, fr: { t: 'Remplacer « {name} » ?', reviewed: false }, 'zh-Hans': { t: '替换“{name}”？', reviewed: 'mt' } },
+    // Straight quotes in the en: the zh glossary key is 'delete preset "{name}"?'.
+    'preset.confirmDelete':   { en: { t: 'Delete preset "{name}"?' }, fr: { t: 'Supprimer le préréglage « {name} » ?', reviewed: false }, 'zh-Hans': { t: '删除预设“{name}”？', reviewed: 'mt' } },
+    'aria.presetPrev':        { en: { t: 'Previous preset' }, fr: { t: 'Préréglage précédent', reviewed: false }, 'zh-Hans': { t: '上一个预设', reviewed: 'mt' } },
+    'aria.presetName':        { en: { t: 'Browse presets' }, fr: { t: 'Parcourir les préréglages', reviewed: false }, 'zh-Hans': { t: '浏览预设', reviewed: 'mt' } },
+    'aria.presetNext':        { en: { t: 'Next preset' }, fr: { t: 'Préréglage suivant', reviewed: false }, 'zh-Hans': { t: '下一个预设', reviewed: 'mt' } },
+    'aria.presetSave':        { en: { t: 'Save as a user preset' }, fr: { t: 'Enregistrer comme préréglage utilisateur', reviewed: false }, 'zh-Hans': { t: '保存为用户预设', reviewed: 'mt' } },
+    'aria.presetDelete':      { en: { t: 'Delete the current user preset' }, fr: { t: 'Supprimer le préréglage utilisateur actuel', reviewed: false }, 'zh-Hans': { t: '删除当前用户预设', reviewed: 'mt' } },
+    'aria.presetList':        { en: { t: 'Presets' }, fr: { t: 'Préréglages', reviewed: false }, 'zh-Hans': { t: '预设', reviewed: 'mt' } },
 });
 
 // [text, reason] or [text, reason, scope]. Every entry carries a reason
@@ -729,7 +798,12 @@ export const TIP_BINDINGS = [
     ['#tips-toggle', 'tips-toggle'],
 
     ['#chipFormat',  'chipFormat'],
-    ['#chipLatency', 'chipLatency'],
+
+    ['#presetPrev',   'presetPrev'],
+    ['#presetName',   'presetName'],
+    ['#presetNext',   'presetNext'],
+    ['#presetSave',   'presetSave'],
+    ['#presetDelete', 'presetDelete'],
 
     ['#topWrap',  'topWrap'],
     ['#sideWrap', 'sideWrap'],

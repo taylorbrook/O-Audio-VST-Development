@@ -74,6 +74,7 @@ const ANCHORS   = [
   ['Output Level knob', '[data-param="outputLevel"]'],
   ['gear',              '#gear-btn'],
   ['last lesson',       '#lesson-speakersHeadphones'],
+  ['preset Delete',     '#presetDelete'],     // Stage 4: the header's right edge (enabled below: a user preset is current)
 ];
 const EDGE = 4;
 
@@ -112,6 +113,9 @@ function arm(ok, what) {
     await page.goto(`http://127.0.0.1:${srv.port}/index.html`, { waitUntil: 'load', timeout: 20000 });
     await page.waitForFunction(() => typeof window.__setLanguage === 'function', null, { timeout: 10000 });
     await page.evaluate(() => document.fonts.ready);
+    // A user preset is current, so #presetDelete is ENABLED (a disabled button
+    // gets no mouseover, so its tip could never show).
+    await page.evaluate(() => window.__stubEmit('presetState', { name: 'My Scene', id: '', factory: false, modified: false }));
     await page.waitForTimeout(300);
 
     const env = await page.evaluate(() => ({

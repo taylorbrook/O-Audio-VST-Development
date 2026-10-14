@@ -127,7 +127,7 @@ inline constexpr int kConvFftOrder   = 7;
 inline constexpr int kConvFftSize    = 128;                 // 2 · P
 inline constexpr int kConvBins       = 65;                  // P + 1 non-negative bins
 inline constexpr int kConvSpecFloats = 130;                 // 65 interleaved re / im
-inline constexpr int kConvMaxK       = 16;                  // 192 k → L 1024 (documented expectation, not a clamp)
+inline constexpr int kConvMaxK       = 32;                  // 384 k → L 2048 (Stage 4 IN-04; documented expectation, not a clamp)
 inline constexpr int kNumFilterSets  = 3;                   // orders 1 / 2 / 3
 inline constexpr int kConvChannels   = 16;
 
