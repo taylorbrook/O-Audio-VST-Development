@@ -3,6 +3,45 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.0.1] - 2026-10-14
+
+Review pass (`/improve`): bugs, simplification, UI idle cost. No parameter, range, state
+or DSP-output change; the engine's audio path is untouched.
+
+### Fixed
+- **Save could overwrite a user preset without asking.** The page checked the typed
+  name for the "Replace?" prompt, but the plugin strips `"#@,;:<>*^|?\/`, control
+  characters and leading dots before saving — "My:Pad" silently replaced "MyPad". The
+  page now cleans the name exactly as the plugin does before both checks (and "Init?"
+  now shows the factory-name message, not the generic save error).
+- **A user preset named like a copy key was translated in the dialogs** ("decoder"
+  read « Décodeur » in the Delete / Replace prompts). Names are bidi-isolated (FSI …
+  PDI), which also keeps right-to-left text in a name from reordering the sentence.
+- **The azimuth automation gesture could end mid-drag.** Scrolling the knob and then
+  dragging the sphere within 250 ms let the wheel timer end the gesture while the drag
+  still wrote. One shared pointer-drag helper now owns one gesture per parameter: a
+  sphere drag first closes the knob's wheel gesture, and a second pointer, the other
+  front-end of the same parameter, the wheel or the keys are ignored while a drag runs.
+- The "gain (pattern)" and "peak" captions under the channel bars sat ≈ 7 px right of
+  their marks.
+- The output meter drew past the top of its well above 0 dBFS. The bar now stops at 0
+  and a clip lamp over each side lights for 1.5 s when the output reaches 0 dBFS.
+- CHANGELOG 1.0.0: Distance never had a delay (gain + air low-pass only).
+
+### Changed
+- **The page idles when nothing moves.** The host-stopped frame is cached on its
+  inputs instead of rebuilt every display frame; a meter frame redraws only the
+  canvases it changes; the signal-path stations touch the DOM only when their light
+  flips; the chevron colour is a constant (no `getComputedStyle` per redraw).
+- An exception in one frame's drawing no longer stops the animation for the session
+  (the frame callback is re-armed first).
+- The Order / Decoder / Orbit segments are proper radio groups: one Tab stop, arrow
+  keys move and select.
+- Simplified: one 12-id parameter list (`ParamIDs::kAll`) for the preset targets and
+  the editor's defaults native; one segment binder; dead code removed
+  (`DecoderMixer::processSample`, `SpatialEngine::maxBlockSize` / `latencySamples`,
+  the unused procedural SH icons, unused locals and CSS variables).
+
 ## [1.0.0] - 2026-10-14
 
 First release. A pedagogical ambisonic spatializer: one mono source is encoded to
@@ -16,7 +55,7 @@ stage of the chain as you hear it.
   domain → decoder → L / R. Mono-in / stereo-out and stereo-in / stereo-out only
   (auval caps `[1, 2] [2, 2]`); no I/O configuration in the host.
 - **Source position.** Azimuth −180 … +180° (AmbiX: +90° = left), Elevation −90 … +90°,
-  Distance 0.2 – 20 m (gain, an air low-pass and a short delay). Angle moves take the
+  Distance 0.2 – 20 m (gain and an air low-pass). Angle moves take the
   short way round (+170° → −170° passes through 180°) and sweep without zipper noise.
 - **Orders 1 / 2 / 3** (4 / 9 / 16 channels), switchable while audio runs with a
   click-free crossfade.

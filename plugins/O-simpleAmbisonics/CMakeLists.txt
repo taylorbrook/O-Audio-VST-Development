@@ -21,7 +21,7 @@ juce_add_plugin(O-simpleAmbisonics
     PLUGIN_CODE OSAm
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-simpleAmbisonics${OUARICON_DEV_SUFFIX}"
-    VERSION "1.0.0"
+    VERSION "1.0.1"
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT FALSE
     NEEDS_MIDI_OUTPUT FALSE

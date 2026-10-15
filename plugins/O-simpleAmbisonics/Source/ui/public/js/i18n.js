@@ -758,7 +758,7 @@ export const LABELS = Object.freeze({
     'preset.errSave':         { en: { t: 'Could not save the preset.' }, fr: { t: 'Impossible d’enregistrer le préréglage.', reviewed: false }, 'zh-Hans': { t: '无法保存预设。', reviewed: 'mt' } },
     'preset.confirmReplace':  { en: { t: 'Replace “{name}”?' }, fr: { t: 'Remplacer « {name} » ?', reviewed: false }, 'zh-Hans': { t: '替换“{name}”？', reviewed: 'mt' } },
     // Straight quotes in the en: the zh glossary key is 'delete preset "{name}"?'.
-    'preset.confirmDelete':   { en: { t: 'Delete preset "{name}"?' }, fr: { t: 'Supprimer le préréglage « {name} » ?', reviewed: false }, 'zh-Hans': { t: '删除预设“{name}”？', reviewed: 'mt' } },
+    'preset.confirmDelete':   { en: { t: 'Delete preset “{name}”?' }, fr: { t: 'Supprimer le préréglage « {name} » ?', reviewed: false }, 'zh-Hans': { t: '删除预设“{name}”？', reviewed: 'mt' } },
     'aria.presetPrev':        { en: { t: 'Previous preset' }, fr: { t: 'Préréglage précédent', reviewed: false }, 'zh-Hans': { t: '上一个预设', reviewed: 'mt' } },
     'aria.presetName':        { en: { t: 'Browse presets' }, fr: { t: 'Parcourir les préréglages', reviewed: false }, 'zh-Hans': { t: '浏览预设', reviewed: 'mt' } },
     'aria.presetNext':        { en: { t: 'Next preset' }, fr: { t: 'Préréglage suivant', reviewed: false }, 'zh-Hans': { t: '下一个预设', reviewed: 'mt' } },
