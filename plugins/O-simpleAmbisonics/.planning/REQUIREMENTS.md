@@ -27,7 +27,7 @@ lastUpdated: 2026-10-14
 | FUNC-06 | Orbit: automatic azimuth motion with an on/off switch and a rate (0.02–2 Hz) so movement is audible without DAW automation | should | complete | stage-2 |
 | FUNC-07 | Stereo input accepted and summed to the single mono source (Input Mode: Mono sum / Left only); mono input accepted | must | complete | stage-1 |
 | FUNC-08 | Concept-preset tour (Point Source FOA, Order 1→2→3, Behind You, Overhead, Rotate the Room, Far Away / Up Close, Slow Orbit, Speakers vs Headphones) loadable as factory presets | should | complete | stage-4 |
-| FUNC-09 | Usable as a lightweight creative binaural panner with orbit motion for headphone mixes | nice | pending | stage-4 |
+| FUNC-09 | Usable as a lightweight creative binaural panner with orbit motion for headphone mixes | nice | complete | stage-4 |
 
 ### DSP (DSP)
 
@@ -66,14 +66,14 @@ lastUpdated: 2026-10-14
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | complete | stage-1 |
-| COMPAT-02 | Stereo-in/stereo-out (and mono-in) bus layout loads and runs identically in Logic Pro and Ableton Live with no multichannel configuration | must | pending | stage-4 |
+| COMPAT-02 | Stereo-in/stereo-out (and mono-in) bus layout loads and runs identically in Logic Pro and Ableton Live with no multichannel configuration | must | complete | stage-4 |
 
 ### Quality (QUAL)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | QUAL-01 | No audio artifacts at normal parameter ranges (no clicks on order/decoder switch, no zipper on angle sweeps, no NaN/denormal) | must | complete | stage-4 |
-| QUAL-02 | Localisation sanity on headphones: front, back, left, right, above are audibly distinct; left/right ILD sign matches the AmbiX convention (+90° azimuth = left) | must | pending | stage-4 |
+| QUAL-02 | Localisation sanity on headphones: front, back, left, right, above are audibly distinct; left/right ILD sign matches the AmbiX convention (+90° azimuth = left) | must | complete | stage-4 |
 
 ## Acceptance Criteria Details
 
@@ -182,6 +182,11 @@ lastUpdated: 2026-10-14
 **Acceptance Criteria:**
 - [x] The 8 concepts load as factory presets (Init + 8, one table `PresetRecipes.h`) from the lesson row and the header preset bar — G-FACTORY[table / init / apply / defs / skew-NC], G-LESSON[walk 0 1 2 0 / restart / owned] + NC, G-ORDER3-DIST 22 states 0 violations + NC, G-PRESET-STATE[identity / restore], G-PRESET-USER + NC, G-PRESET-NAME 9 / 9, G-PRESET-WALK; verify_3_state S4 / S5 on the installed VST3; presets never move Output Level or Input Mode; CP1 visual checkpoint signed off by the user (Stage 4 execute, 2026-10-14)
 
+### FUNC-09: Creative binaural panner
+
+**Acceptance Criteria:**
+- [x] Slow Orbit on a source inside a headphone mix is usable as a creative panner — Taylor's CP3 listening, installed v1.0.0 (Stage 4 execute CP3, 2026-10-14)
+
 ### COMPAT-01: pluginval
 
 **Acceptance Criteria:**
@@ -190,7 +195,7 @@ lastUpdated: 2026-10-14
 ### COMPAT-02: Host behaviour
 
 **Acceptance Criteria:**
-- [ ] Loads on a stereo and a mono track in Logic Pro and Ableton Live with no I/O configuration
+- [x] Loads on a stereo and a mono track in Logic Pro and Ableton Live with no I/O configuration — Taylor's CP3 hands-on on the installed v1.0.0: mono + stereo tracks in Logic and Ableton, audio passes, latency compensated, Save field receives keystrokes in both hosts; carried Logic list R1–R3 + general and the Standalone list all pass (Stage 4 execute CP3, 2026-10-14)
 - [x] `auval -v` passes — `auval -v aufx OSAm OuDv` AU VALIDATION SUCCEEDED on the installed v1.0.0; pluginval s10 ×2 VST3 + ×2 AU SUCCESS (Stage 4 execute T12, 2026-10-14); Windows VST3 (MSVC, WebView2 static) builds and passes pluginval s10 in CI — run 38675387588, 25 / 25 groups, 0 FAILED (Stage 4 execute T13, 2026-10-14)
 
 ### QUAL-01: No artifacts
@@ -202,8 +207,8 @@ lastUpdated: 2026-10-14
 ### QUAL-02: Localisation sanity
 
 **Acceptance Criteria:**
-- [ ] Human listening check: front/back/left/right/above distinguishable on headphones at order 3
-- [ ] +90° azimuth is louder in the LEFT ear (AmbiX sign convention)
+- [x] Human listening check: front/back/left/right/above distinguishable on headphones at order 3 — Taylor, Binaural, order 3, 1 m, dry mono source: all five directions distinct (Stage 4 execute CP3, 2026-10-14)
+- [x] +90° azimuth is louder in the LEFT ear (AmbiX sign convention) — Taylor by ear (CP3, 2026-10-14), plus the DSP-03 ILD-sign gate (ILD +12.28 / +13.87 dB, Stage 2.3)
 
 ---
 

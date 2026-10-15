@@ -6,7 +6,7 @@ stage_phase: 0
 stage_phase_name: single-cycle
 stage_phase_total: 1
 artifact_suffix: ""
-status: stage_4_part2_signoff_pending
+status: stage_4_execute_complete
 last_updated: 2026-10-14
 s4_part2_scratch: /private/tmp/claude-501/-Users-taylorbrook-Dev-VST-development/2e5ea2d3-8b5a-4db6-b780-fc83cfba3220/scratchpad
 s4_ci_run: 38675387588
@@ -17,7 +17,7 @@ orchestration_mode: true
 workflow_mode: manual
 current_phase: execute
 next_phase: verify
-next_action: user_handson_qual02_signoff
+next_action: plugin-verify
 ui_scaffolding_phase_complete: true
 next_stage: 4
 ready_for_implementation: true
@@ -36,7 +36,9 @@ plugin_code: OSAm
 
 ## Current Position
 
-Stage: 4 of 4 (Polish) — **execute Part 2 T12–T14 ✓ 2026-10-14** · CP1 ✓ (Taylor) · CP2 ✓ "yes" · ⏸ **CP3 hands-on + QUAL-02 sign-off (Taylor)** · then `/plugin-execute O-simpleAmbisonics` resumes at T15 (record results, SUMMARY Part 2, STATUS → execute complete). T12 sweep all green, nothing to fix: build 0 warnings; harness 289/289 ×2 (digests 2.1 / 2.2 PASS, 2.3 `edd1acfd21f54bcd`, logs differ only in PERF-02); installed VST3 / AU cmp-identical, 1.0.0 on VST3 / AU / Standalone; auval SUCCEEDED; pluginval s10 SUCCESS ×2 VST3 + ×2 AU; verify_2_1/2_2/2_3 22/35/42, verify_3_state S1–S5; R-UI all exit 0 with NCs FAILING as designed; R-STATIC S1–S7 + R-BRIDGE clean. CP2 facts changed: main already on origin (another session pushed `f4cf9bdf`), no push needed. T13 CI run 38675387588 validate-only: build-windows ✓ (pluginval s10 25/25 groups, 0 FAILED), build-macos ✓, create-release skipped. T14: CHANGELOG `## [1.0.0]`, CODE_REVIEW resolved, REQUIREMENTS (FUNC-08, QUAL-01 complete; COMPAT-02 auval + CI ticked), ARCHITECTURE Stage 4 Amendments A1–A6, ROADMAP note, PLUGINS row 📦 Installed 1.0.0.
+Stage: 4 of 4 (Polish) — **execute ✓ 2026-10-14** (Part 1 T1–T11 · CP1 ✓ · Part 2 T12–T14 · CP2 ✓ · CP3 ✓ · T15 ✓) · next: `/plugin-verify O-simpleAmbisonics`. CP3 (Taylor): COMPAT-02 Logic + Ableton mono / stereo PASS, Save field typing PASS, carried Logic list + Standalone list + D16 reflow PASS; **QUAL-02 PASS** (five directions distinct, +90° louder LEFT); **FUNC-09 usable**. No recipe changes. REQUIREMENTS: COMPAT-02, QUAL-02, FUNC-09 → complete — none pending. `stages/4-polish/SUMMARY.md` Part 2 written. v1.0.0 untagged.
+
+Previous: Stage: 4 of 4 (Polish) — **execute Part 2 T12–T14 ✓ 2026-10-14** · CP1 ✓ (Taylor) · CP2 ✓ "yes" · ⏸ **CP3 hands-on + QUAL-02 sign-off (Taylor)** · then `/plugin-execute O-simpleAmbisonics` resumes at T15 (record results, SUMMARY Part 2, STATUS → execute complete). T12 sweep all green, nothing to fix: build 0 warnings; harness 289/289 ×2 (digests 2.1 / 2.2 PASS, 2.3 `edd1acfd21f54bcd`, logs differ only in PERF-02); installed VST3 / AU cmp-identical, 1.0.0 on VST3 / AU / Standalone; auval SUCCEEDED; pluginval s10 SUCCESS ×2 VST3 + ×2 AU; verify_2_1/2_2/2_3 22/35/42, verify_3_state S1–S5; R-UI all exit 0 with NCs FAILING as designed; R-STATIC S1–S7 + R-BRIDGE clean. CP2 facts changed: main already on origin (another session pushed `f4cf9bdf`), no push needed. T13 CI run 38675387588 validate-only: build-windows ✓ (pluginval s10 25/25 groups, 0 FAILED), build-macos ✓, create-release skipped. T14: CHANGELOG `## [1.0.0]`, CODE_REVIEW resolved, REQUIREMENTS (FUNC-08, QUAL-01 complete; COMPAT-02 auval + CI ticked), ARCHITECTURE Stage 4 Amendments A1–A6, ROADMAP note, PLUGINS row 📦 Installed 1.0.0.
 
 Previous: Stage: 4 of 4 (Polish) — **execute Part 1 ✓ 2026-10-14** (T1–T11) · ⏸ **CP1 preset-bar visual checkpoint (Taylor)** · then `/plugin-execute O-simpleAmbisonics` resumes at T12. Critic pass: 1 blocker (withBackend, ×3 critics) + 6 warnings + 21 notes triaged in `CODE_REVIEW.md` (draft); all T3 fixes gated with NCs. Presets: `PresetRecipes.h` (Init + 8), one apply core, orderStep walk, user-owned outputLevel + inputMode, preset-manager v1.0.9 narrow, header bar (latency chip retired), presetState. Harness 289/289 (digests unchanged), auval + pluginval s10 VST3/AU SUCCESS, verify_2_1/2_2/2_3/3_state ALL PASS, all UI gates green. CP1 also carries tracer item 6 (live Standalone lesson click) and the IN-07 DPR eye-check. `stages/4-polish/SUMMARY.md` Part 1.
 
@@ -69,7 +71,7 @@ Execute was: Phase 2.1 executed (T1–T12, SUMMARY-2.1.md written): the audible 
 Plan was: Phase 2.1 PLAN-2.1.md written: 13 tasks (T1–T13) with decisions A1–A15 adopted from RESEARCH-2.1 — the D5 amendment (persistent 64-sample control grid, constant k = 1 − exp(−64/(τ·fs)) and ramp step 64/(τ·fs)), linear ramps for order gains + decoder mix with exact arrival, 1e-6 snap on the one-poles, every blend as b + t·(a − b), decoder matrix as exact literals 0.5f/0.25f/0.4330127f, per-sample lerp t = (j+1)/64, Params filled before engine.prepare, engine-owned peak accumulation with a hasNewData()-gated reset, D6 placeholder explicit at the engine call site. The control step is written once as a shared spec for SpatialEngine (T7) and the double-precision ReferenceModel (T9, generic SN3D table, snap switches for the negative controls).
 Research was: R1–R7 answered with computed numbers (click metric = second-difference ratio ≤ 2.0 vs matched control on a 100 Hz tone; allocation counter = O-Octagon probe AO verbatim; chord error −1.3/−3.75/−5.56 dB per band at 4096-sample slices → D5 AMENDMENT: fixed 64-sample control grid; DSP-01 generic table verified to 4.7e-16 / float 2.8e-08; DSP-05 two-tone 200 Hz + 12 kHz with closed-form anchors, flat on [0.2, 1] by design; TripleBuffer not a module — copy with provenance; peaks = max-since-UI-last-read via hasNewData()). F1–F9: linear ramps for order gains + decoder mix and a 1e-6 snap; b + t·(a − b) forms; D7 motivation corrected (−0.06 dB at 10 kHz at the clamp).
 Stage 1 was: Stage 1 complete. Verify re-ran everything independently on the INSTALLED bundles (byte-identical to the build): harness P0–P5 ALL PASS (digest 6a1df555bc125ae3 reproduced), 0 warnings on a forced TU rebuild, auval SUCCEEDED (caps [1,2] [2,2]), pluginval s10 SUCCESS VST3 + AU, pedalboard V1–V3 (12-param contract, pass-through with reported == measured latency, 12-value state round-trip) ALL PASS. COMPAT-01 + FUNC-07 complete. Next: Stage 2 / discuss (Phase 2.1).
-Progress: [################....] 78%
+Progress: [###################.] 95%
 
 ## Phase Progress
 
@@ -120,6 +122,15 @@ Roll-up `stages/2-dsp/VERIFICATION.md` written at the 2.3 verify — **Stage 2 c
 | plan | ✓ | 2026-10-13 | |
 | execute | ✓ (3.1 ✓ 3.2 ✓ · checkpoint ✓ · 3.3 ✓) | 2026-10-13 | |
 | verify | ✓ | 2026-10-14 | |
+
+### Stage 4: Polish (single cycle; execute in two parts → CP1 / CP2 / CP3)
+| Phase | Status | Date | Skipped |
+|-------|--------|------|---------|
+| discuss | ✓ | 2026-10-14 | |
+| research | ✓ | 2026-10-14 | |
+| plan | ✓ | 2026-10-14 | |
+| execute | ✓ (Part 1 · CP1 · Part 2 · CP2 · CP3) | 2026-10-14 | |
+| verify | — | | |
 
 ## Completed So Far
 
@@ -273,7 +284,8 @@ Roll-up `stages/2-dsp/VERIFICATION.md` written at the 2.3 verify — **Stage 2 c
 
 ## Next Steps
 
-0. **Stage 4 discuss (next)**: `/plugin-discuss O-simpleAmbisonics 4-polish` — scope: FUNC-08 preset bank (refine the 8 provisional lesson recipes), FUNC-09, COMPAT-02 (Logic + Ableton, Windows build), QUAL-01 preset-load clause, QUAL-02 headphone listening; fold in the Stage-3 carried human list, the `verify_2_1` V3 decision, the two UI nits, i18n review flags
+00. **Stage 4 verify (next)**: `/plugin-verify O-simpleAmbisonics` — then `/publish O-simpleAmbisonics 1.0.0` when ready (no tag until then)
+0. ~~**Stage 4 discuss**~~ done: `/plugin-discuss O-simpleAmbisonics 4-polish` — scope: FUNC-08 preset bank (refine the 8 provisional lesson recipes), FUNC-09, COMPAT-02 (Logic + Ableton, Windows build), QUAL-01 preset-load clause, QUAL-02 headphone listening; fold in the Stage-3 carried human list, the `verify_2_1` V3 decision, the two UI nits, i18n review flags
 0a. ~~**Stage 3 verify**~~ done 2026-10-14 (`stages/3-gui/VERIFICATION.md`, ✅ VERIFIED): was `/plugin-verify O-simpleAmbisonics` — closes UI-01…08 against PLAN §Success criteria; human checklist in `stages/3-gui/SUMMARY.md` Part 2 (Logic R1–R3 + general, Standalone page → C++ lessons, eye-check of the 3.3 reflow); decide the verify_2_1 V3 arm and the en `encReadN` ellipsis nit
 1. ~~**UI mockup (prerequisite)**~~ done (mockup v1; kept for history): `/start O-simpleAmbisonics` → option 3 with `stages/3-gui/CONTEXT.md` as the brief — finalises `parameter-spec.md`, must keep the 12-parameter set; then `/plugin-research O-simpleAmbisonics 3-gui`. Stage-3 DSP contract: `MeterFrame` (shGain[16] post-rotation, shPeak[16], azEff / elEff pre-rotation, azRot / elRot, orderActive, decoderMix, latencySamples 64) via `TripleBuffer`; the puck readout formats the PARAMETER (the frame carries −11.999999 for −12); −180 displays as 180; gimbal-lock tooltip (compass holds within ≈ 0.01° of the pole); bank-fade progress from `BinauralConvolver::bankMixCur()` / `isFading()` if the decoder view wants it; both Stereo digests + digest-2.3 are the regression verdicts for any Stage-3 change touching the processor
 2. Human hands-on from the 2.2 verify (installed plugin in a DAW, non-blocking): Yaw spins the image while the Generic editor's Azimuth value stays put; Pitch + raises the front; Roll + raises the left; **flick Yaw 0 → 180 at order 3 on a low tone and listen for a zip** (RESEARCH-2.2 R2); plus the 2.1 list (Stereo mode pans with Azimuth, +90° louder LEFT; Distance 1 → 20 m darkens and attenuates; Orbit On moves, Off glides back the short way; default Binaural setting is NOT silent)
