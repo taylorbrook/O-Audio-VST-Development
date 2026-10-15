@@ -58,6 +58,13 @@ namespace OSimpleAmbisonics::ParamIDs
     inline constexpr auto orbitRate   = "orbitRate";
     inline constexpr auto inputMode   = "inputMode";
     inline constexpr auto outputLevel = "outputLevel";
+
+    // All 12 in APVTS (layout) order — the ONE list. Preset Targets are
+    // indexed by it; the editor's defaults native walks it.
+    inline constexpr const char* kAll[] = {
+        azimuth, elevation, distance, order, yaw, pitch,
+        roll, decoder, orbit, orbitRate, inputMode, outputLevel };
+    inline constexpr int kNumParams = (int) (sizeof (kAll) / sizeof (kAll[0]));
 }
 
 class OSimpleAmbisonicsAudioProcessor : public juce::AudioProcessor
@@ -147,7 +154,7 @@ public:
     // User-owned (R-D3): outputLevel and inputMode are never reset, never set
     // and never counted in "modified" by a lesson, a factory load or a user
     // preset (isUserOwnedParam — the one list).
-    using Targets = std::array<float, 12>;   // normalised, APVTS order; NaN = "not in the preset" -> default
+    using Targets = std::array<float, (size_t) OSimpleAmbisonics::ParamIDs::kNumParams>;   // normalised, APVTS order; NaN = "not in the preset" -> default
 
     static bool isUserOwnedParam (const juce::String& paramId);
 

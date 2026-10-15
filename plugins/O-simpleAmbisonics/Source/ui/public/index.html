@@ -54,8 +54,6 @@
     /* Paper + ink (ouaricon-naturalist-001, as the O-simple* family ships it) */
     --bg-paper-light: #FAF0E6;
     --bg-paper: #F5E6D3;
-    --bg-paper-mid: #EBD9C7;
-    --bg-accent: #D4C4B0;
     --brown-border: #8B7355;     /* borders and decoration only */
     --brown-frame: #5C4033;
     --brown-text: #3C2F2F;       /* all text */
@@ -66,7 +64,6 @@
     --green-darkest: #2C3E10;
     --brass-1: #E8B04A;
     --brass-2: #C98F38;
-    --brass-deep: #8a5a1e;
     /* Family A knob */
     --knob-ring: #C9A27B;
     --knob-seg-1: #F5DEB3;
@@ -89,7 +86,6 @@
     --ink-sage: #9ec46f;
     --ink-parch: #d6c4a0;
     --ink-amber: #e8b04a;
-    --ink-rust: #e98a5a;
     /* The CJK tail goes BEFORE the generic serif: under a Chinese document
        language a bare `serif` is already a Chinese face. */
     --serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
@@ -408,7 +404,7 @@
   }
   .viz-label b { font-weight: 500; color: var(--green-darkest); letter-spacing: 1.4px; flex: 0 0 auto; }
   .viz-hint { text-transform: none; letter-spacing: 0.3px; font-style: italic; font-size: 11.5px; color: var(--green-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .viz-hint.pos { color: var(--green-text); font-style: normal; }
+  .viz-hint.pos { font-style: normal; }
   .viz-hint.neg { color: #a8661f; font-style: normal; }
   /* The channel well's caption is one inline line, not a flex row: every child is a
      [data-i18n] label, so a translated title cannot slide a non-label wrapper
@@ -466,7 +462,7 @@
   .side-bl .v { color: #f3cd86; }
 
   /* Channel view: DOM row labels + one canvas for all bars */
-  .chan-well { padding: 6px 8px 0 8px; }
+  .chan-well { padding: 6px 8px 0 8px; transition: opacity 0.3s ease; }
   .chan-rows { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
   /* Band-tag column 40 px / padding 4 (was 34 / 6): the "+3 ch" count is clipped by the
      tag's overflow, not its own — a clip check-ui-labels [4] cannot see. fr "+3 can."
@@ -492,7 +488,6 @@
   .chan-scale .sc-peak { color: rgba(214, 196, 160, 0.5); }
   #chanCanvas { z-index: 0; }
   /* U1: host idle — the well dims slightly while the picture comes from the parameters */
-  .chan-well { transition: opacity 0.3s ease; }
   .chan-well.idle { opacity: 0.8; }
 
   /* Decoder view */
@@ -1202,11 +1197,9 @@ const S3 = Math.sqrt(3), S15 = Math.sqrt(15), S58 = Math.sqrt(5 / 8), S38 = Math
 const D2R = Math.PI / 180, R2D = 180 / Math.PI, TWO_PI = Math.PI * 2;
 const LEGENDRE = [(x) => 1, (x) => x, (x) => (3 * x * x - 1) / 2, (x) => (5 * x * x * x - 3 * x) / 2];
 const SERIF_CANVAS = "'EB Garamond', Georgia, 'Times New Roman', serif";
-const INK = { parch: '#d6c4a0', sage: '#9ec46f', amber: '#e8b04a', brass: '#f3cd86', rust: '#e98a5a' };
+const INK = { parch: '#d6c4a0', sage: '#9ec46f', amber: '#e8b04a', brass: '#f3cd86', rust: '#e98a5a',
+              wellBot: '#1c160f' };   // wellBot mirrors CSS --well-bot (a constant: no getComputedStyle per redraw)
 const ORD_KEYS  = ['label.ord1', 'label.ord2', 'label.ord3'];
-// Pattern icons: '3d' = the generated SN3D balloons (js/shicons.js), 'slice' =
-// the procedural 2D slices (shIconSvg). The visual checkpoint picks (R4).
-const SH_ICON_STYLE = '3d';
 const EASE_EPS = 1e-3;            // a display value within this of its target snaps (and stops redrawing)
 const POLE_HOLD_DEG = 89.99;      // azRot is undefined this close to the pole (MeterFrame.h): hold it
 const COMPASS_HOLD_COS = 1.75e-4; // |cos pitch| below this: the rose heading is undefined, hold it
@@ -1254,6 +1247,8 @@ let presetReplaceName = '';       // a typed name awaiting the Replace? confirma
 let presetDeleteName  = '';       // captured when the Delete? popover opens
 
 const sliderState = {};           // id -> Juce SliderState
+const dragActive = {};            // id -> true while a knob OR sphere drag owns its gesture
+const wheelGestureEnders = {};    // id -> the knob's endWheelGesture
 const comboState  = {};           // id -> Juce ComboBoxState
 const toggleState = {};           // id -> Juce ToggleState
 let paramDefaults     = null;     // { id: engineeringDefault } from getParameterDefaults
@@ -1277,7 +1272,6 @@ let lastFrame = null;             // the latest meterFrame payload (live or idle
 const dirty = { top: true, side: true, chan: true, dec: true, out: true };   // per-canvas redraw flags
 const puckSprites = {};           // radius -> { canvas, key } pre-rendered gradient + glow
 let readoutsDirty = true;         // parameter changed since the last renderReadouts()
-let rafId = null;
 const disp = {                    // display-side ballistics (attack 0.4 / decay 0.15; shPeak decay only)
   gain: new Float32Array(16), peak: new Float32Array(16), outL: 0, outR: 0,
   decoderMix: 1, az: 0, el: 0, azRot: 0, elRot: 0, orderActive: 4, yaw: 0, pitch: 0,
@@ -1403,6 +1397,44 @@ function onParamTouched(id) {
   touchStage(STAGE_OF[id]);
 }
 
+// ── One pointer drag, shared by the knobs and the sphere wells ──
+// Primary button only; one drag per PARAMETER at a time (a second pointer, or
+// the other front-end of the same parameter, is ignored — one begin, one end);
+// pointer capture; an idempotent end (pointerup, pointercancel and
+// lostpointercapture can all fire). start / move / end are the caller's.
+function bindPointerDrag(el, paramId, { start, move, end }) {
+  let activeId = null;
+  const onMove = (e) => {
+    if (e.pointerId !== activeId) return;
+    move(e);
+    e.preventDefault();
+  };
+  const onUp = (e) => {
+    if (activeId === null || (e && e.pointerId !== activeId)) return;
+    const pid = activeId;
+    activeId = null;
+    dragActive[paramId] = false;
+    el.removeEventListener('pointermove', onMove);
+    el.removeEventListener('pointerup', onUp);
+    el.removeEventListener('pointercancel', onUp);
+    el.removeEventListener('lostpointercapture', onUp);
+    try { el.releasePointerCapture(pid); } catch (_) { /* already released */ }
+    end();
+  };
+  el.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || activeId !== null || dragActive[paramId]) return;
+    activeId = e.pointerId;
+    dragActive[paramId] = true;
+    start(e);
+    try { el.setPointerCapture(e.pointerId); } catch (_) { /* older backends */ }
+    el.addEventListener('pointermove', onMove);
+    el.addEventListener('pointerup', onUp);
+    el.addEventListener('pointercancel', onUp);
+    el.addEventListener('lostpointercapture', onUp);
+    e.preventDefault();   // suppresses the compatibility mousedown — dismissers listen on pointerdown
+  });
+}
+
 function bindKnob(juce, id) {
   const st = juce.getSliderState(id);
   sliderState[id] = st;
@@ -1421,6 +1453,7 @@ function bindKnob(juce, id) {
   // Stage 4 IN-09: the ARIA slider keys. Home / End go to the range ends,
   // PageUp / PageDown move ten nudges; each is one gesture, like nudge().
   knob.addEventListener('keydown', (e) => {
+    if (dragActive[id]) return;             // one gesture per parameter at a time
     let dir = 0;
     if (e.key === 'ArrowUp' || e.key === 'ArrowRight') dir = 1;
     else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') dir = -1;
@@ -1441,7 +1474,7 @@ function bindKnob(juce, id) {
     e.preventDefault();
   });
 
-  let dragging = false, startY = 0, startNorm = 0, lastY = 0, fine = false;
+  let startY = 0, startNorm = 0, lastY = 0, fine = false;
 
   let wheelTimer = null;
   const endWheelGesture = () => {
@@ -1450,58 +1483,37 @@ function bindKnob(juce, id) {
     wheelTimer = null;
     st.sliderDragEnded();
   };
+  wheelGestureEnders[id] = endWheelGesture;   // a sphere drag on this parameter closes it first
 
-  const onMove = (e) => {
-    if (!dragging) return;
-    if (e.shiftKey !== fine) {              // re-base on a modifier flip
+  // Stage 4 IN-11: primary button only (as the sphere drags) — a right or
+  // middle click must not open a host automation gesture.
+  bindPointerDrag(knob, id, {
+    start: (e) => {
+      endWheelGesture();
+      startY = lastY = e.clientY;
       fine = e.shiftKey;
-      startY = lastY;
       startNorm = st.getNormalisedValue();
-    }
-    lastY = e.clientY;
-    const travel = fine ? DRAG_TRAVEL_PX / FINE_DRAG_RATE : DRAG_TRAVEL_PX;
-    let n = Math.min(1, Math.max(0, startNorm + (startY - e.clientY) / travel));
-    if (BIPOLAR.has(id) && Math.abs(n - 0.5) < DETENT_HALF_WIDTH) n = 0.5;   // centre detent → exactly 0°
-    st.setNormalisedValue(n);
-    updateKnobVisual(id);
-    e.preventDefault();
-  };
-
-  // Idempotent: pointerup, pointercancel and lostpointercapture can all fire.
-  const onUp = (e) => {
-    if (!dragging) return;
-    dragging = false;
-    st.sliderDragEnded();
-    knob.removeEventListener('pointermove', onMove);
-    knob.removeEventListener('pointerup', onUp);
-    knob.removeEventListener('pointercancel', onUp);
-    knob.removeEventListener('lostpointercapture', onUp);
-    if (e && e.pointerId !== undefined) {
-      try { knob.releasePointerCapture(e.pointerId); } catch (_) { /* already released */ }
-    }
-  };
-
-  knob.addEventListener('pointerdown', (e) => {
-    // Stage 4 IN-11: primary button only (as the sphere drags) — a right or
-    // middle click must not open a host automation gesture.
-    if (e.button !== 0) return;
-    endWheelGesture();
-    dragging = true;
-    startY = lastY = e.clientY;
-    fine = e.shiftKey;
-    startNorm = st.getNormalisedValue();
-    st.sliderDragStarted();
-    try { knob.setPointerCapture(e.pointerId); } catch (_) { /* older backends */ }
-    knob.addEventListener('pointermove', onMove);
-    knob.addEventListener('pointerup', onUp);
-    knob.addEventListener('pointercancel', onUp);
-    knob.addEventListener('lostpointercapture', onUp);
-    knob.focus({ preventScroll: true });   // a clicked knob takes keyboard focus (arrow keys work after a click)
-    e.preventDefault();
+      st.sliderDragStarted();
+      knob.focus({ preventScroll: true });   // a clicked knob takes keyboard focus (arrow keys work after a click)
+    },
+    move: (e) => {
+      if (e.shiftKey !== fine) {              // re-base on a modifier flip
+        fine = e.shiftKey;
+        startY = lastY;
+        startNorm = st.getNormalisedValue();
+      }
+      lastY = e.clientY;
+      const travel = fine ? DRAG_TRAVEL_PX / FINE_DRAG_RATE : DRAG_TRAVEL_PX;
+      let n = Math.min(1, Math.max(0, startNorm + (startY - e.clientY) / travel));
+      if (BIPOLAR.has(id) && Math.abs(n - 0.5) < DETENT_HALF_WIDTH) n = 0.5;   // centre detent → exactly 0°
+      st.setNormalisedValue(n);
+      updateKnobVisual(id);
+    },
+    end: () => st.sliderDragEnded(),
   });
 
   knob.addEventListener('wheel', (e) => {
-    if (dragging) { e.preventDefault(); return; }
+    if (dragActive[id]) { e.preventDefault(); return; }
     if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;   // not ours; no preventDefault
     e.preventDefault();
     const px = Math.abs(e.deltaY) *
@@ -1553,51 +1565,53 @@ function bindSelectCombo(juce, paramId) {
   return st;
 }
 
-// A segmented row of <button data-v> faces over a ComboBoxState (order, decoder).
-function bindSegCombo(juce, paramId) {
-  const st = juce.getComboBoxState(paramId);
-  comboState[paramId] = st;
+// A segmented row of <button data-v> faces, shared by the two state kinds:
+// bindSegCombo (order, decoder — a ComboBoxState) and bindSegToggle (orbit —
+// a Bool parameter has a ToggleState, never a SliderState; the C++ side
+// registers the toggle relay too). An ARIA radio group: one Tab stop (the
+// checked face), arrow keys move AND select, wrapping at both ends.
+function bindSeg(paramId, st, getIndex, setIndex) {
   const seg = document.getElementById(`seg-${paramId}`);
   if (!seg) { console.error(`Missing segment element: seg-${paramId}`); return null; }
   const buttons = [...seg.querySelectorAll('button')];
   const paint = () => {
-    const c = st.getChoiceIndex();
+    const c = getIndex();
     buttons.forEach((b) => {
       const on = Number(b.dataset.v) === c;
       b.classList.toggle('on', on);
       b.setAttribute('role', 'radio');
       b.setAttribute('aria-checked', on ? 'true' : 'false');
+      b.tabIndex = on ? 0 : -1;
     });
   };
-  buttons.forEach((b) => b.addEventListener('click', () => st.setChoiceIndex(Number(b.dataset.v))));
+  buttons.forEach((b, i) => {
+    b.addEventListener('click', () => setIndex(Number(b.dataset.v)));
+    b.addEventListener('keydown', (e) => {
+      const dir = (e.key === 'ArrowRight' || e.key === 'ArrowDown') ? 1
+                : (e.key === 'ArrowLeft' || e.key === 'ArrowUp') ? -1 : 0;
+      if (dir === 0) return;
+      e.preventDefault();
+      const next = buttons[(i + dir + buttons.length) % buttons.length];
+      setIndex(Number(next.dataset.v));
+      next.focus();
+    });
+  });
   st.valueChangedEvent.addListener(() => { paint(); onParamTouched(paramId); });
   st.propertiesChangedEvent.addListener(() => { paint(); paramsChanged(); });
   paint();
   return st;
 }
 
-// A two-face segment (Off | On) over a ToggleState (orbit). A Bool parameter has a
-// ToggleState, never a SliderState; the C++ side registers the toggle relay too.
+function bindSegCombo(juce, paramId) {
+  const st = juce.getComboBoxState(paramId);
+  comboState[paramId] = st;
+  return bindSeg(paramId, st, () => st.getChoiceIndex(), (v) => st.setChoiceIndex(v));
+}
+
 function bindSegToggle(juce, paramId) {
   const st = juce.getToggleState(paramId);
   toggleState[paramId] = st;
-  const seg = document.getElementById(`seg-${paramId}`);
-  if (!seg) { console.error(`Missing segment element: seg-${paramId}`); return null; }
-  const buttons = [...seg.querySelectorAll('button')];
-  const paint = () => {
-    const c = st.getValue() ? 1 : 0;
-    buttons.forEach((b) => {
-      const on = Number(b.dataset.v) === c;
-      b.classList.toggle('on', on);
-      b.setAttribute('role', 'radio');
-      b.setAttribute('aria-checked', on ? 'true' : 'false');
-    });
-  };
-  buttons.forEach((b) => b.addEventListener('click', () => st.setValue(Number(b.dataset.v) === 1)));
-  st.valueChangedEvent.addListener(() => { paint(); onParamTouched(paramId); });
-  st.propertiesChangedEvent.addListener(() => { paint(); paramsChanged(); });
-  paint();
-  return st;
+  return bindSeg(paramId, st, () => (st.getValue() ? 1 : 0), (v) => st.setValue(v === 1));
 }
 
 // ── Settings popover ──
@@ -1845,65 +1859,12 @@ function beamCurve(N) {
   return beamCache[N];
 }
 
-// ── SH pattern icons: procedural SVG built with the DOM (never innerHTML).
-//    Stage 3 may swap in the 16 offline-generated SVGs — same 18 px box. ──
-function shIconSvg(acn) {
-  const planes = {
-    xy: (t) => [Math.cos(t), Math.sin(t), 0],
-    xz: (t) => [Math.cos(t), 0, Math.sin(t)],
-    yz: (t) => [0, Math.cos(t), Math.sin(t)],
-    dz: (t) => [Math.cos(t) * Math.SQRT1_2, Math.cos(t) * Math.SQRT1_2, Math.sin(t)],
-  };
-  const screen = {   // direction -> unit screen vector (x right, y down); left is LEFT
-    xy: (d) => [-d[1], -d[0]],
-    xz: (d) => [d[0], -d[2]],
-    yz: (d) => [-d[1], -d[2]],
-    dz: (d) => [(d[0] + d[1]) * Math.SQRT1_2, -d[2]],
-  };
-  const tmp = new Float32Array(16);
-  let best = 'xy', bestMax = -1;
-  for (const key in planes) {
-    let mx = 0;
-    for (let i = 0; i < 72; i++) { const d = planes[key](i * TWO_PI / 72); mx = Math.max(mx, Math.abs(shVec(d[0], d[1], d[2], tmp)[acn])); }
-    if (mx > bestMax + 1e-6) { bestMax = mx; best = key; }
-  }
-  const R = 8.6, pos = [], neg = [];
-  for (let i = 0; i <= 96; i++) {
-    const t = i * TWO_PI / 96;
-    const d = planes[best](t);
-    const v = shVec(d[0], d[1], d[2], tmp)[acn] / Math.max(bestMax, 1e-6);
-    const sc = screen[best](d);
-    const r = Math.abs(v) * R;
-    const px = (9 + sc[0] * r).toFixed(2), py = (9 + sc[1] * r).toFixed(2);
-    pos.push(v > 0 ? `${px},${py}` : '9,9');
-    neg.push(v < 0 ? `${px},${py}` : '9,9');
-  }
-  const NS = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(NS, 'svg');
-  svg.setAttribute('viewBox', '0 0 18 18');
-  svg.setAttribute('aria-hidden', 'true');
-  const ring = document.createElementNS(NS, 'circle');
-  ring.setAttribute('cx', '9'); ring.setAttribute('cy', '9'); ring.setAttribute('r', '8.6');
-  ring.setAttribute('fill', 'none'); ring.setAttribute('stroke', 'rgba(214,196,160,0.18)'); ring.setAttribute('stroke-width', '0.5');
-  svg.appendChild(ring);
-  const poly = (pts, fill, stroke) => {
-    const p = document.createElementNS(NS, 'polygon');
-    p.setAttribute('points', pts.join(' '));
-    p.setAttribute('fill', fill); p.setAttribute('stroke', stroke);
-    p.setAttribute('stroke-width', '0.6'); p.setAttribute('stroke-linejoin', 'round');
-    return p;
-  };
-  svg.appendChild(poly(pos, 'rgba(158,196,111,0.78)', '#b9dc8c'));
-  svg.appendChild(poly(neg, 'rgba(232,176,74,0.72)', '#f0c66a'));
-  return svg;
-}
-
-// The generated 3D balloon for one ACN channel (js/shicons.js), built with
-// createElementNS — the module is data only.
+// ── SH pattern icons: the generated 3D balloon for one ACN channel
+//    (js/shicons.js, scripts/generate_sh_icons.mjs), built with createElementNS
+//    — the module is data only. A missing entry draws the ring alone. ──
 function shIcon3d(acn) {
   const NS = 'http://www.w3.org/2000/svg';
   const icon = SH_ICONS[acn];
-  if (!icon) return shIconSvg(acn);
   const svg = document.createElementNS(NS, 'svg');
   svg.setAttribute('viewBox', '0 0 18 18');
   svg.setAttribute('aria-hidden', 'true');
@@ -1911,7 +1872,7 @@ function shIcon3d(acn) {
   ring.setAttribute('cx', '9'); ring.setAttribute('cy', '9'); ring.setAttribute('r', '8.6');
   ring.setAttribute('fill', 'none'); ring.setAttribute('stroke', 'rgba(214,196,160,0.18)'); ring.setAttribute('stroke-width', '0.6');
   svg.appendChild(ring);
-  for (const p of icon.paths) {
+  for (const p of icon ? icon.paths : []) {
     const col = (p.pol > 0 ? SH_ICON_COLOURS.pos : SH_ICON_COLOURS.neg)[p.shade];
     const path = document.createElementNS(NS, 'path');
     path.setAttribute('d', p.d);
@@ -1944,7 +1905,7 @@ function buildChannelRows() {
     acns.forEach((acn) => {
       const n = document.createElement('div'); n.className = 'acn'; n.textContent = String(acn);
       const l = document.createElement('div'); l.className = 'ltr'; l.textContent = ACN_LETTER[acn];
-      const ic = document.createElement('div'); ic.className = 'sh-icon'; ic.appendChild(SH_ICON_STYLE === '3d' ? shIcon3d(acn) : shIconSvg(acn));
+      const ic = document.createElement('div'); ic.className = 'sh-icon'; ic.appendChild(shIcon3d(acn));
       const bar = document.createElement('div'); bar.className = 'bar-cell'; bar.dataset.acn = String(acn);
       band.appendChild(n); band.appendChild(l); band.appendChild(ic); band.appendChild(bar);
     });
@@ -1955,12 +1916,14 @@ function buildChannelRows() {
   measureBarRects();
   if (barRects[0]) {
     const r = barRects[0];
+    // barRects are well-relative; .chan-scale sits 8 px in (left: 8px), so
+    // every caption subtracts 8 to land on its mark.
     [['−1', r.x], ['0', r.x + r.w / 2], ['+1', r.x + r.w]].forEach(([t, x]) => {
       const s = document.createElement('span'); s.textContent = t; s.style.left = `${x - 8}px`; scale.appendChild(s);
     });
-    const k = document.createElement('span'); k.className = 'sc-gain'; k.style.left = `${r.x + r.w * 0.25}px`;
+    const k = document.createElement('span'); k.className = 'sc-gain'; k.style.left = `${r.x + r.w * 0.25 - 8}px`;
     setLabel(k, 'label.scaleGain'); scale.appendChild(k);
-    const k2 = document.createElement('span'); k2.className = 'sc-peak'; k2.style.left = `${r.x + r.w * 0.75}px`;
+    const k2 = document.createElement('span'); k2.className = 'sc-peak'; k2.style.left = `${r.x + r.w * 0.75 - 8}px`;
     setLabel(k2, 'label.scalePeak'); scale.appendChild(k2);
   }
 }
@@ -1977,18 +1940,30 @@ function measureBarRects() {
 }
 
 // ── The frame consumer: ballistics on requestAnimationFrame ──
+// No markAllDirty() here: stepBallistics flags exactly the canvases the new
+// frame moves (every drawing reads disp.* or the parameters, never the frame).
 function onMeterFrame(f) {
   lastFrame = typeof f === 'string' ? JSON.parse(f) : f;
-  markAllDirty();
 }
 // U1 (host-idle display, user decision 2026-10-13): with live === 1 the frame
 // drives the puck, bars and beam exactly; while idle (live === 0, or before any
 // frame) they are drawn from the PARAMETERS with the page's own display maths,
 // and the peaks are the payload's zeros.
+// The idle frame is cached on its inputs (a host-stopped page would otherwise
+// rebuild it every display frame). Keyed on the VALUES, not on a change
+// counter: setNormalisedValue moves scaledValue without firing the page's own
+// valueChanged listeners, so a counter would freeze the puck mid-drag.
+let paramFrameCache = null, paramFrameKey = '';
 function effectiveFrame() {
   const f = lastFrame;
   if (f && f.live === 1) return f;   // [probe-anchor:idle-fallback]
-  return paramFrame(f);
+  const key = [scaledOf('azimuth'), scaledOf('elevation'), scaledOf('yaw'), scaledOf('pitch'),
+               scaledOf('roll'), orderIdx(), choiceOf('decoder')].join();
+  if (paramFrameCache === null || key !== paramFrameKey || paramFrameCache.src !== f) {
+    paramFrameCache = { src: f, frame: paramFrame(f) };
+    paramFrameKey = key;
+  }
+  return paramFrameCache.frame;
 }
 function paramFrame(f) {
   const az = scaledOf('azimuth'), el = scaledOf('elevation');
@@ -2009,7 +1984,7 @@ function paramFrame(f) {
     orderActive: (order + 2) * (order + 2),
     decoderMix: choiceOf('decoder') === 0 ? 1 : 0,
     outPeakL: f ? f.outPeakL : 0, outPeakR: f ? f.outPeakR : 0,
-    latencySamples: 64, live: 0,
+    live: 0,
   };
 }
 // Ease toward a target; within EASE_EPS snap to it. Returns true while moving.
@@ -2049,6 +2024,7 @@ function stepBallistics() {
     disp.idle = idle;
     const well = document.getElementById('chanWell');
     if (well) well.classList.toggle('idle', idle);
+    markAllDirty();                              // rare: the live <-> idle hand-over repaints everything once
   }
   if (chan) dirty.chan = true;
   if (out) dirty.out = true;
@@ -2122,7 +2098,6 @@ function drawTop() {
   ctx.clearRect(0, 0, w, h);
   const cx = w / 2, cy = h / 2 + 3, R = Math.min(w, h) / 2 - 14, rHead = 20;
   TOP.cx = cx; TOP.cy = cy; TOP.R = R; TOP.rHead = rHead;
-  const yaw = disp.yaw, pitch = disp.pitch;
   const order = orderIdx();
 
   // Distance rings (log 0.2-20 m); canvas text is numeric + unit only
@@ -2255,7 +2230,7 @@ function drawFrontChevron(ctx, cx, cy, R, heading, P, alt) {
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   const path = () => { ctx.beginPath(); ctx.moveTo(-5, -dir * len / 2); ctx.lineTo(0, dir * len / 2); ctx.lineTo(5, -dir * len / 2); };
   ctx.globalAlpha = disp.roseAlpha;
-  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--well-bot').trim() || '#1c160f';
+  ctx.strokeStyle = INK.wellBot;
   ctx.lineWidth = 1.6 + 3; path(); ctx.stroke();
   ctx.strokeStyle = INK.amber; ctx.lineWidth = 1.6; path(); ctx.stroke();
   ctx.restore();
@@ -2319,7 +2294,6 @@ function drawChannels() {
   const { ctx, w, h } = chanC;
   ctx.clearRect(0, 0, w, h);
   if (!barRects.length) return;
-  const order = orderIdx();
   for (let acn = 0; acn < 16; acn++) {
     const r = barRects[acn]; if (!r) continue;
     const active = BAND_OF[acn] <= litBand();
@@ -2414,11 +2388,17 @@ function drawDecoder() {
   }
 }
 
+// Clip lamps (one per side): lit for CLIP_HOLD_MS after the displayed peak
+// reaches 0 dBFS — the binaural decode can exceed 1.0 and the bar itself stops
+// at the 0 line.
+const CLIP_HOLD_MS = 1500;
+const clipUntil = [0, 0];
 function drawOut() {
   const { ctx, w, h } = outC;
   ctx.clearRect(0, 0, w, h);
   const top = 8, bot = h - 16, left = 22;
-  const toY = (db) => bot - ((Math.max(-60, db) + 60) / 60) * (bot - top);
+  const toY = (db) => bot - ((Math.min(0, Math.max(-60, db)) + 60) / 60) * (bot - top);
+  const now = performance.now();
   ctx.font = `9.5px ${SERIF_CANVAS}`; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
   [0, -12, -24, -48].forEach((db) => {
     const y = toY(db);
@@ -2436,6 +2416,11 @@ function drawOut() {
     const g = ctx.createLinearGradient(0, bot, 0, top);
     g.addColorStop(0, '#6f9a4c'); g.addColorStop(0.75, '#9ec46f'); g.addColorStop(0.92, '#e8b04a'); g.addColorStop(1, '#e98a5a');
     ctx.fillStyle = g; ctx.fillRect(x, y, bw, bot - y);
+    if (v >= 1) clipUntil[i] = now + CLIP_HOLD_MS;
+    const clipped = now < clipUntil[i];
+    ctx.fillStyle = clipped ? INK.rust : 'rgba(214,196,160,0.06)';
+    ctx.fillRect(x, 1, bw, top - 3);
+    if (clipped) dirty.out = true;                // keep redrawing until the lamp goes out
     ctx.fillStyle = 'rgba(214,196,160,0.8)'; ctx.textAlign = 'center'; ctx.fillText(lab, x + bw / 2, bot + 8);
   });
 }
@@ -2546,12 +2531,18 @@ function renderReadouts() {
 
 // ── UI-04 signal path: page-side recency highlight ──
 function touchStage(stage) { if (stage) stageHit[stage] = performance.now(); }
+// Touches the DOM only when a station's lit state flips.
+const STAGES = ['source', 'encoder', 'rotation', 'decoder', 'output'];
+const stageOn = {};
 function paintStages() {
   const now = performance.now();
-  ['source', 'encoder', 'rotation', 'decoder', 'output'].forEach((s) => {
+  for (const s of STAGES) {
+    const on = (now - (stageHit[s] || -1e9)) < STAGE_HOLD_MS;
+    if (on === stageOn[s]) continue;
+    stageOn[s] = on;
     const el = document.getElementById(`st-${s}`);
-    if (el) el.classList.toggle('on', (now - (stageHit[s] || -1e9)) < STAGE_HOLD_MS);
-  });
+    if (el) el.classList.toggle('on', on);
+  }
 }
 
 // ── Render loop ──
@@ -2569,7 +2560,9 @@ function renderAll() {
   if (readoutsDirty) { renderReadouts(); readoutsDirty = false; }
   paintStages();
 }
-function tick() { renderAll(); rafId = requestAnimationFrame(tick); }
+// Re-armed FIRST: an exception in one frame's drawing must not stop every
+// later frame (the wells would freeze for the rest of the session).
+function tick() { requestAnimationFrame(tick); renderAll(); }
 
 // ── Sphere drags: a second front-end for azimuth / elevation through the same
 //    slider state, with gesture begin / end so host automation records. ──
@@ -2578,38 +2571,20 @@ function bindSphereDrags() {
     const wrap = document.getElementById(wrapId), canvas = document.getElementById(canvasId);
     const st = sliderState[paramId];
     if (!wrap || !canvas || !st) { console.error(`Sphere drag: missing ${wrapId} / ${paramId}`); return; }
-    let dragging = false;
     const local = (e) => { const r = canvas.getBoundingClientRect(); return [(e.clientX - r.left) / uiScale, (e.clientY - r.top) / uiScale]; };
     const apply = (e) => {
       const v = project(...local(e));
       if (v != null) { st.setNormalisedValue(scaledToNorm(st, v)); updateKnobVisual(paramId); }
     };
-    const onMove = (e) => { if (dragging) { apply(e); e.preventDefault(); } };
-    // Idempotent: pointerup, pointercancel and lostpointercapture can all fire.
-    const onUp = (e) => {
-      if (!dragging) return;
-      dragging = false;
-      wrap.classList.remove('dragging');
-      st.sliderDragEnded();
-      wrap.removeEventListener('pointermove', onMove);
-      wrap.removeEventListener('pointerup', onUp);
-      wrap.removeEventListener('pointercancel', onUp);
-      wrap.removeEventListener('lostpointercapture', onUp);
-      if (e && e.pointerId !== undefined) {
-        try { wrap.releasePointerCapture(e.pointerId); } catch (_) { /* already released */ }
-      }
-    };
-    wrap.addEventListener('pointerdown', (e) => {
-      if (e.button !== 0) return;
-      dragging = true; wrap.classList.add('dragging');
-      st.sliderDragStarted();
-      apply(e);
-      try { wrap.setPointerCapture(e.pointerId); } catch (_) { /* older backends */ }
-      wrap.addEventListener('pointermove', onMove);
-      wrap.addEventListener('pointerup', onUp);
-      wrap.addEventListener('pointercancel', onUp);
-      wrap.addEventListener('lostpointercapture', onUp);
-      e.preventDefault();   // suppresses the compatibility mousedown — dismissers listen on pointerdown
+    bindPointerDrag(wrap, paramId, {
+      start: (e) => {
+        if (wheelGestureEnders[paramId]) wheelGestureEnders[paramId]();   // the knob's pending wheel gesture
+        wrap.classList.add('dragging');
+        st.sliderDragStarted();
+        apply(e);
+      },
+      move: apply,
+      end: () => { wrap.classList.remove('dragging'); st.sliderDragEnded(); },
     });
   };
   // Top-down: screen up = front (0°), screen LEFT = +90°; atan2 wraps cleanly across the rear (±180°)
@@ -2845,10 +2820,34 @@ function openPresetDelete() {
   presetPopMode = 'delete';
   presetDeleteName = presetCurrent.name;
   pop.classList.add('confirm');
-  setLabel(title, 'preset.confirmDelete', { name: presetDeleteName });
+  setLabel(title, 'preset.confirmDelete', { name: isolateName(presetDeleteName) });
   setRaw(msg, '');
   pop.hidden = false;
   ok.focus();
+}
+
+// Mirrors OSimpleAmbisonicsAudioProcessor::sanitisePresetName, so the factory
+// refusal and the Replace? check see the name C++ will actually save under
+// ("My:Pad" is saved as "MyPad" — without this it overwrote "MyPad" unasked).
+// "" = refused.
+function sanitisePresetName(raw) {
+  let s = String(raw).trim()
+    .replace(/[\u0000-\u001f\u007f-\u009f\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '')
+    .replace(/["#@,;:<>*^|?\\/]/g, '');               // File::createLegalFileName
+  for (;;) {
+    const next = s.trimStart().replace(/^\.+/, '');
+    if (next === s) break;
+    s = next;
+  }
+  return Array.from(s).slice(0, 64).join('').trimEnd();
+}
+
+// A user preset name inside a localized sentence: bidi-isolated (FSI .. PDI),
+// which also keeps the canon trLabel from resolving a name that happens to be
+// a copy key ("decoder" would otherwise read « Décodeur »). The C++ sanitiser
+// strips bidi controls, so the isolates never collide with a real name.
+function isolateName(name) {
+  return '\u2068' + name + '\u2069';
 }
 
 async function submitPresetPopover() {
@@ -2865,7 +2864,7 @@ async function submitPresetPopover() {
   }
   if (presetPopMode !== 'save') return;
 
-  const name = input.value.trim();
+  const name = sanitisePresetName(input.value);
   if (name === '') { presetReplaceName = ''; setLabel(msg, 'preset.errEmpty'); return; }
   const low = name.toLowerCase();
   if (presetCatalog.factory.some((f) => f.name.toLowerCase() === low)
@@ -2877,7 +2876,7 @@ async function submitPresetPopover() {
   const existing = presetCatalog.user.find((u) => u.toLowerCase() === low);
   if (existing !== undefined && presetReplaceName.toLowerCase() !== low) {
     presetReplaceName = name;          // OK again = replace
-    setLabel(msg, 'preset.confirmReplace', { name: existing });
+    setLabel(msg, 'preset.confirmReplace', { name: isolateName(existing) });
     return;
   }
   // A confirmed replace saves under the EXISTING spelling: on a case-insensitive
@@ -3179,7 +3178,7 @@ function init() {
   // LAST: listeners exist, so the uiReady answer (a forced meterFrame) has somewhere to land.
   try { initBackendEvents(Juce); } catch (e) { console.error('backend events init failed:', e); }
   renderReadouts();
-  rafId = requestAnimationFrame(tick);
+  requestAnimationFrame(tick);
 }
 
 // ════ ONE call, at the very BOTTOM of the module ════

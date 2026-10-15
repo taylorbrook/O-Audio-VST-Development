@@ -45,7 +45,6 @@
 
       delayStereo (stL, stR, dL, dR)                — run the two delays
       blend (dL, dR, binL, binR, t, outL, outR)      — lerp mix, blend
-      processSample (…)                              — both
       bothEndpointsAtOne()                           — prevMix == curMix == 1
 
     Headless: FixedDelay.h + Smoothers.h only. No JUCE.
@@ -102,14 +101,6 @@ struct DecoderMixer
         const float mixS = prevMix + t * (curMix - prevMix);
         outL = dL + mixS * (binL - dL);
         outR = dR + mixS * (binR - dR);
-    }
-
-    void processSample (float stL, float stR, float binL, float binR, float t,
-                        float& outL, float& outR) noexcept
-    {
-        float dL, dR;
-        delayStereo (stL, stR, dL, dR);
-        blend (dL, dR, binL, binR, t, outL, outR);
     }
 
     // The ramp's current value (published in MeterFrame::decoderMix).

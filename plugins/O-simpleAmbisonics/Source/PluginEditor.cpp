@@ -220,10 +220,7 @@ OSimpleAmbisonicsAudioProcessorEditor::OSimpleAmbisonicsAudioProcessorEditor (OS
         [this] (auto&, auto complete)
         {
             auto* obj = new juce::DynamicObject();
-            static constexpr const char* all[] = {
-                ids::azimuth, ids::elevation, ids::distance, ids::order, ids::yaw, ids::pitch,
-                ids::roll, ids::decoder, ids::orbit, ids::orbitRate, ids::inputMode, ids::outputLevel };
-            for (const auto* paramId : all)
+            for (const auto* paramId : ids::kAll)
                 if (auto* param = processorRef.apvts.getParameter (paramId))
                     obj->setProperty (paramId, param->convertFrom0to1 (param->getDefaultValue()));
             complete (juce::var (obj));
@@ -255,14 +252,13 @@ OSimpleAmbisonicsAudioProcessorEditor::OSimpleAmbisonicsAudioProcessorEditor (OS
     // The page's handshake: called once its event listeners exist, and again
     // whenever it becomes visible, so state is re-sent on request rather than
     // assumed delivered. The language is PULLED by the canon, so nothing is
-    // pushed for it. Stage 4 (P5): the preset counters are SNAPSHOTTED FIRST,
-    // then both events are forced — a transition inside this window re-sends
-    // on the next tick (a duplicate, never a loss).
+    // pushed for it. Stage 4 (P5): both events are forced; emitPresetState
+    // snapshots the preset counters BEFORE it reads the identity, so a
+    // transition inside this window re-sends on the next tick (a duplicate,
+    // never a loss).
     options = options.withNativeFunction ("uiReady",
         [this] (auto&, auto complete)
         {
-            lastPresetRevision = processorRef.getPresetRevision();
-            lastPresetModified = processorRef.isPresetModified();
             // Emits the stored `current` — no read(), no tracker tick (the
             // timer is the only sampler; a handshake is never a stale tick).
             emitFrame (true);

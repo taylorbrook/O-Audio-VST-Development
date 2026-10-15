@@ -115,8 +115,8 @@
     Allocation: NONE in process(). The chain is strictly per-sample feed-
     forward, so the bus for one sample lives in busTap[16]; there is no
     16 × maxBlock scratch. The convolver's tables are std::vectors assigned
-    in prepare() only (K and L depend on fs); maxBlock is the processor's
-    scratch size (accessor) — the convolver is grid-sized (D1).
+    in prepare() only (K and L depend on fs); the host block size is the
+    processor's business (its scratch) — the engine is grid-sized (D1).
 
     prepare() snaps every smoother / ramp / orbit phase from the Params the
     processor copied in BEFORE calling it (A7), so block 0 is at steady state
@@ -193,10 +193,9 @@ public:
     // Call setParams() BEFORE prepare() (A7): prepare snaps everything to the
     // stored Params. Allocates (the convolver's tables for this fs) — the
     // only place in the engine that does.
-    void prepare (double sampleRate, int maxBlockSize)
+    void prepare (double sampleRate, int /*maxBlockSize: no host-sized state*/)
     {
         sampleRateHz = sampleRate;
-        maxBlock     = maxBlockSize;
 
         kOnePole  = (float) (1.0 - std::exp (-(double) kControlGrid / (kSmoothingTauSeconds * sampleRateHz)));
         kRampStep = (float) ((double) kControlGrid / (kSmoothingTauSeconds * sampleRateHz));
@@ -248,8 +247,6 @@ public:
         }
     }
 
-    static constexpr int latencySamples() noexcept { return kPartition; }
-
     // Peak accumulation restarts here; the processor calls this at the top of
     // a host block only when the UI has consumed the last published frame.
     void resetPeaks() noexcept
@@ -267,8 +264,6 @@ public:
     // 2.2 rotation click gates; zero extra cost because the peak scan reads
     // it anyway.
     const float* busTap() const noexcept { return tap; }
-
-    int maxBlockSize() const noexcept { return maxBlock; }
 
     // The convolver, read-only — the harness reads the resampled tables
     // (filterTaps / tapsAtRate / resamplerDcGain) and the bank state
@@ -440,7 +435,6 @@ private:
 
     // ── state ──────────────────────────────────────────────────────────────
     double sampleRateHz = 48000.0;
-    int    maxBlock     = 0;
     float  kOnePole     = 0.0f;
     float  kRampStep    = 1.0f;
     int    gridPos      = 0;

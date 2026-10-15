@@ -67,6 +67,7 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <string_view>
 
 // The editor include is guarded and sits directly above createEditor() (Generic
 // editor in the #else) so the render harness (JUCE_WEB_BROWSER=0, no editor
@@ -529,12 +530,10 @@ void OSimpleAmbisonicsAudioProcessor::setStateInformation (const void* data, int
 // is never held across setValueNotifyingHost.
 namespace
 {
-    // APVTS order = the layout order = Targets index order.
-    constexpr const char* kPresetParamIds[12] = {
-        ParamIDs::azimuth, ParamIDs::elevation, ParamIDs::distance, ParamIDs::order, ParamIDs::yaw,
-        ParamIDs::pitch, ParamIDs::roll, ParamIDs::decoder, ParamIDs::orbit, ParamIDs::orbitRate,
-        ParamIDs::inputMode, ParamIDs::outputLevel };
+    // APVTS order = the layout order = Targets index order (ParamIDs::kAll).
+    constexpr const auto& kPresetParamIds = ParamIDs::kAll;
     constexpr int kOrderSlot = 3;
+    static_assert (std::string_view (kPresetParamIds[kOrderSlot]) == ParamIDs::order, "order slot");
 
     // P9 strip set for preset names: C0, DEL, C1, bidi controls.
     bool isStrippedPresetChar (juce::juce_wchar c) noexcept
