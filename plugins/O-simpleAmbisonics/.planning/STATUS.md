@@ -6,8 +6,10 @@ stage_phase: 0
 stage_phase_name: single-cycle
 stage_phase_total: 1
 artifact_suffix: ""
-status: stage_4_execute_part1_complete_visual_pending
+status: stage_4_part2_signoff_pending
 last_updated: 2026-10-14
+s4_part2_scratch: /private/tmp/claude-501/-Users-taylorbrook-Dev-VST-development/2e5ea2d3-8b5a-4db6-b780-fc83cfba3220/scratchpad
+s4_ci_run: 38675387588
 s4_part1_scratch: /private/tmp/claude-501/-Users-taylorbrook-Dev-VST-development/5706f535-bac7-4a9d-8a61-0650a8587fe4/scratchpad
 complexity_score: 5.0
 staged_implementation: true
@@ -15,7 +17,7 @@ orchestration_mode: true
 workflow_mode: manual
 current_phase: execute
 next_phase: verify
-next_action: user_visual_checkpoint_then_plugin_execute
+next_action: user_handson_qual02_signoff
 ui_scaffolding_phase_complete: true
 next_stage: 4
 ready_for_implementation: true
@@ -34,7 +36,9 @@ plugin_code: OSAm
 
 ## Current Position
 
-Stage: 4 of 4 (Polish) — **execute Part 1 ✓ 2026-10-14** (T1–T11) · ⏸ **CP1 preset-bar visual checkpoint (Taylor)** · then `/plugin-execute O-simpleAmbisonics` resumes at T12. Critic pass: 1 blocker (withBackend, ×3 critics) + 6 warnings + 21 notes triaged in `CODE_REVIEW.md` (draft); all T3 fixes gated with NCs. Presets: `PresetRecipes.h` (Init + 8), one apply core, orderStep walk, user-owned outputLevel + inputMode, preset-manager v1.0.9 narrow, header bar (latency chip retired), presetState. Harness 289/289 (digests unchanged), auval + pluginval s10 VST3/AU SUCCESS, verify_2_1/2_2/2_3/3_state ALL PASS, all UI gates green. CP1 also carries tracer item 6 (live Standalone lesson click) and the IN-07 DPR eye-check. `stages/4-polish/SUMMARY.md` Part 1.
+Stage: 4 of 4 (Polish) — **execute Part 2 T12–T14 ✓ 2026-10-14** · CP1 ✓ (Taylor) · CP2 ✓ "yes" · ⏸ **CP3 hands-on + QUAL-02 sign-off (Taylor)** · then `/plugin-execute O-simpleAmbisonics` resumes at T15 (record results, SUMMARY Part 2, STATUS → execute complete). T12 sweep all green, nothing to fix: build 0 warnings; harness 289/289 ×2 (digests 2.1 / 2.2 PASS, 2.3 `edd1acfd21f54bcd`, logs differ only in PERF-02); installed VST3 / AU cmp-identical, 1.0.0 on VST3 / AU / Standalone; auval SUCCEEDED; pluginval s10 SUCCESS ×2 VST3 + ×2 AU; verify_2_1/2_2/2_3 22/35/42, verify_3_state S1–S5; R-UI all exit 0 with NCs FAILING as designed; R-STATIC S1–S7 + R-BRIDGE clean. CP2 facts changed: main already on origin (another session pushed `f4cf9bdf`), no push needed. T13 CI run 38675387588 validate-only: build-windows ✓ (pluginval s10 25/25 groups, 0 FAILED), build-macos ✓, create-release skipped. T14: CHANGELOG `## [1.0.0]`, CODE_REVIEW resolved, REQUIREMENTS (FUNC-08, QUAL-01 complete; COMPAT-02 auval + CI ticked), ARCHITECTURE Stage 4 Amendments A1–A6, ROADMAP note, PLUGINS row 📦 Installed 1.0.0.
+
+Previous: Stage: 4 of 4 (Polish) — **execute Part 1 ✓ 2026-10-14** (T1–T11) · ⏸ **CP1 preset-bar visual checkpoint (Taylor)** · then `/plugin-execute O-simpleAmbisonics` resumes at T12. Critic pass: 1 blocker (withBackend, ×3 critics) + 6 warnings + 21 notes triaged in `CODE_REVIEW.md` (draft); all T3 fixes gated with NCs. Presets: `PresetRecipes.h` (Init + 8), one apply core, orderStep walk, user-owned outputLevel + inputMode, preset-manager v1.0.9 narrow, header bar (latency chip retired), presetState. Harness 289/289 (digests unchanged), auval + pluginval s10 VST3/AU SUCCESS, verify_2_1/2_2/2_3/3_state ALL PASS, all UI gates green. CP1 also carries tracer item 6 (live Standalone lesson click) and the IN-07 DPR eye-check. `stages/4-polish/SUMMARY.md` Part 1.
 
 Stage: 4 of 4 (Polish) — discuss ✓ research ✓ plan ✓ 2026-10-14 · next: execute. `PLAN.md`: Part 1 T1–T11 (critic pass → carried fixes → recipes/apply core → preset-manager + header bar → gates → build) → CP1 preset-bar visual; Part 2 T12–T15 (validation sweep → CP2 push/dispatch go-ahead → Windows CI → release docs) → CP3 hands-on + QUAL-02. Planner deltas vs RESEARCH: ST6 amended for R-D3, orderStep caption rewrite, G-PRESET-CLICK (QUAL-01) added. `RESEARCH.md` decisions R-D1 retire #chipLatency for header preset bar · R-D2 lessons = full reset (as today) · R-D3 inputMode user-owned · R-D4 orderStep walks 1→2→3→1. Prior discuss: `stages/4-polish/CONTEXT.md`: preset-manager + browser (Init + 8 lessons, shared recipe table), carried fixes (verify_2_1 V3 → Stereo, encReadN, chevron/puck), critic pass, CI Windows validate-only, i18n flags unchanged, 1.0.0 no tag.
 

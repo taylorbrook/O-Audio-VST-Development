@@ -26,7 +26,7 @@ lastUpdated: 2026-10-14
 | FUNC-05 | Decoder selectable: Binaural (HRTF, headphones) or Stereo (plain amplitude decode for speakers/projector) | must | complete | stage-2 |
 | FUNC-06 | Orbit: automatic azimuth motion with an on/off switch and a rate (0.02–2 Hz) so movement is audible without DAW automation | should | complete | stage-2 |
 | FUNC-07 | Stereo input accepted and summed to the single mono source (Input Mode: Mono sum / Left only); mono input accepted | must | complete | stage-1 |
-| FUNC-08 | Concept-preset tour (Point Source FOA, Order 1→2→3, Behind You, Overhead, Rotate the Room, Far Away / Up Close, Slow Orbit, Speakers vs Headphones) loadable as factory presets | should | pending | stage-4 |
+| FUNC-08 | Concept-preset tour (Point Source FOA, Order 1→2→3, Behind You, Overhead, Rotate the Room, Far Away / Up Close, Slow Orbit, Speakers vs Headphones) loadable as factory presets | should | complete | stage-4 |
 | FUNC-09 | Usable as a lightweight creative binaural panner with orbit motion for headphone mixes | nice | pending | stage-4 |
 
 ### DSP (DSP)
@@ -72,7 +72,7 @@ lastUpdated: 2026-10-14
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| QUAL-01 | No audio artifacts at normal parameter ranges (no clicks on order/decoder switch, no zipper on angle sweeps, no NaN/denormal) | must | partial | stage-2 |
+| QUAL-01 | No audio artifacts at normal parameter ranges (no clicks on order/decoder switch, no zipper on angle sweeps, no NaN/denormal) | must | complete | stage-4 |
 | QUAL-02 | Localisation sanity on headphones: front, back, left, right, above are audibly distinct; left/right ILD sign matches the AmbiX convention (+90° azimuth = left) | must | pending | stage-4 |
 
 ## Acceptance Criteria Details
@@ -177,6 +177,11 @@ lastUpdated: 2026-10-14
 - [x] Order 3 binaural at 64-sample buffer renders faster than real time with margin (measured in Release) — `steady_clock`, 480 000 samples, best of 3: 203× at execute, 193× / 197× at verify (under a concurrent pluginval) at 48 k / 64 blocks; 195–206× at 1024; 72–76× at 96 k (K 8); gate ≥ 20 (Stage 2 / 2.3 verify, 2026-10-13)
 - [x] Block sizes larger than the prepared size are handled without overrun — the engine is grid-sized (no host-sized buffer) and the processor slices; P3e: prepare 64 then feed 4096 == prepare 4096 == flat, bit-equal, in Binaural with rotation + orbit (Stage 2 / 2.3 verify, 2026-10-13)
 
+### FUNC-08: Concept-preset tour
+
+**Acceptance Criteria:**
+- [x] The 8 concepts load as factory presets (Init + 8, one table `PresetRecipes.h`) from the lesson row and the header preset bar — G-FACTORY[table / init / apply / defs / skew-NC], G-LESSON[walk 0 1 2 0 / restart / owned] + NC, G-ORDER3-DIST 22 states 0 violations + NC, G-PRESET-STATE[identity / restore], G-PRESET-USER + NC, G-PRESET-NAME 9 / 9, G-PRESET-WALK; verify_3_state S4 / S5 on the installed VST3; presets never move Output Level or Input Mode; CP1 visual checkpoint signed off by the user (Stage 4 execute, 2026-10-14)
+
 ### COMPAT-01: pluginval
 
 **Acceptance Criteria:**
@@ -186,13 +191,13 @@ lastUpdated: 2026-10-14
 
 **Acceptance Criteria:**
 - [ ] Loads on a stereo and a mono track in Logic Pro and Ableton Live with no I/O configuration
-- [ ] `auval -v` passes
+- [x] `auval -v` passes — `auval -v aufx OSAm OuDv` AU VALIDATION SUCCEEDED on the installed v1.0.0; pluginval s10 ×2 VST3 + ×2 AU SUCCESS (Stage 4 execute T12, 2026-10-14); Windows VST3 (MSVC, WebView2 static) builds and passes pluginval s10 in CI — run 38675387588, 25 / 25 groups, 0 FAILED (Stage 4 execute T13, 2026-10-14)
 
 ### QUAL-01: No artifacts
 
 **Acceptance Criteria:**
-- [~] No NaN/denormal under any parameter extreme — pluginval s10 ×2, 16-corner harness render at 48 k / 96 k, 32-corner pedalboard render all finite (Stage 2 / 2.1 verify, 2026-10-12); ±180° on all three rotation angles at 48 k / 96 k + gimbal θ = 90° under a yaw sweep finite, 32 rotation corners on the installed VST3 finite (Stage 2 / 2.2 verify, 2026-10-12); with the HRTF leg: harness 8 + 8 Binaural corners at 48 k / 96 k, gimbal under a yaw sweep, headroom corner (+14.5 dBFS, finite), 32 Binaural corners on the installed VST3 (48 k / 96 k × orders × pole sources × 0.2 / 20 m × ±180 rotation, orbit 2 Hz) finite and live (Stage 2 / 2.3 verify, 2026-10-13)
-- [ ] No clicks on preset load
+- [x] No NaN/denormal under any parameter extreme — pluginval s10 ×2, 16-corner harness render at 48 k / 96 k, 32-corner pedalboard render all finite (Stage 2 / 2.1 verify, 2026-10-12); ±180° on all three rotation angles at 48 k / 96 k + gimbal θ = 90° under a yaw sweep finite, 32 rotation corners on the installed VST3 finite (Stage 2 / 2.2 verify, 2026-10-12); with the HRTF leg: harness 8 + 8 Binaural corners at 48 k / 96 k, gimbal under a yaw sweep, headroom corner (+14.5 dBFS, finite), 32 Binaural corners on the installed VST3 (48 k / 96 k × orders × pole sources × 0.2 / 20 m × ±180 rotation, orbit 2 Hz) finite and live (Stage 2 / 2.3 verify, 2026-10-13); a NaN / Inf input sample no longer latches the air LP — `S4 WR-02` 4 / 4 renders finite and bit-equal to the zeroed input, NC latches (Stage 4 execute, 2026-10-14)
+- [x] No clicks on preset load — G-PRESET-CLICK: 12 transitions (8 bank loads, then orderStep 0 → 1 → 2 → 0), 9 ≤ 2.0 vs the static pair; the 3 arms with legitimate smoothed moves (Overhead 2.58, Speakers vs Headphones 2.16, the next orderStep click 4.33 static) read 0.9999 / 1.0001 / 1.0003 vs the same-motion reference (ceiling 2.0); splice NC 268.1 / 10.4 / 62.1 FAILS as designed; Input Mode switch 1.0026 (`S4 WR-04`, NC 579) (Stage 4 execute, 2026-10-14)
 
 ### QUAL-02: Localisation sanity
 

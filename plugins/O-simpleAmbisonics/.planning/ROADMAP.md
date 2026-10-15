@@ -152,6 +152,8 @@ Every `must` requirement (FUNC-01/02/03/04/05/07, DSP-01/02/03/06/07, UI-01/02/0
 - QUAL-02 human listening check on headphones (front/back/left/right/above at order 3; +90° louder left).
 - pluginval s10 VST3 + AU re-run; CHANGELOG `## [1.0.0]`.
 
+> **2026-10-14:** executed — presets / lessons / header bar and the critic fixes recorded as `research/ARCHITECTURE.md` §Stage 4 Amendments A1–A6 (presets also never set `inputMode`; `#chipLatency` retired for the preset bar).
+
 ---
 
 ## Implementation Notes

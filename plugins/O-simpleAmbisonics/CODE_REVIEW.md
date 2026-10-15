@@ -32,8 +32,9 @@ findings:
   warning: 6
   info: 21
   total: 28
-status: draft
-open_findings: pending (Stage 4 Part 1)
+status: resolved
+open_findings: none
+resolved: 2026-10-14
 sources: .planning/stages/4-polish/critic/{dsp,ui,architecture,foundation}.json (merged
   critic/unified.json: 3 blocking reports of ONE defect, 7 warnings, 25 notes / info);
   .planning/stages/3-gui/VERIFICATION.md (carried items)
@@ -124,11 +125,11 @@ Clean (no finding): DSP-010 / ARCH-009 — SN3D / ACN encoder and the AmbiX sign
 
 ## Resolution log
 
-Part 1 (Stage 4 T3–T11, 2026-10-14). "Resolved" = fixed in v1.0.0 with the named gate green and, for a DSP fix, its negative control FAILING as designed. Final statuses at T14.
+Stage 4 (T3–T14, 2026-10-14). "Resolved" = fixed in v1.0.0 with the named gate green and, for a DSP fix, its negative control FAILING as designed. Final: every finding resolved, accepted by design, reviewed and not changed, or upstream (not called). All gates re-run green in the T12 validation sweep (harness 289 / 289 ×2, pluginval s10 ×2 VST3 + AU, auval, verify_2_1 / 2_2 / 2_3 / 3_state, all UI gates).
 
 | Finding | Status | Where / gate |
 |---|---|---|
-| WR-01 | resolved | `PluginEditor.cpp` `.withBackend (webview2)`; R-STATIC S5 `grep -c withBackend` = 1 (Windows load proven by the CP2 CI run only if authorized) |
+| WR-01 | resolved | `PluginEditor.cpp` `.withBackend (webview2)`; R-STATIC S5 `grep -c withBackend` = 1; Windows CI run 38675387588 (validate-only): build-windows ✓, pluginval s10 VST3 25 / 25 groups completed, 0 FAILED (the editor-open tests load the WebView2 page) |
 | WR-02 | resolved | conditioner scrub; harness `S4 WR-02` (4 / 4 renders bit-equal to the zeroed input) + `S4 WR-02-NC` (engine-direct NaN latches → FAILS as designed) |
 | WR-03 | resolved | `reset()` override; `S4 WR-03` (silence after reset all 0; tone after reset bit-equal to fresh) + `S4 WR-03-NC` (tail to frame 383 without reset) |
 | WR-04 | resolved | 20 ms Left-only ramp with exact endpoints; `S4 WR-04` ratio 1.0026 vs the same-motion reference (2.52 / 2.10 vs the static pair, the 20 ms ramp's own corner) + `S4 WR-04-NC` splice ratio 579 |
@@ -151,4 +152,5 @@ Part 1 (Stage 4 T3–T11, 2026-10-14). "Resolved" = fixed in v1.0.0 with the nam
 | C-03 | resolved | chevron after the puck + `probe-anchor:chevron-slide`; frame-probe A14 (gap 8.25 px) + `chevron` NC |
 | IN-02, IN-06, IN-12, IN-18 | accepted by design | reasons in the Info table |
 | IN-03, IN-05, IN-10, IN-15, IN-21 | reviewed, not changed | reasons in the Info table |
-| IN-16 | open → T14 | ARCHITECTURE Stage-4 amendments |
+| IN-16 | resolved | `.planning/research/ARCHITECTURE.md` §Stage 4 Amendments A1–A6 (incl. the IN-03 onset note) |
+| Upstream (preset-manager v1.0.9) | upstream, not called | R-STATIC S2 = 0 |
