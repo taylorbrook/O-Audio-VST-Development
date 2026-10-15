@@ -251,9 +251,14 @@ function outsideViewport(rect, W, H) {
     // out of both gated states through the page's own listeners rather than
     // changing the gating to suit itself. The rest state is pinned as an
     // assertion below so that a future change to either gate is visible here.
+    // v3.0.0: the pitch gate grew — Range, Direction and the three chip tools
+    // (All / None / Invert) dim with Pitch Rnd too. Transpose and Fine do not:
+    // they shift every grain whatever Pitch Rnd says.
     const GATED = new Set([
         'select[data-param="scale"]', 'select[data-param="root_note"]',
-        'select[data-param="pitch_mode"]', 'select[data-param="trajectory"]',
+        'select[data-param="pitch_mode"]', 'select[data-param="pitch_direction"]',
+        '.knob[data-param="pitch_range"]', '#pitch-all', '#pitch-none', '#pitch-invert',
+        'select[data-param="trajectory"]',
         '.knob[data-param="azimuth"]', '.knob[data-param="elevation"]',
         '.knob[data-param="az_spread"]', '.knob[data-param="el_spread"]',
         '.knob[data-param="distance"]', '.knob[data-param="spatial_width"]',
@@ -472,7 +477,7 @@ function outsideViewport(rect, W, H) {
             window.__stubStates.sliders.get('pitch_random').setNormalisedValue(0.5);
             window.__stubStates.combos.get('spatial_mode').setChoiceIndex(1);
             return {
-                dimmed: document.querySelectorAll('.dropdown-container.dimmed').length,
+                dimmed: document.querySelectorAll('.dropdown-container.dimmed, .pitch-gated.dimmed, .pitch-tools.dimmed').length,
                 inert: [...document.querySelectorAll('#spatial-group .knob-container')]
                         .filter(k => k.style.pointerEvents === 'none').length,
             };
@@ -887,9 +892,13 @@ function outsideViewport(rect, W, H) {
             `[8] every TIP_BINDINGS row was resolved — ${bySel.size} of ${TIP_BINDINGS.length}`);
         // v2.7.0: THREE chrome anchors — #tips-toggle joined #gear-btn and
         // #lang-select when the settings popover grew a hover-help switch.
-        check(TIP_BINDINGS.length === boundParams + 3,
-            `[8] one tip per on-page control plus the three chrome anchors — `
-            + `${boundParams} [data-param] elements + 3 vs ${TIP_BINDINGS.length} bindings`);
+        // v3.0.0: plus the FOUR pitch-chip tools (#pitch-all/none/invert/edit),
+        // which act on session state rather than a parameter and so carry no
+        // data-param.
+        const PITCH_TOOLS = 4;
+        check(TIP_BINDINGS.length === boundParams + 3 + PITCH_TOOLS,
+            `[8] one tip per on-page control plus the three chrome anchors and the four pitch tools — `
+            + `${boundParams} [data-param] elements + 3 + ${PITCH_TOOLS} vs ${TIP_BINDINGS.length} bindings`);
 
     } finally {
         await browser.close();

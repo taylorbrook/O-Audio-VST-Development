@@ -1,16 +1,17 @@
 # plugin	O-GrainScatter-dev
-# params	36
+# params	41
 # note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
 #id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
 grain_size	Grain Size		2147483647	10.0	500.0	0.428571	100.0	automatable
 density	Density		2147483647	1.0	100.0	0.494949	50.0	automatable
 pitch_random	Pitch Random		2147483647	0.0	100.0	0.000000	0.0	automatable
 pan_random	Pan Random		2147483647	0.0	100.0	0.000000	0.0	automatable
-scale	Scale		5	Chromatic	Whole Tone	0.000000	Chromatic	automatable,discrete
+scale	Scale		32	Chromatic	Custom	0.000000	Chromatic	automatable,discrete
 root_note	Root Note		12	C	B	0.000000	C	automatable,discrete
 reverse	Reverse		2147483647	0.0	100.0	0.000000	0.0	automatable
 feedback	Feedback		2147483647	0.0	100.0	0.000000	0.0	automatable
-dry_wet	Dry/Wet		2147483647	0.0	100.0	0.500000	50.0	automatable
+dry_level	Dry Level	dB	2147483647	-inf dB	6.0 dB	0.751315	0.0 dB	automatable
+wet_level	Wet Level	dB	2147483647	-inf dB	6.0 dB	0.751315	0.0 dB	automatable
 grain_shape	Grain Shape		6	Hann	Exp Decay	0.000000	Hann	automatable,discrete
 size_random	Size Random		2147483647	0.0	100.0	0.000000	0.0	automatable
 amp_random	Amp Random		2147483647	0.0	100.0	0.000000	0.0	automatable
@@ -21,6 +22,10 @@ repeats	Repeats		16	1	16	0.200000	4	automatable
 stutter_gate	Stutter Gate		2	Off	On	0.000000	Off	automatable,discrete,boolean
 spread	Spread		2147483647	0.0	100.0	0.000000	0.0	automatable
 pitch_mode	Pitch Mode		4	Random	Pendulum	0.000000	Random	automatable,discrete
+pitch_range	Pitch Range	st	2147483647	0.00	24.00	0.500000	12.00	automatable
+pitch_transpose	Transpose	st	49	-24	24	0.500000	0	automatable
+pitch_fine	Fine Tune	ct	2147483647	-100.0	100.0	0.500000	0.0	automatable
+pitch_direction	Pitch Direction		3	Up + Down	Down	0.000000	Up + Down	automatable,discrete
 freeze	Freeze		2	Off	On	0.000000	Off	automatable,discrete,boolean
 euclidean_pulses	Euclidean Pulses		16	1	16	0.200000	4	automatable
 euclidean_steps	Euclidean Steps		15	2	16	0.428571	8	automatable

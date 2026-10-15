@@ -33,7 +33,12 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
     rootNoteRelay       = std::make_unique<juce::WebComboBoxRelay>("root_note");
     reverseRelay        = std::make_unique<juce::WebSliderRelay>("reverse");
     feedbackRelay       = std::make_unique<juce::WebSliderRelay>("feedback");
-    dryWetRelay         = std::make_unique<juce::WebSliderRelay>("dry_wet");
+    dryLevelRelay       = std::make_unique<juce::WebSliderRelay>("dry_level");
+    wetLevelRelay       = std::make_unique<juce::WebSliderRelay>("wet_level");
+    pitchRangeRelay     = std::make_unique<juce::WebSliderRelay>("pitch_range");
+    pitchTransposeRelay = std::make_unique<juce::WebSliderRelay>("pitch_transpose");
+    pitchFineRelay      = std::make_unique<juce::WebSliderRelay>("pitch_fine");
+    pitchDirectionRelay = std::make_unique<juce::WebComboBoxRelay>("pitch_direction");
     syncModeRelay       = std::make_unique<juce::WebComboBoxRelay>("sync_mode");
     probabilityRelay    = std::make_unique<juce::WebSliderRelay>("probability");
     repeatsRelay        = std::make_unique<juce::WebSliderRelay>("repeats");
@@ -117,6 +122,70 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
                     completion(juce::var(GrainScatterProcessor::languageCode(
                                              audioProcessor.uiLanguage.load(std::memory_order_acquire))));
                 })
+            // v3.0.0: pitch collections. The page PULLS the chip model once at
+            // init and again whenever the timer sees pitchStateRevision move
+            // (event "pitchStateChanged"); every setter answers with the fresh
+            // model so the page never has to guess what C++ accepted.
+            .withNativeFunction(
+                juce::Identifier("getPitchState"),
+                [this](const juce::Array<juce::var>&,
+                       juce::WebBrowserComponent::NativeFunctionCompletion completion)
+                {
+                    completion(buildPitchState());
+                })
+            .withNativeFunction(
+                juce::Identifier("setPitchMask"),
+                [this](const juce::Array<juce::var>& args,
+                       juce::WebBrowserComponent::NativeFunctionCompletion completion)
+                {
+                    if (args.size() >= 2)
+                        audioProcessor.setPitchMaskString(static_cast<int>(args[0]), args[1].toString());
+                    completion(buildPitchState());
+                })
+            .withNativeFunction(
+                juce::Identifier("setCustomPitches"),
+                [this](const juce::Array<juce::var>& args,
+                       juce::WebBrowserComponent::NativeFunctionCompletion completion)
+                {
+                    juce::String error = "noPitches";
+                    if (args.size() >= 1)
+                        error = audioProcessor.setCustomPitchesFromText(args[0].toString(), {});
+                    juce::DynamicObject::Ptr result = new juce::DynamicObject();
+                    result->setProperty("error", error);
+                    result->setProperty("state", buildPitchState());
+                    completion(juce::var(result.get()));
+                })
+            .withNativeFunction(
+                juce::Identifier("loadScalaFile"),
+                [this](const juce::Array<juce::var>&,
+                       juce::WebBrowserComponent::NativeFunctionCompletion completion)
+                {
+                    scalaChooser = std::make_unique<juce::FileChooser>(
+                        "Load Scala tuning", juce::File(), "*.scl");
+                    juce::Component::SafePointer<GrainScatterEditor> safe(this);
+                    scalaChooser->launchAsync(
+                        juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                        [safe, completion](const juce::FileChooser& fc)
+                        {
+                            juce::DynamicObject::Ptr result = new juce::DynamicObject();
+                            // An editor closed while the dialog was open: still
+                            // complete, or the page's promise hangs forever.
+                            if (safe == nullptr)
+                            {
+                                result->setProperty("error", "cancelled");
+                                completion(juce::var(result.get()));
+                                return;
+                            }
+                            const auto file = fc.getResult();
+                            juce::String error = "cancelled";
+                            if (file.existsAsFile())
+                                error = safe->audioProcessor.setCustomPitchesFromScala(
+                                    file.loadFileAsString(), file.getFileNameWithoutExtension());
+                            result->setProperty("error", error);
+                            result->setProperty("state", safe->buildPitchState());
+                            completion(juce::var(result.get()));
+                        });
+                })
 #if JUCE_WEB_BROWSER_RESOURCE_PROVIDER_AVAILABLE
             .withResourceProvider([this](const auto& url) { return getResource(url); })
 #endif
@@ -129,7 +198,12 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
             .withOptionsFrom(*rootNoteRelay)
             .withOptionsFrom(*reverseRelay)
             .withOptionsFrom(*feedbackRelay)
-            .withOptionsFrom(*dryWetRelay)
+            .withOptionsFrom(*dryLevelRelay)
+            .withOptionsFrom(*wetLevelRelay)
+            .withOptionsFrom(*pitchRangeRelay)
+            .withOptionsFrom(*pitchTransposeRelay)
+            .withOptionsFrom(*pitchFineRelay)
+            .withOptionsFrom(*pitchDirectionRelay)
             .withOptionsFrom(*syncModeRelay)
             .withOptionsFrom(*probabilityRelay)
             .withOptionsFrom(*repeatsRelay)
@@ -179,8 +253,18 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
         *audioProcessor.parameters.getParameter("reverse"), *reverseRelay, nullptr);
     feedbackAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *audioProcessor.parameters.getParameter("feedback"), *feedbackRelay, nullptr);
-    dryWetAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *audioProcessor.parameters.getParameter("dry_wet"), *dryWetRelay, nullptr);
+    dryLevelAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.parameters.getParameter("dry_level"), *dryLevelRelay, nullptr);
+    wetLevelAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.parameters.getParameter("wet_level"), *wetLevelRelay, nullptr);
+    pitchRangeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.parameters.getParameter("pitch_range"), *pitchRangeRelay, nullptr);
+    pitchTransposeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.parameters.getParameter("pitch_transpose"), *pitchTransposeRelay, nullptr);
+    pitchFineAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.parameters.getParameter("pitch_fine"), *pitchFineRelay, nullptr);
+    pitchDirectionAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *audioProcessor.parameters.getParameter("pitch_direction"), *pitchDirectionRelay, nullptr);
     syncModeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *audioProcessor.parameters.getParameter("sync_mode"), *syncModeRelay, nullptr);
     probabilityAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
@@ -304,6 +388,41 @@ void GrainScatterEditor::timerCallback()
     eucJson += "],\"s\":" + juce::String (step) + ",\"n\":" + juce::String (steps)
              + ",\"r\":" + juce::String (rotation) + "}";
     webView->emitEventIfBrowserIsVisible ("euclideanUpdate", eucJson);
+
+    // v3.0.0: a session / preset load (or another view) changed the pitch
+    // chips behind the page's back. Signal only; the page pulls getPitchState.
+    const auto rev = audioProcessor.pitchStateRevision.load (std::memory_order_acquire);
+    if (rev != lastPitchRevision)
+    {
+        lastPitchRevision = rev;
+        webView->emitEventIfBrowserIsVisible ("pitchStateChanged", juce::var (static_cast<int> (rev)));
+    }
+}
+
+juce::var GrainScatterEditor::buildPitchState() const
+{
+    juce::Array<juce::var> collections, masks;
+    const auto custom = audioProcessor.getCustomTable();
+    for (int c = 0; c < PitchCollections::kCount; ++c)
+    {
+        const auto& t = (c == PitchCollections::Custom) ? custom
+                                                        : PitchCollections::builtIns()[static_cast<size_t> (c)];
+        juce::Array<juce::var> cents;
+        for (int d = 0; d < t.count; ++d)
+            cents.add (juce::var (std::round (t.cents[static_cast<size_t> (d)] * 10.0f) / 10.0f));
+        juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+        obj->setProperty ("cents", cents);
+        obj->setProperty ("period", std::round (t.period * 10.0f) / 10.0f);
+        collections.add (juce::var (obj.get()));
+        masks.add (audioProcessor.getPitchMaskString (c));
+    }
+
+    juce::DynamicObject::Ptr state = new juce::DynamicObject();
+    state->setProperty ("collections", collections);
+    state->setProperty ("masks", masks);
+    state->setProperty ("customText", audioProcessor.getCustomText());
+    state->setProperty ("customName", audioProcessor.getCustomName());
+    return juce::var (state.get());
 }
 
 std::optional<juce::WebBrowserComponent::Resource>
