@@ -1,5 +1,29 @@
 # Changelog
 
+## [3.0.1] - 2026-10-15
+
+### Fixed
+
+- **Custom collection: Apply rejected typed cents.** The text field used the
+  Scala-file rule, where a bare integer is a ratio (`2` = 2/1). So
+  `100 200 … 1200` parsed as the ratios 100/1 … 1200/1, the period 1200/1
+  (~12 274 ct) failed the 4-octave check, and Apply was refused every time.
+  The field's own default text failed the same way, so reopening the editor
+  showed `100 200 …` again. In typed input a bare integer is now cents, and a
+  ratio needs a `/`. `.scl` files keep the Scala rule: their bare integers are
+  rewritten as `a/1` before they reach the text form.
+
+### Added
+
+- Apply confirms success with "Applied: N pitches per period." under the field.
+
+### Testing
+
+- Parser unit test compiled against juce_core (text and `.scl` paths, including
+  the `.scl` → text round-trip the processor performs): 9/9 pass. The same test
+  on v3.0.0 fails 3 (`100 200 … 1200`, `100 250 1200`, `146.3 292.6 1902`, all
+  `badPeriod`), which confirms the root cause.
+
 ## [3.0.0] - 2026-10-15
 
 Pitch collections and separate Dry / Wet levels. MAJOR: `dry_wet` is removed
