@@ -37,6 +37,15 @@ private:
 
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
 
+    // v3.0.0 pitch collections: the whole chip model as one JSON-able var.
+    juce::var buildPitchState() const;
+    uint32_t lastPitchRevision = 0;
+
+    // Declared BEFORE the WebView so it outlives every native-function
+    // completion that captures it; launchAsync callbacks guard with a
+    // SafePointer to this editor.
+    std::unique_ptr<juce::FileChooser> scalaChooser;
+
     GrainScatterProcessor& audioProcessor;
 
     // ========================================================================
@@ -55,7 +64,12 @@ private:
     std::unique_ptr<juce::WebComboBoxRelay> rootNoteRelay;
     std::unique_ptr<juce::WebSliderRelay> reverseRelay;
     std::unique_ptr<juce::WebSliderRelay> feedbackRelay;
-    std::unique_ptr<juce::WebSliderRelay> dryWetRelay;
+    std::unique_ptr<juce::WebSliderRelay> dryLevelRelay;      // v3.0.0
+    std::unique_ptr<juce::WebSliderRelay> wetLevelRelay;
+    std::unique_ptr<juce::WebSliderRelay> pitchRangeRelay;
+    std::unique_ptr<juce::WebSliderRelay> pitchTransposeRelay;
+    std::unique_ptr<juce::WebSliderRelay> pitchFineRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> pitchDirectionRelay;
     // Sync
     std::unique_ptr<juce::WebComboBoxRelay> syncModeRelay;
     std::unique_ptr<juce::WebSliderRelay> probabilityRelay;
@@ -104,7 +118,12 @@ private:
     std::unique_ptr<juce::WebComboBoxParameterAttachment> rootNoteAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> reverseAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> feedbackAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> dryWetAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> dryLevelAttachment;      // v3.0.0
+    std::unique_ptr<juce::WebSliderParameterAttachment> wetLevelAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> pitchRangeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> pitchTransposeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> pitchFineAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> pitchDirectionAttachment;
     // Sync
     std::unique_ptr<juce::WebComboBoxParameterAttachment> syncModeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> probabilityAttachment;

@@ -343,17 +343,31 @@ export const I18N = Object.freeze({
                      reviewed: 'bt' },
     },
 
-    'tip.dryWet': {
-        en: { t: 'Dry/Wet',
-              b: 'Balances the untreated input against the granulated output. At 0 % only the '
-               + 'dry signal passes; at 100 % only grains are heard. Range 0 to 100 %.' },
-        fr: { t: 'Sec/Effet',
-              b: 'Équilibre l’entrée non traitée et la sortie granulée. À 0 % seul le signal sec '
-               + 'passe ; à 100 % on n’entend que les grains. Plage de 0 à 100 %.',
-              reviewed: true },
-        'zh-Hans': { t: '干湿',
-                     b: '在未处理的输入与颗粒化输出之间做平衡。在 0% 时只有干信号通过；在 100% 时只听到颗粒。范围 0 到 100%。',
-                     reviewed: 'bt' },
+    // v3.0.0: Dry/Wet (a crossfade) became two independent levels.
+    'tip.dry': {
+        en: { t: 'Dry',
+              b: 'Level of the untreated input, independent of the grains. Turn it fully down '
+               + 'for a grains-only signal on an aux send. Range −∞ to +6 dB.' },
+        fr: { t: 'Direct',
+              b: 'Niveau du signal direct, indépendant des grains. Tout en bas, seuls les '
+               + 'grains passent, pour un départ auxiliaire. Plage de −∞ à +6 dB.',
+              reviewed: false },
+        'zh-Hans': { t: '干',
+                     b: '未经处理的输入信号电平，与颗粒相互独立。调到最低时只输出颗粒，适合用在辅助发送上。范围 −∞ 到 +6 dB。',
+                     reviewed: 'mt' },
+    },
+
+    'tip.wet': {
+        en: { t: 'Wet',
+              b: 'Level of the granulated output, independent of the dry signal, so the cloud '
+               + 'can be raised without losing the source. Range −∞ to +6 dB.' },
+        fr: { t: 'Traité',
+              b: 'Niveau de la sortie granulée, indépendant du signal direct : le nuage peut '
+               + 'monter sans faire baisser la source. Plage de −∞ à +6 dB.',
+              reviewed: false },
+        'zh-Hans': { t: '湿',
+                     b: '颗粒化输出的电平，与干信号相互独立，因此可以加大颗粒云而不压低源信号。范围 −∞ 到 +6 dB。',
+                     reviewed: 'mt' },
     },
 
     'tip.sizeRnd': {
@@ -409,19 +423,60 @@ export const I18N = Object.freeze({
 
     'tip.pitchRnd': {
         en: { t: 'Pitch Rnd',
-              b: 'Pitch Random sets how far each grain may be transposed away from the source '
-               + 'pitch, quantised to the Scale and Root Note beside it. At 0 % it is off, and '
-               + 'the Scale, Root Note and Pitch Mode controls are dimmed with it. '
+              b: 'Pitch Random sets how much of the Range each grain may move, onto the pitches '
+               + 'of the Collection beside it. At 0 % every grain keeps the source pitch '
+               + '(plus Transpose and Fine), and the controls it drives are dimmed. '
                + 'Range 0 to 100 %.' },
         fr: { t: 'Alé. haut.',
-              b: 'L’aléa de hauteur détermine l’ampleur de la transposition possible de chaque '
-               + 'grain par rapport à la hauteur d’origine, quantifiée sur Gamme et '
-               + 'Fondamentale. À 0 % la fonction est inactive et les commandes Gamme, '
-               + 'Fondamentale et Mode hauteur sont estompées avec elle. Plage de 0 à 100 %.',
-              reviewed: true },
+              b: 'L’aléa de hauteur fixe la part de l’ambitus que chaque grain peut parcourir, '
+               + 'sur les hauteurs de la Collection voisine. À 0 % chaque grain garde la hauteur '
+               + 'd’origine (plus Transpo. et Fin) et les commandes qu’il pilote sont estompées. '
+               + 'Plage de 0 à 100 %.',
+              reviewed: false },
         'zh-Hans': { t: '音高随机',
-                     b: '音高随机设定每个颗粒相对源音高最多可以移调多远，并量化到旁边的音阶和根音上。在 0% 时它处于关闭状态，音阶、根音和音高模式三个控制也随之变暗。范围 0 到 100%。',
-                     reviewed: 'bt' },
+                     b: '音高随机设定每个颗粒可以在范围内移动多少，并落在旁边音集的音高上。在 0% 时每个颗粒保持源音高（加上移调和微调），它所控制的各项也随之变暗。范围 0 到 100%。',
+                     reviewed: 'mt' },
+    },
+
+    'tip.pitchRange': {
+        en: { t: 'Range',
+              b: 'The widest transposition Pitch Rnd can reach, in semitones either side of the '
+               + 'source (or one side, with Direction). 12 is an octave, the v2 behaviour. '
+               + 'Range 0 to 24 st.' },
+        fr: { t: 'Ambitus',
+              b: 'La plus grande transposition que l’aléa de hauteur peut atteindre, en '
+               + 'demi-tons de part et d’autre de la source (ou d’un seul côté, selon Sens). '
+               + '12 vaut une octave, comme en v2. Plage de 0 à 24 demi-tons.',
+              reviewed: false },
+        'zh-Hans': { t: '范围',
+                     b: '音高随机所能达到的最大移调量，以源音高两侧的半音数计（或按方向只取一侧）。12 为一个八度，与 v2 相同。范围 0 到 24 个半音。',
+                     reviewed: 'mt' },
+    },
+
+    'tip.transpose': {
+        en: { t: 'Transpose',
+              b: 'Shifts every grain by whole semitones, whether or not Pitch Rnd is in use. '
+               + 'Range −24 to +24 st.' },
+        fr: { t: 'Transpo.',
+              b: 'La transposition décale chaque grain par demi-tons entiers, que l’aléa de '
+               + 'hauteur soit actif ou non. Plage de −24 à +24 demi-tons.',
+              reviewed: false },
+        'zh-Hans': { t: '移调',
+                     b: '把每个颗粒按整半音移动，无论音高随机是否启用。范围 −24 到 +24 个半音。',
+                     reviewed: 'mt' },
+    },
+
+    'tip.fine': {
+        en: { t: 'Fine',
+              b: 'Fine tune for every grain, in cents (a hundredth of a semitone). Use it to '
+               + 'pull a collection onto a track that is not at A440. Range −100 to +100 cents.' },
+        fr: { t: 'Fin',
+              b: 'Accord fin de chaque grain, en cents (centièmes de demi-ton), pour caler une '
+               + 'collection sur un morceau qui n’est pas à 440 Hz. Plage de −100 à +100 cents.',
+              reviewed: false },
+        'zh-Hans': { t: '微调',
+                     b: '每个颗粒的微调，以音分（半音的百分之一）计。可用来把音集对准不在 440 Hz 上的乐曲。范围 −100 到 +100 音分。',
+                     reviewed: 'mt' },
     },
 
     'tip.panRnd': {
@@ -440,52 +495,106 @@ export const I18N = Object.freeze({
     },
 
     'tip.scale': {
-        en: { t: 'Scale',
-              b: 'Quantises every random transposition to a musical scale, so a scattered cloud '
-               + 'stays in key rather than drifting. It does nothing until Pitch Rnd is above '
-               + 'zero. Five scales: Chromatic, Major, Minor, Pentatonic, Whole Tone.' },
-        fr: { t: 'Gamme',
-              b: 'Quantifie chaque transposition aléatoire sur une gamme musicale : le nuage '
-               + 'dispersé reste alors dans la tonalité au lieu de dériver. Sans effet tant que '
-               + 'le réglage Alé. haut. reste à zéro. Cinq gammes : Chromatic, Major, Minor, '
-               + 'Pentatonic, Whole Tone.',
-              reviewed: true },
-        'zh-Hans': { t: '音阶',
-                     b: '把每一次随机移调都量化到一个音乐音阶上，使散开的颗粒云保持在调内而不是跑调。在音高随机大于零之前它不起作用。五种音阶：Chromatic、Major、Minor、Pentatonic、Whole Tone。',
-                     reviewed: 'bt' },
+        en: { t: 'Collection',
+              b: 'The pitches grains may land on: the v2 scales, the church modes, symmetric '
+               + 'sets, equal divisions from 19 to 53 per octave, just intonation, the harmonic '
+               + 'series, Bohlen-Pierce (which repeats at the twelfth), gamelan and maqam '
+               + 'tunings, or your own Custom set. Free leaves the pitch unquantized.' },
+        fr: { t: 'Collection',
+              b: 'Les hauteurs sur lesquelles les grains peuvent tomber : les gammes de la v2, '
+               + 'les modes, des ensembles symétriques, des divisions égales de 19 à 53 par '
+               + 'octave, l’intonation juste, la série harmonique, Bohlen-Pierce (qui se répète '
+               + 'à la douzième), des accords de gamelan et de maqam, ou votre propre ensemble '
+               + 'Custom. Free laisse la hauteur non quantifiée.',
+              reviewed: false },
+        'zh-Hans': { t: '音集',
+                     b: '颗粒可以落在其上的音高：v2 的音阶、教会调式、对称音集、每八度 19 到 53 的等分律、纯律、泛音列、Bohlen-Pierce（以十二度为周期重复）、甘美兰与木卡姆调音，或你自己的 Custom 音集。Free 则不量化音高。',
+                     reviewed: 'mt' },
     },
 
     'tip.rootNote': {
         en: { t: 'Root Note',
-              b: 'Sets the tonic the chosen Scale is built on, so the quantised grains land in '
-               + 'the key of the track. It does nothing until Pitch Rnd is above zero. '
-               + 'Twelve semitones, C through B.' },
+              b: 'Sets the tonic the Collection is built on, relative to a source heard as C, so '
+               + 'the quantised grains land in the key of the track. Twelve semitones, C through B.' },
         fr: { t: 'Fondamentale',
-              b: 'Définit la tonique sur laquelle la Gamme choisie est construite, afin que les '
-               + 'grains quantifiés tombent dans la tonalité du morceau. Sans effet tant que le '
-               + 'réglage Alé. haut. reste à zéro. Douze demi-tons, de C à B.',
-              reviewed: true },
+              b: 'Définit la tonique sur laquelle la Collection est construite, la source étant '
+               + 'entendue comme un C, afin que les grains quantifiés tombent dans la tonalité '
+               + 'du morceau. Douze demi-tons, de C à B.',
+              reviewed: false },
         'zh-Hans': { t: '根音',
-                     b: '设定所选音阶所构建于的主音，使量化后的颗粒落在乐曲的调上。在音高随机大于零之前它不起作用。十二个半音，从 C 到 B。',
-                     reviewed: 'bt' },
+                     b: '设定音集所构建于的主音（把源信号视为 C），使量化后的颗粒落在乐曲的调上。十二个半音，从 C 到 B。',
+                     reviewed: 'mt' },
     },
 
     'tip.pitchMode': {
         en: { t: 'Pitch Mode',
-              b: 'Chooses how successive grains pick their transposition: freely at random, '
-               + 'climbing or descending the scale a degree at a time, or bouncing between the '
-               + 'two. Ladder and Pendulum give an arpeggio where Random gives a cloud. '
-               + 'Four modes: Random, Ladder Up, Ladder Down, Pendulum.' },
+              b: 'Chooses how successive grains pick their pitch: at random from the active '
+               + 'pitches, climbing or descending through them one at a time across the whole '
+               + 'Range, or bouncing between the ends. Four modes: Random, Ladder Up, '
+               + 'Ladder Down, Pendulum.' },
         fr: { t: 'Mode hauteur',
-              b: 'Choisit la façon dont les grains successifs prennent leur transposition : '
-               + 'librement au hasard, en montant ou en descendant la gamme degré par degré, ou '
-               + 'en faisant l’aller-retour entre les deux. Ladder et Pendulum donnent un arpège '
-               + 'là où Random donne un nuage. Quatre modes : Random, Ladder Up, Ladder Down, '
-               + 'Pendulum.',
-              reviewed: true },
+              b: 'Choisit la façon dont les grains successifs prennent leur hauteur : au hasard '
+               + 'parmi les hauteurs actives, en montant ou en descendant l’une après l’autre sur '
+               + 'tout l’ambitus, ou en allant et venant entre les extrêmes. Quatre modes : '
+               + 'Random, Ladder Up, Ladder Down, Pendulum.',
+              reviewed: false },
         'zh-Hans': { t: '音高模式',
-                     b: '选择相继的颗粒如何取得各自的移调量：完全随机，沿音阶逐级上行或下行，或者在两者之间往复。Ladder 和 Pendulum 给出琶音，Random 给出颗粒云。四种模式：Random、Ladder Up、Ladder Down、Pendulum。',
-                     reviewed: 'bt' },
+                     b: '选择相继的颗粒如何取得音高：在启用的音高中随机选取，在整个范围内逐个上行或下行，或在两端之间往复。四种模式：Random、Ladder Up、Ladder Down、Pendulum。',
+                     reviewed: 'mt' },
+    },
+
+    'tip.direction': {
+        en: { t: 'Direction',
+              b: 'Which side of the source the Range covers: both, above only, or below only. '
+               + 'Three settings: Up + Down, Up, Down.' },
+        fr: { t: 'Sens',
+              b: 'Le côté de la source couvert par l’ambitus : les deux, au-dessus seulement ou '
+               + 'au-dessous seulement. Trois réglages : Up + Down, Up, Down.',
+              reviewed: false },
+        'zh-Hans': { t: '方向',
+                     b: '范围覆盖源音高的哪一侧：两侧、仅上方或仅下方。三种设定：Up + Down、Up、Down。',
+                     reviewed: 'mt' },
+    },
+
+    'tip.pitchTools': {
+        en: { t: 'Degrees',
+              b: 'All switches every degree of the Collection on, None switches them all off, '
+               + 'Invert flips each one. Click a single chip below to toggle that degree.' },
+        fr: { t: 'Degrés',
+              b: 'Tous active chaque degré de la Collection, Aucun les coupe tous, Inverser '
+               + 'bascule chacun. Cliquer une puce ci-dessous bascule ce degré seul.',
+              reviewed: false },
+        'zh-Hans': { t: '音级',
+                     b: '全部开启音集中的每个音级，全不选把它们全部关闭，反选把每个音级翻转。点击下方的单个按钮可切换该音级。',
+                     reviewed: 'mt' },
+    },
+
+    // A collection chip (built at runtime by setupPitchCollections in app.js).
+    // The title is prefixed with the chip's own note name or cents; {n} is the
+    // degree number, {c} its cents above the root.
+    'tip.degree': {
+        en: { t: 'Degree {n}',
+              b: '{c} cents above the root. Click to switch this degree on or off.' },
+        fr: { t: 'Degré {n}',
+              b: '{c} cents au-dessus de la fondamentale. Cliquer pour activer ou couper ce degré.',
+              reviewed: false },
+        'zh-Hans': { t: '第 {n} 级',
+                     b: '比根音高 {c} 音分。点击可开启或关闭该音级。',
+                     reviewed: 'mt' },
+    },
+
+    'tip.pitchEdit': {
+        en: { t: 'Custom',
+              b: 'Opens the Custom collection editor: type pitches as cents or ratios, or load '
+               + 'a Scala .scl file. Applying selects the Custom collection.' },
+        fr: { t: 'Perso.',
+              b: 'Ouvre l’éditeur de la collection Custom : saisir des hauteurs en cents ou en '
+               + 'rapports, ou charger un fichier Scala .scl. Appliquer sélectionne la '
+               + 'collection Custom.',
+              reviewed: false },
+        'zh-Hans': { t: '自定义',
+                     b: '打开 Custom 音集编辑器：以音分或比率输入音高，或载入 Scala .scl 文件。应用后即选中 Custom 音集。',
+                     reviewed: 'mt' },
     },
 
     // ── Beat Sync ───────────────────────────────────────────────────────────
@@ -1013,10 +1122,14 @@ export const LABELS = Object.freeze({
                              fr: { t: 'Réinj.', reviewed: true },
         'zh-Hans': { t: '反馈', reviewed: 'bt' },
     },                 // 46.53 -> 29.39  SHRANK
-    'label.dryWet':        { en: { t: 'Dry/Wet' },
-                             fr: { t: 'Sec/Effet', reviewed: true },
-        'zh-Hans': { t: '干湿', reviewed: 'bt' },
-    },              // 41.77 -> 48.09
+    'label.dry':           { en: { t: 'Dry' },
+                             fr: { t: 'Direct', reviewed: false },
+        'zh-Hans': { t: '干', reviewed: 'mt' },
+    },
+    'label.wet':           { en: { t: 'Wet' },
+                             fr: { t: 'Traité', reviewed: false },
+        'zh-Hans': { t: '湿', reviewed: 'mt' },
+    },
     'label.sizeRnd':       { en: { t: 'Size Rnd' },
                              fr: { t: 'Alé. taille', reviewed: true },
         'zh-Hans': { t: '尺寸随机', reviewed: 'bt' },
@@ -1039,10 +1152,6 @@ export const LABELS = Object.freeze({
                              fr: { t: 'Alé. pan', reviewed: true },
         'zh-Hans': { t: '声像随机', reviewed: 'bt' },
     },               // 39.56 -> 39.89
-    'label.scale':         { en: { t: 'Scale' },
-                             fr: { t: 'Gamme', reviewed: true },
-        'zh-Hans': { t: '音阶', reviewed: 'bt' },
-    },                  // 27.55 -> 33.73
     'label.rootNote':      { en: { t: 'Root Note' },
                              fr: { t: 'Fondamentale', reviewed: true },
         'zh-Hans': { t: '根音', reviewed: 'bt' },
@@ -1051,6 +1160,81 @@ export const LABELS = Object.freeze({
                              fr: { t: 'Mode hauteur', reviewed: true },
         'zh-Hans': { t: '音高模式', reviewed: 'bt' },
     },           // 56.13 -> 72.30
+    // ── v3.0.0 pitch controls ──
+    'label.pitchRange':    { en: { t: 'Range' },
+                             fr: { t: 'Ambitus', reviewed: false },
+        'zh-Hans': { t: '范围', reviewed: 'mt' },
+    },
+    'label.transpose':     { en: { t: 'Transpose' },
+                             fr: { t: 'Transpo.', reviewed: false },
+        'zh-Hans': { t: '移调', reviewed: 'mt' },
+    },
+    'label.fine':          { en: { t: 'Fine' },
+                             fr: { t: 'Fin', reviewed: false },
+        'zh-Hans': { t: '微调', reviewed: 'mt' },
+    },
+    'label.collection':    { en: { t: 'Collection' },
+                             fr: { t: 'Collection', reviewed: false, sameAsEn: true },
+        'zh-Hans': { t: '音集', reviewed: 'mt' },
+    },
+    'label.direction':     { en: { t: 'Direction' },
+                             fr: { t: 'Sens', reviewed: false },
+        'zh-Hans': { t: '方向', reviewed: 'mt' },
+    },
+    'label.pitchAll':      { en: { t: 'All' },
+                             fr: { t: 'Tous', reviewed: false },
+        'zh-Hans': { t: '全部', reviewed: 'mt' },
+    },
+    'label.pitchNone':     { en: { t: 'None' },
+                             fr: { t: 'Aucun', reviewed: false },
+        'zh-Hans': { t: '无', reviewed: 'mt' },
+    },
+    'label.pitchInvert':   { en: { t: 'Invert' },
+                             fr: { t: 'Inverser', reviewed: false },
+        'zh-Hans': { t: '反选', reviewed: 'mt' },
+    },
+    'label.pitchEdit':     { en: { t: 'Custom…' },
+                             fr: { t: 'Perso…', reviewed: false },
+        'zh-Hans': { t: '自定义…', reviewed: 'mt' },
+    },
+    'label.customTitle':   { en: { t: 'Custom collection' },
+                             fr: { t: 'Collection personnalisée', reviewed: false },
+        'zh-Hans': { t: '自定义音集', reviewed: 'mt' },
+    },
+    'label.customHelp':    { en: { t: 'Pitches above 1/1 in cents (386.3) or ratios (5/4). The last one is the period.' },
+                             fr: { t: 'Hauteurs au-dessus de 1/1, en cents (386) ou en rapports (5/4). La dernière est la période.', reviewed: false },
+        'zh-Hans': { t: '1/1 以上的音高，用音分（386.3）或比率（5/4）表示。最后一个是周期。', reviewed: 'mt' },
+    },
+    'label.loadScl':       { en: { t: 'Load .scl…' },
+                             fr: { t: 'Charger .scl…', reviewed: false },
+        'zh-Hans': { t: '载入 .scl…', reviewed: 'mt' },
+    },
+    'label.apply':         { en: { t: 'Apply' },
+                             fr: { t: 'Appliquer', reviewed: false },
+        'zh-Hans': { t: '应用', reviewed: 'mt' },
+    },
+    // Custom-editor errors. The KEY SUFFIX is the error code C++ returns
+    // (PitchCollections::tableFrom*), so each code maps to exactly one row.
+    'label.customErr.noPitches': { en: { t: 'Enter at least one pitch.' },
+                             fr: { t: 'Saisir au moins une hauteur.', reviewed: false },
+        'zh-Hans': { t: '请至少输入一个音高。', reviewed: 'mt' },
+    },
+    'label.customErr.badPitch':  { en: { t: 'Unreadable pitch: use cents (386.3) or a ratio (5/4).' },
+                             fr: { t: 'Hauteur illisible : utiliser des cents (386) ou un rapport (5/4).', reviewed: false },
+        'zh-Hans': { t: '无法识别的音高：请使用音分（386.3）或比率（5/4）。', reviewed: 'mt' },
+    },
+    'label.customErr.badPeriod': { en: { t: 'The last pitch is the period: it must lie above 1/1 and within 4 octaves.' },
+                             fr: { t: 'La dernière hauteur est la période : elle doit dépasser 1/1 sans excéder 4 octaves.', reviewed: false },
+        'zh-Hans': { t: '最后一个音高是周期：必须高于 1/1，且不超过 4 个八度。', reviewed: 'mt' },
+    },
+    'label.customErr.tooMany':   { en: { t: 'Too many pitches: 64 at most per period.' },
+                             fr: { t: 'Trop de hauteurs : 64 au plus par période.', reviewed: false },
+        'zh-Hans': { t: '音高过多：每个周期最多 64 个。', reviewed: 'mt' },
+    },
+    'label.customErr.badCount':  { en: { t: 'This .scl file is malformed.' },
+                             fr: { t: 'Ce fichier .scl est mal formé.', reviewed: false },
+        'zh-Hans': { t: '该 .scl 文件格式有误。', reviewed: 'mt' },
+    },
     // The hint NAMES a control whose caption this table also owns, so it takes
     // the caption as a {n} token rather than a second copy of the same words.
     // trLabel() resolves a token that is itself a LABELS key, so a reviewer who
@@ -1224,6 +1408,19 @@ export const LABELS = Object.freeze({
     'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true },
         'zh-Hans': { t: '开关悬停帮助', reviewed: 'bt' },
     },
+    // v3.0.0 pitch collections
+    'aria.pitchChips':     { en: { t: 'Collection degrees' },
+                             fr: { t: 'Degrés de la collection', reviewed: false },
+        'zh-Hans': { t: '音集音级', reviewed: 'mt' },
+    },
+    'aria.customEditor':   { en: { t: 'Custom collection' },
+                             fr: { t: 'Collection personnalisée', reviewed: false },
+        'zh-Hans': { t: '自定义音集', reviewed: 'mt' },
+    },
+    'aria.customPitches':  { en: { t: 'Custom pitches' },
+                             fr: { t: 'Hauteurs personnalisées', reviewed: false },
+        'zh-Hans': { t: '自定义音高', reviewed: 'mt' },
+    },
 });
 
 // ============================================================================
@@ -1265,6 +1462,38 @@ export const I18N_EXEMPT = [
     ['Minor',      'a scale option string VERBATIM (PluginProcessor.cpp:105) — D-01 arm 1'],
     ['Pentatonic', 'a scale option string VERBATIM (PluginProcessor.cpp:105) — D-01 arm 1'],
     ['Whole Tone', 'a scale option string VERBATIM (PluginProcessor.cpp:105) — D-01 arm 1'],
+
+    // v3.0.0: the 27 collections appended to the scale parameter (PitchCollections::names()).
+    ['Free (unquantized)', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['Dorian', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['Phrygian', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['Lydian', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['Mixolydian', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['Locrian', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['Harmonic Minor', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['Melodic Minor', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['Minor Pentatonic', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['Blues', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['Octatonic', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['Augmented', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['Fifths + Octaves', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['Octaves', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['19-EDO', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['22-EDO', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['24-EDO', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['31-EDO', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['53-EDO', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['5-Limit Just', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['7-Limit Just', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['Harmonics 8-16', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['Bohlen-Pierce', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['Slendro', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['Pelog', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['Maqam Rast', 'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1'],
+    ['Custom',   'a scale option string VERBATIM (PitchEngine.h names()) — D-01 arm 1. SCOPED: the "Custom…" tool caption is keyed (label.pitchEdit)', 'option'],
+    ['Up + Down', 'a pitch_direction option string VERBATIM (PluginProcessor.cpp) — D-01 arm 1'],
+    ['Up',        'a pitch_direction option string VERBATIM (PluginProcessor.cpp) — D-01 arm 1'],
+    ['Down',      'a pitch_direction option string VERBATIM (PluginProcessor.cpp) — D-01 arm 1'],
 
     ['Random',       'a pitch_mode AND a trajectory option string VERBATIM '
                    + '(PluginProcessor.cpp:197, :281) — D-01 arm 1. Unscoped is correct: '
@@ -1363,7 +1592,8 @@ export const TIP_BINDINGS = [
     ['.knob[data-param="spread"]',             'tip.spread',      '.knob-container'],
     ['.knob[data-param="reverse"]',            'tip.reverse',     '.knob-container'],
     ['.knob[data-param="feedback"]',           'tip.feedback',    '.knob-container'],
-    ['.knob[data-param="dry_wet"]',            'tip.dryWet',      '.knob-container'],
+    ['.knob[data-param="dry_level"]',          'tip.dry',         '.knob-container'],
+    ['.knob[data-param="wet_level"]',          'tip.wet',         '.knob-container'],
     ['.knob[data-param="size_random"]',        'tip.sizeRnd',     '.knob-container'],
     ['.knob[data-param="amp_random"]',         'tip.ampRnd',      '.knob-container'],
     ['select[data-param="grain_shape"]',       'tip.shape',       '.dropdown-container'],
@@ -1374,6 +1604,14 @@ export const TIP_BINDINGS = [
     ['select[data-param="scale"]',             'tip.scale',       '.dropdown-container'],
     ['select[data-param="root_note"]',         'tip.rootNote',    '.dropdown-container'],
     ['select[data-param="pitch_mode"]',        'tip.pitchMode',   '.dropdown-container'],
+    ['.knob[data-param="pitch_range"]',        'tip.pitchRange',  '.knob-container'],
+    ['.knob[data-param="pitch_transpose"]',    'tip.transpose',   '.knob-container'],
+    ['.knob[data-param="pitch_fine"]',         'tip.fine',        '.knob-container'],
+    ['select[data-param="pitch_direction"]',   'tip.direction',   '.dropdown-container'],
+    ['#pitch-all',                             'tip.pitchTools'],
+    ['#pitch-none',                            'tip.pitchTools'],
+    ['#pitch-invert',                          'tip.pitchTools'],
+    ['#pitch-edit',                            'tip.pitchEdit'],
 
     // ── Beat Sync ───────────────────────────────────────────────────────────
     ['select[data-param="sync_mode"]',         'tip.syncMode',    '.dropdown-container'],

@@ -361,6 +361,155 @@
             opacity: 1;
         }
 
+        /* ── v3.0.0 Pitch group ──────────────────────────────────────────────
+           Three rows in the height the Core group already spends on two knob
+           rows: knobs (82) + dropdowns (43) + the chip strip (34), so the grid
+           row — and the viz above it — does not grow. The Pitch Rnd hint now
+           sits OVER the chip strip (the chips are dimmed whenever it shows)
+           instead of taking a row of its own. */
+        .pitch-group { position: relative; }
+        .pitch-rows { display: flex; flex-direction: column; gap: 6px; }
+        .collection-container { width: 116px; }
+        .pitch-gated { transition: opacity 0.3s; }
+        .pitch-gated.dimmed { opacity: 0.25; pointer-events: none; }
+
+        .pitch-chip-strip { position: relative; height: 34px; }
+        .pitch-chips {
+            display: flex;
+            flex-wrap: wrap;
+            align-content: center;
+            gap: 2px;
+            height: 100%;
+        }
+        .pitch-chip {
+            height: 16px;
+            padding: 0;
+            border: 1px solid var(--leaf-fill);
+            border-radius: 2px;
+            background: var(--leaf-fill);
+            color: var(--cream);
+            font-family: var(--font-serif);
+            font-size: 9px;
+            line-height: 1;
+            letter-spacing: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            cursor: pointer;
+            transition: background 0.12s, color 0.12s;
+        }
+        .pitch-chips.single-row .pitch-chip { height: 22px; font-size: 10px; }
+        .pitch-chip.tonic { font-weight: 700; }
+        .pitch-chip.off {
+            background: rgba(255,248,220,0.35);
+            border: 1px dashed var(--rule);
+            color: var(--text-muted);
+        }
+        .pitch-chip:focus-visible { outline: 2px solid var(--olive); outline-offset: 1px; }
+
+        /* Centred over the dimmed chips on a paper plate, so it reads clean
+           over chip labels instead of through them. */
+        .pitch-chip-strip .pitch-hint {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: auto;
+            padding: 3px 10px;
+            background: var(--paper);
+            border: 1px solid rgba(139,115,85,0.3);
+            border-radius: 3px;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+        .pitch-chip-strip .pitch-hint:not(.visible) { visibility: hidden; }
+
+        /* A LOAD-BEARING WIDTH PIN, the #stutter-gate-btn kind: the row
+           shrink-wrapped its four keyed buttons, so it measured 190.03 px in
+           English, 205.19 in French and 144.30 in Chinese, and check-ui-labels
+           [7] reported it moving. 206 px is the French box rounded up; the
+           buttons right-align inside it, so every language keeps its right
+           edge at the group's padding. */
+        .pitch-tools {
+            position: absolute;
+            top: 4px;
+            right: 10px;
+            width: 206px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 4px;
+        }
+        .pitch-tool {
+            padding: 1px 5px;
+            background: var(--plate);
+            border: 1px solid var(--rule);
+            border-radius: 2px;
+            color: var(--ink);
+            font-family: var(--font-serif);
+            font-size: 9px;
+            line-height: 1.2;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+        .pitch-tool:hover { background: var(--knob-segment-1); }
+        .pitch-tool:focus-visible { outline: 2px solid var(--olive); outline-offset: 1px; }
+        .pitch-tool[aria-expanded="true"] { background: var(--leaf-fill); border-color: var(--leaf-fill); color: var(--cream); }
+        .pitch-tools.dimmed .pitch-tool.chip-tool { opacity: 0.25; pointer-events: none; }
+
+        .custom-popover {
+            position: absolute;
+            top: 22px;
+            right: 10px;
+            z-index: 50;
+            width: 270px;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            background: rgba(255,248,220,0.98);
+            border: 1px solid var(--rule);
+            border-radius: 4px;
+            box-shadow: 2px 4px 12px rgba(60,47,47,0.35);
+        }
+        .custom-popover[hidden] { display: none; }
+        .custom-title {
+            font-size: 9px;
+            line-height: 1.1111111;   /* the .group-label ratio: Han no longer grows the box (v2.8.0 pins) */
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-body);
+        }
+        .custom-name {
+            font-size: 10px;
+            font-style: italic;
+            color: var(--text-muted);
+            min-height: 11px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .custom-input {
+            width: 100%;
+            resize: none;
+            padding: 4px 5px;
+            background: var(--cream);
+            border: 1px solid var(--rule);
+            border-radius: 2px;
+            color: var(--ink);
+            font-family: var(--font-serif);
+            font-size: 11px;
+            line-height: 1.3;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+        .custom-input:focus { outline: 1px solid var(--olive); }
+        .custom-help { font-size: 9px; line-height: 1.25; color: var(--text-muted); }
+        .custom-error { font-size: 9px; line-height: 1.25; color: var(--ink); font-style: italic; min-height: 11px; }
+        .custom-actions { display: flex; justify-content: space-between; }
+        .custom-apply { background: var(--leaf-fill); border-color: var(--leaf-fill); color: var(--cream); }
+        .custom-apply:hover { background: var(--olive-border); }
+
         .toggle.freeze-toggle.active {
             box-shadow: 0 0 12px rgba(107,142,78,0.5), 0 0 24px rgba(107,142,78,0.2);
             animation: freezePulse 2s ease-in-out infinite;
@@ -762,9 +911,14 @@
                     <span class="knob-value" data-value="feedback">0%</span>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name" data-i18n="label.dryWet">Dry/Wet</span>
-                    <div class="knob" data-param="dry_wet"><div class="knob-indicator"></div></div>
-                    <span class="knob-value" data-value="dry_wet">50%</span>
+                    <span class="knob-name" data-i18n="label.dry">Dry</span>
+                    <div class="knob" data-param="dry_level"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="dry_level">0.0 dB</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.wet">Wet</span>
+                    <div class="knob" data-param="wet_level"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="wet_level">0.0 dB</span>
                 </div>
                 <div class="knob-container">
                     <span class="knob-name" data-i18n="label.sizeRnd">Size Rnd</span>
@@ -790,49 +944,136 @@
             </div>
         </div>
 
-        <!-- Group 2: Pitch & Scale -->
-        <div class="group">
+        <!-- Group 2: Pitch & Scale (v3.0.0: collections, range, transpose, chips) -->
+        <div class="group pitch-group" id="pitch-group">
             <div class="group-label" data-i18n="label.pitchScale">Pitch &amp; Scale</div>
-            <div class="group-controls">
-                <div class="knob-container">
-                    <span class="knob-name" data-i18n="label.pitchRnd">Pitch Rnd</span>
-                    <div class="knob" data-param="pitch_random"><div class="knob-indicator"></div></div>
-                    <span class="knob-value" data-value="pitch_random">0%</span>
+            <!-- Out of flow, in the label line's empty right margin: the chip
+                 tools cost the group no height. -->
+            <div class="pitch-tools" id="pitch-tools">
+                <button type="button" class="pitch-tool" id="pitch-all" data-i18n="label.pitchAll">All</button>
+                <button type="button" class="pitch-tool" id="pitch-none" data-i18n="label.pitchNone">None</button>
+                <button type="button" class="pitch-tool" id="pitch-invert" data-i18n="label.pitchInvert">Invert</button>
+                <button type="button" class="pitch-tool" id="pitch-edit" aria-haspopup="dialog" aria-expanded="false"
+                        data-i18n="label.pitchEdit">Custom&hellip;</button>
+            </div>
+            <div class="pitch-rows">
+                <div class="group-controls">
+                    <div class="knob-container">
+                        <span class="knob-name" data-i18n="label.pitchRnd">Pitch Rnd</span>
+                        <div class="knob" data-param="pitch_random"><div class="knob-indicator"></div></div>
+                        <span class="knob-value" data-value="pitch_random">0%</span>
+                    </div>
+                    <div class="knob-container pitch-gated">
+                        <span class="knob-name" data-i18n="label.pitchRange">Range</span>
+                        <div class="knob" data-param="pitch_range"><div class="knob-indicator"></div></div>
+                        <span class="knob-value" data-value="pitch_range">12.0 st</span>
+                    </div>
+                    <div class="knob-container">
+                        <span class="knob-name" data-i18n="label.transpose">Transpose</span>
+                        <div class="knob" data-param="pitch_transpose"><div class="knob-indicator"></div></div>
+                        <span class="knob-value" data-value="pitch_transpose">0 st</span>
+                    </div>
+                    <div class="knob-container">
+                        <span class="knob-name" data-i18n="label.fine">Fine</span>
+                        <div class="knob" data-param="pitch_fine"><div class="knob-indicator"></div></div>
+                        <span class="knob-value" data-value="pitch_fine">0 ct</span>
+                    </div>
+                    <div class="knob-container">
+                        <span class="knob-name" data-i18n="label.panRnd">Pan Rnd</span>
+                        <div class="knob" data-param="pan_random"><div class="knob-indicator"></div></div>
+                        <span class="knob-value" data-value="pan_random">0%</span>
+                    </div>
                 </div>
-                <div class="knob-container">
-                    <span class="knob-name" data-i18n="label.panRnd">Pan Rnd</span>
-                    <div class="knob" data-param="pan_random"><div class="knob-indicator"></div></div>
-                    <span class="knob-value" data-value="pan_random">0%</span>
+                <div class="group-controls">
+                    <!-- Option order IS the scale parameter's choice order
+                         (PitchCollections::Id). Indices 0-4 are the v2 scales. -->
+                    <div class="dropdown-container pitch-gated collection-container">
+                        <span class="dropdown-name" data-i18n="label.collection">Collection</span>
+                        <select class="dropdown" data-param="scale">
+                            <option>Chromatic</option>
+                            <option>Major</option>
+                            <option>Minor</option>
+                            <option>Pentatonic</option>
+                            <option>Whole Tone</option>
+                            <option>Free (unquantized)</option>
+                            <option>Dorian</option>
+                            <option>Phrygian</option>
+                            <option>Lydian</option>
+                            <option>Mixolydian</option>
+                            <option>Locrian</option>
+                            <option>Harmonic Minor</option>
+                            <option>Melodic Minor</option>
+                            <option>Minor Pentatonic</option>
+                            <option>Blues</option>
+                            <option>Octatonic</option>
+                            <option>Augmented</option>
+                            <option>Fifths + Octaves</option>
+                            <option>Octaves</option>
+                            <option>19-EDO</option>
+                            <option>22-EDO</option>
+                            <option>24-EDO</option>
+                            <option>31-EDO</option>
+                            <option>53-EDO</option>
+                            <option>5-Limit Just</option>
+                            <option>7-Limit Just</option>
+                            <option>Harmonics 8-16</option>
+                            <option>Bohlen-Pierce</option>
+                            <option>Slendro</option>
+                            <option>Pelog</option>
+                            <option>Maqam Rast</option>
+                            <option>Custom</option>
+                        </select>
+                    </div>
+                    <div class="dropdown-container pitch-gated">
+                        <span class="dropdown-name" data-i18n="label.rootNote">Root Note</span>
+                        <select class="dropdown" data-param="root_note">
+                            <option>C</option><option>C#</option><option>D</option><option>D#</option>
+                            <option>E</option><option>F</option><option>F#</option><option>G</option>
+                            <option>G#</option><option>A</option><option>A#</option><option>B</option>
+                        </select>
+                    </div>
+                    <div class="dropdown-container pitch-gated">
+                        <span class="dropdown-name" data-i18n="label.pitchMode">Pitch Mode</span>
+                        <select class="dropdown" data-param="pitch_mode">
+                            <option>Random</option>
+                            <option>Ladder Up</option>
+                            <option>Ladder Down</option>
+                            <option>Pendulum</option>
+                        </select>
+                    </div>
+                    <div class="dropdown-container pitch-gated">
+                        <span class="dropdown-name" data-i18n="label.direction">Direction</span>
+                        <select class="dropdown" data-param="pitch_direction">
+                            <option>Up + Down</option>
+                            <option>Up</option>
+                            <option>Down</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="dropdown-container">
-                    <span class="dropdown-name" data-i18n="label.scale">Scale</span>
-                    <select class="dropdown" data-param="scale">
-                        <option>Chromatic</option>
-                        <option>Major</option>
-                        <option>Minor</option>
-                        <option>Pentatonic</option>
-                        <option>Whole Tone</option>
-                    </select>
+                <!-- One chip per degree of the selected collection; click to
+                     switch a degree off. Built by js/app.js from getPitchState. -->
+                <div class="pitch-chip-strip">
+                    <div class="pitch-chips pitch-gated" id="pitch-chips" role="group"
+                         data-i18n-aria="aria.pitchChips" aria-label="Collection degrees"></div>
+                    <div class="pitch-hint" id="pitch-hint" data-i18n="label.pitchHint"
+                         data-i18n-vars='{"n":"label.pitchRnd"}'>Increase Pitch Rnd to activate</div>
                 </div>
-                <div class="dropdown-container">
-                    <span class="dropdown-name" data-i18n="label.rootNote">Root Note</span>
-                    <select class="dropdown" data-param="root_note">
-                        <option>C</option><option>C#</option><option>D</option><option>D#</option>
-                        <option>E</option><option>F</option><option>F#</option><option>G</option>
-                        <option>G#</option><option>A</option><option>A#</option><option>B</option>
-                    </select>
+            </div>
+
+            <!-- Custom collection editor. Opens under the tools; Escape or a
+                 press outside closes it. -->
+            <div class="custom-popover" id="custom-popover" role="dialog"
+                 data-i18n-aria="aria.customEditor" aria-label="Custom collection" hidden>
+                <div class="custom-title" data-i18n="label.customTitle">Custom collection</div>
+                <div class="custom-name" id="custom-name"></div>
+                <textarea class="custom-input" id="custom-input" rows="3" spellcheck="false"
+                          data-i18n-aria="aria.customPitches" aria-label="Custom pitches"></textarea>
+                <div class="custom-help" data-i18n="label.customHelp">Pitches above 1/1 in cents (386.3) or ratios (5/4). The last one is the period.</div>
+                <div class="custom-error" id="custom-error" role="status"></div>
+                <div class="custom-actions">
+                    <button type="button" class="pitch-tool" id="custom-load" data-i18n="label.loadScl">Load .scl&hellip;</button>
+                    <button type="button" class="pitch-tool custom-apply" id="custom-apply" data-i18n="label.apply">Apply</button>
                 </div>
-                <div class="dropdown-container">
-                    <span class="dropdown-name" data-i18n="label.pitchMode">Pitch Mode</span>
-                    <select class="dropdown" data-param="pitch_mode">
-                        <option>Random</option>
-                        <option>Ladder Up</option>
-                        <option>Ladder Down</option>
-                        <option>Pendulum</option>
-                    </select>
-                </div>
-                <div class="pitch-hint" id="pitch-hint" data-i18n="label.pitchHint"
-                     data-i18n-vars='{"n":"label.pitchRnd"}'>Increase Pitch Rnd to activate</div>
             </div>
         </div>
 

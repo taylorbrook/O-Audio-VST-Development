@@ -43,7 +43,7 @@ Ouaricon Plugins:
 | O-Freeze | 📦 Installed | 2.5.0 | Audio Effect (Granular Freeze) | 2026-09-08 |
 | O-FreqPulse | 📦 Installed | 1.20.0 | Audio Effect (Spectral Sequencer) | 2026-09-27 |
 | O-SpectralShaper | 📦 Installed | 1.10.0 | Audio Effect (Spectral Transient Shaper) | 2026-09-27 |
-| O-GrainScatter | 📦 Installed | 2.9.0 | Audio Effect (Granular Stutter Engine) | 2026-09-26 |
+| O-GrainScatter | 📦 Installed | 3.0.0 | Audio Effect (Granular Stutter Engine) | 2026-10-15 |
 | O-Chorus | 📦 Installed | 1.10.0 | Audio Effect (Chorus) | 2026-09-30 |
 | O-Orbit | 📦 Installed | 1.4.2 | Audio Effect (Spatial Orbiter) | 2026-09-26 |
 | O-TextureForge | 📦 Installed | 1.5.0 | Instrument (Concatenative Synth) | 2026-09-25 |

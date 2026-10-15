@@ -269,6 +269,13 @@ function initI18n() {
     const trajSpeedFormatter     = (v) => Math.round(v) + '%';
     const spatialSmoothFormatter = (v) => Math.round(v) + ' ms';
 
+    // v3.0.0 — levels and pitch. -60 dB is the floor and means silence.
+    const levelFormatter     = (v) => (v <= -59.95 ? '\u2212\u221E' : v.toFixed(1)) + ' dB';
+    const signed             = (n) => (n > 0 ? '+' : n < 0 ? '\u2212' : '') + Math.abs(n);
+    const rangeFormatter     = (v) => '\u00B1' + v.toFixed(1) + ' st';
+    const transposeFormatter = (v) => signed(Math.round(v)) + ' st';
+    const fineFormatter      = (v) => signed(Math.round(v)) + ' ct';
+
     // ════════════════════════════════════════════════════════════════════
     // Initialize all parameter bindings
     // ════════════════════════════════════════════════════════════════════
@@ -281,7 +288,11 @@ function initI18n() {
         setupKnob('spread',           Juce.getSliderState('spread'),           pctFormatter);
         setupKnob('reverse',          Juce.getSliderState('reverse'),          pctFormatter);
         setupKnob('feedback',         Juce.getSliderState('feedback'),         pctFormatter);
-        setupKnob('dry_wet',          Juce.getSliderState('dry_wet'),          pctFormatter);
+        setupKnob('dry_level',        Juce.getSliderState('dry_level'),        levelFormatter);
+        setupKnob('wet_level',        Juce.getSliderState('wet_level'),        levelFormatter);
+        setupKnob('pitch_range',      Juce.getSliderState('pitch_range'),      rangeFormatter);
+        setupKnob('pitch_transpose',  Juce.getSliderState('pitch_transpose'),  transposeFormatter);
+        setupKnob('pitch_fine',       Juce.getSliderState('pitch_fine'),       fineFormatter);
         setupKnob('pitch_random',     Juce.getSliderState('pitch_random'),     pctFormatter);
         setupKnob('pan_random',       Juce.getSliderState('pan_random'),       pctFormatter);
         setupKnob('size_random',      Juce.getSliderState('size_random'),      pctFormatter);
@@ -293,8 +304,9 @@ function initI18n() {
         setupKnob('euclidean_rotation', Juce.getSliderState('euclidean_rotation'), eucRotationFormatter);
         setupKnob('euclidean_swing',    Juce.getSliderState('euclidean_swing'),    swingFormatter);
 
-        // ComboBoxes (5)
+        // ComboBoxes (6)
         setupComboBox('scale',       Juce.getComboBoxState('scale'));
+        setupComboBox('pitch_direction', Juce.getComboBoxState('pitch_direction'));
         setupComboBox('root_note',   Juce.getComboBoxState('root_note'));
         setupComboBox('pitch_mode',  Juce.getComboBoxState('pitch_mode'));
         setupComboBox('sync_mode',   Juce.getComboBoxState('sync_mode'));
@@ -324,28 +336,227 @@ function initI18n() {
     }
 
     // ════════════════════════════════════════════════════════════════════
-    // Pitch gate: dim Scale / Root Note / Pitch Mode when Pitch Rnd = 0
+    // Pitch gate: dim everything Pitch Rnd scales (Range, Collection, Root,
+    // Mode, Direction, the chips and their tools) when Pitch Rnd = 0.
+    // Transpose and Fine stay live: they shift every grain regardless.
     // ════════════════════════════════════════════════════════════════════
 
     function setupPitchGate() {
         const pitchRandomState = Juce.getSliderState('pitch_random');
-        const scaleContainer = document.querySelector('select[data-param="scale"]')?.closest('.dropdown-container');
-        const rootNoteContainer = document.querySelector('select[data-param="root_note"]')?.closest('.dropdown-container');
-        const pitchModeContainer = document.querySelector('select[data-param="pitch_mode"]')?.closest('.dropdown-container');
+        const gated = document.querySelectorAll('#pitch-group .pitch-gated');
+        const tools = document.getElementById('pitch-tools');
         const pitchHint = document.getElementById('pitch-hint');
 
-        if (!scaleContainer || !rootNoteContainer || !pitchModeContainer) return;
+        if (!gated.length) return;
 
         function update() {
             const isDimmed = pitchRandomState.getNormalisedValue() < 0.01;
-            scaleContainer.classList.toggle('dimmed', isDimmed);
-            rootNoteContainer.classList.toggle('dimmed', isDimmed);
-            pitchModeContainer.classList.toggle('dimmed', isDimmed);
+            gated.forEach((el) => el.classList.toggle('dimmed', isDimmed));
+            if (tools) tools.classList.toggle('dimmed', isDimmed);
             if (pitchHint) pitchHint.classList.toggle('visible', isDimmed);
         }
 
         pitchRandomState.valueChangedEvent.addListener(update);
         update();
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // v3.0.0 — pitch-collection chips and the custom editor
+    //
+    // C++ owns the model (per-collection degree masks + the custom table, in
+    // session state, not parameters). The page PULLS it with getPitchState at
+    // init and whenever C++ signals pitchStateChanged (a session/preset load),
+    // and every setter answers with the fresh model, so the chips always draw
+    // what C++ actually holds rather than what the page asked for.
+    // ════════════════════════════════════════════════════════════════════
+
+    const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const CUSTOM_INDEX = 31;   // PitchCollections::Custom
+
+    function setupPitchCollections() {
+        const chipsEl   = document.getElementById('pitch-chips');
+        const scaleSt   = Juce.getComboBoxState('scale');
+        const rootSt    = Juce.getComboBoxState('root_note');
+        if (!chipsEl) return;
+
+        let getPitchState = null, setPitchMask = null, setCustomPitches = null, loadScalaFile = null;
+        try {
+            getPitchState    = Juce.getNativeFunction('getPitchState');
+            setPitchMask     = Juce.getNativeFunction('setPitchMask');
+            setCustomPitches = Juce.getNativeFunction('setCustomPitches');
+            loadScalaFile    = Juce.getNativeFunction('loadScalaFile');
+        } catch (e) { console.warn('pitch collections: native functions unavailable', e); }
+
+        let model = null;
+
+        const chipText = (cents, period, rootIdx) => {
+            // A degree that lands on a 12-TET semitone (within 0.5 ct) of an
+            // octave-period collection reads as its note name; anything else
+            // reads as its cents.
+            if (Math.abs(period - 1200) < 0.05) {
+                const abs = rootIdx * 100 + cents;
+                const st = Math.round(abs / 100);
+                if (Math.abs(abs - st * 100) < 0.5) return NOTE_NAMES[((st % 12) + 12) % 12];
+            }
+            return String(Math.round(cents));
+        };
+
+        function render() {
+            chipsEl.textContent = '';
+            const idx = scaleSt.getChoiceIndex();
+            if (!model || !model.collections || !model.collections[idx]) return;
+            const coll = model.collections[idx];
+            const cents = coll.cents || [];
+            const mask = String(model.masks[idx] || '');
+            const rootIdx = rootSt.getChoiceIndex();
+            const n = cents.length;
+
+            // One row up to 13 degrees, two rows beyond; equal-width chips that
+            // fill the strip exactly.
+            const W = chipsEl.clientWidth || 409;
+            const GAP = 2;
+            const twoRows = n > 13;
+            const perRow = twoRows ? Math.ceil(n / 2) : n;
+            const chipW = Math.max(8, Math.min(twoRows ? 60 : 58, Math.floor((W - (perRow - 1) * GAP) / perRow)));
+            chipsEl.classList.toggle('single-row', !twoRows);
+
+            for (let d = 0; d < n; d++) {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'pitch-chip';
+                if (d === 0) b.classList.add('tonic');
+                const on = mask.charAt(d) !== '0';
+                if (!on) b.classList.add('off');
+                b.style.width = chipW + 'px';
+                const label = chipText(cents[d], coll.period, rootIdx);
+                if (chipW >= 20) b.textContent = label;
+                b.setAttribute('aria-pressed', on ? 'true' : 'false');
+                const centsText = (Math.round(cents[d] * 10) / 10).toFixed(1);
+                const tip = tr('tip.degree', uiLanguage, { n: String(d + 1), c: centsText });
+                b.setAttribute('aria-label', label + ' \u00B7 ' + tip.t + ' \u00B7 ' + tip.b);
+                b.setAttribute('data-tip-title', label + ' \u00B7 ' + tip.t);
+                b.setAttribute('data-tip', tip.b);
+                b.addEventListener('click', () => toggleDegree(d));
+                chipsEl.appendChild(b);
+            }
+        }
+
+        function accept(state) {
+            if (state && state.collections) { model = state; render(); }
+        }
+
+        function pull() {
+            if (!getPitchState) return;
+            getPitchState().then(accept).catch((e) => console.warn('getPitchState failed', e));
+        }
+
+        function writeMask(bits) {
+            if (!setPitchMask) return;
+            setPitchMask(scaleSt.getChoiceIndex(), bits).then(accept).catch(() => {});
+        }
+
+        function currentBits() {
+            const idx = scaleSt.getChoiceIndex();
+            if (!model || !model.collections[idx]) return null;
+            const n = model.collections[idx].cents.length;
+            const mask = String(model.masks[idx] || '');
+            let bits = '';
+            for (let d = 0; d < n; d++) bits += mask.charAt(d) === '0' ? '0' : '1';
+            return bits;
+        }
+
+        function toggleDegree(d) {
+            const bits = currentBits();
+            if (bits === null) return;
+            writeMask(bits.slice(0, d) + (bits.charAt(d) === '1' ? '0' : '1') + bits.slice(d + 1));
+        }
+
+        const setAll = (fn) => {
+            const bits = currentBits();
+            if (bits !== null) writeMask(bits.split('').map(fn).join(''));
+        };
+        for (const [id, fn] of [['pitch-all', () => '1'], ['pitch-none', () => '0'],
+                                ['pitch-invert', (c) => (c === '1' ? '0' : '1')]]) {
+            const el = document.getElementById(id);
+            if (!el) continue;
+            el.classList.add('chip-tool');
+            el.addEventListener('click', () => setAll(fn));
+        }
+
+        // ── custom editor popover ────────────────────────────────────────
+        const editBtn  = document.getElementById('pitch-edit');
+        const popover  = document.getElementById('custom-popover');
+        const input    = document.getElementById('custom-input');
+        const errorEl  = document.getElementById('custom-error');
+        const nameEl   = document.getElementById('custom-name');
+        const applyBtn = document.getElementById('custom-apply');
+        const loadBtn  = document.getElementById('custom-load');
+
+        // One literal key per C++ error code (PitchCollections::tableFrom*).
+        const showError = (code) => {
+            if (!errorEl) return;
+            if (code === 'noPitches')      setLabel(errorEl, 'label.customErr.noPitches');
+            else if (code === 'badPitch')  setLabel(errorEl, 'label.customErr.badPitch');
+            else if (code === 'badPeriod') setLabel(errorEl, 'label.customErr.badPeriod');
+            else if (code === 'tooMany')   setLabel(errorEl, 'label.customErr.tooMany');
+            else if (code === 'badCount')  setLabel(errorEl, 'label.customErr.badCount');
+            else { delete errorEl.dataset.i18n; delete errorEl.dataset.label; errorEl.textContent = ''; }
+        };
+        const fillEditor = () => {
+            if (!model) return;
+            if (input) input.value = model.customText || '';
+            if (nameEl) nameEl.textContent = model.customName || '';
+        };
+        const setOpen = (open) => {
+            if (!popover || !editBtn) return;
+            popover.hidden = !open;
+            editBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            if (open) { fillEditor(); showError(''); if (input) input.focus(); }
+        };
+        const selectCustom = () => {
+            if (scaleSt.getChoiceIndex() !== CUSTOM_INDEX) scaleSt.setChoiceIndex(CUSTOM_INDEX);
+        };
+        const handleResult = (r) => {
+            if (!r) return;
+            if (r.error && r.error !== 'cancelled') { showError(r.error); return; }
+            accept(r.state);
+            if (!r.error) { fillEditor(); showError(''); selectCustom(); }
+        };
+
+        if (editBtn && popover) {
+            editBtn.addEventListener('click', (e) => { e.stopPropagation(); setOpen(popover.hidden); });
+            document.addEventListener('mousedown', (e) => {
+                if (popover.hidden) return;
+                if (popover.contains(e.target) || editBtn.contains(e.target)) return;
+                setOpen(false);
+            });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !popover.hidden) { setOpen(false); editBtn.focus(); }
+            });
+        }
+        if (applyBtn) applyBtn.addEventListener('click', () => {
+            if (!setCustomPitches || !input) return;
+            setCustomPitches(input.value).then(handleResult).catch(() => {});
+        });
+        if (input) input.addEventListener('keydown', (e) => {
+            // Cmd/Ctrl+Enter applies; a bare Enter stays a newline.
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); applyBtn && applyBtn.click(); }
+        });
+        if (loadBtn) loadBtn.addEventListener('click', () => {
+            if (!loadScalaFile) return;
+            loadScalaFile().then(handleResult).catch(() => {});
+        });
+
+        // Re-draw on anything the chips depend on.
+        scaleSt.valueChangedEvent.addListener(render);
+        rootSt.valueChangedEvent.addListener(render);
+        window.__JUCE__.backend.addEventListener('pitchStateChanged', pull);
+        // Chip tooltips are written at render time, so a language change
+        // (applyI18n sets <html lang>) re-renders them.
+        new MutationObserver(render).observe(document.documentElement,
+                                             { attributes: true, attributeFilter: ['lang'] });
+
+        pull();
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -887,6 +1098,7 @@ function initI18n() {
     function init() {
         initParams();
         setupPitchGate();
+        try { setupPitchCollections(); } catch (e) { console.error('pitch collections init failed:', e); }
         setupSpatialGate();
 
         // WR-11: fetch the C++ (skew-correct) reset defaults; resolves well before any

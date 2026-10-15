@@ -37,7 +37,12 @@ GrainScatterProcessor::GrainScatterProcessor()
     rootNoteParam        = parameters.getRawParameterValue("root_note");
     reverseParam         = parameters.getRawParameterValue("reverse");
     feedbackParam        = parameters.getRawParameterValue("feedback");
-    dryWetParam          = parameters.getRawParameterValue("dry_wet");
+    dryLevelParam        = parameters.getRawParameterValue("dry_level");
+    wetLevelParam        = parameters.getRawParameterValue("wet_level");
+    pitchRangeParam      = parameters.getRawParameterValue("pitch_range");
+    pitchTransposeParam  = parameters.getRawParameterValue("pitch_transpose");
+    pitchFineParam       = parameters.getRawParameterValue("pitch_fine");
+    pitchDirectionParam  = parameters.getRawParameterValue("pitch_direction");
     syncModeParam        = parameters.getRawParameterValue("sync_mode");
     probabilityParam     = parameters.getRawParameterValue("probability");
     repeatsParam         = parameters.getRawParameterValue("repeats");
@@ -67,6 +72,12 @@ GrainScatterProcessor::GrainScatterProcessor()
     distLpfParam         = parameters.getRawParameterValue("dist_lpf");
     dopplerParam         = parameters.getRawParameterValue("doppler");
     spatialSmoothParam   = parameters.getRawParameterValue("spatial_smooth");
+
+    // v3.0.0: build the built-in collection tables HERE, on the constructing
+    // thread — their function-local static must never first-run on the audio
+    // thread (std::log2 + a guarded static init).
+    (void) PitchCollections::builtIns();
+    resetPitchCollectionState();
 }
 
 GrainScatterProcessor::~GrainScatterProcessor() {}
@@ -102,10 +113,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout GrainScatterProcessor::creat
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
         0.0f));
 
+    // v3.0.0: 5 -> 32 collections. Indices 0-4 are unchanged, so a saved
+    // session's choice index still names the same scale; the list only grows.
     coreGroup->addChild(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID { "scale", 1 },
         "Scale",
-        juce::StringArray { "Chromatic", "Major", "Minor", "Pentatonic", "Whole Tone" },
+        PitchCollections::names(),
         0));
 
     coreGroup->addChild(std::make_unique<juce::AudioParameterChoice>(
@@ -126,11 +139,26 @@ juce::AudioProcessorValueTreeState::ParameterLayout GrainScatterProcessor::creat
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
         0.0f));
 
+    // v3.0.0: separate Dry and Wet levels replace the single dry_wet crossfade.
+    // -60 dB is the floor and means silence (-inf). Interval 0 so the 0 dB
+    // default is exact (a stepped range with a negative start snaps it to a
+    // few e-06 off). Skew 3 puts 0 dB at ~75 % of the knob's travel.
+    const auto levelText = [] (float v, int) {
+        return v <= -59.95f ? juce::String ("-inf dB") : juce::String (v, 1) + " dB";
+    };
     coreGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "dry_wet", 1 },
-        "Dry/Wet",
-        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
-        50.0f));
+        juce::ParameterID { "dry_level", 3 },
+        "Dry Level",
+        juce::NormalisableRange<float>(-60.0f, 6.0f, 0.0f, 3.0f),
+        0.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("dB").withStringFromValueFunction (levelText)));
+
+    coreGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "wet_level", 3 },
+        "Wet Level",
+        juce::NormalisableRange<float>(-60.0f, 6.0f, 0.0f, 3.0f),
+        0.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("dB").withStringFromValueFunction (levelText)));
 
     coreGroup->addChild(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID { "grain_shape", 1 },
@@ -198,6 +226,36 @@ juce::AudioProcessorValueTreeState::ParameterLayout GrainScatterProcessor::creat
         juce::ParameterID { "pitch_mode", 1 },
         "Pitch Mode",
         juce::StringArray { "Random", "Ladder Up", "Ladder Down", "Pendulum" },
+        0));
+
+    // v3.0.0 pitch controls. Range is the span Pitch Rnd scales (12 st = the
+    // v2 behaviour); Transpose and Fine shift every grain, Pitch Rnd or not.
+    spreadGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "pitch_range", 3 },
+        "Pitch Range",
+        juce::NormalisableRange<float>(0.0f, 24.0f, 0.0f),
+        12.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("st")
+            .withStringFromValueFunction ([] (float v, int) { return juce::String (v, 2); })));
+
+    spreadGroup->addChild(std::make_unique<juce::AudioParameterInt>(
+        juce::ParameterID { "pitch_transpose", 3 },
+        "Transpose",
+        -24, 24, 0,
+        juce::AudioParameterIntAttributes().withLabel ("st")));
+
+    spreadGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "pitch_fine", 3 },
+        "Fine Tune",
+        juce::NormalisableRange<float>(-100.0f, 100.0f, 0.0f),
+        0.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("ct")
+            .withStringFromValueFunction ([] (float v, int) { return juce::String (v, 1); })));
+
+    spreadGroup->addChild(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "pitch_direction", 3 },
+        "Pitch Direction",
+        juce::StringArray { "Up + Down", "Up", "Down" },
         0));
 
     spreadGroup->addChild(std::make_unique<juce::AudioParameterBool>(
@@ -317,14 +375,21 @@ void GrainScatterProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
 {
     currentSampleRate = sampleRate;
 
-    delayBuffer.prepare(sampleRate, 2.0f);
+    // v3.0.0: 2 s -> 12 s. Scan still sweeps the newest 2 s; the rest is
+    // headroom for the spawn pre-roll a pitched-up forward grain needs
+    // ((rate-1) x length, up to 7 s at +36 st on a 1 s grain) and for a
+    // reverse grain's reach (length x rate). See the spawn block.
+    delayBuffer.prepare(sampleRate, 12.0f);
     scheduler.prepare(sampleRate);
     tempoTracker.prepare(sampleRate);
 
     int maxFreezeSamples = static_cast<int>(sampleRate * 2.0) + 1;
     freezeManager.prepare(sampleRate, maxFreezeSamples);
 
-    dryWetSmoothed.reset(sampleRate, 0.02);
+    dryGainSmoothed.reset(sampleRate, 0.02);
+    wetGainSmoothed.reset(sampleRate, 0.02);
+    dryGainSmoothed.setCurrentAndTargetValue (juce::Decibels::decibelsToGain (dryLevelParam->load(), -60.0f));
+    wetGainSmoothed.setCurrentAndTargetValue (juce::Decibels::decibelsToGain (wetLevelParam->load(), -60.0f));
     feedbackSmoothed.reset(sampleRate, 0.02);
 
     feedbackL = 0.0f;
@@ -340,8 +405,7 @@ void GrainScatterProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     cachedEuclideanPulses = pulses;
 
     wasFrozen = false;
-    cachedScaleIndex = -1;
-    cachedPitchMode = -1;
+    pitchEngine.invalidate();
 
     // Spatial audio — size to actual block size, not arbitrary formula
     hoaBus.setSize (kHOA3Channels, samplesPerBlock, false, true, false);
@@ -381,7 +445,8 @@ void GrainScatterProcessor::reset()
     feedbackR = 0.0f;
 
     // Snap SmoothedValues to current targets (avoid ramp after jump)
-    dryWetSmoothed.setCurrentAndTargetValue (dryWetSmoothed.getTargetValue());
+    dryGainSmoothed.setCurrentAndTargetValue (dryGainSmoothed.getTargetValue());
+    wetGainSmoothed.setCurrentAndTargetValue (wetGainSmoothed.getTargetValue());
     feedbackSmoothed.setCurrentAndTargetValue (feedbackSmoothed.getTargetValue());
     lpfCoeffSmoothed.setCurrentAndTargetValue (lpfCoeffSmoothed.getTargetValue());
 
@@ -439,7 +504,8 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     int   rootNote       = static_cast<int>(rootNoteParam->load());
     float reverseProb    = reverseParam->load();
     float feedbackAmt    = feedbackParam->load() / 100.0f;
-    float dryWetMix      = dryWetParam->load() / 100.0f;
+    float dryGain        = juce::Decibels::decibelsToGain (dryLevelParam->load(), -60.0f);
+    float wetGain        = juce::Decibels::decibelsToGain (wetLevelParam->load(), -60.0f);
     int   syncMode       = static_cast<int>(syncModeParam->load());
     float probability    = probabilityParam->load();
     int   repeats        = static_cast<int>(repeatsParam->load());
@@ -501,13 +567,31 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         scheduler.resetEuclideanStep(eucSteps);
     }
 
-    // Detect scale/pitch mode change → reset ladder
-    if (scaleIndex != cachedScaleIndex || pitchMode != cachedPitchMode)
+    // v3.0.0 pitch settings for every grain spawned this block. The engine
+    // rebuilds its active-pitch table only when one of these moves, and
+    // restarts a ladder when the collection or mode changes.
+    if (customVersion.load (std::memory_order_acquire) != audioCustomVersion)
     {
-        scaleQuantizer.resetLadder();
-        cachedScaleIndex = scaleIndex;
-        cachedPitchMode = pitchMode;
+        const juce::SpinLock::ScopedTryLockType tl (customLock);
+        if (tl.isLocked())   // contended: keep the previous table one more block
+        {
+            audioCustomTable   = customTable;
+            audioCustomVersion = customVersion.load (std::memory_order_relaxed);
+        }
     }
+
+    PitchEngine::Settings pitchSettings;
+    pitchSettings.collection    = juce::jlimit (0, PitchCollections::kCount - 1, scaleIndex);
+    pitchSettings.rootNote      = rootNote;
+    pitchSettings.mode          = pitchMode;
+    pitchSettings.direction     = static_cast<int> (pitchDirectionParam->load());
+    pitchSettings.amount        = pitchRandom / 100.0f;
+    pitchSettings.rangeSt       = pitchRangeParam->load();
+    pitchSettings.transposeSt   = pitchTransposeParam->load();
+    pitchSettings.fineCents     = pitchFineParam->load();
+    pitchSettings.mask          = pitchMasks[static_cast<size_t> (pitchSettings.collection)]
+                                      .load (std::memory_order_relaxed);
+    pitchSettings.customVersion = audioCustomVersion;
 
     // Freeze engage/release (with crossfade on both transitions)
     // Capture full delay buffer so scan_position can sweep through it
@@ -518,7 +602,8 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     wasFrozen = freeze;
 
     // Set SmoothedValue targets (never reset() here!)
-    dryWetSmoothed.setTargetValue(dryWetMix);
+    dryGainSmoothed.setTargetValue(dryGain);
+    wetGainSmoothed.setTargetValue(wetGain);
     feedbackSmoothed.setTargetValue(feedbackAmt);
 
     // Get spawn requests
@@ -600,14 +685,30 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             gp.positionInSamples = scanPositionSamples + spreadOffset;
 
             // Pitch
-            gp.playbackRate = scaleQuantizer.getNextPitch(pitchMode, scaleIndex, rootNote,
-                                                          pitchRandom, grainRng);
+            gp.playbackRate = pitchEngine.nextRate (pitchSettings, audioCustomTable, grainRng);
 
             // Pan randomization (used in stereo mode; ignored in spatial mode)
             gp.panPosition = 0.5f + (panRandom / 100.0f) * (grainRng.nextFloat() - 0.5f);
 
             // Reverse probability
             gp.reverse = grainRng.nextFloat() < (reverseProb / 100.0f);
+
+            // v3.0.0 read-head guard. A grain's delay tap is
+            //   forward: pos + t(1 - rate)      reverse: pos - len + t(1 + rate)
+            // so a forward grain above unity rate, a reverse grain, or a
+            // negative spread offset all reached a tap below 0 — AHEAD of the
+            // write head — which wrapped round the ring to its oldest audio.
+            // (That is also why Scan 0 % played a 2 s echo: delay 0 is the
+            // oldest slot.) Pre-roll each grain so its tap never drops below
+            // kReadMargin, the Lagrange kernel's 3-sample look-ahead plus one.
+            {
+                constexpr float kReadMargin = 4.0f;
+                const float len  = static_cast<float> (gp.grainLengthSamples);
+                const float rate = gp.playbackRate;
+                const float minPos = gp.reverse ? (len - 1.0f + kReadMargin)
+                                                : (len * juce::jmax (0.0f, rate - 1.0f) + kReadMargin);
+                gp.positionInSamples = juce::jmax (gp.positionInSamples, minPos);
+            }
 
             // Freeze: new grains read from frozen buffer (but not during release crossfade)
             gp.readFromFrozen = freezeManager.isActive() && !freezeManager.isReleasing();
@@ -715,8 +816,9 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             if (! std::isfinite (feedbackL)) feedbackL = 0.0f;   // WR-05: no sticky NaN in the loop
             if (! std::isfinite (feedbackR)) feedbackR = 0.0f;
 
-            // Dry/wet mix
-            float mix = dryWetSmoothed.getNextValue();
+            // Dry / wet levels (v3.0.0: independent gains)
+            float dryG = dryGainSmoothed.getNextValue();
+            float wetG = wetGainSmoothed.getNextValue();
             float dryL = inputL;
             float dryR = inputR;
 
@@ -726,8 +828,8 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                 dryR = 0.0f;
             }
 
-            outBufL[i] = dryL * (1.0f - mix) + wetL * mix;
-            outBufR[i] = dryR * (1.0f - mix) + wetR * mix;
+            outBufL[i] = dryL * dryG + wetL * wetG;
+            outBufR[i] = dryR * dryG + wetR * wetG;
         }
         // (Spatial mode: SmoothedValues consumed in post-processing loop below)
     }
@@ -752,7 +854,7 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                                / static_cast<float>(currentSampleRate));
         lpfCoeffSmoothed.setTargetValue(lpfCoeffTarget);
 
-        // Apply dry/wet mix with binaural output
+        // Apply dry / wet levels with binaural output
         for (int i = 0; i < numSamples; ++i)
         {
             // LPF (WR-08: per-sample smoothed coefficient)
@@ -768,7 +870,8 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             // WR-01: spatial feedback is now derived per-sample in the main loop (from the
             // HOA omni channel), not here — the post-decode value was one block late.
 
-            float mix = dryWetSmoothed.getNextValue();
+            float dryG = dryGainSmoothed.getNextValue();
+            float wetG = wetGainSmoothed.getNextValue();
             float dryL = inL[i];
             float dryR = inR[i];
 
@@ -778,8 +881,8 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                 dryR = 0.0f;
             }
 
-            outBufL[i] = dryL * (1.0f - mix) + wetBinL * mix;
-            outBufR[i] = dryR * (1.0f - mix) + wetBinR * mix;
+            outBufL[i] = dryL * dryG + wetBinL * wetG;
+            outBufR[i] = dryR * dryG + wetBinR * wetG;
         }
     }
 
@@ -799,8 +902,10 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             sv.active = gv.active;
             if (gv.active)
             {
+                // v3.0.0: a pre-rolled (pitched-up / reverse) grain can sit past
+                // the 2 s scan window; pin it to the plot's right edge.
                 sv.positionNorm = (maxDelaySamples > 0.0f)
-                    ? gv.positionOffset / maxDelaySamples
+                    ? juce::jmin (1.0f, gv.positionOffset / maxDelaySamples)
                     : 0.0f;
                 sv.pitchSemitones = 12.0f * std::log2 (std::max (gv.playbackRate, 0.001f));
                 sv.pan = gv.panPosition;
@@ -870,6 +975,17 @@ void GrainScatterProcessor::getStateInformation(juce::MemoryBlock& destData)
                                  languageCode(uiLanguage.load(std::memory_order_acquire)),
                                  nullptr);
 
+    // v3.0.0: pitch-collection state, same mechanism. Masks are one '0'/'1'
+    // string per collection joined by ',', in collection-index order.
+    {
+        juce::StringArray masks;
+        for (int c = 0; c < PitchCollections::kCount; ++c)
+            masks.add (getPitchMaskString (c));
+        parameters.state.setProperty ("pitchMasks", masks.joinIntoString (","), nullptr);
+        parameters.state.setProperty ("customPitches", getCustomText(), nullptr);
+        parameters.state.setProperty ("customPitchesName", getCustomName(), nullptr);
+    }
+
     auto state = parameters.copyState();
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
@@ -879,7 +995,32 @@ void GrainScatterProcessor::setStateInformation(const void* data, int sizeInByte
 {
     std::unique_ptr<juce::XmlElement> xml(getXmlFromBinary(data, sizeInBytes));
     if (xml != nullptr && xml->hasTagName(parameters.state.getType()))
-        parameters.replaceState(juce::ValueTree::fromXml(*xml));
+    {
+        auto tree = juce::ValueTree::fromXml(*xml);
+        migrateLegacyState (tree, getParameters());
+        parameters.replaceState(tree);
+    }
+
+    // v3.0.0: pitch-collection state. Absent (a v2 session) = every degree on
+    // and the 12-EDO custom placeholder — reset FIRST so a reload into a live
+    // instance cannot keep the previous session's masks.
+    resetPitchCollectionState();
+    {
+        const juce::var masks = parameters.state.getProperty ("pitchMasks");
+        if (! masks.isVoid())
+        {
+            juce::StringArray parts;
+            parts.addTokens (masks.toString(), ",", "");
+            for (int c = 0; c < juce::jmin (parts.size(), (int) PitchCollections::kCount); ++c)
+                setPitchMaskString (c, parts[c]);
+        }
+
+        const juce::var custom = parameters.state.getProperty ("customPitches");
+        if (! custom.isVoid() && custom.toString().isNotEmpty())
+            setCustomPitchesFromText (custom.toString(),
+                                      parameters.state.getProperty ("customPitchesName").toString());
+    }
+    pitchStateRevision.fetch_add (1, std::memory_order_release);
 
     // v2.5.0: the UI language. Read AFTER replaceState(), which rebuilds the
     // whole tree.
@@ -900,6 +1041,156 @@ void GrainScatterProcessor::setStateInformation(const void* data, int sizeInByte
 
     if (! lang.isVoid())
         uiLanguage.store(languageIndex(lang.toString()), std::memory_order_release);
+}
+
+// ============================================================================
+// v3.0.0 — legacy state migration
+//
+// 1. dry_wet (0-100 %, a crossfade dry*(1-m) + wet*m) becomes dry_level and
+//    wet_level in dB: 20*log10(1-m) and 20*log10(m), floored at -60 (= -inf).
+//    m = 50 % gives -6.02 dB each, i.e. gain 0.5 each — the same output.
+// 2. ANY parameter the tree does not carry is written at its default.
+//    replaceState() leaves a parameter with no PARAM child at its CURRENT
+//    value, so without this a v2 session loaded into a live v3 instance would
+//    inherit whatever Range / Transpose / Fine the instance already had.
+// ============================================================================
+void GrainScatterProcessor::migrateLegacyState (juce::ValueTree& tree,
+                                                const juce::Array<juce::AudioProcessorParameter*>& params)
+{
+    auto findParam = [&tree] (const juce::String& id)
+    {
+        for (auto child : tree)
+            if (child.hasType ("PARAM") && child.getProperty ("id").toString() == id)
+                return child;
+        return juce::ValueTree();
+    };
+
+    auto addParam = [&tree] (const juce::String& id, float value)
+    {
+        juce::ValueTree child ("PARAM");
+        child.setProperty ("id", id, nullptr);
+        child.setProperty ("value", value, nullptr);
+        tree.appendChild (child, nullptr);
+    };
+
+    auto legacyMix = findParam ("dry_wet");
+    if (legacyMix.isValid())
+    {
+        if (! findParam ("dry_level").isValid() && ! findParam ("wet_level").isValid())
+        {
+            const float m = juce::jlimit (0.0f, 1.0f,
+                                          static_cast<float> (legacyMix.getProperty ("value")) / 100.0f);
+            addParam ("dry_level", juce::Decibels::gainToDecibels (1.0f - m, -60.0f));
+            addParam ("wet_level", juce::Decibels::gainToDecibels (m, -60.0f));
+        }
+        tree.removeChild (legacyMix, nullptr);
+    }
+
+    for (auto* p : params)
+        if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (p))
+            if (! findParam (ranged->getParameterID()).isValid())
+                addParam (ranged->getParameterID(),
+                          ranged->convertFrom0to1 (ranged->getDefaultValue()));
+}
+
+// ============================================================================
+// v3.0.0 — pitch-collection state (message thread)
+// ============================================================================
+void GrainScatterProcessor::resetPitchCollectionState()
+{
+    for (auto& m : pitchMasks)
+        m.store (~uint64_t (0), std::memory_order_relaxed);
+
+    {
+        const juce::SpinLock::ScopedLockType sl (customLock);
+        customTable = PitchCollections::equalDivision (12);
+        customText  = "100 200 300 400 500 600 700 800 900 1000 1100 1200";
+        customName  = {};
+    }
+    customVersion.fetch_add (1, std::memory_order_release);
+    pitchStateRevision.fetch_add (1, std::memory_order_release);
+}
+
+juce::String GrainScatterProcessor::getPitchMaskString (int collection) const
+{
+    if (collection < 0 || collection >= PitchCollections::kCount)
+        return {};
+
+    const int count = (collection == PitchCollections::Custom)
+                          ? getCustomTable().count
+                          : PitchCollections::builtIns()[static_cast<size_t> (collection)].count;
+    const uint64_t mask = pitchMasks[static_cast<size_t> (collection)].load (std::memory_order_relaxed);
+
+    juce::String bits;
+    for (int d = 0; d < count; ++d)
+        bits << (((mask >> d) & 1u) ? "1" : "0");
+    return bits;
+}
+
+void GrainScatterProcessor::setPitchMaskString (int collection, const juce::String& bits)
+{
+    if (collection < 0 || collection >= PitchCollections::kCount)
+        return;
+
+    // Degrees beyond the string (or beyond 64) stay ON, so a mask saved
+    // against a shorter custom table never silently mutes new degrees.
+    uint64_t mask = ~uint64_t (0);
+    for (int d = 0; d < juce::jmin (bits.length(), PitchCollections::kMaxPitches); ++d)
+        if (bits[d] == '0')
+            mask &= ~(uint64_t (1) << d);
+
+    pitchMasks[static_cast<size_t> (collection)].store (mask, std::memory_order_relaxed);
+    pitchStateRevision.fetch_add (1, std::memory_order_release);
+}
+
+juce::String GrainScatterProcessor::setCustomPitchesFromText (const juce::String& text,
+                                                               const juce::String& name)
+{
+    PitchCollections::Table t;
+    juce::String error;
+    if (! PitchCollections::tableFromText (text, t, error))
+        return error;
+
+    {
+        const juce::SpinLock::ScopedLockType sl (customLock);
+        customTable = t;
+        customText  = text.trim();
+        customName  = name;
+    }
+    // A new table re-numbers its degrees: start from all-on.
+    pitchMasks[PitchCollections::Custom].store (~uint64_t (0), std::memory_order_relaxed);
+    customVersion.fetch_add (1, std::memory_order_release);
+    pitchStateRevision.fetch_add (1, std::memory_order_release);
+    return {};
+}
+
+juce::String GrainScatterProcessor::setCustomPitchesFromScala (const juce::String& sclBody,
+                                                                const juce::String& fileName)
+{
+    PitchCollections::Table t;
+    juce::String asText, description, error;
+    if (! PitchCollections::tableFromScala (sclBody, t, asText, description, error))
+        return error;
+
+    return setCustomPitchesFromText (asText, description.isNotEmpty() ? description : fileName);
+}
+
+PitchCollections::Table GrainScatterProcessor::getCustomTable() const
+{
+    const juce::SpinLock::ScopedLockType sl (customLock);
+    return customTable;
+}
+
+juce::String GrainScatterProcessor::getCustomText() const
+{
+    const juce::SpinLock::ScopedLockType sl (customLock);
+    return customText;
+}
+
+juce::String GrainScatterProcessor::getCustomName() const
+{
+    const juce::SpinLock::ScopedLockType sl (customLock);
+    return customName;
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

@@ -6,5 +6,9 @@
   {
     "name": "pitch gate closed (label.pitchHint — invisible at rest because the harness stub seeds pitch_random above the 0.01 gate, so the only way to measure this caption is to put the class its own controller sets)",
     "eval": "document.getElementById('pitch-hint').classList.add('visible');"
+  },
+  {
+    "name": "custom collection editor open (v3.0.0: label.customTitle, label.customHelp, label.loadScl, label.apply live only inside #custom-popover)",
+    "click": "#pitch-edit"
   }
 ]

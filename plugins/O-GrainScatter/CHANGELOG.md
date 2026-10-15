@@ -1,5 +1,94 @@
 # Changelog
 
+## [3.0.0] - 2026-10-15
+
+Pitch collections and separate Dry / Wet levels. MAJOR: `dry_wet` is removed
+(two new level parameters replace it) and the `scale` choice list grows from 5
+to 32 entries, so host automation lanes on those two parameters need redrawing.
+Saved sessions migrate automatically (see Migration).
+
+### Breaking Changes
+
+- **`dry_wet` removed** → `dry_level` + `wet_level` (−60 dB = −∞ to +6 dB,
+  default 0 dB each). Automation drawn on Dry/Wet does not carry over.
+- **`scale` grows 5 → 32 choices.** Indices 0–4 (Chromatic … Whole Tone) are
+  unchanged, so a saved session still names the same scale, but an automation
+  lane's normalised values now land on different entries.
+- **Scan 0 % is now live, not a 2 s echo.** Measured on v2.9.0: with Scan at 0 %
+  (the default) the wet signal arrived 2.000 s late, the same as Scan 100 %,
+  while Scan 1 % arrived after 0.020 s. A grain's delay tap of 0 landed on the
+  write head and wrapped to the oldest slot of the 2 s ring. Scan now sweeps
+  ~0 → 2 s continuously. Sessions saved at Scan 0 lose the echo; set Scan to
+  100 % to get it back.
+- **Pitch semantics changed.** Ladder modes walk the collection's real pitches
+  across the whole Range instead of scaling each degree by Pitch Rnd and
+  truncating it (v2 at 50 % turned Major's 7th, 11 st, into 5 st). Random
+  picks evenly among the active pitches in the span. Root Note now builds the
+  collection on that tonic, with the source heard as C.
+
+### Added
+
+- **32 pitch collections** in a cents-based engine (`dsp/PitchEngine.h`,
+  replacing the 12-TET `ScaleQuantizer`):
+  - the five v2 scales; Free (unquantized, continuous);
+  - Dorian, Phrygian, Lydian, Mixolydian, Locrian, Harmonic Minor, Melodic Minor,
+    Minor Pentatonic, Blues, Octatonic, Augmented, Fifths + Octaves, Octaves;
+  - 19-, 22-, 24-, 31- and 53-EDO;
+  - 5-limit and 7-limit just intonation, Harmonics 8–16;
+  - Bohlen-Pierce (13 steps of the 3:1 tritave), Slendro, Pelog, Maqam Rast;
+  - **Custom**: type pitches as cents or ratios (Scala convention, last pitch =
+    period, up to 64 per period) or load a Scala `.scl` file.
+- **Per-degree toggles.** A chip row shows every degree of the selected
+  collection (note names where a degree is a 12-TET semitone, cents otherwise);
+  click to switch one off. All / None / Invert tools. Masks are per collection
+  and saved with the session (not automatable).
+- **Range** (0–24 st, default 12 = the v2 span), **Transpose** (±24 st, whole
+  semitones), **Fine** (±100 ct) and **Direction** (Up + Down / Up / Down).
+  Transpose and Fine apply to every grain even at Pitch Rnd 0. Total pitch is
+  clamped to ±36 st.
+- `pitchStateChanged` editor event + `getPitchState` / `setPitchMask` /
+  `setCustomPitches` / `loadScalaFile` native functions.
+
+### Fixed
+
+- **Grains reading ahead of the write head.** A forward grain above unity rate,
+  every reverse grain, and a negative Spread offset all reached a delay tap
+  below 0 and wrapped to the oldest audio in the ring. Each grain is now
+  pre-rolled at spawn so its tap stays ≥ 4 samples (the Lagrange kernel's
+  look-ahead plus one): forward `(rate − 1) · length`, reverse `length − 1`.
+  The delay buffer grows 2 → 12 s to hold that pre-roll; Scan still sweeps the
+  newest 2 s.
+
+### Changed
+
+- Pitch & Scale group: Pitch Rnd, Range, Transpose, Fine, Pan Rnd; Collection,
+  Root Note, Pitch Mode, Direction; the degree chips. The Pitch Rnd hint now
+  sits over the dimmed chips instead of taking its own row, so the group fits
+  the Core group's height and the viz keeps its size (245 → 244 px).
+- Core group: the Dry/Wet knob becomes Dry and Wet knobs.
+
+### Migration
+
+- `setStateInformation` converts `dry_wet` m into `dry_level = 20·log10(1 − m)`
+  and `wet_level = 20·log10(m)` (floored at −60). At 50 % that is −6.02 dB
+  each, gain 0.5 each — the same output.
+- Every parameter missing from the saved tree is written at its default before
+  `replaceState()`, which otherwise keeps a missing parameter at the live
+  instance's value.
+- A v2 session has no masks or custom table: every degree is on and Custom is
+  12-EDO.
+
+### Testing
+
+- Per-grain pitch on the built VST3 in pedalboard (isolated grains, 440 Hz):
+  Transpose/Fine 0, +700, −450, +1175, ±2400 ct all within 0.3 ct.
+  24-EDO grains land on multiples of 50 ct; Bohlen-Pierce on k·146.3 ct;
+  Ladder Up on Major walks 0 → 1200 ct and wraps.
+- Scan delay: 0 % → 0.0001 s, 1 % → 0.020 s, 50 % → 1.000 s, 100 % → 2.000 s.
+- `check-i18n`, `i18n-fr-lint`, `i18n-zh-lint`, `check-ui-labels` (with a new
+  custom-editor state), `tests/ui_tip_render_check.js`: pass. 36 new zh-Hans
+  rows are at `reviewed: 'mt'`.
+
 ## [2.9.0] - 2026-09-26
 
 UI pass R4/R5 from review 260924-nho: palette tokens, AA text inks, the 9px
