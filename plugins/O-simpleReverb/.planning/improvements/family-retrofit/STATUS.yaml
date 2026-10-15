@@ -1,0 +1,29 @@
+milestone: family-retrofit
+created: 2026-10-15T00:00:00Z
+lastActivity: 2026-10-15T17:00:00Z
+description: "O-simple family retrofit: rename O-SimpleReverb -> O-simpleReverb, Ambisonics-style UI, lesson rows + utility presets"
+brief: plugins/O-SimpleReverb/improvements/family-retrofit.md
+phases:
+  discuss:
+    status: complete
+    completedAt: 2026-10-15T00:00:00Z
+  research:
+    status: complete
+    completedAt: 2026-10-15T00:00:00Z
+    mockupSignedOff: 2026-10-15
+    deliverables: [RESEARCH.md, mockup/index.html]   # mockup sign-off gates plan
+  plan:
+    status: complete
+    completedAt: 2026-10-15T17:00:00Z
+    approved: 2026-10-15
+    domain: mixed
+    executeAgent: general-purpose
+  execute:
+    status: in_progress
+    startedAt: 2026-10-15T18:00:00Z
+    backup: backups/O-SimpleReverb/v2.0.0/
+  verify:
+    status: pending
+versionBump: major
+baseVersion: 2.0.0
+targetVersion: 3.0.0

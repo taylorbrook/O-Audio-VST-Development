@@ -49,7 +49,7 @@ Minimal, readable implementations of the classic synthesis methods, intended to 
 
 | Plugin | Description |
 |--------|-------------|
-| [`O-SimpleReverb`](https://oaudio.io/products/ouaricon-simple-reverb) | Reverb |
+| [`O-simpleReverb`](https://oaudio.io/products/ouaricon-simple-reverb) | Reverb |
 | [`O-DigiDelay`](https://oaudio.io/products/ouaricon-delay) | Digital delay |
 | [`O-ReverseDelay`](https://oaudio.io/products/ouaricon-reverse-delay) | Granular reverse delay |
 | [`O-Chorus`](https://oaudio.io/products/ouaricon-chorus) | Chorus |
