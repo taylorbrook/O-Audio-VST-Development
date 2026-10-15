@@ -39,6 +39,9 @@
 #include "dsp/PlateEngine.h"
 #include "dsp/SpringEngine.h"
 #include "dsp/EarlyReflections.h"
+#include "MeterFrame.h"
+#include "TripleBuffer.h"
+#include "PresetRecipes.h"
 
 // Test hooks: defined on the render-check target only (CMakeLists.txt). A
 // mutant is a deliberately broken build of one behaviour, which render-check
@@ -53,9 +56,6 @@ class OSimpleReverbAudioProcessor : public juce::AudioProcessor
 {
 public:
     // ==================== DSP Constants ====================
-
-    // VU meter floor level
-    static constexpr float kVuMeterFloorDB = -100.0f;
 
     // TYPE change: the playing slot's input falls to 0 and the slot rings out;
     // the other slot's input rises. The duck is 90 % there after kTypeDuckMs.
@@ -114,6 +114,42 @@ public:
         return preset.sizeLo * std::pow(preset.sizeHi / preset.sizeLo, juce::jlimit(0.0f, 1.0f, sizePercent / 100.0f));
     }
 
+    // v3.0.0: the tone stage's maps, as pure functions. The DSP below and the
+    // editor's getToneCurve native both call these, so the drawn curve cannot
+    // drift from the filters that run (render-check gates the agreement).
+    //   warmCutoffHz        CHARACTER's Warm low-pass cutoff (parked at 0.49 fs from 0 up)
+    //   brightGainDb        CHARACTER's Bright shelf gain at kBrightShelfHz
+    //   typeEqCoefficients  the type's EQ biquad, as the slot's ArrayCoefficients
+    static constexpr float kBrightShelfHz = 4000.0f, kBrightShelfQ = 0.707f;
+    static float warmCutoffHz(float characterValue, double sampleRate);
+    static float brightGainDb(float characterValue);
+    static std::array<float, 6> typeEqCoefficients(int typeIndex, double sampleRate);
+
+    // v3.0.0 - the models behind the editor's tone and early-reflection wells.
+    // Pure functions of their arguments; the editor serialises them and
+    // render-check holds them to the filters and taps that actually run.
+    //   toneGainDb    the steady-state gain of the wet path after the tank at
+    //                 one frequency: type EQ x Warm x Bright (x Low Cut when on).
+    //                 The TPT SVFs (R = 1/sqrt 2) are bilinear Butterworths
+    //                 prewarped at their cutoff: the RBJ low / high-pass at the
+    //                 same frequency is the same filter.
+    //   lowCutGainDb  the Low Cut alone (drawn as its own curve while OUT).
+    //   earlyTaps     where a type's taps land at a SIZE, read from an
+    //                 EarlyReflections the CALLER prepared at `modelRate` with
+    //                 kEarlyModelSpanMs; Spring's three echo times instead.
+    double toneGainDb(int typeIndex, float characterValue, float lowCutHz, bool lowCutOn, double sampleRate, double hz) const;
+    static double lowCutGainDb(float lowCutHz, double sampleRate, double hz);
+    struct EarlyTaps {
+        TypePreset::Engine engine = TypePreset::Engine::Fdn;
+        double preDelayMs = 0.0, earlyLevel = 0.0;
+        int numTaps = 0;                                   // 8 on the FDN types, 0 on Plate and Spring
+        std::array<double, osr::EarlyReflections::kTaps> msL {}, gainL {}, msR {}, gainR {};
+        int numSpringEchoes = 0;                           // 3 on Spring
+        std::array<double, osr::SpringEngine::kSprings> springEchoMs {};
+    };
+    static constexpr float kEarlyModelSpanMs = 57.5f;      // the longest earlySpanMs of the six types
+    static EarlyTaps earlyTaps(osr::EarlyReflections& model, double modelRate, int typeIndex, float sizePercent);
+
 #if OSIMPLEREVERB_TEST_HOOKS
     enum class Mutant {
         none,
@@ -132,7 +168,9 @@ public:
         decayStuck,     // the engine is asked for an endless tail (the plate sits on its decay ceiling)
         springNoChirp,  // the spring's allpass cascade is out of its loop
         springOpenBand, // the spring's low-pass is out of its loop
-        noLevelLaw      // the slot's input gain ignores DECAY and SIZE
+        noLevelLaw,     // the slot's input gain ignores DECAY and SIZE
+        frameNoReset,   // the meter frame never starts again after a read (v3.0.0)
+        toneCurveStale  // getToneCurve ignores CHARACTER (v3.0.0; read by the editor's model)
     };
     Mutant testMutant = Mutant::none;
     bool testInjectNaN = false;     // poisons the playing slot's input once, then clears itself
@@ -176,10 +214,10 @@ public:
     juce::AudioProcessorValueTreeState parameters;
     OuariconPresetManager presetManager;
 
-    // VU Meter - linear output peak HELD until the editor reads it. The audio
-    // thread raises it (max), the editor timer exchange()s it back to 0, so a
-    // peak in any block between two 30 Hz reads reaches the meter.
-    std::atomic<float> outputPeak { 0.0f };
+    // v3.0.0 - the visualisation tap (Source/MeterFrame.h): one frame per
+    // host block, every field held since the editor's last read. Replaces
+    // the v2 outputPeak atomic.
+    osr::TripleBuffer<osr::MeterFrame> meterFrames;
 
     // ------------------------------------------------------------------------
     // v1.6.0 - the UI language. 0 = en, 1 = fr, 2 = zh-Hans.
@@ -208,7 +246,78 @@ public:
     static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : i == 2 ? "zh-Hans" : "en"; }
     static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : s == "zh-Hans" ? 2 : 0; }
 
+    // ------------------------------------------------------------------------
+    // v3.0.0 - the editor's window scale (width / 1180), persisted in the
+    // state as one more plain property beside uiLanguage. 0 = never sized:
+    // the editor fits the display at open. Written as "0.850" only when > 0,
+    // restored only when finite and within 0.6 .. 1.5.
+    // ------------------------------------------------------------------------
+    std::atomic<float> editorScale { 0.0f };
+
+    // ------------------------------------------------------------------------
+    // v3.0.0 - presets and lessons. The state stays the preset module's XML
+    // (its currentPreset attribute is the name); this is the family SURFACE
+    // over it: Init + 10 lessons from Source/PresetRecipes.h (never on disk),
+    // the 48 utility presets of the factory bank, and user presets.
+    // Message thread unless noted; presetLock guards the identity, is never
+    // taken on the audio thread and never held across setValueNotifyingHost.
+    // ------------------------------------------------------------------------
+    static constexpr int kNumParams = 8;
+    static constexpr const char* kParamIds[kNumParams] = { "TYPE", "CHARACTER", "WET", "DRY", "DECAY", "SIZE", "LPFREQ", "LPON" };
+    using Targets = std::array<float, (size_t) kNumParams>;   // normalised, kParamIds order; NaN = default
+
+    // The factory bank (8 per type, TYPE order), as the module writes it.
+    static juce::StringArray factoryBankNames();
+    static bool isBankPresetName(const juce::String& name);
+    static bool isFactoryPresetName(const juce::String& name);       // a lesson or a bank preset (ignoring case)
+
+    // The lesson entry: any table id; unknown -> false, nothing touched. Each
+    // apply is a full reset to defaults, then the recipe.
+    bool applyFactoryPreset(const juce::String& id);
+    // The browser entry: a lesson file name, a bank name or a LISTED user
+    // preset (anything else, including a path, is refused).
+    bool loadPresetByName(const juce::String& name);
+    bool loadPresetFile(const juce::File& file);                      // the gear menu's "Load file..."
+
+    // Identity. Any non-audio thread.
+    juce::String getPresetName() const;
+    juce::String getPresetId() const;                                 // the lesson id, or ""
+    bool isPresetFactory() const;
+    juce::uint32 getPresetRevision() const noexcept { return presetRevision.load(); }
+    // Any parameter > 1e-4 from the values the preset set. A restored session
+    // whose targets are not known (yet) is unmodified.
+    bool isPresetModified() const;
+    // A restored USER name re-reads its file once (editor timer, message
+    // thread) - never inside setStateInformation.
+    void refreshPresetTargetsIfNeeded();
+
+    // Walk order: the bank in TYPE order, then user presets sorted ignoring
+    // case. The list, the arrows and the dropdown all use this order.
+    juce::StringArray getPresetWalkOrder() const;
+    juce::String getNeighbourPreset(int dir) const;
+
+    // "" = refused: trim; control and bidi characters stripped;
+    // File::createLegalFileName; leading dots stripped; 64 characters.
+    static juce::String sanitisePresetName(const juce::String& raw);
+    bool saveUserPreset(const juce::String& rawName);                 // refuses bank and lesson names
+    bool deleteUserPreset(const juce::String& name);
+    juce::var getPresetCatalog() const;                               // { lessons:[{name,id}], factory:[...], user:[...] }
+
+    // Recipe -> normalised targets (unlisted = NaN), and NaN -> default.
+    Targets recipeTargets(const srpresets::Recipe& recipe) const;
+    Targets resolveTargets(const Targets& targets) const;
+    Targets currentNormalisedValues() const;
+    bool applyNormalisedTargets(const Targets& targets);
+
 private:
+    mutable juce::CriticalSection presetLock;
+    juce::String presetName;
+    Targets presetTargets {};
+    bool presetTargetsValid = false;
+    bool presetTargetsStale = false;
+    std::atomic<juce::uint32> presetRevision { 0 };
+    void setCurrentPreset(const juce::String& name, const Targets& resolved, bool valid, bool stale);
+    void restorePresetIdentity();   // after setStateInformation
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
@@ -293,6 +402,15 @@ private:
     std::atomic<float>* dryParam = nullptr;
     std::atomic<float>* lpFreqParam = nullptr;
     std::atomic<float>* lpOnParam = nullptr;
+
+    // The meter frame's accumulators (audio thread only). They start again
+    // only once the editor has read the last frame (hasNewData() false), so a
+    // 30 Hz reader sees every burst. With no editor open nothing reads, and the
+    // wet sums are halved whenever they cover more than a second (the mean
+    // holds; nothing overflows).
+    float meterInPeak = 0.0f, meterOutPeakL = 0.0f, meterOutPeakR = 0.0f;
+    double meterWetSumSq = 0.0, meterWetCount = 0.0, meterSpanSamples = 0.0;
+    void publishMeterFrame(const juce::AudioBuffer<float>& buffer);
 
     // State tracking
     double currentSampleRate = 44100.0;

@@ -104,6 +104,18 @@
 
 #include "measure.h"
 
+// v3.0.0: the meter frame (Source/MeterFramePayload.h). Absent in the v1.14.0
+// and v2.0.0 Source/ trees, which still have the outputPeak atomic.
+#if __has_include("MeterFramePayload.h")
+ #include "MeterFramePayload.h"
+ #include <cstring>
+ #include <map>
+ #include <set>
+ #define OSR_PAYLOAD 1
+#else
+ #define OSR_PAYLOAD 0
+#endif
+
 #if __has_include("dsp/FdnEngine.h")
  #include "dsp/ReverbPrimitives.h"
  #include "dsp/FdnEngine.h"
@@ -1132,6 +1144,200 @@ static Verdict nanGate()
 }
 #endif
 
+#if OSR_PAYLOAD
+// ── 4. the meter frame ────────────────────────────────────────────────────────
+// Every field is held since the editor's last read: a loud passage followed by
+// two seconds of silence, with nothing reading, still shows its peak; the first
+// block after a read starts again.
+static Verdict meterHoldGate()
+{
+    auto proc = makeProcessor();
+    setParam(*proc, "WET", 0.0f); setParam(*proc, "DRY", 100.0f);
+    renderSine(*proc, 48000.0, 256, 20, [](int) {});                    // loud blocks...
+    juce::AudioBuffer<float> silence(2, 256);
+    juce::MidiBuffer midi;
+    for (int i = 0; i < 400; ++i) { silence.clear(); proc->processBlock(silence, midi); }   // ...then 2 s of silence
+    const bool fresh = proc->meterFrames.hasNewData();
+    const auto held = proc->meterFrames.read();
+    silence.clear(); proc->processBlock(silence, midi);
+    const auto after = proc->meterFrames.read();
+    const float h = std::max(held.outPeakL, held.outPeakR), a = std::max(after.outPeakL, after.outPeakR);
+    return { fresh && h > 0.45f && held.inDb > -7.0f && a == 0.0f && after.inDb <= osr::MeterFrame::kFloorDb,
+             "meter frame: the output peak of earlier loud blocks survives 2 s of silence (" + juce::String(h, 3) + ", input "
+             + juce::String(held.inDb, 1) + " dB); the first block after a read starts again (" + juce::String(a, 3) + ", input "
+             + juce::String(after.inDb, 1) + " dB)" };
+}
+
+// The text the editor sends: deterministic, hash-gated, robust to garbage, and
+// one floor frame on the live -> idle edge.
+static void payloadGates()
+{
+    namespace ui = osr::ui;
+    char a[256], b[256];
+
+    osr::MeterFrame f;
+    f.inDb = -6.02f; f.wetDb = -31.47f; f.outPeakL = 0.5012f; f.outPeakR = 0.4987f; f.spanMs = 33.4f;
+    const int na = ui::format(ui::quantise(f, true), a, (int) sizeof a);
+    const int nb = ui::format(ui::quantise(f, true), b, (int) sizeof b);
+    const juce::String text(a, (size_t) juce::jmax(0, na));
+    check(na > 0 && na == nb && std::memcmp(a, b, (size_t) na) == 0
+          && text == "{\"inDb\":-6.0,\"wetDb\":-31.5,\"outPeakL\":0.501,\"outPeakR\":0.499,\"spanMs\":33,\"live\":1}",
+          "payload: a frame formats to the same bytes twice, quantised as specified (" + text + ")");
+
+    // Equal hash <=> equal bytes, over frames drawn from a coarse grid (many repeats).
+    std::mt19937 rng(9);
+    std::uniform_int_distribution<int> pick(0, 2);   // 3^5 x 2 = 486 frames: most draws repeat one
+    std::map<std::uint64_t, std::string> seen;
+    int frames = 0, clashes = 0, repeats = 0;
+    for (int i = 0; i < 4000; ++i) {
+        osr::MeterFrame g;
+        g.inDb = -60.0f + 10.0f * (float) pick(rng); g.wetDb = -90.0f + 12.5f * (float) pick(rng);
+        g.outPeakL = 0.1f * (float) pick(rng); g.outPeakR = 0.15f * (float) pick(rng); g.spanMs = 30.0f + (float) pick(rng);
+        const auto q = ui::quantise(g, pick(rng) != 0);
+        const int n = ui::format(q, a, (int) sizeof a);
+        const std::string bytes(a, (size_t) juce::jmax(0, n));
+        auto [it, inserted] = seen.emplace(ui::hash(q), bytes);
+        ++frames;
+        if (! inserted) { ++repeats; if (it->second != bytes) ++clashes; }
+    }
+    std::set<std::string> distinct;
+    for (const auto& kv : seen) distinct.insert(kv.second);
+    check(clashes == 0 && distinct.size() == seen.size() && repeats > 1000,
+          "payload: equal hash means equal bytes and different bytes a different hash (" + juce::String(frames) + " frames, "
+          + juce::String(repeats) + " repeats, " + juce::String((int) seen.size()) + " distinct, " + juce::String(clashes) + " clashes)");
+
+    // Garbage in: NaN, infinities and huge values still make text JSON.parse accepts,
+    // with both levels inside -120 .. +24 dB.
+    const float junk[] = { std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity(),
+                           -std::numeric_limits<float>::infinity(), 1.0e30f, -1.0e30f, 3.0e9f };
+    int parsed = 0, total = 0;
+    for (float j : junk)
+        for (int field = 0; field < 5; ++field) {
+            osr::MeterFrame g;
+            float* fields[] = { &g.inDb, &g.wetDb, &g.outPeakL, &g.outPeakR, &g.spanMs };
+            *fields[field] = j;
+            const int n = ui::format(ui::quantise(g, true), a, (int) sizeof a);
+            ++total;
+            const auto v = juce::JSON::parse(juce::String(a, (size_t) juce::jmax(0, n)));
+            const auto* o = v.getDynamicObject();
+            if (n > 0 && o != nullptr && o->getProperties().size() == 6) {
+                const double in = v["inDb"], wet = v["wetDb"];
+                if (in >= -120.0 && in <= 24.0 && wet >= -120.0 && wet <= 24.0) ++parsed;
+            }
+        }
+    check(parsed == total, "payload: NaN / infinite / huge fields still format to valid JSON with levels in range ("
+                           + juce::String(parsed) + " of " + juce::String(total) + ")");
+
+    // The live -> idle edge: three stale ticks, then exactly one floor frame, then nothing.
+    osr::TripleBuffer<osr::MeterFrame> tb;
+    ui::LiveTracker tracker;
+    std::uint64_t last = 0;
+    int emittedIdle = 0;
+    ui::QuantisedFrame lastQ;
+    for (int tick = 0; tick < 20; ++tick) {
+        if (tick < 5) { tb.getWriteBuffer() = f; tb.publish(); }
+        const auto q = ui::sampleFrame(tb, tracker);
+        const auto h = ui::hash(q);
+        if (h != last) { last = h; lastQ = q; if (tick >= 5) ++emittedIdle; }
+    }
+    check(emittedIdle == 1 && ! lastQ.live && lastQ.outL == 0 && lastQ.outR == 0 && lastQ.inDb == ui::kDbFloorX10
+          && lastQ.wetDb == ui::kDbFloorX10 && lastQ.spanMs == 0,
+          "payload: when the audio thread stops, exactly one floor frame is emitted (" + juce::String(emittedIdle) + "), then nothing");
+}
+#endif
+
+#if __has_include("PresetRecipes.h")
+// ── 13. lessons and the preset surface (v3.0.0) ─────────────────────────────
+static void presetGates()
+{
+    using P = OSimpleReverbAudioProcessor;
+    auto dirty = [](P& proc, unsigned seed) {
+        std::mt19937 rng(seed);
+        std::uniform_real_distribution<float> u(0.0f, 1.0f);
+        for (auto* id : P::kParamIds) proc.parameters.getParameter(id)->setValueNotifyingHost(u(rng));
+    };
+
+    // Every id resolves; an apply from a dirty state lands on exactly the
+    // recipe with every unlisted parameter at its default, twice in a row.
+    int resolved = 0, exact = 0, idempotent = 0, lit = 0;
+    double loudest = -1.0e9;
+    juce::String loudestId;
+    for (const auto& r : srpresets::kLessons) {
+        auto proc = makeProcessor();
+        dirty(*proc, 3);
+        if (! proc->applyFactoryPreset(r.id)) continue;
+        ++resolved;
+        const auto want = proc->resolveTargets(proc->recipeTargets(r));
+        const auto a = proc->currentNormalisedValues();
+        bool same = true;
+        for (size_t i = 0; i < a.size(); ++i) same = same && std::abs(a[i] - want[i]) < 1.0e-6f;
+        if (same) ++exact;
+        dirty(*proc, 4);
+        proc->applyFactoryPreset(r.id);
+        if (proc->currentNormalisedValues() == a) ++idempotent;
+        if (proc->getPresetId() == r.id && proc->isPresetFactory() && ! proc->isPresetModified()) ++lit;
+        if (! srpresets::isSendLesson(r)) {
+            const double db = loudnessDb(*proc);
+            if (db > loudest) { loudest = db; loudestId = r.id; }
+        }
+    }
+    check(resolved == 11 && exact == 11 && idempotent == 11 && lit == 11,
+          "lessons: " + juce::String(resolved) + " of 11 ids resolve; from a dirty state " + juce::String(exact) + " land on the recipe with the rest at defaults, "
+          + juce::String(idempotent) + " repeat exactly, " + juce::String(lit) + " report their id, factory and unmodified");
+    check(loudest <= 5.0, "insert lessons at or below +5 dB re input (loudest " + loudestId + " " + juce::String(loudest, 1) + " dB; insertSend is a Send)");
+
+    {
+        auto proc = makeProcessor();
+        const auto dir = proc->presetManager.getFactoryPresetsDirectory();
+        int strays = 0;
+        for (const auto& f : dir.findChildFiles(juce::File::findFiles, false, "*.json"))
+            if (srpresets::findByName(f.getFileNameWithoutExtension()) != nullptr) ++strays;
+        const auto order = proc->getPresetWalkOrder();
+        const auto catalog = proc->getPresetCatalog();
+        bool bankFirst = order.size() >= 48;
+        const auto bank = P::factoryBankNames();
+        for (int i = 0; i < 48 && bankFirst; ++i) bankFirst = order[i] == bank[i];
+        check(strays == 0 && bankFirst && catalog["lessons"].size() == 11 && catalog["factory"].size() == 48,
+              "lessons never on disk (" + juce::String(strays) + " in Factory/); the walk order starts with the 48 bank presets in TYPE order; catalog "
+              + juce::String(catalog["lessons"].size()) + " lessons + " + juce::String(catalog["factory"].size()) + " factory");
+
+        // A fresh instance is Init; a moved knob is "modified"; a save under a
+        // factory or lesson name is refused before any disk access.
+        auto fresh = makeProcessor();
+        const bool initLit = fresh->getPresetId() == "init" && ! fresh->isPresetModified();
+        setParam(*fresh, "WET", 60.0f);
+        const bool mod = fresh->isPresetModified();
+        check(initLit && mod && ! fresh->saveUserPreset("Hall - Cathedral") && ! fresh->saveUserPreset("lesson - booth")
+              && ! fresh->saveUserPreset("  ..  ") && P::sanitisePresetName("../x/y") == "xy",
+              "a fresh instance is Init and unmodified; moving WET marks it modified; saving as a bank or lesson name (any case), or a blank name, is refused");
+    }
+
+    // Identity and the window scale through the host state.
+    auto roundTrip = [](P& from) {
+        juce::MemoryBlock blob;
+        from.getStateInformation(blob);
+        auto to = makeProcessor();
+        to->setStateInformation(blob.getData(), (int) blob.getSize());
+        return to;
+    };
+    {
+        auto proc = makeProcessor();
+        proc->applyFactoryPreset("hall");
+        proc->editorScale.store(0.85f);
+        proc->uiLanguage.store(2);
+        auto back = roundTrip(*proc);
+        auto bankProc = makeProcessor();
+        const bool loaded = bankProc->loadPresetByName("Hall - Cathedral");
+        auto bankBack = roundTrip(*bankProc);
+        auto plain = roundTrip(*makeProcessor());
+        check(back->getPresetId() == "hall" && ! back->isPresetModified() && std::abs(back->editorScale.load() - 0.85f) < 1.0e-3f
+              && back->uiLanguage.load() == 2 && loaded && bankBack->getPresetName() == "Hall - Cathedral" && ! bankBack->isPresetModified()
+              && bankBack->isPresetFactory() && plain->editorScale.load() == 0.0f && plain->getPresetId() == "init",
+              "state: a lesson, a bank preset, editorScale 0.85 and zh-Hans survive a save / restore; an editor never opened restores scale 0 (fit)");
+    }
+}
+#endif
+
 #if OSR_ENGINES
 // ── 11. the engine headers, driven directly ──────────────────────────────────
 
@@ -1755,6 +1961,9 @@ static int runMutants()
         mustFail(Mutant::noLevelLaw, "the input gain ignoring SIZE",  [type] { return sizeLevelGate(type); });
         mustFail(Mutant::noLevelLaw, "the input gain ignoring DECAY", [type] { return decayLevelGate(type); });
     }
+   #if OSR_PAYLOAD
+    mustFail(Mutant::frameNoReset, "the meter frame never starting again", [] { return meterHoldGate(); });
+   #endif
     std::printf("\n%d of %d mutants caught\n", passes, passes + failures);
     return failures == 0 ? 0 : 1;
 }
@@ -1881,6 +2090,10 @@ int main(int argc, char** argv)
     check(oversizedBlockGate());
 
     // ── 4. VU peak is held until read ────────────────────────────────────────
+   #if OSR_PAYLOAD
+    check(meterHoldGate());
+    payloadGates();
+   #else
     {
         auto proc = makeProcessor();
         setParam(*proc, "WET", 0.0f); setParam(*proc, "DRY", 100.0f);
@@ -1894,6 +2107,7 @@ int main(int argc, char** argv)
         check(held > 0.45f, "peak from earlier loud blocks survives later silent blocks (" + juce::String(held, 3) + ")");
         check(after == 0.0f, "reading the peak clears it");
     }
+   #endif
 
     // ── 5. switches do not click (HF burst) ────────────────────────────────────
     {
@@ -2128,6 +2342,11 @@ int main(int argc, char** argv)
         check(checked == 9 && wrong == 0, "v1.14.0 state blob loads with its 8 parameter values and UI language ("
                                           + juce::String(checked) + " checked, " + juce::String(wrong) + " wrong)");
     }
+
+    // ── 13. lessons and the preset surface ───────────────────────────────────
+   #if __has_include("PresetRecipes.h")
+    presetGates();
+   #endif
 
     // ── 11. the engine headers, driven directly ───────────────────────────────
    #if OSR_ENGINES

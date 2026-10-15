@@ -42,6 +42,7 @@
 */
 
 #include "PluginProcessor.h"
+#include <complex>
 // PluginEditor.h is deliberately NOT included at the top of this TU — the
 // include lives inside the #if JUCE_WEB_BROWSER guard directly above
 // createEditor(), so a console target that compiles this TU with
@@ -266,6 +267,10 @@ OSimpleReverbAudioProcessor::OSimpleReverbAudioProcessor()
 
     // Initialize factory presets (8 per reverb type = 48 total)
     initializeFactoryPresets();
+
+    // A fresh instance is Init (all defaults), lit on the lesson row.
+    if (const auto* init = srpresets::findById("init"))
+        setCurrentPreset(init->fileName, resolveTargets(recipeTargets(*init)), true, false);
 }
 
 OSimpleReverbAudioProcessor::~OSimpleReverbAudioProcessor() = default;
@@ -452,36 +457,131 @@ void OSimpleReverbAudioProcessor::driveSlot(Slot& slot, float decayValue, float 
     }
 }
 
-void OSimpleReverbAudioProcessor::setTypeEq(Slot& slot, int typeIndex)
+std::array<float, 6> OSimpleReverbAudioProcessor::typeEqCoefficients(int typeIndex, double sampleRate)
 {
-    // CR-03: runs on the audio thread, so ArrayCoefficients (stack std::array)
-    // rather than Coefficients::makeXXX, which heap-allocates. Assignment reuses
-    // the storage primed in prepareToPlay.
+    // ArrayCoefficients (stack std::array) rather than Coefficients::makeXXX,
+    // which heap-allocates: setTypeEq runs on the audio thread (CR-03).
     const auto& preset = typePresets[typeIndex];
-    auto& state = *slot.eq.state;
     switch (preset.eqType) {
-        case TypePreset::EqType::None:
-            // Identity (not an all-pass, which shifts phase)
-            state = std::array<float, 6> { 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f };
-            break;
         case TypePreset::EqType::LowShelf:
-            state = juce::dsp::IIR::ArrayCoefficients<float>::makeLowShelf(
-                currentSampleRate, preset.eqFreq, preset.eqQ, juce::Decibels::decibelsToGain(preset.eqGain));
-            break;
+            return juce::dsp::IIR::ArrayCoefficients<float>::makeLowShelf(
+                sampleRate, preset.eqFreq, preset.eqQ, juce::Decibels::decibelsToGain(preset.eqGain));
         case TypePreset::EqType::HighShelf:
-            state = juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf(
-                currentSampleRate, preset.eqFreq, preset.eqQ, juce::Decibels::decibelsToGain(preset.eqGain));
-            break;
+            return juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf(
+                sampleRate, preset.eqFreq, preset.eqQ, juce::Decibels::decibelsToGain(preset.eqGain));
         case TypePreset::EqType::Peak:
-            state = juce::dsp::IIR::ArrayCoefficients<float>::makePeakFilter(
-                currentSampleRate, preset.eqFreq, preset.eqQ, juce::Decibels::decibelsToGain(preset.eqGain));
-            break;
+            return juce::dsp::IIR::ArrayCoefficients<float>::makePeakFilter(
+                sampleRate, preset.eqFreq, preset.eqQ, juce::Decibels::decibelsToGain(preset.eqGain));
         case TypePreset::EqType::HighPass:
-            state = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(
-                currentSampleRate, preset.eqFreq, preset.eqQ);
+            return juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(
+                sampleRate, preset.eqFreq, preset.eqQ);
+        case TypePreset::EqType::None:
             break;
     }
+    // Identity (not an all-pass, which shifts phase)
+    return std::array<float, 6> { 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f };
+}
+
+void OSimpleReverbAudioProcessor::setTypeEq(Slot& slot, int typeIndex)
+{
+    // Assignment reuses the storage primed in prepareToPlay (CR-03).
+    *slot.eq.state = typeEqCoefficients(typeIndex, currentSampleRate);
     slot.eq.reset();
+}
+
+float OSimpleReverbAudioProcessor::warmCutoffHz(float characterValue, double sampleRate)
+{
+    // Warm (< -0.5): low-pass 2 kHz..20 kHz, the pre-1.11.0 curve (clamped to
+    // 0.45 fs). From 0 up it is parked at 0.49 fs, where the prewarped
+    // low-pass is flat across the audible band, so Neutral and Bright sound as
+    // they did when this filter was bypassed. -0.5..0 glides between the two
+    // so the map has no step for a smoothed crossing to click on.
+    const float fs = static_cast<float>(sampleRate);
+    const float warmTopHz = juce::jmin(20000.0f, 0.45f * fs);
+    const float parkHz = 0.49f * fs;
+    if (characterValue < -0.5f)
+        return juce::jmin(2000.0f + 18000.0f * juce::jlimit(0.0f, 1.0f, (characterValue + 100.0f) / 99.0f), warmTopHz);
+    if (characterValue < 0.0f)
+        return juce::jmap(characterValue, -0.5f, 0.0f, warmTopHz, parkHz);
+    return parkHz;
+}
+
+float OSimpleReverbAudioProcessor::brightGainDb(float characterValue)
+{
+    // Bright: +0..6 dB shelf at 4 kHz, CONTINUOUS from 0 (v1.12.0). The old
+    // `> 0.5 ? ... : 0` step from the identity shelf burst at about -51 dB
+    // above 3 kHz on every crossing; at +0.5 the shelf is +0.03 dB, inaudible,
+    // so the UI's "neutral" zone still reads true.
+    const float brightValue = juce::jlimit(0.0f, 1.0f, characterValue / 100.0f);
+    return brightValue * 6.0f;
+}
+
+namespace
+{
+    // |H(e^jw)| in dB of one biquad, coefficients { b0, b1, b2, a0, a1, a2 }
+    // (the ArrayCoefficients order), evaluated in double.
+    template <typename Array>
+    double biquadGainDb(const Array& c, double w)
+    {
+        const std::complex<double> z1 = std::polar(1.0, -w), z2 = z1 * z1;
+        const auto num = (double) c[0] + (double) c[1] * z1 + (double) c[2] * z2;
+        const auto den = (double) c[3] + (double) c[4] * z1 + (double) c[5] * z2;
+        return 20.0 * std::log10(std::max(1.0e-30, std::abs(num)) / std::max(1.0e-30, std::abs(den)));
+    }
+
+    constexpr double kButterworthQ = 0.70710678118654752;   // R = 1/sqrt 2 in the TPT SVFs
+}
+
+double OSimpleReverbAudioProcessor::lowCutGainDb(float lowCutHz, double sampleRate, double hz)
+{
+    using C = juce::dsp::IIR::ArrayCoefficients<double>;
+    return biquadGainDb(C::makeHighPass(sampleRate, (double) lowCutHz, kButterworthQ),
+                        juce::MathConstants<double>::twoPi * hz / sampleRate);
+}
+
+double OSimpleReverbAudioProcessor::toneGainDb(int typeIndex, float characterValue, float lowCutHz, bool lowCutOn,
+                                               double sampleRate, double hz) const
+{
+    using C = juce::dsp::IIR::ArrayCoefficients<double>;
+    const double w = juce::MathConstants<double>::twoPi * hz / sampleRate;
+    const float c = OSR_MUTANT(toneCurveStale) ? 0.0f : characterValue;
+    double db = biquadGainDb(typeEqCoefficients(juce::jlimit(0, 5, typeIndex), sampleRate), w);
+    db += biquadGainDb(C::makeLowPass(sampleRate, (double) warmCutoffHz(c, sampleRate), kButterworthQ), w);
+    db += biquadGainDb(C::makeHighShelf(sampleRate, (double) kBrightShelfHz, (double) kBrightShelfQ,
+                                        juce::Decibels::decibelsToGain((double) brightGainDb(c))), w);
+    if (lowCutOn)
+        db += lowCutGainDb(lowCutHz, sampleRate, hz);
+    return db;
+}
+
+OSimpleReverbAudioProcessor::EarlyTaps OSimpleReverbAudioProcessor::earlyTaps(osr::EarlyReflections& model, double modelRate,
+                                                                              int typeIndex, float sizePercent)
+{
+    // The same calls a slot makes (startSlot, driveSlot), so the same rounding.
+    const auto& preset = typePresets[juce::jlimit(0, 5, typeIndex)];
+    const double scale = sizeScale(preset, sizePercent);
+    EarlyTaps out;
+    out.engine = preset.engine;
+    out.preDelayMs = preset.preDelayMs;
+    out.earlyLevel = preset.earlyLevel;
+    if (preset.engine == TypePreset::Engine::Spring) {
+        out.numSpringEchoes = osr::SpringEngine::kSprings;
+        for (int i = 0; i < osr::SpringEngine::kSprings; ++i)
+            out.springEchoMs[(size_t) i] = osr::SpringEngine::kSpring[i].echoMs * scale;
+    }
+    if (preset.earlyLevel <= 0.0f)
+        return out;                                // Plate and Spring: no taps
+    model.setType(juce::jmax(1.0f, preset.earlySpanMs));
+    model.setSize(scale);
+    model.land();
+    out.numTaps = osr::EarlyReflections::kTaps;
+    for (int k = 0; k < osr::EarlyReflections::kTaps; ++k) {
+        out.msL[(size_t) k] = model.tapSamples(0, k) * 1000.0 / modelRate;
+        out.msR[(size_t) k] = model.tapSamples(1, k) * 1000.0 / modelRate;
+        out.gainL[(size_t) k] = model.tapGain(0, k);
+        out.gainR[(size_t) k] = model.tapGain(1, k);
+    }
+    return out;
 }
 
 void OSimpleReverbAudioProcessor::updateCharacterCoefficients(float characterValue)
@@ -490,30 +590,9 @@ void OSimpleReverbAudioProcessor::updateCharacterCoefficients(float characterVal
         return;
     previousCharacterValue = characterValue;
 
-    // Warm (< -0.5): low-pass 2 kHz..20 kHz, the pre-1.11.0 curve (clamped to
-    // 0.45 fs). From 0 up it is parked at 0.49 fs, where the prewarped
-    // low-pass is flat across the audible band, so Neutral and Bright sound as
-    // they did when this filter was bypassed. -0.5..0 glides between the two
-    // so the map has no step for a smoothed crossing to click on.
-    const float fs = static_cast<float>(currentSampleRate);
-    const float warmTopHz = juce::jmin(20000.0f, 0.45f * fs);
-    const float parkHz = 0.49f * fs;
-    float cutoffHz;
-    if (characterValue < -0.5f)
-        cutoffHz = juce::jmin(2000.0f + 18000.0f * juce::jlimit(0.0f, 1.0f, (characterValue + 100.0f) / 99.0f), warmTopHz);
-    else if (characterValue < 0.0f)
-        cutoffHz = juce::jmap(characterValue, -0.5f, 0.0f, warmTopHz, parkHz);
-    else
-        cutoffHz = parkHz;
-    warmFilter.setCutoffFrequency(cutoffHz);  // RT-safe: one tan(), no allocation
-
-    // Bright: +0..6 dB shelf at 4 kHz, CONTINUOUS from 0 (v1.12.0). The old
-    // `> 0.5 ? ... : 0` step from the identity shelf burst at about -51 dB
-    // above 3 kHz on every crossing; at +0.5 the shelf is +0.03 dB, inaudible,
-    // so the UI's "neutral" zone still reads true.
-    const float brightValue = juce::jlimit(0.0f, 1.0f, characterValue / 100.0f);
+    warmFilter.setCutoffFrequency(warmCutoffHz(characterValue, currentSampleRate));  // RT-safe: one tan(), no allocation
     *brightFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf(
-        currentSampleRate, 4000.0f, 0.707f, juce::Decibels::decibelsToGain(brightValue * 6.0f));  // CR-03: RT-safe, no heap alloc
+        currentSampleRate, kBrightShelfHz, kBrightShelfQ, juce::Decibels::decibelsToGain(brightGainDb(characterValue)));  // CR-03: RT-safe, no heap alloc
 }
 
 // The steal fade's gain for its position 0..1: a smoothstep, which starts and
@@ -639,21 +718,45 @@ void OSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // A host may hand over more samples than it prepared for. The work
     // buffers are sized for the prepared block, so a larger one is processed
     // in pieces; growing a buffer here would allocate on the audio thread.
+    // The meter frame starts again only once the editor has read the last one.
+    if (! meterFrames.hasNewData() && ! OSR_MUTANT(frameNoReset)) {
+        meterInPeak = meterOutPeakL = meterOutPeakR = 0.0f;
+        meterWetSumSq = meterWetCount = meterSpanSamples = 0.0;
+    }
+
     const int chunk = OSR_MUTANT(noChunking) ? totalSamples : maxChunkSamples;
     for (int start = 0; start < totalSamples; start += chunk)
         processChunk(buffer, start, juce::jmin(chunk, totalSamples - start));
 
-    // === 10. VU Meter - Calculate peak level after all processing ===
-    float peakLevel = 0.0f;
-    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
-    {
-        float channelPeak = buffer.getMagnitude(ch, 0, buffer.getNumSamples());
-        peakLevel = std::max(peakLevel, channelPeak);
+    publishMeterFrame(buffer);
+}
+
+void OSimpleReverbAudioProcessor::publishMeterFrame(const juce::AudioBuffer<float>& buffer)
+{
+    // Output peaks on the final buffer; a mono bus shows the one channel twice.
+    const int n = buffer.getNumSamples();
+    const float pkL = buffer.getMagnitude(0, 0, n);
+    const float pkR = buffer.getNumChannels() > 1 ? buffer.getMagnitude(1, 0, n) : pkL;
+    meterOutPeakL = juce::jmax(meterOutPeakL, pkL);
+    meterOutPeakR = juce::jmax(meterOutPeakR, pkR);
+
+    // No reader: keep the window at about a second (the mean holds).
+    if (meterSpanSamples > currentSampleRate) {
+        meterWetSumSq *= 0.5;
+        meterWetCount *= 0.5;
+        meterSpanSamples *= 0.5;
     }
-    // Raise the held peak; the editor's exchange() resets it once per read
-    float held = outputPeak.load(std::memory_order_relaxed);
-    while (peakLevel > held
-           && ! outputPeak.compare_exchange_weak(held, peakLevel, std::memory_order_relaxed)) {}
+
+    auto& f = meterFrames.getWriteBuffer();
+    f.inDb = meterInPeak > 0.0f ? juce::jmax(osr::MeterFrame::kFloorDb, 20.0f * std::log10(meterInPeak))
+                                : osr::MeterFrame::kFloorDb;
+    const double meanSq = meterWetCount > 0.0 ? meterWetSumSq / meterWetCount : 0.0;
+    f.wetDb = meanSq > 0.0 ? juce::jmax(osr::MeterFrame::kFloorDb, (float) (10.0 * std::log10(meanSq)))
+                           : osr::MeterFrame::kFloorDb;
+    f.outPeakL = meterOutPeakL;
+    f.outPeakR = meterOutPeakR;
+    f.spanMs = (float) (meterSpanSamples * 1000.0 / currentSampleRate);
+    meterFrames.publish();
 }
 
 void OSimpleReverbAudioProcessor::processChunk(juce::AudioBuffer<float>& buffer, int start, int numSamples)
@@ -692,6 +795,7 @@ void OSimpleReverbAudioProcessor::processChunk(juce::AudioBuffer<float>& buffer,
     dryBuffer.setSize(numChannels, numSamples, false, false, true);
     for (int ch = 0; ch < numChannels; ++ch)
         dryBuffer.copyFrom(ch, 0, buffer, ch, start, numSamples);
+    meterInPeak = juce::jmax(meterInPeak, dryBuffer.getMagnitude(0, numSamples));   // the input, before everything
 
     // === 1. TYPE change: the playing slot rings out, the other takes over ===
     {
@@ -809,6 +913,18 @@ void OSimpleReverbAudioProcessor::processChunk(juce::AudioBuffer<float>& buffer,
         }
     }
 
+    // The live decay well's wet level: after Low Cut, before the WET gain, so
+    // the tail shows at any mix.
+    for (int ch = 0; ch < wetBuffer.getNumChannels(); ++ch) {
+        const float* w = wetBuffer.getReadPointer(ch);
+        double sum = 0.0;
+        for (int i = 0; i < numSamples; ++i)
+            sum += (double) w[i] * (double) w[i];
+        meterWetSumSq += sum;
+    }
+    meterWetCount += (double) numSamples * (double) wetBuffer.getNumChannels();
+    meterSpanSamples += (double) numSamples;
+
     // === 9. Dry/Wet Mix (gain-ramped, WR-03) ===
     const float rampStep = 1.0f / static_cast<float>(numSamples);  // numSamples > 0 (early return)
     for (int channel = 0; channel < numChannels; ++channel) {
@@ -851,6 +967,15 @@ void OSimpleReverbAudioProcessor::getStateInformation(juce::MemoryBlock& destDat
                                  languageCode(uiLanguage.load(std::memory_order_acquire)),
                                  nullptr);
 
+    // v3.0.0: the editor's window scale, only once the editor has sized
+    // itself; otherwise REMOVED, so a value a preset load or an old session
+    // left in the tree is never re-saved.
+    const float es = editorScale.load(std::memory_order_relaxed);
+    if (es > 0.0f)
+        parameters.state.setProperty("editorScale", juce::String(es, 3), nullptr);
+    else
+        parameters.state.removeProperty("editorScale", nullptr);
+
     if (auto xml = presetManager.getStateAsXml())
         copyXmlToBinary(*xml, destData);
 }
@@ -886,88 +1011,110 @@ void OSimpleReverbAudioProcessor::setStateInformation(const void* data, int size
 
     if (! lang.isVoid())
         uiLanguage.store(languageIndex(lang.toString()), std::memory_order_release);
+
+    // v3.0.0: the window scale, the same isVoid() + string read. Absent (any
+    // pre-3.0.0 session) or out of range -> 0, fit-to-display at open.
+    float restoredScale = 0.0f;
+    if (const auto sv = parameters.state.getProperty("editorScale"); ! sv.isVoid()) {
+        const float sc = sv.toString().getFloatValue();
+        if (std::isfinite(sc) && sc >= 0.6f && sc <= 1.5f)
+            restoredScale = sc;
+    }
+    editorScale.store(restoredScale, std::memory_order_relaxed);
+
+    // v3.0.0: which preset the session was on (the module restored its name).
+    restorePresetIdentity();
+}
+
+// The factory bank: 48 utility presets, 8 per type in TYPE order. The module
+// writes them to the Factory folder (initializeFactoryPresets); v3.0.0 also
+// reads this table for the walk order, the catalog and a restored session's
+// targets, so they never depend on the disk copy.
+namespace
+{
+// Authored in the parameters' own units and converted once through each
+// range below (v1.14.0; the table used to hold hand-normalised fractions).
+//   type: 0 Booth, 1 Room, 2 Hall, 3 Spring, 4 Plate, 5 Ambient
+//   character -100..100 (dark..bright), wet/dry %, decay x, size %,
+//   low cut Hz and on/off.
+// v2.0.0: re-voiced for the new engines. DECAY is a multiple of the type's
+// own decay time (Booth 0.40 s, Room 1.1 s, Hall 3.0 s, Spring and Plate
+// 2.5 s, Ambient 7.0 s), so each row's tail length is the figure in its
+// comment, and a name that promises a real space gets that space's time.
+// SIZE no longer moves the tail: it is how far apart the echoes are.
+// "Send" presets are 100 % wet / 0 % dry, for an aux bus. Insert presets
+// stay at or below +5 dB re input (render-check section 9).
+struct BankDef { const char* name; int type; float character, wet, dry, decay, size, lowCutHz; bool lowCut; };
+constexpr BankDef kBank[] = {
+    // name                          type  char   wet    dry   decay  size  lowcut           tail
+    // === BOOTH ===
+    { "Booth - Vocal Booth",           0,    0.0f, 20.0f, 100.0f, 0.60f, 30.0f, 199.0f, false },  // 0.24 s
+    { "Booth - Drum Close",            0,  -30.0f, 15.0f, 100.0f, 0.62f, 20.0f, 119.0f, true  },  // 0.25 s
+    { "Booth - Tight Room",            0,    0.0f, 25.0f, 100.0f, 1.00f, 60.0f, 199.0f, false },  // 0.40 s
+    { "Booth - Whisper",               0,   40.0f, 30.0f, 100.0f, 0.70f, 15.0f, 199.0f, false },  // 0.28 s
+    { "Booth - Snare Ambience",        0,   25.0f, 22.0f, 100.0f, 1.25f, 55.0f, 160.0f, true  },  // 0.50 s
+    { "Booth - Voiceover",             0,  -20.0f, 12.0f, 100.0f, 0.50f, 20.0f, 120.0f, true  },  // 0.20 s
+    { "Booth - Dark Closet",           0,  -65.0f, 30.0f, 100.0f, 0.55f,  5.0f, 199.0f, false },  // 0.22 s
+    { "Booth - Send",                  0,    0.0f,100.0f,   0.0f, 1.00f, 50.0f, 150.0f, true  },  // 0.40 s
+
+    // === ROOM ===
+    { "Room - Small Room",             1,    0.0f, 25.0f, 100.0f, 0.55f, 25.0f, 199.0f, false },  // 0.61 s
+    { "Room - Live Room",              1,    0.0f, 35.0f, 100.0f, 0.90f, 55.0f, 199.0f, false },  // 0.99 s
+    { "Room - Studio A",               1,   10.0f, 30.0f, 100.0f, 0.72f, 45.0f, 199.0f, false },  // 0.79 s
+    { "Room - Jazz Club",              1,  -20.0f, 35.0f, 100.0f, 1.10f, 60.0f, 119.0f, true  },  // 1.21 s
+    { "Room - Drum Room",              1,   15.0f, 30.0f, 100.0f, 0.65f, 40.0f,  90.0f, true  },  // 0.72 s
+    { "Room - Wood Room",              1,  -45.0f, 30.0f, 100.0f, 0.82f, 50.0f, 199.0f, false },  // 0.90 s
+    { "Room - Bright Chamber",         1,   55.0f, 32.0f, 100.0f, 1.50f, 70.0f, 150.0f, true  },  // 1.65 s
+    { "Room - Send",                   1,    0.0f,100.0f,   0.0f, 1.00f, 50.0f, 120.0f, true  },  // 1.10 s
+
+    // === HALL ===
+    { "Hall - Concert Hall",           2,    0.0f, 30.0f, 100.0f, 0.67f, 60.0f, 199.0f, false },  // 2.0 s
+    { "Hall - Cathedral",              2,  -10.0f, 40.0f,  85.0f, 1.80f, 95.0f, 100.0f, true  },  // 5.4 s
+    { "Hall - Theater",                2,   10.0f, 30.0f, 100.0f, 0.50f, 35.0f, 199.0f, false },  // 1.5 s
+    { "Hall - Ballroom",               2,   20.0f, 35.0f, 100.0f, 0.87f, 70.0f, 199.0f, false },  // 2.6 s
+    { "Hall - Strings Hall",           2,  -25.0f, 35.0f, 100.0f, 0.80f, 65.0f, 100.0f, true  },  // 2.4 s
+    { "Hall - Dark Hall",              2,  -65.0f, 40.0f,  95.0f, 1.10f, 75.0f, 120.0f, true  },  // 3.3 s
+    { "Hall - Choir Loft",             2,   35.0f, 38.0f,  95.0f, 1.30f, 80.0f, 140.0f, true  },  // 3.9 s
+    { "Hall - Send",                   2,    0.0f,100.0f,   0.0f, 1.00f, 60.0f, 120.0f, true  },  // 3.0 s
+
+    // === SPRING === (SIZE is the echo time: 25 ms at 0, 33 at 50, 44 at 100)
+    { "Spring - Vintage Spring",       3,  -10.0f, 30.0f, 100.0f, 1.00f, 50.0f, 199.0f, false },  // 2.5 s
+    { "Spring - Surf Guitar",          3,   20.0f, 45.0f, 100.0f, 1.20f, 65.0f, 199.0f, false },  // 3.0 s
+    { "Spring - Dub Spring",           3,  -30.0f, 45.0f,  90.0f, 1.40f, 80.0f, 142.0f, true  },  // 3.5 s
+    { "Spring - Twang",                3,   40.0f, 35.0f, 100.0f, 0.70f, 30.0f, 199.0f, false },  // 1.75 s
+    { "Spring - Amp Spring",           3,    0.0f, 25.0f, 100.0f, 0.80f, 40.0f, 199.0f, false },  // 2.0 s
+    { "Spring - Dark Tank",            3,  -55.0f, 38.0f, 100.0f, 1.10f, 60.0f, 140.0f, true  },  // 2.75 s
+    { "Spring - Bright Tank",          3,   65.0f, 40.0f,  95.0f, 1.30f, 70.0f, 160.0f, true  },  // 3.25 s
+    { "Spring - Send",                 3,    0.0f,100.0f,   0.0f, 1.00f, 50.0f, 150.0f, true  },  // 2.5 s
+
+    // === PLATE === (SIZE is spread wide: the plate's range is the narrowest)
+    { "Plate - Studio Plate",          4,   10.0f, 30.0f, 100.0f, 0.80f, 40.0f, 199.0f, false },  // 2.0 s
+    { "Plate - Shimmer Plate",         4,   40.0f, 35.0f, 100.0f, 1.40f, 85.0f, 199.0f, false },  // 3.5 s
+    { "Plate - Vocal Plate",           4,    0.0f, 25.0f, 100.0f, 0.70f, 30.0f, 199.0f, false },  // 1.75 s
+    { "Plate - Lush Plate",            4,  -10.0f, 40.0f,  95.0f, 1.30f, 70.0f, 119.0f, true  },  // 3.25 s
+    { "Plate - Snare Plate",           4,   30.0f, 30.0f, 100.0f, 0.50f, 10.0f, 180.0f, true  },  // 1.25 s
+    { "Plate - Dark Plate",            4,  -45.0f, 35.0f, 100.0f, 1.10f, 60.0f, 120.0f, true  },  // 2.75 s
+    { "Plate - Long Plate",            4,   15.0f, 38.0f,  95.0f, 1.80f, 90.0f, 120.0f, true  },  // 4.5 s
+    { "Plate - Send",                  4,    0.0f,100.0f,   0.0f, 1.00f, 50.0f, 150.0f, true  },  // 2.5 s
+
+    // === AMBIENT ===
+    { "Ambient - Pad Wash",            5,  -20.0f, 45.0f,  80.0f, 1.20f, 75.0f, 119.0f, true  },  // 8.4 s
+    { "Ambient - Infinite Drone",      5,  -30.0f, 55.0f,  55.0f, 2.00f,100.0f, 100.0f, true  },  // 14 s
+    { "Ambient - Ethereal",            5,   10.0f, 50.0f,  70.0f, 1.30f, 85.0f, 199.0f, false },  // 9.1 s
+    { "Ambient - Cloud Nine",          5,    0.0f, 55.0f,  65.0f, 1.50f, 90.0f, 142.0f, true  },  // 10.5 s
+    { "Ambient - Frozen Lake",         5,  -55.0f, 50.0f,  60.0f, 1.80f,100.0f, 140.0f, true  },  // 12.6 s
+    { "Ambient - Glass Haze",          5,   50.0f, 40.0f,  80.0f, 1.00f, 70.0f, 160.0f, true  },  // 7.0 s
+    { "Ambient - Soft Halo",           5,  -10.0f, 35.0f,  90.0f, 0.70f, 55.0f, 100.0f, true  },  // 4.9 s
+    { "Ambient - Send",                5,    0.0f,100.0f,   0.0f, 1.00f, 60.0f, 120.0f, true  },  // 7.0 s
+};
+constexpr int kNumBank = (int) (sizeof (kBank) / sizeof (kBank[0]));
+static_assert (kNumBank == 48, "8 per type");
 }
 
 void OSimpleReverbAudioProcessor::initializeFactoryPresets()
 {
-    // Authored in the parameters' own units and converted once through each
-    // range below (v1.14.0; the table used to hold hand-normalised fractions).
-    //   type: 0 Booth, 1 Room, 2 Hall, 3 Spring, 4 Plate, 5 Ambient
-    //   character -100..100 (dark..bright), wet/dry %, decay x, size %,
-    //   low cut Hz and on/off.
-    // v2.0.0: re-voiced for the new engines. DECAY is a multiple of the type's
-    // own decay time (Booth 0.40 s, Room 1.1 s, Hall 3.0 s, Spring and Plate
-    // 2.5 s, Ambient 7.0 s), so each row's tail length is the figure in its
-    // comment, and a name that promises a real space gets that space's time.
-    // SIZE no longer moves the tail: it is how far apart the echoes are.
-    // "Send" presets are 100 % wet / 0 % dry, for an aux bus. Insert presets
-    // stay at or below +5 dB re input (render-check section 9).
-    struct Def { const char* name; int type; float character, wet, dry, decay, size, lowCutHz; bool lowCut; };
-    static constexpr Def bank[] = {
-        // name                          type  char   wet    dry   decay  size  lowcut           tail
-        // === BOOTH ===
-        { "Booth - Vocal Booth",           0,    0.0f, 20.0f, 100.0f, 0.60f, 30.0f, 199.0f, false },  // 0.24 s
-        { "Booth - Drum Close",            0,  -30.0f, 15.0f, 100.0f, 0.62f, 20.0f, 119.0f, true  },  // 0.25 s
-        { "Booth - Tight Room",            0,    0.0f, 25.0f, 100.0f, 1.00f, 60.0f, 199.0f, false },  // 0.40 s
-        { "Booth - Whisper",               0,   40.0f, 30.0f, 100.0f, 0.70f, 15.0f, 199.0f, false },  // 0.28 s
-        { "Booth - Snare Ambience",        0,   25.0f, 22.0f, 100.0f, 1.25f, 55.0f, 160.0f, true  },  // 0.50 s
-        { "Booth - Voiceover",             0,  -20.0f, 12.0f, 100.0f, 0.50f, 20.0f, 120.0f, true  },  // 0.20 s
-        { "Booth - Dark Closet",           0,  -65.0f, 30.0f, 100.0f, 0.55f,  5.0f, 199.0f, false },  // 0.22 s
-        { "Booth - Send",                  0,    0.0f,100.0f,   0.0f, 1.00f, 50.0f, 150.0f, true  },  // 0.40 s
-
-        // === ROOM ===
-        { "Room - Small Room",             1,    0.0f, 25.0f, 100.0f, 0.55f, 25.0f, 199.0f, false },  // 0.61 s
-        { "Room - Live Room",              1,    0.0f, 35.0f, 100.0f, 0.90f, 55.0f, 199.0f, false },  // 0.99 s
-        { "Room - Studio A",               1,   10.0f, 30.0f, 100.0f, 0.72f, 45.0f, 199.0f, false },  // 0.79 s
-        { "Room - Jazz Club",              1,  -20.0f, 35.0f, 100.0f, 1.10f, 60.0f, 119.0f, true  },  // 1.21 s
-        { "Room - Drum Room",              1,   15.0f, 30.0f, 100.0f, 0.65f, 40.0f,  90.0f, true  },  // 0.72 s
-        { "Room - Wood Room",              1,  -45.0f, 30.0f, 100.0f, 0.82f, 50.0f, 199.0f, false },  // 0.90 s
-        { "Room - Bright Chamber",         1,   55.0f, 32.0f, 100.0f, 1.50f, 70.0f, 150.0f, true  },  // 1.65 s
-        { "Room - Send",                   1,    0.0f,100.0f,   0.0f, 1.00f, 50.0f, 120.0f, true  },  // 1.10 s
-
-        // === HALL ===
-        { "Hall - Concert Hall",           2,    0.0f, 30.0f, 100.0f, 0.67f, 60.0f, 199.0f, false },  // 2.0 s
-        { "Hall - Cathedral",              2,  -10.0f, 40.0f,  85.0f, 1.80f, 95.0f, 100.0f, true  },  // 5.4 s
-        { "Hall - Theater",                2,   10.0f, 30.0f, 100.0f, 0.50f, 35.0f, 199.0f, false },  // 1.5 s
-        { "Hall - Ballroom",               2,   20.0f, 35.0f, 100.0f, 0.87f, 70.0f, 199.0f, false },  // 2.6 s
-        { "Hall - Strings Hall",           2,  -25.0f, 35.0f, 100.0f, 0.80f, 65.0f, 100.0f, true  },  // 2.4 s
-        { "Hall - Dark Hall",              2,  -65.0f, 40.0f,  95.0f, 1.10f, 75.0f, 120.0f, true  },  // 3.3 s
-        { "Hall - Choir Loft",             2,   35.0f, 38.0f,  95.0f, 1.30f, 80.0f, 140.0f, true  },  // 3.9 s
-        { "Hall - Send",                   2,    0.0f,100.0f,   0.0f, 1.00f, 60.0f, 120.0f, true  },  // 3.0 s
-
-        // === SPRING === (SIZE is the echo time: 25 ms at 0, 33 at 50, 44 at 100)
-        { "Spring - Vintage Spring",       3,  -10.0f, 30.0f, 100.0f, 1.00f, 50.0f, 199.0f, false },  // 2.5 s
-        { "Spring - Surf Guitar",          3,   20.0f, 45.0f, 100.0f, 1.20f, 65.0f, 199.0f, false },  // 3.0 s
-        { "Spring - Dub Spring",           3,  -30.0f, 45.0f,  90.0f, 1.40f, 80.0f, 142.0f, true  },  // 3.5 s
-        { "Spring - Twang",                3,   40.0f, 35.0f, 100.0f, 0.70f, 30.0f, 199.0f, false },  // 1.75 s
-        { "Spring - Amp Spring",           3,    0.0f, 25.0f, 100.0f, 0.80f, 40.0f, 199.0f, false },  // 2.0 s
-        { "Spring - Dark Tank",            3,  -55.0f, 38.0f, 100.0f, 1.10f, 60.0f, 140.0f, true  },  // 2.75 s
-        { "Spring - Bright Tank",          3,   65.0f, 40.0f,  95.0f, 1.30f, 70.0f, 160.0f, true  },  // 3.25 s
-        { "Spring - Send",                 3,    0.0f,100.0f,   0.0f, 1.00f, 50.0f, 150.0f, true  },  // 2.5 s
-
-        // === PLATE === (SIZE is spread wide: the plate's range is the narrowest)
-        { "Plate - Studio Plate",          4,   10.0f, 30.0f, 100.0f, 0.80f, 40.0f, 199.0f, false },  // 2.0 s
-        { "Plate - Shimmer Plate",         4,   40.0f, 35.0f, 100.0f, 1.40f, 85.0f, 199.0f, false },  // 3.5 s
-        { "Plate - Vocal Plate",           4,    0.0f, 25.0f, 100.0f, 0.70f, 30.0f, 199.0f, false },  // 1.75 s
-        { "Plate - Lush Plate",            4,  -10.0f, 40.0f,  95.0f, 1.30f, 70.0f, 119.0f, true  },  // 3.25 s
-        { "Plate - Snare Plate",           4,   30.0f, 30.0f, 100.0f, 0.50f, 10.0f, 180.0f, true  },  // 1.25 s
-        { "Plate - Dark Plate",            4,  -45.0f, 35.0f, 100.0f, 1.10f, 60.0f, 120.0f, true  },  // 2.75 s
-        { "Plate - Long Plate",            4,   15.0f, 38.0f,  95.0f, 1.80f, 90.0f, 120.0f, true  },  // 4.5 s
-        { "Plate - Send",                  4,    0.0f,100.0f,   0.0f, 1.00f, 50.0f, 150.0f, true  },  // 2.5 s
-
-        // === AMBIENT ===
-        { "Ambient - Pad Wash",            5,  -20.0f, 45.0f,  80.0f, 1.20f, 75.0f, 119.0f, true  },  // 8.4 s
-        { "Ambient - Infinite Drone",      5,  -30.0f, 55.0f,  55.0f, 2.00f,100.0f, 100.0f, true  },  // 14 s
-        { "Ambient - Ethereal",            5,   10.0f, 50.0f,  70.0f, 1.30f, 85.0f, 199.0f, false },  // 9.1 s
-        { "Ambient - Cloud Nine",          5,    0.0f, 55.0f,  65.0f, 1.50f, 90.0f, 142.0f, true  },  // 10.5 s
-        { "Ambient - Frozen Lake",         5,  -55.0f, 50.0f,  60.0f, 1.80f,100.0f, 140.0f, true  },  // 12.6 s
-        { "Ambient - Glass Haze",          5,   50.0f, 40.0f,  80.0f, 1.00f, 70.0f, 160.0f, true  },  // 7.0 s
-        { "Ambient - Soft Halo",           5,  -10.0f, 35.0f,  90.0f, 0.70f, 55.0f, 100.0f, true  },  // 4.9 s
-        { "Ambient - Send",                5,    0.0f,100.0f,   0.0f, 1.00f, 60.0f, 120.0f, true  },  // 7.0 s
-    };
-
     std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets;
-    for (const auto& d : bank) {
+    for (const auto& d : kBank) {
         auto norm = [this](const char* id, float v) { return parameters.getParameter(id)->convertTo0to1(v); };
         factoryPresets.push_back({ d.name, {
             { "TYPE", norm("TYPE", (float) d.type) }, { "CHARACTER", norm("CHARACTER", d.character) },
@@ -985,13 +1132,363 @@ void OSimpleReverbAudioProcessor::initializeFactoryPresets()
     const auto sentinel = factoryDir.getChildFile(".factory-version");
     if (! (sentinel.existsAsFile() && sentinel.loadFileAsString().trim() == JucePlugin_VersionString)) {
         juce::StringArray names;
-        for (const auto& d : bank) names.add(d.name);
+        for (const auto& d : kBank) names.add(d.name);
         for (const auto& f : factoryDir.findChildFiles(juce::File::findFiles, false, "*.json"))
             if (! names.contains(f.getFileNameWithoutExtension()))
                 f.deleteFile();
     }
 
     presetManager.initializeFactoryPresets(factoryPresets);
+}
+
+//==============================================================================
+// v3.0.0 presets and lessons: the family surface over the module's XML state.
+namespace
+{
+    constexpr int   kMaxPresetNameChars = 64;
+    constexpr float kApplySkipTolerance = 1.0e-6f;
+    constexpr float kModifiedTolerance  = 1.0e-4f;
+
+    OSimpleReverbAudioProcessor::Targets nanTargets()
+    {
+        OSimpleReverbAudioProcessor::Targets t;
+        t.fill(std::numeric_limits<float>::quiet_NaN());
+        return t;
+    }
+
+    // Control characters (C0, DEL, C1) and the bidi controls.
+    bool isStrippedPresetChar(juce::juce_wchar c) noexcept
+    {
+        return c < 0x20 || c == 0x7f || (c >= 0x80 && c <= 0x9f)
+            || c == 0x200e || c == 0x200f
+            || (c >= 0x202a && c <= 0x202e)
+            || (c >= 0x2066 && c <= 0x2069);
+    }
+
+    int bankIndexOf(const juce::String& name)
+    {
+        for (int i = 0; i < kNumBank; ++i)
+            if (name.equalsIgnoreCase(kBank[i].name))
+                return i;
+        return -1;
+    }
+}
+
+juce::StringArray OSimpleReverbAudioProcessor::factoryBankNames()
+{
+    juce::StringArray names;
+    for (const auto& d : kBank)
+        names.add(d.name);
+    return names;
+}
+
+bool OSimpleReverbAudioProcessor::isBankPresetName(const juce::String& name)
+{
+    return bankIndexOf(name) >= 0;
+}
+
+bool OSimpleReverbAudioProcessor::isFactoryPresetName(const juce::String& name)
+{
+    return srpresets::findByName(name) != nullptr || isBankPresetName(name);
+}
+
+OSimpleReverbAudioProcessor::Targets OSimpleReverbAudioProcessor::recipeTargets(const srpresets::Recipe& recipe) const
+{
+    auto t = nanTargets();
+    int matched = 0;
+    for (int e = 0; e < recipe.count; ++e)
+        for (size_t i = 0; i < t.size(); ++i)
+            if (juce::String(recipe.entries[e].paramId) == kParamIds[i])
+                if (auto* p = parameters.getParameter(kParamIds[i])) {
+                    t[i] = p->convertTo0to1(recipe.entries[e].raw);   // the parameter's OWN mapping: skew-correct
+                    ++matched;
+                }
+    jassert(matched == recipe.count);   // a typo in a recipe id
+    juce::ignoreUnused(matched);
+    return t;
+}
+
+OSimpleReverbAudioProcessor::Targets OSimpleReverbAudioProcessor::resolveTargets(const Targets& targets) const
+{
+    auto r = nanTargets();
+    for (size_t i = 0; i < r.size(); ++i)
+        if (auto* p = parameters.getParameter(kParamIds[i])) {
+            const float t = std::isfinite(targets[i]) ? juce::jlimit(0.0f, 1.0f, targets[i]) : p->getDefaultValue();
+            r[i] = p->convertTo0to1(p->convertFrom0to1(t));   // the value the parameter will hold
+        }
+    return r;
+}
+
+OSimpleReverbAudioProcessor::Targets OSimpleReverbAudioProcessor::currentNormalisedValues() const
+{
+    auto t = nanTargets();
+    for (size_t i = 0; i < t.size(); ++i)
+        if (auto* p = parameters.getParameter(kParamIds[i]))
+            t[i] = p->getValue();
+    return t;
+}
+
+// The one apply core: every parameter to its target, or its default where the
+// target is NaN; skipped where it is already there (no host edit, no gesture).
+bool OSimpleReverbAudioProcessor::applyNormalisedTargets(const Targets& targets)
+{
+    const auto resolved = resolveTargets(targets);
+    for (size_t i = 0; i < resolved.size(); ++i) {
+        auto* p = parameters.getParameter(kParamIds[i]);
+        if (p == nullptr || ! std::isfinite(resolved[i]))
+            continue;
+        if (std::abs(p->getValue() - resolved[i]) < kApplySkipTolerance)
+            continue;
+        p->beginChangeGesture();
+        p->setValueNotifyingHost(resolved[i]);
+        p->endChangeGesture();
+    }
+    return true;
+}
+
+void OSimpleReverbAudioProcessor::setCurrentPreset(const juce::String& name, const Targets& resolved, bool valid, bool stale)
+{
+    {
+        const juce::ScopedLock sl(presetLock);
+        presetName = name;
+        presetTargets = resolved;
+        presetTargetsValid = valid;
+        presetTargetsStale = stale;
+    }
+    presetManager.setCurrentPresetName(name);   // the name the state XML carries
+    presetRevision.fetch_add(1);
+}
+
+juce::String OSimpleReverbAudioProcessor::getPresetName() const
+{
+    const juce::ScopedLock sl(presetLock);
+    return presetName;
+}
+
+juce::String OSimpleReverbAudioProcessor::getPresetId() const
+{
+    const auto* recipe = srpresets::findByName(getPresetName());
+    return recipe != nullptr ? juce::String(recipe->id) : juce::String();
+}
+
+bool OSimpleReverbAudioProcessor::isPresetFactory() const
+{
+    return isFactoryPresetName(getPresetName());
+}
+
+bool OSimpleReverbAudioProcessor::isPresetModified() const
+{
+    Targets t;
+    {
+        const juce::ScopedLock sl(presetLock);
+        if (presetName.isEmpty() || ! presetTargetsValid)
+            return false;
+        t = presetTargets;
+    }
+    for (size_t i = 0; i < t.size(); ++i)
+        if (auto* p = parameters.getParameter(kParamIds[i]))
+            if (std::isfinite(t[i]) && std::abs(p->getValue() - t[i]) > kModifiedTolerance)
+                return true;
+    return false;
+}
+
+bool OSimpleReverbAudioProcessor::applyFactoryPreset(const juce::String& id)
+{
+    const auto* recipe = srpresets::findById(id);
+    if (recipe == nullptr)
+        return false;                              // unknown id: nothing touched
+    const auto targets = recipeTargets(*recipe);
+    applyNormalisedTargets(targets);               // a full reset, then the recipe
+    setCurrentPreset(recipe->fileName, resolveTargets(targets), true, false);
+    return true;
+}
+
+bool OSimpleReverbAudioProcessor::loadPresetByName(const juce::String& name)
+{
+    if (const auto* recipe = srpresets::findByName(name))
+        return applyFactoryPreset(recipe->id);
+
+    // Only a bank name or a LISTED user preset loads: the name must be a
+    // member of the walk order, which also blocks any path in it.
+    const auto order = getPresetWalkOrder();
+    const int idx = order.indexOf(name);
+    if (idx < 0)
+        return false;
+
+    const auto stem = order[idx];
+    if (! presetManager.loadPreset(stem))          // the module's apply: defaults first, then the file
+        return false;
+    setCurrentPreset(stem, resolveTargets(currentNormalisedValues()), true, false);
+    return true;
+}
+
+bool OSimpleReverbAudioProcessor::loadPresetFile(const juce::File& file)
+{
+    if (! presetManager.loadPresetFromFile(file))
+        return false;
+    setCurrentPreset(sanitisePresetName(file.getFileNameWithoutExtension()),
+                     resolveTargets(currentNormalisedValues()), true, false);
+    return true;
+}
+
+void OSimpleReverbAudioProcessor::restorePresetIdentity()
+{
+    // The module restored the name from the XML (absent -> its "Default").
+    // Untrusted: sanitised. A lesson or a bank preset rebuilds its targets
+    // from the tables; a user name re-reads its file on the message thread.
+    const auto restored = sanitisePresetName(presetManager.getCurrentPresetName());
+    if (const auto* recipe = srpresets::findByName(restored)) {
+        setCurrentPreset(recipe->fileName, resolveTargets(recipeTargets(*recipe)), true, false);
+        return;
+    }
+    if (const int b = bankIndexOf(restored); b >= 0) {
+        const auto& d = kBank[b];
+        auto norm = [this](const char* id, float v) { return parameters.getParameter(id)->convertTo0to1(v); };
+        const Targets t { norm("TYPE", (float) d.type), norm("CHARACTER", d.character), norm("WET", d.wet), norm("DRY", d.dry),
+                          norm("DECAY", d.decay), norm("SIZE", d.size), norm("LPFREQ", d.lowCutHz), d.lowCut ? 1.0f : 0.0f };
+        setCurrentPreset(d.name, resolveTargets(t), true, false);
+        return;
+    }
+    setCurrentPreset(restored, Targets {}, false, restored.isNotEmpty());
+}
+
+void OSimpleReverbAudioProcessor::refreshPresetTargetsIfNeeded()
+{
+    juce::String stale;
+    {
+        const juce::ScopedLock sl(presetLock);
+        if (! presetTargetsStale)
+            return;
+        presetTargetsStale = false;                // ONE attempt per restore
+        stale = presetName;
+    }
+
+    const auto file = presetManager.getUserPresetsDirectory().getChildFile(stale + ".json");
+    if (! file.existsAsFile()) {
+        // v2's sessions say "Default" when no preset was ever chosen: that
+        // names nothing, so the bar shows no name. Any other missing name
+        // stays, with unknown targets (never "modified").
+        if (stale.equalsIgnoreCase("Default"))
+            setCurrentPreset({}, Targets {}, false, false);
+        return;
+    }
+
+    const auto json = juce::JSON::parse(file.loadFileAsString());
+    const auto* params = json["parameters"].getDynamicObject();
+    if (params == nullptr)
+        return;
+    auto t = nanTargets();
+    for (size_t i = 0; i < t.size(); ++i) {
+        const auto v = params->getProperty(juce::Identifier(kParamIds[i]));
+        if (v.isDouble() || v.isInt() || v.isInt64() || v.isBool())
+            t[i] = (float) (double) v;
+    }
+    const auto resolved = resolveTargets(t);
+    {
+        const juce::ScopedLock sl(presetLock);
+        if (presetName != stale || presetTargetsValid)
+            return;                                // superseded meanwhile
+        presetTargets = resolved;
+        presetTargetsValid = true;
+    }
+    presetRevision.fetch_add(1);
+}
+
+juce::StringArray OSimpleReverbAudioProcessor::getPresetWalkOrder() const
+{
+    auto order = factoryBankNames();
+    juce::StringArray users;
+    const auto dir = presetManager.getUserPresetsDirectory();   // a path only: nothing is created
+    if (dir.isDirectory())
+        for (const auto& f : dir.findChildFiles(juce::File::findFiles, false, "*.json"))
+            users.add(f.getFileNameWithoutExtension());
+    users.sort(true);                                           // case-insensitive
+    for (const auto& u : users)
+        if (u.isNotEmpty() && ! isFactoryPresetName(u) && ! order.contains(u, true))
+            order.add(u);
+    return order;
+}
+
+juce::String OSimpleReverbAudioProcessor::getNeighbourPreset(int dir) const
+{
+    const auto order = getPresetWalkOrder();
+    const int n = order.size();
+    if (n == 0)
+        return {};
+    const auto current = getPresetName();
+    int idx = current.isEmpty() ? -1 : order.indexOf(current, true);
+    if (idx < 0)
+        return dir >= 0 ? order[0] : order[n - 1];   // unnamed or a lesson: top going forward, bottom going back
+    return order[(idx + (dir >= 0 ? 1 : -1) + n) % n];
+}
+
+juce::String OSimpleReverbAudioProcessor::sanitisePresetName(const juce::String& raw)
+{
+    juce::String clean;
+    const auto trimmed = raw.trim();
+    for (auto cp = trimmed.getCharPointer(); ! cp.isEmpty();) {
+        const juce::juce_wchar c = cp.getAndAdvance();
+        if (! isStrippedPresetChar(c))
+            clean += c;
+    }
+    clean = juce::File::createLegalFileName(clean);   // removes "#@,;:<>*^|?\/
+    for (;;) {                                        // leading dots ("..", hidden files) and exposed spaces
+        auto next = clean.trimStart();
+        while (next.startsWithChar('.'))
+            next = next.substring(1);
+        if (next == clean)
+            break;
+        clean = next;
+    }
+    return clean.substring(0, kMaxPresetNameChars).trimEnd();   // "" = refused
+}
+
+bool OSimpleReverbAudioProcessor::saveUserPreset(const juce::String& rawName)
+{
+    const auto clean = sanitisePresetName(rawName);
+    if (clean.isEmpty() || isFactoryPresetName(clean))
+        return false;                              // refused BEFORE the module or the disk
+    if (! presetManager.savePreset(clean))
+        return false;
+    setCurrentPreset(clean, resolveTargets(currentNormalisedValues()), true, false);
+    return true;
+}
+
+bool OSimpleReverbAudioProcessor::deleteUserPreset(const juce::String& name)
+{
+    if (name.isEmpty() || isFactoryPresetName(name))
+        return false;
+    const auto order = getPresetWalkOrder();
+    const int idx = order.indexOf(name);
+    if (idx < kNumBank)
+        return false;                              // not a listed user preset
+    if (! presetManager.deletePreset(order[idx]))
+        return false;
+    if (getPresetName() == order[idx])
+        setCurrentPreset({}, Targets {}, false, false);   // unnamed
+    else
+        presetRevision.fetch_add(1);
+    return true;
+}
+
+juce::var OSimpleReverbAudioProcessor::getPresetCatalog() const
+{
+    juce::Array<juce::var> lessons, factory, user;
+    for (const auto& r : srpresets::kLessons) {
+        auto* entry = new juce::DynamicObject();
+        entry->setProperty("name", juce::String(r.fileName));
+        entry->setProperty("id", juce::String(r.id));
+        lessons.add(juce::var(entry));
+    }
+    const auto order = getPresetWalkOrder();
+    for (int i = 0; i < order.size(); ++i)
+        (i < kNumBank ? factory : user).add(order[i]);
+
+    auto* root = new juce::DynamicObject();
+    root->setProperty("lessons", juce::var(std::move(lessons)));
+    root->setProperty("factory", juce::var(std::move(factory)));
+    root->setProperty("user", juce::var(std::move(user)));
+    return juce::var(root);
 }
 
 // Factory function
