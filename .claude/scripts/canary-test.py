@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Canary test script for Plugin Freedom System.
 
-Tests O-SimpleReverb (standard plugin) and O-AnalogEQ (WebView plugin).
+Tests O-simpleReverb (standard plugin) and O-AnalogEQ (WebView plugin).
 Run after any system-level changes to verify no breakage.
 
 Platform-aware: builds VST3+AU on macOS, VST3 only on Windows.
@@ -143,8 +143,8 @@ def main():
     pass_count = 0
     fail_count = 0
 
-    # Canary 1: O-SimpleReverb (standard plugin)
-    if run_canary("O-SimpleReverb", "O-SimpleReverb", "O-SimpleReverb",
+    # Canary 1: O-simpleReverb (standard plugin)
+    if run_canary("O-simpleReverb", "O-simpleReverb", "O-simpleReverb",
                   auval_type="aufx", auval_code="OuSr", auval_mfr="OuDv"):
         pass_count += 1
     else:

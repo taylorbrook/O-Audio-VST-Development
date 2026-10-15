@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<!--
+  O-simpleReverb — STATIC SIGN-OFF MOCKUP (family-retrofit milestone, research output).
+  Not production: no JUCE bridge, fake well data, a page-local parameter model.
+  Sibling of O-simpleAmbisonics/Source/ui/public/index.html: same tokens, header,
+  preset bar, gear, viz-band wells, sigpath stations, group columns, Family A seed
+  knobs (only .knob-stem rotates), lesson rows, footer, #tooltip outside #plugin.
+
+  Real data used: TYPE presets (baseT60, preDelayMs, earlySpanMs, earlyLevel,
+  sizeLo/Hi, type EQ) from PluginProcessor.cpp; ER tap times + 1/t alternating
+  gains (unit energy per side) from dsp/EarlyReflections.h; Character warm SVF
+  low-pass / bright 4 kHz shelf and the Low Cut SVF high-pass from
+  updateCharacterCoefficients() / processBlock.
+
+  Debug strip (outside #plugin, top-right): scale 0.6 / 1.0 / 1.5 and en / fr /
+  zh-Hans. URL: ?lang=fr  ?shot=1 (hides the strip)  ?scale=1.5
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>O-simpleReverb — mockup</title>
+<link rel="stylesheet" href="css/eb-garamond.css">
+<style>
+  :root {
+    --bg-paper-light: #FAF0E6;
+    --bg-paper: #F5E6D3;
+    --brown-border: #8B7355;
+    --brown-frame: #5C4033;
+    --brown-text: #3C2F2F;
+    --brown-soft: #5C4033;
+    --green-light: #8BA870;
+    --green-mid: #6B8E4E;
+    --green-dark: #3C5C1A;
+    --green-darkest: #2C3E10;
+    --brass-1: #E8B04A;
+    --brass-2: #C98F38;
+    --knob-ring: #C9A27B;
+    --knob-seg-1: #F5DEB3;
+    --knob-seg-2: #E8D5B7;
+    --knob-divider: #8B7355;
+    --knob-core: #FFF8DC;
+    --knob-border: #8B7355;
+    --btn-active: rgba(107, 142, 35, 0.6);
+    --btn-border-active: #2C3E10;
+    --shadow-light: rgba(0, 0, 0, 0.15);
+    --shadow-medium: rgba(0, 0, 0, 0.25);
+    --text-emboss: rgba(255, 255, 255, 0.5);
+    --text-muted: #715D45;
+    --green-text: #4E6838;
+    --green-fill-strong: #55703E;
+    --well-top: #2a2118;
+    --well-bot: #1c160f;
+    --ink-sage: #9ec46f;
+    --ink-parch: #d6c4a0;
+    --ink-amber: #e8b04a;
+    --ink-brass: #f3cd86;
+    --serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    --symbol-font: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS',
+                   'PingFang SC', 'Microsoft YaHei', serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; width: 100%; overflow: hidden; }
+  body.forced { overflow: auto; }
+  body {
+    position: relative;
+    font-family: var(--serif);
+    color: var(--brown-text);
+    background: var(--bg-paper);
+    -webkit-user-select: none; user-select: none;
+    cursor: default;
+  }
+
+  #plugin {
+    position: absolute; left: 0; top: 0;
+    width: 1180px; height: 780px;
+    transform-origin: 0 0;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 30% 20%, var(--bg-paper-light), transparent 60%),
+      repeating-linear-gradient(0deg, rgba(92, 64, 51, 0.015) 0, rgba(92, 64, 51, 0.015) 1px, transparent 1px, transparent 3px),
+      var(--bg-paper);
+  }
+  .botanical-overlay {
+    position: absolute; right: -30px; top: 50%; transform: translateY(-50%);
+    height: 86%; opacity: 0.14; pointer-events: none; z-index: 0;
+    filter: sepia(0.35) saturate(0.7) brightness(0.95);
+  }
+  .frame {
+    position: relative; z-index: 1; width: 100%; height: 100%;
+    padding: 12px 16px;
+    display: flex; flex-direction: column; gap: 8px;
+    border: 3px solid var(--brown-frame);
+    border-image: linear-gradient(160deg, #6b5340, #5C4033) 1;
+  }
+  .frame > * { flex-shrink: 0; }
+
+  /* ── Header (Ambisonics verbatim) ── */
+  .header { height: 50px; display: flex; align-items: center; gap: 18px; border-bottom: 1px solid rgba(139, 115, 85, 0.4); padding-bottom: 6px; }
+  .title-block { flex: 0 0 425px; width: 425px; min-width: 0; }
+  .title { font-size: 25px; font-weight: 400; letter-spacing: 3px; line-height: 1.1; color: var(--brown-frame); text-shadow: 1px 1px 2px var(--text-emboss); white-space: nowrap; }
+  .title-accent { color: var(--green-mid); font-style: italic; }
+  .subtitle { font-size: 11px; letter-spacing: 1.4px; line-height: 1.1; text-transform: uppercase; color: var(--text-muted); margin-top: 3px; white-space: nowrap; max-width: 425px; overflow: hidden; text-overflow: ellipsis; }
+  .header-strip { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+  .chip {
+    height: 32px; padding: 2px 11px;
+    display: flex; flex-direction: column; justify-content: center;
+    background: rgba(235, 217, 199, 0.65);
+    border: 1px solid rgba(139, 115, 85, 0.45); border-radius: 4px;
+    box-shadow: inset 1px 1px 3px rgba(92, 64, 51, 0.12);
+    white-space: nowrap; overflow: hidden;
+  }
+  #chipTail { width: 236px; }
+  .chip-head { font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-muted); line-height: 1.1; overflow: hidden; text-overflow: ellipsis; }
+  .chip-body { font-size: 12.5px; letter-spacing: 0.3px; color: var(--green-text); line-height: 1.15; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; }
+  .chip-body i { color: var(--brown-text); font-style: italic; }
+
+  .preset-bar { position: relative; flex: 0 0 auto; display: flex; align-items: center; gap: 5px; }
+  .preset-bar button {
+    font-family: inherit; color: var(--green-darkest); background: var(--bg-paper-light);
+    border: 1px solid var(--brown-border); border-radius: 4px; height: 24px; cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease; white-space: nowrap;
+  }
+  .preset-bar button:hover { background: var(--green-light); color: #1f2b08; }
+  .preset-bar button:active { transform: translateY(1px); }
+  .preset-bar button:disabled { opacity: 0.4; cursor: default; background: var(--bg-paper-light); color: var(--green-darkest); transform: none; }
+  .preset-nav { flex: 0 0 22px; width: 22px; padding: 0; font-family: var(--symbol-font) !important; font-size: 10px; line-height: 1; }
+  .preset-name { position: relative; flex: 0 0 213px; width: 213px; padding: 0 14px 0 10px; font-size: 11.5px; letter-spacing: 0.4px; text-align: center; }
+  .preset-name-text { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .preset-name::after { content: ''; position: absolute; top: 4px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--brass-2); opacity: 0; }
+  .preset-bar.modified .preset-name::after { opacity: 1; }
+  .preset-act { flex: 0 0 64px; width: 64px; padding: 0 10px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; overflow: hidden; }
+  .preset-list {
+    position: absolute; top: calc(100% + 5px); left: 27px; z-index: 60;
+    width: 213px; max-height: 330px; overflow-y: auto; padding: 4px;
+    background: rgba(250, 240, 230, 0.99);
+    border: 1.5px solid var(--brown-frame); border-radius: 5px;
+    box-shadow: 2px 6px 16px rgba(0, 0, 0, 0.4);
+  }
+  .preset-list[hidden] { display: none; }
+  .preset-option { height: 24px; line-height: 16px; padding: 4px 9px; font-size: 11.5px; color: var(--brown-text); border-radius: 3px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .preset-option:hover { background: rgba(139, 168, 112, 0.35); }
+  .preset-option.current { background: rgba(107, 142, 35, 0.32); font-weight: 600; }
+  .preset-group { height: 20px; line-height: 20px; padding: 0 9px; font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); }
+  .preset-separator { margin: 3px 6px; border-top: 1px dotted rgba(139, 115, 85, 0.6); height: 0; }
+
+  .settings-cluster { position: relative; flex: 0 0 auto; display: flex; align-items: center; }
+  .gear-btn {
+    width: 26px; height: 26px; padding: 0; font-family: var(--symbol-font); font-size: 14px; line-height: 1;
+    color: var(--green-darkest); background: rgba(139, 168, 112, 0.25);
+    border: 1.5px solid var(--green-mid); border-radius: 50%; cursor: pointer;
+    box-shadow: 1px 1px 3px var(--shadow-light); transition: background 0.15s ease;
+  }
+  .gear-btn:hover { background: rgba(139, 168, 112, 0.45); }
+  .gear-btn[aria-expanded="true"] { background: var(--btn-active); border-color: var(--btn-border-active); }
+  .settings-popover {
+    position: absolute; top: calc(100% + 6px); right: 0; z-index: 40;
+    width: 236px; padding: 9px 10px; display: flex; flex-direction: column; gap: 8px;
+    background: var(--bg-paper-light); border: 1px solid var(--brown-border); border-radius: 5px;
+    box-shadow: 0 6px 18px var(--shadow-medium);
+  }
+  .settings-popover[hidden] { display: none; }
+  .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .settings-label { flex: 1 1 auto; min-width: 0; font-size: 11px; letter-spacing: 0.8px; text-transform: uppercase; color: var(--brown-frame); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .settings-select {
+    flex: 0 0 104px; width: 104px; height: 26px; font-family: inherit; font-size: 12px; text-align: center;
+    color: var(--brown-text); background: var(--bg-paper-light);
+    border: 1.5px solid var(--brown-border); border-radius: 4px; cursor: pointer;
+  }
+  .settings-toggle {
+    flex: 0 0 104px; width: 104px; height: 26px; font-family: inherit; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px;
+    color: var(--green-darkest); background: var(--bg-paper-light);
+    border: 1.5px solid var(--brown-border); border-radius: 4px; cursor: pointer; white-space: nowrap; overflow: hidden;
+  }
+  .settings-toggle[aria-pressed="true"] { background: var(--green-dark); border-color: var(--green-dark); color: var(--bg-paper-light); }
+
+  /* ── Visual band: decay | early reflections | tone ── */
+  .viz-band { height: 334px; display: flex; gap: 10px; }
+  .viz-block { display: flex; flex-direction: column; min-width: 0; }
+  .viz-decay { flex: 0 0 462px; }
+  .viz-er    { flex: 0 0 330px; }
+  .viz-tone  { flex: 1 1 0; }
+  .viz-label {
+    height: 18px; font-size: 10.5px; line-height: 1.3; text-transform: uppercase; letter-spacing: 1.1px;
+    color: var(--text-muted); margin-bottom: 4px; white-space: nowrap; overflow: hidden;
+    display: flex; align-items: baseline; gap: 5px;
+  }
+  .viz-label b { font-weight: 500; color: var(--green-darkest); letter-spacing: 1.4px; flex: 0 0 auto; }
+  .viz-hint { text-transform: none; letter-spacing: 0.3px; font-style: italic; font-size: 11.5px; color: var(--green-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .canvas-wrap {
+    flex: 1; position: relative;
+    background: linear-gradient(180deg, var(--well-top) 0%, var(--well-bot) 100%);
+    border: 2px solid var(--brown-border); border-radius: 4px;
+    box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.55), 1px 1px 0 rgba(255, 248, 220, 0.5);
+    overflow: hidden;
+  }
+  .canvas-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .well-text { position: absolute; pointer-events: none; color: var(--ink-parch); }
+  .w-tl { left: 11px; top: 8px; }
+  .w-big { font-size: 20px; line-height: 1; letter-spacing: 0.3px; color: var(--ink-brass); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .w-big .unit { font-size: 12px; color: rgba(214, 196, 160, 0.75); letter-spacing: 0.6px; }
+  .w-sub { margin-top: 3px; font-size: 11.5px; line-height: 12px; height: 12px; font-style: italic; color: rgba(214, 196, 160, 0.85); white-space: nowrap; }
+  .w-tr { right: 10px; top: 8px; text-align: right; font-size: 11px; line-height: 1.35; letter-spacing: 0.3px; color: rgba(214, 196, 160, 0.82); white-space: nowrap; }
+  .w-tr .sw { display: inline-block; width: 14px; height: 0; border-top: 2px solid; vertical-align: middle; margin-left: 5px; }
+  .w-tr .sw.dash { border-top-style: dashed; }
+  .w-tr .sw.dot { border-top-style: dotted; }
+  .k-amber { color: var(--ink-amber); } .k-sage { color: var(--ink-sage); } .k-brass { color: var(--ink-brass); } .k-parch { color: var(--ink-parch); }
+  .w-center { left: 20px; right: 20px; top: 50%; transform: translateY(-50%); text-align: center; }
+  .w-center .n1 { font-size: 14px; letter-spacing: 1.1px; text-transform: uppercase; color: var(--ink-brass); }
+  .w-center .n2 { margin-top: 4px; font-size: 12px; font-style: italic; color: rgba(214, 196, 160, 0.85); line-height: 1.3; }
+  .w-center[hidden], .w-tr[hidden] { display: none; }
+  .w-br { right: 10px; bottom: 7px; text-align: right; font-size: 11px; font-style: italic; color: rgba(158, 196, 111, 0.92); white-space: nowrap; }
+
+  /* ── Signal path ── */
+  .sigpath { height: 34px; position: relative; display: flex; gap: 8px; align-items: center; }
+  .sigpath::before { content: ""; position: absolute; left: 8px; right: 8px; top: 50%; height: 0; border-top: 1.5px solid rgba(139, 115, 85, 0.55); }
+  .sig-col { position: relative; display: flex; justify-content: center; align-items: center; min-width: 0; }
+  .sig-col.c-input  { flex: 0 0 150px; }
+  .sig-col.c-early  { flex: 0 0 166px; }
+  .sig-col.c-engine { flex: 0 0 164px; }
+  .sig-col.c-tone   { flex: 0 0 258px; }
+  .sig-col.c-mix    { flex: 0 0 214px; }
+  .sig-col.c-output { flex: 0 0 150px; }
+  .sig-col + .sig-col::before {
+    content: ""; position: absolute; left: -5px; top: 50%; width: 0; height: 0; transform: translateY(-50%);
+    border-top: 4px solid transparent; border-bottom: 4px solid transparent; border-left: 6px solid rgba(139, 115, 85, 0.75);
+  }
+  .station {
+    position: relative; height: 30px; padding: 0 10px;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    background: var(--bg-paper-light); border: 1.5px solid var(--brown-border); border-radius: 15px;
+    box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.08), 1px 1px 3px var(--shadow-light);
+    transition: background 0.5s ease, color 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease;
+    white-space: nowrap; overflow: hidden;
+  }
+  #st-input  { width: 104px; }
+  #st-early  { width: 140px; }
+  #st-engine { width: 136px; }
+  #st-tone   { width: 176px; }
+  #st-mix    { width: 156px; }
+  #st-output { width: 110px; }
+  .station .st-name { font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--green-darkest); line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .station .st-sub { font-size: 10px; letter-spacing: 0.3px; font-style: italic; color: var(--text-muted); line-height: 1.1; margin-top: 1px; font-variant-numeric: tabular-nums; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .station.on { background: var(--green-fill-strong); border-color: var(--green-darkest); box-shadow: 0 0 0 3px rgba(139, 168, 112, 0.35), inset 0 1px 2px rgba(0,0,0,0.25); transition-duration: 0.08s; }
+  .station.on .st-name { color: #f5f0e6; }
+  .station.on .st-sub { color: #e8e0c8; }
+  .station.dim { opacity: 0.55; }
+
+  /* ── Control groups ── */
+  .controls { height: 214px; display: flex; gap: 8px; }
+  .group {
+    background: rgba(250, 240, 230, 0.45); border: 1px solid rgba(139, 115, 85, 0.35); border-radius: 5px;
+    padding: 6px 10px 8px; display: flex; flex-direction: column; gap: 6px; min-width: 0;
+  }
+  .group-engine { flex: 0 0 496px; }
+  .group-tone   { flex: 0 0 258px; }
+  .group-mix    { flex: 0 0 214px; }
+  .group-output { flex: 0 0 150px; }
+  .group-title {
+    font-size: 12.5px; font-weight: 500; line-height: 1.25; text-transform: uppercase; letter-spacing: 1.4px;
+    color: var(--green-darkest); border-bottom: 1px dotted rgba(139, 115, 85, 0.45); padding-bottom: 3px;
+    display: flex; align-items: baseline; gap: 6px; white-space: nowrap;
+  }
+  .group-title > span:first-child { flex: 0 0 auto; }
+  .group-route { font-size: 11px; font-style: italic; letter-spacing: 0.4px; text-transform: none; color: var(--green-text); font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .group-body { flex: 1; display: flex; gap: 10px; min-height: 0; }
+  .sub-rule { flex: 0 0 1px; background: repeating-linear-gradient(180deg, rgba(139,115,85,0.45) 0 2px, transparent 2px 4px); }
+  .col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+
+  /* Family A seed knob */
+  .knob-row { display: flex; gap: 8px; align-items: flex-start; }
+  .knob-cell { display: flex; flex-direction: column; align-items: center; width: 92px; position: relative; transition: opacity 0.2s ease; }
+  .knob-wrap { position: relative; }
+  .knob {
+    width: 54px; height: 54px; border-radius: 50%; position: relative;
+    border: 2px solid var(--knob-border); cursor: ns-resize; touch-action: none;
+    background:
+      radial-gradient(circle, transparent 88%, var(--knob-ring) 88%, var(--knob-ring) 92%, var(--knob-divider) 92%, var(--knob-divider) 94%, transparent 94%),
+      conic-gradient(from 0deg,
+        var(--knob-seg-1) 0deg,   var(--knob-seg-1) 18deg,  var(--knob-divider) 18deg,  var(--knob-divider) 19deg,
+        var(--knob-seg-2) 19deg,  var(--knob-seg-2) 36deg,  var(--knob-divider) 36deg,  var(--knob-divider) 37deg,
+        var(--knob-seg-1) 37deg,  var(--knob-seg-1) 54deg,  var(--knob-divider) 54deg,  var(--knob-divider) 55deg,
+        var(--knob-seg-2) 55deg,  var(--knob-seg-2) 72deg,  var(--knob-divider) 72deg,  var(--knob-divider) 73deg,
+        var(--knob-seg-1) 73deg,  var(--knob-seg-1) 90deg,  var(--knob-divider) 90deg,  var(--knob-divider) 91deg,
+        var(--knob-seg-2) 91deg,  var(--knob-seg-2) 108deg, var(--knob-divider) 108deg, var(--knob-divider) 109deg,
+        var(--knob-seg-1) 109deg, var(--knob-seg-1) 126deg, var(--knob-divider) 126deg, var(--knob-divider) 127deg,
+        var(--knob-seg-2) 127deg, var(--knob-seg-2) 144deg, var(--knob-divider) 144deg, var(--knob-divider) 145deg,
+        var(--knob-seg-1) 145deg, var(--knob-seg-1) 162deg, var(--knob-divider) 162deg, var(--knob-divider) 163deg,
+        var(--knob-seg-2) 163deg, var(--knob-seg-2) 180deg, var(--knob-divider) 180deg, var(--knob-divider) 181deg,
+        var(--knob-seg-1) 181deg, var(--knob-seg-1) 198deg, var(--knob-divider) 198deg, var(--knob-divider) 199deg,
+        var(--knob-seg-2) 199deg, var(--knob-seg-2) 216deg, var(--knob-divider) 216deg, var(--knob-divider) 217deg,
+        var(--knob-seg-1) 217deg, var(--knob-seg-1) 234deg, var(--knob-divider) 234deg, var(--knob-divider) 235deg,
+        var(--knob-seg-2) 235deg, var(--knob-seg-2) 252deg, var(--knob-divider) 252deg, var(--knob-divider) 253deg,
+        var(--knob-seg-1) 253deg, var(--knob-seg-1) 270deg, var(--knob-divider) 270deg, var(--knob-divider) 271deg,
+        var(--knob-seg-2) 271deg, var(--knob-seg-2) 288deg, var(--knob-divider) 288deg, var(--knob-divider) 289deg,
+        var(--knob-seg-1) 289deg, var(--knob-seg-1) 306deg, var(--knob-divider) 306deg, var(--knob-divider) 307deg,
+        var(--knob-seg-2) 307deg, var(--knob-seg-2) 324deg, var(--knob-divider) 324deg, var(--knob-divider) 325deg,
+        var(--knob-seg-1) 325deg, var(--knob-seg-1) 342deg, var(--knob-divider) 342deg, var(--knob-divider) 343deg,
+        var(--knob-seg-2) 343deg, var(--knob-seg-2) 360deg),
+      radial-gradient(circle, var(--knob-core) 0%, var(--knob-core) 20%, transparent 20%);
+    box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.3), inset -1px -1px 2px rgba(255, 248, 220, 0.5), 2px 2px 6px var(--shadow-medium);
+    transition: transform 0.1s ease;
+  }
+  .knob:hover { transform: scale(1.05); }
+  .knob:active { transform: scale(0.98); }
+  .knob-stem {
+    position: absolute; left: 50%; top: 50%; width: 2.5px; height: 23px;
+    background: var(--green-darkest); border-radius: 1.5px;
+    transform-origin: 50% 100%; transform: translate(-50%, -100%) rotate(0deg);
+    pointer-events: none; box-shadow: 0 0 1px rgba(255, 248, 220, 0.6);
+  }
+  .bipolar .knob-wrap::before {
+    content: ""; position: absolute; left: 50%; top: -6px; width: 0; height: 0; transform: translateX(-50%);
+    border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid var(--brown-border);
+  }
+  .knob-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--brown-soft); margin-top: 5px; text-align: center; line-height: 1.1; white-space: nowrap; }
+  .knob-value { font-size: 12.5px; color: var(--brown-text); margin-top: 1px; text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .knob-sub { font-size: 10.5px; font-style: italic; color: var(--green-text); text-align: center; white-space: nowrap; line-height: 1.15; height: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .knob-cell.off .knob-wrap, .knob-cell.off .knob-value, .knob-cell.off .knob-label { opacity: 0.42; }
+  .knob-cell.off .knob-sub { color: var(--text-muted); }
+
+  /* Segmented rows */
+  .seg-cell { display: flex; flex-direction: column; gap: 3px; }
+  .seg-cap { font-size: 10px; letter-spacing: 0.6px; text-transform: uppercase; color: var(--brown-soft); line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .seg {
+    display: flex; height: 26px; border: 1.5px solid var(--brown-border); border-radius: 4px; overflow: hidden;
+    background: var(--bg-paper-light); box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.1);
+  }
+  .seg button {
+    flex: 1 1 0; min-width: 0; font-family: inherit; font-size: 11px; letter-spacing: 0.9px; text-transform: uppercase;
+    color: var(--brown-soft); background: transparent; border: none; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+  .seg button + button { border-left: 1px solid rgba(139, 115, 85, 0.55); }
+  .seg button:hover { background: rgba(139, 168, 112, 0.25); }
+  .seg button.on { background: var(--green-fill-strong); color: #f5f0e6; box-shadow: inset 0 1px 2px rgba(0,0,0,0.25); }
+  /* Engine tags under the TYPE row: one per button, the chosen one inked */
+  .eng-tags { display: flex; height: 13px; }
+  .eng-tags span {
+    flex: 1 1 0; min-width: 0; text-align: center; font-size: 10px; line-height: 13px; font-style: italic; letter-spacing: 0.3px;
+    color: rgba(113, 93, 69, 0.75); white-space: nowrap; overflow: hidden; position: relative;
+  }
+  .eng-tags span.fdn::before { content: ""; position: absolute; left: 6px; right: 6px; top: 2px; border-top: 1px dotted rgba(139,115,85,0.35); }
+  .eng-tags span.on { color: var(--green-text); font-weight: 500; }
+  .eng-tags span i { position: relative; background: var(--bg-paper); padding: 0 3px; font-style: italic; }
+
+  .type-note {
+    flex: 1 1 0; min-width: 0; font-size: 11.5px; color: var(--brown-text); line-height: 1.3;
+    padding: 6px 8px; background: rgba(235, 217, 199, 0.6); border: 1px solid rgba(139, 115, 85, 0.4); border-radius: 4px;
+    box-shadow: inset 1px 1px 3px rgba(92, 64, 51, 0.12); height: 92px; overflow: hidden;
+  }
+  .type-note b { font-weight: 500; color: var(--green-darkest); letter-spacing: 0.8px; }
+  .group-note { font-size: 10.5px; font-style: italic; color: var(--green-text); text-align: center; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* IN / OUT pill (LPON) above the Low Cut knob */
+  .pill-row { height: 18px; display: flex; justify-content: center; align-items: center; margin-bottom: 4px; }
+  .pill {
+    height: 17px; min-width: 44px; padding: 0 8px; border-radius: 9px;
+    font-family: inherit; font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase; line-height: 1;
+    color: var(--brown-soft); background: var(--bg-paper-light); border: 1px solid var(--brown-border); cursor: pointer;
+    box-shadow: inset 1px 1px 2px rgba(0,0,0,0.1);
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+  .pill.on { background: var(--green-fill-strong); color: #f5f0e6; border-color: var(--green-darkest); }
+  .pill:hover { background: rgba(139, 168, 112, 0.35); }
+  .pill.on:hover { background: #4a6436; }
+  .knob-cell .range-ends { position: absolute; top: 46px; left: 0; right: 0; display: flex; justify-content: space-between; font-size: 9.5px; color: var(--text-muted); pointer-events: none; }
+
+  /* Output */
+  .out-meter-wrap { flex: 1 1 0; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .out-meter {
+    position: relative; flex: 1 1 auto;
+    background: linear-gradient(180deg, var(--well-top) 0%, var(--well-bot) 100%);
+    border: 1.5px solid var(--brown-border); border-radius: 4px;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5); overflow: hidden;
+  }
+  .out-meter canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .meter-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--brown-soft); margin-top: 2px; text-align: center; line-height: 1.1; white-space: nowrap; }
+
+  /* ── Lesson rows ── */
+  .preset-tour { height: 58px; display: flex; flex-direction: column; gap: 6px; padding: 4px 4px 0; border-top: 1px solid rgba(139, 115, 85, 0.4); }
+  .tour-row { height: 23px; display: flex; align-items: center; gap: 10px; }
+  .tour-label { flex: 0 0 62px; width: 62px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-muted); white-space: nowrap; overflow: hidden; }
+  .tour-buttons { display: flex; gap: 6px; flex: 1 1 0; min-width: 0; }
+  .tour-btn {
+    font-family: inherit; font-size: 12px; letter-spacing: 0.4px; color: var(--brown-text); background: var(--bg-paper-light);
+    border: 1px solid var(--brown-border); border-radius: 4px; height: 23px; padding: 0 8px; cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease, border-color 0.15s ease; white-space: nowrap;
+  }
+  .tour-row.types .tour-btn { width: 84px; }
+  .tour-btn:hover { background: var(--green-light); color: #1f2b08; transform: translateY(-1px); }
+  .tour-btn.active { background: var(--green-fill-strong); color: #f5f0e6; border-color: var(--green-darkest); }
+  .tour-hint { margin-left: auto; flex: 0 0 210px; width: 210px; font-size: 12px; font-style: italic; color: var(--brown-soft); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+  .footer {
+    margin-top: auto; height: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    font-size: 10px; letter-spacing: 0.9px; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; overflow: hidden;
+  }
+  .footer > span { flex: 0 0 auto; }
+  .footer i { text-transform: none; letter-spacing: 0.3px; font-size: 11.5px; color: var(--green-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: center; flex: 1 1 auto; }
+
+  /* Tooltip (body child, never scaled) */
+  .tooltip {
+    position: fixed; left: 0; top: 0; z-index: 1000; max-width: 300px;
+    background: #2a2118; color: #f5e6d3; border: 1px solid var(--brown-border); border-radius: 5px;
+    padding: 8px 11px; font-family: var(--serif); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+    pointer-events: none; opacity: 0; transition: opacity 0.11s ease-out;
+  }
+  .tooltip.visible { opacity: 1; }
+  .tooltip-title { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.8px; color: var(--green-light); margin-bottom: 3px; }
+  .tooltip-body { font-size: 13px; line-height: 1.35; color: #f5e6d3; }
+  .tooltip::after { content: ''; position: absolute; left: var(--arrow-x, 50%); transform: translateX(-50%); border: 5px solid transparent; }
+  .tooltip[data-placement="above"]::after { top: 100%; border-top-color: var(--brown-border); }
+  .tooltip[data-placement="below"]::after { bottom: 100%; border-bottom-color: var(--brown-border); }
+
+  /* Debug strip (mockup only) */
+  #debug {
+    position: fixed; top: 6px; right: 6px; z-index: 2000;
+    display: flex; gap: 4px; align-items: center; padding: 4px 6px;
+    font: 11px/1 -apple-system, system-ui, sans-serif; color: #f5e6d3;
+    background: rgba(28, 22, 15, 0.88); border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+  }
+  #debug[hidden] { display: none; }
+  #debug .sep { width: 1px; height: 14px; background: rgba(245,230,211,0.25); margin: 0 3px; }
+  #debug button { font: inherit; color: inherit; background: rgba(245,230,211,0.08); border: 1px solid rgba(245,230,211,0.2); border-radius: 4px; padding: 3px 6px; cursor: pointer; }
+  #debug button.on { background: #55703E; border-color: #9ec46f; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .knob, .station, .tour-btn, .seg button, .tooltip, .pill, .knob-cell { transition: none; }
+    .knob:hover, .knob:active, .tour-btn:hover { transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="plugin">
+  <img src="img/insects.png" class="botanical-overlay" alt="">
+
+  <div class="frame">
+    <!-- ─── Header ─── -->
+    <header class="header">
+      <div class="title-block">
+        <h1 class="title">O&#8202;&#8211;&#8202;simple<span class="title-accent">Reverb</span></h1>
+        <p class="subtitle" data-i18n="subtitle">Space · Tail · Tone · A Field Guide to Reverberation</p>
+      </div>
+      <div class="header-strip">
+        <div class="chip" id="chipTail" data-tip-key="tip.chip">
+          <div class="chip-head" data-i18n="chipHead">Tail</div>
+          <div class="chip-body" id="chipBody">Room · RT60 1.10 s · pre 15 ms</div>
+        </div>
+        <div class="preset-bar" id="presetBar">
+          <button type="button" class="preset-nav" id="presetPrev" aria-label="Previous preset">&#9664;</button>
+          <button type="button" class="preset-name" id="presetName" data-tip-key="tip.presetName"><span class="preset-name-text" id="presetNameText">Init</span></button>
+          <button type="button" class="preset-nav" id="presetNext" aria-label="Next preset">&#9654;</button>
+          <button type="button" class="preset-act" id="presetSave"><span data-i18n="save">Save</span></button>
+          <button type="button" class="preset-act" id="presetDelete" disabled><span data-i18n="delete">Delete</span></button>
+          <div class="preset-list" id="presetList" hidden></div>
+        </div>
+      </div>
+      <div class="settings-cluster">
+        <button type="button" class="gear-btn" id="gear-btn" aria-expanded="false" data-tip-key="tip.gear">&#9881;</button>
+        <div class="settings-popover" id="settings-popover" hidden>
+          <label class="settings-row" for="lang-select">
+            <span class="settings-label" data-i18n="language">Language</span>
+            <select class="settings-select" id="lang-select">
+              <option value="en">English</option>
+              <option value="fr">Fran&ccedil;ais</option>
+              <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
+            </select>
+          </label>
+          <div class="settings-row">
+            <span class="settings-label" data-i18n="hoverHelp">Hover help</span>
+            <button type="button" class="settings-toggle" id="tips-toggle" aria-pressed="true" data-i18n="on">On</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ─── Visual band ─── -->
+    <section class="viz-band">
+      <div class="viz-block viz-decay">
+        <div class="viz-label"><b data-i18n="decayTitle">Live Decay</b> &#183; <span class="viz-hint" data-i18n="decayHint">level over the last 6 seconds</span></div>
+        <div class="canvas-wrap" id="decayWrap" data-tip-key="tip.decayWell">
+          <canvas id="decayCanvas"></canvas>
+          <div class="well-text w-tl">
+            <div class="w-big"><span id="dwRt">1.10 s</span> <span class="unit">RT60</span></div>
+            <div class="w-sub" id="dwSub">Room × 1.00</div>
+          </div>
+          <div class="well-text w-tr">
+            <div><span class="k-amber" data-i18n="lgInput">input</span><span class="sw" style="color:#e8b04a"></span></div>
+            <div><span class="k-sage" data-i18n="lgTail">wet tail</span><span class="sw" style="color:#9ec46f"></span></div>
+            <div><span class="k-brass" data-i18n="lgSlope">RT60 slope</span><span class="sw dash" style="color:#f3cd86"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="viz-block viz-er">
+        <div class="viz-label"><b data-i18n="erTitle">Early Reflections</b> &#183; <span class="viz-hint" data-i18n="erHint">L above · R below</span></div>
+        <div class="canvas-wrap" id="erWrap" data-tip-key="tip.erWell">
+          <canvas id="erCanvas"></canvas>
+          <div class="well-text w-tl">
+            <div class="w-big"><span id="erPre">15 ms</span> <span class="unit" data-i18n="unitPre">pre-delay</span></div>
+            <div class="w-sub" id="erSub">8 taps a side over 23.0 ms</div>
+          </div>
+          <div class="well-text w-tr" id="erLegend">
+            <div><span class="k-sage" data-i18n="lgLeft">left</span> <span class="k-sage">&#9679;</span></div>
+            <div><span class="k-amber" data-i18n="lgRight">right</span> <span class="k-amber">&#9679;</span></div>
+            <div><span data-i18n="lgInverted">inverted</span> <span>&#9675;</span></div>
+          </div>
+          <div class="well-text w-center" id="erNone" hidden>
+            <div class="n1" id="erNone1">No early reflections</div>
+            <div class="n2" id="erNone2">a plate has none: the tank is dense at once</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="viz-block viz-tone">
+        <div class="viz-label"><b data-i18n="toneTitle">Tone of the Tail</b> &#183; <span class="viz-hint" data-i18n="toneHint">wet path only</span></div>
+        <div class="canvas-wrap" id="toneWrap" data-tip-key="tip.toneWell">
+          <canvas id="toneCanvas"></canvas>
+          <div class="well-text w-tl">
+            <div class="w-big" id="twBig">flat</div>
+            <div class="w-sub" id="twSub">Room EQ · none</div>
+          </div>
+          <div class="well-text w-tr">
+            <div><span class="k-sage" data-i18n="lgResponse">response</span><span class="sw" style="color:#9ec46f"></span></div>
+            <div><span class="k-amber" data-i18n="lgCharacter">character</span><span class="sw dash" style="color:#e8b04a"></span></div>
+            <div><span class="k-brass" data-i18n="lgLowCut">low cut</span><span class="sw dot" style="color:#f3cd86"></span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Signal path ─── -->
+    <section class="sigpath" id="sigpath">
+      <div class="sig-col c-input"><div class="station" id="st-input" data-tip-key="tip.stInput"><span class="st-name" data-i18n="stInput">Input</span><span class="st-sub" data-i18n="lr">L / R</span></div></div>
+      <div class="sig-col c-early"><div class="station" id="st-early" data-tip-key="tip.stEarly"><span class="st-name" data-i18n="stEarly">Early</span><span class="st-sub" id="stEarlySub">pre 15 ms · 8 taps</span></div></div>
+      <div class="sig-col c-engine"><div class="station" id="st-engine" data-tip-key="tip.stEngine"><span class="st-name" data-i18n="stEngine">Engine</span><span class="st-sub" id="stEngineSub">FDN · 16 lines</span></div></div>
+      <div class="sig-col c-tone"><div class="station" id="st-tone" data-tip-key="tip.stTone"><span class="st-name" data-i18n="stTone">Tone</span><span class="st-sub" id="stToneSub">neutral · low cut out</span></div></div>
+      <div class="sig-col c-mix"><div class="station" id="st-mix" data-tip-key="tip.stMix"><span class="st-name" data-i18n="stMix">Mix</span><span class="st-sub" id="stMixSub">wet 25 · dry 100</span></div></div>
+      <div class="sig-col c-output"><div class="station" id="st-output" data-tip-key="tip.stOutput"><span class="st-name" data-i18n="stOutput">Output</span><span class="st-sub" data-i18n="lr">L / R</span></div></div>
+    </section>
+
+    <!-- ─── Control groups (signal order) ─── -->
+    <main class="controls">
+      <!-- ENGINE: TYPE + SIZE + DECAY -->
+      <section class="group group-engine">
+        <h2 class="group-title"><span data-i18n="gEngine">Engine</span> <span class="group-route" data-i18n="rEngine">the space, and how long it rings</span></h2>
+        <div class="seg-cell" data-tip-key="tip.type">
+          <span class="seg-cap" data-i18n="type">Type</span>
+          <!-- Faces are the AudioParameterChoice strings (I18N_EXEMPT) -->
+          <div class="seg" id="seg-type">
+            <button type="button" data-v="0">Booth</button><button type="button" data-v="1">Room</button><button type="button" data-v="2">Hall</button><button type="button" data-v="3">Spring</button><button type="button" data-v="4">Plate</button><button type="button" data-v="5">Ambient</button>
+          </div>
+          <div class="eng-tags" id="engTags">
+            <span class="fdn" data-v="0"><i>FDN</i></span><span class="fdn" data-v="1"><i>FDN</i></span><span class="fdn" data-v="2"><i>FDN</i></span><span data-v="3"><i data-i18n="engSpring">spring</i></span><span data-v="4"><i data-i18n="engPlate">plate</i></span><span class="fdn" data-v="5"><i>FDN</i></span>
+          </div>
+        </div>
+        <div class="group-body">
+          <div class="knob-row">
+            <div class="knob-cell" data-param="SIZE" data-tip-key="tip.size">
+              <div class="knob-wrap"><div class="knob" id="knob-SIZE"><div class="knob-stem"></div></div></div>
+              <div class="knob-label" data-i18n="size">Size</div>
+              <div class="knob-value" id="val-SIZE">50 %</div>
+              <div class="knob-sub" id="sub-SIZE">walls ×1.00</div>
+            </div>
+            <div class="knob-cell" data-param="DECAY" data-tip-key="tip.decay">
+              <div class="knob-wrap"><div class="knob" id="knob-DECAY"><div class="knob-stem"></div></div></div>
+              <div class="knob-label" data-i18n="decay">Decay</div>
+              <div class="knob-value" id="val-DECAY">1.00×</div>
+              <div class="knob-sub" id="sub-DECAY">RT60 1.10 s</div>
+            </div>
+          </div>
+          <div class="sub-rule"></div>
+          <div class="type-note" id="typeNote"></div>
+        </div>
+      </section>
+
+      <!-- TONE: CHARACTER + LOW CUT -->
+      <section class="group group-tone">
+        <h2 class="group-title"><span data-i18n="gTone">Tone</span> <span class="group-route" data-i18n="rTone">colours the tail only</span></h2>
+        <div class="group-body" style="flex-direction: column; gap: 4px;">
+          <div class="knob-row" style="justify-content: space-around;">
+            <div class="knob-cell bipolar" data-param="CHARACTER" data-tip-key="tip.character">
+              <div class="pill-row"></div>
+              <div class="knob-wrap"><div class="knob" id="knob-CHARACTER"><div class="knob-stem"></div></div></div>
+              <div class="knob-label" data-i18n="character">Character</div>
+              <div class="knob-value" id="val-CHARACTER">neutral</div>
+              <div class="knob-sub" id="sub-CHARACTER">no filter</div>
+            </div>
+            <div class="knob-cell" data-param="LPFREQ" id="cell-LPFREQ" data-tip-key="tip.lowCut">
+              <div class="pill-row"><button type="button" class="pill" id="pill-LPON" data-tip-key="tip.lpon">Out</button></div>
+              <div class="knob-wrap"><div class="knob" id="knob-LPFREQ"><div class="knob-stem"></div></div></div>
+              <div class="knob-label" data-i18n="lowCut">Low Cut</div>
+              <div class="knob-value" id="val-LPFREQ">200 Hz</div>
+              <div class="knob-sub" id="sub-LPFREQ">bypassed</div>
+            </div>
+          </div>
+          <div class="group-note" style="margin-top: auto;" data-i18n="noteTone">the dry signal is never filtered</div>
+        </div>
+      </section>
+
+      <!-- MIX: WET + DRY -->
+      <section class="group group-mix">
+        <h2 class="group-title"><span data-i18n="gMix">Mix</span> <span class="group-route" data-i18n="rMix">two gains, not a crossfade</span></h2>
+        <div class="group-body" style="flex-direction: column; gap: 4px;">
+          <div class="knob-row" style="justify-content: space-around;">
+            <div class="knob-cell" data-param="WET" data-tip-key="tip.wet">
+              <div class="pill-row"></div>
+              <div class="knob-wrap"><div class="knob" id="knob-WET"><div class="knob-stem"></div></div></div>
+              <div class="knob-label" data-i18n="wet">Wet</div>
+              <div class="knob-value" id="val-WET">25 %</div>
+              <div class="knob-sub" id="sub-WET">reverb −12.0 dB</div>
+            </div>
+            <div class="knob-cell" data-param="DRY" data-tip-key="tip.dry">
+              <div class="pill-row"></div>
+              <div class="knob-wrap"><div class="knob" id="knob-DRY"><div class="knob-stem"></div></div></div>
+              <div class="knob-label" data-i18n="dry">Dry</div>
+              <div class="knob-value" id="val-DRY">100 %</div>
+              <div class="knob-sub" id="sub-DRY">source 0.0 dB</div>
+            </div>
+          </div>
+          <div class="group-note" style="margin-top: auto;" data-i18n="noteMix">insert: Dry 100 · send: Dry 0</div>
+        </div>
+      </section>
+
+      <!-- OUTPUT: meter -->
+      <section class="group group-output">
+        <h2 class="group-title"><span data-i18n="gOutput">Output</span> <span class="group-route" data-i18n="lr">L / R</span></h2>
+        <div class="group-body">
+          <div class="out-meter-wrap" data-tip-key="tip.meter">
+            <div class="out-meter"><canvas id="outCanvas"></canvas></div>
+            <div class="meter-label" data-i18n="peak">Peak · dry + wet</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ─── Lesson rows ─── -->
+    <section class="preset-tour">
+      <div class="tour-row types">
+        <div class="tour-label" data-i18n="rowSpaces">Spaces</div>
+        <div class="tour-buttons">
+          <button type="button" class="tour-btn" data-preset="booth">Booth</button>
+          <button type="button" class="tour-btn" data-preset="room">Room</button>
+          <button type="button" class="tour-btn" data-preset="hall">Hall</button>
+          <button type="button" class="tour-btn" data-preset="spring">Spring</button>
+          <button type="button" class="tour-btn" data-preset="plate">Plate</button>
+          <button type="button" class="tour-btn" data-preset="ambient">Ambient</button>
+        </div>
+        <div class="tour-hint" data-i18n="tourHint">hover anything for help</div>
+      </div>
+      <div class="tour-row ideas">
+        <div class="tour-label" data-i18n="rowIdeas">Ideas</div>
+        <div class="tour-buttons">
+          <button type="button" class="tour-btn" data-preset="init" data-i18n="lInit">Init</button>
+          <button type="button" class="tour-btn" data-preset="sizeVsDecay" data-i18n="lSizeDecay">Size ≠ Decay</button>
+          <button type="button" class="tour-btn" data-preset="character" data-i18n="lCharacter">Character</button>
+          <button type="button" class="tour-btn" data-preset="lowCut" data-i18n="lLowCut">Low Cut</button>
+          <button type="button" class="tour-btn" data-preset="insertSend" data-i18n="lInsertSend">Insert vs Send</button>
+        </div>
+        <div class="tour-hint" data-i18n="tourHint2">click a lesson, watch the wells</div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span>Ouaricon Audio &#183; O-simpleReverb</span>
+      <i id="tourCaption">input → early reflections → engine → tone → wet + dry → output</i>
+      <span data-i18n="footerRight">FDN · Dattorro plate · dispersive spring</span>
+    </footer>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
+
+<div id="debug">
+  <span>scale</span>
+  <button type="button" data-scale="0.6">0.6×</button><button type="button" data-scale="1">1.0×</button><button type="button" data-scale="1.5">1.5×</button><button type="button" data-scale="fit">fit</button>
+  <span class="sep"></span>
+  <button type="button" data-lang="en">en</button><button type="button" data-lang="fr">fr</button><button type="button" data-lang="zh-Hans">zh</button>
+  <span class="sep"></span>
+  <button type="button" id="dbgHide" title="hide (reload to restore)">&#215;</button>
+</div>
+
+<script>
+'use strict';
+// ════════════════════════════════════════════════════════════════════════
+//  Real DSP constants (PluginProcessor.cpp typePresets, EarlyReflections.h)
+// ════════════════════════════════════════════════════════════════════════
+const TYPES = [
+  { name: 'Booth',   engine: 'fdn',    t60: 0.40, sizeLo: 0.5,  sizeHi: 2.0,   span: 6.9,  early: 0.6,  pre: 3,  eq: { k: 'hp', f: 150,  g: 0,  q: 0.707 } },
+  { name: 'Room',    engine: 'fdn',    t60: 1.10, sizeLo: 0.5,  sizeHi: 2.0,   span: 23.0, early: 0.4,  pre: 15, eq: null },
+  { name: 'Hall',    engine: 'fdn',    t60: 3.00, sizeLo: 0.5,  sizeHi: 2.0,   span: 46.0, early: 0.3,  pre: 50, eq: { k: 'hs', f: 3000, g: -2, q: 0.5 } },
+  { name: 'Spring',  engine: 'spring', t60: 2.50, sizeLo: 0.75, sizeHi: 4 / 3, span: 0,    early: 0,    pre: 0,  eq: { k: 'pk', f: 800,  g: 4,  q: 2.5 } },
+  { name: 'Plate',   engine: 'plate',  t60: 2.50, sizeLo: 0.40, sizeHi: 0.80,  span: 0,    early: 0,    pre: 8,  eq: { k: 'hs', f: 5000, g: 3,  q: 0.707 } },
+  { name: 'Ambient', engine: 'fdn',    t60: 7.00, sizeLo: 0.5,  sizeHi: 2.0,   span: 57.5, early: 0.25, pre: 35, eq: { k: 'hs', f: 2500, g: -3, q: 0.5 } },
+];
+const ER_TIMES_L = [0.110, 0.205, 0.318, 0.433, 0.562, 0.694, 0.829, 1.000];
+const ER_TIMES_R = [0.143, 0.247, 0.279, 0.471, 0.523, 0.741, 0.873, 0.951];
+function erGains(times) {
+  const g = times.map((t, k) => (k % 2 === 0 ? 1 : -1) * times[0] / t);
+  const e = Math.sqrt(g.reduce((a, x) => a + x * x, 0));
+  return g.map((x) => x / e);
+}
+const ER_GAIN_L = erGains(ER_TIMES_L), ER_GAIN_R = erGains(ER_TIMES_R);
+function sizeScale(t, sizePct) { return t.sizeLo * Math.pow(t.sizeHi / t.sizeLo, Math.min(1, Math.max(0, sizePct / 100))); }
+
+// ════════════════════════════════════════════════════════════════════════
+//  Parameter model (IDs, ranges, defaults, skews from createParameterLayout)
+// ════════════════════════════════════════════════════════════════════════
+const PARAMS = {
+  TYPE:      { min: 0, max: 5, def: 1 },
+  CHARACTER: { min: -100, max: 100, def: 0, bipolar: true },
+  WET:       { min: 0, max: 100, def: 25 },
+  DRY:       { min: 0, max: 100, def: 100 },
+  DECAY:     { min: 0.5, max: 2.0, def: 1.0, skew: 0.6309 },
+  SIZE:      { min: 0, max: 100, def: 50 },
+  LPFREQ:    { min: 20, max: 400, def: 200 },
+  LPON:      { min: 0, max: 1, def: 0 },
+};
+const P = {}; for (const k in PARAMS) P[k] = PARAMS[k].def;
+function toNorm(id, v) { const p = PARAMS[id]; const n = (v - p.min) / (p.max - p.min); return p.skew ? Math.pow(n, p.skew) : n; }
+function fromNorm(id, n) { const p = PARAMS[id]; n = Math.min(1, Math.max(0, n)); if (p.skew) n = Math.pow(n, 1 / p.skew); return p.min + (p.max - p.min) * n; }
+const STAGE_OF = { TYPE: 'engine', SIZE: 'engine', DECAY: 'engine', CHARACTER: 'tone', LPFREQ: 'tone', LPON: 'tone', WET: 'mix', DRY: 'mix' };
+
+// ════════════════════════════════════════════════════════════════════════
+//  i18n (rough fr / zh-Hans for width judging — unreviewed)
+// ════════════════════════════════════════════════════════════════════════
+let lang = 'en';
+const T = {
+  subtitle:   ['Space · Tail · Tone · A Field Guide to Reverberation', 'Espace · Queue · Timbre · Guide de la réverbération', '空间 · 尾音 · 音色 · 混响野外指南'],
+  chipHead:   ['Tail', 'Queue', '尾音'],
+  chipBody:   ['{type} · RT60 {rt} · pre {pre}', '{type} · RT60 {rt} · pré {pre}', '{type} · RT60 {rt} · 预延迟 {pre}'],
+  save:       ['Save', 'Enreg.', '保存'],
+  delete:     ['Delete', 'Suppr.', '删除'],
+  language:   ['Language', 'Langue', '语言'],
+  hoverHelp:  ['Hover help', 'Infobulles', '悬停帮助'],
+  on:         ['On', 'Act.', '开'],
+  off:        ['Off', 'Dés.', '关'],
+  decayTitle: ['Live Decay', 'Déclin en direct', '实时衰减'],
+  decayHint:  ['level over the last 6 seconds', 'niveau des 6 dernières secondes', '最近 6 秒的电平'],
+  lgInput:    ['input', 'entrée', '输入'],
+  lgTail:     ['wet tail', 'queue traitée', '湿尾音'],
+  lgSlope:    ['RT60 slope', 'pente RT60', 'RT60 斜率'],
+  dwSub:      ['{type} × {x}', '{type} × {x}', '{type} × {x}'],
+  now:        ['now', 'maint.', '现在'],
+  erTitle:    ['Early Reflections', 'Premières réflexions', '早期反射'],
+  erHint:     ['L above · R below', 'G dessus · D dessous', '左在上 · 右在下'],
+  unitPre:    ['pre-delay', 'pré-délai', '预延迟'],
+  erSub:      ['8 taps a side over {span}', '8 prises par côté sur {span}', '每侧 8 个抽头，跨 {span}'],
+  erSubNone:  ['no taps', 'aucune prise', '无抽头'],
+  lgLeft:     ['left', 'gauche', '左'],
+  lgRight:    ['right', 'droite', '右'],
+  lgInverted: ['inverted', 'inversée', '反相'],
+  erNone1:    ['No early reflections', 'Aucune réflexion précoce', '没有早期反射'],
+  erPlate2:   ['the plate engine starts diffuse', 'le moteur à plaque démarre diffus', '板式引擎一开始就是扩散的'],
+  erSpring2:  ['the spring engine starts diffuse', 'le moteur à ressorts démarre diffus', '弹簧引擎一开始就是扩散的'],
+  toneTitle:  ['Tone of the Tail', 'Timbre de la queue', '尾音音色'],
+  toneHint:   ['tone after the tank, wet only', 'timbre après le réservoir, traité seul', '混响槽之后的音色，仅湿信号'],
+  springBand: ['springs pass little above 4.5 kHz', 'peu passe au-dessus de 4,5 kHz', '弹簧几乎不过 4.5 kHz 以上'],
+  lgResponse: ['response', 'réponse', '响应'],
+  lgCharacter:['character', 'caractère', '特性'],
+  lgLowCut:   ['low cut', 'coupe-bas', '低切'],
+  twFlat:     ['flat', 'plat', '平直'],
+  twEq:       ['{type} EQ · {eq}', 'ÉG {type} · {eq}', '{type} 均衡 · {eq}'],
+  eqNone:     ['none', 'aucun', '无'],
+  eqHp:       ['high-pass {f}', 'passe-haut {f}', '高通 {f}'],
+  eqPk:       ['{g} at {f}', '{g} à {f}', '{f} 处 {g}'],
+  eqHs:       ['{g} above {f}', '{g} dès {f}', '{f} 以上 {g}'],
+  stInput:    ['Input', 'Entrée', '输入'],
+  stEarly:    ['Early', 'Précoces', '早期'],
+  stEngine:   ['Engine', 'Moteur', '引擎'],
+  stTone:     ['Tone', 'Timbre', '音色'],
+  stMix:      ['Mix', 'Mélange', '混合'],
+  stOutput:   ['Output', 'Sortie', '输出'],
+  lr:         ['L / R', 'G / D', '左 / 右'],
+  stEarlyFdn: ['pre {pre} · 8 taps', 'pré {pre} · 8 prises', '预延迟 {pre} · 8 抽头'],
+  stEarlyPlate:['pre {pre} · no taps', 'pré {pre} · sans prise', '预延迟 {pre} · 无抽头'],
+  stEarlySpring:['none · starts diffuse', 'aucune · départ diffus', '无 · 直接扩散'],
+  stEngFdn:   ['FDN · 16 lines', 'FDN · 16 lignes', 'FDN · 16 条'],
+  stEngPlate: ['plate · shimmer', 'plaque · shimmer', '板 · 微光'],
+  stEngSpring:['3 springs', '3 ressorts', '3 根弹簧'],
+  stTone2:    ['{c} · low cut {s}', '{c} · coupe-bas {s}', '{c} · 低切{s}'],
+  stMix2:     ['wet {w} · dry {d}', 'traité {w} · direct {d}', '湿 {w} · 干 {d}'],
+  gEngine:    ['Engine', 'Moteur', '引擎'],
+  rEngine:    ['the space, and how long it rings', 'l’espace, et combien de temps il sonne', '空间，以及它响多久'],
+  gTone:      ['Tone', 'Timbre', '音色'],
+  rTone:      ['colours the tail only', 'colore la queue seule', '只染色尾音'],
+  gMix:       ['Mix', 'Mélange', '混合'],
+  rMix:       ['two gains, not a crossfade', 'deux gains séparés', '两个增益，非交叉淡化'],
+  gOutput:    ['Output', 'Sortie', '输出'],
+  type:       ['Type', 'Type', '类型'],
+  engSpring:  ['spring', 'ressort', '弹簧'],
+  engPlate:   ['plate', 'plaque', '板'],
+  size:       ['Size', 'Taille', '尺寸'],
+  decay:      ['Decay', 'Déclin', '衰减'],
+  character:  ['Character', 'Caractère', '特性'],
+  lowCut:     ['Low Cut', 'Coupe-bas', '低切'],
+  wet:        ['Wet', 'Traité', '湿'],
+  dry:        ['Dry', 'Direct', '干'],
+  pillIn:     ['In', 'Act.', '开'],
+  pillOut:    ['Out', 'Dés.', '关'],
+  subSize:    ['walls ×{x}', 'murs ×{x}', '墙距 ×{x}'],
+  subDecay:   ['RT60 {s}', 'RT60 {s}', 'RT60 {s}'],
+  chNeutral:  ['neutral', 'neutre', '中性'],
+  chWarm:     ['dark {p}', 'sombre {p}', '暗 {p}'],
+  chBright:   ['bright {p}', 'brillant {p}', '亮 {p}'],
+  subChNone:  ['no filter', 'aucun filtre', '无滤波'],
+  subChWarm:  ['low-pass {f}', 'passe-bas {f}', '低通 {f}'],
+  subChBright:['shelf +{db}', 'plateau +{db}', '高架 +{db}'],
+  subCutIn:   ['mud out of the tail', 'la queue sans boue', '去掉尾音浑浊'],
+  subCutOut:  ['bypassed', 'contourné', '已旁通'],
+  subWet:     ['reverb {db}', 'réverb {db}', '混响 {db}'],
+  subWetOff:  ['no reverb', 'pas de réverb', '无混响'],
+  subDry:     ['source {db}', 'source {db}', '原声 {db}'],
+  subDryOff:  ['send: tail only', 'départ : queue seule', '发送：只有尾音'],
+  noteTone:   ['the dry signal is never filtered', 'le signal direct n’est jamais filtré', '干信号从不被滤波'],
+  noteMix:    ['insert: Dry 100 · send: Dry 0', 'insert : Direct 100 · départ : 0', '插入：干 100 · 发送：干 0'],
+  peak:       ['Peak · dry + wet', 'Crête · dir. + traité', '峰值 · 干 + 湿'],
+  rowSpaces:  ['Spaces', 'Espaces', '空间'],
+  rowIdeas:   ['Ideas', 'Notions', '概念'],
+  tourHint:   ['hover anything for help', 'survolez pour l’aide', '悬停任意处查看帮助'],
+  tourHint2:  ['click a lesson, watch the wells', 'cliquez, puis regardez', '点一课，看上方图'],
+  lInit:      ['Init', 'Init', '初始'],
+  lSizeDecay: ['Size ≠ Decay', 'Taille ≠ Déclin', '尺寸 ≠ 衰减'],
+  lCharacter: ['Character: dark ↔ bright', 'Caractère : sombre ↔ brillant', '特性：暗 ↔ 亮'],
+  lLowCut:    ['Low Cut', 'Coupe-bas', '低切'],
+  lInsertSend:['Insert vs Send', 'Insert ou départ', '插入与发送'],
+  footerRight:['FDN · Dattorro plate · dispersive spring', 'FDN · plaque Dattorro · ressort dispersif', 'FDN · Dattorro 板 · 色散弹簧'],
+  capDefault: ['input → early reflections → engine → tone → wet + dry → output', 'entrée → réflexions précoces → moteur → timbre → traité + direct → sortie', '输入 → 早期反射 → 引擎 → 音色 → 湿 + 干 → 输出'],
+  noteFdn:    ['<b>{type}</b> · one 16-line feedback delay network. Base decay {rt}, pre-delay {pre}, 8 early taps a side. Size moves the walls; the tail length stays with Decay.',
+               '<b>{type}</b> · un réseau de retards à rétroaction de 16 lignes. Déclin de base {rt}, pré-délai {pre}, 8 prises précoces par côté. Taille déplace les murs ; la durée reste à Déclin.',
+               '<b>{type}</b> · 一个 16 线反馈延迟网络。基础衰减 {rt}，预延迟 {pre}，每侧 8 个早期抽头。尺寸移动墙壁；尾音长度归衰减管。'],
+  notePlate:  ['<b>Plate</b> · Dattorro’s figure-8 tank: dense from the first instant, no early taps. An octave shimmer inside the loop grows over the tail. Base decay {rt}.',
+               '<b>Plate</b> · le réservoir en huit de Dattorro : dense dès le premier instant, sans prise précoce. Un shimmer à l’octave grandit dans la queue. Déclin de base {rt}.',
+               '<b>Plate</b> · Dattorro 的 8 字形混响槽：一开始就很密，没有早期抽头。环路内的八度微光在尾音中逐渐增长。基础衰减 {rt}。'],
+  noteSpring: ['<b>Spring</b> · three dispersive springs. Each echo arrives lows first, so it chirps upward; little passes above 4.5 kHz. No pre-delay. Base decay {rt}.',
+               '<b>Spring</b> · trois ressorts dispersifs. Chaque écho arrive graves en tête et monte en sifflant ; peu de choses passent au-dessus de 4,5 kHz. Pas de pré-délai. Déclin de base {rt}.',
+               '<b>Spring</b> · 三根色散弹簧。每个回声低频先到，因此向上滑；4.5 kHz 以上几乎不通过。没有预延迟。基础衰减 {rt}。'],
+};
+const CAPTIONS = {
+  booth:      ['Booth: 0.4 s, every tap inside 7 ms. Close and dry, a voice-over room.', 'Booth : 0,4 s, toutes les prises en 7 ms. Proche et sec, une cabine de voix off.', 'Booth：0.4 秒，所有抽头都在 7 毫秒内。贴近而干，像配音间。'],
+  room:       ['Room: 1.1 s and 15 ms of pre-delay; the taps spread over 23 ms.', 'Room : 1,1 s et 15 ms de pré-délai ; les prises s’étalent sur 23 ms.', 'Room：1.1 秒，预延迟 15 毫秒；抽头分布在 23 毫秒内。'],
+  hall:       ['Hall: 3 s and 50 ms of pre-delay. The gap tells your ear the walls are far.', 'Hall : 3 s et 50 ms de pré-délai. Ce silence dit à l’oreille que les murs sont loin.', 'Hall：3 秒，预延迟 50 毫秒。这段空隙告诉耳朵墙很远。'],
+  spring:     ['Spring: no early taps. Each echo sweeps low to high; little above 4.5 kHz.', 'Spring : aucune prise précoce. Chaque écho glisse du grave à l’aigu ; peu au-dessus de 4,5 kHz.', 'Spring：没有早期抽头。每个回声从低滑到高；4.5 kHz 以上很少。'],
+  plate:      ['Plate: dense at once, no taps; an octave shimmer grows in the tail.', 'Plate : dense d’emblée, sans prise ; un shimmer à l’octave grandit dans la queue.', 'Plate：一开始就密，没有抽头；八度微光在尾音中增长。'],
+  ambient:    ['Ambient: 7 s. Each tail outlasts the next burst; watch them pile up.', 'Ambient : 7 s. Chaque queue survit à la salve suivante ; regardez-les s’empiler.', 'Ambient：7 秒。每条尾音都比下一次脉冲更长；看它们叠起来。'],
+  init:       ['Room at its defaults: Wet 25, Dry 100, Character neutral, Low Cut out.', 'Room par défaut : Traité 25, Direct 100, Caractère neutre, coupe-bas désactivé.', 'Room 默认值：湿 25，干 100，特性中性，低切关闭。'],
+  sizeVsDecay:['Small hall, double decay: the taps close up, the slope stays long. Size ≠ Decay.', 'Petite salle, déclin doublé : les prises se resserrent, la pente reste longue. Taille ≠ Déclin.', '小厅，双倍衰减：抽头靠拢，斜率仍然很长。尺寸 ≠ 衰减。'],
+  character:  ['Character to the left: the whole tail tilts dark; the dry stays as it was.', 'Caractère vers la gauche : toute la queue penche vers le sombre ; le direct ne change pas.', '特性向左：整条尾音向暗倾斜；干信号不变。'],
+  lowCut:     ['Low Cut at 300 Hz: the tail loses its mud, the dry keeps its bass.', 'Coupe-bas à 300 Hz : la queue perd sa boue, le direct garde ses basses.', '低切 300 Hz：尾音去掉浑浊，干信号保留低音。'],
+  insertSend: ['Wet 100, Dry 0: the setting for a send bus. On an insert, keep Dry at 100.', 'Traité 100, Direct 0 : le réglage d’un bus de départ. En insert, gardez Direct à 100.', '湿 100，干 0：发送总线的设定。插入时，干保持 100。'],
+};
+const TIPS = {
+  'tip.type':      [['Type', 'Picks the space. Booth, Room, Hall and Ambient are one room engine, a 16-line feedback delay network, each with its own delays, early reflections and decay time. Spring and Plate are other machines with no early reflections. Size and Decay then scale what the type chose.'],
+                    ['Type', 'Choisit l’espace. Booth, Room, Hall et Ambient sont un même moteur de salle, un réseau de 16 retards à rétroaction, chacun avec ses retards, ses réflexions précoces et son déclin. Spring et Plate sont d’autres machines, sans réflexion précoce. Taille et Déclin mettent ensuite à l’échelle ce que le type a choisi.'],
+                    ['类型', '选择空间。Booth、Room、Hall 和 Ambient 是同一个房间引擎（16 线反馈延迟网络），各有自己的延迟、早期反射和衰减时间。Spring 和 Plate 是别的机器，没有早期反射。尺寸与衰减再缩放类型所选的东西。']],
+  'tip.size':      [['Size', 'Moves the walls, not the tail. Echoes and early reflections spread apart or close up (watch the taps slide) while the tail length stays with Decay. Relative to the type: Booth at 100 % is still smaller than Hall at 0 %.'],
+                    ['Taille', 'Déplace les murs, pas la queue. Échos et réflexions précoces s’écartent ou se resserrent (regardez les prises glisser) tandis que la durée reste à Déclin. Relative au type : Booth à 100 % reste plus petit que Hall à 0 %.'],
+                    ['尺寸', '移动墙壁，而不是尾音。回声与早期反射拉开或靠拢（看抽头滑动），尾音长度仍归衰减。相对于类型：Booth 在 100% 仍小于 Hall 在 0%。']],
+  'tip.decay':     [['Decay', 'How long the tail lasts, as a multiple of the type’s own RT60, the time it takes to fall 60 dB. The brass slope in the decay well is this number. 0.5× to 2.0×.'],
+                    ['Déclin', 'La durée de la queue, en multiple du RT60 propre au type, le temps qu’elle met à baisser de 60 dB. La pente laiton du puits de déclin, c’est ce chiffre. De 0,5× à 2,0×.'],
+                    ['衰减', '尾音持续多久，以该类型自身 RT60（下降 60 dB 所需时间）的倍数计。衰减图中的黄铜斜线就是这个数。0.5× 到 2.0×。']],
+  'tip.character': [['Character', 'A tilt filter after the reverb, on the whole tail and never on the dry. Left is dark: a low-pass closing from 20 kHz to 2 kHz. Right is bright: a 4 kHz shelf up to +6 dB. Neutral at the centre runs no filter.'],
+                    ['Caractère', 'Un filtre d’inclinaison après la réverbération, sur toute la queue et jamais sur le direct. À gauche, sombre : un passe-bas qui se ferme de 20 kHz à 2 kHz. À droite, brillant : un plateau à 4 kHz jusqu’à +6 dB. Au centre, aucun filtre.'],
+                    ['特性', '混响之后的倾斜滤波器，作用于整个尾音，从不影响干信号。向左为暗：低通从 20 kHz 收到 2 kHz。向右为亮：4 kHz 高架最多 +6 dB。中心不运行滤波器。']],
+  'tip.lowCut':    [['Low Cut', 'A high-pass on the tail only. Low reverb energy piles up under the bass and kick as mud; cutting it keeps the space while the dry keeps its low end. Does nothing while the pill reads OUT. 20 to 400 Hz.'],
+                    ['Coupe-bas', 'Un passe-haut sur la seule queue. L’énergie grave de la réverbération s’accumule sous la basse et la grosse caisse en boue ; la couper garde l’espace et laisse au direct ses graves. Inactif tant que la pastille indique DÉS. De 20 à 400 Hz.'],
+                    ['低切', '只作用于尾音的高通。混响的低频能量会在贝斯和底鼓下堆成浑浊；切掉它，空间还在，干信号保留低音。按钮显示“关”时不起作用。20 到 400 Hz。']],
+  'tip.lpon':      [['Low Cut In / Out', 'Puts the low cut into the tail or takes it out. While OUT the knob dims and the filter is bypassed, and the brass curve in the tone well turns to a ghost.'],
+                    ['Coupe-bas act. / dés.', 'Insère le coupe-bas dans la queue ou l’en retire. En DÉS., le bouton s’estompe, le filtre est contourné et la courbe laiton du puits de timbre devient un fantôme.'],
+                    ['低切 开 / 关', '把低切接入或移出尾音。关闭时旋钮变暗、滤波器被旁通，音色图中的黄铜曲线变成虚影。']],
+  'tip.wet':       [['Wet', 'How much reverb joins the output. An independent gain, not a crossfade: raising Wet never lowers Dry. 0 to 100 %.'],
+                    ['Traité', 'La quantité de réverbération ajoutée à la sortie. Un gain indépendant, pas un fondu : monter Traité ne baisse jamais Direct. 0 à 100 %.'],
+                    ['湿', '有多少混响加入输出。独立增益，不是交叉淡化：调高湿从不调低干。0 到 100%。']],
+  'tip.dry':       [['Dry', 'How much untouched source passes. On an insert leave it at 100; on a send bus set it to 0 so only the reverb comes back. 0 to 100 %.'],
+                    ['Direct', 'La part de source intacte qui passe. En insert, laissez 100 ; sur un bus de départ, mettez 0 pour ne renvoyer que la réverbération. 0 à 100 %.'],
+                    ['干', '有多少未处理的原声通过。插入时保持 100；在发送总线上设为 0，只返回混响。0 到 100%。']],
+  'tip.decayWell': [['Live decay', 'The input (amber) and the reverb tail (sage) in dB, scrolling. A tail falls in a straight line on a dB scale; the brass dashed line is the slope Decay sets. Steeper = shorter.'],
+                    ['Déclin en direct', 'L’entrée (ambre) et la queue (sauge) en dB, qui défilent. Une queue tombe en ligne droite sur une échelle en dB ; le tireté laiton est la pente fixée par Déclin. Plus raide = plus court.'],
+                    ['实时衰减', '以 dB 显示滚动的输入（琥珀色）和混响尾音（鼠尾草色）。在 dB 刻度上尾音按直线下降；黄铜虚线是衰减设定的斜率。越陡越短。']],
+  'tip.erWell':    [['Early reflections', 'The first discrete echoes, off the nearest walls, before the tail blurs together. Left channel above, right below; hollow heads are inverted. They are what tells the ear the room’s size and shape.'],
+                    ['Premières réflexions', 'Les premiers échos distincts, sur les murs les plus proches, avant que la queue ne se fonde. Canal gauche en haut, droit en bas ; têtes creuses = inversées. C’est ce qui donne à l’oreille la taille et la forme de la pièce.'],
+                    ['早期反射', '尾音融合之前，来自最近墙面的第一批离散回声。左声道在上，右声道在下；空心为反相。它们告诉耳朵房间的大小和形状。']],
+  'tip.toneWell':  [['Tone of the tail', 'The frequency response of the wet path: the type’s own EQ, Character’s tilt and the Low Cut slope. The dry signal never passes through any of it.'],
+                    ['Timbre de la queue', 'La réponse en fréquence de la voie traitée : l’égaliseur du type, l’inclinaison du Caractère et la pente du coupe-bas. Le direct n’y passe jamais.'],
+                    ['尾音音色', '湿信号路径的频率响应：类型自带的均衡、特性的倾斜和低切斜率。干信号从不经过这里。']],
+  'tip.meter':     [['Output peak', 'Left and right peak at the output, dry plus wet. The lamp above a bar lights on a clip.'],
+                    ['Crête de sortie', 'Crête gauche et droite en sortie, direct plus traité. Le voyant au-dessus d’une barre s’allume à l’écrêtage.'],
+                    ['输出峰值', '输出端左右峰值，干加湿。削波时条形上方的灯亮起。']],
+  'tip.chip':      [['Tail', 'The tail this setting makes: the type, its RT60 after Decay, and its pre-delay.'], ['Queue', 'La queue que produit ce réglage : le type, son RT60 après Déclin, et son pré-délai.'], ['尾音', '当前设定产生的尾音：类型、经衰减后的 RT60 及预延迟。']],
+  'tip.presetName':[['Presets', 'Init and the eleven lessons first, then the 48 utility presets, eight per type.'], ['Préréglages', 'Init et les onze leçons d’abord, puis les 48 préréglages utilitaires, huit par type.'], ['预设', '先是初始和十一课，然后是 48 个实用预设，每种类型八个。']],
+  'tip.gear':      [['Settings', 'Opens the settings panel: interface language and hover help.'], ['Réglages', 'Ouvre le panneau de réglages : langue de l’interface et infobulles.'], ['设置', '打开设置面板：界面语言与悬停帮助。']],
+  'tip.stInput':   [['Input', 'The stereo signal as it arrives. The dry path leaves from here, untouched.'], ['Entrée', 'Le signal stéréo tel qu’il arrive. La voie directe part d’ici, intacte.'], ['输入', '到达时的立体声信号。干信号从这里出发，不作处理。']],
+  'tip.stEarly':   [['Early', 'Pre-delay, then the early-reflection taps (room types only). Lights on Type and Size.'], ['Précoces', 'Le pré-délai, puis les prises de réflexions précoces (types de salle seulement). S’allume sur Type et Taille.'], ['早期', '预延迟，然后是早期反射抽头（仅房间类型）。改动类型和尺寸时点亮。']],
+  'tip.stEngine':  [['Engine', 'The tank that makes the tail: the FDN for the four rooms, Dattorro’s plate, or three springs.'], ['Moteur', 'Le réservoir qui fait la queue : le FDN pour les quatre salles, la plaque de Dattorro, ou trois ressorts.'], ['引擎', '产生尾音的混响槽：四种房间用 FDN，Dattorro 板，或三根弹簧。']],
+  'tip.stTone':    [['Tone', 'Character, then Low Cut, on the wet path only.'], ['Timbre', 'Caractère, puis coupe-bas, sur la voie traitée seulement.'], ['音色', '特性，然后低切，只作用于湿信号。']],
+  'tip.stMix':     [['Mix', 'Wet and Dry are two separate gains summed here.'], ['Mélange', 'Traité et Direct sont deux gains séparés, additionnés ici.'], ['混合', '湿和干是两个独立增益，在这里相加。']],
+  'tip.stOutput':  [['Output', 'Dry plus wet, left and right.'], ['Sortie', 'Direct plus traité, gauche et droite.'], ['输出', '干加湿，左和右。']],
+};
+const LI = () => (lang === 'fr' ? 1 : lang === 'zh-Hans' ? 2 : 0);
+function t(key, vars) {
+  const row = T[key]; let s = row ? (row[LI()] ?? row[0]) : key;
+  if (vars) for (const k in vars) s = s.split(`{${k}}`).join(vars[k]);
+  return s;
+}
+const MINUS = '−';
+function num(v, dp) { const s = Math.abs(v).toFixed(dp); return (v < 0 && Number(s) !== 0 ? MINUS : '') + (lang === 'fr' ? s.replace('.', ',') : s); }
+function ms(v)  { return `${num(v, v < 10 && v % 1 ? 1 : 0)} ms`; }
+function sec(v) { return `${num(v, v < 10 ? 2 : 1)} s`; }
+function hz(v)  { return v >= 1000 ? `${num(v / 1000, 1)} kHz` : `${num(v, 0)} Hz`; }
+function db(v)  { return `${v > 0.05 ? '+' : ''}${num(v, 1)} dB`; }
+function pct(v) { return `${num(v, 0)} %`; }
+
+// ════════════════════════════════════════════════════════════════════════
+//  Knobs (Family A; vertical drag, Shift fine, wheel, dblclick reset)
+// ════════════════════════════════════════════════════════════════════════
+const KNOB_IDS = ['SIZE', 'DECAY', 'CHARACTER', 'LPFREQ', 'WET', 'DRY'];
+let uiScale = 1;
+const stageHit = {};
+function setParam(id, v, fromUser = true) {
+  const p = PARAMS[id];
+  v = Math.min(p.max, Math.max(p.min, v));
+  if (id === 'TYPE' || id === 'LPON') v = Math.round(v);
+  P[id] = v;
+  if (fromUser) { stageHit[STAGE_OF[id]] = performance.now(); if (STAGE_OF[id] === 'engine' && (id === 'TYPE' || id === 'SIZE')) stageHit.early = performance.now(); markModified(); }
+  render();
+}
+function bindKnob(id) {
+  const el = document.getElementById(`knob-${id}`);
+  let startY = 0, startN = 0, dragging = false;
+  el.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); el.setPointerCapture(e.pointerId);
+    dragging = true; startY = e.clientY; startN = toNorm(id, P[id]);
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const rate = e.shiftKey ? 0.2 : 1;
+    let n = startN + ((startY - e.clientY) / uiScale) / 220 * rate;
+    if (PARAMS[id].bipolar && Math.abs(n - 0.5) < 0.018) n = 0.5;
+    setParam(id, fromNorm(id, n));
+  });
+  const end = () => { dragging = false; };
+  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+  el.addEventListener('dblclick', () => setParam(id, PARAMS[id].def));
+  el.addEventListener('wheel', (e) => { e.preventDefault(); setParam(id, fromNorm(id, toNorm(id, P[id]) - Math.sign(e.deltaY) * 0.02)); }, { passive: false });
+}
+function knobAngle(id) { return -135 + 270 * toNorm(id, P[id]); }
+
+// ════════════════════════════════════════════════════════════════════════
+//  Readouts
+// ════════════════════════════════════════════════════════════════════════
+function rt60() { return TYPES[P.TYPE].t60 * P.DECAY; }
+function wetDb() { return P.WET <= 0 ? -Infinity : 20 * Math.log10(P.WET / 100); }
+function dryDb() { return P.DRY <= 0 ? -Infinity : 20 * Math.log10(P.DRY / 100); }
+function warmCutoff() { const c = P.CHARACTER; return c < -0.5 ? Math.min(2000 + 18000 * Math.min(1, Math.max(0, (c + 100) / 99)), 20000) : null; }
+function brightDb() { return Math.max(0, P.CHARACTER) / 100 * 6; }
+function charWord() {
+  const c = P.CHARACTER;
+  if (c < -0.5) return t('chWarm', { p: pct(-c) });
+  if (c > 0.5) return t('chBright', { p: pct(c) });
+  return t('chNeutral');
+}
+function setText(id, s) { const el = document.getElementById(id); if (el && el.textContent !== s) el.textContent = s; }
+
+function render() {
+  const ty = TYPES[P.TYPE];
+  // knobs
+  for (const id of KNOB_IDS) document.querySelector(`#knob-${id} .knob-stem`).style.transform = `translate(-50%, -100%) rotate(${knobAngle(id)}deg)`;
+  const sc = sizeScale(ty, P.SIZE);
+  setText('val-SIZE', pct(P.SIZE));          setText('sub-SIZE', t('subSize', { x: num(sc / sizeScale(ty, 50), 2) }));
+  setText('val-DECAY', `${num(P.DECAY, 2)}×`); setText('sub-DECAY', t('subDecay', { s: sec(rt60()) }));
+  setText('val-CHARACTER', charWord());
+  const wc = warmCutoff();
+  setText('sub-CHARACTER', wc ? t('subChWarm', { f: hz(wc) }) : P.CHARACTER > 0.5 ? t('subChBright', { db: `${num(brightDb(), 1)} dB` }) : t('subChNone'));
+  setText('val-LPFREQ', hz(P.LPFREQ));       setText('sub-LPFREQ', P.LPON ? t('subCutIn') : t('subCutOut'));
+  document.getElementById('cell-LPFREQ').classList.toggle('off', !P.LPON);
+  const pill = document.getElementById('pill-LPON'); pill.classList.toggle('on', !!P.LPON); setText('pill-LPON', P.LPON ? t('pillIn') : t('pillOut'));
+  setText('val-WET', pct(P.WET)); setText('sub-WET', P.WET <= 0 ? t('subWetOff') : t('subWet', { db: db(wetDb()) }));
+  setText('val-DRY', pct(P.DRY)); setText('sub-DRY', P.DRY <= 0 ? t('subDryOff') : t('subDry', { db: db(dryDb()) }));
+  // type row
+  document.querySelectorAll('#seg-type button').forEach((b) => b.classList.toggle('on', Number(b.dataset.v) === P.TYPE));
+  document.querySelectorAll('#engTags span').forEach((s) => s.classList.toggle('on', TYPES[Number(s.dataset.v)].engine === ty.engine));
+  const noteKey = ty.engine === 'fdn' ? 'noteFdn' : ty.engine === 'plate' ? 'notePlate' : 'noteSpring';
+  document.getElementById('typeNote').innerHTML = t(noteKey, { type: ty.name, rt: sec(ty.t60), pre: ms(ty.pre) });
+  // chip + stations
+  setText('chipBody', t('chipBody', { type: ty.name, rt: sec(rt60()), pre: ms(ty.pre) }));
+  setText('stEarlySub', ty.engine === 'fdn' ? t('stEarlyFdn', { pre: ms(ty.pre) }) : ty.engine === 'plate' ? t('stEarlyPlate', { pre: ms(ty.pre) }) : t('stEarlySpring'));
+  document.getElementById('st-early').classList.toggle('dim', ty.engine === 'spring');
+  setText('stEngineSub', ty.engine === 'fdn' ? t('stEngFdn') : ty.engine === 'plate' ? t('stEngPlate') : t('stEngSpring'));
+  setText('stToneSub', t('stTone2', { c: charWord(), s: P.LPON ? t('pillIn').toLowerCase() : t('pillOut').toLowerCase() }));
+  setText('stMixSub', t('stMix2', { w: num(P.WET, 0), d: num(P.DRY, 0) }));
+  // well readouts
+  setText('dwRt', sec(rt60()));
+  setText('dwSub', t('dwSub', { type: ty.name, x: num(P.DECAY, 2) }));
+  setText('erPre', ms(ty.pre));
+  const none = ty.engine !== 'fdn';
+  document.getElementById('erNone').hidden = !none;
+  document.getElementById('erLegend').hidden = none;
+  setText('erNone1', t('erNone1'));
+  setText('erNone2', ty.engine === 'plate' ? t('erPlate2') : t('erSpring2'));
+  setText('erSub', none ? t('erSubNone') : t('erSub', { span: ms(ty.span * sc) }));
+  const eqTxt = !ty.eq ? t('eqNone') : ty.eq.k === 'hp' ? t('eqHp', { f: hz(ty.eq.f) }) : ty.eq.k === 'pk' ? t('eqPk', { g: db(ty.eq.g), f: hz(ty.eq.f) }) : t('eqHs', { g: db(ty.eq.g), f: hz(ty.eq.f) });
+  setText('twSub', t('twEq', { type: ty.name, eq: eqTxt }));
+  const bigTone = wc ? `LP ${hz(wc)}` : P.CHARACTER > 0.5 ? `${db(brightDb())} @ 4 kHz` : t('twFlat');
+  setText('twBig', P.LPON && !wc && P.CHARACTER <= 0.5 ? `HP ${hz(P.LPFREQ)}` : bigTone);
+  dirty.er = dirty.tone = true;
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  Canvases
+// ════════════════════════════════════════════════════════════════════════
+const canvases = [];
+const dirty = { er: true, tone: true };
+const SERIF_CANVAS = "'EB Garamond', Georgia, 'Times New Roman', serif";
+function makeCanvas(id) {
+  const canvas = document.getElementById(id); const ctx = canvas.getContext('2d');
+  const c = { canvas, ctx, w: 1, h: 1 };
+  c.resize = () => {
+    const dpr = (window.devicePixelRatio || 1) * uiScale;
+    const w = Math.max(1, Math.round(canvas.clientWidth * dpr)), h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+    c.w = canvas.clientWidth; c.h = canvas.clientHeight;
+    if (canvas.width === w && canvas.height === h) return;
+    canvas.width = w; canvas.height = h; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+  c.resize(); canvases.push(c); return c;
+}
+let decayC, erC, toneC, outC;
+
+// ── Live decay simulation (stands in for the C++ MeterFrame at 30 Hz) ──
+const WINDOW_S = 6, BURST_EVERY = 2.0, BURST_LEN = 0.12;
+const hist = [];               // { t, inDb, wetDb }
+let simT = 0, wetPow = 0, lastWall = 0, burstStart = -10, burstLevel = 0.6, peakT = -10, peakDb = -100, nextBurst = 0.4;
+const outDisp = [0, 0], clipUntil = [0, 0];
+function hash(x) { const s = Math.sin(x * 12.9898) * 43758.5453; return s - Math.floor(s); }
+function inputAt(tt) { return (tt >= burstStart && tt < burstStart + BURST_LEN) ? burstLevel * (1 - 0.35 * (tt - burstStart) / BURST_LEN) : 0; }
+function stepSim(dt) {
+  const ty = TYPES[P.TYPE];
+  const pre = Math.max(ty.pre / 1000, ty.engine === 'spring' ? 0.03 : 0);
+  const k = Math.log(1e6) / rt60();
+  const steps = Math.max(1, Math.ceil(dt * 480)); const h = dt / steps;
+  for (let i = 0; i < steps; i++) {
+    simT += h;
+    if (simT >= nextBurst) { burstStart = simT; burstLevel = 0.5 + 0.25 * hash(simT); nextBurst = simT + BURST_EVERY; }
+    const x = inputAt(simT - pre);
+    wetPow += (x * x * 6.0 - wetPow * k) * h;
+  }
+  const ripple = 1 + 0.16 * Math.sin(simT * 21.7) + 0.10 * Math.sin(simT * 57.3 + 1.3) + 0.06 * (hash(simT * 7.1) - 0.5);
+  const wetG = P.WET / 100;
+  const wp = wetPow * ripple * wetG * wetG;
+  const xin = inputAt(simT);
+  const inDb = xin > 0 ? 20 * Math.log10(xin) : -100;
+  const wDb = wp > 1e-12 ? 10 * Math.log10(wp) : -100;
+  hist.push({ t: simT, inDb, wetDb: wDb });
+  while (hist.length && hist[0].t < simT - WINDOW_S - 0.2) hist.shift();
+  if (simT - burstStart < 0.6 && wDb > peakDb - 0.01) { peakDb = wDb; peakT = simT; }
+  if (simT - burstStart < 0.01) peakDb = -100;
+  // output meter: dry + wet peak, per side with a small decorrelation
+  const dryG = P.DRY / 100;
+  for (let s = 0; s < 2; s++) {
+    const wAmp = Math.sqrt(Math.max(0, wp)) * (1 + 0.25 * (hash(simT * (3 + s)) - 0.5));
+    const v = Math.min(1.2, xin * dryG * (s ? 0.95 : 1) + wAmp);
+    outDisp[s] = v > outDisp[s] ? v : outDisp[s] * Math.exp(-dt * 6);
+  }
+}
+function dbToY(d, top, bot) { return top + (Math.min(0, Math.max(-60, d)) / -60) * (bot - top); }
+function drawDecay() {
+  const { ctx, w, h } = decayC; ctx.clearRect(0, 0, w, h);
+  const L = 34, R = w - 10, top = 58, bot = h - 22;
+  const xOf = (tt) => R - (simT - tt) / WINDOW_S * (R - L);
+  ctx.font = `10px ${SERIF_CANVAS}`; ctx.textBaseline = 'middle'; ctx.textAlign = 'right';
+  for (const d of [0, -12, -24, -36, -48, -60]) {
+    const y = Math.round(dbToY(d, top, bot)) + 0.5;
+    ctx.strokeStyle = d === 0 || d === -60 ? 'rgba(139,115,85,0.45)' : 'rgba(139,115,85,0.22)'; ctx.setLineDash(d === 0 || d === -60 ? [] : [1, 3]);
+    ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(R, y); ctx.stroke();
+    ctx.fillStyle = 'rgba(214,196,160,0.72)'; ctx.fillText(d === 0 ? '0' : `${MINUS}${-d}`, L - 5, y);
+  }
+  ctx.setLineDash([]); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let s = 0; s <= WINDOW_S; s++) {
+    const x = Math.round(R - s / WINDOW_S * (R - L)) + 0.5;
+    ctx.strokeStyle = 'rgba(139,115,85,0.18)'; ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bot); ctx.stroke();
+    ctx.fillStyle = 'rgba(214,196,160,0.66)';
+    ctx.fillText(s === 0 ? t('now') : `${MINUS}${s} s`, Math.min(R - 8, x), bot + 5);
+  }
+  ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(214,196,160,0.55)'; ctx.fillText('dB', 6, top - 14);
+  ctx.save(); ctx.beginPath(); ctx.rect(L, top - 4, R - L, bot - top + 8); ctx.clip();
+  // wet tail: filled area + line
+  const pts = hist.filter((p) => p.t >= simT - WINDOW_S - 0.05);
+  ctx.beginPath(); ctx.moveTo(xOf(pts[0]?.t ?? simT), bot);
+  for (const p of pts) ctx.lineTo(xOf(p.t), dbToY(p.wetDb, top, bot));
+  ctx.lineTo(R, bot); ctx.closePath();
+  const g = ctx.createLinearGradient(0, top, 0, bot); g.addColorStop(0, 'rgba(158,196,111,0.30)'); g.addColorStop(1, 'rgba(158,196,111,0.03)');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = '#9ec46f'; ctx.lineWidth = 1.6; ctx.beginPath();
+  pts.forEach((p, i) => { const x = xOf(p.t), y = dbToY(p.wetDb, top, bot); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke();
+  // input envelope (amber)
+  ctx.strokeStyle = '#e8b04a'; ctx.lineWidth = 1.6; ctx.beginPath();
+  let pen = false;
+  for (const p of pts) { const x = xOf(p.t), y = dbToY(p.inDb, top, bot); if (p.inDb > -60) { pen ? ctx.lineTo(x, y) : ctx.moveTo(x, bot); if (!pen) ctx.lineTo(x, y); pen = true; } else if (pen) { ctx.lineTo(x, bot); pen = false; } }
+  ctx.stroke();
+  // RT60 slope (brass) from the latest tail peak
+  if (peakDb > -59 && simT - peakT < WINDOW_S) {
+    const slope = 60 / rt60();             // dB per second
+    const x0 = xOf(peakT), y0 = dbToY(peakDb, top, bot);
+    const tEnd = peakT + (peakDb + 60) / slope;
+    const x1 = xOf(tEnd), y1 = dbToY(-60, top, bot);
+    ctx.strokeStyle = '#f3cd86'; ctx.lineWidth = 1.3; ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#f3cd86'; ctx.beginPath(); ctx.arc(x0, y0, 2.6, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ── Early reflections ──
+function niceMax(v) { const steps = [10, 20, 25, 40, 50, 60, 80, 100, 120, 150, 160, 200]; return steps.find((s) => s >= v) || 200; }
+function drawER() {
+  const { ctx, w, h } = erC; ctx.clearRect(0, 0, w, h);
+  const ty = TYPES[P.TYPE];
+  const sc = sizeScale(ty, P.SIZE);
+  const L = 14, R = w - 14, mid = Math.round(h * 0.57) + 0.5, amp = Math.min(mid - 58, h - 26 - mid - 6);
+  const maxMs = ty.engine === 'fdn' ? niceMax(ty.pre + ty.span * ty.sizeHi + 4) : ty.engine === 'spring' ? 60 : 40;
+  const xOf = (m) => L + m / maxMs * (R - L);
+  // grid
+  ctx.font = `10px ${SERIF_CANVAS}`; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  const tick = maxMs <= 25 ? 5 : maxMs <= 60 ? 10 : maxMs <= 120 ? 20 : 25;
+  for (let m = 0; m <= maxMs + 0.01; m += tick) {
+    const x = Math.round(xOf(m)) + 0.5;
+    ctx.strokeStyle = 'rgba(139,115,85,0.18)'; ctx.beginPath(); ctx.moveTo(x, mid - amp - 4); ctx.lineTo(x, mid + amp + 4); ctx.stroke();
+    ctx.fillStyle = 'rgba(214,196,160,0.66)'; ctx.fillText(m === 0 ? '0' : `${m}`, Math.min(R - 6, Math.max(L + 4, x)), h - 18);
+  }
+  ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(214,196,160,0.55)'; ctx.fillText('ms', R, h - 30);
+  if (ty.engine !== 'fdn') { if (ty.pre > 0) { ctx.fillStyle = 'rgba(243,205,134,0.10)'; ctx.fillRect(xOf(0), mid - amp - 4, xOf(ty.pre) - xOf(0), 2 * amp + 8); } return; }   // honest empty state: no axis, no stems
+  ctx.strokeStyle = 'rgba(214,196,160,0.45)'; ctx.beginPath(); ctx.moveTo(L, mid); ctx.lineTo(R, mid); ctx.stroke();
+  // pre-delay band
+  if (ty.pre > 0) {
+    ctx.fillStyle = 'rgba(243,205,134,0.10)'; ctx.fillRect(xOf(0), mid - amp - 4, xOf(ty.pre) - xOf(0), 2 * amp + 8);
+    ctx.strokeStyle = 'rgba(243,205,134,0.55)'; ctx.setLineDash([2, 3]);
+    ctx.beginPath(); ctx.moveTo(Math.round(xOf(ty.pre)) + 0.5, mid - amp - 4); ctx.lineTo(Math.round(xOf(ty.pre)) + 0.5, mid + amp + 4); ctx.stroke(); ctx.setLineDash([]);
+  }
+  // direct sound
+  ctx.strokeStyle = 'rgba(214,196,160,0.75)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(xOf(0) + 1, mid - amp); ctx.lineTo(xOf(0) + 1, mid + amp); ctx.stroke(); ctx.lineWidth = 1;
+  // taps
+  const norm = 0.6 * Math.abs(ER_GAIN_L[0]);
+  const stem = (x, g, up, col) => {
+    const len = Math.abs(g) / norm * amp; const y = up ? mid - len : mid + len;
+    ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(x, mid); ctx.lineTo(x, y); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2);
+    if (g >= 0) { ctx.fillStyle = col; ctx.fill(); } else { ctx.fillStyle = '#1c160f'; ctx.fill(); ctx.lineWidth = 1.3; ctx.stroke(); }
+  };
+  if (ty.engine === 'fdn') {
+    for (let k = 0; k < 8; k++) stem(xOf(ty.pre + ER_TIMES_L[k] * ty.span * sc), ER_GAIN_L[k] * ty.early, true, '#9ec46f');
+    for (let k = 0; k < 8; k++) stem(xOf(ty.pre + ER_TIMES_R[k] * ty.span * sc), ER_GAIN_R[k] * ty.early, false, '#e8b04a');
+  }   // Plate / Spring: no taps — the DOM empty-state caption says so
+}
+
+// ── Tone curve (biquad magnitudes, fs 48 k) ──
+const FS = 48000;
+function biq(kind, f, q, gDb) {
+  const A = Math.pow(10, gDb / 40), w0 = 2 * Math.PI * f / FS, cw = Math.cos(w0), sw = Math.sin(w0), al = sw / (2 * q);
+  let b0, b1, b2, a0, a1, a2;
+  if (kind === 'lp') { b0 = (1 - cw) / 2; b1 = 1 - cw; b2 = b0; a0 = 1 + al; a1 = -2 * cw; a2 = 1 - al; }
+  else if (kind === 'hp') { b0 = (1 + cw) / 2; b1 = -(1 + cw); b2 = b0; a0 = 1 + al; a1 = -2 * cw; a2 = 1 - al; }
+  else if (kind === 'pk') { b0 = 1 + al * A; b1 = -2 * cw; b2 = 1 - al * A; a0 = 1 + al / A; a1 = -2 * cw; a2 = 1 - al / A; }
+  else { const s = 2 * Math.sqrt(A) * al; b0 = A * ((A + 1) + (A - 1) * cw + s); b1 = -2 * A * ((A - 1) + (A + 1) * cw); b2 = A * ((A + 1) + (A - 1) * cw - s); a0 = (A + 1) - (A - 1) * cw + s; a1 = 2 * ((A - 1) - (A + 1) * cw); a2 = (A + 1) - (A - 1) * cw - s; }
+  return (fr) => {
+    const w = 2 * Math.PI * fr / FS, c1 = Math.cos(w), s1 = Math.sin(w), c2 = Math.cos(2 * w), s2 = Math.sin(2 * w);
+    const nr = b0 + b1 * c1 + b2 * c2, ni = -(b1 * s1 + b2 * s2), dr = a0 + a1 * c1 + a2 * c2, di = -(a1 * s1 + a2 * s2);
+    return 10 * Math.log10((nr * nr + ni * ni) / (dr * dr + di * di));
+  };
+}
+function drawTone() {
+  const { ctx, w, h } = toneC; ctx.clearRect(0, 0, w, h);
+  const ty = TYPES[P.TYPE];
+  const L = 30, R = w - 10, top = 58, bot = h - 22, dMax = 12, dMin = -24;
+  const fx = (f) => L + Math.log(f / 20) / Math.log(1000) * (R - L);
+  const dy = (d) => top + (dMax - Math.min(dMax, Math.max(dMin, d))) / (dMax - dMin) * (bot - top);
+  ctx.font = `10px ${SERIF_CANVAS}`;
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (const d of [12, 0, -12, -24]) {
+    const y = Math.round(dy(d)) + 0.5;
+    ctx.strokeStyle = d === 0 ? 'rgba(214,196,160,0.42)' : 'rgba(139,115,85,0.22)'; ctx.setLineDash(d === 0 ? [] : [1, 3]);
+    ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(R, y); ctx.stroke();
+    ctx.fillStyle = 'rgba(214,196,160,0.72)'; ctx.fillText(d > 0 ? `+${d}` : d === 0 ? '0' : `${MINUS}${-d}`, L - 5, y);
+  }
+  ctx.setLineDash([]); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (const [f, lab] of [[20, '20'], [50, ''], [100, '100'], [200, ''], [500, '500'], [1000, '1k'], [2000, ''], [5000, '5k'], [10000, '10k'], [20000, '20k']]) {
+    const x = Math.round(fx(f)) + 0.5;
+    ctx.strokeStyle = 'rgba(139,115,85,0.18)'; ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bot); ctx.stroke();
+    if (lab) { ctx.fillStyle = 'rgba(214,196,160,0.66)'; ctx.fillText(lab, Math.min(R - 8, Math.max(L + 6, x)), bot + 5); }
+  }
+  if (ty.engine === 'spring') {   // static annotation: the springs' in-loop low-pass (~4.4 kHz), not part of the tone stage
+    const xs = fx(4500);
+    ctx.fillStyle = 'rgba(243,205,134,0.07)'; ctx.fillRect(xs, top, R - xs, bot - top);
+    ctx.fillStyle = 'rgba(243,205,134,0.6)'; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom'; ctx.font = `italic 10.5px ${SERIF_CANVAS}`;
+    ctx.fillText(t('springBand'), R - 4, bot - 4); ctx.font = `10px ${SERIF_CANVAS}`;
+  }
+  const eqF = ty.eq ? biq(ty.eq.k, ty.eq.f, ty.eq.q, ty.eq.g) : () => 0;
+  const wc = warmCutoff();
+  const warmF = wc ? biq('lp', Math.min(wc, 0.45 * FS), 0.7071, 0) : () => 0;
+  const brightF = P.CHARACTER > 0 ? biq('hs', 4000, 0.707, brightDb()) : () => 0;
+  const cutF = biq('hp', P.LPFREQ, 0.7071, 0);
+  const N = 220, fs = [];
+  for (let i = 0; i <= N; i++) fs.push(20 * Math.pow(1000, i / N));
+  const path = (fn) => { ctx.beginPath(); fs.forEach((f, i) => { const x = fx(f), y = dy(fn(f)); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); };
+  // type EQ (parch dotted)
+  if (ty.eq) { ctx.strokeStyle = 'rgba(214,196,160,0.45)'; ctx.lineWidth = 1; ctx.setLineDash([1, 2]); path(eqF); ctx.stroke(); ctx.setLineDash([]); }
+  // character (amber dashed)
+  if (wc || P.CHARACTER > 0.5) { ctx.strokeStyle = 'rgba(232,176,74,0.85)'; ctx.lineWidth = 1.2; ctx.setLineDash([5, 3]); path((f) => warmF(f) + brightF(f)); ctx.stroke(); ctx.setLineDash([]); }
+  // low cut (brass dotted; a ghost while OUT)
+  ctx.strokeStyle = P.LPON ? 'rgba(243,205,134,0.95)' : 'rgba(243,205,134,0.28)'; ctx.lineWidth = P.LPON ? 1.4 : 1; ctx.setLineDash([2, 2]); path(cutF); ctx.stroke(); ctx.setLineDash([]);
+  const xc = Math.round(fx(P.LPFREQ)) + 0.5;
+  ctx.strokeStyle = P.LPON ? 'rgba(243,205,134,0.55)' : 'rgba(243,205,134,0.18)'; ctx.beginPath(); ctx.moveTo(xc, top); ctx.lineTo(xc, bot); ctx.stroke();
+  // total (sage)
+  const total = (f) => eqF(f) + warmF(f) + brightF(f) + (P.LPON ? cutF(f) : 0);
+  path(total); ctx.lineTo(fx(20000), bot); ctx.lineTo(fx(20), bot); ctx.closePath();
+  const g = ctx.createLinearGradient(0, top, 0, bot); g.addColorStop(0, 'rgba(158,196,111,0.16)'); g.addColorStop(1, 'rgba(158,196,111,0.0)');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = '#9ec46f'; ctx.lineWidth = 2; path(total); ctx.stroke(); ctx.lineWidth = 1;
+}
+
+// ── Output meter (template drawOut) ──
+function drawOut() {
+  const { ctx, w, h } = outC; ctx.clearRect(0, 0, w, h);
+  const top = 8, bot = h - 16, left = 22;
+  const toY = (d) => bot - ((Math.min(0, Math.max(-60, d)) + 60) / 60) * (bot - top);
+  const now = performance.now();
+  ctx.font = `9.5px ${SERIF_CANVAS}`; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  [0, -12, -24, -48].forEach((d) => {
+    const y = toY(d);
+    ctx.strokeStyle = 'rgba(139,115,85,0.35)'; ctx.setLineDash(d === 0 ? [] : [1, 3]);
+    ctx.beginPath(); ctx.moveTo(left, y + 0.5); ctx.lineTo(w - 6, y + 0.5); ctx.stroke();
+    ctx.fillStyle = 'rgba(214,196,160,0.75)'; ctx.fillText(d === 0 ? '0' : `${MINUS}${-d}`, left - 4, y);
+  });
+  ctx.setLineDash([]);
+  const bw = Math.floor((w - left - 6 - 8) / 2);
+  [t('lr').split(' / ')[0], t('lr').split(' / ')[1]].forEach((lab, i) => {
+    const v = outDisp[i]; const x = left + 2 + i * (bw + 6);
+    const y = toY(20 * Math.log10(Math.max(1e-6, v)));
+    ctx.fillStyle = 'rgba(214,196,160,0.06)'; ctx.fillRect(x, top, bw, bot - top);
+    const g = ctx.createLinearGradient(0, bot, 0, top);
+    g.addColorStop(0, '#6f9a4c'); g.addColorStop(0.75, '#9ec46f'); g.addColorStop(0.92, '#e8b04a'); g.addColorStop(1, '#e98a5a');
+    ctx.fillStyle = g; ctx.fillRect(x, y, bw, bot - y);
+    if (v >= 1) clipUntil[i] = now + 1200;
+    ctx.fillStyle = now < clipUntil[i] ? '#e98a5a' : 'rgba(214,196,160,0.06)'; ctx.fillRect(x, 1, bw, top - 3);
+    ctx.fillStyle = 'rgba(214,196,160,0.8)'; ctx.textAlign = 'center'; ctx.fillText(lab, x + bw / 2, bot + 8);
+  });
+}
+
+// ── Stations ──
+const STAGES = ['input', 'early', 'engine', 'tone', 'mix', 'output'];
+function paintStages() {
+  const now = performance.now();
+  for (const s of STAGES) document.getElementById(`st-${s}`).classList.toggle('on', now - (stageHit[s] || -1e9) < 1400);
+}
+
+function tick(now) {
+  requestAnimationFrame(tick);
+  const dt = lastWall ? Math.min(0.1, (now - lastWall) / 1000) : 0.016; lastWall = now;
+  stepSim(dt);
+  drawDecay(); drawOut();
+  if (dirty.er) { dirty.er = false; drawER(); }
+  if (dirty.tone) { dirty.tone = false; drawTone(); }
+  paintStages();
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  Lessons + presets (stand-in for PresetRecipes.h → applyFactoryPreset)
+// ════════════════════════════════════════════════════════════════════════
+const RECIPES = {
+  init:        {},
+  booth:       { TYPE: 0, WET: 30 },
+  room:        { TYPE: 1 },
+  hall:        { TYPE: 2, WET: 30 },
+  spring:      { TYPE: 3, WET: 35 },
+  plate:       { TYPE: 4, WET: 30, CHARACTER: 20 },
+  ambient:     { TYPE: 5, WET: 40, SIZE: 70, CHARACTER: -20 },
+  sizeVsDecay: { TYPE: 2, SIZE: 10, DECAY: 2.0, WET: 35 },
+  character:   { TYPE: 1, CHARACTER: -70, WET: 40 },
+  lowCut:      { TYPE: 2, LPON: 1, LPFREQ: 300, WET: 40 },
+  insertSend:  { TYPE: 2, WET: 100, DRY: 0 },
+};
+const LESSON_NAME = { booth: 'Booth', room: 'Room', hall: 'Hall', spring: 'Spring', plate: 'Plate', ambient: 'Ambient' };
+let currentLesson = 'init', modified = false;
+const UTILITY = ['Booth - Vocal Booth', 'Booth - Drum Close', 'Booth - Tight Room', 'Booth - Whisper', 'Booth - Snare Ambience', 'Booth - Voiceover', 'Booth - Dark Closet', 'Booth - Send', 'Room - Small Room', 'Room - Live Room', 'Room - Studio A', 'Room - Jazz Club', 'Room - Drum Room', 'Room - Wood Room', 'Room - Bright Chamber', 'Room - Send', 'Hall - Concert Hall', 'Hall - Cathedral', 'Hall - Theater', 'Hall - Ballroom', 'Hall - Strings Hall', 'Hall - Dark Hall', 'Hall - Choir Loft', 'Hall - Send', 'Spring - Vintage Spring', 'Spring - Surf Guitar', 'Spring - Dub Spring', 'Spring - Twang', 'Spring - Amp Spring', 'Spring - Dark Tank', 'Spring - Bright Tank', 'Spring - Send', 'Plate - Studio Plate', 'Plate - Shimmer Plate', 'Plate - Vocal Plate', 'Plate - Lush Plate', 'Plate - Snare Plate', 'Plate - Dark Plate', 'Plate - Long Plate', 'Plate - Send', 'Ambient - Pad Wash', 'Ambient - Infinite Drone', 'Ambient - Ethereal', 'Ambient - Cloud Nine', 'Ambient - Frozen Lake', 'Ambient - Glass Haze', 'Ambient - Soft Halo', 'Ambient - Send'];
+function lessonLabel(id) {
+  return LESSON_NAME[id] || t({ init: 'lInit', sizeVsDecay: 'lSizeDecay', character: 'lCharacter', lowCut: 'lLowCut', insertSend: 'lInsertSend' }[id]);
+}
+function applyLesson(id) {
+  for (const k in PARAMS) P[k] = PARAMS[k].def;
+  Object.assign(P, RECIPES[id]);
+  currentLesson = id; modified = false;
+  for (const s of STAGES) stageHit[s] = performance.now();
+  renderPreset(); render();
+}
+function markModified() { if (!modified) { modified = true; renderPreset(); } }
+function renderPreset() {
+  document.getElementById('presetBar').classList.toggle('modified', modified);
+  setText('presetNameText', currentLesson ? lessonLabel(currentLesson) : currentUtility);
+  document.querySelectorAll('.tour-btn').forEach((b) => b.classList.toggle('active', b.dataset.preset === currentLesson));
+  setText('tourCaption', currentLesson && currentLesson !== 'init' ? CAPTIONS[currentLesson][LI()] : t('capDefault'));
+}
+let currentUtility = '';
+function buildPresetList() {
+  const list = document.getElementById('presetList'); list.textContent = '';
+  const add = (label, fn, cur) => { const d = document.createElement('div'); d.className = 'preset-option' + (cur ? ' current' : ''); d.textContent = label; d.onclick = () => { fn(); list.hidden = true; }; list.appendChild(d); };
+  const grp = (label) => { const d = document.createElement('div'); d.className = 'preset-group'; d.textContent = label; list.appendChild(d); };
+  for (const id of ['init', 'booth', 'room', 'hall', 'spring', 'plate', 'ambient', 'sizeVsDecay', 'character', 'lowCut', 'insertSend'])
+    add(lessonLabel(id), () => applyLesson(id), currentLesson === id);
+  const sep = document.createElement('div'); sep.className = 'preset-separator'; list.appendChild(sep);
+  let lastType = '';
+  for (const n of UTILITY) {
+    const ty = n.split(' - ')[0];
+    if (ty !== lastType) { grp(ty); lastType = ty; }
+    add(n.split(' - ')[1], () => { const ti = TYPES.findIndex((x) => x.name === ty); applyLesson('init'); P.TYPE = ti; currentLesson = ''; currentUtility = n; renderPreset(); render(); }, currentUtility === n && !currentLesson);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  Tooltips (Ambisonics renderer: measure-then-pin, above / below)
+// ════════════════════════════════════════════════════════════════════════
+let tipsOn = true, tipTimer = 0, tipTarget = null, tipSuppressed = false;
+const tipEl = document.getElementById('tooltip');
+function showTip(target) {
+  if (!tipsOn || tipSuppressed || target !== tipTarget) return;
+  const row = TIPS[target.dataset.tipKey]; if (!row) return;
+  const [title, body] = row[LI()] || row[0];
+  tipEl.textContent = '';
+  const te = document.createElement('div'); te.className = 'tooltip-title'; te.textContent = title; tipEl.appendChild(te);
+  const be = document.createElement('div'); be.className = 'tooltip-body'; be.textContent = body; tipEl.appendChild(be);
+  const a = target.getBoundingClientRect();
+  tipEl.style.width = ''; tipEl.style.left = '0px'; tipEl.style.top = '0px';
+  const width = tipEl.getBoundingClientRect().width; tipEl.style.width = `${width}px`;
+  const height = tipEl.getBoundingClientRect().height;
+  let top = a.top - height - 8, placement = 'above';
+  if (top < 8) { top = a.bottom + 8; placement = 'below'; }
+  const cx = a.left + a.width / 2;
+  const left = Math.max(8, Math.min(window.innerWidth - width - 8, cx - width / 2));
+  tipEl.style.left = `${left}px`; tipEl.style.top = `${top}px`; tipEl.dataset.placement = placement;
+  tipEl.style.setProperty('--arrow-x', `${Math.max(10, Math.min(width - 10, cx - left))}px`);
+  tipEl.classList.add('visible');
+}
+function hideTip() { clearTimeout(tipTimer); tipTarget = null; tipEl.classList.remove('visible'); }
+document.addEventListener('mouseover', (e) => {
+  const el = e.target.closest('[data-tip-key]'); if (!el || el === tipTarget) return;
+  hideTip(); tipTarget = el; tipTimer = setTimeout(() => showTip(el), 350);
+});
+document.addEventListener('mouseout', (e) => {
+  const el = e.target.closest('[data-tip-key]'); if (!el) return;
+  if (e.relatedTarget && el.contains(e.relatedTarget)) return;
+  hideTip();
+});
+document.addEventListener('pointerdown', () => { tipSuppressed = true; hideTip(); }, true);
+document.addEventListener('pointerup', () => { tipSuppressed = false; }, true);
+
+// Lesson tips reuse the captions
+document.querySelectorAll('.tour-btn').forEach((b) => { b.dataset.tipKey = `tip.lesson.${b.dataset.preset}`; });
+for (const id in CAPTIONS) TIPS[`tip.lesson.${id}`] = CAPTIONS[id].map((c) => [id === 'init' ? 'Init' : (LESSON_NAME[id] || T[{ sizeVsDecay: 'lSizeDecay', character: 'lCharacter', lowCut: 'lLowCut', insertSend: 'lInsertSend' }[id]][0]), c]);
+TIPS['tip.lesson.init'] = [['Init', CAPTIONS.init[0]], ['Init', CAPTIONS.init[1]], ['初始', CAPTIONS.init[2]]];
+
+// ════════════════════════════════════════════════════════════════════════
+//  i18n application, scale, debug strip
+// ════════════════════════════════════════════════════════════════════════
+function applyLang(l) {
+  lang = l; document.documentElement.lang = l;
+  document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.getElementById('lang-select').value = l;
+  setText('tips-toggle', tipsOn ? t('on') : t('off'));
+  document.querySelectorAll('#debug [data-lang]').forEach((b) => b.classList.toggle('on', b.dataset.lang === l));
+  buildPresetList(); renderPreset(); render();
+}
+let forcedScale = null;
+function applyUiScale() {
+  const plugin = document.getElementById('plugin');
+  const fit = Math.min(window.innerWidth / 1180, window.innerHeight / 780);
+  uiScale = forcedScale ?? ((fit > 0 && Math.abs(fit - 1) > 0.002) ? fit : 1);
+  plugin.style.transform = uiScale === 1 ? '' : `scale(${uiScale})`;
+  document.body.classList.toggle('forced', forcedScale != null);
+  if (forcedScale != null) {
+    plugin.style.left = '0px'; plugin.style.top = '0px';
+    document.body.style.minWidth = `${1180 * uiScale}px`; document.body.style.minHeight = `${780 * uiScale}px`;
+  } else {
+    document.body.style.minWidth = ''; document.body.style.minHeight = '';
+    plugin.style.left = `${Math.max(0, Math.round((window.innerWidth - 1180 * uiScale) / 2))}px`;
+    plugin.style.top = `${Math.max(0, Math.round((window.innerHeight - 780 * uiScale) / 2))}px`;
+  }
+  canvases.forEach((c) => c.resize());
+  dirty.er = dirty.tone = true;
+  document.querySelectorAll('#debug [data-scale]').forEach((b) => b.classList.toggle('on', b.dataset.scale === (forcedScale == null ? 'fit' : String(forcedScale))));
+}
+
+function init() {
+  decayC = makeCanvas('decayCanvas'); erC = makeCanvas('erCanvas'); toneC = makeCanvas('toneCanvas'); outC = makeCanvas('outCanvas');
+  KNOB_IDS.forEach(bindKnob);
+  document.querySelectorAll('#seg-type button').forEach((b) => b.addEventListener('click', () => setParam('TYPE', Number(b.dataset.v))));
+  document.getElementById('pill-LPON').addEventListener('click', () => setParam('LPON', P.LPON ? 0 : 1));
+  document.querySelectorAll('.tour-btn').forEach((b) => b.addEventListener('click', () => applyLesson(b.dataset.preset)));
+  const order = ['init', 'booth', 'room', 'hall', 'spring', 'plate', 'ambient', 'sizeVsDecay', 'character', 'lowCut', 'insertSend'];
+  document.getElementById('presetNext').onclick = () => applyLesson(order[(order.indexOf(currentLesson) + 1) % order.length]);
+  document.getElementById('presetPrev').onclick = () => applyLesson(order[(order.indexOf(currentLesson) + order.length - 1) % order.length]);
+  document.getElementById('presetName').onclick = () => { const l = document.getElementById('presetList'); buildPresetList(); l.hidden = !l.hidden; };
+  const gear = document.getElementById('gear-btn'), pop = document.getElementById('settings-popover');
+  gear.onclick = () => { pop.hidden = !pop.hidden; gear.setAttribute('aria-expanded', String(!pop.hidden)); };
+  document.getElementById('lang-select').onchange = (e) => applyLang(e.target.value);
+  document.getElementById('tips-toggle').onclick = (e) => { tipsOn = !tipsOn; e.currentTarget.setAttribute('aria-pressed', String(tipsOn)); setText('tips-toggle', tipsOn ? t('on') : t('off')); };
+  document.addEventListener('mousedown', (e) => {
+    if (!e.target.closest('.settings-cluster')) { pop.hidden = true; gear.setAttribute('aria-expanded', 'false'); }
+    if (!e.target.closest('.preset-bar')) document.getElementById('presetList').hidden = true;
+  });
+  document.addEventListener('contextmenu', (e) => e.preventDefault());
+  document.querySelectorAll('#debug [data-scale]').forEach((b) => b.onclick = () => { forcedScale = b.dataset.scale === 'fit' ? null : Number(b.dataset.scale); applyUiScale(); });
+  document.querySelectorAll('#debug [data-lang]').forEach((b) => b.onclick = () => applyLang(b.dataset.lang));
+  document.getElementById('dbgHide').onclick = () => { document.getElementById('debug').hidden = true; };
+  const q = new URLSearchParams(location.search);
+  if (q.get('shot')) document.getElementById('debug').hidden = true;
+  if (q.get('scale')) forcedScale = Number(q.get('scale'));
+  window.addEventListener('resize', applyUiScale);
+  applyUiScale();
+  applyLang(q.get('lang') || 'en');
+  applyLesson('init');
+  if (document.fonts && document.fonts.load) document.fonts.load(`11px 'EB Garamond'`).then(() => { dirty.er = dirty.tone = true; });
+  requestAnimationFrame(tick);
+}
+init();
+</script>
+</body>
+</html>
