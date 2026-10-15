@@ -846,6 +846,23 @@ function applyOutputOrderPreset(id) {
   return { ok: true, reason: "none", speaker: -1 };
 }
 
+// v1.16.0 — VenueModel::applyFactoryRoom(), reproduced for the same reason:
+// geometry, rake and name replaced; trims and delays zeroed; LABELS KEPT.
+function applyFactoryRoom(id) {
+  if (id !== "placeholder" && id !== "ring") return { ok: false, reason: "unknownRoom", speaker: -1 };
+
+  speakers = speakers.map((s, i) => {
+    const base = BASE_SPEAKERS[i];
+    if (id === "placeholder") return { ...s, x: base.x, y: base.y, z: base.z, trimDb: 0, delayMs: 0 };
+    const az = (-22.5 + 45 * i) * Math.PI / 180;
+    return { ...s, x: 6 + 5 * Math.sin(az), y: 6 - 5 * Math.cos(az), z: 1.2, trimDb: 0, delayMs: 0 };
+  });
+  rake = id === "ring" ? { front: 1.2, rear: 1.2 } : { ...BASE_RAKE };
+
+  venueGen += 1;
+  return { ok: true, reason: "none", speaker: -1 };
+}
+
 // v1.4.0 — VenueModel::suggestedDelaysMs(), reproduced for the same reason the
 // swap and the repair above are: a stub is the fixture that stands in for the
 // plugin. The SHIPPED page carries no copy — it clicks Derive and renders what
@@ -1070,6 +1087,8 @@ const NATIVE_FNS = {
 
   // ── v1.4.0 ──
   applySuggestedDelays: () => applySuggestedDelays(),
+
+  applyFactoryRoom: (id) => applyFactoryRoom(id),
 
   saveVenue: () => saveVenue(),
 

@@ -1027,6 +1027,34 @@ export function createVenueScreen(deps) {
   need("btn-oo-direct").addEventListener("click", () => requestOutputOrder("direct"));
   need("btn-oo-roles").addEventListener("click", () => requestOutputOrder("roles"));
 
+  // ── v1.16.0 — the factory rooms ──────────────────────────────────────────
+  // requestOutputOrder's shape exactly: the room is built in C++
+  // (applyFactoryRoom), the table and the plan converge on the venueGen poll,
+  // and the completion feeds only the advisory line beside the buttons — the
+  // header's own result line, tableStateNode.
+
+  function requestFactoryRoom(id) {
+    nativeFn("applyFactoryRoom")(id)
+      .then((result) => {
+        if (result === null || typeof result !== "object") return;
+
+        const value = tableStateNode;
+        if (result.ok !== true) {
+          renderRefusal(value, result);
+        } else if (id === "ring") {
+          delete value.dataset.tone;
+          window.__setLabel(value, "room.ring");
+        } else {
+          delete value.dataset.tone;
+          window.__setLabel(value, "room.placeholder");
+        }
+      })
+      .catch((err) => console.error("applyFactoryRoom failed", err));
+  }
+
+  need("btn-room-placeholder").addEventListener("click", () => requestFactoryRoom("placeholder"));
+  need("btn-room-ring").addEventListener("click", () => requestFactoryRoom("ring"));
+
   // ── v1.4.0 — the delay column's two controls ─────────────────────────────
 
   // THE TOGGLE IS PURELY LOCAL. It calls nothing: the stored values do not

@@ -668,6 +668,15 @@
                  repainted the field, and on a refusal with no row there was no
                  other feedback at all. Advisory, like every completion here. -->
             <span class="vcell-value vresult" id="vtable-state" role="status"></span>
+            <!-- v1.16.0 — the two factory rooms, applied WHOLE in C++
+                 (applyFactoryRoom) through the same guard: geometry, rake and
+                 name only, the labels (the cabling) are kept. Here and not in
+                 the rail because the rail has no height to spare; the result
+                 rides #vtable-state, the line beside them. -->
+            <div class="venue-factory">
+              <button type="button" class="vbtn" id="btn-room-placeholder" data-i18n="room-placeholder">Default venue</button>
+              <button type="button" class="vbtn" id="btn-room-ring" data-i18n="room-ring">Flat ring</button>
+            </div>
           </div>
 
           <table class="vtable">

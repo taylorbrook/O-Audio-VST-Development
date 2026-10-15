@@ -3,7 +3,7 @@
 ## Status
 - **Current Status:** 📦 Installed — stage-4 roll-up re-verify ✅ VERIFIED 2026-08-14, all four
   stages complete; dev-branded build (`O-Octagon-dev`), not yet released
-- **Version:** 1.15.3 (dev build installed; v1.13.0 is the public release)
+- **Version:** 1.16.0 (dev build installed; v1.13.0 is the public release)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
 - **Complexity:** 5.0 (capped; raw 13.0) — staged implementation
@@ -492,6 +492,12 @@ fact was refused twice), and none affects a recorded result:
 - AU: `~/Library/Audio/Plug-Ins/Components/O-Octagon-dev.component`
 - Installed binaries byte-identical to freeze `378fb4cd` (VST3 `928cd447…`, AU `cc54db02…`)
   — **superseded at v1.6.0/v1.7.0;** the installed build is newer than that freeze
+- **2026-10-15 (v1.16.0 — `/improve`, factory venues):** a **Flat ring** room (8 × 45° on a 5 m circle,
+  ear height, flat floor) beside the Barnett placeholder. Two buttons at the right of the Venue
+  header; `VenueModel::applyFactoryRoom` keeps the labels and zeroes trims and delays. Prompted by
+  "can I enter another room's geometry?" (yes — the Venue table always allowed it; this adds a
+  generic starting point). Bridge 27 → 28. The rail had no height to spare (+78 px overflow), so
+  the pair went in the header, pinned at the French width.
 - **2026-10-12 (v1.15.3 — `/improve`, v1.15.2 regressions):** arming the monitor during a ping
   folded the 20 ms abort fade into the headphones — `monitorOn` is now held off while
   `verifyPing.isActive()` (the banner keys on `monitorAllowed`, so it does not flash). `getState()`

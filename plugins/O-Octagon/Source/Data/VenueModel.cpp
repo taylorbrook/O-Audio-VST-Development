@@ -77,6 +77,18 @@ namespace
     constexpr float kDefaultRakeFront = 1.10f;   // seated ear height at the front row
     constexpr float kDefaultRakeRear  = 3.20f;   // 2.1 m of rise over ~13 rows
 
+    // ── v1.16.0 flat-ring factory room ────────────────────────────────────────────────────────
+    //
+    // The generic octophonic ring: speaker n at azimuth −22.5° + 45°·(n − 1), measured clockwise
+    // from straight ahead (towards the stage, −y). Speaker 1 is front-left and the order runs
+    // clockwise, which is the placeholder's own numbering. Centre (6, 6) keeps every coordinate
+    // positive; the speakers sit at seated ear height over a flat floor, so the source plane and
+    // the speaker plane coincide and srcZ = 0 is level with the ring.
+    constexpr double kRingCentreX = 6.0;
+    constexpr double kRingCentreY = 6.0;
+    constexpr double kRingRadius  = 5.0;
+    constexpr float  kRingEarZ    = 1.20f;
+
     // ── Shipped default label map (§3.2.4) ────────────────────────────────────────────────────
     //
     // The identity map, chosen so an interleaved Logic surround bounce yields channel N = speaker N
@@ -287,6 +299,37 @@ void VenueModel::resetToDefaults()
     // ChannelMap.cpp were never affected and need no change.
     name    = juce::String (juce::CharPointer_UTF8 ("Default (placeholder — NOT measured)"));
     savedAt = {};
+
+    recomputeDerived();
+}
+
+void VenueModel::applyFactoryRoom (FactoryRoom room)
+{
+    const auto keptLabels = labels;
+
+    // The placeholder IS resetToDefaults() — one table, no second copy of the §OQ4 values.
+    resetToDefaults();
+    labels = keptLabels;
+
+    if (room == FactoryRoom::flatRing)
+    {
+        for (int i = 0; i < kNumSpeakers; ++i)
+        {
+            // In double, like the delay conversion: the floats then land within an ulp of the
+            // circle and the eight radii agree to ~1e-7 m.
+            const double az = juce::degreesToRadians (-22.5 + 45.0 * i);
+
+            speakers[(size_t) i] = { static_cast<float> (kRingCentreX + kRingRadius * std::sin (az)),
+                                     static_cast<float> (kRingCentreY - kRingRadius * std::cos (az)),
+                                     kRingEarZ };
+        }
+
+        rakeFrontM = kRingEarZ;
+        rakeRearM  = kRingEarZ;
+
+        // ASCII except the × and the °, so the explicit UTF-8 form again (see resetToDefaults).
+        name = juce::String (juce::CharPointer_UTF8 ("Flat ring (8 × 45°, r 5 m)"));
+    }
 
     recomputeDerived();
 }
