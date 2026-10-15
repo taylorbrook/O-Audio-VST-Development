@@ -10,6 +10,35 @@ serif actually renders.** MINOR: a UI pass (review R4/R5), per
 parameter, range, state format or i18n key changed. The knob JS is untouched,
 so R7 (keyboard/ARIA knobs) is deferred.
 
+### Ships in this release
+
+**This is the first release since v1.25.2 (2026-07-01). The download contains
+every version from v1.25.3 to v1.34.0.** Each version has its own section below.
+The list summarises them because they ship as one download.
+
+- **Sound changes. Saved sessions and presets will sound different.** v1.31.0
+  re-renders the voice across the pressed half of Voice Quality. v1.32.0 changes
+  glide, bend, consonant bursts, the reverb away from 48 kHz, and EQ sweeps.
+  v1.29.1 makes releases follow the Release knob (CR-02); before, they were cut
+  off or stretched. No parameter ID, range or type changed, and older sessions
+  and presets still load.
+- **Lyric mode (v1.33.0, v1.33.1).** A syllable now sings the vowel written after
+  its consonant. Before, an L, R, W or Y onset replaced the vowel. Consonant
+  loudness now follows natural speech, and the lyric window highlights the
+  syllable being sung, not the next one.
+- **Code-review fixes (v1.29.1–v1.32.2).** Every Critical and Warning finding in
+  the v1.29.0 review is resolved, along with most Info findings. Fixes include
+  the first-echo chirp after enabling Delay or Reverb, Delay Time reaching its
+  full 2 s above 96 kHz, and Partch 43-Tone now having all 43 degrees (it had 41).
+- **State.** A session reloaded without opening the UI now restores its tuning
+  (v1.25.3). Before, it played in 12-TET at A=440. The session state also stores
+  lyric syllables and the KBM mapping (v1.30.0).
+- **Interface languages.** French (v1.26.0) and Simplified Chinese (v1.29.0).
+- **Hover help.** Every control has a tooltip (v1.27.0), and a settings switch
+  turns hover help off (v1.28.0).
+- **UI (v1.34.0).** All text meets WCAG AA contrast, nothing renders below 9px,
+  and EB Garamond is bundled.
+
 ### Changed
 
 - **Palette tokens.** The page had 8 custom properties (all
