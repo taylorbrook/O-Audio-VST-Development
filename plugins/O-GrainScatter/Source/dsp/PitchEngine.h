@@ -164,10 +164,15 @@ namespace PitchCollections
     }
 
     // ------------------------------------------------------------------------
-    // Scala pitch-line parsing (message thread only).
+    // Pitch parsing (message thread only).
     //
-    // A pitch is CENTS if it contains a '.', otherwise a RATIO "a/b" or a bare
-    // integer "a" (= a/1) — the .scl rule. Returns false for anything else,
+    // A token with a '/' is a RATIO "a/b". Anything else is CENTS — including a
+    // bare integer, because "100 200 … 1200" is what a person types into the
+    // Custom field. v3.0.0 used the .scl rule here (bare integer = a/1), so
+    // typed cents became ratios, the period 1200/1 (~12 274 ct) failed the
+    // 4-octave check and Apply was rejected every time. The .scl rule is now
+    // applied only by tableFromScala, which rewrites a bare integer as "a/1"
+    // before it reaches this text form. Returns false for anything else,
     // including non-positive ratios.
     // ------------------------------------------------------------------------
     inline bool parsePitch (juce::String token, float& centsOut)
@@ -176,7 +181,7 @@ namespace PitchCollections
         if (token.isEmpty())
             return false;
 
-        if (token.containsChar ('.'))
+        if (! token.containsChar ('/'))
         {
             if (! token.containsOnly ("+-.0123456789"))
                 return false;
@@ -184,12 +189,8 @@ namespace PitchCollections
             return std::isfinite (centsOut);
         }
 
-        juce::String num = token, den = "1";
-        if (token.containsChar ('/'))
-        {
-            num = token.upToFirstOccurrenceOf ("/", false, false).trim();
-            den = token.fromFirstOccurrenceOf ("/", false, false).trim();
-        }
+        const juce::String num = token.upToFirstOccurrenceOf ("/", false, false).trim();
+        const juce::String den = token.fromFirstOccurrenceOf ("/", false, false).trim();
         if (num.isEmpty() || den.isEmpty() || ! num.containsOnly ("0123456789")
             || ! den.containsOnly ("0123456789"))
             return false;
@@ -280,6 +281,11 @@ namespace PitchCollections
                                     .upToFirstOccurrenceOf ("\t", false, false);
             if (token.isEmpty())
                 continue;
+            // The .scl rule: no '.' means a ratio, and a bare integer "a" is
+            // a/1. Written out as "a/1" so the text form (which reads a bare
+            // integer as cents) round-trips the same pitch.
+            if (! token.containsChar ('.') && ! token.containsChar ('/'))
+                token << "/1";
             float c = 0.0f;
             if (! parsePitch (token, c)) { error = "badPitch"; return false; }
             pitches.add (c);

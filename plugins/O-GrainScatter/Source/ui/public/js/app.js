@@ -520,7 +520,14 @@ function initI18n() {
             if (!r) return;
             if (r.error && r.error !== 'cancelled') { showError(r.error); return; }
             accept(r.state);
-            if (!r.error) { fillEditor(); showError(''); selectCustom(); }
+            if (!r.error) {
+                fillEditor();
+                selectCustom();
+                // Say so: the chips update behind the popover, so without this
+                // a successful Apply looks like nothing happened.
+                const custom = r.state && r.state.collections && r.state.collections[CUSTOM_INDEX];
+                if (errorEl && custom) setLabel(errorEl, 'label.customApplied', { n: String(custom.cents.length) });
+            }
         };
 
         if (editBtn && popover) {

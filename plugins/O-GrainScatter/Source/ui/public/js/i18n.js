@@ -1215,6 +1215,11 @@ export const LABELS = Object.freeze({
     },
     // Custom-editor errors. The KEY SUFFIX is the error code C++ returns
     // (PitchCollections::tableFrom*), so each code maps to exactly one row.
+    // v3.0.1: Apply's success line; {n} is the number of degrees per period.
+    'label.customApplied': { en: { t: 'Applied: {n} pitches per period.' },
+                             fr: { t: 'Appliqué\u00a0: {n}\u00a0hauteurs par période.', reviewed: false },
+        'zh-Hans': { t: '已应用：每个周期 {n} 个音高。', reviewed: 'mt' },
+    },
     'label.customErr.noPitches': { en: { t: 'Enter at least one pitch.' },
                              fr: { t: 'Saisir au moins une hauteur.', reviewed: false },
         'zh-Hans': { t: '请至少输入一个音高。', reviewed: 'mt' },
