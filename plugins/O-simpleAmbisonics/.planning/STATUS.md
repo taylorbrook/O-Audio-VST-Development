@@ -6,7 +6,7 @@ stage_phase: 0
 stage_phase_name: single-cycle
 stage_phase_total: 1
 artifact_suffix: ""
-status: stage_4_execute_complete
+status: stage_4_complete_verified
 last_updated: 2026-10-14
 s4_part2_scratch: /private/tmp/claude-501/-Users-taylorbrook-Dev-VST-development/2e5ea2d3-8b5a-4db6-b780-fc83cfba3220/scratchpad
 s4_ci_run: 38675387588
@@ -15,9 +15,9 @@ complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-current_phase: execute
-next_phase: verify
-next_action: plugin-verify
+current_phase: verify
+next_phase: complete
+next_action: install-plugin
 ui_scaffolding_phase_complete: true
 next_stage: 4
 ready_for_implementation: true
@@ -36,7 +36,10 @@ plugin_code: OSAm
 
 ## Current Position
 
-Stage: 4 of 4 (Polish) — **execute ✓ 2026-10-14** (Part 1 T1–T11 · CP1 ✓ · Part 2 T12–T14 · CP2 ✓ · CP3 ✓ · T15 ✓) · next: `/plugin-verify O-simpleAmbisonics`. CP3 (Taylor): COMPAT-02 Logic + Ableton mono / stereo PASS, Save field typing PASS, carried Logic list + Standalone list + D16 reflow PASS; **QUAL-02 PASS** (five directions distinct, +90° louder LEFT); **FUNC-09 usable**. No recipe changes. REQUIREMENTS: COMPAT-02, QUAL-02, FUNC-09 → complete — none pending. `stages/4-polish/SUMMARY.md` Part 2 written. v1.0.0 untagged.
+Stage: 4 of 4 (Polish) — **✅ VERIFIED 2026-10-14** · plugin complete · next: `/install-plugin O-simpleAmbisonics` (then `/publish` when ready — v1.0.0 untagged).
+Status: **Stage 4 verified.** `stages/4-polish/VERIFICATION.md`: FUNC-08, FUNC-09, COMPAT-02, QUAL-01 (preset clause), QUAL-02 complete — 27/27 requirements complete. Independent re-run from a forced rebuild: 0 warnings; harness 289/289 ×2 (digests 2.1 / 2.2 PASS, 2.3 reproduced, logs differ only in PERF-02; real preset folder untouched); installed VST3 + AU cmp-identical, 1.0.0 ×3; auval SUCCEEDED; pluginval s10 VST3 + AU SUCCESS; verify_2_1/2_2/2_3 22/35/42, verify_3_state S1–S5b; all UI gates exit 0, frame-probe 14/14 + NCs fuma/pole/idle/chevron and header-fit NC encreadn FAIL as designed; R-STATIC S1–S7 + R-BRIDGE clean. Human gates from CP1 / CP3 taken as recorded (R9 informational, not reported).
+
+Previous: Stage: 4 of 4 (Polish) — **execute ✓ 2026-10-14** (Part 1 T1–T11 · CP1 ✓ · Part 2 T12–T14 · CP2 ✓ · CP3 ✓ · T15 ✓) · next: `/plugin-verify O-simpleAmbisonics`. CP3 (Taylor): COMPAT-02 Logic + Ableton mono / stereo PASS, Save field typing PASS, carried Logic list + Standalone list + D16 reflow PASS; **QUAL-02 PASS** (five directions distinct, +90° louder LEFT); **FUNC-09 usable**. No recipe changes. REQUIREMENTS: COMPAT-02, QUAL-02, FUNC-09 → complete — none pending. `stages/4-polish/SUMMARY.md` Part 2 written. v1.0.0 untagged.
 
 Previous: Stage: 4 of 4 (Polish) — **execute Part 2 T12–T14 ✓ 2026-10-14** · CP1 ✓ (Taylor) · CP2 ✓ "yes" · ⏸ **CP3 hands-on + QUAL-02 sign-off (Taylor)** · then `/plugin-execute O-simpleAmbisonics` resumes at T15 (record results, SUMMARY Part 2, STATUS → execute complete). T12 sweep all green, nothing to fix: build 0 warnings; harness 289/289 ×2 (digests 2.1 / 2.2 PASS, 2.3 `edd1acfd21f54bcd`, logs differ only in PERF-02); installed VST3 / AU cmp-identical, 1.0.0 on VST3 / AU / Standalone; auval SUCCEEDED; pluginval s10 SUCCESS ×2 VST3 + ×2 AU; verify_2_1/2_2/2_3 22/35/42, verify_3_state S1–S5; R-UI all exit 0 with NCs FAILING as designed; R-STATIC S1–S7 + R-BRIDGE clean. CP2 facts changed: main already on origin (another session pushed `f4cf9bdf`), no push needed. T13 CI run 38675387588 validate-only: build-windows ✓ (pluginval s10 25/25 groups, 0 FAILED), build-macos ✓, create-release skipped. T14: CHANGELOG `## [1.0.0]`, CODE_REVIEW resolved, REQUIREMENTS (FUNC-08, QUAL-01 complete; COMPAT-02 auval + CI ticked), ARCHITECTURE Stage 4 Amendments A1–A6, ROADMAP note, PLUGINS row 📦 Installed 1.0.0.
 
