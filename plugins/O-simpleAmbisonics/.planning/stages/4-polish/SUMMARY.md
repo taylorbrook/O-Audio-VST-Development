@@ -1,7 +1,7 @@
 # Stage 4 — Polish — SUMMARY
 
 **Plugin:** O-simpleAmbisonics · **Target:** v1.0.0, **no tag** · **Date:** 2026-10-14
-**Status:** Part 1 (T1–T11) complete → ⏸ CP1 preset-bar visual checkpoint (Taylor). Part 2 (T12–T15) not started.
+**Status:** **Execute complete.** Part 1 (T1–T11) → CP1 ✓ · Part 2 (T12–T15) → CP2 ✓ "yes" · CP3 hands-on + QUAL-02 ✓ (Taylor). Next: `/plugin-verify O-simpleAmbisonics`.
 **Gate:** `run-gate.sh O-simpleAmbisonics 3-gui 4-polish`: build / pluginval / dsp-critic / ui-critic PASSED; its interactive code-review prompt was answered with `--skip-review` because T2 *is* that review (all four critics).
 
 ## Part 1
@@ -104,3 +104,51 @@
 
 ### Open for CP1 (Taylor)
 Items 1–6 of the plan's CP1, plus tracer item 6 (a live lesson click in the Standalone moves its controls, Output does not move) and IN-07 (a DPR change between displays repaints sharp).
+
+**CP1 outcome:** signed off by Taylor before T12.
+
+## Part 2
+
+### T12 — full validation sweep (×2)
+| Check | Result |
+|---|---|
+| R-BUILD | 0 warnings |
+| Harness | **289 / 289** ×2; digests 2.1 / 2.2 PASS, 2.3 `edd1acfd21f54bcd`; the two logs differ only in the PERF-02 wall-clock line |
+| Install | VST3 / AU `cmp`-identical to the build; version 1.0.0 on VST3 / AU / Standalone |
+| auval | `auval -v aufx OSAm OuDv` SUCCEEDED |
+| pluginval s10 | SUCCESS ×2 VST3 + ×2 AU |
+| pedalboard | verify_2_1 22 / 22, verify_2_2 35 / 35, verify_2_3 42 / 42, verify_3_state S1–S5 — ALL PASS |
+| R-UI | every UI gate exit 0; negative controls FAIL as designed |
+| R-STATIC S1–S7, R-BRIDGE | clean |
+
+Nothing to fix.
+
+### CP2 — push / dispatch go-ahead
+Taylor: "yes". Fact change: `main` was already on origin (another session pushed `f4cf9bdf`), so no push was needed.
+
+### T13 — Windows CI (validate-only)
+Run **38675387588**: build-windows ✓ (MSVC, WebView2 static; pluginval s10 25 / 25 groups, 0 FAILED), build-macos ✓, create-release skipped (no tag).
+
+### T14 — release docs
+`CHANGELOG.md` `## [1.0.0]`; `CODE_REVIEW.md` resolved; REQUIREMENTS FUNC-08 + QUAL-01 complete, COMPAT-02 auval + CI ticked; `research/ARCHITECTURE.md` Stage 4 Amendments A1–A6; ROADMAP note; PLUGINS.md row 📦 Installed 1.0.0. Commit `6088574a`.
+
+### CP3 — hands-on + QUAL-02 (Taylor, 2026-10-14)
+| Item | Result |
+|---|---|
+| 1 COMPAT-02 — Logic + Ableton, mono + stereo tracks, no I/O config; Save field typing | PASS |
+| 2 Carried Logic list (R1–R3, gestures, meters, save / reopen incl. preset name, 10× reopen) | PASS |
+| 3 Standalone list (keyboard, lessons move only their recipe, orderStep walk, Overhead no clip, click-free preset loads) | PASS |
+| 4 D16 reflow eye-check en / fr / zh | PASS |
+| 5 **QUAL-02** — Binaural, order 3, 1 m: front / back / left / right / above distinct; +90° louder LEFT | **PASS** |
+| 6 **FUNC-09** — Slow Orbit usable as a creative panner in a headphone mix | **Usable** |
+| 7 R9 long host blocks → idle well | not reported |
+
+No recipe changes, no fix loop, no CI re-dispatch.
+
+### T15 — record
+REQUIREMENTS: COMPAT-02 host criterion, QUAL-02 both criteria, FUNC-09 (new criteria section) → complete, Verified At stage-4. No requirement left pending.
+
+### Deviations (Part 2)
+- CP2: push skipped — already on origin.
+- No tag (per plan; `/publish` is a separate step).
+
