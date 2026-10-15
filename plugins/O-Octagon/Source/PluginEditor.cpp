@@ -834,6 +834,32 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
             complete (makeResult (ok, mapFailureName (whyNot.reason), whyNot.speakerIndex));
         });
 
+    // (4e) applyFactoryRoom ("placeholder" | "ring") — v1.16.0's Factory room buttons. The same
+    // shape as (4c): clone the live venue, let VenueModel::applyFactoryRoom() overwrite the room
+    // (and keep the labels — the cabling is the operator's), push it through the one guard.
+    options = options.withNativeFunction ("applyFactoryRoom",
+        [this] (auto& args, auto complete)
+        {
+            const auto id = args.size() > 0 ? args[0].toString() : juce::String {};
+
+            oo::VenueModel edited = processorRef.getVenue();
+
+            if (id == "placeholder")
+                edited.applyFactoryRoom (oo::VenueModel::FactoryRoom::placeholder);
+            else if (id == "ring")
+                edited.applyFactoryRoom (oo::VenueModel::FactoryRoom::flatRing);
+            else
+            {
+                complete (makeResult (false, "unknownRoom", -1));
+                return;
+            }
+
+            ochan::MapDiagnosis whyNot {};
+            const bool ok = processorRef.applyVenueEditChecked (edited, &whyNot);
+
+            complete (makeResult (ok, mapFailureName (whyNot.reason), whyNot.speakerIndex));
+        });
+
     // (5) saveVenue — FileChooser::launchAsync, then oo::venuefile::save.
     //
     // THE SafePointer IS HOISTED TO A LOCAL and captured by copy. Writing

@@ -254,8 +254,11 @@ head(3, 'bridge closure in BOTH directions; the surface is exactly THIRTEEN (P65
     // v1.14.0 REMOVES ONE: getCurrentPreset. The preset name now lives on the processor and rides
     // getPresetList as `current`; the page stopped calling the reader, so keeping it would be the
     // registered-not-called dead weight this section exists to flag.
-    check(registered.size === 27,
-        `PluginEditor.cpp registers exactly 27 native functions — ${registered.size}: ${[...registered].sort().join(', ')}`);
+    // v1.16.0 adds exactly ONE: applyFactoryRoom — the Venue rail's Default / Ring pair, built
+    // in C++ (VenueModel::applyFactoryRoom) so the ring's geometry has one home. Its result
+    // rides getVenueGeometry like every other venue write.
+    check(registered.size === 28,
+        `PluginEditor.cpp registers exactly 28 native functions — ${registered.size}: ${[...registered].sort().join(', ')}`);
     check(setsEqual(called, registered),
         `JS calls == C++ registers${setsEqual(called, registered) ? ''
             : ` — called-not-registered: [${diff(called, registered)}], registered-not-called: [${diff(registered, called)}]`}`);

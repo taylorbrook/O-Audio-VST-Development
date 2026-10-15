@@ -948,6 +948,28 @@ export const I18N = Object.freeze({
               b: '恢复出厂的环绕角色标签。',
               reviewed: 'bt' },
     },
+    // v1.16.0 — the Factory venue pair. zh-Hans at 'mt' (glossary roots 出厂 /
+    // 场地 / 默认), fr unreviewed: neither has had its reverse pass yet.
+    'room-placeholder': {
+        en: { t: 'Default venue',
+              b: 'Load the built-in Roy Barnett estimate — a placeholder, not a measurement. Labels are kept; trims and delays reset.' },
+        fr: { t: 'Lieu par défaut',
+              b: 'Charge l’estimation intégrée de Roy Barnett — une valeur provisoire, pas une mesure. Les libellés sont conservés ; les corrections de niveau et les délais sont remis à zéro.',
+              reviewed: false },
+        'zh-Hans': { t: '默认场地',
+              b: '载入内置的 Roy Barnett 估算布局——这是占位值，不是实测值。保留标签；电平修正和延迟归零。',
+              reviewed: 'mt' },
+    },
+    'room-ring': {
+        en: { t: 'Flat ring',
+              b: 'Load a generic ring: eight speakers 45° apart on a 5 m circle, at ear height, over a flat floor. Speaker 1 is front-left, then clockwise. Labels are kept; trims and delays reset.' },
+        fr: { t: 'Anneau plat',
+              b: 'Charge un anneau générique : huit haut-parleurs espacés de 45° sur un cercle de 5 m, à hauteur d’oreille, sur un sol plat. Le haut-parleur 1 est à l’avant gauche, puis dans le sens horaire. Les libellés sont conservés ; les corrections de niveau et les délais sont remis à zéro.',
+              reviewed: false },
+        'zh-Hans': { t: '平面环形',
+              b: '载入通用环形布局：八只扬声器以 45° 间隔分布在半径 5 m 的圆上，位于耳朵高度，地面平坦。扬声器 1 在左前方，然后按顺时针排列。保留标签；电平修正和延迟归零。',
+              reviewed: 'mt' },
+    },
     'ping-grid': {
         en: { t: 'Verify ping',
               b: 'Sound a confirmation ping from one speaker. The lit number is what the plugin reports playing — never a timer.' },
@@ -1386,6 +1408,12 @@ export const LABELS = Object.freeze({
                                                     'zh-Hans': { t: '直达 1–8', reviewed: 'bt' } },
     'oo.roles':          { en: { t: 'roles' },   fr: { t: 'rôles', reviewed: true },
                                                  'zh-Hans': { t: '角色', reviewed: 'bt' } },
+    'room.placeholder':  { en: { t: 'default venue loaded' },
+                           fr: { t: 'lieu par défaut chargé', reviewed: false },
+                           'zh-Hans': { t: '已载入默认场地', reviewed: 'mt' } },
+    'room.ring':         { en: { t: 'flat ring loaded' },
+                           fr: { t: 'anneau plat chargé', reviewed: false },
+                           'zh-Hans': { t: '已载入平面环形', reviewed: 'mt' } },
 
     // v1.13.2 (B7) — the Venue file rail's result line, written by venue.js on
     // the completion of saveVenue / loadVenue (and, for the two failure codes,
@@ -1552,6 +1580,8 @@ export const TIP_BINDINGS = [
     ['#btn-preset-load',       'preset-load'],
     ['#btn-oo-direct',         'oo-direct'],
     ['#btn-oo-roles',          'oo-roles'],
+    ['#btn-room-placeholder',  'room-placeholder'],
+    ['#btn-room-ring',         'room-ring'],
     ['.ping-grid',             'ping-grid'],
     ['#btn-ping-auto',         'ping-auto'],
     ['#btn-ping-stop',         'ping-stop'],

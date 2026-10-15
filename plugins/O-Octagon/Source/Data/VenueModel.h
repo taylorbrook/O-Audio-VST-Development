@@ -102,6 +102,23 @@ public:
     /** Restores every one of the 50 values to its §OQ4 default and recomputes. */
     void resetToDefaults();
 
+    /** v1.16.0. The two rooms the Venue screen can load without a .venue file. */
+    enum class FactoryRoom
+    {
+        placeholder,   ///< the §OQ4 Roy Barnett estimate — what resetToDefaults() writes
+        flatRing       ///< eight speakers at 45° on a 5 m circle, at ear height, flat floor
+    };
+
+    /** v1.16.0. Replaces the ROOM with a factory one: the eight positions, the rake and the name.
+        Trims and delays go to zero — they belong to the room being replaced, and on the ring every
+        speaker is equidistant from the centre, so zero is also what Derive would write there.
+
+        THE LABELS ARE KEPT. They describe how the operator cabled the rig, which a factory
+        geometry cannot know; resetting them would silently re-route a rig that was just fixed with
+        Direct 1–8. The ring numbers its speakers in the placeholder's order — 1 front-left, then
+        clockwise — so a label set made for one reads the same on the other. */
+    void applyFactoryRoom (FactoryRoom room);
+
     //==============================================================================
     /** Reads the VENUE child of `parentState`, if present.
 

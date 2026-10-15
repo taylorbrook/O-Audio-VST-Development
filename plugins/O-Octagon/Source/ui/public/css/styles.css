@@ -1297,6 +1297,28 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
   text-overflow: ellipsis;
 }
 
+/* v1.16.0 — the factory-room pair at the head's right end. Content-sized, not
+   the rail's flex: 1, and 22 px rather than 26 so the head grows by as little
+   as the buttons allow. */
+.venue-factory {
+  flex: 0 0 auto;
+  align-self: center;
+  display: flex;
+  gap: 8px;
+}
+
+.venue-factory .vbtn {
+  flex: 0 0 auto;
+  height: 22px;
+  padding: 0 12px;
+}
+
+/* Pinned at the WIDEST language (fr: 125.3 / 98.8 px measured content-sized),
+   so the pair — and the venue name beside it — hold one width in en, fr and
+   zh-Hans (check-ui-labels [7]). */
+#btn-room-placeholder { width: 128px; }
+#btn-room-ring        { width: 102px; }
+
 /* ── The 42-value table ──────────────────────────────────────────────────── */
 
 .vtable {

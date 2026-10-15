@@ -3985,6 +3985,89 @@ int main()
         }
     }
 
+    //==========================================================================
+    // v1.16.0 — FR: the factory rooms. The ring is a ring (eight radii of 5 m about (6, 6), 45°
+    // apart, every speaker a hull VERTEX, flat rake, Derive writes ~0); the placeholder is
+    // resetToDefaults() to the bit; and BOTH keep the labels while zeroing trims and delays.
+    {
+        // A non-default label set and nonzero trims/delays, so "kept" and "zeroed" both
+        // discriminate.
+        const juce::String direct[] = { "L", "R", "Lrs", "Rrs", "C", "Lfe", "Lss", "Rss" };
+
+        auto dirty = [&direct]
+        {
+            oo::VenueModel v;
+            for (int i = 0; i < 8; ++i)
+            {
+                v.setSpeakerLabel (i, direct[i]);
+                v.setSpeakerTrimDb (i, -3.0f);
+                v.setSpeakerDelayMs (i, 7.0f);
+                v.setSpeakerPosition (i, { 1.0f + (float) i, 2.0f, 3.0f });
+            }
+            return v;
+        };
+
+        oo::VenueModel ring = dirty();
+        ring.applyFactoryRoom (oo::VenueModel::FactoryRoom::flatRing);
+
+        oo::ConvexHull2D hull;
+        hull.build (ring.speakerPositions());
+
+        bool onCircle = true, allVertex = true, spacing = true, keptAndZeroed = true;
+        for (int i = 0; i < 8; ++i)
+        {
+            const auto p = ring.speaker (i);
+            const double r = std::hypot (p.x - 6.0, p.y - 6.0);
+            onCircle = onCircle && std::abs (r - 5.0) < 1.0e-5 && near (p.z, 1.2f, 1.0e-6f);
+
+            // Azimuth clockwise from straight ahead (−y): speaker n at −22.5° + 45°·(n − 1).
+            const double az = juce::radiansToDegrees (std::atan2 (p.x - 6.0, -(p.y - 6.0)));
+            double want = -22.5 + 45.0 * i;
+            if (want > 180.0) want -= 360.0;
+            spacing = spacing && std::abs (az - want) < 1.0e-4;
+
+            allVertex = allVertex
+                        && hull.classify (i) == oo::ConvexHull2D::Classification::VERTEX;
+            keptAndZeroed = keptAndZeroed && ring.labelAbbreviation (i) == direct[i]
+                            && bitExact (ring.trimDb (i), 0.0f) && bitExact (ring.delayMs (i), 0.0f);
+        }
+
+        float maxDerived = 0.0f;
+        for (const auto ms : ring.suggestedDelaysMs()) maxDerived = std::max (maxDerived, ms);
+
+        const bool flat = bitExact (ring.rakeFront(), 1.2f) && bitExact (ring.rakeRear(), 1.2f);
+
+        check ("FR1 flat-ring-geometry",
+               onCircle && spacing && allVertex && flat && hull.getNumHullPoints() == 8,
+               "r=5 about (6,6) " + juce::String (onCircle ? "ok" : "OFF") + ", 45 deg "
+               + juce::String (spacing ? "ok" : "OFF") + ", hull " + juce::String (hull.getNumHullPoints())
+               + " vertices, rake " + juce::String (ring.rakeFront(), 2) + "/" + juce::String (ring.rakeRear(), 2)
+               + ", rigScale " + juce::String (ring.rigScale(), 5));
+        check ("FR2 flat-ring-derive-is-zero", maxDerived < 1.0e-3f,
+               "max suggested delay " + juce::String (maxDerived, 6) + " ms (equidistant ring)");
+        check ("FR3 factory-room-keeps-labels", keptAndZeroed,
+               "labels kept, trims and delays zeroed on the ring");
+
+        // The placeholder: every position and the rake bit-equal to a fresh model, name included.
+        oo::VenueModel ph = dirty();
+        ph.applyFactoryRoom (oo::VenueModel::FactoryRoom::placeholder);
+        const oo::VenueModel fresh;
+
+        bool same = bitExact (ph.rakeFront(), fresh.rakeFront()) && bitExact (ph.rakeRear(), fresh.rakeRear())
+                    && ph.getName() == fresh.getName() && bitExact (ph.rigScale(), fresh.rigScale());
+        bool phKept = true;
+        for (int i = 0; i < 8; ++i)
+        {
+            const auto a = ph.speaker (i), b = fresh.speaker (i);
+            same = same && bitExact (a.x, b.x) && bitExact (a.y, b.y) && bitExact (a.z, b.z)
+                   && bitExact (ph.trimDb (i), 0.0f) && bitExact (ph.delayMs (i), 0.0f);
+            phKept = phKept && ph.labelAbbreviation (i) == direct[i];
+        }
+
+        check ("FR4 placeholder-is-reset-to-default", same && phKept,
+               "geometry, rake, name and rigScale bit-equal to VenueModel(); labels kept");
+    }
+
     scratchDir.deleteRecursively();
 
     //==========================================================================

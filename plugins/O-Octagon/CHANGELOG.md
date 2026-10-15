@@ -1,5 +1,37 @@
 # O-Octagon Changelog
 
+## [1.16.0] - 2026-10-15
+
+### Added
+
+- **Factory venues: Default venue / Flat ring.** Two buttons at the right of the
+  Venue screen's header load a room without needing a `.venue` file. **Flat ring**
+  is a generic octophonic ring: eight speakers 45° apart on a 5 m circle about
+  (6, 6) m, at seated ear height (1.20 m) over a flat floor (rake 1.20 / 1.20).
+  Speaker 1 is front-left and the numbering runs clockwise, the same order as the
+  Barnett placeholder, so a label set made for one reads the same on the other.
+  **Default venue** reloads the Roy Barnett placeholder.
+  Both replace the geometry, rake and name, set trims and delays to zero, and
+  **keep the eight output labels** (the cabling belongs to the operator, not the
+  room). Built in C++ (`VenueModel::applyFactoryRoom`) and applied through
+  `applyVenueEditChecked`, like every other venue write. The result is shown on
+  the header's result line. Bridge surface: 27 → 28 calls (`applyFactoryRoom`).
+- The buttons sit in the header, not the rail, because a rail group overflowed the
+  rail by 78 px at the shipping size. They are pinned at the widest language
+  (French), so nothing moves between en, fr and zh-Hans.
+
+### Notes
+
+- The default venue is unchanged: `VenueModel()` and `resetToDefaults()` are
+  untouched, and loading **Default venue** is bit-equal to them (unit probe FR4).
+- zh-Hans strings ship at `reviewed:'mt'` and the French at `reviewed:false`. Both
+  still need their reverse/read pass.
+- Gates: unit 64/0 (FR1–FR4 new: ring on the circle, 45° spacing, 8 hull
+  vertices, flat rake, Derive ≈ 0 on the ring, labels kept). Layout 39 sections
+  pass. check-ui-labels, check-i18n, fr-lint and zh-lint pass. ui_frontend_check:
+  43/44. Section 30 (GainStage `reset()` count 23 vs 20) fails identically on the
+  v1.15.4 backup, so it predates this change.
+
 ## [1.15.4] - 2026-10-14
 
 ### Fixed
