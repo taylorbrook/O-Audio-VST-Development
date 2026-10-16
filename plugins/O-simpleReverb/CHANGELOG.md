@@ -2,7 +2,7 @@
 
 All notable changes to O-simpleReverb (formerly O-SimpleReverb, and before that OuariconSimpleReverb) will be documented in this file.
 
-## [3.0.0] - unreleased
+## [3.0.0] - 2026-10-15
 
 **O-simple family retrofit.** MAJOR: the plugin is renamed **O-simpleReverb**
 (was O-SimpleReverb) and gets the O-simple field-guide interface. The DSP is
