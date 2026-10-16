@@ -501,7 +501,9 @@ body {
     z-index: 1;
     min-height: 0;
 }
-.row-1, .row-2 { display: flex; gap: 10px; height: 252px; min-height: 252px; }
+/* v1.12.0 — 252 → 289px each: the retired 64px Microtonal strip and its
+   10px gap are split between the two rows (608 = 20 pad + 289·2 + 10 gap). */
+.row-1, .row-2 { display: flex; gap: 10px; height: 289px; min-height: 289px; }
 .row-1 > .sec-bow        { width: 260px; }
 .row-1 > .sec-schelleng  { width: 336px; }
 .row-1 > .sec-body       { width: 364px; }
@@ -509,7 +511,14 @@ body {
 .row-2 > .sec-expression { width: 330px; }
 .row-2 > .sec-drone      { width: 140px; }
 .row-2 > .sec-output     { width: 180px; }
-.row-3 { height: 64px; min-height: 64px; }
+/* v1.12.0 — the +37px rows. The two canvases take it as plot height (SCH_H /
+   SPC_H); the knob panels split it evenly around their blocks instead of
+   leaving an empty band at the foot. Drone and Output already pin their
+   foot item (caption, VU) with margin-top: auto. */
+.sec-bow > .param-row,
+.sec-expression > .expr-block,
+.sec-strings > .strings-top,
+.sec-strings > .finetuner-block { margin-block: auto; }
 
 /* ============================ Section panels ============================== */
 .panel {
@@ -651,11 +660,6 @@ body {
 .macro-knob .knob-fill { stroke: var(--green-dark); }
 .macro-knob .knob-label { font-size: 9px; letter-spacing: 0.8px; max-width: 78px; }
 
-/* Mini footer knob */
-.mini-knob { flex-direction: row; width: auto; gap: 6px; align-items: center; }
-.mini-knob .knob-wrapper { width: 34px; height: 34px; }
-.mini-knob .knob-label { font-size: 9px; }
-.mini-knob .knob-value { font-size: 10px; min-width: 56px; text-align: left; }
 
 /* ============================ Viz panels ================================== */
 .viz-canvas { display: block; }
@@ -759,24 +763,20 @@ body {
     box-shadow: inset 0 1px 3px rgba(var(--ink-rgb), 0.25);
 }
 
-/* ============================ Microtonal strip ============================ */
-.sec-microtonal {
-    flex-direction: row;
+/* ========== Tuning source controls (Tuning tab header bar, v1.12.0) ========= */
+/* Moved from the retired Main-tab Microtonal strip with their measured pins
+   (the select, its 98px caption floor, the toggle). */
+.tuning-header-bar {
+    display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 0 14px;
-    background: linear-gradient(rgba(var(--paper-deep-rgb), 0.7), rgba(var(--paper-deep-rgb), 0.45));
+    gap: 22px;
+    height: 34px;
+    padding: 0 12px;
+    margin-bottom: 8px;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    background: rgba(var(--paper-light-rgb), 0.35);
 }
-/* The strip sits in the page's darkest band (the bottom radial), so its
-   caption takes oak, not the walnut the upper panel headings carry. */
-.sec-microtonal .strip-label {
-    font-size: 10px; text-transform: uppercase; letter-spacing: 1.6px;
-    color: var(--oak);
-    border-right: 1px solid var(--rule);
-    padding-right: 14px;
-    white-space: nowrap;
-}
-.sec-microtonal .strip-label .numeral { color: var(--green-dark); font-weight: bold; }
 
 .dropdown-select {
     background: rgba(var(--paper-light-rgb), 0.5);
@@ -806,26 +806,6 @@ body {
     color: var(--oak); white-space: nowrap;
 }
 
-.scl-btn {
-    /* Load .scl… 81.8 -> Charger .scl… 97.5. Unpinned it slides the Note
-       Expression toggle 15.7 px. */
-    min-width: 98px;
-    height: 28px;
-    white-space: nowrap;
-    padding: 0 12px;
-    background: rgba(var(--paper-light-rgb), 0.4);
-    border: 1px solid var(--walnut);
-    border-radius: 4px;
-    font-family: inherit;
-    font-size: 11px;
-    color: var(--ink);
-    cursor: pointer;
-    letter-spacing: 0.4px;
-    transition: background 0.15s, opacity 0.15s;
-}
-.scl-btn:hover { background: rgba(var(--sage-light-rgb), 0.3); }
-.scl-btn:disabled { opacity: 0.45; cursor: default; }
-
 /* Toggle switch */
 .toggle-field { display: flex; align-items: center; gap: 7px; cursor: pointer; }
 .toggle-track {
@@ -848,15 +828,6 @@ body {
 }
 .toggle-field.on .toggle-track { background: var(--sage); }
 .toggle-field.on .toggle-thumb { left: 20px; }
-
-.range-caption {
-    margin-left: auto;
-    font-size: 10px;
-    font-style: italic;
-    color: var(--oak);
-    letter-spacing: 0.4px;
-    white-space: nowrap;
-}
 
 /* ==================== Stage 3 Task 9 (D3) — Main/Tuning tabs ============== */
 /* Tab strip lives in the existing 42 px header (O-MicrotonalSampler
@@ -902,8 +873,10 @@ body {
     padding: 10px;
     z-index: 1;
 }
-/* Give the container-query root real height (its parents size by content). */
-#tuning-container { min-height: 566px; height: 566px; }
+/* Give the container-query root real height (its parents size by content).
+   v1.12.0 — 566 → 546px for the 34px header bar + 8px gap above it
+   (608 body − 20 pad − 42 = 546). */
+#tuning-container { min-height: 546px; height: 546px; }
 
 /* ── THE TUNING PANEL'S OWN PINS (v1.9.0, quick task 260906-s71) ──────
    The shared scala-tuning-engine panel became localized at module
@@ -1050,7 +1023,6 @@ body {
      .strip-field-label       9    10.00   0       10.00    1.1111111
      .stepper-label           8     9.00   0        9.00    1.1250000
      .finetuner-title         8     9.00   0        9.00    1.1250000
-     .range-caption          10    11.00   0       11.00    1.1000000
      .panel-label > span[data-i18n]
                              10    11.00   0       11.00    1.1000000
      .viz-caption           8.5    10.00   0       10.00    1.1764706
@@ -1075,7 +1047,6 @@ body {
 .strip-field-label      { line-height: 1.1111111; }
 .stepper-label,
 .finetuner-title        { line-height: 1.1111111; }   /* v1.11.0: 8px -> 9px */
-.range-caption          { line-height: 1.1; }
 .viz-caption            { line-height: 1.1111111; }   /* v1.11.0: 8.5px -> 9px, same 10px box */
 
 /* ── 6. FOUR CAPTION *ROWS* THAT GREW WITH NO LEAF REPORTING IT ───────
@@ -1105,11 +1076,14 @@ body {
 
    R8: none of the four carried a line-height before this. */
 .panel-label,
-.panel-label > span:not(.sublabel),
-.strip-label            { line-height: 1.1; }
+.panel-label > span:not(.sublabel) { line-height: 1.1; }
 .drone-caption          { line-height: 1.1111111; }
 
 /* ── 7. TWO WIDTH FLOORS ON THE MICROTONAL STRIP ─────────────────────
+   v1.12.0: the strip is retired. Its .strip-label floor went with it; the
+   Note Expression floor below moved with the toggle to the Tuning tab's
+   header bar, where the same shrink would drag nothing to its right but
+   is kept so the bar never re-flows by language.
    R7/N9: Chinese is SHORTER, so the defect here is a shrink, and a
    shrink in a flex row drags every sibling to its left. Both captions
    below measure IDENTICALLY in English and French — .strip-label
@@ -1135,7 +1109,6 @@ body {
    for French and is false for Chinese. The rule below is added at
    higher specificity on the id rather than by widening the v1.8.0 pin,
    so the French floor it protects is left exactly as measured. */
-.sec-microtonal .strip-label                 { min-width: 132.86px; }
 #note-expression-toggle .strip-field-label   { min-width: 91.89px; }
 
 /* Parchment-palette overrides for the shared tuning panel (D3: stay
@@ -1457,7 +1430,7 @@ input:focus-visible,
             <!-- IV · EXPRESSION -->
             <div class="panel sec-expression">
                 <div class="panel-label"><span><span class="numeral">IV</span><span class="panel-title" data-i18n="label.secExpression"> &middot; Expression</span></span><span class="sublabel" data-i18n="label.subVibrato">vibrato &middot; bow drift</span></div>
-                <div style="display: flex; gap: 14px; margin-top: 6px;">
+                <div class="expr-block" style="display: flex; gap: 14px;">
                     <div class="knob-control macro-knob" data-param="EXPRESSION_MACRO" style="margin-top: 14px;">
                         <div class="knob-wrapper"></div>
                         <div class="knob-label" data-i18n="label.expression">Expression</div>
@@ -1550,16 +1523,17 @@ input:focus-visible,
             </div>
         </div>
 
-        <!-- ROW 3 — VII · MICROTONAL -->
-        <div class="row-3 panel sec-microtonal">
-            <span class="strip-label"><span class="numeral">VII</span><span class="panel-title" data-i18n="label.secMicrotonal"> &middot; Microtonal</span></span>
+    </div>
 
-            <div class="knob-control mini-knob" data-param="REFERENCE_PITCH">
-                <div class="knob-wrapper"></div>
-                <div class="knob-label">A4</div>
-                <div class="knob-value"></div>
-            </div>
-
+    <!-- ==================== Tuning tab (Stage 3 Task 9, D3) ==================== -->
+    <!-- Full shared tuning panel (intervals table, embedded library, scale
+         generator, visualizations, .scl/.kbm I/O, octave stretch, HTML export).
+         Lazily initialized on first tab activation. -->
+    <div class="tab-panel tuning-tab-body" id="tab-tuning">
+        <!-- v1.12.0 — tuning source + Note Expression, moved here from the
+             retired Main-tab strip (VII · Microtonal). A4 and .scl loading
+             were duplicates of the panel's own A4 REF and Load .SCL. -->
+        <div class="tuning-header-bar">
             <div class="strip-field">
                 <span class="strip-field-label" data-i18n="label.tuningSystem">Tuning System</span>
                 <select class="dropdown-select" id="tuning-system-select">
@@ -1571,22 +1545,11 @@ input:focus-visible,
                 </select>
             </div>
 
-            <button class="scl-btn" id="scl-load-btn" data-i18n="label.loadSclFile">Load .scl&hellip;</button>
-
             <div class="toggle-field" id="note-expression-toggle">
                 <div class="toggle-track"><div class="toggle-thumb"></div></div>
                 <span class="strip-field-label" data-i18n="label.noteExpression">Note Expression</span>
             </div>
-
-            <span class="range-caption" data-i18n="label.rangeCaption">E1&ndash;G3 &middot; monophonic</span>
         </div>
-    </div>
-
-    <!-- ==================== Tuning tab (Stage 3 Task 9, D3) ==================== -->
-    <!-- Full shared tuning panel (intervals table, embedded library, scale
-         generator, visualizations, .scl/.kbm I/O, octave stretch, HTML export).
-         Lazily initialized on first tab activation. -->
-    <div class="tab-panel tuning-tab-body" id="tab-tuning">
         <div id="tuning-container"></div>
     </div>
 
@@ -1633,7 +1596,6 @@ document.addEventListener("dragstart", (e) => { e.preventDefault(); });
    withNativeFunction registration (see v1-integration-checklist.md grep gate).
    ============================================================================ */
 const getParameterDefaults  = Juce.getNativeFunction("getParameterDefaults");
-const openTuningFilePicker  = Juce.getNativeFunction("openTuningFilePicker");
 
 /* Skew-correct NORMALIZED defaults pushed from C++ (WR-11 pattern) —
    dblclick-reset must use these, never JS-side constants. */
@@ -1808,8 +1770,7 @@ const FMT = {
     OUTPUT_GAIN:        v => fmtSigned(v, 1, " dB"),
     WIDTH:              v => v.toFixed(2) + "×",
     MASTER_SAT_AMOUNT:  v => Math.round(v * 100) + "%",
-    LIMITER_CEILING_DB: v => v.toFixed(1) + " dB",
-    REFERENCE_PITCH:    v => v.toFixed(1) + " Hz"
+    LIMITER_CEILING_DB: v => v.toFixed(1) + " dB"
 };
 
 function resetToDefault(paramId, state) {
@@ -1907,8 +1868,7 @@ function bindKnob(paramId) {
     if (!control) { console.warn("No control for:", paramId); return; }
     const wrapper = control.querySelector(".knob-wrapper");
     const isMacro = control.classList.contains("macro-knob");
-    const isMini = control.classList.contains("mini-knob");
-    const knobSize = isMacro ? 70 : (isMini ? 34 : 55);
+    const knobSize = isMacro ? 70 : 55;
     createKnobSVG(wrapper, knobSize);
 
     const fmt = FMT[paramId] || (v => String(v));
@@ -2041,29 +2001,19 @@ function bindActiveStrings() {
 }
 
 /* ============================================================================
-   Tuning system combo + Note Expression toggle + .scl/.tun file picker
+   Tuning system combo + Note Expression toggle (Tuning tab header bar, v1.12.0)
+   .scl loading is the shared panel's own Load .SCL; a panel scale edit pulls
+   TUNING_SYSTEM to Scala in C++ (syncTuningSystemToScala).
    ============================================================================ */
 function bindMicrotonal() {
     const select = document.getElementById("tuning-system-select");
-    const sclBtn = document.getElementById("scl-load-btn");
     const comboState = Juce.getComboBoxState("TUNING_SYSTEM");
 
-    function refreshCombo() {
-        const idx = comboState.getChoiceIndex();
-        select.selectedIndex = idx;
-        sclBtn.disabled = (idx !== 0);   // enabled only for Scala/TUN
-    }
+    function refreshCombo() { select.selectedIndex = comboState.getChoiceIndex(); }
     refreshCombo();
     comboState.valueChangedEvent.addListener(refreshCombo);
     comboState.propertiesChangedEvent.addListener(refreshCombo);
     select.addEventListener("change", () => comboState.setChoiceIndex(select.selectedIndex));
-
-    sclBtn.addEventListener("click", () => {
-        // Async FileChooser lives in C++ (SafePointer pattern — see PluginEditor).
-        openTuningFilePicker()
-            .then((ok) => { if (!ok) console.log("Tuning file load cancelled/failed"); })
-            .catch((e) => console.warn("openTuningFilePicker failed:", e));
-    });
 
     const toggleEl = document.getElementById("note-expression-toggle");
     const toggleState = Juce.getToggleState("NOTE_EXPRESSION");
@@ -2118,7 +2068,7 @@ function setupCanvas(id, w, h) {
    speed/pressure/β (post-LFO/macro/MPE) of the most-recently-started active
    voice — and falls back to raw SliderState values at silence.
    ============================================================================ */
-const SCH_W = 312, SCH_H = 186;
+const SCH_W = 312, SCH_H = 223;   // v1.12.0: 186 → 223 with the +37px row
 const schCtx = setupCanvas("canvas-schelleng", SCH_W, SCH_H);
 const sch = {
     padL: 36, padR: 8, padT: 8, padB: 22,
@@ -2290,7 +2240,7 @@ function drawSchelleng() {
    No C++ data feed needed (pure param-deterministic recompute) — the reserved
    "bodyModes" event is intentionally NOT implemented.
    ============================================================================ */
-const SPC_W = 336, SPC_H = 108;
+const SPC_W = 336, SPC_H = 145;   // v1.12.0: 108 → 145 with the +37px row
 const spcCtx = setupCanvas("canvas-spectrum", SPC_W, SPC_H);
 // BodyResonator.h:65-70 truth tables (DO NOT restyle — must match DSP)
 const MODE_FREQ   = [60, 98, 115, 175, 235, 340, 700, 1200];
@@ -2488,15 +2438,15 @@ function tick(t) {
 /* ============================================================================
    Init (module scripts are deferred — DOM is ready)
    ============================================================================ */
-// knobs (30 slider params incl. mini REFERENCE_PITCH and v1.3 RELEASE; detunes bound below)
+// knobs (29 slider params incl. v1.3 RELEASE; detunes bound below). REFERENCE_PITCH
+// lost its knob with the v1.12.0 strip; the Tuning panel's A4 REF drives it.
 ["BOW_SPEED", "BOW_PRESSURE", "BOW_POSITION", "ROSIN", "BOW_NOISE", "RELEASE",
  "BODY_SIZE", "BODY_DAMPING", "BODY_MIX", "BRIGHTNESS",
  "STRING_TENSION", "STRING_STIFFNESS",
  "EXPRESSION_MACRO", "VIBRATO_RATE", "VIBRATO_DEPTH", "VIBRATO_ONSET",
  "SLOW_LFO_RATE", "SLOW_LFO_DEPTH",
  "INFINITE_SUSTAIN", "SUB_HARMONICS",
- "OUTPUT_GAIN", "WIDTH", "MASTER_SAT_AMOUNT", "LIMITER_CEILING_DB",
- "REFERENCE_PITCH"].forEach(bindKnob);
+ "OUTPUT_GAIN", "WIDTH", "MASTER_SAT_AMOUNT", "LIMITER_CEILING_DB"].forEach(bindKnob);
 
 // fine-tuners
 ["DETUNE_E", "DETUNE_A", "DETUNE_D", "DETUNE_G"].forEach(bindFineTuner);

@@ -89,6 +89,7 @@ void WaveguideString::reset()
     bridgeDispersion.reset();
     bridgeY = 0.0f;
     energyEstimate = 0.0f;
+    lastRelVelocity = 0.0f;
     cancelRelease();
 }
 
@@ -331,6 +332,7 @@ float WaveguideString::processSample (float v_bow, float F_bow,
     float clampedRho = std::min (rho, 0.85f);
     float frictionVelocity = 2.0f * clampedRho / (1.0f - clampedRho);
     float absVd = std::abs (v_delta);
+    lastRelVelocity = absVd;
     float injection = std::min (frictionVelocity, absVd);
     float newVelocity = (v_delta >= 0.0f) ? injection : -injection;
 

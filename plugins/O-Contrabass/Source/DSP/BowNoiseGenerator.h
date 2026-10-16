@@ -21,37 +21,40 @@
   ==============================================================================
 
     BowNoiseGenerator.h
-    O-Contrabass - Bow Noise Generator (Phase 2.5)
+    O-Contrabass - Bow Noise Generator (Phase 2.5, rebuilt v1.12.0)
     Ouaricon Audio
     Developer: Taylor Brook
 
-    Phase 2.5 implementation per RESEARCH §21.2.7 + §21.10.
-    Bass-tuned 3-band BPF (700 / 1500 / 3000 Hz) on white noise +
-    period-heuristic slip-burst trigger (CONTEXT 4-file scope-strict v1.0
-    substitute per RESEARCH §21.3.3).
-    Deterministic per-voice seed: voiceIndex * 31337 (O-Bowed pattern
-    verbatim per RESEARCH §21.6).
     Header-only per O-Bowed convention (no CMake update required).
+    Deterministic per-voice seed: voiceIndex * 31337 (RESEARCH §21.6).
 
     Public API:
-      - prepare(double sampleRate, int voiceIndex) noexcept
+      - prepare(double sampleRate, int voiceIndex)
       - setNoiseLevel(float)    noexcept   [0, 1]
-      - setBowEnergy(float)     noexcept   [0, 1]
       - setFundamentalHz(float) noexcept
-      - processSample()         noexcept
+      - triggerOnset(float velocity) noexcept
+      - processSample(float relVel, float force) noexcept
       - reset()                 noexcept
 
-    Output composition (per ARCHITECTURE §"Bow Noise Generator", revised v1.5.0):
-      - 3 parallel bandpass filters on white noise, averaged.
-      - bandSum → pitch-synchronous feedback comb tuned to the fundamental
-        (damped loop), mixed kCombMix wet against the un-combed bandSum.
-        Pitches the hiss at harmonics of f0 like a real bowed string.
-      - pitched * bowEnergy = continuous component.
-      - pitched * slipEnvelope = burst component. Slip re-trigger period is
-        jittered ±kSlipPeriodJitter and burst amplitude ±30% per event
-        (separate RNG stream from the white noise — one stream per phase
-        preserves block-size invariance).
-      - Final = (continuous + burst) * noiseLevel.
+    v1.12.0 — why it was rebuilt. Through v1.11 the noise followed a per-block
+    bowEnergy = |v_bow|·F_bow, which is CONSTANT through a sustained stroke, plus
+    a timer-guessed "slip burst" whose 21 ms decay outlasted a bass period and
+    so smeared into more hiss. Measured on E1/A1/E2 (1–4 s of sustain): the
+    noise owned the whole 2–8 kHz band (−0.4 dB of it), its 25 ms envelope moved
+    0.6 dB, and its AM at f0 was 0.08 — a flat, static hiss sitting on the tone.
+
+    Now the drive is the string's OWN friction, per sample: the voice passes
+    |v_bow − v_string| at the bow point and F_bow. The slip excursion above the
+    stick-phase creep floor gates the noise, so it pulses pitch-synchronously
+    with the real Helmholtz motion and follows speed, bow position and the
+    irregular attack without a heuristic; F_bow^¼ sets its level, and a
+    velocity-scaled onset boost makes the first bite scratchier.
+    On top of it, two slow random walks move level (±kWanderDb) and colour
+    (body band ↔ rosin band) the way hair/rosin contact varies along a stroke.
+    One RNG stream per role, a fixed number of draws per sample → the output is
+    block-size invariant.
+
+    Output = coloured noise · slip gate · F^¼ · (1 + onset) · wander · level
 
   ==============================================================================
 */
@@ -72,39 +75,38 @@ public:
     inline void prepare (double sampleRate, int voiceIndex)
     {
         sr = sampleRate;
-        // O-Bowed pattern verbatim — deterministic per-voice seed.
-        noiseRandom.setSeed (static_cast<juce::int64> (voiceIndex * 31337));
-        // Separate stream for slip jitter draws (event-rate, sample-position
-        // determined) so interleaving never perturbs the white-noise sequence.
-        jitterRandom.setSeed (static_cast<juce::int64> (voiceIndex * 31337 + 7919));
+        noiseRandom.setSeed  (static_cast<juce::int64> (voiceIndex * 31337));
+        wanderRandom.setSeed (static_cast<juce::int64> (voiceIndex * 31337 + 7919));
 
-        // Comb sized for the lowest trackable fundamental (kCombMinF0).
         combBuffer.assign (static_cast<size_t> (std::ceil (sampleRate / kCombMinF0)) + 1, 0.0f);
         combWrite     = 0;
         combPeriod    = 0;
         combDampState = 0.0f;
-        // One-pole LP in the comb loop, ~4 kHz corner: keeps the pitched
-        // hiss from ringing metallic at high harmonics.
-        combDampCoeff = 1.0f - std::exp (static_cast<float> (-juce::MathConstants<double>::twoPi
-                                                             * 4000.0 / sampleRate));
+        combDampCoeff = onePole (4000.0);
 
         juce::dsp::ProcessSpec spec { sampleRate, 1u, 1u };
-        for (size_t i = 0; i < kNumBpf; ++i)
-        {
-            bpfs[i].prepare (spec);
-            bpfs[i].reset();
-            *bpfs[i].coefficients = *juce::dsp::IIR::Coefficients<float>::makeBandPass (
-                sampleRate, kBpfFc[i], kBpfQ[i]);
-        }
+        bodyBand.prepare (spec);
+        rosinBand.prepare (spec);
+        *bodyBand.coefficients  = *juce::dsp::IIR::Coefficients<float>::makeBandPass (
+                                      sampleRate, kBodyFc, kBodyQ);
+        *rosinBand.coefficients = *juce::dsp::IIR::Coefficients<float>::makeBandPass (
+                                      sampleRate, juce::jmin (kRosinFc, static_cast<float> (0.4 * sampleRate)), kRosinQ);
 
-        // ARCHITECTURE §165 reference at 48 kHz; rescale per sample-rate.
-        kSlipDecayAtSr = std::pow (kSlipDecay,
-                                   static_cast<float> (48000.0 / sampleRate));
+        // Drive envelope: fast attack so each slip reads as a scrape, short
+        // release so the stick phase actually goes quiet.
+        envAttack  = onePole (1.0 / (2.0 * juce::MathConstants<double>::pi * kEnvAttackSec));
+        envRelease = onePole (1.0 / (2.0 * juce::MathConstants<double>::pi * kEnvReleaseSec));
 
-        slipPeriodSamples = 0;
-        slipCounter       = 0;
-        slipEnvelope      = 0.0f;
-        bowEnergy         = 0.0f;
+        // Wander: a new random target every kWanderStepSec, glided to by a
+        // one-pole with the same time constant (smooth, aperiodic).
+        wanderStepSamples = juce::jmax (1, juce::roundToInt (kWanderStepSec * sampleRate));
+        wanderCoeff       = onePole (1.0 / (2.0 * juce::MathConstants<double>::pi * kWanderStepSec));
+        grainStepSamples  = juce::jmax (1, juce::roundToInt (kGrainStepSec * sampleRate));
+        grainCoeff        = onePole (1.0 / (2.0 * juce::MathConstants<double>::pi * kGrainStepSec));
+        floorRise         = onePole (1.0 / (2.0 * juce::MathConstants<double>::pi * kFloorRiseSec));
+        onsetDecay        = static_cast<float> (std::exp (-1.0 / (kOnsetSec * sampleRate)));
+
+        reset();
     }
 
     inline void setNoiseLevel (float v) noexcept
@@ -112,122 +114,176 @@ public:
         noiseLevel = juce::jlimit (0.0f, 1.0f, v);
     }
 
-    inline void setBowEnergy (float v) noexcept
+    // Note-on: the bow's first bite is scratchier than the settled stroke
+    // (irregular slipping before Helmholtz locks). Decays over kOnsetSec.
+    inline void triggerOnset (float velocity) noexcept
     {
-        bowEnergy = juce::jlimit (0.0f, 1.0f, v);
+        onsetGain = kOnsetBoost * juce::jlimit (0.0f, 1.0f, velocity);
     }
 
     inline void setFundamentalHz (float f0) noexcept
     {
-        if (f0 < 1.0f)
+        if (f0 < 1.0f || combBuffer.empty())
         {
-            slipPeriodSamples = 0;
-            combPeriod        = 0;
+            combPeriod = 0;
             return;
         }
-        const int newPeriod = juce::roundToInt (sr / f0);
-        slipPeriodSamples = newPeriod;
-        if (slipCounter > newPeriod)
-            slipCounter = newPeriod;
-
-        combPeriod = combBuffer.empty() ? 0
-                   : juce::jlimit (2, static_cast<int> (combBuffer.size()) - 1, newPeriod);
+        combPeriod = juce::jlimit (2, static_cast<int> (combBuffer.size()) - 1,
+                                   juce::roundToInt (sr / f0));
     }
 
-    inline float processSample() noexcept
+    // relVel: |v_bow − v_string| at the bow point; force: F_bow (N). Host rate.
+    inline float processSample (float relVel, float force) noexcept
     {
-        if (noiseLevel < 0.001f)
-            return 0.0f;
-
-        // Period-heuristic slip-burst trigger, jittered per event: real slip
-        // events wander in timing (±kSlipPeriodJitter) and strength (±30%) —
-        // an exactly metronomic, constant-amplitude retrigger reads as a buzz.
-        if (slipPeriodSamples > 0 && --slipCounter <= 0)
-        {
-            slipEnvelope = bowEnergy * (0.7f + 0.6f * jitterRandom.nextFloat());
-            const float pj = 1.0f + kSlipPeriodJitter
-                                    * (2.0f * jitterRandom.nextFloat() - 1.0f);
-            slipCounter  = juce::jmax (1, juce::roundToInt (
-                               static_cast<float> (slipPeriodSamples) * pj));
-        }
-        slipEnvelope *= kSlipDecayAtSr;
-
-        // 3-band BPF on white noise, averaged
+        // RNG draws happen EVERY sample, unconditionally and in a fixed order,
+        // so a block boundary (or the level gate below) can never shift the
+        // streams — block-size invariance.
         const float white = noiseRandom.nextFloat() * 2.0f - 1.0f;
-        float bandSum = 0.0f;
-        for (size_t i = 0; i < kNumBpf; ++i)
-            bandSum += bpfs[i].processSample (white);
-        bandSum *= (1.0f / static_cast<float> (kNumBpf));
+        advanceWander();
 
-        // Pitch-synchronous feedback comb (damped loop) pitches the hiss at
-        // harmonics of the played fundamental. kCombNorm ≈ sqrt(1 − g²)
-        // restores approx. unity RMS through the resonant loop.
-        float pitched = bandSum;
+        // Slip detector. The hyperbolic friction model never fully sticks: in
+        // the stick phase |v_rel| sits on a creep floor that tracks force
+        // (measured ≈ 0.26·F_bow), while the slip excursion ABOVE it stays
+        // ≈ 0.4 m/s at any pressure. So: follow the floor (instant down, slow
+        // up — slips are short against kFloorRiseSec) and gate on the excess.
+        const float v = juce::jmax (0.0f, relVel);
+        floor = (v < floor) ? v : floor + floorRise * (v - floor);
+        const float slip = (v - floor) * kInvSlipRef;
+
+        // Expander: d²/(d²+k²) leaves the stick phase near-silent and lets each
+        // slip read as a scrape; saturates so a hard stroke doesn't scream.
+        // A small kStickFloor keeps a breath of hair noise between slips.
+        const float s2     = slip * slip;
+        const float gate   = kStickFloor + (1.0f - kStickFloor) * s2 / (s2 + kDriveKnee * kDriveKnee);
+        // Pressure sets level gently (F^¼): flautando still breathes, a dug-in
+        // stroke gets grittier, but the noise no longer swings 26 dB with it
+        // (F_bow·|v_rel|² under the v1.12 draft: −48 → −22 dB noise/tone over
+        // BOW_PRESSURE 0.4 → 4; F^¼ on the floor-gated slip: −37 → −25).
+        const float fNorm  = std::sqrt (std::sqrt (juce::jlimit (0.0f, 16.0f, force * kInvForceRef)));
+        const float target = gate * fNorm;
+        env += (target > env ? envAttack : envRelease) * (target - env);
+        onsetGain *= onsetDecay;
+
+        const float body  = bodyBand.processSample (white);
+        const float rosin = rosinBand.processSample (white);
+        const float tilt  = juce::jlimit (0.0f, 1.0f, 0.5f + colourWander);
+        const float band  = (1.0f - tilt) * body + tilt * rosin;
+
+        float pitched = band;
         if (combPeriod > 0)
         {
             const size_t n = combBuffer.size();
             const float delayed = combBuffer[(combWrite + n - static_cast<size_t> (combPeriod)) % n];
             combDampState += combDampCoeff * (delayed - combDampState);
-            const float combed = bandSum + kCombFeedback * combDampState;
+            const float combed = band + kCombFeedback * combDampState;
             combBuffer[combWrite] = combed;
             combWrite = (combWrite + 1) % n;
-            pitched = kCombMix * (combed * kCombNorm) + (1.0f - kCombMix) * bandSum;
+            pitched = kCombMix * (combed * kCombNorm) + (1.0f - kCombMix) * band;
         }
 
-        const float continuous = pitched * bowEnergy;
-        const float burst      = pitched * slipEnvelope;
-        return (continuous + burst) * noiseLevel;
+        if (noiseLevel < 0.001f)
+            return 0.0f;
+
+        const float wanderGain = std::exp (kDbToLn * (kWanderDb * levelWander
+                                                    + kGrainDb  * grainWander));
+        return pitched * env * (1.0f + onsetGain) * wanderGain * noiseLevel;
     }
 
     inline void reset() noexcept
     {
-        for (auto& f : bpfs)
-            f.reset();
+        bodyBand.reset();
+        rosinBand.reset();
         std::fill (combBuffer.begin(), combBuffer.end(), 0.0f);
         combWrite     = 0;
         combDampState = 0.0f;
-        slipCounter  = 0;
-        slipEnvelope = 0.0f;
-        bowEnergy    = 0.0f;
+        env           = 0.0f;
+        floor         = 0.0f;
+        onsetGain     = 0.0f;
+        levelWander = levelTarget = 0.0f;
+        colourWander = colourTarget = 0.0f;
+        grainWander = grainTarget = 0.0f;
+        wanderCounter = 0;
+        grainCounter  = 0;
     }
 
 private:
-    static constexpr int   kNumBpf = 3;
-    // ARCHITECTURE §163 bass-tuned BPF center frequencies.
-    static constexpr float kBpfFc[kNumBpf] = { 700.0f, 1500.0f, 3000.0f };
-    // Research recommendation; tune at execute pre-flight if R38 audition
-    // reveals mis-calibration per RESEARCH §21.11 FAIL-handling table.
-    static constexpr float kBpfQ [kNumBpf] = { 1.0f, 1.2f, 1.5f };
+    inline float onePole (double cornerHz) const noexcept
+    {
+        return 1.0f - static_cast<float> (std::exp (-juce::MathConstants<double>::twoPi
+                                                    * cornerHz / sr));
+    }
 
-    // ARCHITECTURE §165 slip-burst decay (per-sample at 48 kHz).
-    static constexpr float kSlipDecay = 0.999f;
+    inline void advanceWander() noexcept
+    {
+        if (--wanderCounter <= 0)
+        {
+            wanderCounter = wanderStepSamples;
+            levelTarget   = 2.0f * wanderRandom.nextFloat() - 1.0f;
+            colourTarget  = kColourDepth * (2.0f * wanderRandom.nextFloat() - 1.0f);
+        }
+        if (--grainCounter <= 0)
+        {
+            grainCounter = grainStepSamples;
+            grainTarget  = 2.0f * wanderRandom.nextFloat() - 1.0f;
+        }
+        levelWander  += wanderCoeff * (levelTarget  - levelWander);
+        colourWander += wanderCoeff * (colourTarget - colourWander);
+        grainWander  += grainCoeff  * (grainTarget  - grainWander);
+    }
 
-    // v1.5.0 realism constants (tuned by rendered A/B).
-    static constexpr float kCombMinF0       = 20.0f;   // comb buffer sizing floor
-    static constexpr float kCombFeedback    = 0.85f;   // loop gain — comb peak strength
-    static constexpr float kCombNorm        = 0.527f;  // ≈ sqrt(1 − 0.85²), unity-RMS trim
-    static constexpr float kCombMix         = 0.70f;   // pitched vs raw hiss blend
-    static constexpr float kSlipPeriodJitter = 0.04f;  // ±4% slip re-trigger timing wander
+    // Spectrum: a body band (the hair's dull "shh", which the body resonator
+    // also colours) and a rosin band (the bright grit), crossfaded by wander.
+    static constexpr float kBodyFc  = 1100.0f, kBodyQ  = 0.8f;
+    static constexpr float kRosinFc = 4200.0f, kRosinQ = 0.9f;
+
+    // Slip detector, expander and envelope (per slip).
+    static constexpr double kFloorRiseSec  = 0.030;
+    static constexpr float  kInvSlipRef    = 1.0f / 0.4f;   // measured slip excursion
+    static constexpr float  kInvForceRef   = 1.0f / 0.5f;   // F_bow at default pressure
+    static constexpr float  kDriveKnee     = 0.50f;
+    static constexpr float  kStickFloor    = 0.06f;
+    // Onset bite: +kOnsetBoost (linear, ≈ +6 dB at full velocity), τ kOnsetSec.
+    static constexpr float  kOnsetBoost    = 1.0f;
+    static constexpr double kOnsetSec      = 0.15;
+    static constexpr double kEnvAttackSec  = 0.0003;
+    static constexpr double kEnvReleaseSec = 0.0025;
+
+    // Slow stroke-scale wander (level + colour) and faster hair "grain".
+    static constexpr double kWanderStepSec = 0.35;
+    static constexpr double kGrainStepSec  = 0.045;
+    static constexpr float  kWanderDb      = 5.0f;   // ± level wander
+    static constexpr float  kGrainDb       = 1.5f;   // ± grain wander
+    static constexpr float  kColourDepth   = 0.35f;  // ± tilt around 0.5
+    static constexpr float  kDbToLn        = 0.11512925f;   // ln(10)/20
+
+    // Pitch-synchronous comb, lighter than v1.5–v1.11 (0.85 fb / 0.70 mix rang
+    // as a buzz); the slip-gated drive now carries most of the periodicity.
+    static constexpr float kCombMinF0    = 20.0f;
+    static constexpr float kCombFeedback = 0.60f;
+    static constexpr float kCombNorm     = 0.80f;    // ≈ sqrt(1 − 0.60²)
+    static constexpr float kCombMix      = 0.40f;
 
     juce::Random noiseRandom;
-    juce::Random jitterRandom;   // slip-event draws only — separate stream per phase
-    std::array<juce::dsp::IIR::Filter<float>, kNumBpf> bpfs;
+    juce::Random wanderRandom;   // wander targets only — separate stream
+    juce::dsp::IIR::Filter<float> bodyBand, rosinBand;
 
-    // Pitch-synchronous comb state (buffer allocated in prepare()).
     std::vector<float> combBuffer;
     size_t combWrite     = 0;
     int    combPeriod    = 0;
     float  combDampState = 0.0f;
     float  combDampCoeff = 0.4f;
 
-    // Period-heuristic slip-burst state
-    int   slipPeriodSamples = 0;
-    int   slipCounter       = 0;
-    float slipEnvelope      = 0.0f;
-    float kSlipDecayAtSr    = kSlipDecay;
+    float env = 0.0f, envAttack = 0.5f, envRelease = 0.05f;
+    float floor = 0.0f, floorRise = 0.001f;
+    float onsetGain = 0.0f, onsetDecay = 0.9999f;
 
-    // Per-block-pushed state
-    float  bowEnergy  = 0.0f;
+    int   wanderStepSamples = 1, wanderCounter = 0;
+    int   grainStepSamples  = 1, grainCounter  = 0;
+    float wanderCoeff = 0.0f, grainCoeff = 0.0f;
+    float levelWander = 0.0f, levelTarget = 0.0f;
+    float colourWander = 0.0f, colourTarget = 0.0f;
+    float grainWander = 0.0f, grainTarget = 0.0f;
+
     float  noiseLevel = 0.0f;
     double sr         = 44100.0;
 };

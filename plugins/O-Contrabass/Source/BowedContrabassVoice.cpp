@@ -192,6 +192,7 @@ void BowedContrabassVoice::noteStarted()
 
     // 5. Engage bow.
     bowModel.startBow (velocity);
+    bowNoiseGenerator.triggerOnset (velocity);   // v1.12 — scratchier bite
     oversampling.reset();
 
     // Phase 2.3 — re-arm vibrato S-curve onset; exit any prior fade-out (Q3).
@@ -404,6 +405,8 @@ void BowedContrabassVoice::prepareToPlay (double hostSampleRate, int maxBlockSiz
     // NOISE=0.35).
     bodyResonator.prepare (hostSampleRate, maxBlockSize);
     bowNoiseGenerator.prepare (hostSampleRate, /*voiceIndex=*/ 0); // monophonic (RESEARCH §21.6)
+    relVelTrace.assign (static_cast<size_t> (maxBlockSize) * 2, 0.0f);   // 2×-rate taps (v1.12)
+    forceTrace.assign  (static_cast<size_t> (maxBlockSize) * 2, 0.0f);
 
     bodySizeSmoothed.reset    (hostSampleRate, 0.030);
     bodyDampingSmoothed.reset (hostSampleRate, 0.030);
@@ -866,31 +869,28 @@ void BowedContrabassVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuff
         }
 
         upData[i] = mixedSample;
+
+        // v1.12 — bow-noise drive taps: |v_rel| at the active string's bow
+        // point (jumps in slip) and F_bow. Read-only; the string loop above is
+        // untouched by them.
+        if (static_cast<size_t> (i) < relVelTrace.size())
+        {
+            const bool bowing = activeStringIndex >= 0;
+            relVelTrace[static_cast<size_t> (i)] = bowing
+                ? strings[activeStringIndex].getLastRelativeVelocity() : 0.0f;
+            forceTrace[static_cast<size_t> (i)]  = bowing ? F_bow : 0.0f;
+        }
     }
 
     // 7. Downsample back to host rate (writes into `block` which aliases voiceBuffer).
     oversampling.processSamplesDown (block);
 
-    // === Step 8 (v1.5.0 reorder): Bow noise (3-band BPF → pitch-synchronous comb + jittered slip bursts) ===
+    // === Step 8: Bow noise (friction-driven, v1.12.0) ===
     // Summed BEFORE the body resonator so the noise picks up the same body
-    // coloration as the string signal — post-body summing left it an
-    // uncorrelated hiss layer sitting on top of the tone.
+    // coloration as the string signal (v1.5.0).
     {
-        // bowEnergy = clamp(0, 1, |v_bow| · F_bow / (v_ref · F_ref)) per
-        // ARCHITECTURE §164 (v_ref = 0.3 m/s, F_ref = 2.0 N).
-        constexpr float kVRef = 0.3f;
-        constexpr float kFRef = 2.0f;
-        const float vBow = std::abs (bowModel.getBowVelocity());
-        const float fBow = bowModel.getBowForce();
-        const float bowEnergyVal = juce::jlimit (0.0f, 1.0f,
-                                                 (vBow * fBow) / (kVRef * kFRef));
-        bowNoiseGenerator.setBowEnergy (bowEnergyVal);
-
-        // Push active-string fundamental on note-start or > 5 cent change
-        // (period-heuristic slip trigger). currentFrequency is the played
-        // freq for the active string (post-MPE-bend); idle slot has
-        // activeStringIndex < 0 so we skip the push entirely until a note
-        // arrives.
+        // Push active-string fundamental (comb tuning) on note-start or a
+        // > 5 cent change. Idle slot has activeStringIndex < 0 → skip.
         if (activeStringIndex >= 0)
         {
             const float f0 = juce::jlimit (20.0f, 5000.0f, currentFrequency);
@@ -908,15 +908,27 @@ void BowedContrabassVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuff
         const float noiseLvl = bowNoiseSmoothed.skip (juce::jmax (1, numSamples - 1));
         bowNoiseGenerator.setNoiseLevel (noiseLvl);
 
-        // Pre-body makeup: the body's wet bank tops out at 1.2 kHz, so the
-        // 700–3000 Hz noise mostly survives via the (1−mix)·dry path — a
-        // −14 dB hit at the default MIX=0.80 that the old post-body sum never
-        // saw. 4.0× (+12 dB) restores the ear-calibrated BOW_NOISE preset
-        // levels at default mix (measured on the string-A render, 3–6 kHz band).
-        constexpr float kNoisePreBodyMakeup = 4.0f;
+        // Drive per host sample = mean of its two 2×-rate taps. The 2× down-
+        // sampler's few-sample latency on the string path is negligible
+        // against a ≥ 10 ms bass period.
+        // Pre-body makeup. v1.5–v1.11 used 4.0 on a constant drive; the slip-
+        // gated drive is near-silent through the stick phase, so this is set by
+        // measurement to land the noise ~8 dB under the v1.11 level at the
+        // same BOW_NOISE (E1/A1/E2 renders, default bow).
+        constexpr float kNoisePreBodyMakeup = 0.26f;
         float* mono = voiceBuffer.getWritePointer (0);
+        const int traceLen = static_cast<int> (relVelTrace.size()) / 2;
         for (int i = 0; i < numSamples; ++i)
-            mono[i] += kNoisePreBodyMakeup * bowNoiseGenerator.processSample();
+        {
+            float vRel = 0.0f, force = 0.0f;
+            if (i < traceLen)
+            {
+                const auto a = static_cast<size_t> (2 * i);
+                vRel  = 0.5f * (relVelTrace[a] + relVelTrace[a + 1]);
+                force = 0.5f * (forceTrace[a]  + forceTrace[a + 1]);
+            }
+            mono[i] += kNoisePreBodyMakeup * bowNoiseGenerator.processSample (vRel, force);
+        }
     }
 
     // === Step 9 (v1.5.0 reorder): Body resonator (8-mode parallel bandpass + 35 Hz HP dry path + wet/dry mix) ===

@@ -10,47 +10,47 @@
       "name": "saturator-amount-sweep",
       "startSec": 0.0,
       "endSec": 3.0,
-      "peak": 0.099064394831657,
-      "rms": 0.027293091989529
+      "peak": 0.086246311664581,
+      "rms": 0.026020002454739
     },
     {
       "name": "limiter-ceiling-stress",
       "startSec": 3.0,
       "endSec": 6.0,
-      "peak": 0.253212481737137,
-      "rms": 0.042629092623506
+      "peak": 0.194417357444763,
+      "rms": 0.031677722938072
     },
     {
       "name": "width-sweep",
       "startSec": 6.0,
       "endSec": 9.0,
-      "peak": 0.132553383708,
-      "rms": 0.028234904783036
+      "peak": 0.11391343921423,
+      "rms": 0.026826073592807
     },
     {
       "name": "clickfree-automation",
       "startSec": 9.0,
       "endSec": 12.0,
-      "peak": 0.128040939569473,
-      "rms": 0.0279428387891
+      "peak": 0.111323773860931,
+      "rms": 0.026452215107062
     },
     {
       "name": "peak-overshoot-stress",
       "startSec": 12.0,
       "endSec": 15.0,
-      "peak": 0.391911685466766,
-      "rms": 0.053645094916226
+      "peak": 0.335166364908218,
+      "rms": 0.045492088820389
     }
   ],
   "ceilingDbProbe2": -0.3,
   "ceilingDbProbe5": -3.0,
-  "peakDbProbe2": -11.9302978515625,
-  "peakDbProbe5": -8.136235237121582,
-  "probe4MaxSampleJump": 0.015338553115726,
+  "peakDbProbe2": -14.225299835205078,
+  "peakDbProbe5": -9.494791984558105,
+  "probe4MaxSampleJump": 0.009531516581774,
   "clickfreeThreshold": 0.200000002980232,
-  "probe3Width0Rms": 0.021288690584823,
-  "probe3Width1Rms": 0.028170512772956,
-  "probe3Width0CollapseDb": -2.432916048398458,
+  "probe3Width0Rms": 0.020391524963437,
+  "probe3Width1Rms": 0.026684558788715,
+  "probe3Width0CollapseDb": -2.336206421647409,
   "pass_invariant_1_peak_under_ceiling": true,
   "pass_invariant_2_clickfree": true,
   "pass_risk_19_width0_collapse": false,

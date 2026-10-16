@@ -29,7 +29,6 @@
     Native functions registered here (grep-diff gate vs JS getNativeFunction):
       - getParameterDefaults   (WR-11: skew-correct normalized defaults for
                                 dblclick reset — JS must NEVER hardcode ranges)
-      - openTuningFilePicker   (async FileChooser, SafePointer pattern; D1 .scl only)
       - 10 preset fns          (Task 8, preset-manager v1.0.4 contract)
       - 20 tuning fns          (Task 9, shared tuning-panel.js contract —
                                 O-Wind PluginEditor.cpp:191-510 reference)
@@ -136,15 +135,6 @@ OContrabassAudioProcessorEditor::OContrabassAudioProcessorEditor(OContrabassAudi
                         if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(param))
                             obj->setProperty(ranged->getParameterID(), ranged->getDefaultValue());
                     completion(juce::var(obj.get()));
-                })
-            // Scala/TUN file picker — async FileChooser handled in a member fn
-            // so the SafePointer/UAF contract lives in one place.
-            .withNativeFunction(
-                juce::Identifier("openTuningFilePicker"),
-                [this](const juce::Array<juce::var>& /*args*/,
-                       juce::WebBrowserComponent::NativeFunctionCompletion completion)
-                {
-                    launchTuningFilePicker(std::move(completion));
                 })
 
             // =============================================================
@@ -329,6 +319,7 @@ OContrabassAudioProcessorEditor::OContrabassAudioProcessorEditor(OContrabassAudi
                 if (args.size() >= 2) {
                     processorRef.getTuningEngine()->setSingleInterval(
                         static_cast<int>(args[0]), static_cast<double>(args[1]));
+                    syncTuningSystemToScala();
                     complete(true);
                     return;
                 }
@@ -403,7 +394,12 @@ OContrabassAudioProcessorEditor::OContrabassAudioProcessorEditor(OContrabassAudi
                         safeThis->fileDialogOpen = false;
                         auto file = fc.getResult();
                         if (file.existsAsFile())
-                            complete(safeThis->processorRef.loadScalaFile(file));
+                        {
+                            const bool ok = safeThis->processorRef.loadScalaFile(file);
+                            if (ok)
+                                safeThis->syncTuningSystemToScala();
+                            complete(ok);
+                        }
                         else
                             complete(false);
                     });
@@ -527,6 +523,7 @@ OContrabassAudioProcessorEditor::OContrabassAudioProcessorEditor(OContrabassAudi
                         for (const auto& val : *arr)
                             intervals.push_back(static_cast<double>(val));
                         processorRef.getTuningEngine()->setCustomIntervals(intervals, scaleName);
+                        syncTuningSystemToScala();
                         complete(true);
                         return;
                     }
@@ -559,6 +556,7 @@ OContrabassAudioProcessorEditor::OContrabassAudioProcessorEditor(OContrabassAudi
                         intervals.push_back(tuning->period);
                         processorRef.getTuningEngine()->setCustomIntervals(
                             intervals, juce::String(tuning->name));
+                        syncTuningSystemToScala();
                         complete(true);
                         return;
                     }
@@ -874,51 +872,22 @@ OContrabassAudioProcessorEditor::getResource(const juce::String& url)
     return std::nullopt;
 }
 
-/*  ASYNC FILE PICKER — SafePointer + bare-return-on-null contract
-    (MEMORY: pattern_webview_launchasync_safepointer_no_complete).
-    The NativeFunctionCompletion is OWNED by the WebView Impl. If the editor
-    is torn down while the chooser is open, that Impl is dead — calling
-    completion (even completion(false)) is a use-after-free. Bail with a
-    bare `return` on the null-SafePointer path. Cancel-with-live-editor is
-    safe to complete normally.                                                */
-void OContrabassAudioProcessorEditor::launchTuningFilePicker(
-    juce::WebBrowserComponent::NativeFunctionCompletion completion)
+/*  v1.12.0 — the shared panel's scale edits (load .scl, library, generator,
+    interval edit) switch the TuningEngine to Mode::Scala internally, but left
+    the TUNING_SYSTEM choice at 12-TET. Through v1.11 the Main strip's select
+    then read "12-TET" over a live custom scale, and a session reload replayed
+    TUNING_SYSTEM=12-TET after the custom state, dropping the scale. Pull the
+    parameter to Scala so the Tuning tab's select, the host and the engine
+    agree. Message thread (native-function completions).                      */
+void OContrabassAudioProcessorEditor::syncTuningSystemToScala()
 {
-    // D1: filter restricted to *.scl — TuningEngine 2.1.0 has no TUN parser;
-    // advertising .tun would be a silent-failure trap. AnaMark TUN parser is
-    // v1.1 backlog (shared-module upgrade).
-    if (fileDialogOpen)
-    {
-        completion(juce::var(false));
+    auto& apvts = processorRef.parameters;
+    if (static_cast<int> (apvts.getRawParameterValue ("TUNING_SYSTEM")->load()) == 0)
         return;
+    if (auto* p = apvts.getParameter ("TUNING_SYSTEM"))
+    {
+        p->beginChangeGesture();
+        p->setValueNotifyingHost (p->convertTo0to1 (0.0f));
+        p->endChangeGesture();
     }
-    fileDialogOpen = true;
-
-    fileChooser = std::make_shared<juce::FileChooser>(
-        "Load Scala tuning file (.scl)",
-        juce::File::getSpecialLocation(juce::File::userHomeDirectory),
-        "*.scl");
-
-    auto safeThis = juce::Component::SafePointer<OContrabassAudioProcessorEditor>(this);
-
-    fileChooser->launchAsync(
-        juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-        [safeThis, completion = std::move(completion)](const juce::FileChooser& fc) mutable
-        {
-            if (safeThis == nullptr)
-                return;   // editor gone — completion is dangling; DO NOT call it
-
-            safeThis->fileDialogOpen = false;
-
-            const auto file = fc.getResult();
-            if (file == juce::File{})
-            {
-                completion(juce::var(false));   // user cancelled — editor alive, safe
-                return;
-            }
-
-            // TuningEngine handles .scl via processor entry point (Phase 2.6b).
-            const bool ok = safeThis->processorRef.loadScalaFile(file);
-            completion(juce::var(ok));
-        });
 }
