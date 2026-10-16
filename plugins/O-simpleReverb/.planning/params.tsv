@@ -1,4 +1,4 @@
-# plugin	O-SimpleReverb
+# plugin	O-simpleReverb
 # params	8
 # note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
 #id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags

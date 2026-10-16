@@ -1,6 +1,52 @@
 # Changelog
 
-All notable changes to O-SimpleReverb (formerly OuariconSimpleReverb) will be documented in this file.
+All notable changes to O-simpleReverb (formerly O-SimpleReverb, and before that OuariconSimpleReverb) will be documented in this file.
+
+## [3.0.0] - unreleased
+
+**O-simple family retrofit.** MAJOR: the plugin is renamed **O-simpleReverb**
+(was O-SimpleReverb) and gets the O-simple field-guide interface. The DSP is
+untouched: every render nulls bit-exact against v2.0.0 (48 presets x 3 stimuli
+x 44.1 / 96 kHz + an automation run, 290 buffers, on the installed VST3). No
+parameter ID, range, skew, default, plugin code (`OuSr`) or state format
+changed: v2.0.0 (and v1.x) sessions, automation and user presets load with
+identical values.
+
+### Changed
+- **Renamed O-SimpleReverb -> O-simpleReverb** (case only), to match the
+  O-simple family. Hosts identify the plugin by its codes, not its name, so
+  sessions reconnect; the name a host lists changes after its plugin rescan.
+- **The interface is rebuilt at 1180 x 780**, resizable 0.6x - 1.5x at a fixed
+  aspect (the size is saved with the session). Four live wells, each drawn
+  from the processor's own numbers: **Live Decay** (input and wet tail in
+  dBFS over the last 6 s, with the RT60 slope the DSP is set to), **Early
+  Reflections** (the actual taps for the type and SIZE; Spring shows its own
+  echoes, Plate has none), **Tone of the Tail** (the tone stage's real
+  response, Character and Low Cut as separate curves) and the **output
+  meter**. A signal-path strip lights the stage each control moves.
+- **Lessons:** two rows under the controls — the six Spaces (one per type)
+  and Init plus four Ideas (Size ≠ Decay, Character: dark ↔ bright, Low Cut,
+  Insert vs Send). A lesson resets everything to defaults and applies its
+  recipe; lessons are never written to disk. The 48 utility presets stay in
+  the preset browser, grouped by type.
+- **◀ / ▶ walk the bank in TYPE order, then your user presets** (sorted).
+  v2.0.0 walked one alphabetical list with user presets mixed in.
+- **Preset bar:** Save and Delete are inline (a user preset cannot take a
+  lesson or factory name in any language). **Load file…** moved to the gear
+  menu. **The v2 "Save to file" dialog is gone** — user presets save into the
+  plugin's preset folder.
+- Every label and hover tip in English, French and Simplified Chinese; the
+  type names stay English (they are the host automation names).
+
+### Notes
+- **No preset-folder migration is needed.** User presets live in
+  `~/Library/O-SimpleReverb/Presets/User`; on the case-insensitive volumes
+  macOS and Windows use, `O-simpleReverb` is the same folder, and the folder
+  keeps its old-case name on disk. On a case-sensitive macOS volume the
+  plugin renames `O-SimpleReverb` to `O-simpleReverb` the first time it loads,
+  before anything reads the folder (a no-op everywhere else).
+- An existing O-SimpleReverb install is replaced by the installer; on macOS
+  the old-case bundle folder name may remain (cosmetic).
 
 ## [2.0.0] - 2026-10-01
 

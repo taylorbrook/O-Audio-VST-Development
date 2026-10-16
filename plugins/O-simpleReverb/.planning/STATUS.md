@@ -1,99 +1,51 @@
-## Continuation Context (migrated from .continue-here.md)
-
 ---
-plugin: O-SimpleReverb
+plugin: O-simpleReverb
+stage: improve
+stage_name: improve-milestone
+status: family_retrofit_execute_complete_verify_next
 activeMilestone: family-retrofit
-stage: 1
-phase: null
-status: complete
-last_updated: 2026-01-13
+current_phase: execute
+next_phase: verify
+next_action: improve-milestone
+version: 2.0.0
+target_version: 3.0.0
+last_updated: 2026-10-15
 complexity_score: 4.2
-phased_implementation: true
-orchestration_mode: true
-next_action: invoke_dsp_agent
-next_phase: 3.1
+parameter_count: 8
+plugin_code: OuSr
+workflow_mode: manual
+mockup_finalized: true
+mockup_signed_off: 2026-10-15
 ---
 
-# Resume Point
+# O-simpleReverb Status
 
-## Current State: Stage 1 - Foundation + Shell Complete
+## Current Position
 
-Build system operational with 6 parameters implemented. Ready to proceed to DSP implementation (Phase 3.1).
+Milestone **family-retrofit** (v2.0.0 → v3.0.0) — **execute ✓ 2026-10-15** (T0–T10) · next: verify (`/improve-milestone O-simpleReverb`).
 
-## Completed So Far
+Execute evidence (`improvements/family-retrofit/SUMMARY.md`): installed `-dev` VST3 + AU from `build-and-install.sh` (0 warnings, old-case bundles swept); auval SUCCEEDED; pluginval strictness 10 SUCCESS on VST3 (with the editor tests) and AU; render-check 137 PASS / 0 FAIL, 32 / 32 mutants; verify_3_null BIT-EXACT on the installed VST3 (290 buffers vs v2.0.0); verify_3_state S0–S5 ALL PASS on the installed VST3; check-i18n, check-ui-labels (38 states), fr / zh lint, boot-all-uis (0 dead tips) green; frame-probe 36/36, header-fit, lesson-row-budget, tooltip-clamp ALL PASS at 0.6 / 1.0 / 1.5 × en / fr / zh-Hans; negative controls freeze / slope / chipbody FAIL as designed.
 
-**Stage 0:** Complete
-- Plugin type defined: Audio Effect (Reverb)
-- Professional examples researched: 5 (Valhalla VintageVerb, Valhalla Room, FabFilter Pro-R, UAD EMT 140, Eventide UltraReverb)
-- JUCE modules identified: juce_dsp (Reverb, IIR::Filter, DryWetMixer)
-- DSP feasibility verified: All LOW risk (proven JUCE components)
-- Parameter ranges researched: 6 parameters (TYPE, CHARACTER, WET, DRY, DECAY, SIZE)
-- Complexity score: 4.2 (Complex)
-- Strategy: Phase-based implementation (3 DSP phases, 2 GUI phases)
-- Plan documented: architecture.md + plan.md created
+Open for verify: DAW hands-on (Logic + Ableton: rescan shows "O-simpleReverb", a v2.0.0 session reconnects, wells move live, resize persists).
 
-**Stage 1:** Complete (2026-01-13)
-- Foundation complete: Build system operational, 6 parameters implemented
-- CMakeLists.txt configured for JUCE 8 (VST3, AU, Standalone)
-- APVTS parameters implemented: TYPE, CHARACTER, WET, DRY, DECAY, SIZE
-- State management implemented (save/load)
-- Pass-through audio (no DSP processing yet)
+Version stays **2.0.0** in CMake until the post-verify bump; no tag (tags only via `/publish`).
 
-## Next Steps
+## Milestones
 
-1. **Stage 2 - DSP Phase 3.1:** Core Processing
-   - Implement juce::dsp::Reverb with Room type preset
-   - Add juce::dsp::DryWetMixer for dry/wet blending
-   - Connect SIZE and DECAY parameters to reverb engine
-   - Test: Audio passes through, reverb audible, parameters change sound
-
-2. **Stage 2 - DSP Phase 3.2:** Type Switching
-   - Add TYPE parameter mapping (6 presets)
-   - Test: Each type sounds distinct
-
-3. **Stage 2 - DSP Phase 3.3:** Character Control
-   - Add juce::dsp::IIR::Filter for warm/bright/neutral
-   - Test: Character filter affects reverb tail
-
-4. **Stage 3 - GUI:** WebView integration (after all DSP complete)
-
-## Context to Preserve
-
-**Plugin Details:**
-- Name: O-SimpleReverb
-- Type: Audio Effect (Algorithmic Reverb)
-- Purpose: Lightweight, CPU-efficient reverb for instrument chains
-- Complexity: 4.2 (Complex - phase-based implementation required)
-
-**Architecture:**
-- Core: juce::dsp::Reverb (6 type variations)
-- Character: juce::dsp::IIR::Filter (warm/bright/neutral)
-- Mixing: juce::dsp::DryWetMixer (independent dry/wet gains)
-
-**Implementation Plan:**
-- DSP Phase 3.1: Core Processing (Room reverb + dry/wet)
-- DSP Phase 3.2: Type Switching (6 types: Booth, Room, Hall, Spring, Plate, Ambient)
-- DSP Phase 3.3: Character Control (warm/bright filter)
-- GUI Phase 4.1: Layout and Basic Controls (Ouaricon Naturalist aesthetic)
-- GUI Phase 4.2: Parameter Binding (6 parameters)
-
-**Key Decisions:**
-- Use juce::dsp::Reverb for all six types (parameter variations, not separate algorithms)
-- Independent DRY and WET parameters (not single MIX control)
-- Character filter applied post-reverb (shapes tail, not input)
-- CPU target: ~20-30% single core (well within lightweight goal)
+| Milestone | Version | Status |
+|---|---|---|
+| reverb-engine-rewrite | 2.0.0 | ✓ shipped 2026-10-01 |
+| family-retrofit | 3.0.0 | execute ✓ · verify next |
 
 ## Build Artifacts
 
-Build and install command:
 ```bash
-./scripts/build-and-install.sh O-SimpleReverb
+./scripts/build-and-install.sh O-simpleReverb
 ```
 
-Artifacts will be installed to:
-- VST3: ~/Library/Audio/Plug-Ins/VST3/O-SimpleReverb.vst3
-- AU: ~/Library/Audio/Plug-Ins/Components/O-SimpleReverb.component
-- Standalone: build/plugins/O-SimpleReverb/O-SimpleReverb_artefacts/Release/Standalone/O-SimpleReverb.app
+- VST3: `~/Library/Audio/Plug-Ins/VST3/O-simpleReverb-dev.vst3`
+- AU: `~/Library/Audio/Plug-Ins/Components/O-simpleReverb-dev.component`
+- render-check: `build/plugins/O-simpleReverb/O-simpleReverb-render-check_artefacts/Release/O-simpleReverb-render-check` (`--mutants`, `--write-frames`)
 
 ---
-*Last updated: 2026-01-13*
+*Last updated: 2026-10-15*

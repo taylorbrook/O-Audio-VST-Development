@@ -9,8 +9,8 @@
 # - Modules: Working code (CMake import with configuration)
 
 # NOTE: `version` and `last_updated` MUST be bumped on every edit. scripts/regen-registry-used-by.sh bumps them automatically when used_by content changes; bump minor/major by hand for significant changes.
-version: 1.2.1
-last_updated: 2026-09-25
+version: 1.2.2
+last_updated: 2026-10-15
 schema_version: 1.0.0
 
 # Module categories
@@ -214,8 +214,8 @@ modules:
         version: 1.2.4
       - plugin: O-simplePhysicalModelSynth
         version: 1.1.0
-      - plugin: O-SimpleReverb
-        version: 1.5.7
+      - plugin: O-simpleReverb
+        version: 2.0.0
       - plugin: O-SpectralShaper
         version: 1.5.0
       - plugin: O-Strata
@@ -562,6 +562,8 @@ modules:
         version: 1.10.0
       - plugin: O-Contrabass
         version: 1.11.0
+      - plugin: O-simpleReverb
+        version: 2.0.0
 
 # ============================================================================
 # HOW TO USE THIS REGISTRY
