@@ -539,16 +539,26 @@ double OSimpleReverbAudioProcessor::lowCutGainDb(float lowCutHz, double sampleRa
                         juce::MathConstants<double>::twoPi * hz / sampleRate);
 }
 
-double OSimpleReverbAudioProcessor::toneGainDb(int typeIndex, float characterValue, float lowCutHz, bool lowCutOn,
-                                               double sampleRate, double hz) const
+double OSimpleReverbAudioProcessor::typeEqGainDb(int typeIndex, double sampleRate, double hz)
+{
+    return biquadGainDb(typeEqCoefficients(juce::jlimit(0, 5, typeIndex), sampleRate),
+                        juce::MathConstants<double>::twoPi * hz / sampleRate);
+}
+
+double OSimpleReverbAudioProcessor::characterGainDb(float characterValue, double sampleRate, double hz) const
 {
     using C = juce::dsp::IIR::ArrayCoefficients<double>;
     const double w = juce::MathConstants<double>::twoPi * hz / sampleRate;
     const float c = OSR_MUTANT(toneCurveStale) ? 0.0f : characterValue;
-    double db = biquadGainDb(typeEqCoefficients(juce::jlimit(0, 5, typeIndex), sampleRate), w);
-    db += biquadGainDb(C::makeLowPass(sampleRate, (double) warmCutoffHz(c, sampleRate), kButterworthQ), w);
-    db += biquadGainDb(C::makeHighShelf(sampleRate, (double) kBrightShelfHz, (double) kBrightShelfQ,
-                                        juce::Decibels::decibelsToGain((double) brightGainDb(c))), w);
+    return biquadGainDb(C::makeLowPass(sampleRate, (double) warmCutoffHz(c, sampleRate), kButterworthQ), w)
+         + biquadGainDb(C::makeHighShelf(sampleRate, (double) kBrightShelfHz, (double) kBrightShelfQ,
+                                         juce::Decibels::decibelsToGain((double) brightGainDb(c))), w);
+}
+
+double OSimpleReverbAudioProcessor::toneGainDb(int typeIndex, float characterValue, float lowCutHz, bool lowCutOn,
+                                               double sampleRate, double hz) const
+{
+    double db = typeEqGainDb(typeIndex, sampleRate, hz) + characterGainDb(characterValue, sampleRate, hz);
     if (lowCutOn)
         db += lowCutGainDb(lowCutHz, sampleRate, hz);
     return db;

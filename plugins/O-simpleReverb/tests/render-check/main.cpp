@@ -85,6 +85,9 @@
                               milestone directory is this mode's output at v1.14.0.
       --write-fixture         write tests/fixtures/state-v1.14.0.{bin,tsv}.
                               Refuses on any version but 1.14.0.
+      --write-frames          (v3.0.0) write tests/ui-fixtures/frames.json: the
+                              exact meterFrame text the editor sends for real
+                              processor runs, one payload per 1600 samples.
 
     Sections 1-10 and 12 go through the processor's public surface only, so
     this file also builds against v1.14.0's Source/ (the negative control):
@@ -111,6 +114,7 @@
  #include <cstring>
  #include <map>
  #include <set>
+ #include <functional>
  #define OSR_PAYLOAD 1
 #else
  #define OSR_PAYLOAD 0
@@ -1247,6 +1251,246 @@ static void payloadGates()
 #endif
 
 #if __has_include("PresetRecipes.h")
+// ── 14. the well models (v3.0.0) ─────────────────────────────────────────────
+// The tone curve the page draws is the tone stage that runs: real
+// StateVariableTPTFilter / IIR::Filter objects, configured through the same
+// public statics as the DSP, measured on sines, against toneGainDb.
+static double sineGainDb(const std::function<float(float)>& chain, double hz, double sr = 48000.0)
+{
+    // Least-squares amplitude over a whole number of cycles after 0.5 s of settling.
+    const int settle = (int) (0.5 * sr), cycles = std::max(8, (int) (0.25 * hz)), n = (int) std::round(cycles * sr / hz);
+    double ss = 0, sc = 0;
+    for (int i = 0; i < settle + n; ++i) {
+        const double ph = juce::MathConstants<double>::twoPi * hz * i / sr;
+        const double y = chain((float) (0.25 * std::sin(ph)));
+        if (i >= settle) { ss += y * std::sin(ph); sc += y * std::cos(ph); }
+    }
+    const double amp = 2.0 * std::sqrt(ss * ss + sc * sc) / n;
+    return 20.0 * std::log10(amp / 0.25);
+}
+
+static Verdict toneCurveGate()
+{
+    using P = OSimpleReverbAudioProcessor;
+    const double sr = 48000.0;
+    const double freqs[12] = { 31.5, 63.0, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 6000.0, 8000.0, 12000.0, 16000.0 };
+    const float chars[5] = { -100.0f, -60.0f, 0.0f, 40.0f, 100.0f };
+    auto proc = makeProcessor();
+    double worst = 0.0;
+    juce::String where;
+    int points = 0;
+    for (int type = 0; type < 6; ++type)
+        for (float c : chars)
+            for (bool cutOn : { false, true }) {
+                if (cutOn && type != 2) continue;          // Low Cut once (Hall, 250 Hz) is enough: it is one filter
+                juce::dsp::ProcessSpec spec { sr, 1, 1 };
+                juce::dsp::IIR::Filter<float> eq, bright;
+                juce::dsp::StateVariableTPTFilter<float> warm, cut;
+                eq.coefficients = new juce::dsp::IIR::Coefficients<float>(P::typeEqCoefficients(type, sr));
+                bright.coefficients = new juce::dsp::IIR::Coefficients<float>(juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf(
+                    sr, P::kBrightShelfHz, P::kBrightShelfQ, juce::Decibels::decibelsToGain(P::brightGainDb(c))));
+                warm.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
+                cut.setType(juce::dsp::StateVariableTPTFilterType::highpass);
+                for (auto* f : { &warm, &cut }) { f->prepare(spec); f->setResonance(1.0f / juce::MathConstants<float>::sqrt2); }
+                warm.setCutoffFrequency(P::warmCutoffHz(c, sr));
+                cut.setCutoffFrequency(250.0f);
+                for (double hz : freqs) {
+                    eq.reset(); bright.reset(); warm.reset(); cut.reset();
+                    const double measured = sineGainDb([&](float x) {
+                        float y = eq.processSample(x);
+                        y = warm.processSample(0, y);
+                        y = bright.processSample(y);
+                        return cutOn ? cut.processSample(0, y) : y;
+                    }, hz, sr);
+                    const double drawn = proc->toneGainDb(type, c, 250.0f, cutOn, sr, hz);
+                    const double err = std::abs(measured - drawn);
+                    ++points;
+                    if (err > worst) { worst = err; where = juce::String(kTypeNames[type]) + " char " + juce::String(c, 0) + (cutOn ? " cut" : "") + " @ " + juce::String(hz, 0) + " Hz"; }
+                }
+            }
+    return { worst <= 0.1, "tone well = the running filters: worst |drawn - measured| " + juce::String(worst, 3) + " dB over "
+                           + juce::String(points) + " points (" + where + "; within 0.1)" };
+}
+
+// The early-reflection native against (a) an impulse through an independently
+// prepared EarlyReflections - the samples it outputs, not its accessors - and
+// (b) the processor's first arrival (pre-delay + first tap).
+static Verdict earlyNativeGate()
+{
+    using P = OSimpleReverbAudioProcessor;
+    const double sr = 48000.0;
+    osr::EarlyReflections model;
+    model.prepare(sr, P::kEarlyModelSpanMs);
+    int checked = 0, bad = 0;
+    juce::String firstBad;
+    for (int type : { 0, 1, 2, 5 })
+        for (float size : { 0.0f, 50.0f, 100.0f }) {
+            const auto taps = P::earlyTaps(model, sr, type, size);
+            osr::EarlyReflections ref;
+            ref.prepare(sr, 57.5f);
+            ref.setType(P::typePresets[type].earlySpanMs);
+            ref.setSize(P::sizeScale(P::typePresets[type], size));
+            ref.reset();
+            std::vector<std::pair<int, float>> hitsL, hitsR;
+            for (int n = 0; n < 6000; ++n) {
+                float l, r;
+                ref.process(n == 0 ? 1.0f : 0.0f, n == 0 ? 1.0f : 0.0f, l, r);
+                if (l != 0.0f) hitsL.emplace_back(n, l);
+                if (r != 0.0f) hitsR.emplace_back(n, r);
+            }
+            bool ok = taps.numTaps == 8 && hitsL.size() == 8 && hitsR.size() == 8;
+            for (int k = 0; ok && k < 8; ++k)
+                ok = std::abs(taps.msL[(size_t) k] * sr / 1000.0 - hitsL[(size_t) k].first) < 1.0e-6 && std::abs(taps.gainL[(size_t) k] - hitsL[(size_t) k].second) < 1.0e-6
+                  && std::abs(taps.msR[(size_t) k] * sr / 1000.0 - hitsR[(size_t) k].first) < 1.0e-6 && std::abs(taps.gainR[(size_t) k] - hitsR[(size_t) k].second) < 1.0e-6;
+            const auto ir = typeIr(type, 1.0f, size, 0.3);
+            const double firstMs = (double) measure::onsetIndex(ir.l) * 1000.0 / sr;
+            const double wantMs = std::round(taps.preDelayMs * sr / 1000.0) * 1000.0 / sr + taps.msL[0];
+            ok = ok && std::abs(firstMs - wantMs) <= 1000.0 / sr + 1.0e-9;
+            ++checked;
+            if (! ok) { ++bad; if (firstBad.isEmpty()) firstBad = juce::String(kTypeNames[type]) + " SIZE " + juce::String(size, 0) + " (first arrival " + juce::String(firstMs, 3) + " ms, native " + juce::String(wantMs, 3) + ")"; }
+        }
+    const auto plate = P::earlyTaps(model, sr, 4, 50.0f), spring = P::earlyTaps(model, sr, 3, 50.0f);
+    // SIZE 50 is sqrt(0.75 x 1.3333333) = 0.99999998 of the echo times, in float: 1 us, not 1e-9.
+    const bool others = plate.numTaps == 0 && plate.preDelayMs == 8.0 && spring.numTaps == 0 && spring.numSpringEchoes == 3
+                     && std::abs(spring.springEchoMs[0] - 33.0) < 1.0e-3 && std::abs(spring.springEchoMs[2] - 41.0) < 1.0e-3;
+    return { bad == 0 && others, "early-reflection native: " + juce::String(checked - bad) + " of " + juce::String(checked)
+                                 + " type x SIZE cases match an impulse through an independent EarlyReflections sample for sample and the processor's first arrival"
+                                 + (firstBad.isEmpty() ? juce::String() : " (first miss " + firstBad + ")") + "; Plate none, Spring 33 / 37 / 41 ms" };
+}
+
+// The live decay well's wet line, read as the editor reads it (one frame per
+// 1600 samples, 30 Hz at 48 kHz), falls at the slope the page draws
+// (baseT60 x DECAY), within 20 %. The stimulus is PINK noise, programme-like
+// (RESEARCH 6.2): under white noise the mean square is mostly the top octaves,
+// which the tanks absorb fastest, and the line reads about 15 % short. The fit
+// runs from 3 to 45 dB under the level as the burst stops, so even Booth at
+// 0.5x (0.2 s, six 30 Hz frames for 60 dB) has at least three points.
+struct WellSlope { double t60; int points; };
+static WellSlope wellSlope(int type, float decay)
+{
+    const double sr = 48000.0;
+    const int bs = 160, perFrame = 10;
+    auto proc = makeProcessor();
+    setParam(*proc, "TYPE", (float) type); setParam(*proc, "WET", 100.0f); setParam(*proc, "DRY", 0.0f);
+    setParam(*proc, "DECAY", decay);
+    configure(*proc, 2, sr, bs);
+    juce::AudioBuffer<float> buf(2, bs);
+    juce::MidiBuffer midi;
+    std::mt19937 rng(21);
+    std::normal_distribution<float> nd(0.0f, 0.1f);
+    float p1 = 0, p2 = 0, p3 = 0;                    // the pink filter of loudnessDb
+    auto pink = [&] { const float w = nd(rng); p1 = 0.99886f * p1 + w * 0.0555f; p2 = 0.99332f * p2 + w * 0.0750f;
+                      p3 = 0.969f * p3 + w * 0.1538f; return p1 + p2 + p3 + w * 0.1848f; };
+    const double t60 = kBaseT60[type] * decay;
+    const int burst = (int) (0.3 * sr), total = burst + (int) ((1.2 * t60 + 0.3) * sr);
+    proc->meterFrames.read();
+    std::vector<std::pair<double, double>> frames;   // (frame end time, wetDb)
+    for (int blk = 0, n = 0; n < total; ++blk, n += bs) {
+        for (int i = 0; i < bs; ++i) { const float x = n + i < burst ? pink() : 0.0f; buf.setSample(0, i, x); buf.setSample(1, i, x); }
+        proc->processBlock(buf, midi);
+        if ((blk + 1) % perFrame == 0)
+            frames.emplace_back((n + bs) / sr, (double) proc->meterFrames.read().wetDb);
+    }
+    // Fit the fall from 3 dB to 45 dB under the level when the burst stops.
+    const double stopT = burst / sr + 0.05;
+    double peak = -200.0;
+    for (const auto& f : frames) if (f.first >= stopT) { peak = std::max(peak, f.second); break; }
+    double sx = 0, sy = 0, sxx = 0, sxy = 0;
+    int m = 0;
+    for (const auto& f : frames)
+        if (f.first >= stopT && f.second <= peak - 3.0 && f.second >= peak - 45.0) {
+            sx += f.first; sy += f.second; sxx += f.first * f.first; sxy += f.first * f.second; ++m;
+        }
+    const double slope = m >= 2 ? (m * sxy - sx * sy) / (m * sxx - sx * sx) : 0.0;
+    return { slope < 0.0 ? -60.0 / slope : 0.0, m };
+}
+
+static Verdict decayWellGate()
+{
+    double worst = 0.0;
+    int fewest = 1000;
+    juce::String where, table;
+    for (int type = 0; type < 6; ++type)
+        for (float decay : { 0.5f, 2.0f }) {
+            const auto w = wellSlope(type, decay);
+            const double ratio = w.t60 / (kBaseT60[type] * decay);
+            table += juce::String(kTypeNames[type]) + " " + juce::String(decay, 1) + "x " + juce::String(ratio, 2) + (type == 5 && decay > 1.0f ? "" : ", ");
+            fewest = std::min(fewest, w.points);
+            if (std::abs(ratio - 1.0) > worst) { worst = std::abs(ratio - 1.0); where = juce::String(kTypeNames[type]) + " " + juce::String(decay, 1) + "x"; }
+        }
+    return { worst <= 0.20 && fewest >= 3, "decay well: the 30 Hz wet line falls at the drawn slope, measured / drawn RT60: " + table
+                                           + " (worst " + where + " " + juce::String(100.0 * worst, 1) + " %, within 20; fewest points in a fit " + juce::String(fewest) + ")" };
+}
+
+// --write-frames: tests/ui-fixtures/frames.json, the exact payload text the
+// editor sends for real processor runs (memory: UI fixture states must be
+// producible by C++). One payload per 1600 samples (30 Hz at 48 kHz).
+static int writeFrames()
+{
+    namespace ui = osr::ui;
+    struct Run { const char* name; int type; float decay, wet, dry; float level; double burstS, totalS; bool sine; };
+    const Run runs[] = {
+        { "hall_burst",    2, 1.0f, 30.0f, 100.0f, 0.10f, 0.30, 4.0, false },
+        { "booth_burst",   0, 1.0f, 30.0f, 100.0f, 0.10f, 0.30, 1.5, false },
+        { "ambient_burst", 5, 1.0f, 45.0f,  80.0f, 0.10f, 0.30, 6.0, false },
+        { "clip_sine",     1, 1.0f, 25.0f, 100.0f, 1.20f, 1.00, 1.0, true  },
+    };
+    auto dir = juce::File(__FILE__).getParentDirectory().getParentDirectory().getChildFile("ui-fixtures");
+    dir.createDirectory();
+    juce::String json = "[\n";
+    char buf[256];
+    auto quote = [](const juce::String& t) { return juce::JSON::toString(juce::var(t)); };
+    for (const auto& run : runs) {
+        const double sr = 48000.0;
+        const int bs = 160;
+        auto proc = makeProcessor();
+        setParam(*proc, "TYPE", (float) run.type); setParam(*proc, "DECAY", run.decay);
+        setParam(*proc, "WET", run.wet); setParam(*proc, "DRY", run.dry);
+        configure(*proc, 2, sr, bs);
+        juce::AudioBuffer<float> io(2, bs);
+        juce::MidiBuffer midi;
+        std::mt19937 rng(33);
+        std::normal_distribution<float> nd(0.0f, run.level);
+        ui::LiveTracker tracker;
+        proc->meterFrames.read();
+        juce::StringArray payloads;
+        const int burst = (int) (run.burstS * sr), total = (int) (run.totalS * sr);
+        for (int blk = 0, n = 0; n < total; ++blk, n += bs) {
+            for (int i = 0; i < bs; ++i) {
+                const float x = n + i >= burst ? 0.0f : run.sine ? run.level * (float) std::sin(juce::MathConstants<double>::twoPi * 220.0 * (n + i) / sr) : nd(rng);
+                io.setSample(0, i, x); io.setSample(1, i, x);
+            }
+            proc->processBlock(io, midi);
+            if ((blk + 1) % 10 == 0) {
+                const int len = ui::format(ui::sampleFrame(proc->meterFrames, tracker), buf, (int) sizeof buf);
+                payloads.add(quote(juce::String(buf, (size_t) len)));
+            }
+        }
+        json += "  {\"name\":\"" + juce::String(run.name) + "\",\"params\":{\"TYPE\":" + juce::String(run.type) + ",\"CHARACTER\":0,\"WET\":"
+              + juce::String(run.wet, 1) + ",\"DRY\":" + juce::String(run.dry, 1) + ",\"DECAY\":" + juce::String(run.decay, 2)
+              + ",\"SIZE\":50,\"LPFREQ\":200,\"LPON\":0},\"frameMs\":33.333,\"payloads\":[\n    " + payloads.joinIntoString(",\n    ") + "]},\n";
+    }
+    {
+        // The live -> idle edge: what the page receives when the host stops calling processBlock.
+        ui::LiveTracker tracker;
+        osr::TripleBuffer<osr::MeterFrame> tb;
+        tb.getWriteBuffer().outPeakL = 0.5f; tb.getWriteBuffer().outPeakR = 0.5f; tb.getWriteBuffer().inDb = -6.0f;
+        tb.getWriteBuffer().wetDb = -30.0f; tb.getWriteBuffer().spanMs = 33.0f; tb.publish();
+        juce::StringArray payloads;
+        for (int tick = 0; tick < 5; ++tick) {
+            const int len = ui::format(ui::sampleFrame(tb, tracker), buf, (int) sizeof buf);
+            payloads.add(quote(juce::String(buf, (size_t) len)));
+        }
+        json += "  {\"name\":\"idle_edge\",\"params\":{\"TYPE\":1,\"CHARACTER\":0,\"WET\":25,\"DRY\":100,\"DECAY\":1,\"SIZE\":50,\"LPFREQ\":200,\"LPON\":0},"
+                "\"frameMs\":33.333,\"payloads\":[\n    " + payloads.joinIntoString(",\n    ") + "]}\n";
+    }
+    json += "]\n";
+    const auto file = dir.getChildFile("frames.json");
+    if (! file.replaceWithText(json)) { std::printf("could not write %s\n", file.getFullPathName().toRawUTF8()); return 1; }
+    std::printf("wrote %s\n", file.getFullPathName().toRawUTF8());
+    return 0;
+}
+
 // ── 13. lessons and the preset surface (v3.0.0) ─────────────────────────────
 static void presetGates()
 {
@@ -1964,6 +2208,9 @@ static int runMutants()
    #if OSR_PAYLOAD
     mustFail(Mutant::frameNoReset, "the meter frame never starting again", [] { return meterHoldGate(); });
    #endif
+   #if __has_include("PresetRecipes.h")
+    mustFail(Mutant::toneCurveStale, "the tone well ignoring CHARACTER", [] { return toneCurveGate(); });
+   #endif
     std::printf("\n%d of %d mutants caught\n", passes, passes + failures);
     return failures == 0 ? 0 : 1;
 }
@@ -1998,6 +2245,9 @@ int main(int argc, char** argv)
     const juce::String mode(argc > 1 ? argv[1] : "");
     if (mode == "--baseline") return printBaseline();
     if (mode == "--write-fixture") return writeFixture();
+   #if __has_include("PresetRecipes.h")
+    if (mode == "--write-frames") return writeFrames();
+   #endif
     if (mode == "--levels") return printLevels(argc > 2 && juce::String(argv[2]) == "raw");
    #if OSIMPLEREVERB_TEST_HOOKS
     if (mode == "--mutants") return runMutants();
@@ -2343,9 +2593,12 @@ int main(int argc, char** argv)
                                           + juce::String(checked) + " checked, " + juce::String(wrong) + " wrong)");
     }
 
-    // ── 13. lessons and the preset surface ───────────────────────────────────
+    // ── 13. lessons and the preset surface; 14. the well models ─────────────
    #if __has_include("PresetRecipes.h")
     presetGates();
+    check(toneCurveGate());
+    check(earlyNativeGate());
+    check(decayWellGate());
    #endif
 
     // ── 11. the engine headers, driven directly ───────────────────────────────

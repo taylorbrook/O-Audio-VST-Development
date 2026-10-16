@@ -24,10 +24,21 @@ juce_add_plugin(O-simpleReverb
 )
 
 # Source files
+# Source files. PluginProcessor.cpp includes PluginEditor.h only under
+# #if JUCE_WEB_BROWSER (Generic editor in the #else), so render-check and
+# param-dump (JUCE_WEB_BROWSER=0, no editor sources) keep building.
+# MeterFramePayload.h is JUCE-free and shared with render-check.
 target_sources(O-simpleReverb
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
+        Source/PluginProcessor.h
+        Source/PluginEditor.h
+        Source/PresetRecipes.h
+        Source/MeterFrame.h
+        Source/MeterFramePayload.h
+        Source/TripleBuffer.h
+        Source/ModulationFx.h
 )
 
 # Include paths
@@ -71,8 +82,11 @@ juce_add_binary_data(O-simpleReverb_UIResources
         Source/ui/public/js/i18n.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
-        Source/ui/public/img/paper.jpg
-        Source/ui/public/img/flora.png
+        # v3.0.0: the shared preset bar module (configure-copied from
+        # modules/persistence/preset-manager/js, gitignored) and the family
+        # insects overlay. paper.jpg and flora.png were the v2 page's.
+        Source/ui/public/modules/preset-manager.js
+        Source/ui/public/img/insects.png
         # v1.10.0 - bundled EB Garamond, direct embed from the shared
         # module; served by four getResource branches in PluginEditor.cpp.
         ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
