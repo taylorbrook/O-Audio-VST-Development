@@ -50,6 +50,7 @@
 import * as Juce from './juce/index.js';
 import { AnalogEQUnitUI } from '../modules/analog-eq-unit.js';
 import { CompressorUnit } from '../modules/compressor-unit.js';
+import { ReverbUnit } from '../modules/reverb-unit.js';
 import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';
 
 let uiLanguage = 'en';
@@ -1659,6 +1660,32 @@ window.__JUCE__.backend.addEventListener("compressorGR", (grDB) => {
         compUI.updateGainReduction(grDB);
     }
 });
+
+// ====================================================================
+// v1.16.0: REVERB UNIT (Effects Tab, below the compressor)
+// ====================================================================
+// Unlike the EQ and compressor strips, its captions are localized: they are
+// keyed here with literal dataset assignments (the shape check-i18n [15] reads)
+// BEFORE i18n initialises, so applyI18n()'s first sweep rewrites them like any
+// page label.
+
+const reverbPanel = document.getElementById('reverb-panel');
+const reverbUI = new ReverbUnit({
+    container: reverbPanel,
+    paramPrefix: 'fx_rev_',
+    getSliderState: Juce.getSliderState,
+    getToggleState: Juce.getToggleState
+});
+reverbUI.initialize();
+
+const revCaption = (param) => reverbPanel.querySelector(`[data-param="${param}"] .rev-label`);
+reverbPanel.querySelector('.rev-bypass-toggle').dataset.i18n = 'label.fxReverb';
+revCaption('size').dataset.i18n     = 'label.revSize';
+revCaption('damp').dataset.i18n     = 'label.revDamp';
+revCaption('predelay').dataset.i18n = 'label.revPredelay';
+revCaption('mod').dataset.i18n      = 'label.revMod';
+revCaption('shimmer').dataset.i18n  = 'label.revShimmer';
+revCaption('mix').dataset.i18n      = 'label.revMix';
 
 // ════════════════════════════════════════════════════════════════════
 // INITIALIZATION — i18n, the popover and the ported tooltip renderer

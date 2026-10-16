@@ -5,7 +5,7 @@ juce_add_plugin(OMarimba
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OuMa
-    VERSION 1.15.0
+    VERSION 1.16.0
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Marimba${OUARICON_DEV_SUFFIX}"
     IS_SYNTH TRUE
@@ -31,6 +31,7 @@ target_include_directories(OMarimba
         Source
         ${CMAKE_SOURCE_DIR}/modules/effects/analog-eq-unit/cpp
         ${CMAKE_SOURCE_DIR}/modules/effects/compressor-unit/cpp
+        ${CMAKE_SOURCE_DIR}/modules/effects/reverb-unit/cpp
 )
 
 # Required JUCE modules
@@ -79,6 +80,7 @@ juce_add_binary_data(OMarimba_UIResources
         Source/ui/public/images/tree_expositionmtho00lamo_0207.png
         ${CMAKE_SOURCE_DIR}/modules/effects/analog-eq-unit/js/analog-eq-unit.js
         ${CMAKE_SOURCE_DIR}/modules/effects/compressor-unit/js/compressor-unit.js
+        ${CMAKE_SOURCE_DIR}/modules/effects/reverb-unit/js/reverb-unit.js
         ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
         ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
         ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2

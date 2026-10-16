@@ -1,0 +1,65 @@
+name: reverb-unit
+version: 1.0.0
+category: effects
+description: |
+  Compact 8-channel FDN plate reverb module for embedding in VST instruments.
+  Same tank as O-Formant's ReverbProcessor (v1.32, with the WR-16 smoothing and
+  IN-12 sample-rate fixes): Householder feedback, 4-stage input diffusion,
+  4-LFO delay modulation and octave-up shimmer. Adds a 50 ms enable/mix ramp
+  (switching off fades the tail instead of cutting it) and a mono fold-down.
+
+  UI: clickable REVERB title for bypass and 6 seed-style knobs in the same
+  505x71px rack strip as compressor-unit 1.3.0 (shared strip contract: host
+  --font-serif, 76px bypass, 64px column pitch, 9px floor, AA off-states).
+
+provides:
+  cpp-class: ReverbUnit
+  js-module: reverb-unit.js
+  parameters:
+    - rev_enabled   # Master bypass (clickable title), OFF by default
+    - rev_size      # 0-1, RT60 0.2 s + size^2 x 11.8 s, default 0.5
+    - rev_damp      # 0-1 HF damping, default 0.5
+    - rev_predelay  # 0-200 ms, default 20
+    - rev_mix       # 0-1 linear dry/wet, default 0.25
+    - rev_mod       # 0-1 tank modulation depth, default 0.2
+    - rev_shimmer   # 0-1 octave-up feedback, default 0
+
+config:
+  param_prefix:
+    type: string
+    default: "rev_"
+    description: Prefix for parameter IDs to avoid conflicts
+
+requirements:
+  juce_modules:
+    - juce_core
+    - juce_audio_processors
+    - juce_dsp
+  cpp_standard: 17
+
+sources:
+  cpp:
+    - ReverbUnit.h
+  js:
+    - reverb-unit.js
+
+tags:
+  - dsp
+  - reverb
+  - fdn
+  - effects
+  - webview
+
+reuse_score: 9
+
+changelog:
+  - version: 1.0.0
+    date: 2026-10-16
+    changes:
+      - Initial release, first consumer O-Marimba v1.16.0
+      - Tank ported from O-Formant v1.32 ReverbProcessor
+      - Enable and Mix ramp 50 ms; the tank idles only after the fade lands on zero
+      - Mono output takes (L + R) / 2 of the tank (the plugin copies kept only R)
+      - Mod and Shimmer smoothed per sample
+      - Parameters read from cached APVTS atomics via bind()
+      - getTailLengthSeconds() from the current settings

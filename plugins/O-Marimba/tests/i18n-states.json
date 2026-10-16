@@ -1,5 +1,6 @@
 [
   { "name": "tuning tab",           "click": "#tab-tuning" },
   { "name": "custom (Scala) mode",  "click": "#btn-scala" },
-  { "name": "settings popover",     "click": "#gear-btn" }
+  { "name": "settings popover",     "click": "#gear-btn" },
+  { "name": "effects tab",          "click": "#tab-effects" }
 ]

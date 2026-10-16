@@ -282,15 +282,15 @@ export const I18N = Object.freeze({
     },
     'strike': {
         en: { t: 'Strike Position',
-              b: 'Where the mallet strikes the bar. Center (0%) emphasizes the fundamental; edge (100%) brings out higher partials and overtones.' },
+              b: 'Where the mallet strikes the bar. Center (50%) emphasizes the fundamental; toward either edge (0% or 100%) brings out higher partials and overtones.' },
         fr: { t: 'Point de frappe',
-              b: 'Endroit où le maillet frappe la lame. Le centre (0 %) met en avant le fondamental ; le bord (100 %) fait ressortir les partiels aigus et les harmoniques.',
-              reviewed: true },
+              b: 'Endroit où le maillet frappe la lame. Le centre (50 %) met en avant le fondamental ; vers l’un ou l’autre bord (0 % ou 100 %), les partiels aigus et les harmoniques ressortent.',
+              reviewed: false },
     
 
         'zh-Hans': { t: '击奏位置',
-              b: '琴槌击打音板的位置。Center（0%）强调基频；Edge（100%）带出更高的分音与泛音。',
-              reviewed: 'bt' },
+              b: '琴槌击打音板的位置。Center（50%）强调基频；越靠近任一 Edge（0% 或 100%），越带出更高的分音与泛音。',
+              reviewed: 'mt' },
     },
     'damping': {
         en: { t: 'Overtone Damping',
@@ -633,6 +633,19 @@ export const LABELS = Object.freeze({
 
     'label.clickToPlay': { en: { t: 'Click to play' }, fr: { t: 'Cliquer pour jouer', reviewed: true } , 'zh-Hans': { t: '点击播放', reviewed: 'bt' },},
 
+    // ── EFFECTS tab: the reverb-unit strip (v1.16.0) ────────────────────────
+    // Unlike the EQ and compressor strips (exempted below), these captions are
+    // keyed by app.js with literal dataset.i18n assignments after the strip
+    // mounts, so applyI18n() rewrites them like page labels. Strings are O-Formant's
+    // reviewed reverb captions; the title is set in capitals like EQ and COMP.
+    'label.fxReverb':    { en: { t: 'REVERB' },  fr: { t: 'RÉVERB',    reviewed: true } , 'zh-Hans': { t: '混响', reviewed: 'bt' },},
+    'label.revSize':     { en: { t: 'Size' },    fr: { t: 'Taille',    reviewed: true } , 'zh-Hans': { t: '尺寸', reviewed: 'bt' },},
+    'label.revDamp':     { en: { t: 'Damp' },    fr: { t: 'Amort.',    reviewed: true } , 'zh-Hans': { t: '阻尼', reviewed: 'bt' },},
+    'label.revPredelay': { en: { t: 'Pre-dly' }, fr: { t: 'Pré-délai', reviewed: true } , 'zh-Hans': { t: '预延迟', reviewed: 'bt' },},
+    'label.revMod':      { en: { t: 'Mod' },     fr: { t: 'Mod',       reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '调制', reviewed: 'bt' },},
+    'label.revShimmer':  { en: { t: 'Shimmer' }, fr: { t: 'Shimmer',   reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '微光', reviewed: 'mt' },},
+    'label.revMix':      { en: { t: 'Mix' },     fr: { t: 'Mix',       reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '混合', reviewed: 'bt' },},
+
     // ── The preset dropdown's two group headings ────────────────────────────
     // Chrome, not data: these are section captions the page invents, and unlike
     // the preset NAMES beneath them they never reach C++ and never become a
@@ -769,7 +782,7 @@ export const I18N_EXEMPT = [
     // The Effects tab is built at runtime by modules/effects/analog-eq-unit and
     // modules/effects/compressor-unit, embedded from ${CMAKE_SOURCE_DIR} rather
     // than from this plugin's UI root. They are registry-tracked shared modules
-    // (modules/registry.yaml, analog-eq-unit 1.2.0, compressor-unit 1.2.1).
+    // (modules/registry.yaml, analog-eq-unit 1.3.0, compressor-unit 1.3.0).
     // Localizing them is a CROSS-PLUGIN change that does not belong inside a
     // per-plugin commit, and a local edit would be silently reverted the next
     // time /module-upgrade runs. Twenty rendered text nodes, of which these are

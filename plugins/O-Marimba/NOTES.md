@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.15.0
+- **Version:** 1.16.0
 - **Type:** Synth (Physical Model)
 - **Complexity:** 5.0 (VERY HIGH - maximum complexity)
 
@@ -136,6 +136,15 @@
   bundled EB Garamond by direct embed. Census 70/90 -> 0/88 below AA, image probe page-owned
   33/81 -> 0/79; check-ui-labels + check-i18n pass; auval PASS. Effects-tab module text
   (analog-eq-unit / compressor-unit, 20 nodes) left for a module-level fix. No DSP change.
+- **2026-10-16 (v1.16.0):** Effects tab reverb. New shared module `reverb-unit` 1.0.0
+  (O-Formant v1.32 FDN tank + 50 ms enable/mix fade-out + mono fold-down), 7 `fx_rev_*` params,
+  OFF by default (presets/sessions unchanged), after the compressor; tail length reported.
+  analog-eq-unit / compressor-unit 1.3.0 restyle: shared strip contract (EB Garamond, 505px,
+  76px bypass, 64px column grid, 9px floor, AA fills, off-states by colour) -> contrast 0/124
+  below AA, check-ui-labels green incl. Effects tab. COMP 109 -> 114, reverb 189 (4px gaps);
+  strike-position tooltip fixed (50% = center);
+  `#effects-future` removed. Harness 12/12 + negative control; auval PASS; pluginval 5 SUCCESS.
+  Known (inherited tank): correlated wet comb-filters sustained notes (+/-4 dB by pitch at defaults).
 
 ## Known Issues
 
