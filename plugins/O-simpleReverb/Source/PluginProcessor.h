@@ -275,6 +275,15 @@ public:
     static juce::StringArray factoryBankNames();
     static bool isBankPresetName(const juce::String& name);
     static bool isFactoryPresetName(const juce::String& name);       // a lesson or a bank preset (ignoring case)
+    // v2.0.0 had no lessons, so a user preset could be called "Init" (or a
+    // lesson file name); v3 would hide it behind the lesson. Renames each such
+    // file in userDir to "<name> (user).json" ("<name> (user 2)" etc. if taken). Never
+    // deletes; a failed rename leaves the file as it was. Returns the count.
+    static int migrateLessonNameCollisions(const juce::File& userDir);
+    static juce::String migratedPresetName(const juce::String& lessonFileName);   // "<name> (user)"
+    // A restored lesson name whose session values match the renamed user
+    // preset's (and not the lesson's) was that user preset.
+    static bool restoredValuesAreMigratedPreset(const Targets& current, const Targets& lesson, const Targets& file);
 
     // The lesson entry: any table id; unknown -> false, nothing touched. Each
     // apply is a full reset to defaults, then the recipe.
@@ -320,6 +329,8 @@ private:
     Targets presetTargets {};
     bool presetTargetsValid = false;
     bool presetTargetsStale = false;
+    juce::String migratedCandidate;   // restored lesson name that may be a renamed v2 user preset
+    bool readUserPresetTargets(const juce::String& name, Targets& out) const;
     std::atomic<juce::uint32> presetRevision { 0 };
     void setCurrentPreset(const juce::String& name, const Targets& resolved, bool valid, bool stale);
     void restorePresetIdentity();   // after setStateInformation
