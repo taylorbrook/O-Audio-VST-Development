@@ -2,6 +2,80 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.16.0] - 2026-10-16
+
+The Effects tab gets a reverb: the new shared `modules/effects/reverb-unit` 1.0.0, mounted under the compressor. The EQ and compressor strips are restyled to match it (`analog-eq-unit` and `compressor-unit` 1.3.0; O-Marimba is their only consumer). The release also carries two fixes from a UI review. MINOR: 7 parameters are added, and none is renamed, re-ranged or removed. **The reverb is OFF by default.** Preset loading resets every parameter to its default before applying the stored subset (WR-01), so existing presets and sessions render exactly as before. Harness check: with the unit OFF, the output is bit-identical to the input.
+
+### Added
+
+- **Reverb unit (Effects tab, third strip).** The tank is the 8-channel FDN plate from O-Formant v1.32's `ReverbProcessor`, the same design O-Bells and O-Lyrica use. Formant's copy was chosen because it carries the WR-16 per-sample size and pre-delay smoothing and the IN-12 sample-rate fixes.
+  - **Controls:** REVERB (bypass), Size, Damp, Pre-dly, Mod, Shimmer and Mix.
+  - **Parameters:**
+
+    | ID | Range | Default |
+    |---|---|---|
+    | `fx_rev_enabled` | on/off | off |
+    | `fx_rev_size` | 0–1 | 0.5 |
+    | `fx_rev_damp` | 0–1 | 0.5 |
+    | `fx_rev_predelay` | 0–200 ms | 20 ms |
+    | `fx_rev_mix` | 0–1 | 0.25 |
+    | `fx_rev_mod` | 0–1 | 0.2 |
+    | `fx_rev_shimmer` | 0–1 | 0 |
+
+  - **Chain:** Synth → Body → EQ → Comp → **Reverb** → Output Gain. The reverb sits after the compressor so the tail is not pumped.
+- **Three changes from the plugin copies of the tank, made in the module:**
+  - Turning the unit off, or Mix to 0, ramps the wet path down over 50 ms. The tank idles only once the fade lands on zero. The plugin copies stopped processing on the same block and cut the tail with a step.
+  - On a mono output bus the unit outputs (L + R) / 2 of the tank. The plugin copies aliased the right channel onto the left and kept only R.
+  - Mod and Shimmer are smoothed per sample. Parameters are read from cached APVTS atomics.
+- **`getTailLengthSeconds()`** now reports pre-delay + RT60 (0.2 s + size² × 11.8 s) while the reverb is on. It was a constant 0 and still is when the reverb is off.
+- **Captions are localized** in EN, FR and zh-Hans using O-Formant's reviewed strings. `app.js` keys them with literal `dataset.i18n` assignments, the form `check-i18n` [15] reads. Shimmer zh-Hans `微光` is `reviewed: 'mt'`.
+- **Strip geometry:** 505 × 71 px, the same as COMP, at top 189 with 4 px gaps. Its right edge clears the gear by 10 px.
+
+### Changed
+
+- **The three Effects strips share one contract.** It lives in `analog-eq-unit` 1.3.0, `compressor-unit` 1.3.0 and `reverb-unit` 1.0.0:
+  - **One face.** Every strip uses `var(--font-serif)`, which is EB Garamond with the page's CJK fallbacks, and buttons inherit it. The modules declared `Garamond`, which isn't installed, so the EQ and COMP rendered in Times. Under zh-Hans the stack also resolved differently and grew the EQ by 2 px, moving 135 nodes.
+  - **The same box.** Each strip is 505 px wide with 21 px side padding and a 76 px bypass button (EQ / COMP / REVERB). Line-heights are fixed, so nothing changes height between Latin and CJK. Before: EQ 503.4 / COMP 505.5 wide; bypass buttons 45.9 / 61.6 / 80 px; buttons 23 → 26 px tall in zh-Hans.
+  - **One column grid.** EQ bands are 60 px with a 4 px gap. COMP and REVERB knob groups are 48 px with a 16 px gap and a 6 px lead-in. All three sit on a 64 px pitch, so the knob centres at x = 185.5 / 249.5 / 313.5 / 377.5 line up through all three strips. Before, the EQ had a 64 px pitch starting at 195, and COMP and REVERB a 61 px pitch starting at 202 and 192.5. ANALOG and the AUTO + GR cluster both end at x = 530.5.
+  - **9 px floor.** EQ band labels move up from 8 px. W/M/T, the EQ value tooltip and the GR label move up from 7 px. The COMP readouts move up from 8 px.
+  - **AA fills.** On is `#4E6839` with `#FFF` (6.24:1; it was `#6B8E4E`, 3.75:1). Off is `#6B5040` with `#E8D5B7` (5.14:1; it was `#8B7355` with `#DDD`, 3.30:1). Captions are `#B8A08C`.
+  - **Off states use colour, not opacity.** Only the knob graphics fade, to 0.4. A disabled band's on/off label and Q row, and a bypassed strip's text controls (band labels, W/M/T, ANALOG, AUTO), take a muted `#3A2E24` / `#B8A08C` fill (5.29:1). At opacity they measured 1.37–2.12:1. A disabled band's own on/off label, the control that turns the band back on, sat at 0.14 effective opacity inside the bypassed EQ, which is the default view. The EQ value tooltip stays opaque over the Q row in a dimmed band.
+  - **A declared ground.** Each strip has a solid `#221C14` under its gradient. This is the census-ground issue v1.15.0 fixed for the page.
+
+### Fixed
+
+- **EQ and COMP strips touched.** The EQ strip is 100 px tall at 1.3.0 (99 before), so COMP's top edge sat on the EQ's bottom edge. COMP moves from 109 to 114, restoring the 4 px gap the v1.9.9 comment intended.
+- **Strike Position tooltip contradicted the DSP.** The tooltip said "Center (0%) … edge (100%)". `MarimbaVoice::getStrikePositionMultiplier` treats 0 and 1 as the two edges and 0.5 as the centre, and the readout shows Edge / Center the same way. The tooltip now says "Center (50%) … either edge (0% or 100%)". The French text is redrafted (`reviewed: false`) and the zh-Hans text is re-authored (`reviewed: 'mt'`).
+
+### Removed
+
+- `#effects-future`, an empty, inline-styled placeholder at 0.3 opacity.
+
+### Not changed
+
+- **`.tab-content` height stays 326.** 74 + 326 runs 6 px past the 394 px content box. A trial at 320 lifted every bottom-anchored row by 6 px: velocity and output, the TUNING keyboard, and its 10 px gap to the Scala grid. Those rows were placed against the 326 frame, and the 6 px it clips holds nothing. A comment now records why.
+
+### Known: inherited from the tank, not changed here
+
+- **The wet signal is strongly correlated.** All 8 channels are fed the same mono input, and the tail's L/R correlation is 0.93. With sustained tonal input the early wet comb-filters against the dry signal. At the defaults (mix 0.25, size 0.5), switching the reverb on changes the level of real notes by −4 to +4 dB depending on pitch: 6 renders averaged per point, at notes 48, 60 and 72.
+- **Wet level grows with Size**, because RT60 grows as size² and there is no wet normalisation. On a 523 Hz decaying burst at mix 0.25, size 0.5 measures −4.6 dB and size 0.8 measures +6.8 dB.
+- **Mix is a linear law**, as in `DryWetMixer`'s default: the dry signal drops 2.5 dB at 25 %. The same tank in O-Formant, O-Bells and O-Lyrica behaves identically.
+
+### Verified
+
+| Check | Result |
+|---|---|
+| Offline `ReverbUnit` harness, 12 checks | ALL PASS. OFF is bit-identical; tail present; switch-off step 9.4e-4 ≤ the tail's own 1.17e-3; gone within 100 ms; exact silence once idle; mono = (L+R)/2; tail formula; finite at 22.05/44.1/96/192 kHz with max shimmer, mod and size |
+| Negative control (ramp set to 0) | The switch-off check FAILS (step 4.46e-3), so the gate is not vacuous |
+| `check-i18n.js` | ALL PASS. Before the keys were literal it failed [15] with 7 dead keys |
+| `check-ui-labels.js` (now including the new `effects tab` state) | ALL CHECKS PASSED. v1.15.0 on the same state: 135 EQ/COMP nodes moved in zh-Hans |
+| `measure-ui.js --contrast` | **0 / 124 below AA** in each language, 0 under 9 px, min 5.14, median 8.56. v1.15.0: 0 / 88 on SOUND and TUNING with the Effects-tab module text excluded, 20 / 20 of which was below AA |
+| Effects-tab geometry (en / fr / zh-Hans) | Identical in all three languages: strips at x 47.5 and 505 wide; bypass buttons 76 × 23; knob centres on one grid |
+| Served page, 600 × 400, en/fr/zh-Hans | SOUND and TUNING are pixel-identical to v1.15.0 (transitions settled). No page errors, no 404s |
+| Installed VST3 (pedalboard) | 7 reverb parameters exposed; finite output; tail at 2–3 s is 0 when OFF and 8.8e-3 when ON |
+| auval | AU VALIDATION SUCCEEDED |
+| pluginval, strictness 5 | SUCCESS |
+
 ## [1.15.0] - 2026-09-26
 
 This is the UI pass from the 260924-nho design review, Phase C: palette custom properties, AA text colours (R4), the 9px text floor, and the bundled EB Garamond face (R5). The change touches page CSS, markup SVG, two small spots in `app.js`, the CMake resource list and four `getResource()` branches. **There is no DSP, parameter, range, type or state-format change.** The release is MINOR because the page looks visibly different and ships a new font.

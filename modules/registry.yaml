@@ -443,7 +443,7 @@ modules:
 
   - name: analog-eq-unit
     path: effects/analog-eq-unit
-    version: 1.2.0
+    version: 1.3.0
     description: |
       4-band analog-style parametric EQ module with low/high shelves and two
       mid bells. Includes optional analog saturation for warmth. Designed as
@@ -489,11 +489,11 @@ modules:
     reuse_score: 9
     used_by:
       - plugin: O-Marimba
-        version: 1.12.1
+        version: 1.16.0
 
   - name: compressor-unit
     path: effects/compressor-unit
-    version: 1.2.1
+    version: 1.3.0
     description: |
       Compact dynamics compressor module for embedding in VST instruments.
       Same DSP as Ouaricon Compressor with simplified controls: Threshold,
@@ -528,7 +528,40 @@ modules:
     reuse_score: 9
     used_by:
       - plugin: O-Marimba
-        version: 1.12.1
+        version: 1.16.0
+
+  - name: reverb-unit
+    path: effects/reverb-unit
+    version: 1.0.0
+    description: |
+      Compact 8-channel FDN plate reverb module for embedding in VST instruments.
+      O-Formant's ReverbProcessor tank (WR-16 smoothing, IN-12 sample-rate fixes)
+      with a 50 ms enable/mix fade-out and a mono fold-down. Clickable REVERB
+      title for bypass and 6 seed knobs (Size, Damp, Pre-dly, Mod, Shimmer, Mix)
+      in the same 505x71 strip as compressor-unit; captions localizable.
+    category: effects
+    provides:
+      - cpp-class: ReverbUnit
+      - js-module: reverb-unit.js
+      - parameters:
+        - rev_enabled
+        - rev_size
+        - rev_damp
+        - rev_predelay
+        - rev_mix
+        - rev_mod
+        - rev_shimmer
+    config:
+      param_prefix:
+        type: string
+        default: "rev_"
+        description: Prefix for parameter IDs to avoid conflicts
+    dependencies: []
+    tags: [dsp, reverb, fdn, effects, webview]
+    reuse_score: 9
+    used_by:
+      - plugin: O-Marimba
+        version: 1.16.0
 
   # ============================================================================
   # UI MODULES

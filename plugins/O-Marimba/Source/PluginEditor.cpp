@@ -73,6 +73,14 @@ OMarimbaAudioProcessorEditor::OMarimbaAudioProcessorEditor(OMarimbaAudioProcesso
     compAttackRelay = std::make_unique<juce::WebSliderRelay>("fx_comp_attack");
     compReleaseRelay = std::make_unique<juce::WebSliderRelay>("fx_comp_release");
     compAutogainRelay = std::make_unique<juce::WebToggleButtonRelay>("fx_comp_autogain");  // v1.9.1
+    // v1.16.0: Reverb Unit relays
+    revEnabledRelay = std::make_unique<juce::WebToggleButtonRelay>("fx_rev_enabled");
+    revSizeRelay = std::make_unique<juce::WebSliderRelay>("fx_rev_size");
+    revDampRelay = std::make_unique<juce::WebSliderRelay>("fx_rev_damp");
+    revPredelayRelay = std::make_unique<juce::WebSliderRelay>("fx_rev_predelay");
+    revMixRelay = std::make_unique<juce::WebSliderRelay>("fx_rev_mix");
+    revModRelay = std::make_unique<juce::WebSliderRelay>("fx_rev_mod");
+    revShimmerRelay = std::make_unique<juce::WebSliderRelay>("fx_rev_shimmer");
 
     // 2️⃣ Create WebView with options (Pattern 9: NEEDS_WEB_BROWSER required)
     webView = std::make_unique<juce::WebBrowserComponent>(
@@ -121,6 +129,13 @@ OMarimbaAudioProcessorEditor::OMarimbaAudioProcessorEditor(OMarimbaAudioProcesso
             .withOptionsFrom(*compAttackRelay)
             .withOptionsFrom(*compReleaseRelay)
             .withOptionsFrom(*compAutogainRelay)  // v1.9.1
+            .withOptionsFrom(*revEnabledRelay)
+            .withOptionsFrom(*revSizeRelay)
+            .withOptionsFrom(*revDampRelay)
+            .withOptionsFrom(*revPredelayRelay)
+            .withOptionsFrom(*revMixRelay)
+            .withOptionsFrom(*revModRelay)
+            .withOptionsFrom(*revShimmerRelay)
             // ── v1.13.0: the UI language pair ────────────────────────────
             //
             // THE PLAN LISTS THIS PLUGIN AS HAVING THE TOOLTIPS-TOGGLE BRIDGE.
@@ -294,6 +309,21 @@ OMarimbaAudioProcessorEditor::OMarimbaAudioProcessorEditor(OMarimbaAudioProcesso
         *processorRef.parameters.getParameter("fx_comp_release"), *compReleaseRelay, nullptr);
     compAutogainAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *processorRef.parameters.getParameter("fx_comp_autogain"), *compAutogainRelay, nullptr);  // v1.9.1
+    // v1.16.0: Reverb Unit attachments
+    revEnabledAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_rev_enabled"), *revEnabledRelay, nullptr);
+    revSizeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_rev_size"), *revSizeRelay, nullptr);
+    revDampAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_rev_damp"), *revDampRelay, nullptr);
+    revPredelayAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_rev_predelay"), *revPredelayRelay, nullptr);
+    revMixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_rev_mix"), *revMixRelay, nullptr);
+    revModAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_rev_mod"), *revModRelay, nullptr);
+    revShimmerAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_rev_shimmer"), *revShimmerRelay, nullptr);
 
     // Add WebView to editor
     addAndMakeVisible(*webView);
@@ -495,6 +525,14 @@ OMarimbaAudioProcessorEditor::getResource(const juce::String& url)
     if (url == "/modules/compressor-unit.js") {
         return juce::WebBrowserComponent::Resource {
             makeVector(BinaryData::compressorunit_js, BinaryData::compressorunit_jsSize),
+            juce::String("text/javascript")
+        };
+    }
+
+    // v1.16.0: Reverb Unit JavaScript module
+    if (url == "/modules/reverb-unit.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::reverbunit_js, BinaryData::reverbunit_jsSize),
             juce::String("text/javascript")
         };
     }

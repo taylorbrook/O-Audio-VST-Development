@@ -19,7 +19,15 @@
 */
 /**
  * compressor-unit.js - Compact dynamics compressor module UI
- * Ouaricon Audio Module System v1.2.0
+ * Ouaricon Audio Module System v1.3.0
+ *
+ * v1.3.0: shared strip contract with analog-eq-unit 1.3.0 / reverb-unit 1.0.0 —
+ * host face var(--font-serif); fixed 505px strip, 21px side padding, 76px
+ * bypass; knob groups 48px + 16px gap (64px pitch) after a 6px lead-in, so
+ * knob centres sit on the EQ band centres; AUTO + GR pinned right; 9px floor
+ * (readouts and GR label were 7-8px); AA fills on #4E6839 / off #6B5040.
+ * Bypassed: knob graphics and the GR strip fade (0.4); captions, readouts and
+ * AUTO stay AA (AUTO takes the muted #3A2E24 / #B8A08C fill).
  *
  * See module CHANGELOG for version history.
  */
@@ -117,25 +125,28 @@ export class CompressorUnit {
     style.id = styleId;
     style.textContent = `
       .comp-unit-compact {
-        background: linear-gradient(135deg, #2a2318 0%, #1a1510 100%);
+        box-sizing: border-box; width: 505px; height: 71px;
+        display: flex; align-items: center;
+        background: #221C14 linear-gradient(135deg, #2a2318 0%, #1a1510 100%);
         border: 1px solid #5C4033;
         border-radius: 6px;
-        padding: 3px 60px;
-        font-family: Garamond, 'Times New Roman', serif;
+        padding: 3px 21px;
+        font-family: var(--font-serif, 'EB Garamond', Garamond, 'Times New Roman', serif);
         color: #E8D5B7;
         user-select: none;
       }
-      .comp-row { display: flex; align-items: center; gap: 10px; }
+      .comp-row { display: flex; align-items: center; gap: 10px; width: 100%; }
       .comp-bypass-toggle {
-        background: #8B7355; border: 1px solid #5C4033; border-radius: 3px;
-        padding: 4px 10px; font-family: Garamond, serif; font-size: 11px;
-        font-weight: 600; letter-spacing: 1.5px; color: #DDD;
-        cursor: pointer; transition: all 0.1s ease; min-width: 50px;
+        box-sizing: border-box; width: 76px; flex: none;
+        background: #6B5040; border: 1px solid #4A3728; border-radius: 3px;
+        padding: 4px 0; font-family: inherit; font-size: 11px; line-height: 13px;
+        font-weight: 600; letter-spacing: 1.5px; color: #E8D5B7;
+        cursor: pointer; transition: all 0.1s ease; white-space: nowrap;
       }
-      .comp-bypass-toggle.active { background: #6B8E4E; border-color: #3C5C1A; color: #FFF; }
+      .comp-bypass-toggle.active { background: #4E6839; border-color: #3C5C1A; color: #FFF; }
       .comp-bypass-toggle:hover { filter: brightness(1.1); }
-      .comp-knobs-compact { display: flex; gap: 16px; flex: 1; justify-content: center; }
-      .comp-knob-group { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+      .comp-knobs-compact { display: flex; gap: 16px; padding-left: 6px; justify-content: flex-start; }
+      .comp-knob-group { width: 48px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
       .comp-knob-container { width: 40px; height: 40px; cursor: pointer; position: relative; }
       .comp-seed-knob {
         width: 100%; height: 100%; border-radius: 50%; border: 2px solid #8B7355;
@@ -152,15 +163,16 @@ export class CompressorUnit {
         border-radius: 50%; top: 3px; left: 50%; transform: translateX(-50%) rotate(${KNOB_ROTATION_OFFSET}deg);
         transform-origin: center 17px;
       }
-      .comp-label { font-size: 9px; color: #A89080; text-align: center; letter-spacing: 0.3px; }
-      .comp-value { font-size: 8px; color: #E8D5B7; text-align: center; min-width: 45px; }
+      .comp-label { font-size: 9px; line-height: 10px; color: #B8A08C; text-align: center; letter-spacing: 0.3px; white-space: nowrap; }
+      .comp-value { font-size: 9px; line-height: 10px; color: #E8D5B7; text-align: center; white-space: nowrap; }
       .comp-toggle {
-        background: #5C4033; border: 1px solid #4A3728; border-radius: 3px;
-        padding: 4px 8px; font-family: Garamond, serif; font-size: 9px;
-        font-weight: 600; letter-spacing: 1px; color: #A89080;
+        flex: none; margin-left: auto;
+        background: #6B5040; border: 1px solid #4A3728; border-radius: 3px;
+        padding: 4px 8px; font-family: inherit; font-size: 9px; line-height: 11px;
+        font-weight: 600; letter-spacing: 1px; color: #E8D5B7;
         cursor: pointer; transition: all 0.1s ease;
       }
-      .comp-toggle.active { background: #6B8E4E; border-color: #3C5C1A; color: #FFF; }
+      .comp-toggle.active { background: #4E6839; border-color: #3C5C1A; color: #FFF; }
       .comp-toggle:hover { filter: brightness(1.1); }
       .comp-meter-compact { display: flex; flex-direction: column; align-items: center; gap: 2px; }
       .comp-gr-meter {
@@ -171,10 +183,13 @@ export class CompressorUnit {
       .comp-gr-segment { width: 10px; height: 5px; background: #4A3728; border-radius: 1px; transition: background 0.08s ease; }
       .comp-gr-segment.active { background: #C9A27B; box-shadow: 0 0 4px rgba(201, 162, 123, 0.6); }
       .comp-gr-segment.active-high { background: #D4A574; box-shadow: 0 0 6px rgba(212, 165, 116, 0.8); }
-      .comp-gr-label { font-size: 7px; color: #A89080; letter-spacing: 0.5px; }
+      .comp-gr-label { font-size: 9px; line-height: 10px; color: #B8A08C; letter-spacing: 0.5px; }
       .comp-unit-compact.bypassed .comp-knobs-compact,
+      .comp-unit-compact.bypassed .autogain-toggle { pointer-events: none; }
+      .comp-unit-compact.bypassed .comp-knob-container,
+      .comp-unit-compact.bypassed .comp-gr-meter { opacity: 0.4; }
       .comp-unit-compact.bypassed .autogain-toggle,
-      .comp-unit-compact.bypassed .comp-meter-compact { opacity: 0.4; pointer-events: none; }
+      .comp-unit-compact.bypassed .autogain-toggle.active { background: #3A2E24; border-color: #4A3728; color: #B8A08C; }
     `;
     document.head.appendChild(style);
   }

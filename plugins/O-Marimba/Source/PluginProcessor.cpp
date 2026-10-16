@@ -138,6 +138,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout OMarimbaAudioProcessor::crea
     // v1.9.0: Compressor Unit parameters (effects tab, after EQ)
     CompressorUnit::addParameters(layout, "fx_comp_");
 
+    // v1.16.0: Reverb Unit parameters (effects tab, after the compressor; OFF by default)
+    ReverbUnit::addParameters(layout, "fx_rev_");
+
     return layout;
 }
 
@@ -165,6 +168,9 @@ OMarimbaAudioProcessor::OMarimbaAudioProcessor()
             voice->setTuningEngine(&tuningEngine);
         }
     }
+
+    // v1.16.0: resolve the reverb's parameter atomics once
+    reverbUnit.bind(parameters, "fx_rev_");
 
     // v1.3.0: Initialize factory presets on first run
     presetManager.initializeFactoryPresets();
@@ -217,12 +223,16 @@ void OMarimbaAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBloc
 
     // v1.9.0: Prepare Compressor
     compressorUnit.prepare(sampleRate, samplesPerBlock);
+
+    // v1.16.0: Prepare Reverb
+    reverbUnit.prepare(sampleRate, samplesPerBlock);
 }
 
 void OMarimbaAudioProcessor::releaseResources()
 {
     // Phase 2.4: Reset body resonance
     bodyResonance.reset();
+    reverbUnit.reset();
 }
 
 void OMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -312,8 +322,11 @@ void OMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     // v1.9.0: Apply Compressor (after EQ, at end of effects chain)
     compressorUnit.process(buffer, parameters, "fx_comp_");
 
+    // v1.16.0: Reverb (after the compressor, so the tail is not pumped by it)
+    reverbUnit.process(buffer);
+
     // v1.9.8: Output gain applied ONCE at end of chain (after EQ & Compressor)
-    // Signal chain: Synth → Body Resonance → EQ (if enabled) → Compressor (if enabled) → Output Gain → VU Meter
+    // Signal chain: Synth → Body Resonance → EQ (if enabled) → Compressor (if enabled) → Reverb (if enabled) → Output Gain → VU Meter
     float outputGainLinear = juce::Decibels::decibelsToGain(outputGainDB);
     buffer.applyGain(outputGainLinear);
 

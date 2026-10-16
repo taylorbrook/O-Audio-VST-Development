@@ -96,6 +96,15 @@ private:
     std::unique_ptr<juce::WebSliderRelay> compReleaseRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> compAutogainRelay;  // v1.9.1
 
+    // v1.16.0: Reverb Unit relays (effects tab)
+    std::unique_ptr<juce::WebToggleButtonRelay> revEnabledRelay;
+    std::unique_ptr<juce::WebSliderRelay> revSizeRelay;
+    std::unique_ptr<juce::WebSliderRelay> revDampRelay;
+    std::unique_ptr<juce::WebSliderRelay> revPredelayRelay;
+    std::unique_ptr<juce::WebSliderRelay> revMixRelay;
+    std::unique_ptr<juce::WebSliderRelay> revModRelay;
+    std::unique_ptr<juce::WebSliderRelay> revShimmerRelay;
+
     // 2️⃣ WEBVIEW SECOND (depends on relays via withOptionsFrom)
     std::unique_ptr<juce::WebBrowserComponent> webView;
 
@@ -139,6 +148,14 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> compAttackAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> compReleaseAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> compAutogainAttachment;  // v1.9.1
+    // v1.16.0: Reverb Unit attachments
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> revEnabledAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> revSizeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> revDampAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> revPredelayAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> revMixAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> revModAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> revShimmerAttachment;
 
     // Helper for resource serving (Pattern 8: Explicit URL mapping)
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);

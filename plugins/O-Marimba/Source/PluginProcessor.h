@@ -34,6 +34,7 @@
 #include "PresetManager.h"
 #include "AnalogEQUnit.h"
 #include "CompressorUnit.h"
+#include "ReverbUnit.h"
 
 // Lock-free FIFO for waveform visualization
 class WaveformFifo
@@ -132,7 +133,8 @@ public:
     bool acceptsMidi() const override { return true; }  // Synth accepts MIDI
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
-    double getTailLengthSeconds() const override { return 0.0; }
+    // v1.16.0: the reverb's nominal tail when it is on (0 otherwise, as before).
+    double getTailLengthSeconds() const override { return reverbUnit.getTailLengthSeconds(); }
 
     int getNumPrograms() override { return 1; }
     int getCurrentProgram() override { return 0; }
@@ -228,6 +230,9 @@ private:
 
     // v1.9.0: Compressor Unit (effects tab, after EQ)
     CompressorUnit compressorUnit;
+
+    // v1.16.0: Reverb Unit (effects tab, after the compressor)
+    ReverbUnit reverbUnit;
 
     // v1.2.3: Waveform FIFO for oscilloscope display
     WaveformFifo waveformFifo;

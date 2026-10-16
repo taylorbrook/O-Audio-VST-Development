@@ -19,7 +19,20 @@
 */
 /**
  * Analog EQ Unit - Compact WebView UI Component with Dual-Ring Knobs
- * Ouaricon Module System v1.2.0
+ * Ouaricon Module System v1.3.0
+ *
+ * v1.3.0 Changes (shared strip contract with compressor-unit 1.3.0 / reverb-unit 1.0.0):
+ * - Host face: var(--font-serif) with an EB Garamond fallback; buttons inherit it
+ * - Fixed 505px strip, 21px side padding, 76px bypass button, fixed line-heights
+ *   (no height change between Latin and CJK document languages)
+ * - Bands on a 64px column pitch starting 10px after the bypass button, so band
+ *   centres line up with the compressor/reverb knob columns; ANALOG pinned right
+ * - 9px text floor (band labels, W/M/T, value tooltip were 7-8px)
+ * - AA fills: on #4E6839 / #FFF (6.2:1), off #6B5040 / #E8D5B7 (5.1:1)
+ * - Off states are colour, not opacity: only knob graphics fade (0.4); a disabled
+ *   band's label/Q and a bypassed strip's text controls take a muted fill
+ *   (#3A2E24 / #B8A08C, 5.3:1). At opacity they read 1.4-2.1:1, and a disabled
+ *   band's own on/off label (the control that re-enables it) sat at 0.14
  *
  * v1.2.0 Changes:
  * - Module dimensions: 10px shorter vertically, 100px wider
@@ -195,13 +208,15 @@ export class AnalogEQUnitUI {
         const style = document.createElement('style');
         style.id = 'eq-unit-styles';
         style.textContent = `
-            /* v1.2.0: Compact single-row layout - wider, shorter */
+            /* v1.3.0: shared strip contract (see header) */
             .eq-unit-compact {
-                background: linear-gradient(135deg, #2a2318 0%, #1a1510 100%);
+                box-sizing: border-box;
+                width: 505px;
+                background: #221C14 linear-gradient(135deg, #2a2318 0%, #1a1510 100%);
                 border: 1px solid #5C4033;
                 border-radius: 6px;
-                padding: 3px 60px;
-                font-family: Garamond, 'Times New Roman', serif;
+                padding: 3px 21px;
+                font-family: var(--font-serif, 'EB Garamond', Garamond, 'Times New Roman', serif);
                 color: #E8D5B7;
                 user-select: none;
             }
@@ -214,73 +229,94 @@ export class AnalogEQUnitUI {
 
             /* EQ bypass toggle (title + on/off) */
             .eq-bypass-toggle {
-                background: #8B7355;
-                border: 1px solid #5C4033;
+                box-sizing: border-box;
+                width: 76px;
+                flex: none;
+                background: #6B5040;
+                border: 1px solid #4A3728;
                 border-radius: 3px;
-                padding: 4px 12px;
-                font-family: Garamond, serif;
+                padding: 4px 0;
+                font-family: inherit;
                 font-size: 11px;
+                line-height: 13px;
                 font-weight: 600;
-                letter-spacing: 2px;
-                color: #DDD;
+                letter-spacing: 1.5px;
+                color: #E8D5B7;
                 cursor: pointer;
                 transition: all 0.1s ease;
-                min-width: 40px;
+                white-space: nowrap;
             }
 
             .eq-bypass-toggle.active {
-                background: #6B8E4E;
+                background: #4E6839;
                 border-color: #3C5C1A;
                 color: #FFF;
             }
 
-            /* Analog toggle (inline with bands) */
+            .eq-bypass-toggle:hover,
+            .analog-toggle:hover,
+            .band-label-compact:hover { filter: brightness(1.1); }
+
+            /* Analog toggle (pinned to the strip's right edge) */
             .analog-toggle {
-                background: #8B7355;
-                border: 1px solid #5C4033;
+                flex: none;
+                margin-left: auto;
+                background: #6B5040;
+                border: 1px solid #4A3728;
                 border-radius: 3px;
                 padding: 4px 8px;
-                font-family: Garamond, serif;
+                font-family: inherit;
                 font-size: 9px;
+                line-height: 11px;
                 font-weight: 600;
                 letter-spacing: 1px;
-                color: #DDD;
+                color: #E8D5B7;
                 cursor: pointer;
                 transition: all 0.1s ease;
             }
 
             .analog-toggle.active {
-                background: #6B8E4E;
+                background: #4E6839;
                 border-color: #3C5C1A;
                 color: #FFF;
             }
 
-            /* Bands container */
+            /* Bands: 60px columns, 4px gap = 64px pitch, left-aligned */
             .eq-bands-compact {
                 display: flex;
                 gap: 4px;
-                flex: 1;
-                justify-content: center;
+                justify-content: flex-start;
             }
 
             .eq-band-compact {
+                width: 60px;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 gap: 2px;
             }
 
-            .eq-band-compact.disabled {
+            /* Fade the knob graphics only: the value tooltip lives inside the
+               wrapper and must stay opaque over the Q row while hovered. */
+            .eq-band-compact.disabled .freq-notches-compact,
+            .eq-band-compact.disabled .knob-outer,
+            .eq-band-compact.disabled .knob-inner {
                 opacity: 0.4;
             }
 
+            .eq-band-compact.disabled .three-way-option,
+            .eq-band-compact.disabled .three-way-option.active {
+                background: #3A2E24; border-color: #4A3728; color: #B8A08C;
+            }
+
             .band-label-compact {
-                background: #6B8E4E;
+                background: #4E6839;
                 border: 1px solid #3C5C1A;
                 border-radius: 2px;
                 padding: 1px 5px;
-                font-family: Garamond, serif;
-                font-size: 8px;
+                font-family: inherit;
+                font-size: 9px;
+                line-height: 11px;
                 font-weight: 600;
                 letter-spacing: 0.5px;
                 color: #FFF;
@@ -290,9 +326,9 @@ export class AnalogEQUnitUI {
             }
 
             .band-label-compact.inactive {
-                background: #8B7355;
-                border-color: #5C4033;
-                color: #DDD;
+                background: #6B5040;
+                border-color: #4A3728;
+                color: #E8D5B7;
             }
 
             /* Compact dual-ring knob wrapper */
@@ -397,7 +433,8 @@ export class AnalogEQUnitUI {
                 color: #FFF;
                 padding: 2px 4px;
                 border-radius: 2px;
-                font-size: 7px;
+                font-size: 9px;
+                line-height: 11px;
                 white-space: nowrap;
                 pointer-events: none;
                 opacity: 0;
@@ -421,30 +458,43 @@ export class AnalogEQUnitUI {
             }
 
             .three-way-toggle-compact .three-way-option {
-                padding: 1px 4px;
-                font-size: 7px;
+                padding: 0 4px;
+                font-size: 9px;
+                line-height: 11px;
                 font-weight: 600;
                 letter-spacing: 0.3px;
-                color: #DDD;
+                color: #E8D5B7;
                 cursor: pointer;
-                background: #8B7355;
+                background: #6B5040;
                 transition: background 0.1s;
             }
 
             .three-way-toggle-compact .three-way-option.active {
-                background: #6B8E4E;
+                background: #4E6839;
                 color: #FFF;
             }
 
             .q-spacer-compact {
-                height: 14px;
+                height: 13px;
             }
 
-            /* Bypassed state - dim entire module */
+            /* Bypassed: knob graphics fade, text controls go muted (still AA) */
             .eq-unit-compact.bypassed .eq-bands-compact,
             .eq-unit-compact.bypassed .analog-toggle {
-                opacity: 0.35;
                 pointer-events: none;
+            }
+
+            .eq-unit-compact.bypassed .freq-notches-compact,
+            .eq-unit-compact.bypassed .knob-outer,
+            .eq-unit-compact.bypassed .knob-inner {
+                opacity: 0.4;
+            }
+
+            .eq-unit-compact.bypassed .band-label-compact,
+            .eq-unit-compact.bypassed .analog-toggle,
+            .eq-unit-compact.bypassed .three-way-option,
+            .eq-unit-compact.bypassed .three-way-option.active {
+                background: #3A2E24; border-color: #4A3728; color: #B8A08C;
             }
         `;
         document.head.appendChild(style);
