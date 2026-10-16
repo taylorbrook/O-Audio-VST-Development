@@ -1578,6 +1578,37 @@ static void presetGates()
               && back->uiLanguage.load() == 2 && loaded && bankBack->getPresetName() == "Hall - Cathedral" && ! bankBack->isPresetModified()
               && bankBack->isPresetFactory() && plain->editorScale.load() == 0.0f && plain->getPresetId() == "init",
               "state: a lesson, a bank preset, editorScale 0.85 and zh-Hans survive a save / restore; an editor never opened restores scale 0 (fit)");
+        back->refreshPresetTargetsIfNeeded();   // the editor timer's call: no "Lesson - Hall (user).json" -> still the lesson
+        check(back->getPresetId() == "hall" && ! back->isPresetModified(),
+              "a restored lesson stays the lesson (unmodified) after the message-thread refresh when no renamed v2 preset exists");
+    }
+
+    // v2 user presets named like a lesson move aside (temp dir, never the real folder).
+    {
+        auto dir = juce::File::createTempFile("osr-user");
+        dir.createDirectory();
+        auto put = [&dir](const juce::String& n) { dir.getChildFile(n + ".json").replaceWithText("{\"parameters\":{}}"); };
+        put("Init"); put("lesson - booth"); put("My Plate"); put("Init (user)");
+        const int moved = P::migrateLessonNameCollisions(dir);
+        const int again = P::migrateLessonNameCollisions(dir);
+        juce::StringArray names;
+        for (const auto& f : dir.findChildFiles(juce::File::findFiles, false, "*.json")) names.add(f.getFileNameWithoutExtension());
+        names.sort(true);
+        const auto got = names.joinIntoString(" | ");
+        const bool ok = moved == 2 && again == 0 && names.size() == 4 && got == "Init (user 2) | Init (user) | lesson - booth (user) | My Plate";
+        dir.deleteRecursively();
+
+        // Restore decision: values off the lesson and on the file -> the renamed preset.
+        P::Targets lesson, file, cur;
+        lesson.fill(0.5f); file.fill(0.5f); file[2] = 0.9f;
+        cur = file;
+        const bool isFile = P::restoredValuesAreMigratedPreset(cur, lesson, file);
+        const bool onLesson = P::restoredValuesAreMigratedPreset(lesson, lesson, file);
+        cur[3] = 0.1f;
+        const bool neither = P::restoredValuesAreMigratedPreset(cur, lesson, file);
+        check(ok && isFile && ! onLesson && ! neither,
+              "v2 lesson-name collisions: " + juce::String(moved) + " renamed (want 2), a re-run renames " + juce::String(again) + ", files [" + got
+              + "]; restore picks the renamed preset only when the values match it and not the lesson");
     }
 }
 #endif

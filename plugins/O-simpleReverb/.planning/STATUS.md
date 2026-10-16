@@ -2,10 +2,10 @@
 plugin: O-simpleReverb
 stage: improve
 stage_name: improve-milestone
-status: family_retrofit_execute_complete_verify_next
+status: family_retrofit_verify_automated_pass_daw_gate_pending
 activeMilestone: family-retrofit
-current_phase: execute
-next_phase: verify
+current_phase: verify
+next_phase: post-milestone
 next_action: improve-milestone
 version: 2.0.0
 target_version: 3.0.0
@@ -22,20 +22,18 @@ mockup_signed_off: 2026-10-15
 
 ## Current Position
 
-Milestone **family-retrofit** (v2.0.0 → v3.0.0) — **execute ✓ 2026-10-15** (T0–T10) · next: verify (`/improve-milestone O-simpleReverb`).
+Milestone **family-retrofit** (v2.0.0 → v3.0.0): **verify, automated PASS** (`improvements/family-retrofit/VERIFICATION.md`). Every gate was re-run on a fresh build: render-check 139/0, mutants 32/32, null BIT-EXACT (290 buffers, installed VST3 vs a rebuilt v2.0.0), state S0–S5, pluginval 10 for VST3 (with GUI) and AU, auval, the i18n/UI gates and the 4 probes.
 
-Execute evidence (`improvements/family-retrofit/SUMMARY.md`): installed `-dev` VST3 + AU from `build-and-install.sh` (0 warnings, old-case bundles swept); auval SUCCEEDED; pluginval strictness 10 SUCCESS on VST3 (with the editor tests) and AU; render-check 137 PASS / 0 FAIL, 32 / 32 mutants; verify_3_null BIT-EXACT on the installed VST3 (290 buffers vs v2.0.0); verify_3_state S0–S5 ALL PASS on the installed VST3; check-i18n, check-ui-labels (38 states), fr / zh lint, boot-all-uis (0 dead tips) green; frame-probe 36/36, header-fit, lesson-row-budget, tooltip-clamp ALL PASS at 0.6 / 1.0 / 1.5 × en / fr / zh-Hans; negative controls freeze / slope / chipbody FAIL as designed.
+Fixed in verify: a v2 user preset named like a lesson ("Init") is renamed to "Init (user)" instead of being hidden.
 
-Open for verify: DAW hands-on (Logic + Ableton: rescan shows "O-simpleReverb", a v2.0.0 session reconnects, wells move live, resize persists).
-
-Version stays **2.0.0** in CMake until the post-verify bump; no tag (tags only via `/publish`).
+Open: the DAW hands-on (Logic + Ableton). After that comes the post-milestone bump to 3.0.0 (no tag).
 
 ## Milestones
 
 | Milestone | Version | Status |
 |---|---|---|
 | reverb-engine-rewrite | 2.0.0 | ✓ shipped 2026-10-01 |
-| family-retrofit | 3.0.0 | execute ✓ · verify next |
+| family-retrofit | 3.0.0 | verify automated ✓ · DAW gate pending |
 
 ## Build Artifacts
 

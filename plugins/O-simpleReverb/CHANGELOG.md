@@ -45,6 +45,12 @@ identical values.
   keeps its old-case name on disk. On a case-sensitive macOS volume the
   plugin renames `O-SimpleReverb` to `O-simpleReverb` the first time it loads,
   before anything reads the folder (a no-op everywhere else).
+- **A user preset named like a lesson is renamed, not hidden.** v2.0.0 had no
+  lessons, so a user preset could be called "Init". On first load v3 renames
+  `Init.json` to `Init (user).json` (`Init (user 2)` if that is taken), so it
+  stays listed, loadable and deletable. Nothing is deleted. A v2 session saved
+  on that preset shows "Init (user)" when its values match the renamed file
+  rather than the lesson.
 - An existing O-SimpleReverb install is replaced by the installer; on macOS
   the old-case bundle folder name may remain (cosmetic).
 

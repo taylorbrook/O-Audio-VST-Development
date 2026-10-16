@@ -43,6 +43,7 @@
 
 #include "PluginProcessor.h"
 #include <complex>
+#include <utility>
 // PluginEditor.h is deliberately NOT included at the top of this TU — the
 // include lives inside the #if JUCE_WEB_BROWSER guard directly above
 // createEditor(), so a console target that compiles this TU with
@@ -264,6 +265,10 @@ OSimpleReverbAudioProcessor::OSimpleReverbAudioProcessor()
         if (! newDir.isDirectory() && oldDir.isDirectory())
             oldDir.moveFileTo (newDir);
     }
+
+    // v3.0.0: a v2 user preset named like a lesson ("Init") would be hidden by
+    // the lesson; it moves aside to "Init (user)" so it stays listed.
+    migrateLessonNameCollisions (presetManager.getUserPresetsDirectory());
 
     // Initialize factory presets (8 per reverb type = 48 total)
     initializeFactoryPresets();
@@ -1202,6 +1207,42 @@ bool OSimpleReverbAudioProcessor::isFactoryPresetName(const juce::String& name)
     return srpresets::findByName(name) != nullptr || isBankPresetName(name);
 }
 
+juce::String OSimpleReverbAudioProcessor::migratedPresetName(const juce::String& lessonFileName)
+{
+    return lessonFileName + " (user)";
+}
+
+int OSimpleReverbAudioProcessor::migrateLessonNameCollisions(const juce::File& userDir)
+{
+    if (! userDir.isDirectory())
+        return 0;                                  // a path only: nothing is created
+    int moved = 0;
+    for (const auto& f : userDir.findChildFiles(juce::File::findFiles, false, "*.json")) {
+        const auto name = f.getFileNameWithoutExtension();
+        if (! isFactoryPresetName(name))
+            continue;
+        auto target = userDir.getChildFile(migratedPresetName(name) + ".json");
+        for (int n = 2; target.exists() && n < 100; ++n)
+            target = userDir.getChildFile(name + " (user " + juce::String(n) + ").json");
+        if (target.exists())
+            continue;                              // leave it where it is
+        if (f.moveFileTo(target))                  // a second instance racing us just fails here
+            ++moved;
+    }
+    return moved;
+}
+
+bool OSimpleReverbAudioProcessor::restoredValuesAreMigratedPreset(const Targets& current, const Targets& lesson, const Targets& file)
+{
+    auto matches = [&current](const Targets& t) {
+        for (size_t i = 0; i < t.size(); ++i)
+            if (std::isfinite(t[i]) && std::abs(current[i] - t[i]) > kModifiedTolerance)
+                return false;
+        return true;
+    };
+    return ! matches(lesson) && matches(file);
+}
+
 OSimpleReverbAudioProcessor::Targets OSimpleReverbAudioProcessor::recipeTargets(const srpresets::Recipe& recipe) const
 {
     auto t = nanTargets();
@@ -1348,7 +1389,14 @@ void OSimpleReverbAudioProcessor::restorePresetIdentity()
     // from the tables; a user name re-reads its file on the message thread.
     const auto restored = sanitisePresetName(presetManager.getCurrentPresetName());
     if (const auto* recipe = srpresets::findByName(restored)) {
-        setCurrentPreset(recipe->fileName, resolveTargets(recipeTargets(*recipe)), true, false);
+        // A v2 session can name a lesson only if it was a user preset of that
+        // name, since renamed (migrateLessonNameCollisions). Decided on the
+        // message thread, where the file may be read.
+        {
+            const juce::ScopedLock sl(presetLock);
+            migratedCandidate = migratedPresetName(recipe->fileName);
+        }
+        setCurrentPreset(recipe->fileName, resolveTargets(recipeTargets(*recipe)), true, true);
         return;
     }
     if (const int b = bankIndexOf(restored); b >= 0) {
@@ -1364,34 +1412,43 @@ void OSimpleReverbAudioProcessor::restorePresetIdentity()
 
 void OSimpleReverbAudioProcessor::refreshPresetTargetsIfNeeded()
 {
-    juce::String stale;
+    juce::String stale, candidate;
+    Targets lessonTargets {};
     {
         const juce::ScopedLock sl(presetLock);
         if (! presetTargetsStale)
             return;
         presetTargetsStale = false;                // ONE attempt per restore
         stale = presetName;
+        candidate = std::exchange(migratedCandidate, {});
+        lessonTargets = presetTargets;
     }
 
-    const auto file = presetManager.getUserPresetsDirectory().getChildFile(stale + ".json");
-    if (! file.existsAsFile()) {
+    if (candidate.isNotEmpty()) {                  // a restored lesson name
+        Targets t;
+        if (! readUserPresetTargets(candidate, t))
+            return;                                // no renamed v2 preset: it is the lesson
+        const auto resolved = resolveTargets(t);
+        if (! restoredValuesAreMigratedPreset(currentNormalisedValues(), lessonTargets, resolved))
+            return;
+        {
+            const juce::ScopedLock sl(presetLock);
+            if (presetName != stale)
+                return;                            // superseded meanwhile
+        }
+        setCurrentPreset(candidate, resolved, true, false);
+        return;
+    }
+
+    Targets t;
+    if (! readUserPresetTargets(stale, t)) {
         // v2's sessions say "Default" when no preset was ever chosen: that
         // names nothing, so the bar shows no name. Any other missing name
         // stays, with unknown targets (never "modified").
-        if (stale.equalsIgnoreCase("Default"))
+        if (stale.equalsIgnoreCase("Default")
+            && ! presetManager.getUserPresetsDirectory().getChildFile(stale + ".json").existsAsFile())
             setCurrentPreset({}, Targets {}, false, false);
         return;
-    }
-
-    const auto json = juce::JSON::parse(file.loadFileAsString());
-    const auto* params = json["parameters"].getDynamicObject();
-    if (params == nullptr)
-        return;
-    auto t = nanTargets();
-    for (size_t i = 0; i < t.size(); ++i) {
-        const auto v = params->getProperty(juce::Identifier(kParamIds[i]));
-        if (v.isDouble() || v.isInt() || v.isInt64() || v.isBool())
-            t[i] = (float) (double) v;
     }
     const auto resolved = resolveTargets(t);
     {
@@ -1402,6 +1459,24 @@ void OSimpleReverbAudioProcessor::refreshPresetTargetsIfNeeded()
         presetTargetsValid = true;
     }
     presetRevision.fetch_add(1);
+}
+
+bool OSimpleReverbAudioProcessor::readUserPresetTargets(const juce::String& name, Targets& out) const
+{
+    const auto file = presetManager.getUserPresetsDirectory().getChildFile(name + ".json");
+    if (! file.existsAsFile())
+        return false;
+    const auto json = juce::JSON::parse(file.loadFileAsString());
+    const auto* params = json["parameters"].getDynamicObject();
+    if (params == nullptr)
+        return false;
+    out = nanTargets();
+    for (size_t i = 0; i < out.size(); ++i) {
+        const auto v = params->getProperty(juce::Identifier(kParamIds[i]));
+        if (v.isDouble() || v.isInt() || v.isInt64() || v.isBool())
+            out[i] = (float) (double) v;
+    }
+    return true;
 }
 
 juce::StringArray OSimpleReverbAudioProcessor::getPresetWalkOrder() const
