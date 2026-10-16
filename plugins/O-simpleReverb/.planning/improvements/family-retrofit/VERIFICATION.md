@@ -9,7 +9,7 @@
 
 ## Verification Summary
 
-**Status:** AUTOMATED PASS. One human gate is open: the DAW hands-on (Logic + Ableton).
+**Status:** PASS. Automated matrix green; DAW hands-on (Logic + Ableton) passed 2026-10-15.
 **Version:** 2.0.0 → 3.0.0. The bump waits until the DAW gate closes. No tag (tags are cut by `/publish` only).
 
 Every number below was re-produced in this phase, not copied from SUMMARY.md. The v2.0.0 reference was rebuilt out of tree from the tag `O-SimpleReverb-v2.0.0`. All the null and state runs used the **installed** `-dev` VST3.
@@ -74,10 +74,10 @@ The independent code review found one real compatibility defect: a v2 user prese
 
 ---
 
-## Human gate (open)
+## Human gate (closed 2026-10-15, PASS)
 
-- [ ] Logic: a rescan lists "O-simpleReverb-dev"; a v2.0.0 session reconnects with its values; the wells move live; the resize persists across a reopen
-- [ ] Ableton: the same
+- [x] Logic: a rescan lists "O-simpleReverb-dev"; a v2.0.0 session reconnects with its values; the wells move live; the resize persists across a reopen
+- [x] Ableton: the same
 
 When the gate closes, run the post-milestone step: CMake `VERSION "3.0.0"`, the CHANGELOG date, the NOTES status, the PLUGINS.md version, a registry regen (Reverb hunks only), and clear `activeMilestone`. **No tag.**
 

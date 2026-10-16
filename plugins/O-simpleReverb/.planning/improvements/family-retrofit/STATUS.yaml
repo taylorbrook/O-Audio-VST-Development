@@ -1,6 +1,6 @@
 milestone: family-retrofit
 created: 2026-10-15T00:00:00Z
-lastActivity: 2026-10-16T01:00:00Z
+lastActivity: 2026-10-15T23:59:00Z
 description: "O-simple family retrofit: rename O-SimpleReverb -> O-simpleReverb, Ambisonics-style UI, lesson rows + utility presets"
 brief: plugins/O-simpleReverb/improvements/family-retrofit.md
 phases:
@@ -27,13 +27,18 @@ phases:
     tasksOpen: []
     commits: [8f6d3b19, 030c0eb2, cc3e9f3c, fa19554d, 724166cb]   # + the T10 commit
   verify:
-    status: in_progress
+    status: complete
+    completedAt: 2026-10-15T23:59:00Z
     startedAt: 2026-10-15T23:45:00Z
     automatedAt: 2026-10-16T01:00:00Z
     result: "automated PASS (VERIFICATION.md); render-check 139/0, mutants 32/32; null BIT-EXACT 290 on installed VST3; state S0-S5; pluginval 10 VST3(+gui)+AU; auval; i18n/ui gates + 4 probes + 3 negative controls"
     fixedInVerify: "v2 user preset named like a lesson (Init) hidden -> migrateLessonNameCollisions + restore relabel; 2 new gates"
     openFindings: [editor-scale-overwritten-by-display-cap (family-wide, Amb identical), currentPresetName-unlocked-read (pre-existing), second-load-file-promise]
-    humanGate: "DAW hands-on Logic + Ableton - pending"
+    humanGate: "DAW hands-on Logic + Ableton - PASS 2026-10-15"
 versionBump: major
 baseVersion: 2.0.0
 targetVersion: 3.0.0
+postMilestone:
+  status: complete
+  versionApplied: 3.0.0
+  tag: none   # tags are cut by /publish only
