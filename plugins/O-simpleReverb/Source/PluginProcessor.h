@@ -137,7 +137,12 @@ public:
     //   earlyTaps     where a type's taps land at a SIZE, read from an
     //                 EarlyReflections the CALLER prepared at `modelRate` with
     //                 kEarlyModelSpanMs; Spring's three echo times instead.
+    static constexpr int kToneBins = 128;                  // the page's tone-well resolution
+    //   typeEqGainDb, characterGainDb: the two other parts, for the page's
+    //   per-stage curves; toneGainDb is their sum (plus Low Cut when on).
     double toneGainDb(int typeIndex, float characterValue, float lowCutHz, bool lowCutOn, double sampleRate, double hz) const;
+    static double typeEqGainDb(int typeIndex, double sampleRate, double hz);
+    double characterGainDb(float characterValue, double sampleRate, double hz) const;
     static double lowCutGainDb(float lowCutHz, double sampleRate, double hz);
     struct EarlyTaps {
         TypePreset::Engine engine = TypePreset::Engine::Fdn;

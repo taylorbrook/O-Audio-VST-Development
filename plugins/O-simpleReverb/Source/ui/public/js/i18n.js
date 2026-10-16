@@ -18,991 +18,740 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-simpleReverb page labels and hover-help, English + French (v1.7.2)
-//
-// ── v2.0.0: THREE BODIES REWRITTEN FOR THE NEW ENGINES (2026-10-01) ─────────
-//
-// tip.type, tip.decay and tip.size described the Freeverb path (one room whose
-// size and damping every control scaled). v2.0.0 replaces it with three
-// engines, DECAY becomes a multiple of a decay time in seconds and SIZE moves
-// lengths only, so all three bodies are new in en, fr and zh-Hans. Titles,
-// keys, bindings and every other entry are untouched; no layout changed.
-// The developer read the French and the blind zh-Hans back-translation on
-// 2026-10-01 (.planning/improvements/reverb-engine-rewrite/I18N-REVIEW.md):
-// the new fr bodies are `reviewed: true` and the new zh-Hans bodies
-// `reviewed: 'bt'`.
-//
-// ── v1.7.2: THE WORDMARK READS THE REAL VERSION (Stage O item 47, 2026-08-31) ─
-//
-// No en or fr entry changed. One I18N_EXEMPT entry changed shape: the text-
-// matched wordmark-plus-v1.5.5 (decision 7 below — four versions stale, and
-// an exemption pinned to a value that moves with every release) became
-// "Ouaricon Audio" SCOPED to .footer, and the version number moved into an
-// empty span, #versionLabel, that index.html fills at runtime from the new
-// getPluginVersion() native function (PluginEditor.cpp, JucePlugin_VersionString
-// — the CMake VERSION). The console banner reads the same value. Fallback when
-// the function is absent, throws, rejects or returns nothing: the EMPTY string
-// — the span stays empty and the banner prints no number. Under the ui-stub the
-// span shows the stub's own "v0.0.0-stub".
-// Measured (Range over .footer contents, 500 x 350, identical in en and fr):
-// the wordmark + v1.5.5 (one span) was 91.66 px; the wordmark + v1.7.2 (two
-// spans, the inter-span space adds 1.50) is 93.16 px; "Ouaricon Audio" alone
-// (fallback) 64.16 px; "Ouaricon Audio v0.0.0-stub" (ui-stub) 113.16 px. The
-// footer is text-align: center with nothing beside it, so no other element
-// moves — check-ui-labels is byte-identical to baseline, moved=0.
-// After this commit the wordmark and the banner are NOT version sites: a bump
-// touches CMakeLists VERSION and this header line only.
-//
-// ── v1.7.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────
-//
-// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
-// Changed: 14 of 29 entries (9 terminology, 10 typography, 1 grammar, 2 meaning
-// — the categories overlap; most entries carry a typographic edit as well as a
-// word one). sameAsEn: kept 0, translated 0. termNote exemptions: 0.
-// ONE straight copy remains and correctly carries NO flag: tip.type's title is
-// "Type" in both languages over a fully translated body, and check-i18n reads
-// sameAsEn entry-scoped (title AND body) — flagging it would disarm assertion 4
-// for the body too.
-// Left as drafted: the other 15. reviewed: false throughout — no native speaker
-// has read this file, and this pass is a second machine reading, not that one.
-//
-// Lint (scripts/i18n-fr-lint.js) went 35 → 0 and --strict exits 0: 11 straight
-// apostrophes → U+2019, 5 percent signs / 8 colons / 2 semicolons / 2
-// number–unit gaps → U+00A0, 5 glossary misses and 2 forbidden words closed.
-// The file was drafted with the straight apostrophe throughout, so the
-// typography pass touched every body; it ran as a brace-matched state machine
-// over the fr: {} blocks and rewrote only the STRING VALUE of a t:/b: pair.
-// The control: all 31 en: {} blocks, all keys, TIP_BINDINGS and I18N_EXEMPT are
-// byte-identical to the v1.7.0 file, and no U+00A0 landed outside a t:/b: value.
-//
-// DECISIONS THE NEXT READER NEEDS:
-//
-//  1. LIRE → OUV, and the ROOT TERM DOES NOT FIT. `load` settles to Charger
-//     (Charg.), with Ouvrir/Ouv accepted where the button opens a file dialog —
-//     and #preset-load's handler IS loadPresetFromFile() (index.html:1269). The
-//     41/44 px pins recorded below are unchanged, so the content box is 30.00 px:
-//     CHARGER 51.30, OUVRIR 41.34, CHARG. 40.52 are all past it; OUV is 23.17,
-//     6.83 px spare. LIRE (24.22) fitted and was the forbidden word — lire is to
-//     read or to play, not to load.
-//     NO PERIOD, for the reason ENR already carries: label-in-name (WCAG 2.5.3)
-//     matches case-insensitively, "ouv" IS a substring of aria.loadPreset's new
-//     "Ouvrir un préréglage" and "ouv." is NOT. OUV. (24.89) would fit the pin
-//     just as well and would break the rule silently.
-//
-//  2. EFFET → TRAITÉ, AND THE PAIR MOVED WITH IT. The glossary settles wet/dry
-//     as Traité / Direct. The v1.7.0 note below argues EFFET/DIRECT is a pair a
-//     reviewer should move both of or neither — that still holds, and Traité /
-//     Direct IS the pair, with DIRECT already the settled term and unchanged.
-//     Measured: TRAITÉ 36.80 px against cliff A's 52.00, so it is 15.20 px UNDER
-//     the cliff and INERT — the .knob box stays 52.00 and nothing re-centres.
-//     SIGNAL TRAITÉ (77.16) is 25.16 px past the cliff and was rejected on it.
-//
-//  3. THE v1.7.0 WIDTH TABLE WAS RE-MEASURED AND HOLDS TO THE HUNDREDTH. Nine of
-//     twenty-one Stage N plugins found their header wrong about the string it
-//     defended, so this was measured rather than inherited, with the gates' own
-//     method (Range.selectNodeContents on the real node, French, 500 x 350):
-//     LOAD 29.78, LIRE 24.22, CHARG. 40.52, OUVRIR 41.34, CHARGER 51.30, SAVE
-//     26.83, ENR 21.50, ENREG. 38.84, WET 21.89, EFFET 30.52, DRY 20.91, DIRECT
-//     37.31 — every one identical to the number written below.
-//
-//  4. LOANWORDS AND ON-SCREEN FACES, THREE RULES, UNCHANGED. The six TYPE option
-//     faces (Booth … Ambient) and the CHARACTER readout words (warm, bright,
-//     neutral) stay ENGLISH in the French bodies because the page shows them in
-//     English; the lower-case generic "une cabine" in tip.type is prose and is
-//     translated. What DID change is `voicing`, which was an anglicism and not a
-//     face — nothing on this page says the word. It is the type-specific EQ
-//     (PluginProcessor.h:162-163, TypePreset::eqType), so the French now reads
-//     "un filtre de coloration".
-//
-//  5. TWO BODY TERMS SETTLED BY THE SUITE RATHER THAN BY THIS PAGE. `crossfade`
-//     is fondu ENCHAÏNÉ — fondu alone is a fade, which is a different thing from
-//     the crossfade tip.wet says this control is not. And `hover help` is aide au
-//     survol, the form the other plugins use, where tip.langSelect said "aide
-//     contextuelle". Bodies are not matched against the glossary's TERMS, so
-//     neither of these was a lint finding; both are the suite converging.
-//
-//  6. TIP HEIGHTS DID NOT MOVE. Every no-break space is an unbreakable run where
-//     a line break used to be possible, and three bodies also grew. Measured in
-//     tests/ui_tip_render_check.js at the shipping 500 x 350, all ten French tip
-//     rectangles are IDENTICAL before and after — 202.3 / 186.9 / 140.7 / 125.3 /
-//     125.3 / 140.7 / 140.7 / 140.7 / 110.0 / 125.3 px tall, with the tightest
-//     bottom clearance still tip.lowCut's 21.9 px. Read the HEIGHTS, not only
-//     inFrame: a renderer's bottom floor can park a grown tip over the controls
-//     above and still report itself inside the frame.
-//
-//  7. NOT FIXED, REPORTED. The footer wordmark and the console banner both
-//     hard-code "v1.5.5" and have been stale since v1.5.7. The footer string is
-//     an I18N_EXEMPT entry matched BY TEXT, and Stage N does not re-open
-//     exemptions; fixing only the console half would split a documented pair.
-//     The repair the exemption already names — an empty span with
-//     id="versionLabel" filled at runtime, as O-DigiDelay and O-Tremolo do — is
-//     still the right one and still out of a French-copy commit's scope.
+// i18n.js — O-simpleReverb interface copy: English + French + Simplified
+// Chinese (v3.0.0, the O-simple family page).
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
-// initializer on the page with it (pattern_module_toplevel_init_tdz). This
-// plugin's controller is an inline <script type="module"> in index.html, so
-// that failure mode would take the WHOLE UI — every knob, the preset bar, the
-// VU meter — rather than a panel of it. check-i18n assertion 7 enforces it.
+// initializer on the page with it (pattern_module_toplevel_init_tdz).
+// scripts/check-i18n.js assertion [7] enforces it.
 //
-// FILENAME: no hyphen. juce_add_binary_data STRIPS hyphens rather than
-// converting them to underscores, so a second file named i18n-fr.js would have
-// to be reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens).
-// One combined file for both languages sidesteps the question entirely.
+// FILENAME: no hyphen. juce_add_binary_data STRIPS hyphens; this file becomes
+// BinaryData::i18n_js.
 //
-// ── v1.7.0 GIVES THIS PLUGIN HOVER-HELP, AND A WAY TO SHOW IT ───────────────
+// COPY IS textContent ON EVERY PATH — never innerHTML. check-i18n [9] rejects
+// any innerHTML reference here and any string literal containing "<".
 //
-// v1.6.0 carried no data-tip and no data-tooltip anywhere on the page — only
-// four native title= attributes on the preset bar, which contract §4 DELETED
-// rather than localized, moving their existing text into data-i18n-aria. I18N
-// and TIP_BINDINGS were both empty, which was that version's CORRECT state
-// (check-i18n assertion 2 reported it as "0 tip(s) bound") rather than a gap.
+// THE TOOLTIPS EXPLAIN WHY, not what: each says what the control does to the
+// sound and what to watch in the wells. Character is described as what it
+// is — a tilt AFTER the tank — never as in-loop damping (Q3; that is fixed per type).
 //
-// v1.7.0 authors ten entries — the eight APVTS parameters plus the gear and
-// the language selector — and binds all ten.
+// GLOSSARY (settled before any copy was written; suite terms from
+// scripts/i18n-fr-glossary.js and scripts/i18n-zh-glossary.js):
+//   en               fr                  zh-Hans
+//   reverb           réverbération       混响
+//   tail             queue               尾音
+//   decay            déclin              衰减
+//   size             taille              尺寸
+//   pre-delay        pré-délai           预延迟
+//   early reflection réflexion précoce   早期反射
+//   tap              prise               抽头
+//   tank             réservoir           混响槽
+//   tone             timbre              音色
+//   character        caractère           特性
+//   low cut          coupe-bas           低切
+//   wet / dry        traité / direct     湿 / 干
+//   mix              mix                 混合
+//   input / output   entrée / sortie     输入 / 输出
+//   preset / lesson  préréglage / leçon  预设 / 课
+//   In / Out (pill)  Act. / Dés.         开 / 关   (M3, the v2 convention)
+// The six type names (Booth, Room, Hall, Spring, Plate, Ambient) are the TYPE
+// choice strings and stay English in every language (M2; I18N_EXEMPT).
 //
-// AUTHORING THE COPY ALONE WOULD HAVE SHIPPED TEN INVISIBLE STRINGS. applyI18n()
-// only WRITES data-tip-title and data-tip onto the anchors named in
-// TIP_BINDINGS; the thing that READS those attributes and paints a surface is
-// per-plugin code living outside the canon, and this page had none of it — no
-// #tooltip element, no .tooltip rule, no hover handler (measured: three greps,
-// all zero). All three shipped gates would have stayed green anyway —
-// check-i18n assertion 2 only counts bindings, check-ui-labels has no tooltip
-// awareness at all, and boot-all-uis counts aria-label and title and never
-// data-tip — so the renderer lands in the SAME commit (index.html,
-// setupTooltips()), and tests/ui_tip_render_check.js is the gate that can
-// actually see a painted tip.
+// FRENCH is machine-drafted against the glossary and flagged
+// `reviewed: false` throughout. Typography follows scripts/i18n-fr-lint.js:
+// U+2019 apostrophes, U+00A0 before : ; ! ? % and between a number and its
+// unit, U+2212 for a minus sign, decimal commas.
 //
-// COPY IS textContent ON EVERY PATH — never innerHTML. check-i18n assertion 9
-// rejects any innerHTML reference here and any string literal containing an
-// angle bracket, so machine-drafted French cannot open a markup path.
-//
-// ALL FRENCH IS MACHINE-DRAFTED AND FLAGGED `reviewed: false`. No native
-// speaker has read it. `node scripts/check-i18n.js` prints the worklist.
+// SIMPLIFIED CHINESE is machine-drafted and flagged `reviewed: 'mt'`
+// throughout. Full-width punctuation inside Han prose; one plain U+0020
+// between every Latin/digit run and the Han text around it.
 // ============================================================================
 
 export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 
-// ============================================================================
-// I18N — hover-help copy. {en:{t, b}, fr:{t, b, reviewed}}.
-//
-// TEN entries: the EIGHT APVTS parameters, plus the gear and the language
-// selector. Eight of eight, with nothing reported as unreachable — every row
-// of .planning/params.tsv has a control on this page, which is not what the
-// batch's other plugins found (O-Bass dumps five and exposes three).
-//
-// The preset bar deliberately gets none: its four controls took accessible
-// names from their deleted title= attributes at v1.6.0 and are self-describing
-// (Stage M brief, "Not in M1").
-//
-// ── THE DECIMAL SEPARATOR IN A FRENCH BODY IS A COMMA ───────────────────────
-//
-// SETTLED BY THE DEVELOPER, 2026-08-30. v1.7.0 first shipped tip.decay with the
-// readout's POINT — "1.0x", "De 0.5x à 2.0x" — on the unstated assumption that
-// a body should spell a number the way .value-display does. Two plugins in the
-// same batch disagreed with each other about this, and the comma won: it is
-// correct French, and every one of the 21 already-shipped tooltip plugins
-// already writes it that way.
-//
-// The READOUT keeps its point. That is D-03, which exempts the readout NODE,
-// and it does not move. A body is prose and takes French convention; a readout
-// is a machine-formatted value and takes the page's. They differ on purpose.
-//
-// One string on this page was affected: tip.decay.
-//
-// ── THE TITLES ARE THE PAGE'S CAPTIONS, AND TWICE THAT IS NOT THE DUMP ──────
-//
-// The brief's rule is that where the page's caption differs from the
-// parameter's name, the CAPTION wins — the user is reading the page, not the
-// automation lane. Two rows here diverge, and BOTH diverge in the same
-// direction and for the same reason:
-//
-//   params.tsv name     page caption     tip title
-//   Low Cut Freq        LOW CUT          Low Cut
-//   Low Cut On          (the ON/OFF      Low Cut On
-//                        toggle inside
-//                        the same knob)
-//
-// Until v1.12.0 the parameter names said "LP Filter Freq" / "LP Filter On"
-// while the DSP is a HIGH-pass, so the page's caption was right and the name
-// wrong. v1.12.0 renamed the two host-visible NAMES to "Low Cut Freq" / "Low
-// Cut On"; the IDs stay LPFREQ / LPON, so sessions and automation still bind.
-//
-// ── THE FRENCH TITLE SPELLS OUT WHAT THE CAPTION ABBREVIATES ────────────────
-//
-// label.lowCut's French is COUPE-B., an abbreviation forced by cliff A (57.22
-// px for COUPE-BAS against a 52.00 px knob box — the measurement is in LABELS
-// below). A tooltip has no such cliff: it is a fixed, max-width-capped surface
-// that owns its own box. So tip.lowCut's French title is the FULL word,
-// Coupe-bas, and the tip is the one place on the page a French user can find
-// out what the abbreviated caption stands for. Same move O-Emulator made for
-// its GB segment and the Game Boy option behind it.
-//
-// ── RANGES AND UNITS: EVERY ONE RECOVERED FROM THE PAGE'S FORMATTER ─────────
-//
-// ALL EIGHT ROWS OF params.tsv HAVE AN EMPTY `label` COLUMN. Not one parameter
-// declares withLabel(), so the dump gives bare numbers — 0.0 .. 100.0,
-// 0.50 .. 2.00, 20 .. 400 — and says nothing about what any of them counts. The
-// brief predicts this tendency and then warns that it is a tendency and not a
-// fact; here it is the fact, on all eight, so every unit below was read back out
-// of the page's own renderer rather than invented:
-//
-//   WET, DRY, SIZE   %      index.html:1205,1206,1209 — `${(norm*100).toFixed(0)}%`
-//   DECAY            x      index.html:1208 — `${(0.5 + 1.5*Math.pow(norm,1.585)).toFixed(1)}x`
-//   CHARACTER        %      index.html:1201,1202 — `warm ${...}%` / `bright ${...}%`,
-//                           with the bare word `neutral` inside the dead zone
-//   LPFREQ           Hz     index.html:714-715 — the two .hz-label spans reading
-//                           20 and 400, whose class is the only place the page
-//                           spells the unit; the C++ range agrees
-//                           (PluginProcessor.cpp:213, 20.0f .. 400.0f)
-//   LPON             words  OFF / ON — the ui.off / ui.on LABELS entries, which
-//                           this page KEYS (the D-01 arm-3 overrule in LABELS)
-//   TYPE             words  the six AudioParameterChoice options
-//
-// ── WHICH ENGLISH WORDS SURVIVE INTO A FRENCH BODY, AND WHY ─────────────────
-//
-// Three sets of on-screen words are named inside these bodies, and they do NOT
-// all follow the same rule. The discriminator is whether the PAGE localizes the
-// word, not whether the word is English:
-//
-//   1. The six TYPE options — Booth, Room, Hall, Spring, Plate, Ambient — stay
-//      ENGLISH in the French body, because the selector keeps them English
-//      (D-01 arm 1, I18N_EXEMPT below: the page and the host automation lane
-//      must agree). A French body naming them "Cabine" would name something the
-//      user cannot find in the dropdown.
-//   2. The CHARACTER readout words — warm, bright, neutral — stay ENGLISH for a
-//      different reason: #CHARACTER-value is a READOUT node, exempt under D-01
-//      arm 3, so the formatter writes the same English in both languages. Same
-//      outcome, different arm.
-//   3. The low-cut toggle's caption is the opposite case. #LPFREQ-value IS
-//      keyed (the arm-3 overrule recorded in LABELS), so it reads OFF/ON in
-//      English and DÉS./ACT. in French. The French bodies of tip.lowCut and
-//      tip.lowCutOn therefore say DÉS. and ACT., because that is what the user
-//      is looking at. A body that said "ON" there would be pointing at a word
-//      the French page does not contain.
-//
-// ── NUMBERS INSIDE A BODY ARE PROSE (D-03) ─────────────────────────────────
-//
-// D-03 exempts readout NODES, not digits. `0 to 100 %` becomes `0 à 100 %` and
-// `0.5x to 2.0x` becomes `de 0,5x à 2,0x` — French spacing before the percent
-// sign AND the French decimal comma, exactly as the 21 already-shipped tooltip
-// plugins do it. This sentence originally claimed the comma while the entry
-// below shipped the point; both now say comma.
-// ============================================================================
-
+// key -> { en: {t, b}, fr: {t, b, reviewed}, 'zh-Hans': {t, b, reviewed} }
+//   t = tooltip title (the small-caps line), b = tooltip body.
 export const I18N = Object.freeze({
 
-    // ── The eight parameters, in the page's own top-to-bottom order ─────────
-
-    // TYPE — AudioParameterChoice, six options, default Room (index 1).
-    // The French title is byte-identical to the English: "Type" is the same
-    // word for the same thing in both languages. The BODY differs, so
-    // assertion 4 (which flags an entry only when t AND b both match) does not
-    // fire and no sameAsEn flag is needed — `reviewed: false` keeps the entry
-    // in the native-speaker worklist regardless.
-    //
-    // v2.0.0. Three engines behind six names (PluginProcessor.cpp, typePresets):
-    // Booth / Room / Hall / Ambient run the feedback delay network, each on its
-    // own delay set, early-reflection taps and base decay time; Plate runs the
-    // plate tank, whose octave shifter sits inside the loop, so the octave
-    // grows over the tail; Spring runs three dispersive springs, whose echoes
-    // arrive low frequencies first (the chirp rises) and which pass little
-    // above 4.5 kHz.
-    //
-    // The "still a booth" sentence is the one thing a user cannot discover by
-    // turning Size: the room types scale their delays x0.5 .. x2.0, and
-    // Booth's longest line at 100 % (13.7 ms x 2 = 27.4 ms) is still shorter
-    // than Hall's at 0 % (83.1 ms x 0.5 = 41.6 ms).
-    'tip.type': {
-        en: { t: "Type",
-              b: "Picks one of three reverb engines and its voicing. Booth, Room, Hall and Ambient are four spaces from one room engine, each with its own echo pattern, early reflections and decay time; Plate is a plate reverb, with a faint octave shimmer that grows in the tail; Spring is a spring reverb, dark, with echoes that each sweep from low to high. Size and Decay scale what the type sets, so Size at 100 % on Booth is still a booth. Six settings: Booth, Room, Hall, Spring, Plate, Ambient." },
-        fr: { t: "Type",
-              b: "Choisit l’un des trois moteurs de réverbération et sa coloration. Booth, Room, Hall et Ambient sont quatre espaces issus d’un même moteur de salle, chacun avec son propre motif d’échos, ses premières réflexions et son temps de déclin ; Plate est une réverbération à plaque, avec un léger shimmer à l’octave qui grandit dans la queue ; Spring est une réverbération à ressorts, sombre, dont chaque écho glisse du grave vers l’aigu. Taille et Déclin mettent à l’échelle ce que le type a posé : Taille à 100 % sur Booth reste une cabine. Six réglages : Booth, Room, Hall, Spring, Plate, Ambient.",
-              reviewed: true },
-        'zh-Hans': { t: '类型',
-              b: '选择三种混响引擎之一及其音色。Booth、Room、Hall 和 Ambient 是同一个房间引擎做出的四个空间，各有自己的回声结构、早期反射和衰减时间；Plate 是板式混响，带有在尾音中逐渐增长的轻微八度微光；Spring 是弹簧混响，音色偏暗，每个回声都从低频滑向高频。尺寸与衰减缩放的是该类型已经设定好的东西，因此 Booth 上把尺寸开到 100% 仍然是一个隔音间。六档：Booth、Room、Hall、Spring、Plate、Ambient。',
-              reviewed: 'bt' },
-    },
-
-    // CHARACTER — AudioParameterFloat, -100 .. +100, default 0.
-    // The dead zone is the sentence, because it is what the readout's third
-    // state means: PluginProcessor.cpp:563-568 puts Warm below -0.5, Bright
-    // above +0.5 and Neutral between, and Neutral runs no filter at all.
-    // Warm is a low-pass from 20 kHz down to 2 kHz (line 581); Bright is a
-    // 4 kHz high shelf reaching +6 dB (lines 589-592). Both act on wetContext
-    // only, which is why "the dry signal is never filtered" is safe to say.
-    'tip.character': {
-        en: { t: "Character",
-              b: "Tilts the tone of the reverb tail only; the dry signal is never filtered. Turned left it is warm, a low-pass closing from 20 kHz down to 2 kHz, and turned right it is bright, a high shelf at 4 kHz reaching +6 dB. The readout reads neutral inside a narrow dead zone at the centre, where the filter is bypassed outright: warm 100 % to bright 100 %." },
-        fr: { t: "Caractère",
-              b: "Incline la couleur de la seule queue de réverbération ; le signal direct n’est jamais filtré. Vers la gauche le son est chaud, un passe-bas qui se referme de 20 kHz jusqu’à 2 kHz, et vers la droite il est brillant, un filtre en plateau aigu à 4 kHz atteignant +6 dB. L’affichage indique neutral dans une étroite zone morte au centre, où le filtre est totalement contourné : de warm 100 % à bright 100 %.",
-              reviewed: true },
-        'zh-Hans': { t: '特性',
-              b: '只倾斜混响尾音的音色；干信号从不被滤波。向左转是暖的，一个从 20 kHz 向下收到 2 kHz 的低通；向右转是亮的，一个在 4 kHz 处最高达 +6 dB 的高频搁架。读数在中心一段很窄的死区内显示 neutral，此时滤波器被直接旁通：暖 100% 到亮 100%。',
-              reviewed: 'bt' },
-    },
-
-    // WET — AudioParameterFloat, 0 .. 100 %, default 25.
-    // Independent GAIN, not a crossfade: the mix loop at
-    // PluginProcessor.cpp:617 is `dry*dryGain + wet*wetGain` with the two
-    // read from separate parameters. That is the non-obvious half and it is
-    // what the tip is for; the percentage a user can read off the knob.
-    'tip.wet': {
-        en: { t: "Wet",
-              b: "Sets how much reverb is added to the output. It is an independent gain and not a crossfade: turning it up does not turn Dry down, so the two together set the total level as well as the balance. 0 to 100 %." },
-        fr: { t: "Traité",
-              b: "Règle la quantité de réverbération ajoutée à la sortie. C’est un gain indépendant et non un fondu enchaîné : l’augmenter ne baisse pas Direct, si bien que les deux ensemble déterminent aussi le niveau global et pas seulement l’équilibre. 0 à 100 %.",
-              reviewed: true },
-        'zh-Hans': { t: '湿',
-              b: '设定有多少混响被加进输出。它是一个独立的增益而不是交叉淡化：把它调大并不会把干信号调小，因此两者合起来既决定平衡也决定总电平。0 到 100%。',
-              reviewed: 'bt' },
-    },
-
-    // DRY — AudioParameterFloat, 0 .. 100 %, default 100.
-    // The other half of the same finding, from the other side.
-    'tip.dry': {
-        en: { t: "Dry",
-              b: "Sets how much of the untouched input reaches the output. It is independent of Wet, so pulling it to 0 leaves the reverb tail alone on the output — the setting to use on a send bus — while leaving it at 100 keeps the source at full level. 0 to 100 %." },
-        fr: { t: "Direct",
-              b: "Règle la quantité de signal d’entrée intact qui atteint la sortie. Elle est indépendante de Traité : la ramener à 0 ne laisse que la queue de réverbération en sortie — le réglage à utiliser sur un bus de départ — tandis que la laisser à 100 conserve la source à plein niveau. 0 à 100 %.",
-              reviewed: true },
-        'zh-Hans': { t: '干',
-              b: '设定有多少未经处理的输入到达输出。它与湿相互独立，因此把它拉到 0 就只在输出上留下混响尾音 — 用在发送总线上的设定 — 而保持在 100 则让源信号保持满电平。0 到 100%。',
-              reviewed: 'bt' },
-    },
-
-    // DECAY — AudioParameterFloat, 0.5 .. 2.0, default 1.0, skew 0.6309.
-    // "The centre is exactly 1.0x" is a measured claim, not a rounding: the
-    // skew was chosen to put 1.0x at the knob's midpoint (the CR-02 note in
-    // createParameterLayout) and params.tsv agrees — defaultNorm 0.500016
-    // renders defaultText 1.00.
-    // v2.0.0: it multiplies the type's own mid-band RT60 (TypePreset::baseT60:
-    // Booth 0.40 s, Room 1.1, Hall 3.0, Spring and Plate 2.5, Ambient 7.0),
-    // and the engines turn that time into loop gains from their CURRENT
-    // lengths, so the tail time holds as Size moves (render-check section 12,
-    // within 10 %). The body names the two ends of the table only. The readout
-    // still shows the multiplier, not seconds.
-    'tip.decay': {
-        en: { t: "Decay",
-              b: "Sets how long the tail lasts, as a multiple of the type's own decay time: at the centre of the knob, exactly 1.0x, that is about 0.4 s on Booth and 7 s on Ambient. The tail keeps its length wherever Size is set. 0.5x to 2.0x." },
-        fr: { t: "Déclin",
-              b: "Règle la durée de la queue, en multiple du temps de déclin propre au type : au centre du bouton, soit exactement 1,0x, cela donne environ 0,4 s sur Booth et 7 s sur Ambient. La queue garde sa durée quelle que soit la Taille. De 0,5x à 2,0x.",
-              reviewed: true },
-        'zh-Hans': { t: '衰减',
-              b: '设定尾音持续多久，以该类型自身衰减时间的倍数计：在旋钮中心，也就是正好 1.0x 处，Booth 约为 0.4 秒，Ambient 约为 7 秒。无论尺寸设在哪里，尾音都保持这个长度。0.5x 到 2.0x。',
-              reviewed: 'bt' },
-    },
-
-    // SIZE — AudioParameterFloat, 0 .. 100 %, default 50.
-    // Relative, never absolute. See the arithmetic in tip.type's comment.
-    // v2.0.0: a length scale and nothing else (TypePreset::sizeLo / sizeHi,
-    // geometric): the four room types x0.5 .. x2.0, Plate x0.40 .. x0.80
-    // (x0.57 at 50 %), Spring x0.75 .. x1.33. Lengths glide over about a
-    // quarter of a second, so a ringing tail bends in pitch while it moves.
-    'tip.size': {
-        en: { t: "Size",
-              b: "Scales the space the Type chose, and only the space: the echoes and early reflections move apart or together while the length of the tail stays with Decay. It is relative rather than absolute — the four rooms run from half to double their middle size, Plate and Spring over a narrower range — so Booth at 100 % is still smaller than Hall at 0 %. Moving it while sound rings bends the pitch of the tail for a moment. 0 to 100 %." },
-        fr: { t: "Taille",
-              b: "Met à l’échelle l’espace choisi par le Type, et rien d’autre : les échos et les premières réflexions s’écartent ou se resserrent, tandis que la durée de la queue reste l’affaire de Déclin. C’est une valeur relative et non absolue — les quatre salles vont de la moitié au double de leur taille médiane, Plate et Spring sur une plage plus étroite — si bien que Booth à 100 % reste plus petit que Hall à 0 %. La déplacer pendant que le son résonne infléchit un instant la hauteur de la queue. 0 à 100 %.",
-              reviewed: true },
-        'zh-Hans': { t: '尺寸',
-              b: '缩放类型所选的空间，而且只缩放空间：回声与早期反射彼此拉开或靠拢，尾音的长短仍交给衰减。它是相对的而不是绝对的 — 四种房间从中间大小的一半到两倍，Plate 和 Spring 的范围更窄 — 因此 Booth 在 100% 时仍然小于 Hall 在 0% 时。在声音还在响的时候转动它，会让尾音的音高短暂地弯一下。0 到 100%。',
-              reviewed: 'bt' },
-    },
-
-    // LPFREQ — AudioParameterFloat, 20 .. 400 Hz, default 200.
-    // Title from the CAPTION (the host name is "Low Cut Freq" since v1.12.0).
-    // It acts on the wet signal only and ONLY when LPON is on, which is the
-    // sentence a user cannot get from the dial.
-    // The French title is the full word where the caption is COUPE-B.
-    'tip.lowCut': {
-        en: { t: "Low Cut",
-              b: "A high-pass on the reverb tail only, for clearing mud out of the bottom of the space without thinning the dry signal. It does nothing at all until the switch below the dial reads ON, and the two small figures either side of the dial are the ends of its travel. 20 to 400 Hz." },
-        fr: { t: "Coupe-bas",
-              b: "Un passe-haut appliqué à la seule queue de réverbération, pour dégager le bas du spectre sans amaigrir le signal direct. Il ne fait rien du tout tant que l’interrupteur sous le cadran n’affiche pas ACT., et les deux petits chiffres de part et d’autre du cadran sont les extrémités de sa course. De 20 à 400 Hz.",
-              reviewed: true },
-        'zh-Hans': { t: '低切',
-              b: '只作用在混响尾音上的高通，用来清掉空间底部的浑浊而不让干信号变薄。只有当旋钮下方的开关显示 ON 时它才起作用，旋钮两侧的两个小数字是它行程的两端。20 到 400 Hz。',
-              reviewed: 'bt' },
-    },
-
-    // LPON — AudioParameterFloat over NormalisableRange(0, 1, 1), default 0.
-    // NOT an AudioParameterBool and NOT an AudioParameterChoice, so D-01 arm 1
-    // cannot fire on its two words and there is no host option string for the
-    // body to disagree with. Its control is #LPFREQ-value, the same node that
-    // displays the state — the one anchor on this page that is nested inside
-    // another anchor's wrapper (see TIP_BINDINGS).
-    'tip.lowCutOn': {
-        en: { t: "Low Cut On",
-              b: "Switches the low cut in and out; click the word itself to toggle it. While it reads OFF the dial above is dimmed and the filter is bypassed entirely, so an unused low cut costs nothing. Two settings: OFF and ON." },
-        fr: { t: "Coupe-bas actif",
-              b: "Met le coupe-bas en service ou hors service ; cliquez sur le mot lui-même pour basculer. Tant qu’il affiche DÉS., le cadran au-dessus est estompé et le filtre est totalement contourné : un coupe-bas inutilisé ne coûte rien. Deux réglages : DÉS. et ACT.",
-              reviewed: true },
-        'zh-Hans': { t: '低切开启',
-              b: '把低切接入或移出；点击这个词本身即可切换。显示 OFF 时上方的旋钮变暗，滤波器被完全旁通，因此一个不用的低切不花任何代价。两档：OFF 与 ON。',
-              reviewed: 'bt' },
-    },
-
-    // ── The two chrome controls ─────────────────────────────────────────────
-
-    // The gear tip is what tells a user hover-help exists at all, so its body
-    // describes ONLY what the popover actually contains. This plugin has no
-    // hover-help on/off toggle — not a C++ one, not a localStorage one — so the
-    // panel holds the language selector and nothing else, and the tip says
-    // exactly that. O-Tapestop's wording promises a toggle that does not exist
-    // here; a tip that lies is worse than no tip.
-    // TWO ENUMERATIONS DELETED IN v1.9.0, EN AND FR BOTH.
-    //
-    // The gear body asserted that the settings panel holds nothing besides the
-    // interface language. That was true when it was written and stopped being
-    // true when the hover-help switch landed in the same panel — the tip has
-    // been describing one of two controls and denying the second ever since.
-    //
-    // The language body ended by spelling out the two languages the selector
-    // then held, which was true for exactly as long as the selector held two
-    // and became false the moment this version added a third.
-    //
-    // BOTH ARE DELETIONS RATHER THAN EXTENSIONS. An enumeration is false again
-    // the next time a row or an option lands, which is how both of these broke;
-    // and the selector already lists the languages in their own endonyms, which
-    // is the one form a reader recognises without knowing the page language.
-    // Neither superseded sentence is reproduced in these comments, so a
-    // repo-wide grep for either stays at zero on this file.
-    // N11 — THIS PLUGIN'S LANGUAGE BODY STATED A COUNT as well as naming the
-    // pair, and it did both in one sentence. The count is the form that reads
-    // most obviously wrong the moment a third option is in the selector. Both
-    // halves go.
-    'tip.gearBtn': {
-        en: { t: "Settings",
-              b: "Opens the settings panel, where the interface language is set." },
-        fr: { t: "Réglages",
-              b: "Ouvre le panneau de réglages, où se règle la langue de l’interface.",
-              reviewed: true },
+    // ── The settings popover ────────────────────────────────────────────────
+    'settings': {
+        en: { t: 'Settings',
+              b: 'Choose the language of this page and its hover help, turn the hover help on or off, and load a '
+               + 'preset file. The language is remembered with the session.' },
+        fr: { t: 'Réglages',
+              b: 'Choisissez la langue de cette page et de ses infobulles, activez ou non les infobulles, et chargez un '
+               + 'fichier de préréglage. La langue est conservée avec la session.',
+              reviewed: false },
         'zh-Hans': { t: '设置',
-              // AUTHORED FROM THE CORRECTED ENGLISH, not the superseded one.
-              // The first draft of this row was written from the body as it
-              // stood BEFORE this same commit deleted its exclusivity clause,
-              // so the Chinese went on asserting that the panel holds a single
-              // row after the English had stopped — and the blind reverse read
-              // returned exactly that sentence, which is how it was found.
-              b: '打开设置面板，界面语言在这里设定。',
-              reviewed: 'bt' },
+              b: '选择本页及其悬停帮助的语言，打开或关闭悬停帮助，并载入预设文件。语言会随会话一起记住。',
+              reviewed: 'mt' },
+    },
+    'lang-select': {
+        en: { t: 'Language',
+              b: 'Interface language (English, French, Simplified Chinese). The six type names stay English because '
+               + 'hosts record them as automation names.' },
+        fr: { t: 'Langue',
+              b: 'Langue de l’interface (anglais, français, chinois simplifié). Les six noms de type restent en anglais, '
+               + 'car les hôtes les enregistrent comme noms d’automation.',
+              reviewed: false },
+        'zh-Hans': { t: '语言',
+              b: '界面语言（英语、法语、简体中文）。六个类型名称保持英文，因为宿主会把它们记录为自动化名称。',
+              reviewed: 'mt' },
+    },
+    'tips-toggle': {
+        en: { t: 'Hover help',
+              b: 'Turn these explanations on or off. Off keeps the page quiet for a session; the gear and this switch '
+               + 'still explain themselves so you can find the way back.' },
+        fr: { t: 'Infobulles',
+              b: 'Active ou désactive ces explications. Désactivées, la page reste silencieuse pendant une séance ; '
+               + 'la roue dentée et cet interrupteur continuent de s’expliquer pour retrouver le chemin.',
+              reviewed: false },
+        'zh-Hans': { t: '悬停帮助',
+              b: '打开或关闭这些说明。关闭后页面在工作时保持安静；齿轮和这个开关仍会自我说明，方便你找回来。',
+              reviewed: 'mt' },
+    },
+    'loadFile': {
+        en: { t: 'Load file',
+              b: 'Load a preset file (.json) from anywhere on disk — one an older version saved, or one a friend sent. '
+               + 'It loads like any preset; save it to keep it in your list.' },
+        fr: { t: 'Charger un fichier',
+              b: 'Charge un fichier de préréglage (.json) depuis n’importe quel dossier — enregistré par une version '
+               + 'antérieure ou envoyé par un ami. Il se charge comme tout préréglage ; enregistrez-le pour le garder dans '
+               + 'votre liste.',
+              reviewed: false },
+        'zh-Hans': { t: '载入文件',
+              b: '从磁盘任意位置载入预设文件（.json）——旧版本保存的，或朋友发来的。它像其他预设一样载入；保存后即可留在列表中。',
+              reviewed: 'mt' },
     },
 
-    // The two endonyms are named as the selector spells them, and the selector
-    // never translates them (I18N_EXEMPT below). "Saved with the plugin's
-    // state" is measured, not assumed: setUiLanguage writes
-    // processorRef.uiLanguage (PluginEditor.cpp:153-163) and
-    // getStateInformation persists it onto parameters.state as the uiLanguage
-    // property (PluginProcessor.cpp:659-660).
-    'tip.langSelect': {
-        en: { t: "Interface language",
-              b: "Switches every caption, accessible name and hover-help on this page. The change is immediate and is saved with the plugin's state, so it comes back with the session." },
-        fr: { t: "Langue de l’interface",
-              b: "Bascule toutes les légendes, tous les noms accessibles et toutes les infobulles de cette page. Le changement est immédiat et il est enregistré avec l’état du plugin : il revient donc avec la session.",
-              reviewed: true },
-        'zh-Hans': { t: '界面语言',
-              b: '切换本页每一个标题、无障碍名称与悬停帮助的语言。切换立即生效，并随插件状态一同保存，因此它会跟着会话回来。',
-              reviewed: 'bt' },
+    // ── Header ──────────────────────────────────────────────────────────────
+    'chipTail': {
+        en: { t: 'Tail',
+              b: 'The tail this setting makes: the type, its decay time after Decay (RT60, the time to fall 60 dB), '
+               + 'and its pre-delay, the gap before anything returns.' },
+        fr: { t: 'Queue',
+              b: 'La queue que produit ce réglage : le type, son temps de déclin après Déclin (RT60, le temps pour '
+               + 'baisser de 60 dB) et son pré-délai, le silence avant que quoi que ce soit ne revienne.',
+              reviewed: false },
+        'zh-Hans': { t: '尾音',
+              b: '当前设定产生的尾音：类型、经衰减调整后的衰减时间（RT60，下降 60 dB 所需的时间），以及预延迟，即任何声音返回之前的空隙。',
+              reviewed: 'mt' },
     },
-    // v1.8.0 — the switch that reaches this whole layer.
-    'tip.tipsToggle': {
-        en: { t: 'Hover Help',
-              b: 'Turns this hover help on and off. With it off, only the gear and this '
-               + 'switch keep explaining themselves.' },
-        fr: { t: 'Infobulles',
-              b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls '
-               + 'l’engrenage et ce commutateur continuent de s’expliquer.',
-              reviewed: true },
-        'zh-Hans': { t: '悬停帮助',
-              b: '开启或关闭这些悬停帮助。关闭后，只有齿轮和这个开关仍会自我说明。',
-              reviewed: 'bt' },
+    'presetPrev': {
+        en: { t: 'Previous preset',
+              b: 'Loads the previous preset: the 48 utility presets, eight per type, then your own. The lessons are in '
+               + 'the list and on the rows below.' },
+        fr: { t: 'Préréglage précédent',
+              b: 'Charge le préréglage précédent : les 48 préréglages utilitaires, huit par type, puis les vôtres. Les '
+               + 'leçons sont dans la liste et sur les rangées du bas.',
+              reviewed: false },
+        'zh-Hans': { t: '上一个预设',
+              b: '载入上一个预设：48 个实用预设，每种类型 8 个，然后是你自己的预设。课程在列表中和下方的两排按钮上。',
+              reviewed: 'mt' },
+    },
+    'presetName': {
+        en: { t: 'Presets',
+              b: 'Click to browse. Init and the ten lessons first — each one shows one idea — then the 48 utility '
+               + 'presets by type, then your own. A dot means you have changed something since it loaded.' },
+        fr: { t: 'Préréglages',
+              b: 'Cliquez pour parcourir. Init et les dix leçons d’abord — chacune montre une idée — puis les 48 '
+               + 'préréglages utilitaires par type, puis les vôtres. Un point signale une modification depuis le chargement.',
+              reviewed: false },
+        'zh-Hans': { t: '预设',
+              b: '点击浏览。先是初始和十课——每课展示一个概念——然后是按类型排列的 48 个实用预设，最后是你自己的预设。圆点表示载入后有改动。',
+              reviewed: 'mt' },
+    },
+    'presetNext': {
+        en: { t: 'Next preset',
+              b: 'Loads the next preset: the 48 utility presets, eight per type, then your own. The lessons are in the '
+               + 'list and on the rows below.' },
+        fr: { t: 'Préréglage suivant',
+              b: 'Charge le préréglage suivant : les 48 préréglages utilitaires, huit par type, puis les vôtres. Les '
+               + 'leçons sont dans la liste et sur les rangées du bas.',
+              reviewed: false },
+        'zh-Hans': { t: '下一个预设',
+              b: '载入下一个预设：48 个实用预设，每种类型 8 个，然后是你自己的预设。课程在列表中和下方的两排按钮上。',
+              reviewed: 'mt' },
+    },
+    'presetSave': {
+        en: { t: 'Save preset',
+              b: 'Saves every setting as one of your presets. A lesson or factory name cannot be reused.' },
+        fr: { t: 'Enregistrer le préréglage',
+              b: 'Enregistre tous les réglages dans un de vos préréglages. Un nom de leçon ou d’usine ne peut pas être '
+               + 'réutilisé.',
+              reviewed: false },
+        'zh-Hans': { t: '保存预设',
+              b: '把所有设置保存为你的预设。课程或出厂预设的名称不能重复使用。',
+              reviewed: 'mt' },
+    },
+    'presetDelete': {
+        en: { t: 'Delete preset',
+              b: 'Deletes the current preset if it is one of your own. Lessons and factory presets cannot be deleted.' },
+        fr: { t: 'Supprimer le préréglage',
+              b: 'Supprime le préréglage actuel s’il est à vous. Les leçons et les préréglages d’usine ne peuvent pas '
+               + 'être supprimés.',
+              reviewed: false },
+        'zh-Hans': { t: '删除预设',
+              b: '若当前预设是你自己的，则将其删除。课程和出厂预设无法删除。',
+              reviewed: 'mt' },
+    },
+
+    // ── The wells ───────────────────────────────────────────────────────────
+    'decayWell': {
+        en: { t: 'Live decay',
+              b: 'The input (amber) and the reverb tail (sage) in dBFS, scrolling. The tail is measured before the Wet '
+               + 'knob, so it shows at any mix. A tail falls in a straight line on a dB scale; the brass dashed line '
+               + 'is the slope Decay sets — steeper is shorter. A real tail loses its highs first, so the sage line '
+               + 'can fall a little faster than the brass.' },
+        fr: { t: 'Déclin en direct',
+              b: 'L’entrée (ambre) et la queue de réverbération (sauge) en dBFS, qui défilent. La queue est mesurée '
+               + 'avant le bouton Traité, elle reste donc visible à tout mix. Une queue tombe en ligne droite sur une '
+               + 'échelle en dB ; le tireté laiton est la pente fixée par Déclin — plus raide, plus court. Une vraie '
+               + 'queue perd d’abord ses aigus : la ligne sauge peut tomber un peu plus vite que le laiton.',
+              reviewed: false },
+        'zh-Hans': { t: '实时衰减',
+              b: '以 dBFS 显示滚动的输入（琥珀色）和混响尾音（鼠尾草色）。尾音在湿旋钮之前测量，因此任何混合比例下都能看到。在 dB 刻度上尾音按直线下降；黄铜虚线是衰减设定的斜率——越陡越短。真实的尾音先失去高频，所以鼠尾草色线可能比黄铜线下降得稍快一些。',
+              reviewed: 'mt' },
+    },
+    'erWell': {
+        en: { t: 'Early reflections',
+              b: 'The first separate echoes, off the nearest walls, before the tail blurs together. Left above, right '
+               + 'below; hollow heads are inverted. Their spacing tells your ear how big the room is, and the shaded '
+               + 'pre-delay gap tells it how far away the walls are. Drag Size and watch them slide.' },
+        fr: { t: 'Premières réflexions',
+              b: 'Les premiers échos distincts, sur les murs les plus proches, avant que la queue ne se fonde. Gauche en '
+               + 'haut, droite en bas ; têtes creuses = inversées. Leur espacement dit à l’oreille la taille de la '
+               + 'pièce, et le pré-délai ombré dit à quelle distance sont les murs. Tournez Taille et regardez-les glisser.',
+              reviewed: false },
+        'zh-Hans': { t: '早期反射',
+              b: '尾音融合之前，来自最近墙面的第一批独立回声。左声道在上，右声道在下；空心为反相。它们的间距告诉耳朵房间有多大，阴影部分的预延迟告诉耳朵墙有多远。拖动尺寸，看它们滑动。',
+              reviewed: 'mt' },
+    },
+    'toneWell': {
+        en: { t: 'Tone of the tail',
+              b: 'The frequency response of the wet path after the tank: the type’s own EQ (dotted), Character’s '
+               + 'tilt (amber) and the Low Cut slope (brass, a ghost while Out). The sage line is all of them together. '
+               + 'The dry signal never passes through any of it.' },
+        fr: { t: 'Timbre de la queue',
+              b: 'La réponse en fréquence de la voie traitée après le réservoir : l’égaliseur propre au type '
+               + '(pointillé), l’inclinaison du Caractère (ambre) et la pente du coupe-bas (laiton, un fantôme quand il '
+               + 'est désactivé). La ligne sauge les réunit. Le signal direct n’y passe jamais.',
+              reviewed: false },
+        'zh-Hans': { t: '尾音音色',
+              b: '混响槽之后湿信号路径的频率响应：类型自带的均衡（点线）、特性的倾斜（琥珀色）和低切斜率（黄铜色，关闭时为虚影）。鼠尾草色线是它们的总和。干信号从不经过这里。',
+              reviewed: 'mt' },
+    },
+
+    // ── Signal path ─────────────────────────────────────────────────────────
+    'st-input': {
+        en: { t: 'Input', b: 'The stereo signal as it arrives. The dry path leaves from here, untouched.' },
+        fr: { t: 'Entrée', b: 'Le signal stéréo tel qu’il arrive. La voie directe part d’ici, intacte.', reviewed: false },
+        'zh-Hans': { t: '输入', b: '到达时的立体声信号。干信号从这里出发，不作处理。', reviewed: 'mt' },
+    },
+    'st-early': {
+        en: { t: 'Early',
+              b: 'The pre-delay, then the early-reflection taps (the four room types only). Lights when Type or Size moves.' },
+        fr: { t: 'Précoces',
+              b: 'Le pré-délai, puis les prises des réflexions précoces (les quatre types de salle seulement). S’allume '
+               + 'quand Type ou Taille bouge.',
+              reviewed: false },
+        'zh-Hans': { t: '早期', b: '预延迟，然后是早期反射抽头（仅四种房间类型）。改动类型或尺寸时点亮。', reviewed: 'mt' },
+    },
+    'st-engine': {
+        en: { t: 'Engine',
+              b: 'The tank that makes the tail: a 16-line feedback delay network for the four rooms, Dattorro’s '
+               + 'figure-8 plate, or three dispersive springs.' },
+        fr: { t: 'Moteur',
+              b: 'Le réservoir qui fait la queue : un réseau de 16 lignes de retard à réinjection pour les quatre '
+               + 'salles, la plaque en huit de Dattorro, ou trois ressorts dispersifs.',
+              reviewed: false },
+        'zh-Hans': { t: '引擎', b: '产生尾音的混响槽：四种房间用 16 线反馈延迟网络，或 Dattorro 的 8 字形板，或三根色散弹簧。', reviewed: 'mt' },
+    },
+    'st-tone': {
+        en: { t: 'Tone', b: 'Character, then Low Cut, on the wet path only.' },
+        fr: { t: 'Timbre', b: 'Caractère, puis coupe-bas, sur la voie traitée seulement.', reviewed: false },
+        'zh-Hans': { t: '音色', b: '特性，然后低切，只作用于湿信号。', reviewed: 'mt' },
+    },
+    'st-mix': {
+        en: { t: 'Mix', b: 'Wet and Dry are two separate gains, summed here.' },
+        fr: { t: 'Mix', b: 'Traité et Direct sont deux gains séparés, additionnés ici.', reviewed: false, sameAsEn: true },
+        'zh-Hans': { t: '混合', b: '湿和干是两个独立的增益，在这里相加。', reviewed: 'mt' },
+    },
+    'st-output': {
+        en: { t: 'Output', b: 'Dry plus wet, left and right.' },
+        fr: { t: 'Sortie', b: 'Direct plus traité, gauche et droite.', reviewed: false },
+        'zh-Hans': { t: '输出', b: '干加湿，左和右。', reviewed: 'mt' },
+    },
+
+    // ── The controls ────────────────────────────────────────────────────────
+    'type': {
+        en: { t: 'Type',
+              b: 'Picks the space. Booth, Room, Hall and Ambient are one room engine — a 16-line feedback delay '
+               + 'network — each with its own delays, early reflections and decay time. Spring and Plate are other '
+               + 'machines, with no early reflections. Size and Decay then scale what the type chose.' },
+        fr: { t: 'Type',
+              b: 'Choisit l’espace. Booth, Room, Hall et Ambient sont un même moteur de salle — un réseau de 16 '
+               + 'lignes de retard à réinjection — chacun avec ses retards, ses réflexions précoces et son temps de '
+               + 'déclin. Spring et Plate sont d’autres machines, sans réflexion précoce. Taille et Déclin mettent '
+               + 'ensuite à l’échelle ce que le type a choisi.',
+              reviewed: false },
+        'zh-Hans': { t: '类型',
+              b: '选择空间。Booth、Room、Hall 和 Ambient 是同一个房间引擎——16 线反馈延迟网络——各有自己的延迟、早期反射和衰减时间。Spring 和 Plate 是别的机器，没有早期反射。尺寸和衰减再缩放类型所选的东西。',
+              reviewed: 'mt' },
+    },
+    'size': {
+        en: { t: 'Size',
+              b: 'Moves the walls, not the tail. The early reflections and the echoes spread apart or close up — '
+               + 'watch the taps slide — while the tail length stays with Decay. It is relative to the type: Booth at '
+               + '100 % is still smaller than Hall at 0 %.' },
+        fr: { t: 'Taille',
+              b: 'Déplace les murs, pas la queue. Les réflexions précoces et les échos s’écartent ou se resserrent — '
+               + 'regardez les prises glisser — tandis que la durée de la queue reste à Déclin. Elle est relative au '
+               + 'type : Booth à 100 % reste plus petit que Hall à 0 %.',
+              reviewed: false },
+        'zh-Hans': { t: '尺寸',
+              b: '移动墙壁，而不是尾音。早期反射和回声拉开或靠拢——看抽头滑动——而尾音长度仍归衰减。它相对于类型：Booth 在 100% 时仍小于 Hall 在 0% 时。',
+              reviewed: 'mt' },
+    },
+    'decay': {
+        en: { t: 'Decay',
+              b: 'How long the tail lasts, as a multiple of the type’s own RT60 — the time it takes to fall 60 dB. '
+               + 'The brass slope in the decay well is this number. 0.5× to 2.0×.' },
+        fr: { t: 'Déclin',
+              b: 'La durée de la queue, en multiple du RT60 propre au type — le temps qu’elle met à baisser de 60 dB. '
+               + 'La pente laiton du puits de déclin, c’est ce chiffre. De 0,5× à 2,0×.',
+              reviewed: false },
+        'zh-Hans': { t: '衰减',
+              b: '尾音持续多久，以该类型自身 RT60（下降 60 dB 所需的时间）的倍数计。衰减图中的黄铜斜线就是这个数。0.5× 到 2.0×。',
+              reviewed: 'mt' },
+    },
+    'character': {
+        en: { t: 'Character',
+              b: 'A tilt after the tank, on the whole tail and never on the dry. Left darkens: a low-pass closing from '
+               + '20 kHz to 2 kHz. Right brightens: a 4 kHz shelf up to +6 dB. It changes the colour of the tail, not '
+               + 'its length. Neutral at the centre.' },
+        fr: { t: 'Caractère',
+              b: 'Une inclinaison après le réservoir, sur toute la queue et jamais sur le direct. À gauche, plus sombre : '
+               + 'un passe-bas qui se ferme de 20 kHz à 2 kHz. À droite, plus brillant : un plateau à 4 kHz jusqu’à '
+               + '+6 dB. Il change la couleur de la queue, pas sa durée. Neutre au centre.',
+              reviewed: false },
+        'zh-Hans': { t: '特性',
+              b: '混响槽之后的倾斜，作用于整个尾音，从不影响干信号。向左变暗：低通从 20 kHz 收到 2 kHz。向右变亮：4 kHz 高架最多 +6 dB。它改变尾音的颜色，而不是长度。中间为中性。',
+              reviewed: 'mt' },
+    },
+    'lowCut': {
+        en: { t: 'Low Cut',
+              b: 'A high-pass on the tail only. Low reverb energy piles up under bass and kick drum as mud; cutting it '
+               + 'keeps the space while the dry keeps its low end. It does nothing while the pill reads Out. 20 to 400 Hz.' },
+        fr: { t: 'Coupe-bas',
+              b: 'Un passe-haut sur la seule queue. L’énergie grave de la réverbération s’accumule sous la basse et la '
+               + 'grosse caisse en boue ; la couper garde l’espace et laisse au direct ses graves. Inactif tant que la '
+               + 'pastille indique Dés. De 20 à 400 Hz.',
+              reviewed: false },
+        'zh-Hans': { t: '低切',
+              b: '只作用于尾音的高通。混响的低频能量会在贝斯和底鼓下堆成浑浊；切掉它，空间还在，干信号保留低音。按钮显示“关”时不起作用。20 到 400 Hz。',
+              reviewed: 'mt' },
+    },
+    'lpon': {
+        en: { t: 'Low Cut In / Out',
+              b: 'Puts the Low Cut into the tail or takes it out. While Out the knob dims, the filter is bypassed, and '
+               + 'its curve in the tone well turns to a ghost.' },
+        fr: { t: 'Coupe-bas act. / dés.',
+              b: 'Insère le coupe-bas dans la queue ou l’en retire. Désactivé, le bouton s’estompe, le filtre est '
+               + 'contourné et sa courbe dans le puits de timbre devient un fantôme.',
+              reviewed: false, termNote: 'the pill engages or bypasses the filter (v2 Act./Dés.), not a signal input / output' },
+        'zh-Hans': { t: '低切开 / 关',
+              b: '把低切接入或移出尾音。关闭时旋钮变暗、滤波器被旁通，音色图中的曲线变成虚影。',
+              reviewed: 'mt', termNote: 'the pill engages or bypasses the filter (v2 开/关), not a signal input / output' },
+    },
+    'wet': {
+        en: { t: 'Wet',
+              b: 'How much reverb joins the output. An independent gain, not a crossfade: raising Wet never lowers Dry. '
+               + '0 to 100 %.' },
+        fr: { t: 'Traité',
+              b: 'La quantité de réverbération ajoutée à la sortie. Un gain indépendant, pas un fondu : monter Traité ne '
+               + 'baisse jamais Direct. De 0 à 100 %.',
+              reviewed: false },
+        'zh-Hans': { t: '湿', b: '有多少混响加入输出。独立增益，不是交叉淡化：调高湿从不调低干。0 到 100%。', reviewed: 'mt' },
+    },
+    'dry': {
+        en: { t: 'Dry',
+              b: 'How much of the untouched source passes. On an insert leave it at 100; on a send bus set it to 0 so '
+               + 'only the reverb comes back. 0 to 100 %.' },
+        fr: { t: 'Direct',
+              b: 'La part de source intacte qui passe. En insert, laissez 100 ; sur un bus de départ, mettez 0 pour ne '
+               + 'renvoyer que la réverbération. De 0 à 100 %.',
+              reviewed: false },
+        'zh-Hans': { t: '干', b: '有多少未处理的原声通过。插入时保持 100；在发送总线上设为 0，只返回混响。0 到 100%。', reviewed: 'mt' },
+    },
+    'outMeter': {
+        en: { t: 'Output Peak',
+              b: 'Left and right peaks at the output, dry plus wet. The lamp above a bar lights on a clip.' },
+        fr: { t: 'Crête de sortie',
+              b: 'Crêtes gauche et droite en sortie, direct plus traité. Le voyant au-dessus d’une barre s’allume à '
+               + 'l’écrêtage.',
+              reviewed: false },
+        'zh-Hans': { t: '输出峰值', b: '输出端左右峰值，干加湿。削波时条形上方的灯亮起。', reviewed: 'mt' },
+    },
+
+    // ── The lessons (title = the button, body = what to watch) ──────────────
+    'lesson.booth': {
+        en: { t: 'Booth', b: '0.4 s, every tap inside 7 ms after a 3 ms pre-delay. Close and dry: a voice-over room. '
+               + 'Watch the decay well: the steepest slope of the six.' },
+        fr: { t: 'Booth', b: '0,4 s, toutes les prises en 7 ms après 3 ms de pré-délai. Proche et sec : une cabine de '
+               + 'voix off. Regardez le puits de déclin : la pente la plus raide des six.', reviewed: false, sameAsEn: true },
+        'zh-Hans': { t: 'Booth', b: '0.4 秒，所有抽头都在 3 ms 预延迟之后的 7 ms 内。贴近而干，像配音间。看衰减图：六种中最陡的斜率。', reviewed: 'mt', sameAsEn: true },
+    },
+    'lesson.room': {
+        en: { t: 'Room', b: '1.1 s; the taps spread over 23 ms after 15 ms of pre-delay. The everyday space: a voice in '
+               + 'a living room.' },
+        fr: { t: 'Room', b: '1,1 s ; les prises s’étalent sur 23 ms après 15 ms de pré-délai. L’espace de tous les '
+               + 'jours : une voix dans un salon.', reviewed: false, sameAsEn: true },
+        'zh-Hans': { t: 'Room', b: '1.1 秒；抽头在 15 ms 预延迟之后分布在 23 ms 内。日常空间：客厅里的人声。', reviewed: 'mt', sameAsEn: true },
+    },
+    'lesson.hall': {
+        en: { t: 'Hall', b: '3 s, at Size 70. A 50 ms gap before the first echo tells your ear the walls are far; the '
+               + 'taps then spread out to about 60 ms.' },
+        fr: { t: 'Hall', b: '3 s, à Taille 70. Un silence de 50 ms avant le premier écho dit à l’oreille que les murs '
+               + 'sont loin ; les prises s’étalent ensuite jusqu’à 60 ms environ.', reviewed: false, sameAsEn: true },
+        'zh-Hans': { t: 'Hall', b: '3 秒，尺寸 70。第一个回声之前 50 ms 的空隙告诉耳朵墙很远；抽头随后分布到约 60 ms。', reviewed: 'mt', sameAsEn: true },
+    },
+    'lesson.spring': {
+        en: { t: 'Spring', b: 'No taps: three springs, each returning its own echo at 33, 37 and 41 ms. Each echo arrives '
+               + 'lows first, so it chirps upward; little passes above 4.5 kHz.' },
+        fr: { t: 'Spring', b: 'Aucune prise : trois ressorts, chacun renvoyant son propre écho à 33, 37 et 41 ms. Chaque '
+               + 'écho arrive graves en tête et monte en sifflant ; peu de choses passent au-dessus de 4,5 kHz.', reviewed: false, sameAsEn: true },
+        'zh-Hans': { t: 'Spring', b: '没有抽头：三根弹簧，各自在 33、37 和 41 ms 返回自己的回声。每个回声低频先到，所以向上滑；4.5 kHz 以上几乎不通过。', reviewed: 'mt', sameAsEn: true },
+    },
+    'lesson.plate': {
+        en: { t: 'Plate', b: 'Dense from the first instant, with no taps, after an 8 ms pre-delay. An octave shimmer in '
+               + 'the loop grows over the tail; Character is a little bright.' },
+        fr: { t: 'Plate', b: 'Dense dès le premier instant, sans prise, après 8 ms de pré-délai. Un shimmer à l’octave '
+               + 'dans la boucle grandit au fil de la queue ; le Caractère est un peu brillant.', reviewed: false, sameAsEn: true },
+        'zh-Hans': { t: 'Plate', b: '在 8 ms 预延迟之后，一开始就很密，没有抽头。环路中的八度微光在尾音中逐渐增长；特性略亮。', reviewed: 'mt', sameAsEn: true },
+    },
+    'lesson.ambient': {
+        en: { t: 'Ambient', b: '7 s, at Size 75, more wet than dry. Each tail outlasts the next note: watch them pile up '
+               + 'in the decay well.' },
+        fr: { t: 'Ambient', b: '7 s, à Taille 75, plus de traité que de direct. Chaque queue survit à la note suivante : '
+               + 'regardez-les s’empiler dans le puits de déclin.', reviewed: false, sameAsEn: true },
+        'zh-Hans': { t: 'Ambient', b: '7 秒，尺寸 75，湿多于干。每条尾音都比下一个音更长：在衰减图里看它们叠起来。', reviewed: 'mt', sameAsEn: true },
+    },
+    'lesson.init': {
+        en: { t: 'Init', b: 'Room at its defaults: Wet 25, Dry 100, Decay 1.0×, Size 50, Character neutral, Low Cut out.' },
+        fr: { t: 'Initial', b: 'Room par défaut : Traité 25, Direct 100, Déclin 1,0×, Taille 50, Caractère neutre, '
+               + 'coupe-bas désactivé.', reviewed: false },
+        'zh-Hans': { t: '初始', b: 'Room 默认值：湿 25，干 100，衰减 1.0×，尺寸 50，特性中性，低切关闭。', reviewed: 'mt' },
+    },
+    'lesson.sizeVsDecay': {
+        en: { t: 'Size ≠ Decay', b: 'The smallest room with twice the decay: the taps pack into 12 ms, yet the slope stays '
+               + 'long (2.2 s). Drag Size: the echoes spread, the tail time holds.' },
+        fr: { t: 'Taille ≠ Déclin', b: 'La plus petite pièce avec un déclin doublé : les prises se serrent en 12 ms, mais la '
+               + 'pente reste longue (2,2 s). Tournez Taille : les échos s’écartent, la durée reste.', reviewed: false },
+        'zh-Hans': { t: '尺寸 ≠ 衰减', b: '最小的房间，衰减加倍：抽头挤在 12 ms 内，斜率却仍然很长（2.2 秒）。拖动尺寸：回声拉开，尾音时间不变。', reviewed: 'mt' },
+    },
+    'lesson.character': {
+        en: { t: 'Character: dark ↔ bright', b: 'Hall with Character at −80: the whole tail darkens (a low-pass near '
+               + '5.6 kHz) and its length does not move. Sweep to +80: a 4 kHz shelf lifts the top instead.' },
+        fr: { t: 'Caractère : sombre ↔ brillant', b: 'Hall avec le Caractère à −80 : toute la queue s’assombrit (un '
+               + 'passe-bas vers 5,6 kHz) et sa durée ne bouge pas. Allez à +80 : un plateau à 4 kHz relève les aigus.', reviewed: false },
+        'zh-Hans': { t: '特性：暗 ↔ 亮', b: 'Hall，特性 −80：整条尾音变暗（约 5.6 kHz 的低通），长度不变。扫到 +80：改由 4 kHz 高架提升高频。', reviewed: 'mt' },
+    },
+    'lesson.lowCut': {
+        en: { t: 'Low Cut', b: 'A long hall with the Low Cut at 250 Hz: the tail loses its mud and the dry keeps its bass. '
+               + 'Toggle the pill to Out to hear the mud return.' },
+        fr: { t: 'Coupe-bas', b: 'Un long hall avec le coupe-bas à 250 Hz : la queue perd sa boue et le direct garde ses '
+               + 'basses. Désactivez la pastille pour entendre la boue revenir.', reviewed: false },
+        'zh-Hans': { t: '低切', b: '一个长厅，低切设在 250 Hz：尾音去掉浑浊，干信号保留低音。把按钮切到“关”，听浑浊回来。', reviewed: 'mt' },
+    },
+    'lesson.insertSend': {
+        en: { t: 'Insert vs Send', b: 'Wet 100, Dry 0: the setting for a send bus, where the dry already reaches the mix '
+               + 'by another path. On an insert you would hear only the reverb — keep Dry at 100 there.' },
+        fr: { t: 'Insert ou départ', b: 'Traité 100, Direct 0 : le réglage d’un bus de départ, où le direct rejoint déjà '
+               + 'le mix par un autre chemin. En insert, vous n’entendriez que la réverbération — gardez Direct à 100.', reviewed: false },
+        'zh-Hans': { t: '插入与发送', b: '湿 100，干 0：发送总线的设定，干信号已经从另一条路进入混音。插入时你只会听到混响——那里请把干保持在 100。', reviewed: 'mt' },
     },
 });
-
-// ============================================================================
-// LABELS — the visible text of the page. {en:{t}, fr:{t, reviewed}}.
-//
-// One string per entry, no body: a label is not a tooltip.
-//
-// ── THE FRAME IS 500 x 350, AND THIS IS THE DENSEST PAGE IN BATCH K2 ────────
-//
-// 26 LABEL rows in 175 000 px² is the highest text-per-pixel density of the
-// five tight frames — O-Chorus 15 in 87 500, O-DigiDelay 21 in 137 200,
-// O-AnalogEQ 20 in 202 400, O-Bass 16 in 134 400. The plan claims "20 text"
-// and undercounts by six.
-//
-// THE DENSITY IS PAID FOR BY A GRID, WHICH IS THIS PAGE'S GREAT ADVANTAGE.
-// The six knobs sit in two CSS grids — `repeat(4, 1fr)` over 414 px of content
-// and `repeat(3, 1fr)` over 380 px — so every knob column is a
-// LANGUAGE-INVARIANT RECTANGLE by construction: 97.50 px on the top row,
-// 124.66 px on the bottom. Four of the five K2 plugins had at most one such
-// rectangle and O-Bass had none at all. Here there are seven, and they are
-// what makes 26 labels in 500 x 350 cheap rather than expensive: a caption
-// that changes width re-centres inside its own column and touches nothing
-// outside it, up to the point where the column's own floor gives way.
-//
-// ── THE THREE CLIFFS, MEASURED ──────────────────────────────────────────────
-//
-//   A  RE-CENTRE AT 52.00 px — the `.knob` box.
-//      A `.knob` is `column; align-items: center` over a 52 px `.knob-visual`
-//      and a 50 px min-width `.knob-value`, so its width is
-//      max(labelWidth, 52). UNDER 52.00 the caption is invisible to the
-//      layout — the box is the knob's. PAST it the caption DRIVES the box, and
-//      because `.knob-control` centres that box in its grid column, every
-//      child of the knob — the visual, the SVG, the vine, the readout — moves
-//      by half the width change, in either direction.
-//      CHARACTER (61.72) is the ONLY caption past the cliff in English. The
-//      other five are under it and therefore inert, which is what keeps the
-//      cliff observable: a French string that crosses 52.00 announces itself.
-//      Caught by assertion 7. Assertion 4 is blind — nothing clips, the box
-//      simply grows.
-//
-//   B  ZERO-SLACK HEADER — .header, `justify-content: space-between`.
-//      h1.title measures 163.58 and .preset-bar 290.42 inside a 454.00 px
-//      content box. 163.58 + 290.42 = 454.00 EXACTLY. There is no slack at
-//      all, and the title is ALREADY wrapped to two lines at that width. Every
-//      px a French caption adds to SAVE or LOAD is a px taken out of the
-//      title's box, and the title's next stop is a THIRD LINE — a vertical
-//      push on a page whose content already overflows its own box by 3 px.
-//      That is why SAVE and LOAD are abbreviated and PINNED.
-//      Caught by assertion 7. Assertion 4 is blind: a shrink-to-fit button
-//      always fits its own grown box.
-//
-//   C  GRID-TRACK SPILL AT 97.50 px — `repeat(4, 1fr)`.
-//      A `1fr` track is `minmax(auto, 1fr)`, so its floor is min-content. A
-//      caption whose LONGEST WORD exceeds 97.50 px raises that floor and the
-//      column steals width from its three siblings — every knob on the row
-//      moves. A caption with a break opportunity WRAPS instead and grows
-//      downward. This is O-DigiDelay's single-word-spills / two-words-wrap
-//      split, transposed onto a grid, and nothing shipped here goes anywhere
-//      near it: the widest French below is 60.72.
-//
-// Every French string below was chosen against a MEASURED width, rendered in
-// the real node with its own letter-spacing, text-transform and font stack
-// (none of which appears in getComputedStyle().font).
-// ============================================================================
 
 export const LABELS = Object.freeze({
+    // ── chrome ──────────────────────────────────────────────────────────────
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: false }, 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' } },
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: false }, 'zh-Hans': { t: '界面语言', reviewed: 'mt' } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: false }, 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' } },
+    // The switch's two faces (feminine plural: they agree with "les infobulles").
+    'ui.on':  { en: { t: 'On' },  fr: { t: 'Activées', reviewed: false },    'zh-Hans': { t: '开', reviewed: 'mt' } },
+    'ui.off': { en: { t: 'Off' }, fr: { t: 'Désactivées', reviewed: false }, 'zh-Hans': { t: '关', reviewed: 'mt' } },
+    'label.presetFile': { en: { t: 'Preset file' }, fr: { t: 'Fichier', reviewed: false }, 'zh-Hans': { t: '预设文件', reviewed: 'mt' } },
+    'label.loadFile':   { en: { t: 'Load file…' }, fr: { t: 'Charger…', reviewed: false }, 'zh-Hans': { t: '载入文件…', reviewed: 'mt' } },
+    'label.version':    { en: { t: 'O-simpleReverb {v}' }, fr: { t: 'O-simpleReverb {v}', reviewed: false, sameAsEn: true }, 'zh-Hans': { t: 'O-simpleReverb {v}', reviewed: 'mt', sameAsEn: true } },
 
-    // ── The six knob captions ───────────────────────────────────────────────
-    //
-    // All six are AudioParameterFloat-backed (CHARACTER, LPFREQ, WET, DRY,
-    // DECAY, SIZE) and all six sit in a `.knob-label` span that NEVER holds a
-    // number — the value lives in a separate `.knob-value` sibling, so
-    // contract §5's split already existed in the authored markup and nothing
-    // had to be split. D-01 arm 3 therefore does not fire on any of them.
-    //
-    // Measured at 9 px Garamond, letter-spacing 0.8 px, uppercase, against
-    // CLIFF A at 52.00 px:
-    //
-    //   CHARACTER  61.72 -> CARACTÈRE  60.72   pin 62,  1.28 spare  TIGHTEST
-    //   LOW CUT    46.19 -> COUPE-B.   47.16   no pin,  4.84 under the cliff
-    //   WET        21.89 -> EFFET      30.52   no pin, 21.48 under the cliff
-    //   DRY        20.91 -> DIRECT     37.31   no pin, 14.69 under the cliff
-    //   DECAY      34.19 -> DÉCLIN     37.80   no pin, 14.20 under the cliff
-    //   SIZE       22.20 -> TAILLE     35.58   no pin, 16.42 under the cliff
-    //
-    // ONLY THE FIRST IS PINNED, and only because it is the only one past the
-    // cliff in English. Pinning any of the other five would have a negative
-    // control that PASSES — both captions sit under a floor the knob owns, so
-    // the box is 52.00 px in either language and a width there is decoration.
-    // Leaving them unpinned is also what keeps cliff A observable.
-    //
-    // CARACTÈRE IS 1.00 px NARROWER THAN CHARACTER. That is the batch's
-    // recurring finding rather than an accident — French shrinks at least as
-    // often as it grows, and an unpinned shrink re-centres a column exactly as
-    // loudly as a spill would. TIMBRE (38.81) and COULEUR (48.11) are the
-    // reviewer's roomier levers; both are real French tone-control words and
-    // both would sit 20+ px inside the pin. CARACTÈRE is kept because it is
-    // the direct translation of the visible English and this commit translates
-    // the page rather than re-naming its controls.
-    'label.character': { en: { t: 'Character' }, fr: { t: 'Caractère', reviewed: true } , 'zh-Hans': { t: '特性', reviewed: 'bt' }},
+    // ── header ──────────────────────────────────────────────────────────────
+    'label.subtitle': {
+        en: { t: 'Space · Tail · Tone · A Field Guide to Reverberation' },
+        fr: { t: 'Espace · Queue · Timbre · Un guide de la réverbération', reviewed: false },
+        'zh-Hans': { t: '空间 · 尾音 · 音色 · 混响实地指南', reviewed: 'mt' },
+    },
+    'label.chipHead': { en: { t: 'Tail' }, fr: { t: 'Queue', reviewed: false }, 'zh-Hans': { t: '尾音', reviewed: 'mt' } },
+    'label.chipBody': { en: { t: '{type} · RT60 {rt} · pre {pre}' }, fr: { t: '{type} · RT60 {rt} · pré {pre}', reviewed: false }, 'zh-Hans': { t: '{type} · RT60 {rt} · 预延迟 {pre}', reviewed: 'mt' } },
 
-    // COUPE-B. IS AN ABBREVIATION AND THE FULL FORM WAS REJECTED ON
-    // MEASUREMENT, NOT ON TASTE. COUPE-BAS is 57.22 — 5.22 px PAST cliff A —
-    // and would move every child of the LPFREQ knob 2.61 px in French only.
-    // COUPE BAS (56.47) and PASSE-HAUT (62.19, the technically correct name
-    // for a low cut) are worse. Under the cliff and available to a reviewer:
-    // FILTRE (34.48), which is unambiguous because this page has exactly one
-    // filter but drops the word "low"; C. BAS (32.81); PASSE-HT (47.59).
-    // COUPE-B. keeps the low-cut meaning at 4.84 px of headroom.
-    'label.lowCut':    { en: { t: 'Low Cut' },   fr: { t: 'Coupe-b.', reviewed: true } , 'zh-Hans': { t: '低切', reviewed: 'bt' }},
+    // ── visual band ─────────────────────────────────────────────────────────
+    'label.decayTitle': { en: { t: 'Live Decay' }, fr: { t: 'Déclin en direct', reviewed: false }, 'zh-Hans': { t: '实时衰减', reviewed: 'mt' } },
+    'label.decayHint':  { en: { t: 'level over the last 6 seconds' }, fr: { t: 'niveau des 6 dernières secondes', reviewed: false }, 'zh-Hans': { t: '最近 6 秒的电平', reviewed: 'mt' } },
+    'label.dwSub':      { en: { t: '{type} × {x}' }, fr: { t: '{type} × {x}', reviewed: false, sameAsEn: true }, 'zh-Hans': { t: '{type} × {x}', reviewed: 'mt', sameAsEn: true } },
+    'label.lgInput':    { en: { t: 'input' }, fr: { t: 'entrée', reviewed: false }, 'zh-Hans': { t: '输入', reviewed: 'mt' } },
+    'label.lgTail':     { en: { t: 'wet tail' }, fr: { t: 'queue traitée', reviewed: false }, 'zh-Hans': { t: '湿尾音', reviewed: 'mt' } },
+    'label.lgSlope':    { en: { t: 'RT60 slope' }, fr: { t: 'pente RT60', reviewed: false }, 'zh-Hans': { t: 'RT60 斜率', reviewed: 'mt' } },
+    'label.erTitle':    { en: { t: 'Early Reflections' }, fr: { t: 'Premières réflexions', reviewed: false }, 'zh-Hans': { t: '早期反射', reviewed: 'mt' } },
+    'label.erHint':     { en: { t: 'L above · R below' }, fr: { t: 'G dessus · D dessous', reviewed: false }, 'zh-Hans': { t: '左在上 · 右在下', reviewed: 'mt' } },
+    'label.unitPre':    { en: { t: 'pre-delay' }, fr: { t: 'pré-délai', reviewed: false }, 'zh-Hans': { t: '预延迟', reviewed: 'mt' } },
+    'label.erSub':      { en: { t: '8 taps a side over {span}' }, fr: { t: '8 prises par côté sur {span}', reviewed: false }, 'zh-Hans': { t: '每侧 8 个抽头，跨 {span}', reviewed: 'mt' } },
+    'label.erSubNone':  { en: { t: 'no taps' }, fr: { t: 'aucune prise', reviewed: false }, 'zh-Hans': { t: '无抽头', reviewed: 'mt' } },
+    'label.erSubSpring':{ en: { t: 'no taps · the springs’ own echoes' }, fr: { t: 'aucune prise · les échos des ressorts', reviewed: false }, 'zh-Hans': { t: '无抽头 · 弹簧自身的回声', reviewed: 'mt' } },
+    'label.lgLeft':     { en: { t: 'left' }, fr: { t: 'gauche', reviewed: false }, 'zh-Hans': { t: '左', reviewed: 'mt' } },
+    'label.lgRight':    { en: { t: 'right' }, fr: { t: 'droite', reviewed: false }, 'zh-Hans': { t: '右', reviewed: 'mt' } },
+    'label.lgInverted': { en: { t: 'inverted' }, fr: { t: 'inversée', reviewed: false }, 'zh-Hans': { t: '反相', reviewed: 'mt' } },
+    'label.erNone1':    { en: { t: 'No early reflections' }, fr: { t: 'Aucune réflexion précoce', reviewed: false }, 'zh-Hans': { t: '没有早期反射', reviewed: 'mt' } },
+    'label.erPlate2':   { en: { t: 'the plate is dense from the first instant' }, fr: { t: 'la plaque est dense dès le premier instant', reviewed: false }, 'zh-Hans': { t: '板一开始就很密', reviewed: 'mt' } },
+    'label.erSpring2':  { en: { t: 'the springs’ own echoes start at {ms}' }, fr: { t: 'les échos des ressorts commencent à {ms}', reviewed: false }, 'zh-Hans': { t: '弹簧自身的回声从 {ms} 开始', reviewed: 'mt' } },
+    'label.toneTitle':  { en: { t: 'Tone of the Tail' }, fr: { t: 'Timbre de la queue', reviewed: false }, 'zh-Hans': { t: '尾音音色', reviewed: 'mt' } },
+    'label.toneHint':   { en: { t: 'after the tank, wet only' }, fr: { t: 'après le réservoir, traité seul', reviewed: false }, 'zh-Hans': { t: '混响槽之后，仅湿信号', reviewed: 'mt' } },
+    'label.twFlat':     { en: { t: 'flat' }, fr: { t: 'plat', reviewed: false }, 'zh-Hans': { t: '平直', reviewed: 'mt' } },
+    'label.twLp':       { en: { t: 'LP {f}' }, fr: { t: 'PB {f}', reviewed: false }, 'zh-Hans': { t: '低通 {f}', reviewed: 'mt' } },
+    'label.twHp':       { en: { t: 'HP {f}' }, fr: { t: 'PH {f}', reviewed: false }, 'zh-Hans': { t: '高通 {f}', reviewed: 'mt' } },
+    'label.twShelf':    { en: { t: '{db} @ 4 kHz' }, fr: { t: '{db} à 4 kHz', reviewed: false }, 'zh-Hans': { t: '4 kHz 处 {db}', reviewed: 'mt' } },
+    'label.twEqNone':   { en: { t: '{type} EQ · none' }, fr: { t: 'Égaliseur {type} · aucun', reviewed: false }, 'zh-Hans': { t: '{type} 均衡 · 无', reviewed: 'mt' } },
+    'label.twEqHp':     { en: { t: '{type} EQ · high-pass {f}' }, fr: { t: 'Égaliseur {type} · passe-haut {f}', reviewed: false }, 'zh-Hans': { t: '{type} 均衡 · 高通 {f}', reviewed: 'mt' } },
+    'label.twEqPk':     { en: { t: '{type} EQ · {g} at {f}' }, fr: { t: 'Égaliseur {type} · {g} à {f}', reviewed: false }, 'zh-Hans': { t: '{type} 均衡 · {f} 处 {g}', reviewed: 'mt' } },
+    'label.twEqHs':     { en: { t: '{type} EQ · {g} above {f}' }, fr: { t: 'Égaliseur {type} · {g} dès {f}', reviewed: false }, 'zh-Hans': { t: '{type} 均衡 · {f} 以上 {g}', reviewed: 'mt' } },
+    'label.lgResponse': { en: { t: 'response' }, fr: { t: 'réponse', reviewed: false }, 'zh-Hans': { t: '响应', reviewed: 'mt' } },
+    'label.lgCharacter':{ en: { t: 'character' }, fr: { t: 'caractère', reviewed: false }, 'zh-Hans': { t: '特性', reviewed: 'mt' } },
+    'label.lgLowCut':   { en: { t: 'low cut' }, fr: { t: 'coupe-bas', reviewed: false }, 'zh-Hans': { t: '低切', reviewed: 'mt' } },
+    'label.springBand': { en: { t: 'springs pass little above 4.5 kHz' }, fr: { t: 'les ressorts passent peu au-dessus de 4,5 kHz', reviewed: false }, 'zh-Hans': { t: '弹簧几乎不通过 4.5 kHz 以上', reviewed: 'mt' } },
 
-    // EFFET / DIRECT is the pair French effects units are silk-screened with,
-    // and it is a pair — the reviewer should move both or neither. HUMIDE
-    // (40.80) / SEC (18.91) is the literal translation and both members also
-    // fit with room to spare, so this is a register choice rather than a
-    // geometry one and is recorded as such. DIRECT is 16.40 px WIDER than DRY
-    // and that costs nothing, because 37.31 is still 14.69 px under the cliff:
-    // measuring the cliff is what turns a scary-looking growth into a non-event.
-    'label.wet':       { en: { t: 'Wet' },       fr: { t: 'Traité',   reviewed: true } , 'zh-Hans': { t: '湿', reviewed: 'bt' }},
-    'label.dry':       { en: { t: 'Dry' },       fr: { t: 'Direct',   reviewed: true } , 'zh-Hans': { t: '干', reviewed: 'bt' }},
+    // ── signal path ─────────────────────────────────────────────────────────
+    'label.stInput':      { en: { t: 'Input' }, fr: { t: 'Entrée', reviewed: false }, 'zh-Hans': { t: '输入', reviewed: 'mt' } },
+    'label.stEarly':      { en: { t: 'Early' }, fr: { t: 'Précoces', reviewed: false }, 'zh-Hans': { t: '早期', reviewed: 'mt' } },
+    'label.stEngine':     { en: { t: 'Engine' }, fr: { t: 'Moteur', reviewed: false }, 'zh-Hans': { t: '引擎', reviewed: 'mt' } },
+    'label.stTone':       { en: { t: 'Tone' }, fr: { t: 'Timbre', reviewed: false }, 'zh-Hans': { t: '音色', reviewed: 'mt' } },
+    'label.stMix':        { en: { t: 'Mix' }, fr: { t: 'Mix', reviewed: false, sameAsEn: true }, 'zh-Hans': { t: '混合', reviewed: 'mt' } },
+    'label.stOutput':     { en: { t: 'Output' }, fr: { t: 'Sortie', reviewed: false }, 'zh-Hans': { t: '输出', reviewed: 'mt' } },
+    'label.lr':           { en: { t: 'L / R' }, fr: { t: 'G / D', reviewed: false }, 'zh-Hans': { t: '左 / 右', reviewed: 'mt' } },
+    'label.stEarlyFdn':   { en: { t: 'pre {pre} · 8 taps' }, fr: { t: 'pré {pre} · 8 prises', reviewed: false }, 'zh-Hans': { t: '预延迟 {pre} · 8 个抽头', reviewed: 'mt' } },
+    'label.stEarlyPlate': { en: { t: 'pre {pre} · no taps' }, fr: { t: 'pré {pre} · sans prise', reviewed: false }, 'zh-Hans': { t: '预延迟 {pre} · 无抽头', reviewed: 'mt' } },
+    'label.stEarlySpring':{ en: { t: 'no taps · own echoes' }, fr: { t: 'sans prise · échos propres', reviewed: false }, 'zh-Hans': { t: '无抽头 · 自身回声', reviewed: 'mt' } },
+    'label.stEngFdn':     { en: { t: '16 lines · Hadamard' }, fr: { t: '16 lignes · Hadamard', reviewed: false }, 'zh-Hans': { t: '16 条线 · Hadamard', reviewed: 'mt' } },
+    'label.stEngFdnMod':  { en: { t: '16 lines · Hadamard · slow modulation' }, fr: { t: '16 lignes · Hadamard · modulation lente', reviewed: false }, 'zh-Hans': { t: '16 条线 · Hadamard · 慢速调制', reviewed: 'mt' } },
+    'label.stEngPlate':   { en: { t: 'Dattorro figure-8 · octave shimmer in the loop' }, fr: { t: 'huit de Dattorro · shimmer d’octave en boucle', reviewed: false }, 'zh-Hans': { t: 'Dattorro 8 字形 · 环路内八度微光', reviewed: 'mt' } },
+    'label.stEngSpring':  { en: { t: '3 dispersive springs' }, fr: { t: '3 ressorts dispersifs', reviewed: false }, 'zh-Hans': { t: '3 根色散弹簧', reviewed: 'mt' } },
+    'label.toneDark':     { en: { t: 'dark' }, fr: { t: 'sombre', reviewed: false }, 'zh-Hans': { t: '暗', reviewed: 'mt' } },
+    'label.toneBright':   { en: { t: 'bright' }, fr: { t: 'brillant', reviewed: false }, 'zh-Hans': { t: '亮', reviewed: 'mt' } },
+    'label.stCutIn':      { en: { t: 'low cut in' }, fr: { t: 'coupe-bas act.', reviewed: false, termNote: 'the filter is engaged (v2 Act.), not a signal input' }, 'zh-Hans': { t: '低切开', reviewed: 'mt', termNote: 'the filter is engaged (v2 开), not a signal input' } },
+    'label.stCutOut':     { en: { t: 'low cut out' }, fr: { t: 'coupe-bas dés.', reviewed: false, termNote: 'the filter is bypassed (v2 Dés.), not a signal output' }, 'zh-Hans': { t: '低切关', reviewed: 'mt', termNote: 'the filter is bypassed (v2 关), not a signal output' } },
+    'label.stMixSub':     { en: { t: 'wet {w} · dry {d}' }, fr: { t: 'traité {w} · direct {d}', reviewed: false }, 'zh-Hans': { t: '湿 {w} · 干 {d}', reviewed: 'mt' } },
 
-    // DÉCROISSANCE is the full word and it is 77.63 — a SINGLE WORD with no
-    // break opportunity, 25.63 px past cliff A. It stops short of cliff C
-    // (97.50) so it would not steal from the neighbouring columns, but it
-    // would move every child of the DECAY knob 12.8 px. DÉCROISS. (52.97) is
-    // past the cliff by 0.97 px, which is a miss by rounding. DÉCLIN is the
-    // word French reverb manuals use and it fits with 14.20 px to spare;
-    // CHUTE (34.00) is the roomier alternative.
-    'label.decay':     { en: { t: 'Decay' },     fr: { t: 'Déclin',   reviewed: true } , 'zh-Hans': { t: '衰减', reviewed: 'bt' }},
-    'label.size':      { en: { t: 'Size' },      fr: { t: 'Taille',   reviewed: true } , 'zh-Hans': { t: '尺寸', reviewed: 'bt' }},
+    // ── the Engine group ────────────────────────────────────────────────────
+    'label.gEngine':  { en: { t: 'Engine' }, fr: { t: 'Moteur', reviewed: false }, 'zh-Hans': { t: '引擎', reviewed: 'mt' } },
+    'label.rEngine':  { en: { t: 'the space, and how long it rings' }, fr: { t: 'l’espace, et combien de temps il sonne', reviewed: false }, 'zh-Hans': { t: '空间，以及它响多久', reviewed: 'mt' } },
+    'label.type':     { en: { t: 'Type' }, fr: { t: 'Type', reviewed: false, sameAsEn: true }, 'zh-Hans': { t: '类型', reviewed: 'mt' } },
+    'label.engSpring':{ en: { t: 'spring' }, fr: { t: 'ressort', reviewed: false }, 'zh-Hans': { t: '弹簧', reviewed: 'mt' } },
+    'label.engPlate': { en: { t: 'plate' }, fr: { t: 'plaque', reviewed: false }, 'zh-Hans': { t: '板', reviewed: 'mt' } },
+    'label.size':     { en: { t: 'Size' }, fr: { t: 'Taille', reviewed: false }, 'zh-Hans': { t: '尺寸', reviewed: 'mt' } },
+    'label.subSize':  { en: { t: 'walls ×{x}' }, fr: { t: 'murs ×{x}', reviewed: false }, 'zh-Hans': { t: '墙距 ×{x}', reviewed: 'mt' } },
+    'label.decay':    { en: { t: 'Decay' }, fr: { t: 'Déclin', reviewed: false }, 'zh-Hans': { t: '衰减', reviewed: 'mt' } },
+    'label.subDecay': { en: { t: 'RT60 {s}' }, fr: { t: 'RT60 {s}', reviewed: false, sameAsEn: true }, 'zh-Hans': { t: 'RT60 {s}', reviewed: 'mt', sameAsEn: true } },
+    'label.noteFdn':  {
+        en: { t: 'one 16-line feedback delay network. Base decay {rt}, pre-delay {pre}, 8 early taps a side. Size moves the walls; the tail length stays with Decay.' },
+        fr: { t: 'un réseau de 16 lignes de retard à réinjection. Déclin de base {rt}, pré-délai {pre}, 8 prises précoces par côté. Taille déplace les murs ; la durée reste à Déclin.', reviewed: false },
+        'zh-Hans': { t: '一个 16 线反馈延迟网络。基础衰减 {rt}，预延迟 {pre}，每侧 8 个早期抽头。尺寸移动墙壁；尾音长度归衰减管。', reviewed: 'mt' },
+    },
+    'label.notePlate': {
+        en: { t: 'Dattorro’s figure-8 tank: dense from the first instant, no early taps, pre-delay {pre}. An octave shimmer inside the loop grows over the tail. Base decay {rt}.' },
+        fr: { t: 'le réservoir en huit de Dattorro : dense dès le premier instant, sans prise précoce, pré-délai {pre}. Un shimmer à l’octave dans la boucle grandit au fil de la queue. Déclin de base {rt}.', reviewed: false },
+        'zh-Hans': { t: 'Dattorro 的 8 字形混响槽：一开始就很密，没有早期抽头，预延迟 {pre}。环路内的八度微光在尾音中逐渐增长。基础衰减 {rt}。', reviewed: 'mt' },
+    },
+    'label.noteSpring': {
+        en: { t: 'three dispersive springs. Each echo arrives lows first, so it chirps upward; little passes above 4.5 kHz. No pre-delay: the first sound out is each spring’s own echo. Base decay {rt}.' },
+        fr: { t: 'trois ressorts dispersifs. Chaque écho arrive graves en tête et monte en sifflant ; peu de choses passent au-dessus de 4,5 kHz. Pas de pré-délai : le premier son est l’écho propre de chaque ressort. Déclin de base {rt}.', reviewed: false },
+        'zh-Hans': { t: '三根色散弹簧。每个回声低频先到，因此向上滑；4.5 kHz 以上几乎不通过。没有预延迟：最先出来的是每根弹簧自己的回声。基础衰减 {rt}。', reviewed: 'mt' },
+    },
 
-    // ── The low-cut ON/OFF toggle ───────────────────────────────────────────
-    //
-    // D-01 ARM 3 SAYS EXEMPT AND IS OVERRULED HERE, WITH REASONS — the same
-    // overrule O-Gain made for LOW/MED/HIGH. #LPFREQ-value carries the class
-    // `knob-value`, which on this page is the readout class, and arm 3 exempts
-    // a readout node regardless of the parameter behind it. Four reasons to
-    // key it anyway:
-    //   1. THE NODE NEVER HOLDS A NUMBER. Every other `.knob-value` on this
-    //      page does — "neutral", "50%", "1.0x" — and this one is always
-    //      exactly one of two words. Keying it cannot make the element enter
-    //      and leave the sweep as the knob turns, which is the failure arm 3
-    //      exists to prevent (O-Marimba's six timbre words).
-    //   2. IT IS A CONTROL, NOT A DISPLAY. It carries `toggle-btn`, an
-    //      `.active` state and a click listener that flips LPON. The
-    //      frequency it belongs to is displayed by the two `hz-label` spans
-    //      (20 / 400), not here.
-    //   3. ARM 1 CANNOT FIRE. LPON is an AudioParameterFloat over
-    //      NormalisableRange(0, 1, 1), not an AudioParameterChoice, so there
-    //      is no host automation-lane option string for a French caption to
-    //      disagree with.
-    //   4. THE EXTRACTOR ALREADY FOUND THEM. `ON` and `OFF` are two of this
-    //      plugin's two js-prose LABEL rows, written from a ternary at
-    //      index.html:991. Leaving them unkeyed needs an I18N_EXEMPT entry
-    //      anyway, and assertion 12 matches an exemption by TEXT — so the
-    //      cheap answer is also the one that hides a missed label.
-    //
-    // GEOMETRY: `.knob-value` is `min-width: 50px` with box-sizing: border-box
-    // and `.toggle-btn` adds 6 px of side padding and a 1 px border, so the
-    // content box is 32.00 px and the border box is floored at 50.00.
-    //     ON   14.45 -> ACT.  21.77   10.23 spare, box stays 50.00
-    //     OFF  18.36 -> DÉS.  21.41   10.59 spare, box stays 50.00
-    // BOTH FRENCH FORMS ARE INERT: the border box does not move, so the knob
-    // stays 52.00 px and nothing re-centres.
-    //
-    // MARCHE / ARRÊT REJECTED ON MEASUREMENT. MARCHE is 42.80, a 60.80 px
-    // border box — 10.80 past the 50 px floor and 8.80 past cliff A — which
-    // would move every child of the LPFREQ knob 4.40 px in French only. ARRÊT
-    // (32.78) fits on its own; a pair where only one member fits is not a
-    // pair. MAR. (25.30) / ARR. (23.06) both fit and are the reviewer's
-    // alternative; ACT. / DÉS. is preferred because activé/désactivé is the
-    // idiom for a filter ENABLE, where marche/arrêt is a power idiom.
-    'ui.on':           { en: { t: 'ON' },        fr: { t: 'ACT.',     reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'bt' }},
-    'ui.off':          { en: { t: 'OFF' },       fr: { t: 'DÉS.',     reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'bt' }},
+    // ── the Tone group ──────────────────────────────────────────────────────
+    'label.gTone':      { en: { t: 'Tone' }, fr: { t: 'Timbre', reviewed: false }, 'zh-Hans': { t: '音色', reviewed: 'mt' } },
+    'label.rTone':      { en: { t: 'colours the tail only' }, fr: { t: 'colore la queue seule', reviewed: false }, 'zh-Hans': { t: '只染色尾音', reviewed: 'mt' } },
+    'label.character':  { en: { t: 'Character' }, fr: { t: 'Caractère', reviewed: false }, 'zh-Hans': { t: '特性', reviewed: 'mt' } },
+    'label.chNeutral':  { en: { t: 'neutral' }, fr: { t: 'neutre', reviewed: false }, 'zh-Hans': { t: '中性', reviewed: 'mt' } },
+    'label.chDark':     { en: { t: 'dark {p}' }, fr: { t: 'sombre {p}', reviewed: false }, 'zh-Hans': { t: '暗 {p}', reviewed: 'mt' } },
+    'label.chBright':   { en: { t: 'bright {p}' }, fr: { t: 'brillant {p}', reviewed: false }, 'zh-Hans': { t: '亮 {p}', reviewed: 'mt' } },
+    'label.subChNone':  { en: { t: 'no filter' }, fr: { t: 'aucun filtre', reviewed: false }, 'zh-Hans': { t: '无滤波', reviewed: 'mt' } },
+    'label.subChWarm':  { en: { t: 'low-pass {f}' }, fr: { t: 'passe-bas {f}', reviewed: false }, 'zh-Hans': { t: '低通 {f}', reviewed: 'mt' } },
+    'label.subChBright':{ en: { t: 'shelf {db}' }, fr: { t: 'plateau {db}', reviewed: false }, 'zh-Hans': { t: '高架 {db}', reviewed: 'mt' } },
+    'aria.lowCutOn':    { en: { t: 'Low Cut in or out' }, fr: { t: 'Coupe-bas activé ou désactivé', reviewed: false }, 'zh-Hans': { t: '低切开或关', reviewed: 'mt' } },
+    // M3: the pill's faces (CSS uppercases them: IN / OUT, ACT. / DÉS., 开 / 关).
+    'label.pillIn':     { en: { t: 'In' }, fr: { t: 'Act.', reviewed: false, termNote: 'the pill engages the filter (v2 ACT.), not a signal input' }, 'zh-Hans': { t: '开', reviewed: 'mt', termNote: 'the pill engages the filter (v2 开), not a signal input' } },
+    'label.pillOut':    { en: { t: 'Out' }, fr: { t: 'Dés.', reviewed: false, termNote: 'the pill bypasses the filter (v2 DÉS.), not a signal output' }, 'zh-Hans': { t: '关', reviewed: 'mt', termNote: 'the pill bypasses the filter (v2 关), not a signal output' } },
+    'label.lowCut':     { en: { t: 'Low Cut' }, fr: { t: 'Coupe-bas', reviewed: false }, 'zh-Hans': { t: '低切', reviewed: 'mt' } },
+    'label.subCutIn':   { en: { t: 'mud out of the tail' }, fr: { t: 'la queue sans boue', reviewed: false }, 'zh-Hans': { t: '去掉尾音浑浊', reviewed: 'mt' } },
+    'label.subCutOut':  { en: { t: 'bypassed' }, fr: { t: 'contourné', reviewed: false }, 'zh-Hans': { t: '已旁通', reviewed: 'mt' } },
+    'label.noteTone':   { en: { t: 'the dry signal is never filtered' }, fr: { t: 'le signal direct n’est jamais filtré', reviewed: false }, 'zh-Hans': { t: '干信号从不被滤波', reviewed: 'mt' } },
 
-    // ── The two preset buttons ──────────────────────────────────────────────
-    //
-    // #preset-save and #preset-load are PINNED in index.html to 41 px and
-    // 44 px — each its own English border box (40.83 / 43.78) rounded up —
-    // NOT the 62 px this batch used on O-Chorus, O-DigiDelay and O-AnalogEQ,
-    // and not O-Bass's 49/46 either. Every one of those numbers belongs to its
-    // own page: here the header has ZERO slack (cliff B), so the pins are
-    // deliberately the smallest values that make each rectangle
-    // language-invariant. Together they add 0.39 px to a row with nothing to
-    // give, and the measured cost of that 0.39 px is nothing at all — the
-    // title's two line boxes do not reflow.
-    //
-    // 10 px, letter-spacing 0.5 px, uppercase, against the pins' 27 / 30 px
-    // content boxes:
-    //     SAVE 26.83 -> ENR  21.50    5.50 spare
-    //     LOAD 29.78 -> LIRE 24.22    5.78 spare
-    //
-    // BOTH SHRINK, which is what makes the pins load-bearing rather than
-    // decorative: unpinned, the two buttons CONTRACT by 10.89 px between them,
-    // .preset-bar contracts with them, and `space-between` slides the whole
-    // preset cluster right while the title's box grows.
-    //
-    // WHY NOT THE FULL WORDS. SAUVER is 43.02 and CHARGER 51.30 — together
-    // +37.71 px on a header with 0.00 px of slack, which would squeeze
-    // h1.title from 163.58 to 125.87 and take "Ouaricon Simple Reverb" to a
-    // THIRD line. SAUV. (30.94), ENREG. (38.84), CHARG. (40.52) and OUVRIR
-    // (41.34) are all past their pins too.
-    //
-    // ENR CARRIES NO PERIOD, AND THAT IS THE POINT. aria.savePreset's French
-    // is "Enregistrer un préréglage"; label-in-name (WCAG 2.5.3) matches
-    // case-insensitively, and "enr" IS a substring of "enregistrer" while
-    // "enr." is NOT. Dropping the period is what keeps a voice-control user's
-    // "ENR" hitting the button. ENR. (24.50) would fit the pin just as well
-    // and would break the rule silently — the same rule O-AnalogEQ found
-    // broken on O-DigiDelay, and which O-Marimba already ships broken twice.
-    // LIRE is a whole word, so aria.loadPreset simply begins with it.
-    'label.save':      { en: { t: 'Save' },      fr: { t: 'Enr',      reviewed: true } , 'zh-Hans': { t: '保存', reviewed: 'bt' }},
-    'label.load':      { en: { t: 'Load' },      fr: { t: 'Ouv',      reviewed: true } , 'zh-Hans': { t: '载入', reviewed: 'bt' }},
+    // ── the Mix and Output groups ───────────────────────────────────────────
+    'label.gMix':       { en: { t: 'Mix' }, fr: { t: 'Mix', reviewed: false, sameAsEn: true }, 'zh-Hans': { t: '混合', reviewed: 'mt' } },
+    'label.rMix':       { en: { t: 'two gains, not a crossfade' }, fr: { t: 'deux gains, pas un fondu', reviewed: false }, 'zh-Hans': { t: '两个增益，非交叉淡化', reviewed: 'mt' } },
+    'label.wet':        { en: { t: 'Wet' }, fr: { t: 'Traité', reviewed: false }, 'zh-Hans': { t: '湿', reviewed: 'mt' } },
+    'label.subWet':     { en: { t: 'reverb {db}' }, fr: { t: 'réverb {db}', reviewed: false }, 'zh-Hans': { t: '混响 {db}', reviewed: 'mt' } },
+    'label.subWetOff':  { en: { t: 'no reverb' }, fr: { t: 'pas de réverb', reviewed: false }, 'zh-Hans': { t: '无混响', reviewed: 'mt' } },
+    'label.dry':        { en: { t: 'Dry' }, fr: { t: 'Direct', reviewed: false }, 'zh-Hans': { t: '干', reviewed: 'mt' } },
+    'label.subDry':     { en: { t: 'source {db}' }, fr: { t: 'source {db}', reviewed: false, sameAsEn: true }, 'zh-Hans': { t: '原声 {db}', reviewed: 'mt' } },
+    'label.subDryOff':  { en: { t: 'send: tail only' }, fr: { t: 'départ : queue seule', reviewed: false }, 'zh-Hans': { t: '发送：只有尾音', reviewed: 'mt' } },
+    'label.noteMix':    { en: { t: 'insert: Dry 100 · send: Dry 0' }, fr: { t: 'insert : Direct 100 · départ : 0', reviewed: false }, 'zh-Hans': { t: '插入：干 100 · 发送：干 0', reviewed: 'mt' } },
+    'label.gOutput':    { en: { t: 'Output' }, fr: { t: 'Sortie', reviewed: false }, 'zh-Hans': { t: '输出', reviewed: 'mt' } },
+    'label.peak':       { en: { t: 'Peak · dry + wet' }, fr: { t: 'Crête · dir. + traité', reviewed: false }, 'zh-Hans': { t: '峰值 · 干 + 湿', reviewed: 'mt' } },
 
-    // ── The settings popover (v1.6.0) ───────────────────────────────────────
-    //
-    // LANGUAGE 63.55 -> LANGUE 47.11, MEASURED IN THIS PAGE'S OWN
-    // .settings-label rather than inherited: O-Bass reports 55.31 -> 38.87 for
-    // the same two words at the same declared font-size, letter-spacing and
-    // text-transform, and the 8.24 px difference is the font stack resolving
-    // differently. The DELTA is identical (-16.44) and it is the delta that
-    // matters here, but copying a sibling's absolute number would have been a
-    // wrong number that reads exactly like a right one.
-    //
-    // It SHRINKS, which is why .settings-popover carries a hard width: an
-    // auto-width panel would contract in French and assertion 7 would report
-    // the panel, its row and the select as moved.
-    'label.language':  { en: { t: 'Language' },  fr: { t: 'Langue',   reviewed: true } , 'zh-Hans': { t: '语言', reviewed: 'bt' }},
+    // ── lesson rows and footer ──────────────────────────────────────────────
+    'label.rowSpaces':  { en: { t: 'Spaces' }, fr: { t: 'Espaces', reviewed: false }, 'zh-Hans': { t: '空间', reviewed: 'mt' } },
+    'label.rowIdeas':   { en: { t: 'Ideas' }, fr: { t: 'Notions', reviewed: false }, 'zh-Hans': { t: '概念', reviewed: 'mt' } },
+    'label.tourHint':   { en: { t: 'hover anything for help' }, fr: { t: 'survolez pour l’aide', reviewed: false }, 'zh-Hans': { t: '悬停任意处查看帮助', reviewed: 'mt' } },
+    'label.tourHint2':  { en: { t: 'click a lesson, watch the wells' }, fr: { t: 'cliquez, puis regardez', reviewed: false }, 'zh-Hans': { t: '点一课，看上方图', reviewed: 'mt' } },
+    'preset.init':      { en: { t: 'Init' }, fr: { t: 'Initial', reviewed: false }, 'zh-Hans': { t: '初始', reviewed: 'mt' } },
+    'label.lesson.sizeVsDecay': { en: { t: 'Size ≠ Decay' }, fr: { t: 'Taille ≠ Déclin', reviewed: false }, 'zh-Hans': { t: '尺寸 ≠ 衰减', reviewed: 'mt' } },
+    'label.lesson.character':   { en: { t: 'Character: dark ↔ bright' }, fr: { t: 'Caractère : sombre ↔ brillant', reviewed: false }, 'zh-Hans': { t: '特性：暗 ↔ 亮', reviewed: 'mt' } },
+    'label.lesson.lowCut':      { en: { t: 'Low Cut' }, fr: { t: 'Coupe-bas', reviewed: false }, 'zh-Hans': { t: '低切', reviewed: 'mt' } },
+    'label.lesson.insertSend':  { en: { t: 'Insert vs Send' }, fr: { t: 'Insert ou départ', reviewed: false }, 'zh-Hans': { t: '插入与发送', reviewed: 'mt' } },
+    'label.tourDefault': { en: { t: 'input → early reflections → engine → tone → wet + dry → output' }, fr: { t: 'entrée → réflexions précoces → moteur → timbre → traité + direct → sortie', reviewed: false }, 'zh-Hans': { t: '输入 → 早期反射 → 引擎 → 音色 → 湿 + 干 → 输出', reviewed: 'mt' } },
+    'label.tourCaption.init':        { en: { t: 'Room at its defaults: Wet 25, Dry 100, Character neutral, Low Cut out.' }, fr: { t: 'Room par défaut : Traité 25, Direct 100, Caractère neutre, coupe-bas désactivé.', reviewed: false }, 'zh-Hans': { t: 'Room 默认值：湿 25，干 100，特性中性，低切关闭。', reviewed: 'mt' } },
+    'label.tourCaption.booth':       { en: { t: 'Booth: 0.4 s, every tap inside 7 ms. Close and dry, a voice-over room.' }, fr: { t: 'Booth : 0,4 s, toutes les prises en 7 ms. Proche et sec, une cabine de voix off.', reviewed: false }, 'zh-Hans': { t: 'Booth：0.4 秒，所有抽头都在 7 ms 内。贴近而干，像配音间。', reviewed: 'mt' } },
+    'label.tourCaption.room':        { en: { t: 'Room: 1.1 s and 15 ms of pre-delay; the taps spread over 23 ms.' }, fr: { t: 'Room : 1,1 s et 15 ms de pré-délai ; les prises s’étalent sur 23 ms.', reviewed: false }, 'zh-Hans': { t: 'Room：1.1 秒，预延迟 15 ms；抽头分布在 23 ms 内。', reviewed: 'mt' } },
+    'label.tourCaption.hall':        { en: { t: 'Hall: 3 s and 50 ms of pre-delay. The gap tells your ear the walls are far.' }, fr: { t: 'Hall : 3 s et 50 ms de pré-délai. Ce silence dit à l’oreille que les murs sont loin.', reviewed: false }, 'zh-Hans': { t: 'Hall：3 秒，预延迟 50 ms。这段空隙告诉耳朵墙很远。', reviewed: 'mt' } },
+    'label.tourCaption.spring':      { en: { t: 'Spring: no taps; each spring’s echo sweeps low to high, little above 4.5 kHz.' }, fr: { t: 'Spring : aucune prise ; l’écho de chaque ressort glisse du grave à l’aigu, peu au-dessus de 4,5 kHz.', reviewed: false }, 'zh-Hans': { t: 'Spring：没有抽头；每根弹簧的回声从低滑到高，4.5 kHz 以上很少。', reviewed: 'mt' } },
+    'label.tourCaption.plate':       { en: { t: 'Plate: dense at once, no taps; an octave shimmer grows in the tail.' }, fr: { t: 'Plate : dense d’emblée, sans prise ; un shimmer à l’octave grandit dans la queue.', reviewed: false }, 'zh-Hans': { t: 'Plate：一开始就密，没有抽头；八度微光在尾音中增长。', reviewed: 'mt' } },
+    'label.tourCaption.ambient':     { en: { t: 'Ambient: 7 s. Each tail outlasts the next note; watch them pile up.' }, fr: { t: 'Ambient : 7 s. Chaque queue survit à la note suivante ; regardez-les s’empiler.', reviewed: false }, 'zh-Hans': { t: 'Ambient：7 秒。每条尾音都比下一个音更长；看它们叠起来。', reviewed: 'mt' } },
+    'label.tourCaption.sizeVsDecay': { en: { t: 'Smallest room, double decay: the taps close up, the slope stays long. Size ≠ Decay.' }, fr: { t: 'La plus petite pièce, déclin doublé : les prises se serrent, la pente reste longue. Taille ≠ Déclin.', reviewed: false }, 'zh-Hans': { t: '最小的房间，衰减加倍：抽头靠拢，斜率仍然很长。尺寸 ≠ 衰减。', reviewed: 'mt' } },
+    'label.tourCaption.character':   { en: { t: 'Character to the left: the whole tail tilts dark; its length and the dry stay as they were.' }, fr: { t: 'Caractère vers la gauche : toute la queue penche vers le sombre ; sa durée et le direct ne changent pas.', reviewed: false }, 'zh-Hans': { t: '特性向左：整条尾音向暗倾斜；它的长度和干信号都不变。', reviewed: 'mt' } },
+    'label.tourCaption.lowCut':      { en: { t: 'Low Cut at 250 Hz: the tail loses its mud, the dry keeps its bass. Set it Out to compare.' }, fr: { t: 'Coupe-bas à 250 Hz : la queue perd sa boue, le direct garde ses basses. Désactivez-le pour comparer.', reviewed: false }, 'zh-Hans': { t: '低切 250 Hz：尾音去掉浑浊，干信号保留低音。切到“关”对比一下。', reviewed: 'mt' } },
+    'label.tourCaption.insertSend':  { en: { t: 'Wet 100, Dry 0: the setting for a send bus. On an insert, keep Dry at 100.' }, fr: { t: 'Traité 100, Direct 0 : le réglage d’un bus de départ. En insert, gardez Direct à 100.', reviewed: false }, 'zh-Hans': { t: '湿 100，干 0：发送总线的设定。插入时，干保持 100。', reviewed: 'mt' } },
+    'label.footerRight': { en: { t: 'FDN · Dattorro plate · dispersive spring' }, fr: { t: 'FDN · plaque Dattorro · ressort dispersif', reviewed: false }, 'zh-Hans': { t: 'FDN · Dattorro 板 · 色散弹簧', reviewed: 'mt' } },
 
-    // v1.8.0. All four renderings below are settled glossary ROOTS, copied
-    // rather than authored: scripts/i18n-fr-glossary.js carries them as the
-    // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
-    // the same review mark this file's other roots carry, and for the same
-    // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'bt' }},
-
-    // ── Image alternative text ──────────────────────────────────────────────
-    //
-    // Two decorative <img> layers, keyed through data-i18n-alt rather than
-    // emptied: check-i18n assertion 11 requires every alt carrying PROSE to be
-    // keyed or exempt, and these two carry prose. Emptying them to alt="" would
-    // also satisfy the assertion and is arguably the better a11y answer for a
-    // pure decoration — but it deletes an authored string for a reason that
-    // has nothing to do with localization. The keys and the French are
-    // byte-identical to O-Bass's and O-IntonationPad's; the FILES differ
-    // (img/paper.jpg + img/flora.png here, not botanical.png) but the authored
-    // English alt text is the same two words.
-    'alt.background':  { en: { t: 'Background' }, fr: { t: 'Arrière-plan',    reviewed: true } , 'zh-Hans': { t: '背景', reviewed: 'bt' }},
-    'alt.botanical':   { en: { t: 'Botanical' },  fr: { t: 'Motif botanique', reviewed: true } , 'zh-Hans': { t: '植物插画', termNote: 'the glossary root for `botanical` is 植物律, and 律 is temperament or law. This is the alt text of a DECORATIVE PLANT ILLUSTRATION, and the root FAILED THE REVERSE READ TWICE on O-Bass, from two different models in independent sessions: "Phytometric" and "Plant Law". Neither is the English, so this is an evidenced defect rather than a terminology preference. 植物插画 is the rendering wave 4a settled on the identical string; this row copies it rather than re-deriving one. The root itself is reported to the glossary owners rather than edited here: changing a settled root puts other plugins out of Z5 conformance.', reviewed: 'bt' }},
-
-    // ── Accessible names ────────────────────────────────────────────────────
-    //
-    // Resolved through the same sweep via data-i18n-aria, so a screen reader
-    // hears the language the page is showing.
-    //
-    // THE FOUR PRESET-BAR NAMES ARE THE DELETED title= TEXT, MOVED, NOT
-    // AUTHORED. v1.5.7 carried title="Previous preset", "Next preset", "Save
-    // preset" and "Load preset"; contract §4 deletes the native attribute —
-    // on an element that also has a data-tip it renders a second,
-    // untranslated OS tooltip, and on an element that has none it is still an
-    // untranslated string — and moves its existing English into the accessible
-    // name. Every English string below is byte-identical to what v1.5.7
-    // shipped. THIS PLUGIN'S WORDING IS ITS OWN: "Save preset" / "Load
-    // preset", NOT O-Bass's "Save current settings" / "Load preset from file"
-    // and not the "Click to browse presets" four siblings carry. Nothing was
-    // harmonised.
-    //
-    // #preset-display CARRIES NO ACCESSIBLE NAME, and that is deliberate
-    // restraint rather than an omission: v1.5.7 gave it no title=, so there is
-    // no existing English to move, and inventing one is Stage M's job. Four
-    // titles in, four aria names out.
-    //
-    // LABEL IN NAME. #preset-save and #preset-load carry BOTH a visible
-    // caption and an aria-label, and an aria-label REPLACES the accessible
-    // name rather than extending it. Each of those two names therefore
-    // CONTAINS its own visible caption — "Save" in "Save preset", "ENR" in
-    // "Enregistrer un préréglage", "Load" in "Load preset", "LIRE" in "Lire un
-    // préréglage" — so a voice-control user saying the caption still hits the
-    // button (WCAG 2.5.3, which matches case-insensitively).
-    'aria.prevPreset': { en: { t: 'Previous preset' },
-                         fr: { t: 'Préréglage précédent', reviewed: true } , 'zh-Hans': { t: '上一个预设', reviewed: 'bt' }},
-    'aria.nextPreset': { en: { t: 'Next preset' },
-                         fr: { t: 'Préréglage suivant',   reviewed: true } , 'zh-Hans': { t: '下一个预设', reviewed: 'bt' }},
-    'aria.savePreset': { en: { t: 'Save preset' },
-                         fr: { t: 'Enregistrer le préréglage', reviewed: true } , 'zh-Hans': { t: '保存预设', reviewed: 'bt' }},
-    'aria.loadPreset': { en: { t: 'Load preset' },
-                         fr: { t: 'Ouvrir un préréglage',      reviewed: true } , 'zh-Hans': { t: '载入预设', reviewed: 'bt' }},
-
-    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } , 'zh-Hans': { t: '设置', reviewed: 'bt' }},
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } , 'zh-Hans': { t: '界面语言', reviewed: 'bt' }},
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'bt' }},
+    // ── preset bar ──────────────────────────────────────────────────────────
+    'label.presetSave':       { en: { t: 'Save' }, fr: { t: 'Enreg.', reviewed: false }, 'zh-Hans': { t: '保存', reviewed: 'mt' } },
+    'label.presetDelete':     { en: { t: 'Delete' }, fr: { t: 'Suppr.', reviewed: false }, 'zh-Hans': { t: '删除', reviewed: 'mt' } },
+    'label.groupLessons':     { en: { t: 'Lessons' }, fr: { t: 'Leçons', reviewed: false }, 'zh-Hans': { t: '课程', reviewed: 'mt' } },
+    'label.groupUser':        { en: { t: 'Your presets' }, fr: { t: 'Vos préréglages', reviewed: false }, 'zh-Hans': { t: '你的预设', reviewed: 'mt' } },
+    'preset.saveTitle':       { en: { t: 'Save preset' }, fr: { t: 'Enregistrer le préréglage', reviewed: false }, 'zh-Hans': { t: '保存预设', reviewed: 'mt' } },
+    'preset.namePlaceholder': { en: { t: 'Preset name' }, fr: { t: 'Nom du préréglage', reviewed: false }, 'zh-Hans': { t: '预设名称', reviewed: 'mt' } },
+    'preset.ok':              { en: { t: 'OK' }, fr: { t: 'OK', reviewed: false, sameAsEn: true }, 'zh-Hans': { t: '确定', reviewed: 'mt' } },
+    'preset.cancel':          { en: { t: 'Cancel' }, fr: { t: 'Annuler', reviewed: false }, 'zh-Hans': { t: '取消', reviewed: 'mt' } },
+    'preset.errEmpty':        { en: { t: 'Type a name first.' }, fr: { t: 'Saisissez d’abord un nom.', reviewed: false }, 'zh-Hans': { t: '请先输入名称。', reviewed: 'mt' } },
+    'preset.errFactoryName':  { en: { t: 'A lesson or factory preset has that name — choose another.' }, fr: { t: 'Nom d’une leçon ou d’un préréglage d’usine — choisissez-en un autre.', reviewed: false }, 'zh-Hans': { t: '该名称属于课程或出厂预设——请换一个。', reviewed: 'mt' } },
+    'preset.errSave':         { en: { t: 'Could not save the preset.' }, fr: { t: 'Impossible d’enregistrer le préréglage.', reviewed: false }, 'zh-Hans': { t: '无法保存预设。', reviewed: 'mt' } },
+    'preset.confirmReplace':  { en: { t: 'Replace “{name}”?' }, fr: { t: 'Remplacer « {name} » ?', reviewed: false }, 'zh-Hans': { t: '替换“{name}”？', reviewed: 'mt' } },
+    'preset.confirmDelete':   { en: { t: 'Delete preset “{name}”?' }, fr: { t: 'Supprimer le préréglage « {name} » ?', reviewed: false }, 'zh-Hans': { t: '删除预设“{name}”？', reviewed: 'mt' } },
+    'aria.presetPrev':        { en: { t: 'Previous preset' }, fr: { t: 'Préréglage précédent', reviewed: false }, 'zh-Hans': { t: '上一个预设', reviewed: 'mt' } },
+    'aria.presetName':        { en: { t: 'Browse presets' }, fr: { t: 'Parcourir les préréglages', reviewed: false }, 'zh-Hans': { t: '浏览预设', reviewed: 'mt' } },
+    'aria.presetNext':        { en: { t: 'Next preset' }, fr: { t: 'Préréglage suivant', reviewed: false }, 'zh-Hans': { t: '下一个预设', reviewed: 'mt' } },
+    'aria.presetSave':        { en: { t: 'Save as a user preset' }, fr: { t: 'Enregistrer comme préréglage utilisateur', reviewed: false }, 'zh-Hans': { t: '保存为用户预设', reviewed: 'mt' } },
+    'aria.presetDelete':      { en: { t: 'Delete the current user preset' }, fr: { t: 'Supprimer le préréglage utilisateur actuel', reviewed: false }, 'zh-Hans': { t: '删除当前用户预设', reviewed: 'mt' } },
+    'aria.presetList':        { en: { t: 'Presets' }, fr: { t: 'Préréglages', reviewed: false }, 'zh-Hans': { t: '预设', reviewed: 'mt' } },
 });
 
-// ============================================================================
-// I18N_EXEMPT — reasoned exclusions, never silence
-//
-// Every visible string the coverage scan finds must be a [data-i18n] element, a
-// setLabel() call, or an entry HERE WITH A REASON. A bare skip list would let a
-// missed label hide as a deliberate one.
-//
-// AN ENTRY IS [text, reason] OR [text, reason, scope]. An exemption is matched
-// by TEXT, so an unscoped one silences EVERY node carrying that string. A scope
-// is REQUIRED exactly when a string is exempt AND keyed on the same page, which
-// is the one state in which the gate cannot tell a deliberate skip from a
-// forgotten label (check-i18n assertion 14).
-//
-// NONE of the twelve entries below is in that state. Checked rather than
-// assumed: the keyed texts on this page are Character, Low Cut, Wet, Dry,
-// Decay, Size, Save, Load, OFF and Language, and no entry below collides with
-// any of them. All twelve are therefore correctly UNSCOPED and assertion 14
-// passes without one. The closest calls are "Room", which is also a preset
-// CATEGORY header the dropdown writes at runtime from a preset name — exempt
-// under D-02 there too, and invisible to a static scan either way — and
-// "Default", which is the same string in both roles.
-//
-// THE PAGE'S FIVE REMAINING READOUT NODES ARE NOT ALL LISTED HERE, and that is
-// correct rather than an omission. #WET-value, #DRY-value, #DECAY-value and
-// #SIZE-value are written from composed templates — `${(norm*100).toFixed(0)}%`
-// and `${(...).toFixed(1)}x` — so extractJsRows produces no LABEL row for them
-// and an entry would be inert. They are exempt three times over regardless: a
-// number (D-01 arm 2), a unit (D-03), written into a readout node (arm 3).
-// #CHARACTER-value IS listed, because its authored English is the bare word
-// "neutral" and a static text node with no digits in it does survive the
-// extractor's filter.
-// ============================================================================
-
+// [text, reason] or [text, reason, scope]. Every entry carries a reason
+// (check-i18n [14]); a scope names the element(s) the exemption is honest for.
 export const I18N_EXEMPT = [
-    // ── The product display name ────────────────────────────────────────────
-    ['Ouaricon Simple Reverb',
-     'the product display name in h1.title, and the same string in the document title element '
-     + '— a product name is never translated, and this is the brand-plus-product form of the '
-     + 'plugin\'s registered PRODUCT_NAME "O-simpleReverb" in CMakeLists.txt'],
+    // The h1 splits the product name across two text nodes so the second half
+    // can carry the green italic .title-accent. A product name is never translated.
+    ['O – simple', 'the product name, first half of the split wordmark in the page heading — a product name is never translated', '.title'],
+    ['Reverb',     'the product name, second half of the split wordmark (.title-accent) — a product name is never translated', '.title-accent'],
+    ['Ouaricon Audio · O-simpleReverb', 'the colophon: company + product name — never translated', '.footer'],
 
-    // ── D-02: the preset name IS the filename ───────────────────────────────
-    ['Default',
-     'the PRESET NAME shown in #preset-name, not a caption — D-02. The name is the JSON '
-     + 'filename on disk (OuariconPresetManager sanitizes it into getUserPresetsDirectory()), '
-     + 'and it is written into this node at runtime from getCurrentPreset(): localizing it '
-     + 'would rename presets in one language and orphan the files. It is also the dropdown\'s '
-     + 'fallback CATEGORY header for any preset whose name has no " - " prefix'],
-
-    // ── D-01 arm 1: the six TYPE options are AudioParameterChoice strings ───
-    //
-    // PluginProcessor.cpp:157 declares
-    //   juce::StringArray { "Booth", "Room", "Hall", "Spring", "Plate", "Ambient" }
-    // and the six <option> texts in index.html are BYTE-IDENTICAL to it.
-    // Byte-identity is the test: the page and the host automation lane must
-    // agree about what the sixth reverb algorithm is called, and a French
-    // <option> would leave a DAW writing "Ambient" into a lane the page reads
-    // as "Ambiance". This is the arm-1 case in its purest form — a
-    // WebComboBoxRelay drives #TYPE by INDEX, so the visible strings are the
-    // only place the two representations can diverge.
-    //
-    // Unscoped, deliberately: none of the six is keyed anywhere on this page,
-    // so no scope is required and demanding one would be noise. "Room" is the
-    // only one that recurs at all — as a runtime preset-category header, which
-    // is exempt in its own right under D-02 and which a static scan never sees.
-    ['Booth',   'an AudioParameterChoice TYPE option VERBATIM (PluginProcessor.cpp:157) — D-01 arm 1'],
-    ['Room',    'an AudioParameterChoice TYPE option VERBATIM (PluginProcessor.cpp:157) — D-01 arm 1'],
-    ['Hall',    'an AudioParameterChoice TYPE option VERBATIM (PluginProcessor.cpp:157) — D-01 arm 1'],
-    ['Spring',  'an AudioParameterChoice TYPE option VERBATIM (PluginProcessor.cpp:157) — D-01 arm 1'],
-    ['Plate',   'an AudioParameterChoice TYPE option VERBATIM (PluginProcessor.cpp:157) — D-01 arm 1'],
-    ['Ambient', 'an AudioParameterChoice TYPE option VERBATIM (PluginProcessor.cpp:157) — D-01 arm 1'],
-
-    // ── D-01 arm 3: a readout node is never a [data-i18n] element ───────────
-    ['neutral',
-     'the authored English of #CHARACTER-value, a READOUT node — D-01 arm 3. The formatter at '
-     + 'index.html:806 writes `warm 42%`, `bright 30%` or the bare word `neutral` into it '
-     + 'depending on where CHARACTER sits relative to a +/-0.5 dead zone, so the node holds a '
-     + 'NUMBER in two of its three states. Keying it would make the element enter and leave '
-     + 'the language sweep as the knob turns — the exact failure arm 3 exists to prevent. '
-     + 'Contrast #LPFREQ-value, which carries the same class, never holds a number, and IS '
-     + 'keyed with the overrule written down in LABELS above'],
-
-    // ── The footer wordmark ─────────────────────────────────────────────────
-    //
-    // v1.7.2 (Stage O item 47): SCOPED to .footer, and the version number is
-    // no longer part of the exempted text. Through v1.7.1 this entry matched
-    // the wordmark-plus-v1.5.5 literal by TEXT — an exemption pinned to a
-    // value that changes with every release, and one that had been four
-    // versions stale. The version now lives in an EMPTY span, #versionLabel,
-    // filled at runtime from getPluginVersion() (JucePlugin_VersionString),
-    // the O-DigiDelay / O-Tremolo shape. An empty span is not a text node, so
-    // it needs no exemption; what it holds at runtime is a readout (D-03).
-    ['Ouaricon Audio',
-     'the company name in .footer — a company name is never translated. The span beside it '
-     + '(#versionLabel) is filled at runtime from getPluginVersion() and holds a version number, '
-     + 'which is a readout (D-03)',
-     '.footer'],
-
-    // ── Endonyms ────────────────────────────────────────────────────────────
+    // Endonyms in the language selector: a language name is written in its own language.
     ['English',  'endonym — a language name is never translated'],
     ['Français', 'endonym — a language name is never translated'],
+    ['简体中文', 'endonym — a language name is never translated'],
+
+    // The TYPE AudioParameterChoice strings are the host automation contract and
+    // stay English (M2): the segmented row, the six space lessons, the type note.
+    ['Booth',   'AudioParameterChoice entry (TYPE) — the host automation name, English in every language', '#seg-TYPE, .tour-row, #typeNoteName'],
+    ['Room',    'AudioParameterChoice entry (TYPE) — the host automation name, English in every language', '#seg-TYPE, .tour-row, #typeNoteName'],
+    ['Hall',    'AudioParameterChoice entry (TYPE) — the host automation name, English in every language', '#seg-TYPE, .tour-row, #typeNoteName'],
+    ['Spring',  'AudioParameterChoice entry (TYPE) — the host automation name, English in every language', '#seg-TYPE, .tour-row, #typeNoteName'],
+    ['Plate',   'AudioParameterChoice entry (TYPE) — the host automation name, English in every language', '#seg-TYPE, .tour-row, #typeNoteName'],
+    ['Ambient', 'AudioParameterChoice entry (TYPE) — the host automation name, English in every language', '#seg-TYPE, .tour-row, #typeNoteName'],
+
+    // Technical abbreviations that read the same in every language.
+    ['FDN',  'feedback delay network — the engine’s technical name, the same in every language', '#engTags'],
+    ['RT60', 'the standard decay-time measure (time to fall 60 dB) — the same in every language', '.w-big'],
 ];
 
-// ============================================================================
-// TIP_BINDINGS — [selector, key, wrapper]. TEN, one per I18N entry.
-//
-// applyI18n() runs document.querySelector(selector), walks closest(wrapper)
-// when a wrapper is given, and writes data-tip-title + data-tip onto whatever
-// that lands on. The renderer in index.html then reads those attributes off
-// the nearest ancestor-or-self carrying data-tip.
-//
-// ── THE WRAPPER IS THE GRID CELL, NOT THE 3 px SVG STROKE ───────────────────
-//
-// T17 says "bind to the ids the UI already uses". On this page the ids exist —
-// six #X-knob divs, #TYPE, #gear-btn, #lang-select — so the SELECTORS are all
-// ids here, which is the first plugin in this stage where that claim holds.
-// But an id is not automatically the right hover TARGET. A .knob is
-// `column; align-items: center` and is only max(labelWidth, 52) px wide; its
-// .knob-control parent is the `1fr` grid cell, 97.50 px on the top row and
-// 124.66 px on the bottom, and the gaps between cells belong to nobody. So the
-// six knobs bind through closest('.knob-control') and the user aims at the
-// whole column, caption and readout included, not at the dial alone.
-//
-// ── ONE ANCHOR IS NESTED INSIDE ANOTHER, DELIBERATELY ───────────────────────
-//
-// #LPFREQ-value is the LPON control (a click on it flips the parameter) AND it
-// sits inside #LPFREQ-knob, inside the .knob-control that carries tip.lowCut.
-// So the low-cut cell holds two anchors, one inside the other:
-//
-//   .knob-control  (from #LPFREQ-knob)  -> tip.lowCut
-//     #LPFREQ-value                     -> tip.lowCutOn
-//
-// This resolves correctly and does NOT need ordering luck, for two separate
-// reasons. The two bindings write to two DIFFERENT nodes, so neither can
-// overwrite the other's attributes whichever order the loop runs in. And the
-// renderer resolves an anchor with closest('[data-tip]'), which is
-// ancestor-OR-SELF and stops at the innermost match — so the pointer gets
-// tip.lowCutOn over the ON/OFF word and tip.lowCut everywhere else in the
-// cell. Moving between the two fires a real pointerout with a relatedTarget
-// that is NOT inside the anchor being left, so the surface is refilled rather
-// than left stale.
-//
-// Giving #LPFREQ-value the '.knob-control' wrapper instead would have
-// collapsed both bindings onto the SAME node, and the second write would have
-// silently won — one parameter's tip lost with every gate still green.
-//
-// ── ORDER IS THE PAGE'S READING ORDER ───────────────────────────────────────
-//
-// Type, then the top knob row left to right, then the bottom row, then the two
-// chrome controls. Nothing depends on it; it is here so a reader can check the
-// list against the page without cross-referencing.
-// ============================================================================
-
+// One row per tooltip anchor: [selector, key]. A knob's row names its whole
+// .knob-cell so the label and the readout under the knob share its tip.
 export const TIP_BINDINGS = [
-    ['#TYPE',           'tip.type'],
+    ['#gear-btn',    'settings'],
+    ['#lang-select', 'lang-select'],
+    ['#tips-toggle', 'tips-toggle'],
+    ['#loadFileBtn', 'loadFile'],
 
-    ['#CHARACTER-knob', 'tip.character', '.knob-control'],
-    ['#LPFREQ-knob',    'tip.lowCut',    '.knob-control'],
-    ['#LPFREQ-value',   'tip.lowCutOn'],
-    ['#WET-knob',       'tip.wet',       '.knob-control'],
-    ['#DRY-knob',       'tip.dry',       '.knob-control'],
+    ['#chipTail',    'chipTail'],
 
-    ['#DECAY-knob',     'tip.decay',     '.knob-control'],
-    ['#SIZE-knob',      'tip.size',      '.knob-control'],
+    ['#presetPrev',   'presetPrev'],
+    ['#presetName',   'presetName'],
+    ['#presetNext',   'presetNext'],
+    ['#presetSave',   'presetSave'],
+    ['#presetDelete', 'presetDelete'],
 
-    ['#gear-btn',       'tip.gearBtn'],
-    ['#lang-select',    'tip.langSelect'],
-    ['#tips-toggle',    'tip.tipsToggle'],
+    ['#decayWrap', 'decayWell'],
+    ['#erWrap',    'erWell'],
+    ['#toneWrap',  'toneWell'],
+
+    ['#st-input',  'st-input'],
+    ['#st-early',  'st-early'],
+    ['#st-engine', 'st-engine'],
+    ['#st-tone',   'st-tone'],
+    ['#st-mix',    'st-mix'],
+    ['#st-output', 'st-output'],
+
+    ['[data-param="TYPE"]',      'type'],
+    ['[data-param="SIZE"]',      'size'],
+    ['[data-param="DECAY"]',     'decay'],
+    ['[data-param="CHARACTER"]', 'character'],
+    ['[data-param="LPFREQ"]',    'lowCut'],
+    ['#pill-LPON',               'lpon'],
+    ['[data-param="WET"]',       'wet'],
+    ['[data-param="DRY"]',       'dry'],
+    ['#outMeterWrap',            'outMeter'],
+
+    ['#lesson-booth',       'lesson.booth'],
+    ['#lesson-room',        'lesson.room'],
+    ['#lesson-hall',        'lesson.hall'],
+    ['#lesson-spring',      'lesson.spring'],
+    ['#lesson-plate',       'lesson.plate'],
+    ['#lesson-ambient',     'lesson.ambient'],
+    ['#lesson-init',        'lesson.init'],
+    ['#lesson-sizeVsDecay', 'lesson.sizeVsDecay'],
+    ['#lesson-character',   'lesson.character'],
+    ['#lesson-lowCut',      'lesson.lowCut'],
+    ['#lesson-insertSend',  'lesson.insertSend'],
 ];
 
-// The tooltip lookup. Returns {t, b} — never null, never a bare key without a
-// console.warn saying so, because a silently-missing tip renders as an empty
-// surface that looks like a positioning bug rather than a missing entry.
-//
-// LIVE as of v1.7.0: applyI18n() calls it once per TIP_BINDINGS row, ten times
-// per language change. It was exported verbatim through v1.6.0 while the list
-// was empty so the canon block stayed byte-identical to the other forty-two
-// copies; nothing in its shape had to change to turn it on.
+// Copied unchanged from O-simpleAmbisonics's committed i18n.js (the canon is one shape).
 export function tr(key, lang, vars) {
     const entry = I18N[key];
     if (!entry) { console.warn(`i18n: missing key ${key}`); return { t: key, b: '' }; }
     const s = entry[lang] || entry.en;
 
     // A var VALUE that is itself an I18N key resolves to that key's localized
-    // title; anything else is used literally.
+    // title; anything else is used literally. O-ReverseDelay needs neither arm
+    // today, but the resolving arm is what lets a plugin compose a localized
+    // name into a tip without pinning TIP_BINDINGS — which is static data
+    // evaluated once — to the load-time language. The canon is one shape across
+    // all 43 plugins; this function is not trimmed per plugin.
     const resolve = (v) => {
         const nested = I18N[v];
         return nested ? String((nested[lang] || nested.en).t) : String(v);
     };
 
-    const fill = (str) => (vars
-        ? String(str).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
-        : String(str));
+    const sub = (v) => vars
+        ? String(v).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(v);
 
-    return { t: fill(s.t), b: fill(s.b) };
+    return { t: sub(s.t), b: sub(s.b) };
 }
