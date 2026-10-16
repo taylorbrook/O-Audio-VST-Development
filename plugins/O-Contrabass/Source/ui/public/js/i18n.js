@@ -534,16 +534,7 @@ export const I18N = Object.freeze({
       'zh-Hans': { t: 'VU 表', b: '限制器之后的输出电平，VU 弹道特性。0 VU = −18 dBFS RMS。', reviewed: 'bt' }
   },
 
-    // ── VII · Microtonal ────────────────────────────────────────────────────
-    'REFERENCE_PITCH': {
-        en: { t: 'Reference pitch',
-              b: 'Concert pitch for A4, 220–880 Hz. Everything tunes around it.' },
-        fr: { t: 'Diapason',
-              b: "Hauteur de référence du A4, 220–880 Hz. Tout s’accorde autour d’elle.",
-              reviewed: true },
-    
-      'zh-Hans': { t: '基准音高', b: 'A4 的标准音高，220–880 Hz。一切都围绕它调音。', reviewed: 'bt' }
-  },
+    // ── Tuning tab header bar (v1.12.0; was VII · Microtonal on Main) ────────
     'tuning-system': {
         en: { t: 'Tuning system',
               b: 'Where the tuning comes from — a loaded Scala scale, an MTS-ESP master, or plain 12-TET.' },
@@ -552,15 +543,6 @@ export const I18N = Object.freeze({
               reviewed: true },
     
       'zh-Hans': { t: '调音体系', b: '调音的来源 — 载入的 Scala 音阶、MTS-ESP 主控，或普通的 12-TET。', reviewed: 'bt' }
-  },
-    'scl-load-btn': {
-        en: { t: 'Load .scl',
-              b: 'Load a Scala tuning file (.scl) and switch the tuning system to it.' },
-        fr: { t: 'Charger .scl',
-              b: "Charger un fichier d’accord Scala (.scl) et y basculer le système d’accord.",
-              reviewed: true },
-    
-      'zh-Hans': { t: '载入 .scl', b: '载入一个 Scala 调音文件（.scl），并将调音体系切换为它。', reviewed: 'bt' }
   },
     'note-expression-toggle': {
         en: { t: 'Note Expression',
@@ -647,7 +629,6 @@ export const LABELS = Object.freeze({
     'label.secExpression': { en: { t: ' · Expression' }, fr: { t: ' · Expression', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: ' · 表情', reviewed: 'bt' } },
     'label.secDrone':      { en: { t: ' · Drone' },      fr: { t: ' · Bourdon',    reviewed: true } , 'zh-Hans': { t: ' · 持续音', reviewed: 'bt' } },
     'label.secOutput':     { en: { t: ' · Output' },     fr: { t: ' · Sortie',     reviewed: true } , 'zh-Hans': { t: ' · 输出', reviewed: 'bt' } },
-    'label.secMicrotonal': { en: { t: ' · Microtonal' }, fr: { t: ' · Microtonal', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: ' · 微分音', reviewed: 'bt' } },
     'label.secSchelleng':  { en: { t: 'Schelleng Diagram' },
                              fr: { t: 'Diagramme de Schelleng', reviewed: true } ,
       'zh-Hans': { t: '谢伦图', reviewed: 'bt' }
@@ -760,28 +741,15 @@ export const LABELS = Object.freeze({
       'zh-Hans': { t: '提高以唤醒', reviewed: 'bt' }
   },
 
-    // ── Microtonal strip ────────────────────────────────────────────────────
+    // ── Tuning tab header bar (v1.12.0; was the Main-tab Microtonal strip) ──
     // .strip-field-label is text-transform: uppercase, so this renders SYSTÈME
     // D’ACCORD on screen; the table keeps the English caption's mixed case,
     // which is what the lint and the accessible name read. The typographic
     // apostrophe costs 0.09 px (97.52 -> 97.61) inside the 98 px pin.
     'label.tuningSystem':  { en: { t: 'Tuning System' }, fr: { t: "Système d’accord", reviewed: true } , 'zh-Hans': { t: '调音体系', reviewed: 'bt' } },
-    // RENAMED from `label.loadScl` when the shared scala-tuning-engine panel was
-    // localized (module v3.1.0): the module declares label.loadScl for its own
-    // "Load .SCL" button, and two different buttons cannot share one key — the
-    // second definition silently wins and this caption would have become
-    // "Ouvrir .SCL", losing both the ellipsis and the reviewed wording. This one
-    // is O-Contrabass's own Tuning System button and keeps its own key.
-    'label.loadSclFile':   { en: { t: 'Load .scl…' },    fr: { t: 'Charger .scl…',    reviewed: true } , 'zh-Hans': { t: '载入 .scl…', reviewed: 'bt' } },
     'label.noteExpression': { en: { t: 'Note Expression' },
                               fr: { t: 'Note Expression', reviewed: true, sameAsEn: true } ,
       'zh-Hans': { t: '音符表情', reviewed: 'bt' }
-  },
-    // "monophonic" is the only translated half; the pitch range is scientific
-    // pitch notation and is exempt for the reason given in I18N_EXEMPT.
-    'label.rangeCaption':  { en: { t: 'E1–G3 · monophonic' },
-                             fr: { t: 'E1–G3 · monophonique', reviewed: true } ,
-      'zh-Hans': { t: 'E1–G3 · 单音', reviewed: 'bt' }
   },
 
     // ── The Tuning tab's load-failure notice ────────────────────────────────
@@ -1016,9 +984,7 @@ export const TIP_BINDINGS = [
     ['[data-param="LIMITER_CEILING_DB"]',    'LIMITER_CEILING_DB'],
     ['#canvas-vu',                           'canvas-vu'],
 
-    ['[data-param="REFERENCE_PITCH"]',       'REFERENCE_PITCH'],
     ['.strip-field',                         'tuning-system'],
-    ['#scl-load-btn',                        'scl-load-btn'],
     ['#note-expression-toggle',              'note-expression-toggle'],
 ];
 

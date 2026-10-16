@@ -94,6 +94,12 @@ public:
     bool isActive() const noexcept;
     float getEnergyEstimate() const noexcept { return energyEstimate; }
 
+    // v1.12 — |bow − string| relative velocity at the bow point from the most
+    // recent processSample(). Large during slip, near zero while the hair
+    // sticks: the voice uses it (× bow force) to drive the bow-noise layer
+    // pitch-synchronously. Read-only tap; never fed back into the loop.
+    float getLastRelativeVelocity() const noexcept { return lastRelVelocity; }
+
     // Parameter setters (called once per block from voice)
     void setBowPosition (float beta);          // 0.02 - 0.98 clamped (split-rail β)
     void setBrightness (float cutoffHz);       // 80 - 12000
@@ -216,6 +222,7 @@ private:
 
     // Energy tracking for voice cleanup
     float energyEstimate = 0.0f;
+    float lastRelVelocity = 0.0f;   // v1.12 bow-noise tap (see getter)
 
     bool filterDirty = true;
 };

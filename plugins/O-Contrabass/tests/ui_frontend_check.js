@@ -38,8 +38,8 @@
          canonical preset-manager.js + canonical tuning-panel.js) calls is
          registered via withNativeFunction in PluginEditor.cpp (an
          unregistered name fails silently at runtime; see
-         pattern_webview_native_fn_bridge_gap). Expected surface: 36 fns
-         (2 mockup + 10 preset + 20 tuning + 2 hover-help + 2 language).
+         pattern_webview_native_fn_bridge_gap). Expected surface: 35 fns
+         (1 mockup + 10 preset + 20 tuning + 2 hover-help + 2 language).
       3. Knob readouts come from SliderState.getScaledValue() (real C++
          NormalisableRange incl. skew) and refresh on propertiesChanged; the
          FMT table carries no min/max range constants.
@@ -135,8 +135,10 @@ console.log('== O-Contrabass ui_frontend_check ==');
     // under localization and the sentence stays true. It is named here because
     // a probe hunting for a two-language assumption lands on it, and the next
     // reader should not have to re-derive that it is the wrong kind of two.
-    check(called.size === 36 && registered.size === 36,
-        `bridge surface is exactly 36 fns (2 mockup + 10 preset + 20 tuning + 2 hover-help `
+    // v1.12.0 drops openTuningFilePicker with the Main-tab strip's Load .scl
+    // button (the Tuning panel's own loadScalaFile covers it): 36 -> 35.
+    check(called.size === 35 && registered.size === 35,
+        `bridge surface is exactly 35 fns (1 mockup + 10 preset + 20 tuning + 2 hover-help `
         + `+ 2 language) — got JS=${called.size} C++=${registered.size}`);
     check(called.has('getParameterDefaults') && registered.has('getParameterDefaults'),
         'getParameterDefaults is called by the JS AND registered in C++');

@@ -4,6 +4,108 @@ All notable changes to the O-Contrabass physical-model bowed-contrabass synth.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — the pre-release `1.x-dev` engine track collapses into it.
 
+## [1.12.0] - 2026-10-16
+
+Two changes. The bow noise is rebuilt so it moves with the bow, and the Main
+tab's Microtonal strip is retired in favour of the Tuning tab. MINOR: the sound
+and the layout both change. No parameter ID, range, type or state format
+changed; presets and sessions load as before.
+
+### Changed
+
+- **Bow noise is driven by the string's own friction.** Through v1.11 the noise
+  level followed a per-block `|v_bow|·F_bow`. That value is constant through a
+  sustained stroke, so the noise was a flat hiss laid over the tone. Its "slip
+  bursts" were timed by a period guess, and their 21 ms decay outlasted a bass
+  period, so they blurred into more hiss. A 0.85-feedback comb at 70% wet
+  added a fixed ring, and a 4× makeup kept all of it loud. Now:
+  - `WaveguideString` exposes `|v_bow − v_string|` at the bow point
+    (`getLastRelativeVelocity()`). This is a read-only tap; the loop is
+    unchanged.
+  - The voice records that velocity and `F_bow` at the 2× rate, and the noise
+    generator gates on the **slip excursion above the stick-phase creep floor**.
+    The hyperbolic friction never fully sticks: its floor tracks force at
+    ≈ 0.26·F, while the slip excursion stays ≈ 0.4 m/s at any pressure. A
+    d²/(d²+k²) expander keeps the stick phase near-silent. The noise therefore
+    pulses with the real Helmholtz motion and follows speed, β and the
+    irregular attack.
+  - Level scales with `F_bow^¼`, not `F·v²`: flautando still breathes, and a
+    dug-in stroke gets grittier without a 26 dB swing.
+  - A velocity-scaled onset boost (+6 dB at full velocity, τ 150 ms) gives
+    the first bite of the bow its scratch.
+  - Two slow random walks: level ±5 dB with new targets every 350 ms, plus
+    ±1.5 dB of "grain" every 45 ms. A third walk moves the colour between a
+    1.1 kHz body band and a 4.2 kHz rosin band.
+  - Comb lightened to 0.60 feedback at 40% wet. Pre-body makeup 4.0 → 0.26.
+- **Microtonal strip removed from the Main tab.**
+  - The A4 knob and the Load .scl… button go. They duplicated the Tuning
+    panel's own A4 REF and Load .SCL.
+  - Tuning System and Note Expression move to a header bar at the top of the
+    Tuning tab, keeping their measured caption pins. The panel container goes
+    from 566 to 546 px to make room.
+  - Rows 1 and 2 grow from 252 to 289 px. The Schelleng plot (186 → 223 px)
+    and the body spectrum (108 → 145 px) take the extra height. The knob
+    panels spread their blocks evenly instead of leaving an empty band at the
+    foot.
+  - The range caption ("E1–G3 · monophonic") goes. The Strings heading
+    already reads E1–G3.
+
+### Fixed
+
+- **A Tuning-panel scale edit now sets Tuning System to Scala.** Loading a .scl,
+  choosing a library tuning, generating a scale or editing an interval switched
+  the engine to Scala internally, but left `TUNING_SYSTEM` at 12-TET. The select
+  then read 12-TET over a live custom scale. A session reload also replayed
+  12-TET after the custom state and dropped the scale. The editor now moves the
+  parameter to Scala after each of these edits, as one gesture so the host
+  records it (`syncTuningSystemToScala()`).
+
+### Removed
+
+- The `openTuningFilePicker` native function and its file chooser, which only
+  the strip's button used. The bridge surface goes from 36 to 35 functions.
+- i18n keys `label.secMicrotonal`, `label.loadSclFile`, `label.rangeCaption`,
+  and the `REFERENCE_PITCH` and `scl-load-btn` tooltips.
+
+### Measured
+
+Noise layer, isolated as the render minus the same render at BOW_NOISE 0. E1 /
+A1 / E2, default bow, 1–4 s of sustain:
+
+| | v1.11.0 | v1.12.0 |
+|---|---|---|
+| noise / tone | −25.6 / −27.9 / −27.0 dB | −33.4 / −36.0 / −35.1 dB (≈ −8 dB) |
+| noise share of 2–8 kHz | −0.4 to −0.9 dB (the noise *was* the band) | −1.8 to −3.1 dB |
+| 200 ms level range | 0.7–1.0 dB | 5.3–5.6 dB |
+| AM index at f0 (pitch-synchronous pulsing) | 0.06–0.10 | 0.34–0.53 |
+| attack vs sustain (A1) | +3.9 dB | +3.9 dB |
+
+- Noise / tone over BOW_PRESSURE 0.4 → 1 → 4 (A1): −36.2 / −34.7 / −26.5 dB.
+  The first draft (F·v² drive) measured −48 / −36 / −22 dB.
+- The noise is silent after release, as before (−55 to −58 dB under the
+  decaying tone).
+- **Block-size invariance:** the full render is identical at block sizes 37 and
+  512 (max |Δ| = 0). The RNG draws a fixed number of values per sample.
+
+### Testing
+
+- **Render goldens: 21/21 re-baselined on purpose** (the noise is in every
+  render). They then reproduce byte-identical on two further runs.
+- The harness gains `--bow-noise <0..1>` for the isolation A/B.
+- **Two response-shape floors recalibrated**, the same deviation class the
+  harness already documents. In both, the old constant noise was masking a
+  dip in the string itself:
+  - `mpe-yz` `pass_zRmsResponse` 0.30 → 0.10. Z (pressure) moved the Z
+    segment's RMS by only 1.9 dB in v1.11, and 1.3 dB now (pearson 0.160). The
+    tone is set by bow speed, not pressure.
+  - `microtonal-mpe` `pass_rmsContinuity` 0.20 → 0.15. The string leaves
+    Helmholtz motion at the ±24-semitone bend extremes: 0.293 → 0.178.
+- Three goldens were already FAIL in v1.11 and are unchanged:
+  `detune-sweep-A` rmsContinuity, `macro-sweep` rmsRampDirection and
+  `output-chain` risk_19.
+- `tests/ui_frontend_check.js`: all checks pass (bridge surface pinned at 35).
+- `check-i18n`: pass. `check-ui-labels`: all checks pass (en / fr / zh-Hans).
+
 ## [1.11.0] - 2026-09-28
 
 UI pass under the UI design review (260924-nho), items R4 and R5. The page moves

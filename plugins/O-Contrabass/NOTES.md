@@ -13,6 +13,15 @@ change (19/19 goldens byte-identical).
 
 ## Timeline
 
+- **2026-10-16 — v1.12.0 bow noise rebuilt + Microtonal strip retired.** The noise
+  is gated on the string's own slip: `|v_rel|` above the stick-phase creep floor,
+  with `F^¼` level, an onset bite and slow level/colour wander. It sits ≈ 8 dB
+  lower; its 200 ms level range went 0.7 → 5.5 dB and its f0 AM 0.08 → 0.4.
+  Tuning System and Note Expression moved to a header bar on the Tuning tab.
+  Rows 1–2 are now 289 px. A panel scale edit pulls TUNING_SYSTEM to Scala. All
+  21 goldens re-baselined. `mpe-yz` zRms floor 0.30 → 0.10 and `microtonal-mpe`
+  continuity floor 0.20 → 0.15 (the old noise had masked string dips). auval and
+  pluginval-10 pass.
 - **2026-09-28 — v1.11.0 UI pass (review 260924-nho, R4 and R5).** The page
   moves onto the naturalist core colours, with AA text from the template's
   pair table and a 9px floor on DOM and canvas text. It adds `:focus-visible`

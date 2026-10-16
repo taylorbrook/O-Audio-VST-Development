@@ -270,7 +270,7 @@ private:
     // ─── Phase 2.5 — Body Resonator + Bow Noise Generator ─────────────────────
     // 8-mode parallel bandpass body resonator (mono single-bank, runs at host
     // rate AFTER 2× downsample at line 688). 3-band BPF + pitch-synchronous
-    // comb + jittered slip-burst bow noise generator summed BEFORE body
+    // comb bow noise generator, driven by the string's own friction (v1.12), summed BEFORE body
     // (v1.5.0 — body colors the noise like the string). Both per-block-pushed
     // via 30 ms SmoothedValue<Linear> ramps (CONTEXT line 152 + ARCHITECTURE
     // §152 + parameter-spec.md defaults: SIZE=0.75 / DAMPING=0.40 / MIX=0.80
@@ -281,9 +281,14 @@ private:
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> bodyDampingSmoothed;
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> bodyMixSmoothed;
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> bowNoiseSmoothed;
-    // For slip-trigger 5-cent change detection (push setFundamentalHz only on
-    // note-start or > 5 cent change to avoid resetting slip counter every block).
+    // For 5-cent change detection (push setFundamentalHz only on note-start
+    // or > 5 cent change, not every block).
     float lastFundamentalHz = 0.0f;
+    // v1.12 — per-2×-sample |v_rel| and F_bow of the active string (bow-noise
+    // drive). Sized maxBlockSize × 2 in prepareToPlay; written in the
+    // oversampled loop.
+    std::vector<float> relVelTrace;
+    std::vector<float> forceTrace;
 
     // ─── Stage 3 Task 13 (D5) — Schelleng viz taps (see public accessors) ─────
     // Single-writer (audio thread) relaxed stores: Step 6 of renderNextBlock

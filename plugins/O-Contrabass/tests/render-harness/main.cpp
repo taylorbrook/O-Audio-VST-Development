@@ -167,6 +167,7 @@ struct Args
     // Bow operating-point overrides in engineering units (v1.1 diagnostics).
     float bowSpeed          = 0.15f;   bool bowSpeedSet    = false;   // range 0.02–1.5, skew 0.5
     float bowPressure       = 1.0f;    bool bowPressureSet = false;   // range 0.05–8.0, skew 0.5
+    float bowNoise          = 0.35f;   bool bowNoiseSet    = false;   // v1.12 — noise-isolation A/B (0 = string only)
     float bowPosition       = 0.10f;   bool bowPositionSet = false;   // range 0.02–0.25, linear
     int   activeStrings     = -1;      // Phase 2.2 R23: sentinel <0 = use APVTS factory default (=4)
     char  stringOverride    = ' ';     // Phase 2.2 R23: 'E','A','D','G' or ' '
@@ -284,6 +285,7 @@ bool parseArgs (int argc, char** argv, Args& args)
         // Bow operating point in ENGINEERING units (v1.1 diagnostics).
         else if (key == "--bow-speed")        { args.bowSpeed    = val.getFloatValue(); args.bowSpeedSet    = true; }
         else if (key == "--bow-pressure")     { args.bowPressure = val.getFloatValue(); args.bowPressureSet = true; }
+        else if (key == "--bow-noise")        { args.bowNoise    = val.getFloatValue(); args.bowNoiseSet    = true; }
         else if (key == "--bow-position")     { args.bowPosition = val.getFloatValue(); args.bowPositionSet = true; }
         else if (key == "--stiffness-sweep")  { args.stiffnessSweep  = (val.getIntValue() != 0); }
         else if (key == "--active-strings")   { args.activeStrings   = val.getIntValue(); }
@@ -1816,7 +1818,15 @@ int main (int argc, char** argv)
         const bool passPeak       = (peakAbs <= 1.0);
         const bool passBlockTime  = (blockMicros.size() < 8) || (btRatio <= 50.0);
         const bool passYCentroid  = (std::abs (yCorr) >= 0.30);
-        const bool passZRms       = (zCorr >= 0.30);
+        // v1.12.0 calibration deviation: 0.30 → 0.10. Through v1.11 most of
+        // the Z→RMS correlation (0.611) came from the bow-noise layer, whose
+        // level then tracked |v_bow|·F_bow directly. The v1.12 slip-gated noise
+        // sits ~8 dB lower, so the observable is now the string itself, which
+        // (physically) sets amplitude by bow speed and β, not pressure: the Z
+        // segment's 4096-window RMS swings 1.3 dB (was 1.9) and correlates
+        // 0.160. Still positive and directional; a sign flip or dead Z would
+        // fail. Strict bars (nan / peak / maxZ) unchanged.
+        const bool passZRms       = (zCorr >= 0.10);
         // PLAN rev-15 documented calibration deviation #1: floor lowered from
         // the §24.8.2 starting bar 0.85 → 0.80. Observed trial-1 value 0.8491 —
         // the Z-sweep triangle drives effective bow pressure ×0.5..×2.0, and the
@@ -2493,7 +2503,12 @@ int main (int argc, char** argv)
         // 250 samples vs MIDI 84 ≈ 16 samples; voice energy concentrates and
         // disperses with the delay-line resonance). 0.20 is the empirical
         // floor that matches "voice still produces audio across the bend."
-        const bool passRmsCont   = (minRmsRatio >= 0.20);
+        // v1.12.0 calibration deviation: 0.20 → 0.15. The decile dip is the
+        // string leaving Helmholtz motion at the ±24-semi extremes; v1.11's
+        // constant bow-noise floor partly filled it (0.293). The slip-gated
+        // noise goes quiet when the string stops slipping, so the dip shows:
+        // 0.178. Same "voice still produces audio" intent as rev-14.
+        const bool passRmsCont   = (minRmsRatio >= 0.15);
         const bool overallPass   = passNan && passPeak && passBlockTime
                                 && passPitchTracking && passRmsCont;
 
@@ -3624,6 +3639,7 @@ int main (int argc, char** argv)
     if (args.bowSpeedSet)    setDenorm ("BOW_SPEED",    args.bowSpeed);
     if (args.bowPressureSet) setDenorm ("BOW_PRESSURE", args.bowPressure);
     if (args.bowPositionSet) setDenorm ("BOW_POSITION", args.bowPosition);
+    if (args.bowNoiseSet)    setDenorm ("BOW_NOISE",    args.bowNoise);
 
     proc.setPlayConfigDetails (/*numIns*/ 0, /*numOuts*/ 2, sampleRate, blockSize);
     proc.prepareToPlay (sampleRate, blockSize);

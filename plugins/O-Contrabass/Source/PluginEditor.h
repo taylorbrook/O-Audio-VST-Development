@@ -62,10 +62,9 @@ private:
     // returns "" and every lookup fails → "Frame load interrupted").
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
 
-    // Async Scala file picker (native fn "openTuningFilePicker"; D1: .scl only —
-    // TuningEngine 2.1.0 has no TUN parser). SafePointer + bare-return-on-null
-    // pattern — see .cpp for the UAF contract.
-    void launchTuningFilePicker(juce::WebBrowserComponent::NativeFunctionCompletion completion);
+    // v1.12.0 — after a Tuning-panel scale edit, set TUNING_SYSTEM to Scala so
+    // the select, host and engine agree (see .cpp).
+    void syncTuningSystemToScala();
 
     OContrabassAudioProcessor& processorRef;
 
