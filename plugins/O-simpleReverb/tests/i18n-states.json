@@ -1,10 +1,154 @@
 [
   {
-    "name": "settings popover open (the language row and the endonym select)",
-    "click": "#gear-btn"
+    "name": "settings popover open (lang-select, label.hoverHelp, ui.on on the switch, label.presetFile / label.loadFile, label.version)",
+    "eval": "(() => { const p = document.getElementById('settings-popover'); if (p.hidden) document.getElementById('gear-btn').click(); })()"
   },
   {
-    "name": "low-cut toggled (ui.on — the second of the two setLabel states)",
-    "click": "#LPFREQ-value"
+    "name": "settings popover open, hover help OFF (ui.off on the switch)",
+    "eval": "(() => { const p = document.getElementById('settings-popover'); if (p.hidden) document.getElementById('gear-btn').click(); const t = document.getElementById('tips-toggle'); if (t.getAttribute('aria-pressed') === 'true') t.click(); })()"
+  },
+  {
+    "name": "hover help back ON, popover closed",
+    "eval": "(() => { const t = document.getElementById('tips-toggle'); if (t.getAttribute('aria-pressed') !== 'true') t.click(); const p = document.getElementById('settings-popover'); if (!p.hidden) document.getElementById('gear-btn').click(); })()"
+  },
+  {
+    "name": "all parameters at their defaults (the gate's own state pass moved them)",
+    "eval": "(() => { const P = {\"TYPE\":1,\"CHARACTER\":0,\"WET\":25,\"DRY\":100,\"DECAY\":1.0,\"SIZE\":50,\"LPFREQ\":200,\"LPON\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } })()"
+  },
+  {
+    "name": "Low Cut IN (label.pillIn, label.subCutIn, label.stCutIn, label.twHp)",
+    "eval": "(() => { const P = {\"TYPE\":1,\"CHARACTER\":0,\"WET\":25,\"DRY\":100,\"DECAY\":1.0,\"SIZE\":50,\"LPFREQ\":250,\"LPON\":1}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } })()"
+  },
+  {
+    "name": "Low Cut OUT again (label.pillOut, label.subCutOut, label.stCutOut, label.twFlat)",
+    "eval": "(() => { const P = {\"TYPE\":1,\"CHARACTER\":0,\"WET\":25,\"DRY\":100,\"DECAY\":1.0,\"SIZE\":50,\"LPFREQ\":200,\"LPON\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } })()"
+  },
+  {
+    "name": "TYPE Booth (label.twEqHp, label.stEngFdn — unmodulated, label.noteFdn)",
+    "eval": "(() => { const P = {\"TYPE\":0,\"CHARACTER\":0,\"WET\":25,\"DRY\":100,\"DECAY\":1.0,\"SIZE\":50,\"LPFREQ\":200,\"LPON\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } })()"
+  },
+  {
+    "name": "TYPE Hall (label.twEqHs, label.stEngFdnMod)",
+    "eval": "(() => { const P = {\"TYPE\":2,\"CHARACTER\":0,\"WET\":25,\"DRY\":100,\"DECAY\":1.0,\"SIZE\":50,\"LPFREQ\":200,\"LPON\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } })()"
+  },
+  {
+    "name": "TYPE Spring (label.twEqPk, label.noteSpring, label.stEarlySpring, label.stEngSpring, label.erSubSpring, label.erSpring2 + its echo taps, label.springBand)",
+    "eval": "(() => { const P = {\"TYPE\":3,\"CHARACTER\":0,\"WET\":25,\"DRY\":100,\"DECAY\":1.0,\"SIZE\":50,\"LPFREQ\":200,\"LPON\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } })()"
+  },
+  {
+    "name": "TYPE Plate (label.notePlate, label.stEarlyPlate, label.stEngPlate, label.erSubNone, label.erNone1 / label.erPlate2)",
+    "eval": "(() => { const P = {\"TYPE\":4,\"CHARACTER\":0,\"WET\":25,\"DRY\":100,\"DECAY\":1.0,\"SIZE\":50,\"LPFREQ\":200,\"LPON\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } })()"
+  },
+  {
+    "name": "TYPE Ambient at DECAY 2.0 / SIZE 100 (the longest RT60 in label.chipBody, label.dwSub, label.subDecay)",
+    "eval": "(() => { const P = {\"TYPE\":5,\"CHARACTER\":0,\"WET\":25,\"DRY\":100,\"DECAY\":2.0,\"SIZE\":100,\"LPFREQ\":200,\"LPON\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } })()"
+  },
+  {
+    "name": "Character dark −100 (label.chDark, label.subChWarm, label.twLp, label.toneDark)",
+    "eval": "(() => { const P = {\"TYPE\":2,\"CHARACTER\":-100,\"WET\":25,\"DRY\":100,\"DECAY\":1.0,\"SIZE\":50,\"LPFREQ\":200,\"LPON\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } })()"
+  },
+  {
+    "name": "Character bright +100 (label.chBright, label.subChBright, label.twShelf, label.toneBright)",
+    "eval": "(() => { const P = {\"TYPE\":2,\"CHARACTER\":100,\"WET\":25,\"DRY\":100,\"DECAY\":1.0,\"SIZE\":50,\"LPFREQ\":200,\"LPON\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } })()"
+  },
+  {
+    "name": "Wet 0 / Dry 0 (label.subWetOff, label.subDryOff, label.stMixSub at 0 · 0)",
+    "eval": "(() => { const P = {\"TYPE\":1,\"CHARACTER\":0,\"WET\":0,\"DRY\":0,\"DECAY\":1.0,\"SIZE\":50,\"LPFREQ\":200,\"LPON\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } })()"
+  },
+  {
+    "name": "defaults again",
+    "eval": "(() => { const P = {\"TYPE\":1,\"CHARACTER\":0,\"WET\":25,\"DRY\":100,\"DECAY\":1.0,\"SIZE\":50,\"LPFREQ\":200,\"LPON\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } })()"
+  },
+  {
+    "name": "lesson booth: representative values through the stub states + the button click and the C++ presetState push (the click alone lights nothing) for its caption (label.tourCaption.booth, the lit button, its name-box label)",
+    "eval": "(() => { const P = {\"TYPE\":0,\"CHARACTER\":0,\"WET\":30,\"DRY\":100,\"DECAY\":1.0,\"SIZE\":50,\"LPFREQ\":200,\"LPON\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-booth').click(); window.__stubEmit('presetState', {\"name\": \"Lesson - Booth\", \"id\": \"booth\", \"factory\": true, \"modified\": false}); })()"
+  },
+  {
+    "name": "lesson room: representative values through the stub states + the button click and the C++ presetState push (the click alone lights nothing) for its caption (label.tourCaption.room, the lit button, its name-box label)",
+    "eval": "(() => { const P = {\"TYPE\":1,\"CHARACTER\":0,\"WET\":30,\"DRY\":100,\"DECAY\":1.0,\"SIZE\":50,\"LPFREQ\":200,\"LPON\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-room').click(); window.__stubEmit('presetState', {\"name\": \"Lesson - Room\", \"id\": \"room\", \"factory\": true, \"modified\": false}); })()"
+  },
+  {
+    "name": "lesson hall: representative values through the stub states + the button click and the C++ presetState push (the click alone lights nothing) for its caption (label.tourCaption.hall, the lit button, its name-box label)",
+    "eval": "(() => { const P = {\"TYPE\":2,\"CHARACTER\":0,\"WET\":30,\"DRY\":100,\"DECAY\":1.0,\"SIZE\":50,\"LPFREQ\":200,\"LPON\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-hall').click(); window.__stubEmit('presetState', {\"name\": \"Lesson - Hall\", \"id\": \"hall\", \"factory\": true, \"modified\": false}); })()"
+  },
+  {
+    "name": "lesson spring: representative values through the stub states + the button click and the C++ presetState push (the click alone lights nothing) for its caption (label.tourCaption.spring, the lit button, its name-box label)",
+    "eval": "(() => { const P = {\"TYPE\":3,\"CHARACTER\":0,\"WET\":30,\"DRY\":100,\"DECAY\":1.0,\"SIZE\":50,\"LPFREQ\":200,\"LPON\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-spring').click(); window.__stubEmit('presetState', {\"name\": \"Lesson - Spring\", \"id\": \"spring\", \"factory\": true, \"modified\": false}); })()"
+  },
+  {
+    "name": "lesson plate: representative values through the stub states + the button click and the C++ presetState push (the click alone lights nothing) for its caption (label.tourCaption.plate, the lit button, its name-box label)",
+    "eval": "(() => { const P = {\"TYPE\":4,\"CHARACTER\":0,\"WET\":30,\"DRY\":100,\"DECAY\":1.0,\"SIZE\":50,\"LPFREQ\":200,\"LPON\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-plate').click(); window.__stubEmit('presetState', {\"name\": \"Lesson - Plate\", \"id\": \"plate\", \"factory\": true, \"modified\": false}); })()"
+  },
+  {
+    "name": "lesson ambient: representative values through the stub states + the button click and the C++ presetState push (the click alone lights nothing) for its caption (label.tourCaption.ambient, the lit button, its name-box label)",
+    "eval": "(() => { const P = {\"TYPE\":5,\"CHARACTER\":0,\"WET\":45,\"DRY\":80,\"DECAY\":1.0,\"SIZE\":50,\"LPFREQ\":200,\"LPON\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-ambient').click(); window.__stubEmit('presetState', {\"name\": \"Lesson - Ambient\", \"id\": \"ambient\", \"factory\": true, \"modified\": false}); })()"
+  },
+  {
+    "name": "lesson init: representative values through the stub states + the button click and the C++ presetState push (the click alone lights nothing) for its caption (label.tourCaption.init, the lit button, its name-box label)",
+    "eval": "(() => { const P = {\"TYPE\":1,\"CHARACTER\":0,\"WET\":25,\"DRY\":100,\"DECAY\":1.0,\"SIZE\":50,\"LPFREQ\":200,\"LPON\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-init').click(); window.__stubEmit('presetState', {\"name\": \"Init\", \"id\": \"init\", \"factory\": true, \"modified\": false}); })()"
+  },
+  {
+    "name": "lesson sizeVsDecay: representative values through the stub states + the button click and the C++ presetState push (the click alone lights nothing) for its caption (label.tourCaption.sizeVsDecay, the lit button, its name-box label)",
+    "eval": "(() => { const P = {\"TYPE\":1,\"CHARACTER\":0,\"WET\":25,\"DRY\":100,\"DECAY\":2.0,\"SIZE\":0,\"LPFREQ\":200,\"LPON\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-sizeVsDecay').click(); window.__stubEmit('presetState', {\"name\": \"Lesson - Size vs Decay\", \"id\": \"sizeVsDecay\", \"factory\": true, \"modified\": false}); })()"
+  },
+  {
+    "name": "lesson character: representative values through the stub states + the button click and the C++ presetState push (the click alone lights nothing) for its caption (label.tourCaption.character, the lit button, its name-box label)",
+    "eval": "(() => { const P = {\"TYPE\":2,\"CHARACTER\":-60,\"WET\":25,\"DRY\":100,\"DECAY\":1.0,\"SIZE\":50,\"LPFREQ\":200,\"LPON\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-character').click(); window.__stubEmit('presetState', {\"name\": \"Lesson - Character\", \"id\": \"character\", \"factory\": true, \"modified\": false}); })()"
+  },
+  {
+    "name": "lesson lowCut: representative values through the stub states + the button click and the C++ presetState push (the click alone lights nothing) for its caption (label.tourCaption.lowCut, the lit button, its name-box label)",
+    "eval": "(() => { const P = {\"TYPE\":2,\"CHARACTER\":0,\"WET\":25,\"DRY\":100,\"DECAY\":1.0,\"SIZE\":50,\"LPFREQ\":250,\"LPON\":1}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-lowCut').click(); window.__stubEmit('presetState', {\"name\": \"Lesson - Low Cut\", \"id\": \"lowCut\", \"factory\": true, \"modified\": false}); })()"
+  },
+  {
+    "name": "lesson insertSend: representative values through the stub states + the button click and the C++ presetState push (the click alone lights nothing) for its caption (label.tourCaption.insertSend, the lit button, its name-box label)",
+    "eval": "(() => { const P = {\"TYPE\":1,\"CHARACTER\":0,\"WET\":100,\"DRY\":0,\"DECAY\":1.0,\"SIZE\":50,\"LPFREQ\":200,\"LPON\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } document.getElementById('lesson-insertSend').click(); window.__stubEmit('presetState', {\"name\": \"Lesson - Insert vs Send\", \"id\": \"insertSend\", \"factory\": true, \"modified\": false}); })()"
+  },
+  {
+    "name": "preset Init (preset.init on the name box, nothing lit beyond Init, label.tourDefault after a modified push)",
+    "eval": "(() => { const P = {\"TYPE\":1,\"CHARACTER\":0,\"WET\":25,\"DRY\":100,\"DECAY\":1.0,\"SIZE\":50,\"LPFREQ\":200,\"LPON\":0}; const st = window.__stubStates; for (const [id, v] of Object.entries(P)) { if (st.sliders.has(id)) { const s = st.sliders.get(id), p = s.properties; const prop = Math.min(1, Math.max(0, (v - p.start) / (p.end - p.start))); s.setNormalisedValue(Math.pow(prop, p.skew)); } else if (st.combos.has(id)) st.combos.get(id).setChoiceIndex(v); else if (st.toggles.has(id)) st.toggles.get(id).setValue(!!v); } window.__stubEmit('presetState', {\"name\": \"Init\", \"id\": \"init\", \"factory\": true, \"modified\": false}); window.__stubEmit('presetState', {\"name\": \"Init\", \"id\": \"init\", \"factory\": true, \"modified\": true}); })()"
+  },
+  {
+    "name": "a bank preset MODIFIED (the raw bank name, the modified dot, nothing lit)",
+    "eval": "(() => { window.__stubEmit('presetState', {\"name\": \"Hall - Large Hall\", \"id\": \"\", \"factory\": true, \"modified\": true}); })()"
+  },
+  {
+    "name": "a 64-character user preset name (ellipsised in the pinned name box; Delete enabled)",
+    "eval": "(() => { window.__stubEmit('presetState', {\"name\": \"A very long user preset name that runs past the edge of the box!\", \"id\": \"\", \"factory\": false, \"modified\": false}); })()"
+  },
+  {
+    "name": "a user preset (A Little Plate) current, then the preset list open (label.groupLessons, lesson labels via LESSON_LABELERS, the raw type heads, label.groupUser)",
+    "eval": "(() => { window.__stubEmit('presetState', {\"name\": \"A Little Plate\", \"id\": \"\", \"factory\": false, \"modified\": false}); const l = document.getElementById('presetList'); if (l.hidden) document.getElementById('presetName').click(); })()"
+  },
+  {
+    "name": "preset list closed (Escape)",
+    "eval": "(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); })()"
+  },
+  {
+    "name": "Save popover open (preset.saveTitle, the placeholder, preset.cancel / preset.ok)",
+    "eval": "(() => { const p = document.getElementById('presetPopover'); if (p.hidden) document.getElementById('presetSave').click(); document.getElementById('presetPopInput').value = ''; })()"
+  },
+  {
+    "name": "Save with an empty name (preset.errEmpty)",
+    "eval": "(() => { document.getElementById('presetPopOk').click(); })()"
+  },
+  {
+    "name": "Save refused: a lesson label in another language (preset.errFactoryName)",
+    "eval": "(() => { const i = document.getElementById('presetPopInput'); i.value = 'Coupe-bas'; i.dispatchEvent(new Event('input')); document.getElementById('presetPopOk').click(); })()"
+  },
+  {
+    "name": "Save over an existing user name in another case: Replace? (preset.confirmReplace)",
+    "eval": "(() => { const i = document.getElementById('presetPopInput'); i.value = 'a little plate'; i.dispatchEvent(new Event('input')); document.getElementById('presetPopOk').click(); })()"
+  },
+  {
+    "name": "Save popover closed (Escape)",
+    "eval": "(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); })()"
+  },
+  {
+    "name": "Delete? confirm on the user preset A Little Plate (preset.confirmDelete)",
+    "eval": "(() => { window.__stubEmit('presetState', {\"name\": \"A Little Plate\", \"id\": \"\", \"factory\": false, \"modified\": false}); const p = document.getElementById('presetPopover'); if (p.hidden) document.getElementById('presetDelete').click(); })()"
+  },
+  {
+    "name": "Delete popover closed (Escape), back to Init",
+    "eval": "(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); window.__stubEmit('presetState', {\"name\": \"Init\", \"id\": \"init\", \"factory\": true, \"modified\": false}); })()"
   }
 ]
