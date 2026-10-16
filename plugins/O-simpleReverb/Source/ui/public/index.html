@@ -308,6 +308,19 @@
   .w-center .n2 { margin-top: 4px; font-size: 12px; font-style: italic; color: rgba(214, 196, 160, 0.85); line-height: 1.3; }
   .w-center[hidden], .w-tr[hidden], .w-br[hidden] { display: none; }
   .w-br { right: 12px; bottom: 26px; text-align: right; font-size: 10.5px; font-style: italic; color: rgba(243, 205, 134, 0.75); white-space: nowrap; }
+  /* Language-width pins (check-ui-labels [7]): every well caption box a
+     language can widen is pinned at its widest language, so no box edge moves
+     when the language changes. Measured max widths en / fr / zh-Hans (any state):
+       decay legend  70.5 / 77.2 / 70.5      ER readout   130.6 / 140.1 / 128.2
+       ER legend     48.3 / 47.2 / 35.1      tone readout 159.4 / 174.6 / 168.2
+       tone legend   60.2 / 63.6 / 42.1
+     The two NONE lines: n1 line box 16 / 16 / 20 px -> pinned at 16. */
+  #decayWrap .w-tr { width: 78px; }
+  #erWrap .w-tl    { width: 142px; }
+  #erLegend        { width: 50px; }
+  #toneWrap .w-tl  { width: 176px; }
+  #toneWrap .w-tr  { width: 65px; }
+  .w-center .n1    { height: 16px; line-height: 16px; }
 
   /* ── Signal path (columns follow the control groups below) ── */
   .sigpath { height: 34px; position: relative; display: flex; gap: 8px; align-items: center; }
@@ -343,6 +356,9 @@
   .station.on .st-name { color: #f5f0e6; transition-duration: 0.08s; }
   .station.on .st-sub { color: #e8e0c8; transition-duration: 0.08s; }
   .station.dim { opacity: 0.55; }
+  /* The Tone sub-line is two labels in one box: stretched to the station's
+     inner width so the box itself never moves (en 79.8 / fr 92.8 / zh 59.5 px). */
+  #st-tone > .st-sub { align-self: stretch; text-align: center; }
 
   /* ── Control groups ── */
   .controls { height: 224px; display: flex; gap: 8px; }
@@ -416,7 +432,8 @@
     border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid var(--brown-border);
   }
   .knob-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--brown-soft); margin-top: 5px; text-align: center; line-height: 1.1; white-space: nowrap; }
-  .knob-value { font-size: 12.5px; color: var(--brown-text); margin-top: 1px; text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* Line box pinned at the en height: a zh word readout (Character) is 17 px tall otherwise. */
+  .knob-value { font-size: 12.5px; height: 15px; line-height: 15px; color: var(--brown-text); margin-top: 1px; text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .knob-sub { font-size: 10.5px; font-style: italic; color: var(--green-text); text-align: center; white-space: nowrap; line-height: 1.15; height: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
   .knob-cell.off .knob-wrap, .knob-cell.off .knob-value, .knob-cell.off .knob-label { opacity: 0.42; }
   .knob-cell.off .knob-sub { color: var(--text-muted); }
