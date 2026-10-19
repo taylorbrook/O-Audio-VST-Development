@@ -291,7 +291,7 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
             })
 
             // IN-02: getParameterDefaults — { paramId: normalizedDefault } for every
-            // parameter, so the UI can implement double-click-to-reset (the JUCE
+            // parameter, so the UI can implement Alt/Option-click reset (the JUCE
             // SliderState properties carry no default field).
             .withNativeFunction("getParameterDefaults", [this](auto, auto complete) {
                 auto* obj = new juce::DynamicObject();

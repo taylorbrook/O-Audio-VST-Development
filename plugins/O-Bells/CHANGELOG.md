@@ -2,6 +2,14 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [4.9.1] — 2026-10-19
+
+### Changed
+
+- **Output level now starts at −6 dB** on new instances and is the last stage of the chain. Factory presets no longer set it, and loading a preset leaves it where you put it. Saved sessions recall their stored level unchanged.
+- **Output is now applied after the effects**, so it also scales notes that are already ringing (and their chorus, delay and reverb tails). It used to be applied per voice, before the effects, so it never reached the effect tails. Moves are smoothed (20 ms ramp); the post-EQ safety limiter still follows it.
+- **Double-click a dial to type a value** — Enter or click away applies, Esc cancels. **Alt/Option-click resets** a control to its default (this was double-click). Applies to every slider (including footer Gain) and every Effects-tab knob and readout. Typed values honour the parameter's real range and skew, accept units (`2.5s`, `2k`, `40%`, `-inf`) and option names (`steel`, `glass`), and land as one host automation gesture; the old Effects-tab editor's linear decode is gone.
+
 ## [4.9.0] - 2026-09-25
 
 UI pass per `.planning/quick/260924-nho-…/260924-nho-UI-DESIGN-REVIEW.md` Phase C

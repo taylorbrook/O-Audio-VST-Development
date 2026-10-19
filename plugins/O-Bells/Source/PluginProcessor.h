@@ -234,6 +234,10 @@ private:
     std::atomic<float>* tuningTemperamentPresetParam = nullptr;
     // Output
     std::atomic<float>* outputGainParam = nullptr;
+    // Output gain as a single processor stage after the FX chain (ahead of the
+    // WR-09 limiter), ramped on the LINEAR gain so a move never zippers. Linear,
+    // not Multiplicative: the ramp must be able to start/end anywhere.
+    juce::SmoothedValue<float> outputGainSmoothed { 1.0f };
 
     // v4.0.0: Effects chain cached parameter pointers
     struct EffectsParamCache
