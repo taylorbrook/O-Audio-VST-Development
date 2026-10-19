@@ -1,5 +1,13 @@
 # Changelog — O-Orbit
 
+## [1.4.3] — 2026-10-19
+
+### Changed
+
+- **Double-click a dial to type a value** — Enter or click away applies, Esc cancels. **Alt/Option-click resets** a control to its default (this was double-click). Double-clicking the readout under a dial opens the same field.
+- The reset now reads each dial's stored default only; a dial without one ignores Alt-click instead of jumping to mid-range (the old double-click fell back to 0.5).
+- Typed values go through the parameter's live range and skew, so Speed and Distance land exactly where typed. The canvas's Alt-drag (speaker distance) is unchanged.
+
 ## [1.4.2] - 2026-09-26
 
 The canvas text that crosses the shell gets a paper halo. This is the follow-up v1.4.1 listed under "Known". It is PATCH because it is a canvas-only legibility fix. **There is no DSP, parameter, state, CSS or C++ change.**
