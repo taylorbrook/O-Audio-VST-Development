@@ -415,6 +415,20 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
             // OuariconPresetManager::loadPreset walks only preset["parameters"]
             // and never touches a state-tree property, so nothing but this page
             // can change it.
+            // v1.16.1: each parameter's TRUE (skew-correct) normalised default,
+            // for the page's Alt/Option-click reset — sourced from the APVTS so
+            // no JS table can drift from C++ (O-Contrabass pattern).
+            .withNativeFunction(
+                juce::Identifier("getParameterDefaults"),
+                [this](const juce::Array<juce::var>& /*args*/,
+                       juce::WebBrowserComponent::NativeFunctionCompletion completion)
+                {
+                    juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+                    for (auto* param : processorRef.getParameters())
+                        if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(param))
+                            obj->setProperty(ranged->getParameterID(), ranged->getDefaultValue());
+                    completion(juce::var(obj.get()));
+                })
             .withNativeFunction("getUiLanguage", [this](auto&, auto complete) {
                 complete(juce::var(OPolystutterAudioProcessor::languageCode(
                     processorRef.getUiLanguageIndex())));

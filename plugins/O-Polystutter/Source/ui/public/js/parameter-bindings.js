@@ -202,9 +202,32 @@ function cleanupTextInput() {
   activeTextInput = null;
 }
 
+// ========== v1.16.1: PARAMETER DEFAULTS (for Alt/Option-click reset) ==========
+
+/**
+ * Every parameter's normalised default, pulled once from the C++ APVTS through
+ * the getParameterDefaults native function. Empty until it lands — and forever
+ * in a plain browser (UI checks), where native integration does not exist; the
+ * Alt-click reset is inert while a knob's entry is missing.
+ */
+let paramDefaults = {};
+
+function fetchParameterDefaults() {
+  try {
+    const getParameterDefaults = Juce.getNativeFunction("getParameterDefaults");
+    Promise.resolve(getParameterDefaults())
+      .then((d) => { paramDefaults = d || {}; })
+      .catch((e) => console.warn("getParameterDefaults failed:", e));
+  } catch (e) {
+    console.warn("getParameterDefaults unavailable:", e);
+  }
+}
+
 // ========== INITIALIZATION ==========
 
 document.addEventListener("DOMContentLoaded", () => {
+  fetchParameterDefaults();  // v1.16.1: before the bindings that read it
+
   console.log("[Phase 3.2] Initializing parameter bindings...");
   console.log("[Phase 3.2] JUCE backend:", typeof window.__JUCE__ !== "undefined");
 
@@ -401,8 +424,30 @@ function bindKnob(paramId, min, max, formatter, htmlId = null) {
     updateKnobUI(knobElement, valueElement, newValue, min, max, formatter);
   });
 
+  // v1.16.1: Alt/Option-click resets to the C++ default as one host gesture.
+  // CAPTURE-phase `mousedown` (the event the drag starts on) on the knob's
+  // container — an ancestor of the drag target — so it runs first and
+  // stopPropagation() keeps the drag from starting. Only presses on this knob
+  // or its readout count; a press inside an open text-entry field is left alone.
+  const resetHost = knobElement.parentElement || knobElement;
+  resetHost.addEventListener("mousedown", (e) => {
+    if (!e.altKey) return;
+    const t = e.target;
+    const onThis = knobElement.contains(t) || (valueElement && valueElement.contains(t));
+    if (!onThis) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const def = paramDefaults[paramId];
+    if (typeof def !== "number" || !isFinite(def)) return;  // defaults not landed yet
+    state.sliderDragStarted();
+    state.setNormalisedValue(def);
+    state.sliderDragEnded();
+  }, true);
+
   // v1.4.0: Double-click on knob or value to enter text input mode
+  // (v1.16.1: an Alt-double-click is two resets, never an open field)
   const handleDoubleClick = (e) => {
+    if (e.altKey) return;
     e.preventDefault();
     e.stopPropagation();
     startKnobTextInput(valueElement, state, min, max, formatter, knobElement);

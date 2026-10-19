@@ -2,6 +2,16 @@
 
 All notable changes to O-Polystutter will be documented in this file.
 
+## [1.16.1] — 2026-10-19
+
+### Changed
+
+- **Alt/Option-click now resets a control to its default**, as one host
+  gesture. The default comes from the plugin itself (a new
+  `getParameterDefaults` native function), so it can never drift from the
+  parameter. Double-click still opens the value field; an Alt-double-click
+  resets instead of opening it.
+
 ## [1.16.0] — 2026-09-27
 
 UI pass R4/R5 from review 260924-nho: palette tokens, a paper wash, AA text
