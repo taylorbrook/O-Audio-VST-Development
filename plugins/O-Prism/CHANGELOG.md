@@ -1,5 +1,11 @@
 # O-Prism Changelog
 
+## [1.30.2] — 2026-10-19
+
+### Changed
+
+- **Master volume now starts at −6 dB (50%)** on new instances (it was 80%). It stays the last stage of the chain. Factory presets no longer set it, and loading or saving a preset leaves it where you put it. Saved sessions recall their stored level unchanged. Alt/Option-click on the knob now resets it to 50%.
+
 ## [1.30.1] - 2026-09-30
 
 Three distortion-stage defects, found by a cross-plugin audit of oversampler block-size and fractional-latency handling. It is a PATCH: **no parameter, range, type or state-format change**, and no UI change. The one audible difference is intended: at a partial Dist Mix the dry signal is now time-aligned with the wet.

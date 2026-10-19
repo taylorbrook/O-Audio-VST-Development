@@ -179,7 +179,7 @@ static RawMap completeBase()
         m["modSlot" + n + "On"] = 0;
     }
     // Global
-    m["masterVol"] = 0.75f; m["stereoWidth"] = 1.0f;
+    m["stereoWidth"] = 1.0f;
     m["oscMix"] = 0.5f; m["velocityCurve"] = 0;
     return m;
 }
@@ -280,8 +280,7 @@ static RawMap bassArchetype()
         { "filtAEnvDepth", 0.55f },
         { "reverbMix", 0.05f },
         { "delayMix", 0.0f },
-        { "stereoWidth", 0.7f },
-        { "masterVol", 0.7f }
+        { "stereoWidth", 0.7f }
     });
     m = merge (m, modSlot (0, SRC_Vel,   DST_FiltACut, 0.5f));
     m = merge (m, modSlot (1, SRC_Vel,   DST_FiltARes, 0.2f));
