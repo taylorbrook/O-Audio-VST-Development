@@ -2,6 +2,16 @@
 
 All notable changes to O-Bowed will be documented in this file.
 
+## [1.10.1] - 2026-10-19
+
+### Changed
+- **Output level now starts at −6 dB** on new instances and is the last stage of the chain (ahead of the ±2.0 safety clip only). Factory presets no longer set it, and loading a preset leaves it where you put it. Saved sessions recall their stored level unchanged.
+- **Output level changes are now smoothed** — a ~20 ms linear ramp replaces the per-block gain step, so moving or automating Output no longer zippers.
+- **Double-click a dial to type a value** — Enter or click away applies, Esc cancels. Double-click works on the knob or its readout; `-inf` / `off` go to the bottom of the range. **Alt/Option-click resets** a control to its default (this was double-click).
+
+### Notes
+- Preset loads keep the level through the shared preset manager's migration hook: the incoming `outputLevel` key is pinned to the live value before the manager's reset-to-defaults pass. User presets saved by the shared manager still carry the key; it is ignored on load.
+
 ## [1.10.0] - 2026-09-27
 
 The UI pass from design review 260924-nho: AA text colours from `ouaricon-naturalist-001` (R4), the template's 9px floor, and the bundled EB Garamond face (R5). It is MINOR because the change is visible. No parameter, range, type or state format changed, and no DSP or processor file was touched. The only C++ change is four `getResource()` branches for the font files. The knob interaction JS is untouched, so R7 (keyboard/ARIA knobs from O-ReverseDelay) stays open for this plugin.

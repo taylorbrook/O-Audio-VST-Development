@@ -180,7 +180,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBowedAudioProcessor::create
         juce::ParameterID { "outputLevel", 1 },
         "Output Level",
         juce::NormalisableRange<float>(-60.0f, 12.0f, 0.1f),
-        0.0f,
+        -6.0f,   // gk9: -6 dB default; user-owned (never set by presets)
         "dB"
     ));
 
@@ -289,6 +289,19 @@ OBowedAudioProcessor::OBowedAudioProcessor()
         [this]() { return saveTuningState(); },
         [this] (const juce::var& state) { loadTuningState (state); });
 
+    // gk9 (D-01): the output level is user-owned — loading a preset must leave it
+    // where the user put it. The shared preset manager runs migrate -> reset every
+    // param to default -> apply the preset's keys, so pinning the incoming
+    // "outputLevel" key to the live normalised value nets to no change on every
+    // load path (loadPreset, loadPresetFromFile, applyPresetData), including
+    // factory files and user presets written before this version.
+    presetManager.setMigrationCallback (
+        [this] (juce::DynamicObject& presetParams, const juce::String&)
+        {
+            if (auto* p = parameters.getParameter ("outputLevel"))
+                presetParams.setProperty ("outputLevel", p->getValue());
+        });
+
     initializeFactoryPresets();
 }
 
@@ -337,6 +350,10 @@ void OBowedAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     pSympatheticDecay  = parameters.getRawParameterValue ("sympatheticDecay");
     pBodyAmount        = parameters.getRawParameterValue ("bodyAmount");
     pOutputLevel       = parameters.getRawParameterValue ("outputLevel");
+    // gk9 (D-05): seed the output smoother at the live level so the first block
+    // ramps from neither 0 nor unity.
+    outputLevelSmoothed.reset (sampleRate, 0.02);
+    outputLevelSmoothed.setCurrentAndTargetValue (juce::Decibels::decibelsToGain (pOutputLevel->load()));
     pHumanizeRange[0]  = parameters.getRawParameterValue ("humanizeSpeedRange");
     pHumanizeRange[1]  = parameters.getRawParameterValue ("humanizePressureRange");
     pHumanizeRange[2]  = parameters.getRawParameterValue ("humanizePositionRange");
@@ -463,9 +480,22 @@ void OBowedAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     // === 7. Stereo width ===
     stereoWidthProcessor.processBlock (buffer, width);
 
-    // === 8. Master output gain ===
-    float outputLevel = pOutputLevel->load();
-    buffer.applyGain (juce::Decibels::decibelsToGain (outputLevel));
+    // === 8. Master output gain === (gk9 D-05: ~20 ms linear ramp, no zipper)
+    outputLevelSmoothed.setTargetValue (juce::Decibels::decibelsToGain (pOutputLevel->load()));
+    {
+        const int n = buffer.getNumSamples();
+        if (outputLevelSmoothed.isSmoothing())
+        {
+            const float g0 = outputLevelSmoothed.getCurrentValue();
+            const float g1 = outputLevelSmoothed.skip (n);
+            for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+                buffer.applyGainRamp (ch, 0, n, g0, g1);
+        }
+        else
+        {
+            buffer.applyGain (outputLevelSmoothed.getTargetValue());
+        }
+    }
 
     // === 9. Safety limiter ===
     for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
@@ -757,7 +787,8 @@ void OBowedAudioProcessor::initializeFactoryPresets()
     // All values normalized 0.0-1.0
     // bowSpeed: sqrt((v-0.02)/1.98)  |  bowPressure: sqrt((v-0.01)/4.99)
     // bowPosition: (v-0.02)/0.28  |  brightness: pow((v-20)/19980, 4.0)
-    // sympatheticCount: v/12.0  |  outputLevel: (v+60)/72  |  referencePitch: (v-220)/660
+    // sympatheticCount: v/12.0  |  referencePitch: (v-220)/660
+    // outputLevel is user-owned (gk9) — never named by a factory preset.
     // tuningSystem: index/2.0
     // Linear 0-1 params: rosin, bowNoise, bodyMaterial, bodySize, width(/2), sympatheticAmount,
     //                     infiniteSustain, reversedFriction, subHarmonics
@@ -770,7 +801,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
              {"rosin", 0.5f}, {"bowNoise", 0.0f},
              {"bodyMaterial", 0.4f}, {"bodySize", 0.3f}, {"brightness", 0.876f},
 {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
-             {"width", 0.5f}, {"outputLevel", 0.833f},
+             {"width", 0.5f},
              {"infiniteSustain", 0.0f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
              {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
             juce::var()
@@ -781,7 +812,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
              {"rosin", 0.55f}, {"bowNoise", 0.0f},
              {"bodyMaterial", 0.4f}, {"bodySize", 0.7f}, {"brightness", 0.8f},
 {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
-             {"width", 0.5f}, {"outputLevel", 0.833f},
+             {"width", 0.5f},
              {"infiniteSustain", 0.0f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
              {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
             juce::var()
@@ -792,7 +823,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
              {"rosin", 0.5f}, {"bowNoise", 0.0f},
              {"bodyMaterial", 0.4f}, {"bodySize", 0.45f}, {"brightness", 0.84f},
 {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
-             {"width", 0.5f}, {"outputLevel", 0.833f},
+             {"width", 0.5f},
              {"infiniteSustain", 0.0f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
              {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
             juce::var()
@@ -803,7 +834,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
              {"rosin", 0.55f}, {"bowNoise", 0.0f},
              {"bodyMaterial", 0.4f}, {"bodySize", 0.9f}, {"brightness", 0.7f},
 {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
-             {"width", 0.5f}, {"outputLevel", 0.833f},
+             {"width", 0.5f},
              {"infiniteSustain", 0.0f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
              {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
             juce::var()
@@ -814,7 +845,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
              {"rosin", 0.65f}, {"bowNoise", 0.05f},
              {"bodyMaterial", 0.15f}, {"bodySize", 0.3f}, {"brightness", 0.876f},
 {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
-             {"width", 0.5f}, {"outputLevel", 0.833f},
+             {"width", 0.5f},
              {"infiniteSustain", 0.0f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
              {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
             juce::var()
@@ -825,7 +856,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
              {"rosin", 0.6f}, {"bowNoise", 0.1f},
              {"bodyMaterial", 0.15f}, {"bodySize", 0.45f}, {"brightness", 0.84f},
 {"sympatheticAmount", 0.4f}, {"sympatheticCount", 0.417f},
-             {"width", 0.55f}, {"outputLevel", 0.833f},
+             {"width", 0.55f},
              {"infiniteSustain", 0.0f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
              {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
             juce::var()
@@ -836,7 +867,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
              {"rosin", 0.5f}, {"bowNoise", 0.0f},
              {"bodyMaterial", 0.4f}, {"bodySize", 0.4f}, {"brightness", 0.876f},
 {"sympatheticAmount", 0.5f}, {"sympatheticCount", 0.833f},
-             {"width", 0.5f}, {"outputLevel", 0.833f},
+             {"width", 0.5f},
              {"infiniteSustain", 0.0f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
              {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
             juce::var()
@@ -848,7 +879,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
              {"rosin", 0.35f}, {"bowNoise", 0.0f},
              {"bodyMaterial", 0.9f}, {"bodySize", 0.3f}, {"brightness", 0.95f},
 {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
-             {"width", 0.5f}, {"outputLevel", 0.833f},
+             {"width", 0.5f},
              {"infiniteSustain", 0.45f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
              {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
             juce::var()
@@ -859,7 +890,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
              {"rosin", 0.6f}, {"bowNoise", 0.2f},
              {"bodyMaterial", 0.5f}, {"bodySize", 0.5f}, {"brightness", 0.876f},
              {"sympatheticAmount", 0.3f}, {"sympatheticCount", 0.5f},
-             {"width", 0.7f}, {"outputLevel", 0.833f},
+             {"width", 0.7f},
              {"infiniteSustain", 0.4f}, {"reversedFriction", 0.3f}, {"subHarmonics", 0.35f},
              {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
             juce::var()
@@ -870,7 +901,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
              {"rosin", 0.3f}, {"bowNoise", 0.7f},
              {"bodyMaterial", 0.4f}, {"bodySize", 0.5f}, {"brightness", 0.876f},
 {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
-             {"width", 0.5f}, {"outputLevel", 0.833f},
+             {"width", 0.5f},
              {"infiniteSustain", 0.15f}, {"reversedFriction", 0.0f}, {"subHarmonics", 0.0f},
              {"referencePitch", 0.333f}, {"tuningSystem", 1.0f}},
             juce::var()
