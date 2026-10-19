@@ -208,6 +208,9 @@ private:
     std::atomic<float>* pSympatheticDecay  = nullptr;
     std::atomic<float>* pBodyAmount        = nullptr;
     std::atomic<float>* pOutputLevel       = nullptr;
+    // gk9 (D-05): final output gain, linear gain domain (a -60 dB floor rules
+    // out Multiplicative), ~20 ms ramp, seeded in prepareToPlay.
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> outputLevelSmoothed { 1.0f };
     std::atomic<float>* pHumanizeRange[4]  = { nullptr, nullptr, nullptr, nullptr };
     std::atomic<float>* pHumanizeRate[4]   = { nullptr, nullptr, nullptr, nullptr };
 

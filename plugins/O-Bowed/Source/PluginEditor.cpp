@@ -169,7 +169,7 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
             })
 
             // WR-07: { paramId: normalizedDefault } for every parameter, so the UI can
-            // double-click-reset skew-correctly (the JUCE SliderState properties carry
+            // Alt/Option-click-reset skew-correctly (the JUCE SliderState properties carry
             // no default field; a linear (default-min)/(max-min) lands off-target for
             // skewed params like bowSpeed/bowPressure/brightness/stringGauge).
             .withNativeFunction("getParameterDefaults", [this](auto, auto complete) {
