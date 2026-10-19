@@ -1,5 +1,11 @@
 # O-Strata Changelog
 
+## [1.1.1] — 2026-10-19
+
+### Changed
+
+- **Master volume now starts at −6 dB (50%)** on new instances (it was 80%). It stays the last stage of the chain. Factory presets no longer set it, and loading or saving a preset leaves it where you put it. Saved sessions recall their stored level unchanged. Alt/Option-click on the knob now resets it to 50%.
+
 ## [1.1.0] - 2026-09-26
 
 This is the UI pass from the 260924-nho design review (Phase C). It adds a CSS custom-property palette, AA text colours (R4), the 9px text floor, the bundled EB Garamond face (R5) and keyboard/ARIA knobs (R7). O-Strata's page is a fork of O-Prism's, so O-Prism v1.30.0's pass was applied to it as a patch: 61 of its 66 hunks applied cleanly. The inherited shell is pixel-identical to O-Prism v1.30.0 again, and `ui_shell_diff_check` measures 0 px on all four inherited tabs. The O-Strata-only regions were tokenised and fixed by hand. The release is MINOR because the change is visible and adds keyboard access. **There is no DSP, parameter, range, type or state-format change.** No processor file was touched. The only C++ change is four `getResource()` branches for the fonts.

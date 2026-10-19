@@ -634,10 +634,10 @@ namespace
                 const juce::var j = juce::JSON::parse (f.loadFileAsString());
                 const auto* obj = j.getDynamicObject();
                 const auto* params = obj != nullptr ? obj->getProperty ("parameters").getDynamicObject() : nullptr;
-                if (params == nullptr || params->getProperties().size() != 198) ++badKeys;
+                if (params == nullptr || params->getProperties().size() != 197) ++badKeys;
                 if (obj != nullptr && obj->hasProperty ("customState")) ++withCustom;
             }
-            check (badKeys == 0 && withCustom == 0, fmt ("[5] every JSON carries 198 parameter keys and no customState (%d bad, %d with customState)", badKeys, withCustom));
+            check (badKeys == 0 && withCustom == 0, fmt ("[5] every JSON carries 197 parameter keys and no customState (%d bad, %d with customState)", badKeys, withCustom));
         }
         else
             std::printf ("skip  [5] on-disk factory bank (pass --with-disk; the 18-preset bank + stamp, Stage 4 Round A)\n");

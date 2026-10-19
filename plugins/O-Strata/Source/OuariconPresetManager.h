@@ -130,6 +130,13 @@ private:
     bool applyPresetJson(const juce::var& presetData);
     void rebuildFlatPresetList();
 
+    // Parameters that belong to the USER, not to a preset (quick 261019-gk9).
+    // Master Volume is a mix control: a preset load never resets it and never
+    // writes it, and a saved preset does not carry it (older presets that do
+    // are read without it). DAW session state is untouched - that goes
+    // through the APVTS, not here.
+    static bool isUserOwnedParameter(const juce::String& paramId) { return paramId == "masterVol"; }
+
     /** Preset names are used verbatim as file names — strip path separators
         and other illegal characters so "A/B" can't silently vanish and "../x"
         can't escape the preset directory (WR-09). */
@@ -216,7 +223,7 @@ inline juce::var OuariconPresetManager::createPresetJson() const
         if (auto* paramWithID = dynamic_cast<juce::RangedAudioParameter*>(param))
         {
             const auto& id = paramWithID->getParameterID();
-            if (excludedParameterIds.contains(id))
+            if (excludedParameterIds.contains(id) || isUserOwnedParameter(id))
                 continue;
             paramsObj->setProperty(id, paramWithID->getValue());
         }
@@ -254,7 +261,8 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
             {
                 if (auto* rangedParam = dynamic_cast<juce::RangedAudioParameter*>(param))
                 {
-                    if (!excludedParameterIds.contains(rangedParam->getParameterID()))
+                    const auto& pid = rangedParam->getParameterID();
+                    if (!excludedParameterIds.contains(pid) && !isUserOwnedParameter(pid))
                         rangedParam->setValueNotifyingHost(rangedParam->getDefaultValue());
                 }
             }
@@ -262,7 +270,7 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
             for (auto& prop : paramsObj->getProperties())
             {
                 const auto id = prop.name.toString();
-                if (excludedParameterIds.contains(id))
+                if (excludedParameterIds.contains(id) || isUserOwnedParameter(id))
                     continue;
                 if (auto* param = parameters.getParameter(id))
                     param->setValueNotifyingHost(static_cast<float>(prop.value));
@@ -580,7 +588,7 @@ inline void OuariconPresetManager::initializeFactoryPresets(
 
         for (const auto& [paramId, value] : preset.parameters)
         {
-            if (excludedParameterIds.contains(paramId))
+            if (excludedParameterIds.contains(paramId) || isUserOwnedParameter(paramId))
                 continue;
             paramsObj->setProperty(paramId, value);
         }

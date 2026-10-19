@@ -62,8 +62,11 @@ enum : int { DELAY_PingPong = 1 };
 enum : int { DIST_SoftClip = 0 };
 
 // Tuning parameters the manager never writes (mirrors OStrataAudioProcessor's
-// presetManager.excludedParameterIds — 205 - 7 = 198 keys per file, smoke [5]).
-const juce::StringArray kExcluded { "tuningPreset", "tonic", "masterTune", "octaveStretch", "pitchBendRange", "glideMode", "glideTime" };
+// presetManager.excludedParameterIds), plus Master Volume, which is user-owned
+// (OuariconPresetManager::isUserOwnedParameter, quick 261019-gk9) —
+// 205 - 8 = 197 keys per file, smoke [5].
+const juce::StringArray kExcluded { "tuningPreset", "tonic", "masterTune", "octaveStretch", "pitchBendRange", "glideMode", "glideTime",
+                                    "masterVol" };
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 
