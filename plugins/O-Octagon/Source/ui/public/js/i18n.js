@@ -435,14 +435,14 @@ export const I18N = Object.freeze({
     // ── Room plan ───────────────────────────────────────────────────────────
     'puck': {
         en: { t: 'Source',
-              b: 'Drag to move the source over the plan — writes Source X and Y together. Double-click a knob or slider elsewhere to reset it.' },
+              b: 'Drag to move the source over the plan — writes Source X and Y together. Elsewhere, Alt-click a knob or slider to reset it; double-click it to type a value.' },
         fr: { t: 'Source',
-              b: 'Faites glisser pour déplacer la source sur le plan — écrit Source X et Y ensemble. Double-cliquez ailleurs sur un bouton ou un curseur pour le réinitialiser.',
-              reviewed: true },
+              b: 'Faites glisser pour déplacer la source sur le plan — écrit Source X et Y ensemble. Ailleurs, Alt-clic sur un bouton ou un curseur pour le réinitialiser ; double-clic pour saisir une valeur.',
+              reviewed: false },
         'zh-Hans': { t: '源',
               b: '拖动即可在平面图上移动声源，同时写入源 X 与源 Y。'
-                + '双击别处的旋钮或推子可将其复位。',
-              reviewed: 'bt' },
+                + '在别处 Alt 点击旋钮或推子可将其复位；双击可输入数值。',
+              reviewed: 'mt' },
     },
     // {n} is a speaker number, substituted literally — not an I18N key. The
     // eight weight cells shared one sentence in the markup and share one entry
@@ -450,14 +450,14 @@ export const I18N = Object.freeze({
     // wording changes.
     'weight': {
         en: { t: 'Weight {n}',
-              b: 'Speaker {n}’s share of the DBAP solve, 0–1. Double-click the glyph to reassign its physical output; double-click the slider to reset.' },
+              b: 'Speaker {n}’s share of the DBAP solve, 0–1. Double-click the glyph to reassign its physical output. On the slider, Alt-click resets and double-click types a value.' },
         fr: { t: 'Poids {n}',
-              b: 'Part du haut-parleur {n} dans la résolution DBAP, de 0 à 1. Double-cliquez sur le glyphe pour réaffecter sa sortie physique ; double-cliquez sur le curseur pour réinitialiser.',
-              reviewed: true },
+              b: 'Part du haut-parleur {n} dans la résolution DBAP, de 0 à 1. Double-cliquez sur le glyphe pour réaffecter sa sortie physique ; sur le curseur, Alt-clic pour réinitialiser, double-clic pour saisir une valeur.',
+              reviewed: false },
         'zh-Hans': { t: '权重 {n}',
               b: '扬声器 {n} 在 DBAP 解算中所占的份额，0 到 1。'
-                + '双击该图标可重新指定它的物理输出；双击推子可复位。',
-              reviewed: 'bt' },
+                + '双击该图标可重新指定它的物理输出；在推子上 Alt 点击可复位，双击可输入数值。',
+              reviewed: 'mt' },
     },
 
     // ── Position ────────────────────────────────────────────────────────────

@@ -293,16 +293,60 @@ head(4, 'readouts come from getScaledValue(); the FORMAT table carries no range 
 
     // Range and skew must be read from the state's own properties, nowhere else.
     check(/state\.properties/.test(S.appJs),
-        'the dblclick round trip converts through the LIVE properties, not a JS range');
+        'the Alt-click reset round trip converts through the LIVE properties, not a JS range');
 }
 
-// ──────────────────────────────────────────────────────── 5. dblclick reset ──
-head(5, 'dblclick reset reads getParameterDefaults, never a JS default table');
+// ──────────────────────────────────── 5. Alt-click reset + dblclick value entry ──
+// v1.16.1 (gk9): reset moved from dblclick to Alt/Option-click, and dblclick
+// now opens the O-Prism-contract value entry. The default still comes from
+// getParameterDefaults and still round-trips through the LIVE properties.
+head(5, 'Alt-click reset reads getParameterDefaults; dblclick opens attachValueEntry and never writes');
 {
     check(/paramDefaults = await nativeFn\("getParameterDefaults"\)\(\)/.test(S.appJs),
         'defaults are fetched from the plugin');
-    check(/dblclick/.test(S.appJs) && /paramDefaults\[id\]/.test(S.appJs),
-        'the dblclick handler resolves its value out of that payload');
+
+    // The handler body that closes addEventListener( — paren-balanced.
+    const listenerBodies = (src, type) => {
+        const out = [];
+        const re = new RegExp(`addEventListener\\(\\s*["']${type}["']\\s*,`, 'g');
+        let m;
+        while ((m = re.exec(src))) {
+            let i = re.lastIndex, depth = 1;
+            for (; i < src.length; i++) {
+                if (src[i] === '(') depth++;
+                else if (src[i] === ')' && --depth === 0) break;
+            }
+            out.push(src.slice(re.lastIndex, i));
+        }
+        return out;
+    };
+
+    const altDown = listenerBodies(S.appJs, 'pointerdown').filter(b => /e\.altKey/.test(b));
+    check(altDown.length === 1,
+        `exactly one Alt-click pointerdown reset listener — found ${altDown.length}`);
+    const alt = altDown[0] || '';
+    check(/,\s*true\s*$/.test(alt),
+        'it is registered on the CAPTURE phase (runs ahead of the openGesture drag)');
+    check(/preventDefault\(\)/.test(alt) && /stopPropagation\(\)/.test(alt),
+        'it preventDefaults and stops propagation, so no drag starts underneath');
+    check(/paramDefaults\[id\]/.test(alt),
+        'the Alt-click reset resolves its value out of the getParameterDefaults payload');
+    check(/openGesture\(\)[\s\S]*setNormalisedValue\(\s*scaledToNorm\(\s*def\s*,\s*state\.properties\s*\)\s*\)[\s\S]*closeGesture\(\)/.test(alt),
+        'it writes inside one gesture, converted through the LIVE state.properties');
+    check(listenerBodies(S.appJs, 'mousedown').some(b => /e\.altKey/.test(b) && /preventDefault\(\)/.test(b) && /,\s*true\s*$/.test(b)),
+        'a capture-phase Alt mousedown preventDefaults, so the native thumb never jumps to the click');
+    check(!/setNormalisedValue\(\s*0\.5\s*\)/.test(S.appJs),
+        'no bare 0.5 reset fallback anywhere');
+
+    const dbl = listenerBodies(S.appJs, 'dblclick')
+        .filter(b => !/^\s*stop\s*$/.test(b));          // the entry field's own stopper
+    check(dbl.length >= 1 && dbl.every(b => /attachValueEntry\(/.test(b)),
+        `every slider dblclick handler opens attachValueEntry — ${dbl.length} handler(s)`);
+    check(dbl.every(b => !/setNormalisedValue|paramDefaults/.test(b)),
+        'no dblclick handler writes a parameter or reads a default itself');
+    check(/function attachValueEntry\b/.test(S.appJs)
+          && /setNormalisedValue\(\s*scaledToNorm\(\s*scaled\s*,\s*state\.properties/.test(S.appJs),
+        'attachValueEntry commits through scaledToNorm over the live properties');
 
     // The specific trap this closes: w1..w8 default to 1.0, not to their range
     // minimum, and blur/airAmount are non-endpoint too. A JS table gets those

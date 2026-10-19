@@ -1,5 +1,15 @@
 # O-Octagon Changelog
 
+## [1.16.1] — 2026-10-19
+
+### Changed
+
+- **Double-click a slider to type a value** — Enter or click away applies, Esc cancels. **Alt/Option-click resets** a slider to its default (this was double-click). Double-clicking a slider's readout opens the same field.
+- The reset still reads the default from `getParameterDefaults` and converts it through the live range, now inside a capture-phase Alt-click that stops the drag. The native thumb no longer jumps to the click point. Typed values go through the same live range and skew.
+- The speaker-glyph double-click on the Room plan (reassign physical output) is unchanged.
+- The Source (puck) and Weight hover tips now say Alt-click resets and double-click types a value, in English, French and Chinese.
+- `tests/ui_frontend_check.js` section 5 now pins the new gestures: the Alt-click capture reset reads `paramDefaults[id]` inside one gesture, and every slider double-click opens `attachValueEntry` and writes nothing itself.
+
 ## [1.16.0] - 2026-10-15
 
 ### Added
