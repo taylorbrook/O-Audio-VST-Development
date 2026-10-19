@@ -527,6 +527,12 @@ public:
     juce::String capturePresetXml();
     bool restorePresetXml (const juce::String& xmlText);
 
+    // quick 261019-gk9: parameters that belong to the USER, not to a preset.
+    // Output Gain is a mix control: capturePresetXml() omits it and
+    // restorePresetXml() leaves it at its live value. The DAW session path
+    // (get/setStateInformation) still saves and recalls it.
+    static bool isUserOwnedParameter (const juce::String& paramId) { return paramId == "output_gain"; }
+
     // v1.7.1: read the synth's lock-free active-notes bitmask. Used by the
     // editor's 30 Hz timer to diff and emit tuningNoteOn / tuningNoteOff
     // events to the WebView. Message-thread accessor (the load itself is

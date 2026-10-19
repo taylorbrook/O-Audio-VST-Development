@@ -1117,8 +1117,11 @@ export const LABELS = Object.freeze({
     'label.trimTechnique':  { en: { t: 'Technique' },                              fr: { t: 'Technique',                                  reviewed: true, sameAsEn: true },
         'zh-Hans': { t: '技法', reviewed: 'bt' }
     },
-    'label.trimHint':       { en: { t: 'Double-click a slider to reset to 0 dB' }, fr: { t: 'Double-clic sur un curseur → 0 dB', reviewed: true },
-        'zh-Hans': { t: '双击滑块可回到 0 dB', reviewed: 'bt' }
+    // quick 261019-gk9: the reset moved to Alt/Option-click; double-click now
+    // opens value entry. Kept near the old caption's length (the caption
+    // already overhangs its offsetParent — see the note above).
+    'label.trimHint':       { en: { t: 'Alt-click → 0 dB · double-click to type' }, fr: { t: 'Alt-clic → 0 dB · double-clic pour saisir', reviewed: false },
+        'zh-Hans': { t: 'Alt 点击 → 0 dB · 双击输入数值', reviewed: 'mt' }
     },
     'label.resetAllTrims':  { en: { t: 'Reset all trims' },                        fr: { t: 'Tout réinitialiser',                         reviewed: true },
         'zh-Hans': { t: '全部重置', reviewed: 'bt' }

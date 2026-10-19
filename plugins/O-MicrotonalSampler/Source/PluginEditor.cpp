@@ -889,7 +889,7 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
         },
 
         // v1.23.7 (ui-frontend review WR-04): parameter defaults for the
-        // control-strip knobs. The JS double-click reset pulls this once at
+        // control-strip knobs. The JS Alt/Option-click reset pulls this once at
         // boot so it snaps to the real APVTS default (param->getDefaultValue(),
         // normalised 0..1) instead of a blanket mid-range 0.5 — which for the
         // skewed ADSR ranges denormalised to ~2.5 s. Keys mirror

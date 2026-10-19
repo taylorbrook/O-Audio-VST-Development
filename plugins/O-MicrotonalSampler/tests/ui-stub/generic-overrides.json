@@ -174,7 +174,7 @@
       "velocity_crossfade": 0.25,
       "expression": 1.0,
       "dynamic_range": 0.3,
-      "output_gain": 0.5
+      "output_gain": 0.375
     },
     "getHeldNotesJson": "{\"notes\": [], \"freqs\": []}",
     "getUiLanguage": "en",

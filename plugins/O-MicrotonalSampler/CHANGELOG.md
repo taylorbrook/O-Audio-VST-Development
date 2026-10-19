@@ -1,5 +1,13 @@
 # O-MicrotonalSampler Changelog
 
+## [1.28.1] — 2026-10-19
+
+### Changed
+
+- **Output level now starts at −6 dB** on new instances (it was 0 dB) and stays the last stage of the chain. Saving an `.omspreset` no longer stores it, and loading one leaves it where you put it (older `.omspreset` files that carry a level are read without it). Saved DAW sessions recall their stored level unchanged.
+- **Double-click a dial to type a value** — Enter or click away applies, Esc cancels. **Alt/Option-click resets** a control to its default (this was double-click). Until the plugin has reported its defaults the Alt-click does nothing, rather than jumping to mid-range.
+- **Trim sliders work the same way:** double-click a trim slider or its readout to type a dB value; Alt/Option-click returns it to 0 dB. The panel hint says so in English, French and Chinese.
+
 ## [1.28.0] - 2026-09-25
 
 The UI pass from the 260924-nho design review. It covers AA text colours (R4), the 9px text floor, the bundled EB Garamond face (R5) and keyboard/ARIA knobs ported from O-ReverseDelay (R7). It is MINOR because the change is visible and adds keyboard access. No parameter, range, type or state format changed, and no DSP or processor file was touched. The only C++ change is four `getResource()` branches for the fonts.
