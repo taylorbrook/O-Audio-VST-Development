@@ -73,7 +73,7 @@ OContrabassAudioProcessor::createParameterLayout()
     layout.add(std::make_unique<APF>(juce::ParameterID{"BRIGHTNESS", 1},    "Brightness",
         NR(80.0f, 12000.0f, 1.0f, 0.25f),  4500.0f));
     layout.add(std::make_unique<APF>(juce::ParameterID{"OUTPUT_GAIN", 1},   "Output Level",
-        NR(-60.0f, 12.0f, 0.1f),           0.0f));
+        NR(-60.0f, 12.0f, 0.1f),           -6.0f));   // gk9: -6 dB default, user-owned
 
     // -- Tier 2: Secondary Controls (5 params) --
     layout.add(std::make_unique<APF>(juce::ParameterID{"ROSIN", 1},         "Rosin",
@@ -286,6 +286,19 @@ OContrabassAudioProcessor::OContrabassAudioProcessor()
                 tuningEngine.setOctaveStretch (static_cast<float> (obj->getProperty ("octaveStretch")));
         });
 
+    // gk9 (D-01): OUTPUT_GAIN is user-owned — no factory preset names it and a
+    // preset load leaves it where the user put it. The shared preset manager runs
+    // migrate -> reset every param to default -> apply the preset's keys, so
+    // pinning the incoming "OUTPUT_GAIN" key to the live normalised value nets to
+    // no change on every load path (loadPreset, loadPresetFromFile,
+    // applyPresetData), including user presets saved before this version.
+    presetManager.setMigrationCallback (
+        [this] (juce::DynamicObject& presetParams, const juce::String&)
+        {
+            if (auto* p = parameters.getParameter ("OUTPUT_GAIN"))
+                presetParams.setProperty ("OUTPUT_GAIN", p->getValue());
+        });
+
     // ── Stage 4 (Polish) FUNC-04 — factory presets ────────────────────────────
     // Four 5-preset banks (Orchestral + Drone + v1.6 Expressive + v1.6 Texture),
     // authored in ENGINEERING UNITS and
@@ -307,7 +320,7 @@ OContrabassAudioProcessor::OContrabassAudioProcessor()
         {
             "Cinematic Bass Sustain",
             {{"BOW_SPEED", 0.15f}, {"BOW_PRESSURE", 1.2f}, {"BOW_POSITION", 0.10f},
-             {"BRIGHTNESS", 4500.0f}, {"OUTPUT_GAIN", 0.0f}, {"ROSIN", 0.65f},
+             {"BRIGHTNESS", 4500.0f}, {"ROSIN", 0.65f},
              {"BOW_NOISE", 0.30f}, {"BODY_SIZE", 0.85f}, {"BODY_DAMPING", 0.30f},
              {"BODY_MIX", 0.85f}, {"STRING_STIFFNESS", 0.30f}, {"ACTIVE_STRINGS", 4.0f},
              {"VIBRATO_RATE", 5.0f}, {"VIBRATO_DEPTH", 8.0f}, {"VIBRATO_ONSET", 900.0f},
@@ -317,7 +330,7 @@ OContrabassAudioProcessor::OContrabassAudioProcessor()
         {
             "Section Bass",
             {{"BOW_SPEED", 0.18f}, {"BOW_PRESSURE", 1.4f}, {"BOW_POSITION", 0.11f},
-             {"BRIGHTNESS", 3800.0f}, {"OUTPUT_GAIN", 0.0f}, {"ROSIN", 0.60f},
+             {"BRIGHTNESS", 3800.0f}, {"ROSIN", 0.60f},
              {"BOW_NOISE", 0.28f}, {"BODY_SIZE", 0.80f}, {"BODY_DAMPING", 0.55f},
              {"BODY_MIX", 0.80f}, {"STRING_STIFFNESS", 0.30f}, {"ACTIVE_STRINGS", 4.0f},
              {"VIBRATO_RATE", 4.5f}, {"VIBRATO_DEPTH", 6.0f}, {"VIBRATO_ONSET", 800.0f},
@@ -327,7 +340,7 @@ OContrabassAudioProcessor::OContrabassAudioProcessor()
         {
             "Solo Arco Bass",
             {{"BOW_SPEED", 0.20f}, {"BOW_PRESSURE", 1.0f}, {"BOW_POSITION", 0.09f},
-             {"BRIGHTNESS", 5200.0f}, {"OUTPUT_GAIN", 0.5f}, {"ROSIN", 0.78f},
+             {"BRIGHTNESS", 5200.0f}, {"ROSIN", 0.78f},
              {"BOW_NOISE", 0.45f}, {"BODY_SIZE", 0.75f}, {"BODY_DAMPING", 0.35f},
              {"BODY_MIX", 0.82f}, {"STRING_STIFFNESS", 0.28f}, {"ACTIVE_STRINGS", 4.0f},
              {"VIBRATO_RATE", 5.5f}, {"VIBRATO_DEPTH", 14.0f}, {"VIBRATO_ONSET", 500.0f},
@@ -336,7 +349,7 @@ OContrabassAudioProcessor::OContrabassAudioProcessor()
         {
             "Pianissimo Bass",
             {{"BOW_SPEED", 0.08f}, {"BOW_PRESSURE", 0.35f}, {"BOW_POSITION", 0.20f},
-             {"BRIGHTNESS", 3000.0f}, {"OUTPUT_GAIN", -6.0f}, {"ROSIN", 0.50f},
+             {"BRIGHTNESS", 3000.0f}, {"ROSIN", 0.50f},
              {"BOW_NOISE", 0.25f}, {"BODY_SIZE", 0.78f}, {"BODY_DAMPING", 0.45f},
              {"BODY_MIX", 0.80f}, {"STRING_STIFFNESS", 0.30f}, {"ACTIVE_STRINGS", 4.0f},
              {"VIBRATO_RATE", 4.5f}, {"VIBRATO_DEPTH", 5.0f}, {"VIBRATO_ONSET", 1100.0f},
@@ -345,7 +358,7 @@ OContrabassAudioProcessor::OContrabassAudioProcessor()
         {
             "Forte Bass",
             {{"BOW_SPEED", 0.35f}, {"BOW_PRESSURE", 3.2f}, {"BOW_POSITION", 0.07f},
-             {"BRIGHTNESS", 6500.0f}, {"OUTPUT_GAIN", 0.0f}, {"ROSIN", 0.72f},
+             {"BRIGHTNESS", 6500.0f}, {"ROSIN", 0.72f},
              {"BOW_NOISE", 0.40f}, {"BODY_SIZE", 0.82f}, {"BODY_DAMPING", 0.28f},
              {"BODY_MIX", 0.85f}, {"STRING_STIFFNESS", 0.32f}, {"ACTIVE_STRINGS", 4.0f},
              {"VIBRATO_RATE", 5.5f}, {"VIBRATO_DEPTH", 10.0f}, {"VIBRATO_ONSET", 400.0f},
@@ -387,7 +400,7 @@ OContrabassAudioProcessor::OContrabassAudioProcessor()
         {
             "Sub Drone",
             {{"BOW_SPEED", 0.10f}, {"BOW_PRESSURE", 1.6f}, {"BOW_POSITION", 0.10f},
-             {"BRIGHTNESS", 1200.0f}, {"OUTPUT_GAIN", -1.0f}, {"ROSIN", 0.55f},
+             {"BRIGHTNESS", 1200.0f}, {"ROSIN", 0.55f},
              {"BOW_NOISE", 0.22f}, {"BODY_SIZE", 0.90f}, {"BODY_DAMPING", 0.35f},
              {"BODY_MIX", 0.88f}, {"ACTIVE_STRINGS", 2.0f}, {"VIBRATO_DEPTH", 0.0f},
              {"SLOW_LFO_RATE", 0.15f}, {"SLOW_LFO_DEPTH", 0.35f}, {"INFINITE_SUSTAIN", 1.0f},
@@ -410,7 +423,7 @@ OContrabassAudioProcessor::OContrabassAudioProcessor()
         {
             "Sul Ponticello Bass",
             {{"BOW_SPEED", 0.22f}, {"BOW_PRESSURE", 1.8f}, {"BOW_POSITION", 0.03f},
-             {"BRIGHTNESS", 8000.0f}, {"OUTPUT_GAIN", -1.0f}, {"ROSIN", 0.80f},
+             {"BRIGHTNESS", 8000.0f}, {"ROSIN", 0.80f},
              {"BOW_NOISE", 0.55f}, {"BODY_SIZE", 0.75f}, {"BODY_DAMPING", 0.30f},
              {"BODY_MIX", 0.75f}, {"STRING_STIFFNESS", 0.34f}, {"ACTIVE_STRINGS", 4.0f},
              {"VIBRATO_RATE", 5.0f}, {"VIBRATO_DEPTH", 6.0f}, {"VIBRATO_ONSET", 700.0f},
@@ -419,7 +432,7 @@ OContrabassAudioProcessor::OContrabassAudioProcessor()
         {
             "Sul Tasto Bass",
             {{"BOW_SPEED", 0.12f}, {"BOW_PRESSURE", 0.8f}, {"BOW_POSITION", 0.24f},
-             {"BRIGHTNESS", 2600.0f}, {"OUTPUT_GAIN", 0.0f}, {"ROSIN", 0.55f},
+             {"BRIGHTNESS", 2600.0f}, {"ROSIN", 0.55f},
              {"BOW_NOISE", 0.22f}, {"BODY_SIZE", 0.80f}, {"BODY_DAMPING", 0.50f},
              {"BODY_MIX", 0.82f}, {"STRING_STIFFNESS", 0.28f}, {"ACTIVE_STRINGS", 4.0f},
              {"VIBRATO_RATE", 4.2f}, {"VIBRATO_DEPTH", 7.0f}, {"VIBRATO_ONSET", 900.0f},
@@ -428,7 +441,7 @@ OContrabassAudioProcessor::OContrabassAudioProcessor()
         {
             "Overpressure Scratch",
             {{"BOW_SPEED", 0.06f}, {"BOW_PRESSURE", 5.5f}, {"BOW_POSITION", 0.06f},
-             {"BRIGHTNESS", 5500.0f}, {"OUTPUT_GAIN", -2.0f}, {"ROSIN", 0.90f},
+             {"BRIGHTNESS", 5500.0f}, {"ROSIN", 0.90f},
              {"BOW_NOISE", 0.70f}, {"BODY_SIZE", 0.78f}, {"BODY_DAMPING", 0.25f},
              {"BODY_MIX", 0.78f}, {"STRING_STIFFNESS", 0.35f}, {"ACTIVE_STRINGS", 4.0f},
              {"VIBRATO_DEPTH", 0.0f}, {"RELEASE", 0.6f}, {"WIDTH", 1.0f},
@@ -437,7 +450,7 @@ OContrabassAudioProcessor::OContrabassAudioProcessor()
         {
             "Flautando Bass",
             {{"BOW_SPEED", 0.30f}, {"BOW_PRESSURE", 0.25f}, {"BOW_POSITION", 0.22f},
-             {"BRIGHTNESS", 3200.0f}, {"OUTPUT_GAIN", 1.0f}, {"ROSIN", 0.45f},
+             {"BRIGHTNESS", 3200.0f}, {"ROSIN", 0.45f},
              {"BOW_NOISE", 0.15f}, {"BODY_SIZE", 0.80f}, {"BODY_DAMPING", 0.45f},
              {"BODY_MIX", 0.80f}, {"STRING_STIFFNESS", 0.26f}, {"ACTIVE_STRINGS", 4.0f},
              {"VIBRATO_RATE", 4.8f}, {"VIBRATO_DEPTH", 4.0f}, {"VIBRATO_ONSET", 1000.0f},
@@ -446,7 +459,7 @@ OContrabassAudioProcessor::OContrabassAudioProcessor()
         {
             "Espressivo Bass",
             {{"BOW_SPEED", 0.24f}, {"BOW_PRESSURE", 1.6f}, {"BOW_POSITION", 0.08f},
-             {"BRIGHTNESS", 5000.0f}, {"OUTPUT_GAIN", 0.5f}, {"ROSIN", 0.75f},
+             {"BRIGHTNESS", 5000.0f}, {"ROSIN", 0.75f},
              {"BOW_NOISE", 0.40f}, {"BODY_SIZE", 0.78f}, {"BODY_DAMPING", 0.32f},
              {"BODY_MIX", 0.84f}, {"STRING_STIFFNESS", 0.30f}, {"ACTIVE_STRINGS", 4.0f},
              {"VIBRATO_RATE", 6.0f}, {"VIBRATO_DEPTH", 22.0f}, {"VIBRATO_ONSET", 250.0f},
@@ -458,7 +471,7 @@ OContrabassAudioProcessor::OContrabassAudioProcessor()
         {
             "Glass Drone",
             {{"BOW_SPEED", 0.16f}, {"BOW_PRESSURE", 0.6f}, {"BOW_POSITION", 0.04f},
-             {"BRIGHTNESS", 9000.0f}, {"OUTPUT_GAIN", -1.5f}, {"ROSIN", 0.70f},
+             {"BRIGHTNESS", 9000.0f}, {"ROSIN", 0.70f},
              {"BOW_NOISE", 0.35f}, {"BODY_SIZE", 0.70f}, {"BODY_DAMPING", 0.25f},
              {"BODY_MIX", 0.72f}, {"ACTIVE_STRINGS", 4.0f}, {"VIBRATO_DEPTH", 0.0f},
              {"SLOW_LFO_RATE", 0.10f}, {"SLOW_LFO_DEPTH", 0.35f}, {"INFINITE_SUSTAIN", 1.0f},
@@ -479,7 +492,7 @@ OContrabassAudioProcessor::OContrabassAudioProcessor()
         {
             "Tectonic Sub",
             {{"BOW_SPEED", 0.09f}, {"BOW_PRESSURE", 1.8f}, {"BOW_POSITION", 0.11f},
-             {"BRIGHTNESS", 900.0f}, {"OUTPUT_GAIN", -1.0f}, {"ROSIN", 0.55f},
+             {"BRIGHTNESS", 900.0f}, {"ROSIN", 0.55f},
              {"BOW_NOISE", 0.18f}, {"BODY_SIZE", 0.95f}, {"BODY_DAMPING", 0.35f},
              {"BODY_MIX", 0.90f}, {"ACTIVE_STRINGS", 2.0f}, {"VIBRATO_DEPTH", 0.0f},
              {"SLOW_LFO_RATE", 0.08f}, {"SLOW_LFO_DEPTH", 0.50f}, {"INFINITE_SUSTAIN", 1.0f},
@@ -489,7 +502,7 @@ OContrabassAudioProcessor::OContrabassAudioProcessor()
         {
             "Warped Tape Bass",
             {{"BOW_SPEED", 0.13f}, {"BOW_PRESSURE", 1.3f}, {"BOW_POSITION", 0.12f},
-             {"BRIGHTNESS", 2800.0f}, {"OUTPUT_GAIN", 0.0f}, {"ROSIN", 0.58f},
+             {"BRIGHTNESS", 2800.0f}, {"ROSIN", 0.58f},
              {"BOW_NOISE", 0.25f}, {"BODY_SIZE", 0.82f}, {"BODY_DAMPING", 0.40f},
              {"BODY_MIX", 0.80f}, {"ACTIVE_STRINGS", 4.0f}, {"DETUNE_E", -8.0f},
              {"DETUNE_A", 6.0f}, {"DETUNE_D", -5.0f}, {"DETUNE_G", 8.0f},
@@ -500,7 +513,7 @@ OContrabassAudioProcessor::OContrabassAudioProcessor()
         {
             "Whisper Pad",
             {{"BOW_SPEED", 0.07f}, {"BOW_PRESSURE", 0.30f}, {"BOW_POSITION", 0.18f},
-             {"BRIGHTNESS", 2000.0f}, {"OUTPUT_GAIN", -4.0f}, {"ROSIN", 0.45f},
+             {"BRIGHTNESS", 2000.0f}, {"ROSIN", 0.45f},
              {"BOW_NOISE", 0.50f}, {"BODY_SIZE", 0.85f}, {"BODY_DAMPING", 0.60f},
              {"BODY_MIX", 0.80f}, {"ACTIVE_STRINGS", 4.0f}, {"VIBRATO_DEPTH", 0.0f},
              {"SLOW_LFO_RATE", 0.12f}, {"SLOW_LFO_DEPTH", 0.30f}, {"INFINITE_SUSTAIN", 1.0f},

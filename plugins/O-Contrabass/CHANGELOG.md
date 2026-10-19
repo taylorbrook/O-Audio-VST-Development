@@ -4,6 +4,18 @@ All notable changes to the O-Contrabass physical-model bowed-contrabass synth.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — the pre-release `1.x-dev` engine track collapses into it.
 
+## [1.12.1] - 2026-10-19
+
+### Changed
+- **Output level now starts at −6 dB** on new instances and is the last stage of the chain (after the limiter, through the existing 30 ms smoother). Factory presets no longer set it, and loading a preset leaves it where you put it. Saved sessions recall their stored level unchanged.
+- **Double-click a dial to type a value** — Enter or click away applies, Esc cancels. Works on every knob and each fine-tuner fader, on the control or its readout (percent knobs take percent, Brightness takes Hz or `k`, the fine tuners take cents; `-inf` / `off` go to the bottom of the range). **Alt/Option-click resets** a control to its default (this was double-click).
+- The fine-tuners' help text now says Alt-click resets and double-click types a value (fr and zh-Hans rewritten; the zh-Hans row is a machine draft pending review).
+
+### Notes
+- Fifteen factory presets carried an `OUTPUT_GAIN` value; it is removed from all of them. Ten of those were not 0 dB (Solo Arco +0.5, Pianissimo −6.0, Sub Drone −1.0, Sul Ponticello −1.0, Overpressure Scratch −2.0, Flautando +1.0, Espressivo +0.5, Glass Drone −1.5, Tectonic Sub −1.0, Whisper Pad −4.0) — a voicing follow-up, not a gain fix.
+- Preset loads keep the level through the shared preset manager's migration hook: the incoming `OUTPUT_GAIN` key is pinned to the live value before the manager's reset-to-defaults pass. User presets saved by the shared manager still carry the key; it is ignored on load.
+- `tests/ui_frontend_check.js` section 4 now pins the Alt-click reset (capture-phase, `paramDefaults[paramId]`, one gesture) and that every dblclick opens `attachValueEntry`.
+
 ## [1.12.0] - 2026-10-16
 
 Two changes. The bow noise is rebuilt so it moves with the bow, and the Main
