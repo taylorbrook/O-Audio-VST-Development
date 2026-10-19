@@ -77,6 +77,14 @@ public:
     // Check if preset is factory (read-only)
     bool isFactoryPreset(const juce::String& presetName) const;
 
+    // gk9 (D-01): parameters the user owns. Never reset or written by a preset
+    // apply, never written into a saved user preset, never set by a factory
+    // preset. Session state (get/setStateInformation) still recalls them.
+    static bool isUserOwnedParameter(const juce::String& paramId)
+    {
+        return paramId == "OUTPUT_GAIN";
+    }
+
 private:
     juce::AudioProcessorValueTreeState& parameters;
     TuningEngine& tuningEngine;
@@ -109,7 +117,7 @@ private:
         int tuningMode;  // 0=12TET, 1=Scala, 2=MTS
         float referencePitch;  // Hz
         float velCurve;
-        float outputGain;  // dB
+        // gk9: no output gain — OUTPUT_GAIN is user-owned (isUserOwnedParameter).
     };
 
     static const std::vector<FactoryPreset>& getFactoryPresetData();

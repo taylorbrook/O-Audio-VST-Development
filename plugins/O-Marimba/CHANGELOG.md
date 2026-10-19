@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.16.1] - 2026-10-19
+
+### Changed
+- **Output gain now starts at −6 dB** on new instances and is the last stage of the chain (after EQ, compressor and reverb; only the NaN/ceiling safety net follows). Factory presets no longer set it, loading a preset leaves it where you put it, and saving a user preset no longer stores it. Saved sessions recall their stored level unchanged.
+- **Output gain changes are now smoothed** — a ~20 ms linear ramp replaces the per-block gain step, so moving or automating Output no longer zippers.
+- **Double-click a dial to type a value** — Enter or click away applies, Esc cancels. Works on every Sound-tab knob and the A4 reference knob, on the knob or its readout (percent knobs take percent; Strike takes `center`, Damping `shimmer` / `focused`, Tone `warm` / `bright`; `-inf` / `off` go to the bottom of the range). **Alt/Option-click resets** a control to its default (the A4 knob's double-click used to reset; it now uses Alt-click too, inside one host gesture).
+
+### Notes
+- New `getParameterDefaults` native function serves the C++ normalised defaults for the Alt-click reset.
+- `PresetManager::isUserOwnedParameter()` (OUTPUT_GAIN) is consulted by the reset-to-defaults pass, the apply loop and the user-preset save. The factory preset struct loses its `outputGain` field (all ten presets had 0 dB).
+- The Effects-tab EQ, compressor and reverb strips are shared modules and keep their own knob handling for now.
+
 ## [1.16.0] - 2026-10-16
 
 The Effects tab gets a reverb: the new shared `modules/effects/reverb-unit` 1.0.0, mounted under the compressor. The EQ and compressor strips are restyled to match it (`analog-eq-unit` and `compressor-unit` 1.3.0; O-Marimba is their only consumer). The release also carries two fixes from a UI review. MINOR: 7 parameters are added, and none is renamed, re-ranged or removed. **The reverb is OFF by default.** Preset loading resets every parameter to its default before applying the stored subset (WR-01), so existing presets and sessions render exactly as before. Harness check: with the unit OFF, the output is bit-identical to the input.

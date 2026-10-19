@@ -166,6 +166,16 @@ OMarimbaAudioProcessorEditor::OMarimbaAudioProcessorEditor(OMarimbaAudioProcesso
                 complete(juce::var(OMarimbaAudioProcessor::languageCode(
                     processorRef.getUiLanguageIndex())));
             })
+            // gk9: { paramId: normalisedDefault } for every parameter (the
+            // O-Contrabass WR-11 shape) — the UI's Alt/Option-click reset target,
+            // skew-correct, never a hand-mirrored JS table.
+            .withNativeFunction("getParameterDefaults", [this](const juce::Array<juce::var>&, auto complete) {
+                juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+                for (auto* param : processorRef.getParameters())
+                    if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(param))
+                        obj->setProperty(ranged->getParameterID(), ranged->getDefaultValue());
+                complete(juce::var(obj.get()));
+            })
             .withNativeFunction("sendMidiNote", [this](const auto& args, auto complete) {
                 complete(sendMidiNote(args));
             })

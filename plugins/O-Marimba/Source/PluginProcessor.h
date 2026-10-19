@@ -202,6 +202,9 @@ private:
     // WR-07: cached atomic parameter pointers resolved once in prepareToPlay so
     // processBlock avoids per-callback hashed-string map lookups.
     std::atomic<float>* pOutputGain = nullptr;
+    // gk9 (D-05): final output gain, linear gain domain, ~20 ms ramp, seeded in
+    // prepareToPlay.
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> outputGainSmoothed { 1.0f };
     std::atomic<float>* pVelCurve = nullptr;
     std::atomic<float>* pMalletHardness = nullptr;
     std::atomic<float>* pBarMaterial = nullptr;
