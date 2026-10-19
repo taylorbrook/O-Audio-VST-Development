@@ -1,5 +1,12 @@
 # O-Chorus Changelog
 
+## [1.10.1] — 2026-10-19
+
+### Changed
+
+- **Double-click a dial to type a value** — Enter or click away applies, Esc cancels. **Alt/Option-click resets** a control to its default (this was double-click).
+- Double-click works on the dial or its readout. Percent knobs take a percentage, Rate takes Hz, and Voices rounds to a whole count (1-8); Alt/Option-click on Voices still lands on a whole count.
+
 ## [1.10.0] - 2026-09-30
 
 Sixteen new factory presets, and a preset list you can actually reach. MINOR
