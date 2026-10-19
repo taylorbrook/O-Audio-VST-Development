@@ -499,6 +499,36 @@
     min-height: 13px;
     font-feature-settings: "tnum";
   }
+
+  /* v1.17.2: double-click value entry (O-Prism .knob-value-input, verbatim).
+     Form controls do not inherit fonts on their own — hence the explicit
+     `inherit`s. */
+  .knob-value-input {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-bottom: 1px solid currentColor;
+    border-radius: 0;
+    background: transparent;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;   /* not inherited by form controls either */
+    line-height: normal;
+    text-align: inherit;
+    outline: none;
+    -moz-appearance: textfield;
+  }
+  .knob-value-input::-webkit-outer-spin-button,
+  .knob-value-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
   .annot {
     font-style: italic;
     font-size: 9px;                  /* v1.17.0: 9px floor, was 8.5px */
@@ -1662,14 +1692,10 @@
 
   const clamp01 = (v) => Math.min(1, Math.max(0, v));
 
-  // Invert C++ NormalisableRange using the state's own properties (start/end/skew
-  // arrive from the backend), so skewed knobs (CLOCK_FREE_RATE, CRUSH_RATE) reset
-  // correctly without any JS min/max math.
-  const scaledToNormalised = (state, scaled) => {
-    const p = state.properties;
-    if (!p || p.end === p.start) return 0;
-    return clamp01(Math.pow((scaled - p.start) / (p.end - p.start), p.skew));
-  };
+  // (v1.17.2: the reset's scaled -> normalised step is scaledToNorm() below —
+  // it reads the same live state.properties, so skewed knobs (CLOCK_FREE_RATE,
+  // CRUSH_RATE) still reset correctly, and it clamps BEFORE the pow, which the
+  // old scaledToNormalised() helper did not: a below-range value gave NaN.)
 
   // Readout formatting only — the VALUE always comes from getScaledValue().
   const fmtValue = (el, v) => {
@@ -1681,6 +1707,126 @@
     return unit ? s + " " + unit : s;
   };
 
+  // ─── DOUBLE-CLICK VALUE ENTRY (v1.17.2, ported from O-Prism) ───
+
+  // Scaled (C++ parameter units) -> normalised [0,1], from the LIVE range the
+  // WebSliderRelay pushes up (state.properties), never a JS mirror. Clamps
+  // before the pow(): a fractional skew on a negative base is NaN, and that
+  // NaN would ride setNormalisedValue() straight into the parameter.
+  function scaledToNorm(v, props) {
+    const start = props.start, end = props.end;
+    const skew = props.skew > 0 ? props.skew : 1;
+    if (!(end > start)) return 0;
+    const t = Math.min(1, Math.max(0, (v - start) / (end - start)));
+    return skew === 1 ? t : Math.pow(t, skew);
+  }
+
+  // Opens an inline editor. formatFn renders a normalised value as display
+  // text; formatFn.parse(text, currentText) converts typed text back to a
+  // SCALED value, or null to reject. Enter/blur commits, Esc cancels, and
+  // untouched text is never written back (the readout is rounded).
+  //
+  // opts.dial: for a dial with no readout, valueEl is the dial's own
+  // (non-rotating) host; the field opens centred over it on a chip and there
+  // is no readout text to hide or re-render.
+  // opts.text / opts.render: for a readout whose face is NOT its plain
+  // textContent (child spans, a localized Off word), the text shown and the
+  // page's own repaint, used instead of reading/writing textContent.
+  function attachValueEntry(valueEl, state, formatFn, opts) {
+    if (!valueEl || !state) return;
+    if (typeof formatFn !== 'function' || typeof formatFn.parse !== 'function') return;
+    if (valueEl.dataset.editing === '1') return;   // already open
+    const dial = !!(opts && opts.dial);
+
+    const render = opts && opts.render;
+    const currentText = (opts && typeof opts.text === 'string') ? opts.text
+      : dial ? formatFn(state.getNormalisedValue()) : valueEl.textContent;
+    const prevPosition = valueEl.style.position;
+    const prevColor = valueEl.style.color;
+    // Read the readout's ink BEFORE hiding it (it is about to go transparent).
+    const inkColor = getComputedStyle(valueEl).color;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = dial ? 'knob-value-input knob-value-input--dial' : 'knob-value-input';
+    input.value = currentText;
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+    if (!dial) input.style.color = inkColor;
+
+    // A readout keeps its own text (rendered transparent) so its box stays
+    // the same size — the input is overlaid on top. Zero layout shift.
+    valueEl.dataset.editing = '1';
+    if (getComputedStyle(valueEl).position === 'static') valueEl.style.position = 'relative';
+    if (!dial) valueEl.style.color = 'transparent';
+    valueEl.appendChild(input);
+    input.focus();
+    input.select();
+
+    let closed = false;
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      delete valueEl.dataset.editing;
+      input.remove();
+      valueEl.style.position = prevPosition;
+      valueEl.style.color = prevColor;
+      // Re-render from live state: the parameter may have moved while
+      // readout updates were suppressed.
+      if (render) render();
+      else if (!dial) valueEl.textContent = formatFn(state.getNormalisedValue());
+    };
+
+    const commit = () => {
+      if (closed) return;
+      if (input.value === currentText) { close(); return; }
+      const scaled = formatFn.parse(input.value, currentText);
+      if (scaled !== null && isFinite(scaled)) {
+        // setNormalisedValue() snaps to `interval`; only scaled->norm needs guarding.
+        state.sliderDragStarted();
+        state.setNormalisedValue(scaledToNorm(scaled, state.properties || {}));
+        state.sliderDragEnded();
+      }
+      close();
+    };
+
+    input.addEventListener('keydown', (e) => {
+      // Keep digits away from the knob's arrow keys and the global key handlers.
+      e.stopPropagation();
+      if (e.key === 'Enter') { e.preventDefault(); commit(); }
+      else if (e.key === 'Escape') { e.preventDefault(); close(); }
+    });
+    input.addEventListener('blur', commit);
+    // The field sits inside the knob's drag area — without these, clicking
+    // into it would start a knob drag (or a wheel step) underneath it.
+    input.addEventListener('pointerdown', (e) => e.stopPropagation());
+    input.addEventListener('mousedown', (e) => e.stopPropagation());
+    input.addEventListener('dblclick', (e) => e.stopPropagation());
+    input.addEventListener('wheel', (e) => e.stopPropagation());
+  }
+
+  // ─── VALUE-ENTRY PARSERS ───
+  // First signed decimal in the string, or null if there isn't one.
+  const numOf = (t) => {
+    const m = String(t).match(/-?\d*\.?\d+/);
+    if (!m) return null;
+    const v = parseFloat(m[0]);
+    return isFinite(v) ? v : null;
+  };
+  // Display value already IS the scaled value (dB, plain Hz, ms on ms params).
+  const parseDirect = (t) => numOf(t);
+  // Display is the scaled value x100 (percent readouts on 0..1 / -1..1 params).
+  const parsePercent = (t) => {
+    const v = numOf(t);
+    return v === null ? null : v / 100;
+  };
+  // Hz readouts that switch to kHz. A bare number is always Hz; "1.2k" is kHz.
+  const parseFreq = (t) => {
+    const v = numOf(t);
+    if (v === null) return null;
+    return /k/i.test(String(t)) ? v * 1000 : v;
+  };
+
   // ============ knobs (30 floats; SEED is bound separately below) ============
   const setupKnob = (el) => {
     const state = Juce.getSliderState(el.dataset.param);
@@ -1689,7 +1835,9 @@
 
     const render = () => {
       stem.style.transform = `rotate(${-135 + state.getNormalisedValue() * 270}deg)`;
-      if (ro) ro.textContent = fmtValue(el, state.getScaledValue());
+      // Skipped while a value field is open in the readout (it would wipe the
+      // field); close() repaints from live state.
+      if (ro && ro.dataset.editing !== '1') ro.textContent = fmtValue(el, state.getScaledValue());
     };
     state.valueChangedEvent.addListener(render);
     state.propertiesChangedEvent.addListener(render);
@@ -1699,6 +1847,22 @@
     // drag distance by the current modifier made pressing or releasing Shift
     // mid-drag jump the value (0.4 normalised after a 100 px drag).
     let dragY = null, dragNorm = 0;
+
+    // v1.17.2: Alt/Option-click resets to the markup default (was double-click),
+    // as one gesture. The drag starts on pointerdown on this SAME element, so
+    // this listener is registered FIRST, on the capture flag and the drag's own
+    // event type, and stops the drag outright (stopImmediatePropagation) —
+    // neither the drag nor its setPointerCapture runs.
+    el.addEventListener("pointerdown", (e) => {
+      if (!e.altKey) return;
+      if (e.target.closest(".knob-value-input")) return;   // clicks inside an open field
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      state.sliderDragStarted();
+      state.setNormalisedValue(scaledToNorm(+el.dataset.default, state.properties || {}));
+      state.sliderDragEnded();
+    }, true);
+
     el.addEventListener("pointerdown", (e) => {
       dragY = e.clientY;
       dragNorm = state.getNormalisedValue();
@@ -1720,10 +1884,20 @@
     };
     el.addEventListener("pointerup", endDrag);
     el.addEventListener("pointercancel", endDrag);
-    el.addEventListener("dblclick", () => {
-      state.sliderDragStarted();
-      state.setNormalisedValue(scaledToNormalised(state, +el.dataset.default));
-      state.sliderDragEnded();
+    // Double-click (on the knob or its readout) opens inline value entry over
+    // the readout (Alt/Option-click resets instead). A knob with no readout
+    // gets the field centred over the knob itself. The readout's dblclick
+    // honours the OFF state: an inert (pointer-events: none) knob is not
+    // editable from its readout either.
+    const entryFmt = () => fmtValue(el, state.getScaledValue());
+    entryFmt.parse = el.dataset.fmt === "hzk" ? parseFreq : parseDirect;   // "1.2k" = 1200 Hz; others read in C++ units
+    el.addEventListener("dblclick", (e) => {
+      if (e.altKey) return;
+      attachValueEntry(ro || el, state, entryFmt, ro ? undefined : { dial: true });
+    });
+    if (ro) ro.addEventListener("dblclick", (e) => {
+      if (e.altKey || getComputedStyle(el).pointerEvents === "none") return;
+      attachValueEntry(ro, state, entryFmt);
     });
     el.addEventListener("wheel", (e) => {
       e.preventDefault();
