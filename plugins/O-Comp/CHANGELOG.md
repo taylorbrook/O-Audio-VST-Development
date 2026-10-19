@@ -2,6 +2,14 @@
 
 All notable changes to this plugin will be documented in this file.
 
+## [1.11.1] — 2026-10-19
+
+### Changed
+
+- **Double-click a dial to type a value** — Enter or click away applies, Esc cancels. **Alt/Option-click resets** a control to its default (this was double-click).
+- Double-click works on the knob or on its readout. Times take ms (or `0.05s`); the SC HPF / SC LPF fields take Hz (`1.2k` = 1200 Hz) or `off`.
+- The Alt/Option-click reset is now one host gesture, so touch/latch automation records it (the old double-click reset wrote the value with no gesture).
+
 ## [1.11.0] - 2026-09-27
 
 UI pass R4/R5 from review 260924-nho (Phase C): palette tokens, a paper wash,

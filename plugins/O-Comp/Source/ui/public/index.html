@@ -310,6 +310,36 @@
       white-space: nowrap;
     }
 
+    /* v1.11.1: double-click value entry (O-Prism .knob-value-input, verbatim).
+       Form controls do not inherit fonts on their own — hence the explicit
+       `inherit`s. */
+    .knob-value-input {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      padding: 0;
+      margin: 0;
+      border: none;
+      border-bottom: 1px solid currentColor;
+      border-radius: 0;
+      background: transparent;
+      font-family: inherit;
+      font-size: inherit;
+      font-weight: inherit;   /* not inherited by form controls either */
+      line-height: normal;
+      text-align: inherit;
+      outline: none;
+      -moz-appearance: textfield;
+    }
+    .knob-value-input::-webkit-outer-spin-button,
+    .knob-value-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
     /* SVG Vine-Arc Knobs */
     .knob-container {
       display: flex;
@@ -1269,7 +1299,7 @@
       }
     };
 
-    // Default normalized values for double-click reset (matches processor defaults)
+    // Default normalized values for Alt/Option-click reset (matches processor defaults)
     const paramDefaults = {
       threshold: ((-20.0) - (-60.0)) / (0.0 - (-60.0)),  // -20 dB default
       ratio: (2.0 - 1.0) / (20.0 - 1.0),                  // 2:1 default
@@ -1292,8 +1322,11 @@
         startAnimationLoop();
       }
 
-      // Update value display
+      // Update value display — unless a value field is open in it, which this
+      // write would wipe (close() repaints from live state).
       const text = formatValue(paramId, normalized);
+      const editingEl = document.getElementById(config.valueId);
+      const editing = !!(editingEl && editingEl.dataset.editing === '1');
 
       if (config.offId) {
         // A readout that can read Off owns TWO child spans: a number span this
@@ -1302,7 +1335,7 @@
         // and the Off face never comes back.
         const numEl = document.getElementById(config.numId);
         const offEl = document.getElementById(config.offId);
-        if (numEl && offEl) {
+        if (numEl && offEl && !editing) {
           const isOff = (text === null);
           offEl.hidden = !isOff;
           numEl.hidden = isOff;
@@ -1312,7 +1345,7 @@
       }
 
       const valueDisplay = document.getElementById(config.valueId);
-      if (valueDisplay) {
+      if (valueDisplay && !editing) {
         valueDisplay.textContent = text;
       }
 
@@ -1320,6 +1353,156 @@
       if (['threshold', 'ratio', 'knee'].includes(paramId)) {
         updateTransferCurve();
       }
+    }
+
+    // ─── DOUBLE-CLICK VALUE ENTRY (v1.11.1, ported from O-Prism) ───
+
+    // Scaled (C++ parameter units) -> normalised [0,1], from the LIVE range the
+    // WebSliderRelay pushes up (state.properties), never a JS mirror. Clamps
+    // before the pow(): a fractional skew on a negative base is NaN, and that
+    // NaN would ride setNormalisedValue() straight into the parameter.
+    function scaledToNorm(v, props) {
+      const start = props.start, end = props.end;
+      const skew = props.skew > 0 ? props.skew : 1;
+      if (!(end > start)) return 0;
+      const t = Math.min(1, Math.max(0, (v - start) / (end - start)));
+      return skew === 1 ? t : Math.pow(t, skew);
+    }
+
+    // Opens an inline editor. formatFn renders a normalised value as display
+    // text; formatFn.parse(text, currentText) converts typed text back to a
+    // SCALED value, or null to reject. Enter/blur commits, Esc cancels, and
+    // untouched text is never written back (the readout is rounded).
+    //
+    // opts.dial: for a dial with no readout, valueEl is the dial's own
+    // (non-rotating) host; the field opens centred over it on a chip and there
+    // is no readout text to hide or re-render.
+    // opts.text / opts.render: for a readout whose face is NOT its plain
+    // textContent (child spans, a localized Off word), the text shown and the
+    // page's own repaint, used instead of reading/writing textContent.
+    function attachValueEntry(valueEl, state, formatFn, opts) {
+      if (!valueEl || !state) return;
+      if (typeof formatFn !== 'function' || typeof formatFn.parse !== 'function') return;
+      if (valueEl.dataset.editing === '1') return;   // already open
+      const dial = !!(opts && opts.dial);
+
+      const render = opts && opts.render;
+      const currentText = (opts && typeof opts.text === 'string') ? opts.text
+        : dial ? formatFn(state.getNormalisedValue()) : valueEl.textContent;
+      const prevPosition = valueEl.style.position;
+      const prevColor = valueEl.style.color;
+      // Read the readout's ink BEFORE hiding it (it is about to go transparent).
+      const inkColor = getComputedStyle(valueEl).color;
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = dial ? 'knob-value-input knob-value-input--dial' : 'knob-value-input';
+      input.value = currentText;
+      input.spellcheck = false;
+      input.autocomplete = 'off';
+      if (!dial) input.style.color = inkColor;
+
+      // A readout keeps its own text (rendered transparent) so its box stays
+      // the same size — the input is overlaid on top. Zero layout shift.
+      valueEl.dataset.editing = '1';
+      if (getComputedStyle(valueEl).position === 'static') valueEl.style.position = 'relative';
+      if (!dial) valueEl.style.color = 'transparent';
+      valueEl.appendChild(input);
+      input.focus();
+      input.select();
+
+      let closed = false;
+      const close = () => {
+        if (closed) return;
+        closed = true;
+        delete valueEl.dataset.editing;
+        input.remove();
+        valueEl.style.position = prevPosition;
+        valueEl.style.color = prevColor;
+        // Re-render from live state: the parameter may have moved while
+        // readout updates were suppressed.
+        if (render) render();
+        else if (!dial) valueEl.textContent = formatFn(state.getNormalisedValue());
+      };
+
+      const commit = () => {
+        if (closed) return;
+        if (input.value === currentText) { close(); return; }
+        const scaled = formatFn.parse(input.value, currentText);
+        if (scaled !== null && isFinite(scaled)) {
+          // setNormalisedValue() snaps to `interval`; only scaled->norm needs guarding.
+          state.sliderDragStarted();
+          state.setNormalisedValue(scaledToNorm(scaled, state.properties || {}));
+          state.sliderDragEnded();
+        }
+        close();
+      };
+
+      input.addEventListener('keydown', (e) => {
+        // Keep digits away from the knob's arrow keys and the global key handlers.
+        e.stopPropagation();
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        else if (e.key === 'Escape') { e.preventDefault(); close(); }
+      });
+      input.addEventListener('blur', commit);
+      // The field sits inside the knob's drag area — without these, clicking
+      // into it would start a knob drag (or a wheel step) underneath it.
+      input.addEventListener('pointerdown', (e) => e.stopPropagation());
+      input.addEventListener('mousedown', (e) => e.stopPropagation());
+      input.addEventListener('dblclick', (e) => e.stopPropagation());
+      input.addEventListener('wheel', (e) => e.stopPropagation());
+    }
+
+    // ─── VALUE-ENTRY PARSERS ───
+    // First signed decimal in the string, or null if there isn't one.
+    const numOf = (t) => {
+      const m = String(t).match(/-?\d*\.?\d+/);
+      if (!m) return null;
+      const v = parseFloat(m[0]);
+      return isFinite(v) ? v : null;
+    };
+    // Display value already IS the scaled value (dB, plain Hz, ms on ms params).
+    const parseDirect = (t) => numOf(t);
+    // Display is the scaled value x100 (percent readouts on 0..1 / -1..1 params).
+    const parsePercent = (t) => {
+      const v = numOf(t);
+      return v === null ? null : v / 100;
+    };
+    // Hz readouts that switch to kHz. A bare number is always Hz; "1.2k" is kHz.
+    const parseFreq = (t) => {
+      const v = numOf(t);
+      if (v === null) return null;
+      return /k/i.test(String(t)) ? v * 1000 : v;
+    };
+    // Times are scaled in MILLISECONDS here and always read "ms": a bare number
+    // is ms; an explicit "s" (not "ms") means seconds.
+    const parseMs = (t) => {
+      const v = numOf(t);
+      if (v === null) return null;
+      return (/s/i.test(String(t)) && !/ms/i.test(String(t))) ? v * 1000 : v;
+    };
+
+    // Per-parameter value-entry formatter: renders like the readout, parses
+    // typed text back to the SCALED (C++) value. The two detector filters read
+    // Off at their range start, so "off" / "-inf" / the localized Off word all
+    // enter as the range start (0 Hz = Off).
+    function entryFormatter(paramId) {
+      const fmt = (n) => formatValue(paramId, n) || '';
+      const config = knobConfigs[paramId] || {};
+      if (paramId === 'sc_hpf' || paramId === 'sc_lpf') {
+        fmt.parse = (t) => {
+          const s = String(t).trim();
+          const offEl = config.offId ? document.getElementById(config.offId) : null;
+          if (/^(off|-?inf)$/i.test(s) || (offEl && s.toLowerCase() === offEl.textContent.trim().toLowerCase()))
+            return (sliderStates[paramId] && sliderStates[paramId].properties || {}).start || 0;
+          return parseFreq(s);
+        };
+      } else if (paramId === 'attack_time' || paramId === 'release_time') {
+        fmt.parse = parseMs;
+      } else {
+        fmt.parse = parseDirect;   // dB, ratio (":1"), knee — the readout is the scaled value
+      }
+      return fmt;
     }
 
     // Shared drag state — single mousemove/mouseup pair for all knobs
@@ -1375,6 +1558,30 @@
         updateKnob(paramId, sliderState.getNormalisedValue());
       });
 
+      // Alt/Option-click resets to default, as ONE gesture (the old double-click
+      // reset wrote the value with no gesture pair). Registered FIRST, on the
+      // CAPTURE phase of the knob element — the drag target or its ancestor —
+      // on the drag's own event type, so it runs ahead of the drag below and
+      // stops it outright (stopImmediatePropagation covers the case where the
+      // drag listener sits on this same element).
+      //
+      // v1.10.1: test the TYPE of the default, not its truthiness —
+      // paramDefaults.sc_hpf / .sc_lpf are 0.0 (Off), and `|| 0.5` once
+      // switched the detector filters ON at 198 / 1984 Hz.
+      knob.addEventListener('mousedown', (e) => {
+        if (!e.altKey) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        const target = paramDefaults[paramId];
+        if (typeof target !== 'number') {
+          console.warn('No default for', paramId, '- skipping reset');
+          return;
+        }
+        sliderState.sliderDragStarted();
+        sliderState.setNormalisedValue(target);
+        sliderState.sliderDragEnded();
+      }, true);
+
       // Mouse drag — delegates to shared handler
       const knobVisual = knob.querySelector('.knob-visual');
       (knobVisual || knob).addEventListener('mousedown', (e) => {
@@ -1382,25 +1589,28 @@
         e.preventDefault();
       });
 
-      // Double-click to reset to default
-      //
-      // v1.10.1: `paramDefaults[paramId] || 0.5` was wrong for exactly the two
-      // parameters whose default is Off. paramDefaults.sc_hpf and .sc_lpf are 0.0,
-      // 0.0 is falsy, so `||` substituted 0.5 — which under the 0.3 skew is
-      // 2000 * 0.5^(1/0.3) = 198 Hz on the HPF and 1984 Hz on the LPF. Double-
-      // clicking "reset" switched the detector filters ON.
-      //
-      // Test the TYPE, not the truthiness. Same idiom as resetToDefault() in
-      // O-Contrabass.
-      knob.addEventListener('dblclick', () => {
-        const def = paramDefaults[paramId];
-
-        if (typeof def !== 'number') {
-          console.warn('No default for', paramId, '- skipping reset');
-          return;
-        }
-
-        sliderState.setNormalisedValue(def);
+      // Double-click (on the knob or on its readout) opens inline value entry
+      // over the readout (Alt/Option-click resets instead). The SC filter
+      // readouts own two child spans (number / localized Off), so the entry
+      // takes the visible face as its text and repaints through updateKnob()
+      // rather than through textContent.
+      const valueEl = config ? document.getElementById(config.valueId) : null;
+      const entryFmt = entryFormatter(paramId);
+      const entryOpts = () => {
+        const offEl = config && config.offId ? document.getElementById(config.offId) : null;
+        const numEl = config && config.numId ? document.getElementById(config.numId) : null;
+        return {
+          text: offEl && numEl ? (offEl.hidden ? numEl.textContent : offEl.textContent) : undefined,
+          render: () => updateKnob(paramId, sliderState.getNormalisedValue())
+        };
+      };
+      knob.addEventListener('dblclick', (e) => {
+        if (e.altKey) return;
+        attachValueEntry(valueEl, sliderState, entryFmt, entryOpts());
+      });
+      if (valueEl) valueEl.addEventListener('dblclick', (e) => {
+        if (e.altKey) return;
+        attachValueEntry(valueEl, sliderState, entryFmt, entryOpts());
       });
 
       // Mouse wheel support
@@ -2110,7 +2320,8 @@
     //   7. Escape hides it, and so does any pointerdown.
     //
     // NO tabindex IS ADDED to .control-group. These knobs are mouse-drag,
-    // double-click-reset and wheel only, and have never been keyboard-operable;
+    // Alt-click-reset, double-click-entry and wheel only, and have never been
+    // keyboard-operable;
     // a tab stop there would add tab-order noise for a control the keyboard
     // still could not turn, and would pop a tip open in the middle of a
     // click-drag. #gear-btn and #lang-select are natively focusable and are the
@@ -2193,10 +2404,10 @@
       // correct — a false pass built into the fix. An explicit latch on the
       // last input device is the same rule and is drivable with real events.
       //
-      // No <input> suppression is needed here: this page has no double-click
-      // value editor, and its only form control is #lang-select, which IS an
-      // anchor and whose keyboard tip is the accessibility half of this
-      // feature.
+      // No extra <input> suppression is needed for the v1.11.1 double-click
+      // value field: it is opened by a double-click (two pointerdowns), so the
+      // latch below is already set and the focus arm stays shut, and the field
+      // stops its own keydown, so typing in it never releases the latch.
       let lastInputWasPointer = false;
 
       document.addEventListener('pointerover', (e) => {
