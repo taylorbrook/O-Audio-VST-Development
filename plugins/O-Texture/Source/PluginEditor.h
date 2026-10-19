@@ -59,6 +59,7 @@ private:
     std::unique_ptr<juce::WebSliderRelay> evolveRelay;
     std::unique_ptr<juce::WebSliderRelay> brightnessRelay;
     std::unique_ptr<juce::WebSliderRelay> mixRelay;
+    std::unique_ptr<juce::WebSliderRelay> outputLevelRelay;
     std::unique_ptr<juce::WebComboBoxRelay> sourceRelay;
     std::unique_ptr<juce::WebComboBoxRelay> modeRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> freezeRelay;
@@ -74,6 +75,7 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> evolveAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> brightnessAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> mixAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> outputLevelAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> sourceAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> modeAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> freezeAttachment;

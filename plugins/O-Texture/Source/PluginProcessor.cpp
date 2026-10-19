@@ -77,6 +77,7 @@ TextureProcessor::TextureProcessor()
     freezeParam       = parameters.getRawParameterValue("FREEZE");
     brightnessParam   = parameters.getRawParameterValue("BRIGHTNESS");
     mixParam          = parameters.getRawParameterValue("MIX");
+    outputLevelParam  = parameters.getRawParameterValue("outputLevel");
 
     decodedBufferL.resize(static_cast<size_t>(kBlockSize), 0.0f);
     decodedBufferR.resize(static_cast<size_t>(kBlockSize), 0.0f);
@@ -372,6 +373,15 @@ juce::AudioProcessorValueTreeState::ParameterLayout TextureProcessor::createPara
         juce::ParameterID { "MIX", 1 }, "Mix",
         juce::NormalisableRange<float>(0.0f, 1.0f, 0.001f), 1.0f));
 
+    // v0.6.1: final output trim after MIX. Version hint 2 marks it as added
+    // after the original layout (all others are 1). New instances start at
+    // -6 dB; sessions saved before it existed are restored at 0 dB in
+    // setStateInformation so their loudness does not change.
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "outputLevel", 2 }, "Output Level",
+        juce::NormalisableRange<float>(-60.0f, 12.0f, 0.1f), -6.0f,
+        juce::AudioParameterFloatAttributes().withLabel("dB")));
+
     return layout;
 }
 
@@ -394,6 +404,10 @@ void TextureProcessor::prepareToPlay(double sampleRate, int /*samplesPerBlock*/)
     needsNewBlock = true;
 
     tiltFilter.prepare(sampleRate, juce::jmax(2, getTotalNumOutputChannels()));
+
+    // Seed at the live level so the first block ramps from neither 0 nor 1.
+    outputLevelSmoothed.reset(sampleRate, 0.02);
+    outputLevelSmoothed.setCurrentAndTargetValue(currentOutputLinearGain());
 
     // Generate mode is a source: audio appears at sample 0 of the first hop,
     // so there is no input-to-output delay to report.
@@ -548,6 +562,23 @@ void TextureProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Midi
 
     if (mix < 1.0f)
         buffer.applyGain(mix);
+
+    // v0.6.1: output level — the true last stage, after MIX.
+    outputLevelSmoothed.setTargetValue(currentOutputLinearGain());
+    if (outputLevelSmoothed.isSmoothing())
+        outputLevelSmoothed.applyGain(buffer, numSamples);
+    else
+    {
+        const float g = outputLevelSmoothed.getCurrentValue();
+        if (g != 1.0f)
+            buffer.applyGain(g);
+    }
+}
+
+float TextureProcessor::currentOutputLinearGain() const
+{
+    const float db = outputLevelParam != nullptr ? outputLevelParam->load() : -6.0f;
+    return db <= -60.0f ? 0.0f : juce::Decibels::decibelsToGain(db);
 }
 
 // =============================================================================
@@ -623,6 +654,25 @@ void TextureProcessor::setStateInformation(const void* data, int sizeInBytes)
     if (xml != nullptr && xml->hasTagName(parameters.state.getType()))
     {
         parameters.replaceState(juce::ValueTree::fromXml(*xml));
+
+        // v0.6.1: sessions saved before outputLevel existed carry no PARAM
+        // for it, so replaceState left it at the new -6 dB default — 6 dB
+        // quieter than the user mixed it. Restore those at 0 dB (unity);
+        // a session saved by this version carries its own value.
+        {
+            bool hasOutputLevel = false;
+            for (auto* child : xml->getChildIterator())
+                if (child->hasTagName("PARAM")
+                    && child->getStringAttribute("id") == "outputLevel")
+                {
+                    hasOutputLevel = true;
+                    break;
+                }
+
+            if (!hasOutputLevel)
+                if (auto* p = parameters.getParameter("outputLevel"))
+                    p->setValueNotifyingHost(p->convertTo0to1(0.0f));
+        }
 
         auto state = parameters.state;
 

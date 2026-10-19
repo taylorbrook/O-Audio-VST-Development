@@ -360,9 +360,9 @@ export const I18N = Object.freeze({
           reviewed: 'bt' },
     },
 
-    // MIX is a LEVEL, not a blend, and the tooltip says so. processBlock ends
-    // with a final `buffer.applyGain(mix)`, guarded on mix being under unity
-    // (PluginProcessor.cpp:544-545) —
+    // MIX is a LEVEL, not a blend, and the tooltip says so. processBlock
+    // applies `buffer.applyGain(mix)`, guarded on mix being under unity, just
+    // ahead of the v0.6.1 outputLevel trim that is now the last stage —
     // there is no dry path to balance against, because Generate mode is a
     // source and the sidechain input bus ships disabled and is never read. The
     // title stays "Mix" / "Mélange" because that is the caption on the page and
@@ -377,6 +377,22 @@ export const I18N = Object.freeze({
     'zh-Hans': { t: '混合',
           b: '所生成织体的输出电平。Generate 模式没有输入信号可供平衡，因此这是一条从静音到满量的直接淡入，而不是干湿控制。0.00 到 1.00。',
           reviewed: 'bt' },
+    },
+
+    // v0.6.1: OUTPUT LEVEL — a new dB parameter (outputLevel, -60..+12,
+    // default -6) applied after Mix as the last stage of processBlock. MIX
+    // above is still a level too; this one is the dB trim that matches the
+    // rest of the instrument suite's -6 dB gain staging. At -60 the readout
+    // shows -inf and the output is muted.
+    'tip.outputLevel': {
+        en: { t: "Output",
+              b: "The final output trim, applied after Mix as the last stage of the plugin. −60 to +12 dB (−60 mutes); new instances start at −6 dB, and sessions saved before this control existed open at 0 dB." },
+        fr: { t: "Sortie",
+              b: "Le réglage final du niveau de sortie, appliqué après Mix en toute dernière étape du plugin. De −60 à +12 dB (−60 coupe le son) ; une nouvelle instance démarre à −6 dB, et les sessions enregistrées avant l’existence de ce réglage s’ouvrent à 0 dB.",
+              reviewed: false },
+    'zh-Hans': { t: '输出',
+          b: '最终的输出电平微调，在 Mix 之后作为插件的最后一级施加。−60 到 +12 dB（−60 为静音）；新实例从 −6 dB 开始，而在此控件出现之前保存的工程以 0 dB 打开。',
+          reviewed: 'mt' },
     },
 
     // FREEZE — AudioParameterBool. PerlinNoise1D::advance returns immediately
@@ -547,6 +563,10 @@ export const LABELS = Object.freeze({
     // that now agrees byte-for-byte with the host's automation lane.
     'label.mix': { en: { t: 'Mix' }, fr: { t: 'Mix', reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '混合', reviewed: 'bt' } },
 
+    // v0.6.1: the Output knob's caption — glossary roots (fr 'output' → sortie,
+    // zh 'output' → 输出). The host shows the parameter as "Output Level".
+    'label.outputLevel': { en: { t: 'Output' }, fr: { t: 'Sortie', reviewed: false }, 'zh-Hans': { t: '输出', reviewed: 'mt' } },
+
     // FREEZE is an AudioParameterBool. Same reasoning as MIX: no option
     // strings, so nothing in the host is spelled "Freeze" for this to contradict.
     // .freeze-label is text-transform: uppercase, so the table holds the
@@ -697,6 +717,7 @@ export const TIP_BINDINGS = [
 
     ['#knob-brightness',      'tip.brightness', '.knob-container'],
     ['#knob-mix',             'tip.mix',        '.knob-container'],
+    ['#knob-outputLevel',     'tip.outputLevel', '.knob-container'],
     ['#freeze-button',        'tip.freeze',     '.freeze-toggle'],
 
     ['#gear-btn',             'tip.gearBtn'],

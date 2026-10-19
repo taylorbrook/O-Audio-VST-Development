@@ -45,7 +45,7 @@ import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';
 // State Management
 // ============================================================================
 let xState, yState, characterAState, characterBState, evolveState;
-let brightnessState, mixState, sourceState, modeState, freezeState;
+let brightnessState, mixState, outputLevelState, sourceState, modeState, freezeState;
 
 // XY pad animation
 const canvas = document.getElementById('xy-pad');
@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Relay Initialization
 // ============================================================================
 function initializeRelays() {
-    // 7 WebSliderRelays
+    // 8 WebSliderRelays
     xState = getSliderState('xSlider');
     yState = getSliderState('ySlider');
     characterAState = getSliderState('characterASlider');
@@ -114,6 +114,7 @@ function initializeRelays() {
     evolveState = getSliderState('evolveSlider');
     brightnessState = getSliderState('brightnessSlider');
     mixState = getSliderState('mixSlider');
+    outputLevelState = getSliderState('outputLevelSlider');   // v0.6.1
 
     // 2 WebComboBoxRelays
     sourceState = getComboBoxState('sourceCombo');
@@ -134,6 +135,7 @@ function initializeRelays() {
     evolveState.valueChangedEvent.addListener(() => updateVerticalSlider('evolve'));
     brightnessState.valueChangedEvent.addListener(() => updateKnob('brightness'));
     mixState.valueChangedEvent.addListener(() => updateKnob('mix'));
+    outputLevelState.valueChangedEvent.addListener(() => updateKnob('outputLevel'));
     sourceState.valueChangedEvent.addListener(() => updateSourceButtons());
     modeState.valueChangedEvent.addListener(() => updateModeButtons());
     freezeState.valueChangedEvent.addListener(() => updateFreezeVisual());
@@ -330,12 +332,20 @@ function bindVerticalSlider(id, sliderState, defaultNorm) {
         }
     });
 
-    // Double-click to reset to the parameter's default
-    track.addEventListener('dblclick', () => {
-        sliderState.sliderDragStarted();
-        sliderState.setNormalisedValue(defaultNorm);
-        sliderState.sliderDragEnded();
-    });
+    // v0.6.1: Alt/Option-click resets to the default. CAPTURE phase on the
+    // slider column (an ancestor of the track), on `pointerdown` — the same
+    // event the drag starts on, so it runs first and cancels the drag outright
+    // (a capture mousedown would never fire after the track's preventDefault).
+    bindAltReset(slider, sliderState, defaultNorm);
+
+    // Double-click (on the track or its readout) opens inline value entry.
+    const valueDisplay = slider.querySelector('.value');
+    const openEntry = (e) => {
+        if (e.altKey) return;
+        attachValueEntry(valueDisplay, sliderState, fmtUnit);
+    };
+    track.addEventListener('dblclick', openEntry);
+    if (valueDisplay) valueDisplay.addEventListener('dblclick', openEntry);
 
     // Initial position
     updateVerticalSlider(id);
@@ -363,9 +373,9 @@ function updateVerticalSlider(id) {
 
     thumb.style.top = `${thumbY}px`;
 
-    if (valueDisplay) {
-        const scaledValue = sliderState.getScaledValue();
-        valueDisplay.textContent = scaledValue.toFixed(2);
+    // Skipped while the value-entry field is open, or it would be wiped.
+    if (valueDisplay && valueDisplay.dataset.editing !== '1') {
+        valueDisplay.textContent = fmtUnit(sliderState.getScaledValue());
     }
 }
 
@@ -394,12 +404,19 @@ function updateSourceButtons() {
 }
 
 // ============================================================================
-// Rotary Knobs (Brightness, Mix)
+// Rotary Knobs (Brightness, Mix, Output)
 // ============================================================================
 function bindKnobs() {
     // Normalized defaults must match createParameterLayout() in PluginProcessor.cpp
     bindKnob('brightness', brightnessState, 0.5); // 0.0 in a -1..1 range
     bindKnob('mix', mixState, 1.0);
+    bindKnob('outputLevel', outputLevelState, 0.75); // -6 dB in -60..+12 (skew 1)
+}
+
+// Readout formatter per knob — SCALED (C++ unit) value in, display text out.
+// Each carries a .parse (display text -> scaled value, or null to reject).
+function knobFormat(id) {
+    return id === 'outputLevel' ? fmtDb : fmtUnit;
 }
 
 function bindKnob(id, sliderState, defaultNorm) {
@@ -439,12 +456,19 @@ function bindKnob(id, sliderState, defaultNorm) {
         }
     });
 
-    // Double-click to reset to the parameter's default
-    knob.addEventListener('dblclick', () => {
-        sliderState.sliderDragStarted();
-        sliderState.setNormalisedValue(defaultNorm);
-        sliderState.sliderDragEnded();
-    });
+    // v0.6.1: Alt/Option-click resets to the default — capture `pointerdown`
+    // on the knob's container, ahead of the knob's own pointer drag.
+    const container = knob.closest('.knob-container') || knob.parentElement;
+    bindAltReset(container, sliderState, defaultNorm);
+
+    // Double-click (on the dial or its readout) opens inline value entry.
+    const valueDisplay = container.querySelector('.knob-value');
+    const openEntry = (e) => {
+        if (e.altKey) return;
+        attachValueEntry(valueDisplay, sliderState, knobFormat(id));
+    };
+    knob.addEventListener('dblclick', openEntry);
+    if (valueDisplay) valueDisplay.addEventListener('dblclick', openEntry);
 
     // Initial rotation
     updateKnob(id);
@@ -460,6 +484,7 @@ function updateKnob(id) {
 
     if (id === 'brightness') sliderState = brightnessState;
     else if (id === 'mix') sliderState = mixState;
+    else if (id === 'outputLevel') sliderState = outputLevelState;
 
     if (!sliderState) return;
 
@@ -468,10 +493,137 @@ function updateKnob(id) {
     const angle = -135 + normValue * 270;
     indicator.style.transform = `translate(-50%, -100%) rotate(${angle}deg)`;
 
-    if (valueDisplay) {
-        const scaledValue = sliderState.getScaledValue();
-        valueDisplay.textContent = scaledValue.toFixed(2);
+    // Skipped while the value-entry field is open, or it would be wiped.
+    if (valueDisplay && valueDisplay.dataset.editing !== '1') {
+        valueDisplay.textContent = knobFormat(id)(sliderState.getScaledValue());
     }
+}
+
+// ============================================================================
+// Value entry + Alt-click reset (v0.6.1 — O-Prism attachValueEntry contract)
+// ============================================================================
+
+// First signed decimal in the string, or null if there isn't one.
+const numOf = (t) => {
+    const m = String(t).match(/-?\d*\.?\d+/);
+    if (!m) return null;
+    const v = parseFloat(m[0]);
+    return isFinite(v) ? v : null;
+};
+
+// Plain 0..1 / -1..1 readouts shown with two decimals: display IS the scaled value.
+function fmtUnit(v) { return v.toFixed(2); }
+fmtUnit.parse = (t) => numOf(t);
+
+// Output level, dB. -60 is the range floor and the DSP mutes there, so it reads
+// "-inf dB"; typing -inf / inf / off lands on the range start.
+const OUTPUT_DB_MIN = -60;
+function fmtDb(v) { return v <= OUTPUT_DB_MIN ? '-inf dB' : `${v.toFixed(1)} dB`; }
+fmtDb.parse = (t) => {
+    const s = String(t).trim();
+    if (/^-?\s*inf|^off$/i.test(s)) return OUTPUT_DB_MIN;
+    return numOf(s);
+};
+
+// Scaled (C++ units) -> normalised [0,1], from the LIVE range the relay pushes
+// up from C++ (state.properties), never a JS table. Clamped BEFORE the pow():
+// a value below `start` would give a negative base and a NaN with a
+// fractional skew, which would stick in the parameter.
+function scaledToNorm(v, props) {
+    const start = props.start, end = props.end;
+    const skew = props.skew > 0 ? props.skew : 1;
+    if (!(end > start)) return 0;
+    const t = Math.min(1, Math.max(0, (v - start) / (end - start)));
+    return skew === 1 ? t : Math.pow(t, skew);
+}
+
+// Opens an inline editor over a readout. formatFn renders a SCALED value;
+// formatFn.parse(text, currentText) returns a scaled value or null to reject.
+// Enter/blur commits, Esc cancels, untouched text is never written back, and
+// the commit is one host gesture.
+function attachValueEntry(valueEl, state, formatFn) {
+    if (!valueEl || !state) return;
+    if (typeof formatFn !== 'function' || typeof formatFn.parse !== 'function') return;
+    if (valueEl.dataset.editing === '1') return;   // already open
+
+    const currentText = valueEl.textContent;
+    const prevPosition = valueEl.style.position;
+    const prevColor = valueEl.style.color;
+    // Ink read BEFORE the readout goes transparent, or `inherit` would be invisible.
+    const inkColor = getComputedStyle(valueEl).color;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'knob-value-input';
+    input.value = currentText;
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+    input.style.color = inkColor;
+
+    // The readout keeps its text (transparent) so its box does not move; the
+    // input is overlaid on top of it. Zero layout shift.
+    valueEl.dataset.editing = '1';
+    valueEl.style.position = 'relative';
+    valueEl.style.color = 'transparent';
+    valueEl.appendChild(input);
+    input.focus();
+    input.select();
+
+    let closed = false;
+
+    const close = () => {
+        if (closed) return;
+        closed = true;
+        delete valueEl.dataset.editing;
+        input.remove();
+        valueEl.style.position = prevPosition;
+        valueEl.style.color = prevColor;
+        // Re-render from live state: it may have moved while updates were held.
+        valueEl.textContent = formatFn(state.getScaledValue());
+    };
+
+    const commit = () => {
+        if (closed) return;
+        if (input.value === currentText) { close(); return; }
+        const scaled = formatFn.parse(input.value, currentText);
+        if (scaled !== null && isFinite(scaled)) {
+            // setNormalisedValue() snaps to the interval and clamps internally.
+            state.sliderDragStarted();
+            state.setNormalisedValue(scaledToNorm(scaled, state.properties || {}));
+            state.sliderDragEnded();
+        }
+        close();
+    };
+
+    input.addEventListener('keydown', (e) => {
+        e.stopPropagation();   // keep digits away from global key handling
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        else if (e.key === 'Escape') { e.preventDefault(); close(); }
+    });
+    input.addEventListener('blur', commit);
+    // Never let a click in the field start a drag or reopen/reset underneath it.
+    input.addEventListener('pointerdown', (e) => e.stopPropagation());
+    input.addEventListener('mousedown', (e) => e.stopPropagation());
+    input.addEventListener('dblclick', (e) => e.stopPropagation());
+    input.addEventListener('wheel', (e) => e.stopPropagation());
+}
+
+// Alt/Option-click reset, one host gesture. CAPTURE-phase `pointerdown` on an
+// ANCESTOR of the drag target (the drags here are pointer-based), so it runs
+// before the drag listener and stopPropagation() keeps the drag from starting.
+// defaultNorm is NORMALISED and comes from the bind call's own default table.
+// A pointerdown inside an open value-entry field is left alone.
+function bindAltReset(el, sliderState, defaultNorm) {
+    if (!el) return;
+    el.addEventListener('pointerdown', (e) => {
+        if (!e.altKey) return;
+        if (e.target && e.target.classList && e.target.classList.contains('knob-value-input')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        sliderState.sliderDragStarted();
+        sliderState.setNormalisedValue(defaultNorm);
+        sliderState.sliderDragEnded();
+    }, true);
 }
 
 // ============================================================================

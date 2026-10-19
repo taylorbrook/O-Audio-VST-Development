@@ -230,7 +230,7 @@
             </button>
         </div>
 
-        <!-- Bottom strip: Brightness knob + Mix knob + Freeze toggle -->
+        <!-- Bottom strip: Brightness knob + Mix knob + Output knob + Freeze toggle -->
         <div class="bottom-strip">
             <!-- Brightness Knob -->
             <div class="knob-container">
@@ -250,6 +250,16 @@
                 </div>
                 <div class="knob-label" data-i18n="label.mix" data-label="Mix">Mix</div>
                 <div class="knob-value">1.00</div>
+            </div>
+
+            <!-- Output Level Knob (v0.6.1): the final dB trim after Mix -->
+            <div class="knob-container">
+                <div id="knob-outputLevel" class="knob">
+                    <div class="knob-bg"></div>
+                    <div class="knob-indicator"></div>
+                </div>
+                <div class="knob-label" data-i18n="label.outputLevel" data-label="Output">Output</div>
+                <div class="knob-value">-6.0 dB</div>
             </div>
 
             <!-- Freeze Toggle -->

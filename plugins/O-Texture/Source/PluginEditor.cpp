@@ -41,6 +41,7 @@ TextureEditor::TextureEditor(TextureProcessor& p)
     evolveRelay     = std::make_unique<juce::WebSliderRelay>("evolveSlider");
     brightnessRelay = std::make_unique<juce::WebSliderRelay>("brightnessSlider");
     mixRelay        = std::make_unique<juce::WebSliderRelay>("mixSlider");
+    outputLevelRelay = std::make_unique<juce::WebSliderRelay>("outputLevelSlider");
     sourceRelay     = std::make_unique<juce::WebComboBoxRelay>("sourceCombo");
     modeRelay       = std::make_unique<juce::WebComboBoxRelay>("modeCombo");
     freezeRelay     = std::make_unique<juce::WebToggleButtonRelay>("freezeToggle");
@@ -70,6 +71,7 @@ TextureEditor::TextureEditor(TextureProcessor& p)
             .withOptionsFrom(*evolveRelay)
             .withOptionsFrom(*brightnessRelay)
             .withOptionsFrom(*mixRelay)
+            .withOptionsFrom(*outputLevelRelay)
             .withOptionsFrom(*sourceRelay)
             .withOptionsFrom(*modeRelay)
             .withOptionsFrom(*freezeRelay);
@@ -115,6 +117,7 @@ TextureEditor::TextureEditor(TextureProcessor& p)
     evolveAttachment     = std::make_unique<juce::WebSliderParameterAttachment>(*processorRef.parameters.getParameter("EVOLVE"), *evolveRelay);
     brightnessAttachment = std::make_unique<juce::WebSliderParameterAttachment>(*processorRef.parameters.getParameter("BRIGHTNESS"), *brightnessRelay);
     mixAttachment        = std::make_unique<juce::WebSliderParameterAttachment>(*processorRef.parameters.getParameter("MIX"), *mixRelay);
+    outputLevelAttachment = std::make_unique<juce::WebSliderParameterAttachment>(*processorRef.parameters.getParameter("outputLevel"), *outputLevelRelay);
     sourceAttachment     = std::make_unique<juce::WebComboBoxParameterAttachment>(*processorRef.parameters.getParameter("SOURCE"), *sourceRelay);
     modeAttachment       = std::make_unique<juce::WebComboBoxParameterAttachment>(*processorRef.parameters.getParameter("MODE"), *modeRelay);
     freezeAttachment     = std::make_unique<juce::WebToggleButtonParameterAttachment>(*processorRef.parameters.getParameter("FREEZE"), *freezeRelay);
@@ -132,6 +135,7 @@ TextureEditor::~TextureEditor()
     freezeAttachment.reset();
     modeAttachment.reset();
     sourceAttachment.reset();
+    outputLevelAttachment.reset();
     mixAttachment.reset();
     brightnessAttachment.reset();
     evolveAttachment.reset();
@@ -145,6 +149,7 @@ TextureEditor::~TextureEditor()
     freezeRelay.reset();
     modeRelay.reset();
     sourceRelay.reset();
+    outputLevelRelay.reset();
     mixRelay.reset();
     brightnessRelay.reset();
     evolveRelay.reset();
