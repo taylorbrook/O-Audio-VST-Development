@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.2] — 2026-10-19
+
+### Changed
+
+- **Double-click a dial to type a value** — Enter or click away applies, Esc cancels. **Alt/Option-click resets** a control to its default (this was double-click). Double-clicking the readout under a dial opens the same field.
+- Typed values use the readout's own units (ms, %, dB, st, ct, degrees, counts) and go through the parameter's live range and skew. On the level dials `-inf` (or `−∞`) means the −60 dB floor.
+
 ## [3.0.1] - 2026-10-15
 
 ### Fixed
