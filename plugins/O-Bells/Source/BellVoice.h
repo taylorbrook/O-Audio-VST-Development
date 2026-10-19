@@ -83,7 +83,7 @@ public:
                          float octaveBlendSub, float octaveBlendOct, float stereoSpread,
                          float partialTuning, float pitchEnvelope, float pitchEnvTime,
                          int velocityCurve, float nonlinearEffects,
-                         int strikeNoiseChar, float attackLevel, float outputGain,
+                         int strikeNoiseChar, float attackLevel,
                          float strikeTime, float brilliance, float bodyTime, float humSustain,
                          float humanize);
 
@@ -250,7 +250,6 @@ private:
     float currentNonlinearEffects = 0.0f;
     int currentStrikeNoiseChar = 0;  // Click
     float currentAttackLevel = 0.5f;  // v1.3.0
-    float currentOutputGain = 0.0f;
     // Multi-stage envelope parameters (always active in v1.2.0)
     float currentStrikeTime = 30.0f;      // ms
     float currentBrilliance = 50.0f;      // %

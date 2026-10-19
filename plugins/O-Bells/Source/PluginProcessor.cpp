@@ -549,7 +549,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
         juce::ParameterID { "outputGain", 1 },
         "Output",
         juce::NormalisableRange<float>(-24.0f, 12.0f, 0.1f),
-        0.0f,
+        -6.0f,
         "dB"
     ));
 
@@ -788,6 +788,12 @@ void OBellsAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     fxCache.reverbMix       = parameters.getRawParameterValue("reverbMix");
     fxCache.reverbMod       = parameters.getRawParameterValue("reverbMod");
     fxCache.reverbShimmer   = parameters.getRawParameterValue("reverbShimmer");
+
+    // Seed the output-gain ramp at the live level so the first block ramps from
+    // neither 0 nor unity.
+    outputGainSmoothed.reset(sampleRate, 0.02);
+    outputGainSmoothed.setCurrentAndTargetValue(
+        juce::Decibels::decibelsToGain(outputGainParam->load()));
 }
 
 void OBellsAudioProcessor::releaseResources()
@@ -855,7 +861,6 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     float humLevel = humLevelParam->load();
     float primeLevel = primeLevelParam->load();
     float humFollow = humFollowParam->load();
-    float outputGain = outputGainParam->load();
 
     // v3.1.2: Read high fidelity toggle
     bool highFidelity = highFidelityParam->load() > 0.5f;
@@ -877,7 +882,7 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
                 octaveBlendSub, octaveBlendOct, stereoSpread,
                 partialTuning, pitchEnvelope, pitchEnvTime,
                 velocityCurve, nonlinearEffects,
-                strikeNoiseChar, attackLevel, outputGain,
+                strikeNoiseChar, attackLevel,
                 strikeTime, brilliance, bodyTime, humSustain,
                 humanize
             );
@@ -1038,6 +1043,12 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
         eqProcessor.setHighGain(fxCache.eqHighGain->load(std::memory_order_relaxed));
         eqProcessor.process(block);
     }
+
+    // Output gain: the last level stage, after the whole FX chain, so it also
+    // scales notes that are already ringing (and their reverb/delay tails).
+    // Only the WR-09 limiter / NaN net below follows it.
+    outputGainSmoothed.setTargetValue(juce::Decibels::decibelsToGain(outputGainParam->load()));
+    outputGainSmoothed.applyGain(buffer, buffer.getNumSamples());
 
     // WR-09: final safety limiter after the FX chain (esp. the EQ's +12 dB
     // shelves) so post-EQ boost can't clip the output.

@@ -66,7 +66,7 @@ reverbPredelay	Reverb Pre-delay	ms	2147483647	0	200	0.100000	20	automatable
 reverbMix	Reverb Mix	%	2147483647	0.00	1.00	0.300000	0.30	automatable
 reverbMod	Reverb Mod	%	2147483647	0.00	1.00	0.200000	0.20	automatable
 reverbShimmer	Reverb Shimmer	%	2147483647	0.00	1.00	0.000000	0.00	automatable
-outputGain	Output	dB	2147483647	-24.0	12.0	0.666667	0.0	automatable
+outputGain	Output	dB	2147483647	-24.0	12.0	0.500000	-6.0	automatable
 partialModel	Partial Model		5	Classic	Glass	0.000000	Classic	automatable,discrete
 humLevel	Hum Level	dB	2147483647	-24.0	6.0	0.800000	0.0	automatable
 primeLevel	Prime Level	dB	2147483647	-24.0	6.0	0.800000	0.0	automatable

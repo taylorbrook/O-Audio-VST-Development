@@ -42,7 +42,7 @@
             written to <outdir>/N.f32.
 
         O-Bells-render-test --check-user-owned
-            Output Gain is the user's: sets it to -6 dB and Damping to a marker
+            Output Gain is the user's: sets it to -9 dB (off the -6 dB default) and Damping to a marker
             value, recalls every factory preset and fails if Output Gain moved.
             Control: Damping MUST have moved, or the recall did nothing and the
             check would pass on a dead load.
@@ -178,7 +178,7 @@ int checkUserOwned()
         for (const auto& name : names)
         {
             const float marker = 0.1234f;
-            setEngineering (processor, "outputGain", -6.0f);
+            setEngineering (processor, "outputGain", -9.0f);   // NOT the -6 dB default, so a reset would show
             damping->setValueNotifyingHost (marker);
             const float before = gain->getValue();
 
@@ -190,7 +190,7 @@ int checkUserOwned()
 
             if (std::abs (gain->getValue() - before) > 1.0e-6f)
                 return fail ("--check-user-owned: '" + name + "' moved Output Gain to "
-                             + gain->getCurrentValueAsText() + " (it was -6 dB)");
+                             + gain->getCurrentValueAsText() + " (it was -9 dB)");
 
             ++checked;
         }

@@ -74,7 +74,7 @@ void BellVoice::updateParameters(float inharmonicity, float damping, float overt
                                  float octaveBlendSub, float octaveBlendOct, float stereoSpread,
                                  float partialTuning, float pitchEnvelope, float pitchEnvTime,
                                  int velocityCurve, float nonlinearEffects,
-                                 int strikeNoiseChar, float attackLevel, float outputGain,
+                                 int strikeNoiseChar, float attackLevel,
                                  float strikeTime, float brilliance, float bodyTime, float humSustain,
                                  float humanize)
 {
@@ -110,7 +110,6 @@ void BellVoice::updateParameters(float inharmonicity, float damping, float overt
     currentNonlinearEffects = nonlinearEffects;
     currentStrikeNoiseChar = strikeNoiseChar;
     currentAttackLevel = attackLevel;
-    currentOutputGain = outputGain;
     // Multi-stage envelope params (always active in v1.2.0)
     currentStrikeTime = strikeTime;
     currentBrilliance = brilliance;
@@ -715,11 +714,6 @@ void BellVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int star
             leftOutput = airLPFilterStateL2;
             rightOutput = airLPFilterStateR2;
         }
-
-        // Apply output gain (after normalization so 0dB = unity)
-        float outputGainLinear = juce::Decibels::decibelsToGain(currentOutputGain);
-        leftOutput *= outputGainLinear;
-        rightOutput *= outputGainLinear;
 
         // Write to output buffer
         int outputSample = startSample + sample;
