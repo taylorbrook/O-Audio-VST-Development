@@ -2,6 +2,12 @@
 
 All notable changes to O-AnalogSaturation will be documented in this file.
 
+## [1.8.1] — 2026-10-19
+
+### Changed
+
+- **Double-click a dial to type a value** — Enter or click away applies, Esc cancels. **Alt/Option-click resets** a control to its default (this was double-click).
+
 ## [1.8.0] - 2026-09-30
 
 **INTENSITY pushes harder.** At full intensity the drive is now twice as strong. MINOR:
