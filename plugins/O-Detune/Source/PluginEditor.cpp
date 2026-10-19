@@ -193,6 +193,17 @@ ODetuneAudioProcessorEditor::ODetuneAudioProcessorEditor(ODetuneAudioProcessor& 
                 else
                     complete(false);
             })
+            // v1.10.1 (O-Contrabass WR-11 pattern): each parameter's TRUE
+            // (skew-correct) NORMALISED default, keyed by parameter ID, so the
+            // page's Alt-click reset reads the C++ NormalisableRange rather
+            // than a hand-mirrored JS table.
+            .withNativeFunction("getParameterDefaults", [this](auto&, auto complete) {
+                juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+                for (auto* param : processorRef.getParameters())
+                    if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(param))
+                        obj->setProperty(ranged->getParameterID(), ranged->getDefaultValue());
+                complete(juce::var(obj.get()));
+            })
             // ── v1.6.0: the UI LANGUAGE pair ────────────────────────────────
             //
             // Plain withNativeFunction, no relay. The page PULLS once at init;
