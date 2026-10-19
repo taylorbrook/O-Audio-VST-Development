@@ -2,6 +2,14 @@
 
 All notable changes to O-Tapestop are documented here.
 
+## [1.7.2] — 2026-10-19
+
+### Changed
+
+- **Double-click a dial to type a value** — Enter or click away applies, Esc cancels. **Alt/Option-click resets** a control to its default (this was double-click). Double-clicking the readout under a dial opens the same field.
+- Typed values use the readout's units. Time dials are in ms but read seconds from 1 s up: an explicit `ms` or `s` wins, and a bare number takes the unit on screen. On Output, `-inf` means the range floor.
+- The footer hint now names both gestures in English, French and Chinese. The envelope editor is unchanged: double-click still adds a point, and Alt-click still removes one.
+
 ## [1.7.1] - 2026-10-14
 
 ### Fixed

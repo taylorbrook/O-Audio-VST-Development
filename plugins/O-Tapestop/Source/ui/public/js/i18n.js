@@ -711,9 +711,9 @@ export const LABELS = Object.freeze({
     'label.gain':        { en: { t: 'Gain' },        fr: { t: 'Gain',          reviewed: true, sameAsEn: true },
                          'zh-Hans': { t: '增益', reviewed: 'bt' } },
 
-    'label.footer':      { en: { t: 'Drag vertically · wheel or arrows to trim · double-click to reset' },
-                           fr: { t: 'Glisser verticalement · molette ou flèches pour ajuster · double-clic pour réinitialiser', reviewed: true },
-                         'zh-Hans': { t: '垂直拖动 · 滚轮或方向键微调 · 双击重置', reviewed: 'bt' } },
+    'label.footer':      { en: { t: 'Drag vertically · wheel or arrows to trim · double-click to type · alt-click to reset' },
+                           fr: { t: 'Glisser · molette ou flèches : ajuster · double-clic : saisir · alt-clic : réinitialiser', reviewed: false },
+                         'zh-Hans': { t: '垂直拖动 · 滚轮或方向键微调 · 双击输入数值 · Alt 点击重置', reviewed: 'mt' } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     // An aria-label is user-visible text by any definition that matters — it is

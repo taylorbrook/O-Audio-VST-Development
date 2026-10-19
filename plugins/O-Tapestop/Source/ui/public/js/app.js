@@ -26,7 +26,7 @@
 // (ENGAGE, the large latching performance control — UI-02).
 //
 // Native-function surface is exactly FIFTEEN and must match PluginEditor.cpp:
-//   getParameterDefaults  (dblclick-reset, engineering units)
+//   getParameterDefaults  (Alt-click reset, engineering units)
 //   commitEnvelope        (mouse-up + 50 ms debounce; completes with the
 //                          C++-sanitized echo, which we redraw from)
 //   requestEnvelope       (page init: current envelope JSON)
@@ -184,12 +184,112 @@ function normToDeg(n) {
 
 // Inverse of SliderState.getNormalisedValue(), using the LIVE properties
 // pushed from the C++ NormalisableRange (start/end/skew) — never hardcoded.
+// Clamps BEFORE the pow() (a negative base with a fractional skew is NaN).
 function scaledToNorm(st, scaled) {
-  const p = st.properties;
+  const p = st.properties || {};
   const span = p.end - p.start;
   if (!isFinite(span) || span === 0) return 0;
+  const skew = p.skew > 0 ? p.skew : 1;
   const proportion = Math.min(1, Math.max(0, (scaled - p.start) / span));
-  return Math.pow(proportion, p.skew);
+  return skew === 1 ? proportion : Math.pow(proportion, skew);
+}
+
+// ── Double-click value entry (O-Prism contract) ─────────────────────────────
+// Parsers: display text -> SCALED (C++-unit) value, or null to reject.
+function numOf(t) {
+  const m = String(t).replace(/\u2212/g, "-").match(/-?\d*\.?\d+/);
+  if (!m) return null;
+  const v = parseFloat(m[0]);
+  return isFinite(v) ? v : null;
+}
+// %, Hz and dB readouts are already the C++ value (percent params are 0–100).
+// "-inf" / "off" land on the range start (only meaningful on Output).
+function parseDirectFor(st) {
+  return (t) => {
+    if (/inf|off/i.test(String(t))) return st.properties ? st.properties.start : null;
+    return numOf(t);
+  };
+}
+// Times are scaled in MILLISECONDS but read "x.xx s" from 1000 ms up. An
+// explicit unit wins; a bare number inherits the unit on screen, so re-typing
+// what you see round-trips ("1.5" on a knob reading "1.20 s" is 1500 ms).
+function parseMsFlip(t, currentText) {
+  const v = numOf(t);
+  if (v === null) return null;
+  const s = String(t);
+  if (/ms/i.test(s)) return v;            // checked first — "ms" contains "s"
+  if (/s/i.test(s)) return v * 1000;
+  const cur = String(currentText || "");
+  return (!/ms/i.test(cur) && /\ds|\ss/i.test(cur)) ? v * 1000 : v;
+}
+const PARSE = { STOP_FREE_MS: parseMsFlip, START_FREE_MS: parseMsFlip, ENV_FREE_MS: parseMsFlip };
+
+// Opens an inline editor over a readout. formatFn(norm) renders the value;
+// formatFn.parse(text, currentText) returns a SCALED value or null. Enter or
+// blur commits, Esc cancels, untouched text is never written back.
+function attachValueEntry(valueEl, state, formatFn) {
+  if (!valueEl || !state) return;
+  if (typeof formatFn !== "function" || typeof formatFn.parse !== "function") return;
+  if (valueEl.dataset.editing === "1") return;   // already open
+
+  const currentText = valueEl.textContent;
+  const prevPosition = valueEl.style.position;
+  const prevColor = valueEl.style.color;
+  // Capture the ink BEFORE the readout goes transparent.
+  const inkColor = getComputedStyle(valueEl).color;
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "knob-value-input";
+  input.value = currentText;
+  input.spellcheck = false;
+  input.autocomplete = "off";
+  input.style.color = inkColor;
+
+  // The readout keeps its text (transparent) so its box does not move.
+  valueEl.dataset.editing = "1";
+  valueEl.style.position = "relative";
+  valueEl.style.color = "transparent";
+  valueEl.appendChild(input);
+  input.focus();
+  input.select();
+
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    delete valueEl.dataset.editing;
+    input.remove();
+    valueEl.style.position = prevPosition;
+    valueEl.style.color = prevColor;
+    // Re-render from live state (automation may have moved it meanwhile).
+    valueEl.textContent = formatFn(state.getNormalisedValue());
+  };
+
+  const commit = () => {
+    if (closed) return;
+    if (input.value === currentText) { close(); return; }
+    const scaled = formatFn.parse(input.value, currentText);
+    if (scaled !== null && isFinite(scaled)) {
+      state.sliderDragStarted();
+      state.setNormalisedValue(scaledToNorm(state, scaled));
+      state.sliderDragEnded();
+    }
+    close();
+  };
+
+  input.addEventListener("keydown", (e) => {
+    e.stopPropagation();   // keep digits away from the knob's arrow-key handler
+    if (e.key === "Enter") { e.preventDefault(); commit(); }
+    else if (e.key === "Escape") { e.preventDefault(); close(); }
+  });
+  input.addEventListener("blur", commit);
+  // Never let a click in the field start a knob drag underneath it.
+  const stop = (e) => e.stopPropagation();
+  input.addEventListener("pointerdown", stop);
+  input.addEventListener("mousedown", stop);
+  input.addEventListener("dblclick", stop);
+  input.addEventListener("wheel", stop);
 }
 
 function updateKnobVisual(id) {
@@ -207,7 +307,8 @@ function updateKnobVisual(id) {
   }
 
   const valEl = document.getElementById(`val-${id}`);
-  if (valEl) {
+  // Skip while the value-entry field is open over it — close() re-renders.
+  if (valEl && valEl.dataset.editing !== "1") {
     const fmt = FORMAT[id] || ((v) => v.toFixed(2));
     valEl.textContent = fmt(st.getScaledValue());   // scaled value — never a JS range map
   }
@@ -301,9 +402,31 @@ function bindKnob(juce, id) {
     e.preventDefault();
   }, { passive: false });
 
-  knob.addEventListener("dblclick", (e) => {
-    resetToDefault(st, id);
+  // Alt/Option-click resets to the C++ default, one gesture. The drag starts
+  // on pointerdown, so this is a CAPTURE-phase pointerdown on the knob's cell:
+  // it runs ahead of the knob's own handler and cancels the drag outright.
+  const cell = knob.parentElement || knob;
+  const valEl = document.getElementById(`val-${id}`);
+  cell.addEventListener("pointerdown", (e) => {
+    if (!e.altKey) return;
+    if (!knob.contains(e.target) && e.target !== valEl) return;
     e.preventDefault();
+    e.stopPropagation();
+    resetToDefault(st, id);
+  }, true);
+
+  // Double-click (on the knob or its readout) opens inline value entry.
+  const fmt = FORMAT[id] || ((v) => v.toFixed(2));
+  const formatFn = () => fmt(st.getScaledValue());
+  formatFn.parse = PARSE[id] || parseDirectFor(st);
+  knob.addEventListener("dblclick", (e) => {
+    if (e.altKey) return;
+    e.preventDefault();
+    attachValueEntry(valEl, st, formatFn);
+  });
+  if (valEl) valEl.addEventListener("dblclick", (e) => {
+    if (e.altKey) return;
+    attachValueEntry(valEl, st, formatFn);
   });
 }
 
@@ -500,7 +623,7 @@ async function loadParameterDefaults(juce) {
     paramDefaults = typeof raw === "string" ? JSON.parse(raw) : raw;
   } catch (e) {
     console.error("getParameterDefaults failed:", e);
-    paramDefaults = null;   // dblclick becomes a no-op; every other control is unaffected
+    paramDefaults = null;   // Alt-click becomes a no-op; every other control is unaffected
   }
 }
 
