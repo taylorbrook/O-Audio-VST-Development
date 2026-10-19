@@ -288,7 +288,9 @@ function bindKnob(paramId, unit) {
     function updateFromState() {
         const norm = state.getNormalisedValue();
         updateKnobRotation(knobElement, norm);
-        if (valueDisplay) {
+        // Skip while the value-entry field is open over the readout —
+        // writing textContent would wipe the input. close() re-renders.
+        if (valueDisplay && valueDisplay.dataset.editing !== '1') {
             const scaled = state.getScaledValue();
             valueDisplay.textContent = formatValue(scaled, unit);
         }
@@ -326,21 +328,128 @@ function bindKnob(paramId, unit) {
         }
     });
 
-    knobElement.addEventListener('dblclick', () => {
+    // Alt/Option-click resets to the C++ default (data-default, scaled).
+    // Bound on the CAPTURE phase of the knob's container so it runs ahead of
+    // the knob's own mousedown drag handler and cancels it outright. With no
+    // data-default the Alt-click does nothing — never a guessed 0.5.
+    const altTarget = knobElement.parentElement || knobElement;
+    altTarget.addEventListener('mousedown', (e) => {
+        if (!e.altKey) return;
+        e.preventDefault();
+        e.stopPropagation();
         const def = parseFloat(knobElement.dataset.default);
+        if (!isFinite(def)) return;
         state.sliderDragStarted();
-        state.setNormalisedValue(isNaN(def) ? 0.5 : scaledToNormalised(state, def));
+        state.setNormalisedValue(scaledToNorm(def, state.properties || {}));
         state.sliderDragEnded();
+    }, true);
+
+    // Double-click (on the knob or its readout) opens inline value entry.
+    // Alt/Option-click resets instead (above).
+    const formatFn = (norm) => formatValue(state.getScaledValue(), unit);
+    formatFn.parse = parseDirect;   // every Orbit knob reads in its C++ unit
+    knobElement.addEventListener('dblclick', (e) => {
+        if (e.altKey) return;
+        attachValueEntry(valueDisplay, state, formatFn);
+    });
+    if (valueDisplay) valueDisplay.addEventListener('dblclick', (e) => {
+        if (e.altKey) return;
+        attachValueEntry(valueDisplay, state, formatFn);
     });
 }
 
-// Skew-aware inverse of the parameter's NormalisableRange — a raw normalized
-// value would land skewed knobs (Speed, Distance) away from their default.
-function scaledToNormalised(state, scaled) {
-    const p = state.properties;
-    if (!p || p.end === p.start) return 0;
-    const norm = Math.pow((scaled - p.start) / (p.end - p.start), p.skew);
-    return Math.max(0, Math.min(1, norm));
+// ─── Double-click value entry (O-Prism contract) ─────────────────
+
+// Scaled (C++ units) -> normalised [0,1] through the LIVE range in
+// state.properties (start/end/skew pushed up from C++). Clamps BEFORE the
+// pow(): a value below `start` would give a negative base and a NaN.
+function scaledToNorm(v, props) {
+    const start = props.start, end = props.end;
+    const skew = props.skew > 0 ? props.skew : 1;
+    if (!(end > start)) return 0;
+    const t = Math.min(1, Math.max(0, (v - start) / (end - start)));
+    return skew === 1 ? t : Math.pow(t, skew);
+}
+
+// First signed decimal in the string, or null if there isn't one.
+function numOf(t) {
+    const m = String(t).match(/-?\d*\.?\d+/);
+    if (!m) return null;
+    const v = parseFloat(m[0]);
+    return isFinite(v) ? v : null;
+}
+
+// Display value already IS the scaled value (Hz, degrees, %, m on Orbit —
+// its percent params are 0..100 in C++). "-inf"/"off" -> range start is not
+// needed: no Orbit knob reads that way.
+function parseDirect(t) { return numOf(t); }
+
+// Opens an inline editor over a readout. formatFn(norm) renders the value;
+// formatFn.parse(text, currentText) returns a SCALED value or null. Enter or
+// blur commits, Esc cancels, untouched text is never written back.
+function attachValueEntry(valueEl, state, formatFn) {
+    if (!valueEl || !state) return;
+    if (typeof formatFn !== 'function' || typeof formatFn.parse !== 'function') return;
+    if (valueEl.dataset.editing === '1') return;   // already open
+
+    const currentText = valueEl.textContent;
+    const prevPosition = valueEl.style.position;
+    const prevColor = valueEl.style.color;
+    // Capture the ink BEFORE the readout goes transparent.
+    const inkColor = getComputedStyle(valueEl).color;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'knob-value-input';
+    input.value = currentText;
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+    input.style.color = inkColor;
+
+    // The readout keeps its text (transparent) so its box does not move.
+    valueEl.dataset.editing = '1';
+    valueEl.style.position = 'relative';
+    valueEl.style.color = 'transparent';
+    valueEl.appendChild(input);
+    input.focus();
+    input.select();
+
+    let closed = false;
+    const close = () => {
+        if (closed) return;
+        closed = true;
+        delete valueEl.dataset.editing;
+        input.remove();
+        valueEl.style.position = prevPosition;
+        valueEl.style.color = prevColor;
+        // Re-render from live state (automation may have moved it meanwhile).
+        valueEl.textContent = formatFn(state.getNormalisedValue());
+    };
+
+    const commit = () => {
+        if (closed) return;
+        if (input.value === currentText) { close(); return; }
+        const scaled = formatFn.parse(input.value, currentText);
+        if (scaled !== null && isFinite(scaled)) {
+            state.sliderDragStarted();
+            state.setNormalisedValue(scaledToNorm(scaled, state.properties || {}));
+            state.sliderDragEnded();
+        }
+        close();
+    };
+
+    input.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        else if (e.key === 'Escape') { e.preventDefault(); close(); }
+    });
+    input.addEventListener('blur', commit);
+    // Never let a click in the field start a knob drag or reach the canvas.
+    const stop = (e) => e.stopPropagation();
+    input.addEventListener('pointerdown', stop);
+    input.addEventListener('mousedown', stop);
+    input.addEventListener('dblclick', stop);
+    input.addEventListener('wheel', stop);
 }
 
 function updateKnobRotation(knobElement, normalized) {
