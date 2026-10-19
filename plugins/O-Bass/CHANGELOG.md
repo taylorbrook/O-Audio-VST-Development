@@ -1,5 +1,12 @@
 # O-Bass Changelog
 
+## [1.8.1] — 2026-10-19
+
+### Changed
+
+- **Double-click a dial to type a value** — Enter or click away applies, Esc cancels. **Alt/Option-click resets** a control to its default (this was double-click).
+- Double-click works on the knob or on its readout. Frequency takes Hz (`0.1k` = 100 Hz), Enhance a percentage, Output dB.
+
 ## [1.8.0] - 2026-09-26
 
 **Every caption now clears WCAG AA against the paper as it actually renders,
