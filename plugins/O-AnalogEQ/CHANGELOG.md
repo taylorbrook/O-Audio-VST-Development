@@ -1,5 +1,13 @@
 # O-AnalogEQ Changelog
 
+## [1.5.5] — 2026-10-19
+
+### Changed
+
+- **Double-click a dial to type a value** — Enter or click away applies, Esc cancels. **Alt/Option-click resets** a control to its default (this was double-click).
+- Both work on the ring under the pointer: the outer ring types and resets the band's frequency (`1.2k` = 1200 Hz; a bare number is Hz), the inner ring its gain in dB. The field opens in that ring's half of the readout under the knob.
+- The Alt/Option-click reset is now one host gesture, so touch/latch automation records it (the old double-click reset wrote the value with no gesture).
+
 ## [1.5.4] - 2026-09-26
 
 ### This release — everything since v1.5.0
