@@ -45,7 +45,9 @@
       4. WR-02 — both technique/trigger subscribers guard `.backend`.
       5. WR-03/IN-01 — trigger tables + KS fields update in place through the
          activeElement-guarded writer; no innerHTML rebuild in the update path.
-      6. WR-04 — dblclick reset reads paramDefaults, not a bare 0.5.
+      6. WR-04 / quick 261019-gk9 — the knob reset is Alt/Option-click and
+         reads paramDefaults (never a bare 0.5); knob and trim dblclick open
+         attachValueEntry and never write a value.
       7. WR-05 — the wheel handler opens/closes a slider gesture.
       8. IN-05 — no window.confirm anywhere in sampler-app.js (dead in
          WKWebView: no UIDelegate wiring).
@@ -152,10 +154,50 @@ console.log('== ui_frontend_check ==');
         'IN-01: renderTechniqueBar KS low/high writes are activeElement-guarded');
 }
 
-// --------------------------------------- 6. WR-04: dblclick resets to default
+// ------------- 6. WR-04 + quick 261019-gk9: Alt-click reset, dblclick entry
 {
-    check(/paramDefaults\[relayId\]/.test(appJs),
-        'WR-04: dblclick reset reads paramDefaults[relayId] (APVTS default), not bare 0.5');
+    // The handler body of each addEventListener(type, ...) call, up to the
+    // paren that closes it.
+    const handlers = (type) => {
+        const out = [];
+        const re = new RegExp(`addEventListener\\(\\s*'${type}'\\s*,`, 'g');
+        let m;
+        while ((m = re.exec(appJs))) {
+            let i = re.lastIndex, depth = 1;
+            for (; i < appJs.length; i++) {
+                if (appJs[i] === '(') depth++;
+                else if (appJs[i] === ')' && --depth === 0) break;
+            }
+            out.push(appJs.slice(re.lastIndex, i));
+        }
+        return out;
+    };
+
+    const altReset = handlers('pointerdown').find(b =>
+        /e\.altKey/.test(b) && /paramDefaults\[relayId\]/.test(b));
+    check(!!altReset,
+        'WR-04/gk9: the knob Alt-click reset reads paramDefaults[relayId] (APVTS default)');
+    check(!!altReset && !/:\s*0\.5\b/.test(altReset) && /typeof paramDefaults\[relayId\] !== 'number'\) return/.test(altReset),
+        'WR-04/gk9: Alt-click is a no-op until paramDefaults lands — no bare 0.5 fallback');
+    check(!!altReset && /sliderDragStarted\(\)[\s\S]*setNormalisedValue\([\s\S]*sliderDragEnded\(\)/.test(altReset),
+        'gk9: Alt-click reset is bracketed sliderDragStarted -> setNormalisedValue -> sliderDragEnded');
+    check(!!altReset && /stopImmediatePropagation\(\)/.test(altReset) && /\}, true\);/.test(appJs.slice(appJs.indexOf(altReset))),
+        'gk9: Alt-click reset is a capture-phase pointerdown that stops the drag (stopImmediatePropagation)');
+
+    const dbl = handlers('dblclick');
+    const knobDbl = dbl.filter(b => /attachValueEntry\(valueEl, state, entryFormat\)/.test(b));
+    check(knobDbl.length === 1,
+        'gk9: the knob dblclick opens attachValueEntry (value entry)');
+    const trimDbl = dbl.filter(b => /attachValueEntry\((techReadout|readout), (techAdapter|layerAdapter), /.test(b));
+    check(trimDbl.length === 4,
+        `gk9: technique + layer trim sliders and readouts open attachValueEntry over the adapter (${trimDbl.length}/4)`);
+    const writers = [...knobDbl, ...trimDbl].filter(b =>
+        /setNormalisedValue\(|invokeNative\(|\.value\s*=(?!=)|paramDefaults/.test(b));
+    check(writers.length === 0,
+        'gk9: no knob/trim dblclick handler writes a value or reads a default (the reset is Alt-click)');
+    check(/function attachValueEntry\(/.test(appJs) && /function makeTrimAdapter|const makeTrimAdapter/.test(appJs),
+        'gk9: attachValueEntry and the 5-member trim adapter are defined');
+
     check(/pullParameterDefaults\(\)/.test(appJs),
         'WR-04: pullParameterDefaults() is invoked at boot');
 }
@@ -165,8 +207,13 @@ console.log('== ui_frontend_check ==');
     const wheel = appJs.match(/addEventListener\('wheel'[\s\S]*?\{ passive: false \}\);/);
     check(!!wheel && /sliderDragStarted\(\)/.test(wheel[0]),
         'WR-05: wheel handler opens a sliderDragStarted gesture');
-    check(!!wheel && /sliderDragEnded\(\)/.test(wheel[0]),
-        'WR-05: wheel handler closes the gesture (idle timeout → sliderDragEnded)');
+    // The close runs through the idle timer's endWheelGesture(), which is the
+    // one place that calls sliderDragEnded() for the wheel (v1.28.0 R7 moved
+    // it out of the handler body, so the old in-body regex went stale).
+    const endFn = appJs.match(/const endWheelGesture = \(\) => \{[\s\S]*?\n    \};/);
+    check(!!wheel && (/sliderDragEnded\(\)/.test(wheel[0])
+            || (/setTimeout\(endWheelGesture/.test(wheel[0]) && !!endFn && /sliderDragEnded\(\)/.test(endFn[0]))),
+        'WR-05: wheel handler closes the gesture (idle timeout → endWheelGesture → sliderDragEnded)');
 }
 
 // ------------------------------------------ 8. IN-05: window.confirm is dead

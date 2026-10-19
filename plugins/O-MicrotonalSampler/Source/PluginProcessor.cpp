@@ -244,7 +244,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OMicrotonalSamplerAudioProce
         juce::ParameterID { "output_gain", 1 },
         "Output Gain",
         juce::NormalisableRange<float> (-24.0f, 24.0f, 0.1f),
-        0.0f,
+        -6.0f,   // quick 261019-gk9: the suite's -6 dB instrument default
         " dB"
     ));
 
@@ -3463,9 +3463,23 @@ void OMicrotonalSamplerAudioProcessor::setStateInformation (const void* data, in
     }
 }
 
+// quick 261019-gk9: the .omspreset path treats user-owned parameters
+// (isUserOwnedParameter — Output Gain) as the user's, not the preset's. The
+// split lives HERE, on the preset path only: captureStateValueTree /
+// restoreStateValueTree are shared with get/setStateInformation, and a DAW
+// session must still save and recall the level.
 juce::String OMicrotonalSamplerAudioProcessor::capturePresetXml()
 {
     auto root = captureStateValueTree();
+
+    // A preset file does not carry the user's level.
+    for (int i = root.getNumChildren() - 1; i >= 0; --i)
+    {
+        const auto child = root.getChild (i);
+        if (child.hasType ("PARAM") && isUserOwnedParameter (child.getProperty ("id").toString()))
+            root.removeChild (i, nullptr);
+    }
+
     if (auto xml = root.createXml())
         return xml->toString();
     return {};
@@ -3478,7 +3492,31 @@ bool OMicrotonalSamplerAudioProcessor::restorePresetXml (const juce::String& xml
     auto xml = juce::parseXML (xmlText);
     if (xml == nullptr || ! xml->hasTagName (parameters.state.getType()))
         return false;
-    restoreStateValueTree (juce::ValueTree::fromXml (*xml));
+
+    auto root = juce::ValueTree::fromXml (*xml);
+
+    // Pin each user-owned parameter to its LIVE value in the incoming tree
+    // (creating the PARAM node when the file omits it — every file saved since
+    // this change does). replaceState() then re-applies the value it already
+    // has: no default write, no jump. Older .omspreset files that still carry
+    // a level are read without it.
+    for (auto* p : getParameters())
+    {
+        auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (p);
+        if (ranged == nullptr || ! isUserOwnedParameter (ranged->getParameterID()))
+            continue;
+        const auto liveValue = ranged->convertFrom0to1 (ranged->getValue());
+        auto node = root.getChildWithProperty ("id", ranged->getParameterID());
+        if (! node.isValid())
+        {
+            node = juce::ValueTree ("PARAM");
+            node.setProperty ("id", ranged->getParameterID(), nullptr);
+            root.appendChild (node, nullptr);
+        }
+        node.setProperty ("value", liveValue, nullptr);
+    }
+
+    restoreStateValueTree (root);
     return true;
 }
 

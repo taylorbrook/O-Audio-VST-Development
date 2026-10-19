@@ -584,9 +584,10 @@ const KNOB_FORMATS = {
 
 // v1.23.7 (WR-04): relayId → default normalised value, pulled once at boot
 // from the C++ side (param->getDefaultValue()) via getParameterDefaults.
-// Used by the knob double-click reset so it lands on the real APVTS default
-// instead of a blanket mid-range 0.5 (which, for the skewed ADSR ranges,
-// denormalised to ~2.5 s).
+// Used by the knob Alt/Option-click reset (quick 261019-gk9; it was the
+// double-click reset) so it lands on the real APVTS default instead of a
+// blanket mid-range 0.5 (which, for the skewed ADSR ranges, denormalised to
+// ~2.5 s). Until the pull lands the Alt-click does nothing.
 let paramDefaults = {};
 
 async function pullParameterDefaults() {
@@ -598,6 +599,126 @@ async function pullParameterDefaults() {
         if (obj && typeof obj === 'object') paramDefaults = obj;
     } catch (err) {
         console.warn('[sampler-app] pullParameterDefaults failed', err);
+    }
+}
+
+// ── Double-click value entry (quick 261019-gk9, O-Prism's attachValueEntry) ──
+// Double-click a knob (or a trim slider) to type a value; Enter or blur
+// commits, Esc cancels, text equal to what was shown is never written back.
+// Alt/Option-click resets instead.
+
+// Scaled (C++ units) -> normalised, from the LIVE start/end/skew. Clamped
+// BEFORE the pow(): a negative base with a fractional skew is NaN, and a NaN
+// would ride setNormalisedValue() into the parameter.
+function scaledToNorm(v, props) {
+    const start = props.start, end = props.end;
+    const skew = props.skew > 0 ? props.skew : 1;
+    if (!(end > start)) return 0;
+    const t = Math.min(1, Math.max(0, (v - start) / (end - start)));
+    return skew === 1 ? t : Math.pow(t, skew);
+}
+
+// Opens an inline editor on a readout. formatFn(norm) renders the value;
+// formatFn.parse(text, currentText) returns the SCALED value or null to
+// reject. `state` is a SliderState or an adapter with the same five members
+// (getNormalisedValue, setNormalisedValue, sliderDragStarted,
+// sliderDragEnded, properties) — the trim sliders pass one.
+function attachValueEntry(valueEl, state, formatFn) {
+    if (!valueEl || !state) return;
+    if (typeof formatFn !== 'function' || typeof formatFn.parse !== 'function') return;
+    if (valueEl.dataset.editing === '1') return;   // already open
+
+    const currentText = valueEl.textContent;
+    const prevPosition = valueEl.style.position;
+    const prevColor = valueEl.style.color;
+    // Read the readout's ink BEFORE hiding it — `inherit` on the input would
+    // resolve to the transparent colour about to be set.
+    const inkColor = getComputedStyle(valueEl).color;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'knob-value-input';
+    input.value = currentText;
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+    input.style.color = inkColor;
+
+    // The readout keeps its own text (transparent) so its box keeps its size.
+    valueEl.dataset.editing = '1';
+    valueEl.style.position = 'relative';
+    valueEl.style.color = 'transparent';
+    valueEl.appendChild(input);
+    input.focus();
+    input.select();
+
+    let closed = false;
+
+    const close = () => {
+        if (closed) return;
+        closed = true;
+        delete valueEl.dataset.editing;
+        input.remove();
+        valueEl.style.position = prevPosition;
+        valueEl.style.color = prevColor;
+        // Re-render from live state: the value may have moved meanwhile.
+        valueEl.textContent = formatFn(state.getNormalisedValue());
+    };
+
+    const commit = () => {
+        if (closed) return;
+        if (input.value === currentText) { close(); return; }   // readouts are rounded
+        const scaled = formatFn.parse(input.value, currentText);
+        if (scaled !== null && Number.isFinite(scaled)) {
+            state.sliderDragStarted();
+            state.setNormalisedValue(scaledToNorm(scaled, state.properties || {}));
+            state.sliderDragEnded();
+        }
+        close();
+    };
+
+    input.addEventListener('keydown', (e) => {
+        e.stopPropagation();   // keep digits away from the page's key handlers
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        else if (e.key === 'Escape') { e.preventDefault(); close(); }
+    });
+    input.addEventListener('blur', commit);
+    // The knob readout sits INSIDE the knob's drag target: never start a drag,
+    // a dblclick or a wheel step from inside the field.
+    input.addEventListener('pointerdown', (e) => e.stopPropagation());
+    input.addEventListener('mousedown', (e) => e.stopPropagation());
+    input.addEventListener('dblclick', (e) => e.stopPropagation());
+    input.addEventListener('wheel', (e) => e.stopPropagation());
+}
+
+// ── Value-entry parsers: display text -> SCALED value, or null ─────────────
+// First signed decimal; a U+2212 minus counts as a sign.
+function entryNumOf(t) {
+    const m = String(t).replace(/\u2212/g, '-').match(/-?\d*\.?\d+/);
+    if (!m) return null;
+    const v = parseFloat(m[0]);
+    return Number.isFinite(v) ? v : null;
+}
+
+// dB readouts; -inf / inf / off -> the range start.
+function parseDbEntry(t, props) {
+    if (/^\s*[-\u2212+]?\s*(inf|∞|off)\b/i.test(String(t))) return props ? props.start : null;
+    return entryNumOf(t);
+}
+
+// Inverse of KNOB_FORMATS, per relayId.
+function parseKnobEntry(relayId, state, t) {
+    const s = String(t);
+    const v = entryNumOf(s);
+    switch (relayId) {
+        case 'attack': case 'decay': case 'release':   // seconds; "ms" also accepted
+            if (v === null) return null;
+            return /ms/i.test(s) ? v / 1000 : v;
+        case 'expression':                              // reads 0-100 %, C++ 0..1
+            return v === null ? null : v / 100;
+        case 'dynamic_range': case 'output_gain':
+            return parseDbEntry(s, state.properties);
+        default:                                        // sustain, polyphony, vel-XF
+            return v;
     }
 }
 
@@ -634,7 +755,9 @@ function knobUpdateVisual(vineEl, valueEl, fmt, norm, state) {
     // KNOB_FORMATS note.
     if (valueEl && fmt && state) {
         const text = fmt.format(state.getScaledValue()) + fmt.suffix;
-        valueEl.textContent = text;
+        // quick 261019-gk9: never while the value-entry field is open — the
+        // <input> lives inside the readout and textContent would wipe it.
+        if (valueEl.dataset.editing !== '1') valueEl.textContent = text;
         // v1.28.0 (R7): the knob root is the role=slider, so it carries the
         // spoken value — the same scaled string the readout shows.
         const knob = valueEl.closest('.ouaricon-knob');
@@ -758,6 +881,28 @@ function bindOneKnob({ domId, relayId }) {
     // open and the knob followed the cursor with no button held.
     knob.addEventListener('lostpointercapture', endKnobDrag);
 
+    // quick 261019-gk9: Alt/Option-click resets to the APVTS default
+    // (paramDefaults, normalised; a no-op until the pull has landed — never a
+    // bare 0.5), bracketed in the gesture pair. The drag listener below sits on
+    // this same outermost element and starts on pointerdown, so this one is
+    // registered FIRST, in the capture phase, on pointerdown, and calls
+    // stopImmediatePropagation() so the drag never opens.
+    knob.addEventListener('pointerdown', (e) => {
+        if (!e.altKey || e.button !== 0) return;
+        if (e.target.classList && e.target.classList.contains('knob-value-input')) return;   // inside the open field
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (knobDrag.active) return;
+        if (typeof paramDefaults[relayId] !== 'number') return;
+        endWheelGesture();
+        const def = Math.max(0, Math.min(1, paramDefaults[relayId]));
+        state.sliderDragStarted();
+        state.setNormalisedValue(def);
+        state.sliderDragEnded();
+        input.value = def;
+        knobUpdateVisual(vineEl, valueEl, fmt, def, state);
+    }, true);
+
     // Pointer drag — relative-vertical 200 px = full sweep (matches the
     // O-Reed sensitivity from agent memory; feels natural for 44 px knobs).
     knob.addEventListener('pointerdown', (e) => {
@@ -797,21 +942,15 @@ function bindOneKnob({ domId, relayId }) {
         stepBy(e.deltaY < 0 ? 1 : -1);
     }, { passive: false });
 
-    // Double-click resets to the parameter's APVTS default (WR-04). Defaults
-    // are pulled once at boot via getParameterDefaults (normalised 0..1,
-    // straight from param->getDefaultValue()); mid-range only as a fallback
-    // if that pull failed or hasn't landed yet.
+    // quick 261019-gk9: double-click opens value entry on the readout (the
+    // reset moved to Alt/Option-click above). It never writes the parameter.
+    const entryFormat = () => (fmt ? fmt.format(state.getScaledValue()) + fmt.suffix : '');
+    entryFormat.parse = (t) => parseKnobEntry(relayId, state, t);
     knob.addEventListener('dblclick', (e) => {
+        if (e.altKey) return;
         e.preventDefault();
         endWheelGesture();
-        const def = (typeof paramDefaults[relayId] === 'number')
-            ? Math.max(0, Math.min(1, paramDefaults[relayId]))
-            : 0.5;
-        state.sliderDragStarted();
-        state.setNormalisedValue(def);
-        state.sliderDragEnded();
-        input.value = def;
-        knobUpdateVisual(vineEl, valueEl, fmt, def, state);
+        if (!knobDrag.active) attachValueEntry(valueEl, state, entryFormat);
     });
 }
 
@@ -3592,7 +3731,8 @@ function renderTrimPanel() {
     // Helper: write a slider's value + readout unless the user is dragging it.
     const apply = (slider, readout, db) => {
         if (slider && document.activeElement !== slider) slider.value = String(db);
-        if (readout) readout.textContent = formatTrimDb(db);
+        // quick 261019-gk9: not while the value-entry field is open in it.
+        if (readout && readout.dataset.editing !== '1') readout.textContent = formatTrimDb(db);
     };
 
     apply(document.getElementById('trim-tech-slider'),
@@ -3612,12 +3752,64 @@ function renderTrimPanel() {
 
 // One-time wiring (called from init). Live-updates the readout on input for
 // responsiveness, pushes to C++ via the native bridge, and supports
-// double-click-to-zero on every slider plus a reset-all button.
+// Alt/Option-click-to-zero and double-click value entry on every slider
+// (quick 261019-gk9; double-click used to zero it) plus a reset-all button.
 function setupTrimPanel() {
     const clampDb = (v) => {
         const max = num(techniqueState.trims && techniqueState.trims.maxDb,
                         TRIM_MAX_DB_FALLBACK) || TRIM_MAX_DB_FALLBACK;
         return Math.max(-max, Math.min(max, num(v)));
+    };
+
+    // quick 261019-gk9: the trims are native-function range inputs, not
+    // SliderStates, so value entry goes through an adapter with the same five
+    // members attachValueEntry uses. `properties` is the input's own min/max
+    // (linear, skew 1); a commit snaps to the input's step, clamps to the C++
+    // limit and goes out through `send(db)` (invokeNative), which is a single
+    // call — the drag-bracket members are no-ops.
+    const makeTrimAdapter = (slider, readout, send) => ({
+        get properties() {
+            return { start: num(parseFloat(slider.min), -TRIM_MAX_DB_FALLBACK),
+                     end: num(parseFloat(slider.max), TRIM_MAX_DB_FALLBACK), skew: 1 };
+        },
+        getNormalisedValue() {
+            const p = this.properties;
+            return p.end > p.start ? (clampDb(parseFloat(slider.value)) - p.start) / (p.end - p.start) : 0;
+        },
+        setNormalisedValue(n) {
+            const p = this.properties;
+            const step = parseFloat(slider.step) > 0 ? parseFloat(slider.step) : 0;
+            let db = p.start + Math.max(0, Math.min(1, n)) * (p.end - p.start);
+            if (step) db = Math.round(db / step) * step;
+            db = clampDb(db);
+            slider.value = String(db);
+            if (readout && readout.dataset.editing !== '1') readout.textContent = formatTrimDb(db);
+            send(db);
+        },
+        sliderDragStarted() {},
+        sliderDragEnded() {},
+    });
+    const makeTrimFormat = (slider) => {
+        const f = () => formatTrimDb(clampDb(parseFloat(slider.value)));
+        f.parse = (t) => parseDbEntry(t, { start: num(parseFloat(slider.min), -TRIM_MAX_DB_FALLBACK) });
+        return f;
+    };
+    // Alt/Option-click on the slider or its readout zeroes the trim. The range
+    // input's native drag starts on mousedown, so the reset is a CAPTURE-phase
+    // mousedown on the row; preventDefault() stops the thumb jumping to the
+    // click point, stopPropagation() keeps it from the slider.
+    const bindTrimAltReset = (slider, readout, send) => {
+        const row = slider.closest('.trim-row') || slider.parentElement;
+        if (!row) return;
+        row.addEventListener('mousedown', (e) => {
+            if (!e.altKey || e.button !== 0) return;
+            if (e.target !== slider && e.target !== readout) return;
+            e.preventDefault();
+            e.stopPropagation();
+            slider.value = '0';
+            if (readout && readout.dataset.editing !== '1') readout.textContent = formatTrimDb(0);
+            send(0);
+        }, true);
     };
 
     const techSlider  = document.getElementById('trim-tech-slider');
@@ -3629,11 +3821,20 @@ function setupTrimPanel() {
             invokeNative('setTechniqueTrim',
                          Math.max(0, Math.min(7, num(techniqueState.active))), db);
         });
-        techSlider.addEventListener('dblclick', () => {
-            techSlider.value = '0';
-            if (techReadout) techReadout.textContent = formatTrimDb(0);
-            invokeNative('setTechniqueTrim',
-                         Math.max(0, Math.min(7, num(techniqueState.active))), 0);
+        const sendTech = (db) => invokeNative('setTechniqueTrim',
+                         Math.max(0, Math.min(7, num(techniqueState.active))), db);
+        const techAdapter = makeTrimAdapter(techSlider, techReadout, sendTech);
+        const techFormat  = makeTrimFormat(techSlider);
+        bindTrimAltReset(techSlider, techReadout, sendTech);
+        techSlider.addEventListener('dblclick', (e) => {
+            if (e.altKey) return;
+            e.preventDefault();
+            attachValueEntry(techReadout, techAdapter, techFormat);
+        });
+        if (techReadout) techReadout.addEventListener('dblclick', (e) => {
+            if (e.altKey) return;
+            e.preventDefault();
+            attachValueEntry(techReadout, techAdapter, techFormat);
         });
     }
 
@@ -3647,11 +3848,20 @@ function setupTrimPanel() {
             invokeNative('setLayerTrim',
                          Math.max(0, Math.min(7, num(techniqueState.active))), l, db);
         });
-        slider.addEventListener('dblclick', () => {
-            slider.value = '0';
-            if (readout) readout.textContent = formatTrimDb(0);
-            invokeNative('setLayerTrim',
-                         Math.max(0, Math.min(7, num(techniqueState.active))), l, 0);
+        const sendLayer = (db) => invokeNative('setLayerTrim',
+                         Math.max(0, Math.min(7, num(techniqueState.active))), l, db);
+        const layerAdapter = makeTrimAdapter(slider, readout, sendLayer);
+        const layerFormat  = makeTrimFormat(slider);
+        bindTrimAltReset(slider, readout, sendLayer);
+        slider.addEventListener('dblclick', (e) => {
+            if (e.altKey) return;
+            e.preventDefault();
+            attachValueEntry(readout, layerAdapter, layerFormat);
+        });
+        if (readout) readout.addEventListener('dblclick', (e) => {
+            if (e.altKey) return;
+            e.preventDefault();
+            attachValueEntry(readout, layerAdapter, layerFormat);
         });
     }
 
@@ -4119,7 +4329,7 @@ function initSettingsPopover() {
 document.addEventListener('DOMContentLoaded', () => {
     bindTabs();
     bindSliders();
-    pullParameterDefaults();               // v1.23.7 (WR-04) — dblclick reset targets
+    pullParameterDefaults();               // v1.23.7 (WR-04) — Alt-click reset targets
 
     subscribeSampleMapUpdates();
     subscribeFolderMissingEvent();   // v1.3.0 — register before pull
