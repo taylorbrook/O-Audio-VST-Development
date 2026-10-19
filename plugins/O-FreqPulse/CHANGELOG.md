@@ -2,6 +2,19 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.20.1] — 2026-10-19
+
+### Changed
+
+- **Double-click a slider to type a value** — Enter or click away applies, Esc cancels. **Alt/Option-click resets** a slider to its default. This covers every parameter slider: Mix, Steps, Swing, Attack, Release, the Euclidean panel's five, each band's Mix, and the five crossover/boundary dividers. The step grid is unchanged.
+- Sliders with a readout open the field over the readout. A band's Mix and the dividers have none, so the field opens in a small box centred over the slider.
+- Typed values use the readout's units: % for Mix, Swing and band Mix, ms for Attack/Release, Hz for the dividers (`1.5k` = 1500 Hz), and whole counts for Steps and the Euclidean controls. Per-band Steps accepts `global`. A divider stays between its neighbours, as it does when dragged.
+- Alt-click does not move the slider thumb to the click point. The value lands exactly on the default.
+
+### Added
+
+- `getParameterDefaults` native function: each parameter's normalised C++ default, fetched once when the UI opens. Alt-click reads it, and there is no hand-copied JS table.
+
 ## [1.20.0] - 2026-09-27
 
 **UI legibility pass** (review 260924-nho, R4 + R5). Text on the paper and on
