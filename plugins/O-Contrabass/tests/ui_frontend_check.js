@@ -43,8 +43,9 @@
       3. Knob readouts come from SliderState.getScaledValue() (real C++
          NormalisableRange incl. skew) and refresh on propertiesChanged; the
          FMT table carries no min/max range constants.
-      4. Dblclick reset reads paramDefaults (getParameterDefaults native fn),
-         never a bare JS constant.
+      4. Alt/Option-click reset reads paramDefaults (getParameterDefaults
+         native fn), never a bare JS constant, and is bound capture-phase;
+         double-click opens attachValueEntry and never writes a value (gk9).
       5. No unguarded window.confirm in the plugin's own frontend (dead in
          WKWebView — no UIDelegate wiring).
       6. Resource-provider closure — every non-juce local file the HTML
@@ -158,10 +159,28 @@ console.log('== O-Contrabass ui_frontend_check ==');
         'knobs refresh when the real range arrives via propertiesChanged');
 }
 
-// -------------------------------------- 4. dblclick reset uses paramDefaults
+// ------------------- 4. Alt-click reset uses paramDefaults; dblclick = entry
+// v1.12.1 (gk9): reset moved from double-click to Alt/Option-click and
+// double-click opens the typed-value field. Pins both halves of the swap.
 {
     check(/paramDefaults\[paramId\]/.test(inlineJs),
-        'dblclick reset reads paramDefaults (from getParameterDefaults), not a JS constant');
+        'reset reads paramDefaults[paramId] (from getParameterDefaults), not a JS constant');
+    const alt = inlineJs.match(/function bindAltReset\([^)]*\)\s*\{[\s\S]*?\n\}/);
+    check(!!alt && /e\.altKey/.test(alt[0]) && /resetToDefault\(/.test(alt[0])
+        && /addEventListener\(\s*"mousedown"[\s\S]*\},\s*true\s*\)/.test(alt[0]),
+        'Alt/Option-click reset is a capture-phase mousedown that calls resetToDefault()');
+    const resetFn = inlineJs.match(/function resetToDefault\([^)]*\)\s*\{[\s\S]*?\n\}/);
+    check(!!resetFn && /paramDefaults\[paramId\]/.test(resetFn[0])
+        && /sliderDragStarted\(\)[\s\S]*setNormalisedValue\(def\)[\s\S]*sliderDragEnded\(\)/.test(resetFn[0]),
+        'resetToDefault() writes paramDefaults[paramId] inside one sliderDragStarted/Ended gesture');
+    const binds = (inlineJs.match(/bindAltReset\((control|block), paramId, state\)/g) || []).length;
+    check(binds === 2, `Alt reset bound on both knobs and fine-tuner faders — got ${binds} call sites`);
+    check(/function attachValueEntry\(/.test(inlineJs), 'attachValueEntry() is defined');
+    const dbl = [...inlineJs.matchAll(/addEventListener\(\s*"dblclick"\s*,\s*\(e\)\s*=>\s*\{([\s\S]*?)\n\s*\}\);/g)].map(m => m[1]);
+    check(dbl.length === 4 && dbl.every(b => /attachValueEntry\(/.test(b)),
+        `every dial/fader dblclick opens attachValueEntry — ${dbl.length} handlers, expected 4`);
+    check(dbl.every(b => !/resetToDefault|setNormalisedValue/.test(b)),
+        'no dblclick handler resets or writes a value');
     check(!/setNormalisedValue\(\s*0\.5\s*\)/.test(inlineJs),
         'no bare setNormalisedValue(0.5) reset shortcut');
 }

@@ -361,12 +361,12 @@ export const I18N = Object.freeze({
   },
     'fine-tuners': {
         en: { t: 'Fine tuners',
-              b: 'Per-string detune in cents, ±1200¢. Double-click a fader to return it to 0.' },
+              b: 'Per-string detune in cents, ±1200¢. Alt-click a fader to return it to 0; double-click to type a value.' },
         fr: { t: 'Tendeurs fins',
-              b: 'Désaccord par corde en cents, ±1200¢. Double-cliquer sur un curseur pour le remettre à 0.',
-              reviewed: true },
+              b: 'Désaccord par corde en cents, ±1200¢. Alt-cliquer sur un curseur pour le remettre à 0 ; double-cliquer pour saisir une valeur.',
+              reviewed: false },
     
-      'zh-Hans': { t: '微调器', b: '每根弦以音分为单位的失谐量，±1200¢。双击推子可将其归零。', reviewed: 'bt' }
+      'zh-Hans': { t: '微调器', b: '每根弦以音分为单位的失谐量，±1200¢。Alt 点击推子可将其归零；双击可输入数值。', reviewed: 'mt' }
   },
     'DETUNE_E': {
         en: { t: 'E fine tuner',
