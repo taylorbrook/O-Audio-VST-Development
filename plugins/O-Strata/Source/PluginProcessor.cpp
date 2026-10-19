@@ -503,7 +503,7 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createGlobalPara
 
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "masterVol", 1 }, "Master Volume",
-        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.8f));
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.501187f));  // -6 dB (quick 261019-gk9)
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "stereoWidth", 1 }, "Stereo Width",
         juce::NormalisableRange<float> (0.0f, 2.0f, 0.001f), 1.0f));

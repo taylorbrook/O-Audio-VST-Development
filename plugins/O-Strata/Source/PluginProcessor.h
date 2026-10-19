@@ -457,7 +457,7 @@ private:
     void reelectDisplayVoice();   // end of processBlock (Stage 3 Decision 10)
 
     // Master volume and stereo width (smoothed)
-    juce::SmoothedValue<float> masterVolSmoothed { 0.8f };
+    juce::SmoothedValue<float> masterVolSmoothed { 0.501187f };  // = the param default (-6 dB)
     juce::SmoothedValue<float> stereoWidthSmoothed { 1.0f };
 
     // Active MIDI note tracking for TrueKeys visualization
