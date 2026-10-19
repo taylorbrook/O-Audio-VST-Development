@@ -3,6 +3,12 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.0.3] — 2026-10-19
+
+### Changed
+
+- **Double-click a dial to type a value** — Enter or click away applies, Esc cancels. **Alt/Option-click resets** a control to its default (this was double-click). Works on every knob and on the stepped Bit Depth / Division knobs (type the option, e.g. `8` or `1/8`); double-clicking a readout opens the same field.
+
 ## [1.0.2] - 2026-10-14
 
 ### Fixed
