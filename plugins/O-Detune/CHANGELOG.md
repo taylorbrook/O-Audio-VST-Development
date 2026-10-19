@@ -1,5 +1,12 @@
 # O-Detune Changelog
 
+## [1.10.1] — 2026-10-19
+
+### Changed
+
+- **Double-click a dial to type a value** — Enter or click away applies, Esc cancels. **Alt/Option-click resets** a control to its default (neither gesture did anything before). With Tempo Sync on, Rate takes a division name (`1/16T`, `2 bars`, or just `8`).
+- The Alt-click default comes from the plugin itself through a new `getParameterDefaults` native function, so it always matches the parameter's real default.
+
 ## [1.10.0] - 2026-09-27
 
 The UI pass from the suite design review (quick task 260924-nho), R4 + R5:
