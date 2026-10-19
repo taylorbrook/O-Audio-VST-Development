@@ -113,6 +113,11 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeEuclideanListeners();
     initializeBandRateDropdowns();
 
+    // gk9: double-click value entry + Alt/Option-click reset on every
+    // parameter slider (after renderGrid — the band and divider sliders are
+    // created there). Defaults come from C++, fetched once.
+    try { initializeValueEntry(); } catch (e) { console.error('value entry init failed:', e); }
+
     // v1.18.0: the settings popover and the language sweep, in that order and
     // BOTH before initializeTooltips().
     //
@@ -155,6 +160,276 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================================================
+// Double-click value entry + Alt/Option-click reset (O-Prism contract)
+// ============================================================================
+
+// Normalised C++ defaults, { paramId: default }, pulled once at boot from the
+// getParameterDefaults native function (the real NormalisableRange — never a
+// hand-mirrored JS table). Empty until it resolves: Alt-click is a no-op then.
+let paramDefaults = {};
+
+// Readout writer that leaves an open value-entry field alone (writing
+// textContent would wipe the input); close() re-renders from live state.
+function setReadout(el, text) {
+    if (el && el.dataset.editing !== '1') el.textContent = text;
+}
+
+// Scaled (C++ units) -> normalised [0,1] through the LIVE range pushed up from
+// C++ in state.properties. Clamps BEFORE the pow(): a value below `start`
+// would give a negative base and a NaN that sticks in the parameter.
+function scaledToNorm(v, props) {
+    const start = props.start, end = props.end;
+    const skew = props.skew > 0 ? props.skew : 1;
+    if (!(end > start)) return 0;
+    const t = Math.min(1, Math.max(0, (v - start) / (end - start)));
+    return skew === 1 ? t : Math.pow(t, skew);
+}
+
+// ── parsers: display text -> SCALED (C++-unit) value, or null to reject ──
+function numOf(t) {
+    const m = String(t).replace(/\u2212/g, '-').match(/-?\d*\.?\d+/);
+    if (!m) return null;
+    const v = parseFloat(m[0]);
+    return isFinite(v) ? v : null;
+}
+const parseDirect  = (t) => numOf(t);                                   // ms, counts
+const parsePercent = (t) => { const v = numOf(t); return v === null ? null : v / 100; };  // 0..1 shown as %
+// Hz readouts that switch to kHz: a bare number is Hz, "k" multiplies by 1000.
+const parseFreq    = (t) => { const v = numOf(t); return v === null ? null : (/k/i.test(String(t)) ? v * 1000 : v); };
+// Per-band Steps: 0 reads "Global" and 1 is not a valid count (the slider
+// snaps it to 0), so typing "global" / "off" / 1 lands on Global.
+const parseBandSteps = (t) => {
+    if (/global|off|glob/i.test(String(t))) return 0;
+    const v = numOf(t);
+    if (v === null) return null;
+    return Math.round(v) === 1 ? 0 : v;
+};
+
+// The five SliderState members attachValueEntry uses, around a live state,
+// with an optional write filter (crossover ordering) and an after-write sync
+// (sliders that have no valueChanged listener, e.g. the Euclidean panel).
+function entryAdapter(st, opts = {}) {
+    return {
+        get properties() { return st.properties; },
+        getNormalisedValue: () => st.getNormalisedValue(),
+        getScaledValue: () => st.getScaledValue(),
+        sliderDragStarted: () => st.sliderDragStarted(),
+        sliderDragEnded: () => st.sliderDragEnded(),
+        setNormalisedValue: (v) => {
+            st.setNormalisedValue(opts.filter ? opts.filter(v) : v);
+            if (opts.after) opts.after();
+        },
+    };
+}
+
+// Opens an inline editor over a readout. formatFn(norm) renders the value;
+// formatFn.parse(text, currentText) returns a SCALED value or null. Enter or
+// blur commits, Esc cancels, untouched text is never written back.
+//
+// A slider with no readout (band Mix, the crossover dividers) passes the
+// <input type=range> itself: the field then opens in a small box centred over
+// the slider, same semantics, removed again on close.
+function attachValueEntry(valueEl, state, formatFn) {
+    if (!valueEl || !state) return;
+    if (typeof formatFn !== 'function' || typeof formatFn.parse !== 'function') return;
+    if (valueEl.dataset.editing === '1') return;   // already open
+
+    let host = valueEl;
+    let floating = false;
+    if (valueEl.tagName === 'INPUT') {
+        const r = valueEl.getBoundingClientRect();
+        const w = Math.max(r.width, 48), h = 16;
+        host = document.createElement('span');
+        host.className = 'slider-entry-host';
+        host.style.left = (r.left + r.width / 2 - w / 2) + 'px';
+        host.style.top = (r.top + r.height / 2 - h / 2) + 'px';
+        host.style.width = w + 'px';
+        host.style.height = h + 'px';
+        host.textContent = formatFn(state.getNormalisedValue());
+        document.body.appendChild(host);
+        floating = true;
+    }
+
+    const currentText = host.textContent;
+    const prevPosition = host.style.position;
+    const prevColor = host.style.color;
+    // Capture the ink BEFORE the readout goes transparent.
+    const inkColor = getComputedStyle(host).color;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'knob-value-input';
+    input.value = currentText;
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+    input.style.color = inkColor;
+
+    // The readout keeps its text (transparent) so its box does not move.
+    valueEl.dataset.editing = '1';
+    if (!floating) host.style.position = 'relative';
+    host.style.color = 'transparent';
+    host.appendChild(input);
+    input.focus();
+    input.select();
+
+    let closed = false;
+    const close = () => {
+        if (closed) return;
+        closed = true;
+        delete valueEl.dataset.editing;
+        input.remove();
+        if (floating) { host.remove(); return; }
+        host.style.position = prevPosition;
+        host.style.color = prevColor;
+        // Re-render from live state (automation may have moved it meanwhile).
+        host.textContent = formatFn(state.getNormalisedValue());
+    };
+
+    const commit = () => {
+        if (closed) return;
+        if (input.value === currentText) { close(); return; }
+        const scaled = formatFn.parse(input.value, currentText);
+        if (scaled !== null && isFinite(scaled)) {
+            // setNormalisedValue() snaps to the C++ interval (counts, 0.01 steps).
+            state.sliderDragStarted();
+            state.setNormalisedValue(scaledToNorm(scaled, state.properties || {}));
+            state.sliderDragEnded();
+        }
+        close();
+    };
+
+    input.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        else if (e.key === 'Escape') { e.preventDefault(); close(); }
+    });
+    input.addEventListener('blur', commit);
+    // Never let a click in the field reach the slider or the step grid.
+    const stop = (e) => e.stopPropagation();
+    input.addEventListener('pointerdown', stop);
+    input.addEventListener('mousedown', stop);
+    input.addEventListener('dblclick', stop);
+    input.addEventListener('wheel', stop);
+}
+
+// Binds one parameter slider. resolve() is called at event time and returns
+// { id, st, readout, fmt, parse } — dynamic because the Euclidean panel's five
+// sliders re-target whichever band is open.
+//
+// Alt/Option-click: CAPTURE phase on the slider's container, on pointerdown
+// (does the reset, one gesture) AND mousedown (preventDefault — on a native
+// range the thumb would otherwise jump to the click point). Both stop
+// propagation so nothing else hears the click.
+function bindSliderEntry(slider, readout, resolve) {
+    if (!slider) return;
+    const container = slider.parentElement || slider;
+    const isOurs = (e) => e.target === slider || (readout && e.target === readout);
+
+    container.addEventListener('pointerdown', (e) => {
+        if (!e.altKey || !isOurs(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const r = resolve();
+        if (!r || !r.st) return;
+        const def = paramDefaults[r.id];
+        if (typeof def !== 'number' || !isFinite(def)) return;   // not loaded — no-op
+        r.st.sliderDragStarted();
+        r.st.setNormalisedValue(def);
+        r.st.sliderDragEnded();
+    }, true);
+    container.addEventListener('mousedown', (e) => {
+        if (!e.altKey || !isOurs(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
+    }, true);
+
+    const open = (e) => {
+        const r = resolve();
+        if (!r || !r.st) return;
+        const formatFn = () => r.fmt(r.st);
+        formatFn.parse = r.parse;
+        return [r, formatFn];
+    };
+    slider.addEventListener('dblclick', (e) => {
+        if (e.altKey) return;
+        const o = open(e); if (!o) return;
+        attachValueEntry(readout || slider, o[0].st, o[1]);
+    });
+    if (readout) readout.addEventListener('dblclick', (e) => {
+        if (e.altKey) return;
+        const o = open(e); if (!o) return;
+        attachValueEntry(readout, o[0].st, o[1]);
+    });
+}
+
+function initializeValueEntry() {
+    try {
+        Juce.getNativeFunction('getParameterDefaults')()
+            .then((defs) => { paramDefaults = defs || {}; })
+            .catch(() => { /* leave empty — Alt-click becomes a no-op */ });
+    } catch (e) { /* native fn unavailable — Alt-click stays a no-op */ }
+
+    const $ = (id) => document.getElementById(id);
+    const pctOf   = (st) => `${Math.round(st.getNormalisedValue() * 100)}%`;
+    const intOf   = (st) => String(Math.round(st.getScaledValue()));
+    const msOf    = (st) => `${Math.round(st.getScaledValue())}ms`;
+
+    // Footer: global sliders. Their valueChanged listeners already move the
+    // slider and the readout after a write.
+    const global = (pid, fmt, parse) => {
+        const st = Juce.getSliderState(pid);
+        bindSliderEntry($(pid), $(pid + '-value'), () => ({ id: pid, st, fmt, parse }));
+    };
+    global('mix',     pctOf, parsePercent);
+    global('steps',   intOf, parseDirect);
+    global('swing',   pctOf, parsePercent);
+    global('attack',  msOf,  parseDirect);
+    global('release', msOf,  parseDirect);
+
+    // Euclidean panel: re-targets the open band; no valueChanged listener, so
+    // the adapter re-syncs the panel after each write.
+    const euc = (elId, suffix, fmt, parse) => {
+        bindSliderEntry($(elId), $(elId + '-value'), () => {
+            const b = state.currentBand;
+            if (b === null || b === undefined) return null;
+            const id = `band${b}_${suffix}`;
+            const raw = state.stepStates[id];
+            if (!raw) return null;
+            return { id, st: entryAdapter(raw, { after: () => syncEuclideanControls(b) }), fmt, parse };
+        });
+    };
+    euc('euc-steps',      'euc_steps',    intOf, parseDirect);
+    euc('euc-pulses',     'euc_pulses',   intOf, parseDirect);
+    euc('euc-offset',     'euc_offset',   intOf, parseDirect);
+    euc('euc-phase',      'phase_offset', intOf, parseDirect);
+    euc('euc-band-steps', 'steps', (st) => {
+        const v = Math.round(st.getScaledValue());
+        return v === 0 ? 'Global' : String(v);
+    }, parseBandSteps);
+
+    // Band Mix (depth) — no readout: the field floats over the slider.
+    for (const band of bands) {
+        const id = `band${band.id}_depth`;
+        const raw = state.stepStates[id];
+        if (!raw) continue;
+        bindSliderEntry($(`band-mix-${band.id}`), null, () => ({ id, st: raw, fmt: pctOf, parse: parsePercent }));
+    }
+
+    // Crossover dividers + boundaries — no readout; writes keep the five
+    // frequencies in order (clampFreqSlider) and refresh the band captions.
+    for (const id of freqParamOrder) {
+        const raw = state.stepStates[id];
+        if (!raw) continue;
+        const st = entryAdapter(raw, {
+            filter: (v) => clampFreqSlider(id, v),
+            after: () => updateAllBandFreqDisplays(),
+        });
+        bindSliderEntry($(`divider-slider-${id}`), null,
+            () => ({ id, st, fmt: (s) => formatFreq(s.getScaledValue()), parse: parseFreq }));
+    }
+}
+
+// ============================================================================
 // Global Parameter Bindings
 // ============================================================================
 
@@ -165,17 +440,17 @@ function initializeGlobalParameters() {
     const mixValue = document.getElementById('mix-value');
 
     mixSlider.value = mixState.getNormalisedValue() * 100;
-    mixValue.textContent = `${Math.round(mixSlider.value)}%`;
+    setReadout(mixValue, `${Math.round(mixSlider.value)}%`);
 
     mixSlider.addEventListener('input', (e) => {
         const normalized = e.target.value / 100;
         mixState.setNormalisedValue(normalized);
-        mixValue.textContent = `${Math.round(e.target.value)}%`;
+        setReadout(mixValue, `${Math.round(e.target.value)}%`);
     });
 
     mixState.valueChangedEvent.addListener(() => {
         mixSlider.value = mixState.getNormalisedValue() * 100;
-        mixValue.textContent = `${Math.round(mixSlider.value)}%`;
+        setReadout(mixValue, `${Math.round(mixSlider.value)}%`);
     });
 
     // Steps slider (2-32)
@@ -184,21 +459,21 @@ function initializeGlobalParameters() {
     const stepsValue = document.getElementById('steps-value');
 
     stepsSlider.value = Math.round(stepsState.getScaledValue());
-    stepsValue.textContent = stepsSlider.value;
+    setReadout(stepsValue, stepsSlider.value);
     updateStepCount(parseInt(stepsSlider.value));
 
     stepsSlider.addEventListener('input', (e) => {
         const val = parseInt(e.target.value);
         const normalized = (val - 2) / 30;  // 2-32 → 0-1
         stepsState.setNormalisedValue(normalized);
-        stepsValue.textContent = val;
+        setReadout(stepsValue, val);
         updateStepCount(val);
     });
 
     stepsState.valueChangedEvent.addListener(() => {
         const val = Math.round(stepsState.getScaledValue());
         stepsSlider.value = val;
-        stepsValue.textContent = val;
+        setReadout(stepsValue, val);
         updateStepCount(val);
     });
 
@@ -222,17 +497,17 @@ function initializeGlobalParameters() {
     const swingValue = document.getElementById('swing-value');
 
     swingSlider.value = swingState.getNormalisedValue() * 100;
-    swingValue.textContent = `${Math.round(swingSlider.value)}%`;
+    setReadout(swingValue, `${Math.round(swingSlider.value)}%`);
 
     swingSlider.addEventListener('input', (e) => {
         const normalized = e.target.value / 100;
         swingState.setNormalisedValue(normalized);
-        swingValue.textContent = `${Math.round(e.target.value)}%`;
+        setReadout(swingValue, `${Math.round(e.target.value)}%`);
     });
 
     swingState.valueChangedEvent.addListener(() => {
         swingSlider.value = swingState.getNormalisedValue() * 100;
-        swingValue.textContent = `${Math.round(swingSlider.value)}%`;
+        setReadout(swingValue, `${Math.round(swingSlider.value)}%`);
     });
 
     // Attack slider (0-500ms, skewed range — use normalized values for slider position)
@@ -241,17 +516,17 @@ function initializeGlobalParameters() {
     const attackValue = document.getElementById('attack-value');
 
     attackSlider.value = attackState.getNormalisedValue() * 1000;
-    attackValue.textContent = `${Math.round(attackState.getScaledValue())}ms`;
+    setReadout(attackValue, `${Math.round(attackState.getScaledValue())}ms`);
 
     attackSlider.addEventListener('input', (e) => {
         const normalized = e.target.value / 1000;
         attackState.setNormalisedValue(normalized);
-        attackValue.textContent = `${Math.round(attackState.getScaledValue())}ms`;
+        setReadout(attackValue, `${Math.round(attackState.getScaledValue())}ms`);
     });
 
     attackState.valueChangedEvent.addListener(() => {
         attackSlider.value = attackState.getNormalisedValue() * 1000;
-        attackValue.textContent = `${Math.round(attackState.getScaledValue())}ms`;
+        setReadout(attackValue, `${Math.round(attackState.getScaledValue())}ms`);
     });
 
     // Release slider (0-500ms, skewed range — use normalized values for slider position)
@@ -260,17 +535,17 @@ function initializeGlobalParameters() {
     const releaseValue = document.getElementById('release-value');
 
     releaseSlider.value = releaseState.getNormalisedValue() * 1000;
-    releaseValue.textContent = `${Math.round(releaseState.getScaledValue())}ms`;
+    setReadout(releaseValue, `${Math.round(releaseState.getScaledValue())}ms`);
 
     releaseSlider.addEventListener('input', (e) => {
         const normalized = e.target.value / 1000;
         releaseState.setNormalisedValue(normalized);
-        releaseValue.textContent = `${Math.round(releaseState.getScaledValue())}ms`;
+        setReadout(releaseValue, `${Math.round(releaseState.getScaledValue())}ms`);
     });
 
     releaseState.valueChangedEvent.addListener(() => {
         releaseSlider.value = releaseState.getNormalisedValue() * 1000;
-        releaseValue.textContent = `${Math.round(releaseState.getScaledValue())}ms`;
+        setReadout(releaseValue, `${Math.round(releaseState.getScaledValue())}ms`);
     });
 }
 
@@ -841,12 +1116,12 @@ function syncEuclideanControls(bandId) {
     const eucStepsValue = document.getElementById('euc-steps-value');
 
     eucStepsSlider.value = eucStepsState.getScaledValue();
-    eucStepsValue.textContent = Math.round(eucStepsSlider.value);
+    setReadout(eucStepsValue, Math.round(eucStepsSlider.value));
 
     eucStepsSlider.oninput = (e) => {
         const normalized = (e.target.value - 1) / 31;  // 1-32 → 0-1
         eucStepsState.setNormalisedValue(normalized);
-        eucStepsValue.textContent = Math.round(eucStepsState.getScaledValue());
+        setReadout(eucStepsValue, Math.round(eucStepsState.getScaledValue()));
     };
 
     // Euclidean pulses
@@ -855,12 +1130,12 @@ function syncEuclideanControls(bandId) {
     const eucPulsesValue = document.getElementById('euc-pulses-value');
 
     eucPulsesSlider.value = eucPulsesState.getScaledValue();
-    eucPulsesValue.textContent = Math.round(eucPulsesSlider.value);
+    setReadout(eucPulsesValue, Math.round(eucPulsesSlider.value));
 
     eucPulsesSlider.oninput = (e) => {
         const normalized = (e.target.value - 1) / 31;
         eucPulsesState.setNormalisedValue(normalized);
-        eucPulsesValue.textContent = Math.round(eucPulsesState.getScaledValue());
+        setReadout(eucPulsesValue, Math.round(eucPulsesState.getScaledValue()));
     };
 
     // Euclidean offset
@@ -869,12 +1144,12 @@ function syncEuclideanControls(bandId) {
     const eucOffsetValue = document.getElementById('euc-offset-value');
 
     eucOffsetSlider.value = eucOffsetState.getScaledValue();
-    eucOffsetValue.textContent = Math.round(eucOffsetSlider.value);
+    setReadout(eucOffsetValue, Math.round(eucOffsetSlider.value));
 
     eucOffsetSlider.oninput = (e) => {
         const normalized = e.target.value / 31;  // 0-31 → 0-1
         eucOffsetState.setNormalisedValue(normalized);
-        eucOffsetValue.textContent = Math.round(eucOffsetState.getScaledValue());
+        setReadout(eucOffsetValue, Math.round(eucOffsetState.getScaledValue()));
     };
 
     // v1.14.0: Phase offset
@@ -883,12 +1158,12 @@ function syncEuclideanControls(bandId) {
     const phaseValue = document.getElementById('euc-phase-value');
 
     phaseSlider.value = phaseState.getScaledValue();
-    phaseValue.textContent = Math.round(phaseSlider.value);
+    setReadout(phaseValue, Math.round(phaseSlider.value));
 
     phaseSlider.oninput = (e) => {
         const normalized = e.target.value / 31;  // 0-31 → 0-1
         phaseState.setNormalisedValue(normalized);
-        phaseValue.textContent = Math.round(phaseState.getScaledValue());
+        setReadout(phaseValue, Math.round(phaseState.getScaledValue()));
     };
 
     // v1.15.0: Per-band step count
@@ -898,7 +1173,7 @@ function syncEuclideanControls(bandId) {
 
     const bStepsVal = Math.round(bandStepsState.getScaledValue());
     bandStepsSlider.value = bStepsVal;
-    bandStepsValue.textContent = bStepsVal === 0 ? 'Global' : bStepsVal;
+    setReadout(bandStepsValue, bStepsVal === 0 ? 'Global' : bStepsVal);
 
     bandStepsSlider.oninput = (e) => {
         const val = parseInt(e.target.value);
@@ -907,7 +1182,7 @@ function syncEuclideanControls(bandId) {
         bandStepsSlider.value = clamped;
         const normalized = clamped / 32;
         bandStepsState.setNormalisedValue(normalized);
-        bandStepsValue.textContent = clamped === 0 ? 'Global' : clamped;
+        setReadout(bandStepsValue, clamped === 0 ? 'Global' : clamped);
     };
 
 }

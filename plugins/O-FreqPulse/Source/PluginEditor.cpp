@@ -269,6 +269,17 @@ OFreqPulseAudioProcessorEditor::OFreqPulseAudioProcessorEditor(OFreqPulseAudioPr
                 }
             );
         })
+        // gk9 (WR-11 pattern, O-GrainScatter / O-Contrabass): each parameter's
+        // TRUE (skew-correct) normalised default, so the UI's Alt-click reset
+        // uses the C++ NormalisableRange, never hand-coded JS constants.
+        .withNativeFunction("getParameterDefaults", [this](const juce::Array<juce::var>&,
+                                                            std::function<void(juce::var)> complete) {
+            juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+            for (auto* param : processorRef.getParameters())
+                if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(param))
+                    obj->setProperty(ranged->getParameterID(), ranged->getDefaultValue());
+            complete(juce::var(obj.get()));
+        })
         .withNativeFunction("getPluginVersion", [](const juce::Array<juce::var>&,
                                                     std::function<void(juce::var)> complete) {
             complete(juce::var(JucePlugin_VersionString));
