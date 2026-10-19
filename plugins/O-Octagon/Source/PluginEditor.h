@@ -44,7 +44,7 @@
     The AUTHORITATIVE count is the ui_frontend_check section-3 grep-diff, not
     this comment — see THE COUNT IS LOAD-BEARING below.
       read:
-        getParameterDefaults   once at init          (dblclick reset)
+        getParameterDefaults   once at init          (Alt-click reset)
         getVenueGeometry       init, then on venueGen change. ONE call, and at
                                3.2 it carries all 50 venue values: the eight
                                trims ride INSIDE their speaker object and the

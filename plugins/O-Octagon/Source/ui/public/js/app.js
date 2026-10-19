@@ -278,6 +278,100 @@ const VALUE_KEYS = new Set([
   "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End",
 ]);
 
+// ── Double-click value entry (O-Prism contract, gk9) ──────────────────────
+
+// Scaled (C++ units) -> normalised [0,1] through the LIVE range in
+// state.properties. Clamps BEFORE the pow(): a value below `start` gives a
+// negative base, and Math.pow(negative, fractional skew) is NaN.
+function scaledToNorm(v, props) {
+  const start = props.start, end = props.end;
+  const skew = props.skew > 0 ? props.skew : 1;
+  if (!(end > start)) return 0;
+  const t = Math.min(1, Math.max(0, (v - start) / (end - start)));
+  return skew === 1 ? t : Math.pow(t, skew);
+}
+
+// Every readout here is the C++ value in its own unit (formatValue adds unit +
+// decimals only), so typed text parses directly. U+2212 is read as a minus;
+// "-inf" / "off" land on the range start.
+function parseScaled(t, props) {
+  const s = String(t).replace(/\u2212/g, "-");
+  if (/inf|off/i.test(s)) return props && typeof props.start === "number" ? props.start : null;
+  const m = s.match(/-?\d*\.?\d+/);
+  if (!m) return null;
+  const v = parseFloat(m[0]);
+  return isFinite(v) ? v : null;
+}
+
+// Opens an inline editor over a readout node (`value`, the same dedicated
+// value node render() paints). formatFn(norm) renders; formatFn.parse(text,
+// currentText) returns a SCALED value or null. Enter or blur commits, Esc
+// cancels, untouched text is never written back.
+function attachValueEntry(value, state, formatFn) {
+  if (!value || !state) return;
+  if (typeof formatFn !== "function" || typeof formatFn.parse !== "function") return;
+  if (value.dataset.editing === "1") return;   // already open
+
+  const currentText = value.textContent;
+  const prevPosition = value.style.position;
+  const prevColor = value.style.color;
+  // Capture the ink BEFORE the readout goes transparent.
+  const inkColor = getComputedStyle(value).color;
+
+  const field = document.createElement("input");
+  field.type = "text";
+  field.className = "knob-value-input";
+  field.value = currentText;
+  field.spellcheck = false;
+  field.autocomplete = "off";
+  field.style.color = inkColor;
+
+  // The readout keeps its text (transparent) so its box does not move.
+  value.dataset.editing = "1";
+  value.style.position = "relative";
+  value.style.color = "transparent";
+  value.appendChild(field);
+  field.focus();
+  field.select();
+
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    delete value.dataset.editing;
+    field.remove();
+    value.style.position = prevPosition;
+    value.style.color = prevColor;
+    // Re-render from live state (automation may have moved it meanwhile).
+    value.textContent = formatFn(state.getNormalisedValue());
+  };
+
+  const commit = () => {
+    if (closed) return;
+    if (field.value === currentText) { close(); return; }
+    const scaled = formatFn.parse(field.value, currentText);
+    if (scaled !== null && isFinite(scaled)) {
+      state.sliderDragStarted();
+      state.setNormalisedValue(scaledToNorm(scaled, state.properties || {}));
+      state.sliderDragEnded();
+    }
+    close();
+  };
+
+  field.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if (e.key === "Enter") { e.preventDefault(); commit(); }
+    else if (e.key === "Escape") { e.preventDefault(); close(); }
+  });
+  field.addEventListener("blur", commit);
+  // Never let a click in the field reach the slider or a page-level handler.
+  const stop = (e) => e.stopPropagation();
+  field.addEventListener("pointerdown", stop);
+  field.addEventListener("mousedown", stop);
+  field.addEventListener("dblclick", stop);
+  field.addEventListener("wheel", stop);
+}
+
 function bindSlider(id) {
   const state = Juce.getSliderState(id);
   const input = document.getElementById(`ctl-${id}`);
@@ -292,7 +386,9 @@ function bindSlider(id) {
   let open = false;
 
   const render = () => {
-    if (value !== null) value.textContent = formatValue(id, state.getScaledValue());
+    // Skip the readout while the value-entry field is open over it.
+    if (value !== null && value.dataset.editing !== "1")
+      value.textContent = formatValue(id, state.getScaledValue());
     if (!open) input.value = String(state.getNormalisedValue());
   };
 
@@ -333,23 +429,58 @@ function bindSlider(id) {
   input.addEventListener("keyup", closeGesture);
   input.addEventListener("blur", closeGesture);
 
-  // Dblclick reset. The default comes from getParameterDefaults in ENGINEERING
-  // units and is converted back through the SAME live properties, so the round
-  // trip is exact. A JS default table would be a second copy free to drift
-  // (pattern_webview_knob_readout_scaled_value), and w1..w8 default to 1.0
-  // rather than to their range minimum, which such a table gets wrong quietly.
-  input.addEventListener("dblclick", () => {
+  // Alt/Option-click reset (gk9 — this was dblclick). The default comes from
+  // getParameterDefaults in ENGINEERING units and is converted back through the
+  // SAME live state.properties, so the round trip is exact. A JS default table
+  // would be a second copy free to drift (pattern_webview_knob_readout_scaled_value),
+  // and w1..w8 default to 1.0 rather than to their range minimum, which such a
+  // table gets wrong quietly.
+  //
+  // CAPTURE phase on the control's container, on the event the drag starts on
+  // (pointerdown → openGesture): it runs first and stops the drag outright. The
+  // capture mousedown preventDefault stops the native thumb jumping to the
+  // click point, so the value lands exactly on the default.
+  const host = input.parentElement || input;
+  const isOurs = (e) => e.target === input || (value !== null && e.target === value);
+  host.addEventListener("pointerdown", (e) => {
+    if (!e.altKey || !isOurs(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
     if (paramDefaults === null) return;
     const def = paramDefaults[id];
     if (typeof def !== "number") return;
-
     const p = state.properties;
-    const span = p.end - p.start;
-    if (!(Math.abs(span) > 0)) return;
+    if (!p || !(Math.abs(p.end - p.start) > 0)) return;
 
     openGesture();
-    state.setNormalisedValue(Math.pow((def - p.start) / span, p.skew));
+    state.setNormalisedValue(scaledToNorm(def, state.properties));
     closeGesture();
+  }, true);
+  host.addEventListener("mousedown", (e) => {
+    if (!e.altKey || !isOurs(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+  }, true);
+
+  // Double-click (slider or readout) opens inline value entry. The entry
+  // writes through the same bracket pair as a drag (openGesture/closeGesture),
+  // so closeGesture() re-syncs the thumb afterwards.
+  const entryState = {
+    get properties() { return state.properties; },
+    getNormalisedValue: () => state.getNormalisedValue(),
+    setNormalisedValue: (n) => state.setNormalisedValue(n),
+    sliderDragStarted: openGesture,
+    sliderDragEnded: closeGesture,
+  };
+  const formatFn = () => formatValue(id, state.getScaledValue());
+  formatFn.parse = (t) => parseScaled(t, state.properties);
+  input.addEventListener("dblclick", (e) => {
+    if (e.altKey) return;
+    attachValueEntry(value, entryState, formatFn);
+  });
+  if (value !== null) value.addEventListener("dblclick", (e) => {
+    if (e.altKey) return;
+    attachValueEntry(value, entryState, formatFn);
   });
 
   sliders.set(id, { state });
