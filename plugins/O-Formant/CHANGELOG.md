@@ -2,6 +2,13 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.34.1] — 2026-10-19
+
+### Changed
+
+- **Output level now starts at −6 dB** on new instances (it was 0 dB). It was already the last stage of the chain, smoothed, and left alone by presets — only the default moved. Saved sessions recall their stored level unchanged.
+- **Double-click a dial to type a value** — Enter or click away applies, Esc cancels. Double-clicking a readout opens the same field. **Alt/Option-click resets** a dial to its default (new — the dials had no reset before); the defaults come from the plugin itself through a new `getParameterDefaults` native function.
+
 ## [1.34.0] - 2026-09-27
 
 **Every caption now meets WCAG AA, nothing renders below 9px, and the house

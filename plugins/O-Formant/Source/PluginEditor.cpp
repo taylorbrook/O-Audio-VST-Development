@@ -161,6 +161,18 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
             .withOptionsFrom (*eqMidFreqRelay)
             .withOptionsFrom (*eqHighGainRelay)
 
+            // quick 261019-gk9 (O-Contrabass pattern): each parameter's TRUE
+            // (skew-correct) NORMALISED default, pulled once by the page, so
+            // the knobs' Alt/Option-click reset uses the C++ range and never a
+            // hand-mirrored JS table.
+            .withNativeFunction ("getParameterDefaults", [this] (auto, auto complete) {
+                juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+                for (auto* param : processorRef.getParameters())
+                    if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (param))
+                        obj->setProperty (ranged->getParameterID(), ranged->getDefaultValue());
+                complete (juce::var (obj.get()));
+            })
+
             // ── Preset Native Functions ──
 
             // ── v1.26.0: the UI LANGUAGE pair ───────────────────────────

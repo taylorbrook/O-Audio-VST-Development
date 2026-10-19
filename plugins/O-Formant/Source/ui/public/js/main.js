@@ -1018,12 +1018,55 @@ function consonantRowShifts(cw, ch, pad) {
 // Knobs
 // ============================================================================
 function bindKnobs() {
+  loadParameterDefaults();   // async; only the Alt-click reset depends on it
   const knobWraps = document.querySelectorAll('.knob-wrap[data-param]');
 
   knobWraps.forEach((wrap) => {
     const paramId = wrap.dataset.param;
     const knob = wrap.querySelector('.knob');
     if (!knob) return;
+    const valueEl = wrap.querySelector('.knob-value');
+
+    // quick 261019-gk9: Alt/Option-click resets to the C++ default (normalised,
+    // from getParameterDefaults; a no-op until it has landed), bracketed in the
+    // gesture pair. pointerdown, because the drag starts on pointerdown - a
+    // capture mousedown never fires after its preventDefault(). CAPTURE phase
+    // on the wrap, so the drag below never starts.
+    wrap.addEventListener('pointerdown', (e) => {
+      if (!e.altKey || e.button !== 0) return;
+      if (e.target.classList && e.target.classList.contains('knob-value-input')) return;   // inside the open field
+      e.preventDefault();
+      e.stopPropagation();
+      const state = window._paramMap[paramId];
+      if (!state || activeKnob) return;
+      if (!paramDefaults || typeof paramDefaults[paramId] !== 'number') return;
+      state.sliderDragStarted();
+      state.setNormalisedValue(paramDefaults[paramId]);
+      state.sliderDragEnded();
+      updateKnobVisual(paramId, state);
+    }, true);
+
+    // Double-click (knob or readout) opens value entry; it never writes itself.
+    const knobFormat = (n) => {
+      const state = window._paramMap[paramId];
+      return formatParamValue(paramId, state.getScaledValue(), state.properties.label);
+    };
+    knobFormat.parse = (t, currentText) => {
+      const state = window._paramMap[paramId];
+      return state ? parseParamValue(paramId, state, t, currentText) : null;
+    };
+    knob.addEventListener('dblclick', (e) => {
+      if (e.altKey) return;
+      e.preventDefault();
+      const state = window._paramMap[paramId];
+      if (state && !activeKnob) attachValueEntry(valueEl, state, knobFormat);
+    });
+    if (valueEl) valueEl.addEventListener('dblclick', (e) => {
+      if (e.altKey) return;
+      e.preventDefault();
+      const state = window._paramMap[paramId];
+      if (state && !activeKnob) attachValueEntry(valueEl, state, knobFormat);
+    });
 
     knob.addEventListener('pointerdown', (e) => {
       const state = window._paramMap[paramId];
@@ -1077,8 +1120,139 @@ function updateKnobVisual(paramId, state) {
   }
 
   const valueEl = wrap.querySelector('.knob-value');
-  if (valueEl) {
+  // Never while the value-entry field is open: the <input> lives inside the
+  // readout, and writing textContent would wipe it mid-edit.
+  if (valueEl && valueEl.dataset.editing !== '1') {
     valueEl.textContent = formatParamValue(paramId, state.getScaledValue(), state.properties.label);
+  }
+}
+
+// ============================================================================
+// Double-click value entry (quick 261019-gk9, O-Prism's attachValueEntry)
+// ============================================================================
+// { paramId: normalisedDefault } from the getParameterDefaults native fn.
+let paramDefaults = null;
+
+async function loadParameterDefaults() {
+  try {
+    const raw = await getNativeFunction('getParameterDefaults')();
+    paramDefaults = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  } catch (e) {
+    console.error('getParameterDefaults failed:', e);
+    paramDefaults = null;   // Alt-click reset becomes a no-op; nothing else is affected
+  }
+}
+
+// Scaled (C++ units) -> normalised, from the LIVE start/end/skew the relay
+// pushes. Clamped BEFORE the pow(): a negative base with a fractional skew is
+// NaN, and a NaN would ride setNormalisedValue() into the parameter.
+function scaledToNorm(v, props) {
+  const start = props.start, end = props.end;
+  const skew = props.skew > 0 ? props.skew : 1;
+  if (!(end > start)) return 0;
+  const t = Math.min(1, Math.max(0, (v - start) / (end - start)));
+  return skew === 1 ? t : Math.pow(t, skew);
+}
+
+// Opens an inline editor on a readout. formatFn(norm) renders the value;
+// formatFn.parse(text, currentText) returns the SCALED value or null to reject.
+// Enter/blur commits, Esc cancels, untouched text is never written back.
+function attachValueEntry(valueEl, state, formatFn) {
+  if (!valueEl || !state) return;
+  if (typeof formatFn !== 'function' || typeof formatFn.parse !== 'function') return;
+  if (valueEl.dataset.editing === '1') return;   // already open
+
+  const currentText = valueEl.textContent;
+  const prevPosition = valueEl.style.position;
+  const prevColor = valueEl.style.color;
+  // Read the readout's ink BEFORE hiding it - `inherit` on the input would
+  // resolve to the transparent colour about to be set.
+  const inkColor = getComputedStyle(valueEl).color;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'knob-value-input';
+  input.value = currentText;
+  input.spellcheck = false;
+  input.autocomplete = 'off';
+  input.style.color = inkColor;
+
+  // The readout keeps its own text (transparent) so its box keeps its size.
+  valueEl.dataset.editing = '1';
+  valueEl.style.position = 'relative';
+  valueEl.style.color = 'transparent';
+  valueEl.appendChild(input);
+  input.focus();
+  input.select();
+
+  let closed = false;
+
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    delete valueEl.dataset.editing;
+    input.remove();
+    valueEl.style.position = prevPosition;
+    valueEl.style.color = prevColor;
+    // Re-render from live state: the parameter may have moved meanwhile.
+    valueEl.textContent = formatFn(state.getNormalisedValue());
+  };
+
+  const commit = () => {
+    if (closed) return;
+    if (input.value === currentText) { close(); return; }   // readouts are rounded
+    const scaled = formatFn.parse(input.value, currentText);
+    if (scaled !== null && isFinite(scaled)) {
+      state.sliderDragStarted();
+      state.setNormalisedValue(scaledToNorm(scaled, state.properties || {}));
+      state.sliderDragEnded();
+    }
+    close();
+  };
+
+  input.addEventListener('keydown', (e) => {
+    e.stopPropagation();   // keep digits away from the page's key handlers
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); close(); }
+  });
+  input.addEventListener('blur', commit);
+  // Never start a knob drag, a dblclick or a wheel step from inside the field.
+  input.addEventListener('pointerdown', (e) => e.stopPropagation());
+  input.addEventListener('mousedown', (e) => e.stopPropagation());
+  input.addEventListener('dblclick', (e) => e.stopPropagation());
+  input.addEventListener('wheel', (e) => e.stopPropagation());
+}
+
+// ── Value-entry parsers: display text -> SCALED value, or null ─────────────
+// Inverse of formatParamValue (percent set first, then the C++ unit label).
+const numOf = (t) => {
+  const m = String(t).replace(/\u2212/g, '-').match(/-?\d*\.?\d+/);
+  if (!m) return null;
+  const v = parseFloat(m[0]);
+  return isFinite(v) ? v : null;
+};
+
+function parseParamValue(paramId, state, t, currentText) {
+  const s = String(t);
+  const props = state.properties || {};
+  if (/^\s*[-\u2212+]?\s*(inf|∞|off)\b/i.test(s)) return props.start;   // -inf / off -> range start
+  const v = numOf(s);
+  if (v === null) return null;
+  if (PERCENT_PARAMS.has(paramId)) return v / 100;          // reads 0-100 %, C++ 0..1
+  const cur = String(currentText || '');
+  switch (props.label) {
+    case 's':    // seconds-scaled, readout flips ms/s: explicit unit wins, bare inherits
+      if (/ms/i.test(s)) return v / 1000;
+      if (/s/i.test(s)) return v;
+      return /ms/i.test(cur) ? v / 1000 : v;
+    case 'ms':   // milliseconds-scaled, readout flips to s at 1000 ms
+      if (/ms/i.test(s)) return v;
+      if (/s/i.test(s)) return v * 1000;
+      return /ms/i.test(cur) ? v : v * 1000;
+    case 'Hz':   // "k" multiplies by 1000; a bare number is Hz
+      return /k/i.test(s) ? v * 1000 : v;
+    default:     // dB, st, cents, plain numbers
+      return v;
   }
 }
 

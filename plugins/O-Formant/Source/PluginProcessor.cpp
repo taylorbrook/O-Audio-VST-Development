@@ -277,7 +277,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFormantAudioProcessor::crea
         juce::ParameterID { "outputGain", 1 },
         "Output Gain",
         juce::NormalisableRange<float> (-60.0f, 12.0f, 0.0f),
-        0.0f,
+        -6.0f,   // quick 261019-gk9: the suite's -6 dB instrument default
         "dB"));
 
     layout.add (std::make_unique<juce::AudioParameterFloat> (
