@@ -381,7 +381,8 @@ const CORE_FNS = {
 // setTooltipsEnabled + getTooltipsEnabled (v1.12.0) + v1.14.0's
 // getUiLanguage/setUiLanguage + the ten preset fns (fetched by
 // modules/preset-manager.js). O-Bitrot has no getParameterDefaults — its
-// dblclick-reset reads data-default from the markup instead.
+// Alt-click reset (v1.17.2; double-click until then, which now opens value
+// entry) reads data-default from the markup instead.
 //
 // (PluginEditor.cpp registers 15: getPresetListGrouped is O-Bitrot's own and is
 // consumed by the preset MENU in index.html, not by the shared module, and it

@@ -2,6 +2,13 @@
 
 All notable changes to O-Bitrot are documented here.
 
+## [1.17.2] — 2026-10-19
+
+### Changed
+
+- **Double-click a dial to type a value** — Enter or click away applies, Esc cancels. **Alt/Option-click resets** a control to its default (this was double-click).
+- Double-click works on the knob or on its readout; values are typed in the readout's own units (`1.2k` = 1200 Hz on Crush Rate). A family that is switched off stays inert, readout included.
+
 ## [1.17.1] - 2026-09-30
 
 Resolves the Warning tier of the v1.17.0 code review (`CODE_REVIEW.md`,
