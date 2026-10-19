@@ -5,6 +5,25 @@ All notable changes to O-Texture will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] — 2026-10-19
+
+### Added
+
+- **New Output knob** — a final dB trim after Mix (−60 to +12 dB, −60
+  mutes), the last stage of the plugin, smoothed over ~20 ms. It starts at
+  −6 dB on new instances; sessions saved before this version have no stored
+  Output level and open at 0 dB, so they sound unchanged. New parameter
+  `outputLevel` ("Output Level"); no existing parameter ID or range changed.
+  Localized caption and hover tip (French and Chinese drafts await review).
+
+### Changed
+
+- **Double-click a dial to type a value** — Enter or click away applies, Esc
+  cancels. Works on the Brightness, Mix and Output knobs and on the Char A,
+  Char B and Evolve sliders (on the control or its readout).
+  **Alt/Option-click resets** a control to its default (this was
+  double-click), as one host gesture.
+
 ## [0.6.0] - 2026-09-27
 
 **UI legibility pass** (review 260924-nho, R4 + R5). The page moves onto the

@@ -122,6 +122,13 @@ private:
     std::atomic<float>* freezeParam       = nullptr;
     std::atomic<float>* brightnessParam   = nullptr;
     std::atomic<float>* mixParam          = nullptr;
+    std::atomic<float>* outputLevelParam  = nullptr;   // dB, -60..+12 (v0.6.1)
+
+    // v0.6.1: final output trim, applied after MIX as the true last stage.
+    // Linear ramp on the LINEAR gain (a -60 dB floor near 0 would break a
+    // Multiplicative smoother), ~20 ms, seeded in prepareToPlay.
+    juce::SmoothedValue<float> outputLevelSmoothed;
+    float currentOutputLinearGain() const;
 
     // =========================================================================
     // Dimension map (loaded from BinaryData)
