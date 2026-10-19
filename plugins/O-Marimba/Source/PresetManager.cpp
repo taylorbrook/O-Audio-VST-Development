@@ -82,6 +82,8 @@ juce::var PresetManager::createPresetJson() const
     {
         if (auto* paramWithID = dynamic_cast<juce::RangedAudioParameter*>(param))
         {
+            if (isUserOwnedParameter(paramWithID->getParameterID()))
+                continue;   // gk9: user-owned — never saved into a preset
             paramsObj->setProperty(paramWithID->getParameterID(),
                                    paramWithID->getValue());
         }
@@ -126,8 +128,15 @@ bool PresetManager::applyPresetJson(const juce::var& presetData)
     // legacy user presets predate some params — without this reset, any key omitted from
     // the preset silently inherits whatever was loaded previously (e.g. selecting a clean
     // "Default Marimba" while EQ + heavy compression were engaged left the FX on).
+    // gk9: user-owned params (OUTPUT_GAIN) are skipped — a preset load leaves
+    // them where the user put them.
     for (auto* param : parameters.processor.getParameters())
+    {
+        if (auto* withId = dynamic_cast<juce::AudioProcessorParameterWithID*>(param))
+            if (isUserOwnedParameter(withId->getParameterID()))
+                continue;
         param->setValueNotifyingHost(param->getDefaultValue());
+    }
 
     // Restore parameters
     if (preset->hasProperty("parameters"))
@@ -137,6 +146,10 @@ bool PresetManager::applyPresetJson(const juce::var& presetData)
         {
             for (auto& prop : paramsObj->getProperties())
             {
+                // gk9: legacy presets (factory files before v1.16.1, user saves)
+                // still carry OUTPUT_GAIN — ignored.
+                if (isUserOwnedParameter(prop.name.toString()))
+                    continue;
                 if (auto* param = parameters.getParameter(prop.name.toString()))
                 {
                     param->setValueNotifyingHost(static_cast<float>(prop.value));
@@ -426,8 +439,7 @@ const std::vector<PresetManager::FactoryPreset>& PresetManager::getFactoryPreset
             0.75f,  // tone (default)
             0,      // tuning mode = 12-TET
             440.0f, // reference pitch
-            0.5f,   // velocity curve
-            0.0f    // output gain (dB)
+            0.5f   // velocity curve
         },
         // Bright Marimba - harder mallet, edge strike, bright tone
         {
@@ -443,8 +455,7 @@ const std::vector<PresetManager::FactoryPreset>& PresetManager::getFactoryPreset
             0.95f,  // bright tone
             0,
             440.0f,
-            0.6f,   // more dynamic
-            0.0f
+            0.6f   // more dynamic
         },
         // Soft Marimba - gentle, mellow tone, center strike
         {
@@ -460,8 +471,7 @@ const std::vector<PresetManager::FactoryPreset>& PresetManager::getFactoryPreset
             0.5f,   // warm tone
             0,
             440.0f,
-            0.35f,  // less dynamic
-            0.0f
+            0.35f  // less dynamic
         },
         // Pad Marimba - long sustain, shimmering overtones
         {
@@ -477,8 +487,7 @@ const std::vector<PresetManager::FactoryPreset>& PresetManager::getFactoryPreset
             0.7f,   // balanced tone
             0,
             440.0f,
-            0.45f,
-            0.0f
+            0.45f
         },
         // Staccato Marimba - tight, focused
         {
@@ -494,8 +503,7 @@ const std::vector<PresetManager::FactoryPreset>& PresetManager::getFactoryPreset
             0.6f,   // slightly warm
             0,
             440.0f,
-            0.55f,
-            0.0f
+            0.55f
         },
         // Just Intonation - pure intervals
         {
@@ -511,8 +519,7 @@ const std::vector<PresetManager::FactoryPreset>& PresetManager::getFactoryPreset
             0.75f,  // default
             1,      // tuning mode = Scala
             440.0f,
-            0.5f,
-            0.0f
+            0.5f
         },
         // Pythagorean - based on perfect fifths
         {
@@ -528,8 +535,7 @@ const std::vector<PresetManager::FactoryPreset>& PresetManager::getFactoryPreset
             0.75f,
             1,
             440.0f,
-            0.5f,
-            0.0f
+            0.5f
         },
         // Meantone - historical temperament
         {
@@ -545,8 +551,7 @@ const std::vector<PresetManager::FactoryPreset>& PresetManager::getFactoryPreset
             0.75f,
             1,
             440.0f,
-            0.5f,
-            0.0f
+            0.5f
         },
         // Baroque A=415
         {
@@ -562,8 +567,7 @@ const std::vector<PresetManager::FactoryPreset>& PresetManager::getFactoryPreset
             0.6f,   // warmer tone
             0,
             415.0f, // Baroque pitch
-            0.5f,
-            0.0f
+            0.5f
         },
         // Concert A=442
         {
@@ -579,8 +583,7 @@ const std::vector<PresetManager::FactoryPreset>& PresetManager::getFactoryPreset
             0.75f,
             0,
             442.0f, // European concert pitch
-            0.5f,
-            0.0f
+            0.5f
         }
     };
 
@@ -617,8 +620,7 @@ void PresetManager::initializeFactoryPresets()
             // Reference pitch: 400-480 range, normalize
             paramsObj->setProperty("REFERENCE_PITCH", (preset.referencePitch - 400.0f) / 80.0f);
             paramsObj->setProperty("VEL_CURVE", preset.velCurve);
-            // Output gain: -24 to +12 range, normalize
-            paramsObj->setProperty("OUTPUT_GAIN", (preset.outputGain + 24.0f) / 36.0f);
+            // gk9: no OUTPUT_GAIN — user-owned, never set by a factory preset.
 
             presetObj->setProperty("parameters", juce::var(paramsObj));
 

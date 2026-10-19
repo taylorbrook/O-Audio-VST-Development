@@ -119,7 +119,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OMarimbaAudioProcessor::crea
         juce::ParameterID { "OUTPUT_GAIN", 1 },
         "Output Gain",
         juce::NormalisableRange<float>(-24.0f, 12.0f, 0.1f),
-        0.0f,
+        -6.0f,   // gk9: -6 dB default; user-owned (never set by presets)
         "dB"
     ));
 
@@ -202,6 +202,11 @@ void OMarimbaAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBloc
     pTuningMode      = parameters.getRawParameterValue("TUNING_MODE");
     pReferencePitch  = parameters.getRawParameterValue("REFERENCE_PITCH");
     pEqEnabled       = parameters.getRawParameterValue("fx_eq_enabled");
+
+    // gk9 (D-05): seed the output smoother at the live level so the first block
+    // ramps from neither 0 nor unity.
+    outputGainSmoothed.reset(sampleRate, 0.02);
+    outputGainSmoothed.setCurrentAndTargetValue(juce::Decibels::decibelsToGain(pOutputGain->load()));
 
     // Phase 2.1: Prepare synthesiser
     synthesiser.setCurrentPlaybackSampleRate(sampleRate);
@@ -327,8 +332,22 @@ void OMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
 
     // v1.9.8: Output gain applied ONCE at end of chain (after EQ & Compressor)
     // Signal chain: Synth → Body Resonance → EQ (if enabled) → Compressor (if enabled) → Reverb (if enabled) → Output Gain → VU Meter
-    float outputGainLinear = juce::Decibels::decibelsToGain(outputGainDB);
-    buffer.applyGain(outputGainLinear);
+    // gk9 (D-05): ~20 ms linear ramp on the linear gain — no zipper on moves.
+    outputGainSmoothed.setTargetValue(juce::Decibels::decibelsToGain(outputGainDB));
+    {
+        const int n = buffer.getNumSamples();
+        if (outputGainSmoothed.isSmoothing())
+        {
+            const float g0 = outputGainSmoothed.getCurrentValue();
+            const float g1 = outputGainSmoothed.skip(n);
+            for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+                buffer.applyGainRamp(ch, 0, n, g0, g1);
+        }
+        else
+        {
+            buffer.applyGain(outputGainSmoothed.getTargetValue());
+        }
+    }
 
     // WR-06: master output safety net. Replace any non-finite sample with 0 and clamp to a
     // safe ceiling (well above the ~+/-1 nominal signal) so a resonator/biquad blow-up or

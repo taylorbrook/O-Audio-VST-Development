@@ -515,9 +515,166 @@ function updateKnobIndicator(indicator, normalizedValue) {
     indicator.style.transform = `rotate(${angle}deg)`;
 }
 
-// Create draggable knob behavior
-function makeKnobDraggable(knobElement, state, onUpdate) {
+// ====================================================================
+// gk9: DOUBLE-CLICK VALUE ENTRY (ported from O-Prism attachValueEntry)
+// ====================================================================
+// Scaled (C++ units) -> normalised [0,1], reading the live start/end/skew the
+// WebSliderRelay pushes from C++ (never a JS range table). Clamps BEFORE the
+// pow(): a value below `start` gives a negative base, and Math.pow(negative,
+// fractional skew) is NaN — which would stick in the parameter.
+function scaledToNorm(v, props) {
+    const start = props.start, end = props.end;
+    const skew = props.skew > 0 ? props.skew : 1;
+    if (!(end > start)) return 0;
+    const t = Math.min(1, Math.max(0, (v - start) / (end - start)));
+    return skew === 1 ? t : Math.pow(t, skew);
+}
+
+// Opens an inline editor over a readout. formatFn(norm) renders the readout;
+// formatFn.parse(text, currentText) returns a SCALED value or null to reject.
+// Enter/blur commits, Esc cancels, untouched text is never written back, and
+// "-inf" / "off" land on the range start.
+function attachValueEntry(valueEl, state, formatFn) {
+    if (!valueEl || !state) return;
+    if (typeof formatFn !== 'function' || typeof formatFn.parse !== 'function') return;
+    if (valueEl.dataset.editing === '1') return;   // already open
+
+    const currentText = valueEl.textContent;
+    const prevPosition = valueEl.style.position;
+    const prevColor = valueEl.style.color;
+    // Read the ink before the readout goes transparent.
+    const inkColor = getComputedStyle(valueEl).color;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'knob-value-input';
+    input.value = currentText;
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+    input.style.color = inkColor;
+
+    // The readout keeps its text (transparent) so its box does not change size.
+    valueEl.dataset.editing = '1';
+    valueEl.style.position = 'relative';
+    valueEl.style.color = 'transparent';
+    valueEl.appendChild(input);
+    input.focus();
+    input.select();
+
+    let closed = false;
+    const close = () => {
+        if (closed) return;
+        closed = true;
+        delete valueEl.dataset.editing;
+        input.remove();
+        valueEl.style.position = prevPosition;
+        valueEl.style.color = prevColor;
+        // Re-render from live state (automation / preset may have moved it).
+        valueEl.textContent = formatFn(state.getNormalisedValue());
+    };
+
+    const commit = () => {
+        if (closed) return;
+        if (input.value === currentText) { close(); return; }
+        const props = state.properties || {};
+        const scaled = /^\s*([-−]?\s*inf(inity)?|off)\s*(db)?\s*$/i.test(input.value)
+            ? props.start
+            : formatFn.parse(input.value, currentText);
+        if (scaled !== null && scaled !== undefined && isFinite(scaled)) {
+            // setNormalisedValue() snaps to the interval and clamps.
+            state.sliderDragStarted();
+            state.setNormalisedValue(scaledToNorm(scaled, props));
+            state.sliderDragEnded();
+        }
+        close();
+    };
+
+    input.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        else if (e.key === 'Escape') { e.preventDefault(); close(); }
+    });
+    input.addEventListener('blur', commit);
+    // Never start a drag (or reach a document handler) from inside the field.
+    input.addEventListener('pointerdown', (e) => e.stopPropagation());
+    input.addEventListener('mousedown', (e) => e.stopPropagation());
+    input.addEventListener('dblclick', (e) => e.stopPropagation());
+    input.addEventListener('wheel', (e) => e.stopPropagation());
+}
+
+// Value-entry parsers: display text -> SCALED value (C++ units), or null.
+// First signed decimal; U+2212 (the readouts' typographic minus) counts as '-'.
+const numOf = (t) => {
+    const m = String(t).replace(/−/g, '-').match(/-?\d*\.?\d+/);
+    if (!m) return null;
+    const v = parseFloat(m[0]);
+    return isFinite(v) ? v : null;
+};
+// Display already IS the scaled value (dB, Hz, ¢, ms, m/s, N, plain numbers).
+const parseDirect = (t) => numOf(t);
+// Display is the scaled value x100 (percent readouts on 0..1 params).
+const parsePercent = (t) => {
+    const v = numOf(t);
+    return v === null ? null : v / 100;
+};
+// Hz readouts that switch to kHz: "k" multiplies by 1000, a bare number is Hz.
+const parseFreq = (t) => {
+    const v = numOf(t);
+    if (v === null) return null;
+    return /k/i.test(String(t)) ? v * 1000 : v;
+};
+// Seconds-scaled readouts: an explicit "ms" divides by 1000, an explicit "s"
+// wins, and a bare number inherits the unit on screen.
+const parseSeconds = (t, currentText) => {
+    const v = numOf(t);
+    if (v === null) return null;
+    const s = String(t);
+    if (/ms/i.test(s)) return v / 1000;    // before /s/ — "ms" contains "s"
+    if (/s/i.test(s)) return v;
+    return /ms/i.test(String(currentText || '')) ? v / 1000 : v;
+};
+
+// Word readouts (Edge / Center, Shimmer / Focused, Warm / Bright) parse to the
+// end of the range they name; otherwise the knob reads percent of 0..1.
+// "Edge" names BOTH ends of Strike Position, so it is rejected there.
+const parsePercentOrWords = (words) => (t) => {
+    const s = String(t).trim().toLowerCase();
+    for (const [w, v] of Object.entries(words)) if (s === w) return v;
+    return parsePercent(t);
+};
+
+// Skew-correct NORMALISED defaults from C++ (getParameterDefaults), fetched
+// once at boot — the Alt/Option-click reset target. Never a JS-side constant.
+const getParameterDefaults = Juce.getNativeFunction("getParameterDefaults");
+let paramDefaults = {};
+getParameterDefaults()
+    .then((d) => { paramDefaults = d || {}; })
+    .catch((e) => console.warn("getParameterDefaults failed:", e));
+
+// Create draggable knob behavior.
+// gk9: `entry` = { paramId, valueEl, format(norm) -> text, parse(text) -> scaled }.
+// The readout is written HERE (skipped while an entry field is open), so
+// onUpdate only moves the indicator / visuals.
+function makeKnobDraggable(knobElement, state, onUpdate, entry) {
     let isDragging = false;
+    const formatFn = (norm) => entry.format(norm);
+    formatFn.parse = entry.parse;
+    const valueEl = entry.valueEl;
+
+    // Alt/Option-click resets to the C++ default as one gesture. CAPTURE phase
+    // on the knob's container (an ancestor of the knob, whose mousedown starts
+    // the drag) so it runs first and cancels the drag outright. The drag is
+    // mouse-based, so this is mousedown too.
+    knobElement.parentElement.addEventListener('mousedown', (e) => {
+        if (!e.altKey) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const def = paramDefaults[entry.paramId];
+        if (typeof def !== 'number') return;
+        state.sliderDragStarted();
+        state.setNormalisedValue(def);
+        state.sliderDragEnded();
+    }, true);
 
     knobElement.addEventListener('mousedown', (e) => {
         isDragging = true;
@@ -540,14 +697,28 @@ function makeKnobDraggable(knobElement, state, onUpdate) {
         }
     });
 
-    // Listen for value changes (from backend OR user interaction)
-    state.valueChangedEvent.addListener(() => {
-        const newValue = state.getNormalisedValue();
-        onUpdate(newValue);
+    // Double-click (knob or readout) opens inline value entry.
+    knobElement.addEventListener('dblclick', (e) => {
+        if (e.altKey) return;
+        e.preventDefault();
+        attachValueEntry(valueEl, state, formatFn);
+    });
+    valueEl.addEventListener('dblclick', (e) => {
+        if (e.altKey) return;
+        e.preventDefault();
+        attachValueEntry(valueEl, state, formatFn);
     });
 
+    const update = (value) => {
+        onUpdate(value);
+        if (valueEl.dataset.editing !== '1') valueEl.textContent = formatFn(value);
+    };
+
+    // Listen for value changes (from backend OR user interaction)
+    state.valueChangedEvent.addListener(() => update(state.getNormalisedValue()));
+
     // Initialize with current value
-    onUpdate(state.getNormalisedValue());
+    update(state.getNormalisedValue());
 }
 
 // ====================================================================
@@ -561,8 +732,8 @@ const malletValue = document.getElementById("mallet-value");
 
 makeKnobDraggable(document.getElementById("mallet-knob"), malletState, (value) => {
     updateKnobIndicator(malletIndicator, value);
-    malletValue.textContent = Math.round(value * 100) + "%";
-});
+}, { paramId: "MALLET_HARDNESS", valueEl: malletValue,
+     format: (v) => Math.round(v * 100) + "%", parse: parsePercent });
 
 // BAR_MATERIAL
 const materialState = Juce.getSliderState("BAR_MATERIAL");
@@ -571,8 +742,8 @@ const materialValue = document.getElementById("material-value");
 
 makeKnobDraggable(document.getElementById("material-knob"), materialState, (value) => {
     updateKnobIndicator(materialIndicator, value);
-    materialValue.textContent = Math.round(value * 100) + "%";
-});
+}, { paramId: "BAR_MATERIAL", valueEl: materialValue,
+     format: (v) => Math.round(v * 100) + "%", parse: parsePercent });
 
 // RESONANCE
 const resonanceState = Juce.getSliderState("RESONANCE");
@@ -581,8 +752,8 @@ const resonanceValue = document.getElementById("resonance-value");
 
 makeKnobDraggable(document.getElementById("resonance-knob"), resonanceState, (value) => {
     updateKnobIndicator(resonanceIndicator, value);
-    resonanceValue.textContent = Math.round(value * 100) + "%";
-});
+}, { paramId: "RESONANCE", valueEl: resonanceValue,
+     format: (v) => Math.round(v * 100) + "%", parse: parsePercent });
 
 // v1.6.0: STRIKE_POSITION
 const strikeState = Juce.getSliderState("STRIKE_POSITION");
@@ -591,15 +762,14 @@ const strikeValue = document.getElementById("strike-value");
 
 makeKnobDraggable(document.getElementById("strike-knob"), strikeState, (value) => {
     updateKnobIndicator(strikeIndicator, value);
-    // Show as "Edge" at 0/100%, "Center" at 50%
-    if (value < 0.15 || value > 0.85) {
-        strikeValue.textContent = "Edge";
-    } else if (value > 0.4 && value < 0.6) {
-        strikeValue.textContent = "Center";
-    } else {
-        strikeValue.textContent = Math.round(value * 100) + "%";
-    }
-});
+}, { paramId: "STRIKE_POSITION", valueEl: strikeValue,
+     // Show as "Edge" at 0/100%, "Center" at 50%
+     format: (value) => {
+         if (value < 0.15 || value > 0.85) return "Edge";
+         if (value > 0.4 && value < 0.6) return "Center";
+         return Math.round(value * 100) + "%";
+     },
+     parse: parsePercentOrWords({ center: 0.5 }) });
 
 // v1.6.0: OVERTONE_DAMPING
 const dampingState = Juce.getSliderState("OVERTONE_DAMPING");
@@ -608,15 +778,14 @@ const dampingValue = document.getElementById("damping-value");
 
 makeKnobDraggable(document.getElementById("damping-knob"), dampingState, (value) => {
     updateKnobIndicator(dampingIndicator, value);
-    // Show descriptive labels at extremes
-    if (value < 0.15) {
-        dampingValue.textContent = "Shimmer";
-    } else if (value > 0.85) {
-        dampingValue.textContent = "Focused";
-    } else {
-        dampingValue.textContent = Math.round(value * 100) + "%";
-    }
-});
+}, { paramId: "OVERTONE_DAMPING", valueEl: dampingValue,
+     // Show descriptive labels at extremes
+     format: (value) => {
+         if (value < 0.15) return "Shimmer";
+         if (value > 0.85) return "Focused";
+         return Math.round(value * 100) + "%";
+     },
+     parse: parsePercentOrWords({ shimmer: 0, focused: 1 }) });
 
 // v1.6.0: TONE
 const toneState = Juce.getSliderState("TONE");
@@ -625,15 +794,14 @@ const toneValueEl = document.getElementById("tone-value");
 
 makeKnobDraggable(document.getElementById("tone-knob"), toneState, (value) => {
     updateKnobIndicator(toneIndicator, value);
-    // Show descriptive labels at extremes
-    if (value < 0.15) {
-        toneValueEl.textContent = "Warm";
-    } else if (value > 0.85) {
-        toneValueEl.textContent = "Bright";
-    } else {
-        toneValueEl.textContent = Math.round(value * 100) + "%";
-    }
-});
+}, { paramId: "TONE", valueEl: toneValueEl,
+     // Show descriptive labels at extremes
+     format: (value) => {
+         if (value < 0.15) return "Warm";
+         if (value > 0.85) return "Bright";
+         return Math.round(value * 100) + "%";
+     },
+     parse: parsePercentOrWords({ warm: 0, bright: 1 }) });
 
 // VEL_CURVE
 const velCurveState = Juce.getSliderState("VEL_CURVE");
@@ -653,9 +821,9 @@ function updateVelocityCurve(value) {
 
 makeKnobDraggable(document.getElementById("velocity-knob"), velCurveState, (value) => {
     updateKnobIndicator(velocityIndicator, value);
-    velocityValue.textContent = Math.round(value * 100) + "%";
     updateVelocityCurve(value);
-});
+}, { paramId: "VEL_CURVE", valueEl: velocityValue,
+     format: (v) => Math.round(v * 100) + "%", parse: parsePercent });
 
 // OUTPUT_GAIN
 const outputGainState = Juce.getSliderState("OUTPUT_GAIN");
@@ -664,9 +832,9 @@ const outputValue = document.getElementById("output-value");
 
 makeKnobDraggable(document.getElementById("output-knob"), outputGainState, (value) => {
     updateKnobIndicator(outputIndicator, value);
-    const dbValue = -24.0 + (value * 36.0);
-    outputValue.textContent = dbValue.toFixed(1) + " dB";
-});
+}, { paramId: "OUTPUT_GAIN", valueEl: outputValue,
+     format: (value) => (-24.0 + (value * 36.0)).toFixed(1) + " dB",   // linear range, skew 1
+     parse: parseDirect });
 
 // TUNING_MODE (Choice parameter - button group)
 const tuningModeState = Juce.getSliderState("TUNING_MODE");
@@ -775,17 +943,13 @@ const refPitchIndicator = document.getElementById("ref-pitch-indicator");
 const refPitchValue = document.getElementById("ref-pitch-value");
 const refPitchKnob = document.getElementById("ref-pitch-knob");
 
+// gk9: Alt/Option-click resets A4 to its C++ default (440 Hz) inside one
+// gesture; double-click types a value (both wired by makeKnobDraggable).
 makeKnobDraggable(refPitchKnob, refPitchState, (value) => {
     updateKnobIndicator(refPitchIndicator, value);
-    const hzValue = 400.0 + (value * 80.0);
-    refPitchValue.textContent = hzValue.toFixed(1) + " Hz";
-});
-
-// Double-click to reset A4 reference to 440 Hz
-refPitchKnob.addEventListener('dblclick', () => {
-    // 440 Hz = 400 + (0.5 * 80), so normalized value is 0.5
-    refPitchState.setNormalisedValue(0.5);
-});
+}, { paramId: "REFERENCE_PITCH", valueEl: refPitchValue,
+     format: (value) => (400.0 + (value * 80.0)).toFixed(1) + " Hz",   // linear range, skew 1
+     parse: parseDirect });
 
 // ====================================================================
 // TUNING VISUALIZATIONS
