@@ -78,7 +78,7 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
                             .getChildFile("OGrainScatter_WebView")))
             .withNativeIntegrationEnabled()
             // WR-11: expose each parameter's true (skew-correct) normalized default so the UI's
-            // double-click reset uses the C++ NormalisableRange instead of hand-coded JS constants
+            // Alt-click reset uses the C++ NormalisableRange instead of hand-coded JS constants
             // that silently drift from the layout (WR-10 was the first crack: spatial_smooth).
             .withNativeFunction(
                 juce::Identifier("getParameterDefaults"),

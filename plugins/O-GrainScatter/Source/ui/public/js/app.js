@@ -135,7 +135,7 @@ function initI18n() {
 }
 
     // WR-11: skew-correct reset defaults come from C++ (the real NormalisableRange), fetched
-    // async at startup and ready long before any double-click. No hand-coded JS defaults.
+    // async at startup and ready long before any Alt-click. No hand-coded JS defaults.
     const getParameterDefaults = Juce.getNativeFunction('getParameterDefaults');
     let paramDefaults = {};
 
@@ -147,6 +147,103 @@ function initI18n() {
     const ANGLE_MIN = -140;
     const ANGLE_MAX = 140;
     const ANGLE_RANGE = ANGLE_MAX - ANGLE_MIN;
+
+    // ════════════════════════════════════════════════════════════════════
+    // Double-click value entry (O-Prism contract)
+    // ════════════════════════════════════════════════════════════════════
+
+    // Scaled (C++ units) -> normalised [0,1] through the LIVE range pushed up
+    // from C++ in state.properties. Clamps BEFORE the pow(): a value below
+    // `start` would give a negative base and a NaN that sticks in the param.
+    function scaledToNorm(v, props) {
+        const start = props.start, end = props.end;
+        const skew = props.skew > 0 ? props.skew : 1;
+        if (!(end > start)) return 0;
+        const t = Math.min(1, Math.max(0, (v - start) / (end - start)));
+        return skew === 1 ? t : Math.pow(t, skew);
+    }
+
+    // Every GrainScatter readout is in its C++ unit (ms, %, dB, st, ct, degrees,
+    // counts), so typed text parses directly. The readouts print U+2212 for
+    // minus and "−∞ dB" at the level floor: both are understood, and
+    // "-inf" / "inf" / "off" land on the range start.
+    function parseDirect(t, state) {
+        const s = String(t).replace(/\u2212/g, '-');
+        if (/inf|\u221E|off/i.test(s)) return state.properties ? state.properties.start : null;
+        const m = s.match(/-?\d*\.?\d+/);
+        if (!m) return null;
+        const v = parseFloat(m[0]);
+        return isFinite(v) ? v : null;
+    }
+
+    // Opens an inline editor over a readout. formatFn(norm) renders the value;
+    // formatFn.parse(text, currentText) returns a SCALED value or null. Enter or
+    // blur commits, Esc cancels, untouched text is never written back.
+    function attachValueEntry(valueEl, state, formatFn) {
+        if (!valueEl || !state) return;
+        if (typeof formatFn !== 'function' || typeof formatFn.parse !== 'function') return;
+        if (valueEl.dataset.editing === '1') return;   // already open
+
+        const currentText = valueEl.textContent;
+        const prevPosition = valueEl.style.position;
+        const prevColor = valueEl.style.color;
+        // Capture the ink BEFORE the readout goes transparent.
+        const inkColor = getComputedStyle(valueEl).color;
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'knob-value-input';
+        input.value = currentText;
+        input.spellcheck = false;
+        input.autocomplete = 'off';
+        input.style.color = inkColor;
+
+        // The readout keeps its text (transparent) so its box does not move.
+        valueEl.dataset.editing = '1';
+        valueEl.style.position = 'relative';
+        valueEl.style.color = 'transparent';
+        valueEl.appendChild(input);
+        input.focus();
+        input.select();
+
+        let closed = false;
+        const close = () => {
+            if (closed) return;
+            closed = true;
+            delete valueEl.dataset.editing;
+            input.remove();
+            valueEl.style.position = prevPosition;
+            valueEl.style.color = prevColor;
+            // Re-render from live state (automation may have moved it meanwhile).
+            valueEl.textContent = formatFn(state.getNormalisedValue());
+        };
+
+        const commit = () => {
+            if (closed) return;
+            if (input.value === currentText) { close(); return; }
+            const scaled = formatFn.parse(input.value, currentText);
+            if (scaled !== null && isFinite(scaled)) {
+                // setNormalisedValue() snaps to the C++ interval (counts, 0.1 steps).
+                state.sliderDragStarted();
+                state.setNormalisedValue(scaledToNorm(scaled, state.properties || {}));
+                state.sliderDragEnded();
+            }
+            close();
+        };
+
+        input.addEventListener('keydown', (e) => {
+            e.stopPropagation();
+            if (e.key === 'Enter') { e.preventDefault(); commit(); }
+            else if (e.key === 'Escape') { e.preventDefault(); close(); }
+        });
+        input.addEventListener('blur', commit);
+        // Never let a click in the field start a knob drag underneath it.
+        const stop = (e) => e.stopPropagation();
+        input.addEventListener('pointerdown', stop);
+        input.addEventListener('mousedown', stop);
+        input.addEventListener('dblclick', stop);
+        input.addEventListener('wheel', stop);
+    }
 
     function setupKnob(paramId, state, formatter) {
         const knobEl = document.querySelector(`.knob[data-param="${paramId}"]`);
@@ -163,7 +260,9 @@ function initI18n() {
             indicator.style.transform = `translateX(-50%) rotate(${angle}deg)`;
             // WR-11: format the engineering value JUCE reports via getScaledValue() — the real
             // range/skew pushed from C++ — instead of re-deriving it from a hardcoded JS range.
-            if (valueEl && formatter) valueEl.textContent = formatter(state.getScaledValue());
+            // Skip while the value-entry field is open over it — close() re-renders.
+            if (valueEl && formatter && valueEl.dataset.editing !== '1')
+                valueEl.textContent = formatter(state.getScaledValue());
         }
 
         // Sync from JUCE
@@ -195,14 +294,32 @@ function initI18n() {
             }
         });
 
-        // Double-click to reset to the C++-provided (skew-correct) default
-        knobEl.addEventListener('dblclick', (e) => {
+        // Alt/Option-click resets to the C++-provided (skew-correct, normalised)
+        // default. CAPTURE phase on the knob's container so it runs ahead of the
+        // knob's own mousedown drag and cancels it outright.
+        const altTarget = knobEl.parentElement || knobEl;
+        altTarget.addEventListener('mousedown', (e) => {
+            if (!e.altKey) return;
             e.preventDefault();
+            e.stopPropagation();
             const def = paramDefaults[paramId];
             if (def === undefined) return;   // defaults not loaded yet — no-op
             state.sliderDragStarted();
             state.setNormalisedValue(def);
             state.sliderDragEnded();
+        }, true);
+
+        // Double-click (on the knob or its readout) opens inline value entry.
+        const formatFn = () => (formatter ? formatter(state.getScaledValue()) : '');
+        formatFn.parse = (t) => parseDirect(t, state);
+        knobEl.addEventListener('dblclick', (e) => {
+            if (e.altKey) return;
+            e.preventDefault();
+            attachValueEntry(valueEl, state, formatFn);
+        });
+        if (valueEl) valueEl.addEventListener('dblclick', (e) => {
+            if (e.altKey) return;
+            attachValueEntry(valueEl, state, formatFn);
         });
     }
 
@@ -281,7 +398,7 @@ function initI18n() {
     // ════════════════════════════════════════════════════════════════════
 
     function initParams() {
-        // Sliders — double-click reset defaults come from C++ via getParameterDefaults (WR-11)
+        // Sliders — Alt-click reset defaults come from C++ via getParameterDefaults (WR-11)
         setupKnob('grain_size',       Juce.getSliderState('grain_size'),       grainSizeFormatter);
         setupKnob('density',          Juce.getSliderState('density'),          pctFormatter);
         setupKnob('scan_position',    Juce.getSliderState('scan_position'),    pctFormatter);
@@ -1109,10 +1226,10 @@ function initI18n() {
         setupSpatialGate();
 
         // WR-11: fetch the C++ (skew-correct) reset defaults; resolves well before any
-        // double-click, so the dblclick handler in setupKnob reads a populated map.
+        // Alt-click, so the Alt-click handler in setupKnob reads a populated map.
         getParameterDefaults()
             .then((defs) => { paramDefaults = defs || {}; })
-            .catch(() => { /* leave defaults empty — dblclick becomes a no-op */ });
+            .catch(() => { /* leave defaults empty — Alt-click becomes a no-op */ });
 
         // Visualizations
         const grainCanvas = document.getElementById('grain-canvas');
