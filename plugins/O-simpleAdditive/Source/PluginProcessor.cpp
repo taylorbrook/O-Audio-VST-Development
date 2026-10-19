@@ -132,7 +132,7 @@ OSimpleAdditiveAudioProcessor::createParameterLayout()
     //--- Output ------------------------------------------------------------
     params.push_back (std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { outputLevel, 1 }, "Output Level",
-        juce::NormalisableRange<float> { -60.0f, 0.0f, 0.1f }, 0.0f,
+        juce::NormalisableRange<float> { -60.0f, 0.0f, 0.1f }, -6.0f,
         juce::AudioParameterFloatAttributes().withLabel ("dB")));
 
     // Foundation contract: exactly 33 parameters (16 drawbars + 9 scan/spectral
@@ -388,8 +388,14 @@ void OSimpleAdditiveAudioProcessor::applyFactoryPreset (const juce::String& name
     // VST3 wrapper maps these to beginEdit/performEdit/endEdit, and hosts that
     // gate automation recording on gestures (Logic touch/latch, Cubase) drop or
     // mis-record un-gestured edits.
+    //
+    // v1.4.2: Output Level is USER-OWNED — the reset skips it, and no lesson
+    // below names it, so loading a preset leaves the level where the user put it.
     for (auto* p : getParameters())
     {
+        if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (p))
+            if (isUserOwnedParameter (ranged->getParameterID()))
+                continue;
         p->beginChangeGesture();
         p->setValueNotifyingHost (p->getDefaultValue());
         p->endChangeGesture();

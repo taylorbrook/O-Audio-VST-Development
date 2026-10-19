@@ -197,6 +197,14 @@ public:
     // save/load (OuariconPresetManager) is a Stage-4 concern.
     void applyFactoryPreset (const juce::String& name);
 
+    /** v1.4.2: parameters that belong to the USER, not to a preset. Output Level
+        is a mix control: applyFactoryPreset() never resets it and no lesson
+        writes it. Session state (get/setStateInformation) still recalls it. */
+    static bool isUserOwnedParameter (const juce::String& paramId)
+    {
+        return paramId == OSimpleAdditive::ParamIDs::outputLevel;
+    }
+
     //==========================================================================
     // Visualization access for the Stage-3 editor.
     //  - getVizRing: the lock-free audio→message ring (the editor's Timer feeds
