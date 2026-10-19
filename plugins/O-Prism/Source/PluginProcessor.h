@@ -425,7 +425,7 @@ private:
     std::atomic<double> lastPlayedFrequency { 0.0 };
 
     // Master volume and stereo width (smoothed)
-    juce::SmoothedValue<float> masterVolSmoothed { 0.8f };
+    juce::SmoothedValue<float> masterVolSmoothed { 0.501187f };  // = the param default (-6 dB)
     juce::SmoothedValue<float> stereoWidthSmoothed { 1.0f };
 
     // Active MIDI note tracking for TrueKeys visualization
