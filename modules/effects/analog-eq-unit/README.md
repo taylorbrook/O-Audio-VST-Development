@@ -38,8 +38,9 @@ Each EQ band features a distinctive dual-ring knob that controls two parameters:
 - Click **outer ring** (>60% from center) → adjust frequency
 - Click **inner dial** (≤60% from center) → adjust gain
 - **Drag vertically** to change value
-- **Double-click** to reset to center position
-- **Tooltip** shows both values: "500 Hz / +3.0 dB"
+- **Double-click** to type a value for the ring under the pointer: the outer ring takes the frequency (`1.2k` = 1200 Hz, a bare number is Hz), the inner dial the gain in dB. Enter or clicking away applies, Esc cancels
+- **Alt/Option-click** resets the ring under the pointer to its default, inside one host gesture
+- **Tooltip** shows both values: "500 Hz / +3.0 dB" (the value field opens over the pressed ring's half)
 
 ## Quick Start
 
@@ -272,6 +273,10 @@ window.__JUCE__.backend.addEventListener('eqOutputLevel', (level) => {
 ```
 
 ## Version History
+
+### 1.4.0 (2026-10-19)
+- Double-click opens inline value entry (Enter / click-away applies, Esc cancels, untouched text not written, skew-aware); Alt/Option-click resets to the default inside one host gesture (was double-click, which wrote without a gesture)
+- Outer ring types/resets the frequency, inner dial the gain; the tooltip is split into `.vt-freq` / `.vt-gain` spans and the field opens over the pressed ring's span
 
 ### 1.1.0 (2026-01-14)
 - Compact single-row UI layout (half height)

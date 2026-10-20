@@ -1,5 +1,5 @@
 name: reverb-unit
-version: 1.0.0
+version: 1.1.0
 category: effects
 description: |
   Compact 8-channel FDN plate reverb module for embedding in VST instruments.
@@ -53,6 +53,12 @@ tags:
 reuse_score: 9
 
 changelog:
+  - version: 1.1.0
+    date: 2026-10-19
+    changes:
+      - Double-click opens inline value entry (Enter / click-away applies, Esc cancels, untouched text not written, skew-aware); Alt/Option-click resets to the default inside one host gesture (was double-click, which wrote without a gesture)
+      - Parse: Size, Damp, Mod, Shimmer and Mix in percent (`30` = 30%), Pre-dly in ms (an explicit `s` multiplies by 1000)
+      - Self-contained: module-private attachValueEntry / scaledToNorm / parsers, own .rev-value-input class, no imports
   - version: 1.0.0
     date: 2026-10-16
     changes:

@@ -19,7 +19,16 @@
 */
 /**
  * Analog EQ Unit - Compact WebView UI Component with Dual-Ring Knobs
- * Ouaricon Module System v1.3.0
+ * Ouaricon Module System v1.4.0
+ *
+ * v1.4.0 Changes:
+ * - Double-click opens inline value entry for the ring under the pointer, in
+ *   that ring's half of the value tooltip (outer ring = frequency, `1.2k` =
+ *   1200 Hz, a bare number is Hz; inner dial = gain in dB). Enter or clicking
+ *   away applies, Esc cancels, untouched text is not written
+ * - Alt/Option-click resets the ring under the pointer to its default inside
+ *   one host gesture (was double-click, which wrote without a gesture)
+ * - Value tooltip split into .vt-freq / .vt-gain spans
  *
  * v1.3.0 Changes (shared strip contract with compressor-unit 1.3.0 / reverb-unit 1.0.0):
  * - Host face: var(--font-serif) with an EB Garamond fallback; buttons inherit it
@@ -61,6 +70,122 @@
  *   eq.initialize();
  */
 
+// ====================================================================
+// Value entry (module-private; the suite's O-Prism attachValueEntry semantics).
+// Self-contained on purpose: the unit imports nothing from its host page and
+// uses its own input class, so the host's .knob-value-input rule never crosses.
+// ====================================================================
+
+// Scaled (C++ units) -> normalised [0,1], reading the live start/end/skew the
+// WebSliderRelay pushes from C++ (never a JS range table). Clamps BEFORE the
+// pow(): a value below `start` gives a negative base, and Math.pow(negative,
+// fractional skew) is NaN, which would stick in the parameter.
+function scaledToNorm(v, props) {
+    const start = props.start, end = props.end;
+    const skew = props.skew > 0 ? props.skew : 1;
+    if (!(end > start)) return 0;
+    const t = Math.min(1, Math.max(0, (v - start) / (end - start)));
+    return skew === 1 ? t : Math.pow(t, skew);
+}
+
+// Opens an inline editor over a readout. formatFn(norm) renders the readout;
+// formatFn.parse(text, currentText) returns a SCALED value or null to reject.
+// Enter / blur / clicking away commits, Esc cancels, untouched text is never
+// written back, and "-inf" / "off" land on the range start.
+function attachValueEntry(valueEl, state, formatFn) {
+    if (!valueEl || !state) return;
+    if (typeof formatFn !== 'function' || typeof formatFn.parse !== 'function') return;
+    if (valueEl.dataset.editing === '1') return;   // already open
+
+    const currentText = valueEl.textContent;
+    const prevPosition = valueEl.style.position;
+    const prevColor = valueEl.style.color;
+    // Read the ink before the readout goes transparent.
+    const inkColor = getComputedStyle(valueEl).color;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'eq-value-input';
+    input.value = currentText;
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+    input.style.color = inkColor;
+
+    // The readout keeps its text (transparent) so its box does not change size.
+    valueEl.dataset.editing = '1';
+    valueEl.style.position = 'relative';
+    valueEl.style.color = 'transparent';
+    valueEl.appendChild(input);
+    input.focus();
+    input.select();
+
+    let closed = false;
+
+    // Clicking away commits even where a dial's drag handler preventDefault()s
+    // its mousedown: that suppresses the focus change that would blur this
+    // field, so grabbing another dial used to leave it open with its readout
+    // frozen. Capture phase on document, so it commits before any drag starts.
+    const onOutsidePointer = (e) => { if (e.target !== input) input.blur(); };
+    document.addEventListener('pointerdown', onOutsidePointer, true);
+
+    const close = () => {
+        if (closed) return;
+        closed = true;
+        document.removeEventListener('pointerdown', onOutsidePointer, true);
+        delete valueEl.dataset.editing;
+        input.remove();
+        valueEl.style.position = prevPosition;
+        valueEl.style.color = prevColor;
+        // Re-render from live state (automation / preset may have moved it).
+        valueEl.textContent = formatFn(state.getNormalisedValue());
+    };
+
+    const commit = () => {
+        if (closed) return;
+        if (input.value === currentText) { close(); return; }
+        const props = state.properties || {};
+        const scaled = /^\s*([-−]?\s*inf(inity)?|off)\s*(db)?\s*$/i.test(input.value)
+            ? props.start
+            : formatFn.parse(input.value, currentText);
+        if (scaled !== null && scaled !== undefined && isFinite(scaled)) {
+            // setNormalisedValue() snaps to the interval and clamps.
+            state.sliderDragStarted();
+            state.setNormalisedValue(scaledToNorm(scaled, props));
+            state.sliderDragEnded();
+        }
+        close();
+    };
+
+    input.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        else if (e.key === 'Escape') { e.preventDefault(); close(); }
+    });
+    input.addEventListener('blur', commit);
+    // Never start a drag (or reach a document handler) from inside the field.
+    input.addEventListener('pointerdown', (e) => e.stopPropagation());
+    input.addEventListener('mousedown', (e) => e.stopPropagation());
+    input.addEventListener('dblclick', (e) => e.stopPropagation());
+    input.addEventListener('wheel', (e) => e.stopPropagation());
+}
+
+// First signed decimal in the text; U+2212 (typographic minus) counts as '-'.
+const numOf = (t) => {
+    const m = String(t).replace(/−/g, '-').match(/-?\d*\.?\d+/);
+    if (!m) return null;
+    const v = parseFloat(m[0]);
+    return isFinite(v) ? v : null;
+};
+// Gain readouts: the display already IS the scaled value ("3", "-4.5 dB").
+const parseDirect = (t) => numOf(t);
+// Frequency readouts that switch to kHz: "k" multiplies by 1000 ("1.2k" =
+// 1200 Hz), a bare number is Hz.
+const parseFreq = (t) => {
+    const v = numOf(t);
+    if (v === null) return null;
+    return /k/i.test(String(t)) ? v * 1000 : v;
+};
+
 export class AnalogEQUnitUI {
     constructor(options = {}) {
         this.container = options.container;
@@ -90,7 +215,7 @@ export class AnalogEQUnitUI {
         this.KNOB_RADIUS = 30;
         this.INNER_THRESHOLD = 0.60;
 
-        // WR-09: dbl-click-reset target for each control, as a NORMALISED (0..1) position.
+        // WR-09: Alt/Option-click reset target for each control, as a NORMALISED (0..1) position.
         // Gains are linear ([-12,12] dB, default 0 dB -> 0.5). The freq params are skewed
         // 0.3 in C++, so their default Hz maps to a NON-0.5 normalised position; resetting to
         // a hardcoded 0.5 landed them well off the shipped default. Each value below is
@@ -168,7 +293,7 @@ export class AnalogEQUnitUI {
                         <div class="knob-inner" id="${id}_gain_knob">
                             <div class="knob-pointer"></div>
                         </div>
-                        <div class="value-tooltip" id="${id}_tooltip">-- / --</div>
+                        <div class="value-tooltip" id="${id}_tooltip"><span class="vt-freq">--</span> / <span class="vt-gain">--</span></div>
                     </div>
                 </div>
                 ${hasQ ? `
@@ -447,6 +572,26 @@ export class AnalogEQUnitUI {
                 opacity: 1;
             }
 
+            /* Value-entry field, overlaid on its half of the tooltip (which keeps
+               its text, transparent), so nothing shifts. Form controls do not
+               inherit fonts on their own, hence the inherits. The tooltip is
+               pointer-events: none decoration, which the field would inherit, so
+               it takes clicks back; and the tooltip stays up while a field is
+               open, or it fades the moment the pointer leaves the knob. */
+            .eq-value-input {
+                position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+                box-sizing: border-box; padding: 0; margin: 0;
+                border: none; border-bottom: 1px solid currentColor; border-radius: 0;
+                background: transparent;
+                font-family: inherit; font-size: inherit; font-weight: inherit;
+                line-height: normal; text-align: inherit; outline: none;
+                -moz-appearance: textfield;
+                pointer-events: auto;
+            }
+            .eq-value-input::-webkit-outer-spin-button,
+            .eq-value-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+            .value-tooltip:has(.eq-value-input) { opacity: 1; background: rgb(60, 47, 47); }
+
             /* Compact Q selector */
             .three-way-toggle-compact {
                 display: flex;
@@ -602,26 +747,32 @@ export class AnalogEQUnitUI {
         const outerKnob = container.querySelector('.knob-outer');
         const innerKnob = container.querySelector('.knob-inner');
         const tooltip = this.container.querySelector(`#${band}_tooltip`);
+        const freqText = tooltip.querySelector('.vt-freq');   // frequency half of the tooltip
+        const gainText = tooltip.querySelector('.vt-gain');
 
         const freqState = this.sliders[`${band}_freq`];
         const gainState = this.sliders[`${band}_gain`];
 
         if (!freqState || !gainState) return;
 
+        // WR-09: format the scaled (engineering) value so skewed freq params read
+        // correctly. Value entry calls these with the state's own normalised value,
+        // so they read getScaledValue() straight from the state.
+        const freqFormat = () => this.paramRanges[`${band}_freq`].format(freqState.getScaledValue());
+        freqFormat.parse = parseFreq;
+        const gainFormat = () => this.paramRanges[`${band}_gain`].format(gainState.getScaledValue());
+        gainFormat.parse = parseDirect;
+
+        // Each half is written on its own, so an open value field in one half is
+        // never wiped by an update to either.
         const updateTooltip = () => {
-            // WR-09: use the scaled (engineering) value so skewed freq params read correctly.
-            const freqValue = this.paramRanges[`${band}_freq`].format(freqState.getScaledValue());
-            const gainValue = this.paramRanges[`${band}_gain`].format(gainState.getScaledValue());
-            tooltip.textContent = `${freqValue} / ${gainValue}`;
+            if (freqText.dataset.editing !== '1') freqText.textContent = freqFormat();
+            if (gainText.dataset.editing !== '1') gainText.textContent = gainFormat();
         };
 
-        const updateKnobRotation = (element, normalizedValue) => {
-            const degrees = -135 + (normalizedValue * 270);
-            element.style.transform = `rotate(${degrees}deg)`;
-        };
-
-        // Mouse down - detect which layer
-        container.addEventListener('mousedown', (e) => {
+        // ONE ring hit test, shared by the drag, the value entry and the reset, so
+        // all three act on the same ring: outer (> 60 % from centre) = frequency.
+        const isOuterRing = (e) => {
             const rect = container.getBoundingClientRect();
             const centerX = rect.left + rect.width / 2;
             const centerY = rect.top + rect.height / 2;
@@ -630,9 +781,36 @@ export class AnalogEQUnitUI {
             const dy = e.clientY - centerY;
             const distance = Math.sqrt(dx * dx + dy * dy);
             const normalizedDistance = distance / (rect.width / 2);
+            return normalizedDistance > this.INNER_THRESHOLD;
+        };
 
+        const updateKnobRotation = (element, normalizedValue) => {
+            const degrees = -135 + (normalizedValue * 270);
+            element.style.transform = `rotate(${degrees}deg)`;
+        };
+
+        // Alt/Option-click resets the ring under the pointer to its default as one
+        // host gesture. CAPTURE phase, registered before the drag listener below,
+        // so it runs first and cancels the drag outright (stopImmediatePropagation);
+        // it never touches the drag state.
+        container.addEventListener('mousedown', (e) => {
+            if (!e.altKey) return;
+            if (e.target.closest('.eq-value-input')) return;   // presses inside an open field
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            const outer = isOuterRing(e);
+            const state = outer ? freqState : gainState;
+            const def = this.DEFAULT_VALUES[outer ? `${band}_freq` : `${band}_gain`];
+            if (typeof def !== 'number') return;
+            state.sliderDragStarted();
+            state.setNormalisedValue(def);
+            state.sliderDragEnded();
+        }, true);
+
+        // Mouse down - detect which layer
+        container.addEventListener('mousedown', (e) => {
             // Outer ring (freq) if > 60% from center, otherwise inner (gain)
-            if (normalizedDistance > this.INNER_THRESHOLD) {
+            if (isOuterRing(e)) {
                 this.currentState = freqState;
                 this.currentParamName = `${band}_freq`;
             } else {
@@ -652,23 +830,13 @@ export class AnalogEQUnitUI {
             e.preventDefault();
         });
 
-        // Double-click to reset
+        // Double-click opens inline value entry for the ring under the pointer
+        // (Alt/Option-click resets instead), in that ring's half of the tooltip.
         container.addEventListener('dblclick', (e) => {
-            const rect = container.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-
-            const dx = e.clientX - centerX;
-            const dy = e.clientY - centerY;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            const normalizedDistance = distance / (rect.width / 2);
-
-            if (normalizedDistance > this.INNER_THRESHOLD) {
-                freqState.setNormalisedValue(this.DEFAULT_VALUES[`${band}_freq`]);
-            } else {
-                gainState.setNormalisedValue(this.DEFAULT_VALUES[`${band}_gain`]);
-            }
+            if (e.altKey) return;
             e.preventDefault();
+            if (isOuterRing(e)) attachValueEntry(freqText, freqState, freqFormat);
+            else attachValueEntry(gainText, gainState, gainFormat);
         });
 
         // Listen for value changes
