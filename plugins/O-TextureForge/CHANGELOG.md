@@ -1,5 +1,29 @@
 # O-TextureForge Changelog
 
+## [1.5.1] — 2026-10-19
+
+### Changed
+
+- **Output level now starts at −6 dB** on new instances (Gain knob,
+  `OUTPUT_GAIN`; ID and −60..+12 dB range unchanged) and stays the last gain
+  stage — only the safety clip follows it. Saved sessions recall their stored
+  level unchanged.
+- **Output level changes are now smoothed** (~20 ms linear ramp) instead of
+  stepping once per block, so Gain moves and automation no longer zipper.
+- **Double-click a dial to type a value** — Enter or click away applies, Esc
+  cancels. **Alt/Option-click resets** a control to its default (this was
+  double-click, and it now lands as one host gesture). Grain Size, Density and
+  Gain show no readout, so their field opens over the dial itself.
+
+### Fixed
+
+- Resetting **Grain Size** to its default now lands on 50 ms. The reset used
+  the linear knob position (0.08) on a skewed range and landed near 13 ms.
+- **Build:** the plugin compiles again against the current `knncolle` (pulled
+  in by umappp at `master`), whose headers now use `std::filesystem`, which
+  libc++ marks unavailable below the suite's macOS 10.13 deployment target.
+  The availability check is disabled for this plugin's code only.
+
 ## [1.5.0] - 2026-09-25
 
 The UI pass from the 260924-nho design review: AA text colours (R4), the 9px

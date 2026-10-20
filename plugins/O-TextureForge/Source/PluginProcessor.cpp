@@ -137,7 +137,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout TextureForgeProcessor::creat
         juce::ParameterID { "OUTPUT_GAIN", 1 },
         "Output Gain",
         juce::NormalisableRange<float>(-60.0f, 12.0f, 0.1f),
-        0.0f,
+        -6.0f,   // v1.5.1: suite -6 dB gain staging (was 0.0f); ID/range unchanged
         "dB"));
 
     layout.add(std::make_unique<juce::AudioParameterChoice>(
@@ -152,7 +152,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout TextureForgeProcessor::creat
 void TextureForgeProcessor::prepareToPlay(double sampleRate, int /*samplesPerBlock*/)
 {
     currentSampleRate = sampleRate;
-    grainScheduler.prepare(sampleRate);
+    // v1.5.1: the scheduler's output-gain smoother is seeded at the live level
+    // so the first block ramps from neither 0 nor 1.
+    grainScheduler.prepare(sampleRate, outputGainParam->load());
     grainScheduler.reset();
 
     if (currentCorpus != nullptr && std::abs(currentCorpus->sampleRate - sampleRate) > 0.1)

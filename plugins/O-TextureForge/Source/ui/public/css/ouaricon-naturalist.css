@@ -554,6 +554,57 @@ body::after {
 }
 
 
+/* ===== VALUE ENTRY (v1.5.1) =====
+   Double-click a knob to type a value. The input is overlaid on the readout
+   (which keeps its text, transparent), so opening it moves nothing — copied
+   from O-Prism; font-family/size inherit explicitly because form controls do
+   not inherit fonts on their own. */
+.knob-value-input {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-bottom: 1px solid currentColor;
+    border-radius: 0;
+    background: transparent;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: normal;
+    text-align: inherit;
+    outline: none;
+    -moz-appearance: textfield;
+}
+.knob-value-input::-webkit-outer-spin-button,
+.knob-value-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+/* Grain Size, Density and Gain render a blank readout, so their field floats
+   centred over the dial itself, on a paper chip so it reads over the wheat
+   segments. Absolutely positioned inside the (position: relative) .knob —
+   still zero layout shift. */
+.knob-value-input.on-dial {
+    left: 50%;
+    top: 50%;
+    width: 56px;
+    height: 16px;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    padding: 0 3px;
+    font-size: 9px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    background: var(--paper-bg);
+    border: 1px solid var(--knob-border);
+    border-radius: 2px;
+    cursor: text;
+}
+
 /* ===== SETTINGS POPOVER (v1.1.0) =====
    Written in THIS page's vocabulary rather than pasted in from another plugin:
    the aged-paper fills, the --knob-border rule the .midi-mode-select already

@@ -679,7 +679,7 @@ export const I18N_EXEMPT = [
     // are a number and its unit in a readout node either way.
     ['50ms',
      'the GRAIN_SIZE .knob-value READOUT node — a number and its unit (D-03, arm 2), and a readout node is never a [data-i18n] element (arm 3). Authored in index.html and erased at init by an empty formatter (src/app.js:705); reported, not fixed, in the v1.2.0 commit message'],
-    ['0 dB',
+    ['-6 dB',   // v1.5.1: was '0 dB' — the authored readout follows the new -6 dB default
      'the OUTPUT_GAIN .knob-value READOUT node — a number and its unit (D-03, arm 2), and a readout node is never a [data-i18n] element (arm 3). Authored in index.html and erased at init by an empty formatter (src/app.js:708); reported, not fixed, in the v1.2.0 commit message'],
 
     // ── Acronyms and proper nouns ───────────────────────────────────────────
