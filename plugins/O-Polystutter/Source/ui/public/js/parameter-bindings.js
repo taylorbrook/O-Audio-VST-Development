@@ -83,9 +83,18 @@ function startKnobTextInput(valueElement, state, min, max, formatter, knobElemen
   input.value = displayNumber;
   input.setAttribute("data-original", originalNormalized);
 
+  // Clicking away commits even where a dial's drag handler preventDefault()s
+  // its mousedown: that suppresses the focus change that would blur this
+  // field, so grabbing another dial used to leave it open with its readout
+  // frozen. Capture phase on document, so it commits before any drag starts.
+  // (Here the blur handler confirms after its 10 ms delay.) Registered below
+  // once the field is focused; cleanupTextInput() removes it on every exit.
+  const onOutsidePointer = (e) => { if (e.target !== input) input.blur(); };
+
   // Store context for handlers
   activeTextInput = {
     input,
+    onOutsidePointer,
     valueElement,
     knobElement,
     state,
@@ -102,6 +111,7 @@ function startKnobTextInput(valueElement, state, min, max, formatter, knobElemen
   // Focus and select all
   input.focus();
   input.select();
+  document.addEventListener("pointerdown", onOutsidePointer, true);
 
   // Handle Enter key (confirm)
   input.addEventListener("keydown", (e) => {
@@ -189,7 +199,8 @@ function cancelTextInput() {
 function cleanupTextInput() {
   if (!activeTextInput) return;
 
-  const { input, valueElement } = activeTextInput;
+  const { input, valueElement, onOutsidePointer } = activeTextInput;
+  document.removeEventListener("pointerdown", onOutsidePointer, true);
 
   // Remove input element
   if (input.parentNode) {
