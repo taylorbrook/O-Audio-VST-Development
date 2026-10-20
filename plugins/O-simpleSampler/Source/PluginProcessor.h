@@ -247,6 +247,14 @@ public:
     //   with a central post-reset root re-seed so no preset plays octave-flat.
     void applyFactoryPreset (const juce::String& name);
 
+    /** v1.6.2: parameters that belong to the USER, not to a preset. Output Level
+        is a mix control: applyFactoryPreset() never resets it and no preset
+        writes it. Session state (get/setStateInformation) still recalls it. */
+    static bool isUserOwnedParameter (const juce::String& paramId)
+    {
+        return paramId == OSimpleSampler::ParamIDs::outputLevel;
+    }
+
     //==========================================================================
     // Engine constants (declared NOW; consumed by the sampler engine in Stage 2).
     static constexpr int kMaxVoices         = 16;   // polyphony

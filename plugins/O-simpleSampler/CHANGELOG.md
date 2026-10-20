@@ -3,6 +3,20 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.6.2] — 2026-10-19
+
+### Changed
+
+- **Output level now starts at −6 dB** on new instances and is the last stage of
+  the chain. Concept presets no longer set it, and loading a preset leaves it
+  where you put it. Saved sessions recall their stored level unchanged.
+- **Double-click a dial to type a value** — Enter or click away applies, Esc
+  cancels. **Alt/Option-click resets** a control to its default. Typed values
+  accept units: a note name on Root Key (`F#2`, `Bb3` — middle C is C3) or a
+  MIDI number, `2.5k` on Cutoff (a bare number is Hz), `250 ms` / `1.5 s` on
+  envelope times (a bare number keeps the unit on screen), `-inf` for the level
+  floor.
+
 ## [1.6.1] — 2026-10-14
 
 ### Fixed

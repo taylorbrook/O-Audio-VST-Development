@@ -339,6 +339,38 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* ── Value-entry field (double-click a dial or its readout) ───────────────
+   Copied verbatim from O-Prism. Overlaid on the readout, which keeps its text
+   (rendered transparent) so nothing moves when the field opens or closes.
+   attachValueEntry() copies the readout's computed colour onto the input;
+   currentColor carries it to the underline. font-family/font-size must be
+   inherited explicitly — form controls do not inherit fonts on their own. */
+.knob-value-input {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-bottom: 1px solid currentColor;
+    border-radius: 0;
+    background: transparent;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: normal;
+    text-align: inherit;
+    outline: none;
+    -moz-appearance: textfield;
+}
+.knob-value-input::-webkit-outer-spin-button,
+.knob-value-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
 /* ── Toggles ────────────────────────────────────────────────────────────── */
 .toggle-row { display: flex; gap: 16px; margin-top: 8px; }
 .toggle {
