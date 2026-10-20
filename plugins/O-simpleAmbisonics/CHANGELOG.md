@@ -3,6 +3,12 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.0.2] — 2026-10-19
+
+### Changed
+
+- **Double-click a dial to type a value** — Enter or click away applies, Esc cancels. **Alt/Option-click resets** a control to its default (this was double-click). Output Level takes `-inf` / `off` for the floor. The sphere wells are unchanged.
+
 ## [1.0.1] - 2026-10-14
 
 Review pass (`/improve`): bugs, simplification, UI idle cost. No parameter, range, state
