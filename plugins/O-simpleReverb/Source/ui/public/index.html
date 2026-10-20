@@ -434,6 +434,34 @@
   .knob-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--brown-soft); margin-top: 5px; text-align: center; line-height: 1.1; white-space: nowrap; }
   /* Line box pinned at the en height: a zh word readout (Character) is 17 px tall otherwise. */
   .knob-value { font-size: 12.5px; height: 15px; line-height: 15px; color: var(--brown-text); margin-top: 1px; text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* Double-click value entry (3.0.1, O-Prism contract): overlaid on the
+   readout, which keeps its text (transparent) so nothing shifts. Form
+   controls do not inherit fonts on their own — hence the two inherits. */
+  .knob-value-input {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-bottom: 1px solid currentColor;
+    border-radius: 0;
+    background: transparent;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: normal;
+    text-align: inherit;
+    outline: none;
+    -moz-appearance: textfield;
+  }
+  .knob-value-input::-webkit-outer-spin-button,
+  .knob-value-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
   .knob-sub { font-size: 10.5px; font-style: italic; color: var(--green-text); text-align: center; white-space: nowrap; line-height: 1.15; height: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
   .knob-cell.off .knob-wrap, .knob-cell.off .knob-value, .knob-cell.off .knob-label { opacity: 0.42; }
   .knob-cell.off .knob-sub { color: var(--text-muted); }
@@ -1015,15 +1043,165 @@ function scaledToNorm(st, scaled) {
   const span = p.end - p.start;
   if (!isFinite(span) || span === 0) return 0;
   const proportion = Math.min(1, Math.max(0, (scaled - p.start) / span));
-  return Math.pow(proportion, p.skew);
+  return Math.pow(proportion, p.skew > 0 ? p.skew : 1);   // v3.0.1: no NaN on a missing skew
 }
+
+// ─── DOUBLE-CLICK VALUE ENTRY (v3.0.1) ───
+// Ported from O-Prism (index.html attachValueEntry / parsers), using
+// this page's own scaledToNorm(st, scaled) above (live start/end/skew,
+// clamped before the pow). Double-click a dial or its readout to type a
+// value; Enter or blur commits, Esc cancels. Alt/Option-click resets
+// (it was double-click before v3.0.1).
+
+// Opens an inline editor over a readout. formatFn(norm) renders the
+// readout text; formatFn.parse(text, currentText) returns a SCALED value
+// or null to reject. Untouched text is never written back.
+function attachValueEntry(valueEl, state, formatFn) {
+  if (!valueEl || !state) return;
+  if (typeof formatFn !== 'function' || typeof formatFn.parse !== 'function') return;
+  if (valueEl.dataset.editing === '1') return;   // already open
+
+  const currentText = valueEl.textContent;
+  const prevPosition = valueEl.style.position;
+  const prevColor = valueEl.style.color;
+  // Read the ink BEFORE hiding the readout — `inherit` on the input
+  // would otherwise resolve to the transparent colour set below.
+  const inkColor = getComputedStyle(valueEl).color;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'knob-value-input';
+  input.value = currentText;
+  input.spellcheck = false;
+  input.autocomplete = 'off';
+  input.style.color = inkColor;
+
+  // The readout keeps its text (transparent) so its box keeps its size
+  // and the knob column does not shift; the input is overlaid on it.
+  valueEl.dataset.editing = '1';
+  valueEl.style.position = 'relative';
+  valueEl.style.color = 'transparent';
+  valueEl.appendChild(input);
+  input.focus();
+  input.select();
+
+  let closed = false;
+
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    delete valueEl.dataset.editing;
+    input.remove();
+    valueEl.style.position = prevPosition;
+    valueEl.style.color = prevColor;
+    // Re-render from live state: automation or a preset may have
+    // moved the parameter while readout writes were suppressed.
+    valueEl.textContent = formatFn(state.getNormalisedValue());
+  };
+
+  const commit = () => {
+    if (closed) return;
+    // Readouts are rounded for display; re-writing untouched text
+    // would quantise the parameter to the rounding.
+    if (input.value === currentText) { close(); return; }
+    const scaled = formatFn.parse(input.value, currentText);
+    if (scaled !== null && isFinite(scaled)) {
+      // setNormalisedValue() snaps to the interval and clamps.
+      state.sliderDragStarted();
+      state.setNormalisedValue(scaledToNorm(state, scaled));
+      state.sliderDragEnded();
+    }
+    close();
+  };
+
+  input.addEventListener('keydown', (e) => {
+    // Keep digits away from any global key handling while open.
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); close(); }
+  });
+  input.addEventListener('blur', commit);
+  // Clicking into the field must never start a knob drag underneath it.
+  input.addEventListener('pointerdown', (e) => e.stopPropagation());
+  input.addEventListener('mousedown', (e) => e.stopPropagation());
+  input.addEventListener('dblclick', (e) => e.stopPropagation());
+  input.addEventListener('wheel', (e) => e.stopPropagation());
+}
+
+// ─── VALUE-ENTRY PARSERS ───
+// Display text -> SCALED value (C++ units), or null to reject.
+
+// First signed decimal in the string, or null if there isn't one.
+// French readouts use a decimal comma and every readout writes the
+// minus as U+2212; both are normalised before matching.
+const numOf = (t) => {
+  const m = String(t).replace(/\u2212/g, '-').replace(',', '.').match(/-?\d*\.?\d+/);
+  if (!m) return null;
+  const v = parseFloat(m[0]);
+  return isFinite(v) ? v : null;
+};
+
+
+// SIZE / WET / DRY are scaled 0..100 and read "%"; DECAY reads "1.25×".
+const parseDirect = (t) => numOf(t);
+
+// LPFREQ is scaled in Hz. A bare number is Hz; "k" multiplies by 1000.
+const parseFreq = (t) => {
+  const v = numOf(t);
+  if (v === null) return null;
+  return /k/i.test(String(t)) ? v * 1000 : v;
+};
+
+// CHARACTER is scaled -100..100 but reads "dark 30 %" / "neutral" /
+// "bright 30 %" in the page language. The words come from the label table
+// (LABELS, then I18N — trLabel's order; every language), never a literal
+// list. A signed number is taken as is; an unsigned one takes the side named
+// in the text, else the side on screen, so re-typing just the number keeps a
+// dark setting dark.
+const charWords = (key) => Object.values((LABELS && LABELS[key]) || I18N[key] || {})
+  .map((e) => String((e && e.t) || '').replace('{p}', '').trim().toLowerCase())
+  .filter(Boolean);
+const parseCharacter = (t, currentText) => {
+  const s = String(t).trim().toLowerCase();
+  const has = (str, key) => charWords(key).some((w) => str.includes(w));
+  const v = numOf(s);
+  if (v === null) return has(s, 'label.chNeutral') ? 0 : null;
+  if (/^[+\-−]/.test(s.replace(/^[^\d+\-−]*/, ''))) return v;   // explicit sign wins
+  const side = (str) => (has(str, 'label.chDark') ? -1 : has(str, 'label.chBright') ? 1 : 0);
+  const sign = side(s) || side(String(currentText || '').toLowerCase()) || 1;
+  return sign * Math.abs(v);
+};
+
+FORMAT.SIZE.parse   = parseDirect;
+FORMAT.DECAY.parse  = parseDirect;
+FORMAT.LPFREQ.parse = parseFreq;
+FORMAT.WET.parse    = parseDirect;
+FORMAT.DRY.parse    = parseDirect;
+
+// The value-entry renderer for knob `id` (formatFn(norm) contract; reads live
+// state). CHARACTER's readout is a setLabel() [data-i18n] node rendered by
+// renderReadouts(), so its renderer hands back the text on screen and marks
+// the readouts dirty — the next frame re-renders it through setLabel.
+function entryFormat(id) {
+  if (id === 'CHARACTER') {
+    const f = () => { readoutsDirty = true; const el = document.getElementById('val-CHARACTER'); return el ? el.textContent : ''; };
+    f.parse = parseCharacter;
+    return f;
+  }
+  if (!FORMAT[id]) return null;
+  const f = () => FORMAT[id](sliderState[id].getScaledValue());
+  f.parse = FORMAT[id].parse;
+  return f;
+}
+
 
 function updateKnobVisual(id) {
   const st = sliderState[id];
   if (!st) return;
   const knob = document.getElementById(`knob-${id}`);
   const valEl = document.getElementById(`val-${id}`);
-  if (FORMAT[id] && valEl) valEl.textContent = FORMAT[id](st.getScaledValue());   // never a JS range map
+  // Skip while the value-entry <input> is open inside the readout.
+  if (FORMAT[id] && valEl && valEl.dataset.editing !== '1') valEl.textContent = FORMAT[id](st.getScaledValue());   // never a JS range map
   if (knob) {
     const stem = knob.querySelector('.knob-stem');
     if (stem) stem.style.transform = `translate(-50%, -100%) rotate(${normToDeg(st.getNormalisedValue())}deg)`;
@@ -1149,6 +1327,19 @@ function bindKnob(juce, id) {
     e.preventDefault();
   });
 
+  // Alt/Option-click resets to the C++ default (v3.0.1; this was double-click).
+  // The drag starts on POINTERDOWN on the knob itself (bindPointerDrag, whose
+  // preventDefault() suppresses the compatibility mousedown), so this listens
+  // for pointerdown on the CAPTURE phase of the knob's wrapper and cancels it
+  // before the drag sees it. resetToDefault() brackets its own gesture.
+  (knob.parentElement || knob).addEventListener('pointerdown', (e) => {
+    if (!e.altKey || !knob.contains(e.target)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    endWheelGesture();
+    resetToDefault(st, id);
+  }, true);
+
   let startY = 0, startNorm = 0, lastY = 0, fine = false;
   bindPointerDrag(knob, id, {
     start: (e) => {
@@ -1183,7 +1374,16 @@ function bindKnob(juce, id) {
     stepBy(st, e.deltaY < 0 ? nudges : -nudges, id);
   }, { passive: false });
 
-  knob.addEventListener('dblclick', (e) => { endWheelGesture(); resetToDefault(st, id); e.preventDefault(); });
+  // Double-click the dial or its readout to type a value (v3.0.1). It never
+  // writes the parameter itself; the reset moved to Alt-click above.
+  const valEl = document.getElementById(`val-${id}`);
+  const fmt = entryFormat(id);
+  [knob, valEl].forEach((el) => el && el.addEventListener('dblclick', (e) => {
+    if (e.altKey) return;
+    endWheelGesture();
+    e.preventDefault();
+    attachValueEntry(valEl, st, fmt);
+  }));
 }
 
 // TYPE: a segmented row of <button data-v> faces over the ComboBoxState. An
@@ -1780,14 +1980,17 @@ function renderReadouts() {
   const valC = document.getElementById('val-CHARACTER'), subC = document.getElementById('sub-CHARACTER');
   const pct = fmtPct(Math.abs(c));
   const warmHz = toneData && Number(toneData.warmCutoffHz), brightDb = toneData && Number(toneData.brightDb);
+  // While the value entry is open over the readout, writing it would wipe
+  // the <input>; close() marks the readouts dirty so this catches up.
+  const valCLive = !(valC && valC.dataset.editing === '1');
   if (c < -0.5) {
-    setLabel(valC, 'label.chDark', { p: pct });
+    if (valCLive) setLabel(valC, 'label.chDark', { p: pct });
     if (Number.isFinite(warmHz)) { const lp = fmtHz(warmHz); setLabel(subC, 'label.subChWarm', { f: lp }); }
   } else if (c > 0.5) {
-    setLabel(valC, 'label.chBright', { p: pct });
+    if (valCLive) setLabel(valC, 'label.chBright', { p: pct });
     if (Number.isFinite(brightDb)) { const sh = fmtDb(brightDb); setLabel(subC, 'label.subChBright', { db: sh }); }
   } else {
-    setLabel(valC, 'label.chNeutral');
+    if (valCLive) setLabel(valC, 'label.chNeutral');
     setLabel(subC, 'label.subChNone');
   }
   const knobC = document.getElementById('knob-CHARACTER');
@@ -2382,7 +2585,7 @@ function init() {
   bindTypeSeg(Juce);
   bindLowCutPill(Juce);
   KNOB_IDS.forEach((id) => bindKnob(Juce, id));
-  loadParameterDefaults(Juce);   // async; only dblclick-reset depends on it
+  loadParameterDefaults(Juce);   // async; only the Alt-click reset depends on it
 
   // Order is load-bearing: applyI18n() (inside initI18n) is what writes
   // data-tip onto the anchors the tooltip renderer resolves.

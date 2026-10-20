@@ -2,6 +2,12 @@
 
 All notable changes to O-simpleReverb (formerly O-SimpleReverb, and before that OuariconSimpleReverb) will be documented in this file.
 
+## [3.0.1] — 2026-10-19
+
+### Changed
+
+- **Double-click a dial to type a value** — Enter or click away applies, Esc cancels. **Alt/Option-click resets** a control to its default (this was double-click). Low Cut takes Hz or `0.3k`; Character takes `dark 30`, `bright 30`, `neutral` (in any of the three languages) or a signed number, and a bare number keeps the side on screen. French decimal commas are accepted.
+
 ## [3.0.0] - 2026-10-15
 
 **O-simple family retrofit.** MAJOR: the plugin is renamed **O-simpleReverb**
