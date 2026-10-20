@@ -256,6 +256,153 @@ function voiceFmt(suffix) {
   return fmtPct;   // Decay, Tone
 }
 
+// ── Double-click value entry + Alt/Option-click reset (v1.4.2) ─────────────
+// Ported from O-Prism (index.html: scaledToNorm, attachValueEntry, the value-
+// entry parsers). Double-click a dial — or its readout — to type a value;
+// Alt/Option-click resets it to its default. Both write inside ONE
+// sliderDragStarted / sliderDragEnded gesture so hosts record a single edit.
+//
+// One difference from Prism: this file's formatters take the SCALED value
+// (NormalisableRange::convertFrom0to1 output), not the normalised one, so the
+// editor re-renders through state.getScaledValue().
+
+// The Alt-click reset reads `paramDefaults` (below, filled at boot from the
+// getParameterDefaults native fn) — never a hand-copied JS table, never 0.5.
+
+// Scaled (C++ units) -> normalised [0,1], from the LIVE start/end/skew the
+// slider relay pushes up from C++. Clamps BEFORE the pow(): a value below
+// `start` would give a negative base and a fractional skew turns that into NaN.
+function scaledToNorm(v, props) {
+  const start = props.start, end = props.end;
+  const skew = props.skew > 0 ? props.skew : 1;
+  if (!(end > start)) return 0;
+  const t = Math.min(1, Math.max(0, (v - start) / (end - start)));
+  return skew === 1 ? t : Math.pow(t, skew);
+}
+
+// ── Parsers: typed text -> SCALED value (C++ units), or null to reject ──────
+// Called as parse(text, currentText, props). "-inf" / "inf" / "off" mean the
+// range start (the readout's floor).
+const numOf = (t) => {
+  // U+2212 (the typographic minus some readouts print) reads as "-".
+  const m = String(t).replace(/\u2212/g, "-").match(/-?\d*\.?\d+/);
+  if (!m) return null;
+  const v = parseFloat(m[0]);
+  return isFinite(v) ? v : null;
+};
+const isFloorWord = (t) => /inf|off|∞/i.test(String(t));
+// Display value already IS the scaled value (dB, Hz without k, plain numbers).
+const parseDirect = (t, cur, props) => (isFloorWord(t) ? props.start : numOf(t));
+// Display is the scaled value x100 (percent readouts on 0..1 / -1..1 params).
+const parsePercent = (t, cur, props) => {
+  if (isFloorWord(t)) return props.start;
+  const v = numOf(t);
+  return v === null ? null : v / 100;
+};
+// Hz readouts. A bare number is always Hz; "k" multiplies by 1000.
+const parseFreq = (t, cur, props) => {
+  if (isFloorWord(t)) return props.start;
+  const v = numOf(t);
+  if (v === null) return null;
+  return /k/i.test(String(t)) ? v * 1000 : v;
+};
+// Time readouts that flip between ms and s, on params scaled in SECONDS. An
+// explicit unit wins; a bare number inherits the unit on screen, so re-typing
+// what you see round-trips ("2" on "30 ms" is 2 ms, on "1.40 s" it is 2 s).
+const parseSeconds = (t, cur, props) => {
+  if (isFloorWord(t)) return props.start;
+  const v = numOf(t);
+  if (v === null) return null;
+  const s = String(t);
+  if (/ms/i.test(s)) return v / 1000;      // before /s/ — "ms" contains "s"
+  if (/s/i.test(s)) return v;
+  return /ms/i.test(String(cur || "")) ? v / 1000 : v;
+};
+
+// Opens an inline editor over a readout. formatFn(scaled) renders a value;
+// formatFn.parse(text, currentText, props) converts typed text back to a SCALED
+// value or null. Enter/blur commits, Esc cancels, unparseable input is dropped
+// without writing, and untouched text is never written back (readouts round).
+function attachValueEntry(valueEl, state, formatFn) {
+  if (!valueEl || !state) return;
+  if (typeof formatFn !== "function" || typeof formatFn.parse !== "function") return;
+  if (valueEl.dataset.editing === "1") return;   // already open
+
+  const currentText = valueEl.textContent;
+  const prevPosition = valueEl.style.position;
+  const prevColor = valueEl.style.color;
+  // Read the ink BEFORE the readout goes transparent — `inherit` on the input
+  // would otherwise resolve to invisible.
+  const inkColor = getComputedStyle(valueEl).color;
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "knob-value-input";
+  input.value = currentText;
+  input.spellcheck = false;
+  input.autocomplete = "off";
+  input.style.color = inkColor;
+
+  // The readout keeps its own text (transparent) so its box keeps its size; the
+  // input is overlaid on it. Zero layout shift.
+  valueEl.dataset.editing = "1";
+  valueEl.style.position = "relative";
+  valueEl.style.color = "transparent";
+  valueEl.appendChild(input);
+  input.focus();
+  input.select();
+
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    delete valueEl.dataset.editing;
+    input.remove();
+    valueEl.style.position = prevPosition;
+    valueEl.style.color = prevColor;
+    // Re-render from live state: automation or a preset may have moved the
+    // parameter while readout writes were suppressed.
+    valueEl.textContent = formatFn(state.getScaledValue());
+  };
+
+  const commit = () => {
+    if (closed) return;
+    if (input.value === currentText) { close(); return; }
+    const props = state.properties || {};
+    const scaled = formatFn.parse(input.value, currentText, props);
+    if (scaled !== null && isFinite(scaled)) {
+      // setNormalisedValue() snaps to the interval and clamps internally.
+      state.sliderDragStarted();
+      state.setNormalisedValue(scaledToNorm(scaled, props));
+      state.sliderDragEnded();
+    }
+    close();
+  };
+
+  input.addEventListener("keydown", (e) => {
+    // Keep digits away from the pad/transport keys and every other global handler.
+    e.stopPropagation();
+    if (e.key === "Enter") { e.preventDefault(); commit(); }
+    else if (e.key === "Escape") { e.preventDefault(); close(); }
+  });
+  input.addEventListener("blur", commit);
+  // Never start a knob drag (or anything else) from inside the field.
+  for (const type of ["pointerdown", "mousedown", "dblclick", "wheel", "keyup"])
+    input.addEventListener(type, (e) => e.stopPropagation());
+}
+
+// Each formatter's inverse (see attachValueEntry above). One .parse per shared
+// formatter covers the global knobs and the 24 generated voice-strip knobs.
+fmtPct75.parse = (t, cur, props) => {   // swing: stored 0..1, reads 0-75%
+  if (isFloorWord(t)) return props.start;
+  const v = numOf(t);
+  return v === null ? null : v / 75;
+};
+fmtPct.parse = parsePercent;            // humanize/quantize/decay/tone: 0..1, reads %
+fmtBpm.parse = parseDirect;             // tempo 40..240 BPM
+fmtDb.parse = parseDirect;              // levels -60..0 dB ("-inf" / "−∞" = floor)
+fmtSt.parse = parseDirect;              // voice tune -12..12 st (reads U+2212 minus)
+
 // ── Tooltip copy ────────────────────────────────────────────────────────────
 // It lives in js/i18n.js now, in BOTH languages, and applyI18n writes it onto
 // each anchor as data-tip-title + data-tip. Through v1.0.3 a TIPS object here
@@ -296,7 +443,9 @@ function updateKnobVisual(id) {
     knob.setAttribute("aria-valuetext", valText);
   }
   const valEl = document.getElementById(`val-${id}`);
-  if (valEl) valEl.textContent = valText;
+  // Skip while the value-entry field is open: it lives inside this readout and
+  // a textContent write would wipe it. close() re-renders from live state.
+  if (valEl && valEl.dataset.editing !== "1") valEl.textContent = valText;
 }
 
 function nudge(st, delta, id) {
@@ -356,13 +505,39 @@ function bindKnob(id) {
     window.addEventListener("pointercancel", onUp);
     e.preventDefault();
   });
-  knob.addEventListener("dblclick", () => {
+  knob.addEventListener("wheel", (e) => { nudge(st, e.deltaY < 0 ? 0.02 : -0.02, id); e.preventDefault(); }, { passive: false });
+
+  // Alt/Option-click resets to the C++ default (v1.4.2 — this was double-click).
+  // Bound on the CAPTURE phase of the knob's cell — an ancestor of the
+  // pointerdown drag target — so it runs first and cancels the drag outright.
+  // Same event type as the drag (pointerdown): a capture mousedown never fires
+  // after a preventDefault()ed pointerdown. Gesture pair kept from the old reset.
+  const cell = knob.closest(".knob-cell") || knob.parentElement || knob;
+  cell.addEventListener("pointerdown", (e) => {
+    if (!e.altKey) return;
+    if (e.target && e.target.closest && e.target.closest(".knob-value-input")) return;
+    e.preventDefault();
+    e.stopPropagation();
     const d = paramDefaults ? paramDefaults[id] : undefined;
-    if (typeof d !== "number") return;
+    if (typeof d !== "number" || !isFinite(d)) return;
     st.sliderDragStarted(); st.setNormalisedValue(d); st.sliderDragEnded();
     updateKnobVisual(id);
+  }, true);
+
+  // Double-click — on the dial or its readout — opens inline value entry. It
+  // never writes the parameter itself; reset lives on Alt/Option-click above.
+  const valEl = document.getElementById(`val-${id}`);
+  const fmt = fmtFor(id);
+  knob.addEventListener("dblclick", (e) => {
+    if (e.altKey) return;
+    e.preventDefault();
+    attachValueEntry(valEl, st, fmt);
   });
-  knob.addEventListener("wheel", (e) => { nudge(st, e.deltaY < 0 ? 0.02 : -0.02, id); e.preventDefault(); }, { passive: false });
+  if (valEl) valEl.addEventListener("dblclick", (e) => {
+    if (e.altKey) return;
+    e.preventDefault();
+    attachValueEntry(valEl, st, fmt);
+  });
 }
 
 // ── Pattern-length selector (also re-renders grid columns) ───────────────────
