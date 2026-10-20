@@ -335,9 +335,18 @@ function attachValueEntry(value, state, formatFn) {
   field.select();
 
   let closed = false;
+
+  // Clicking away commits even where a dial's drag handler preventDefault()s
+  // its mousedown: that suppresses the focus change that would blur this
+  // field, so grabbing another dial used to leave it open with its readout
+  // frozen. Capture phase on document, so it commits before any drag starts.
+  const onOutsidePointer = (e) => { if (e.target !== field) field.blur(); };
+  document.addEventListener("pointerdown", onOutsidePointer, true);
+
   const close = () => {
     if (closed) return;
     closed = true;
+    document.removeEventListener("pointerdown", onOutsidePointer, true);
     delete value.dataset.editing;
     field.remove();
     value.style.position = prevPosition;
