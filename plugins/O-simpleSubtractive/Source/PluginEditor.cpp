@@ -198,20 +198,35 @@ OSimpleSubtractiveAudioProcessorEditor::OSimpleSubtractiveAudioProcessorEditor (
     // v1.7.1 — the backend MUST be named. Backend::defaultBackend is the legacy
     // IE control on Windows, which ignores withWinWebView2Options and has no
     // resource provider, so https://juce.backend/ answered "page not found".
-    // WebView2 user-data folder MUST be a writable temp dir (DAW hosts deny the
-    // default location → silent IE fallback → blank page).
+    // v1.7.4 — the user-data folder lives in the per-user app-data tree (was
+    // %TEMP%, which cleaners wipe and other processes can lock) and is created
+    // here, before WebView2 sees it. DAW hosts deny WebView2's default location.
+    const auto webView2DataFolder = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+                                        .getChildFile ("Ouaricon")
+                                        .getChildFile ("WebView2")
+                                        .getChildFile ("O-simpleSubtractive");
+    webView2DataFolder.createDirectory();
+
     options = options
         .withBackend (juce::WebBrowserComponent::Options::Backend::webview2)
         .withWinWebView2Options (
         juce::WebBrowserComponent::Options::WinWebView2{}
-            .withUserDataFolder (
-                juce::File::getSpecialLocation (juce::File::tempDirectory)
-                    .getChildFile ("OsimpleSubtractive_WebView"))
+            .withUserDataFolder (webView2DataFolder)
             .withStatusBarDisabled()
             .withBuiltInErrorPageDisabled());
+
+    // v1.7.4 — v1.7.1 still showed "page not found" in Reaper: when the WebView2
+    // environment cannot be created (runtime missing or data folder unusable),
+    // JUCE silently constructs the legacy IE control, which has no resource
+    // provider. Probe first and paint a native notice instead of that page.
+    // Audio, parameters and host automation do not depend on the WebView.
+    const bool webView2Available = juce::WebBrowserComponent::areOptionsSupported (options);
+   #else
+    constexpr bool webView2Available = true;
    #endif
 
-    webView = std::make_unique<juce::WebBrowserComponent> (options);
+    if (webView2Available)
+        webView = std::make_unique<juce::WebBrowserComponent> (options);
 
     // 3. ATTACHMENTS (after the WebView; 3-arg ctor + nullptr undoManager) ----
     for (int i = 0; i < sliderIds.size(); ++i)
@@ -234,8 +249,22 @@ OSimpleSubtractiveAudioProcessorEditor::OSimpleSubtractiveAudioProcessorEditor (
                     *param, *comboRelays[(size_t) i], nullptr));
     }
 
-    addAndMakeVisible (*webView);
-    webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
+    // Attachments above stay in place without a WebView: the relays drop their
+    // events while no browser is registered.
+    if (webView != nullptr)
+    {
+        addAndMakeVisible (*webView);
+        webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
+    }
+    else
+    {
+        webView2RuntimeLink = std::make_unique<juce::HyperlinkButton> (
+            "Download the WebView2 Runtime",
+            juce::URL ("https://developer.microsoft.com/microsoft-edge/webview2/"));
+        webView2RuntimeLink->setFont (juce::FontOptions (17.0f, juce::Font::underlined), false);
+        webView2RuntimeLink->setColour (juce::HyperlinkButton::textColourId, juce::Colour (0xff3c5c1a));
+        addAndMakeVisible (*webView2RuntimeLink);
+    }
 
     // v1.7.0 — 1000 tall (was 820): the controls are two rows now (sources /
     // filter / output, then the three modulators), +180px. The headline
@@ -295,13 +324,39 @@ void OSimpleSubtractiveAudioProcessorEditor::timerCallback()
 }
 
 // ── Layout ──────────────────────────────────────────────────────────────────
-void OSimpleSubtractiveAudioProcessorEditor::paint (juce::Graphics&)
+void OSimpleSubtractiveAudioProcessorEditor::paint (juce::Graphics& g)
 {
-    // WebView fills the editor — nothing to paint.
+    // WebView fills the editor — nothing to paint, unless WebView2 could not
+    // start (Windows only, v1.7.4). Paper ground and brown ink from styles.css.
+    if (webView != nullptr)
+        return;
+
+    g.fillAll (juce::Colour (0xfff5e6d3));   // --bg-paper
+
+    auto area = getLocalBounds().withSizeKeepingCentre (juce::jmin (640, getWidth() - 48), 220)
+                                .translated (0, -40);
+
+    g.setColour (juce::Colour (0xff3c2f2f));   // --brown-text
+    g.setFont (juce::FontOptions (26.0f, juce::Font::bold));
+    g.drawFittedText ("O-simpleSubtractive needs Microsoft Edge WebView2",
+                      area.removeFromTop (40), juce::Justification::centred, 2);
+
+    area.removeFromTop (12);
+    g.setColour (juce::Colour (0xff5c4033));   // --brown-soft
+    g.setFont (juce::FontOptions (17.0f));
+    g.drawFittedText ("The interface is drawn with the WebView2 Runtime, which could not start on "
+                      "this computer. Install it, then close and reopen the plugin window.\n"
+                      "The synth itself keeps working: it plays, and host automation still "
+                      "reaches every parameter.",
+                      area.removeFromTop (110), juce::Justification::centred, 5);
 }
 
 void OSimpleSubtractiveAudioProcessorEditor::resized()
 {
     if (webView != nullptr)
         webView->setBounds (getLocalBounds());
+
+    if (webView2RuntimeLink != nullptr)
+        webView2RuntimeLink->setBounds (getLocalBounds().withSizeKeepingCentre (320, 32)
+                                                        .translated (0, 40));
 }

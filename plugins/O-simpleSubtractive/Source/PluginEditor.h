@@ -79,5 +79,9 @@ private:
     std::vector<std::unique_ptr<juce::WebSliderParameterAttachment>>   sliderAttachments;
     std::vector<std::unique_ptr<juce::WebComboBoxParameterAttachment>> comboAttachments;
 
+    // v1.7.4 — Windows only: shown instead of the WebView when WebView2 cannot
+    // start (webView stays null). Null on macOS and whenever the WebView exists.
+    std::unique_ptr<juce::HyperlinkButton> webView2RuntimeLink;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OSimpleSubtractiveAudioProcessorEditor)
 };
