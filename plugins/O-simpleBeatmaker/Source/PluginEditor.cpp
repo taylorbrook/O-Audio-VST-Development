@@ -172,7 +172,8 @@ OSimpleBeatmakerAudioProcessorEditor::OSimpleBeatmakerAudioProcessorEditor (OSim
             complete (processorRef.getCurrentSampleRate());
         })
         // getParameterDefaults() — { paramID: normalisedDefault } map for the knobs'
-        // dblclick-to-default (project pattern: propertiesChanged carries no default).
+        // Alt/Option-click reset (v1.4.2; was double-click, which now opens value
+        // entry). Project pattern: propertiesChanged carries no default.
         .withNativeFunction ("getParameterDefaults", [this] (auto&, auto complete) {
             auto* obj = new juce::DynamicObject();
             for (auto* p : processorRef.getParameters())

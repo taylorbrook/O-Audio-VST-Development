@@ -112,7 +112,7 @@ OSimpleBeatmakerAudioProcessor::createParameterLayout()
     //--- Master (1) --------------------------------------------------------
     params.push_back (std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { outputLevel, 1 }, "Output Level",
-        dbRange(), 0.0f, juce::AudioParameterFloatAttributes().withLabel ("dB")));
+        dbRange(), -6.0f, juce::AudioParameterFloatAttributes().withLabel ("dB")));
 
     return { params.begin(), params.end() };
 }
@@ -481,9 +481,13 @@ void OSimpleBeatmakerAudioProcessor::applyConceptPreset (int index)
     //    5 timing-feel params + grid; without this, stale mute/solo/level/tune
     //    state silently carries into the lesson (a soloed kick makes the "Ghost
     //    Notes" snare inaudible with no visible cause).
+    //    v1.4.2: except the master Output Level, which is USER-OWNED — no preset
+    //    names it either, so loading one leaves the level where the user put it.
+    //    (The per-voice Level knobs stay preset-owned and still reset here.)
     for (auto* prm : getParameters())
         if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (prm))
-            rp->setValueNotifyingHost (rp->getDefaultValue());
+            if (! isUserOwnedParameter (rp->getParameterID()))
+                rp->setValueNotifyingHost (rp->getDefaultValue());
 
     // 1. Timing-feel params, host-notifying. setValueNotifyingHost takes a
     //    NORMALISED 0..1 value, so convert each real value through the param's own

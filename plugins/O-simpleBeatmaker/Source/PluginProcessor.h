@@ -139,6 +139,14 @@ public:
     // (setValueNotifyingHost may take the uncontended parameter lock off-audio).
     void applyConceptPreset (int index);
 
+    /** v1.4.2: parameters that belong to the USER, not to a preset. The master
+        Output Level is a mix control: applyConceptPreset() never resets it and no
+        preset writes it. Session state (get/setStateInformation) still recalls it. */
+    static bool isUserOwnedParameter (const juce::String& paramId)
+    {
+        return paramId == OSimpleBeatmaker::ParamIDs::outputLevel;
+    }
+
     //==========================================================================
     // INTERFACE LANGUAGE (v1.1.0) — the WebView UI's own language preference.
     //
