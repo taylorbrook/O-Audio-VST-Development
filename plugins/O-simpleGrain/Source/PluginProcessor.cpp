@@ -177,7 +177,7 @@ OSimpleGrainAudioProcessor::createParameterLayout()
     // −inf–0 dB master trim. −60 dB floor maps to "−inf" perceptually.
     params.push_back (std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { outputLevel, 1 }, "Output Level",
-        juce::NormalisableRange<float> { -60.0f, 0.0f, 0.1f }, 0.0f,
+        juce::NormalisableRange<float> { -60.0f, 0.0f, 0.1f }, -6.0f,
         juce::AudioParameterFloatAttributes().withLabel ("dB")));
 
     return { params.begin(), params.end() };
@@ -1022,10 +1022,18 @@ void OSimpleGrainAudioProcessor::applyFactoryPreset (const juce::String& name)
         p->endChangeGesture();
     };
 
+    // v1.5.2: Output Level is USER-OWNED — skipped here, and no lesson below
+    // names it, so loading a preset leaves the level where the user put it.
     auto* sourceParam = apvts.getParameter (sourceSample);
     for (auto* p : getParameters())
-        if (p != sourceParam)
-            setGestured (p, p->getDefaultValue());
+    {
+        if (p == sourceParam)
+            continue;
+        if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (p))
+            if (isUserOwnedParameter (ranged->getParameterID()))
+                continue;
+        setGestured (p, p->getDefaultValue());
+    }
 
     // 2. Snapshot helpers (scaled → normalised; choices/bool by index).
     auto setReal = [this, &setGestured] (const char* id, float real) {

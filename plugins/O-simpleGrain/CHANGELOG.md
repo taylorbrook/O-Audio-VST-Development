@@ -3,6 +3,23 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.5.2] — 2026-10-19
+
+### Changed
+
+- **Output level now starts at −6 dB** on new instances and is the last stage of
+  the chain. Lesson presets no longer set it, and loading a preset leaves it
+  where you put it. Saved sessions recall their stored level unchanged.
+- **Double-click a dial to type a value** — Enter or click away applies, Esc
+  cancels. **Alt/Option-click resets** a control to its default. Typed values
+  accept units: `250 ms` / `1.5 s` on envelope times (a bare number keeps the
+  unit on screen), `%` where the readout shows it, `-inf` for the level floor.
+
+### Fixed
+
+- `OSIMPLEGRAIN_VERSION_CODE` in CMakeLists.txt had stayed at 1.5.0
+  (`0x010500`) through 1.5.1; it now matches the version (`0x010502`).
+
 ## [1.5.1] — 2026-10-14
 
 ### Fixed
