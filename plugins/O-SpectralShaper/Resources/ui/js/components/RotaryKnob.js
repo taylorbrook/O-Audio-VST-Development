@@ -158,7 +158,10 @@ export class RotaryKnob {
         // Update value display — the readout and the slider's spoken value are
         // one string, so a screen reader hears exactly what is printed.
         const text = this.formatValue(this.value);
-        this.valueElement.textContent = text;
+        // v1.10.1: skip the readout while app.js's value-entry <input> is open
+        // inside it (writing textContent would wipe the field); the spoken
+        // value still follows.
+        if (this.valueElement.dataset.editing !== '1') this.valueElement.textContent = text;
         this.container.setAttribute('aria-valuetext', text);
     }
 

@@ -248,11 +248,16 @@ const CORE_FNS = {
     stubUiLanguage = code === "fr" ? "fr" : "en";
     return stubUiLanguage;
   },
+  // v1.10.1: NORMALISED defaults keyed by parameter ID, as the C++ fn returns
+  // them (RangedAudioParameter::getDefaultValue), derived from RANGES above.
+  getParameterDefaults: () => Object.fromEntries(Object.entries(RANGES).map(([id, r]) =>
+    [id, Math.pow((r.def - r.start) / (r.end - r.start), r.skew)])),
 };
 
-// Mirrors the SEVENTEEN native functions registered in PluginEditor.cpp:
+// Mirrors the EIGHTEEN native functions registered in PluginEditor.cpp:
 // setAttackCurve + setSustainCurve, setTooltipsEnabled + getTooltipsEnabled,
-// getUiLanguage + setUiLanguage (v1.7.0), and the eleven preset fns (ten
+// getUiLanguage + setUiLanguage (v1.7.0), getParameterDefaults (v1.10.1), and
+// the eleven preset fns (ten
 // fetched by modules/preset-manager.js plus getPresetListGrouped, fetched by
 // app.js for the menu).
 //
