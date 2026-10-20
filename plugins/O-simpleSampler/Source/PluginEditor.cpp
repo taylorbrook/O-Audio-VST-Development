@@ -215,6 +215,17 @@ OSimpleSamplerAudioProcessorEditor::OSimpleSamplerAudioProcessorEditor (OSimpleS
                 processorRef.applyFactoryPreset (args[0].toString());
             complete (juce::var (true));
         })
+        // v1.6.2 — each parameter's TRUE (skew-correct) NORMALISED default, pulled
+        // once at boot. The knobs' Alt/Option-click reset reads it, so the reset
+        // target comes from the C++ NormalisableRange, never a hand-copied JS table
+        // (O-Contrabass / O-GrainScatter WR-11 pattern).
+        .withNativeFunction ("getParameterDefaults", [this] (auto&, auto complete) {
+            juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+            for (auto* param : processorRef.getParameters())
+                if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (param))
+                    obj->setProperty (ranged->getParameterID(), ranged->getDefaultValue());
+            complete (juce::var (obj.get()));
+        })
         // Tooltip visibility (the header "?" chip). A UI preference living in the
         // custom <UI> state child, NOT an APVTS parameter — the parameter count
         // stays at 20 and the concept presets cannot reset it. The page reads it
