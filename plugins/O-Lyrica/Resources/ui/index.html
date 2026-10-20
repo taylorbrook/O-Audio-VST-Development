@@ -670,6 +670,38 @@
             min-width: 50px;
         }
 
+        /* Double-click value entry (ported from O-Prism). The input is overlaid
+           on the readout, which keeps its own text (rendered transparent), so
+           there is no layout shift when entry opens or closes. Colour comes from
+           the readout it replaces (attachValueEntry copies the computed ink);
+           font-family/size must be inherited explicitly — form controls do not
+           inherit fonts on their own. */
+        .knob-value-input {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            padding: 0;
+            margin: 0;
+            border: none;
+            border-bottom: 1px solid currentColor;
+            border-radius: 0;
+            background: transparent;
+            font-family: inherit;
+            font-size: inherit;
+            line-height: normal;
+            text-align: inherit;
+            outline: none;
+            -moz-appearance: textfield;
+        }
+        .knob-value-input::-webkit-outer-spin-button,
+        .knob-value-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
         /* v1.18.1: Footer keyboard - compact 2-octave layout */
         .footer-keyboard {
             display: flex;
@@ -2994,8 +3026,8 @@
         <div class="footer">
             <div class="master-volume">
                 <span class="master-label" data-i18n="label.master">Master</span>
-                <input type="range" id="masterVolume" class="master-slider" min="0" max="1" step="0.001" value="0.909">
-                <span class="master-value" id="masterVolumeValue">0.0 dB</span>
+                <input type="range" id="masterVolume" class="master-slider" min="0" max="1" step="0.001" value="0.818">
+                <span class="master-value" id="masterVolumeValue">-6.0 dB</span>
             </div>
             <!-- v1.18.1: 2-octave keyboard in footer -->
             <div class="footer-keyboard">
@@ -3039,6 +3071,129 @@
     <!-- v1.18.2: Mode buttons removed - library is primary interface -->
     <!-- v1.7.3: Added global handlers for SCL/KBM file operations -->
     <script>
+        // ====================================================================
+        // DOUBLE-CLICK VALUE ENTRY (O-Prism semantics, quick 261019-gk9)
+        // ====================================================================
+        // Defined ONCE, here, as classic-script function declarations so they
+        // are globals: the inline module below (sliders, A4 REF knob) and the
+        // js/app.js module (Effects-tab knobs) both call them.
+
+        // Scaled (C++ parameter units) -> normalised [0,1], reading the LIVE
+        // start/end/skew the WebSliderRelay pushes up from C++ (state.properties),
+        // never a JS range table. Clamping before the pow() is the NaN guard: a
+        // value below `start` would give Math.pow(negative, fractional) = NaN.
+        function scaledToNorm(v, props) {
+            const start = props.start, end = props.end;
+            const skew = props.skew > 0 ? props.skew : 1;
+            if (!(end > start)) return 0;
+            const t = Math.min(1, Math.max(0, (v - start) / (end - start)));
+            return skew === 1 ? t : Math.pow(t, skew);
+        }
+
+        // Opens an inline editor over a readout. parse(text, currentText) turns
+        // typed text into a SCALED value or null (reject); render() re-draws the
+        // readout from live state. Enter/blur commits, Esc cancels, text equal
+        // to what was shown is never written back, and a commit is one host
+        // gesture (sliderDragStarted -> setNormalisedValue -> sliderDragEnded).
+        function attachValueEntry(valueEl, state, parse, render) {
+            if (!valueEl || !state || typeof parse !== 'function') return;
+            if (valueEl.dataset.editing === '1') return;   // already open
+
+            const currentText = valueEl.textContent;
+            const prevPosition = valueEl.style.position;
+            const prevColor = valueEl.style.color;
+            // Read the ink BEFORE hiding the readout, or `inherit` would resolve
+            // to the transparent it is about to become.
+            const inkColor = getComputedStyle(valueEl).color;
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'knob-value-input';
+            input.value = currentText;
+            input.spellcheck = false;
+            input.autocomplete = 'off';
+            input.style.color = inkColor;
+
+            // The readout keeps its text (transparent) so its box keeps its size.
+            valueEl.dataset.editing = '1';
+            valueEl.style.position = 'relative';
+            valueEl.style.color = 'transparent';
+            valueEl.appendChild(input);
+            input.focus();
+            input.select();
+
+            let closed = false;
+            const close = () => {
+                if (closed) return;
+                closed = true;
+                delete valueEl.dataset.editing;
+                input.remove();
+                valueEl.style.position = prevPosition;
+                valueEl.style.color = prevColor;
+                // Re-render from live state: the parameter may have moved (host
+                // automation, preset load) while readout writes were suppressed.
+                if (typeof render === 'function') render();
+            };
+
+            const commit = () => {
+                if (closed) return;
+                if (input.value === currentText) { close(); return; }
+                const props = state.properties || {};
+                const scaled = /^\s*(-\s*)?(inf|off)\s*$/i.test(input.value)
+                    ? props.start
+                    : parse(input.value, currentText);
+                if (scaled !== null && scaled !== undefined && isFinite(scaled)) {
+                    // setNormalisedValue() snaps to `interval` and clamps itself.
+                    state.sliderDragStarted();
+                    state.setNormalisedValue(scaledToNorm(scaled, props));
+                    state.sliderDragEnded();
+                }
+                close();
+            };
+
+            input.addEventListener('keydown', (e) => {
+                e.stopPropagation();   // keep digits off the QWERTY keyboard
+                if (e.key === 'Enter') { e.preventDefault(); commit(); }
+                else if (e.key === 'Escape') { e.preventDefault(); close(); }
+            });
+            input.addEventListener('blur', commit);
+            // Never start a slider/knob drag or reach global handlers from here.
+            ['pointerdown', 'mousedown', 'dblclick', 'wheel'].forEach((t) =>
+                input.addEventListener(t, (e) => e.stopPropagation()));
+        }
+
+        // ── Parsers: display text -> SCALED (C++-unit) value, or null ──
+        // First signed decimal in the string, or null.
+        function numOf(t) {
+            const m = String(t).match(/-?\d*\.?\d+/);
+            if (!m) return null;
+            const v = parseFloat(m[0]);
+            return isFinite(v) ? v : null;
+        }
+        // Display already IS the scaled value (dB, st, Hz, n/s, Q, plain ms).
+        function parseDirect(t) { return numOf(t); }
+        // Display is the scaled value x100 (percent readouts on 0..1 / -1..1).
+        function parsePercent(t) {
+            const v = numOf(t);
+            return v === null ? null : v / 100;
+        }
+        // Hz readouts: a bare number is Hz, `k` means kHz.
+        function parseFreq(t) {
+            const v = numOf(t);
+            if (v === null) return null;
+            return /k/i.test(String(t)) ? v * 1000 : v;
+        }
+        // SECONDS-scaled params whose readout reads ms (or flips ms/s): an
+        // explicit unit wins, a bare number inherits the unit on screen.
+        function parseSeconds(t, currentText) {
+            const v = numOf(t);
+            if (v === null) return null;
+            const s = String(t);
+            if (/ms/i.test(s)) return v / 1000;   // before /s/ — "ms" contains "s"
+            if (/s/i.test(s)) return v;
+            return /ms/i.test(String(currentText || '')) ? v / 1000 : v;
+        }
+
         // Store current tuning mode globally for module access
         // v1.18.2: Default to Custom mode (1) since library is now primary
         window.currentTuningMode = 1;
@@ -3473,12 +3628,15 @@
         // ====================================================================
         // WR-07: normalised parameter defaults, fetched once from the C++ getParameterDefaults
         // native fn (the JUCE WebSlider `properties` payload carries no default). Populated
-        // asynchronously at startup; double-click-reset handlers read it by reference.
+        // asynchronously at startup; Alt/Option-click reset handlers read it by reference.
         let paramDefaults = {};
         (async () => {
             try {
                 const defs = await window.JuceAPI.getNativeFunction('getParameterDefaults')();
                 if (defs && typeof defs === 'object') paramDefaults = defs;
+                // Shared with js/app.js (Effects-tab Alt/Option-click reset), so
+                // the defaults are fetched once for the whole page.
+                window.__paramDefaults = paramDefaults;
             } catch (e) {
                 console.warn('getParameterDefaults failed:', e);
             }
@@ -3490,6 +3648,16 @@
         // (masterVolume was off by up to 24 dB, sympatheticQ ~2× at the midpoint, etc.). Percent
         // knobs whose range is 0–1 read identically; the rest just label the true scaled value.
         const pct = s => `${Math.round(s * 100)}%`;
+        // Value-entry parsers (typed text -> scaled C++ value). Anything not
+        // listed is a 0..1 (or -1..1) param shown as a percentage.
+        const sliderParsers = {
+            masterVolume: parseDirect,              // dB
+            decayTime: parseSeconds,                // s, reads ms below 1 s
+            sympatheticQ: parseDirect,              // "Q 5.0"
+            glissandoSpeed: parseDirect,            // n/s
+            glissandoCustomSemitones: parseDirect,  // st
+            glissandoTime: parseSeconds,            // scaled s, reads ms
+        };
         const sliderParams = [
             { id: 'masterVolume', format: s => `${s.toFixed(1)} dB` },      // range -60..6 dB
             { id: 'brightness', format: pct },
@@ -3532,9 +3700,14 @@
 
                 // Bind slider to JUCE (WR-08: display the skew-aware scaled value; the HTML range
                 // input itself stays in normalised 0–1 space).
+                // Readout writer; skipped while the value entry is open over it.
+                const renderReadout = () => {
+                    if (valueDisplay.dataset.editing !== '1')
+                        valueDisplay.textContent = param.format(sliderState.getScaledValue());
+                };
                 sliderState.valueChangedEvent.addListener(() => {
                     slider.value = sliderState.getNormalisedValue();
-                    valueDisplay.textContent = param.format(sliderState.getScaledValue());
+                    renderReadout();
                 });
 
                 // User interaction
@@ -3542,24 +3715,47 @@
                     sliderState.setNormalisedValue(parseFloat(slider.value));
                 });
 
-                slider.addEventListener('mousedown', () => sliderState.sliderDragStarted());
-                slider.addEventListener('mouseup', () => sliderState.sliderDragEnded());
+                // Alt/Option-click resets to the C++ default as ONE gesture.
+                // The native range drag starts on mousedown, so this is a CAPTURE
+                // mousedown registered BEFORE the drag listener below, with
+                // stopImmediatePropagation(); preventDefault() also stops the
+                // native thumb jump (and so the 'input' write).
+                slider.addEventListener('mousedown', (e) => {
+                    if (!e.altKey) return;
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    const d = paramDefaults[param.id];
+                    if (!(typeof d === 'number' && isFinite(d))) return;
+                    sliderState.sliderDragStarted();
+                    sliderState.setNormalisedValue(d);
+                    sliderState.sliderDragEnded();
+                }, true);
+
+                // mouseup ends only a gesture this mousedown started: an
+                // Alt-click reset (which cancels the mousedown above) must not
+                // send an unmatched sliderDragEnded.
+                let mouseGesture = false;
+                slider.addEventListener('mousedown', () => { mouseGesture = true; sliderState.sliderDragStarted(); });
+                slider.addEventListener('mouseup', () => {
+                    if (!mouseGesture) return;
+                    mouseGesture = false;
+                    sliderState.sliderDragEnded();
+                });
                 slider.addEventListener('touchstart', () => sliderState.sliderDragStarted());
                 slider.addEventListener('touchend', () => sliderState.sliderDragEnded());
 
-                // Double-click to reset. WR-07: the JUCE WebSlider `properties` payload has NO
-                // defaultValue field, so the old `properties.defaultValue` was undefined →
-                // setNormalisedValue(undefined) → NaN pushed to the backend. Use the normalised
-                // defaults fetched from the getParameterDefaults native fn (see paramDefaults below).
-                slider.addEventListener('dblclick', () => {
-                    const d = paramDefaults[param.id];
-                    if (typeof d === 'number' && isFinite(d))
-                        sliderState.setNormalisedValue(d);
-                });
+                // Double-click (slider or its readout) opens value entry; it never
+                // writes the parameter itself. Alt/Option-click resets (above),
+                // to the paramDefaults value (WR-07: SliderState has no default).
+                const parse = sliderParsers[param.id] || parsePercent;
+                [slider, valueDisplay].forEach((el) => el.addEventListener('dblclick', (e) => {
+                    if (e.altKey) return;
+                    attachValueEntry(valueDisplay, sliderState, parse, renderReadout);
+                }));
 
                 // Initialize display (WR-08: scaled value)
                 slider.value = sliderState.getNormalisedValue();
-                valueDisplay.textContent = param.format(sliderState.getScaledValue());
+                renderReadout();
             } catch (e) {
                 console.warn(`Slider binding failed for ${param.id}:`, e);
             }
@@ -4842,8 +5038,12 @@
             // Range: -135 to +135 degrees (270 degree sweep)
             const angle = -135 + normalizedValue * 270;
             refPitchIndicator.style.transform = `translateX(-50%) rotate(${angle}deg)`;
-            // Display Hz value (415-465 Hz range)
-            const hz = 415 + normalizedValue * 50;
+            // Display the TRUE scaled Hz from the C++ range (400..480). The old
+            // `415 + norm * 50` mirrored a 415..465 range that C++ never had, so
+            // the readout misreported the pitch by up to 15 Hz at the ends.
+            // Skipped while the value entry is open over this readout.
+            if (refPitchValue.dataset.editing === '1') return;
+            const hz = masterTuneState ? masterTuneState.getScaledValue() : 440;
             refPitchValue.textContent = `${hz.toFixed(1)} Hz`;
         }
 
@@ -4855,6 +5055,20 @@
             });
             updateKnobVisual(masterTuneState.getNormalisedValue());
         }
+
+        // Alt/Option-click resets A4 to its C++ default as ONE gesture. The drag
+        // listener sits on this same (outermost) element, so this is registered
+        // FIRST, on the capture phase, with stopImmediatePropagation().
+        refPitchKnob.addEventListener('mousedown', (e) => {
+            if (!e.altKey) return;
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            const d = paramDefaults['masterTune'];
+            if (!masterTuneState || !(typeof d === 'number' && isFinite(d))) return;
+            masterTuneState.sliderDragStarted();
+            masterTuneState.setNormalisedValue(d);
+            masterTuneState.sliderDragEnded();
+        }, true);
 
         refPitchKnob.addEventListener('mousedown', (e) => {
             knobDragging = true;
@@ -4883,13 +5097,13 @@
             }
         });
 
-        // Double-click to reset to 440 Hz (center)
-        refPitchKnob.addEventListener('dblclick', () => {
-            if (masterTuneState) {
-                masterTuneState.setNormalisedValue(0.5);
-            }
-            updateKnobVisual(0.5);
-        });
+        // Double-click (knob or readout) opens value entry in Hz; it never
+        // writes the parameter itself. Alt/Option-click resets (above).
+        [refPitchKnob, refPitchValue].forEach((el) => el.addEventListener('dblclick', (e) => {
+            if (e.altKey || !masterTuneState) return;
+            attachValueEntry(refPitchValue, masterTuneState, parseDirect,
+                             () => updateKnobVisual(masterTuneState.getNormalisedValue()));
+        }));
 
         // ====================================================================
         // Tuning Mode State (v1.18.2: Mode buttons removed, state kept for backend sync)

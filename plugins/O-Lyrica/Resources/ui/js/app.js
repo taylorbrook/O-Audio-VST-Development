@@ -235,16 +235,24 @@ function bindSlider(paramId, updateDisplay) {
         // Get slider state from JUCE bridge
         const sliderState = Juce.getSliderState(paramId);
 
+        // Every readout write goes through here and is skipped while the
+        // double-click value entry is open over `<paramId>Value` (otherwise the
+        // open input would be wiped; attachValueEntry re-renders on close).
+        const readout = document.getElementById(paramId + 'Value');
+        const show = updateDisplay
+            ? (v) => { if (!(readout && readout.dataset.editing === '1')) updateDisplay(v); }
+            : null;
+
         // Initialize element with current value
         const initialValue = sliderState.getNormalisedValue();
         element.value = initialValue;
-        if (updateDisplay) updateDisplay(initialValue);
+        if (show) show(initialValue);
 
         // Update JUCE when element changes (UI → C++)
         element.addEventListener('input', (e) => {
             const value = parseFloat(e.target.value);
             sliderState.setNormalisedValue(value);
-            if (updateDisplay) updateDisplay(value);
+            if (show) show(value);
         });
 
         // Update element when JUCE changes (C++ → UI, automation, preset load)
@@ -252,7 +260,7 @@ function bindSlider(paramId, updateDisplay) {
         sliderState.valueChangedEvent.addListener(() => {
             const value = sliderState.getNormalisedValue();
             element.value = value;
-            if (updateDisplay) updateDisplay(value);
+            if (show) show(value);
         });
 
         console.log(`Slider bound: ${paramId}`);
@@ -580,9 +588,12 @@ function addFxKnob(containerId, id) {
 }
 
 /**
- * Bind an SVG knob to a JUCE slider state with drag, wheel, and double-click editing
+ * Bind an SVG knob to a JUCE slider state with drag, wheel, double-click value
+ * entry and Alt/Option-click reset. `parse` converts typed readout text back to
+ * the SCALED (C++-unit) value; attachValueEntry/parse* are page globals defined
+ * once in index.html's classic script.
  */
-function setupFxKnob(id, sliderState, displayMin, displayMax, suffix, formatter) {
+function setupFxKnob(id, sliderState, displayMin, displayMax, suffix, formatter, parse = parseDirect) {
     if (!sliderState) {
         console.error(`Failed to get slider state for ${id}`);
         return;
@@ -596,7 +607,6 @@ function setupFxKnob(id, sliderState, displayMin, displayMax, suffix, formatter)
 
     const r = parseFloat(vine.getAttribute('r'));
     const arcLength = 2 * Math.PI * r * 0.75;
-    let isEditing = false;
 
     function updateVisual() {
         const normValue = sliderState.getNormalisedValue();
@@ -606,8 +616,8 @@ function setupFxKnob(id, sliderState, displayMin, displayMax, suffix, formatter)
         const offset = arcLength - (normValue * arcLength);
         vine.style.strokeDashoffset = offset;
 
-        // Update value display (skip when user is editing)
-        if (!isEditing) {
+        // Update value display (skip while the value entry is open over it)
+        if (valueDisplay.dataset.editing !== '1') {
             valueDisplay.textContent = formatter(realValue) + suffix;
         }
     }
@@ -617,6 +627,22 @@ function setupFxKnob(id, sliderState, displayMin, displayMax, suffix, formatter)
 
     // UI -> JUCE (drag on knob-visual)
     const knobVisual = knobEl.querySelector('.knob-visual');
+
+    // Alt/Option-click resets to the C++ default as ONE gesture. CAPTURE phase
+    // on the knob root, an ancestor of the drag target, so it runs first and
+    // cancels the drag outright. Defaults: index.html's getParameterDefaults
+    // fetch, shared as window.__paramDefaults.
+    knobEl.addEventListener('mousedown', (e) => {
+        if (!e.altKey) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const d = (window.__paramDefaults || {})[id];
+        if (!(typeof d === 'number' && isFinite(d))) return;
+        sliderState.sliderDragStarted();
+        sliderState.setNormalisedValue(d);
+        sliderState.sliderDragEnded();
+    }, true);
+
     (knobVisual || knobEl).addEventListener('mousedown', (e) => {
         fxKnobDrag.active = true;
         fxKnobDrag.state = sliderState;
@@ -646,54 +672,14 @@ function setupFxKnob(id, sliderState, displayMin, displayMax, suffix, formatter)
     // dataset.i18nAria write is also what assertion 15 collects as a reference.
     valueDisplay.dataset.i18nAria = 'aria.valueEdit';
     applyI18nAttributes(valueDisplay);
-    valueDisplay.addEventListener('dblclick', (e) => {
+    // Double-click on the dial or its readout opens value entry (O-Prism
+    // semantics: live skew, one gesture, untouched text never written). It
+    // never writes the parameter itself; Alt/Option-click resets.
+    [valueDisplay, knobEl].forEach((el) => el.addEventListener('dblclick', (e) => {
         e.stopPropagation();
-        if (isEditing) return;
-        isEditing = true;
-
-        const normValue = sliderState.getNormalisedValue();
-        const realValue = displayMin + (normValue * (displayMax - displayMin));
-        const formatted = formatter(realValue);
-
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.value = formatted;
-        input.style.cssText = `
-            width: 45px; text-align: center; font-size: 9px;
-            color: var(--brown); background: rgba(var(--cornsilk-rgb), 0.9);
-            border: 1px solid var(--walnut); border-radius: 3px;
-            padding: 1px 2px; outline: none; user-select: text;
-            -webkit-user-select: text;
-        `;
-
-        valueDisplay.textContent = '';
-        valueDisplay.appendChild(input);
-        input.focus();
-        input.select();
-
-        function commitValue() {
-            if (!isEditing) return;
-            const rawVal = parseFloat(input.value);
-            if (!isNaN(rawVal)) {
-                const clamped = Math.max(displayMin, Math.min(displayMax, rawVal));
-                const norm = (clamped - displayMin) / (displayMax - displayMin);
-                sliderState.sliderDragStarted();
-                sliderState.setNormalisedValue(Math.max(0, Math.min(1, norm)));
-                sliderState.sliderDragEnded();
-            }
-            isEditing = false;
-            updateVisual();
-        }
-
-        input.addEventListener('keydown', (ev) => {
-            if (ev.key === 'Enter') { ev.preventDefault(); commitValue(); }
-            else if (ev.key === 'Escape') { isEditing = false; updateVisual(); }
-        });
-
-        input.addEventListener('blur', () => {
-            if (isEditing) commitValue();
-        });
-    });
+        if (e.altKey) return;
+        attachValueEntry(valueDisplay, sliderState, parse, updateVisual);
+    }));
 }
 
 // v2.4.0: populateFxKnobs() is GONE. It took a table of {id, label} pairs and
@@ -815,21 +801,21 @@ function initializeEffects() {
 
         // --- Setup knobs with display ranges ---
         setupFxKnob('chorusRate',      chorusRateState,     0.1, 10, ' Hz', v => v.toFixed(2));
-        setupFxKnob('chorusDepth',     chorusDepthState,    0, 100, '%', v => Math.round(v));
-        setupFxKnob('chorusMix',       chorusMixState,      0, 100, '%', v => Math.round(v));
-        setupFxKnob('delayTime',       delayTimeState,      1, 2000, ' ms', v => Math.round(v));
-        setupFxKnob('delayFeedback',   delayFeedbackState,  0, 95, '%', v => Math.round(v));
-        setupFxKnob('delayMix',        delayMixState,       0, 100, '%', v => Math.round(v));
+        setupFxKnob('chorusDepth',     chorusDepthState,    0, 100, '%', v => Math.round(v), parsePercent);
+        setupFxKnob('chorusMix',       chorusMixState,      0, 100, '%', v => Math.round(v), parsePercent);
+        setupFxKnob('delayTime',       delayTimeState,      1, 2000, ' ms', v => Math.round(v), parseSeconds);
+        setupFxKnob('delayFeedback',   delayFeedbackState,  0, 95, '%', v => Math.round(v), parsePercent);
+        setupFxKnob('delayMix',        delayMixState,       0, 100, '%', v => Math.round(v), parsePercent);
         setupFxKnob('eqLowGain',       eqLowGainState,      -12, 12, ' dB', v => v.toFixed(1));
         setupFxKnob('eqMidGain',       eqMidGainState,      -12, 12, ' dB', v => v.toFixed(1));
-        setupFxKnob('eqMidFreq',       eqMidFreqState,      200, 8000, ' Hz', v => Math.round(v));
+        setupFxKnob('eqMidFreq',       eqMidFreqState,      200, 8000, ' Hz', v => Math.round(v), parseFreq);
         setupFxKnob('eqHighGain',      eqHighGainState,     -12, 12, ' dB', v => v.toFixed(1));
-        setupFxKnob('reverbSize',      reverbSizeState,     0, 100, '%', v => Math.round(v));
-        setupFxKnob('reverbDamp',      reverbDampState,     0, 100, '%', v => Math.round(v));
+        setupFxKnob('reverbSize',      reverbSizeState,     0, 100, '%', v => Math.round(v), parsePercent);
+        setupFxKnob('reverbDamp',      reverbDampState,     0, 100, '%', v => Math.round(v), parsePercent);
         setupFxKnob('reverbPredelay',  reverbPredelayState, 0, 200, ' ms', v => Math.round(v));
-        setupFxKnob('reverbMod',       reverbModState,      0, 100, '%', v => Math.round(v));
-        setupFxKnob('reverbShimmer',   reverbShimmerState,  0, 100, '%', v => Math.round(v));
-        setupFxKnob('reverbMix',       reverbMixState,      0, 100, '%', v => Math.round(v));
+        setupFxKnob('reverbMod',       reverbModState,      0, 100, '%', v => Math.round(v), parsePercent);
+        setupFxKnob('reverbShimmer',   reverbShimmerState,  0, 100, '%', v => Math.round(v), parsePercent);
+        setupFxKnob('reverbMix',       reverbMixState,      0, 100, '%', v => Math.round(v), parsePercent);
 
         // --- Delay mode dropdown ---
         const modeSelect = document.getElementById('delayModeSelect');

@@ -2,6 +2,19 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.6.1] — 2026-10-19
+
+### Changed
+
+- **Output level now starts at −6 dB** on new instances (Master Volume) and is the last stage of the chain. Loading a preset now leaves it where you put it (preset loads used to reset it to the default). Saved sessions recall their stored level unchanged.
+- **Master volume changes are now smoothed** (20 ms ramp) — no zipper noise when you move it or automate it.
+- **Double-click a dial to type a value** — Enter or click away applies, Esc cancels. **Alt/Option-click resets** a control to its default (this was double-click). Applies to every slider (including Master), the A4 REF knob and every Effects-tab knob and readout. Typed values honour the parameter's real range and skew and accept units (`500ms`, `1.2s`, `2k`, `40%`, `-inf`); the old Effects-tab editor's linear decode is gone.
+
+### Fixed
+
+- **A4 REF readout shows the real tuning.** It mapped the knob onto 415–465 Hz while the parameter spans 400–480 Hz, so away from 440 it misreported the pitch by up to 15 Hz.
+- An Alt-click reset on a slider no longer sends the host an unmatched end-of-gesture.
+
 ## [2.6.0] - 2026-09-26
 
 **Every active caption now meets WCAG AA on the real paper, nothing renders
