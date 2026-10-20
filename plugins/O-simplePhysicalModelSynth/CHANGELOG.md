@@ -3,6 +3,19 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.4.2] — 2026-10-19
+
+### Changed
+
+- **Factory presets no longer set Output Level, and loading a preset leaves it
+  where you put it** (its −6 dB default is unchanged, and it stays the last stage
+  of the chain). User presets saved by earlier versions still carry a level;
+  it is ignored on load. Saved sessions recall their stored level unchanged.
+- **Double-click a dial to type a value** — Enter or click away applies, Esc
+  cancels. **Alt/Option-click resets** a control to its default. Typed values
+  accept `250 ms` / `1.2 s` on Attack and Release (a bare number keeps the unit
+  on screen), `st` / `c` on the tuning knobs, `-inf` for the level floor.
+
 ## [1.4.1] - 2026-10-14
 
 ### Fixed

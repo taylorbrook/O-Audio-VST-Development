@@ -172,6 +172,21 @@ OSimplePhysicalModelSynthAudioProcessor::OSimplePhysicalModelSynthAudioProcessor
     // converted to normalized in FactoryPresets::build via convertTo0to1.
     presetManager.initializeFactoryPresets (FactoryPresets::build (parameters));
 
+    // v1.4.2: Output Level is user-owned (isUserOwnedParameter). The suite preset
+    // manager (shared module, not edited here) resets every parameter to its
+    // default and then applies the preset; its migration hook runs BEFORE both,
+    // so pinning each user-owned key to the param's LIVE normalised value makes
+    // every load path (loadPreset, loadPresetFromFile, applyPresetData) net to no
+    // change. Covers user presets / stale factory files that still carry the key.
+    // Session restore goes through setStateFromXml -> replaceState, not this hook.
+    presetManager.setMigrationCallback ([this] (juce::DynamicObject& presetParams, const juce::String&)
+    {
+        for (auto* param : getParameters())
+            if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (param))
+                if (isUserOwnedParameter (ranged->getParameterID()))
+                    presetParams.setProperty (ranged->getParameterID(), ranged->getValue());
+    });
+
     // Pre-allocate all voices up front (no audio-thread allocation later). Each
     // voice carries its index so its noise generators get a deterministic seed.
     for (int i = 0; i < kNumVoices; ++i)

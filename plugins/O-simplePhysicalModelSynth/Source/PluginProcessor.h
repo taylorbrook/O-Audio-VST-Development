@@ -137,6 +137,15 @@ public:
     // fns to this (D4). Factory set is seeded in Stage 4; the shell is wired now.
     OuariconPresetManager& getPresetManager() noexcept { return presetManager; }
 
+    /** v1.4.2: parameters that belong to the USER, not to a preset. Output Level
+        is a mix control: no factory preset names it, and the preset-manager
+        migration hook (constructor) pins it to its live value on every preset
+        load. Session state (get/setStateInformation) still recalls it. */
+    static bool isUserOwnedParameter (const juce::String& paramId)
+    {
+        return paramId == ParamIDs::outputLevel;
+    }
+
     // On-screen keyboard: editor injects note on/off from the WebView (any thread).
     // Queued via a MidiMessageCollector and merged into processBlock's MIDI stream.
     void handleUiMidi (int noteNumber, bool noteOn, float velocity);
