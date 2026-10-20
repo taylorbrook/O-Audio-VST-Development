@@ -41,7 +41,7 @@
     The native-function surface is exactly TWENTY (v1.18.0 A/B + Randomise
     added four, v1.20.0 getPresetCategories one, v1.21.0 removed the Mix-lock
     pair):
-      - getParameterDefaults  (dblclick-reset)
+      - getParameterDefaults  (Alt-click reset)
       - getWindowCurve        (the v1.4.0 envelope display)
       - getGrainMeter         (the v1.3.0 COUNT readout, polled)
       - getUiLanguage / setUiLanguage (the persisted UI language)

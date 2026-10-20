@@ -277,14 +277,14 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
         options = options.withOptionsFrom (*relay);
 
     // ── NATIVE FUNCTIONS — exactly 20 (15 below + A/B 4 + categories 1) ───
-    // 1 for dblclick-reset + 1 for the v1.3.0 grain meter + 1 for v1.4.0's
+    // 1 for Alt-click reset + 1 for the v1.3.0 grain meter + 1 for v1.4.0's
     // window-shape curve + v1.9.0's getUiLanguage/setUiLanguage pair + the 10
     // that js/preset-manager.js fetches. The count is grep-diffed against app.js +
     // preset-manager.js at the Stage-4 gate: an unregistered fn leaves its
     // control silently dead while build, auval and pluginval all pass
     // (pattern_webview_native_fn_bridge_gap).
 
-    // Dblclick-reset needs each parameter's default in ENGINEERING units: the
+    // Alt-click reset needs each parameter's default in ENGINEERING units: the
     // properties payload pushed to the page carries start/end/skew but no
     // default, and a hardcoded JS default table would drift from the C++
     // NormalisableRange (pattern_webview_knob_readout_scaled_value). The page

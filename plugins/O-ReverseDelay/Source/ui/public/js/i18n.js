@@ -848,10 +848,13 @@ export const LABELS = Object.freeze({
     // 560 px box and wrapped to two lines with the clause added, so it was re-cut:
     // "verticalement" and "pour ajuster" go, glossary roots fin / réinitialiser
     // stay. Measured 526 px, one line, at 940 × 768.
-    'label.footer':    { en: { t: 'Drag vertically · shift for fine · wheel or arrows to trim · double-click to reset' },
-                         fr: { t: 'Glisser · Maj pour un réglage fin · molette ou flèches · double-clic pour réinitialiser', reviewed: false } ,
+    // gk9 (v1.22.3): double-click now types a value and Alt-click resets. All
+    // three re-cut to keep one line in the 560 px box: en 483 px ("vertically"
+    // and "to trim" go), fr 493 px (colon form, NBSP before each colon), zh 362 px.
+    'label.footer':    { en: { t: 'Drag · shift for fine · wheel or arrows · double-click to type · alt-click to reset' },
+                         fr: { t: 'Glisser · Maj : fin · molette ou flèches · double-clic : saisir · alt-clic : réinitialiser', reviewed: false } ,
 
-        'zh-Hans': { t: '垂直拖动 · 按住 Shift 精调 · 滚轮或方向键微调 · 双击重置',
+        'zh-Hans': { t: '垂直拖动 · 按住 Shift 精调 · 滚轮或方向键微调 · 双击输入数值 · Alt 点击重置',
               reviewed: 'mt' },
     },
 

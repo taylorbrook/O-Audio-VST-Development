@@ -4,6 +4,15 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.22.3] — 2026-10-19
+
+### Changed
+
+- **Double-click a dial to type a value** — Enter or click away applies, Esc cancels. **Alt/Option-click resets** a control to its default (this was double-click). Double-clicking the readout under a dial opens the same field. Arrow keys, the wheel and Shift fine-drag are unchanged.
+- Typed values use the readout's own units and words. Times are in ms; an explicit `s` works (`1.25 s` = 1250 ms), and on Delay Time a bare number takes the unit on screen. Filters accept `k` (`2.5k` = 2500 Hz). Grain Tilt takes `centre` or a signed %, and Direction takes `reverse` / `forward`. Duck, Drift Depth, Diffusion and Drive take `off`.
+- The footer hint is re-cut in all three languages so it still fits on one line in its 560 px box: "Drag · shift for fine · wheel or arrows · double-click to type · alt-click to reset".
+- `tests/ui_frontend_check.js` section 5 now pins the new gestures: one capture-phase Alt-click listener calls the bracketed `resetToDefault`, which reads `paramDefaults[id]`, and every knob double-click opens `attachValueEntry` and writes nothing itself.
+
 ## [1.22.2] — 2026-10-14
 
 ### Fixed
