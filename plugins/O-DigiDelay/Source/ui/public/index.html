@@ -464,6 +464,35 @@
       text-align: center;
     }
 
+    /* Double-click value entry (1.9.2, O-Prism contract): overlaid on the
+     readout, which keeps its text (transparent) so nothing shifts. Form
+     controls do not inherit fonts on their own — hence the two inherits. */
+    .knob-value-input {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      padding: 0;
+      margin: 0;
+      border: none;
+      border-bottom: 1px solid currentColor;
+      border-radius: 0;
+      background: transparent;
+      font-family: inherit;
+      font-size: inherit;
+      line-height: normal;
+      text-align: inherit;
+      outline: none;
+      -moz-appearance: textfield;
+    }
+    .knob-value-input::-webkit-outer-spin-button,
+    .knob-value-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
     /* ============================================
        TOGGLE BUTTON (SYNC)
        ============================================ */
@@ -1269,6 +1298,156 @@
       catch { return 0; }
     }
 
+    // ─── DOUBLE-CLICK VALUE ENTRY (v1.9.2) ───
+    // Ported from O-Prism (index.html scaledToNorm / attachValueEntry /
+    // parsers). Double-click a dial or its readout to type a value; Enter or
+    // blur commits, Esc cancels. Alt/Option-click resets instead.
+
+    // Scaled (C++ units) -> normalised [0,1], from the LIVE start/end/skew
+    // the relay pushes up in state.properties — never a JS range table.
+    // Clamp BEFORE the pow(): a negative base with a fractional skew is NaN,
+    // and that NaN would ride setNormalisedValue() into the parameter.
+    function scaledToNorm(v, props) {
+      const start = props.start, end = props.end;
+      const skew = props.skew > 0 ? props.skew : 1;
+      if (!(end > start)) return 0;
+      const t = Math.min(1, Math.max(0, (v - start) / (end - start)));
+      return skew === 1 ? t : Math.pow(t, skew);
+    }
+
+    // Opens an inline editor over a readout. formatFn(norm) renders the
+    // readout text; formatFn.parse(text, currentText) returns a SCALED value
+    // or null to reject. Untouched text is never written back.
+    function attachValueEntry(valueEl, state, formatFn) {
+      if (!valueEl || !state) return;
+      if (typeof formatFn !== 'function' || typeof formatFn.parse !== 'function') return;
+      if (valueEl.dataset.editing === '1') return;   // already open
+
+      const currentText = valueEl.textContent;
+      const prevPosition = valueEl.style.position;
+      const prevColor = valueEl.style.color;
+      // Read the ink BEFORE hiding the readout — `inherit` on the input
+      // would otherwise resolve to the transparent colour set below.
+      const inkColor = getComputedStyle(valueEl).color;
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'knob-value-input';
+      input.value = currentText;
+      input.spellcheck = false;
+      input.autocomplete = 'off';
+      input.style.color = inkColor;
+
+      // The readout keeps its text (transparent) so its box keeps its size
+      // and the knob column does not shift; the input is overlaid on it.
+      valueEl.dataset.editing = '1';
+      valueEl.style.position = 'relative';
+      valueEl.style.color = 'transparent';
+      valueEl.appendChild(input);
+      input.focus();
+      input.select();
+
+      let closed = false;
+
+      const close = () => {
+        if (closed) return;
+        closed = true;
+        delete valueEl.dataset.editing;
+        input.remove();
+        valueEl.style.position = prevPosition;
+        valueEl.style.color = prevColor;
+        // Re-render from live state: automation or a preset may have
+        // moved the parameter while readout writes were suppressed.
+        valueEl.textContent = formatFn(state.getNormalisedValue());
+      };
+
+      const commit = () => {
+        if (closed) return;
+        // Readouts are rounded for display; re-writing untouched text
+        // would quantise the parameter to the rounding.
+        if (input.value === currentText) { close(); return; }
+        const scaled = formatFn.parse(input.value, currentText);
+        if (scaled !== null && isFinite(scaled)) {
+          // setNormalisedValue() snaps to the interval and clamps.
+          state.sliderDragStarted();
+          state.setNormalisedValue(scaledToNorm(scaled, state.properties || {}));
+          state.sliderDragEnded();
+        }
+        close();
+      };
+
+      input.addEventListener('keydown', (e) => {
+        // Keep digits away from any global key handling while open.
+        e.stopPropagation();
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        else if (e.key === 'Escape') { e.preventDefault(); close(); }
+      });
+      input.addEventListener('blur', commit);
+      // Clicking into the field must never start a knob drag underneath it.
+      input.addEventListener('pointerdown', (e) => e.stopPropagation());
+      input.addEventListener('mousedown', (e) => e.stopPropagation());
+      input.addEventListener('dblclick', (e) => e.stopPropagation());
+      input.addEventListener('wheel', (e) => e.stopPropagation());
+    }
+
+    // ─── VALUE-ENTRY PARSERS ───
+    // Display text -> SCALED value (C++ units), or null to reject.
+
+    // First signed decimal in the string, or null if there isn't one.
+    const numOf = (t) => {
+      const m = String(t).match(/-?\d*\.?\d+/);
+      if (!m) return null;
+      const v = parseFloat(m[0]);
+      return isFinite(v) ? v : null;
+    };
+
+
+    // Feedback / Spread / Mod / Wet / Dry are scaled 0..100 in C++ and read
+    // "%", so the display already IS the scaled value.
+    const parseDirect = (t) => numOf(t);
+
+    // Time is scaled in MILLISECONDS (1..2000) and always reads "ms". A bare
+    // number is ms; an explicit "s" (not "ms") means seconds.
+    const parseMs = (t) => {
+      const v = numOf(t);
+      if (v === null) return null;
+      const s = String(t);
+      return (/s/i.test(s) && !/ms/i.test(s)) ? v * 1000 : v;
+    };
+
+    // Synced Time reads a division name ("1/8D", "1/16(5)"). Match it
+    // case-insensitively; a bare "8" / "8d" / "8t" / "8(5)" means "1/8…".
+    const parseDivision = (t) => {
+      const s = String(t).trim().toLowerCase().replace(/\s+/g, '');
+      if (!s) return null;
+      let i = musicalDivisions.findIndex((d) => d.name.toLowerCase() === s);
+      if (i < 0 && /^\d+([dt]|\(5\))?$/.test(s))
+        i = musicalDivisions.findIndex((d) => d.name.toLowerCase() === '1/' + s);
+      return i < 0 ? null : i;
+    };
+
+    // `division` is a ComboBoxState, not a SliderState. This adapter exposes
+    // the five members attachValueEntry uses (its "scaled" value is the choice
+    // index), so the entry function stays unchanged. setChoiceIndex() is one
+    // complete gesture on the C++ side (WebComboBoxParameterAttachment), so
+    // the drag pair is a no-op — and, as for the sync drag (WR-06), nothing
+    // opens a gesture on `time`.
+    const LAST_DIVISION = musicalDivisions.length - 1;
+    const divisionEntryState = (divisionState) => ({
+      properties: { start: 0, end: LAST_DIVISION, skew: 1 },
+      getNormalisedValue: () => getChoiceIndexSafe(divisionState) / LAST_DIVISION,
+      setNormalisedValue: (n) => {
+        try { divisionState.setChoiceIndex(Math.round(Math.min(1, Math.max(0, n)) * LAST_DIVISION)); } catch {}
+      },
+      sliderDragStarted() {},
+      sliderDragEnded() {}
+    });
+
+    // Skew-correct NORMALISED C++ defaults, keyed by parameter ID, for the
+    // Alt-click reset (v1.9.2, O-Contrabass pattern). Filled once at boot;
+    // until then the reset is a no-op — never a guessed 0.5.
+    let paramDefaults = {};
+
     // Global drag state
     const dragState = { isDragging: false, target: null, startY: 0, startValue: 0 };
 
@@ -1288,6 +1467,15 @@
         wheelGestures.delete(sliderState);
         if (sliderState.sliderDragEnded) sliderState.sliderDragEnded();
       }, WHEEL_GESTURE_MS));
+    }
+
+    // Close an open wheel gesture now rather than 150 ms later — the value
+    // entry opens its own gesture and the two must not overlap.
+    function endWheelGesture(sliderState) {
+      if (!sliderState || !wheelGestures.has(sliderState)) return;
+      clearTimeout(wheelGestures.get(sliderState));
+      wheelGestures.delete(sliderState);
+      if (sliderState.sliderDragEnded) sliderState.sliderDragEnded();
     }
 
     document.addEventListener('mousemove', (e) => {
@@ -1424,11 +1612,38 @@
         const norm = sliderState.getNormalisedValue();
         if (!primed) { primed = true; snapArc(paramId, norm); }
         animState.targets[paramId].target = norm;
-        if (formatFn) {
+        // Skip while the value-entry <input> is open inside the readout.
+        if (formatFn && valueDisplay.dataset.editing !== '1') {
           valueDisplay.textContent = formatFn(min + (norm * (max - min)));
         }
         startAnim();
       });
+
+      // Value entry renderer (formatFn(norm) contract, reads live state).
+      const entryFmt = () => formatFn(min + (sliderState.getNormalisedValue() * (max - min)));
+      entryFmt.parse = parseDirect;
+
+      // Alt/Option-click resets to the C++ default (v1.9.2; was nothing).
+      // CAPTURE phase on the knob root, an ancestor of the .knob-visual drag
+      // target, so it runs first and cancels the drag outright. One gesture.
+      knobEl.addEventListener('mousedown', (e) => {
+        if (!e.altKey) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const d = paramDefaults[paramId];
+        if (typeof d !== 'number') return;
+        sliderState.sliderDragStarted();
+        sliderState.setNormalisedValue(d);
+        sliderState.sliderDragEnded();
+      }, true);
+
+      // Double-click the dial or its readout to type a value. Never writes
+      // the parameter itself.
+      [knobEl, valueDisplay].forEach((el) => el.addEventListener('dblclick', (e) => {
+        if (e.altKey) return;
+        endWheelGesture(sliderState);
+        attachValueEntry(valueDisplay, sliderState, entryFmt);
+      }));
 
       // Drag
       const knobVisual = knobEl.querySelector('.knob-visual');
@@ -1475,6 +1690,15 @@
       let syncNormalized = 0;
 
       const getDivisionIndex = () => getChoiceIndexSafe(divisionState);
+      const timeText = (norm) => `${Math.round(1.0 + norm * 1999.0)} ms`;
+      const isSync = () => !!(syncState?.getValue() && divisionState);
+
+      // Value entry: Time in ms, or the division name when synced.
+      const timeFmt = (n) => timeText(n);
+      timeFmt.parse = parseMs;
+      const divEntry = divisionState ? divisionEntryState(divisionState) : null;
+      const divFmt = () => musicalDivisions[Math.max(0, Math.min(LAST_DIVISION, getDivisionIndex()))].name;
+      divFmt.parse = parseDivision;
 
       const updateVisual = () => {
         if (!backendReady(timeState)) return;   // IN-08: markup default stands
@@ -1482,13 +1706,15 @@
         primed = true;
         if (syncState?.getValue() && divisionState) {
           const divIndex = Math.max(0, Math.min(11, getDivisionIndex()));
-          valueDisplay.textContent = musicalDivisions[divIndex].name;
+          if (valueDisplay.dataset.editing !== '1')
+            valueDisplay.textContent = musicalDivisions[divIndex].name;
           syncNormalized = divIndex / 11;
           animState.targets.time.target = syncNormalized;
         } else {
           const normalized = timeState.getNormalisedValue();
           animState.targets.time.target = normalized;
-          valueDisplay.textContent = `${Math.round(1.0 + normalized * 1999.0)} ms`;
+          if (valueDisplay.dataset.editing !== '1')
+            valueDisplay.textContent = timeText(normalized);
         }
         if (snap) snapArc('time', animState.targets.time.target);
         startAnim();
@@ -1498,6 +1724,34 @@
       timeState.valueChangedEvent.addListener(updateVisual);
       divisionState?.valueChangedEvent.addListener(updateVisual);
       updateVisual();
+
+      // Alt/Option-click resets to the C++ default (v1.9.2; was nothing):
+      // the division when synced (a complete gesture on `division` only, as
+      // the sync drag), else Time inside one gesture. CAPTURE phase on the
+      // knob root, an ancestor of the drag target, so no drag starts.
+      knobEl.addEventListener('mousedown', (e) => {
+        if (!e.altKey) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (isSync()) {
+          const d = paramDefaults.division;
+          if (typeof d === 'number') divEntry.setNormalisedValue(d);
+          return;
+        }
+        const d = paramDefaults.time;
+        if (typeof d !== 'number') return;
+        timeState.sliderDragStarted();
+        timeState.setNormalisedValue(d);
+        timeState.sliderDragEnded();
+      }, true);
+
+      // Double-click the dial or its readout to type a value.
+      [knobEl, valueDisplay].forEach((el) => el.addEventListener('dblclick', (e) => {
+        if (e.altKey) return;
+        endWheelGesture(timeState);
+        if (isSync()) attachValueEntry(valueDisplay, divEntry, divFmt);
+        else attachValueEntry(valueDisplay, timeState, timeFmt);
+      }));
 
       // Drag
       const knobVisual = knobEl.querySelector('.knob-visual');
@@ -1630,6 +1884,10 @@
     }
 
     document.addEventListener("DOMContentLoaded", () => {
+      getNativeFunction('getParameterDefaults')()
+        .then((d) => { paramDefaults = d || {}; })
+        .catch((e) => console.warn('getParameterDefaults failed:', e));
+
       setupLEDMeter();
 
       setupToggle();
@@ -2090,9 +2348,10 @@
         // the same rule and is drivable from a test with real events: any
         // keydown clears it.
         //
-        // There is no double-click value editor on this page — no
-        // .knob-value-input, no <input> inside any anchor — so the specific
-        // suppression O-Emulator needed has no target here and none was added.
+        // v1.9.2 added a double-click value editor (.knob-value-input), but it
+        // only ever opens from a pointer gesture, which sets the latch below —
+        // so its <input> never gets a focus tip and the specific suppression
+        // O-Emulator needed is still not required here.
         // #lang-select is a form control AND an anchor, and its keyboard tip is
         // the accessibility half of this feature, so a general "inputs are
         // exempt" rule would have been wrong anyway.

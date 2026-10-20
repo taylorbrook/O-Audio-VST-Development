@@ -5,6 +5,13 @@ All notable changes to this plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.2] — 2026-10-19
+
+### Changed
+
+- **Double-click a dial to type a value** — Enter or click away applies, Esc cancels. **Alt/Option-click resets** a control to its default (neither gesture did anything before). Time takes ms (or `1.2 s`); with Sync on it takes a division name (`1/8D`, `1/16(5)`, or just `8T`), and Alt-click resets the division.
+- The Alt-click default comes from the plugin itself through a new `getParameterDefaults` native function, so it always matches the parameter's real default.
+
 ## [1.9.1] - 2026-10-04
 
 Readability pass. UI only; no parameter, range, preset or state change.
