@@ -319,8 +319,9 @@ OSimpleReverbAudioProcessorEditor::OSimpleReverbAudioProcessorEditor(OSimpleReve
     //                    isFactoryPreset
     // Arguments are untrusted: types are checked here and every path completes.
 
-    // dblclick reset: the relay's properties carry start / end / skew but no
-    // default, and a JS default table would drift from C++. Engineering units.
+    // Alt-click reset (v3.0.1; was double-click): the relay's properties carry
+    // start / end / skew but no default, and a JS default table would drift
+    // from C++. Engineering units.
     options = options.withNativeFunction("getParameterDefaults",
         [this](auto&, auto complete)
         {
