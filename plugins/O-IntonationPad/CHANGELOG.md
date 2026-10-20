@@ -1,5 +1,15 @@
 # O-IntonationPad Changelog
 
+## [2.11.1] - 2026-10-19
+
+### Changed
+- **Master volume now starts at −6 dB** (linear 0.501187, which the 0.01 step lands on 0.50 = −6.02 dB) on new instances; it stays the last stage of the chain, after the reverb, through the existing 20 ms smoother. Factory presets no longer set it, loading a preset leaves it where you put it, and saving a user preset no longer stores it. Saved sessions recall their stored level unchanged. Range and parameter ID are unchanged.
+- **Double-click a dial to type a value** — now on the dial itself as well as its readout, with O-Prism semantics: the field overlays the readout without shifting the layout, Enter or click away applies, Esc cancels, and re-entering the text on screen changes nothing. Volume takes dB (converted to its linear gain; `-inf` / `off` = silence), Hz knobs take `k`, ms knobs take an explicit `s`. **Alt/Option-click resets** a dial to its default (new — there was no reset gesture before).
+
+### Notes
+- New `getParameterDefaults` native function serves the C++ normalised defaults for the Alt-click reset.
+- `PresetManager::isUserOwnedParameter()` (masterVolume): factory-preset XML keeps the live value instead of resetting it, preset loads overwrite (or add) the user-owned PARAM with the live value before `setStateInformation`, and user-preset saves drop it. Eleven factory presets set masterVolume between 0.75 and 0.9; those values are gone (a voicing follow-up, not a gain fix).
+
 ## [2.11.0] - 2026-09-27
 
 **Every active caption now meets WCAG AA on the ground it actually sits on,

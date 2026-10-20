@@ -63,6 +63,15 @@ public:
     // Called when parameters change (clears preset name if dirty)
     void markDirty() { isDirty = true; }
 
+    // gk9 (D-01): parameters the user owns. A preset load never resets or
+    // writes them, a factory preset never names them, and a saved user preset
+    // never stores them. Session state (get/setStateInformation) still recalls
+    // them.
+    static bool isUserOwnedParameter(const juce::String& paramId)
+    {
+        return paramId == "masterVolume";
+    }
+
 private:
     OIntonationPadAudioProcessor& processorRef;
     juce::String currentPresetName { "Init" };
@@ -88,6 +97,10 @@ private:
 
     // Build full state XML from factory preset definition
     juce::String buildFactoryPresetXml(const FactoryPresetData& preset) const;
+
+    // gk9: overwrite (or add) every user-owned PARAM in a preset's state XML
+    // with the live value, so applying it nets to no change for those params.
+    void pinUserOwnedParameters(juce::XmlElement& stateXml) const;
 
     // Build ordered flat list for navigation
     std::vector<PresetInfo> buildFlatList();

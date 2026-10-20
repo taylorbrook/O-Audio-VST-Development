@@ -560,6 +560,17 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
         })
 
         // --- v2.7.0: Preset System ---
+        // gk9: { paramId: normalisedDefault } for every parameter (the
+        // O-Contrabass WR-11 shape) — the UI's Alt/Option-click reset target,
+        // skew-correct, never a hand-mirrored JS table.
+        .withNativeFunction("getParameterDefaults", [this](const juce::Array<juce::var>&, auto complete) {
+            juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+            for (auto* param : processorRef.getParameters())
+                if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(param))
+                    obj->setProperty(ranged->getParameterID(), ranged->getDefaultValue());
+            complete(juce::var(obj.get()));
+        })
+
         .withNativeFunction("getPresetList", [this](const juce::Array<juce::var>&, auto complete) {
             auto presets = processorRef.getPresetManager().getAllPresets();
             JsonHelper::JsonArrayBuilder arr;

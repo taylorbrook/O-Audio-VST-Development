@@ -1349,6 +1349,132 @@ function setupPresetSystem() {
     }
 }
 
+// ════════════════════════════════════════════════════════════════════
+// gk9: DOUBLE-CLICK VALUE ENTRY (ported from O-Prism attachValueEntry)
+// ════════════════════════════════════════════════════════════════════
+// Scaled (C++ units) -> normalised [0,1], reading the live start/end/skew the
+// WebSliderRelay pushes from C++ (never a JS range table). Clamps BEFORE the
+// pow(): a value below `start` gives a negative base, and Math.pow(negative,
+// fractional skew) is NaN — which would stick in the parameter.
+function scaledToNorm(v, props) {
+    const start = props.start, end = props.end;
+    const skew = props.skew > 0 ? props.skew : 1;
+    if (!(end > start)) return 0;
+    const t = Math.min(1, Math.max(0, (v - start) / (end - start)));
+    return skew === 1 ? t : Math.pow(t, skew);
+}
+
+// Opens an inline editor over a readout. formatFn(norm) renders the readout;
+// formatFn.parse(text, currentText) returns a SCALED value or null to reject.
+// Enter/blur commits, Esc cancels, untouched text is never written back, and
+// "-inf" / "off" land on the range start.
+function attachValueEntry(valueEl, state, formatFn) {
+    if (!valueEl || !state) return;
+    if (typeof formatFn !== 'function' || typeof formatFn.parse !== 'function') return;
+    if (valueEl.dataset.editing === '1') return;   // already open
+
+    const currentText = valueEl.textContent;
+    const prevPosition = valueEl.style.position;
+    const prevColor = valueEl.style.color;
+    // Read the ink before the readout goes transparent.
+    const inkColor = getComputedStyle(valueEl).color;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'knob-value-input';
+    input.value = currentText;
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+    input.style.color = inkColor;
+
+    // The readout keeps its text (transparent) so its box does not change size.
+    valueEl.dataset.editing = '1';
+    valueEl.style.position = 'relative';
+    valueEl.style.color = 'transparent';
+    valueEl.appendChild(input);
+    input.focus();
+    input.select();
+
+    let closed = false;
+    const close = () => {
+        if (closed) return;
+        closed = true;
+        delete valueEl.dataset.editing;
+        input.remove();
+        valueEl.style.position = prevPosition;
+        valueEl.style.color = prevColor;
+        // Re-render from live state (automation / preset may have moved it).
+        valueEl.textContent = formatFn(state.getNormalisedValue());
+    };
+
+    const commit = () => {
+        if (closed) return;
+        if (input.value === currentText) { close(); return; }
+        const props = state.properties || {};
+        const scaled = /^\s*([-−]?\s*(inf(inity)?|∞)|off)\s*(db)?\s*$/i.test(input.value)
+            ? props.start
+            : formatFn.parse(input.value, currentText);
+        if (scaled !== null && scaled !== undefined && isFinite(scaled)) {
+            // setNormalisedValue() snaps to the interval and clamps.
+            state.sliderDragStarted();
+            state.setNormalisedValue(scaledToNorm(scaled, props));
+            state.sliderDragEnded();
+        }
+        close();
+    };
+
+    input.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        else if (e.key === 'Escape') { e.preventDefault(); close(); }
+    });
+    input.addEventListener('blur', commit);
+    // Never start a drag (or reach a document handler) from inside the field.
+    input.addEventListener('pointerdown', (e) => e.stopPropagation());
+    input.addEventListener('mousedown', (e) => e.stopPropagation());
+    input.addEventListener('dblclick', (e) => e.stopPropagation());
+    input.addEventListener('wheel', (e) => e.stopPropagation());
+}
+
+// Value-entry parsers: display text -> SCALED value (C++ units), or null.
+// First signed decimal; U+2212 (the readouts' typographic minus) counts as '-'.
+const numOf = (t) => {
+    const m = String(t).replace(/−/g, '-').match(/-?\d*\.?\d+/);
+    if (!m) return null;
+    const v = parseFloat(m[0]);
+    return isFinite(v) ? v : null;
+};
+// Display already IS the scaled value (dB, Hz, ¢, ms, m/s, N, plain numbers).
+const parseDirect = (t) => numOf(t);
+// Display is the scaled value x100 (percent readouts on 0..1 params).
+const parsePercent = (t) => {
+    const v = numOf(t);
+    return v === null ? null : v / 100;
+};
+// Hz readouts that switch to kHz: "k" multiplies by 1000, a bare number is Hz.
+const parseFreq = (t) => {
+    const v = numOf(t);
+    if (v === null) return null;
+    return /k/i.test(String(t)) ? v * 1000 : v;
+};
+// Seconds-scaled readouts: an explicit "ms" divides by 1000, an explicit "s"
+// wins, and a bare number inherits the unit on screen.
+const parseSeconds = (t, currentText) => {
+    const v = numOf(t);
+    if (v === null) return null;
+    const s = String(t);
+    if (/ms/i.test(s)) return v / 1000;    // before /s/ — "ms" contains "s"
+    if (/s/i.test(s)) return v;
+    return /ms/i.test(String(currentText || '')) ? v / 1000 : v;
+};
+
+// Skew-correct NORMALISED defaults from C++ (getParameterDefaults), fetched
+// once at boot — the Alt/Option-click reset target. Never a JS-side constant.
+let paramDefaults = {};
+Juce.getNativeFunction('getParameterDefaults')()
+    .then((d) => { paramDefaults = d || {}; })
+    .catch((e) => console.warn('getParameterDefaults failed:', e));
+
 // Global knob drag state — one pair of document-level listeners for all knobs
 const knobDrag = { active: false, state: null, lastY: 0, virtualNorm: 0 };
 
@@ -1396,8 +1522,6 @@ function setupKnob(paramId, state, dispMin, dispMax, unit, formatter, opts) {
     const r = parseFloat(vine.getAttribute('r'));
     const arcLength = 2 * Math.PI * r * 0.75;
 
-    let isEditing = false;
-
     // Scaled engineering value (C++ range) -> displayed number
     function scaledToDisplay(scaled) {
         if (isDb) return scaled > 1e-4 ? (20 * Math.log10(scaled)) : -Infinity;
@@ -1411,13 +1535,6 @@ function setupKnob(paramId, state, dispMin, dispMax, unit, formatter, opts) {
         const { start, end } = state.properties;
         if (dispMax === dispMin) return start;
         return start + ((disp - dispMin) / (dispMax - dispMin)) * (end - start);
-    }
-    // Scaled engineering value -> normalised [0,1] (skew-aware, matches JUCE)
-    function scaledToNorm(scaled) {
-        const { start, end, skew } = state.properties;
-        if (end === start) return 0;
-        const frac = Math.max(0, Math.min(1, (scaled - start) / (end - start)));
-        return Math.pow(frac, skew);
     }
     function formatDisplay(scaled) {
         const disp = scaledToDisplay(scaled);
@@ -1433,8 +1550,9 @@ function setupKnob(paramId, state, dispMin, dispMax, unit, formatter, opts) {
         const offset = arcLength - (normValue * arcLength);
         vine.style.strokeDashoffset = offset;
 
-        // Update value display (skip when user is editing)
-        if (!isEditing) {
+        // Update value display (skip while an entry field is open — textContent
+        // would wipe the <input> living inside the readout)
+        if (valueDisplay.dataset.editing !== '1') {
             valueDisplay.textContent = formatDisplay(state.getScaledValue());
         }
     }
@@ -1444,8 +1562,42 @@ function setupKnob(paramId, state, dispMin, dispMax, unit, formatter, opts) {
     // Re-render once the backend pushes the real range (start/end/skew)
     state.propertiesChangedEvent.addListener(() => updateVisual());
 
+    // gk9: entry formatter (renders from live state) + parser (display text ->
+    // SCALED value). The display maps linearly onto the C++ range (s -> ms,
+    // gain -> %), so the typed number goes back through displayToScaled().
+    // Master Volume reads dB but is a LINEAR gain in C++: 10^(dB/20), clamped
+    // to the 0..1.26 range ("-inf" / "off" -> 0, handled by attachValueEntry).
+    const entryFmt = () => formatDisplay(state.getScaledValue());
+    entryFmt.parse = (t) => {
+        let v = numOf(t);
+        if (v === null) return null;
+        const u = unit.trim().toLowerCase();
+        if (u === 'hz' && /k/i.test(String(t))) v *= 1000;           // "1.2k" = 1200 Hz
+        if (u === 'ms' && /\d\s*s\b/i.test(String(t))) v *= 1000;   // explicit "1.5 s"
+        if (isDb) {
+            const { start, end } = state.properties;
+            return Math.max(start, Math.min(end, Math.pow(10, v / 20)));
+        }
+        return displayToScaled(v);
+    };
+
     // UI -> JUCE (drag on knob-visual)
     const knobVisual = knobEl.querySelector('.knob-visual');
+
+    // gk9: Alt/Option-click resets to the C++ default as one gesture. CAPTURE
+    // phase on the knob (an ancestor of .knob-visual, whose mousedown starts
+    // the drag) so it runs first and cancels the drag outright. The drag is
+    // mouse-based, so this is mousedown too.
+    knobEl.addEventListener('mousedown', (e) => {
+        if (!e.altKey) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const def = paramDefaults[paramId];
+        if (typeof def !== 'number') return;
+        state.sliderDragStarted();
+        state.setNormalisedValue(def);
+        state.sliderDragEnded();
+    }, true);
     (knobVisual || knobEl).addEventListener('mousedown', (e) => {
         knobDrag.active = true;
         knobDrag.state = state;
@@ -1466,7 +1618,7 @@ function setupKnob(paramId, state, dispMin, dispMax, unit, formatter, opts) {
 
     updateVisual();
 
-    // Double-click to edit knob value
+    // Double-click (dial or readout) opens inline value entry (O-Prism semantics).
     valueDisplay.style.cursor = 'text';
     // NOT a native title=. On a page with a measure-then-pin renderer a native
     // title renders a second, untranslated OS tooltip over the tip (contract
@@ -1475,57 +1627,14 @@ function setupKnob(paramId, state, dispMin, dispMax, unit, formatter, opts) {
     applyI18nAttributes(valueDisplay);
     valueDisplay.addEventListener('dblclick', (e) => {
         e.stopPropagation();
-        if (isEditing) return;
-        isEditing = true;
-
-        const initDisp = scaledToDisplay(state.getScaledValue());
-        const formatted = isFinite(initDisp)
-            ? (formatter ? formatter(initDisp) : initDisp.toFixed(1))
-            : '';
-
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.value = formatted;
-        input.style.cssText = `
-            width: 50px; text-align: center; font-size: 10px;
-            font-family: var(--font-serif); font-weight: bold;
-            color: var(--brown); background: rgba(var(--cornsilk-rgb), 0.9);
-            border: 1px solid var(--walnut); border-radius: 3px;
-            padding: 1px 2px; outline: none; user-select: text;
-            -webkit-user-select: text;
-        `;
-
-        valueDisplay.textContent = '';
-        valueDisplay.appendChild(input);
-        input.focus();
-        input.select();
-
-        function commitValue() {
-            if (!isEditing) return;
-            const rawVal = parseFloat(input.value);
-            if (!isNaN(rawVal)) {
-                // display -> scaled -> normalised (skew-aware inverse)
-                let scaled = displayToScaled(rawVal);
-                const { start, end } = state.properties;
-                const lo = Math.min(start, end), hi = Math.max(start, end);
-                scaled = Math.max(lo, Math.min(hi, scaled));
-                const norm = scaledToNorm(scaled);
-                state.sliderDragStarted();
-                state.setNormalisedValue(Math.max(0, Math.min(1, norm)));
-                state.sliderDragEnded();
-            }
-            isEditing = false;
-            updateVisual();
-        }
-
-        input.addEventListener('keydown', (ev) => {
-            if (ev.key === 'Enter') { ev.preventDefault(); commitValue(); }
-            else if (ev.key === 'Escape') { isEditing = false; updateVisual(); }
-        });
-
-        input.addEventListener('blur', () => {
-            if (isEditing) commitValue();
-        });
+        if (e.altKey) return;
+        attachValueEntry(valueDisplay, state, entryFmt);
+    });
+    knobEl.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        if (e.altKey) return;
+        e.preventDefault();
+        attachValueEntry(valueDisplay, state, entryFmt);
     });
 }
 
