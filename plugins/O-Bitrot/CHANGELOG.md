@@ -2,6 +2,12 @@
 
 All notable changes to O-Bitrot are documented here.
 
+## [1.17.3] — 2026-10-19
+
+### Fixed
+
+- **Clicking another dial now applies a typed value.** With a value-entry field open, pressing on a different dial left the field open and its readout frozen. The press now applies the typed value and closes the field before the new drag starts.
+
 ## [1.17.2] — 2026-10-19
 
 ### Changed
