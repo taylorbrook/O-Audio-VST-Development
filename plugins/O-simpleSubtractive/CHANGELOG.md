@@ -3,6 +3,24 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.7.4] — 2026-10-20
+
+### Fixed
+
+- **Windows: no more "page not found" when WebView2 cannot start.** v1.7.1
+  selected the WebView2 backend, but if the WebView2 environment cannot be
+  created on a machine (runtime not installed, or its data folder unusable),
+  JUCE silently builds the legacy IE control instead. That control has no
+  resource provider, so the page still came up "not found" (reported in
+  Reaper). The editor now probes with `WebBrowserComponent::areOptionsSupported`
+  first; when WebView2 is unavailable it paints a native notice with a link to
+  the Microsoft Edge WebView2 Runtime instead. Audio, parameters and host
+  automation are unaffected.
+- **WebView2 data folder moved out of `%TEMP%`.** It is now
+  `%APPDATA%\Ouaricon\WebView2\O-simpleSubtractive`, created before WebView2
+  starts, so temp cleaners and locked temp folders cannot stop the UI loading.
+  macOS (WKWebView) and the DSP are unchanged.
+
 ## [1.7.3] — 2026-10-19
 
 ### Fixed
