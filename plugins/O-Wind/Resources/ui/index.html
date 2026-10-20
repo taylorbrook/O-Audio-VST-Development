@@ -534,6 +534,38 @@
             min-height: 14px;
         }
 
+        /* Double-click value entry (ported from O-Prism). The input is overlaid
+           on the readout, which keeps its own text (rendered transparent), so
+           there is no layout shift when entry opens or closes. Colour comes from
+           the readout it replaces (attachValueEntry copies the computed ink);
+           font-family/size must be inherited explicitly — form controls do not
+           inherit fonts on their own. */
+        .knob-value-input {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            padding: 0;
+            margin: 0;
+            border: none;
+            border-bottom: 1px solid currentColor;
+            border-radius: 0;
+            background: transparent;
+            font-family: inherit;
+            font-size: inherit;
+            line-height: normal;
+            text-align: inherit;
+            outline: none;
+            -moz-appearance: textfield;
+        }
+        .knob-value-input::-webkit-outer-spin-button,
+        .knob-value-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
         /* ====================================================================
            Toggle Control
            ==================================================================== */
@@ -2146,7 +2178,7 @@
             growl:           { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
             width:           { min: 0, max: 2, default: 1, unit: '', decimals: 2 },
             formant:         { min: 0, max: 1, default: 0.5, unit: '', decimals: 2 },
-            outputLevel:     { min: -60, max: 12, default: 0, unit: ' dB', decimals: 1 },
+            outputLevel:     { min: -60, max: 12, default: -6, unit: ' dB', decimals: 1 },
             infiniteSustain: { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
             reversedJet:     { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
             subHarmonics:    { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
@@ -2258,7 +2290,161 @@
 
         // Readouts use SliderState.getScaledValue() — the C++ NormalisableRange
         // pushed via propertiesChanged is the single source of truth. PARAMS is
-        // kept only for decimals/units and double-click reset defaults.
+        // kept only for decimals/units and Alt/Option-click reset defaults.
+
+        // ====================================================================
+        // DOUBLE-CLICK VALUE ENTRY (O-Prism semantics, quick 261019-gk9)
+        // ====================================================================
+
+        // Scaled (C++ parameter units) -> normalised [0,1], reading the LIVE
+        // start/end/skew the WebSliderRelay pushes up from C++ (state.properties),
+        // never a JS range table. Clamping before the pow() is the NaN guard: a
+        // value below `start` would give Math.pow(negative, fractional) = NaN.
+        function scaledToNorm(v, props) {
+            const start = props.start, end = props.end;
+            const skew = props.skew > 0 ? props.skew : 1;
+            if (!(end > start)) return 0;
+            const t = Math.min(1, Math.max(0, (v - start) / (end - start)));
+            return skew === 1 ? t : Math.pow(t, skew);
+        }
+
+        // Opens an inline editor over a readout. parse(text, currentText) turns
+        // typed text into a SCALED value or null (reject); render() re-draws the
+        // readout from live state. Enter/blur commits, Esc cancels, text equal
+        // to what was shown is never written back, and a commit is one host
+        // gesture (sliderDragStarted -> setNormalisedValue -> sliderDragEnded).
+        function attachValueEntry(valueEl, state, parse, render) {
+            if (!valueEl || !state || typeof parse !== 'function') return;
+            if (valueEl.dataset.editing === '1') return;   // already open
+
+            const currentText = valueEl.textContent;
+            const prevPosition = valueEl.style.position;
+            const prevColor = valueEl.style.color;
+            // Read the ink BEFORE hiding the readout, or `inherit` would resolve
+            // to the transparent it is about to become.
+            const inkColor = getComputedStyle(valueEl).color;
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'knob-value-input';
+            input.value = currentText;
+            input.spellcheck = false;
+            input.autocomplete = 'off';
+            input.style.color = inkColor;
+
+            // The readout keeps its text (transparent) so its box keeps its size.
+            valueEl.dataset.editing = '1';
+            valueEl.style.position = 'relative';
+            valueEl.style.color = 'transparent';
+            valueEl.appendChild(input);
+            input.focus();
+            input.select();
+
+            let closed = false;
+            const close = () => {
+                if (closed) return;
+                closed = true;
+                delete valueEl.dataset.editing;
+                input.remove();
+                valueEl.style.position = prevPosition;
+                valueEl.style.color = prevColor;
+                // Re-render from live state: the parameter may have moved (host
+                // automation, preset load) while readout writes were suppressed.
+                if (typeof render === 'function') render();
+            };
+
+            const commit = () => {
+                if (closed) return;
+                if (input.value === currentText) { close(); return; }
+                const props = state.properties || {};
+                const scaled = /^\s*(-\s*)?(inf|off)\s*$/i.test(input.value)
+                    ? props.start
+                    : parse(input.value, currentText);
+                if (scaled !== null && scaled !== undefined && isFinite(scaled)) {
+                    // setNormalisedValue() snaps to `interval` and clamps itself.
+                    state.sliderDragStarted();
+                    state.setNormalisedValue(scaledToNorm(scaled, props));
+                    state.sliderDragEnded();
+                }
+                close();
+            };
+
+            input.addEventListener('keydown', (e) => {
+                e.stopPropagation();   // keep digits off the QWERTY keyboard
+                if (e.key === 'Enter') { e.preventDefault(); commit(); }
+                else if (e.key === 'Escape') { e.preventDefault(); close(); }
+            });
+            input.addEventListener('blur', commit);
+            // Never start a slider/knob drag or reach global handlers from here.
+            ['pointerdown', 'mousedown', 'dblclick', 'wheel'].forEach((t) =>
+                input.addEventListener(t, (e) => e.stopPropagation()));
+        }
+
+        // ── Parsers: display text -> SCALED (C++-unit) value, or null ──
+        // First signed decimal in the string, or null.
+        const numOf = (t) => {
+            const m = String(t).match(/-?\d*\.?\d+/);
+            if (!m) return null;
+            const v = parseFloat(m[0]);
+            return isFinite(v) ? v : null;
+        };
+        // Display already IS the scaled value (dB, ct, st, ms on ms params, %
+        // on 0..100 params, plain Hz).
+        const parseDirect = (t) => numOf(t);
+        // Display is the scaled value x100 (percent readouts on 0..1 params).
+        const parsePercent = (t) => {
+            const v = numOf(t);
+            return v === null ? null : v / 100;
+        };
+        // Hz readouts that switch to kHz: a bare number is Hz, `k` means kHz.
+        const parseFreq = (t) => {
+            const v = numOf(t);
+            if (v === null) return null;
+            return /k/i.test(String(t)) ? v * 1000 : v;
+        };
+        // SECONDS-scaled params whose readout flips ms/s: an explicit unit
+        // wins, a bare number inherits the unit on screen.
+        const parseSeconds = (t, currentText) => {
+            const v = numOf(t);
+            if (v === null) return null;
+            const s = String(t);
+            if (/ms/i.test(s)) return v / 1000;   // before /s/ — "ms" contains "s"
+            if (/s/i.test(s)) return v;
+            return /ms/i.test(String(currentText || '')) ? v / 1000 : v;
+        };
+        // MILLISECOND-scaled params whose readout flips to s above 1000 ms.
+        const parseMillis = (t, currentText) => {
+            const v = numOf(t);
+            if (v === null) return null;
+            const s = String(t);
+            if (/ms/i.test(s)) return v;
+            if (/s/i.test(s)) return v * 1000;
+            return /ms/i.test(String(currentText || '')) ? v : v * 1000;
+        };
+        // 0..1 params displayed as a linear ms map (bloom speeds: lo..hi ms).
+        const parseMsMap = (lo, hi) => (t, currentText) => {
+            const ms = parseMillis(t, currentText || 'ms');
+            return ms === null ? null : (ms - lo) / (hi - lo);
+        };
+        // Choice params drawn as sliders: option text (case-insensitive,
+        // prefix allowed), else a number taken as the index (snapped).
+        const parseChoice = (options) => (t) => {
+            const s = String(t).trim().toLowerCase();
+            if (!s) return null;
+            let i = options.findIndex((o) => o.toLowerCase() === s);
+            if (i < 0) i = options.findIndex((o) => o.toLowerCase().startsWith(s));
+            if (i >= 0) return i;
+            const v = numOf(s);
+            return v === null ? null : Math.round(v);
+        };
+
+        // Normalised parameter defaults from C++ (getParameterDefaults), for the
+        // Effects-tab knobs' Alt/Option-click reset — those have no PARAMS row.
+        const paramDefaults = {};
+        Juce.getNativeFunction('getParameterDefaults')().then((defs) => {
+            if (defs && typeof defs === 'object') Object.assign(paramDefaults, defs);
+        }).catch(() => {});
+
 
         // ====================================================================
         // Slider Parameter Binding (JUCE WebSliderRelay)
@@ -2302,19 +2488,48 @@
                 const state = Juce.getSliderState(paramName);
                 sliderStates[paramName] = state;
 
+                // Readout writer; skipped while the value entry is open over it.
+                const valueEl = control.querySelector('.knob-value');
+                const renderReadout = () => {
+                    if (valueEl.dataset.editing !== '1')
+                        valueEl.textContent = formatValue(paramName, state.getScaledValue());
+                };
+
                 // Initialize visual
                 updateKnobVisual(control, state.getNormalisedValue());
-                control.querySelector('.knob-value').textContent = formatValue(paramName, state.getScaledValue());
+                renderReadout();
 
                 // JUCE -> UI
                 state.valueChangedEvent.addListener(() => {
                     updateKnobVisual(control, state.getNormalisedValue());
-                    control.querySelector('.knob-value').textContent = formatValue(paramName, state.getScaledValue());
+                    renderReadout();
                 });
                 state.propertiesChangedEvent.addListener(() => {
                     updateKnobVisual(control, state.getNormalisedValue());
-                    control.querySelector('.knob-value').textContent = formatValue(paramName, state.getScaledValue());
+                    renderReadout();
                 });
+
+                // Alt/Option-click resets to the PARAMS default as ONE gesture.
+                // CAPTURE phase on the knob root (an ancestor of the drag
+                // target), so it runs first and cancels the drag outright. The
+                // scaled default is normalised through the LIVE C++ range+skew:
+                // a linear map would reset the ADSR times to ~1 ms.
+                control.addEventListener('mousedown', (e) => {
+                    if (!e.altKey) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const def = PARAMS[paramName];
+                    if (!def) return;
+                    const p = state.properties || {};
+                    const defaultNorm = scaledToNorm(def.default, {
+                        start: (typeof p.start === 'number') ? p.start : def.min,
+                        end:   (typeof p.end === 'number') ? p.end : def.max,
+                        skew:  (typeof p.skew === 'number' && p.skew > 0) ? p.skew : (def.skew || 1),
+                    });
+                    state.sliderDragStarted();
+                    state.setNormalisedValue(defaultNorm);
+                    state.sliderDragEnded();
+                }, true);
 
                 // UI -> JUCE (mouse drag via the shared document-level handler)
                 wrapper.addEventListener('mousedown', (e) => {
@@ -2326,25 +2541,15 @@
                     e.preventDefault();
                 });
 
-                // Double-click to reset. Range and skew come from the backend
-                // properties: a linear (default-min)/(max-min) ignores skew and
-                // reset the ADSR times to ~1 ms instead of their real defaults.
-                wrapper.addEventListener('dblclick', (e) => {
-                    const def = PARAMS[paramName];
-                    if (def) {
-                        const p = state.properties || {};
-                        const min = (typeof p.start === 'number') ? p.start : def.min;
-                        const max = (typeof p.end === 'number') ? p.end : def.max;
-                        const skew = (typeof p.skew === 'number' && p.skew > 0) ? p.skew : (def.skew || 1);
-                        let defaultNorm = (def.default - min) / (max - min);
-                        if (skew !== 1 && defaultNorm > 0)
-                            defaultNorm = Math.pow(defaultNorm, skew);
-                        state.sliderDragStarted();
-                        state.setNormalisedValue(Math.max(0, Math.min(1, defaultNorm)));
-                        state.sliderDragEnded();
-                    }
+                // Double-click (dial or readout) opens value entry; it never
+                // writes the parameter itself. ADSR times are SECONDS-scaled and
+                // read ms below 1 s; every other readout is the scaled value.
+                const parse = (PARAMS[paramName] && PARAMS[paramName].unit === ' s') ? parseSeconds : parseDirect;
+                [wrapper, valueEl].forEach((el) => el.addEventListener('dblclick', (e) => {
                     e.preventDefault();
-                });
+                    if (e.altKey) return;
+                    attachValueEntry(valueEl, state, parse, renderReadout);
+                }));
 
             } catch (err) {
                 console.error('Failed to bind slider:', paramName, err);
@@ -2704,7 +2909,9 @@
         // e.g. 100 for 0..1 -> %, 1000 for seconds -> ms. Min/max come from
         // sliderState.properties so a retuned C++ range can't silently
         // diverge from a hardcoded JS copy.
-        function setupFxKnob(id, sliderState, displayFactor, suffix, formatter) {
+        // `parse` converts typed readout text back to the SCALED (C++-unit)
+        // value for the double-click value entry (see attachValueEntry).
+        function setupFxKnob(id, sliderState, displayFactor, suffix, formatter, parse = parseDirect) {
             if (!sliderState) return;
             const knobEl = document.getElementById(id + 'Knob');
             const vine = document.getElementById(id + 'Vine');
@@ -2713,20 +2920,13 @@
 
             const r = parseFloat(vine.getAttribute('r'));
             const arcLength = 2 * Math.PI * r * 0.75;
-            let isEditing = false;
-
-            function displayBounds() {
-                const p = sliderState.properties || {};
-                const start = (typeof p.start === 'number') ? p.start : 0;
-                const end = (typeof p.end === 'number') ? p.end : 1;
-                return { min: start * displayFactor, max: end * displayFactor };
-            }
 
             function updateVisual() {
                 const normValue = sliderState.getNormalisedValue();
                 const realValue = sliderState.getScaledValue() * displayFactor;
                 vine.style.strokeDashoffset = arcLength - (normValue * arcLength);
-                if (!isEditing) {
+                // Skipped while the value entry is open over this readout.
+                if (valueDisplay.dataset.editing !== '1') {
                     valueDisplay.textContent = formatter(realValue) + suffix;
                 }
             }
@@ -2735,6 +2935,21 @@
             sliderState.propertiesChangedEvent.addListener(() => updateVisual());
 
             const knobVisual = knobEl.querySelector('.knob-visual');
+
+            // Alt/Option-click resets to the C++ default as ONE gesture. CAPTURE
+            // phase on the knob root, an ancestor of the drag target, so it runs
+            // first and cancels the drag outright.
+            knobEl.addEventListener('mousedown', (e) => {
+                if (!e.altKey) return;
+                e.preventDefault();
+                e.stopPropagation();
+                const def = paramDefaults[id];
+                if (typeof def !== 'number') return;
+                sliderState.sliderDragStarted();
+                sliderState.setNormalisedValue(def);
+                sliderState.sliderDragEnded();
+            }, true);
+
             (knobVisual || knobEl).addEventListener('mousedown', (e) => {
                 fxKnobDrag.active = true;
                 fxKnobDrag.state = sliderState;
@@ -2769,52 +2984,14 @@
             // assertion 15 collects as a key reference.
             valueDisplay.dataset.i18nAria = 'aria.fxValueEdit';
             applyI18nAttributes(valueDisplay);
-            valueDisplay.addEventListener('dblclick', (e) => {
+            // Double-click on the dial or its readout opens value entry (O-Prism
+            // semantics: live skew, one gesture, untouched text never written).
+            // It never writes the parameter itself; Alt/Option-click resets.
+            [valueDisplay, knobEl].forEach((el) => el.addEventListener('dblclick', (e) => {
                 e.stopPropagation();
-                if (isEditing) return;
-                isEditing = true;
-                const realValue = sliderState.getScaledValue() * displayFactor;
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.value = formatter(realValue);
-                input.style.cssText = `
-                    width: 45px; text-align: center; font-size: 9px;
-                    font-family: var(--serif);
-                    color: var(--brown-frame); background: rgba(255,248,220,0.9);
-                    border: 1px solid var(--brown-border); border-radius: 3px;
-                    padding: 1px 2px; outline: none; user-select: text;
-                    -webkit-user-select: text;
-                `;
-                valueDisplay.textContent = '';
-                valueDisplay.appendChild(input);
-                input.focus();
-                input.select();
-
-                function commitValue() {
-                    if (!isEditing) return;
-                    const rawVal = parseFloat(input.value);
-                    if (!isNaN(rawVal)) {
-                        const { min, max } = displayBounds();
-                        const clamped = Math.max(min, Math.min(max, rawVal));
-                        const p = sliderState.properties || {};
-                        const skew = (typeof p.skew === 'number' && p.skew > 0) ? p.skew : 1;
-                        let norm = (clamped - min) / (max - min);
-                        if (skew !== 1 && norm > 0)
-                            norm = Math.pow(norm, skew);
-                        sliderState.sliderDragStarted();
-                        sliderState.setNormalisedValue(Math.max(0, Math.min(1, norm)));
-                        sliderState.sliderDragEnded();
-                    }
-                    isEditing = false;
-                    updateVisual();
-                }
-
-                input.addEventListener('keydown', (ev) => {
-                    if (ev.key === 'Enter') { ev.preventDefault(); commitValue(); }
-                    else if (ev.key === 'Escape') { isEditing = false; updateVisual(); }
-                });
-                input.addEventListener('blur', () => { if (isEditing) commitValue(); });
-            });
+                if (e.altKey) return;
+                attachValueEntry(valueDisplay, sliderState, parse, updateVisual);
+            }));
         }
 
         function setupFxBypassToggle(fxName, toggleState) {
@@ -2919,21 +3096,21 @@
 
                 // Setup knobs with display-unit factors (engineering value × factor)
                 setupFxKnob('chorusRate',      chorusRateState,     1, ' Hz', v => v.toFixed(2));
-                setupFxKnob('chorusDepth',     chorusDepthState,    100, '%', v => Math.round(v));
-                setupFxKnob('chorusMix',       chorusMixState,      100, '%', v => Math.round(v));
-                setupFxKnob('delayTime',       delayTimeState,      1000, ' ms', v => Math.round(v));
-                setupFxKnob('delayFeedback',   delayFeedbackState,  100, '%', v => Math.round(v));
-                setupFxKnob('delayMix',        delayMixState,       100, '%', v => Math.round(v));
+                setupFxKnob('chorusDepth',     chorusDepthState,    100, '%', v => Math.round(v), parsePercent);
+                setupFxKnob('chorusMix',       chorusMixState,      100, '%', v => Math.round(v), parsePercent);
+                setupFxKnob('delayTime',       delayTimeState,      1000, ' ms', v => Math.round(v), parseSeconds);
+                setupFxKnob('delayFeedback',   delayFeedbackState,  100, '%', v => Math.round(v), parsePercent);
+                setupFxKnob('delayMix',        delayMixState,       100, '%', v => Math.round(v), parsePercent);
                 setupFxKnob('eqLowGain',       eqLowGainState,      1, ' dB', v => v.toFixed(1));
                 setupFxKnob('eqMidGain',       eqMidGainState,      1, ' dB', v => v.toFixed(1));
-                setupFxKnob('eqMidFreq',       eqMidFreqState,      1, ' Hz', v => Math.round(v));
+                setupFxKnob('eqMidFreq',       eqMidFreqState,      1, ' Hz', v => Math.round(v), parseFreq);
                 setupFxKnob('eqHighGain',      eqHighGainState,     1, ' dB', v => v.toFixed(1));
-                setupFxKnob('reverbSize',      reverbSizeState,     100, '%', v => Math.round(v));
-                setupFxKnob('reverbDamp',      reverbDampState,     100, '%', v => Math.round(v));
+                setupFxKnob('reverbSize',      reverbSizeState,     100, '%', v => Math.round(v), parsePercent);
+                setupFxKnob('reverbDamp',      reverbDampState,     100, '%', v => Math.round(v), parsePercent);
                 setupFxKnob('reverbPredelay',  reverbPredelayState, 1, ' ms', v => Math.round(v));
-                setupFxKnob('reverbMod',       reverbModState,      100, '%', v => Math.round(v));
-                setupFxKnob('reverbShimmer',   reverbShimmerState,  100, '%', v => Math.round(v));
-                setupFxKnob('reverbMix',       reverbMixState,      100, '%', v => Math.round(v));
+                setupFxKnob('reverbMod',       reverbModState,      100, '%', v => Math.round(v), parsePercent);
+                setupFxKnob('reverbShimmer',   reverbShimmerState,  100, '%', v => Math.round(v), parsePercent);
+                setupFxKnob('reverbMix',       reverbMixState,      100, '%', v => Math.round(v), parsePercent);
 
                 // Delay mode dropdown
                 const modeSelect = document.getElementById('delayModeSelect');

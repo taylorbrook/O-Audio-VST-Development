@@ -1,5 +1,13 @@
 # O-Wind Changelog
 
+## [1.22.1] — 2026-10-19
+
+### Changed
+
+- **Output level now starts at −6 dB** on new instances and is the last stage of the chain. Factory presets no longer set it (Piccolo used to pull it to −3 dB), and loading a preset leaves it where you put it. Saved sessions recall their stored level unchanged.
+- **Output is now applied after the effects**, so it also scales notes that are already sounding and their chorus, delay and reverb tails. It used to be applied per voice, before the effects. Moves are smoothed (20 ms ramp).
+- **Double-click a dial to type a value** — Enter or click away applies, Esc cancels. **Alt/Option-click resets** a control to its default (this was double-click). Applies to every Sound-tab knob and every Effects-tab knob and readout. Typed values honour the parameter's real range and skew and accept units (`250 ms`, `1.2s`, `2k`, `35%`, `-inf`); the old Effects-tab editor's linear decode is gone.
+
 ## [1.22.0] - 2026-09-27
 
 UI pass under review 260924-nho: R4 (AA text), R5 (bundled EB Garamond) and the

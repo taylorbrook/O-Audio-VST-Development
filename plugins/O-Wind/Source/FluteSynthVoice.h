@@ -96,7 +96,6 @@ private:
         std::atomic<float>* vibratoDriftDepth = nullptr;
         std::atomic<float>* vibratoDriftSpeed = nullptr;
         std::atomic<float>* vibratoOnset = nullptr;
-        std::atomic<float>* outputLevel = nullptr;
         std::atomic<float>* infiniteSustain = nullptr;
         std::atomic<float>* reversedJet = nullptr;
         std::atomic<float>* subHarmonics = nullptr;
@@ -168,7 +167,6 @@ private:
     float currentOverblowEase = 0.6f;
 
     // Voice state
-    float outputGainLinear = 1.0f;
     float currentFrequency = 440.0f;
     int currentMidiNote = 60;
     double internalSampleRate = 88200.0;  // 2x oversampled
