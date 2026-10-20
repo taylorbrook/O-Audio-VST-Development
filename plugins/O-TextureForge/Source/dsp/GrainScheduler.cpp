@@ -35,9 +35,11 @@ GrainScheduler::GrainScheduler()
     random.setSeedRandomly();
 }
 
-void GrainScheduler::prepare(double sampleRate)
+void GrainScheduler::prepare(double sampleRate, float initialOutputGainDb)
 {
     currentSampleRate = sampleRate;
+    outputGainSmoothed.reset(sampleRate, 0.02);
+    outputGainSmoothed.setCurrentAndTargetValue(juce::Decibels::decibelsToGain(initialOutputGainDb));
     droneTimerSamples = 0;
     droneIntervalSamples = static_cast<int>(sampleRate * 0.05);  // 50ms default
 }
@@ -75,9 +77,13 @@ void GrainScheduler::processBlock(
     // Render active voices
     renderVoices(buffer, corpus);
 
-    // Apply output gain
-    float outputGainLinear = juce::Decibels::decibelsToGain(params.outputGainDb);
-    buffer.applyGain(outputGainLinear);
+    // Apply output gain — the last gain stage (v1.5.1: smoothed; was a
+    // per-block step that zippered under automation).
+    outputGainSmoothed.setTargetValue(juce::Decibels::decibelsToGain(params.outputGainDb));
+    if (outputGainSmoothed.isSmoothing())
+        outputGainSmoothed.applyGain(buffer, numSamples);
+    else
+        buffer.applyGain(outputGainSmoothed.getCurrentValue());
 }
 
 void GrainScheduler::handleMidiMessage(const juce::MidiMessage& msg, const SchedulerParams& params, const SharedCorpus* corpus)

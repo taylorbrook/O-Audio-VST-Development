@@ -27,7 +27,7 @@ juce_add_plugin(OuariconTextureForge
     PLUGIN_CODE OuTF
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-TextureForge${OUARICON_DEV_SUFFIX}"
-    VERSION 1.5.0
+    VERSION 1.5.1
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_WEB_BROWSER TRUE
@@ -51,6 +51,16 @@ target_include_directories(OuariconTextureForge
     PRIVATE
         Source
 )
+
+# v1.5.1: umappp fetches knncolle at `master`, whose headers now use
+# std::filesystem (Prebuilt.hpp / utils.hpp). libc++ marks it unavailable below
+# macOS 10.15 and the suite deploys to 10.13, so UMAPProjection.cpp stopped
+# compiling once the dependency was refetched. Scoped to this plugin's shared
+# code target; the filesystem paths are knncolle's prebuilt-index save/load,
+# which this plugin never calls.
+if(APPLE)
+    target_compile_definitions(OuariconTextureForge PRIVATE _LIBCPP_DISABLE_AVAILABILITY)
+endif()
 
 target_link_libraries(OuariconTextureForge
     PRIVATE

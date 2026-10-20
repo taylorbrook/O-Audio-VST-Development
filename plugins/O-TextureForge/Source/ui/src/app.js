@@ -158,8 +158,106 @@ function placeholderText() {
     return document.querySelector('.scatter-placeholder .placeholder-text');
 }
 
+// ===== Value entry (v1.5.1 — O-Prism attachValueEntry contract) =====
+
+// Scaled (C++ units) -> normalised [0,1], from the LIVE range the relay pushes
+// up from C++ (state.properties), never a JS table. Clamped BEFORE the pow():
+// a value below `start` would give a negative base and a NaN with a fractional
+// skew (GRAIN_SIZE has skew 0.5), which would stick in the parameter.
+function scaledToNorm(v, props) {
+    const start = props.start, end = props.end;
+    const skew = props.skew > 0 ? props.skew : 1;
+    if (!(end > start)) return 0;
+    const t = Math.min(1, Math.max(0, (v - start) / (end - start)));
+    return skew === 1 ? t : Math.pow(t, skew);
+}
+
+// Opens an inline editor. formatFn(norm, state) renders the value as text and
+// formatFn.parse(text, currentText) converts typed text back to a SCALED value,
+// or returns null to reject it. Enter/blur commits, Esc cancels, untouched text
+// is never written back, and a commit is one host gesture.
+//
+// valueEl is normally the readout: the input is overlaid on it and the readout
+// keeps its (transparent) text, so nothing moves. When the target is the DIAL
+// itself (a knob whose readout renders blank), the input floats centred over
+// the dial (.on-dial) and the dial's own content is left untouched.
+function attachValueEntry(valueEl, state, formatFn) {
+    if (!valueEl || !state) return;
+    if (typeof formatFn !== 'function' || typeof formatFn.parse !== 'function') return;
+    if (valueEl.dataset.editing === '1') return;   // already open
+
+    const onDial = valueEl.classList.contains('knob');
+    const currentText = onDial
+        ? formatFn(state.getNormalisedValue(), state)
+        : valueEl.textContent;
+    const prevPosition = valueEl.style.position;
+    const prevColor = valueEl.style.color;
+    // Ink read BEFORE the readout goes transparent, or `inherit` would be invisible.
+    const inkColor = getComputedStyle(valueEl).color;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = onDial ? 'knob-value-input on-dial' : 'knob-value-input';
+    input.value = currentText;
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+    input.style.color = inkColor;
+
+    valueEl.dataset.editing = '1';
+    if (!onDial) {
+        valueEl.style.position = 'relative';
+        valueEl.style.color = 'transparent';
+    }
+    valueEl.appendChild(input);
+    input.focus();
+    input.select();
+
+    let closed = false;
+
+    const close = () => {
+        if (closed) return;
+        closed = true;
+        delete valueEl.dataset.editing;
+        input.remove();
+        if (!onDial) {
+            valueEl.style.position = prevPosition;
+            valueEl.style.color = prevColor;
+            // Re-render from live state: it may have moved while updates were held.
+            valueEl.textContent = formatFn(state.getNormalisedValue(), state);
+        }
+    };
+
+    const commit = () => {
+        if (closed) return;
+        if (input.value === currentText) { close(); return; }
+        const scaled = formatFn.parse(input.value, currentText);
+        if (scaled !== null && isFinite(scaled)) {
+            // setNormalisedValue() snaps to the interval and clamps internally.
+            state.sliderDragStarted();
+            state.setNormalisedValue(scaledToNorm(scaled, state.properties || {}));
+            state.sliderDragEnded();
+        }
+        close();
+    };
+
+    input.addEventListener('keydown', (e) => {
+        e.stopPropagation();   // keep digits away from global key handling
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        else if (e.key === 'Escape') { e.preventDefault(); close(); }
+    });
+    input.addEventListener('blur', commit);
+    // The field can sit inside the knob's drag target — never start a drag.
+    input.addEventListener('pointerdown', (e) => e.stopPropagation());
+    input.addEventListener('mousedown', (e) => e.stopPropagation());
+    input.addEventListener('dblclick', (e) => e.stopPropagation());
+    input.addEventListener('wheel', (e) => e.stopPropagation());
+}
+
 // ===== Knob Controller =====
-function setupKnob(paramId, sliderState, formatter, defaultNorm) {
+// formatter renders the readout; entryFormatter (defaults to formatter) is what
+// the value-entry field shows and parses — it differs only for the knobs whose
+// readout is deliberately blank (grainSize, grainDensity, outputGain).
+function setupKnob(paramId, sliderState, formatter, defaultNorm, entryFormatter = formatter) {
     const knobEl = document.querySelector(`.knob[data-param="${paramId}"]`);
     if (!knobEl || !sliderState) return;
 
@@ -171,7 +269,8 @@ function setupKnob(paramId, sliderState, formatter, defaultNorm) {
     function updateDisplay(norm) {
         const angle = ANGLE_MIN + norm * ANGLE_RANGE;
         if (indicator) indicator.style.transform = `rotate(${angle}deg)`;
-        if (valueEl) valueEl.textContent = formatter(norm);
+        // Skipped while the value-entry field is open, or it would be wiped.
+        if (valueEl && valueEl.dataset.editing !== '1') valueEl.textContent = formatter(norm);
     }
 
     sliderState.valueChangedEvent.addListener(() => {
@@ -181,6 +280,21 @@ function setupKnob(paramId, sliderState, formatter, defaultNorm) {
     sliderState.propertiesChangedEvent.addListener(() => {
         updateDisplay(sliderState.getNormalisedValue());
     });
+
+    // v1.5.1: Alt/Option-click resets to the default, one host gesture.
+    // CAPTURE phase on the knob's group (an ancestor of the drag target), on
+    // `mousedown` — the event the drag starts on — so it runs first and
+    // stopPropagation() keeps the drag from starting. A press inside an open
+    // entry field is left alone.
+    (knobEl.parentElement || knobEl).addEventListener('mousedown', (e) => {
+        if (!e.altKey) return;
+        if (e.target && e.target.classList && e.target.classList.contains('knob-value-input')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        sliderState.sliderDragStarted();
+        sliderState.setNormalisedValue(defaultNorm);
+        sliderState.sliderDragEnded();
+    }, true);
 
     knobEl.addEventListener('mousedown', (e) => {
         isDragging = true;
@@ -205,10 +319,22 @@ function setupKnob(paramId, sliderState, formatter, defaultNorm) {
         }
     });
 
+    // v1.5.1: double-click (on the dial or its readout) opens inline value
+    // entry; it never writes the parameter itself. A blank readout has nothing
+    // to overlay, so the field opens over the dial instead.
     knobEl.addEventListener('dblclick', (e) => {
+        if (e.altKey) return;
         e.preventDefault();
-        sliderState.setNormalisedValue(defaultNorm);
+        const showsText = valueEl && valueEl.textContent.trim() !== '';
+        attachValueEntry(showsText ? valueEl : knobEl, sliderState, entryFormatter);
     });
+    if (valueEl) {
+        valueEl.addEventListener('dblclick', (e) => {
+            if (e.altKey) return;
+            if (valueEl.textContent.trim() === '') return;
+            attachValueEntry(valueEl, sliderState, entryFormatter);
+        });
+    }
 
     // Initial display
     updateDisplay(sliderState.getNormalisedValue());
@@ -657,6 +783,42 @@ function listenForEvents() {
 
 // ===== Formatters =====
 const fmtPercent = (n) => Math.round(n * 100) + '%';
+
+// ----- Value-entry parsers (v1.5.1): display text -> SCALED value, or null -----
+// First signed decimal in the string, or null if there isn't one.
+const numOf = (t) => {
+    const m = String(t).match(/-?\d*\.?\d+/);
+    if (!m) return null;
+    const v = parseFloat(m[0]);
+    return isFinite(v) ? v : null;
+};
+const parseDirect = (t) => numOf(t);
+const parsePercent = (t) => { const v = numOf(t); return v === null ? null : v / 100; };
+
+// 0..1 params shown as 0-100%.
+fmtPercent.parse = parsePercent;
+// CROSSFADE is scaled 0..100 % in C++, so its readout IS the scaled value.
+const fmtPercentScaled = (n) => fmtPercent(n);
+fmtPercentScaled.parse = parseDirect;
+
+// Entry-only formatters for the three knobs whose readout renders blank.
+// They read the live scaled value (GRAIN_SIZE is skewed, so norm -> ms needs
+// the C++ range, which getScaledValue() applies).
+const fmtGrainSizeEntry = (n, s) => `${s.getScaledValue().toFixed(1)} ms`;
+fmtGrainSizeEntry.parse = (t) => {
+    const v = numOf(t);
+    if (v === null) return null;
+    const str = String(t);
+    return (/s/i.test(str) && !/ms/i.test(str)) ? v * 1000 : v;   // explicit "s" = seconds
+};
+const fmtDensityEntry = (n, s) => String(Math.round(s.getScaledValue()));
+fmtDensityEntry.parse = parseDirect;   // snapped to the int step by setNormalisedValue
+const fmtGainEntry = (n, s) => `${s.getScaledValue().toFixed(1)} dB`;
+fmtGainEntry.parse = (t) => {
+    const str = String(t).trim();
+    if (/^-?\s*inf|^off$/i.test(str)) return -60;   // range start
+    return numOf(str);
+};
 const fmtDb = (n) => {
     // Params have getNormalisedValue 0-1, but display needs scaled value
     // For -60..+12 range, use scaled
@@ -702,10 +864,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Setup bottom strip knobs
         setupKnob('position', window.getSliderState('position'), fmtPercent, 0.0);
-        setupKnob('grainSize', window.getSliderState('grainSize'), (n) => '', 0.08);
-        setupKnob('grainDensity', window.getSliderState('grainDensity'), (n) => '', 0.109);
-        setupKnob('crossfade', window.getSliderState('crossfade'), fmtPercent, 0.5);
-        setupKnob('outputGain', window.getSliderState('outputGain'), (n) => '', 0.833);
+        // GRAIN_SIZE 10..500 ms, skew 0.5: 50 ms -> sqrt(40/490) = 0.2857
+        // (v1.5.1; was 0.08, the LINEAR position, which reset to ~13 ms).
+        setupKnob('grainSize', window.getSliderState('grainSize'), (n) => '', 0.2857, fmtGrainSizeEntry);
+        setupKnob('grainDensity', window.getSliderState('grainDensity'), (n) => '', 0.109, fmtDensityEntry);
+        setupKnob('crossfade', window.getSliderState('crossfade'), fmtPercentScaled, 0.5);
+        // OUTPUT_GAIN -60..+12 dB: -6 dB -> 54/72 = 0.75 (v1.5.1; was 0.833 = 0 dB).
+        setupKnob('outputGain', window.getSliderState('outputGain'), (n) => '', 0.75, fmtGainEntry);
 
         // Setup MIDI mode dropdown
         setupMidiMode(window.getComboBoxState('midiMode'));

@@ -46,7 +46,7 @@ struct SchedulerParams
     float scatterY = 0.5f;
     float variation = 0.2f;
     float crossfadePercent = 50.0f;
-    float outputGainDb = 0.0f;
+    float outputGainDb = -6.0f;   // v1.5.1: matches the OUTPUT_GAIN default
     int midiMode = 2;  // 0=Pitch-Mapped, 1=Trigger+Modulate, 2=Generative Drone
 };
 
@@ -55,7 +55,8 @@ class GrainScheduler
 public:
     GrainScheduler();
 
-    void prepare(double sampleRate);
+    // initialOutputGainDb seeds the output-gain smoother (v1.5.1).
+    void prepare(double sampleRate, float initialOutputGainDb = -6.0f);
     void reset();
 
     void processBlock(
@@ -98,6 +99,11 @@ private:
     GrainPool grainPool;
     juce::Random random;
     double currentSampleRate = 44100.0;
+
+    // v1.5.1: output gain is ramped (Linear, ~20 ms, on the LINEAR gain) instead
+    // of jumping per block — it is the last gain stage; only the processor's
+    // safety clip follows it.
+    juce::SmoothedValue<float> outputGainSmoothed { 1.0f };
 
     // Drone mode state
     int droneTimerSamples = 0;
