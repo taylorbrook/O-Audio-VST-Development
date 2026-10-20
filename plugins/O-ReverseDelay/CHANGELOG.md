@@ -4,6 +4,11 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.22.4] — 2026-10-19
+
+### Fixed
+- **Clicking another dial now applies a typed value.** With a value-entry field open, pressing on a different dial left the field open and its readout frozen. The press now applies the typed value and closes the field before the new drag starts.
+
 ## [1.22.3] — 2026-10-19
 
 ### Changed
