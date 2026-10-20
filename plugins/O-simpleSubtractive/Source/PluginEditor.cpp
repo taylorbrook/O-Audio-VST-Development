@@ -156,6 +156,17 @@ OSimpleSubtractiveAudioProcessorEditor::OSimpleSubtractiveAudioProcessorEditor (
                 processorRef.applyFactoryPreset (args[0].toString());
             complete (juce::var (true));
         })
+        // v1.7.2 — each parameter's TRUE (skew-correct) NORMALISED default, pulled
+        // once at boot. The knobs' Alt/Option-click reset reads it, so the reset
+        // target comes from the C++ NormalisableRange, never a hand-copied JS table
+        // (O-Contrabass / O-GrainScatter WR-11 pattern).
+        .withNativeFunction ("getParameterDefaults", [this] (auto&, auto complete) {
+            juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+            for (auto* param : processorRef.getParameters())
+                if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (param))
+                    obj->setProperty (ranged->getParameterID(), ranged->getDefaultValue());
+            complete (juce::var (obj.get()));
+        })
         // ── Interface-language pair (v1.3.0) ───────────────────────────────
         // Plain withNativeFunction, no relay: the language is not a parameter
         // and must not reach a DAW automation lane. PULLED once by the page at

@@ -234,6 +234,14 @@ public:
     // (FUNC-06). This is NOT a DSP change — it is bridge wiring.
     void applyFactoryPreset (const juce::String& name);
 
+    /** v1.7.2: parameters that belong to the USER, not to a preset. Output Level
+        is a mix control: applyFactoryPreset() never resets it and no lesson
+        writes it. Session state (get/setStateInformation) still recalls it. */
+    static bool isUserOwnedParameter (const juce::String& paramId)
+    {
+        return paramId == OSimpleSubtractive::ParamIDs::outputLevel;
+    }
+
 private:
     //==========================================================================
     juce::AudioProcessorValueTreeState parameters;
