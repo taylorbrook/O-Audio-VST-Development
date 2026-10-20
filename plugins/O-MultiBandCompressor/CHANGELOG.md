@@ -1,5 +1,10 @@
 # O-MultiBandCompressor Changelog
 
+## [1.14.1] - 2026-10-19
+
+### Fixed
+- **Clicking another dial now applies a typed value.** With a value-entry field open, pressing on a different dial left the field open and its readout frozen. The press now applies the typed value and closes the field before the new drag starts.
+
 ## [1.14.0] - 2026-09-26
 
 **Every caption now meets WCAG AA and the 9px floor, and the house serif actually
