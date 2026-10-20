@@ -125,6 +125,10 @@ Uses the same compression algorithm as Ouaricon Compressor:
 
 ## Changelog
 
+### v1.4.0 (2026-10-19)
+- Double-click a knob or its readout opens inline value entry (Enter / click-away applies, Esc cancels, untouched text not written); Thresh in dB, Ratio as `4` or `4:1`, Attack / Release in ms
+- Alt/Option-click resets a knob to its default inside one host gesture (was double-click, which wrote without a gesture)
+
 ### v1.0.0 (2026-01-14)
 - Initial release
 - Extracted from Ouaricon Compressor

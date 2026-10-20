@@ -19,7 +19,7 @@
 */
 /**
  * reverb-unit.js - Compact FDN plate reverb module UI
- * Ouaricon Audio Module System v1.0.0
+ * Ouaricon Audio Module System v1.1.0
  *
  * Same strip language as compressor-unit (dark rack panel, clickable bypass
  * title, 10-segment seed knobs), sized to sit under it: 505 x 71 px.
@@ -31,6 +31,10 @@
  *    `.rev-bypass-toggle`, each caption `[data-param="<name>"] .rev-label`.
  *    A host keys them with literal `el.dataset.i18n = '...'` assignments, the
  *    shape its i18n gate can read; English is rendered as the fallback.
+ *
+ * Gestures (v1.1.0): drag a knob vertically; double-click a knob or its readout
+ * to type a value (Enter or clicking away applies, Esc cancels); Alt/Option-click
+ * resets a knob to its default inside one host gesture.
  */
 
 const DRAG_SENSITIVITY = 150;
@@ -38,6 +42,127 @@ const KNOB_ROTATION_RANGE = 270;
 const KNOB_ROTATION_OFFSET = -135;
 
 const pct = (v) => `${Math.round(v * 100)}%`;
+
+// ====================================================================
+// Value entry (module-private; the suite's O-Prism attachValueEntry semantics).
+// Self-contained on purpose: the unit imports nothing from its host page and
+// uses its own input class, so the host's .knob-value-input rule never crosses.
+// ====================================================================
+
+// Scaled (C++ units) -> normalised [0,1], reading the live start/end/skew the
+// WebSliderRelay pushes from C++ (never a JS range table). Clamps BEFORE the
+// pow(): a value below `start` gives a negative base, and Math.pow(negative,
+// fractional skew) is NaN, which would stick in the parameter.
+function scaledToNorm(v, props) {
+  const start = props.start, end = props.end;
+  const skew = props.skew > 0 ? props.skew : 1;
+  if (!(end > start)) return 0;
+  const t = Math.min(1, Math.max(0, (v - start) / (end - start)));
+  return skew === 1 ? t : Math.pow(t, skew);
+}
+
+// Opens an inline editor over a readout. formatFn(norm) renders the readout;
+// formatFn.parse(text, currentText) returns a SCALED value or null to reject.
+// Enter / blur / clicking away commits, Esc cancels, untouched text is never
+// written back, and "-inf" / "off" land on the range start.
+function attachValueEntry(valueEl, state, formatFn) {
+  if (!valueEl || !state) return;
+  if (typeof formatFn !== 'function' || typeof formatFn.parse !== 'function') return;
+  if (valueEl.dataset.editing === '1') return;   // already open
+
+  const currentText = valueEl.textContent;
+  const prevPosition = valueEl.style.position;
+  const prevColor = valueEl.style.color;
+  // Read the ink before the readout goes transparent.
+  const inkColor = getComputedStyle(valueEl).color;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'rev-value-input';
+  input.value = currentText;
+  input.spellcheck = false;
+  input.autocomplete = 'off';
+  input.style.color = inkColor;
+
+  // The readout keeps its text (transparent) so its box does not change size.
+  valueEl.dataset.editing = '1';
+  valueEl.style.position = 'relative';
+  valueEl.style.color = 'transparent';
+  valueEl.appendChild(input);
+  input.focus();
+  input.select();
+
+  let closed = false;
+
+  // Clicking away commits even where a dial's drag handler preventDefault()s
+  // its mousedown: that suppresses the focus change that would blur this
+  // field, so grabbing another dial used to leave it open with its readout
+  // frozen. Capture phase on document, so it commits before any drag starts.
+  const onOutsidePointer = (e) => { if (e.target !== input) input.blur(); };
+  document.addEventListener('pointerdown', onOutsidePointer, true);
+
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    document.removeEventListener('pointerdown', onOutsidePointer, true);
+    delete valueEl.dataset.editing;
+    input.remove();
+    valueEl.style.position = prevPosition;
+    valueEl.style.color = prevColor;
+    // Re-render from live state (automation / preset may have moved it).
+    valueEl.textContent = formatFn(state.getNormalisedValue());
+  };
+
+  const commit = () => {
+    if (closed) return;
+    if (input.value === currentText) { close(); return; }
+    const props = state.properties || {};
+    const scaled = /^\s*([-−]?\s*inf(inity)?|off)\s*(db)?\s*$/i.test(input.value)
+      ? props.start
+      : formatFn.parse(input.value, currentText);
+    if (scaled !== null && scaled !== undefined && isFinite(scaled)) {
+      // setNormalisedValue() snaps to the interval and clamps.
+      state.sliderDragStarted();
+      state.setNormalisedValue(scaledToNorm(scaled, props));
+      state.sliderDragEnded();
+    }
+    close();
+  };
+
+  input.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); close(); }
+  });
+  input.addEventListener('blur', commit);
+  // Never start a drag (or reach a document handler) from inside the field.
+  input.addEventListener('pointerdown', (e) => e.stopPropagation());
+  input.addEventListener('mousedown', (e) => e.stopPropagation());
+  input.addEventListener('dblclick', (e) => e.stopPropagation());
+  input.addEventListener('wheel', (e) => e.stopPropagation());
+}
+
+// First signed decimal in the text; U+2212 (typographic minus) counts as '-'.
+const numOf = (t) => {
+  const m = String(t).replace(/−/g, '-').match(/-?\d*\.?\d+/);
+  if (!m) return null;
+  const v = parseFloat(m[0]);
+  return isFinite(v) ? v : null;
+};
+// Percent readouts on 0..1 params: "30" or "30%" -> 0.30.
+const parsePercent = (t) => {
+  const v = numOf(t);
+  return v === null ? null : v / 100;
+};
+// Millisecond readouts: "50" or "50 ms" -> 50; an explicit seconds unit
+// ("0.05 s") multiplies by 1000.
+const parseMs = (t) => {
+  const v = numOf(t);
+  if (v === null) return null;
+  const s = String(t);
+  if (/ms/i.test(s)) return v;            // before /s/ - "ms" contains "s"
+  return /s/i.test(s) ? v * 1000 : v;
+};
 
 export class ReverbUnit {
   constructor(options = {}) {
@@ -51,12 +176,12 @@ export class ReverbUnit {
 
     // Ranges mirror ReverbUnit::addParameters (all linear).
     this.params = {
-      size:     { min: 0, max: 1,   label: 'Size',    format: pct },
-      damp:     { min: 0, max: 1,   label: 'Damp',    format: pct },
-      predelay: { min: 0, max: 200, label: 'Pre-dly', format: (v) => `${Math.round(v)} ms` },
-      mod:      { min: 0, max: 1,   label: 'Mod',     format: pct },
-      shimmer:  { min: 0, max: 1,   label: 'Shimmer', format: pct },
-      mix:      { min: 0, max: 1,   label: 'Mix',     format: pct }
+      size:     { min: 0, max: 1,   label: 'Size',    format: pct, parse: parsePercent },
+      damp:     { min: 0, max: 1,   label: 'Damp',    format: pct, parse: parsePercent },
+      predelay: { min: 0, max: 200, label: 'Pre-dly', format: (v) => `${Math.round(v)} ms`, parse: parseMs },
+      mod:      { min: 0, max: 1,   label: 'Mod',     format: pct, parse: parsePercent },
+      shimmer:  { min: 0, max: 1,   label: 'Shimmer', format: pct, parse: parsePercent },
+      mix:      { min: 0, max: 1,   label: 'Mix',     format: pct, parse: parsePercent }
     };
 
     this.defaults = { size: 0.5, damp: 0.5, predelay: 20 / 200, mod: 0.2, shimmer: 0, mix: 0.25 };
@@ -153,6 +278,19 @@ export class ReverbUnit {
       /* Bypassed: knob graphics fade; captions and readouts stay AA. Knobs stay
          live, so settings can be dialled in before switching the reverb on. */
       .rev-unit-compact.bypassed .rev-knob-container { opacity: 0.4; }
+      /* Value-entry field, overlaid on the readout (which keeps its text,
+         transparent), so nothing shifts. Form controls do not inherit fonts on
+         their own, hence the two inherits. */
+      .rev-value-input {
+        position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+        box-sizing: border-box; padding: 0; margin: 0;
+        border: none; border-bottom: 1px solid currentColor; border-radius: 0;
+        background: transparent;
+        font-family: inherit; font-size: inherit; line-height: normal;
+        text-align: inherit; outline: none; -moz-appearance: textfield;
+      }
+      .rev-value-input::-webkit-outer-spin-button,
+      .rev-value-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     `;
     document.head.appendChild(style);
   }
@@ -217,6 +355,20 @@ export class ReverbUnit {
         this.updateKnobVisual(paramName, sliderState.getNormalisedValue());
       });
 
+      // Alt/Option-click resets to the default as one host gesture. CAPTURE
+      // phase, registered before the drag listener, so it runs first and
+      // cancels the drag outright (stopImmediatePropagation).
+      knob.addEventListener('mousedown', (e) => {
+        if (!e.altKey) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        const def = this.defaults[paramName];
+        if (typeof def !== 'number') return;
+        sliderState.sliderDragStarted();
+        sliderState.setNormalisedValue(def);
+        sliderState.sliderDragEnded();
+      }, true);
+
       knob.addEventListener('mousedown', (e) => {
         if (sliderState.sliderDragStarted) sliderState.sliderDragStarted();
         activeKnob = sliderState;
@@ -224,8 +376,21 @@ export class ReverbUnit {
         e.preventDefault();
       });
 
-      knob.addEventListener('dblclick', () => {
-        sliderState.setNormalisedValue(this.defaults[paramName] ?? 0.5);
+      // Double-click (knob or readout) opens inline value entry. All reverb
+      // ranges are linear, so the readout format is a linear map of norm.
+      const p = this.params[paramName];
+      const readout = document.getElementById(`${this.paramPrefix}${paramName}_value`);
+      const formatFn = (norm) => p.format(p.min + norm * (p.max - p.min));
+      formatFn.parse = p.parse;
+      knob.addEventListener('dblclick', (e) => {
+        if (e.altKey) return;
+        e.preventDefault();
+        attachValueEntry(readout, sliderState, formatFn);
+      });
+      if (readout) readout.addEventListener('dblclick', (e) => {
+        if (e.altKey) return;
+        e.preventDefault();
+        attachValueEntry(readout, sliderState, formatFn);
       });
 
       this.updateKnobVisual(paramName, sliderState.getNormalisedValue());
@@ -238,7 +403,9 @@ export class ReverbUnit {
     if (indicator) indicator.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
 
     const valueDisplay = document.getElementById(`${this.paramPrefix}${paramName}_value`);
-    if (valueDisplay) {
+    // Skipped while a value-entry field is open over the readout; the field
+    // re-renders it from live state when it closes.
+    if (valueDisplay && valueDisplay.dataset.editing !== '1') {
       const p = this.params[paramName];
       valueDisplay.textContent = p.format(p.min + normalized * (p.max - p.min));
     }

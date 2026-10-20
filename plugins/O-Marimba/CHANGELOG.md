@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.16.2] - 2026-10-19
+
+### Changed
+- **Effects tab: double-click a dial to type a value.** EQ, compressor and reverb knobs now open the value-entry field on double-click; Enter or clicking away applies, Esc cancels. On the EQ, the outer ring types the band frequency (`1.2k` = 1200 Hz; a bare number is Hz) and the inner dial its gain in dB; reverb amounts take percent, Pre-dly takes ms. **Alt/Option-click resets** an Effects-tab knob to its default inside one host gesture (this was double-click).
+
+### Fixed
+- **Clicking another dial now applies a typed value.** With a value-entry field open, pressing on a different dial left the field open and its readout frozen. The press now applies the typed value and closes the field before the new drag starts.
+
+### Notes
+- Shared modules: `analog-eq-unit` 1.4.0, `compressor-unit` 1.4.0, `reverb-unit` 1.1.0 (O-Marimba is their only consumer).
+
 ## [1.16.1] - 2026-10-19
 
 ### Changed

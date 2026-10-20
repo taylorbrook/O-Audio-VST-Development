@@ -443,7 +443,7 @@ modules:
 
   - name: analog-eq-unit
     path: effects/analog-eq-unit
-    version: 1.3.0
+    version: 1.4.0
     description: |
       4-band analog-style parametric EQ module with low/high shelves and two
       mid bells. Includes optional analog saturation for warmth. Designed as
@@ -493,7 +493,7 @@ modules:
 
   - name: compressor-unit
     path: effects/compressor-unit
-    version: 1.3.0
+    version: 1.4.0
     description: |
       Compact dynamics compressor module for embedding in VST instruments.
       Same DSP as Ouaricon Compressor with simplified controls: Threshold,
@@ -532,7 +532,7 @@ modules:
 
   - name: reverb-unit
     path: effects/reverb-unit
-    version: 1.0.0
+    version: 1.1.0
     description: |
       Compact 8-channel FDN plate reverb module for embedding in VST instruments.
       O-Formant's ReverbProcessor tank (WR-16 smoothing, IN-12 sample-rate fixes)

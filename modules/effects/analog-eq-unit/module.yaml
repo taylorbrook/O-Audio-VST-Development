@@ -1,5 +1,5 @@
 name: analog-eq-unit
-version: 1.3.0
+version: 1.4.0
 category: effects
 description: |
   4-band analog-style parametric EQ module with low/high shelves and two mid bells.
@@ -81,6 +81,13 @@ tags:
 reuse_score: 9
 
 changelog:
+  - version: 1.4.0
+    date: 2026-10-19
+    changes:
+      - Double-click opens inline value entry (Enter / click-away applies, Esc cancels, untouched text not written, skew-aware); Alt/Option-click resets to the default inside one host gesture (was double-click, which wrote without a gesture)
+      - Outer ring types/resets the band frequency (`1.2k` = 1200 Hz, a bare number is Hz), inner dial its gain in dB, chosen by the same distance test the drag uses
+      - Value tooltip split into .vt-freq / .vt-gain spans; the field opens over the pressed ring's span and the tooltip stays up while it is open
+      - Self-contained: module-private attachValueEntry / scaledToNorm / parsers, own .eq-value-input class, no imports
   - version: 1.3.0
     date: 2026-10-16
     changes:
