@@ -2,6 +2,11 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.20.2] — 2026-10-19
+
+### Fixed
+- **Clicking a step cell now applies a typed value.** With a value-entry field open, pressing on a step cell left the field open and its readout frozen. The press now applies the typed value and closes the field before the step toggles or drags.
+
 ## [1.20.1] — 2026-10-19
 
 ### Changed
