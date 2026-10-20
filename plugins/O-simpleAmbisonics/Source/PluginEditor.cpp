@@ -213,7 +213,7 @@ OSimpleAmbisonicsAudioProcessorEditor::OSimpleAmbisonicsAudioProcessorEditor (OS
     //                    selectNextPreset, selectPreviousPreset, deletePreset,
     //                    isFactoryPreset
 
-    // dblclick reset: the relay's properties payload carries start / end / skew
+    // Alt-click reset (v1.0.2; was double-click): the relay's properties payload carries start / end / skew
     // but no default, and a JS default table would drift from C++. Engineering
     // units for every parameter; the page converts back through scaledToNorm().
     options = options.withNativeFunction ("getParameterDefaults",
