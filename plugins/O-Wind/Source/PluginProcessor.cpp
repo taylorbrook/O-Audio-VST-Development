@@ -228,7 +228,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OWindAudioProcessor::createP
         juce::ParameterID { "outputLevel", 1 },
         "Output Level",
         juce::NormalisableRange<float>(-60.0f, 12.0f, 0.1f),
-        0.0f,
+        -6.0f,
         "dB"
     ));
 
@@ -465,6 +465,7 @@ OWindAudioProcessor::OWindAudioProcessor()
     fxCache.width            = parameters.getRawParameterValue("width");
     fxCache.formant          = parameters.getRawParameterValue("formant");
     fxCache.instrumentPreset = parameters.getRawParameterValue("instrumentPreset");
+    outputLevelParam         = parameters.getRawParameterValue("outputLevel");
 
     // Persist tuning-engine state (intervals, scale name, tonic, built-in
     // preset, octave stretch, mode) through DAW session state and user presets.
@@ -536,6 +537,19 @@ OWindAudioProcessor::OWindAudioProcessor()
 
             if (obj->hasProperty("octaveStretch"))
                 tuningEngine.setOctaveStretch(static_cast<float>(obj->getProperty("octaveStretch")));
+        });
+
+    // Output Level is user-owned: no preset load may move it. The shared preset
+    // manager's apply runs migrate -> reset-every-param-to-default -> apply the
+    // preset's keys, so pinning the key to the LIVE normalised value here nets
+    // the level to unchanged on every path (loadPreset, loadPresetFromFile,
+    // applyPresetData) — including user presets and legacy factory saves that
+    // still carry the key. (One transient default write happens inside the
+    // apply call; the 20 ms output ramp absorbs it.)
+    presetManager.setMigrationCallback(
+        [this](juce::DynamicObject& presetParams, const juce::String&) {
+            if (auto* p = parameters.getParameter("outputLevel"))
+                presetParams.setProperty("outputLevel", p->getValue());
         });
 
     // Initialize factory presets
@@ -610,6 +624,12 @@ void OWindAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     chorusTailRemaining = 0;
     delayTailRemaining = 0;
     reverbTailRemaining = 0;
+
+    // Output Level ramp, seeded at the live level so the first block ramps from
+    // neither 0 nor unity.
+    outputLevelSmoothed.reset(sampleRate, 0.02);
+    outputLevelSmoothed.setCurrentAndTargetValue(
+        juce::Decibels::decibelsToGain(outputLevelParam->load()));
 }
 
 void OWindAudioProcessor::releaseResources()
@@ -639,7 +659,7 @@ void OWindAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
         return;
 
     // Render all voices via synthesiser (handles MIDI routing + voice allocation)
-    // Output level is applied per-voice in FluteSynthVoice::renderNextBlock
+    // Output level is applied once, at the end of this function (after the FX)
     synthesiser.renderNextBlock (buffer, midiMessages, 0, buffer.getNumSamples());
 
     // Post-voice stereo width processing
@@ -774,6 +794,12 @@ void OWindAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
         eq.setHighGain(fxCache.eqHighGain->load(std::memory_order_relaxed));
         eq.process(block);
     }
+
+    // Output Level: the last stage, after the whole FX chain, so it also scales
+    // notes that are already sounding and their effect tails. Linear ramp on the
+    // linear gain (a -60 dB floor is ~0, which Multiplicative cannot reach).
+    outputLevelSmoothed.setTargetValue(juce::Decibels::decibelsToGain(outputLevelParam->load()));
+    outputLevelSmoothed.applyGain(buffer, buffer.getNumSamples());
 }
 
 #if JUCE_WEB_BROWSER
@@ -849,7 +875,9 @@ void OWindAudioProcessor::initializeFactoryPresets()
 {
     // Presets use normalized values (0-1) as stored by OuariconPresetManager
     // For parameters with non-0-1 ranges, we use the normalized form
-    // e.g., outputLevel -60..12 dB: 0.0 = -60, ~0.833 = 0, 1.0 = 12
+    // e.g., vibratoRate's Hz value goes through normalize() below.
+    // NO preset names outputLevel: Output Level is the user's control, not a
+    // preset's (the constructor's migration pin keeps every load off it).
 
     // Helper: convert raw value to normalized for a given parameter
     auto normalize = [this](const juce::String& paramId, float rawValue) -> float {
@@ -879,7 +907,6 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "width",           normalize("width", 1.0f) },
         { "formant",         normalize("formant", 0.5f) },
         { "material",        normalize("material", 0.5f) },
-        { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.0f) },
@@ -912,7 +939,6 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "width",           normalize("width", 0.8f) },
         { "formant",         normalize("formant", 0.5f) },
         { "material",        normalize("material", 0.5f) },
-        { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.1f) },
@@ -945,7 +971,6 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "width",           normalize("width", 1.2f) },
         { "formant",         normalize("formant", 0.5f) },
         { "material",        normalize("material", 0.5f) },
-        { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.0f) },
@@ -978,7 +1003,6 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "width",           normalize("width", 1.4f) },
         { "formant",         normalize("formant", 0.5f) },
         { "material",        normalize("material", 0.5f) },
-        { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.05f) },
@@ -1011,7 +1035,6 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "width",           normalize("width", 0.6f) },
         { "formant",         normalize("formant", 0.5f) },
         { "material",        normalize("material", 0.5f) },
-        { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.0f) },
@@ -1044,7 +1067,6 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "width",           normalize("width", 1.5f) },
         { "formant",         normalize("formant", 0.5f) },
         { "material",        normalize("material", 0.5f) },
-        { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.0f) },
@@ -1077,7 +1099,6 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "width",           normalize("width", 0.5f) },
         { "formant",         normalize("formant", 0.5f) },
         { "material",        normalize("material", 0.5f) },
-        { "outputLevel",     normalize("outputLevel", -3.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.0f) },
@@ -1110,7 +1131,6 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "width",           normalize("width", 0.7f) },
         { "formant",         normalize("formant", 0.5f) },
         { "material",        normalize("material", 0.5f) },
-        { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.0f) },

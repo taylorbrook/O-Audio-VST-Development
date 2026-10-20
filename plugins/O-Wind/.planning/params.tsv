@@ -23,7 +23,7 @@ vibratoDriftSpeed	Vibrato Drift Speed	Hz	2147483647	0.10	2.00	0.157895	0.40	auto
 material	Material		2147483647	0.00	1.00	0.500000	0.50	automatable
 width	Width		2147483647	0.00	2.00	0.500000	1.00	automatable
 formant	Formant		2147483647	0.00	1.00	0.500000	0.50	automatable
-outputLevel	Output Level	dB	2147483647	-60.0	12.0	0.833333	0.0	automatable
+outputLevel	Output Level	dB	2147483647	-60.0	12.0	0.750000	-6.0	automatable
 inharmonicity	Inharmonicity		2147483647	0.00	1.00	0.200000	0.20	automatable
 infiniteSustain	Infinite Sustain		2147483647	0.00	1.00	0.000000	0.00	automatable
 reversedJet	Reversed Jet		2147483647	0.00	1.00	0.000000	0.00	automatable

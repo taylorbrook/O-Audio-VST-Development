@@ -203,6 +203,21 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
             .withOptionsFrom(*reverbBypassRelay)
             .withOptionsFrom(*delayModeRelay)
 
+            // Each parameter's TRUE (skew-correct) NORMALISED default, so the
+            // UI's Alt/Option-click reset uses the C++ NormalisableRange rather
+            // than hand-coded JS constants (O-Contrabass pattern).
+            .withNativeFunction(
+                juce::Identifier("getParameterDefaults"),
+                [this](const juce::Array<juce::var>& /*args*/,
+                       juce::WebBrowserComponent::NativeFunctionCompletion completion)
+                {
+                    juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+                    for (auto* param : processorRef.getParameters())
+                        if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(param))
+                            obj->setProperty(ranged->getParameterID(), ranged->getDefaultValue());
+                    completion(juce::var(obj.get()));
+                })
+
             // =============================================================
             // PRESET NATIVE FUNCTIONS
             // =============================================================

@@ -171,6 +171,11 @@ private:
         std::atomic<float>* instrumentPreset = nullptr;
     } fxCache;
 
+    // Output Level: one processor stage after the FX chain (no longer per voice),
+    // ramped on the LINEAR gain (~20 ms) so moves never zipper.
+    std::atomic<float>* outputLevelParam = nullptr;
+    juce::SmoothedValue<float> outputLevelSmoothed { 1.0f };
+
     // Preset manager (OuariconPresetManager)
     OuariconPresetManager presetManager;
 

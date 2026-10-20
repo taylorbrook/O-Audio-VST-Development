@@ -281,7 +281,6 @@ void FluteSynthVoice::cacheParameterPointers()
     paramCache.vibratoDriftDepth = parameters->getRawParameterValue ("vibratoDriftDepth");
     paramCache.vibratoDriftSpeed = parameters->getRawParameterValue ("vibratoDriftSpeed");
     paramCache.vibratoOnset      = parameters->getRawParameterValue ("vibratoOnset");
-    paramCache.outputLevel       = parameters->getRawParameterValue ("outputLevel");
     paramCache.infiniteSustain   = parameters->getRawParameterValue ("infiniteSustain");
     paramCache.reversedJet       = parameters->getRawParameterValue ("reversedJet");
     paramCache.subHarmonics      = parameters->getRawParameterValue ("subHarmonics");
@@ -565,9 +564,11 @@ void FluteSynthVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             }
         }
 
-        // Apply output gain, phase-locked tremolo, and fixed voice attenuation
+        // Apply phase-locked tremolo and fixed voice attenuation. The user's
+        // Output Level is NOT applied here: it is the processor's last stage,
+        // after the effects (OWindAudioProcessor::processBlock).
         // -6 dB (0.5x) attenuation keeps raw waveguide output at comfortable level
-        sample *= outputGainLinear * tremoloGain * 0.5f * adsrLevel;
+        sample *= tremoloGain * 0.5f * adsrLevel;
 
         // Soft safety clip (tanh-based to avoid aliasing from hard discontinuities)
         sample = std::tanh (sample * 0.5f) * 2.0f;
@@ -616,7 +617,6 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     float endReflection  = paramCache.endReflection->load();
     float vibratoRate    = paramCache.vibratoRate->load();
     float vibratoDepth   = paramCache.vibratoDepth->load();
-    float outputLevel    = paramCache.outputLevel->load();
     float infSustain     = paramCache.infiniteSustain->load();
     float reversedJet    = paramCache.reversedJet->load();
     float subHarmonics   = paramCache.subHarmonics->load();
@@ -743,9 +743,6 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     // Material scales noise center similarly to bore loss (wood=darker noise, metal=brighter)
     // Per-note humanization: shift center freq by +/-10%
     jetExciter.updateStrouhalBandpass (breathPressure, strouhalFreqScale * materialBoreScale);
-
-    // Output gain (dB to linear)
-    outputGainLinear = juce::Decibels::decibelsToGain (outputLevel);
 
     // Re-query tuning engine per block so tuning changes take effect on held notes
     if (tuningEngine != nullptr)
