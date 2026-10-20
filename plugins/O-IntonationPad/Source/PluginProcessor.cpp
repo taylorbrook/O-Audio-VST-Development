@@ -296,12 +296,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout OIntonationPadAudioProcessor
         0.0f
     ));
 
-    // MASTER_VOLUME - Float (0.0-1.26 gain, default: 1.0)
+    // MASTER_VOLUME - Float (0.0-1.26 linear gain, default: 0.501187 = -6 dB)
+    // gk9: -6 dB default; user-owned (never set by presets). The 0.01 interval
+    // snaps the default to 0.50 (-6.02 dB) on reset — expected.
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "masterVolume", 1 },
         "Master Volume",
         juce::NormalisableRange<float>(0.0f, 1.26f, 0.01f),
-        1.0f
+        0.501187f
     ));
 
     // ═══════════════════════════════════════════════════════════════════

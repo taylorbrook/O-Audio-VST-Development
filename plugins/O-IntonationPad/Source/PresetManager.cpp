@@ -81,6 +81,15 @@ bool PresetManager::savePreset(const juce::String& name, const juce::String& cat
     if (stateXml == nullptr)
         return false;
 
+    // gk9: user-owned params (masterVolume) are never stored in a preset.
+    for (auto* child = stateXml->getFirstChildElement(); child != nullptr;)
+    {
+        auto* next = child->getNextElement();
+        if (child->hasTagName("PARAM") && isUserOwnedParameter(child->getStringAttribute("id")))
+            stateXml->removeChildElement(child, true);
+        child = next;
+    }
+
     // Wrap in preset envelope with metadata
     auto presetXml = std::make_unique<juce::XmlElement>("OIntonationPadPreset");
     presetXml->setAttribute("name", name);
@@ -135,6 +144,12 @@ bool PresetManager::loadPreset(const juce::String& name, bool isFactory)
 
     if (stateXml == nullptr)
         return false;
+
+    // gk9: a preset load leaves user-owned params (masterVolume) where the user
+    // put them — legacy user presets still carry the key; it is overwritten
+    // with the live value here, and added when missing (replaceState would
+    // otherwise reset an absent param to its default).
+    pinUserOwnedParameters(*stateXml);
 
     // Convert XML to binary and load into processor
     juce::MemoryBlock destData;
@@ -301,8 +316,7 @@ const std::vector<PresetManager::FactoryPresetData>& PresetManager::getFactoryPr
                 {"reverbBypass", "0"}, {"reverbSize", "0.85"},
                 {"reverbDamp", "0.3"}, {"reverbMix", "0.45"}, {"reverbPredelay", "40"},
                 {"chorusBypass", "0"}, {"chorusMix", "0.25"}, {"chorusDepth", "0.4"},
-                {"detuneRandom", "8"}, {"timingRandom", "20"},
-                {"masterVolume", "0.85"}
+                {"detuneRandom", "8"}, {"timingRandom", "20"}
             },
             8, "Just Intonation", 0
         },
@@ -325,8 +339,7 @@ const std::vector<PresetManager::FactoryPresetData>& PresetManager::getFactoryPr
                 {"reverbDamp", "0.4"}, {"reverbMix", "0.35"}, {"reverbPredelay", "30"},
                 {"delayBypass", "0"}, {"delayTime", "0.5"},
                 {"delayFeedback", "0.2"}, {"delayMix", "0.15"},
-                {"eqBypass", "0"}, {"eqLowGain", "2.0"}, {"eqHighGain", "-1.5"},
-                {"masterVolume", "0.9"}
+                {"eqBypass", "0"}, {"eqLowGain", "2.0"}, {"eqHighGain", "-1.5"}
             },
             8, "Just Intonation", 0
         },
@@ -348,8 +361,7 @@ const std::vector<PresetManager::FactoryPresetData>& PresetManager::getFactoryPr
                 {"spacing", "0.0"}, {"inversion", "0.5"},
                 {"reverbBypass", "0"}, {"reverbSize", "0.95"},
                 {"reverbDamp", "0.2"}, {"reverbMix", "0.55"}, {"reverbPredelay", "60"},
-                {"detuneRandom", "12"}, {"timingRandom", "30"},
-                {"masterVolume", "0.8"}
+                {"detuneRandom", "12"}, {"timingRandom", "30"}
             },
             8, "Just Intonation", 0
         },
@@ -368,8 +380,7 @@ const std::vector<PresetManager::FactoryPresetData>& PresetManager::getFactoryPr
                 {"filterCutoff", "7000"}, {"stereoSpread", "0.5"},
                 {"spacing", "0.15"}, {"inversion", "0.25"},
                 {"reverbBypass", "0"}, {"reverbSize", "0.5"},
-                {"reverbDamp", "0.5"}, {"reverbMix", "0.2"},
-                {"masterVolume", "0.9"}
+                {"reverbDamp", "0.5"}, {"reverbMix", "0.2"}
             },
             1, "Pythagorean", 0  // Pythagorean tuning
         },
@@ -391,8 +402,7 @@ const std::vector<PresetManager::FactoryPresetData>& PresetManager::getFactoryPr
                 {"reverbBypass", "0"}, {"reverbSize", "0.6"},
                 {"reverbDamp", "0.35"}, {"reverbMix", "0.3"}, {"reverbPredelay", "15"},
                 {"chorusBypass", "0"}, {"chorusMix", "0.15"},
-                {"detuneRandom", "3"}, {"timingRandom", "5"},
-                {"masterVolume", "0.85"}
+                {"detuneRandom", "3"}, {"timingRandom", "5"}
             },
             8, "Just Intonation", 0
         },
@@ -416,8 +426,7 @@ const std::vector<PresetManager::FactoryPresetData>& PresetManager::getFactoryPr
                 {"reverbDamp", "0.3"}, {"reverbMix", "0.4"},
                 {"delayBypass", "0"}, {"delayTime", "0.333"},
                 {"delayFeedback", "0.35"}, {"delayMix", "0.2"}, {"delayMode", "1"},
-                {"detuneRandom", "15"}, {"timingRandom", "25"},
-                {"masterVolume", "0.8"}
+                {"detuneRandom", "15"}, {"timingRandom", "25"}
             },
             9, "Bohlen-Pierce", 0  // Bohlen-Pierce tuning
         },
@@ -439,8 +448,7 @@ const std::vector<PresetManager::FactoryPresetData>& PresetManager::getFactoryPr
                 {"reverbDamp", "0.25"}, {"reverbMix", "0.5"}, {"reverbPredelay", "50"},
                 {"chorusBypass", "0"}, {"chorusMix", "0.3"}, {"chorusRate", "0.8"},
                 {"chorusDepth", "0.5"},
-                {"detuneRandom", "6"}, {"timingRandom", "15"},
-                {"masterVolume", "0.85"}
+                {"detuneRandom", "6"}, {"timingRandom", "15"}
             },
             8, "Just Intonation", 0
         },
@@ -465,8 +473,7 @@ const std::vector<PresetManager::FactoryPresetData>& PresetManager::getFactoryPr
                 {"reverbDamp", "0.15"}, {"reverbMix", "0.5"}, {"reverbPredelay", "45"},
                 {"delayBypass", "0"}, {"delayTime", "0.75"},
                 {"delayFeedback", "0.4"}, {"delayMix", "0.2"}, {"delayMode", "1"},
-                {"detuneRandom", "10"}, {"timingRandom", "18"},
-                {"masterVolume", "0.8"}
+                {"detuneRandom", "10"}, {"timingRandom", "18"}
             },
             8, "Just Intonation", 0
         },
@@ -488,8 +495,7 @@ const std::vector<PresetManager::FactoryPresetData>& PresetManager::getFactoryPr
                 {"spacing", "0.0"}, {"inversion", "0.6"},
                 {"reverbBypass", "0"}, {"reverbSize", "0.92"},
                 {"reverbDamp", "0.2"}, {"reverbMix", "0.6"}, {"reverbPredelay", "55"},
-                {"detuneRandom", "2"}, {"timingRandom", "40"},
-                {"masterVolume", "0.75"}
+                {"detuneRandom", "2"}, {"timingRandom", "40"}
             },
             8, "Just Intonation", 0
         },
@@ -510,8 +516,7 @@ const std::vector<PresetManager::FactoryPresetData>& PresetManager::getFactoryPr
                 {"chorusBypass", "0"}, {"chorusMix", "0.2"},
                 {"chorusRate", "1.2"}, {"chorusDepth", "0.35"},
                 {"reverbBypass", "0"}, {"reverbSize", "0.4"},
-                {"reverbDamp", "0.5"}, {"reverbMix", "0.2"},
-                {"masterVolume", "0.9"}
+                {"reverbDamp", "0.5"}, {"reverbMix", "0.2"}
             },
             8, "Just Intonation", 0
         },
@@ -534,14 +539,36 @@ const std::vector<PresetManager::FactoryPresetData>& PresetManager::getFactoryPr
                 {"reverbDamp", "0.4"}, {"reverbMix", "0.45"}, {"reverbPredelay", "25"},
                 {"delayBypass", "0"}, {"delayTime", "0.25"},
                 {"delayFeedback", "0.3"}, {"delayMix", "0.15"},
-                {"detuneRandom", "7"}, {"timingRandom", "12"},
-                {"masterVolume", "0.85"}
+                {"detuneRandom", "7"}, {"timingRandom", "12"}
             },
             2, "Zarlino", 0  // Zarlino (just intonation variant)
         }
     };
 
     return presets;
+}
+
+void PresetManager::pinUserOwnedParameters(juce::XmlElement& stateXml) const
+{
+    auto& apvts = processorRef.getAPVTS();
+    for (auto* param : apvts.processor.getParameters())
+    {
+        auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(param);
+        if (ranged == nullptr || ! isUserOwnedParameter(ranged->getParameterID()))
+            continue;
+
+        const double live = ranged->convertFrom0to1(ranged->getValue());
+        juce::XmlElement* node = nullptr;
+        for (auto* child : stateXml.getChildWithTagNameIterator("PARAM"))
+            if (child->getStringAttribute("id") == ranged->getParameterID()) { node = child; break; }
+
+        if (node == nullptr)
+        {
+            node = stateXml.createNewChildElement("PARAM");
+            node->setAttribute("id", ranged->getParameterID());
+        }
+        node->setAttribute("value", live);
+    }
 }
 
 juce::String PresetManager::buildFactoryPresetXml(const FactoryPresetData& preset) const
@@ -560,6 +587,8 @@ juce::String PresetManager::buildFactoryPresetXml(const FactoryPresetData& prese
         if (child.hasType("PARAM"))
         {
             auto id = child.getProperty("id").toString();
+            if (isUserOwnedParameter(id))
+                continue;   // gk9: keep the live value (copyState) — user-owned
             if (auto* param = apvts.getParameter(id))
                 child.setProperty("value",
                     param->convertFrom0to1(param->getDefaultValue()), nullptr);
@@ -569,6 +598,8 @@ juce::String PresetManager::buildFactoryPresetXml(const FactoryPresetData& prese
     // Apply parameter overrides
     for (const auto& [paramId, value] : preset.paramOverrides)
     {
+        if (isUserOwnedParameter(paramId))
+            continue;   // gk9: no factory preset sets a user-owned param
         if (apvts.getParameter(paramId) != nullptr)
         {
             // Find the PARAM child in the ValueTree
