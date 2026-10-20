@@ -246,6 +246,17 @@ OSimplePhysicalModelSynthAudioProcessorEditor::OSimplePhysicalModelSynthAudioPro
         })
         // Host sample rate — used by the spectrum canvas for its log-frequency axis
         // labels (so the 100 Hz / 1 k / 10 k ticks land at the right Nyquist).
+        // v1.4.2 — each parameter's TRUE (skew-correct) NORMALISED default, pulled
+        // once at boot. The knobs' Alt/Option-click reset reads it, so the reset
+        // target comes from the C++ NormalisableRange, never a hand-copied JS table
+        // (O-Contrabass / O-GrainScatter WR-11 pattern).
+        .withNativeFunction ("getParameterDefaults", [this] (auto&, auto complete) {
+            juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+            for (auto* param : processorRef.getParameters())
+                if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (param))
+                    obj->setProperty (ranged->getParameterID(), ranged->getDefaultValue());
+            complete (juce::var (obj.get()));
+        })
         .withNativeFunction ("getSampleRate", [this] (auto&, auto complete) {
             complete (processorRef.getSampleRate());
         })

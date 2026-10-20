@@ -38,6 +38,10 @@
         explicit damping/decay survive.
       - NEVER co-author `material` AND `damping`/`decay` in one preset.
 
+    Output Level is USER-OWNED (v1.4.2): no preset names it, and the processor's
+    migration hook pins it to its live value on every preset load, so a preset
+    never moves the user's level.
+
     Choice params (excitationType, resonatorType) are authored as raw indices;
     convertTo0to1 maps index → normalized. stringModel is omitted everywhere
     (KS only in v1.0, default 0).
@@ -91,16 +95,14 @@ build (juce::AudioProcessorValueTreeState& apvts)
         { excitationType, 0.0f }, { resonatorType, 0.0f },
         { excitationPosition, 18.0f }, { excitationColor, 75.0f },
         { material, 8.0f },
-        { ampAttack, 0.001f }, { ampRelease, 0.3f },
-        { outputLevel, -6.0f } }));
+        { ampAttack, 0.001f }, { ampRelease, 0.3f } }));
 
     // Muted Nylon — Pluck → String. High material (nylon): dark + short decay.
     presets.push_back (makePreset (apvts, "Muted Nylon", {
         { excitationType, 0.0f }, { resonatorType, 0.0f },
         { excitationPosition, 30.0f }, { excitationColor, 35.0f },
         { material, 85.0f },
-        { ampAttack, 0.001f }, { ampRelease, 0.15f },
-        { outputLevel, -5.0f } }));
+        { ampAttack, 0.001f }, { ampRelease, 0.15f } }));
 
     // Koto Harp — Pluck → String. Mid material, plucky mid position/color.
     // NB: no '/' in the name — OuariconPresetManager uses the preset name verbatim
@@ -110,8 +112,7 @@ build (juce::AudioProcessorValueTreeState& apvts)
         { excitationType, 0.0f }, { resonatorType, 0.0f },
         { excitationPosition, 22.0f }, { excitationColor, 60.0f },
         { material, 35.0f },
-        { ampAttack, 0.001f }, { ampRelease, 0.25f },
-        { outputLevel, -6.0f } }));
+        { ampAttack, 0.001f }, { ampRelease, 0.25f } }));
 
     // ── Modal resonator — explicit damping/decay (material left at default) ─────
 
@@ -121,8 +122,7 @@ build (juce::AudioProcessorValueTreeState& apvts)
         { excitationPosition, 30.0f }, { excitationColor, 55.0f },
         { inharmonicity, 10.0f }, { modeBrightness, 45.0f },
         { damping, 55.0f }, { decay, 60.0f },
-        { ampAttack, 0.001f }, { ampRelease, 0.3f },
-        { outputLevel, -8.0f } }));
+        { ampAttack, 0.001f }, { ampRelease, 0.3f } }));
 
     // Bell — Strike → Modal. High inharmonicity (inharmonic bell), long ring.
     presets.push_back (makePreset (apvts, "Bell", {
@@ -130,8 +130,7 @@ build (juce::AudioProcessorValueTreeState& apvts)
         { excitationPosition, 25.0f }, { excitationColor, 65.0f },
         { inharmonicity, 80.0f }, { modeBrightness, 70.0f },
         { damping, 70.0f }, { decay, 88.0f },
-        { ampAttack, 0.001f }, { ampRelease, 0.6f },
-        { outputLevel, -8.0f } }));
+        { ampAttack, 0.001f }, { ampRelease, 0.6f } }));
 
     // ── Bow → String (KS) — Material macro drives damping + decay ──────────────
 
@@ -141,8 +140,7 @@ build (juce::AudioProcessorValueTreeState& apvts)
         { excitationPosition, 30.0f }, { excitationColor, 50.0f },
         { bowForce, 55.0f },
         { material, 15.0f },
-        { ampAttack, 0.04f }, { ampRelease, 0.25f },
-        { outputLevel, -6.0f } }));
+        { ampAttack, 0.04f }, { ampRelease, 0.25f } }));
 
     return presets;
 }
