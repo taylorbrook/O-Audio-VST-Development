@@ -4,6 +4,11 @@ All notable changes to the O-Contrabass physical-model bowed-contrabass synth.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — the pre-release `1.x-dev` engine track collapses into it.
 
+## [1.12.2] - 2026-10-19
+
+### Fixed
+- **Clicking another dial now applies a typed value.** With a value-entry field open, pressing on a different dial left the field open and its readout frozen. The press now applies the typed value and closes the field before the new drag starts.
+
 ## [1.12.1] - 2026-10-19
 
 ### Changed
