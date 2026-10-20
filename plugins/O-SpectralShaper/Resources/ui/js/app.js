@@ -113,15 +113,161 @@ function initializeApp() {
 }
 
 // ============================================================================
+// DOUBLE-CLICK VALUE ENTRY + ALT-CLICK RESET (v1.10.1)
+// ============================================================================
+
+// ─── DOUBLE-CLICK VALUE ENTRY (v1.10.1) ───
+// Ported from O-Prism (index.html scaledToNorm / attachValueEntry /
+// parsers). Double-click a knob or its readout to type a value; Enter or
+// blur commits, Esc cancels. Alt/Option-click resets instead. Knobs
+// only — the curve editors keep their own double-click (add a node).
+
+// Scaled (C++ units) -> normalised [0,1], from the LIVE start/end/skew
+// the relay pushes up in state.properties — never a JS range table.
+// Clamp BEFORE the pow(): a negative base with a fractional skew is NaN,
+// and that NaN would ride setNormalisedValue() into the parameter.
+function scaledToNorm(v, props) {
+    const start = props.start, end = props.end;
+    const skew = props.skew > 0 ? props.skew : 1;
+    if (!(end > start)) return 0;
+    const t = Math.min(1, Math.max(0, (v - start) / (end - start)));
+    return skew === 1 ? t : Math.pow(t, skew);
+}
+
+// Opens an inline editor over a readout. formatFn(norm) renders the
+// readout text; formatFn.parse(text, currentText) returns a SCALED value
+// or null to reject. Untouched text is never written back.
+function attachValueEntry(valueEl, state, formatFn) {
+    if (!valueEl || !state) return;
+    if (typeof formatFn !== 'function' || typeof formatFn.parse !== 'function') return;
+    if (valueEl.dataset.editing === '1') return;   // already open
+
+    const currentText = valueEl.textContent;
+    const prevPosition = valueEl.style.position;
+    const prevColor = valueEl.style.color;
+    // Read the ink BEFORE hiding the readout — `inherit` on the input
+    // would otherwise resolve to the transparent colour set below.
+    const inkColor = getComputedStyle(valueEl).color;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'knob-value-input';
+    input.value = currentText;
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+    input.style.color = inkColor;
+
+    // The readout keeps its text (transparent) so its box keeps its size
+    // and the knob column does not shift; the input is overlaid on it.
+    valueEl.dataset.editing = '1';
+    valueEl.style.position = 'relative';
+    valueEl.style.color = 'transparent';
+    valueEl.appendChild(input);
+    input.focus();
+    input.select();
+
+    let closed = false;
+
+    // Clicking away commits even where a dial's drag handler preventDefault()s
+    // its mousedown: that suppresses the focus change that would blur this
+    // field, so grabbing another dial used to leave it open with its readout
+    // frozen. Capture phase on document, so it commits before any drag starts.
+    const onOutsidePointer = (e) => { if (e.target !== input) input.blur(); };
+    document.addEventListener('pointerdown', onOutsidePointer, true);
+
+    const close = () => {
+        if (closed) return;
+        closed = true;
+        document.removeEventListener('pointerdown', onOutsidePointer, true);
+        delete valueEl.dataset.editing;
+        input.remove();
+        valueEl.style.position = prevPosition;
+        valueEl.style.color = prevColor;
+        // Re-render from live state: automation or a preset may have
+        // moved the parameter while readout writes were suppressed.
+        valueEl.textContent = formatFn(state.getNormalisedValue());
+    };
+
+    const commit = () => {
+        if (closed) return;
+        // Readouts are rounded for display; re-writing untouched text
+        // would quantise the parameter to the rounding.
+        if (input.value === currentText) { close(); return; }
+        const scaled = formatFn.parse(input.value, currentText);
+        if (scaled !== null && isFinite(scaled)) {
+            // setNormalisedValue() snaps to the interval and clamps.
+            state.sliderDragStarted();
+            state.setNormalisedValue(scaledToNorm(scaled, state.properties || {}));
+            state.sliderDragEnded();
+        }
+        close();
+    };
+
+    input.addEventListener('keydown', (e) => {
+        // Keep digits away from any global key handling while open.
+        e.stopPropagation();
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        else if (e.key === 'Escape') { e.preventDefault(); close(); }
+    });
+    input.addEventListener('blur', commit);
+    // Clicking into the field must never start a knob drag underneath it.
+    input.addEventListener('pointerdown', (e) => e.stopPropagation());
+    input.addEventListener('mousedown', (e) => e.stopPropagation());
+    input.addEventListener('dblclick', (e) => e.stopPropagation());
+    input.addEventListener('wheel', (e) => e.stopPropagation());
+}
+
+// ─── VALUE-ENTRY PARSERS ───
+// Display text -> SCALED value (C++ units), or null to reject.
+
+// First signed decimal in the string, or null if there isn't one.
+const numOf = (t) => {
+    const m = String(t).match(/-?\d*\.?\d+/);
+    if (!m) return null;
+    const v = parseFloat(m[0]);
+    return isFinite(v) ? v : null;
+};
+
+
+// Mix and Sensitivity are 0..1 in C++ but read 0-100%.
+const parsePercent = (t) => {
+    const v = numOf(t);
+    return v === null ? null : v / 100;
+};
+
+// Attack, Sustain and Lookahead are scaled in MILLISECONDS and always read
+// "ms" (WR-01: the readout is getScaledValue(), so ms is the C++ unit). A bare
+// number is ms; an explicit "s" (not "ms") means seconds.
+const parseMs = (t) => {
+    const v = numOf(t);
+    if (v === null) return null;
+    const s = String(t);
+    return (/s/i.test(s) && !/ms/i.test(s)) ? v * 1000 : v;
+};
+
+// Output Gain is scaled in dB (-12..+12). "-inf" / "off" mean the range start
+// (a huge negative number scaledToNorm() clamps; non-finite is rejected).
+const parseDb = (t) => (/inf|off/i.test(String(t)) ? -1e9 : numOf(t));
+
+// Skew-correct NORMALISED C++ defaults keyed by parameter ID, for the
+// Alt-click reset (v1.10.1, O-Contrabass pattern). Fetched once in
+// initializeKnobs(); until it resolves the reset is a no-op — never 0.5.
+let paramDefaults = {};
+
+// ============================================================================
 // KNOB INITIALIZATION
 // ============================================================================
 
 function initializeKnobs() {
+    Juce.getNativeFunction('getParameterDefaults')()
+        .then((d) => { paramDefaults = d || {}; })
+        .catch((e) => console.warn('getParameterDefaults failed:', e));
+
     // Mix (0-100%)
     app.knobs.mix = new RotaryKnob('mix-knob-container', 'mix-value', {
         formatValue: (v) => `${Math.round(v * 100)}%`
     });
-    bindKnobToParameter(app.knobs.mix, 'MIX');
+    bindKnobToParameter(app.knobs.mix, 'MIX', parsePercent);
 
     // Attack Time (0.1-50ms, skewed range)
     // WR-01: read the real engineering value JUCE already computed via getScaledValue()
@@ -133,7 +279,7 @@ function initializeKnobs() {
             return value < 10 ? `${value.toFixed(1)}ms` : `${Math.round(value)}ms`;
         }
     });
-    bindKnobToParameter(app.knobs.attackTime, 'ATTACK_TIME');
+    bindKnobToParameter(app.knobs.attackTime, 'ATTACK_TIME', parseMs);
 
     // Sustain Time (10-500ms, skewed range) — WR-01: use getScaledValue(), see above
     app.knobs.sustainTime = new RotaryKnob('sustain-time-knob-container', 'sustain-time-value', {
@@ -142,13 +288,13 @@ function initializeKnobs() {
             return `${Math.round(value)}ms`;
         }
     });
-    bindKnobToParameter(app.knobs.sustainTime, 'SUSTAIN_TIME');
+    bindKnobToParameter(app.knobs.sustainTime, 'SUSTAIN_TIME', parseMs);
 
     // Sensitivity (0-100%)
     app.knobs.sensitivity = new RotaryKnob('sensitivity-knob-container', 'sensitivity-value', {
         formatValue: (v) => `${Math.round(v * 100)}%`
     });
-    bindKnobToParameter(app.knobs.sensitivity, 'SENSITIVITY');
+    bindKnobToParameter(app.knobs.sensitivity, 'SENSITIVITY', parsePercent);
 
     // Lookahead Time (0.1-10ms)
     app.knobs.lookaheadTime = new RotaryKnob('lookahead-time-knob-container', 'lookahead-time-value', {
@@ -159,7 +305,7 @@ function initializeKnobs() {
             return `${value.toFixed(1)}ms`;
         }
     });
-    bindKnobToParameter(app.knobs.lookaheadTime, 'LOOKAHEAD_TIME');
+    bindKnobToParameter(app.knobs.lookaheadTime, 'LOOKAHEAD_TIME', parseMs);
 
     // Output Gain (-12 to +12 dB)
     app.knobs.outputGain = new RotaryKnob('output-gain-knob-container', 'output-gain-value', {
@@ -170,7 +316,7 @@ function initializeKnobs() {
             return `${value >= 0 ? '+' : ''}${value.toFixed(1)}dB`;
         }
     });
-    bindKnobToParameter(app.knobs.outputGain, 'OUTPUT_GAIN');
+    bindKnobToParameter(app.knobs.outputGain, 'OUTPUT_GAIN', parseDb);
 }
 
 // Arrow-key increment in normalised units: KNOB_NUDGE_STEP, floored at one
@@ -193,7 +339,7 @@ function knobNudgeStep(sliderState) {
  * - Callback receives NO parameters
  * - Must call getNormalisedValue() inside callback
  */
-function bindKnobToParameter(knob, parameterId) {
+function bindKnobToParameter(knob, parameterId, parse) {
     try {
         // Get slider state from JUCE
         const sliderState = Juce.getSliderState(parameterId);
@@ -243,6 +389,35 @@ function bindKnobToParameter(knob, parameterId) {
             syncAria();
         });
         sliderState.propertiesChangedEvent.addListener(syncAria);
+
+        // v1.10.1 — Alt/Option-click resets to the C++ default. The drag is
+        // RotaryKnob's pointerdown on knob.container, registered in its
+        // constructor, so a later listener on that element cannot be sure to
+        // run first: this one sits on the PARENT, CAPTURE phase, acts only for
+        // targets inside the container, and cancels the drag outright. One
+        // gesture. (The container's mousedown preventDefault for text
+        // selection is untouched.)
+        knob.container.parentElement.addEventListener('pointerdown', (e) => {
+            if (!e.altKey || !knob.container.contains(e.target)) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const d = paramDefaults[parameterId];
+            if (typeof d !== 'number') return;
+            sliderState.sliderDragStarted();
+            sliderState.setNormalisedValue(d);
+            sliderState.sliderDragEnded();
+            knob.setValue(sliderState.getNormalisedValue());
+            syncAria();
+        }, true);
+
+        // Double-click the knob or its readout to type a value. Never writes
+        // the parameter itself. The knob's own formatValue(norm) renders it.
+        const entryFmt = (n) => knob.formatValue(n);
+        entryFmt.parse = parse;
+        [knob.container, knob.valueElement].forEach((el) => el && el.addEventListener('dblclick', (e) => {
+            if (e.altKey) return;
+            attachValueEntry(knob.valueElement, sliderState, entryFmt);
+        }));
 
         console.log(`Bound knob to parameter: ${parameterId}`);
     } catch (error) {
