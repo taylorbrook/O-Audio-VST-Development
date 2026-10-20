@@ -187,7 +187,7 @@ OSimpleSubtractiveAudioProcessor::createParameterLayout()
     // -60 dB floor represents "-inf" (silence).
     params.push_back (std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { outputLevel, 1 }, "Output Level",
-        juce::NormalisableRange<float> { -60.0f, 0.0f, 0.1f }, 0.0f,
+        juce::NormalisableRange<float> { -60.0f, 0.0f, 0.1f }, -6.0f,
         juce::AudioParameterFloatAttributes().withLabel ("dB")));
 
     return { params.begin(), params.end() };
@@ -352,8 +352,15 @@ void OSimpleSubtractiveAudioProcessor::applyFactoryPreset (const juce::String& n
     using namespace OSimpleSubtractive::ParamIDs;
 
     // 1. Reset every parameter to its default — a clean slate per concept.
+    //    v1.7.2: except Output Level, which is USER-OWNED — no lesson below names
+    //    it either, so loading a preset leaves the level where the user put it.
     for (auto* p : getParameters())
+    {
+        if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (p))
+            if (isUserOwnedParameter (ranged->getParameterID()))
+                continue;
         p->setValueNotifyingHost (p->getDefaultValue());
+    }
 
     // 2. Snapshot helpers (real value → normalised; choices by index).
     auto setReal = [this] (const char* id, float real) {

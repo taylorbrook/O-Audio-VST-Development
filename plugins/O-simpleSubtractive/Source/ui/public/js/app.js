@@ -180,6 +180,174 @@ const FORMAT = {
   glide: fmtMs, outputLevel: (v) => `${v.toFixed(1)} dB`,
 };
 
+// ── Double-click value entry + Alt/Option-click reset (v1.7.2) ─────────────
+// Ported from O-Prism (index.html: scaledToNorm, attachValueEntry, the value-
+// entry parsers). Double-click a dial — or its readout — to type a value;
+// Alt/Option-click resets it to its default. Both write inside ONE
+// sliderDragStarted / sliderDragEnded gesture so hosts record a single edit.
+//
+// One difference from Prism: this file's formatters take the SCALED value
+// (NormalisableRange::convertFrom0to1 output), not the normalised one, so the
+// editor re-renders through state.getScaledValue().
+
+// id -> NORMALISED default, pulled once from C++ (getParameterDefaults). The
+// Alt-click reset reads only this — never a hand-copied JS table, never 0.5.
+let paramDefaults = {};
+function loadParameterDefaults() {
+  try {
+    const fn = Juce.getNativeFunction("getParameterDefaults");
+    Promise.resolve(fn())
+      .then((d) => { paramDefaults = (d && typeof d === "object") ? d : {}; })
+      .catch((e) => console.warn("getParameterDefaults failed:", e));
+  } catch (e) {
+    console.warn("getParameterDefaults unavailable:", e);
+  }
+}
+
+// Scaled (C++ units) -> normalised [0,1], from the LIVE start/end/skew the
+// slider relay pushes up from C++. Clamps BEFORE the pow(): a value below
+// `start` would give a negative base and a fractional skew turns that into NaN.
+function scaledToNorm(v, props) {
+  const start = props.start, end = props.end;
+  const skew = props.skew > 0 ? props.skew : 1;
+  if (!(end > start)) return 0;
+  const t = Math.min(1, Math.max(0, (v - start) / (end - start)));
+  return skew === 1 ? t : Math.pow(t, skew);
+}
+
+// ── Parsers: typed text -> SCALED value (C++ units), or null to reject ──────
+// Called as parse(text, currentText, props). "-inf" / "inf" / "off" mean the
+// range start (the readout's floor).
+const numOf = (t) => {
+  // U+2212 (the typographic minus some readouts print) reads as "-".
+  const m = String(t).replace(/\u2212/g, "-").match(/-?\d*\.?\d+/);
+  if (!m) return null;
+  const v = parseFloat(m[0]);
+  return isFinite(v) ? v : null;
+};
+const isFloorWord = (t) => /inf|off|∞/i.test(String(t));
+// Display value already IS the scaled value (dB, Hz without k, plain numbers).
+const parseDirect = (t, cur, props) => (isFloorWord(t) ? props.start : numOf(t));
+// Display is the scaled value x100 (percent readouts on 0..1 / -1..1 params).
+const parsePercent = (t, cur, props) => {
+  if (isFloorWord(t)) return props.start;
+  const v = numOf(t);
+  return v === null ? null : v / 100;
+};
+// Hz readouts. A bare number is always Hz; "k" multiplies by 1000.
+const parseFreq = (t, cur, props) => {
+  if (isFloorWord(t)) return props.start;
+  const v = numOf(t);
+  if (v === null) return null;
+  return /k/i.test(String(t)) ? v * 1000 : v;
+};
+// Time readouts that flip between ms and s, on params scaled in SECONDS. An
+// explicit unit wins; a bare number inherits the unit on screen, so re-typing
+// what you see round-trips ("2" on "30 ms" is 2 ms, on "1.40 s" it is 2 s).
+const parseSeconds = (t, cur, props) => {
+  if (isFloorWord(t)) return props.start;
+  const v = numOf(t);
+  if (v === null) return null;
+  const s = String(t);
+  if (/ms/i.test(s)) return v / 1000;      // before /s/ — "ms" contains "s"
+  if (/s/i.test(s)) return v;
+  return /ms/i.test(String(cur || "")) ? v / 1000 : v;
+};
+
+// Opens an inline editor over a readout. formatFn(scaled) renders a value;
+// formatFn.parse(text, currentText, props) converts typed text back to a SCALED
+// value or null. Enter/blur commits, Esc cancels, unparseable input is dropped
+// without writing, and untouched text is never written back (readouts round).
+function attachValueEntry(valueEl, state, formatFn) {
+  if (!valueEl || !state) return;
+  if (typeof formatFn !== "function" || typeof formatFn.parse !== "function") return;
+  if (valueEl.dataset.editing === "1") return;   // already open
+
+  const currentText = valueEl.textContent;
+  const prevPosition = valueEl.style.position;
+  const prevColor = valueEl.style.color;
+  // Read the ink BEFORE the readout goes transparent — `inherit` on the input
+  // would otherwise resolve to invisible.
+  const inkColor = getComputedStyle(valueEl).color;
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "knob-value-input";
+  input.value = currentText;
+  input.spellcheck = false;
+  input.autocomplete = "off";
+  input.style.color = inkColor;
+
+  // The readout keeps its own text (transparent) so its box keeps its size; the
+  // input is overlaid on it. Zero layout shift.
+  valueEl.dataset.editing = "1";
+  valueEl.style.position = "relative";
+  valueEl.style.color = "transparent";
+  valueEl.appendChild(input);
+  input.focus();
+  input.select();
+
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    delete valueEl.dataset.editing;
+    input.remove();
+    valueEl.style.position = prevPosition;
+    valueEl.style.color = prevColor;
+    // Re-render from live state: automation or a preset may have moved the
+    // parameter while readout writes were suppressed.
+    valueEl.textContent = formatFn(state.getScaledValue());
+  };
+
+  const commit = () => {
+    if (closed) return;
+    if (input.value === currentText) { close(); return; }
+    const props = state.properties || {};
+    const scaled = formatFn.parse(input.value, currentText, props);
+    if (scaled !== null && isFinite(scaled)) {
+      // setNormalisedValue() snaps to the interval and clamps internally.
+      state.sliderDragStarted();
+      state.setNormalisedValue(scaledToNorm(scaled, props));
+      state.sliderDragEnded();
+    }
+    close();
+  };
+
+  input.addEventListener("keydown", (e) => {
+    // Keep digits away from the QWERTY keyboard and every other global handler.
+    e.stopPropagation();
+    if (e.key === "Enter") { e.preventDefault(); commit(); }
+    else if (e.key === "Escape") { e.preventDefault(); close(); }
+  });
+  input.addEventListener("blur", commit);
+  // Never start a knob drag (or anything else) from inside the field.
+  for (const type of ["pointerdown", "mousedown", "dblclick", "wheel", "keyup"])
+    input.addEventListener(type, (e) => e.stopPropagation());
+}
+
+// Each formatter's inverse (see attachValueEntry above). Shared formatters
+// carry one .parse for every knob that uses them.
+fmtMs.parse = parseSeconds;          // ADSR 0.001..5 s, glide 0..1 s; ms below 1 s
+fmtPct.parse = parsePercent;         // 0..1 (pulse width 0.05..0.95), reads %
+fmtSignedPct.parse = parsePercent;   // filterEnvAmount -1..1, reads -100..+100%
+fmtHz.parse = parseFreq;             // cutoff 20..20000 Hz; "1.2k" = 1200 Hz
+fmtSemis.parse = parseDirect;        // osc2Coarse -24..24 st
+fmtCents.parse = parseDirect;        // osc2Fine -50..50 ct
+fmtLfoHz.parse = parseDirect;        // lfoRate 0.02..20 Hz (never kHz)
+// LFO -> pitch is scaled in SEMITONES but reads cents below 1 st. An explicit
+// "ct"/"st" wins; a bare number inherits the unit on screen.
+fmtPitchDepth.parse = (t, cur, props) => {
+  if (isFloorWord(t)) return props.start;
+  const v = numOf(t);
+  if (v === null) return null;
+  const s = String(t);
+  if (/c/i.test(s)) return v / 100;
+  if (/s/i.test(s)) return v;
+  return /ct/i.test(String(cur || "")) ? v / 100 : v;
+};
+FORMAT.outputLevel.parse = parseDirect;   // -60..0 dB ("-inf" = floor)
+
 // ── Choice labels (for the signal-path diagram) ────────────────────────────
 const WAVE_NAMES = ["Saw", "Square", "Triangle", "Sine"];
 const WAVE_SHORT = ["Saw", "Sqr", "Tri", "Sin"];   // when both oscillators show in one node
@@ -223,7 +391,9 @@ function updateKnobVisual(id) {
     if (stem) stem.style.transform = `translate(-50%, -100%) rotate(${normToDeg(norm)}deg)`;
   }
   const valEl = document.getElementById(`val-${id}`);
-  if (valEl) {
+  // Skip while the value-entry field is open: it lives inside this readout and
+  // a textContent write would wipe it. close() re-renders from live state.
+  if (valEl && valEl.dataset.editing !== "1") {
     const fmt = FORMAT[id] || ((v) => v.toFixed(2));
     valEl.textContent = fmt(st.getScaledValue());
   }
@@ -298,6 +468,40 @@ function bindKnob(id) {
     nudge(st, e.deltaY < 0 ? 0.02 : -0.02, id);
     e.preventDefault();
   }, { passive: false });
+
+  // Alt/Option-click resets to the C++ default. Bound on the CAPTURE phase of
+  // the knob's cell — an ancestor of the pointerdown drag target — so it runs
+  // first and cancels the drag outright. Same event type as the drag
+  // (pointerdown): a capture mousedown never fires after a preventDefault()ed
+  // pointerdown.
+  const cell = knob.closest(".knob-cell") || knob.parentElement || knob;
+  cell.addEventListener("pointerdown", (e) => {
+    if (!e.altKey) return;
+    if (e.target && e.target.closest && e.target.closest(".knob-value-input")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const d = paramDefaults[id];
+    if (typeof d !== "number" || !isFinite(d)) return;
+    st.sliderDragStarted();
+    st.setNormalisedValue(d);
+    st.sliderDragEnded();
+    updateKnobVisual(id);
+  }, true);
+
+  // Double-click — on the dial or its readout — opens inline value entry. It
+  // never writes the parameter itself; reset lives on Alt/Option-click above.
+  const valEl = document.getElementById(`val-${id}`);
+  const fmt = FORMAT[id];
+  knob.addEventListener("dblclick", (e) => {
+    if (e.altKey) return;
+    e.preventDefault();
+    attachValueEntry(valEl, st, fmt);
+  });
+  if (valEl) valEl.addEventListener("dblclick", (e) => {
+    if (e.altKey) return;
+    e.preventDefault();
+    attachValueEntry(valEl, st, fmt);
+  });
 }
 
 // ── Combo box binding (oscWave / filterType / filterSlope / voiceMode) ──────
@@ -1066,6 +1270,7 @@ function boot() {
   ampAdsr = makeCanvas("ampAdsrCanvas");
   lfoCv = makeCanvas("lfoCanvas");
 
+  loadParameterDefaults();   // Alt/Option-click reset targets (normalised, from C++)
   SLIDER_IDS.forEach(bindKnob);
   COMBO_IDS.forEach(bindCombo);
 
