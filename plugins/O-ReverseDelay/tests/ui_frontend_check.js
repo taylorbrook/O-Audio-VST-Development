@@ -321,13 +321,50 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         'scaledToNorm() derives start/end/skew from live st.properties');
 }
 
-// -------------------------------------- 5. dblclick reset uses paramDefaults
+// ------------- 5. Alt-click reset uses paramDefaults; dblclick opens value entry
+// v1.22.3 (gk9): reset moved from dblclick to Alt/Option-click; dblclick now
+// opens the O-Prism-contract value entry and never writes on its own.
 {
-    check(/paramDefaults\[id\]/.test(appJs),
-        'dblclick reset reads paramDefaults (from getParameterDefaults), not a JS constant');
+    // The handler body that closes addEventListener( — paren-balanced.
+    const listenerBodies = (src, type) => {
+        const out = [];
+        const re = new RegExp(`addEventListener\\(\\s*["']${type}["']\\s*,`, 'g');
+        let m;
+        while ((m = re.exec(src))) {
+            let i = re.lastIndex, depth = 1;
+            for (; i < src.length; i++) {
+                if (src[i] === '(') depth++;
+                else if (src[i] === ')' && --depth === 0) break;
+            }
+            out.push(src.slice(re.lastIndex, i));
+        }
+        return out;
+    };
+
+    const reset = appJs.match(/function resetToDefault[\s\S]*?\n\}/);
+    check(!!reset && /paramDefaults\[id\]/.test(reset[0]),
+        'the reset reads paramDefaults[id] (from getParameterDefaults), not a JS constant');
+    check(!!reset && /sliderDragStarted\(\)[\s\S]*setNormalisedValue\([\s\S]*sliderDragEnded\(\)/.test(reset[0]),
+        'the reset writes inside one gesture (sliderDragStarted / set / sliderDragEnded)');
     check(!/setNormalisedValue\(\s*0?\.5\s*\)/.test(appJs),
         'no bare setNormalisedValue(0.5) reset shortcut');
-    check(/dblclick/.test(appJs), 'a dblclick handler is bound');
+
+    const alt = listenerBodies(appJs, 'pointerdown').filter(b => /e\.altKey/.test(b));
+    check(alt.length === 1, `exactly one Alt-click pointerdown reset listener — found ${alt.length}`);
+    const a = alt[0] || '';
+    check(/,\s*true\s*$/.test(a),
+        'the Alt-click listener is on the CAPTURE phase (runs ahead of the knob drag)');
+    check(/preventDefault\(\)/.test(a) && /stopPropagation\(\)/.test(a) && /resetToDefault\(\s*st\s*,\s*id\s*\)/.test(a),
+        'it preventDefaults, stops propagation and calls resetToDefault(st, id)');
+
+    const dbl = listenerBodies(appJs, 'dblclick').filter(b => !/^\s*stop\s*$/.test(b));
+    check(dbl.length >= 1 && dbl.every(b => /attachValueEntry\(/.test(b)),
+        `every knob dblclick handler opens attachValueEntry — ${dbl.length} handler(s)`);
+    check(dbl.every(b => !/resetToDefault|setNormalisedValue|paramDefaults/.test(b)),
+        'no dblclick handler resets or writes a parameter itself');
+    check(/function attachValueEntry\b/.test(appJs)
+          && /setNormalisedValue\(\s*scaledToNorm\(\s*state\s*,\s*scaled\s*\)\s*\)/.test(appJs),
+        'attachValueEntry commits through scaledToNorm over the live properties');
 }
 
 // ------------------------------ 6. HTML-authored labels are never overwritten

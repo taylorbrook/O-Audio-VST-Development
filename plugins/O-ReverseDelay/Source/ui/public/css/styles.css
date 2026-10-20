@@ -1127,6 +1127,37 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* gk9: double-click value entry (O-Prism contract). The field overlays the
+   readout, which keeps its text transparent underneath, so nothing shifts.
+   font-family/size inherit explicitly: form controls do not inherit fonts. */
+.knob-value-input {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-bottom: 1px solid currentColor;
+  border-radius: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  font-variant-numeric: inherit;
+  line-height: normal;
+  text-align: inherit;
+  outline: none;
+  -moz-appearance: textfield;
+}
+.knob-value-input::-webkit-outer-spin-button,
+.knob-value-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 /* ── Seed cross-section knob ─────────────────────────────────────────────── */
 .knob {
   position: relative;

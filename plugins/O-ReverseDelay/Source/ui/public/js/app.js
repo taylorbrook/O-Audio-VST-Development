@@ -372,12 +372,138 @@ function normToDeg(n) {
 // from the C++ NormalisableRange (start/end/skew) — never hardcoded ranges.
 // Being JS's own inverse guarantees an exact round-trip through
 // setNormalisedValue() whatever skew convention the backend uses.
+// Clamps BEFORE the pow() (a negative base with a fractional skew is NaN).
 function scaledToNorm(st, scaled) {
-  const p = st.properties;
+  const p = st.properties || {};
   const span = p.end - p.start;
   if (!isFinite(span) || span === 0) return 0;
+  const skew = p.skew > 0 ? p.skew : 1;
   const proportion = Math.min(1, Math.max(0, (scaled - p.start) / span));
-  return Math.pow(proportion, p.skew);
+  return skew === 1 ? proportion : Math.pow(proportion, skew);
+}
+
+// ── Double-click value entry (O-Prism contract, gk9) ────────────────────────
+// Parsers: display text -> SCALED (C++-unit) value, or null to reject. Each is
+// the inverse of its FORMAT entry above, words included.
+function numOf(t) {
+  const m = String(t).replace(/\u2212/g, "-").match(/-?\d*\.?\d+/);
+  if (!m) return null;
+  const v = parseFloat(m[0]);
+  return isFinite(v) ? v : null;
+}
+// %, ms (integer), Hz below 1 k, dB, counts and the taper read in C++ units.
+// "Off" / "-inf" land on the range start (duck, driftDepth, diffusion, drive).
+function parseDirectFor(st) {
+  return (t) => {
+    if (/off|inf/i.test(String(t))) return st.properties ? st.properties.start : null;
+    return numOf(t);
+  };
+}
+// Hz readouts that switch to kHz: a bare number is Hz, "k" multiplies by 1000.
+const parseFreq = (t) => {
+  const v = numOf(t);
+  return v === null ? null : (/k/i.test(String(t)) ? v * 1000 : v);
+};
+// The time knobs are scaled in MILLISECONDS; delayTime reads "x.xx s" from
+// 1000 ms up. An explicit unit wins; a bare number inherits the unit on screen.
+const parseMsFlip = (t, currentText) => {
+  const v = numOf(t);
+  if (v === null) return null;
+  const s = String(t);
+  if (/ms/i.test(s)) return v;            // checked first — "ms" contains "s"
+  if (/s/i.test(s)) return v * 1000;
+  const cur = String(currentText || "");
+  return (!/ms/i.test(cur) && /\ds|\ss/i.test(cur)) ? v * 1000 : v;
+};
+// grainTilt reads signed % around 0.5 ("Centre", "+40 %", "−40 %").
+const parseTilt = (t) => {
+  if (/^\s*(centre|center|c)\s*$/i.test(String(t))) return 0.5;
+  const v = numOf(t);
+  return v === null ? null : 0.5 + v / 200;
+};
+// direction reads "Reverse" at 0 and "Forward" at 100, % in between.
+const parseDirection = (t) => {
+  const s = String(t);
+  if (/rev/i.test(s)) return 0;
+  if (/for/i.test(s)) return 100;
+  return numOf(s);
+};
+const PARSE = {
+  delayTime: parseMsFlip,
+  grainSize: parseMsFlip,      // always reads ms, so a bare number stays ms; "0.1 s" works
+  delayScatter: parseMsFlip,
+  lowCut: parseFreq,
+  highCut: parseFreq,
+  grainTilt: parseTilt,
+  direction: parseDirection,
+};
+
+// Opens an inline editor over a readout. formatFn(norm) renders the value;
+// formatFn.parse(text, currentText) returns a SCALED value or null. Enter or
+// blur commits, Esc cancels, untouched text is never written back.
+function attachValueEntry(valueEl, state, formatFn) {
+  if (!valueEl || !state) return;
+  if (typeof formatFn !== "function" || typeof formatFn.parse !== "function") return;
+  if (valueEl.dataset.editing === "1") return;   // already open
+
+  const currentText = valueEl.textContent;
+  const prevPosition = valueEl.style.position;
+  const prevColor = valueEl.style.color;
+  // Capture the ink BEFORE the readout goes transparent.
+  const inkColor = getComputedStyle(valueEl).color;
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "knob-value-input";
+  input.value = currentText;
+  input.spellcheck = false;
+  input.autocomplete = "off";
+  input.style.color = inkColor;
+
+  // The readout keeps its text (transparent) so its box does not move.
+  valueEl.dataset.editing = "1";
+  valueEl.style.position = "relative";
+  valueEl.style.color = "transparent";
+  valueEl.appendChild(input);
+  input.focus();
+  input.select();
+
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    delete valueEl.dataset.editing;
+    input.remove();
+    valueEl.style.position = prevPosition;
+    valueEl.style.color = prevColor;
+    // Re-render from live state (automation may have moved it meanwhile).
+    valueEl.textContent = formatFn(state.getNormalisedValue());
+  };
+
+  const commit = () => {
+    if (closed) return;
+    if (input.value === currentText) { close(); return; }
+    const scaled = formatFn.parse(input.value, currentText);
+    if (scaled !== null && isFinite(scaled)) {
+      state.sliderDragStarted();
+      state.setNormalisedValue(scaledToNorm(state, scaled));
+      state.sliderDragEnded();
+    }
+    close();
+  };
+
+  input.addEventListener("keydown", (e) => {
+    e.stopPropagation();   // keep digits away from the knob's arrow-key handler
+    if (e.key === "Enter") { e.preventDefault(); commit(); }
+    else if (e.key === "Escape") { e.preventDefault(); close(); }
+  });
+  input.addEventListener("blur", commit);
+  // Never let a click in the field start a knob drag underneath it.
+  const stop = (e) => e.stopPropagation();
+  input.addEventListener("pointerdown", stop);
+  input.addEventListener("mousedown", stop);
+  input.addEventListener("dblclick", stop);
+  input.addEventListener("wheel", stop);
 }
 
 // FORMAT[id] is called without a fallback: section 15 of ui_frontend_check.js
@@ -400,7 +526,8 @@ function updateKnobVisual(id) {
   }
 
   const valEl = document.getElementById(`val-${id}`);
-  if (valEl) valEl.textContent = text;
+  // Skip while the value-entry field is open over it — close() re-renders.
+  if (valEl && valEl.dataset.editing !== "1") valEl.textContent = text;
 }
 
 // v1.12.3: the normalised size of one nudge — NUDGE_STEP, floored at one
@@ -573,13 +700,37 @@ function bindKnob(juce, id) {
     stepBy(st, e.deltaY < 0 ? nudges : -nudges, id);
   }, { passive: false });
 
-  // Dblclick-reset uses the engineering default fetched from C++ — the
-  // properties payload carries no default field, so a JS default table would
-  // be the only alternative (and would drift).
-  knob.addEventListener("dblclick", (e) => {
+  // Alt/Option-click reset (gk9 — this was dblclick) uses the engineering
+  // default fetched from C++: the properties payload carries no default field,
+  // so a JS default table would be the only alternative (and would drift).
+  // The drag starts on pointerdown, so this is a CAPTURE-phase pointerdown on
+  // the knob's cell: it runs ahead of the knob's own handler and cancels the
+  // drag outright. Any open wheel gesture is closed first, as for every other
+  // interaction on this knob.
+  const cell = knob.parentElement || knob;
+  const valEl = document.getElementById(`val-${id}`);
+  cell.addEventListener("pointerdown", (e) => {
+    if (!e.altKey) return;
+    if (!knob.contains(e.target) && e.target !== valEl) return;
+    e.preventDefault();
+    e.stopPropagation();
     endWheelGesture();
     resetToDefault(st, id);
+  }, true);
+
+  // Double-click (on the knob or its readout) opens inline value entry.
+  const formatFn = () => FORMAT[id](st.getScaledValue());
+  formatFn.parse = PARSE[id] || parseDirectFor(st);
+  knob.addEventListener("dblclick", (e) => {
+    if (e.altKey) return;
+    endWheelGesture();
     e.preventDefault();
+    attachValueEntry(valEl, st, formatFn);
+  });
+  if (valEl) valEl.addEventListener("dblclick", (e) => {
+    if (e.altKey) return;
+    endWheelGesture();
+    attachValueEntry(valEl, st, formatFn);
   });
 }
 
@@ -939,14 +1090,14 @@ function refreshDriftRateEnabled() {
   setCellApplicable(cell, st.getScaledValue() > 0);
 }
 
-// ── Defaults for dblclick-reset (getParameterDefaults) ──────────────────────
+// ── Defaults for Alt-click reset (getParameterDefaults) ─────────────────────
 async function loadParameterDefaults(juce) {
   try {
     const raw = await juce.getNativeFunction("getParameterDefaults")();
     paramDefaults = parseNativeResult(raw);
   } catch (e) {
     console.error("getParameterDefaults failed:", e);
-    paramDefaults = null;   // dblclick becomes a no-op; every other control is unaffected
+    paramDefaults = null;   // Alt-click becomes a no-op; every other control is unaffected
   }
 }
 
