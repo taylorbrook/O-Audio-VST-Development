@@ -39,7 +39,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OLyricaAudioProcessor::creat
         juce::ParameterID { "masterVolume", 1 },
         "Master Volume",
         juce::NormalisableRange<float>(-60.0f, 6.0f, 0.1f),
-        0.0f,
+        -6.0f,
         "dB"
     ));
 
@@ -596,6 +596,19 @@ OLyricaAudioProcessor::OLyricaAudioProcessor()
     parameters.addParameterListener("freeToggle", this);
     parameters.addParameterListener("scaleToggle", this);
 
+    // Master Volume is user-owned: no preset load may move it. The shared preset
+    // manager's apply runs migrate -> reset-every-param-to-default -> apply the
+    // preset's keys, so pinning the key to the LIVE normalised value here nets
+    // the level to unchanged on every path (loadPreset, loadPresetFromFile,
+    // applyPresetData), including user presets that still carry the key. (One
+    // transient default write happens inside the apply call; the 20 ms ramp
+    // absorbs it.)
+    presetManager.setMigrationCallback(
+        [this](juce::DynamicObject& presetParams, const juce::String&) {
+            if (auto* p = parameters.getParameter("masterVolume"))
+                presetParams.setProperty("masterVolume", p->getValue());
+        });
+
     // v1.12.0: Set up custom state callbacks for tuning persistence
     // v1.18.3: Removed verbose DBG logging (was development diagnostics)
     presetManager.setCustomStateCallbacks(
@@ -742,6 +755,12 @@ void OLyricaAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
 
     // WR-10: reserve the reused keyswitch MIDI buffer so even the warm-up block does not allocate.
     filteredMidi.ensureSize(256);
+
+    // Master volume ramp, seeded at the live level so the first block ramps from
+    // neither 0 nor unity.
+    masterVolumeSmoothed.reset(sampleRate, 0.02);
+    masterVolumeSmoothed.setCurrentAndTargetValue(
+        juce::Decibels::decibelsToGain(coreCache.masterVolume->load()));
 }
 
 void OLyricaAudioProcessor::releaseResources()
@@ -1030,9 +1049,10 @@ void OLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         eq.process(block);
     }
 
-    // Apply master volume (WR-09: cached pointer)
-    float volumeDb = coreCache.masterVolume->load();
-    buffer.applyGain(juce::Decibels::decibelsToGain(volumeDb));
+    // Apply master volume — the last stage (WR-09: cached pointer). Smoothed so
+    // a move never zippers.
+    masterVolumeSmoothed.setTargetValue(juce::Decibels::decibelsToGain(coreCache.masterVolume->load()));
+    masterVolumeSmoothed.applyGain(buffer, buffer.getNumSamples());
 }
 
 // v1.30.0: Toggle mutual exclusion — turning one ON turns the other OFF

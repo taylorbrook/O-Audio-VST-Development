@@ -337,6 +337,10 @@ private:
     };
     CoreParamCache coreCache;
 
+    // Master volume ramp (last stage), on the LINEAR gain, ~20 ms. Linear rather
+    // than Multiplicative: the -60 dB floor sits near 0.
+    juce::SmoothedValue<float> masterVolumeSmoothed { 1.0f };
+
     // WR-10: reused keyswitch-filtered MIDI buffer (member instead of a fresh 0-capacity local
     // every block, whose first addEvent heap-allocated on the audio thread). clear() retains capacity.
     juce::MidiBuffer filteredMidi;
