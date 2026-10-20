@@ -1,5 +1,10 @@
 # O-Octagon Changelog
 
+## [1.16.2] — 2026-10-19
+
+### Fixed
+- **Grabbing the source puck now applies a typed value.** With a value-entry field open, pressing on the room-plan puck left the field open and its readout frozen. The press now applies the typed value and closes the field before the new drag starts.
+
 ## [1.16.1] — 2026-10-19
 
 ### Changed
