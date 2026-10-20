@@ -234,6 +234,14 @@ public:
     // parameter atomics like any host automation. Mirrors O-simpleAdditive.
     void applyFactoryPreset (const juce::String& name);
 
+    /** v1.5.2: parameters that belong to the USER, not to a preset. Output Level
+        is a mix control: applyFactoryPreset() never resets it and no lesson
+        writes it. Session state (get/setStateInformation) still recalls it. */
+    static bool isUserOwnedParameter (const juce::String& paramId)
+    {
+        return paramId == OSimpleGrain::ParamIDs::outputLevel;
+    }
+
     // A min/max envelope (~`numPairs` pairs) of the currently-published source,
     // for the UI-02 source-waveform background. Returns a flat vector
     // [min,max,min,max,…] in [-1,1]; empty if no source is loaded. Read-only

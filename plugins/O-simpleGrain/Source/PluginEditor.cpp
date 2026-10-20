@@ -203,6 +203,17 @@ OSimpleGrainAudioProcessorEditor::OSimpleGrainAudioProcessorEditor (OSimpleGrain
                 processorRef.applyFactoryPreset (args[0].toString());
             complete (juce::var (true));
         })
+        // v1.5.2 — each parameter's TRUE (skew-correct) NORMALISED default, pulled
+        // once at boot. The knobs' Alt/Option-click reset reads it, so the reset
+        // target comes from the C++ NormalisableRange, never a hand-copied JS table
+        // (O-Contrabass / O-GrainScatter WR-11 pattern).
+        .withNativeFunction ("getParameterDefaults", [this] (auto&, auto complete) {
+            juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+            for (auto* param : processorRef.getParameters())
+                if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (param))
+                    obj->setProperty (ranged->getParameterID(), ranged->getDefaultValue());
+            complete (juce::var (obj.get()));
+        })
         // On-screen keyboard → synth. args: [noteNumber, isNoteOn, velocity?].
         // Queued through the processor's MidiMessageCollector and merged into
         // processBlock's MIDI stream (identical path to host MIDI).
