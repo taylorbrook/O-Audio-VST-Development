@@ -664,7 +664,23 @@ jobs:
           Write-Host "Staged artifacts:"
           Get-ChildItem -Recurse staging
 
+          # WebView2 Evergreen bootstrapper (~2 MB, redistributable). Every
+          # WebView UI needs the runtime; Windows 11 and updated Windows 10 ship
+          # it, but LTSC/Server and "debloated" machines lack it, and without it
+          # JUCE falls back to the IE control ("page not found"). The installer
+          # runs it only when the runtime is absent ([Code] NeedsWebView2).
+          # Fail the build on a bad download or a non-Microsoft signature rather
+          # than ship an installer that runs an unverified executable.
+          Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "MicrosoftEdgeWebview2Setup.exe"
+          $SIG = Get-AuthenticodeSignature "MicrosoftEdgeWebview2Setup.exe"
+          if ($SIG.Status -ne "Valid" -or $SIG.SignerCertificate.Subject -notmatch "O=Microsoft Corporation") {
+            throw "WebView2 bootstrapper signature check failed: $($SIG.Status) / $($SIG.SignerCertificate.Subject)"
+          }
+          Write-Host "WebView2 bootstrapper verified: $($SIG.SignerCertificate.Subject)"
+
           # Generate Inno Setup script
+          # (Double-quoted here-string: PowerShell expands $NAME, so the [Code]
+          # section below must not use Pascal's $-prefixed hex literals.)
           $ISS = @"
           [Setup]
           AppName=$PRODUCT_NAME
@@ -688,6 +704,31 @@ jobs:
 
           [Files]
           Source: "staging\*.vst3"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+          Source: "MicrosoftEdgeWebview2Setup.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall; Check: NeedsWebView2
+
+          [Run]
+          ; Exit code ignored: an offline machine still gets the plugin, and the
+          ; editor shows a WebView2 notice with a download link instead of the UI.
+          Filename: "{tmp}\MicrosoftEdgeWebview2Setup.exe"; Parameters: "/silent /install"; StatusMsg: "Installing Microsoft Edge WebView2 Runtime..."; Flags: waituntilterminated; Check: NeedsWebView2
+
+          [Code]
+          // Microsoft's documented detection: a non-empty, non-0.0.0.0 "pv" under the
+          // runtime's EdgeUpdate client key, per-machine (32-bit view) or per-user.
+          const
+            WebView2Key = 'Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
+
+          function HasVersion(RootKey: Integer): Boolean;
+          var
+            Version: String;
+          begin
+            Result := RegQueryStringValue(RootKey, WebView2Key, 'pv', Version)
+                      and (Version <> '') and (Version <> '0.0.0.0');
+          end;
+
+          function NeedsWebView2: Boolean;
+          begin
+            Result := not (HasVersion(HKLM32) or HasVersion(HKCU));
+          end;
 
           [Messages]
           WelcomeLabel1=$PRODUCT_NAME v$VERSION
