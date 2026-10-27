@@ -2,6 +2,14 @@
 
 All notable changes to O-Bowed will be documented in this file.
 
+## [1.10.3] - 2026-10-26
+
+Locale-independent visualization data (ui-hardening-phase0). No DSP, parameter, preset or state change; no visual change.
+
+### Fixed
+
+- **Visualization on comma-decimal systems.** `getVisualizationState` built its JSON with `String::formatted("%.4f")`, which follows the host's C locale: on a French-region system it wrote `"bowSpeed":0,5000`, the page's `JSON.parse` threw, and the bow / body visualization stopped following the parameters. Numbers are now always written with a `.`.
+
 ## [1.10.2] - 2026-10-19
 
 ### Fixed

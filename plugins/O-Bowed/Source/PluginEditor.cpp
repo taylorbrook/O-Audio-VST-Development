@@ -156,15 +156,21 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
                 float bodySize    = apvts.getRawParameterValue("bodySize")->load();
                 float brightness  = apvts.getRawParameterValue("brightness")->load();
 
-                // Build JSON string directly for performance
-                juce::String json = juce::String::formatted(
-                    "{\"bowSpeed\":%.4f,\"bowPressure\":%.4f,\"bowPosition\":%.4f,"
-                    "\"material\":%.4f,\"bodySize\":%.4f,\"brightness\":%.4f,"
-                    "\"isPlaying\":%s}",
-                    bowSpeed, bowPressure, bowPosition,
-                    material, bodySize, brightness,
-                    processorRef.isAnyVoiceActive() ? "true" : "false"
-                );
+                // Build JSON string directly for performance.
+                // v1.10.3 — locale-independent numbers. String::formatted ("%.4f")
+                // follows the host process's C locale, so a comma-decimal host
+                // (French region) wrote "bowSpeed":0,5000 and the page's
+                // JSON.parse threw: the visualization froze. juce::String (float, 4)
+                // always writes '.'; a non-finite value is written as 0.
+                const auto num = [] (float v) { return juce::String (std::isfinite (v) ? v : 0.0f, 4); };
+
+                const juce::String json = "{\"bowSpeed\":" + num (bowSpeed)
+                    + ",\"bowPressure\":" + num (bowPressure)
+                    + ",\"bowPosition\":" + num (bowPosition)
+                    + ",\"material\":" + num (material)
+                    + ",\"bodySize\":" + num (bodySize)
+                    + ",\"brightness\":" + num (brightness)
+                    + ",\"isPlaying\":" + (processorRef.isAnyVoiceActive() ? "true" : "false") + "}";
                 complete(juce::var(json));
             })
 
