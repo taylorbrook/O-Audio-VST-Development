@@ -39,8 +39,8 @@ def extract_html_parameter_ids(html_path: Path) -> Set[str]:
         param_id = match.group(1)
         param_ids.add(param_id)
 
-    # Also check for getToggleButtonState and getComboBoxState
-    toggle_pattern = r"getToggleButtonState\s*\(\s*['\"](\w+)['\"]\s*\)"
+    # Also check for getToggleState (getToggleButtonState: pre-fix template spelling) and getComboBoxState
+    toggle_pattern = r"getToggle(?:Button)?State\s*\(\s*['\"](\w+)['\"]\s*\)"
     for match in re.finditer(toggle_pattern, content):
         param_id = match.group(1)
         param_ids.add(param_id)

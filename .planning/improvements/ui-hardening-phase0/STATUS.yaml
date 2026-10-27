@@ -1,7 +1,7 @@
 milestone: ui-hardening-phase0
 scope: cross-plugin
 created: 2026-10-26T00:00:00Z
-lastActivity: 2026-10-26T21:00:00Z
+lastActivity: 2026-10-26T22:00:00Z
 phases:
   discuss:
     status: skipped   # scope approved in the /research → /improve conversation; see CONTEXT.md
@@ -21,10 +21,13 @@ phases:
     completedAt: 2026-10-26
     note: 18 plugins committed (no tags); O-Lyrica pluginval state-restore failure pre-existing — see SUMMARY.md
   verify:
-    status: pending
+    status: complete
+    completedAt: 2026-10-26
+    scope: B1-B3 (B4 deferred, blocked)
+    verdict: achieved_with_known_issues   # VERIFICATION.md; G3+G4 fixed post-verify, G1 documented, G2 -> B4
 versionBump: patch   # per touched plugin
 batches:
   B1: complete      # 670b2ebf (ci) + da14304c (O-DigiDelay 1.9.3)
   B2: complete      # 2a44ad87
   B3: complete      # 18 plugins, dbd0b96b..ce7f870e
-  B4: blocked        # O-Reed, O-Bassoon, O-simpleFM, O-Gain, O-Freeze — uncommitted work from another session
+  B4: blocked        # O-Reed (+ bare %TEMP% WebView2 folder, PluginEditor.cpp:100), O-Bassoon, O-simpleFM, O-Gain, O-Freeze — uncommitted work from another session; unblock: git status --short plugins/<Name> empty

@@ -574,6 +574,7 @@ tags: [relevant, keywords]
 ```cpp
 // Implement resource provider for JUCE 8
 auto options = juce::WebBrowserComponent::Options{}
+    .withBackend (juce::WebBrowserComponent::Options::Backend::webview2)  // required on Windows
     .withResourceProvider([](const juce::String& url) {
         // Handle resource loading for embedded HTML
         if (url.startsWith("file://"))

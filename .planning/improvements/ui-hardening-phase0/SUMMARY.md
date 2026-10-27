@@ -103,6 +103,19 @@ in the member-init list, so the probe lives in an immediately-invoked lambda the
 3. B4 still blocked (O-Reed, O-Bassoon, O-simpleFM, O-Gain, O-Freeze; never O-GrainScatter).
    Unblock: `git status --short plugins/<Name>` empty.
 
+4. **O-Lyrica verdict (verify):** PRE-EXISTING CONFIRMED — 2.6.2 (`38855299^`, out-of-tree) and 2.6.3 fail the
+   same Glissando restore identically on the same 3 random seeds. pluginval 1.0.4 has no `--seed`; the pinning
+   flag is `--random-seed`.
+5. **O-Polystutter `ce7f870e` carried another session's v1.17.0 DSP work** (TriggerScheduler, CounterRng,
+   RepeatLane/TapeDegrader, PluginProcessor, scheduler-harness, CMake VERSION 1.17.0) — the plugin-path
+   pathspec swept in its uncommitted files. At that commit CMake says 1.17.0 while CHANGELOG/PLUGINS.md say
+   1.16.3, and the 1.16.3 entry's "no DSP change" is false for that commit. `25b50e0b` completed and
+   reconciled it at 1.17.0; history not rewritten. Lesson: a plugin-path pathspec is not safe when another
+   session has dirty files in the same plugin — stage explicit files.
+6. **Post-verify fixes (B2 follow-up):** `validate-gui-bindings.py` toggle regex now matches `getToggleState`
+   (was `getToggleButtonState` only → template-built toggles skipped silently); troubleshoot-agent example
+   gains `withBackend(webview2)`.
+
 ## DAW hands-on for Taylor
 
 - IntonationPad: preset browser ✎ rename in place (Enter / click away / Esc) and ✕ two-click delete (Logic + Live, macOS)

@@ -41,7 +41,7 @@ no visual change and no shared-kit work (that is Phase 3, pending a decision rec
   O-SpectralShaper, O-Tremolo.
 
 ### B4 — BLOCKED (another session has uncommitted work in these trees)
-- O-Reed (20 unregistered native-function calls, open since 2026-08-31)
+- O-Reed (20 unregistered native-function calls, open since 2026-08-31; + bare `%TEMP%` WebView2 folder at `PluginEditor.cpp:100`, found in verify)
 - O-Bassoon (3: `generateRank2`, `saveScalaFile`, `saveKBMFile`)
 - O-simpleFM (missing `withBackend`), O-Gain (`%f`), O-Freeze (`%TEMP%`)
 - Also never touch O-GrainScatter (live uncommitted DSP work as of 2026-10-26).
