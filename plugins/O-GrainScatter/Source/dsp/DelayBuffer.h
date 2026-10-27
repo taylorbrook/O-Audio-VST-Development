@@ -31,6 +31,7 @@ public:
         buffer.setSize (2, bufferSize);
         buffer.clear();
         writePosition = 0;
+        samplesWritten = 0;
     }
 
     // Alloc-free zeroing for reset() — must NOT call setSize (that reallocates on the
@@ -39,6 +40,7 @@ public:
     {
         buffer.clear();
         writePosition = 0;
+        samplesWritten = 0;
     }
 
     void pushSample (float L, float R)
@@ -46,6 +48,8 @@ public:
         buffer.setSample (0, writePosition, L);
         buffer.setSample (1, writePosition, R);
         writePosition = (writePosition + 1) % bufferSize;
+        if (samplesWritten < bufferSize)
+            ++samplesWritten;
     }
 
     float readSample (int channel, float delaySamples) const
@@ -89,9 +93,12 @@ public:
 
     int getWritePosition() const { return writePosition; }
     int getBufferSize() const { return bufferSize; }
+    // Samples pushed since prepare()/clear(), capped at the ring size.
+    int getSamplesWritten() const { return samplesWritten; }
 
 private:
     juce::AudioBuffer<float> buffer;
     int bufferSize = 0;
     int writePosition = 0;
+    int samplesWritten = 0;
 };

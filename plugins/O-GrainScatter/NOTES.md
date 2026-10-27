@@ -2,11 +2,13 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 3.0.1
+- **Version:** 3.0.5
 - **Type:** Audio Effect (Granular Stutter Engine)
 
 ## Lifecycle Timeline
 
+- **2026-10-26 (v3.0.5):** Fade-on-steal. A stolen grain is copied into one of 8 spare slots and fades out over 5 ms. The new grain keeps the slot it always took, so steal-free output is bit-identical to v3.0.4.
+- **2026-10-26 (v3.0.4):** Freeze fixed (research: `research/granular-synthesis-2026-update.md` §2.2). Frozen grains all started at snapshot index 0, so Scan and Spread did nothing and the hold buzzed at the spawn rate. They now read through the snapshot from a virtual write head (`head − position` latched at spawn). Two snapshot slots, with each grain latched to one, replace the 5 ms timer that switched grains to the live line mid-grain. The loop seam gets a 10 ms equal-power crossfade, the loop length is latched to the audio actually written, and frozen grains get ±6 ct of detune.
 - **2026-10-15 (v3.0.1):** Custom collection Apply fixed. Typed bare integers were parsed as Scala ratios (1200 → 1200/1), so every typed list failed the period check. Bare integers are now cents in the text field; `.scl` keeps its ratio rule via an `a/1` rewrite. Apply now shows a success line.
 - **2026-10-15 (v3.0.0):** Pitch collections + separate Dry/Wet. A cents-based `PitchEngine` replaces the 12-TET `ScaleQuantizer`. It ships 32 collections (the 5 v2 scales, modes, 19/22/24/31/53-EDO, 5- and 7-limit JI, harmonics, Bohlen-Pierce, slendro/pelog/maqam, Free, Custom via typed cents/ratios or a Scala .scl file), per-degree toggle chips saved with the session, Range/Transpose/Fine/Direction, and `dry_level`/`wet_level` replacing `dry_wet` (state migration, null-tested). Fixed grains reading ahead of the write head: Scan 0 % had been a 2 s echo, and pitched-up/reverse grains wrapped to the oldest audio. Each grain is now pre-rolled and the delay buffer is 12 s. MAJOR (dry_wet removed, scale list 5 → 32).
 - **2026-09-26 (v2.9.0):** UI pass R4/R5 (review 260924-nho). Adds `:root` palette tokens (127 hex → 0 outside `:root`), AA inks from ouaricon-naturalist-001 (#6A5641 walnut text over the gradient, #4E6839 lit switch), the 9px floor (captions, hints and canvas labels), and bundled EB Garamond via `modules/ui/eb-garamond`. Active text below AA 12/41 → 0/41 (min 2.28 → 5.14, pixel probe). Knob keyboard/ARIA (R7) still open. The inactive dimmed controls (opacity 0.25) are unchanged. No DSP change.

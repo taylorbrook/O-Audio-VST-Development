@@ -35,6 +35,8 @@ struct GrainParams
     float amplitude = 1.0f;           // Per-grain amplitude (0-1)
     bool reverse = false;
     bool readFromFrozen = false;
+    int frozenSlot = -1;              // v3.0.4: FreezeManager slot, -1 = live delay line
+    double frozenBase = 0.0;          // v3.0.4: snapshot position at spawn (head - delay)
 
     // Spatial (used when spatial_mode != Off)
     float azimuth = 0.0f;             // radians, 0=front
@@ -55,6 +57,8 @@ struct GrainVoice
     bool reverse = false;
     bool readFromFrozen = false;
     float positionOffset = 0.0f;      // Base position in delay buffer
+    int frozenSlot = -1;              // v3.0.4: latched at spawn; the grain finishes on it after release
+    double frozenBase = 0.0;
 
     // Spatial state
     float azimuth = 0.0f;
@@ -64,6 +68,8 @@ struct GrainVoice
     int trajectoryType = 0;
     unsigned int rngState = 0;          // LCG state for random trajectory
     float dopplerFactor = 1.0f;         // Per-grain Doppler pitch mod (computed from angular velocity)
+    float stealGain = 1.0f;             // v3.0.5: steal fade-out gain (1 = not fading)
+    float stealStep = 0.0f;             // v3.0.5: per-sample decrement, > 0 while fading
 };
 
 // Grain envelope shapes
@@ -81,7 +87,18 @@ enum GrainShape
 class GrainPool
 {
 public:
-    static constexpr int MaxVoices = 64;
+    static constexpr int MaxVoices = 64;      // grains at full level (and the viz snapshot size)
+    // v3.0.5: a stolen grain is moved into one of these spare slots and fades out over
+    // kStealFadeMs there, while the new grain takes the slot it always took. Steal-free
+    // renders are bit-identical to v3.0.4; a steal is no longer a hard cut.
+    static constexpr int kFadeSlots = 8;
+    static constexpr int kNumSlots = MaxVoices + kFadeSlots;
+    static constexpr double kStealFadeMs = 5.0;
+
+    void setSampleRate (double sampleRate)
+    {
+        stealFadeStep = static_cast<float> (1.0 / juce::jmax (1.0, sampleRate * kStealFadeMs / 1000.0));
+    }
 
     void setGrainShape (int shape) { grainShape = shape; }
 
@@ -94,6 +111,8 @@ public:
         {
             v.active = false;
             v.samplesRemaining = 0;
+            v.stealGain = 1.0f;
+            v.stealStep = 0.0f;
         }
         nextVoice = 0;
     }
@@ -165,10 +184,15 @@ public:
         }
 
         if (targetVoice < 0)
+        {
             targetVoice = oldestVoice;
+            moveToFadeSlot (voices[static_cast<size_t> (targetVoice)]);
+        }
 
         auto& v = voices[static_cast<size_t> (targetVoice)];
         v.active = true;
+        v.stealGain = 1.0f;
+        v.stealStep = 0.0f;
         v.positionOffset = params.positionInSamples;
         v.playbackRate = params.playbackRate;
         v.panPosition = params.panPosition;
@@ -177,6 +201,8 @@ public:
         v.amplitude = params.amplitude;
         v.reverse = params.reverse;
         v.readFromFrozen = params.readFromFrozen;
+        v.frozenSlot = params.readFromFrozen ? params.frozenSlot : -1;
+        v.frozenBase = params.frozenBase;
 
         // Start position
         if (v.reverse)
@@ -194,6 +220,35 @@ public:
         v.rngState = static_cast<unsigned int> (targetVoice * 7919 + v.grainLengthSamples);
 
         nextVoice = (targetVoice + 1) % MaxVoices;
+    }
+
+    // v3.0.5: copy a stolen grain into a spare slot and start its fade. With every spare
+    // already fading (more than kFadeSlots steals inside one fade time), the spare
+    // nearest silence is reused.
+    void moveToFadeSlot (const GrainVoice& victim)
+    {
+        int slot = -1;
+        float minGain = 2.0f;
+        for (int i = MaxVoices; i < kNumSlots; ++i)
+        {
+            const auto& f = voices[static_cast<size_t> (i)];
+            if (! f.active) { slot = i; break; }
+            if (f.stealGain < minGain) { minGain = f.stealGain; slot = i; }
+        }
+
+        auto& f = voices[static_cast<size_t> (slot)];
+        f = victim;
+        if (f.stealStep <= 0.0f)
+            f.stealStep = stealFadeStep;
+    }
+
+    // v3.0.4: true while any sounding grain still reads this freeze slot.
+    bool isFrozenSlotInUse (int slot) const
+    {
+        for (const auto& v : voices)
+            if (v.active && v.frozenSlot == slot)
+                return true;
+        return false;
     }
 
     void prepareSpatial (float sampleRate)
@@ -221,10 +276,11 @@ public:
             float sample = 0.0f;
             float sampleR = 0.0f;
 
-            if (v.readFromFrozen && freezeMgr.isActive())
+            if (v.frozenSlot >= 0)
             {
-                sample  = freezeMgr.readSample (0, v.readPosition);
-                sampleR = freezeMgr.readSample (1, v.readPosition);
+                const double pos = v.frozenBase + static_cast<double> (v.readPosition);
+                sample  = freezeMgr.readSample (v.frozenSlot, 0, pos);
+                sampleR = freezeMgr.readSample (v.frozenSlot, 1, pos);
             }
             else
             {
@@ -238,8 +294,8 @@ public:
                 sampleR = delayBuf.readSample (1, delaySamples);
             }
 
-            sample  *= envelope * v.amplitude;
-            sampleR *= envelope * v.amplitude;
+            sample  *= envelope * v.amplitude * v.stealGain;
+            sampleR *= envelope * v.amplitude * v.stealGain;
 
             // Pan: equal-power
             float panL = std::cos (v.panPosition * juce::MathConstants<float>::halfPi);
@@ -257,6 +313,13 @@ public:
             --v.samplesRemaining;
             if (v.samplesRemaining <= 0)
                 v.active = false;
+
+            if (v.stealStep > 0.0f)
+            {
+                v.stealGain -= v.stealStep;
+                if (v.stealGain <= 0.0f)
+                    v.active = false;
+            }
         }
     }
 
@@ -279,10 +342,11 @@ public:
             float sampleL = 0.0f;
             float sampleR = 0.0f;
 
-            if (v.readFromFrozen && freezeMgr.isActive())
+            if (v.frozenSlot >= 0)
             {
-                sampleL = freezeMgr.readSample (0, v.readPosition);
-                sampleR = freezeMgr.readSample (1, v.readPosition);
+                const double pos = v.frozenBase + static_cast<double> (v.readPosition);
+                sampleL = freezeMgr.readSample (v.frozenSlot, 0, pos);
+                sampleR = freezeMgr.readSample (v.frozenSlot, 1, pos);
             }
             else
             {
@@ -292,7 +356,7 @@ public:
                 sampleR = delayBuf.readSample (1, delaySamples);
             }
 
-            float mono = (sampleL + sampleR) * 0.5f * envelope * v.amplitude;
+            float mono = (sampleL + sampleR) * 0.5f * envelope * v.amplitude * v.stealGain;
 
             // Distance attenuation (kDistanceScale controls attenuation steepness).
             // IN-10: grain gain uses v.distance FROZEN at spawn, whereas the processor's
@@ -320,6 +384,13 @@ public:
             --v.samplesRemaining;
             if (v.samplesRemaining <= 0)
                 v.active = false;
+
+            if (v.stealStep > 0.0f)
+            {
+                v.stealGain -= v.stealStep;
+                if (v.stealGain <= 0.0f)
+                    v.active = false;
+            }
         }
     }
 
@@ -330,11 +401,12 @@ public:
             v.shCoeffs.setSmoothTime (smoothTimeMs);
     }
 
-    const std::array<GrainVoice, MaxVoices>& getVoices() const { return voices; }
-    std::array<GrainVoice, MaxVoices>& getVoices() { return voices; }
+    const std::array<GrainVoice, kNumSlots>& getVoices() const { return voices; }
+    std::array<GrainVoice, kNumSlots>& getVoices() { return voices; }
 
 private:
-    std::array<GrainVoice, MaxVoices> voices {};
+    std::array<GrainVoice, kNumSlots> voices {};
     int nextVoice = 0;
+    float stealFadeStep = 1.0f / 220.5f;
     int grainShape = GrainShape::Hann;
 };

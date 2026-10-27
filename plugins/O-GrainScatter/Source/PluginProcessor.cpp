@@ -414,6 +414,7 @@ void GrainScatterProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     binauralR.resize (static_cast<size_t> (samplesPerBlock), 0.0f);
     grainPool.clearVoices();   // IN-05: no stale grains after a rate/block-size change
     grainPool.prepareSpatial (static_cast<float> (sampleRate));
+    grainPool.setSampleRate (sampleRate);   // v3.0.5 steal fade length
     distanceLpfState[0] = 0.0f;
     distanceLpfState[1] = 0.0f;
 
@@ -593,12 +594,20 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                       .load (std::memory_order_relaxed);
     pitchSettings.customVersion = audioCustomVersion;
 
-    // Freeze engage/release (with crossfade on both transitions)
-    // Capture full delay buffer so scan_position can sweep through it
+    // Freeze engage/release. Capture up to 2 s of the delay line so scan_position can
+    // sweep through it. v3.0.4: capture into the slot no sounding grain still reads
+    // (grains from the last hold finish on their own snapshot), and release is immediate
+    // for new grains only — the grain envelopes are the crossfade both ways.
     if (freeze && !wasFrozen)
-        freezeManager.engage(delayBuffer, static_cast<int>(currentSampleRate * 2.0));
+    {
+        const int other = 1 - freezeManager.getCurrentSlot();
+        const int slot  = (grainPool.isFrozenSlotInUse (other)
+                           && ! grainPool.isFrozenSlotInUse (freezeManager.getCurrentSlot()))
+                              ? freezeManager.getCurrentSlot() : other;
+        freezeManager.engage (delayBuffer, slot);
+    }
     else if (!freeze && wasFrozen)
-        freezeManager.release();  // Starts release crossfade; active stays true until crossfade completes
+        freezeManager.release();
     wasFrozen = freeze;
 
     // Set SmoothedValue targets (never reset() here!)
@@ -659,8 +668,8 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         // Push input + feedback to delay buffer
         delayBuffer.pushSample(inputL + feedbackL, inputR + feedbackR);
 
-        // Freeze crossfade
-        freezeManager.advanceCrossfade();
+        // Freeze: the held snapshot's virtual write head keeps moving
+        freezeManager.advance();
 
         // Check for grain spawns at this sample
         while (spawnIdx < spawnRequests.size() && spawnRequests[spawnIdx].sampleOffset == i)
@@ -710,8 +719,13 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                 gp.positionInSamples = juce::jmax (gp.positionInSamples, minPos);
             }
 
-            // Freeze: new grains read from frozen buffer (but not during release crossfade)
-            gp.readFromFrozen = freezeManager.isActive() && !freezeManager.isReleasing();
+            // Freeze: new grains read the held snapshot, from where the live tap would be
+            gp.readFromFrozen = freezeManager.isActive();
+            if (gp.readFromFrozen)
+            {
+                gp.frozenSlot = freezeManager.getCurrentSlot();
+                gp.frozenBase = freezeManager.getSpawnBase (gp.positionInSamples);
+            }
 
             // Spatial parameters for scatter cloud
             if (spatialMode > 0)
@@ -720,6 +734,16 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                 gp.elevation = elevationRad + elSpreadRad * (grainRng.nextFloat() - 0.5f) * spatialWidth;
                 gp.distance = distanceNorm;
                 gp.trajectoryType = (spatialMode == 2) ? trajectoryType : 0;  // Trajectory only in mode 2
+            }
+
+            // v3.0.4: frozen grains get a small random detune so a long hold drifts
+            // instead of locking into fixed beating. Drawn last, and only while frozen,
+            // so the live path's RNG sequence is unchanged.
+            if (gp.readFromFrozen)
+            {
+                static constexpr float kFreezeDetuneCents = 6.0f;
+                gp.playbackRate *= std::exp2 ((grainRng.nextFloat() * 2.0f - 1.0f)
+                                              * kFreezeDetuneCents / 1200.0f);
             }
 
             grainPool.spawnGrain(gp);

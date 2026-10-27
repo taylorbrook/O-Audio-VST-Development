@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.0.5] — 2026-10-26
+
+### Fixed
+- **Voice steals clicked.** With all 64 grains sounding, the oldest grain was cut off mid-window to make room, a step of up to its full level. The stolen grain now moves to one of 8 spare slots and fades out over 5 ms while the new grain starts. Renders with no steals are bit-identical to v3.0.4: the new grain takes the same slot as before, and the fade gain stays exactly 1.
+
+## [3.0.4] — 2026-10-26
+
+### Fixed
+- **Freeze replayed the same few milliseconds in every grain.** Each frozen grain started at index 0 of the snapshot (or the grain's own length when reversed), so Scan and Spread had no effect while frozen and every grain repeated the same samples. The result was a buzz at the spawn rate, not a held texture. Frozen grains now read the snapshot from where the live tap would have been: a virtual write head keeps advancing through the held audio, and each grain latches `head − position` at spawn. Scan and Spread work again, and the hold is the captured loop repeating.
+- **Release clicked.** The "release crossfade" was a 5 ms timer, not a gain ramp (review item IN-01). When it expired, grains still playing from the snapshot jumped to the live delay line partway through the grain. Each grain now latches its snapshot at spawn and finishes on it. Two snapshot slots let a fresh freeze capture without overwriting audio that grains from the previous hold are still reading.
+- **Loop seam was a splice.** The point where the newest captured sample meets the oldest now gets an equal-power crossfade of 10 ms, or a quarter of the capture if that is shorter.
+- **Freeze right after load looped through silence.** The capture always took 2 s, including parts of the delay line that had never been written. The loop length is now latched to how much audio has actually been written, capped at 2 s.
+
+### Changed
+- Frozen grains get a random detune of ±6 cents each, so a long hold drifts slowly instead of locking into fixed beating. Live (unfrozen) grains are unchanged: the detune is drawn last and only while frozen, so the live path's random sequence is identical to v3.0.3.
+
+No parameter, preset or state change.
+
 ## [3.0.3] — 2026-10-19
 
 ### Fixed
