@@ -2,6 +2,61 @@
 
 All notable changes to O-Freeze will be documented in this file.
 
+## [2.8.0] - 2026-10-27
+
+Renders no longer depend on the host's buffer size, and a session renders the same
+grains every time it is bounced. MINOR because the texture of a freeze changes (new
+random sequence) and Threshold mode reacts up to one block sooner. There is no
+parameter, range, UI or i18n change; the state gains one property.
+
+### Changed
+
+- **Seeded, reproducible randomness.** Grain jitter, detune, trigger-interval jitter,
+  the drift offset picked at each engage and the Random LFO's held values came from a
+  `juce::Random` seeded from the clock, so no two bounces were alike. Each draw is now
+  a fixed function of a seed and a counter (`CounterRng.h`, the scheme from
+  O-TextureForge v1.6.0), with separate counters for grains, engages and LFO cycles.
+  The seed is chosen at random for each new instance and saved with the session as
+  `rngSeed`, so a reopened project freezes the same way again. Sessions saved before
+  2.8.0 have no seed and get a new random one when they open.
+- **Grain onsets are sample-accurate and fractional.** The trigger interval was
+  `grainSize / grainCount` truncated to whole samples, and the counter's reset made
+  the real period one sample longer (e.g. 400 ms / 7 at 48 kHz: 2743 samples instead
+  of 2742.86). Onsets are now scheduled in fractional samples; a grain due between two
+  samples starts on the later one with its window already that fraction in. The read
+  pointer stays on whole samples, so at Detune 0 a grain is not interpolated.
+- **Threshold mode is evaluated on every sample.** The 20 ms RMS was checked once per
+  block, so freeze and release landed on block boundaries (up to 21 ms late at 1024
+  samples / 48 kHz). The gate now runs on a running sum each sample; engage and release
+  happen on the sample the level crosses. The threshold and 3 dB hysteresis are
+  unchanged.
+
+### Fixed
+
+- **The block size changed the sound.** Besides the three items above, the LFO and the
+  drift target it modulates were updated once per host block, and the Random LFO's
+  draws shared one stream with the grain draws, so the buffer size reordered every
+  grain's jitter and detune. The LFO and drift target now update on a fixed 32-sample
+  control tick on the sample clock.
+
+### Testing
+
+- `tests/blocksize-null/gate.py`, on the installed VST3 in pedalboard. Every render
+  runs on a fresh instance that has loaded one template instance's state (parameters
+  and seed). Three configurations (Manual forward with Random LFO, Manual reverse at
+  53 ms × 32 grains with Sine LFO, and Threshold with three quiet gaps at odd sample
+  positions), two seeds each, blocks 32, 441 and 7 against 512, limit −120 dBFS on the
+  peak difference.
+  - v2.7.0 (positive control): all 18 fail, difference peaks −2.5 to +2.4 dBFS.
+  - v2.8.0: all 18 bit-exact.
+  - Seed liveness: 6 seeds per configuration render pairwise distinct; frozen sections
+    carry signal (−16.2 to −21.5 dBFS RMS).
+- State round trip (template → fresh → fresh) byte-identical, 8 of 8 random seeds.
+- Level sweep unchanged from v2.7.0 (ring fully written, LFO off, 512 blocks): counts
+  4–32 within 0.1 dB on noise and ±0.55 dB on a chord, at drift 0 and 50; count 2
+  about 1.2 dB lower.
+- pluginval strictness 10 SUCCESS, auval SUCCEEDED on the installed `-dev` bundles.
+
 ## [2.7.1] - 2026-10-27
 
 Windows WebView2 hardening (ui-hardening-phase0, B4). Editor-only. No DSP, parameter, preset or state change; macOS behaviour and look unchanged.

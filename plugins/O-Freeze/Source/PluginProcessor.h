@@ -31,6 +31,9 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 #include <array>
+#include <atomic>
+#include <cstdint>
+#include "CounterRng.h"
 
 class OFreezeAudioProcessor : public juce::AudioProcessor
 {
@@ -95,6 +98,11 @@ public:
     static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : i == 2 ? "zh-Hans" : "en"; }
     static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : s == "zh-Hans" ? 2 : 0; }
 
+    // v2.8.0: RNG seed (same scheme as O-TextureForge v1.6.0). Drawn at random per
+    // instance and saved with the session as the rngSeed property, so a reopened
+    // session, or a fresh instance given the same state, renders the same grains.
+    std::atomic<uint64_t> rngSeed { static_cast<uint64_t>(juce::Random::getSystemRandom().nextInt64()) };
+
 private:
     // Gate state machine
     enum class GateState { Idle, Frozen };
@@ -103,6 +111,10 @@ private:
     struct Grain
     {
         int startSample = 0;      // Position within grain (0 to length)
+        // v2.8.0: fractional part of the grain's age, from its sub-sample onset.
+        // The window runs at age startSample + onsetFrac; the read pointer stays on
+        // whole samples (fractionalPosition), so a rate-1 grain is not interpolated.
+        double onsetFrac = 0.0;
         // v2.7.0: the grain's own length, latched at onset. GRAIN_SIZE changes only
         // reach grains started after them, so a knob move never truncates or
         // re-windows a grain that is already sounding.
@@ -132,10 +144,11 @@ private:
     juce::LinearSmoothedValue<float> freezeGain;
     juce::dsp::DryWetMixer<float> dryWetMixer;
 
-    // Threshold gate components
+    // Threshold gate components. v2.8.0: evaluated per sample from a running sum
+    // (was once per block), recomputed exactly each time the window wraps.
     GateState gateState = GateState::Idle;
-    float rmsLevel = 0.0f;
     std::vector<float> rmsBuffer;
+    double rmsSum = 0.0;
     int rmsWriteIndex = 0;
     int rmsSamplesPerWindow = 0;
 
@@ -156,11 +169,24 @@ private:
     int grainSize = 0;         // Length given to the NEXT grain (latched per grain)
     int maxGrainSize = 0;
     float lastGrainSizeMs = 400.0f;
-    int grainTriggerInterval = 0;
-    int nextTriggerInterval = 0;  // Jittered interval for next grain trigger
-    int grainTriggerCounter = 0;
-    juce::Random random;
+    // v2.8.0: onsets are scheduled in fractional samples. grainSize / numGrains is
+    // no longer truncated, and a grain due between two samples starts on the later
+    // one with its window already onsetFrac samples in.
+    double grainTriggerInterval = 0.0;
+    double nextTriggerInterval = 0.0;  // Jittered interval for next grain trigger
+    double samplesSinceTrigger = 0.0;  // Age of the newest onset at the current sample
     bool stopTriggeringNewGrains = false;  // Soft release: let active grains complete
+
+    // v2.8.0: counter-based RNG (was a time-seeded juce::Random shared with the LFO's
+    // per-block S&H draws, so the block size reordered the grain draws). Each stream
+    // has its own counter; a draw is hash(seed, counter, slot). The counters restart
+    // in prepareToPlay and when the seed changes.
+    enum RngSlot : uint32_t { kSlotJitter = 0, kSlotDetune, kSlotInterval, kSlotDrift, kSlotHold };
+    uint64_t activeSeed = 0;
+    uint64_t grainCounter = 0;      // one per started grain: jitter, detune, next interval
+    uint64_t engageCounter = 0;     // one per fresh freeze: drift offset
+    uint64_t lfoCycleCounter = 0;   // one per LFO cycle: S&H value
+    float rand01(uint64_t counter, RngSlot slot) const noexcept { return CounterRng::uniform(activeSeed, counter, slot); }
 
     // v2.7.0: fixed Hann table read by phase (linear interpolation, +1 guard point).
     // Replaces the grainSize-long window that was rebuilt under live grains.
@@ -168,7 +194,7 @@ private:
     std::array<float, WINDOW_LUT_SIZE + 1> windowLut {};
     float windowAt(const Grain& g) const noexcept
     {
-        const double x = static_cast<double>(g.startSample) * g.invLength * WINDOW_LUT_SIZE;
+        const double x = (static_cast<double>(g.startSample) + g.onsetFrac) * g.invLength * WINDOW_LUT_SIZE;
         const int i = juce::jmin(static_cast<int>(x), WINDOW_LUT_SIZE - 1);
         const float f = static_cast<float>(x - static_cast<double>(i));
         return windowLut[static_cast<size_t>(i)] + f * (windowLut[static_cast<size_t>(i) + 1] - windowLut[static_cast<size_t>(i)]);
@@ -191,9 +217,11 @@ private:
         return 1.0f / std::sqrt(juce::jmax(1.0f, densityPower));
     }
 
-    void startGrain(Grain& g, int basePos, int jitterOffset, float playbackRate, int startSample) noexcept;
+    void startGrain(Grain& g, int basePos, int jitterOffset, float playbackRate, double age) noexcept;
     int findFreeGrainSlot() noexcept;
-    float randomDetuneRate(float detuneCents) noexcept;
+    float randomDetuneRate(float detuneCents, uint64_t counter) const noexcept;
+    void setFrozen(bool frozen, bool reverseActive, float driftValue, float detuneValue) noexcept;
+    void controlTick(float lfoRate, float lfoDepth, int lfoShape, float driftValue) noexcept;
 
     // Per-sample grain scratch buffers (class members to avoid stack zero-init each sample)
     float windowValues[MAX_GRAINS] {};   // window * fadeGain
@@ -210,7 +238,10 @@ private:
     float frozenDriftOffset = 0.0f;    // Offset locked at freeze moment (0 to 1)
     juce::LinearSmoothedValue<float> smoothedDriftOffset; // Smoothed drift in samples (prevents clicks)
 
-    // LFO state (computed per-block for efficiency)
+    // LFO state. v2.8.0: updated on a fixed 32-sample control tick counted on the
+    // sample clock (was once per host block), together with the drift target.
+    static constexpr int kControlInterval = 32;
+    int controlCountdown = 0;
     float lfoPhase = 0.0f;            // 0 to 1 phase accumulator
     float lfoCurrentValue = 0.0f;     // Current LFO output (-1 to +1)
     float randomHoldValue = 0.0f;     // Sample-and-hold value for Random shape
