@@ -180,6 +180,17 @@ OSimpleGrainAudioProcessorEditor::OSimpleGrainAudioProcessorEditor (OSimpleGrain
         .withNativeFunction ("wasLastLoadTruncated", [this] (auto&, auto complete) {
             complete (juce::var (processorRef.wasLastLoadTruncated()));
         })
+        // v1.5.6: what the status line should say. { name: the loaded user file's
+        // name ("" for a built-in), truncated, missing: a saved source a restore
+        // could not realise (one-shot — "" once read) }. The JS calls it at boot
+        // and on every "sourceChanged", so a reopened project names its sound.
+        .withNativeFunction ("getSourceInfo", [this] (auto&, auto complete) {
+            auto* info = new juce::DynamicObject();
+            info->setProperty ("name",      processorRef.getUserSourceName());
+            info->setProperty ("truncated", processorRef.wasLastLoadTruncated());
+            info->setProperty ("missing",   processorRef.takeRestoreFailedName());
+            complete (juce::var (info));
+        })
         // Sample rate for the spectrum's frequency-axis labels (used in 3.2).
         .withNativeFunction ("getSampleRate", [this] (auto&, auto complete) {
             complete (processorRef.getCurrentSampleRate());

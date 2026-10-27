@@ -320,7 +320,9 @@ void OSimpleGrainAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
     }
     else
     {
-        if (identity.startsWith ("dropped:"))
+        // User source (dropped or picker). v1.5.6: one ladder for both — the
+        // retained copy is the same audio either way, so a rate change re-decodes
+        // it rather than re-reading (and re-encoding) the picker file every time.
         {
             const juce::ScopedLock sl (sourceStateLock);
             if (currentSource != nullptr && publishedSourceRate == sampleRate)
@@ -329,18 +331,19 @@ void OSimpleGrainAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
             }
             else if (userSourceBytes.getSize() > 0 && userSourceBytesIdentity == identity)
             {
-                // Rate changed and the dropped bytes are retained — re-decode.
+                // Rate changed and the copy is retained — re-decode.
                 loadedUserFile = decodeAndPublish (userSourceBytes.getData(),
                                                    userSourceBytes.getSize(),
                                                    sampleRate, identity);
             }
-            if (! loadedUserFile && currentSource != nullptr)
-                loadedUserFile = true;   // bytes gone: keep the live buffer (transposed on a
-                                         // rate change) rather than discard the user's sound
         }
-        else if (juce::File::isAbsolutePath (identity))   // guard: juce::File(non-path) jasserts
+
+        // No retained copy: a picker file can still be re-read from its path.
+        // The isAbsolutePath guard keeps juce::File away from a non-path string
+        // (jasserts in debug hosts).
+        if (! loadedUserFile && ! identity.startsWith ("dropped:")
+            && juce::File::isAbsolutePath (identity))
         {
-            // Picker file: re-read its path at the new rate.
             const juce::File f (identity);
             if (f.existsAsFile())
             {
@@ -349,22 +352,19 @@ void OSimpleGrainAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
                     && decodeAndPublish (mb.getData(), mb.getSize(), sampleRate, identity))
                     loadedUserFile = true;
             }
-            if (! loadedUserFile)
-            {
-                // Path vanished mid-session: keep a live buffer over clobbering.
-                const juce::ScopedLock sl (sourceStateLock);
-                if (currentSource != nullptr)
-                    loadedUserFile = true;
-            }
         }
 
         if (! loadedUserFile)
         {
-            // Nothing realisable (fresh-instance restore of a name-only identity,
-            // or a missing file with no live buffer) — documented fallback.
-            setSourceIdentity ("embedded:fire");
-            loadBuiltInSource (0, sampleRate);
+            // Nothing re-decodable: keep the live buffer (transposed on a rate
+            // change) rather than discard the user's sound.
+            const juce::ScopedLock sl (sourceStateLock);
+            if (currentSource != nullptr)
+                loadedUserFile = true;
         }
+
+        if (! loadedUserFile)
+            fallBackToDefaultSource (identity, sampleRate);   // nothing realisable at all
     }
 
     // Reap any retired buffers that are now provably unreferenced (the host
@@ -486,6 +486,72 @@ OSimpleGrainAudioProcessor::resampleToEngineRate (const juce::AudioBuffer<float>
     return out;
 }
 
+// v1.5.6: encode a decoded user source (at its own rate) as a complete audio file
+// in memory, for the session copy. Integer sources -> FLAC at 16 or 24 bit
+// (lossless for 8/16/24-bit files); float sources -> 32-bit float WAV, so peaks
+// over 0 dBFS survive (FLAC is integer-only and would clip them). FLAC also tops
+// out at 8 channels. Returns an empty block if the writer refuses.
+static juce::MemoryBlock encodeSessionCopy (const juce::AudioBuffer<float>& buf, double rate,
+                                            bool isFloat, int srcBits)
+{
+    using SampleFormat = juce::AudioFormatWriterOptions::SampleFormat;
+    const bool useFlac = ! isFloat && buf.getNumChannels() <= 8;
+
+    std::unique_ptr<juce::AudioFormat> format;
+    if (useFlac) format = std::make_unique<juce::FlacAudioFormat>();
+    else         format = std::make_unique<juce::WavAudioFormat>();
+
+    const auto options = juce::AudioFormatWriterOptions{}
+                             .withSampleRate (rate)
+                             .withNumChannels (buf.getNumChannels())
+                             .withBitsPerSample (useFlac ? (srcBits <= 16 ? 16 : 24) : 32)
+                             .withSampleFormat (useFlac ? SampleFormat::integral
+                                                        : SampleFormat::floatingPoint);
+
+    juce::MemoryBlock out;
+    std::unique_ptr<juce::OutputStream> stream = std::make_unique<juce::MemoryOutputStream> (out, false);
+    auto writer = format->createWriterFor (stream, options);
+    if (writer == nullptr)
+        return {};
+
+    const bool ok = writer->writeFromAudioSampleBuffer (buf, 0, buf.getNumSamples());
+    writer.reset();                      // finalises the header and trims `out` to size
+    return ok ? out : juce::MemoryBlock{};
+}
+
+juce::String OSimpleGrainAudioProcessor::displayNameForIdentity (const juce::String& identity)
+{
+    if (identity.startsWith ("dropped:"))
+        return identity.fromFirstOccurrenceOf ("dropped:", false, false);
+    if (juce::File::isAbsolutePath (identity))      // guard: juce::File(non-path) jasserts
+        return juce::File (identity).getFileName();
+    return {};
+}
+
+juce::String OSimpleGrainAudioProcessor::getUserSourceName() const
+{
+    return displayNameForIdentity (getSourceIdentity());
+}
+
+juce::String OSimpleGrainAudioProcessor::takeRestoreFailedName()
+{
+    const juce::ScopedLock sl (sourceStateLock);
+    juce::String name;
+    name.swapWith (restoreFailedName);
+    return name;
+}
+
+void OSimpleGrainAudioProcessor::fallBackToDefaultSource (const juce::String& lostIdentity,
+                                                          double engineRate)
+{
+    {
+        const juce::ScopedLock sl (sourceStateLock);
+        restoreFailedName     = displayNameForIdentity (lostIdentity);
+        currentSourceIdentity = "embedded:fire";
+    }
+    loadBuiltInSource (0, engineRate);
+}
+
 // Decode a raw byte block (a complete .wav/.aiff/.flac file in memory) through
 // the format manager, resample to the engine rate, cap, and atomic-publish.
 // Shared by the built-in path, the drag-drop base64 path, and the picker path.
@@ -529,26 +595,46 @@ bool OSimpleGrainAudioProcessor::decodeAndPublish (const void* data, size_t numB
 
     lastLoadTruncated.store (truncated || preTruncated, std::memory_order_relaxed);
 
+    // v1.5.6: a user source gets a self-contained copy (see userSourceBytes) —
+    // the decoded, already-capped audio re-encoded at its own rate, so the
+    // session carries ~10 s of audio rather than the whole dropped file. Skipped
+    // when prepareToPlay / setStateInformation feed the retained copy back
+    // through this very path. Encoded before taking the lock (FLAC encode of
+    // 10 s is tens of ms).
+    const bool isUserSource = ! identity.startsWith ("embedded:");
+    bool needsCopy = false;
+    if (isUserSource)
+    {
+        const juce::ScopedLock sl (sourceStateLock);
+        needsCopy = (data != userSourceBytes.getData());
+    }
+    juce::MemoryBlock sessionCopy;
+    if (needsCopy)
+    {
+        sessionCopy = encodeSessionCopy (tmp, srcRate, reader->usesFloatingPointData,
+                                         (int) reader->bitsPerSample);
+        if (sessionCopy.isEmpty() && numBytes <= kMaxRetainedSourceBytes)
+            sessionCopy.append (data, numBytes);          // encoder refused: keep the raw file
+    }
+
     {
         const juce::ScopedLock sl (sourceStateLock);
         publishSource (std::move (resampled));
         currentSourceIdentity = identity;
         publishedSourceRate   = engineRate;
 
-        // CR-01: retain the raw bytes of a dropped file (no re-readable disk
-        // path) so a later prepareToPlay at a NEW engine rate can re-decode
-        // instead of clobbering. Skip the self-copy when prepareToPlay feeds the
-        // retained block back through this very path; cap so a huge drop can't
-        // pin RAM (over the cap the live buffer is kept, transposed, on a rate
-        // change). Non-dropped sources release any stale retained bytes.
-        if (identity.startsWith ("dropped:"))
+        // CR-01: retain the copy so a later prepareToPlay at a NEW engine rate can
+        // re-decode instead of clobbering, and getStateInformation can embed it.
+        // Cap so a pathological source can't pin RAM (over the cap the live buffer
+        // is kept, transposed, on a rate change). Built-ins release any stale copy.
+        if (isUserSource)
         {
-            if (data != userSourceBytes.getData())
+            restoreFailedName.clear();                   // a user sound is live again
+            if (needsCopy)
             {
-                if (numBytes <= kMaxRetainedSourceBytes)
+                if (sessionCopy.getSize() > 0 && sessionCopy.getSize() <= kMaxRetainedSourceBytes)
                 {
-                    userSourceBytes.setSize (numBytes);
-                    userSourceBytes.copyFrom (data, 0, numBytes);
+                    userSourceBytes.swapWith (sessionCopy);
                     userSourceBytesIdentity = identity;
                 }
                 else
@@ -1196,10 +1282,27 @@ void OSimpleGrainAudioProcessor::getStateInformation (juce::MemoryBlock& destDat
     // read goes through the lock (CR-02).
     auto state = apvts.copyState();
 
+    // v1.5.6: a user source also embeds its retained copy, so a reopened project
+    // (fresh instance, no bytes in RAM, picker file maybe moved) gets its sound
+    // back. Copy under the lock, base64 outside it.
+    juce::String identity;
+    juce::MemoryBlock sourceCopy;
+    {
+        const juce::ScopedLock sl (sourceStateLock);
+        identity = currentSourceIdentity;
+        if (! identity.startsWith ("embedded:") && userSourceBytesIdentity == identity)
+            sourceCopy = userSourceBytes;
+    }
+
     auto sourceChild = state.getOrCreateChildWithName (
         juce::Identifier (kSourceStateTag), nullptr);
-    sourceChild.setProperty (juce::Identifier (kSourceIdProp),
-                             getSourceIdentity(), nullptr);
+    sourceChild.setProperty (juce::Identifier (kSourceIdProp), identity, nullptr);
+    if (sourceCopy.getSize() > 0)
+        sourceChild.setProperty (juce::Identifier (kSourceDataProp),
+                                 juce::Base64::toBase64 (sourceCopy.getData(), sourceCopy.getSize()),
+                                 nullptr);   // standard alphabet, never MemoryBlock::toBase64Encoding
+    else
+        sourceChild.removeProperty (juce::Identifier (kSourceDataProp), nullptr);
 
     // v1.3.0: the interface LANGUAGE rides the same tree as a plain property on
     // the ROOT, not a parameter and not a child of the source node — it has
@@ -1231,8 +1334,33 @@ void OSimpleGrainAudioProcessor::setStateInformation (const void* data, int size
     // tree to the APVTS. Default stays "embedded:fire" when absent (legacy state).
     auto sourceChild = state.getChildWithName (juce::Identifier (kSourceStateTag));
     if (sourceChild.isValid())
-        setSourceIdentity (sourceChild.getProperty (
-            juce::Identifier (kSourceIdProp), getSourceIdentity()).toString());
+    {
+        const juce::String identity = sourceChild.getProperty (
+            juce::Identifier (kSourceIdProp), getSourceIdentity()).toString();
+        setSourceIdentity (identity);
+
+        // v1.5.6: the embedded copy of a user source. Taken into userSourceBytes
+        // (where the restore ladder below and prepareToPlay look), then stripped
+        // from the tree so apvts.state doesn't hold a second multi-MB string —
+        // getStateInformation re-embeds from userSourceBytes.
+        const juce::String b64 = sourceChild.getProperty (juce::Identifier (kSourceDataProp)).toString();
+        sourceChild.removeProperty (juce::Identifier (kSourceDataProp), nullptr);
+        if (b64.isNotEmpty() && ! identity.startsWith ("embedded:"))
+        {
+            juce::MemoryBlock copy;
+            bool decoded = false;
+            {
+                juce::MemoryOutputStream mos (copy, false);   // trims `copy` on destruction
+                decoded = juce::Base64::convertFromBase64 (mos, b64);
+            }
+            if (decoded && copy.getSize() > 0 && copy.getSize() <= kMaxRetainedSourceBytes)
+            {
+                const juce::ScopedLock sl (sourceStateLock);
+                userSourceBytes.swapWith (copy);
+                userSourceBytesIdentity = identity;
+            }
+        }
+    }
 
     // v1.3.0. A pre-1.3.0 session has no property, getProperty returns a VOID
     // var, and the default (English) stands. isVoid() is the only correct gate —
@@ -1269,19 +1397,10 @@ void OSimpleGrainAudioProcessor::setStateInformation (const void* data, int size
         else
         {
             bool ok = false;
-            if (identity.startsWith ("dropped:"))
-            {
-                // Name-only identity: the bytes are not persisted. Same-instance
-                // restore (host undo / A-B) may still hold them — reuse; a fresh
-                // instance falls back below (documented, with a UI notice). The
-                // guard also keeps juce::File() away from a non-path string,
-                // which jasserts in debug hosts (CR-01).
-                const juce::ScopedLock sl (sourceStateLock);
-                if (userSourceBytes.getSize() > 0 && userSourceBytesIdentity == identity)
-                    ok = decodeAndPublish (userSourceBytes.getData(), userSourceBytes.getSize(),
-                                           engineRate, identity);
-            }
-            else if (juce::File::isAbsolutePath (identity))
+            // Picker file: its path first, so a session follows the file on disk.
+            // The isAbsolutePath guard keeps juce::File() away from a non-path
+            // string ("dropped:<name>"), which jasserts in debug hosts (CR-01).
+            if (! identity.startsWith ("dropped:") && juce::File::isAbsolutePath (identity))
             {
                 const juce::File f (identity);
                 if (f.existsAsFile())
@@ -1293,11 +1412,16 @@ void OSimpleGrainAudioProcessor::setStateInformation (const void* data, int size
             }
             if (! ok)
             {
-                // Missing user file -> fall back to the default built-in (notice in
-                // Stage 3 via the identity reverting to embedded:fire).
-                setSourceIdentity ("embedded:fire");
-                loadBuiltInSource (0, engineRate);
+                // The retained copy: embedded in the session (v1.5.6), or still in
+                // RAM on a same-instance restore (host undo / A-B). The only route
+                // for a dropped file; the fallback for a picker file that moved.
+                const juce::ScopedLock sl (sourceStateLock);
+                if (userSourceBytes.getSize() > 0 && userSourceBytesIdentity == identity)
+                    ok = decodeAndPublish (userSourceBytes.getData(), userSourceBytes.getSize(),
+                                           engineRate, identity);
             }
+            if (! ok)
+                fallBackToDefaultSource (identity, engineRate);   // the editor toasts the name
         }
     }
 

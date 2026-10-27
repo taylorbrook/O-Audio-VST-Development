@@ -149,6 +149,16 @@ public:
         currentSourceIdentity = id;
     }
 
+    // v1.5.6: display name of the loaded USER source (the dropped file's name or
+    // the picker file's name); empty while a built-in is loaded. The editor shows
+    // it on open, so a restored session names what it is playing.
+    juce::String getUserSourceName() const;
+
+    // v1.5.6: name of a saved user source that could not be restored (no embedded
+    // copy and no file at its path), so the session fell back to the default
+    // built-in. One-shot: returns the name once and clears it — the editor toasts it.
+    juce::String takeRestoreFailedName();
+
     //==========================================================================
     // On-screen keyboard: the editor injects note on/off from the WebView (any
     // thread). Queued via a MidiMessageCollector and merged into processBlock's
@@ -387,14 +397,31 @@ private:
     // prepareToPlay skip a pointless re-decode when the rate did not change.
     double publishedSourceRate = 0.0;
 
-    // Raw file bytes of the last "dropped:" source (CR-01). A dropped file has
-    // no re-readable disk path (WKWebView strips it), so prepareToPlay retains
-    // the bytes to re-decode at a NEW engine rate instead of clobbering the
-    // user's live sound with a built-in. Capped so a huge drop can't pin RAM;
-    // over the cap the live buffer is kept as-is on a rate change (transposed).
+    // Self-contained copy of the current USER source (dropped or picker), as a
+    // complete audio file in memory (CR-01; v1.5.6). A dropped file has no
+    // re-readable disk path (WKWebView strips it) and a picker file can move, so
+    // these bytes (a) let prepareToPlay re-decode at a NEW engine rate and (b) are
+    // written into the session by getStateInformation so a reopened project gets
+    // its sound back. Since v1.5.6 they are the DECODED source re-encoded at its
+    // own rate (already capped at kMaxSourceSeconds): FLAC for integer sources,
+    // 32-bit float WAV for float ones — a few MB however long the dropped file
+    // was. Capped so a pathological layout can't pin RAM; over the cap the live
+    // buffer is kept as-is on a rate change (transposed) and nothing is embedded.
     static constexpr size_t kMaxRetainedSourceBytes = 32 * 1024 * 1024;
     juce::MemoryBlock userSourceBytes;
-    juce::String      userSourceBytesIdentity;   // which "dropped:" identity the bytes belong to
+    juce::String      userSourceBytesIdentity;   // which user identity the bytes belong to
+
+    // v1.5.6: name of a user source a restore could not realise (see
+    // takeRestoreFailedName). Guarded by sourceStateLock.
+    juce::String restoreFailedName;
+
+    // Fall back to the default built-in after a user source could not be
+    // realised, recording its name for the editor's notice.
+    void fallBackToDefaultSource (const juce::String& lostIdentity, double engineRate);
+
+    // Display name for a user identity ("dropped:<name>" or an absolute path);
+    // empty for "embedded:" identities.
+    static juce::String displayNameForIdentity (const juce::String& identity);
 
     // Master output trim (dB->lin, smoothed) folded together with an overlap-aware
     // normalization factor so sparse/single grains play at full level while dense
@@ -512,6 +539,9 @@ private:
     // Custom-state element names for get/setStateInformation.
     static constexpr const char* kSourceStateTag = "SOURCE";
     static constexpr const char* kSourceIdProp   = "identity";
+    // v1.5.6 — base64 (standard alphabet) of userSourceBytes, present only while
+    // a user source is loaded. Absent in older sessions.
+    static constexpr const char* kSourceDataProp = "data";
     // v1.3.0 — a ROOT property, not a child of the SOURCE node: the interface
     // language has nothing to do with which sound is loaded.
     static constexpr const char* kUiLanguageProp = "uiLanguage";

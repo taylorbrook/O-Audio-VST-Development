@@ -1018,6 +1018,11 @@ export const LABELS = Object.freeze({
         fr: { t: "Échec du chargement", reviewed: true },
         'zh-Hans': { t: "载入失败", reviewed: 'bt' },
     },
+    'toast.sourceMissing': {
+        en: { t: "Couldn't restore {name} — using the default source" },
+        fr: { t: "Impossible de restaurer {name} — source par défaut utilisée", reviewed: false },
+        'zh-Hans': { t: "无法恢复 {name} — 已改用默认源", reviewed: 'mt' },
+    },
     'label.sourceTruncated': {
         en: { t: "{name} — truncated to 10 s" },
         fr: { t: "{name} — rogné à 10\u00a0s", reviewed: true },
@@ -1027,16 +1032,6 @@ export const LABELS = Object.freeze({
         en: { t: "{name} loaded" },
         fr: { t: "{name} chargé", reviewed: true },
         'zh-Hans': { t: "已载入 {name}", reviewed: 'bt' },
-    },
-    'label.sourceTruncatedGeneric': {
-        en: { t: "Source — truncated to 10 s" },
-        fr: { t: "Source — rognée à 10\u00a0s", reviewed: true },
-        'zh-Hans': { t: "源 — 已截断到 10 秒", reviewed: 'bt' },
-    },
-    'label.sourceLoadedGeneric': {
-        en: { t: "Source loaded" },
-        fr: { t: "Source chargée", reviewed: true },
-        'zh-Hans': { t: "已载入源", reviewed: 'bt' },
     },
 
     // ── Lesson captions. Chosen by a click, so never the resting string — written

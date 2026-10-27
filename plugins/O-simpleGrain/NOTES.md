@@ -2,11 +2,12 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.5.5
+- **Version:** 1.5.6
 - **Type:** Synth (Pedagogical Granular)
 
 ## Lifecycle Timeline
 
+- **2026-10-27 (v1.5.6):** User sources survive a project reopen. Dropped files were saved by name only and fell back to Fire. The session now embeds the decoded, ≤10 s source: FLAC for integer files, float WAV for float ones. Load… files still try their path first and use the copy if the file is gone. The status line names the restored file when the editor opens, and a toast reports a source that couldn't be restored. Verified on the installed VST3 with pedalboard: 23/23 state round-trip cases pass, renders from the FLAC copy are bit-identical to renders from the original file, and pluginval strictness 5 passes.
 - **2026-10-26 (v1.5.5):** Density normalisation respects the 24-grain cap (and the truncated window of stolen grains) and weights overlap by window power μ₂ relative to Hann. Level flat within 0.5 dB from 10 to 200 g/s at 500 ms (was a 14.7 dB fall); window spread 5.0 → 0.3 dB. Hann under the cap bit-identical to v1.5.4.
 - **2026-10-26 (v1.5.4):** Fade-on-steal. A stolen grain is copied into one of 4 spare slots per voice and fades out over 5 ms, so it is no longer cut mid-window. Steal-free renders are bit-identical to v1.5.3. Under steals (500 ms × 200/s, piano source), 1–5 kHz energy drops by 30 dB and energy above 10 kHz by 49 dB, measured against the v1.5.3 binary.
 - **2026-06-24 (Stage 1–3):** Foundation → DSP → GUI implemented (8-voice granular engine, field-guide WebView UI).

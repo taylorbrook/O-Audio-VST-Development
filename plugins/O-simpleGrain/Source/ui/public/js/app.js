@@ -579,42 +579,46 @@ function markStatusTruncated(truncated) {
   if (el) el.classList.toggle("truncated", !!truncated);
 }
 
-// Label for the next user-initiated load, consumed by the "sourceChanged"
-// backend event (IN-08). Set BEFORE invoking the load so the event handler —
-// which fires as soon as the decode publishes — can't beat it. Built-in
-// switches leave it null (no status line, matching the old behaviour); the file
-// picker parks the EMPTY STRING, which is falsy and selects the un-named pair
-// of status writers above.
-let pendingSourceLabel = null;
-
-// ── After a load completes, surface the 10 s truncation notice ──────────────
-// Four one-line writers, each naming a plain string literal. A single writer
-// taking `name ? "label.sourceLoaded" : "label.sourceLoadedGeneric"` reads more
-// naturally and is what this was first written as; check-i18n assertion 13
-// rejects a conditional ANYWHERE inside a setLabel call, including the vars
-// object, and it is right to — a reviewer cannot tell a message-selection
-// ternary from a plural one by reading the call.
+// ── Status line: names the loaded user file, with the 10 s truncation notice ─
+// Two one-line writers, each naming a plain string literal: check-i18n
+// assertion 13 rejects a conditional ANYWHERE inside a setLabel call, including
+// the vars object, and it is right to — a reviewer cannot tell a
+// message-selection ternary from a plural one by reading the call.
 function writeSourceStatus(name, truncated) {
   const el = statusEl();
   if (!el) return;
   markStatusTruncated(truncated);
-  if (name) {
-    if (truncated) setLabel(el, "label.sourceTruncated", { name: name });
-    else           setLabel(el, "label.sourceLoaded",    { name: name });
-  } else {
-    // The file picker knows no name until the decode publishes; v1.2.1 filled
-    // the same two templates with the literal word "Source", and these two
-    // entries are that result, authored rather than interpolated.
-    if (truncated) setLabel(el, "label.sourceTruncatedGeneric");
-    else           setLabel(el, "label.sourceLoadedGeneric");
-  }
+  if (truncated) setLabel(el, "label.sourceTruncated", { name: name });
+  else           setLabel(el, "label.sourceLoaded",    { name: name });
 }
 
-async function reportTruncationIfAny(name) {
-  let wasTrunc = false;
-  try { wasTrunc = await Juce.getNativeFunction("wasLastLoadTruncated")(); }
-  catch (e) { wasTrunc = false; }
-  writeSourceStatus(name, wasTrunc);
+// A built-in is playing: no status line. Dropping the data-i18n key too, so the
+// language sweep doesn't write the last file's name back.
+function clearSourceStatus() {
+  const el = statusEl();
+  if (!el) return;
+  markStatusTruncated(false);
+  delete el.dataset.i18n;
+  delete el.dataset.i18nVars;
+  el.textContent = "";
+}
+
+// v1.5.6: the status line is derived from the C++ side's source, not from which
+// UI action started the load — so it is right at boot (a reopened project names
+// its restored file, which v1.5.5 never did), after a picker load (the picker
+// file now has a name), and after a built-in switch (the old file's name no
+// longer lingers). A saved source that could not be restored toasts once.
+async function syncSourceStatus() {
+  let info = null;
+  try { info = await Juce.getNativeFunction("getSourceInfo")(); }
+  catch (e) { info = null; }
+  if (!info) return;
+  if (info.name) writeSourceStatus(info.name, !!info.truncated);
+  else           clearSourceStatus();
+  if (info.missing) {
+    setLabel(toastEl(), "toast.sourceMissing", { name: info.missing });
+    flashToast();
+  }
 }
 
 // ── Single-source drag-drop (custom: calls the GRAIN drop native fns) ───────
@@ -630,23 +634,21 @@ async function commitDroppedFile(fileEntry) {
   const sessionId = newSessionId();
   setLabel(toastEl(), "toast.loading", { name: fileEntry.name });
   flashToast();
-  pendingSourceLabel = fileEntry.name;   // consumed by the sourceChanged event (IN-08)
   try {
     const startOk = await Juce.getNativeFunction("dropSessionStart")(sessionId, "");
-    if (!startOk) { pendingSourceLabel = null; setLabel(toastEl(), "toast.dropStartFailed"); flashToast(); return; }
+    if (!startOk) { setLabel(toastEl(), "toast.dropStartFailed"); flashToast(); return; }
 
     const base64 = await readFileEntryAsBase64(fileEntry);
 
     const addOk = await Juce.getNativeFunction("dropSessionAddFile")(sessionId, fileEntry.name, base64);
-    if (!addOk) { pendingSourceLabel = null; setLabel(toastEl(), "toast.transferFailed"); flashToast(); return; }
+    if (!addOk) { setLabel(toastEl(), "toast.transferFailed"); flashToast(); return; }
 
     const commitOk = await Juce.getNativeFunction("dropSessionCommitFile")(sessionId, fileEntry.name, base64);
-    if (!commitOk) { pendingSourceLabel = null; setLabel(toastEl(), "toast.commitFailed"); flashToast(); return; }
+    if (!commitOk) { setLabel(toastEl(), "toast.commitFailed"); flashToast(); return; }
 
-    // Thumbnail + truncation status are driven by the "sourceChanged" backend
-    // event, which fires only after the decode has actually published (IN-08).
+    // Thumbnail + status line are driven by the "sourceChanged" backend event,
+    // which fires only after the decode has actually published (IN-08).
   } catch (e) {
-    pendingSourceLabel = null;
     console.error("[O-simpleGrain] drop failed:", e);
     // HOISTED. check-i18n assertion 13 rejects a conditional anywhere inside a
     // setLabel call — including in the vars object, which is where this one
@@ -694,14 +696,10 @@ function bindLoadButton() {
   btn.addEventListener("click", async () => {
     try {
       // The picker is async on the C++ side; the "sourceChanged" backend event
-      // reports truncation + refreshes the waveform once the decode publishes
+      // writes the status line + refreshes the waveform once the decode publishes
       // (IN-08 — the old 1.2 s fixed delay went stale on a longer browse).
-      // The empty string, not the word "Source": the status line's copy is a
-      // table entry now, so the placeholder only has to be truthy-or-not.
-      pendingSourceLabel = "";
       await Juce.getNativeFunction("loadSourceFromFileChooser")();
     } catch (e) {
-      pendingSourceLabel = null;
       console.error("[O-simpleGrain] Load… failed:", e);
       setLabel(toastEl(), "toast.loadFailed");
       flashToast();
@@ -1031,14 +1029,7 @@ function setupVizEvents() {
   // switches refresh silently, matching the old behaviour).
   be.addEventListener("sourceChanged", () => {
     fetchSourceThumbnail();
-    // `!== null`, not truthiness: the file picker parks the EMPTY STRING here
-    // (it has no name to show until the decode publishes), and a truthiness
-    // gate would silently drop the picker's own status line.
-    if (pendingSourceLabel !== null) {
-      const name = pendingSourceLabel;
-      pendingSourceLabel = null;
-      reportTruncationIfAny(name);
-    }
+    syncSourceStatus();
   });
 }
 
@@ -1532,6 +1523,7 @@ function boot() {
   setupVizEvents();
   fetchSampleRate();
   fetchSourceThumbnail();
+  syncSourceStatus();     // v1.5.6: a restored user source is named on open
   drawWindowInset();
 
   // The window inset is recomputed only on a windowShape / windowTaper /

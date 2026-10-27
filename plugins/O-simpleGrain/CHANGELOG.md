@@ -3,6 +3,18 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.5.6] — 2026-10-27
+
+### Fixed
+- **Dropped sounds now come back when a project reopens.** A file dragged onto the plugin was saved only by name, because the WebView doesn't pass the file's location. After a DAW restart or project reopen the plugin silently went back to Fire. The session now stores the sound itself.
+- **A loaded file that moved or was deleted no longer breaks the session.** Files from Load… are still re-read from their path first. If the file is gone, the stored copy is used instead, which also covers opening the project on another machine.
+- **The status line names the loaded file.** It now shows when the editor opens (it used to appear only right after a load), names files loaded with Load… (they used to show only "Source loaded"), and clears when you switch to a built-in sound (the old file's name used to stay).
+- **A sound that can't be restored is reported.** Older sessions only have the name of a dropped file, so they still can't recover it. When that happens, or the stored copy is missing, a notice names the file and says the default source is playing instead.
+
+### Notes
+- The stored copy is the audio the plugin actually uses (up to 10 s) at the file's own sample rate. Integer files are stored as lossless FLAC, float files as 32-bit float WAV so peaks above 0 dBFS aren't clipped. That adds roughly 0.5–3 MB per instance to a session, however long the dropped file was.
+- A change of sample rate now re-decodes the stored copy instead of re-reading the Load… file from disk on every prepare.
+
 ## [1.5.5] — 2026-10-26
 
 ### Fixed
