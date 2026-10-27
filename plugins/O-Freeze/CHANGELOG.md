@@ -2,6 +2,86 @@
 
 All notable changes to O-Freeze will be documented in this file.
 
+## [2.7.0] - 2026-10-27
+
+Grain engine pass from research `granular-synthesis-2026-update` §3.2 and
+code-review IN-03. It is MINOR because the wet level changes audibly. There is
+no parameter, range, state-format, UI or i18n change.
+
+### Changed
+
+- **Grain Count is no longer a level control (live-N density law).** The wet
+  sum used to be divided by the sum of the live window values. The grains read
+  different lags of the frozen audio, so they add incoherently, and that
+  divide pulled the level down by about 1/√N. Measured on v2.6.0 against the
+  input RMS: from count 2 to 32 the level fell 12.1 dB on noise, 11.9 on a
+  chord and 12.7 on a sine. With one grain live, the window was divided out
+  entirely. The sum is now scaled by `1/√max(1, P)`, where `P` is a 100 ms
+  one-pole estimate of `N·μ₂` with N the live grain count and μ₂ = 3/8 (Hann).
+  This is the same form as O-GrainScatter v3.2.0, and it never boosts.
+  - Measured on v2.7.0: counts 4–32 hold within ±0.6 dB at drift 0 and 50,
+    for noise, chord and sine. Count 2 sits about 1.2 dB lower by the
+    never-boost rule.
+  - A lone grain keeps its window. On a DC input the v2.6.0 output was flat
+    (min/max 1.000). It now follows the window sum (0.44 at count 2).
+- **Wet level at the default count of 8 rises 6.5–9 dB,** to about the
+  input's RMS, so Mix is now an equal-loudness blend. Existing sessions get
+  louder. Incoherent sums of tonal material peak above the source: up to
+  +8 dB on a pure sine at counts 16–32, +4.5 dB on a chord.
+- **Engage keeps its 50 ms feel.** Without the window-sum divide, a single
+  first grain would fade in over half a grain (about 200 ms at 400 ms). A
+  fresh freeze now starts from the steady state instead. GRAIN_COUNT grains
+  start at staggered phases, as if triggered one interval apart, and the
+  density estimate is seeded to match.
+
+### Fixed
+
+- **Round-robin steal restarted sounding grains (IN-03).** The new grain took
+  `grains[nextGrainIndex]`, cycled over GRAIN_COUNT slots, but ±30% trigger
+  jitter often brings a slot round before its grain has finished, which cut
+  it off hard. A grain now takes any free slot of a 64-slot pool. In steady
+  state about 35 grains are live at count 32 (scheduler simulation). The pool
+  overflows only when a long size is cut short with its grains still live
+  (1000 → 50 ms at count 32). Then the oldest grain moves to one of 8 spare
+  slots and fades out over 5 ms, the family pattern from GrainScatter,
+  TextureForge and simpleGrain. On that switch the worst 5 ms of energy
+  above 4 kHz was −2.6 to −6.5 dB re the signal on v2.6.0, which is a
+  click. On v2.7.0 it is −80 dB, under the static 50 ms render (−75 dB).
+- **The window was rebuilt under live grains (`processBlock`, old
+  `:296-312`).** Every GRAIN_SIZE change rewrote `hannWindow` at the new
+  length while grains were reading it. That truncated grains past the new
+  length, and a GRAIN_COUNT decrease also hard-killed every grain at index
+  ≥ count. During a knob move this ran each block, up to 48k `cos()` calls
+  on the audio thread. Now:
+  - The window is a fixed 2048-point Hann table, read by each grain's phase
+    with linear interpolation.
+  - Each grain latches its length at onset. Size and count changes reach
+    only new grains and the trigger rate.
+  - A per-block GRAIN_SIZE sweep (400 → 950 ms) measured 11–17 dB of HF
+    above the static render on v2.6.0. On v2.7.0 it matches the static
+    render within 1.6 dB, at −128 dB.
+- **Re-engaging during a release tail hard-cut grains 1..31.** The write head
+  is held for the whole tail (WR-03), so the live grains still read frozen
+  audio. They are now kept, and triggering resumes.
+- **The release fade length** comes from the longest remaining latched grain,
+  not from the current GRAIN_SIZE.
+
+### Known
+
+- DRIFT jitter and offset can read up to a full grain past the write head,
+  into the oldest part of the ring. The ring is 2 s at 192 kHz, which is 8 s
+  of audio at 48 kHz. This predates this release and is not addressed here.
+  In tests with a ring that was not fully written it shows up as a level
+  loss at high drift.
+
+### Testing
+
+- A/B against the installed v2.6.0 in pedalboard: level sweep (counts 2–32,
+  noise/chord/sine, drift 0 and 50, ring pre-filled), DC window probe,
+  GRAIN_SIZE sweep click probe, 1000 → 50 ms steal probe, and a multi-call
+  zero-sample check (0).
+- pluginval strictness 10.
+
 ## [2.6.0] - 2026-09-27
 
 UI pass R4/R5 from review 260924-nho (Phase C). The page moves onto the

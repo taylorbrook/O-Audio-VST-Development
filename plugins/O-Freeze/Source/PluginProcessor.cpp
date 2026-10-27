@@ -179,9 +179,18 @@ void OFreezeAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     gateState = GateState::Idle;
 
     // Initialize granular synthesis components
-    // Pre-allocate Hann window for max grain size (1000ms) to avoid audio-thread allocations
     maxGrainSize = static_cast<int>(sampleRate * 1.0);
-    hannWindow.resize(maxGrainSize);
+
+    // v2.7.0: fixed raw Hann table, read by each grain's own phase. No COLA scaling —
+    // per-grain jitter breaks COLA alignment; level comes from the density law.
+    for (int i = 0; i <= WINDOW_LUT_SIZE; ++i)
+    {
+        double phase = static_cast<double>(i) / static_cast<double>(WINDOW_LUT_SIZE);
+        windowLut[static_cast<size_t>(i)] = static_cast<float>(0.5 * (1.0 - std::cos(2.0 * juce::MathConstants<double>::pi * phase)));
+    }
+
+    densityPower = 0.0f;
+    densityCoeff = static_cast<float>(1.0 - std::exp(-1.0 / (kDensitySmoothSeconds * sampleRate)));
 
     // Read initial grain size and grain count from parameters
     auto* grainSizeParam = parameters.getRawParameterValue("GRAIN_SIZE");
@@ -190,34 +199,18 @@ void OFreezeAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     numGrains = static_cast<int>(grainCountParam->load());
     lastGrainSizeMs = grainSizeMs;
     lastGrainCount = numGrains;
-    // WR-04: clamp to maxGrainSize (== hannWindow.size()) exactly as processBlock does,
-    // so the Hann-window build loop below can never overrun the buffer if the GRAIN_SIZE
-    // range or maxGrainSize constant ever drift out of sync.
-    grainSize = juce::jmin(static_cast<int>(sampleRate * grainSizeMs / 1000.0), maxGrainSize);
+    // WR-04: clamp to maxGrainSize exactly as processBlock does, so the grain length
+    // (and the freeze-buffer reach it implies) stays bounded if the GRAIN_SIZE range or
+    // the maxGrainSize constant ever drift out of sync.
+    grainSize = juce::jmax(1, juce::jmin(static_cast<int>(sampleRate * grainSizeMs / 1000.0), maxGrainSize));
     grainTriggerInterval = grainSize / numGrains;
-
-    // Raw Hann window (no COLA scaling — per-grain jitter breaks COLA alignment)
-    // Normalization done per-sample by dividing by sum of active window values
-    for (int i = 0; i < grainSize; ++i)
-    {
-        double phase = static_cast<double>(i) / static_cast<double>(grainSize);
-        hannWindow[i] = static_cast<float>(0.5 * (1.0 - std::cos(2.0 * juce::MathConstants<double>::pi * phase)));
-    }
 
     // Reset all grains to inactive
     for (auto& grain : grains)
-    {
-        grain.active = false;
-        grain.startSample = 0;
-        grain.position = 0;
-        grain.jitterOffset = 0;
-        grain.playbackRate = 1.0f;
-        grain.fractionalPosition = 0.0f;
-    }
+        grain = Grain {};
 
     grainTriggerCounter = 0;
     nextTriggerInterval = grainTriggerInterval;
-    nextGrainIndex = 0;
     stopTriggeringNewGrains = false;
 
     // Initialize WSOLA state
@@ -240,21 +233,79 @@ void OFreezeAudioProcessor::releaseResources()
     freezeBuffer.setSize(0, 0);
 
     for (auto& grain : grains)
-    {
-        grain.active = false;
-        grain.startSample = 0;
-        grain.position = 0;
-        grain.jitterOffset = 0;
-        grain.playbackRate = 1.0f;
-        grain.fractionalPosition = 0.0f;
-    }
+        grain = Grain {};
 
+    densityPower = 0.0f;
     freezeGain.setCurrentAndTargetValue(0.0f);
     bufferFrozen = false;
     stopTriggeringNewGrains = false;
 
     lastGrainTail.fill(0.0f);
     hasLastGrainTail = false;
+}
+
+void OFreezeAudioProcessor::startGrain(Grain& g, int basePos, int jitterOffset, float playbackRate, int startSample) noexcept
+{
+    g = Grain {};
+    g.active = true;
+    g.length = grainSize;
+    g.invLength = 1.0 / static_cast<double>(grainSize);
+    g.startSample = startSample;
+    g.position = basePos;
+    g.jitterOffset = jitterOffset;
+    g.playbackRate = playbackRate;
+    g.fractionalPosition = static_cast<double>(startSample) * static_cast<double>(playbackRate);
+}
+
+int OFreezeAudioProcessor::findFreeGrainSlot() noexcept
+{
+    for (int i = 0; i < POOL_GRAINS; ++i)
+        if (!grains[static_cast<size_t>(i)].active)
+            return i;
+
+    // Pool full: steal the oldest grain (furthest through its window, so the quietest
+    // in the common case). It moves to a spare slot and fades out there; the new grain
+    // takes its slot. When every spare is busy, reuse the one nearest silence.
+    int victim = 0;
+    double oldest = -1.0;
+    for (int i = 0; i < POOL_GRAINS; ++i)
+    {
+        const auto& g = grains[static_cast<size_t>(i)];
+        const double phase = static_cast<double>(g.startSample) * g.invLength;
+        if (phase > oldest)
+        {
+            oldest = phase;
+            victim = i;
+        }
+    }
+
+    int spare = POOL_GRAINS;
+    for (int i = POOL_GRAINS; i < MAX_GRAINS; ++i)
+    {
+        if (!grains[static_cast<size_t>(i)].active)
+        {
+            spare = i;
+            break;
+        }
+        if (grains[static_cast<size_t>(i)].fadeGain < grains[static_cast<size_t>(spare)].fadeGain)
+            spare = i;
+    }
+
+    auto& moved = grains[static_cast<size_t>(spare)];
+    moved = grains[static_cast<size_t>(victim)];
+    moved.fadeGain = 1.0f;
+    moved.fadeStep = static_cast<float>(1.0 / (kStealFadeSeconds * currentSampleRate));
+    return victim;
+}
+
+float OFreezeAudioProcessor::randomDetuneRate(float detuneCents) noexcept
+{
+    // Per-grain pitch micro-detuning (cents → rate multiplier).
+    // r is a uniform random spread in [-1, 1]; the knob is the half-width in
+    // cents, so the rate is 2^(r·c/1200). v2.3.0: this was the linear
+    // 1 + r·c/1200, which is not cents — at knob 50 it reached +70.67 /
+    // -73.68 ct (1.41x / 1.47x the label), measured on a frozen 440 Hz sine.
+    return std::pow(2.0f, (random.nextFloat() * 2.0f - 1.0f) * (detuneCents / 1200.0f));
 }
 
 void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -293,27 +344,13 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         lastGrainSizeMs = grainSizeMs;
         lastGrainCount = grainCountValue;
         numGrains = grainCountValue;
-        grainSize = juce::jmin(static_cast<int>(currentSampleRate * grainSizeMs / 1000.0), maxGrainSize);
+        grainSize = juce::jmax(1, juce::jmin(static_cast<int>(currentSampleRate * grainSizeMs / 1000.0), maxGrainSize));
         grainTriggerInterval = grainSize / numGrains;
         nextTriggerInterval = grainTriggerInterval;
 
-        // Rebuild raw Hann window (pre-allocated buffer, no alloc)
-        for (int i = 0; i < grainSize; ++i)
-        {
-            double phase = static_cast<double>(i) / static_cast<double>(grainSize);
-            hannWindow[i] = static_cast<float>(0.5 * (1.0 - std::cos(2.0 * juce::MathConstants<double>::pi * phase)));
-        }
-
-        // Deactivate grains past new grain size boundary or beyond active count
-        for (int g = 0; g < MAX_GRAINS; ++g)
-        {
-            if (grains[g].active && (grains[g].startSample >= grainSize || g >= numGrains))
-                grains[g].active = false;
-        }
-
-        // Clamp next grain index to new count
-        if (nextGrainIndex >= numGrains)
-            nextGrainIndex = 0;
+        // v2.7.0: nothing is rebuilt or deactivated here. Live grains keep their
+        // latched length and read the fixed window table by phase; the new size and
+        // count reach only the grains started from now on (and the trigger rate).
     }
 
     // Determine freeze state based on mode
@@ -433,39 +470,52 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             freezeGain.reset(currentSampleRate, 0.050); // 50ms fade-in
             freezeGain.setCurrentAndTargetValue(heldGain);
             freezeGain.setTargetValue(1.0f);
-
-            // Reset WSOLA state for fresh freeze
-            hasLastGrainTail = false;
-
-            // LOCK drift offset at freeze moment - all grains share this for COLA
-            // Pick a random offset (adds variation between freeze engages)
-            frozenDriftOffset = random.nextFloat();
-
-            // Staggered activation: only activate FIRST grain immediately
-            // Subsequent grains will be activated by normal trigger mechanism
-            const int freezeBufLen = freezeBuffer.getNumSamples();
-            int startPos = reverseActive
-                ? (writePosition - 1 + freezeBufLen) % freezeBufLen
-                : (writePosition - grainSize + freezeBufLen) % freezeBufLen;
-
-            // Activate only the first grain (jitterOffset=0 for clean initial capture)
-            grains[0].active = true;
-            grains[0].startSample = 0;
-            grains[0].position = startPos;
-            grains[0].jitterOffset = 0;
-            grains[0].playbackRate = 1.0f;  // No detune on first grain
-            grains[0].fractionalPosition = 0.0f;
-
-            // Deactivate all other grains - they'll be triggered naturally
-            for (int i = 1; i < MAX_GRAINS; ++i)
-            {
-                grains[i].active = false;
-            }
-
-            nextGrainIndex = 1;  // Next grain to trigger
-            grainTriggerCounter = 0;
-            nextTriggerInterval = grainTriggerInterval;  // Reset to nominal for clean first cycle
             stopTriggeringNewGrains = false;  // Ensure we're triggering grains
+
+            // v2.7.0: re-engaged while a release tail is still rendering. The write head
+            // has been held for the whole tail (WR-03), so the live grains still read the
+            // frozen audio: keep them and resume triggering. (Before, grains 1..31 were
+            // hard-cut here mid-fade.)
+            bool tailLive = false;
+            if (heldGain > 0.001f)
+                for (const auto& grain : grains)
+                    tailLive = tailLive || grain.active;
+
+            if (!tailLive)
+            {
+                // Reset WSOLA state for fresh freeze
+                hasLastGrainTail = false;
+
+                // LOCK drift offset at freeze moment - all grains share this for COLA
+                // Pick a random offset (adds variation between freeze engages)
+                frozenDriftOffset = random.nextFloat();
+
+                for (auto& grain : grains)
+                    grain = Grain {};
+
+                // v2.7.0: start from the steady state — GRAIN_COUNT grains at staggered
+                // phases, as if they had been triggered one interval apart — and seed the
+                // density estimate to match. With the window-sum divide gone, a single
+                // first grain would fade in over half a grain; this keeps the 50 ms engage.
+                const int freezeBufLen = freezeBuffer.getNumSamples();
+                int startPos = reverseActive
+                    ? (writePosition - 1 + freezeBufLen) % freezeBufLen
+                    : (writePosition - grainSize + freezeBufLen) % freezeBufLen;
+                const float jitterRange = static_cast<float>(grainSize) * driftValue;
+
+                for (int i = 0; i < numGrains; ++i)
+                {
+                    // Grain 0 starts now, clean (no jitter, no detune) as before
+                    const int jitter = i == 0 ? 0 : static_cast<int>(random.nextFloat() * jitterRange);
+                    const float rate = i == 0 ? 1.0f : randomDetuneRate(detuneValue);
+                    startGrain(grains[static_cast<size_t>(i)], startPos, jitter, rate,
+                               static_cast<int>(static_cast<juce::int64>(grainSize) * i / numGrains));
+                }
+
+                densityPower = static_cast<float>(numGrains) * kHannMu2;
+                grainTriggerCounter = 0;
+                nextTriggerInterval = grainTriggerInterval;  // Reset to nominal for clean first cycle
+            }
         }
         else
         {
@@ -477,13 +527,19 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             // WR-02: preserve the current fade level across the reset() (see fade-in branch)
             // so releasing mid-fade-in doesn't snap to full before ramping down.
             float heldGain = freezeGain.getCurrentValue();
-            float grainDurationSec = static_cast<float>(grainSize) / static_cast<float>(currentSampleRate);
+            // v2.7.0: grains keep their latched lengths, so the tail lasts as long as the
+            // longest remaining grain, not the current GRAIN_SIZE.
+            int remaining = 0;
+            for (const auto& grain : grains)
+                if (grain.active)
+                    remaining = juce::jmax(remaining, grain.length - grain.startSample);
+            float grainDurationSec = static_cast<float>(remaining) / static_cast<float>(currentSampleRate);
             freezeGain.reset(currentSampleRate, static_cast<double>(grainDurationSec) + 0.050);
             freezeGain.setCurrentAndTargetValue(heldGain);
             freezeGain.setTargetValue(0.0f);
 
             // DON'T deactivate grains here - they'll naturally complete
-            // when startSample >= grainSize (already handled in grain advance loop)
+            // when startSample >= length (already handled in grain advance loop)
         }
     }
 
@@ -510,11 +566,6 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
             if (grainTriggerCounter >= nextTriggerInterval)
             {
-                // Activate new grain
-                Grain& newGrain = grains[nextGrainIndex];
-                newGrain.active = true;
-                newGrain.startSample = 0;
-
                 // Store BASE position only - drift applied at read time
                 int basePos = reverseActive
                     ? (writePosition - 1 + freezeBufferLength) % freezeBufferLength
@@ -571,23 +622,15 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                     basePos = (basePos + bestOffset + freezeBufferLength) % freezeBufferLength;
                 }
 
-                newGrain.position = basePos;
-
                 // Per-grain random jitter ON TOP of WSOLA-chosen position
                 // Range scales with grain size and drift amount
                 float jitterRange = static_cast<float>(grainSize) * driftValue;
-                newGrain.jitterOffset = static_cast<int>(random.nextFloat() * jitterRange);
+                const int positionJitter = static_cast<int>(random.nextFloat() * jitterRange);
 
-                // Per-grain pitch micro-detuning (cents → rate multiplier).
-                // r is a uniform random spread in [-1, 1]; the knob is the half-width in
-                // cents, so the rate is 2^(r·c/1200). v2.3.0: this was the linear
-                // 1 + r·c/1200, which is not cents — at knob 50 it reached +70.67 /
-                // -73.68 ct (1.41x / 1.47x the label), measured on a frozen 440 Hz sine.
-                newGrain.playbackRate = std::pow(2.0f, (random.nextFloat() * 2.0f - 1.0f) * (detuneValue / 1200.0f));
-                newGrain.fractionalPosition = 0.0f;
-
-                // Advance grain index (round-robin within active count)
-                nextGrainIndex = (nextGrainIndex + 1) % numGrains;
+                // v2.7.0: any free pool slot (fade-on-steal when the pool is full),
+                // replacing the round-robin restart of a still-sounding grain (IN-03).
+                startGrain(grains[static_cast<size_t>(findFreeGrainSlot())], basePos, positionJitter,
+                           randomDetuneRate(detuneValue), 0);
 
                 // Reset trigger counter and compute jittered interval for next trigger
                 grainTriggerCounter = 0;
@@ -604,12 +647,14 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         int sharedDriftOffset = static_cast<int>(smoothedDriftOffset.getNextValue());
 
         // Get current window values and interpolated positions for all active grains (before advancing)
+        float liveGrains = 0.0f;
 
-        for (int g = 0; g < numGrains; ++g)
+        for (int g = 0; g < MAX_GRAINS; ++g)
         {
             if (grains[g].active)
             {
-                windowValues[g] = hannWindow[grains[g].startSample];
+                liveGrains += 1.0f;
+                windowValues[g] = windowAt(grains[g]) * grains[g].fadeGain;
 
                 // Fractional position for pitch-shifted grain read
                 double fp = grains[g].fractionalPosition;
@@ -631,8 +676,9 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             }
         }
 
-        // Advance freeze crossfade smoother once per sample (NOT per channel)
+        // Advance freeze crossfade smoother and density estimate once per sample (NOT per channel)
         float currentFreezeGain = freezeGain.getNextValue();
+        const float densityGain = nextDensityGain(liveGrains);
 
         // WR-03: while the release tail is still rendering, active grains keep reading the
         // freeze buffer. Suppress live writes AND freeze the write head for the whole tail,
@@ -659,11 +705,9 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             if (renderingTail)
             {
                 // Sum all active grains (overlap-add synthesis)
-                // Per-grain jitter breaks COLA — normalize by sum of active window values
                 float granularSum = 0.0f;
-                float windowSum = 0.0f;
 
-                for (int g = 0; g < numGrains; ++g)
+                for (int g = 0; g < MAX_GRAINS; ++g)
                 {
                     if (grains[g].active)
                     {
@@ -672,12 +716,11 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                         float s1 = freezeData[grainPos1[g]];
                         float grainSample = s0 + grainFrac[g] * (s1 - s0);
                         granularSum += grainSample * windowValues[g];
-                        windowSum += windowValues[g];
                     }
                 }
 
-                // Normalize by window sum to maintain constant amplitude
-                float frozenSample = (windowSum > 1e-6f) ? (granularSum / windowSum) : 0.0f;
+                // v2.7.0: live-N density law (see nextDensityGain), not a window-sum divide
+                float frozenSample = granularSum * densityGain;
 
                 // Apply crossfade envelope
                 outputSample = inputSample * (1.0f - currentFreezeGain) + frozenSample * currentFreezeGain;
@@ -694,8 +737,17 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 grain.startSample++;
                 grain.fractionalPosition += grain.playbackRate;
 
+                // Stolen grain: ends silently when its fade completes (no WSOLA tail)
+                if (grain.fadeStep > 0.0f)
+                {
+                    grain.fadeGain -= grain.fadeStep;
+                    if (grain.fadeGain <= 0.0f || grain.startSample >= grain.length)
+                        grain.active = false;
+                    continue;
+                }
+
                 // Deactivate grain when complete
-                if (grain.startSample >= grainSize)
+                if (grain.startSample >= grain.length)
                 {
                     // Compute final buffer position from fractional offset
                     int endOffset = static_cast<int>(grain.fractionalPosition);

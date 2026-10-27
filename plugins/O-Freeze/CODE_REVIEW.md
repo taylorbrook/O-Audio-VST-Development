@@ -19,7 +19,8 @@ status: issues_found
 resolved: [CR-01, WR-01, WR-02, WR-03, WR-04]
 resolved_in: v2.0.1
 resolved_date: 2026-07-01
-deferred: [IN-01, IN-02, IN-03, IN-04, IN-05]
+deferred: [IN-01, IN-02, IN-04, IN-05]
+resolved_later: [IN-03 (v2.7.0, 2026-10-27)]
 ---
 
 # O-Freeze: Code Review Report
@@ -204,6 +205,9 @@ fixed-voice-pool tradeoff, noted for awareness.
 
 **Fix:** Optionally skip triggering onto an active slot, or size the pool with headroom over
 `numGrains` and pick the least-recently-active free slot.
+
+> **Resolved (v2.7.0, 2026-10-27):** free-slot allocation over a 64-slot pool; on overflow the
+> oldest grain moves to one of 8 spare slots and fades out over 5 ms. See CHANGELOG.
 
 ### IN-04: mono /= numChannels has no zero guard
 

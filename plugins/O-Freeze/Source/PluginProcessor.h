@@ -102,7 +102,12 @@ private:
     // Grain structure for granular synthesis
     struct Grain
     {
-        int startSample = 0;      // Position within grain (0 to grainSize)
+        int startSample = 0;      // Position within grain (0 to length)
+        // v2.7.0: the grain's own length, latched at onset. GRAIN_SIZE changes only
+        // reach grains started after them, so a knob move never truncates or
+        // re-windows a grain that is already sounding.
+        int length = 1;
+        double invLength = 1.0;   // 1 / length: window phase = startSample * invLength
         int position = 0;         // Base position in freeze buffer (set at activation, fixed)
         int jitterOffset = 0;     // Per-grain random position offset (decorrelates overlapping grains)
         float playbackRate = 1.0f;        // Pitch micro-detuning rate multiplier
@@ -112,6 +117,10 @@ private:
         // multiple of 1/512 -- every grain's pitch snapped to a 3.38 ct grid,
         // measured. The knob claims 0.1 ct.
         double fractionalPosition = 0.0;
+        // v2.7.0 fade-on-steal: 1.0f exactly unless the grain was stolen, then it
+        // ramps to 0 by fadeStep per sample and the grain ends there.
+        float fadeGain = 1.0f;
+        float fadeStep = 0.0f;
         bool active = false;      // Grain active flag
     };
 
@@ -131,23 +140,63 @@ private:
     int rmsSamplesPerWindow = 0;
 
     // Granular synthesis components
-    static constexpr int MAX_GRAINS = 32;
-    int numGrains = 8;         // Active grain count (from GRAIN_COUNT parameter)
+    // v2.7.0: a new grain takes any free slot of POOL_GRAINS (was round-robin over
+    // GRAIN_COUNT slots, which restarted grains still sounding — IN-03). With the
+    // +-30% trigger jitter, steady state peaks near GRAIN_COUNT / 0.7 + 1 = 47 live
+    // grains, so the pool only overflows when a long GRAIN_SIZE is cut short while
+    // its grains are still live. Then the oldest grain moves to one of the
+    // STEAL_SLOTS spares and fades out over kStealFadeSeconds.
+    static constexpr int POOL_GRAINS = 64;
+    static constexpr int STEAL_SLOTS = 8;
+    static constexpr int MAX_GRAINS = POOL_GRAINS + STEAL_SLOTS;
+    static constexpr double kStealFadeSeconds = 0.005;
+    int numGrains = 8;         // Target grain count (from GRAIN_COUNT parameter)
     int lastGrainCount = 8;    // Change detection
     std::array<Grain, MAX_GRAINS> grains;
-    std::vector<float> hannWindow;
-    int grainSize = 0;
+    int grainSize = 0;         // Length given to the NEXT grain (latched per grain)
     int maxGrainSize = 0;
     float lastGrainSizeMs = 400.0f;
     int grainTriggerInterval = 0;
     int nextTriggerInterval = 0;  // Jittered interval for next grain trigger
     int grainTriggerCounter = 0;
-    int nextGrainIndex = 0;
     juce::Random random;
     bool stopTriggeringNewGrains = false;  // Soft release: let active grains complete
 
+    // v2.7.0: fixed Hann table read by phase (linear interpolation, +1 guard point).
+    // Replaces the grainSize-long window that was rebuilt under live grains.
+    static constexpr int WINDOW_LUT_SIZE = 2048;
+    std::array<float, WINDOW_LUT_SIZE + 1> windowLut {};
+    float windowAt(const Grain& g) const noexcept
+    {
+        const double x = static_cast<double>(g.startSample) * g.invLength * WINDOW_LUT_SIZE;
+        const int i = juce::jmin(static_cast<int>(x), WINDOW_LUT_SIZE - 1);
+        const float f = static_cast<float>(x - static_cast<double>(i));
+        return windowLut[static_cast<size_t>(i)] + f * (windowLut[static_cast<size_t>(i) + 1] - windowLut[static_cast<size_t>(i)]);
+    }
+
+    // v2.7.0 density compensation (research granular-2026-update §3.2; same form as
+    // O-GrainScatter v3.2.0). Grains read different lags of the frozen audio, so they
+    // sum incoherently: wet power ~ N * mu2 with N the LIVE grain count. A one-pole
+    // estimate of that power over ~100 ms sets the gain 1 / sqrt(max(1, P)), which
+    // never boosts. Replaces the per-sample divide by the window sum, which made
+    // GRAIN_COUNT a level control (-12 dB from 2 to 32 grains) and divided a lone
+    // grain's window out entirely.
+    static constexpr float kHannMu2 = 0.375f;
+    static constexpr double kDensitySmoothSeconds = 0.1;
+    float densityPower = 0.0f;
+    float densityCoeff = 0.0f;
+    float nextDensityGain(float live) noexcept
+    {
+        densityPower += densityCoeff * (live * kHannMu2 - densityPower);
+        return 1.0f / std::sqrt(juce::jmax(1.0f, densityPower));
+    }
+
+    void startGrain(Grain& g, int basePos, int jitterOffset, float playbackRate, int startSample) noexcept;
+    int findFreeGrainSlot() noexcept;
+    float randomDetuneRate(float detuneCents) noexcept;
+
     // Per-sample grain scratch buffers (class members to avoid stack zero-init each sample)
-    float windowValues[MAX_GRAINS] {};
+    float windowValues[MAX_GRAINS] {};   // window * fadeGain
     int grainPos0[MAX_GRAINS] {};
     int grainPos1[MAX_GRAINS] {};
     float grainFrac[MAX_GRAINS] {};
