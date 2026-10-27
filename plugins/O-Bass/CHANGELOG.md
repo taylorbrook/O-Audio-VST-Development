@@ -1,5 +1,15 @@
 # O-Bass Changelog
 
+## [1.8.3] - 2026-10-26
+
+Windows WebView2 hardening and locale-independent meter data (ui-hardening-phase0). No DSP, parameter, preset or state change; no visual change.
+
+### Fixed
+
+- **Windows: the WebView2 user-data folder moved out of bare `%TEMP%`** to `%APPDATA%\Ouaricon\WebView2\O-Bass`, created before the editor opens. `%TEMP%` is wiped by cleaners and can be locked by other processes, and the folder was shared by every plugin using it.
+- **Windows: when WebView2 cannot start** (runtime missing, data folder unusable) the editor now shows a native "needs Microsoft Edge WebView2" notice with a download link, instead of JUCE's silent fallback to the legacy IE control (a "page not found" window). The effect keeps working and host automation still reaches every parameter. Same convention as O-simpleSubtractive v1.7.4.
+- **Meters on comma-decimal systems.** The meter push was built with `String::formatted("%f")`, which follows the host's C locale: on a French-region system it wrote `-12,5` and the page received the wrong number of arguments. Numbers are now always written with a `.`, and a non-finite value falls back to the meter's own floor.
+
 ## [1.8.2] — 2026-10-19
 
 ### Fixed
