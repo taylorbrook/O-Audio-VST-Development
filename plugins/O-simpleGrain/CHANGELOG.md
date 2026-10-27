@@ -3,6 +3,25 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.6.0] — 2026-10-27
+
+Renders no longer depend on the host's buffer size, and a session renders the same grains every time it is bounced. MINOR because the grain texture changes (new random sequence) and grains now follow a moving playhead within each block. There is no parameter, range, UI or i18n change. The state gains one property.
+
+### Changed
+- **Seeded, reproducible randomness.** Position, pitch and pan spray and the Scatter jitter came from a clock-seeded `juce::Random` per voice, so no two bounces matched, and which voice slot a note landed in changed its grains. Each draw is now a fixed function of a seed, the note and the grain (`dsp/CounterRng.h`, the scheme from O-Freeze v2.8.0). The seed is chosen at random for each new instance and saved with the session as `rngSeed`, so a reopened project sounds the same. Sessions saved before 1.6.0 have no seed and get a new random one when they open.
+- **Grains start where the playhead is on their own sample.** Every grain spawned in a block read from the playhead's position at the start of that block. With Scan away from 0, where grains started therefore depended on the buffer size. Each grain now reads the playhead on the sample it starts.
+
+### Fixed
+- **The block size changed the sound.** Besides the two items above, two more things shifted with the buffer size. A note event less than 32 samples after another was moved to the start of that render slice, and slice boundaries depend on the host block. Note events are now sample-exact. The output level's 20 ms ramp was drawn as one straight line per block, so the gain around a note near the ramp's end depended on where the block ended. It is now stepped per sample while it ramps.
+- **Swapping sources on a stopped transport leaked memory.** An outgoing source was freed only after two more audio blocks had run. With the transport stopped and the host not processing, each source change or session reload kept another buffer for as long as the transport stayed stopped (400 reloads: +159 MiB). A second rule now frees it whenever no audio block is in progress.
+
+### Testing
+- `tests/blocksize-null/gate.py`, on the installed VST3 in pedalboard. Every render runs on a fresh instance that has loaded one template instance's state (parameters and seed). Three configurations: Scan 73 % with every spray and Scatter; reverse Scan −137 % at 211 ms × 170 grains/s (over the grain cap, so grains are stolen) with ADSR off; and Scan −61 % with no randomness at all. Two seeds each, blocks 32, 441 and 7 against 512, limit −120 dBFS on the peak difference. The MIDI includes note-ons 5 and 13 samples apart.
+  - v1.5.6 (positive control): all 18 fail, including scan-only from the block-start playhead alone (−11 to −18 dBFS).
+  - v1.6.0: all 18 bit-exact. Five seeds per random configuration render pairwise distinct.
+  - Reaper: 400 state reloads with no processing, RSS +0.0 MiB (v1.5.6: +158.9 MiB).
+- pluginval strictness 10 passes; `tests/state-persistence/persist_test.py` passes all 15 cases.
+
 ## [1.5.6] — 2026-10-27
 
 ### Fixed

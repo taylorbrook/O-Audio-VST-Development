@@ -282,12 +282,17 @@ private:
     //   - a publish parks the outgoing shared_ptr in `retiredSources` instead of
     //     freeing it; an in-flight audio block may still be reading the old raw
     //     pointer. Entries are reaped (on later publishes / prepareToPlay /
-    //     destruction) only once `blocksRendered` has advanced ≥2 past the value
+    //     destruction) once `blocksRendered` has advanced ≥2 past the value
     //     recorded at parking — by then any block that could have observed the
     //     old pointer has completed. Pattern per O-MicrotonalSampler v1.24.0.
+    //   - v1.6.0: OR once no block is in flight (`blocksEntered == blocksRendered`).
+    //     The +2 rule alone never fires while the host isn't calling processBlock
+    //     (stopped transport), so every source load parked another buffer forever.
+    //     Voices only dereference the source inside processBlock, and a block
+    //     that enters after the check loads the new pointer first.
     //
-    // Memory bound: retired entries only exist between a publish and the second
-    // audio block after it (≤ one 10 s buffer, ~7 MB @96k, if audio is stopped).
+    // Memory bound: at most the buffer parked by the latest publish, plus any
+    // parked while a block was mid-flight (freed by the next publish/prepare).
     struct RetiredSource
     {
         std::shared_ptr<juce::AudioBuffer<float>> buffer;
@@ -392,6 +397,9 @@ private:
     // Monotonic count of COMPLETED audio blocks (incremented at the end of
     // processBlock, release order) — the reap fence for retiredSources.
     std::atomic<juce::uint64> blocksRendered { 0 };
+    // v1.6.0 — count of STARTED blocks (first statement of processBlock). With
+    // blocksRendered it proves quiescence: entered == rendered = none in flight.
+    std::atomic<juce::uint64> blocksEntered { 0 };
 
     // Engine rate the published source was resampled to (under the lock) — lets
     // prepareToPlay skip a pointless re-decode when the rate did not change.
@@ -438,15 +446,20 @@ private:
     // Global read head (processor-owned, Phase 2.2). One playhead shared by all
     // voices/grains: `position` sets its resting point, `scan` its velocity,
     // `freeze` pins it. Advanced PER SAMPLE in processBlock (wrapped to
-    // [0, srcLen) for both directions — negative scan = reverse). Voices read the
-    // block-start playhead at spawn (setPlayhead, once per block) so the 2.1 voice
-    // spawn signature is untouched (Sequencing Note 3).
+    // [0, srcLen) for both directions — negative scan = reverse). v1.6.0: each
+    // sample's value goes into playheadTrack and a grain spawned on sample i reads
+    // track[i] (was the block-start value for the whole block).
     //
     // Click-free (QUAL-01): SmoothedValue ramps on scan / position / playhead
     // velocity. Freeze targets velocity -> 0 (and disengage ramps back to the
     // scan-derived velocity) via the velocity SmoothedValue — the playhead is
     // NEVER hard-jumped (RESEARCH §4.2 "simplest robust approach").
     double playheadPos = 0.0;                        // current global read point (source samples)
+
+    // Per-sample playhead for the current block, sized in prepareToPlay (at least
+    // kMinPlayheadTrack). A larger host block repeats the last value past the end.
+    static constexpr int kMinPlayheadTrack = 8192;
+    std::vector<double> playheadTrack;
 
     juce::SmoothedValue<float> scanSmoothed     { 0.0f };   // scan % -> velocity ramp
     juce::SmoothedValue<float> positionSmoothed { 0.0f };   // resting point % -> samples ramp
@@ -545,6 +558,18 @@ private:
     // v1.3.0 — a ROOT property, not a child of the SOURCE node: the interface
     // language has nothing to do with which sound is loaded.
     static constexpr const char* kUiLanguageProp = "uiLanguage";
+    // v1.6.0 — ROOT property: the instance RNG seed as a signed int64 string
+    // (getLargeIntValue clamps above INT64_MAX). Absent before 1.6.0.
+    static constexpr const char* kRngSeedProp = "rngSeed";
+
+    //==========================================================================
+    // v1.6.0 — seeded randomness. rngSeed is random per new instance and saved
+    // with the session. The audio thread copies it into activeSeed at the top of
+    // each block; noteOnCounter numbers note-ons since prepareToPlay or the last
+    // seed change (each voice derives its note's seed from both — GrainVoice).
+    std::atomic<juce::uint64> rngSeed { 0 };
+    juce::uint64 activeSeed    = 0;   // audio thread only
+    juce::uint64 noteOnCounter = 0;   // audio thread only
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OSimpleGrainAudioProcessor)
 };

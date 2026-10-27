@@ -23,20 +23,19 @@
     O-simpleGrain - Grain Voice (one polyphonic granular voice)
 
     A juce::SynthesiserVoice that owns a preallocated bounded grain pool
-    (std::array<Grain, kMaxGrainsPerVoice>), a per-sample scheduler, a per-voice
-    juce::Random, and a juce::ADSR amp envelope. Each held MIDI note transposes
+    (std::array<Grain, kMaxGrainsPerVoice>), a per-sample scheduler, a seeded
+    counter-based RNG (v1.6.0), and a juce::ADSR amp envelope. Each held MIDI note transposes
     the grain cloud (key-tracked resample); grains read windowed fragments from
     the shared static source buffer and are overlap-added into the output.
 
     Phase 2.1: core grain engine + overlap-add + amp ADSR + key resample.
-    Phase 2.2 (this file): per-voice spray & scatter via the per-voice juce::Random
-    (position/pitch/period/pan), velToDensity into the effective density, and the
-    anti-aliasing one-pole filled in the grain read loop. The processor advances a
-    moving/freezable global playhead and pushes its block-start value via
-    setPlayhead — the voice spawn signature is unchanged from 2.1.
+    Phase 2.2 (this file): per-voice spray & scatter (position/pitch/period/pan),
+    velToDensity into the effective density, and the anti-aliasing one-pole filled
+    in the grain read loop. The processor advances a moving/freezable global
+    playhead and hands the voices its per-sample values via setPlayheadTrack.
 
     Real-time safety (every line of renderNextBlock): NO allocation / lock / I/O.
-    Preallocated pool; steal-oldest when full (never resize). Per-voice Random.
+    Preallocated pool; steal-oldest when full (never resize). Stateless RNG draws.
     ADSR setSampleRate BEFORE setParameters in the (non-virtual) prepareToPlay.
 
     JUCE 8: SynthesiserVoice has NO virtual prepareToPlay — this declares a
@@ -56,6 +55,7 @@
 #include "dsp/Grain.h"
 #include "dsp/WindowLuts.h"
 #include "dsp/LagrangeInterpolation.h"
+#include "dsp/CounterRng.h"
 #include "dsp/GrainCloudFrame.h"        // Phase 2.3 — grain-event viz tap
 
 //==============================================================================
@@ -155,14 +155,28 @@ public:
         sourceLen = len;
     }
 
-    // Abstract "current playhead value" (in source samples) the processor sets
-    // per block — the block-start position of the moving/freezable global read
-    // head. Grains spawned this block read from here (± position spray). The
-    // processor advances/freezes the playhead per sample; the voice only reads
-    // this per-block snapshot, so the spawn signature is unchanged from 2.1.
-    // double end-to-end (IN-04): the processor keeps the playhead as double —
-    // truncating to float here re-quantized spawn positions on long sources.
-    void setPlayhead (double posSamples) noexcept { playheadPos = posSamples; }
+    // The moving/freezable global read head, one value per sample of this block
+    // (in source samples), set by the processor once per block. A grain spawned
+    // on sample i reads from track[i] (± position spray). v1.6.0: was the
+    // block-start value for every spawn in the block, so with Scan ≠ 0 the host
+    // block size moved where grains started. Indices past `len` (a host block
+    // larger than prepared) clamp to the last entry — never read out of range.
+    // double end-to-end (IN-04): no float re-quantization on long sources.
+    void setPlayheadTrack (const double* track, int len) noexcept
+    {
+        playheadTrack    = track;
+        playheadTrackLen = len;
+    }
+
+    // v1.6.0 — seeded randomness. `seed` is the processor's active instance seed
+    // and `noteCounter` its running note-on index (both audio-thread only). Each
+    // note-on draws its own seed from (instance seed, note index), so which voice
+    // slot the synth picks never changes a note's grains. Set once at construction.
+    void setRngSource (const juce::uint64* seed, juce::uint64* noteCounter) noexcept
+    {
+        instanceSeed     = seed;
+        noteOnCounterPtr = noteCounter;
+    }
 
     //==========================================================================
     // Phase 2.3 viz taps. The processor sets these once per block (like the
@@ -190,6 +204,11 @@ public:
         for (auto& g : grains) g.active = false;
         nextGrain = 0;
         samplesUntilNextGrain = 0;               // fire a grain on the first sample
+
+        // A fresh random sequence for this note (v1.6.0).
+        if (instanceSeed != nullptr && noteOnCounterPtr != nullptr)
+            noteSeed = CounterRng::hash (*instanceSeed, (*noteOnCounterPtr)++, kNoteSeedSlot);
+        spawnTick = 0;
 
         velLevel = juce::jlimit (0.0f, 1.0f, velocity);
         noteHeld = true;
@@ -283,8 +302,9 @@ public:
                 // base interval. 0% = constant period (synchronous → discrete
                 // sidebands); 100% = ±full random (asynchronous → noise).
                 const float jitter = (params.scatter * 0.01f) * baseInterval
-                                   * (rng.nextFloat() * 2.0f - 1.0f);
+                                   * bipolarDraw (kSlotScatter);
                 samplesUntilNextGrain = juce::jmax (1, (int) (baseInterval + jitter));
+                ++spawnTick;
             }
 
             // --- Overlap-add the active grains -------------------------------
@@ -410,9 +430,9 @@ private:
         // playhead's own wrap: an out-of-range spawn used to pin all four Lagrange
         // taps to the edge sample and emit a constant-value (windowed DC) thump —
         // at 100% spray up to half the spawns were affected.
-        const float posSprayRand = (rng.nextFloat() * 2.0f - 1.0f)
+        const float posSprayRand = bipolarDraw (kSlotPosition)
                                  * (params.positionSpray * 0.01f) * (float) sourceLen;
-        double spawnPos = playheadPos + (double) posSprayRand;
+        double spawnPos = playheadAt (spawnSample) + (double) posSprayRand;
         if (sourceLen > 0)
         {
             spawnPos = std::fmod (spawnPos, (double) sourceLen);
@@ -425,12 +445,12 @@ private:
         // the key rate and the global grainPitch offset (decision #2 — all three
         // multiply into the read increment). rate > 1 = up-transposed (the AA
         // one-pole engages on the read; see aaOnePole).
-        const float pitchSprayRand = (rng.nextFloat() * 2.0f - 1.0f) * params.pitchSpray;
+        const float pitchSprayRand = bipolarDraw (kSlotPitch) * params.pitchSpray;
         g.rate = voiceRate * std::pow (2.0f, (params.grainPitch + pitchSprayRand) / 12.0f);
 
         // --- Pan spray: equal-power pan scattered ± panSpray% around centre.
         g.pan = juce::jlimit (0.0f, 1.0f,
-            0.5f + (rng.nextFloat() * 2.0f - 1.0f) * (params.panSpray * 0.01f) * 0.5f);
+            0.5f + bipolarDraw (kSlotPan) * (params.panSpray * 0.01f) * 0.5f);
         // Equal-power gains evaluated ONCE here (constant for the grain's life) —
         // the render loop just multiplies, no per-sample cos/sin.
         g.panL = std::cos (g.pan * juce::MathConstants<float>::halfPi);
@@ -469,6 +489,23 @@ private:
             ev.pan         = g.pan;
             ev.spawnSample = spawnSample;
         }
+    }
+
+    // Uniform in [-1, 1) for this note's current spawn tick. One tick per
+    // scheduler countdown, a fixed slot per use, so every value is a pure function
+    // of (note seed, tick) — independent of block size and draw order (v1.6.0).
+    float bipolarDraw (juce::uint32 slot) const noexcept
+    {
+        return CounterRng::uniform (noteSeed, spawnTick, slot) * 2.0f - 1.0f;
+    }
+
+    // The global playhead on buffer sample `sample` of this block (see
+    // setPlayheadTrack). 0 with no track (never set / not yet prepared).
+    double playheadAt (int sample) const noexcept
+    {
+        if (playheadTrack == nullptr || playheadTrackLen <= 0)
+            return 0.0;
+        return playheadTrack[juce::jlimit (0, playheadTrackLen - 1, sample)];
     }
 
     // Random-access fractional read into the static source (clamp at bounds —
@@ -556,9 +593,10 @@ private:
     const float* sourcePtr = nullptr;
     int          sourceLen = 0;
 
-    // Current playhead (resting point in 2.1; moving/freezable in 2.2).
-    // double (IN-04): matches the processor's playhead — no float re-quantization.
-    double playheadPos = 0.0;
+    // Per-sample global playhead for the current block (processor-owned buffer;
+    // see setPlayheadTrack). double (IN-04): no float re-quantization.
+    const double* playheadTrack    = nullptr;
+    int           playheadTrackLen = 0;
 
     // Phase 2.3 viz-tap seams (processor sets per block; null between blocks).
     GrainCloudFrame*  cloudFrame       = nullptr;   // grain events appended at spawn
@@ -573,9 +611,18 @@ private:
     int nextGrain = 0;
     int samplesUntilNextGrain = 0;
 
-    // Per-voice RNG (no shared/global RNG — RT-safety gate 4). Unused in 2.1;
-    // present so spray/scatter in 2.2 needs no new member.
-    juce::Random rng;
+    // Counter-based RNG (v1.6.0; was a clock-seeded juce::Random per voice, so no
+    // two renders matched). noteSeed is drawn at note-on, spawnTick counts the
+    // scheduler countdowns since then; the slots keep the four draws per tick apart.
+    static constexpr juce::uint32 kNoteSeedSlot = 0x6e6f7465u;
+    static constexpr juce::uint32 kSlotPosition = 0;
+    static constexpr juce::uint32 kSlotPitch    = 1;
+    static constexpr juce::uint32 kSlotPan      = 2;
+    static constexpr juce::uint32 kSlotScatter  = 3;
+    const juce::uint64* instanceSeed     = nullptr;
+    juce::uint64*       noteOnCounterPtr = nullptr;
+    juce::uint64        noteSeed  = 0;
+    juce::uint64        spawnTick = 0;
 
     juce::ADSR ampEnv;
     juce::ADSR::Parameters ampParams { 0.01f, 0.3f, 0.8f, 0.4f };

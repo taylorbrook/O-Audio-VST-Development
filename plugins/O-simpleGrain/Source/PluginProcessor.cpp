@@ -219,16 +219,24 @@ OSimpleGrainAudioProcessor::OSimpleGrainAudioProcessor()
     // before the synth member, so the pointer is valid here). The typed pointer
     // is cached (IN-02) — the synth owns the voice for the processor's lifetime,
     // so per-block dynamic_casts are unnecessary RTTI on the audio thread.
+    rngSeed.store ((juce::uint64) juce::Random::getSystemRandom().nextInt64(), std::memory_order_relaxed);
+    activeSeed = rngSeed.load (std::memory_order_relaxed);
+
     for (int i = 0; i < kMaxVoices; ++i)
     {
         auto* v = new GrainVoice();
         v->setWindowLuts (&windowLuts);
+        v->setRngSource (&activeSeed, &noteOnCounter);
         synth.addVoice (v);
         grainVoices[(size_t) i] = v;
     }
 
     synth.addSound (new GrainSound());           // single shared sound, all notes/channels
     synth.setNoteStealingEnabled (true);         // steal quietest/oldest voice on overflow
+    // v1.6.0: sample-exact note events. The default (32, non-strict) moved an
+    // event less than 32 samples after the previous one to that sub-block's start,
+    // and where sub-blocks start depends on the host block size.
+    synth.setMinimumRenderingSubdivisionSize (1, true);
 
     // Listen for sourceSample selection changes (Stage 2.3). The decode/resample
     // is dispatched to the message thread via AsyncUpdater (never the audio
@@ -257,6 +265,12 @@ void OSimpleGrainAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
     synth.setCurrentPlaybackSampleRate (sampleRate);
     for (auto* gv : grainVoices)
         gv->prepareToPlay (sampleRate, samplesPerBlock);
+
+    // v1.6.0: per-sample playhead track (never resized on the audio thread), and
+    // a fresh note numbering so a bounce from here repeats the same grains.
+    playheadTrack.assign ((size_t) juce::jmax (samplesPerBlock, kMinPlayheadTrack), 0.0);
+    activeSeed    = rngSeed.load (std::memory_order_relaxed);
+    noteOnCounter = 0;
 
     // Reset the shared viz grain count (voices forget their contribution in their
     // own prepareToPlay, so a clean delta is recomputed on the first render).
@@ -402,18 +416,26 @@ void OSimpleGrainAudioProcessor::publishSource (std::shared_ptr<juce::AudioBuffe
                                     blocksRendered.load (std::memory_order_acquire) });
 
     currentSource = std::move (newBuf);
-    audioSourceView.store (currentSource.get(), std::memory_order_release);
+    // seq_cst (v1.6.0): pairs with processBlock's blocksEntered increment + view
+    // load for the quiescence reap — store/load ordering acquire/release can't give.
+    audioSourceView.store (currentSource.get(), std::memory_order_seq_cst);
 }
 
-// Free retired buffers once >= 2 audio blocks have completed since parking: any
-// block that could have loaded the old raw pointer has finished by then. If
-// audio is suspended the entries simply wait (bounded memory, never unsafe).
+// Free retired buffers once >= 2 audio blocks have completed since parking (any
+// block that could have loaded the old raw pointer has finished by then), or
+// when no block is in flight at all (v1.6.0 — the +2 rule never fires while the
+// host has stopped calling processBlock). Exits are read FIRST: entries >= exits
+// always, so equality means nothing was in flight when entries was read, and a
+// block entering later loads the already-published new pointer.
 void OSimpleGrainAudioProcessor::reapRetiredSources()
 {
-    const juce::uint64 now = blocksRendered.load (std::memory_order_acquire);
+    const juce::uint64 now     = blocksRendered.load (std::memory_order_seq_cst);
+    const juce::uint64 entries = blocksEntered.load  (std::memory_order_seq_cst);
+    const bool quiescent = (entries == now);
     retiredSources.erase (
         std::remove_if (retiredSources.begin(), retiredSources.end(),
-                        [now] (const RetiredSource& r) { return now >= r.parkedAtBlock + 2; }),
+                        [now, quiescent] (const RetiredSource& r)
+                        { return quiescent || now >= r.parkedAtBlock + 2; }),
         retiredSources.end());
 }
 
@@ -889,11 +911,22 @@ void OSimpleGrainAudioProcessor::handleUiMidi (int noteNumber, bool noteOn, floa
 void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                                juce::MidiBuffer& midiMessages)
 {
+    // Reap fence, entry side (v1.6.0): FIRST, before the source view is loaded.
+    // Every path out of processBlock must reach the blocksRendered increment.
+    blocksEntered.fetch_add (1, std::memory_order_seq_cst);
+
     juce::ScopedNoDenormals noDenormals;
 
     const int numSamples = buffer.getNumSamples();
     const int numCh      = buffer.getNumChannels();
     buffer.clear();                              // grain voices ADD into a cleared buffer
+
+    // Seed restored / changed since the last block: restart the note numbering.
+    if (const auto seed = rngSeed.load (std::memory_order_relaxed); seed != activeSeed)
+    {
+        activeSeed    = seed;
+        noteOnCounter = 0;
+    }
 
     // Merge any on-screen-keyboard notes into the host MIDI stream before the
     // grain voices render below (the WebView keyboard injects via handleUiMidi).
@@ -904,7 +937,7 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     // ref-count, no lock. The pointee is immutable and stays alive because a
     // publish PARKS the outgoing buffer until ≥2 blocks after the swap (see
     // publishSource/reapRetiredSources); blocksRendered below is the fence.
-    const juce::AudioBuffer<float>* src = audioSourceView.load (std::memory_order_acquire);
+    const juce::AudioBuffer<float>* src = audioSourceView.load (std::memory_order_seq_cst);
     const float* srcPtr = nullptr;
     int          srcLen = 0;
     if (src != nullptr && src->getNumSamples() > 0)
@@ -944,19 +977,21 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     scanSmoothed.setTargetValue     (scanFrac);
     positionSmoothed.setTargetValue (positionParam->load());
 
-    // Capture the BLOCK-START playhead — this is the snapshot the voices read at
-    // spawn (keeps the 2.1 voice spawn signature unchanged; Sequencing Note 3).
-    // Stays double end-to-end (IN-04) — no float re-quantization on long sources.
+    // Block-start playhead for the viz frame (UI-02). Stays double end-to-end
+    // (IN-04) — no float re-quantization on long sources.
     const double playheadAtBlockStart = playheadPos;
 
-    // Advance the global playhead across the block (per sample) for read-head
-    // correctness + the Stage-3 waveform-playhead line. Voices snapshot the
-    // block-start value above; the per-sample motion keeps the playhead coherent
-    // block-to-block (and feeds the live playhead position to 2.3's viz tap).
+    // Advance the global playhead across the block (per sample), recording each
+    // sample's value in playheadTrack: a grain spawned on sample i reads from
+    // track[i] (v1.6.0 — was the block-start value, so the block size moved grains).
     constexpr float kRestEpsilon = 1.0e-4f;          // |velocity| below this = "at rest"
     const double restEase = restEaseCoeff;           // τ-derived in prepareToPlay (IN-03)
+    const int trackLen = juce::jmin (numSamples, (int) playheadTrack.size());
     for (int i = 0; i < numSamples; ++i)
     {
+        if (i < trackLen)
+            playheadTrack[(size_t) i] = playheadPos;
+
         const float scanNow = scanSmoothed.getNextValue();
         const float restPct = positionSmoothed.getNextValue();
 
@@ -990,7 +1025,7 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     {
         gv->setParams (p);
         gv->setSource (srcPtr, srcLen);
-        gv->setPlayhead (playheadAtBlockStart);
+        gv->setPlayheadTrack (playheadTrack.data(), trackLen);
         gv->setGrainCloudFrame  (&frame);            // viz: grain events
         gv->setActiveGrainCount (&activeGrainCount); // viz: live grain count (UI-05)
     }
@@ -1059,9 +1094,22 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     const float normGain = 1.0f / std::sqrt (juce::jmax (1.0f, overlap));
     const float outDb = outputLevelParam->load();
     outputGain.setTargetValue (juce::Decibels::decibelsToGain (outDb, -60.0f) * normGain);
-    const float g0 = outputGain.getCurrentValue();
-    const float g1 = outputGain.skip (numSamples);
-    buffer.applyGainRamp (0, numSamples, g0, g1);
+    // v1.6.0: per sample while ramping. applyGainRamp between per-block skip()
+    // endpoints interpolated straight across a ramp that ended mid-block, so the
+    // gain near a note depended on the host block size.
+    if (outputGain.isSmoothing())
+    {
+        for (int i = 0; i < numSamples; ++i)
+        {
+            const float g = outputGain.getNextValue();
+            for (int ch = 0; ch < numCh; ++ch)
+                buffer.getWritePointer (ch)[i] *= g;
+        }
+    }
+    else
+    {
+        buffer.applyGain (outputGain.getCurrentValue());
+    }
 
     // --- Suite-wide NaN/Inf insurance ----------------------------------------
     for (int ch = 0; ch < numCh; ++ch)
@@ -1316,6 +1364,11 @@ void OSimpleGrainAudioProcessor::getStateInformation (juce::MemoryBlock& destDat
     state.setProperty (kUiLanguageProp,
                        languageCode (uiLanguage.load (std::memory_order_acquire)), nullptr);
 
+    // v1.6.0: the RNG seed, so a reopened session renders the same grains. A
+    // STRING of the signed int64 (getLargeIntValue clamps above INT64_MAX).
+    state.setProperty (kRngSeedProp,
+                       juce::String ((juce::int64) rngSeed.load (std::memory_order_relaxed)), nullptr);
+
     if (auto xml = state.createXml())
         copyXmlToBinary (*xml, destData);
 }
@@ -1372,6 +1425,11 @@ void OSimpleGrainAudioProcessor::setStateInformation (const void* data, int size
     const juce::var lang = state.getProperty (kUiLanguageProp);
     if (! lang.isVoid())
         uiLanguage.store (languageIndex (lang.toString()), std::memory_order_release);
+
+    // v1.6.0: a pre-1.6.0 session has no seed and keeps this instance's random one.
+    const juce::String seed = state.getProperty (kRngSeedProp).toString();
+    if (seed.isNotEmpty())
+        rngSeed.store ((juce::uint64) seed.getLargeIntValue(), std::memory_order_relaxed);
 
     // replaceState() fires the sourceSample listener, which queues an AsyncUpdater
     // to rebuild a built-in source. That update is deferred (it runs AFTER this
