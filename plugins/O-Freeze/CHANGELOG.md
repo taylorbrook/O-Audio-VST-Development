@@ -2,6 +2,89 @@
 
 All notable changes to O-Freeze will be documented in this file.
 
+## [2.6.0] - 2026-09-27
+
+UI pass R4/R5 from review 260924-nho (Phase C). The page moves onto the
+naturalist palette core, with palette tokens, a paper wash, AA text inks and
+the bundled EB Garamond face. It is MINOR because the colours and the face
+visibly change. There is no DSP, parameter, range, state-format or i18n-key
+change, and no box moves vertically. The vine-arc knob interaction JS is
+untouched (every knob colour is CSS), so keyboard/ARIA knobs (R7) remain
+open.
+
+### Changed
+
+- **Palette tokens (R4).** The page `<style>` had no custom properties and
+  none of the ink/walnut/paper core. It used a slate-teal accent
+  (`#3a5a4a`/`#5a7a6a`), `#b0a590`/`#6a5540` type on translucent
+  `rgba(42, 35, 28)` plates, and `#111` on a `#3a3228` chip. It now opens
+  with a `:root` block of `ouaricon-naturalist-001` colours, and no hex
+  literal remains outside it. Washes use `rgba(var(--x-rgb), a)`. Only the
+  black drop shadows stay literal.
+- **Onto the core:**
+  - Header, settings popover and tooltip use an opaque `--ink #3C2F2F` plate
+    with `--paper` type (10.45:1).
+  - FREEZE idles in dark brown `--ink-2` and engages in `--leaf-fill #4E6839`.
+    The pulse used to fade the shape's opacity to 0.7, which let the paper
+    through and dropped the label to 1.6:1. It now breathes the fill between
+    `--leaf-fill` and `--sage-2`, and both clear AA under the label
+    (5.10 / 4.54).
+  - MANUAL/THRESHOLD, REVERSE and Sin/Tri/Rnd move from translucent dark
+    plates (1.04–1.9:1 over the paper) to opaque `--btn-idle #EBD9C7`
+    buttons. Idle text is `--ink-2` (6.83), hover is `--tan`, and the engaged
+    state is `--leaf-fill` under `--paper`. The pressed hover-help switch
+    (walnut under `#2a231c`, 2.9:1) takes the same engaged pair.
+  - The Drift LFO plate goes from `rgba(120, 105, 85, 0.45)` under `#111`
+    (1.2–1.5:1) to `--tan` at 0.88 under `--ink`. Its legend chip goes from
+    `#111` on `#3a3228` to `--paper` on `--ink`.
+  - Knob vines use `--sage` (large knobs) and `--leaf-fill` (LFO plate), the
+    track uses walnut at 0.4, and the particles use `--moss`.
+- **Paper wash.** `#app` lays `--paper` at 0.45 over `paper1.jpg`. The bare
+  JPG's median is `#C09B67`. `background-color` is the washed median
+  `--paper-ground #D8BD98`, which is invisible under the image and is what
+  `measure-ui --contrast` scores against. `html, body` now use it too, in
+  place of `#1a1410`. A wash of 0.50 gained only 0.15:1, because the muscle
+  plate is multiplied above the wash.
+- **Caption chip.** Knob captions and readouts in the main row sit on a
+  feathered `--paper` chip at 0.5 (background plus a same-colour
+  box-shadow, with no padding or margin). The muscle strokes run under DRIFT
+  and MIX, where `--ink` still read 3.9–4.4:1 on the real pixels. The small
+  LFO knobs sit on the opaque plate and need no chip.
+- **9px floor.** Already met: the smallest text is 10px, before and after.
+- **Bundled EB Garamond (R5).** `modules/ui/eb-garamond` is direct-embedded,
+  with 4 SOURCES in `O-Freeze_UIResources` and 4 `getResource()` branches.
+  The stylesheet is linked before the page `<style>`. `--font-serif`
+  (`'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC',
+  'Microsoft YaHei', serif`) replaces the 7 Georgia stacks. CDP confirms
+  that every text node resolves to EB Garamond; the page previously rendered
+  in Georgia. The face carries Times metrics, which grew the 12px LFO
+  readouts from 14 to 15px and the LFO plate by 1px, so
+  `.knob-small .knob-value` is pinned to `line-height: 14px`. The face is
+  narrower than Georgia, so centred boxes shift horizontally by up to 5.6px
+  (the FREEZE caption), and 0 boxes move vertically.
+
+### Testing
+
+- **Pixel probe.** Text hidden, transitions and animations off, 2x
+  screenshot, worse of p5/p95 under each glyph band. Boxes under the open
+  popover or the tooltip are skipped, and `.disabled` nodes are reported
+  separately as inactive controls, which WCAG exempts. Six states (default;
+  FREEZE + REVERSE + Rnd; Threshold mode; settings; tooltip; hover-help
+  off) in en/fr/zh-Hans. Before (HEAD via `git archive`): **393/450**
+  below AA, min **1.04**. After: **6/452**, min 4.35. All 6 are the right
+  edge of THRESHOLD, which the open settings popover overlaps. That
+  geometry predates this version and is unchanged.
+- **`measure-ui --contrast`**: 26/30 → 3/30 per language, median
+  2.59 → 7.45, 0 under 9px. The 3 are false positives. One is the FREEZE
+  caption, whose ground is an SVG fill that the census cannot see (the
+  pixel probe reads 7.67). The other two are the disabled Threshold knob's
+  caption and readout at `opacity: 0.4`.
+- **`check-ui-labels`**: 88 PASS before and after (en/fr/zh-Hans), with all
+  checks passing.
+- **`check-i18n`**, `i18n-fr-lint` and `i18n-zh-lint` pass. The
+  `measure-ui --mode box` diff against HEAD shows 0 vertical moves.
+- Release build installed; `auval -v aufx OFCR OuDv` passes.
+
 ## [2.5.0] - 2026-09-04
 
 **Simplified Chinese.** Every caption, hover-help body and accessible name

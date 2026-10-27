@@ -23,7 +23,44 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=550, initial-scale=1.0, height=530">
     <title>O-Freeze - Ouaricon Granular Freeze</title>
+    <!-- v2.6.0: the bundled EB Garamond face (modules/ui/eb-garamond, direct
+         embed), linked before the page <style> so --font-serif can name it. -->
+    <link rel="stylesheet" href="css/eb-garamond.css" />
     <style>
+        /* ===== PALETTE (v2.6.0, R4 of review 260924-nho) =====
+           Before this block the page had no custom properties and none of the
+           naturalist core: a slate-teal accent (#3a5a4a / #5a7a6a), #b0a590 /
+           #6a5540 type on translucent rgba(42, 35, 28) plates, and #111 on a
+           #3a3228 chip. Every colour below is from
+           .claude/aesthetics/ouaricon-naturalist-001, and no hex literal remains
+           outside this block. Washes are rgba(var(--x-rgb), a). Text sits only
+           on the opaque pairs the template's Text Contrast table clears:
+             --paper on --ink 10.45, on --ink-2 7.67, on --leaf-fill 5.10
+             --ink-2 on --btn-idle 6.83, on --tan 5.51; --moss on --ink 4.84 */
+        :root {
+            --ink:         #3C2F2F;   /* primary text; header, popover, tooltip plate */
+            --ink-rgb:     60, 47, 47;
+            --ink-deep:    #2E2424;   /* control wells on the ink plate */
+            --ink-2:       #5C4033;   /* dark brown: idle FREEZE, button text */
+            --ink-2-hover: #6A4C3C;   /* idle FREEZE hover (paper on it 6.32) */
+            --paper:       #F5E6D3;
+            --paper-rgb:   245, 230, 211;
+            /* paper1.jpg under the 0.45 --paper wash, at its median. Invisible
+               under the image; it is what measure-ui --contrast scores against. */
+            --paper-ground: #D8BD98;
+            --btn-idle:    #EBD9C7;   /* the darker paper, opaque */
+            --tan:         #D4C4B0;   /* accent panel; button hover */
+            --tan-rgb:     212, 196, 176;
+            --walnut:      #8B7355;   /* borders, knob track - never text */
+            --walnut-rgb:  139, 115, 85;
+            --moss:        #8BA870;   /* particles; tooltip title on --ink */
+            --sage:        #6B8E4E;   /* knob vines, focus rings */
+            --sage-2:      #55703E;   /* FREEZE pulse peak (paper on it 4.54) */
+            --leaf-fill:   #4E6839;   /* engaged fills under --paper text */
+
+            --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -36,15 +73,21 @@
             overflow: hidden;
             user-select: none;
             -webkit-user-select: none;
-            font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
-            background: #1a1410;
+            font-family: var(--font-serif);
+            background: var(--paper-ground);
         }
 
         #app {
             width: 550px;
             height: 530px;
             position: relative;
-            background-image: url('assets/paper1.jpg');
+            /* The wash: paper1.jpg's median is #C09B67 and its stains run under
+               the knob row, where 10-11px captions read 1.1-2.1:1. --paper at
+               0.45 over the image lifts the ground without hiding it. */
+            background-color: var(--paper-ground);
+            background-image:
+                linear-gradient(rgba(var(--paper-rgb), 0.45), rgba(var(--paper-rgb), 0.45)),
+                url('assets/paper1.jpg');
             background-size: cover;
             background-position: center;
         }
@@ -74,8 +117,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(42, 35, 28, 0.85);
-            border-bottom: 1px solid rgba(139, 115, 85, 0.3);
+            background: var(--ink);
+            border-bottom: 1px solid rgba(var(--walnut-rgb), 0.6);
             z-index: 10;
         }
 
@@ -83,7 +126,7 @@
             font-size: 18px;
             font-weight: 400;
             letter-spacing: 1.5px;
-            color: #b0a590;
+            color: var(--paper);
             text-transform: uppercase;
         }
 
@@ -109,28 +152,32 @@
         }
 
         #freeze-shape {
-            fill: #3a5a4a;
-            stroke: #2a4a3a;
+            fill: var(--ink-2);
+            stroke: var(--ink);
             stroke-width: 2;
             transition: fill 0.3s ease, stroke 0.3s ease;
         }
 
         #freeze-button:hover #freeze-shape {
-            fill: #4a6a5a;
+            fill: var(--ink-2-hover);
         }
 
         #freeze-button.active #freeze-shape {
-            fill: #5a8a6a;
-            stroke: #4a7a5a;
+            fill: var(--leaf-fill);
+            stroke: var(--ink);
         }
 
+        /* v2.6.0: the pulse breathes the FILL between two greens that both
+           clear AA under the --paper label (5.10 / 4.54). It used to pulse
+           opacity to 0.7, which let the paper through and took the label with
+           it. */
         #freeze-button.active #freeze-shape {
             animation: pulse 2s ease-in-out infinite;
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
+            0%, 100% { fill: var(--leaf-fill); }
+            50% { fill: var(--sage-2); }
         }
 
         #freeze-button.disabled {
@@ -146,7 +193,7 @@
             font-size: 16px;
             font-weight: 600;
             letter-spacing: 2px;
-            color: #b0a590;
+            color: var(--paper);
             text-transform: uppercase;
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
             pointer-events: none;
@@ -173,7 +220,7 @@
             position: absolute;
             width: 3px;
             height: 3px;
-            background: #7a9a8a;
+            background: var(--moss);
             border-radius: 50%;
             opacity: 0;
             animation: particle-float 3s ease-in-out infinite;
@@ -197,7 +244,7 @@
             padding: 6px 18px;
             font-size: 11px;
             letter-spacing: 1px;
-            color: #6a5540;
+            color: var(--ink-2);
             cursor: pointer;
             text-transform: uppercase;
             /* v2.1.0 GEOMETRY PIN — pinned to the ENGLISH box, not above it.
@@ -226,19 +273,19 @@
                [230.45, 89.11] — dx +3.20, dw -6.39, and assertion 7 fails. */
             min-width: 95.5px;
             text-align: center;
-            border: 1px solid rgba(139, 115, 85, 0.4);
+            border: 1px solid var(--walnut);
             border-radius: 3px;
-            background: rgba(42, 35, 28, 0.5);
+            background: var(--btn-idle);
             transition: background 0.2s ease, color 0.2s ease;
         }
 
         #reverse-toggle:hover {
-            background: rgba(139, 115, 85, 0.2);
+            background: var(--tan);
         }
 
         #reverse-toggle.active {
-            background: rgba(90, 122, 106, 0.6);
-            color: #b0a590;
+            background: var(--leaf-fill);
+            color: var(--paper);
         }
 
         /* Mode toggle */
@@ -252,33 +299,33 @@
 
         #mode-toggle {
             display: flex;
-            border: 1px solid rgba(139, 115, 85, 0.4);
+            border: 1px solid var(--walnut);
             border-radius: 3px;
             overflow: hidden;
-            background: rgba(42, 35, 28, 0.5);
+            background: var(--btn-idle);
         }
 
         .mode-option {
             padding: 8px 20px;
             font-size: 11px;
             letter-spacing: 0.5px;
-            color: #6a5540;
+            color: var(--ink-2);
             cursor: pointer;
             transition: background 0.2s ease, color 0.2s ease;
             text-transform: uppercase;
         }
 
         .mode-option:hover {
-            background: rgba(139, 115, 85, 0.2);
+            background: var(--tan);
         }
 
         .mode-option.active {
-            background: rgba(90, 122, 106, 0.6);
-            color: #b0a590;
+            background: var(--leaf-fill);
+            color: var(--paper);
         }
 
         .mode-option:not(:last-child) {
-            border-right: 1px solid rgba(139, 115, 85, 0.3);
+            border-right: 1px solid var(--walnut);
         }
 
         /* Knobs container */
@@ -304,8 +351,11 @@
             gap: 12px;
             z-index: 5;
             padding: 8px 16px;
-            background: rgba(120, 105, 85, 0.45);
-            border: 1px solid rgba(160, 140, 110, 0.4);
+            /* --tan at 0.88: a hint of the plate through it, text on it reads
+               as on --tan (ink 7.51). It was rgba(120, 105, 85, 0.45) under
+               #111, 1.2-1.3:1 where the stains sit. */
+            background: rgba(var(--tan-rgb), 0.88);
+            border: 1px solid var(--walnut);
             border-radius: 4px;
         }
 
@@ -315,9 +365,9 @@
             left: 12px;
             font-size: 11px;
             letter-spacing: 1.5px;
-            color: #111;
+            color: var(--paper);
             text-transform: uppercase;
-            background: #3a3228;
+            background: var(--ink);
             padding: 0 4px;
         }
 
@@ -334,20 +384,24 @@
         }
 
         .knob-small .knob-vine {
-            stroke: #7ab08a;
+            stroke: var(--leaf-fill);
             stroke-width: 3.5;
         }
 
         .knob-small .knob-label {
             margin-top: 4px;
             font-size: 11px;
-            color: #111;
+            color: var(--ink);
         }
 
         .knob-small .knob-value {
             margin-top: 1px;
             font-size: 12px;
-            color: #111;
+            color: var(--ink);
+            /* v2.6.0: the 14px line box Georgia gave it under line-height:
+               normal. EB Garamond carries Times metrics (15px at 12px), which
+               grew the LFO plate 1px; pinned so no box moves vertically. */
+            line-height: 14px;
         }
 
         /* LFO shape toggle (reuses mode-toggle style) */
@@ -360,32 +414,32 @@
 
         #lfo-shape-selector {
             display: flex;
-            border: 1px solid rgba(139, 115, 85, 0.3);
+            border: 1px solid var(--walnut);
             border-radius: 3px;
             overflow: hidden;
-            background: rgba(42, 35, 28, 0.5);
+            background: var(--btn-idle);
         }
 
         .lfo-shape-option {
             padding: 4px 8px;
             font-size: 11px;
             letter-spacing: 0.3px;
-            color: #111;
+            color: var(--ink-2);
             cursor: pointer;
             transition: background 0.2s ease, color 0.2s ease;
         }
 
         .lfo-shape-option:hover {
-            background: rgba(139, 115, 85, 0.2);
+            background: var(--tan);
         }
 
         .lfo-shape-option.active {
-            background: rgba(90, 122, 106, 0.6);
-            color: #b0a590;
+            background: var(--leaf-fill);
+            color: var(--paper);
         }
 
         .lfo-shape-option:not(:last-child) {
-            border-right: 1px solid rgba(139, 115, 85, 0.2);
+            border-right: 1px solid var(--walnut);
         }
 
         /* v2.1.0 GEOMETRY PIN — the third shape option only.
@@ -410,10 +464,9 @@
 
         /* ===== SETTINGS POPOVER (v2.1.0) =====
            Styled in THIS page's vocabulary rather than pasted in from another
-           plugin: the rgba(42, 35, 28, ...) panel over a rgba(139, 115, 85,
-           0.4) border, the rgba(90, 122, 106, 0.6) green active state, the
-           #b0a590 / #6a5540 type pair, Georgia, uppercase with letter-spacing —
-           the same rules #mode-toggle and #reverse-toggle already use.
+           plugin. v2.6.0: the --ink plate the header uses, a --walnut border,
+           --paper type, the --leaf-fill engaged state #mode-toggle and
+           #reverse-toggle use, --font-serif, uppercase with letter-spacing.
 
            The cluster sits top-right INSIDE the 50 px header bar. The h1 is
            centred and spans x 118.8..431.2; the gear occupies 516..538, clear
@@ -431,11 +484,11 @@
             width: 22px;
             height: 22px;
             padding: 0;
-            background: rgba(42, 35, 28, 0.5);
-            border: 1px solid rgba(139, 115, 85, 0.4);
+            background: var(--ink-deep);
+            border: 1px solid var(--walnut);
             border-radius: 50%;
-            color: #b0a590;
-            font-family: 'Georgia', 'Times New Roman', serif;
+            color: var(--paper);
+            font-family: var(--font-serif);
             font-size: 12px;
             line-height: 1;
             cursor: pointer;
@@ -446,15 +499,15 @@
         }
 
         #gear-btn:hover {
-            background: rgba(139, 115, 85, 0.2);
+            background: var(--ink-2);
         }
 
         #gear-btn[aria-expanded="true"] {
-            background: rgba(90, 122, 106, 0.6);
+            background: var(--leaf-fill);
         }
 
         #gear-btn:focus-visible {
-            outline: 1px solid rgba(139, 115, 85, 0.8);
+            outline: 1px solid var(--sage);
             outline-offset: 2px;
         }
 
@@ -479,8 +532,8 @@
             display: flex;
             flex-direction: column;
             gap: 7px;
-            background: rgba(42, 35, 28, 0.97);
-            border: 1px solid rgba(139, 115, 85, 0.4);
+            background: var(--ink);
+            border: 1px solid var(--walnut);
             border-radius: 3px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
         }
@@ -499,10 +552,10 @@
         /* nowrap because the row is space-between: a caption that wrapped would
            grow the row's height and move the control beside it. */
         .settings-label {
-            font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 10px;
             letter-spacing: 1px;
-            color: #b0a590;
+            color: var(--paper);
             text-transform: uppercase;
             white-space: nowrap;
         }
@@ -510,18 +563,18 @@
         .settings-select {
             flex: 0 0 auto;
             padding: 2px 4px;
-            background: rgba(42, 35, 28, 0.9);
-            border: 1px solid rgba(139, 115, 85, 0.4);
+            background: var(--ink-deep);
+            border: 1px solid var(--walnut);
             border-radius: 3px;
-            color: #b0a590;
-            font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            color: var(--paper);
+            font-family: var(--font-serif);
             font-size: 10px;
             line-height: 1.2;
             cursor: pointer;
         }
 
         .settings-select:focus-visible {
-            outline: 1px solid rgba(139, 115, 85, 0.8);
+            outline: 1px solid var(--sage);
             outline-offset: 1px;
         }
 
@@ -540,11 +593,11 @@
            measures — verified with check-ui-labels [7] after the port. */
         .settings-toggle {
           padding: 2px 4px;
-          background: rgba(42, 35, 28, 0.9);
-          border: 1px solid rgba(139, 115, 85, 0.4);
+          background: var(--ink-deep);
+          border: 1px solid var(--walnut);
           border-radius: 3px;
-          color: #b0a590;
-          font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+          color: var(--paper);
+          font-family: var(--font-serif);
           font-size: 10px;
           line-height: 1.2;
           flex: 0 0 auto;
@@ -555,13 +608,13 @@
         }
 
         .settings-toggle[aria-pressed="true"] {
-          background: rgba(139, 115, 85, 0.85);
-          border-color: rgba(139, 115, 85, 0.85);
-          color: #2a231c;
+          background: var(--leaf-fill);
+          border-color: var(--sage);
+          color: var(--paper);
         }
 
         .settings-toggle:focus-visible {
-          outline: 1px solid rgba(139, 115, 85, 0.85);
+          outline: 1px solid var(--sage);
           outline-offset: 1px;
         }
 
@@ -570,7 +623,7 @@
             margin-bottom: 4px;
             font-size: 11px;
             letter-spacing: 1px;
-            color: #111;
+            color: var(--ink);
             text-transform: uppercase;
         }
 
@@ -600,13 +653,13 @@
 
         .knob-track {
             fill: none;
-            stroke: rgba(139, 115, 85, 0.3);
+            stroke: rgba(var(--walnut-rgb), 0.4);
             stroke-width: 2;
         }
 
         .knob-vine {
             fill: none;
-            stroke: #5a7a6a;
+            stroke: var(--sage);
             stroke-width: 3;
             stroke-linecap: round;
             /* Smooth animation handled by JS interpolation loop */
@@ -616,31 +669,46 @@
             margin-top: 8px;
             font-size: 10px;
             letter-spacing: 1px;
-            color: #6a5540;
+            color: var(--ink);
             text-transform: uppercase;
         }
 
         .knob-value {
             margin-top: 2px;
             font-size: 11px;
-            color: #7a6850;
+            color: var(--ink);
             cursor: pointer;
             min-width: 60px;
             text-align: center;
         }
 
         .knob-value:hover {
-            color: #b0a590;
+            color: var(--leaf-fill);
+        }
+
+        /* v2.6.0 CAPTION CHIP - the main knob row only (.knob-small sits on the
+           opaque LFO plate and needs none). The muscle plate is multiplied ABOVE
+           the paper wash, and its strokes run under DRIFT and MIX, where --ink
+           still read 3.9-4.4:1 on the real pixels. A soft --paper chip behind
+           the caption and readout lifts that ground without hiding the plate.
+           Background, radius and shadow only: no padding, no margin, so no box moves. */
+        #knobs-container .knob-label,
+        #knobs-container .knob-value {
+            background: rgba(var(--paper-rgb), 0.5);
+            /* feathered with the same wash so the chip reads as a lift in the
+               paper, not a field; box-shadow is paint only, no rect changes */
+            box-shadow: 0 0 4px 3px rgba(var(--paper-rgb), 0.5);
+            border-radius: 4px;
         }
 
         .knob-input {
             width: 60px;
             margin-top: 2px;
             font-size: 11px;
-            font-family: 'Georgia', 'Times New Roman', serif;
-            color: #b0a590;
-            background: rgba(42, 35, 28, 0.9);
-            border: 1px solid rgba(139, 115, 85, 0.5);
+            font-family: var(--font-serif);
+            color: var(--ink);
+            background: var(--paper);
+            border: 1px solid var(--walnut);
             border-radius: 3px;
             padding: 2px 4px;
             text-align: center;
@@ -648,14 +716,14 @@
         }
 
         .knob-input:focus {
-            border-color: #5a7a6a;
+            border-color: var(--sage);
         }
 
         /* ===== HOVER-HELP SURFACE (v2.2.0) =====
-           Styled in THIS page's vocabulary, not pasted in: the same
-           rgba(42, 35, 28, 0.97) panel over a rgba(139, 115, 85, 0.4) border and
-           the same shadow as #settings-popover, Georgia, #b0a590 body type, and
-           the #7a9a8a green of .particle for the uppercase title.
+           Styled in THIS page's vocabulary, not pasted in: the same --ink
+           plate, --walnut border and shadow as #settings-popover, --font-serif,
+           --paper body type, and the --moss of .particle for the uppercase
+           title (4.84 on --ink).
 
            Every declaration below is load-bearing:
 
@@ -690,14 +758,14 @@
             z-index: 100;
             max-width: 230px;
             padding: 7px 10px;
-            background: rgba(42, 35, 28, 0.97);
-            border: 1px solid rgba(139, 115, 85, 0.4);
+            background: var(--ink);
+            border: 1px solid var(--walnut);
             border-radius: 3px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
-            font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 11px;
             line-height: 1.4;
-            color: #b0a590;
+            color: var(--paper);
             opacity: 0;
             visibility: hidden;
             transition: opacity 0.12s ease;
@@ -714,7 +782,7 @@
             margin-bottom: 3px;
             font-size: 10px;
             letter-spacing: 1px;
-            color: #7a9a8a;
+            color: var(--moss);
             text-transform: uppercase;
         }
     
