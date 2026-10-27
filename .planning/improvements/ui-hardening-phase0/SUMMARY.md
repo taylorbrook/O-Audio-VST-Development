@@ -56,9 +56,12 @@ After, on a fresh archive of the final HEAD (`ce7f870e`) + sync: **check-i18n 0,
 | O-Orbit | T3.3 | 1.4.4 → 1.4.5 | ✓ | PASS | PASS | `f13ad85f` |
 | O-Strata | T3.1 | 1.1.2 → 1.1.3 | ✓ | PASS | PASS | `e3932795` |
 | O-IntonationPad | T3.2, T3.4 | 2.11.2 → 2.11.3 | ✓ | PASS | PASS | `2225df83` |
-| O-Polystutter | T3.2, T3.4 | 1.16.2 → 1.16.3 | ✓ | PASS | PASS | `ce7f870e` |
+| O-Polystutter | T3.2, T3.4 | 1.16.2 → 1.17.0 † | ✓ | PASS | PASS | `ce7f870e`, `25b50e0b` |
 
 \* first four ran with `--skip-gui-tests`; the other 14 ran with the editor tests on.
+
+† UI fixes shipped as part of 1.17.0, not as a standalone 1.16.3: `ce7f870e` (labelled 1.16.3) also swept in
+another session's 1.17.0 DSP rewrite, completed and reconciled by `25b50e0b`. See issue 5.
 
 **T3.1** Strata key `oprism.tipsEnabled` → `ostrata.tipsEnabled` (pref resets once; CHANGELOG notes it).
 
