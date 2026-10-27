@@ -98,6 +98,10 @@ private:
     void sendAttackCurveToJS();
     void sendSustainCurveToJS();
     void emitVisualizationFrame(const OSpectralShaperAudioProcessor::VisualizationFrame& frame);
+    // v1.10.2 — Windows only: shown instead of the WebView when WebView2 cannot
+    // start (webView stays null). Null on macOS and whenever the WebView exists.
+    std::unique_ptr<juce::HyperlinkButton> webView2RuntimeLink;
+
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OSpectralShaperAudioProcessorEditor)
 };
