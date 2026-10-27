@@ -23,6 +23,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>O-Bassoon</title>
+    <!-- v1.6.0: the bundled EB Garamond face (modules/ui/eb-garamond), linked
+         before every other stylesheet. -->
+    <link rel="stylesheet" href="/css/eb-garamond.css">
     <link rel="stylesheet" href="/css/tuning-panel.css">
     <style>
         /* ====================================================================
@@ -37,11 +40,30 @@
             --bg-paper-darker: #D4C4AD;
             --brown-text: #3C2F2F;
             --brown-text-light: #6B5B4F;
-            --brown-text-lighter: #8B7B6F;
+            /* v1.6.0 AA (R4, review 260924-nho). Was #8B7B6F: 3.55 on the
+               section boxes, 3.64 on the About card. #715D45 is the naturalist
+               template's walnut that is safe on either paper tone (5.11 on
+               #F5E6D3). */
+            --brown-text-lighter: #715D45;
             --green-light: #8BA870;
             --green-mid: #6B8E4E;
             --green-dark: #4A6B35;
+            /* Sage FILL under paper text (hover-help On, the open gear).
+               #6B8E4E read 3.06; the template's #4E6839 reads 5.10. */
+            --leaf-fill: #4E6839;
+            /* The header subtitle on --brown-frame. It was paper at opacity
+               0.55 (3.54); a solid paper-toned ink reads 4.69. */
+            --brand-ink: #C7B4A3;
             --green-accent: #A3C288;
+            /* v1.6.0 R5: the bundled face first (modules/ui/eb-garamond),
+               Georgia before Times, the CJK tail before the generic. The bare
+               'Garamond' entry is gone so an Office-installed Windows Garamond
+               cannot outrank the bundled face. Before, 'EB Garamond' named a
+               face installed nowhere and the page resolved to Georgia. */
+            --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            /* The same face for the two product-name nodes, which stay
+               English in every language and so carry no CJK tail. */
+            --font-serif-latin: 'EB Garamond', 'Georgia', 'Times New Roman', serif;
             --brown-border: #8B7355;
             --brown-frame: #5C4033;
             --brown-frame-light: #7A5C47;
@@ -72,7 +94,7 @@
                makes that mistake survive review. Times New Roman is measured
                installed on the build machine (4 family matches), so the Latin
                half of this stack was already safe and only the tail was missing. */
-            font-family: 'EB Garamond', 'Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             background: var(--bg-paper);
             color: var(--brown-text);
         }
@@ -158,7 +180,7 @@
                what makes it possible to say which sites needed which — a wave
                that appends the tail to everything it measured can no longer tell
                a needed tail from a decorative one. */
-            font-family: 'EB Garamond', 'Garamond', 'Times New Roman', serif;
+            font-family: var(--font-serif-latin);
             font-size: 16px;
             letter-spacing: 1.5px;
             font-style: italic;
@@ -169,7 +191,9 @@
             font-size: 10px;
             letter-spacing: 1.5px;
             text-transform: uppercase;
-            opacity: 0.55;
+            /* v1.6.0: a solid colour, not opacity 0.55 — opacity on text is a
+               contrast change (3.54 on the bar, 4.69 now). */
+            color: var(--brand-ink);
             margin-left: auto;
         }
 
@@ -267,7 +291,7 @@
            measure Chromium's 1280x720 default instead.
 
              .section-label      12.00 - 0 - 0 = 12.00 / 11px   = 1.0909
-             .knob-endlabels     10.00 - 0 - 0 = 10.00 /  8.5px = 1.1765
+             .knob-endlabels     10.00 - 0 - 0 = 10.00 /  9px   = 1.1111 (8.5px/1.1765 until v1.6.0)
              .header-subtitle    11.00 - 0 - 0 = 11.00 / 10px   = 1.1
              .settings-label     11.00 - 0 - 0 = 11.00 / 10px   = 1.1
              .about-tagline      16.00 - 0 - 0 = 16.00 / 14px   = 1.1429
@@ -284,7 +308,7 @@
            check-ui-labels reports 0 moved elements on both those arms after the
            pins. */
         .knob-endlabels {
-            line-height: 1.1765;   /* 10.00 - 0 - 0 = 10.00 / 8.5px — see the pin block above */
+            line-height: 1.1111;   /* v1.6.0: the same 10.00 px box at the 9px floor (was 1.1765 at 8.5px) */
         }
 
         .section-label {
@@ -375,8 +399,13 @@
             text-overflow: ellipsis;
         }
 
+        /* v1.6.0: 10.5 -> 11.5px. EB Garamond's x-height is smaller than
+           Georgia's (the face this page resolved to until now), so at 10.5px
+           the italic readouts drew about 20% narrower than at v1.5.0 ("800 ms"
+           35.5 -> 28.4 px; 31.1 at 11.5px). The 14px min-height already holds an 11.5px line
+           box (13.2), so no row grows. O-Bowed v1.10.0 made the same +1px. */
         .knob-value {
-            font-size: 10.5px;
+            font-size: 11.5px;
             color: var(--brown-text);
             text-align: center;
             font-style: italic;
@@ -388,7 +417,7 @@
             display: flex;
             justify-content: space-between;
             width: 78px;
-            font-size: 8.5px;
+            font-size: 9px;   /* v1.6.0: 8.5 -> 9, the template's floor */
             text-transform: uppercase;
             letter-spacing: 0.5px;
             color: var(--brown-text-lighter);
@@ -523,9 +552,20 @@
            Floored at the WIDEST arm (French in both cases), which equalizes
            all three languages: the tonic arrows stop sliding 6.3 px in
            French and 4.5 px the other way in Chinese, and #octave-stretch
-           stops absorbing the difference in its flex slack. */
-        #tuning-container .tonic-label          { min-width: 39.83px; }
-        #tuning-container .octave-stretch-label { min-width: 51px; }
+           stops absorbing the difference in its flex slack.
+
+           v1.6.0 RE-PINNED for the bundled EB Garamond. The widths above
+           were Times New Roman's (the panel's old stack fell through to it);
+           on the bundled face French is the widest arm again but wider:
+
+             .tonic-label           en 29.30   fr 41.50   zh 18.41
+             .octave-stretch-label  en 41.25   fr 52.02   zh 18.41
+
+           Left at the old floors, French overran them and moved
+           #tonic-down/-value/-up 0.8 px and #octave-stretch 1.0 px
+           (check-ui-labels [7], fr). */
+        #tuning-container .tonic-label          { min-width: 41.5px; }
+        #tuning-container .octave-stretch-label { min-width: 52.02px; }
 
         /* ── 3. THE CJK TAIL ON THE PANEL'S ELEVEN BUTTONS ────────────────
            FORM 4 of the font-carrier census (wave 4b, C2; wave 4e N3).
@@ -551,8 +591,28 @@
         #tuning-container .generator-btn,
         #tuning-container .generator-type-select,
         #tuning-container .library-filter-select {
-            font-family: 'EB Garamond', 'Garamond', 'Georgia', 'Times New Roman',
-                         'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
+        }
+
+        /* ── 4. THE PANEL'S TEXT CONTRAST (v1.6.0, R4) ───────────────────
+           Page-local for the same reason as rules 1-3: the shared
+           tuning-panel.css has five consumers and stays byte-frozen. Values
+           are O-Bowed v1.10.0's / O-MicrotonalSampler v1.28.0's.
+             muted text  #8B7355 -> #6A5641   3.66-4.21 -> AA (5.68 on paper)
+             Generate / Export HTML  white on #6B8E4E (3.75)
+                                  -> white on #4E6839 (6.24)
+           --tuning-accent itself stays: borders, fills and the focus ring. */
+        #tuning-container .generator-btn,
+        #tuning-container .tuning-export-btn {
+            background: var(--leaf-fill);
+            border-color: var(--leaf-fill);
+        }
+        /* The template's 9px floor: the Matrix and Rotation tables are 8px in
+           the shared sheet. Neither view is in tests/i18n-states.json, so
+           measure-ui never counted them. */
+        #tuning-container .matrix-table,
+        #tuning-container .rotation-table {
+            font-size: 9px;
         }
 
         #tuning-container .tuning-panel-root {
@@ -565,7 +625,7 @@
             --tuning-bg: rgba(245, 230, 211, 0.95);
             --tuning-border: rgba(139, 115, 85, 0.5);
             --tuning-text: #3C2F2F;
-            --tuning-text-muted: #8B7355;
+            --tuning-text-muted: #6A5641;   /* v1.6.0 AA, was #8B7355 — see rule 4 */
             --tuning-accent: #6B8E4E;
             --tuning-input-bg: rgba(255, 248, 230, 0.9);
             --tuning-hover: rgba(107, 142, 78, 0.2);
@@ -577,7 +637,7 @@
                makes that mistake survive review. Times New Roman is measured
                installed on the build machine (4 family matches), so the Latin
                half of this stack was already safe and only the tail was missing. */
-            font-family: 'EB Garamond', 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             height: 100%;
             display: block;
             position: relative;
@@ -614,7 +674,7 @@
                what makes it possible to say which sites needed which — a wave
                that appends the tail to everything it measured can no longer tell
                a needed tail from a decorative one. */
-            font-family: 'EB Garamond', 'Garamond', 'Times New Roman', serif;
+            font-family: var(--font-serif-latin);
             font-size: 28px;
             font-style: italic;
             color: var(--brown-frame);
@@ -732,7 +792,7 @@
         .gear-btn:hover { background: rgba(255, 255, 255, 0.3); }
 
         .gear-btn[aria-expanded="true"] {
-            background: var(--green-mid);
+            background: var(--leaf-fill);
             border-color: var(--green-light);
         }
 
@@ -837,8 +897,8 @@
         }
 
         .settings-toggle[aria-pressed="true"] {
-          background: var(--green-mid);
-          border-color: var(--green-mid);
+          background: var(--leaf-fill);
+          border-color: var(--leaf-fill);
           color: var(--bg-paper);
         }
 
@@ -1151,7 +1211,7 @@
                      version number is not. A version string is not copy, and
                      inside a translated string it would be a shipping fact
                      nobody re-checks after the French is reviewed. -->
-                <div class="about-version"><span data-i18n="label.about.version" data-label="Version">Version</span> <span class="about-version-number">1.2.2</span></div>
+                <div class="about-version"><span data-i18n="label.about.version" data-label="Version">Version</span> <span class="about-version-number">1.6.0</span></div>
                 <p class="about-tagline" data-i18n="label.about.tagline"
                    data-label="Modal-synthesis bassoon for sustained microtonal long tones.">
                     Modal-synthesis bassoon for sustained microtonal long tones.
@@ -1465,7 +1525,7 @@
                 container.textContent = '';
                 const notice = document.createElement('div');
                 notice.style.padding = '20px';
-                notice.style.color = '#8B7355';
+                notice.style.color = '#6A5641';   // v1.6.0 AA, was #8B7355 (3.66)
                 notice.style.fontStyle = 'italic';
                 setLabel(notice, 'label.tuningLoadFailed');
                 container.appendChild(notice);

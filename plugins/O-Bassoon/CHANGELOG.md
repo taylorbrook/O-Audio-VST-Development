@@ -5,6 +5,39 @@ All notable changes to O-Bassoon will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-09-27
+
+The UI pass from design review 260924-nho (Phase C): AA text colours from `ouaricon-naturalist-001` (R4), the template's 9px floor, and the bundled EB Garamond face (R5). MINOR because the change is visible. No parameter, range, type or state format changed, and no DSP or processor file was touched. The only C++ change is four `getResource()` branches for the font files. The Family C knob interaction JS is untouched, so R7 (keyboard/ARIA knobs from O-ReverseDelay) stays open for this plugin.
+
+### Changed
+- **Text colours are AA** (tokens in `:root`):
+  - **Section captions, Soft/Tongued end-labels, About version and "Made by":** `--brown-text-lighter` moves `#8B7B6F → #715D45`, the template's walnut that is safe on either paper tone. It read 3.55 on the section boxes and 3.64 on the About card.
+  - **Header subtitle:** a solid `--brand-ink` `#C7B4A3` (4.69 on `--brown-frame`) replaces `opacity: 0.55` (3.54).
+  - **Hover-help On and the open gear:** the fill is the new `--leaf-fill` `#4E6839`. Paper text on it reads 5.10, up from 3.06.
+  - **Tuning panel,** page-local under `#tuning-container` because the shared `tuning-panel.css` has five consumers and stays byte-frozen (values as O-Bowed v1.10.0). `--tuning-text-muted` `#8B7355 → #6A5641` (3.66–4.21 → 5.68 on paper). Generate and Export HTML move to white on `#4E6839` (6.24, was 3.75 on `#6B8E4E`). The panel's load-error notice moves to the same ink.
+- **9px floor.** The Soft/Tongued end-labels move from 8.5px to 9px; their line-height pin is re-derived (`1.1765 → 1.1111`) so the 10px line box is unchanged. The tuning Matrix and Rotation tables move from 8px to 9px (page-local).
+- **Bundled EB Garamond** from `modules/ui/eb-garamond`, by direct embed: 4 `SOURCES` lines, 4 `getResource()` branches, and `/css/eb-garamond.css` linked before `tuning-panel.css`. `--font-serif` (and `--font-serif-latin` for the two product-name nodes, which carry no CJK tail) replace the five hand-written stacks. The stack used to lead with `'EB Garamond'`, a face installed nowhere, then a bare `'Garamond'`; the page resolved to Georgia, and the tuning panel and product names to Times New Roman. The bare `'Garamond'` is dropped so an Office-installed Windows Garamond cannot outrank the bundled face.
+  - **Knob readouts go from 10.5px to 11.5px.** EB Garamond's x-height is smaller than Georgia's, so at one size the italic readouts drew about 20% narrower ("800 ms" 35.5 → 28.4 px; 31.1 at 11.5px). The 14px min-height already holds the 11.5px line box, so no row grows.
+  - **Tuning-panel width floors re-pinned** for the new face: `.tonic-label` 39.83 → 41.5px and `.octave-stretch-label` 51 → 52.02px (French, the widest arm). Left at the Times-measured floors, French moved `#tonic-down/-value/-up` 0.8px and `#octave-stretch` 1.0px (check-ui-labels [7]).
+  - **Geometry vs v1.5.0 (English):** no vertical move on the Sound, Tuning or About tabs. The settings popover is 1px shorter (the select's line box). Everything else is horizontal shrink from the narrower face.
+
+### Fixed
+- **About tab version** read `1.2.2` since v1.2.2; it now reads `1.6.0`. It is still a literal in `index.html`, bumped by hand.
+
+### Measured (v1.5.0 → v1.6.0, served page at the shipping 900×600 frame, en / fr / zh-Hans)
+
+| Gate | Before | After |
+|---|---|---|
+| `measure-ui.js --contrast`, per language | 45 / 105 below AA (42.9%), 2 under 9px, min 3.06 | 0 / 105, 0 under 9px, min 4.54 |
+| Real-ground pixel probe (text + SVG fill hidden, 2× capture, p5/p95 under each glyph box; sound / tuning / about / settings × 3 languages; scroll-clipped rows excluded) | 102 / 300 below AA, min 3.00 | 0 / 300, min 4.54 |
+| CDP resolved face (Latin) | Georgia + Times New Roman | EB Garamond (PingFang SC for Han); 0 unserved requests |
+| `check-ui-labels.js` | ALL PASSED (172) | ALL PASSED (172) |
+| `tests/ui_tip_render_check.js` | ALL PASSED | ALL PASSED |
+| `check-i18n.js`, `i18n-fr-lint.js`, `i18n-zh-lint.js` | pass | pass |
+| `auval -v aumu OBsn OuDv` (built + installed v1.6.0) | pass | pass |
+
+- **Not changed:** two symbol glyphs still come from system fallback, as before: the tuning panel's ◄ ► (Arial; module markup) and the header ⚙ (Menlo). Neither is in the EB Garamond subset. The pitch-circle SVG labels are `#5C4033`, already AA.
+
 ## [1.5.0] - 2026-09-06
 
 The tuning tab is localized — English, French and Simplified Chinese (task
