@@ -4052,17 +4052,12 @@
                 } catch (e) {}
             }
 
-            // Listen for scale degree count changes from C++ timer
-            window.__JUCE__.backend.addEventListener('scaleDegreeCountChanged', (count) => {
-                if (typeof count === 'number' && count > 0 && count !== currentDegreeCount) {
-                    currentDegreeCount = count;
-                    // Reset bitmask when scale size changes
-                    currentDegreeMaskLow = 0xFFFFFFFF;
-                    currentDegreeMaskHigh = 0xFFFFFFFF;
-                    Juce.getNativeFunction('setGlissCustomDegrees')(currentDegreeMaskLow, currentDegreeMaskHigh);
-                    updateDegreeButtons();
-                    updateScaleOptionsForDegreeCount();
-                }
+            // Listen for scale degree count / mask changes from C++ timer.
+            // v2.6.4: re-pull only — the processor owns the reset on a real size
+            // change. Resetting here fired on every editor open with a non-12
+            // tuning (before initDegreeState returned) and wiped the restored mask.
+            window.__JUCE__.backend.addEventListener('scaleDegreeCountChanged', () => {
+                initDegreeState();
             });
 
             initDegreeState();

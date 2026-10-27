@@ -47,6 +47,11 @@ private:
 
     OLyricaAudioProcessor& processorRef;
 
+    // v2.6.4: per-editor glissando degree sync state (was a function-local static
+    // shared by every editor in the process)
+    int lastScaleDegreeCount = -1;
+    uint64_t lastSyncedGlissMask = 0;
+
     // ═══════════════════════════════════════════════════════════════════
     // CRITICAL ORDER: Relays → WebView → Attachments
     // Members destroyed in REVERSE order. Attachments call evaluateJavascript()

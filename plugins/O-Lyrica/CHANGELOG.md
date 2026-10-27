@@ -2,6 +2,17 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.6.4] - 2026-10-26
+
+Glissando state restore. No parameter, range or DSP change; sessions and presets from earlier versions load as before.
+
+### Fixed
+
+- **Custom glissando degrees survive reopening a project.** With a tuning that isn't 12 notes per octave, opening the editor reset every degree to "on", wiping the mask the session had just restored. Root cause: the editor's "scale size changed" check was a single static shared by every editor in the process, and the page reset the mask whenever that event's count differed from its built-in 12 — which it did until its own startup read returned. The reset now lives in the processor and fires only when the tuning's degree count really changes from the size the mask was set for (now saved with the mask). The page just re-reads the count and mask.
+- **The degree buttons follow a project or preset load with the editor open.** The page never re-read the mask after a restore, so it showed the old buttons, and the next click wrote the old mask back over the restored one.
+- **Presets now carry the custom glissando degrees.** The mask was only stored in the DAW session, so loading a preset never restored it. Presets saved before 2.6.4 carry no mask and leave the current one alone.
+- **Tuning changes no longer revert on the second project reopen.** The restore left the saved tuning record (`<CustomState>`) inside the live parameter tree, so the next save carried two and the next reopen read the stale first one: Scale-Locked glissando played the first reopen's scale. The leftover record is now removed after a restore (same fix as O-Bowed 1.9.3).
+
 ## [2.6.3] - 2026-10-26
 
 Windows WebView2 hardening (ui-hardening-phase0). No DSP, parameter, preset or state change; macOS behaviour and look unchanged.

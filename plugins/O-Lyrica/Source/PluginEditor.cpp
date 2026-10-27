@@ -1248,11 +1248,19 @@ void OLyricaAudioProcessorEditor::timerCallback()
     // through getTooltipsEnabled now, alongside getUiLanguage.
 
     // v1.30.0: Sync scale degree count to WebView (for custom degree toggles)
-    static int lastScaleDegreeCount = -1;
-    int currentDegreeCount = processorRef.getTuningEngine()->getScaleDegrees();
-    if (currentDegreeCount != lastScaleDegreeCount)
+    // v2.6.4: the processor owns the mask reset (only on a real size change); the
+    // page just re-pulls count + mask. Restores and preset loads change the mask
+    // without changing the count, so the mask is watched too. The last-seen values
+    // only advance while the browser is showing — an event emitted while hidden is
+    // dropped, and advancing anyway would strand the page on stale buttons.
+    processorRef.syncGlissMaskToDegreeCount();
+    const int currentDegreeCount = processorRef.getTuningEngine()->getScaleDegrees();
+    const uint64_t currentGlissMask = processorRef.getGlissCustomDegrees();
+    if ((currentDegreeCount != lastScaleDegreeCount || currentGlissMask != lastSyncedGlissMask)
+        && webView->isShowing())
     {
         lastScaleDegreeCount = currentDegreeCount;
+        lastSyncedGlissMask = currentGlissMask;
         webView->emitEventIfBrowserIsVisible("scaleDegreeCountChanged",
             juce::var(currentDegreeCount));
     }

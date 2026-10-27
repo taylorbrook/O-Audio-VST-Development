@@ -638,6 +638,13 @@ OLyricaAudioProcessor::OLyricaAudioProcessor()
             // Save tuning mode explicitly
             obj->setProperty("tuningMode", static_cast<int>(tuningEngine.getMode()));
 
+            // v2.6.4: glissando custom degrees ride presets too. The mask is a STRING
+            // of its int64 bit pattern — a JSON number round-trips through double and
+            // loses the low bits of a 64-bit mask.
+            obj->setProperty("glissCustomDegrees",
+                juce::String(static_cast<juce::int64>(glissCustomDegrees.load(std::memory_order_acquire))));
+            obj->setProperty("glissMaskDegreeCount", glissMaskDegreeCount.load(std::memory_order_acquire));
+
             return juce::var(obj);
         },
         // Load callback - restores tuning state from JSON
@@ -698,6 +705,18 @@ OLyricaAudioProcessor::OLyricaAudioProcessor()
                 float stretch = static_cast<float>(obj->getProperty("octaveStretch"));
                 tuningEngine.setOctaveStretch(stretch);
             }
+
+            // v2.6.4: glissando custom degrees (presets saved before v2.6.4 carry
+            // none and leave the live mask alone; the size check still resets it
+            // if the preset's tuning has a different degree count)
+            if (obj->hasProperty("glissCustomDegrees"))
+            {
+                auto mask = obj->getProperty("glissCustomDegrees").toString().getLargeIntValue();
+                glissCustomDegrees.store(static_cast<uint64_t>(mask), std::memory_order_release);
+                glissMaskDegreeCount.store(static_cast<int>(obj->getProperty("glissMaskDegreeCount")),
+                                           std::memory_order_release);
+            }
+            syncGlissMaskToDegreeCount();
         }
     );
 }
@@ -1096,6 +1115,31 @@ void OLyricaAudioProcessor::updateActiveGlissandoMode()
         activeGlissandoMode.store(0, std::memory_order_release);
 }
 
+// v2.6.4: a mask written by the UI belongs to the scale size the UI was showing
+void OLyricaAudioProcessor::setGlissCustomDegrees(uint64_t mask)
+{
+    glissCustomDegrees.store(mask, std::memory_order_release);
+    glissMaskDegreeCount.store(tuningEngine.getScaleDegrees(), std::memory_order_release);
+}
+
+// v2.6.4: reset the degree mask only on a REAL scale-size change. An unbound mask
+// (fresh instance, or a session saved before v2.6.4) adopts the current size.
+bool OLyricaAudioProcessor::syncGlissMaskToDegreeCount()
+{
+    const int count = tuningEngine.getScaleDegrees();
+    const int bound = glissMaskDegreeCount.load(std::memory_order_acquire);
+
+    if (count <= 0 || count == bound)
+        return false;
+
+    glissMaskDegreeCount.store(count, std::memory_order_release);
+    if (bound == 0)
+        return false;
+
+    glissCustomDegrees.store(0xFFFFFFFFFFFFFFFFull, std::memory_order_release);
+    return true;
+}
+
 int OLyricaAudioProcessor::getActiveVoiceCount() const
 {
     // Phase 2.11: Count actively playing voices
@@ -1189,6 +1233,8 @@ void OLyricaAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
         xml->setAttribute("uiLanguage", languageCode(uiLanguage.load(std::memory_order_acquire)));
         // v1.30.0: Save glissando custom degree bitmask
         xml->setAttribute("glissCustomDegrees", juce::String(static_cast<juce::int64>(glissCustomDegrees.load(std::memory_order_acquire))));
+        // v2.6.4: ...and the scale size it was authored against
+        xml->setAttribute("glissMaskDegreeCount", glissMaskDegreeCount.load(std::memory_order_acquire));
         copyXmlToBinary(*xml, destData);
     }
 }
@@ -1204,6 +1250,17 @@ void OLyricaAudioProcessor::setStateInformation(const void* data, int sizeInByte
     {
         // v1.5.0: Use preset manager for state deserialization
         presetManager.setStateFromXml(xmlState.get());
+
+        // v2.6.4: setStateFromXml() hands the WHOLE element to replaceState(), so the
+        // <CustomState> child it has just read also lands inside the live APVTS tree.
+        // getStateAsXml() starts from copyState() and APPENDS a fresh <CustomState>,
+        // so the next save would carry two and the next restore's getChildByName()
+        // would read the stale first one — every tuning change made after one reopen
+        // was lost at the second. Drop it here (same fix as O-Bowed v1.9.3).
+        for (auto stale = parameters.state.getChildWithName("CustomState");
+             stale.isValid();
+             stale = parameters.state.getChildWithName("CustomState"))
+            parameters.state.removeChild(stale, nullptr);
 
         // v1.13.1: Restore tonic directly from XML (workaround for CustomState serialization bug)
         if (xmlState->hasAttribute("directTonic"))
@@ -1232,6 +1289,12 @@ void OLyricaAudioProcessor::setStateInformation(const void* data, int sizeInByte
         {
             auto saved = xmlState->getStringAttribute("glissCustomDegrees").getLargeIntValue();
             glissCustomDegrees.store(static_cast<uint64_t>(saved), std::memory_order_release);
+
+            // v2.6.4: a session saved before v2.6.4 carries no size; its mask was
+            // authored against the tuning restored just above, so bind to that.
+            glissMaskDegreeCount.store(xmlState->getIntAttribute("glissMaskDegreeCount",
+                                                                 tuningEngine.getScaleDegrees()),
+                                       std::memory_order_release);
         }
     }
 

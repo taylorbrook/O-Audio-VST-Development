@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 2.6.0
+- **Version:** 2.6.4
 - **Type:** Synth (Physical Modeling Harp)
 
 ## Lifecycle Timeline
@@ -49,6 +49,12 @@
   - Results: census below-AA 356/387 → 6/387 (only bypassed Chorus knobs); pixel probe 0 on
     active text; `check-ui-labels` green; `auval` pass. No DSP change.
   - R7 (keyboard/ARIA on the Effects-tab SVG knobs) deferred.
+- **2026-10-26 (v2.6.4):** Glissando state restore. Custom degree mask is now bound to its scale
+  size and reset only by the processor on a real size change (the editor used to wipe it on open
+  with non-12 tunings); the page re-reads the mask after restores/preset loads; the mask rides
+  presets; the stale `<CustomState>` child is removed after `setStateFromXml` (2nd-reopen tuning
+  loss). Gate: `tests/state-roundtrip/two_reopen.py` (pedalboard, installed VST3) 10/10;
+  `auval` pass.
 
 ## Known Issues / Limitations
 

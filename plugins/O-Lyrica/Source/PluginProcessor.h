@@ -218,7 +218,17 @@ public:
     // v1.30.0: Glissando custom degree bitmask (bit N = degree N enabled)
     std::atomic<uint64_t> glissCustomDegrees { 0xFFFFFFFFFFFFFFFF };
     uint64_t getGlissCustomDegrees() const { return glissCustomDegrees.load(std::memory_order_acquire); }
-    void setGlissCustomDegrees(uint64_t mask) { glissCustomDegrees.store(mask, std::memory_order_release); }
+    // v2.6.4: binds the mask to the current scale size (message thread — UI toggles)
+    void setGlissCustomDegrees(uint64_t mask);
+
+    // v2.6.4: Scale size the degree mask was authored against (0 = not yet bound).
+    // The mask is reset to all-on HERE, in the processor, only when the tuning's
+    // degree count really moves away from this value. It used to be reset by the
+    // page whenever its event said "count changed" — which fired on every editor
+    // open with a non-12 tuning and wiped the mask the session had just restored.
+    std::atomic<int> glissMaskDegreeCount { 0 };
+    // Message thread. Returns true if the mask was reset.
+    bool syncGlissMaskToDegreeCount();
 
     // v1.30.0: APVTS Listener for toggle mutual exclusion
     void parameterChanged(const juce::String& parameterID, float newValue) override;
