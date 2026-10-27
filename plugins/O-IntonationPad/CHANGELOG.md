@@ -1,5 +1,15 @@
 # O-IntonationPad Changelog
 
+## [2.11.3] - 2026-10-26
+
+In-page preset rename / delete and Windows WebView2 hardening (ui-hardening-phase0). No DSP, parameter, preset or state change; the idle UI looks the same.
+
+### Fixed
+
+- **Renaming and deleting a user preset did nothing on macOS.** Both used the browser's `prompt()` / `confirm()`, which are silent no-ops in the macOS plugin WebView. Rename (✎) now edits the name in place — Enter or clicking away saves, Esc cancels. Delete (✕) now asks on the row itself: the first click turns ✕ red and the name reads *Delete preset "…"?*; a second click within 2.5 s deletes, otherwise it lapses. (The old prompts also showed a raw key instead of their text.)
+- **Windows: the WebView2 user-data folder moved out of bare `%TEMP%`** to `%APPDATA%\Ouaricon\WebView2\O-IntonationPad`, created before the editor opens. `%TEMP%` is wiped by cleaners and can be locked by other processes, and the folder was shared by every plugin using it.
+- **Windows: when WebView2 cannot start** (runtime missing, data folder unusable) the editor now shows a native "needs Microsoft Edge WebView2" notice with a download link, instead of JUCE's silent fallback to the legacy IE control (a "page not found" window). The synth keeps working and host automation still reaches every parameter. Same convention as O-simpleSubtractive v1.7.4.
+
 ## [2.11.2] - 2026-10-19
 
 ### Fixed

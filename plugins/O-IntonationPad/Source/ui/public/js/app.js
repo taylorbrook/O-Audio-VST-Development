@@ -1297,16 +1297,48 @@ function setupPresetSystem() {
                 renameBtn.textContent = '\u270E'; // pencil
                 renameBtn.dataset.i18nAria = 'aria.rename';
                 applyI18nAttributes(renameBtn);
-                renameBtn.addEventListener('click', async (e) => {
+                // v2.11.3: prompt() and confirm() are silent no-ops in JUCE's
+                // macOS WKWebView (no UI delegate), so rename and delete did
+                // nothing there. Rename edits the name in place; delete arms on
+                // the first click and fires on a second click within 2.5 s.
+                renameBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    const newName = prompt(trLabel('label.renamePrompt', uiLanguage), preset.name);
-                    if (newName && newName !== preset.name) {
-                        const ok = await Juce.getNativeFunction('renamePreset')(preset.name, newName);
-                        if (ok) {
-                            if (nameDisplay.textContent === preset.name) nameDisplay.textContent = newName;
-                            await refreshBrowser();
+                    if (item.querySelector('.preset-save-input')) return;
+
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'preset-save-input';
+                    input.value = preset.name;
+                    input.dataset.i18nAria = 'dialog.renamePrompt';
+                    applyI18nAttributes(input);
+                    // Keep presses inside the field from loading the preset.
+                    for (const type of ['click', 'mousedown', 'pointerdown'])
+                        input.addEventListener(type, (ev) => ev.stopPropagation());
+
+                    let settled = false;
+                    const finish = async (commit) => {
+                        if (settled) return;
+                        settled = true;
+                        const newName = input.value.trim();
+                        input.replaceWith(nameSpan);
+                        if (commit && newName && newName !== preset.name) {
+                            const ok = await Juce.getNativeFunction('renamePreset')(preset.name, newName);
+                            if (ok) {
+                                if (nameDisplay.textContent === preset.name) nameDisplay.textContent = newName;
+                                await refreshBrowser();
+                            }
                         }
-                    }
+                    };
+                    input.addEventListener('keydown', (ev) => {
+                        ev.stopPropagation();
+                        if (ev.key === 'Enter') { ev.preventDefault(); finish(true); }
+                        if (ev.key === 'Escape') { ev.preventDefault(); finish(false); }
+                    });
+                    input.addEventListener('blur', () => finish(true));
+
+                    nameSpan.replaceWith(input);
+                    input.focus();
+                    input.select();
                 });
                 actions.appendChild(renameBtn);
 
@@ -1315,12 +1347,34 @@ function setupPresetSystem() {
                 delBtn.textContent = '\u2715'; // x
                 delBtn.dataset.i18nAria = 'aria.delete';
                 applyI18nAttributes(delBtn);
+                let deleteArmTimer = null;
+                const disarm = () => {
+                    if (deleteArmTimer) { clearTimeout(deleteArmTimer); deleteArmTimer = null; }
+                    delete delBtn.dataset.armed;
+                    actions.classList.remove('armed');
+                    // Back to the raw name (a name IS its filename: never keyed).
+                    delete nameSpan.dataset.i18n;
+                    delete nameSpan.dataset.i18nVars;
+                    delete nameSpan.dataset.label;
+                    nameSpan.textContent = preset.name;
+                    delBtn.dataset.i18nAria = 'aria.delete';
+                    applyI18nAttributes(delBtn);
+                };
                 delBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    if (confirm(trLabel('label.deleteConfirm', uiLanguage, { name: preset.name }))) {
+                    if (delBtn.dataset.armed === '1') {
+                        disarm();
                         await Juce.getNativeFunction('deletePreset')(preset.name);
                         await refreshBrowser();
+                        return;
                     }
+                    // First click: the name cell asks the question, the button
+                    // turns red; a second click within 2.5 s confirms.
+                    delBtn.dataset.armed = '1';
+                    actions.classList.add('armed');
+                    setLabel(nameSpan, 'dialog.deleteConfirm', { name: preset.name });
+                    delBtn.setAttribute('aria-label', nameSpan.textContent);
+                    deleteArmTimer = setTimeout(disarm, 2500);
                 });
                 actions.appendChild(delBtn);
 

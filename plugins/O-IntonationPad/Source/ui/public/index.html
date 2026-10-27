@@ -1499,6 +1499,25 @@
             color: var(--danger);
         }
 
+        /* v2.11.3: in-place rename and two-click delete (prompt/confirm are
+           no-ops in the macOS WebView). Both states exist only mid-action. */
+        .preset-item .preset-save-input {
+            flex: 1;
+            min-width: 0;
+            width: auto;
+            margin: 0;
+            padding: 1px 6px;
+        }
+
+        .preset-item-actions.armed {
+            opacity: 1;
+        }
+
+        .preset-item-action-btn.delete[data-armed="1"] {
+            background: rgba(var(--danger-rgb), 0.2);
+            color: var(--danger);
+        }
+
         /* Save Dialog */
         .preset-save-dialog {
             display: none;

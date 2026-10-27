@@ -995,13 +995,12 @@ export const I18N = Object.freeze({
               reviewed: 'bt' },
     },
 
-    // ── Native dialogs ──────────────────────────────────────────────────────
-    // prompt() and confirm() take a STRING, not an element, so neither can be a
-    // [data-i18n] node and neither can go through setLabel(). They live here
-    // with an empty body rather than in LABELS, because assertion 15's dead-key
-    // sweep only recognises a LABELS key that an element or a setLabel call
-    // names — a key reached only through trLabel() would report as dead while
-    // being read on every rename and every delete.
+    // ── Preset rename / delete (were native dialogs) ────────────────────────
+    // v2.11.3: prompt() and confirm() are no-ops in the macOS WebView, so these
+    // are in-page now: renamePrompt is the aria-label of the in-place rename
+    // field (data-i18n-aria), deleteConfirm is set with setLabel() on the
+    // preset's name cell while its delete button is armed. Empty bodies: they
+    // are labels, never hover-help.
     'dialog.renamePrompt': {
         en: { t: 'Rename preset:', b: '' },
         fr: { t: 'Renommer le préréglage :', b: '', reviewed: true },
