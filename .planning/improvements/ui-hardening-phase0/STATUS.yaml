@@ -1,7 +1,7 @@
 milestone: ui-hardening-phase0
 scope: cross-plugin
 created: 2026-10-26T00:00:00Z
-lastActivity: 2026-10-27T11:00:00Z
+lastActivity: 2026-10-27T15:00:00Z
 phases:
   discuss:
     status: skipped   # scope approved in the /research → /improve conversation; see CONTEXT.md
@@ -23,11 +23,11 @@ phases:
   verify:
     status: complete
     completedAt: 2026-10-26
-    scope: B1-B3 (B4 deferred, blocked)
+    scope: B1-B3 (B4 executed 2026-10-27; verified inline, see VERIFICATION.md B4 section)
     verdict: achieved_with_known_issues   # VERIFICATION.md; G3+G4 fixed post-verify, G1 documented, G2 -> B4
 versionBump: patch   # per touched plugin
 batches:
   B1: complete      # 670b2ebf (ci) + da14304c (O-DigiDelay 1.9.3)
   B2: complete      # 2a44ad87
   B3: complete      # 18 plugins, dbd0b96b..ce7f870e
-  B4: blocked        # O-Reed (+ bare %TEMP% WebView2 folder, PluginEditor.cpp:100), O-Bassoon, O-simpleFM, O-Gain, O-Freeze — uncommitted work from another session; unblock: git status --short plugins/<Name> empty
+  B4: complete     # 2026-10-27: O-Reed 1.7.1 6d483a7e (natives + T3.4/G2), O-Bassoon 1.6.1 f44a6fa4, O-simpleFM 1.6.1 3a581c41, O-Gain 1.10.1 6e8055fb, O-Freeze 2.7.1 85085fda

@@ -84,6 +84,34 @@ tokens (commented by token name); layout scales by height (`s = clamp(H/260, 0.6
 is null-guarded (timers, `goToURL`, `notifyPresetLoaded`, `resized`). Polystutter builds its WebView
 in the member-init list, so the probe lives in an immediately-invoked lambda there.
 
+## B4 — formerly blocked trees (2026-10-27)
+
+All five trees were clean at start (`git status --short plugins/<Name>` empty). Backups are in `backups/<P>/v<old>/`, except O-Freeze: its `v2.7.0` snapshot belongs to the other session's 2.8.0 work, and my pre-edit state is HEAD `9a28095d`. Commits are temp-index + CAS, stage explicit files only, and patch only the plugin's own PLUGINS.md row onto HEAD's blob. **No tags.**
+
+| Plugin | Fixes | Version | Build | auval | pluginval 10 | Commit |
+|---|---|---|---|---|---|---|
+| O-Reed | 20 tuning-panel natives registered + T3.4 (G2) | 1.7.0 → 1.7.1 | ✓ 0 editor warnings | PASS | PASS (0x520d875) | `6d483a7e` |
+| O-Bassoon | `generateRank2` / `saveScalaFile` / `saveKBMFile` registered | 1.6.0 → 1.6.1 | ✓ | PASS | PASS (0x7feaa6d) | `f44a6fa4` |
+| O-simpleFM | `withBackend(webview2)` (Windows block) | 1.6.0 → 1.6.1 | ✓ | PASS | PASS (0x59f133e) | `3a581c41` |
+| O-Gain | `%f` meter payload → `juce::String (v, 6)` | 1.10.0 → 1.10.1 | ✓ | PASS | PASS (0x21f624) | `6e8055fb` |
+| O-Freeze | T3.4 | 2.7.0 → 2.7.1 | ✓ out of tree* | PASS | PASS (0x1ada380) | `85085fda` |
+
+All runs used GUI tests on, against the installed bundle.
+
+**O-Reed.** The 20 natives use O-Wind's shapes, with JSON built through `juce::JSON` and file dialogs guarded by `fileDialogOpen` + SafePointer. `getMasterTune`/`setMasterTune` go through the `referencePitch` parameter: Reed's engine is fed from the parameter in `processBlock`, so the engine value is stale until the next block. The T3.4 port is identical in shape to B3; colours come from `--bg-paper` / `--brown-text` / `--brown-frame` / `--green-dark`. **Known limitation (not fixed):** Reed does not persist tuning-engine state (custom scale / tonic / stretch) in `getStateInformation`. O-Wind does. Adding it is a state-format change, out of Phase-0 scope, and recorded in the CHANGELOG. Candidate for `/improve O-Reed`.
+
+**O-Bassoon.** The 3 natives match the 17 existing siblings' idiom (string-built JSON, `[this, complete]`). Its temp folder is a named `%TEMP%` subfolder, so it is in the 29-plugin later-phase set and was not touched here.
+
+**O-simpleFM.** The fix is only `withBackend`. Its named `%TEMP%` subfolder is in the later-phase set.
+
+**O-Gain.** Keys and 6-decimal precision are unchanged. Non-finite values map to the page's floors: amplitude 0 (→ `ampToDb` −100), LUFS/dBFS −100 (`lufsOrFloor`, `> -99` guards), elapsed 0.
+
+**O-Freeze — concurrent session.** Session `vst-development-eb` was mid-`/improve O-Freeze` 2.8.0, with uncommitted `PluginProcessor.*`, `CounterRng.h` and `tests/blocksize-null`. The two sessions agreed an order over cross-session messages: my 2.7.1 goes first and stages explicit files only (`PluginEditor.{cpp,h}`, CHANGELOG, CMakeLists = HEAD + the VERSION line), then they ship 2.8.0 on top. \* I verified it **out of tree**: `git archive HEAD` + my 4 files, so their processor rewrite was never in the tested binary. The installed `O-Freeze-dev` will be their 2.8.0 build (both changes) once they install. This avoids the G1 failure mode (a plugin-path pathspec sweeping another session's WIP).
+
+**Gates.** Native-function census (served JS `getNativeFunction` names vs `withNativeFunction` names, tuning-panel.js included where embedded): 0 unregistered in all five. Before this batch it was 20 for Reed and 3 for Bassoon. `check-i18n` 0 (46 plugins), `i18n-fr-lint` 0, `i18n-zh-lint` 0. No page/JS files changed in B4.
+
+**Windows unverified** (same as B3): the `#if JUCE_WINDOWS` code for Reed/Freeze T3.4 and the simpleFM backend was reviewed by reading only.
+
 ## Suite-wide
 
 - `boot-all-uis`: 46/46 boot before and after; per-plugin page errors, console errors, request
@@ -103,8 +131,7 @@ in the member-init list, so the probe lives in an immediately-invoked lambda the
    on 0x69c6be7, 0x14cb29d, 0x2ed10e1 and 0x1; auval passes.
 2. **Windows unverified.** No Windows machine here; all `#if JUCE_WINDOWS` code was reviewed by
    reading and is identical in shape to the shipped O-simpleSubtractive v1.7.4.
-3. B4 still blocked (O-Reed, O-Bassoon, O-simpleFM, O-Gain, O-Freeze; never O-GrainScatter).
-   Unblock: `git status --short plugins/<Name>` empty.
+3. ~~B4 still blocked~~ **B4 complete 2026-10-27** (see the B4 section below).
 
 4. **O-Lyrica verdict (verify):** PRE-EXISTING CONFIRMED (resolved since: item 1) — 2.6.2 (`38855299^`, out-of-tree) and 2.6.3 fail the
    same Glissando restore identically on the same 3 random seeds. pluginval 1.0.4 has no `--seed`; the pinning
@@ -126,4 +153,7 @@ in the member-init list, so the probe lives in an immediately-invoked lambda the
 - Strata + Prism open together: hover-help toggles are independent (Strata's resets to On once)
 - Comp / Bass meters, Orbit motion display, Bowed visualization still animate — ideally once with macOS Region set to France
 - O-Orbit: the still-pending v1.4.2 halo check (now v1.4.5)
-- Windows, when available: one T3.4 plugin opens normally; with the WebView2 runtime removed it shows the notice + link
+- Windows, when available: one T3.4 plugin opens normally; with the WebView2 runtime removed it shows the notice + link (also O-Reed / O-Freeze); O-simpleFM opens its page, not "page not found"
+- **B4** O-Reed tuning tab: library list loads, pick a tuning, edit an interval, tonic, octave stretch, master-tune knob moves `referencePitch`, EDO/harmonic/Rank-2 generate, Load/Save .scl/.kbm, Export HTML (note: tuning edits are not saved with the session — known limitation)
+- **B4** O-Bassoon tuning panel: Rank-2 generator, Save .SCL, Save .KBM
+- **B4** O-Gain meters + Learn panel still animate (ideally once with the macOS Region set to France)

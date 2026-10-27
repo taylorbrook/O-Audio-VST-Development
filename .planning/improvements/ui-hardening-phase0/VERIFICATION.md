@@ -111,10 +111,25 @@ Both binaries fail the same test with the same value to six digits on every seed
 
 ---
 
-## B4 — Deferred (blocked)
+## B4 — executed 2026-10-27 (inline verification)
 
-O-Reed, O-Bassoon, O-simpleFM, O-Gain and O-Freeze were not verified. They still have uncommitted work from another session (all five are dirty at verify time). Never touch O-GrainScatter.
-**Unblock condition:** `git status --short plugins/<Name>` is empty. When it unblocks, add the T3.4 port to O-Reed (G2).
+The five trees were clean when work started. Results, checked against the code and the installed binaries:
+
+| # | Requirement | Status | Evidence |
+|---|---|---|---|
+| B4.1 | O-Reed: every native the served page and tuning-panel.js call is registered | ✓ PASS | Census 22 JS names / 0 unregistered (was 20). `6d483a7e` |
+| B4.2 | O-Reed: T3.4 (G2) — app-data folder, probe, notice, null-safe `webView->` | ✓ PASS | `tempDirectory` 0; `userApplicationDataDirectory`, `areOptionsSupported`, `webView2RuntimeLink` present; the 2 `webView->` uses are guarded (`goToURL`, `resized`) |
+| B4.3 | O-Bassoon: `generateRank2` / `saveScalaFile` / `saveKBMFile` registered | ✓ PASS | Census 22 / 0 unregistered (was 3). `f44a6fa4` |
+| B4.4 | O-simpleFM: `withBackend(webview2)` | ✓ PASS | Inside the `#if JUCE_WINDOWS` options block. `3a581c41` |
+| B4.5 | O-Gain: no `%f` `String::formatted` payload; non-finite handled; shape unchanged | ✓ PASS | 0 `formatted` hits; same 21 keys; floors from `app.js` `ampToDb`/`lufsOrFloor`. `6e8055fb` |
+| B4.6 | O-Freeze: T3.4 | ✓ PASS | Same census as B4.2; out-of-tree build (HEAD + editor files) so another session's uncommitted 2.8.0 processor rewrite was not in the binary. `85085fda` |
+| B4.7 | auval + pluginval 10 (GUI tests on), installed bundles | ✓ PASS | All 5; seeds in SUMMARY.md |
+| B4.8 | check-i18n / fr-lint / zh-lint | ✓ PASS | 0 / 0 / 0 |
+| B4.9 | Versions consistent, no tags, commits contain only the plugin's files + own PLUGINS.md row | ✓ PASS | Each diffstat shows `PLUGINS.md 2 +-`; `git tag --points-at` empty for all 5 |
+
+Known issue carried forward: O-Reed does not persist tuning-engine state. This was not introduced by B4. Fixing it would change the state format, which is out of Phase-0 scope.
+
+Suite-wide scope-leak sweep after B4: bare `%TEMP%` WebView2 folders 0, missing `withBackend` 0.
 
 ## Windows — unverified
 
@@ -139,7 +154,8 @@ There is no Windows host. All `#if JUCE_WINDOWS` code (folder creation, `withBac
 - [x] O-Lyrica failure confirmed pre-existing (fixed-seed A/B)
 - [ ] UI hands-on in DAW (Taylor)
 - [ ] Windows path (no host)
-- [ ] G1 documentation correction, G2 B4 scope addition, G3 validator regex
+- [x] G1 documentation correction, G2 B4 scope addition (done in B4: `6d483a7e`), G3 validator regex
+- [x] B4 (2026-10-27)
 
 ---
 
