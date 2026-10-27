@@ -235,6 +235,10 @@ private:
 
     // v3.0.0: File chooser for tuning file dialogs
     std::shared_ptr<juce::FileChooser> tuningFileChooser;
+    // v4.9.3 — Windows only: shown instead of the WebView when WebView2 cannot
+    // start (webView stays null). Null on macOS and whenever the WebView exists.
+    std::unique_ptr<juce::HyperlinkButton> webView2RuntimeLink;
+
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OBellsAudioProcessorEditor)
 };
