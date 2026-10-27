@@ -1,7 +1,7 @@
 milestone: ui-hardening-phase0
 scope: cross-plugin
 created: 2026-10-26T00:00:00Z
-lastActivity: 2026-10-26T22:00:00Z
+lastActivity: 2026-10-27T11:00:00Z
 phases:
   discuss:
     status: skipped   # scope approved in the /research → /improve conversation; see CONTEXT.md
@@ -19,7 +19,7 @@ phases:
     status: complete
     startedAt: 2026-10-26T19:50:00Z
     completedAt: 2026-10-26
-    note: 18 plugins committed (no tags); O-Lyrica pluginval state-restore failure pre-existing — see SUMMARY.md
+    note: 18 plugins committed (no tags); O-Lyrica pluginval state-restore failure pre-existing — resolved O-Lyrica v2.6.6 (11359791), see SUMMARY.md item 1
   verify:
     status: complete
     completedAt: 2026-10-26

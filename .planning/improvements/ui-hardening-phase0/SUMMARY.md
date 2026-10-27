@@ -92,18 +92,21 @@ in the member-init list, so the probe lives in an immediately-invoked lambda the
 
 ## Open items
 
-1. **O-Lyrica pluginval "Plugin state restoration" — pre-existing, seed-dependent.** Seeds 2/3/4 fail
-   on `Free Glissando` / `Scale-Locked Glissando` ("not restored", actual 0.2–0.47); seed 1 passes.
-   Both are mutually-exclusive META toggles whose `parameterChanged()` writes the other OFF, so a
-   random state with both on cannot round-trip. The O-Lyrica diff touches only PluginEditor.cpp/.h,
-   CMakeLists.txt (version) and CHANGELOG.md; no editor exists in that test. No negative-control
-   build of the old binary was run. Needs its own `/improve O-Lyrica`.
+1. **O-Lyrica pluginval "Plugin state restoration" — RESOLVED in O-Lyrica v2.6.6 (`11359791`).**
+   The cause given here first ("a random state with both on cannot round-trip") was wrong. The
+   plugin's state did round-trip. The HOST's copy went stale: `parameterChanged()` wrote the
+   partner toggle OFF from inside the VST3 wrapper's thread-local `inParameterChangedCallback`
+   scope (`juce_audio_plugin_client_VST3.cpp:825-833`, `paramChanged` :1472). That scope drops every
+   nested change report, so the host kept the partner's pre-write value (the 0.453 pluginval read
+   back is the host's random write, not the plugin's value). Fix: the exclusion moved to the page's
+   click handler and the toggles are independent (Scale-Locked keeps priority). pluginval 10 passes
+   on 0x69c6be7, 0x14cb29d, 0x2ed10e1 and 0x1; auval passes.
 2. **Windows unverified.** No Windows machine here; all `#if JUCE_WINDOWS` code was reviewed by
    reading and is identical in shape to the shipped O-simpleSubtractive v1.7.4.
 3. B4 still blocked (O-Reed, O-Bassoon, O-simpleFM, O-Gain, O-Freeze; never O-GrainScatter).
    Unblock: `git status --short plugins/<Name>` empty.
 
-4. **O-Lyrica verdict (verify):** PRE-EXISTING CONFIRMED — 2.6.2 (`38855299^`, out-of-tree) and 2.6.3 fail the
+4. **O-Lyrica verdict (verify):** PRE-EXISTING CONFIRMED (resolved since: item 1) — 2.6.2 (`38855299^`, out-of-tree) and 2.6.3 fail the
    same Glissando restore identically on the same 3 random seeds. pluginval 1.0.4 has no `--seed`; the pinning
    flag is `--random-seed`.
 5. **O-Polystutter `ce7f870e` carried another session's v1.17.0 DSP work** (TriggerScheduler, CounterRng,

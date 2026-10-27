@@ -58,7 +58,7 @@ Logs: `/private/tmp/claude-501/-Users-taylorbrook-Dev-VST-development/833998d3-4
 
 ---
 
-## O-Lyrica open item — **PRE-EXISTING CONFIRMED**
+## O-Lyrica open item — **PRE-EXISTING CONFIRMED → RESOLVED in v2.6.6 (`11359791`)**
 
 - Pre-change binary: there is no binary in `backups/O-Lyrica/v2.6.2/` (source only), so I built `38855299^` out of tree from `git archive` (CMakeLists, modules, vendored, plugins/O-Lyrica) in scratch → 2.6.2. Then I swapped in HEAD's `plugins/O-Lyrica` in the same build dir and rebuilt → 2.6.3. Same JUCE, same modules. The `git diff 38855299^ HEAD` outside O-Lyrica is empty.
 - **SUMMARY's "seed 2/3/4" did not pin anything.** pluginval 1.0.4 has no `--seed` flag; it ignores it and draws a fresh random seed every run. The pinning flag is `--random-seed`.
@@ -70,7 +70,11 @@ Logs: `/private/tmp/claude-501/-Users-taylorbrook-Dev-VST-development/833998d3-4
 | 0x14cb29d | FAIL — Free Glissando, 0.116289 | FAIL — identical |
 | 0x2ed10e1 | FAIL — Scale-Locked Glissando, 0.1132 | FAIL — identical |
 
-Both binaries fail the same test with the same value to six digits on every seed. The defect predates the change. It still needs its own `/improve O-Lyrica`: the mutually exclusive META toggles don't round-trip a random state.
+Both binaries fail the same test with the same value to six digits on every seed. The defect predates the change. ~~It still needs its own `/improve O-Lyrica`: the mutually exclusive META toggles don't round-trip a random state.~~
+
+**Resolved 2026-10-27, O-Lyrica v2.6.6.** The diagnosis above was wrong about where the value is lost. The plugin's state round-trips. The host's cached value goes stale: a host-originated toggle change calls `parameterChanged()` inside the VST3 wrapper's `inParameterChangedCallback` scope, and the nested `setValueNotifyingHost` on the partner is never reported to the host. The exclusion now lives in the page click handler. All three seeds above, plus 0x1, pass at strictness 10.
+
+**Same class elsewhere (not fixed):** O-simplePhysicalModelSynth `parameterChanged()` → `applyMaterialMacro()` writes `damping`/`decay` synchronously when it runs on the message thread (`PluginProcessor.cpp:288-305`). A host-set `material` leaves the host's damping/decay stale. The listeners in O-Bowed, O-Contrabass, O-simpleGrain and O-simpleSampler defer through `triggerAsyncUpdate`, which runs outside the scope, so they are unaffected.
 
 ---
 
