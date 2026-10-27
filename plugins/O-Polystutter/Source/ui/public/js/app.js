@@ -543,16 +543,35 @@ async function updateDropdownMenu() {
             item.appendChild(del);
         }
 
+        // v1.16.3: confirm() is a silent no-op in JUCE's macOS WKWebView (no UI
+        // delegate), so × deleted nothing there. Two-click armed delete instead:
+        // the first click turns × red and the name cell asks the question; a
+        // second click within 2.5 s deletes. Anything else lets it lapse.
+        let deleteArmTimer = null;
+        const disarm = (del) => {
+            if (deleteArmTimer) { clearTimeout(deleteArmTimer); deleteArmTimer = null; }
+            delete del.dataset.armed;
+            // Back to the raw name (a name IS its filename: never keyed).
+            delete nameEl.dataset.i18n;
+            delete nameEl.dataset.i18nVars;
+            delete nameEl.dataset.label;
+            nameEl.textContent = name;
+            applyI18nAttributes(del);
+        };
+
         item.addEventListener('click', async (e) => {
             if (e.target.classList.contains('delete-btn')) {
                 e.stopPropagation();
-                // tr(), not trLabel(): this sentence has no element and no
-                // tooltip, so it is housed in I18N with an empty body — the one
-                // shape that satisfies assertions 13 and 15 together. Authored
-                // around the inflection per contract §6: no count, no plural.
-                if (confirm(tr('msg-delete-preset', uiLanguage, { name }).t)) {
+                const del = e.target;
+                if (del.dataset.armed === '1') {
+                    disarm(del);
                     await presetManager.deletePreset(name);
+                    return;
                 }
+                del.dataset.armed = '1';
+                setLabel(nameEl, 'msg-delete-preset', { name });
+                del.setAttribute('aria-label', nameEl.textContent);
+                deleteArmTimer = setTimeout(() => disarm(del), 2500);
                 return;
             }
             await presetManager.loadPreset(name);

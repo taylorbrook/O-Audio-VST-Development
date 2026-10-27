@@ -610,16 +610,12 @@ export const I18N = Object.freeze({
                      reviewed: 'bt' },
     },
 
-    // ── A sentence shape with NO tooltip and NO element (carried item 10) ────
+    // ── The delete-preset question (carried item 10) ────────────────────────
     //
-    // The delete-preset confirmation is prose the user reads, but it is neither
-    // a tooltip nor an element's text: it is the argument to confirm(), composed
-    // per preset with a {name} token. It has no canon home. LABELS is the wrong
-    // one — assertion 15 requires every LABELS key to be referenced by an
-    // element or a setLabel() call, and this one never can be, so housing it
-    // there would report as a dead key forever. I18N takes it with an EMPTY
-    // BODY, which is the only shape that satisfies assertions 13 and 15 at the
-    // same time, exactly as the Stage-I summary predicted this plugin would need.
+    // Through v1.16.2 this was the argument to confirm(), which is a no-op in
+    // the macOS WebView. Since v1.16.3 it is set with setLabel() on the preset's
+    // name cell while its × is armed (two-click delete). Housed in I18N with an
+    // EMPTY BODY: it is a label, never hover-help.
     //
     // Authored AROUND the inflection per contract §6: no count, no plural, and
     // the preset name substituted rather than concatenated, so the sentence

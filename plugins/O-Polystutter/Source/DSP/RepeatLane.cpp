@@ -28,6 +28,7 @@
 */
 
 #include "RepeatLane.h"
+#include "CounterRng.h"
 
 RepeatLane::RepeatLane()
 {
@@ -101,16 +102,22 @@ void RepeatLane::reset()
     laneFilterLeft.reset();
     laneFilterRight.reset();
     lastFilterAmount = -2.0f;
+
+    // v1.17.0: Restart the RNG event counter so a fresh render reproduces
+    eventCounter = 0;
+    triggerEventIndex = 0;
 }
 
-void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
+void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int startSample, int numSamples)
 {
     if (!enabled)
         return;
 
+    const int endSample = startSample + numSamples;
+
     // v1.1.0: Capture incoming audio to dedicated capture buffer (circular)
     // This is non-destructive - we always have the last N samples available
-    for (int sample = 0; sample < numSamples; ++sample)
+    for (int sample = startSample; sample < endSample; ++sample)
     {
         float leftSample = buffer.getSample(0, sample);
         float rightSample = buffer.getNumChannels() > 1 ? buffer.getSample(1, sample) : leftSample;
@@ -123,27 +130,30 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
         captureWritePosition = (captureWritePosition + 1) % maxCaptureSamples;
     }
 
-    // v1.1.1: Handle fade-out when repeats are finished
-    // Instead of abruptly clearing, we fade out over crossfadeSamples
-    // v1.2.1 FIX: Also check that the current repeat has finished playing (timer expired)
-    // This fixes clicks with reps=1 where fade-out started before the repeat played
-    if (!isTriggered || (currentRepeat >= maxRepeats && samplesUntilNextRepeat <= 0))
+    // Process repeats
+    for (int sample = startSample; sample < endSample; ++sample)
     {
-        // Check if we need to start or continue a fade-out
-        if (globalEnvelopeGain > 0.0001f && !fadeOutActive)
+        // v1.1.1: Handle fade-out when repeats are finished
+        // Instead of abruptly clearing, we fade out over crossfadeSamples
+        // v1.2.1 FIX: Also check that the current repeat has finished playing (timer expired)
+        // This fixes clicks with reps=1 where fade-out started before the repeat played
+        // v1.17.0: Checked per SAMPLE (was once per block), so the fade-out
+        // starts on the sample the last repeat's timer expires, whatever the
+        // block size. Block-start checks only agreed with this when the
+        // expiry landed on a block boundary.
+        if (!isTriggered || (currentRepeat >= maxRepeats && samplesUntilNextRepeat <= 0))
         {
-            // Start fade-out
-            fadeOutActive = true;
-            fadeOutSamplesRemaining = crossfadeSamples;
-            fadeOutStartGain = globalEnvelopeGain;
-        }
-
-        if (fadeOutActive && fadeOutSamplesRemaining > 0)
-        {
-            // v1.12.1: Fade from last output level to silence (was writing zeros)
-            int sample = 0;
-            for (; sample < numSamples && fadeOutSamplesRemaining > 0; ++sample)
+            // Check if we need to start a fade-out
+            if (globalEnvelopeGain > 0.0001f && !fadeOutActive)
             {
+                fadeOutActive = true;
+                fadeOutSamplesRemaining = crossfadeSamples;
+                fadeOutStartGain = globalEnvelopeGain;
+            }
+
+            if (fadeOutActive && fadeOutSamplesRemaining > 0)
+            {
+                // v1.12.1: Fade from last output level to silence (was writing zeros)
                 float fadeProgress = static_cast<float>(fadeOutSamplesRemaining) / static_cast<float>(crossfadeSamples);
                 float fadeGain = fadeOutStartGain * fadeProgress;
 
@@ -153,38 +163,28 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
 
                 fadeOutSamplesRemaining--;
                 globalEnvelopeGain = fadeGain;
-            }
 
-            // Clear any remaining samples after fade completes
-            for (; sample < numSamples; ++sample)
+                if (fadeOutSamplesRemaining <= 0)
+                {
+                    fadeOutActive = false;
+                    globalEnvelopeGain = 0.0f;
+                    lastOutputLeft = 0.0f;
+                    lastOutputRight = 0.0f;
+                }
+            }
+            else
             {
+                // Fade-out complete or not needed: silence
                 buffer.setSample(0, sample, 0.0f);
                 if (buffer.getNumChannels() > 1)
                     buffer.setSample(1, sample, 0.0f);
-            }
-
-            if (fadeOutSamplesRemaining <= 0)
-            {
-                fadeOutActive = false;
                 globalEnvelopeGain = 0.0f;
                 lastOutputLeft = 0.0f;
                 lastOutputRight = 0.0f;
             }
+            continue;
         }
-        else
-        {
-            // Fade-out complete or not needed, clear buffer
-            buffer.clear();
-            globalEnvelopeGain = 0.0f;
-            lastOutputLeft = 0.0f;
-            lastOutputRight = 0.0f;
-        }
-        return;
-    }
 
-    // Process repeats
-    for (int sample = 0; sample < numSamples; ++sample)
-    {
         // Check if we need to start a new repeat
         if (samplesUntilNextRepeat <= 0 && currentRepeat < maxRepeats)
         {
@@ -336,13 +336,19 @@ void RepeatLane::trigger()
     if (!enabled)
         return;
 
+    // v1.17.0: Every trigger attempt gets the next event index, gated or not,
+    // so later events keep their draws when the pattern or probability changes
+    const uint64_t eventIndex = eventCounter++;
+
     // Check pattern sequencer gate
     if (!patternSteps[currentPatternStep])
         return;
 
-    // Check probability gate (use member random to avoid lock in audio thread)
-    if (randomGenerator.nextFloat() >= probabilityAmount)
+    // v1.17.0: Counter-based draw keyed on this trigger's event index
+    if (CounterRng::uniform(rngSeed, rngStream, eventIndex, CounterRng::kSlotProbability) >= probabilityAmount)
         return;
+
+    triggerEventIndex = eventIndex;
 
     // v1.12.1: If mid-repeat, enable retrigger crossfade for click-free transition
     if (isTriggered && currentRepeat < maxRepeats)
@@ -470,7 +476,10 @@ void RepeatLane::startNewRepeat()
     {
         // Generate random value in [min, max] range
         float range = pitchRandMax - pitchRandMin;
-        currentRandomPitch = pitchRandMin + randomGenerator.nextFloat() * range;
+        // v1.17.0: One slot per repeat of this trigger's event
+        currentRandomPitch = pitchRandMin
+            + CounterRng::uniform(rngSeed, rngStream, triggerEventIndex,
+                                  CounterRng::kSlotPitchBase + static_cast<uint64_t>(currentRepeat)) * range;
 
         // Quantize to semitones if enabled
         if (pitchRandQuantize)
@@ -661,6 +670,15 @@ void RepeatLane::updatePatternPosition(double ppqPosition, int subdivIndex)
     // Update current step
     currentPatternStep = newStep;
     lastPPQPosition = ppqPosition;
+}
+
+void RepeatLane::setPatternStepFromIndex(long long subdivisionIndexAbs)
+{
+    const int wrapCount = (euclideanEnabled && euclideanSteps > 0) ? euclideanSteps : 16;
+    int newStep = static_cast<int>(subdivisionIndexAbs % wrapCount);
+    if (newStep < 0)
+        newStep += wrapCount;
+    currentPatternStep = newStep;
 }
 
 int RepeatLane::calculateSwingOffset(int repeatNumber) const

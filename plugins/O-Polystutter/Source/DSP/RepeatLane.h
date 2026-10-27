@@ -43,7 +43,12 @@ public:
     void reset();
 
     // Process a block of audio
-    void processBlock(juce::AudioBuffer<float>& buffer, int numSamples);
+    void processBlock(juce::AudioBuffer<float>& buffer, int numSamples) { processBlock(buffer, 0, numSamples); }
+
+    // v1.17.0: Process the segment [startSample, startSample + numSamples) of
+    // the buffer. The processor splits each block at trigger events, so a
+    // trigger lands on its own sample and captures audio up to that sample.
+    void processBlock(juce::AudioBuffer<float>& buffer, int startSample, int numSamples);
 
     // Trigger a new repeat capture
     void trigger();
@@ -78,6 +83,14 @@ public:
     // Pattern sequencer
     void setPatternStep(int stepIndex, bool enabled);  // stepIndex: 0-15
     void updatePatternPosition(double ppqPosition, int subdivIndex);
+
+    // v1.17.0: Set the pattern step from an absolute subdivision index (beat-sync
+    // boundary k) — avoids re-deriving k from k * subdivPPQ in floating point
+    void setPatternStepFromIndex(long long subdivisionIndexAbs);
+
+    // v1.17.0: Counter-based RNG. stream = lane index; the seed is the plugin's
+    // persisted seed. reset() restarts the event counter.
+    void setRandomSeed(uint64_t seed, uint64_t stream) { rngSeed = seed; rngStream = stream; }
 
     // v1.9.0: Euclidean rhythm generator
     void setEuclideanEnabled(bool shouldEnable);
@@ -197,8 +210,14 @@ private:
     int euclideanSteps = 16;
     void regenerateEuclideanPattern();
 
-    // Random generator for probability (member to avoid lock in getSystemRandom)
-    juce::Random randomGenerator;
+    // v1.17.0: Counter-based RNG keyed on (seed, lane, event index, slot)
+    // replaces the time-seeded juce::Random — renders reproduce per session
+    // and can't depend on block size. eventCounter counts trigger() calls;
+    // triggerEventIndex is the event the current repeat cycle belongs to.
+    uint64_t rngSeed = 0;
+    uint64_t rngStream = 0;
+    uint64_t eventCounter = 0;
+    uint64_t triggerEventIndex = 0;
 
     // Helper functions
     double calculateSubdivisionSamples(int subdivIndex, double bpm, double sampleRate);

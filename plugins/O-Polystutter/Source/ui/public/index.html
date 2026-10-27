@@ -874,6 +874,13 @@
       color: var(--danger);
     }
 
+    /* v1.16.3: two-click delete (confirm() is a no-op in the macOS WebView).
+       Exists only between the first and second click. */
+    .preset-dropdown-item .delete-btn[data-armed="1"] {
+      opacity: 1;
+      color: var(--danger);
+    }
+
     .preset-action-btn {
       /* v1.14.0: a WIDTH, not padding around the caption. .preset-bar is
          `position: absolute; right: 20px` with `display: flex`, so a caption that

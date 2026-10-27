@@ -8,7 +8,7 @@ juce_add_plugin(OPolystutter
     PLUGIN_CODE OuPs
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Polystutter${OUARICON_DEV_SUFFIX}"
-    VERSION 1.16.2
+    VERSION 1.17.0
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_WEB_BROWSER TRUE
@@ -21,7 +21,7 @@ target_sources(OPolystutter
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
         Source/DSP/RepeatLane.cpp
-        Source/DSP/TriggerRouter.cpp
+        Source/DSP/TriggerScheduler.cpp
         Source/DSP/TapeDegrader.cpp
 )
 

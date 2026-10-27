@@ -725,8 +725,10 @@ OPolystutterAudioProcessor::OPolystutterAudioProcessor()
     lane3 = std::make_unique<RepeatLane>();
     lane4 = std::make_unique<RepeatLane>();
 
-    // Create trigger router (Phase 2.3)
-    triggerRouter = std::make_unique<TriggerRouter>();
+    // v1.17.0: Trigger scheduler + a fresh RNG seed (a restored session
+    // replaces it in setStateInformation)
+    triggerScheduler = std::make_unique<TriggerScheduler>();
+    rngSeed.store(static_cast<juce::uint64>(juce::Random::getSystemRandom().nextInt64()), std::memory_order_relaxed);
 
     // Create tape degrader (Phase 2.4)
     tapeDegrader = std::make_unique<TapeDegrader>();
@@ -1161,8 +1163,8 @@ void OPolystutterAudioProcessor::prepareToPlay(double sampleRate, int samplesPer
     if (lane3) lane3->prepare(spec);
     if (lane4) lane4->prepare(spec);
 
-    // Reset trigger router state
-    if (triggerRouter) triggerRouter->reset();
+    // Reset trigger scheduler state
+    if (triggerScheduler) triggerScheduler->reset();
 
     // Prepare tape degrader (Phase 2.4)
     if (tapeDegrader) tapeDegrader->prepare(spec);
@@ -1179,9 +1181,6 @@ void OPolystutterAudioProcessor::prepareToPlay(double sampleRate, int samplesPer
 
     // Initialize beat sync state
     currentBPM = 120.0;
-    lastPPQPosition = 0.0;
-    wasPlaying = false;
-    samplesSinceLastBeat = 0;
 
     // Calculate initial subdivision samples
     subdivisionSamples = getSubdivisionSamples(2, currentBPM, sampleRate);  // Default 1/16
@@ -1474,73 +1473,60 @@ void OPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
         }
     }
 
-    // ========== Trigger Router Processing (v1.3.0: removed ENV and SC) ==========
-    if (triggerRouter)
-    {
-        triggerRouter->setMidiEnabled(midiEnabled);
+    // ========== Tempo, Pattern Position and Trigger Scheduling ==========
+    // v1.17.0: Every trigger lands on its own sample. The scheduler lists each
+    // lane's events for this block (MIDI note-ons at their offsets, the manual
+    // button at 0, beat-sync boundaries at the first sample at/after them) and
+    // each lane renders in segments split at them. Tempo and the block-start
+    // pattern step are set first, so every event sees this block's values.
+    const juce::uint64 seed = rngSeed.load(std::memory_order_relaxed);
+    if (lane1) lane1->setRandomSeed(seed, 0);
+    if (lane2) lane2->setRandomSeed(seed, 1);
+    if (lane3) lane3->setRandomSeed(seed, 2);
+    if (lane4) lane4->setRandomSeed(seed, 3);
+    if (tapeDegrader) tapeDegrader->setRandomSeed(seed);
 
-        // Process MIDI trigger detection
-        triggerRouter->processMidiTriggerDetection(midiMessages);
-
-        // Handle MIDI triggers (per-lane or all lanes)
-        // v1.1.13: Per-lane lockout - ignore triggers while lane is actively repeating
-        int midiLane = triggerRouter->getMidiTriggeredLane();
-        if (midiLane >= 0)
-        {
-            if (midiLane == 100)  // G3 triggers all lanes
-            {
-                if (lane1 && lane1Enabled && !lane1->isRepeating()) lane1->trigger();
-                if (lane2 && lane2Enabled && !lane2->isRepeating()) lane2->trigger();
-                if (lane3 && lane3Enabled && !lane3->isRepeating()) lane3->trigger();
-                if (lane4 && lane4Enabled && !lane4->isRepeating()) lane4->trigger();
-            }
-            else if (midiLane == 0 && lane1 && lane1Enabled && !lane1->isRepeating())
-            {
-                lane1->trigger();
-            }
-            else if (midiLane == 1 && lane2 && lane2Enabled && !lane2->isRepeating())
-            {
-                lane2->trigger();
-            }
-            else if (midiLane == 2 && lane3 && lane3Enabled && !lane3->isRepeating())
-            {
-                lane3->trigger();
-            }
-            else if (midiLane == 3 && lane4 && lane4Enabled && !lane4->isRepeating())
-            {
-                lane4->trigger();
-            }
-        }
-
-    }
-
-    // Handle manual trigger button (rising edge detection - trigger once per press)
-    if (currentManualTrigger && !previousManualTrigger)
-    {
-        if (lane1 && lane1Enabled) lane1->trigger();
-        if (lane2 && lane2Enabled) lane2->trigger();
-        if (lane3 && lane3Enabled) lane3->trigger();
-        if (lane4 && lane4Enabled) lane4->trigger();
-    }
-    previousManualTrigger = currentManualTrigger;
-
-    // ========== Get Playhead Position ==========
     auto* playHead = getPlayHead();
     auto posInfo = playHead ? playHead->getPosition() : juce::Optional<juce::AudioPlayHead::PositionInfo>();
 
-    // Update pattern positions for all lanes
-    if (posInfo.hasValue() && posInfo->getPpqPosition().hasValue())
-    {
-        double ppqPosition = *posInfo->getPpqPosition();
+    updateLaneTempo(posInfo);
 
+    const bool hasPpq = posInfo.hasValue() && posInfo->getPpqPosition().hasValue();
+    const double ppqPosition = hasPpq ? *posInfo->getPpqPosition() : 0.0;
+
+    // Update pattern positions for all lanes
+    if (hasPpq)
+    {
         if (lane1) lane1->updatePatternPosition(ppqPosition, lane1Subdiv);
         if (lane2) lane2->updatePatternPosition(ppqPosition, lane2Subdiv);
         if (lane3) lane3->updatePatternPosition(ppqPosition, lane3Subdiv);
         if (lane4) lane4->updatePatternPosition(ppqPosition, lane4Subdiv);
     }
 
-    // Update beat sync and trigger
-    updateBeatSync(posInfo);
+    if (triggerScheduler)
+    {
+        TriggerScheduler::BlockInfo info;
+        info.numSamples = numSamples;
+        info.sampleRate = spec.sampleRate;
+        info.bpm = currentBPM;
+        info.hasPosition = posInfo.hasValue();
+        info.hasPpq = hasPpq;
+        info.ppq = ppqPosition;
+        info.isPlaying = posInfo.hasValue() && posInfo->getIsPlaying();
+        info.midiEnabled = midiEnabled;
+        info.manualEdge = currentManualTrigger && !previousManualTrigger;  // rising edge: once per press
+        info.laneEnabled[0] = lane1 && lane1Enabled;
+        info.laneEnabled[1] = lane2 && lane2Enabled;
+        info.laneEnabled[2] = lane3 && lane3Enabled;
+        info.laneEnabled[3] = lane4 && lane4Enabled;
+        info.laneSubdiv[0] = lane1Subdiv;
+        info.laneSubdiv[1] = lane2Subdiv;
+        info.laneSubdiv[2] = lane3Subdiv;
+        info.laneSubdiv[3] = lane4Subdiv;
+
+        triggerScheduler->schedule(info, midiMessages);
+    }
+    previousManualTrigger = currentManualTrigger;
 
     // ========== Copy Dry Signal ==========
     for (int ch = 0; ch < numChannels; ++ch)
@@ -1551,57 +1537,25 @@ void OPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
     }
 
     // ========== Process Each Lane Independently ==========
-    // Lane 1
-    lane1Buffer.clear();
-    if (lane1 && lane1Enabled)
+    auto processLane = [&](RepeatLane* lane, int laneIndex, bool laneEnabled, int subdivIndex, juce::AudioBuffer<float>& laneBuffer)
     {
-        for (int ch = 0; ch < numChannels; ++ch)
+        laneBuffer.clear();
+        if (lane && laneEnabled && triggerScheduler)
         {
-            juce::FloatVectorOperations::copy(lane1Buffer.getWritePointer(ch),
-                                              dryBuffer.getReadPointer(ch),
-                                              numSamples);
+            for (int ch = 0; ch < numChannels; ++ch)
+            {
+                juce::FloatVectorOperations::copy(laneBuffer.getWritePointer(ch),
+                                                  dryBuffer.getReadPointer(ch),
+                                                  numSamples);
+            }
+            triggerScheduler->renderLane(*lane, laneIndex, subdivIndex, laneBuffer, numSamples);
         }
-        lane1->processBlock(lane1Buffer, numSamples);
-    }
+    };
 
-    // Lane 2
-    lane2Buffer.clear();
-    if (lane2 && lane2Enabled)
-    {
-        for (int ch = 0; ch < numChannels; ++ch)
-        {
-            juce::FloatVectorOperations::copy(lane2Buffer.getWritePointer(ch),
-                                              dryBuffer.getReadPointer(ch),
-                                              numSamples);
-        }
-        lane2->processBlock(lane2Buffer, numSamples);
-    }
-
-    // Lane 3
-    lane3Buffer.clear();
-    if (lane3 && lane3Enabled)
-    {
-        for (int ch = 0; ch < numChannels; ++ch)
-        {
-            juce::FloatVectorOperations::copy(lane3Buffer.getWritePointer(ch),
-                                              dryBuffer.getReadPointer(ch),
-                                              numSamples);
-        }
-        lane3->processBlock(lane3Buffer, numSamples);
-    }
-
-    // Lane 4
-    lane4Buffer.clear();
-    if (lane4 && lane4Enabled)
-    {
-        for (int ch = 0; ch < numChannels; ++ch)
-        {
-            juce::FloatVectorOperations::copy(lane4Buffer.getWritePointer(ch),
-                                              dryBuffer.getReadPointer(ch),
-                                              numSamples);
-        }
-        lane4->processBlock(lane4Buffer, numSamples);
-    }
+    processLane(lane1.get(), 0, lane1Enabled, lane1Subdiv, lane1Buffer);
+    processLane(lane2.get(), 1, lane2Enabled, lane2Subdiv, lane2Buffer);
+    processLane(lane3.get(), 2, lane3Enabled, lane3Subdiv, lane3Buffer);
+    processLane(lane4.get(), 3, lane4Enabled, lane4Subdiv, lane4Buffer);
 
     // ========== Mix All Lanes ==========
     // v1.1.0: Use wet/dry parameters instead of hardcoded values
@@ -1700,6 +1654,12 @@ void OPolystutterAudioProcessor::getStateInformation(juce::MemoryBlock& destData
                             languageCode(uiLanguage.load(std::memory_order_acquire)),
                             nullptr);
 
+    // v1.17.0: the RNG seed, as a decimal string (a 64-bit value doesn't fit
+    // juce::var's int, and the XML round trip returns strings anyway)
+    apvts.state.setProperty("rngSeed",
+                            juce::String(rngSeed.load(std::memory_order_relaxed)),
+                            nullptr);
+
     // v1.6.0: Use preset manager for state serialization (includes preset name)
     if (auto xml = presetManager.getStateAsXml())
         copyXmlToBinary(*xml, destData);
@@ -1726,143 +1686,30 @@ void OPolystutterAudioProcessor::setStateInformation(const void* data, int sizeI
 
         if (! lang.isVoid())
             uiLanguage.store(languageIndex(lang.toString()), std::memory_order_release);
+
+        // v1.17.0: same guard and read for the RNG seed. A session saved
+        // before v1.17.0 has none and keeps this instance's fresh seed.
+        const juce::var seed = apvts.state.getProperty("rngSeed");
+
+        if (! seed.isVoid())
+            rngSeed.store(static_cast<juce::uint64>(seed.toString().getLargeIntValue()), std::memory_order_relaxed);
     }
 }
 
 // Helper functions
-void OPolystutterAudioProcessor::updateBeatSync(const juce::Optional<juce::AudioPlayHead::PositionInfo>& posInfo)
+void OPolystutterAudioProcessor::updateLaneTempo(const juce::Optional<juce::AudioPlayHead::PositionInfo>& posInfo)
 {
-    // Check if we have valid playhead info
-    if (!posInfo.hasValue())
-    {
-        // Offline rendering or no playhead available - use default BPM
-        currentBPM = 120.0;
-
-        // Update all lane timings with default BPM
-        if (lane1) lane1->updateTempo(currentBPM, spec.sampleRate);
-        if (lane2) lane2->updateTempo(currentBPM, spec.sampleRate);
-        if (lane3) lane3->updateTempo(currentBPM, spec.sampleRate);
-        if (lane4) lane4->updateTempo(currentBPM, spec.sampleRate);
-
-        return;
-    }
-
-    auto& info = *posInfo;
-
-    // Get BPM (use default if not available, with validation)
-    if (info.getBpm().hasValue())
-    {
-        double bpm = *info.getBpm();
-        currentBPM = juce::jlimit(20.0, 999.0, bpm);
-    }
-    else
-    {
-        currentBPM = 120.0;
-    }
+    // Host BPM when available (validated), else the 120 BPM default — also
+    // used for offline rendering with no playhead
+    currentBPM = 120.0;
+    if (posInfo.hasValue() && posInfo->getBpm().hasValue())
+        currentBPM = juce::jlimit(20.0, 999.0, *posInfo->getBpm());
 
     // Update all lane timings
     if (lane1) lane1->updateTempo(currentBPM, spec.sampleRate);
     if (lane2) lane2->updateTempo(currentBPM, spec.sampleRate);
     if (lane3) lane3->updateTempo(currentBPM, spec.sampleRate);
     if (lane4) lane4->updateTempo(currentBPM, spec.sampleRate);
-
-    // Get PPQ position
-    if (!info.getPpqPosition().hasValue())
-        return;
-
-    double ppqPosition = *info.getPpqPosition();
-
-    // Check if transport is playing
-    bool isPlaying = info.getIsPlaying();
-
-    // Detect subdivision boundaries and trigger each lane independently
-    if (isPlaying)
-    {
-        // v1.3.0: Skip beat-sync triggering when MIDI trigger mode is active
-        // This prevents conflicts where both beat-sync AND MIDI trigger simultaneously
-        bool midiActive = midiEnabledParam->load() > 0.5f;
-
-        if (midiActive)
-        {
-            // MIDI trigger mode is active - skip beat-sync triggering
-            lastPPQPosition = ppqPosition;
-            wasPlaying = isPlaying;
-            return;
-        }
-
-        // Get subdivision for each lane
-        int lane1Subdiv = static_cast<int>(lane1SubdivParam->load());
-        int lane2Subdiv = static_cast<int>(lane2SubdivParam->load());
-        int lane3Subdiv = static_cast<int>(lane3SubdivParam->load());
-        int lane4Subdiv = static_cast<int>(lane4SubdivParam->load());
-
-        // Helper lambda to calculate subdivision PPQ
-        auto getSubdivisionPPQ = [](int subdivIndex) -> double
-        {
-            switch (subdivIndex)
-            {
-                case 0: return 1.0;       // 1/4 note
-                case 1: return 0.5;       // 1/8 note
-                case 2: return 0.25;      // 1/16 note
-                case 3: return 0.125;     // 1/32 note
-                case 4: return 1.0 / 3.0; // 1/8T (triplet)
-                case 5: return 1.0 / 6.0; // 1/16T (triplet)
-                default: return 0.25;     // Default 1/16
-            }
-        };
-
-        // Check if we crossed a subdivision boundary for each lane
-        if (wasPlaying)
-        {
-            // Lane 1
-            if (lane1 && lane1EnabledParam->load() > 0.5f)
-            {
-                double subdivPPQ = getSubdivisionPPQ(lane1Subdiv);
-                int currentSubdiv = static_cast<int>(ppqPosition / subdivPPQ);
-                int lastSubdiv = static_cast<int>(lastPPQPosition / subdivPPQ);
-
-                if (currentSubdiv > lastSubdiv)
-                    lane1->trigger();
-            }
-
-            // Lane 2
-            if (lane2 && lane2EnabledParam->load() > 0.5f)
-            {
-                double subdivPPQ = getSubdivisionPPQ(lane2Subdiv);
-                int currentSubdiv = static_cast<int>(ppqPosition / subdivPPQ);
-                int lastSubdiv = static_cast<int>(lastPPQPosition / subdivPPQ);
-
-                if (currentSubdiv > lastSubdiv)
-                    lane2->trigger();
-            }
-
-            // Lane 3
-            if (lane3 && lane3EnabledParam->load() > 0.5f)
-            {
-                double subdivPPQ = getSubdivisionPPQ(lane3Subdiv);
-                int currentSubdiv = static_cast<int>(ppqPosition / subdivPPQ);
-                int lastSubdiv = static_cast<int>(lastPPQPosition / subdivPPQ);
-
-                if (currentSubdiv > lastSubdiv)
-                    lane3->trigger();
-            }
-
-            // Lane 4
-            if (lane4 && lane4EnabledParam->load() > 0.5f)
-            {
-                double subdivPPQ = getSubdivisionPPQ(lane4Subdiv);
-                int currentSubdiv = static_cast<int>(ppqPosition / subdivPPQ);
-                int lastSubdiv = static_cast<int>(lastPPQPosition / subdivPPQ);
-
-                if (currentSubdiv > lastSubdiv)
-                    lane4->trigger();
-            }
-        }
-    }
-
-    // Update state
-    lastPPQPosition = ppqPosition;
-    wasPlaying = isPlaying;
 }
 
 double OPolystutterAudioProcessor::getSubdivisionSamples(int subdivIndex, double bpm, double sampleRate)

@@ -28,6 +28,7 @@
 */
 
 #include "TapeDegrader.h"
+#include "CounterRng.h"
 
 TapeDegrader::TapeDegrader()
 {
@@ -83,6 +84,9 @@ void TapeDegrader::prepare(const juce::dsp::ProcessSpec& spec)
     isDroppedOut = false;
     dropoutSamplesRemaining = 0;
     dropoutFadeSamples = static_cast<int>(spec.sampleRate * 0.005);  // 5ms crossfade
+
+    hissDrawIndex = 0;
+    dropoutDrawIndex = 0;
 }
 
 void TapeDegrader::reset()
@@ -100,6 +104,9 @@ void TapeDegrader::reset()
     isDroppedOut = false;
     dropoutSamplesRemaining = 0;
     lastRolloffAmount = -1.0f;  // Force filter coefficient update on next process
+
+    hissDrawIndex = 0;
+    dropoutDrawIndex = 0;
 }
 
 void TapeDegrader::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
@@ -185,7 +192,7 @@ void TapeDegrader::processBlock(juce::AudioBuffer<float>& buffer, int numSamples
         for (int sample = 0; sample < numSamples; ++sample)
         {
             // Generate white noise
-            float noiseSample = (noiseGenerator.nextFloat() * 2.0f - 1.0f) * hissLevel;
+            float noiseSample = (CounterRng::uniform(rngSeed, CounterRng::kStreamTapeHiss, hissDrawIndex++, 0) * 2.0f - 1.0f) * hissLevel;
 
             // Filter to 5kHz-15kHz bandpass
             float filteredNoiseLeft = hissBandpassLeft.processSample(noiseSample);
@@ -237,12 +244,15 @@ void TapeDegrader::processBlock(juce::AudioBuffer<float>& buffer, int numSamples
             {
                 // Per-sample probability: dropout * 0.001 (0.1% chance at 100%)
                 float dropoutChance = dropoutAmount * 0.001f;
-                if (noiseGenerator.nextFloat() < dropoutChance)
+                const uint64_t draw = dropoutDrawIndex++;
+                if (CounterRng::uniform(rngSeed, CounterRng::kStreamTapeDropout, draw, 0) < dropoutChance)
                 {
                     // Start dropout with random duration 10-100ms
                     int minDropout = static_cast<int>(sampleRate * 0.01);   // 10ms
                     int maxDropout = static_cast<int>(sampleRate * 0.1);    // 100ms
-                    dropoutSamplesRemaining = minDropout + noiseGenerator.nextInt(maxDropout - minDropout);
+                    dropoutSamplesRemaining = minDropout
+                        + static_cast<int>(CounterRng::uniform(rngSeed, CounterRng::kStreamTapeDropout, draw, 1)
+                                           * static_cast<float>(maxDropout - minDropout));
                     isDroppedOut = true;
                     dropoutFadePosition = 0;
                 }

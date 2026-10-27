@@ -30,7 +30,7 @@
 #pragma once
 #include <JuceHeader.h>
 #include "DSP/RepeatLane.h"
-#include "DSP/TriggerRouter.h"
+#include "DSP/TriggerScheduler.h"
 #include "DSP/TapeDegrader.h"
 #include "OPolystutterPresetManager.h"
 
@@ -106,6 +106,12 @@ public:
     // state as the language CODE string. See the codec above.
     std::atomic<int> uiLanguage { 0 };
 
+    // v1.17.0: Seed of the counter-based RNG (probability, pitch-rand, tape
+    // noise). Random per new instance so two tracks don't stutter in lockstep;
+    // saved with plugin state as a non-parameter property, so a reopened
+    // session or a re-bounce reproduces. Read by processBlock every block.
+    std::atomic<juce::uint64> rngSeed { 0 };
+
 private:
     // DSP Components (BEFORE parameters for initialization order)
     juce::dsp::ProcessSpec spec;
@@ -116,17 +122,14 @@ private:
     std::unique_ptr<class RepeatLane> lane3;
     std::unique_ptr<class RepeatLane> lane4;
 
-    // Phase 2.3: Trigger router for advanced trigger modes
-    std::unique_ptr<class TriggerRouter> triggerRouter;
+    // v1.17.0: Sample-accurate trigger scheduling (replaces TriggerRouter)
+    std::unique_ptr<class TriggerScheduler> triggerScheduler;
 
     // Phase 2.4: Tape degradation post-processor
     std::unique_ptr<class TapeDegrader> tapeDegrader;
 
-    // Beat sync state
-    double lastPPQPosition = 0.0;
+    // Beat sync state (boundary tracking lives in TriggerScheduler)
     double currentBPM = 120.0;
-    bool wasPlaying = false;
-    int samplesSinceLastBeat = 0;
     double subdivisionSamples = 0.0;
 
     // Phase 2.3: Manual trigger edge detection
@@ -275,7 +278,7 @@ private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
     // Helper functions
-    void updateBeatSync(const juce::Optional<juce::AudioPlayHead::PositionInfo>& posInfo);
+    void updateLaneTempo(const juce::Optional<juce::AudioPlayHead::PositionInfo>& posInfo);
     double getSubdivisionSamples(int subdivIndex, double bpm, double sampleRate);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OPolystutterAudioProcessor)

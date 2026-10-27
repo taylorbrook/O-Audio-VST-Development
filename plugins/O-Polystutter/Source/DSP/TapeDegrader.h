@@ -53,6 +53,9 @@ public:
     void setRolloff(float rolloffPercent);
     void setDropout(float dropoutPercent);
 
+    // v1.17.0: Seed for the hiss and dropout noise (the plugin's persisted seed)
+    void setRandomSeed(uint64_t seed) { rngSeed = seed; }
+
 private:
     // Sample rate
     double sampleRate = 48000.0;
@@ -76,8 +79,12 @@ private:
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> wowFlutterDelayLeft;
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> wowFlutterDelayRight;
 
-    // Hiss noise generator
-    juce::Random noiseGenerator;
+    // v1.17.0: Counter-based noise (was one time-seeded juce::Random shared by
+    // hiss and dropout, whose draws interleaved per block). Each stream has its
+    // own draw counter, restarted by reset().
+    uint64_t rngSeed = 0;
+    uint64_t hissDrawIndex = 0;
+    uint64_t dropoutDrawIndex = 0;
     juce::dsp::IIR::Filter<float> hissBandpassLeft;
     juce::dsp::IIR::Filter<float> hissBandpassRight;
 
