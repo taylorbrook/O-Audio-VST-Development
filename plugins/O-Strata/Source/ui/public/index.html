@@ -2736,13 +2736,16 @@ function initializeTipsToggle() {
     const btn = document.getElementById('tips-toggle');
     if (!btn) { console.error('Missing tips-toggle element'); return; }
     let stored = null;
-    try { stored = localStorage.getItem('oprism.tipsEnabled'); } catch (e) { stored = null; }
+    // v1.1.3: own key. Strata and Prism are both served from juce.backend, so on
+    // macOS they share one localStorage — the inherited 'oprism.' key tied the two
+    // plugins' hover-help switches together.
+    try { stored = localStorage.getItem('ostrata.tipsEnabled'); } catch (e) { stored = null; }
     // Anything that is not the literal string 'false' — including a first
     // run with nothing stored, and a private-mode throw — resolves to ON.
     applyTipsEnabled(stored !== 'false');
     btn.addEventListener('click', () => {
         applyTipsEnabled(!tipsEnabled);
-        try { localStorage.setItem('oprism.tipsEnabled', String(tipsEnabled)); }
+        try { localStorage.setItem('ostrata.tipsEnabled', String(tipsEnabled)); }
         catch (e) { /* private mode: the switch still works, it just forgets */ }
     });
 }

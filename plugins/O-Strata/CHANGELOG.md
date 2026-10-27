@@ -1,5 +1,17 @@
 # O-Strata Changelog
 
+## [1.1.3] - 2026-10-26
+
+Hover-help preference no longer shared with O-Prism (ui-hardening-phase0). No DSP, parameter, preset or state change; no visual change.
+
+### Fixed
+
+- **The hover-help On/Off switch is O-Strata's own.** Strata inherited O-Prism's `localStorage` key (`oprism.tipsEnabled`). Both pages are served from the same WebView origin, so on macOS turning hover help off in one plugin turned it off in the other. Strata now stores it under `ostrata.tipsEnabled`.
+
+### Note
+
+- Strata's hover-help switch resets to its default (On) once after updating. The old value cannot be carried over: the old key belongs equally to O-Prism.
+
 ## [1.1.2] — 2026-10-19
 
 ### Fixed
