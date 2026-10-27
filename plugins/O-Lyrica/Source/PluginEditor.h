@@ -239,6 +239,10 @@ private:
     // Uses shared_ptr so async callbacks keep FileChooser alive even if user
     // triggers another dialog before the first one completes
     std::shared_ptr<juce::FileChooser> fileChooser;
+    // v2.6.3 — Windows only: shown instead of the WebView when WebView2 cannot
+    // start (webView stays null). Null on macOS and whenever the WebView exists.
+    std::unique_ptr<juce::HyperlinkButton> webView2RuntimeLink;
+
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OLyricaAudioProcessorEditor)
 };
