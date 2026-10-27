@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 2.6.4
+- **Version:** 2.6.5
 - **Type:** Synth (Physical Modeling Harp)
 
 ## Lifecycle Timeline
@@ -55,6 +55,9 @@
   presets; the stale `<CustomState>` child is removed after `setStateFromXml` (2nd-reopen tuning
   loss). Gate: `tests/state-roundtrip/two_reopen.py` (pedalboard, installed VST3) 10/10;
   `auval` pass.
+- **2026-10-27 (v2.6.5):** Tuning mode saved from the APVTS param (was the engine copy, stale while
+  bypassed / before the first block). A restored `tuningMode` param now outranks the CustomState copy,
+  healing sessions/presets saved stale by <= 2.6.4.
 
 ## Known Issues / Limitations
 

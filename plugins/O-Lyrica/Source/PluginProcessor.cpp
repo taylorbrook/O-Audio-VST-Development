@@ -607,6 +607,9 @@ OLyricaAudioProcessor::OLyricaAudioProcessor()
         [this](juce::DynamicObject& presetParams, const juce::String&) {
             if (auto* p = parameters.getParameter("masterVolume"))
                 presetParams.setProperty("masterVolume", p->getValue());
+
+            // v2.6.5: the customLoad that follows defers to the preset's own tuningMode
+            restoredTuningModeParam = presetParams.hasProperty("tuningMode");
         });
 
     // v1.12.0: Set up custom state callbacks for tuning persistence
@@ -632,11 +635,11 @@ OLyricaAudioProcessor::OLyricaAudioProcessor()
             // Save built-in preset index
             obj->setProperty("presetIndex", static_cast<int>(tuningEngine.getBuiltInPreset()));
 
-            // Save octave stretch
-            obj->setProperty("octaveStretch", tuningEngine.getOctaveStretch());
-
-            // Save tuning mode explicitly
-            obj->setProperty("tuningMode", static_cast<int>(tuningEngine.getMode()));
+            // v2.6.5: octave stretch and tuning mode come from the APVTS params, not the
+            // engine — the engine copy is only refreshed in processBlock, so it is stale
+            // while bypassed (processBlockBypassed) or before the first block
+            obj->setProperty("octaveStretch", coreCache.octaveStretch->load());
+            obj->setProperty("tuningMode", static_cast<int>(coreCache.tuningMode->load()));
 
             // v2.6.4: glissando custom degrees ride presets too. The mask is a STRING
             // of its int64 bit pattern — a JSON number round-trips through double and
@@ -649,6 +652,9 @@ OLyricaAudioProcessor::OLyricaAudioProcessor()
         },
         // Load callback - restores tuning state from JSON
         [this](const juce::var& customState) {
+            // v2.6.5: consume the flag on every call, including the early returns
+            const bool tuningModeParamRestored = std::exchange(restoredTuningModeParam, false);
+
             if (!customState.isObject())
                 return;
 
@@ -682,7 +688,15 @@ OLyricaAudioProcessor::OLyricaAudioProcessor()
             }
 
             // Restore tuning mode
-            if (obj->hasProperty("tuningMode"))
+            // v2.6.5: when the restored parameter set carried tuningMode, the param is
+            // authoritative — sessions/presets saved by <= 2.6.4 while bypassed hold a
+            // stale engine mode here. Only sources without the param fall back to it.
+            if (tuningModeParamRestored)
+            {
+                tuningEngine.setMode(static_cast<TuningEngine::Mode>(
+                    static_cast<int>(coreCache.tuningMode->load())));
+            }
+            else if (obj->hasProperty("tuningMode"))
             {
                 int mode = static_cast<int>(obj->getProperty("tuningMode"));
                 tuningEngine.setMode(static_cast<TuningEngine::Mode>(mode));
@@ -1248,8 +1262,13 @@ void OLyricaAudioProcessor::setStateInformation(const void* data, int sizeInByte
 
     if (xmlState != nullptr)
     {
+        // v2.6.5: a session that carries the tuningMode param restores it as-is;
+        // the CustomState copy is only the fallback for sessions without it
+        restoredTuningModeParam = xmlState->getChildByAttribute("id", "tuningMode") != nullptr;
+
         // v1.5.0: Use preset manager for state deserialization
         presetManager.setStateFromXml(xmlState.get());
+        restoredTuningModeParam = false;
 
         // v2.6.4: setStateFromXml() hands the WHOLE element to replaceState(), so the
         // <CustomState> child it has just read also lands inside the live APVTS tree.

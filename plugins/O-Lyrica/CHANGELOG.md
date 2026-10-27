@@ -2,6 +2,15 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.6.5] - 2026-10-27
+
+Tuning-mode save fix. No parameter, range or DSP change.
+
+### Fixed
+
+- **Tuning mode changed while the plugin is bypassed (or before it has played) now survives save and reload.** Switching to MTS-ESP or Custom with bypass on came back as 12-TET. Root cause: the mode reached the tuning engine only in `processBlock`, which the host skips while bypassed, and the saved tuning record took the mode from the engine — then the reload forced the parameter to that stale value. The record now takes the mode (and octave stretch) from the parameters.
+- **Sessions and presets saved by 2.6.4 or earlier with that stale mode open correctly.** When the saved parameters include the tuning mode, it now wins over the copy in the tuning record; the record's copy is only used for old saves that lack the parameter.
+
 ## [2.6.4] - 2026-10-26
 
 Glissando state restore. No parameter, range or DSP change; sessions and presets from earlier versions load as before.

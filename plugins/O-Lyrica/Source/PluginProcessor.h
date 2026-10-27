@@ -255,6 +255,10 @@ private:
     // v1.13.3: Flag to prevent processBlock from syncing mode during state restoration
     std::atomic<bool> isRestoringState { false };
 
+    // v2.6.5: true while a restore whose parameter set carries `tuningMode` is in
+    // flight — the CustomState copy of the mode must not override it (message thread)
+    bool restoredTuningModeParam = false;
+
     // WR-11: guards the sympathetic engine against the message-thread on-screen keyboard.
     // triggerNoteOn/Off run synthesiser.noteOn/Off (→ registerVoice/unregisterVoice, which mutate
     // VoiceSlots) on the message thread, while processBlock runs sympatheticEngine.syncBeforeBlock()
