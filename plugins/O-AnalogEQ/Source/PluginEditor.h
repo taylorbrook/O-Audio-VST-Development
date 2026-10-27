@@ -133,6 +133,10 @@ private:
 
     // Resource provider for WebView
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
+    // v1.5.7 — Windows only: shown instead of the WebView when WebView2 cannot
+    // start (webView stays null). Null on macOS and whenever the WebView exists.
+    std::unique_ptr<juce::HyperlinkButton> webView2RuntimeLink;
+
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconAnalogEQAudioProcessorEditor)
 };

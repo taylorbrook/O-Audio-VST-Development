@@ -71,13 +71,23 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
     analogRelay = std::make_unique<juce::WebToggleButtonRelay>("analog");
 
     // 2️⃣ Create WebView with relay options (depends on relays)
-    webView = std::make_unique<juce::WebBrowserComponent>(
-        juce::WebBrowserComponent::Options{}
+    // v1.5.7 — WebView2 user-data folder in the per-user app-data tree (was bare
+    // %TEMP%, which cleaners wipe and other processes can lock), created before
+    // WebView2 sees it. DAW hosts deny WebView2's default location. The WinWebView2
+    // options are ignored off Windows.
+    const auto webView2DataFolder = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+                                        .getChildFile ("Ouaricon")
+                                        .getChildFile ("WebView2")
+                                        .getChildFile ("O-AnalogEQ");
+   #if JUCE_WINDOWS
+    webView2DataFolder.createDirectory();
+   #endif
+
+    const auto options = juce::WebBrowserComponent::Options{}
             .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
             .withWinWebView2Options(
                 juce::WebBrowserComponent::Options::WinWebView2{}
-                    .withUserDataFolder(juce::File::getSpecialLocation(
-                        juce::File::SpecialLocationType::tempDirectory)))
+                    .withUserDataFolder (webView2DataFolder))
             .withNativeIntegrationEnabled()
 #if JUCE_WEB_BROWSER_RESOURCE_PROVIDER_AVAILABLE
             .withResourceProvider([this](const auto& url) { return getResource(url); })
@@ -309,10 +319,35 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
 
                 complete(juce::var(OuariconAnalogEQAudioProcessor::languageCode(
                                        audioProcessor.uiLanguage.load(std::memory_order_acquire))));
-            })
-    );
+            });
 
-    addAndMakeVisible(*webView);
+   #if JUCE_WINDOWS
+    // v1.5.7 — when the WebView2 environment cannot be created (runtime missing or
+    // data folder unusable), JUCE silently builds the legacy IE control, which has
+    // no resource provider. Probe first; on failure webView stays null and paint()
+    // shows a native notice. Audio, parameters and automation don't need the WebView.
+    const bool webView2Available = juce::WebBrowserComponent::areOptionsSupported (options);
+   #else
+    constexpr bool webView2Available = true;
+   #endif
+
+    if (webView2Available)
+        webView = std::make_unique<juce::WebBrowserComponent> (options);
+
+    // v1.5.7 — attachments stay valid without a WebView: the relays drop their
+    // events while no browser is registered.
+    if (webView != nullptr)
+    {
+        addAndMakeVisible (*webView);
+    }
+    else
+    {
+        webView2RuntimeLink = std::make_unique<juce::HyperlinkButton> (
+            "Download the WebView2 Runtime",
+            juce::URL ("https://developer.microsoft.com/microsoft-edge/webview2/"));
+        webView2RuntimeLink->setColour (juce::HyperlinkButton::textColourId, juce::Colour (0xff3c5c1a));   // green accent #3C5C1A
+        addAndMakeVisible (*webView2RuntimeLink);
+    }
 
     // 3️⃣ Create attachments LAST (depend on relays and webView)
     // LF Band
@@ -357,7 +392,8 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
 
     // Load UI from resource provider
 #if JUCE_WEB_BROWSER_RESOURCE_PROVIDER_AVAILABLE
-    webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
+    if (webView != nullptr)
+        webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
 #endif
 
     // Start timer for VU meter updates (30 Hz)
@@ -381,6 +417,32 @@ OuariconAnalogEQAudioProcessorEditor::~OuariconAnalogEQAudioProcessorEditor()
 //==============================================================================
 void OuariconAnalogEQAudioProcessorEditor::paint(juce::Graphics& g)
 {
+    // v1.5.7 — WebView2 could not start (Windows only; webView is null): paint a native
+    // notice instead of JUCE's legacy-IE fallback page. Colours from the page CSS;
+    // scaled down to fit short editors.
+    if (webView == nullptr)
+    {
+        const float s = juce::jlimit (0.6f, 1.0f, (float) getHeight() / 260.0f);
+        auto area = getLocalBounds().withSizeKeepingCentre (juce::jmin (640, getWidth() - 48),
+                                                            juce::roundToInt (202.0f * s));
+        g.fillAll (juce::Colour (0xffe8d5b7));   // paper tone #E8D5B7
+
+        g.setColour (juce::Colour (0xff3c2f2f));   // ink #3C2F2F
+        g.setFont (juce::FontOptions (26.0f * s, juce::Font::bold));
+        g.drawFittedText ("O-AnalogEQ needs Microsoft Edge WebView2",
+                          area.removeFromTop (juce::roundToInt (40.0f * s)), juce::Justification::centred, 2);
+
+        area.removeFromTop (juce::roundToInt (12.0f * s));
+        g.setColour (juce::Colour (0xff5c4033));   // brown #5C4033
+        g.setFont (juce::FontOptions (17.0f * s));
+        g.drawFittedText ("The interface is drawn with the WebView2 Runtime, which could not start on "
+                          "this computer. Install it, then close and reopen the plugin window.\n"
+                          "The effect itself keeps working, and host automation still "
+                          "reaches every parameter.",
+                          area.removeFromTop (juce::roundToInt (110.0f * s)), juce::Justification::centred, 5);
+        return;
+    }
+
     // WebView handles all rendering
     g.fillAll(juce::Colours::black);
 }
@@ -388,7 +450,19 @@ void OuariconAnalogEQAudioProcessorEditor::paint(juce::Graphics& g)
 void OuariconAnalogEQAudioProcessorEditor::resized()
 {
     // WebView fills entire editor window
-    webView->setBounds(getLocalBounds());
+    if (webView != nullptr)
+        webView->setBounds (getLocalBounds());
+
+    if (webView2RuntimeLink != nullptr)
+    {
+        // Bottom row of the paint() notice block (same geometry).
+        const float s = juce::jlimit (0.6f, 1.0f, (float) getHeight() / 260.0f);
+        auto block = getLocalBounds().withSizeKeepingCentre (juce::jmin (640, getWidth() - 48),
+                                                             juce::roundToInt (202.0f * s));
+        webView2RuntimeLink->setFont (juce::FontOptions (17.0f * s, juce::Font::underlined), false);
+        webView2RuntimeLink->setBounds (block.removeFromBottom (juce::roundToInt (32.0f * s))
+                                             .withSizeKeepingCentre (320, juce::roundToInt (32.0f * s)));
+    }
 }
 
 //==============================================================================
@@ -473,6 +547,9 @@ OuariconAnalogEQAudioProcessorEditor::getResource(const juce::String& url)
 void OuariconAnalogEQAudioProcessorEditor::timerCallback()
 {
     // VU Meter - emit output level to WebView
+    if (webView == nullptr)
+        return;
+
     const float outputDB = audioProcessor.outputLevelDB.load(std::memory_order_relaxed);
     webView->emitEventIfBrowserIsVisible("outputLevel", outputDB);
 }
