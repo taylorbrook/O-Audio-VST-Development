@@ -2,6 +2,14 @@
 
 All notable changes to O-Gain are documented here.
 
+## [1.10.1] - 2026-10-27
+
+ui-hardening-phase0 (B4). Editor-only. No DSP, parameter, preset or state change.
+
+### Fixed
+
+- **Meters no longer freeze on comma-decimal systems.** The 30 Hz meter payload was built with `String::formatted("%f")`, which follows the host's C locale. A French-region host wrote `inputPeakL:0,012000`, a JavaScript syntax error, and every meter and the Learn panel stopped updating. Numbers are now written with `juce::String(value, 6)` (always a `.`), the payload's keys and precision are unchanged, and non-finite values map to the page's own floors (amplitude 0, LUFS/dBFS −100).
+
 ## [1.10.0] - 2026-09-25
 
 **Every label now clears WCAG AA against the paper as it actually renders, not

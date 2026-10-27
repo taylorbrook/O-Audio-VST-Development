@@ -214,26 +214,30 @@ void OGainAudioProcessorEditor::timerCallback()
     // (WR-05) so state / confidence / integrated / peak can't tear across frames.
     const auto learn = processorRef.readLearnSnapshot();
 
-    juce::String script = juce::String::formatted(
-        "if (typeof updateMeters === 'function') { updateMeters({"
-        "inputPeakL:%f, inputPeakR:%f, inputRmsL:%f, inputRmsR:%f,"
-        "outputPeakL:%f, outputPeakR:%f, outputRmsL:%f, outputRmsR:%f,"
-        "vuLevelL:%f, vuLevelR:%f, vuLevelOutL:%f, vuLevelOutR:%f,"
-        "momentaryLufsIn:%f, momentaryLufsOut:%f,"
-        "momentaryLUFS:%f, shortTermLUFS:%f, integratedLUFS:%f, samplePeakDBFS:%f,"
-        "learnState:%d, learnElapsedSeconds:%f, learnConfidence:%d"
-        "}); }",
-        processorRef.inputPeakL.load(), processorRef.inputPeakR.load(),
-        processorRef.inputRmsL.load(), processorRef.inputRmsR.load(),
-        processorRef.outputPeakL.load(), processorRef.outputPeakR.load(),
-        processorRef.outputRmsL.load(), processorRef.outputRmsR.load(),
-        processorRef.vuLevelL.load(), processorRef.vuLevelR.load(),
-        processorRef.vuLevelOutL.load(), processorRef.vuLevelOutR.load(),
-        processorRef.momentaryLufsIn.load(), processorRef.momentaryLufsOut.load(),
-        learn.momentaryLUFS, learn.shortTermLUFS,
-        learn.integratedLUFS, learn.samplePeakDBFS,
-        learn.state, learn.elapsedSeconds, learn.confidence
-    );
+    // v1.10.1 — locale-independent numbers. String::formatted ("%f") follows the
+    // host process's C locale, so a comma-decimal host (French region) wrote
+    // "inputPeakL:0,012000" — a syntax error, and every meter froze. juce::String
+    // (float, decimals) always writes '.'. Non-finite values map to the page's own
+    // floors (amplitude 0, LUFS / dBFS -100, elapsed 0), so the call stays valid JS.
+    const auto num = [] (float v, float fallback) { return juce::String (std::isfinite (v) ? v : fallback, 6); };
+    const auto amp = [&num] (const std::atomic<float>& a) { return num (a.load(), 0.0f); };
+    const auto lufs = [&num] (float v) { return num (v, -100.0f); };
+
+    const auto script = "if (typeof updateMeters === 'function') { updateMeters({"
+        "inputPeakL:" + amp (processorRef.inputPeakL) + ", inputPeakR:" + amp (processorRef.inputPeakR)
+        + ", inputRmsL:" + amp (processorRef.inputRmsL) + ", inputRmsR:" + amp (processorRef.inputRmsR)
+        + ", outputPeakL:" + amp (processorRef.outputPeakL) + ", outputPeakR:" + amp (processorRef.outputPeakR)
+        + ", outputRmsL:" + amp (processorRef.outputRmsL) + ", outputRmsR:" + amp (processorRef.outputRmsR)
+        + ", vuLevelL:" + amp (processorRef.vuLevelL) + ", vuLevelR:" + amp (processorRef.vuLevelR)
+        + ", vuLevelOutL:" + amp (processorRef.vuLevelOutL) + ", vuLevelOutR:" + amp (processorRef.vuLevelOutR)
+        + ", momentaryLufsIn:" + lufs (processorRef.momentaryLufsIn.load())
+        + ", momentaryLufsOut:" + lufs (processorRef.momentaryLufsOut.load())
+        + ", momentaryLUFS:" + lufs (learn.momentaryLUFS) + ", shortTermLUFS:" + lufs (learn.shortTermLUFS)
+        + ", integratedLUFS:" + lufs (learn.integratedLUFS) + ", samplePeakDBFS:" + lufs (learn.samplePeakDBFS)
+        + ", learnState:" + juce::String (learn.state)
+        + ", learnElapsedSeconds:" + num (learn.elapsedSeconds, 0.0f)
+        + ", learnConfidence:" + juce::String (learn.confidence)
+        + "}); }";
 
     webView->evaluateJavascript(script, nullptr);
 }
