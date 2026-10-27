@@ -111,6 +111,10 @@ private:
 
     // File chooser for preset save/load dialogs
     std::unique_ptr<juce::FileChooser> fileChooser;
+    // v1.10.2 — Windows only: shown instead of the WebView when WebView2 cannot
+    // start (webView stays null). Null on macOS and whenever the WebView exists.
+    std::unique_ptr<juce::HyperlinkButton> webView2RuntimeLink;
+
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ODetuneAudioProcessorEditor)
 };
