@@ -1,5 +1,41 @@
 # Changelog
 
+## [3.2.0] — 2026-10-27
+
+### Changed
+- **Density no longer changes loudness or adds distortion.** The wet signal used to go through `tanh`, in both the stereo path and after the binaural decode. Grains summed with no level correction, so the wet level rose with overlap. At 500 ms grains and 100 g/s it was +17 dB over the input before the clip, and a 0.5-peak sine came out with H3 at −33 dB. Density was acting as a drive control. The wet now gets a closed-form gain from the live grain count N instead (research 2026-update §3.2):
+  - power `P = N·μ₂ + ρ·N(N−1)·μ₁²`, gain `1/√max(1, P)`;
+  - μ₁ and μ₂ are the moments of the selected grain shape;
+  - ρ is a stand-in for grain correlation. It is 1 when grains read the same audio in step (Spread 0, one pitch, no reverse) and falls to 0 by Spread 25%. It is 0 while frozen, and also 0 once Pitch Random spreads the pitches. Grains pinned to the read-head floor (small Scan, wide Spread) count as coherent with each other;
+  - P is formed per sample and smoothed with a 100 ms one-pole;
+  - fewer than one grain is never boosted, so sparse settings are unchanged.
+  
+  The feedback `tanh` is unchanged. It is fed from the compensated wet.
+- **Freeze scatters grains by at least one grain length.** At low Spread, frozen grains re-read nearly the same snapshot audio at a fixed hop, so a hold played back as the captured loop. While frozen, the position scatter is now at least ±1 grain length (Spread above 100% still widens it), and the hold becomes a texture. It uses the same random draw as before, so live grains are unchanged. The per-grain freeze detune stays at ±6 ct (v3.0.4).
+
+No parameter, preset or state change. Dense settings are quieter and cleaner than in v3.1.0. Sparse settings sound the same. Wet peaks are no longer soft-clipped, so a hot input with a single grain can exceed 0 dBFS. Use Wet Level.
+
+### Testing
+- New gate `tests/density-gain` (target `O-GrainScatter-density-gain`). Its twin `-baseline` compiles the same driver against the v3.1.0 backup as the negative control. Levels are relative to the input at centre pan:
+
+  | Case | v3.1.0 | v3.2.0 |
+  |---|---|---|
+  | Incoherent, N = 4 → 20 (200 ms) | +0.7 → +7.3 dB | −1.0 → −1.2 dB |
+  | Incoherent, N = 50 (500 ms), Scan 10% / 60% | +17.3 / +11.1 dB | +0.6 / −1.1 dB |
+  | Incoherent, N = 20, Scan 0 (half the cloud on the read floor) | +14.4 dB | +0.4 dB |
+  | Coherent, N = 4 → 20 | +5.9 → +18.0 dB | −0.5 → −0.1 dB |
+  | Sine, 0.5 peak, N = 20: H3/H1 | −33 dB | −158 dB |
+  | Freeze, Spread 0: output correlation one capture loop apart | 0.29 | 0.004 |
+  | Frozen level, N = 12.6 | +6.5 dB | −1.1 dB |
+
+  Other rows:
+  - μ₁/μ₂ for all six shapes match a numeric integral of the envelope.
+  - A sparse render (N ≈ 0.08) nulls against v3.1.0 to −78.6 dB. The residual is v3.1.0's `tanh` curvature, so the gain is 1 below one grain.
+  - Cold-start overshoot into N = 20 is +1.7 dB for the worst 20 ms.
+- `tests/blocksize-null`: all 21 rows still pass, bit-exact in every path.
+- pluginval strictness 10 (VST3) passes. The AU is registered (`aufx OuGS OuDv`).
+- Not measured: spatial-mode level vs density. The same gain is applied to the HOA sum, but no gate renders it.
+
 ## [3.1.0] — 2026-10-27
 
 ### Fixed

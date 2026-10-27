@@ -8,7 +8,7 @@ juce_add_plugin(OuariconGrainScatter
     PLUGIN_CODE OuGS
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-GrainScatter${OUARICON_DEV_SUFFIX}"
-    VERSION 3.1.0
+    VERSION 3.2.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -98,5 +98,22 @@ if(OUARICON_BUILD_TESTS)
         target_compile_definitions(O-GrainScatter-blocksize-null PRIVATE
             GS_BASELINE_DSP_DIR=1
             "GS_BASELINE_SCHEDULER_H=\"${_gs_baseline}/GrainScheduler.h\"")
+    endif()
+
+    # v3.2.0 density compensation + freeze jitter gate. The -baseline twin compiles the
+    # same driver against the v3.1.0 backup (wet tanh, plain freeze spread) as the
+    # negative control and dumps the sparse render the current build nulls against:
+    #   O-GrainScatter-density-gain-baseline <dir> && O-GrainScatter-density-gain <dir>
+    ouaricon_add_processor_console(OuariconGrainScatter ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/density-gain/main.cpp density-gain)
+    set(_gs_density_base ${CMAKE_SOURCE_DIR}/backups/O-GrainScatter/v3.1.0/Source)
+    if(EXISTS ${_gs_density_base}/PluginProcessor.cpp)
+        ouaricon_add_processor_console(OuariconGrainScatter ${_gs_density_base}
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/density-gain/main.cpp density-gain-baseline)
+        # The helper compiles the plugin target's own sources; point them at the backup.
+        get_target_property(_gs_db_srcs O-GrainScatter-density-gain-baseline SOURCES)
+        list(TRANSFORM _gs_db_srcs REPLACE "^${CMAKE_CURRENT_SOURCE_DIR}/Source/" "${_gs_density_base}/")
+        set_property(TARGET O-GrainScatter-density-gain-baseline PROPERTY SOURCES ${_gs_db_srcs})
+        target_compile_definitions(O-GrainScatter-density-gain-baseline PRIVATE GS_DENSITY_BASELINE=1)
     endif()
 endif()

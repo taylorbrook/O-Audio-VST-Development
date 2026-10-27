@@ -398,6 +398,8 @@ void GrainScatterProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
 
     feedbackL = 0.0f;
     feedbackR = 0.0f;
+    densityPower = 0.0f;
+    densityCoeff = static_cast<float> (1.0 - std::exp (-1.0 / (kDensitySmoothSeconds * sampleRate)));
 
     spawnRequests.reserve(128);
 
@@ -452,6 +454,7 @@ void GrainScatterProcessor::reset()
     // Reset feedback accumulators
     feedbackL = 0.0f;
     feedbackR = 0.0f;
+    densityPower = 0.0f;
 
     // Snap SmoothedValues to current targets (avoid ramp after jump)
     dryGainSmoothed.setCurrentAndTargetValue (dryGainSmoothed.getTargetValue());
@@ -621,6 +624,39 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         freezeManager.release();
     wasFrozen = freeze;
 
+    // v3.2.0 density compensation (research 2026-update §3.2). With N grains live, the
+    // wet power is P = N*mu2 + rho*N(N-1)*mu1^2: rho = 0 for incoherent grains (sprayed),
+    // giving 1/sqrt(N*mu2); rho = 1 for grains reading the same audio in step, giving
+    // ~1/(N*mu1). rho stands in for the correlation: it falls to 0 as Spread rises (and
+    // while frozen, where the jitter is at least one grain), and is 0 once grains get
+    // different pitches. A reversed grain is uncorrelated with a forward one. Grains pinned
+    // to the read-head floor (small Scan, wide Spread) are coherent with each other.
+    // P is formed per sample from the live count and smoothed (E[N(N-1)] = mean^2 for
+    // Poisson onsets, so this is the unbiased estimate); the gain never boosts (P < 1).
+    const auto windowMom = GrainPool::windowMoments (grainShapeIdx);
+    const float mu1Sq = windowMom.mu1 * windowMom.mu1;
+    float densityRho = 0.0f;
+    {
+        const float spray = freezeManager.isActive() ? juce::jmax (1.0f, spread / 100.0f)
+                                                     : spread / 100.0f;
+        const float sprayCoh = 1.0f - juce::jmin (1.0f, spray / kCoherentSprayLimit);
+        // Grains whose scatter lands below the read-head floor (the spawn guard below) all
+        // read the same tap, so a pair of them is coherent whatever the Spread. f is the
+        // share of the +-spray window under the floor (forward grain at the base pitch).
+        const double sprayS = static_cast<double> (spray) * grainSizeSamples;
+        const double baseRate = std::exp2 (pitchSettings.transposeSt / 12.0 + pitchSettings.fineCents / 1200.0);
+        const double floorS = grainSizeSamples * juce::jmax (0.0, baseRate - 1.0) + 4.0;
+        const double scanS = static_cast<double> (scanPosition) * currentSampleRate * 2.0;
+        const float floored = sprayS > 0.0
+            ? static_cast<float> (juce::jlimit (0.0, 1.0, (floorS - (scanS - sprayS)) / (2.0 * sprayS)))
+            : 0.0f;
+        densityRho = sprayCoh * sprayCoh + (1.0f - sprayCoh * sprayCoh) * floored * floored;
+        if (pitchSettings.amount * pitchSettings.rangeSt * 100.0f > 0.5f)   // PitchEngine's span test
+            densityRho = 0.0f;
+        const float pRev = reverseProb / 100.0f;
+        densityRho *= 1.0f - 2.0f * pRev * (1.0f - pRev);
+    }
+
     // Set SmoothedValue targets (never reset() here!)
     dryGainSmoothed.setTargetValue(dryGain);
     wetGainSmoothed.setTargetValue(wetGain);
@@ -712,8 +748,13 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                 gp.amplitude = 1.0f - draw.nextFloat (CounterRng::SlotAmp) * ampRandom;
 
             // Position offset: scan position + spread scatter
+            // v3.2.0: while frozen the scatter is at least +-1 grain length, so grains don't
+            // reread nearly the same snapshot audio at a fixed hop (a comb at 1/hop). Same
+            // draw as the live path, so live grains are unchanged.
             double scanPositionSamples = static_cast<double> (scanPosition) * currentSampleRate * 2.0;
-            double spreadOffset = static_cast<double> ((spread / 100.0f) * (draw.nextFloat (CounterRng::SlotSpread) * 2.0f - 1.0f))
+            const float scatter = freezeManager.isActive() ? juce::jmax (1.0f, spread / 100.0f)
+                                                           : spread / 100.0f;
+            double spreadOffset = static_cast<double> (scatter * (draw.nextFloat (CounterRng::SlotSpread) * 2.0f - 1.0f))
                                   * static_cast<double> (grainSizeSamples);
             gp.positionInSamples = scanPositionSamples + spreadOffset;
 
@@ -778,7 +819,10 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         if (spatialMode == 0)
         {
             // === STEREO PATH (original, backwards compatible) ===
-            grainPool.processSample(delayBuffer, freezeManager, wetL, wetR);
+            const float live = grainPool.processSample(delayBuffer, freezeManager, wetL, wetR);
+            const float g = nextDensityGain (live, windowMom.mu2, mu1Sq, densityRho);
+            wetL *= g;
+            wetR *= g;
         }
         else
         {
@@ -825,7 +869,10 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
             // Process into HOA bus (single-sample slice)
             float hoaSample[kHOA3Channels] = {};
-            grainPool.processSampleSpatial(delayBuffer, freezeManager, hoaSample);
+            const float live = grainPool.processSampleSpatial(delayBuffer, freezeManager, hoaSample);
+            const float g = nextDensityGain (live, windowMom.mu2, mu1Sq, densityRho);
+            for (auto& h : hoaSample)
+                h *= g;
 
             // Store into HOA bus for this sample (IN-09: cached write pointers)
             for (int ch = 0; ch < kHOA3Channels; ++ch)
@@ -851,10 +898,6 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
         if (spatialMode == 0)
         {
-            // Soft-clip wet output
-            wetL = std::tanh(wetL);
-            wetR = std::tanh(wetR);
-
             // Feedback
             float fbAmount = feedbackSmoothed.getNextValue();
             float rawFbL = wetL * fbAmount;
@@ -916,8 +959,9 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             if (! std::isfinite (distanceLpfState[0])) distanceLpfState[0] = 0.0f;   // WR-05
             if (! std::isfinite (distanceLpfState[1])) distanceLpfState[1] = 0.0f;
 
-            float wetBinL = std::tanh(distanceLpfState[0]);
-            float wetBinR = std::tanh(distanceLpfState[1]);
+            // v3.2.0: no tanh — the HOA sum is density-compensated before the decode
+            float wetBinL = distanceLpfState[0];
+            float wetBinR = distanceLpfState[1];
 
             // WR-01: spatial feedback is now derived per-sample in the main loop (from the
             // HOA omni channel), not here — the post-decode value was one block late.

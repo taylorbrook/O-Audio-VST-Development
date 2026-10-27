@@ -159,6 +159,26 @@ public:
         }
     }
 
+    // v3.2.0: window moments over normalised grain time, mu1 = integral of w, mu2 = integral
+    // of w^2. They set the density compensation: coherent grains sum as N*mu1 in amplitude,
+    // incoherent grains as sqrt(N*mu2). Checked numerically against computeEnvelope() by
+    // tests/density-gain.
+    struct WindowMoments { float mu1, mu2; };
+
+    static WindowMoments windowMoments (int shape)
+    {
+        switch (shape)
+        {
+            case GrainShape::Hann:
+            default:                           return { 0.5f,    0.375f };
+            case GrainShape::Triangle:         return { 0.5f,    1.0f / 3.0f };
+            case GrainShape::Trapezoid:        return { 0.8f,    1.0f - 4.0f * 0.2f / 3.0f };   // ramp a = 0.2
+            case GrainShape::Tukey:            return { 0.75f,   1.0f - 5.0f * 0.5f / 8.0f };   // alpha = 0.5
+            case GrainShape::Blackman:         return { 0.42f,   0.42f * 0.42f + 0.5f * 0.5f / 2.0f + 0.08f * 0.08f / 2.0f };
+            case GrainShape::ExponentialDecay: return { (1.0f - std::exp (-5.0f)) / 5.0f, (1.0f - std::exp (-10.0f)) / 10.0f };
+        }
+    }
+
     void spawnGrain (const GrainParams& params)
     {
         // Round-robin: find next inactive voice, or steal oldest
@@ -257,11 +277,13 @@ public:
             v.shCoeffs.prepare (sampleRate, 5.0f);
     }
 
-    void processSample (const DelayBuffer& delayBuf, const FreezeManager& freezeMgr,
-                        float& outL, float& outR)
+    // Returns the live grain count this sample (v3.2.0); a fading steal counts as its gain.
+    float processSample (const DelayBuffer& delayBuf, const FreezeManager& freezeMgr,
+                         float& outL, float& outR)
     {
         outL = 0.0f;
         outR = 0.0f;
+        float live = 0.0f;
 
         for (auto& v : voices)
         {
@@ -294,6 +316,7 @@ public:
                 sampleR = delayBuf.readSample (1, delaySamples);
             }
 
+            live += v.stealGain;
             sample  *= envelope * v.amplitude * v.stealGain;
             sampleR *= envelope * v.amplitude * v.stealGain;
 
@@ -321,14 +344,17 @@ public:
                     v.active = false;
             }
         }
+
+        return live;
     }
 
     // Spatial processing: outputs mono per-grain into a 16-channel HOA3 bus.
     // hoaBus must point to kHOA3Channels (16) float arrays, each of at least 1 sample.
     // This is the per-sample equivalent for spatial mode.
-    void processSampleSpatial (const DelayBuffer& delayBuf, const FreezeManager& freezeMgr,
-                               float* hoaBus)
+    float processSampleSpatial (const DelayBuffer& delayBuf, const FreezeManager& freezeMgr,
+                                float* hoaBus)
     {
+        float live = 0.0f;
         for (auto& v : voices)
         {
             if (!v.active) continue;
@@ -356,6 +382,7 @@ public:
                 sampleR = delayBuf.readSample (1, delaySamples);
             }
 
+            live += v.stealGain;
             float mono = (sampleL + sampleR) * 0.5f * envelope * v.amplitude * v.stealGain;
 
             // Distance attenuation (kDistanceScale controls attenuation steepness).
@@ -392,6 +419,8 @@ public:
                     v.active = false;
             }
         }
+
+        return live;
     }
 
     // Update SH smoothing time for all voices (call once per block when parameter changes)

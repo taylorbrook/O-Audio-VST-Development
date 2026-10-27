@@ -2,11 +2,12 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 3.1.0
+- **Version:** 3.2.0
 - **Type:** Audio Effect (Granular Stutter Engine)
 
 ## Lifecycle Timeline
 
+- **2026-10-27 (v3.2.0):** Wet `tanh` (stereo + post-binaural) replaced by closed-form live-N density compensation: `P = N·μ₂ + ρN(N−1)μ₁²`, 100 ms one-pole on P, `g = 1/√max(1,P)`. ρ ← Spread (0 at 25 %), the read-floor pinned fraction, pitch span and reverse. Feedback tanh kept. Freeze scatter ≥ ±1 grain length. Gate `tests/density-gain` (+ `-baseline` twin on the v3.1.0 backup): level −1.2…+0.6 dB across N 4–50 and coherent/incoherent/pinned (v3.1.0: +0.7…+18 dB). Spatial-mode level not gated.
 - **2026-10-27 (v3.1.0):** Deterministic, block-size-independent engine. Counter-based seeded RNG (`dsp/CounterRng.h`; seed saved as `rngSeed`). Sync repeats past the block end carry over: they used to be dropped, so at 512 only primaries played. The stutter gate spans blocks. The standalone tempo clock is integer-sample, the spatial control rate runs on the absolute clock, and ring/grain read positions are double. Gate `tests/blocksize-null`: 32/512/variable bit-exact in free/sync/spatial/freeze/pitch.
 - **2026-10-26 (v3.0.5):** Fade-on-steal. A stolen grain is copied into one of 8 spare slots and fades out over 5 ms. The new grain keeps the slot it always took, so steal-free output is bit-identical to v3.0.4.
 - **2026-10-26 (v3.0.4):** Freeze fixed (research: `research/granular-synthesis-2026-update.md` §2.2). Frozen grains all started at snapshot index 0, so Scan and Spread did nothing and the hold buzzed at the spawn rate. They now read through the snapshot from a virtual write head (`head − position` latched at spawn). Two snapshot slots, with each grain latched to one, replace the 5 ms timer that switched grains to the live line mid-grain. The loop seam gets a 10 ms equal-power crossfade, the loop length is latched to the audio actually written, and frozen grains get ±6 ct of detune.

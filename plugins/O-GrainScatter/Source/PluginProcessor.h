@@ -252,6 +252,20 @@ private:
     float feedbackL = 0.0f;
     float feedbackR = 0.0f;
 
+    // v3.2.0 density compensation (replaces the wet tanh): a one-pole estimate of the
+    // wet power P over ~100 ms, applied as 1 / sqrt(max(1, P)).
+    float densityPower = 0.0f;
+    float densityCoeff = 0.0f;
+    static constexpr double kDensitySmoothSeconds = 0.1;
+    static constexpr float  kCoherentSprayLimit = 0.25f;   // Spread (fraction of a grain) where rho reaches 0
+
+    float nextDensityGain (float live, float mu2, float mu1Sq, float rho) noexcept
+    {
+        const float p = live * mu2 + rho * live * juce::jmax (0.0f, live - 1.0f) * mu1Sq;
+        densityPower += densityCoeff * (p - densityPower);
+        return 1.0f / std::sqrt (juce::jmax (1.0f, densityPower));
+    }
+
     // Spawn request buffer (pre-allocated)
     std::vector<SpawnRequest> spawnRequests;
 
