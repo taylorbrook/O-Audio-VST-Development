@@ -38,8 +38,11 @@ GrainScheduler::GrainScheduler()
 void GrainScheduler::prepare(double sampleRate, float initialOutputGainDb)
 {
     currentSampleRate = sampleRate;
+    grainPool.setSampleRate(sampleRate);
     outputGainSmoothed.reset(sampleRate, 0.02);
     outputGainSmoothed.setCurrentAndTargetValue(juce::Decibels::decibelsToGain(initialOutputGainDb));
+    densityNormSmoothed.reset(sampleRate, 0.1);
+    densityNormSmoothed.setCurrentAndTargetValue(1.0f);
     droneTimerSamples = 0;
     droneIntervalSamples = static_cast<int>(sampleRate * 0.05);  // 50ms default
 }
@@ -76,6 +79,14 @@ void GrainScheduler::processBlock(
 
     // Render active voices
     renderVoices(buffer, corpus);
+
+    // Drone-mode density normalisation (v1.5.4): stacked drone grains summed
+    // un-normalised and the processor's ±1 safety clip flattened dense patches.
+    densityNormSmoothed.setTargetValue(params.midiMode == 2 ? computeDensityNorm(params) : 1.0f);
+    if (densityNormSmoothed.isSmoothing())
+        densityNormSmoothed.applyGain(buffer, numSamples);
+    else if (densityNormSmoothed.getCurrentValue() != 1.0f)
+        buffer.applyGain(densityNormSmoothed.getCurrentValue());
 
     // Apply output gain — the last gain stage (v1.5.1: smoothed; was a
     // per-block step that zippered under automation).
@@ -153,6 +164,38 @@ void GrainScheduler::processDroneMode(int numSamples, const SchedulerParams& par
         droneTimerSamples -= droneIntervalSamples;
         triggerGrain(corpus, params, -1, -1, 1.0f);
     }
+}
+
+float GrainScheduler::envelopeMeanSquare(float crossfadeFactor)
+{
+    constexpr int kSteps = 512;
+    double acc = 0.0;
+    for (int i = 0; i < kSteps; ++i)
+    {
+        const float w = GrainVoice::envelopeAt((static_cast<float>(i) + 0.5f) / kSteps, crossfadeFactor);
+        acc += static_cast<double>(w) * static_cast<double>(w);
+    }
+    return static_cast<float>(acc / kSteps);
+}
+
+float GrainScheduler::computeDensityNorm(const SchedulerParams& params)
+{
+    // Window power relative to pure Hann (crossfade 0), cached per crossfade.
+    const float crossfade = params.crossfadePercent / 100.0f;
+    if (crossfade != normCrossfadeCache)
+    {
+        normCrossfadeCache = crossfade;
+        normPowerRatio = (crossfade == 0.0f) ? 1.0f
+                                             : envelopeMeanSquare(crossfade) / envelopeMeanSquare(0.0f);
+    }
+
+    // Mean overlap at the drone spawn rate, capped by the regular pool. Grains
+    // are sprayed across the corpus (incoherent), so they sum in power.
+    const float sizeSamples = params.grainSizeMs * static_cast<float>(currentSampleRate) / 1000.0f;
+    const float overlap = std::min(static_cast<float>(GrainPool::MAX_VOICES),
+                                   sizeSamples / static_cast<float>(std::max(1, droneIntervalSamples)))
+                        * normPowerRatio;
+    return overlap > 1.0f ? 1.0f / std::sqrt(overlap) : 1.0f;
 }
 
 void GrainScheduler::triggerGrain(const SharedCorpus* corpus, const SchedulerParams& params, int midiNote, int midiChannel, float velocity)
@@ -382,7 +425,7 @@ void GrainScheduler::renderVoices(juce::AudioBuffer<float>& buffer, const Shared
 
             // Apply grain envelope (Hann window)
             float envelope = voice.getEnvelope();
-            float outputSample = sample * envelope * voice.gain;
+            float outputSample = sample * envelope * voice.gain * voice.stealGain;
 
             leftOut[i] += outputSample;
             if (rightOut != nullptr)
@@ -391,6 +434,16 @@ void GrainScheduler::renderVoices(juce::AudioBuffer<float>& buffer, const Shared
             // Advance read position
             voice.readPosition += voice.playbackRate;
             ++voice.samplesElapsed;
+
+            if (voice.stealStep > 0.0f)
+            {
+                voice.stealGain -= voice.stealStep;
+                if (voice.stealGain <= 0.0f)
+                {
+                    voice.active = false;
+                    break;
+                }
+            }
         }
     }
 }

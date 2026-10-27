@@ -1,5 +1,33 @@
 # O-TextureForge Changelog
 
+## [1.5.4] — 2026-10-26
+
+### Fixed
+
+- **Dense drones clipped.** In Generative Drone mode the stacked grains were
+  summed with no level compensation, so high Grain Density with long grains
+  drove the output into the ±1 safety clip (density 64 × 500 ms stacks about 25
+  grains). Drone mode now scales the cloud by 1/√(overlap), weighted by the
+  window's power so Crossfade doesn't change the level, and ramps the change
+  over 100 ms. Dense drones now hold the level of a single continuous grain
+  instead of climbing up to 18 dB above it.
+
+Pitch-Mapped and Trigger+Modulate modes are unchanged, and so are sparse drones
+(less than one grain overlapping): those render bit-identically to v1.5.3.
+
+## [1.5.3] — 2026-10-26
+
+### Fixed
+
+- **Voice steals clicked.** With all 64 grains sounding, the oldest grain was
+  cut off mid-window to make room. The stolen grain now moves to one of 8
+  spare slots and fades out over 5 ms while the new grain starts in the slot
+  it always took.
+- **Note-off clicked.** Releasing a key (or a new note in mono mode) cut that
+  note's grains off instantly, mid-window. They now fade out over 5 ms.
+
+Renders with no steals and no note-offs are bit-identical to v1.5.2.
+
 ## [1.5.2] — 2026-10-19
 
 ### Fixed

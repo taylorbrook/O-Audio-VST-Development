@@ -28,7 +28,9 @@
 
 #pragma once
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 
 struct GrainVoice
@@ -45,6 +47,8 @@ struct GrainVoice
     uint32_t ageCounter = 0;          // For voice stealing (oldest-active)
     int midiNote = -1;                // Triggering MIDI note (-1 if none)
     int midiChannel = -1;             // Triggering MIDI channel
+    float stealGain = 1.0f;           // v1.5.3: fade-out gain (1 = not fading)
+    float stealStep = 0.0f;           // v1.5.3: per-sample decrement, > 0 while fading
 
     void reset()
     {
@@ -59,6 +63,8 @@ struct GrainVoice
         samplesElapsed = 0;
         midiNote = -1;
         midiChannel = -1;
+        stealGain = 1.0f;
+        stealStep = 0.0f;
     }
 
     // Hann window envelope with crossfade modulation
@@ -72,6 +78,13 @@ struct GrainVoice
         if (phase < 0.0f || phase > 1.0f)
             return 0.0f;
 
+        return envelopeAt(phase, crossfadeFactor);
+    }
+
+    // Window at phase [0,1] for a crossfade factor. Shared by getEnvelope() and
+    // the drone-mode density normalisation's power moment (v1.5.4).
+    static float envelopeAt(float phase, float crossfadeFactor)
+    {
         // Standard Hann: 0.5*(1-cos(2*pi*phase))
         // With crossfade: blend between Hann and flat-top
         // Higher crossfade = more of the grain at full amplitude
@@ -99,6 +112,18 @@ class GrainPool
 {
 public:
     static constexpr int MAX_VOICES = 64;
+    // v1.5.3: a stolen grain is moved into one of these spare slots and fades out over
+    // kFadeMs there, while the new grain takes the slot it always took; note-off fades
+    // grains in place over the same time. Neither is a hard cut any more, and renders
+    // with no steals and no note-offs are bit-identical to v1.5.2.
+    static constexpr int kFadeSlots = 8;
+    static constexpr int kNumSlots = MAX_VOICES + kFadeSlots;
+    static constexpr double kFadeMs = 5.0;
+
+    void setSampleRate(double sampleRate)
+    {
+        fadeStep = static_cast<float>(1.0 / std::max(1.0, sampleRate * kFadeMs / 1000.0));
+    }
 
     GrainPool()
     {
@@ -135,6 +160,7 @@ public:
             }
         }
 
+        moveToFadeSlot(voices[oldestIndex]);
         voices[oldestIndex].reset();
         voices[oldestIndex].ageCounter = globalAgeCounter++;
         nextAllocationIndex = (oldestIndex + 1) % MAX_VOICES;
@@ -147,9 +173,7 @@ public:
         for (auto& voice : voices)
         {
             if (voice.active && voice.midiNote == midiNote && voice.midiChannel == midiChannel)
-            {
-                voice.active = false;
-            }
+                startFade(voice);
         }
     }
 
@@ -159,7 +183,7 @@ public:
         for (auto& voice : voices)
         {
             if (voice.active && voice.midiNote >= 0)
-                voice.active = false;
+                startFade(voice);
         }
     }
 
@@ -171,11 +195,34 @@ public:
     }
 
     // Get all voices
-    std::array<GrainVoice, MAX_VOICES>& getVoices() { return voices; }
-    const std::array<GrainVoice, MAX_VOICES>& getVoices() const { return voices; }
+    std::array<GrainVoice, kNumSlots>& getVoices() { return voices; }
+    const std::array<GrainVoice, kNumSlots>& getVoices() const { return voices; }
 
 private:
-    std::array<GrainVoice, MAX_VOICES> voices;
+    void startFade(GrainVoice& voice)
+    {
+        if (voice.stealStep <= 0.0f)
+            voice.stealStep = fadeStep;
+    }
+
+    // Copy a stolen grain into a spare slot and start its fade. With every spare already
+    // fading, the spare nearest silence is reused.
+    void moveToFadeSlot(const GrainVoice& victim)
+    {
+        int slot = -1;
+        float minGain = 2.0f;
+        for (int i = MAX_VOICES; i < kNumSlots; ++i)
+        {
+            if (!voices[i].active) { slot = i; break; }
+            if (voices[i].stealGain < minGain) { minGain = voices[i].stealGain; slot = i; }
+        }
+
+        voices[slot] = victim;
+        startFade(voices[slot]);
+    }
+
+    std::array<GrainVoice, kNumSlots> voices;
+    float fadeStep = 1.0f / 220.5f;
     int nextAllocationIndex = 0;
     uint32_t globalAgeCounter = 0;
 };

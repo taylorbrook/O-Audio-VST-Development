@@ -105,6 +105,16 @@ private:
     // safety clip follows it.
     juce::SmoothedValue<float> outputGainSmoothed { 1.0f };
 
+    // v1.5.4: drone-mode density normalisation 1/√max(1, N·μ₂/μ₂_Hann), N =
+    // grain size / spawn interval capped at the pool. Ramped (~100 ms) so a
+    // Density move doesn't step the level; exactly 1 outside drone mode and for
+    // sparse drones, where the multiply is skipped (bit-identical to v1.5.3).
+    juce::SmoothedValue<float> densityNormSmoothed { 1.0f };
+    float normCrossfadeCache = -1.0f;
+    float normPowerRatio = 1.0f;
+    float computeDensityNorm(const SchedulerParams& params);
+    static float envelopeMeanSquare(float crossfadeFactor);
+
     // Drone mode state
     int droneTimerSamples = 0;
     int droneIntervalSamples = 1000;
