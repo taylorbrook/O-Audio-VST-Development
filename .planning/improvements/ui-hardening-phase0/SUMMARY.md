@@ -3,7 +3,7 @@
 **Scope:** cross-plugin (18 plugins + CI + generator templates)
 **Milestone:** ui-hardening-phase0
 **Created:** 2026-10-26
-**Phase:** Execute
+**Phase:** Complete (closed 2026-10-27; DAW hands-on passed)
 **Base HEAD:** `ea44af28` · **Domain:** mixed · **Agent:** general-purpose (inline)
 
 All PATCH bumps, path-scoped temp-index commits (only the plugin's own PLUGINS.md row,
@@ -146,7 +146,7 @@ All runs used GUI tests on, against the installed bundle.
    (was `getToggleButtonState` only → template-built toggles skipped silently); troubleshoot-agent example
    gains `withBackend(webview2)`.
 
-## DAW hands-on for Taylor
+## DAW hands-on for Taylor — PASSED 2026-10-27 (Windows items still pending a host)
 
 - IntonationPad: preset browser ✎ rename in place (Enter / click away / Esc) and ✕ two-click delete (Logic + Live, macOS)
 - Polystutter: preset menu × two-click delete

@@ -1,7 +1,9 @@
 milestone: ui-hardening-phase0
 scope: cross-plugin
 created: 2026-10-26T00:00:00Z
-lastActivity: 2026-10-27T15:00:00Z
+status: complete   # closed 2026-10-27; DAW hands-on passed (Taylor)
+completedAt: 2026-10-27
+lastActivity: 2026-10-27T16:00:00Z
 phases:
   discuss:
     status: skipped   # scope approved in the /research → /improve conversation; see CONTEXT.md
@@ -22,9 +24,9 @@ phases:
     note: 18 plugins committed (no tags); O-Lyrica pluginval state-restore failure pre-existing — resolved O-Lyrica v2.6.6 (11359791), see SUMMARY.md item 1
   verify:
     status: complete
-    completedAt: 2026-10-26
-    scope: B1-B3 (B4 executed 2026-10-27; verified inline, see VERIFICATION.md B4 section)
-    verdict: achieved_with_known_issues   # VERIFICATION.md; G3+G4 fixed post-verify, G1 documented, G2 -> B4
+    completedAt: 2026-10-27
+    scope: B1-B4 (B4 executed 2026-10-27; verified inline, see VERIFICATION.md B4 section)
+    verdict: passed   # DAW hands-on passed per Taylor 2026-10-27 (B1-B4); Windows path still unverified (no host). Was achieved_with_known_issues: VERIFICATION.md; G3+G4 fixed post-verify, G1 documented, G2 -> B4
 versionBump: patch   # per touched plugin
 batches:
   B1: complete      # 670b2ebf (ci) + da14304c (O-DigiDelay 1.9.3)

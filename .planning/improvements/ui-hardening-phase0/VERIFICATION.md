@@ -10,7 +10,7 @@
 
 ## Verification Summary
 
-**Status:** PASSED WITH NOTES (overall verdict: **ACHIEVED WITH KNOWN ISSUES**, see the end)
+**Status:** PASSED. Milestone closed 2026-10-27 after Taylor passed the DAW hands-on (B1–B4). Earlier verdict: ACHIEVED WITH KNOWN ISSUES, see the end.
 **Version:** 18 PATCH bumps (table in SUMMARY.md). At HEAD all 18 agree across CMakeLists / CHANGELOG `## [X.Y.Z]` / PLUGINS.md. O-Polystutter is at 1.17.0, not 1.16.3: see G1.
 
 Method: I checked each goal against the code, working back from the goal, with HEAD blobs (`git show HEAD:…`) and a fresh `git archive HEAD` in the scratchpad. I edited, staged and installed nothing. The only file written in the repo is this one.
@@ -152,8 +152,8 @@ There is no Windows host. All `#if JUCE_WINDOWS` code (folder creation, `withBac
 - [x] Build succeeds (3 representative plugins, 0 warnings)
 - [x] Pluginval strictness 10 passes on the 3 build artefacts
 - [x] O-Lyrica failure confirmed pre-existing (fixed-seed A/B)
-- [ ] UI hands-on in DAW (Taylor)
-- [ ] Windows path (no host)
+- [x] UI hands-on in DAW (Taylor, passed 2026-10-27)
+- [ ] Windows path (no host; carried forward)
 - [x] G1 documentation correction, G2 B4 scope addition (done in B4: `6d483a7e`), G3 validator regex
 - [x] B4 (2026-10-27)
 
@@ -161,7 +161,11 @@ There is no Windows host. All `#if JUCE_WINDOWS` code (folder creation, `withBac
 
 ## Final Status
 
-### ACHIEVED WITH KNOWN ISSUES ⚠
+### PASSED ✓ (closed 2026-10-27)
+
+Taylor passed the DAW hands-on for B1–B4. Still open, outside this milestone: the Windows path (no host), and O-Reed not persisting its tuning state (`/improve O-Reed`).
+
+### Earlier verdict: ACHIEVED WITH KNOWN ISSUES ⚠
 
 The B1–B3 goals hold in the code at HEAD:
 - The CI gate is green on a fresh clone and red without the fix.
