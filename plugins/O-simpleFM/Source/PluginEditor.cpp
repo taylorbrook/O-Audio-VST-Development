@@ -279,13 +279,16 @@ OSimpleFMAudioProcessorEditor::OSimpleFMAudioProcessorEditor (OSimpleFMAudioProc
         });
 
    #if JUCE_WINDOWS
-    options = options.withWinWebView2Options (
-        juce::WebBrowserComponent::Options::WinWebView2{}
-            .withUserDataFolder (
-                juce::File::getSpecialLocation (juce::File::tempDirectory)
-                    .getChildFile ("OsimpleFM_WebView"))
-            .withStatusBarDisabled()
-            .withBuiltInErrorPageDisabled());
+    // v1.6.1: without an explicit backend JUCE picks the legacy IE control,
+    // which has no resource provider — the editor opened on "page not found".
+    options = options.withBackend (juce::WebBrowserComponent::Options::Backend::webview2)
+                     .withWinWebView2Options (
+                         juce::WebBrowserComponent::Options::WinWebView2{}
+                             .withUserDataFolder (
+                                 juce::File::getSpecialLocation (juce::File::tempDirectory)
+                                     .getChildFile ("OsimpleFM_WebView"))
+                             .withStatusBarDisabled()
+                             .withBuiltInErrorPageDisabled());
    #endif
 
     webView = std::make_unique<juce::WebBrowserComponent> (options);

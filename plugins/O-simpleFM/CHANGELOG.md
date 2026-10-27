@@ -3,6 +3,14 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.6.1] - 2026-10-27
+
+ui-hardening-phase0 (B4). Editor-only, Windows-only. No DSP, parameter, preset or state change; macOS unchanged.
+
+### Fixed
+
+- **Windows: the editor requests the WebView2 backend explicitly** (`withBackend(webview2)`). Without it JUCE picks the legacy IE control, which has no resource provider, so the window opened on "page not found". The 2026-10-14 suite sweep missed this plugin.
+
 ## [1.6.0] - 2026-09-25
 
 UI pass from the 2026-09-24 suite design review (R4 AA text, R5 bundled serif,
