@@ -380,9 +380,9 @@ int main()
         // 0% ≈ harmonic (f_k = k·f0), high% ≈ bell (top mode pushed sharp).
         ModalResonator mr;
         mr.prepare (fs);
-        mr.setParams (220.0f, 70.0f, 0.0f, 50.0f);
+        mr.setParams (220.0f, 60.0f, 70.0f, 0.0f, 50.0f);
         const float harmonicTop = mr.getModeFreqs()[ModalResonator::NUM_MODES - 1];
-        mr.setParams (220.0f, 70.0f, 100.0f, 50.0f);
+        mr.setParams (220.0f, 60.0f, 70.0f, 100.0f, 50.0f);
         const float stretchedTop = mr.getModeFreqs()[ModalResonator::NUM_MODES - 1];
         check ("modal-fundamental-harmonic", std::abs (harmonicTop - 220.0f * 8.0f) < 5.0f,
                juce::String ("topMode@0%=") + juce::String (harmonicTop, 1) + " Hz (≈1760)");
@@ -395,7 +395,7 @@ int main()
         {
             ModalResonator m;
             m.prepare (fs);
-            m.setParams (220.0f, decayPct, 0.0f, 50.0f);
+            m.setParams (220.0f, 60.0f, decayPct, 0.0f, 50.0f);
             std::vector<float> y;
             const int n = (int) (0.5 * fs);
             y.reserve ((size_t) n);
@@ -411,6 +411,93 @@ int main()
                juce::String ("earlyRms=") + juce::String (rms (rgLong, (int) (0.005 * fs), (int) (0.05 * fs)), 6));
         check ("modal-decay-tracks-Decay", lateLong > lateShort,
                juce::String ("short=") + juce::String (lateShort, 6) + " long=" + juce::String (lateLong, 6));
+    }
+
+    //--------------------------------------------------------------------------
+    // v1.5.0  Modal Decay must keep acting across its UPPER range at mid/high
+    //         pitch (v1.4.4's Q ≤ 500 clamp pinned every mode from ~C4 up past
+    //         ~30% Decay), and Modal Damping must act at all (it was never wired).
+    //         End-to-end through the processor, Strike → Modal.
+    //--------------------------------------------------------------------------
+    {
+        auto strikeModal = [] (float damp, float dec)
+        {
+            return [damp, dec] (juce::AudioProcessorValueTreeState& a)
+            {
+                setParam (a, ParamIDs::excitationType, 1.0f);   // Strike
+                setParam (a, ParamIDs::resonatorType,  1.0f);   // Modal
+                setParam (a, ParamIDs::damping, damp);
+                setParam (a, ParamIDs::decay,   dec);
+                setParam (a, ParamIDs::inharmonicity, 30.0f);
+                setParam (a, ParamIDs::modeBrightness, 50.0f);
+            };
+        };
+        // Tail brightness: first-difference energy / signal energy (crude HP ratio).
+        auto brightness = [] (const std::vector<float>& x, int off, int len)
+        {
+            double e = 0.0, d = 0.0;
+            for (int i = 1; i < len; ++i)
+            {
+                const double a = x[(size_t) (off + i)], b = x[(size_t) (off + i - 1)];
+                e += a * a; d += (a - b) * (a - b);
+            }
+            return d / (e + 1.0e-20);
+        };
+
+        const int win  = (int) (0.10 * fs);
+        const int late = (int) (1.20 * fs);
+        const int len  = (int) (1.40 * fs);
+
+        // Decay 50 → 100 at C5: the tail must get clearly longer (v1.4.4: identical).
+        auto d50  = renderNote (72, 110, fs, block, len, strikeModal (30.0f,  50.0f));
+        auto d100 = renderNote (72, 110, fs, block, len, strikeModal (30.0f, 100.0f));
+        const double e50 = rms (d50.mono, late, win), e100 = rms (d100.mono, late, win);
+        check ("modal-decay-upper-range", e100 > 2.0 * e50,
+               juce::String ("C5 late rms decay50=") + juce::String (e50, 6) + " decay100=" + juce::String (e100, 6));
+
+        // Damping 10 → 90 at C4: the tail must be darker AND quieter.
+        auto dLo = renderNote (60, 110, fs, block, len, strikeModal (10.0f, 80.0f));
+        auto dHi = renderNote (60, 110, fs, block, len, strikeModal (90.0f, 80.0f));
+        const int tOff = (int) (0.50 * fs);
+        const double bLo = brightness (dLo.mono, tOff, win), bHi = brightness (dHi.mono, tOff, win);
+        const double eLo = rms (dLo.mono, tOff, win),        eHi = rms (dHi.mono, tOff, win);
+        check ("modal-damping-darkens", bHi < 0.7 * bLo && eHi < eLo,
+               juce::String ("bright lo=") + juce::String (bLo, 5) + " hi=" + juce::String (bHi, 5)
+               + " rms lo=" + juce::String (eLo, 5) + " hi=" + juce::String (eHi, 5));
+        check ("modal-sweep-finite", allFinite (d100.mono) && allFinite (dLo.mono)
+                                     && peakAbs (d100.mono) < 4.0 && peakAbs (dLo.mono) < 4.0,
+               juce::String ("peak=") + juce::String (juce::jmax (peakAbs (d100.mono), peakAbs (dLo.mono)), 4));
+
+        // Bow → Modal held: level across Decay must stay bounded (high Q raises the
+        // sustained-drive gain). Spread is the max/min late RMS over Damping × Decay.
+        double bowMin = 1.0e9, bowMax = 0.0, bowPeak = 0.0;
+        juce::String bowDetail;
+        for (float damp : { 0.0f, 100.0f })
+        for (float dec : { 0.0f, 50.0f, 100.0f })
+        {
+            auto setup = [damp, dec] (juce::AudioProcessorValueTreeState& a)
+            {
+                setParam (a, ParamIDs::excitationType, 2.0f);   // Bow
+                setParam (a, ParamIDs::resonatorType,  1.0f);   // Modal
+                setParam (a, ParamIDs::damping, damp);
+                setParam (a, ParamIDs::decay,   dec);
+                setParam (a, ParamIDs::bowForce, 100.0f);
+            };
+            for (int note : { 36, 60, 84 })
+            {
+                auto b = renderNote (note, 127, fs, block, (int) (1.5 * fs), setup);
+                const double e = rms (b.mono, (int) (1.2 * fs), win);
+                bowMin  = juce::jmin (bowMin, e);
+                bowMax  = juce::jmax (bowMax, e);
+                bowPeak = juce::jmax (bowPeak, peakAbs (b.mono));
+                if (! allFinite (b.mono)) bowPeak = 1.0e9;
+                bowDetail << "n" << note << "/D" << (int) damp << "/d" << (int) dec << "=" << juce::String (e, 4) << " ";
+            }
+        }
+        std::printf ("    bow→modal late rms: %s\n", bowDetail.toRawUTF8());
+        check ("modal-bow-bounded", bowPeak < 1.05,
+               juce::String ("peak=") + juce::String (bowPeak, 3) + " rms " + juce::String (bowMin, 4)
+               + ".." + juce::String (bowMax, 4));
     }
 
     //--------------------------------------------------------------------------
@@ -455,7 +542,7 @@ int main()
         proc.removeListener (&spy);
 
         const float d = dp->convertFrom0to1 (dp->getValue()), k = dc->convertFrom0to1 (dc->getValue());
-        check ("modal-preset-holds", std::abs (d - 55.0f) < 0.01f && std::abs (k - 60.0f) < 0.01f,
+        check ("modal-preset-holds", std::abs (d - 12.0f) < 0.01f && std::abs (k - 60.0f) < 0.01f,
                juce::String ("damping=") + juce::String (d, 2) + " decay=" + juce::String (k, 2));
 
         const bool sent = spy.last.count (dp->getParameterIndex()) && spy.last.count (dc->getParameterIndex())

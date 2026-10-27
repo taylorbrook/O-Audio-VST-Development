@@ -121,7 +121,7 @@ build (juce::AudioProcessorValueTreeState& apvts)
         { excitationType, 1.0f }, { resonatorType, 1.0f },
         { excitationPosition, 30.0f }, { excitationColor, 55.0f },
         { inharmonicity, 10.0f }, { modeBrightness, 45.0f },
-        { damping, 55.0f }, { decay, 60.0f },
+        { damping, 12.0f }, { decay, 60.0f },      // v1.5.0: refit — Modal Damping now acts
         { ampAttack, 0.001f }, { ampRelease, 0.3f } }));
 
     // Bell — Strike → Modal. High inharmonicity (inharmonic bell), long ring.
@@ -129,7 +129,7 @@ build (juce::AudioProcessorValueTreeState& apvts)
         { excitationType, 1.0f }, { resonatorType, 1.0f },
         { excitationPosition, 25.0f }, { excitationColor, 65.0f },
         { inharmonicity, 80.0f }, { modeBrightness, 70.0f },
-        { damping, 70.0f }, { decay, 88.0f },
+        { damping, 15.0f }, { decay, 88.0f },      // v1.5.0: refit — Modal Damping now acts
         { ampAttack, 0.001f }, { ampRelease, 0.6f } }));
 
     // ── Bow → String (KS) — Material macro drives damping + decay ──────────────

@@ -3,6 +3,25 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.5.0] — 2026-10-27
+
+Damping and Decay now shape the Modal resonator. No parameter IDs or ranges change, but saved Modal sounds will sound different.
+
+### Fixed
+
+- **Decay now works across its whole range on the Modal resonator.** From about C4 upward, every setting above roughly 30% sounded the same, and the default of 70% was already past that point. Root cause: each mode's ring time was turned into a filter Q, and Q was capped at 500. At C4 the fundamental stopped growing at 4.2 s and the 4th mode at 1.05 s. At C5 nothing changed above 25%. The cap is gone. The ring time is now limited to 0.3–7.2 s instead, and the 8 mode filters run in double precision so the very high Q values stay accurate.
+- **Damping now acts on the Modal resonator.** Before, it only reached the String resonator (the Modal bank had no damping input), and that also left the Material macro half-dead in Modal mode. It now removes high-frequency energy with the String loop filter's 12 kHz → 1.5 kHz cutoff, at the same loss per second as a C4 string loop. Modes near or above the cutoff die faster, so more Damping gives a darker, shorter tail, which is what Damping already does on the String.
+
+### Changed
+
+- **Bow → Modal gets makeup gain that rises with Damping** (drive × (1 + 0.5 · Damping)). A sustained bow's level follows √Q, so Damping alone made Bow → Modal about 4 dB quieter at the default 60%. At Damping 0 the gain is unchanged, so the loudest case (C6, velocity 127, Force 100, Decay 100) stays at a 0.99 peak.
+- **Factory presets Struck Bar and Bell re-fitted:** Damping 55 → 12 and 70 → 15, Decay unchanged. Both were authored while Damping had no effect. The re-fitted values keep their old upper-partial ring times within about 20%, and the fundamentals now ring as long as their Decay values always asked for.
+- Modal sounds at the default Damping of 60% are now darker. Pluck → Modal at C4 is about 2.6 dB quieter early in the note.
+
+### Testing
+
+- Render harness 29/29. New checks: `modal-decay-upper-range` (C5, Decay 50 vs 100), `modal-damping-darkens` (C4, Damping 10 vs 90: darker and quieter tail), `modal-sweep-finite`, and `modal-bow-bounded` (Bow → Modal over Damping {0,100} × Decay {0,50,100} × C2/C4/C6, peak < 1.05). The first two FAIL on v1.4.4 with bit-identical output for both settings.
+
 ## [1.4.4] — 2026-10-27
 
 Material macro stays in sync with the host. No parameter, range, state or DSP change.

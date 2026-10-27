@@ -141,7 +141,7 @@ public:
         {
             const float f0 = computeF0();
             string.setFrequency (f0);
-            modal.setParams (f0, p.decay, p.inharmonicity, p.modeBrightness);   // live modal updates
+            modal.setParams (f0, p.damping, p.decay, p.inharmonicity, p.modeBrightness);   // live modal updates
         }
 
         ampParams.attack  = juce::jmax (0.0f,    p.ampAttack);
@@ -171,7 +171,7 @@ public:
         string.setDecay   (params.decay);
 
         modal.reset();
-        modal.setParams (f0, params.decay, params.inharmonicity, params.modeBrightness);
+        modal.setParams (f0, params.damping, params.decay, params.inharmonicity, params.modeBrightness);
 
         triggerExciter (f0);
 
@@ -218,6 +218,8 @@ public:
         const bool isBow   = (params.excitationType == kBow);
         const bool isModal = (params.resonatorType  == kModal);
         const bool bowing  = isBow && noteHeld;     // drive while held; ring out once lifted
+        const float modalBowDrive = kModalBowDrive
+                                  * (1.0f + kModalBowDampMakeup * juce::jlimit (0.0f, 100.0f, params.damping) / 100.0f);
 
         for (int i = 0; i < numSamples; ++i)
         {
@@ -228,7 +230,7 @@ public:
 
             float dry;
             if (isModal)
-                dry = modal.processSample (e * (isBow ? kModalBowDrive : kModalDrive));
+                dry = modal.processSample (e * (isBow ? modalBowDrive : kModalDrive));
             else
                 dry = string.processAdditive (isBow ? e * kBowDrive : e);
 
@@ -260,6 +262,10 @@ private:
     // ring audibly while staying bounded (the isfinite + Q-clamp guards backstop it).
     static constexpr float kModalDrive    = 0.5f;    // Pluck / Strike burst → Modal
     static constexpr float kModalBowDrive = 5.0f;    // Bow friction-noise → Modal (sustains)
+    // Sustained-drive level ∝ √Q, so Modal Damping (v1.5.0) costs Bow ~4 dB at the
+    // default 60%. Makeup rises with Damping only: the undamped worst case (peak
+    // ≈ 1.0 at C6/vel 127/Force 100/Decay 100) is untouched.
+    static constexpr float kModalBowDampMakeup = 0.5f;   // drive × (1 + 0.5·damping)
 
     // Excitation drive into the resonator. Tuned so a default-velocity pluck is
     // clearly audible (RMS well above the −34 dB makes-sound floor) while staying

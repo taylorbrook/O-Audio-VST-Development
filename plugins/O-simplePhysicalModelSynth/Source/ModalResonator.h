@@ -33,7 +33,13 @@
     "inaudible sustain"). Reuses O-Bells DATA only (DECAY_MULTIPLIERS, amplitude tilt).
 
     Authored guards the references lack: per-biquad isfinite reset (O-Bassoon
-    ModeBank.h:79-84), Q clamp ≤ 500, Nyquist clamp on f_k.
+    ModeBank.h:79-84), Nyquist clamp on f_k.
+
+    v1.5.0: Damping is frequency-dependent loss matched to the String loop LPF
+    (same 12 kHz → 1.5 kHz log cutoff, same per-second loss as a C4 KS loop):
+    1/T60_k += DAMP_REF_HZ·½·ln(1+(f_k/fc)²)/ln(1000). The old Q ≤ 500 clamp pinned
+    every mode from ~C4 up past ~30% Decay, so it is gone — T60 is bounded instead,
+    and the biquads run in double so high-Q poles stay accurate.
 
   ==============================================================================
 */
@@ -53,9 +59,10 @@ public:
         { 1.2f, 1.0f, 0.85f, 0.7f, 0.6f, 0.5f, 0.4f, 0.3f };
 
     static constexpr float B_MAX      = 0.012f;   // Fletcher stretch at inharmonicity=100%
-    static constexpr float Q_MAX      = 500.0f;   // authored clamp (references have none)
+    static constexpr float Q_MAX      = 1.0e5f;   // backstop only — T60 bounds Q (≈65k at 0.45·fs)
     static constexpr float T60_MIN_S  = 0.3f;
     static constexpr float T60_MAX_S  = 6.0f;
+    static constexpr float DAMP_REF_HZ = 261.63f; // loss rate of a C4 String loop (Damping parity)
 
     void prepare (double sr) noexcept
     {
@@ -69,13 +76,16 @@ public:
     }
 
     // Recompute the bank at block rate. All percent params are 0–100.
-    void setParams (float f0, float decayPct, float inharmonicityPct, float modeBrightnessPct) noexcept
+    void setParams (float f0, float dampingPct, float decayPct,
+                    float inharmonicityPct, float modeBrightnessPct) noexcept
     {
         const float fs       = static_cast<float> (sampleRate);
         const float nyq      = 0.45f * fs;
         const float B        = juce::jlimit (0.0f, 100.0f, inharmonicityPct) / 100.0f * B_MAX;
         const float baseT60  = juce::jmap (juce::jlimit (0.0f, 100.0f, decayPct) / 100.0f, T60_MIN_S, T60_MAX_S);
         const float bright   = juce::jlimit (0.0f, 100.0f, modeBrightnessPct) / 100.0f;
+        const float dampFc   = 12000.0f * std::pow (1500.0f / 12000.0f,
+                                                    juce::jlimit (0.0f, 100.0f, dampingPct) / 100.0f);
 
         float ampSum = 0.0f;
         for (int k = 0; k < NUM_MODES; ++k)
@@ -87,8 +97,13 @@ public:
             fk = juce::jlimit (1.0f, nyq, fk);
             modeFreq[(size_t) k] = fk;
 
-            // T60 → Q (DERIVE — O-Bells stores an env, not a Q): Q = 0.4548·f·T60, clamped.
-            const float t60 = baseT60 * DECAY_MULTIPLIERS[k];
+            // Damping: the String loop LPF's per-pass loss −ln|H(f_k)| at a C4 pass
+            // rate, added as a decay rate — modes near/above fc die fast (darker tail).
+            const float fr       = fk / dampFc;
+            const float dampRate = DAMP_REF_HZ * 0.5f * std::log1p (fr * fr) / 6.9078f;   // 1/T60
+            const float t60      = 1.0f / (1.0f / (baseT60 * DECAY_MULTIPLIERS[k]) + dampRate);
+
+            // T60 → Q (DERIVE — O-Bells stores an env, not a Q): Q = 0.4548·f·T60.
             const float Q   = juce::jlimit (0.5f, Q_MAX, 0.4548f * fk * t60);
 
             // Amplitude tilt (REUSE FORMULA — O-Bells BellVoice.cpp:744-758): 1/k falloff
@@ -101,15 +116,15 @@ public:
             ampSum += amp;
 
             // RBJ constant-skirt bandpass (peak gain = Q): b0=−b2=α·.../a0, b1=0.
-            const float w0    = juce::MathConstants<float>::twoPi * fk / fs;
-            const float cw    = std::cos (w0), sw = std::sin (w0);
-            const float alpha = sw / (2.0f * Q);
-            const float a0    = 1.0f + alpha;
+            const double w0    = juce::MathConstants<double>::twoPi * fk / sampleRate;
+            const double cw    = std::cos (w0), sw = std::sin (w0);
+            const double alpha = sw / (2.0 * Q);
+            const double a0    = 1.0 + alpha;
             modes[(size_t) k].b0 =  (sw * 0.5f) / a0;
-            modes[(size_t) k].b1 =  0.0f;
+            modes[(size_t) k].b1 =  0.0;
             modes[(size_t) k].b2 = -(sw * 0.5f) / a0;
             modes[(size_t) k].a1 =  (-2.0f * cw) / a0;
-            modes[(size_t) k].a2 =  (1.0f - alpha) / a0;
+            modes[(size_t) k].a2 =  (1.0 - alpha) / a0;
         }
 
         // Global normalization so the summed bank can't run away (RESEARCH §3.1).
@@ -120,7 +135,7 @@ public:
     {
         float y = 0.0f;
         for (int k = 0; k < NUM_MODES; ++k)
-            y += modeAmp[(size_t) k] * modes[(size_t) k].processSample (e);
+            y += modeAmp[(size_t) k] * static_cast<float> (modes[(size_t) k].processSample (e));
         return y * normalization;
     }
 
@@ -130,23 +145,24 @@ public:
 
 private:
     // Direct-form biquad with isfinite guard (PORT — O-Bassoon ModeBank.h:72-86).
+    // Double: at T60 up to 7.2 s the poles sit within ~1e-5 of the unit circle.
     struct ModeBiquad
     {
-        float b0 = 0.0f, b1 = 0.0f, b2 = 0.0f, a1 = 0.0f, a2 = 0.0f;
-        float x1 = 0.0f, x2 = 0.0f, y1 = 0.0f, y2 = 0.0f;
+        double b0 = 0.0, b1 = 0.0, b2 = 0.0, a1 = 0.0, a2 = 0.0;
+        double x1 = 0.0, x2 = 0.0, y1 = 0.0, y2 = 0.0;
 
-        inline float processSample (float x) noexcept
+        inline double processSample (double x) noexcept
         {
-            const float y0 = b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+            const double y0 = b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
             x2 = x1; x1 = x; y2 = y1; y1 = y0;
             if (! std::isfinite (y1) || ! std::isfinite (y2))
             {
-                x1 = x2 = y1 = y2 = 0.0f;
-                return 0.0f;
+                x1 = x2 = y1 = y2 = 0.0;
+                return 0.0;
             }
             return y0;
         }
-        void reset() noexcept { x1 = x2 = y1 = y2 = 0.0f; }
+        void reset() noexcept { x1 = x2 = y1 = y2 = 0.0; }
     };
 
     std::array<ModeBiquad, NUM_MODES> modes {};

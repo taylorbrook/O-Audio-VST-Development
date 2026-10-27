@@ -2,11 +2,12 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.4.4
+- **Version:** 1.5.0
 - **Type:** Synth (Pedagogical Physical Modeling)
 
 ## Lifecycle Timeline
 
+- **2026-10-27 (v1.5.0):** Modal Damping/Decay inaudible via /improve. Decay: Q ≤ 500 clamp pinned every mode from ~C4 up past ~30% Decay — clamp removed (T60-bounded, biquads in double). Damping: never wired to ModalResonator — now String-parity HF loss (1/T60_k += 261.63·½·ln(1+(f_k/fc)²)/ln1000). Bow→Modal makeup ×(1+0.5·damping) keeps default level, undamped worst-case peak unchanged (0.99). Struck Bar/Bell damping refit 55→12 / 70→15 (authored when damping was a no-op). Harness 29/29 (+4 modal gates, first two fail on v1.4.4).
 - **2026-10-27 (v1.4.4):** Material macro host desync via /improve. A host-originated material change on the message thread ran the synchronous damping/decay writes inside the VST3 wrapper's `inParameterChangedCallback` scope, so the host never heard them and pushed the stale values back on the next render. Kept the synchronous apply (preset-load order, CR-03) and added an AsyncUpdater re-send of damping/decay's CURRENT values (not the macro targets: plain deferral would stomp Struck Bar/Bell's explicit damping/decay after a material reset). Gates: harness 24/24 (+modal-preset-holds, +macro-host-resend, negative-controlled on v1.4.3), pedalboard host probe (needs CFRunLoop pumping to see any async path), pluginval L10 x6 seeds, auval.
 - **2026-09-25 (v1.4.0):** UI pass (design review 260924-nho R4/R5/R7) via /improve:
   - AA text-ink tokens: below-AA 32/77 → 9/77, all 9 inactive or decorative;
