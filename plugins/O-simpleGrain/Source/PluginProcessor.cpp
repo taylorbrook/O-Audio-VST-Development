@@ -938,7 +938,38 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     // amplifies above unity). The SmoothedValue ramp on outputGain keeps the gain
     // change click-free as density moves. (Per-voice velToDensity modulation is
     // ignored here — this is a coarse global trim, not a limiter.)
-    const float overlap  = (grainSizeParam->load() * 0.001f) * densityParam->load();
+    //
+    // v1.5.5: two corrections. (1) The overlap respects kMaxGrainsPerVoice —
+    // past the cap only 24 grains can sound, each cut short by the steal, so the
+    // uncapped figure attenuated far too much (500 ms × 200 g/s: 14.7 dB too
+    // low). (2) Overlap is weighted by the window's power μ₂ relative to Hann,
+    // so switching windows no longer changes the cloud level (rect was +4.2 dB
+    // over Hann). Hann's ratio is exactly 1, so
+    // Hann patches under the cap are bit-identical to v1.5.4.
+    const int   shapeNow  = juce::jlimit (0, WindowLuts::kNumShapes - 1, p.windowShape);
+    const float sizeSamp  = grainSizeParam->load() * 0.001f
+                          * (float) currentSampleRate.load (std::memory_order_relaxed);
+    const float taperEnd  = WindowLuts::taperEndFor (shapeNow, p.windowTaper, sizeSamp,
+                                                     currentSampleRate.load (std::memory_order_relaxed));
+    const bool  usesTaper = (shapeNow == WindowLuts::kShapeRect || shapeNow == WindowLuts::kShapeTukey);
+    if (shapeNow != normShapeCache || (usesTaper && taperEnd != normTaperEndCache))
+    {
+        normShapeCache    = shapeNow;
+        normTaperEndCache = taperEnd;
+        normPowerRatio    = (shapeNow == WindowLuts::kShapeHann)
+                          ? 1.0f
+                          : windowLuts.meanSquare (shapeNow, taperEnd)
+                              / windowLuts.meanSquare (WindowLuts::kShapeHann);
+    }
+    // Past the cap, steal-oldest keeps exactly kMaxGrainsPerVoice grains live and
+    // each one only reaches phase cap/overlap before it is stolen, so the power
+    // is the cap × the mean w² over that leading part of the window.
+    const float rawOverlap = (grainSizeParam->load() * 0.001f) * densityParam->load();
+    const float overlap = (rawOverlap <= (float) kMaxGrainsPerVoice)
+        ? rawOverlap * normPowerRatio
+        : (float) kMaxGrainsPerVoice
+            * windowLuts.meanSquare (shapeNow, taperEnd, (float) kMaxGrainsPerVoice / rawOverlap)
+            / windowLuts.meanSquare (WindowLuts::kShapeHann);
     const float normGain = 1.0f / std::sqrt (juce::jmax (1.0f, overlap));
     const float outDb = outputLevelParam->load();
     outputGain.setTargetValue (juce::Decibels::decibelsToGain (outDb, -60.0f) * normGain);

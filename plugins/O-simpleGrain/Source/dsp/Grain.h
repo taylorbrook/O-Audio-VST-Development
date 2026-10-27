@@ -68,4 +68,9 @@ struct Grain
     float  aaCoeff       = 0.0f;
     bool   aaEngaged     = false;
     float  aaState       = 0.0f;
+
+    // v1.5.4 steal fade. A stolen grain is copied into a spare slot and fades out
+    // there; fadeGain stays exactly 1 for every grain that is not fading.
+    float  fadeGain      = 1.0f;
+    float  fadeStep      = 0.0f;   // per-sample decrement, > 0 while fading
 };

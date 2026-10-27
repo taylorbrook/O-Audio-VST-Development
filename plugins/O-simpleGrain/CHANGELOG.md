@@ -3,6 +3,19 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.5.5] — 2026-10-26
+
+### Fixed
+- **Dense clouds were too quiet.** The automatic level trim assumed every requested grain was sounding, but a voice holds at most 24 and steals the oldest. Past that cap it attenuated as if all of them played: 500 ms × 200 grains/s came out 14.7 dB quieter than a 500 ms × 10/s cloud. The trim now counts only the grains that can actually sound, and the part of each window they reach before they are stolen. Level now stays within 0.5 dB from 10 to 200 grains/s at 500 ms (measured, fire source, Position Spray 100 %).
+- **Changing the window changed the level.** The trim ignored window shape, so Rectangular clouds played 4.2 dB louder than Hann and Tukey 2.7 dB louder. It now weights the overlap by each window's power relative to Hann. At 100 ms × 100/s the spread across all six windows dropped from 5.0 dB to 0.3 dB.
+
+Hann patches at or below 24 overlapping grains are bit-identical to v1.5.4. Patches using other windows, or denser than the cap, change level: Rectangular, Welch and Tukey get quieter, Triangular and Gaussian slightly louder, and over-cap patches louder.
+
+## [1.5.4] — 2026-10-26
+
+### Fixed
+- **Grain steals clicked.** When all 24 of a voice's grain slots were full, the oldest grain was cut off mid-window to make room. The stolen grain now moves to one of 4 spare slots per voice and fades out over 5 ms while the new grain starts in the slot it always took. Steal-free renders are bit-identical to v1.5.3. A steal happens whenever grain size × density goes past 24 overlapping grains (for example 200 ms at 120 grains/s).
+
 ## [1.5.3] — 2026-10-19
 
 ### Fixed

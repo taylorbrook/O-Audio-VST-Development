@@ -2,11 +2,13 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.4.2
+- **Version:** 1.5.5
 - **Type:** Synth (Pedagogical Granular)
 
 ## Lifecycle Timeline
 
+- **2026-10-26 (v1.5.5):** Density normalisation respects the 24-grain cap (and the truncated window of stolen grains) and weights overlap by window power μ₂ relative to Hann. Level flat within 0.5 dB from 10 to 200 g/s at 500 ms (was a 14.7 dB fall); window spread 5.0 → 0.3 dB. Hann under the cap bit-identical to v1.5.4.
+- **2026-10-26 (v1.5.4):** Fade-on-steal. A stolen grain is copied into one of 4 spare slots per voice and fades out over 5 ms, so it is no longer cut mid-window. Steal-free renders are bit-identical to v1.5.3. Under steals (500 ms × 200/s, piano source), 1–5 kHz energy drops by 30 dB and energy above 10 kHz by 49 dB, measured against the v1.5.3 binary.
 - **2026-06-24 (Stage 1–3):** Foundation → DSP → GUI implemented (8-voice granular engine, field-guide WebView UI).
 - **2026-06-25 (v1.0.0):** First release — Stage 4 validation complete (render-harness 8/8 automated gates PASS, auval SUCCEEDED).
 - **2026-06-25 (v1.0.1):** Code-review fixes — see CHANGELOG. Two correctness bugs (velToDensity 100× over-scale; user-source restore clobber), two RT hot-loop simplifications (precomputed pan gains + AA coefficient), and a new render-harness gate (`velToDensity-depth`). All 9 gates PASS, auval SUCCEEDED, installed (VST3 + AU).

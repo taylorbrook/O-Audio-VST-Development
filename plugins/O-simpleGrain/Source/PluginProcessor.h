@@ -401,6 +401,12 @@ private:
     // overlapping clouds stay tamed below clip (see processBlock).
     juce::SmoothedValue<float> outputGain { 1.0f };
 
+    // Window power relative to Hann (μ₂/μ₂_Hann) for the normalization, cached
+    // per (shape, taperEnd) — exactly 1.0f for Hann (v1.5.5).
+    int   normShapeCache    = -1;
+    float normTaperEndCache = -1.0f;
+    float normPowerRatio    = 1.0f;
+
     //==========================================================================
     // Global read head (processor-owned, Phase 2.2). One playhead shared by all
     // voices/grains: `position` sets its resting point, `scan` its velocity,

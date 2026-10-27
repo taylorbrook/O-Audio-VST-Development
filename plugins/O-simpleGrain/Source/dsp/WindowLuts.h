@@ -121,6 +121,22 @@ public:
         return t[(size_t) i0] + frac * (t[(size_t) i1] - t[(size_t) i0]);
     }
 
+    // Mean of w² over phase [0, phaseEnd] (phaseEnd = 1 → the power moment μ₂),
+    // by midpoint rule over the same read() the voices use (v1.5.5 density
+    // compensation). phaseEnd < 1 covers grains stolen part-way through their
+    // window. Off the hot path: the processor caches the full-window value.
+    float meanSquare (int shape, float taperEnd = 0.5f, float phaseEnd = 1.0f) const noexcept
+    {
+        constexpr int kSteps = 512;
+        double acc = 0.0;
+        for (int i = 0; i < kSteps; ++i)
+        {
+            const float w = read (shape, phaseEnd * ((float) i + 0.5f) / (float) kSteps, taperEnd);
+            acc += (double) w * (double) w;
+        }
+        return (float) (acc / kSteps);
+    }
+
     int getSize() const noexcept { return size; }
 
 private:

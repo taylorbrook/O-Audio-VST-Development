@@ -299,7 +299,7 @@ public:
                 float src = readSourceLagrange (sourcePtr, sourceLen, g.readPos);
                 src = aaOnePole (src, g.aaCoeff, g.aaEngaged, g.aaState);   // band-limit if rate > 1 (DSP-08)
 
-                const float s = src * env;
+                const float s = src * env * g.fadeGain;
                 // Equal-power pan gains were precomputed on spawn (constant per grain).
                 outL += s * g.panL;
                 outR += s * g.panR;
@@ -309,6 +309,13 @@ public:
                 ++g.age;
                 if (g.phase >= 1.0f)
                     g.active = false;             // grain done
+
+                if (g.fadeStep > 0.0f)            // v1.5.4: stolen grain fading out
+                {
+                    g.fadeGain -= g.fadeStep;
+                    if (g.fadeGain <= 0.0f)
+                        g.active = false;
+                }
             }
 
             // --- Voice amplitude (amp ADSR * velocity) -----------------------
@@ -374,10 +381,15 @@ private:
             if (grains[(size_t) idx].age > maxAge) { maxAge = grains[(size_t) idx].age; oldest = idx; }
         }
         if (target < 0)
-            target = oldest;                      // steal oldest
+        {
+            target = oldest;                      // steal oldest ...
+            moveToFadeSlot (grains[(size_t) target]);   // ... which fades out in a spare slot (v1.5.4)
+        }
 
         auto& g = grains[(size_t) target];
         g.active        = true;
+        g.fadeGain      = 1.0f;
+        g.fadeStep      = 0.0f;
         g.age           = 0;
         g.phase         = 0.0f;
         g.phaseInc      = phaseInc;
@@ -496,6 +508,28 @@ private:
         return state;
     }
 
+    // v1.5.4: copy a stolen grain into a spare slot and fade it out over kStealFadeMs,
+    // instead of cutting it mid-window. The new grain still takes the stolen slot, so
+    // steal-free renders are bit-identical to v1.5.3. With every spare already fading,
+    // the spare nearest silence is reused.
+    void moveToFadeSlot (const Grain& victim) noexcept
+    {
+        constexpr int N = OSimpleGrainAudioProcessor::kMaxGrainsPerVoice;
+        int slot = N;
+        float minGain = 2.0f;
+        for (int k = N; k < N + kFadeSlots; ++k)
+        {
+            const auto& f = grains[(size_t) k];
+            if (! f.active) { slot = k; break; }
+            if (f.fadeGain < minGain) { minGain = f.fadeGain; slot = k; }
+        }
+
+        auto& f = grains[(size_t) slot];
+        f = victim;
+        if (f.fadeStep <= 0.0f)
+            f.fadeStep = (float) (1.0 / juce::jmax (1.0, sampleRate * kStealFadeMs / 1000.0));
+    }
+
     // Recompute this voice's active grain count (scan the bounded pool, O(24))
     // and apply the delta to the shared atomic. Robust vs. steal-oldest /
     // grain-done / note-clear (which a fragile inc/dec would mishandle). The
@@ -531,8 +565,11 @@ private:
     std::atomic<int>* activeGrainCount = nullptr;   // shared running grain count (UI-05)
     int               myActiveCount    = 0;         // this voice's last-published contribution
 
-    // Preallocated bounded grain pool + scheduler state.
-    std::array<Grain, OSimpleGrainAudioProcessor::kMaxGrainsPerVoice> grains {};
+    // Preallocated bounded grain pool + scheduler state. The last kFadeSlots entries
+    // only ever hold stolen grains fading out (v1.5.4).
+    static constexpr int    kFadeSlots     = 4;
+    static constexpr double kStealFadeMs   = 5.0;
+    std::array<Grain, OSimpleGrainAudioProcessor::kMaxGrainsPerVoice + kFadeSlots> grains {};
     int nextGrain = 0;
     int samplesUntilNextGrain = 0;
 
