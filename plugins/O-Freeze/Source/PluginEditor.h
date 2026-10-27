@@ -67,6 +67,10 @@ private:
     // 3. NAVIGATION FLAG
     bool hasNavigated = false;
 
+    // v2.7.1 — Windows only: shown instead of the WebView when WebView2 cannot
+    // start (webView stays null). Null on macOS and whenever the WebView exists.
+    std::unique_ptr<juce::HyperlinkButton> webView2RuntimeLink;
+
     // 4. ATTACHMENTS LAST (depend on both relays and webView)
     std::unique_ptr<juce::WebSliderParameterAttachment> thresholdAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> driftAttachment;
