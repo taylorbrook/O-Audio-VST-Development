@@ -2,6 +2,36 @@
 
 All notable changes to O-Polystutter will be documented in this file.
 
+## [1.17.0] - 2026-10-26
+
+Sample-accurate triggers and reproducible randomness (granular-2026 research §3.1, §2.2 items 5 and 8; review findings WR-04 and WR-07). No parameter, range or preset change. A session saved by an older version loads normally and gets a fresh seed.
+
+### Fixed
+
+- **Beat-sync repeats fired up to one block late.** Subdivision boundaries were tested once per block (`int(ppq/s) > int(lastPpq/s)`), so a boundary at offset *b* fired at the next block start, *N − b* samples late. Measured at 128 BPM: 0–30 samples late at block 32, 6–504 at block 512. Each boundary now fires on the first sample at or after it.
+- **MIDI triggers fired up to one block EARLY, not late.** The note's sample offset was ignored, so the trigger landed on sample 0 of the note's block, and the captured slice ended *before* the note (measured up to 467 samples early at block 512). Each note-on now triggers on its own sample.
+- **A chord fired only its last note (WR-07).** One trigger per block was kept. Every note-on is now its own event, so C3 + D3 fires lanes 1 and 3. The lane lockout (no MIDI retrigger while a lane is repeating) is evaluated at the note's own sample.
+- **The loop-start downbeat was dropped on every DAW loop pass (WR-04).** A backward jump (loop wrap, relocate) or a transport start now restarts the boundary count, so the boundary the playhead lands on fires. Starting playback exactly on a boundary (e.g. bar 1) now stutters that downbeat too, which v1.16.0 skipped. Boundary maths uses `floor`, so count-in (negative ppq) positions are correct.
+- **The end-of-cycle fade-out started at a block boundary.** After the last repeat's timer expired mid-block, the rest of the block kept playing (audible with pitch-down, swing or the lane filter), and the fade-out began at the next block. It now begins on the expiry sample.
+- **MIDI and manual triggers read the pattern step one block stale.** They now read the step at their own sample.
+- **Probability, pitch randomisation and tape hiss/dropout were time-seeded.** Two renders never matched, and hiss and dropout shared one generator whose draws interleaved per block, so the result changed with block size.
+
+### Changed
+
+- **Counter-based RNG** (`DSP/CounterRng.h`, splitmix64). Each draw is a pure function of (seed, lane, event index, slot): slot 0 is the probability gate, slots 1–16 are the pitch offsets of repeats 0–15. Tape hiss and dropout have their own streams. The event counter restarts on prepare/reset, so a bounce reproduces.
+- **The seed is saved with the session** as a non-parameter `rngSeed` state property (signed decimal; restored with the `isVoid()`/`toString()` read used for `uiLanguage`). Each new instance draws its own seed, so two tracks don't stutter in lockstep.
+- **`TriggerRouter` is replaced by `DSP/TriggerScheduler`.** It lists each lane's events per block (MIDI, then manual, then beat at equal offsets, the v1.16.0 block-start order), and each lane renders in segments split at them (`RepeatLane::processBlock(buffer, start, n)`). The capture write runs per segment, so a trigger's slice ends exactly at its own sample.
+
+### Testing
+
+- New header-level harness `tests/scheduler-harness/` (`build.sh` builds `psh_new` from the working tree and `psh_old` from git HEAD's v1.16.0 DSP with a verbatim copy of v1.16.0's trigger order; then `gate.py`). Result: **ALL PASS**.
+  - Onsets: v1.17.0 beat and MIDI onsets land exactly on the ideal sample (0 error, 126 boundaries + 9 notes, block 32 and 512); v1.16.0's measured late/early figures are above.
+  - Block-size null on fresh instances (32 / 512 / variable 1–1024): residual −inf dBFS (bit-identical) for beat-sync at 128 BPM with swing, triplets, reverse, ping-pong, pitch −7 and filter; probability + pitch-rand + Euclidean + full tape (hiss, dropout, wow, flutter); MIDI with chords at random offsets; a 2-bar loop.
+  - Bit-identical to v1.16.0 where its onsets were already exact (48 kHz, 120 BPM, 1/8 and 1/4 lanes, transport and MIDI on block starts, every cycle ending on a block start, probability 100 %, pitch-rand off), at block 32 and 480.
+  - Controls that must differ, and do: v1.16.0 at block 32 vs 512 (−13.1 dBFS); old vs new on unaligned MIDI (−11.0 dBFS); a cycle ending mid-block at 480 (−24.9 dBFS, the fade-out change); a different seed (−10.9 dBFS). The loop-wrap downbeat fires in v1.17.0 and is missing in v1.16.0.
+- Installed VST3: two fresh instances get distinct seeds, and a state restore reproduces the seed (checked with pedalboard; this caught an unsigned-decimal seed clamping to INT64_MAX on restore, fixed before release).
+- pluginval strictness 10: SUCCESS.
+
 ## [1.16.3] - 2026-10-26
 
 In-page preset delete and Windows WebView2 hardening (ui-hardening-phase0). No DSP, parameter, preset or state change; the idle UI looks the same.

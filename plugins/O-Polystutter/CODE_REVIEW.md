@@ -153,7 +153,7 @@ Also update the loop exit: standard Bjorklund stops when the remainder count ≤
 
 **Fix:** In `updateBeatSync`, skip the beat-sync `lane->trigger()` for lanes whose manual-time parameter is set (the per-lane values are already read at PluginProcessor.cpp:1258-1270 — pass them into `updateBeatSync` or check the cached params there). Or remove the toggle.
 
-### WR-04: Beat-sync boundary detection drops the trigger at DAW loop-wrap / backward relocate
+### WR-04: Beat-sync boundary detection drops the trigger at DAW loop-wrap / backward relocate — ✅ RESOLVED v1.17.0 (TriggerScheduler restarts the boundary count on a backward jump or transport start; floor-based; harness gate: wrap downbeat fires)
 
 **File:** `Source/PluginProcessor.cpp:1757-1799`
 
@@ -181,7 +181,7 @@ Code triggers on MIDI notes **60, 61, 62, 63** (lanes 1-4) and **67** (all lanes
 
 **Fix:** Pick one spec. Either (a) implement the tooltip (notes 24-27 → lanes, others → all-lanes fallback), or (b) correct the tooltip and comments to the actual notes (60-63 + 67). Given the tooltip's "any other note = all lanes" is more forgiving, (a) is the better UX.
 
-### WR-07: TriggerRouter keeps only one trigger per block — simultaneous lane triggers are dropped
+### WR-07: TriggerRouter keeps only one trigger per block — simultaneous lane triggers are dropped — ✅ RESOLVED v1.17.0 (every note-on is its own sample-accurate event; lanes render in segments)
 
 **File:** `Source/DSP/TriggerRouter.cpp:39-68`, `TriggerRouter.h:37`
 

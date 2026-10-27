@@ -1,13 +1,13 @@
 #!/bin/bash
 # Builds the O-Polystutter scheduler harness twice: psh_new from the working-tree
-# DSP, psh_old from a baseline DSP tree (default: git HEAD's Source/DSP, which is
-# v1.16.0's — the last DSP commit is v1.14.2). Binaries and renders go to $OUT.
+# DSP, psh_old from a baseline revision's Source/DSP (default b274e523 = v1.16.2,
+# whose DSP is v1.16.0's; it last changed in v1.14.2). Binaries and renders go to $OUT.
 # usage: build.sh [baselineRev]   then: OUT=... python3 gate.py
 set -e
 H="$(cd "$(dirname "$0")" && pwd)"
 R="$(cd "$H/../../../.." && pwd)"
 OUT="${OUT:-${TMPDIR:-/tmp}/psh}"; mkdir -p "$OUT"
-REV="${1:-HEAD}"
+REV="${1:-b274e523}"
 BASE="$OUT/old_src/$REV"
 rm -rf "$BASE"; mkdir -p "$BASE"
 git -C "$R" archive "$REV" plugins/O-Polystutter/Source/DSP | tar -x -C "$BASE" --strip-components 4

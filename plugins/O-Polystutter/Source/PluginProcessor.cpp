@@ -1654,10 +1654,12 @@ void OPolystutterAudioProcessor::getStateInformation(juce::MemoryBlock& destData
                             languageCode(uiLanguage.load(std::memory_order_acquire)),
                             nullptr);
 
-    // v1.17.0: the RNG seed, as a decimal string (a 64-bit value doesn't fit
-    // juce::var's int, and the XML round trip returns strings anyway)
+    // v1.17.0: the RNG seed, as a SIGNED decimal string (a 64-bit value doesn't
+    // fit juce::var's int, and the XML round trip returns strings anyway).
+    // Signed because getLargeIntValue() parses int64 and clamps an unsigned
+    // decimal above INT64_MAX — half of all seeds would restore as INT64_MAX.
     apvts.state.setProperty("rngSeed",
-                            juce::String(rngSeed.load(std::memory_order_relaxed)),
+                            juce::String(static_cast<juce::int64>(rngSeed.load(std::memory_order_relaxed))),
                             nullptr);
 
     // v1.6.0: Use preset manager for state serialization (includes preset name)
