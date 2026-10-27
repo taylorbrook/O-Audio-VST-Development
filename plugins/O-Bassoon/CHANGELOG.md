@@ -5,6 +5,14 @@ All notable changes to O-Bassoon will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2026-10-27
+
+ui-hardening-phase0 (B4). Editor-only. No DSP, parameter, preset or state change.
+
+### Fixed
+
+- **Tuning panel: Rank-2 generator, Save .SCL and Save .KBM work.** `generateRank2`, `saveScalaFile` and `saveKBMFile` were never registered, so those three controls awaited a promise that never settled. They are now registered, matching the other 17 tuning natives.
+
 ## [1.6.0] - 2026-09-27
 
 The UI pass from design review 260924-nho (Phase C): AA text colours from `ouaricon-naturalist-001` (R4), the template's 9px floor, and the bundled EB Garamond face (R5). MINOR because the change is visible. No parameter, range, type or state format changed, and no DSP or processor file was touched. The only C++ change is four `getResource()` branches for the font files. The Family C knob interaction JS is untouched, so R7 (keyboard/ARIA knobs from O-ReverseDelay) stays open for this plugin.

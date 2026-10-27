@@ -267,6 +267,28 @@ OBassoonAudioProcessorEditor::OBassoonAudioProcessorEditor (OBassoonAudioProcess
                     complete (juce::var());
                 })
 
+            // v1.6.1: generateRank2 / saveScalaFile / saveKBMFile were never
+            // registered, so the panel's Rank-2 generator and its Save .SCL /
+            // Save .KBM buttons awaited a promise that never settled.
+            .withNativeFunction ("generateRank2",
+                [] (const juce::Array<juce::var>& args, auto complete) {
+                    if (args.size() >= 3) {
+                        double generator = static_cast<double> (args[0]);
+                        double period    = static_cast<double> (args[1]);
+                        int count        = static_cast<int> (args[2]);
+                        auto intervals = ScaleGenerator::generateRank2 (generator, period, count);
+                        juce::String json = "[";
+                        for (size_t i = 0; i < intervals.size(); ++i) {
+                            if (i > 0) json += ",";
+                            json += juce::String (intervals[i], 6);
+                        }
+                        json += "]";
+                        complete (json);
+                        return;
+                    }
+                    complete (juce::var());
+                })
+
             .withNativeFunction ("applyGeneratedScale",
                 [this] (const juce::Array<juce::var>& args, auto complete) {
                     if (args.size() >= 2) {
@@ -347,6 +369,46 @@ OBassoonAudioProcessorEditor::OBassoonAudioProcessorEditor (OBassoonAudioProcess
                                     *processorRef.getTuningEngine(), "O-Bassoon");
                                 file.replaceWithText (html);
                                 complete (true);
+                            } else {
+                                complete (false);
+                            }
+                        });
+                })
+
+            .withNativeFunction ("saveScalaFile",
+                [this] (const juce::Array<juce::var>&, auto complete) {
+                    fileChooser = std::make_shared<juce::FileChooser> (
+                        "Save Scala File",
+                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                            .getChildFile ("scale.scl"),
+                        "*.scl");
+                    fileChooser->launchAsync (
+                        juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                        [this, complete] (const juce::FileChooser& fc) {
+                            auto file = fc.getResult();
+                            if (file != juce::File()) {
+                                auto content = processorRef.getTuningEngine()->generateScalaFileContent();
+                                complete (file.replaceWithText (content));
+                            } else {
+                                complete (false);
+                            }
+                        });
+                })
+
+            .withNativeFunction ("saveKBMFile",
+                [this] (const juce::Array<juce::var>&, auto complete) {
+                    fileChooser = std::make_shared<juce::FileChooser> (
+                        "Save Keyboard Mapping",
+                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                            .getChildFile ("mapping.kbm"),
+                        "*.kbm");
+                    fileChooser->launchAsync (
+                        juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                        [this, complete] (const juce::FileChooser& fc) {
+                            auto file = fc.getResult();
+                            if (file != juce::File()) {
+                                auto content = processorRef.getTuningEngine()->generateKBMFileContent();
+                                complete (file.replaceWithText (content));
                             } else {
                                 complete (false);
                             }
