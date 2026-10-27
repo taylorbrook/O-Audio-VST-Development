@@ -201,11 +201,14 @@ private:
     // thread changed the value — host automation arrives on the AUDIO thread, where
     // calling setValueNotifyingHost (host performEdit) is a VST3 violation (WR-02).
     // So: message thread → apply synchronously (preserves preset-load ordering,
-    // CR-03); any other thread → stash targets + triggerAsyncUpdate.
+    // CR-03) + async re-send of the current damping/decay (v1.4.4: a host-originated
+    // change's synchronous writes are swallowed by the VST3 wrapper); any other
+    // thread → stash targets + triggerAsyncUpdate.
     void parameterChanged (const juce::String& paramID, float newValue) override;
     void handleAsyncUpdate() override;
     void applyMaterialMacro();
     std::atomic<float> pendingDamping { 0.0f }, pendingDecay { 0.0f };
+    std::atomic<bool> macroPendingFromAudio { false };   // true → handleAsyncUpdate applies the targets
 
     // CR-03 (state path): session restore delivers ALL params explicitly, so the
     // macro must not re-derive damping/decay from the restored material and stomp

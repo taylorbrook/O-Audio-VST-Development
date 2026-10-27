@@ -3,6 +3,20 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.4.4] — 2026-10-27
+
+Material macro stays in sync with the host. No parameter, range, state or DSP change.
+
+### Fixed
+
+- **Moving Material from the host now updates Damping and Decay in the host too.** When the host itself changed Material (its parameter view, a control surface, an automation write on the main thread), the plugin moved Damping and Decay but the host never heard about it and kept the old values. On the next playback block the host sent those old values back, which undid the macro. Root cause: the macro wrote both knobs from inside the host's own parameter-change call, where the VST3 wrapper drops every nested change report. The plugin still applies the macro at once (preset loading depends on that order) and now also re-sends the current Damping and Decay to the host from outside that call. It re-sends their current values rather than re-applying the macro, so the explicit Damping and Decay of Struck Bar and Bell survive a load after a string preset.
+
+### Testing
+
+- Render harness 24/24, including two new checks: `modal-preset-holds` (Muted Nylon → Struck Bar keeps 55 / 60) and `macro-host-resend` (FAILS on v1.4.3 with no reports, passes here).
+- pedalboard host probe: on v1.4.3 the host stayed at 60 / 70 after material moves and reverted the plugin on render; on v1.4.4 the host and plugin match, including after a render.
+- pluginval strictness 10 VST3, seeds 0x1, 0x2ed10e1, 0x69c6be7, 0x1234, 0xbeef, 0x7777: all SUCCESS. These seeds also passed on v1.4.3 — pluginval does not exercise this path. auval PASS.
+
 ## [1.4.3] — 2026-10-19
 
 ### Fixed

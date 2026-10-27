@@ -2,11 +2,12 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.4.0
+- **Version:** 1.4.4
 - **Type:** Synth (Pedagogical Physical Modeling)
 
 ## Lifecycle Timeline
 
+- **2026-10-27 (v1.4.4):** Material macro host desync via /improve. A host-originated material change on the message thread ran the synchronous damping/decay writes inside the VST3 wrapper's `inParameterChangedCallback` scope, so the host never heard them and pushed the stale values back on the next render. Kept the synchronous apply (preset-load order, CR-03) and added an AsyncUpdater re-send of damping/decay's CURRENT values (not the macro targets: plain deferral would stomp Struck Bar/Bell's explicit damping/decay after a material reset). Gates: harness 24/24 (+modal-preset-holds, +macro-host-resend, negative-controlled on v1.4.3), pedalboard host probe (needs CFRunLoop pumping to see any async path), pluginval L10 x6 seeds, auval.
 - **2026-09-25 (v1.4.0):** UI pass (design review 260924-nho R4/R5/R7) via /improve:
   - AA text-ink tokens: below-AA 32/77 → 9/77, all 9 inactive or decorative;
   - 9 px floor (13 → 0 nodes under 9 px);

@@ -43,6 +43,9 @@
   ==============================================================================
 */
 
+#ifdef __APPLE__   // before JUCE: MacTypes Point vs juce::Point
+ #include <CoreFoundation/CoreFoundation.h>
+#endif
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_core/juce_core.h>
@@ -55,6 +58,7 @@
 #include <cstdio>
 #include <algorithm>
 #include <functional>
+#include <map>
 
 //==============================================================================
 // Acceptance-test helpers
@@ -185,6 +189,19 @@ static Render renderNote (int note, int vel, double fs, int block, int numSample
     }
     proc.releaseResources();
     return r;
+}
+
+// Drain queued AsyncUpdater callbacks. runDispatchLoopUntil needs
+// JUCE_MODAL_LOOPS_PERMITTED (off here); on macOS JUCE posts to the main
+// CFRunLoop, so spin it directly.
+static bool pumpMessages()
+{
+   #if JUCE_MAC
+    CFRunLoopRunInMode (kCFRunLoopDefaultMode, 0.05, false);
+    return true;
+   #else
+    return false;
+   #endif
 }
 
 static void setParam (juce::AudioProcessorValueTreeState& apvts, const char* id, float v)
@@ -409,6 +426,42 @@ int main()
         check ("state-roundtrip", state.getSize() > 0,
                juce::String ("stateBytes=") + juce::String ((int) state.getSize()));
         proc.releaseResources();
+    }
+
+    //--------------------------------------------------------------------------
+    // 4. v1.4.4 Material macro host re-send. Loading a modal preset after a string
+    //    preset resets material to its default (macro fires) and THEN writes the
+    //    preset's explicit damping/decay. The deferred re-send must report those
+    //    explicit values to the host, not re-apply the macro over them.
+    //--------------------------------------------------------------------------
+    {
+        struct HostSpy final : juce::AudioProcessorListener
+        {
+            std::map<int, float> last;
+            void audioProcessorParameterChanged (juce::AudioProcessor*, int i, float v) override { last[i] = v; }
+            void audioProcessorChanged (juce::AudioProcessor*, const ChangeDetails&) override {}
+        } spy;
+
+        OSimplePhysicalModelSynthAudioProcessor proc;
+        auto& apvts = proc.getAPVTS();
+        auto* dp = apvts.getParameter (ParamIDs::damping);
+        auto* dc = apvts.getParameter (ParamIDs::decay);
+
+        proc.getPresetManager().loadPreset ("Muted Nylon");
+        pumpMessages();
+        proc.getPresetManager().loadPreset ("Struck Bar");
+        proc.addListener (&spy);
+        const bool pumped = pumpMessages();   // the queued re-send
+        proc.removeListener (&spy);
+
+        const float d = dp->convertFrom0to1 (dp->getValue()), k = dc->convertFrom0to1 (dc->getValue());
+        check ("modal-preset-holds", std::abs (d - 55.0f) < 0.01f && std::abs (k - 60.0f) < 0.01f,
+               juce::String ("damping=") + juce::String (d, 2) + " decay=" + juce::String (k, 2));
+
+        const bool sent = spy.last.count (dp->getParameterIndex()) && spy.last.count (dc->getParameterIndex())
+                       && juce::approximatelyEqual (spy.last[dp->getParameterIndex()], dp->getValue())
+                       && juce::approximatelyEqual (spy.last[dc->getParameterIndex()], dc->getValue());
+        check ("macro-host-resend", sent || ! pumped, juce::String ("reports=") + juce::String ((int) spy.last.size()));
     }
 
     std::printf ("\n%s — %d failure(s)\n", failures == 0 ? "ALL PASS" : "FAILURES", failures);

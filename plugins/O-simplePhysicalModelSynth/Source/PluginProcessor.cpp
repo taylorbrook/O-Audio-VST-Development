@@ -266,6 +266,14 @@ PhysicalModelParams OSimplePhysicalModelSynthAudioProcessor::readParams() const
 // (→ host performEdit) is a VST3 violation. Message thread applies immediately
 // (preset loads are message-thread and rely on apply ORDER — CR-03); any other
 // thread stashes the targets and defers to handleAsyncUpdate.
+//
+// v1.4.4: a HOST-originated material change on the message thread runs inside the
+// VST3 wrapper's inParameterChangedCallback scope, which drops every change report
+// — the synchronous damping/decay writes land in the plugin but never reach the
+// host, and the host's stale values come back on the next process call. So the
+// message-thread branch also queues an async re-send of damping/decay's CURRENT
+// values (not the macro targets: a modal preset load resets material and then
+// writes explicit damping/decay, which must stay the ones the host hears).
 void OSimplePhysicalModelSynthAudioProcessor::parameterChanged (const juce::String& paramID, float newValue)
 {
     if (paramID != ParamIDs::material)
@@ -286,15 +294,32 @@ void OSimplePhysicalModelSynthAudioProcessor::parameterChanged (const juce::Stri
     pendingDecay.store   (juce::jlimit (0.0f, 100.0f, decayPct));
 
     if (juce::MessageManager::getInstance()->isThisTheMessageThread())
+    {
         applyMaterialMacro();
+        macroPendingFromAudio.store (false);   // this value is newer than any queued one
+    }
     else
-        triggerAsyncUpdate();
+    {
+        macroPendingFromAudio.store (true);
+    }
+    triggerAsyncUpdate();
 }
 
 void OSimplePhysicalModelSynthAudioProcessor::handleAsyncUpdate()
 {
-    if (! restoringState.load())
+    if (restoringState.load())
+        return;
+
+    if (macroPendingFromAudio.exchange (false))
+    {
         applyMaterialMacro();
+        return;
+    }
+
+    // Re-send the current values; the synchronous write may have been swallowed.
+    for (auto* id : { ParamIDs::damping, ParamIDs::decay })
+        if (auto* p = parameters.getParameter (id))
+            p->setValueNotifyingHost (p->getValue());
 }
 
 void OSimplePhysicalModelSynthAudioProcessor::applyMaterialMacro()
