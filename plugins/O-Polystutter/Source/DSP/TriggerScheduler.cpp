@@ -161,7 +161,9 @@ void TriggerScheduler::schedule(const BlockInfo& info, const juce::MidiBuffer& m
             if (fresh)
                 lastFiredBoundary[lane] = LLONG_MIN;
 
-            if (!info.laneEnabled[lane])
+            // v1.18.0: a MAN lane ignores beat-sync timing — only MIDI and the
+            // TRIG button fire it (WR-03: the toggle was stored but never read)
+            if (!info.laneEnabled[lane] || info.laneManualTime[lane])
                 continue;
 
             const double subdivPPQ = getSubdivisionPPQ(info.laneSubdiv[lane]);

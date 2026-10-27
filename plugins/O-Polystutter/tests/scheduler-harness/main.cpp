@@ -31,6 +31,7 @@ struct LaneP
     float decay = 90, volume = 100, pan = 0, prob = 100, swing = 0, pitch = 0, filter = 0;
     bool prEn = false; float prMin = 0, prMax = 0; bool prQ = true;
     bool pingPong = false, reverse = false;
+    bool manual = false;          // v1.18.0 MAN: no beat-sync triggers
     bool euc = false; int eucP = 4, eucS = 16;
     bool steps[16] = { true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true };
 };
@@ -117,7 +118,7 @@ static Config makeConfig(const std::string& name)
                 c.notes.push_back({ at, notes[r.next() % 5] });
         }
     }
-    else if (name == "exact_beat" || name == "onsets_beat")
+    else if (name == "exact_beat" || name == "onsets_beat" || name == "onsets_man")
     {
         // 120 BPM at 48 kHz: 1/8 = 12000 and 1/4 = 24000 samples, multiples of 32 and 480
         c.sequencer = true;
@@ -131,7 +132,8 @@ static Config makeConfig(const std::string& name)
         stepsOff(c.lane[3], { 1, 2, 5, 6, 9 });
         c.tapeBypass = false; c.sat = 25; c.wow = 30; c.rolloff = 15;
         c.startSample = 4800;   // first block holds no boundary: v1.16.0 skips the first playing block
-        if (name == "onsets_beat") { c.bpm = 128.0; c.sequencer = false; c.tapeBypass = true; c.startSample = 1234; }
+        if (name == "onsets_beat" || name == "onsets_man") { c.bpm = 128.0; c.sequencer = false; c.tapeBypass = true; c.startSample = 1234; }
+        if (name == "onsets_man") c.lane[1].manual = true;   // WR-03: lane 2 must fire no beat triggers
     }
     else { std::fprintf(stderr, "unknown config %s\n", name.c_str()); std::exit(2); }
     return c;
@@ -239,7 +241,7 @@ int main(int argc, char** argv)
         info.numSamples = n; info.sampleRate = kFs; info.bpm = bpm;
         info.hasPosition = true; info.hasPpq = true; info.ppq = ppq; info.isPlaying = true;
         info.midiEnabled = c.midiEnabled; info.manualEdge = false;
-        for (int li = 0; li < 4; ++li) { info.laneEnabled[li] = c.lane[li].enabled; info.laneSubdiv[li] = c.lane[li].subdiv; }
+        for (int li = 0; li < 4; ++li) { info.laneEnabled[li] = c.lane[li].enabled; info.laneManualTime[li] = c.lane[li].manual; info.laneSubdiv[li] = c.lane[li].subdiv; }
         sched.schedule(info, midi);
         for (int li = 0; li < 4; ++li)
             for (int e = 0; e < sched.getNumEvents(li); ++e)

@@ -70,6 +70,7 @@ public:
         bool midiEnabled = false;
         bool manualEdge = false;     // manual-trigger rising edge this block
         bool laneEnabled[kNumLanes] = { false, false, false, false };
+        bool laneManualTime[kNumLanes] = { false, false, false, false };  // MAN: no beat-sync triggers
         int laneSubdiv[kNumLanes] = { 2, 2, 2, 2 };
     };
 

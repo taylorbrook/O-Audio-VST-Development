@@ -2,6 +2,24 @@
 
 All notable changes to O-Polystutter will be documented in this file.
 
+## [1.18.0] - 2026-10-26
+
+The lane MAN toggle now works, and a NaN or Inf from upstream no longer silences the plugin for good (review findings WR-03 and IN-05). No parameter, range or preset change. **Behaviour change:** a session or preset saved with MAN on now plays that lane only from TRIG or MIDI. Before, MAN did nothing.
+
+### Added
+
+- **MAN (manual time) mutes a lane's beat-sync triggers (WR-03).** The tooltip says MAN "ignores beat-sync timing", but `manualTimeEnabled` was only stored and never read, so the lane kept re-triggering on every subdivision while the transport ran. `TriggerScheduler::BlockInfo` now carries `laneManualTime[]`, and the beat-boundary loop skips MAN lanes. The TRIG button and MIDI notes still fire them, and the other lanes are unaffected.
+
+### Fixed
+
+- **One NaN/Inf input sample silenced the output until the next `prepare()` (IN-05).** Root cause: the sample entered the IIR feedback state of the lane filter and the tape rolloff filter, which then output NaN from then on. The capture snapshot also looped it for the whole repeat tail. Non-finite input samples are now zeroed at the top of `processBlock`. As a backstop for a NaN created inside the chain, a non-finite output resets every lane (capture, snapshot, filters, envelopes) and the tape stage (filters, wow/flutter delays), then outputs silence for that block. `RepeatLane::reset()` now clears the snapshot buffer too.
+
+### Testing
+
+- Scheduler harness (`tests/scheduler-harness/`, new `onsets_man` config): **ALL PASS**. The MAN lane fires 0 beat triggers where it fired 21 without MAN, and the other three lanes' trigger lists are identical. All v1.17.0 gates still pass: block-size nulls, bit-identity with v1.16.0, the controls, and the loop-wrap downbeat.
+- Installed VST3 (pedalboard): NaN and Inf injected at 1 s with tape rolloff and hiss on. The output has 0 non-finite samples, and the RMS over 2–4 s matches a clean render (0.10607 vs 0.10607). Without the input guard, the NaN would reach the output through the dry path alone.
+- auval: AU VALIDATION SUCCEEDED. pluginval strictness 10: SUCCESS.
+
 ## [1.17.0] - 2026-10-26
 
 Sample-accurate triggers and reproducible randomness (granular-2026 research §3.1, §2.2 items 5 and 8; review findings WR-04 and WR-07). No parameter, range or preset change. A session saved by an older version loads normally and gets a fresh seed.

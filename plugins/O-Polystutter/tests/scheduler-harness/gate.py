@@ -94,6 +94,12 @@ for eng, want in (("new", True), ("old", False)):
     ons = render(eng, "loop", "512", SEED, onsets=True)
     hit = all(any(l == 3 and t == w for l, t, k in ons) for w in (180000, 360000))
     check(f"loop-wrap downbeat {'fires' if want else 'dropped'} ({eng})", hit == want, "")
+# WR-03 (v1.18.0): a MAN lane fires no beat-sync triggers; the other lanes are untouched
+ons_b = render("new", "onsets_beat", "512", SEED, onsets=True)
+ons_m = render("new", "onsets_man", "512", SEED, onsets=True)
+check("MAN lane fires no beat triggers (onsets_man)", not any(l == 1 for l, t, k in ons_m) and any(l == 1 for l, t, k in ons_b),
+      f"lane 2: {sum(l == 1 for l, t, k in ons_b)} beat triggers without MAN, {sum(l == 1 for l, t, k in ons_m)} with")
+check("MAN leaves the other lanes' triggers unchanged", sorted(o for o in ons_b if o[0] != 1) == sorted(o for o in ons_m if o[0] != 1), "")
 # the wet path must matter in every exact config, or bit-identity only proves the dry path
 for cfg in ("exact_beat", "exact_midi"):
     ons = render("new", cfg, "32", SEED, onsets=True)

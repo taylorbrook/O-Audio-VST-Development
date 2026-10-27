@@ -46,6 +46,7 @@ void RepeatLane::prepare(const juce::dsp::ProcessSpec& spec)
     // This fixes the pitch shifting and audio corruption issues caused by using popSample()
     captureBuffer.setSize(2, maxCaptureSamples);
     captureBuffer.clear();
+    snapshotBuffer.clear();  // v1.18.0 (IN-05): full reset, nothing stale survives a NaN recovery
     captureWritePosition = 0;
 
     // v1.12.3 (WR-05): Snapshot buffer holds the frozen slice for playback

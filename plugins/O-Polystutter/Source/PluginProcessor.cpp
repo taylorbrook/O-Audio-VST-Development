@@ -1226,6 +1226,17 @@ void OPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
 
     const int numChannels = juce::jmin(buffer.getNumChannels(), 2);
 
+    // v1.18.0 (IN-05): Zero non-finite input samples. One upstream NaN would
+    // otherwise latch the lane and tape IIR filters (feedback state) and loop
+    // in the capture snapshot for the whole repeat tail.
+    for (int ch = 0; ch < numChannels; ++ch)
+    {
+        auto* data = buffer.getWritePointer(ch);
+        for (int i = 0; i < numSamples; ++i)
+            if (! std::isfinite(data[i]))
+                data[i] = 0.0f;
+    }
+
     // ========== Read Parameters for All Lanes ==========
     // Lane 1
     bool lane1Enabled = lane1EnabledParam->load() > 0.5f;
@@ -1519,6 +1530,10 @@ void OPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
         info.laneEnabled[1] = lane2 && lane2Enabled;
         info.laneEnabled[2] = lane3 && lane3Enabled;
         info.laneEnabled[3] = lane4 && lane4Enabled;
+        info.laneManualTime[0] = lane1ManualTime;
+        info.laneManualTime[1] = lane2ManualTime;
+        info.laneManualTime[2] = lane3ManualTime;
+        info.laneManualTime[3] = lane4ManualTime;
         info.laneSubdiv[0] = lane1Subdiv;
         info.laneSubdiv[1] = lane2Subdiv;
         info.laneSubdiv[2] = lane3Subdiv;
@@ -1612,6 +1627,27 @@ void OPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
 
         // Process buffer in-place with tape effects
         tapeDegrader->processBlock(buffer, numSamples);
+    }
+
+    // v1.18.0 (IN-05): Backstop for a NaN/Inf made inside the chain (input is
+    // already sanitised). Reset ALL state — lanes (capture, snapshot, filters,
+    // envelopes) and tape (filters, delays) — not just the filters, so nothing
+    // feeds the bad value back, and output silence for this block.
+    bool outputFinite = true;
+    for (int ch = 0; ch < numChannels && outputFinite; ++ch)
+    {
+        const auto* data = buffer.getReadPointer(ch);
+        for (int i = 0; i < numSamples; ++i)
+            if (! std::isfinite(data[i])) { outputFinite = false; break; }
+    }
+    if (! outputFinite)
+    {
+        if (lane1) lane1->reset();
+        if (lane2) lane2->reset();
+        if (lane3) lane3->reset();
+        if (lane4) lane4->reset();
+        if (tapeDegrader) tapeDegrader->reset();
+        buffer.clear();
     }
 
     // ========== v1.5.0: Update Lane Progress for UI ==========

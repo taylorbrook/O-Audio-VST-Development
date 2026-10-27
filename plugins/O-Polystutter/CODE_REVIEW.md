@@ -34,11 +34,21 @@
 
 Overall: the parameter/relay/attachment plumbing is complete and consistent (all 10 native functions used by JS are registered; no orphans in either direction), and the CMake config is one of the few in the suite with correct Windows WebView2 flags. The two critical items are a real-time-safety violation in the tape rolloff filter and the known WebView FileChooser UAF pattern. The most surprising correctness finding is that the Bjorklund/Euclidean generator is mathematically wrong for most pulse counts — including the tresillo/cinquillo patterns the factory presets are named after — and two advertised lane features (FILTER knob, MAN toggle) are wired to parameters that no DSP code reads.
 
+
+## Status (verified against the code at v1.18.0, 2026-10-26)
+
+| | Findings |
+|---|---|
+| ✅ Resolved (15) | CR-01, CR-02, WR-01, WR-02, WR-03, WR-04, WR-05, WR-06, WR-07, WR-08, IN-02, IN-05, IN-08, IN-09, IN-11 |
+| 🟡 Partial (2) | IN-03, IN-04 |
+| ⛔ Open (4) | IN-01, IN-06, IN-07, IN-10 |
+| Notes | NT-05, NT-06 resolved; NT-01–NT-04 need no action |
+
 ---
 
 ## CRITICAL
 
-### CR-01: Heap allocation on the audio thread — `IIR::Coefficients::makeLowPass` in rolloff path
+### CR-01: Heap allocation on the audio thread — `IIR::Coefficients::makeLowPass` in rolloff path — ✅ RESOLVED v1.12.3 (`ArrayCoefficients` assigned in place, `TapeDegrader.cpp:360`)
 
 **File:** `Source/DSP/TapeDegrader.cpp:187-191` → `TapeDegrader.cpp:325-340`
 
@@ -66,7 +76,7 @@ rolloffFilterRight.coefficients->coefficients = c;
 
 (`updateHissBandpass` at `TapeDegrader.cpp:342-361` has the same `makeHighPass`/`makeLowPass` calls but is only invoked from `prepare()`, so it is message/host-thread only — fix it too while there for consistency.)
 
-### CR-02: FileChooser `launchAsync` completions capture raw `this` and call `complete()` unconditionally — UAF on editor teardown
+### CR-02: FileChooser `launchAsync` completions capture raw `this` and call `complete()` unconditionally — UAF on editor teardown — ✅ RESOLVED v1.12.3 (`SafePointer` completions, shared_ptr chooser, `PluginEditor.cpp:476,520`)
 
 **File:** `Source/PluginEditor.cpp:397-427` (`savePresetWithDialog`) and `PluginEditor.cpp:434-463` (`loadPresetFromFile`)
 
@@ -107,7 +117,7 @@ Using `std::shared_ptr` for the chooser also removes the manual `new`/`delete` p
 
 ## WARNING
 
-### WR-01: Bjorklund/Euclidean algorithm drops pulses — most canonical patterns are wrong
+### WR-01: Bjorklund/Euclidean algorithm drops pulses — most canonical patterns are wrong — ✅ RESOLVED v1.12.3 (leftover-A accounting in C++ and the JS mirror; 240-combination sweep)
 
 **File:** `Source/DSP/RepeatLane.cpp:654-751` (`generateEuclideanPattern`); mirrored in `Source/ui/public/js/parameter-bindings.js:785-846`
 
@@ -145,7 +155,7 @@ Also update the loop exit: standard Bjorklund stops when the remainder count ≤
 
 **Fix:** Either implement the per-lane filter (state-variable LP/HP in `RepeatLane::processBlock`, coefficients via `ArrayCoefficients` per CR-01's pattern) or remove the parameter + knob. Do not ship a knob whose tooltip describes behavior that doesn't exist.
 
-### WR-03: Lane MAN (manual-time) toggle is dead — `manualTimeEnabled` is stored but never read
+### WR-03: Lane MAN (manual-time) toggle is dead — `manualTimeEnabled` is stored but never read — ✅ RESOLVED v1.18.0 (`TriggerScheduler` skips beat-sync boundaries for MAN lanes; TRIG/MIDI still fire; harness gate `onsets_man`)
 
 **File:** `Source/DSP/RepeatLane.cpp:558-561`, `RepeatLane.h:106`; UI at `index.html:1092` (tooltip: "Ignores beat-sync timing. Use with TRIG button for one-shot stutters")
 
@@ -161,7 +171,7 @@ Boundary detection is `currentSubdiv > lastSubdiv` with `int` truncation. When t
 
 **Fix:** Detect wrap explicitly: if `ppqPosition < lastPPQPosition`, treat it as a fresh boundary (trigger if the lane is enabled, or re-seed `lastPPQPosition = ppqPosition - subdivPPQ` so the next comparison fires). Use `std::floor(ppq / subdivPPQ)` instead of `static_cast<int>` for correct negative-ppq behavior.
 
-### WR-05: Capture buffer is overwritten by the live write head during long repeat tails
+### WR-05: Capture buffer is overwritten by the live write head during long repeat tails — ✅ RESOLVED v1.12.3 (per-lane snapshot buffer copied at trigger)
 
 **File:** `Source/DSP/RepeatLane.cpp:75-86` (write always advances) vs `RepeatLane.cpp:325-329` (read region fixed at trigger)
 
@@ -171,7 +181,7 @@ The circular capture buffer is 5 s (`prepare`, line 23). While a lane plays repe
 
 **Fix:** Either pause capture writes while `isTriggered && currentRepeat < maxRepeats` (classic freeze semantics), or copy the captured slice into a dedicated per-lane snapshot buffer at trigger time (memcpy of ≤5 s, still RT-safe as a bounded copy of pre-allocated memory — or copy incrementally), or clamp `maxRepeats × subdivisionSamples` against the buffer headroom.
 
-### WR-06: MIDI trigger notes contradict UI tooltip and code comments
+### WR-06: MIDI trigger notes contradict UI tooltip and code comments — ✅ RESOLVED v1.14.2 (tooltip names notes 60–63 / 67 in en, fr, zh-Hans; source comment corrected)
 
 **File:** `Source/DSP/TriggerRouter.cpp:50-66`; `index.html:1534`
 
@@ -189,7 +199,7 @@ Code triggers on MIDI notes **60, 61, 62, 63** (lanes 1-4) and **67** (all lanes
 
 **Fix:** Replace the single int with a 5-bit mask (`uint8` lane bits + all-lanes bit), OR-in every matching note, and have the processor trigger every set lane. Sample-accurate triggering (splitting the block at trigger offsets) is a larger change and can be deferred, but the mask fix is small.
 
-### WR-08: Factory presets don't specify pattern-step / pitch-rand / Euclidean parameters — loading a preset inherits stale state
+### WR-08: Factory presets don't specify pattern-step / pitch-rand / Euclidean parameters — loading a preset inherits stale state — ✅ RESOLVED v1.12.3 (`applyPresetJson` resets every parameter to default first)
 
 **File:** `Source/PluginProcessor.cpp:854-919` (`makeParams` — no `pattern_*`, no `*_pitch_rand_*`; presets 1-12 also lack `*_euclidean_*`); `Source/OPolystutterPresetManager.h:269-282` (`applyPresetJson` only sets keys present in the JSON)
 
@@ -201,67 +211,67 @@ Code triggers on MIDI notes **60, 61, 62, 63** (lanes 1-4) and **67** (all lanes
 
 ## IMPROVEMENT
 
-### IN-01: "Retrigger crossfade" blends against its own previous output, and fade-out holds a frozen sample
+### IN-01: "Retrigger crossfade" blends against its own previous output, and fade-out holds a frozen sample — ⛔ OPEN
 
 **File:** `Source/DSP/RepeatLane.cpp:260-273` and `RepeatLane.cpp:103-118`
 
 `lastOutputLeft/Right` are updated *after* the blend each sample (lines 272-273), so during the retrigger crossfade the "old" signal is the previous **blended** sample, not the old stream — the math degenerates to a recursive smoother, not a crossfade (the old stream no longer exists, so this is a reasonable approximation, but the comment overclaims). Similarly the post-repeat fade-out (lines 107-118) fades a **frozen single sample value** (a decaying DC step), not the tail of the audio. Both are click-safe but crude; if fidelity matters, keep a short history buffer of real output for the fade source. At minimum, correct the comments.
 
-### IN-02: Loop-boundary interpolation can read one sample of just-written live input
+### IN-02: Loop-boundary interpolation can read one sample of just-written live input — ✅ RESOLVED v1.12.3 (snapshot read, neighbour clamped inside the slice)
 
 **File:** `Source/DSP/RepeatLane.cpp:182-190`
 
 `nextPos = (basePos + 1) % maxCaptureSamples` at `readOffset ≈ captureLength − 1` lands on the slot the live write head refilled earlier in the same block, so the interpolated last sample of each repeat mixes in one sample of unrelated live audio. Clamp `nextPos` inside the capture region (or wrap to `captureStartPosition` for loop-consistent interpolation).
 
-### IN-03: Dead code in processor: `subdivisionSamples`, `samplesSinceLastBeat`, duplicated subdivision math
+### IN-03: Dead code in processor: `subdivisionSamples`, `samplesSinceLastBeat`, duplicated subdivision math — 🟡 PARTIAL v1.17.0 (`samplesSinceLastBeat` removed; `subdivisionSamples` + `getSubdivisionSamples` still dead; subdivision math now in 4 places: processor, RepeatLane ×2, TriggerScheduler)
 
 **File:** `Source/PluginProcessor.h:87-88`, `PluginProcessor.cpp:1160-1164, 1807-1823`
 
 `samplesSinceLastBeat` and the processor-level `subdivisionSamples` are written in `prepareToPlay` and never read. `getSubdivisionSamples()` duplicates `RepeatLane::calculateSubdivisionSamples()` line-for-line, and `getSubdivisionPPQ` (lambda in `updateBeatSync`) duplicates `RepeatLane::updatePatternPosition`'s switch. Remove the dead members and centralize the subdivision table in one place — three copies of the same table is how the next subdivision addition gets missed in one of them.
 
-### IN-04: Hiss is broadband (0-15 kHz), not the documented 5-15 kHz band; highpass coefficients computed and discarded
+### IN-04: Hiss is broadband (0-15 kHz), not the documented 5-15 kHz band; highpass coefficients computed and discarded — 🟡 PARTIAL v1.12.3 (discarded highpass removed; still broadband, and `prepare()` still comments "5kHz-15kHz")
 
 **File:** `Source/DSP/TapeDegrader.cpp:342-361`
 
 `updateHissBandpass` designs a 5 kHz highpass (`coefficientsHigh`) and then throws it away ("use lowpass only"), so the noise fed to both channels is white noise lowpassed at 15 kHz — including low-frequency energy that reads as rumble/hash, not tape hiss. Also the *same* noise sample drives both channels (line 169-173), so the hiss is mono/correlated, which sounds unnatural on headphones. Chain the highpass through a second filter pair and use independent noise samples per channel.
 
-### IN-05: No NaN/Inf guard — a NaN input latches the tape IIR filters permanently
+### IN-05: No NaN/Inf guard — a NaN input latches the tape IIR filters permanently — ✅ RESOLVED v1.18.0 (non-finite input zeroed; non-finite output resets all lane + tape state; pedalboard NaN/Inf probe clean)
 
 **File:** `Source/DSP/TapeDegrader.cpp:193-208` (rolloff), `166-180` (hiss); `Source/DSP/RepeatLane.cpp:75-86`
 
 A single NaN sample from upstream propagates into `rolloffFilterLeft/Right` state and stays there (IIR feedback) until the next `prepare()` — permanent silence/NaN output. The capture buffer will also loop NaN for the full repeat tail. Per the suite pattern (O-Formant v1.25.2): sanitize block input (or at least flush filter state when a non-finite output is detected), and remember the guard must reset *all* state, not just the filters.
 
-### IN-06: Factory-preset initialization does file I/O in the processor constructor
+### IN-06: Factory-preset initialization does file I/O in the processor constructor — ⛔ OPEN
 
 **File:** `Source/PluginProcessor.cpp:849-1121`
 
 The constructor calls `findChildFiles()` and, on first run, writes 15 JSON files. This runs during host plugin scans and `auval` — exactly what the preset manager's own comment (`OPolystutterPresetManager.h:201-203`, "deferred to avoid file I/O during AU validation") tries to avoid. Move factory-preset seeding to first editor open or a lazy check in `getPresetList()`.
 
-### IN-07: Preset name used verbatim as filename — "/" in a name silently fails (known suite bug)
+### IN-07: Preset name used verbatim as filename — "/" in a name silently fails (known suite bug) — ⛔ OPEN (`getChildFile(presetName + ".json")`, no sanitising)
 
 **File:** `Source/OPolystutterPresetManager.h:308` (`getChildFile(presetName + ".json")`)
 
 Same as the O-simplePhysicalModelSynth finding: a name containing "/" becomes a nested path; the write fails or lands in a subdirectory invisible to the non-recursive `getPresetList()`. Exposure here is reduced because the save UI goes through a native file dialog (name = `getFileNameWithoutExtension`), but the `savePreset` native fn still accepts arbitrary strings from JS. Sanitize the name (`removeCharacters("/\\:")` or `File::createLegalFileName`).
 
-### IN-08: Preset dropdown injects preset names via unescaped innerHTML
+### IN-08: Preset dropdown injects preset names via unescaped innerHTML — ✅ RESOLVED v1.14.0 (rows built with createElement + textContent)
 
 **File:** `Source/ui/public/index.html:1608-1611`
 
 `item.innerHTML = `<span ...>${name}</span>...`` — a preset file named `<img src=x onerror=...>.json` (user-writable directory) executes script in the plugin UI, and any name containing `<`/`&` breaks rendering. Use `textContent` for the name span and build the badge/delete elements with `createElement`.
 
-### IN-09: `confirm()` used for preset deletion — typically a no-op in JUCE WKWebView
+### IN-09: `confirm()` used for preset deletion — typically a no-op in JUCE WKWebView — ✅ RESOLVED v1.16.3 (in-page two-click delete)
 
 **File:** `index.html:1617`, `modules/preset-manager.js:316-320`
 
 WKWebView requires a host-provided JS dialog delegate for `confirm()`; JUCE's WebBrowserComponent does not supply one, so `confirm()` returns falsy and the delete button silently does nothing on macOS (the module's own docstring warns about this). Replace with an in-DOM confirmation (two-click "Delete? ✓" pattern used elsewhere in the suite).
 
-### IN-10: Concurrent `updateDropdownMenu()` invocations can interleave
+### IN-10: Concurrent `updateDropdownMenu()` invocations can interleave — ⛔ OPEN (no generation guard; `app.js:504` clears then awaits per row)
 
 **File:** `index.html:1596-1628`
 
 The function `await`s `isFactoryPreset` inside the item loop after clearing `innerHTML`. It is invoked from both `onPresetChanged` and `onPresetListUpdated` (which fire back-to-back on every load/save), so two in-flight invocations can interleave and append duplicate items. Guard with a generation counter or build the list off-DOM and swap once. Also `isPercentage` in `parameter-bindings.js:128` is computed and never used — delete it.
 
-### IN-11: WebView2 user-data folder set to the bare shared temp directory
+### IN-11: WebView2 user-data folder set to the bare shared temp directory — ✅ RESOLVED v1.16.3 (`%APPDATA%\Ouaricon\WebView2\O-Polystutter`)
 
 **File:** `Source/PluginEditor.cpp:207-210`
 
@@ -287,11 +297,11 @@ With `mix_dry` defaulting to 50% (PluginProcessor.cpp:633-639) and lanes outputt
 
 The signal path has no lookahead; zero latency is correct, and the code rightly avoids trying to override the non-virtual `getLatencySamples()` (JUCE 8).
 
-### NT-05: Triggers are block-quantized
+### NT-05: Triggers are block-quantized — ✅ RESOLVED v1.17.0 (sample-accurate TriggerScheduler + segmented lanes)
 
 Beat-sync, MIDI, and manual triggers all fire at block boundaries (trigger decisions are made once per `processBlock` before the sample loop), giving up to one buffer (~10 ms at 512/48 k) of timing jitter on stutter onsets. Acceptable for this design; sample-accurate splitting would be the upgrade path.
 
-### NT-06: Preset directory comment mismatch
+### NT-06: Preset directory comment mismatch — ✅ RESOLVED (the mismatched header comment is gone; `getPresetsDirectory()` comments its real path)
 
 `OPolystutterPresetManager.h:23-24` documents `~/Library/Application Support/{plugin}/Presets/` but `getPresetsDirectory()` (line 205-212) actually builds `~/Library/{plugin}/Presets/`. Behavior is consistent with the rest of the suite; fix the comment (or the path) so future maintenance doesn't "correct" the wrong one.
 
