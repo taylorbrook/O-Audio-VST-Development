@@ -2,6 +2,21 @@
 
 All notable changes to O-Polystutter will be documented in this file.
 
+## [1.18.2] - 2026-10-27
+
+Follow-up fixes to v1.18.1 (IN-07) and v1.18.0 (IN-05). No parameter, range, state or preset-format change.
+
+### Fixed
+
+- **Legacy presets with ":" or "\\" in the filename were listed but could not be loaded or deleted (regression in v1.18.1).** Root cause: IN-07 sanitised the name on every lookup, so a user preset saved before v1.18.1 as `A:B.json` was listed as "A:B" but looked up as `AB.json`, which does not exist. Sanitising now runs on save only. `loadPreset`, `deletePreset` and `isFactoryPreset` use the raw listed name through a new `resolvePresetFile()`, which accepts the file only if it resolves directly inside the Factory or User folder. So "../x" and "a/b" are still rejected, and on Windows "a\\b" is too (it resolves into a subfolder).
+- **The NaN/Inf backstop did not clear the snapshot buffer (IN-05).** The v1.18.0 notes said `RepeatLane::reset()` clears it, but the `snapshotBuffer.clear()` had gone into `prepare()`, before the buffer was sized, where it did nothing. The output-NaN recovery calls `reset()`, so a NaN frozen into the snapshot could loop again on the next repeat. The clear has moved into `reset()`, which `prepare()` calls after sizing the buffer.
+
+### Testing
+
+- Preset lookup probe (juce_core, with the two helpers copied verbatim from the header): the legacy files `A:B.json`, `C\D.json` and `..x.json` all resolve from their listed names. `../Outside`, `a/../../Outside`, `Sub/Plain` and the empty name are rejected. A save still stores "A:B" as "AB".
+- Scheduler harness: **ALL PASS** (block-size nulls, bit-identity with v1.16.0, MAN, exact triggers). auval: AU VALIDATION SUCCEEDED. pluginval strictness 10: SUCCESS.
+- Not yet checked hands-on: loading and deleting a real legacy ":" preset from the preset bar.
+
 ## [1.18.1] - 2026-10-27
 
 Preset-handling fixes from the code review (findings IN-06, IN-07, IN-10). No parameter, range, state or preset-format change.

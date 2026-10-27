@@ -202,9 +202,22 @@ private:
     // v1.18.1 (IN-07): a preset name IS its filename. Strip path separators
     // (and ':', illegal on Windows / the HFS separator) plus leading dots, so a
     // name can't land in a subdirectory, escape the folder, or go hidden.
+    // v1.18.2: applied on SAVE only — lookups use resolvePresetFile().
     static juce::String sanitisePresetName(const juce::String& name)
     {
         return name.removeCharacters("/\\:").trimCharactersAtStart(".");
+    }
+
+    // v1.18.2: lookup by the raw name (the listed filename, which may hold
+    // ':' or '\' from before v1.18.1). Returns {} unless the file resolves
+    // directly inside `dir`, so "../x" or "a/b" can't reach outside it.
+    static juce::File resolvePresetFile(const juce::File& dir, const juce::String& name)
+    {
+        if (name.isEmpty())
+            return {};
+
+        auto file = dir.getChildFile(name + ".json");
+        return file.getParentDirectory() == dir ? file : juce::File();
     }
 
     // JSON helpers
@@ -248,14 +261,9 @@ inline juce::File OuariconPresetManager::getUserPresetsDirectory() const
     return getPresetsDirectory().getChildFile("User");
 }
 
-inline bool OuariconPresetManager::isFactoryPreset(const juce::String& rawName) const
+inline bool OuariconPresetManager::isFactoryPreset(const juce::String& presetName) const
 {
-    const auto presetName = sanitisePresetName(rawName);
-    if (presetName.isEmpty())
-        return false;
-
-    auto factoryFile = getFactoryPresetsDirectory().getChildFile(presetName + ".json");
-    return factoryFile.existsAsFile();
+    return resolvePresetFile(getFactoryPresetsDirectory(), presetName).existsAsFile();
 }
 
 inline juce::var OuariconPresetManager::createPresetJson() const
@@ -362,17 +370,13 @@ inline bool OuariconPresetManager::savePreset(const juce::String& rawName)
     return false;
 }
 
-inline bool OuariconPresetManager::loadPreset(const juce::String& rawName)
+inline bool OuariconPresetManager::loadPreset(const juce::String& presetName)
 {
-    const auto presetName = sanitisePresetName(rawName);
-    if (presetName.isEmpty())
-        return false;
-
     // Check factory presets first, then user presets
-    juce::File presetFile = getFactoryPresetsDirectory().getChildFile(presetName + ".json");
+    juce::File presetFile = resolvePresetFile(getFactoryPresetsDirectory(), presetName);
     if (!presetFile.existsAsFile())
     {
-        presetFile = getUserPresetsDirectory().getChildFile(presetName + ".json");
+        presetFile = resolvePresetFile(getUserPresetsDirectory(), presetName);
     }
 
     if (!presetFile.existsAsFile())
@@ -416,12 +420,8 @@ inline bool OuariconPresetManager::loadPresetFromFile(const juce::File& file)
     return false;
 }
 
-inline bool OuariconPresetManager::deletePreset(const juce::String& rawName)
+inline bool OuariconPresetManager::deletePreset(const juce::String& presetName)
 {
-    const auto presetName = sanitisePresetName(rawName);
-    if (presetName.isEmpty())
-        return false;
-
     // Don't allow deleting factory presets
     if (isFactoryPreset(presetName))
     {
@@ -429,7 +429,7 @@ inline bool OuariconPresetManager::deletePreset(const juce::String& rawName)
         return false;
     }
 
-    auto presetFile = getUserPresetsDirectory().getChildFile(presetName + ".json");
+    auto presetFile = resolvePresetFile(getUserPresetsDirectory(), presetName);
     if (presetFile.existsAsFile())
     {
         if (presetFile.deleteFile())
