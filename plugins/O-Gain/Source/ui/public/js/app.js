@@ -1054,14 +1054,16 @@ window.updateMeters = function(data) {
   }
 };
 
+// v1.10.0: palette tokens from index.html's :root, not hex — an inline style
+// resolves var() against the element like any other declaration.
 function applyMeterColor(elementId, db) {
   const el = document.getElementById(elementId);
   if (db > -6) {
-    el.style.background = 'linear-gradient(to top, #5a7a4e, #6B8E4E, #C9A27B, #a04030)';
+    el.style.background = 'linear-gradient(to top, var(--green-meter), var(--green-mid), var(--knob-ring), var(--clip-red))';
   } else if (db > -18) {
-    el.style.background = 'linear-gradient(to top, #5a7a4e, #6B8E4E, #C9A27B)';
+    el.style.background = 'linear-gradient(to top, var(--green-meter), var(--green-mid), var(--knob-ring))';
   } else {
-    el.style.background = 'linear-gradient(to top, #5a7a4e, #6B8E4E, #8BA870)';
+    el.style.background = 'linear-gradient(to top, var(--green-meter), var(--green-mid), var(--green-light))';
   }
 }
 

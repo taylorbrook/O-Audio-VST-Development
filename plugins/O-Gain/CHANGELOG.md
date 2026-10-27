@@ -2,6 +2,90 @@
 
 All notable changes to O-Gain are documented here.
 
+## [1.10.0] - 2026-09-25
+
+**Every label now clears WCAG AA against the paper as it actually renders, not
+against the colour underneath it.** UI design review 260924-nho, Phase C
+(R4 contrast + 9 px floor, R5 bundled serif). Page CSS, one JS function,
+CMake resource list and four resource-provider branches. No DSP, parameter,
+range, type or state-format change. MINOR.
+
+### Root cause
+
+`measure-ui --contrast` scores each text node against the nearest CSS
+background colour, which here is the `#F5E6D3` fallback beneath `paper1.jpg`.
+The JPG itself, sampled under the text with the text hidden, sits at relative
+luminance 0.30-0.40 (5th percentile 0.24 under the meter captions) against
+0.80 for the fallback. So INPUT / OUTPUT (9 px `#8B7355`) scored 3.66 in the
+census and read **1.0-1.9:1** on screen. Every other walnut or brown caption
+on bare paper was similarly overstated. At 9-10 px that ground takes
+near-black ink or nothing: the template's walnut AA variants read under 2.5
+there.
+
+### Changed
+
+- **Text on the bare paper image is `--ink` (black):** the INPUT / OUTPUT
+  captions, peak / RMS captions, TRIM / GAIN / TARGET / PRESETS, the dBFS /
+  LUFS preset captions and the title. This is the black v1.9.1-v1.9.3 already
+  gave the scale, readouts and mode labels.
+- **INPUT / OUTPUT also get a backing chip** (`--chip-paper`, paper at 55 %,
+  padding on the sides only, so no line box moves). Black alone left zh-Hans
+  输入 at 4.38:1 over the darkest patch of the stain.
+- **Boxed controls on flat colour.** `.mode-selector` (the Measure / Meter
+  rows and both preset rows) goes from a 10 % tan tint, which let the stain
+  through, to opaque `--bg-paper-mid`. The **method strip** is boxed the same
+  way (+6 px of height, out of 53 px of slack). That keeps its dim/bright
+  split at AA: inactive values `#7A6552` -> `--text-walnut-mid` `#715D45`
+  (4.56), heads #5C4033 (6.83).
+- **Panels** (`.gain-display`, `.learn-info`): fill 0.55 -> 0.85
+  (`--panel-fill`), so the template's pair table holds over the stain. On
+  them: Learn titles and labels plus the `dB` unit `#8B7355` ->
+  `--text-walnut-mid`; confidence Medium `#C9A27B` -> `--text-amber`
+  `#8C5E1A` (4.75), High `#6B8E4E` -> `--text-sage` `#55703E` (4.69).
+- **State fills are opaque**, pre-composited over `--bg-paper-mid`. The rgba()
+  tints on `.utility-btn.active`, `.ms-active` and `.learn-btn.learning` /
+  `.complete` replaced the button's opaque background, so they composited
+  over the JPG: **M/S OFF read 1.2-1.5:1**. Text on them is now
+  `--green-darkest` / `--text-ms`. The Learn pulse animates the fill instead
+  of `opacity`, which had faded the caption with it.
+- **9 px floor:** `.mode-label` (MEASURE / METER) 8 -> 9 px, pin 1.1111. That
+  was the last sub-9 px text.
+- **Palette custom properties:** 26 tokens on `:root`, names from
+  `ouaricon-naturalist-001` where it has one. **0 hex literals in
+  declarations (was 92)**. The meter gradients in `app.js` read the same
+  tokens.
+- **Bundled EB Garamond** (`modules/ui/eb-garamond`, SIL OFL 1.1): four
+  SOURCES entries, four `getResource` branches, a `<link>` ahead of the page
+  style, and `--font-serif`. The bare `Garamond` lead is dropped: it never
+  resolved on macOS, and on Windows an Office Garamond would have won.
+  Resolved face verified: EB Garamond 400 / 700.
+- **Utility buttons pinned to `min-height: 32px`**, their measured two-line
+  box. Under the narrower face the zh-Hans captions (相位 L, M/S 关) fit on
+  one line while English still wraps. The row dropped 11 px on the Chinese arm
+  only and moved 100+ elements (check-ui-labels assertion 7).
+
+### Not changed
+
+- The knob JS was not touched (colours come from CSS classes), so the
+  O-ReverseDelay keyboard/ARIA knob port stays out of scope.
+
+### Testing
+
+| Gate | v1.9.5 | v1.10.0 |
+|---|---|---|
+| `measure-ui --contrast`, below AA (en / fr / zh-Hans) | 18 / 89 each | **0 / 89** each, min 4.56 |
+| `measure-ui --contrast`, under 9 px | 2 each | **0** |
+| Image-aware probe (p5 of the real pixels under each text node, text hidden) | 37 / 73 each | **0 / 73** each |
+| INPUT / OUTPUT, worst-case on screen | 1.03 / 1.50 | **9.91 / 11.76** |
+| `check-ui-labels` (default + 10 states, 3 languages) | PASS | **PASS** |
+| `check-i18n` | PASS | **PASS** |
+
+- The image probe is a scratchpad Playwright script over `scripts/serve-ui.js`.
+  It hides all text (with transitions off, because `transition: all` on the
+  buttons otherwise catches the colour mid-fade) and screenshots at 2x. For
+  each text box's glyph band it takes the worse of the 5th and 95th luminance
+  percentiles. v1.9.5 was measured from `backups/O-Gain/v1.9.5`.
+
 ## [1.9.5] - 2026-09-12
 
 **A positive VU or LU reading is not a clipping warning, and the tooltips now

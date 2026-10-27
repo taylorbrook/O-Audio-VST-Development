@@ -8,7 +8,7 @@ juce_add_plugin(O-Gain
     PLUGIN_CODE OGan
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Gain${OUARICON_DEV_SUFFIX}"
-    VERSION 1.9.5
+    VERSION 1.10.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -69,6 +69,12 @@ juce_add_binary_data(O-Gain_UIResources
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/images/paper1.jpg
         Source/ui/public/images/shell_decoration.png
+        # v1.10.0 (R5): the shared EB Garamond face, embedded straight from the
+        # module and served by the matching getResource branches
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 target_link_libraries(O-Gain

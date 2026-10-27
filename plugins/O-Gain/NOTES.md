@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.9.5
+- **Version:** 1.10.0
 - **Type:** Audio Effect (Gain Staging Utility)
 
 ## Lifecycle Timeline
@@ -108,6 +108,15 @@
   `peak` readout stay in dBFS in every mode and are the only clipping cues. fr and
   zh-Hans arms re-authored; lints at zero; check-ui-labels PASS; all 27 tips in frame
   at 380 x 500 in three languages (tallest now fr meter-mode at 297 px). i18n.js only.
+- **2026-09-25 (v1.10.0):** UI PASS (design review 260924-nho, R4/R5). Contrast fixed
+  against the paper IMAGE, not the #F5E6D3 fallback: the JPG sits at luminance
+  0.30-0.40 under the text, so all text on bare paper is black (INPUT / OUTPUT also get
+  a half-strength paper chip), the selectors and method strip are boxed on opaque
+  #EBD9C7, the two panels go 0.55 -> 0.85, and the state fills are opaque. Image-aware
+  probe 37/73 -> 0/73 below AA per language; measure-ui 18/89 -> 0/89, <9px 2 -> 0.
+  26 palette custom properties, 0 hex in declarations (was 92). Bundled EB Garamond
+  (modules/ui/eb-garamond). Utility buttons pinned to their two-line height (the new
+  face let zh-Hans captions unwrap). No DSP / parameter / state change.
 
 ## Known Issues
 

@@ -23,7 +23,72 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>O-Gain</title>
+  <!-- v1.10.0 (R5): the bundled EB Garamond face (modules/ui/eb-garamond),
+       ahead of the page's own <style> so --font-serif resolves to it -->
+  <link rel="stylesheet" href="css/eb-garamond.css" />
   <style>
+    /* ── PALETTE (v1.10.0, R4) ──────────────────────────────────────────────
+       Every colour on the page is a token below; the rules reference names,
+       never hex. Names follow ouaricon-naturalist-001/aesthetic.md where the
+       template has one; the rest are O-Gain's own and say what they are for.
+
+       THE PAPER IS NOT #F5E6D3. That is the fallback under paper1.jpg, and a
+       colour-only contrast census (measure-ui --contrast) scores every text
+       node against it. The JPG itself, sampled under the text with the text
+       hidden, sits at relative luminance 0.30-0.40 (5th percentile 0.24 under
+       the meter captions), against 0.80 for the fallback. At 9-10 px that
+       ground takes near-black ink or nothing: #5C4033 reads 3.5:1 there and
+       the template's walnut AA variants read under 2.5. So text is bound to
+       what it actually sits on:
+
+         bare paper image       --ink (black; v1.9.1-1.9.3 already set the
+                                scale, readouts and mode labels in it)
+         panels (--panel-fill)  --brown-frame / --text-walnut-mid; the fill is
+                                opaque enough (0.85) that the template's pair
+                                table holds over the darkest stain
+         boxed controls         --bg-paper-mid, opaque, so the text on it is
+                                on flat colour and the census measures truth
+
+       State fills are OPAQUE hex, pre-composited over --bg-paper-mid. The
+       rgba() tints they replace composited over the paper IMAGE (the rule
+       swapped out the button's opaque background), which is how M/S OFF read
+       1.48:1 on screen while its CSS looked like a pale green button. */
+    :root {
+      --bg-paper: #F5E6D3;          /* fallback under paper1.jpg; paper-coloured text on dark fills */
+      --bg-paper-mid: #EBD9C7;      /* buttons and boxed selectors */
+      --bg-accent: #D4C4B0;         /* button hover */
+      --panel-fill: rgba(255, 248, 220, 0.85);   /* gain display + Learn panel, over the JPG */
+      --popover-fill: rgba(245, 230, 211, 0.98);
+      --chip-paper: rgba(245, 230, 211, 0.55);   /* backing under the INPUT / OUTPUT captions */
+
+      --brown-border: #8B7355;      /* borders and decoration only — 3.66:1 as text even on the fallback */
+      --brown-frame: #5C4033;       /* secondary text on flat fills; active-segment fill */
+      --brown-text: #3C2F2F;        /* primary text on flat fills; tooltip ground */
+      --ink: #000000;               /* ALL text on the bare paper image */
+      --text-walnut-mid: #715D45;   /* walnut text: 4.56 on --bg-paper-mid, 5.28 on --panel-fill over the stain */
+
+      --green-mid: #6B8E4E;         /* knob fill, hover/focus borders */
+      --green-light: #8BA870;       /* meter bar top */
+      --green-meter: #5a7a4e;       /* meter bar foot */
+      --green-darkest: #2C3E10;     /* text on the sage state fills */
+      --text-sage: #55703E;         /* confidence High on --panel-fill (4.69) */
+      --fill-sage: #CBC6A9;         /* 25% #6B8E4E over --bg-paper-mid: active utility / Learn running */
+      --fill-sage-soft: #D1CAAF;    /* 20%: Learn done */
+      --fill-sage-faint: #DCD0B8;   /* 12%: Learn pulse trough */
+
+      --ms-teal: #5a7a6a;           /* M/S active border */
+      --text-ms: #34483E;           /* M/S active text */
+      --fill-ms: #C7C1B0;           /* 25% --ms-teal over --bg-paper-mid */
+
+      --knob-ring: #C9A27B;         /* trim arc, meter amber, tooltip title on --brown-text (5.45) */
+      --text-amber: #8C5E1A;        /* confidence Medium on --panel-fill (4.75) */
+      --clip-red: #a04030;          /* clip strip; confidence Low (5.41 on --panel-fill) */
+
+      /* EB Garamond first (bundled, so every host resolves the same face);
+         Georgia before Times; CJK tail BEFORE the trailing generic — see body. */
+      --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    }
+
     /* CRITICAL: WebView constraints - no viewport units */
     html, body {
       height: 100%;
@@ -38,18 +103,20 @@
       -webkit-user-select: none;
       cursor: default;
       overflow: hidden;
-      background: #F5E6D3;
-      color: #3C2F2F;
+      background: var(--bg-paper);
+      color: var(--brown-text);
       /* CJK tail BEFORE the trailing generic. Chromium resolves a bare `serif`
          against the document's lang, so under zh-Hans the generic is already a
          Chinese face and a tail written after it is never consulted — and the
          page still looks right on macOS, which is what makes that mistake
          survive review. ONE declaration covers this whole page: every other
-         font-family here reads `inherit`. Garamond is NOT installed on the
-         build machine (measured, 0 family matches) but Georgia and Times New
-         Roman both are, so the Latin half was already safe and no face had to
-         be named. */
-      font-family: Garamond, 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+         font-family here reads `inherit`.
+         v1.10.0: the bare `Garamond` lead is gone. It was never installed here
+         (every render fell through to Georgia) and on Windows an Office
+         Garamond would have won; the bundled EB Garamond now leads. Its Times
+         vertical metrics are baked in, and every leaf that matters carries a
+         unitless line-height pin anyway. */
+      font-family: var(--font-serif);
       font-size: 11px;
     }
 
@@ -99,7 +166,7 @@
       font-size: 14px;
       font-weight: 700;
       letter-spacing: 3px;
-      color: #3C2F2F;
+      color: var(--ink);   /* v1.10.0: #3C2F2F read 4.28:1 over the stain at 14 px bold, which is not "large" */
       text-transform: uppercase;
     }
 
@@ -219,7 +286,7 @@
       right: 0;
       font-size: 9px;
       line-height: 1;
-      color: #000000;
+      color: var(--ink);
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
       transform: translateY(50%);
@@ -284,10 +351,23 @@
 
        EVERY ONE IS A NO-OP IN ENGLISH AND IN FRENCH — that is the test, and
        check-ui-labels reports 0 moved elements on both those arms after them. */
+    /* v1.10.0: #8B7355 -> --ink. INPUT / OUTPUT sit on the darkest band of
+       the paper (luminance 0.24-0.33 under the glyphs), where the tan read
+       1.4-1.9:1 on screen while the census, scoring the #F5E6D3 fallback,
+       reported 3.66. Black is the same ink as the 9 px scale numerals
+       directly below, so caption and ruler are one colour.
+       Black ALONE was not enough: zh-Hans 输入 sits on the darkest patch of
+       the stain and read 4.38:1 at its 5th-percentile ground. Ink cannot get
+       darker than black, so the ground comes up instead — a half-strength
+       paper chip, horizontal padding only, so the caption's line box and
+       everything stacked under it stay exactly where they were. */
     .meter-label {
       line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — see the pin block above */
       font-size: 9px;
-      color: #8B7355;
+      color: var(--ink);
+      background: var(--chip-paper);
+      padding: 0 3px;
+      border-radius: 2px;
       letter-spacing: 1px;
       text-transform: uppercase;
       white-space: nowrap;
@@ -305,7 +385,7 @@
     .meter-bar-container {
       flex: 1;
       background: rgba(139, 115, 85, 0.12);
-      border: 1px solid #8B7355;
+      border: 1px solid var(--brown-border);
       border-radius: 2px;
       position: relative;
       overflow: hidden;
@@ -319,7 +399,7 @@
       transition: height 0.06s linear;
     }
     .meter-bar.green {
-      background: linear-gradient(to top, #5a7a4e, #6B8E4E, #8BA870);
+      background: linear-gradient(to top, var(--green-meter), var(--green-mid), var(--green-light));
     }
     .meter-clip-indicator {
       position: absolute;
@@ -332,7 +412,7 @@
       z-index: 4;   /* above the v1.5.0 staging marks and the peak cap */
     }
     .meter-clip-indicator.clipping {
-      background: #a04030;
+      background: var(--clip-red);
     }
 
     /* ── v1.5.0: the staging marks drawn ON the bar ────────────────────────
@@ -372,7 +452,7 @@
       right: 0;
       bottom: 0;
       height: 2px;
-      background: #3C2F2F;
+      background: var(--brown-text);
       z-index: 3;
       pointer-events: none;
       transition: bottom 0.06s linear;
@@ -475,7 +555,7 @@
        bars and everything keyed off them -- 34 elements on the zh-Hans arm. */
     .meter-db-cap {
       line-height: 1.1;   /* 11.00 - 0 - 0 = 11.00 / 10px — v1.8.1, same pin as .settings-label */
-      color: #5C4033;
+      color: var(--ink);   /* v1.10.0: #5C4033 read 2.5-2.9:1 on the stain under peak / RMS */
       letter-spacing: 0.2px;
     }
     /* v1.9.2: the readout is 10 -> 13 px and BLACK. #3C2F2F was the darkest
@@ -490,7 +570,7 @@
        prevents. */
     .meter-db-val {
       line-height: 1.1538;   /* 15.00 - 0 - 0 = 15.00 / 13px — v1.9.2 */
-      color: #000000;
+      color: var(--ink);
       font-size: 13px;
       font-weight: 600;
       text-align: right;
@@ -512,8 +592,8 @@
     .gain-display {
       text-align: center;
       padding: 8px 16px;
-      background: rgba(255, 248, 220, 0.55);
-      border: 1px solid #8B7355;
+      background: var(--panel-fill);   /* v1.10.0: 0.55 -> 0.85, so the text on it is on (nearly) flat colour */
+      border: 1px solid var(--brown-border);
       border-radius: 6px;
       width: 100%;
       max-width: 220px;
@@ -521,7 +601,7 @@
     .gain-display-label {
       line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — see the pin block above */
       font-size: 9px;
-      color: #5C4033;   /* v1.8.0: was #8B7355 — the same darkening as the dial captions, size kept */
+      color: var(--brown-frame);   /* v1.8.0: was #8B7355 — the same darkening as the dial captions, size kept */
       letter-spacing: 1px;
       text-transform: uppercase;
       margin-bottom: 2px;
@@ -529,13 +609,13 @@
     .gain-display-value {
       font-size: 32px;
       font-weight: 700;
-      color: #3C2F2F;
+      color: var(--brown-text);
       font-variant-numeric: tabular-nums;
       line-height: 1.1;
     }
     .gain-display-unit {
       font-size: 12px;
-      color: #8B7355;
+      color: var(--text-walnut-mid);   /* v1.10.0: was #8B7355, 3.2:1 on the panel as rendered */
       margin-left: 2px;
     }
 
@@ -576,7 +656,7 @@
     .knob-label {
       line-height: 1.1;   /* 11.00 - 0 - 0 = 11.00 / 10px — same face and pin as .settings-label */
       font-size: 10px;
-      color: #5C4033;
+      color: var(--ink);   /* v1.10.0: #5C4033 read 2.5-3.8:1 over the shell plate and stain */
       text-transform: uppercase;
       letter-spacing: 0.5px;
       white-space: nowrap;
@@ -585,7 +665,7 @@
       line-height: 1.0909;   /* 12.00 - 0 - 0 = 12.00 / 11px — same face and pin as .learn-btn */
       font-size: 11px;
       font-weight: 600;
-      color: #3C2F2F;
+      color: var(--brown-text);
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
     }
@@ -609,16 +689,16 @@
     }
     .knob-fill {
       fill: none;
-      stroke: #6B8E4E;
+      stroke: var(--green-mid);
       stroke-width: 4;
       stroke-linecap: round;
       transition: stroke-dashoffset 0.06s linear;
     }
     .knob-fill.trim {
-      stroke: #C9A27B;
+      stroke: var(--knob-ring);
     }
     .knob-dot {
-      fill: #3C2F2F;
+      fill: var(--brown-text);
     }
 
     /* Learn section. v1.8.0: the button is alone on this row and centred; the
@@ -643,10 +723,10 @@
       flex: 0 0 121px;
       white-space: nowrap;
       padding: 6px 16px;
-      border: 1px solid #8B7355;
+      border: 1px solid var(--brown-border);
       border-radius: 4px;
-      background: #EBD9C7;
-      color: #5C4033;
+      background: var(--bg-paper-mid);
+      color: var(--brown-frame);
       font-size: 11px;
       font-weight: 600;
       letter-spacing: 1px;
@@ -656,23 +736,26 @@
       font-family: inherit;
     }
     .learn-btn:hover {
-      background: #d4c4b0;
-      border-color: #6B8E4E;
+      background: var(--bg-accent);
+      border-color: var(--green-mid);
     }
+    /* v1.10.0: opaque fills (see the palette block) and --green-darkest text.
+       The pulse animates the FILL, not opacity: opacity faded the caption with
+       it, so LEARNING... dipped below AA twice a second over the paper. */
     .learn-btn.learning {
-      background: rgba(107, 142, 78, 0.25);
-      border-color: #6B8E4E;
-      color: #4a6e35;
+      background: var(--fill-sage);
+      border-color: var(--green-mid);
+      color: var(--green-darkest);
       animation: learnPulse 1.2s ease-in-out infinite;
     }
     .learn-btn.complete {
-      background: rgba(107, 142, 78, 0.2);
-      border-color: #6B8E4E;
-      color: #6B8E4E;
+      background: var(--fill-sage-soft);
+      border-color: var(--green-mid);
+      color: var(--green-darkest);   /* was #6B8E4E on the tint: 2.5:1 */
     }
     @keyframes learnPulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.7; }
+      0%, 100% { background: var(--fill-sage); }
+      50% { background: var(--fill-sage-faint); }
     }
 
     /* ── Target presets (v1.7.0) ─────────────────────────────────────────
@@ -715,7 +798,7 @@
       line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — v1.8.0: 8 -> 9 px, same face as the v1.4.0 9 px pins */
       flex: 0 0 30px;
       font-size: 9px;
-      color: #5C4033;   /* v1.8.0: was #8B7355, the tan the paper swallows */
+      color: var(--ink);   /* v1.8.0: was #8B7355, the tan the paper swallows; v1.10.0: #5C4033 still read 3.5:1 on it */
       letter-spacing: 0.5px;
       text-align: right;
       white-space: nowrap;
@@ -744,12 +827,25 @@
        "-18.2" at roughly 22 px. Three 10 px lines and two 1 px gaps: 32 px,
        inside the 78 px of slack the centre stack had with the Learn panel
        open, so the meter columns do not shorten. */
+    /* v1.10.0: BOXED, on the same opaque --bg-paper-mid ground and walnut
+       border as the preset and meter selectors. On the bare stain the dimmed
+       inactive readings (#7A6552) read 1.7-2.3:1, and the only colour that
+       clears there is black — which would erase the dim/bright split this
+       strip reads by. On flat --bg-paper-mid the split survives at AA: heads
+       and captions #5C4033 6.83, inactive values --text-walnut-mid 4.56,
+       active values #3C2F2F. +6 px of height (2 px padding + 1 px border,
+       top and bottom), out of the centre stack's 53 px of slack; the value
+       cells go 45 -> 43.5 px against "+24.0" at about 31. */
     .method-strip {
       display: grid;
       grid-template-columns: 28px repeat(4, 1fr);
       gap: 1px 2px;
       width: 100%;
       max-width: 220px;
+      padding: 2px;
+      background: var(--bg-paper-mid);
+      border: 1px solid var(--brown-border);
+      border-radius: 3px;
       font-size: 9px;
       white-space: nowrap;
     }
@@ -759,26 +855,26 @@
       font-variant-numeric: tabular-nums;
     }
     .method-head {
-      color: #5C4033;
+      color: var(--brown-frame);
       letter-spacing: 0.3px;
       border-radius: 2px;
       padding: 0 2px;
     }
     .method-head.active {
-      color: #F5E6D3;
-      background: #5C4033;
+      color: var(--bg-paper);
+      background: var(--brown-frame);
     }
     .method-cap {
-      color: #5C4033;
+      color: var(--brown-frame);
       letter-spacing: 0.5px;
       text-align: right;
       padding-right: 2px;
     }
     .method-val {
-      color: #7A6552;
+      color: var(--text-walnut-mid);   /* v1.10.0: was #7A6552 (4.50 on the fallback, ~2 on the stain) */
     }
     .method-val.active {
-      color: #3C2F2F;
+      color: var(--brown-text);
       font-weight: 600;
     }
 
@@ -797,25 +893,31 @@
       gap: 2px;
       align-items: center;
     }
+    /* v1.10.0: 8 -> 9 px, the template's text floor and the last sub-9 px text
+       on the page. The pin follows the other 9 px leaves (10.00 / 9px); the
+       caption box grows 1 px and .meter-section, flex:1, gives it up. */
     .mode-label {
-      line-height: 1.125;   /* 9.00 - 0 - 0 = 9.00 / 8px — see the pin block above */
-      font-size: 8px;
-      color: #000000;       /* v1.9.1: black (was the #8B7355 tan) */
+      line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — v1.10.0, same pin as .meter-label */
+      font-size: 9px;
+      color: var(--ink);    /* v1.9.1: black (was the #8B7355 tan) */
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
+    /* v1.10.0: the 10% tan tint -> opaque --bg-paper-mid. The tint let the
+       stain straight through, and the inactive segments' #5C4033 read 1.3-3.4:1
+       on it (RMS in the Measure row the worst); on the button colour it is 6.83. */
     .mode-selector {
       display: flex;
       gap: 1px;
-      background: rgba(139, 115, 85, 0.1);
-      border: 1px solid #8B7355;
+      background: var(--bg-paper-mid);
+      border: 1px solid var(--brown-border);
       border-radius: 3px;
       overflow: hidden;
     }
     .mode-option {
       padding: 3px 8px;
       font-size: 9px;
-      color: #5C4033;
+      color: var(--brown-frame);
       cursor: pointer;
       background: transparent;
       border: none;
@@ -823,18 +925,18 @@
       font-family: inherit;
     }
     .mode-option:hover {
-      color: #3C2F2F;
+      color: var(--brown-text);
       background: rgba(139, 115, 85, 0.15);
     }
     .mode-option.active {
-      color: #F5E6D3;
-      background: #5C4033;
+      color: var(--bg-paper);
+      background: var(--brown-frame);
     }
 
     /* Learn info panel */
     .learn-info {
-      background: rgba(255, 248, 220, 0.55);
-      border: 1px solid #8B7355;
+      background: var(--panel-fill);   /* v1.10.0: 0.55 -> 0.85, as .gain-display */
+      border: 1px solid var(--brown-border);
       border-radius: 4px;
       padding: 6px 10px;
       width: 100%;
@@ -849,7 +951,7 @@
     .learn-info-title {
       line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — see the pin block above */
       font-size: 9px;
-      color: #8B7355;
+      color: var(--text-walnut-mid);   /* v1.10.0: was #8B7355 (3.96 even on the census's flat panel) */
       text-transform: uppercase;
       letter-spacing: 1px;
       margin-bottom: 4px;
@@ -867,18 +969,20 @@
     .learn-info-label {
       line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — see the pin block above */
       font-size: 9px;
-      color: #8B7355;
+      color: var(--text-walnut-mid);   /* v1.10.0: was #8B7355 */
     }
     .learn-info-value {
       line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — see the pin block above */
       font-size: 9px;
-      color: #3C2F2F;
+      color: var(--brown-text);
       font-variant-numeric: tabular-nums;
       text-align: right;
     }
-    .confidence-low { color: #a04030; }
-    .confidence-medium { color: #C9A27B; }
-    .confidence-high { color: #6B8E4E; }
+    /* v1.10.0: Medium and High were decoration colours as text (2.08 / 3.31
+       on the panel). Same hues, darkened to AA; the word carries the meaning. */
+    .confidence-low { color: var(--clip-red); }
+    .confidence-medium { color: var(--text-amber); }
+    .confidence-high { color: var(--text-sage); }
 
     /* Utility buttons */
     .utility-row {
@@ -887,13 +991,22 @@
       justify-content: center;
       flex-shrink: 0;
     }
+    /* v1.10.0: min-height 32px, the measured TWO-line box. Whether a caption
+       wraps is a property of the face: under Georgia the row wrapped in every
+       language, but EB Garamond's narrower Latin lets the zh-Hans captions
+       (相位 L, M/S 关) fit on one line while English PH L and M/S OFF still
+       take two. The row fell 32 -> 21 px on the Chinese arm only, and
+       .meter-section (flex:1) took the 11 px — 100+ elements moved
+       (check-ui-labels assertion 7). Pinned to two lines, the row's height
+       no longer depends on wrapping; <button> centres a single line itself. */
     .utility-btn {
       line-height: 1.1;   /* 32.00 -8 pad -2 border = 22.00 over TWO lines = 11.00 / 10px — see the pin block above */
+      min-height: 32px;
       padding: 4px 10px;
-      border: 1px solid #8B7355;
+      border: 1px solid var(--brown-border);
       border-radius: 3px;
-      background: #EBD9C7;
-      color: #5C4033;
+      background: var(--bg-paper-mid);
+      color: var(--brown-frame);
       font-size: 10px;
       font-weight: 600;
       cursor: pointer;
@@ -901,18 +1014,21 @@
       font-family: inherit;
     }
     .utility-btn:hover {
-      background: #d4c4b0;
-      border-color: #6B8E4E;
+      background: var(--bg-accent);
+      border-color: var(--green-mid);
     }
+    /* v1.10.0: opaque fills pre-composited over --bg-paper-mid. The rgba()
+       tints replaced the button's opaque background and so composited over
+       the paper IMAGE: M/S OFF read 1.2-1.5:1 as rendered. */
     .utility-btn.active {
-      background: rgba(107, 142, 78, 0.25);
-      border-color: #6B8E4E;
-      color: #4a6e35;
+      background: var(--fill-sage);
+      border-color: var(--green-mid);
+      color: var(--green-darkest);
     }
     .utility-btn.ms-active {
-      background: rgba(90, 122, 106, 0.25);
-      border-color: #5a7a6a;
-      color: #5a7a6a;
+      background: var(--fill-ms);
+      border-color: var(--ms-teal);
+      color: var(--text-ms);
     }
 
     /* ====================================================================
@@ -934,10 +1050,10 @@
     .gear-btn {
       width: 18px;
       height: 18px;
-      border: 1px solid #000000;   /* v1.9.1: black (was the #8B7355 tan) */
+      border: 1px solid var(--ink);   /* v1.9.1: black (was the #8B7355 tan) */
       border-radius: 50%;
       background: transparent;
-      color: #000000;
+      color: var(--ink);
       font-size: 11px;
       font-weight: 700;
       font-family: inherit;
@@ -953,12 +1069,12 @@
       background: rgba(0, 0, 0, 0.08);   /* v1.9.1: the ink is already black; hover tints the disc */
     }
     .gear-btn[aria-expanded="true"] {
-      border-color: #6B8E4E;
-      color: #6B8E4E;
+      border-color: var(--green-mid);
+      color: var(--green-mid);
       background: rgba(107, 142, 78, 0.1);
     }
     .gear-btn:focus-visible {
-      outline: 2px solid #6B8E4E;
+      outline: 2px solid var(--green-mid);
       outline-offset: 2px;
     }
 
@@ -1008,8 +1124,8 @@
       display: flex;
       flex-direction: column;
       gap: 7px;
-      background: rgba(245, 230, 211, 0.98);
-      border: 1px solid #8B7355;
+      background: var(--popover-fill);
+      border: 1px solid var(--brown-border);
       border-radius: 4px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
     }
@@ -1031,7 +1147,7 @@
       line-height: 1.1;   /* 11.00 - 0 - 0 = 11.00 / 10px — see the pin block above */
       font-family: inherit;
       font-size: 10px;
-      color: #3C2F2F;
+      color: var(--brown-text);
       letter-spacing: 0.5px;
       white-space: nowrap;
     }
@@ -1039,10 +1155,10 @@
     .settings-popover select {
       flex: 0 0 auto;
       padding: 2px 4px;
-      border: 1px solid #8B7355;
+      border: 1px solid var(--brown-border);
       border-radius: 3px;
       background: rgba(107, 142, 78, 0.15);
-      color: #3C2F2F;
+      color: var(--brown-text);
       font-family: inherit;
       font-size: 10px;
       line-height: 1.2;
@@ -1050,7 +1166,7 @@
     }
 
     .settings-popover select:focus-visible {
-      outline: 2px solid #6B8E4E;
+      outline: 2px solid var(--green-mid);
       outline-offset: 1px;
     }
 
@@ -1062,10 +1178,10 @@
     .settings-toggle {
       width: 52px;
       padding: 2px 4px;
-      border: 1px solid #8B7355;
+      border: 1px solid var(--brown-border);
       border-radius: 3px;
       background: rgba(107, 142, 78, 0.15);
-      color: #3C2F2F;
+      color: var(--brown-text);
       font-family: inherit;
       font-size: 10px;
       line-height: 1.2;
@@ -1075,11 +1191,11 @@
 
     .settings-toggle[aria-pressed="true"] {
       background: rgba(107, 142, 78, 0.45);
-      border-color: #6B8E4E;
+      border-color: var(--green-mid);
     }
 
     .settings-toggle:focus-visible {
-      outline: 2px solid #6B8E4E;
+      outline: 2px solid var(--green-mid);
       outline-offset: 1px;
     }
 
@@ -1099,9 +1215,9 @@
       position: fixed;
       left: 0;
       top: 0;
-      background: #3C2F2F;
-      color: #F5E6D3;
-      border: 1px solid #8B7355;
+      background: var(--brown-text);
+      color: var(--bg-paper);
+      border: 1px solid var(--brown-border);
       border-radius: 4px;
       padding: 5px 8px;
       font-family: inherit;
@@ -1126,7 +1242,7 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.6px;
-      color: #C9A27B;
+      color: var(--knob-ring);
       margin-bottom: 3px;
     }
 
@@ -1134,7 +1250,7 @@
       font-size: 10px;
       font-weight: 400;
       line-height: 1.35;
-      color: #F5E6D3;
+      color: var(--bg-paper);
     }
 
     /* Arrow - its horizontal offset tracks the anchor via --arrow-x, so the
@@ -1150,12 +1266,12 @@
 
     .tooltip[data-placement="above"]::after {
       top: 100%;
-      border-top-color: #3C2F2F;
+      border-top-color: var(--brown-text);
     }
 
     .tooltip[data-placement="below"]::after {
       bottom: 100%;
-      border-bottom-color: #3C2F2F;
+      border-bottom-color: var(--brown-text);
     }
 
     /* Elements with tooltips get a subtle indicator when hover help is on */
