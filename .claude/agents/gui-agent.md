@@ -507,6 +507,9 @@ private:
     std::unique_ptr<juce::WebComboBoxParameterAttachment> filterTypeAttachment;
     // Add one attachment per parameter
 
+    // Windows only: shown instead of the WebView when WebView2 cannot start
+    std::unique_ptr<juce::HyperlinkButton> webView2RuntimeLink;
+
     // Helper for resource serving
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
 
@@ -625,25 +628,43 @@ for param in parameters:
     auto options = juce::WebBrowserComponent::Options{}
         .withNativeIntegrationEnabled()  // CRITICAL: Enables JUCE JavaScript library
         .withResourceProvider([this](const auto& url) { return getResource(url); })
-        .withKeepPageLoadedWhenBrowserIsHidden()  // Prevents about:blank in FL Studio
+        .withKeepPageLoadedWhenBrowserIsHidden()  // REQUIRED: prevents about:blank when the host hides the editor
         .withOptionsFrom(*gainRelay)      // Register each relay (dereference unique_ptr)
         .withOptionsFrom(*cutoffRelay)
         .withOptionsFrom(*bypassRelay)
         .withOptionsFrom(*filterTypeRelay);
 
-    // Windows-specific: set user data folder for plugin host compatibility
+    // Windows: name the backend, give WebView2 an app-data user folder, and probe
+    // before constructing (canonical: O-simpleSubtractive v1.7.4, 15968d17).
    #if JUCE_WINDOWS
-    options = options.withWinWebView2Options(
-        juce::WebBrowserComponent::Options::WinWebView2{}
-            .withUserDataFolder(
-                juce::File::getSpecialLocation(juce::File::tempDirectory)
-                    .getChildFile("[PluginName]_WebView"))
-            .withStatusBarDisabled()
-            .withBuiltInErrorPageDisabled()
-    );
+    // Backend::defaultBackend is the legacy IE control — it ignores
+    // withWinWebView2Options and has no resource provider ("page not found").
+    // User-data folder: per-user app data (NOT %TEMP%: cleaners wipe it, other
+    // processes lock it), created before WebView2 sees it.
+    const auto webView2DataFolder = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+                                        .getChildFile("Ouaricon")
+                                        .getChildFile("WebView2")
+                                        .getChildFile("[PluginName]");
+    webView2DataFolder.createDirectory();
+
+    options = options
+        .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
+        .withWinWebView2Options(
+            juce::WebBrowserComponent::Options::WinWebView2{}
+                .withUserDataFolder(webView2DataFolder)
+                .withStatusBarDisabled()
+                .withBuiltInErrorPageDisabled());
+
+    // If the WebView2 environment cannot be created, JUCE silently builds the IE
+    // control instead. Probe; on failure webView stays null and paint() draws a
+    // native notice. Audio, parameters and automation do not need the WebView.
+    const bool webView2Available = juce::WebBrowserComponent::areOptionsSupported(options);
+   #else
+    constexpr bool webView2Available = true;
    #endif
 
-    webView = std::make_unique<juce::WebBrowserComponent>(options);
+    if (webView2Available)
+        webView = std::make_unique<juce::WebBrowserComponent>(options);
 
     // 3. Create attachments LAST (3 params required in JUCE 8: parameter, relay, undoManager)
     gainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
@@ -655,11 +676,22 @@ for param in parameters:
     filterTypeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *processorRef.parameters.getParameter("filterType"), *filterTypeRelay, nullptr);
 
-    // Add WebView to editor (dereference unique_ptr)
-    addAndMakeVisible(*webView);
-
-    // Navigate to UI
-    webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
+    // Attachments stay valid without a WebView (relays drop events while no browser is registered)
+    if (webView != nullptr)
+    {
+        addAndMakeVisible(*webView);   // dereference unique_ptr
+        webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
+    }
+    else
+    {
+        webView2RuntimeLink = std::make_unique<juce::HyperlinkButton>(
+            "Download the WebView2 Runtime",
+            juce::URL("https://developer.microsoft.com/microsoft-edge/webview2/"));
+        webView2RuntimeLink->setFont(juce::FontOptions(17.0f, juce::Font::underlined), false);
+        webView2RuntimeLink->setColour(juce::HyperlinkButton::textColourId,
+                                       juce::Colour(0xff3c5c1a));   // accent token from the page CSS
+        addAndMakeVisible(*webView2RuntimeLink);
+    }
 
     // Set editor size (from UI mockup dimensions)
     setSize(600, 400);  // Adjust to match mockup
@@ -672,8 +704,10 @@ for param in parameters:
 - Register ALL relays with `.withOptionsFrom(*relay)` (dereference unique_ptr)
 - Use exact parameter IDs from APVTS
 - Enable native integration (required for JUCE JavaScript library)
-- `withKeepPageLoadedWhenBrowserIsHidden()` prevents blank page in FL Studio
-- Windows-specific `withUserDataFolder()` prevents permission denied in DAW hosts
+- `withKeepPageLoadedWhenBrowserIsHidden()` is REQUIRED — prevents a blank page in hosts that hide the editor (FL Studio)
+- Windows: `withBackend(Backend::webview2)` is REQUIRED — the default backend is the IE control (no resource provider)
+- Windows: `withUserDataFolder()` → `userApplicationDataDirectory/Ouaricon/WebView2/[PluginName]`, created first (never bare `%TEMP%`)
+- Windows: `areOptionsSupported()` probe → `webView` may be NULL; guard EVERY `webView->` use (timers, `evaluateJavascript`, `emitEvent…`, `resized()`)
 - `withStatusBarDisabled()` and `withBuiltInErrorPageDisabled()` for clean Windows UI
 - 3-parameter attachment constructors (JUCE 8 requires nullptr for undoManager)
 
@@ -792,18 +826,35 @@ target_compile_definitions(${PRODUCT_NAME}
 ```cpp
 void [PluginName]AudioProcessorEditor::resized()
 {
-    // WebView fills entire editor (dereference unique_ptr)
-    webView->setBounds(getLocalBounds());
+    // WebView fills entire editor — null when WebView2 could not start (Windows)
+    if (webView != nullptr)
+        webView->setBounds(getLocalBounds());
+
+    if (webView2RuntimeLink != nullptr)
+        webView2RuntimeLink->setBounds(getLocalBounds().withSizeKeepingCentre(320, 32).translated(0, 40));
 }
 ```
 
-**Remove paint() implementation** (WebView handles all rendering):
+**paint()** draws nothing while the WebView exists; otherwise the WebView2 notice
+(colours from the page's CSS tokens — see `ui-mockup/assets/webview-templates/PluginEditor-webview.cpp`):
 
 ```cpp
 void [PluginName]AudioProcessorEditor::paint(juce::Graphics& g)
 {
-    // WebView handles all painting
-    juce::ignoreUnused(g);
+    if (webView != nullptr)
+        return;
+
+    g.fillAll(juce::Colour(0xfff5e6d3));   // --bg token
+    auto area = getLocalBounds().withSizeKeepingCentre(juce::jmin(640, getWidth() - 48), 220).translated(0, -40);
+    g.setColour(juce::Colour(0xff3c2f2f));   // --text token
+    g.setFont(juce::FontOptions(26.0f, juce::Font::bold));
+    g.drawFittedText("[PluginName] needs Microsoft Edge WebView2", area.removeFromTop(40), juce::Justification::centred, 2);
+    area.removeFromTop(12);
+    g.setFont(juce::FontOptions(17.0f));
+    g.drawFittedText("The interface is drawn with the WebView2 Runtime, which could not start on "
+                     "this computer. Install it, then close and reopen the plugin window.\n"
+                     "The [synth|effect] itself keeps working, and host automation still reaches every parameter.",
+                     area.removeFromTop(110), juce::Justification::centred, 5);
 }
 ```
 
@@ -824,7 +875,8 @@ void [PluginName]AudioProcessorEditor::paint(juce::Graphics& g)
 - [ ] CMakeLists.txt includes `NEEDS_WEBVIEW2 TRUE` in juce_add_plugin()
 - [ ] CMakeLists.txt defines `JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1`
 - [ ] WebView constructor includes `withKeepPageLoadedWhenBrowserIsHidden()`
-- [ ] WebView constructor includes Windows-specific `withUserDataFolder()` block (`#if JUCE_WINDOWS`)
+- [ ] `#if JUCE_WINDOWS` block: `withBackend(Backend::webview2)` + `withUserDataFolder(userApplicationDataDirectory/Ouaricon/WebView2/[PluginName])` created first (no `tempDirectory`)
+- [ ] `areOptionsSupported(options)` probe; every `webView->` use outside the constructor is null-guarded; `webView2RuntimeLink` notice in place
 - [ ] All WebView members use `std::unique_ptr` (not direct members)
 - [ ] No hard-coded URL schemes (`juce://` or `https://juce.backend/`)
 - [ ] No CSS contains viewport units (`100vh`, `100vw`)
@@ -1111,16 +1163,22 @@ See `.claude/schemas/README.md` for validation details.
 
 - Symptom: WebView fails to create in certain DAW hosts on Windows
 - Cause: Default user data folder location not writable in plugin context
-- Resolution: Use `withUserDataFolder()` with temp directory path:
+- Resolution: Use `withUserDataFolder()` with a per-user app-data folder, created first
+  (bare `%TEMP%` is wiped by cleaners and locked by other processes):
   ```cpp
   #if JUCE_WINDOWS
-  options = options.withWinWebView2Options(
-      juce::WebBrowserComponent::Options::WinWebView2{}
-          .withUserDataFolder(
-              juce::File::getSpecialLocation(juce::File::tempDirectory)
-                  .getChildFile("[PluginName]_WebView")));
+  const auto webView2DataFolder = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+                                      .getChildFile("Ouaricon").getChildFile("WebView2").getChildFile("[PluginName]");
+  webView2DataFolder.createDirectory();
+  options = options
+      .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
+      .withWinWebView2Options(
+          juce::WebBrowserComponent::Options::WinWebView2{}
+              .withUserDataFolder(webView2DataFolder));
   #endif
   ```
+- If WebView2 still cannot start (runtime missing), `areOptionsSupported()` returns false: keep `webView`
+  null and paint the native notice (Section 7) instead of letting JUCE fall back to IE.
 
 **Issue 8: Page goes blank when plugin window hidden (FL Studio):**
 

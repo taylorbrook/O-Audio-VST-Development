@@ -337,32 +337,30 @@
         // ----------------------------------------------------------------
 
         // 1. Get state object from C++
-        const bypassState = Juce.getToggleButtonState("BYPASS");
+        const bypassState = Juce.getToggleState("BYPASS");
 
         // 2. Get HTML element
         const bypassButton = document.getElementById("bypass-toggle");
 
+        // ToggleState holds a bool: getValue() / setValue(bool). Its
+        // valueChangedEvent listeners receive NO argument — re-read getValue().
+        const paintBypass = () => {
+            const on = bypassState.getValue();
+            bypassButton.textContent = on ? "On" : "Off";
+            bypassButton.classList.toggle("active", on);
+        };
+
         // 3. Bind HTML → C++ (user interaction)
         bypassButton.addEventListener("click", () => {
-            const currentState = bypassState.getNormalisedValue();
-            const newState = currentState > 0.5 ? 0.0 : 1.0;
-            bypassState.setNormalisedValue(newState);
-
-            // Update UI
-            bypassButton.textContent = newState > 0.5 ? "On" : "Off";
-            bypassButton.classList.toggle("active", newState > 0.5);
+            bypassState.setValue(!bypassState.getValue());
+            paintBypass();
         });
 
         // 4. Bind C++ → HTML (automation, preset recall)
-        bypassState.valueChangedEvent.addListener((newValue) => {
-            bypassButton.textContent = newValue > 0.5 ? "On" : "Off";
-            bypassButton.classList.toggle("active", newValue > 0.5);
-        });
+        bypassState.valueChangedEvent.addListener(paintBypass);
 
         // 5. Initialize from current parameter value
-        const bypassValue = bypassState.getNormalisedValue();
-        bypassButton.textContent = bypassValue > 0.5 ? "On" : "Off";
-        bypassButton.classList.toggle("active", bypassValue > 0.5);
+        paintBypass();
 
         // ----------------------------------------------------------------
         // DROPDOWN PARAMETER BINDING (e.g., Mode)

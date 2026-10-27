@@ -267,8 +267,8 @@ for (const match of sliderMatches) {
     parameterIds.push({ id: match[1], type: "slider" });
 }
 
-// Pattern 2: Juce.getToggleButtonState("PARAM_ID")
-const toggleMatches = html.matchAll(/Juce\.getToggleButtonState\("([^"]+)"\)/g);
+// Pattern 2: Juce.getToggleState("PARAM_ID")
+const toggleMatches = html.matchAll(/Juce\.getToggleState\("([^"]+)"\)/g);
 for (const match of toggleMatches) {
     parameterIds.push({ id: match[1], type: "toggle" });
 }
@@ -286,7 +286,7 @@ for (const match of comboMatches) {
 - ✅ REQUIRED: `html, body { height: 100%; }`
 - ✅ REQUIRED: `user-select: none` (native feel)
 - ✅ REQUIRED: Context menu disabled in JavaScript
-- ✅ REQUIRED: JUCE 8 relay-state API only — `import * as Juce from './js/juce/index.js'` and `Juce.getSliderState` / `getToggleButtonState` / `getComboBoxState`. No message-passing bridge, no hand-written C++→JS update functions.
+- ✅ REQUIRED: JUCE 8 relay-state API only — `import * as Juce from './js/juce/index.js'` and `Juce.getSliderState` / `getToggleState` / `getComboBoxState`. No message-passing bridge, no hand-written C++→JS update functions.
 - ✅ REQUIRED: Family A knob — conic seed ring, only `.knob-stem` rotates, angle `normToDeg(st.getNormalisedValue())`
 - ✅ REQUIRED: readouts `FORMAT[id](st.getScaledValue())`; no range numbers anywhere in the page
 - ✅ REQUIRED: full `bindKnob` lifecycle — pointer capture with `pointerup`, `pointercancel`, `lostpointercapture`; arrow keys; `role="slider"`; `aria-valuetext`
@@ -366,6 +366,7 @@ for param in parameters:
 - `{{RELAY_DECLARATIONS}}` → Generated relay declarations
 - `{{ATTACHMENT_DECLARATIONS}}` → Generated attachment declarations
 - Class name: `PluginEditor` → `[PluginName]AudioProcessorEditor`
+- Keep `std::unique_ptr<juce::HyperlinkButton> webView2RuntimeLink;` (WebView2-unavailable notice, Windows)
 
 **⚠️ CRITICAL: Member declaration order:**
 
@@ -430,6 +431,12 @@ for param in parameters:
 3. Native functions registered with `options.withNativeFunction` — at minimum `getParameterDefaults` (below)
 4. Resource provider implementation
 5. Window sizing from YAML
+6. The `#if JUCE_WINDOWS` block exactly as in the template — `withBackend (Backend::webview2)`, app-data
+   user folder `Ouaricon/WebView2/[PluginName]` created first, `areOptionsSupported()` probe, `webView`
+   null on failure. Fill `{{PLUGIN_NAME}}`, `{{PLUGIN_KIND}}` ("synth" / "effect"), and
+   `{{BACKGROUND_COLOUR}}` / `{{TEXT_COLOUR}}` / `{{ACCENT_COLOUR}}` as `juce::Colour (0xffRRGGBB)` from the
+   page's CSS tokens (comment each with its token name). Every `webView->` use outside the constructor
+   is guarded with `if (webView != nullptr)`.
 
 **`getParameterDefaults` native function (required — dblclick reset depends on it):**
 

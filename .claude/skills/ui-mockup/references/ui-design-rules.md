@@ -378,7 +378,7 @@ HTML Control (<input>, <select>, <button>)
 | Parameter Type | C++ Relay | C++ Attachment | JavaScript State |
 |---------------|-----------|----------------|------------------|
 | Float (slider/knob) | `WebSliderRelay` | `WebSliderParameterAttachment` | `Juce.getSliderState()` |
-| Bool (toggle) | `WebToggleButtonRelay` | `WebToggleButtonParameterAttachment` | `Juce.getToggleButtonState()` |
+| Bool (toggle) | `WebToggleButtonRelay` | `WebToggleButtonParameterAttachment` | `Juce.getToggleState()` |
 | Choice (dropdown) | `WebComboBoxRelay` | `WebComboBoxParameterAttachment` | `Juce.getComboBoxState()` |
 
 **Example JavaScript binding:**
@@ -749,31 +749,34 @@ startTimerHz(16);  // 60ms = ~16 FPS (good for visualizations)
 **Windows-specific (omit on macOS):**
 
 ```cmake
-# CMakeLists.txt
-if (WIN32)
-    target_compile_definitions(${PLUGIN_NAME} PRIVATE
-        JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
-    )
-endif()
+# CMakeLists.txt — NEEDS_WEBVIEW2 TRUE goes inside juce_add_plugin(...)
+target_compile_definitions(${PLUGIN_NAME} PRIVATE
+    JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
+)
 ```
 
 ```cpp
-// PluginEditor.cpp
-webView = std::make_unique<juce::WebBrowserComponent>(
-    juce::WebBrowserComponent::Options{}
-        #ifdef _WIN32
-        .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
-        .withWinWebView2Options(
-            juce::WebBrowserComponent::Options::WinWebView2{}
-                .withBackgroundColour(juce::Colours::white)
-                // CRITICAL: Prevents permission issues in some DAWs
-                .withUserDataFolder(juce::File::getSpecialLocation(
-                    juce::File::SpecialLocationType::tempDirectory))
-        )
-        #endif
-        .withNativeIntegrationEnabled()
-        .withResourceProvider([this](const auto& url) { return getResource(url); })
-);
+// PluginEditor.cpp — canonical block: ui-mockup/assets/webview-templates/PluginEditor-webview.cpp
+#if JUCE_WINDOWS
+const auto webView2DataFolder = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+                                    .getChildFile ("Ouaricon").getChildFile ("WebView2").getChildFile ("[PluginName]");
+webView2DataFolder.createDirectory();   // app data, never bare %TEMP%
+
+options = options
+    .withBackend (juce::WebBrowserComponent::Options::Backend::webview2)   // default = IE control
+    .withWinWebView2Options (
+        juce::WebBrowserComponent::Options::WinWebView2{}
+            .withUserDataFolder (webView2DataFolder)   // DAW hosts deny the default location
+            .withStatusBarDisabled()
+            .withBuiltInErrorPageDisabled());
+
+const bool webView2Available = juce::WebBrowserComponent::areOptionsSupported (options);
+#else
+constexpr bool webView2Available = true;
+#endif
+
+if (webView2Available)   // else: webView stays null, paint() shows a native notice
+    webView = std::make_unique<juce::WebBrowserComponent> (options);
 ```
 
 **macOS-specific:**

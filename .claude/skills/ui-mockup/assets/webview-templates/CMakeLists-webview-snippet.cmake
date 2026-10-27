@@ -12,6 +12,14 @@
 #   juce_add_plugin(PluginName ...)
 #
 # Then ADD this WebView configuration below your existing configuration.
+#
+# REQUIRED in juce_add_plugin() itself (Windows):
+#   juce_add_plugin(PluginName
+#       ...
+#       NEEDS_WEBVIEW2 TRUE   # links WebView2LoaderStatic + headers on Windows
+#   )
+# Without it (and the static-linking define below) Windows silently falls back
+# to the legacy IE control: blank page / "page not found".
 # ============================================================================
 
 # WebView UI Resources
@@ -36,14 +44,18 @@ target_compile_definitions(${PLUGIN_NAME}
     PUBLIC
         JUCE_WEB_BROWSER=1
         JUCE_USE_CURL=0
+        # Static WebView2 loader: no WebView2Loader.dll to ship, so the DLL can
+        # never be missing next to the plugin (blank WebView on Windows).
+        JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
 )
 
 # Platform-specific WebView configuration
 if(APPLE)
     # macOS/iOS use WebKit (built-in, no additional setup)
 elseif(WIN32)
-    # Windows requires WebView2 runtime
-    # WebView2 SDK will be automatically downloaded by JUCE
+    # Windows requires the WebView2 runtime (NEEDS_WEBVIEW2 TRUE above +
+    # the static-linking define). The editor probes areOptionsSupported() and
+    # paints a native notice when the runtime cannot start.
 elseif(UNIX)
     # Linux uses WebKit2GTK (must be installed on system)
     find_package(PkgConfig REQUIRED)

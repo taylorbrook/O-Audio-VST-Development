@@ -40,35 +40,67 @@ PluginEditor::PluginEditor(PluginProcessor& p)
     // - withNativeIntegrationEnabled() - REQUIRED for JUCE parameter binding
     // - withResourceProvider() - REQUIRED for JUCE 8 (serves embedded files)
     // - withOptionsFrom(*relay) - REQUIRED for each parameter relay
-    // - withKeepPageLoadedWhenBrowserIsHidden() - OPTIONAL (FL Studio fix)
+    // - withKeepPageLoadedWhenBrowserIsHidden() - REQUIRED (hosts that hide the
+    //   editor, e.g. FL Studio, otherwise reload the page as about:blank)
     //
-    webView = std::make_unique<juce::WebBrowserComponent>(
-        juce::WebBrowserComponent::Options{}
-            // REQUIRED: Enable JUCE frontend library
-            .withNativeIntegrationEnabled()
+    auto options = juce::WebBrowserComponent::Options{}
+        // REQUIRED: Enable JUCE frontend library
+        .withNativeIntegrationEnabled()
 
-            // REQUIRED: Resource provider for embedded files
-            .withResourceProvider([this](const auto& url) {
-                return getResource(url);
-            })
+        // REQUIRED: Resource provider for embedded files
+        .withResourceProvider([this](const auto& url) {
+            return getResource(url);
+        })
 
-            // OPTIONAL: FL Studio fix (prevents blank screen on focus loss)
-            // Remove if not targeting FL Studio
-            .withKeepPageLoadedWhenBrowserIsHidden()
+        // REQUIRED: keep the page alive while the host hides the editor
+        .withKeepPageLoadedWhenBrowserIsHidden()
 
-            // REQUIRED: Register each relay with WebView
-            // This creates JavaScript state objects accessible via:
-            // - Juce.getSliderState("PARAM_ID")
-            // - Juce.getToggleButtonState("PARAM_ID")
-            // - Juce.getComboBoxState("PARAM_ID")
-            //
-            // {{WEBVIEW_OPTIONS}}
-            // Example:
-            // .withOptionsFrom(*gainRelay)
-            // .withOptionsFrom(*toneRelay)
-            // .withOptionsFrom(*bypassRelay)
-            // .withOptionsFrom(*modeRelay)
-    );
+        // REQUIRED: Register each relay with WebView
+        // This creates JavaScript state objects accessible via:
+        // - Juce.getSliderState("PARAM_ID")
+        // - Juce.getToggleState("PARAM_ID")
+        // - Juce.getComboBoxState("PARAM_ID")
+        //
+        // {{WEBVIEW_OPTIONS}}
+        // Example:
+        // .withOptionsFrom(*gainRelay)
+        // .withOptionsFrom(*toneRelay)
+        // .withOptionsFrom(*bypassRelay)
+        // .withOptionsFrom(*modeRelay)
+        ;
+
+   #if JUCE_WINDOWS
+    // REQUIRED on Windows: name the backend. Backend::defaultBackend is the
+    // legacy IE control, which ignores withWinWebView2Options and has no
+    // resource provider ("page not found").
+    // The user-data folder lives in the per-user app-data tree (NOT %TEMP%,
+    // which cleaners wipe and other processes lock) and is created before
+    // WebView2 sees it. DAW hosts deny WebView2's default location.
+    const auto webView2DataFolder = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+                                        .getChildFile ("Ouaricon")
+                                        .getChildFile ("WebView2")
+                                        .getChildFile ("{{PLUGIN_NAME}}");
+    webView2DataFolder.createDirectory();
+
+    options = options
+        .withBackend (juce::WebBrowserComponent::Options::Backend::webview2)
+        .withWinWebView2Options (
+            juce::WebBrowserComponent::Options::WinWebView2{}
+                .withUserDataFolder (webView2DataFolder)
+                .withStatusBarDisabled()
+                .withBuiltInErrorPageDisabled());
+
+    // When the WebView2 environment cannot be created (runtime missing, data
+    // folder unusable), JUCE silently builds the IE control instead. Probe
+    // first; on failure webView stays null and paint() shows a native notice.
+    // Audio, parameters and host automation do not depend on the WebView.
+    const bool webView2Available = juce::WebBrowserComponent::areOptionsSupported (options);
+   #else
+    constexpr bool webView2Available = true;
+   #endif
+
+    if (webView2Available)
+        webView = std::make_unique<juce::WebBrowserComponent> (options);
 
     // ------------------------------------------------------------------------
     // STEP 3: CREATE PARAMETER ATTACHMENTS (after WebView!)
@@ -109,12 +141,29 @@ PluginEditor::PluginEditor(PluginProcessor& p)
     // WEBVIEW SETUP
     // ------------------------------------------------------------------------
 
-    // Navigate to root (loads index.html via resource provider)
-    // JUCE 8 pattern: Use resource provider root instead of data URLs
-    webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
+    // Attachments above stay in place without a WebView: the relays drop their
+    // events while no browser is registered.
+    if (webView != nullptr)
+    {
+        // Navigate to root (loads index.html via resource provider)
+        // JUCE 8 pattern: Use resource provider root instead of data URLs
+        addAndMakeVisible(*webView);
+        webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
+    }
+    else
+    {
+        // Windows only: WebView2 could not start (see paint()).
+        webView2RuntimeLink = std::make_unique<juce::HyperlinkButton> (
+            "Download the WebView2 Runtime",
+            juce::URL ("https://developer.microsoft.com/microsoft-edge/webview2/"));
+        webView2RuntimeLink->setFont (juce::FontOptions (17.0f, juce::Font::underlined), false);
+        webView2RuntimeLink->setColour (juce::HyperlinkButton::textColourId, {{ACCENT_COLOUR}});
+        addAndMakeVisible (*webView2RuntimeLink);
+    }
 
-    // Make WebView visible
-    addAndMakeVisible(*webView);
+    // EVERY other webView-> use (timerCallback, evaluateJavascript, emitEvent…)
+    // must be guarded with `if (webView != nullptr)` — it is null on Windows
+    // machines without the WebView2 Runtime.
 
     // ------------------------------------------------------------------------
     // TIMER SETUP (optional - for real-time updates)
@@ -170,15 +219,39 @@ PluginEditor::~PluginEditor()
 
 void PluginEditor::paint(juce::Graphics& g)
 {
-    // WebView fills the entire editor, so typically no custom painting needed
-    // Uncomment if you want a background color visible before WebView loads:
-    // g.fillAll(getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId));
+    // WebView fills the editor — nothing to paint, unless WebView2 could not
+    // start (Windows only). Colours come from the page's own CSS tokens.
+    if (webView != nullptr)
+        return;
+
+    g.fillAll ({{BACKGROUND_COLOUR}});
+
+    auto area = getLocalBounds().withSizeKeepingCentre (juce::jmin (640, getWidth() - 48), 220)
+                                .translated (0, -40);
+
+    g.setColour ({{TEXT_COLOUR}});
+    g.setFont (juce::FontOptions (26.0f, juce::Font::bold));
+    g.drawFittedText ("{{PLUGIN_NAME}} needs Microsoft Edge WebView2",
+                      area.removeFromTop (40), juce::Justification::centred, 2);
+
+    area.removeFromTop (12);
+    g.setFont (juce::FontOptions (17.0f));
+    g.drawFittedText ("The interface is drawn with the WebView2 Runtime, which could not start on "
+                      "this computer. Install it, then close and reopen the plugin window.\n"
+                      "The {{PLUGIN_KIND}} itself keeps working, and host automation still "
+                      "reaches every parameter.",
+                      area.removeFromTop (110), juce::Justification::centred, 5);
 }
 
 void PluginEditor::resized()
 {
-    // Make WebView fill the entire editor bounds
-    webView->setBounds(getLocalBounds());
+    // Make WebView fill the entire editor bounds (null-safe: see constructor)
+    if (webView != nullptr)
+        webView->setBounds(getLocalBounds());
+
+    if (webView2RuntimeLink != nullptr)
+        webView2RuntimeLink->setBounds (getLocalBounds().withSizeKeepingCentre (320, 32)
+                                                        .translated (0, 40));
 }
 
 //==============================================================================
@@ -191,6 +264,8 @@ void PluginEditor::timerCallback()
     // CRITICAL: Use std::atomic in PluginProcessor for thread-safe communication
     //
     // float level = audioProcessor.getCurrentLevel();  // Atomic read
+    //
+    // if (webView == nullptr) return;  // WebView2 unavailable (Windows)
     //
     // webView->emitEventIfBrowserIsVisible("meterUpdate", {
     //     { "level", level },

@@ -4,7 +4,7 @@
 
 1. **Production-ready**: HTML IS the final plugin UI, not a prototype
 2. **No external dependencies**: Pure HTML/CSS/JS only — everything is embedded via `juce_add_binary_data`
-3. **JUCE 8 relay-state API**: `import * as Juce from './js/juce/index.js'`, then `Juce.getSliderState(id)`, `Juce.getToggleButtonState(id)`, `Juce.getComboBoxState(id)`. Every control reads and writes its parameter through that state object and nothing else.
+3. **JUCE 8 relay-state API**: `import * as Juce from './js/juce/index.js'`, then `Juce.getSliderState(id)`, `Juce.getToggleState(id)`, `Juce.getComboBoxState(id)`. Every control reads and writes its parameter through that state object and nothing else.
 4. **O-ReverseDelay is the reference implementation.** When this document is silent or ambiguous, do what O-ReverseDelay does. Its UI lives in four files plus the editor:
    - `plugins/O-ReverseDelay/Source/ui/public/index.html`
    - `plugins/O-ReverseDelay/Source/ui/public/css/styles.css`
@@ -496,7 +496,7 @@ The C++ side must register `getParameterDefaults` (see `ui-finalization-agent.md
 
 ### Toggles (Bool parameters)
 
-A real `<button type="button">` carrying `aria-pressed`, bound to `getToggleButtonState`. State is painted with `aria-pressed` and classes only; the caption stays authored in the markup.
+A real `<button type="button">` carrying `aria-pressed`, bound to `getToggleState`. State is painted with `aria-pressed` and classes only; the caption stays authored in the markup.
 
 ```html
 <button type="button" class="toggle" id="toggle-bypass" aria-pressed="false" data-i18n="toggle-bypass">Bypass</button>
@@ -504,7 +504,7 @@ A real `<button type="button">` carrying `aria-pressed`, bound to `getToggleButt
 
 ```javascript
 function bindToggle(juce, id) {
-    const st = juce.getToggleButtonState(id);
+    const st = juce.getToggleState(id);
     const btn = document.getElementById(`toggle-${id}`);
     if (!btn) { console.error(`Missing toggle element: toggle-${id}`); return; }
     const paint = () => btn.setAttribute('aria-pressed', st.getValue() ? 'true' : 'false');
@@ -515,7 +515,7 @@ function bindToggle(juce, id) {
 }
 ```
 
-A Bool parameter has a ToggleState and NOT a SliderState or ComboBoxState. `getSliderState()` on a Bool id does not fail loudly; it builds a state the backend never updates. The C++ side must also register the toggle relay with `withOptionsFrom`, or `getToggleButtonState()` throws on load.
+A Bool parameter has a ToggleState and NOT a SliderState or ComboBoxState. `getSliderState()` on a Bool id does not fail loudly; it builds a state the backend never updates. The C++ side must also register the toggle relay with `withOptionsFrom`, or `getToggleState()` only logs "unknown to the backend" and the toggle never updates.
 
 ### Choices (Choice parameters)
 
