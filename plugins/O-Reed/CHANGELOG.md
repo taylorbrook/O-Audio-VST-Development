@@ -1,6 +1,84 @@
 # O-Reed Changelog
 
-## v1.6.0 (2026-09-07)
+## [1.7.0] - 2026-09-27
+
+**Every caption on the page now meets WCAG AA, nothing renders below 9px, the
+house serif actually renders, and the XY pad's markers and axis captions no
+longer pile on top of each other.** MINOR: a UI pass (review R4/R5), per
+`.planning/quick/260924-nho-…/260924-nho-UI-DESIGN-REVIEW.md`. No DSP,
+parameter, range, state format or i18n key changed. The knob code is
+untouched, so R7 (keyboard/ARIA on the Family C knobs) is deferred.
+
+### Changed
+
+- **AA inks** (from `ouaricon-naturalist-001`):
+  - `--brown-text-lighter` `#8B7B6F` → `#76655A`. It inks the section titles
+    and chevrons, the dropdown and XY captions, and the FX placeholder, which
+    read 3.32–3.58:1 before. It now reads 4.54:1 on `--bg-paper`, the darkest
+    ground it meets.
+  - Brand label: `opacity: 0.5` (3.21:1) is replaced by `--bg-accent` ink,
+    5.51:1 on the header.
+  - FX placeholder body: `opacity: 0.7` dropped (2.20:1).
+  - Hover-help switch, pressed state: `--green-mid` → `--green-dark` fill.
+    Paper ink reads 4.97:1, up from 3.06.
+  - Tuning panel (overrides local to this page; the shared CSS has five
+    consumers): `--tuning-text-muted` is re-pointed at the new `--walnut-text`
+    `#715D45`, which covers the interval list, tonic, A4 REF, Stretch, the
+    pitch-circle caption and the generator rows (3.66–4.41 → 5.1+:1).
+    Generate and Export HTML move from white on `#8BC34A` (2.10:1) to paper on
+    `--green-dark`. Their hover goes darker (`--green-darkest`), because the
+    shared `brightness(1.1)` would lift the fill below AA.
+  - Tuning load-failure notice: inline `#8B7355` → `var(--walnut-text)`.
+- **9px floor.** Knob captions 8 → 9px (27 captions). XY axis captions
+  8 → 9px. XY preset markers were 7px; see below.
+- **Bundled EB Garamond** (`modules/ui/eb-garamond`, direct embed): 4 SOURCES
+  and 4 `getResource()` branches, linked first in `<head>`. The three copies of
+  the `'Garamond', Georgia, …` stack fold into one `--font-serif`, with
+  `'EB Garamond'` first and the CJK tail before `serif`. The bare `'Garamond'`
+  was installed nowhere, so the page had been rendering in **Georgia**. The
+  cents and readout digits change from Georgia's old-style figures to lining
+  figures.
+- **XY pad markers.** Each preset is now a 5px walnut dot at its exact
+  coordinate plus a 9px AA caption beside it. They were 7px centred text at
+  opacity 0.6 (2.01:1). Dots are clamped 3px inside the pad, so edge presets
+  are no longer half clipped. Presets closer together than a caption is wide
+  share one caption above their dots: `Clar · B.Clar`, and `Sax S·A·T·B`
+  (the four saxophones, 10px apart on the bottom edge, used to overprint one
+  another). 15 dots, 11 captions. The marker text stays English on every
+  language (I18N_EXEMPT, unchanged reasoning).
+- **XY axis captions moved outside the pad.** DOUBLE REED rotated about its
+  own centre and rendered ~60px inside the pad, on top of Ddk, and BORE
+  CHARACTER overprinted the sax cluster. A new `.xy-pad-frame` keeps the old
+  200 × 170 footprint: captions sit in a 12px strip on the left and below, and
+  the pad itself is 188 × 158. Nothing else on the page moves. The pad maps
+  pointer coordinates from its own rect, so the smaller pad changes
+  resolution, not mapping. The CLIFF 2 note in `js/i18n.js` is retired, and
+  kept as the record of why the captions moved.
+
+### Docs
+
+- CHANGELOG headings normalised from `## vX.Y.Z (date)` to `## [X.Y.Z] - date`
+  (all 21). The release workflow's awk extracts notes only from the bracket
+  form, so every O-Reed release so far published with blank notes.
+
+### Testing
+
+- `measure-ui --contrast` (en / fr / zh-Hans):
+  - below AA: 74/171 → 0/167 per language (43.3% → 0%);
+  - under 9px: 44 → 0;
+  - median ratio 5.58 → 5.68, minimum 2.01 → 4.54.
+  - The node count moves 171 → 167 because 15 text markers became 11
+    captions.
+- `measure-ui --report all`: undeclared-font 0. In `--mode box`, wrap-count is
+  0 and line-height-normal is 1: the zh-Hans bore-viz placeholder, identical
+  on the v1.6.0 tree.
+- Resolved face: `document.fonts` reports EB Garamond 400 / italic / 700
+  loaded.
+- `check-ui-labels`: ALL CHECKS PASSED before and after (fr / zh-Hans).
+- `check-i18n`: pass.
+- `tests/ui_tip_render_check.js`: pass (15 marker witnesses still counted).
+
+## [1.6.0] - 2026-09-07
 
 Simplified Chinese (task 260907-ja8, wave 4f). MINOR: a third interface language
 across the whole page — 168 rows, 36 hover-help entries and 96 captions. No
@@ -62,7 +140,7 @@ worklist on every run.
   are the strings the host's automation lane names, and the language body says
   so.
 
-## v1.5.0 (2026-09-06)
+## [1.5.0] - 2026-09-06
 
 The tuning tab is localized — English and French (task 260906-s71). MINOR: the
 shared `scala-tuning-engine` module moves to **v3.1.0** and brings 37 new caption
@@ -112,7 +190,7 @@ path was touched.
 - `check-i18n` now scans the module JS this plugin's `CMakeLists.txt` embeds, so
   the panel's prose is inside the gate rather than beside it.
 
-## v1.4.1 (2026-09-03)
+## [1.4.1] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
 260903-ukp; O-Gain 1.3.3 was the tracer). PATCH: French strings and source
@@ -143,7 +221,7 @@ comments only — no parameter, range, type or state format changed.
   repo-wide unreviewed-French TOTAL stays at 0.
 
 
-## v1.4.0 (2026-09-03)
+## [1.4.0] - 2026-09-03
 
 A switch for the hover help. v1.3.0 gave this plugin 35 tooltips and no way to
 turn them off; twenty of the suite's forty-three plugins already carried that
@@ -204,7 +282,7 @@ switch and twenty-three did not. This closes one of the twenty-three.
   version changes the settings popover, the tooltip renderer and the i18n table,
   and nothing else.
 
-## v1.3.1 (2026-08-31)
+## [1.3.1] - 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout.
 
@@ -216,7 +294,7 @@ French copy revised. Stage N of the repo-wide i18n rollout.
 - **Six entries carry a `termNote`** — a recorded, reasoned exemption rather than silence. *Anche dble* and *Flatt.* are width: the settled *Anche double* (67.20 px) and *Flatterzunge* (67.36 px) sit 0.80 and 0.64 px inside a 68.00 px caption cap that truncates silently. *Vib Prof.* / *Vib Vit.* are geometry: the glossary form measured 50.08 px and the label-collision gate failed on it. *Tenue inf.* / *Tenue infinie* are meaning: O-Reed has no ADSR, so the envelope term *Maintien* would name a control that does not exist.
 - **`<html lang>` now follows the language selector** (canon change, all plugins), so assistive technology reads the page in the language it is displayed in.
 
-## v1.3.0 (2026-08-30)
+## [1.3.0] - 2026-08-30
 
 ### Added
 
@@ -243,7 +321,7 @@ French copy revised. Stage N of the repo-wide i18n rollout.
 - **Tooltip titles are the parameter's full name, not the page's caption.** All 27 knob captions were cut to fit the 68px box measured in v1.2.0 — `Reed Hard.`, `Inf. Sustain`, `Rev. Bore` each end in a truncating period — and a 260px tooltip is exactly where the full word belongs. It is also the name the host's automation lane shows.
 - All 35 French tooltips are machine drafts flagged `reviewed: false`, joining the 55 label entries already waiting. No native speaker has read any of it.
 
-## v1.2.0 (2026-08-29)
+## [1.2.0] - 2026-08-29
 
 ### Added
 
@@ -279,7 +357,7 @@ French copy revised. Stage N of the repo-wide i18n rollout.
 - **Files:** `Resources/ui/index.html`, `Resources/ui/js/i18n.js` (new), `Source/PluginProcessor.{h,cpp}`, `Source/PluginEditor.cpp`, `CMakeLists.txt`, `tests/i18n-states.json` (new).
 - **Version:** 1.1.0 -> 1.2.0 (MINOR — new user-visible feature, backward compatible; a pre-1.2.0 session has no `uiLanguage` property and defaults to English).
 
-## v1.1.0 (2026-04-26)
+## [1.1.0] - 2026-04-26
 
 ### Added
 
@@ -294,25 +372,25 @@ French copy revised. Stage N of the repo-wide i18n rollout.
 - **Files modified:** `Source/PluginProcessor.{h,cpp}`, `Source/ReedWindVoice.{h,cpp}`, `CMakeLists.txt` (added `PLUGIN_VERSION "1.1.0"` line + `ouaricon_add_module(O-Reed note-expression)`).
 - **Version:** 1.0.12 → 1.1.0 (MINOR — new user-visible feature, backward compatible, no preset impact).
 
-## v1.0.12 (2026-04-26)
+## [1.0.12] - 2026-04-26
 
 ### Fixed
 
 - **Parameter-sensitive parasitic high-frequency oscillation** -- with v1.0.11 bore delay math correct (1046 Hz request -> 1062 Hz output, ~26 cents sharp), the reed-bore loop still locked to a wrong high-frequency mode at certain reed parameter combinations. Symptom: "very high-pitched tones that don't correspond with MIDI notes" reproducible by sweeping `reedHardness`/`reedMass`/`reedDamping`. Root cause: when `reedMass` is high and `reedDamping` low, reed natural frequency `f_n = sqrt(k_eff/mu_r)/2pi` falls into the audible range (1-3 kHz at extremes: e.g. `mu_r=0.06, k_eff=20e6 -> f_n=2907 Hz, Q=2.19`). With `Q = sqrt(k_eff*mu_r)/g_eff > 1`, the reed acts as a sharp bandpass resonator that dominates the bore feedback signal, locking output to `f_n` regardless of MIDI note. Real clarinets avoid this via heavy lip loading (effective reed Q ~0.5-1.5). Fix: enforce a `Q_MAX = 0.5` cap on the reed by raising `g_eff` to `sqrt(k_eff*mu_r)/Q_MAX` whenever the natural Q would exceed the ceiling. Single-line physical fix in `ReedModel::processSample()` after embouchure-effective parameters are computed; preserves natural-frequency variation (timbral character intact) while preventing reed from becoming a high-Q resonator that hijacks the bore loop. Verified across reed param sweep (`reedHardness`/`reedMass`/`reedDamping` in {0, 0.5, 1}) at MIDI 36/60/84 -- output dominant frequency now tracks bore setpoint at all combos. v1.0.11 pitch accuracy preserved.
 
-## v1.0.11 (2026-04-16)
+## [1.0.11] - 2026-04-16
 
 ### Fixed
 
 - **Notes play flat — pitch progressively wrong with higher MIDI notes** -- bore waveguide delay compensation only subtracted 1 sample (for the internal `prevBellReflection` storage) but the voice loop has a SECOND single-sample latch via `prevBoreMinus` in `ReedWindVoice` (lines 516, 542). The reed reads `p_bore_minus` from the previous iteration, so the actual round-trip delay = `4*halfDelay + 2 + bellPD + viscPD` while the code compensated for `4*halfDelay + 1 + bellPD + viscPD`. This made every note flat by a `D/(D+1)` ratio: ~17 cents at A4, ~33 cents at A5, ~67 cents at A6, >semitone at C8. Fix: change `compensatedDelay = totalDelay - viscPD - bellPD - 1.0f` to `- 2.0f` in `BoreWaveguide::setFrequency()` to compensate both storage samples (one inside the bore, one in the external feedback latch).
 
-## v1.0.10 (2026-04-11)
+## [1.0.10] - 2026-04-11
 
 ### Fixed
 
 - **No sound / silent output on default patch** -- `toneHoleCutoff` parameter defaulted to 1500 Hz instead of 8000 Hz, which opened 3 of 4 tone holes fully (scatter=-0.165 each) and 1 partially (scatter=-0.058). Each open tone hole junction radiates ~16.5% of the sum of forward and backward bore wave energy. With 4 active scattering junctions, the bore lost ~70% of its energy per round trip -- far exceeding the reed model's ability to sustain self-oscillation (reed gain ~1-3% per round trip). Fix: changed default `toneHoleCutoff` from 1500 Hz to 8000 Hz (all holes closed). Root cause: the toneHoleCutoff parameter controls progressive tone hole opening from bell-end first; at 1500 Hz (`cutoff_norm=0.167`), holes 1-3 were fully open (`opening=1.0`) and hole 4 was 33% open.
 
-## v1.0.9 (2026-04-09)
+## [1.0.9] - 2026-04-09
 
 ### Fixed
 
@@ -321,7 +399,7 @@ French copy revised. Stage N of the repo-wide i18n rollout.
   2. **Frequency-dependent bell allpass group delay**: replaced static `bellGD = 0.5` with exact first-order allpass formula `GD(f) = (1-a²) / (1+a²-2a*cos(ω))`. Stored allpass coefficient similarly.
   3. **Safety clamp on compensatedDelay**: added `std::max(4.0f, compensatedDelay)` before segment division, matching O-Wind/O-Bowed pattern. Prevents negative delays from reaching Thiran interpolation. Reduced per-segment minimum from 2.0 to 1.0 for better high-frequency resolution.
 
-## v1.0.8 (2026-04-08)
+## [1.0.8] - 2026-04-08
 
 ### Fixed
 
@@ -329,13 +407,13 @@ French copy revised. Stage N of the repo-wide i18n rollout.
   1. **Post-release bore damping**: once breath envelope reaches Off state, apply exponential damping (~50ms time constant) to the bore feedback path. This drains bore energy in ~500ms regardless of pitch, while preserving the natural 150ms breath release tail.
   2. **Energy estimate tracks bore wave directly**: changed `energyEstimate` from tracking `|lastRadiatedOutput|` (highpass-filtered at ~3400Hz) to `|seg_bwd[0]|` (full-spectrum backward wave at reed). The radiation highpass severely underreported bore energy for low notes where most energy is below the cutoff. Energy estimate now reflects actual bore content.
 
-## v1.0.7 (2026-04-08)
+## [1.0.7] - 2026-04-08
 
 ### Fixed
 
 - **Continuous tone at -12 dB after note-off** -- reed model self-excited at zero mouth pressure due to Bernoulli flow through the full rest opening (H_eff ≈ 0.54mm). With Z_c ≈ 1.08e6 and S_opening ≈ 5.4e-6 m², the reed junction reflection gain exceeded 1.0 for bore pressures below ~14 Pa, creating a negative resistance that sustained oscillation indefinitely. Root cause: `dp = -p_bore_minus` drives flow through the open reed channel even without breath, and `Z_c * u_reed` exceeds the incoming wave amplitude at low levels. Fix: gate the reed opening by mouth pressure (threshold = 1% of closure pressure) so the reed rests closed against the mouthpiece when breath is off, matching physical behavior. The bore now rings down naturally through viscothermal loss (~0.5%/round-trip).
 
-## v1.0.6 (2026-04-07)
+## [1.0.6] - 2026-04-07
 
 ### Fixed
 
@@ -349,38 +427,38 @@ French copy revised. Stage N of the repo-wide i18n rollout.
 - **Radiation filter killing fundamental**: output was taken from highpass-filtered bore radiation (3400 Hz cutoff), attenuating the fundamental by ~22 dB. Now uses bore pressure at reed (full spectrum), consistent with other physical model plugins.
 - **Turbulence seeding**: added 2% breath-proportional noise to seed bore resonance during reed closure.
 
-## v1.0.5 (2026-04-07)
+## [1.0.5] - 2026-04-07
 
 ### Fixed
 
 - **Bore waveguide self-oscillation** -- removed `feedbackGain` compensation from `BoreWaveguide` that was introduced in v1.0.4. The formula `1 / max(0.5, viscGain * 0.98)` yielded ~1.026 feedback gain, giving a round-trip gain of ~1.02 (>1.0). This caused the bore to self-excite after any note, producing a continuous high-pitched tone at ~-12 dB that never decayed. The bell allpass filter has unity gain (no energy loss to compensate for), and the viscothermal filter's 0.5% loss is correct physical damping. Root cause: v1.0.4 feedbackGain overcompensation.
 
-## v1.0.4 (2026-04-06)
+## [1.0.4] - 2026-04-06
 
 ### Improved
 
 - **Bore feedback gain compensation** -- added `feedbackGain` to `BoreWaveguide` that compensates for cumulative viscothermal filter and bell reflection losses. Computed as `1 / max(0.5, viscGain * 0.98)` clamped to 2.0x, applied to the backward-traveling wave returning to the reed. Prevents energy decay from damping sustained tones, similar to O-Wind's mechanism.
 
-## v1.0.3 (2026-04-06)
+## [1.0.3] - 2026-04-06
 
 ### Fixed
 
 - **Mouthpiece chamber damping** -- increased Helmholtz resonator damping from 0.001 to 0.05, bringing Q from ~164 down to ~3. The original Q~164 produced an unrealistic 4.6 kHz spike that colored all patches using the chamber. New damping models realistic mouthpiece cavity losses.
 - **Mouthpiece chamber bypassed by default** -- changed `mouthpieceVol` parameter default from 0.3 to 0.0 so the chamber is off unless explicitly enabled. All 24 factory presets updated to 0.0.
 
-## v1.0.2 (2026-04-06)
+## [1.0.2] - 2026-04-06
 
 ### Fixed
 
 - **Tone hole energy conservation** — scatter coefficient formula changed from `-holeStrength / (1 + holeStrength)` to `-2*holeStrength / (2 + holeStrength)` (normalized Kelly-Lochbaum). The old formula destroyed ~24% of wave energy at each three-port junction. Applies to all 4 tone holes and the register hole.
 
-## v1.0.1 (2026-04-06)
+## [1.0.1] - 2026-04-06
 
 ### Fixed
 
 - **Bell radiation output model** — replaced allpass-difference output tap (`th4_fwd + p_reflected`) with direct forward-wave tap through a first-order highpass radiation filter. The allpass difference cancelled ~99.6% of fundamental energy at 440 Hz. New model uses `radiationFilter.processSample(th4_fwd)` matching O-Wind's radiation approach. Bell allpass retained for reflection path only.
 
-## v1.0.0 (2026-04-06)
+## [1.0.0] - 2026-04-06
 
 Initial release of O-Reed -- physical modeling reed wind instrument synthesizer.
 

@@ -23,6 +23,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>O-Reed</title>
+    <!-- v1.7.0: bundled EB Garamond (modules/ui/eb-garamond), linked before
+         every other stylesheet so --font-serif's first face is always
+         declared. -->
+    <link rel="stylesheet" href="/css/eb-garamond.css">
     <link rel="stylesheet" href="/css/tuning-panel.css">
     <style>
         /* ====================================================================
@@ -41,7 +45,18 @@
             --brown-frame-light: #7A5C47;
             --brown-text: #3C2F2F;
             --brown-text-light: #6B5B4F;
-            --brown-text-lighter: #8B7B6F;
+            /* v1.7.0: #8B7B6F -> #76655A. The old tertiary ink read 3.32-3.58:1
+               on every ground it sits on (section titles, dropdown and XY
+               captions, the FX placeholder). #76655A is the same grey-walnut
+               hue darkened to 4.54:1 on --bg-paper, the darkest ground it
+               meets, and 4.77 on the section plate. */
+            --brown-text-lighter: #76655A;
+            /* Walnut TEXT (ouaricon-naturalist-001 AA table): 5.11:1 on
+               #F5E6D3, 5.15 on the tuning panel's selected-row tint. The
+               #8B7355 walnut above stays for borders only (3.66:1). */
+            --walnut-text: #715D45;
+            --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman',
+                          'PingFang SC', 'Microsoft YaHei', serif;
             --green-light: #8BA870;
             --green-mid: #6B8E4E;
             --green-dark: #4A6B35;
@@ -73,12 +88,12 @@
             /* The CJK tail goes BEFORE the trailing generic: Chromium resolves a
                bare `serif` against the document's lang, so under zh-Hans the
                generic is already a Chinese face and a tail written after it is
-               never consulted. Georgia and Times New Roman are both installed, so
-               the Latin half of this stack was already safe and takes nothing but
-               the tail — Garamond is installed on none of these machines and has
-               never been the face that renders. */
-            font-family: 'Garamond', 'Georgia', 'Times New Roman',
-                         'PingFang SC', 'Microsoft YaHei', serif;
+               never consulted.
+               v1.7.0: 'EB Garamond' is BUNDLED (modules/ui/eb-garamond, served
+               from the plugin binary). The bare 'Garamond' that led this stack
+               was installed on none of these machines, so Georgia is what
+               rendered until now. */
+            font-family: var(--font-serif);
             background: var(--bg-paper);
             color: var(--brown-text);
         }
@@ -135,7 +150,9 @@
             font-size: 10px;
             letter-spacing: 1.5px;
             text-transform: uppercase;
-            opacity: 0.5;
+            /* v1.7.0: was opacity 0.5 (3.21:1). De-emphasis is a colour now:
+               --bg-accent reads 5.51:1 on the --brown-frame header. */
+            color: var(--bg-accent);
             margin-left: 4px;
         }
 
@@ -188,27 +205,56 @@
             align-items: stretch;
         }
 
-        .xy-pad-box {
+        /* v1.7.0: the axis captions moved OUT of the pad. Inside it, at the
+           9px floor, BORE CHARACTER covered the bottom-edge sax cluster, and
+           the rotated DOUBLE REED rotated about its own centre and landed
+           ~60px inside the pad, on top of Ddk. The frame keeps the old
+           200 x 170 footprint (a 12px strip on the left and below for the
+           captions, a 188 x 158 pad in the rest), so nothing else on the page
+           moves. The pad maps pointer coordinates off its own rect, so the
+           smaller pad changes resolution, not mapping. */
+        .xy-pad-frame {
             position: relative;
             width: 200px;
             height: 170px;
+            flex-shrink: 0;
+        }
+
+        .xy-pad-box {
+            position: absolute;
+            left: 12px;
+            top: 0;
+            width: 188px;
+            height: 158px;
             background: rgba(255, 255, 255, 0.35);
             border: 1px solid var(--brown-border);
             border-radius: 6px;
             cursor: crosshair;
             overflow: hidden;
-            flex-shrink: 0;
         }
 
         .xy-axis-label {
             position: absolute;
-            font-size: 8px;
+            font-size: 9px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             color: var(--brown-text-lighter);
+            white-space: nowrap;
+            text-align: center;
         }
-        .xy-axis-x { bottom: 3px; left: 50%; transform: translateX(-50%); }
-        .xy-axis-y { left: 3px; top: 50%; transform: translateY(-50%) rotate(-90deg); }
+        /* Centred under the pad, in the 12px strip below it. */
+        .xy-axis-x { left: 12px; right: 0; bottom: 0; }
+        /* A 158px-wide box (the pad's height) whose top-left corner sits at
+           the frame's bottom-left, rotated -90deg about that corner: it then
+           spans x 0..10 and y 0..158, reads bottom to top, and is centred
+           along the pad's left edge whatever the caption's length. */
+        .xy-axis-y {
+            left: 0;
+            top: 158px;
+            width: 158px;
+            transform-origin: 0 0;
+            transform: rotate(-90deg);
+        }
 
         .xy-cursor {
             position: absolute;
@@ -232,15 +278,35 @@
         .xy-crosshair-h { height: 1px; left: 0; right: 0; }
         .xy-crosshair-v { width: 1px; top: 0; bottom: 0; }
 
+        /* v1.7.0: a marker is a DOT at the preset's exact coordinate plus a
+           separate 9px caption. They were 7px centred text at opacity 0.6
+           (2.01:1): the four saxes (10px apart on the bottom edge) smeared
+           into one another and the bottom row was half clipped by the pad.
+           Dots are decoration (walnut); captions take AA ink. */
         .xy-preset-marker {
             position: absolute;
-            font-size: 7px;
-            color: var(--brown-text-lighter);
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--brown-border);
             transform: translate(-50%, -50%);
             pointer-events: none;
-            opacity: 0.6;
+        }
+
+        .xy-preset-label {
+            position: absolute;
+            font-size: 9px;
+            line-height: 1.1111111;
+            color: var(--brown-text-light);
+            pointer-events: none;
             white-space: nowrap;
         }
+        /* Beside its dot, vertically centred on it. */
+        .xy-preset-label.beside { transform: translate(5px, -50%); }
+        /* Above a bottom-edge cluster: pinned to the pad's floor, with
+           horizontal anchoring decided per cluster in populateXYMarkers(). */
+        .xy-preset-label.above { bottom: 7px; }
+        .xy-preset-label.above.center { transform: translateX(-50%); }
 
         .xy-info-panel {
             flex: 1;
@@ -420,8 +486,9 @@
             stroke-linecap: round;
         }
 
+        /* v1.7.0: 8px -> 9px (the suite's 9px floor). */
         .knob-label {
-            font-size: 8px;
+            font-size: 9px;
             text-transform: uppercase;
             letter-spacing: 0.3px;
             color: var(--brown-text-light);
@@ -571,7 +638,7 @@
              .toggle-label             10    11.00      0    11.00   1.1000000
              .dropdown-label            9    10.00      0    10.00   1.1111111
              .xy-val-item > span        9    10.00      0    10.00   1.1111111
-             .xy-axis-label             8     9.00      0     9.00   1.1250000
+             .xy-axis-label             8     9.00      0     9.00   1.1250000  (9px since v1.7.0)
              .effects-placeholder h2   24    27.00      0    27.00   1.1250000
              .effects-placeholder p    14    16.00      0    16.00   1.1428571
 
@@ -599,13 +666,12 @@
             line-height: 1.1111111;
         }
 
-        /* Both axis captions sit ABSOLUTELY POSITIONED inside a 200x170
-           overflow:hidden pad and grow from their own centre, so neither can
-           move a sibling — the ratio is here so the two arms report the same
-           line box, not because anything depended on it. The Y caption is
-           rotated -90deg and wraps to seven line boxes in English against two
-           in Chinese, so its rect is the rotated bounding box; the ratio is
-           still per LINE and still 9.00/8. */
+        /* Both axis captions are ABSOLUTELY POSITIONED in .xy-pad-frame's
+           edge strips (v1.7.0; they sat inside the pad before), so neither can
+           move a sibling. The ratio is here so the three language arms report
+           the same line box, not because anything depends on it. The Y caption
+           is nowrap and rotated -90deg, so its rect is the rotated bounding
+           box. */
         .xy-axis-label {
             line-height: 1.125;
         }
@@ -751,8 +817,7 @@
            after this landed and the decision was taken on that measurement, not
            on the intention. */
         #tuning-container .tuning-panel {
-            font-family: 'Garamond', 'Georgia', 'Times New Roman',
-                         'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
         }
 
         /* ── 4. THE PANEL'S FORM CONTROLS — FIVE selectors, not three ────────
@@ -785,8 +850,34 @@
         #tuning-container .generator-btn,
         #tuning-container .generator-type-select,
         #tuning-container .library-filter-select {
-            font-family: 'Garamond', 'Georgia', 'Times New Roman',
-                         'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
+        }
+
+        /* ── 5. THE PANEL'S AA INKS (v1.7.0) ─────────────────────────────────
+           Set here for the same reason rules 3 and 4 are: the shared CSS has
+           five consumers. It inks every muted caption (interval list, tonic,
+           A4 REF, Stretch, pitch circle, generator rows) with
+           --tuning-text-muted #8B7355, which reads 3.66-4.41:1 on this panel.
+           The two primary buttons are white on #8BC34A, 2.10:1. The token is
+           re-pointed at the naturalist walnut text, and the two buttons take
+           this page's active fill (.tab-btn.active, the open gear) with paper
+           ink, 4.97:1. The shared hover (brightness 1.1) would lift that fill
+           below AA, so hover goes darker instead. --tuning-accent is left
+           alone: it only draws borders and the stretch track. */
+        #tuning-container .tuning-panel {
+            --tuning-text-muted: var(--walnut-text);
+        }
+        #tuning-container .generator-btn,
+        #tuning-container .tuning-export-btn {
+            background: var(--green-dark);
+            border-color: var(--green-dark);
+            color: var(--bg-paper);
+        }
+        #tuning-container .generator-btn:hover,
+        #tuning-container .tuning-export-btn:hover {
+            filter: none;
+            background: var(--green-darkest);
+            border-color: var(--green-darkest);
         }
 
         .tuning-tab-panel {
@@ -829,9 +920,10 @@
             font-size: 24px;
             margin-bottom: 8px;
         }
+        /* v1.7.0: opacity 0.7 dropped (2.20:1). The inherited
+           --brown-text-lighter already carries the de-emphasis. */
         .effects-placeholder p {
             font-size: 14px;
-            opacity: 0.7;
         }
 
         /* ====================================================================
@@ -993,9 +1085,12 @@
           transition: background 0.15s, border-color 0.15s, color 0.15s;
         }
 
+        /* v1.7.0: --green-mid -> --green-dark. Paper on the mid green read
+           3.06:1; on --green-dark it reads 4.97, the fill .tab-btn.active and
+           the open gear already wear. */
         .settings-toggle[aria-pressed="true"] {
-          background: var(--green-mid);
-          border-color: var(--green-mid);
+          background: var(--green-dark);
+          border-color: var(--green-dark);
           color: var(--bg-paper);
         }
 
@@ -1180,18 +1275,19 @@
                 <div class="xy-pad-container">
                     <div class="xy-pad-label" data-i18n="label.xy.title" data-label="Instrument Morphing">Instrument Morphing</div>
                     <div class="xy-pad-wrap">
-                        <div class="xy-pad-box" id="xy-pad">
-                            <!-- CLIFF 2: both are absolutely positioned boxes
-                                 that grow from their CENTRE inside a 200x170
-                                 overflow:hidden pad already holding fifteen
-                                 markers. They spill nothing while growing, so
-                                 only assertion 8 can see them. See the CLIFF 2
-                                 note in js/i18n.js for the measured hit sets. -->
-                            <span class="xy-axis-label xy-axis-x" data-i18n="label.xy.axisX" data-label="Bore Character">Bore Character</span>
+                        <div class="xy-pad-frame">
+                            <!-- CLIFF 2 (v1.7.0): the captions sit OUTSIDE the
+                                 pad, in the frame's 12px left and bottom
+                                 strips, so no caption length in any language
+                                 can reach a marker. See the CLIFF 2 note in
+                                 js/i18n.js. -->
                             <span class="xy-axis-label xy-axis-y" data-i18n="label.xy.axisY" data-label="Double Reed">Double Reed</span>
-                            <div class="xy-crosshair-h" id="xy-ch"></div>
-                            <div class="xy-crosshair-v" id="xy-cv"></div>
-                            <div class="xy-cursor" id="xy-cursor"></div>
+                            <div class="xy-pad-box" id="xy-pad">
+                                <div class="xy-crosshair-h" id="xy-ch"></div>
+                                <div class="xy-crosshair-v" id="xy-cv"></div>
+                                <div class="xy-cursor" id="xy-cursor"></div>
+                            </div>
+                            <span class="xy-axis-label xy-axis-x" data-i18n="label.xy.axisX" data-label="Bore Character">Bore Character</span>
                         </div>
                         <div class="xy-info-panel">
                             <div class="dropdown-control">
@@ -1859,15 +1955,47 @@
             }
         }
 
-        // Populate XY preset markers
+        // v1.7.0: presets closer together than a 9px caption is wide share
+        // ONE caption, placed above their dots on the pad's floor. Both
+        // clusters sit on y = 0. Members are listed in x order.
+        const XY_CLUSTERS = [
+            { members: ['Clar', 'B.Clar'], text: 'Clar \u00B7 B.Clar', align: 'start' },
+            { members: ['S.Sax', 'A.Sax', 'T.Sax', 'B.Sax'], text: 'Sax S\u00B7A\u00B7T\u00B7B', align: 'center' },
+        ];
+
+        // Populate XY preset markers: one dot per preset at its exact
+        // coordinate (clamped 3px inside the pad so an edge dot is not half
+        // clipped), plus a caption beside it or, for a cluster, one caption
+        // above the group.
         function populateXYMarkers() {
+            const clustered = new Set(XY_CLUSTERS.flatMap(c => c.members));
+            const addLabel = (text, cls) => {
+                const label = document.createElement('div');
+                label.className = 'xy-preset-label ' + cls;
+                label.textContent = text;
+                xyPad.appendChild(label);
+                return label;
+            };
             XY_PRESETS.forEach(p => {
+                const left = `clamp(3px, ${p.x * 100}%, calc(100% - 3px))`;
+                const top = `clamp(3px, ${(1 - p.y) * 100}%, calc(100% - 3px))`;
                 const marker = document.createElement('div');
                 marker.className = 'xy-preset-marker';
-                marker.textContent = p.label;
-                marker.style.left = (p.x * 100) + '%';
-                marker.style.top = ((1 - p.y) * 100) + '%';
+                marker.style.left = left;
+                marker.style.top = top;
                 xyPad.appendChild(marker);
+                if (!clustered.has(p.label)) {
+                    const label = addLabel(p.label, 'beside');
+                    label.style.left = left;
+                    label.style.top = top;
+                }
+            });
+            XY_CLUSTERS.forEach(c => {
+                const xs = c.members.map(m => XY_PRESETS.find(p => p.label === m).x);
+                const label = addLabel(c.text, 'above ' + c.align);
+                label.style.left = c.align === 'start'
+                    ? '3px'
+                    : ((xs[0] + xs[xs.length - 1]) / 2 * 100) + '%';
             });
         }
 
@@ -1971,7 +2099,7 @@
                 container.textContent = '';
                 const notice = document.createElement('div');
                 notice.style.padding = '20px';
-                notice.style.color = '#8B7355';
+                notice.style.color = 'var(--walnut-text)';
                 notice.style.fontStyle = 'italic';
                 setLabel(notice, 'label.tuningLoadFailed');
                 container.appendChild(notice);

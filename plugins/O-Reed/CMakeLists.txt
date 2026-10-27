@@ -8,7 +8,7 @@ juce_add_plugin(O-Reed
     PLUGIN_CODE ORed
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Reed${OUARICON_DEV_SUFFIX}"
-    VERSION "1.6.0"
+    VERSION "1.7.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -74,6 +74,12 @@ juce_add_binary_data(O-Reed_UIResources
         Resources/ui/js/juce/check_native_interop.js
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/js/tuning-panel.js
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/snippets/tuning-panel.css
+        # v1.7.0: bundled EB Garamond (modules/ui/eb-garamond, direct embed).
+        # Served by four getResource() branches in PluginEditor.cpp.
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 target_link_libraries(O-Reed

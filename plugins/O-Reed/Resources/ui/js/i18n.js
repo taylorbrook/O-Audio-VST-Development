@@ -903,7 +903,15 @@ export const I18N = Object.freeze({
 //   caption ellipsises, and Windows metrics are the named hardware-blocked
 //   deferral for this whole rollout.
 //
-// CLIFF 2 — the XY pad's X-axis caption is an ABSOLUTELY POSITIONED, CENTRED
+// CLIFF 2 — RETIRED at v1.7.0, kept as the record of why the captions moved.
+//   Both axis captions now sit OUTSIDE the pad, in the 12px left and bottom
+//   strips of a 200 x 170 .xy-pad-frame around a 188 x 158 pad, so no caption
+//   length in any language can reach a marker. The markers are dots plus 9px
+//   captions, and the two bottom-edge clusters share one caption each
+//   ('Clar · B.Clar', 'Sax S·A·T·B'). `Caract. perce` still ships; its
+//   original reason is below.
+//
+// Before v1.7.0: the XY pad's X-axis caption was an ABSOLUTELY POSITIONED, CENTRED
 // box inside a 200 x 170 `overflow: hidden` pad that already holds fifteen
 // instrument markers. It grows from its centre, so it reaches toward markers on
 // BOTH sides and spills nothing while doing it. In English it already overlaps
@@ -1360,7 +1368,7 @@ export const I18N_EXEMPT = [
     // A FRENCH USER THEREFORE STILL READS "Oboe" AND "E.Hrn" ON THE XY PAD.
     // That is the cost, it is deliberate, and it is reported.
     ['XY pad instrument markers',
-     'the fifteen 7px markers on the XY pad are the abbreviation set of the instrumentPreset AudioParameterChoice, and THREE of them — "Oboe", "Suona", "Piri" — are byte-identical to their option strings (D-01 arm 1). The pad must name the same instruments the host automation lane and the dropdown beside it name, so the whole set stays English rather than being split across two languages. Written by populateXYMarkers() from a literal array, so the coverage scan does not reach them'],
+     'the XY pad marker captions (v1.7.0: nine 9px single captions plus the shared "Clar · B.Clar" and "Sax S·A·T·B" cluster captions, over fifteen dots) are the abbreviation set of the instrumentPreset AudioParameterChoice, and THREE of them — "Oboe", "Suona", "Piri" — are byte-identical to their option strings (D-01 arm 1). The pad must name the same instruments the host automation lane and the dropdown beside it name, so the whole set stays English rather than being split across two languages. Written by populateXYMarkers() from literal arrays (XY_PRESETS, XY_CLUSTERS), so the coverage scan does not reach them'],
 
     // ── Endonyms ────────────────────────────────────────────────────────────
     ['English',  'endonym — a language name is never translated'],
