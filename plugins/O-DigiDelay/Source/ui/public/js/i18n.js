@@ -405,7 +405,7 @@ export const I18N = Object.freeze({
     // 'js.save' is the full verb, not label.save — that one is abbreviated
     // ("Enreg") to fit the 62 px preset-bar pin; the dialog has no such limit.
     'js.savePresetTitle':  { en: { t: 'Save Preset', b: '' },                   fr: { t: 'Enregistrer le préréglage', b: '', reviewed: true },  'zh-Hans': { t: '保存预设', b: '', reviewed: 'bt' },},
-    'js.savePresetPrompt': { en: { t: 'Enter a name for this preset:', b: '' }, fr: { t: 'Nom de ce préréglage :',    b: '', reviewed: false }, 'zh-Hans': { t: '输入此预设的名称：', b: '', reviewed: 'mt' },},
+    'js.savePresetPrompt': { en: { t: 'Enter a name for this preset:', b: '' }, fr: { t: 'Nom de ce préréglage :',    b: '', reviewed: false }, 'zh-Hans': { t: '输入此预设的名称：', b: '', reviewed: 'mt' },},
     'js.save':             { en: { t: 'Save', b: '' },                          fr: { t: 'Enregistrer',               b: '', reviewed: false }, 'zh-Hans': { t: '保存', b: '', reviewed: 'mt' },},
     'js.cancel':           { en: { t: 'Cancel', b: '' },                        fr: { t: 'Annuler',                   b: '', reviewed: false }, 'zh-Hans': { t: '取消', b: '', reviewed: 'mt' },},
 });
