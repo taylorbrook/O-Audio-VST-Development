@@ -1,5 +1,14 @@
 # O-Chorus Changelog
 
+## [1.10.3] - 2026-10-26
+
+Windows WebView2 hardening (ui-hardening-phase0). No DSP, parameter, preset or state change; macOS behaviour and look unchanged.
+
+### Fixed
+
+- **Windows: the WebView2 user-data folder moved out of bare `%TEMP%`** to `%APPDATA%\Ouaricon\WebView2\O-Chorus`, created before the editor opens. `%TEMP%` is wiped by cleaners and can be locked by other processes, and the folder was shared by every plugin using it.
+- **Windows: when WebView2 cannot start** (runtime missing, data folder unusable) the editor now shows a native "needs Microsoft Edge WebView2" notice with a download link, instead of JUCE's silent fallback to the legacy IE control (a "page not found" window). The effect keeps working and host automation still reaches every parameter. Same convention as O-simpleSubtractive v1.7.4.
+
 ## [1.10.2] — 2026-10-19
 
 ### Fixed
