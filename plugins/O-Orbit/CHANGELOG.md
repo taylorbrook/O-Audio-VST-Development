@@ -1,5 +1,13 @@
 # Changelog — O-Orbit
 
+## [1.4.5] - 2026-10-26
+
+Locale-independent motion data (ui-hardening-phase0). No DSP, parameter, preset or state change; no visual change.
+
+### Fixed
+
+- **Motion display on comma-decimal systems.** The 30 Hz `motionUpdate` event was built with `String::formatted("%f")`, which follows the host's C locale: on a French-region system it wrote `"azL":0,500000`, the page's `JSON.parse` failed silently and the orbit display stopped moving. Numbers are now always written with a `.`.
+
 ## [1.4.4] — 2026-10-19
 
 ### Fixed

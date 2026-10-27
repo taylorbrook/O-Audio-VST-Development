@@ -737,9 +737,19 @@ void OOrbitEditor::timerCallback()
     float dist = processorRef.getUIDistance();
     bool isLRSplit = processorRef.parameters.getRawParameterValue ("source_mode")->load() > 0.5f;
 
-    juce::String json = juce::String::formatted (
-        "{\"azL\":%f,\"elL\":%f,\"azR\":%f,\"elR\":%f,\"dist\":%f,\"split\":%s}",
-        azL, elL, azR, elR, dist, isLRSplit ? "true" : "false");
+    // v1.4.5 — locale-independent numbers. String::formatted ("%f") follows the
+    // host process's C locale, so a comma-decimal host (French region) wrote
+    // "azL":0,500000; the page's JSON.parse failed silently and the visualizer
+    // froze. juce::String (float, 6) always writes '.'. A non-finite value falls
+    // back to the page's own initial motionState (angles 0, dist 1).
+    const auto num = [] (float v, float fallback) { return juce::String (std::isfinite (v) ? v : fallback, 6); };
+
+    const juce::String json = "{\"azL\":" + num (azL, 0.0f)
+        + ",\"elL\":" + num (elL, 0.0f)
+        + ",\"azR\":" + num (azR, 0.0f)
+        + ",\"elR\":" + num (elR, 0.0f)
+        + ",\"dist\":" + num (dist, 1.0f)
+        + ",\"split\":" + (isLRSplit ? "true" : "false") + "}";
 
     webView->emitEventIfBrowserIsVisible ("motionUpdate", json);
 }
