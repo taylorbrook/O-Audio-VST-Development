@@ -2,6 +2,18 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.6.6] - 2026-10-27
+
+Glissando toggles stay in sync with the host. No parameter, range, state or DSP change.
+
+### Fixed
+
+- **The host no longer shows a stale Free / Scale-Locked Glissando value.** Turning one toggle on from the host (automation, the host's own parameter view) switched the other off inside the plugin, but the host never heard about it and kept showing it on; pluginval's state-restore test failed on Free Glissando (seeds 0x69c6be7, 0x2ed10e1). Root cause: the plugin wrote the other toggle off from inside the host's own parameter-change call, where the VST3 wrapper drops every nested change report. The plugin no longer changes one toggle from the other.
+
+### Changed
+
+- **The two toggles are now independent parameters.** Clicking one on in the plugin window still switches the other off. Host automation can now leave both on; Scale-Locked then plays, as it already did when both were on.
+
 ## [2.6.5] - 2026-10-27
 
 Tuning-mode save fix. No parameter, range or DSP change.

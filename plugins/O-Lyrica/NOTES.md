@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 2.6.5
+- **Version:** 2.6.6
 - **Type:** Synth (Physical Modeling Harp)
 
 ## Lifecycle Timeline
@@ -58,6 +58,10 @@
 - **2026-10-27 (v2.6.5):** Tuning mode saved from the APVTS param (was the engine copy, stale while
   bypassed / before the first block). A restored `tuningMode` param now outranks the CustomState copy,
   healing sessions/presets saved stale by <= 2.6.4.
+- **2026-10-27 (v2.6.6):** Free/Scale-Locked toggle exclusion moved from `parameterChanged()` to the
+  page click handler. The nested partner write ran inside the VST3 wrapper's `inParameterChangedCallback`
+  scope on host-originated changes and was never reported (host kept a stale value; pluginval
+  state-restore seeds 0x69c6be7 / 0x2ed10e1). Toggles are now independent; Scale-Locked wins when both on.
 
 ## Known Issues / Limitations
 

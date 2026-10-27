@@ -3837,11 +3837,17 @@
 
                     updateBtn(getValue());
 
+                    // v2.6.6: the mutual exclusion lives here, not in the
+                    // processor — a click that turns this mode ON turns the
+                    // partner OFF, as a page edit the host sees.
                     button.addEventListener('click', () => {
                         const newVal = !getValue();
+                        if (newVal && glissToggleSetters[partnerOf[paramId]])
+                            glissToggleSetters[partnerOf[paramId]](false);
                         setValue(newVal);
                         updateBtn(newVal);
                     });
+                    glissToggleSetters[paramId] = setValue;
 
                     state.valueChangedEvent.addListener(() => {
                         updateBtn(getValue());
@@ -3851,6 +3857,8 @@
                 }
             }
 
+            const partnerOf = { freeToggle: 'scaleToggle', scaleToggle: 'freeToggle' };
+            const glissToggleSetters = {};
             inlineBindToggle('freeToggle', 'freeToggleBtn');
             inlineBindToggle('scaleToggle', 'scaleToggleBtn');
 

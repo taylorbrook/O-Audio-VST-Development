@@ -230,7 +230,7 @@ public:
     // Message thread. Returns true if the mask was reset.
     bool syncGlissMaskToDegreeCount();
 
-    // v1.30.0: APVTS Listener for toggle mutual exclusion
+    // v1.30.0: APVTS Listener for the glissando toggles (v2.6.6: refreshes the active mode only)
     void parameterChanged(const juce::String& parameterID, float newValue) override;
 
 private:
@@ -272,7 +272,6 @@ private:
     std::atomic<bool> freeKeyswitchHeld { false };
     std::atomic<bool> scaleKeyswitchHeld { false };
     void updateActiveGlissandoMode();
-    bool isUpdatingToggles = false; // Reentrancy guard for mutual exclusion
 
     // v1.18.0: Tooltip system enabled state (saved with plugin state)
     std::atomic<bool> tooltipsEnabled { false };

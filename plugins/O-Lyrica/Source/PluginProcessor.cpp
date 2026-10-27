@@ -126,11 +126,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout OLyricaAudioProcessor::creat
     ));
 
     // v1.30.0: Glissando toggle params (replace old glissandoMode dropdown)
-    // v2.5.1: Both toggles are META parameters. They are mutually exclusive — turning one ON
-    // programmatically writes the other OFF in parameterChanged() below — so each one changes
-    // the value of another parameter. The meta attribute tells the host/AU wrapper that, and
-    // without it auval's parameter-stability sweep fails on Free Glissando:
-    // "a Meta Param Flag is NOT set on a parameter that will change values of other parameters."
+    // v2.5.1: Both toggles are META parameters (added when parameterChanged() wrote the
+    // partner OFF; auval failed without the flag). v2.6.6 moved that exclusion to the page,
+    // so neither changes another parameter any more — the flag is kept unchanged so hosts
+    // that cached the parameter info see no difference.
     layout.add(std::make_unique<juce::AudioParameterBool>(
         juce::ParameterID { "freeToggle", 1 },
         "Free Glissando",
@@ -1088,27 +1087,14 @@ void OLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     masterVolumeSmoothed.applyGain(buffer, buffer.getNumSamples());
 }
 
-// v1.30.0: Toggle mutual exclusion — turning one ON turns the other OFF
-void OLyricaAudioProcessor::parameterChanged(const juce::String& parameterID, float newValue)
+// v2.6.6: the toggles are independent parameters; updateActiveGlissandoMode() gives
+// Scale-Locked priority when both are on, and the page turns the partner OFF on a click.
+// The processor no longer writes the partner here: a host-originated change reaches this
+// listener inside the VST3 wrapper's inParameterChangedCallback scope, which swallows the
+// nested setValueNotifyingHost — the host kept the partner's stale value (pluginval
+// "Free Glissando not restored on setStateInformation", seeds 0x69c6be7 / 0x2ed10e1).
+void OLyricaAudioProcessor::parameterChanged(const juce::String&, float)
 {
-    if (isUpdatingToggles)
-        return;
-
-    isUpdatingToggles = true;
-
-    if (parameterID == "freeToggle" && newValue >= 0.5f)
-    {
-        if (auto* scaleParam = parameters.getParameter("scaleToggle"))
-            scaleParam->setValueNotifyingHost(0.0f);
-    }
-    else if (parameterID == "scaleToggle" && newValue >= 0.5f)
-    {
-        if (auto* freeParam = parameters.getParameter("freeToggle"))
-            freeParam->setValueNotifyingHost(0.0f);
-    }
-
-    isUpdatingToggles = false;
-
     updateActiveGlissandoMode();
 }
 
