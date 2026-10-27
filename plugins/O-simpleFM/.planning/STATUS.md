@@ -4,7 +4,7 @@ stage: 4
 phase: verify
 status: stage_4_complete
 workflow_mode: express
-last_updated: 2026-06-20
+last_updated: 2026-09-25
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
@@ -19,6 +19,8 @@ contract_checksums:
 ---
 
 # O-simpleFM Status
+
+> **v1.6.0 (2026-09-25):** UI pass (AA tokens, 9px floor, bundled EB Garamond, resizable 0.6x–1.5x with CSS scale). Built + installed; DAW hands-on check pending.
 
 ## Current Position
 

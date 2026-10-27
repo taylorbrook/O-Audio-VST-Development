@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.4.0
+- **Version:** 1.6.0
 - **Type:** Synth (Pedagogical 2-Operator FM/PM)
 
 ## Lifecycle Timeline
@@ -22,6 +22,8 @@
 - **2026-08-25 (v1.2.5):** Fixed clicks on note-off (any settings) via /improve. Root cause: `pushParamsToVoices()` called `juce::ADSR::setParameters()` every block; its `recalculateRates()` derives the release slope from SUSTAIN, clobbering the envelope-value-based rate `noteOff()` computes — and with amp sustain = 0 (four factory presets) the zero rate makes `recalculateRates()` hard-reset the envelope one block after note-off, truncating the tail (the click). Fix: `FMVoice` caches incoming ADSR params, pushes to the live envelopes only on value change and never mid-release; deferred changes apply at the next note-on. New render-harness `noteoff-click` probe (tail-rings-on + max sample-to-sample jump); verified failing against v1.2.4 code (negative control: tailRms 0.0000 / maxJump 0.39) and passing with the fix (0.2826 / 0.0356). Validation: harness 8/8 ALL PASS, auval registered, built + installed.
 
 - **2026-09-01 (v1.4.0):** Added the hover-help on/off switch to the settings gear beside the language selector via /improve — the control O-simpleGrain and O-simpleSampler already carry and this panel lacked. Browser-side preference (localStorage `osfm.tipsEnabled`, default on), `show()` gated on it, face written through `setLabel` (`ui.on`/`ui.off`), French copied from O-simpleGrain's reviewed entries. WebView-only. Validation: check-i18n 15/15 + 0 unreviewed, fr-lint clean, boot-all-uis clean (0 dead bindings), check-ui-labels ALL PASS (40/40 visible, new OFF state), built + installed, auval registered.
+
+- **2026-09-25 (v1.6.0):** UI pass from the suite design review (R4/R5/R7) via /improve. The text inks are now AA tokens (`--text-muted #715D45`, `--green-text #4E6838`, `--green-fill-strong #55703E`), with a 9 px floor. EB Garamond is bundled from `modules/ui/eb-garamond`. The editor is resizable at a fixed 760:980 aspect from 0.6x to 1.5x, fits the display on open (about 0.85x on a 13" laptop), and keeps the chosen size for the session only. The page scales `.frame` with a CSS transform, which is removed at 1x. `#toggle-ratioSnap` was re-pinned to 132 px. Validation: contrast below-AA 32 to 11 of 88 (the remainder is decorative or disabled), <9 px 15 to 0, check-ui-labels ALL PASS (en/fr/zh-Hans), check-i18n pass, scaled path probed at 4 sizes, auval pass. No DSP or state change.
 
 ## Known Issues
 

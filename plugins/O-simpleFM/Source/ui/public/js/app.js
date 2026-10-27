@@ -756,12 +756,33 @@ function setupPresetManager() {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDropdown(); });
 }
 
+// ── UI scale (v1.6.0) ────────────────────────────────────────────────────────
+// The editor is resizable at a fixed 760:980 aspect. The page always LAYS OUT
+// at the 760x980 design frame and .frame is scaled to the window with a CSS
+// transform, so every pinned width, line box and label geometry is identical
+// at any size. At scale 1 the transform is removed outright — the headless
+// gates run at 760x980 and measure exactly the page they always did.
+// Only .frame scales: the tooltip and the confirm overlay are body children
+// positioned in viewport px from clientX/Y, which a transform never skews.
+const DESIGN_W = 760, DESIGN_H = 980;
+let uiScale = 1;
+
+function applyUiScale() {
+  const frame = document.querySelector(".frame");
+  if (!frame) return;
+  const s = Math.min(window.innerWidth / DESIGN_W, window.innerHeight / DESIGN_H);
+  uiScale = (s > 0 && Math.abs(s - 1) > 0.002) ? s : 1;
+  frame.style.transform = uiScale === 1 ? "" : `scale(${uiScale})`;
+}
+
 // ── Canvases (DPR-aware) ─────────────────────────────────────────────────────
 function makeCanvas(id) {
   const canvas = document.getElementById(id);
   const ctx = canvas.getContext("2d");
   const resize = () => {
-    const dpr = window.devicePixelRatio || 1;
+    // clientWidth is the UNSCALED layout width; fold uiScale into the backing
+    // store so a scaled-up canvas stays sharp and a scaled-down one costs less.
+    const dpr = (window.devicePixelRatio || 1) * uiScale;
     const w = canvas.clientWidth, h = canvas.clientHeight;
     canvas.width = Math.max(1, Math.round(w * dpr));
     canvas.height = Math.max(1, Math.round(h * dpr));
@@ -932,6 +953,7 @@ function setupVizEvents() {
 // last frame (preserves the visible image across an editor resize).
 function rewireResize() {
   window.addEventListener("resize", () => {
+    applyUiScale();
     if (spec) spec.resize();
     if (scope) scope.resize();
     if (lastSpectrum) drawSpectrum(lastSpectrum);
@@ -1079,6 +1101,7 @@ async function fetchParameterDefaults() {
 
 // ── Boot ────────────────────────────────────────────────────────────────────
 function boot() {
+  applyUiScale();   // before makeCanvas: the backing stores read uiScale
   spec = makeCanvas("spectrumCanvas");
   scope = makeCanvas("scopeCanvas");
 

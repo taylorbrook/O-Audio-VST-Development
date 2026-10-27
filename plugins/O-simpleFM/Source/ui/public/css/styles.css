@@ -57,6 +57,18 @@
   --shadow-heavy: rgba(0, 0, 0, 0.5);
   --text-emboss: rgba(255, 255, 255, 0.5);
   --fleuron-color: rgba(60, 47, 47, 0.3);
+  /* Text inks (v1.6.0, R4) — WCAG AA (4.5:1) on every paper tone this page
+     uses (#FAF0E6 / #F7EBDC / #F5E6D3 / #EBD9C7). --brown-border and
+     --green-mid stay for rules, borders and fills; they are 3.66 / 3.06 as
+     text on paper and must not colour text again. */
+  --text-muted: #715D45;        /* walnut, 4.56 on #EBD9C7 .. 5.57 on #FAF0E6 */
+  --green-text: #4E6838;        /* sage,   4.55 on #EBD9C7 .. 5.56 on #FAF0E6 */
+  --green-fill-strong: #55703E; /* active fill under #F5F0E6 text: 4.90 */
+  /* Bundled EB Garamond (modules/ui/eb-garamond, Times metrics baked in).
+     Georgia before Times so an unbundled fallback converges on one face; the
+     CJK tail precedes the generic. No bare 'Garamond' — an Office-installed
+     Windows Garamond would outrank the bundled face. */
+  --serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   /* Symbol-glyph fallback — Garamond lacks ❦ / ♪ on Windows; these fonts carry them. */
   --symbol-font: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS', 'PingFang SC', 'Microsoft YaHei', serif;
 }
@@ -73,7 +85,7 @@ html, body {
 }
 
 body {
-  font-family: 'Garamond', 'EB Garamond', 'Adobe Garamond Pro', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+  font-family: var(--serif);
   color: var(--brown-text);
   background:
     radial-gradient(circle at 30% 20%, var(--bg-paper-light), transparent 60%),
@@ -99,8 +111,11 @@ body {
 .frame {
   position: relative;
   z-index: 1;
-  width: 100%;
-  height: 100%;
+  /* The 760x980 design frame, fixed (v1.6.0). The editor resizes at this
+     aspect and app.js applyUiScale() scales the frame to the window. */
+  width: 760px;
+  height: 980px;
+  transform-origin: 0 0;
   padding: 16px 24px;
   display: flex;
   flex-direction: column;
@@ -159,7 +174,7 @@ body {
   font-size: 11px;
   letter-spacing: 1.4px;
   text-transform: uppercase;
-  color: var(--brown-border);
+  color: var(--text-muted);
   margin-top: 2px;
   line-height: 1.0909091;   /* zh pin: en content box 12px PER LINE at 11px (the English is two lines) */
   min-width: 346.31px;      /* zh floor: the EXACT measured English box. The English strapline WRAPS here and the Chinese does not */
@@ -314,7 +329,7 @@ body {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: var(--brown-border);
+  color: var(--text-muted);
   margin-bottom: 4px;
   /* zh pin: en content box 11px at 10px. This row is a LINE BOX the census
      cannot see — both its leaves report an identical box on both arms and the
@@ -322,7 +337,7 @@ body {
      ascent+descent (M9's shape, one level up). */
   line-height: 1.1;
 }
-.viz-hint { text-transform: none; letter-spacing: 0.3px; font-style: italic; color: var(--green-mid); opacity: 0.85; }
+.viz-hint { text-transform: none; letter-spacing: 0.3px; font-style: italic; color: var(--green-text); }
 .canvas-wrap {
   flex: 1;
   position: relative;
@@ -362,7 +377,7 @@ body {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1.2px;
-  color: var(--brown-border);
+  color: var(--text-muted);
   flex: 0 0 77px;
   line-height: 1.1;
 }
@@ -371,7 +386,7 @@ body {
 .op-mod { fill: #c8b48f; }
 .op-car { fill: var(--knob-seg-1); }
 .op-text { font-family: inherit; font-size: 12px; letter-spacing: 1px; fill: var(--brown-frame); }
-.op-out { font-size: 16px; fill: var(--green-mid); }
+.op-out { font-size: 16px; fill: var(--green-text); }
 .route-line, .route-arc { stroke: var(--green-dark); stroke-width: 2.5; }
 .route-line-out { stroke: var(--brown-border); }
 .route-head { fill: var(--green-dark); }
@@ -400,7 +415,7 @@ body {
   font-size: 10px;
   font-style: italic;
   letter-spacing: 0.3px;
-  color: var(--green-mid);
+  color: var(--green-text);
   white-space: nowrap;
   line-height: 1.1;   /* zh pin: en content box 11px at 10px */
 }
@@ -423,7 +438,7 @@ body {
   letter-spacing: 0.6px;
   line-height: 1.1111111;   /* zh pin: en content box 10px at 9px */
   color: #f5f0e6;
-  background: var(--green-mid);
+  background: var(--green-fill-strong);
   border: 1px solid var(--green-darkest);
   border-radius: 8px;
   vertical-align: middle;
@@ -581,15 +596,17 @@ body {
 /* Pinned PER BUTTON to its own wider language rather than both to one width:
    "Ratio Snap" 101.5 / "Rapport entier" 129.5, "Fixed Mode" 105.4 / "Mode fixe"
    97.4. One shared min-width would have grown the English Fixed Mode by 24px for
-   nothing. The cost lands in English on the first button only, +28.5px. */
-#toggle-ratioSnap    { min-width: 130px; }
+   nothing. The cost lands in English on the first button only, +28.5px.
+   v1.6.0: re-pinned 130 -> 132 for the bundled EB Garamond, whose
+   "Rapport entier" renders 131.6px (the Times width was 129.5). */
+#toggle-ratioSnap    { min-width: 132px; }
 #toggle-modFixedMode { min-width: 106px; }
 .toggle:hover { background: rgba(139, 168, 112, 0.45); transform: translateY(-1px); box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.3); }
 .toggle.active { background: var(--btn-active); border-color: var(--btn-border-active); color: #1f2b08; }
 .fleuron-corner {
   position: absolute;
   top: 1px; right: 3px;
-  font-size: 8px;
+  font-size: 9px;       /* 9px floor (v1.6.0) */
   opacity: 0.3;
   color: var(--brown-frame);
 }
@@ -610,7 +627,7 @@ body {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1.2px;
-  color: var(--brown-border);
+  color: var(--text-muted);
   flex: 0 0 99px;
   line-height: 1.1;   /* zh pin: en content box 11px at 10px */
 }
@@ -628,7 +645,7 @@ body {
   transition: all 0.15s ease;
 }
 .tour-btn:hover { background: var(--green-light); color: #1f2b08; transform: translateY(-1px); }
-.tour-btn.active { background: var(--green-mid); color: #f5f0e6; border-color: var(--green-darkest); }
+.tour-btn.active { background: var(--green-fill-strong); color: #f5f0e6; border-color: var(--green-darkest); }
 /* flex-basis 100%, not max-width 48%. At 48% of this row (325px) the caption
    was ONE line in English and TWO in French, and the extra line pushed the whole
    keyboard panel down 12px — in French only. It already fell onto its own flex
@@ -660,15 +677,14 @@ body {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1.2px;
-  color: var(--brown-border);
+  color: var(--text-muted);
   line-height: 1.1;   /* zh pin: en content box 11px at 10px */
 }
 .kbd-hint {
   text-transform: none;
   letter-spacing: 0.3px;
   font-style: italic;
-  color: var(--green-mid);
-  opacity: 0.85;
+  color: var(--green-text);
 }
 .keyboard {
   position: relative;
@@ -717,12 +733,15 @@ body {
   bottom: 4px;
   left: 0; right: 0;
   text-align: center;
-  font-size: 8px;
+  font-size: 9px;       /* 9px floor (v1.6.0) */
   letter-spacing: 0.5px;
-  color: var(--brown-border);
+  /* --brown-soft, not --text-muted: the label sits on the key's darker
+     #E6D4BA tail, where #715D45 is only 4.32. */
+  color: var(--brown-soft);
   pointer-events: none;
 }
-.key-black .key-label { color: rgba(245, 230, 211, 0.7); }
+/* 0.9: 6.56 on the black key's #5C4033 foot (0.7 was 4.69, with no margin). */
+.key-black .key-label { color: rgba(245, 230, 211, 0.9); }
 
 /* ── Tooltip ────────────────────────────────────────────────────────────── */
 .tooltip {

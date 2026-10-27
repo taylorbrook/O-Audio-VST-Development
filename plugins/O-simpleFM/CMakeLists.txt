@@ -10,7 +10,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 # JucePlugin_VersionString from this. A mismatched harness version rewrites the
 # user's real factory-preset directory (the .factory-version sentinel compares
 # against JucePlugin_VersionString).
-set(OSIMPLEFM_VERSION "1.5.0")
+set(OSIMPLEFM_VERSION "1.6.0")
 
 juce_add_plugin(O-simpleFM
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
@@ -64,6 +64,12 @@ juce_add_binary_data(O-simpleFM_UIResources
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/modules/preset-manager.js
         Source/ui/public/img/insects.png
+        # v1.6.0 (R5): the shared EB Garamond face, embedded straight from the
+        # module and served by the matching getResource branches
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 # Required JUCE modules
