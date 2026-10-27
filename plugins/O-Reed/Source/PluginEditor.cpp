@@ -29,6 +29,17 @@
 
 #include "PluginEditor.h"
 #include "BinaryData.h"
+#include "ScaleGenerator.h"
+
+// v1.7.1: serialize an interval list through juce::JSON rather than string
+// concatenation, so the payload can never be malformed (same helper as O-Wind).
+static juce::String intervalsToJson (const std::vector<double>& intervals)
+{
+    juce::Array<juce::var> arr;
+    for (auto v : intervals)
+        arr.add (v);
+    return juce::JSON::toString (juce::var (arr), true);
+}
 
 OReedAudioProcessorEditor::OReedAudioProcessorEditor(OReedAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p)
@@ -91,13 +102,23 @@ OReedAudioProcessorEditor::OReedAudioProcessorEditor(OReedAudioProcessor& p)
     // ===================================================================
     // 2. CREATE WEBVIEW with all relays registered
     // ===================================================================
-    webView = std::make_unique<juce::WebBrowserComponent>(
-        juce::WebBrowserComponent::Options{}
+    // v1.7.1 — WebView2 user-data folder in the per-user app-data tree (was bare
+    // %TEMP%, which cleaners wipe and other processes can lock), created before
+    // WebView2 sees it. DAW hosts deny WebView2's default location. The WinWebView2
+    // options are ignored off Windows.
+    const auto webView2DataFolder = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+                                        .getChildFile ("Ouaricon")
+                                        .getChildFile ("WebView2")
+                                        .getChildFile ("O-Reed");
+   #if JUCE_WINDOWS
+    webView2DataFolder.createDirectory();
+   #endif
+
+    const auto options = juce::WebBrowserComponent::Options{}
             .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
             .withWinWebView2Options(
                 juce::WebBrowserComponent::Options::WinWebView2{}
-                    .withUserDataFolder(juce::File::getSpecialLocation(
-                        juce::File::SpecialLocationType::tempDirectory)))
+                    .withUserDataFolder (webView2DataFolder))
             .withNativeIntegrationEnabled()
             .withResourceProvider([this](const juce::String& url) {
                 return getResource(url);
@@ -221,6 +242,278 @@ OReedAudioProcessorEditor::OReedAudioProcessorEditor(OReedAudioProcessor& p)
             })
 
             // =========================================================
+            // v1.7.1 — TUNING PANEL NATIVE FUNCTIONS
+            //
+            // The shared scala-tuning-engine panel (tuning tab) calls these 20
+            // names through Juce.getNativeFunction(). None was registered, so
+            // every call's promise hung and the tab was dead. Same shapes as
+            // O-Wind's; the master tune goes through the referencePitch
+            // parameter (processBlock forwards it to the engine).
+            // =========================================================
+
+            .withNativeFunction("getTuningIntervals", [this](const juce::Array<juce::var>&, auto complete) {
+                complete(intervalsToJson(processorRef.getTuningEngine()->getIntervals()));
+            })
+
+            .withNativeFunction("getTuningName", [this](const juce::Array<juce::var>&, auto complete) {
+                complete(processorRef.getTuningEngine()->getActiveTuningName());
+            })
+
+            .withNativeFunction("setSingleInterval", [this](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 2) {
+                    int index = static_cast<int>(args[0]);
+                    double cents = static_cast<double>(args[1]);
+                    processorRef.getTuningEngine()->setSingleInterval(index, cents);
+                    complete(true);
+                    return;
+                }
+                complete(false);
+            })
+
+            .withNativeFunction("setTonicNote", [this](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 1) {
+                    processorRef.getTuningEngine()->setTonicNote(static_cast<int>(args[0]));
+                    complete(true);
+                    return;
+                }
+                complete(false);
+            })
+
+            .withNativeFunction("getTonicNote", [this](const juce::Array<juce::var>&, auto complete) {
+                complete(processorRef.getTuningEngine()->getTonicNote());
+            })
+
+            .withNativeFunction("getOctaveStretch", [this](const juce::Array<juce::var>&, auto complete) {
+                complete(processorRef.getTuningEngine()->getOctaveStretch());
+            })
+
+            .withNativeFunction("setOctaveStretch", [this](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 1) {
+                    processorRef.getTuningEngine()->setOctaveStretch(static_cast<float>(args[0]));
+                    complete(true);
+                    return;
+                }
+                complete(false);
+            })
+
+            .withNativeFunction("getMasterTune", [this](const juce::Array<juce::var>&, auto complete) {
+                // Read the parameter, not the engine: processBlock copies it into
+                // the engine, so the engine is stale until the next audio block.
+                complete(static_cast<double>(
+                    processorRef.getAPVTS().getRawParameterValue("referencePitch")->load()));
+            })
+
+            .withNativeFunction("setMasterTune", [this](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 1) {
+                    // Route through the referencePitch parameter (single source of
+                    // truth) — writing the engine directly would be overwritten by
+                    // processBlock on the next block.
+                    if (auto* param = processorRef.getAPVTS().getParameter("referencePitch")) {
+                        float hz = static_cast<float>(static_cast<double>(args[0]));
+                        param->setValueNotifyingHost(param->convertTo0to1(hz));
+                        complete(true);
+                        return;
+                    }
+                }
+                complete(false);
+            })
+
+            .withNativeFunction("loadScalaFile", [this](const juce::Array<juce::var>&, auto complete) {
+                if (fileDialogOpen) { complete(false); return; }
+                fileDialogOpen = true;
+                fileChooser = std::make_shared<juce::FileChooser>(
+                    "Load Scala File",
+                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
+                    "*.scl;*.tun");
+                // MSVC rejects SafePointer(this) init-captures in nested lambdas
+                // (C2440/C2119) - hoist to a local and capture by value.
+                juce::Component::SafePointer<OReedAudioProcessorEditor> safeThis(this);
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                    [safeThis, complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr)
+                            return;  // editor (and its WebView) gone: nothing to complete
+                        safeThis->fileDialogOpen = false;
+                        auto file = fc.getResult();
+                        if (file.existsAsFile())
+                            complete(safeThis->processorRef.getTuningEngine()->loadScalaFile(file));
+                        else
+                            complete(false);
+                    });
+            })
+
+            .withNativeFunction("loadKBMFile", [this](const juce::Array<juce::var>&, auto complete) {
+                if (fileDialogOpen) { complete(false); return; }
+                fileDialogOpen = true;
+                fileChooser = std::make_shared<juce::FileChooser>(
+                    "Load Keyboard Mapping",
+                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
+                    "*.kbm");
+                juce::Component::SafePointer<OReedAudioProcessorEditor> safeThis(this);
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                    [safeThis, complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr)
+                            return;
+                        safeThis->fileDialogOpen = false;
+                        auto file = fc.getResult();
+                        if (file.existsAsFile())
+                            complete(safeThis->processorRef.getTuningEngine()->loadKBMFile(file));
+                        else
+                            complete(false);
+                    });
+            })
+
+            .withNativeFunction("generateEDO", [](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 2) {
+                    int divisions = static_cast<int>(args[0]);
+                    double period = static_cast<double>(args[1]);
+                    complete(intervalsToJson(ScaleGenerator::generateEDO(divisions, period)));
+                    return;
+                }
+                complete(juce::var());
+            })
+
+            .withNativeFunction("generateHarmonicSeries", [](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 2) {
+                    int startHarmonic = static_cast<int>(args[0]);
+                    int endHarmonic = static_cast<int>(args[1]);
+                    complete(intervalsToJson(ScaleGenerator::generateHarmonicSeries(startHarmonic, endHarmonic)));
+                    return;
+                }
+                complete(juce::var());
+            })
+
+            .withNativeFunction("generateRank2", [](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 3) {
+                    double generator = static_cast<double>(args[0]);
+                    double period = static_cast<double>(args[1]);
+                    int count = static_cast<int>(args[2]);
+                    complete(intervalsToJson(ScaleGenerator::generateRank2(generator, period, count)));
+                    return;
+                }
+                complete(juce::var());
+            })
+
+            .withNativeFunction("saveScalaFile", [this](const juce::Array<juce::var>&, auto complete) {
+                if (fileDialogOpen) { complete(false); return; }
+                fileDialogOpen = true;
+                fileChooser = std::make_shared<juce::FileChooser>(
+                    "Save Scala File",
+                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                        .getChildFile("scale.scl"),
+                    "*.scl");
+                juce::Component::SafePointer<OReedAudioProcessorEditor> safeThis(this);
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                    [safeThis, complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr)
+                            return;
+                        safeThis->fileDialogOpen = false;
+                        auto file = fc.getResult();
+                        if (file != juce::File())
+                            complete(file.replaceWithText(
+                                safeThis->processorRef.getTuningEngine()->generateScalaFileContent()));
+                        else
+                            complete(false);
+                    });
+            })
+
+            .withNativeFunction("saveKBMFile", [this](const juce::Array<juce::var>&, auto complete) {
+                if (fileDialogOpen) { complete(false); return; }
+                fileDialogOpen = true;
+                fileChooser = std::make_shared<juce::FileChooser>(
+                    "Save Keyboard Mapping",
+                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                        .getChildFile("mapping.kbm"),
+                    "*.kbm");
+                juce::Component::SafePointer<OReedAudioProcessorEditor> safeThis(this);
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                    [safeThis, complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr)
+                            return;
+                        safeThis->fileDialogOpen = false;
+                        auto file = fc.getResult();
+                        if (file != juce::File())
+                            complete(file.replaceWithText(
+                                safeThis->processorRef.getTuningEngine()->generateKBMFileContent()));
+                        else
+                            complete(false);
+                    });
+            })
+
+            .withNativeFunction("applyGeneratedScale", [this](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 2) {
+                    auto jsonArray = juce::JSON::parse(args[0].toString());
+                    juce::String scaleName = args[1].toString();
+                    if (auto* arr = jsonArray.getArray()) {
+                        std::vector<double> intervals;
+                        for (const auto& val : *arr)
+                            intervals.push_back(static_cast<double>(val));
+                        processorRef.getTuningEngine()->setCustomIntervals(intervals, scaleName);
+                        complete(true);
+                        return;
+                    }
+                }
+                complete(false);
+            })
+
+            .withNativeFunction("getEmbeddedTuningList", [](const juce::Array<juce::var>&, auto complete) {
+                const auto& tunings = EmbeddedTunings::getAllTunings();
+                juce::Array<juce::var> arr;
+                for (const auto& t : tunings) {
+                    auto* obj = new juce::DynamicObject();
+                    obj->setProperty("id", juce::String(t.id));
+                    obj->setProperty("name", juce::String(t.name));
+                    obj->setProperty("category", juce::String(t.category));
+                    obj->setProperty("noteCount", static_cast<int>(t.intervals.size()));
+                    arr.add(juce::var(obj));
+                }
+                complete(juce::JSON::toString(juce::var(arr), true));
+            })
+
+            .withNativeFunction("loadEmbeddedTuning", [this](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 1) {
+                    juce::String tuningId = args[0].toString();
+                    auto* tuning = EmbeddedTunings::getTuningById(tuningId.toStdString());
+                    if (tuning != nullptr && !tuning->intervals.empty()) {
+                        auto intervals = tuning->intervals;
+                        intervals.push_back(tuning->period);
+                        processorRef.getTuningEngine()->setCustomIntervals(
+                            intervals, juce::String(tuning->name));
+                        complete(true);
+                        return;
+                    }
+                }
+                complete(false);
+            })
+
+            .withNativeFunction("exportTuningHTML", [this](const juce::Array<juce::var>&, auto complete) {
+                if (fileDialogOpen) { complete(false); return; }
+                fileDialogOpen = true;
+                fileChooser = std::make_shared<juce::FileChooser>(
+                    "Export Tuning Documentation",
+                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                        .getChildFile("tuning-export.html"),
+                    "*.html");
+                juce::Component::SafePointer<OReedAudioProcessorEditor> safeThis(this);
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                    [safeThis, complete](const juce::FileChooser& fc) {
+                        if (safeThis == nullptr)
+                            return;
+                        safeThis->fileDialogOpen = false;
+                        auto file = fc.getResult();
+                        if (file != juce::File())
+                            complete(file.replaceWithText(TuningExporter::toHTML(
+                                *safeThis->processorRef.getTuningEngine(), "O-Reed")));
+                        else
+                            complete(false);
+                    });
+            })
+
+            // =========================================================
             // v1.2.0 — THE UI LANGUAGE PAIR
             //
             // Plain withNativeFunction, no relay. The page PULLS once at init;
@@ -247,10 +540,35 @@ OReedAudioProcessorEditor::OReedAudioProcessorEditor(OReedAudioProcessor& p)
 
                     complete(juce::var(OReedAudioProcessor::languageCode(
                                  processorRef.uiLanguage.load(std::memory_order_acquire))));
-                })
-    );
+                });
 
-    addAndMakeVisible(webView.get());
+   #if JUCE_WINDOWS
+    // v1.7.1 — when the WebView2 environment cannot be created (runtime missing or
+    // data folder unusable), JUCE silently builds the legacy IE control, which has
+    // no resource provider. Probe first; on failure webView stays null and paint()
+    // shows a native notice. Audio, parameters and automation don't need the WebView.
+    const bool webView2Available = juce::WebBrowserComponent::areOptionsSupported (options);
+   #else
+    constexpr bool webView2Available = true;
+   #endif
+
+    if (webView2Available)
+        webView = std::make_unique<juce::WebBrowserComponent> (options);
+
+    // v1.7.1 — attachments below stay valid without a WebView: the relays drop
+    // their events while no browser is registered.
+    if (webView != nullptr)
+    {
+        addAndMakeVisible (webView.get());
+    }
+    else
+    {
+        webView2RuntimeLink = std::make_unique<juce::HyperlinkButton> (
+            "Download the WebView2 Runtime",
+            juce::URL ("https://developer.microsoft.com/microsoft-edge/webview2/"));
+        webView2RuntimeLink->setColour (juce::HyperlinkButton::textColourId, juce::Colour (0xff4a6b35));   // --green-dark
+        addAndMakeVisible (*webView2RuntimeLink);
+    }
 
     // ===================================================================
     // 3. CREATE ATTACHMENTS (must be created AFTER WebView)
@@ -344,7 +662,8 @@ OReedAudioProcessorEditor::OReedAudioProcessorEditor(OReedAudioProcessor& p)
         *apvts.getParameter("outputGain"), *outputGainRelay, nullptr);
 
     // Navigate to embedded UI
-    webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
+    if (webView != nullptr)
+        webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
 
     // Set window size (900x600)
     setSize(900, 600);
@@ -356,6 +675,32 @@ OReedAudioProcessorEditor::~OReedAudioProcessorEditor()
 
 void OReedAudioProcessorEditor::paint(juce::Graphics& g)
 {
+    // v1.7.1 — WebView2 could not start (Windows only; webView is null): paint a native
+    // notice instead of JUCE's legacy-IE fallback page. Colours from the page CSS;
+    // scaled down to fit short editors.
+    if (webView == nullptr)
+    {
+        const float s = juce::jlimit (0.6f, 1.0f, (float) getHeight() / 260.0f);
+        auto area = getLocalBounds().withSizeKeepingCentre (juce::jmin (640, getWidth() - 48),
+                                                            juce::roundToInt (202.0f * s));
+        g.fillAll (juce::Colour (0xfff5e6d3));   // --bg-paper
+
+        g.setColour (juce::Colour (0xff3c2f2f));   // --brown-text
+        g.setFont (juce::FontOptions (26.0f * s, juce::Font::bold));
+        g.drawFittedText ("O-Reed needs Microsoft Edge WebView2",
+                          area.removeFromTop (juce::roundToInt (40.0f * s)), juce::Justification::centred, 2);
+
+        area.removeFromTop (juce::roundToInt (12.0f * s));
+        g.setColour (juce::Colour (0xff5c4033));   // --brown-frame
+        g.setFont (juce::FontOptions (17.0f * s));
+        g.drawFittedText ("The interface is drawn with the WebView2 Runtime, which could not start on "
+                          "this computer. Install it, then close and reopen the plugin window.\n"
+                          "The instrument itself keeps playing, and host automation still "
+                          "reaches every parameter.",
+                          area.removeFromTop (juce::roundToInt (110.0f * s)), juce::Justification::centred, 5);
+        return;
+    }
+
     juce::ignoreUnused(g);  // WebView handles all painting
 }
 
@@ -363,6 +708,17 @@ void OReedAudioProcessorEditor::resized()
 {
     if (webView)
         webView->setBounds(getLocalBounds());
+
+    if (webView2RuntimeLink != nullptr)
+    {
+        // Bottom row of the paint() notice block (same geometry).
+        const float s = juce::jlimit (0.6f, 1.0f, (float) getHeight() / 260.0f);
+        auto block = getLocalBounds().withSizeKeepingCentre (juce::jmin (640, getWidth() - 48),
+                                                             juce::roundToInt (202.0f * s));
+        webView2RuntimeLink->setFont (juce::FontOptions (17.0f * s, juce::Font::underlined), false);
+        webView2RuntimeLink->setBounds (block.removeFromBottom (juce::roundToInt (32.0f * s))
+                                             .withSizeKeepingCentre (320, juce::roundToInt (32.0f * s)));
+    }
 }
 
 //==============================================================================

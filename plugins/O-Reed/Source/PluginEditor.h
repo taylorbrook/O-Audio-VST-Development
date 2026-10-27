@@ -160,6 +160,13 @@ private:
 
     // File chooser (must outlive async callback)
     std::shared_ptr<juce::FileChooser> fileChooser;
+    // v1.7.1: guards the tuning panel's file natives against re-entry — a second
+    // chooser would replace the shared_ptr and the first JS `await` would hang.
+    bool fileDialogOpen = false;
+
+    // v1.7.1 — Windows only: shown instead of the WebView when WebView2 cannot
+    // start (webView stays null). Null on macOS and whenever the WebView exists.
+    std::unique_ptr<juce::HyperlinkButton> webView2RuntimeLink;
 
     // Helper for serving UI resources from BinaryData
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);

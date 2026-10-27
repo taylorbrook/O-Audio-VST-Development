@@ -1,5 +1,19 @@
 # O-Reed Changelog
 
+## [1.7.1] - 2026-10-27
+
+ui-hardening-phase0 (B4). The editor is the only file that changed. No DSP, parameter, preset or state change, and the page itself is untouched.
+
+### Fixed
+
+- **The tuning tab works.** The shared Scala tuning panel calls 20 native functions: intervals, tonic, octave stretch, master tune, load/save .scl/.kbm, EDO/harmonic/Rank-2 generators, the embedded library and the HTML export. None of them was registered, so every call's promise never settled and the tab was dead (open since 2026-08-31). All 20 are now registered, with the same shapes as O-Wind. The master tune reads and writes the `referencePitch` parameter, so the host stays the single source of truth. File dialogs are guarded against re-entry.
+- **Windows: the WebView2 user-data folder moved out of bare `%TEMP%`** to `%APPDATA%\Ouaricon\WebView2\O-Reed`, created before the editor opens.
+- **Windows: when WebView2 cannot start**, the editor now shows a native "needs Microsoft Edge WebView2" notice with a download link instead of JUCE's legacy-IE "page not found" window. The instrument keeps playing, and automation still reaches every parameter. Same convention as O-simpleSubtractive v1.7.4.
+
+### Known limitation
+
+- Custom tuning edits (scale, tonic, stretch) are not yet saved with the session or preset; the engine's state is not part of `getStateInformation`. That fix is a state-format change and is out of scope for this patch.
+
 ## [1.7.0] - 2026-09-27
 
 **Every caption on the page now meets WCAG AA, nothing renders below 9px, the
