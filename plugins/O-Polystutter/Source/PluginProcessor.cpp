@@ -866,10 +866,20 @@ OPolystutterAudioProcessor::OPolystutterAudioProcessor()
     tapeRolloffParam = apvts.getRawParameterValue("tape_rolloff");
     tapeDropoutParam = apvts.getRawParameterValue("tape_dropout");
     tapeBypassParam = apvts.getRawParameterValue("tape_bypass");  // v1.6.5
+}
 
-    // ========================================================================================
-    // v1.6.0: Initialize Factory Presets (12 presets showcasing different stutter styles)
-    // ========================================================================================
+// ========================================================================================
+// v1.6.0: Initialize Factory Presets (12 presets showcasing different stutter styles)
+// v1.18.1 (IN-06): moved out of the constructor — it ran a directory scan and, on first
+// run, wrote 15 files during every host scan and auval. Only the editor touches presets,
+// so the editor calls this once on open (message thread).
+// ========================================================================================
+void OPolystutterAudioProcessor::ensureFactoryPresets()
+{
+    if (factoryPresetsChecked)
+        return;
+    factoryPresetsChecked = true;
+
     // Only initialize if Factory directory is empty (first run)
     if (presetManager.getFactoryPresetsDirectory().findChildFiles(juce::File::findFiles, false, "*.json").isEmpty())
     {

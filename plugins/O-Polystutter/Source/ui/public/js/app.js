@@ -501,17 +501,29 @@ function initializePresetManager() {
 
 // Rebuilt from scratch on every open — the list is small, and this sidesteps
 // stale-list bugs after a save or a delete without extra refresh plumbing.
+//
+// v1.18.1 (IN-10): onPresetChanged and onPresetListUpdated fire back-to-back,
+// so two rebuilds overlap. The old loop cleared the menu and then awaited per
+// row, letting both append into it (duplicate rows). Now: one generation
+// counter, all lookups awaited up front, rows built off-DOM, and only the
+// newest call swaps them in.
+let dropdownGeneration = 0;
+
 async function updateDropdownMenu() {
     const menu = document.getElementById('preset-dropdown-menu');
     if (!menu || !presetManager) return;
 
+    const generation = ++dropdownGeneration;
     const list = presetManager.getPresetList();
     const currentName = presetManager.getCurrentPreset();
 
-    menu.textContent = '';
+    const factoryFlags = await Promise.all(list.map((name) => presetManager.isFactoryPreset(name)));
+    if (generation !== dropdownGeneration) return;  // a newer rebuild owns the menu
 
-    for (const name of list) {
-        const isFactory = await presetManager.isFactoryPreset(name);
+    const rows = document.createDocumentFragment();
+
+    list.forEach((name, i) => {
+        const isFactory = factoryFlags[i];
 
         const item = document.createElement('div');
         item.className = 'preset-dropdown-item' + (name === currentName ? ' selected' : '');
@@ -578,8 +590,10 @@ async function updateDropdownMenu() {
             menu.classList.remove('open');
         });
 
-        menu.appendChild(item);
-    }
+        rows.appendChild(item);
+    });
+
+    menu.replaceChildren(rows);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

@@ -199,6 +199,14 @@ private:
     CustomSaveCallback customSave;
     CustomLoadCallback customLoad;
 
+    // v1.18.1 (IN-07): a preset name IS its filename. Strip path separators
+    // (and ':', illegal on Windows / the HFS separator) plus leading dots, so a
+    // name can't land in a subdirectory, escape the folder, or go hidden.
+    static juce::String sanitisePresetName(const juce::String& name)
+    {
+        return name.removeCharacters("/\\:").trimCharactersAtStart(".");
+    }
+
     // JSON helpers
     juce::var createPresetJson() const;
     bool applyPresetJson(const juce::var& presetData);
@@ -240,8 +248,12 @@ inline juce::File OuariconPresetManager::getUserPresetsDirectory() const
     return getPresetsDirectory().getChildFile("User");
 }
 
-inline bool OuariconPresetManager::isFactoryPreset(const juce::String& presetName) const
+inline bool OuariconPresetManager::isFactoryPreset(const juce::String& rawName) const
 {
+    const auto presetName = sanitisePresetName(rawName);
+    if (presetName.isEmpty())
+        return false;
+
     auto factoryFile = getFactoryPresetsDirectory().getChildFile(presetName + ".json");
     return factoryFile.existsAsFile();
 }
@@ -319,8 +331,9 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
     return true;
 }
 
-inline bool OuariconPresetManager::savePreset(const juce::String& presetName)
+inline bool OuariconPresetManager::savePreset(const juce::String& rawName)
 {
+    const auto presetName = sanitisePresetName(rawName);
     if (presetName.isEmpty())
         return false;
 
@@ -349,8 +362,9 @@ inline bool OuariconPresetManager::savePreset(const juce::String& presetName)
     return false;
 }
 
-inline bool OuariconPresetManager::loadPreset(const juce::String& presetName)
+inline bool OuariconPresetManager::loadPreset(const juce::String& rawName)
 {
+    const auto presetName = sanitisePresetName(rawName);
     if (presetName.isEmpty())
         return false;
 
@@ -402,8 +416,9 @@ inline bool OuariconPresetManager::loadPresetFromFile(const juce::File& file)
     return false;
 }
 
-inline bool OuariconPresetManager::deletePreset(const juce::String& presetName)
+inline bool OuariconPresetManager::deletePreset(const juce::String& rawName)
 {
+    const auto presetName = sanitisePresetName(rawName);
     if (presetName.isEmpty())
         return false;
 

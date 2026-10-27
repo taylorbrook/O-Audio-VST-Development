@@ -35,13 +35,13 @@
 Overall: the parameter/relay/attachment plumbing is complete and consistent (all 10 native functions used by JS are registered; no orphans in either direction), and the CMake config is one of the few in the suite with correct Windows WebView2 flags. The two critical items are a real-time-safety violation in the tape rolloff filter and the known WebView FileChooser UAF pattern. The most surprising correctness finding is that the Bjorklund/Euclidean generator is mathematically wrong for most pulse counts — including the tresillo/cinquillo patterns the factory presets are named after — and two advertised lane features (FILTER knob, MAN toggle) are wired to parameters that no DSP code reads.
 
 
-## Status (verified against the code at v1.18.0, 2026-10-26)
+## Status (verified against the code at v1.18.1, 2026-10-27)
 
 | | Findings |
 |---|---|
-| ✅ Resolved (15) | CR-01, CR-02, WR-01, WR-02, WR-03, WR-04, WR-05, WR-06, WR-07, WR-08, IN-02, IN-05, IN-08, IN-09, IN-11 |
+| ✅ Resolved (18) | CR-01, CR-02, WR-01, WR-02, WR-03, WR-04, WR-05, WR-06, WR-07, WR-08, IN-02, IN-05, IN-06, IN-07, IN-08, IN-09, IN-10, IN-11 |
 | 🟡 Partial (2) | IN-03, IN-04 |
-| ⛔ Open (4) | IN-01, IN-06, IN-07, IN-10 |
+| ⛔ Open (1) | IN-01 |
 | Notes | NT-05, NT-06 resolved; NT-01–NT-04 need no action |
 
 ---
@@ -241,13 +241,13 @@ Code triggers on MIDI notes **60, 61, 62, 63** (lanes 1-4) and **67** (all lanes
 
 A single NaN sample from upstream propagates into `rolloffFilterLeft/Right` state and stays there (IIR feedback) until the next `prepare()` — permanent silence/NaN output. The capture buffer will also loop NaN for the full repeat tail. Per the suite pattern (O-Formant v1.25.2): sanitize block input (or at least flush filter state when a non-finite output is detected), and remember the guard must reset *all* state, not just the filters.
 
-### IN-06: Factory-preset initialization does file I/O in the processor constructor — ⛔ OPEN
+### IN-06: Factory-preset initialization does file I/O in the processor constructor — ✅ RESOLVED v1.18.1 (`ensureFactoryPresets()` on first editor open)
 
 **File:** `Source/PluginProcessor.cpp:849-1121`
 
 The constructor calls `findChildFiles()` and, on first run, writes 15 JSON files. This runs during host plugin scans and `auval` — exactly what the preset manager's own comment (`OPolystutterPresetManager.h:201-203`, "deferred to avoid file I/O during AU validation") tries to avoid. Move factory-preset seeding to first editor open or a lazy check in `getPresetList()`.
 
-### IN-07: Preset name used verbatim as filename — "/" in a name silently fails (known suite bug) — ⛔ OPEN (`getChildFile(presetName + ".json")`, no sanitising)
+### IN-07: Preset name used verbatim as filename — "/" in a name silently fails (known suite bug) — ✅ RESOLVED v1.18.1 (`sanitisePresetName()` in save/load/delete/isFactory)
 
 **File:** `Source/OPolystutterPresetManager.h:308` (`getChildFile(presetName + ".json")`)
 
@@ -265,7 +265,7 @@ Same as the O-simplePhysicalModelSynth finding: a name containing "/" becomes a 
 
 WKWebView requires a host-provided JS dialog delegate for `confirm()`; JUCE's WebBrowserComponent does not supply one, so `confirm()` returns falsy and the delete button silently does nothing on macOS (the module's own docstring warns about this). Replace with an in-DOM confirmation (two-click "Delete? ✓" pattern used elsewhere in the suite).
 
-### IN-10: Concurrent `updateDropdownMenu()` invocations can interleave — ⛔ OPEN (no generation guard; `app.js:504` clears then awaits per row)
+### IN-10: Concurrent `updateDropdownMenu()` invocations can interleave — ✅ RESOLVED v1.18.1 (generation counter + off-DOM build, `replaceChildren`; `isPercentage` removed)
 
 **File:** `index.html:1596-1628`
 

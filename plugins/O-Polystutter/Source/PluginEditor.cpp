@@ -492,7 +492,8 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
 
                             auto* result = new juce::DynamicObject();
                             result->setProperty("success", success);
-                            result->setProperty("name", name);
+                            // v1.18.1 (IN-07): report the name as stored (sanitised).
+                            result->setProperty("name", success ? safeThis->processorRef.presetManager.getCurrentPresetName() : name);
                             complete(juce::var(result));
                         }
                         else
@@ -932,6 +933,11 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
     , patternLane4Step16Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *processorRef.apvts.getParameter("pattern_lane4_step16"), *patternLane4Step16Relay, nullptr))
 {
+    // v1.18.1 (IN-06): seed factory presets on first editor open, not in the
+    // processor constructor (host scans / auval). Runs before any native fn call:
+    // those arrive from the page asynchronously, after this constructor returns.
+    processorRef.ensureFactoryPresets();
+
     // v1.16.3 — attachments stay valid without a WebView: the relays drop their
     // events while no browser is registered.
     if (webView != nullptr)

@@ -91,6 +91,10 @@ public:
     // v1.6.0: Preset manager for saving/loading presets
     OuariconPresetManager presetManager;
 
+    // v1.18.1 (IN-06): seed the Factory folder if empty. Message thread only;
+    // called by the editor on open, never from the constructor.
+    void ensureFactoryPresets();
+
     // v1.5.0: Lane progress state for UI progress bars (thread-safe)
     // Updated in processBlock, read by Editor Timer
     std::atomic<float> lane1Progress { 0.0f };
@@ -113,6 +117,8 @@ public:
     std::atomic<juce::uint64> rngSeed { 0 };
 
 private:
+    bool factoryPresetsChecked = false;  // v1.18.1 (IN-06): one scan per instance
+
     // DSP Components (BEFORE parameters for initialization order)
     juce::dsp::ProcessSpec spec;
 

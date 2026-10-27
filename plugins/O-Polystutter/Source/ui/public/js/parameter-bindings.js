@@ -153,9 +153,6 @@ function confirmTextInput() {
     return;
   }
 
-  // Determine if this is a percentage parameter (0-1 normalized displayed as 0-100%)
-  const isPercentage = (min === 0 && max === 1) || (min === 0 && max === 100);
-
   // For percentage parameters displayed as 0-100%, user types 0-100
   if (min === 0 && max === 1) {
     // User types 50 to mean 50% = 0.5 normalized

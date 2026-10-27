@@ -2,6 +2,25 @@
 
 All notable changes to O-Polystutter will be documented in this file.
 
+## [1.18.1] - 2026-10-27
+
+Preset-handling fixes from the code review (findings IN-06, IN-07, IN-10). No parameter, range, state or preset-format change.
+
+### Fixed
+
+- **Host scans and auval did file I/O (IN-06).** Root cause: the processor constructor scanned the Factory preset folder and, on first run, wrote 15 JSON files, so every plugin scan and `auval` touched `~/Library/O-Polystutter/Presets/`. Only the editor's preset bar ever reads presets, so seeding moved to `ensureFactoryPresets()`, called once when the editor opens (message thread, before the page can call a native function). An instance that never opens its editor now does no preset I/O.
+- **A "/" in a preset name sent the file into a subdirectory (IN-07).** Root cause: the name was used verbatim in `getChildFile(name + ".json")`, so "Kick/Snare" wrote `User/Kick/Snare.json` (or failed), invisible to the non-recursive preset list; "../x" escaped the folder on delete. `savePreset`, `loadPreset`, `deletePreset` and `isFactoryPreset` now strip `/`, `\` and `:` and leading dots, and reject a name that sanitises to empty. Names from the existing list are unchanged by this (they are filenames already). The save dialog reports the name as stored.
+- **The preset dropdown could show duplicate rows (IN-10).** Root cause: `updateDropdownMenu()` is called from both `onPresetChanged` and `onPresetListUpdated`, which fire back-to-back on every load and save; it cleared the menu, then awaited `isFactoryPreset` per row, so two overlapping calls both appended into it. The rebuild now takes a generation number, awaits every lookup up front, builds the rows off-DOM, and only the newest call swaps them in.
+
+### Changed
+
+- Removed the unused `isPercentage` variable in `parameter-bindings.js` (IN-10 note).
+
+### Testing
+
+- auval: AU VALIDATION SUCCEEDED. With `~/Library/O-Polystutter/Presets/` moved aside, auval left it absent, so a scan does no preset I/O.
+- Not yet checked hands-on: factory seeding on first editor open, the dropdown after load/save, and saving a name containing "/".
+
 ## [1.18.0] - 2026-10-26
 
 The lane MAN toggle now works, and a NaN or Inf from upstream no longer silences the plugin for good (review findings WR-03 and IN-05). No parameter, range or preset change. **Behaviour change:** a session or preset saved with MAN on now plays that lane only from TRIG or MIDI. Before, MAN did nothing.
