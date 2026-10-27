@@ -2,11 +2,12 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 3.0.5
+- **Version:** 3.1.0
 - **Type:** Audio Effect (Granular Stutter Engine)
 
 ## Lifecycle Timeline
 
+- **2026-10-27 (v3.1.0):** Deterministic, block-size-independent engine. Counter-based seeded RNG (`dsp/CounterRng.h`; seed saved as `rngSeed`). Sync repeats past the block end carry over: they used to be dropped, so at 512 only primaries played. The stutter gate spans blocks. The standalone tempo clock is integer-sample, the spatial control rate runs on the absolute clock, and ring/grain read positions are double. Gate `tests/blocksize-null`: 32/512/variable bit-exact in free/sync/spatial/freeze/pitch.
 - **2026-10-26 (v3.0.5):** Fade-on-steal. A stolen grain is copied into one of 8 spare slots and fades out over 5 ms. The new grain keeps the slot it always took, so steal-free output is bit-identical to v3.0.4.
 - **2026-10-26 (v3.0.4):** Freeze fixed (research: `research/granular-synthesis-2026-update.md` §2.2). Frozen grains all started at snapshot index 0, so Scan and Spread did nothing and the hold buzzed at the spawn rate. They now read through the snapshot from a virtual write head (`head − position` latched at spawn). Two snapshot slots, with each grain latched to one, replace the 5 ms timer that switched grains to the live line mid-grain. The loop seam gets a 10 ms equal-power crossfade, the loop length is latched to the audio actually written, and frozen grains get ±6 ct of detune.
 - **2026-10-15 (v3.0.1):** Custom collection Apply fixed. Typed bare integers were parsed as Scala ratios (1200 → 1200/1), so every typed list failed the period check. Bare integers are now cents in the text field; `.scl` keeps its ratio rule via an `a/1` rewrite. Apply now shows a success line.

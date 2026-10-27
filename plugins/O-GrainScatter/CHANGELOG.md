@@ -1,5 +1,36 @@
 # Changelog
 
+## [3.1.0] — 2026-10-27
+
+### Fixed
+- **Sync repeats now play.** Repeat grains were scheduled at `trigger + r × one subdivision` and dropped if that landed past the end of the current block. A subdivision is thousands of samples (6000 for 1/16 at 120 BPM), so at normal block sizes almost every repeat was lost. At 512-sample blocks the scheduler emitted 48 of 186 grains in the gate's 6 s test (primaries only). Pending repeats now wait in a fixed 256-entry queue on an absolute sample clock and fire in the block they fall in. **Audible:** with the default Repeats 4, sync mode now plays up to four grains per trigger.
+- **Stutter Gate spans blocks.** The gate was clamped to the block end and reset every block, so it opened for at most one block. It is now an absolute range set by each primary grain, `repeats × subdivision` long.
+- **Output no longer depends on block size.** Three causes:
+  - **RNG:** `grainRng` and the scheduler's RNG were clock-seeded `juce::Random`.
+  - **Standalone tempo:** the 120 BPM clock (no playhead) summed ppq one block at a time, which rounds differently for each block split and can move a trigger by a sample.
+  - **Spatial control rate:** trajectory SH updates used `i % 16` on the block index, not the absolute sample.
+- **Read precision on the 12 s ring.** `DelayBuffer::readSample`, the grain read position and the grain delay offset were floats. Past 2^19 (48 kHz) to 2^21 (192 kHz), a float keeps only 1/16 to 1/4 of a sample, so the Lagrange fraction was quantised. They are now doubles.
+
+### Changed
+- **Counter-based seeded RNG** (`dsp/CounterRng.h`, splitmix64). Every draw is `hash(seed, stream, event, slot)`:
+  - grains are keyed by spawn index, with a fixed slot for each of size, amp, spread, pitch, pan, reverse, azimuth, elevation and freeze detune;
+  - Free-mode ticks are keyed by tick index;
+  - sync triggers are keyed by division index.
+  
+  A conditional draw (Size Random at 0, spatial off, not frozen) no longer shifts any other value.
+- The seed is per instance (random at creation) and saved with the session as `rngSeed`, so a reloaded session renders the same grains. Pre-3.1.0 sessions keep the instance's fresh seed. The event counters restart on `reset()`/`prepareToPlay()`.
+
+No parameter change. Sessions load unchanged. Random output differs from v3.0.5, which was never reproducible.
+
+### Testing
+- New gate `tests/blocksize-null` (target `O-GrainScatter-blocksize-null`, `OUARICON_BUILD_TESTS=ON`). The same seeded state and stimulus, rendered at 32-sample and variable (1–512) blocks, matches the 512-sample render **bit for bit** (residual −400 dBFS, gate ≤ −120) in every path tested:
+  - Free;
+  - Sync 1/16 with Repeats 4, swing, Euclid 5/8 and Stutter Gate;
+  - Trajectory/Random spatial with Doppler;
+  - Freeze engaged mid-render;
+  - +24 st with 500 ms grains.
+- Controls: a different seed differs by −3.3 dBFS peak. The seed survives a state round-trip (512 vs restored-at-32 is bit-exact). The v3.0.5 scheduler, compiled from the backup, emits 48 of 186 expected grains. Ring read at 192 kHz with the write head at 2 303 991: worst error −141 dB against the analytic sine.
+
 ## [3.0.5] — 2026-10-26
 
 ### Fixed

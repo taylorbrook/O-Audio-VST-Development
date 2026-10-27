@@ -27,6 +27,18 @@ struct SyncInfo
     double ppqPosition = 0.0;
     double ppqPerSample = 0.0;
     bool isPlaying = false;
+
+    // v3.1.0: ppq at block sample i is ppqOrigin + (sampleOffset + i) * ppqPerSample.
+    // Host: origin = the host's block-start ppq, offset 0. Standalone/no playhead:
+    // origin 0, offset = samples since reset, so the ppq of a given sample is one
+    // product, the same however the stream is split into blocks.
+    double ppqOrigin = 0.0;
+    juce::int64 sampleOffset = 0;
+
+    double ppqAt (juce::int64 i) const
+    {
+        return ppqOrigin + static_cast<double> (sampleOffset + i) * ppqPerSample;
+    }
 };
 
 class TempoTracker
@@ -35,7 +47,7 @@ public:
     void prepare (double newSampleRate)
     {
         sampleRate = newSampleRate;
-        manualPpq = 0.0;
+        manualSamples = 0;
     }
 
     SyncInfo update (juce::AudioPlayHead* playHead, int numSamples)
@@ -62,6 +74,7 @@ public:
                     info.ppqPosition = *ppqOpt;
                     info.isPlaying = playing;
                     info.ppqPerSample = info.bpm / (60.0 * sampleRate);
+                    info.ppqOrigin = info.ppqPosition;
 
                     gotPosition = true;
                 }
@@ -73,10 +86,14 @@ public:
             // Standalone fallback: 120 BPM manual counter
             info.bpm = 120.0;
             info.ppqPerSample = 120.0 / (60.0 * sampleRate);
-            info.ppqPosition = manualPpq;
+            info.ppqOrigin = 0.0;
+            info.sampleOffset = manualSamples;
+            info.ppqPosition = info.ppqAt (0);
             info.isPlaying = true;
 
-            manualPpq += info.ppqPerSample * numSamples;
+            // v3.1.0: an integer sample count, not an accumulated ppq — the sum of
+            // per-block increments rounds differently for different block sizes.
+            manualSamples += numSamples;
         }
 
         return info;
@@ -84,5 +101,5 @@ public:
 
 private:
     double sampleRate = 44100.0;
-    double manualPpq = 0.0;
+    juce::int64 manualSamples = 0;
 };

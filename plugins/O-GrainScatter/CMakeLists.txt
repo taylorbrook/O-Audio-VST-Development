@@ -8,7 +8,7 @@ juce_add_plugin(OuariconGrainScatter
     PLUGIN_CODE OuGS
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-GrainScatter${OUARICON_DEV_SUFFIX}"
-    VERSION 3.0.5
+    VERSION 3.1.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -87,4 +87,16 @@ if(OUARICON_BUILD_TESTS)
     # AudioProcessor::getParameters() on a constructed processor sees the real set.
     include(${CMAKE_SOURCE_DIR}/scripts/param-dump/ParamDump.cmake)
     ouaricon_add_param_dump(OuariconGrainScatter ${CMAKE_CURRENT_SOURCE_DIR}/Source)
+
+    # v3.1.0 block-size null gate: 32 / 512 / variable blocks null to <= -120 dBFS
+    # across free, sync (repeats + stutter gate), spatial, freeze and deep pitch.
+    # The scheduler negative control compiles the v3.0.5 scheduler from the backup.
+    ouaricon_add_processor_console(OuariconGrainScatter ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/blocksize-null/main.cpp blocksize-null)
+    set(_gs_baseline ${CMAKE_SOURCE_DIR}/backups/O-GrainScatter/v3.0.5/Source/dsp)
+    if(EXISTS ${_gs_baseline}/GrainScheduler.h)
+        target_compile_definitions(O-GrainScatter-blocksize-null PRIVATE
+            GS_BASELINE_DSP_DIR=1
+            "GS_BASELINE_SCHEDULER_H=\"${_gs_baseline}/GrainScheduler.h\"")
+    endif()
 endif()

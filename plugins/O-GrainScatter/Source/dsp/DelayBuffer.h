@@ -52,14 +52,17 @@ public:
             ++samplesWritten;
     }
 
-    float readSample (int channel, float delaySamples) const
+    // v3.1.0: the read position is a double. On the 12 s ring the write head runs past
+    // 2^19 (48 kHz) to 2^21 (192 kHz), where a float position keeps only 1/16 to 1/4
+    // of a sample and the Lagrange fraction was quantised to that grid.
+    float readSample (int channel, double delaySamples) const
     {
-        float readPos = static_cast<float> (writePosition) - delaySamples;
-        while (readPos < 0.0f)
-            readPos += static_cast<float> (bufferSize);
+        double readPos = static_cast<double> (writePosition) - delaySamples;
+        while (readPos < 0.0)
+            readPos += static_cast<double> (bufferSize);
 
         int i0 = static_cast<int> (readPos);
-        float frac = readPos - static_cast<float> (i0);
+        float frac = static_cast<float> (readPos - static_cast<double> (i0));
 
         // Lagrange 3rd-order interpolation (4 points)
         int im1 = ((i0 - 1) % bufferSize + bufferSize) % bufferSize;

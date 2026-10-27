@@ -28,7 +28,7 @@
 
 struct GrainParams
 {
-    float positionInSamples = 0.0f;   // Delay offset in samples
+    double positionInSamples = 0.0;   // Delay offset in samples (v3.1.0: double)
     float playbackRate = 1.0f;
     float panPosition = 0.5f;         // 0=left, 1=right
     int grainLengthSamples = 4410;
@@ -48,7 +48,7 @@ struct GrainParams
 struct GrainVoice
 {
     bool active = false;
-    float readPosition = 0.0f;
+    double readPosition = 0.0;          // v3.1.0: double (12 s ring precision)
     float playbackRate = 1.0f;
     float panPosition = 0.5f;
     int samplesRemaining = 0;
@@ -56,7 +56,7 @@ struct GrainVoice
     float amplitude = 1.0f;           // Per-grain amplitude (0-1)
     bool reverse = false;
     bool readFromFrozen = false;
-    float positionOffset = 0.0f;      // Base position in delay buffer
+    double positionOffset = 0.0;      // Base position in delay buffer (v3.1.0: double)
     int frozenSlot = -1;              // v3.0.4: latched at spawn; the grain finishes on it after release
     double frozenBase = 0.0;
 
@@ -206,9 +206,9 @@ public:
 
         // Start position
         if (v.reverse)
-            v.readPosition = static_cast<float> (params.grainLengthSamples - 1);
+            v.readPosition = static_cast<double> (params.grainLengthSamples - 1);
         else
-            v.readPosition = 0.0f;
+            v.readPosition = 0.0;
 
         // Spatial initialization: snap SH coefficients (no smoothing at grain onset)
         v.azimuth = params.azimuth;
@@ -278,7 +278,7 @@ public:
 
             if (v.frozenSlot >= 0)
             {
-                const double pos = v.frozenBase + static_cast<double> (v.readPosition);
+                const double pos = v.frozenBase + v.readPosition;
                 sample  = freezeMgr.readSample (v.frozenSlot, 0, pos);
                 sampleR = freezeMgr.readSample (v.frozenSlot, 1, pos);
             }
@@ -288,8 +288,8 @@ public:
                 // samples have passed since grain spawn, so (elapsed - readPosition)
                 // cancels out the write-head drift at playbackRate 1.0, yielding a
                 // constant delay tap that streams real audio through the grain window.
-                float elapsed = static_cast<float> (v.grainLengthSamples - v.samplesRemaining);
-                float delaySamples = v.positionOffset + elapsed - v.readPosition;
+                double elapsed = static_cast<double> (v.grainLengthSamples - v.samplesRemaining);
+                double delaySamples = v.positionOffset + elapsed - v.readPosition;
                 sample  = delayBuf.readSample (0, delaySamples);
                 sampleR = delayBuf.readSample (1, delaySamples);
             }
@@ -306,9 +306,9 @@ public:
 
             // Advance read position
             if (v.reverse)
-                v.readPosition -= v.playbackRate;
+                v.readPosition -= static_cast<double> (v.playbackRate);
             else
-                v.readPosition += v.playbackRate;
+                v.readPosition += static_cast<double> (v.playbackRate);
 
             --v.samplesRemaining;
             if (v.samplesRemaining <= 0)
@@ -344,14 +344,14 @@ public:
 
             if (v.frozenSlot >= 0)
             {
-                const double pos = v.frozenBase + static_cast<double> (v.readPosition);
+                const double pos = v.frozenBase + v.readPosition;
                 sampleL = freezeMgr.readSample (v.frozenSlot, 0, pos);
                 sampleR = freezeMgr.readSample (v.frozenSlot, 1, pos);
             }
             else
             {
-                float elapsed = static_cast<float> (v.grainLengthSamples - v.samplesRemaining);
-                float delaySamples = v.positionOffset + elapsed - v.readPosition;
+                double elapsed = static_cast<double> (v.grainLengthSamples - v.samplesRemaining);
+                double delaySamples = v.positionOffset + elapsed - v.readPosition;
                 sampleL = delayBuf.readSample (0, delaySamples);
                 sampleR = delayBuf.readSample (1, delaySamples);
             }
@@ -375,7 +375,7 @@ public:
                 hoaBus[ch] += mono * v.shCoeffs.current[ch];
 
             // Advance read position (with Doppler pitch modulation)
-            float advance = v.playbackRate * v.dopplerFactor;
+            double advance = static_cast<double> (v.playbackRate * v.dopplerFactor);
             if (v.reverse)
                 v.readPosition -= advance;
             else

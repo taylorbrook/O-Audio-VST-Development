@@ -23,6 +23,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include "CounterRng.h"
 
 // ============================================================================
 // v3.0.0 — cents-based pitch collections (replaces the 12-TET ScaleQuantizer).
@@ -328,7 +329,7 @@ public:
     static constexpr float kMaxTotalSemitones = 36.0f;
 
     /** Audio thread. `custom` is the processor's audio-side copy. */
-    float nextRate (const Settings& s, const PitchCollections::Table& custom, juce::Random& rng)
+    float nextRate (const Settings& s, const PitchCollections::Table& custom, const CounterRng::Draw& rng)
     {
         rebuildIfNeeded (s, custom);
 
@@ -341,12 +342,12 @@ public:
             {
                 const float lo = (s.direction == Up)   ? 0.0f : -spanCents;
                 const float hi = (s.direction == Down) ? 0.0f :  spanCents;
-                offsetCents = lo + rng.nextFloat() * (hi - lo);
+                offsetCents = lo + rng.nextFloat (CounterRng::SlotPitch) * (hi - lo);
             }
             else if (activeCount > 0)
             {
                 if (s.mode == Random)
-                    offsetCents = active[static_cast<size_t> (rng.nextInt (activeCount))];
+                    offsetCents = active[static_cast<size_t> (rng.nextInt (CounterRng::SlotPitch, activeCount))];
                 else
                 {
                     offsetCents = active[static_cast<size_t> (ladderIndex)];

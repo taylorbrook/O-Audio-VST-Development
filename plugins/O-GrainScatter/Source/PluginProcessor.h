@@ -106,6 +106,10 @@ public:
     // ------------------------------------------------------------------------
     std::atomic<int> uiLanguage { 0 };
 
+    // v3.1.0: RNG seed (message thread; the audio thread picks it up next block).
+    uint64_t getRngSeed() const { return rngSeed.load (std::memory_order_relaxed); }
+    void setRngSeed (uint64_t s) { rngSeed.store (s, std::memory_order_relaxed); }
+
     /** The codec. languageIndex() maps anything it does not recognise to 0, so a
         hand-edited session or an unexpected argument from the page degrades to
         English rather than being stored unvalidated.
@@ -251,8 +255,14 @@ private:
     // Spawn request buffer (pre-allocated)
     std::vector<SpawnRequest> spawnRequests;
 
-    // RNG for grain parameters
-    juce::Random grainRng;
+    // v3.1.0: counter-based RNG (dsp/CounterRng.h). The seed is per instance, saved
+    // with the session as "rngSeed"; draws are keyed by event counters that reset in
+    // reset()/prepareToPlay(), so a render is a pure function of seed + input + params.
+    std::atomic<uint64_t> rngSeed { 0 };
+    uint64_t grainCounter = 0;            // grains spawned since reset (grain RNG event index)
+    juce::int64 samplesProcessed = 0;     // absolute sample clock since reset
+    juce::int64 stutterGateEndAbs = -1;   // v3.1.0: the stutter gate spans blocks
+    std::vector<float> dryGateMask;       // per-sample dry gate (1 = pass) for the spatial post loop
 
     double currentSampleRate = 44100.0;
 

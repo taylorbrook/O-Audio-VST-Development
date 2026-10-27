@@ -29,6 +29,10 @@ GrainScatterProcessor::GrainScatterProcessor()
                          .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
 {
+    // v3.1.0: a fresh instance gets a random seed; a loaded session restores its own.
+    rngSeed.store (static_cast<uint64_t> (juce::Random::getSystemRandom().nextInt64()),
+                   std::memory_order_relaxed);
+
     grainSizeParam       = parameters.getRawParameterValue("grain_size");
     densityParam         = parameters.getRawParameterValue("density");
     pitchRandomParam     = parameters.getRawParameterValue("pitch_random");
@@ -412,6 +416,10 @@ void GrainScatterProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     binauralDecoder.prepare (sampleRate, samplesPerBlock);
     binauralL.resize (static_cast<size_t> (samplesPerBlock), 0.0f);
     binauralR.resize (static_cast<size_t> (samplesPerBlock), 0.0f);
+    dryGateMask.resize (static_cast<size_t> (samplesPerBlock), 1.0f);
+    grainCounter = 0;
+    samplesProcessed = 0;
+    stutterGateEndAbs = -1;
     grainPool.clearVoices();   // IN-05: no stale grains after a rate/block-size change
     grainPool.prepareSpatial (static_cast<float> (sampleRate));
     grainPool.setSampleRate (sampleRate);   // v3.0.5 steal fade length
@@ -455,8 +463,11 @@ void GrainScatterProcessor::reset()
     freezeManager.clear();
     wasFrozen = false;
 
-    // Reset scheduler timing
+    // Reset scheduler timing (and, v3.1.0, the RNG event counters + sample clock)
     scheduler.prepare (currentSampleRate);
+    grainCounter = 0;
+    samplesProcessed = 0;
+    stutterGateEndAbs = -1;
 
     // IN-11: reset the standalone tempo counter so manualPpq doesn't keep advancing
     // across a transport stop/seek (completeness gap in "clear all DSP state").
@@ -617,8 +628,9 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     // Get spawn requests
     spawnRequests.clear();
-    int stutterGateStart = -1;
-    int stutterGateEnd = -1;
+
+    const uint64_t seed = rngSeed.load (std::memory_order_relaxed);
+    scheduler.setSeed (seed);
 
     SyncInfo syncInfo = tempoTracker.update(getPlayHead(), numSamples);
 
@@ -630,14 +642,17 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     {
         scheduler.processBlockSync(numSamples, syncInfo, syncMode, probability,
                                    repeats, euclideanPattern, eucSteps, eucRotation,
-                                   eucSwing, stutterGate,
-                                   spawnRequests, stutterGateStart, stutterGateEnd);
+                                   eucSwing, stutterGate, spawnRequests);
     }
 
-    // Sort spawn requests by sample offset for correct ordering
+    // Sort spawn requests by sample offset for correct ordering. v3.1.0: ties break on
+    // gateSamples, so two requests at one sample always spawn in the same order (they get
+    // consecutive grain RNG counters); requests equal on both keys are identical.
     std::sort(spawnRequests.begin(), spawnRequests.end(),
               [](const SpawnRequest& a, const SpawnRequest& b) {
-                  return a.sampleOffset < b.sampleOffset;
+                  if (a.sampleOffset != b.sampleOffset)
+                      return a.sampleOffset < b.sampleOffset;
+                  return a.gateSamples > b.gateSamples;
               });
 
     // Set grain envelope shape
@@ -672,35 +687,44 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         freezeManager.advance();
 
         // Check for grain spawns at this sample
+        const juce::int64 absSample = samplesProcessed + i;
+
         while (spawnIdx < spawnRequests.size() && spawnRequests[spawnIdx].sampleOffset == i)
         {
             GrainParams gp;
+
+            // v3.1.0: a primary sync grain opens the stutter gate, which may run into later blocks
+            if (spawnRequests[spawnIdx].gateSamples > 0)
+                stutterGateEndAbs = absSample + spawnRequests[spawnIdx].gateSamples;
+
+            // v3.1.0: all of this grain's draws, keyed by its spawn index + a slot per quantity
+            const CounterRng::Draw draw (seed, CounterRng::Grain, grainCounter++);
 
             // Grain size with optional randomization
             int actualGrainSize = grainSizeSamples;
             if (sizeRandom > 0.0f)
                 actualGrainSize = juce::jmax(1, static_cast<int>(grainSizeSamples
-                    * (1.0f + grainRng.nextFloat() * sizeRandom)));
+                    * (1.0f + draw.nextFloat (CounterRng::SlotSize) * sizeRandom)));
             gp.grainLengthSamples = actualGrainSize;
 
             // Per-grain amplitude randomization
             if (ampRandom > 0.0f)
-                gp.amplitude = 1.0f - grainRng.nextFloat() * ampRandom;
+                gp.amplitude = 1.0f - draw.nextFloat (CounterRng::SlotAmp) * ampRandom;
 
             // Position offset: scan position + spread scatter
-            float scanPositionSamples = scanPosition * static_cast<float>(currentSampleRate * 2.0);
-            float spreadOffset = (spread / 100.0f) * (grainRng.nextFloat() * 2.0f - 1.0f)
-                                 * static_cast<float>(grainSizeSamples);
+            double scanPositionSamples = static_cast<double> (scanPosition) * currentSampleRate * 2.0;
+            double spreadOffset = static_cast<double> ((spread / 100.0f) * (draw.nextFloat (CounterRng::SlotSpread) * 2.0f - 1.0f))
+                                  * static_cast<double> (grainSizeSamples);
             gp.positionInSamples = scanPositionSamples + spreadOffset;
 
             // Pitch
-            gp.playbackRate = pitchEngine.nextRate (pitchSettings, audioCustomTable, grainRng);
+            gp.playbackRate = pitchEngine.nextRate (pitchSettings, audioCustomTable, draw);
 
             // Pan randomization (used in stereo mode; ignored in spatial mode)
-            gp.panPosition = 0.5f + (panRandom / 100.0f) * (grainRng.nextFloat() - 0.5f);
+            gp.panPosition = 0.5f + (panRandom / 100.0f) * (draw.nextFloat (CounterRng::SlotPan) - 0.5f);
 
             // Reverse probability
-            gp.reverse = grainRng.nextFloat() < (reverseProb / 100.0f);
+            gp.reverse = draw.nextFloat (CounterRng::SlotReverse) < (reverseProb / 100.0f);
 
             // v3.0.0 read-head guard. A grain's delay tap is
             //   forward: pos + t(1 - rate)      reverse: pos - len + t(1 + rate)
@@ -711,11 +735,11 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             // oldest slot.) Pre-roll each grain so its tap never drops below
             // kReadMargin, the Lagrange kernel's 3-sample look-ahead plus one.
             {
-                constexpr float kReadMargin = 4.0f;
-                const float len  = static_cast<float> (gp.grainLengthSamples);
-                const float rate = gp.playbackRate;
-                const float minPos = gp.reverse ? (len - 1.0f + kReadMargin)
-                                                : (len * juce::jmax (0.0f, rate - 1.0f) + kReadMargin);
+                constexpr double kReadMargin = 4.0;
+                const double len  = static_cast<double> (gp.grainLengthSamples);
+                const double rate = static_cast<double> (gp.playbackRate);
+                const double minPos = gp.reverse ? (len - 1.0 + kReadMargin)
+                                                 : (len * juce::jmax (0.0, rate - 1.0) + kReadMargin);
                 gp.positionInSamples = juce::jmax (gp.positionInSamples, minPos);
             }
 
@@ -730,19 +754,18 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             // Spatial parameters for scatter cloud
             if (spatialMode > 0)
             {
-                gp.azimuth = azimuthRad + azSpreadRad * (grainRng.nextFloat() - 0.5f) * spatialWidth;
-                gp.elevation = elevationRad + elSpreadRad * (grainRng.nextFloat() - 0.5f) * spatialWidth;
+                gp.azimuth = azimuthRad + azSpreadRad * (draw.nextFloat (CounterRng::SlotAzimuth) - 0.5f) * spatialWidth;
+                gp.elevation = elevationRad + elSpreadRad * (draw.nextFloat (CounterRng::SlotElevation) - 0.5f) * spatialWidth;
                 gp.distance = distanceNorm;
                 gp.trajectoryType = (spatialMode == 2) ? trajectoryType : 0;  // Trajectory only in mode 2
             }
 
             // v3.0.4: frozen grains get a small random detune so a long hold drifts
-            // instead of locking into fixed beating. Drawn last, and only while frozen,
-            // so the live path's RNG sequence is unchanged.
+            // instead of locking into fixed beating (v3.1.0: its own RNG slot).
             if (gp.readFromFrozen)
             {
                 static constexpr float kFreezeDetuneCents = 6.0f;
-                gp.playbackRate *= std::exp2 ((grainRng.nextFloat() * 2.0f - 1.0f)
+                gp.playbackRate *= std::exp2 ((draw.nextFloat (CounterRng::SlotDetune) * 2.0f - 1.0f)
                                               * kFreezeDetuneCents / 1200.0f);
             }
 
@@ -762,7 +785,8 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
             // Update grain trajectories before processing
             auto& poolVoices = grainPool.getVoices();
-            const bool updateShTarget = (i % kTrajUpdateInterval == 0);  // WR-06 control rate
+            // WR-06 control rate. v3.1.0: on the absolute sample clock, not the block index.
+            const bool updateShTarget = (absSample % kTrajUpdateInterval == 0);
             for (auto& v : poolVoices)
             {
                 if (!v.active)
@@ -846,7 +870,7 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             float dryL = inputL;
             float dryR = inputR;
 
-            if (stutterGate && stutterGateStart >= 0 && i >= stutterGateStart && i < stutterGateEnd)
+            if (stutterGate && absSample < stutterGateEndAbs)
             {
                 dryL = 0.0f;
                 dryR = 0.0f;
@@ -855,7 +879,11 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             outBufL[i] = dryL * dryG + wetL * wetG;
             outBufR[i] = dryR * dryG + wetR * wetG;
         }
-        // (Spatial mode: SmoothedValues consumed in post-processing loop below)
+        else
+        {
+            // Spatial mode: SmoothedValues consumed in post-processing loop below
+            dryGateMask[static_cast<size_t> (i)] = (stutterGate && absSample < stutterGateEndAbs) ? 0.0f : 1.0f;
+        }
     }
 
     // === SPATIAL POST-PROCESSING: binaural decode HOA bus to stereo ===
@@ -899,7 +927,7 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             float dryL = inL[i];
             float dryR = inR[i];
 
-            if (stutterGate && stutterGateStart >= 0 && i >= stutterGateStart && i < stutterGateEnd)
+            if (dryGateMask[static_cast<size_t> (i)] == 0.0f)
             {
                 dryL = 0.0f;
                 dryR = 0.0f;
@@ -909,6 +937,8 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             outBufR[i] = dryR * dryG + wetBinR * wetG;
         }
     }
+
+    samplesProcessed += numSamples;
 
     // Populate visualization snapshot (lock-free triple buffer)
     {
@@ -929,7 +959,7 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                 // v3.0.0: a pre-rolled (pitched-up / reverse) grain can sit past
                 // the 2 s scan window; pin it to the plot's right edge.
                 sv.positionNorm = (maxDelaySamples > 0.0f)
-                    ? juce::jmin (1.0f, gv.positionOffset / maxDelaySamples)
+                    ? juce::jmin (1.0f, static_cast<float> (gv.positionOffset) / maxDelaySamples)
                     : 0.0f;
                 sv.pitchSemitones = 12.0f * std::log2 (std::max (gv.playbackRate, 0.001f));
                 sv.pan = gv.panPosition;
@@ -1010,6 +1040,12 @@ void GrainScatterProcessor::getStateInformation(juce::MemoryBlock& destData)
         parameters.state.setProperty ("customPitchesName", getCustomName(), nullptr);
     }
 
+    // v3.1.0: the RNG seed, so a reloaded session renders the same grains. Stored as
+    // an int64 (getLargeIntValue clamps anything above INT64_MAX) and read back bit-cast.
+    parameters.state.setProperty ("rngSeed",
+                                  static_cast<juce::int64> (rngSeed.load (std::memory_order_relaxed)),
+                                  nullptr);
+
     auto state = parameters.copyState();
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
@@ -1045,6 +1081,15 @@ void GrainScatterProcessor::setStateInformation(const void* data, int sizeInByte
                                       parameters.state.getProperty ("customPitchesName").toString());
     }
     pitchStateRevision.fetch_add (1, std::memory_order_release);
+
+    // v3.1.0: RNG seed. Absent (a pre-3.1.0 session) = keep this instance's seed.
+    // The XML round-trip hands it back as a string var, so parse it as text.
+    {
+        const juce::var seedVar = parameters.state.getProperty ("rngSeed");
+        if (! seedVar.isVoid() && seedVar.toString().containsOnly ("-0123456789"))
+            rngSeed.store (static_cast<uint64_t> (seedVar.toString().getLargeIntValue()),
+                           std::memory_order_relaxed);
+    }
 
     // v2.5.0: the UI language. Read AFTER replaceState(), which rebuilds the
     // whole tree.

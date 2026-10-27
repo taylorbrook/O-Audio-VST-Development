@@ -104,9 +104,9 @@ public:
     }
 
     // Snapshot position a grain spawned now at `delaySamples` starts from.
-    double getSpawnBase (float delaySamples) const
+    double getSpawnBase (double delaySamples) const
     {
-        return slots[static_cast<size_t> (currentSlot)].head - static_cast<double> (delaySamples);
+        return slots[static_cast<size_t> (currentSlot)].head - delaySamples;
     }
 
     // The captured audio is a loop over [xfade, length). Its last xfade samples are
