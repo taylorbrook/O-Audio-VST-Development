@@ -79,7 +79,7 @@ static Config makeConfig(const std::string& name)
         c.lane[3].euc = true; c.lane[3].eucP = 5; c.lane[3].eucS = 8;
     }
     else if (name == "loop") { beatLanes(); c.startSample = 0; c.loopLen = 180000; }   // 2 bars at 128 BPM
-    else if (name == "midi" || name == "exact_midi" || name == "exact_midi_r4" || name == "onsets_midi")
+    else if (name == "midi" || name == "exact_midi" || name == "exact_midi_up" || name == "exact_midi_r4" || name == "onsets_midi")
     {
         c.midiEnabled = true;
         c.lane[0].subdiv = 2; c.lane[1].subdiv = 1; c.lane[1].reverse = true; c.lane[2].subdiv = 3; c.lane[2].pingPong = true;
@@ -100,13 +100,13 @@ static Config makeConfig(const std::string& name)
                 for (int j = 0; j < n; ++j) c.notes.push_back({ at, 60 + (int) ((r.next() + j) % 4) });
             }
         }
-        else if (name == "exact_midi" || name == "exact_midi_r4")
+        else if (name == "exact_midi" || name == "exact_midi_up" || name == "exact_midi_r4")
         {
             // Offsets on multiples of 960 = lcm(32, 480): sample 0 of a block at both sizes.
             // Every cycle (subdivision x repeats) must also end on a block start:
             // v1.16.0 began the fade-out there. 1/8T x 3 = 24000; x 4 = 32000 does not
             // divide by 480 (the _r4 control).
-            c.lane[3].repeats = name == "exact_midi" ? 3 : 4;
+            c.lane[3].repeats = name == "exact_midi_r4" ? 4 : 3;
             c.tapeBypass = false; c.sat = 25; c.wow = 30; c.rolloff = 15;
             for (int at = 9600; at < kLen - 4000; at += 960 * (3 + (int) (r.next() % 20)))
                 c.notes.push_back({ at, notes[r.next() % 5] });
@@ -118,7 +118,7 @@ static Config makeConfig(const std::string& name)
                 c.notes.push_back({ at, notes[r.next() % 5] });
         }
     }
-    else if (name == "exact_beat" || name == "onsets_beat" || name == "onsets_man")
+    else if (name == "exact_beat" || name == "exact_beat_up" || name == "onsets_beat" || name == "onsets_man")
     {
         // 120 BPM at 48 kHz: 1/8 = 12000 and 1/4 = 24000 samples, multiples of 32 and 480
         c.sequencer = true;
@@ -136,6 +136,9 @@ static Config makeConfig(const std::string& name)
         if (name == "onsets_man") c.lane[1].manual = true;   // WR-03: lane 2 must fire no beat triggers
     }
     else { std::fprintf(stderr, "unknown config %s\n", name.c_str()); std::exit(2); }
+    // v1.18.3 fades a pitched-down repeat before the next one cuts it, so the -5 st
+    // lane 4 now differs from v1.16.0 by design; _up plays it at +5 for bit-identity
+    if (name == "exact_beat_up" || name == "exact_midi_up") c.lane[3].pitch = 5;
     return c;
 }
 

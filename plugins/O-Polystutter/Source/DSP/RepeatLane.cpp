@@ -235,6 +235,18 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int startSample,
             // Apply crossfade at loop boundaries for click-free looping
             int intPosition = static_cast<int>(effectivePosition);
             int effectiveLength = static_cast<int>(effectiveCaptureLength);
+
+            // v1.18.3: The repeat timer can cut playback before the slice ends:
+            // pitched down, the slice plays for subdivision / ratio but the next
+            // repeat starts after one subdivision; with swing, the pre-delay
+            // before the first repeat plays the slice until the timer restarts
+            // it. Both cut at full amplitude (114-1588x the unity click metric
+            // at -1..-12 st). End the fade where playback actually stops. At
+            // unity and pitched up the timer never comes first, so this is
+            // bit-identical there.
+            if (samplesUntilNextRepeat < effectiveLength - intPosition)
+                effectiveLength = intPosition + samplesUntilNextRepeat;
+
             const int safeCrossfade = juce::jmin(crossfadeSamples, effectiveLength / 2);
 
             if (safeCrossfade > 0 && intPosition < safeCrossfade)

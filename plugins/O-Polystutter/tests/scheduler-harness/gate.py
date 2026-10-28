@@ -68,7 +68,9 @@ for cfg in ("beat128", "beatprob", "midi", "loop", "exact_beat", "exact_midi"):
     check(f"null {cfg}", worst <= -120 and peak > -40, f"worst residual {worst:.1f} dBFS, signal peak {peak:.1f} dBFS")
 
 print("== B. bit-identity vs v1.16.0 where its onsets were already exact")
-for cfg in ("exact_beat", "exact_midi"):
+# v1.18.3 changed pitched-down repeats (fade before the next repeat cuts them), so
+# B runs the _up variants (lane 4 at +5 st); C checks the -5 st configs now differ
+for cfg in ("exact_beat_up", "exact_midi_up"):
     for block in ("32", "480"):
         a = render("old", cfg, block, SEED); b = render("new", cfg, block, SEED)
         check(f"bit-identical {cfg} block{block}", np.array_equal(a, b) and np.max(np.abs(a)) > 0.01,
@@ -100,8 +102,12 @@ ons_m = render("new", "onsets_man", "512", SEED, onsets=True)
 check("MAN lane fires no beat triggers (onsets_man)", not any(l == 1 for l, t, k in ons_m) and any(l == 1 for l, t, k in ons_b),
       f"lane 2: {sum(l == 1 for l, t, k in ons_b)} beat triggers without MAN, {sum(l == 1 for l, t, k in ons_m)} with")
 check("MAN leaves the other lanes' triggers unchanged", sorted(o for o in ons_b if o[0] != 1) == sorted(o for o in ons_m if o[0] != 1), "")
-# the wet path must matter in every exact config, or bit-identity only proves the dry path
+# v1.18.3: the pitched-down lane 4 (-5 st) of the exact configs is faded before each cut
 for cfg in ("exact_beat", "exact_midi"):
+    a, b = render("old", cfg, "480", SEED), render("new", cfg, "480", SEED)
+    check(f"old vs new differ on the pitched-down lane ({cfg} @480)", resid(a, b) > -60, f"residual {resid(a, b):.1f} dBFS")
+# the wet path must matter in every exact config, or bit-identity only proves the dry path
+for cfg in ("exact_beat_up", "exact_midi_up"):
     ons = render("new", cfg, "32", SEED, onsets=True)
     check(f"{cfg} fires triggers on every lane", len({l for l, t, k in ons}) == 4, f"{len(ons)} triggers")
 

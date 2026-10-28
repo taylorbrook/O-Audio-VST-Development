@@ -2,6 +2,23 @@
 
 All notable changes to O-Polystutter will be documented in this file.
 
+## [1.18.3] - 2026-10-27
+
+Pitched-down repeats no longer click (granular-2026 research §2.2 item 7, which had only inferred the click). No parameter, range, state or preset change. Output at unity pitch and pitched up, without swing, is bit-identical to v1.18.2.
+
+### Fixed
+
+- **A pitched-down repeat was cut off at full level by the next repeat.** Root cause: pitched down by ratio r, a repeat plays the slice for subdivision / r samples, but the next repeat starts after one subdivision. The 5 ms end fade sits at the end of the slice, so it never played. The lane jumped from the tone straight into the next repeat's fade-in at gain 0. The end fade is now placed where playback actually stops: the end of the slice or the repeat timer, whichever comes first. A pitched-down repeat still plays only its first subdivision of material, as before.
+- **Swing clicked at the first repeat, at any pitch.** Same cut. With swing, `trigger()` delays the first repeat by the swing offset, but the slice plays during that delay and was then cut at full level when the swung repeat restarted it. The same fix fades it out. The short pre-delay pass of the slice is still audible (a flam of up to 16 % of a subdivision); that is unchanged.
+
+### Testing
+
+- New gate `tests/repeat-click/`: one lane, a sine input (110, 233 and 347 Hz), 1/8 and 1/16, forward and reverse, swing 0 and 40, at −12, −7, −1 and +5 st. Metric: worst second difference normalised by the output tone (A·ω²). The verdict is against the same-motion control: unity pitch at the same output frequency, with the same trigger, subdivision, repeats, swing and reverse, so the repeat boundaries match. v1.18.2: pitched down 34–201× at the repeat boundary, **8 FAIL** (the swing-40 rows pass there only because their unity control clicks too, which the swing check, 123× and 238×, catches). v1.18.3: 0.2–1.7×, swing 1.0×, **ALL PASS**.
+- Scheduler harness: **ALL PASS**. The bit-identity check against v1.16.0 now runs `exact_beat_up` / `exact_midi_up` (lane 4 at +5 st instead of −5): bit-identical at block sizes 32 and 480. The −5 st configs now differ from v1.16.0 (control, −26 dB residual). Block-size nulls, onsets, MAN and loop-wrap unchanged.
+- Installed VST3 (pedalboard, lane 1 alone, MANUAL TRIGGER): pitched down vs unity at the same output frequency 0.27–2.00×, unity with swing vs without 1.69×. The 2.00× is the trigger's own 5 ms fade-in (sample 239), which this release does not touch. There is no v1.18.2 binary to compare against in this host; the offline gate above is the negative control.
+- auval: AU VALIDATION SUCCEEDED. pluginval strictness 10: SUCCESS.
+- Not yet checked hands-on: listening to a pitched-down lane and a swung lane in a DAW.
+
 ## [1.18.2] - 2026-10-27
 
 Follow-up fixes to v1.18.1 (IN-07) and v1.18.0 (IN-05). No parameter, range, state or preset-format change.
