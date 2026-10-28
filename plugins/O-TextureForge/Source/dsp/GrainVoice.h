@@ -39,7 +39,8 @@ struct GrainVoice
     uint32_t grainIndex = 0;          // Index into SharedCorpus::grains
     uint32_t grainStartSample = 0;    // Start position in corpus buffer
     uint32_t grainLengthSamples = 0;  // Length of this grain
-    float readPosition = 0.0f;        // Current read position (fractional)
+    double readPosition = 0.0;        // Current read position (fractional). v1.6.1: double —
+                                      // float lost the fraction on long corpora
     float playbackRate = 1.0f;        // Pitch shift ratio
     float gain = 1.0f;                // Linear gain
     float crossfadeFactor = 0.5f;     // Envelope width factor (0=short, 1=wide overlap)
@@ -56,7 +57,7 @@ struct GrainVoice
         grainIndex = 0;
         grainStartSample = 0;
         grainLengthSamples = 0;
-        readPosition = 0.0f;
+        readPosition = 0.0;
         playbackRate = 1.0f;
         gain = 1.0f;
         crossfadeFactor = 0.5f;

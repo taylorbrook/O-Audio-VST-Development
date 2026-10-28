@@ -97,7 +97,11 @@ private:
     void renderVoices(juce::AudioBuffer<float>& buffer, const SharedCorpus* corpus,
                       int startSample, int endSample);
 
-    float sampleFromCorpus(const SharedCorpus* corpus, float readPosition) const;
+    // v1.6.1: absolute position in double. A float position quantised the
+    // interpolation fraction to 1/16 sample ~12 s into a 44.1 kHz corpus, lost it
+    // past 2^23 (~3.2 min) and skipped samples past 2^24, so pitched grains got
+    // grittier the deeper into the file they started.
+    float sampleFromCorpus(const SharedCorpus* corpus, double readPosition) const;
 
     GrainPool grainPool;
 

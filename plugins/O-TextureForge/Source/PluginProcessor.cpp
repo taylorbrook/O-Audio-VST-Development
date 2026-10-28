@@ -28,6 +28,7 @@
 */
 
 #include "PluginProcessor.h"
+#include <algorithm>
 
 // PluginEditor.h is included behind #if JUCE_WEB_BROWSER, and every use of
 // TextureForgeEditor below carries the same guard. The param-dump console
@@ -171,6 +172,15 @@ void TextureForgeProcessor::releaseResources() {}
 
 void TextureForgeProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
+    // v1.6.1: entry/exit counters for the retired-corpus reap. The exit is a
+    // scope guard so every return path counts it.
+    blocksEntered.fetch_add(1, std::memory_order_seq_cst);
+    struct BlockExit
+    {
+        std::atomic<uint64_t>& counter;
+        ~BlockExit() { counter.fetch_add(1, std::memory_order_seq_cst); }
+    } blockExit { blocksRendered };
+
     juce::ScopedNoDenormals noDenormals;
 
     if (buffer.getNumSamples() == 0)
@@ -193,7 +203,7 @@ void TextureForgeProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     params.rngSeed = rngSeed.load(std::memory_order_relaxed);
 
     // Load corpus pointer (atomic read)
-    const SharedCorpus* corpus = corpusForAudio.load(std::memory_order_acquire);
+    const SharedCorpus* corpus = corpusForAudio.load(std::memory_order_seq_cst);
 
     // Check for UI grain selection
     int grainSel = pendingGrainSelect.exchange(-1, std::memory_order_relaxed);
@@ -348,10 +358,7 @@ void TextureForgeProcessor::loadCorpusFile(const juce::File& file)
 
             if (newCorpus != nullptr && !newCorpus->grains.empty())
             {
-                // Keep old corpus alive while audio thread drains its current processBlock
-                retiredCorpus = currentCorpus;
-                currentCorpus = newCorpus;
-                corpusForAudio.store(currentCorpus.get(), std::memory_order_release);
+                publishCorpus(newCorpus);
 
                 juce::Logger::writeToLog("Corpus loaded: " + juce::String(newCorpus->grains.size()) + " grains");
 
@@ -369,6 +376,8 @@ void TextureForgeProcessor::loadCorpusFile(const juce::File& file)
         {
             if (guard.expired())
                 return;
+
+            reapRetiredCorpora();
 
 #if JUCE_WEB_BROWSER
             if (auto* editor = dynamic_cast<TextureForgeEditor*>(getActiveEditor()))
@@ -420,6 +429,38 @@ void TextureForgeProcessor::loadCorpusFile(const juce::File& file)
 #endif
         }
     );
+}
+
+// Message thread only. The outgoing corpus is parked, not freed: an in-flight
+// audio block may still be reading its raw pointer.
+void TextureForgeProcessor::publishCorpus(std::shared_ptr<SharedCorpus> newCorpus)
+{
+    reapRetiredCorpora();
+
+    if (currentCorpus != nullptr)
+        retiredCorpora.push_back({ currentCorpus, blocksRendered.load(std::memory_order_seq_cst) });
+
+    currentCorpus = std::move(newCorpus);
+    // seq_cst pairs with processBlock's blocksEntered increment + pointer load for
+    // the quiescence test below.
+    corpusForAudio.store(currentCorpus.get(), std::memory_order_seq_cst);
+}
+
+// Frees parked corpora no block can still reference: >= 2 blocks completed since
+// parking, or none in flight now. Exits are read FIRST: entries >= exits always,
+// so equality means nothing was in flight when entries was read, and a block
+// entering later loads the already-published pointer. The scheduler's voices
+// hold only sample offsets between blocks, never the corpus pointer.
+void TextureForgeProcessor::reapRetiredCorpora()
+{
+    const uint64_t rendered = blocksRendered.load(std::memory_order_seq_cst);
+    const uint64_t entered  = blocksEntered.load(std::memory_order_seq_cst);
+    const bool quiescent = (entered == rendered);
+    retiredCorpora.erase(
+        std::remove_if(retiredCorpora.begin(), retiredCorpora.end(),
+                       [rendered, quiescent](const RetiredCorpus& r)
+                       { return quiescent || rendered >= r.parkedAtBlock + 2; }),
+        retiredCorpora.end());
 }
 
 void TextureForgeProcessor::selectGrainFromUI(int grainIndex)

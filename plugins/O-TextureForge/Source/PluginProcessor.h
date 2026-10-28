@@ -35,6 +35,7 @@
 #include "dsp/GrainScheduler.h"
 #include <memory>
 #include <atomic>
+#include <vector>
 
 struct VizSnapshot
 {
@@ -154,10 +155,31 @@ private:
     GrainScheduler grainScheduler;
     CorpusLoader corpusLoader;
 
-    // Thread-safe corpus sharing
+    // Thread-safe corpus sharing. currentCorpus and retiredCorpora are touched
+    // on the message thread only (the loader's callAsync completion); the audio
+    // thread reads one raw pointer per block.
+    //
+    // v1.6.1: a publish parks the outgoing corpus instead of overwriting a single
+    // retired slot. With one slot, two completions back to back (a queued callAsync
+    // the next load's cancel can't purge, or a prepareToPlay reload) dropped the
+    // last reference to a corpus an in-flight block was still reading. An entry is
+    // freed once >= 2 blocks have completed since parking, or when no block is in
+    // flight (blocksEntered == blocksRendered) — the +2 rule alone never fires
+    // while the host has stopped calling processBlock.
+    struct RetiredCorpus
+    {
+        std::shared_ptr<SharedCorpus> corpus;
+        uint64_t parkedAtBlock = 0;
+    };
+
+    void publishCorpus(std::shared_ptr<SharedCorpus> newCorpus);
+    void reapRetiredCorpora();
+
     std::shared_ptr<SharedCorpus> currentCorpus;  // Message thread (owns lifetime)
-    std::shared_ptr<SharedCorpus> retiredCorpus;  // Keeps previous corpus alive while audio thread drains
+    std::vector<RetiredCorpus> retiredCorpora;    // Message thread; outgoing corpora until unreferenced
     std::atomic<SharedCorpus*> corpusForAudio { nullptr };  // Audio thread (read-only)
+    std::atomic<uint64_t> blocksEntered { 0 };    // first statement of processBlock
+    std::atomic<uint64_t> blocksRendered { 0 };   // every exit from processBlock
 
     // Weak guard for safe async callback delivery
     std::shared_ptr<int> lifetimeGuard = std::make_shared<int>(0);

@@ -291,7 +291,7 @@ void GrainScheduler::triggerGrainByIndex(const SharedCorpus* corpus, const Sched
     // Apply CROSSFADE: modulate envelope width via crossfade factor
     voice->crossfadeFactor = params.crossfadePercent / 100.0f;
 
-    voice->readPosition = 0.0f;
+    voice->readPosition = 0.0;
     voice->samplesElapsed = 0;
     voice->gain = velocity;
     voice->midiNote = midiNote;
@@ -446,7 +446,7 @@ void GrainScheduler::renderVoices(juce::AudioBuffer<float>& buffer, const Shared
             }
 
             // Sample from corpus with linear interpolation
-            float readPos = static_cast<float>(voice.grainStartSample) + voice.readPosition;
+            const double readPos = static_cast<double>(voice.grainStartSample) + voice.readPosition;
             float sample = sampleFromCorpus(corpus, readPos);
 
             // Apply grain envelope (Hann window)
@@ -474,20 +474,20 @@ void GrainScheduler::renderVoices(juce::AudioBuffer<float>& buffer, const Shared
     }
 }
 
-float GrainScheduler::sampleFromCorpus(const SharedCorpus* corpus, float readPosition) const
+float GrainScheduler::sampleFromCorpus(const SharedCorpus* corpus, double readPosition) const
 {
     const int numSamples = corpus->audioData.getNumSamples();
     if (numSamples == 0)
         return 0.0f;
 
     // Clamp to valid range
-    if (readPosition < 0.0f || readPosition >= static_cast<float>(numSamples - 1))
+    if (readPosition < 0.0 || readPosition >= static_cast<double>(numSamples - 1))
         return 0.0f;
 
     // Linear interpolation
     const int index0 = static_cast<int>(readPosition);
     const int index1 = index0 + 1;
-    const float frac = readPosition - static_cast<float>(index0);
+    const float frac = static_cast<float>(readPosition - static_cast<double>(index0));
 
     const float* audioPtr = corpus->audioData.getReadPointer(0);
     const float sample0 = audioPtr[index0];

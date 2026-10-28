@@ -1,5 +1,31 @@
 # O-TextureForge Changelog
 
+## [1.6.1] — 2026-10-27
+
+### Fixed
+
+- **Pitched grains got grittier deeper into a long corpus.** Grain read
+  positions were single-precision floats. The interpolation fraction was already
+  rounded to 1/16 of a sample 12 s into a 44.1 kHz file, was gone entirely past
+  about 3.2 min, and past about 6.3 min grains skipped samples even at unity
+  pitch. Within a grain, high notes also drifted: at note 89 a 180 ms grain
+  ended 3 samples from where it should. Read positions are now double. A grain
+  6.4 min into a file now renders bit-identically to the same audio at the start
+  of the file, and to an exact reference. Before, the error was −53 dB at 12 s
+  and −17 dB past 6.3 min.
+- **Loading two corpora in quick succession could crash.** The processor kept
+  only one retired corpus alive for the audio thread. If two loads finished back
+  to back, the second freed a corpus that an audio block might still be reading.
+  This could happen with a load already queued when the next began, or with the
+  sample-rate reload in prepareToPlay. Retired corpora are now kept in a list and
+  freed only once two audio blocks have completed since retirement, or once no
+  block is running. The second rule frees them even when the host has stopped
+  calling the audio callback.
+
+Drone and Trigger + Modulate renders, which play at unity pitch, are
+bit-identical to v1.6.0 on corpora under 2^24 samples (~6.3 min at 44.1 kHz).
+Pitch-Mapped renders change by the size of the old error.
+
 ## [1.6.0] — 2026-10-26
 
 ### Changed
