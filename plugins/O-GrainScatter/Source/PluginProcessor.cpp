@@ -764,17 +764,12 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         {
             GrainParams gp;
 
-            // v3.1.0: a primary sync grain opens the stutter gate, which may run into later blocks
-            if (spawnRequests[spawnIdx].gateSamples > 0)
-                stutterGateEndAbs = absSample + spawnRequests[spawnIdx].gateSamples;
-
             // v3.1.0: all of this grain's draws, keyed by its spawn index + a slot per quantity
             const CounterRng::Draw draw (seed, CounterRng::Grain, grainCounter++);
 
-            // v3.4.0 Grain Skip: decided per grain from its own RNG slot, after the stutter
-            // gate (a trigger's gate is the trigger's, not its first grain's). A skipped
-            // grain still uses up its counter, so the grains that do sound get exactly the
-            // draws they would get at Skip 0. At Skip 0 nothing is drawn.
+            // v3.4.0 Grain Skip: decided per grain from its own RNG slot. A skipped grain
+            // still uses up its counter, so the grains that do sound get exactly the draws
+            // they would get at Skip 0. At Skip 0 nothing is drawn.
             if (grainSkip > 0.0f && draw.nextFloat (CounterRng::SlotSkip) < grainSkip)
             {
                 ++grainsSkipped;
@@ -782,6 +777,12 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                 continue;
             }
             ++grainsSpawned;
+
+            // v3.1.0: a primary sync grain opens the stutter gate, which may run into later
+            // blocks. v3.4.0: only when that grain plays — a trigger whose primary is skipped
+            // leaves the dry open (its surviving repeats play over it).
+            if (spawnRequests[spawnIdx].gateSamples > 0)
+                stutterGateEndAbs = absSample + spawnRequests[spawnIdx].gateSamples;
 
             // Grain size with optional randomization
             int actualGrainSize = grainSizeSamples;

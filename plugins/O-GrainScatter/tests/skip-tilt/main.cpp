@@ -21,13 +21,18 @@
          that share of grains (binomial bound); with Sync Repeats 4 the skipped share
          is ~50 % (> 25 %, so repeats are skipped one by one, not only the primary)
          and the scheduled total is unchanged; 50 % differs audibly from 0 %.
+      G  Stutter Gate follows a PLAYING primary grain: Skip 100 % leaves the dry
+         untouched (the gate never opens); Skip 0 % gates it (control);
+         Skip 50 % gates fewer samples than 0 % and more than none.
+         (Stated "untouched": 0 gated samples, peak diff to the dry <= 1e-6.)
       D  determinism: Skip 50 + Tilt -100 / +60 at 32-sample and variable blocks null
          the 512-sample render to <= -120 dBFS (free, sync, spatial).
-      T  Shape Tilt: peak position mapping; envelope step <= 0.05 per sample at
-         +-100 % on every shape with a zero onset (10 ms .. 1 s grains) and a negative
-         control with the 2 ms ramp floor removed (step ~1); window moments vs
+      T  Shape Tilt (3 ms edge floor): peak position mapping; envelope step <= 0.025
+         per sample at +-100 % on every shape with a zero onset (10 ms .. 1 s grains);
+         negative controls: the floor removed (step ~1) and the v3.4.0-draft 2 ms floor
+         (0.033, over the bound); window moments vs
          numeric integration (all six shapes, peak 0.02 .. 0.98); rendered DC-grain
-         step at +-100 % and through a mid-grain -100 -> +100 jump; dense-cloud level
+         step (<= 0.025) at +-100 % and through a mid-grain -100 -> +100 jump; dense-cloud level
          at +-100 % within 0.5 dB of 0; Exp Decay follows its moments within 1 dB.
 
     Exit 0 = every row PASS.
@@ -325,7 +330,8 @@ int main (int argc, char** argv)
     juce::File dir (juce::File::getCurrentWorkingDirectory().getChildFile (argv[1]));
 
     const auto music = makeStimulus (Stim::Music);
-    const double minRamp = GrainPool::kTiltMinRampMs * 0.001 * kSampleRate;   // 96 samples
+    const double minRamp = GrainPool::kTiltMinRampMs * 0.001 * kSampleRate;   // 144 samples
+    constexpr double kStepBound = 0.025;   // per-sample envelope step, peak = 1
 
     // ── A: bit-exact defaults vs v3.3.0 ─────────────────────────────────────
     std::printf ("\n-- A. defaults (Skip 0, Tilt 0) bit-exact against v3.3.0 (d920bedd)\n");
@@ -424,6 +430,37 @@ int main (int argc, char** argv)
         }
     }
 
+    // ── G: Stutter Gate opens only with a playing primary grain ─────────────
+    std::printf ("\n-- G. Stutter Gate + Grain Skip\n");
+    {
+        // Wet muted, dry at 0 dB: the output is the dry through the gate, exactly.
+        const Params base = { { "sync_mode", 3.0f }, { "repeats", 4.0f }, { "stutter_gate", 1.0f },
+                              { "wet_level", -60.0f }, { "grain_size", 60.0f } };
+        auto gatedSamples = [&] (float skip, double& diffToDry)
+        {
+            Params p = base; p["grain_skip"] = skip;
+            auto inst = makeInstance (p);
+            const auto out = render (*inst, { "gate", p, {} }, music, fixedSplit (kMaxBlock));
+            diffToDry = peakDiff (out, music);
+            int gated = 0;
+            for (int i = 0; i < kLength; ++i)
+                if (out.getSample (0, i) == 0.0f && music.getSample (0, i) != 0.0f)
+                    ++gated;
+            return gated;
+        };
+        double d100 = 0.0, d0 = 0.0, d50 = 0.0;
+        const int g100 = gatedSamples (100.0f, d100);
+        const int g0   = gatedSamples (0.0f, d0);
+        const int g50  = gatedSamples (50.0f, d50);
+        // 1e-6: float rounding in the dry/wet sum; a gate would cut the dry (~0.5 here).
+        row (d100 <= 1e-6 && g100 == 0, "G Skip 100 %: dry untouched (the gate never opens)",
+             "peak diff to dry " + juce::String (d100, 10) + ", gated samples " + juce::String (g100));
+        row (g0 > kLength / 10, "G Skip 0 %: the gate cuts the dry (control)",
+             juce::String (g0) + " gated samples (" + juce::String (100.0 * g0 / kLength, 1) + " %)");
+        row (g50 > 0 && g50 < g0, "G Skip 50 %: gates only for triggers whose primary plays",
+             juce::String (g50) + " gated samples (" + juce::String (100.0 * g50 / juce::jmax (1, g0), 1) + " % of Skip 0)");
+    }
+
     // ── D: determinism across block sizes with Skip + Tilt ──────────────────
     std::printf ("\n-- D. block-size null, Skip 50 %% + Tilt\n");
     {
@@ -459,13 +496,13 @@ int main (int argc, char** argv)
         const float c2 = GrainPool::tiltPeakFor (1.0f, 4800, minRamp);
         const float c0 = GrainPool::tiltPeakFor (0.0f, 4800, minRamp);
         const float c3 = GrainPool::tiltPeakFor (-1.0f, 480, minRamp);
-        const float c4 = GrainPool::tiltPeakFor (1.0f, 100, minRamp);
+        const float c4 = GrainPool::tiltPeakFor (1.0f, 288, minRamp);   // 6 ms: no room to tilt
         const float c5 = GrainPool::tiltPeakFor (0.5f, 4800, minRamp);
-        row (std::abs (c1 - 0.02f) < 1e-6f && std::abs (c2 - 0.98f) < 1e-6f && c0 == 0.5f
-             && std::abs (c3 - 0.2f) < 1e-6f && c4 == 0.5f && std::abs (c5 - 0.74f) < 1e-6f,
-             "T peak mapping (-1 pluck / 0 symmetric / +1 swell, 2 ms floor)",
+        row (std::abs (c1 - 0.03f) < 1e-6f && std::abs (c2 - 0.97f) < 1e-6f && c0 == 0.5f
+             && std::abs (c3 - 0.3f) < 1e-6f && c4 == 0.5f && std::abs (c5 - 0.735f) < 1e-6f,
+             "T peak mapping (-1 pluck / 0 symmetric / +1 swell, 3 ms floor)",
              "100 ms: " + juce::String (c1, 4) + " / " + juce::String (c0, 4) + " / " + juce::String (c2, 4)
-             + "; 10 ms -1: " + juce::String (c3, 4) + "; 2 ms grain: " + juce::String (c4, 4) + "; +0.5: " + juce::String (c5, 4));
+             + "; 10 ms -1: " + juce::String (c3, 4) + "; 6 ms grain: " + juce::String (c4, 4) + "; +0.5: " + juce::String (c5, 4));
 
         // Envelope steps (shapes with a zero onset; Exp Decay starts at 1 by design).
         double worst = 0.0, worstSym = 0.0;
@@ -495,7 +532,7 @@ int main (int argc, char** argv)
                     }
                 }
             }
-        row (worst <= 0.05, "T envelope step <= 0.05 at +-100 % (5 shapes, 10 ms .. 1 s)",
+        row (worst <= kStepBound, "T envelope step <= 0.025 at +-100 % (5 shapes, 10 ms .. 1 s)",
              "worst " + juce::String (worst, 4) + " (" + worstAt + "); symmetric worst " + juce::String (worstSym, 4));
         row (peakMiss == 0, "T envelope peak lands at tiltPeak x length (Hann, Blackman)", juce::String (peakMiss) + " misses");
 
@@ -503,6 +540,12 @@ int main (int argc, char** argv)
         for (int shape = 0; shape < 5; ++shape)
             ctl = juce::jmax (ctl, maxStep (grainEnvelope (shape, -1.0f, 4800, 0.0)));
         row (ctl > 0.5, "T negative control: no ramp floor -> the pluck edge is a step", "step " + juce::String (ctl, 4));
+
+        double ctl2 = 0.0;
+        for (int shape = 0; shape < 5; ++shape)
+            for (float tilt : { -1.0f, 1.0f })
+                ctl2 = juce::jmax (ctl2, maxStep (grainEnvelope (shape, tilt, 48000, 0.002 * kSampleRate)));
+        row (ctl2 > kStepBound, "T negative control: a 2 ms floor exceeds the 3 ms bound", "step " + juce::String (ctl2, 4));
 
         // Moments vs numeric integration of the warped window.
         double worstRel = 0.0;
@@ -543,7 +586,7 @@ int main (int argc, char** argv)
                     if (tilt == 0.0f) worstR0 = juce::jmax (worstR0, r);
                     else if (r > worstR) { worstR = r; worstRAt = juce::String (shapeName (shape)) + " " + juce::String (size, 0) + " ms " + juce::String (tilt, 0); }
                 }
-        row (worstR <= 0.05, "T rendered DC grains: step / peak <= 0.05 at +-100 %",
+        row (worstR <= kStepBound, "T rendered DC grains: step / peak <= 0.025 at +-100 %",
              "worst " + juce::String (worstR, 4) + " (" + worstRAt + "); tilt 0 worst " + juce::String (worstR0, 4));
 
         {
@@ -553,7 +596,7 @@ int main (int argc, char** argv)
             const auto out = render (*inst, sc, dc, fixedSplit (kMaxBlock));
             double peak = 0.0;
             const double r = renderStepRatio (out, 4800, peak);
-            row (r <= 0.05, "T tilt jump -100 -> +100 mid-grain: no step (latched per grain)",
+            row (r <= kStepBound, "T tilt jump -100 -> +100 mid-grain: no step (latched per grain)",
                  "step / peak " + juce::String (r, 4));
         }
 

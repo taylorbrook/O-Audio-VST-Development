@@ -657,16 +657,16 @@ export const I18N = Object.freeze({
               b: 'Shape Tilt moves the peak of the grain envelope. Negative values give each '
                + 'grain a plucked attack and a long fade; positive values a slow swell that stops '
                + 'short, like a reversed sound. At 0 the Shape is symmetric. Each edge keeps at '
-               + 'least 2 ms, so the extremes stay click-free. Range −100 to +100 %.' },
+               + 'least 3 ms, so the extremes stay click-free. Range −100 to +100 %.' },
         fr: { t: 'Inclinaison',
               b: 'L’inclinaison de forme déplace le sommet de l’enveloppe de grain. Les valeurs '
                + 'négatives donnent à chaque grain une attaque pincée et un long déclin ; les '
                + 'valeurs positives, une montée lente qui s’arrête net, comme un son inversé. '
-               + 'À 0, la forme est symétrique. Chaque flanc garde au moins 2 ms, si bien que '
+               + 'À 0, la forme est symétrique. Chaque flanc garde au moins 3 ms, si bien que '
                + 'les extrêmes restent sans clic. Plage de −100 à +100 %.',
               reviewed: false },
         'zh-Hans': { t: '倾斜',
-                     b: '形状倾斜移动颗粒包络的峰值位置。负值让每个颗粒有拨奏般的起音和较长的衰减；正值则是缓慢渐强后戛然而止，像反向播放的声音。为 0 时形状对称。每一侧至少保留 2 ms，所以极端设定也不会产生咔嗒声。范围 −100 到 +100%。',
+                     b: '形状倾斜移动颗粒包络的峰值位置。负值让每个颗粒有拨奏般的起音和较长的衰减；正值则是缓慢渐强后戛然而止，像反向播放的声音。为 0 时形状对称。每一侧至少保留 3 ms，所以极端设定也不会产生咔嗒声。范围 −100 到 +100%。',
                      reviewed: 'mt' },
     },
 

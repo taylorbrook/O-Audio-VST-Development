@@ -123,9 +123,9 @@ public:
 
     // v3.4.0 shape tilt. Tilt -1 = plucked (peak near the start), +1 = reverse swell
     // (peak near the end), 0 = symmetric. Each side keeps at least kTiltMinRampMs, so
-    // neither edge of the window becomes a step at the extremes; on grains shorter than
-    // 2 x that the travel shrinks (a 10 ms grain's peak can move to 20 % / 80 %).
-    static constexpr double kTiltMinRampMs = 2.0;
+    // neither edge of the window becomes a step at the extremes: the peak stays that far
+    // from both ends (a 10 ms grain's peak travels 30 % .. 70 %; 6 ms or less, no tilt).
+    static constexpr double kTiltMinRampMs = 3.0;
 
     static float tiltPeakFor (float tilt, int grainLengthSamples, double minRampSamples)
     {
