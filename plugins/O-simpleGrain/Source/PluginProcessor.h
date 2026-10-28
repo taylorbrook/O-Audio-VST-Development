@@ -79,6 +79,8 @@ namespace OSimpleGrain::ParamIDs
     inline constexpr auto grainPitch     = "grainPitch";     // −24–+24 st
     inline constexpr auto panSpray       = "panSpray";       // 0–100 %
     inline constexpr auto velToDensity   = "velToDensity";   // 0–100 %
+    inline constexpr auto grainSkip      = "grainSkip";      // 0–100 % — skip probability (v1.8.0)
+    inline constexpr auto grainTilt      = "grainTilt";      // −100–+100 % — window tilt (v1.8.0)
 
     // Amplitude envelope (per-voice ADSR)
     inline constexpr auto ampAttack      = "ampAttack";      // 0–5 s
@@ -443,6 +445,8 @@ private:
     int   normShapeCache    = -1;
     float normTaperEndCache = -1.0f;
     float normPowerRatio    = 1.0f;
+    bool  normTiltedCache   = false;           // v1.8.0 — tilt is part of the cache key
+    float normTiltPeakCache = 0.5f, normTiltTeACache = 0.5f, normTiltTeRCache = 0.5f;
 
     //==========================================================================
     // Global read head (processor-owned, Phase 2.2). One playhead shared by all
@@ -539,6 +543,8 @@ private:
     std::atomic<float>* grainPitchParam    = nullptr;
     std::atomic<float>* panSprayParam      = nullptr;
     std::atomic<float>* velToDensityParam  = nullptr;
+    std::atomic<float>* grainSkipParam     = nullptr;   // v1.8.0
+    std::atomic<float>* grainTiltParam     = nullptr;   // v1.8.0
     std::atomic<float>* ampAttackParam     = nullptr;
     std::atomic<float>* ampDecayParam      = nullptr;
     std::atomic<float>* ampSustainParam    = nullptr;

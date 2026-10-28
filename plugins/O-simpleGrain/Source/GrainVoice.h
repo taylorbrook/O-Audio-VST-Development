@@ -79,6 +79,10 @@ struct GrainVoiceParams
     float panSpray      = 0.0f;  // 0..100 % — per-grain stereo spread
     float velToDensity  = 0.0f;  // 0..100 % (stored 0..1) — velocity -> density depth
 
+    // --- v1.8.0 (research 2026 update §5 item 6, Tempera 2.3) ---
+    float grainSkip     = 0.0f;  // 0..1 — probability a scheduled grain is skipped
+    float grainTilt     = 0.0f;  // -1..1 — window peak: -1 plucked .. +1 reverse swell
+
     // v1.1.0 — amplitude-envelope bypass. false: flat velocity level while the
     // note is held; on release the voice stops LAUNCHING grains and the cloud
     // fades out over one grain length through the window envelopes (no click).
@@ -299,7 +303,11 @@ public:
             // the envelope shapes it out).
             if (--samplesUntilNextGrain <= 0)
             {
-                if (adsrOn || noteHeld)
+                // v1.8.0 Skip: each scheduled grain is dropped with probability
+                // grainSkip, decided here, per grain, from its own RNG slot. The
+                // clock keeps running, so a skipped grain leaves a hole in the
+                // pattern rather than shifting the next one. Skip 0 draws nothing.
+                if ((adsrOn || noteHeld) && ! skipThisGrain())
                     spawnGrain (lenSamp, phaseInc, startSample + i);
                 // Scatter (RESEARCH §2.6): jitter the period ± scatter% of the
                 // base interval. 0% = constant period (synchronous → discrete
@@ -318,7 +326,9 @@ public:
                 if (! g.active)
                     continue;
 
-                const float env = (windowLuts != nullptr) ? windowLuts->read (g.shape, g.phase, g.taperEnd) : 0.0f;
+                const float env = (windowLuts == nullptr) ? 0.0f
+                                : g.tilted ? windowLuts->readTilted (g.shape, g.phase, g.tiltPeak, g.tiltTeA, g.tiltTeR)
+                                           : windowLuts->read (g.shape, g.phase, g.taperEnd);
                 // rate > 1: band-limited mipmap read (v1.7.0, DSP-08); else Lagrange.
                 const float src = g.bandlimited ? readSourceBandlimited (g)
                                                 : readSourceLagrange (sourcePtr, sourceLen, g.readPos);
@@ -425,6 +435,17 @@ private:
         // still fits inside a 2 ms grain (clamped to a full Hann at 0.5).
         g.taperEnd      = WindowLuts::taperEndFor (params.windowShape, params.windowTaper,
                                                    lenSamp, sampleRate);
+        // v1.8.0 — tilt, fixed on spawn (its 1 ms click floor depends on THIS
+        // grain's length, like the taper). Tilt 0 leaves the grain untilted.
+        g.tilted = (params.grainTilt != 0.0f);
+        if (g.tilted)
+        {
+            const auto t = WindowLuts::tiltFor (params.windowShape, params.grainTilt,
+                                                g.taperEnd, lenSamp, sampleRate);
+            g.tiltPeak = t.peak;
+            g.tiltTeA  = t.teA;
+            g.tiltTeR  = t.teR;
+        }
 
         // --- Position spray: scatter the read start ± positionSpray% of the
         // source length around the current playhead. Under freeze the playhead is
@@ -498,6 +519,16 @@ private:
     float bipolarDraw (juce::uint32 slot) const noexcept
     {
         return CounterRng::uniform (noteSeed, spawnTick, slot) * 2.0f - 1.0f;
+    }
+
+    // v1.8.0 — true if this tick's grain is skipped. A pure function of (note
+    // seed, tick) on its own slot, so it is block-size independent and never
+    // moves the position / pitch / pan / scatter draws. At 0 nothing is drawn;
+    // at 1 every grain is skipped (uniform() < 1 always).
+    bool skipThisGrain() const noexcept
+    {
+        return params.grainSkip > 0.0f
+            && CounterRng::uniform (noteSeed, spawnTick, kSlotSkip) < params.grainSkip;
     }
 
     // The global playhead on buffer sample `sample` of this block (see
@@ -611,6 +642,7 @@ private:
     static constexpr juce::uint32 kSlotPitch    = 1;
     static constexpr juce::uint32 kSlotPan      = 2;
     static constexpr juce::uint32 kSlotScatter  = 3;
+    static constexpr juce::uint32 kSlotSkip     = 4;   // v1.8.0
     const juce::uint64* instanceSeed     = nullptr;
     juce::uint64*       noteOnCounterPtr = nullptr;
     juce::uint64        noteSeed  = 0;

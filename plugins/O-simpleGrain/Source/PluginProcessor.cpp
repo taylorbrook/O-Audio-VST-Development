@@ -152,6 +152,21 @@ OSimpleGrainAudioProcessor::createParameterLayout()
         juce::NormalisableRange<float> { 0.0f, 100.0f, 0.01f }, 0.0f,
         juce::AudioParameterFloatAttributes().withLabel ("%")));
 
+    // v1.8.0 (research 2026 update §5 item 6, Tempera 2.3). Both default to the
+    // v1.7.0 sound: Skip 0 drops nothing, Tilt 0 is the symmetric window.
+    // Skip: probability that each scheduled grain is dropped (the clock keeps
+    // running, so it thins the pattern into a rhythm rather than slowing it).
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { grainSkip, 1 }, "Grain Skip",
+        juce::NormalisableRange<float> { 0.0f, 100.0f, 0.01f }, 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("%")));
+    // Tilt: where the window peaks. −100 = plucked (fast attack, long fall),
+    // +100 = reverse swell (long rise, quick cut), 0 = symmetric. Bipolar.
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { grainTilt, 1 }, "Grain Tilt",
+        juce::NormalisableRange<float> { -100.0f, 100.0f, 0.01f }, 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("%")));
+
     //--- Amplitude envelope (per-voice ADSR) -------------------------------
     params.push_back (std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { ampAttack, 1 }, "Amp Attack", adsrTimeRange(), 0.01f,
@@ -207,6 +222,8 @@ OSimpleGrainAudioProcessor::OSimpleGrainAudioProcessor()
     grainPitchParam    = apvts.getRawParameterValue (grainPitch);
     panSprayParam      = apvts.getRawParameterValue (panSpray);
     velToDensityParam  = apvts.getRawParameterValue (velToDensity);
+    grainSkipParam     = apvts.getRawParameterValue (grainSkip);
+    grainTiltParam     = apvts.getRawParameterValue (grainTilt);
     ampAttackParam     = apvts.getRawParameterValue (ampAttack);
     ampDecayParam      = apvts.getRawParameterValue (ampDecay);
     ampSustainParam    = apvts.getRawParameterValue (ampSustain);
@@ -965,6 +982,8 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     p.panSpray       = panSprayParam->load();
     p.velToDensity   = velToDensityParam->load() * 0.01f;   // 0..100 % → 0..1 depth (GrainVoice consumes a 0..1 depth)
     p.adsrEnabled    = adsrEnabledParam->load() > 0.5f;     // v1.1.0 — envelope bypass
+    p.grainSkip      = juce::jlimit (0.0f, 1.0f, grainSkipParam->load() * 0.01f);    // v1.8.0
+    p.grainTilt      = juce::jlimit (-1.0f, 1.0f, grainTiltParam->load() * 0.01f);   // v1.8.0
     p.amp = juce::ADSR::Parameters {
         ampAttackParam->load(), ampDecayParam->load(),
         ampSustainParam->load(), ampReleaseParam->load() };
@@ -1079,11 +1098,29 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     const float taperEnd  = WindowLuts::taperEndFor (shapeNow, p.windowTaper, sizeSamp,
                                                      currentSampleRate.load (std::memory_order_relaxed));
     const bool  usesTaper = (shapeNow == WindowLuts::kShapeRect || shapeNow == WindowLuts::kShapeTukey);
-    if (shapeNow != normShapeCache || (usesTaper && taperEnd != normTaperEndCache))
+    // v1.8.0 — the tilted window's power, the same way the voices build it. For
+    // the table shapes the warp keeps μ₂ (ratio unchanged to ~1e-3); for rect /
+    // Tukey the floored tapers move it a little, and past the cap the stolen
+    // grains' LEADING part is what sounds, which tilt changes a lot (a plucked
+    // grain keeps its peak, a swell loses it) — so tilt joins the cache key.
+    const bool tiltedNow = (p.grainTilt != 0.0f);
+    const auto tiltNow   = WindowLuts::tiltFor (shapeNow, p.grainTilt, taperEnd, juce::jmax (2.0f, sizeSamp),
+                                                currentSampleRate.load (std::memory_order_relaxed));
+    if (shapeNow != normShapeCache || (usesTaper && taperEnd != normTaperEndCache)
+        || tiltedNow != normTiltedCache
+        || (tiltedNow && (tiltNow.peak != normTiltPeakCache || tiltNow.teA != normTiltTeACache
+                          || tiltNow.teR != normTiltTeRCache)))
     {
         normShapeCache    = shapeNow;
         normTaperEndCache = taperEnd;
-        normPowerRatio    = (shapeNow == WindowLuts::kShapeHann)
+        normTiltedCache   = tiltedNow;
+        normTiltPeakCache = tiltNow.peak;
+        normTiltTeACache  = tiltNow.teA;
+        normTiltTeRCache  = tiltNow.teR;
+        normPowerRatio    = tiltedNow
+                          ? windowLuts.meanSquareTilted (shapeNow, tiltNow)
+                              / windowLuts.meanSquare (WindowLuts::kShapeHann)
+                          : (shapeNow == WindowLuts::kShapeHann)
                           ? 1.0f
                           : windowLuts.meanSquare (shapeNow, taperEnd)
                               / windowLuts.meanSquare (WindowLuts::kShapeHann);
@@ -1091,11 +1128,17 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     // Past the cap, steal-oldest keeps exactly kMaxGrainsPerVoice grains live and
     // each one only reaches phase cap/overlap before it is stolen, so the power
     // is the cap × the mean w² over that leading part of the window.
-    const float rawOverlap = (grainSizeParam->load() * 0.001f) * densityParam->load();
+    // v1.8.0: Skip thins the grains that actually start, so the overlap counts
+    // only the (1 − skip) share that sounds (at Skip 0 the term is skipped, so
+    // the figure is bit-identical to v1.7.0).
+    float rawOverlap = (grainSizeParam->load() * 0.001f) * densityParam->load();
+    if (p.grainSkip > 0.0f)
+        rawOverlap *= (1.0f - p.grainSkip);
     const float overlap = (rawOverlap <= (float) kMaxGrainsPerVoice)
         ? rawOverlap * normPowerRatio
         : (float) kMaxGrainsPerVoice
-            * windowLuts.meanSquare (shapeNow, taperEnd, (float) kMaxGrainsPerVoice / rawOverlap)
+            * (tiltedNow ? windowLuts.meanSquareTilted (shapeNow, tiltNow, (float) kMaxGrainsPerVoice / rawOverlap)
+                         : windowLuts.meanSquare (shapeNow, taperEnd, (float) kMaxGrainsPerVoice / rawOverlap))
             / windowLuts.meanSquare (WindowLuts::kShapeHann);
     const float normGain = 1.0f / std::sqrt (juce::jmax (1.0f, overlap));
     const float outDb = outputLevelParam->load();
@@ -1443,6 +1486,22 @@ void OSimpleGrainAudioProcessor::setStateInformation (const void* data, int size
     // publish the correct source below, then cancelPendingUpdate() to drop the
     // queued rebuild — otherwise a restored user/dropped file would be clobbered by
     // the built-in choice a moment later.
+    // v1.8.0: a session saved before Grain Skip / Grain Tilt existed has no
+    // entry for them, and replaceState() would leave whatever this instance was
+    // set to. Give the missing ones their defaults (Skip 0, Tilt 0), so an old
+    // session renders exactly as it did in v1.7.0.
+    for (const char* id : { OSimpleGrain::ParamIDs::grainSkip, OSimpleGrain::ParamIDs::grainTilt })
+    {
+        if (! state.getChildWithProperty ("id", juce::String (id)).isValid())
+            if (auto* param = apvts.getParameter (id))
+            {
+                juce::ValueTree child ("PARAM");
+                child.setProperty ("id", juce::String (id), nullptr);
+                child.setProperty ("value", param->convertFrom0to1 (param->getDefaultValue()), nullptr);
+                state.appendChild (child, nullptr);
+            }
+    }
+
     apvts.replaceState (state);
 
     // Re-decode the active source at the current engine rate so the restored

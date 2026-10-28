@@ -153,7 +153,7 @@ const KNOB_IDS = [
   "grainSize", "density", "position", "scan",
   "pitchSpray", "positionSpray", "scatter", "grainPitch", "panSpray", "velToDensity",
   "ampAttack", "ampDecay", "ampSustain", "ampRelease",
-  "outputLevel", "windowTaper",
+  "outputLevel", "windowTaper", "grainSkip", "grainTilt",
 ];
 const COMBO_IDS = ["sourceSample", "windowShape"];
 const TOGGLE_IDS = ["freeze", "adsrEnabled"];
@@ -175,6 +175,8 @@ const FORMAT = {
   grainPitch: fmtSt,
   panSpray: fmtPct,
   velToDensity: fmtPct,
+  grainSkip: fmtPct,                                      // v1.8.0
+  grainTilt: (v) => `${v >= 0.5 ? "+" : ""}${Math.round(v)}%`,   // v1.8.0, bipolar like Scan
   ampAttack: fmtSec, ampDecay: fmtSec, ampRelease: fmtSec,
   ampSustain: fmtPct01,
   outputLevel: (v) => `${v.toFixed(1)} dB`,
@@ -344,6 +346,7 @@ fmtSt.parse = parseDirect;           // grainPitch -24..24 st
 FORMAT.grainSize.parse = parseDirect;     // stored in MILLISECONDS 2..500, always reads ms
 FORMAT.density.parse = parseDirect;       // 1..200 grains/s
 FORMAT.scan.parse = parseDirect;          // stored -200..200 (%), reads signed %
+FORMAT.grainTilt.parse = parseDirect;     // stored -100..100 (%), reads signed %
 FORMAT.pitchSpray.parse = parseDirect;    // 0..12 st
 FORMAT.outputLevel.parse = parseDirect;   // -60..0 dB ("-inf" = floor)
 
@@ -1053,6 +1056,33 @@ function taperEndFor(shape, alpha, grainMs) {
   if (shape === SHAPE_TUKEY) te = Math.max(guard, 0.5 * Math.min(1, Math.max(0, alpha)));
   return Math.min(0.5, Math.max(1e-4, te));
 }
+// v1.8.0 — mirrors WindowLuts::tiltFor() / readTilted(). tilt in [-1, 1]:
+// -1 plucked (peak at the start), +1 reverse swell (peak at the end). The steep
+// side is floored at the 1 ms guard; rect / Tukey split their fade budget.
+const TILT_MAX_SHIFT = 0.48;
+function tiltFor(shape, tilt, taperEnd, grainMs) {
+  const guard = Math.min(0.5, Math.max(1e-4, RECT_GUARD_MS / Math.max(1e-6, grainMs)));
+  const c = 0.5 + TILT_MAX_SHIFT * Math.min(1, Math.max(-1, tilt));
+  const t = { peak: Math.min(1 - guard, Math.max(guard, c)), teA: 0.5, teR: 0.5 };
+  if (shape === SHAPE_RECT || shape === SHAPE_TUKEY) {
+    const te = Math.min(0.5, Math.max(1e-4, taperEnd));
+    t.teA = Math.max(guard, 2 * c * te);
+    t.teR = Math.max(guard, 2 * (1 - c) * te);
+    if (t.teA + t.teR > 1) {               // the floor lifted one side: the other gives way
+      if (t.teA <= guard) t.teR = 1 - t.teA; else t.teA = 1 - t.teR;
+    }
+  }
+  return t;
+}
+function windowValueTilted(shape, phi, t) {
+  if (shape === SHAPE_RECT || shape === SHAPE_TUKEY) {
+    const r = Math.min(phi / Math.max(1e-4, t.teA), (1 - phi) / Math.max(1e-4, t.teR), 1);
+    return HANN(r * 0.5);
+  }
+  const c = Math.min(1 - 1e-4, Math.max(1e-4, t.peak));
+  const p = phi < c ? 0.5 * phi / c : 1 - 0.5 * (1 - phi) / (1 - c);
+  return windowValue(shape, p, 0.5);
+}
 function windowValue(shape, phi, taperEnd) {
   switch (shape) {
     case 0:                                               // rectangular (guard-faded)
@@ -1080,6 +1110,8 @@ function drawWindowInset() {
   const alpha = sliderState.windowTaper ? sliderState.windowTaper.getScaledValue() * 0.01 : 0.5;
   const grainMs = sliderState.grainSize ? sliderState.grainSize.getScaledValue() : 30;
   const taperEnd = taperEndFor(shape, alpha, grainMs);
+  const tiltPct = sliderState.grainTilt ? sliderState.grainTilt.getScaledValue() : 0;
+  const tilt = tiltPct !== 0 ? tiltFor(shape, tiltPct * 0.01, taperEnd, grainMs) : null;
 
   // Taper knob only means something for Tukey — dim + lock it otherwise.
   const taperCell = document.getElementById("taper-cell");
@@ -1098,7 +1130,8 @@ function drawWindowInset() {
   ctx.beginPath();
   for (let i = 0; i < N; i++) {
     const phi = i / (N - 1);
-    const v = Math.max(0, Math.min(1, windowValue(shape, phi, taperEnd)));
+    const v = Math.max(0, Math.min(1, tilt ? windowValueTilted(shape, phi, tilt)
+                                           : windowValue(shape, phi, taperEnd)));
     const x = phi * w;
     const y = (h - 2) - v * (h - 4);
     if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
@@ -1533,6 +1566,8 @@ function boot() {
     comboState.windowShape.valueChangedEvent.addListener(drawWindowInset);
   if (sliderState.windowTaper)
     sliderState.windowTaper.valueChangedEvent.addListener(drawWindowInset);
+  if (sliderState.grainTilt)
+    sliderState.grainTilt.valueChangedEvent.addListener(drawWindowInset);
   if (sliderState.grainSize)
     sliderState.grainSize.valueChangedEvent.addListener(drawWindowInset);
 

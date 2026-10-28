@@ -61,7 +61,7 @@ Ouaricon Plugins:
 | O-simpleFM | 📦 Installed | 1.6.1 | Synth (Pedagogical 2-Op FM) | 2026-10-27 |
 | O-simpleAdditive | 📦 Installed | 1.4.1 | Synth (Pedagogical Additive + Wavetable) | 2026-10-14 |
 | O-simpleWavetable | 📦 Installed | 1.0.2 | Synth (Pedagogical Wavetable) | 2026-10-14 |
-| O-simpleGrain | 📦 Installed | 1.7.0 | Synth (Pedagogical Granular) | 2026-10-28 |
+| O-simpleGrain | 📦 Installed | 1.8.0 | Synth (Pedagogical Granular) | 2026-10-28 |
 | O-simpleSubtractive | 📦 Installed | 1.7.4 | Synth (Pedagogical Subtractive) | 2026-10-20 |
 | O-simpleSampler | 📦 Installed | 1.6.1 | Synth (Pedagogical Sampler) | 2026-10-14 |
 | O-simpleBeatmaker | 📦 Installed | 1.4.1 | Synth (Pedagogical Step-Sequencer Drum Machine) | 2026-10-14 |

@@ -137,6 +137,112 @@ public:
         return (float) (acc / kSteps);
     }
 
+    //==========================================================================
+    // v1.8.0 — grain-shape TILT (research 2026 update §5 item 6, Tempera 2.3).
+    // Tilt moves the window's peak along the grain: −1 = plucked (the peak at
+    // the very start, a fast attack and a long fall), +1 = reverse swell (a long
+    // rise, cut off just before the end), 0 = the symmetric window, untouched.
+    //
+    // The table shapes (tri / Welch / Gauss / Hann) are PHASE-WARPED: the rise
+    // half of the window is played over [0, peak], the fall half over
+    // [peak, 1]. Each half is a linear time-scale of the original, so the window
+    // keeps its peak (1.0), its end values and — for these symmetric windows —
+    // exactly its power μ₂: the density normalization needs no new term.
+    // The remapped shapes (rect / Tukey) split their fade budget instead: the
+    // attack taper is 2·peak·te and the release 2·(1−peak)·te, which is the
+    // same warp for Tukey α = 1 (= Hann) and keeps the total fade length.
+    //
+    // CLICK FLOOR: the steep side never gets shorter than kTiltMinEdgeMs (the
+    // rect guard's 1 ms), whatever the grain size; the peak is clamped to
+    // [guard, 1 − guard] in phase units, so a tilted extreme is never steeper
+    // than the same shape's symmetric 2 ms grain (whose halves are 1 ms each).
+    // Rectangular is already AT the floor, so tilt barely moves it — it has no
+    // slope to tilt.
+    //
+    // CONTRACT (IN-05): mirrored in app.js tiltFor() / windowValueTilted().
+    static constexpr float kTiltMinEdgeMs   = kRectGuardMs;
+    static constexpr float kTiltMaxShift    = 0.48f;   // peak 0.02 .. 0.98 at ±100 %
+
+    struct Tilt
+    {
+        float peak = 0.5f;   // phase of the window maximum (table shapes)
+        float teA  = 0.5f;   // attack taper end, phase units (rect / Tukey)
+        float teR  = 0.5f;   // release taper length, phase units (rect / Tukey)
+    };
+
+    // tilt ∈ [−1, 1]; taperEnd from taperEndFor(); lenSamp the grain length.
+    static Tilt tiltFor (int shape, float tilt, float taperEnd, float lenSamp, double sampleRate) noexcept
+    {
+        const float guard = juce::jlimit (1.0e-4f, 0.5f,
+            (kTiltMinEdgeMs * 0.001f * (float) sampleRate) / juce::jmax (1.0f, lenSamp));
+        const float c = 0.5f + kTiltMaxShift * juce::jlimit (-1.0f, 1.0f, tilt);
+
+        Tilt t;
+        t.peak = juce::jlimit (guard, 1.0f - guard, c);
+        const int s = juce::jlimit (0, kNumShapes - 1, shape);
+        if (s == kShapeRect || s == kShapeTukey)
+        {
+            const float te = juce::jlimit (1.0e-4f, 0.5f, taperEnd);
+            t.teA = juce::jmax (guard, 2.0f * c * te);
+            t.teR = juce::jmax (guard, 2.0f * (1.0f - c) * te);
+            // The two tapers sum to 2·te <= 1 unless the floor lifted one of
+            // them (short grains). Then the other gives way, so the window still
+            // reaches 1 (no plateau-less, quieter short grain): the floored side
+            // keeps its 1 ms, the other takes the rest. guard <= 0.5 keeps both
+            // >= guard, and at guard 0.5 (a 2 ms grain) this is the plain Hann.
+            if (t.teA + t.teR > 1.0f)
+            {
+                if (t.teA <= guard) t.teR = 1.0f - t.teA;
+                else                t.teA = 1.0f - t.teR;
+            }
+        }
+        return t;
+    }
+
+    // read() with a tilt applied (only called for tilted grains — an untilted
+    // grain keeps read(), so tilt 0 renders bit-identically to v1.7.0).
+    float readTilted (int shape, float phase, float peak, float teA, float teR) const noexcept
+    {
+        int s = juce::jlimit (0, kNumShapes - 1, shape);
+        float p = juce::jlimit (0.0f, 1.0f, phase);
+
+        if (s == kShapeRect || s == kShapeTukey)
+        {
+            const float r = juce::jmin (p / juce::jmax (1.0e-4f, teA),
+                                        (1.0f - p) / juce::jmax (1.0e-4f, teR), 1.0f);
+            p = r * 0.5f;
+            s = kShapeHann;
+        }
+        else
+        {
+            const float c = juce::jlimit (1.0e-4f, 1.0f - 1.0e-4f, peak);
+            p = (p < c) ? 0.5f * p / c
+                        : 1.0f - 0.5f * (1.0f - p) / (1.0f - c);
+        }
+
+        const float fpos = p * (float) (size - 1);
+        const int   i0   = juce::jlimit (0, size - 1, (int) fpos);
+        const int   i1   = juce::jmin (i0 + 1, size - 1);
+        const float frac = fpos - (float) i0;
+
+        const auto& t = tables[(size_t) s];
+        return t[(size_t) i0] + frac * (t[(size_t) i1] - t[(size_t) i0]);
+    }
+
+    // meanSquare() for a tilted window (v1.8.0 density compensation).
+    float meanSquareTilted (int shape, const Tilt& tilt, float phaseEnd = 1.0f) const noexcept
+    {
+        constexpr int kSteps = 512;
+        double acc = 0.0;
+        for (int i = 0; i < kSteps; ++i)
+        {
+            const float w = readTilted (shape, phaseEnd * ((float) i + 0.5f) / (float) kSteps,
+                                        tilt.peak, tilt.teA, tilt.teR);
+            acc += (double) w * (double) w;
+        }
+        return (float) (acc / kSteps);
+    }
+
     int getSize() const noexcept { return size; }
 
 private:

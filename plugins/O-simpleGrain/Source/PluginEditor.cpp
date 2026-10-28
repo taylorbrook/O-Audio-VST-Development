@@ -106,13 +106,13 @@ OSimpleGrainAudioProcessorEditor::OSimpleGrainAudioProcessorEditor (OSimpleGrain
 {
     using namespace OSimpleGrain::ParamIDs;
 
-    // 20 APVTS params = 16 float sliders + 2 combos + 2 toggles.
+    // 22 APVTS params = 18 float sliders + 2 combos + 2 toggles (v1.8.0: + grainSkip, grainTilt).
     // (sourceSample / windowShape are choices; freeze / adsrEnabled are bools — NOT sliders.)
     const juce::StringArray sliderIds {
         grainSize, density, position, scan,
         pitchSpray, positionSpray, scatter, grainPitch, panSpray, velToDensity,
         ampAttack, ampDecay, ampSustain, ampRelease,
-        outputLevel, windowTaper
+        outputLevel, windowTaper, grainSkip, grainTilt
     };
     const juce::StringArray comboIds  { sourceSample, windowShape };
     const juce::StringArray toggleIds { freeze, adsrEnabled };

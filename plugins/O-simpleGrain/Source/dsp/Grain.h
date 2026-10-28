@@ -55,6 +55,13 @@ struct Grain
     float  taperEnd      = 0.5f;   // Tukey/rect taper end in phase units (0..0.5); v1.4.0
     int    age           = 0;      // ++ per sample — for steal-oldest
 
+    // v1.8.0 grain-shape tilt (WindowLuts::tiltFor), fixed on spawn. `tilted`
+    // false = the symmetric window through WindowLuts::read(), exactly as v1.7.0.
+    bool   tilted        = false;
+    float  tiltPeak      = 0.5f;   // table shapes: phase of the window maximum
+    float  tiltTeA       = 0.5f;   // rect / Tukey: attack taper (phase units)
+    float  tiltTeR       = 0.5f;   // rect / Tukey: release taper (phase units)
+
     // Precomputed equal-power pan gains (pan is fixed for a grain's life, so the
     // cos/sin are evaluated ONCE on spawn — never per sample in the render loop).
     float  panL          = 0.70710677f;   // cos(pan*π/2)

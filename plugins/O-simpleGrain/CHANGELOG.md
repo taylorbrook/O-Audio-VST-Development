@@ -3,6 +3,33 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.8.0] — 2026-10-28
+
+Two new grain controls in the style of Tempera 2.3 (research/granular-synthesis-2026-update.md §5, item 6): **Grain Skip** drops a random share of grains, and **Grain Tilt** moves each grain's peak from a plucked attack to a reverse swell. MINOR: two parameters are added and nothing is removed or rescaled. Both default to the 1.7.0 sound (Skip 0 %, Tilt 0 %), and sessions and presets saved before 1.8.0 render bit-identically.
+
+### Added
+- **Grain Skip** (`grainSkip`, 0–100 %, default 0). This is the chance that each scheduled grain is dropped. The grain clock keeps running, so a skipped grain leaves a gap in the pattern and the next grain still lands on time. A little skip makes a steady cloud stutter; a lot turns it into a sparse random rhythm, and 100 % is silence. Each grain's skip is decided when it would spawn, from its own slot of the seeded counter RNG (seed, note, tick, slot 4). It is therefore block-size independent and never shifts the position, pitch, pan or scatter draws of the grains that do play. At 0 % no draw is made. The density normalization counts only the (1 − skip) share of grains that sound.
+- **Grain Tilt** (`grainTilt`, −100…+100 %, default 0). This moves the peak of every grain's window. At −100 the window is plucked: the peak sits 2 % into the grain, with a fast attack and a long fall. At +100 it is a reverse swell, peaking at 98 % with a long rise and a quick cut. 0 leaves the symmetric window untouched. Triangular, Welch, Gaussian and Hann are phase-warped: the rise half plays over [0, peak] and the fall half over [peak, 1]. That keeps the peak at 1.0 and keeps the window power μ₂ exactly, so the cloud level holds. Rectangular and Tukey split their fade between the two edges (2·peak·taper for the attack, the rest for the release). For Tukey 100 % that is the same warp as Hann.
+- **Click floor.** A tilted window's steep side is never shorter than 1 ms (the Rectangular guard), whatever the grain size. A tilted extreme is therefore never steeper than the same window at the 2 ms minimum grain size, which already plays 1 ms halves. Rectangular is already at that floor, so tilt barely changes it.
+- **UI.** Tilt sits under Taper in the Window group, beside the Envelope inset, which now draws the tilted window. Skip joins Spray & Scatter. Both have hover help and captions in English, French and Simplified Chinese (French `reviewed: false`, Chinese `reviewed: 'mt'`). The Tilt caption's box is pinned to its French width ("INCLINAISON", 67.83 px).
+
+### Changed
+- `setStateInformation` gives `grainSkip` and `grainTilt` their defaults when a session predates them. Without this, an older session loaded into an instance where they had been moved kept those values.
+- `OSIMPLEGRAIN_VERSION_CODE` was still 0x010600 at 1.7.0. It is now 0x010800.
+
+### Notes
+- Past the 24-grain cap, a reverse swell is stolen before it reaches its peak (at 500 ms × 200 g/s each grain sounds only its first 24 %). It really is quieter, 5.3 dB below Tilt 0 in the level test. The normalization never boosts, by design, so the level is not lifted to compensate. Under the cap, Tilt ±100 holds the level to within 0.3 dB.
+
+### Testing
+- New `tests/skip-tilt-gate/gate.py`, run against the installed VST3 with the v1.7.0 binary as the reference. It reports 41 PASS and 0 FAIL.
+  - **A: defaults.** States written by v1.7.0 were rendered by v1.7.0, by a fresh v1.8.0 instance, and by a v1.8.0 instance set to Skip 60 / Tilt −70 before the state loaded. Three configurations were used: built-in Fire at defaults; every spray plus Scan, Grain Pitch +7 (band-limited path) and Tukey; and Rectangular past the cap. All are bit-exact. Live controls: Skip 30 and Tilt +50 each differ (−20.9 / −27.0 dBFS).
+  - **B: Skip** (DC source, isolated grains, so each grain can be counted). Skip 0 gives 376 grains. Skip 25/50/75 gives 287/192/80 against an expected 282/188/94 ± 4σ. Every surviving grain starts on a Skip-0 onset with the identical pan (difference 0). Skip 100 is exactly silent. Skip 50 is bit-exact at blocks 37 and 1024 against 512, and a different instance seed skips a different set.
+  - **C: Tilt shape** (100 ms Hann). The peak lands at 0.0198 / 0.2598 / 0.4996 / 0.7396 / 0.9794 of the grain for −100 / −50 / 0 / +50 / +100 (target 0.5 + 0.48 t). Tilt +t is the time reverse of −t to within 1.4e-3.
+  - **D: click floor.** All six windows at Tilt ±100 and grain sizes 2 / 5 / 30 / 200 / 500 ms were checked. The steepest per-sample envelope step is at most 1.001× the same window's 2 ms step.
+  - **E: level** (white noise source, incoherent cloud). Tilt ±100 against Tilt 0: Hann +0.09 / −0.03 dB, Tukey −0.11 / −0.27 dB, Hann past the cap −0.58 dB plucked (swell: see Notes). Skip 50 against Skip 0 on a dense cloud: −0.17 dB.
+- Regression: `tests/blocksize-null/gate.py` 21 PASS (reaper +11.9 MiB over 400 idle loads, limit 20), `tests/alias-gate/gate.py` PASS, `tests/state-persistence/persist_test.py` 0 fails. pluginval strictness 10 SUCCESS, auval SUCCEEDED.
+- UI: `check-i18n` passes on all 46 plugins, `i18n-fr-lint` is clean, `i18n-zh-lint` passes, and `check-ui-labels --plugin O-simpleGrain` passes all checks in 5 states.
+
 ## [1.7.0] — 2026-10-28
 
 Pitched-up grains no longer alias. A grain played above its recorded pitch now reads a band-limited copy of the source, built when the sound loads, instead of passing a 4-point read through a one-pole filter. MINOR because grains that play above the source's pitch sound different: the folded-back tones are gone, and the top octave is brighter at most rates. There is no parameter, range, state, UI or i18n change. Grains at or below the recorded pitch render bit-identically to 1.6.0.

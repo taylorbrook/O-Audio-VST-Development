@@ -376,6 +376,17 @@ export const I18N = Object.freeze({
                      b: "仅对 Tukey 有效：每个颗粒中用于淡化的比例，0–100%，分摊到两端。0% 是平坦的矩形窗（带保护淡化）；100% 是完整的 Hann。介于两者之间时，中段保持平坦而响亮，只买下刚好够用的淡化来阻止边缘发出咔哒声。",
                      reviewed: 'bt' },
     },
+    // v1.8.0 — Tempera 2.3 style grain-shape tilt (research 2026 update §5 item 6).
+    grainTilt: {
+        en: { t: "Grain Tilt",
+              b: "Moves the peak of each grain’s window, −100…+100\u00a0%. Left is plucked: a fast attack and a long fade, so every grain strikes like a note. Right is a reverse swell: a long rise cut off at the end, like tape played backwards. 0 is the symmetric window. Watch the Envelope. The steep side never gets shorter than 1\u00a0ms, so the extremes stay click-free; Rectangular is already that steep, so it barely changes." },
+        fr: { t: "Inclinaison du grain",
+              b: "Déplace le sommet de la fenêtre de chaque grain, −100…+100\u00a0%. À gauche, pincé\u00a0: une attaque rapide et un long fondu, chaque grain frappe comme une note. À droite, une montée inversée\u00a0: une longue montée coupée à la fin, comme une bande lue à l’envers. 0 est la fenêtre symétrique. Regardez l’enveloppe. Le côté raide ne descend jamais sous 1\u00a0ms, si bien que les extrêmes ne claquent pas\u00a0; Rectangular est déjà aussi raide, il change donc à peine.",
+              reviewed: false },
+        'zh-Hans': { t: "颗粒倾斜",
+                     b: "移动每个颗粒窗口的峰值位置，−100…+100%。向左是拨奏：起音快、淡出长，每个颗粒都像一个音符那样被拨响。向右是反向渐强：长长的上升在末尾被切断，像倒放的磁带。0 是对称的窗口。请看包络。陡的一侧从不短于 1 ms，所以两端都不会发出咔哒声；Rectangular 本来就这么陡，所以几乎不变。",
+                     reviewed: 'mt' },
+    },
 
     // ── Spray and scatter ───────────────────────────────────────────────────
     pitchSpray: {
@@ -438,6 +449,17 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: "力度 → 密度",
                      b: "您的演奏力度对密度的驱动程度，0–100%。为 0 时密度固定；调高后按得越重就生成越厚的云团（响度已经通过振幅包络跟随力度，这里是在此之上再加厚度）。",
                      reviewed: 'bt' },
+    },
+    // v1.8.0 — Tempera 2.3 style skip probability (research 2026 update §5 item 6).
+    grainSkip: {
+        en: { t: "Grain Skip",
+              b: "The chance that each grain is left out, 0–100\u00a0%. The grain clock keeps ticking, so a skipped grain leaves a gap instead of slowing the stream: a little skip makes a steady cloud stutter and breathe, a lot turns it into a sparse, random rhythm. At 100\u00a0% nothing plays." },
+        fr: { t: "Omission de grains",
+              b: "La probabilité que chaque grain soit omis, 0–100\u00a0%. L’horloge des grains continue de battre, si bien qu’un grain omis laisse un trou au lieu de ralentir le flux\u00a0: un peu d’omission fait bégayer et respirer un nuage régulier, beaucoup en fait un rythme clairsemé et aléatoire. À 100\u00a0%, plus rien ne joue.",
+              reviewed: false },
+        'zh-Hans': { t: "颗粒跳过",
+                     b: "每个颗粒被跳过的概率，0–100%。颗粒时钟照常走，所以被跳过的颗粒留下空隙，而不是让颗粒流变慢：少量跳过会让平稳的云团断续、起伏，大量跳过则把它变成稀疏而随机的节奏。100% 时什么都不发声。",
+                     reviewed: 'mt' },
     },
 
     // ── Amplitude envelope ──────────────────────────────────────────────────
@@ -882,6 +904,11 @@ export const LABELS = Object.freeze({
         fr: { t: "Fondu", reviewed: true },
         'zh-Hans': { t: "渐变", reviewed: 'bt' },
     },
+    'label.knobTilt': {
+        en: { t: "Tilt" },
+        fr: { t: "Inclinaison", reviewed: false },
+        'zh-Hans': { t: "倾斜", reviewed: 'mt' },
+    },
     'label.groupSpray': {
         en: { t: "Spray & Scatter" },
         fr: { t: "Dispersions", reviewed: true },
@@ -918,6 +945,11 @@ export const LABELS = Object.freeze({
         en: { t: "Vel→Density" },
         fr: { t: "Vél.→Densité", reviewed: true },
         'zh-Hans': { t: "力度→密度", reviewed: 'bt' },
+    },
+    'label.knobSkip': {
+        en: { t: "Skip" },
+        fr: { t: "Omission", reviewed: false },
+        'zh-Hans': { t: "跳过", reviewed: 'mt' },
     },
     'label.groupEnv': {
         en: { t: "Amplitude Envelope" },
@@ -1167,6 +1199,7 @@ export const TIP_BINDINGS = [
 
     ['[data-param="windowShape"]',                   'windowShape'],
     ['[data-param="windowTaper"]',                   'windowTaper'],
+    ['[data-param="grainTilt"]',                     'grainTilt'],
 
     ['[data-param="pitchSpray"]',                    'pitchSpray'],
     ['[data-param="positionSpray"]',                 'positionSpray'],
@@ -1174,6 +1207,7 @@ export const TIP_BINDINGS = [
     ['[data-param="grainPitch"]',                    'grainPitch'],
     ['[data-param="panSpray"]',                      'panSpray'],
     ['[data-param="velToDensity"]',                  'velToDensity'],
+    ['[data-param="grainSkip"]',                     'grainSkip'],
 
     ['[data-param="adsrEnabled"]',                   'adsrEnabled'],
     ['[data-param="ampAttack"]',                     'ampAttack'],

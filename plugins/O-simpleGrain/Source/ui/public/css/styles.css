@@ -985,6 +985,14 @@ body {
 /* Taper only shapes the Tukey window — dim + lock it for every other shape
    (same treatment as the ADSR knobs under env-bypassed). */
 .knob-cell.taper-inactive { opacity: 0.38; pointer-events: none; transition: opacity 0.2s ease; }
+/* v1.8.0 — second Window row: Tilt stacked directly under Taper, so the two
+   knobs that reshape the envelope read as one column beside the inset. The
+   offset is row 1's leading content: combo 104 + gap 12 + inset 84 + gap 12. */
+.group-window .window-row-2 { margin-top: 4px; padding-left: 212px; flex-wrap: nowrap; }
+/* Tilt's caption is PINNED to its French width ("INCLINAISON" 67.83px vs
+   "TILT" 22.11px), the D-04 pin rather than a shorter variant. Centred in its
+   56px cell it overhangs 6px each side, inside the group's 12px padding. */
+.group-window [data-i18n="label.knobTilt"] { min-width: 68px; }
 
 /* ── Grain / overlap / CPU readout (below the grid) ───────────────────────── */
 .grain-readout {

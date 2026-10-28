@@ -23,7 +23,7 @@
     O-simpleGrain - Plugin Editor
 
     Stage 3 (GUI): single-page Ouaricon "Granular Field Guide" WebView UI.
-    Binds all 20 APVTS parameters two-way via Web*Relay / Web*ParameterAttachment
+    Binds all 22 APVTS parameters two-way via Web*Relay / Web*ParameterAttachment
     (15 sliders + 2 combo boxes + 2 toggles), serves the embedded field-guide page
     through a bare-path resource provider, and registers the source drag-drop /
     file-picker native functions (decode is C++-side on the processor).
