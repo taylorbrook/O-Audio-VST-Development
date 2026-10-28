@@ -74,11 +74,17 @@ used_by:
     version: 1.22.4
     uses: [WindowLut]
   - plugin: O-GrainScatter
-    version: 3.3.0
+    version: 3.4.0
     uses: [BandlimitedReader]
   - plugin: O-simpleGrain
-    version: 1.7.0
+    version: 1.8.0
     uses: [BandlimitedReader]   # MipRing (build only) + MipSnapshot<6>, static source
+  - plugin: O-TextureForge
+    version: 1.7.0
+    uses: [BandlimitedReader]   # MipRing<6> kept as the corpus copy (no snapshot), Pitch-Mapped rate > 1 only
+  - plugin: O-Polystutter
+    version: 1.19.0
+    uses: [BandlimitedReader]   # MipRing<2>, built lazily ahead of the read; own CounterRng kept
 
 changelog:
   - version: 1.1.0
