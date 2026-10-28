@@ -22,6 +22,7 @@
 #include <JuceHeader.h>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include "DelayBuffer.h"
 #include "FreezeManager.h"
 #include "SpatialEncoder.h"
@@ -68,6 +69,12 @@ struct GrainVoice
     int trajectoryType = 0;
     unsigned int rngState = 0;          // LCG state for random trajectory
     float dopplerFactor = 1.0f;         // Per-grain Doppler pitch mod (computed from angular velocity)
+    // v3.3.0 band-limited reader: octave level latched at spawn from playbackRate (which
+    // already carries the freeze detune), and the sinc set for the residual rate on it.
+    // The stereo path keeps sincSet; the spatial path re-picks it per sample from
+    // playbackRate * dopplerFactor, never the level.
+    std::uint8_t level = 0;
+    std::uint8_t sincSet = 0;
     float stealGain = 1.0f;             // v3.0.5: steal fade-out gain (1 = not fading)
     float stealStep = 0.0f;             // v3.0.5: per-sample decrement, > 0 while fading
 };
@@ -115,6 +122,17 @@ public:
             v.stealStep = 0.0f;
         }
         nextVoice = 0;
+    }
+
+    // v3.3.0: the reader's level / set choice (grain-engine BandlimitedReader).
+    static int latchLevel (float rate)
+    {
+        return ouaricon::grain::latchLevel (static_cast<double> (rate), DelayBuffer::kMaxLevel);
+    }
+
+    static int sincSetFor (float rate, int level)
+    {
+        return ouaricon::grain::SincBank::setFor (std::ldexp (static_cast<double> (rate), -level));
     }
 
     // Compute envelope value for a given phase (0..1) and shape
@@ -223,6 +241,8 @@ public:
         v.readFromFrozen = params.readFromFrozen;
         v.frozenSlot = params.readFromFrozen ? params.frozenSlot : -1;
         v.frozenBase = params.frozenBase;
+        v.level = static_cast<std::uint8_t> (latchLevel (params.playbackRate));
+        v.sincSet = static_cast<std::uint8_t> (sincSetFor (params.playbackRate, v.level));
 
         // Start position
         if (v.reverse)
@@ -301,8 +321,7 @@ public:
             if (v.frozenSlot >= 0)
             {
                 const double pos = v.frozenBase + v.readPosition;
-                sample  = freezeMgr.readSample (v.frozenSlot, 0, pos);
-                sampleR = freezeMgr.readSample (v.frozenSlot, 1, pos);
+                freezeMgr.readStereo (v.frozenSlot, v.level, pos, v.sincSet, sample, sampleR);
             }
             else
             {
@@ -310,10 +329,10 @@ public:
                 // samples have passed since grain spawn, so (elapsed - readPosition)
                 // cancels out the write-head drift at playbackRate 1.0, yielding a
                 // constant delay tap that streams real audio through the grain window.
+                // The reader clamps the tap to margin(level) behind the head.
                 double elapsed = static_cast<double> (v.grainLengthSamples - v.samplesRemaining);
                 double delaySamples = v.positionOffset + elapsed - v.readPosition;
-                sample  = delayBuf.readSample (0, delaySamples);
-                sampleR = delayBuf.readSample (1, delaySamples);
+                delayBuf.readStereo (v.level, delaySamples, v.sincSet, sample, sampleR);
             }
 
             live += v.stealGain;
@@ -364,26 +383,28 @@ public:
                                 / static_cast<float> (v.grainLengthSamples);
             float envelope = computeEnvelope (phase, grainShape);
 
-            // Read sample (stereo -> mono)
-            float sampleL = 0.0f;
-            float sampleR = 0.0f;
+            // Read sample (stereo -> mono). v3.3.0: Doppler moves the residual rate inside
+            // the grain, so the sinc set follows it per sample (the level stays latched;
+            // the reader clamps the tap to margin(level), which Doppler could otherwise
+            // drive past the write head).
+            const float advanceRate = v.playbackRate * v.dopplerFactor;
+            const int set = sincSetFor (advanceRate, v.level);
+            float monoIn = 0.0f;
 
             if (v.frozenSlot >= 0)
             {
                 const double pos = v.frozenBase + v.readPosition;
-                sampleL = freezeMgr.readSample (v.frozenSlot, 0, pos);
-                sampleR = freezeMgr.readSample (v.frozenSlot, 1, pos);
+                monoIn = freezeMgr.readMono (v.frozenSlot, v.level, pos, set);
             }
             else
             {
                 double elapsed = static_cast<double> (v.grainLengthSamples - v.samplesRemaining);
                 double delaySamples = v.positionOffset + elapsed - v.readPosition;
-                sampleL = delayBuf.readSample (0, delaySamples);
-                sampleR = delayBuf.readSample (1, delaySamples);
+                monoIn = delayBuf.readMono (v.level, delaySamples, set);
             }
 
             live += v.stealGain;
-            float mono = (sampleL + sampleR) * 0.5f * envelope * v.amplitude * v.stealGain;
+            float mono = monoIn * envelope * v.amplitude * v.stealGain;
 
             // Distance attenuation (kDistanceScale controls attenuation steepness).
             // IN-10: grain gain uses v.distance FROZEN at spawn, whereas the processor's
@@ -402,7 +423,7 @@ public:
                 hoaBus[ch] += mono * v.shCoeffs.current[ch];
 
             // Advance read position (with Doppler pitch modulation)
-            double advance = static_cast<double> (v.playbackRate * v.dopplerFactor);
+            double advance = static_cast<double> (advanceRate);
             if (v.reverse)
                 v.readPosition -= advance;
             else

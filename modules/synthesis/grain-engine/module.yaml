@@ -1,10 +1,10 @@
-# grain-engine module v1.0.0
+# grain-engine module v1.1.0
 # Shared granular building blocks: window tables with integrated moments, a
 # fractional-onset scheduler, a counter-based RNG and a fade-on-steal pool.
 # Seeded from four plugins (see per-class origins below).
 
 name: grain-engine
-version: 1.0.0
+version: 1.1.0
 description: |
   Header-only granular primitives.
 
@@ -27,6 +27,16 @@ description: |
   Also a refuse-on-full tryObtain(). From O-Freeze 2.7.0 / O-simpleGrain 1.5.4 /
   O-GrainScatter 3.0.5.
 
+  BandlimitedReader (1.1.0) — band-limited grain reads for pitched-up grains.
+  MipRing<L>: stereo ring plus L octave levels built on the write path by a
+  causal 127-tap Kaiser half-band (group delay compensated: level l is read at
+  (p0 + 63(2^l - 1) - (2^l - 1)) / 2^l, time-aligned with level 0), mirrored for
+  contiguous 16-tap reads, absolute write counter, block-size invariant.
+  SincBank: 16-tap Kaiser sinc, 8 cutoff sets x 257 phases, unity DC per phase.
+  MipSnapshot: every level of a region, for freeze playback. latchLevel / setFor
+  pick the level at spawn and the set from the residual rate. Plain C++20, no
+  JUCE. First consumer O-GrainScatter 3.3.0.
+
 category: synthesis
 author: Ouaricon Audio
 origin: O-ReverseDelay
@@ -37,12 +47,15 @@ provides:
     - ouaricon::grain::GrainScheduler
     - ouaricon::grain::GrainPool
     - ouaricon::grain::CounterRng   # namespace of free functions + Draw
+    - ouaricon::grain::MipRing      # BandlimitedReader.h (1.1.0)
+    - ouaricon::grain::SincBank     # BandlimitedReader.h (1.1.0)
+    - ouaricon::grain::MipSnapshot  # BandlimitedReader.h (1.1.0)
 
 dependencies: []
 
 requirements:
   juce_modules:
-    - juce_core        # WindowLut only; the other three are plain C++
+    - juce_core        # WindowLut only; everything else is plain C++
   cpp_standard: 20
 
 sources:
@@ -51,6 +64,7 @@ sources:
     - cpp/GrainScheduler.h
     - cpp/CounterRng.h
     - cpp/GrainPool.h
+    - cpp/BandlimitedReader.h
 
 tests:
   - tests/grain_engine_tests.cpp   # standalone; see tests/CMakeLists.txt
@@ -59,8 +73,16 @@ used_by:
   - plugin: O-ReverseDelay
     version: 1.22.4
     uses: [WindowLut]
+  - plugin: O-GrainScatter
+    version: 3.3.0
+    uses: [BandlimitedReader]
 
 changelog:
+  - version: 1.1.0
+    date: 2026-10-27
+    changes:
+      - "BandlimitedReader.h (new, optional; existing headers untouched): MipRing (3-level half-band mip cascade on the write path, 127-tap Kaiser beta 9.2, -92 dB stopband at 44.1 k, group-delay compensated), SincBank (16 taps, 8 sets x 257 phases, unity DC per phase; S0-S6 <= -60 dB audible spurious up to their edge, S7 best effort), MipSnapshot (freeze capture of every level), latchLevel / setFor"
+      - "tests: 15 B* checks — DC per phase, level alignment <= 0.05 smp, half-band and driven sinc stopbands, block-split invariance, alloc-free, snapshot == live (bit-identical), read-guard margins 9/80/222/506"
   - version: 1.0.0
     date: 2026-10-27
     changes:

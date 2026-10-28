@@ -263,7 +263,13 @@ private:
     {
         const float p = live * mu2 + rho * live * juce::jmax (0.0f, live - 1.0f) * mu1Sq;
         densityPower += densityCoeff * (p - densityPower);
+       #ifdef GS_TEST_DENSITY_COMP_OFF
+        // Test hook only (tests/density-gain, reference target): density compensation off,
+        // so the sparse row's reference is this build's own unity-gain render (v3.3.0).
+        return 1.0f;
+       #else
         return 1.0f / std::sqrt (juce::jmax (1.0f, densityPower));
+       #endif
     }
 
     // Spawn request buffer (pre-allocated)

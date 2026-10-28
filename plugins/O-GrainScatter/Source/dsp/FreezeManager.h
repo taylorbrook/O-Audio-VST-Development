@@ -21,7 +21,6 @@
 
 #include <JuceHeader.h>
 #include "DelayBuffer.h"
-#include "LagrangeInterpolation.h"
 #include <array>
 #include <cmath>
 
@@ -37,32 +36,40 @@
 // Two slots: a grain latches its slot at spawn and finishes on it after release,
 // so release needs no timer and nothing switches source mid-grain. The grain
 // envelopes are the crossfade in both directions.
+//
+// v3.3.0: a slot is a grain-engine MipSnapshot — every octave level of the ring
+// over the captured span — read through the same band-limited sinc reader as the
+// live ring, so frozen pitched-up grains don't alias either. The capture ends
+// margin(3) = 506 samples (~10 ms) before the write head, where every level is
+// settled; at engage the newest ~10 ms are not part of the loop.
 class FreezeManager
 {
 public:
     static constexpr int kNumSlots = 2;
+    using Snapshot = ouaricon::grain::MipSnapshot<DelayBuffer::kMaxLevel>;
+    static constexpr int kCaptureEndDelay = DelayBuffer::margin (DelayBuffer::kMaxLevel);
 
     void prepare (double newSampleRate, int maxLengthSamples)
     {
         for (auto& s : slots)
         {
-            s.buffer.setSize (2, maxLengthSamples);
-            s.buffer.clear();
+            s.snap.prepare (maxLengthSamples);
             s.length = s.loopLength = s.xfade = 0;
             s.head = 0.0;
         }
+        maxLength = maxLengthSamples;
         maxXfade = juce::jmax (1, static_cast<int> (newSampleRate * 0.010));  // 10 ms seam crossfade
         active = false;
         currentSlot = 0;
     }
 
-    // Alloc-free state reset for reset() — zeroes the (already-sized) buffers and clears
-    // freeze state without setSize(). CR-02: keeps reset() off the allocator.
+    // Alloc-free state reset for reset() — zeroes the (already-sized) snapshots and
+    // clears freeze state. CR-02: keeps reset() off the allocator.
     void clear()
     {
         for (auto& s : slots)
         {
-            s.buffer.clear();
+            s.snap.clear();
             s.length = s.loopLength = s.xfade = 0;
             s.head = 0.0;
         }
@@ -70,14 +77,15 @@ public:
         currentSlot = 0;
     }
 
-    // Capture the most recent audio into `slot`. The loop length is latched here to
-    // what the delay line has actually been written with, capped at the slot size, so
-    // a freeze pressed right after load doesn't loop through never-written silence.
+    // Capture the most recent settled audio into `slot`. The loop length is latched
+    // here to what the delay line has actually been written with (less the capture
+    // end offset), capped at the slot size, so a freeze pressed right after load
+    // doesn't loop through never-written silence.
     void engage (const DelayBuffer& delayBuf, int slot)
     {
         auto& s = slots[static_cast<size_t> (slot)];
-        const int len = juce::jmin (s.buffer.getNumSamples(), delayBuf.getSamplesWritten());
-        delayBuf.copyRegion (s.buffer, len, len);
+        const int len = juce::jlimit (0, maxLength, delayBuf.getSamplesWritten() - kCaptureEndDelay);
+        s.snap.captureFrom (delayBuf.getRing(), kCaptureEndDelay, len);
         s.length     = len;
         s.xfade      = juce::jmin (maxXfade, len / 4);
         s.loopLength = len - s.xfade;
@@ -111,55 +119,70 @@ public:
 
     // The captured audio is a loop over [xfade, length). Its last xfade samples are
     // blended equal-power into the xfade samples before the loop start, so the seam
-    // where the newest captured sample meets the oldest is not a splice.
-    float readSample (int slot, int channel, double position) const
+    // where the newest captured sample meets the oldest is not a splice. The reader
+    // is linear, so blending two band-limited reads equals reading the blend.
+    void readStereo (int slot, int level, double position, int sincSet, float& outL, float& outR) const
+    {
+        const auto& s = slots[static_cast<size_t> (slot)];
+        outL = outR = 0.0f;
+        if (s.loopLength <= 0) return;
+
+        Seam seam;
+        locate (s, position, seam);
+        s.snap.readStereo (level, seam.b, sincSet, outL, outR);
+        if (seam.gIn > 0.0f || seam.gOut < 1.0f)
+        {
+            float l2, r2;
+            s.snap.readStereo (level, seam.b - static_cast<double> (s.loopLength), sincSet, l2, r2);
+            outL = seam.gOut * outL + seam.gIn * l2;
+            outR = seam.gOut * outR + seam.gIn * r2;
+        }
+    }
+
+    // (L + R) / 2, for the spatial path.
+    float readMono (int slot, int level, double position, int sincSet) const
     {
         const auto& s = slots[static_cast<size_t> (slot)];
         if (s.loopLength <= 0) return 0.0f;
 
-        const double x  = static_cast<double> (s.xfade);
-        const double lp = static_cast<double> (s.loopLength);
-        double m = std::fmod (position - x, lp);
-        if (m < 0.0) m += lp;
-        const double b = x + m;   // [xfade, length)
-
-        auto* data = s.buffer.getReadPointer (channel);
-        const double seamStart = static_cast<double> (s.length) - x;
-
-        if (s.xfade > 0 && b >= seamStart)
-        {
-            const float fade = static_cast<float> ((b - seamStart) / x);
-            const float gOut = std::cos (fade * juce::MathConstants<float>::halfPi);
-            const float gIn  = std::sin (fade * juce::MathConstants<float>::halfPi);
-            return gOut * readAt (data, s.length, b) + gIn * readAt (data, s.length, b - lp);
-        }
-
-        return readAt (data, s.length, b);
+        Seam seam;
+        locate (s, position, seam);
+        float m = s.snap.readMono (level, seam.b, sincSet);
+        if (seam.gIn > 0.0f || seam.gOut < 1.0f)
+            m = seam.gOut * m + seam.gIn * s.snap.readMono (level, seam.b - static_cast<double> (s.loopLength), sincSet);
+        return m;
     }
 
 private:
     struct Slot
     {
-        juce::AudioBuffer<float> buffer;
+        Snapshot snap;
         int length = 0;       // captured samples
         int loopLength = 0;   // length - xfade
         int xfade = 0;        // seam crossfade samples
         double head = 0.0;    // virtual write head (snapshot coordinates)
     };
 
-    // Lagrange 3rd-order read with the kernel clamped to the captured span.
-    static float readAt (const float* data, int length, double pos)
+    struct Seam { double b = 0.0; float gOut = 1.0f, gIn = 0.0f; };
+
+    static void locate (const Slot& s, double position, Seam& out)
     {
-        int i0 = static_cast<int> (pos);
-        const float frac = static_cast<float> (pos - static_cast<double> (i0));
-        i0 = juce::jlimit (0, length - 1, i0);
-        const int im1 = juce::jmax (0, i0 - 1);
-        const int i1  = juce::jmin (length - 1, i0 + 1);
-        const int i2  = juce::jmin (length - 1, i0 + 2);
-        return lagrangeInterpolate (data[im1], data[i0], data[i1], data[i2], frac);
+        const double x  = static_cast<double> (s.xfade);
+        const double lp = static_cast<double> (s.loopLength);
+        double m = std::fmod (position - x, lp);
+        if (m < 0.0) m += lp;
+        out.b = x + m;   // [xfade, length)
+        const double seamStart = static_cast<double> (s.length) - x;
+        if (s.xfade > 0 && out.b >= seamStart)
+        {
+            const float fade = static_cast<float> ((out.b - seamStart) / x);
+            out.gOut = std::cos (fade * juce::MathConstants<float>::halfPi);
+            out.gIn  = std::sin (fade * juce::MathConstants<float>::halfPi);
+        }
     }
 
     std::array<Slot, kNumSlots> slots;
+    int maxLength = 0;
     int maxXfade = 441;
     int currentSlot = 0;
     bool active = false;

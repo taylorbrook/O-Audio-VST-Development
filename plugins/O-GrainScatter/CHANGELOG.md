@@ -1,5 +1,49 @@
 # Changelog
 
+## [3.3.0] - 2026-10-27
+
+### Changed
+- **Pitched-up grains no longer alias.** v3.2.0 read the ring with 4-point Lagrange and no filtering, so from +12 st up every component above the output Nyquist folded back into the audible band at full level (0 dB). Grains now read through the grain-engine 1.1.0 band-limited reader:
+  - the 12 s ring also keeps 1/2, 1/4 and 1/8-rate copies, built on the write path by a 127-tap half-band with its delay compensated, so the copies are time-aligned with the ring;
+  - a grain latches the octave copy for its rate at spawn (+12 st and up read a decimated copy) and reads it with a 16-tap windowed sinc whose cutoff follows the remaining rate;
+  - every audible alias is now at or below −60 dB (gate below). The spatial path re-picks the sinc cutoff per sample as Doppler moves the rate.
+- **The interpolator changes at unity pitch too.** Grains at any pitch now use the sinc, not Lagrange. Its −1 dB point at unity is 16.2 kHz (44.1 kHz) / 17.7 kHz (48 kHz); Lagrange's was 12.4 / 13.5 kHz averaged over fractions. White noise above about 20 kHz is now filtered out: the coherent density rows read about 0.7 dB lower than in v3.2.0.
+- **The top end moves within each octave of pitch.** With 16 taps the output −1 dB point (44.1 kHz) runs from 16.2 kHz just above an octave boundary down to 8.3 kHz just below the next one, so +11.9 st is duller than +12.1 st:
+
+  | Pitch | −1 dB @ 44.1 k | @ 48 k |
+  |---|---|---|
+  | 0 / +12 / +24 / +36 st | 16.2 kHz | 17.7 kHz |
+  | +3 st | 13.5 | 14.7 |
+  | +6 st | 13.0 | 14.2 |
+  | +9 st | 9.6 | 10.4 |
+  | +11.9 / +23.9 / +35.9 st | 8.3 | 9.1 |
+  | −6 / −12 st | 11.5 / 8.1 | 12.5 / 8.8 |
+- **Freeze captures audio ending about 10 ms before you engage it** (506 samples). That is where every octave copy is settled. The loop length is unchanged.
+- **Fix: Doppler could read past the write head.** The spawn pre-roll used the base rate only, while the spatial path advances by rate × Doppler (up to 2×). A grain at the read-head floor could step ahead of the write head and read 12 s-old audio. Every read is now clamped to the settled history (9 / 80 / 222 / 506 samples behind the head for the four octave copies). The spawn guard and the density estimate use the same margins; grains pinned to the floor sit up to 11 ms further back at +36 st.
+- **Memory and CPU.** The octave copies add 0.875× the ring (192 kHz: 18.4 MB → 34.6 MB) and each freeze slot grows 1.875×. All of it is allocated in prepare. 64 grains at +24 st, 48 kHz: 871 ns per output sample stereo (v3.2.0 477), 1234 ns spatial (v3.2.0 765). That is 4.2 % / 5.9 % of one core, against 2.3 % / 3.7 %.
+
+No parameter, preset or state change.
+
+**Known limits.** Doppler above 1.41 on a grain near the top of an octave (remaining rate 2.83–4) is best effort: about −38 dB at +35 st with Doppler 2. A Doppler below about 0.9 on a grain at +12 st or higher can image the 10–11 kHz band (per octave) at up to −30 dB. Doppler in normal motion stays within ±1 %, so both only happen on trajectory jumps.
+
+### Testing
+- New gate `tests/alias-gate` (target `O-GrainScatter-alias-gate`). Its twin `-alias-gate-v320` compiles the same driver against v3.2.0 (commit 9c6c22d0, extracted with git archive) as the negative control. Total audible spurious power, 44.1 kHz:
+
+  | Row | v3.2.0 | v3.3.0 |
+  |---|---|---|
+  | +12 st stereo: tones / out-of-band sweep | 0.0 / −0.3 dB | −95.8 / −108.2 dB |
+  | +24 st stereo | 0.0 / −0.4 dB | −95.9 / −99.1 dB |
+  | +36 st stereo | 0.0 / −0.5 dB | −95.4 / −80.8 dB |
+  | +24 st through processBlock | −0.2 dB | −117.0 dB |
+  | +36 st spatial, Doppler 1.0 / 1.4 | 0.0 / 0.0 dB | −80.8 / −63.5 dB |
+  | Frozen +36 st | 0.0 dB | −95.3 dB |
+  | Doppler 2 (report): +36 st / +35 st | 0.0 / 0.0 dB | −67.3 / −38.5 dB |
+  | Octave-boundary lag, rate 1.99 vs 2.01 | — | 0.000 samples (a 0.2-sample offset reads 0.197) |
+
+- `tests/blocksize-null`: every render row still nulls bit-exact across 32 / 512 / variable blocks. The ring-precision row now compares reads on a ring whose head is past 2^21 against the same reads on a freshly started ring, on all four octave copies: −400 dB (threshold −100 dB unchanged). The analytic-sine reference measured Lagrange, not position precision. Negative control: a float read position gives −47.9 dB (FAIL).
+- `tests/density-gain`: ALL PASS. The sparse row now nulls against this build with density compensation forced off (`O-GrainScatter-density-gain-compoff`), because the new reader changes every grain's samples; the result is bit-identical (threshold −70 dB unchanged). Negative control: a 0.99 gain gives −40 dB (FAIL).
+- grain-engine module tests: 38/38. They cover unity DC on every sinc phase, level alignment (≤ 0.003 sample), the half-band stopband (−92.0 dB), the driven S0–S6 stopbands (−60.6 to −94.4 dB), block-split invariance, no allocation, and snapshot reads that are bit-identical to live reads.
+
 ## [3.2.0] — 2026-10-27
 
 ### Changed

@@ -8,7 +8,7 @@ juce_add_plugin(OuariconGrainScatter
     PLUGIN_CODE OuGS
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-GrainScatter${OUARICON_DEV_SUFFIX}"
-    VERSION 3.2.0
+    VERSION 3.3.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -46,6 +46,11 @@ target_link_libraries(OuariconGrainScatter
 )
 
 juce_generate_juce_header(OuariconGrainScatter)
+
+# v3.3.0: grain-engine 1.1.0 for the band-limited reader (BandlimitedReader.h).
+# Only that header is included; the local CounterRng / GrainScheduler / GrainPool
+# copies in Source/dsp stay (global namespace, no clash with ouaricon::grain).
+ouaricon_add_module(OuariconGrainScatter grain-engine)
 
 # WebView UI Resources
 juce_add_binary_data(OuariconGrainScatter_UIResources
@@ -115,5 +120,37 @@ if(OUARICON_BUILD_TESTS)
         list(TRANSFORM _gs_db_srcs REPLACE "^${CMAKE_CURRENT_SOURCE_DIR}/Source/" "${_gs_density_base}/")
         set_property(TARGET O-GrainScatter-density-gain-baseline PROPERTY SOURCES ${_gs_db_srcs})
         target_compile_definitions(O-GrainScatter-density-gain-baseline PRIVATE GS_DENSITY_BASELINE=1)
+    endif()
+
+    # v3.3.0: the sparse row's reference is this build with density compensation forced
+    # off (the band-limited reader changed every grain's samples, so v3.1.0 no longer
+    # nulls). Same driver, reference mode (dumps, no verdicts):
+    #   O-GrainScatter-density-gain-compoff <dir> && O-GrainScatter-density-gain <dir>
+    ouaricon_add_processor_console(OuariconGrainScatter ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/density-gain/main.cpp density-gain-compoff)
+    target_compile_definitions(O-GrainScatter-density-gain-compoff PRIVATE
+        GS_DENSITY_BASELINE=1 GS_TEST_DENSITY_COMP_OFF=1)
+
+    # v3.3.0 alias gate (band-limited reader). The -v320 twin compiles the same driver
+    # against v3.2.0 (commit 9c6c22d0, extracted with git archive at configure time)
+    # as the negative control: it must FAIL the alias rows.
+    ouaricon_add_processor_console(OuariconGrainScatter ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/alias-gate/main.cpp alias-gate)
+    set(_gs_v320_root ${CMAKE_BINARY_DIR}/gs-v320-9c6c22d0)
+    set(_gs_v320_src ${_gs_v320_root}/plugins/O-GrainScatter/Source)
+    if(NOT EXISTS ${_gs_v320_src}/PluginProcessor.cpp)
+        file(MAKE_DIRECTORY ${_gs_v320_root})
+        execute_process(
+            COMMAND git -C ${CMAKE_SOURCE_DIR} archive 9c6c22d0 plugins/O-GrainScatter/Source
+            COMMAND tar -x -C ${_gs_v320_root}
+            RESULT_VARIABLE _gs_v320_rc)
+    endif()
+    if(EXISTS ${_gs_v320_src}/PluginProcessor.cpp)
+        ouaricon_add_processor_console(OuariconGrainScatter ${_gs_v320_src}
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/alias-gate/main.cpp alias-gate-v320)
+        get_target_property(_gs_ag_srcs O-GrainScatter-alias-gate-v320 SOURCES)
+        list(TRANSFORM _gs_ag_srcs REPLACE "^${CMAKE_CURRENT_SOURCE_DIR}/Source/" "${_gs_v320_src}/")
+        set_property(TARGET O-GrainScatter-alias-gate-v320 PROPERTY SOURCES ${_gs_ag_srcs})
+        target_compile_definitions(O-GrainScatter-alias-gate-v320 PRIVATE GS_ALIAS_V320=1)
     endif()
 endif()

@@ -384,6 +384,7 @@ void GrainScatterProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     // ((rate-1) x length, up to 7 s at +36 st on a 1 s grain) and for a
     // reverse grain's reach (length x rate). See the spawn block.
     delayBuffer.prepare(sampleRate, 12.0f);
+    ouaricon::grain::sincBank();   // v3.3.0: build the shared sinc table here, off the audio thread
     scheduler.prepare(sampleRate);
     tempoTracker.prepare(sampleRate);
 
@@ -645,7 +646,8 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         // share of the +-spray window under the floor (forward grain at the base pitch).
         const double sprayS = static_cast<double> (spray) * grainSizeSamples;
         const double baseRate = std::exp2 (pitchSettings.transposeSt / 12.0 + pitchSettings.fineCents / 1200.0);
-        const double floorS = grainSizeSamples * juce::jmax (0.0, baseRate - 1.0) + 4.0;
+        const double floorS = grainSizeSamples * juce::jmax (0.0, baseRate - 1.0)
+                              + DelayBuffer::margin (GrainPool::latchLevel (static_cast<float> (baseRate)));
         const double scanS = static_cast<double> (scanPosition) * currentSampleRate * 2.0;
         const float floored = sprayS > 0.0
             ? static_cast<float> (juce::jlimit (0.0, 1.0, (floorS - (scanS - sprayS)) / (2.0 * sprayS)))
@@ -774,13 +776,17 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             // write head — which wrapped round the ring to its oldest audio.
             // (That is also why Scan 0 % played a 2 s echo: delay 0 is the
             // oldest slot.) Pre-roll each grain so its tap never drops below
-            // kReadMargin, the Lagrange kernel's 3-sample look-ahead plus one.
+            // readMargin. v3.3.0: that is the band-limited reader's settled-history
+            // margin for the octave level the grain will latch (9 / 80 / 222 / 506
+            // samples at levels 0..3: half-band delay + the sinc's 8-sample look-ahead).
+            // The reader also clamps every tap to it, which covers Doppler (the spatial
+            // advance is playbackRate x dopplerFactor, beyond this pre-roll).
             {
-                constexpr double kReadMargin = 4.0;
                 const double len  = static_cast<double> (gp.grainLengthSamples);
                 const double rate = static_cast<double> (gp.playbackRate);
-                const double minPos = gp.reverse ? (len - 1.0 + kReadMargin)
-                                                 : (len * juce::jmax (0.0, rate - 1.0) + kReadMargin);
+                const double readMargin = DelayBuffer::margin (GrainPool::latchLevel (gp.playbackRate));
+                const double minPos = gp.reverse ? (len - 1.0 + readMargin)
+                                                 : (len * juce::jmax (0.0, rate - 1.0) + readMargin);
                 gp.positionInSamples = juce::jmax (gp.positionInSamples, minPos);
             }
 

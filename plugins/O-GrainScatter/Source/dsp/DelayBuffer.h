@@ -20,88 +20,66 @@
 #pragma once
 
 #include <JuceHeader.h>
-#include "LagrangeInterpolation.h"
+#include "BandlimitedReader.h"   // grain-engine 1.1.0 (modules/synthesis/grain-engine/cpp)
 
+// v3.3.0: the 12 s ring is a grain-engine MipRing. Every pushed sample also runs a
+// half-band cascade that keeps the ring at 1/2, 1/4 and 1/8 rate (levels 1..3), and
+// grains read through a 16-tap polyphase sinc instead of the v3.2.0 4-point polynomial. A grain latches
+// its octave level at spawn from its rate (+12 st and up read a decimated level) and
+// the sinc set from the residual rate on that level, so pitched-up grains no longer
+// alias (v3.2.0: aliases at full level from +12 st up).
+//
+// Delays are level-0 samples behind the write head (delay 1 = the newest sample), as
+// before. A level-l read needs margin(l) = 9 / 80 / 222 / 506 samples of settled
+// history; the reader clamps every read to it.
 class DelayBuffer
 {
 public:
+    using Ring = ouaricon::grain::MipRing<3>;
+    static constexpr int kMaxLevel = 3;
+
+    static constexpr int margin (int level) { return Ring::margin (level); }
+
     void prepare (double sampleRate, float maxDelaySec = 2.0f)
     {
         bufferSize = static_cast<int> (sampleRate * maxDelaySec) + 1;
-        buffer.setSize (2, bufferSize);
-        buffer.clear();
-        writePosition = 0;
-        samplesWritten = 0;
+        ring.prepare (bufferSize);
     }
 
-    // Alloc-free zeroing for reset() — must NOT call setSize (that reallocates on the
-    // audio thread). Mirrors the intent of the old prepare()-in-reset() without the churn.
-    void clear()
+    // Alloc-free zeroing for reset() (CR-02): MipRing::clear never resizes.
+    void clear() { ring.clear(); }
+
+    void pushSample (float L, float R) { ring.push (L, R); }
+
+    // v3.1.0: the read position is a double; v3.3.0: the integer and fractional parts
+    // are split against an absolute 64-bit write counter, so precision depends on the
+    // delay only, never on how far the head has run.
+    float read (int level, int channel, double delaySamples, int sincSet) const
     {
-        buffer.clear();
-        writePosition = 0;
-        samplesWritten = 0;
+        return ring.read (level, channel, delaySamples, sincSet);
     }
 
-    void pushSample (float L, float R)
+    void readStereo (int level, double delaySamples, int sincSet, float& outL, float& outR) const
     {
-        buffer.setSample (0, writePosition, L);
-        buffer.setSample (1, writePosition, R);
-        writePosition = (writePosition + 1) % bufferSize;
-        if (samplesWritten < bufferSize)
-            ++samplesWritten;
+        ring.readStereo (level, delaySamples, sincSet, outL, outR);
     }
 
-    // v3.1.0: the read position is a double. On the 12 s ring the write head runs past
-    // 2^19 (48 kHz) to 2^21 (192 kHz), where a float position keeps only 1/16 to 1/4
-    // of a sample and the Lagrange fraction was quantised to that grid.
-    float readSample (int channel, double delaySamples) const
+    // (L + R) / 2 through one convolution.
+    float readMono (int level, double delaySamples, int sincSet) const
     {
-        double readPos = static_cast<double> (writePosition) - delaySamples;
-        while (readPos < 0.0)
-            readPos += static_cast<double> (bufferSize);
-
-        int i0 = static_cast<int> (readPos);
-        float frac = static_cast<float> (readPos - static_cast<double> (i0));
-
-        // Lagrange 3rd-order interpolation (4 points)
-        int im1 = ((i0 - 1) % bufferSize + bufferSize) % bufferSize;
-        i0      = i0 % bufferSize;
-        int i1  = (i0 + 1) % bufferSize;
-        int i2  = (i0 + 2) % bufferSize;
-
-        auto* data = buffer.getReadPointer (channel);
-
-        return lagrangeInterpolate (data[im1], data[i0], data[i1], data[i2], frac);
+        return ring.readMono (level, delaySamples, sincSet);
     }
 
-    void copyRegion (juce::AudioBuffer<float>& dest, int startOffset, int length) const
-    {
-        if (length <= 0 || bufferSize <= 0)
-            return;
-
-        length = juce::jmin (length, bufferSize, dest.getNumSamples());
-        int readPos = ((writePosition - startOffset) % bufferSize + bufferSize) % bufferSize;
-
-        // WR-03: two contiguous memcpys (via AudioBuffer::copyFrom) to span the ring
-        // wrap, instead of ~176k per-element getSample/setSample calls on the RT thread.
-        int firstRun = juce::jmin (length, bufferSize - readPos);
-        for (int ch = 0; ch < 2; ++ch)
-        {
-            dest.copyFrom (ch, 0, buffer, ch, readPos, firstRun);
-            if (length > firstRun)
-                dest.copyFrom (ch, firstRun, buffer, ch, 0, length - firstRun);
-        }
-    }
-
-    int getWritePosition() const { return writePosition; }
+    const Ring& getRing() const { return ring; }
     int getBufferSize() const { return bufferSize; }
+    juce::int64 getWriteCount() const { return ring.getWriteCount(); }
     // Samples pushed since prepare()/clear(), capped at the ring size.
-    int getSamplesWritten() const { return samplesWritten; }
+    int getSamplesWritten() const
+    {
+        return static_cast<int> (juce::jmin<juce::int64> (ring.getWriteCount(), bufferSize));
+    }
 
 private:
-    juce::AudioBuffer<float> buffer;
+    Ring ring;
     int bufferSize = 0;
-    int writePosition = 0;
-    int samplesWritten = 0;
 };

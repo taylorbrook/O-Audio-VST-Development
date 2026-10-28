@@ -1,0 +1,32 @@
+milestone: band-limited-reader
+created: 2026-10-27T00:00:00Z
+lastActivity: 2026-10-27T23:45:00Z
+description: "band-limited reader in grain-engine: mipmapped half-band octave levels on the ring write path + 4–8 polyphase sinc sets for the residual ratio, group-delay compensated, unity DC per phase; GrainScatter (+36 st) first (research §3.3)"
+phases:
+  discuss:
+    status: complete
+    completedAt: 2026-10-27T00:00:00Z
+  research:
+    status: complete
+    completedAt: 2026-10-27T12:00:00Z
+  plan:
+    status: complete
+    completedAt: 2026-10-27T14:00:00Z
+    domain: dsp
+    executeAgent: general-purpose
+    approval: approved
+  execute:
+    status: complete
+    startedAt: 2026-10-27T15:00:00Z
+    completedAt: 2026-10-27T22:00:00Z
+    backup: backups/O-GrainScatter/v3.2.0/
+    notes: "Tasks 1-7 done. Open for verify: Standalone freeze engage/release at +0/+24/+36 st, preset load, 16-tap passband listening check. SUMMARY.md written by orchestrator from agent report."
+  verify:
+    status: complete
+    startedAt: 2026-10-27T23:00:00Z
+    completedAt: 2026-10-27T23:45:00Z
+    notes: "Automated verification PASSED (module 38/38, alias gate + v320 control, blocksize-null, density-gain, pluginval 10, auval). Human checks H1-H4 passed (user, 2026-10-27)."
+versionBump: minor
+baseVersion: 3.2.0
+targetVersion: 3.3.0
+moduleVersion: grain-engine 1.0.0 -> 1.1.0

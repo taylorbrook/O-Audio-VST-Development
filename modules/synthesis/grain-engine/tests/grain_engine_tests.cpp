@@ -18,6 +18,9 @@
           drop-without-shift, jitter mean, reschedule.
       P*  GrainPool — steal-free bitwise unity, steal fade continuity, victim
           choice, spare reuse, refuse policy.
+      B*  BandlimitedReader (1.1.0) — unity DC per phase, level time alignment,
+          half-band and sinc stopbands (driven with tones), block-split
+          invariance, alloc-free audio path, snapshot == live reads, read guard.
 
     Build: see tests/CMakeLists.txt.
 
@@ -34,18 +37,38 @@
  #pragma GCC diagnostic ignored "-Wfloat-equal"
 #endif
 
+#include "BandlimitedReader.h"
 #include "CounterRng.h"
 #include "GrainPool.h"
 #include "GrainScheduler.h"
 #include "WindowLut.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
+#include <complex>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <functional>
+#include <new>
+#include <random>
 #include <string>
 #include <vector>
+
+// Counting global operator new (B5: the reader's audio path must not allocate).
+static std::atomic<long> gAllocCount { 0 };
+void* operator new (std::size_t n)
+{
+    gAllocCount.fetch_add (1, std::memory_order_relaxed);
+    if (void* p = std::malloc (n == 0 ? 1 : n)) return p;
+    throw std::bad_alloc();
+}
+void* operator new[] (std::size_t n) { return operator new (n); }
+void operator delete (void* p) noexcept { std::free (p); }
+void operator delete[] (void* p) noexcept { std::free (p); }
+void operator delete (void* p, std::size_t) noexcept { std::free (p); }
+void operator delete[] (void* p, std::size_t) noexcept { std::free (p); }
 
 using namespace ouaricon::grain;
 
@@ -544,6 +567,350 @@ void testPool()
                "liveWeight = live count + fading gain", fmt ("%.5f (expect 2.5)", w));
     }
 }
+
+//==============================================================================
+// BandlimitedReader
+using Ring = MipRing<3>;
+using Snap = MipSnapshot<3>;
+
+void fftInPlace (std::vector<std::complex<double>>& a)
+{
+    const size_t n = a.size();
+    for (size_t i = 1, j = 0; i < n; ++i)
+    {
+        size_t bit = n >> 1;
+        for (; j & bit; bit >>= 1) j ^= bit;
+        j ^= bit;
+        if (i < j) std::swap (a[i], a[j]);
+    }
+    for (size_t len = 2; len <= n; len <<= 1)
+    {
+        const double ang = -2.0 * kPi / (double) len;
+        const std::complex<double> wl (std::cos (ang), std::sin (ang));
+        for (size_t i = 0; i < n; i += len)
+        {
+            std::complex<double> w (1.0, 0.0);
+            for (size_t k = 0; k < len / 2; ++k)
+            {
+                const auto u = a[i + k], v = a[i + k + len / 2] * w;
+                a[i + k] = u + v; a[i + k + len / 2] = u - v;
+                w *= wl;
+            }
+        }
+    }
+}
+
+// Worst audible spurious (dB re a unit input tone) of a tone at fIn (level-0 cycles)
+// read on `level` at residual r' with sinc set `set`. Output rate = level-0 rate;
+// audible = below aOut (cycles/sample). 4-term Blackman-Harris, the wanted
+// component's +-8 bins excluded when it lies below the output Nyquist.
+double spuriousDb (double fIn, int level, double rPrime, int set, double aOut, double* wantedDb = nullptr)
+{
+    constexpr int M = 8192;
+    const double rate = rPrime * (double) (1 << level);          // level-0 samples per output sample
+    const int need = (int) std::ceil (M * rate) + Ring::margin (level) + 4096;
+    Ring ring;
+    ring.prepare (need + 64);
+    for (int i = 0; i < need; ++i)
+    {
+        const float v = (float) std::sin (2.0 * kPi * fIn * i);
+        ring.push (v, v);
+    }
+    std::vector<std::complex<double>> buf (M);
+    double wsum = 0.0;
+    const double startDelay = (double) Ring::margin (level) + M * rate + 1.37;
+    for (int n = 0; n < M; ++n)
+    {
+        const double x = (double) n / M;
+        const double w = 0.35875 - 0.48829 * std::cos (2 * kPi * x) + 0.14128 * std::cos (4 * kPi * x) - 0.01168 * std::cos (6 * kPi * x);
+        wsum += w;
+        buf[(size_t) n] = w * (double) ring.read (level, 0, startDelay - n * rate, set);
+    }
+    fftInPlace (buf);
+    const double ref = wsum / 2.0;                                  // unit sine peak bin
+    const double fOut = fIn * rate;
+    const bool wanted = fOut < 0.5;
+    const double wantedBin = fOut * M;
+    double worst = 1e-30, want = 0.0;
+    for (int k = 1; k < M / 2; ++k)
+    {
+        const double mag = std::abs (buf[(size_t) k]) / ref;
+        if (wanted && std::abs (k - wantedBin) <= 8.0) { want = std::max (want, mag); continue; }
+        if ((double) k / M < aOut) worst = std::max (worst, mag);
+    }
+    if (wantedDb) *wantedDb = 20.0 * std::log10 (want + 1e-30);
+    return 20.0 * std::log10 (worst);
+}
+
+void testBandlimitedReader()
+{
+    const SincBank& bank = sincBank();
+
+    // B1 — unity DC on every stored row and on lerped phases.
+    {
+        double worstRow = 0.0, worstLerp = 0.0;
+        for (int s = 0; s < SincBank::kNumSets; ++s)
+        {
+            for (int p = 0; p <= SincBank::kPhases; ++p)
+            {
+                double sum = 0.0;
+                for (int k = 0; k < SincBank::kTaps; ++k) sum += bank.row (s, p)[k];
+                worstRow = std::max (worstRow, std::abs (sum - 1.0));
+            }
+            for (int i = 0; i < 4096; ++i)
+            {
+                float kk[SincBank::kTaps];
+                bank.kernel (s, (i + 0.5) / 4096.0, kk);
+                double sum = 0.0;
+                for (float v : kk) sum += v;
+                worstLerp = std::max (worstLerp, std::abs (sum - 1.0));
+            }
+        }
+        check (worstRow <= 1e-6 && worstLerp <= 1e-6, "B1", "every phase of every sinc set sums to 1 ± 1e-6 (stored + lerped)",
+               fmt ("worst |sum-1|: rows %.2e, lerped %.2e", worstRow, worstLerp));
+    }
+
+    // B2 — level alignment: a Gaussian transient (sigma 16 smp, < -40 dB at fs/32) read
+    // on levels 0..3 through the D(l) mapping peaks at the same level-0 time.
+    {
+        Ring ring;
+        ring.prepare (1 << 15);
+        const double tPeak = 9000.3;
+        const int total = 12000;
+        for (int i = 0; i < total; ++i)
+        {
+            const double d = (i - tPeak) / 16.0;
+            const float v = (float) std::exp (-0.5 * d * d);
+            ring.push (v, -v);
+        }
+        auto peakTime = [&] (int level)
+        {
+            // Coarse argmax on a 1/8 grid, then a least-squares parabola through log(y)
+            // over +-8 samples (129 reads): a Gaussian's log is exactly a parabola, and
+            // the window dwarfs the kernel's +-4e-5 phase-periodic passband ripple, which
+            // a 3-point parabola on the flat top would read as a peak shift.
+            double c = 0.0, bestV = -1e9;
+            for (double t = tPeak - 4.0; t <= tPeak + 4.0; t += 0.125)
+            {
+                const double v = ring.read (level, 0, (double) total - t, 0);
+                if (v > bestV) { bestV = v; c = t; }
+            }
+            double S[5] = {}, Ty[3] = {};
+            for (int j = -64; j <= 64; ++j)
+            {
+                const double x = j / 8.0;
+                const double y = std::log ((double) ring.read (level, 0, (double) total - (c + x), 0));
+                double xp = 1.0;
+                for (int e = 0; e < 5; ++e) { S[e] += xp; if (e < 3) Ty[e] += xp * y; xp *= x; }
+            }
+            // normal equations for y = a + b x + d x^2
+            const double A[3][3] = { { S[0], S[1], S[2] }, { S[1], S[2], S[3] }, { S[2], S[3], S[4] } };
+            auto det3 = [] (const double m[3][3])
+            {
+                return m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+                     + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+            };
+            const double D = det3 (A);
+            double Ab[3][3], Ad[3][3];
+            for (int i = 0; i < 3; ++i) for (int j = 0; j < 3; ++j) { Ab[i][j] = A[i][j]; Ad[i][j] = A[i][j]; }
+            for (int i = 0; i < 3; ++i) { Ab[i][1] = Ty[i]; Ad[i][2] = Ty[i]; }
+            const double b = det3 (Ab) / D, d = det3 (Ad) / D;
+            return c - b / (2.0 * d);
+        };
+        const double p0 = peakTime (0);
+        double worst = 0.0;
+        std::string det = fmt ("level0 peak %.4f (true %.1f)", p0, tPeak);
+        for (int l = 1; l <= 3; ++l)
+        {
+            const double e = peakTime (l) - p0;
+            worst = std::max (worst, std::abs (e));
+            det += fmt ("; L%.0f %+.4f", l, e);
+        }
+        check (worst <= 0.05 && std::abs (p0 - tPeak) <= 0.05, "B2",
+               "levels 1/2/3 peak at the level-0 time (<= 0.05 sample)", det);
+    }
+
+    // B3a — half-band stopband from 0.25 + delta(44.1 k) = 0.2732: <= -90 dB.
+    {
+        double worst = 0.0;
+        for (int i = 0; i <= 20000; ++i)
+        {
+            const double f = 0.25 + 0.5 * (0.5 - 20.0 / 44.1) + i * (0.5 - 0.2732) / 20000.0;
+            double re = 0.5;   // centre tap, phase reference at the centre
+            for (int m = 0; m < 32; ++m)
+                re += 2.0 * blr::kHalfbandOdd[m] * std::cos (2.0 * kPi * f * (2 * m + 1));
+            worst = std::max (worst, std::abs (re));
+        }
+        double dc = 0.5; for (double c : blr::kHalfbandOdd) dc += 2.0 * c;
+        check (20.0 * std::log10 (worst) <= -90.0 && std::abs (dc - 1.0) < 1e-12, "B3a",
+               "half-band stopband <= -90 dB from 0.2732 (44.1 k), DC 1",
+               fmt ("%.1f dB, DC - 1 = %.1e", 20.0 * std::log10 (worst), dc - 1.0));
+    }
+
+    // B3b — sinc sets S0..S6 driven at their upper-edge r' with tones 20 Hz..20 kHz
+    // (44.1 k), on level 0 and (S1..S6) level 1, where the half-band transition band
+    // is in play too: worst audible spurious <= -60 dB. S7 reported at 2.83 / 3.99.
+    {
+        const double fs = 44100.0, aOut = 20000.0 / fs;
+        std::vector<double> tones;
+        for (int i = 0; i < 24; ++i) tones.push_back (20.0 * std::pow (1000.0, i / 23.0));   // 20 Hz .. 20 kHz log
+        for (double f = 9000.0; f <= 20000.0; f += 250.0) tones.push_back (f);             // dense top
+        for (int s = 0; s <= 7; ++s)
+        {
+            const double rr[] = { blr::kSincSets[s].edge, 0.0 };
+            std::vector<double> rs { s == 7 ? std::pow (2.0, 1.5) : rr[0] };
+            if (s == 7) rs.push_back (3.99);
+            for (double r : rs)
+            {
+                double worst = -300.0, worstF = 0.0;
+                for (int level = 0; level <= (s == 0 ? 0 : 1); ++level)
+                    for (double f : tones)
+                    {
+                        const double d = spuriousDb (f / fs / (level ? 1.0 : 1.0), level, r, s, aOut);
+                        if (d > worst) { worst = d; worstF = f; }
+                    }
+                char id[8]; std::snprintf (id, sizeof id, "B3%c", (char) ('b' + s));
+                char what[96];
+                std::snprintf (what, sizeof what, "S%d at r' %.3f: worst audible spurious <= -60 dB%s", s, r, s == 7 ? " (S7: REPORT)" : "");
+                if (s == 7)
+                    std::printf ("INFO  %-4s %s  — %.1f dB (tone %.0f Hz)\n", id, what, worst, worstF);
+                else
+                    check (worst <= -60.0, id, what, fmt ("%.1f dB (tone %.0f Hz)", worst, worstF));
+            }
+        }
+    }
+
+    // B4 — block-split invariance: 1 x N vs random chunks with reads in between.
+    {
+        std::mt19937 rng (77);
+        std::uniform_real_distribution<float> u (-1.0f, 1.0f);
+        const int n = 50000;
+        std::vector<float> xl ((size_t) n), xr ((size_t) n);
+        for (int i = 0; i < n; ++i) { xl[(size_t) i] = u (rng); xr[(size_t) i] = u (rng); }
+        Ring a, b;
+        a.prepare (1 << 16); b.prepare (1 << 16);
+        for (int i = 0; i < n; ++i) a.push (xl[(size_t) i], xr[(size_t) i]);
+        int pos = 0;
+        volatile float sink = 0.0f;
+        std::uniform_int_distribution<int> chunk (1, 777);
+        while (pos < n)
+        {
+            const int c = std::min (n - pos, chunk (rng));
+            for (int i = 0; i < c; ++i) b.push (xl[(size_t) (pos + i)], xr[(size_t) (pos + i)]);
+            pos += c;
+            sink = sink + b.read (3, 0, 600.0, 2);
+        }
+        bool same = true;
+        for (int l = 0; l <= 3 && same; ++l)
+        {
+            same = a.getLevelCount (l) == b.getLevelCount (l);
+            for (std::int64_t j = 0; j < a.getLevelCount (l) && same; ++j)
+                for (int ch = 0; ch < 2; ++ch)
+                    same = same && (a.levelSample (l, ch, j) == b.levelSample (l, ch, j));
+        }
+        check (same && a.getLevelCount (1) == n / 2 && a.getLevelCount (3) == n / 8, "B4",
+               "every level bit-identical for 1 x N vs random chunks", fmt ("levels %.0f/%.0f/%.0f samples", (double) a.getLevelCount (1), (double) a.getLevelCount (2), (double) a.getLevelCount (3)));
+    }
+
+    // B5 — alloc-free after prepare: push / read* / capture / snapshot read*.
+    {
+        Ring ring; Snap snap;
+        ring.prepare (100000);
+        snap.prepare (30000);
+        float l = 0, r = 0, acc = 0;
+        const long before = gAllocCount.load();
+        for (int i = 0; i < 60000; ++i)
+        {
+            ring.push ((float) std::sin (i * 0.01), (float) std::cos (i * 0.013));
+            if (i > 2000)
+                for (int lv = 0; lv <= 3; ++lv)
+                {
+                    acc += ring.read (lv, 1, 600.0 + i % 97 * 0.31, lv * 2);
+                    ring.readStereo (lv, 700.25, 7, l, r); acc += l + r;
+                    acc += ring.readMono (lv, 900.5, 3);
+                }
+            if (i == 40000) snap.captureFrom (ring, Ring::margin (3), 30000);
+            if (i > 40000)
+            {
+                acc += snap.read (2, 0, 15000.3, 4);
+                snap.readStereo (3, 2000.7, 1, l, r); acc += l + r;
+                acc += snap.readMono (1, 29999.9, 6);
+            }
+        }
+        ring.clear(); snap.clear();
+        const long after = gAllocCount.load();
+        check (after == before && std::isfinite (acc), "B5", "no allocation in push / read / capture / snapshot read / clear",
+               fmt ("%.0f allocations", (double) (after - before)));
+    }
+
+    // B6 — snapshot reads == live reads at the same absolute times (bit-identical).
+    {
+        std::mt19937 rng (5);
+        std::uniform_real_distribution<float> u (-1.0f, 1.0f);
+        Ring ring; Snap snap;
+        ring.prepare (1 << 17);
+        snap.prepare (40000);
+        for (int i = 0; i < 90001; ++i) ring.push (u (rng), u (rng));
+        const int len = 40000, endDelay = Ring::margin (3);
+        snap.captureFrom (ring, endDelay, len);
+        const std::int64_t W = ring.getWriteCount();
+        bool same = true; int n = 0;
+        double worst = 0.0;
+        for (int l = 0; l <= 3; ++l)
+            for (int s = 0; s < 8; ++s)
+                for (int k = 0; k < 300; ++k)
+                {
+                    const int bI = 64 + (k * 131) % (len - 128);
+                    const double frac = (double) ((k * 37) % 1024) / 1024.0;
+                    const double b = bI + frac;
+                    // absolute time = origin + b = W - delay
+                    const double delay = (double) (W - snap.getOrigin() - bI) - frac;
+                    float sl, sr, ll, lr;
+                    snap.readStereo (l, b, s, sl, sr);
+                    ring.readStereo (l, delay, s, ll, lr);
+                    const float sm = snap.readMono (l, b, s), lm = ring.readMono (l, delay, s);
+                    same = same && sl == ll && sr == lr && sm == lm && snap.read (l, 1, b, s) == ring.read (l, 1, delay, s);
+                    worst = std::max (worst, (double) std::abs (sl - ll));
+                    ++n;
+                }
+        // the newest captured sample is settled on every level
+        float e0 = snap.read (3, 0, len - 1.0, 0), e1 = ring.read (3, 0, (double) (endDelay + 1), 0);
+        check (same && e0 == e1, "B6", "MipSnapshot reads == live reads at the same absolute time, every level/set, bit-identical",
+               fmt ("%.0f reads, worst |diff| %.1e", (double) n, worst));
+    }
+
+    // B7 — read guard: at delay margin(l) (and up to +1), the newest tap is the newest
+    // level sample — never past it — for every head parity.
+    {
+        bool ok = true; int tight = 0;
+        for (int l = 0; l <= 3; ++l)
+            for (std::int64_t W = 4096; W < 4096 + 64; ++W)
+                for (int k = 0; k < 16; ++k)
+                {
+                    const double delay = Ring::margin (l) + k / 16.0;
+                    const double dI = std::floor (delay), df = delay - dI;
+                    std::int64_t t = W - (std::int64_t) dI; double phi = 0.0;
+                    if (df > 0.0) { t -= 1; phi = 1.0 - df; }
+                    const auto p = Ring::levelPos (l, t, phi);
+                    const std::int64_t newest = (W >> l) - 1;
+                    ok = ok && p.index + blr::kTapsAhead <= newest;
+                    tight += (p.index + blr::kTapsAhead == newest) ? 1 : 0;
+                }
+        check (ok && tight > 0 && Ring::margin (0) == 9 && Ring::margin (1) == 80 && Ring::margin (2) == 222 && Ring::margin (3) == 506,
+               "B7", "margin(l) = 9/80/222/506 keeps every tap settled (and is tight)", fmt ("%.0f tight cases", (double) tight));
+    }
+
+    // B8 — latchLevel / setFor.
+    {
+        const bool lv = latchLevel (0.125) == 0 && latchLevel (1.999) == 0 && latchLevel (2.0) == 1 && latchLevel (3.99) == 1
+                     && latchLevel (4.0) == 2 && latchLevel (7.99) == 2 && latchLevel (8.0) == 3 && latchLevel (16.0) == 3;
+        bool st = SincBank::setFor (0.5) == 0 && SincBank::setFor (1.0) == 0 && SincBank::setFor (1.0000001) == 1
+               && SincBank::setFor (2.0) == 6 && SincBank::setFor (2.0000001) == 7 && SincBank::setFor (3.99) == 7;
+        for (int k = 1; k <= 6; ++k)
+            st = st && SincBank::setFor (blr::kSincSets[k].edge) == k && SincBank::setFor (blr::kSincSets[k].edge * 1.0000001) == k + 1;
+        check (lv && st, "B8", "latchLevel = clamp(floor(log2 r), 0, 3); setFor = first set whose edge >= r'");
+    }
+}
 } // namespace
 
 int main()
@@ -552,6 +919,7 @@ int main()
     testCounterRng();
     testScheduler();
     testPool();
+    testBandlimitedReader();
     std::printf ("\n%s  %d passed, %d failed\n", failures == 0 ? "ALL PASS" : "FAILED", passes, failures);
     return failures == 0 ? 0 : 1;
 }

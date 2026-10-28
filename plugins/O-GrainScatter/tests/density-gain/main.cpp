@@ -3,10 +3,12 @@
 
     O-GrainScatter — density compensation + freeze jitter gate (v3.2.0)
 
-    Built twice: against Source/ (target O-GrainScatter-density-gain) and against
-    the v3.1.0 backup (O-GrainScatter-density-gain-baseline, GS_DENSITY_BASELINE).
-    The baseline prints the same metric table as the negative control and dumps
-    its sparse render; the current build reads that dump for the null row.
+    Built three times: against Source/ (target O-GrainScatter-density-gain), against
+    the v3.1.0 backup (O-GrainScatter-density-gain-baseline, GS_DENSITY_BASELINE),
+    which prints the same metric table as the negative control, and (v3.3.0) against
+    Source/ with GS_TEST_DENSITY_COMP_OFF (O-GrainScatter-density-gain-compoff,
+    which also defines GS_DENSITY_BASELINE): the sparse row's reference. Each
+    reference target dumps its sparse render; the current build reads that dump.
 
       moments    windowMoments() matches a numeric integral of computeEnvelope()
                  for all six shapes (rel. error <= 0.5 %)
@@ -17,15 +19,20 @@
                  audio in step): within +-1.5 dB for N >= 4
       thd        0.5-peak sine, N = 20 incoherent: H3/H1 <= -60 dB (the tanh
                  made density a distortion control)
-      sparse     N << 1, quiet sine: nulls against v3.1.0 to <= -70 dB (gain is
-                 exactly 1 below one grain; the live random path is unchanged)
+      sparse     N << 1, quiet sine: nulls against the same build with density
+                 compensation forced off to <= -70 dB (gain is exactly 1 below one
+                 grain). v3.2.0 nulled against v3.1.0; v3.3.0's band-limited reader
+                 changes every grain's samples (pitch_random 50 on this row), so the
+                 reference moved to the build's own compensation-off render (plan
+                 decision 5). Threshold unchanged.
       freeze     frozen noise, Spread 0: output correlation one capture loop
                  apart <= 0.5 (v3.1.0: 0.29, coherent OLA of the loop); frozen level within
                  +-1.5 dB of the live incoherent level
       onset      cold start into N = 20: worst 20 ms level over the first 1 s
                  <= +6 dB over steady state (the 100 ms smoother lags the cloud)
 
-    Usage: density-gain [baseline-dump-dir]. Exit 0 = every row PASS.
+    Usage: density-gain [reference-dump-dir]. Exit 0 = every row PASS.
+      O-GrainScatter-density-gain-compoff <dir> && O-GrainScatter-density-gain <dir>
 
   ==============================================================================
 */
@@ -170,10 +177,12 @@ namespace
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
-   #ifdef GS_DENSITY_BASELINE
+   #if defined (GS_TEST_DENSITY_COMP_OFF)
+    std::printf ("O-GrainScatter density gate — REFERENCE v3.3.0, density compensation OFF (no verdicts)\n\n");
+   #elif defined (GS_DENSITY_BASELINE)
     std::printf ("O-GrainScatter density gate — BASELINE v3.1.0 (negative control, no verdicts)\n\n");
    #else
-    std::printf ("O-GrainScatter density gate — v3.2.0\n\n");
+    std::printf ("O-GrainScatter density gate — v3.3.0\n\n");
    #endif
 
     const int kSteadyFrom = static_cast<int> (2.0 * kSampleRate);
@@ -276,11 +285,11 @@ int main (int argc, char** argv)
                     peak = juce::jmax (peak, std::abs (b));
                     diff = juce::jmax (diff, std::abs (a - b));
                 }
-            row (peak > 1e-3 && toDb (diff / peak) <= -70.0, "sparse N~0.08 null vs v3.1.0",
+            row (peak > 1e-3 && toDb (diff / peak) <= -70.0, "sparse N~0.08 null vs comp-off",
                  juce::String::formatted ("residual %.1f dB re peak (ref peak %.4f)", toDb (diff / peak), peak));
         }
         else
-            row (false, "sparse N~0.08 null vs v3.1.0", "no baseline dump (run the baseline target first)");
+            row (false, "sparse N~0.08 null vs comp-off", "no reference dump (run the -compoff target first)");
        #endif
     }
 

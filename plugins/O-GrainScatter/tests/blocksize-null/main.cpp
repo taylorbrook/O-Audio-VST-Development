@@ -24,7 +24,10 @@
         blocks, while the v3.0.5 scheduler (compiled from the backup) drops
         repeats at 512 — the defect this release fixes;
       - DelayBuffer read precision at 192 kHz with the write head past 2^21:
-        a 1 kHz sine read at a fractional delay matches the analytic value.
+        v3.3.0 reads at fractional delays on every octave level match the same
+        reads from a ring whose head has barely moved (<= -100 dB; v3.1.0-3.2.0
+        compared Lagrange against the analytic sine, which the band-limited
+        sinc's passband shape no longer meets — plan decision 5).
 
     Exit 0 = every row PASS.
 
@@ -267,30 +270,47 @@ namespace
     }
 
     // ── 12 s ring read precision ────────────────────────────────────────────
+    // v3.3.0 re-reference (plan decision 5): the reader is a 16-tap band-limited sinc,
+    // so the analytic sine is no longer the reference (its passband shape is the point).
+    // The row's purpose is position precision on a long-running ring, so it now reads
+    // the same content at the same fractional delays from a ring whose write head is
+    // past 2^21 and from one that has barely started (same head parity mod 8, so every
+    // octave level holds the same samples). Content is written relative to the end, so
+    // both rings hold identical history around the taps. Threshold unchanged (-100 dB).
     void ringPrecisionRow()
     {
         constexpr double sr = 192000.0;
         constexpr double f  = 1000.0;
-        DelayBuffer d;
-        d.prepare (sr, 12.0f);
-        // Fill past 2^21 so the write head sits high in the ring
-        const int pushes = d.getBufferSize() - 10;
-        for (int i = 0; i < pushes; ++i)
+        DelayBuffer big, small;
+        big.prepare (sr, 12.0f);
+        small.prepare (sr, 12.0f);
+        const int bigPushes = big.getBufferSize() - 10;          // write head > 2^21
+        int smallPushes = 40000;                                   // > level-3 settling + taps
+        smallPushes += ((bigPushes - smallPushes) % 8 + 8) % 8;   // same parity mod 8
+        auto fill = [&] (DelayBuffer& d, int pushes)
         {
-            const double v = std::sin (2.0 * juce::MathConstants<double>::pi * f * i / sr);
-            d.pushSample (static_cast<float> (v), static_cast<float> (v));
-        }
-        // Tap j = d.getWritePosition() - delay; the newest sample (index pushes-1) is delay 1.
-        double worst = 0.0;
-        for (int k = 0; k < 200; ++k)
-        {
-            const double delay = 1000.0 + k * 0.37 + 0.123;
-            const double idx = (pushes - 1) - (delay - 1.0);
-            const double ref = std::sin (2.0 * juce::MathConstants<double>::pi * f * idx / sr);
-            worst = juce::jmax (worst, std::abs (static_cast<double> (d.readSample (0, delay)) - ref));
-        }
-        row (toDb (worst) <= -100.0, "ring read precision, 192 kHz, head > 2^21",
-             juce::String (toDb (worst), 1) + " dB worst error (write head " + juce::String (d.getWritePosition()) + ")");
+            for (int i = 0; i < pushes; ++i)
+            {
+                const double v = std::sin (2.0 * juce::MathConstants<double>::pi * f * (i - (pushes - 1)) / sr);
+                d.pushSample (static_cast<float> (v), static_cast<float> (v));
+            }
+        };
+        fill (big, bigPushes);
+        fill (small, smallPushes);
+        double worst = 0.0, peak = 0.0;
+        for (int level = 0; level <= DelayBuffer::kMaxLevel; ++level)
+            for (int k = 0; k < 200; ++k)
+            {
+                const double delay = 1000.0 + k * 0.37 + 0.123;
+                const int set = (k * 3 + level) % 8;
+                const double a = big.read (level, 0, delay, set);
+                const double b = small.read (level, 0, delay, set);
+                worst = juce::jmax (worst, std::abs (a - b));
+                peak  = juce::jmax (peak, std::abs (b));
+            }
+        row (peak > 0.5 && toDb (worst) <= -100.0, "ring read precision, 192 kHz, head > 2^21",
+             juce::String (toDb (worst), 1) + " dB worst |big - small head| over levels 0-3 (write count "
+                 + juce::String (big.getWriteCount()) + " vs " + juce::String (small.getWriteCount()) + ")");
     }
 }
 

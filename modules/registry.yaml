@@ -439,7 +439,7 @@ modules:
 
   - name: grain-engine
     path: synthesis/grain-engine
-    version: 1.0.0
+    version: 1.1.0
     description: |
       Header-only granular primitives (namespace ouaricon::grain). WindowLut:
       5 windows + tilt + Tukey α with integrated μ₁/μ₂ moments and the
@@ -449,7 +449,10 @@ modules:
       f(seed, counter, slot), bit-identical to the TextureForge / Freeze /
       simpleGrain / GrainScatter copies. GrainPool: fade-on-steal spare slots +
       refuse-on-full tryObtain (O-Freeze 2.7.0 / O-simpleGrain 1.5.4 /
-      O-GrainScatter 3.0.5). Standalone test suite in tests/.
+      O-GrainScatter 3.0.5). 1.1.0: BandlimitedReader — half-band mip ring
+      (3 octave levels, group-delay compensated), 16-tap polyphase sinc bank
+      (8 sets, unity DC per phase), MipSnapshot for freeze; band-limited reads
+      for pitched-up grains. Standalone test suite in tests/.
     category: synthesis
     origin: O-ReverseDelay
     provides:
@@ -457,12 +460,17 @@ modules:
       - cpp-class: GrainScheduler
       - cpp-class: GrainPool
       - cpp-namespace: CounterRng
+      - cpp-class: MipRing
+      - cpp-class: SincBank
+      - cpp-class: MipSnapshot
     dependencies: []
-    tags: [synthesis, granular, window, scheduler, rng, voice-pool]
+    tags: [synthesis, granular, window, scheduler, rng, voice-pool, anti-aliasing, resampling]
     reuse_score: 9
     used_by:
       - plugin: O-ReverseDelay
         version: 1.22.4
+      - plugin: O-GrainScatter
+        version: 3.3.0
 
   # ============================================================================
   # EFFECTS MODULES
