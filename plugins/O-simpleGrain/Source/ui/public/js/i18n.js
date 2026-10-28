@@ -379,12 +379,12 @@ export const I18N = Object.freeze({
     // v1.8.0 — Tempera 2.3 style grain-shape tilt (research 2026 update §5 item 6).
     grainTilt: {
         en: { t: "Grain Tilt",
-              b: "Moves the peak of each grain’s window, −100…+100\u00a0%. Left is plucked: a fast attack and a long fade, so every grain strikes like a note. Right is a reverse swell: a long rise cut off at the end, like tape played backwards. 0 is the symmetric window. Watch the Envelope. The steep side never gets shorter than 1\u00a0ms, so the extremes stay click-free; Rectangular is already that steep, so it barely changes." },
+              b: "Moves the peak of each grain’s window, −100…+100\u00a0%. Left is plucked: a fast attack and a long fade, so every grain strikes like a note. Right is a reverse swell: a long rise cut off at the end, like tape played backwards. 0 is the symmetric window. Watch the Envelope. The steep side never gets shorter than 3\u00a0ms, so the extremes stay click-free, and grains of 6\u00a0ms or less cannot tilt. Rectangular keeps its 1\u00a0ms edges and has no slope to tilt, so it barely changes." },
         fr: { t: "Inclinaison du grain",
-              b: "Déplace le sommet de la fenêtre de chaque grain, −100…+100\u00a0%. À gauche, pincé\u00a0: une attaque rapide et un long fondu, chaque grain frappe comme une note. À droite, une montée inversée\u00a0: une longue montée coupée à la fin, comme une bande lue à l’envers. 0 est la fenêtre symétrique. Regardez l’enveloppe. Le côté raide ne descend jamais sous 1\u00a0ms, si bien que les extrêmes ne claquent pas\u00a0; Rectangular est déjà aussi raide, il change donc à peine.",
+              b: "Déplace le sommet de la fenêtre de chaque grain, −100…+100\u00a0%. À gauche, pincé\u00a0: une attaque rapide et un long fondu, chaque grain frappe comme une note. À droite, une montée inversée\u00a0: une longue montée coupée à la fin, comme une bande lue à l’envers. 0 est la fenêtre symétrique. Regardez l’enveloppe. Le côté raide ne descend jamais sous 3\u00a0ms, si bien que les extrêmes ne claquent pas, et les grains de 6\u00a0ms ou moins ne peuvent pas s’incliner. Rectangular garde ses bords de 1\u00a0ms et n’a pas de pente à incliner\u00a0: il change donc à peine.",
               reviewed: false },
         'zh-Hans': { t: "颗粒倾斜",
-                     b: "移动每个颗粒窗口的峰值位置，−100…+100%。向左是拨奏：起音快、淡出长，每个颗粒都像一个音符那样被拨响。向右是反向渐强：长长的上升在末尾被切断，像倒放的磁带。0 是对称的窗口。请看包络。陡的一侧从不短于 1 ms，所以两端都不会发出咔哒声；Rectangular 本来就这么陡，所以几乎不变。",
+                     b: "移动每个颗粒窗口的峰值位置，−100…+100%。向左是拨奏：起音快、淡出长，每个颗粒都像一个音符那样被拨响。向右是反向渐强：长长的上升在末尾被切断，像倒放的磁带。0 是对称的窗口。请看包络。陡的一侧从不短于 3 ms，所以两端都不会发出咔哒声；6 ms 及以下的颗粒无法倾斜。Rectangular 保持 1 ms 的边缘，没有可倾斜的斜坡，所以几乎不变。",
                      reviewed: 'mt' },
     },
 

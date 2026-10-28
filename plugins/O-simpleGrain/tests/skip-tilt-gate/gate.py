@@ -17,13 +17,15 @@
 #        the Skip-0 burst there (skip draws its own RNG slot; nothing shifts).
 #      - Skip 100: exactly silent.
 #      - Skip 50 renders bit-exactly at blocks 37 and 1024 vs 512.
-# C  Tilt shape. One 100 ms Hann grain from the DC source: the envelope peak sits
-#    at 0.5 + 0.48 t of the grain (t = tilt/100) within 0.5 %, and tilt +t is the
-#    time reverse of -t (max diff <= 2e-3 of the peak, LUT interpolation).
-# D  Click floor. Every shape x Tilt -100/+100 x grain 2/5/30/200/500 ms: the
-#    steepest per-sample step of the envelope (DC source, peak-normalised) is no
-#    steeper (x 1.05) than that shape's own symmetric 2 ms grain, whose halves are
-#    1 ms — the floor tilt is built on (or the Rectangular 1 ms guard, if larger).
+# C  Tilt shape. Hann grains of 100 / 10 / 6 ms from the DC source: the envelope
+#    peak sits at clamp(0.5 + 0.48 t, g, 1 - g), g = 3 ms / size (t = tilt/100);
+#    tilt +t is the time reverse of -t (<= 2e-3); at 6 ms tilt is bit-identical
+#    to tilt 0.
+# D  Click floor (3 ms). Every shape x Tilt -100/+100 x grain 2/5/10/30/200/500 ms:
+#    the steepest per-sample step of the envelope (DC source, peak-normalised) is
+#    no steeper (x 1.05) than max(that shape's symmetric 6 ms grain — 3 ms halves —,
+#    its own untilted step at that size). Negative control (--control-1ms PATH):
+#    the pre-release build with a 1 ms floor must fail this bound.
 # E  Level. A white-noise source, incoherent cloud (Position Spray 100, Scatter
 #    100, Pan Spray 0): RMS at Tilt -100 / +100 within 1.5 dB of Tilt 0 (Hann and
 #    Tukey 50 under the cap, Hann past it), and Skip 50 within 1.5 dB of Skip 0
@@ -32,7 +34,7 @@
 #    boosts, so that one case is gated only on "not louder" and its level printed.
 #
 # usage: uv run --python 3.12 --with pedalboard --with numpy --with soundfile \
-#            python -I gate.py OLD_v1.7.0.vst3 [NEW.vst3]
+#            python -I gate.py OLD_v1.7.0.vst3 [NEW.vst3] [--control-1ms CTRL.vst3]
 import base64
 import io
 import os
@@ -43,8 +45,12 @@ import numpy as np
 import pedalboard
 import soundfile as sf
 
-OLD = sys.argv[1]
-NEW = sys.argv[2] if len(sys.argv) > 2 else \
+ARGV = sys.argv[1:]
+CONTROL_1MS = None
+if "--control-1ms" in ARGV:
+    i = ARGV.index("--control-1ms"); CONTROL_1MS = ARGV[i + 1]; del ARGV[i:i + 2]
+OLD = ARGV[0]
+NEW = ARGV[1] if len(ARGV) > 1 else \
     "/Users/taylorbrook/Library/Audio/Plug-Ins/VST3/O-simpleGrain-dev.vst3"
 FS = 48000
 fails = 0
@@ -264,12 +270,13 @@ def gate_b():
 
 
 # ===================================================================== C / D
-def grain_env(window, tilt, size_ms, taper=50.0):
-    p = build(NEW, nums=dict(grain_size_ms=size_ms, density_g_s=1.0, position=50.0, taper=taper,
+def grain_env(window, tilt, size_ms, taper=50.0, plugin=None):
+    plugin = plugin or NEW
+    p = build(plugin, nums=dict(grain_size_ms=size_ms, density_g_s=1.0, position=50.0, taper=taper,
                              output_level_db=0.0),
               lin=dict(grain_tilt=tilt), window=window, adsr=False, freeze=True, source=("dc", DC))
     dur = max(0.3, 2.5 * size_ms / 1000 + 0.1)
-    y = render(NEW, p.raw_state, [(480, 0x90, 60, 127)], dur)
+    y = render(plugin, p.raw_state, [(480, 0x90, 60, 127)], dur)
     m = y[0]
     nz = np.where(np.abs(m) > 0)[0]
     first = m[nz[0]:]
@@ -278,23 +285,36 @@ def grain_env(window, tilt, size_ms, taper=50.0):
     return g / np.max(np.abs(g)), size_ms * FS / 1000
 
 
+FLOOR_MS = 3.0     # WindowLuts::kTiltMinEdgeMs
+
+
+def want_peak(t, size_ms):
+    g = min(0.5, FLOOR_MS / size_ms)
+    return min(1 - g, max(g, 0.5 + 0.48 * t / 100))
+
+
 def gate_c():
-    print("\n== C  Tilt moves the window peak (Hann, 100 ms, DC source)")
-    envs = {}
-    for t in (-100, -50, 0, 50, 100):
-        g, L = grain_env("Hann", float(t), 100.0)
-        envs[t] = g
-        pk = np.argmax(g) / L
-        want = 0.5 + 0.48 * t / 100
-        verdict(abs(pk - want) <= 0.005, f"C Tilt {t:+4d}: peak at {pk:.4f} of the grain (want {want:.2f})")
-    for t in (50, 100):
-        a, b = envs[t], envs[-t][::-1]
-        n = min(len(a), len(b))
-        # align on the peak (a one-sample offset from the window's discrete end is not a shape error)
-        sh = int(np.argmax(a[:n])) - int(np.argmax(b[:n]))
-        b2 = np.roll(b[:n], sh)
-        d = np.max(np.abs(a[:n] - b2)[5:-5])
-        verdict(d <= 2e-3, f"C Tilt +{t} is the time reverse of -{t}: max diff {d:.1e} (shift {sh})")
+    print("\n== C  Tilt moves the window peak (Hann, DC source; peak clamped to [g, 1-g], g = 3 ms / size)")
+    for size in (100.0, 10.0, 6.0):
+        envs = {}
+        for t in (-100, -50, 0, 50, 100):
+            g, L = grain_env("Hann", float(t), size)
+            envs[t] = g
+            pk = np.argmax(g) / L
+            want = want_peak(t, size)
+            verdict(abs(pk - want) <= 0.005 + 2 / L, f"C {size:g} ms Tilt {t:+4d}: peak at {pk:.4f} of the grain "
+                    f"(want {want:.3f})")
+        if size == 6.0:
+            same = all(np.array_equal(envs[t], envs[0]) for t in (-100, 100))
+            verdict(same, "C 6 ms: Tilt +-100 renders bit-identically to Tilt 0 (tilt does nothing at <= 6 ms)")
+            continue
+        for t in (50, 100):
+            a, b = envs[t], envs[-t][::-1]
+            n = min(len(a), len(b))
+            sh = int(np.argmax(a[:n])) - int(np.argmax(b[:n]))
+            b2 = np.roll(b[:n], sh)
+            d = np.max(np.abs(a[:n] - b2)[5:-5])
+            verdict(d <= 2e-3, f"C {size:g} ms Tilt +{t} is the time reverse of -{t}: max diff {d:.1e} (shift {sh})")
 
 
 SHAPES = ["Rectangular", "Triangular", "Welch", "Gaussian", "Hann", "Tukey"]
@@ -304,26 +324,47 @@ def step(g):
     return float(np.max(np.abs(np.diff(np.concatenate([[0], g, [0]])))))
 
 
-def gate_d():
-    print("\n== D  click floor: a tilted extreme is no steeper than the shape's own 2 ms grain (x1.05)")
-    # The floor: the steep side never gets shorter than 1 ms, which is exactly one half
-    # of the shortest grain (2 ms) every shape already plays symmetrically. Reference =
-    # that shape's tilt-0 2 ms step, or the Rectangular 1 ms guard if larger.
-    rect2 = step(grain_env("Rectangular", 0.0, 2.0)[0])
-    refs = {sh: max(rect2, step(grain_env(sh, 0.0, 2.0)[0])) for sh in SHAPES}
-    print("   references (peak-normalised step / sample): "
-          + ", ".join(f"{sh[:4]} {refs[sh]:.4f}" for sh in SHAPES))
-    for size in (2.0, 5.0, 30.0, 200.0, 500.0):
+def d_refs(plugin):
+    # The floor: the steep side never gets shorter than 3 ms = one half of a 6 ms grain.
+    # Reference per shape and size = max(the shape's tilt-0 step at 6 ms, its tilt-0 step
+    # at this size): a tilted grain may be as steep as the symmetric 6 ms grain of its
+    # shape, or as its own untilted self (rect keeps its 1 ms guard; <= 6 ms grains don't tilt).
+    six = {sh: step(grain_env(sh, 0.0, 6.0, plugin=plugin)[0]) for sh in SHAPES}
+    return six
+
+
+def gate_d_run(plugin, label, expect_fail=False):
+    six = d_refs(plugin)
+    print("   6 ms references (peak-normalised step / sample): "
+          + ", ".join(f"{sh[:4]} {six[sh]:.4f}" for sh in SHAPES))
+    overall = 0.0
+    for size in (2.0, 5.0, 10.0, 30.0, 200.0, 500.0):
         worst, worst_at = 0.0, ""
         for sh in SHAPES:
+            own = step(grain_env(sh, 0.0, size, plugin=plugin)[0])
+            ref = max(six[sh], own)
             for t in (-100.0, 100.0):
-                st = step(grain_env(sh, t, size)[0])
-                r = st / refs[sh]
+                st = step(grain_env(sh, t, size, plugin=plugin)[0])
+                r = st / ref
                 if r > worst:
                     worst, worst_at = r, f"{sh} {t:+.0f}"
-                if r > 1.05:
-                    verdict(False, f"D {size:g} ms {sh} tilt {t:+.0f}: step {st:.4f} > ref {refs[sh]:.4f}")
-        verdict(worst <= 1.05, f"D {size:5g} ms: worst tilted step / reference = {worst:.3f} ({worst_at})")
+                if r > 1.05 and not expect_fail:
+                    verdict(False, f"D {size:g} ms {sh} tilt {t:+.0f}: step {st:.4f} > ref {ref:.4f}")
+        overall = max(overall, worst)
+        if not expect_fail:
+            verdict(worst <= 1.05, f"D {label} {size:5g} ms: worst tilted step / reference = {worst:.3f} ({worst_at})")
+        else:
+            print(f"   {label} {size:5g} ms: worst tilted step / reference = {worst:.3f} ({worst_at})")
+    return overall
+
+
+def gate_d():
+    print("\n== D  click floor: tilted step <= max(shape's 6 ms grain, its own untilted step) x1.05")
+    gate_d_run(NEW, "3 ms")
+    if CONTROL_1MS:
+        print("   negative control: the pre-release 1 ms floor build must FAIL the same bound")
+        w = gate_d_run(CONTROL_1MS, "1 ms ctrl", expect_fail=True)
+        verdict(w > 1.05, f"D negative control (1 ms floor): worst ratio {w:.3f} > 1.05 -> the bound catches it")
 
 
 # ===================================================================== E

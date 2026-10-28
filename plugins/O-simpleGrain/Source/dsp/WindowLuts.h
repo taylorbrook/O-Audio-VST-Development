@@ -152,16 +152,19 @@ public:
     // attack taper is 2·peak·te and the release 2·(1−peak)·te, which is the
     // same warp for Tukey α = 1 (= Hann) and keeps the total fade length.
     //
-    // CLICK FLOOR: the steep side never gets shorter than kTiltMinEdgeMs (the
-    // rect guard's 1 ms), whatever the grain size; the peak is clamped to
-    // [guard, 1 − guard] in phase units, so a tilted extreme is never steeper
-    // than the same shape's symmetric 2 ms grain (whose halves are 1 ms each).
-    // Rectangular is already AT the floor, so tilt barely moves it — it has no
-    // slope to tilt.
+    // CLICK FLOOR: the steep side never gets shorter than kTiltMinEdgeMs = 3 ms
+    // (matches O-GrainScatter 3.4.0), whatever the grain size; the peak is
+    // clamped to [guard, 1 − guard] in phase units, so a tilted extreme is never
+    // steeper than the same shape's symmetric 6 ms grain (3 ms halves). Grains
+    // of 6 ms or less therefore cannot tilt (guard = 0.5) on the table shapes.
+    // Rect / Tukey: the floor is min(3 ms, the untilted taper), so tilt never
+    // makes an edge steeper than the untilted window had it and never softens
+    // a short edge either — Rectangular keeps its 1 ms guard and barely moves:
+    // it has no slope to tilt.
     //
     // CONTRACT (IN-05): mirrored in app.js tiltFor() / windowValueTilted().
-    static constexpr float kTiltMinEdgeMs   = kRectGuardMs;
-    static constexpr float kTiltMaxShift    = 0.48f;   // peak 0.02 .. 0.98 at ±100 %
+    static constexpr float kTiltMinEdgeMs   = 3.0f;    // v1.8.0: was the 1 ms rect guard pre-release
+    static constexpr float kTiltMaxShift    = 0.48f;   // peak 0.02 .. 0.98 at ±100 % (before the floor)
 
     struct Tilt
     {
@@ -182,17 +185,18 @@ public:
         const int s = juce::jlimit (0, kNumShapes - 1, shape);
         if (s == kShapeRect || s == kShapeTukey)
         {
-            const float te = juce::jlimit (1.0e-4f, 0.5f, taperEnd);
-            t.teA = juce::jmax (guard, 2.0f * c * te);
-            t.teR = juce::jmax (guard, 2.0f * (1.0f - c) * te);
+            const float te    = juce::jlimit (1.0e-4f, 0.5f, taperEnd);
+            const float floor = juce::jmin (guard, te);   // never softer than untilted
+            t.teA = juce::jmax (floor, 2.0f * c * te);
+            t.teR = juce::jmax (floor, 2.0f * (1.0f - c) * te);
             // The two tapers sum to 2·te <= 1 unless the floor lifted one of
             // them (short grains). Then the other gives way, so the window still
             // reaches 1 (no plateau-less, quieter short grain): the floored side
-            // keeps its 1 ms, the other takes the rest. guard <= 0.5 keeps both
-            // >= guard, and at guard 0.5 (a 2 ms grain) this is the plain Hann.
+            // keeps its floor, the other takes the rest (floor <= 0.5 keeps both
+            // >= floor).
             if (t.teA + t.teR > 1.0f)
             {
-                if (t.teA <= guard) t.teR = 1.0f - t.teA;
+                if (t.teA <= floor) t.teR = 1.0f - t.teA;
                 else                t.teA = 1.0f - t.teR;
             }
         }

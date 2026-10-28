@@ -1058,18 +1058,21 @@ function taperEndFor(shape, alpha, grainMs) {
 }
 // v1.8.0 — mirrors WindowLuts::tiltFor() / readTilted(). tilt in [-1, 1]:
 // -1 plucked (peak at the start), +1 reverse swell (peak at the end). The steep
-// side is floored at the 1 ms guard; rect / Tukey split their fade budget.
+// side is floored at 3 ms; rect / Tukey split their fade budget, floored at
+// min(3 ms, their untilted taper).
 const TILT_MAX_SHIFT = 0.48;
+const TILT_MIN_EDGE_MS = 3.0;   // WindowLuts::kTiltMinEdgeMs
 function tiltFor(shape, tilt, taperEnd, grainMs) {
-  const guard = Math.min(0.5, Math.max(1e-4, RECT_GUARD_MS / Math.max(1e-6, grainMs)));
+  const guard = Math.min(0.5, Math.max(1e-4, TILT_MIN_EDGE_MS / Math.max(1e-6, grainMs)));
   const c = 0.5 + TILT_MAX_SHIFT * Math.min(1, Math.max(-1, tilt));
   const t = { peak: Math.min(1 - guard, Math.max(guard, c)), teA: 0.5, teR: 0.5 };
   if (shape === SHAPE_RECT || shape === SHAPE_TUKEY) {
     const te = Math.min(0.5, Math.max(1e-4, taperEnd));
-    t.teA = Math.max(guard, 2 * c * te);
-    t.teR = Math.max(guard, 2 * (1 - c) * te);
+    const floor = Math.min(guard, te);
+    t.teA = Math.max(floor, 2 * c * te);
+    t.teR = Math.max(floor, 2 * (1 - c) * te);
     if (t.teA + t.teR > 1) {               // the floor lifted one side: the other gives way
-      if (t.teA <= guard) t.teR = 1 - t.teA; else t.teA = 1 - t.teR;
+      if (t.teA <= floor) t.teR = 1 - t.teA; else t.teA = 1 - t.teR;
     }
   }
   return t;
