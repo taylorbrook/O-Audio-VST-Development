@@ -190,6 +190,7 @@ void TextureForgeProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     params.crossfadePercent = crossfadeParam->load();
     params.outputGainDb = outputGainParam->load();
     params.midiMode = static_cast<int>(midiModeParam->load());
+    params.rngSeed = rngSeed.load(std::memory_order_relaxed);
 
     // Load corpus pointer (atomic read)
     const SharedCorpus* corpus = corpusForAudio.load(std::memory_order_acquire);
@@ -268,6 +269,11 @@ void TextureForgeProcessor::getStateInformation(juce::MemoryBlock& destData)
     auto* langXml = xml->createNewChildElement("UILANG");
     langXml->setAttribute("code", languageCode(uiLanguage.load(std::memory_order_acquire)));
 
+    // v1.6.0: the grain-selection seed, as 16 hex digits (an XML int attribute
+    // is 32-bit).
+    auto* rngXml = xml->createNewChildElement("RNG");
+    rngXml->setAttribute("seed", juce::String::toHexString(static_cast<juce::int64>(rngSeed.load(std::memory_order_relaxed))));
+
     copyXmlToBinary(*xml, destData);
 }
 
@@ -289,6 +295,15 @@ void TextureForgeProcessor::setStateInformation(const void* data, int sizeInByte
         if (auto* langXml = xml->getChildByName("UILANG"))
             uiLanguage.store(languageIndex(langXml->getStringAttribute("code")),
                              std::memory_order_release);
+
+        // v1.6.0: the seed. A pre-1.6.0 session has none and keeps this
+        // instance's random seed.
+        if (auto* rngXml = xml->getChildByName("RNG"))
+        {
+            const auto hex = rngXml->getStringAttribute("seed");
+            if (hex.containsOnly("0123456789abcdefABCDEF") && hex.isNotEmpty() && hex.length() <= 16)
+                rngSeed.store(static_cast<uint64_t>(hex.getHexValue64()), std::memory_order_relaxed);
+        }
 
         // Restore corpus from saved path — defer to message thread to avoid
         // blocking the audio thread (setStateInformation can be called from any thread)

@@ -30,10 +30,7 @@
 #include "KDTreeSearch.h"
 #include <cmath>
 
-GrainScheduler::GrainScheduler()
-{
-    random.setSeedRandomly();
-}
+GrainScheduler::GrainScheduler() = default;
 
 void GrainScheduler::prepare(double sampleRate, float initialOutputGainDb)
 {
@@ -44,6 +41,7 @@ void GrainScheduler::prepare(double sampleRate, float initialOutputGainDb)
     densityNormSmoothed.reset(sampleRate, 0.1);
     densityNormSmoothed.setCurrentAndTargetValue(1.0f);
     droneTimerSamples = 0;
+    droneStartPending = true;
     droneIntervalSamples = static_cast<int>(sampleRate * 0.05);  // 50ms default
 }
 
@@ -51,6 +49,8 @@ void GrainScheduler::reset()
 {
     grainPool.releaseAll();
     droneTimerSamples = 0;
+    droneStartPending = true;
+    grainCounter = 0;
 }
 
 void GrainScheduler::processBlock(
@@ -60,25 +60,71 @@ void GrainScheduler::processBlock(
     const SchedulerParams& params)
 {
     const int numSamples = buffer.getNumSamples();
+    if (numSamples == 0)
+        return;
 
-    // Handle MIDI input for all modes (notes for 0/1, CCs for all)
-    if (corpus != nullptr)
+    if (params.rngSeed != rngSeed)
     {
-        for (const auto metadata : midiMessages)
+        rngSeed = params.rngSeed;
+        grainCounter = 0;
+    }
+
+    // Generative Drone mode (mode 2): spawn interval from density
+    const bool droneOn = params.midiMode == 2 && corpus != nullptr;
+    if (droneOn)
+    {
+        float densityFactor = static_cast<float>(params.grainDensity) / 64.0f;
+        droneIntervalSamples = static_cast<int>(currentSampleRate * 0.02 / densityFactor);  // 20ms to 1280ms
+        droneIntervalSamples = juce::jmax(100, droneIntervalSamples);
+
+        // The first drone grain after a reset sounds on sample 0.
+        if (droneStartPending)
         {
-            const auto msg = metadata.getMessage();
-            handleMidiMessage(msg, params, corpus);
+            droneTimerSamples = droneIntervalSamples;
+            droneStartPending = false;
         }
     }
 
-    // Generative Drone mode (mode 2)
-    if (params.midiMode == 2 && corpus != nullptr)
+    // v1.6.0: sample-accurate events. The block is rendered in segments split at
+    // each MIDI event (notes for modes 0/1, CCs for all) and each drone spawn, so
+    // every grain starts on its own sample. v1.5.4 handled all MIDI and spawned
+    // every due drone grain at offset 0. Events at offset 0 render as before.
+    buffer.clear();
+
+    auto midiIt = midiMessages.cbegin();
+    const auto midiEnd = midiMessages.cend();
+    if (corpus == nullptr)
+        midiIt = midiEnd;
+
+    int pos = 0;
+    for (;;)
     {
-        processDroneMode(numSamples, params, corpus);
+        // Late events (past the block end) are handled on the last sample.
+        const int nextMidi = midiIt != midiEnd ? juce::jlimit(pos, numSamples - 1, (*midiIt).samplePosition)
+                                               : numSamples;
+        const int nextDrone = droneOn ? juce::jmax(pos, droneIntervalSamples - droneTimerSamples)
+                                      : numSamples;
+        const int next = std::min({ nextMidi, nextDrone, numSamples });
+
+        renderVoices(buffer, corpus, pos, next);
+        pos = next;
+        if (pos >= numSamples)
+            break;
+
+        // MIDI first at a shared sample, so a CC there shapes that sample's drone grain.
+        if (nextMidi == pos)
+        {
+            handleMidiMessage((*midiIt).getMessage(), params, corpus);
+            ++midiIt;
+            continue;
+        }
+
+        droneTimerSamples -= droneIntervalSamples;
+        triggerGrain(corpus, params, -1, -1, 1.0f);
     }
 
-    // Render active voices
-    renderVoices(buffer, corpus);
+    if (droneOn)
+        droneTimerSamples += numSamples;
 
     // Drone-mode density normalisation (v1.5.4): stacked drone grains summed
     // un-normalised and the processor's ±1 safety clip flattened dense patches.
@@ -150,22 +196,6 @@ void GrainScheduler::handleMidiMessage(const juce::MidiMessage& msg, const Sched
     }
 }
 
-void GrainScheduler::processDroneMode(int numSamples, const SchedulerParams& params, const SharedCorpus* corpus)
-{
-    // Update interval based on density
-    float densityFactor = static_cast<float>(params.grainDensity) / 64.0f;
-    droneIntervalSamples = static_cast<int>(currentSampleRate * 0.02 / densityFactor);  // 20ms to 1280ms
-    droneIntervalSamples = juce::jmax(100, droneIntervalSamples);
-
-    droneTimerSamples += numSamples;
-
-    while (droneTimerSamples >= droneIntervalSamples)
-    {
-        droneTimerSamples -= droneIntervalSamples;
-        triggerGrain(corpus, params, -1, -1, 1.0f);
-    }
-}
-
 float GrainScheduler::envelopeMeanSquare(float crossfadeFactor)
 {
     constexpr int kSteps = 512;
@@ -226,7 +256,7 @@ void GrainScheduler::triggerGrain(const SharedCorpus* corpus, const SchedulerPar
         if (droneCCTexture >= 0.0f)    effectiveParams.texture = droneCCTexture;
     }
 
-    uint32_t grainIndex = queryGrainIndex(corpus, effectiveParams, random);
+    uint32_t grainIndex = queryGrainIndex(corpus, effectiveParams, grainCounter++);
     triggerGrainByIndex(corpus, params, grainIndex, midiNote, midiChannel, velocity);
 }
 
@@ -282,8 +312,9 @@ void GrainScheduler::triggerGrainByIndex(const SharedCorpus* corpus, const Sched
 uint32_t GrainScheduler::queryGrainIndex(
     const SharedCorpus* corpus,
     const SchedulerParams& params,
-    juce::Random& rng) const
+    uint64_t counter) const
 {
+    // Draw slots: 0..18 KD query jitter, 19..20 projection target, 21 temporal offset.
     if (corpus->grains.empty())
         return 0;
 
@@ -320,8 +351,8 @@ uint32_t GrainScheduler::queryGrainIndex(
 
         // Add variation randomization
         float variationScale = params.variation * 2.0f;
-        for (auto& dim : queryPoint)
-            dim += (rng.nextFloat() - 0.5f) * variationScale;
+        for (uint32_t d = 0; d < queryPoint.size(); ++d)
+            queryPoint[d] += (CounterRng::uniform(rngSeed, counter, d) - 0.5f) * variationScale;
 
         // Query KD-tree for K nearest neighbors
         constexpr int K = 8;
@@ -361,8 +392,8 @@ uint32_t GrainScheduler::queryGrainIndex(
     // Fallback: prefer grains near scatter position in 2D projection space
     if (projX != nullptr)
     {
-        float targetX = params.scatterX + (rng.nextFloat() - 0.5f) * params.variation * 0.5f;
-        float targetY = params.scatterY + (rng.nextFloat() - 0.5f) * params.variation * 0.5f;
+        float targetX = params.scatterX + (CounterRng::uniform(rngSeed, counter, 19) - 0.5f) * params.variation * 0.5f;
+        float targetY = params.scatterY + (CounterRng::uniform(rngSeed, counter, 20) - 0.5f) * params.variation * 0.5f;
 
         float bestDist = std::numeric_limits<float>::max();
         uint32_t bestIndex = 0;
@@ -385,20 +416,16 @@ uint32_t GrainScheduler::queryGrainIndex(
     int centerGrain = static_cast<int>(params.position * static_cast<float>(totalGrains - 1));
     int spread = static_cast<int>(params.variation * static_cast<float>(totalGrains) * 0.25f);
     spread = juce::jmax(1, spread);
-    int randomOffset = rng.nextInt(spread * 2) - spread;
+    int randomOffset = CounterRng::uniformInt(rngSeed, counter, 21, spread * 2) - spread;
     int grainIdx = juce::jlimit(0, totalGrains - 1, centerGrain + randomOffset);
     return static_cast<uint32_t>(grainIdx);
 }
 
-void GrainScheduler::renderVoices(juce::AudioBuffer<float>& buffer, const SharedCorpus* corpus)
+void GrainScheduler::renderVoices(juce::AudioBuffer<float>& buffer, const SharedCorpus* corpus,
+                                  int startSample, int endSample)
 {
-    if (corpus == nullptr || corpus->audioData.getNumSamples() == 0)
-    {
-        buffer.clear();
+    if (corpus == nullptr || corpus->audioData.getNumSamples() == 0 || startSample >= endSample)
         return;
-    }
-
-    buffer.clear();
 
     auto& voices = grainPool.getVoices();
 
@@ -407,11 +434,10 @@ void GrainScheduler::renderVoices(juce::AudioBuffer<float>& buffer, const Shared
         if (!voice.active)
             continue;
 
-        const int numSamples = buffer.getNumSamples();
         float* leftOut = buffer.getWritePointer(0);
         float* rightOut = buffer.getNumChannels() > 1 ? buffer.getWritePointer(1) : nullptr;
 
-        for (int i = 0; i < numSamples; ++i)
+        for (int i = startSample; i < endSample; ++i)
         {
             if (voice.isFinished())
             {

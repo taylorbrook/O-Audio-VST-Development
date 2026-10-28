@@ -123,6 +123,10 @@ public:
     static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : i == 2 ? "zh-Hans" : "en"; }
     static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : s == "zh-Hans" ? 2 : 0; }
 
+    // v1.6.0: grain-selection RNG seed. Drawn at random per instance, persisted
+    // as an RNG child element, so a reopened session picks the same grains.
+    std::atomic<uint64_t> rngSeed { static_cast<uint64_t>(juce::Random::getSystemRandom().nextInt64()) };
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 

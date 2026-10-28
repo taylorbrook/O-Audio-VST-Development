@@ -31,6 +31,7 @@
 #include <JuceHeader.h>
 #include "SharedCorpus.h"
 #include "GrainVoice.h"
+#include "CounterRng.h"
 #include <array>
 #include <cstdint>
 
@@ -48,6 +49,7 @@ struct SchedulerParams
     float crossfadePercent = 50.0f;
     float outputGainDb = -6.0f;   // v1.5.1: matches the OUTPUT_GAIN default
     int midiMode = 2;  // 0=Pitch-Mapped, 1=Trigger+Modulate, 2=Generative Drone
+    uint64_t rngSeed = 0;  // v1.6.0: grain-selection seed, persisted in plugin state
 };
 
 class GrainScheduler
@@ -77,7 +79,6 @@ public:
 
 private:
     void handleMidiMessage(const juce::MidiMessage& msg, const SchedulerParams& params, const SharedCorpus* corpus);
-    void processDroneMode(int numSamples, const SchedulerParams& params, const SharedCorpus* corpus);
     void triggerGrain(const SharedCorpus* corpus, const SchedulerParams& params, int midiNote, int midiChannel, float velocity);
     void triggerGrainByIndex(const SharedCorpus* corpus, const SchedulerParams& params,
                              uint32_t grainIndex, int midiNote, int midiChannel, float velocity);
@@ -90,14 +91,22 @@ private:
     uint32_t queryGrainIndex(
         const SharedCorpus* corpus,
         const SchedulerParams& params,
-        juce::Random& rng) const;
+        uint64_t grainCounter) const;
 
-    void renderVoices(juce::AudioBuffer<float>& buffer, const SharedCorpus* corpus);
+    // v1.6.0: renders [startSample, endSample) so spawns land on their own sample.
+    void renderVoices(juce::AudioBuffer<float>& buffer, const SharedCorpus* corpus,
+                      int startSample, int endSample);
 
     float sampleFromCorpus(const SharedCorpus* corpus, float readPosition) const;
 
     GrainPool grainPool;
-    juce::Random random;
+
+    // v1.6.0: counter-based RNG (was a time-seeded juce::Random). Each randomised
+    // grain draws from hash(seed, grainCounter, slot); the counter restarts on
+    // reset() and when the seed changes, so a seeded render reproduces at any
+    // block size.
+    uint64_t rngSeed = 0;
+    uint64_t grainCounter = 0;
     double currentSampleRate = 44100.0;
 
     // v1.5.1: output gain is ramped (Linear, ~20 ms, on the LINEAR gain) instead
@@ -115,8 +124,11 @@ private:
     float computeDensityNorm(const SchedulerParams& params);
     static float envelopeMeanSquare(float crossfadeFactor);
 
-    // Drone mode state
+    // Drone mode state. v1.6.0: droneTimerSamples is the time since the last
+    // spawn, measured at the current block's start; a grain spawns on the sample
+    // where it reaches droneIntervalSamples (was: the next block start).
     int droneTimerSamples = 0;
+    bool droneStartPending = true;   // v1.6.0: first grain after reset() on sample 0
     int droneIntervalSamples = 1000;
 
     // MIDI CC state for Trigger+Modulate mode (Mode 1)

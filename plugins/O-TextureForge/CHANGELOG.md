@@ -1,5 +1,29 @@
 # O-TextureForge Changelog
 
+## [1.6.0] — 2026-10-26
+
+### Changed
+
+- **Grains start on their exact sample.** In Generative Drone mode every grain
+  due in a block started together at the block's first sample, so the spacing
+  between grains, and how they stacked, depended on the host's buffer size.
+  Drone grains now start exactly one spawn interval apart. MIDI notes, note-offs
+  and CCs also take effect on their own sample within the block; before, they
+  were all applied at the block's start. The first drone grain now sounds as
+  soon as playback starts. Before, it waited one spawn interval, up to 1.28 s
+  at low Grain Density.
+- **Renders are reproducible.** Variation's random grain picks came from a
+  generator seeded from the clock, so every bounce sounded slightly different.
+  Each pick is now a fixed function of a seed and the grain's number. The seed
+  is chosen at random for each new instance and saved with the session, so a
+  reopened project picks the same grains again. A session saved before 1.6.0
+  has no seed, so it gets a new random one when it opens.
+
+Renders are now the same at any buffer size: 32, 512 and varying blocks, each
+on a fresh instance, null exactly. MIDI renders whose events fall on block
+starts, and drone renders where the block equals the spawn interval, are
+bit-identical to v1.5.4 at Variation 0.
+
 ## [1.5.4] — 2026-10-26
 
 ### Fixed
