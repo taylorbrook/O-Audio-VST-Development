@@ -43,6 +43,7 @@
 #include "dsp/WindowLuts.h"
 #include "dsp/TripleBuffer.h"
 #include "dsp/GrainCloudFrame.h"
+#include "dsp/GrainSource.h"          // v1.7.0 — buffer + band-limited mipmap
 #include "VizAnalyzer.h"
 
 // Forward declarations — the voice/sound are pulled in only by the .cpp
@@ -277,8 +278,8 @@ private:
     //
     //   - shared_ptr OWNERSHIP lives on the message/host side only, mutated
     //     exclusively under sourceStateLock (never on the audio thread).
-    //   - the audio thread reads ONE std::atomic<AudioBuffer*> raw-pointer view
-    //     per block (wait-free; buffers are immutable once published).
+    //   - the audio thread reads ONE std::atomic<const GrainSource*> raw-pointer view
+    //     per block (wait-free; sources are immutable once published).
     //   - a publish parks the outgoing shared_ptr in `retiredSources` instead of
     //     freeing it; an in-flight audio block may still be reading the old raw
     //     pointer. Entries are reaped (on later publishes / prepareToPlay /
@@ -295,13 +296,13 @@ private:
     // parked while a block was mid-flight (freed by the next publish/prepare).
     struct RetiredSource
     {
-        std::shared_ptr<juce::AudioBuffer<float>> buffer;
+        std::shared_ptr<const GrainSource> source;
         juce::uint64 parkedAtBlock = 0;
     };
 
     // Publish a fully-built buffer to the audio thread and park the old one.
     // Caller MUST hold sourceStateLock. Message/host threads only.
-    void publishSource (std::shared_ptr<juce::AudioBuffer<float>> newBuf);
+    void publishSource (std::shared_ptr<const GrainSource> newSource);
 
     // Free retired buffers that no in-flight audio block can still reference.
     // Caller MUST hold sourceStateLock.
@@ -330,9 +331,10 @@ private:
                            const juce::String& identity);
 
     // Resample a decoded buffer (at srcRate) to engineRate, capped at the source
-    // length cap. Returns a fully-built shared_ptr ready to atomic-publish. Sets
+    // length cap, and builds its band-limited mipmap (v1.7.0). Returns a fully-built
+    // source ready to atomic-publish. Sets
     // `truncated` when the source exceeded the cap.
-    std::shared_ptr<juce::AudioBuffer<float>>
+    std::shared_ptr<const GrainSource>
         resampleToEngineRate (const juce::AudioBuffer<float>& src, double srcRate,
                               double engineRate, bool& truncated) const;
 
@@ -385,11 +387,11 @@ private:
     juce::CriticalSection sourceStateLock;
 
     // Owning ref of the published source (message/host side, under the lock).
-    std::shared_ptr<juce::AudioBuffer<float>> currentSource;
+    std::shared_ptr<const GrainSource> currentSource;
 
     // Wait-free audio-thread view of currentSource (raw pointer; the pointee is
     // kept alive by currentSource / retiredSources until provably unreferenced).
-    std::atomic<juce::AudioBuffer<float>*> audioSourceView { nullptr };
+    std::atomic<const GrainSource*> audioSourceView { nullptr };
 
     // Outgoing sources parked until no in-flight audio block can reference them.
     std::vector<RetiredSource> retiredSources;

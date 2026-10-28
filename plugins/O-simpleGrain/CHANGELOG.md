@@ -3,6 +3,27 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.7.0] — 2026-10-28
+
+Pitched-up grains no longer alias. A grain played above its recorded pitch now reads a band-limited copy of the source, built when the sound loads, instead of passing a 4-point read through a one-pole filter. MINOR because grains that play above the source's pitch sound different: the folded-back tones are gone, and the top octave is brighter at most rates. There is no parameter, range, state, UI or i18n change. Grains at or below the recorded pitch render bit-identically to 1.6.0.
+
+### Changed
+- **Band-limited reads for up-transposed grains (grain-engine 1.1.0 BandlimitedReader).** The 1.6.0 anti-aliasing filter was a one-pole at fs / 2·rate. At 6 dB/oct it left aliases at −2.5 to −37 dB and still dulled the top end (an 8 kHz output at +48 st came out 14 dB down, 33 dB down at +84 st). Each source is now stored with six half-band octave levels (`dsp/GrainSource.h`: buffer plus `MipSnapshot<6>`). A grain with rate > 1 latches its octave level from its rate when it spawns, plus the 16-tap sinc set for the residual rate on that level. Both are fixed for the grain's life, so the render loop does one 16-tap read per grain and nothing else per sample. Grains at rate ≤ 1 keep the Lagrange read, since they cannot alias.
+- **The mipmap is built when the source loads, never on the audio thread.** `resampleToEngineRate` builds it on the thread that decodes the sound. The buffer and its levels are published as one immutable object behind the existing atomic pointer and retired/reaped exactly as before, so a new buffer can never pair with an old mipmap. The levels are padded with copies of the first and last sample, so a grain that runs off either end of the source holds the edge value, as the Lagrange clamp does.
+
+### Notes
+- Top-octave trade-off of the 16-tap kernels. Just above an octave (sinc set S1) the response is flat to 16 kHz (−1.7 dB at 48 kHz). Just below the next octave (S6, the narrowest set) 16 kHz is −7.9 dB, against −3.1 dB for the old one-pole, which let the aliases through. Up to 9 kHz every rate is within 1 dB.
+- Memory: the mipmap holds about 2× the source, and two channels, because the module's snapshot is stereo and the engine reads channel 0. That is about 7.7 MB for a 10 s source at 48 kHz (about 15 MB at 96 kHz). Loading a 10 s source takes 14 ms longer at 48 kHz (24 → 38 ms) and 26 ms longer at 96 kHz.
+- Six octave levels: alias rejection holds to about +84 st (rate 128). The keyboard alone reaches +67 st from C3, before Grain Pitch and Pitch Spray.
+
+### Testing
+- New `tests/alias-gate/gate.py`, on the installed VST3 in pedalboard. A 10 s sine is injected through the session's embedded source copy, then played as isolated frozen 60 ms grains. Twelve alias cases cover levels 0 to 6, with each octave edge tested from both sides (+0.1 st reads S1 on level l, −0.1 st reads S6 on level l − 1). Each folds to an audible frequency, and audible energy must be ≤ −60 dB against the same sine at rate 1. Six in-band cases at about 9 kHz must stay within ±1.5 dB.
+  - v1.7.0: all 18 pass. Alias −64.6 to −112.3 dB, in-band −0.96 to +0.01 dB.
+  - v1.6.0 (positive control): all 12 alias cases fail (−2.5 to −37.0 dB), and 4 of the 6 in-band cases fail (down to −33.0 dB).
+- New `tests/alias-gate/unity_null.py`, comparing v1.6.0 and v1.7.0 on the same state. Grain Pitch −12 with Pitch Spray 5 and every other spray and Scan, and unity pitch: both bit-exact. Grain Pitch +7 differs, so the gate is live.
+- `tests/blocksize-null/gate.py`: 18/18 bit-exact, seeds live, reaper +4.5 MiB over 400 idle loads (limit 20).
+- `tests/state-persistence/persist_test.py`: 0 fails. pluginval strictness 10 SUCCESS, auval SUCCEEDED.
+
 ## [1.6.0] — 2026-10-27
 
 Renders no longer depend on the host's buffer size, and a session renders the same grains every time it is bounced. MINOR because the grain texture changes (new random sequence) and grains now follow a moving playhead within each block. There is no parameter, range, UI or i18n change. The state gains one property.

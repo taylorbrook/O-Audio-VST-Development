@@ -76,6 +76,9 @@ used_by:
   - plugin: O-GrainScatter
     version: 3.3.0
     uses: [BandlimitedReader]
+  - plugin: O-simpleGrain
+    version: 1.7.0
+    uses: [BandlimitedReader]   # MipRing (build only) + MipSnapshot<6>, static source
 
 changelog:
   - version: 1.1.0

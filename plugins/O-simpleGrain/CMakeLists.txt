@@ -6,7 +6,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 # juce_add_plugin below AND by tests/render-harness/CMakeLists.txt (whose
 # hand-rolled JucePlugin_VersionString/Code previously drifted).
 # VERSION_CODE = 0x00MMmmpp (major/minor/patch bytes) — keep in sync.
-set(OSIMPLEGRAIN_VERSION "1.6.0")
+set(OSIMPLEGRAIN_VERSION "1.7.0")
 set(OSIMPLEGRAIN_VERSION_CODE 0x010600)
 
 # O-simpleGrain - Pedagogical Granular Synthesizer
@@ -44,6 +44,7 @@ target_sources(O-simpleGrain
         Source/dsp/Grain.h
         Source/dsp/WindowLuts.h
         Source/dsp/LagrangeInterpolation.h
+        Source/dsp/GrainSource.h            # v1.7.0 — buffer + band-limited mipmap
         # Stage 2.3 — viz taps (lock-free SPSC + ring/FFT + cloud frame POD)
         Source/dsp/TripleBuffer.h
         Source/dsp/GrainCloudFrame.h
@@ -66,6 +67,11 @@ target_include_directories(O-simpleGrain
 # path (harmless — never #included). The JS is then embedded below and served at
 # /js/modules/webview-drop-streaming.js by PluginEditor::getResource.
 ouaricon_add_module(O-simpleGrain webview-drop-streaming)
+
+# grain-engine 1.1.0: BandlimitedReader.h only (MipRing / MipSnapshot / SincBank),
+# for the band-limited read of up-transposed grains (v1.7.0). The plugin keeps its
+# own dsp/CounterRng.h (global namespace; the module's is ouaricon::grain).
+ouaricon_add_module(O-simpleGrain grain-engine)
 
 # WebView UI resources (embedded as BinaryData). CRITICAL: this target MUST use a
 # distinct NAMESPACE *and* HEADER_NAME (UIBinaryData) so it does NOT collide with

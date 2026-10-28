@@ -31,7 +31,7 @@
     Phase 2.1: core grain engine + overlap-add + amp ADSR + key resample.
     Phase 2.2 (this file): per-voice spray & scatter (position/pitch/period/pan),
     velToDensity into the effective density, and the anti-aliasing one-pole filled
-    in the grain read loop. The processor advances a moving/freezable global
+    in the grain read loop (v1.7.0: replaced by the band-limited mipmap read). The processor advances a moving/freezable global
     playhead and hands the voices its per-sample values via setPlayheadTrack.
 
     Real-time safety (every line of renderNextBlock): NO allocation / lock / I/O.
@@ -55,6 +55,7 @@
 #include "dsp/Grain.h"
 #include "dsp/WindowLuts.h"
 #include "dsp/LagrangeInterpolation.h"
+#include "dsp/GrainSource.h"            // v1.7.0 — band-limited mipmap
 #include "dsp/CounterRng.h"
 #include "dsp/GrainCloudFrame.h"        // Phase 2.3 — grain-event viz tap
 
@@ -147,11 +148,13 @@ public:
     }
 
     // Source snapshot the processor sets once per block (it holds the shared_ptr
-    // alive for the whole block; the voice only reads the raw pointer/len). A
-    // null source -> the voice renders silence (no grains read).
-    void setSource (const float* src, int len) noexcept
+    // alive for the whole block; the voice only reads the raw pointers/len). A
+    // null source -> the voice renders silence (no grains read). `mip` is the
+    // same source's band-limited mipmap (v1.7.0), read by rate > 1 grains.
+    void setSource (const float* src, const GrainSource::Snapshot* mip, int len) noexcept
     {
         sourcePtr = src;
+        sourceMip = mip;
         sourceLen = len;
     }
 
@@ -316,8 +319,9 @@ public:
                     continue;
 
                 const float env = (windowLuts != nullptr) ? windowLuts->read (g.shape, g.phase, g.taperEnd) : 0.0f;
-                float src = readSourceLagrange (sourcePtr, sourceLen, g.readPos);
-                src = aaOnePole (src, g.aaCoeff, g.aaEngaged, g.aaState);   // band-limit if rate > 1 (DSP-08)
+                // rate > 1: band-limited mipmap read (v1.7.0, DSP-08); else Lagrange.
+                const float src = g.bandlimited ? readSourceBandlimited (g)
+                                                : readSourceLagrange (sourcePtr, sourceLen, g.readPos);
 
                 const float s = src * env * g.fadeGain;
                 // Equal-power pan gains were precomputed on spawn (constant per grain).
@@ -443,8 +447,8 @@ private:
 
         // --- Pitch spray: fresh ± pitchSpray semitones per grain, combined with
         // the key rate and the global grainPitch offset (decision #2 — all three
-        // multiply into the read increment). rate > 1 = up-transposed (the AA
-        // one-pole engages on the read; see aaOnePole).
+        // multiply into the read increment). rate > 1 = up-transposed (read band-
+        // limited from the mipmap; see readSourceBandlimited).
         const float pitchSprayRand = bipolarDraw (kSlotPitch) * params.pitchSpray;
         g.rate = voiceRate * std::pow (2.0f, (params.grainPitch + pitchSprayRand) / 12.0f);
 
@@ -456,19 +460,16 @@ private:
         g.panL = std::cos (g.pan * juce::MathConstants<float>::halfPi);
         g.panR = std::sin (g.pan * juce::MathConstants<float>::halfPi);
 
-        // --- AA one-pole: engage only for up-transposed grains (rate > 1). The
-        // cutoff fc = 0.5*fs/rate and its smoothing coefficient depend only on rate
-        // (constant per grain), so both are computed ONCE here — no per-sample
-        // std::exp in the render loop (RESEARCH §5 / DSP-08).
-        g.aaEngaged = (g.rate > 1.0f);
-        g.aaCoeff   = g.aaEngaged
-                    ? 1.0f - std::exp (-juce::MathConstants<float>::twoPi
-                             * (0.5f * (float) sampleRate / g.rate) / (float) sampleRate)
-                    : 0.0f;
-
-        // AA one-pole state primed to the first read sample so the filter starts
-        // settled (no spurious attack transient on up-transposed grains).
-        g.aaState = readSourceLagrange (sourcePtr, sourceLen, g.readPos);
+        // --- Band-limited read (v1.7.0): only up-transposed grains (rate > 1)
+        // alias. The octave level is latched from the rate (floor (log2 rate),
+        // so rate 2..4 reads the half-rate level) and the sinc set from the
+        // residual rate on that level; the rate is fixed for the grain, so both
+        // are chosen here, once. rate <= 1 keeps the Lagrange read, bit-identical
+        // to v1.6.0. Replaces the v1.6.0 one-pole (fc = fs / 2rate, 6 dB/oct:
+        // the aliases passed almost untouched and the top end dulled).
+        g.bandlimited = (g.rate > 1.0f && sourceMip != nullptr);
+        g.mipLevel    = g.bandlimited ? ouaricon::grain::latchLevel ((double) g.rate, GrainSource::kMipLevels) : 0;
+        g.sincSet     = g.bandlimited ? ouaricon::grain::SincBank::setFor ((double) g.rate / (double) (1 << g.mipLevel)) : 0;
 
         nextGrain = (target + 1) % N;
 
@@ -525,24 +526,14 @@ private:
         return lagrangeInterpolate (src[im1], src[ip0], src[ip1], src[ip2], frac);
     }
 
-    // Anti-aliasing one-pole (RESEARCH §5 / DSP-08). Band-limits up-transposed
-    // grains before the fractional read crosses Nyquist. The cutoff (fc =
-    // 0.5*fs/rate), its smoothing coefficient, and the engage decision (rate > 1)
-    // are all precomputed ON SPAWN (constant per grain — see spawnGrain), so this
-    // hot-path helper is one branch + one multiply-add, NO transcendental. When not
-    // engaged the read passes through and `state` is kept coherent for a later
-    // engage edge. `state` is the per-grain aaState (primed on spawn). Keeps high
-    // pitch-spray grains clean without global oversampling — zero added latency.
-    static float aaOnePole (float x, float coeff, bool engaged, float& state) noexcept
+    // Band-limited fractional read (v1.7.0, DSP-08): one 16-tap sinc on the
+    // grain's latched mipmap level. The snapshot's origin is source sample 0, so
+    // readPos is its position as-is; the mipmap is padded with the edge samples,
+    // so a grain running off either end holds the edge value like the Lagrange
+    // clamp (RESEARCH §2.5). Allocation- and lock-free (grain-engine contract).
+    float readSourceBandlimited (const Grain& g) const noexcept
     {
-        if (! engaged)
-        {
-            state = x;                          // keep state coherent for the bypass→engage edge
-            return x;
-        }
-
-        state += coeff * (x - state);           // one-pole y += g*(x - y), g precomputed
-        return state;
+        return sourceMip->read (g.mipLevel, 0, g.readPos, g.sincSet);
     }
 
     // v1.5.4: copy a stolen grain into a spare slot and fade it out over kStealFadeMs,
@@ -591,6 +582,7 @@ private:
 
     // Source snapshot (raw pointer set per block; processor holds the shared_ptr).
     const float* sourcePtr = nullptr;
+    const GrainSource::Snapshot* sourceMip = nullptr;   // v1.7.0 — same source's mipmap
     int          sourceLen = 0;
 
     // Per-sample global playhead for the current block (processor-owned buffer;

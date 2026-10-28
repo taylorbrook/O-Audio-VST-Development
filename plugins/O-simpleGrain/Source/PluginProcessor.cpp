@@ -390,7 +390,7 @@ void OSimpleGrainAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
 
     // Now the source length is known — seed the playhead at the resting point so
     // the first block starts where `position` points (no jump-from-zero glide).
-    std::shared_ptr<juce::AudioBuffer<float>> src;
+    std::shared_ptr<const GrainSource> src;
     {
         const juce::ScopedLock sl (sourceStateLock);
         src = currentSource;
@@ -407,7 +407,7 @@ void OSimpleGrainAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
 // Publish a fully-built buffer to the audio thread (caller holds sourceStateLock).
 // The outgoing buffer is PARKED, not freed — an in-flight audio block may still
 // be reading its raw pointer (see the header note; WR-05).
-void OSimpleGrainAudioProcessor::publishSource (std::shared_ptr<juce::AudioBuffer<float>> newBuf)
+void OSimpleGrainAudioProcessor::publishSource (std::shared_ptr<const GrainSource> newSource)
 {
     reapRetiredSources();
 
@@ -415,7 +415,7 @@ void OSimpleGrainAudioProcessor::publishSource (std::shared_ptr<juce::AudioBuffe
         retiredSources.push_back ({ currentSource,
                                     blocksRendered.load (std::memory_order_acquire) });
 
-    currentSource = std::move (newBuf);
+    currentSource = std::move (newSource);
     // seq_cst (v1.6.0): pairs with processBlock's blocksEntered increment + view
     // load for the quiescence reap — store/load ordering acquire/release can't give.
     audioSourceView.store (currentSource.get(), std::memory_order_seq_cst);
@@ -481,9 +481,11 @@ int OSimpleGrainAudioProcessor::builtInIndexForIdentity (const juce::String& ide
 }
 
 // Resample a decoded buffer (srcRate) to engineRate, capped at the source-length
-// cap. Returns a fully-built shared_ptr ready to publish. `truncated` is set when
-// the source exceeded the cap (the UI surfaces a notice in Stage 3).
-std::shared_ptr<juce::AudioBuffer<float>>
+// cap, then builds the band-limited mipmap (v1.7.0; tens of ms for 10 s — this
+// runs on the decoding thread, never the audio thread). Returns a fully-built
+// source ready to publish. `truncated` is set when the source exceeded the cap
+// (the UI surfaces a notice in Stage 3).
+std::shared_ptr<const GrainSource>
 OSimpleGrainAudioProcessor::resampleToEngineRate (const juce::AudioBuffer<float>& src,
                                                   double srcRate, double engineRate,
                                                   bool& truncated) const
@@ -497,14 +499,16 @@ OSimpleGrainAudioProcessor::resampleToEngineRate (const juce::AudioBuffer<float>
     truncated  = (numOut > maxOut);
     numOut     = juce::jlimit (1, maxOut, numOut);
 
-    auto out = std::make_shared<juce::AudioBuffer<float>> (nCh, numOut);
-    out->clear();
+    auto out = std::make_shared<GrainSource>();
+    out->buffer.setSize (nCh, numOut);
+    out->buffer.clear();
     for (int ch = 0; ch < nCh; ++ch)
     {
         juce::LagrangeInterpolator interp;       // streaming one-shot — correct for a whole-buffer resample
         interp.reset();
-        interp.process (ratio, src.getReadPointer (ch), out->getWritePointer (ch), numOut);
+        interp.process (ratio, src.getReadPointer (ch), out->buffer.getWritePointer (ch), numOut);
     }
+    out->build();
     return out;
 }
 
@@ -696,7 +700,7 @@ std::vector<float> OSimpleGrainAudioProcessor::getSourceThumbnail (int numPairs)
 {
     numPairs = juce::jlimit (1, 4096, numPairs);
 
-    std::shared_ptr<juce::AudioBuffer<float>> src;   // snapshot — held for this call
+    std::shared_ptr<const GrainSource> src;   // snapshot — held for this call
     {
         const juce::ScopedLock sl (sourceStateLock);
         src = currentSource;
@@ -704,7 +708,7 @@ std::vector<float> OSimpleGrainAudioProcessor::getSourceThumbnail (int numPairs)
     if (src == nullptr || src->getNumSamples() <= 0)
         return {};
 
-    const float* data = src->getReadPointer (0);    // mono read (channel 0), matches the engine
+    const float* data = src->buffer.getReadPointer (0);    // mono read (channel 0), matches the engine
     const int    len  = src->getNumSamples();
 
     std::vector<float> out;
@@ -937,12 +941,14 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     // ref-count, no lock. The pointee is immutable and stays alive because a
     // publish PARKS the outgoing buffer until ≥2 blocks after the swap (see
     // publishSource/reapRetiredSources); blocksRendered below is the fence.
-    const juce::AudioBuffer<float>* src = audioSourceView.load (std::memory_order_seq_cst);
+    const GrainSource* src = audioSourceView.load (std::memory_order_seq_cst);
     const float* srcPtr = nullptr;
+    const GrainSource::Snapshot* srcMip = nullptr;   // v1.7.0 — read by rate > 1 grains
     int          srcLen = 0;
     if (src != nullptr && src->getNumSamples() > 0)
     {
-        srcPtr = src->getReadPointer (0);        // mono read in 2.1 (channel 0)
+        srcPtr = src->buffer.getReadPointer (0); // mono read in 2.1 (channel 0)
+        srcMip = &src->mip;
         srcLen = src->getNumSamples();
     }
 
@@ -1024,7 +1030,7 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     for (auto* gv : grainVoices)                         // cached typed pointers (IN-02)
     {
         gv->setParams (p);
-        gv->setSource (srcPtr, srcLen);
+        gv->setSource (srcPtr, srcMip, srcLen);
         gv->setPlayheadTrack (playheadTrack.data(), trackLen);
         gv->setGrainCloudFrame  (&frame);            // viz: grain events
         gv->setActiveGrainCount (&activeGrainCount); // viz: live grain count (UI-05)

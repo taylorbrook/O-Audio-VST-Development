@@ -60,14 +60,14 @@ struct Grain
     float  panL          = 0.70710677f;   // cos(pan*π/2)
     float  panR          = 0.70710677f;   // sin(pan*π/2)
 
-    // Anti-aliasing one-pole (per grain). The cutoff depends only on `rate`, which
-    // is constant for the grain, so the smoothing coefficient is precomputed ONCE
-    // on spawn (no per-sample std::exp in the render loop). `aaEngaged` is true only
-    // for up-transposed grains (rate > 1); otherwise the read is passed through.
-    // `aaState` is primed to the first read sample on spawn.
-    float  aaCoeff       = 0.0f;
-    bool   aaEngaged     = false;
-    float  aaState       = 0.0f;
+    // v1.7.0 band-limited read (replaces the per-grain anti-aliasing one-pole).
+    // Up-transposed grains (rate > 1) read the source mipmap: `mipLevel` is the
+    // octave level latched from the rate, `sincSet` the sinc kernel set for the
+    // residual rate on that level. Rate is fixed for a grain, so both are chosen
+    // ONCE on spawn. rate <= 1 grains keep the 4-point Lagrange read.
+    bool   bandlimited   = false;
+    int    mipLevel      = 0;
+    int    sincSet       = 0;
 
     // v1.5.4 steal fade. A stolen grain is copied into a spare slot and fades out
     // there; fadeGain stays exactly 1 for every grain that is not fading.
