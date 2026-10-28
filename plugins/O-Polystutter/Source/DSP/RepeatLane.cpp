@@ -52,6 +52,11 @@ void RepeatLane::prepare(const juce::dsp::ProcessSpec& spec)
     snapshotBuffer.setSize(2, maxCaptureSamples);
     snapshotBuffer.clear();
 
+    // v1.19.0: Band-limited mipmap of the slice (pitched-up repeats). Sized for
+    // one whole cycle's build so the slice is never overwritten while it plays;
+    // prepare() also builds the shared sinc table (off the audio thread).
+    mipRing.prepare(maxCaptureSamples + kMipPreRoll + (1 << kMipLevels) + kMipTail);
+
     // Calculate crossfade samples (5ms for click-free looping)
     crossfadeSamples = static_cast<int>(spec.sampleRate * 0.005);
 
@@ -75,6 +80,9 @@ void RepeatLane::reset()
     // v1.1.0: Reset capture buffer instead of delay lines
     captureBuffer.clear();
     snapshotBuffer.clear();  // v1.18.0 (IN-05): full reset, nothing stale survives a NaN recovery
+    mipRing.clear();         // v1.19.0: same for the mipmap levels and half-band history
+    mipActive = false;
+    mipBuilt = 0;
     captureWritePosition = 0;
 
     isTriggered = false;
@@ -217,20 +225,42 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int startSample,
 
             readOffset = juce::jlimit(0.0, static_cast<double>(captureLength - 1), readOffset);
 
-            // Clamp the interpolation neighbor inside the slice (also fixes
-            // the old wrap into one sample of unrelated audio at the loop end)
-            int basePos = static_cast<int>(readOffset);
-            int nextPos = juce::jmin(basePos + 1, captureLength - 1);
-            float frac = static_cast<float>(readOffset - basePos);
+            // v1.19.0: Pitched up, read the band-limited mipmap. The build
+            // direction is latched when the build starts; if Reverse flips
+            // mid-cycle the rest of the cycle falls back to the linear read.
+            const bool bandlimited = pitchRatio > 1.0f
+                                     && (!mipActive || mipReversed == reverseEnabled);
 
-            // Linear interpolation for smooth pitch shifting
-            float left0 = snapshotBuffer.getSample(0, basePos);
-            float left1 = snapshotBuffer.getSample(0, nextPos);
-            float right0 = snapshotBuffer.getSample(1, basePos);
-            float right1 = snapshotBuffer.getSample(1, nextPos);
+            if (bandlimited)
+            {
+                // Built-sequence position: forwards along the slice, or along
+                // the reversed slice — position * ratio either way.
+                const double j = reverseEnabled ? (captureLength - 1.0 - readOffset) : readOffset;
+                mipEnsureBuilt(j);
 
-            leftOut = left0 + frac * (left1 - left0);
-            rightOut = right0 + frac * (right1 - right0);
+                const double ratio = static_cast<double>(pitchRatio);
+                const int level = ouaricon::grain::latchLevel(ratio, kMipLevels);
+                const int set = ouaricon::grain::SincBank::setFor(ratio / static_cast<double>(1 << level));
+                const double delay = static_cast<double>(mipRing.getWriteCount() - mipSliceStart) - j;
+                mipRing.readStereo(level, delay, set, leftOut, rightOut);
+            }
+            else
+            {
+                // Clamp the interpolation neighbor inside the slice (also fixes
+                // the old wrap into one sample of unrelated audio at the loop end)
+                int basePos = static_cast<int>(readOffset);
+                int nextPos = juce::jmin(basePos + 1, captureLength - 1);
+                float frac = static_cast<float>(readOffset - basePos);
+
+                // Linear interpolation for smooth pitch shifting
+                float left0 = snapshotBuffer.getSample(0, basePos);
+                float left1 = snapshotBuffer.getSample(0, nextPos);
+                float right0 = snapshotBuffer.getSample(1, basePos);
+                float right1 = snapshotBuffer.getSample(1, nextPos);
+
+                leftOut = left0 + frac * (left1 - left0);
+                rightOut = right0 + frac * (right1 - right0);
+            }
 
             // Apply crossfade at loop boundaries for click-free looping
             int intPosition = static_cast<int>(effectivePosition);
@@ -410,6 +440,11 @@ void RepeatLane::trigger()
         }
     }
 
+    // v1.19.0: The new slice gets a fresh mipmap build on its first
+    // pitched-up read
+    mipActive = false;
+    mipBuilt = 0;
+
     // Start first repeat immediately (with swing offset if applicable)
     int swingOffset = calculateSwingOffset(0);
     samplesUntilNextRepeat = swingOffset;
@@ -518,6 +553,47 @@ void RepeatLane::startNewRepeat()
 
     // Increment repeat counter
     currentRepeat++;
+}
+
+// v1.19.0: Push built samples until a read at built position j has every
+// level settled around it (the reader needs margin(L) samples behind the
+// head). The first call of a trigger starts the build: an edge-hold pre-roll
+// that flushes the half-band history of the previous slice and lands built
+// sample 0 on an absolute index that is a multiple of 2^L, so the levels'
+// decimation phase — and so the output — depends on the slice alone.
+// Allocation- and lock-free.
+void RepeatLane::mipEnsureBuilt(double j)
+{
+    if (!mipActive)
+    {
+        mipActive = true;
+        mipReversed = reverseEnabled;
+        mipBuilt = 0;
+
+        const int first = mipReversed ? captureLength - 1 : 0;
+        const float l0 = snapshotBuffer.getSample(0, first);
+        const float r0 = snapshotBuffer.getSample(1, first);
+
+        constexpr int64_t align = 1 << kMipLevels;
+        const int64_t w = mipRing.getWriteCount() + kMipPreRoll;
+        const int pad = static_cast<int>((align - (w % align)) % align);
+        for (int i = 0; i < kMipPreRoll + pad; ++i)
+            mipRing.push(l0, r0);
+        mipSliceStart = mipRing.getWriteCount();
+    }
+
+    const int total = captureLength + kMipTail;
+    const int target = juce::jmin(total, static_cast<int>(j) + kMipLead);
+    while (mipBuilt < target)
+        mipPushNext();
+}
+
+void RepeatLane::mipPushNext()
+{
+    const int i = juce::jmin(mipBuilt, captureLength - 1);   // past the end: hold the last sample
+    const int src = mipReversed ? captureLength - 1 - i : i;
+    mipRing.push(snapshotBuffer.getSample(0, src), snapshotBuffer.getSample(1, src));
+    ++mipBuilt;
 }
 
 float RepeatLane::getCrossfadeGain(int sampleIndex, int fadeLength, bool fadeIn)

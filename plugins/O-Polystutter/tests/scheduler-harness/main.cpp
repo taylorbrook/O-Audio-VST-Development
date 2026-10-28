@@ -79,7 +79,7 @@ static Config makeConfig(const std::string& name)
         c.lane[3].euc = true; c.lane[3].eucP = 5; c.lane[3].eucS = 8;
     }
     else if (name == "loop") { beatLanes(); c.startSample = 0; c.loopLen = 180000; }   // 2 bars at 128 BPM
-    else if (name == "midi" || name == "exact_midi" || name == "exact_midi_up" || name == "exact_midi_r4" || name == "onsets_midi")
+    else if (name == "midi" || name == "exact_midi" || name == "exact_midi_up" || name == "exact_midi_flat" || name == "exact_midi_r4" || name == "onsets_midi")
     {
         c.midiEnabled = true;
         c.lane[0].subdiv = 2; c.lane[1].subdiv = 1; c.lane[1].reverse = true; c.lane[2].subdiv = 3; c.lane[2].pingPong = true;
@@ -100,7 +100,7 @@ static Config makeConfig(const std::string& name)
                 for (int j = 0; j < n; ++j) c.notes.push_back({ at, 60 + (int) ((r.next() + j) % 4) });
             }
         }
-        else if (name == "exact_midi" || name == "exact_midi_up" || name == "exact_midi_r4")
+        else if (name == "exact_midi" || name == "exact_midi_up" || name == "exact_midi_flat" || name == "exact_midi_r4")
         {
             // Offsets on multiples of 960 = lcm(32, 480): sample 0 of a block at both sizes.
             // Every cycle (subdivision x repeats) must also end on a block start:
@@ -118,7 +118,7 @@ static Config makeConfig(const std::string& name)
                 c.notes.push_back({ at, notes[r.next() % 5] });
         }
     }
-    else if (name == "exact_beat" || name == "exact_beat_up" || name == "onsets_beat" || name == "onsets_man")
+    else if (name == "exact_beat" || name == "exact_beat_up" || name == "exact_beat_flat" || name == "onsets_beat" || name == "onsets_man")
     {
         // 120 BPM at 48 kHz: 1/8 = 12000 and 1/4 = 24000 samples, multiples of 32 and 480
         c.sequencer = true;
@@ -139,6 +139,9 @@ static Config makeConfig(const std::string& name)
     // v1.18.3 fades a pitched-down repeat before the next one cuts it, so the -5 st
     // lane 4 now differs from v1.16.0 by design; _up plays it at +5 for bit-identity
     if (name == "exact_beat_up" || name == "exact_midi_up") c.lane[3].pitch = 5;
+    // v1.19.0 reads pitched-up repeats band-limited, so +5 / +7 differ from v1.16.0
+    // too; _flat plays every lane at unity for the bit-identity check
+    if (name == "exact_beat_flat" || name == "exact_midi_flat") for (auto& l : c.lane) l.pitch = 0;
     return c;
 }
 

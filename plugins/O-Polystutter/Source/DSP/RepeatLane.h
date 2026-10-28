@@ -29,6 +29,7 @@
 
 #pragma once
 #include <JuceHeader.h>
+#include "BandlimitedReader.h"   // grain-engine 1.1.0 (modules/synthesis/grain-engine/cpp)
 
 class RepeatLane
 {
@@ -179,6 +180,33 @@ private:
     // Playback reads this instead of the circular buffer so the live write
     // head can't overwrite the slice during long repeat tails (WR-05).
     juce::AudioBuffer<float> snapshotBuffer;
+
+    // v1.19.0: Band-limited read for pitched-up repeats (grain-engine
+    // BandlimitedReader). A pitched-up repeat reads the slice faster than one
+    // sample per output sample; the linear read folded everything above
+    // fs / 2 / ratio back into the audible band. Repeats at ratio > 1 now read
+    // a 2-octave half-band mipmap of the slice through the 16-tap sinc set of
+    // the residual rate (level = floor(log2 ratio), up to ratio 4 = +24 st).
+    // ratio <= 1 keeps the linear read, bit-identical to v1.18.3.
+    //
+    // The mipmap is built from the snapshot, on demand, a few samples ahead
+    // of the read: <= ratio + 1 pushes per output sample after a ~1.3k-push
+    // start (edge-hold pre-roll), so no trigger ever pays for the whole slice
+    // at once. The sequence pushed is [pre-roll x s0][slice][tail x sLast],
+    // slice reversed when the lane plays reversed, so playback always reads
+    // the built sequence forwards at j = position * ratio.
+    static constexpr int kMipLevels = 2;   // ratio <= 4 (+24 st incl. pitch random)
+    using MipRing = ouaricon::grain::MipRing<kMipLevels>;
+    static constexpr int kMipPreRoll = 1024;   // > 4 x 128 history flush + level-2 settle (381)
+    static constexpr int kMipTail    = MipRing::margin(kMipLevels) + 8 * (1 << kMipLevels) + 2;   // 256
+    static constexpr int kMipLead    = MipRing::margin(kMipLevels) + 1;                           // 223
+    MipRing mipRing;
+    bool mipActive = false;          // build started for the current trigger
+    bool mipReversed = false;        // direction the slice was pushed in
+    int64_t mipSliceStart = 0;       // absolute ring index of built sample 0
+    int mipBuilt = 0;                // built samples pushed past mipSliceStart (0 .. len + tail)
+    void mipEnsureBuilt(double j);
+    void mipPushNext();
 
     // Crossfade buffer for click-free looping
     int crossfadeSamples = 0;

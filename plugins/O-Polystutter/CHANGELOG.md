@@ -2,6 +2,28 @@
 
 All notable changes to O-Polystutter will be documented in this file.
 
+## [1.19.0] - 2026-10-28
+
+Pitched-up repeats no longer alias. No parameter, range, state or preset change. Output at unity pitch and pitched down is bit-identical to v1.18.3.
+
+### Changed
+
+- **Pitched-up repeats read a band-limited mipmap of the slice (grain-engine 1.1.0 `BandlimitedReader`).** Root cause: a repeat at ratio r reads the slice r samples per output sample through a linear interpolation, so everything in the slice above fs / 2r folded back into the audible band. That is −0.7 to −4.5 dB at +5..+24 st for a high tone, and −30 dB of images on a 9 kHz output. Repeats with ratio > 1 now read a 2-level half-band mipmap (`MipRing<2>`, level = floor(log2 r), so up to r = 4, +24 st with Pitch Random) through the 16-tap sinc set of the residual rate. Ratio ≤ 1 keeps the linear read.
+- The mipmap is built from the trigger-time snapshot on demand, about 223 samples ahead of the read: an edge-hold pre-roll (~1.0k pushes) at the first pitched-up read of a trigger, then at most r + 1 pushes per output sample. No trigger pays for the whole slice at once. Reversed lanes push the slice reversed, so playback always reads the built sequence forwards. If Reverse flips mid-cycle, the rest of that cycle falls back to the linear read. Built sample 0 lands on an absolute index that is a multiple of 4, so the output depends on the slice alone, not on what the lane played before.
+- The plugin keeps its own `CounterRng` (a different hash from the module's). Only the reader is adopted.
+- Memory: about 3.4 MB more per lane at 48 kHz (the mipmap ring is sized for one 5 s slice plus pad). Cost: one lane at +24 st went from 7.7 to 18.6 ns per sample (offline probe).
+
+### Testing
+
+- New gate `tests/alias-gate/` (offline `RepeatLane` probe, v1.18.3 = 54bf6501 built from `git archive` as the control):
+  - **Alias** (sine transposed past Nyquist, audible energy relative to the same sine at unity, 44.1 and 48 kHz, +1 to +24 st, both sides of each octave edge, forward and reverse): v1.18.3 −23.2 to 0.0 dB, **all FAIL**. v1.19.0 −62.5 to −129.5 dB, **all PASS** (≤ −60). At +12 st: −114.5 / −123.9 dB (old 0.0). At +24 st: −107.3 / −107.1 dB (old 0.0).
+  - **In-band** at 1 and 9 kHz out, +5 to +24 st: level within 0.16 dB of unity, spurious ≤ −72.8 dB. v1.18.3 at 9 kHz: −0.67 dB, spurious −30.2 to −43.3 dB.
+  - **Bit-identity vs v1.18.3** at ratio ≤ 1 (unity, −5, −7, −12 st, reverse, swing 25/40, Pitch Random ≤ 0, retriggers, noise input): 8/8 identical. Control: +7 st differs (0.405).
+  - **Block-size null**, blocks 1 / 32 / 480 / variable, random −12..+12 and +12..+24 per repeat, reverse, swing, retriggers: 5/5 bit-identical.
+- `tests/repeat-click` (v1.18.3 fades): **ALL PASS**, worst ≤ 1.7×. The +5 st rows are unchanged from v1.18.3 (23.3–23.4 vs the unity control).
+- Scheduler harness: **ALL PASS**. The bit-identity check against v1.16.0 now runs `exact_beat_flat` / `exact_midi_flat` (every lane at unity), at blocks 32 and 480. New controls: `exact_beat_up` / `exact_midi_up` now differ from v1.16.0 (−38.9 / −42.1 dB residual). Block-size nulls are unchanged (−inf).
+- Build/test scripts add `modules/synthesis/grain-engine/cpp` to the new engine's include path.
+
 ## [1.18.3] - 2026-10-27
 
 Pitched-down repeats no longer click (granular-2026 research §2.2 item 7, which had only inferred the click). No parameter, range, state or preset change. Output at unity pitch and pitched up, without swing, is bit-identical to v1.18.2.

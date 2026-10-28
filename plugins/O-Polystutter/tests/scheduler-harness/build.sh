@@ -21,6 +21,7 @@ for m in juce_core juce_audio_basics juce_audio_formats juce_dsp; do
     MODS+=("$OUT/$m.o")
 done
 S="$R/plugins/O-Polystutter/Source/DSP"
-clang++ "${FL[@]}" -DNEW_ENGINE -I "$S" "$H/main.cpp" "$S/RepeatLane.cpp" "$S/TapeDegrader.cpp" "$S/TriggerScheduler.cpp" "${MODS[@]}" "${FW[@]}" -o "$OUT/psh_new"
+GE="$R/modules/synthesis/grain-engine/cpp"   # v1.19.0: BandlimitedReader.h
+clang++ "${FL[@]}" -DNEW_ENGINE -I "$S" -I "$GE" "$H/main.cpp" "$S/RepeatLane.cpp" "$S/TapeDegrader.cpp" "$S/TriggerScheduler.cpp" "${MODS[@]}" "${FW[@]}" -o "$OUT/psh_new"
 clang++ "${FL[@]}" -I "$BASE" "$H/main.cpp" "$BASE/RepeatLane.cpp" "$BASE/TapeDegrader.cpp" "$BASE/TriggerRouter.cpp" "${MODS[@]}" "${FW[@]}" -o "$OUT/psh_old"
 echo "built $OUT/psh_new $OUT/psh_old (baseline $REV)"

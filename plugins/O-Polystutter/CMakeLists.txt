@@ -8,7 +8,7 @@ juce_add_plugin(OPolystutter
     PLUGIN_CODE OuPs
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Polystutter${OUARICON_DEV_SUFFIX}"
-    VERSION 1.18.3
+    VERSION 1.19.0
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_WEB_BROWSER TRUE
@@ -30,6 +30,12 @@ target_include_directories(OPolystutter
     PRIVATE
         Source
 )
+
+# grain-engine 1.1.0: BandlimitedReader.h only (MipRing / SincBank), for the
+# band-limited read of pitched-up repeats (v1.19.0). The plugin keeps its own
+# Source/DSP/CounterRng.h (global namespace, different hash; the module's is
+# ouaricon::grain and is not used here).
+ouaricon_add_module(OPolystutter grain-engine)
 
 # Required JUCE modules
 target_link_libraries(OPolystutter

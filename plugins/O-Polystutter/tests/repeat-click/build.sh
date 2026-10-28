@@ -19,6 +19,7 @@ for m in juce_core juce_audio_basics juce_audio_formats juce_dsp; do
     MODS+=("$OUT/$m.o")
 done
 S="$R/plugins/O-Polystutter/Source/DSP"
-clang++ "${FL[@]}" -I "$S" "$H/probe.cpp" "$S/RepeatLane.cpp" "${MODS[@]}" "${FW[@]}" -o "$OUT/probe_new"
+GE="$R/modules/synthesis/grain-engine/cpp"   # v1.19.0: BandlimitedReader.h
+clang++ "${FL[@]}" -I "$S" -I "$GE" "$H/probe.cpp" "$S/RepeatLane.cpp" "${MODS[@]}" "${FW[@]}" -o "$OUT/probe_new"
 clang++ "${FL[@]}" -I "$BASE" "$H/probe.cpp" "$BASE/RepeatLane.cpp" "${MODS[@]}" "${FW[@]}" -o "$OUT/probe_old"
 echo "built $OUT/probe_new $OUT/probe_old (baseline $REV)"
