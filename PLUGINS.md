@@ -1,0 +1,110 @@
+# PLUGIN REGISTRY
+
+## State Legend
+
+- **💡 Ideated** - Creative brief exists, no implementation
+- **💡 Ideated (Draft Params)** - Creative brief + draft parameters, ready for parallel workflow
+- **🚧 Stage N** - In development (specific stage number)
+- **✅ Working** - Completed Stage 6, not installed
+- **📦 Installed** - Deployed to system folders
+- **🐛 Has Issues** - Known problems (combines with other states)
+- **🗑️ Archived** - Deprecated
+
+## State Machine Rules
+
+- If status is 🚧: ONLY plugin-workflow can modify (use `/continue` to resume)
+- plugin-improve blocks if status is 🚧 (must complete workflow first)
+
+## Build Management
+
+- All plugin builds managed by `build-automation` skill
+- Build logs: `logs/[PluginName]/build_TIMESTAMP.log`
+- Installed plugins: `~/Library/Audio/Plug-Ins/VST3/` and `~/Library/Audio/Plug-Ins/Components/`
+
+## Plugin Registry
+
+Ouaricon Plugins:
+| Plugin Name | Status | Version | Type | Last Updated |
+|-------------|--------|---------|------|--------------|
+| O-Bells | 📦 Installed | 4.9.3 | Synth (Physical Modeling Bells) | 2026-10-26 |
+| O-Tremolo | 📦 Installed | 1.11.2 | Audio Effect (Tremolo) | 2026-10-26 |
+| O-AnalogSaturation | 📦 Installed | 1.8.3 | Audio Effect (Saturation) | 2026-10-26 |
+| O-Marimba | 📦 Installed | 1.16.3 | Synth (Physical Model) | 2026-10-26 |
+| O-Comp | 📦 Installed | 1.11.3 | Audio Effect (Compressor) | 2026-10-26 |
+| O-AnalogEQ | 📦 Installed | 1.5.7 | Audio Effect (EQ) | 2026-10-26 |
+| O-DigiDelay | 📦 Installed | 1.9.3 | Audio Effect (Delay) | 2026-10-26 |
+| O-simpleReverb | 📦 Installed | 3.0.0 | Audio Effect (Reverb) | 2026-10-15 |
+| O-Polystutter | 📦 Installed | 1.19.0 | Audio Effect (Beat Repeater) | 2026-10-28 | **Packaged:** [O-Polystutter-OuariconAudio.pkg](plugins/O-Polystutter/dist/) (4.5 MB, Signed, v1.12.4 — repackage pending) |
+| O-Lyrica | 📦 Installed | 2.6.6 | Synth (Physical Modeling Harp) | 2026-10-27 |
+| O-MultiBandCompressor | 📦 Installed | 1.14.2 | Audio Effect (Dynamics) | 2026-10-26 |
+| O-Bass | 📦 Installed | 1.8.3 | Audio Effect (Bass Enhancer) | 2026-10-26 |
+| O-IntonationPad | 📦 Installed | 2.11.3 | Synth (Wavetable Pad) | 2026-10-26 |
+| O-Detune | 📦 Installed | 1.10.2 | Audio Effect (Detuning) | 2026-10-26 |
+| O-Freeze | 📦 Installed | 2.8.0 | Audio Effect (Granular Freeze) | 2026-10-27 |
+| O-FreqPulse | 📦 Installed | 1.20.0 | Audio Effect (Spectral Sequencer) | 2026-09-27 |
+| O-SpectralShaper | 📦 Installed | 1.10.2 | Audio Effect (Spectral Transient Shaper) | 2026-10-26 |
+| O-GrainScatter | 📦 Installed | 3.4.0 | Audio Effect (Granular Stutter Engine) | 2026-10-28 |
+| O-Chorus | 📦 Installed | 1.10.3 | Audio Effect (Chorus) | 2026-10-26 |
+| O-Orbit | 📦 Installed | 1.4.5 | Audio Effect (Spatial Orbiter) | 2026-10-26 |
+| O-TextureForge | 📦 Installed | 1.8.0 | Instrument (Concatenative Synth) | 2026-10-28 |
+| O-Texture | 📦 Installed | 0.6.0 | Instrument/Effect (Neural Texture Synth) | 2026-09-27 |
+| O-Prism | 📦 Installed | 1.30.0 | Synth (Microtonal Wavetable) |  2026-09-25 |
+| O-Strata | 📦 Installed — **installed locally, not published** (no tag; `/publish` is a separate decision). **v1.1.0 (2026-09-26): UI pass (260924-nho Phase C, ported from O-Prism v1.30.0)** — 39-token palette (0 hex left in CSS), AA text (below-AA 270/683 → 73/683, 0 on active controls), 9px floor (58 → 0), bundled EB Garamond, 81 keyboard/ARIA knobs; labels / layout 607/0 / tips 3215 / check-i18n pass, shell diff 0 px vs O-Prism v1.30.0, auval pass; no DSP/param/state change; DAW hands-on pending. Stage 4 Round B (Phase 4.2) executed 2026-09-13 (`stages/4-polish/SUMMARY.md`): the padded Chebyshev evaluator on the audio thread (`clenshaw2D` 84–95 ns → `chebEvalPadded` 28–30 ns; H7 Bandlimited delta 11.69 % → 4.5 %, accuracy contracted at ≤ 2e-5 random / ≤ 1e-6 projected; H6 band worst shift 0.100 dB with the muted / equality sets identical), the S&H LFO seeded under the harness phase seed (H2 20 / 20 bit-stable across three runs), `ci-tests.yml` with a `plugin` dispatch input — Windows MSVC + WebView2 VST3 build and pluginval 10 SUCCESS (COMPAT-02 at the named-deferral ceiling); `--gate all` 162 / 162 in 111.7 s, labels 1809 / 0 over default + 42, tips 3215 at 122, layout 607 / 0, shell diff 0 px, orbit golden 44 / 44, params diff empty, 0 new warnings; pluginval ×2 + auval SUCCEEDED on the installed `-dev` bundles, byte-identical to the build. QUAL-04 listening material ready (`stages/4-polish/LISTENING.md`, 15 human rows open); PERF-03 pending. Round B verify next | 1.1.3 | Synth (Microtonal Wave Terrain) | 2026-10-26 |
+| O-Gain | 📦 Installed | 1.10.1 | Audio Effect (Gain Staging Utility) | 2026-10-27 |
+| O-Formant | 📦 Installed | 1.34.0 | Synth (Physical Model Vocal) | 2026-10-15 |
+| O-Bowed | 📦 Installed | 1.10.3 | Synth (Physical Model Bowed String) | 2026-10-26 |
+| O-Reed | 📦 Installed | 1.7.1 | Synth (Physical Modeling Reed Wind) | 2026-10-27 |
+| O-Wind | 📦 Installed | 1.22.0 | Synth (Physical Model Flute) | 2026-09-27 |
+| O-Contrabass | 📦 Installed | 1.12.0 | Synth (Physical Model Bowed Bass) | 2026-10-16 |
+| O-Bassoon | 📦 Installed | 1.6.1 | Synth (Physical Model Bassoon) | 2026-10-27 |
+| O-MicrotonalSampler | 📦 Installed | 1.28.0 | Synth (Microtonal Sampler) | 2026-09-25 |
+| O-simpleFM | 📦 Installed | 1.6.1 | Synth (Pedagogical 2-Op FM) | 2026-10-27 |
+| O-simpleAdditive | 📦 Installed | 1.4.1 | Synth (Pedagogical Additive + Wavetable) | 2026-10-14 |
+| O-simpleWavetable | 📦 Installed | 1.0.2 | Synth (Pedagogical Wavetable) | 2026-10-14 |
+| O-simpleGrain | 📦 Installed | 1.9.0 | Synth (Pedagogical Granular) | 2026-10-28 |
+| O-simpleSubtractive | 📦 Installed | 1.7.4 | Synth (Pedagogical Subtractive) | 2026-10-20 |
+| O-simpleSampler | 📦 Installed | 1.6.1 | Synth (Pedagogical Sampler) | 2026-10-14 |
+| O-simpleBeatmaker | 📦 Installed | 1.4.1 | Synth (Pedagogical Step-Sequencer Drum Machine) | 2026-10-14 |
+| O-simplePhysicalModelSynth | 📦 Installed | 1.5.0 | Synth (Pedagogical Physical Modeling) | 2026-10-27 |
+| O-simpleAmbisonics | 📦 Installed | 1.0.1 | Audio Effect (Pedagogical Ambisonic Spatializer) | 2026-10-14 |
+| O-ReverseDelay | 📦 Installed | 1.22.2 | Audio Effect (Granular Reverse Delay) | 2026-10-14 |
+| O-Octagon | 📦 Installed | 1.16.0 | Audio Effect (8-Channel DBAP Spatializer) | 2026-10-15 |
+| O-Bitrot | 📦 Installed | 1.17.1 | Audio Effect (Broken-Media Degradation) | 2026-09-30 |
+| O-Tapestop | 📦 Installed | 1.7.1 | Audio Effect (Tapestop/Start + Scratch/Continuous Varispeed) | 2026-10-14 |
+| O-Emulator | 📦 Installed | 1.5.0 | Audio Effect (Retro Console Emulation) | 2026-09-28 |
+
+**For detailed plugin information (lifecycle timeline, known issues, parameters, etc.), see:**
+`plugins/[PluginName]/NOTES.md`
+
+## Entry Template
+
+When adding new plugins to this registry, use this format:
+
+```markdown
+| [PluginName] | [Emoji] [State] | [X.Y.Z or -] | [Type or -] | YYYY-MM-DD |
+```
+
+Create corresponding `plugins/[PluginName]/NOTES.md` with full details:
+
+```markdown
+# [PluginName] Notes
+
+## Status
+- **Current Status:** [emoji] [State Name]
+- **Version:** [X.Y.Z or N/A]
+- **Type:** [Type]
+
+## Lifecycle Timeline
+
+- **YYYY-MM-DD:** [Event description]
+- **YYYY-MM-DD (Stage N):** [Stage completion description]
+- **YYYY-MM-DD (vX.Y.Z):** [Version release description]
+
+## Known Issues
+
+[Issue description or "None"]
+
+## Additional Notes
+
+[Any other relevant information - description, parameters, DSP, GUI, validation, formats, installation locations, use cases, etc.]
+```
