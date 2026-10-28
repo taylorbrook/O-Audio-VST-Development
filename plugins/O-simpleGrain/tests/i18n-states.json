@@ -14,5 +14,9 @@
   {
     "name": "the Pitched Buzz lesson picked (label.captionPitchedBuzz — the widest of the eight captions in French — 997.22 px natural NOWRAP in the 846 px box before v1.4.2, one wrapped line that moved the rack 13.19 px; this state is what makes assertion 7 see it)",
     "click": ".tour-btn[data-preset=\"Pitched Buzz\"]"
+  },
+  {
+    "name": "preset save row OPEN (v1.9.0 — label.presetSave on the confirm button, label.presetSaveCancel and the name placeholder are invisible at rest)",
+    "click": "#presetSave"
   }
 ]

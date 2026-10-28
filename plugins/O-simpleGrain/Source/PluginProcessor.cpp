@@ -202,7 +202,8 @@ OSimpleGrainAudioProcessor::createParameterLayout()
 OSimpleGrainAudioProcessor::OSimpleGrainAudioProcessor()
     : AudioProcessor (BusesProperties()
                           .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
-      apvts (*this, nullptr, "PARAMETERS", createParameterLayout())
+      apvts (*this, nullptr, "PARAMETERS", createParameterLayout()),
+      sampleLibrary (defaultLibraryFolder())
 {
     using namespace OSimpleGrain::ParamIDs;
 
@@ -259,6 +260,17 @@ OSimpleGrainAudioProcessor::OSimpleGrainAudioProcessor()
     // is dispatched to the message thread via AsyncUpdater (never the audio
     // thread) — see parameterChanged / handleAsyncUpdate.
     apvts.addParameterListener (sourceSample, this);
+
+    // v1.9.0 — user presets through the preset-manager module. The sample is NOT
+    // a preset parameter (it lives in the library and rides customState as a
+    // reference); Output Level is user-owned (v1.5.2). No factory presets are
+    // written: the eight concept lessons stay in applyFactoryPreset(), and no
+    // file I/O happens at construction (auval/pluginval scans).
+    presetManager.setExcludedParameters ({ sourceSample, outputLevel });
+    presetManager.setCustomStateCallbacks (
+        [this]() { return captureSampleReference(); },
+        [this] (const juce::var& custom) { applySampleReference (custom); });
+    presetManager.setCurrentPresetName ({});
 }
 
 OSimpleGrainAudioProcessor::~OSimpleGrainAudioProcessor()
@@ -854,6 +866,8 @@ bool OSimpleGrainAudioProcessor::dropSessionCommitFile (const juce::String& sess
     const bool ok = decodeAndPublish (raw.getData(), raw.getSize(),
                                       currentSampleRate.load (std::memory_order_relaxed), identity);
     endDropSession();
+    if (ok)
+        addCurrentSourceToLibrary();   // v1.9.0 — every dropped sound joins the library
     return ok;
 }
 
@@ -892,10 +906,11 @@ void OSimpleGrainAudioProcessor::loadSourceFromFileChooser()
             return;                              // cancelled — keep the current source
 
         juce::MemoryBlock mb;
-        if (f.loadFileAsData (mb))
-            decodeAndPublish (mb.getData(), mb.getSize(),
-                              currentSampleRate.load (std::memory_order_relaxed),
-                              f.getFullPathName());  // identity = path (re-readable on restore)
+        if (f.loadFileAsData (mb)
+            && decodeAndPublish (mb.getData(), mb.getSize(),
+                                 currentSampleRate.load (std::memory_order_relaxed),
+                                 f.getFullPathName()))   // identity = path (re-readable on restore)
+            addCurrentSourceToLibrary();   // v1.9.0 — and joins the library
     });
 }
 
@@ -1236,6 +1251,12 @@ void OSimpleGrainAudioProcessor::applyFactoryPreset (const juce::String& name)
         p->endChangeGesture();
     };
 
+    // v1.9.0: a lesson is not a user preset — the preset bar stops naming one.
+    {
+        const juce::ScopedLock pl (presetLock);
+        presetManager.setCurrentPresetName ({});
+    }
+
     // v1.5.2: Output Level is USER-OWNED — skipped here, and no lesson below
     // names it, so loading a preset leaves the level where the user put it.
     auto* sourceParam = apvts.getParameter (sourceSample);
@@ -1365,6 +1386,322 @@ void OSimpleGrainAudioProcessor::applyFactoryPreset (const juce::String& name)
 }
 
 //==============================================================================
+// v1.9.0 — USER PRESETS + SAMPLE LIBRARY (see the header note).
+//==============================================================================
+juce::File OSimpleGrainAudioProcessor::defaultLibraryFolder()
+{
+    // Sibling of the preset-manager's ~/Library/O-simpleGrain/Presets/ — one
+    // product folder holds both, and neither lives inside the other.
+    return juce::File::getSpecialLocation (juce::File::userHomeDirectory)
+        .getChildFile ("Library")
+        .getChildFile ("O-simpleGrain")
+        .getChildFile ("Samples");
+}
+
+juce::String OSimpleGrainAudioProcessor::extensionForAudioBytes (const juce::MemoryBlock& bytes)
+{
+    if (bytes.getSize() >= 4)
+    {
+        const auto* b = static_cast<const char*> (bytes.getData());
+        if (std::memcmp (b, "fLaC", 4) == 0) return ".flac";
+        if (std::memcmp (b, "FORM", 4) == 0) return ".aiff";
+    }
+    return ".wav";   // RIFF/RF64 (the float session copy), or anything else WAV-shaped
+}
+
+juce::String OSimpleGrainAudioProcessor::currentLibraryEntryName()
+{
+    const juce::String identity = getSourceIdentity();
+    if (identity.startsWith ("embedded:"))
+        return {};
+
+    // Loaded FROM the library: the identity is the entry's own path.
+    if (juce::File::isAbsolutePath (identity))
+    {
+        const juce::File f (identity);
+        if (sampleLibrary.contains (f) && f.existsAsFile())
+            return f.getFileName();
+    }
+
+    // Copied INTO the library on drop/pick (identity stays dropped:/path).
+    juce::String name;
+    {
+        const juce::ScopedLock sl (sourceStateLock);
+        if (libraryEntryIdentity == identity)
+            name = libraryEntryName;
+    }
+    if (name.isNotEmpty() && sampleLibrary.fileFor (name) == juce::File{})
+        name.clear();   // removed from the library since
+    return name;
+}
+
+juce::String OSimpleGrainAudioProcessor::addCurrentSourceToLibrary()
+{
+    juce::String identity;
+    juce::MemoryBlock bytes;
+    {
+        const juce::ScopedLock sl (sourceStateLock);
+        identity = currentSourceIdentity;
+        if (identity.startsWith ("embedded:") || userSourceBytesIdentity != identity)
+            return {};
+        bytes = userSourceBytes;   // copy out; the file write happens outside the lock
+    }
+
+    // Already a library file? Nothing to add.
+    if (juce::File::isAbsolutePath (identity) && sampleLibrary.contains (juce::File (identity)))
+        return juce::File (identity).getFileName();
+
+    const auto entry = sampleLibrary.add (bytes, displayNameForIdentity (identity),
+                                          extensionForAudioBytes (bytes));
+    if (entry.isNotEmpty())
+    {
+        const juce::ScopedLock sl (sourceStateLock);
+        if (currentSourceIdentity == identity)
+        {
+            libraryEntryIdentity = identity;
+            libraryEntryName     = entry;
+        }
+    }
+    return entry;
+}
+
+juce::var OSimpleGrainAudioProcessor::captureSampleReference()
+{
+    auto* sample = new juce::DynamicObject();
+    const juce::String identity = getSourceIdentity();
+
+    if (identity.startsWith ("embedded:"))
+    {
+        sample->setProperty ("kind", "builtin");
+        sample->setProperty ("name", identity.fromFirstOccurrenceOf ("embedded:", false, false));
+    }
+    else
+    {
+        // A user sound restored from an older session (or whose library copy was
+        // removed) is added now, so the preset's reference resolves on this machine.
+        auto entry = currentLibraryEntryName();
+        if (entry.isEmpty())
+            entry = addCurrentSourceToLibrary();
+
+        const auto file = sampleLibrary.fileFor (entry);
+        if (file != juce::File{})
+        {
+            sample->setProperty ("kind", "library");
+            sample->setProperty ("name", entry);
+            sample->setProperty ("hash", SampleLibrary::hashOf (file));
+            sample->setProperty ("size", juce::String (file.getSize()));   // string: int64-safe
+        }
+        else
+        {
+            sample->setProperty ("kind", "none");
+            sample->setProperty ("name", displayNameForIdentity (identity));
+        }
+    }
+
+    auto* custom = new juce::DynamicObject();
+    custom->setProperty ("sample", juce::var (sample));
+    return juce::var (custom);
+}
+
+void OSimpleGrainAudioProcessor::applySampleReference (const juce::var& customState)
+{
+    auto* custom = customState.getDynamicObject();
+    if (custom == nullptr)
+        return;                                    // no reference (void var): keep the sound
+    auto* sample = custom->getProperty ("sample").getDynamicObject();
+    if (sample == nullptr || getSampleLock())
+        return;                                    // Sample Lock: presets never change the sound
+
+    const juce::String kind = sample->getProperty ("kind").toString();
+    const juce::String name = sample->getProperty ("name").toString();
+    const double engineRate = currentSampleRate.load (std::memory_order_relaxed);
+
+    if (kind == "builtin")
+    {
+        int idx = -1;
+        for (int i = 0; i < kNumBuiltIns; ++i)
+            if (name == kBuiltInNames[i])
+                idx = i;
+        if (idx < 0)
+        {
+            presetSampleMissing = name;
+            return;
+        }
+        if (getSourceIdentity() == juce::String ("embedded:") + kBuiltInNames[idx])
+            return;                                // already playing — no reload, no glitch
+
+        // Keep the choice param in step, then load directly (the param write is a
+        // no-op when the choice already reads this index — the WR-03 trap) and
+        // drop the async rebuild the write queued.
+        if (auto* p = apvts.getParameter (OSimpleGrain::ParamIDs::sourceSample))
+        {
+            p->beginChangeGesture();
+            p->setValueNotifyingHost (p->convertTo0to1 ((float) idx));
+            p->endChangeGesture();
+        }
+        loadBuiltInSource (idx, engineRate);
+        cancelPendingUpdate();
+        pendingBuiltInIndex.store (-1, std::memory_order_relaxed);
+        return;
+    }
+
+    if (kind == "library")
+    {
+        const juce::String hash = sample->getProperty ("hash").toString();
+        const juce::int64  size = sample->getProperty ("size").toString().getLargeIntValue();
+
+        // name + same content, then the same content under any name (renamed),
+        // then the name alone (edited in place).
+        juce::String entry;
+        const auto byName = sampleLibrary.fileFor (name);
+        if (byName != juce::File{} && byName.getSize() == size && SampleLibrary::hashOf (byName) == hash)
+            entry = name;
+        if (entry.isEmpty())
+            entry = sampleLibrary.findByContent (size, hash);
+        if (entry.isEmpty() && byName != juce::File{})
+            entry = name;
+
+        if (entry.isEmpty())
+        {
+            presetSampleMissing = name;
+            return;
+        }
+        if (currentLibraryEntryName() == entry)
+            return;                                // already playing
+        if (! loadLibrarySample (entry))
+            presetSampleMissing = name;
+        return;
+    }
+
+    if (name.isNotEmpty())
+        presetSampleMissing = name;                // kind "none": saved without a library copy
+}
+
+juce::var OSimpleGrainAudioProcessor::getPresetInfo()
+{
+    juce::StringArray list;
+    juce::String current;
+    {
+        const juce::ScopedLock pl (presetLock);
+        list    = presetManager.getPresetList();
+        current = presetManager.getCurrentPresetName();
+    }
+    juce::Array<juce::var> arr;
+    for (const auto& n : list)
+        arr.add (n);
+    auto* info = new juce::DynamicObject();
+    info->setProperty ("presets", juce::var (arr));
+    info->setProperty ("current", current);
+    return juce::var (info);
+}
+
+juce::var OSimpleGrainAudioProcessor::saveUserPreset (const juce::String& rawName)
+{
+    const auto name = rawName.trim().substring (0, 64);
+    bool ok = false;
+    juce::String saved;
+    if (name.isNotEmpty() && ! name.startsWithChar ('.'))
+    {
+        const juce::ScopedLock pl (presetLock);
+        ok    = presetManager.savePreset (name);   // savePreset(name) keeps the factory guard
+        saved = presetManager.getCurrentPresetName();
+    }
+    auto* r = new juce::DynamicObject();
+    r->setProperty ("ok", ok);
+    r->setProperty ("name", saved);
+    return juce::var (r);
+}
+
+juce::var OSimpleGrainAudioProcessor::loadUserPreset (const juce::String& name)
+{
+    bool ok = false;
+    juce::String loaded, missing;
+    {
+        const juce::ScopedLock pl (presetLock);
+        presetSampleMissing.clear();
+        ok      = presetManager.loadPreset (name);
+        loaded  = presetManager.getCurrentPresetName();
+        missing = presetSampleMissing;
+        presetSampleMissing.clear();
+    }
+    auto* r = new juce::DynamicObject();
+    r->setProperty ("ok", ok);
+    r->setProperty ("name", loaded);
+    r->setProperty ("missing", missing);
+    return juce::var (r);
+}
+
+juce::var OSimpleGrainAudioProcessor::stepUserPreset (int direction)
+{
+    juce::String target;
+    {
+        const juce::ScopedLock pl (presetLock);
+        if (presetManager.getPresetList().isEmpty())
+            target.clear();
+        else
+            target = direction < 0 ? presetManager.getPreviousPreset()
+                                   : presetManager.getNextPreset();
+    }
+    if (target.isEmpty())
+    {
+        auto* r = new juce::DynamicObject();
+        r->setProperty ("ok", false);
+        r->setProperty ("name", juce::String());
+        r->setProperty ("missing", juce::String());
+        return juce::var (r);
+    }
+    return loadUserPreset (target);
+}
+
+bool OSimpleGrainAudioProcessor::deleteUserPreset (const juce::String& name)
+{
+    const juce::ScopedLock pl (presetLock);
+    const bool ok = presetManager.deletePreset (name);
+    if (ok && presetManager.getCurrentPresetName() == "Default")
+        presetManager.setCurrentPresetName ({});   // the module's fallback name is not a preset here
+    return ok;
+}
+
+juce::var OSimpleGrainAudioProcessor::getLibraryInfo()
+{
+    juce::Array<juce::var> arr;
+    for (const auto& n : sampleLibrary.list())
+        arr.add (n);
+    auto* info = new juce::DynamicObject();
+    info->setProperty ("entries", juce::var (arr));
+    info->setProperty ("current", currentLibraryEntryName());
+    return juce::var (info);
+}
+
+bool OSimpleGrainAudioProcessor::loadLibrarySample (const juce::String& entryName)
+{
+    const auto file = sampleLibrary.fileFor (entryName);
+    if (file == juce::File{})
+        return false;
+    juce::MemoryBlock mb;
+    if (! file.loadFileAsData (mb))
+        return false;
+    // Identity = the library file's path: a session re-reads it from the library
+    // first and falls back to its embedded copy if the entry is gone.
+    return decodeAndPublish (mb.getData(), mb.getSize(),
+                             currentSampleRate.load (std::memory_order_relaxed),
+                             file.getFullPathName());
+}
+
+bool OSimpleGrainAudioProcessor::removeLibrarySample (const juce::String& entryName)
+{
+    // The live sound keeps playing from memory and stays embedded in the session.
+    return sampleLibrary.remove (entryName);
+}
+
+void OSimpleGrainAudioProcessor::revealSampleLibrary()
+{
+    auto folder = sampleLibrary.getFolder();
+    folder.createDirectory();
+    folder.revealToUser();
+}
+
+//==============================================================================
 juce::AudioProcessorEditor* OSimpleGrainAudioProcessor::createEditor()
 {
     return new OSimpleGrainAudioProcessorEditor (*this);
@@ -1417,6 +1754,15 @@ void OSimpleGrainAudioProcessor::getStateInformation (juce::MemoryBlock& destDat
     // STRING of the signed int64 (getLargeIntValue clamps above INT64_MAX).
     state.setProperty (kRngSeedProp,
                        juce::String ((juce::int64) rngSeed.load (std::memory_order_relaxed)), nullptr);
+
+    // v1.9.0: the loaded user preset's name and Sample Lock (root properties).
+    juce::String presetName;
+    {
+        const juce::ScopedLock pl (presetLock);
+        presetName = presetManager.getCurrentPresetName();
+    }
+    state.setProperty (kPresetNameProp, presetName, nullptr);
+    state.setProperty (kSampleLockProp, getSampleLock() ? "1" : "0", nullptr);
 
     if (auto xml = state.createXml())
         copyXmlToBinary (*xml, destData);
@@ -1479,6 +1825,14 @@ void OSimpleGrainAudioProcessor::setStateInformation (const void* data, int size
     const juce::String seed = state.getProperty (kRngSeedProp).toString();
     if (seed.isNotEmpty())
         rngSeed.store ((juce::uint64) seed.getLargeIntValue(), std::memory_order_relaxed);
+
+    // v1.9.0: preset name + Sample Lock. A pre-1.9.0 session has neither: no
+    // preset named, lock off. Compared as STRINGS (the XML round-trip).
+    {
+        const juce::ScopedLock pl (presetLock);
+        presetManager.setCurrentPresetName (state.getProperty (kPresetNameProp).toString());
+    }
+    setSampleLock (state.getProperty (kSampleLockProp).toString() == "1");
 
     // replaceState() fires the sourceSample listener, which queues an AsyncUpdater
     // to rebuild a built-in source. That update is deferred (it runs AFTER this

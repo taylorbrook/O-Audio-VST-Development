@@ -168,6 +168,36 @@
 
       <!-- Side control rail -->
       <aside class="side-rail">
+        <!-- v1.9.0 — user presets (preset-manager module). A preset is the sound-
+             shaping controls plus a REFERENCE to a library sample; the sample
+             itself lives in the library below. Names are the user's own and are
+             never translated; the select's options are written from script. -->
+        <section class="group group-presets">
+          <h2 class="group-title" data-i18n="label.groupPresets">Presets</h2>
+          <div class="preset-row" id="presetRow">
+            <button type="button" class="btn-icon" id="presetPrev"
+                    data-i18n-aria="aria.presetPrev" aria-label="Previous preset">&#9664;</button>
+            <select class="combo preset-select" id="presetSelect"
+                    data-i18n-aria="presetSelect" aria-label="User preset"></select>
+            <button type="button" class="btn-icon" id="presetNext"
+                    data-i18n-aria="aria.presetNext" aria-label="Next preset">&#9654;</button>
+            <button type="button" class="btn-load btn-small" id="presetSave"
+                    data-i18n="label.presetSave">Save</button>
+            <button type="button" class="btn-icon" id="presetDelete"
+                    data-i18n-aria="presetDelete" aria-label="Delete preset">&#215;</button>
+          </div>
+          <div class="preset-row preset-save-row" id="presetSaveRow" hidden>
+            <input type="text" class="preset-name-input" id="presetNameInput" maxlength="64"
+                   spellcheck="false" autocomplete="off"
+                   data-i18n-placeholder="label.presetNamePlaceholder" placeholder="Preset name"
+                   data-i18n-aria="aria.presetName" aria-label="Preset name" />
+            <button type="button" class="btn-load btn-small" id="presetSaveConfirm"
+                    data-i18n="label.presetSave">Save</button>
+            <button type="button" class="btn-load btn-small" id="presetSaveCancel"
+                    data-i18n="label.presetSaveCancel">Cancel</button>
+          </div>
+        </section>
+
         <!-- Source -->
         <section class="group">
           <h2 class="group-title" data-i18n="label.groupSource">Source</h2>
@@ -181,8 +211,23 @@
                       data-i18n-aria="loadSource" aria-label="Load your own"
                       data-i18n="label.btnLoad">Load&#8230;</button>
             </div>
+            <!-- v1.9.0 — the sample library: every sound you drop or load is
+                 kept here, separately from presets. -->
+            <div class="source-pick-row library-row">
+              <select class="combo library-select" id="librarySelect"
+                      data-i18n-aria="librarySelect" aria-label="Sample library"></select>
+              <button type="button" class="btn-icon" id="libraryRemove"
+                      data-i18n-aria="libraryRemove" aria-label="Remove from library">&#215;</button>
+              <button type="button" class="btn-icon" id="libraryReveal"
+                      data-i18n-aria="libraryReveal" aria-label="Show library folder">&#8599;</button>
+            </div>
             <div class="source-drop-zone" id="source-drop-zone" data-i18n="label.dropZone">Drag a .wav / .aif here to granulate your own sound</div>
             <div class="source-status" id="sourceStatus"></div>
+            <div class="toggle-row sample-lock-row">
+              <button type="button" class="toggle toggle-small" id="sampleLock"
+                      aria-pressed="false"
+                      data-i18n-aria="sampleLock" aria-label="Sample Lock"><span data-i18n="label.sampleLock">Sample Lock</span></button>
+            </div>
           </div>
         </section>
 

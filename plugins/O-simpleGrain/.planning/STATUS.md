@@ -8,7 +8,7 @@ staged_implementation: true
 orchestration_mode: true
 next_action: human_daw_listen_then_install_or_publish
 next_stage: 4
-human_checkpoint_pending: 7-item DAW-listen checklist (viz animation + 8 preset character + click-free freeze + drag-drop + host-automation round-trip) — Stage-4 verify recorded human_needed until confirmed
+human_checkpoint_pending: 7-item DAW-listen checklist (viz animation + 8 preset character + click-free freeze + drag-drop + host-automation round-trip) — Stage-4 verify recorded human_needed until confirmed; PLUS v1.9.0 preset/library hands-on (see 'v1.9.0 human check' below)
 ready_for_implementation: true
 gate_pre_stage_1: satisfied (parameter-spec.md finalized; UI mockup DEFERRED to Stage 3 per user decision 2026-06-24)
 contract_checksums:
@@ -133,3 +133,13 @@ Progress: [###################.] 95% — automated validation done; DAW listen i
 - plugins/O-simpleGrain/.planning/STATUS.md (this file)
 </content>
 </invoke>
+
+## v1.9.0 human check (2026-10-28) — still human_needed
+
+v1.9.0 (user presets + sample library, GRN 3 style) is automated-verified: preset-library gate 40/40 (negative control fails 8), audio null vs v1.8.0 bit-exact, regression gates, UI gates, pluginval 10, auval. Not yet seen in a DAW / WebView:
+1. Save a preset (Save → name → Enter), step with ◀ ▶, pick from the menu; Delete arms then deletes.
+2. Drop a sound → it appears in the library menu; drop it again → no duplicate; ↗ opens ~/Library/O-simpleGrain/Samples/.
+3. Load a preset made on a dropped sound while a built-in plays → the sound comes back; with Sample Lock on it does not.
+4. Remove the sample from the library, load the preset → toast names the missing sample, controls still change.
+5. Typing a preset name does not play the on-screen keyboard; reopen the project → preset name and Sample Lock restored.
+6. Output Level never moves on a preset load.

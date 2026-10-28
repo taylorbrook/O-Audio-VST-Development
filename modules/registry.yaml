@@ -137,7 +137,7 @@ modules:
 
   - name: preset-manager
     path: persistence/preset-manager
-    version: 1.0.9
+    version: 1.1.0
     description: |
       JSON-based preset persistence with factory/user preset separation.
       Supports APVTS parameter serialization, navigation (next/previous),
@@ -212,6 +212,8 @@ modules:
         version: 1.8.1
       - plugin: O-simpleFM
         version: 1.2.4
+      - plugin: O-simpleGrain
+        version: 1.9.0
       - plugin: O-simplePhysicalModelSynth
         version: 1.1.0
       - plugin: O-simpleReverb

@@ -234,6 +234,45 @@ OSimpleGrainAudioProcessorEditor::OSimpleGrainAudioProcessorEditor (OSimpleGrain
                                            args.size() >= 3 ? (float) args[2] : 0.8f);
             complete (juce::var());
         })
+        // ── v1.9.0: user presets (preset-manager module) + the sample library,
+        // kept separate. Plain native functions — none of this is a parameter.
+        // Each returns a small object the page reads; see the processor notes.
+        .withNativeFunction ("getPresetInfo", [this] (auto&, auto complete) {
+            complete (processorRef.getPresetInfo());
+        })
+        .withNativeFunction ("saveUserPreset", [this] (const juce::Array<juce::var>& args, auto complete) {
+            complete (processorRef.saveUserPreset (args.size() > 0 ? args[0].toString() : juce::String()));
+        })
+        .withNativeFunction ("loadUserPreset", [this] (const juce::Array<juce::var>& args, auto complete) {
+            complete (processorRef.loadUserPreset (args.size() > 0 ? args[0].toString() : juce::String()));
+        })
+        .withNativeFunction ("stepUserPreset", [this] (const juce::Array<juce::var>& args, auto complete) {
+            complete (processorRef.stepUserPreset (args.size() > 0 ? (int) args[0] : 1));
+        })
+        .withNativeFunction ("deleteUserPreset", [this] (const juce::Array<juce::var>& args, auto complete) {
+            complete (juce::var (args.size() > 0 && processorRef.deleteUserPreset (args[0].toString())));
+        })
+        .withNativeFunction ("getLibraryInfo", [this] (auto&, auto complete) {
+            complete (processorRef.getLibraryInfo());
+        })
+        .withNativeFunction ("loadLibrarySample", [this] (const juce::Array<juce::var>& args, auto complete) {
+            complete (juce::var (args.size() > 0 && processorRef.loadLibrarySample (args[0].toString())));
+        })
+        .withNativeFunction ("removeLibrarySample", [this] (const juce::Array<juce::var>& args, auto complete) {
+            complete (juce::var (args.size() > 0 && processorRef.removeLibrarySample (args[0].toString())));
+        })
+        .withNativeFunction ("revealSampleLibrary", [this] (auto&, auto complete) {
+            processorRef.revealSampleLibrary();
+            complete (juce::var (true));
+        })
+        .withNativeFunction ("getSampleLock", [this] (auto&, auto complete) {
+            complete (juce::var (processorRef.getSampleLock()));
+        })
+        .withNativeFunction ("setSampleLock", [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() > 0)
+                processorRef.setSampleLock ((bool) args[0]);
+            complete (juce::var (processorRef.getSampleLock()));
+        })
         // ── Interface-language pair (v1.3.0) ───────────────────────────────
         // Plain withNativeFunction, no relay: the language is not a parameter
         // and must not reach a DAW automation lane. PULLED once by the page at

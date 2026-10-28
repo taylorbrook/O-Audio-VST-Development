@@ -1209,3 +1209,68 @@ select.combo:focus { outline: 2px solid var(--green-mid); outline-offset: 1px; }
    strip still without capping a language that needs a longer word. English and
    French are 41.38px and never see it. */
 .grain-readout .readout-key[data-i18n="label.readoutGrains"] { min-width: 41.38px; }
+
+/* ── v1.9.0 — user presets + sample library (kept separate, GRN 3 style) ─────
+   Presets sit at the top of the rail; the library row lives in Source, under
+   the built-in choice and Load…. The two selects are flex:1 inside fixed rows,
+   so a long preset or sample name ellipsizes instead of widening the rail. */
+.preset-row { display: flex; align-items: center; gap: 5px; }
+.preset-row[hidden], .preset-save-row[hidden] { display: none; }
+select.combo.preset-select,
+select.combo.library-select {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 0;                      /* flex basis from the row, never from the longest option */
+  padding-right: 22px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.btn-icon {
+  flex: 0 0 auto;
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1;
+  width: 24px;
+  height: 26px;
+  padding: 0;
+  color: var(--green-darkest);
+  background: var(--bg-paper-light);
+  border: 1px solid var(--brown-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-icon:hover:not(:disabled) { background: var(--green-light); color: #1f2b08; }
+.btn-icon:disabled, .btn-load:disabled { opacity: 0.4; cursor: default; }
+.btn-icon:focus-visible { outline: 2px solid var(--green-mid); outline-offset: 1px; }
+.btn-load.btn-small { flex: 0 0 auto; padding: 6px 9px; }
+.preset-name-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--brown-text);
+  background: var(--bg-paper-light);
+  border: 1.5px solid var(--brown-border);
+  border-radius: 4px;
+  padding: 5px 7px;
+}
+.preset-name-input:focus { outline: 2px solid var(--green-mid); outline-offset: 1px; }
+.library-row { gap: 5px; }
+.sample-lock-row { margin-top: 0; }
+.toggle.toggle-small { padding: 5px 12px; font-size: 9.5px; }
+.btn-icon.armed { background: #e8c9a0; border-color: #b8863a; color: #5c3a10; }
+/* Pinned at the widest language ("Enreg." 50.70 px; Save 42.41, 保存 42.47) so the
+   preset select beside it keeps one width in every language. */
+#presetSave { min-width: 51px; }
+/* Fixed height: the zh-Hans face's taller line box grew the preset row 3 px. */
+.btn-load.btn-small { height: 26px; line-height: 1; padding-top: 0; padding-bottom: 0; }
+/* Pinned at the widest language ("VERROU D’ÉCHANTILLON" 162.48 px; SAMPLE LOCK
+   102.52, 样本锁定 70.04). Nothing sits beside it; pinned so the button keeps one
+   face in every language. */
+#sampleLock { min-width: 164px; }
+#sampleLock { height: 26px; line-height: 1; padding-top: 0; padding-bottom: 0; }
+/* Save-row buttons pinned the same way (Annuler 57.91 px; Cancel 52.16, 取消 42.47). */
+#presetSaveConfirm { min-width: 51px; }
+#presetSaveCancel  { min-width: 58px; }

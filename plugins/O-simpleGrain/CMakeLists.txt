@@ -6,8 +6,8 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 # juce_add_plugin below AND by tests/render-harness/CMakeLists.txt (whose
 # hand-rolled JucePlugin_VersionString/Code previously drifted).
 # VERSION_CODE = 0x00MMmmpp (major/minor/patch bytes) — keep in sync.
-set(OSIMPLEGRAIN_VERSION "1.8.0")
-set(OSIMPLEGRAIN_VERSION_CODE 0x010800)
+set(OSIMPLEGRAIN_VERSION "1.9.0")
+set(OSIMPLEGRAIN_VERSION_CODE 0x010900)
 
 # O-simpleGrain - Pedagogical Granular Synthesizer
 # Stage 1 (Foundation): silent 8-voice synth shell with the full 18-param APVTS
@@ -50,6 +50,7 @@ target_sources(O-simpleGrain
         Source/dsp/GrainCloudFrame.h
         Source/dsp/CounterRng.h
         Source/VizAnalyzer.h
+        Source/SampleLibrary.h              # v1.9.0 — sample library (separate from presets)
 )
 
 # Include paths
@@ -72,6 +73,12 @@ ouaricon_add_module(O-simpleGrain webview-drop-streaming)
 # for the band-limited read of up-transposed grains (v1.7.0). The plugin keeps its
 # own dsp/CounterRng.h (global namespace; the module's is ouaricon::grain).
 ouaricon_add_module(O-simpleGrain grain-engine)
+
+# preset-manager 1.1.0 (v1.9.0): user presets, C++ only — the page drives its own
+# preset row through plugin native functions, so preset-manager.js (copied into
+# the gitignored Source/ui/public/modules/ by this call) is NOT embedded.
+# setExcludedParameters keeps sourceSample + outputLevel out of every preset.
+ouaricon_add_module(O-simpleGrain preset-manager)
 
 # WebView UI resources (embedded as BinaryData). CRITICAL: this target MUST use a
 # distinct NAMESPACE *and* HEADER_NAME (UIBinaryData) so it does NOT collide with
@@ -154,4 +161,5 @@ target_compile_definitions(O-simpleGrain
 option(OUARICON_BUILD_TESTS "Build O-simpleGrain render-test harness" OFF)
 if(OUARICON_BUILD_TESTS)
     add_subdirectory(tests/render-harness)
+    add_subdirectory(tests/preset-library-gate)   # v1.9.0
 endif()

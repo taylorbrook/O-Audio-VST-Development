@@ -1033,6 +1033,7 @@ function setupVizEvents() {
   be.addEventListener("sourceChanged", () => {
     fetchSourceThumbnail();
     syncSourceStatus();
+    refreshLibrary();             // v1.9.0 — a drop/pick adds to the library; a load names it
   });
 }
 
@@ -1523,6 +1524,322 @@ function setupKeyboard() {
   });
 }
 
+// ── v1.9.0: user presets + the sample library, kept SEPARATE (GRN 3 style) ──
+// Presets go through the preset-manager module on the C++ side. A preset holds
+// the sound-shaping controls and a REFERENCE to a library sample; the library
+// holds the sounds. Loading a preset fetches its sample from the library unless
+// Sample Lock is on. Every call is a plain native function (none of this is a
+// parameter), and each returns a small object — see PluginProcessor.h.
+//
+// Preset and sample NAMES are the user's own data and are written raw; every
+// piece of interface copy around them goes through setLabel.
+function nativeFn(name) {
+  try { return Juce.getNativeFunction(name); } catch (e) { return null; }
+}
+
+let presetInfo = { presets: [], current: "" };
+let libraryInfo = { entries: [], current: "" };
+
+// Two-step delete: the first click arms the button and says so, a second click
+// within 3 s confirms. window.confirm() is a no-op in some WebView backends.
+function makeArmed(btn) {
+  let armedFor = null, timer = null;
+  const disarm = () => {
+    armedFor = null;
+    if (timer) { clearTimeout(timer); timer = null; }
+    btn.classList.remove("armed");
+  };
+  return {
+    isArmedFor: (name) => armedFor !== null && armedFor === name,
+    arm: (name) => {
+      disarm();
+      armedFor = name;
+      btn.classList.add("armed");
+      timer = setTimeout(disarm, 3000);
+    },
+    disarm,
+  };
+}
+
+function fillSelect(sel, names, current, writePlaceholder) {
+  sel.innerHTML = "";
+  const ph = document.createElement("option");
+  ph.value = "";
+  writePlaceholder(ph);
+  sel.appendChild(ph);
+  for (const n of names) {
+    const opt = document.createElement("option");
+    opt.value = n;
+    opt.textContent = n;              // user data, never interface copy
+    sel.appendChild(opt);
+  }
+  sel.value = (current && names.includes(current)) ? current : "";
+}
+
+function writePresetPlaceholder(el) { setLabel(el, "label.presetNone"); }
+function writeLibraryPlaceholder(el) {
+  const n = libraryInfo.entries.length;
+  if (n === 0) setLabel(el, "label.libraryEmpty");
+  else         setLabel(el, "label.libraryPlaceholder", { count: String(n) });
+}
+
+function renderPresets() {
+  const sel = document.getElementById("presetSelect");
+  if (!sel) return;
+  fillSelect(sel, presetInfo.presets, presetInfo.current, writePresetPlaceholder);
+  const has = presetInfo.presets.length > 0;
+  const del = document.getElementById("presetDelete");
+  if (del) del.disabled = !(presetInfo.current && presetInfo.presets.includes(presetInfo.current));
+  for (const id of ["presetPrev", "presetNext"]) {
+    const b = document.getElementById(id);
+    if (b) b.disabled = !has;
+  }
+}
+
+async function refreshPresets() {
+  const fn = nativeFn("getPresetInfo");
+  if (!fn) return;
+  try {
+    const info = await fn();
+    if (info && Array.isArray(info.presets)) {
+      presetInfo = { presets: info.presets.map(String), current: String(info.current || "") };
+      renderPresets();
+    }
+  } catch (e) { console.warn("[O-simpleGrain] getPresetInfo failed:", e); }
+}
+
+function reportPresetLoad(r) {
+  if (!r) return;
+  if (r.ok && r.missing) {
+    setLabel(toastEl(), "toast.presetSampleMissing", { name: String(r.missing) });
+    flashToast();
+  } else if (!r.ok && r.name) {
+    setLabel(toastEl(), "toast.presetLoadFailed", { name: String(r.name) });
+    flashToast();
+  }
+}
+
+function clearLessonHighlight() {
+  document.querySelectorAll(".tour-btn.active").forEach((b) => b.classList.remove("active"));
+  const cap = document.getElementById("tourCaption");
+  if (cap) setLabel(cap, "label.tourCaption");
+}
+
+async function loadPresetNamed(name) {
+  const fn = nativeFn("loadUserPreset");
+  if (!fn || !name) return;
+  try {
+    const r = await fn(name);
+    reportPresetLoad(r);
+    if (r && r.ok) clearLessonHighlight();
+  } catch (e) { console.error("[O-simpleGrain] loadUserPreset failed:", e); }
+  await refreshPresets();
+}
+
+async function stepPreset(dir) {
+  const fn = nativeFn("stepUserPreset");
+  if (!fn) return;
+  try {
+    const r = await fn(dir);
+    reportPresetLoad(r);
+    if (r && r.ok) clearLessonHighlight();
+  } catch (e) { console.error("[O-simpleGrain] stepUserPreset failed:", e); }
+  await refreshPresets();
+}
+
+function showSaveRow(on) {
+  // The name row REPLACES the browse row while open (same height), so the rail
+  // below never shifts.
+  const row = document.getElementById("presetSaveRow");
+  const browse = document.getElementById("presetRow");
+  const input = document.getElementById("presetNameInput");
+  if (!row || !input) return;
+  row.hidden = !on;
+  if (browse) browse.hidden = on;
+  if (on) {
+    input.value = presetInfo.current || "";
+    input.focus();
+    input.select();
+  }
+}
+
+async function commitSave() {
+  const input = document.getElementById("presetNameInput");
+  const fn = nativeFn("saveUserPreset");
+  if (!input || !fn) return;
+  const name = input.value.trim();
+  if (!name) { input.focus(); return; }
+  try {
+    const r = await fn(name);
+    if (r && r.ok) {
+      setLabel(toastEl(), "toast.presetSaved", { name: String(r.name) });
+      showSaveRow(false);
+    } else {
+      setLabel(toastEl(), "toast.presetSaveFailed");
+    }
+    flashToast();
+  } catch (e) {
+    console.error("[O-simpleGrain] saveUserPreset failed:", e);
+    setLabel(toastEl(), "toast.presetSaveFailed");
+    flashToast();
+  }
+  await refreshPresets();
+  refreshLibrary();               // a save can add the live sound to the library
+}
+
+function setupUserPresets() {
+  const sel = document.getElementById("presetSelect");
+  if (!sel) return;
+  const del = document.getElementById("presetDelete");
+  const armed = del ? makeArmed(del) : null;
+
+  sel.addEventListener("mousedown", () => { refreshPresets(); });   // another instance may have saved
+  sel.addEventListener("change", () => { if (sel.value) loadPresetNamed(sel.value); });
+
+  const prev = document.getElementById("presetPrev");
+  const next = document.getElementById("presetNext");
+  if (prev) prev.addEventListener("click", () => stepPreset(-1));
+  if (next) next.addEventListener("click", () => stepPreset(1));
+
+  const save = document.getElementById("presetSave");
+  if (save) save.addEventListener("click", () => showSaveRow(true));
+  const ok = document.getElementById("presetSaveConfirm");
+  if (ok) ok.addEventListener("click", commitSave);
+  const cancel = document.getElementById("presetSaveCancel");
+  if (cancel) cancel.addEventListener("click", () => showSaveRow(false));
+  const input = document.getElementById("presetNameInput");
+  if (input) input.addEventListener("keydown", (e) => {
+    e.stopPropagation();          // typing a name must not play the computer keyboard
+    if (e.key === "Enter") { e.preventDefault(); commitSave(); }
+    else if (e.key === "Escape") { e.preventDefault(); showSaveRow(false); }
+  });
+  if (input) input.addEventListener("keyup", (e) => e.stopPropagation());
+
+  if (del) del.addEventListener("click", async () => {
+    const name = presetInfo.current;
+    if (!name) return;
+    if (!armed.isArmedFor(name)) {
+      armed.arm(name);
+      setLabel(toastEl(), "toast.presetDeleteConfirm", { name: name });
+      flashToast();
+      return;
+    }
+    armed.disarm();
+    const fn = nativeFn("deleteUserPreset");
+    try {
+      if (fn && await fn(name)) {
+        setLabel(toastEl(), "toast.presetDeleted", { name: name });
+        flashToast();
+      }
+    } catch (e) { console.error("[O-simpleGrain] deleteUserPreset failed:", e); }
+    await refreshPresets();
+  });
+
+  // A lesson button is not a user preset: the C++ side clears the name, so
+  // re-read it after any lesson press.
+  document.querySelectorAll(".tour-btn").forEach((btn) =>
+    btn.addEventListener("click", () => setTimeout(refreshPresets, 50)));
+
+  renderPresets();                // the placeholder face before the bridge answers
+  refreshPresets();
+}
+
+function renderLibrary() {
+  const sel = document.getElementById("librarySelect");
+  if (!sel) return;
+  fillSelect(sel, libraryInfo.entries, libraryInfo.current, writeLibraryPlaceholder);
+  const rm = document.getElementById("libraryRemove");
+  if (rm) rm.disabled = !sel.value;
+}
+
+async function refreshLibrary() {
+  const fn = nativeFn("getLibraryInfo");
+  if (!fn) return;
+  try {
+    const info = await fn();
+    if (info && Array.isArray(info.entries)) {
+      libraryInfo = { entries: info.entries.map(String), current: String(info.current || "") };
+      renderLibrary();
+    }
+  } catch (e) { console.warn("[O-simpleGrain] getLibraryInfo failed:", e); }
+}
+
+function setupLibrary() {
+  const sel = document.getElementById("librarySelect");
+  if (!sel) return;
+  const rm = document.getElementById("libraryRemove");
+  const armed = rm ? makeArmed(rm) : null;
+
+  sel.addEventListener("mousedown", () => { refreshLibrary(); });
+  sel.addEventListener("change", async () => {
+    const name = sel.value;
+    if (rm) rm.disabled = !name;
+    if (!name) return;
+    const fn = nativeFn("loadLibrarySample");
+    try {
+      const ok = fn ? await fn(name) : false;
+      if (!ok) {
+        setLabel(toastEl(), "toast.libraryLoadFailed", { name: name });
+        flashToast();
+        refreshLibrary();
+      }
+      // On success the "sourceChanged" event refreshes the status line,
+      // the waveform and this list.
+    } catch (e) { console.error("[O-simpleGrain] loadLibrarySample failed:", e); }
+  });
+
+  if (rm) rm.addEventListener("click", async () => {
+    const name = sel.value;
+    if (!name) return;
+    if (!armed.isArmedFor(name)) {
+      armed.arm(name);
+      setLabel(toastEl(), "toast.libraryRemoveConfirm", { name: name });
+      flashToast();
+      return;
+    }
+    armed.disarm();
+    const fn = nativeFn("removeLibrarySample");
+    try {
+      if (fn && await fn(name)) {
+        setLabel(toastEl(), "toast.libraryRemoved", { name: name });
+        flashToast();
+      }
+    } catch (e) { console.error("[O-simpleGrain] removeLibrarySample failed:", e); }
+    refreshLibrary();
+  });
+
+  const reveal = document.getElementById("libraryReveal");
+  if (reveal) reveal.addEventListener("click", () => {
+    const fn = nativeFn("revealSampleLibrary");
+    if (fn) fn().catch(() => {});
+  });
+
+  renderLibrary();
+  refreshLibrary();
+}
+
+function renderSampleLock(on) {
+  const btn = document.getElementById("sampleLock");
+  if (!btn) return;
+  btn.classList.toggle("active", !!on);
+  btn.setAttribute("aria-pressed", on ? "true" : "false");
+}
+
+function setupSampleLock() {
+  const btn = document.getElementById("sampleLock");
+  if (!btn) return;
+  const getFn = nativeFn("getSampleLock");
+  const setFn = nativeFn("setSampleLock");
+  if (getFn) getFn().then((on) => renderSampleLock(!!on)).catch(() => {});
+  btn.addEventListener("click", async () => {
+    const want = !btn.classList.contains("active");
+    renderSampleLock(want);
+    if (setFn) {
+      try { renderSampleLock(!!(await setFn(want))); } catch (e) { /* keep the optimistic face */ }
+    }
+  });
+}
+
 // ── Boot ────────────────────────────────────────────────────────────────────
 function boot() {
   setupCanvases();
@@ -1535,6 +1852,11 @@ function boot() {
   bindSourceDrop();
   bindLoadButton();
   setupPresets();
+  // v1.9.0 — each in its own try/catch: a bridge gap here must not take the
+  // parameter bindings, canvases or keyboard down with it.
+  try { setupUserPresets(); } catch (e) { console.error("user presets init failed:", e); }
+  try { setupLibrary(); }     catch (e) { console.error("sample library init failed:", e); }
+  try { setupSampleLock(); }  catch (e) { console.error("sample lock init failed:", e); }
 
   // The popover, the language sweep and the hover-help switch go here, EACH IN
   // ITS OWN try/catch. applyI18n is what writes data-tip onto every anchor, and

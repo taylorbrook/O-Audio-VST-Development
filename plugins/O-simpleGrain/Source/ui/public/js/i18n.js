@@ -251,13 +251,13 @@ export const I18N = Object.freeze({
     },
     'lang-select': {
         en: { t: "Language",
-              b: "The language of the labels on this page and of this hover help. Value readouts and the two drop-down menus stay in English." },
+              b: "The language of the labels on this page and of this hover help. Value readouts, the Source and Shape menus, and the names of your presets and samples stay as they are." },
         fr: { t: "Langue",
-              b: "La langue des libellés de cette page et de ces infobulles. Les valeurs affichées et les deux menus déroulants restent en anglais.",
-              reviewed: true },
+              b: "La langue des libellés de cette page et de ces infobulles. Les valeurs affichées, les menus Source et Forme ainsi que les noms de vos préréglages et échantillons restent tels quels.",
+              reviewed: false },
         'zh-Hans': { t: "语言",
-                     b: "本页标签与这些悬停帮助所用的语言。数值读数和两个下拉菜单保持英文。",
-                     reviewed: 'bt' },
+                     b: "本页标签与这些悬停帮助所用的语言。数值读数、源与形状两个菜单，以及您的预设和样本名称保持原样。",
+                     reviewed: 'mt' },
     },
     'help-toggle': {
         en: { t: "Hover help",
@@ -659,6 +659,78 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: "矩形击声",
                      b: "这堂课粗糙的一端：矩形窗是平顶的，两端各只有 1 ms 的保护，所以每个颗粒都突兀地开始和结束。稀疏的颗粒让每一个生硬的边缘独自呈现，和 Hann 比一比，就能听出窗口为什么重要。",
                      reviewed: 'bt' },
+    },
+
+    // ── v1.9.0: user presets + the sample library (kept separate) ───────────
+    presetSelect: {
+        en: { t: "User preset",
+              b: "Your saved presets. A preset keeps the grain, window, spray and envelope controls, plus which sample it was made with. Loading one fetches that sample from the library, unless Sample Lock is on. Output Level is never part of a preset." },
+        fr: { t: "Préréglage utilisateur",
+              b: "Vos préréglages enregistrés. Un préréglage garde les commandes de grain, de fenêtre, de dispersion et d’enveloppe, ainsi que l’échantillon avec lequel il a été fait. En charger un va chercher cet échantillon dans la bibliothèque, sauf si le verrou d’échantillon est activé. Le niveau de sortie ne fait jamais partie d’un préréglage.",
+              reviewed: false },
+        'zh-Hans': { t: "用户预设",
+                     b: "您保存的预设。预设保存颗粒、窗口、散布和包络控件，以及制作它时所用的样本。载入预设时会从样本库取回该样本，除非样本锁定已开启。输出电平从不属于预设。",
+                     reviewed: 'mt' },
+    },
+    presetSave: {
+        en: { t: "Save preset",
+              b: "Save the current controls as a preset under a name you type. The preset stores a reference to the sample, not the audio, so it stays small; the sound itself is kept in the library." },
+        fr: { t: "Enregistrer le préréglage",
+              b: "Enregistre les commandes actuelles comme préréglage, sous le nom que vous tapez. Le préréglage garde une référence à l’échantillon, pas l’audio, et reste donc léger ; le son lui-même est conservé dans la bibliothèque.",
+              reviewed: false },
+        'zh-Hans': { t: "保存预设",
+                     b: "以您输入的名称，把当前控件保存为预设。预设只保存对样本的引用而不保存音频本身，因此很小；声音本身保存在样本库中。",
+                     reviewed: 'mt' },
+    },
+    presetDelete: {
+        en: { t: "Delete preset",
+              b: "Delete the selected preset. Click once to arm, then again within three seconds to confirm. Its sample stays in the library." },
+        fr: { t: "Supprimer le préréglage",
+              b: "Supprime le préréglage sélectionné. Un premier clic arme le bouton, un second clic dans les trois secondes confirme. Son échantillon reste dans la bibliothèque.",
+              reviewed: false },
+        'zh-Hans': { t: "删除预设",
+                     b: "删除所选预设。点击一次待命，三秒内再点击一次确认。它的样本仍保留在样本库中。",
+                     reviewed: 'mt' },
+    },
+    librarySelect: {
+        en: { t: "Sample library",
+              b: "Every sound you drop or load is kept here, separately from your presets, so one sample can serve many presets. Pick one to granulate it. The session also keeps its own copy, so a project still opens if a sample leaves the library." },
+        fr: { t: "Bibliothèque d’échantillons",
+              b: "Chaque son que vous déposez ou chargez est conservé ici, à part de vos préréglages : un même échantillon peut servir à plusieurs préréglages. Choisissez-en un pour le granuler. La session garde aussi sa propre copie, donc un projet s’ouvre encore si un échantillon quitte la bibliothèque.",
+              reviewed: false },
+        'zh-Hans': { t: "样本库",
+                     b: "您拖入或载入的每个声音都保存在这里，与预设分开，所以一个样本可以服务多个预设。选择一个即可对它做颗粒化。会话也会保留自己的副本，因此即使样本离开样本库，项目仍能打开。",
+                     reviewed: 'mt' },
+    },
+    libraryRemove: {
+        en: { t: "Remove from library",
+              b: "Remove the selected sample from the library. Click once to arm, then again within three seconds to confirm. A sound that is playing keeps playing, and sessions keep their own copy; presets that used it will report it missing." },
+        fr: { t: "Retirer de la bibliothèque",
+              b: "Retire l’échantillon sélectionné de la bibliothèque. Un premier clic arme le bouton, un second clic dans les trois secondes confirme. Un son en cours continue de jouer et les sessions gardent leur propre copie ; les préréglages qui l’utilisaient le signaleront comme manquant.",
+              reviewed: false },
+        'zh-Hans': { t: "从样本库移除",
+                     b: "把所选样本从样本库中移除。点击一次待命，三秒内再点击一次确认。正在播放的声音会继续播放，会话也保留自己的副本；使用过它的预设会提示该样本缺失。",
+                     reviewed: 'mt' },
+    },
+    libraryReveal: {
+        en: { t: "Show library folder",
+              b: "Open the library folder on disk. You can copy .wav, .aif or .flac files into it yourself; they appear in the list the next time you open it." },
+        fr: { t: "Afficher le dossier de la bibliothèque",
+              b: "Ouvre le dossier de la bibliothèque sur le disque. Vous pouvez y copier vous-même des fichiers .wav, .aif ou .flac ; ils apparaissent dans la liste à sa prochaine ouverture.",
+              reviewed: false },
+        'zh-Hans': { t: "显示样本库文件夹",
+                     b: "在磁盘上打开样本库文件夹。您也可以自己把 .wav、.aif 或 .flac 文件复制进去；下次打开列表时它们就会出现。",
+                     reviewed: 'mt' },
+    },
+    sampleLock: {
+        en: { t: "Sample Lock",
+              b: "When on, loading a preset changes the controls but never the sample, so you can audition every preset on the sound you are working with. When off, each preset brings back the sample it was saved with." },
+        fr: { t: "Verrou d’échantillon",
+              b: "Activé, charger un préréglage change les commandes mais jamais l’échantillon : vous pouvez essayer chaque préréglage sur le son en cours. Désactivé, chaque préréglage ramène l’échantillon avec lequel il a été enregistré.",
+              reviewed: false },
+        'zh-Hans': { t: "样本锁定",
+                     b: "开启时，载入预设只改变控件而从不改变样本，您可以在正在使用的声音上试听每个预设。关闭时，每个预设都会带回保存时所用的样本。",
+                     reviewed: 'mt' },
     },
 });
 
@@ -1110,6 +1182,108 @@ export const LABELS = Object.freeze({
         fr: { t: "Clic rectangulaire — l’extrémité rugueuse de la leçon\u00a0: une fenêtre rectangulaire est plate avec seulement 1\u00a0ms de garde à chaque bord, donc chaque grain démarre et s’arrête brutalement. Des grains clairsemés laissent chaque bord dur isolé. Comparez avec Hann pour entendre pourquoi les fenêtres comptent.", reviewed: true },
         'zh-Hans': { t: "矩形击声 — 这堂课粗糙的一端：矩形窗是平顶的，两端各只有 1 ms 的保护，所以每个颗粒都突兀地开始和结束。稀疏的颗粒让每一个生硬的边缘独自呈现。和 Hann 比一比，就能听出窗口为什么重要。", reviewed: 'bt' },
     },
+
+    // ── v1.9.0: user presets + the sample library ───────────────────────────
+    'label.groupPresets': {
+        en: { t: "Presets" },
+        fr: { t: "Préréglages", reviewed: false },
+        'zh-Hans': { t: "预设", reviewed: 'mt' },
+    },
+    'label.presetSave': {
+        en: { t: "Save" },
+        fr: { t: "Enreg.", reviewed: false },
+        'zh-Hans': { t: "保存", reviewed: 'mt' },
+    },
+    'label.presetSaveCancel': {
+        en: { t: "Cancel" },
+        fr: { t: "Annuler", reviewed: false },
+        'zh-Hans': { t: "取消", reviewed: 'mt' },
+    },
+    'label.presetNamePlaceholder': {
+        en: { t: "Preset name" },
+        fr: { t: "Nom du préréglage", reviewed: false },
+        'zh-Hans': { t: "预设名称", reviewed: 'mt' },
+    },
+    'label.presetNone': {
+        en: { t: "No preset" },
+        fr: { t: "Aucun préréglage", reviewed: false },
+        'zh-Hans': { t: "无预设", reviewed: 'mt' },
+    },
+    'label.libraryEmpty': {
+        en: { t: "Library is empty" },
+        fr: { t: "Bibliothèque vide", reviewed: false },
+        'zh-Hans': { t: "样本库为空", reviewed: 'mt' },
+    },
+    'label.libraryPlaceholder': {
+        en: { t: "Sample library ({count})" },
+        fr: { t: "Bibliothèque ({count})", reviewed: false },
+        'zh-Hans': { t: "样本库（{count}）", reviewed: 'mt' },
+    },
+    'label.sampleLock': {
+        en: { t: "Sample Lock" },
+        fr: { t: "Verrou d’échantillon", reviewed: false },
+        'zh-Hans': { t: "样本锁定", reviewed: 'mt' },
+    },
+    'aria.presetPrev': {
+        en: { t: "Previous preset" },
+        fr: { t: "Préréglage précédent", reviewed: false },
+        'zh-Hans': { t: "上一个预设", reviewed: 'mt' },
+    },
+    'aria.presetNext': {
+        en: { t: "Next preset" },
+        fr: { t: "Préréglage suivant", reviewed: false },
+        'zh-Hans': { t: "下一个预设", reviewed: 'mt' },
+    },
+    'aria.presetName': {
+        en: { t: "Preset name" },
+        fr: { t: "Nom du préréglage", reviewed: false },
+        'zh-Hans': { t: "预设名称", reviewed: 'mt' },
+    },
+    'toast.presetSaved': {
+        en: { t: "Saved {name}" },
+        fr: { t: "{name} enregistré", reviewed: false },
+        'zh-Hans': { t: "已保存 {name}", reviewed: 'mt' },
+    },
+    'toast.presetSaveFailed': {
+        en: { t: "Couldn't save the preset" },
+        fr: { t: "Impossible d’enregistrer le préréglage", reviewed: false },
+        'zh-Hans': { t: "无法保存预设", reviewed: 'mt' },
+    },
+    'toast.presetLoadFailed': {
+        en: { t: "Couldn't load {name}" },
+        fr: { t: "Impossible de charger {name}", reviewed: false },
+        'zh-Hans': { t: "无法载入 {name}", reviewed: 'mt' },
+    },
+    'toast.presetSampleMissing': {
+        en: { t: "{name} isn't in the library — kept the current sample" },
+        fr: { t: "{name} n’est pas dans la bibliothèque — échantillon actuel conservé", reviewed: false },
+        'zh-Hans': { t: "样本库中没有 {name} — 已保留当前样本", reviewed: 'mt' },
+    },
+    'toast.presetDeleteConfirm': {
+        en: { t: "Click × again to delete {name}" },
+        fr: { t: "Cliquez encore sur × pour supprimer {name}", reviewed: false },
+        'zh-Hans': { t: "再次点击 × 以删除 {name}", reviewed: 'mt' },
+    },
+    'toast.presetDeleted': {
+        en: { t: "Deleted {name}" },
+        fr: { t: "{name} supprimé", reviewed: false },
+        'zh-Hans': { t: "已删除 {name}", reviewed: 'mt' },
+    },
+    'toast.libraryLoadFailed': {
+        en: { t: "Couldn't load {name} from the library" },
+        fr: { t: "Impossible de charger {name} depuis la bibliothèque", reviewed: false },
+        'zh-Hans': { t: "无法从样本库载入 {name}", reviewed: 'mt' },
+    },
+    'toast.libraryRemoveConfirm': {
+        en: { t: "Click × again to remove {name} from the library" },
+        fr: { t: "Cliquez encore sur × pour retirer {name} de la bibliothèque", reviewed: false },
+        'zh-Hans': { t: "再次点击 × 以从样本库移除 {name}", reviewed: 'mt' },
+    },
+    'toast.libraryRemoved': {
+        en: { t: "Removed {name} from the library" },
+        fr: { t: "{name} retiré de la bibliothèque", reviewed: false },
+        'zh-Hans': { t: "已从样本库移除 {name}", reviewed: 'mt' },
+    },
 });
 
 // ============================================================================
@@ -1186,6 +1360,14 @@ export const TIP_BINDINGS = [
     ['#vizScopeCell',                                'vizScope'],
     ['#vizSpectrumCell',                             'vizSpectrum'],
     ['#grainReadout',                                'readout'],
+
+    ['#presetSelect',                                'presetSelect'],
+    ['#presetSave',                                  'presetSave'],
+    ['#presetDelete',                                'presetDelete'],
+    ['#librarySelect',                               'librarySelect'],
+    ['#libraryRemove',                               'libraryRemove'],
+    ['#libraryReveal',                               'libraryReveal'],
+    ['#sampleLock',                                  'sampleLock'],
 
     ['[data-param="sourceSample"]',                  'sourceSample'],
     ['#btnLoad',                                     'loadSource'],

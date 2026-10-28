@@ -45,6 +45,8 @@
 #include "dsp/GrainCloudFrame.h"
 #include "dsp/GrainSource.h"          // v1.7.0 — buffer + band-limited mipmap
 #include "VizAnalyzer.h"
+#include "SampleLibrary.h"            // v1.9.0 — sample library, separate from presets
+#include "OuariconPresetManager.h"    // v1.9.0 — preset-manager module (user presets)
 
 // Forward declarations — the voice/sound are pulled in only by the .cpp
 // (GrainVoice.h itself includes this header for the engine constants).
@@ -263,6 +265,42 @@ public:
     std::vector<float> getSourceThumbnail (int numPairs = 512) const;
 
     //==========================================================================
+    // v1.9.0 — USER PRESETS + SAMPLE LIBRARY, kept separate (GRN 3 style).
+    //
+    // Presets go through the preset-manager module (~/Library/O-simpleGrain/
+    // Presets/User/*.json). A preset holds the sound-shaping parameters only:
+    // sourceSample (the built-in choice) and outputLevel (user-owned) are
+    // EXCLUDED, so loading a preset never resets the sample or the level. The
+    // sample travels as a REFERENCE in the preset's customState —
+    //   { sample: { kind: "builtin", name: "fire" } }
+    //   { sample: { kind: "library", name: "x.flac", hash, size } }
+    // — resolved against the library on load (name+hash, then hash alone, then
+    // name alone). A reference that cannot be resolved keeps the current sound
+    // and reports the name. With Sample Lock on, a preset load never changes
+    // the sound at all.
+    //
+    // The library (~/Library/O-simpleGrain/Samples/) receives a copy of every
+    // dropped or picked sound, de-duplicated by content. Sessions still embed
+    // their own copy (v1.5.6), so a project never depends on the library.
+    //
+    // All of these run on the MESSAGE thread (native-fn callbacks).
+    juce::var  getPresetInfo();                          // { presets: [...], current }
+    juce::var  saveUserPreset   (const juce::String& name);   // { ok, name }
+    juce::var  loadUserPreset   (const juce::String& name);   // { ok, name, missing }
+    juce::var  stepUserPreset   (int direction);               // { ok, name, missing }
+    bool       deleteUserPreset (const juce::String& name);
+
+    juce::var  getLibraryInfo();                         // { entries: [...], current }
+    bool       loadLibrarySample   (const juce::String& entryName);
+    bool       removeLibrarySample (const juce::String& entryName);
+    void       revealSampleLibrary();
+
+    bool getSampleLock() const noexcept      { return sampleLocked.load (std::memory_order_acquire); }
+    void setSampleLock (bool on) noexcept    { sampleLocked.store (on, std::memory_order_release); }
+
+    juce::File getSampleLibraryFolder() const { return sampleLibrary.getFolder(); }
+
+    //==========================================================================
     // Engine constants (declared NOW; consumed by the grain engine in Stage 2).
     static constexpr int kMaxVoices        = 8;     // polyphony
     static constexpr int kMaxGrainsPerVoice = 24;   // per-voice active grain cap
@@ -361,6 +399,31 @@ private:
     juce::AudioProcessorValueTreeState apvts;
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    //==========================================================================
+    // v1.9.0 — presets (module) + sample library. presetLock serialises every
+    // presetManager call and its currentPresetName (a COW juce::String the host
+    // thread reads in getStateInformation). Lock order: presetLock may be held
+    // while sourceStateLock is taken (a preset load decodes a sample), never the
+    // reverse.
+    OuariconPresetManager presetManager { apvts, "O-simpleGrain" };
+    juce::CriticalSection presetLock;
+    SampleLibrary         sampleLibrary;
+    std::atomic<bool>     sampleLocked { false };
+
+    // The library entry the CURRENT user source was copied to (or loaded from):
+    // valid only while currentSourceIdentity == libraryEntryIdentity. Guarded by
+    // sourceStateLock.
+    juce::String libraryEntryIdentity, libraryEntryName;
+
+    juce::String currentLibraryEntryName();            // "" when not a library sound
+    juce::String addCurrentSourceToLibrary();          // copy the live user source in; entry name or ""
+    juce::var    captureSampleReference();             // preset customState
+    void         applySampleReference (const juce::var& customState);
+    juce::String presetSampleMissing;                  // set by applySampleReference (message thread)
+
+    static juce::File defaultLibraryFolder();
+    static juce::String extensionForAudioBytes (const juce::MemoryBlock& bytes);
 
     //==========================================================================
     // Grain engine. Window LUTs built once at construction (declared BEFORE the
@@ -569,6 +632,10 @@ private:
     // v1.6.0 — ROOT property: the instance RNG seed as a signed int64 string
     // (getLargeIntValue clamps above INT64_MAX). Absent before 1.6.0.
     static constexpr const char* kRngSeedProp = "rngSeed";
+    // v1.9.0 — ROOT properties: the loaded user preset's name, and Sample Lock
+    // ("1"/"0"). Absent before 1.9.0 (no preset name, lock off).
+    static constexpr const char* kPresetNameProp = "presetName";
+    static constexpr const char* kSampleLockProp = "sampleLock";
 
     //==========================================================================
     // v1.6.0 — seeded randomness. rngSeed is random per new instance and saved

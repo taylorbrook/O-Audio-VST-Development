@@ -122,6 +122,19 @@ public:
         migrate = std::move(migrationCallback);
     }
 
+    /**
+     * v1.1.0: parameters that do NOT belong to a preset (e.g. a source-sample
+     * selector kept in a separate sample library, or a user-owned output trim).
+     * An excluded parameter is never written by savePreset()/capturePresetData(),
+     * never reset to its default by the WR-01 pass, and never applied from a
+     * preset file that happens to carry it — it keeps its live value across
+     * every preset load. Empty by default: existing plugins are unaffected.
+     */
+    void setExcludedParameters(const juce::StringArray& parameterIDs)
+    {
+        excludedParameters = parameterIDs;
+    }
+
     //==========================================================================
     // Preset operations
     //==========================================================================
@@ -241,6 +254,10 @@ private:
     CustomLoadCallback customLoad;
     MigrationCallback  migrate;
 
+    // v1.1.0: parameter IDs kept out of presets (see setExcludedParameters).
+    juce::StringArray excludedParameters;
+    bool isExcluded(const juce::String& paramID) const { return excludedParameters.contains(paramID); }
+
     // WR-04: strip path separators so a name like "Koto / Harp" cannot be interpreted
     // as a path by getChildFile() (which silently drops the file). Applied consistently
     // wherever a preset name is turned into a filename so the same name round-trips.
@@ -306,6 +323,8 @@ inline juce::var OuariconPresetManager::createPresetJson() const
     {
         if (auto* paramWithID = dynamic_cast<juce::RangedAudioParameter*>(param))
         {
+            if (isExcluded(paramWithID->getParameterID()))
+                continue;   // v1.1.0: not part of a preset
             paramsObj->setProperty(paramWithID->getParameterID(),
                                    paramWithID->getValue());
         }
@@ -362,7 +381,8 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
                 const bool metaPass = (pass == 0);
                 for (auto* param : parameters.processor.getParameters())
                     if (auto* rangedParam = dynamic_cast<juce::RangedAudioParameter*>(param))
-                        if (rangedParam->isMetaParameter() == metaPass)
+                        if (rangedParam->isMetaParameter() == metaPass
+                            && ! isExcluded(rangedParam->getParameterID()))   // v1.1.0
                             rangedParam->setValueNotifyingHost(rangedParam->getDefaultValue());
             }
 
@@ -370,7 +390,9 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
             {
                 const bool metaPass = (pass == 0);
                 for (auto& prop : paramsObj->getProperties())
-                    if (auto* param = parameters.getParameter(prop.name.toString()))
+                    if (isExcluded(prop.name.toString()))
+                        continue;   // v1.1.0: a stray key in an old/hand-edited file
+                    else if (auto* param = parameters.getParameter(prop.name.toString()))
                         if (param->isMetaParameter() == metaPass)
                             param->setValueNotifyingHost(static_cast<float>(prop.value));
             }
