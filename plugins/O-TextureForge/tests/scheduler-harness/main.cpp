@@ -4,6 +4,8 @@
 //
 // usage: tfh <mode 0|1|2> <density> <variation> <seed> <block 32|512|441|var> <align free|512>
 //            <path kd|proj|rand> <out.f32> [processorTail 0|1]
+// env (v1.7.0): TF_BLR=1 builds the corpus mipmap (new engine only), as the loader
+// does; TF_NOTE_MAX=<n> clamps every note to n (both engines), e.g. 60 = rate <= 1.
 #include <JuceHeader.h>
 #include "SharedCorpus.h"
 #include "KDTreeSearch.h"
@@ -43,6 +45,10 @@ static std::unique_ptr<SharedCorpus> makeCorpus(const std::string& path)
     if (path == "kd")
         c->kdTree = std::make_unique<KDTreeSearch>(c->grains);
     c->sampleRate = kFs;
+#ifdef NEW_ENGINE
+    if (const char* e = std::getenv("TF_BLR"); e != nullptr && std::atoi(e) != 0)
+        c->buildBandlimited();
+#endif
     return c;
 }
 
@@ -80,6 +86,13 @@ static std::vector<Ev> makeEvents(int mode, int align)
             ev.push_back({ at((int) (r.next() % kLen)), juce::MidiMessage::controllerEvent(1, 1, (int) (r.next() % 128)) });
             ev.push_back({ at((int) (r.next() % kLen)), juce::MidiMessage::channelPressureChange(1, (int) (r.next() % 128)) });
         }
+    }
+    if (const char* e = std::getenv("TF_NOTE_MAX"))
+    {
+        const int cap = std::atoi(e);
+        for (auto& x : ev)
+            if (x.msg.isNoteOnOrOff() && x.msg.getNoteNumber() > cap)
+                x.msg.setNoteNumber(cap);
     }
     std::stable_sort(ev.begin(), ev.end(), [](const Ev& a, const Ev& b) { return a.pos < b.pos; });
     return ev;

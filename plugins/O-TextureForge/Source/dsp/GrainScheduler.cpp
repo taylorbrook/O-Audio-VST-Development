@@ -307,6 +307,16 @@ void GrainScheduler::triggerGrainByIndex(const SharedCorpus* corpus, const Sched
     {
         voice->playbackRate = 1.0f;
     }
+
+    // v1.7.0: band-limited read for up-transposed grains (grain-engine
+    // BandlimitedReader). Octave level = floor(log2 rate), sinc set from the
+    // residual rate on that level; rate <= 1 keeps the linear read (bit-identical
+    // to v1.6.2), since it cannot alias.
+    const double rate = static_cast<double>(voice->playbackRate);
+    voice->bandlimited = rate > 1.0 && corpus->mip != nullptr;
+    voice->mipLevel = voice->bandlimited ? ouaricon::grain::latchLevel(rate, SharedCorpus::kMipLevels) : 0;
+    voice->sincSet = voice->bandlimited
+                   ? ouaricon::grain::SincBank::setFor(rate / static_cast<double>(1 << voice->mipLevel)) : 0;
 }
 
 uint32_t GrainScheduler::queryGrainIndex(
@@ -445,9 +455,13 @@ void GrainScheduler::renderVoices(juce::AudioBuffer<float>& buffer, const Shared
                 break;
             }
 
-            // Sample from corpus with linear interpolation
+            // Rate > 1: band-limited mipmap read (v1.7.0); else linear interpolation.
+            // The mip check covers a grain spawned on a corpus that had one and
+            // carried onto a swapped-in corpus that does not.
             const double readPos = static_cast<double>(voice.grainStartSample) + voice.readPosition;
-            float sample = sampleFromCorpus(corpus, readPos);
+            const float sample = (voice.bandlimited && corpus->mip != nullptr)
+                               ? corpus->readBandlimited(voice.mipLevel, voice.sincSet, readPos)
+                               : sampleFromCorpus(corpus, readPos);
 
             // Apply grain envelope (Hann window)
             float envelope = voice.getEnvelope();

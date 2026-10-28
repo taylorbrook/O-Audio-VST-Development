@@ -1,5 +1,35 @@
 # O-TextureForge Changelog
 
+## [1.7.0] — 2026-10-28
+
+Pitched-up grains no longer alias. In Pitch-Mapped mode a note above C4 plays its grain faster than recorded, and the linear read folded everything above the new Nyquist back into the audible band: a 20 kHz partial played a fifth up came back at 18 kHz, almost as loud as the original. Those grains now read a band-limited copy of the corpus, built when it loads. MINOR because notes above C4 sound different: the folded-back tones are gone. There is no parameter, range, state, UI or i18n change. Every grain at or below C4, and every grain in Trigger+Modulate and Drone mode, renders bit-identically to 1.6.2.
+
+### Changed
+
+- **Band-limited reads for up-transposed grains (grain-engine 1.1.0 BandlimitedReader).** Each corpus is stored with six half-band octave levels (`SharedCorpus::mip`, a `MipRing<6>`). A grain with rate > 1 latches its octave level from its rate when it spawns, plus the 16-tap sinc set for the residual rate on that level. The rate is fixed for the grain's life, so the render loop does one 16-tap read per sample and nothing else. Grains at rate ≤ 1 keep the linear read, since they cannot alias.
+- **The mipmap is built by the corpus loader, before the corpus is published.** The audio thread never sees a corpus without its mipmap, or with a half-built one, and the corpus lock and retired-corpus reaping are unchanged. The levels are padded with silence on both sides, so a grain that runs past the end of the corpus reads silence, as the linear read does. A load cancelled mid-build is dropped like any other cancelled load.
+- The mipmap is kept as the ring itself, read by delay from its head, rather than copied into a `MipSnapshot`. A snapshot would hold a second full copy while it is built, and corpora have no length cap.
+
+### Notes
+
+- Top-octave trade-off of the 16-tap kernels: up to 9 kHz every rate is within 1.3 dB. At 16 kHz, a note one semitone above an octave is −0.9 dB, and a note one semitone below the next octave (the narrowest set) is −9.8 dB, where 1.6.2 was −0.9 dB with its aliases left in.
+- Memory: the mipmap holds about 4× the corpus (two channels, because the module's ring is stereo and the engine reads mono). A 6-minute corpus at 48 kHz takes about 280 MB more. Building it adds about 0.5 s to that load, on the loader thread.
+- Six levels cover rate 128. MIDI reaches +67 st (rate 48, level 5).
+
+### Testing
+
+- New `tests/alias-gate/` (`build.sh`, `alias.cpp`, `gate.py`): the scheduler offline, built against this tree and against the v1.6.2 backup. A 10 s sine at 48 kHz, one isolated 60 ms Hann grain per note. Thirteen alias cases cover levels 0 to 5, with each octave edge tested from both sides (S1 one semitone above, S6 one semitone below). Each folds to an audible frequency, and the audible energy must be ≤ −60 dB against the same sine at rate 1. Six in-band cases at about 9 kHz must stay within ±1.5 dB.
+  - v1.7.0: all 19 pass. Alias −64.7 to −112.3 dB, in-band −1.23 to +0.01 dB.
+  - v1.6.2 (positive control): all 13 alias cases fail, at −3.0 to 0.0 dB.
+  - Far grain: a band-limited grain 95 s and 6.4 min into a periodic corpus is bit-identical to the same grain near the start, at notes 67, 89 and 127.
+- New `tests/scheduler-harness/gate_v170.py` (`TF_BLR=1` builds the mipmap in the harness corpus, `TF_NOTE_MAX` clamps notes):
+  - Block-size null with the mipmap, 32 / 512 / variable, all three modes, notes 40 to 99: 10/10 bit-exact.
+  - Bit-identical to v1.6.2 in Drone and Trigger+Modulate, and in Pitch-Mapped with notes clamped to 60: 8/8.
+  - Controls: mipmap on vs off differ by −9.9 dBFS in Pitch-Mapped, and with the mipmap off the new build is bit-identical to v1.6.2.
+- `tests/scheduler-harness/reaper/` (processor level, real corpus loads through the loader, so the mipmap is built): `prepare_stress` A/B/C pass (62,742 saved states, 0 freed-corpus reads); `reaper_stress new` 0 poisoned blocks over 6,000 publishes.
+- pluginval strictness 10 SUCCESS, auval SUCCEEDED.
+- The harness builds now use `-std=c++20` and add the grain-engine headers with `-idirafter`, so the module's `GrainScheduler.h` cannot shadow the plugin's.
+
 ## [1.6.2] — 2026-10-27
 
 ### Fixed

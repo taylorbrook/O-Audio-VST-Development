@@ -119,6 +119,12 @@ void CorpusLoader::run()
     corpus->sampleRate = targetSampleRate;
     corpus->audioData = std::move(buffer);
 
+    // Step 3b (v1.7.0): band-limited mipmap for pitched-up grains. Built here, on
+    // the loader thread, so the corpus is published with it and the audio thread
+    // never sees a corpus whose mipmap is missing or half-built.
+    if (!corpus->buildBandlimited([this]() { return threadShouldExit(); }))
+        return;
+
     // Step 4: Segment and analyze grains
     if (threadShouldExit())
         return;

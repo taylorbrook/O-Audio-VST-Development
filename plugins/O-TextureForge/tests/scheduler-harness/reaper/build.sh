@@ -12,7 +12,8 @@ S="${SRC:-$R/plugins/O-TextureForge/Source}"
 FL=(-std=c++17 -O2 -g -DJUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1
     -DJUCE_STANDALONE_APPLICATION=1 -DJUCE_WEB_BROWSER=0 -DJUCE_USE_CURL=0 -DJUCE_PLUGINHOST_VST3=0 -DJUCE_PLUGINHOST_AU=0
     -DJUCE_MODAL_LOOPS_PERMITTED=1
-    -I "$H/shim" -I "${JUCE_DIR:-$HOME/JUCE}/modules" -I "$R/build/_deps/nanoflann-src/include" -I "$S" -I "$S/dsp")
+    -I "$H/shim" -I "${JUCE_DIR:-$HOME/JUCE}/modules" -I "$R/build/_deps/nanoflann-src/include" -I "$S" -I "$S/dsp"
+    -idirafter "$R/modules/synthesis/grain-engine/cpp")   # v1.7.0 BandlimitedReader.h; after -I so it cannot shadow dsp/
 FW=(-framework Foundation -framework Accelerate -framework CoreAudio -framework CoreMIDI -framework AudioToolbox
     -framework IOKit -framework Security -framework AppKit -framework QuartzCore -framework Metal -framework WebKit
     -framework CoreImage -framework CoreText -framework Carbon -framework UniformTypeIdentifiers -framework AudioUnit -framework CoreAudioKit)

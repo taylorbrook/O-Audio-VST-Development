@@ -30,6 +30,9 @@
 
 #include <JuceHeader.h>
 #include "GrainMetadata.h"
+#include "BandlimitedReader.h"   // grain-engine 1.1.0 (modules/synthesis/grain-engine/cpp)
+#include <cstdint>
+#include <functional>
 #include <vector>
 #include <memory>
 #include <atomic>
@@ -52,6 +55,55 @@ struct SharedCorpus
     std::vector<float> umapX;
     std::vector<float> umapY;
     std::atomic<bool> umapReady { false };
+
+    // v1.7.0: band-limited octave mipmap of audioData, read by pitched-up grains
+    // (rate > 1). A grain-engine MipRing<6> fed kPreRoll zeros, the corpus, then
+    // kTail zeros, and never wrapped: it is the store, read by delay from its head
+    // (no MipSnapshot, so the build does not hold a second full copy). The zero
+    // padding gives the same silence outside the corpus that sampleFromCorpus()
+    // returns, and every level is settled across the whole corpus. Built on the
+    // loader thread before the corpus is published; null = every grain reads
+    // the linear path (also the harness corpora that never call it).
+    static constexpr int kMipLevels = 6;   // rate up to 128; MIDI reaches 2^(67/12) ~ 48
+    using MipRingT = ouaricon::grain::MipRing<kMipLevels>;
+    static constexpr int kMipPreRoll = 8192;                       // > 7 * 64 + 63 * 63 taps behind sample 0
+    static constexpr int kMipTail    = 2 * MipRingT::margin(kMipLevels) + 8 * (1 << kMipLevels) + 4096;
+    std::unique_ptr<MipRingT> mip;
+    int64_t mipHead = 0;   // write count minus kMipPreRoll: delay of corpus sample 0 is mipHead
+
+    // Builds `mip` from channel 0 of audioData. Allocates; loader thread only.
+    // Returns false (mip left null) if shouldExit() fires mid-build.
+    bool buildBandlimited(const std::function<bool()>& shouldExit = {})
+    {
+        mip.reset();
+        const int n = audioData.getNumSamples();
+        if (n <= 0)
+            return true;
+
+        const float* x = audioData.getReadPointer(0);
+        auto ring = std::make_unique<MipRingT>();
+        ring->prepare(kMipPreRoll + n + kMipTail);
+        for (int i = 0; i < kMipPreRoll; ++i) ring->push(0.0f, 0.0f);
+        for (int i = 0; i < n; ++i)
+        {
+            ring->push(x[i], 0.0f);
+            if ((i & 0xFFFF) == 0xFFFF && shouldExit && shouldExit())
+                return false;
+        }
+        for (int i = 0; i < kMipTail; ++i) ring->push(0.0f, 0.0f);
+
+        mipHead = ring->getWriteCount() - kMipPreRoll;
+        mip = std::move(ring);
+        return true;
+    }
+
+    // Band-limited read at absolute corpus position pos (level-0 samples, >= 0).
+    // Past the end it reads the zero tail; MipRing clamps the delay to the level's
+    // margin, which sits inside that tail. Allocation- and lock-free.
+    float readBandlimited(int level, int sincSet, double pos) const noexcept
+    {
+        return mip->read(level, 0, static_cast<double>(mipHead) - pos, sincSet);
+    }
 
     uint32_t grainSizeSamples = 0;
     uint32_t hopSizeSamples = 0;

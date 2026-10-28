@@ -27,7 +27,7 @@ juce_add_plugin(OuariconTextureForge
     PLUGIN_CODE OuTF
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-TextureForge${OUARICON_DEV_SUFFIX}"
-    VERSION 1.6.2
+    VERSION 1.7.0
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_WEB_BROWSER TRUE
@@ -51,6 +51,11 @@ target_include_directories(OuariconTextureForge
     PRIVATE
         Source
 )
+
+# grain-engine 1.1.0: BandlimitedReader.h only (MipRing / SincBank), for the
+# band-limited read of up-transposed grains (v1.7.0). The plugin keeps its own
+# dsp/CounterRng.h and GrainPool (global namespace; the module's are ouaricon::grain).
+ouaricon_add_module(OuariconTextureForge grain-engine)
 
 # v1.5.1: umappp fetches knncolle at `master`, whose headers now use
 # std::filesystem (Prebuilt.hpp / utils.hpp). libc++ marks it unavailable below

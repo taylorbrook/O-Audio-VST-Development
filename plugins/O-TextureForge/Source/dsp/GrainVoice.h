@@ -50,6 +50,11 @@ struct GrainVoice
     int midiChannel = -1;             // Triggering MIDI channel
     float stealGain = 1.0f;           // v1.5.3: fade-out gain (1 = not fading)
     float stealStep = 0.0f;           // v1.5.3: per-sample decrement, > 0 while fading
+    // v1.7.0: rate > 1 grains read the corpus mipmap. Level and sinc set depend
+    // only on the rate, which is fixed for the grain, so both are latched on spawn.
+    bool bandlimited = false;
+    int mipLevel = 0;
+    int sincSet = 0;
 
     void reset()
     {
@@ -66,6 +71,9 @@ struct GrainVoice
         midiChannel = -1;
         stealGain = 1.0f;
         stealStep = 0.0f;
+        bandlimited = false;
+        mipLevel = 0;
+        sincSet = 0;
     }
 
     // Hann window envelope with crossfade modulation
