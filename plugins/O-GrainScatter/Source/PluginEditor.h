@@ -85,6 +85,8 @@ private:
     // Randomization
     std::unique_ptr<juce::WebSliderRelay> sizeRandomRelay;
     std::unique_ptr<juce::WebSliderRelay> ampRandomRelay;
+    std::unique_ptr<juce::WebSliderRelay> grainSkipRelay;   // v3.4.0
+    std::unique_ptr<juce::WebSliderRelay> shapeTiltRelay;   // v3.4.0
     // Euclidean
     std::unique_ptr<juce::WebSliderRelay> euclideanPulsesRelay;
     std::unique_ptr<juce::WebSliderRelay> euclideanStepsRelay;
@@ -139,6 +141,8 @@ private:
     // Randomization
     std::unique_ptr<juce::WebSliderParameterAttachment> sizeRandomAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> ampRandomAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> grainSkipAttachment;   // v3.4.0
+    std::unique_ptr<juce::WebSliderParameterAttachment> shapeTiltAttachment;   // v3.4.0
     // Euclidean
     std::unique_ptr<juce::WebSliderParameterAttachment> euclideanPulsesAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> euclideanStepsAttachment;

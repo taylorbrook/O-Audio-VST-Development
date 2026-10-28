@@ -8,7 +8,7 @@ juce_add_plugin(OuariconGrainScatter
     PLUGIN_CODE OuGS
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-GrainScatter${OUARICON_DEV_SUFFIX}"
-    VERSION 3.3.0
+    VERSION 3.4.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -152,5 +152,30 @@ if(OUARICON_BUILD_TESTS)
         list(TRANSFORM _gs_ag_srcs REPLACE "^${CMAKE_CURRENT_SOURCE_DIR}/Source/" "${_gs_v320_src}/")
         set_property(TARGET O-GrainScatter-alias-gate-v320 PROPERTY SOURCES ${_gs_ag_srcs})
         target_compile_definitions(O-GrainScatter-alias-gate-v320 PRIVATE GS_ALIAS_V320=1)
+    endif()
+
+    # v3.4.0 Grain Skip + Shape Tilt gate. The -v330 twin compiles the same driver
+    # against v3.3.0 (commit d920bedd, extracted with git archive at configure time)
+    # and dumps the reference renders + a v3.3.0 session that the defaults must match
+    # bit for bit:
+    #   O-GrainScatter-skip-tilt-v330 <dir> && O-GrainScatter-skip-tilt <dir>
+    ouaricon_add_processor_console(OuariconGrainScatter ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/skip-tilt/main.cpp skip-tilt)
+    set(_gs_v330_root ${CMAKE_BINARY_DIR}/gs-v330-d920bedd)
+    set(_gs_v330_src ${_gs_v330_root}/plugins/O-GrainScatter/Source)
+    if(NOT EXISTS ${_gs_v330_src}/PluginProcessor.cpp)
+        file(MAKE_DIRECTORY ${_gs_v330_root})
+        execute_process(
+            COMMAND git -C ${CMAKE_SOURCE_DIR} archive d920bedd plugins/O-GrainScatter/Source
+            COMMAND tar -x -C ${_gs_v330_root}
+            RESULT_VARIABLE _gs_v330_rc)
+    endif()
+    if(EXISTS ${_gs_v330_src}/PluginProcessor.cpp)
+        ouaricon_add_processor_console(OuariconGrainScatter ${_gs_v330_src}
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/skip-tilt/main.cpp skip-tilt-v330)
+        get_target_property(_gs_st_srcs O-GrainScatter-skip-tilt-v330 SOURCES)
+        list(TRANSFORM _gs_st_srcs REPLACE "^${CMAKE_CURRENT_SOURCE_DIR}/Source/" "${_gs_v330_src}/")
+        set_property(TARGET O-GrainScatter-skip-tilt-v330 PROPERTY SOURCES ${_gs_st_srcs})
+        target_compile_definitions(O-GrainScatter-skip-tilt-v330 PRIVATE GS_SKIPTILT_V330=1)
     endif()
 endif()

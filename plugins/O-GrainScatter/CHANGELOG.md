@@ -1,5 +1,41 @@
 # Changelog
 
+## [3.4.0] - 2026-10-28
+
+### Added
+- **Grain Skip** (`grain_skip`, 0–100 %, default 0). Each grain is dropped with this probability just before it starts (research 2026-update #6, after Tempera 2.3). It works in Free and Sync mode and on every Sync repeat individually, so a stutter of four repeats loses single hits instead of whole triggers; Probability still cancels whole triggers. The decision is a counter-RNG draw in its own slot, keyed to the grain:
+  - a skipped grain still uses up its counter, so the grains that do play get exactly the pitch / pan / size / position they would get at Skip 0;
+  - at Skip 0 nothing is drawn, and renders are bit-identical to v3.3.0;
+  - the stutter gate belongs to the trigger, so it still opens when the trigger's first grain is skipped (at Skip 100 % with Stutter Gate on, the dry is gated and nothing plays during each stutter).
+- **Shape Tilt** (`shape_tilt`, −100 to +100 %, default 0). It moves the peak of the grain window: −100 gives a plucked attack with a long fade, +100 a slow swell that stops short, and 0 is the current symmetric window. The window's phase is warped piecewise-linearly so its peak lands at the tilt point, with the same shape on each side:
+  - each side keeps at least 2 ms, so neither edge becomes a click. On grains under 4 ms the tilt has no effect, and on a 10 ms grain the peak travels from 20 % to 80 %;
+  - the tilt is latched when each grain starts, so automating it never reshapes a grain that is already playing;
+  - reverse grains keep the tilt in time order: a plucked reverse grain still starts hard;
+  - for the five symmetric shapes the warp leaves the window moments μ₁ and μ₂ unchanged, so density compensation and loudness are unaffected. Exp Decay is not symmetric: tilt changes its decay rate and its energy (−100: −12.7 dB in a 10-grain cloud). The moments follow the tilt and the compensation still never boosts, so the level tracks the energy, as with choosing a quieter shape.
+- UI: a **Tilt** knob next to Shape (Core Engine) and a **Skip** knob next to Probability (Beat Sync), with tooltips in English, French and Simplified Chinese (fr at `reviewed: false`, zh-Hans at `'mt'`). The left column of the lower panel is 20 px wider (451 / 411 px) to fit them. The 900 × 800 frame and every other control are unchanged.
+
+New parameters only: no preset or state change. A session saved by v3.3.0 or earlier loads with Skip 0 and Tilt 0 and renders bit-identically. AU parameter version hint 4.
+
+### Testing
+- New gate `tests/skip-tilt` (target `O-GrainScatter-skip-tilt`). Its twin `-skip-tilt-v330` compiles the same driver against v3.3.0 (commit d920bedd, extracted with git archive) and dumps the references: `O-GrainScatter-skip-tilt-v330 <dir> && O-GrainScatter-skip-tilt <dir>`. 27 / 27 PASS:
+
+  | Row | Result |
+  |---|---|
+  | Defaults vs v3.3.0: free, sync (repeats, swing, Euclid, gate), spatial (trajectory, Doppler), freeze, +24 st, Trapezoid, Exp Decay | peak diff 0 (bit-exact), 7 / 7 |
+  | v3.3.0 session loaded into an instance with Skip 50 / Tilt 80 | params reset to 0 / 0, bit-exact |
+  | Skip 100 %: free / sync / spatial | wet silent, 0 spawned (600 / 190 / 600 skipped) |
+  | Skip 25 / 50 % (600 grains) | 29.8 / 51.2 % skipped (within 4 sd) |
+  | Sync Repeats 4, Skip 50 % | 190 scheduled with and without Skip, 53.7 % skipped (skipping only the first grain of each trigger would cap it at 25 %) |
+  | Skip 50 + Tilt at 32 / variable blocks vs 512: free, sync, spatial | −400 / −400 dBFS (bit-exact) |
+  | Peak position: tilt −1 / 0 / +1 on 100 ms; −1 on 10 ms | 0.02 / 0.50 / 0.98; 0.20 |
+  | Envelope step at ±100 %, 5 shapes, 10 ms – 1 s | worst 0.033 per sample (Tukey); symmetric 0.013 |
+  | Negative control, 2 ms floor removed | step 1.0 (FAIL as intended) |
+  | μ₁ / μ₂ vs numeric integral, 6 shapes × peak 0.02 – 0.98 | rel. err < 1e-6 |
+  | Rendered DC grains at ±100 % (5 shapes, 10 / 200 ms) | step / peak 0.033 (tilt 0: 0.013) |
+  | Tilt −100 → +100 jump mid-grain, 500 ms grains | step / peak 0.011 |
+  | Dense noise cloud at ±100 % vs 0 (Hann, Trapezoid) | ≤ 0.014 dB |
+  | Exp Decay level vs moments prediction | −12.69 vs −12.77 dB; +0.00 vs +0.00 dB |
+
 ## [3.3.0] - 2026-10-27
 
 ### Changed

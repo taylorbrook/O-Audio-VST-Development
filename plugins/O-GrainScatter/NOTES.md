@@ -2,11 +2,13 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 3.2.0
+- **Version:** 3.4.0
 - **Type:** Audio Effect (Granular Stutter Engine)
 
 ## Lifecycle Timeline
 
+- **2026-10-28 (v3.4.0):** Grain Skip (`grain_skip` 0–100 %) + Shape Tilt (`shape_tilt` ±100 %), research 2026-update #6 (Tempera 2.3). Skip: per-grain counter-RNG slot `SlotSkip`, drawn only when > 0, so the counter is consumed and the grains that play are unchanged. Tilt: piecewise-linear phase warp moves the window peak, with a 2 ms floor on each side and the tilt latched per grain; the moments of symmetric shapes are unchanged. Gate `tests/skip-tilt` (+ `-v330` twin from d920bedd): defaults bit-exact on 7 paths + v3.3.0 session, step ≤ 0.033 at ±100 %. UI: Tilt beside Shape, Skip beside Probability, left grid column +20 px.
+- **2026-10-27 (v3.3.0):** Band-limited reader (grain-engine 1.1.0 BandlimitedReader): pitched-up grains alias ≤ −60 dB (gate `tests/alias-gate`).
 - **2026-10-27 (v3.2.0):** Wet `tanh` (stereo + post-binaural) replaced by closed-form live-N density compensation: `P = N·μ₂ + ρN(N−1)μ₁²`, 100 ms one-pole on P, `g = 1/√max(1,P)`. ρ ← Spread (0 at 25 %), the read-floor pinned fraction, pitch span and reverse. Feedback tanh kept. Freeze scatter ≥ ±1 grain length. Gate `tests/density-gain` (+ `-baseline` twin on the v3.1.0 backup): level −1.2…+0.6 dB across N 4–50 and coherent/incoherent/pinned (v3.1.0: +0.7…+18 dB). Spatial-mode level not gated.
 - **2026-10-27 (v3.1.0):** Deterministic, block-size-independent engine. Counter-based seeded RNG (`dsp/CounterRng.h`; seed saved as `rngSeed`). Sync repeats past the block end carry over: they used to be dropped, so at 512 only primaries played. The stutter gate spans blocks. The standalone tempo clock is integer-sample, the spatial control rate runs on the absolute clock, and ring/grain read positions are double. Gate `tests/blocksize-null`: 32/512/variable bit-exact in free/sync/spatial/freeze/pitch.
 - **2026-10-26 (v3.0.5):** Fade-on-steal. A stolen grain is copied into one of 8 spare slots and fades out over 5 ms. The new grain keeps the slot it always took, so steal-free output is bit-identical to v3.0.4.
@@ -43,9 +45,9 @@ Built on the granular engine from the Scatter plugin:
 "Harmonic Stutter" — the only stutter effect combining 64-voice granular synthesis, musical scale quantization, beat-synchronized triggering, and density-based texture morphing.
 
 ### Key Parameters (~20 total)
-- Core granular: Grain Size, Density, Scan, Spread, Reverse, Feedback, Dry Level, Wet Level, Size/Amp Random, Shape
+- Core granular: Grain Size, Density, Scan, Spread, Reverse, Feedback, Dry Level, Wet Level, Size/Amp Random, Shape, Shape Tilt
 - Pitch: Pitch Random, Range, Transpose, Fine, Pan Random, Collection (32), Root, Pitch Mode, Direction + per-degree chips
-- Beat sync: Sync Mode, Probability, Repeats
+- Beat sync: Sync Mode, Probability, Grain Skip, Repeats
 - Texture/Pitch: Texture (stutter-to-cloud morph), Pitch Mode (Random/Ladder/Pendulum), Freeze
 - Euclidean: Pulses, Steps
 

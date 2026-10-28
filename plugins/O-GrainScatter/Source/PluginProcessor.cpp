@@ -62,6 +62,8 @@ GrainScatterProcessor::GrainScatterProcessor()
     ampRandomParam       = parameters.getRawParameterValue("amp_random");
     scanPositionParam    = parameters.getRawParameterValue("scan_position");
     grainShapeParam      = parameters.getRawParameterValue("grain_shape");
+    grainSkipParam       = parameters.getRawParameterValue("grain_skip");   // v3.4.0
+    shapeTiltParam       = parameters.getRawParameterValue("shape_tilt");   // v3.4.0
 
     // Spatial parameters
     spatialModeParam     = parameters.getRawParameterValue("spatial_mode");
@@ -187,6 +189,27 @@ juce::AudioProcessorValueTreeState::ParameterLayout GrainScatterProcessor::creat
         "Scan Position",
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
         0.0f));
+
+    // v3.4.0 (research 2026-update #6, Tempera 2.3): Grain Skip drops each grain with
+    // this probability at spawn (sync repeats included, one draw per grain), and Shape
+    // Tilt moves the window's peak from a plucked attack (-100) through the symmetric
+    // window (0) to a reverse swell (+100). Both defaults are the v3.3.0 sound exactly.
+    // Tilt is interval 0 so its 0 default is exact (a stepped range with a negative
+    // start snaps it a few e-06 off, which would tilt every grain).
+    coreGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "grain_skip", 4 },
+        "Grain Skip",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        0.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("%")));
+
+    coreGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "shape_tilt", 4 },
+        "Shape Tilt",
+        juce::NormalisableRange<float>(-100.0f, 100.0f, 0.0f),
+        0.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("%")
+            .withStringFromValueFunction ([] (float v, int) { return juce::String (v, 1); })));
 
     layout.add(std::move(coreGroup));
 
@@ -421,6 +444,8 @@ void GrainScatterProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     binauralR.resize (static_cast<size_t> (samplesPerBlock), 0.0f);
     dryGateMask.resize (static_cast<size_t> (samplesPerBlock), 1.0f);
     grainCounter = 0;
+    grainsSpawned = 0;
+    grainsSkipped = 0;
     samplesProcessed = 0;
     stutterGateEndAbs = -1;
     grainPool.clearVoices();   // IN-05: no stale grains after a rate/block-size change
@@ -470,6 +495,8 @@ void GrainScatterProcessor::reset()
     // Reset scheduler timing (and, v3.1.0, the RNG event counters + sample clock)
     scheduler.prepare (currentSampleRate);
     grainCounter = 0;
+    grainsSpawned = 0;
+    grainsSkipped = 0;
     samplesProcessed = 0;
     stutterGateEndAbs = -1;
 
@@ -537,6 +564,9 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     float ampRandom      = ampRandomParam->load() / 100.0f;
     float scanPosition   = scanPositionParam->load() / 100.0f;
     int   grainShapeIdx  = static_cast<int>(grainShapeParam->load());
+    const float grainSkip = juce::jlimit (0.0f, 1.0f, grainSkipParam->load() / 100.0f);   // v3.4.0
+    const float shapeTilt = juce::jlimit (-1.0f, 1.0f, shapeTiltParam->load() / 100.0f);  // v3.4.0
+    const double tiltMinRamp = GrainPool::kTiltMinRampMs * 0.001 * currentSampleRate;
 
     // Spatial parameters
     int   spatialMode    = static_cast<int>(spatialModeParam->load());
@@ -634,7 +664,10 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // to the read-head floor (small Scan, wide Spread) are coherent with each other.
     // P is formed per sample from the live count and smoothed (E[N(N-1)] = mean^2 for
     // Poisson onsets, so this is the unbiased estimate); the gain never boosts (P < 1).
-    const auto windowMom = GrainPool::windowMoments (grainShapeIdx);
+    // v3.4.0: the tilt leaves every symmetric window's moments unchanged; Exp Decay's
+    // follow the base grain size's peak position.
+    const auto windowMom = GrainPool::windowMoments (
+        grainShapeIdx, GrainPool::tiltPeakFor (shapeTilt, grainSizeSamples, tiltMinRamp));
     const float mu1Sq = windowMom.mu1 * windowMom.mu1;
     float densityRho = 0.0f;
     {
@@ -738,12 +771,25 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             // v3.1.0: all of this grain's draws, keyed by its spawn index + a slot per quantity
             const CounterRng::Draw draw (seed, CounterRng::Grain, grainCounter++);
 
+            // v3.4.0 Grain Skip: decided per grain from its own RNG slot, after the stutter
+            // gate (a trigger's gate is the trigger's, not its first grain's). A skipped
+            // grain still uses up its counter, so the grains that do sound get exactly the
+            // draws they would get at Skip 0. At Skip 0 nothing is drawn.
+            if (grainSkip > 0.0f && draw.nextFloat (CounterRng::SlotSkip) < grainSkip)
+            {
+                ++grainsSkipped;
+                ++spawnIdx;
+                continue;
+            }
+            ++grainsSpawned;
+
             // Grain size with optional randomization
             int actualGrainSize = grainSizeSamples;
             if (sizeRandom > 0.0f)
                 actualGrainSize = juce::jmax(1, static_cast<int>(grainSizeSamples
                     * (1.0f + draw.nextFloat (CounterRng::SlotSize) * sizeRandom)));
             gp.grainLengthSamples = actualGrainSize;
+            gp.tiltPeak = GrainPool::tiltPeakFor (shapeTilt, actualGrainSize, tiltMinRamp);   // v3.4.0
 
             // Per-grain amplitude randomization
             if (ampRandom > 0.0f)
@@ -1016,7 +1062,7 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                 float vizPhase = (gv.grainLengthSamples > 0)
                     ? 1.0f - static_cast<float> (gv.samplesRemaining) / static_cast<float> (gv.grainLengthSamples)
                     : 0.0f;
-                sv.envelope = GrainPool::computeEnvelope (vizPhase, grainShapeIdx);
+                sv.envelope = GrainPool::computeEnvelope (GrainPool::tiltPhase (vizPhase, gv), grainShapeIdx);
                 sv.reverse = gv.reverse;
                 sv.frozen = gv.readFromFrozen;
                 sv.azimuth = gv.azimuth;

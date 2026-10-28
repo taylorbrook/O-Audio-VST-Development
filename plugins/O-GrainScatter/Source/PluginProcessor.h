@@ -149,6 +149,11 @@ public:
 
     void reset() override;
 
+    // v3.4.0: grains spawned / skipped by Grain Skip since the last reset. Not thread-safe;
+    // for offline tests that read between processBlock calls.
+    uint64_t getGrainsSpawned() const noexcept { return grainsSpawned; }
+    uint64_t getGrainsSkipped() const noexcept { return grainsSkipped; }
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
@@ -184,6 +189,8 @@ private:
 
     // Grain envelope shape
     std::atomic<float>* grainShapeParam = nullptr;
+    std::atomic<float>* grainSkipParam = nullptr;   // v3.4.0
+    std::atomic<float>* shapeTiltParam = nullptr;   // v3.4.0
 
     // Spatial parameters (8 new)
     std::atomic<float>* spatialModeParam = nullptr;
@@ -280,6 +287,8 @@ private:
     // reset()/prepareToPlay(), so a render is a pure function of seed + input + params.
     std::atomic<uint64_t> rngSeed { 0 };
     uint64_t grainCounter = 0;            // grains spawned since reset (grain RNG event index)
+    uint64_t grainsSpawned = 0;           // v3.4.0: audio-thread counters since reset (tests read them
+    uint64_t grainsSkipped = 0;           //         between blocks); spawned + skipped = grainCounter
     juce::int64 samplesProcessed = 0;     // absolute sample clock since reset
     juce::int64 stutterGateEndAbs = -1;   // v3.1.0: the stutter gate spans blocks
     std::vector<float> dryGateMask;       // per-sample dry gate (1 = pass) for the spatial post loop

@@ -631,6 +631,45 @@ export const I18N = Object.freeze({
                      reviewed: 'bt' },
     },
 
+    // ── v3.4.0: Grain Skip + Shape Tilt (research 2026-update #6) ──────────
+    // fr at reviewed:false and zh-Hans at 'mt': machine drafts, read against the
+    // two glossaries and their lints, not by a native speaker. Bodies name the
+    // controls by the caption the user sees (Probabilité / 概率, Forme / 形状).
+    'tip.skip': {
+        en: { t: 'Skip',
+              b: 'Grain Skip drops each grain with this chance just before it starts, Sync '
+               + 'repeats included, so a steady cloud or stutter turns sparse and broken while '
+               + 'its rate stays the same. Probability cancels a whole trigger; Skip removes '
+               + 'single grains. Range 0 to 100 %.' },
+        fr: { t: 'Saut',
+              b: 'Le saut de grain supprime chaque grain avec cette probabilité juste avant son '
+               + 'départ, répétitions de synchronisation comprises : un nuage ou un bégaiement '
+               + 'régulier devient clairsemé et haché sans changer de cadence. Probabilité annule '
+               + 'un déclenchement entier ; Saut retire des grains isolés. Plage de 0 à 100 %.',
+              reviewed: false },
+        'zh-Hans': { t: '跳过',
+                     b: '颗粒跳过让每个颗粒在即将开始前按这个概率被丢弃，同步重复也包括在内，于是稳定的颗粒云或断续会变得稀疏、破碎，而速率不变。概率取消整次触发；跳过只去掉单个颗粒。范围 0 到 100%。',
+                     reviewed: 'mt' },
+    },
+
+    'tip.tilt': {
+        en: { t: 'Tilt',
+              b: 'Shape Tilt moves the peak of the grain envelope. Negative values give each '
+               + 'grain a plucked attack and a long fade; positive values a slow swell that stops '
+               + 'short, like a reversed sound. At 0 the Shape is symmetric. Each edge keeps at '
+               + 'least 2 ms, so the extremes stay click-free. Range −100 to +100 %.' },
+        fr: { t: 'Inclinaison',
+              b: 'L’inclinaison de forme déplace le sommet de l’enveloppe de grain. Les valeurs '
+               + 'négatives donnent à chaque grain une attaque pincée et un long déclin ; les '
+               + 'valeurs positives, une montée lente qui s’arrête net, comme un son inversé. '
+               + 'À 0, la forme est symétrique. Chaque flanc garde au moins 2 ms, si bien que '
+               + 'les extrêmes restent sans clic. Plage de −100 à +100 %.',
+              reviewed: false },
+        'zh-Hans': { t: '倾斜',
+                     b: '形状倾斜移动颗粒包络的峰值位置。负值让每个颗粒有拨奏般的起音和较长的衰减；正值则是缓慢渐强后戛然而止，像反向播放的声音。为 0 时形状对称。每一侧至少保留 2 ms，所以极端设定也不会产生咔嗒声。范围 −100 到 +100%。',
+                     reviewed: 'mt' },
+    },
+
     'tip.repeats': {
         en: { t: 'Repeats',
               b: 'Sets how many grains a single trigger fires, spaced one subdivision apart, '
@@ -1143,6 +1182,11 @@ export const LABELS = Object.freeze({
         'zh-Hans': { t: '形状', reviewed: 'bt' },
     },                  // 28.98 -> 31.52
 
+    'label.tilt':          { en: { t: 'Tilt' },          // v3.4.0
+                             fr: { t: 'Inclinaison', reviewed: false },
+        'zh-Hans': { t: '倾斜', reviewed: 'mt' },
+    },
+
     // ── Pitch & Scale ───────────────────────────────────────────────────────
     'label.pitchRnd':      { en: { t: 'Pitch Rnd' },
                              fr: { t: 'Alé. haut.', reviewed: true },
@@ -1268,6 +1312,10 @@ export const LABELS = Object.freeze({
     // "Répétitions" (59.16) clears the cap by 2.84 px. Unlike PROBABILITÉ there
     // is no English precedent for spending that: "Repeats" is 39.25. The page's
     // own register already abbreviates (Size Rnd, Amp Rnd, Dist LPF, Traj Speed).
+    'label.skip':          { en: { t: 'Skip' },          // v3.4.0
+                             fr: { t: 'Saut', reviewed: false },
+        'zh-Hans': { t: '跳过', reviewed: 'mt' },
+    },
     'label.repeats':       { en: { t: 'Repeats' },
                              fr: { t: 'Répét.', reviewed: true },
         'zh-Hans': { t: '重复', reviewed: 'bt' },
@@ -1602,6 +1650,7 @@ export const TIP_BINDINGS = [
     ['.knob[data-param="size_random"]',        'tip.sizeRnd',     '.knob-container'],
     ['.knob[data-param="amp_random"]',         'tip.ampRnd',      '.knob-container'],
     ['select[data-param="grain_shape"]',       'tip.shape',       '.dropdown-container'],
+    ['.knob[data-param="shape_tilt"]',         'tip.tilt',        '.knob-container'],   // v3.4.0
 
     // ── Pitch & Scale ───────────────────────────────────────────────────────
     ['.knob[data-param="pitch_random"]',       'tip.pitchRnd',    '.knob-container'],
@@ -1621,6 +1670,7 @@ export const TIP_BINDINGS = [
     // ── Beat Sync ───────────────────────────────────────────────────────────
     ['select[data-param="sync_mode"]',         'tip.syncMode',    '.dropdown-container'],
     ['.knob[data-param="probability"]',        'tip.probability', '.knob-container'],
+    ['.knob[data-param="grain_skip"]',         'tip.skip',        '.knob-container'],   // v3.4.0
     ['.knob[data-param="repeats"]',            'tip.repeats',     '.knob-container'],
     ['#stutter-gate-btn',                      'tip.stutterGate'],
 

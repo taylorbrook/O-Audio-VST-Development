@@ -44,6 +44,10 @@ struct GrainParams
     float elevation = 0.0f;           // radians, 0=horizon
     float distance = 0.5f;            // 0-1 normalized
     int trajectoryType = 0;           // 0=Static, 1=Orbital, 2=Spiral, 3=Random
+
+    // v3.4.0 shape tilt: where the window's peak sits in the grain (0..1). 0.5 = the
+    // untilted, symmetric window (no warp at all, bit-exact with v3.3.0).
+    float tiltPeak = 0.5f;
 };
 
 struct GrainVoice
@@ -77,6 +81,14 @@ struct GrainVoice
     std::uint8_t sincSet = 0;
     float stealGain = 1.0f;             // v3.0.5: steal fade-out gain (1 = not fading)
     float stealStep = 0.0f;             // v3.0.5: per-sample decrement, > 0 while fading
+
+    // v3.4.0 shape tilt, latched at spawn (automation never reshapes a sounding grain).
+    // The window's phase is warped piecewise-linearly so its peak (phase 0.5) lands at
+    // tiltPeak: phase < tiltPeak runs the window's first half, the rest its second half.
+    bool  tilted = false;               // false = phase used as is (the v3.3.0 path)
+    float tiltPeak = 0.5f;
+    float tiltAtkScale = 1.0f;          // 0.5 / tiltPeak
+    float tiltRelScale = 1.0f;          // 0.5 / (1 - tiltPeak)
 };
 
 // Grain envelope shapes
@@ -108,6 +120,30 @@ public:
     }
 
     void setGrainShape (int shape) { grainShape = shape; }
+
+    // v3.4.0 shape tilt. Tilt -1 = plucked (peak near the start), +1 = reverse swell
+    // (peak near the end), 0 = symmetric. Each side keeps at least kTiltMinRampMs, so
+    // neither edge of the window becomes a step at the extremes; on grains shorter than
+    // 2 x that the travel shrinks (a 10 ms grain's peak can move to 20 % / 80 %).
+    static constexpr double kTiltMinRampMs = 2.0;
+
+    static float tiltPeakFor (float tilt, int grainLengthSamples, double minRampSamples)
+    {
+        if (tilt == 0.0f)
+            return 0.5f;
+        const double m = juce::jmin (0.5, minRampSamples / juce::jmax (1.0, static_cast<double> (grainLengthSamples)));
+        return static_cast<float> (0.5 + 0.5 * juce::jlimit (-1.0, 1.0, static_cast<double> (tilt)) * (1.0 - 2.0 * m));
+    }
+
+    // Phase warp: maps the grain's phase so the window's peak (0.5) falls at the voice's
+    // tiltPeak. Continuous at the peak; for Hann / Blackman the slope is 0 on both sides.
+    static float tiltPhase (float phase, const GrainVoice& v) noexcept
+    {
+        if (! v.tilted)
+            return phase;
+        return phase < v.tiltPeak ? phase * v.tiltAtkScale
+                                  : 0.5f + (phase - v.tiltPeak) * v.tiltRelScale;
+    }
 
     // IN-05: deactivate all voices and reset round-robin. Called from prepareToPlay()
     // (and reset()) so a sample-rate/block-size change without a host reset() can't leave
@@ -183,6 +219,20 @@ public:
     // tests/density-gain.
     struct WindowMoments { float mu1, mu2; };
 
+    // v3.4.0: the tilt's warp spends 2c of the grain on the window's first half and
+    // 2(1 - c) on its second, so mu = 2c * I[0, .5] + 2(1 - c) * I[.5, 1]. Every symmetric
+    // shape has equal halves and its moments are unchanged; only Exp Decay moves.
+    static WindowMoments windowMoments (int shape, float tiltPeak)
+    {
+        if (shape != GrainShape::ExponentialDecay || tiltPeak == 0.5f)
+            return windowMoments (shape);
+        const float c = tiltPeak;
+        const float a1 = (1.0f - std::exp (-2.5f)) / 5.0f,   b1 = (std::exp (-2.5f) - std::exp (-5.0f)) / 5.0f;
+        const float a2 = (1.0f - std::exp (-5.0f)) / 10.0f,  b2 = (std::exp (-5.0f) - std::exp (-10.0f)) / 10.0f;
+        return { 2.0f * c * a1 + 2.0f * (1.0f - c) * b1,
+                 2.0f * c * a2 + 2.0f * (1.0f - c) * b2 };
+    }
+
     static WindowMoments windowMoments (int shape)
     {
         switch (shape)
@@ -243,6 +293,10 @@ public:
         v.frozenBase = params.frozenBase;
         v.level = static_cast<std::uint8_t> (latchLevel (params.playbackRate));
         v.sincSet = static_cast<std::uint8_t> (sincSetFor (params.playbackRate, v.level));
+        v.tilted = params.tiltPeak != 0.5f;
+        v.tiltPeak = params.tiltPeak;
+        v.tiltAtkScale = v.tilted ? 0.5f / params.tiltPeak : 1.0f;
+        v.tiltRelScale = v.tilted ? 0.5f / (1.0f - params.tiltPeak) : 1.0f;
 
         // Start position
         if (v.reverse)
@@ -312,7 +366,7 @@ public:
             // Grain envelope
             float phase = 1.0f - static_cast<float> (v.samplesRemaining)
                                 / static_cast<float> (v.grainLengthSamples);
-            float envelope = computeEnvelope (phase, grainShape);
+            float envelope = computeEnvelope (tiltPhase (phase, v), grainShape);
 
             // Read sample from delay buffer or frozen buffer
             float sample = 0.0f;
@@ -381,7 +435,7 @@ public:
             // Grain envelope
             float phase = 1.0f - static_cast<float> (v.samplesRemaining)
                                 / static_cast<float> (v.grainLengthSamples);
-            float envelope = computeEnvelope (phase, grainShape);
+            float envelope = computeEnvelope (tiltPhase (phase, v), grainShape);
 
             // Read sample (stereo -> mono). v3.3.0: Doppler moves the residual rate inside
             // the grain, so the sinc set follows it per sample (the level stays latched;

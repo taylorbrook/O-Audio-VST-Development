@@ -150,7 +150,11 @@
         .controls-area {
             flex: 0 0 auto;
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            /* v3.4.0: the left column is 20 px wider (451 / 411 at 900 px) so Core
+               Engine's second row takes the Tilt knob beside Shape and Beat Sync takes
+               Skip; the right column's widest row (Pitch & Scale's four dropdowns,
+               374 px) still clears its 389 px. */
+            grid-template-columns: calc(50% + 17px) 1fr;
             grid-template-rows: auto auto;
             gap: 6px;
             padding: 4px 16px 10px;
@@ -968,6 +972,11 @@
                         <option>Exp Decay</option>
                     </select>
                 </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.tilt">Tilt</span>
+                    <div class="knob" data-param="shape_tilt"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="shape_tilt">0%</span>
+                </div>
             </div>
         </div>
 
@@ -1120,6 +1129,11 @@
                     <span class="knob-name" data-i18n="label.probability">Probability</span>
                     <div class="knob" data-param="probability"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="probability">100%</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.skip">Skip</span>
+                    <div class="knob" data-param="grain_skip"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="grain_skip">0%</span>
                 </div>
                 <div class="knob-container">
                     <span class="knob-name" data-i18n="label.repeats">Repeats</span>

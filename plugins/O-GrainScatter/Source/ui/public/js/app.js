@@ -401,6 +401,7 @@ function initI18n() {
     const rangeFormatter     = (v) => '\u00B1' + v.toFixed(1) + ' st';
     const transposeFormatter = (v) => signed(Math.round(v)) + ' st';
     const fineFormatter      = (v) => signed(Math.round(v)) + ' ct';
+    const tiltFormatter      = (v) => signed(Math.round(v)) + '%';   // v3.4.0: − pluck / + swell
 
     // ════════════════════════════════════════════════════════════════════
     // Initialize all parameter bindings
@@ -424,6 +425,8 @@ function initI18n() {
         setupKnob('size_random',      Juce.getSliderState('size_random'),      pctFormatter);
         setupKnob('amp_random',       Juce.getSliderState('amp_random'),       pctFormatter);
         setupKnob('probability',      Juce.getSliderState('probability'),      pctFormatter);
+        setupKnob('grain_skip',       Juce.getSliderState('grain_skip'),       pctFormatter);   // v3.4.0
+        setupKnob('shape_tilt',       Juce.getSliderState('shape_tilt'),       tiltFormatter);  // v3.4.0
         setupKnob('repeats',          Juce.getSliderState('repeats'),          repeatsFormatter);
         setupKnob('euclidean_pulses',   Juce.getSliderState('euclidean_pulses'),   eucPulsesFormatter);
         setupKnob('euclidean_steps',    Juce.getSliderState('euclidean_steps'),    eucStepsFormatter);

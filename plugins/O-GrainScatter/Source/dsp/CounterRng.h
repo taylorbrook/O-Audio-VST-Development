@@ -65,7 +65,8 @@ namespace CounterRng
     enum GrainSlot : uint32_t
     {
         SlotSize = 1, SlotAmp, SlotSpread, SlotPitch, SlotPan, SlotReverse,
-        SlotAzimuth, SlotElevation, SlotDetune
+        SlotAzimuth, SlotElevation, SlotDetune,
+        SlotSkip    // v3.4.0: drawn only while Grain Skip > 0 (appended: no other slot moves)
     };
 
     // One event's draws: a fixed slot per quantity.
