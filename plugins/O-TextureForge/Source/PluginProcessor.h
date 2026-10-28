@@ -91,8 +91,13 @@ public:
     void loadCorpusFile(const juce::File& file);
     void cancelUmap() { corpusLoader.cancelUmap(); }
 
-    // UI interaction
-    std::shared_ptr<SharedCorpus> getCurrentCorpus() const { return currentCorpus; }
+    // UI interaction. v1.6.2: a copy taken under corpusLock — safe from any
+    // thread except the audio thread.
+    std::shared_ptr<SharedCorpus> getCurrentCorpus() const
+    {
+        const juce::ScopedLock sl(corpusLock);
+        return currentCorpus;
+    }
     void selectGrainFromUI(int grainIndex);
 
     juce::AudioProcessorValueTreeState parameters;
@@ -149,15 +154,19 @@ private:
     std::array<VizSnapshot, 2> vizSnapshots {};
     std::atomic<int> vizWriteIndex { 0 };
 
-    double currentSampleRate = 44100.0;
+    // v1.6.2: atomic — written by prepareToPlay (host thread), read on the
+    // message thread when a load starts or completes.
+    std::atomic<double> currentSampleRate { 44100.0 };
 
     // DSP components
     GrainScheduler grainScheduler;
     CorpusLoader corpusLoader;
 
-    // Thread-safe corpus sharing. currentCorpus and retiredCorpora are touched
-    // on the message thread only (the loader's callAsync completion); the audio
-    // thread reads one raw pointer per block.
+    // Thread-safe corpus sharing. currentCorpus and retiredCorpora are written
+    // on the message thread only (the loader's callAsync completion) and guarded
+    // by corpusLock, which other threads take to read them (v1.6.2: prepareToPlay
+    // and getStateInformation run on host threads). The audio thread never locks;
+    // it reads one raw pointer per block.
     //
     // v1.6.1: a publish parks the outgoing corpus instead of overwriting a single
     // retired slot. With one slot, two completions back to back (a queued callAsync
@@ -175,11 +184,22 @@ private:
     void publishCorpus(std::shared_ptr<SharedCorpus> newCorpus);
     void reapRetiredCorpora();
 
+    // v1.6.2: message thread. Reloads the current corpus when it was analysed at
+    // a different rate than the host now runs at, unless that load is in flight.
+    void reloadCorpusIfRateChanged();
+
+    juce::CriticalSection corpusLock;
+
     std::shared_ptr<SharedCorpus> currentCorpus;  // Message thread (owns lifetime)
     std::vector<RetiredCorpus> retiredCorpora;    // Message thread; outgoing corpora until unreferenced
     std::atomic<SharedCorpus*> corpusForAudio { nullptr };  // Audio thread (read-only)
     std::atomic<uint64_t> blocksEntered { 0 };    // first statement of processBlock
     std::atomic<uint64_t> blocksRendered { 0 };   // every exit from processBlock
+
+    // v1.6.2: the load the loader is working on (message thread; rate 0 = none),
+    // so repeated prepareToPlay calls queue one reload, not one each.
+    juce::String inFlightLoadPath;
+    double inFlightLoadRate = 0.0;
 
     // Weak guard for safe async callback delivery
     std::shared_ptr<int> lifetimeGuard = std::make_shared<int>(0);

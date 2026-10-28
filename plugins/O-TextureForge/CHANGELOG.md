@@ -1,5 +1,29 @@
 # O-TextureForge Changelog
 
+## [1.6.2] — 2026-10-27
+
+### Fixed
+
+- **Host threads could read a corpus while it was being replaced or freed.**
+  The host calls prepareToPlay and getStateInformation on its own threads.
+  Both read the current corpus without a lock while a load could be swapping
+  it out. In a stress test, v1.6.1 saved the path of an already-freed corpus
+  into the session state, and prepareToPlay started reloads from freed corpora.
+  The corpus is now guarded by a lock that the audio thread never takes. Every
+  other reader works from its own reference to the corpus, which keeps it alive.
+- **A sample-rate change could fire a reload from the host thread.** That
+  reload ran the corpus loader from the host thread while the message thread
+  could be running its own loads, and it could hold up prepareToPlay for up to
+  5 s while an earlier load shut down. The rate check and reload now run on the
+  message thread, and repeated prepareToPlay calls at the same rate queue only
+  one reload.
+- **A file still loading when the rate changed played at the wrong pitch.** If
+  the host changed sample rate while a corpus was still being analysed, that
+  corpus arrived at the old rate and stayed there. It now plays as soon as it
+  arrives and is reloaded at the new rate.
+
+Audio rendering is unchanged from v1.6.1.
+
 ## [1.6.1] — 2026-10-27
 
 ### Fixed

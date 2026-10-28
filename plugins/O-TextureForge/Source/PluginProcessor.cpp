@@ -29,6 +29,7 @@
 
 #include "PluginProcessor.h"
 #include <algorithm>
+#include <iterator>
 
 // PluginEditor.h is included behind #if JUCE_WEB_BROWSER, and every use of
 // TextureForgeEditor below carries the same guard. The param-dump console
@@ -152,20 +153,37 @@ juce::AudioProcessorValueTreeState::ParameterLayout TextureForgeProcessor::creat
 
 void TextureForgeProcessor::prepareToPlay(double sampleRate, int /*samplesPerBlock*/)
 {
-    currentSampleRate = sampleRate;
+    currentSampleRate.store(sampleRate);
     // v1.5.1: the scheduler's output-gain smoother is seeded at the live level
     // so the first block ramps from neither 0 nor 1.
     grainScheduler.prepare(sampleRate, outputGainParam->load());
     grainScheduler.reset();
 
-    if (currentCorpus != nullptr && std::abs(currentCorpus->sampleRate - sampleRate) > 0.1)
+    // v1.6.2: the rate check and reload run on the message thread. prepareToPlay
+    // is called on a host thread, where reading currentCorpus raced its
+    // reassignment and loadCorpusFile drove the loader concurrently with the
+    // message thread's own loads (and could block here for up to 5 s).
+    std::weak_ptr<int> guard(lifetimeGuard);
+    juce::MessageManager::callAsync([this, guard]()
     {
-        juce::File corpusFile(currentCorpus->filePath);
-        if (corpusFile.existsAsFile())
-        {
-            loadCorpusFile(corpusFile);
-        }
-    }
+        if (!guard.expired())
+            reloadCorpusIfRateChanged();
+    });
+}
+
+void TextureForgeProcessor::reloadCorpusIfRateChanged()
+{
+    const auto corpus = getCurrentCorpus();
+    const double sampleRate = currentSampleRate.load();
+    if (corpus == nullptr || std::abs(corpus->sampleRate - sampleRate) <= 0.1)
+        return;
+    if (inFlightLoadRate > 0.0 && std::abs(inFlightLoadRate - sampleRate) <= 0.1
+        && inFlightLoadPath == corpus->filePath)
+        return;
+
+    juce::File corpusFile(corpus->filePath);
+    if (corpusFile.existsAsFile())
+        loadCorpusFile(corpusFile);
 }
 
 void TextureForgeProcessor::releaseResources() {}
@@ -258,10 +276,11 @@ void TextureForgeProcessor::getStateInformation(juce::MemoryBlock& destData)
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
 
     // Save corpus file path for session restore
-    if (currentCorpus != nullptr && currentCorpus->filePath.isNotEmpty())
+    const auto corpus = getCurrentCorpus();
+    if (corpus != nullptr && corpus->filePath.isNotEmpty())
     {
         auto* corpusXml = xml->createNewChildElement("CORPUS");
-        corpusXml->setAttribute("filePath", currentCorpus->filePath);
+        corpusXml->setAttribute("filePath", corpus->filePath);
     }
 
     // v1.1.0: the UI language, saved as one more plain XML child beside CORPUS
@@ -349,12 +368,18 @@ void TextureForgeProcessor::loadCorpusFile(const juce::File& file)
 {
     std::weak_ptr<int> guard(lifetimeGuard);
 
-    corpusLoader.loadFile(file, currentSampleRate,
+    const double sampleRate = currentSampleRate.load();
+    inFlightLoadPath = file.getFullPathName();
+    inFlightLoadRate = sampleRate;
+
+    corpusLoader.loadFile(file, sampleRate,
         // Completion callback (PCA done, deliver corpus)
         [this, guard](std::shared_ptr<SharedCorpus> newCorpus)
         {
             if (guard.expired())
                 return;
+
+            inFlightLoadRate = 0.0;
 
             if (newCorpus != nullptr && !newCorpus->grains.empty())
             {
@@ -369,6 +394,10 @@ void TextureForgeProcessor::loadCorpusFile(const juce::File& file)
                     editor->onCorpusLoaded(static_cast<int>(newCorpus->grains.size()));
                 }
 #endif
+
+                // v1.6.2: the host changed rate while this load was analysing at the
+                // old one — it plays now (wrong pitch) and is reloaded at the new rate.
+                reloadCorpusIfRateChanged();
             }
         },
         // UMAP progress callback
@@ -382,22 +411,23 @@ void TextureForgeProcessor::loadCorpusFile(const juce::File& file)
 #if JUCE_WEB_BROWSER
             if (auto* editor = dynamic_cast<TextureForgeEditor*>(getActiveEditor()))
             {
+                const auto corpus = getCurrentCorpus();
                 if (progress < 0.0f)
                 {
                     // UMAP was cancelled
                     editor->onUmapCancelled();
                 }
-                else if (progress >= 1.0f && currentCorpus != nullptr && currentCorpus->umapReady.load())
+                else if (progress >= 1.0f && corpus != nullptr && corpus->umapReady.load())
                 {
                     // Build UMAP points JSON
                     juce::String json = "[";
-                    for (size_t i = 0; i < currentCorpus->umapX.size(); ++i)
+                    for (size_t i = 0; i < corpus->umapX.size(); ++i)
                     {
                         if (i > 0) json += ",";
-                        float pitchNorm = (i < currentCorpus->grains.size()) ? currentCorpus->grains[i].descriptors[13] : 0.0f;
-                        float energyNorm = (i < currentCorpus->grains.size()) ? currentCorpus->grains[i].descriptors[17] : 0.0f;
-                        json += "[" + juce::String(currentCorpus->umapX[i], 4)
-                              + "," + juce::String(currentCorpus->umapY[i], 4)
+                        float pitchNorm = (i < corpus->grains.size()) ? corpus->grains[i].descriptors[13] : 0.0f;
+                        float energyNorm = (i < corpus->grains.size()) ? corpus->grains[i].descriptors[17] : 0.0f;
+                        json += "[" + juce::String(corpus->umapX[i], 4)
+                              + "," + juce::String(corpus->umapY[i], 4)
                               + "," + juce::String(pitchNorm, 3)
                               + "," + juce::String(energyNorm, 3) + "]";
                     }
@@ -419,6 +449,8 @@ void TextureForgeProcessor::loadCorpusFile(const juce::File& file)
             if (guard.expired())
                 return;
 
+            inFlightLoadRate = 0.0;
+
 #if JUCE_WEB_BROWSER
             if (auto* editor = dynamic_cast<TextureForgeEditor*>(getActiveEditor()))
             {
@@ -437,6 +469,8 @@ void TextureForgeProcessor::publishCorpus(std::shared_ptr<SharedCorpus> newCorpu
 {
     reapRetiredCorpora();
 
+    const juce::ScopedLock sl(corpusLock);
+
     if (currentCorpus != nullptr)
         retiredCorpora.push_back({ currentCorpus, blocksRendered.load(std::memory_order_seq_cst) });
 
@@ -453,14 +487,18 @@ void TextureForgeProcessor::publishCorpus(std::shared_ptr<SharedCorpus> newCorpu
 // hold only sample offsets between blocks, never the corpus pointer.
 void TextureForgeProcessor::reapRetiredCorpora()
 {
-    const uint64_t rendered = blocksRendered.load(std::memory_order_seq_cst);
-    const uint64_t entered  = blocksEntered.load(std::memory_order_seq_cst);
-    const bool quiescent = (entered == rendered);
-    retiredCorpora.erase(
-        std::remove_if(retiredCorpora.begin(), retiredCorpora.end(),
-                       [rendered, quiescent](const RetiredCorpus& r)
-                       { return quiescent || rendered >= r.parkedAtBlock + 2; }),
-        retiredCorpora.end());
+    std::vector<RetiredCorpus> freed;   // destroyed after the lock is released
+    {
+        const juce::ScopedLock sl(corpusLock);
+        const uint64_t rendered = blocksRendered.load(std::memory_order_seq_cst);
+        const uint64_t entered  = blocksEntered.load(std::memory_order_seq_cst);
+        const bool quiescent = (entered == rendered);
+        const auto keep = std::stable_partition(retiredCorpora.begin(), retiredCorpora.end(),
+                                                [rendered, quiescent](const RetiredCorpus& r)
+                                                { return !(quiescent || rendered >= r.parkedAtBlock + 2); });
+        std::move(keep, retiredCorpora.end(), std::back_inserter(freed));
+        retiredCorpora.erase(keep, retiredCorpora.end());
+    }
 }
 
 void TextureForgeProcessor::selectGrainFromUI(int grainIndex)

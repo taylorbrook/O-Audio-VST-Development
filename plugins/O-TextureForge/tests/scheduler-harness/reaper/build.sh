@@ -1,11 +1,14 @@
 #!/bin/bash
-# v1.6.1 gate (c): builds reaper_stress (no ASan: it hangs before main on macOS 26) against the working-tree processor.
-# usage: build.sh   then: $OUT/reaper_stress new ; $OUT/reaper_stress old (must show poisoned blocks)
+# Builds the processor-level gates (no ASan: it hangs before main on macOS 26) against
+# the working-tree processor, or SRC=<a backup's Source dir> with SUFFIX=_old for a control.
+#   v1.6.1 (c): $OUT/reaper_stress new ; $OUT/reaper_stress old (must show poisoned blocks)
+#   v1.6.2:     $OUT/prepare_stress <scratchDir> ; the v1.6.1 control must fail A or C
+# usage: [OUT=..] [SRC=..] [SUFFIX=..] [TARGETS="reaper_stress prepare_stress"] build.sh
 set -e
 H="$(cd "$(dirname "$0")" && pwd)"
 R="$(cd "$H/../../../../.." && pwd)"
 OUT="${OUT:-${TMPDIR:-/tmp}/tfr}"; mkdir -p "$OUT"
-S="$R/plugins/O-TextureForge/Source"
+S="${SRC:-$R/plugins/O-TextureForge/Source}"
 FL=(-std=c++17 -O2 -g -DJUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1
     -DJUCE_STANDALONE_APPLICATION=1 -DJUCE_WEB_BROWSER=0 -DJUCE_USE_CURL=0 -DJUCE_PLUGINHOST_VST3=0 -DJUCE_PLUGINHOST_AU=0
     -DJUCE_MODAL_LOOPS_PERMITTED=1
@@ -29,4 +32,6 @@ for m in juce_core juce_events juce_data_structures juce_graphics juce_gui_basic
 done
 SRCS=("$S/PluginProcessor.cpp" "$S/dsp/GrainScheduler.cpp" "$S/dsp/KDTreeSearch.cpp" "$S/dsp/CorpusLoader.cpp"
       "$S/dsp/DescriptorExtractor.cpp" "$S/dsp/MFCCExtractor.cpp" "$S/dsp/PCAProjection.cpp")
-clang++ "${FL[@]}" "$H/reaper_stress.cpp" "${SRCS[@]}" "${MODS[@]}" "${FW[@]}" -o "$OUT/reaper_stress"
+for t in ${TARGETS:-reaper_stress prepare_stress}; do
+    clang++ "${FL[@]}" "$H/$t.cpp" "${SRCS[@]}" "${MODS[@]}" "${FW[@]}" -o "$OUT/$t${SUFFIX}"
+done
