@@ -83,6 +83,12 @@ private:
     std::unique_ptr<juce::WebSliderRelay> crossfadeRelay;
     std::unique_ptr<juce::WebSliderRelay> outputGainRelay;
     std::unique_ptr<juce::WebComboBoxRelay> midiModeRelay;
+    std::unique_ptr<juce::WebSliderRelay> weightTimbreRelay;   // v1.8.0
+    std::unique_ptr<juce::WebSliderRelay> weightBrightnessRelay;   // v1.8.0
+    std::unique_ptr<juce::WebSliderRelay> weightTextureRelay;   // v1.8.0
+    std::unique_ptr<juce::WebSliderRelay> weightEnergyRelay;   // v1.8.0
+    std::unique_ptr<juce::WebSliderRelay> pickSpreadRelay;   // v1.8.0
+    std::unique_ptr<juce::WebSliderRelay> repeatAvoidRelay;   // v1.8.0
 
     // 2. WEBVIEW
     std::unique_ptr<juce::WebBrowserComponent> webView;
@@ -100,6 +106,12 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> crossfadeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> outputGainAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> midiModeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> weightTimbreAttachment;   // v1.8.0
+    std::unique_ptr<juce::WebSliderParameterAttachment> weightBrightnessAttachment;   // v1.8.0
+    std::unique_ptr<juce::WebSliderParameterAttachment> weightTextureAttachment;   // v1.8.0
+    std::unique_ptr<juce::WebSliderParameterAttachment> weightEnergyAttachment;   // v1.8.0
+    std::unique_ptr<juce::WebSliderParameterAttachment> pickSpreadAttachment;   // v1.8.0
+    std::unique_ptr<juce::WebSliderParameterAttachment> repeatAvoidAttachment;   // v1.8.0
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TextureForgeEditor)
 };

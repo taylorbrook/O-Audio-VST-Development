@@ -31,6 +31,7 @@
 
 #include <JuceHeader.h>
 #include "dsp/SharedCorpus.h"
+#include "dsp/SearchIndex.h"
 #include "dsp/CorpusLoader.h"
 #include "dsp/GrainScheduler.h"
 #include <memory>
@@ -52,7 +53,8 @@ struct VizSnapshot
     float cursorY = 0.5f;
 };
 
-class TextureForgeProcessor : public juce::AudioProcessor
+class TextureForgeProcessor : public juce::AudioProcessor,
+                              private juce::Timer
 {
 public:
     TextureForgeProcessor();
@@ -149,6 +151,10 @@ private:
     std::atomic<float>* crossfadeParam = nullptr;
     std::atomic<float>* outputGainParam = nullptr;
     std::atomic<float>* midiModeParam = nullptr;
+    // v1.8.0
+    std::array<std::atomic<float>*, kNumWeightGroups> weightParams {};   // 0..400 %, 100 = shipped weight
+    std::atomic<float>* pickSpreadParam = nullptr;
+    std::atomic<float>* repeatAvoidParam = nullptr;
 
     // Visualization double-buffer (lock-free audio->GUI)
     std::array<VizSnapshot, 2> vizSnapshots {};
@@ -175,14 +181,34 @@ private:
     // freed once >= 2 blocks have completed since parking, or when no block is in
     // flight (blocksEntered == blocksRendered) — the +2 rule alone never fires
     // while the host has stopped calling processBlock.
+    //
+    // v1.8.0: the steered SearchIndex is parked in the same list and reaped by the
+    // same rule (an entry holds a corpus, an index, or both).
     struct RetiredCorpus
     {
         std::shared_ptr<SharedCorpus> corpus;
         uint64_t parkedAtBlock = 0;
+        std::shared_ptr<SearchIndex> index;
     };
 
     void publishCorpus(std::shared_ptr<SharedCorpus> newCorpus);
     void reapRetiredCorpora();
+
+    // v1.8.0: steered descriptor weights. A 20 Hz message-thread timer compares the
+    // four weight parameters (and the current corpus) with the published index; on
+    // a mismatch it queues one build on indexPool (a worker thread: building the
+    // tree allocates), and the completion publishes it on the message thread. All
+    // four at 100 % publishes nothing, so the default search is v1.7.0's.
+    void timerCallback() override;
+    void publishSearchIndex(std::shared_ptr<SearchIndex> newIndex);
+    WeightMults readWeightMults() const;
+
+    std::shared_ptr<SearchIndex> currentIndex;               // message thread (owns lifetime)
+    std::atomic<SearchIndex*> indexForAudio { nullptr };     // audio thread (read-only)
+    bool indexBuildInFlight = false;                          // message thread
+    uint64_t indexGenerationCounter = 0;                      // message thread
+    uint64_t corpusGenerationCounter = 0;                     // message thread
+    juce::ThreadPool indexPool { juce::ThreadPoolOptions{}.withThreadName("TF search index").withNumberOfThreads(1) };
 
     // v1.6.2: message thread. Reloads the current corpus when it was analysed at
     // a different rate than the host now runs at, unless that load is in flight.

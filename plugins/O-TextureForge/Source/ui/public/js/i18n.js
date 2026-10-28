@@ -317,6 +317,71 @@ export const I18N = Object.freeze({
               reviewed: 'bt' },
     },
 
+    // ── v1.8.0: the grain-search controls ───────────────────────────────────
+    // Four steerable descriptor weights (three in the macro panel's Weight
+    // column, Timbre in the bottom strip) and the two pick controls. French is
+    // machine-drafted (reviewed: false), Chinese authored at 'mt'.
+    'tip.weightEnergy': {
+        en: { t: 'Energy Weight',
+              b: 'Sets how strongly the Energy knob steers the grain search. At 100% it pulls as it always has; lower lets the other qualities decide and 0% ignores loudness, higher lets loudness dominate. 0 to 400%.' },
+        fr: { t: 'Poids de l’énergie',
+              b: 'Règle la force avec laquelle le bouton Énergie oriente la recherche de grains. À 100 %, il agit comme toujours ; plus bas, les autres qualités décident et 0 % ignore le volume ; plus haut, le volume domine. 0 à 400 %.',
+              reviewed: false },
+        'zh-Hans': { t: '能量权重',
+              b: '设定能量旋钮对颗粒搜索的引导强度。100% 时与以往相同；调低则让其他特性来决定，0% 完全忽略响度；调高则让响度占主导。0 到 400%。',
+              reviewed: 'mt' },
+    },
+    'tip.weightBrightness': {
+        en: { t: 'Brightness Weight',
+              b: 'Sets how strongly the Brightness knob steers the grain search. At 100% it pulls as it always has; lower lets the other qualities decide and 0% ignores brightness, higher lets brightness dominate. 0 to 400%.' },
+        fr: { t: 'Poids de la brillance',
+              b: 'Règle la force avec laquelle le bouton Brillance oriente la recherche de grains. À 100 %, il agit comme toujours ; plus bas, les autres qualités décident et 0 % ignore la brillance ; plus haut, la brillance domine. 0 à 400 %.',
+              reviewed: false },
+        'zh-Hans': { t: '明亮度权重',
+              b: '设定明亮度旋钮对颗粒搜索的引导强度。100% 时与以往相同；调低则让其他特性来决定，0% 完全忽略明亮度；调高则让明亮度占主导。0 到 400%。',
+              reviewed: 'mt' },
+    },
+    'tip.weightTexture': {
+        en: { t: 'Texture Weight',
+              b: 'Sets how strongly the Texture knob steers the grain search. At 100% it pulls as it always has; lower lets the other qualities decide and 0% ignores noisiness, higher lets it dominate. 0 to 400%.' },
+        fr: { t: 'Poids de la texture',
+              b: 'Règle la force avec laquelle le bouton Texture oriente la recherche de grains. À 100 %, il agit comme toujours ; plus bas, les autres qualités décident et 0 % ignore le caractère bruité ; plus haut, il domine. 0 à 400 %.',
+              reviewed: false },
+        'zh-Hans': { t: '纹理权重',
+              b: '设定纹理旋钮对颗粒搜索的引导强度。100% 时与以往相同；调低则让其他特性来决定，0% 完全忽略噪声感；调高则让它占主导。0 到 400%。',
+              reviewed: 'mt' },
+    },
+    'tip.weightTimbre': {
+        en: { t: 'Timbre Weight',
+              b: 'Sets how much each grain’s overall timbre, the qualities no macro steers, counts in the search. Lower it to let the three macros choose on their own; raise it to stay near the corpus’s typical sound. 0 to 400%.' },
+        fr: { t: 'Poids du timbre',
+              b: 'Règle le poids du timbre global de chaque grain, les qualités qu’aucune macro n’oriente, dans la recherche. Baissez-le pour laisser les trois macros choisir seules ; montez-le pour rester près du son typique du corpus. 0 à 400 %.',
+              reviewed: false },
+        'zh-Hans': { t: '音色权重',
+              b: '设定每个颗粒的整体音色（没有宏控引导的那些特性）在搜索中所占的分量。调低可让三个宏控单独决定；调高则贴近语料库的典型声音。0 到 400%。',
+              reviewed: 'mt' },
+    },
+    'tip.pickSpread': {
+        en: { t: 'Pick Spread',
+              b: 'Instead of always taking the single nearest grain, picks at random among the 16 nearest, favouring the closest. At 0 the nearest always wins; raise it to loosen a texture that keeps hammering one grain. 0 to 100%.' },
+        fr: { t: 'Étal. du choix',
+              b: 'Au lieu de toujours prendre le grain le plus proche, choisit de façon aléatoire parmi les 16 plus proches, en privilégiant les plus proches. À 0, le plus proche l’emporte toujours ; montez-le pour assouplir une texture qui martèle un seul grain. 0 à 100 %.',
+              reviewed: false },
+        'zh-Hans': { t: '选取扩散',
+              b: '不再总是取最接近的那一个颗粒，而是在最接近的 16 个颗粒中随机选取，并偏向更接近的。为 0 时总是取最接近的；调高可让反复敲击同一颗粒的纹理松动。0 到 100%。',
+              reviewed: 'mt' },
+    },
+    'tip.repeatAvoid': {
+        en: { t: 'Avoid Repeats',
+              b: 'Holds back grains that were just played, so one grain does not fire again and again. At 100% a grain never plays twice in a row while another candidate is near; the hold fades over the last eight picks. 0 to 100%.' },
+        fr: { t: 'Éviter répét.',
+              b: 'Écarte les grains qui viennent d’être joués, afin qu’un même grain ne revienne pas sans cesse. À 100 %, aucune répétition immédiate tant qu’un autre candidat est proche ; l’effet s’estompe sur les huit derniers choix. 0 à 100 %.',
+              reviewed: false },
+        'zh-Hans': { t: '避免重复',
+              b: '暂时避开刚刚播放过的颗粒，使同一个颗粒不会一再触发。100% 时只要附近还有其他候选，颗粒就绝不会连续重复；这种避让会在最近八次选取中逐渐减弱。0 到 100%。',
+              reviewed: 'mt' },
+    },
+
     // ── The MIDI mode select ────────────────────────────────────────────────
     // The three option words stay ENGLISH inside the French body, deliberately
     // and against the general rule that prose naming an option is localized.
@@ -516,6 +581,11 @@ export const LABELS = Object.freeze({
         en: { t: 'Scatter Position' },
         fr: { t: 'Position de dispersion', reviewed: true },
      'zh-Hans': { t: '散布位置', reviewed: 'bt' }},
+    // v1.8.0: the head of the macro panel's Weight column.
+    'section.weight': {
+        en: { t: 'Weight' },
+        fr: { t: 'Poids', reviewed: false },
+     'zh-Hans': { t: '权重', reviewed: 'mt' }},
 
     // ── The six macro knobs ─────────────────────────────────────────────────
     // Every one is an AudioParameterFloat display name, not a choice option, so
@@ -561,6 +631,12 @@ export const LABELS = Object.freeze({
     // The page caption is "Gain"; the parameter is "Output Gain". Spelled
     // identically in French, hence sameAsEn.
     'knob.gain':         { en: { t: 'Gain' },       fr: { t: 'Gain',     reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '增益', reviewed: 'bt' }},
+    // v1.8.0: three more bottom-strip columns (108.5 px each in the 8-column grid).
+    // "Étal." keeps the glossary root for spread (étalement); "répét." the root
+    // for repeats.
+    'knob.weightTimbre': { en: { t: 'Timbre Weight' }, fr: { t: 'Poids timbre', reviewed: false } , 'zh-Hans': { t: '音色权重', reviewed: 'mt' }},
+    'knob.pickSpread':   { en: { t: 'Pick Spread' },   fr: { t: 'Étal. du choix', reviewed: false } , 'zh-Hans': { t: '选取扩散', reviewed: 'mt' }},
+    'knob.repeatAvoid':  { en: { t: 'Avoid Repeats' }, fr: { t: 'Éviter répét.', reviewed: false } , 'zh-Hans': { t: '避免重复', reviewed: 'mt' }},
 
     // ── Bottom controls ─────────────────────────────────────────────────────
     // "MIDI Mode" is the MIDI_MODE parameter's DISPLAY NAME, not one of its
@@ -752,11 +828,20 @@ export const TIP_BINDINGS = [
     ['.knob[data-param="scatterY"]',     'tip.scatterY',     '.knob-row'],
     ['.knob[data-param="variation"]',    'tip.variation',    '.knob-row'],
 
+    // v1.8.0: the Weight column — each cell is its own wrapper, nested inside
+    // its macro's .knob-row, so the two tips land on distinct elements.
+    ['.knob[data-param="weightEnergy"]',     'tip.weightEnergy',     '.weight-cell'],
+    ['.knob[data-param="weightBrightness"]', 'tip.weightBrightness', '.weight-cell'],
+    ['.knob[data-param="weightTexture"]',    'tip.weightTexture',    '.weight-cell'],
+
     // Bottom strip — the cell is the knob + caption + readout column.
     ['.knob[data-param="position"]',     'tip.position',     '.bottom-knob-group'],
     ['.knob[data-param="grainSize"]',    'tip.grainSize',    '.bottom-knob-group'],
     ['.knob[data-param="grainDensity"]', 'tip.grainDensity', '.bottom-knob-group'],
     ['.knob[data-param="crossfade"]',    'tip.crossfade',    '.bottom-knob-group'],
+    ['.knob[data-param="weightTimbre"]', 'tip.weightTimbre', '.bottom-knob-group'],   // v1.8.0
+    ['.knob[data-param="pickSpread"]',   'tip.pickSpread',   '.bottom-knob-group'],
+    ['.knob[data-param="repeatAvoid"]',  'tip.repeatAvoid',  '.bottom-knob-group'],
     ['.knob[data-param="outputGain"]',   'tip.gain',         '.bottom-knob-group'],
 
     // Bare — see the header.

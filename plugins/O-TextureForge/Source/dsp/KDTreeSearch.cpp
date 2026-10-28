@@ -28,8 +28,8 @@
 
 #include "KDTreeSearch.h"
 
-KDTreeSearch::KDTreeSearch(const std::vector<GrainMetadata>& grains)
-    : adaptor(grains)
+KDTreeSearch::KDTreeSearch(const std::vector<GrainMetadata>& grains, const DescriptorScale& scale)
+    : adaptor(grains, scale)
 {
     index = std::make_unique<KDTree>(
         DESCRIPTOR_DIM,

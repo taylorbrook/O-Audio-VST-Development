@@ -62,12 +62,26 @@ TextureForgeProcessor::TextureForgeProcessor()
     crossfadeParam    = parameters.getRawParameterValue("CROSSFADE");
     outputGainParam   = parameters.getRawParameterValue("OUTPUT_GAIN");
     midiModeParam     = parameters.getRawParameterValue("MIDI_MODE");
+
+    // v1.8.0
+    weightParams[kWeightTimbre]     = parameters.getRawParameterValue("WEIGHT_TIMBRE");
+    weightParams[kWeightBrightness] = parameters.getRawParameterValue("WEIGHT_BRIGHTNESS");
+    weightParams[kWeightTexture]    = parameters.getRawParameterValue("WEIGHT_TEXTURE");
+    weightParams[kWeightEnergy]     = parameters.getRawParameterValue("WEIGHT_ENERGY");
+    pickSpreadParam   = parameters.getRawParameterValue("PICK_SPREAD");
+    repeatAvoidParam  = parameters.getRawParameterValue("REPEAT_AVOID");
+
+    startTimerHz(20);
 }
 
 TextureForgeProcessor::~TextureForgeProcessor()
 {
     // Invalidate the lifetime guard so pending callAsync callbacks become no-ops
     lifetimeGuard.reset();
+
+    // v1.8.0: no index build may outlive the processor.
+    stopTimer();
+    indexPool.removeAllJobs(true, 10000);
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout TextureForgeProcessor::createParameterLayout()
@@ -148,6 +162,41 @@ juce::AudioProcessorValueTreeState::ParameterLayout TextureForgeProcessor::creat
         juce::StringArray { "Pitch-Mapped", "Trigger + Modulate", "Generative Drone" },
         2));
 
+    // v1.8.0: steerable descriptor weights (research §3.5). A multiplier on each
+    // group's shipped weight: 100 % = v1.7.0, 0 % ignores the group, 400 % = four
+    // times its pull. Skew 0.5 puts 100 % at the centre of the dial; the 1 %
+    // interval snaps the default back to exactly 100.
+    const auto addWeight = [&layout](const char* id, const char* name)
+    {
+        layout.add(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID { id, 2 },
+            name,
+            juce::NormalisableRange<float>(0.0f, 400.0f, 1.0f, 0.5f),
+            100.0f,
+            "%"));
+    };
+    addWeight("WEIGHT_TIMBRE",     "Timbre Weight");
+    addWeight("WEIGHT_BRIGHTNESS", "Brightness Weight");
+    addWeight("WEIGHT_TEXTURE",    "Texture Weight");
+    addWeight("WEIGHT_ENERGY",     "Energy Weight");
+
+    // v1.8.0: 0 = always the nearest candidate (v1.7.0); above 0 the pick is
+    // softmax(-D^2/tau) over a cached 16 nearest.
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "PICK_SPREAD", 2 },
+        "Pick Spread",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        0.0f,
+        "%"));
+
+    // v1.8.0: penalty on the last 8 picked grains; 0 = off (v1.7.0).
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "REPEAT_AVOID", 2 },
+        "Repeat Avoid",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        0.0f,
+        "%"));
+
     return layout;
 }
 
@@ -219,9 +268,16 @@ void TextureForgeProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     params.outputGainDb = outputGainParam->load();
     params.midiMode = static_cast<int>(midiModeParam->load());
     params.rngSeed = rngSeed.load(std::memory_order_relaxed);
+    params.pickSpread = pickSpreadParam->load() / 100.0f;
+    params.repeatAvoid = repeatAvoidParam->load() / 100.0f;
 
     // Load corpus pointer (atomic read)
     const SharedCorpus* corpus = corpusForAudio.load(std::memory_order_seq_cst);
+
+    // v1.8.0: the steered index, only while it was built for this corpus. Loaded
+    // after the corpus and after blocksEntered, so the reap rule covers it too.
+    const SearchIndex* index = indexForAudio.load(std::memory_order_seq_cst);
+    params.searchIndex = (index != nullptr && index->corpus.get() == corpus) ? index : nullptr;
 
     // Check for UI grain selection
     int grainSel = pendingGrainSelect.exchange(-1, std::memory_order_relaxed);
@@ -311,7 +367,25 @@ void TextureForgeProcessor::setStateInformation(const void* data, int sizeInByte
     std::unique_ptr<juce::XmlElement> xml(getXmlFromBinary(data, sizeInBytes));
     if (xml != nullptr && xml->hasTagName(parameters.state.getType()))
     {
-        parameters.replaceState(juce::ValueTree::fromXml(*xml));
+        // v1.8.0: a session saved before 1.8.0 has no entry for the new
+        // parameters, and replaceState() would leave them where this instance
+        // had them. They are added at their defaults, so an old session plays
+        // the v1.7.0 search.
+        auto tree = juce::ValueTree::fromXml(*xml);
+        for (const char* id : { "WEIGHT_TIMBRE", "WEIGHT_BRIGHTNESS", "WEIGHT_TEXTURE", "WEIGHT_ENERGY",
+                                "PICK_SPREAD", "REPEAT_AVOID" })
+        {
+            if (tree.getChildWithProperty("id", id).isValid())
+                continue;
+            if (auto* p = parameters.getParameter(id))
+            {
+                juce::ValueTree child("PARAM");
+                child.setProperty("id", id, nullptr);
+                child.setProperty("value", p->convertFrom0to1(p->getDefaultValue()), nullptr);
+                tree.appendChild(child, nullptr);
+            }
+        }
+        parameters.replaceState(tree);
 
         // v1.1.0: the UI language. A pre-1.1.0 session has no UILANG child at
         // all and the default (English) stands. languageIndex() clamps anything
@@ -472,7 +546,10 @@ void TextureForgeProcessor::publishCorpus(std::shared_ptr<SharedCorpus> newCorpu
     const juce::ScopedLock sl(corpusLock);
 
     if (currentCorpus != nullptr)
-        retiredCorpora.push_back({ currentCorpus, blocksRendered.load(std::memory_order_seq_cst) });
+        retiredCorpora.push_back({ currentCorpus, blocksRendered.load(std::memory_order_seq_cst), nullptr });
+
+    // v1.8.0: before the audio thread can see it (keys the scheduler's cache).
+    newCorpus->generation = ++corpusGenerationCounter;
 
     currentCorpus = std::move(newCorpus);
     // seq_cst pairs with processBlock's blocksEntered increment + pointer load for
@@ -499,6 +576,70 @@ void TextureForgeProcessor::reapRetiredCorpora()
         std::move(keep, retiredCorpora.end(), std::back_inserter(freed));
         retiredCorpora.erase(keep, retiredCorpora.end());
     }
+}
+
+WeightMults TextureForgeProcessor::readWeightMults() const
+{
+    WeightMults m {};
+    for (size_t g = 0; g < m.size(); ++g)
+        m[g] = weightParams[g]->load() / 100.0f;
+    return m;
+}
+
+// Message thread. Also the periodic reap, which until v1.8.0 ran only on a
+// publish or a UMAP progress callback.
+void TextureForgeProcessor::timerCallback()
+{
+    reapRetiredCorpora();
+
+    const auto corpus = getCurrentCorpus();
+    const auto mults = readWeightMults();
+
+    if (corpus == nullptr || SearchIndex::isDefault(mults))
+    {
+        if (currentIndex != nullptr)
+            publishSearchIndex(nullptr);
+        return;
+    }
+
+    if (currentIndex != nullptr && currentIndex->corpus == corpus && currentIndex->mults == mults)
+        return;
+    if (indexBuildInFlight)
+        return;   // the next tick rebuilds if this one is stale when it lands
+
+    indexBuildInFlight = true;
+    const uint64_t generation = ++indexGenerationCounter;
+    std::weak_ptr<int> guard(lifetimeGuard);
+
+    indexPool.addJob([this, guard, corpus, mults, generation]()
+    {
+        auto built = SearchIndex::build(corpus, mults, generation);
+        juce::MessageManager::callAsync([this, guard, built]() mutable
+        {
+            if (guard.expired())
+                return;
+            indexBuildInFlight = false;
+            // Dropped if the corpus changed or the weights went back to default
+            // meanwhile; a stale-weight build is published and replaced next tick.
+            if (built->corpus == getCurrentCorpus() && !SearchIndex::isDefault(readWeightMults()))
+                publishSearchIndex(std::move(built));
+        });
+    });
+}
+
+// Message thread. The outgoing index is parked like a corpus: an in-flight block
+// may still be searching its tree.
+void TextureForgeProcessor::publishSearchIndex(std::shared_ptr<SearchIndex> newIndex)
+{
+    reapRetiredCorpora();
+
+    const juce::ScopedLock sl(corpusLock);
+
+    if (currentIndex != nullptr)
+        retiredCorpora.push_back({ nullptr, blocksRendered.load(std::memory_order_seq_cst), currentIndex });
+
+    currentIndex = std::move(newIndex);
+    indexForAudio.store(currentIndex.get(), std::memory_order_seq_cst);
 }
 
 void TextureForgeProcessor::selectGrainFromUI(int grainIndex)

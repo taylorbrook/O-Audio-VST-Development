@@ -311,6 +311,34 @@ body::after {
     font-variant-numeric: tabular-nums;
 }
 
+/* v1.8.0: the Weight column — one steerable descriptor weight per macro, pinned
+   to the row's right edge. Its head shares the section caption's line and has the
+   same width, so the two line up whatever the caption's language. The cell is
+   its own element so its tooltip is distinct from the row's. */
+.section-head {
+    display: flex;
+    align-items: baseline;
+}
+
+.section-head .weight-head {
+    margin-left: auto;
+    width: 72px;
+    text-align: center;
+    letter-spacing: 1px;
+}
+
+.weight-cell {
+    margin-left: auto;
+    width: 72px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.knob-row .weight-cell .knob-value {
+    width: 36px;
+}
+
 /* Fleuron divider */
 .divider {
     text-align: center;
@@ -390,9 +418,11 @@ body::after {
 
    NEGATIVE CONTROL: restoring `display: flex; justify-content: space-around`
    re-breaks assertion 7 with those same 12 elements. */
+/* v1.8.0: eight columns (Timbre Weight, Pick Spread and Avoid Repeats joined),
+   108.5 px each; still 1fr, so still caption-independent. */
 .bottom-knobs {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(8, 1fr);
     align-items: center;
 }
 
@@ -551,6 +581,20 @@ body::after {
     height: 11px;
     top: 4px;
     transform-origin: center 15px;
+}
+
+/* v1.8.0: the Weight column's dials */
+.knob.mini {
+    width: 30px;
+    height: 30px;
+}
+
+.knob.mini .knob-indicator {
+    width: 2px;
+    margin-left: -1px;
+    height: 8px;
+    top: 3px;
+    transform-origin: center 11px;
 }
 
 

@@ -1,5 +1,50 @@
 # O-TextureForge Changelog
 
+## [1.8.0] — 2026-10-28
+
+The grain search can now be steered and loosened. Four new weights set how much each descriptor group counts when a grain is chosen. Pick Spread picks at random among the 16 nearest grains instead of always taking the nearest one. Repeat Avoid stops one grain from firing again and again. Until now, a steady setting with Variation at 0 played the same grain every time, the "machine gun" sound (research `granular-synthesis-2026-update.md` §3.5). MINOR: six new parameters and new UI. Nothing existing changed: at their defaults (weights 100 %, Pick Spread 0, Repeat Avoid 0) every render is bit-identical to 1.7.0, and a session saved before 1.8.0 loads with the new parameters at their defaults.
+
+### Added
+
+- **Steerable descriptor weights:** `WEIGHT_ENERGY`, `WEIGHT_BRIGHTNESS`, `WEIGHT_TEXTURE` and `WEIGHT_TIMBRE`, 0–400 %, default 100 %, skew 0.5 so 100 % sits at the centre of the dial. Each is a multiplier m on its group's shipped weight. Energy, Brightness and Texture weight their own descriptor dims. Timbre weights everything no macro steers: MFCC 0–12 and dims 15, 16 and 18. The weights are applied by pre-scaling each dim of the KD-tree by √(w·m), so the tree stays plain Euclidean and a query costs what it did. At m = 1 the scale is exactly the shipped 5 / 1, so a tree built at 100 % is the 1.7.0 tree.
+- **Pick Spread** (`PICK_SPREAD`, 0–100 %). Above 0, the scheduler caches the k = 16 nearest grains to the macro target, without jitter. Per grain it recomputes their distance to the Variation-jittered query exactly (16 × 19 MACs), adds the existing position and scatter biases, and samples softmax(−(score − best)/τ) with the grain's own counter-RNG draw (slot 22). τ = 4·s²·mean(score − best), relative to the candidates' own spread, so the knob behaves the same on any corpus. At 0 the search is the 1.7.0 path: the 8 nearest to the jittered query, argmin.
+- **Repeat Avoid** (`REPEAT_AVOID`, 0–100 %). A ring of the last 8 picks. A candidate picked `age` picks ago (0 = the most recent pick) gets avoid × 2 × (score range) × (8 − age)/8 added to its score. At 100 % the last pick scores past every unpenalised candidate. Works in both paths. The ring is cleared on reset and whenever the corpus changes.
+- **UI.** The macro panel gets a Weight column: a small dial beside Energy, Brightness and Texture, under a "Weight" head. The bottom strip goes from five to eight columns: Timbre Weight, Pick Spread and Avoid Repeats are added before Gain. Hover help and captions are written for all six in EN, FR and zh-Hans. FR is a machine draft (`reviewed: false`) and zh-Hans is at `'mt'`.
+
+### Changed
+
+- **The candidate cache is refreshed when its key changes, and never per block.** The key is the tree, the corpus generation, the index generation and the target. So the picks are a function of the grain sequence alone, and do not depend on the host's block size. At a steady target the cost is one KD query per change.
+- **Weight changes build a new tree off the audio thread** (`dsp/SearchIndex.h`). A 20 Hz message-thread timer on the processor compares the four weights and the current corpus with the published index. On a mismatch it queues one build on a single-thread pool, and the completion publishes the new index on the message thread. The audio thread reads one raw pointer, and only while the index belongs to the corpus being played. Otherwise it searches the corpus's own tree. The outgoing index is parked in the existing retired list and reaped by the same rule as a corpus (≥ 2 blocks completed, or none in flight). All four weights at 100 % publishes no index. The index holds a `shared_ptr` to its corpus, so a tree can never outlive its points. Measured: a matching index is live 28–58 ms after a weight change.
+- `SharedCorpus::generation` is set when a corpus is published. It keys the scheduler's cache and ring, so a new corpus allocated at a freed one's address cannot reuse their grain indices.
+- The timer also runs the retired-corpus reap. Before 1.8.0 that ran only on a publish or a UMAP progress callback.
+- The nearest path loops over the neighbours the tree actually returned. With fewer than 8 grains, 1.7.0 read uninitialised indices. Every corpus of 8 or more grains is unaffected.
+
+### Testing
+
+- New `tests/scheduler-harness/gate_v180.py` (`build180.sh`: tfh_old = the v1.7.0 backup; both builds seeded with `HAS_SEED`). 39/39 PASS:
+  - **A. Defaults bit-identical to 1.7.0:** 48 renders (8 mode/path cases × 2 seeds × 32/512/variable blocks), plus 16 more with a SearchIndex built at all-100 % and with Pick Spread / Repeat Avoid explicitly 0. All have max |diff| 0.
+  - **B. Block-size null with every feature on** (W 0.5/2/1/4, spread 50 %, avoid 50 %): 8/8 bit-exact across 32/512/variable blocks, in all three modes, with and without the processor's clip. Control: features on vs off differ by −8.3 dBFS.
+  - **C1. Steering** (drone, Energy target z = 0.8, 500 picks): mean |energy − target| is 0.094 at Energy Weight 400 %, 0.124 at 100 % and 0.818 at 0 %. Timbre Weight 0 % gives 0.106. For Brightness, 400 % gives 0.106 and 0 % gives 0.507.
+  - **C2. Pick Spread** (Variation 0):
+
+    | Pick Spread | Distinct grains | Top grain's share |
+    |---|---|---|
+    | 0 | 1 (every pick a repeat) | — |
+    | 25 % | 15 | 0.63 |
+    | 50 % | 16 | 0.18 |
+    | 100 % | 16 | 0.09 (uniform = 0.0625) |
+
+  - **C3. Repeat Avoid 100 %:** 0 back-to-back repeats over 500 picks in both paths (8 distinct grains on the nearest path, 16 on the cached path). Avoid 0 repeats every pick.
+  - **D. 0 heap allocations inside processBlock** with every feature on (modes 2 and 0) and off. The harness replaces `operator new`.
+- New `tests/scheduler-harness/reaper/index_stress.cpp`, at processor level:
+  - **A. Race:** 6,000 index publishes against a live audio thread (Pick Spread 50 %, so every block searches and keys its cache on the index generation). Each retired index is stamped dead and quarantined instead of freed. Result: 0 dead-index reads and 0 frees on the audio thread over 11,075 blocks (all steered). After the reap, nothing is parked and only the current index is alive. Control (a publish that drops the outgoing index without parking it): 2,198 dead-index reads.
+  - **B. Worker path:** a weight change gets a matching index in 58 ms. 200 rapid changes under audio settle on the last value in 28 ms. A new corpus gets its own index in 51 ms. All-100 % unpublishes the index and leaves nothing parked.
+- Regression, rebuilt against this tree:
+  - `reaper_stress new`: 0 poisoned blocks over 6,000 publishes; idle host: max parked 1.
+  - `prepare_stress`: A/B/C PASS (45,657 states, 0 poisoned).
+  - `gate_v170.py` (vs v1.6.2): 0 failures.
+- check-i18n ALL PASS (46 plugins), i18n-fr-lint CLEAN, i18n-zh-lint PASSED, and check-ui-labels ALL PASSED.
+
 ## [1.7.0] — 2026-10-28
 
 Pitched-up grains no longer alias. In Pitch-Mapped mode a note above C4 plays its grain faster than recorded, and the linear read folded everything above the new Nyquist back into the audible band: a 20 kHz partial played a fifth up came back at 18 kHz, almost as loud as the original. Those grains now read a band-limited copy of the corpus, built when it loads. MINOR because notes above C4 sound different: the folded-back tones are gone. There is no parameter, range, state, UI or i18n change. Every grain at or below C4, and every grain in Trigger+Modulate and Drone mode, renders bit-identically to 1.6.2.

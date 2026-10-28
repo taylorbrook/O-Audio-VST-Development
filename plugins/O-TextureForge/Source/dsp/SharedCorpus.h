@@ -105,6 +105,12 @@ struct SharedCorpus
         return mip->read(level, 0, static_cast<double>(mipHead) - pos, sincSet);
     }
 
+    // v1.8.0: set by the processor when it publishes the corpus (message thread,
+    // before the audio thread can see it). Keys the scheduler's candidate cache
+    // and recently-used ring, so a new corpus at a freed one's address cannot
+    // reuse their grain indices. 0 = never published (harness corpora).
+    uint64_t generation = 0;
+
     uint32_t grainSizeSamples = 0;
     uint32_t hopSizeSamples = 0;
     double sampleRate = 44100.0;

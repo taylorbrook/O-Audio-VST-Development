@@ -46,6 +46,13 @@ TextureForgeEditor::TextureForgeEditor(TextureForgeProcessor& p)
     crossfadeRelay    = std::make_unique<juce::WebSliderRelay>("crossfade");
     outputGainRelay   = std::make_unique<juce::WebSliderRelay>("outputGain");
     midiModeRelay     = std::make_unique<juce::WebComboBoxRelay>("midiMode");
+    // v1.8.0
+    weightTimbreRelay = std::make_unique<juce::WebSliderRelay>("weightTimbre");
+    weightBrightnessRelay = std::make_unique<juce::WebSliderRelay>("weightBrightness");
+    weightTextureRelay = std::make_unique<juce::WebSliderRelay>("weightTexture");
+    weightEnergyRelay = std::make_unique<juce::WebSliderRelay>("weightEnergy");
+    pickSpreadRelay = std::make_unique<juce::WebSliderRelay>("pickSpread");
+    repeatAvoidRelay = std::make_unique<juce::WebSliderRelay>("repeatAvoid");
 
     // 2. Create WebView with relay options and native functions
 #if JUCE_WINDOWS
@@ -89,6 +96,12 @@ TextureForgeEditor::TextureForgeEditor(TextureForgeProcessor& p)
             .withOptionsFrom(*crossfadeRelay)
             .withOptionsFrom(*outputGainRelay)
             .withOptionsFrom(*midiModeRelay)
+            .withOptionsFrom(*weightTimbreRelay)
+            .withOptionsFrom(*weightBrightnessRelay)
+            .withOptionsFrom(*weightTextureRelay)
+            .withOptionsFrom(*weightEnergyRelay)
+            .withOptionsFrom(*pickSpreadRelay)
+            .withOptionsFrom(*repeatAvoidRelay)
             // Native functions
             .withNativeFunction("getCorpusData", [this](const juce::Array<juce::var>& /*args*/,
                                                          juce::WebBrowserComponent::NativeFunctionCompletion complete)
@@ -234,6 +247,12 @@ TextureForgeEditor::TextureForgeEditor(TextureForgeProcessor& p)
     crossfadeAttachment    = std::make_unique<juce::WebSliderParameterAttachment>(*processorRef.parameters.getParameter("CROSSFADE"), *crossfadeRelay);
     outputGainAttachment   = std::make_unique<juce::WebSliderParameterAttachment>(*processorRef.parameters.getParameter("OUTPUT_GAIN"), *outputGainRelay);
     midiModeAttachment     = std::make_unique<juce::WebComboBoxParameterAttachment>(*processorRef.parameters.getParameter("MIDI_MODE"), *midiModeRelay);
+    weightTimbreAttachment = std::make_unique<juce::WebSliderParameterAttachment>(*processorRef.parameters.getParameter("WEIGHT_TIMBRE"), *weightTimbreRelay);
+    weightBrightnessAttachment = std::make_unique<juce::WebSliderParameterAttachment>(*processorRef.parameters.getParameter("WEIGHT_BRIGHTNESS"), *weightBrightnessRelay);
+    weightTextureAttachment = std::make_unique<juce::WebSliderParameterAttachment>(*processorRef.parameters.getParameter("WEIGHT_TEXTURE"), *weightTextureRelay);
+    weightEnergyAttachment = std::make_unique<juce::WebSliderParameterAttachment>(*processorRef.parameters.getParameter("WEIGHT_ENERGY"), *weightEnergyRelay);
+    pickSpreadAttachment = std::make_unique<juce::WebSliderParameterAttachment>(*processorRef.parameters.getParameter("PICK_SPREAD"), *pickSpreadRelay);
+    repeatAvoidAttachment = std::make_unique<juce::WebSliderParameterAttachment>(*processorRef.parameters.getParameter("REPEAT_AVOID"), *repeatAvoidRelay);
 
 #if JUCE_WEB_BROWSER_RESOURCE_PROVIDER_AVAILABLE
     webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
@@ -248,6 +267,12 @@ TextureForgeEditor::~TextureForgeEditor()
     stopTimer();
 
     // Explicit destruction in reverse order: attachments -> webView -> relays
+    repeatAvoidAttachment.reset();      // v1.8.0
+    pickSpreadAttachment.reset();
+    weightEnergyAttachment.reset();
+    weightTextureAttachment.reset();
+    weightBrightnessAttachment.reset();
+    weightTimbreAttachment.reset();
     midiModeAttachment.reset();
     outputGainAttachment.reset();
     crossfadeAttachment.reset();

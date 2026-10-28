@@ -1,5 +1,5 @@
 # plugin	O-TextureForge
-# params	12
+# params	18
 # note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
 #id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
 ENERGY	Energy		2147483647	0.00	1.00	0.500000	0.50	automatable
@@ -14,3 +14,9 @@ VARIATION	Variation		2147483647	0.00	1.00	0.200000	0.20	automatable
 CROSSFADE	Crossfade	%	2147483647	0.0	100.0	0.500000	50.0	automatable
 OUTPUT_GAIN	Output Gain	dB	2147483647	-60.0	12.0	0.833333	0.0	automatable
 MIDI_MODE	MIDI Mode		3	Pitch-Mapped	Generative Drone	1.000000	Generative Drone	automatable,discrete
+WEIGHT_TIMBRE	Timbre Weight	%	2147483647	0	400	0.500000	100	automatable
+WEIGHT_BRIGHTNESS	Brightness Weight	%	2147483647	0	400	0.500000	100	automatable
+WEIGHT_TEXTURE	Texture Weight	%	2147483647	0	400	0.500000	100	automatable
+WEIGHT_ENERGY	Energy Weight	%	2147483647	0	400	0.500000	100	automatable
+PICK_SPREAD	Pick Spread	%	2147483647	0.0	100.0	0.000000	0.0	automatable
+REPEAT_AVOID	Repeat Avoid	%	2147483647	0.0	100.0	0.000000	0.0	automatable

@@ -126,22 +126,39 @@
 
     <!-- Macro Knobs Panel -->
     <div class="macro-panel">
-        <span class="section-label" data-i18n="section.timbralMacros">Timbral Macros</span>
+        <!-- v1.8.0: the section caption shares its line with the head of the
+             Weight column (the steerable descriptor weights, one per macro). -->
+        <div class="section-head">
+            <span class="section-label" data-i18n="section.timbralMacros">Timbral Macros</span>
+            <span class="section-label weight-head" data-i18n="section.weight">Weight</span>
+        </div>
 
         <div class="knob-row">
             <span class="knob-label" data-i18n="knob.energy">Energy</span>
             <div class="knob" data-param="energy"><div class="knob-indicator"></div></div>
             <span class="knob-value" data-value="energy">50%</span>
+            <div class="weight-cell">
+                <div class="knob mini" data-param="weightEnergy"><div class="knob-indicator"></div></div>
+                <span class="knob-value" data-value="weightEnergy">100%</span>
+            </div>
         </div>
         <div class="knob-row">
             <span class="knob-label" data-i18n="knob.brightness">Brightness</span>
             <div class="knob" data-param="brightness"><div class="knob-indicator"></div></div>
             <span class="knob-value" data-value="brightness">50%</span>
+            <div class="weight-cell">
+                <div class="knob mini" data-param="weightBrightness"><div class="knob-indicator"></div></div>
+                <span class="knob-value" data-value="weightBrightness">100%</span>
+            </div>
         </div>
         <div class="knob-row">
             <span class="knob-label" data-i18n="knob.texture">Texture</span>
             <div class="knob" data-param="texture"><div class="knob-indicator"></div></div>
             <span class="knob-value" data-value="texture">50%</span>
+            <div class="weight-cell">
+                <div class="knob mini" data-param="weightTexture"><div class="knob-indicator"></div></div>
+                <span class="knob-value" data-value="weightTexture">100%</span>
+            </div>
         </div>
 
         <div class="divider" aria-hidden="true">&#10087;</div>
@@ -196,6 +213,24 @@
             <div class="knob small" data-param="crossfade"><div class="knob-indicator"></div></div>
             <span class="knob-label" data-i18n="knob.crossfade">Crossfade</span>
             <span class="knob-value" data-value="crossfade">50%</span>
+        </div>
+        <!-- v1.8.0: the rest of the grain search. Timbre Weight is the fourth
+             descriptor weight (the dims no macro steers), so it has no row in
+             the macro panel. -->
+        <div class="bottom-knob-group">
+            <div class="knob small" data-param="weightTimbre"><div class="knob-indicator"></div></div>
+            <span class="knob-label" data-i18n="knob.weightTimbre">Timbre Weight</span>
+            <span class="knob-value" data-value="weightTimbre">100%</span>
+        </div>
+        <div class="bottom-knob-group">
+            <div class="knob small" data-param="pickSpread"><div class="knob-indicator"></div></div>
+            <span class="knob-label" data-i18n="knob.pickSpread">Pick Spread</span>
+            <span class="knob-value" data-value="pickSpread">0%</span>
+        </div>
+        <div class="bottom-knob-group">
+            <div class="knob small" data-param="repeatAvoid"><div class="knob-indicator"></div></div>
+            <span class="knob-label" data-i18n="knob.repeatAvoid">Avoid Repeats</span>
+            <span class="knob-value" data-value="repeatAvoid">0%</span>
         </div>
         <div class="bottom-knob-group">
             <div class="knob small" data-param="outputGain"><div class="knob-indicator"></div></div>

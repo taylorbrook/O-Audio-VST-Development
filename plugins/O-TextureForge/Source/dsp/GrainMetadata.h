@@ -28,7 +28,9 @@
 
 #pragma once
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 
 struct GrainMetadata
@@ -51,6 +53,49 @@ inline float descriptorDimWeight(int dim)
     if (dim == BRIGHTNESS_DIM || dim == TEXTURE_DIM || dim == ENERGY_DIM)
         return MACRO_DIM_WEIGHT;
     return 1.0f;
+}
+
+// v1.8.0: steerable descriptor weights. The KD-tree stays plain Euclidean: each
+// dimension is pre-scaled by sqrt(w) (research granular-synthesis-2026-update
+// §3.5), so a weight change means building a new tree (off the audio thread,
+// SearchIndex.h), never a weighted metric in the query loop.
+//
+// The scale of dimension d is descriptorDimWeight(d) * sqrt(m), where m is the
+// user's multiplier for d's group (1 = the shipped weight). At m = 1 sqrt(1) is
+// exactly 1, so the steered scale equals the legacy one bit for bit.
+static constexpr int DESCRIPTOR_DIMS = 19;
+using DescriptorScale = std::array<float, DESCRIPTOR_DIMS>;
+
+// The four weight groups: timbre = MFCC 0-12 plus the uncontrolled spectral and
+// time-domain dims (15, 16, 18); the three macro dims are their own groups.
+enum WeightGroup : int { kWeightTimbre = 0, kWeightBrightness, kWeightTexture, kWeightEnergy, kNumWeightGroups };
+using WeightMults = std::array<float, kNumWeightGroups>;
+
+inline int weightGroupOfDim(int dim)
+{
+    if (dim == BRIGHTNESS_DIM) return kWeightBrightness;
+    if (dim == TEXTURE_DIM)    return kWeightTexture;
+    if (dim == ENERGY_DIM)     return kWeightEnergy;
+    return kWeightTimbre;
+}
+
+inline DescriptorScale defaultDescriptorScale()
+{
+    DescriptorScale s {};
+    for (int d = 0; d < DESCRIPTOR_DIMS; ++d)
+        s[static_cast<size_t>(d)] = descriptorDimWeight(d);
+    return s;
+}
+
+inline DescriptorScale steeredDescriptorScale(const WeightMults& mults)
+{
+    DescriptorScale s {};
+    for (int d = 0; d < DESCRIPTOR_DIMS; ++d)
+    {
+        const float m = std::max(0.0f, mults[static_cast<size_t>(weightGroupOfDim(d))]);
+        s[static_cast<size_t>(d)] = descriptorDimWeight(d) * std::sqrt(m);
+    }
+    return s;
 }
 
 struct NormalizationStats

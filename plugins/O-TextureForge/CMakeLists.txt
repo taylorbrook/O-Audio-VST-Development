@@ -27,7 +27,7 @@ juce_add_plugin(OuariconTextureForge
     PLUGIN_CODE OuTF
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-TextureForge${OUARICON_DEV_SUFFIX}"
-    VERSION 1.7.0
+    VERSION 1.8.0
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_WEB_BROWSER TRUE

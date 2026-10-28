@@ -51,6 +51,9 @@ void GrainScheduler::reset()
     droneTimerSamples = 0;
     droneStartPending = true;
     grainCounter = 0;
+    cache.valid = false;   // v1.8.0
+    recentCount = 0;
+    recentHead = 0;
 }
 
 void GrainScheduler::processBlock(
@@ -257,6 +260,7 @@ void GrainScheduler::triggerGrain(const SharedCorpus* corpus, const SchedulerPar
     }
 
     uint32_t grainIndex = queryGrainIndex(corpus, effectiveParams, grainCounter++);
+    pushRecent(grainIndex);   // v1.8.0: no effect on the pick while Repeat Avoid is 0
     triggerGrainByIndex(corpus, params, grainIndex, midiNote, midiChannel, velocity);
 }
 
@@ -322,9 +326,10 @@ void GrainScheduler::triggerGrainByIndex(const SharedCorpus* corpus, const Sched
 uint32_t GrainScheduler::queryGrainIndex(
     const SharedCorpus* corpus,
     const SchedulerParams& params,
-    uint64_t counter) const
+    uint64_t counter)
 {
-    // Draw slots: 0..18 KD query jitter, 19..20 projection target, 21 temporal offset.
+    // Draw slots: 0..18 KD query jitter, 19..20 projection target, 21 temporal
+    // offset, 22 softmax pick (v1.8.0, drawn only while Pick Spread > 0).
     if (corpus->grains.empty())
         return 0;
 
@@ -346,57 +351,172 @@ uint32_t GrainScheduler::queryGrainIndex(
         projY = corpus->pcaY.data();
     }
 
-    // Use KD-tree if available
-    if (corpus->kdTree != nullptr)
+    // v1.8.0: the ring belongs to one corpus; grain indices mean nothing across.
+    if (corpus != recentCorpus || corpus->generation != recentCorpusGeneration)
     {
+        recentCorpus = corpus;
+        recentCorpusGeneration = corpus->generation;
+        recentCount = 0;
+        recentHead = 0;
+    }
+
+    // v1.8.0: the steered tree when one is published for this corpus, else the
+    // corpus's own (shipped weights). The query is built with the scale of the
+    // tree it searches; for the corpus tree that is 5 on the macro dims, the
+    // v1.7.0 MACRO_DIM_WEIGHT, so the default query is bit-identical.
+    const SearchIndex* steered = (params.searchIndex != nullptr && params.searchIndex->corpus.get() == corpus)
+                               ? params.searchIndex : nullptr;
+    const KDTreeSearch* tree = (steered != nullptr && steered->tree != nullptr) ? steered->tree.get()
+                                                                                : corpus->kdTree.get();
+
+    // Use KD-tree if available
+    if (tree != nullptr)
+    {
+        const DescriptorScale& scale = tree->getScale();
+
         // Build 19D query point — all dims neutral (0) except macro knobs
         std::array<float, 19> queryPoint;
         queryPoint.fill(0.0f);
 
-        // Map macro knobs to their descriptor dimensions (z-score space: -1..+1)
-        // Apply MACRO_DIM_WEIGHT to match the KD-tree adaptor weighting
-        queryPoint[ENERGY_DIM]     = (params.energy * 2.0f - 1.0f) * MACRO_DIM_WEIGHT;
-        queryPoint[BRIGHTNESS_DIM] = (params.brightness * 2.0f - 1.0f) * MACRO_DIM_WEIGHT;
-        queryPoint[TEXTURE_DIM]    = (params.texture * 2.0f - 1.0f) * MACRO_DIM_WEIGHT;
+        // Map macro knobs to their descriptor dimensions (z-score space: -1..+1),
+        // scaled like the tree's points
+        queryPoint[ENERGY_DIM]     = (params.energy * 2.0f - 1.0f) * scale[ENERGY_DIM];
+        queryPoint[BRIGHTNESS_DIM] = (params.brightness * 2.0f - 1.0f) * scale[BRIGHTNESS_DIM];
+        queryPoint[TEXTURE_DIM]    = (params.texture * 2.0f - 1.0f) * scale[TEXTURE_DIM];
+
+        // v1.8.0 Pick Spread: refresh the candidate cache at the unjittered target.
+        const bool cached = params.pickSpread > 0.0f;
+        if (cached)
+        {
+            const std::array<float, 3> target { queryPoint[ENERGY_DIM], queryPoint[BRIGHTNESS_DIM], queryPoint[TEXTURE_DIM] };
+            const uint64_t indexGen = steered != nullptr ? steered->generation : 0;
+            if (!cache.valid || cache.tree != tree || cache.corpusGeneration != corpus->generation
+                || cache.indexGeneration != indexGen || cache.target != target)
+            {
+                std::array<float, kCacheK> d2;
+                cache.count = static_cast<int>(tree->findNeighbors(queryPoint.data(), kCacheK, cache.index.data(), d2.data()));
+                for (int i = 0; i < cache.count; ++i)
+                {
+                    const auto& desc = corpus->grains[cache.index[static_cast<size_t>(i)]].descriptors;
+                    for (int d = 0; d < DESCRIPTOR_DIMS; ++d)
+                        cache.point[static_cast<size_t>(i)][static_cast<size_t>(d)] = desc[static_cast<size_t>(d)] * scale[static_cast<size_t>(d)];
+                }
+                cache.valid = true;
+                cache.tree = tree;
+                cache.corpusGeneration = corpus->generation;
+                cache.indexGeneration = indexGen;
+                cache.target = target;
+            }
+        }
 
         // Add variation randomization
         float variationScale = params.variation * 2.0f;
         for (uint32_t d = 0; d < queryPoint.size(); ++d)
             queryPoint[d] += (CounterRng::uniform(rngSeed, counter, d) - 0.5f) * variationScale;
 
-        // Query KD-tree for K nearest neighbors
-        constexpr int K = 8;
-        std::array<uint32_t, K> indices;
-        std::array<float, K> distances;
-        corpus->kdTree->findNeighbors(queryPoint.data(), K, indices.data(), distances.data());
+        // Candidates: the 8 nearest to the jittered query (v1.7.0), or the cached
+        // 16 with their distances to the jittered query recomputed exactly.
+        std::array<uint32_t, kCacheK> indices;
+        std::array<float, kCacheK> distances;
+        int n = 0;
+        if (!cached)
+        {
+            n = static_cast<int>(tree->findNeighbors(queryPoint.data(), kLegacyK, indices.data(), distances.data()));
+        }
+        else
+        {
+            n = cache.count;
+            for (int i = 0; i < n; ++i)
+            {
+                indices[static_cast<size_t>(i)] = cache.index[static_cast<size_t>(i)];
+                const auto& pt = cache.point[static_cast<size_t>(i)];
+                float acc = 0.0f;
+                for (int d = 0; d < DESCRIPTOR_DIMS; ++d)
+                {
+                    const float diff = pt[static_cast<size_t>(d)] - queryPoint[static_cast<size_t>(d)];
+                    acc += diff * diff;
+                }
+                distances[static_cast<size_t>(i)] = acc;
+            }
+        }
+        if (n <= 0)
+            return 0;
 
         // Rescore candidates with temporal position + scatter position biases
-        float bestScore = std::numeric_limits<float>::max();
-        uint32_t bestIndex = indices[0];
-
-        for (int i = 0; i < K; ++i)
+        std::array<float, kCacheK> scores;
+        for (int i = 0; i < n; ++i)
         {
-            float score = distances[i];
+            float score = distances[static_cast<size_t>(i)];
 
             // Temporal position bias
-            float grainPos = static_cast<float>(indices[i]) / static_cast<float>(totalGrains);
+            float grainPos = static_cast<float>(indices[static_cast<size_t>(i)]) / static_cast<float>(totalGrains);
             score += std::abs(grainPos - params.position) * 5.0f;
 
             // 2D scatter position bias (UMAP or PCA)
             if (projX != nullptr)
             {
-                float dx = projX[indices[i]] - params.scatterX;
-                float dy = projY[indices[i]] - params.scatterY;
+                float dx = projX[indices[static_cast<size_t>(i)]] - params.scatterX;
+                float dy = projY[indices[static_cast<size_t>(i)]] - params.scatterY;
                 score += (dx * dx + dy * dy) * 10.0f;
             }
-
-            if (score < bestScore)
-            {
-                bestScore = score;
-                bestIndex = indices[i];
-            }
+            scores[static_cast<size_t>(i)] = score;
         }
-        return bestIndex;
+
+        // Pick Spread temperature from the candidates' own spread, before the
+        // penalty: tau = 4 s^2 * mean(score - best). Relative, so the knob means
+        // the same on any corpus (descriptors are z-scored, but the position and
+        // scatter biases are not).
+        float tau = 0.0f;
+        if (cached)
+        {
+            float lo = scores[0];
+            for (int i = 1; i < n; ++i) lo = std::min(lo, scores[static_cast<size_t>(i)]);
+            float gap = 0.0f;
+            for (int i = 0; i < n; ++i) gap += scores[static_cast<size_t>(i)] - lo;
+            gap /= static_cast<float>(n);
+            tau = 4.0f * params.pickSpread * params.pickSpread * std::max(gap, 1.0e-6f);
+        }
+
+        if (params.repeatAvoid > 0.0f)
+            applyRepeatPenalty(indices.data(), scores.data(), n, params.repeatAvoid);
+
+        if (!cached)
+        {
+            float bestScore = std::numeric_limits<float>::max();
+            uint32_t bestIndex = indices[0];
+            for (int i = 0; i < n; ++i)
+            {
+                if (scores[static_cast<size_t>(i)] < bestScore)
+                {
+                    bestScore = scores[static_cast<size_t>(i)];
+                    bestIndex = indices[static_cast<size_t>(i)];
+                }
+            }
+            return bestIndex;
+        }
+
+        // softmax(-(score - best) / tau), sampled with the grain's own draw.
+        float best = scores[0];
+        for (int i = 1; i < n; ++i) best = std::min(best, scores[static_cast<size_t>(i)]);
+        std::array<float, kCacheK> w;
+        float total = 0.0f;
+        for (int i = 0; i < n; ++i)
+        {
+            w[static_cast<size_t>(i)] = std::exp(-(scores[static_cast<size_t>(i)] - best) / tau);
+            total += w[static_cast<size_t>(i)];
+        }
+        float u = CounterRng::uniform(rngSeed, counter, 22) * total;
+        for (int i = 0; i < n; ++i)
+        {
+            u -= w[static_cast<size_t>(i)];
+            if (u < 0.0f)
+                return indices[static_cast<size_t>(i)];
+        }
+        // Rounding left u >= 0 past the last weight: the last positive one.
+        for (int i = n - 1; i >= 0; --i)
+            if (w[static_cast<size_t>(i)] > 0.0f)
+                return indices[static_cast<size_t>(i)];
+        return indices[0];
     }
 
     // Fallback: prefer grains near scatter position in 2D projection space
@@ -429,6 +549,41 @@ uint32_t GrainScheduler::queryGrainIndex(
     int randomOffset = CounterRng::uniformInt(rngSeed, counter, 21, spread * 2) - spread;
     int grainIdx = juce::jlimit(0, totalGrains - 1, centerGrain + randomOffset);
     return static_cast<uint32_t>(grainIdx);
+}
+
+int GrainScheduler::recentAge(uint32_t grainIndex) const noexcept
+{
+    for (int age = 0; age < recentCount; ++age)
+    {
+        const int slot = (recentHead - 1 - age + kRecentLen) % kRecentLen;
+        if (recent[static_cast<size_t>(slot)] == grainIndex)
+            return age;
+    }
+    return -1;
+}
+
+void GrainScheduler::pushRecent(uint32_t grainIndex) noexcept
+{
+    recent[static_cast<size_t>(recentHead)] = grainIndex;
+    recentHead = (recentHead + 1) % kRecentLen;
+    recentCount = std::min(recentCount + 1, kRecentLen);
+}
+
+// v1.8.0 Repeat Avoid: a grain picked `age` picks ago gets
+// avoid * 2 * range * (kRecentLen - age) / kRecentLen added to its score, where
+// range is the candidates' own score spread. At 100 % the last pick scores past
+// every unpenalised candidate, so it never repeats while another is available.
+void GrainScheduler::applyRepeatPenalty(const uint32_t* indices, float* scores, int n, float avoid) const noexcept
+{
+    float lo = scores[0], hi = scores[0];
+    for (int i = 1; i < n; ++i) { lo = std::min(lo, scores[i]); hi = std::max(hi, scores[i]); }
+    const float range = std::max(hi - lo, 1.0e-3f);
+    for (int i = 0; i < n; ++i)
+    {
+        const int age = recentAge(indices[i]);
+        if (age >= 0)
+            scores[i] += avoid * 2.0f * range * static_cast<float>(kRecentLen - age) / static_cast<float>(kRecentLen);
+    }
 }
 
 void GrainScheduler::renderVoices(juce::AudioBuffer<float>& buffer, const SharedCorpus* corpus,

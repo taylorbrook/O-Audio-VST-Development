@@ -30,6 +30,7 @@
 
 #include <JuceHeader.h>
 #include "SharedCorpus.h"
+#include "SearchIndex.h"
 #include "GrainVoice.h"
 #include "CounterRng.h"
 #include <array>
@@ -50,6 +51,13 @@ struct SchedulerParams
     float outputGainDb = -6.0f;   // v1.5.1: matches the OUTPUT_GAIN default
     int midiMode = 2;  // 0=Pitch-Mapped, 1=Trigger+Modulate, 2=Generative Drone
     uint64_t rngSeed = 0;  // v1.6.0: grain-selection seed, persisted in plugin state
+
+    // v1.8.0 (research §3.5). All three at their defaults = the v1.7.0 search.
+    // searchIndex: a tree built with steered descriptor weights, used only while
+    // it belongs to the corpus being played; nullptr = the corpus's own tree.
+    const SearchIndex* searchIndex = nullptr;
+    float pickSpread = 0.0f;    // 0..1: 0 = nearest candidate; > 0 = softmax(-D^2/tau) over a cached k = 16
+    float repeatAvoid = 0.0f;   // 0..1: penalty on the last kRecentLen picks
 };
 
 class GrainScheduler
@@ -88,10 +96,48 @@ public:
     void triggerSpecificGrain(const SharedCorpus* corpus, const SchedulerParams& params, uint32_t grainIndex);
 
 private:
+    // v1.8.0: non-const — it refreshes the candidate cache and reads the ring.
     uint32_t queryGrainIndex(
         const SharedCorpus* corpus,
         const SchedulerParams& params,
-        uint64_t grainCounter) const;
+        uint64_t grainCounter);
+
+    // v1.8.0: candidate cache (research §3.5: "cache k = 8-16 candidates, then
+    // pick by softmax(-D^2/tau)"). Holds the kCacheK nearest grains to the
+    // UNJITTERED macro target and their tree-space coordinates. It is refreshed
+    // only when its key changes (tree, corpus or index generation, or the target),
+    // never per grain at a steady target, and never because a block ended: the
+    // picks are a function of the grain sequence alone, so they do not depend on
+    // the host's block size. Per grain, the Variation jitter moves the query and
+    // the kCacheK distances are recomputed exactly (16 x 19 MACs). Preallocated.
+    static constexpr int kLegacyK = 8;
+    static constexpr int kCacheK = 16;
+    struct CandidateCache
+    {
+        bool valid = false;
+        const KDTreeSearch* tree = nullptr;
+        uint64_t corpusGeneration = 0;
+        uint64_t indexGeneration = 0;
+        std::array<float, 3> target {};       // ENERGY, BRIGHTNESS, TEXTURE query coords
+        int count = 0;
+        std::array<uint32_t, kCacheK> index {};
+        std::array<std::array<float, DESCRIPTOR_DIMS>, kCacheK> point {};
+    };
+    CandidateCache cache;
+
+    // v1.8.0: recently-used ring — the last kRecentLen search picks, newest at
+    // recentHead - 1. Repeat Avoid adds a penalty that fades with age. Cleared on
+    // reset() and when the corpus changes. Fixed size, no allocation.
+    static constexpr int kRecentLen = 8;
+    std::array<uint32_t, kRecentLen> recent {};
+    int recentCount = 0;
+    int recentHead = 0;
+    const SharedCorpus* recentCorpus = nullptr;
+    uint64_t recentCorpusGeneration = 0;
+
+    int recentAge(uint32_t grainIndex) const noexcept;   // 0 = newest, -1 = not in the ring
+    void pushRecent(uint32_t grainIndex) noexcept;
+    void applyRepeatPenalty(const uint32_t* indices, float* scores, int n, float avoid) const noexcept;
 
     // v1.6.0: renders [startSample, endSample) so spawns land on their own sample.
     void renderVoices(juce::AudioBuffer<float>& buffer, const SharedCorpus* corpus,

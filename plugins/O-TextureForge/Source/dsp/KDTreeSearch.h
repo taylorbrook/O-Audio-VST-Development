@@ -38,21 +38,26 @@
 class GrainDescriptorAdaptor
 {
 public:
-    explicit GrainDescriptorAdaptor(const std::vector<GrainMetadata>& grains)
-        : grains(grains) {}
+    // v1.8.0: per-dimension scale (sqrt of the weight). The default is the
+    // shipped weighting, so a default-built tree is the v1.7.0 tree.
+    GrainDescriptorAdaptor(const std::vector<GrainMetadata>& grainsIn, const DescriptorScale& scaleIn)
+        : grains(grainsIn), scale(scaleIn) {}
 
     inline size_t kdtree_get_point_count() const { return grains.size(); }
 
     inline float kdtree_get_pt(const size_t idx, const size_t dim) const
     {
-        return grains[idx].descriptors[dim] * descriptorDimWeight(static_cast<int>(dim));
+        return grains[idx].descriptors[dim] * scale[dim];
     }
 
     template <class BBOX>
     bool kdtree_get_bbox(BBOX&) const { return false; }
 
+    const DescriptorScale& getScale() const { return scale; }
+
 private:
     const std::vector<GrainMetadata>& grains;
+    DescriptorScale scale;
 };
 
 class KDTreeSearch
@@ -67,7 +72,8 @@ public:
         DESCRIPTOR_DIM,
         uint32_t>;
 
-    KDTreeSearch(const std::vector<GrainMetadata>& grains);
+    explicit KDTreeSearch(const std::vector<GrainMetadata>& grains,
+                          const DescriptorScale& scale = defaultDescriptorScale());
     ~KDTreeSearch();
 
     // Find nearest neighbors (allocation-free query)
@@ -77,6 +83,9 @@ public:
         size_t maxNeighbors,
         uint32_t* outIndices,
         float* outDistances) const;
+
+    // The per-dim scale the tree was built with; a query must use the same one.
+    const DescriptorScale& getScale() const { return adaptor.getScale(); }
 
 private:
     GrainDescriptorAdaptor adaptor;

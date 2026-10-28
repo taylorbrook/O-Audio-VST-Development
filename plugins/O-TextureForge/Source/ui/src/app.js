@@ -809,6 +809,22 @@ fmtPercent.parse = parsePercent;
 const fmtPercentScaled = (n) => fmtPercent(n);
 fmtPercentScaled.parse = parseDirect;
 
+// v1.8.0: a skewed % param. The readout is the SCALED value, from the live C++
+// range the relay pushes (state.properties), never norm * 100. `fallback` is the
+// C++ range, used only until the properties arrive (or under a bridge that has
+// none) — the inverse of scaledToNorm above.
+const fmtScaledPercent = (state, fallback) => {
+    const f = (n) => {
+        const p = (state && state.properties && state.properties.end > state.properties.start)
+            ? state.properties : fallback;
+        const skew = p.skew > 0 ? p.skew : 1;
+        const v = p.start + (p.end - p.start) * Math.pow(Math.min(1, Math.max(0, n)), 1 / skew);
+        return Math.round(v) + '%';
+    };
+    f.parse = parseDirect;
+    return f;
+};
+
 // Entry-only formatters for the three knobs whose readout renders blank.
 // They read the live scaled value (GRAIN_SIZE is skewed, so norm -> ms needs
 // the C++ range, which getScaledValue() applies).
@@ -879,6 +895,15 @@ document.addEventListener('DOMContentLoaded', () => {
         setupKnob('crossfade', window.getSliderState('crossfade'), fmtPercentScaled, 0.5);
         // OUTPUT_GAIN -60..+12 dB: -6 dB -> 54/72 = 0.75 (v1.5.1; was 0.833 = 0 dB).
         setupKnob('outputGain', window.getSliderState('outputGain'), (n) => '', 0.75, fmtGainEntry);
+
+        // v1.8.0: steerable descriptor weights, 0..400 % with skew 0.5 (100 % =
+        // norm 0.5, the dial's centre), and the pick controls, 0..100 % linear.
+        for (const id of ['weightEnergy', 'weightBrightness', 'weightTexture', 'weightTimbre']) {
+            const st = window.getSliderState(id);
+            setupKnob(id, st, fmtScaledPercent(st, { start: 0, end: 400, skew: 0.5 }), 0.5);
+        }
+        setupKnob('pickSpread', window.getSliderState('pickSpread'), fmtPercentScaled, 0.0);
+        setupKnob('repeatAvoid', window.getSliderState('repeatAvoid'), fmtPercentScaled, 0.0);
 
         // Setup MIDI mode dropdown
         setupMidiMode(window.getComboBoxState('midiMode'));
