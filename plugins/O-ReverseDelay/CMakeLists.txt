@@ -27,6 +27,10 @@ target_sources(OuariconReverseDelay
         Source/PluginEditor.cpp
 )
 
+# grain-engine: WindowLut (header-only). Adds the module's cpp/ to the include
+# path, which the render harness inherits through INCLUDE_DIRECTORIES below.
+ouaricon_add_module(OuariconReverseDelay grain-engine)
+
 target_include_directories(OuariconReverseDelay
     PRIVATE
         Source

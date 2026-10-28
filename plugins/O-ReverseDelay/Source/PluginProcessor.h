@@ -40,7 +40,11 @@
 #include "dsp/CaptureBuffer.h"
 #include "dsp/GrainScheduler.h"
 #include "dsp/ReverseGrain.h"
-#include "dsp/WindowLut.h"
+
+// grain-engine module (modules/synthesis/grain-engine) — WindowLut moved there
+// verbatim; the render is bit-identical (render-harness --digest).
+#include "WindowLut.h"
+using WindowLut = ouaricon::grain::WindowLut;
 
 // Header-only, no WebView dependency — safe under the harness' JUCE_WEB_BROWSER=0.
 #include "OuariconPresetManager.h"

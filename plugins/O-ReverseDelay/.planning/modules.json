@@ -1,0 +1,11 @@
+{
+  "plugin": "O-ReverseDelay",
+  "modules": [
+    {
+      "name": "grain-engine",
+      "version": "1.0.0",
+      "added": "2026-10-27",
+      "uses": ["WindowLut"]
+    }
+  ]
+}

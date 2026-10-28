@@ -437,6 +437,33 @@ modules:
       - plugin: O-simplePhysicalModelSynth
         version: 1.1.0
 
+  - name: grain-engine
+    path: synthesis/grain-engine
+    version: 1.0.0
+    description: |
+      Header-only granular primitives (namespace ouaricon::grain). WindowLut:
+      5 windows + tilt + Tukey α with integrated μ₁/μ₂ moments and the
+      shape/tilt/loop/forward normalisations (moved verbatim from
+      O-ReverseDelay 1.22.4). GrainScheduler: fractional-onset clock, block-size
+      invariant, drop-without-shift (O-Freeze 2.8.0). CounterRng: splitmix64
+      f(seed, counter, slot), bit-identical to the TextureForge / Freeze /
+      simpleGrain / GrainScatter copies. GrainPool: fade-on-steal spare slots +
+      refuse-on-full tryObtain (O-Freeze 2.7.0 / O-simpleGrain 1.5.4 /
+      O-GrainScatter 3.0.5). Standalone test suite in tests/.
+    category: synthesis
+    origin: O-ReverseDelay
+    provides:
+      - cpp-class: WindowLut
+      - cpp-class: GrainScheduler
+      - cpp-class: GrainPool
+      - cpp-namespace: CounterRng
+    dependencies: []
+    tags: [synthesis, granular, window, scheduler, rng, voice-pool]
+    reuse_score: 9
+    used_by:
+      - plugin: O-ReverseDelay
+        version: 1.22.4
+
   # ============================================================================
   # EFFECTS MODULES
   # ============================================================================

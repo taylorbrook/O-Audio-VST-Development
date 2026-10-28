@@ -1,5 +1,5 @@
 /*
-   This file is part of O-ReverseDelay, an Ouaricon Audio plugin.
+   This file is part of the Ouaricon grain-engine module.
    Copyright (C) 2026  Ouaricon Audio
 
    SPDX-License-Identifier: AGPL-3.0-or-later
@@ -20,11 +20,27 @@
 /*
   ==============================================================================
 
-    O-ReverseDelay - WindowLut
+    grain-engine - WindowLut
 
     Precomputed grain-envelope tables, built once at construction and read with
     linear interpolation by grain phase 0..1. No per-sample transcendental in
     the grain loop.
+
+    Moved verbatim from O-ReverseDelay v1.22.4 (grain-engine 1.0.0). Every
+    expression that produces a table value or a normalisation constant is
+    byte-for-byte the plugin's, so O-ReverseDelay's render is bit-identical
+    across the move (its --digest gate checks this). The version history below
+    is O-ReverseDelay's; "probe XX" refers to its render harness.
+
+    ── The two moments, μ₁ and μ₂ ─────────────────────────────────────────────
+        μ₁ = mean of w      — the AMPLITUDE duty: coherent sums follow it
+        μ₂ = mean of w²     — the POWER duty: decorrelated sums follow it
+    Both are integrated from the table the render loop reads (never from a
+    closed form), per half-window as well as whole, so the tilt warp can form
+    its effective moments t·lo + (1-t)·hi. getMoments() returns all six.
+    tests/grain_engine_tests.cpp checks them against high-resolution quadrature
+    of each window's continuous definition and against the closed forms where
+    they exist (Hann 1/2, 3/8; Triangular 1/2, 1/3; Tukey 1 − α/2, 1 − 5α/8).
 
     v1.0.0 shipped a single hard-coded Hann table, trimmed from O-simpleGrain's
     5-shape WindowLuts.h. v1.2.0 (B1) restores the family — five shapes plus a
@@ -136,10 +152,13 @@
 
 #pragma once
 
-#include <JuceHeader.h>
+#include <juce_core/juce_core.h>
 #include <array>
 #include <cmath>
 #include <vector>
+
+namespace ouaricon::grain
+{
 
 class WindowLut
 {
@@ -503,6 +522,21 @@ public:
         return statsFor (shape, alpha).mean;
     }
 
+    /** grain-engine 1.0.0 — both moments with their half-window parts, exactly
+        as stored (the half values are post-canonicalisation, so a symmetric
+        shape reports lo == hi bitwise). α is ignored by every shape but Tukey. */
+    struct Moments
+    {
+        float mu1   = 0.0f,  mu1Lo = 0.0f,  mu1Hi = 0.0f;   // mean of w
+        float mu2   = 0.0f,  mu2Lo = 0.0f,  mu2Hi = 0.0f;   // mean of w²
+    };
+
+    Moments getMoments (int shape, float alpha = kTukeyTaperDefault) const noexcept
+    {
+        const auto& s = statsFor (shape, alpha);
+        return { s.mean, s.meanLo, s.meanHi, s.meanSq, s.meanSqLo, s.meanSqHi };
+    }
+
     /** Samples the window a caller will actually HEAR, composing shape, tilt and
         taper in the same order and by the same calls the render loop uses.
 
@@ -791,3 +825,5 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WindowLut)
 };
+
+} // namespace ouaricon::grain

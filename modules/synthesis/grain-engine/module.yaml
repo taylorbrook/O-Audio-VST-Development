@@ -1,0 +1,71 @@
+# grain-engine module v1.0.0
+# Shared granular building blocks: window tables with integrated moments, a
+# fractional-onset scheduler, a counter-based RNG and a fade-on-steal pool.
+# Seeded from four plugins (see per-class origins below).
+
+name: grain-engine
+version: 1.0.0
+description: |
+  Header-only granular primitives.
+
+  WindowLut — five grain windows (Hann, Tukey α, Gaussian, Triangular,
+  Expo-Decay) with tilt warp and Tukey-α remap, plus their moments μ₁ (mean,
+  amplitude duty) and μ₂ (mean square, power duty) integrated from the tables
+  themselves, per half-window, and the shape / tilt / loop / forward
+  normalisations built on them. Moved verbatim from O-ReverseDelay 1.22.4.
+
+  GrainScheduler — free-running onset clock with fractional onsets (double
+  intervals, sub-sample frac per onset), block-size invariant, drop-without-
+  shift capacity, onset index for counter-keyed draws. From O-Freeze 2.8.0.
+
+  CounterRng — splitmix64 counter RNG: every draw is f(seed, counter, slot).
+  Bit-identical to the copies in O-TextureForge / O-Freeze / O-simpleGrain /
+  O-GrainScatter (NOT O-Polystutter, which hashes differently).
+
+  GrainPool — preallocated slots with fade-on-steal: a stolen grain moves to a
+  spare slot and fades out over 5 ms; steal-free renders are bitwise unaffected.
+  Also a refuse-on-full tryObtain(). From O-Freeze 2.7.0 / O-simpleGrain 1.5.4 /
+  O-GrainScatter 3.0.5.
+
+category: synthesis
+author: Ouaricon Audio
+origin: O-ReverseDelay
+
+provides:
+  cpp-classes:
+    - ouaricon::grain::WindowLut
+    - ouaricon::grain::GrainScheduler
+    - ouaricon::grain::GrainPool
+    - ouaricon::grain::CounterRng   # namespace of free functions + Draw
+
+dependencies: []
+
+requirements:
+  juce_modules:
+    - juce_core        # WindowLut only; the other three are plain C++
+  cpp_standard: 20
+
+sources:
+  cpp:
+    - cpp/WindowLut.h
+    - cpp/GrainScheduler.h
+    - cpp/CounterRng.h
+    - cpp/GrainPool.h
+
+tests:
+  - tests/grain_engine_tests.cpp   # standalone; see tests/CMakeLists.txt
+
+used_by:
+  - plugin: O-ReverseDelay
+    version: 1.22.4
+    uses: [WindowLut]
+
+changelog:
+  - version: 1.0.0
+    date: 2026-10-27
+    changes:
+      - "WindowLut moved verbatim from O-ReverseDelay 1.22.4 (render bit-identical, --digest 50/50); adds getMoments() (μ₁/μ₂ + half-window parts)"
+      - "GrainScheduler: O-Freeze 2.8.0 fractional onset clock as a class, with O-ReverseDelay's drop-without-shift contract and a mean-exact jitter helper"
+      - "CounterRng: shared core of four plugin copies + O-GrainScatter's Draw helper"
+      - "GrainPool: fade-on-steal (spare slots, 5 ms linear, quietest spare reused) + refuse-on-full tryObtain()"
+      - "tests: 23 checks — μ₁/μ₂ vs double rebuild, Simpson quadrature and closed forms; RNG goldens; scheduler block-size invariance; pool steal continuity"
