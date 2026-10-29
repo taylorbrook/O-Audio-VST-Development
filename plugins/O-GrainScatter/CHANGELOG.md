@@ -1,5 +1,65 @@
 # Changelog
 
+## [3.5.0] - 2026-10-28
+
+### Added
+- **Grain Adapt** (`grain_adapt`, 0–100 %, default 0), research 2026-update #11 after Nielsen, *Keyframe Time Stretching via Extrema Sampling* (DAFx26). While Freeze is held, each new grain takes its length from the captured audio where it starts. Grains run longer over sparse passages (a bass note: few, widely spaced local extrema) and shorter over dense ones (noise, a hit: extrema packed tight). Grain Size stays the average length. Live grains are never touched, at any setting.
+  - **Analysis:** each Freeze engage analyses the held loop as it is heard (the mid channel, with the seam crossfade). The steps are the cubic B-spline derivative (zero at Nyquist), a −60 dBFS hysteresis threshold, and sub-sample extremum positions by reverse linear interpolation. The work is spread over the first blocks, 32 analysis samples per output sample, and allocates nothing.
+  - **Ready time:** the analysis is ready exactly `ceil((2048 + loop + 5 × 4096) / 32)` samples after engage (76.9 ms for a 2 s capture at 48 kHz) whatever the block size. Grains spawned before that keep the fixed length.
+  - **Length:** the span L of the next K0 extrema ahead of the grain's start, mapped as `len = clamp(GS · exp(a · (ln L − ln L_median) + c), 10 ms, 500 ms)`.
+    - K0 is fixed per capture so the median span is 100 ms.
+    - c is re-solved whenever Grain Size or Adapt moves, so the clamped mean over the loop equals Grain Size. Turning Grain Size moves every unclamped grain proportionally, with no re-analysis.
+    - a = Adapt / 100 is the contrast exponent. On a 1 s bass-sine / 1 s noise capture at Grain Size 100 ms, the sine half's grains average 2.8× the noise half's at Adapt 50 and 5.8× at Adapt 100.
+  - **Reverse grains:** they keep their Adapt 0 start and measure the extrema behind it, which is the audio they read.
+  - **Interactions:**
+    - Size Random scales the adapted length with the same random draw.
+    - Shape Tilt follows the adapted length.
+    - Freeze scatter stays ±1 Grain Size, so a grain starts at the same point at every Adapt value.
+    - Lengths are in output samples at every pitch.
+  - **Fallbacks to the fixed length:** a capture with fewer than 8 extrema (silence, noise under about −70 dBFS) and a loop shorter than 0.2 s.
+- UI: an **Adapt** knob beside Grain Size in Core Engine, with tooltips in English, French and Simplified Chinese (fr at `reviewed: false`, zh-Hans at `'mt'`). The tip says it acts only while Freeze is held.
+  - Core Engine cells are 58 px with a 3 px gap (were 62 / 6), so seven knobs fit in row 1. The dial pitch is unchanged at 61 px and the 900 × 800 frame is unchanged.
+  - FR Tilt is now captioned "Inclin.": "Inclinaison" (65 px) already overran its 62 px cell in 3.4.0.
+
+New parameter only: no preset or state change. A session saved by v3.4.0 or earlier loads with Adapt 0 and renders bit-identically. AU parameter version hint 5.
+
+### Known limitations
+- **Ramp-up:** for ~75 ms after each engage, grains play at the fixed length while the analysis runs.
+- **Clamp edges:** adaptation fades near the 10 ms and 500 ms ends of Grain Size, because the mean is pinned. At Grain Size 400 ms and Adapt 100, sparse/dense lengths only span 261–500 ms.
+- **Quiet material:** the −60 dBFS threshold is absolute, so quiet dense material reads as sparse (long grains). Anti-phase stereo content cancels in the mid channel and also reads as sparse.
+- **Low density thins out:** at low Density, short grains over dense passages stop overlapping. The cloud thins there and density compensation does not boost, the same as turning Grain Size down.
+- **Level at Scan 0:** the level moves with Adapt when Scan is near 0. Freeze scatter puts about half the grains on the read-head floor, where they start in step and sum coherently. Density compensation uses one coherence figure for the whole cloud, but this cluster is coherent over sustained audio and decorrelates over noisy audio (the ±6 ct freeze detune). On a 1 s sine / 1 s noise capture this measured +1.3 dB (Adapt 50) and +1.7 dB (Adapt 100) against Adapt 0. With Scan away from the floor (30 %) it is 0.0 / −0.2 dB.
+
+### Testing
+- New gate `tests/adapt-gate` with three binaries from one driver:
+  - `O-GrainScatter-adapt-gate` (this build, with a spawn log compiled into the test target only);
+  - `-adapt-gate-v340`, the same driver against v3.4.0 (commit 144a73f3, extracted with git archive), which dumps the references;
+  - `-adapt-gate-fixedk`, the negative control: CONTEXT's first guess, K = GS · M / len with no calibration.
+
+  Run: `O-GrainScatter-adapt-gate-v340 <dir> && O-GrainScatter-adapt-gate <dir> && O-GrainScatter-adapt-gate-fixedk`. 47 / 47 PASS plus the negative control:
+
+  | Row | Result |
+  |---|---|
+  | ExtremaMap vs the research prototype: sine 55 Hz / noise / silence | M 220 / 47 031 / 0 (proto 220 / 47 030 / 0), K0 11.0 / 2366.4 |
+  | Adapt 0 vs v3.4.0: free, sync, spatial, freeze, freeze + reverse + Size Rnd + Tilt, freeze +24 st, freeze spatial, freeze sync re-engage | peak diff 0, 8 / 8 |
+  | Adapt 100 on live paths (free, sync, spatial) vs v3.4.0 | peak diff 0, 3 / 3 |
+  | v3.4.0 session into an instance with Adapt 50 | Adapt reads 0, bit-exact |
+  | Sine-half / noise-half mean length, GS 100: Adapt 100 / 50 / 0 | 5.78 / 2.80 / 1.0000 |
+  | Mean adapted length vs Grain Size (2387 spawns each), GS 50 / 100 / 200, sparse/dense + bass+snare | within −0.2 … +2.0 % forward, −1.6 … +1.3 % reverse (bound 5 %) |
+  | GS 50 → 100, unclamped grains | ratio 2.000000 on 2387 / 2387; logged lengths = the map's lookup, 0 mismatches |
+  | Fallbacks: silent capture, −80 dB noise, 85 ms loop | 0 adapted, bit-exact vs Adapt 0 |
+  | Spawns before ready | output bit-exact vs Adapt 0 up to readyAbs; first adapted spawn after it |
+  | 32 / variable vs 512 blocks: engage, Adapt 0 → 100 + size jump, re-engage mid-analysis, spatial | −400 dBFS, 4 / 4 |
+  | First adapted spawn across splits | identical; readyAbs = engage + 3690 (76.9 ms) |
+  | Allocations in processBlock (32 + variable blocks through engage, analysis, re-engage, release, Adapt 0 ↔ 100) | 0 (liveness probe counts 1) |
+  | Level, sparse/dense GS 200, Scan 30, Adapt 50 vs 0 (16 seeds × 8 s) | −0.003 dB (old-vs-old 0.007 dB, length ratio 2.83) |
+  | Dense noise cloud, Adapt 100 vs 0 | 0.000 dB |
+  | Analysis step, worst 32-sample block (median of 9) | 11.1 µs at 48 kHz, 14.1 µs at 96 kHz (bound 50) |
+  | Negative control, fixed K | mean 237 ms at GS 100 (+137 %): FAILS as it must |
+
+- Existing gates rerun: blocksize-null 22, density-gain 25, skip-tilt 31 and alias-gate all PASS; the v3.2.0 alias negative control still fails. `tests/alias-gate` passes the engage sample to `FreezeManager::engage`.
+- UI: check-i18n, i18n-fr-lint, i18n-zh-lint and check-ui-labels PASS at EN / FR / zh-Hans, and `tests/ui_tip_render_check.js` passes 1366 / 1366.
+
 ## [3.4.0] - 2026-10-28
 
 ### Added

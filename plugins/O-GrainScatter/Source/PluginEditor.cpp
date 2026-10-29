@@ -51,6 +51,7 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
     ampRandomRelay       = std::make_unique<juce::WebSliderRelay>("amp_random");
     grainSkipRelay       = std::make_unique<juce::WebSliderRelay>("grain_skip");   // v3.4.0
     shapeTiltRelay       = std::make_unique<juce::WebSliderRelay>("shape_tilt");   // v3.4.0
+    grainAdaptRelay      = std::make_unique<juce::WebSliderRelay>("grain_adapt");  // v3.5.0
     euclideanPulsesRelay   = std::make_unique<juce::WebSliderRelay>("euclidean_pulses");
     euclideanStepsRelay    = std::make_unique<juce::WebSliderRelay>("euclidean_steps");
     euclideanRotationRelay = std::make_unique<juce::WebSliderRelay>("euclidean_rotation");
@@ -218,6 +219,7 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
             .withOptionsFrom(*ampRandomRelay)
             .withOptionsFrom(*grainSkipRelay)
             .withOptionsFrom(*shapeTiltRelay)
+            .withOptionsFrom(*grainAdaptRelay)
             .withOptionsFrom(*euclideanPulsesRelay)
             .withOptionsFrom(*euclideanStepsRelay)
             .withOptionsFrom(*euclideanRotationRelay)
@@ -293,6 +295,8 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
         *audioProcessor.parameters.getParameter("grain_skip"), *grainSkipRelay, nullptr);
     shapeTiltAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *audioProcessor.parameters.getParameter("shape_tilt"), *shapeTiltRelay, nullptr);
+    grainAdaptAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.parameters.getParameter("grain_adapt"), *grainAdaptRelay, nullptr);
     euclideanPulsesAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *audioProcessor.parameters.getParameter("euclidean_pulses"), *euclideanPulsesRelay, nullptr);
     euclideanStepsAttachment = std::make_unique<juce::WebSliderParameterAttachment>(

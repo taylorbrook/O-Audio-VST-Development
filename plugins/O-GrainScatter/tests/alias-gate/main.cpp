@@ -192,7 +192,13 @@ namespace
             delay->pushSample (v, v);
         }
         if (e.frozen)
+        {
+           #ifdef GS_ALIAS_V320
             freeze->engage (*delay, 0);
+           #else
+            freeze->engage (*delay, 0, pushes);   // v3.5.0: + the engage sample (Grain Adapt's analysis clock)
+           #endif
+        }
 
         std::vector<float> out (static_cast<size_t> (e.numOut));
         float hoa[kHOA3Channels];

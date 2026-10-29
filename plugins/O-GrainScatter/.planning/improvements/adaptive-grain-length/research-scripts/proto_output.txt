@@ -1,0 +1,140 @@
+== 1. engage cost (2 s capture, median of 41 runs, Apple M4 Max, -O2) ==
+     48 k white noise +-0.3                    build   44.9 us  extrema  400.1 us  (chunked 2048:  393.6)  calib  68.9 us  M= 47030 (M/N 0.492) K0=2366.4
+     48 k skip-tilt 'music' stimulus           build   44.5 us  extrema  133.6 us  (chunked 2048:  132.9)  calib  42.5 us  M=  4723 (M/N 0.049) K0=231.3
+     48 k sine 55 Hz 0.5                       build   40.5 us  extrema   93.2 us  (chunked 2048:   91.7)  calib  20.2 us  M=   220 (M/N 0.002) K0=11.0
+     48 k adversarial decaying Nyquist square  build   30.0 us  extrema  319.4 us  (chunked 2048:  319.0)  calib  53.9 us  M= 85173 (M/N 0.892) K0=4277.6
+     96 k white noise +-0.3                    build   64.3 us  extrema  695.0 us  (chunked 2048:  688.8)  calib  58.9 us  M= 94183 (M/N 0.493) K0=4732.4
+     96 k skip-tilt 'music' stimulus           build   65.1 us  extrema  189.6 us  (chunked 2048:  188.9)  calib  31.6 us  M=  4731 (M/N 0.025) K0=231.6
+     96 k sine 55 Hz 0.5                       build   52.8 us  extrema  147.7 us  (chunked 2048:  147.8)  calib  16.4 us  M=   220 (M/N 0.001) K0=11.0
+     96 k adversarial decaying Nyquist square  build   52.9 us  extrema  573.1 us  (chunked 2048:  577.4)  calib  55.2 us  M=170346 (M/N 0.892) K0=8555.0
+
+== 2. extremum counts, 48 k, 2 s ==
+  sine 55 Hz 0.5                         M =    220   M/N = 0.0023   mean gap 434.2 samples
+  sine 1 kHz 0.5                         M =   3980   M/N = 0.0417   mean gap 24.0 samples
+  white noise +-0.3                      M =  47030   M/N = 0.4924   mean gap 2.0 samples
+  silence                                M =      0   M/N = 0.0000   mean gap 0.0 samples
+  noise +-1e-4 (-80 dB)                  M =      0   M/N = 0.0000   mean gap 0.0 samples
+  noise +-3e-3 (-50 dB)                  M =  28603   M/N = 0.2994   mean gap 3.3 samples
+  1 s sine 55 | 1 s noise (eq rms)       M =  24055   M/N = 0.2518   mean gap 4.0 samples
+  bass 60 Hz + snare bursts              M =  24821   M/N = 0.2598   mean gap 3.8 samples
+  skip-tilt 'music' stimulus             M =   4723   M/N = 0.0494   mean gap 20.2 samples
+  sine fs/4 (M=N/2 case)                 M =  47760   M/N = 0.5000   mean gap 2.0 samples
+  adversarial decaying Nyquist square    M =  85173   M/N = 0.8917   mean gap 1.1 samples
+
+== 3. calibration: Tref 100 ms, clamp 10..500 ms, P = 256, truth = 8192-point grid ==
+ sine 55 Hz 0.5  (M 220, K0 11.0, valid 1)
+   GS    20 ms a 0.25: mean   20.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range  19.5.. 20.0 ms  1st/2nd half 1.00
+   GS    20 ms a 0.50: mean   20.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range  19.0.. 20.0 ms  1st/2nd half 1.00
+   GS    20 ms a 1.00: mean   20.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range  18.1.. 20.1 ms  1st/2nd half 1.01
+   GS    50 ms a 0.25: mean   50.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range  48.8.. 50.1 ms  1st/2nd half 1.00
+   GS    50 ms a 0.50: mean   50.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range  47.6.. 50.1 ms  1st/2nd half 1.00
+   GS    50 ms a 1.00: mean   50.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range  45.2.. 50.2 ms  1st/2nd half 1.01
+   GS   100 ms a 0.25: mean  100.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range  97.5..100.1 ms  1st/2nd half 1.00
+   GS   100 ms a 0.50: mean  100.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range  95.1..100.2 ms  1st/2nd half 1.00
+   GS   100 ms a 1.00: mean  100.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range  90.4..100.5 ms  1st/2nd half 1.01
+   GS   200 ms a 0.25: mean  200.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range 195.0..200.2 ms  1st/2nd half 1.00
+   GS   200 ms a 0.50: mean  200.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range 190.2..200.5 ms  1st/2nd half 1.00
+   GS   200 ms a 1.00: mean  200.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range 180.9..200.9 ms  1st/2nd half 1.01
+   GS   400 ms a 0.25: mean  400.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range 390.1..400.5 ms  1st/2nd half 1.00
+   GS   400 ms a 0.50: mean  400.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range 380.4..400.9 ms  1st/2nd half 1.00
+   GS   400 ms a 1.00: mean  400.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range 361.7..401.8 ms  1st/2nd half 1.01
+   [CONTEXT K = GS*M/len] GS  50 ms: K 5.5, mean   50.0 ms (  +0.1 %)
+   [CONTEXT K = GS*M/len] GS 100 ms: K 11.1, mean  100.0 ms (  +0.0 %)
+   [CONTEXT K = GS*M/len] GS 200 ms: K 22.1, mean  200.0 ms (  +0.0 %)
+   reverse (backward span, forward calibration) GS 100 a 1: mean  100.0 ms ( -0.0 %)
+   proportionality GS 100 -> 200, a 1: unclamped points 8192 / 8192, ratio 2.0000 .. 2.0000
+ white noise +-0.3  (M 47030, K0 2366.4, valid 1)
+   GS    20 ms a 0.25: mean   20.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range  19.9.. 20.1 ms  1st/2nd half 1.00
+   GS    20 ms a 0.50: mean   20.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range  19.8.. 20.3 ms  1st/2nd half 1.00
+   GS    20 ms a 1.00: mean   20.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range  19.6.. 20.6 ms  1st/2nd half 1.00
+   GS    50 ms a 0.25: mean   50.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range  49.7.. 50.4 ms  1st/2nd half 1.00
+   GS    50 ms a 0.50: mean   50.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range  49.5.. 50.7 ms  1st/2nd half 1.00
+   GS    50 ms a 1.00: mean   50.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range  48.9.. 51.5 ms  1st/2nd half 1.00
+   GS   100 ms a 0.25: mean  100.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range  99.5..100.7 ms  1st/2nd half 1.00
+   GS   100 ms a 0.50: mean  100.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range  98.9..101.5 ms  1st/2nd half 1.00
+   GS   100 ms a 1.00: mean  100.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range  97.9..102.9 ms  1st/2nd half 1.00
+   GS   200 ms a 0.25: mean  200.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range 198.9..201.4 ms  1st/2nd half 1.00
+   GS   200 ms a 0.50: mean  200.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range 197.9..202.9 ms  1st/2nd half 1.00
+   GS   200 ms a 1.00: mean  200.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range 195.8..205.8 ms  1st/2nd half 1.00
+   GS   400 ms a 0.25: mean  400.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range 397.9..402.9 ms  1st/2nd half 1.00
+   GS   400 ms a 0.50: mean  400.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range 395.8..405.8 ms  1st/2nd half 1.00
+   GS   400 ms a 1.00: mean  400.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range 391.6..411.7 ms  1st/2nd half 1.00
+   [CONTEXT K = GS*M/len] GS  50 ms: K 1181.6, mean   50.0 ms (  +0.0 %)
+   [CONTEXT K = GS*M/len] GS 100 ms: K 2363.3, mean  100.0 ms (  +0.0 %)
+   [CONTEXT K = GS*M/len] GS 200 ms: K 4726.6, mean  200.0 ms (  +0.0 %)
+   reverse (backward span, forward calibration) GS 100 a 1: mean  100.0 ms ( +0.0 %)
+   proportionality GS 100 -> 200, a 1: unclamped points 8192 / 8192, ratio 2.0000 .. 2.0000
+ 1 s sine 55 | 1 s noise (eq rms)  (M 24055, K0 1170.6, valid 1)
+   GS    20 ms a 0.25: mean   20.0 ms ( +0.1 %)  [no c-solve:   +0.1 %]  range  14.0.. 30.5 ms  1st/2nd half 1.67
+   GS    20 ms a 0.50: mean   20.0 ms ( +0.1 %)  [no c-solve:   +2.1 %]  range  10.0.. 41.1 ms  1st/2nd half 2.48
+   GS    20 ms a 1.00: mean   20.0 ms ( +0.0 %)  [no c-solve:  +17.6 %]  range  10.0.. 52.2 ms  1st/2nd half 2.34
+   GS    50 ms a 0.25: mean   50.0 ms ( +0.1 %)  [no c-solve:   +0.1 %]  range  35.1.. 76.2 ms  1st/2nd half 1.67
+   GS    50 ms a 0.50: mean   50.1 ms ( +0.1 %)  [no c-solve:   +0.1 %]  range  22.4..105.5 ms  1st/2nd half 2.72
+   GS    50 ms a 1.00: mean   50.1 ms ( +0.1 %)  [no c-solve:   +2.4 %]  range  10.0..157.9 ms  1st/2nd half 4.87
+   GS   100 ms a 0.25: mean  100.1 ms ( +0.1 %)  [no c-solve:   +0.1 %]  range  70.2..152.3 ms  1st/2nd half 1.67
+   GS   100 ms a 0.50: mean  100.1 ms ( +0.1 %)  [no c-solve:   +0.1 %]  range  44.8..211.0 ms  1st/2nd half 2.72
+   GS   100 ms a 1.00: mean  100.1 ms ( +0.1 %)  [no c-solve:   +0.1 %]  range  14.6..323.8 ms  1st/2nd half 5.68
+   GS   200 ms a 0.25: mean  200.1 ms ( +0.1 %)  [no c-solve:   +0.1 %]  range 140.4..304.6 ms  1st/2nd half 1.67
+   GS   200 ms a 0.50: mean  200.2 ms ( +0.1 %)  [no c-solve:   +0.1 %]  range  89.7..422.0 ms  1st/2nd half 2.72
+   GS   200 ms a 1.00: mean  200.3 ms ( +0.2 %)  [no c-solve:   -6.1 %]  range  32.8..500.0 ms  1st/2nd half 6.06
+   GS   400 ms a 0.25: mean  400.2 ms ( +0.1 %)  [no c-solve:   -4.9 %]  range 308.1..500.0 ms  1st/2nd half 1.50
+   GS   400 ms a 0.50: mean  400.3 ms ( +0.1 %)  [no c-solve:  -17.9 %]  range 292.2..500.0 ms  1st/2nd half 1.59
+   GS   400 ms a 1.00: mean  400.3 ms ( +0.1 %)  [no c-solve:  -36.9 %]  range 281.3..500.0 ms  1st/2nd half 1.63
+   [CONTEXT K = GS*M/len] GS  50 ms: K 604.4, mean  211.6 ms (+323.1 %)
+   [CONTEXT K = GS*M/len] GS 100 ms: K 1208.8, mean  235.6 ms (+135.6 %)
+   [CONTEXT K = GS*M/len] GS 200 ms: K 2417.6, mean  280.6 ms ( +40.3 %)
+   reverse (backward span, forward calibration) GS 100 a 1: mean  100.1 ms ( +0.1 %)
+   proportionality GS 100 -> 200, a 1: unclamped points 6637 / 8192, ratio 2.2412 .. 2.2412
+ bass 60 Hz + snare bursts  (M 24821, K0 1283.5, valid 1)
+   GS    20 ms a 0.25: mean   20.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range  16.4.. 25.1 ms  1st/2nd half 1.00
+   GS    20 ms a 0.50: mean   20.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range  13.2.. 30.7 ms  1st/2nd half 0.99
+   GS    20 ms a 1.00: mean   20.0 ms ( -0.0 %)  [no c-solve:   +3.5 %]  range  10.0.. 40.6 ms  1st/2nd half 0.99
+   GS    50 ms a 0.25: mean   50.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range  41.1.. 62.8 ms  1st/2nd half 1.00
+   GS    50 ms a 0.50: mean   50.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range  32.9.. 76.7 ms  1st/2nd half 0.99
+   GS    50 ms a 1.00: mean   50.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range  19.6..106.0 ms  1st/2nd half 0.99
+   GS   100 ms a 0.25: mean  100.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range  82.2..125.5 ms  1st/2nd half 1.00
+   GS   100 ms a 0.50: mean  100.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range  65.9..153.3 ms  1st/2nd half 0.99
+   GS   100 ms a 1.00: mean  100.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range  39.1..212.1 ms  1st/2nd half 0.99
+   GS   200 ms a 0.25: mean  200.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range 164.5..251.0 ms  1st/2nd half 1.00
+   GS   200 ms a 0.50: mean  200.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range 131.7..306.7 ms  1st/2nd half 0.99
+   GS   200 ms a 1.00: mean  200.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range  78.2..424.2 ms  1st/2nd half 0.99
+   GS   400 ms a 0.25: mean  400.0 ms ( -0.0 %)  [no c-solve:   -0.0 %]  range 329.0..500.0 ms  1st/2nd half 1.00
+   GS   400 ms a 0.50: mean  400.0 ms ( -0.0 %)  [no c-solve:   -5.5 %]  range 291.7..500.0 ms  1st/2nd half 1.00
+   GS   400 ms a 1.00: mean  400.1 ms ( +0.0 %)  [no c-solve:  -18.9 %]  range 261.4..500.0 ms  1st/2nd half 1.00
+   [CONTEXT K = GS*M/len] GS  50 ms: K 623.6, mean   93.1 ms ( +86.2 %)
+   [CONTEXT K = GS*M/len] GS 100 ms: K 1247.3, mean  133.1 ms ( +33.1 %)
+   [CONTEXT K = GS*M/len] GS 200 ms: K 2494.5, mean  212.0 ms (  +6.0 %)
+   reverse (backward span, forward calibration) GS 100 a 1: mean  100.0 ms ( -0.0 %)
+   proportionality GS 100 -> 200, a 1: unclamped points 8192 / 8192, ratio 2.0000 .. 2.0000
+ skip-tilt 'music' stimulus  (M 4723, K0 231.3, valid 1)
+   GS    20 ms a 0.25: mean   20.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range  19.4.. 20.6 ms  1st/2nd half 1.00
+   GS    20 ms a 0.50: mean   20.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range  18.8.. 21.3 ms  1st/2nd half 1.00
+   GS    20 ms a 1.00: mean   20.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range  17.6.. 22.6 ms  1st/2nd half 1.01
+   GS    50 ms a 0.25: mean   50.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range  48.5.. 51.6 ms  1st/2nd half 1.00
+   GS    50 ms a 0.50: mean   50.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range  46.9.. 53.2 ms  1st/2nd half 1.00
+   GS    50 ms a 1.00: mean   50.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range  44.0.. 56.5 ms  1st/2nd half 1.01
+   GS   100 ms a 0.25: mean  100.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range  96.9..103.2 ms  1st/2nd half 1.00
+   GS   100 ms a 0.50: mean  100.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range  93.9..106.4 ms  1st/2nd half 1.00
+   GS   100 ms a 1.00: mean  100.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range  87.9..113.0 ms  1st/2nd half 1.01
+   GS   200 ms a 0.25: mean  200.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range 193.8..206.4 ms  1st/2nd half 1.00
+   GS   200 ms a 0.50: mean  200.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range 187.7..212.8 ms  1st/2nd half 1.00
+   GS   200 ms a 1.00: mean  200.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range 175.8..226.0 ms  1st/2nd half 1.01
+   GS   400 ms a 0.25: mean  400.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range 387.6..412.8 ms  1st/2nd half 1.00
+   GS   400 ms a 0.50: mean  400.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range 375.4..425.7 ms  1st/2nd half 1.00
+   GS   400 ms a 1.00: mean  400.0 ms ( +0.0 %)  [no c-solve:   +0.0 %]  range 351.6..452.1 ms  1st/2nd half 1.01
+   [CONTEXT K = GS*M/len] GS  50 ms: K 118.7, mean   50.5 ms (  +0.9 %)
+   [CONTEXT K = GS*M/len] GS 100 ms: K 237.3, mean  100.9 ms (  +0.9 %)
+   [CONTEXT K = GS*M/len] GS 200 ms: K 474.7, mean  201.5 ms (  +0.8 %)
+   reverse (backward span, forward calibration) GS 100 a 1: mean  100.0 ms ( +0.0 %)
+   proportionality GS 100 -> 200, a 1: unclamped points 8192 / 8192, ratio 2.0000 .. 2.0000
+
+== 3b. reverse span vs forward span (sparse-dense, K0) ==
+   p    250 ms: forward span    805.6 ms  backward span    288.5 ms
+   p    750 ms: forward span    307.6 ms  backward span    786.5 ms
+   p   1250 ms: forward span     48.0 ms  backward span     48.7 ms
+   p   1750 ms: forward span     49.1 ms  backward span     48.9 ms
+
+== 4. per-spawn lookup cost (noise snapshot, M ~ 64 k) ==
+   62.7 ns per spawn (binary search over M = 47030 + span + log/exp)
+   13.4 us per block c-solve (30 bisection steps x 256 exp) [-0]
+   2.30 us per block fast c-solve (256 exp + prefix sums + 40 x 2 binary searches); |c_fast - c_slow| = 3.42e-09

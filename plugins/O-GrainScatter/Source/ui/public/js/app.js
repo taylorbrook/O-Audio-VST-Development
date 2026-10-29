@@ -427,6 +427,7 @@ function initI18n() {
         setupKnob('probability',      Juce.getSliderState('probability'),      pctFormatter);
         setupKnob('grain_skip',       Juce.getSliderState('grain_skip'),       pctFormatter);   // v3.4.0
         setupKnob('shape_tilt',       Juce.getSliderState('shape_tilt'),       tiltFormatter);  // v3.4.0
+        setupKnob('grain_adapt',      Juce.getSliderState('grain_adapt'),      pctFormatter);   // v3.5.0
         setupKnob('repeats',          Juce.getSliderState('repeats'),          repeatsFormatter);
         setupKnob('euclidean_pulses',   Juce.getSliderState('euclidean_pulses'),   eucPulsesFormatter);
         setupKnob('euclidean_steps',    Juce.getSliderState('euclidean_steps'),    eucStepsFormatter);

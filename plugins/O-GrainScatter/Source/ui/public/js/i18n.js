@@ -658,7 +658,8 @@ export const I18N = Object.freeze({
                + 'grain a plucked attack and a long fade; positive values a slow swell that stops '
                + 'short, like a reversed sound. At 0 the Shape is symmetric. Each edge keeps at '
                + 'least 3 ms, so the extremes stay click-free. Range −100 to +100 %.' },
-        fr: { t: 'Inclinaison',
+        fr: { t: 'Inclin.',
+              termNote: 'width, measured on this page at the shipping 900x800 frame: v3.5.0 put Adapt in Core Engine row 1, so its cells are 58 px. The glossary root inclinaison measures 65.0 px (it already overran the 62 px v3.4.0 cell by 3 px); Inclin. fits and the tip body names the control in full (L’inclinaison de forme).',
               b: 'L’inclinaison de forme déplace le sommet de l’enveloppe de grain. Les valeurs '
                + 'négatives donnent à chaque grain une attaque pincée et un long déclin ; les '
                + 'valeurs positives, une montée lente qui s’arrête net, comme un son inversé. '
@@ -667,6 +668,29 @@ export const I18N = Object.freeze({
               reviewed: false },
         'zh-Hans': { t: '倾斜',
                      b: '形状倾斜移动颗粒包络的峰值位置。负值让每个颗粒有拨奏般的起音和较长的衰减；正值则是缓慢渐强后戛然而止，像反向播放的声音。为 0 时形状对称。每一侧至少保留 3 ms，所以极端设定也不会产生咔嗒声。范围 −100 到 +100%。',
+                     reviewed: 'mt' },
+    },
+
+    // ── v3.5.0: Grain Adapt (research 2026-update #11, Nielsen DAFx26) ──────
+    // Same status as the v3.4.0 pair: fr reviewed:false, zh-Hans 'mt'. The bodies
+    // name the Freeze caption (Geler / 冻结) and Grain Size (taille de grain / 颗粒尺寸).
+    'tip.adapt': {
+        en: { t: 'Adapt',
+              b: 'Grain Adapt acts only while Freeze is held. Each new grain takes its length '
+               + 'from the captured audio where it starts: longer over sparse passages such as '
+               + 'a bass note, shorter over dense ones such as noise or a hit. Grain Size stays '
+               + 'the average length. It takes effect about 75 ms after Freeze engages. Range '
+               + '0 to 100 %.' },
+        fr: { t: 'Adapt.',
+              b: 'L’adaptation de grain n’agit que lorsque Geler est activé. Chaque nouveau grain '
+               + 'prend sa longueur de l’audio capturé à l’endroit où il commence : plus long sur '
+               + 'les passages clairsemés, comme une note de basse, plus court sur les passages '
+               + 'denses, comme du bruit ou une frappe. La taille de grain reste la longueur '
+               + 'moyenne. L’effet commence environ 75 ms après l’activation du gel. Plage de 0 '
+               + 'à 100 %.',
+              reviewed: false },
+        'zh-Hans': { t: '自适应',
+                     b: '颗粒自适应只在冻结启用时起作用。每个新颗粒的长度取自它起始处的已捕获音频：在稀疏的段落（例如低音音符）上更长，在密集的段落（例如噪声或一次击打）上更短。颗粒尺寸仍然是平均长度。冻结启用约 75 ms 之后开始生效。范围 0 到 100%。',
                      reviewed: 'mt' },
     },
 
@@ -1183,8 +1207,13 @@ export const LABELS = Object.freeze({
     },                  // 28.98 -> 31.52
 
     'label.tilt':          { en: { t: 'Tilt' },          // v3.4.0
-                             fr: { t: 'Inclinaison', reviewed: false },
+                             fr: { t: 'Inclin.', reviewed: false,
+                                   termNote: 'width, measured on this page at the shipping 900x800 frame: v3.5.0 put Adapt in Core Engine row 1, so its cells are 58 px. The glossary root inclinaison measures 65.0 px (it already overran the 62 px v3.4.0 cell by 3 px); Inclin. fits and the tip body names the control in full (L’inclinaison de forme).' },
         'zh-Hans': { t: '倾斜', reviewed: 'mt' },
+    },
+    'label.adapt':         { en: { t: 'Adapt' },         // v3.5.0
+                             fr: { t: 'Adapt.', reviewed: false },
+        'zh-Hans': { t: '自适应', reviewed: 'mt' },
     },
 
     // ── Pitch & Scale ───────────────────────────────────────────────────────
@@ -1640,6 +1669,7 @@ export const I18N_EXEMPT = [
 export const TIP_BINDINGS = [
     // ── Core Engine ─────────────────────────────────────────────────────────
     ['.knob[data-param="grain_size"]',         'tip.grainSize',   '.knob-container'],
+    ['.knob[data-param="grain_adapt"]',        'tip.adapt',       '.knob-container'],   // v3.5.0
     ['.knob[data-param="density"]',            'tip.density',     '.knob-container'],
     ['.knob[data-param="scan_position"]',      'tip.scan',        '.knob-container'],
     ['.knob[data-param="spread"]',             'tip.spread',      '.knob-container'],

@@ -154,6 +154,23 @@ public:
     uint64_t getGrainsSpawned() const noexcept { return grainsSpawned; }
     uint64_t getGrainsSkipped() const noexcept { return grainsSkipped; }
 
+   #ifdef GS_TEST_SPAWN_LOG
+    // v3.5.0 test hook (tests/adapt-gate only; never defined in a shipping build): every
+    // spawn, recorded into a fixed ring. Read between processBlock calls.
+    struct SpawnLogEntry
+    {
+        juce::int64 absSample = 0;
+        int grainLengthSamples = 0;
+        double preRandomLength = 0.0;   // adapted length before Size Random (= the length if fixed)
+        double loopPos = -1.0;          // loop coordinate of the grain's start (-1 = live)
+        bool reverse = false, frozen = false, adapted = false;
+    };
+    static constexpr int kSpawnLogSize = 8192;
+    const SpawnLogEntry& getSpawnLogEntry (uint64_t index) const noexcept { return spawnLog[static_cast<size_t> (index % kSpawnLogSize)]; }
+    uint64_t getSpawnLogCount() const noexcept { return spawnLogCount; }
+    const FreezeManager& getFreezeManager() const noexcept { return freezeManager; }
+   #endif
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
@@ -191,6 +208,7 @@ private:
     std::atomic<float>* grainShapeParam = nullptr;
     std::atomic<float>* grainSkipParam = nullptr;   // v3.4.0
     std::atomic<float>* shapeTiltParam = nullptr;   // v3.4.0
+    std::atomic<float>* grainAdaptParam = nullptr;  // v3.5.0
 
     // Spatial parameters (8 new)
     std::atomic<float>* spatialModeParam = nullptr;
@@ -253,6 +271,18 @@ private:
 
     // Freeze state tracking
     bool wasFrozen = false;
+
+    // v3.5.0 Grain Adapt: the calibration constant and what it was solved for.
+    double adaptC = 0.0;
+    std::uint32_t adaptCGeneration = 0;
+    int adaptCSize = -1;
+    float adaptCAmount = -1.0f;
+
+   #ifdef GS_TEST_SPAWN_LOG
+    std::array<SpawnLogEntry, kSpawnLogSize> spawnLog {};
+    uint64_t spawnLogCount = 0;
+    double spawnLogPreRandom = 0.0;
+   #endif
 
 
     // Feedback state

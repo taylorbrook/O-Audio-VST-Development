@@ -1,0 +1,90 @@
+O-GrainScatter 3.5.0 adapt-gate — 2026-10-28 21:58
+
+$ O-GrainScatter-adapt-gate-v340 <dir>
+  v3.4.0 reference free                   rms -14.83 dBFS
+  v3.4.0 reference sync                   rms -23.41 dBFS
+  v3.4.0 reference spatial                rms -15.69 dBFS
+  v3.4.0 reference freeze                 rms -13.78 dBFS
+  v3.4.0 reference freeze-rev-size-tilt   rms -13.90 dBFS
+  v3.4.0 reference freeze-pitch24         rms -15.08 dBFS
+  v3.4.0 reference freeze-spatial         rms -15.40 dBFS
+  v3.4.0 reference freeze-sync-reengage   rms -14.62 dBFS
+
+$ O-GrainScatter-adapt-gate <dir>
+
+-- U1. ExtremaMap unit vs research-scripts/proto_output.txt
+  [PASS] U1 sine 55 Hz: M and K0 within 1 % of the prototype            M 220 (proto 220), K0 11.0 (proto 11.0)
+  [PASS] U1 white noise: M and K0 within 1 % of the prototype           M 47031 (proto 47030), K0 2366.4 (proto 2366.4)
+  [PASS] U1 silence: M and K0 within 1 % of the prototype               M 0 (proto 0), K0 1.0 (proto 0.0), fallback
+
+-- A. Adapt 0 bit-exact against v3.4.0 (144a73f3); live grains untouched at Adapt 100
+  [PASS] A free == v3.4.0 bit for bit                                   peak diff 0.0000000000 (ref rms -14.8 dBFS)
+  [PASS] A sync == v3.4.0 bit for bit                                   peak diff 0.0000000000 (ref rms -23.4 dBFS)
+  [PASS] A spatial == v3.4.0 bit for bit                                peak diff 0.0000000000 (ref rms -15.7 dBFS)
+  [PASS] A freeze == v3.4.0 bit for bit                                 peak diff 0.0000000000 (ref rms -13.8 dBFS)
+  [PASS] A freeze-rev-size-tilt == v3.4.0 bit for bit                   peak diff 0.0000000000 (ref rms -13.9 dBFS)
+  [PASS] A freeze-pitch24 == v3.4.0 bit for bit                         peak diff 0.0000000000 (ref rms -15.1 dBFS)
+  [PASS] A freeze-spatial == v3.4.0 bit for bit                         peak diff 0.0000000000 (ref rms -15.4 dBFS)
+  [PASS] A freeze-sync-reengage == v3.4.0 bit for bit                   peak diff 0.0000000000 (ref rms -14.6 dBFS)
+  [PASS] A free@adapt100 == v3.4.0 bit for bit                          peak diff 0.0000000000 (ref rms -14.8 dBFS)
+  [PASS] A sync@adapt100 == v3.4.0 bit for bit                          peak diff 0.0000000000 (ref rms -23.4 dBFS)
+  [PASS] A spatial@adapt100 == v3.4.0 bit for bit                       peak diff 0.0000000000 (ref rms -15.7 dBFS)
+  [PASS] A v3.4.0 freeze session into an Adapt 50 instance == v3.4.0    adapt 0, peak diff 0.0000000000
+
+-- L. sparse/dense snapshot: sine-half / noise-half mean length (GS 100 ms)
+  [PASS] L Adapt 100 %: ratio >= 3.0                                    5.78 (496 / 491 spawns)
+  [PASS] L Adapt 50 %: ratio >= 1.8                                     2.80 (496 / 491 spawns)
+  [PASS] L Adapt 0 control: ratio 1.00 +- 0.02                          1.0000 (496 / 499)
+
+-- M. mean adapted length (before Size Random) vs Grain Size, Adapt 100
+  [PASS] M1 sparse/dense GS 50 ms: mean within 5 %                      49.93 ms (-0.15 %, 2387 spawns)
+  [PASS] M1 sparse/dense GS 100 ms: mean within 5 %                     100.21 ms (0.21 %, 2387 spawns)
+  [PASS] M1 sparse/dense GS 200 ms: mean within 5 %                     203.94 ms (1.97 %, 2387 spawns)
+  [PASS] M1 bass+snare GS 50 ms: mean within 5 %                        50.07 ms (0.14 %, 2387 spawns)
+  [PASS] M1 bass+snare GS 100 ms: mean within 5 %                       100.19 ms (0.19 %, 2387 spawns)
+  [PASS] M1 bass+snare GS 200 ms: mean within 5 %                       201.70 ms (0.85 %, 2387 spawns)
+  [PASS] M2 reverse sparse/dense GS 50 ms: mean within 5 %              49.95 ms (-0.11 %, 2387 spawns)
+  [PASS] M2 reverse sparse/dense GS 100 ms: mean within 5 %             99.54 ms (-0.46 %, 2387 spawns)
+  [PASS] M2 reverse sparse/dense GS 200 ms: mean within 5 %             199.42 ms (-0.29 %, 2387 spawns)
+  [PASS] M2 reverse bass+snare GS 50 ms: mean within 5 %                49.84 ms (-0.31 %, 2387 spawns)
+  [PASS] M2 reverse bass+snare GS 100 ms: mean within 5 %               98.45 ms (-1.55 %, 2387 spawns)
+  [PASS] M2 reverse bass+snare GS 200 ms: mean within 5 %               202.65 ms (1.32 %, 2387 spawns)
+
+-- P. Grain Size proportionality (bass+snare, Adapt 100)
+  [PASS] P1 GS 50 -> 100: unclamped grains scale 2.00 +- 0.01           ratio 2.000000 .. 2.000000 over 2387 grains
+  [PASS] P1 every logged adapted length == the map's lookup at its start 0 mismatches in 2387
+
+-- F. fallbacks: fixed length, bit-exact against Adapt 0
+  [PASS] F1 silent snapshot                                             peak diff 0.0000000000, adapted 0 of 395 frozen spawns, rms -400.0 dBFS
+  [PASS] F1 -80 dB noise                                                peak diff 0.0000000000, adapted 0 of 395 frozen spawns, rms -89.3 dBFS
+  [PASS] F1 loop < 0.2 s (freeze at 85 ms)                              peak diff 0.0000000000, adapted 0 of 591 frozen spawns, rms -20.0 dBFS
+  [PASS] F1 spawns before readyAbs: fixed length, output identical until then readyAbs 101994: diff before 0.0000000000, after -20.2 dBFS; 8 fixed frozen spawns, last at 101760, first adapted at 102240
+
+-- D. block-size null at Adapt 100 in freeze
+  [PASS] D1 engage: 32 / variable null the 512 render                   -400.0 / -400.0 dBFS (155 adapted spawns)
+  [PASS] D2 engage: first adapted spawn identical, readyAbs = engage + ceil(W / 32) first 102425 / 102425 / 102425; readyAbs 101994 (want 101994 = 76.9 ms)
+  [PASS] D1 adapt 0 -> 100 + size: 32 / variable null the 512 render    -400.0 / -400.0 dBFS (76 adapted spawns)
+  [PASS] D1 re-engage mid-analysis: 32 / variable null the 512 render   -400.0 / -400.0 dBFS (242 adapted spawns)
+  [PASS] D2 re-engage mid-analysis: first adapted spawn identical, readyAbs = engage + ceil(W / 32) first 104120 / 104120 / 104120; readyAbs 104042 (want 104042 = 76.9 ms)
+  [PASS] D1 spatial trajectory: 32 / variable null the 512 render       -400.0 / -400.0 dBFS (97 adapted spawns)
+
+-- R. allocations in processBlock
+  [PASS] R1 0 allocations in processBlock (32 + variable blocks)        0 allocations; liveness: a deliberate new counted 1
+
+-- V. level flat with varying lengths (16 hash-mixed seeds x 8 s)
+  [PASS] V1 sparse/dense GS 200, Scan 30, Adapt 50 vs 0 within 0.5 dB   -0.003 dB (old-vs-old 0.007 dB; length ratio 2.83; level -12.7 dBFS)
+  [INFO] V3 report: Adapt 50 / 100 vs 0 at Scan 30 and at Scan 0 (floor) Scan 30: -0.00 / -0.16 dB; Scan 0: 1.29 / 1.70 dB
+  [PASS] V2 dense noise cloud, Adapt 100 vs 0 within 0.5 dB             -0.000 dB (level -19.5 dBFS)
+
+-- C. analysis step cost per 32-sample block (2 s white noise)
+  [PASS] C1 48 kHz: worst block median <= 50 us                         12.5 us; total 432.727 us over 116 blocks (77.3 ms)
+  [PASS] C1 96 kHz: worst block median <= 50 us                         15.3 us; total 861.759 us over 209 blocks (69.7 ms)
+
+ALL PASS — 0 failure(s)
+exit 0
+
+$ O-GrainScatter-adapt-gate-fixedk
+
+-- N1. negative control: fixed K = GS x M / len, no K0, no c solve (must FAIL M1)
+  [PASS] N1 fixed-K mean length misses GS 100 ms by > 5 % (M1 FAILS)    2387 spawns, mean 237.2 ms (137.2 %)
+exit 0

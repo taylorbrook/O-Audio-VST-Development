@@ -8,7 +8,7 @@ juce_add_plugin(OuariconGrainScatter
     PLUGIN_CODE OuGS
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-GrainScatter${OUARICON_DEV_SUFFIX}"
-    VERSION 3.4.0
+    VERSION 3.5.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -177,5 +177,35 @@ if(OUARICON_BUILD_TESTS)
         list(TRANSFORM _gs_st_srcs REPLACE "^${CMAKE_CURRENT_SOURCE_DIR}/Source/" "${_gs_v330_src}/")
         set_property(TARGET O-GrainScatter-skip-tilt-v330 PROPERTY SOURCES ${_gs_st_srcs})
         target_compile_definitions(O-GrainScatter-skip-tilt-v330 PRIVATE GS_SKIPTILT_V330=1)
+    endif()
+
+    # v3.5.0 Grain Adapt gate (extrema-density grain length). The gate target records
+    # every spawn (GS_TEST_SPAWN_LOG, test builds only). The -v340 twin compiles the same
+    # driver against v3.4.0 (commit 144a73f3, extracted with git archive at configure
+    # time) and dumps the reference renders + a v3.4.0 session that Adapt 0 must match;
+    # the -fixedk twin is the negative control (fixed K, no calibration: must FAIL M1):
+    #   O-GrainScatter-adapt-gate-v340 <dir> && O-GrainScatter-adapt-gate <dir> && O-GrainScatter-adapt-gate-fixedk
+    ouaricon_add_processor_console(OuariconGrainScatter ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/adapt-gate/main.cpp adapt-gate)
+    target_compile_definitions(O-GrainScatter-adapt-gate PRIVATE GS_TEST_SPAWN_LOG=1)
+    ouaricon_add_processor_console(OuariconGrainScatter ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/adapt-gate/main.cpp adapt-gate-fixedk)
+    target_compile_definitions(O-GrainScatter-adapt-gate-fixedk PRIVATE GS_TEST_SPAWN_LOG=1 GS_TEST_ADAPT_FIXED_K=1)
+    set(_gs_v340_root ${CMAKE_BINARY_DIR}/gs-v340-144a73f3)
+    set(_gs_v340_src ${_gs_v340_root}/plugins/O-GrainScatter/Source)
+    if(NOT EXISTS ${_gs_v340_src}/PluginProcessor.cpp)
+        file(MAKE_DIRECTORY ${_gs_v340_root})
+        execute_process(
+            COMMAND git -C ${CMAKE_SOURCE_DIR} archive 144a73f3 plugins/O-GrainScatter/Source
+            COMMAND tar -x -C ${_gs_v340_root}
+            RESULT_VARIABLE _gs_v340_rc)
+    endif()
+    if(EXISTS ${_gs_v340_src}/PluginProcessor.cpp)
+        ouaricon_add_processor_console(OuariconGrainScatter ${_gs_v340_src}
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/adapt-gate/main.cpp adapt-gate-v340)
+        get_target_property(_gs_ad_srcs O-GrainScatter-adapt-gate-v340 SOURCES)
+        list(TRANSFORM _gs_ad_srcs REPLACE "^${CMAKE_CURRENT_SOURCE_DIR}/Source/" "${_gs_v340_src}/")
+        set_property(TARGET O-GrainScatter-adapt-gate-v340 PROPERTY SOURCES ${_gs_ad_srcs})
+        target_compile_definitions(O-GrainScatter-adapt-gate-v340 PRIVATE GS_ADAPT_V340=1)
     endif()
 endif()

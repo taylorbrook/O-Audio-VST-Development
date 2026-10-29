@@ -21,6 +21,7 @@
 
 #include <JuceHeader.h>
 #include "DelayBuffer.h"
+#include "ExtremaMap.h"
 #include <array>
 #include <cmath>
 
@@ -42,6 +43,10 @@
 // live ring, so frozen pitched-up grains don't alias either. The capture ends
 // margin(3) = 506 samples (~10 ms) before the write head, where every level is
 // settled; at engage the newest ~10 ms are not part of the loop.
+//
+// v3.5.0: one ExtremaMap analyses the held capture (not per slot: only grains of the
+// current slot spawn, and a grain latches its length at spawn). Engage starts it,
+// release / clear / prepare cancel it; it runs a little each block (analysisStep).
 class FreezeManager
 {
 public:
@@ -59,6 +64,8 @@ public:
         }
         maxLength = maxLengthSamples;
         maxXfade = juce::jmax (1, static_cast<int> (newSampleRate * 0.010));  // 10 ms seam crossfade
+        sampleRate = newSampleRate;
+        extrema.prepare (newSampleRate, maxLengthSamples);
         active = false;
         currentSlot = 0;
     }
@@ -73,6 +80,7 @@ public:
             s.length = s.loopLength = s.xfade = 0;
             s.head = 0.0;
         }
+        extrema.clear();
         active = false;
         currentSlot = 0;
     }
@@ -81,7 +89,8 @@ public:
     // here to what the delay line has actually been written with (less the capture
     // end offset), capped at the slot size, so a freeze pressed right after load
     // doesn't loop through never-written silence.
-    void engage (const DelayBuffer& delayBuf, int slot)
+    // engageAbs: the absolute sample clock at engage (the analysis quota counts from it).
+    void engage (const DelayBuffer& delayBuf, int slot, juce::int64 engageAbs)
     {
         auto& s = slots[static_cast<size_t> (slot)];
         const int len = juce::jlimit (0, maxLength, delayBuf.getSamplesWritten() - kCaptureEndDelay);
@@ -92,10 +101,50 @@ public:
         s.head       = static_cast<double> (len);   // one past the newest captured sample
         currentSlot  = slot;
         active       = true;
+        extrema.begin (s.snap.getOrigin(), s.length, s.xfade, s.loopLength, engageAbs);
     }
 
     // New grains go back to the live delay line. Grains already on the snapshot keep it.
-    void release() { active = false; }
+    void release()
+    {
+        active = false;
+        extrema.cancel();
+    }
+
+    // ── v3.5.0 Grain Adapt ──────────────────────────────────────────────────
+    // Once per block, after engage / release: analysis work up to blockEndAbs's quota.
+    void analysisStep (const DelayBuffer& delayBuf, juce::int64 blockEndAbs) noexcept
+    {
+        extrema.step (delayBuf.getRing(), blockEndAbs);
+    }
+
+    bool adaptValid() const noexcept { return active && extrema.isDone(); }
+    bool adaptReady (juce::int64 abs) const noexcept { return active && extrema.ready (abs); }
+    std::uint32_t adaptGeneration() const noexcept { return extrema.getGeneration(); }
+    const ExtremaMap& getExtremaMap() const noexcept { return extrema; }
+
+    double adaptMinLength() const noexcept { return kAdaptMinMs * 0.001 * sampleRate; }
+    double adaptMaxLength() const noexcept { return kAdaptMaxMs * 0.001 * sampleRate; }
+
+    // c for (grain size, adapt): the clamped mean length over the snapshot = gs.
+    double solveAdaptC (double gs, double a) const noexcept
+    {
+        return extrema.solveC (gs, a, adaptMinLength(), adaptMaxLength());
+    }
+
+    // Adapted grain length (output samples) for a grain anchored at snapshot position
+    // `anchor`: forward grains measure the extrema ahead of it, reverse grains behind.
+    double adaptiveLength (double anchor, bool reverse, double c, double gs, double a) const noexcept
+    {
+       #ifdef GS_TEST_ADAPT_FIXED_K
+        juce::ignoreUnused (c);
+        return extrema.lengthAtFixedK (extrema.loopCoord (anchor), reverse, gs, a, adaptMinLength(), adaptMaxLength());
+       #else
+        return extrema.lengthAt (extrema.loopCoord (anchor), reverse, c, gs, a, adaptMinLength(), adaptMaxLength());
+       #endif
+    }
+
+    double loopCoord (double anchor) const noexcept { return extrema.loopCoord (anchor); }
 
     bool isActive() const { return active; }
     int getCurrentSlot() const { return currentSlot; }
@@ -181,7 +230,12 @@ private:
         }
     }
 
+    static constexpr double kAdaptMinMs = 10.0;    // the Grain Size range
+    static constexpr double kAdaptMaxMs = 500.0;
+
     std::array<Slot, kNumSlots> slots;
+    ExtremaMap extrema;
+    double sampleRate = 44100.0;
     int maxLength = 0;
     int maxXfade = 441;
     int currentSlot = 0;

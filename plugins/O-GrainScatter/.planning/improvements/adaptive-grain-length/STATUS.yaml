@@ -1,0 +1,34 @@
+milestone: adaptive-grain-length
+created: 2026-10-28T00:00:00Z
+lastActivity: 2026-10-29T00:00:00Z
+description: "signal-adaptive grain length from extrema density (Nielsen DAFx26) for freeze mode (research #11)"
+phases:
+  discuss:
+    status: complete
+    completedAt: 2026-10-28T00:00:00Z
+    notes: "Adapt knob 0-100 % (default 0, bit-exact), freeze only, Grain Size = mean with K derived per snapshot, grains/sec unchanged. Paper text saved as nielsen-dafx26.txt." 
+  research:
+    status: complete
+    startedAt: 2026-10-28T20:30:00Z
+    completedAt: 2026-10-28T20:46:00Z
+    notes: "Fixed K0 (median span 100 ms) + per-block c solve; mid-channel analysis spread over blocks (~70-76 ms fallback after engage); single store in FreezeManager; scatter stays on Grain Size; lengths in output samples; domain mixed (dsp then gui); 3.4.0 -> 3.5.0"
+  plan:
+    status: complete
+    completedAt: 2026-10-28T21:20:00Z
+    domain: mixed
+    executeAgent: general-purpose
+    notes: "6 tasks / 3 waves: ExtremaMap -> FreezeManager -> processor branch (dsp-agent), then adapt-gate (17 rows, v340 twin 144a73f3, fixed-K negative control) || UI knob (gui-agent), then integration. Approved 2026-10-28."
+  execute:
+    status: complete
+    startedAt: 2026-10-28T21:30:00Z
+    completedAt: 2026-10-28T22:10:00Z
+    notes: "Tasks 1-6 done inline. adapt-gate 47/47 + N1 negative control; blocksize-null 22, density-gain 25, skip-tilt 31, alias ALL PASS; UI gates PASS; installed dev VST3+AU. Known: +1.3/+1.7 dB at Scan 0 (floor-pinned coherent cluster) - verify listening item. Uncommitted, untagged."
+    backup: backups/O-GrainScatter/v3.4.0
+  verify:
+    status: complete
+    startedAt: 2026-10-28T22:30:00Z
+    completedAt: 2026-10-29T00:00:00Z
+    notes: "Automated verification PASSED (adapt 47/47 + N1, blocksize-null 21, density-gain 24, alias 10 + v320 control, skip-tilt 30, UI gates, pluginval 10, auval 3.5.0). Human checks H1-H4 passed (user, 2026-10-29); H1 Scan 0 +1.3/+1.7 dB accepted as known limitation."
+baseVersion: 3.4.0
+versionBump: minor
+targetVersion: 3.5.0

@@ -64,6 +64,7 @@ GrainScatterProcessor::GrainScatterProcessor()
     grainShapeParam      = parameters.getRawParameterValue("grain_shape");
     grainSkipParam       = parameters.getRawParameterValue("grain_skip");   // v3.4.0
     shapeTiltParam       = parameters.getRawParameterValue("shape_tilt");   // v3.4.0
+    grainAdaptParam      = parameters.getRawParameterValue("grain_adapt");  // v3.5.0
 
     // Spatial parameters
     spatialModeParam     = parameters.getRawParameterValue("spatial_mode");
@@ -210,6 +211,17 @@ juce::AudioProcessorValueTreeState::ParameterLayout GrainScatterProcessor::creat
         0.0f,
         juce::AudioParameterFloatAttributes().withLabel ("%")
             .withStringFromValueFunction ([] (float v, int) { return juce::String (v, 1); })));
+
+    // v3.5.0 (research 2026-update #11, Nielsen DAFx26): Grain Adapt. While Freeze is
+    // held, each new grain's length follows the extrema density of the snapshot where it
+    // starts (sparse = longer, dense = shorter); Grain Size stays the mean. 0 = the
+    // v3.4.0 sound exactly (0.1 steps from a 0 start snap the default to exactly 0).
+    coreGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "grain_adapt", 5 },
+        "Grain Adapt",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        0.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("%")));
 
     layout.add(std::move(coreGroup));
 
@@ -566,6 +578,7 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     int   grainShapeIdx  = static_cast<int>(grainShapeParam->load());
     const float grainSkip = juce::jlimit (0.0f, 1.0f, grainSkipParam->load() / 100.0f);   // v3.4.0
     const float shapeTilt = juce::jlimit (-1.0f, 1.0f, shapeTiltParam->load() / 100.0f);  // v3.4.0
+    const float grainAdapt = juce::jlimit (0.0f, 1.0f, grainAdaptParam->load() / 100.0f);  // v3.5.0
     const double tiltMinRamp = GrainPool::kTiltMinRampMs * 0.001 * currentSampleRate;
 
     // Spatial parameters
@@ -649,11 +662,28 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         const int slot  = (grainPool.isFrozenSlotInUse (other)
                            && ! grainPool.isFrozenSlotInUse (freezeManager.getCurrentSlot()))
                               ? freezeManager.getCurrentSlot() : other;
-        freezeManager.engage (delayBuffer, slot);
+        freezeManager.engage (delayBuffer, slot, samplesProcessed);
     }
     else if (!freeze && wasFrozen)
         freezeManager.release();
     wasFrozen = freeze;
+
+    // v3.5.0 Grain Adapt: the snapshot's extrema analysis runs a bounded slice per block
+    // (always, even at Adapt 0 — it only writes FreezeManager's private state, and turning
+    // Adapt up mid-hold then works at once). c, which keeps Grain Size the mean length, is
+    // re-solved only when the size, the amount or the analysis changes, and never at 0.
+    freezeManager.analysisStep (delayBuffer, samplesProcessed + numSamples);
+    if (grainAdapt > 0.0f && freezeManager.adaptValid())
+    {
+        const auto gen = freezeManager.adaptGeneration();
+        if (gen != adaptCGeneration || grainSizeSamples != adaptCSize || ! juce::exactlyEqual (grainAdapt, adaptCAmount))
+        {
+            adaptC = freezeManager.solveAdaptC (static_cast<double> (grainSizeSamples), grainAdapt);
+            adaptCGeneration = gen;
+            adaptCSize = grainSizeSamples;
+            adaptCAmount = grainAdapt;
+        }
+    }
 
     // v3.2.0 density compensation (research 2026-update §3.2). With N grains live, the
     // wet power is P = N*mu2 + rho*N(N-1)*mu1^2: rho = 0 for incoherent grains (sprayed),
@@ -790,7 +820,6 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                 actualGrainSize = juce::jmax(1, static_cast<int>(grainSizeSamples
                     * (1.0f + draw.nextFloat (CounterRng::SlotSize) * sizeRandom)));
             gp.grainLengthSamples = actualGrainSize;
-            gp.tiltPeak = GrainPool::tiltPeakFor (shapeTilt, actualGrainSize, tiltMinRamp);   // v3.4.0
 
             // Per-grain amplitude randomization
             if (ampRandom > 0.0f)
@@ -844,6 +873,50 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                 gp.frozenSlot = freezeManager.getCurrentSlot();
                 gp.frozenBase = freezeManager.getSpawnBase (gp.positionInSamples);
             }
+
+            // v3.5.0 Grain Adapt: a frozen grain's length from the snapshot's extrema density
+            // at its start. Everything above (position, guard, scatter on the Grain Size knob)
+            // is unchanged, so a grain starts where it would at Adapt 0. A reverse grain is
+            // anchored at its Adapt 0 start and measures the extrema behind it (the audio it
+            // reads), then its base moves so that start holds. Size Random scales the adapted
+            // length with the same draw. Before the analysis is ready: the fixed length.
+            bool adapted = false;
+            if (gp.readFromFrozen && grainAdapt > 0.0f && freezeManager.adaptReady (absSample))
+            {
+                const double anchor = gp.reverse ? gp.frozenBase + static_cast<double> (gp.grainLengthSamples - 1)
+                                                 : gp.frozenBase;
+                const double lenA = freezeManager.adaptiveLength (anchor, gp.reverse, adaptC,
+                                                                  static_cast<double> (grainSizeSamples), grainAdapt);
+                int len = juce::jmax (1, static_cast<int> (lenA));
+                if (sizeRandom > 0.0f)
+                    len = juce::jmax (1, static_cast<int> (len * (1.0f + draw.nextFloat (CounterRng::SlotSize) * sizeRandom)));
+                gp.grainLengthSamples = len;
+                if (gp.reverse)
+                    gp.frozenBase = anchor - static_cast<double> (len - 1);
+                adapted = true;
+               #ifdef GS_TEST_SPAWN_LOG
+                spawnLogPreRandom = lenA;
+               #endif
+            }
+            gp.tiltPeak = GrainPool::tiltPeakFor (shapeTilt, gp.grainLengthSamples, tiltMinRamp);   // v3.4.0
+
+           #ifdef GS_TEST_SPAWN_LOG
+            {
+                auto& e = spawnLog[static_cast<size_t> (spawnLogCount % kSpawnLogSize)];
+                e.absSample = absSample;
+                e.grainLengthSamples = gp.grainLengthSamples;
+                e.preRandomLength = adapted ? spawnLogPreRandom : static_cast<double> (gp.grainLengthSamples);
+                e.loopPos = gp.readFromFrozen
+                    ? freezeManager.loopCoord (gp.reverse ? gp.frozenBase + gp.grainLengthSamples - 1 : gp.frozenBase)
+                    : -1.0;
+                e.reverse = gp.reverse;
+                e.frozen = gp.readFromFrozen;
+                e.adapted = adapted;
+                ++spawnLogCount;
+            }
+           #else
+            juce::ignoreUnused (adapted);
+           #endif
 
             // Spatial parameters for scatter cloud
             if (spatialMode > 0)

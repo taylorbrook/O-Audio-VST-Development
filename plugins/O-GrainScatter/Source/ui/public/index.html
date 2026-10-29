@@ -189,6 +189,12 @@
             align-items: center;
             width: 62px;
         }
+        /* v3.5.0: Core Engine's first row takes Adapt beside Grain Size, so its cells
+           are 58 px with a 3 px gap: 7 x 58 + 6 x 3 = 424 px in the 429 px group. The
+           48 px dial is unchanged and the dial pitch stays 61 px (62 + 6 was 68).
+           Row 2: 5 x 58 + 80 + 5 x 3 = 385 px. FR Étalement is 57.8 px. */
+        .core-group .group-controls { gap: 3px; }
+        .core-group .knob-container { width: 58px; }
         .knob-name {
             font-size: 9px;
             text-transform: uppercase;
@@ -908,13 +914,18 @@
     <!-- Controls -->
     <div class="controls-area">
         <!-- Group 1: Core Engine -->
-        <div class="group">
+        <div class="group core-group">
             <div class="group-label" data-i18n="label.coreEngine">Core Engine</div>
             <div class="group-controls">
                 <div class="knob-container">
                     <span class="knob-name" data-i18n="label.grainSize">Grain Size</span>
                     <div class="knob" data-param="grain_size"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="grain_size">100 ms</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.adapt">Adapt</span>
+                    <div class="knob" data-param="grain_adapt"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="grain_adapt">0%</span>
                 </div>
                 <div class="knob-container">
                     <span class="knob-name" data-i18n="label.density">Density</span>
