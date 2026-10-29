@@ -283,6 +283,17 @@
             background: var(--tan);
         }
 
+        /* v2.9.0: Spectral has no playback direction - Reverse dims, like a
+           disabled knob, and ignores clicks */
+        #reverse-toggle.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        #reverse-toggle.disabled:hover {
+            background: var(--btn-idle);
+        }
+
         #reverse-toggle.active {
             background: var(--leaf-fill);
             color: var(--paper);
@@ -295,6 +306,12 @@
             left: 50%;
             transform: translateX(-50%);
             z-index: 5;
+            /* v2.9.0: the Mode and Engine toggles side by side, one row. Both
+               captions are choice strings verbatim (never localized), so the
+               row's width is the same in every language. */
+            display: flex;
+            gap: 14px;
+            white-space: nowrap;
         }
 
         #mode-toggle {
@@ -305,7 +322,8 @@
             background: var(--btn-idle);
         }
 
-        .mode-option {
+        .mode-option,
+        .engine-option {
             padding: 8px 20px;
             font-size: 11px;
             letter-spacing: 0.5px;
@@ -315,17 +333,48 @@
             text-transform: uppercase;
         }
 
-        .mode-option:hover {
+        .mode-option:hover,
+        .engine-option:hover {
             background: var(--tan);
         }
 
-        .mode-option.active {
+        .mode-option.active,
+        .engine-option.active {
             background: var(--leaf-fill);
             color: var(--paper);
         }
 
-        .mode-option:not(:last-child) {
+        .mode-option:not(:last-child),
+        .engine-option:not(:last-child) {
             border-right: 1px solid var(--walnut);
+        }
+
+        /* v2.9.0: the Engine toggle, styled exactly like #mode-toggle */
+        #engine-toggle {
+            display: flex;
+            border: 1px solid var(--walnut);
+            border-radius: 3px;
+            overflow: hidden;
+            background: var(--btn-idle);
+        }
+
+        /* v2.9.0 (D1): the knob slots swap with the engine. Granular shows
+           Size + Grains, Spectral shows Diffusion + Avg in the same two slots;
+           the inactive pair is out of the flow entirely, never a dimmed knob
+           taking space. !important because .knob sets display: flex. */
+        .engine-hidden {
+            display: none !important;
+        }
+
+        /* v2.9.0 WIDTH FIT, not a pin. DIFFUSION (EN and FR, same word) renders
+           61.17 px at the 1 px caption tracking - 1.17 px over the 60 px knob
+           budget, so it widened its slot and moved the row against Size (the
+           tip gate's slot check, assertion 9, reported 1.17 px). 0.8 px tracking
+           over nine letters takes it to ~59.4, inside the budget in every
+           language (zh 扩散度 is narrower still), so neither engine nor any
+           language moves a box and the Granular row stays the v2.8.0 row. */
+        #diffusion-knob .knob-label {
+            letter-spacing: 0.8px;
         }
 
         /* Knobs container */
@@ -940,6 +989,14 @@ html[lang="zh-Hans"] .lfo-shape-option { padding-left: 4.86px; padding-right: 4.
                 <div class="mode-option active" data-mode="0">Manual</div>
                 <div class="mode-option" data-mode="1">Threshold</div>
             </div>
+            <!-- v2.9.0 Engine toggle. Same rule as Mode: both captions are the
+                 ENGINE AudioParameterChoice option strings VERBATIM
+                 (PluginProcessor.cpp, StringArray {"Granular", "Spectral"}), so
+                 both are EXEMPT under D-01 arm 1 and carry no key. -->
+            <div id="engine-toggle">
+                <div class="engine-option active" data-engine="0">Granular</div>
+                <div class="engine-option" data-engine="1">Spectral</div>
+            </div>
         </div>
 
         <!-- Knobs -->
@@ -988,6 +1045,19 @@ html[lang="zh-Hans"] .lfo-shape-option { padding-left: 4.86px; padding-right: 4.
                 <div class="knob-value">400 ms</div>
             </div>
 
+            <!-- v2.9.0 Diffusion knob: the Size slot in Spectral (D1) -->
+            <div class="knob engine-hidden" id="diffusion-knob">
+                <div class="knob-visual">
+                    <svg viewBox="0 0 60 60">
+                        <circle class="knob-track" cx="30" cy="30" r="25"/>
+                        <circle class="knob-vine" cx="30" cy="30" r="25"
+                            stroke-dasharray="157" stroke-dashoffset="157"/>
+                    </svg>
+                </div>
+                <div class="knob-label" data-i18n="label.diffusion" data-label="Diffusion">Diffusion</div>
+                <div class="knob-value">0%</div>
+            </div>
+
             <!-- Grain Count knob -->
             <div class="knob" id="grain-count-knob">
                 <div class="knob-visual">
@@ -998,6 +1068,19 @@ html[lang="zh-Hans"] .lfo-shape-option { padding-left: 4.86px; padding-right: 4.
                     </svg>
                 </div>
                 <div class="knob-label" data-i18n="label.grains" data-label="Grains">Grains</div>
+                <div class="knob-value">8</div>
+            </div>
+
+            <!-- v2.9.0 Avg knob (AVG_FRAMES): the Grains slot in Spectral (D1) -->
+            <div class="knob engine-hidden" id="avg-frames-knob">
+                <div class="knob-visual">
+                    <svg viewBox="0 0 60 60">
+                        <circle class="knob-track" cx="30" cy="30" r="25"/>
+                        <circle class="knob-vine" cx="30" cy="30" r="25"
+                            stroke-dasharray="157" stroke-dashoffset="85.48"/>
+                    </svg>
+                </div>
+                <div class="knob-label" data-i18n="label.avg" data-label="Avg">Avg</div>
                 <div class="knob-value">8</div>
             </div>
 
@@ -1093,10 +1176,12 @@ html[lang="zh-Hans"] .lfo-shape-option { padding-left: 4.86px; padding-right: 4.
         // no hover-help) and are imported anyway so the canon block below stays
         // byte-identical to the other forty-two copies.
         import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';
+        import { SPECTRAL_TIP_KEYS } from './js/i18n.js';   // v2.9.0, outside the canon line
 
         // Parameter states
         let freezeState, reverseState, thresholdState, modeState, driftState, grainSizeState, grainCountState, detuneState, mixState;
         let lfoRateState, lfoDepthState, lfoShapeState;
+        let engineState, diffusionState, avgFramesState;   // v2.9.0
 
         // Global drag state (fixes the scope issue with knob dragging)
         const dragState = {
@@ -1173,6 +1258,9 @@ html[lang="zh-Hans"] .lfo-shape-option { padding-left: 4.86px; padding-right: 4.
             lfoRateState = Juce.getSliderState('LFO_RATE');
             lfoDepthState = Juce.getSliderState('LFO_DEPTH');
             lfoShapeState = Juce.getComboBoxState('LFO_SHAPE');
+            engineState = Juce.getComboBoxState('ENGINE');
+            diffusionState = Juce.getSliderState('DIFFUSION');
+            avgFramesState = Juce.getSliderState('AVG_FRAMES');
 
             // Initialize UI from parameter values
             updateFreezeUI();
@@ -1207,14 +1295,22 @@ html[lang="zh-Hans"] .lfo-shape-option { padding-left: 4.86px; padding-right: 4.
             lfoRateState.valueChangedEvent.addListener(() => updateKnobUI('lfo-rate-knob'));
             lfoDepthState.valueChangedEvent.addListener(() => updateKnobUI('lfo-depth-knob'));
             lfoShapeState.valueChangedEvent.addListener(() => updateLfoShapeUI());
+            // v2.9.0: the engine swap follows the PARAMETER, so a preset load, a
+            // session restore or host automation re-lays the page live - there is
+            // no one-shot push to go stale.
+            engineState.valueChangedEvent.addListener(() => updateEngineUI());
+            diffusionState.valueChangedEvent.addListener(() => updateKnobUI('diffusion-knob'));
+            avgFramesState.valueChangedEvent.addListener(() => updateKnobUI('avg-frames-knob'));
 
             // Set up UI event handlers
             setupFreezeButton();
             setupReverseToggle();
             setupModeToggle();
+            setupEngineToggle();
             setupKnobs();
             setupLfoShapeToggle();
             setupGlobalDragHandlers();
+            updateEngineUI();
         }
 
         // Freeze button
@@ -1243,6 +1339,7 @@ html[lang="zh-Hans"] .lfo-shape-option { padding-left: 4.86px; padding-right: 4.
         function setupReverseToggle() {
             const reverseBtn = document.getElementById('reverse-toggle');
             reverseBtn.addEventListener('click', () => {
+                if (reverseBtn.classList.contains('disabled')) return;   // Spectral
                 const newValue = !reverseState.getValue();
                 reverseState.setValue(newValue);
             });
@@ -1280,6 +1377,45 @@ html[lang="zh-Hans"] .lfo-shape-option { padding-left: 4.86px; padding-right: 4.
         }
 
         // Global drag handlers (set up once)
+        // ── v2.9.0 Engine ──────────────────────────────────────────────────
+        function isSpectral() {
+            return !!engineState && engineState.getChoiceIndex() === 1;
+        }
+
+        function setupEngineToggle() {
+            document.querySelectorAll('.engine-option').forEach(option => {
+                option.addEventListener('click', () => {
+                    engineState.setChoiceIndex(parseInt(option.dataset.engine));
+                });
+            });
+        }
+
+        // Spectral: Size -> Diffusion and Grains -> Avg in the same slots,
+        // Reverse dims, the LFO group names what it modulates, and the
+        // engine-dependent tips switch body (applyEngineTips, run by the i18n
+        // reapply). The first call happens while this module is still
+        // evaluating, before the i18n block's `let uiLanguage` exists, so the
+        // label key is set on the dataset here and the text is left to the
+        // i18n sweep - window.__reapplyI18n is undefined on that first call.
+        function updateEngineUI() {
+            const spectral = isSpectral();
+            document.querySelectorAll('.engine-option').forEach((option, index) => {
+                option.classList.toggle('active', index === (spectral ? 1 : 0));
+            });
+            document.getElementById('grain-size-knob').classList.toggle('engine-hidden', spectral);
+            document.getElementById('grain-count-knob').classList.toggle('engine-hidden', spectral);
+            document.getElementById('diffusion-knob').classList.toggle('engine-hidden', !spectral);
+            document.getElementById('avg-frames-knob').classList.toggle('engine-hidden', !spectral);
+            document.getElementById('reverse-toggle').classList.toggle('disabled', spectral);
+            // literal keys, one per branch: check-i18n [15] finds a key by its literal
+            const lfoLabel = document.getElementById('lfo-group-label');
+            if (spectral) lfoLabel.dataset.i18n = 'label.diffusionLfo';
+            else          lfoLabel.dataset.i18n = 'label.driftLfo';
+            if (window.__reapplyI18n) window.__reapplyI18n();
+            updateKnobUI('diffusion-knob');
+            updateKnobUI('avg-frames-knob');
+        }
+
         function setupGlobalDragHandlers() {
             document.addEventListener('mousemove', (e) => {
                 if (!dragState.isDragging || !dragState.target) return;
@@ -1318,6 +1454,8 @@ html[lang="zh-Hans"] .lfo-shape-option { padding-left: 4.86px; padding-right: 4.
             setupKnob('mix-knob', mixState, 0, 100, val => `${val.toFixed(0)}%`, '%');
             setupKnob('lfo-rate-knob', lfoRateState, 0.01, 10, val => `${val.toFixed(2)} Hz`, 'Hz');
             setupKnob('lfo-depth-knob', lfoDepthState, 0, 100, val => `${val.toFixed(0)}%`, '%');
+            setupKnob('diffusion-knob', diffusionState, 0, 100, val => `${val.toFixed(0)}%`, '%');
+            setupKnob('avg-frames-knob', avgFramesState, 1, 16, val => `${Math.round(val)}`, '');
         }
 
         function setupKnob(knobId, state, min, max, formatValue, unit) {
@@ -1583,6 +1721,36 @@ html[lang="zh-Hans"] .lfo-shape-option { padding-left: 4.86px; padding-right: 4.
                 if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
             });
         }
+
+        // ════════════════════════════════════════════════════════════════════════
+        // v2.9.0 engine-dependent tips
+        // ════════════════════════════════════════════════════════════════════════
+        //
+        // OUTSIDE the canon region for the reason given below. TIP_BINDINGS holds
+        // the Granular key of six anchors; with ENGINE = Spectral they show their
+        // SPECTRAL_TIP_KEYS copy instead. The canon applyI18n cannot call this, so
+        // it is driven by the one thing every applyI18n path does first: setting
+        // <html lang>. Every set queues a mutation record (even to the same value),
+        // the callback runs as a microtask once applyI18n has returned, and so it
+        // overwrites the six Granular tips that applyI18n just wrote - on a
+        // language switch, on the stored-language read, on the select, and on
+        // updateEngineUI()'s __reapplyI18n. The language comes from <html lang>,
+        // so nothing here touches the canon's `let` bindings.
+        function applyEngineTips() {
+            const lang = document.documentElement.lang || 'en';
+            const spectral = isSpectral();
+            for (const [selector, granularKey] of TIP_BINDINGS) {
+                const spectralKey = SPECTRAL_TIP_KEYS[selector];
+                if (!spectralKey) continue;
+                const el = document.querySelector(selector);
+                if (!el) continue;
+                const s = tr(spectral ? spectralKey : granularKey, lang, null);
+                el.setAttribute('data-tip-title', s.t);
+                el.setAttribute('data-tip', s.b);
+            }
+        }
+        new MutationObserver(applyEngineTips)
+            .observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
 
         // ════════════════════════════════════════════════════════════════════════
         // The hover-help switch (v2.4.0)

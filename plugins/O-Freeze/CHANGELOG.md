@@ -2,6 +2,95 @@
 
 All notable changes to O-Freeze will be documented in this file.
 
+## [2.9.0] - 2026-10-28
+
+A second freeze engine. ENGINE = Spectral holds the sound's spectrum instead of looping
+grains: an STFT freeze with a Diffusion control that runs from a locked, tonal hold to
+a smooth wash. MINOR: three parameters are appended; Granular, the default, renders
+bit-identically to 2.8.0, and sessions saved before 2.9.0 open in Granular.
+
+### Added
+
+- **ENGINE (Granular / Spectral), DIFFUSION (0-100 %, default 0), AVG_FRAMES (1-16,
+  default 8)**, appended after DETUNE so automation order and old sessions are
+  untouched.
+- **Spectral engine** (`Source/SpectralFreeze.h/.cpp`). 8192-point FFT, hop 2048
+  (4x), Hann analysis x Hann synthesis, overlap-add normalised by 1/1.5.
+  - Analysis runs continuously while ENGINE = Spectral, one frame per 2048 samples
+    written to the 2 s capture ring, so it pauses with the write head through a
+    freeze and its release tail. If fewer than AVG_FRAMES frames exist (the engine
+    was just switched, or a switch while frozen) the same analysis runs on demand
+    from the ring.
+  - On freeze: magnitudes are the RMS average of the newest AVG_FRAMES frames; each
+    bin's true frequency is estimated from the newest two; spectral peaks (local max
+    over +-2 bins, above -60 dB) and their regions (bounded at the minimum between
+    peaks) are found for phase locking. The overlap-add is primed with four frames,
+    so the freeze is at full level on its first sample.
+  - Every hop: phase advances by the estimated frequency plus DIFFUSION x U(-pi, pi);
+    identity phase locking to the peaks is applied with weight
+    max(0, 1 - beta / 0.3)^2, so it fades out smoothly by Diffusion 30 %. The LFO
+    (Rate / Depth / Shape) modulates Diffusion. A makeup gain
+    1 / sqrt(1 - 0.57 (1 - sinc^2 beta)) offsets the level loss of incoherent
+    overlap.
+  - Drift becomes a per-bin random walk on the level (unit-variance Ornstein-
+    Uhlenbeck, 0.2-3 Hz per bin, up to about +-3 dB at 100 %). Detune becomes a
+    per-bin spread of the phase advance within +-Detune cents (a shimmer rather than
+    a clean pitch shift). Phase noise, drift and detune draws are shared by L and R.
+  - All draws come from the counter RNG on three new slots and the engine's own hop
+    and engage counters, so Spectral renders are block-size independent and
+    reproducible from the session seed, like Granular since 2.8.0.
+- **Engine switch** crossfades the two engines over 50 ms, in both directions and
+  while frozen. A switch to Granular while frozen starts the same steady-state grain
+  set as a fresh engage. Re-engaging during a Spectral release tail continues without
+  recapturing. Release fade: Spectral 100 ms, the longer of the two while both sound.
+- **UI**: an Engine toggle beside Mode (captions are the choice strings, unlocalized
+  like Mode). In Spectral the Size knob becomes Diffusion and the Grains knob Avg in
+  the same slots, Reverse dims, and the LFO group reads "Diffusion LFO". The swap
+  follows the parameter, so preset loads and automation re-lay the page live.
+  Tooltips for Engine, Diffusion, Avg and Spectral variants of Reverse, Drift,
+  Detune, Rate, Depth and Shape, in English, French and Chinese (new French entries
+  `reviewed: false`, new Chinese `reviewed: 'mt'`).
+
+### Unchanged
+
+- Granular: the staggered steady-state grain start moved into
+  `startGranularVoices()` draw for draw, and the engine mix is a branch (never a
+  multiply by 1) when ENGINE = Granular. Renders are bit-identical to 2.8.0.
+- Latency stays 0 (the wet path is a capture, as before).
+
+### Testing
+
+- `tests/granular-null/gate.py` (new): a 2.8.0 build made out of tree from
+  `git archive 26bbaeb6` against this one, same template states and seeds, the three
+  2.8.0 configurations at blocks 512 / 32 / 441 / 7: 24 of 24 bit-identical (exact
+  equality required). Negative control: `densityGain * 1.0000001f` fails 20 of 24
+  (-138.5 dBFS). 2.8.0 states load as Granular / 0 % / 8.
+- `tests/blocksize-null/gate.py` gains four Spectral configurations (beta 0 with
+  drift and detune; beta 0.6 with a Random LFO; Threshold mode at beta 1 with 16
+  frames; Granular -> Spectral -> Granular switches while frozen): blocks 32 / 441 / 7
+  bit-exact against 512, six seeds per configuration pairwise distinct.
+- `tests/spectral/gate.py` (new), installed VST3 in pedalboard:
+  - level vs beta {0, .25, .5, .75, 1} within +-3 dB of beta 0 on a chord and pink
+    noise; Spectral beta 0 within 1 dB of Granular;
+  - beta 0 hop-phase circular variance 0.0000; peak-to-floor strictly falling and
+    circular variance strictly rising over beta;
+  - metallic residual on pink noise at beta 1: AVG_FRAMES 8 is 0.48-0.49 x
+    AVG_FRAMES 1 (limit 0.6);
+  - hop-rate AM at 23.4 / 46.9 Hz below 0.1 dB (limit 0.5);
+  - engage, release and both engine switches within 1.5x the matched control on the
+    second-difference click metric.
+- `tests/render-harness` (new console target `O-Freeze-render-test`): FFT round trip
+  scale 1 (residual 4e-7); Spectral clock probe (analysis stops with the write head,
+  rolling and fallback captures both fire); 0 heap allocations in processBlock at
+  48 and 192 kHz, block 32, through rolling and fallback engages, both switch
+  directions and release (malloc hook proven live first); worst steady processBlock
+  at block 32 / 48 kHz over 20 s frozen well under the 333 us budget.
+- check-i18n, i18n-fr-lint, i18n-zh-lint, check-ui-labels (new Spectral state) and
+  `tests/ui_tip_render_check.js` (new Spectral section: swap via the parameter,
+  tips byte-equal in three languages, Diffusion / Avg knobs drive their own
+  parameters, slots do not move) pass.
+- pluginval strictness 10 and auval on the installed `-dev` bundles.
+
 ## [2.8.0] - 2026-10-27
 
 Renders no longer depend on the host's buffer size, and a session renders the same

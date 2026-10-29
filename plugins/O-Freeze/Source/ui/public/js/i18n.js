@@ -450,6 +450,118 @@ export const I18N = Object.freeze({
           b: '开启或关闭这些悬停帮助。关闭后，只有齿轮和这个开关仍会自我说明。',
           reviewed: 'bt' },
     },
+
+    // ── v2.9.0: the Spectral engine ─────────────────────────────────────────
+    // ENGINE is an AudioParameterChoice; its option words Granular / Spectral
+    // stay English in every language (D-01 arm 1, as for Mode), the prose
+    // around them is translated. fr entries are reviewed: false and zh entries
+    // 'mt' until a reader signs them off.
+    //
+    // #engine-toggle has no caption of its own (its buttons are the option
+    // strings), so the title is the parameter's name, as for tip.mode.
+    'tip.engine': {
+        en: { t: 'Engine',
+              b: 'Chooses how the freeze is made. Granular replays overlapping grains of the captured audio; Spectral holds its spectrum still and lets Diffusion, Drift and Detune animate it. Granular or Spectral.' },
+        fr: { t: 'Moteur',
+              b: 'Choisit la façon dont le gel est produit. Granular rejoue des grains superposés de l’audio capturé ; Spectral fige son spectre et laisse la diffusion, la dérive et le désaccord l’animer. Granular ou Spectral.',
+              reviewed: false },
+    'zh-Hans': { t: '引擎',
+          b: '选择冻结的生成方式。Granular 重放所捕捉音频的重叠颗粒；Spectral 把它的频谱定格，再由扩散度、漂移和失谐让它活动起来。Granular 或 Spectral。',
+          reviewed: 'mt' },
+    },
+
+    // Caption and title are the same word in French (sameAsEn on the label).
+    'tip.diffusion': {
+        en: { t: 'Diffusion',
+              b: 'Spectral only. Randomises how far the phase of each frequency advances from frame to frame. At 0 the freeze is a locked, tonal hold of the source; higher settings wash it into a smooth, airy cloud. 0 to 100%.' },
+        fr: { t: 'Diffusion',
+              b: 'Spectral uniquement. Rend aléatoire l’avance de phase de chaque fréquence d’une trame à l’autre. À 0, le gel tient la source de façon stable et tonale ; plus haut, il la fond en un nuage lisse et aérien. De 0 à 100 %.',
+              reviewed: false },
+    'zh-Hans': { t: '扩散度',
+          b: '仅用于 Spectral。随机化每个频率的相位在帧与帧之间前进的幅度。为 0 时冻结稳定地保持素材的音调；调高后会把它化作平滑、轻盈的云。0 到 100%。',
+          reviewed: 'mt' },
+    },
+
+    // The caption is the abbreviation (Avg / Moy.), the title the root word in full,
+    // the label.depth precedent.
+    'tip.avg': {
+        en: { t: 'Average',
+              b: 'Spectral only. How many analysis frames, about 43 ms apart at 48 kHz, are averaged into the frozen spectrum. More frames smooth away the metallic ringing of a single snapshot. Applies at the next freeze. 1 to 16 frames.' },
+        fr: { t: 'Moyenne',
+              b: 'Spectral uniquement. Le nombre de trames d’analyse, espacées d’environ 43 ms à 48 kHz, dont la moyenne forme le spectre gelé. Davantage de trames atténuent la résonance métallique d’un instantané unique. S’applique au prochain gel. De 1 à 16 trames.',
+              reviewed: false },
+    'zh-Hans': { t: '平均',
+          b: '仅用于 Spectral。被平均进冻结频谱的分析帧数量，在 48 kHz 下每帧相隔约 43 ms。帧数越多，越能抹平单一快照的金属感环鸣。在下一次冻结时生效。1 到 16 帧。',
+          reviewed: 'mt' },
+    },
+
+    // Spectral variants of six existing tips (SPECTRAL_TIP_KEYS below). Same
+    // titles as their Granular twins - same control, same caption.
+    'tip.drift.spectral': {
+        en: { t: 'Drift',
+              b: 'In Spectral, lets the level of every frequency wander slowly and on its own, so the held spectrum breathes instead of standing still. 0 to 100%, up to about ±3 dB.' },
+        fr: { t: 'Dérive',
+              b: 'En mode Spectral, laisse le niveau de chaque fréquence varier lentement et indépendamment, pour que le spectre figé respire au lieu de rester immobile. De 0 à 100 %, jusqu’à environ ±3 dB.',
+              reviewed: false },
+    'zh-Hans': { t: '漂移',
+          b: '在 Spectral 下，让每个频率的电平各自缓慢游走，使定格的频谱呼吸起来而不是静止不动。0 到 100%，最多约 ±3 dB。',
+          reviewed: 'mt' },
+    },
+
+    'tip.detune.spectral': {
+        en: { t: 'Detune',
+              b: 'In Spectral, gives every frequency its own small speed offset: a spread that shimmers and thickens the freeze rather than shifting its pitch. 0 to 50 cents.' },
+        fr: { t: 'Désaccord',
+              b: 'En mode Spectral, donne à chaque fréquence son propre léger décalage de vitesse : un étalement qui scintille et épaissit le gel plutôt que d’en déplacer la hauteur. De 0 à 50 cents.',
+              reviewed: false },
+    'zh-Hans': { t: '失谐',
+          b: '在 Spectral 下，给每个频率各自一个微小的速度偏移：一种闪烁并加厚冻结的展宽，而不是移动音高。0 到 50 音分。',
+          reviewed: 'mt' },
+    },
+
+    'tip.rate.spectral': {
+        en: { t: 'Rate',
+              b: 'The speed of the LFO that modulates Diffusion. Slow settings let the wash swell and settle; fast ones make it flicker. 0.01 to 10 Hz.' },
+        fr: { t: 'Vitesse',
+              b: 'La vitesse du LFO qui module la diffusion. Les réglages lents font enfler puis retomber le voile ; les rapides le font scintiller. De 0,01 à 10 Hz.',
+              reviewed: false },
+    'zh-Hans': { t: '速率',
+          b: '调制扩散度的 LFO 的速度。慢速让弥散感起伏涨落；快速则让它闪动。0.01 到 10 Hz。',
+          reviewed: 'mt' },
+    },
+
+    'tip.depth.spectral': {
+        en: { t: 'Depth',
+              b: 'How far the LFO swings Diffusion above and below its setting. At zero the LFO does nothing, however fast it runs. 0 to 100%.' },
+        fr: { t: 'Profondeur',
+              b: 'L’amplitude avec laquelle le LFO fait varier la diffusion autour de son réglage. À zéro, le LFO n’a aucun effet, quelle que soit sa vitesse. De 0 à 100 %.',
+              reviewed: false },
+    'zh-Hans': { t: '深度',
+          b: 'LFO 让扩散度围绕其设定值上下摆动的幅度。为零时无论 LFO 跑得多快都不起作用。0 到 100%。',
+          reviewed: 'mt' },
+    },
+
+    'tip.shape.spectral': {
+        en: { t: 'Shape',
+              b: 'The waveform the diffusion LFO follows. Sine glides, Triangle turns sharply at each end, Random steps to a new value every cycle. Sine, Triangle or Random.' },
+        fr: { t: 'Forme',
+              b: 'La forme d’onde suivie par le LFO de diffusion. Sine glisse, Triangle change de sens brusquement aux extrêmes, Random saute à une nouvelle valeur à chaque cycle. Sine, Triangle ou Random.',
+              reviewed: false },
+    'zh-Hans': { t: '形状',
+          b: '扩散度 LFO 所遵循的波形。Sine 平滑滑行，Triangle 在两端急转，Random 每个周期跳到一个新值。Sine、Triangle 或 Random。',
+          reviewed: 'mt' },
+    },
+
+    'tip.reverse.spectral': {
+        en: { t: 'Reverse',
+              b: 'Granular only. The Spectral engine has no playback direction, so this switch is ignored while Spectral is selected. Off or On.' },
+        fr: { t: 'Inversion',
+              b: 'Granular uniquement. Le moteur Spectral n’a pas de sens de lecture, ce commutateur est donc ignoré tant que Spectral est sélectionné. Désactivé ou activé.',
+              reviewed: false },
+    'zh-Hans': { t: '反向',
+          b: '仅用于 Granular。Spectral 引擎没有播放方向，因此选择 Spectral 时这个开关不起作用。关或开。',
+          reviewed: 'mt' },
+    },
 });
 
 // ============================================================================
@@ -600,6 +712,18 @@ export const LABELS = Object.freeze({
     // and the page's own tip bodies already say "le LFO de dérive".
     'label.driftLfo': { en: { t: 'Drift LFO' }, fr: { t: 'LFO de dérive', reviewed: true }, 'zh-Hans': { t: '漂移 LFO', reviewed: 'bt' } },
 
+    // ── v2.9.0: the Spectral engine's captions ──────────────────────────────
+    // Diffusion takes the Size slot and Avg the Grains slot (D1). DIFFUSION was
+    // 61.17 px against the 60 px knob budget (EN = FR); index.html tightens that
+    // one caption's tracking to 0.8 px (~59.4) rather than widen the slot, so
+    // the Granular row keeps its v2.8.0 geometry. Avg / Moy. / 平均 are all
+    // under the budget and move nothing.
+    'label.diffusion': { en: { t: 'Diffusion' }, fr: { t: 'Diffusion', sameAsEn: true, reviewed: false }, 'zh-Hans': { t: '扩散度', reviewed: 'mt' } },
+    'label.avg':       { en: { t: 'Avg' },       fr: { t: 'Moy.', reviewed: false },                  'zh-Hans': { t: '平均', reviewed: 'mt' } },
+    // #lfo-group-label is position: absolute, so this width is free (see
+    // label.driftLfo); updateEngineUI() swaps the key with the engine.
+    'label.diffusionLfo': { en: { t: 'Diffusion LFO' }, fr: { t: 'LFO de diffusion', reviewed: false }, 'zh-Hans': { t: '扩散度 LFO', reviewed: 'mt' } },
+
     'label.rate':  { en: { t: 'Rate' },  fr: { t: 'Vitesse', reviewed: true }, 'zh-Hans': { t: '速率', reviewed: 'bt' } },
 
     // Prof., abbreviated, and this one is a genuine compromise rather than a
@@ -707,6 +831,12 @@ export const I18N_EXEMPT = [
      'a MODE AudioParameterChoice option string VERBATIM (PluginProcessor.cpp:55) — D-01 arm 1. This entry ALSO covers #threshold-knob\'s .knob-label, which carries the same word for the same setting; see the block comment above for why both occurrences stay English'],
 
     // ── Endonyms ────────────────────────────────────────────────────────────
+    // ── v2.9.0: the ENGINE captions, same rule as MODE ──────────────────────
+    ['Granular',
+     'an ENGINE AudioParameterChoice option string VERBATIM (PluginProcessor.cpp, StringArray {"Granular", "Spectral"}) — D-01 arm 1'],
+    ['Spectral',
+     'an ENGINE AudioParameterChoice option string VERBATIM (PluginProcessor.cpp, StringArray {"Granular", "Spectral"}) — D-01 arm 1'],
+
     ['English',  'endonym — a language name is never translated'],
     ['Français', 'endonym — a language name is never translated'],
 ];
@@ -757,7 +887,24 @@ export const TIP_BINDINGS = [
     ['#gear-btn',         'tip.settings'],
     ['#lang-select',      'tip.langSelect'],
     ['#tips-toggle',      'tip.tipsToggle'],
+    // v2.9.0. #diffusion-knob and #avg-frames-knob are display:none in
+    // Granular; ui_tip_render_check.js drives them in its Spectral pass.
+    ['#engine-toggle',    'tip.engine'],
+    ['#diffusion-knob',   'tip.diffusion'],
+    ['#avg-frames-knob',  'tip.avg'],
 ];
+
+// v2.9.0: anchors whose tip changes with ENGINE. TIP_BINDINGS carries the
+// Granular key; with ENGINE = Spectral, index.html's applyEngineTips() writes
+// this key instead (on every language switch and every engine change).
+export const SPECTRAL_TIP_KEYS = Object.freeze({
+    '#reverse-toggle':   'tip.reverse.spectral',
+    '#drift-knob':       'tip.drift.spectral',
+    '#detune-knob':      'tip.detune.spectral',
+    '#lfo-rate-knob':    'tip.rate.spectral',
+    '#lfo-depth-knob':   'tip.depth.spectral',
+    '#lfo-shape-toggle': 'tip.shape.spectral',
+});
 
 // The tooltip lookup. Returns {t, b} — never null, never a bare key without a
 // console.warn saying so, because a silently-missing tip renders as an empty

@@ -14,6 +14,7 @@ O-Freeze captures and sustains audio using granular synthesis, creating smooth, 
 - **Smooth Crossfades** - 50ms fade-in, 100ms fade-out for click-free transitions
 - **RMS Threshold Gate** - 20ms detection window with 3dB hysteresis
 - **2-Second Freeze Buffer** - Captures rich harmonic content
+- **Spectral Engine (v2.9.0)** - A second freeze engine: an STFT spectral freeze with Diffusion, multi-frame averaging and per-bin drift
 
 ## Parameters
 
@@ -24,6 +25,9 @@ O-Freeze captures and sustains audio using granular synthesis, creating smooth, 
 | MODE | Manual/Threshold | Manual | Trigger mode selection |
 | DRIFT | 0-100% | 25% | Grain position randomization |
 | MIX | 0-100% | 100% | Dry/Wet blend |
+| ENGINE | Granular/Spectral | Granular | Freeze engine (v2.9.0) |
+| DIFFUSION | 0-100% | 0% | Spectral: random phase advance per frame (0 = locked, tonal) |
+| AVG_FRAMES | 1-16 | 8 | Spectral: analysis frames averaged into the frozen spectrum (next freeze) |
 
 ## Installation
 
@@ -58,6 +62,27 @@ After installation, restart your DAW or rescan plugins.
 - **25%** (default) - Subtle variation for natural movement
 - **50-100%** - More pronounced texture evolution
 
+### Spectral Engine
+
+Set ENGINE to **Spectral** to freeze the sound's spectrum instead of looping grains.
+On freeze, O-Freeze averages the last AVG_FRAMES analysis frames (8192-point FFT,
+75 % overlap) into one magnitude spectrum, estimates each component's true frequency,
+and resynthesises it continuously.
+
+- **Diffusion** (replaces Size in Spectral) - 0 % is a locked, tonal phase-vocoder
+  hold of the source; higher settings add a random phase step every frame and wash
+  the sound into a smooth cloud. The LFO modulates Diffusion in this engine.
+- **Avg** (replaces Grains in Spectral) - more frames smooth away the metallic ringing
+  of a single snapshot, especially on noisy material. Takes effect at the next freeze.
+- **Drift** - each frequency's level wanders slowly and independently (up to about
+  +-3 dB).
+- **Detune** - a per-frequency spread that shimmers and thickens rather than a clean
+  pitch shift.
+- **Reverse** has no effect in Spectral (it dims).
+
+Switching engines while frozen crossfades over 50 ms. Sessions saved before 2.9.0
+open in Granular and sound exactly as before.
+
 ### Mix Control
 
 - **100%** (default) - Fully wet (frozen signal only when engaged)
@@ -73,7 +98,7 @@ After installation, restart your DAW or rescan plugins.
 
 ## Version
 
-V1.0.0
+2.9.0 (see [CHANGELOG.md](CHANGELOG.md))
 
 ---
 

@@ -49,6 +49,9 @@ OFreezeAudioProcessorEditor::OFreezeAudioProcessorEditor(OFreezeAudioProcessor& 
     lfoRateRelay = std::make_unique<juce::WebSliderRelay>("LFO_RATE");
     lfoDepthRelay = std::make_unique<juce::WebSliderRelay>("LFO_DEPTH");
     lfoShapeRelay = std::make_unique<juce::WebComboBoxRelay>("LFO_SHAPE");
+    engineRelay = std::make_unique<juce::WebComboBoxRelay>("ENGINE");          // v2.9.0
+    diffusionRelay = std::make_unique<juce::WebSliderRelay>("DIFFUSION");      // v2.9.0
+    avgFramesRelay = std::make_unique<juce::WebSliderRelay>("AVG_FRAMES");     // v2.9.0
 
     // ============================================================================
     // 2. Create WebView SECOND with all relay options registered
@@ -88,7 +91,10 @@ OFreezeAudioProcessorEditor::OFreezeAudioProcessorEditor(OFreezeAudioProcessor& 
             .withOptionsFrom(*modeRelay)
             .withOptionsFrom(*lfoRateRelay)
             .withOptionsFrom(*lfoDepthRelay)
-            .withOptionsFrom(*lfoShapeRelay);
+            .withOptionsFrom(*lfoShapeRelay)
+            .withOptionsFrom(*engineRelay)
+            .withOptionsFrom(*diffusionRelay)
+            .withOptionsFrom(*avgFramesRelay);
 
     // ── v2.1.0: the UI LANGUAGE pair ───────────────────────────────────────
     //
@@ -159,6 +165,12 @@ OFreezeAudioProcessorEditor::OFreezeAudioProcessorEditor(OFreezeAudioProcessor& 
         *processorRef.getAPVTS().getParameter("LFO_DEPTH"), *lfoDepthRelay, nullptr);
     lfoShapeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *processorRef.getAPVTS().getParameter("LFO_SHAPE"), *lfoShapeRelay, nullptr);
+    engineAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *processorRef.getAPVTS().getParameter("ENGINE"), *engineRelay, nullptr);
+    diffusionAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.getAPVTS().getParameter("DIFFUSION"), *diffusionRelay, nullptr);
+    avgFramesAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.getAPVTS().getParameter("AVG_FRAMES"), *avgFramesRelay, nullptr);
 
     // ============================================================================
     // Add WebView to editor (navigation happens in parentHierarchyChanged)

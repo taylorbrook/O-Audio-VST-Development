@@ -60,6 +60,10 @@ private:
     std::unique_ptr<juce::WebSliderRelay> lfoRateRelay;
     std::unique_ptr<juce::WebSliderRelay> lfoDepthRelay;
     std::unique_ptr<juce::WebComboBoxRelay> lfoShapeRelay;
+    // v2.9.0, appended
+    std::unique_ptr<juce::WebComboBoxRelay> engineRelay;
+    std::unique_ptr<juce::WebSliderRelay> diffusionRelay;
+    std::unique_ptr<juce::WebSliderRelay> avgFramesRelay;
 
     // 2. WEBVIEW SECOND (depends on relays via withOptionsFrom)
     std::unique_ptr<juce::WebBrowserComponent> webView;
@@ -84,6 +88,10 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> lfoRateAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> lfoDepthAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> lfoShapeAttachment;
+    // v2.9.0, appended
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> engineAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> diffusionAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> avgFramesAttachment;
 
     // Helper for resource serving
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);

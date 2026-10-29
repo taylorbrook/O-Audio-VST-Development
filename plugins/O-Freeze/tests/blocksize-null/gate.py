@@ -1,4 +1,4 @@
-# O-Freeze block-size null gate (v2.8.0).
+# O-Freeze block-size null gate (v2.8.0; Spectral configs added in v2.9.0).
 #
 # Every render runs on a FRESH instance of the installed VST3 that has loaded one
 # template instance's state (its parameters and its random per-instance RNG seed).
@@ -52,7 +52,23 @@ CONFIGS = {
     "threshold": (1, dict(drift=55.0, grain_size_ms=211.0, grain_count=11, lfo_rate_hz=0.7,
                           lfo_depth=50.0, detune_cents=7.0, mix=100.0, threshold_db=-40.0),
                   dict(lfo_shape="Random", reverse=False)),
+    # v2.9.0 Spectral engine. Every one has a seed-dependent draw (drift walk, beta
+    # phase noise or detune), so the seed-liveness control applies to them too.
+    "spec-manual-b0": (0, dict(drift=30.0, lfo_depth=0.0, detune_cents=10.0, mix=100.0,
+                               diffusion=0.0, avg_frames=8),
+                       dict(lfo_shape="Sine", reverse=False, engine="Spectral")),
+    "spec-manual-b60-lfo": (0, dict(drift=70.0, lfo_rate_hz=1.3, lfo_depth=40.0, detune_cents=25.0,
+                                    mix=90.0, diffusion=60.0, avg_frames=3),
+                            dict(lfo_shape="Random", reverse=False, engine="Spectral")),
+    "spec-threshold-b100": (1, dict(drift=0.0, lfo_depth=0.0, detune_cents=0.0, mix=100.0,
+                                    threshold_db=-40.0, diffusion=100.0, avg_frames=16),
+                            dict(lfo_shape="Sine", reverse=False, engine="Spectral")),
+    # engine switch while frozen, both directions (Granular -> Spectral -> Granular)
+    "spec-switch": (0, dict(drift=20.0, grain_size_ms=150.0, grain_count=9, lfo_rate_hz=0.9,
+                            lfo_depth=30.0, detune_cents=8.0, mix=100.0, diffusion=35.0, avg_frames=5),
+                    dict(lfo_shape="Triangle", reverse=False, engine="Granular", switch=True)),
 }
+GRANULAR_CONFIGS = [c for c in CONFIGS if "engine" not in CONFIGS[c][2]]
 
 
 def make_template(cfg):
@@ -63,6 +79,8 @@ def make_template(cfg):
         set_raw(p, k, v)
     p.lfo_shape = others["lfo_shape"]
     p.reverse = others["reverse"]
+    if "engine" in others:
+        p.engine = others["engine"]
     p.freeze = False
     return p.raw_state
 
@@ -79,7 +97,17 @@ def render(cfg, state, block):
         p.freeze = False
         y0 = p.process(x[:, :a], FS, buffer_size=block, reset=True)
         p.freeze = True
-        y1 = p.process(x[:, a:b], FS, buffer_size=block, reset=False)
+        if CONFIGS[cfg][2].get("switch"):
+            # switch the engine twice while frozen, at odd sample positions
+            s1, s2 = a + int(1.3 * FS) + 77, a + int(2.6 * FS) + 311
+            y1a = p.process(x[:, a:s1], FS, buffer_size=block, reset=False)
+            p.engine = "Spectral"
+            y1b = p.process(x[:, s1:s2], FS, buffer_size=block, reset=False)
+            p.engine = "Granular"
+            y1c = p.process(x[:, s2:b], FS, buffer_size=block, reset=False)
+            y1 = np.concatenate([y1a, y1b, y1c], axis=1)
+        else:
+            y1 = p.process(x[:, a:b], FS, buffer_size=block, reset=False)
         p.freeze = False
         y2 = p.process(x[:, b:], FS, buffer_size=block, reset=False)
         y = np.concatenate([y0, y1, y2], axis=1)

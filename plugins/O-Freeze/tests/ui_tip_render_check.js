@@ -191,7 +191,7 @@ function outsideViewport(rect, W, H) {
     note(`shipping frame from PluginEditor.cpp setSize(): ${W} x ${H}`);
 
     const table = await loadTable();
-    const { I18N, TIP_BINDINGS } = table;
+    const { I18N, TIP_BINDINGS, SPECTRAL_TIP_KEYS, LABELS } = table;
     note(`table: ${Object.keys(I18N).length} I18N entries, ${TIP_BINDINGS.length} TIP_BINDINGS rows\n`);
 
     if (!Array.isArray(TIP_BINDINGS) || TIP_BINDINGS.length === 0) {
@@ -312,12 +312,15 @@ function outsideViewport(rect, W, H) {
         const anchorsClosed = ['#freeze-button', '#reverse-toggle', '#mode-toggle',
                                '#threshold-knob', '#drift-knob', '#grain-size-knob',
                                '#grain-count-knob', '#detune-knob', '#mix-knob',
-                               '#lfo-rate-knob', '#lfo-depth-knob', '#lfo-shape-toggle'];
+                               '#lfo-rate-knob', '#lfo-depth-knob', '#lfo-shape-toggle',
+                               '#engine-toggle'];
         const anchorsOpen   = ['#gear-btn', '#lang-select', '#tips-toggle'];
+        // v2.9.0: display:none in Granular (the boot state); driven in section 9
+        const anchorsSpectralOnly = ['#diffusion-knob', '#avg-frames-knob'];
 
-        check(anchorsClosed.length + anchorsOpen.length === TIP_BINDINGS.length,
+        check(anchorsClosed.length + anchorsOpen.length + anchorsSpectralOnly.length === TIP_BINDINGS.length,
             `[1] the driving loop covers every binding — ${anchorsClosed.length} + `
-            + `${anchorsOpen.length} vs ${TIP_BINDINGS.length} rows`);
+            + `${anchorsOpen.length} + ${anchorsSpectralOnly.length} vs ${TIP_BINDINGS.length} rows`);
 
         // THE TARGET HALF, asserted rather than assumed. Every binding on this
         // page is BARE — no wrapper — and that is only correct because each id'd
@@ -516,6 +519,117 @@ function outsideViewport(rect, W, H) {
         // ~880 px — comfortably past it. The assertion below also prints the
         // measured height, so a future reader can see the margin rather than
         // trust this arithmetic.
+
+        // ── 9. v2.9.0 the Spectral engine ─────────────────────────────────
+        // The engine is switched through the ENGINE combo STATE (what a preset
+        // load, a session restore or host automation does), not by clicking,
+        // so this also proves the swap follows the parameter live. Then, in
+        // every language: the swapped knobs show, their tips and the six
+        // engine-dependent tips render the SPECTRAL_TIP_KEYS copy byte-equal,
+        // and the swapped knobs drive their OWN parameters.
+        console.log('\n-- 9. Spectral engine (D1 swap, engine tips, binding)');
+        const engineVia = async (idx) => {
+            await page.evaluate(async (i) => {
+                const J = await import('./js/juce/index.js');
+                J.getComboBoxState('ENGINE').setChoiceIndex(i);
+            }, idx);
+            await page.waitForTimeout(150);
+        };
+        const visibleIds = () => page.evaluate(() =>
+            ['grain-size-knob', 'grain-count-knob', 'diffusion-knob', 'avg-frames-knob']
+                .filter(id => getComputedStyle(document.getElementById(id)).display !== 'none'));
+
+        await setPopover(false);
+        await engineVia(1);
+        const visS = await visibleIds();
+        check(visS.join(',') === 'diffusion-knob,avg-frames-knob',
+            `[9] ENGINE = Spectral (state change, no click) swaps Size/Grains for Diffusion/Avg — visible: ${visS.join(', ')}`);
+        const revDim = await page.evaluate(() => document.getElementById('reverse-toggle').classList.contains('disabled'));
+        check(revDim, '[9] Reverse is dimmed in Spectral');
+
+        // slots: the swapped knob sits exactly where the one it replaces sat
+        const spectralRects = await page.evaluate(() => ['diffusion-knob', 'avg-frames-knob'].map(id => {
+            const r = document.getElementById(id).getBoundingClientRect();
+            return [r.left, r.width];
+        }));
+
+        const spectralAnchors = ['#engine-toggle', '#reverse-toggle', '#drift-knob', '#diffusion-knob',
+                                 '#avg-frames-knob', '#detune-knob', '#lfo-rate-knob',
+                                 '#lfo-depth-knob', '#lfo-shape-toggle'];
+        for (const lang of ['en', 'fr', 'zh-Hans']) {
+            await page.evaluate((l) => window.__setLanguage(l), lang);
+            await page.waitForTimeout(150);
+            const lfoLabel = await page.evaluate(() => document.getElementById('lfo-group-label').textContent);
+            check(lfoLabel === LABELS['label.diffusionLfo'][lang].t,
+                `[9][${lang}] the LFO group reads "${lfoLabel}" (label.diffusionLfo)`);
+            for (const sel of spectralAnchors) {
+                const b = TIP_BINDINGS.find(x => x[0] === sel);
+                const key = SPECTRAL_TIP_KEYS[sel] || b[1];
+                const entry = (I18N[key] || {})[lang] || {};
+                const got = await hoverAnchor(sel, b[2]);
+                if (!got) { check(false, `[9][${lang}] ${sel} is hoverable`); continue; }
+                const t = got.tip;
+                check(t.shown && t.title === entry.t && t.body === entry.b,
+                    `[9][${lang}] ${sel} renders ${key} byte-equal`,
+                    t.title === entry.t ? (t.body === entry.b ? null : 'body differs') : `title "${t.title}" vs "${entry.t}"`);
+                const out = outsideViewport(t.rect, W, H);
+                check(out.length === 0, `[9][${lang}] ${sel} tip inside ${W} x ${H}`, out.join('; ') || null);
+                if (b && (sel === '#diffusion-knob' || sel === '#avg-frames-knob'))
+                    check(got.box.w >= 24 && got.box.h >= 24, `[9][${lang}] ${sel} is a real hover cell `
+                        + `(${got.box.w.toFixed(1)} x ${got.box.h.toFixed(1)})`);
+            }
+        }
+        await page.evaluate(() => window.__setLanguage('en'));
+        await page.waitForTimeout(150);
+
+        // binding: dragging the Diffusion knob moves DIFFUSION and leaves GRAIN_SIZE alone
+        const readNorm = () => page.evaluate(async () => {
+            const J = await import('./js/juce/index.js');
+            return ['DIFFUSION', 'GRAIN_SIZE', 'AVG_FRAMES', 'GRAIN_COUNT']
+                .map(n => J.getSliderState(n).getNormalisedValue());
+        });
+        const dragKnob = async (id) => {
+            const r = await page.evaluate((i) => {
+                const b = document.querySelector(`#${i} .knob-visual`).getBoundingClientRect();
+                return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+            }, id);
+            await page.mouse.move(r.x, r.y);
+            await page.mouse.down();
+            await page.mouse.move(r.x, r.y - 40, { steps: 4 });
+            await page.mouse.up();
+            await page.waitForTimeout(100);
+        };
+        const n0 = await readNorm();
+        await dragKnob('diffusion-knob');
+        const n1 = await readNorm();
+        check(n1[0] > n0[0] + 0.05 && n1[1] === n0[1],
+            `[9] dragging #diffusion-knob moves DIFFUSION (${n0[0].toFixed(3)} -> ${n1[0].toFixed(3)}), `
+            + `not GRAIN_SIZE (${n0[1].toFixed(3)} -> ${n1[1].toFixed(3)})`);
+        await dragKnob('avg-frames-knob');
+        const n2 = await readNorm();
+        check(n2[2] > n1[2] + 0.05 && n2[3] === n1[3],
+            `[9] dragging #avg-frames-knob moves AVG_FRAMES (${n1[2].toFixed(3)} -> ${n2[2].toFixed(3)}), `
+            + `not GRAIN_COUNT (${n1[3].toFixed(3)} -> ${n2[3].toFixed(3)})`);
+
+        // and back: a state change to Granular restores the v2.8.0 page
+        await engineVia(0);
+        const visG = await visibleIds();
+        check(visG.join(',') === 'grain-size-knob,grain-count-knob',
+            `[9] ENGINE = Granular restores Size/Grains — visible: ${visG.join(', ')}`);
+        const granularRects = await page.evaluate(() => ['grain-size-knob', 'grain-count-knob'].map(id => {
+            const r = document.getElementById(id).getBoundingClientRect();
+            return [r.left, r.width];
+        }));
+        const slotMoves = spectralRects.map((r, i) => Math.max(Math.abs(r[0] - granularRects[i][0]),
+                                                               Math.abs(r[1] - granularRects[i][1])));
+        check(slotMoves.every(d => d <= 0.5),
+            `[9] each swapped knob occupies its slot exactly (max move ${Math.max(...slotMoves).toFixed(2)} px)`);
+        const revBack = await page.evaluate(() => document.getElementById('reverse-toggle').classList.contains('disabled'));
+        check(!revBack, '[9] Reverse is live again in Granular');
+        const tipBack = await hoverAnchor('#drift-knob', undefined);
+        check(tipBack && tipBack.tip.body === I18N['tip.drift'].en.b,
+            '[9] the Granular drift tip is back, byte-equal');
+
         console.log('\n-- negative control (assertion 4 harness-blindness)');
         const PLANT = ('overflow probe. ').repeat(140);
         await page.evaluate((body) => {

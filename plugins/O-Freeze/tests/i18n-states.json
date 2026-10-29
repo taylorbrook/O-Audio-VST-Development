@@ -1,5 +1,9 @@
 [
   {
+    "name": "Spectral engine (v2.9.0: Diffusion / Avg knobs, Diffusion LFO) - listed BEFORE the popover state, whose open panel would cover the Engine toggle",
+    "click": "#engine-toggle .engine-option[data-engine='1']"
+  },
+  {
     "name": "settings popover open",
     "click": "#gear-btn"
   }

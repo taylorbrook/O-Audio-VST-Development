@@ -3,7 +3,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(O-Freeze
-    VERSION 2.8.0
+    VERSION 2.9.0
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OFCR
@@ -17,6 +17,7 @@ juce_add_plugin(O-Freeze
 target_sources(O-Freeze
     PRIVATE
         Source/PluginProcessor.cpp
+        Source/SpectralFreeze.cpp
         Source/PluginEditor.cpp
 )
 
@@ -93,4 +94,9 @@ if(OUARICON_BUILD_TESTS)
     # AudioProcessor::getParameters() on a constructed processor sees the real set.
     include(${CMAKE_SOURCE_DIR}/scripts/param-dump/ParamDump.cmake)
     ouaricon_add_param_dump(O-Freeze ${CMAKE_CURRENT_SOURCE_DIR}/Source)
+
+    # v2.9.0 render harness (tests/render-harness/main.cpp): FFT identity, Spectral
+    # clock/capture probe, processBlock allocation hook, worst-block timing.
+    ouaricon_add_processor_console(O-Freeze ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/render-harness/main.cpp render-test)
 endif()

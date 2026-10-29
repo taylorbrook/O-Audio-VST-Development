@@ -34,6 +34,7 @@
 #include <atomic>
 #include <cstdint>
 #include "CounterRng.h"
+#include "SpectralFreeze.h"
 
 class OFreezeAudioProcessor : public juce::AudioProcessor
 {
@@ -64,6 +65,9 @@ public:
     void setStateInformation(const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
+
+    // v2.9.0: read-only view of the Spectral engine for tests/render-harness
+    const SpectralFreeze& getSpectralForTests() const noexcept { return spectral; }
 
     // ------------------------------------------------------------------------
     // v2.1.0 — the UI language. 0 = en, 1 = fr.
@@ -181,7 +185,10 @@ private:
     // per-block S&H draws, so the block size reordered the grain draws). Each stream
     // has its own counter; a draw is hash(seed, counter, slot). The counters restart
     // in prepareToPlay and when the seed changes.
-    enum RngSlot : uint32_t { kSlotJitter = 0, kSlotDetune, kSlotInterval, kSlotDrift, kSlotHold };
+    enum RngSlot : uint32_t { kSlotJitter = 0, kSlotDetune, kSlotInterval, kSlotDrift, kSlotHold,
+                             // v2.9.0, appended: Spectral engine streams (SpectralFreeze draws them
+                             // on its own hop / engage counters, never on grainCounter/engageCounter)
+                             kSlotSpecPhase, kSlotSpecDrift, kSlotSpecEngage };
     uint64_t activeSeed = 0;
     uint64_t grainCounter = 0;      // one per started grain: jitter, detune, next interval
     uint64_t engageCounter = 0;     // one per fresh freeze: drift offset
@@ -222,6 +229,8 @@ private:
     float randomDetuneRate(float detuneCents, uint64_t counter) const noexcept;
     void setFrozen(bool frozen, bool reverseActive, float driftValue, float detuneValue) noexcept;
     void controlTick(float lfoRate, float lfoDepth, int lfoShape, float driftValue) noexcept;
+    // v2.9.0: the staggered steady-state grain start, extracted from setFrozen draw-for-draw
+    void startGranularVoices(bool reverseActive, float driftValue, float detuneValue) noexcept;
 
     // Per-sample grain scratch buffers (class members to avoid stack zero-init each sample)
     float windowValues[MAX_GRAINS] {};   // window * fadeGain
@@ -245,6 +254,42 @@ private:
     float lfoPhase = 0.0f;            // 0 to 1 phase accumulator
     float lfoCurrentValue = 0.0f;     // Current LFO output (-1 to +1)
     float randomHoldValue = 0.0f;     // Sample-and-hold value for Random shape
+
+    // v2.9.0: second freeze engine (ENGINE = Granular / Spectral). The engine mix e is a
+    // 50 ms linear ramp toward ENGINE while a freeze or its tail renders, snapped when
+    // idle. e == 0 exactly is the v2.8.0 granular path, untouched (branch, never x1.0f).
+    static constexpr double kEngineFadeSeconds = 0.050;
+    static constexpr double kSpectralReleaseSeconds = 0.100;
+    SpectralFreeze spectral;
+    int engineTarget = 0;             // ENGINE as last applied (0 Granular, 1 Spectral)
+    float engineMix = 0.0f;           // e: 0 = all granular, 1 = all spectral
+    float engineStep = 0.0f;
+    int engineRampRemaining = 0;
+    float nextEngineMix() noexcept
+    {
+        if (engineRampRemaining > 0)
+        {
+            --engineRampRemaining;
+            engineMix = engineRampRemaining == 0 ? static_cast<float>(engineTarget) : engineMix + engineStep;
+        }
+        return engineMix;
+    }
+    void setEngineTarget(int target, bool ramp) noexcept;
+    float spectralOut[SpectralFreeze::kMaxChannels] {};
+    // Spectral controls as read at the top of the block (beta adds the LFO per sample)
+    float specDiffusion = 0.0f;       // DIFFUSION 0..1
+    float specLfoDepth = 0.0f;        // LFO_DEPTH 0..1
+    float specDrift = 0.0f;           // DRIFT 0..1
+    float specDetune = 0.0f;          // DETUNE cents
+    int specAvgFrames = 8;            // AVG_FRAMES
+    SpectralFreeze::Controls spectralControls() const noexcept
+    {
+        SpectralFreeze::Controls c;
+        c.beta = juce::jlimit(0.0f, 1.0f, specDiffusion + lfoCurrentValue * specLfoDepth);
+        c.drift01 = specDrift;
+        c.detuneCents = specDetune;
+        return c;
+    }
 
     // APVTS comes AFTER DSP components
     juce::AudioProcessorValueTreeState parameters;

@@ -125,6 +125,29 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFreezeAudioProcessor::creat
         5.0f,
         juce::AudioParameterFloatAttributes().withLabel("cents")));
 
+    // v2.9.0, appended (automation order and old sessions untouched; an old session
+    // has none of these and loads as Granular / 0 % / 8).
+    // ENGINE - freeze engine: the v2.8.0 grain cloud, or the STFT spectral freeze
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "ENGINE", 1 },
+        "Engine",
+        juce::StringArray { "Granular", "Spectral" },
+        0));
+
+    // DIFFUSION - Spectral: per-hop random phase advance beta (0 = locked PV freeze)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "DIFFUSION", 1 },
+        "Diffusion",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        0.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    // AVG_FRAMES - Spectral: STFT frames averaged into the frozen magnitudes (next capture)
+    layout.add(std::make_unique<juce::AudioParameterInt>(
+        juce::ParameterID { "AVG_FRAMES", 1 },
+        "Avg Frames",
+        1, 16, 8));
+
     return layout;
 }
 
@@ -234,6 +257,18 @@ void OFreezeAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     lfoPhase = 0.0f;
     lfoCurrentValue = 0.0f;
     randomHoldValue = 0.0f;
+
+    // v2.9.0: Spectral engine. Everything it uses is sized here (2 channels, any rate);
+    // its hop / engage counters restart with the seed like the granular streams.
+    spectral.prepare(sampleRate, juce::jmin(freezeBuffer.getNumChannels(), SpectralFreeze::kMaxChannels),
+                     { kSlotSpecPhase, kSlotSpecDrift, kSlotSpecEngage });
+    spectral.setSeed(activeSeed);
+    engineTarget = static_cast<int>(parameters.getRawParameterValue("ENGINE")->load()) != 0 ? 1 : 0;
+    engineMix = static_cast<float>(engineTarget);
+    engineStep = 0.0f;
+    engineRampRemaining = 0;
+    if (engineTarget == 1)
+        spectral.restartAnalysis();
 }
 
 void OFreezeAudioProcessor::releaseResources()
@@ -250,6 +285,8 @@ void OFreezeAudioProcessor::releaseResources()
 
     lastGrainTail.fill(0.0f);
     hasLastGrainTail = false;
+
+    spectral.stop();
 }
 
 void OFreezeAudioProcessor::startGrain(Grain& g, int basePos, int jitterOffset, float playbackRate, double age) noexcept
@@ -335,6 +372,18 @@ void OFreezeAudioProcessor::setFrozen(bool frozen, bool reverseActive, float dri
         freezeGain.reset(currentSampleRate, 0.050); // 50ms fade-in
         freezeGain.setCurrentAndTargetValue(heldGain);
         freezeGain.setTargetValue(1.0f);
+
+        if (engineTarget != 0)
+        {
+            // v2.9.0 Spectral: no new grains (a granular tail, if any, finishes under
+            // the engine fade). Re-engaged during a spectral release tail: the write head
+            // was held, so keep synthesising from the same capture (no recapture).
+            stopTriggeringNewGrains = true;
+            if (! (heldGain > 0.001f && spectral.isRunning()))
+                spectral.capture(freezeBuffer, writePosition, specAvgFrames, spectralControls());
+            return;
+        }
+
         stopTriggeringNewGrains = false;  // Ensure we're triggering grains
 
         // v2.7.0: re-engaged while a release tail is still rendering. The write head
@@ -355,32 +404,7 @@ void OFreezeAudioProcessor::setFrozen(bool frozen, bool reverseActive, float dri
             // Pick a random offset (adds variation between freeze engages)
             frozenDriftOffset = rand01(engageCounter++, kSlotDrift);
 
-            for (auto& grain : grains)
-                grain = Grain {};
-
-            // v2.7.0: start from the steady state — GRAIN_COUNT grains at staggered
-            // phases, as if they had been triggered one interval apart — and seed the
-            // density estimate to match. With the window-sum divide gone, a single
-            // first grain would fade in over half a grain; this keeps the 50 ms engage.
-            const int freezeBufLen = freezeBuffer.getNumSamples();
-            int startPos = reverseActive
-                ? (writePosition - 1 + freezeBufLen) % freezeBufLen
-                : (writePosition - grainSize + freezeBufLen) % freezeBufLen;
-            const float jitterRange = static_cast<float>(grainSize) * driftValue;
-
-            for (int i = 0; i < numGrains; ++i)
-            {
-                // Grain 0 starts now, clean (no jitter, no detune) as before
-                const uint64_t id = grainCounter++;
-                const int jitter = i == 0 ? 0 : static_cast<int>(rand01(id, kSlotJitter) * jitterRange);
-                const float rate = i == 0 ? 1.0f : randomDetuneRate(detuneValue, id);
-                startGrain(grains[static_cast<size_t>(i)], startPos, jitter, rate,
-                           grainTriggerInterval * static_cast<double>(i));
-            }
-
-            densityPower = static_cast<float>(numGrains) * kHannMu2;
-            samplesSinceTrigger = 0.0;
-            nextTriggerInterval = grainTriggerInterval;  // Reset to nominal for clean first cycle
+            startGranularVoices(reverseActive, driftValue, detuneValue);
         }
     }
     else
@@ -400,12 +424,66 @@ void OFreezeAudioProcessor::setFrozen(bool frozen, bool reverseActive, float dri
             if (grain.active)
                 remaining = juce::jmax(remaining, static_cast<double>(grain.length - grain.startSample) - grain.onsetFrac);
         float grainDurationSec = static_cast<float>(remaining / currentSampleRate);
-        freezeGain.reset(currentSampleRate, static_cast<double>(grainDurationSec) + 0.050);
+        // v2.9.0: with the Spectral engine live too, the longer of the two releases
+        if (spectral.isRunning())
+            freezeGain.reset(currentSampleRate, juce::jmax(static_cast<double>(grainDurationSec) + 0.050, kSpectralReleaseSeconds));
+        else
+            freezeGain.reset(currentSampleRate, static_cast<double>(grainDurationSec) + 0.050);
         freezeGain.setCurrentAndTargetValue(heldGain);
         freezeGain.setTargetValue(0.0f);
 
         // DON'T deactivate grains here - they'll naturally complete
         // when their age reaches length (already handled in grain advance loop)
+    }
+}
+
+void OFreezeAudioProcessor::startGranularVoices(bool reverseActive, float driftValue, float detuneValue) noexcept
+{
+    // v2.9.0: extracted from setFrozen unchanged, draw for draw (it is also the
+    // mid-freeze Spectral -> Granular start).
+    for (auto& grain : grains)
+        grain = Grain {};
+
+    // v2.7.0: start from the steady state — GRAIN_COUNT grains at staggered
+    // phases, as if they had been triggered one interval apart — and seed the
+    // density estimate to match. With the window-sum divide gone, a single
+    // first grain would fade in over half a grain; this keeps the 50 ms engage.
+    const int freezeBufLen = freezeBuffer.getNumSamples();
+    int startPos = reverseActive
+        ? (writePosition - 1 + freezeBufLen) % freezeBufLen
+        : (writePosition - grainSize + freezeBufLen) % freezeBufLen;
+    const float jitterRange = static_cast<float>(grainSize) * driftValue;
+
+    for (int i = 0; i < numGrains; ++i)
+    {
+        // Grain 0 starts now, clean (no jitter, no detune) as before
+        const uint64_t id = grainCounter++;
+        const int jitter = i == 0 ? 0 : static_cast<int>(rand01(id, kSlotJitter) * jitterRange);
+        const float rate = i == 0 ? 1.0f : randomDetuneRate(detuneValue, id);
+        startGrain(grains[static_cast<size_t>(i)], startPos, jitter, rate,
+                   grainTriggerInterval * static_cast<double>(i));
+    }
+
+    densityPower = static_cast<float>(numGrains) * kHannMu2;
+    samplesSinceTrigger = 0.0;
+    nextTriggerInterval = grainTriggerInterval;  // Reset to nominal for clean first cycle
+}
+
+void OFreezeAudioProcessor::setEngineTarget(int target, bool ramp) noexcept
+{
+    engineTarget = target;
+    if (ramp)
+    {
+        // 50 ms linear crossfade from wherever e is now (a reversal mid-ramp turns around)
+        const int n = juce::jmax(1, static_cast<int>(std::lround(kEngineFadeSeconds * currentSampleRate)));
+        engineStep = (static_cast<float>(target) - engineMix) / static_cast<float>(n);
+        engineRampRemaining = n;
+    }
+    else
+    {
+        engineMix = static_cast<float>(target);
+        engineStep = 0.0f;
+        engineRampRemaining = 0;
     }
 }
 
@@ -474,6 +552,7 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         grainCounter = 0;
         engageCounter = 0;
         lfoCycleCounter = 0;
+        spectral.setSeed(seed);
     }
 
     // Read parameters (atomic, real-time safe)
@@ -531,6 +610,52 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     float lfoRate = lfoRateParam->load();
     float lfoDepth = lfoDepthParam->load() / 100.0f; // Convert 0-100% to 0-1
     int lfoShape = static_cast<int>(lfoShapeParam->load());
+
+    // v2.9.0: Spectral controls, and the engine (block-rate like every parameter)
+    specDiffusion = parameters.getRawParameterValue("DIFFUSION")->load() / 100.0f;
+    specLfoDepth = lfoDepth;
+    specDrift = driftValue;
+    specDetune = detuneValue;
+    specAvgFrames = juce::jlimit(1, SpectralFreeze::kMaxAvg, static_cast<int>(parameters.getRawParameterValue("AVG_FRAMES")->load()));
+
+    if (const int engineParam = static_cast<int>(parameters.getRawParameterValue("ENGINE")->load()) != 0 ? 1 : 0;
+        engineParam != engineTarget)
+    {
+        // Crossfade only while something renders; idle, the engine just changes.
+        const bool rendering = bufferFrozen || freezeGain.getCurrentValue() > 0.001f;
+        setEngineTarget(engineParam, rendering);
+
+        if (engineParam == 1)
+            spectral.restartAnalysis();
+
+        if (bufferFrozen)
+        {
+            if (engineParam == 1)
+            {
+                // Granular -> Spectral mid-freeze: the write head is held, so the
+                // capture analyses the frozen audio on demand (fallback path).
+                stopTriggeringNewGrains = true;
+                if (! spectral.isRunning())
+                    spectral.capture(freezeBuffer, writePosition, specAvgFrames, spectralControls());
+            }
+            else
+            {
+                // Spectral -> Granular mid-freeze: the same steady-state start as an
+                // engage, unless grains from a moment ago are still sounding.
+                stopTriggeringNewGrains = false;
+                bool grainsLive = false;
+                for (const auto& grain : grains)
+                    grainsLive = grainsLive || grain.active;
+
+                if (! grainsLive)
+                {
+                    hasLastGrainTail = false;
+                    frozenDriftOffset = rand01(engageCounter++, kSlotDrift);
+                    startGranularVoices(reverseActive, driftValue, detuneValue);
+                }
+            }
+        }
+    }
 
     // Push dry signal to mixer
     dryWetMixer.pushDrySamples(juce::dsp::AudioBlock<float>(buffer));
@@ -724,6 +849,20 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         // and corrupts the fade-out (audible for large grain sizes).
         bool renderingTail = bufferFrozen || freezeGain.getCurrentValue() > 0.001f;
 
+        // v2.9.0 engine mix. granularOnly is the v2.8.0 path exactly (e == 0, steady).
+        const float e = nextEngineMix();
+        const bool granularOnly = engineTarget == 0 && engineRampRemaining == 0;
+        const bool spectralOnly = engineTarget == 1 && engineRampRemaining == 0;
+
+        if (spectral.isRunning() && (! renderingTail || granularOnly))
+            spectral.stop();
+
+        if (spectral.isRunning())
+            spectral.processSample(spectralOut, spectralControls());
+        else if (! granularOnly)
+            for (auto& v : spectralOut)
+                v = 0.0f;
+
         // Process each channel using the same grain state
         for (int channel = 0; channel < numChannels; ++channel)
         {
@@ -758,7 +897,18 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 }
 
                 // v2.7.0: live-N density law (see nextDensityGain), not a window-sum divide
-                float frozenSample = granularSum * densityGain;
+                // v2.9.0: blended with the Spectral engine only while e != 0
+                float frozenSample;
+                if (granularOnly)
+                    frozenSample = granularSum * densityGain;
+                else
+                {
+                    const float spec = channel < SpectralFreeze::kMaxChannels ? spectralOut[channel] : 0.0f;
+                    if (spectralOnly)
+                        frozenSample = spec;
+                    else
+                        frozenSample = (1.0f - e) * (granularSum * densityGain) + e * spec;
+                }
 
                 // Apply crossfade envelope
                 outputSample = inputSample * (1.0f - currentFreezeGain) + frozenSample * currentFreezeGain;
@@ -819,6 +969,10 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         if (!renderingTail)
         {
             writePosition = (writePosition + 1) % freezeBufferLength;
+
+            // v2.9.0: rolling spectral analysis on the write-head clock, Spectral only
+            if (engineTarget == 1)
+                spectral.onWriteAdvanced(freezeBuffer, writePosition);
         }
     }
 

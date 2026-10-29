@@ -60,6 +60,39 @@ The DRIFT parameter adds randomization to grain playback positions, creating mov
 
 **Tip:** Start at 25% (default) and adjust based on your source material. Tonal sources often benefit from lower drift, while noisy sources can handle more.
 
+## Spectral Engine (v2.9.0)
+
+The ENGINE toggle beside MODE chooses how the freeze is made. **Granular** (the
+default, and the only engine before 2.9.0) loops overlapping grains of the captured
+audio. **Spectral** freezes the sound's spectrum: an 8192-point STFT with 75 %
+overlap analyses the audio continuously, and on freeze the newest AVG_FRAMES frames are
+averaged into one magnitude spectrum that is resynthesised for as long as the freeze
+is held.
+
+In Spectral the Size knob becomes **Diffusion**, the Grains knob becomes **Avg**,
+Reverse dims and the LFO group reads **Diffusion LFO**.
+
+| Control | In Spectral |
+|---------|-------------|
+| Diffusion (0-100 %) | Random phase step per frame. 0 % = locked, tonal hold (phase-locked vocoder); 100 % = smooth, diffuse wash |
+| Avg (1-16 frames) | Frames averaged into the frozen spectrum. 1 = a single snapshot (can ring metallically on noise); 8 (default) or more = smoother. Applies at the next freeze |
+| Drift | Each frequency's level wanders slowly and independently, up to about +-3 dB |
+| Detune | Per-frequency spread: low partials detune gently, high ones shimmer. Not a clean pitch shift |
+| LFO (Rate / Depth / Shape) | Modulates Diffusion |
+| Mix, Freeze, Threshold, Mode | As in Granular |
+
+**Tips**
+
+- Diffusion 0 % on a held chord or vowel gives the most "photographic" freeze;
+  20-40 % loosens it; 70-100 % turns any source into an airy pad.
+- On noisy sources (breath, cymbals, room tone) keep Avg at 8 or above.
+- Switching ENGINE while frozen crossfades the two engines over 50 ms. Switching to
+  Spectral while frozen analyses the frozen audio on the spot.
+- At 96/192 kHz the FFT size stays 8192 points, so the analysis window is shorter
+  (43 ms at 192 kHz) and very low notes (below about 60 Hz) smear more.
+- Spectral output is not latency-compensated: the frozen sound is a capture of the
+  last fraction of a second before the freeze, as in Granular.
+
 ## Mix Control
 
 The MIX parameter blends between dry (original) and wet (frozen) signals.
