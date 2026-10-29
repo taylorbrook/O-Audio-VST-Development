@@ -119,6 +119,9 @@ void SpectralFreeze::prepare(double newSampleRate, int newNumChannels, Slots new
     olaPos = 0;
     synthCountdown = 0;
     running = false;
+    priming = false;
+    onsetLength = juce::jmax(1, static_cast<int>(std::lround(kOnsetFadeSeconds * sampleRate)));
+    onsetPos = onsetLength;
 }
 
 void SpectralFreeze::setSeed(uint64_t newSeed) noexcept
@@ -193,22 +196,74 @@ void SpectralFreeze::analyseFrame(const juce::AudioBuffer<float>& ring, int endP
 
 void SpectralFreeze::capture(const juce::AudioBuffer<float>& ring, int writePos, int avgFrames, const Controls& c) noexcept
 {
-    const int n = juce::jlimit(1, kMaxAvg, avgFrames);
-    const int need = juce::jmax(n, 2);   // the IF estimate needs two frames
+    primeAvg = juce::jlimit(1, kMaxAvg, avgFrames);
+    const int need = juce::jmax(primeAvg, 2);   // the IF estimate needs two frames
 
     // Fallback: too few rolling frames (engine just switched, or a mid-freeze switch,
-    // where the write head is held): analyse them now from the ring, ending at the
-    // write head. One function, two callers.
+    // where the write head is held): analyse them from the ring, ending at the write
+    // head, as the first prime steps. One function, two callers.
+    primeAnalysesLeft = 0;
     if (framesValid < need)
     {
-        const int len = ring.getNumSamples();
-        for (int j = need - 1; j >= 0; --j)
-            analyseFrame(ring, ((writePos - j * kHop) % len + len) % len);
+        primeAnalysesLeft = need;
         ++fallbackCaptures;
     }
     ++captures;
 
+    primeRing = &ring;
+    primeWritePos = writePos;
+    primeControls = c;
+    primeStage = 0;
+    primeCountdown = 1;   // the first step runs on this sample
+    priming = true;
+    running = true;
+}
+
+void SpectralFreeze::primeStep() noexcept
+{
+    if (primeAnalysesLeft > 0)
+    {
+        const int len = primeRing->getNumSamples();
+        for (int i = 0; i < kFallbackPerStep && primeAnalysesLeft > 0; ++i)
+        {
+            const int j = --primeAnalysesLeft;   // need - 1 down to 0, oldest first
+            analyseFrame(*primeRing, ((primeWritePos - j * kHop) % len + len) % len);
+        }
+        return;
+    }
+
+    const int stage = primeStage++;
+    if (stage == 0)
+        captureAverage();
+    else if (stage == 1)
+        capturePeaks();
+    else if (stage == 2)
+        captureDraws();
+    else
+    {
+        // Prime the OLA: the frames that would have started 3, 2, 1 and 0 hops ago, so
+        // the output is at its steady level on its first sample (an empty OLA ramps
+        // over 3 hops).
+        const int j = kPrimeStages - 1 - stage;
+        if (j == 3)
+        {
+            std::fill(ola.begin(), ola.end(), 0.0f);
+            olaPos = 0;
+        }
+        synthesiseFrame(-j * kHop, primeControls);
+        if (j == 0)
+        {
+            synthCountdown = kHop;
+            priming = false;
+            onsetPos = 0;
+        }
+    }
+}
+
+void SpectralFreeze::captureAverage() noexcept
+{
     // RMS magnitude average over the newest n frames, and phase / IF from the newest two
+    const int n = primeAvg;
     const float invN = 1.0f / static_cast<float>(n);
     std::fill(power.begin(), power.end(), 0.0f);
 
@@ -260,7 +315,10 @@ void SpectralFreeze::capture(const juce::AudioBuffer<float>& ring, int writePos,
         dcValue[ch] = x[0] < 0.0f ? -m[0] : m[0];
         nyqValue[ch] = x[2 * (kBins - 1)] < 0.0f ? -m[kBins - 1] : m[kBins - 1];
     }
+}
 
+void SpectralFreeze::capturePeaks() noexcept
+{
     // Peaks of the L+R power: local max over +-2 bins, above -60 dB (magnitude) re max.
     // Each bin locks to the nearest peak, the boundary being the minimum between two.
     float maxP = 0.0f;
@@ -317,7 +375,10 @@ void SpectralFreeze::capture(const juce::AudioBuffer<float>& ring, int writePos,
         for (int k = 0; k < kBins; ++k)
             dl[k] = ph[k] - ph[peakOf[sz(k)]];
     }
+}
 
+void SpectralFreeze::captureDraws() noexcept
+{
     // Per-engage draws: detune factor r_k in [-1, 1), walk rate log-uniform 0.2 - 3 Hz.
     // One engage = 2 * kBins counters on the engage slot (detune, then rate).
     const uint64_t base = engageCounter++ * static_cast<uint64_t>(2 * kBins);
@@ -331,15 +392,6 @@ void SpectralFreeze::capture(const juce::AudioBuffer<float>& ring, int writePos,
         walkB[sz(k)] = static_cast<float>(std::sqrt((1.0 - a * a) * 3.0));
         walk[sz(k)] = 0.0f;
     }
-
-    // Prime the OLA: the frames that would have started 3, 2, 1 and 0 hops ago, so the
-    // output is at its steady level on the first sample (an empty OLA ramps over 3 hops).
-    std::fill(ola.begin(), ola.end(), 0.0f);
-    olaPos = 0;
-    for (int j = 3; j >= 0; --j)
-        synthesiseFrame(-j * kHop, c);
-    synthCountdown = kHop;
-    running = true;
 }
 
 void SpectralFreeze::synthesiseFrame(int offset, const Controls& c) noexcept
@@ -439,6 +491,22 @@ void SpectralFreeze::synthesiseFrame(int offset, const Controls& c) noexcept
 
 void SpectralFreeze::processSample(float* out, const Controls& c) noexcept
 {
+    if (priming)
+    {
+        if (--primeCountdown <= 0)
+        {
+            primeStep();
+            primeCountdown = kPrimeSpacing;
+        }
+        if (priming)
+        {
+            for (int ch = 0; ch < kMaxChannels; ++ch)
+                out[ch] = 0.0f;
+            return;
+        }
+        // the last step: output starts on this sample
+    }
+
     if (synthCountdown <= 0)
     {
         synthesiseFrame(0, c);
@@ -450,6 +518,12 @@ void SpectralFreeze::processSample(float* out, const Controls& c) noexcept
         float& v = ola[sz(ch * kOlaSize + olaPos)];
         out[ch] = v;
         v = 0.0f;
+    }
+    if (onsetPos < onsetLength)
+    {
+        const float g = static_cast<float>(++onsetPos) / static_cast<float>(onsetLength);
+        for (int ch = 0; ch < numChannels; ++ch)
+            out[ch] *= g;
     }
     for (int ch = numChannels; ch < kMaxChannels; ++ch)
         out[ch] = out[0];

@@ -799,7 +799,7 @@ export const LABELS = Object.freeze({
 // ============================================================================
 
 export const I18N_EXEMPT = [
-    ['Ouaricon Granular Freeze',
+    ['Ouaricon Freeze',
      'the product display name in the #header h1 — a product name is never translated. It is the brand-plus-product form of the registered PRODUCT_NAME "O-Freeze" in CMakeLists.txt, and the same shape as O-AnalogSaturation\'s exempt "OUARICON SATURATION"'],
 
     // ── D-01 arm 1: the MODE captions, and the word they drag with them ─────

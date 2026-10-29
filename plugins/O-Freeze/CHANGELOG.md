@@ -2,6 +2,55 @@
 
 All notable changes to O-Freeze will be documented in this file.
 
+## [2.9.1] - 2026-10-28
+
+The Spectral engine's engage no longer lands in one slow audio block, and the header
+reads "Ouaricon Freeze". PATCH: no parameter or state changes; Granular renders
+bit-identically to 2.9.0.
+
+### Fixed
+
+- **Slow freeze-start block (Spectral).** The whole capture ran inside the engage
+  sample: average + IF, peaks, 4097 per-engage draws, and four primed 8192-point
+  frames (about 60 us each, 240 of the 330-410 us), plus up to 16 on-demand analyses
+  on a fallback capture. At 32 samples / 48 kHz that block took 330-410 us against a
+  333 us budget (half the period). `capture()` now only arms the engage; the work
+  runs as steps 32 samples apart in `processSample()`: fallback analyses two per
+  step, then average + IF, peaks, the draws, and the four primed frames one per step.
+  No block of 32 or more carries more than about one frame's work.
+  - Worst block over the 30 ms after an engage, 48 kHz / 32: rolling re-engage
+    60-150 us (was 330-410), fallback at AVG 16 right after an engine switch
+    66-88 us. Same order as a steady hop block (75-100 us).
+  - Output starts on the last step: 192 samples after the engage for a rolling
+    capture, up to 480 for a fallback at AVG 16 (4-10 ms at 48 kHz), through a 5 ms
+    linear onset ramp, inside the processor's 50 ms fade-in. From then on the output
+    is 2.9.0's sample for sample, delayed by that amount (exact with no LFO; with the
+    LFO, each frame sees the LFO at its own, later, time).
+  - The primed frames use the controls given at the engage, as before.
+  - `SpectralFreeze::isRunning()` stays true while priming (engaged), so re-engaging
+    mid-prime continues without recapturing, and the release fade length is
+    unchanged.
+- **Header title.** "Ouaricon Granular Freeze" became inaccurate with the Spectral
+  engine; the h1, the page `<title>` and the I18N_EXEMPT entry now read
+  "Ouaricon Freeze".
+
+### Testing
+
+- Render harness `--timing` now gates the worst block in the engage window (every
+  block to 30 ms after; 20 rolling re-engages and 10 fallback engages at AVG 16),
+  not only the first block, which the spread would make vacuous. PASS at 48 k / 16,
+  48 k / 32 and 192 k / 64. `--probe` and `--alloc` (0 allocations, 48 k and
+  192 k) PASS.
+- Null against the installed 2.9.0 VST3 (each binary in its own process, one shared
+  seed; drift 50 %, detune 10 c, diffusion 30 %, no LFO): Granular bit-identical;
+  Spectral engage `new[t] == old[t - 192]` bit-exact over 2.9 s; Granular -> Spectral
+  mid-freeze (fallback, AVG 8) `new[t] == old[t - 320]` bit-exact; the unshifted
+  comparisons differ (0.19 / 0.30), so the null is not vacuous; block 37 == 512.
+- `tests/spectral/gate.py` all PASS (click engage 0.87, release 0.96, switch
+  G->S 0.98, S->G 0.73; level, engines, monotone, metallic, hop AM unchanged);
+  `tests/blocksize-null` PASS; check-i18n, check-ui-labels PASS; pluginval
+  strictness 10 SUCCESS; auval PASS.
+
 ## [2.9.0] - 2026-10-28
 
 A second freeze engine. ENGINE = Spectral holds the sound's spectrum instead of looping

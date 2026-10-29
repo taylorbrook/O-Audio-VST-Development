@@ -38,8 +38,12 @@
                      hook, processBlock thread only), proven live first by a
                      deliberate malloc.
     --timing [--rate=48000] [--block=32] [--seconds=20]
-                     worst processBlock time with Spectral frozen (steady blocks,
-                     engage block reported separately) vs the block period.
+                     worst processBlock time with Spectral frozen (steady blocks)
+                     and over the engage window (v2.9.1: every block from the
+                     engage to 30 ms after, since the capture work is spread over
+                     prime steps; rolling re-engages, and fallback engages at
+                     AVG_FRAMES 16 right after an engine switch), each gated
+                     against 50 % of the block period.
 
   ==============================================================================
 */
@@ -327,9 +331,23 @@ int timing (double rate, int bs, double seconds)
     setParam (r.proc, "LFO_DEPTH", 50.0f);
     r.run (1.0);
 
-    setParam (r.proc, "FREEZE", 1.0f);
-    r.run (static_cast<double> (bs) / rate);   // the engage block
-    const double engage = r.lastBlockSeconds;
+    const double blockSec = static_cast<double> (bs) / rate;
+    const long long windowBlocks = static_cast<long long> (std::ceil (0.030 / blockSec));
+
+    // worst block from the engage to 30 ms after (the prime steps all land in it)
+    auto engageWindow = [&]
+    {
+        setParam (r.proc, "FREEZE", 1.0f);
+        double w = 0.0;
+        for (long long b = 0; b < windowBlocks; ++b)
+        {
+            r.run (blockSec);
+            w = std::max (w, r.lastBlockSeconds);
+        }
+        return w;
+    };
+
+    const double engage = engageWindow();
 
     const long long n = static_cast<long long> (seconds * rate / bs);
     double worst = 0.0, sum = 0.0;
@@ -344,27 +362,46 @@ int timing (double rate, int bs, double seconds)
     }
     std::sort (times.begin(), times.end());
 
-    // engage blocks: 20 release / re-engage cycles (rolling capture + 4 primed frames)
+    // engage windows: 20 release / re-engage cycles (rolling capture + 4 primed frames)
     std::vector<double> engages;
     for (int i = 0; i < 20; ++i)
     {
         setParam (r.proc, "FREEZE", 0.0f);
         r.run (0.4);
-        setParam (r.proc, "FREEZE", 1.0f);
-        r.run (static_cast<double> (bs) / rate);
-        engages.push_back (r.lastBlockSeconds);
+        engages.push_back (engageWindow());
     }
     std::sort (engages.begin(), engages.end());
-    const double period = static_cast<double> (bs) / rate;
+
+    // fallback engages: AVG_FRAMES 16, engaged 20 ms after switching to Spectral
+    // (16 on-demand analyses before the capture)
+    setParam (r.proc, "AVG_FRAMES", 16.0f);
+    std::vector<double> fallbacks;
+    for (int i = 0; i < 10; ++i)
+    {
+        setParam (r.proc, "FREEZE", 0.0f);
+        setParam (r.proc, "ENGINE", 0.0f);
+        r.run (0.4);
+        setParam (r.proc, "ENGINE", 1.0f);
+        r.run (0.02);
+        fallbacks.push_back (engageWindow());
+    }
+    std::sort (fallbacks.begin(), fallbacks.end());
+
+    const double period = blockSec;
+    const double budget = 0.5 * period;
     const double p999 = times[static_cast<size_t> (0.999 * static_cast<double> (times.size() - 1))];
-    const bool ok = worst < 0.5 * period;
+    const double engageWorst = std::max ({ engage, engages.back(), fallbacks.back() });
+    const bool okSteady = worst < budget;
+    const bool okEngage = engageWorst < budget;
     std::cout << "timing @" << rate << " Hz block " << bs << ", " << seconds << " s frozen: worst "
               << worst * 1.0e6 << " us, p99.9 " << p999 * 1.0e6 << " us, mean " << sum / static_cast<double> (n) * 1.0e6
-              << " us; first engage block " << engage * 1.0e6 << " us, re-engage median "
-              << engages[engages.size() / 2] * 1.0e6 << " us / max " << engages.back() * 1.0e6 << " us; budget (50 % of " << period * 1.0e6 << " us) "
-              << 0.5 * period * 1.0e6 << " us" << std::endl;
-    std::cout << (ok ? "PASS" : "FAIL") << " worst steady block < 50 % of the block period" << std::endl;
-    return ok ? 0 : 1;
+              << " us; engage window (worst block, 30 ms): first " << engage * 1.0e6 << " us, re-engage median "
+              << engages[engages.size() / 2] * 1.0e6 << " us / max " << engages.back() * 1.0e6 << " us, fallback (AVG 16) median "
+              << fallbacks[fallbacks.size() / 2] * 1.0e6 << " us / max " << fallbacks.back() * 1.0e6 << " us; budget (50 % of "
+              << period * 1.0e6 << " us) " << budget * 1.0e6 << " us" << std::endl;
+    std::cout << (okSteady ? "PASS" : "FAIL") << " worst steady block < 50 % of the block period" << std::endl;
+    std::cout << (okEngage ? "PASS" : "FAIL") << " worst engage-window block < 50 % of the block period" << std::endl;
+    return okSteady && okEngage ? 0 : 1;
 }
 } // namespace
 

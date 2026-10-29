@@ -22,6 +22,7 @@
 
     SpectralFreeze.h
     O-Freeze v2.9.0 - the Spectral engine (STFT freeze, 8192 / 4x, Hann x Hann).
+    v2.9.1 - the engage work is spread over steps kPrimeSpacing samples apart.
 
     Analysis runs on the write-head clock (one frame per kHop samples written),
     resynthesis on the synth clock (one frame per kHop samples output). Every
@@ -53,6 +54,17 @@ public:
     static constexpr int kMaxChannels = 2;
     static constexpr int kOlaSize = 2 * kSize;          // output ring (power of two)
 
+    // v2.9.1 engage priming: one step every kPrimeSpacing samples on the synth clock
+    // (fallback analyses kFallbackPerStep at a time, then average + IF, peaks, the
+    // per-engage draws, and the 4 primed frames one each), so no host block of 32 or
+    // more carries more than about one frame's work. Output starts on the last step,
+    // through a kOnsetFadeSeconds linear ramp (the processor's 50 ms fade is already
+    // a few ms in by then, so starting at full scale would step).
+    static constexpr int kPrimeSpacing = 32;
+    static constexpr int kFallbackPerStep = 2;
+    static constexpr int kPrimeStages = 7;              // average, peaks, draws, 4 frames
+    static constexpr double kOnsetFadeSeconds = 0.005;
+
     // RNG slots, passed in so the processor's RngSlot enum stays the one registry
     struct Slots { uint32_t phase, drift, engage; };
 
@@ -80,14 +92,24 @@ public:
 
     /** Engage: average avgFrames frames (on-demand fallback from the ring if the
         rolling analysis holds fewer), estimate IF / peaks, draw per-engage values,
-        prime the OLA with 4 frames. */
+        prime the OLA with 4 frames. v2.9.1: this only arms the steps; processSample()
+        runs them (the ring must stay unwritten meanwhile: the write head is held while
+        anything renders), with the controls given here for the primed frames. */
     void capture(const juce::AudioBuffer<float>& ring, int writePos, int avgFrames, const Controls& c) noexcept;
 
+    /** Engaged (priming or sounding). */
     bool isRunning() const noexcept { return running; }
-    void stop() noexcept { running = false; }
+    void stop() noexcept { running = false; priming = false; }
 
-    /** One output sample per channel (out[ch]); synthesises a frame every kHop. */
+    /** One output sample per channel (out[ch]); synthesises a frame every kHop. Silent
+        while priming. */
     void processSample(float* out, const Controls& c) noexcept;
+
+    /** Samples from capture() to the first output sample (the last prime step). */
+    static constexpr int primeDelaySamples(int fallbackAnalyses) noexcept
+    {
+        return ((fallbackAnalyses + kFallbackPerStep - 1) / kFallbackPerStep + kPrimeStages - 1) * kPrimeSpacing;
+    }
 
     // Read-only probes for the test harness (cheap, never used by the DSP)
     int getFramesValid() const noexcept { return framesValid; }
@@ -96,6 +118,7 @@ public:
     int getRollingFrames() const noexcept { return rollingFrames; }
     int getFallbackCaptures() const noexcept { return fallbackCaptures; }
     int getCaptures() const noexcept { return captures; }
+    bool isPriming() const noexcept { return priming; }
 
     /** beta -> makeup gain (D2 half-compensation of the incoherent-overlap level loss). */
     static float makeupFor(float beta) noexcept;
@@ -111,6 +134,10 @@ public:
 
 private:
     void analyseFrame(const juce::AudioBuffer<float>& ring, int endPos) noexcept;
+    void primeStep() noexcept;
+    void captureAverage() noexcept;   // magnitudes, phase, IF
+    void capturePeaks() noexcept;     // peak regions, lock offsets
+    void captureDraws() noexcept;     // per-engage detune / walk-rate draws
     void synthesiseFrame(int offset, const Controls& c) noexcept;
     float uniform(uint64_t counter, uint32_t slot) const noexcept;
 
@@ -161,4 +188,16 @@ private:
     int olaPos = 0;
     int synthCountdown = 0;
     bool running = false;
+
+    // Engage priming (v2.9.1)
+    const juce::AudioBuffer<float>* primeRing = nullptr;
+    int primeWritePos = 0;
+    int primeAvg = 1;
+    int primeAnalysesLeft = 0;        // fallback frames still to analyse
+    int primeStage = 0;               // next of the kPrimeStages stages
+    int primeCountdown = 0;
+    Controls primeControls;
+    bool priming = false;
+    int onsetLength = 1;
+    int onsetPos = 0;                 // onsetLength = ramp done
 };

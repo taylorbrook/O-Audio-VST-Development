@@ -61,9 +61,9 @@ Each success criterion was re-run in this session on a fresh build. The execute 
 
 ## Known Issues / Notes
 
-1. **Engage block exceeds the half-period budget.** The first engage block takes 332 µs; re-engages have a median of 334 µs and a maximum of 410 µs. The budget is 333 µs (half the 667 µs period at 32 / 48 k). It is still under the full block period. The candidate fix is to spread the 4 primed frames across the first hop. This is not gated; it is carried from the SUMMARY open issues.
+1. **[RESOLVED in 2.9.1: engage work spread over 32-sample prime steps; engage-window worst block 60-150 us]** **Engage block exceeds the half-period budget.** The first engage block takes 332 µs; re-engages have a median of 334 µs and a maximum of 410 µs. The budget is 333 µs (half the 667 µs period at 32 / 48 k). It is still under the full block period. The candidate fix is to spread the 4 primed frames across the first hop. This is not gated; it is carried from the SUMMARY open issues.
 2. **Translations are unreviewed.** fr has 12 entries at `reviewed: false`; zh has 12 at `'mt'`.
-3. **The header title still reads "Ouaricon Granular Freeze".** That is now inaccurate with a Spectral engine. It was out of scope and left as is.
+3. **[RESOLVED in 2.9.1: now "Ouaricon Freeze"]** **The header title still reads "Ouaricon Granular Freeze".** That is now inaccurate with a Spectral engine. It was out of scope and left as is.
 4. **The headless stub shows wrong readouts.** `scripts/ui-stub/generic-juce-stub.js:154` gives every parameter a neutral 0–1 range at 0.5, so readouts in the capture show 1 % and 1. This affects every knob and is not a binding bug. The real ranges are confirmed in `setupKnobs()`. A DAW / Standalone check is still recommended to confirm live binding.
 5. **Binaries are platform-specific.** vForce is used on macOS, so Spectral renders are deterministic per platform but not bit-identical between macOS and other platforms.
 
