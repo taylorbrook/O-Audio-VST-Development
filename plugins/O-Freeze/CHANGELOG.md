@@ -50,6 +50,7 @@ bit-identically to 2.9.0.
   G->S 0.98, S->G 0.73; level, engines, monotone, metallic, hop AM unchanged);
   `tests/blocksize-null` PASS; check-i18n, check-ui-labels PASS; pluginval
   strictness 10 SUCCESS; auval PASS.
+- DAW hands-on (2026-10-29): Spectral engage start and header title PASS.
 
 ## [2.9.0] - 2026-10-28
 
