@@ -130,10 +130,10 @@ A session-start snapshot is not good enough — it can be minutes stale. The Ses
 Per-plugin undo does not need a per-plugin branch. Three mechanisms, all path-scoped:
 
 - **Backup snapshots** — `/improve` writes `backups/<Plugin>/vX.Y.Z/` before it changes anything.
-- **Release tags** — named `vX.Y.Z-<PluginName>`, version first with the plugin name as the suffix (for example `v3.1.1-O-Bells`).
+- **Release tags** — named `<PluginName>-vX.Y.Z`, plugin name first (for example `O-Bells-v4.8.0`). This is the only form the release CI glob (`*-v*`) fires on; the 153 legacy version-first tags (`v3.1.1-O-Bells`) never built anything. Tags are created only by `/publish`.
 - **Path-scoped restore** — pull one plugin's tree back to a known state without touching anything else:
   ```bash
-  git restore --source=v3.1.1-O-Bells -- plugins/O-Bells
+  git restore --source=O-Bells-v4.8.0 -- plugins/O-Bells
   ```
 
 **`git revert` takes no pathspec.** `git revert -n <sha> -- plugins/<Name>` fails with `fatal: bad revision`. `restore` is the path-scoped tool; `revert` is not.

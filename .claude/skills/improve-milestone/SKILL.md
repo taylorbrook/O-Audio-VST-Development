@@ -565,7 +565,7 @@ Add entry to CHANGELOG.md:
 ```bash
 git add plugins/[PluginName]/ .planning/
 git commit -m "improve: [PluginName] v[version] - [milestone-slug]"
-git tag -a "v[version]" -m "[PluginName] v[version]: [description]"
+# No tag here — release tags come only from /publish, as "[PluginName]-v[version]" (CI glob *-v*)
 ```
 
 ### 4. State Cleanup

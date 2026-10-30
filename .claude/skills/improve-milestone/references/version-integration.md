@@ -200,7 +200,7 @@ Domain: [domain]
 
 ```bash
 # Create annotated tag
-git tag -a "v[version]" -m "[PluginName] v[version]: [milestone description]
+git tag -a "[PluginName]-v[version]" -m "[PluginName] v[version]: [milestone description]
 
 Changes:
 - [Key change 1]

@@ -486,7 +486,7 @@ Ready to implement changes for v[NewVersion]
 
 **Commit format:** `improve: [PluginName] v[X.Y.Z] - [description]`
 
-**Tag release:** `git tag -a "v[X.Y.Z]" -m "[PluginName] v[X.Y.Z]"`
+**Tag release:** don't tag here — release tags are created only by `/publish`, as `[PluginName]-v[X.Y.Z]` (plugin first; CI glob `*-v*` ignores version-first tags).
 
 **Note:** Display git commands for user to run manually. Do not execute git commit or git push.
 
