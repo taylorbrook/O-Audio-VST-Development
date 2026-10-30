@@ -9,8 +9,8 @@
 # - Modules: Working code (CMake import with configuration)
 
 # NOTE: `version` and `last_updated` MUST be bumped on every edit. scripts/regen-registry-used-by.sh bumps them automatically when used_by content changes; bump minor/major by hand for significant changes.
-version: 1.2.2
-last_updated: 2026-10-15
+version: 1.2.3
+last_updated: 2026-10-29
 schema_version: 1.0.0
 
 # Module categories
@@ -57,19 +57,6 @@ modules:
       - cpp-header: WebViewRelayManager.h
     tags: [webview, relay, attachment, juce8, crash-prevention]
     reuse_score: 10
-    used_by: []
-
-  - name: resource-provider
-    path: core/resource-provider
-    version: 1.0.0
-    description: |
-      Generic resource provider for WebView binary data serving. Maps flattened
-      BinaryData names back to URL paths with correct MIME types.
-    category: core
-    provides:
-      - cpp-header: ResourceProvider.h
-    tags: [webview, resources, binarydata, mime]
-    reuse_score: 9
     used_by: []
 
   - name: webview-drop-streaming
@@ -125,11 +112,13 @@ modules:
     reuse_score: 8
     used_by:
       - plugin: O-MicrotonalSampler
-        version: 1.23.10
+        version: 1.28.2
       - plugin: O-simpleGrain
-        version: 1.2.0
+        version: 1.9.0
       - plugin: O-simpleSampler
-        version: 1.3.0
+        version: 1.6.3
+      - plugin: O-simpleWavetable
+        version: 1.0.4
 
   # ============================================================================
   # PERSISTENCE MODULES
@@ -171,63 +160,71 @@ modules:
     reuse_score: 9
     used_by:
       - plugin: O-AnalogEQ
-        version: 1.1.11
+        version: 1.5.7
       - plugin: O-Bass
-        version: 1.3.3
+        version: 1.8.3
       - plugin: O-Bassoon
-        version: 1.0.0
+        version: 1.6.1
       - plugin: O-Bells
-        version: 4.1.5
+        version: 4.9.3
       - plugin: O-Bitrot
-        version: 1.7.0
+        version: 1.17.3
       - plugin: O-Bowed
-        version: 1.4.1
+        version: 1.10.3
       - plugin: O-Chorus
-        version: 1.2.3
+        version: 1.10.3
       - plugin: O-Comp
-        version: 1.5.0
+        version: 1.11.3
       - plugin: O-Contrabass
-        version: 1.4.0
+        version: 1.12.2
       - plugin: O-Detune
-        version: 1.5.4
+        version: 1.10.2
       - plugin: O-DigiDelay
-        version: 1.2.12
+        version: 1.9.3
+      - plugin: O-Emulator
+        version: 1.5.1
       - plugin: O-Formant
-        version: 1.25.4
+        version: 1.34.2
       - plugin: O-FreqPulse
-        version: 1.17.0
+        version: 1.20.2
       - plugin: O-Lyrica
-        version: 2.3.3
+        version: 2.6.6
       - plugin: O-MultiBandCompressor
-        version: 1.7.0
+        version: 1.14.2
       - plugin: O-Octagon
-        version: 1.0.0
+        version: 1.16.2
+      - plugin: O-Orbit
+        version: 1.4.5
       - plugin: O-Polystutter
-        version: 1.13.0
+        version: 1.19.0
       - plugin: O-Prism
-        version: 1.19.3
+        version: 1.30.3
       - plugin: O-Reed
-        version: 1.1.0
+        version: 1.7.1
       - plugin: O-ReverseDelay
-        version: 1.8.1
+        version: 1.22.4
+      - plugin: O-simpleAmbisonics
+        version: 1.0.2
       - plugin: O-simpleFM
-        version: 1.2.4
+        version: 1.6.1
       - plugin: O-simpleGrain
         version: 1.9.0
       - plugin: O-simplePhysicalModelSynth
-        version: 1.1.0
-      - plugin: O-simpleReverb
-        version: 2.0.0
-      - plugin: O-SpectralShaper
         version: 1.5.0
+      - plugin: O-simpleReverb
+        version: 3.0.1
+      - plugin: O-simpleWavetable
+        version: 1.0.4
+      - plugin: O-SpectralShaper
+        version: 1.10.2
       - plugin: O-Strata
-        version: 1.0.0
+        version: 1.1.3
       - plugin: O-Tapestop
-        version: 1.0.0
+        version: 1.7.3
       - plugin: O-Tremolo
-        version: 1.6.0
+        version: 1.11.2
       - plugin: O-Wind
-        version: 1.16.3
+        version: 1.22.2
 
   # ============================================================================
   # METERING MODULES
@@ -343,29 +340,31 @@ modules:
     reuse_score: 10
     used_by:
       - plugin: O-Bassoon
-        version: 1.0.0
+        version: 1.6.1
       - plugin: O-Bells
-        version: 4.1.5
+        version: 4.9.3
       - plugin: O-Bowed
-        version: 1.4.1
+        version: 1.10.3
       - plugin: O-Contrabass
-        version: 1.4.0
+        version: 1.12.2
       - plugin: O-Formant
-        version: 1.25.4
+        version: 1.34.2
       - plugin: O-IntonationPad
-        version: 2.8.4
+        version: 2.11.3
       - plugin: O-Lyrica
-        version: 2.3.3
+        version: 2.6.6
       - plugin: O-Marimba
-        version: 1.12.1
-      - plugin: O-MicrotonalSampler
-        version: 1.23.10
-      - plugin: O-Prism
-        version: 1.19.3
-      - plugin: O-Reed
-        version: 1.1.0
-      - plugin: O-Wind
         version: 1.16.3
+      - plugin: O-MicrotonalSampler
+        version: 1.28.2
+      - plugin: O-Prism
+        version: 1.30.3
+      - plugin: O-Reed
+        version: 1.7.1
+      - plugin: O-Strata
+        version: 1.1.3
+      - plugin: O-Wind
+        version: 1.22.2
 
   - name: note-expression
     path: tuning/note-expression
@@ -388,27 +387,29 @@ modules:
     reuse_score: 10
     used_by:
       - plugin: O-Bassoon
-        version: 1.0.0
+        version: 1.6.1
       - plugin: O-Bells
-        version: 4.1.5
+        version: 4.9.3
       - plugin: O-Bowed
-        version: 1.4.1
+        version: 1.10.3
       - plugin: O-Contrabass
-        version: 1.4.0
+        version: 1.12.2
       - plugin: O-Formant
-        version: 1.25.4
+        version: 1.34.2
       - plugin: O-IntonationPad
-        version: 2.8.4
+        version: 2.11.3
       - plugin: O-Lyrica
-        version: 2.3.3
+        version: 2.6.6
       - plugin: O-MicrotonalSampler
-        version: 1.23.10
+        version: 1.28.2
       - plugin: O-Prism
-        version: 1.19.3
+        version: 1.30.3
       - plugin: O-Reed
-        version: 1.1.0
+        version: 1.7.1
+      - plugin: O-Strata
+        version: 1.1.3
       - plugin: O-Wind
-        version: 1.16.3
+        version: 1.22.2
 
   # ============================================================================
   # SYNTHESIS MODULES
@@ -433,11 +434,11 @@ modules:
     reuse_score: 8
     used_by:
       - plugin: O-Bowed
-        version: 1.4.1
+        version: 1.10.3
       - plugin: O-Contrabass
-        version: 1.4.0
+        version: 1.12.2
       - plugin: O-simplePhysicalModelSynth
-        version: 1.1.0
+        version: 1.5.0
 
   - name: grain-engine
     path: synthesis/grain-engine
@@ -469,10 +470,20 @@ modules:
     tags: [synthesis, granular, window, scheduler, rng, voice-pool, anti-aliasing, resampling]
     reuse_score: 9
     used_by:
+      - plugin: O-Freeze
+        version: 2.9.1
+      - plugin: O-GrainScatter
+        version: 3.5.0
+      - plugin: O-Polystutter
+        version: 1.19.0
       - plugin: O-ReverseDelay
         version: 1.22.4
-      - plugin: O-GrainScatter
-        version: 3.3.0
+      - plugin: O-simpleGrain
+        version: 1.9.0
+      - plugin: O-Tapestop
+        version: 1.7.3
+      - plugin: O-TextureForge
+        version: 1.8.0
 
   # ============================================================================
   # EFFECTS MODULES
@@ -526,7 +537,7 @@ modules:
     reuse_score: 9
     used_by:
       - plugin: O-Marimba
-        version: 1.16.0
+        version: 1.16.3
 
   - name: compressor-unit
     path: effects/compressor-unit
@@ -565,7 +576,7 @@ modules:
     reuse_score: 9
     used_by:
       - plugin: O-Marimba
-        version: 1.16.0
+        version: 1.16.3
 
   - name: reverb-unit
     path: effects/reverb-unit
@@ -598,7 +609,7 @@ modules:
     reuse_score: 9
     used_by:
       - plugin: O-Marimba
-        version: 1.16.0
+        version: 1.16.3
 
   # ============================================================================
   # UI MODULES
@@ -626,14 +637,90 @@ modules:
     tags: [ui, font, typography, webview, ofl]
     reuse_score: 8
     used_by:
-      - plugin: O-ReverseDelay
-        version: 1.22.0
-      - plugin: O-Detune
-        version: 1.10.0
+      - plugin: O-AnalogSaturation
+        version: 1.8.3
+      - plugin: O-Bass
+        version: 1.8.3
+      - plugin: O-Bassoon
+        version: 1.6.1
+      - plugin: O-Bells
+        version: 4.9.3
+      - plugin: O-Bitrot
+        version: 1.17.3
+      - plugin: O-Bowed
+        version: 1.10.3
+      - plugin: O-Chorus
+        version: 1.10.3
+      - plugin: O-Comp
+        version: 1.11.3
       - plugin: O-Contrabass
-        version: 1.11.0
+        version: 1.12.2
+      - plugin: O-Detune
+        version: 1.10.2
+      - plugin: O-DigiDelay
+        version: 1.9.3
+      - plugin: O-Emulator
+        version: 1.5.1
+      - plugin: O-Formant
+        version: 1.34.2
+      - plugin: O-Freeze
+        version: 2.9.1
+      - plugin: O-FreqPulse
+        version: 1.20.2
+      - plugin: O-Gain
+        version: 1.10.1
+      - plugin: O-GrainScatter
+        version: 3.5.0
+      - plugin: O-IntonationPad
+        version: 2.11.3
+      - plugin: O-Lyrica
+        version: 2.6.6
+      - plugin: O-Marimba
+        version: 1.16.3
+      - plugin: O-MicrotonalSampler
+        version: 1.28.2
+      - plugin: O-MultiBandCompressor
+        version: 1.14.2
+      - plugin: O-Orbit
+        version: 1.4.5
+      - plugin: O-Polystutter
+        version: 1.19.0
+      - plugin: O-Prism
+        version: 1.30.3
+      - plugin: O-Reed
+        version: 1.7.1
+      - plugin: O-ReverseDelay
+        version: 1.22.4
+      - plugin: O-simpleAdditive
+        version: 1.4.3
+      - plugin: O-simpleAmbisonics
+        version: 1.0.2
+      - plugin: O-simpleBeatmaker
+        version: 1.4.3
+      - plugin: O-simpleFM
+        version: 1.6.1
+      - plugin: O-simplePhysicalModelSynth
+        version: 1.5.0
       - plugin: O-simpleReverb
-        version: 2.0.0
+        version: 3.0.1
+      - plugin: O-simpleSampler
+        version: 1.6.3
+      - plugin: O-simpleSubtractive
+        version: 1.7.4
+      - plugin: O-simpleWavetable
+        version: 1.0.4
+      - plugin: O-SpectralShaper
+        version: 1.10.2
+      - plugin: O-Strata
+        version: 1.1.3
+      - plugin: O-Texture
+        version: 1.19.2
+      - plugin: O-TextureForge
+        version: 1.8.0
+      - plugin: O-Tremolo
+        version: 1.11.2
+      - plugin: O-Wind
+        version: 1.22.2
 
 # ============================================================================
 # HOW TO USE THIS REGISTRY
