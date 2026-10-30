@@ -1,6 +1,6 @@
 ---
 plugin: O-Wind
-version: 1.16.0
+version: 1.22.2
 stage: 4
 phase: verify
 status: installed

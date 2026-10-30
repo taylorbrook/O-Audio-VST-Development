@@ -2,7 +2,7 @@
 plugin: O-simpleAdditive
 stage: 4
 status: complete
-version: 1.0.4
+version: 1.4.3
 last_updated: 2026-06-22
 complexity_score: 5.0
 staged_implementation: true

@@ -4,7 +4,7 @@ stage: improve
 phase: v1.28.0 MINOR — UI pass (260924-nho R4/R5/R7) — AA text colours, 9px floor, bundled EB Garamond + ui-monospace values, keyboard/ARIA control-strip knobs
 status: v1_28_0_ui_pass_built_installed_daw_check_pending
 last_updated: 2026-09-25
-version: 1.28.0
+version: 1.28.2
 next_brief: (none — two known follow-ups: FilenameParser maps trem→slot 8 / flaut→slot 9 outside the 8-slot KS range; load-modal target-technique dropdown is a no-op unless "Force" is checked)
 previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0, 1.9.0, 1.9.1, 1.10.0, 1.11.0, 1.12.0, 1.12.1, 1.12.2, 1.12.3, 1.12.4, 1.13.0, 1.14.0, 1.15.0, 1.16.0, 1.16.1, 1.16.2, 1.16.3, 1.16.4, 1.16.5, 1.16.6, 1.16.7, 1.16.8, 1.16.9, 1.16.10, 1.16.11, 1.17.0, 1.17.1, 1.17.2, 1.18.0, 1.18.1, 1.18.2, 1.18.3, …, 1.27.0
 ---

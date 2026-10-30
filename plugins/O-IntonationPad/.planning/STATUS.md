@@ -1,7 +1,7 @@
 <!-- NOTE: This is a historical Stage 0 planning document and may not reflect the current implementation. -->
 ---
 plugin: O-IntonationPad
-version: 2.8.0
+version: 2.11.3
 stage: 4
 status: complete
 phase: null

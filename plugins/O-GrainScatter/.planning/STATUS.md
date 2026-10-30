@@ -4,7 +4,7 @@
 - **stage:** complete
 - **phase:** verified
 - **status:** released
-- **version:** 1.0.0
+- **version:** 3.5.0
 - **last_updated:** 2026-02-07
 
 ## Completed

@@ -4,7 +4,7 @@ stage: improve
 phase: v1.4.2 PATCH — paper halo under canvas text over the shell
 status: v1_4_2_canvas_halo_built_installed_daw_check_pending
 last_updated: 2026-09-26
-version: 1.4.2
+version: 1.4.5
 next_brief: (none — known follow-ups: R7 keyboard/ARIA knobs, Elevation pill thumb covers first glyph, English-only canvas captions)
 previous_versions: 1.0.0, 1.0.1, 1.1.0, 1.1.1, 1.2.0, 1.2.1, 1.2.2, 1.3.0, 1.4.0, 1.4.1
 ---

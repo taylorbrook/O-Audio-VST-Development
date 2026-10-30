@@ -3,7 +3,7 @@ plugin: O-simpleReverb
 stage: improve
 stage_name: complete
 status: family_retrofit_complete
-version: 3.0.0
+version: 3.0.1
 last_updated: 2026-10-15
 complexity_score: 4.2
 parameter_count: 8

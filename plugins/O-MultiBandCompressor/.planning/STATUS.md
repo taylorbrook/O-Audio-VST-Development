@@ -5,7 +5,7 @@ plugin: O-MultiBandCompressor
 stage: complete
 status: installed
 last_updated: 2026-01-25
-version: 1.0.0
+version: 1.14.2
 complexity_score: 5.0
 ---
 

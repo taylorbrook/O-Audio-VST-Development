@@ -3,7 +3,7 @@ plugin: O-Bells
 stage: 4
 phase: verify
 status: complete
-version: 4.1.0
+version: 4.9.3
 last_updated: 2026-04-26
 complexity_score: 5.0
 staged_implementation: true

@@ -1,6 +1,6 @@
 ---
 plugin: O-Strata
-version: 1.1.0
+version: 1.1.3
 stage: 4
 stage_name: polish
 phase: verify

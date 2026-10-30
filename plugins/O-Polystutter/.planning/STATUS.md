@@ -4,7 +4,7 @@
 plugin: OuariconPolystutter
 stage: complete
 status: installed
-version: 1.2.1
+version: 1.19.0
 last_updated: 2026-01-17
 issue: none
 ---

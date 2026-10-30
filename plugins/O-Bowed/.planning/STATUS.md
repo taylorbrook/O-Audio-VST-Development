@@ -1,6 +1,6 @@
 ---
 plugin: O-Bowed
-version: 1.3.0
+version: 1.10.3
 stage: 4
 phase: verified
 status: complete
