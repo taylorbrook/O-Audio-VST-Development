@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.5
 status: shipped
-stopped_at: Completed quick task 260904-q4j
-last_updated: "2026-09-05T02:10:14.321Z"
-last_activity: 2026-09-04
-last_activity_desc: "Completed quick task 260904-q4j: **i18n-zh-lint repaired ahead of the Stage 4 gate flip** — self-test 9/9 → **10/10**, repo-wide findings **8 → 0** (all 8 were Z1 tool defects on O-MicrotonalSampler, every one byte-identical to a glossary root Z5 itself compels). maskLatin() widened on two axes under D-01: a leading-dot file extension (.scl/.kbm/.omspreset) now masks before the Han punctuation scan, and a single unmatched '(' at END of string masks after the balanced replacement (the markup-split floTokensBefore labels). New rule **Z8** under D-02: a plain U+0020 between two Han code points — the shape Stage 3 could only find by READING O-Octagon's puck body, pushed in lintRows so it reaches BODIES. Both RED lines observed and recorded BEFORE the fixes: 'SELF-TEST Z1 BROKEN: fires on a control' (8/9) and 'SELF-TEST Z8 BROKEN: silent on a violation' (9/10). Z8's zero agrees with an independent standalone scan (0 = 0 across 43), and that agreement is load-bearing ONLY because a corpus positive control (O-Chorus label.hoverHelp 悬停帮助 → 悬停 帮助) proved the rule non-inert — commit d8684e49 actually exhibits T-q4j-04, a declared-but-unpushed Z8 column reading a clean 0. Injection reverted by REVERSE TARGETED EDIT (never git checkout — uncommitted lint work was in the same tree), digest byte-identical, git diff --stat -- plugins/ empty. Disclosed blindness: Han + ASCII period + Latin unspaced (混音.mix) now reads as an extension token. FOR STAGE 4: the promotion criterion is MET but the gate flip (exit 2) is deliberately NOT made here; Z8 is scoped to the PLAIN space only so its zero stays checkable — widening it requires redefining the agreement test in the same commit; Z8 sits LAST in CODES and the header block + legend were updated to match. Baseline correction: the .scl/.kbm plugin census is **7**, not the 8 the plan recorded (O-Lyrica carries none) — and it is definition-sensitive: 7 file-grep / 3 any-rendering / 1 zh-Hans rendering. Gates: check-i18n exit 0, i18n-fr-lint exit 0, no en/fr/zh rendering changed anywhere in plugins/. 4 path-scoped commits (ec20d0b1, d8684e49, 97816a94, 18c7f375). Standing: 31, 59, 19, 8, 2, 11, 72, O-Reed tuning tab."
-state_head: 18c7f3759ef2f28d02b8011f212e0c1702d79e22
+stopped_at: Completed quick task 261029-md9
+last_updated: "2026-10-29T23:59:00.000Z"
+last_activity: 2026-10-29
+last_activity_desc: "Completed quick task 261029-md9: repo cleanup + organization audit (28 findings, AUDIT.md); approved top findings being applied"
+state_head: 0a2fe9c7efc590f5acfc83f5bda62723ed220d89
 progress:
   total_phases: 25
   completed_phases: 25
