@@ -27,10 +27,13 @@
 # the algebraic identity at default APVTS state (RESEARCH §23.6.6 proof).
 # Usage: ./reproduce-goldens.sh              — render to /tmp/repro/, diff vs committed
 #        ./reproduce-goldens.sh --quiet      — exit code only, no stdout
-#        ./reproduce-goldens.sh --regenerate — RE-BASELINE: overwrite the committed
-#                                              goldens + .sha256 from this build.
+#        ./reproduce-goldens.sh --regenerate — RE-BASELINE: overwrite the goldens
+#                                              + .sha256 from this build.
 #                                              Only for an intentional DSP change;
 #                                              always verify after (plain re-run).
+# Goldens are sha256-only in git (O-Bowed pattern): golden/*.wav is gitignored and
+# kept on disk only as a local byte-exact reference. Commit just the .wav.sha256
+# (and any tracked .json/.json.sha256) after a --regenerate; never the WAVs.
 # Bash 3.2 compatible (macOS system bash) — uses parallel arrays, not associative.
 set -euo pipefail
 
