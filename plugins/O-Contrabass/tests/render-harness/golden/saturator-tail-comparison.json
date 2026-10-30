@@ -11,12 +11,12 @@
   "bowPressureRaw": "3.0000",
   "bowPositionNorm": "0.1000",
   "infiniteSustainNorm": "1.0000",
-  "peak": "0.1093",
+  "peak": "0.0548",
   "rmsMaxBinIdx": 59,
-  "rmsMid_s5_s6": "0.0358",
+  "rmsMid_s5_s6": "0.0180",
   "rmsFinal_lastSecond": "0.0000",
   "rmsRatio_final_over_mid": "0.0000",
-  "rmsAtFiveSecondsPostBowOff_dbRelMax": "-150.8513",
+  "rmsAtFiveSecondsPostBowOff_dbRelMax": "-146.8284",
   "decayEnvelopeDb": [
     "-6.0695",
     "-3.4122",
@@ -82,7 +82,7 @@
     "-57.7258",
     "-88.4160",
     "-118.8315",
-    "-150.8513"
+    "-146.8284"
   ],
   "blockMicros_median": 0,
   "blockMicros_max": 0,
