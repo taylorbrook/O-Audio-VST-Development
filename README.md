@@ -44,6 +44,8 @@ Minimal, readable implementations of the classic synthesis methods, intended to 
 | [`O-simplePhysicalModelSynth`](https://oaudio.io/products/ouaricon-simple-modeling-synth) | Physical modeling |
 | `O-simpleSampler` | Sampling |
 | [`O-simpleBeatmaker`](https://oaudio.io/products/ouaricon-simple-beatmaker) | Step-sequencer drum machine |
+| [`O-simpleWavetable`](https://oaudio.io/products/ouaricon-simple-wavetable) | Wavetable synthesis |
+| [`O-simpleAmbisonics`](https://oaudio.io/products/ouaricon-simple-ambisonics) | Ambisonic spatialization |
 
 **Effects & Processors**
 
@@ -61,11 +63,14 @@ Minimal, readable implementations of the classic synthesis methods, intended to 
 | `O-MultiBandCompressor` | Multiband dynamics |
 | `O-Bass` | Bass enhancer |
 | [`O-Polystutter`](https://oaudio.io/products/ouaricon-polystutter) | Beat repeater |
+| [`O-Tapestop`](https://oaudio.io/products/ouaricon-tapestop) | Tape stop and scratch |
+| [`O-Bitrot`](https://oaudio.io/products/ouaricon-bitrot) | Glitch and lo-fi degradation |
 | `O-GrainScatter` | Granular stutter engine |
 | [`O-Freeze`](https://oaudio.io/products/ouaricon-freeze) | Granular freeze |
 | [`O-FreqPulse`](https://oaudio.io/products/ouaricon-frequency-pulse) | Spectral sequencer |
 | `O-SpectralShaper` | Spectral transient shaper |
 | `O-Orbit` | Spatial orbiter |
+| [`O-Octagon`](https://oaudio.io/products/ouaricon-octagon) | 8-channel DBAP spatializer |
 
 **Utilities**
 
