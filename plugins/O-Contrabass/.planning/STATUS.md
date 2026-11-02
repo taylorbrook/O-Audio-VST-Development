@@ -1,4 +1,5 @@
 ---
+version: 1.12.2
 plugin: O-Contrabass
 stage: 4
 phase: verify

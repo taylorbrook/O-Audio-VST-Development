@@ -1,4 +1,5 @@
 ---
+version: 2.9.1
 plugin: O-Freeze
 stage: 4
 phase: verify

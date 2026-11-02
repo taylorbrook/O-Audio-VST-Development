@@ -1,4 +1,5 @@
 ---
+version: 1.7.4
 plugin: O-simpleSubtractive
 stage: 4
 status: complete

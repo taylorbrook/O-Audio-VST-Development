@@ -1,4 +1,5 @@
 ---
+version: 1.0.2
 plugin: O-simpleAmbisonics
 stage: 4
 stage_name: polish

@@ -1,4 +1,5 @@
 ---
+version: 1.0.4
 plugin: O-simpleWavetable
 stage: 4
 status: stage_4_complete_verified

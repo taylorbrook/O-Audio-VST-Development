@@ -1,3 +1,6 @@
+---
+version: 1.5.7
+---
 ## Continuation Context (migrated from .continue-here.md)
 
 ---

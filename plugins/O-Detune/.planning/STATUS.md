@@ -1,4 +1,5 @@
 ---
+version: 1.10.2
 plugin: O-Detune
 stage: 4
 phase: complete

@@ -1,4 +1,5 @@
 ---
+version: 1.17.3
 plugin: O-Bitrot
 stage: 4
 phase: verify

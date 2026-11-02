@@ -1,4 +1,5 @@
 ---
+version: 1.6.3
 plugin: O-simpleSampler
 stage: 4
 status: complete

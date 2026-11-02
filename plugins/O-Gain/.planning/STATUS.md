@@ -1,4 +1,5 @@
 ---
+version: 1.10.1
 plugin: O-Gain
 stage: 4
 phase: null

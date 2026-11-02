@@ -1,3 +1,6 @@
+---
+version: 1.8.3
+---
 # O-Bass Status
 
 ## Project Reference

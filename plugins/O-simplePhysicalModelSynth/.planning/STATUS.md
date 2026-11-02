@@ -1,4 +1,5 @@
 ---
+version: 1.5.0
 plugin: O-simplePhysicalModelSynth
 stage: 4
 phase: verify

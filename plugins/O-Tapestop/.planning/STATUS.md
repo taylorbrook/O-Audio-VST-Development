@@ -1,4 +1,5 @@
 ---
+version: 1.7.3
 plugin: O-Tapestop
 stage: 4
 phase: verify

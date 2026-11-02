@@ -1,4 +1,5 @@
 ---
+version: 1.6.1
 plugin: O-simpleFM
 stage: 4
 phase: verify

@@ -1,4 +1,5 @@
 ---
+version: 0.6.2
 plugin: O-Texture
 stage: 4
 phase: verify

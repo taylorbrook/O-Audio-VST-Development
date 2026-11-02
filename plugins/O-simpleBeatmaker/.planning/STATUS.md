@@ -1,4 +1,5 @@
 ---
+version: 1.6.0
 plugin: O-simpleBeatmaker
 stage: 4
 status: complete

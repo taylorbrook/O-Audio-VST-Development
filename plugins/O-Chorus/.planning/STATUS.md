@@ -1,4 +1,5 @@
 ---
+version: 1.10.3
 plugin: O-Chorus
 stage: 4-polish
 phase: verified

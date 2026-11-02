@@ -1,4 +1,5 @@
 ---
+version: 1.5.1
 plugin: O-Emulator
 stage: 4
 phase: verify
