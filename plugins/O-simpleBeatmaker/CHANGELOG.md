@@ -3,6 +3,20 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.6.0] — 2026-11-01
+
+### Removed
+
+- **Swing.** The knob and all swing timing are gone, along with the Triplet Swing lesson preset (five lesson presets remain) and the swing legend in the timing lane. Quantize Demo keeps its humanize and quantize settings and now plays without swing. **Sessions and pattern automation that used swing now play straight.**
+
+### Changed
+
+- The `swing` parameter ID stays as a hidden, non-automatable parameter named "Swing (unused)", so saved sessions keep loading. Nothing reads it. A DAW may still list it, or an existing swing lane, where it has no effect.
+
+### Tests
+
+- Render harness: `swing-param-inert` and `swing-param-hidden` replace `swing-offset`, `quantize-removes-humanize` replaces `quantize-preserves-swing`, and the carry-over check in `block-boundary` now uses humanized hits.
+
 ## [1.5.0] — 2026-11-01
 
 ### Changed

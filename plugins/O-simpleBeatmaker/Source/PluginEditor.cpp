@@ -106,8 +106,8 @@ OSimpleBeatmakerAudioProcessorEditor::OSimpleBeatmakerAudioProcessorEditor (OSim
     using namespace OSimpleBeatmaker::ParamIDs;
 
     // ── Build the param-ID lists (single source of truth: BeatmakerIDs) ──────
-    // 29 sliders: 5 global + 4 per voice; 1 combo; 12 toggles: 2 per voice.
-    sliderIds = { swing, humanize, quantizeStrength, tempo, outputLevel };
+    // 28 sliders: 4 global + 4 per voice; 1 combo; 12 toggles: 2 per voice.
+    sliderIds = { humanize, quantizeStrength, tempo, outputLevel };
     for (int v = 0; v < kNumVoices; ++v)
     {
         sliderIds.add (voiceParamID (v, sufTune));

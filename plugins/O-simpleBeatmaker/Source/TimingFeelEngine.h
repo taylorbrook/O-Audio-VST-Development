@@ -20,19 +20,14 @@
 /*
   ==============================================================================
 
-    O-simpleBeatmaker - TimingFeelEngine (swing + humanize + quantize -> Δt) — THE LESSON
+    O-simpleBeatmaker - TimingFeelEngine (humanize + quantize -> Δt) — THE LESSON
 
-    Composes the per-hit sample offset and velocity. The terms are kept SEPARATE
-    (never folded) so quantize touches ONLY humanize:
+    Composes the per-hit sample offset and velocity (swing removed in v1.6.0):
 
-        dSwing       = (k odd) ? (swing01/3)*T8 : 0          // deterministic, NOT scaled by q
         dHumanT      = triRand01() * humanize01 * 30 ms       // Fallback A: LATE-ONLY [0,+30ms]
         dHumanV      = triangular() * humanize01 * 24          // symmetric +-24
-        dtSec        = dSwing + dHumanT*(1-q)
+        dtSec        = dHumanT*(1-q)
         finalVel     = clamp(stepVel + dHumanV*(1-q), 1, 127)
-
-    DSP-04 invariant (the entire quantize-vs-feel lesson): at q=1 the humanize
-    terms vanish but dSwing SURVIVES.
 
     Fallback A (blessed by ARCHITECTURE Risk §Fallback A): timing humanize is
     one-sided positive ("laid back"), which removes negative offsets and the
@@ -76,22 +71,17 @@ namespace OSimpleBeatmaker
                 rng[v].setSeed ((juce::int64) (0x9E3779B97F4A7C15ULL + (juce::uint64) v * 0x632BE59BD9B4E019ULL));
         }
 
-        // Compute Δt + velocity for one committed hit. `stepIndex` selects the
-        // swing parity; `nominalSampleInBar` is bar-relative (from the clock).
-        AppliedHit compute (int voiceIndex, int stepIndex, juce::int32 nominalSampleInBar,
-                            int stepVelocity, double bpm,
-                            double swing01, double q, double humanize01) noexcept
+        // Compute Δt + velocity for one committed hit. `nominalSampleInBar` is
+        // bar-relative (from the clock).
+        AppliedHit compute (int voiceIndex, juce::int32 nominalSampleInBar, int stepVelocity,
+                            double q, double humanize01) noexcept
         {
-            if (bpm <= 1.0) bpm = 120.0;
             const int v = juce::jlimit (0, kNumVoices - 1, voiceIndex);
-
-            const double T8     = (60.0 / bpm) / 2.0;                       // one 8th in seconds
-            const double dSwing = ((stepIndex % 2) == 1) ? (swing01 / 3.0) * T8 : 0.0;
 
             const double dHumanT = triRand01 (rng[v]) * humanize01 * kHumanizeMaxSec;  // [0,+30ms]
             const double dHumanV = triangular (rng[v]) * humanize01 * kHumanizeMaxVel; // +-24
 
-            const double dtSec   = dSwing + dHumanT * (1.0 - q);
+            const double dtSec   = dHumanT * (1.0 - q);
             const int    applied = (int) std::llround (dtSec * fs);
             const int    finalV  = juce::jlimit (1, 127,
                                        (int) std::lround ((double) stepVelocity + dHumanV * (1.0 - q)));

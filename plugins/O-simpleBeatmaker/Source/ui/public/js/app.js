@@ -19,7 +19,7 @@
 */
 // ============================================================================
 // O-simpleBeatmaker — WebView UI controller
-// Binds all 42 APVTS params two-way (29 knobs + 1 selector + 12 toggles), builds
+// Binds the 41 visible APVTS params two-way (28 knobs + 1 selector + 12 toggles; the 42nd, swing, is hidden), builds
 // the 6×N step grid with the velocity cycle (off → normal → accent → ghost), runs
 // the live playhead, draws the applied-Δt timing lane (QUAL-02: the Δt baked into
 // the audio, drained from VizAnalyzer — never a UI recompute), prints the live
@@ -231,7 +231,7 @@ const VEL_ARIA_KEY = {
 };
 
 // ── Parameter inventory (must match OSimpleBeatmaker::ParamIDs exactly) ──────
-const GLOBAL_SLIDERS = ["swing", "humanize", "quantizeStrength", "tempo", "outputLevel"];
+const GLOBAL_SLIDERS = ["humanize", "quantizeStrength", "tempo", "outputLevel"];
 const VOICE_SLIDER_SUFFIX = ["Tune", "Decay", "Tone", "Level"];
 const VOICE_TOGGLE_SUFFIX = ["Mute", "Solo"];
 const SLIDER_IDS = [
@@ -242,13 +242,12 @@ const COMBO_IDS = ["patternLength"];
 const TOGGLE_IDS = VOICES.flatMap((v) => VOICE_TOGGLE_SUFFIX.map((s) => v.prefix + s));
 
 // ── Display formatters (receive the *scaled* param value) ────────────────────
-const fmtPct75 = (v) => `${Math.round(v * 75)}%`;        // swing 0–1 → 0–75%
 const fmtPct = (v) => `${Math.round(v * 100)}%`;          // 0–1 → 0–100%
 const fmtBpm = (v) => `${Math.round(v)} BPM`;
 const fmtDb = (v) => (v <= -59.95 ? "−∞ dB" : `${v.toFixed(1)} dB`);
 const fmtSt = (v) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(1)} st`;
 const FORMAT = {
-  swing: fmtPct75, humanize: fmtPct, quantizeStrength: fmtPct, tempo: fmtBpm, outputLevel: fmtDb,
+  humanize: fmtPct, quantizeStrength: fmtPct, tempo: fmtBpm, outputLevel: fmtDb,
 };
 function voiceFmt(suffix) {
   if (suffix === "Tune") return fmtSt;
@@ -402,11 +401,6 @@ function attachValueEntry(valueEl, state, formatFn) {
 
 // Each formatter's inverse (see attachValueEntry above). One .parse per shared
 // formatter covers the global knobs and the 24 generated voice-strip knobs.
-fmtPct75.parse = (t, cur, props) => {   // swing: stored 0..1, reads 0-75%
-  if (isFloorWord(t)) return props.start;
-  const v = numOf(t);
-  return v === null ? null : v / 75;
-};
 fmtPct.parse = parsePercent;            // humanize/quantize/decay/tone: 0..1, reads %
 fmtBpm.parse = parseDirect;             // tempo 40..240 BPM
 fmtDb.parse = parseDirect;              // levels -60..0 dB ("-inf" / "−∞" = floor)

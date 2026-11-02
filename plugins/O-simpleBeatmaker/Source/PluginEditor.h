@@ -25,7 +25,7 @@
     Developer: Taylor Brook
 
     Stage 3 (GUI): single-page Ouaricon-Naturalist WebView UI. Binds all 42 APVTS
-    params two-way (29 slider relays + 1 combo relay + 12 toggle relays), drives
+    params two-way (28 slider relays + 1 combo relay + 12 toggle relays), drives
     the custom 6x32 step grid through native functions, and on a 60 Hz message-
     thread Timer drains the lock-free VizAnalyzer into one "frame" event (playhead
     phase + the hits emitted this frame + transport state) that feeds the grid

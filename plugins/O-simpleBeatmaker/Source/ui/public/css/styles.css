@@ -514,7 +514,6 @@ body {
 }
 .lk::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
 .lk-grid::before  { background: var(--brown-border); }
-.lk-swing::before { background: var(--green-dark); }
 .lk-human::before { background: var(--amber); }
 .lk-quant::before { background: var(--green-light); }
 

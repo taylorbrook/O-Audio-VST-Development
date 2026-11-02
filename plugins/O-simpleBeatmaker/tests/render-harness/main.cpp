@@ -27,12 +27,12 @@
 
       Probe 1  grid accuracy        — straight time: each ON step fires at exactly
                                       round(k*samplesPer16th) within the bar (±0).
-      Probe 2  swing                — swing=75%: odd 16ths delayed by exactly
-                                      round((1/3)*T8*fs); even 16ths unmoved.
+      Probe 2  swing removed        — the hidden v1.6.0 parameter at maximum moves
+                                      no hit, and hosts cannot automate it.
       Probe 3  humanize + quantize  — hum=1,q=0: bounded spread (late-only +30ms,
-                                      vel ±24). hum=1,swing=75%,q=1: humanize
-                                      collapses to ~0 BUT swing survives (DSP-04).
-      Probe 4  block-boundary       — a (swung) step straddling a block edge fires
+                                      vel ±24). hum=1,q=1: every offset is 0 and
+                                      every velocity is the programmed one.
+      Probe 4  block-boundary       — a (humanized) step straddling a block edge fires
                                       once at the correct absolute sample.
       Probe 5  MIDI-playable voices — host note-on per GM note -> correct voice,
                                       non-trivial RMS; closed-hat chokes open-hat;
@@ -98,7 +98,7 @@ static void setDefaults (Proc& proc)
 {
     using namespace OSimpleBeatmaker;
     auto& a = proc.getAPVTS();
-    setParam (a, PID::swing, 0.0f);
+    setParam (a, PID::swing, 0.0f);       // hidden and inert since v1.6.0
     setParam (a, PID::humanize, 0.0f);
     setParam (a, PID::quantizeStrength, 1.0f);
     setParam (a, PID::patternLength, 1.0f);          // idx 1 -> 16
@@ -176,9 +176,9 @@ struct SeqResult
 // Render `numBlocks` blocks host-synced, collecting emitted hits, viz events,
 // the real sequencer MIDI offsets, and audio.
 static SeqResult renderSynced (Proc& proc, double fs, double bpm, int patternLen,
-                               float swing01, float hum01, float q,
+                               float hum01, float q,
                                const std::vector<std::pair<int,int>>& onCells,
-                               int numBlocks, int block)
+                               int numBlocks, int block, float hiddenSwing = 0.0f)
 {
     using namespace OSimpleBeatmaker;
     proc.prepareToPlay (fs, block);
@@ -186,7 +186,7 @@ static SeqResult renderSynced (Proc& proc, double fs, double bpm, int patternLen
     auto& a = proc.getAPVTS();
     setParam (a, PID::patternLength, (float) patternIdx (patternLen));
     setParam (a, PID::tempo, (float) bpm);
-    setParam (a, PID::swing, swing01);
+    setParam (a, PID::swing, hiddenSwing);
     setParam (a, PID::humanize, hum01);
     setParam (a, PID::quantizeStrength, q);
 
@@ -403,7 +403,7 @@ int main()
         for (int s : { 4, 12 })       cells.push_back ({ Snare, s });
         for (int s = 0; s < 16; ++s)  cells.push_back ({ ClosedHat, s });
 
-        auto r = renderSynced (proc, fs, 120.0, 16, 0.0f, 0.0f, 1.0f, cells, 360, block); // ~2 bars
+        auto r = renderSynced (proc, fs, 120.0, 16, 0.0f, 1.0f, cells, 360, block); // ~2 bars
 
         bool gridOK = ! r.hits.empty();
         juce::int64 maxErr = 0;
@@ -425,37 +425,33 @@ int main()
     }
 
     //==========================================================================
-    // PROBE 2 — swing (swing=75% -> swing01=1).
+    // PROBE 2 — swing removed (v1.6.0). A session can still carry a value in the
+    // hidden parameter: at maximum it must move nothing.
     //==========================================================================
     {
         std::vector<std::pair<int,int>> cells;
         for (int s = 0; s < 16; ++s) cells.push_back ({ ClosedHat, s });   // every 16th
 
-        auto r = renderSynced (proc, fs, 120.0, 16, 1.0f, 0.0f, 1.0f, cells, 360, block);
+        auto r = renderSynced (proc, fs, 120.0, 16, 0.0f, 1.0f, cells, 360, block, 1.0f);
 
-        const double T8 = (60.0 / 120.0) / 2.0;
-        const int    expectSwing = (int) std::llround ((1.0 / 3.0) * T8 * fs);  // 3675 @ 120
-        bool swingOK = ! r.hits.empty();
+        bool straight = ! r.hits.empty();
         for (const auto& h : r.hits)
-        {
-            const int want = (h.stepIndex % 2 == 1) ? expectSwing : 0;
-            swingOK = swingOK && (h.appliedOffsetSamples == want);
-            swingOK = swingOK && barRelativeOK (r, h, 0);
-            swingOK = swingOK && midiHasHit (r, h);
-        }
-        check ("swing-offset", swingOK,
-               juce::String ("expectSwing=") + juce::String (expectSwing)
-                 + " hits=" + juce::String ((int) r.hits.size()));
+            straight = straight && h.appliedOffsetSamples == 0 && barRelativeOK (r, h, 0) && midiHasHit (r, h);
+        check ("swing-param-inert", straight, juce::String ("hits=") + juce::String ((int) r.hits.size()));
+
+        auto* prm = proc.getAPVTS().getParameter (PID::swing);
+        check ("swing-param-hidden", prm != nullptr && ! prm->isAutomatable(), "not automatable, ID kept");
+        setParam (proc.getAPVTS(), PID::swing, 0.0f);
     }
 
     //==========================================================================
     // PROBE 3 — humanize + quantize (the DSP-04 lesson).
     //==========================================================================
     {
-        // 3A: humanize=1, swing=0, q=0 -> bounded spread, vel ±24, late-only.
+        // 3A: humanize=1, q=0 -> bounded spread, vel ±24, late-only.
         std::vector<std::pair<int,int>> cells;
         for (int s = 0; s < 16; ++s) cells.push_back ({ Kick, s });
-        auto rA = renderSynced (proc, fs, 120.0, 16, 0.0f, 1.0f, 0.0f, cells, 1500, block); // ~8 bars
+        auto rA = renderSynced (proc, fs, 120.0, 16, 1.0f, 0.0f, cells, 1500, block); // ~8 bars
 
         const int maxLate = (int) std::llround (TimingFeelEngine::kHumanizeMaxSec * fs);  // 1323 @ 44.1k
         int  minOff = 1 << 30, maxOff = -(1 << 30), minVel = 200, maxVel = -1;
@@ -475,20 +471,13 @@ int main()
                  + "] vel[" + juce::String (minVel) + "," + juce::String (maxVel)
                  + "] maxLate=" + juce::String (maxLate));
 
-        // 3B: humanize=1, swing=75%, q=1 -> humanize collapses, swing SURVIVES.
-        auto rB = renderSynced (proc, fs, 120.0, 16, 1.0f, 1.0f, 1.0f, cells, 360, block);
-        const double T8 = (60.0 / 120.0) / 2.0;
-        const int    expectSwing = (int) std::llround ((1.0 / 3.0) * T8 * fs);
-        bool dsp04 = ! rB.hits.empty();
+        // 3B: humanize=1, q=1 -> humanize collapses to exactly the programmed hit.
+        auto rB = renderSynced (proc, fs, 120.0, 16, 1.0f, 1.0f, cells, 360, block);
+        bool collapsed = ! rB.hits.empty();
         for (const auto& h : rB.hits)
-        {
-            const int want = (h.stepIndex % 2 == 1) ? expectSwing : 0;
-            dsp04 = dsp04 && (h.appliedOffsetSamples == want);   // humanize gone, swing exact
-            dsp04 = dsp04 && (h.velocity == 100);                // velocity humanize gone
-        }
-        check ("quantize-preserves-swing", dsp04,
-               juce::String ("q=1: swing=") + juce::String (expectSwing)
-                 + " survives, humanize->0, hits=" + juce::String ((int) rB.hits.size()));
+            collapsed = collapsed && h.appliedOffsetSamples == 0 && h.velocity == 100;
+        check ("quantize-removes-humanize", collapsed,
+               juce::String ("q=1: hits=") + juce::String ((int) rB.hits.size()));
     }
 
     //==========================================================================
@@ -499,7 +488,7 @@ int main()
         std::vector<std::pair<int,int>> cells;
         for (int s = 0; s < 16; ++s) cells.push_back ({ Kick, s });
         const int oddBlock = 423;
-        auto r = renderSynced (proc, fs, 120.0, 16, 0.0f, 0.0f, 1.0f, cells, 900, oddBlock); // ~5 bars
+        auto r = renderSynced (proc, fs, 120.0, 16, 0.0f, 1.0f, cells, 900, oddBlock); // ~5 bars
 
         std::map<std::tuple<int,int,int>, int> fireCount;
         bool placeOK = ! r.hits.empty();
@@ -513,8 +502,8 @@ int main()
         bool onceEach = true;
         for (auto& kv : fireCount) onceEach = onceEach && (kv.second == 1);
 
-        // Swung straddle: swing pushes odd steps past block edges -> carry-over.
-        auto rs = renderSynced (proc, fs, 120.0, 16, 1.0f, 0.0f, 1.0f, cells, 900, oddBlock);
+        // Humanized straddle: late hits cross block edges -> carry-over.
+        auto rs = renderSynced (proc, fs, 120.0, 16, 1.0f, 0.0f, cells, 900, oddBlock);
         std::map<std::tuple<int,int,int>, int> swCount;
         bool swPlaceOK = ! rs.hits.empty();
         for (const auto& h : rs.hits)
@@ -531,7 +520,7 @@ int main()
         check ("block-boundary", placeOK && onceEach && swPlaceOK && swOnce,
                juce::String ("straight: ") + juce::String ((int) fireCount.size())
                  + " unique fires once=" + (onceEach ? "Y" : "N")
-                 + " | swung once=" + (swOnce ? "Y" : "N"));
+                 + " | humanized once=" + (swOnce ? "Y" : "N"));
     }
 
     //==========================================================================
@@ -540,8 +529,8 @@ int main()
     {
         std::vector<std::pair<int,int>> cells;
         for (int s = 0; s < 16; ++s) { cells.push_back ({ Kick, s }); cells.push_back ({ Snare, s }); }
-        // swing + humanize on, partial quantize -> non-trivial Δt on every hit.
-        auto r = renderSynced (proc, fs, 120.0, 16, 0.6f, 0.7f, 0.3f, cells, 720, block); // ~4 bars
+        // humanize on, partial quantize -> non-trivial Δt on every hit.
+        auto r = renderSynced (proc, fs, 120.0, 16, 0.7f, 0.3f, cells, 720, block); // ~4 bars
 
         // (a) Each emitted hit's viz Δt == the Δt baked into the real MidiMessage.
         bool vizTruth = ! r.hits.empty();

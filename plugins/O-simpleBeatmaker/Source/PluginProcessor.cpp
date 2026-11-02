@@ -60,14 +60,19 @@ OSimpleBeatmakerAudioProcessor::createParameterLayout()
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
     //--- Sequencer / timing-feel (5) ---------------------------------------
-    // Stored normalized 0–1. Display: swing -> 0-75%, humanize/quantize -> 0-100%.
+    // v1.6.0: swing is gone from the sound and the page. The parameter stays,
+    // non-automatable and read by nothing, so that saved sessions and the host's
+    // parameter list stay valid. Do not reuse this ID.
     params.push_back (std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { swing, 1 }, "Swing", unitRange(), 0.0f));
+        juce::ParameterID { swing, 1 }, "Swing (unused)", unitRange(), 0.0f,
+        juce::AudioParameterFloatAttributes().withAutomatable (false)));
+
+    // Stored normalized 0–1. Display: humanize/quantize -> 0-100%.
 
     params.push_back (std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { humanize, 1 }, "Humanize", unitRange(), 0.0f));
 
-    // Default 100% = dead tight (humanize fully removed; swing still survives).
+    // Default 100% = dead tight (humanize fully removed).
     params.push_back (std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { quantizeStrength, 1 }, "Quantize Strength", unitRange(), 1.0f));
 
@@ -177,7 +182,6 @@ void OSimpleBeatmakerAudioProcessor::cacheParamPointers()
 {
     using namespace OSimpleBeatmaker;
     using namespace OSimpleBeatmaker::ParamIDs;
-    pSwing      = parameters.getRawParameterValue (swing);
     pHumanize   = parameters.getRawParameterValue (humanize);
     pQuant      = parameters.getRawParameterValue (quantizeStrength);
     pPatternLen = parameters.getRawParameterValue (patternLength);
@@ -273,7 +277,7 @@ void OSimpleBeatmakerAudioProcessor::drainCarryOver (juce::int64 blockStartAbs, 
 
 void OSimpleBeatmakerAudioProcessor::fireSegment (int segStart, int segEnd, int numSamples,
         bool synced, bool playing, double bpm, double ppqStart, juce::int64 blockStartAbs,
-        double swing01, double q, double humanize01, bool& drained, float& playheadPhaseOut) noexcept
+        double q, double humanize01, bool& drained, float& playheadPhaseOut) noexcept
 {
     using namespace OSimpleBeatmaker;
 
@@ -305,8 +309,7 @@ void OSimpleBeatmakerAudioProcessor::fireSegment (int segStart, int segEnd, int 
             if (stepVel <= 0)                 continue; // cell off
             if (! router.isVoiceAudible (v))  continue; // mute/solo gate at emit -> no audio, no viz
 
-            const auto hit = feel.compute (v, col.stepIndex, col.nominalSampleInBar,
-                                           stepVel, bpm, swing01, q, humanize01);
+            const auto hit = feel.compute (v, col.nominalSampleInBar, stepVel, q, humanize01);
             const int finalOffset = segStart + col.nominalOffsetInBlock + hit.appliedOffsetSamples;
 
             if (finalOffset < numSamples)
@@ -375,7 +378,6 @@ void OSimpleBeatmakerAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
     sequencerRunning.store (running, std::memory_order_relaxed);
 
     // --- Read the 42 params once / push to voices + router -------------------
-    const double swing01    = pSwing    != nullptr ? (double) pSwing->load()    : 0.0;
     const double humanize01 = pHumanize != nullptr ? (double) pHumanize->load() : 0.0;
     const double q          = pQuant    != nullptr ? (double) pQuant->load()    : 1.0;
 
@@ -400,7 +402,7 @@ void OSimpleBeatmakerAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
     // --- 2+3. Firing columns, feel compose + emit, split at pattern switches ---
     // v1.5.0: notes 0-11 recall a slot at the note's own sample, so the result
     // does not depend on the block size: steps from that sample on read the new
-    // pattern, and hits already computed (swing carry-over) keep the old one.
+    // pattern, and hits already computed (humanize carry-over) keep the old one.
     // Empty slots ignore the note. A switch while stopped still takes effect.
     sequencerMidi.clear();
 #if OUARICON_BUILD_TESTS
@@ -422,7 +424,7 @@ void OSimpleBeatmakerAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
         if (running && at > segStart)
         {
             fireSegment (segStart, at, numSamples, synced, playing, bpm, ppqStart, blockStartAbs,
-                         swing01, q, humanize01, drained, playheadPhase);
+                         q, humanize01, drained, playheadPhase);
             segStart = at;
         }
         recallSlotFromAudioThread ((int) meta.data[1]);
@@ -430,7 +432,7 @@ void OSimpleBeatmakerAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
 
     if (running && numSamples > 0)
         fireSegment (segStart, numSamples, numSamples, synced, playing, bpm, ppqStart, blockStartAbs,
-                     swing01, q, humanize01, drained, playheadPhase);
+                     q, humanize01, drained, playheadPhase);
 
     // --- 4. Host-MIDI viz readout (source=1) + merge into the same stream ----
     // Gated by isVoiceAudible like the sequencer path (:321) — a muted voice's
@@ -700,7 +702,6 @@ void OSimpleBeatmakerAudioProcessor::applyConceptPreset (int index)
             prm->setValueNotifyingHost (prm->convertTo0to1 (real));
     };
 
-    setReal (swing,            p.swing01);
     setReal (humanize,         p.humanize01);
     setReal (quantizeStrength, p.quantize01);
     setReal (tempo,            p.tempoBpm);

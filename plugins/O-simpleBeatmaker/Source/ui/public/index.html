@@ -34,7 +34,7 @@
     <header class="header">
       <div class="title-block">
         <h1 class="title">O&#8202;&#8211;&#8202;simple<span class="title-accent">Beatmaker</span></h1>
-        <p class="subtitle" data-i18n="label.subtitle">Step-Sequencer Drum Machine &#183; program a beat, then watch velocity, swing, quantize &amp; humanize reshape it &#183; A Field Guide</p>
+        <p class="subtitle" data-i18n="label.subtitle">Step-Sequencer Drum Machine &#183; program a beat, then watch velocity, quantize &amp; humanize reshape it &#183; A Field Guide</p>
       </div>
       <!-- The right-hand header cluster. The transport strip and the gear are
            wrapped together so the header stays a TWO-item space-between row: a
@@ -141,7 +141,6 @@
       <div class="canvas-wrap lane-wrap" tabindex="0"><canvas id="laneCanvas"></canvas></div>
       <div class="lane-legend">
         <span class="lk lk-grid" data-i18n="label.lkGrid">&#9474; grid line (nominal step)</span>
-        <span class="lk lk-swing" data-i18n="label.lkSwing">swing &#8594; steady lateness on off-beats</span>
         <span class="lk lk-human" data-i18n="label.lkHuman">humanize &#8594; random scatter</span>
         <span class="lk lk-quant" data-i18n="label.lkQuant">quantize &#8594; pulls scatter back</span>
       </div>
@@ -160,11 +159,6 @@
       <section class="group group-timing">
         <h2 class="group-title" data-i18n="label.groupTiming">Timing Feel</h2>
         <div class="knob-row">
-          <div class="knob-cell" data-param="swing">
-            <div class="knob" id="knob-swing" data-i18n-aria="swing"><div class="knob-stem"></div></div>
-            <div class="knob-label" data-i18n="label.knobSwing">Swing</div>
-            <div class="knob-value" id="val-swing">0%</div>
-          </div>
           <div class="knob-cell" data-param="humanize">
             <div class="knob" id="knob-humanize" data-i18n-aria="humanize"><div class="knob-stem"></div></div>
             <div class="knob-label" data-i18n="label.knobHumanize">Humanize</div>
@@ -212,7 +206,6 @@
         <button class="tour-btn" data-preset="Straight">Straight</button>
         <button class="tour-btn" data-preset="Backbeat + Accents">Backbeat + Accents</button>
         <button class="tour-btn" data-preset="Ghost Notes">Ghost Notes</button>
-        <button class="tour-btn" data-preset="Triplet Swing">Triplet Swing</button>
         <button class="tour-btn" data-preset="Humanized">Humanized</button>
         <button class="tour-btn" data-preset="Quantize Demo">Quantize Demo</button>
       </div>

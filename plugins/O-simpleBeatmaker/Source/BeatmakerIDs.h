@@ -59,7 +59,7 @@ namespace OSimpleBeatmaker
     namespace ParamIDs
     {
         // Sequencer / timing-feel (5)
-        inline constexpr auto swing            = "swing";            // 0-1 (display 0-75%)
+        inline constexpr auto swing            = "swing";            // HIDDEN and inert since v1.6.0; kept so saved sessions load
         inline constexpr auto humanize         = "humanize";         // 0-1 (display 0-100%)
         inline constexpr auto quantizeStrength = "quantizeStrength"; // 0-1 (display 0-100%)
         inline constexpr auto patternLength    = "patternLength";    // choice 8/16/32

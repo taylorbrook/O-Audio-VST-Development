@@ -55,7 +55,7 @@
 //  * "Les temps forts" are beats 1 and 3 in French. The English lessonGhost
 //    body says BACKBEATS, which the lesson beside it defines as the snare on
 //    2 and 4, so the French now names "le backbeat" — the word the user can
-//    read on the button (the six lesson faces are I18N_EXEMPT).
+//    read on the button (the five lesson faces are I18N_EXEMPT).
 //  * "Mixage" is kept in the voiceLevel BODY ("dans le mixage"): the glossary
 //    forbids it as a LABEL, where it would be the Mix control, and bodies are
 //    not matched against TERMS. There is no Mix control on this page.
@@ -63,12 +63,11 @@
 //    are the loanwords French drummers use, and the page's own French for
 //    "Timing Feel" is "Placement rythmique", which does not fit either clause.
 //  * "STAN" for DAW is kept — 12 occurrences across the suite use it.
-//  * The nine tooltip TITLES that equal their English carry NO sameAsEn flag:
+//  * The tooltip TITLES that equal their English carry NO sameAsEn flag:
 //    check-i18n reads that flag entry-scoped (title AND body), so flagging a
 //    title over a translated body would disarm assertion 4 for the whole
-//    entry (Stage N correction 26). Six of the nine are the lesson-preset
-//    names, English by D-02; the other three (Swing, Tempo, Solo) are French
-//    words. The eight LABELS copies keep sameAsEn: true, which is the correct,
+//    entry (Stage N correction 26). Five are the lesson-preset names, English
+//    by D-02; the others (Tempo, Solo) are French words. The eight LABELS copies keep sameAsEn: true, which is the correct,
 //    entry-scoped declaration for a caption.
 //
 // UI ROOT IS Source/ui/public. There is no second UI root in this plugin. This
@@ -122,7 +121,7 @@
 // in their own data-tip attribute, which canon v2 overwrites with the tip BODY.
 //
 // LABELS NEVER REUSE A TOOLTIP KEY for a caption, even where the two strings
-// happen to be equal today ("Swing", "Tempo", "Clear all" vs "Clear All"). A
+// happen to be equal today ("Tempo", "Clear all" vs "Clear All"). A
 // caption and a tip title diverge the moment either is edited, and a rule that
 // holds for three of thirty-eight is a rule nobody can apply. The ONE place the
 // I18N fallback is used on purpose is data-i18n-aria on the twenty-nine knobs
@@ -163,9 +162,9 @@ export const I18N = Object.freeze({
     },
     'lang-select': {
         en: { t: "Language",
-              b: "The language of the labels on this page and of this hover help. The value readouts, the six lesson-preset names and the MIDI note numbers stay in English." },
+              b: "The language of the labels on this page and of this hover help. The value readouts, the five lesson-preset names and the MIDI note numbers stay in English." },
         fr: { t: "Langue",
-              b: "La langue des libellés de cette page et de ces infobulles. Les valeurs affichées, les noms des six préréglages de leçon et les numéros de note MIDI restent en anglais.",
+              b: "La langue des libellés de cette page et de ces infobulles. Les valeurs affichées, les noms des cinq préréglages de leçon et les numéros de note MIDI restent en anglais.",
               reviewed: true },
         'zh-Hans': { t: '语言',
                      b: '本页标签和这些悬停帮助所用的语言。数值读数、六个教学预设名称和 MIDI 音符编号保持英文。',
@@ -195,12 +194,12 @@ export const I18N = Object.freeze({
     },
     lane: {
         en: { t: "Timing / Groove Lane",
-              b: "The standout view: each dot is a hit, placed at its actual moment relative to its grid line. A line to the left of the tick = early, right = late. This is the exact Δt applied to the audio — turn Swing and watch off-beats drift right together; Humanize scatters them; Quantize pulls the scatter back toward the grid while leaving swing." },
+              b: "The standout view: each dot is a hit, placed at its actual moment relative to its grid line. A line to the left of the tick = early, right = late. This is the exact Δt applied to the audio — turn up Humanize and watch the hits scatter to the right; Quantize pulls the scatter back toward the grid." },
         fr: { t: "Voie de placement / groove",
-              b: "La vue phare : chaque point est une frappe, placée à son moment réel par rapport à sa ligne de grille. Un trait à gauche du repère = en avance, à droite = en retard. C’est le Δt exact appliqué à l’audio — tournez Swing et regardez les contretemps glisser ensemble vers la droite ; Humaniser les disperse ; Quantifier resserre la dispersion tout en laissant le swing.",
+              b: "La vue phare : chaque point est une frappe, placée à son moment réel par rapport à sa ligne de grille. Un trait à gauche du repère = en avance, à droite = en retard. C’est le Δt exact appliqué à l’audio — montez Humaniser et regardez les frappes se disperser vers la droite ; Quantifier ramène la dispersion vers la grille.",
               reviewed: true },
         'zh-Hans': { t: '节奏位置 / 律动轨道',
-                     b: '最亮眼的视图：每个点是一次敲击，按它相对于网格线的真实时刻放置。线在刻度左侧 = 提前，右侧 = 滞后。这就是烘焙进音频的那个 Δt —— 转动摇摆，看弱拍一起向右漂移；人性化把它们打散；量化把散开的点拉回网格，同时保留摇摆。',
+                     b: '最亮眼的视图：每个点是一次敲击，按它相对于网格线的真实时刻放置。线在刻度左侧 = 提前，右侧 = 滞后。这就是烘焙进音频的那个 Δt —— 调高人性化，看敲击向右散开；量化把散开的点拉回网格。',
                      reviewed: 'bt' },
     },
     midi: {
@@ -225,19 +224,19 @@ export const I18N = Object.freeze({
     },
     storeSlotBtn: {
         en: { t: "Store",
-              b: "Arms storing: the next slot you click saves the current steps and pattern length. Swing, humanize, quantize and the voice knobs stay out of it, so the kit and the feel hold across a switch." },
+              b: "Arms storing: the next slot you click saves the current steps and pattern length. Humanize, quantize and the voice knobs stay out of it, so the kit and the feel hold across a switch." },
         fr: { t: "Mémoriser",
-              b: "Arme la mémorisation : le prochain emplacement cliqué enregistre les pas et la longueur du motif. Le swing, l’humanisation, la quantification et les boutons des voix n’en font pas partie : le kit et le groove restent les mêmes d’un motif à l’autre.",
+              b: "Arme la mémorisation : le prochain emplacement cliqué enregistre les pas et la longueur du motif. L’humanisation, la quantification et les boutons des voix n’en font pas partie : le kit et le groove restent les mêmes d’un motif à l’autre.",
               reviewed: true },
         'zh-Hans': { t: '存储',
-                     b: '准备存储：接下来点击的槽位会保存当前的步进和模式长度。摇摆、人性化、量化和各声部旋钮不包括在内，因此切换时音色和律动保持不变。',
+                     b: '准备存储：接下来点击的槽位会保存当前的步进和模式长度。人性化、量化和各声部旋钮不包括在内，因此切换时音色和律动保持不变。',
                      reviewed: 'mt' },
     },
     slotButtons: {
         en: { t: "Pattern Slots",
               b: "Twelve stored patterns, numbered by the MIDI note that recalls them (0–11, the lowest octave). A note switches at its exact position, so put one on the downbeat in the piano roll. Empty slots ignore their note. An asterisk means the grid has changed since that slot was loaded." },
         fr: { t: "Emplacements de motifs",
-              b: "Douze motifs mémorisés, numérotés selon la note MIDI qui les rappelle (0–11, l’octave la plus grave). Une note change de motif à sa position exacte : placez-la sur le premier temps dans le piano roll. Un emplacement vide ignore sa note. Un astérisque indique que la grille a changé depuis le chargement de cet emplacement.",
+              b: "Douze motifs mémorisés, numérotés selon la note MIDI qui les rappelle (0–11, l’octave la plus grave). Une note change de motif à sa position exacte : placez-la sur le premier temps dans le piano roll. Un emplacement vide ignore sa note. Un astérisque indique que la grille a changé depuis le chargement de cet emplacement.",
               reviewed: true },
         'zh-Hans': { t: '模式槽位',
                      b: '十二个已存储的模式，按调用它们的 MIDI 音符编号（0–11，最低八度）。音符在其确切位置切换模式，因此请在钢琴卷帘中把它放在强拍上。空槽位会忽略其音符。星号表示网格在载入该槽位后已被更改。',
@@ -255,16 +254,6 @@ export const I18N = Object.freeze({
     },
 
     // ── Global timing-feel parameters ───────────────────────────────────────
-    swing: {
-        en: { t: "Swing",
-              b: "Delays every off-beat sixteenth, turning a stiff grid into a shuffle. 0% is dead-straight; 75% is the maximum MPC-style swing. Crucially, swing is not removed by Quantize — it is a deliberate, musical lateness, not an error." },
-        fr: { t: "Swing",
-              b: "Retarde chaque double croche à contretemps, ce qui transforme une grille rigide en shuffle. 0 % est parfaitement droit ; 75 % est le swing maximal à la manière des MPC. Point clé : le swing n’est pas retiré par la quantification — c’est un retard musical voulu, pas une erreur.",
-              reviewed: true },
-        'zh-Hans': { t: '摇摆',
-                     b: '延迟每一个弱拍十六分音符，把僵硬的网格变成 shuffle。0% 完全笔直；75% 是 MPC 风格的最大摇摆量。关键一点：摇摆不会被量化清除 —— 它是有意为之的音乐性滞后，不是失误。',
-                     reviewed: 'bt' },
-    },
     humanize: {
         en: { t: "Humanize",
               b: "Adds a small random timing and velocity wobble to every hit, like a human drummer who never lands exactly on the grid. A little brings a flat pattern to life; too much sounds sloppy. Watch the lane scatter as you raise it." },
@@ -277,12 +266,12 @@ export const I18N = Object.freeze({
     },
     quantizeStrength: {
         en: { t: "Quantize Strength",
-              b: "How hard hits are pulled back onto the grid. At 100% the random humanize is fully removed (dead tight); at 0% the full wobble is kept. The exact tradeoff the craft names: quantize enough that the part is solid, without over-quantizing the life out of it. Swing survives quantize — only the random part is pulled in." },
+              b: "How hard hits are pulled back onto the grid. At 100% the random humanize is fully removed (dead tight); at 0% the full wobble is kept. The exact tradeoff the craft names: quantize enough that the part is solid, without over-quantizing the life out of it." },
         fr: { t: "Force de quantification",
-              b: "À quel point les frappes sont ramenées sur la grille. À 100 % l’humanisation aléatoire est entièrement retirée (parfaitement serré) ; à 0 % toute l’instabilité est gardée. C’est exactement le compromis dont parle le métier : quantifier assez pour que la partie tienne, sans quantifier au point de lui retirer sa vie. Le swing survit à la quantification — seule la part aléatoire est ramenée.",
+              b: "À quel point les frappes sont ramenées sur la grille. À 100 % l’humanisation aléatoire est entièrement retirée (parfaitement serré) ; à 0 % toute l’instabilité est gardée. C’est exactement le compromis dont parle le métier : quantifier assez pour que la partie tienne, sans quantifier au point de lui retirer sa vie.",
               reviewed: true },
         'zh-Hans': { t: '量化强度',
-                     b: '敲击被拉回网格的力度有多大。在 100% 时随机的人性化被完全清除（绝对紧凑）；在 0% 时抖动全部保留。这正是这门手艺所说的取舍：量化到足以让声部站得住，又不至于把它的生气量化掉。摇摆在量化后依然存在 —— 只有随机的那部分会被拉回。',
+                     b: '敲击被拉回网格的力度有多大。在 100% 时随机的人性化被完全清除（绝对紧凑）；在 0% 时抖动全部保留。这正是这门手艺所说的取舍：量化到足以让声部站得住，又不至于把它的生气量化掉。',
                      reviewed: 'bt' },
     },
     tempo: {
@@ -394,12 +383,12 @@ export const I18N = Object.freeze({
     // the name is visible ELSEWHERE on the page, so it is not translated.
     presets: {
         en: { t: "Lesson Presets",
-              b: "A guided tour where each preset isolates one idea — straight vs. swung, accents, ghost notes, humanize, quantize. Click one to load it, then tweak a knob to hear the concept." },
+              b: "A guided tour where each preset isolates one idea — a straight beat, accents, ghost notes, humanize, quantize. Click one to load it, then tweak a knob to hear the concept." },
         fr: { t: "Préréglages de leçon",
-              b: "Une visite guidée où chaque préréglage isole une seule idée — droit contre swingué, accents, notes fantômes, humanisation, quantification. Cliquez-en un pour le charger, puis tournez un bouton pour entendre le concept.",
+              b: "Une visite guidée où chaque préréglage isole une seule idée — un rythme droit, accents, notes fantômes, humanisation, quantification. Cliquez-en un pour le charger, puis tournez un bouton pour entendre le concept.",
               reviewed: true },
         'zh-Hans': { t: '教学预设',
-                     b: '一次引导式巡览，每个预设单独呈现一个概念 —— 笔直对比摇摆、重音、幽灵音、人性化、量化。点击一个来加载它，然后转动一个旋钮来听这个概念。',
+                     b: '一次引导式巡览，每个预设单独呈现一个概念 —— 笔直的节奏、重音、幽灵音、人性化、量化。点击一个来加载它，然后转动一个旋钮来听这个概念。',
                      reviewed: 'bt' },
     },
     lessonStraight: {
@@ -432,16 +421,6 @@ export const I18N = Object.freeze({
                      b: '夹在反拍之间的轻声军鼓敲击 —— 让一个模式会呼吸的秘诀。',
                      reviewed: 'bt' },
     },
-    lessonSwing: {
-        en: { t: "Triplet Swing",
-              b: "The same pattern with swing pushed up — feel the off-beats slide late into a shuffle." },
-        fr: { t: "Triplet Swing",
-              b: "Le même motif avec le swing poussé — sentez les contretemps glisser en retard vers le shuffle.",
-              reviewed: true },
-        'zh-Hans': { t: 'Triplet Swing',
-                     b: '同一个模式，把摇摆推高 —— 感受弱拍滑向滞后，成为 shuffle。',
-                     reviewed: 'bt' },
-    },
     lessonHumanized: {
         en: { t: "Humanized",
               b: "A tight pattern loosened with humanize — watch the lane scatter off the grid lines." },
@@ -469,12 +448,12 @@ export const I18N = Object.freeze({
     // numbers and substitute verbatim (D-03).
     'aria.slotEmpty': {
         en: { t: "Pattern slot, MIDI note {note}: empty", b: '' },
-        fr: { t: "Emplacement de motif, note MIDI {note} : vide", b: '', reviewed: true },
+        fr: { t: "Emplacement de motif, note MIDI {note} : vide", b: '', reviewed: true },
         'zh-Hans': { t: '模式槽位，MIDI 音符 {note}：空', b: '', reviewed: 'mt' },
     },
     'aria.slotFilled': {
         en: { t: "Pattern slot, MIDI note {note}: stored", b: '' },
-        fr: { t: "Emplacement de motif, note MIDI {note} : mémorisé", b: '', reviewed: true },
+        fr: { t: "Emplacement de motif, note MIDI {note} : mémorisé", b: '', reviewed: true },
         'zh-Hans': { t: '模式槽位，MIDI 音符 {note}：已存储', b: '', reviewed: 'mt' },
     },
     'aria.cellOff': {
@@ -515,18 +494,18 @@ export const LABELS = Object.freeze({
     // The product name itself is NOT here — see I18N_EXEMPT. Only the strapline
     // under it is copy.
     'label.subtitle': {
-        en: { t: "Step-Sequencer Drum Machine · program a beat, then watch velocity, swing, quantize & humanize reshape it · A Field Guide" },
+        en: { t: "Step-Sequencer Drum Machine · program a beat, then watch velocity, quantize & humanize reshape it · A Field Guide" },
         // SHORTENED, and flagged for the reviewer. The faithful "Boîte à rythmes
         // à séquenceur pas à pas · programmez un rythme, puis regardez vélocité,
-        // swing, quantification et humanisation le remodeler · un guide de
+        // quantification et humanisation le remodeler · un guide de
         // terrain" measures 806.4px against the 706.4px the header can give the
         // title block once the transport strip is pinned, so it wrapped to a
         // second line and pushed the whole page down 15px. Two connecting
         // phrases are dropped and the object moves to the end of the clause; the
-        // sentence still names the machine, all four timing controls and the
+        // sentence still names the machine, the three timing ideas and the
         // series. 690.0px, 16.4px of clearance.
-        fr: { t: "Boîte à rythmes pas à pas · programmez, puis voyez vélocité, swing, quantification et humanisation remodeler le rythme · guide de terrain", reviewed: true },
-        'zh-Hans': { t: '步进音序鼓机 · 编写一段节奏，然后看力度、摇摆、量化与人性化如何重塑它 · 实地指南', reviewed: 'bt' },
+        fr: { t: "Boîte à rythmes pas à pas · programmez, puis voyez vélocité, quantification et humanisation remodeler le rythme · guide de terrain", reviewed: true },
+        'zh-Hans': { t: '步进音序鼓机 · 编写一段节奏，然后看力度、量化与人性化如何重塑它 · 实地指南', reviewed: 'bt' },
     },
 
     // The transport strip. The NUMBERS beside these three are readouts and are
@@ -696,11 +675,6 @@ export const LABELS = Object.freeze({
         fr: { t: "│ ligne de grille (pas nominal)", reviewed: true },
         'zh-Hans': { t: '│ 网格线（名义步）', reviewed: 'bt' },
     },
-    'label.lkSwing': {
-        en: { t: "swing → steady lateness on off-beats" },
-        fr: { t: "swing → retard régulier sur les contretemps", reviewed: true },
-        'zh-Hans': { t: '摇摆 → 弱拍上稳定的滞后', reviewed: 'bt' },
-    },
     'label.lkHuman': {
         en: { t: "humanize → random scatter" },
         fr: { t: "humaniser → dispersion aléatoire", reviewed: true },
@@ -755,11 +729,6 @@ export const LABELS = Object.freeze({
         en: { t: "Timing Feel" },
         fr: { t: "Placement rythmique", reviewed: true },
         'zh-Hans': { t: '节奏手感', reviewed: 'bt' },
-    },
-    'label.knobSwing': {
-        en: { t: "Swing" },
-        fr: { t: "Swing", sameAsEn: true, reviewed: true },
-        'zh-Hans': { t: '摇摆', reviewed: 'bt' },
     },
     'label.knobHumanize': {
         en: { t: "Humanize" },
@@ -948,7 +917,6 @@ export const TIP_BINDINGS = [
     ['#storeSlotBtn',                        'storeSlotBtn'],
     ['#slotButtons',                         'slotButtons'],
 
-    ['[data-param="swing"]',                 'swing'],
     ['[data-param="humanize"]',              'humanize'],
     ['[data-param="quantizeStrength"]',      'quantizeStrength'],
     ['[data-param="tempo"]',                 'tempo'],
@@ -1001,7 +969,6 @@ export const TIP_BINDINGS = [
     ['[data-preset="Straight"]',             'lessonStraight'],
     ['[data-preset="Backbeat + Accents"]',   'lessonAccents'],
     ['[data-preset="Ghost Notes"]',          'lessonGhost'],
-    ['[data-preset="Triplet Swing"]',        'lessonSwing'],
     ['[data-preset="Humanized"]',            'lessonHumanized'],
     ['[data-preset="Quantize Demo"]',        'lessonQuantize'],
 ];
@@ -1035,7 +1002,6 @@ export const I18N_EXEMPT = [
     ['Straight',           'factory preset name — the tour caption prints it back verbatim (D-02)'],
     ['Backbeat + Accents', 'factory preset name — the tour caption prints it back verbatim (D-02)'],
     ['Ghost Notes',        'factory preset name — the tour caption prints it back verbatim (D-02)'],
-    ['Triplet Swing',      'factory preset name — the tour caption prints it back verbatim (D-02)'],
     ['Humanized',          'factory preset name — the tour caption prints it back verbatim (D-02)'],
     ['Quantize Demo',      'factory preset name — the tour caption prints it back verbatim (D-02)'],
 

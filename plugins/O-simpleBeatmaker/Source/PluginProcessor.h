@@ -118,7 +118,7 @@ public:
     // Pattern slots (v1.5.0): twelve snapshots of the steps + pattern length,
     // recalled from the page or by MIDI notes 0-11. The live grid stays what is
     // played and edited; a slot changes only when it is stored or cleared.
-    // Swing, humanize, quantize and the voice knobs are NOT part of a slot.
+    // Humanize, quantize and the voice knobs are NOT part of a slot.
     static constexpr int kNumPatternSlots = 12;
 
     void storePatternSlot (int slot) noexcept;           // message thread
@@ -289,7 +289,6 @@ private:
     juce::int64 absSamplePos  = 0;                     // running absolute sample counter
 
     // Cached APVTS atomic pointers (read once/block, no String lookup in audio).
-    std::atomic<float>* pSwing = nullptr;
     std::atomic<float>* pHumanize = nullptr;
     std::atomic<float>* pQuant = nullptr;
     std::atomic<float>* pPatternLen = nullptr;
@@ -308,7 +307,7 @@ private:
     void drainCarryOver (juce::int64 blockStartAbs, int numSamples) noexcept;
     void fireSegment (int segStart, int segEnd, int numSamples, bool synced, bool playing,
                       double bpm, double ppqStart, juce::int64 blockStartAbs,
-                      double swing01, double q, double humanize01,
+                      double q, double humanize01,
                       bool& drained, float& playheadPhaseOut) noexcept;
 
 #if OUARICON_BUILD_TESTS

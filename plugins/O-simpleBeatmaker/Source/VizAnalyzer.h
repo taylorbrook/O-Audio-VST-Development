@@ -29,7 +29,7 @@
     QUAL-02 by construction: the producer pushes a VizEvent in the SAME code path
     that emits the note-on into the sequencer MidiBuffer (one emit = one push),
     so the displayed Δt IS the offset baked into the MidiMessage that drove the
-    voice — never a UI-side recomputation of the swing/humanize formula.
+    voice — never a UI-side recomputation of the humanize formula.
 
     Audio thread = single producer (juce::AbstractFifo + POD store). Message
     thread (Stage-3 Timer) = single consumer. playheadStepPhase is a separate,
