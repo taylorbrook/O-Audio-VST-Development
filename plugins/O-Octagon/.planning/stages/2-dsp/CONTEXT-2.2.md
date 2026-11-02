@@ -190,7 +190,7 @@ itself. **`BRIEF.md`, `parameter-spec.md` and `ROADMAP.md` are unmodified** — 
 ### Environment
 
 - **No unit-test framework in this repo** — `juce_add_console_app` + `check()` + exit codes. The
-  Catch2 references in `docs/codebase/TESTING.md` describe an intent never implemented
+  Catch2 references in `.planning/codebase/TESTING.md` describe an intent never implemented
   (`project_no_unit_test_framework_ci_never_runs_tests`)
 - **No test target in this repo has ever run in CI.** 2.2's gates are local-only, same as 2.1's. The
   gap is logged at `.planning/todos/pending/2026-08-11-secrets-free-test-ci-workflow.md` and belongs

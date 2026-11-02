@@ -3,7 +3,7 @@
 #
 # juce_add_console_app + check()/exit-code, matching all twelve existing harnesses in this repo.
 # THERE IS NO UNIT-TEST FRAMEWORK HERE: no Catch2, no GoogleTest, no doctest, no juce::UnitTest.
-# The Catch2 references in docs/codebase/TESTING.md describe an intent that was never implemented —
+# The Catch2 references in .planning/codebase/TESTING.md describe an intent that was never implemented —
 # do not follow them, and do not resolve a missing symbol by adding a framework (RESEARCH-2.1 Q5).
 #
 # CRITICAL: the plugin CMake target is OuariconOctagon, NOT the folder name O-Octagon

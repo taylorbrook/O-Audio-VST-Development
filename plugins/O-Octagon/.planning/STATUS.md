@@ -3306,7 +3306,7 @@ which are defects in the *specification* found by checking it against JUCE 8.0.1
 | Q2 — JUCE path for the generator | `JUCE_MODULES_DIR` (`JUCE/CMakeLists.txt:41`, `CACHE INTERNAL`), passed as a script argument. Portable: CI sets `JUCE_DIR` at `build-and-release.yml:131` and the root resolves it identically. `FATAL_ERROR` if empty |
 | Q3 — CI | **Local-only at 2.1.** CI is tag-triggered release-only, secrets-bearing, and has *never* set `OUARICON_BUILD_TESTS` — no harness in the repo has ever run in CI. Residual gap logged for Stage 4, not hidden |
 | Q4 — hull classification sink | A first-class `ConvexHull2D` return value, not a processor accessor. The 3.2 Venue screen reads the same call — drift becomes structurally impossible |
-| Q5 — test framework | **None.** Zero Catch2/GTest/doctest/`juce::UnitTest` anywhere in plugin source or CMake. Use `juce_add_console_app` + `check()`/exit-code, matching all 12 existing harnesses. The Catch2 references in `docs/codebase/TESTING.md` describe an intent never implemented — do not follow them |
+| Q5 — test framework | **None.** Zero Catch2/GTest/doctest/`juce::UnitTest` anywhere in plugin source or CMake. Use `juce_add_console_app` + `check()`/exit-code, matching all 12 existing harnesses. The Catch2 references in `.planning/codebase/TESTING.md` describe an intent never implemented — do not follow them |
 
 ### Findings worth carrying
 

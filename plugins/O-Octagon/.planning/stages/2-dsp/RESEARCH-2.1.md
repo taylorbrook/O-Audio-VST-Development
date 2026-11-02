@@ -175,12 +175,12 @@ The survey was exhaustive across the repo (excluding `build/`, `_deps/`, `node_m
 
 | Token | Hits in plugin source or any `CMakeLists.txt` |
 |---|---|
-| `Catch2` / `catch2` / `catch_test_macros` | **0** — only `.claude/skills/plugin-testing/` templates and `docs/codebase/TESTING.md` |
+| `Catch2` / `catch2` / `catch_test_macros` | **0** — only `.claude/skills/plugin-testing/` templates and `.planning/codebase/TESTING.md` |
 | `gtest` | **0** — sole hit is a transitive entry in `O-TextureForge/Source/ui/package-lock.json` |
 | `GoogleTest`, `doctest`, `juce_UnitTest`, `UnitTestRunner` | **0** |
 | `enable_testing()`, `add_test()` | **0** |
 
-**The Catch2 references in `docs/codebase/TESTING.md` and the `plugin-testing` skill templates
+**The Catch2 references in `.planning/codebase/TESTING.md` and the `plugin-testing` skill templates
 describe an intent that was never implemented. Do not follow them** — treating documentation as
 evidence of convention here would introduce the repo's first test dependency on the strength of a
 file that no build reads.

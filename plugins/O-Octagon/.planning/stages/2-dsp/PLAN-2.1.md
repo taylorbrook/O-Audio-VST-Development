@@ -415,7 +415,7 @@ resolution is). Never a path literal.
 `juce_add_console_app` per **Q5** — no Catch2, no GoogleTest, no doctest, no `juce::UnitTest`. The
 `int failures` + `check(name, ok, detail)` + `return failures == 0 ? 0 : 1` idiom of
 `O-ReverseDelay/tests/render-harness/main.cpp:808-824`. **The Catch2 references in
-`docs/codebase/TESTING.md` describe an intent never implemented — do not follow them.**
+`.planning/codebase/TESTING.md` describe an intent never implemented — do not follow them.**
 
 Links **only** `VenueModel.cpp`, `ConvexHull2D.cpp`, `ChannelMap.cpp`. Not `PluginProcessor.cpp`, so
 it needs no `JucePlugin_*` block, compiles fast, and cannot be broken by the Stage-3 WebView swap.
