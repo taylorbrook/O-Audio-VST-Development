@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.4.0
+- **Version:** 1.5.0
 - **Type:** Synth (Pedagogical Step-Sequencer Drum Machine)
 
 ## Lifecycle Timeline
@@ -26,6 +26,7 @@
   gate applied. Render-harness 12/12 probes pass. Reinstalled.
 - **2026-09-01 (v1.2.0):** Hover-help on/off switch added to the settings gear beside the language selector via /improve (the control O-simpleGrain carries; ported with O-simpleFM v1.4.0, O-simpleAdditive v1.2.0, O-simpleSubtractive v1.4.0). localStorage `osbm.tipsEnabled`, WebView-only; harness VersionCode followed to 0x10200. All i18n/UI gates green; built + installed.
 - **2026-09-25 (v1.4.0):** 260924-nho Phase C UI pass via /improve: AA text tokens (contrast census 13/135 → 0/135 below AA in en/fr/zh-Hans), 9px floor verified (already met), bundled EB Garamond (modules/ui/eb-garamond), scale-to-fit below the 1060×900 design frame, and the editor opens clamped to the screen. No DSP/param/state change. check-ui-labels, check-i18n and auval pass; built + installed. DAW hands-on pending.
+- **2026-11-01 (v1.5.0):** Via /improve: pattern plays only with the DAW (Preview button for auditioning), note numbers on lane labels, twelve pattern slots recalled by MIDI notes 0-11 (steps + length, switched at the note's exact sample). Render harness 26/26, check-i18n, check-ui-labels, auval, pluginval strictness 10 pass; built + installed. DAW hands-on pending.
 
 ## Known Issues
 

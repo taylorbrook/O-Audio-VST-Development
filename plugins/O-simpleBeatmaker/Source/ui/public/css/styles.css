@@ -345,6 +345,61 @@ body {
 .clear-btn:hover { background: var(--bg-paper-mid); border-color: var(--green-mid); }
 .clear-btn:focus { outline: 2px solid var(--green-mid); outline-offset: 1px; }
 .grid-scroll { overflow-x: auto; padding-bottom: 2px; }
+
+/* ── Preview + pattern slots (v1.5.0) ───────────────────────────────────── */
+.pattern-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+}
+.pattern-caption { flex: 0 0 54px; font-size: 12px; font-weight: 700; color: var(--green-dark); margin-left: 6px; line-height: 1.25; white-space: nowrap; }
+.preview-btn, .store-btn, .slot-btn {
+  font-family: inherit;
+  color: var(--brown-text);
+  background: var(--bg-paper-light);
+  border: 1.5px solid var(--brown-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.preview-btn, .store-btn { flex: 0 0 auto; font-size: 11.5px; height: 28px; padding: 0 10px; white-space: nowrap; }
+/* Widths pinned at the widest language so the slot row never moves with the
+   language or the button's face. */
+.preview-btn { width: 88px; padding: 0; }
+.store-btn { width: 76px; padding: 0; }
+.preview-btn:hover:not(:disabled), .store-btn:hover, .slot-btn:hover { background: var(--bg-paper-mid); border-color: var(--green-mid); }
+.preview-btn:focus-visible, .store-btn:focus-visible, .slot-btn:focus-visible { outline: 2px solid var(--green-mid); outline-offset: 1px; }
+.preview-btn.active { background: var(--fill-active); color: #fff8dc; border-color: var(--btn-border-active); }
+/* Disabled while the DAW plays. Border and cursor carry it: no opacity, which
+   would drop the face below AA on the paper ground. */
+.preview-btn:disabled { color: var(--text-muted); border-style: dashed; cursor: not-allowed; }
+.store-btn.armed { background: var(--amber); color: #2a2118; border-color: var(--amber-deep); }
+.slot-buttons { flex: 1 1 0; min-width: 0; display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; }
+.slot-btn {
+  height: 28px;
+  min-width: 0;
+  padding: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 3px;
+  line-height: 25px;
+  font-variant-numeric: tabular-nums;
+  border-style: dashed;
+}
+.slot-num { font-size: 12px; font-weight: 700; }
+.slot-name { font-size: 9.5px; color: var(--text-muted); }
+.slot-btn.filled { border-style: solid; background: var(--bg-accent); }
+.slot-btn.active { border-style: solid; background: var(--fill-active); color: #fff8dc; border-color: var(--btn-border-active); }
+.slot-btn.active .slot-name { color: #fff8dc; }
+/* Edited since it was loaded: the asterisk is the signal, the amber border backs it. */
+.slot-btn.modified { border-color: var(--amber); box-shadow: inset 0 0 0 1px var(--amber); }
+.slot-btn.modified .slot-num::after { content: "*"; }
+.slot-buttons.storing .slot-btn { border-color: var(--amber-deep); }
+.pattern-hint { font-size: 10.5px; font-style: italic; color: var(--text-muted); margin-top: 3px; line-height: 1.25; }
+/* The host owns the tempo: the knob shows it and takes no drag. */
+.knob-cell.host-tempo .knob { pointer-events: none; border-style: dashed; }
 .grid-rows {
   display: flex;
   flex-direction: column;
@@ -356,11 +411,16 @@ body {
 }
 .grid-row {
   display: grid;
-  grid-template-columns: 92px 1fr;
+  /* 108px through v1.5.0: "Charley fermé" plus the note number on one line. */
+  grid-template-columns: 108px 1fr;
   align-items: center;
   gap: 8px;
 }
 .row-label {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
   font-size: 12px;
   font-weight: 600;
   text-align: right;
@@ -368,6 +428,14 @@ body {
   color: var(--brown-text);
   border-right: 2px solid var(--voice-hue, var(--brown-border));
   line-height: 1.1;
+}
+/* v1.5.0: the MIDI note that plays this lane. Fixed width so the numbers align. */
+.row-note {
+  flex: 0 0 17px;
+  font-size: 10.5px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
 }
 .row-cells {
   display: grid;

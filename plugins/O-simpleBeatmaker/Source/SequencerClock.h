@@ -36,8 +36,13 @@
 
     Stateless enumeration per block (derived purely from ppqStart + a half-open
     window) => a step boundary on a block edge fires exactly once, in the block
-    where it is the start — no double-fire, no miss (Probe 4). Free-run integrates
-    an internal phase at `tempo` BPM when the host is absent/stopped.
+    where it is the start — no double-fire, no miss (Probe 4). v1.5.0: the window
+    sits half a sample early, so a step belongs to the span that contains its
+    ROUNDED sample. A pattern-switch note the host rounded onto the same sample as
+    a fractional step therefore always precedes that step, wherever the block edge
+    falls. Free-run integrates an internal phase and only runs for Preview (or a
+    playing host that reports no ppq); processBlock does not call the clock at all
+    while stopped.
 
   ==============================================================================
 */
@@ -66,6 +71,13 @@ namespace OSimpleBeatmaker
             haveLast = false;
         }
 
+        // v1.5.0: the sequencer stopped (no process() this block). The next start
+        // must not read the ppq jump across the stop as a relocate.
+        void stop() noexcept { haveLast = false; }
+
+        // v1.5.0: Preview always starts from step 1.
+        void resetFreeRun() noexcept { freeRunStepPos = 0.0; }
+
         // Enumerate firing columns for this block. Returns the count written to
         // `out` (<= maxOut). `playheadPhaseOut` = fractional step index at block
         // start; `discontinuityOut` = host ppq jumped (loop/relocate).
@@ -93,8 +105,10 @@ namespace OSimpleBeatmaker
                 if (haveLast && std::abs (ppqStart - lastBlockEndPpq) > 0.125)
                     discontinuityOut = true;
 
-                const double lo = ppqStart;
-                const double hi = ppqStart + blockPpq;
+                const double blockEnd = ppqStart + blockPpq;
+                const double halfSamplePpq = 0.5 / samplesPerPpq;
+                const double lo = ppqStart - halfSamplePpq;
+                const double hi = blockEnd - halfSamplePpq;
 
                 // Upper bar bound derived from the window: a block spanning more
                 // than one pattern period (tiny pattern + huge buffer + high bpm)
@@ -124,8 +138,8 @@ namespace OSimpleBeatmaker
                 }
 
                 playheadPhaseOut = wrapPhase (ppqStart * 4.0, barLenSteps);
-                freeRunStepPos   = wrapPhase (hi * 4.0, barLenSteps);   // keep ready for free-run handoff
-                lastBlockEndPpq  = hi;
+                freeRunStepPos   = wrapPhase (blockEnd * 4.0, barLenSteps);   // keep ready for free-run handoff
+                lastBlockEndPpq  = blockEnd;
                 haveLast         = true;
             }
             else

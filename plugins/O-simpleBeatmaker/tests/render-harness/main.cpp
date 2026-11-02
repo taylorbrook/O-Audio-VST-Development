@@ -609,6 +609,253 @@ int main()
                  + " ratio=" + juce::String (ratio, 3));
     }
 
+    //==========================================================================
+    // v1.5.0 gates. A kick on step 0 of a 16-step pattern, unless a case says
+    // otherwise. countHits runs one block at a time through the emitted-hit hook.
+    //==========================================================================
+    auto resetProc = [&] (int blockSize)
+    {
+        proc.prepareToPlay (fs, blockSize);
+        setDefaults (proc);
+        proc.clearGrid();
+        for (int i = 0; i < Proc::kNumPatternSlots; ++i)
+            proc.clearPatternSlot (i);
+        proc.setPreview (false);
+        proc.setNonRealtime (false);
+    };
+    auto runBlocks = [&] (int nBlocks, int blockSize)
+    {
+        int hits = 0;
+        juce::AudioBuffer<float> buf (2, blockSize);
+        for (int b = 0; b < nBlocks; ++b)
+        {
+            buf.clear();
+            juce::MidiBuffer midi;
+            proc.processBlock (buf, midi);
+            hits += (int) proc.getTestEmittedHits().size();
+        }
+        return hits;
+    };
+    const int twoBars = (int) (4.0 * fs) / block + 1;    // 2 patterns at 120 BPM
+
+    // Transport: silent with no host, silent with a stopped host.
+    {
+        resetProc (block);
+        proc.setStep (Kick, 0, 100);
+        proc.setPlayHead (nullptr);
+        const int noHost = runBlocks (twoBars, block);
+        FakePlayHead fake; fake.playing = false; fake.bpm = 90.0;
+        proc.setPlayHead (&fake);
+        const int stopped = runBlocks (twoBars, block);
+        check ("transport-stopped-silent", noHost == 0 && stopped == 0 && ! proc.isSequencerRunning(),
+               juce::String ("noHost=") + juce::String (noHost) + " stopped=" + juce::String (stopped));
+        check ("host-tempo-while-stopped", std::abs (proc.getLastKnownBpm() - 90.0) < 1.0e-9 && proc.isHostTempoActive(),
+               juce::String ("bpm=") + juce::String (proc.getLastKnownBpm()));
+        proc.setPlayHead (nullptr);
+    }
+
+    // Preview: plays from step 1 at the knob tempo with no host; offline ignores it.
+    {
+        resetProc (block);
+        proc.setStep (Kick, 0, 100);
+        proc.setPreview (true);
+        const int hits = runBlocks (twoBars, block);
+        // Steps at 0, 2 and 4 s: the render runs one block past 4 s.
+        check ("preview-plays-no-host", hits == 3, juce::String ("hits=") + juce::String (hits));
+
+        proc.setPreview (false);
+        const int after = runBlocks (twoBars, block);
+        check ("preview-off-silent", after == 0, juce::String ("hits=") + juce::String (after));
+
+        proc.setPreview (true);
+        proc.setNonRealtime (true);
+        const int offline = runBlocks (twoBars, block);
+        proc.setNonRealtime (false);
+        check ("preview-ignored-offline", offline == 0, juce::String ("hits=") + juce::String (offline));
+        proc.setPreview (false);
+    }
+
+    // DAW play ends Preview, so DAW stop means silence.
+    {
+        resetProc (block);
+        proc.setStep (Kick, 0, 100);
+        proc.setPreview (true);
+        FakePlayHead fake; fake.playing = true;
+        proc.setPlayHead (&fake);
+        runBlocks (1, block);
+        const bool cleared = ! proc.isPreviewOn();
+        fake.playing = false;
+        const int hits = runBlocks (twoBars, block);
+        check ("daw-play-ends-preview", cleared && hits == 0, juce::String ("hits after stop=") + juce::String (hits));
+        proc.setPlayHead (nullptr);
+    }
+
+    // Slot switch: a note at a downbeat changes that very step, at any block size
+    // and at a tempo where steps land on fractional samples. Sets voice = Snare
+    // in slot 1 and Kick in the live grid; every firing is reported per voice.
+    {
+        const double bpm = 97.3;
+        const double spp = (60.0 / bpm) * fs;
+        const juce::int64 switchAbs = std::llround (4.0 * spp);   // bar 2 downbeat
+
+        auto render = [&] (int blockSize)
+        {
+            resetProc (blockSize);
+            proc.setStep (Snare, 0, 100);
+            proc.setStep (Snare, 8, 100);
+            proc.storePatternSlot (1);
+            proc.clearGrid();
+            proc.setStep (Kick, 0, 100);
+            proc.setStep (Kick, 8, 100);
+
+            FakePlayHead fake; fake.playing = true; fake.bpm = bpm; fake.fs = fs;
+            proc.setPlayHead (&fake);
+            std::vector<std::tuple<int,int,juce::int64>> hits;
+            juce::AudioBuffer<float> buf (2, blockSize);
+            const juce::int64 total = (juce::int64) (8.5 * spp);
+            for (juce::int64 pos = 0; pos < total; pos += blockSize)
+            {
+                fake.ppq = (double) pos / spp;
+                buf.clear();
+                juce::MidiBuffer midi;
+                if (switchAbs >= pos && switchAbs < pos + blockSize)
+                    midi.addEvent (juce::MidiMessage::noteOn (1, 1, (juce::uint8) 100), (int) (switchAbs - pos));
+                proc.processBlock (buf, midi);
+                for (const auto& h : proc.getTestEmittedHits())
+                    hits.emplace_back (h.voiceIndex, h.stepIndex, h.blockStartAbs + h.finalOffsetInBlock);
+            }
+            proc.setPlayHead (nullptr);
+            return hits;
+        };
+
+        const auto ref = render (512);
+        int kicksBefore = 0, snaresAfter = 0, wrong = 0;
+        for (const auto& h : ref)
+        {
+            const bool isKick = std::get<0> (h) == Kick;
+            const bool before = std::get<2> (h) < switchAbs;
+            if (isKick && before)      ++kicksBefore;
+            else if (! isKick && ! before) ++snaresAfter;
+            else ++wrong;
+        }
+        check ("switch-on-downbeat", kicksBefore == 2 && snaresAfter == 3 && wrong == 0,
+               juce::String ("kicksBefore=") + juce::String (kicksBefore) + " snaresAfter=" + juce::String (snaresAfter)
+                 + " wrong=" + juce::String (wrong) + " active=" + juce::String (proc.getActiveSlot()));
+
+        bool sameAtAllSizes = true;
+        for (int bs : { 32, 64, 128, 441, 1024, 4096 })
+        {
+            auto other = render (bs);
+            if (other.size() != ref.size()) { sameAtAllSizes = false; continue; }
+            for (size_t i = 0; i < ref.size(); ++i)
+                if (std::get<0> (other[i]) != std::get<0> (ref[i]) || std::get<1> (other[i]) != std::get<1> (ref[i])
+                    || std::llabs (std::get<2> (other[i]) - std::get<2> (ref[i])) > 1)
+                    sameAtAllSizes = false;
+        }
+        check ("switch-block-size-indep", sameAtAllSizes, juce::String ("hits=") + juce::String ((int) ref.size()));
+    }
+
+    // Exhaustive: the switch sample at every possible position relative to a block
+    // edge. A note on the same rounded sample as the step must always win.
+    {
+        const double bpm = 97.3;
+        const double spp = (60.0 / bpm) * fs;
+        const juce::int64 switchAbs = std::llround (4.0 * spp);
+        const int bs = 64;
+        int oldStepFired = 0;
+        for (int shift = 0; shift < bs; ++shift)
+        {
+            resetProc (bs);
+            proc.setStep (Snare, 0, 100);
+            proc.storePatternSlot (0);
+            proc.clearGrid();
+            proc.setStep (Kick, 0, 100);
+            FakePlayHead fake; fake.playing = true; fake.bpm = bpm; fake.fs = fs;
+            proc.setPlayHead (&fake);
+            juce::AudioBuffer<float> buf (2, bs);
+            for (juce::int64 pos = shift; pos < switchAbs + 3 * bs; pos += bs)
+            {
+                fake.ppq = (double) pos / spp;
+                buf.clear();
+                juce::MidiBuffer midi;
+                if (switchAbs >= pos && switchAbs < pos + bs)
+                    midi.addEvent (juce::MidiMessage::noteOn (1, 0, (juce::uint8) 100), (int) (switchAbs - pos));
+                proc.processBlock (buf, midi);
+                for (const auto& h : proc.getTestEmittedHits())
+                    if (h.voiceIndex == Kick && h.blockStartAbs + h.finalOffsetInBlock >= switchAbs - 1)
+                        ++oldStepFired;
+            }
+            proc.setPlayHead (nullptr);
+        }
+        check ("switch-any-block-edge", oldStepFired == 0, juce::String ("old step fired ") + juce::String (oldStepFired) + " of 64 alignments");
+    }
+
+    // Length recalled by MIDI applies with no message thread (offline render), and
+    // an empty slot ignores its note.
+    {
+        resetProc (block);
+        proc.setStep (Kick, 0, 100);
+        proc.storePatternSlot (2);                       // 16 steps
+        setParam (proc.getAPVTS(), PID::patternLength, 2.0f);
+        proc.clearGrid();
+        proc.setStep (Snare, 3, 100);
+        proc.storePatternSlot (3);                       // 32 steps
+        setParam (proc.getAPVTS(), PID::patternLength, 1.0f);
+
+        juce::AudioBuffer<float> buf (2, block);
+        juce::MidiBuffer note; note.addEvent (juce::MidiMessage::noteOn (1, 3, (juce::uint8) 100), 0);
+        proc.processBlock (buf, note);
+        const bool lenApplied = proc.getEffectivePatternLength() == 32 && proc.getStep (Snare, 3) == 100;
+
+        juce::MidiBuffer empty; empty.addEvent (juce::MidiMessage::noteOn (1, 7, (juce::uint8) 100), 0);
+        proc.processBlock (buf, empty);
+        const bool emptyIgnored = proc.getActiveSlot() == 3 && proc.getStep (Snare, 3) == 100;
+        check ("switch-length-no-msg-thread", lenApplied, juce::String ("len=") + juce::String (proc.getEffectivePatternLength()));
+        check ("empty-slot-ignored", emptyIgnored, juce::String ("active=") + juce::String (proc.getActiveSlot()));
+
+        // A later change of the parameter itself wins over the override.
+        setParam (proc.getAPVTS(), PID::patternLength, 0.0f);
+        juce::MidiBuffer none;
+        proc.processBlock (buf, none);
+        check ("param-beats-override", proc.getEffectivePatternLength() == 8,
+               juce::String ("len=") + juce::String (proc.getEffectivePatternLength()));
+    }
+
+    // Slots, active index and lengths survive a session round trip; a pre-1.5.0
+    // session (no PATTERN_SLOTS child) restores with every slot empty.
+    {
+        resetProc (block);
+        proc.setStep (Tom, 5, 77);
+        proc.storePatternSlot (4);
+        proc.clearGrid();
+        proc.setStep (Clap, 2, 33);
+        setParam (proc.getAPVTS(), PID::patternLength, 2.0f);
+        proc.storePatternSlot (11);
+
+        juce::MemoryBlock state;
+        proc.getStateInformation (state);
+
+        Proc fresh;
+        fresh.setPlayConfigDetails (0, 2, fs, block);
+        fresh.setStateInformation (state.getData(), (int) state.getSize());
+        const bool slotsBack = fresh.getFilledSlotMask() == ((1 << 4) | (1 << 11)) && fresh.getActiveSlot() == 11
+                               && fresh.loadPatternSlot (4) && fresh.getStep (Tom, 5) == 77 && fresh.getStep (Clap, 2) == 0
+                               && fresh.getEffectivePatternLength() == 16
+                               && fresh.loadPatternSlot (11) && fresh.getStep (Clap, 2) == 33
+                               && fresh.getEffectivePatternLength() == 32;
+        check ("slots-state-roundtrip", slotsBack, juce::String ("mask=") + juce::String (fresh.getFilledSlotMask()));
+
+        auto xml = juce::AudioProcessor::getXmlFromBinary (state.getData(), (int) state.getSize());
+        xml->removeChildElement (xml->getChildByName ("PATTERN_SLOTS"), true);
+        juce::MemoryBlock old;
+        juce::AudioProcessor::copyXmlToBinary (*xml, old);
+        Proc legacy;
+        legacy.setStateInformation (old.getData(), (int) old.getSize());
+        check ("legacy-session-no-slots", legacy.getFilledSlotMask() == 0 && legacy.getActiveSlot() == -1
+                                          && legacy.getStep (Clap, 2) == 33,
+               juce::String ("mask=") + juce::String (legacy.getFilledSlotMask()));
+    }
+
     proc.releaseResources();
 
     std::printf ("\n%s — %d failure(s)\n", failures == 0 ? "ALL PASS" : "FAILURES", failures);

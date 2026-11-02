@@ -159,6 +159,27 @@ OSimpleBeatmakerAudioProcessorEditor::OSimpleBeatmakerAudioProcessorEditor (OSim
             processorRef.clearGrid();
             complete (juce::var());
         })
+        // Preview + pattern slots (v1.5.0). The 60 Hz frame reports their state back.
+        .withNativeFunction ("setPreview", [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 1)
+                processorRef.setPreview ((bool) args[0]);
+            complete (juce::var());
+        })
+        .withNativeFunction ("storeSlot", [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 1)
+                processorRef.storePatternSlot ((int) args[0]);
+            complete (juce::var());
+        })
+        .withNativeFunction ("loadSlot", [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 1)
+                processorRef.loadPatternSlot ((int) args[0]);
+            complete (juce::var());
+        })
+        .withNativeFunction ("clearSlot", [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 1)
+                processorRef.clearPatternSlot ((int) args[0]);
+            complete (juce::var());
+        })
         // applyPreset(index) — load a concept-isolating factory preset (FUNC-05):
         // sets the timing-feel params (host-notifying → knobs update) + stamps the
         // grid. JS calls refreshGridFromBackend() after to repaint the velocities.
@@ -279,6 +300,9 @@ OSimpleBeatmakerAudioProcessorEditor::OSimpleBeatmakerAudioProcessorEditor (OSim
 OSimpleBeatmakerAudioProcessorEditor::~OSimpleBeatmakerAudioProcessorEditor()
 {
     stopTimer();
+    // Closing the window must not leave an audition running with no visible way
+    // to stop it.
+    processorRef.setPreview (false);
 }
 
 // ── Timer: drain the viz ring, push one frame snapshot to the page ──────────
@@ -311,6 +335,13 @@ void OSimpleBeatmakerAudioProcessorEditor::timerCallback()
     frame->setProperty ("bpm",  processorRef.getLastKnownBpm());
     frame->setProperty ("sr",   processorRef.getCurrentSampleRate());   // live: tracks host SR changes
     frame->setProperty ("sync", processorRef.isHostSynced());
+    frame->setProperty ("run",  processorRef.isSequencerRunning());
+    frame->setProperty ("prev", processorRef.isPreviewOn());
+    frame->setProperty ("hostTempo", processorRef.isHostTempoActive());
+    frame->setProperty ("slots",  processorRef.getFilledSlotMask());
+    frame->setProperty ("active", processorRef.getActiveSlot());
+    frame->setProperty ("mod",    processorRef.isActiveSlotModified());
+    frame->setProperty ("gen",    (int) processorRef.getPatternGeneration());
     frame->setProperty ("hits", juce::var (hits));
 
     webView->emitEventIfBrowserIsVisible ("frame", juce::var (frame));

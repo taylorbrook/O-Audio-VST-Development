@@ -50,7 +50,8 @@
 #include "VizAnalyzer.h"
 
 //==============================================================================
-class OSimpleBeatmakerAudioProcessor : public juce::AudioProcessor
+class OSimpleBeatmakerAudioProcessor : public juce::AudioProcessor,
+                                       private juce::AsyncUpdater
 {
 public:
     OSimpleBeatmakerAudioProcessor();
@@ -103,6 +104,32 @@ public:
     double getCurrentSampleRate() const noexcept { return currentSampleRate.load (std::memory_order_relaxed); }
     double getLastKnownBpm()      const noexcept { return lastKnownBpm.load (std::memory_order_relaxed); }
     bool   isHostSynced()         const noexcept { return hostSynced.load (std::memory_order_relaxed); }
+    bool   isHostTempoActive()    const noexcept { return hostTempoActive.load (std::memory_order_relaxed); }
+    bool   isSequencerRunning()   const noexcept { return sequencerRunning.load (std::memory_order_relaxed); }
+
+    //==========================================================================
+    // Preview (v1.5.0): audition the pattern while the host is stopped. Session
+    // state never carries it, DAW play clears it (so DAW stop means silence) and
+    // an offline render ignores it.
+    void setPreview (bool on) noexcept;
+    bool isPreviewOn() const noexcept { return previewOn.load (std::memory_order_relaxed); }
+
+    //==========================================================================
+    // Pattern slots (v1.5.0): twelve snapshots of the steps + pattern length,
+    // recalled from the page or by MIDI notes 0-11. The live grid stays what is
+    // played and edited; a slot changes only when it is stored or cleared.
+    // Swing, humanize, quantize and the voice knobs are NOT part of a slot.
+    static constexpr int kNumPatternSlots = 12;
+
+    void storePatternSlot (int slot) noexcept;           // message thread
+    bool loadPatternSlot  (int slot);                    // message thread; false if empty
+    void clearPatternSlot (int slot) noexcept;           // message thread
+    int  getFilledSlotMask() const noexcept;
+    int  getActiveSlot() const noexcept { return activeSlot.load (std::memory_order_relaxed); }
+    bool isActiveSlotModified() const noexcept;
+    // Bumped by every recall, so the page repaints a switch without waiting for its poll.
+    juce::uint32 getPatternGeneration() const noexcept { return patternGeneration.load (std::memory_order_relaxed); }
+    int  getEffectivePatternLength() const noexcept;
 
 #if OUARICON_BUILD_TESTS
     //==========================================================================
@@ -201,6 +228,37 @@ private:
     std::atomic<double> currentSampleRate { 44100.0 };   // written in prepareToPlay, read by the UI timer
     std::atomic<double> lastKnownBpm { 120.0 };   // last transport/free-run BPM (UI lane scale)
     std::atomic<bool>   hostSynced  { false };    // true when locked to a playing host (UI readout)
+    std::atomic<bool>   hostTempoActive { false };   // the host reports a tempo, playing or not
+    std::atomic<bool>   sequencerRunning { false };  // host playing or Preview on
+    std::atomic<bool>   previewOn { false };
+    std::atomic<bool>   previewRestart { false };    // message -> audio: start from step 1
+
+    //==========================================================================
+    // Pattern slots. Lock-free both ways: the page writes on the message thread,
+    // a MIDI recall reads on the audio thread. length 0 = empty, else 8/16/32.
+    struct PatternSlot
+    {
+        std::array<std::atomic<uint8_t>, (size_t) (kNumVoices * kMaxSteps)> cells;
+        std::atomic<int> length { 0 };
+    };
+    std::array<PatternSlot, (size_t) kNumPatternSlots> slots;
+    std::atomic<int>          activeSlot { -1 };
+    std::atomic<juce::uint32> patternGeneration { 0 };
+
+    // A MIDI recall may change the length, and the audio thread must not write a
+    // parameter. The override applies the slot's length at once, including in an
+    // offline render where the message thread may not run. handleAsyncUpdate()
+    // then moves the parameter to match. Any later parameter change wins and
+    // clears the override (lastSeenParamLength, audio thread only).
+    std::atomic<int> lengthOverride { 0 };
+    int              lastSeenParamLength = 16;
+
+    void recallSlotFromAudioThread (int slot) noexcept;
+    void clearAllSlots() noexcept;
+    void setPatternLengthParam (int steps);
+    void handleAsyncUpdate() override;
+    juce::ValueTree buildSlotsTree() const;
+    void            restoreSlotsTree (const juce::ValueTree& tree);
 
     //==========================================================================
     // Stage-2 DSP spine (all audio-thread-owned).
@@ -248,6 +306,10 @@ private:
                            juce::int32 nominalSampleInBar, juce::int32 appliedSampleInBar,
                            int appliedOffsetSamples, juce::int64 blockStartAbs) noexcept;
     void drainCarryOver (juce::int64 blockStartAbs, int numSamples) noexcept;
+    void fireSegment (int segStart, int segEnd, int numSamples, bool synced, bool playing,
+                      double bpm, double ppqStart, juce::int64 blockStartAbs,
+                      double swing01, double q, double humanize01,
+                      bool& drained, float& playheadPhaseOut) noexcept;
 
 #if OUARICON_BUILD_TESTS
     std::vector<TestEmittedHit> testEmittedHits;

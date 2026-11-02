@@ -213,6 +213,36 @@ export const I18N = Object.freeze({
                      b: '每一个 note-on 在触发时的样子，既有来自音序器（SEQ）的，也有来自您弹入的音符（MIDI）的。网格和这个列表是同一条 MIDI 流的两个视图 —— 音序器确实把这些消息发进了与您演奏相同的缓冲区。',
                      reviewed: 'bt' },
     },
+    previewBtn: {
+        en: { t: "Preview",
+              b: "Plays the pattern while the DAW is stopped, starting from step 1. Without it, the pattern plays only when the DAW plays. Pressing play in the DAW ends the preview." },
+        fr: { t: "Aperçu",
+              b: "Joue le motif pendant que la STAN est à l’arrêt, à partir du pas 1. Sans lui, le motif ne joue que lorsque la STAN joue. Lancer la lecture dans la STAN met fin à l’aperçu.",
+              reviewed: true },
+        'zh-Hans': { t: '预览',
+                     b: '在宿主停止时从第 1 步开始播放模式。不开启时，模式只在宿主播放时才播放。在宿主中按下播放会结束预览。',
+                     reviewed: 'mt' },
+    },
+    storeSlotBtn: {
+        en: { t: "Store",
+              b: "Arms storing: the next slot you click saves the current steps and pattern length. Swing, humanize, quantize and the voice knobs stay out of it, so the kit and the feel hold across a switch." },
+        fr: { t: "Mémoriser",
+              b: "Arme la mémorisation : le prochain emplacement cliqué enregistre les pas et la longueur du motif. Le swing, l’humanisation, la quantification et les boutons des voix n’en font pas partie : le kit et le groove restent les mêmes d’un motif à l’autre.",
+              reviewed: true },
+        'zh-Hans': { t: '存储',
+                     b: '准备存储：接下来点击的槽位会保存当前的步进和模式长度。摇摆、人性化、量化和各声部旋钮不包括在内，因此切换时音色和律动保持不变。',
+                     reviewed: 'mt' },
+    },
+    slotButtons: {
+        en: { t: "Pattern Slots",
+              b: "Twelve stored patterns, numbered by the MIDI note that recalls them (0–11, the lowest octave). A note switches at its exact position, so put one on the downbeat in the piano roll. Empty slots ignore their note. An asterisk means the grid has changed since that slot was loaded." },
+        fr: { t: "Emplacements de motifs",
+              b: "Douze motifs mémorisés, numérotés selon la note MIDI qui les rappelle (0–11, l’octave la plus grave). Une note change de motif à sa position exacte : placez-la sur le premier temps dans le piano roll. Un emplacement vide ignore sa note. Un astérisque indique que la grille a changé depuis le chargement de cet emplacement.",
+              reviewed: true },
+        'zh-Hans': { t: '模式槽位',
+                     b: '十二个已存储的模式，按调用它们的 MIDI 音符编号（0–11，最低八度）。音符在其确切位置切换模式，因此请在钢琴卷帘中把它放在强拍上。空槽位会忽略其音符。星号表示网格在载入该槽位后已被更改。',
+                     reviewed: 'mt' },
+    },
     clearGrid: {
         en: { t: "Clear All",
               b: "Erases every step in the pattern across all six voices — a blank grid to start a fresh beat from." },
@@ -257,13 +287,13 @@ export const I18N = Object.freeze({
     },
     tempo: {
         en: { t: "Tempo",
-              b: "Playback speed in beats per minute — used when there is no host transport (the standalone app, or a stopped DAW). When a DAW is playing, the grid locks to the host's tempo instead." },
+              b: "Playback speed in beats per minute for Preview when no host reports a tempo (the standalone app). In a DAW the grid always follows the DAW's tempo, and this knob shows it." },
         fr: { t: "Tempo",
-              b: "Vitesse de lecture en battements par minute — utilisée quand il n’y a pas de transport hôte (l’application autonome, ou une STAN à l’arrêt). Quand une STAN joue, la grille se cale sur le tempo de l’hôte à la place.",
+              b: "Vitesse de lecture en battements par minute pour l’aperçu quand aucun hôte n’indique de tempo (l’application autonome). Dans une STAN, la grille suit toujours le tempo de la STAN, et ce bouton l’affiche.",
               reviewed: true },
         'zh-Hans': { t: '速度',
-                     b: '以每分钟拍数计的播放速度 —— 在没有宿主走带时使用（独立应用，或已停止的宿主）。当宿主在播放时，网格改为锁定到宿主的速度。',
-                     reviewed: 'bt' },
+                     b: '以每分钟拍数计的预览播放速度，在没有宿主提供速度时使用（独立应用）。在宿主中，网格始终跟随宿主的速度，这个旋钮会显示该速度。',
+                     reviewed: 'mt' },
     },
     patternLength: {
         en: { t: "Pattern Length",
@@ -437,6 +467,16 @@ export const I18N = Object.freeze({
     // Composed per cell by paintCell() through trLabel(). {voice} is itself a
     // LABELS key and resolves to the localized voice name; {step} and {vel} are
     // numbers and substitute verbatim (D-03).
+    'aria.slotEmpty': {
+        en: { t: "Pattern slot, MIDI note {note}: empty", b: '' },
+        fr: { t: "Emplacement de motif, note MIDI {note} : vide", b: '', reviewed: true },
+        'zh-Hans': { t: '模式槽位，MIDI 音符 {note}：空', b: '', reviewed: 'mt' },
+    },
+    'aria.slotFilled': {
+        en: { t: "Pattern slot, MIDI note {note}: stored", b: '' },
+        fr: { t: "Emplacement de motif, note MIDI {note} : mémorisé", b: '', reviewed: true },
+        'zh-Hans': { t: '模式槽位，MIDI 音符 {note}：已存储', b: '', reviewed: 'mt' },
+    },
     'aria.cellOff': {
         en: { t: "{voice} step {step}: off", b: '' },
         fr: { t: "{voice} pas {step} : éteint", b: '', reviewed: true },
@@ -511,10 +551,42 @@ export const LABELS = Object.freeze({
     // state pushed from the editor Timer — so this is a status string and it is
     // in scope. The bullet belongs to the string in BOTH languages and in both
     // faces, so the glyph never has to be re-attached by the writer.
-    'label.freeRun': {
-        en: { t: "● free-run" },
-        fr: { t: "● libre", reviewed: true },
-        'zh-Hans': { t: '● 自由', reviewed: 'bt' },
+    'label.stopped': {
+        en: { t: "● stopped" },
+        fr: { t: "● à l’arrêt", reviewed: true },
+        'zh-Hans': { t: '● 已停止', reviewed: 'mt' },
+    },
+    'label.previewing': {
+        en: { t: "● preview" },
+        fr: { t: "● aperçu", reviewed: true },
+        'zh-Hans': { t: '● 预览', reviewed: 'mt' },
+    },
+    // The Preview button's two faces and the pattern row (v1.5.0).
+    'label.previewPlay': {
+        en: { t: "▶ Preview" },
+        fr: { t: "▶ Aperçu", reviewed: true },
+        'zh-Hans': { t: '▶ 预览', reviewed: 'mt' },
+    },
+    'label.previewStop': {
+        en: { t: "■ Stop" },
+        fr: { t: "■ Arrêter", reviewed: true },
+        'zh-Hans': { t: '■ 停止', reviewed: 'mt' },
+    },
+    'label.patterns': {
+        en: { t: "Patterns" },
+        fr: { t: "Motifs", reviewed: true },
+        'zh-Hans': { t: '模式', reviewed: 'mt' },
+    },
+    'label.slotStore': {
+        en: { t: "Store" },
+        fr: { t: "Mémoriser", reviewed: true },
+        'zh-Hans': { t: '存储', reviewed: 'mt' },
+    },
+    'label.patternHint': {
+        en: { t: "MIDI notes 0–11 switch patterns at the next step · click loads · Store, then click, saves · right-click empties" },
+        fr: { t: "Les notes MIDI 0–11 changent de motif au pas suivant · un clic charge · Mémoriser puis un clic enregistre · un clic droit vide",
+              reviewed: true },
+        'zh-Hans': { t: 'MIDI 音符 0–11 在下一步切换模式 · 点击载入 · 先按存储再点击保存 · 右键清空', reviewed: 'mt' },
     },
     'label.synced': {
         en: { t: "● synced" },
@@ -872,6 +944,9 @@ export const TIP_BINDINGS = [
     ['#lanePanel',                           'lane'],
     ['#midiPanel',                           'midi'],
     ['#clearGridBtn',                        'clearGrid'],
+    ['#previewBtn',                          'previewBtn'],
+    ['#storeSlotBtn',                        'storeSlotBtn'],
+    ['#slotButtons',                         'slotButtons'],
 
     ['[data-param="swing"]',                 'swing'],
     ['[data-param="humanize"]',              'humanize'],

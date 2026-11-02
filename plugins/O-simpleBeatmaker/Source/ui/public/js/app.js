@@ -634,6 +634,7 @@ let lastAriaLang = null;
 function refreshGridAria() {
   if (lastAriaLang === uiLanguage) return;
   lastAriaLang = uiLanguage;
+  paintSlots();
   for (let v = 0; v < NUM_VOICES; v++)
     for (let s = 0; s < patternLen; s++) paintCell(v, s);
 }
@@ -658,7 +659,13 @@ function renderGridColumns() {
 
     const label = document.createElement("div");
     label.className = "row-label";
-    VOICE_NAME_WRITERS[VOICES[v].prefix](label);
+    const labelName = document.createElement("span");
+    VOICE_NAME_WRITERS[VOICES[v].prefix](labelName);
+    const labelNote = document.createElement("span");
+    labelNote.className = "row-note";
+    labelNote.textContent = String(VOICES[v].note);   // a number: never translated
+    label.appendChild(labelName);
+    label.appendChild(labelNote);
     row.appendChild(label);
 
     const cells = document.createElement("div");
@@ -750,6 +757,7 @@ function makeCanvas(id) {
 let lane = null;
 let sampleRate = 44100, currentBpm = 120;
 let playheadPhase = 0;
+let seqRunning = false;              // v1.5.0: host playing or Preview on (frame.run)
 const laneHits = [];                 // { v, step, dSteps, vel, src, life }
 const LANE_LIFE = 95;                // frames a dot persists (~1.6 s @ 60 Hz)
 
@@ -784,11 +792,13 @@ function drawLane() {
   ctx.lineWidth = 1;
   for (let v = 1; v < NUM_VOICES; v++) { const y = v * bandH; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
 
-  // playhead sweep
-  const xph = ((playheadPhase % patternLen + patternLen) % patternLen + 0.5) * stepW;
-  ctx.strokeStyle = "rgba(232,176,74,0.85)";
-  ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(xph, 0); ctx.lineTo(xph, h); ctx.stroke();
+  // playhead sweep (only while the sequencer runs)
+  if (seqRunning) {
+    const xph = ((playheadPhase % patternLen + patternLen) % patternLen + 0.5) * stepW;
+    ctx.strokeStyle = "rgba(232,176,74,0.85)";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(xph, 0); ctx.lineTo(xph, h); ctx.stroke();
+  }
 
   // hits — connector from grid line to actual position, dot at actual
   for (const hit of laneHits) {
@@ -870,6 +880,9 @@ function onFrame(frame) {
     if (tEl) tEl.textContent = String(Math.round(currentBpm));
   }
   if (typeof frame.ph === "number") playheadPhase = frame.ph;
+  seqRunning = !!frame.run;
+  applyHostTempo(!!frame.hostTempo);
+  applyPatternFrame(frame);
   // live SR (host can switch rates after boot; boot's getSampleRate is just a seed)
   if (typeof frame.sr === "number" && frame.sr > 0) sampleRate = frame.sr;
 
@@ -884,8 +897,9 @@ function onFrame(frame) {
   const tEl = document.getElementById("readTransport");
   if (tEl) {
     const synced = !!frame.sync;
-    if (synced) setLabel(tEl, "label.synced");
-    else        setLabel(tEl, "label.freeRun");
+    if (synced)          setLabel(tEl, "label.synced");
+    else if (frame.prev) setLabel(tEl, "label.previewing");
+    else                 setLabel(tEl, "label.stopped");
     tEl.classList.toggle("synced", synced);
   }
 
@@ -901,11 +915,11 @@ function onFrame(frame) {
 
 let lastPhaseCol = -1;
 function updatePlayheadColumn() {
-  const col = ((Math.floor(playheadPhase) % patternLen) + patternLen) % patternLen;
+  const col = seqRunning ? ((Math.floor(playheadPhase) % patternLen) + patternLen) % patternLen : -1;
   if (col === lastPhaseCol) return;
   for (let v = 0; v < NUM_VOICES; v++) {
     if (lastPhaseCol >= 0 && cellEls[v][lastPhaseCol]) cellEls[v][lastPhaseCol].classList.remove("playhead");
-    if (cellEls[v][col]) cellEls[v][col].classList.add("playhead");
+    if (col >= 0 && cellEls[v][col]) cellEls[v][col].classList.add("playhead");
   }
   lastPhaseCol = col;
 }
@@ -931,6 +945,120 @@ function raf(ts) {
   gridPollAccum++;
   if (gridPollAccum >= 15) { gridPollAccum = 0; refreshGridFromBackend(); }
   requestAnimationFrame(raf);
+}
+
+// ── Host tempo on the Tempo knob (v1.5.0) ────────────────────────────────────
+// A host that reports a tempo owns it, so the knob shows that tempo and takes no
+// drag. Rewritten each frame because automation can repaint the knob at any time.
+let hostTempoShown = false;
+function applyHostTempo(on) {
+  if (on) {
+    const norm = Math.min(1, Math.max(0, (currentBpm - 40) / 200));   // the tempo range, 40..240
+    const stem = document.querySelector("#knob-tempo .knob-stem");
+    if (stem) stem.style.transform = `translate(-50%, -100%) rotate(${normToDeg(norm)}deg)`;
+    const valEl = document.getElementById("val-tempo");
+    if (valEl && valEl.dataset.editing !== "1") valEl.textContent = fmtBpm(currentBpm);
+  }
+  if (on === hostTempoShown) return;
+  hostTempoShown = on;
+  const cell = document.querySelector('[data-param="tempo"]');
+  if (cell) cell.classList.toggle("host-tempo", on);
+  if (!on) updateKnobVisual("tempo");
+}
+
+// ── Preview + pattern slots (v1.5.0) ─────────────────────────────────────────
+// C++ owns all of this state and reports it in the frame, so a MIDI switch and a
+// click repaint through the same path.
+const NUM_SLOTS = 12;
+const SLOT_ARIA_KEY = ["aria.slotEmpty", "aria.slotFilled"];
+const slotEls = [];
+let slotStoring = false, setPreviewFn = null, storeSlotFn = null, loadSlotFn = null, clearSlotFn = null;
+let previewOn = false, slotMask = 0, slotActive = -1, slotModified = false, lastPatternGen = -1;
+
+function setSlotStoring(on) {
+  slotStoring = on;
+  const btn = document.getElementById("storeSlotBtn");
+  if (btn) { btn.classList.toggle("armed", on); btn.setAttribute("aria-pressed", on ? "true" : "false"); }
+  const row = document.getElementById("slotButtons");
+  if (row) row.classList.toggle("storing", on);
+}
+
+function paintSlots() {
+  slotEls.forEach((el, i) => {
+    const filled = (slotMask & (1 << i)) !== 0;
+    const active = i === slotActive;
+    el.classList.toggle("filled", filled);
+    el.classList.toggle("active", active);
+    el.classList.toggle("modified", active && slotModified);
+    el.setAttribute("aria-pressed", active ? "true" : "false");
+    el.setAttribute("aria-label", trLabel(SLOT_ARIA_KEY[filled ? 1 : 0], uiLanguage, { note: i }));
+  });
+}
+
+function applyPatternFrame(frame) {
+  const btn = document.getElementById("previewBtn");
+  const prev = !!frame.prev;
+  if (btn) {
+    btn.disabled = !!frame.sync;
+    if (prev !== previewOn) {
+      previewOn = prev;
+      btn.classList.toggle("active", prev);
+      btn.setAttribute("aria-pressed", prev ? "true" : "false");
+      if (prev) setLabel(btn, "label.previewStop");
+      else      setLabel(btn, "label.previewPlay");
+    }
+  }
+  const mask = frame.slots | 0;
+  const active = typeof frame.active === "number" ? frame.active : -1;
+  const mod = !!frame.mod;
+  if (mask !== slotMask || active !== slotActive || mod !== slotModified) {
+    slotMask = mask; slotActive = active; slotModified = mod;
+    paintSlots();
+  }
+  // A recall replaced the grid: repaint now, not at the next 4 Hz poll.
+  const gen = frame.gen | 0;
+  if (gen !== lastPatternGen) { lastPatternGen = gen; refreshGridFromBackend(true); }
+}
+
+function initPatternControls() {
+  try {
+    setPreviewFn = Juce.getNativeFunction("setPreview");
+    storeSlotFn  = Juce.getNativeFunction("storeSlot");
+    loadSlotFn   = Juce.getNativeFunction("loadSlot");
+    clearSlotFn  = Juce.getNativeFunction("clearSlot");
+  } catch (e) { console.error("pattern native fns unavailable", e); }
+
+  const previewBtn = document.getElementById("previewBtn");
+  if (previewBtn) previewBtn.addEventListener("click", () => { if (setPreviewFn) setPreviewFn(!previewOn); });
+  const storeBtn = document.getElementById("storeSlotBtn");
+  if (storeBtn) storeBtn.addEventListener("click", () => setSlotStoring(!slotStoring));
+
+  const row = document.getElementById("slotButtons");
+  if (!row) return;
+  for (let i = 0; i < NUM_SLOTS; i++) {
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = "slot-btn";
+    const num = document.createElement("span");
+    num.className = "slot-num";
+    num.textContent = String(i);
+    const name = document.createElement("span");
+    name.className = "slot-name";
+    name.textContent = noteName(i);
+    el.appendChild(num);
+    el.appendChild(name);
+    el.addEventListener("click", () => {
+      if (slotStoring) { if (storeSlotFn) storeSlotFn(i); setSlotStoring(false); }
+      else if (loadSlotFn) loadSlotFn(i);
+    });
+    el.addEventListener("contextmenu", (e) => { e.preventDefault(); if (clearSlotFn) clearSlotFn(i); });
+    el.addEventListener("keydown", (e) => {
+      if ((e.key === "Delete" || e.key === "Backspace") && clearSlotFn) { e.preventDefault(); clearSlotFn(i); }
+    });
+    row.appendChild(el);
+    slotEls.push(el);
+  }
+  paintSlots();
 }
 
 // ── Hover-help switch (v1.2.0) ──────────────────────────────────────────────
@@ -1242,6 +1370,7 @@ async function boot() {
 
   initTooltips();
   initPresetTour();
+  initPatternControls();
 
   // The popover and the language sweep go here, EACH IN ITS OWN try/catch, and
   // AFTER buildVoiceStrips() and the grid render above — the sweep must see the

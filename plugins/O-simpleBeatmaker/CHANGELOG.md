@@ -3,6 +3,32 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.5.0] — 2026-11-01
+
+### Changed
+
+- **The pattern now plays only when the DAW plays.** Stopping the DAW stops the pattern at once, and voices that are already sounding ring out. MIDI notes from a track still play the drums while stopped. In a DAW the grid always follows the host tempo, including during Preview, and the Tempo knob shows that tempo and takes no drag. The knob sets the speed only where no host reports a tempo, such as the standalone app. **Behaviour change for existing sessions:** an instance that used to free-run while the DAW was stopped is now silent.
+- The transport line reads **stopped**, **preview** or **synced**. "free-run" is gone.
+
+### Added
+
+- **Preview button**, below the step grid. It plays the pattern from step 1 while the DAW is stopped. Pressing play in the DAW ends it, so stopping the DAW afterwards is silent. Closing the plugin window also ends it, and offline renders ignore it. It is never saved in a session.
+- **MIDI note numbers on the lane labels** (Kick 36, Snare 38, Clap 39, Closed Hat 42, Open Hat 46, Tom 45).
+- **Twelve pattern slots**, recalled by MIDI notes 0–11 or from the row below the grid. Click loads, Store then click saves, right-click or Delete empties. A slot holds the steps, their velocities and the pattern length. Swing, humanize, quantize and the voice knobs stay as set. A note switches at its exact sample, so a note on a downbeat changes that downbeat, at any block size. An empty slot ignores its note. Slots are saved in the session; older sessions open with all slots empty.
+
+### Fixed
+
+- A step that rounded onto the first sample of a block fired one sample early, at the end of the previous block. Each step now fires in the block that contains its rounded sample. This was also needed for switching: without it, a switch note on a downbeat could lose to the old pattern's step.
+
+### Notes
+
+- Starting playback partway through a song does not chase the last switch note, so the pattern stays whichever was last recalled. Put a switch note at the start of every section, including the first.
+- Some DAWs may stop calling a plugin while the transport is stopped, which would leave Preview silent. Not yet tested in a DAW.
+
+### Tests
+
+- Render harness: 26/26, with 14 new gates covering the stopped transport, Preview, switch position across block sizes and all 64 block-edge alignments, length recall with no message thread, empty slots, and session round trips including pre-1.5.0 sessions. Removing the half-sample window fails the downbeat and block-edge gates.
+
 ## [1.4.3] — 2026-10-19
 
 ### Fixed

@@ -44,7 +44,7 @@
         <div class="transport-readout">
           <span class="tr-item"><span class="tr-label tr-key-tempo" data-i18n="label.trTempo">tempo</span> <span id="readTempo">120</span> <span class="tr-unit">BPM</span></span>
           <span class="tr-item"><span class="tr-label tr-key-length" data-i18n="label.trLength">length</span> <span id="readLength">16</span> <span class="tr-unit tr-unit-steps" data-i18n="label.trSteps">steps</span></span>
-          <span class="tr-item tr-state"><span id="readTransport" data-i18n="label.freeRun">&#9679; free-run</span></span>
+          <span class="tr-item tr-state"><span id="readTransport" data-i18n="label.stopped">&#9679; stopped</span></span>
         </div>
 
         <!-- v1.1.0 - the settings gear, holding the language selector.
@@ -118,6 +118,15 @@
       <div class="grid-scroll">
         <div id="gridRows" class="grid-rows"><!-- rows built by app.js --></div>
       </div>
+      <!-- v1.5.0: Preview + the twelve pattern slots. One row, so the header's
+           transport strip and its language-width pins stay untouched. -->
+      <div class="pattern-row">
+        <button id="previewBtn" class="preview-btn" type="button" aria-pressed="false" data-i18n="label.previewPlay">&#9654; Preview</button>
+        <span class="pattern-caption" data-i18n="label.patterns">Patterns</span>
+        <button id="storeSlotBtn" class="store-btn" type="button" aria-pressed="false" data-i18n="label.slotStore">Store</button>
+        <div id="slotButtons" class="slot-buttons"><!-- built by app.js --></div>
+      </div>
+      <div class="pattern-hint" data-i18n="label.patternHint">MIDI notes 0&#8211;11 switch patterns at the next step &#183; click loads &#183; Store, then click, saves &#183; right-click empties</div>
     </section>
 
     <!-- ─── Timing / groove lane (the standout teaching visual, QUAL-02) ── -->

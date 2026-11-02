@@ -125,10 +125,14 @@ OSimpleBeatmakerAudioProcessor::OSimpleBeatmakerAudioProcessor()
 {
     // std::atomic's default constructor does not zero-initialize — do it explicitly.
     clearGrid();
+    clearAllSlots();
     cacheParamPointers();
 }
 
-OSimpleBeatmakerAudioProcessor::~OSimpleBeatmakerAudioProcessor() = default;
+OSimpleBeatmakerAudioProcessor::~OSimpleBeatmakerAudioProcessor()
+{
+    cancelPendingUpdate();
+}
 
 //==============================================================================
 void OSimpleBeatmakerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
@@ -155,6 +159,7 @@ void OSimpleBeatmakerAudioProcessor::prepareToPlay (double sampleRate, int sampl
 
     pendingCount = 0;
     absSamplePos = 0;
+    lastSeenParamLength = patternLengthSteps();
 
 #if OUARICON_BUILD_TESTS
     testEmittedHits.reserve (256);
@@ -266,69 +271,30 @@ void OSimpleBeatmakerAudioProcessor::drainCarryOver (juce::int64 blockStartAbs, 
     pendingCount = w;
 }
 
-void OSimpleBeatmakerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
-                                                   juce::MidiBuffer& midiMessages)
+void OSimpleBeatmakerAudioProcessor::fireSegment (int segStart, int segEnd, int numSamples,
+        bool synced, bool playing, double bpm, double ppqStart, juce::int64 blockStartAbs,
+        double swing01, double q, double humanize01, bool& drained, float& playheadPhaseOut) noexcept
 {
     using namespace OSimpleBeatmaker;
-    juce::ScopedNoDenormals noDenormals;
 
-    const int numSamples = buffer.getNumSamples();
-    const int numCh      = buffer.getNumChannels();
-    buffer.clear();                                     // voices ADD into a cleared buffer
+    // The ppq at this segment's first sample. A block with no switch is one
+    // segment from 0, so it enumerates exactly as a whole block always did.
+    const double segPpq = ppqStart + (double) segStart * bpm / (60.0 * currentSampleRate.load (std::memory_order_relaxed));
 
-    // --- 1. Read transport once (getPosition() is legal only here) -----------
-    bool   synced  = false;
-    bool   playing = false;
-    double bpm      = (pTempo != nullptr ? (double) pTempo->load() : 120.0);
-    double ppqStart = 0.0;
-    if (auto* ph = getPlayHead())
-        if (auto pos = ph->getPosition())
-        {
-            playing = pos->getIsPlaying();
-            if (playing)
-            {
-                if (auto b = pos->getBpm())         { if (*b > 0.0) bpm = *b; }
-                if (auto p = pos->getPpqPosition()) { ppqStart = *p; synced = true; }
-            }
-        }
-
-    // Advisory taps for the Stage-3 UI (read-only on the message thread).
-    lastKnownBpm.store (bpm, std::memory_order_relaxed);
-    hostSynced.store (synced && playing, std::memory_order_relaxed);
-
-    // --- Read the 42 params once / push to voices + router -------------------
-    const double swing01    = pSwing    != nullptr ? (double) pSwing->load()    : 0.0;
-    const double humanize01 = pHumanize != nullptr ? (double) pHumanize->load() : 0.0;
-    const double q          = pQuant    != nullptr ? (double) pQuant->load()    : 1.0;
-    const int    patternLen = patternLengthSteps();
-
-    for (int v = 0; v < kNumVoices; ++v)
-    {
-        voices.setParams (v,
-                          pTune [(size_t) v]->load(), pDecay[(size_t) v]->load(),
-                          pTone [(size_t) v]->load(), pLevel[(size_t) v]->load());
-        muteArr[(size_t) v] = pMute[(size_t) v]->load() > 0.5f;
-        soloArr[(size_t) v] = pSolo[(size_t) v]->load() > 0.5f;
-    }
-    router.setMuteSolo (muteArr, soloArr);
-
-    // --- 2. Enumerate firing step-columns for this block ---------------------
-    float playheadPhase = 0.0f;
+    float phase = 0.0f;
     bool  discontinuity = false;
     const int nCols = clock.process (firingColumns.data(), kMaxFiringColumns,
-                                     synced, playing, bpm, ppqStart, patternLen, numSamples,
-                                     playheadPhase, discontinuity);
+                                     synced, playing, bpm, segPpq, getEffectivePatternLength(),
+                                     segEnd - segStart, phase, discontinuity);
     if (discontinuity)
         pendingCount = 0;                               // relocate/loop -> drop stale carry-over
 
-    // --- 3. Feel compose + emit into the sequencer buffer --------------------
-    sequencerMidi.clear();
-#if OUARICON_BUILD_TESTS
-    testEmittedHits.clear();
-#endif
-    const juce::int64 blockStartAbs = absSamplePos;
-
-    drainCarryOver (blockStartAbs, numSamples);         // late hits from prior blocks first
+    if (! drained)
+    {
+        drained = true;
+        playheadPhaseOut = phase;
+        drainCarryOver (blockStartAbs, numSamples);     // late hits from prior blocks first
+    }
 
     for (int c = 0; c < nCols; ++c)
     {
@@ -341,7 +307,7 @@ void OSimpleBeatmakerAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
 
             const auto hit = feel.compute (v, col.stepIndex, col.nominalSampleInBar,
                                            stepVel, bpm, swing01, q, humanize01);
-            const int finalOffset = col.nominalOffsetInBlock + hit.appliedOffsetSamples;
+            const int finalOffset = segStart + col.nominalOffsetInBlock + hit.appliedOffsetSamples;
 
             if (finalOffset < numSamples)
             {
@@ -357,6 +323,114 @@ void OSimpleBeatmakerAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
             }
         }
     }
+}
+
+void OSimpleBeatmakerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
+                                                   juce::MidiBuffer& midiMessages)
+{
+    using namespace OSimpleBeatmaker;
+    juce::ScopedNoDenormals noDenormals;
+
+    const int numSamples = buffer.getNumSamples();
+    const int numCh      = buffer.getNumChannels();
+    buffer.clear();                                     // voices ADD into a cleared buffer
+
+    // --- 1. Read transport once (getPosition() is legal only here) -----------
+    bool   synced  = false;
+    bool   playing = false;
+    double bpm      = (pTempo != nullptr ? (double) pTempo->load() : 120.0);
+    double ppqStart = 0.0;
+    bool   hostTempo = false;
+    if (auto* ph = getPlayHead())
+        if (auto pos = ph->getPosition())
+        {
+            playing = pos->getIsPlaying();
+            // v1.5.0: the host tempo wins while stopped too, so Preview runs at
+            // the song's tempo. The Tempo knob is for hosts that report none.
+            if (auto b = pos->getBpm())
+                if (*b > 0.0) { bpm = *b; hostTempo = true; }
+            if (playing)
+                if (auto p = pos->getPpqPosition()) { ppqStart = *p; synced = true; }
+        }
+
+    // v1.5.0: the sequencer runs only with the host playing or Preview on. DAW
+    // play ends Preview for good, so that DAW stop means silence.
+    if (playing)
+        previewOn.store (false, std::memory_order_relaxed);
+    const bool restartPreview = previewRestart.exchange (false, std::memory_order_relaxed);
+    const bool running = playing || (previewOn.load (std::memory_order_relaxed) && ! isNonRealtime());
+
+    if (restartPreview)
+        clock.resetFreeRun();
+    if (! running)
+    {
+        clock.stop();
+        pendingCount = 0;                               // a stopped transport fires nothing late
+    }
+
+    // Advisory taps for the Stage-3 UI (read-only on the message thread).
+    lastKnownBpm.store (bpm, std::memory_order_relaxed);
+    hostSynced.store (playing, std::memory_order_relaxed);
+    hostTempoActive.store (hostTempo, std::memory_order_relaxed);
+    sequencerRunning.store (running, std::memory_order_relaxed);
+
+    // --- Read the 42 params once / push to voices + router -------------------
+    const double swing01    = pSwing    != nullptr ? (double) pSwing->load()    : 0.0;
+    const double humanize01 = pHumanize != nullptr ? (double) pHumanize->load() : 0.0;
+    const double q          = pQuant    != nullptr ? (double) pQuant->load()    : 1.0;
+
+    // v1.5.0: a host or user change of the length parameter beats a slot's override.
+    const int paramLen = patternLengthSteps();
+    if (paramLen != lastSeenParamLength)
+    {
+        lastSeenParamLength = paramLen;
+        lengthOverride.store (0, std::memory_order_relaxed);
+    }
+
+    for (int v = 0; v < kNumVoices; ++v)
+    {
+        voices.setParams (v,
+                          pTune [(size_t) v]->load(), pDecay[(size_t) v]->load(),
+                          pTone [(size_t) v]->load(), pLevel[(size_t) v]->load());
+        muteArr[(size_t) v] = pMute[(size_t) v]->load() > 0.5f;
+        soloArr[(size_t) v] = pSolo[(size_t) v]->load() > 0.5f;
+    }
+    router.setMuteSolo (muteArr, soloArr);
+
+    // --- 2+3. Firing columns, feel compose + emit, split at pattern switches ---
+    // v1.5.0: notes 0-11 recall a slot at the note's own sample, so the result
+    // does not depend on the block size: steps from that sample on read the new
+    // pattern, and hits already computed (swing carry-over) keep the old one.
+    // Empty slots ignore the note. A switch while stopped still takes effect.
+    sequencerMidi.clear();
+#if OUARICON_BUILD_TESTS
+    testEmittedHits.clear();
+#endif
+    const juce::int64 blockStartAbs = absSamplePos;
+    float playheadPhase = 0.0f;
+    bool  drained   = false;
+    int   segStart  = 0;
+
+    for (const auto meta : midiMessages)
+    {
+        if (meta.numBytes != 3 || (meta.data[0] & 0xF0) != 0x90 || meta.data[2] == 0
+            || meta.data[1] >= kNumPatternSlots
+            || slots[(size_t) meta.data[1]].length.load (std::memory_order_acquire) == 0)
+            continue;
+
+        const int at = juce::jlimit (0, juce::jmax (0, numSamples - 1), meta.samplePosition);
+        if (running && at > segStart)
+        {
+            fireSegment (segStart, at, numSamples, synced, playing, bpm, ppqStart, blockStartAbs,
+                         swing01, q, humanize01, drained, playheadPhase);
+            segStart = at;
+        }
+        recallSlotFromAudioThread ((int) meta.data[1]);
+    }
+
+    if (running && numSamples > 0)
+        fireSegment (segStart, numSamples, numSamples, synced, playing, bpm, ppqStart, blockStartAbs,
+                     swing01, q, humanize01, drained, playheadPhase);
 
     // --- 4. Host-MIDI viz readout (source=1) + merge into the same stream ----
     // Gated by isVoiceAudible like the sequencer path (:321) — a muted voice's
@@ -468,11 +542,138 @@ void OSimpleBeatmakerAudioProcessor::clearGrid() noexcept
 }
 
 //==============================================================================
+// Preview + pattern slots (v1.5.0).
+void OSimpleBeatmakerAudioProcessor::setPreview (bool on) noexcept
+{
+    if (on && ! previewOn.load (std::memory_order_relaxed))
+        previewRestart.store (true, std::memory_order_relaxed);
+    previewOn.store (on, std::memory_order_relaxed);
+}
+
+int OSimpleBeatmakerAudioProcessor::getEffectivePatternLength() const noexcept
+{
+    const int over = lengthOverride.load (std::memory_order_relaxed);
+    return over > 0 ? over : patternLengthSteps();
+}
+
+void OSimpleBeatmakerAudioProcessor::storePatternSlot (int slot) noexcept
+{
+    if (slot < 0 || slot >= kNumPatternSlots)
+        return;
+
+    auto& dst = slots[(size_t) slot];
+    for (size_t i = 0; i < grid.size(); ++i)
+        dst.cells[i].store (grid[i].load (std::memory_order_relaxed), std::memory_order_relaxed);
+    dst.length.store (getEffectivePatternLength(), std::memory_order_release);
+    activeSlot.store (slot, std::memory_order_relaxed);
+}
+
+bool OSimpleBeatmakerAudioProcessor::loadPatternSlot (int slot)
+{
+    if (slot < 0 || slot >= kNumPatternSlots)
+        return false;
+
+    auto& src = slots[(size_t) slot];
+    const int len = src.length.load (std::memory_order_acquire);
+    if (len == 0)
+        return false;
+
+    for (size_t i = 0; i < grid.size(); ++i)
+        grid[i].store (src.cells[i].load (std::memory_order_relaxed), std::memory_order_relaxed);
+
+    lengthOverride.store (0, std::memory_order_relaxed);
+    setPatternLengthParam (len);
+    activeSlot.store (slot, std::memory_order_relaxed);
+    patternGeneration.fetch_add (1, std::memory_order_relaxed);
+    return true;
+}
+
+void OSimpleBeatmakerAudioProcessor::clearPatternSlot (int slot) noexcept
+{
+    if (slot < 0 || slot >= kNumPatternSlots)
+        return;
+
+    slots[(size_t) slot].length.store (0, std::memory_order_release);
+    int expected = slot;
+    activeSlot.compare_exchange_strong (expected, -1, std::memory_order_relaxed);
+}
+
+void OSimpleBeatmakerAudioProcessor::recallSlotFromAudioThread (int slot) noexcept
+{
+    auto& src = slots[(size_t) slot];
+    for (size_t i = 0; i < grid.size(); ++i)
+        grid[i].store (src.cells[i].load (std::memory_order_relaxed), std::memory_order_relaxed);
+
+    const int len = src.length.load (std::memory_order_acquire);
+    const bool differs = len != patternLengthSteps();
+    lengthOverride.store (differs ? len : 0, std::memory_order_relaxed);
+    if (differs)
+        triggerAsyncUpdate();
+
+    activeSlot.store (slot, std::memory_order_relaxed);
+    patternGeneration.fetch_add (1, std::memory_order_relaxed);
+}
+
+void OSimpleBeatmakerAudioProcessor::handleAsyncUpdate()
+{
+    const int over = lengthOverride.load (std::memory_order_relaxed);
+    if (over > 0)
+        setPatternLengthParam (over);
+}
+
+void OSimpleBeatmakerAudioProcessor::setPatternLengthParam (int steps)
+{
+    if (auto* prm = parameters.getParameter (OSimpleBeatmaker::ParamIDs::patternLength))
+        prm->setValueNotifyingHost (prm->convertTo0to1 ((float) (steps == 8 ? 0 : (steps == 32 ? 2 : 1))));
+}
+
+void OSimpleBeatmakerAudioProcessor::clearAllSlots() noexcept
+{
+    for (auto& slot : slots)
+    {
+        for (auto& cell : slot.cells)
+            cell.store (0, std::memory_order_relaxed);
+        slot.length.store (0, std::memory_order_relaxed);
+    }
+    activeSlot.store (-1, std::memory_order_relaxed);
+}
+
+int OSimpleBeatmakerAudioProcessor::getFilledSlotMask() const noexcept
+{
+    int mask = 0;
+    for (int i = 0; i < kNumPatternSlots; ++i)
+        if (slots[(size_t) i].length.load (std::memory_order_relaxed) != 0)
+            mask |= 1 << i;
+    return mask;
+}
+
+bool OSimpleBeatmakerAudioProcessor::isActiveSlotModified() const noexcept
+{
+    const int active = getActiveSlot();
+    if (active < 0)
+        return false;
+
+    const auto& slot = slots[(size_t) active];
+    if (slot.length.load (std::memory_order_relaxed) != getEffectivePatternLength())
+        return true;
+
+    for (size_t i = 0; i < grid.size(); ++i)
+        if (slot.cells[i].load (std::memory_order_relaxed) != grid[i].load (std::memory_order_relaxed))
+            return true;
+    return false;
+}
+
+//==============================================================================
 // Concept-isolating factory presets (FUNC-05). Message thread only.
 void OSimpleBeatmakerAudioProcessor::applyConceptPreset (int index)
 {
     if (index < 0 || index >= (int) OSimpleBeatmaker::kBeatPresets.size())
         return;
+
+    // v1.5.0: a lesson replaces the grid, so no slot is current any more. The
+    // length this preset writes must not lose to a slot's pending override.
+    activeSlot.store (-1, std::memory_order_relaxed);
+    lengthOverride.store (0, std::memory_order_relaxed);
 
     const auto& p = OSimpleBeatmaker::kBeatPresets[(size_t) index];
     using namespace OSimpleBeatmaker::ParamIDs;
@@ -564,6 +765,78 @@ void OSimpleBeatmakerAudioProcessor::restorePatternTree (const juce::ValueTree& 
 }
 
 //==============================================================================
+// PATTERN_SLOTS <-> ValueTree (v1.5.0). Only filled slots are written. A session
+// from before v1.5.0 has no such child and restores with every slot empty.
+juce::ValueTree OSimpleBeatmakerAudioProcessor::buildSlotsTree() const
+{
+    juce::ValueTree tree ("PATTERN_SLOTS");
+    tree.setProperty ("active", getActiveSlot(), nullptr);
+    tree.setProperty ("rows", kNumVoices, nullptr);
+    tree.setProperty ("cols", kMaxSteps, nullptr);
+
+    for (int s = 0; s < kNumPatternSlots; ++s)
+    {
+        const auto& slot = slots[(size_t) s];
+        const int len = slot.length.load (std::memory_order_acquire);
+        if (len == 0)
+            continue;
+
+        juce::MemoryBlock mb ((size_t) (kNumVoices * kMaxSteps));
+        auto* bytes = static_cast<uint8_t*> (mb.getData());
+        for (int i = 0; i < kNumVoices * kMaxSteps; ++i)
+            bytes[i] = slot.cells[(size_t) i].load (std::memory_order_relaxed);
+
+        juce::ValueTree child ("SLOT");
+        child.setProperty ("index", s, nullptr);
+        child.setProperty ("length", len, nullptr);
+        child.setProperty ("cells", mb.toBase64Encoding(), nullptr);
+        tree.appendChild (child, nullptr);
+    }
+    return tree;
+}
+
+void OSimpleBeatmakerAudioProcessor::restoreSlotsTree (const juce::ValueTree& tree)
+{
+    clearAllSlots();
+    if (! tree.isValid())
+        return;
+
+    const int cols = (int) tree.getProperty ("cols", kMaxSteps);
+    const int rows = (int) tree.getProperty ("rows", kNumVoices);
+
+    for (int c = 0; c < tree.getNumChildren(); ++c)
+    {
+        const auto child = tree.getChild (c);
+        const int index = (int) child.getProperty ("index", -1);
+        const int len   = (int) child.getProperty ("length", 0);
+        juce::MemoryBlock mb;
+
+        if (index < 0 || index >= kNumPatternSlots || (len != 8 && len != 16 && len != 32)
+            || ! mb.fromBase64Encoding (child.getProperty ("cells").toString()))
+            continue;
+
+        const auto* bytes = static_cast<const uint8_t*> (mb.getData());
+        const int   avail = (int) mb.getSize();
+        auto&       slot  = slots[(size_t) index];
+
+        for (int v = 0; v < rows && v < kNumVoices; ++v)
+            for (int s = 0; s < cols && s < kMaxSteps; ++s)
+            {
+                const int src = v * cols + s;
+                if (src < avail)
+                    slot.cells[(size_t) cellIndex (v, s)].store (bytes[src], std::memory_order_relaxed);
+            }
+        slot.length.store (len, std::memory_order_release);
+    }
+
+    // An active index naming a slot that did not restore must not survive.
+    const int active = (int) tree.getProperty ("active", -1);
+    if (active >= 0 && active < kNumPatternSlots
+        && slots[(size_t) active].length.load (std::memory_order_relaxed) != 0)
+        activeSlot.store (active, std::memory_order_relaxed);
+}
+
+//==============================================================================
 juce::AudioProcessorEditor* OSimpleBeatmakerAudioProcessor::createEditor()
 {
 #if JUCE_WEB_BROWSER
@@ -602,6 +875,8 @@ void OSimpleBeatmakerAudioProcessor::getStateInformation (juce::MemoryBlock& des
     // Defensive: never let a stale PATTERN child accumulate across save cycles.
     state.removeChild (state.getChildWithName ("PATTERN"), nullptr);
     state.appendChild (buildPatternTree(), nullptr);
+    state.removeChild (state.getChildWithName ("PATTERN_SLOTS"), nullptr);
+    state.appendChild (buildSlotsTree(), nullptr);
 
     if (auto xml = state.createXml())
         copyXmlToBinary (*xml, destData);
@@ -631,9 +906,13 @@ void OSimpleBeatmakerAudioProcessor::setStateInformation (const void* data, int 
                 uiLanguage.store (languageIndex (lang.toString()), std::memory_order_release);
 
             restorePatternTree (tree.getChildWithName ("PATTERN"));
+            restoreSlotsTree (tree.getChildWithName ("PATTERN_SLOTS"));
+            lengthOverride.store (0, std::memory_order_relaxed);
+            previewOn.store (false, std::memory_order_relaxed);
 
             // Keep the live APVTS tree free of PATTERN; the grid lives in atomics.
             tree.removeChild (tree.getChildWithName ("PATTERN"), nullptr);
+            tree.removeChild (tree.getChildWithName ("PATTERN_SLOTS"), nullptr);
             parameters.replaceState (tree);
         }
     }
