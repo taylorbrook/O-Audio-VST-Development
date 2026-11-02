@@ -9,8 +9,8 @@
 # - Modules: Working code (CMake import with configuration)
 
 # NOTE: `version` and `last_updated` MUST be bumped on every edit. scripts/regen-registry-used-by.sh bumps them automatically when used_by content changes; bump minor/major by hand for significant changes.
-version: 1.2.3
-last_updated: 2026-10-29
+version: 1.2.4
+last_updated: 2026-11-01
 schema_version: 1.0.0
 
 # Module categories
@@ -114,7 +114,7 @@ modules:
       - plugin: O-MicrotonalSampler
         version: 1.28.2
       - plugin: O-simpleGrain
-        version: 1.9.0
+        version: 2.0.0
       - plugin: O-simpleSampler
         version: 1.6.3
       - plugin: O-simpleWavetable
@@ -208,7 +208,7 @@ modules:
       - plugin: O-simpleFM
         version: 1.6.1
       - plugin: O-simpleGrain
-        version: 1.9.0
+        version: 2.0.0
       - plugin: O-simplePhysicalModelSynth
         version: 1.5.0
       - plugin: O-simpleReverb
@@ -479,7 +479,7 @@ modules:
       - plugin: O-ReverseDelay
         version: 1.22.4
       - plugin: O-simpleGrain
-        version: 1.9.0
+        version: 2.0.0
       - plugin: O-Tapestop
         version: 1.7.3
       - plugin: O-TextureForge
@@ -696,7 +696,7 @@ modules:
       - plugin: O-simpleAmbisonics
         version: 1.0.2
       - plugin: O-simpleBeatmaker
-        version: 1.4.3
+        version: 1.6.0
       - plugin: O-simpleFM
         version: 1.6.1
       - plugin: O-simplePhysicalModelSynth
