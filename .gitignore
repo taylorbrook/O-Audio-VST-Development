@@ -233,6 +233,10 @@ node_modules/
 *.bak
 *.cache
 *.log
+# Kept as evidence (261029-md9 F-22)
+!plugins/O-Strata/.planning/stages/1-foundation/smoke/smoke-output.log
+!plugins/O-simpleAmbisonics/.planning/stages/2-dsp/research-2.3/r2c_objective.log
+!plugins/O-simpleAmbisonics/.planning/stages/2-dsp/research-2.3/r6_run.log
 
 # =============================================================================
 # Archive Files (if extracted locally)
@@ -254,6 +258,9 @@ plugins/*/.continue-here.md
 # Aesthetic Test Previews
 # =============================================================================
 *ui-test.html
+# Kept as evidence (261029-md9 F-22)
+!plugins/O-Strata/.planning/mockups/v2-ui-test.html
+!plugins/O-Strata/.planning/superseded-baked-v1/mockups/v1-ui-test.html
 
 # =============================================================================
 # Debug Artifacts (screenshots, audio captures, playwright)
