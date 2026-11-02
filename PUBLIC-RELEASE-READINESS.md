@@ -1,5 +1,7 @@
 # Public Release Readiness — VST-development
 
+> **Historical — superseded 2026-08-03. Decision record only; §4.1 size figures predate the 2026-10-29 rewrite.**
+
 *Assessment date: 2026-07-30. Every figure below is measured, not estimated; the raw measurements live in `.planning/quick/260730-vwx-audit-repo-for-security-and-efficiency-i/260730-vwx-SCOUT.md` and each finding cites its scout ID inline.*
 
 ---
