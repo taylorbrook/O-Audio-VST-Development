@@ -29,8 +29,9 @@ Gate: `tests/scala_tuning_tests.cpp` (34 checks, 0 failed; 22 of 32 fail on 3.2.
 
 O-DigiDelay needs bypass-param exclusion first (FORK-REVIEW caveat).
 
-- [ ] O-Bass `OuariconPresetManager.h` (drift)
-- [ ] O-Bass `ui/public/modules/preset-manager.js` (drift)
+- [x] O-Bass `OuariconPresetManager.h` (drift) — 687a182a
+- [x] O-Bass `ui/public/modules/preset-manager.js` (drift) — 687a182a
+  O-Bass 1.8.4 gate: `tests/preset-gate/gate.py` 187 preset and state lines identical to 1.8.3, 10 factory files match; sentinel rewrites 0 files at the same version and 10 when stale. Old-vs-new renders bit-identical (3 settings). auval and pluginval 5 pass.
 - [ ] O-Comp `OuariconPresetManager.h` (drift)
 - [ ] O-Comp `ui/public/modules/preset-manager.js` (drift)
 - [ ] O-DigiDelay `OuariconPresetManager.h` (drift)
