@@ -1,8 +1,8 @@
-# scala-tuning-engine module v3.2.0
+# scala-tuning-engine module v3.3.0
 # Complete microtonal tuning system extracted from O-Lyrica
 
 name: scala-tuning-engine
-version: 3.2.0
+version: 3.3.0
 description: |
   Complete microtonal tuning system with:
   - 12-TET, custom scales (Scala .scl/.kbm), and MTS-ESP support
@@ -206,6 +206,23 @@ embedded_tuning_categories:
 used_by: []
 
 changelog:
+  - version: 3.3.0
+    date: 2026-11-02
+    changes:
+      - "Upstreamed review fixes from the O-Formant, O-Prism/O-Strata and O-Bells forks (FORK-REVIEW step 1). Gated by the new tests/: unit checks per finding, parity_gate.py against each fork and against 3.2.0"
+      - "BEHAVIOUR, reaches every path-embedding consumer on its next rebuild (O-Bassoon, O-Bowed, O-Contrabass, O-MicrotonalSampler, O-Reed, O-Wind). No .kbm/.scl in play: frequency tables identical to 3.2.0"
+      - "CR-07: loadKBMFile() no longer calls setMasterTune(). The file's reference note plays at the file's frequency (clamped 1-20000 Hz) and A4 is untouched, so 60 @ 261.63 plays middle C at 261.63, not 400. Master tune stops moving mapped notes unless the file has no positive frequency. A file's A4 also no longer retunes 12-TET mode. generateKBMFileContent() writes the mapping's own reference. Callers of setKbmReferenceFrequency() are unaffected: it still overrides, and must still be called after the load"
+      - "CR-08/WR-12: .kbm map size outside 0-128 rejects the file (it drove an unbounded allocation). Octave degree clamps to 0-4096"
+      - "IN-11: the .kbm formal octave degree sets the pitch jump per pattern, instead of always the period. Keys whose result leaves 1 Hz-100 kHz fall back to 12-TET (new here, so an absurd degree cannot reach a voice as inf or ~0 Hz)"
+      - "IN-09: a mapped degree at or past the scale size wraps into the next period, instead of clamping to the period entry"
+      - "WR-08/WR-11/IN-08: .scl parser. First token only, negative cents legal, blank description legal, malformed pitch or a count mismatch rejects the file, count must be 1-4096, non-finite pitches rejected. loadScalaFile() now returns false on files it used to half-load"
+      - "WR-14: setSingleInterval() no longer wipes a 12-entry (11-degree) scale"
+      - "CR-05: rebuildFrequencyTable() locks once around the 128-note loop"
+      - "CR-09: generateRank2 clamps the period first and handles non-finite input; reduceAndSort uses fmod (the subtract loop could hang)"
+      - "IN-17: Partch 43 has its 43 degrees (11/10 and 20/11 were missing)"
+      - "Export: WR-15 sub-octave period exports as itself; IN-11 closing period draws no duplicate node; IN-07 no divide-by-zero on a degenerate scale; WR-20 .scl description is HTML-escaped"
+      - "Forks NOT followed, on purpose: map size > 128 rejects (Formant clamps); degree past scale size wraps (Bells clamps to scaleSize-1, which is off-pitch per the Scala spec); octave-degree cap 4096 (Formant 128, which breaks large EDOs)"
+      - "Still fork-only, not in the FORK-REVIEW list: Formant WR-06 (loadKBMFromString/getKBMState), WR-07 (silent x and out-of-range keys, needs 0 Hz handling in every voice), WR-20 linear-map .kbm export, IN-20 name locks; Prism IN-07 (Bohlen-Pierce 13th degree), WR-17 (writeStateTo/restoreStateFrom), atomic pitchBendRange, IN-09 isNoteMapped lock"
   - version: 3.2.0
     date: 2026-09-24
     changes:

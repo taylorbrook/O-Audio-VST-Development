@@ -27,6 +27,7 @@
 */
 
 #include "TuningEngine.h"
+#include <cmath>
 
 // ═══════════════════════════════════════════════════════════════════
 // Built-in Temperament Preset Data (cents from C for each note)
@@ -294,8 +295,10 @@ void TuningEngine::setSingleInterval(int index, double cents)
     {
         std::lock_guard<std::mutex> lock(intervalMutex);
 
-        // Initialize to 12-TET if intervals are empty
-        if (scaleIntervals.size() < 2 || scaleIntervals.size() == 12)
+        // Initialize to 12-TET only when intervals are genuinely empty. A
+        // 12-entry list is a legitimate 11-degree scale (11 intervals + period)
+        // and must not be wiped on the first edit (WR-14).
+        if (scaleIntervals.size() < 2)
         {
             DBG("  Initializing scaleIntervals to 12-TET");
             scaleIntervals = {0.0, 100.0, 200.0, 300.0, 400.0, 500.0,
@@ -410,36 +413,52 @@ void TuningEngine::setTonicNote(int tonicIndex)
 // Scala File I/O
 // ═══════════════════════════════════════════════════════════════════
 
-double TuningEngine::parseScalaPitch(const juce::String& line) const
+std::optional<double> TuningEngine::parseScalaPitch(const juce::String& line) const
 {
-    juce::String trimmed = line.trim();
-    if (trimmed.isEmpty())
-        return -1.0;
+    // WR-08: only the first token is the pitch (the rest of the line is a free
+    // comment, e.g. "3/2 perfect fifth"), and a negative cents value is a legal
+    // pitch — std::optional replaces the old -1.0 error sentinel, which silently
+    // dropped every negative-cent line.
+    const juce::String token = line.trim().upToFirstOccurrenceOf(" ", false, false)
+                                          .upToFirstOccurrenceOf("\t", false, false);
+    if (token.isEmpty())
+        return std::nullopt;
 
-    // Check if it's a ratio (contains /)
-    if (trimmed.contains("/"))
+    if (token.contains("."))
     {
-        int slashPos = trimmed.indexOf("/");
-        double numerator = trimmed.substring(0, slashPos).getDoubleValue();
-        double denominator = trimmed.substring(slashPos + 1).getDoubleValue();
-        if (denominator <= 0.0 || numerator <= 0.0)
-            return -1.0;
-        double ratio = numerator / denominator;
-        return 1200.0 * std::log2(ratio);
+        // Cents: optional sign, digits, one '.'
+        if (!token.containsOnly("+-0123456789."))
+            return std::nullopt;
+        const double cents = token.getDoubleValue();
+        return std::isfinite(cents) ? std::optional<double>(cents) : std::nullopt;
     }
-    else if (trimmed.contains("."))
+
+    // Ratio "n/d" or integer "n" (= n/1). At most one '/': "3/2/5" used to load
+    // as 3/2.
+    if (!token.containsOnly("0123456789/")
+        || token.indexOfChar('/') != token.lastIndexOfChar('/'))
+        return std::nullopt;
+
+    double ratio;
+    if (token.contains("/"))
     {
-        // It's already in cents
-        return trimmed.getDoubleValue();
+        const double numerator = token.upToFirstOccurrenceOf("/", false, false).getDoubleValue();
+        const double denominator = token.fromFirstOccurrenceOf("/", false, false).getDoubleValue();
+        if (denominator <= 0.0 || numerator <= 0.0)
+            return std::nullopt;
+        ratio = numerator / denominator;
     }
     else
     {
-        // Integer ratio (e.g., "2" means 2/1)
-        double ratio = trimmed.getDoubleValue();
+        ratio = token.getDoubleValue();
         if (ratio <= 0.0)
-            return -1.0;
-        return 1200.0 * std::log2(ratio);
+            return std::nullopt;
     }
+
+    // An over-long digit string parses as inf, so inf/inf gave a NaN pitch (and
+    // n/inf or inf/d a +-inf one) that loaded into the tuning table.
+    const double cents = 1200.0 * std::log2(ratio);
+    return std::isfinite(cents) ? std::optional<double>(cents) : std::nullopt;
 }
 
 bool TuningEngine::loadScalaFile(const juce::File& sclFile)
@@ -466,13 +485,13 @@ bool TuningEngine::loadScalaFile(const juce::File& sclFile)
     {
         juce::String trimmed = line.trim();
 
-        // Skip empty lines and comments
-        if (trimmed.isEmpty())
-            continue;
+        // Comments are skipped anywhere
         if (trimmed.startsWith("!"))
             continue;
 
-        // First non-comment line is the description
+        // WR-08/WR-11: the first non-comment line is the description EVEN WHEN
+        // EMPTY (legal per the Scala spec). Skipping it made the count line the
+        // name and the first pitch the count.
         if (!foundDescription)
         {
             parsedName = trimmed;
@@ -480,30 +499,54 @@ bool TuningEngine::loadScalaFile(const juce::File& sclFile)
             continue;
         }
 
-        // Second non-comment line is the number of degrees
+        if (trimmed.isEmpty())
+            continue;
+
         if (!foundDegreeCount)
         {
-            expectedDegrees = trimmed.getIntValue();
+            const juce::String token = trimmed.upToFirstOccurrenceOf(" ", false, false)
+                                              .upToFirstOccurrenceOf("\t", false, false);
+            if (!token.containsOnly("0123456789"))
+            {
+                // Tolerate a stray blank line above the real description.
+                if (parsedName.isEmpty())
+                {
+                    parsedName = trimmed;
+                    continue;
+                }
+                DBG("TuningEngine::loadScalaFile() - Bad note count line");
+                return false;
+            }
+
+            // IN-08/WR-11: a zero or absurd count used to truncate the scale
+            // after its first pitch, or be believed.
+            const juce::int64 count = token.getLargeIntValue();
+            if (count < 1 || count > 4096)
+            {
+                DBG("TuningEngine::loadScalaFile() - Invalid degree count: " + token);
+                return false;
+            }
+            expectedDegrees = static_cast<int>(count);
             foundDegreeCount = true;
             continue;
         }
 
-        // Parse pitch lines
-        double cents = parseScalaPitch(trimmed);
-        if (cents >= 0.0)
+        const auto cents = parseScalaPitch(trimmed);
+        if (!cents.has_value())
         {
-            newIntervals.push_back(cents);
-            pitchLineCount++;
-
-            if (pitchLineCount >= expectedDegrees)
-                break;
+            DBG("TuningEngine::loadScalaFile() - Malformed pitch line: " + trimmed);
+            return false;
         }
+
+        newIntervals.push_back(*cents);
+        if (++pitchLineCount >= expectedDegrees)
+            break;
     }
 
-    // Validate
-    if (newIntervals.size() < 2)
+    // Validate: the declared count must be met exactly (WR-08)
+    if (!foundDegreeCount || pitchLineCount != expectedDegrees)
     {
-        DBG("TuningEngine::loadScalaFile() - Not enough pitch values in file");
+        DBG("TuningEngine::loadScalaFile() - Pitch count does not match the declared count");
         return false;
     }
 
@@ -557,6 +600,17 @@ bool TuningEngine::loadKBMFile(const juce::File& kbmFile)
     double newRefFreq = dataLines[5].getDoubleValue();
     int newOctaveDegree = dataLines[6].getIntValue();
 
+    // CR-08/WR-12: never trust the header-claimed size. A hostile file can claim
+    // billions and drive an unbounded push_back below; 128 covers every key.
+    if (newMapSize < 0 || newMapSize > 128)
+    {
+        DBG("TuningEngine::loadKBMFile() - Rejecting map size: " + juce::String(newMapSize));
+        return false;
+    }
+
+    // CR-08: same for the octave degree. 4096 is the .scl degree-count ceiling.
+    newOctaveDegree = juce::jlimit(0, 4096, newOctaveDegree);
+
     // Validate ranges
     newFirstNote = juce::jlimit(0, 127, newFirstNote);
     newLastNote = juce::jlimit(0, 127, newLastNote);
@@ -592,16 +646,13 @@ bool TuningEngine::loadKBMFile(const juce::File& kbmFile)
         kbmMiddleNote = newMiddleNote;
         kbmReferenceNote = newReferenceNote;
         kbmFileReferenceFrequency = (newRefFreq > 0.0) ? newRefFreq : 440.0;
-        kbmReferenceFrequency = 0.0;
+        // CR-07: the file's reference note plays at the file's frequency. It used
+        // to go through setMasterTune, whose 400-480 Hz clamp forced a standard
+        // middle-C 261.63 up to 400 Hz (~7 semitones) and overwrote the user's A4.
+        kbmReferenceFrequency = (newRefFreq > 0.0) ? juce::jlimit(1.0, 20000.0, newRefFreq) : 0.0;
         kbmOctaveDegree = (newOctaveDegree > 0) ? newOctaveDegree : static_cast<int>(scaleIntervals.size()) - 1;
         kbmMapping = newMapping;
         kbmLoaded = true;
-    }
-
-    // Set reference frequency
-    if (newRefFreq > 0.0)
-    {
-        setMasterTune(newRefFreq);
     }
 
     rebuildFrequencyTable();
@@ -666,7 +717,9 @@ juce::String TuningEngine::generateKBMFileContent() const
     content += juce::String(kbmLastNote) + "\n";
     content += juce::String(kbmMiddleNote) + "\n";
     content += juce::String(kbmReferenceNote) + "\n";
-    content += juce::String(a4Frequency, 6) + "\n";
+    // CR-07: a loaded mapping round-trips its own reference frequency.
+    content += juce::String((kbmLoaded && kbmReferenceFrequency > 0.0) ? kbmReferenceFrequency
+                                                                       : a4Frequency, 6) + "\n";
 
     int octDegree = kbmLoaded ? kbmOctaveDegree : (static_cast<int>(scaleIntervals.size()) - 1);
     content += juce::String(octDegree) + "\n";
@@ -820,8 +873,8 @@ double TuningEngine::calculate12TETFrequency(int midiNote) const
 
 double TuningEngine::calculateCustomFrequency(int midiNote) const
 {
-    std::lock_guard<std::mutex> lock(intervalMutex);
-
+    // Precondition: caller holds intervalMutex (rebuildFrequencyTable locks once
+    // around the whole 128-note loop instead of once per note, CR-05).
     if (scaleIntervals.size() < 2)
         return calculate12TETFrequency(midiNote);
 
@@ -844,6 +897,25 @@ double TuningEngine::calculateCustomFrequency(int midiNote) const
 
     if (kbmLoaded && !kbmMapping.empty())
     {
+        // IN-09: a degree at or past the scale size wraps into the next period,
+        // so the period entry is never selected as a degree. Never negative here.
+        auto degreeCents = [&activeIntervals, scaleSize, period](int degree)
+        {
+            return activeIntervals[static_cast<size_t>(degree % scaleSize)]
+                 + (degree / scaleSize) * period;
+        };
+
+        // IN-11: the KBM "formal octave degree" is the pitch jump per repetition
+        // of the keyboard pattern. Usually the scale size (the whole period), but
+        // the spec allows any degree — honor it instead of always using the period.
+        double formalOctaveCents = period;
+        if (kbmOctaveDegree > 0 && kbmOctaveDegree != scaleSize)
+        {
+            const double cents = degreeCents(kbmOctaveDegree);
+            if (cents > 0.0)
+                formalOctaveCents = cents;
+        }
+
         // Full KBM mapping mode
         int mapSize = kbmMapSize > 0 ? kbmMapSize : static_cast<int>(kbmMapping.size());
 
@@ -874,10 +946,8 @@ double TuningEngine::calculateCustomFrequency(int midiNote) const
         }
 
         octaveNumber = patternOctave;
-        scaleDegree = juce::jlimit(0, scaleSize, scaleDegree);
 
-        double centsOffset = activeIntervals[static_cast<size_t>(scaleDegree)];
-        centsOffset += octaveNumber * period;
+        double centsOffset = degreeCents(scaleDegree) + octaveNumber * formalOctaveCents;
 
         double refFreq = (kbmReferenceFrequency > 0.0) ? kbmReferenceFrequency : a4Frequency;
         int refNote = kbmReferenceNote;
@@ -896,13 +966,19 @@ double TuningEngine::calculateCustomFrequency(int midiNote) const
             int mapped = kbmMapping[static_cast<size_t>(refPosInPattern)];
             if (mapped >= 0) refDegree = mapped;
         }
-        refDegree = juce::jlimit(0, scaleSize, refDegree);
-        double refCentsFromC0 = activeIntervals[static_cast<size_t>(refDegree)] + refPatternOctave * period;
+        double refCentsFromC0 = degreeCents(refDegree) + refPatternOctave * formalOctaveCents;
 
         double centsFromRef = centsOffset - refCentsFromC0;
         double stretchedCents = centsFromRef * static_cast<double>(octaveStretch);
 
-        return refFreq * std::pow(2.0, stretchedCents / 1200.0);
+        // IN-11 lets a file set any pattern jump, so an absurd octave degree can
+        // reach inf or a frequency that is 0 in practice. A voice derives delay
+        // lengths and phase increments from this table, so such a key falls back
+        // to 12-TET, as an unmapped key does.
+        const double mappedFreq = refFreq * std::pow(2.0, stretchedCents / 1200.0);
+        return (std::isfinite(mappedFreq) && mappedFreq >= 1.0 && mappedFreq <= 100000.0)
+                   ? mappedFreq
+                   : calculate12TETFrequency(midiNote);
     }
     else
     {
@@ -944,6 +1020,9 @@ double TuningEngine::applyPitchBend(double baseFreq, float bendAmount) const
 void TuningEngine::rebuildFrequencyTable()
 {
     Mode mode = currentMode.load(std::memory_order_relaxed);
+
+    // Lock once for the whole rebuild, not once per MIDI note (CR-05)
+    std::lock_guard<std::mutex> lock(intervalMutex);
 
     for (int midiNote = 0; midiNote < 128; ++midiNote)
     {

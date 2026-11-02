@@ -134,6 +134,10 @@ double TuningExporter::calculateETDeviation(double cents, int degree, int totalD
     if (degree == 0)
         return 0.0;
 
+    // IN-07: guard against divide-by-zero on a degenerate scale.
+    if (totalDegrees <= 0)
+        return 0.0;
+
     double etCents = (static_cast<double>(degree) / static_cast<double>(totalDegrees)) * period;
     return cents - etCents;
 }
@@ -326,7 +330,13 @@ juce::String TuningExporter::generatePitchCircleSVG(const std::vector<double>& i
     svg += "  <circle cx=\"" + juce::String(cx) + "\" cy=\"" + juce::String(cy)
          + "\" r=\"4\" fill=\"#8b7355\"/>\n";
 
-    const int total = static_cast<int>(intervals.size());
+    // IN-11: when the interval list includes the closing period it lands on
+    // the same angle as the unison (cents/period = 1.0) — skip it so the
+    // circle shows one node per degree and the ET spokes match the scale size.
+    int total = static_cast<int>(intervals.size());
+    if (total > 1 && std::abs(intervals.back() - period) < 0.01)
+        --total;
+
     const double twoPi = 6.283185307179586;
 
     // Draw ET reference lines (faint)
@@ -381,24 +391,32 @@ juce::String TuningExporter::generatePitchCircleSVG(const std::vector<double>& i
 // Main HTML Export
 // ═══════════════════════════════════════════════════════════════════
 
+static juce::String escapeHtml(const juce::String& text)
+{
+    return text.replace("&", "&amp;")
+               .replace("<", "&lt;")
+               .replace(">", "&gt;")
+               .replace("\"", "&quot;")
+               .replace("'", "&#39;");
+}
+
 juce::String TuningExporter::toHTML(const TuningEngine& engine, const juce::String& pluginName)
 {
-    juce::String scaleName = engine.getActiveTuningName();
+    // WR-20: the name comes from the .scl description line — untrusted text.
+    // Escape it before it reaches <title>/<h1>, or a crafted scale file puts
+    // script into the exported page.
+    const juce::String scaleName = escapeHtml(engine.getActiveTuningName());
     std::vector<double> intervals = engine.getIntervals();
     int noteCount = engine.getScaleDegrees();
     double masterTune = engine.getMasterTune();
     float octaveStretch = engine.getOctaveStretch();
 
-    // Determine period
+    // WR-15: the last interval IS the period whenever positive — gating on
+    // "> 1200" broke every sub-octave tuning (Carlos Gamma's 737.1c period
+    // exported as 1200c with wrong deviations and a wrong pitch circle).
     double period = 1200.0;
-    if (!intervals.empty() && intervals.back() > 1200.0)
-    {
+    if (!intervals.empty() && intervals.back() > 0.0)
         period = intervals.back();
-    }
-    else if (!intervals.empty() && noteCount > 0)
-    {
-        period = 1200.0;
-    }
 
     // Current date
     auto now = juce::Time::getCurrentTime();
