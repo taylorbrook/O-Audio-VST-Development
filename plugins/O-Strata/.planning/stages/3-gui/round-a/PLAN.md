@@ -110,7 +110,7 @@ Five waves, two commits. Each task ends with the check the executor runs before 
 
 ### Task 9 — Tip gate literals + CDP font probe copy (Decision 21)
 - **Modify:** `tests/ui_tip_render_check.js` — `'terrain'` in both tab-loop literals (tokens `['synth', 'effects', 'tuning']` and `['synth', 'mod', 'tuning', 'effects']`); the `TIP_BINDINGS.length === 106` literal → the new count (106 − retired + 14; the executor reads the real number from `i18n.js` and writes it as a literal, not an expression).
-- **Create:** `tests/tools/cdp-font-probe.js` — copy of `.planning/quick/260906-uu7-o-chorus-s-cjk-font-tail-is-inert-found-/cdp-font-probe.js` with `PLUGIN = 'O-Strata'`, targets = the Terrain-tab text runs (`#terrain-tab .knob-label`, `.terrain-seg-btn`, `#terrain-readout`, `#terrain-notice`, `.wt-osc-btn`, `#btn-terImport`) under zh-Hans; prints `familyName` per run.
+- **Create:** `tests/tools/cdp-font-probe.js` — copy of `.planning/quick/archive/2026-Q3/260906-uu7-o-chorus-s-cjk-font-tail-is-inert-found-/cdp-font-probe.js` with `PLUGIN = 'O-Strata'`, targets = the Terrain-tab text runs (`#terrain-tab .knob-label`, `.terrain-seg-btn`, `#terrain-readout`, `#terrain-notice`, `.wt-osc-btn`, `#btn-terImport`) under zh-Hans; prints `familyName` per run.
 - **Check:** `node plugins/O-Strata/tests/ui_tip_render_check.js` (background, 5-min timeout) → `ALL CHECKS PASSED`, five tabs visited; `node plugins/O-Strata/tests/tools/cdp-font-probe.js` → every run on the declared CJK face.
 
 ### Task 10 — `tests/ui_layout_check.js` (Decision 21)

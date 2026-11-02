@@ -58,7 +58,7 @@ Progress: [####################] 100%. **Next:** `/install-plugin O-simpleBeatma
 - **Critic (0 blockers):** all 4 critics PASSED; 2 cosmetic warnings (FND-001 harness
   stub code, UI-001 stale `.tour-soon` class name) deferred to the install pass.
 - **All 5 phase artifacts** in `stages/4-polish/` + critic reports in
-  `.planning/verification/O-simpleBeatmaker/4-polish/`.
+  `plugins/O-simpleBeatmaker/.planning/verification/4-polish/`.
 - **Residual (hands-on DAW, not goal failures):** audible playability check + QUAL-02
   audible-vs-visible audit + preset-loaded screenshot — at `/install-plugin` / DAW.
 
@@ -69,7 +69,7 @@ Progress: [####################] 100%. **Next:** `/install-plugin O-simpleBeatma
 - **Verify:** build clean VST3+AU+Standalone; **auval `aumu OSiB OuDv` SUCCEEDED** (render/1-ch/bad-max-frames/param-set+ramp/**MIDI**); **pluginval strictness-10 SUCCESS**; native-fn JS↔C++ parity exact; UI screenshot-verified (grid+playhead+lane+MIDI+strips+master+clear, not blank). VERIFICATION.md verdict = PASS.
 - **Critic review (0 blockers → progression allowed):** ui gate_pass 7.0, architecture gate_pass ~9.0, foundation gate_pass 9.75. Member/lifecycle order, 3-arg attachments, bare-path resource provider, QUAL-02 lane fidelity, per-frame emit safety, grid native-fn bounds/threading, ID-drift (none), Windows readiness — all CLEAN.
 - **Warnings fixed opportunistically (6/10):** UI-001 grid keyboard access + aria-label/pressed; UI-002 knob aria-value*/toggle aria-pressed; UI-004 focus-driven tooltips; UI-006 Clear-all wired to the clearGrid binding; FND-001 stale CMake comment; ARCH-001 RESEARCH reconciled to the consolidated `frame` event. **Left (benign):** UI-003 (sub-12px secondary labels — layout-regression risk), UI-005 (preset armed-state has a caption), ARCH-002/003 (non-defects).
-- **All 5 phase artifacts** in `stages/3-gui/` (CONTEXT, RESEARCH, PLAN, SUMMARY, VERIFICATION). Critic reports in `.planning/verification/O-simpleBeatmaker/3-gui/`.
+- **All 5 phase artifacts** in `stages/3-gui/` (CONTEXT, RESEARCH, PLAN, SUMMARY, VERIFICATION). Critic reports in `plugins/O-simpleBeatmaker/.planning/verification/3-gui/`.
 - **Residual (Stage 4, not goal failures):** factory preset *content* (FUNC-05), playability tuning, final validation sweep, hands-on DAW transport-sync + QUAL-02 audible-vs-visible audit, CHANGELOG v1.0.0.
 - **Next:** Stage 4 (Polish) — concept-isolating presets, playability, validation sweep.
 
@@ -81,7 +81,7 @@ Progress: [####################] 100%. **Next:** `/install-plugin O-simpleBeatma
 - **Verify:** VST3+AU+Standalone build clean; pluginval VST3 strictness-10 SUCCESS. PERF-01 (alloc/lock-free shipping path) + zero latency + 42-param contract all confirmed. VERIFICATION.md verdict = PASS.
 - **Critic-applied fix:** DSP-001 — `fastSine` LUT now warmed in `prepareToPlay` (was a lazy function-local-static init on the audio thread); harness re-verified all-green after the fix.
 - **Deviations (all contract-blessed/documented):** Fallback A late-only timing humanize; harness CMake omits UIResources/JUCE_WEB_BROWSER (no binary-data target yet); SequencerClock uses period-aligned origin (robust for 8/32-step patterns); extracted `BeatmakerIDs.h` to break a circular include.
-- **All 5 phase artifacts** in `stages/2-dsp/` (CONTEXT, RESEARCH, PLAN, SUMMARY, VERIFICATION). Critic reports in `.planning/verification/O-simpleBeatmaker/2-dsp/`.
+- **All 5 phase artifacts** in `stages/2-dsp/` (CONTEXT, RESEARCH, PLAN, SUMMARY, VERIFICATION). Critic reports in `plugins/O-simpleBeatmaker/.planning/verification/2-dsp/`.
 - **Residual (routed to /install-plugin + Stage 3, not goal failures):** real-DAW transport-sync smoke test + auval (need system AU registration); mute/solo audible silencing (FUNC-06) + 8/32 pattern-length wrap (FUNC-07) wired but only probed at defaults; accent quick-states are a Stage-3 UI deliverable.
 - **Next:** Stage 3 (GUI), Phase 3.1 — step grid + playhead + cross-platform WebView wiring.
 

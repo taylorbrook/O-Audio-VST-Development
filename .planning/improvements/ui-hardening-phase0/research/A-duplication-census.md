@@ -9,7 +9,7 @@
 
 Nothing in the repo was modified.
 
-**Prior art this builds on.** `.planning/quick/260924-nho-review-of-the-ui-and-design-approach-in-/260924-nho-UI-DESIGN-REVIEW.md`, the 2026-09-24 review at 44 plugins. Several of its recommendations have since shipped:
+**Prior art this builds on.** `.planning/quick/archive/2026-Q3/260924-nho-review-of-the-ui-and-design-approach-in-/260924-nho-UI-DESIGN-REVIEW.md`, the 2026-09-24 review at 44 plugins. Several of its recommendations have since shipped:
 
 - R1: the `ui-static-gates` CI job.
 - R2: generator docs.

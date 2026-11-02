@@ -17,7 +17,7 @@ Windows WebView2 hardening (ui-hardening-phase0). No DSP, parameter, preset or s
 ## [1.14.0] - 2026-09-26
 
 **Every caption now meets WCAG AA and the 9px floor, and the house serif actually
-renders.** MINOR: a UI pass (review R4/R5), per `.planning/quick/260924-nho-…/260924-nho-UI-DESIGN-REVIEW.md`.
+renders.** MINOR: a UI pass (review R4/R5), per `.planning/quick/archive/2026-Q3/260924-nho-…/260924-nho-UI-DESIGN-REVIEW.md`.
 No DSP, parameter, range, state format or i18n key changed. The knob keyboard and
 ARIA handling is untouched.
 

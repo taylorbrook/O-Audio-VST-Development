@@ -5,7 +5,7 @@
 > is 5 commits ahead of `origin/main`. **No JUCE / CMake / `vendored/` / plugin-build change may
 > be made** until the tree is clean, HEAD is pushed, and the developer green-lights execution on a
 > dedicated branch. Every number below is grounded in the companion evidence file
-> `.planning/quick/260719-hn4-check-juce-and-framework-updates-review-/260719-hn4-EVIDENCE.md`
+> `.planning/quick/archive/2026-Q3/260719-hn4-check-juce-and-framework-updates-review-/260719-hn4-EVIDENCE.md`
 > (upstream fetched at pinned tags on 2026-07-19, read-only).
 
 ## Summary

@@ -66,7 +66,7 @@ Windows WebView2 hardening (ui-hardening-phase0). No DSP, parameter, preset or s
 
 **Every active caption now meets WCAG AA on the real paper, nothing renders
 below 9px, and the house serif actually renders.** MINOR: a UI pass (review
-R4/R5), per `.planning/quick/260924-nho-…/260924-nho-UI-DESIGN-REVIEW.md`.
+R4/R5), per `.planning/quick/archive/2026-Q3/260924-nho-…/260924-nho-UI-DESIGN-REVIEW.md`.
 No DSP, parameter, range, state format or i18n key changed. The Effects-tab
 knob code is untouched, so R7 (keyboard/ARIA knobs) is deferred. The main-page
 controls are native range inputs and were already keyboard-operable.

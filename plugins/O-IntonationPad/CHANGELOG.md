@@ -30,7 +30,7 @@ In-page preset rename / delete and Windows WebView2 hardening (ui-hardening-phas
 **Every active caption now meets WCAG AA on the ground it actually sits on,
 nothing renders below 9px, and the house serif actually renders.** MINOR: a UI
 pass (review R4/R5), per
-`.planning/quick/260924-nho-…/260924-nho-UI-DESIGN-REVIEW.md` Phase C. No DSP,
+`.planning/quick/archive/2026-Q3/260924-nho-…/260924-nho-UI-DESIGN-REVIEW.md` Phase C. No DSP,
 parameter, range, state format or i18n key changed. The knob JS is untouched,
 so R7 (keyboard/ARIA knobs) is deferred.
 

@@ -24,7 +24,7 @@ stages: [3]
 **Confidence:** HIGH on the repo facts (all measured, file:line cited) · MEDIUM on the CJK rendering advice (measured in headless Chromium on macOS plus cited sources) · MEDIUM on the translation-production recommendation (a judgement call, not a fact)
 
 The staged, executable half of this work lives in
-`.planning/quick/260901-akh-research-and-plan-chinese-localization-a/260901-akh-IMPLEMENTATION-PLAN.md`.
+`.planning/quick/archive/2026-Q3/260901-akh-research-and-plan-chinese-localization-a/260901-akh-IMPLEMENTATION-PLAN.md`.
 This document is the "why"; that one is the "do". Neither repeats the other.
 
 ---
@@ -460,7 +460,7 @@ identical — but any sed-based sweep keyed on the exact 42-copy string will sil
 
 Six stages, each sized for one `/gsd-quick` execution. The full staged plan — per-stage files,
 gates, commit scope, size and copy-paste invocation — lives in
-`.planning/quick/260901-akh-research-and-plan-chinese-localization-a/260901-akh-IMPLEMENTATION-PLAN.md`
+`.planning/quick/archive/2026-Q3/260901-akh-research-and-plan-chinese-localization-a/260901-akh-IMPLEMENTATION-PLAN.md`
 and is not duplicated here.
 
 - **Stage 0 — repo-wide prerequisites.** P1-P8 above, one or two commits, ~45 files. Exit: all
@@ -513,7 +513,7 @@ and is not duplicated here.
 - [Chinese in Mac OS X El Capitan (PingFang / Songti)](https://chinesemac.org/pages/osx11.html) · [Fonts included with macOS](https://support.apple.com/en-sg/103203)
 - [Microsoft YaHei](https://baike.baidu.com/en/item/Microsoft%20YaHei/1462878) · [Best Practices for Chinese Layout — Bobby Tung](https://bobtung.medium.com/best-practice-in-chinese-layout-f933aff1728f)
 
-**Prior art (in-repo):** the French rollout, `.planning/quick/260826-ieq-multi-language-tooltips-across-all-vst-p/`
+**Prior art (in-repo):** the French rollout, `.planning/quick/archive/2026-Q3/260826-ieq-multi-language-tooltips-across-all-vst-p/`
 — CONTEXT.md, FR-GLOSSARY.md, RESEARCH.md, and the Stage K/L/M/N/O briefs.
 
 ---

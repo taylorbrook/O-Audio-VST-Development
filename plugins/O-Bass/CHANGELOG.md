@@ -27,7 +27,7 @@ Windows WebView2 hardening and locale-independent meter data (ui-hardening-phase
 
 **Every caption now clears WCAG AA against the paper as it actually renders,
 and the house serif actually renders.** MINOR: a UI pass (review R4/R5), per
-`.planning/quick/260924-nho-…/260924-nho-UI-DESIGN-REVIEW.md` Phase C. Page
+`.planning/quick/archive/2026-Q3/260924-nho-…/260924-nho-UI-DESIGN-REVIEW.md` Phase C. Page
 CSS, one JS line pair, the CMake resource list and four resource-provider
 branches. No DSP, parameter, range, type, state format or i18n key changed.
 The knob JS is untouched, so the O-ReverseDelay keyboard/ARIA knob port stays

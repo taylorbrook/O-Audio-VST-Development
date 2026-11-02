@@ -27,7 +27,7 @@ Windows WebView2 hardening (ui-hardening-phase0). No DSP, parameter, preset or s
 
 ## [4.9.0] - 2026-09-25
 
-UI pass per `.planning/quick/260924-nho-…/260924-nho-UI-DESIGN-REVIEW.md` Phase C
+UI pass per `.planning/quick/archive/2026-Q3/260924-nho-…/260924-nho-UI-DESIGN-REVIEW.md` Phase C
 (R4 AA text colours + 9px floor, R5 bundled serif). MINOR: no DSP, parameter, range,
 state or preset change. Sessions load and sound exactly as on 4.8.0.
 

@@ -15,7 +15,7 @@ last_updated: 2026-09-21T20:04:31.400Z
 
 | id | phase | kind | file | line | description | status | reason | recorded_at | resolved_at |
 |----|-------|------|------|------|-------------|--------|--------|-------------|-------------|
-| 1 | quick-260904-q4j | deviation | .planning/quick/260904-q4j-fix-i18n-zh-lint-before-stage-4-masklati/260904-q4j-PLAN.md |  | Baseline miscount: plan recorded 8 plugins carrying .scl/.kbm; live count is 7 (O-Lyrica has none). Count is definition-sensitive: 7 file-grep / 3 any-rendering / 1 zh-Hans rendering. | open |  | 2026-09-05T02:10:09.317Z |  |
+| 1 | quick-260904-q4j | deviation | .planning/quick/archive/2026-Q3/260904-q4j-fix-i18n-zh-lint-before-stage-4-masklati/260904-q4j-PLAN.md |  | Baseline miscount: plan recorded 8 plugins carrying .scl/.kbm; live count is 7 (O-Lyrica has none). Count is definition-sensitive: 7 file-grep / 3 any-rendering / 1 zh-Hans rendering. | open |  | 2026-09-05T02:10:09.317Z |  |
 | 2 | quick-260921-hno | deviation | scripts/gen-juce-overrides.sh |  | patch -t reverse-applies an already-applied patch; -N required (found by NC6, fixed in e49ab789) | fixed |  | 2026-09-21T20:04:07.722Z | 2026-09-21T20:04:31.400Z |
 
 ````json
@@ -24,7 +24,7 @@ last_updated: 2026-09-21T20:04:31.400Z
     "id": 1,
     "kind": "deviation",
     "phase": "quick-260904-q4j",
-    "file": ".planning/quick/260904-q4j-fix-i18n-zh-lint-before-stage-4-masklati/260904-q4j-PLAN.md",
+    "file": ".planning/quick/archive/2026-Q3/260904-q4j-fix-i18n-zh-lint-before-stage-4-masklati/260904-q4j-PLAN.md",
     "line": null,
     "description": "Baseline miscount: plan recorded 8 plugins carrying .scl/.kbm; live count is 7 (O-Lyrica has none). Count is definition-sensitive: 7 file-grep / 3 any-rendering / 1 zh-Hans rendering.",
     "status": "open",

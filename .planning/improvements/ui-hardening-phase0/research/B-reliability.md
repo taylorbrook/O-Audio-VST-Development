@@ -7,7 +7,7 @@ Research date: 2026-10-26. Read-only. Scope: the 46 JUCE 8.0.15 WebView plugins 
 - `troubleshooting/`.
 - 46 CHANGELOGs: 51,877 lines, 1,368 version headings, 2,143 "Fixed" bullets.
 - `git log`, plus the CI run history of `ui-static-gates.yml`.
-- The 2026-09-24 suite UI review: `.planning/quick/260924-nho-*/260924-nho-UI-DESIGN-REVIEW.md`.
+- The 2026-09-24 suite UI review: `.planning/quick/archive/2026-Q3/260924-nho-*/260924-nho-UI-DESIGN-REVIEW.md`.
 - Fresh censuses (scripts in `scratchpad/scripts/`) and a fresh `boot-all-uis` run (46/46 boot clean).
 - The JUCE 8.0.15 source at `/Users/taylorbrook/JUCE`, plus JUCE GitHub issues and commits, the JUCE forum and Microsoft docs.
 

@@ -65,7 +65,7 @@ When the symptom is Dorico-specific, recommend handoff to `dorico-agent` instead
 
 **Handoff:** Return to invoker recommending `Task(subagent_type="dorico-agent", description="<plugin> Dorico <symptom>", prompt="<full symptom + repro>")`. Do NOT spawn it yourself (you lack Task tool by design — same rule as `deep-research`).
 
-**Reference docs:** `.claude/agents/dorico-agent.md`; spike research `.planning/quick/260505-ayr-create-a-dorico-agent-that-helps-with-vs/260505-ayr-RESEARCH.md` §6 (12 landmines).
+**Reference docs:** `.claude/agents/dorico-agent.md`; spike research `.planning/quick/archive/2026-Q2/260505-ayr-create-a-dorico-agent-that-helps-with-vs/260505-ayr-RESEARCH.md` §6 (12 landmines).
 
 <workflow>
 ## Graduated Depth Protocol

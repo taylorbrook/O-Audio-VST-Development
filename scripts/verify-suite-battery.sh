@@ -27,7 +27,7 @@
 #   ./scripts/verify-suite-battery.sh --strictness 5    # lower pluginval strictness
 #
 # Output:
-#   .planning/quick/260719-m5p-post-juce-8-0-14-verification-battery/battery-results.tsv
+#   .planning/quick/archive/2026-Q3/260719-m5p-post-juce-8-0-14-verification-battery/battery-results.tsv
 #   Columns: plugin  cmake_target  install_rc  auval_rc  pluginval_rc  note
 # ==============================================================================
 
@@ -36,7 +36,7 @@ set -u
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-QUICK_DIR="$REPO_ROOT/.planning/quick/260719-m5p-post-juce-8-0-14-verification-battery"
+QUICK_DIR="$REPO_ROOT/.planning/quick/archive/2026-Q3/260719-m5p-post-juce-8-0-14-verification-battery"
 TSV="$QUICK_DIR/battery-results.tsv"
 PLUGINVAL="/Applications/pluginval.app/Contents/MacOS/pluginval"
 VST3_INSTALL_DIR="$HOME/Library/Audio/Plug-Ins/VST3"

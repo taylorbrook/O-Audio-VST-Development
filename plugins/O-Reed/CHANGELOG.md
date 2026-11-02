@@ -19,7 +19,7 @@ ui-hardening-phase0 (B4). The editor is the only file that changed. No DSP, para
 **Every caption on the page now meets WCAG AA, nothing renders below 9px, the
 house serif actually renders, and the XY pad's markers and axis captions no
 longer pile on top of each other.** MINOR: a UI pass (review R4/R5), per
-`.planning/quick/260924-nho-…/260924-nho-UI-DESIGN-REVIEW.md`. No DSP,
+`.planning/quick/archive/2026-Q3/260924-nho-…/260924-nho-UI-DESIGN-REVIEW.md`. No DSP,
 parameter, range, state format or i18n key changed. The knob code is
 untouched, so R7 (keyboard/ARIA on the Family C knobs) is deferred.
 

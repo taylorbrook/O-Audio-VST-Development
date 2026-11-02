@@ -1,5 +1,5 @@
 /* CDP resolved-font probe — O-Strata Terrain tab (Stage 3 Round A, PLAN Task 9).
-   Copied from .planning/quick/260906-uu7-…/cdp-font-probe.js (O-Chorus) with
+   Copied from .planning/quick/archive/2026-Q3/260906-uu7-…/cdp-font-probe.js (O-Chorus) with
    PLUGIN = 'O-Strata' and the Terrain-tab text runs as targets. Reports the
    RESOLVED platform font per selector under zh-Hans via
    CSS.getPlatformFontsForNode — measure-ui.js's `ff` field is the DECLARED

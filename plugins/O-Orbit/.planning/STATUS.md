@@ -37,7 +37,7 @@ Gates: check-ui-labels en/fr/zh-Hans PASS, check-i18n PASS, measure-ui --contras
 
 ### v1.4.0 built, installed, auval PASS — DAW visual check pending
 
-UI-only pass per `.planning/quick/260924-nho-review-of-the-ui-and-design-approach-in-/260924-nho-UI-DESIGN-REVIEW.md`
+UI-only pass per `.planning/quick/archive/2026-Q3/260924-nho-review-of-the-ui-and-design-approach-in-/260924-nho-UI-DESIGN-REVIEW.md`
 Phase C. No DSP / parameter / state change. Backup: `backups/O-Orbit/v1.3.0/`.
 
 - `measure-ui.js --contrast`: 6/67 → 0/67 below AA per language, <9px 1 → 0

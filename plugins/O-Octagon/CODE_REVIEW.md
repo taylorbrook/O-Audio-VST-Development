@@ -33,6 +33,8 @@ scope_note: >
   and check-i18n [15] while the HEAD export passes both — that belongs to the in-flight work.
 ---
 
+> Earlier review, kept separately: [CODE_REVIEW-v1.3.0.md](.planning/CODE_REVIEW-v1.3.0.md)
+
 # O-Octagon v1.8.0: Code Review Report
 
 **Reviewed:** 2026-08-27 · **Depth:** deep · **Span:** v1.3.3 → v1.8.0 · **Files reviewed:** 31

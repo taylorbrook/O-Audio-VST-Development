@@ -17,7 +17,7 @@ Goal-backward check of the PLAN.md success criteria. Audio DSP frozen since Stag
 | 7 | Cross-platform wiring correct | ✅ PASS (macOS) / 🟡 Windows unbuilt | `#if JUCE_WINDOWS withUserDataFolder`; static-link WebView2 flag set at Foundation; macOS VST3+AU+Standalone built+installed. Windows not built this session. |
 
 ## Critic gate
-Passed — **0 blockers**, 5 warnings, 8 notes (`.planning/verification/O-simpleFM/3-gui/unified-report.json`).
+Passed — **0 blockers**, 5 warnings, 8 notes (`plugins/O-simpleFM/.planning/verification/3-gui/unified-report.json`).
 Folded in before verify: UI-002 (routing copy now "MOD's self-loop" — was wrong on a teaching plugin), UI-001 (overlay opacity 0.16→0.24), UI-006 ("220"→"220 Hz"), ARCH-002 (`jassert` on null param). All confirmed baked into the installed binary via `strings`. Remaining notes (pointer-only tooltips, fleuron glyph on Windows, MIME charset, etc.) are non-correctness, deferrable to Stage 4 polish.
 
 ## Remaining manual gate (carry to Stage 4 / pre-install sign-off)

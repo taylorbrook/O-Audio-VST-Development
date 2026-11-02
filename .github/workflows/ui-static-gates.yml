@@ -8,7 +8,7 @@
 #
 # Why: all three existed but ran only by hand, so a red gate could sit on main
 # unnoticed (O-Comp zh `scSource` Z5, 2026-09-24). R1 of
-# .planning/quick/260924-nho-*/260924-nho-UI-DESIGN-REVIEW.md.
+# .planning/quick/archive/2026-Q3/260924-nho-*/260924-nho-UI-DESIGN-REVIEW.md.
 #
 # This is NOT an exception to the "no build on push" rule in ci-tests.yml:
 # nothing is compiled, no JUCE, no secrets, no npm install — plain Node over the

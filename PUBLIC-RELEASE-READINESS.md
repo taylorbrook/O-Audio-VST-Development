@@ -2,7 +2,7 @@
 
 > **Historical — superseded 2026-08-03. Decision record only; §4.1 size figures predate the 2026-10-29 rewrite.**
 
-*Assessment date: 2026-07-30. Every figure below is measured, not estimated; the raw measurements live in `.planning/quick/260730-vwx-audit-repo-for-security-and-efficiency-i/260730-vwx-SCOUT.md` and each finding cites its scout ID inline.*
+*Assessment date: 2026-07-30. Every figure below is measured, not estimated; the raw measurements live in `.planning/quick/archive/2026-Q3/260730-vwx-audit-repo-for-security-and-efficiency-i/260730-vwx-SCOUT.md` and each finding cites its scout ID inline.*
 
 ---
 
@@ -61,7 +61,7 @@ Path 3 for the three commercial files, path 1 for the nine cleared ones:
 
 - **`cello.aif`, `pizz.aif`, and `hit.wav` were removed with no replacement** (developer decision — substituting generated or CC0 audio was offered and explicitly declined). The `BinaryData` `SOURCES` list, every C++ reference, and the UI control were removed with them.
 - **O-simpleSampler's source-selector parameter was dropped**, taking the APVTS contract from 21 to 20 parameters. With one built-in left, a single-entry `AudioParameterChoice` is invalid in JUCE (`jassert (choices.size() > 1)`) and builds a degenerate `NormalisableRange {0, 0}` whose `convertTo0to1` is `0/0` — a NaN that `jlimit` does not clamp. Removing the parameter eliminates that by construction.
-- **O-simpleSampler was rebuilt and re-verified at v1.1.0.** auval succeeds reporting **20 Global Scope Parameters at Component Version 1.1.0**; six pluginval strictness-10 runs (3 VST3, 3 AU) all exit 0 with logs free of NaN, Inf, and `FAILED`; the offline render harness reports 9/9. Neither installed bundle contains a withdrawn filename or a matching string in its Mach-O. Full figures: `.planning/quick/260801-u3o-remove-commercial-library-samples-from-o/260801-u3o-VERIFICATION.md`.
+- **O-simpleSampler was rebuilt and re-verified at v1.1.0.** auval succeeds reporting **20 Global Scope Parameters at Component Version 1.1.0**; six pluginval strictness-10 runs (3 VST3, 3 AU) all exit 0 with logs free of NaN, Inf, and `FAILED`; the offline render harness reports 9/9. Neither installed bundle contains a withdrawn filename or a matching string in its Mach-O. Full figures: `.planning/quick/archive/2026-Q3/260801-u3o-remove-commercial-library-samples-from-o/260801-u3o-VERIFICATION.md`.
 - **Three provenance `LICENSE.md` files were written**, modelled on `plugins/O-Bassoon/research/reference-recordings/LICENSE.md` — each naming its generator script, its seed where it has one, its dependencies, its exact format, and a **recorded MD5 per file** so the claim stays checkable rather than merely asserted:
   - `plugins/O-simpleGrain/Source/samples/LICENSE.md`
   - `plugins/O-simpleSampler/Source/samples/LICENSE.md`
@@ -76,7 +76,7 @@ The decision was made to **rewrite**. `git filter-repo --invert-paths` was run a
 - HEAD tree hash **byte-identical** before and after (`3e998f41…`) — the rewrite touched history only, not the current tree.
 - `plugins/O-Orbit/libs/SAF` gitlink survived (§4.6's required check).
 - All 291 tags rewritten and preserved; both stashes preserved; commit count 1753.
-- The O-simpleSampler v1.0.0 commit formerly `4ca27977` is now **`6734552a`** and contains no sample files. Historical SHA references in archived `.planning/quick/260801-u3o-*` artifacts refer to the pre-rewrite history and are intentionally left as-is.
+- The O-simpleSampler v1.0.0 commit formerly `4ca27977` is now **`6734552a`** and contains no sample files. Historical SHA references in archived `.planning/quick/archive/2026-Q3/260801-u3o-*` artifacts refer to the pre-rewrite history and are intentionally left as-is.
 
 **Residuals:**
 1. **The backup bundle contains the old history including the samples.** It lives outside the repo (`~/VST-development-pre-rewrite-20260802.bundle`) — never publish or share it.

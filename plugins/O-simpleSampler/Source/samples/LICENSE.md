@@ -62,4 +62,4 @@ sit beside these files would be a worse record than one that says so plainly.
 commit does not remove them from earlier ones. Whether to rewrite history to expunge them
 is an open decision — see `PUBLIC-RELEASE-READINESS.md` §2.2 and §4.6.
 
-Full detail: `.planning/quick/260801-u3o-remove-commercial-library-samples-from-o/`.
+Full detail: `.planning/quick/archive/2026-Q3/260801-u3o-remove-commercial-library-samples-from-o/`.
