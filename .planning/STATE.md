@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.5
 status: shipped
 stopped_at: Completed quick task 261029-md9
-last_updated: "2026-10-29T23:59:00.000Z"
-last_activity: 2026-10-29
-last_activity_desc: "Completed quick task 261029-md9: repo cleanup + organization audit (28 findings, AUDIT.md); approved top findings being applied"
+last_updated: "2026-11-01T00:00:00.000Z"
+last_activity: 2026-11-01
+last_activity_desc: "Closed quick task 261029-md9: repo cleanup complete (28 findings closed; module convergence moves to /converge-modules)"
 state_head: 0a2fe9c7efc590f5acfc83f5bda62723ed220d89
 progress:
   total_phases: 25
@@ -31,7 +31,7 @@ Milestone: v1.5 -- SHIPPED 2026-04-27
 Phase: All complete
 Plan: All complete
 Status: Milestone shipped and archived
-Last activity: 2026-10-29 - Completed quick task 261029-md9: repo cleanup + organization audit
+Last activity: 2026-11-01 - Closed quick task 261029-md9: repo cleanup complete (28 findings closed; module convergence moves to /converge-modules)
 Prior activity: 2026-09-04 - Completed quick task 260904-g5l: **zh-Hans Stage 3 (hard-case wave) COMPLETE** — O-Octagon v1.12.0, O-Bitrot v1.16.0, O-Chorus v1.6.2 (0 below ship bar), O-MicrotonalSampler v1.27.0; 758/758 zh rows at 'bt'; auval PASS ×4; 9 path-scoped commits. Structural findings for Stage 4 (full list in 260904-g5l-SUMMARY.md): author at 'mt' ALWAYS (premature 'bt' invisible to every gate); read ALL triples --verbose (default prints 12, zero of eight real findings ranked inside them); screen TERMS for two keys → one root co-occurring on a page (Dither/Jitter→抖动, Z5/F1/check-ui-labels all blind); correction loops need a FRESH blind reader + fresh salt; Chinese geometry failures are SHRINKS, and min-width pins are floors — 'already pinned' elements are NOT safe; --emit is table-scoped (no --only-mt); version truth is CMakeLists (quoted VERSION); MUST-FIX before Stage 4 gates i18n-zh-lint: maskLatin() Z1 false-positives on leading-dot extensions (.scl/.kbm, 12 plugins affected); ZH3-10 corrected inventory: 12 gate files hard-code two languages, all wave plugins. Standing: 31, 59, 19, 8, 2, 11, 72, O-Reed tuning tab.
 Earlier activity: 2026-09-04 - Completed quick task 260904-f2k: **the two zh tool defects fixed before Stage 3** — Z3 Traditional-only set rederived 4139→3198 (self-mapping TS keys like 像 U+50CF excluded; committed generator scripts/gen-zh-trad-only.js with --verify; 声像/乾 self-test controls added before regenerating, 8/9 RED → 9/9), i18n-zh-backtranslate --ingest now resolves the manifest beside the EMIT batch and refuses loudly (was inert), --emit row ids blinded (opaque 12-hex, per-batch salt, manifest.ids joins, 0 unjoinable). All three controls observed RED first; repo-wide Z3 unchanged at 0 (latent defect). Gates: check-i18n 43/43, i18n-zh-lint self-test 9/9. zh-Hans Stage 3 now unblocked; O-Chorus zh 'mt' bodies still queued (i18n-zh-backtranslate --emit O-Chorus); tip.language en/fr French re-review still open. Standing: 31, 59, 19, 8, 2, 11, 72, O-Reed tuning tab.
 
@@ -220,7 +220,7 @@ v1.5 decisions (to be logged as phase execution progresses):
 | 260925-r5c | Thorough code review of O-AnalogEQ v1.5.0 (10 files, depth: thorough). All 10 prior findings from the 2026-06-30 v1.1.7 review re-adjudicated: all FIXED, no regressions. 11 new findings: 1 critical (CR-02 isBusesLayoutSupported not overridden -> ProcessorDuplicator nullptr on non-stereo negotiation), 6 warning (incl. WR-05 output_gain Gain ramp is 0s so it steps on preset load, correcting a wrong assertion in the prior review; WR-08 hover-help switch has zero behavioural assertions; WR-10 check-i18n blind to the second module, shared-module + repo-wide), 4 info. Read-only: no source touched, no build, no version bump | 2026-09-25 | 5c63d2c7 | Complete | [260925-r5c-thorough-code-review-of-o-analogeq-plugi](./quick/archive/2026-Q3/260925-r5c-thorough-code-review-of-o-analogeq-plugi/) |
 | 261019-gk9 | Suite-wide: instruments output level −6 dB default at end of chain (user-owned, stripped from presets); dial double-click opens value entry, reset moved to Alt-click — 41 plugins | 2026-10-19 | a7235772 | complete | [261019-gk9-default-level-6db-on-instruments-double-](./quick/261019-gk9-default-level-6db-on-instruments-double-/) |
 | 261019-ryp | Follow-up to gk9: value-entry click-away commit fix (35 plugins) + O-Marimba Effects-tab shared units (analog-eq-unit 1.4.0, compressor-unit 1.4.0, reverb-unit 1.1.0) double-click value entry / Alt-click reset | 2026-10-19 | b274e523 | complete | [261019-ryp-value-entry-click-away-commit-fix-marimb](./quick/261019-ryp-value-entry-click-away-commit-fix-marimb/) |
-| 261029-md9 | Repo cleanup + organization audit: 28 findings (3 High / 13 Med / 12 Low) in AUDIT.md with 14 approvable batches — tag-format doc conflict (CLAUDE.md version-first vs CI `*-v*`), O-Contrabass golden WAVs ≈ 86% of 959 MB pack, module registry used_by drift, stale STATUS.md/PLUGINS.md versions; applied only 8 untracked __pycache__ deletions | 2026-10-29 | 887da0bc, e0372a00 | complete | [261029-md9-do-a-thorough-review-through-this-repo-f](./quick/261029-md9-do-a-thorough-review-through-this-repo-f/) |
+| 261029-md9 | Repo cleanup + organization audit: 28 findings (3 High / 13 Med / 12 Low) in AUDIT.md with 14 approvable batches — tag-format doc conflict (CLAUDE.md version-first vs CI `*-v*`), O-Contrabass golden WAVs ≈ 86% of 959 MB pack, module registry used_by drift, stale STATUS.md/PLUGINS.md versions; applied only 8 untracked __pycache__ deletions; closed 2026-11-01 with all 28 findings resolved, module convergence moved to /converge-modules | 2026-11-01 | c79f2bfb, 2114496b, f42a24e4, c1808831, b19fd8b2, 2c5b9fb9, a09c104c, dc92f31d | complete | [261029-md9-do-a-thorough-review-through-this-repo-f](./quick/261029-md9-do-a-thorough-review-through-this-repo-f/) |
 
 ## Session Continuity
 

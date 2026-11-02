@@ -4,7 +4,7 @@
 **Scope:** all 43 plugins carrying `js/i18n.js`, plus the six repo-level `scripts/i18n-*.js` and
 `scripts/check-*.js` gates.
 **Reference:** every "why" in this plan is answered by
-[`research/i18n-zh-hans-localization.md`](../../../research/i18n-zh-hans-localization.md). This
+[`research/i18n-zh-hans-localization.md`](../../../../../research/i18n-zh-hans-localization.md). This
 document repeats no measurement it does not need in order to act. If a number here and a number
 there disagree, the research document is authoritative.
 

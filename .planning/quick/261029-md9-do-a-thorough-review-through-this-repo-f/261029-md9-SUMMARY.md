@@ -57,3 +57,12 @@ B1 release-tag naming fix (F-01) · B2 STATE.md frontmatter + dangling registry 
 - AUDIT.md exists; AUDIT-OK and APPLY-OK gates pass.
 - 887da0bc and e0372a00 are ancestors of HEAD; the union of both commits touches only AUDIT.md.
 - `git status --short -- <AUDIT>` is empty.
+
+## Outcome (closed 2026-11-01)
+
+All 28 findings are closed; the per-row status is in AUDIT.md under "Closed (2026-11)". Convergence of the diverged module copies moves to `/converge-modules`.
+
+- The pack went from 959 to 118 MiB through the 2026-10-29 history rewrite. The backup mirror is deleted and the local `private` remote is removed. The GitHub `private` repo still holds the old history.
+- `regen-registry-used-by.sh` now matches real references only and also scans `Resources/ui/`.
+- 23 STATUS.md files gained `version:`. O-GrainScatter and O-simpleGrain were skipped because another session has uncommitted work there.
+- `.planning/` is tidied and `docs/codebase/` is gone. `.planning/codebase/` was not regenerated; run `/gsd-map-codebase`.
