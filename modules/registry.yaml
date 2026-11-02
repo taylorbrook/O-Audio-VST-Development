@@ -9,8 +9,8 @@
 # - Modules: Working code (CMake import with configuration)
 
 # NOTE: `version` and `last_updated` MUST be bumped on every edit. scripts/regen-registry-used-by.sh bumps them automatically when used_by content changes; bump minor/major by hand for significant changes.
-version: 1.2.4
-last_updated: 2026-11-01
+version: 1.2.5
+last_updated: 2026-11-02
 schema_version: 1.0.0
 
 # Module categories
@@ -162,7 +162,7 @@ modules:
       - plugin: O-AnalogEQ
         version: 1.5.7
       - plugin: O-Bass
-        version: 1.8.3
+        version: 1.8.4
       - plugin: O-Bassoon
         version: 1.6.1
       - plugin: O-Bells
@@ -642,7 +642,7 @@ modules:
       - plugin: O-AnalogSaturation
         version: 1.8.3
       - plugin: O-Bass
-        version: 1.8.3
+        version: 1.8.4
       - plugin: O-Bassoon
         version: 1.6.1
       - plugin: O-Bells

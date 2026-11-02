@@ -1,5 +1,18 @@
 # O-Bass Changelog
 
+## [1.8.4] - 2026-11-02
+
+O-Bass now uses the shared preset-manager module (1.1.0) instead of its own older copies. No DSP or parameter change; factory presets, user presets and saved sessions load with the same values as 1.8.3.
+
+### Fixed
+
+- **Factory presets are no longer rewritten every time the plugin opens.** Each new instance and each host scan wrote all ten files to disk, and two instances starting together could collide on them. They are now written once per plugin version.
+- **The preset bar no longer waits forever if the WebView bridge is missing.** It stops after 5 seconds and logs an error.
+
+### Changed
+
+- `OuariconPresetManager.h` and `preset-manager.js` now come from `modules/persistence/preset-manager`, which also brings its later preset fixes and API.
+
 ## [1.8.3] - 2026-10-26
 
 Windows WebView2 hardening and locale-independent meter data (ui-hardening-phase0). No DSP, parameter, preset or state change; no visual change.

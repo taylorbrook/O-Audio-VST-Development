@@ -7,7 +7,7 @@ juce_add_plugin(O-Bass
     PLUGIN_CODE OBas
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Bass${OUARICON_DEV_SUFFIX}"
-    VERSION 1.8.3
+    VERSION 1.8.4
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -66,6 +66,12 @@ target_compile_definitions(O-Bass
         JUCE_USE_CURL=0
 )
 
+# Preset manager module: adds OuariconPresetManager.h to the include path and
+# copies preset-manager.js into Source/ui/public/modules/. MUST precede
+# juce_add_binary_data below, which embeds the copied JS.
+include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
+ouaricon_add_module(O-Bass preset-manager)
+
 # WebView UI Resources
 juce_add_binary_data(O-Bass_UIResources
     SOURCES
@@ -100,4 +106,8 @@ if(OUARICON_BUILD_TESTS)
     # AudioProcessor::getParameters() on a constructed processor sees the real set.
     include(${CMAKE_SOURCE_DIR}/scripts/param-dump/ParamDump.cmake)
     ouaricon_add_param_dump(O-Bass ${CMAKE_CURRENT_SOURCE_DIR}/Source)
+
+    # Preset + state gate (v1.8.4), run by tests/preset-gate/gate.py
+    ouaricon_add_processor_console(O-Bass ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/preset-gate/main.cpp preset-gate)
 endif()

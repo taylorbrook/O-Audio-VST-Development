@@ -1,0 +1,187 @@
+load	Default	1	current=Default	factory=1
+applied:Default	crossover_freq	0.5	80
+applied:Default	latency_mode	0	Low Latency
+applied:Default	bypass	0	Off
+applied:Default	enhance	0.5	50.0
+applied:Default	output	0.5	0.0
+state	Default	307.VMjLgnR....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHDUlYgUGazIhO7.UPRETSfjFY8HhX4AWXyMmHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhLlbuM2buYWYx8kYxUVbh.hcgwVck0iH3.iKvHxK9vCTAIUPMARZj0iHk4FZg41XkIBH1EFa0UVOhTCLt.iHu3COPEjTA0DHoQVOhvVXzUlaik2Ws8FYkIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHuUGcvUGch.hcgwVck0iHx3hM3HiLvjCLwPCN4HSM2fSYsbiHu3COu.UXxEVakQWYxMmO..
+reopen:Default	crossover_freq	0.5	80
+reopen:Default	latency_mode	0	Low Latency
+reopen:Default	bypass	0	Off
+reopen:Default	enhance	0.5	50.0
+reopen:Default	output	0.5	0.0
+otherBuildBlob:Default	crossover_freq	0.5	80
+otherBuildBlob:Default	latency_mode	0	Low Latency
+otherBuildBlob:Default	bypass	0	Off
+otherBuildBlob:Default	enhance	0.5	50.0
+otherBuildBlob:Default	output	0.5	0.0
+load	Fat Synth Bass	1	current=Fat Synth Bass	factory=1
+applied:Fat Synth Bass	crossover_freq	0.5	80
+applied:Fat Synth Bass	latency_mode	0	Low Latency
+applied:Fat Synth Bass	bypass	0	Off
+applied:Fat Synth Bass	enhance	0.649999976	65.0
+applied:Fat Synth Bass	output	0.480555594	-0.7
+state	Fat Synth Bass	313.VMjLg.S....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHFEFcfLUdtQGZfHTXyMmH9vCTAIUPMARZj0iHhkGbgM2bh.hcgwVck0iHv3BLh7hO7.UPRETSfjFY8HxXx81by8lckI2WlIWYwIBH1EFa0UVOhfCLt.iHu3COPEjTA0DHoQVOhTlanElaiUlHfXWXrUWY8HhM03BLh7hO7.UPRETSfjFY8HBagQWYtMVde01ajUlHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOh7VczAWczIBH1EFa0UVOhzBLtXSN4jSN4bCM4XiMvPSNwjiHu3COu.UXxEVakQWYxMmO..
+reopen:Fat Synth Bass	crossover_freq	0.5	80
+reopen:Fat Synth Bass	latency_mode	0	Low Latency
+reopen:Fat Synth Bass	bypass	0	Off
+reopen:Fat Synth Bass	enhance	0.649999976	65.0
+reopen:Fat Synth Bass	output	0.480555594	-0.7
+otherBuildBlob:Fat Synth Bass	crossover_freq	0.5	80
+otherBuildBlob:Fat Synth Bass	latency_mode	0	Low Latency
+otherBuildBlob:Fat Synth Bass	bypass	0	Off
+otherBuildBlob:Fat Synth Bass	enhance	0.649999976	65.0
+otherBuildBlob:Fat Synth Bass	output	0.480555594	-0.7
+load	Full Sub Enhancement	1	current=Full Sub Enhancement	factory=1
+applied:Full Sub Enhancement	crossover_freq	0.353553385	60
+applied:Full Sub Enhancement	latency_mode	0	Low Latency
+applied:Full Sub Enhancement	bypass	0	Off
+applied:Full Sub Enhancement	enhance	0.800000012	80.0
+applied:Full Sub Enhancement	output	0.450000018	-1.8
+state	Full Sub Enhancement	318.VMjLgTS....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHFUGarAxT0IFHE4FZg41Xk0VYtQmH9vCTAIUPMARZj0iHhkGbgM2bh.hcgwVck0iHv3BLh7hO7.UPRETSfjFY8HxXx81by8lckI2WlIWYwIBH1EFa0UVOhXCLt.iHu3COPEjTA0DHoQVOhTlanElaiUlHfXWXrUWY8HBNv3BLh7hO7.UPRETSfjFY8HBagQWYtMVde01ajUlHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOh7VczAWczIBH1EFa0UVOhzRLtbSN4jSN4bSLyfSN2bCL0HxK9vyKPElbg0VYzUlby4C.
+reopen:Full Sub Enhancement	crossover_freq	0.353553385	60
+reopen:Full Sub Enhancement	latency_mode	0	Low Latency
+reopen:Full Sub Enhancement	bypass	0	Off
+reopen:Full Sub Enhancement	enhance	0.800000012	80.0
+reopen:Full Sub Enhancement	output	0.450000018	-1.8
+otherBuildBlob:Full Sub Enhancement	crossover_freq	0.353553385	60
+otherBuildBlob:Full Sub Enhancement	latency_mode	0	Low Latency
+otherBuildBlob:Full Sub Enhancement	bypass	0	Off
+otherBuildBlob:Full Sub Enhancement	enhance	0.800000012	80.0
+otherBuildBlob:Full Sub Enhancement	output	0.450000018	-1.8
+load	Gentle Bass Guitar	1	current=Gentle Bass Guitar	factory=1
+applied:Gentle Bass Guitar	crossover_freq	0.612372458	100
+applied:Gentle Bass Guitar	latency_mode	0	Low Latency
+applied:Gentle Bass Guitar	bypass	0	Off
+applied:Gentle Bass Guitar	enhance	0.300000012	30.0
+applied:Gentle Bass Guitar	output	0.5	0.0
+state	Gentle Bass Guitar	319.VMjLgXS....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHGUlazwVYfHTXyMGHGUWZzElbh3COPEjTA0DHoQVOhHVdvE1byIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHiI2ayM2a1UlbeYlbkEmHfXWXrUWY8HRLv.iKvHxK9vCTAIUPMARZj0iHk4FZg41XkIBH1EFa0UVOhLCLt.iHu3COPEjTA0DHoQVOhvVXzUlaik2Ws8FYkIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHuUGcvUGch.hcgwVck0iHx3hM3HiLvjCLwPCN4HSM2fSYsbiHu3COu.UXxEVakQWYxMmO..
+reopen:Gentle Bass Guitar	crossover_freq	0.612372458	100
+reopen:Gentle Bass Guitar	latency_mode	0	Low Latency
+reopen:Gentle Bass Guitar	bypass	0	Off
+reopen:Gentle Bass Guitar	enhance	0.300000012	30.0
+reopen:Gentle Bass Guitar	output	0.5	0.0
+otherBuildBlob:Gentle Bass Guitar	crossover_freq	0.612372458	100
+otherBuildBlob:Gentle Bass Guitar	latency_mode	0	Low Latency
+otherBuildBlob:Gentle Bass Guitar	bypass	0	Off
+otherBuildBlob:Gentle Bass Guitar	enhance	0.300000012	30.0
+otherBuildBlob:Gentle Bass Guitar	output	0.5	0.0
+load	Maximum Enhancement	1	current=Maximum Enhancement	factory=1
+applied:Maximum Enhancement	crossover_freq	0.5	80
+applied:Maximum Enhancement	latency_mode	0	Low Latency
+applied:Maximum Enhancement	bypass	0	Off
+applied:Maximum Enhancement	enhance	0.899999976	90.0
+applied:Maximum Enhancement	output	0.399999976	-3.6
+state	Maximum Enhancement	317.VMjLgPS....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHMEFdo0VcsARQtgVXtMVYsUlazIhO7.UPRETSfjFY8HhX4AWXyMmHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhLlbuM2buYWYx8kYxUVbh.hcgwVck0iH3.iKvHxK9vCTAIUPMARZj0iHk4FZg41XkIBH1EFa0UVOhjCLt.iHu3COPEjTA0DHoQVOhvVXzUlaik2Ws8FYkIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHuUGcvUGch.hcgwVck0iHsLiK0jSN4jSN4.CM1LiL0XCNh7hO77BTgIWXsUFckI2b9..
+reopen:Maximum Enhancement	crossover_freq	0.5	80
+reopen:Maximum Enhancement	latency_mode	0	Low Latency
+reopen:Maximum Enhancement	bypass	0	Off
+reopen:Maximum Enhancement	enhance	0.899999976	90.0
+reopen:Maximum Enhancement	output	0.399999976	-3.6
+otherBuildBlob:Maximum Enhancement	crossover_freq	0.5	80
+otherBuildBlob:Maximum Enhancement	latency_mode	0	Low Latency
+otherBuildBlob:Maximum Enhancement	bypass	0	Off
+otherBuildBlob:Maximum Enhancement	enhance	0.899999976	90.0
+otherBuildBlob:Maximum Enhancement	output	0.399999976	-3.6
+load	Punchy 808	1	current=Punchy 808	factory=1
+applied:Punchy 808	crossover_freq	0	40
+applied:Punchy 808	latency_mode	0	Low Latency
+applied:Punchy 808	bypass	0	Off
+applied:Punchy 808	enhance	0.699999988	70.0
+applied:Punchy 808	output	0.5	0.0
+state	Punchy 808	310.VMjLgzR....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHPUmaigVdffCL3HhO7.UPRETSfjFY8HhX4AWXyMmHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhLlbuM2buYWYx8kYxUVbh.hcgwVck0iHz.iKvHxK9vCTAIUPMARZj0iHk4FZg41XkIBH1EFa0UVOhbCLt.iHu3COPEjTA0DHoQVOhvVXzUlaik2Ws8FYkIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHuUGcvUGch.hcgwVck0iHx3hM3HiLvjCLwPCN4HSM2fSYsbiHu3COu.UXxEVakQWYxMmO..
+reopen:Punchy 808	crossover_freq	0	40
+reopen:Punchy 808	latency_mode	0	Low Latency
+reopen:Punchy 808	bypass	0	Off
+reopen:Punchy 808	enhance	0.699999988	70.0
+reopen:Punchy 808	output	0.5	0.0
+otherBuildBlob:Punchy 808	crossover_freq	0	40
+otherBuildBlob:Punchy 808	latency_mode	0	Low Latency
+otherBuildBlob:Punchy 808	bypass	0	Off
+otherBuildBlob:Punchy 808	enhance	0.699999988	70.0
+otherBuildBlob:Punchy 808	output	0.5	0.0
+load	Saturated Sub	1	current=Saturated Sub	factory=1
+applied:Saturated Sub	crossover_freq	0	40
+applied:Saturated Sub	latency_mode	0	Low Latency
+applied:Saturated Sub	bypass	0	Off
+applied:Saturated Sub	enhance	0.850000024	85.0
+applied:Saturated Sub	output	0.419444442	-2.9
+state	Saturated Sub	311.VMjLg3R....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHSEFc0IWXzUFYfLUchIhO7.UPRETSfjFY8HhX4AWXyMmHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhLlbuM2buYWYx8kYxUVbh.hcgwVck0iHz.iKvHxK9vCTAIUPMARZj0iHk4FZg41XkIBH1EFa0UVOhfSMt.iHu3COPEjTA0DHoQVOhvVXzUlaik2Ws8FYkIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHuUGcvUGch.hcgwVck0iHsHiK3jSN4jSN3TiM4PCN3TyLh7hO77BTgIWXsUFckI2b9..
+reopen:Saturated Sub	crossover_freq	0	40
+reopen:Saturated Sub	latency_mode	0	Low Latency
+reopen:Saturated Sub	bypass	0	Off
+reopen:Saturated Sub	enhance	0.850000024	85.0
+reopen:Saturated Sub	output	0.419444442	-2.9
+otherBuildBlob:Saturated Sub	crossover_freq	0	40
+otherBuildBlob:Saturated Sub	latency_mode	0	Low Latency
+otherBuildBlob:Saturated Sub	bypass	0	Off
+otherBuildBlob:Saturated Sub	enhance	0.850000024	85.0
+otherBuildBlob:Saturated Sub	output	0.419444442	-2.9
+load	Subtle Mix Glue	1	current=Subtle Mix Glue	factory=1
+applied:Subtle Mix Glue	crossover_freq	0.707106769	120
+applied:Subtle Mix Glue	latency_mode	0	Low Latency
+applied:Subtle Mix Glue	bypass	0	Off
+applied:Subtle Mix Glue	enhance	0.200000003	20.0
+applied:Subtle Mix Glue	output	0.5	0.0
+state	Subtle Mix Glue	316.VMjLgLS....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHSUmXzwVYfzTZ3AxQrUWYh3COPEjTA0DHoQVOhHVdvE1byIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHiI2ayM2a1UlbeYlbkEmHfXWXrUWY8HRLx.iKvHxK9vCTAIUPMARZj0iHk4FZg41XkIBH1EFa0UVOhHCLt.iHu3COPEjTA0DHoQVOhvVXzUlaik2Ws8FYkIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHuUGcvUGch.hcgwVck0iHx3hM3HiLvjCLwPCN4HSM2fSYsbiHu3COu.UXxEVakQWYxMmO..
+reopen:Subtle Mix Glue	crossover_freq	0.707106769	120
+reopen:Subtle Mix Glue	latency_mode	0	Low Latency
+reopen:Subtle Mix Glue	bypass	0	Off
+reopen:Subtle Mix Glue	enhance	0.200000003	20.0
+reopen:Subtle Mix Glue	output	0.5	0.0
+otherBuildBlob:Subtle Mix Glue	crossover_freq	0.707106769	120
+otherBuildBlob:Subtle Mix Glue	latency_mode	0	Low Latency
+otherBuildBlob:Subtle Mix Glue	bypass	0	Off
+otherBuildBlob:Subtle Mix Glue	enhance	0.200000003	20.0
+otherBuildBlob:Subtle Mix Glue	output	0.5	0.0
+load	Vintage Mix Bus	1	current=Vintage Mix Bus	factory=1
+applied:Vintage Mix Bus	crossover_freq	0.707106769	120
+applied:Vintage Mix Bus	latency_mode	0	Low Latency
+applied:Vintage Mix Bus	bypass	0	Off
+applied:Vintage Mix Bus	enhance	0.349999994	35.0
+applied:Vintage Mix Bus	output	0.5	0.0
+state	Vintage Mix Bus	316.VMjLgLS....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHVklazE1YkARSogGHBU2bh3COPEjTA0DHoQVOhHVdvE1byIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHiI2ayM2a1UlbeYlbkEmHfXWXrUWY8HRLx.iKvHxK9vCTAIUPMARZj0iHk4FZg41XkIBH1EFa0UVOhLSMt.iHu3COPEjTA0DHoQVOhvVXzUlaik2Ws8FYkIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHuUGcvUGch.hcgwVck0iHx3hM3HiLvjCLwPCN4HSM2fSYsbiHu3COu.UXxEVakQWYxMmO..
+reopen:Vintage Mix Bus	crossover_freq	0.707106769	120
+reopen:Vintage Mix Bus	latency_mode	0	Low Latency
+reopen:Vintage Mix Bus	bypass	0	Off
+reopen:Vintage Mix Bus	enhance	0.349999994	35.0
+reopen:Vintage Mix Bus	output	0.5	0.0
+otherBuildBlob:Vintage Mix Bus	crossover_freq	0.707106769	120
+otherBuildBlob:Vintage Mix Bus	latency_mode	0	Low Latency
+otherBuildBlob:Vintage Mix Bus	bypass	0	Off
+otherBuildBlob:Vintage Mix Bus	enhance	0.349999994	35.0
+otherBuildBlob:Vintage Mix Bus	output	0.5	0.0
+load	Warm Bass Guitar	1	current=Warm Bass Guitar	factory=1
+applied:Warm Bass Guitar	crossover_freq	0.612372458	100
+applied:Warm Bass Guitar	latency_mode	0	Low Latency
+applied:Warm Bass Guitar	bypass	0	Off
+applied:Warm Bass Guitar	enhance	0.5	50.0
+applied:Warm Bass Guitar	output	0.5	0.0
+state	Warm Bass Guitar	317.VMjLgPS....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHWElbsAhPgM2bfbTcoQWXxIhO7.UPRETSfjFY8HhX4AWXyMmHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhLlbuM2buYWYx8kYxUVbh.hcgwVck0iHw.CLt.iHu3COPEjTA0DHoQVOhTlanElaiUlHfXWXrUWY8HRMv3BLh7hO7.UPRETSfjFY8HBagQWYtMVde01ajUlHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOh7VczAWczIBH1EFa0UVOhHiK1fiLx.SNvDCM3jiL0bCNk0xMh7hO77BTgIWXsUFckI2b9..
+reopen:Warm Bass Guitar	crossover_freq	0.612372458	100
+reopen:Warm Bass Guitar	latency_mode	0	Low Latency
+reopen:Warm Bass Guitar	bypass	0	Off
+reopen:Warm Bass Guitar	enhance	0.5	50.0
+reopen:Warm Bass Guitar	output	0.5	0.0
+otherBuildBlob:Warm Bass Guitar	crossover_freq	0.612372458	100
+otherBuildBlob:Warm Bass Guitar	latency_mode	0	Low Latency
+otherBuildBlob:Warm Bass Guitar	bypass	0	Off
+otherBuildBlob:Warm Bass Guitar	enhance	0.5	50.0
+otherBuildBlob:Warm Bass Guitar	output	0.5	0.0
+userSave	1
+userSaved	crossover_freq	0.869626343	161
+userSaved	latency_mode	1	High Fidelity
+userSaved	bypass	0.870000005	On
+userSaved	enhance	0.870000005	87.0
+userSaved	output	0.86944443	13.3
+userLoad	1
+userLoaded	crossover_freq	0.869626343	161
+userLoaded	latency_mode	1	High Fidelity
+userLoaded	bypass	0.870000005	On
+userLoaded	enhance	0.870000005	87.0
+userLoaded	output	0.86944443	13.3
+userIsFactory	0
+userDelete	1
+factorySaveRefused	1
+factoryDeleteRefused	1
+missingLoadRefused	1

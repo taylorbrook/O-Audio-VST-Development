@@ -7,6 +7,7 @@
 
 ## Lifecycle Timeline
 
+- **2026-11-02 (v1.8.4):** Moved to the preset-manager module 1.1.0 (`ouaricon_add_module`); local header and JS removed. `tests/preset-gate/gate.py` compares preset and state outcomes with the 1.8.3 header. Factory bank now has a version sentinel. An old `Aggressive Colored.json` can remain in existing banks; it is not in the factory table.
 - **2026-09-26 (v1.8.0):** UI pass, design review 260924-nho Phase C (R4/R5). `:root` palette
   tokens, 0 hex outside `:root` (was 133); text on the bare paper image is `--ink`, state fills opaque
   and pre-composited, `--paper-opacity` 0.85 over `--bg-paper`; 9px floor already met; bundled EB
