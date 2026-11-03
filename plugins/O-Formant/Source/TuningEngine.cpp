@@ -27,6 +27,7 @@
 */
 
 #include "TuningEngine.h"
+#include <cmath>
 
 // ═══════════════════════════════════════════════════════════════════
 // Built-in Temperament Preset Data (cents from C for each note)
@@ -504,7 +505,8 @@ bool TuningEngine::loadScalaFile(const juce::File& sclFile)
 
         if (!foundDegreeCount)
         {
-            const juce::String token = trimmed.upToFirstOccurrenceOf(" ", false, false);
+            const juce::String token = trimmed.upToFirstOccurrenceOf(" ", false, false)
+                                              .upToFirstOccurrenceOf("\t", false, false);
             if (!token.containsOnly("0123456789"))
             {
                 // Tolerate a stray blank line above the real description.
@@ -516,7 +518,16 @@ bool TuningEngine::loadScalaFile(const juce::File& sclFile)
                 DBG("TuningEngine::loadScalaFile() - Bad note count line");
                 return false;
             }
-            expectedDegrees = token.getIntValue();
+
+            // IN-08/WR-11 (module 3.3.0): a zero or absurd count used to
+            // truncate the scale after its first pitch, or be believed.
+            const juce::int64 count = token.getLargeIntValue();
+            if (count < 1 || count > 4096)
+            {
+                DBG("TuningEngine::loadScalaFile() - Invalid degree count: " + token);
+                return false;
+            }
+            expectedDegrees = static_cast<int>(count);
             foundDegreeCount = true;
             continue;
         }
@@ -595,11 +606,20 @@ bool TuningEngine::loadKBMFromString(const juce::String& kbmText)
     double newRefFreq = dataLines[5].getDoubleValue();
     int newOctaveDegree = dataLines[6].getIntValue();
 
+    // CR-08/WR-12 (module 3.3.0): never trust the header-claimed size. An
+    // unbounded map size drove a multi-GB push_back loop on the message thread;
+    // 128 covers every key, and a file claiming more is rejected, not clamped.
+    if (newMapSize < 0 || newMapSize > 128)
+    {
+        DBG("TuningEngine::loadKBMFile() - Rejecting map size: " + juce::String(newMapSize));
+        return false;
+    }
+
+    // CR-08: same for the octave degree. 4096 is the .scl degree-count ceiling;
+    // a key that comes out non-finite or out of range falls back to 12-TET.
+    newOctaveDegree = juce::jlimit(0, 4096, newOctaveDegree);
+
     // Validate ranges
-    // CR-08: map size / octave degree come straight from the file; an
-    // unbounded map size drove a multi-GB push_back loop on the message thread.
-    newMapSize = juce::jlimit(0, 128, newMapSize);
-    newOctaveDegree = juce::jlimit(0, 128, newOctaveDegree);
     newFirstNote = juce::jlimit(0, 127, newFirstNote);
     newLastNote = juce::jlimit(0, 127, newLastNote);
     newMiddleNote = juce::jlimit(0, 127, newMiddleNote);
@@ -637,8 +657,10 @@ bool TuningEngine::loadKBMFromString(const juce::String& kbmText)
         kbmOctaveDegree = newOctaveDegree;
         kbmMapping = newMapping;
         // CR-07: own member, sane audio range; a4Frequency is left untouched.
-        kbmReferenceFreq = (newRefFreq > 0.0) ? juce::jlimit(1.0, 20000.0, newRefFreq)
-                                              : 440.0;
+        // No positive frequency in the file: the master tune is the reference
+        // (module 3.3.0; this was a fixed 440 Hz).
+        kbmFileReferenceFrequency = (newRefFreq > 0.0) ? newRefFreq : 440.0;
+        kbmReferenceFrequency = (newRefFreq > 0.0) ? juce::jlimit(1.0, 20000.0, newRefFreq) : 0.0;
         kbmLoaded = true;
     }
 
@@ -646,6 +668,27 @@ bool TuningEngine::loadKBMFromString(const juce::String& kbmText)
 
     DBG("TuningEngine::loadKBMFile() - Loaded KBM: mapSize=" + juce::String(kbmMapSize));
     return true;
+}
+
+int TuningEngine::getKbmReferenceNote() const
+{
+    std::lock_guard<std::mutex> lock(intervalMutex);
+    return kbmReferenceNote;
+}
+
+double TuningEngine::getKbmReferenceFrequency() const
+{
+    std::lock_guard<std::mutex> lock(intervalMutex);
+    return kbmFileReferenceFrequency;
+}
+
+void TuningEngine::setKbmReferenceFrequency(double freqHz)
+{
+    {
+        std::lock_guard<std::mutex> lock(intervalMutex);
+        kbmReferenceFrequency = (freqHz > 0.0) ? freqHz : 0.0;
+    }
+    rebuildFrequencyTable();
 }
 
 juce::String TuningEngine::generateScalaFileContent() const
@@ -700,7 +743,8 @@ juce::String TuningEngine::generateKBMFileContent() const
     content += juce::String(kbmLastNote) + "\n";
     content += juce::String(kbmMiddleNote) + "\n";
     content += juce::String(kbmReferenceNote) + "\n";
-    content += juce::String(kbmReferenceFreq, 6) + "\n";
+    // CR-07: a loaded mapping round-trips its own reference frequency.
+    content += juce::String(kbmReferenceFrequency > 0.0 ? kbmReferenceFrequency : a4Frequency, 6) + "\n";
     content += juce::String(kbmOctaveDegree) + "\n";
 
     for (int degree : kbmMapping)
@@ -742,7 +786,8 @@ void TuningEngine::resetKeyboardMapping()
         kbmMiddleNote = 60;
         kbmReferenceNote = 69;
         kbmOctaveDegree = 0;
-        kbmReferenceFreq = 440.0;
+        kbmFileReferenceFrequency = 440.0;
+        kbmReferenceFrequency = 0.0;
         kbmMapping.clear();
         kbmLoaded = false;
     }
@@ -901,23 +946,28 @@ double TuningEngine::calculateKBMFrequency(int midiNote, const std::vector<doubl
     keyCents(kbmReferenceNote, refCents);   // an unmapped reference still anchors
 
     const double stretchedCents = (noteCents - refCents) * static_cast<double>(octaveStretch);
-    return kbmReferenceFreq * std::pow(2.0, stretchedCents / 1200.0);
+    const double refFreq = (kbmReferenceFrequency > 0.0) ? kbmReferenceFrequency : a4Frequency;
+
+    // Module 3.3.0: an absurd octave degree or pitch can reach inf, or a
+    // frequency that is 0 in practice. A voice derives delay lengths and phase
+    // increments from this table, so such a key falls back to 12-TET.
+    const double mappedFreq = refFreq * std::pow(2.0, stretchedCents / 1200.0);
+    return (std::isfinite(mappedFreq) && mappedFreq >= 1.0 && mappedFreq <= 100000.0)
+               ? mappedFreq
+               : calculate12TETFrequency(midiNote);
 }
 
 double TuningEngine::calculateTwelveTETTableFrequency(int midiNote) const
 {
-    {
-        std::lock_guard<std::mutex> lock(intervalMutex);
-        if (kbmLoaded)
-            return calculateKBMFrequency(midiNote, twelveTETIntervals());
-    }
+    // Precondition: caller holds intervalMutex (CR-05).
+    if (kbmLoaded)
+        return calculateKBMFrequency(midiNote, twelveTETIntervals());
     return calculate12TETFrequency(midiNote);
 }
 
 double TuningEngine::calculateCustomFrequency(int midiNote) const
 {
-    std::lock_guard<std::mutex> lock(intervalMutex);
-
+    // Precondition: caller holds intervalMutex (CR-05).
     if (scaleIntervals.size() < 2)
         return kbmLoaded ? calculateKBMFrequency(midiNote, twelveTETIntervals())
                          : calculate12TETFrequency(midiNote);
@@ -978,6 +1028,9 @@ void TuningEngine::rebuildFrequencyTable()
     // table where some notes are already new and some are still old. It is
     // momentary and self-corrects on the next note — acceptable for this use.
     Mode mode = currentMode.load(std::memory_order_relaxed);
+
+    // Lock once for the whole rebuild, not once per MIDI note (CR-05)
+    std::lock_guard<std::mutex> lock(intervalMutex);
 
     for (int midiNote = 0; midiNote < 128; ++midiNote)
     {

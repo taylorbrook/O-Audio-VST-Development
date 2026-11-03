@@ -2,6 +2,23 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.34.3] — 2026-11-03
+
+TuningEngine brought up to scala-tuning-engine 3.3.0 where the module is ahead (261029-md9 convergence step 3). O-Formant keeps its own KBM engine, which is still ahead of the module: Scala-spec unmapped keys, linear size-0 maps, a .kbm that also applies in 12-TET mode, session restore of the loaded .kbm, and the linear-mapping export. Default tuning, every temperament, tonic, master tune and stretch give the same frequency table as 1.34.2. Only malformed .scl and .kbm files behave differently. No parameter, preset or state change.
+
+### Fixed
+
+- **A .kbm that claims more than 128 keys is rejected** (WR-12). It used to be clamped to 128 and loaded.
+- **A .kbm key that comes out non-finite, below 1 Hz or above 100 kHz plays at 12-TET.** Before, a Bohlen-Pierce top octave reached 115 kHz, a 7-key map put the bottom keys near 0.5 Hz, and an octave degree past the scale's range underflowed most keys to 0 Hz. The octave degree is now clamped to 4096, the .scl ceiling, rather than 128.
+- **A .kbm with no positive reference frequency follows the master tune.** It was a fixed 440 Hz.
+- **.scl degree counts outside 1–4096 are rejected**, and a tab after the count is accepted (IN-08/WR-11).
+- The frequency table rebuild locks once instead of once per note (CR-05).
+- Module 3.2.0/3.3.0 KBM-reference accessors added: `getKbmReferenceNote()`, `getKbmReferenceFrequency()`, `setKbmReferenceFrequency()`. Nothing in O-Formant calls them yet.
+
+The 1c5dca67 Scala-mode fix (`setCustomIntervals()` switches to Scala mode) was already in O-Formant.
+
+**Gate:** module parity dump, 1.34.3 tree vs module 3.3.0: 23/23 required cases equal, and the `kbm.map_huge` divergence accepted in step 1 is gone. A 1.34.2-vs-1.34.3 engine dump agrees on 143 of 149 cases: all 120 no-KBM tables (10 presets × tonic 0/2/7 × A4 440/432 × stretch 1/1.02, with the export), plus x-keys, out-of-range keys, linear size 0, the .kbm in 12-TET mode, middle-C reference, tonic rotation, short and negative maps, and reset. The 6 cases that differ are the malformed inputs above. All 13 .kbm session round-trips reproduce. Installed-binary renders are bit-identical to 1.34.2.
+
 ## [1.34.2] — 2026-10-19
 
 ### Fixed

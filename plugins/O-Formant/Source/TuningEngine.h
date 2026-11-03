@@ -240,6 +240,23 @@ public:
     bool loadKBMFile(const juce::File& kbmFile);
 
     /**
+     * Reference note and frequency (Hz) exactly as the last loaded .kbm gives
+     * them (module 3.3.0 API). The file's frequency becomes the reference-note
+     * frequency directly; it never goes through setMasterTune() (CR-07).
+     */
+    int getKbmReferenceNote() const;
+    double getKbmReferenceFrequency() const;
+
+    /**
+     * Frequency of the KBM reference note, independent of A4 and unclamped
+     * (module 3.2.0 API). When > 0, mapped notes use it in place of the master
+     * tune. loadKBMFile() seeds it from the file, so call this after the load
+     * to override the file's value. 0 (the resetKeyboardMapping default, or a
+     * file with no positive frequency) makes the master tune the reference.
+     */
+    void setKbmReferenceFrequency(double freqHz);
+
+    /**
      * Check if a MIDI note is mapped in the current keyboard mapping
      * @param midiNote MIDI note number (0-127)
      * @return true if mapped, false if unmapped ('x' in KBM)
@@ -320,6 +337,7 @@ private:
     // ═══════════════════════════════════════════════════════════════════
 
     double calculate12TETFrequency(int midiNote) const;
+    // Callers hold intervalMutex: rebuildFrequencyTable locks once (CR-05).
     double calculateCustomFrequency(int midiNote) const;
     double calculateTwelveTETTableFrequency(int midiNote) const;
     double calculateKBMFrequency(int midiNote, const std::vector<double>& intervals) const;
@@ -377,7 +395,8 @@ private:
     // a4Frequency (the user's A4 / masterTune, clamped 400–480 Hz) — a KBM
     // reference is often middle C (261.63 Hz) and must not be clamped into,
     // or overwrite, the A4 range.
-    double kbmReferenceFreq = 440.0;
+    double kbmFileReferenceFrequency = 440.0; // as read from the file
+    double kbmReferenceFrequency = 0.0;       // reference-note Hz; 0 = use a4Frequency
     bool kbmLoaded = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TuningEngine)

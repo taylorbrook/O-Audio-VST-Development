@@ -9,7 +9,7 @@
 # - Modules: Working code (CMake import with configuration)
 
 # NOTE: `version` and `last_updated` MUST be bumped on every edit. scripts/regen-registry-used-by.sh bumps them automatically when used_by content changes; bump minor/major by hand for significant changes.
-version: 1.2.10
+version: 1.2.11
 last_updated: 2026-11-03
 schema_version: 1.0.0
 
@@ -184,7 +184,7 @@ modules:
       - plugin: O-Emulator
         version: 1.5.1
       - plugin: O-Formant
-        version: 1.34.2
+        version: 1.34.3
       - plugin: O-FreqPulse
         version: 1.20.2
       - plugin: O-Lyrica
@@ -350,7 +350,7 @@ modules:
       - plugin: O-Contrabass
         version: 1.12.2
       - plugin: O-Formant
-        version: 1.34.2
+        version: 1.34.3
       - plugin: O-IntonationPad
         version: 2.11.3
       - plugin: O-Lyrica
@@ -397,7 +397,7 @@ modules:
       - plugin: O-Contrabass
         version: 1.12.2
       - plugin: O-Formant
-        version: 1.34.2
+        version: 1.34.3
       - plugin: O-IntonationPad
         version: 2.11.3
       - plugin: O-Lyrica
@@ -664,7 +664,7 @@ modules:
       - plugin: O-Emulator
         version: 1.5.1
       - plugin: O-Formant
-        version: 1.34.2
+        version: 1.34.3
       - plugin: O-Freeze
         version: 2.9.1
       - plugin: O-FreqPulse
