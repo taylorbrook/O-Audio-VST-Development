@@ -27,7 +27,7 @@ Gate: `tests/scala_tuning_tests.cpp` (34 checks, 0 failed; 22 of 32 fail on 3.2.
 
 ## Step 2: preset-manager drift
 
-O-DigiDelay needs bypass-param exclusion first (FORK-REVIEW caveat).
+O-DigiDelay needed bypass-param exclusion first (FORK-REVIEW caveat); done in 1.9.4 with `setExcludedParameters`, plus the IN-07 apply upstreamed as module 1.1.1.
 
 - [x] O-Bass `OuariconPresetManager.h` (drift) — 687a182a
 - [x] O-Bass `ui/public/modules/preset-manager.js` (drift) — 687a182a
@@ -35,8 +35,9 @@ O-DigiDelay needs bypass-param exclusion first (FORK-REVIEW caveat).
 - [x] O-Comp `OuariconPresetManager.h` (drift) — cfec3132
 - [x] O-Comp `ui/public/modules/preset-manager.js` (drift) — cfec3132
   O-Comp 1.11.4 gate: `tests/preset-gate/gate.py` 10/10. The `scdefault` run matches 1.11.3 on 314/314 lines, state blobs included. The full-perturb run has 72 differing lines, all expected: the factory presets omit the 4 `sc_*` params, which the module resets to their defaults (WR-01). 88 lines of 1.11.3 session blobs reopen identically. 8 factory files match. The sentinel rewrites 0 files at the same version and 8 when stale. With no in-list anchor, Prev now goes to the first preset, not the last (IN-03). auval and pluginval 5 pass. No old-vs-new render: the header is not on the audio path, and the parameter outcomes are gated.
-- [ ] O-DigiDelay `OuariconPresetManager.h` (drift)
-- [ ] O-DigiDelay `ui/public/modules/preset-manager.js` (drift)
+- [x] O-DigiDelay `OuariconPresetManager.h` (drift) — a5aaaa11
+- [x] O-DigiDelay `ui/public/modules/preset-manager.js` (drift) — a5aaaa11
+  O-DigiDelay 1.9.4 gate: `tests/preset-gate/gate.py` 12/12. 762/762 lines match 1.9.3, state blobs included; 216 lines of 1.9.3 session blobs reopen identically; 24 factory files match; the sentinel rewrites 0 files at the same version and 24 when stale. The local copy was ahead of the module twice. FORK-REVIEW named the bypass exclusion, now kept with `setExcludedParameters({"bypass"})`. It missed the v1.8.0 IN-07 apply: a gesture per set, values clamped, a non-number value loads as the default. That was upstreamed as the opt-in `setValidatedApply` in **preset-manager 1.1.1**. Off by default, the call sequence is unchanged for other consumers. Bypass stays On through all 25 loads, and every set is inside a balanced gesture. Negative control (both calls off): 4 checks fail, 100 dump lines differ. Unanchored Prev already went to the first preset in 1.9.3. auval and pluginval 5 pass.
 - [ ] O-Polystutter `ui/public/modules/preset-manager.js` (drift)
 - [ ] O-SpectralShaper `OuariconPresetManager.h` (drift)
 
