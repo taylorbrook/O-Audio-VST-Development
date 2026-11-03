@@ -124,12 +124,22 @@ FORK-REVIEW step 3 counts 7 TuningEngine copies and names O-Lyrica, O-Intonation
 
 One `toHTML(engine, pluginName)` call site changes.
 
-- [ ] O-Lyrica `DSP/EmbeddedTunings.cpp` (drift)
-- [ ] O-Lyrica `DSP/EmbeddedTunings.h` (drift)
-- [ ] O-Lyrica `DSP/ScaleGenerator.cpp` (drift)
-- [ ] O-Lyrica `DSP/ScaleGenerator.h` (drift)
-- [ ] O-Lyrica `DSP/TuningExporter.cpp` (drift)
-- [ ] O-Lyrica `DSP/TuningExporter.h` (drift)
+- [x] O-Lyrica `DSP/EmbeddedTunings.cpp` (drift) — 5db17ef9
+- [x] O-Lyrica `DSP/EmbeddedTunings.h` (drift) — 5db17ef9
+- [x] O-Lyrica `DSP/ScaleGenerator.cpp` (drift) — 5db17ef9
+- [x] O-Lyrica `DSP/ScaleGenerator.h` (drift) — 5db17ef9
+- [x] O-Lyrica `DSP/TuningExporter.cpp` (drift) — 5db17ef9
+- [x] O-Lyrica `DSP/TuningExporter.h` (drift) — 5db17ef9
+  O-Lyrica 2.6.7 gate. All 6 files are byte-identical to module 3.3.0. The call site is now `toHTML(engine, "O-Lyrica")`. **FORK-REVIEW's "cosmetic" no longer holds:** it diffed against module 3.1.0, and step 1 since put real fixes into these files. So the swap also brings:
+  - IN-17: Partch 43 gets its two missing degrees
+  - CR-09: the Rank-2 period is clamped first, with a NaN/huge-input guard
+  - export fixes IN-07, IN-11, WR-15 (sub-octave period) and WR-20 (escaping)
+
+  None of these reach audio. Sessions store intervals, so only a fresh library load of Partch 43 changes.
+  - Module `parity_dump`, 2.6.6 tree vs 2.6.7 tree: 39/45 equal, including every `scl`/`kbm`/`edit`/`dflt` TuningEngine case. The 6 that differ are the fixes above (`gen.rank2_order`, `emb.partch43`, 4 `exp.*`). The 2.6.6 tree hangs forever on `gen.rank2_huge` and `gen.rank2_nonfinite` (that is CR-09 itself), so the comparison ran from a scratch copy of the dump with those two cases skipped.
+  - 2.6.7 vs module: every `gen`/`emb`/`exp` case is equal. The `scl`/`kbm`/`edit`/preset-table cases differ because Lyrica's TuningEngine is the step-6 fork.
+  - The module unit tests don't compile against the Lyrica tree: the fork lacks the 3.2.0 KBM API. The files under test are byte-identical to the module, so the module's own 34/34 run covers them.
+  - auval and pluginval 5 pass.
 
 ## Step 5: grain-engine CounterRng
 
