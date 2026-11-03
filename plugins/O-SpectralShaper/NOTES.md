@@ -2,11 +2,12 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.10.0
+- **Version:** 1.10.3
 - **Type:** Audio Effect (Spectral Transient Shaper)
 
 ## Lifecycle Timeline
 
+- **2026-11-03 (v1.10.3):** Moved to the preset-manager module 1.1.1 (`ouaricon_add_module`), and the local 1.0.2-snapshot header was removed. `tests/preset-gate/gate.py` compares the outcomes against the 1.10.2 header: 880/880 lines are identical (7 params and both 32-band curves per preset, plus state blobs and navigation), and 261 lines of 1.10.2 session blobs reopen identically. The factory bank now has a version sentinel. `PluginEditor.h` moved behind `#if JUCE_WEB_BROWSER` so the processor-only console links. The JS is still the plugin's own `Resources/ui/modules/preset-manager.js`, which is a 1.0.0-era drift copy that FORK-REVIEW missed (non-standard path), so it is not converged yet.
 - **2026-09-27 (v1.10.0):** R7 knob keyboard/ARIA ported from O-ReverseDelay: six knobs are Tab-reachable `role="slider"` (named by caption, valuetext = readout, valuenow/min/max in param units), arrows nudge 0.02 (floored at one step) as a bracketed gesture, drags use pointer capture (no latched drag on release outside the WebView) and now bracket `sliderDragStarted/Ended` — they never did before. Dotted `--green-dark` focus ring. Resize half of R7 N/A (700×500 < 820). No DSP/param/state change.
 - **2026-09-26 (v1.9.0):** UI pass (review 260924-nho R4/R5): AA ink on the paper image (pixel probe 81/230 → 0 below AA; census 6/37 → 0), inverted Spectrum chip, colour-not-opacity disabled undo/redo, 107 hex → `:root` tokens (JS reads them), bundled EB Garamond, stale `v1.7.2` header fixed, two width pins re-measured. Knob keyboard/ARIA (R7) still open. No DSP/param/state change.
 - **2026-02-03:** Creative brief completed — per-frequency transient shaping concept finalized

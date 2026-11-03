@@ -1,5 +1,19 @@
 # O-SpectralShaper Changelog
 
+## [1.10.3] - 2026-11-03
+
+O-SpectralShaper now uses the shared preset-manager module (1.1.1) instead of its own older copy. No DSP, parameter or UI change. Factory presets, user presets and saved sessions load with the same values and curves as 1.10.2.
+
+### Fixed
+
+- **Factory presets are no longer rewritten every time the plugin opens.** Each new instance and each host scan wrote all 29 files to disk, and two instances starting together could collide on them. They are now written once per plugin version.
+- Preset names containing `/`, `\` or `:` are now saved under a safe file name instead of being treated as paths.
+
+### Changed
+
+- `OuariconPresetManager.h` now comes from `modules/persistence/preset-manager`. That brings the module's later fixes and API: reset-to-defaults before apply, meta parameters applied first, the migration hook, `capturePresetData`/`applyPresetData`, and parameter exclusions. None of them changes a value for this plugin's presets.
+- Tests: `tests/preset-gate/` compares every preset, state and navigation outcome with the 1.10.2 header (880/880 lines identical, 261 lines of 1.10.2 session state reopen identically).
+
 ## [1.10.2] - 2026-10-26
 
 Windows WebView2 hardening (ui-hardening-phase0). No DSP, parameter, preset or state change; macOS behaviour and look unchanged.

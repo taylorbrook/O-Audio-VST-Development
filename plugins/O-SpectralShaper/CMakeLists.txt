@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(O-SpectralShaper
-    VERSION 1.10.2
+    VERSION 1.10.3
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OSpS
@@ -51,6 +51,12 @@ target_link_libraries(O-SpectralShaper
 # Generate JuceHeader.h (JUCE 8 requirement - MUST come after target_link_libraries)
 juce_generate_juce_header(O-SpectralShaper)
 
+# Preset manager module (v1.10.3): adds OuariconPresetManager.h to the include
+# path. It also copies preset-manager.js into Source/ui/public/modules/ (a
+# gitignored build leftover here); this plugin still embeds its own
+# Resources/ui/modules/preset-manager.js below.
+ouaricon_add_module(O-SpectralShaper preset-manager)
+
 # WebView UI Resources (Stage 3 complete)
 juce_add_binary_data(O-SpectralShaper_UIResources
     SOURCES
@@ -89,3 +95,9 @@ target_compile_definitions(O-SpectralShaper
         JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
         JUCE_USE_CURL=0
 )
+
+if(OUARICON_BUILD_TESTS)
+    # Preset + state gate (v1.10.3), run by tests/preset-gate/gate.py
+    ouaricon_add_processor_console(O-SpectralShaper ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/preset-gate/main.cpp preset-gate)
+endif()

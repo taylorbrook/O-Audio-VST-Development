@@ -28,7 +28,9 @@
 */
 
 #include "PluginProcessor.h"
-#include "PluginEditor.h"
+// PluginEditor.h is included inside the #if JUCE_WEB_BROWSER guard above
+// createEditor(), so a console target that compiles this TU with
+// JUCE_WEB_BROWSER=0 and no editor sources (tests/preset-gate) links.
 
 // ============================================================================
 // Parameter Layout Creation (JUCE 8 format)
@@ -803,9 +805,19 @@ void OSpectralShaperAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
 // Editor
 // ============================================================================
 
+#if JUCE_WEB_BROWSER
+#include "PluginEditor.h"
+#endif
+
 juce::AudioProcessorEditor* OSpectralShaperAudioProcessor::createEditor()
 {
+#if JUCE_WEB_BROWSER
     return new OSpectralShaperAudioProcessorEditor(*this);
+#else
+    // The preset-gate console target builds with JUCE_WEB_BROWSER=0 and no
+    // editor sources. It never opens an editor; this keeps the TU linkable.
+    return new juce::GenericAudioProcessorEditor(*this);
+#endif
 }
 
 // ============================================================================
