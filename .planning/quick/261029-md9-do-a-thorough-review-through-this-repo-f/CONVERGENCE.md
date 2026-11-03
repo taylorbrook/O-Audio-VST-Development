@@ -32,8 +32,9 @@ O-DigiDelay needs bypass-param exclusion first (FORK-REVIEW caveat).
 - [x] O-Bass `OuariconPresetManager.h` (drift) — 687a182a
 - [x] O-Bass `ui/public/modules/preset-manager.js` (drift) — 687a182a
   O-Bass 1.8.4 gate: `tests/preset-gate/gate.py` 187 preset and state lines identical to 1.8.3, 10 factory files match; sentinel rewrites 0 files at the same version and 10 when stale. Old-vs-new renders bit-identical (3 settings). auval and pluginval 5 pass.
-- [ ] O-Comp `OuariconPresetManager.h` (drift)
-- [ ] O-Comp `ui/public/modules/preset-manager.js` (drift)
+- [x] O-Comp `OuariconPresetManager.h` (drift) — cfec3132
+- [x] O-Comp `ui/public/modules/preset-manager.js` (drift) — cfec3132
+  O-Comp 1.11.4 gate: `tests/preset-gate/gate.py` 10/10. The `scdefault` run matches 1.11.3 on 314/314 lines, state blobs included. The full-perturb run has 72 differing lines, all expected: the factory presets omit the 4 `sc_*` params, which the module resets to their defaults (WR-01). 88 lines of 1.11.3 session blobs reopen identically. 8 factory files match. The sentinel rewrites 0 files at the same version and 8 when stale. With no in-list anchor, Prev now goes to the first preset, not the last (IN-03). auval and pluginval 5 pass. No old-vs-new render: the header is not on the audio path, and the parameter outcomes are gated.
 - [ ] O-DigiDelay `OuariconPresetManager.h` (drift)
 - [ ] O-DigiDelay `ui/public/modules/preset-manager.js` (drift)
 - [ ] O-Polystutter `ui/public/modules/preset-manager.js` (drift)
