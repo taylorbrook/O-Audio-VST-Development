@@ -1,0 +1,762 @@
+navFreshNext	Cathedral Wash
+navFreshPrev	Cathedral Wash
+count	24
+load	Cathedral Wash	1	current=Cathedral Wash	factory=1
+gesture	Cathedral Wash	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Cathedral Wash	time	0.949975014	1900.0
+applied:Cathedral Wash	sync	0	Off
+applied:Cathedral Wash	division	0.0909090936	1/8
+applied:Cathedral Wash	feedback	0.850000024	85.0
+applied:Cathedral Wash	spread	1	100.0
+applied:Cathedral Wash	mod	0.5	50.0
+applied:Cathedral Wash	wet	0.5	50.0
+applied:Cathedral Wash	dry	0.800000012	80.0
+applied:Cathedral Wash	bypass	1	On
+state	Cathedral Wash	408.VMjLg7X....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHCEFcnUFYxEFafbUXyglH9vCTAIUPMARZj0iHhkGbgM2bh.hcgwVck0iHw3BLh7hO7.UPRETSfjFY8HBYoYWZyk1atIBH1EFa0UVOhDiKvHxK9vCTAIUPMARZj0iHjIWdh.hcgwVck0iH3.iKvHxK9vCTAIUPMARZj0iHlUVYjIVXislHfXWXrUWY8HBN03BLh7hO7.UPRETSfjFY8HRauQlHfXWXrUWY8HRMv3BLh7hO7.UPRETSfjFY8HxbvIWYgQlHfXWXrUWY8HRLv.iKvHxK9vCTAIUPMARZj0iHykmaiIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHzkVakIBH1EFa0UVOhDSNv.iKvHxK9vCTAIUPMARZj0iH2UFch.hcgwVck0iH0.iKvHxK9vyKPElbg0VYzUlby4C.
+reopen:Cathedral Wash	time	0.949975014	1900.0
+reopen:Cathedral Wash	sync	0	Off
+reopen:Cathedral Wash	division	0.0909090936	1/8
+reopen:Cathedral Wash	feedback	0.850000024	85.0
+reopen:Cathedral Wash	spread	1	100.0
+reopen:Cathedral Wash	mod	0.5	50.0
+reopen:Cathedral Wash	wet	0.5	50.0
+reopen:Cathedral Wash	dry	0.800000012	80.0
+reopen:Cathedral Wash	bypass	1	On
+otherBuildBlob:Cathedral Wash	time	0.949975014	1900.0
+otherBuildBlob:Cathedral Wash	sync	0	Off
+otherBuildBlob:Cathedral Wash	division	0.0909090936	1/8
+otherBuildBlob:Cathedral Wash	feedback	0.850000024	85.0
+otherBuildBlob:Cathedral Wash	spread	1	100.0
+otherBuildBlob:Cathedral Wash	mod	0.5	50.0
+otherBuildBlob:Cathedral Wash	wet	0.5	50.0
+otherBuildBlob:Cathedral Wash	dry	0.800000012	80.0
+otherBuildBlob:Cathedral Wash	bypass	1	On
+load	Clean Repeat	1	current=Clean Repeat	factory=1
+gesture	Clean Repeat	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Clean Repeat	time	0.249624819	500.0
+applied:Clean Repeat	sync	0	Off
+applied:Clean Repeat	division	0.0909090936	1/8
+applied:Clean Repeat	feedback	0.550000012	55.0
+applied:Clean Repeat	spread	0	0.0
+applied:Clean Repeat	mod	0	0.0
+applied:Clean Repeat	wet	0.300000012	30.0
+applied:Clean Repeat	dry	1	100.0
+applied:Clean Repeat	bypass	1	On
+state	Clean Repeat	403.VMjLgnX....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHCwVYg4FHRUFbkEFch3COPEjTA0DHoQVOhHVdvE1byIBH1EFa0UVOhDiKvHxK9vCTAIUPMARZj0iHjklcoMWZu4lHfXWXrUWY8HRLt.iHu3COPEjTA0DHoQVOhPlb4IBH1EFa0UVOhDCLv3BLh7hO7.UPRETSfjFY8HhYkUFYhE1XqIBH1EFa0UVOhTSMt.iHu3COPEjTA0DHoQVOhz1ajIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHyAmbkEFYh.hcgwVck0iHv3BLh7hO7.UPRETSfjFY8Hxb441Xh.hcgwVck0iHv3BLh7hO7.UPRETSfjFY8HBco0VYh.hcgwVck0iH0.CLt.iHu3COPEjTA0DHoQVOhbWYzIBH1EFa0UVOhLCLt.iHu3COu.UXxEVakQWYxMmO..
+reopen:Clean Repeat	time	0.249624819	500.0
+reopen:Clean Repeat	sync	0	Off
+reopen:Clean Repeat	division	0.0909090936	1/8
+reopen:Clean Repeat	feedback	0.550000012	55.0
+reopen:Clean Repeat	spread	0	0.0
+reopen:Clean Repeat	mod	0	0.0
+reopen:Clean Repeat	wet	0.300000012	30.0
+reopen:Clean Repeat	dry	1	100.0
+reopen:Clean Repeat	bypass	1	On
+otherBuildBlob:Clean Repeat	time	0.249624819	500.0
+otherBuildBlob:Clean Repeat	sync	0	Off
+otherBuildBlob:Clean Repeat	division	0.0909090936	1/8
+otherBuildBlob:Clean Repeat	feedback	0.550000012	55.0
+otherBuildBlob:Clean Repeat	spread	0	0.0
+otherBuildBlob:Clean Repeat	mod	0	0.0
+otherBuildBlob:Clean Repeat	wet	0.300000012	30.0
+otherBuildBlob:Clean Repeat	dry	1	100.0
+otherBuildBlob:Clean Repeat	bypass	1	On
+load	Dotted Eighth	1	current=Dotted Eighth	factory=1
+gesture	Dotted Eighth	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Dotted Eighth	time	0.249624819	500.0
+applied:Dotted Eighth	sync	1	On
+applied:Dotted Eighth	division	0.363636374	1/8D
+applied:Dotted Eighth	feedback	0.349999994	35.0
+applied:Dotted Eighth	spread	0.300000012	30.0
+applied:Dotted Eighth	mod	0	0.0
+applied:Dotted Eighth	wet	0.400000006	40.0
+applied:Dotted Eighth	dry	1	100.0
+applied:Dotted Eighth	bypass	1	On
+state	Dotted Eighth	405.VMjLgvX....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHD8FczUFYfTTZmgFcnIhO7.UPRETSfjFY8HhX4AWXyMmHfXWXrUWY8HRLt.iHu3COPEjTA0DHoQVOhPVZ1k1bo8lah.hcgwVck0iHz3BLh7hO7.UPRETSfjFY8HBYxkmHfXWXrUWY8HRLv.iKvHxK9vCTAIUPMARZj0iHlUVYjIVXislHfXWXrUWY8HxL03BLh7hO7.UPRETSfjFY8HRauQlHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhLGbxUVXjIBH1EFa0UVOhLCLt.iHu3COPEjTA0DHoQVOhLWdtMlHfXWXrUWY8HRLt.iHu3COPEjTA0DHoQVOhPWZsUlHfXWXrUWY8HRMv.iKvHxK9vCTAIUPMARZj0iH2UFch.hcgwVck0iHz.iKvHxK9vyKPElbg0VYzUlby4C.
+reopen:Dotted Eighth	time	0.249624819	500.0
+reopen:Dotted Eighth	sync	1	On
+reopen:Dotted Eighth	division	0.363636374	1/8D
+reopen:Dotted Eighth	feedback	0.349999994	35.0
+reopen:Dotted Eighth	spread	0.300000012	30.0
+reopen:Dotted Eighth	mod	0	0.0
+reopen:Dotted Eighth	wet	0.400000006	40.0
+reopen:Dotted Eighth	dry	1	100.0
+reopen:Dotted Eighth	bypass	1	On
+otherBuildBlob:Dotted Eighth	time	0.249624819	500.0
+otherBuildBlob:Dotted Eighth	sync	1	On
+otherBuildBlob:Dotted Eighth	division	0.363636374	1/8D
+otherBuildBlob:Dotted Eighth	feedback	0.349999994	35.0
+otherBuildBlob:Dotted Eighth	spread	0.300000012	30.0
+otherBuildBlob:Dotted Eighth	mod	0	0.0
+otherBuildBlob:Dotted Eighth	wet	0.400000006	40.0
+otherBuildBlob:Dotted Eighth	dry	1	100.0
+otherBuildBlob:Dotted Eighth	bypass	1	On
+load	Dotted Quarter Space	1	current=Dotted Quarter Space	factory=1
+gesture	Dotted Quarter Space	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Dotted Quarter Space	time	0.249624819	500.0
+applied:Dotted Quarter Space	sync	1	On
+applied:Dotted Quarter Space	division	0.272727281	1/4D
+applied:Dotted Quarter Space	feedback	0.449999988	45.0
+applied:Dotted Quarter Space	spread	0.25	25.0
+applied:Dotted Quarter Space	mod	0.0500000007	5.0
+applied:Dotted Quarter Space	wet	0.300000012	30.0
+applied:Dotted Quarter Space	dry	1	100.0
+applied:Dotted Quarter Space	bypass	1	On
+state	Dotted Quarter Space	412.VMjLgLY....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHD8FczUFYfDUcgIGckIGHSAWXiUlH9vCTAIUPMARZj0iHhkGbgM2bh.hcgwVck0iHw3BLh7hO7.UPRETSfjFY8HBYoYWZyk1atIBH1EFa0UVOhLiKvHxK9vCTAIUPMARZj0iHjIWdh.hcgwVck0iHw.CLt.iHu3COPEjTA0DHoQVOhXVYkQlXgM1Zh.hcgwVck0iHzTiKvHxK9vCTAIUPMARZj0iHs8FYh.hcgwVck0iH03BLh7hO7.UPRETSfjFY8HxbvIWYgQlHfXWXrUWY8HhL03BLh7hO7.UPRETSfjFY8Hxb441Xh.hcgwVck0iHw3BLh7hO7.UPRETSfjFY8HBco0VYh.hcgwVck0iH0.CLt.iHu3COPEjTA0DHoQVOhbWYzIBH1EFa0UVOhLCLt.iHu3COu.UXxEVakQWYxMmO..
+reopen:Dotted Quarter Space	time	0.249624819	500.0
+reopen:Dotted Quarter Space	sync	1	On
+reopen:Dotted Quarter Space	division	0.272727281	1/4D
+reopen:Dotted Quarter Space	feedback	0.449999988	45.0
+reopen:Dotted Quarter Space	spread	0.25	25.0
+reopen:Dotted Quarter Space	mod	0.0500000007	5.0
+reopen:Dotted Quarter Space	wet	0.300000012	30.0
+reopen:Dotted Quarter Space	dry	1	100.0
+reopen:Dotted Quarter Space	bypass	1	On
+otherBuildBlob:Dotted Quarter Space	time	0.249624819	500.0
+otherBuildBlob:Dotted Quarter Space	sync	1	On
+otherBuildBlob:Dotted Quarter Space	division	0.272727281	1/4D
+otherBuildBlob:Dotted Quarter Space	feedback	0.449999988	45.0
+otherBuildBlob:Dotted Quarter Space	spread	0.25	25.0
+otherBuildBlob:Dotted Quarter Space	mod	0.0500000007	5.0
+otherBuildBlob:Dotted Quarter Space	wet	0.300000012	30.0
+otherBuildBlob:Dotted Quarter Space	dry	1	100.0
+otherBuildBlob:Dotted Quarter Space	bypass	1	On
+load	Dub Throw	1	current=Dub Throw	factory=1
+gesture	Dub Throw	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Dub Throw	time	0.249624819	500.0
+applied:Dub Throw	sync	1	On
+applied:Dub Throw	division	0.272727281	1/4D
+applied:Dub Throw	feedback	0.819999993	82.0
+applied:Dub Throw	spread	0.200000003	20.0
+applied:Dub Throw	mod	0.100000001	10.0
+applied:Dub Throw	wet	0.449999988	45.0
+applied:Dub Throw	dry	1	100.0
+applied:Dub Throw	bypass	1	On
+state	Dub Throw	402.VMjLgjX....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHDUmXfPEZx81ch3COPEjTA0DHoQVOhHVdvE1byIBH1EFa0UVOhDiKvHxK9vCTAIUPMARZj0iHjklcoMWZu4lHfXWXrUWY8HxLt.iHu3COPEjTA0DHoQVOhPlb4IBH1EFa0UVOhDCLv3BLh7hO7.UPRETSfjFY8HhYkUFYhE1XqIBH1EFa0UVOhfiLt.iHu3COPEjTA0DHoQVOhz1ajIBH1EFa0UVOhDCLt.iHu3COPEjTA0DHoQVOhLGbxUVXjIBH1EFa0UVOhHCLt.iHu3COPEjTA0DHoQVOhLWdtMlHfXWXrUWY8HRLt.iHu3COPEjTA0DHoQVOhPWZsUlHfXWXrUWY8HRMv.iKvHxK9vCTAIUPMARZj0iH2UFch.hcgwVck0iHzTiKvHxK9vyKPElbg0VYzUlby4C.
+reopen:Dub Throw	time	0.249624819	500.0
+reopen:Dub Throw	sync	1	On
+reopen:Dub Throw	division	0.272727281	1/4D
+reopen:Dub Throw	feedback	0.819999993	82.0
+reopen:Dub Throw	spread	0.200000003	20.0
+reopen:Dub Throw	mod	0.100000001	10.0
+reopen:Dub Throw	wet	0.449999988	45.0
+reopen:Dub Throw	dry	1	100.0
+reopen:Dub Throw	bypass	1	On
+otherBuildBlob:Dub Throw	time	0.249624819	500.0
+otherBuildBlob:Dub Throw	sync	1	On
+otherBuildBlob:Dub Throw	division	0.272727281	1/4D
+otherBuildBlob:Dub Throw	feedback	0.819999993	82.0
+otherBuildBlob:Dub Throw	spread	0.200000003	20.0
+otherBuildBlob:Dub Throw	mod	0.100000001	10.0
+otherBuildBlob:Dub Throw	wet	0.449999988	45.0
+otherBuildBlob:Dub Throw	dry	1	100.0
+otherBuildBlob:Dub Throw	bypass	1	On
+load	Eighth Note Sync	1	current=Eighth Note Sync	factory=1
+gesture	Eighth Note Sync	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Eighth Note Sync	time	0.249624819	500.0
+applied:Eighth Note Sync	sync	1	On
+applied:Eighth Note Sync	division	0.0909090936	1/8
+applied:Eighth Note Sync	feedback	0.400000006	40.0
+applied:Eighth Note Sync	spread	0.150000006	15.0
+applied:Eighth Note Sync	mod	0	0.0
+applied:Eighth Note Sync	wet	0.349999994	35.0
+applied:Eighth Note Sync	dry	1	100.0
+applied:Eighth Note Sync	bypass	1	On
+state	Eighth Note Sync	408.VMjLg7X....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHEk1YnQGZf3zazUFHSkmaiIhO7.UPRETSfjFY8HhX4AWXyMmHfXWXrUWY8HRLt.iHu3COPEjTA0DHoQVOhPVZ1k1bo8lah.hcgwVck0iHw3BLh7hO7.UPRETSfjFY8HBYxkmHfXWXrUWY8HRLv.iKvHxK9vCTAIUPMARZj0iHlUVYjIVXislHfXWXrUWY8HBMv3BLh7hO7.UPRETSfjFY8HRauQlHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhLGbxUVXjIBH1EFa0UVOhDSMt.iHu3COPEjTA0DHoQVOhLWdtMlHfXWXrUWY8HRLt.iHu3COPEjTA0DHoQVOhPWZsUlHfXWXrUWY8HRMv.iKvHxK9vCTAIUPMARZj0iH2UFch.hcgwVck0iHyTiKvHxK9vyKPElbg0VYzUlby4C.
+reopen:Eighth Note Sync	time	0.249624819	500.0
+reopen:Eighth Note Sync	sync	1	On
+reopen:Eighth Note Sync	division	0.0909090936	1/8
+reopen:Eighth Note Sync	feedback	0.400000006	40.0
+reopen:Eighth Note Sync	spread	0.150000006	15.0
+reopen:Eighth Note Sync	mod	0	0.0
+reopen:Eighth Note Sync	wet	0.349999994	35.0
+reopen:Eighth Note Sync	dry	1	100.0
+reopen:Eighth Note Sync	bypass	1	On
+otherBuildBlob:Eighth Note Sync	time	0.249624819	500.0
+otherBuildBlob:Eighth Note Sync	sync	1	On
+otherBuildBlob:Eighth Note Sync	division	0.0909090936	1/8
+otherBuildBlob:Eighth Note Sync	feedback	0.400000006	40.0
+otherBuildBlob:Eighth Note Sync	spread	0.150000006	15.0
+otherBuildBlob:Eighth Note Sync	mod	0	0.0
+otherBuildBlob:Eighth Note Sync	wet	0.349999994	35.0
+otherBuildBlob:Eighth Note Sync	dry	1	100.0
+otherBuildBlob:Eighth Note Sync	bypass	1	On
+load	Endless Repeats	1	current=Endless Repeats	factory=1
+gesture	Endless Repeats	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Endless Repeats	time	0.249624819	500.0
+applied:Endless Repeats	sync	1	On
+applied:Endless Repeats	division	0	1/4
+applied:Endless Repeats	feedback	0.949999988	95.0
+applied:Endless Repeats	spread	0.400000006	40.0
+applied:Endless Repeats	mod	0.0500000007	5.0
+applied:Endless Repeats	wet	0.5	50.0
+applied:Endless Repeats	dry	1	100.0
+applied:Endless Repeats	bypass	1	On
+state	Endless Repeats	407.VMjLg3X....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHE4FYrU1byAhTkAWYgQ2bh3COPEjTA0DHoQVOhHVdvE1byIBH1EFa0UVOhDiKvHxK9vCTAIUPMARZj0iHjklcoMWZu4lHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhPlb4IBH1EFa0UVOhDCLv3BLh7hO7.UPRETSfjFY8HhYkUFYhE1XqIBH1EFa0UVOhjSMt.iHu3COPEjTA0DHoQVOhz1ajIBH1EFa0UVOhTiKvHxK9vCTAIUPMARZj0iHyAmbkEFYh.hcgwVck0iHz.iKvHxK9vCTAIUPMARZj0iHykmaiIBH1EFa0UVOhDiKvHxK9vCTAIUPMARZj0iHzkVakIBH1EFa0UVOhTCLv3BLh7hO7.UPRETSfjFY8HxckQmHfXWXrUWY8HRMv3BLh7hO77BTgIWXsUFckI2b9..
+reopen:Endless Repeats	time	0.249624819	500.0
+reopen:Endless Repeats	sync	1	On
+reopen:Endless Repeats	division	0	1/4
+reopen:Endless Repeats	feedback	0.949999988	95.0
+reopen:Endless Repeats	spread	0.400000006	40.0
+reopen:Endless Repeats	mod	0.0500000007	5.0
+reopen:Endless Repeats	wet	0.5	50.0
+reopen:Endless Repeats	dry	1	100.0
+reopen:Endless Repeats	bypass	1	On
+otherBuildBlob:Endless Repeats	time	0.249624819	500.0
+otherBuildBlob:Endless Repeats	sync	1	On
+otherBuildBlob:Endless Repeats	division	0	1/4
+otherBuildBlob:Endless Repeats	feedback	0.949999988	95.0
+otherBuildBlob:Endless Repeats	spread	0.400000006	40.0
+otherBuildBlob:Endless Repeats	mod	0.0500000007	5.0
+otherBuildBlob:Endless Repeats	wet	0.5	50.0
+otherBuildBlob:Endless Repeats	dry	1	100.0
+otherBuildBlob:Endless Repeats	bypass	1	On
+load	Haas Widener	1	current=Haas Widener	factory=1
+gesture	Haas Widener	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Haas Widener	time	0.00350175076	8.0
+applied:Haas Widener	sync	0	Off
+applied:Haas Widener	division	0.0909090936	1/8
+applied:Haas Widener	feedback	0	0.0
+applied:Haas Widener	spread	0.800000012	80.0
+applied:Haas Widener	mod	0	0.0
+applied:Haas Widener	wet	0.349999994	35.0
+applied:Haas Widener	dry	1	100.0
+applied:Haas Widener	bypass	1	On
+state	Haas Widener	401.VMjLgfX....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHHEVXyAxUoQVYtUlbh3COPEjTA0DHoQVOhHVdvE1byIBH1EFa0UVOhDiKvHxK9vCTAIUPMARZj0iHjklcoMWZu4lHfXWXrUWY8HRLt.iHu3COPEjTA0DHoQVOhPlb4IBH1EFa0UVOhDCLv3BLh7hO7.UPRETSfjFY8HhYkUFYhE1XqIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHs8FYh.hcgwVck0iHv3BLh7hO7.UPRETSfjFY8HxbvIWYgQlHfXWXrUWY8HBNv3BLh7hO7.UPRETSfjFY8Hxb441Xh.hcgwVck0iHv3BLh7hO7.UPRETSfjFY8HBco0VYh.hcgwVck0iH33BLh7hO7.UPRETSfjFY8HxckQmHfXWXrUWY8HxL03BLh7hO77BTgIWXsUFckI2b9..
+reopen:Haas Widener	time	0.00350175076	8.0
+reopen:Haas Widener	sync	0	Off
+reopen:Haas Widener	division	0.0909090936	1/8
+reopen:Haas Widener	feedback	0	0.0
+reopen:Haas Widener	spread	0.800000012	80.0
+reopen:Haas Widener	mod	0	0.0
+reopen:Haas Widener	wet	0.349999994	35.0
+reopen:Haas Widener	dry	1	100.0
+reopen:Haas Widener	bypass	1	On
+otherBuildBlob:Haas Widener	time	0.00350175076	8.0
+otherBuildBlob:Haas Widener	sync	0	Off
+otherBuildBlob:Haas Widener	division	0.0909090936	1/8
+otherBuildBlob:Haas Widener	feedback	0	0.0
+otherBuildBlob:Haas Widener	spread	0.800000012	80.0
+otherBuildBlob:Haas Widener	mod	0	0.0
+otherBuildBlob:Haas Widener	wet	0.349999994	35.0
+otherBuildBlob:Haas Widener	dry	1	100.0
+otherBuildBlob:Haas Widener	bypass	1	On
+load	Lo-Fi Drift	1	current=Lo-Fi Drift	factory=1
+gesture	Lo-Fi Drift	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Lo-Fi Drift	time	0.299649835	600.0
+applied:Lo-Fi Drift	sync	0	Off
+applied:Lo-Fi Drift	division	0.0909090936	1/8
+applied:Lo-Fi Drift	feedback	0.5	50.0
+applied:Lo-Fi Drift	spread	0.349999994	35.0
+applied:Lo-Fi Drift	mod	0.699999988	70.0
+applied:Lo-Fi Drift	wet	0.400000006	40.0
+applied:Lo-Fi Drift	dry	0.850000024	85.0
+applied:Lo-Fi Drift	bypass	1	On
+state	Lo-Fi Drift	403.VMjLgnX....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHL8VKFkFHDIWZlQmH9vCTAIUPMARZj0iHhkGbgM2bh.hcgwVck0iHw3BLh7hO7.UPRETSfjFY8HBYoYWZyk1atIBH1EFa0UVOhDiKvHxK9vCTAIUPMARZj0iHjIWdh.hcgwVck0iH3TiKvHxK9vCTAIUPMARZj0iHlUVYjIVXislHfXWXrUWY8HRMv3BLh7hO7.UPRETSfjFY8HRauQlHfXWXrUWY8HxMv3BLh7hO7.UPRETSfjFY8HxbvIWYgQlHfXWXrUWY8HxL03BLh7hO7.UPRETSfjFY8Hxb441Xh.hcgwVck0iHv3BLh7hO7.UPRETSfjFY8HBco0VYh.hcgwVck0iH1.CLt.iHu3COPEjTA0DHoQVOhbWYzIBH1EFa0UVOhPCLt.iHu3COu.UXxEVakQWYxMmO..
+reopen:Lo-Fi Drift	time	0.299649835	600.0
+reopen:Lo-Fi Drift	sync	0	Off
+reopen:Lo-Fi Drift	division	0.0909090936	1/8
+reopen:Lo-Fi Drift	feedback	0.5	50.0
+reopen:Lo-Fi Drift	spread	0.349999994	35.0
+reopen:Lo-Fi Drift	mod	0.699999988	70.0
+reopen:Lo-Fi Drift	wet	0.400000006	40.0
+reopen:Lo-Fi Drift	dry	0.850000024	85.0
+reopen:Lo-Fi Drift	bypass	1	On
+otherBuildBlob:Lo-Fi Drift	time	0.299649835	600.0
+otherBuildBlob:Lo-Fi Drift	sync	0	Off
+otherBuildBlob:Lo-Fi Drift	division	0.0909090936	1/8
+otherBuildBlob:Lo-Fi Drift	feedback	0.5	50.0
+otherBuildBlob:Lo-Fi Drift	spread	0.349999994	35.0
+otherBuildBlob:Lo-Fi Drift	mod	0.699999988	70.0
+otherBuildBlob:Lo-Fi Drift	wet	0.400000006	40.0
+otherBuildBlob:Lo-Fi Drift	dry	0.850000024	85.0
+otherBuildBlob:Lo-Fi Drift	bypass	1	On
+load	Long Ambient	1	current=Long Ambient	factory=1
+gesture	Long Ambient	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Long Ambient	time	0.399699837	800.0
+applied:Long Ambient	sync	0	Off
+applied:Long Ambient	division	0.0909090936	1/8
+applied:Long Ambient	feedback	0.649999976	65.0
+applied:Long Ambient	spread	0.400000006	40.0
+applied:Long Ambient	mod	0.349999994	35.0
+applied:Long Ambient	wet	0.449999988	45.0
+applied:Long Ambient	dry	0.800000012	80.0
+applied:Long Ambient	bypass	1	On
+state	Long Ambient	404.VMjLgrX....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHL8lamARPsIVZk4Fch3COPEjTA0DHoQVOhHVdvE1byIBH1EFa0UVOhDiKvHxK9vCTAIUPMARZj0iHjklcoMWZu4lHfXWXrUWY8HRLt.iHu3COPEjTA0DHoQVOhPlb4IBH1EFa0UVOhfCLt.iHu3COPEjTA0DHoQVOhXVYkQlXgM1Zh.hcgwVck0iH1TiKvHxK9vCTAIUPMARZj0iHs8FYh.hcgwVck0iHyTiKvHxK9vCTAIUPMARZj0iHyAmbkEFYh.hcgwVck0iHz.iKvHxK9vCTAIUPMARZj0iHykmaiIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHzkVakIBH1EFa0UVOhfCLv3BLh7hO7.UPRETSfjFY8HxckQmHfXWXrUWY8HBM03BLh7hO77BTgIWXsUFckI2b9..
+reopen:Long Ambient	time	0.399699837	800.0
+reopen:Long Ambient	sync	0	Off
+reopen:Long Ambient	division	0.0909090936	1/8
+reopen:Long Ambient	feedback	0.649999976	65.0
+reopen:Long Ambient	spread	0.400000006	40.0
+reopen:Long Ambient	mod	0.349999994	35.0
+reopen:Long Ambient	wet	0.449999988	45.0
+reopen:Long Ambient	dry	0.800000012	80.0
+reopen:Long Ambient	bypass	1	On
+otherBuildBlob:Long Ambient	time	0.399699837	800.0
+otherBuildBlob:Long Ambient	sync	0	Off
+otherBuildBlob:Long Ambient	division	0.0909090936	1/8
+otherBuildBlob:Long Ambient	feedback	0.649999976	65.0
+otherBuildBlob:Long Ambient	spread	0.400000006	40.0
+otherBuildBlob:Long Ambient	mod	0.349999994	35.0
+otherBuildBlob:Long Ambient	wet	0.449999988	45.0
+otherBuildBlob:Long Ambient	dry	0.800000012	80.0
+otherBuildBlob:Long Ambient	bypass	1	On
+load	Ping Pong Style	1	current=Ping Pong Style	factory=1
+gesture	Ping Pong Style	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Ping Pong Style	time	0.174587294	350.0
+applied:Ping Pong Style	sync	0	Off
+applied:Ping Pong Style	division	0.0909090936	1/8
+applied:Ping Pong Style	feedback	0.5	50.0
+applied:Ping Pong Style	spread	1	100.0
+applied:Ping Pong Style	mod	0.0500000007	5.0
+applied:Ping Pong Style	wet	0.449999988	45.0
+applied:Ping Pong Style	dry	0.899999976	90.0
+applied:Ping Pong Style	bypass	1	On
+state	Ping Pong Style	407.VMjLg3X....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHPklamABTu41YfLEc4wVYh3COPEjTA0DHoQVOhHVdvE1byIBH1EFa0UVOhDiKvHxK9vCTAIUPMARZj0iHjklcoMWZu4lHfXWXrUWY8HRLt.iHu3COPEjTA0DHoQVOhPlb4IBH1EFa0UVOhjCLt.iHu3COPEjTA0DHoQVOhXVYkQlXgM1Zh.hcgwVck0iH0.iKvHxK9vCTAIUPMARZj0iHs8FYh.hcgwVck0iH03BLh7hO7.UPRETSfjFY8HxbvIWYgQlHfXWXrUWY8HRLv.iKvHxK9vCTAIUPMARZj0iHykmaiIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHzkVakIBH1EFa0UVOhLSMv3BLh7hO7.UPRETSfjFY8HxckQmHfXWXrUWY8HBM03BLh7hO77BTgIWXsUFckI2b9..
+reopen:Ping Pong Style	time	0.174587294	350.0
+reopen:Ping Pong Style	sync	0	Off
+reopen:Ping Pong Style	division	0.0909090936	1/8
+reopen:Ping Pong Style	feedback	0.5	50.0
+reopen:Ping Pong Style	spread	1	100.0
+reopen:Ping Pong Style	mod	0.0500000007	5.0
+reopen:Ping Pong Style	wet	0.449999988	45.0
+reopen:Ping Pong Style	dry	0.899999976	90.0
+reopen:Ping Pong Style	bypass	1	On
+otherBuildBlob:Ping Pong Style	time	0.174587294	350.0
+otherBuildBlob:Ping Pong Style	sync	0	Off
+otherBuildBlob:Ping Pong Style	division	0.0909090936	1/8
+otherBuildBlob:Ping Pong Style	feedback	0.5	50.0
+otherBuildBlob:Ping Pong Style	spread	1	100.0
+otherBuildBlob:Ping Pong Style	mod	0.0500000007	5.0
+otherBuildBlob:Ping Pong Style	wet	0.449999988	45.0
+otherBuildBlob:Ping Pong Style	dry	0.899999976	90.0
+otherBuildBlob:Ping Pong Style	bypass	1	On
+load	Quarter Note Echo	1	current=Quarter Note Echo	factory=1
+gesture	Quarter Note Echo	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Quarter Note Echo	time	0.249624819	500.0
+applied:Quarter Note Echo	sync	1	On
+applied:Quarter Note Echo	division	0	1/4
+applied:Quarter Note Echo	feedback	0.349999994	35.0
+applied:Quarter Note Echo	spread	0.100000001	10.0
+applied:Quarter Note Echo	mod	0	0.0
+applied:Quarter Note Echo	wet	0.300000012	30.0
+applied:Quarter Note Echo	dry	1	100.0
+applied:Quarter Note Echo	bypass	1	On
+state	Quarter Note Echo	409.VMjLg.Y....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHQUWXxQWYxAhSuQWYfTzXn8lH9vCTAIUPMARZj0iHhkGbgM2bh.hcgwVck0iHw3BLh7hO7.UPRETSfjFY8HBYoYWZyk1atIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHjIWdh.hcgwVck0iHw.CLt.iHu3COPEjTA0DHoQVOhXVYkQlXgM1Zh.hcgwVck0iHyTiKvHxK9vCTAIUPMARZj0iHs8FYh.hcgwVck0iHv3BLh7hO7.UPRETSfjFY8HxbvIWYgQlHfXWXrUWY8HRLv3BLh7hO7.UPRETSfjFY8Hxb441Xh.hcgwVck0iHw3BLh7hO7.UPRETSfjFY8HBco0VYh.hcgwVck0iH0.CLt.iHu3COPEjTA0DHoQVOhbWYzIBH1EFa0UVOhLCLt.iHu3COu.UXxEVakQWYxMmO..
+reopen:Quarter Note Echo	time	0.249624819	500.0
+reopen:Quarter Note Echo	sync	1	On
+reopen:Quarter Note Echo	division	0	1/4
+reopen:Quarter Note Echo	feedback	0.349999994	35.0
+reopen:Quarter Note Echo	spread	0.100000001	10.0
+reopen:Quarter Note Echo	mod	0	0.0
+reopen:Quarter Note Echo	wet	0.300000012	30.0
+reopen:Quarter Note Echo	dry	1	100.0
+reopen:Quarter Note Echo	bypass	1	On
+otherBuildBlob:Quarter Note Echo	time	0.249624819	500.0
+otherBuildBlob:Quarter Note Echo	sync	1	On
+otherBuildBlob:Quarter Note Echo	division	0	1/4
+otherBuildBlob:Quarter Note Echo	feedback	0.349999994	35.0
+otherBuildBlob:Quarter Note Echo	spread	0.100000001	10.0
+otherBuildBlob:Quarter Note Echo	mod	0	0.0
+otherBuildBlob:Quarter Note Echo	wet	0.300000012	30.0
+otherBuildBlob:Quarter Note Echo	dry	1	100.0
+otherBuildBlob:Quarter Note Echo	bypass	1	On
+load	Quintuplet Scatter	1	current=Quintuplet Scatter	factory=1
+gesture	Quintuplet Scatter	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Quintuplet Scatter	time	0.249624819	500.0
+applied:Quintuplet Scatter	sync	1	On
+applied:Quintuplet Scatter	division	0.909090936	1/8(5)
+applied:Quintuplet Scatter	feedback	0.449999988	45.0
+applied:Quintuplet Scatter	spread	0.349999994	35.0
+applied:Quintuplet Scatter	mod	0	0.0
+applied:Quintuplet Scatter	wet	0.349999994	35.0
+applied:Quintuplet Scatter	dry	1	100.0
+applied:Quintuplet Scatter	bypass	1	On
+state	Quintuplet Scatter	411.VMjLgHY....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHQUWZtQWcvwVYzAxTiEFczUlbh3COPEjTA0DHoQVOhHVdvE1byIBH1EFa0UVOhDiKvHxK9vCTAIUPMARZj0iHjklcoMWZu4lHfXWXrUWY8HRLv3BLh7hO7.UPRETSfjFY8HBYxkmHfXWXrUWY8HRLv.iKvHxK9vCTAIUPMARZj0iHlUVYjIVXislHfXWXrUWY8HBM03BLh7hO7.UPRETSfjFY8HRauQlHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhLGbxUVXjIBH1EFa0UVOhLSMt.iHu3COPEjTA0DHoQVOhLWdtMlHfXWXrUWY8HRLt.iHu3COPEjTA0DHoQVOhPWZsUlHfXWXrUWY8HRMv.iKvHxK9vCTAIUPMARZj0iH2UFch.hcgwVck0iHyTiKvHxK9vyKPElbg0VYzUlby4C.
+reopen:Quintuplet Scatter	time	0.249624819	500.0
+reopen:Quintuplet Scatter	sync	1	On
+reopen:Quintuplet Scatter	division	0.909090936	1/8(5)
+reopen:Quintuplet Scatter	feedback	0.449999988	45.0
+reopen:Quintuplet Scatter	spread	0.349999994	35.0
+reopen:Quintuplet Scatter	mod	0	0.0
+reopen:Quintuplet Scatter	wet	0.349999994	35.0
+reopen:Quintuplet Scatter	dry	1	100.0
+reopen:Quintuplet Scatter	bypass	1	On
+otherBuildBlob:Quintuplet Scatter	time	0.249624819	500.0
+otherBuildBlob:Quintuplet Scatter	sync	1	On
+otherBuildBlob:Quintuplet Scatter	division	0.909090936	1/8(5)
+otherBuildBlob:Quintuplet Scatter	feedback	0.449999988	45.0
+otherBuildBlob:Quintuplet Scatter	spread	0.349999994	35.0
+otherBuildBlob:Quintuplet Scatter	mod	0	0.0
+otherBuildBlob:Quintuplet Scatter	wet	0.349999994	35.0
+otherBuildBlob:Quintuplet Scatter	dry	1	100.0
+otherBuildBlob:Quintuplet Scatter	bypass	1	On
+load	Resonant Comb	1	current=Resonant Comb	factory=1
+gesture	Resonant Comb	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Resonant Comb	time	0.00550275156	12.0
+applied:Resonant Comb	sync	0	Off
+applied:Resonant Comb	division	0.0909090936	1/8
+applied:Resonant Comb	feedback	0.800000012	80.0
+applied:Resonant Comb	spread	0	0.0
+applied:Resonant Comb	mod	0.0299999993	3.0
+applied:Resonant Comb	wet	0.200000003	20.0
+applied:Resonant Comb	dry	1	100.0
+applied:Resonant Comb	bypass	1	On
+state	Resonant Comb	403.VMjLgnX....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHRU1bu4VXtQGHC8VahIhO7.UPRETSfjFY8HhX4AWXyMmHfXWXrUWY8HRLt.iHu3COPEjTA0DHoQVOhPVZ1k1bo8lah.hcgwVck0iHw3BLh7hO7.UPRETSfjFY8HBYxkmHfXWXrUWY8HRLv.iKvHxK9vCTAIUPMARZj0iHlUVYjIVXislHfXWXrUWY8HBNv3BLh7hO7.UPRETSfjFY8HRauQlHfXWXrUWY8HxLt.iHu3COPEjTA0DHoQVOhLGbxUVXjIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHykmaiIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHzkVakIBH1EFa0UVOhDiLt.iHu3COPEjTA0DHoQVOhbWYzIBH1EFa0UVOhHCLt.iHu3COu.UXxEVakQWYxMmO..
+reopen:Resonant Comb	time	0.00550275156	12.0
+reopen:Resonant Comb	sync	0	Off
+reopen:Resonant Comb	division	0.0909090936	1/8
+reopen:Resonant Comb	feedback	0.800000012	80.0
+reopen:Resonant Comb	spread	0	0.0
+reopen:Resonant Comb	mod	0.0299999993	3.0
+reopen:Resonant Comb	wet	0.200000003	20.0
+reopen:Resonant Comb	dry	1	100.0
+reopen:Resonant Comb	bypass	1	On
+otherBuildBlob:Resonant Comb	time	0.00550275156	12.0
+otherBuildBlob:Resonant Comb	sync	0	Off
+otherBuildBlob:Resonant Comb	division	0.0909090936	1/8
+otherBuildBlob:Resonant Comb	feedback	0.800000012	80.0
+otherBuildBlob:Resonant Comb	spread	0	0.0
+otherBuildBlob:Resonant Comb	mod	0.0299999993	3.0
+otherBuildBlob:Resonant Comb	wet	0.200000003	20.0
+otherBuildBlob:Resonant Comb	dry	1	100.0
+otherBuildBlob:Resonant Comb	bypass	1	On
+load	Runaway	1	current=Runaway	factory=1
+gesture	Runaway	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Runaway	time	0.187093541	375.0
+applied:Runaway	sync	0	Off
+applied:Runaway	division	0.0909090936	1/8
+applied:Runaway	feedback	0.920000017	92.0
+applied:Runaway	spread	0.300000012	30.0
+applied:Runaway	mod	0.150000006	15.0
+applied:Runaway	wet	0.5	50.0
+applied:Runaway	dry	0.899999976	90.0
+applied:Runaway	bypass	1	On
+state	Runaway	399.VMjLgXX....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHRUmagcWX4IhO7.UPRETSfjFY8HhX4AWXyMmHfXWXrUWY8HRLt.iHu3COPEjTA0DHoQVOhPVZ1k1bo8lah.hcgwVck0iHw3BLh7hO7.UPRETSfjFY8HBYxkmHfXWXrUWY8HRNv3BLh7hO7.UPRETSfjFY8HhYkUFYhE1XqIBH1EFa0UVOhjiLt.iHu3COPEjTA0DHoQVOhz1ajIBH1EFa0UVOhDSMt.iHu3COPEjTA0DHoQVOhLGbxUVXjIBH1EFa0UVOhLCLt.iHu3COPEjTA0DHoQVOhLWdtMlHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhPWZsUlHfXWXrUWY8HxL2TiKvHxK9vCTAIUPMARZj0iH2UFch.hcgwVck0iH0.iKvHxK9vyKPElbg0VYzUlby4C.
+reopen:Runaway	time	0.187093541	375.0
+reopen:Runaway	sync	0	Off
+reopen:Runaway	division	0.0909090936	1/8
+reopen:Runaway	feedback	0.920000017	92.0
+reopen:Runaway	spread	0.300000012	30.0
+reopen:Runaway	mod	0.150000006	15.0
+reopen:Runaway	wet	0.5	50.0
+reopen:Runaway	dry	0.899999976	90.0
+reopen:Runaway	bypass	1	On
+otherBuildBlob:Runaway	time	0.187093541	375.0
+otherBuildBlob:Runaway	sync	0	Off
+otherBuildBlob:Runaway	division	0.0909090936	1/8
+otherBuildBlob:Runaway	feedback	0.920000017	92.0
+otherBuildBlob:Runaway	spread	0.300000012	30.0
+otherBuildBlob:Runaway	mod	0.150000006	15.0
+otherBuildBlob:Runaway	wet	0.5	50.0
+otherBuildBlob:Runaway	dry	0.899999976	90.0
+otherBuildBlob:Runaway	bypass	1	On
+load	Short Slap	1	current=Short Slap	factory=1
+gesture	Short Slap	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Short Slap	time	0.0370185077	75.0
+applied:Short Slap	sync	0	Off
+applied:Short Slap	division	0.0909090936	1/8
+applied:Short Slap	feedback	0.150000006	15.0
+applied:Short Slap	spread	0.200000003	20.0
+applied:Short Slap	mod	0	0.0
+applied:Short Slap	wet	0.349999994	35.0
+applied:Short Slap	dry	1	100.0
+applied:Short Slap	bypass	1	On
+state	Short Slap	401.VMjLgfX....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHSg1axQGHSwVXvIhO7.UPRETSfjFY8HhX4AWXyMmHfXWXrUWY8HRLt.iHu3COPEjTA0DHoQVOhPVZ1k1bo8lah.hcgwVck0iHw3BLh7hO7.UPRETSfjFY8HBYxkmHfXWXrUWY8HRLv.iKvHxK9vCTAIUPMARZj0iHlUVYjIVXislHfXWXrUWY8HRL03BLh7hO7.UPRETSfjFY8HRauQlHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhLGbxUVXjIBH1EFa0UVOhHCLt.iHu3COPEjTA0DHoQVOhLWdtMlHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhPWZsUlHfXWXrUWY8HxM03BLh7hO7.UPRETSfjFY8HxckQmHfXWXrUWY8HxL03BLh7hO77BTgIWXsUFckI2b9..
+reopen:Short Slap	time	0.0370185077	75.0
+reopen:Short Slap	sync	0	Off
+reopen:Short Slap	division	0.0909090936	1/8
+reopen:Short Slap	feedback	0.150000006	15.0
+reopen:Short Slap	spread	0.200000003	20.0
+reopen:Short Slap	mod	0	0.0
+reopen:Short Slap	wet	0.349999994	35.0
+reopen:Short Slap	dry	1	100.0
+reopen:Short Slap	bypass	1	On
+otherBuildBlob:Short Slap	time	0.0370185077	75.0
+otherBuildBlob:Short Slap	sync	0	Off
+otherBuildBlob:Short Slap	division	0.0909090936	1/8
+otherBuildBlob:Short Slap	feedback	0.150000006	15.0
+otherBuildBlob:Short Slap	spread	0.200000003	20.0
+otherBuildBlob:Short Slap	mod	0	0.0
+otherBuildBlob:Short Slap	wet	0.349999994	35.0
+otherBuildBlob:Short Slap	dry	1	100.0
+otherBuildBlob:Short Slap	bypass	1	On
+load	Sixteenth Stutter	1	current=Sixteenth Stutter	factory=1
+gesture	Sixteenth Stutter	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Sixteenth Stutter	time	0.249624819	500.0
+applied:Sixteenth Stutter	sync	1	On
+applied:Sixteenth Stutter	division	0.181818187	1/16
+applied:Sixteenth Stutter	feedback	0.550000012	55.0
+applied:Sixteenth Stutter	spread	0	0.0
+applied:Sixteenth Stutter	mod	0	0.0
+applied:Sixteenth Stutter	wet	0.349999994	35.0
+applied:Sixteenth Stutter	dry	1	100.0
+applied:Sixteenth Stutter	bypass	1	On
+state	Sixteenth Stutter	408.VMjLg7X....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHSkFdzUVYtQGZfLEc0QGckImH9vCTAIUPMARZj0iHhkGbgM2bh.hcgwVck0iHw3BLh7hO7.UPRETSfjFY8HBYoYWZyk1atIBH1EFa0UVOhHiKvHxK9vCTAIUPMARZj0iHjIWdh.hcgwVck0iHw.CLt.iHu3COPEjTA0DHoQVOhXVYkQlXgM1Zh.hcgwVck0iH0TiKvHxK9vCTAIUPMARZj0iHs8FYh.hcgwVck0iHv3BLh7hO7.UPRETSfjFY8HxbvIWYgQlHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhLWdtMlHfXWXrUWY8HRLt.iHu3COPEjTA0DHoQVOhPWZsUlHfXWXrUWY8HRMv.iKvHxK9vCTAIUPMARZj0iH2UFch.hcgwVck0iHyTiKvHxK9vyKPElbg0VYzUlby4C.
+reopen:Sixteenth Stutter	time	0.249624819	500.0
+reopen:Sixteenth Stutter	sync	1	On
+reopen:Sixteenth Stutter	division	0.181818187	1/16
+reopen:Sixteenth Stutter	feedback	0.550000012	55.0
+reopen:Sixteenth Stutter	spread	0	0.0
+reopen:Sixteenth Stutter	mod	0	0.0
+reopen:Sixteenth Stutter	wet	0.349999994	35.0
+reopen:Sixteenth Stutter	dry	1	100.0
+reopen:Sixteenth Stutter	bypass	1	On
+otherBuildBlob:Sixteenth Stutter	time	0.249624819	500.0
+otherBuildBlob:Sixteenth Stutter	sync	1	On
+otherBuildBlob:Sixteenth Stutter	division	0.181818187	1/16
+otherBuildBlob:Sixteenth Stutter	feedback	0.550000012	55.0
+otherBuildBlob:Sixteenth Stutter	spread	0	0.0
+otherBuildBlob:Sixteenth Stutter	mod	0	0.0
+otherBuildBlob:Sixteenth Stutter	wet	0.349999994	35.0
+otherBuildBlob:Sixteenth Stutter	dry	1	100.0
+otherBuildBlob:Sixteenth Stutter	bypass	1	On
+load	Sixteenth Triplet Roll	1	current=Sixteenth Triplet Roll	factory=1
+gesture	Sixteenth Triplet Roll	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Sixteenth Triplet Roll	time	0.249624819	500.0
+applied:Sixteenth Triplet Roll	sync	1	On
+applied:Sixteenth Triplet Roll	division	0.727272749	1/16T
+applied:Sixteenth Triplet Roll	feedback	0.5	50.0
+applied:Sixteenth Triplet Roll	spread	0.100000001	10.0
+applied:Sixteenth Triplet Roll	mod	0	0.0
+applied:Sixteenth Triplet Roll	wet	0.300000012	30.0
+applied:Sixteenth Triplet Roll	dry	1	100.0
+applied:Sixteenth Triplet Roll	bypass	1	On
+state	Sixteenth Triplet Roll	414.VMjLgTY....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHSkFdzUVYtQGZfPkboAGakQGHR8FarIhO7.UPRETSfjFY8HhX4AWXyMmHfXWXrUWY8HRLt.iHu3COPEjTA0DHoQVOhPVZ1k1bo8lah.hcgwVck0iH33BLh7hO7.UPRETSfjFY8HBYxkmHfXWXrUWY8HRLv.iKvHxK9vCTAIUPMARZj0iHlUVYjIVXislHfXWXrUWY8HRMv3BLh7hO7.UPRETSfjFY8HRauQlHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhLGbxUVXjIBH1EFa0UVOhDCLt.iHu3COPEjTA0DHoQVOhLWdtMlHfXWXrUWY8HRLt.iHu3COPEjTA0DHoQVOhPWZsUlHfXWXrUWY8HRMv.iKvHxK9vCTAIUPMARZj0iH2UFch.hcgwVck0iHy.iKvHxK9vyKPElbg0VYzUlby4C.
+reopen:Sixteenth Triplet Roll	time	0.249624819	500.0
+reopen:Sixteenth Triplet Roll	sync	1	On
+reopen:Sixteenth Triplet Roll	division	0.727272749	1/16T
+reopen:Sixteenth Triplet Roll	feedback	0.5	50.0
+reopen:Sixteenth Triplet Roll	spread	0.100000001	10.0
+reopen:Sixteenth Triplet Roll	mod	0	0.0
+reopen:Sixteenth Triplet Roll	wet	0.300000012	30.0
+reopen:Sixteenth Triplet Roll	dry	1	100.0
+reopen:Sixteenth Triplet Roll	bypass	1	On
+otherBuildBlob:Sixteenth Triplet Roll	time	0.249624819	500.0
+otherBuildBlob:Sixteenth Triplet Roll	sync	1	On
+otherBuildBlob:Sixteenth Triplet Roll	division	0.727272749	1/16T
+otherBuildBlob:Sixteenth Triplet Roll	feedback	0.5	50.0
+otherBuildBlob:Sixteenth Triplet Roll	spread	0.100000001	10.0
+otherBuildBlob:Sixteenth Triplet Roll	mod	0	0.0
+otherBuildBlob:Sixteenth Triplet Roll	wet	0.300000012	30.0
+otherBuildBlob:Sixteenth Triplet Roll	dry	1	100.0
+otherBuildBlob:Sixteenth Triplet Roll	bypass	1	On
+load	Slow Chorus	1	current=Slow Chorus	factory=1
+gesture	Slow Chorus	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Slow Chorus	time	0.00850425195	18.0
+applied:Slow Chorus	sync	0	Off
+applied:Slow Chorus	division	0.0909090936	1/8
+applied:Slow Chorus	feedback	0.200000003	20.0
+applied:Slow Chorus	spread	0.400000006	40.0
+applied:Slow Chorus	mod	0.600000024	60.0
+applied:Slow Chorus	wet	0.449999988	45.0
+applied:Slow Chorus	dry	1	100.0
+applied:Slow Chorus	bypass	1	On
+state	Slow Chorus	403.VMjLgnX....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHSw1a2AxPn8lb0MmH9vCTAIUPMARZj0iHhkGbgM2bh.hcgwVck0iHw3BLh7hO7.UPRETSfjFY8HBYoYWZyk1atIBH1EFa0UVOhDiKvHxK9vCTAIUPMARZj0iHjIWdh.hcgwVck0iHw.CLt.iHu3COPEjTA0DHoQVOhXVYkQlXgM1Zh.hcgwVck0iHx.iKvHxK9vCTAIUPMARZj0iHs8FYh.hcgwVck0iH1.iKvHxK9vCTAIUPMARZj0iHyAmbkEFYh.hcgwVck0iHz.iKvHxK9vCTAIUPMARZj0iHykmaiIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHzkVakIBH1EFa0UVOhDCNt.iHu3COPEjTA0DHoQVOhbWYzIBH1EFa0UVOhPSMt.iHu3COu.UXxEVakQWYxMmO..
+reopen:Slow Chorus	time	0.00850425195	18.0
+reopen:Slow Chorus	sync	0	Off
+reopen:Slow Chorus	division	0.0909090936	1/8
+reopen:Slow Chorus	feedback	0.200000003	20.0
+reopen:Slow Chorus	spread	0.400000006	40.0
+reopen:Slow Chorus	mod	0.600000024	60.0
+reopen:Slow Chorus	wet	0.449999988	45.0
+reopen:Slow Chorus	dry	1	100.0
+reopen:Slow Chorus	bypass	1	On
+otherBuildBlob:Slow Chorus	time	0.00850425195	18.0
+otherBuildBlob:Slow Chorus	sync	0	Off
+otherBuildBlob:Slow Chorus	division	0.0909090936	1/8
+otherBuildBlob:Slow Chorus	feedback	0.200000003	20.0
+otherBuildBlob:Slow Chorus	spread	0.400000006	40.0
+otherBuildBlob:Slow Chorus	mod	0.600000024	60.0
+otherBuildBlob:Slow Chorus	wet	0.449999988	45.0
+otherBuildBlob:Slow Chorus	dry	1	100.0
+otherBuildBlob:Slow Chorus	bypass	1	On
+load	Stereo Wide	1	current=Stereo Wide	factory=1
+gesture	Stereo Wide	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Stereo Wide	time	0.199599802	400.0
+applied:Stereo Wide	sync	0	Off
+applied:Stereo Wide	division	0.0909090936	1/8
+applied:Stereo Wide	feedback	0.349999994	35.0
+applied:Stereo Wide	spread	1	100.0
+applied:Stereo Wide	mod	0.100000001	10.0
+applied:Stereo Wide	wet	0.400000006	40.0
+applied:Stereo Wide	dry	1	100.0
+applied:Stereo Wide	bypass	1	On
+state	Stereo Wide	405.VMjLgvX....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHSQWYxU1afbUZjUlH9vCTAIUPMARZj0iHhkGbgM2bh.hcgwVck0iHw3BLh7hO7.UPRETSfjFY8HBYoYWZyk1atIBH1EFa0UVOhDiKvHxK9vCTAIUPMARZj0iHjIWdh.hcgwVck0iHw.CLt.iHu3COPEjTA0DHoQVOhXVYkQlXgM1Zh.hcgwVck0iHyTiKvHxK9vCTAIUPMARZj0iHs8FYh.hcgwVck0iHw.iKvHxK9vCTAIUPMARZj0iHyAmbkEFYh.hcgwVck0iHw.CLt.iHu3COPEjTA0DHoQVOhLWdtMlHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhPWZsUlHfXWXrUWY8HBMv.iKvHxK9vCTAIUPMARZj0iH2UFch.hcgwVck0iHz.iKvHxK9vyKPElbg0VYzUlby4C.
+reopen:Stereo Wide	time	0.199599802	400.0
+reopen:Stereo Wide	sync	0	Off
+reopen:Stereo Wide	division	0.0909090936	1/8
+reopen:Stereo Wide	feedback	0.349999994	35.0
+reopen:Stereo Wide	spread	1	100.0
+reopen:Stereo Wide	mod	0.100000001	10.0
+reopen:Stereo Wide	wet	0.400000006	40.0
+reopen:Stereo Wide	dry	1	100.0
+reopen:Stereo Wide	bypass	1	On
+otherBuildBlob:Stereo Wide	time	0.199599802	400.0
+otherBuildBlob:Stereo Wide	sync	0	Off
+otherBuildBlob:Stereo Wide	division	0.0909090936	1/8
+otherBuildBlob:Stereo Wide	feedback	0.349999994	35.0
+otherBuildBlob:Stereo Wide	spread	1	100.0
+otherBuildBlob:Stereo Wide	mod	0.100000001	10.0
+otherBuildBlob:Stereo Wide	wet	0.400000006	40.0
+otherBuildBlob:Stereo Wide	dry	1	100.0
+otherBuildBlob:Stereo Wide	bypass	1	On
+load	Subtle Doubler	1	current=Subtle Doubler	factory=1
+gesture	Subtle Doubler	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Subtle Doubler	time	0.0150075033	31.0
+applied:Subtle Doubler	sync	0	Off
+applied:Subtle Doubler	division	0.0909090936	1/8
+applied:Subtle Doubler	feedback	0	0.0
+applied:Subtle Doubler	spread	0.5	50.0
+applied:Subtle Doubler	mod	0.150000006	15.0
+applied:Subtle Doubler	wet	0.25	25.0
+applied:Subtle Doubler	dry	1	100.0
+applied:Subtle Doubler	bypass	1	On
+state	Subtle Doubler	405.VMjLgvX....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHSUmXzwVYfPza0IFakImH9vCTAIUPMARZj0iHhkGbgM2bh.hcgwVck0iHw3BLh7hO7.UPRETSfjFY8HBYoYWZyk1atIBH1EFa0UVOhDiKvHxK9vCTAIUPMARZj0iHjIWdh.hcgwVck0iHw.CLt.iHu3COPEjTA0DHoQVOhXVYkQlXgM1Zh.hcgwVck0iHv3BLh7hO7.UPRETSfjFY8HRauQlHfXWXrUWY8HRL03BLh7hO7.UPRETSfjFY8HxbvIWYgQlHfXWXrUWY8HRMv3BLh7hO7.UPRETSfjFY8Hxb441Xh.hcgwVck0iHv3BLh7hO7.UPRETSfjFY8HBco0VYh.hcgwVck0iHyDiKvHxK9vCTAIUPMARZj0iH2UFch.hcgwVck0iHxTiKvHxK9vyKPElbg0VYzUlby4C.
+reopen:Subtle Doubler	time	0.0150075033	31.0
+reopen:Subtle Doubler	sync	0	Off
+reopen:Subtle Doubler	division	0.0909090936	1/8
+reopen:Subtle Doubler	feedback	0	0.0
+reopen:Subtle Doubler	spread	0.5	50.0
+reopen:Subtle Doubler	mod	0.150000006	15.0
+reopen:Subtle Doubler	wet	0.25	25.0
+reopen:Subtle Doubler	dry	1	100.0
+reopen:Subtle Doubler	bypass	1	On
+otherBuildBlob:Subtle Doubler	time	0.0150075033	31.0
+otherBuildBlob:Subtle Doubler	sync	0	Off
+otherBuildBlob:Subtle Doubler	division	0.0909090936	1/8
+otherBuildBlob:Subtle Doubler	feedback	0	0.0
+otherBuildBlob:Subtle Doubler	spread	0.5	50.0
+otherBuildBlob:Subtle Doubler	mod	0.150000006	15.0
+otherBuildBlob:Subtle Doubler	wet	0.25	25.0
+otherBuildBlob:Subtle Doubler	dry	1	100.0
+otherBuildBlob:Subtle Doubler	bypass	1	On
+load	Swell Pad	1	current=Swell Pad	factory=1
+gesture	Swell Pad	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Swell Pad	time	0.599799871	1200.0
+applied:Swell Pad	sync	0	Off
+applied:Swell Pad	division	0.0909090936	1/8
+applied:Swell Pad	feedback	0.75	75.0
+applied:Swell Pad	spread	0.600000024	60.0
+applied:Swell Pad	mod	0.25	25.0
+applied:Swell Pad	wet	0.600000024	60.0
+applied:Swell Pad	dry	0.5	50.0
+applied:Swell Pad	bypass	1	On
+state	Swell Pad	402.VMjLgjX....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHScWYrwFHPEFYh3COPEjTA0DHoQVOhHVdvE1byIBH1EFa0UVOhDiKvHxK9vCTAIUPMARZj0iHjklcoMWZu4lHfXWXrUWY8HRLt.iHu3COPEjTA0DHoQVOhPlb4IBH1EFa0UVOhTCLt.iHu3COPEjTA0DHoQVOhXVYkQlXgM1Zh.hcgwVck0iH2TiKvHxK9vCTAIUPMARZj0iHs8FYh.hcgwVck0iHxTiKvHxK9vCTAIUPMARZj0iHyAmbkEFYh.hcgwVck0iH1.iKvHxK9vCTAIUPMARZj0iHykmaiIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHzkVakIBH1EFa0UVOhDiLv.iKvHxK9vCTAIUPMARZj0iH2UFch.hcgwVck0iH1.iKvHxK9vyKPElbg0VYzUlby4C.
+reopen:Swell Pad	time	0.599799871	1200.0
+reopen:Swell Pad	sync	0	Off
+reopen:Swell Pad	division	0.0909090936	1/8
+reopen:Swell Pad	feedback	0.75	75.0
+reopen:Swell Pad	spread	0.600000024	60.0
+reopen:Swell Pad	mod	0.25	25.0
+reopen:Swell Pad	wet	0.600000024	60.0
+reopen:Swell Pad	dry	0.5	50.0
+reopen:Swell Pad	bypass	1	On
+otherBuildBlob:Swell Pad	time	0.599799871	1200.0
+otherBuildBlob:Swell Pad	sync	0	Off
+otherBuildBlob:Swell Pad	division	0.0909090936	1/8
+otherBuildBlob:Swell Pad	feedback	0.75	75.0
+otherBuildBlob:Swell Pad	spread	0.600000024	60.0
+otherBuildBlob:Swell Pad	mod	0.25	25.0
+otherBuildBlob:Swell Pad	wet	0.600000024	60.0
+otherBuildBlob:Swell Pad	dry	0.5	50.0
+otherBuildBlob:Swell Pad	bypass	1	On
+load	Tape Echo	1	current=Tape Echo	factory=1
+gesture	Tape Echo	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Tape Echo	time	0.199599802	400.0
+applied:Tape Echo	sync	0	Off
+applied:Tape Echo	division	0.0909090936	1/8
+applied:Tape Echo	feedback	0.449999988	45.0
+applied:Tape Echo	spread	0.25	25.0
+applied:Tape Echo	mod	0.400000006	40.0
+applied:Tape Echo	wet	0.349999994	35.0
+applied:Tape Echo	dry	1	100.0
+applied:Tape Echo	bypass	1	On
+state	Tape Echo	402.VMjLgjX....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHTEFbkARQig1ah3COPEjTA0DHoQVOhHVdvE1byIBH1EFa0UVOhDiKvHxK9vCTAIUPMARZj0iHjklcoMWZu4lHfXWXrUWY8HRLt.iHu3COPEjTA0DHoQVOhPlb4IBH1EFa0UVOhDCLv3BLh7hO7.UPRETSfjFY8HhYkUFYhE1XqIBH1EFa0UVOhPSMt.iHu3COPEjTA0DHoQVOhz1ajIBH1EFa0UVOhPCLt.iHu3COPEjTA0DHoQVOhLGbxUVXjIBH1EFa0UVOhHSMt.iHu3COPEjTA0DHoQVOhLWdtMlHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhPWZsUlHfXWXrUWY8HBMv.iKvHxK9vCTAIUPMARZj0iH2UFch.hcgwVck0iHyTiKvHxK9vyKPElbg0VYzUlby4C.
+reopen:Tape Echo	time	0.199599802	400.0
+reopen:Tape Echo	sync	0	Off
+reopen:Tape Echo	division	0.0909090936	1/8
+reopen:Tape Echo	feedback	0.449999988	45.0
+reopen:Tape Echo	spread	0.25	25.0
+reopen:Tape Echo	mod	0.400000006	40.0
+reopen:Tape Echo	wet	0.349999994	35.0
+reopen:Tape Echo	dry	1	100.0
+reopen:Tape Echo	bypass	1	On
+otherBuildBlob:Tape Echo	time	0.199599802	400.0
+otherBuildBlob:Tape Echo	sync	0	Off
+otherBuildBlob:Tape Echo	division	0.0909090936	1/8
+otherBuildBlob:Tape Echo	feedback	0.449999988	45.0
+otherBuildBlob:Tape Echo	spread	0.25	25.0
+otherBuildBlob:Tape Echo	mod	0.400000006	40.0
+otherBuildBlob:Tape Echo	wet	0.349999994	35.0
+otherBuildBlob:Tape Echo	dry	1	100.0
+otherBuildBlob:Tape Echo	bypass	1	On
+load	Triplet Feel	1	current=Triplet Feel	factory=1
+gesture	Triplet Feel	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+applied:Triplet Feel	time	0.249624819	500.0
+applied:Triplet Feel	sync	1	On
+applied:Triplet Feel	division	0.636363626	1/8T
+applied:Triplet Feel	feedback	0.400000006	40.0
+applied:Triplet Feel	spread	0.200000003	20.0
+applied:Triplet Feel	mod	0	0.0
+applied:Triplet Feel	wet	0.349999994	35.0
+applied:Triplet Feel	dry	1	100.0
+applied:Triplet Feel	bypass	1	On
+state	Triplet Feel	404.VMjLgrX....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHTIWZvwVYzAhQkUFah3COPEjTA0DHoQVOhHVdvE1byIBH1EFa0UVOhDiKvHxK9vCTAIUPMARZj0iHjklcoMWZu4lHfXWXrUWY8HxMt.iHu3COPEjTA0DHoQVOhPlb4IBH1EFa0UVOhDCLv3BLh7hO7.UPRETSfjFY8HhYkUFYhE1XqIBH1EFa0UVOhPCLt.iHu3COPEjTA0DHoQVOhz1ajIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHyAmbkEFYh.hcgwVck0iHx.iKvHxK9vCTAIUPMARZj0iHykmaiIBH1EFa0UVOhDiKvHxK9vCTAIUPMARZj0iHzkVakIBH1EFa0UVOhTCLv3BLh7hO7.UPRETSfjFY8HxckQmHfXWXrUWY8HxL03BLh7hO77BTgIWXsUFckI2b9..
+reopen:Triplet Feel	time	0.249624819	500.0
+reopen:Triplet Feel	sync	1	On
+reopen:Triplet Feel	division	0.636363626	1/8T
+reopen:Triplet Feel	feedback	0.400000006	40.0
+reopen:Triplet Feel	spread	0.200000003	20.0
+reopen:Triplet Feel	mod	0	0.0
+reopen:Triplet Feel	wet	0.349999994	35.0
+reopen:Triplet Feel	dry	1	100.0
+reopen:Triplet Feel	bypass	1	On
+otherBuildBlob:Triplet Feel	time	0.249624819	500.0
+otherBuildBlob:Triplet Feel	sync	1	On
+otherBuildBlob:Triplet Feel	division	0.636363626	1/8T
+otherBuildBlob:Triplet Feel	feedback	0.400000006	40.0
+otherBuildBlob:Triplet Feel	spread	0.200000003	20.0
+otherBuildBlob:Triplet Feel	mod	0	0.0
+otherBuildBlob:Triplet Feel	wet	0.349999994	35.0
+otherBuildBlob:Triplet Feel	dry	1	100.0
+otherBuildBlob:Triplet Feel	bypass	1	On
+navNext	Clean Repeat
+navPrev	Triplet Feel
+userSave	1
+userFileHasBypass	0
+userSaved	time	0.869984984	1740.1
+userSaved	sync	0.870000005	On
+userSaved	division	0.909090936	1/8(5)
+userSaved	feedback	0.870000005	87.0
+userSaved	spread	0.870000005	87.0
+userSaved	mod	0.870000005	87.0
+userSaved	wet	0.870000005	87.0
+userSaved	dry	0.129999995	13.0
+userSaved	bypass	1	On
+userLoad	1
+userLoaded	time	0.869984984	1740.1
+userLoaded	sync	0.870000005	On
+userLoaded	division	0.909090936	1/8(5)
+userLoaded	feedback	0.870000005	87.0
+userLoaded	spread	0.870000005	87.0
+userLoaded	mod	0.870000005	87.0
+userLoaded	wet	0.870000005	87.0
+userLoaded	dry	0.129999995	13.0
+userLoaded	bypass	1	On
+userIsFactory	0
+userDelete	1
+malformedLoad	1
+gesture	__preset_gate_malformed__	setsInsideGesture=1	unbalanced=0	bypassTouched=0
+malformed	time	0.249624819	500.0
+malformed	sync	1	On
+malformed	division	0.272727281	1/4D
+malformed	feedback	1	100.0
+malformed	spread	0	0.0
+malformed	mod	0	0.0
+malformed	wet	0.300000012	30.0
+malformed	dry	0.600000024	60.0
+malformed	bypass	1	On
+factorySaveRefused	1
+factoryDeleteRefused	1
+missingLoadRefused	1

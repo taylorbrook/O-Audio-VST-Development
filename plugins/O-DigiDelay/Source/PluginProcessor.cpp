@@ -110,7 +110,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconDigitalDelayAudioPro
     // bypass - Bool (default: false). v1.8.0 (WR-01). Returned from
     // getBypassParameter(), so the host's bypass switch drives it. Appended
     // LAST so every existing parameter keeps its index. Excluded from preset
-    // save/apply (OuariconPresetManager) — a preset must not bypass the plugin.
+    // save/apply (setExcludedParameters in the constructor) — a preset must
+    // not bypass the plugin.
     layout.add(std::make_unique<juce::AudioParameterBool>(
         juce::ParameterID { "bypass", 1 },
         "Bypass",
@@ -138,6 +139,13 @@ OuariconDigitalDelayAudioProcessor::OuariconDigitalDelayAudioProcessor()
     bypassParam   = parameters.getRawParameterValue("bypass");
     bypassParameter = dynamic_cast<juce::AudioParameterBool*>(parameters.getParameter("bypass"));
     jassert(bypassParameter != nullptr);
+
+    // v1.9.4: the preset-manager module carries the two local 1.9.3 behaviours.
+    // bypass (v1.8.0) is session state, never preset content: not saved, not
+    // reset, not applied. Validated apply (IN-07): each set is its own host
+    // gesture, values clamp to 0..1, a non-number value loads as the default.
+    presetManager.setExcludedParameters({ "bypass" });
+    presetManager.setValidatedApply(true);
 
     initializeFactoryPresets();
 }

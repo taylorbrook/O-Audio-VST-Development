@@ -2,12 +2,13 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.9.1
+- **Version:** 1.9.4
 - **Type:** Audio Effect (Delay)
 - **Complexity:** 2.4 (Moderate)
 
 ## Lifecycle Timeline
 
+- **2026-11-03 (v1.9.4):** Moved to the preset-manager module 1.1.1 (`ouaricon_add_module`); local header and JS removed. The local copy was ahead of the module in two ways: bypass exclusion (now `setExcludedParameters({"bypass"})`) and the IN-07 apply (gesture per set, clamp, non-number to default), which was upstreamed as the opt-in `setValidatedApply` in module 1.1.1. `tests/preset-gate/gate.py` compares preset and state outcomes with the 1.9.3 header. All 762 dump lines match, state blobs included.
 - **2026-01-12:** Creative brief completed - clean digital delay with stereo spread
 - **2026-01-12 (Stage 0):** Research & Planning complete - Architecture and plan documented (Complexity 2.4)
 - **2026-01-12 (v1.0.0):** Initial release - all DSP and GUI implemented

@@ -9,7 +9,7 @@ juce_add_plugin(OuariconDigitalDelay
     PLUGIN_CODE OuDD
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-DigiDelay${OUARICON_DEV_SUFFIX}"
-    VERSION 1.9.3
+    VERSION 1.9.4
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -61,6 +61,11 @@ target_compile_definitions(OuariconDigitalDelay
         JUCE_USE_CURL=0
 )
 
+# Preset manager module: adds OuariconPresetManager.h to the include path and
+# copies preset-manager.js into Source/ui/public/modules/. MUST precede
+# juce_add_binary_data below, which embeds the copied JS.
+ouaricon_add_module(OuariconDigitalDelay preset-manager)
+
 # WebView UI Resources
 juce_add_binary_data(OuariconDigitalDelay_UIResources
     SOURCES
@@ -95,4 +100,8 @@ if(OUARICON_BUILD_TESTS)
     # AudioProcessor::getParameters() on a constructed processor sees the real set.
     include(${CMAKE_SOURCE_DIR}/scripts/param-dump/ParamDump.cmake)
     ouaricon_add_param_dump(OuariconDigitalDelay ${CMAKE_CURRENT_SOURCE_DIR}/Source)
+
+    # Preset + state gate (v1.9.4), run by tests/preset-gate/gate.py
+    ouaricon_add_processor_console(OuariconDigitalDelay ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/preset-gate/main.cpp preset-gate)
 endif()

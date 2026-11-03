@@ -5,6 +5,18 @@ All notable changes to this plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.4] - 2026-11-03
+
+O-DigiDelay now uses the shared preset-manager module (1.1.1) instead of its own older copies. No DSP or parameter change. Factory presets, user presets and saved sessions load with the same values as 1.9.3, and bypass is still never saved in or applied from a preset.
+
+### Fixed
+
+- **The preset bar no longer waits forever if the WebView bridge is missing.** It stops after 5 seconds and logs an error.
+
+### Changed
+
+- `OuariconPresetManager.h` and `preset-manager.js` now come from `modules/persistence/preset-manager`. The two things the local copy did that the module did not are kept. Bypass stays out of presets through `setExcludedParameters`. The IN-07 apply rules move into the module as `setValidatedApply` (1.1.1): a host gesture around each set, values clamped, and a non-number value loads as the default.
+
 ## [1.9.3] - 2026-10-26
 
 French typography fix (ui-hardening-phase0). No DSP, parameter, preset or state change.

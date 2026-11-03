@@ -2,7 +2,7 @@
 # JSON-based preset persistence for Ouaricon plugins
 
 name: preset-manager
-version: 1.1.0
+version: 1.1.1
 description: |
   JSON-based preset persistence with factory/user preset separation.
   Supports APVTS parameter serialization, navigation (next/previous),
@@ -71,6 +71,10 @@ used_by:
     version: 1.0.0
 
 changelog:
+  - version: 1.1.1
+    date: 2026-11-03
+    changes:
+      - "O-DigiDelay v1.9.4 (module convergence, upstreams its v1.8.0 IN-07 apply): optional setValidatedApply(bool). When on, every set in a preset apply (reset pass and value pass) is wrapped in its own begin/end change gesture so Touch/Latch hosts record the load, values are clamped to 0..1, and a value that is not a number or bool is treated as omitted (the parameter keeps its reset default). Off by default — the off path makes exactly the same setValueNotifyingHost calls as 1.1.0, so every existing consumer is unaffected. PATCH: additive opt-in"
   - version: 1.1.0
     date: 2026-10-28
     changes:

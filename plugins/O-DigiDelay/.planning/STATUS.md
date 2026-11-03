@@ -1,10 +1,10 @@
 ---
 plugin: O-DigiDelay
-version: 1.9.3
+version: 1.9.4
 stage: 4
 phase: verify
 status: complete
-last_updated: 2026-10-29
+last_updated: 2026-11-03
 workflow_mode: manual
 next_action: plugin_complete
 ---

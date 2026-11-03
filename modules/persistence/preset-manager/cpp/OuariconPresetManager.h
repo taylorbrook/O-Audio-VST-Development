@@ -135,6 +135,19 @@ public:
         excludedParameters = parameterIDs;
     }
 
+    /**
+     * v1.1.1: validated apply (O-DigiDelay IN-07). When on, every parameter set
+     * in a preset apply (the reset pass and the value pass) is wrapped in its own
+     * begin/end change gesture, so Touch/Latch hosts record the load. Values are
+     * clamped to 0..1, and a value that is not a number or bool counts as
+     * omitted: the parameter keeps the default the reset pass gave it. Off by
+     * default — existing consumers are unaffected.
+     */
+    void setValidatedApply(bool shouldValidate)
+    {
+        validatedApply = shouldValidate;
+    }
+
     //==========================================================================
     // Preset operations
     //==========================================================================
@@ -258,6 +271,9 @@ private:
     juce::StringArray excludedParameters;
     bool isExcluded(const juce::String& paramID) const { return excludedParameters.contains(paramID); }
 
+    // v1.1.1: see setValidatedApply.
+    bool validatedApply = false;
+
     // WR-04: strip path separators so a name like "Koto / Harp" cannot be interpreted
     // as a path by getChildFile() (which silently drops the file). Applied consistently
     // wherever a preset name is turned into a filename so the same name round-trips.
@@ -376,6 +392,14 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
             // Meta-first means explicit values always win, while presets that omit
             // the derived params still get the macro's derivation. No-op for
             // plugins without meta params.
+            // v1.1.1: with validatedApply, each set is its own host gesture.
+            auto setParam = [this](juce::AudioProcessorParameter& param, float value)
+            {
+                if (validatedApply) param.beginChangeGesture();
+                param.setValueNotifyingHost(value);
+                if (validatedApply) param.endChangeGesture();
+            };
+
             for (int pass = 0; pass < 2; ++pass)
             {
                 const bool metaPass = (pass == 0);
@@ -383,18 +407,28 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
                     if (auto* rangedParam = dynamic_cast<juce::RangedAudioParameter*>(param))
                         if (rangedParam->isMetaParameter() == metaPass
                             && ! isExcluded(rangedParam->getParameterID()))   // v1.1.0
-                            rangedParam->setValueNotifyingHost(rangedParam->getDefaultValue());
+                            setParam(*rangedParam, rangedParam->getDefaultValue());
             }
 
             for (int pass = 0; pass < 2; ++pass)
             {
                 const bool metaPass = (pass == 0);
                 for (auto& prop : paramsObj->getProperties())
+                {
                     if (isExcluded(prop.name.toString()))
                         continue;   // v1.1.0: a stray key in an old/hand-edited file
-                    else if (auto* param = parameters.getParameter(prop.name.toString()))
-                        if (param->isMetaParameter() == metaPass)
-                            param->setValueNotifyingHost(static_cast<float>(prop.value));
+
+                    auto* param = parameters.getParameter(prop.name.toString());
+                    if (param == nullptr || param->isMetaParameter() != metaPass)
+                        continue;
+
+                    const auto& v = prop.value;
+                    if (! validatedApply)
+                        setParam(*param, static_cast<float>(v));
+                    else if (v.isDouble() || v.isInt() || v.isInt64() || v.isBool())   // v1.1.1
+                        setParam(*param, juce::jlimit(0.0f, 1.0f, static_cast<float>(v)));
+                    // else: not a number — keeps the default from the reset pass
+                }
             }
         }
     }

@@ -265,6 +265,9 @@ When implementing a preset dropdown menu, use these styles to ensure it appears 
 
 ## Version History
 
+### 1.1.1 (2026-11-03)
+- Optional `setValidatedApply(true)`: each set in a preset apply gets its own begin/end change gesture (Touch/Latch hosts record the load), values are clamped to 0..1, and a non-number value counts as omitted. Off by default; existing consumers are unaffected (O-DigiDelay IN-07, upstreamed in v1.9.4).
+
 ### 1.0.8 (2026-09-24)
 - Public `capturePresetData()` / `applyPresetData(const juce::var&)`: in-memory snapshots captured and recalled through the exact preset-load path (migration hook, reset-to-defaults, meta-first, `customLoad`). `applyPresetData` does not touch `currentPresetName`. Additive only (O-ReverseDelay v1.18.0 A/B compare).
 
