@@ -9,7 +9,7 @@
 # - Modules: Working code (CMake import with configuration)
 
 # NOTE: `version` and `last_updated` MUST be bumped on every edit. scripts/regen-registry-used-by.sh bumps them automatically when used_by content changes; bump minor/major by hand for significant changes.
-version: 1.2.9
+version: 1.2.10
 last_updated: 2026-11-03
 schema_version: 1.0.0
 
@@ -166,7 +166,7 @@ modules:
       - plugin: O-Bassoon
         version: 1.6.1
       - plugin: O-Bells
-        version: 4.9.3
+        version: 4.9.4
       - plugin: O-Bitrot
         version: 1.17.3
       - plugin: O-Bowed
@@ -344,7 +344,7 @@ modules:
       - plugin: O-Bassoon
         version: 1.6.1
       - plugin: O-Bells
-        version: 4.9.3
+        version: 4.9.4
       - plugin: O-Bowed
         version: 1.10.3
       - plugin: O-Contrabass
@@ -391,7 +391,7 @@ modules:
       - plugin: O-Bassoon
         version: 1.6.1
       - plugin: O-Bells
-        version: 4.9.3
+        version: 4.9.4
       - plugin: O-Bowed
         version: 1.10.3
       - plugin: O-Contrabass
@@ -646,7 +646,7 @@ modules:
       - plugin: O-Bassoon
         version: 1.6.1
       - plugin: O-Bells
-        version: 4.9.3
+        version: 4.9.4
       - plugin: O-Bitrot
         version: 1.17.3
       - plugin: O-Bowed

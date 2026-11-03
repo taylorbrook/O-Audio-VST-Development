@@ -2,6 +2,23 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [4.9.4] - 2026-11-03
+
+TuningEngine converged on scala-tuning-engine 3.3.0 (261029-md9 convergence step 3). Default tuning, every built-in temperament and every factory preset render bit-identically to 4.9.3; the changes are on the .scl / .kbm load paths and scale editing. No parameter, preset or state change.
+
+### Fixed
+
+- **Loading a .kbm no longer retunes A4 (CR-07).** The file's reference frequency went through `setMasterTune()`, whose 400–480 Hz clamp pushed a standard middle-C 261.63 Hz mapping's reference note up to 400 Hz (about 7.4 semitones sharp across the keyboard) and overwrote the user's master tune. The reference note now plays at the file's frequency, A4 is left alone, and a saved .kbm writes that frequency back. New 3.2.0 accessors: `getKbmReferenceNote()`, `getKbmReferenceFrequency()`, `setKbmReferenceFrequency()`.
+- **Hostile or malformed .kbm files are bounded (CR-08/WR-12):** a map size outside 0–128 is rejected, and the octave degree is clamped to 4096. The KBM formal octave degree is honoured (IN-11), and a degree past the scale size wraps into the next period instead of clamping to the last degree (Scala spec; IN-09). A mapped key whose frequency comes out non-finite or outside 1 Hz–100 kHz falls back to 12-TET.
+- **.scl parsing follows the Scala spec (WR-08/WR-11):** negative-cent pitches load (they were silently dropped), text after the pitch is a comment, an empty description line is legal, and a malformed pitch line, a count outside 1–4096 or a file shorter than its declared count is rejected instead of loading a truncated scale.
+- **Editing one degree of an 11-degree scale no longer resets it to 12-TET (WR-14).**
+- `setCustomIntervals()` switches to Scala mode (1c5dca67). A no-op for O-Bells, which always runs in Scala mode.
+- The frequency table rebuild locks once instead of once per note (CR-05).
+
+O-Bells keeps its fork: the engine starts in Scala mode and stays there for 12-TET, so the tonic, a loaded .kbm and the scale name apply to 12-TET too. `ScaleGenerator`, `EmbeddedTunings` and `TuningExporter` are not part of this step and still carry their pre-3.3.0 copies.
+
+**Gate:** module parity dump, new O-Bells tree vs module 3.3.0: every TuningEngine case equal, including the 13 load/KBM/edit cases that differ from 4.9.3 (`kbm.ref_c`: 4.9.3 a4=400, 4.9.4 and module a4=440). Old-vs-new renders 165/165 bit-identical (55 jobs — defaults, master tune 432, stretch 1.02, 12 temperaments, 40 factory presets — × note 60 dry, note 41 with FX, note 79 1 s hold).
+
 ## [4.9.3] - 2026-10-26
 
 Windows WebView2 hardening (ui-hardening-phase0). No DSP, parameter, preset or state change; macOS behaviour and look unchanged.
