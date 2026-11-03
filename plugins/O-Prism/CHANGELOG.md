@@ -1,5 +1,34 @@
 # O-Prism Changelog
 
+## [1.30.4] — 2026-11-03
+
+The tuning engine catches up with scala-tuning-engine 3.3.0 wherever the module was ahead. It stays an O-Prism fork, because O-Prism is ahead of the module in four places that are kept: session persistence of the tuning and .kbm state (WR-17), the 13-degree Bohlen-Pierce preset (IN-07), the atomic pitch-bend range, and the locked `isNoteMapped`. No parameter, range or UI change. Built-in presets, loaded .scl files and well-formed .kbm files sound exactly as in 1.30.3.
+
+### Fixed
+
+- **Malformed .kbm files can no longer produce unplayable notes.** A key whose mapped frequency is not finite, below 1 Hz or above 100 kHz now plays at 12-TET, as an unmapped key does. A 7-key map over 12 degrees used to put the bottom keys under 1 Hz and the top keys over 100 kHz.
+- **A mapped degree past the end of the scale wraps into the next period** (Scala spec, IN-09). It used to clamp to the period, so two different degrees could play the same pitch.
+- **.kbm reference frequency:** a reference of 0 Hz now follows the master tune instead of freezing the A4 in force when the file was loaded. A reference between 1 and 8 Hz is used as written, and one above 20 kHz is clamped to 20 kHz; both used to fall back to the A4 in force at load time.
+- **Stricter .scl parsing:** only the first token of a pitch line is the pitch, a ratio with two slashes (`3/2/5`) is rejected, an over-long digit string can no longer load an infinite pitch, and a tab after the note count is accepted.
+- **.kbm octave degree is clamped to 4096**, the .scl degree ceiling.
+
+### Changed
+
+- Adds the scala-tuning-engine 3.2.0 KBM reference API (`getKbmReferenceNote`, `getKbmReferenceFrequency`, `setKbmReferenceFrequency`), with the file's reference kept apart from the active one. The 1c5dca67 Scala-mode fix was already in O-Prism.
+- Saved sessions gain `kbmActiveRefFrequency` and `kbmFileRefFrequency`. `kbmRefFrequency` keeps its old meaning, so 1.30.3 still opens a 1.30.4 session in tune. 1.30.3 sessions open unchanged.
+
+### Testing
+
+- Module `parity_gate.py`: prism 17/17. Module unit tests built against this tree: 29/34; all 5 failures are in ScaleGenerator, EmbeddedTunings and TuningExporter, which this release does not touch.
+- 1.30.3-vs-1.30.4 engine dump: 582/600 lines equal, including all 120 preset tables (10 presets × tonic 0/2/7 × A4 440/432 × stretch 1/1.02), custom .scl files, single-interval edits, pitch bend and every well-formed .kbm case. The 18 that differ are the intended malformed-.kbm cases above (7-key map, reference 0/5 Hz/30 kHz).
+- Sessions: 440/442 1.30.3 session states reopen identically in 1.30.4 (the 2 that differ are the 7-key map, now in band). 147/147 1.30.4 states reopen equal to the in-process round trip.
+- Installed binaries (pedalboard, 6-note chord 36–96): 40/40 parameter renders are bit-identical to 1.30.3 (1.30.3 run-to-run 40/40). For state injection, the 147 tuning states were injected one after another into a single instance: 146/147 renders are identical. The one that differs is a 7-degree .scl that inherits the previous state's 12-key .kbm (see Known issues), so the IN-09 wrap applies. Rendered alone, it is identical in both builds.
+- auval and pluginval (strictness 5) pass.
+
+### Known issues
+
+- Pre-existing, unchanged from 1.30.3: restoring a state with no .kbm onto an instance that already has one keeps the old mapping (`restoreStateFrom` resets the KBM only when the incoming state carries one).
+
 ## [1.30.3] — 2026-10-19
 
 ### Fixed

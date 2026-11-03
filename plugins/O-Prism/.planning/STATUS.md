@@ -1,6 +1,6 @@
 ---
 plugin: O-Prism
-version: 1.30.3
+version: 1.30.4
 stage: 4
 gsd_phase: verify_complete
 status: plugin_complete

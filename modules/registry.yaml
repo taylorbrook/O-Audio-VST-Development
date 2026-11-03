@@ -9,7 +9,7 @@
 # - Modules: Working code (CMake import with configuration)
 
 # NOTE: `version` and `last_updated` MUST be bumped on every edit. scripts/regen-registry-used-by.sh bumps them automatically when used_by content changes; bump minor/major by hand for significant changes.
-version: 1.2.11
+version: 1.2.12
 last_updated: 2026-11-03
 schema_version: 1.0.0
 
@@ -198,7 +198,7 @@ modules:
       - plugin: O-Polystutter
         version: 1.19.1
       - plugin: O-Prism
-        version: 1.30.3
+        version: 1.30.4
       - plugin: O-Reed
         version: 1.7.1
       - plugin: O-ReverseDelay
@@ -360,7 +360,7 @@ modules:
       - plugin: O-MicrotonalSampler
         version: 1.28.2
       - plugin: O-Prism
-        version: 1.30.3
+        version: 1.30.4
       - plugin: O-Reed
         version: 1.7.1
       - plugin: O-Strata
@@ -405,7 +405,7 @@ modules:
       - plugin: O-MicrotonalSampler
         version: 1.28.2
       - plugin: O-Prism
-        version: 1.30.3
+        version: 1.30.4
       - plugin: O-Reed
         version: 1.7.1
       - plugin: O-Strata
@@ -688,7 +688,7 @@ modules:
       - plugin: O-Polystutter
         version: 1.19.1
       - plugin: O-Prism
-        version: 1.30.3
+        version: 1.30.4
       - plugin: O-Reed
         version: 1.7.1
       - plugin: O-ReverseDelay
