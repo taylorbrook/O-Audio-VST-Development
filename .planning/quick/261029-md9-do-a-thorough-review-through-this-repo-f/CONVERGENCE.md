@@ -47,8 +47,9 @@ O-DigiDelay needed bypass-param exclusion first (FORK-REVIEW caveat); done in 1.
 
 FORK-REVIEW step 3 counts 7 TuningEngine copies and names O-Lyrica, O-IntonationPad and O-Marimba for the 1c5dca67 fix. Step 6 lists those same three as intentional forks and `/converge-modules` says never to touch step 6 copies, so they are left out here. Of the four below, only O-Bells needs the 1c5dca67 fix.
 
-- [ ] O-Bells `TuningEngine.cpp` (fork+ahead)
-- [ ] O-Bells `TuningEngine.h` (drift)
+- [x] O-Bells `TuningEngine.cpp` (fork+ahead) — 697df9a9
+- [x] O-Bells `TuningEngine.h` (drift) — 697df9a9
+  O-Bells 4.9.4 gate: both files are the module 3.3.0 copies, except O-Bells' always-Scala fork (the engine starts in Scala mode and `setBuiltInPreset(Equal12TET)` stays in Scala, so the tonic, a .kbm and the scale name apply to 12-TET). Module parity dump, new tree vs module: every TuningEngine case equal, including the 13 load/KBM/edit cases that differ from 4.9.3 (`kbm.ref_c`: 4.9.3 a4=400, 4.9.4 and module a4=440). The `kbm.degree_wrap` divergence accepted in step 1 is gone: O-Bells now wraps. Old-vs-new renders 165/165 bit-identical (55 jobs: defaults, master tune 432, stretch 1.02, 12 temperaments, 40 factory presets; × note 60 dry, note 41 with FX, note 79 1 s hold). Module unit tests built against the O-Bells tree: 27/34, and all 7 failures are in ScaleGenerator/EmbeddedTunings/TuningExporter (CR-09, IN-17 ×2, IN-11 export, WR-15 ×2, WR-20). auval and pluginval 5 pass. **Unlisted drift:** O-Bells `ScaleGenerator.cpp`, `TuningExporter.cpp` and `EmbeddedTunings.cpp` are still the pre-3.3.0 copies. Step 1 upstreamed their fixes, but no step converges them back, so there is no row for them yet.
 - [ ] O-Formant `TuningEngine.cpp` (fork+ahead)
 - [ ] O-Formant `TuningEngine.h` (fork+ahead)
 - [ ] O-Prism `TuningEngine.cpp` (fork+ahead)
