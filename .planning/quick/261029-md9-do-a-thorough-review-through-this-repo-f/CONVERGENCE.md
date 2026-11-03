@@ -50,8 +50,36 @@ FORK-REVIEW step 3 counts 7 TuningEngine copies and names O-Lyrica, O-Intonation
 - [x] O-Bells `TuningEngine.cpp` (fork+ahead) — 697df9a9
 - [x] O-Bells `TuningEngine.h` (drift) — 697df9a9
   O-Bells 4.9.4 gate: both files are the module 3.3.0 copies, except O-Bells' always-Scala fork (the engine starts in Scala mode and `setBuiltInPreset(Equal12TET)` stays in Scala, so the tonic, a .kbm and the scale name apply to 12-TET). Module parity dump, new tree vs module: every TuningEngine case equal, including the 13 load/KBM/edit cases that differ from 4.9.3 (`kbm.ref_c`: 4.9.3 a4=400, 4.9.4 and module a4=440). The `kbm.degree_wrap` divergence accepted in step 1 is gone: O-Bells now wraps. Old-vs-new renders 165/165 bit-identical (55 jobs: defaults, master tune 432, stretch 1.02, 12 temperaments, 40 factory presets; × note 60 dry, note 41 with FX, note 79 1 s hold). Module unit tests built against the O-Bells tree: 27/34, and all 7 failures are in ScaleGenerator/EmbeddedTunings/TuningExporter (CR-09, IN-17 ×2, IN-11 export, WR-15 ×2, WR-20). auval and pluginval 5 pass. **Unlisted drift:** O-Bells `ScaleGenerator.cpp`, `TuningExporter.cpp` and `EmbeddedTunings.cpp` are still the pre-3.3.0 copies. Step 1 upstreamed their fixes, but no step converges them back, so there is no row for them yet.
-- [ ] O-Formant `TuningEngine.cpp` (fork+ahead)
-- [ ] O-Formant `TuningEngine.h` (fork+ahead)
+- [x] O-Formant `TuningEngine.cpp` (fork+ahead) — 8b645942
+- [x] O-Formant `TuningEngine.h` (fork+ahead) — 8b645942
+  O-Formant 1.34.3 gate. **Not converged to the module copy: it is still a fork, now level with the module wherever the module was ahead.** FORK-REVIEW's "lacks 3.2.0 KBM reference" was half right. Formant already had its own CR-07 reference (`kbmReferenceFreq`), and its KBM engine is ahead of module 3.3.0 in ways step 1 never upstreamed:
+  - WR-07: `x` keys and out-of-range keys are silent (0 Hz), not 12-TET; a size-0 map is linear; the octave degree is resolved at lookup.
+  - v1.30.1: a loaded .kbm applies in 12-TET mode too.
+  - WR-06: `loadKBMFromString` / `getKBMState` / `isKBMLoaded` for session restore.
+  - WR-20: the linear-mapping .kbm export.
+  - IN-20: `scaleName` locking.
+  - `kTwelveTetModeName`.
+
+  The parity dump has no case for any of these, so the step 1 gate passed without them. Swapping in the module copy would regress all of them and break the build, since `PluginProcessor` calls the WR-06 API.
+
+  What 1.34.3 takes from the module:
+  - the 3.2.0 API (`getKbmReferenceNote`, `getKbmReferenceFrequency`, `setKbmReferenceFrequency`, with the file and active reference split)
+  - a map size over 128 is rejected (WR-12)
+  - the octave degree is clamped to 4096
+  - a non-finite or out-of-band key (outside 1 Hz–100 kHz) falls back to 12-TET
+  - the .scl count must be 1–4096, and a tab after the count is accepted (IN-08/WR-11)
+  - the table rebuild locks once (CR-05)
+
+  1c5dca67 was already in Formant.
+
+  Gate results:
+  - Module `parity_gate.py`: formant 23/23, and the `kbm.map_huge` divergence accepted in step 1 now prints STALE (equal). Drop it from `ACCEPTED` when the module tests are next touched.
+  - 1.34.2-vs-1.34.3 engine dump: 143/149 cases equal. That covers all 120 no-KBM tables (10 presets × tonic 0/2/7 × A4 440/432 × stretch 1/1.02, export included) and every WR-07/12-TET/tonic KBM case. The 6 cases that differ are the intended malformed inputs: map 200, octave degree 300, reference 30 kHz, BP linear top keys over 100 kHz, 7-key map bottom keys under 1 Hz. All 13 .kbm session round-trips reproduce.
+  - Module unit tests built against the 1.34.3 tree: 32/34. Both failures are in TuningExporter (IN-07, IN-11 export); none are in TuningEngine. Built against the 1.34.2 tree, they don't compile (3.2.0 API missing).
+  - Installed-binary pedalboard renders: 14/14 bit-identical to 1.34.2 (7 notes 36–96 × 2 runs; the old binary is deterministic run to run).
+  - auval and pluginval 5 pass.
+
+  **New finding, no row yet:** to converge Formant fully, module 3.4.0 first needs Formant's WR-07/WR-06/WR-20/IN-20 and the KBM-in-12-TET behaviour upstreamed. That changes `x`/out-of-range keys from 12-TET to silent for every consumer, so it needs a decision. Unrelated to this step, Formant's `TuningExporter.cpp` still differs from the module (22 lines).
 - [ ] O-Prism `TuningEngine.cpp` (fork+ahead)
 - [ ] O-Prism `TuningEngine.h` (fork+ahead)
 - [ ] O-Strata `TuningEngine.cpp` (fork+ahead)
