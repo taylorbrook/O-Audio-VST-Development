@@ -80,8 +80,37 @@ FORK-REVIEW step 3 counts 7 TuningEngine copies and names O-Lyrica, O-Intonation
   - auval and pluginval 5 pass.
 
   **New finding, no row yet:** to converge Formant fully, module 3.4.0 first needs Formant's WR-07/WR-06/WR-20/IN-20 and the KBM-in-12-TET behaviour upstreamed. That changes `x`/out-of-range keys from 12-TET to silent for every consumer, so it needs a decision. Unrelated to this step, Formant's `TuningExporter.cpp` still differs from the module (22 lines).
-- [ ] O-Prism `TuningEngine.cpp` (fork+ahead)
-- [ ] O-Prism `TuningEngine.h` (fork+ahead)
+- [x] O-Prism `TuningEngine.cpp` (fork+ahead) — f200af3f
+- [x] O-Prism `TuningEngine.h` (fork+ahead) — f200af3f
+  O-Prism 1.30.4 gate. **Still a fork:** the module 3.3.0 copy, plus 4 things Prism has that the module lacks and step 1 never upstreamed:
+  - WR-17 `writeStateTo`/`restoreStateFrom`. `PluginProcessor` calls them, so a straight swap would not build.
+  - IN-07: the 13-degree Bohlen-Pierce preset (the module still has 12).
+  - Atomic `pitchBendRange`, which the audio thread reads.
+  - Prism IN-09: `isNoteMapped` under `intervalMutex`. The label clashes with the module's IN-09, which is the degree wrap.
+
+  Taken from the module:
+  - the 3.2.0 KBM reference API with the file and active reference split
+  - WR-08 first-token pitch parsing, `3/2/5` rejected, the inf guard, a tab after the count
+  - octave degree clamped to 4096
+  - the IN-09 degree wrap
+  - mapped frequencies outside 1 Hz–100 kHz fall back to 12-TET
+
+  1c5dca67 was already in Prism. The session tree adds `kbmActiveRefFrequency` and `kbmFileRefFrequency`; `kbmRefFrequency` keeps its old meaning, so 1.30.3 opens 1.30.4 sessions in tune.
+
+  Gate results:
+  - Module `parity_gate.py`: prism 17/17.
+  - Module unit tests built against the 1.30.4 tree: 29/34. All 5 failures are in ScaleGenerator/EmbeddedTunings/TuningExporter (CR-09, IN-17 ×2, IN-07 export, WR-20); none are in TuningEngine.
+  - 1.30.3-vs-1.30.4 engine dump: 582/600 equal. That covers all 120 preset tables (10 × tonic 0/2/7 × A4 440/432 × stretch 1/1.02), custom .scl, edits, bend, and every well-formed .kbm. The 18 that differ are the intended malformed .kbm: 7-key map out of band, reference 0/5 Hz/30 kHz.
+  - Session reopen: 440/442 1.30.3 states reopen equal in 1.30.4, and 147/147 1.30.4 states reopen equal to the round trip.
+  - Installed-binary pedalboard: 40/40 parameter renders bit-identical (1.30.3 run-to-run 40/40).
+  - Sequential state injection: 146/147 renders identical. The 1 that differs is explained below; rendered alone, it is identical.
+  - auval and pluginval 5 pass.
+
+  **Unlisted bits Prism has that the module lacks (no row yet):** the 4 items above. Upstreaming them in module 3.4.0 would let Prism/Strata converge fully.
+  
+  **New finding, pre-existing in 1.30.3:** `restoreStateFrom` keeps a stale .kbm when the incoming state has none, so a setState on a used instance inherits the previous mapping. This is what the sequential injection exposed. Not fixed here, because it is out of scope for a convergence step.
+  
+  Also: `parity_gate.py` (`kbm.degree_wrap`) and `scl.tworatios` now differ from the 1.30.3 copy as intended.
 - [ ] O-Strata `TuningEngine.cpp` (fork+ahead)
 - [ ] O-Strata `TuningEngine.h` (fork+ahead)
 
