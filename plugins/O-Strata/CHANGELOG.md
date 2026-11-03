@@ -1,5 +1,34 @@
 # O-Strata Changelog
 
+## [1.1.4] — 2026-11-03
+
+The tuning engine catches up with scala-tuning-engine 3.3.0 wherever the module was ahead (module convergence step 3). O-Strata's `TuningEngine` is a fork of O-Prism's, so it takes O-Prism 1.30.4's engine verbatim (only the licence line differs). It stays a fork, keeping the four places where it is ahead of the module: session persistence of the tuning and .kbm state (WR-17), the 13-degree Bohlen-Pierce preset (IN-07), the atomic pitch-bend range, and the locked `isNoteMapped`. No parameter, range, preset or UI change. Built-in presets, loaded .scl files and well-formed .kbm files sound exactly as in 1.1.3.
+
+### Fixed
+
+- **Malformed .kbm files can no longer produce unplayable notes.** A key whose mapped frequency is not finite, below 1 Hz or above 100 kHz now plays at 12-TET, as an unmapped key does.
+- **A mapped degree past the end of the scale wraps into the next period** (Scala spec, IN-09). It used to clamp to the period, so two different degrees could play the same pitch.
+- **.kbm reference frequency:** a reference of 0 Hz now follows the master tune instead of freezing the A4 in force when the file was loaded. A reference between 1 and 8 Hz is used as written, and one above 20 kHz is clamped to 20 kHz; both used to fall back to the A4 in force at load time.
+- **Stricter .scl parsing:** only the first token of a pitch line is the pitch, a ratio with two slashes (`3/2/5`) is rejected, an over-long digit string can no longer load an infinite pitch, and a tab after the note count is accepted.
+- **.kbm octave degree is clamped to 4096**, the .scl degree ceiling.
+
+### Changed
+
+- Adds the scala-tuning-engine 3.2.0 KBM reference API (`getKbmReferenceNote`, `getKbmReferenceFrequency`, `setKbmReferenceFrequency`), with the file's reference kept apart from the active one. The 1c5dca67 Scala-mode fix was already in O-Strata.
+- Saved sessions gain `kbmActiveRefFrequency` and `kbmFileRefFrequency`. `kbmRefFrequency` keeps its old meaning, so 1.1.3 still opens a 1.1.4 session in tune. 1.1.3 sessions open unchanged.
+
+### Testing
+
+- `TuningEngine.{cpp,h}` are byte-identical to O-Prism 1.30.4's apart from the licence line, and the 1.1.3 copies were byte-identical to O-Prism 1.30.3's, so O-Prism 1.30.4's engine-dump and session-reopen results carry over. `PluginProcessor` uses the same engine calls as O-Prism (`writeStateTo`/`restoreStateFrom`, the same setters).
+- Module `parity_gate.py`: strata 17/17. Strata and Prism parity dumps are identical. 1.1.3-vs-1.1.4 parity dump: 43/45 equal; the 2 that differ are the intended `scl.tworatios` and `kbm.degree_wrap`.
+- Module unit tests built against this tree: 29/34; all 5 failures (CR-09, IN-17 ×2, IN-07 export, WR-20) are in ScaleGenerator, EmbeddedTunings and TuningExporter, which this release does not touch. Same 5 as O-Prism 1.30.4.
+- Seeded offline renders (render harness, 1.1.3 tree vs 1.1.4 tree, tuning update delivered before the note): 396/396 bit-identical — 11 tuning presets × tonic 0/2/7 × A4 440/432 × stretch 1/1.02 × notes 36/60/84, 128 distinct outputs, all finite. Harness `--gate tuning` 6/6.
+- auval and pluginval (strictness 5) pass.
+
+### Known issues
+
+- Pre-existing, inherited from O-Prism and unchanged from 1.1.3: restoring a state with no .kbm onto an instance that already has one keeps the old mapping (`restoreStateFrom` resets the KBM only when the incoming state carries one).
+
 ## [1.1.3] - 2026-10-26
 
 Hover-help preference no longer shared with O-Prism (ui-hardening-phase0). No DSP, parameter, preset or state change; no visual change.
