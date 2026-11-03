@@ -9,7 +9,7 @@
 # - Modules: Working code (CMake import with configuration)
 
 # NOTE: `version` and `last_updated` MUST be bumped on every edit. scripts/regen-registry-used-by.sh bumps them automatically when used_by content changes; bump minor/major by hand for significant changes.
-version: 1.2.7
+version: 1.2.8
 last_updated: 2026-11-03
 schema_version: 1.0.0
 
@@ -196,7 +196,7 @@ modules:
       - plugin: O-Orbit
         version: 1.4.5
       - plugin: O-Polystutter
-        version: 1.19.0
+        version: 1.19.1
       - plugin: O-Prism
         version: 1.30.3
       - plugin: O-Reed
@@ -477,7 +477,7 @@ modules:
       - plugin: O-GrainScatter
         version: 3.5.0
       - plugin: O-Polystutter
-        version: 1.19.0
+        version: 1.19.1
       - plugin: O-ReverseDelay
         version: 1.22.4
       - plugin: O-simpleGrain
@@ -686,7 +686,7 @@ modules:
       - plugin: O-Orbit
         version: 1.4.5
       - plugin: O-Polystutter
-        version: 1.19.0
+        version: 1.19.1
       - plugin: O-Prism
         version: 1.30.3
       - plugin: O-Reed

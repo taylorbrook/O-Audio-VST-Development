@@ -34,7 +34,7 @@ Ouaricon Plugins:
 | O-AnalogEQ | 📦 Installed | 1.5.7 | Audio Effect (EQ) | 2026-10-26 |
 | O-DigiDelay | 📦 Installed | 1.9.4 | Audio Effect (Delay) | 2026-11-03 |
 | O-simpleReverb | 📦 Installed | 3.0.1 | Audio Effect (Reverb) | 2026-10-19 |
-| O-Polystutter | 📦 Installed | 1.19.0 | Audio Effect (Beat Repeater) | 2026-10-28 | **Packaged:** [O-Polystutter-OuariconAudio.pkg](plugins/O-Polystutter/dist/) (4.5 MB, Signed, v1.12.4 — repackage pending) |
+| O-Polystutter | 📦 Installed | 1.19.1 | Audio Effect (Beat Repeater) | 2026-11-03 | **Packaged:** [O-Polystutter-OuariconAudio.pkg](plugins/O-Polystutter/dist/) (4.5 MB, Signed, v1.12.4 — repackage pending) |
 | O-Lyrica | 📦 Installed | 2.6.6 | Synth (Physical Modeling Harp) | 2026-10-27 |
 | O-MultiBandCompressor | 📦 Installed | 1.14.2 | Audio Effect (Dynamics) | 2026-10-26 |
 | O-Bass | 📦 Installed | 1.8.4 | Audio Effect (Bass Enhancer) | 2026-11-02 |

@@ -8,7 +8,7 @@ juce_add_plugin(OPolystutter
     PLUGIN_CODE OuPs
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Polystutter${OUARICON_DEV_SUFFIX}"
-    VERSION 1.19.0
+    VERSION 1.19.1
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_WEB_BROWSER TRUE
@@ -61,6 +61,12 @@ target_link_libraries(OPolystutter
 
 # Generate JuceHeader.h (JUCE 8 requirement - MUST be after target_link_libraries)
 juce_generate_juce_header(OPolystutter)
+
+# Preset manager module (v1.19.1): copies preset-manager.js into
+# Source/ui/public/modules/ (and adds OuariconPresetManager.h to the include
+# path, unused here: the C++ side stays OPolystutterPresetManager.h). MUST
+# precede juce_add_binary_data below, which embeds the copied JS.
+ouaricon_add_module(OPolystutter preset-manager)
 
 # Phase 3.2: WebView UI Resources (BinaryData)
 # Embed HTML/CSS/JS/images into plugin binary

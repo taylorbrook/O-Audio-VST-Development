@@ -2,6 +2,26 @@
 
 All notable changes to O-Polystutter will be documented in this file.
 
+## [1.19.1] - 2026-11-03
+
+The preset bar's `preset-manager.js` now comes from the shared module (preset-manager 1.1.1) instead of a hand-kept 1.0.0-era copy. No parameter, state, preset or audio change; the C++ side (`OPolystutterPresetManager.h`) is untouched.
+
+### Changed
+
+- **`preset-manager.js` moved to the module copy** (module-convergence step 2, 261029-md9 FORK-REVIEW row 19). `CMakeLists.txt` calls `ouaricon_add_module(OPolystutter preset-manager)` before `juce_add_binary_data`, which copies the module JS into `Source/ui/public/modules/` at configure time. The tracked copy and its `.gitignore` exception are gone.
+- What the move brings: the bounded `_waitForNative` (module 1.0.1). With no JUCE backend, `initialize()` now gives up after 100 × 50 ms and logs an error instead of hanging forever. It also brings the `onConfirmDelete` hook and the guarded `promptDelete` (1.0.1), and the WR-10 note on the `aria-label`s (1.0.9). The labels themselves were already `aria-label` here. The delete-prompt rework is dormant in this plugin: `app.js` deletes through its own two-click arm and calls `deletePreset` directly.
+
+### Testing
+
+- New gate `tests/preset-gate/gate.mjs` (Node; the 1.19.0 copy is kept as `baseline-1.19.0/`). **6/6 PASS.**
+  - A1: all 10 native names the module JS requests are registered in `PluginEditor.cpp`.
+  - A2: `app.js` never reaches `promptDelete`.
+  - B: the 1.19.0 copy and the served copy produce identical 88-line traces (native calls with arguments, display text, callbacks, return values). The scenario drives the `app.js` surface against one mock backend: init, prev/next wrap, load, missing load, save with trim, empty save, the Save/Load dialog buttons, `isFactoryPreset` for every preset, deleting a factory preset (refused), a user preset and a missing one, refresh, and a second init.
+  - C1: with no backend, the served copy resolves after about 5 s and logs. C2 (control): the 1.19.0 copy is still pending at 6 s.
+  - D: the served file is byte-identical to the module copy.
+  - Pre-change run: C1 and D FAIL, as expected.
+- The built binary embeds the module JS. auval and pluginval (strictness 5) pass.
+
 ## [1.19.0] - 2026-10-28
 
 Pitched-up repeats no longer alias. No parameter, range, state or preset change. Output at unity pitch and pitched down is bit-identical to v1.18.3.

@@ -22,11 +22,9 @@ __pycache__/
 # at configure time as a fallback for plugins that consume modules through
 # that path. Plugins like O-MicrotonalSampler instead serve module JS via
 # the WebView resource provider, making this directory a build-time leftover
-# that should not be committed.
-# Exception: this plugin does not call ouaricon_add_module(preset-manager);
-# its preset-manager.js is a hand-owned diverged copy, tracked on purpose.
+# that should not be committed. No exceptions since O-Polystutter 1.19.1
+# (the last hand-owned preset-manager.js copy moved to the module).
 plugins/*/Source/ui/public/modules/*
-!plugins/O-Polystutter/Source/ui/public/modules/preset-manager.js
 
 # =============================================================================
 # Backup Directories
