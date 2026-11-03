@@ -1,0 +1,314 @@
+navFreshNext	Aggressive Smash
+navFreshPrev	Vocal Smooth
+count	8
+load	Aggressive Smash	1	current=Aggressive Smash	factory=1
+applied:Aggressive Smash	threshold	0.5	-30.0
+applied:Aggressive Smash	ratio	0.473684222	10.0
+applied:Aggressive Smash	attack_time	0.00400400395	0.5
+applied:Aggressive Smash	release_time	0.0707070678	80
+applied:Aggressive Smash	knee	0.100000001	2.0
+applied:Aggressive Smash	output_gain	0.333333343	0.0
+applied:Aggressive Smash	auto_gain	1	On
+applied:Aggressive Smash	sc_source	0	Internal
+applied:Aggressive Smash	sc_hpf	0	0.0
+applied:Aggressive Smash	sc_lpf	0	0.0
+applied:Aggressive Smash	sc_listen	0	Off
+state	Aggressive Smash	520.VMjLg7e....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHAc1YxU1byklckAxTsE1bnIhO7.UPRETSfjFY8HRXzQWXis1WzkVakIBH1EFa0UVOh.iK0HxK9vCTAIUPMARZj0iHgUGcu80Ygklah.hcgwVck0iHw3BLh7hO7.UPRETSfjFY8HxZtUVYh.hcgwVck0iHx3BLh7hO7.UPRETSfjFY8Hxa0QGb0Q2WmEVZtIBH1EFa0UVOhDiK2fCNwLSNyPyLxXSL2DSNk0xMh7hO7.UPRETSfjFY8HhbgQWZuIBH1EFa0UVOhDCLt.iHu3COPEjTA0DHoQVOhHWYrUVXyU1WzkVakIBH1EFa0UVOhfCLt.iHu3COPEjTA0DHoQVOhL2XegFblIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHyM1Wrk1bzUlah.hcgwVck0iHv3BLh7hO7.UPRETSfjFY8Hxbi8EavYlHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhL2XeM2a0I2XkIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHzglbkMGZuwFYh.hcgwVck0iHsLCLt.iHu3COu.UXxEVakQWYxMmO..
+reopen:Aggressive Smash	threshold	0.5	-30.0
+reopen:Aggressive Smash	ratio	0.473684222	10.0
+reopen:Aggressive Smash	attack_time	0.00400400395	0.5
+reopen:Aggressive Smash	release_time	0.0707070678	80
+reopen:Aggressive Smash	knee	0.100000001	2.0
+reopen:Aggressive Smash	output_gain	0.333333343	0.0
+reopen:Aggressive Smash	auto_gain	1	On
+reopen:Aggressive Smash	sc_source	0	Internal
+reopen:Aggressive Smash	sc_hpf	0	0.0
+reopen:Aggressive Smash	sc_lpf	0	0.0
+reopen:Aggressive Smash	sc_listen	0	Off
+otherBuildBlob:Aggressive Smash	threshold	0.5	-30.0
+otherBuildBlob:Aggressive Smash	ratio	0.473684222	10.0
+otherBuildBlob:Aggressive Smash	attack_time	0.00400400395	0.5
+otherBuildBlob:Aggressive Smash	release_time	0.0707070678	80
+otherBuildBlob:Aggressive Smash	knee	0.100000001	2.0
+otherBuildBlob:Aggressive Smash	output_gain	0.333333343	0.0
+otherBuildBlob:Aggressive Smash	auto_gain	1	On
+otherBuildBlob:Aggressive Smash	sc_source	0	Internal
+otherBuildBlob:Aggressive Smash	sc_hpf	0	0.0
+otherBuildBlob:Aggressive Smash	sc_lpf	0	0.0
+otherBuildBlob:Aggressive Smash	sc_listen	0	Off
+load	Bass Control	1	current=Bass Control	factory=1
+applied:Bass Control	threshold	0.666666687	-20.0
+applied:Bass Control	ratio	0.157894731	4.0
+applied:Bass Control	attack_time	0.0490490496	5.0
+applied:Bass Control	release_time	0.141414136	150
+applied:Bass Control	knee	0.300000012	6.0
+applied:Bass Control	output_gain	0.333333343	0.0
+applied:Bass Control	auto_gain	1	On
+applied:Bass Control	sc_source	0	Internal
+applied:Bass Control	sc_hpf	0	0.0
+applied:Bass Control	sc_lpf	0	0.0
+applied:Bass Control	sc_listen	0	Off
+state	Bass Control	516.VMjLgre....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHBE1byAxPu4Fcx8Fah3COPEjTA0DHoQVOhDFczE1Xq8Eco0VYh.hcgwVck0iH03BLh7hO7.UPRETSfjFY8HRX0Q2aecVXo4lHfXWXrUWY8HRLt.iHu3COPEjTA0DHoQVOhrlakUlHfXWXrUWY8HhMt.iHu3COPEjTA0DHoQVOh7VczAWcz80Ygklah.hcgwVck0iHw3xM3fSLyjyLzLiL1DyMwjSYsbiHu3COPEjTA0DHoQVOhHWXzk1ah.hcgwVck0iHz3BLh7hO7.UPRETSfjFY8HhbkwVYgMWYeQWZsUlHfXWXrUWY8HRL0.iKvHxK9vCTAIUPMARZj0iHyM1WnAmYh.hcgwVck0iHv3BLh7hO7.UPRETSfjFY8Hxbi8EaoMGck4lHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhL2XewFblIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHyM1Wy8VcxMVYh.hcgwVck0iHv3BLh7hO7.UPRETSfjFY8HBcnIWYyg1arQlHfXWXrUWY8HRKx.iKvHxK9vyKPElbg0VYzUlby4C.
+reopen:Bass Control	threshold	0.666666687	-20.0
+reopen:Bass Control	ratio	0.157894731	4.0
+reopen:Bass Control	attack_time	0.0490490496	5.0
+reopen:Bass Control	release_time	0.141414136	150
+reopen:Bass Control	knee	0.300000012	6.0
+reopen:Bass Control	output_gain	0.333333343	0.0
+reopen:Bass Control	auto_gain	1	On
+reopen:Bass Control	sc_source	0	Internal
+reopen:Bass Control	sc_hpf	0	0.0
+reopen:Bass Control	sc_lpf	0	0.0
+reopen:Bass Control	sc_listen	0	Off
+otherBuildBlob:Bass Control	threshold	0.666666687	-20.0
+otherBuildBlob:Bass Control	ratio	0.157894731	4.0
+otherBuildBlob:Bass Control	attack_time	0.0490490496	5.0
+otherBuildBlob:Bass Control	release_time	0.141414136	150
+otherBuildBlob:Bass Control	knee	0.300000012	6.0
+otherBuildBlob:Bass Control	output_gain	0.333333343	0.0
+otherBuildBlob:Bass Control	auto_gain	1	On
+otherBuildBlob:Bass Control	sc_source	0	Internal
+otherBuildBlob:Bass Control	sc_hpf	0	0.0
+otherBuildBlob:Bass Control	sc_lpf	0	0.0
+otherBuildBlob:Bass Control	sc_listen	0	Off
+load	Drum Punch	1	current=Drum Punch	factory=1
+applied:Drum Punch	threshold	0.75	-15.0
+applied:Drum Punch	ratio	0.157894731	4.0
+applied:Drum Punch	attack_time	0.0090090083	1.0
+applied:Drum Punch	release_time	0.0404040404	50
+applied:Drum Punch	knee	0.200000003	4.0
+applied:Drum Punch	output_gain	0.333333343	0.0
+applied:Drum Punch	auto_gain	1	On
+applied:Drum Punch	sc_source	0	Internal
+applied:Drum Punch	sc_hpf	0	0.0
+applied:Drum Punch	sc_lpf	0	0.0
+applied:Drum Punch	sc_listen	0	Off
+state	Drum Punch	526.VMjLgTf....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHDIWcsABT041XnIhO7.UPRETSfjFY8HRXzQWXis1WzkVakIBH1EFa0UVOhDiKvHxK9vCTAIUPMARZj0iHgUGcu80Ygklah.hcgwVck0iHw3BLh7hO7.UPRETSfjFY8HxZtUVYh.hcgwVck0iHz3BLh7hO7.UPRETSfjFY8Hxa0QGb0Q2WmEVZtIBH1EFa0UVOhDiK2fCNwLSNyPyLxXSL2DSNk0xMh7hO7.UPRETSfjFY8HhbgQWZuIBH1EFa0UVOhPiKvHxK9vCTAIUPMARZj0iHxUFakE1bk8Eco0VYh.hcgwVck0iH0.iKvHxK9vCTAIUPMARZj0iHyM1WnAmYh.hcgwVck0iHv3BLh7hO7.UPRETSfjFY8Hxbi8EaoMGck4lHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhL2XewFblIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHyM1Wy8VcxMVYh.hcgwVck0iHv3BLh7hO7.UPRETSfjFY8HBcnIWYyg1arQlHfXWXrUWY8HRKwPiK4jSN4jSNvPiMyHSM1fiHu3COu.UXxEVakQWYxMmO..
+reopen:Drum Punch	threshold	0.75	-15.0
+reopen:Drum Punch	ratio	0.157894731	4.0
+reopen:Drum Punch	attack_time	0.0090090083	1.0
+reopen:Drum Punch	release_time	0.0404040404	50
+reopen:Drum Punch	knee	0.200000003	4.0
+reopen:Drum Punch	output_gain	0.333333343	0.0
+reopen:Drum Punch	auto_gain	1	On
+reopen:Drum Punch	sc_source	0	Internal
+reopen:Drum Punch	sc_hpf	0	0.0
+reopen:Drum Punch	sc_lpf	0	0.0
+reopen:Drum Punch	sc_listen	0	Off
+otherBuildBlob:Drum Punch	threshold	0.75	-15.0
+otherBuildBlob:Drum Punch	ratio	0.157894731	4.0
+otherBuildBlob:Drum Punch	attack_time	0.0090090083	1.0
+otherBuildBlob:Drum Punch	release_time	0.0404040404	50
+otherBuildBlob:Drum Punch	knee	0.200000003	4.0
+otherBuildBlob:Drum Punch	output_gain	0.333333343	0.0
+otherBuildBlob:Drum Punch	auto_gain	1	On
+otherBuildBlob:Drum Punch	sc_source	0	Internal
+otherBuildBlob:Drum Punch	sc_hpf	0	0.0
+otherBuildBlob:Drum Punch	sc_lpf	0	0.0
+otherBuildBlob:Drum Punch	sc_listen	0	Off
+load	Gentle Glue	1	current=Gentle Glue	factory=1
+applied:Gentle Glue	threshold	0.800000012	-12.0
+applied:Gentle Glue	ratio	0.0526315793	2.0
+applied:Gentle Glue	attack_time	0.2992993	30.0
+applied:Gentle Glue	release_time	0.292929292	300
+applied:Gentle Glue	knee	0.600000024	12.0
+applied:Gentle Glue	output_gain	0.333333343	0.0
+applied:Gentle Glue	auto_gain	1	On
+applied:Gentle Glue	sc_source	0	Internal
+applied:Gentle Glue	sc_hpf	0	0.0
+applied:Gentle Glue	sc_lpf	0	0.0
+applied:Gentle Glue	sc_listen	0	Off
+state	Gentle Glue	530.VMjLgjf....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHGUlazwVYfbDa0UlH9vCTAIUPMARZj0iHgQGcgM1ZeQWZsUlHfXWXrUWY8HxLv3BLh7hO7.UPRETSfjFY8HRX0Q2aecVXo4lHfXWXrUWY8HRLt.iHu3COPEjTA0DHoQVOhrlakUlHfXWXrUWY8HRLx3BLh7hO7.UPRETSfjFY8Hxa0QGb0Q2WmEVZtIBH1EFa0UVOhDiK2fCNwLSNyPyLxXSL2DSNk0xMh7hO7.UPRETSfjFY8HhbgQWZuIBH1EFa0UVOhHiKvHxK9vCTAIUPMARZj0iHxUFakE1bk8Eco0VYh.hcgwVck0iHy.CLt.iHu3COPEjTA0DHoQVOhL2XegFblIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHyM1Wrk1bzUlah.hcgwVck0iHv3BLh7hO7.UPRETSfjFY8Hxbi8EavYlHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhL2XeM2a0I2XkIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHzglbkMGZuwFYh.hcgwVck0iHsDSLtjSN4jSN4.CM1LiL0XCNh7hO77BTgIWXsUFckI2b9..
+reopen:Gentle Glue	threshold	0.800000012	-12.0
+reopen:Gentle Glue	ratio	0.0526315793	2.0
+reopen:Gentle Glue	attack_time	0.2992993	30.0
+reopen:Gentle Glue	release_time	0.292929292	300
+reopen:Gentle Glue	knee	0.600000024	12.0
+reopen:Gentle Glue	output_gain	0.333333343	0.0
+reopen:Gentle Glue	auto_gain	1	On
+reopen:Gentle Glue	sc_source	0	Internal
+reopen:Gentle Glue	sc_hpf	0	0.0
+reopen:Gentle Glue	sc_lpf	0	0.0
+reopen:Gentle Glue	sc_listen	0	Off
+otherBuildBlob:Gentle Glue	threshold	0.800000012	-12.0
+otherBuildBlob:Gentle Glue	ratio	0.0526315793	2.0
+otherBuildBlob:Gentle Glue	attack_time	0.2992993	30.0
+otherBuildBlob:Gentle Glue	release_time	0.292929292	300
+otherBuildBlob:Gentle Glue	knee	0.600000024	12.0
+otherBuildBlob:Gentle Glue	output_gain	0.333333343	0.0
+otherBuildBlob:Gentle Glue	auto_gain	1	On
+otherBuildBlob:Gentle Glue	sc_source	0	Internal
+otherBuildBlob:Gentle Glue	sc_hpf	0	0.0
+otherBuildBlob:Gentle Glue	sc_lpf	0	0.0
+otherBuildBlob:Gentle Glue	sc_listen	0	Off
+load	Mastering Touch	1	current=Mastering Touch	factory=1
+applied:Mastering Touch	threshold	0.833333313	-10.0
+applied:Mastering Touch	ratio	0.0263157897	1.5
+applied:Mastering Touch	attack_time	0.1991992	20.0
+applied:Mastering Touch	release_time	0.393939406	400
+applied:Mastering Touch	knee	0.5	10.0
+applied:Mastering Touch	output_gain	0.333333343	0.0
+applied:Mastering Touch	auto_gain	1	On
+applied:Mastering Touch	sc_source	0	Internal
+applied:Mastering Touch	sc_hpf	0	0.0
+applied:Mastering Touch	sc_lpf	0	0.0
+applied:Mastering Touch	sc_listen	0	Off
+state	Mastering Touch	534.VMjLgzf....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHME1bzUlbo41YfP0a0MFZh3COPEjTA0DHoQVOhDFczE1Xq8Eco0VYh.hcgwVck0iHx.iKvHxK9vCTAIUPMARZj0iHgUGcu80Ygklah.hcgwVck0iHw3BLh7hO7.UPRETSfjFY8HxZtUVYh.hcgwVck0iHw.iKvHxK9vCTAIUPMARZj0iHuUGcvUGcecVXo4lHfXWXrUWY8HRLtbCN3DyL4LCMyHiMwbSL4TVK2HxK9vCTAIUPMARZj0iHxEFco8lHfXWXrUWY8HRLtTiHu3COPEjTA0DHoQVOhHWYrUVXyU1WzkVakIBH1EFa0UVOhPCLv3BLh7hO7.UPRETSfjFY8Hxbi8EZvYlHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhL2XewVZyQWYtIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHyM1WrAmYh.hcgwVck0iHv3BLh7hO7.UPRETSfjFY8Hxbi80buUmbiUlHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhPGZxU1bn8FajIBH1EFa0UVOhzRNtjSN4jSN4.CM1LiL0XCNzHxK9vyKPElbg0VYzUlby4C.
+reopen:Mastering Touch	threshold	0.833333313	-10.0
+reopen:Mastering Touch	ratio	0.0263157897	1.5
+reopen:Mastering Touch	attack_time	0.1991992	20.0
+reopen:Mastering Touch	release_time	0.393939406	400
+reopen:Mastering Touch	knee	0.5	10.0
+reopen:Mastering Touch	output_gain	0.333333343	0.0
+reopen:Mastering Touch	auto_gain	1	On
+reopen:Mastering Touch	sc_source	0	Internal
+reopen:Mastering Touch	sc_hpf	0	0.0
+reopen:Mastering Touch	sc_lpf	0	0.0
+reopen:Mastering Touch	sc_listen	0	Off
+otherBuildBlob:Mastering Touch	threshold	0.833333313	-10.0
+otherBuildBlob:Mastering Touch	ratio	0.0263157897	1.5
+otherBuildBlob:Mastering Touch	attack_time	0.1991992	20.0
+otherBuildBlob:Mastering Touch	release_time	0.393939406	400
+otherBuildBlob:Mastering Touch	knee	0.5	10.0
+otherBuildBlob:Mastering Touch	output_gain	0.333333343	0.0
+otherBuildBlob:Mastering Touch	auto_gain	1	On
+otherBuildBlob:Mastering Touch	sc_source	0	Internal
+otherBuildBlob:Mastering Touch	sc_hpf	0	0.0
+otherBuildBlob:Mastering Touch	sc_lpf	0	0.0
+otherBuildBlob:Mastering Touch	sc_listen	0	Off
+load	Natural Dynamics	1	current=Natural Dynamics	factory=1
+applied:Natural Dynamics	threshold	0.733333349	-16.0
+applied:Natural Dynamics	ratio	0.0789473653	2.5
+applied:Natural Dynamics	attack_time	0.249249235	25.0
+applied:Natural Dynamics	release_time	0.24242425	250
+applied:Natural Dynamics	knee	0.699999988	14.0
+applied:Natural Dynamics	output_gain	0.333333343	0.0
+applied:Natural Dynamics	auto_gain	1	On
+applied:Natural Dynamics	sc_source	0	Internal
+applied:Natural Dynamics	sc_hpf	0	0.0
+applied:Natural Dynamics	sc_lpf	0	0.0
+applied:Natural Dynamics	sc_listen	0	Off
+state	Natural Dynamics	535.VMjLg3f....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHNEFc0IWXrABQ44VXsk1XyIhO7.UPRETSfjFY8HRXzQWXis1WzkVakIBH1EFa0UVOhHSMt.iHu3COPEjTA0DHoQVOhDVcz81WmEVZtIBH1EFa0UVOhDiKvHxK9vCTAIUPMARZj0iHq4VYkIBH1EFa0UVOhDCMt.iHu3COPEjTA0DHoQVOh7VczAWcz80Ygklah.hcgwVck0iHw3xM3fSLyjyLzLiL1DyMwjSYsbiHu3COPEjTA0DHoQVOhHWXzk1ah.hcgwVck0iHx3RMh7hO7.UPRETSfjFY8HhbkwVYgMWYeQWZsUlHfXWXrUWY8HhL0.iKvHxK9vCTAIUPMARZj0iHyM1WnAmYh.hcgwVck0iHv3BLh7hO7.UPRETSfjFY8Hxbi8EaoMGck4lHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhL2XewFblIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHyM1Wy8VcxMVYh.hcgwVck0iHv3BLh7hO7.UPRETSfjFY8HBcnIWYyg1arQlHfXWXrUWY8HRKwTiK4jSN4jSNvPiMyHSM1fiHu3COu.UXxEVakQWYxMmO..
+reopen:Natural Dynamics	threshold	0.733333349	-16.0
+reopen:Natural Dynamics	ratio	0.0789473653	2.5
+reopen:Natural Dynamics	attack_time	0.249249235	25.0
+reopen:Natural Dynamics	release_time	0.24242425	250
+reopen:Natural Dynamics	knee	0.699999988	14.0
+reopen:Natural Dynamics	output_gain	0.333333343	0.0
+reopen:Natural Dynamics	auto_gain	1	On
+reopen:Natural Dynamics	sc_source	0	Internal
+reopen:Natural Dynamics	sc_hpf	0	0.0
+reopen:Natural Dynamics	sc_lpf	0	0.0
+reopen:Natural Dynamics	sc_listen	0	Off
+otherBuildBlob:Natural Dynamics	threshold	0.733333349	-16.0
+otherBuildBlob:Natural Dynamics	ratio	0.0789473653	2.5
+otherBuildBlob:Natural Dynamics	attack_time	0.249249235	25.0
+otherBuildBlob:Natural Dynamics	release_time	0.24242425	250
+otherBuildBlob:Natural Dynamics	knee	0.699999988	14.0
+otherBuildBlob:Natural Dynamics	output_gain	0.333333343	0.0
+otherBuildBlob:Natural Dynamics	auto_gain	1	On
+otherBuildBlob:Natural Dynamics	sc_source	0	Internal
+otherBuildBlob:Natural Dynamics	sc_hpf	0	0.0
+otherBuildBlob:Natural Dynamics	sc_lpf	0	0.0
+otherBuildBlob:Natural Dynamics	sc_listen	0	Off
+load	Parallel Crush	1	current=Parallel Crush	factory=1
+applied:Parallel Crush	threshold	0.333333343	-40.0
+applied:Parallel Crush	ratio	1	20.0
+applied:Parallel Crush	attack_time	0	0.1
+applied:Parallel Crush	release_time	0.0505050495	60
+applied:Parallel Crush	knee	0	0.0
+applied:Parallel Crush	output_gain	0.666666687	12.0
+applied:Parallel Crush	auto_gain	0	Off
+applied:Parallel Crush	sc_source	0	Internal
+applied:Parallel Crush	sc_hpf	0	0.0
+applied:Parallel Crush	sc_lpf	0	0.0
+applied:Parallel Crush	sc_listen	0	Off
+state	Parallel Crush	517.VMjLgve....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHPElbgwFakwFHCIWcyglH9vCTAIUPMARZj0iHgQGcgM1ZeQWZsUlHfXWXrUWY8HBLtDCLv.CLv.CLwPSNvDSL1DiHu3COPEjTA0DHoQVOhDVcz81WmEVZtIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHq4VYkIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHuUGcvUGcecVXo4lHfXWXrUWY8HRLx3BLh7hO7.UPRETSfjFY8HhbgQWZuIBH1EFa0UVOhHCLt.iHu3COPEjTA0DHoQVOhHWYrUVXyU1WzkVakIBH1EFa0UVOhXCLt.iHu3COPEjTA0DHoQVOhL2XegFblIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHyM1Wrk1bzUlah.hcgwVck0iHv3BLh7hO7.UPRETSfjFY8Hxbi8EavYlHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhL2XeM2a0I2XkIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHzglbkMGZuwFYh.hcgwVck0iHsPCLt.iHu3COu.UXxEVakQWYxMmO..
+reopen:Parallel Crush	threshold	0.333333343	-40.0
+reopen:Parallel Crush	ratio	1	20.0
+reopen:Parallel Crush	attack_time	0	0.1
+reopen:Parallel Crush	release_time	0.0505050495	60
+reopen:Parallel Crush	knee	0	0.0
+reopen:Parallel Crush	output_gain	0.666666687	12.0
+reopen:Parallel Crush	auto_gain	0	Off
+reopen:Parallel Crush	sc_source	0	Internal
+reopen:Parallel Crush	sc_hpf	0	0.0
+reopen:Parallel Crush	sc_lpf	0	0.0
+reopen:Parallel Crush	sc_listen	0	Off
+otherBuildBlob:Parallel Crush	threshold	0.333333343	-40.0
+otherBuildBlob:Parallel Crush	ratio	1	20.0
+otherBuildBlob:Parallel Crush	attack_time	0	0.1
+otherBuildBlob:Parallel Crush	release_time	0.0505050495	60
+otherBuildBlob:Parallel Crush	knee	0	0.0
+otherBuildBlob:Parallel Crush	output_gain	0.666666687	12.0
+otherBuildBlob:Parallel Crush	auto_gain	0	Off
+otherBuildBlob:Parallel Crush	sc_source	0	Internal
+otherBuildBlob:Parallel Crush	sc_hpf	0	0.0
+otherBuildBlob:Parallel Crush	sc_lpf	0	0.0
+otherBuildBlob:Parallel Crush	sc_listen	0	Off
+load	Vocal Smooth	1	current=Vocal Smooth	factory=1
+applied:Vocal Smooth	threshold	0.699999988	-18.0
+applied:Vocal Smooth	ratio	0.105263159	3.0
+applied:Vocal Smooth	attack_time	0.14914915	15.0
+applied:Vocal Smooth	release_time	0.191919193	200
+applied:Vocal Smooth	knee	0.400000006	8.0
+applied:Vocal Smooth	output_gain	0.333333343	0.0
+applied:Vocal Smooth	auto_gain	1	On
+applied:Vocal Smooth	sc_source	0	Internal
+applied:Vocal Smooth	sc_hpf	0	0.0
+applied:Vocal Smooth	sc_lpf	0	0.0
+applied:Vocal Smooth	sc_listen	0	Off
+state	Vocal Smooth	517.VMjLgve....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOPElbg0VYzUlbyARcowTXtcVcgcVY8HRYtIBHiUmbxUlazAkbkMWYz0iHV81XgwFHS01auQGZh3COPEjTA0DHoQVOhDFczE1Xq8Eco0VYh.hcgwVck0iHwTiKvHxK9vCTAIUPMARZj0iHgUGcu80Ygklah.hcgwVck0iHw3BLh7hO7.UPRETSfjFY8HxZtUVYh.hcgwVck0iH33BLh7hO7.UPRETSfjFY8Hxa0QGb0Q2WmEVZtIBH1EFa0UVOhDiK2fCNwLSNyPyLxXSL2DSNk0xMh7hO7.UPRETSfjFY8HhbgQWZuIBH1EFa0UVOhLiKvHxK9vCTAIUPMARZj0iHxUFakE1bk8Eco0VYh.hcgwVck0iHx.CLt.iHu3COPEjTA0DHoQVOhL2XegFblIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHyM1Wrk1bzUlah.hcgwVck0iHv3BLh7hO7.UPRETSfjFY8Hxbi8EavYlHfXWXrUWY8HBLt.iHu3COPEjTA0DHoQVOhL2XeM2a0I2XkIBH1EFa0UVOh.iKvHxK9vCTAIUPMARZj0iHzglbkMGZuwFYh.hcgwVck0iHsDCNt.iHu3COu.UXxEVakQWYxMmO..
+reopen:Vocal Smooth	threshold	0.699999988	-18.0
+reopen:Vocal Smooth	ratio	0.105263159	3.0
+reopen:Vocal Smooth	attack_time	0.14914915	15.0
+reopen:Vocal Smooth	release_time	0.191919193	200
+reopen:Vocal Smooth	knee	0.400000006	8.0
+reopen:Vocal Smooth	output_gain	0.333333343	0.0
+reopen:Vocal Smooth	auto_gain	1	On
+reopen:Vocal Smooth	sc_source	0	Internal
+reopen:Vocal Smooth	sc_hpf	0	0.0
+reopen:Vocal Smooth	sc_lpf	0	0.0
+reopen:Vocal Smooth	sc_listen	0	Off
+otherBuildBlob:Vocal Smooth	threshold	0.699999988	-18.0
+otherBuildBlob:Vocal Smooth	ratio	0.105263159	3.0
+otherBuildBlob:Vocal Smooth	attack_time	0.14914915	15.0
+otherBuildBlob:Vocal Smooth	release_time	0.191919193	200
+otherBuildBlob:Vocal Smooth	knee	0.400000006	8.0
+otherBuildBlob:Vocal Smooth	output_gain	0.333333343	0.0
+otherBuildBlob:Vocal Smooth	auto_gain	1	On
+otherBuildBlob:Vocal Smooth	sc_source	0	Internal
+otherBuildBlob:Vocal Smooth	sc_hpf	0	0.0
+otherBuildBlob:Vocal Smooth	sc_lpf	0	0.0
+otherBuildBlob:Vocal Smooth	sc_listen	0	Off
+navNext	Bass Control
+navPrev	Vocal Smooth
+userSave	1
+userSaved	threshold	0.12999998	-52.2
+userSaved	ratio	0.868421078	17.5
+userSaved	attack_time	0.869869888	87.0
+userSaved	release_time	0.869696975	871
+userSaved	knee	0.870000005	17.4
+userSaved	output_gain	0.869444489	19.3
+userSaved	auto_gain	0.870000005	On
+userSaved	sc_source	0	Internal
+userSaved	sc_hpf	0	0.0
+userSaved	sc_lpf	0	0.0
+userSaved	sc_listen	0	Off
+userLoad	1
+userLoaded	threshold	0.12999998	-52.2
+userLoaded	ratio	0.868421078	17.5
+userLoaded	attack_time	0.869869888	87.0
+userLoaded	release_time	0.869696975	871
+userLoaded	knee	0.870000005	17.4
+userLoaded	output_gain	0.869444489	19.3
+userLoaded	auto_gain	0.870000005	On
+userLoaded	sc_source	0	Internal
+userLoaded	sc_hpf	0	0.0
+userLoaded	sc_lpf	0	0.0
+userLoaded	sc_listen	0	Off
+userIsFactory	0
+userDelete	1
+factorySaveRefused	1
+factoryDeleteRefused	1
+missingLoadRefused	1

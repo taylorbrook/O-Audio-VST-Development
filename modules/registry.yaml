@@ -9,8 +9,8 @@
 # - Modules: Working code (CMake import with configuration)
 
 # NOTE: `version` and `last_updated` MUST be bumped on every edit. scripts/regen-registry-used-by.sh bumps them automatically when used_by content changes; bump minor/major by hand for significant changes.
-version: 1.2.5
-last_updated: 2026-11-02
+version: 1.2.6
+last_updated: 2026-11-03
 schema_version: 1.0.0
 
 # Module categories
@@ -174,7 +174,7 @@ modules:
       - plugin: O-Chorus
         version: 1.10.3
       - plugin: O-Comp
-        version: 1.11.3
+        version: 1.11.4
       - plugin: O-Contrabass
         version: 1.12.2
       - plugin: O-Detune
@@ -654,7 +654,7 @@ modules:
       - plugin: O-Chorus
         version: 1.10.3
       - plugin: O-Comp
-        version: 1.11.3
+        version: 1.11.4
       - plugin: O-Contrabass
         version: 1.12.2
       - plugin: O-Detune

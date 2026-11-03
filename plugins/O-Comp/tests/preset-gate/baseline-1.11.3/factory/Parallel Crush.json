@@ -1,0 +1,1 @@
+{"parameters": {"attack_time": 0.0, "auto_gain": 0.0, "knee": 0.0, "output_gain": 0.666670024394989, "ratio": 1.0, "release_time": 0.050510000437498, "threshold": 0.333330005407333}, "version": "1.0.0", "plugin": "O-Comp", "factory": true}

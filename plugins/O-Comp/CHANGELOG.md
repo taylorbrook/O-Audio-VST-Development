@@ -2,6 +2,22 @@
 
 All notable changes to this plugin will be documented in this file.
 
+## [1.11.4] - 2026-11-03
+
+O-Comp now uses the shared preset-manager module (1.1.0) instead of its own older copies. No DSP or parameter change. User presets and saved sessions load with the same values as 1.11.3.
+
+### Fixed
+
+- **Factory presets now reset the sidechain.** They store only the seven compressor controls. In 1.11.3, loading one left SC Source, SC HPF, SC LPF and SC Listen at whatever they were before. So a factory preset loaded with SC Listen on kept playing the detector signal, and External stayed selected. Omitted controls now return to their defaults first (Internal / Off / Off / listen off), which is what v1.10.0 said a preset without them should load as.
+- **Factory presets are no longer rewritten every time the plugin opens.** Each new instance and each host scan wrote all eight files to disk, and two instances starting together could collide on them. They are now written once per plugin version.
+- **The preset bar no longer waits forever if the WebView bridge is missing.** It stops after 5 seconds and logs an error.
+- Preset names containing `/`, `\` or `:` are now saved under a safe file name instead of being treated as paths.
+
+### Changed
+
+- `OuariconPresetManager.h` and `preset-manager.js` now come from `modules/persistence/preset-manager`, which also brings its later preset fixes and API.
+- **Prev** on a fresh instance (no preset picked yet) now goes to the first preset, not the last. Next is unchanged.
+
 ## [1.11.3] - 2026-10-26
 
 Windows WebView2 hardening and locale-independent meter data (ui-hardening-phase0). No DSP, parameter, preset or state change; no visual change.

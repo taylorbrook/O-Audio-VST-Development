@@ -8,7 +8,7 @@ juce_add_plugin(O-Comp
     PLUGIN_CODE OuCp
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Comp${OUARICON_DEV_SUFFIX}"
-    VERSION 1.11.3
+    VERSION 1.11.4
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -52,6 +52,11 @@ target_link_libraries(O-Comp
 
 # Generate JuceHeader.h (JUCE 8 requirement - CRITICAL)
 juce_generate_juce_header(O-Comp)
+
+# Preset manager module: adds OuariconPresetManager.h to the include path and
+# copies preset-manager.js into Source/ui/public/modules/. MUST precede
+# juce_add_binary_data below, which embeds the copied JS.
+ouaricon_add_module(O-Comp preset-manager)
 
 # WebView UI Resources
 juce_add_binary_data(O-Comp_UIResources
@@ -101,4 +106,8 @@ if(OUARICON_BUILD_TESTS)
     # offer. Rides the same generic console builder as param-dump.
     ouaricon_add_processor_console(O-Comp ${CMAKE_CURRENT_SOURCE_DIR}/Source
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/bus-dump-main.cpp bus-dump)
+
+    # Preset + state gate (v1.11.4), run by tests/preset-gate/gate.py
+    ouaricon_add_processor_console(O-Comp ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/preset-gate/main.cpp preset-gate)
 endif()
