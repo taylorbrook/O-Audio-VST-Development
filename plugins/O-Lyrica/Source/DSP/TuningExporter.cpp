@@ -1,5 +1,5 @@
 /*
-   This file is part of O-Lyrica, an Ouaricon Audio plugin.
+   This file is part of the Ouaricon Audio scala-tuning-engine module.
    Copyright (C) 2026  Ouaricon Audio
 
    SPDX-License-Identifier: AGPL-3.0-or-later
@@ -21,7 +21,7 @@
   ==============================================================================
 
     TuningExporter.cpp
-    v1.16.0: HTML Export for Tuning Documentation
+    scala-tuning-engine module v2.0.0
 
   ==============================================================================
 */
@@ -132,7 +132,11 @@ juce::String TuningExporter::approximateRatio(double cents)
 double TuningExporter::calculateETDeviation(double cents, int degree, int totalDegrees, double period)
 {
     if (degree == 0)
-        return 0.0;  // Unison is always 0
+        return 0.0;
+
+    // IN-07: guard against divide-by-zero on a degenerate scale.
+    if (totalDegrees <= 0)
+        return 0.0;
 
     double etCents = (static_cast<double>(degree) / static_cast<double>(totalDegrees)) * period;
     return cents - etCents;
@@ -300,6 +304,8 @@ juce::String TuningExporter::generatePitchCircleSVG(const std::vector<double>& i
                                                      double period,
                                                      const juce::String& scaleName)
 {
+    juce::ignoreUnused(scaleName);
+
     const int size = 400;
     const int cx = size / 2;
     const int cy = size / 2;
@@ -324,7 +330,13 @@ juce::String TuningExporter::generatePitchCircleSVG(const std::vector<double>& i
     svg += "  <circle cx=\"" + juce::String(cx) + "\" cy=\"" + juce::String(cy)
          + "\" r=\"4\" fill=\"#8b7355\"/>\n";
 
-    const int total = static_cast<int>(intervals.size());
+    // IN-11: when the interval list includes the closing period it lands on
+    // the same angle as the unison (cents/period = 1.0) — skip it so the
+    // circle shows one node per degree and the ET spokes match the scale size.
+    int total = static_cast<int>(intervals.size());
+    if (total > 1 && std::abs(intervals.back() - period) < 0.01)
+        --total;
+
     const double twoPi = 6.283185307179586;
 
     // Draw ET reference lines (faint)
@@ -343,7 +355,7 @@ juce::String TuningExporter::generatePitchCircleSVG(const std::vector<double>& i
     for (int i = 0; i < total; ++i)
     {
         double cents = (i < static_cast<int>(intervals.size())) ? intervals[static_cast<size_t>(i)] : 0.0;
-        double angle = (cents / period) * twoPi - (twoPi / 4.0);  // Start at top
+        double angle = (cents / period) * twoPi - (twoPi / 4.0);
 
         int x = cx + static_cast<int>(std::cos(angle) * radius);
         int y = cy + static_cast<int>(std::sin(angle) * radius);
@@ -366,7 +378,7 @@ juce::String TuningExporter::generatePitchCircleSVG(const std::vector<double>& i
              + juce::String(i) + "</text>\n";
     }
 
-    // Scale name in center
+    // Scale note count in center
     svg += "  <text x=\"" + juce::String(cx) + "\" y=\"" + juce::String(cy + innerRadius / 2)
          + "\" text-anchor=\"middle\" font-family=\"Georgia\" font-size=\"11\" fill=\"#7a6a52\">"
          + juce::String(total) + " notes</text>\n";
@@ -379,26 +391,32 @@ juce::String TuningExporter::generatePitchCircleSVG(const std::vector<double>& i
 // Main HTML Export
 // ═══════════════════════════════════════════════════════════════════
 
-juce::String TuningExporter::toHTML(const TuningEngine& engine)
+static juce::String escapeHtml(const juce::String& text)
 {
-    juce::String scaleName = engine.getActiveTuningName();
+    return text.replace("&", "&amp;")
+               .replace("<", "&lt;")
+               .replace(">", "&gt;")
+               .replace("\"", "&quot;")
+               .replace("'", "&#39;");
+}
+
+juce::String TuningExporter::toHTML(const TuningEngine& engine, const juce::String& pluginName)
+{
+    // WR-20: the name comes from the .scl description line — untrusted text.
+    // Escape it before it reaches <title>/<h1>, or a crafted scale file puts
+    // script into the exported page.
+    const juce::String scaleName = escapeHtml(engine.getActiveTuningName());
     std::vector<double> intervals = engine.getIntervals();
     int noteCount = engine.getScaleDegrees();
     double masterTune = engine.getMasterTune();
     float octaveStretch = engine.getOctaveStretch();
 
-    // Determine period (default 1200 for octave-repeating scales)
+    // WR-15: the last interval IS the period whenever positive — gating on
+    // "> 1200" broke every sub-octave tuning (Carlos Gamma's 737.1c period
+    // exported as 1200c with wrong deviations and a wrong pitch circle).
     double period = 1200.0;
-    if (!intervals.empty() && intervals.back() > 1200.0)
-    {
-        // Non-octave scale (e.g., Bohlen-Pierce)
+    if (!intervals.empty() && intervals.back() > 0.0)
         period = intervals.back();
-    }
-    else if (!intervals.empty() && noteCount > 0)
-    {
-        // For scales that don't include the period in intervals
-        period = 1200.0;
-    }
 
     // Current date
     auto now = juce::Time::getCurrentTime();
@@ -460,7 +478,7 @@ juce::String TuningExporter::toHTML(const TuningEngine& engine)
 
     // Footer
     html += "  <div class=\"footer\">\n";
-    html += "    <p>Generated by <strong>OuariconLyrica</strong> on " + dateStr + "</p>\n";
+    html += "    <p>Generated by <strong>" + pluginName + "</strong> on " + dateStr + "</p>\n";
     html += "    <p><a href=\"https://ouaricon.com\">Ouaricon Audio</a></p>\n";
     html += "  </div>\n";
 

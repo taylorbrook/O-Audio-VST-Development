@@ -1,5 +1,5 @@
 /*
-   This file is part of O-Lyrica, an Ouaricon Audio plugin.
+   This file is part of the Ouaricon Audio scala-tuning-engine module.
    Copyright (C) 2026  Ouaricon Audio
 
    SPDX-License-Identifier: AGPL-3.0-or-later
@@ -21,9 +21,9 @@
   ==============================================================================
 
     EmbeddedTunings.h
-    v1.15.0: Factory Tuning Library
+    scala-tuning-engine module v2.0.0
 
-    Provides 20+ embedded tunings organized by category:
+    Provides 24+ embedded tunings organized by category:
     - Historical (Well-temperaments)
     - Just Intonation
     - Equal Divisions (EDO)

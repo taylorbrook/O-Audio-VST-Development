@@ -9,7 +9,7 @@
 # - Modules: Working code (CMake import with configuration)
 
 # NOTE: `version` and `last_updated` MUST be bumped on every edit. scripts/regen-registry-used-by.sh bumps them automatically when used_by content changes; bump minor/major by hand for significant changes.
-version: 1.2.13
+version: 1.2.14
 last_updated: 2026-11-03
 schema_version: 1.0.0
 
@@ -188,7 +188,7 @@ modules:
       - plugin: O-FreqPulse
         version: 1.20.2
       - plugin: O-Lyrica
-        version: 2.6.6
+        version: 2.6.7
       - plugin: O-MultiBandCompressor
         version: 1.14.2
       - plugin: O-Octagon
@@ -354,7 +354,7 @@ modules:
       - plugin: O-IntonationPad
         version: 2.11.3
       - plugin: O-Lyrica
-        version: 2.6.6
+        version: 2.6.7
       - plugin: O-Marimba
         version: 1.16.3
       - plugin: O-MicrotonalSampler
@@ -401,7 +401,7 @@ modules:
       - plugin: O-IntonationPad
         version: 2.11.3
       - plugin: O-Lyrica
-        version: 2.6.6
+        version: 2.6.7
       - plugin: O-MicrotonalSampler
         version: 1.28.2
       - plugin: O-Prism
@@ -676,7 +676,7 @@ modules:
       - plugin: O-IntonationPad
         version: 2.11.3
       - plugin: O-Lyrica
-        version: 2.6.6
+        version: 2.6.7
       - plugin: O-Marimba
         version: 1.16.3
       - plugin: O-MicrotonalSampler

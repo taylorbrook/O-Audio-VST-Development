@@ -1,5 +1,5 @@
 /*
-   This file is part of O-Lyrica, an Ouaricon Audio plugin.
+   This file is part of the Ouaricon Audio scala-tuning-engine module.
    Copyright (C) 2026  Ouaricon Audio
 
    SPDX-License-Identifier: AGPL-3.0-or-later
@@ -21,7 +21,7 @@
   ==============================================================================
 
     TuningExporter.h
-    v1.16.0: HTML Export for Tuning Documentation
+    scala-tuning-engine module v2.0.0
 
     Generates formatted HTML documents for tuning scales including:
     - Scale metadata (name, description, note count, period)
@@ -48,9 +48,10 @@ public:
     /**
      * Generate HTML document for current tuning
      * @param engine Reference to TuningEngine for scale data
+     * @param pluginName Name of the plugin generating the export (for branding)
      * @return Complete HTML document as string
      */
-    static juce::String toHTML(const TuningEngine& engine);
+    static juce::String toHTML(const TuningEngine& engine, const juce::String& pluginName = "Ouaricon Audio");
 
     /**
      * Generate SVG pitch circle for current tuning

@@ -1,6 +1,6 @@
 ---
 plugin: O-Lyrica
-version: 2.6.6
+version: 2.6.7
 stage: 4
 phase: verify
 status: complete

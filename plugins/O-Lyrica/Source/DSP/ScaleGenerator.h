@@ -1,5 +1,5 @@
 /*
-   This file is part of O-Lyrica, an Ouaricon Audio plugin.
+   This file is part of the Ouaricon Audio scala-tuning-engine module.
    Copyright (C) 2026  Ouaricon Audio
 
    SPDX-License-Identifier: AGPL-3.0-or-later
@@ -21,7 +21,7 @@
   ==============================================================================
 
     ScaleGenerator.h
-    v1.14.0: Scale Generation Utilities
+    scala-tuning-engine module v2.0.0
 
     Provides mathematical scale generators for creating custom tunings:
     - EDO (Equal Division of Octave/Period)

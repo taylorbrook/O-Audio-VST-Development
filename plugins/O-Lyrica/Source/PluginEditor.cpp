@@ -747,7 +747,7 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
             .withNativeFunction("exportTuningHTML", [this](const juce::Array<juce::var>&,
                                                            std::function<void(juce::var)> complete) {
                 // Generate HTML content
-                auto htmlContent = TuningExporter::toHTML(*processorRef.getTuningEngine());
+                auto htmlContent = TuningExporter::toHTML(*processorRef.getTuningEngine(), "O-Lyrica");
                 auto scaleName = processorRef.getTuningEngine()->getActiveTuningName();
 
                 // Open save dialog

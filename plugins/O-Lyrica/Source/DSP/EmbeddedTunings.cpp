@@ -1,5 +1,5 @@
 /*
-   This file is part of O-Lyrica, an Ouaricon Audio plugin.
+   This file is part of the Ouaricon Audio scala-tuning-engine module.
    Copyright (C) 2026  Ouaricon Audio
 
    SPDX-License-Identifier: AGPL-3.0-or-later
@@ -21,7 +21,7 @@
   ==============================================================================
 
     EmbeddedTunings.cpp
-    v1.15.0: Factory Tuning Library Implementation
+    scala-tuning-engine module v2.0.0
 
     Contains static tuning data for 24 embedded tunings across 5 categories.
     All intervals are in cents from unison.
@@ -127,10 +127,11 @@ void EmbeddedTunings::initializeTunings()
         "Partch 43-Tone",
         "Just Intonation",
         "Harry Partch's 43-tone 11-limit scale. Microtonal masterwork.",
-        {0, 21.5, 53.3, 84.5, 111.7, 150.6, 182.4, 203.9, 231.2, 266.9, 294.1, 315.6,
-         347.4, 386.3, 417.5, 435.1, 470.8, 498.0, 519.5, 551.3, 582.5, 617.5, 648.7,
-         680.5, 702.0, 729.2, 764.9, 782.5, 813.7, 852.6, 884.4, 905.9, 933.1, 968.8,
-         996.1, 1017.6, 1049.4, 1088.3, 1115.5, 1146.7, 1178.5},
+        // IN-17: 43 degrees — 11/10 (165.0) and 20/11 (1035.0) were missing.
+        {0, 21.5, 53.3, 84.5, 111.7, 150.6, 165.0, 182.4, 203.9, 231.2, 266.9, 294.1,
+         315.6, 347.4, 386.3, 417.5, 435.1, 470.8, 498.0, 519.5, 551.3, 582.5, 617.5,
+         648.7, 680.5, 702.0, 729.2, 764.9, 782.5, 813.7, 852.6, 884.4, 905.9, 933.1,
+         968.8, 996.1, 1017.6, 1035.0, 1049.4, 1088.3, 1115.5, 1146.7, 1178.5},
         1200.0
     });
 
@@ -225,27 +226,27 @@ void EmbeddedTunings::initializeTunings()
         "nonoctave/alpha",
         "Carlos Alpha",
         "Non-Octave",
-        "Wendy Carlos' Alpha scale (78¢ steps). 15.385 steps/octave.",
+        "Wendy Carlos' Alpha scale (78c steps). 15.385 steps/octave.",
         {0, 78.0, 156.0, 234.0, 312.0, 390.0, 468.0, 546.0, 624.0, 702.0, 780.0, 858.0, 936.0, 1014.0, 1092.0, 1170.0},
-        1248.0  // 16 steps of 78 cents
+        1248.0
     });
 
     tunings.push_back({
         "nonoctave/beta",
         "Carlos Beta",
         "Non-Octave",
-        "Wendy Carlos' Beta scale (63.8¢ steps). 18.809 steps/octave.",
+        "Wendy Carlos' Beta scale (63.8c steps). 18.809 steps/octave.",
         {0, 63.8, 127.6, 191.4, 255.2, 319.0, 382.8, 446.6, 510.4, 574.2, 638.0, 701.8, 765.6, 829.4, 893.2, 957.0, 1020.8, 1084.6, 1148.4},
-        1212.2  // 19 steps of 63.8 cents
+        1212.2
     });
 
     tunings.push_back({
         "nonoctave/gamma",
         "Carlos Gamma",
         "Non-Octave",
-        "Wendy Carlos' Gamma scale (35.1¢ steps). 34.188 steps/octave.",
+        "Wendy Carlos' Gamma scale (35.1c steps). 34.188 steps/octave.",
         {0, 35.1, 70.2, 105.3, 140.4, 175.5, 210.6, 245.7, 280.8, 315.9, 351.0, 386.1, 421.2, 456.3, 491.4, 526.5, 561.6, 596.7, 631.8, 666.9, 702.0},
-        737.1  // 21 steps of 35.1 cents
+        737.1
     });
 
     // ═══════════════════════════════════════════════════════════════════
