@@ -111,8 +111,14 @@ FORK-REVIEW step 3 counts 7 TuningEngine copies and names O-Lyrica, O-Intonation
   **New finding, pre-existing in 1.30.3:** `restoreStateFrom` keeps a stale .kbm when the incoming state has none, so a setState on a used instance inherits the previous mapping. This is what the sequential injection exposed. Not fixed here, because it is out of scope for a convergence step.
   
   Also: `parity_gate.py` (`kbm.degree_wrap`) and `scl.tworatios` now differ from the 1.30.3 copy as intended.
-- [ ] O-Strata `TuningEngine.cpp` (fork+ahead)
-- [ ] O-Strata `TuningEngine.h` (fork+ahead)
+- [x] O-Strata `TuningEngine.cpp` (fork+ahead) — 34b082af
+- [x] O-Strata `TuningEngine.h` (fork+ahead) — 34b082af
+  O-Strata 1.1.4 gate. **Still a fork, the same one as O-Prism:** both files are O-Prism 1.30.4's copies byte for byte apart from the licence line, and the 1.1.3 copies were byte-identical to O-Prism 1.30.3's (FORK-REVIEW "identical to it" verified). So Prism's 4 kept items (WR-17 state, BP-13, atomic bend, locked `isNoteMapped`), its module takings, and its engine-dump/session-reopen results all carry over. `PluginProcessor` makes the same engine calls as Prism's.
+  - Module `parity_gate.py`: strata 17/17; Strata and Prism parity dumps identical. 1.1.3-vs-1.1.4 parity dump 43/45, the 2 diffs the intended `scl.tworatios` and `kbm.degree_wrap`.
+  - Module unit tests built against the 1.1.4 tree: 29/34, the same 5 ScaleGenerator/EmbeddedTunings/TuningExporter failures as Prism (CR-09, IN-17 ×2, IN-07 export, WR-20).
+  - Seeded render harness, 1.1.3 tree vs 1.1.4 tree: 396/396 bit-identical (11 presets × tonic 0/2/7 × A4 440/432 × stretch 1/1.02 × notes 36/60/84; 128 distinct outputs, all finite). **Harness trap:** `--print-only` never pumps the message loop, so tuning params set with `--real` never reach the engine (it syncs through an AsyncUpdater); a first run gave 3 distinct digests for 396 jobs, one per note. The scratch copies pumped 100 ms after a warm-up block. `--gate tuning` 6/6.
+  - auval and pluginval 5 pass.
+  - Same pre-existing `restoreStateFrom` stale-.kbm finding as Prism, not fixed. Strata's `ScaleGenerator.cpp`/`TuningExporter.cpp` remain the pre-3.3.0 forks (no step converges them; same unlisted drift as O-Bells).
 
 ## Step 4: O-Lyrica small scala files
 
