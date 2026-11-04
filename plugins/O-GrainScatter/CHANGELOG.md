@@ -1,6 +1,39 @@
 # Changelog
 
-## [3.5.0] - 2026-10-28
+## [3.5.1] - 2026-11-03
+
+The counter RNG now comes from the shared grain-engine module. PATCH: no parameter,
+state or audio changes.
+
+### Changed
+
+- **`CounterRng` is the grain-engine module copy** (`ouaricon::grain::CounterRng`,
+  module 1.1.0) instead of the plugin's own `Source/dsp/CounterRng.h`, which is
+  removed. The plugin copy was the origin of the module's: `mix`, `hash`, `uniform`,
+  `uniformInt` and the `Draw` helper are the same code, and the module's tests pin
+  golden values taken from it. The plugin's `Stream` and `GrainSlot` enums stay in
+  the plugin, in the new `Source/dsp/GrainScatterRng.h`. That header keeps the
+  namespace name `CounterRng` and brings in the module functions with using-
+  declarations, so no call site changes, and neither do the test drivers that also
+  compile against older trees. The project already linked grain-engine (v3.3.0, for
+  the band-limited reader), so `CMakeLists.txt` changes only a comment. Module
+  convergence step 5 (261029-md9 FORK-REVIEW).
+
+### Testing
+
+- Old-vs-new null: the v3.5.0 tree (from `git archive`, with its local `CounterRng.h`)
+  and the v3.5.1 tree (shim plus module copy, checked with `ninja -t deps`) render the
+  same driver. All 76 dumps are byte-identical.
+  - 36 named jobs: free, sync (repeats, Euclid, swing, stutter gate), spatial
+    (trajectory, Doppler, spreads), freeze, +24 st pitch, and Skip 50 + Tilt −60 +
+    Adapt 70 with Freeze at the change point. Each runs at 3 seeds × 512 and variable
+    blocks.
+  - 40 jobs with every parameter drawn at random. Freeze starts off and engages
+    mid-render in a third of them.
+  - Seed liveness: 6/6. In every named config the 3 seeds render pairwise distinct,
+    so a changed draw would show. 37 of the 40 random jobs carry signal (−85 to
+    −16 dBFS RMS), with 37 distinct outputs; all output is finite.
+
 
 ### Added
 - **Grain Adapt** (`grain_adapt`, 0–100 %, default 0), research 2026-update #11 after Nielsen, *Keyframe Time Stretching via Extrema Sampling* (DAFx26). While Freeze is held, each new grain takes its length from the captured audio where it starts. Grains run longer over sparse passages (a bass note: few, widely spaced local extrema) and shorter over dense ones (noise, a hit: extrema packed tight). Grain Size stays the average length. Live grains are never touched, at any setting.

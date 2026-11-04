@@ -20,38 +20,25 @@
 #pragma once
 
 #include <cstdint>
+#include "CounterRng.h"   // grain-engine 1.1.0 (modules/synthesis/grain-engine/cpp)
 
 // v3.1.0: counter-based RNG. Every draw is a pure function of (seed, stream, event
 // counter, slot), so the value a grain or a trigger gets can't drift with block size,
 // and a conditional draw (Size Random at 0, spatial off, not frozen) can't shift the
 // values any other draw gets. The seed is saved with the session.
+//
+// v3.5.1: the draw functions are the grain-engine module's (ouaricon::grain::CounterRng),
+// which this plugin's copy was the origin of; the core is the same code, so every draw
+// is bit-identical. Only the plugin's streams and slots stay here. The namespace keeps
+// the name CounterRng so the call sites, and the test drivers that also compile against
+// older trees, are unchanged.
 namespace CounterRng
 {
-    // splitmix64 finaliser
-    inline uint64_t mix (uint64_t x) noexcept
-    {
-        x += 0x9E3779B97F4A7C15ull;
-        x = (x ^ (x >> 30)) * 0xBF58476D1CE4E5B9ull;
-        x = (x ^ (x >> 27)) * 0x94D049BB133111EBull;
-        return x ^ (x >> 31);
-    }
-
-    inline uint64_t hash (uint64_t seed, uint64_t counter, uint32_t slot) noexcept
-    {
-        return mix (mix (seed ^ mix (counter)) + slot);
-    }
-
-    // Uniform in [0, 1), 24-bit resolution (exact in float).
-    inline float uniform (uint64_t seed, uint64_t counter, uint32_t slot) noexcept
-    {
-        return static_cast<float> (hash (seed, counter, slot) >> 40) * (1.0f / 16777216.0f);
-    }
-
-    // Uniform integer in [0, n); n > 0.
-    inline int uniformInt (uint64_t seed, uint64_t counter, uint32_t slot, int n) noexcept
-    {
-        return static_cast<int> (((hash (seed, counter, slot) >> 32) * static_cast<uint64_t> (n)) >> 32);
-    }
+    using ouaricon::grain::CounterRng::mix;
+    using ouaricon::grain::CounterRng::hash;
+    using ouaricon::grain::CounterRng::uniform;
+    using ouaricon::grain::CounterRng::uniformInt;
+    using ouaricon::grain::CounterRng::Draw;
 
     // Streams keep the scheduler's and the grains' draws independent of each other.
     enum Stream : uint64_t
@@ -67,18 +54,5 @@ namespace CounterRng
         SlotSize = 1, SlotAmp, SlotSpread, SlotPitch, SlotPan, SlotReverse,
         SlotAzimuth, SlotElevation, SlotDetune,
         SlotSkip    // v3.4.0: drawn only while Grain Skip > 0 (appended: no other slot moves)
-    };
-
-    // One event's draws: a fixed slot per quantity.
-    struct Draw
-    {
-        uint64_t key = 0;   // seed ^ stream, pre-mixed
-        uint64_t counter = 0;
-
-        Draw (uint64_t seed, uint64_t stream, uint64_t eventCounter) noexcept
-            : key (mix (seed ^ stream)), counter (eventCounter) {}
-
-        float nextFloat (uint32_t slot) const noexcept        { return uniform (key, counter, slot); }
-        int   nextInt (uint32_t slot, int n) const noexcept   { return uniformInt (key, counter, slot, n); }
     };
 }

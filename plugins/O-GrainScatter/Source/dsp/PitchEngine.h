@@ -23,7 +23,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include "CounterRng.h"
+#include "GrainScatterRng.h"
 
 // ============================================================================
 // v3.0.0 — cents-based pitch collections (replaces the 12-TET ScaleQuantizer).

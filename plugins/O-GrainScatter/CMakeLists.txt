@@ -8,7 +8,7 @@ juce_add_plugin(OuariconGrainScatter
     PLUGIN_CODE OuGS
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-GrainScatter${OUARICON_DEV_SUFFIX}"
-    VERSION 3.5.0
+    VERSION 3.5.1
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -48,8 +48,9 @@ target_link_libraries(OuariconGrainScatter
 juce_generate_juce_header(OuariconGrainScatter)
 
 # v3.3.0: grain-engine 1.1.0 for the band-limited reader (BandlimitedReader.h).
-# Only that header is included; the local CounterRng / GrainScheduler / GrainPool
-# copies in Source/dsp stay (global namespace, no clash with ouaricon::grain).
+# v3.5.1: CounterRng.h is the module copy too (dsp/GrainScatterRng.h adds the
+# plugin's Stream / GrainSlot enums). The local GrainScheduler / GrainPool in
+# Source/dsp are different classes and stay (global namespace, no clash).
 ouaricon_add_module(OuariconGrainScatter grain-engine)
 
 # WebView UI Resources

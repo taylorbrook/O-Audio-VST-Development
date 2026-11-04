@@ -21,7 +21,7 @@
 
 #include <JuceHeader.h>
 #include "TempoTracker.h"
-#include "CounterRng.h"
+#include "GrainScatterRng.h"
 
 struct SpawnRequest
 {

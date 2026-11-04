@@ -312,7 +312,7 @@ private:
     // Spawn request buffer (pre-allocated)
     std::vector<SpawnRequest> spawnRequests;
 
-    // v3.1.0: counter-based RNG (dsp/CounterRng.h). The seed is per instance, saved
+    // v3.1.0: counter-based RNG (dsp/GrainScatterRng.h). The seed is per instance, saved
     // with the session as "rngSeed"; draws are keyed by event counters that reset in
     // reset()/prepareToPlay(), so a render is a pure function of seed + input + params.
     std::atomic<uint64_t> rngSeed { 0 };
