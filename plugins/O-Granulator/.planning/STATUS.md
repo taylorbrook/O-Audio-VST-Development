@@ -1,8 +1,8 @@
 ---
 plugin: O-Granulator
 stage: 1
-status: stage_1_discuss_complete
-current_phase: discuss
+status: stage_1_plan_complete
+current_phase: plan
 stage_0_status: ui_design_complete
 last_updated: 2026-11-04
 latest_mockup_version: 2
@@ -13,7 +13,7 @@ complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_1_research
+next_action: stage_1_execute
 next_stage: 1
 ready_for_implementation: true
 blocked_on: null
@@ -83,9 +83,9 @@ Progress: [###.................] 15%
 | Phase | Status | Date | Skipped |
 |-------|--------|------|---------|
 | discuss | ✓ | 2026-11-04 | |
-| research | → | | |
-| plan | | | |
-| execute | | | |
+| research | ✓ | 2026-11-04 | |
+| plan | ✓ | 2026-11-04 | |
+| execute | → | | |
 | verify | | | |
 
 Decisions: PitchCollections extract + migrate O-GrainScatter (→3.6.0) in Stage 1; GenericAudioProcessorEditor shell; all three bus layouts. See `stages/1-foundation/CONTEXT.md`.
