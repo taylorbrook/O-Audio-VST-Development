@@ -11,14 +11,14 @@ staged_implementation: true
 
 ---
 
-## PREREQUISITE (blocking Stage 1)
+## PREREQUISITE (blocking Stage 1) — ✓ DONE 2026-11-04
 
-**No UI mockup exists.** The parameter contract is `parameter-spec-draft.md` (214 params). Before Stage 1:
-1. Create the UI mockup (`/start O-Granulator` → option 3, or `/dream`) — stream selector, buffer waveform display, mod-matrix view.
-2. Finalize `plugins/O-Granulator/.planning/parameter-spec.md` from the mockup, resolving the three proposed additions in ARCHITECTURE.md "Design Sync": `scale_root`, `sN_onset_trigger` ×4, `grain_limit` (→ 220 params).
-3. Freeze the mod-destination enumeration (113 entries, append-only) into the spec.
+UI mockup v2 finalized (`mockups/v2-ui.yaml`, `finalized: true`) and the LOCKED `parameter-spec.md` written from it:
+1. ✓ UI mockup — v2 (STREAMS / FX · FEEDBACK / MOD pages, buffer strip with write head + stream bands + grain dots, 16-slot matrix with drag-to-route mod rings, 32-entry microtonal scales with degree chips and one shared custom scale). Implementation files: `mockups/v2-ui.html`, `v2-i18n.js`, `v2-PluginEditor.h/.cpp`, `v2-CMakeLists.txt`, `v2-integration-checklist.md`.
+2. ✓ `parameter-spec.md` — 220 parameters; `scale_root`, `sN_onset_trigger` ×4 and `grain_limit` confirmed from ARCHITECTURE.md "Design Sync".
+3. ✓ Mod-destination enumeration frozen (113 entries, append-only) in parameter-spec.md, plus the non-parameter state (custom scale, per-stream × per-collection degree masks, seed, table version) and the PitchCollections extraction note.
 
-Stage 1 must not start from the draft.
+Stage 1 builds from `parameter-spec.md` (NOT the draft).
 
 ---
 
@@ -41,8 +41,8 @@ The raw score overstates novelty: ring/reader, pool, scheduler, RNG, loop topolo
 ## Stages
 
 - Stage 0: Research & Planning ✓ (this document + research/ARCHITECTURE.md)
-- **Prerequisite:** mockup + final parameter-spec.md ← Next
-- Stage 1: Foundation — build system, ~220 APVTS params, pass-through shell, COMPAT-01
+- **Prerequisite:** mockup + final parameter-spec.md ✓ (v2, 2026-11-04)
+- Stage 1: Foundation ← Next — build system, ~220 APVTS params, pass-through shell, COMPAT-01
 - Stage 2: DSP — 6 phases (below)
 - Stage 3: GUI — 3 phases (below)
 - Stage 4: Polish/Validation — presets, state, mono/Windows, i18n, hands-on, pluginval 10

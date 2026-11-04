@@ -2837,3 +2837,8 @@ parameter_count: 220
 v2_changes: "sN_scale choice list 8 -> 32 (Off + GrainScatter collections minus Free, Custom last); STREAMS page re-flowed for the scale band; new state section; parameter count unchanged"
 proposed_additions_confirmed: [scale_root, s1_onset_trigger, s2_onset_trigger, s3_onset_trigger, s4_onset_trigger, grain_limit]
 
+
+# Finalization metadata
+finalized: true
+finalized_at: 2026-11-04T18:51:59Z
+finalized_by_phase: 5.5

@@ -2,39 +2,46 @@
 plugin: O-Granulator
 stage: 0
 status: complete
+stage_0_status: ui_design_complete
 last_updated: 2026-11-04
 latest_mockup_version: 2
-mockup_finalized: false
+mockup_finalized: true
+finalized_version: 2
+brief_updated_from_mockup: true
 complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: create_ui_mockup_and_finalize_parameter_spec
+next_action: stage_1_foundation
 next_stage: 1
-ready_for_implementation: false
-blocked_on: parameter-spec.md (finalize from UI mockup; draft only)
+ready_for_implementation: true
+blocked_on: null
 contract_checksums:
-  brief: sha256:de163958ee8eb83ed4a3fdd391389078eeac5eeffcb1d689510b8f99d2210efa
+  brief: sha256:f9c748a8a256de9d2fb2bcbe1aff58b12999a640cc8d36fbdbf96e6deb5559d7
   requirements: sha256:15bce1f9a9c847f902559754fcdebc8b6b1eeb6920372d885c7010c1fdb35198
   parameter_spec_draft: sha256:d0b1457ea7c1624ff757fd12c1acb7bd62c9acf7bebbdd3460c7f1d30cdbbce3
-  parameter_spec: pending
+  parameter_spec: sha256:9b454d6ccb0238e84dae73e410f345806177371a56df7f84d93eea86437e48c1
   architecture: sha256:f0cf753b4de2cb6099ad327b0887a0c254f013746b373000a28f01ad7949d9d9
-  roadmap: sha256:9016e0b8d70db50fa395a8fadf3e10cb9b131c11cfc718b7c1f0fd8a4ca50b5b
+  roadmap: sha256:79d69576f70776e92ce498be990e1f3cbdc09e03a081563443545f9650c14b20
 ---
 
 # O-Granulator Status
 
 ## Current Position
 
-Stage: 0 of 4 (Research & Planning) — complete
-Status: Research & Planning complete. Implementation is pending a UI mockup and the final `parameter-spec.md`.
-Progress: [##..................] 10%
+Stage: 0 of 4 (Research & Planning) — complete; UI design complete (mockup v2 finalized)
+Status: Ready for Stage 1. The parameter contract is the LOCKED `parameter-spec.md` (220 params).
+Progress: [###.................] 15%
 
 ## Completed So Far
 
 **Ideation:** ✓ Complete. Brief, 30 requirements, and a draft param spec (214).
 
-**UI mockup:** v2 generated, in design iteration and not finalized. Files: `.planning/mockups/v2-ui.yaml` + `v2-ui-test.html` (v1 kept for comparison). It covers all 220 params, including the 6 proposed additions. v2 adds full microtonal scales, modelled on O-GrainScatter v3.0.0. `sN_scale` now has 32 choices: Off, then GrainScatter's collections without Free, with Custom last. Also new: a grouped dropdown, per-stream degree chips, and one custom scale shared by all streams (stored as state, not a param).
+**UI mockup:** ✓ v2 FINALIZED (2026-11-04). `.planning/mockups/v2-ui.yaml` is the UI source of truth (`finalized: true`); BRIEF.md UI Concept synced from it (Phase 5.6). It covers all 220 params, incl. full microtonal scales modelled on O-GrainScatter v3.0.0: `sN_scale` has 32 choices (Off, GrainScatter's collections without Free, Custom last), a grouped dropdown, per-stream degree chips and ONE custom scale shared by all streams (state, not a param).
+
+**Implementation scaffolding (Phase B):** ✓ `mockups/v2-ui.html` (production page: Family A knobs, canonical i18n en/fr/zh-Hans, hover-help switch), `v2-i18n.js`, `v2-PluginEditor.h/.cpp` (220 relays → webView → 220 attachments, 21 native fns, Windows WebView2 block), `v2-CMakeLists.txt` (complete plugin CMakeLists), `v2-integration-checklist.md`. Pre-verified on a scratch tree: check-i18n ALL PASS, fr lint clean, zh lint 0 findings, check-ui-labels 0 failures (all pages/popovers forced visible), boot-all-uis --strict-tips clean.
+
+**Parameter contract:** ✓ `.planning/parameter-spec.md` LOCKED — 220 params (140 Float / 59 Choice / 21 Bool), 113-entry append-only mod-destination table, non-parameter state (shared custom scale, per-stream × per-collection uint64 degree masks, seed, table version, uiLanguage), PitchCollections → shared module `modules/tuning/pitch-collections` (provisional).
 
 **Stage 0:** ✓ Research & Planning complete. ARCHITECTURE.md and ROADMAP.md are documented (Complexity 5.0, raw 22.0, tier 6, DEEP).
 - Plugin type: Audio Effect (live-input granular, 4 streams, shared pool)
@@ -44,8 +51,8 @@ Progress: [##..................] 10%
 
 ## Next Steps
 
-1. Create the UI mockup (`/start O-Granulator` → option 3). Then finalize `.planning/parameter-spec.md`, including the proposed `scale_root`, `sN_onset_trigger` ×4 and `grain_limit` (220 params), and freeze the 113-entry mod-destination order.
-2. Stage 1: Foundation (`/implement O-Granulator`). Run it only after step 1.
+1. Stage 1: Foundation (`/implement O-Granulator`) — build system from `mockups/v2-CMakeLists.txt`, all 220 APVTS params from `parameter-spec.md` (golden ID-order + destination-table tests), pass-through shell, COMPAT-01. Includes extracting PitchCollections from O-GrainScatter into `modules/tuning/pitch-collections`.
+2. Stage 3 integrates the UI with `mockups/v2-integration-checklist.md`.
 
 ## Context to Preserve
 
@@ -63,6 +70,8 @@ Progress: [##..................] 10%
 - Module gaps (optional): G1 WindowMorphBank, G2 GrainPool::fadeOut, G3 GrainScheduler::rescheduleIn, G4 ReverbUnit raw-atomic bind (critical path; fallback is a local copy)
 
 ## Files Created
+- plugins/O-Granulator/.planning/parameter-spec.md (LOCKED)
+- plugins/O-Granulator/.planning/mockups/v2-ui.html, v2-i18n.js, v2-PluginEditor.h, v2-PluginEditor.cpp, v2-CMakeLists.txt, v2-integration-checklist.md
 - plugins/O-Granulator/.planning/research/ARCHITECTURE.md
 - plugins/O-Granulator/.planning/ROADMAP.md
 - plugins/O-Granulator/.planning/stages/0-ideation/CONTEXT.md

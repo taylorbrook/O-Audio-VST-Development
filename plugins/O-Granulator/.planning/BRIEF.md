@@ -65,7 +65,7 @@ Input ──► [Input gain] ──► (+) ──► Ring buffer (≤30 s, Freez
 | sN_jitter | 0 – 100 % | 20 % | Onset timing randomisation (sync ↔ async) |
 | sN_pitch | -24 – +24 st | 0 st | Grain transposition |
 | sN_pitchRand | 0 – 24 st | 0 st | Random pitch spread |
-| sN_scale | Chromatic / Major / Minor / Pentatonic / Whole Tone / Octaves / Fifths / Off | Off | Quantise pitch spread |
+| sN_scale | Off + 30 cents-based collections (Western, modes, symmetric, 19/22/24/31/53-EDO, 5/7-limit JI, Harmonics 8–16, Bohlen-Pierce, Slendro, Pelog, Maqam Rast) + Custom (32 entries) | Off | Quantise pitch spread; per-stream degree chips mask degrees |
 | sN_reverseProb | 0 – 100 % | 0 % | Probability a grain plays backwards |
 | sN_window | Continuous morph Hann → Tukey → Trapezoid → Exponential (perc) | Hann | Window shape |
 | sN_windowSkew | -100 – +100 % | 0 | Attack/decay skew of window |
@@ -121,7 +121,16 @@ Input ──► [Input gain] ──► (+) ──► Ring buffer (≤30 s, Freez
 
 ## UI Concept
 
-Not specified in ideation (Tier 4). Implied needs: stream tab/strip selector for 4 layers, buffer waveform display with write head and per-stream position/spray regions + live grain dots, modulation matrix view. Follow the suite's EB Garamond / paper aesthetic family unless a mockup decides otherwise.
+**Finalized in mockup v2** (`.planning/mockups/v2-ui.yaml` is the source of truth for the UI).
+
+- **Aesthetic:** Ouaricon Naturalist, dark variant: bone ink on a charcoal/umber ground, EB Garamond, an engraved dandelion-clock illustration, an ochre accent reserved for modulation, Freeze, the write head and the active tab. Stream colours are moss, madder, woad and thistle.
+- **Window:** 1200×800, fixed.
+- **Layout:** a shared header holds the preset bar, the page tabs, Freeze, Sync, input gain, mix, output gain and the draggable mod sources. Under it, a shared buffer strip shows the waveform, the write head, per-stream position/spray bands and live grain dots, with Scale Root and Grain Limit in its right-hand panel. Three pages:
+  - **STREAMS:** S1–S4 as columns.
+  - **FX · FEEDBACK:** per-grain FX ×4, the feedback network and the output reverb.
+  - **MOD:** LFO ×4, env, pitch and onset followers, macros ×4, and the 16-slot matrix.
+- **Modulation:** drag a source onto any continuous knob to create a route, shown as a bipolar arc ring. The 16-slot list on the MOD page is the precise editor and stays in sync.
+- **Scales:** `sN_scale` has 32 entries in a 4-column grouped dropdown. Each stream has degree chips (All / None / Invert). There is ONE custom scale shared by all streams, held in plugin state: cents, ratios or `edo N`, Load / Save .scl, and a pitch circle. Degree masks are per stream and per collection (state). `PitchCollections` gets extracted from O-GrainScatter into a shared module (provisional name `modules/tuning/pitch-collections`).
 
 ## Use Cases
 
