@@ -3,6 +3,8 @@ plugin: O-Granulator
 stage: 0
 status: complete
 last_updated: 2026-11-04
+latest_mockup_version: 1
+mockup_finalized: false
 complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
@@ -31,6 +33,8 @@ Progress: [##..................] 10%
 ## Completed So Far
 
 **Ideation:** ✓ Complete. Brief, 30 requirements, and a draft param spec (214).
+
+**UI mockup:** v1 generated, in design iteration and not finalized. Files: `.planning/mockups/v1-ui.yaml` + `v1-ui-test.html`. It covers all 220 params, including the 6 proposed additions.
 
 **Stage 0:** ✓ Research & Planning complete. ARCHITECTURE.md and ROADMAP.md are documented (Complexity 5.0, raw 22.0, tier 6, DEEP).
 - Plugin type: Audio Effect (live-input granular, 4 streams, shared pool)
