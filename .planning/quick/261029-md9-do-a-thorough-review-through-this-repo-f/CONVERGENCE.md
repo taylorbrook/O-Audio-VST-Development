@@ -165,4 +165,7 @@ Gate: render bit-identical. O-GrainScatter keeps its Stream/slot enums. Skip O-s
     - alias 10
   - auval and pluginval 5 pass.
 - [ ] O-simpleGrain `dsp/CounterRng.h` (drift)
-- [ ] O-TextureForge `dsp/CounterRng.h` (drift)
+- [x] O-TextureForge `dsp/CounterRng.h` (drift) — 2c820a0e
+  O-TextureForge 1.8.1 gate. The local `Source/dsp/CounterRng.h` is removed; the five draw sites in `dsp/GrainScheduler.cpp` call `ouaricon::grain::CounterRng`. grain-engine was already linked since 1.7.0 (BandlimitedReader), so CMake changes only a comment; every test harness already had the module dir on `-idirafter`. The plugin's own GrainScheduler/GrainPool (forks) are untouched.
+  - Old-vs-new null, 1.8.0 backup vs 1.8.1, both scheduler-harness builds with `NEW_ENGINE` + `HAS_SEED`: 216/216 renders byte-identical. 8 mode/density/variation/search-path cases × 3 seeds × blocks 32/512/variable × 3 feature sets (defaults; weights + Pick Spread + Repeat Avoid; band-limited read + Pick Spread). All finite, −36.3 to −22.5 dBFS RMS, seed liveness 4/4. `clang -H`: old → local copy, new → module copy.
+  - build-and-install, auval and pluginval 5 pass.
