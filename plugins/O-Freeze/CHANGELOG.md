@@ -2,6 +2,33 @@
 
 All notable changes to O-Freeze will be documented in this file.
 
+## [2.9.2] - 2026-11-03
+
+The counter RNG now comes from the shared grain-engine module. PATCH: no parameter,
+state or audio changes.
+
+### Changed
+
+- **`CounterRng` is the grain-engine module copy** (`ouaricon::grain::CounterRng`,
+  module 1.1.0) instead of the plugin's own `Source/CounterRng.h`, which is removed.
+  The plugin copy was the pre-extraction origin of the module's: `mix`, `hash`,
+  `uniform` and `uniformInt` are the same code, and the module's tests pin golden
+  values taken from it. `CMakeLists.txt` adds `ouaricon_add_module(O-Freeze
+  grain-engine)`, and the two draw sites (`rand01` in `PluginProcessor.h`,
+  `SpectralFreeze::uniform`) name the module namespace. Module convergence step 5
+  (261029-md9 FORK-REVIEW).
+
+### Testing
+
+- Old-vs-new null, 2.9.1 build vs 2.9.2 build: 84/84 render pairs bit-identical
+  (`np.array_equal`). It covers all 7 blocksize-null configs (Granular manual
+  fwd/rev, threshold, Spectral beta 0 / 60 + LFO / 100 threshold, engine switch
+  while frozen), with 3 seeded templates made on 2.9.1 and blocks 512/32/441/7.
+  Every frozen section carries signal (lowest -21.9 dBFS RMS). Seed liveness
+  7/7: in each config the 3 seeds render pairwise distinct, so a changed draw
+  would show.
+- auval and pluginval (strictness 5) pass.
+
 ## [2.9.1] - 2026-10-28
 
 The Spectral engine's engage no longer lands in one slow audio block, and the header

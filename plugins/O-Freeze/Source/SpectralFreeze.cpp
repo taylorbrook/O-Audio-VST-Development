@@ -139,7 +139,7 @@ void SpectralFreeze::restartAnalysis() noexcept
 
 float SpectralFreeze::uniform(uint64_t counter, uint32_t slot) const noexcept
 {
-    return CounterRng::uniform(seed, counter, slot);
+    return ouaricon::grain::CounterRng::uniform(seed, counter, slot);
 }
 
 float SpectralFreeze::makeupFor(float beta) noexcept

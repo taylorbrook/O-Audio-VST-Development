@@ -193,7 +193,7 @@ private:
     uint64_t grainCounter = 0;      // one per started grain: jitter, detune, next interval
     uint64_t engageCounter = 0;     // one per fresh freeze: drift offset
     uint64_t lfoCycleCounter = 0;   // one per LFO cycle: S&H value
-    float rand01(uint64_t counter, RngSlot slot) const noexcept { return CounterRng::uniform(activeSeed, counter, slot); }
+    float rand01(uint64_t counter, RngSlot slot) const noexcept { return ouaricon::grain::CounterRng::uniform(activeSeed, counter, slot); }
 
     // v2.7.0: fixed Hann table read by phase (linear interpolation, +1 guard point).
     // Replaces the grainSize-long window that was rebuilt under live grains.

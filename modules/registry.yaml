@@ -9,7 +9,7 @@
 # - Modules: Working code (CMake import with configuration)
 
 # NOTE: `version` and `last_updated` MUST be bumped on every edit. scripts/regen-registry-used-by.sh bumps them automatically when used_by content changes; bump minor/major by hand for significant changes.
-version: 1.2.14
+version: 1.2.15
 last_updated: 2026-11-03
 schema_version: 1.0.0
 
@@ -473,7 +473,7 @@ modules:
     reuse_score: 9
     used_by:
       - plugin: O-Freeze
-        version: 2.9.1
+        version: 2.9.2
       - plugin: O-GrainScatter
         version: 3.5.0
       - plugin: O-Polystutter
@@ -666,7 +666,7 @@ modules:
       - plugin: O-Formant
         version: 1.34.3
       - plugin: O-Freeze
-        version: 2.9.1
+        version: 2.9.2
       - plugin: O-FreqPulse
         version: 1.20.2
       - plugin: O-Gain

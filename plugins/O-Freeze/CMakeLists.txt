@@ -3,7 +3,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(O-Freeze
-    VERSION 2.9.1
+    VERSION 2.9.2
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OFCR
@@ -26,6 +26,10 @@ target_include_directories(O-Freeze
     PRIVATE
         Source
 )
+
+# grain-engine: CounterRng (header-only, ouaricon::grain). Adds the module's cpp/
+# to the include path; the test consoles inherit it through INCLUDE_DIRECTORIES.
+ouaricon_add_module(O-Freeze grain-engine)
 
 # Required JUCE modules
 target_link_libraries(O-Freeze
