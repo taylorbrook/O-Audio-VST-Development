@@ -9,8 +9,8 @@
 # - Modules: Working code (CMake import with configuration)
 
 # NOTE: `version` and `last_updated` MUST be bumped on every edit. scripts/regen-registry-used-by.sh bumps them automatically when used_by content changes; bump minor/major by hand for significant changes.
-version: 1.2.18
-last_updated: 2026-11-03
+version: 1.3.0
+last_updated: 2026-11-04
 schema_version: 1.0.0
 
 # Module categories
@@ -412,6 +412,30 @@ modules:
         version: 1.1.4
       - plugin: O-Wind
         version: 1.22.2
+
+  - name: pitch-collections
+    path: tuning/pitch-collections
+    version: 1.0.0
+    description: |
+      Header-only cents-based pitch collections (namespace
+      ouaricon::tuning::PitchCollections, juce_core only, C++17-clean). 32
+      frozen Ids (Chromatic ... Maqam Rast, Custom) with built-in tables, the
+      text parser (cents, ratios, "edo N [period]" shorthand, offending-token
+      report), the Scala .scl reader and toScala export (bitwise round-trip).
+      Moved verbatim from O-GrainScatter 3.5.1 PitchEngine.h. Standalone test
+      suite in tests/ (U1-U6, v3.5.1 regression corpus).
+    category: tuning
+    origin: O-GrainScatter
+    provides:
+      - cpp-namespace: ouaricon::tuning::PitchCollections
+      - cpp-free-function: builtIns
+      - cpp-free-function: tableFromText
+      - cpp-free-function: tableFromScala
+      - cpp-free-function: toScala
+    dependencies: []
+    tags: [tuning, microtonal, scales, scala, edo, header-only]
+    reuse_score: 8
+    used_by: []
 
   # ============================================================================
   # SYNTHESIS MODULES

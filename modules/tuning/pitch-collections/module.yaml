@@ -1,0 +1,58 @@
+# pitch-collections module v1.0.0
+# Cents-based pitch collections, text / Scala parsing and Scala export.
+# Moved verbatim from O-GrainScatter 3.5.1 (Source/dsp/PitchEngine.h).
+
+name: pitch-collections
+version: 1.0.0
+description: |
+  Header-only pitch collections under ouaricon::tuning::PitchCollections.
+
+  Id enum (32, FROZEN order) + names() (FROZEN host strings), builtIns() tables
+  (built once off the audio thread — warm it in the processor ctor), Table
+  (≤ 64 degrees in cents + period), parsePitch, tableFromPitches,
+  tableFromText (cents / ratios / "edo N [period]"), tableFromScala, toScala.
+
+  1.0.0 additions over the GS 3.5.1 code: the edo shorthand (error badEdo), a
+  4-arg tableFromText reporting the offending token, toScala (name, text) with
+  a bitwise round-trip through tableFromScala. Every pre-existing result is
+  unchanged (v3.5.1 corpus in tests/, GS 3.6.0 pitch-null gate).
+
+category: tuning
+author: Ouaricon Audio
+origin: O-GrainScatter
+
+provides:
+  cpp-classes:
+    - ouaricon::tuning::PitchCollections   # namespace of free functions + Table + Id
+
+dependencies: []
+
+requirements:
+  juce_modules:
+    - juce_core
+  cpp_standard: 17
+
+sources:
+  cpp:
+    - cpp/PitchCollections.h
+
+tests:
+  - tests/pitch_collections_tests.cpp   # standalone; see tests/CMakeLists.txt
+
+used_by:
+  - plugin: O-GrainScatter
+    version: 3.6.0
+    uses: [PitchCollections]
+  - plugin: O-Granulator
+    version: 0.1.0
+    uses: [PitchCollections]
+
+changelog:
+  - version: 1.0.0
+    date: 2026-11-04
+    changes:
+      - "PitchCollections moved verbatim from O-GrainScatter 3.5.1 PitchEngine.h (lines 41-305); builtIns digests equal v3.5.1 for all 32 Ids"
+      - "edo N [period] / N-edo shorthand in tableFromText (badEdo for N outside 1-64; badPitch + token, badPeriod checked first)"
+      - "tableFromText (text, out, error, badToken): offending-token report; 3-arg form is a wrapper"
+      - "toScala (name, text) + scalaDescription (name): .scl export, bitwise round-trip"
+      - "tests: 229 checks (U1-U6), v3.5.1 regression corpus of 34 texts + 7 .scl bodies"
