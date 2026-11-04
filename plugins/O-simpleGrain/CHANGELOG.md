@@ -3,6 +3,17 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.0.1] — 2026-11-03
+
+### Changed
+
+- **CounterRng is now the grain-engine module copy** (`ouaricon::grain::CounterRng`, `modules/synthesis/grain-engine/cpp/CounterRng.h`). The local `Source/dsp/CounterRng.h` was the pre-extraction origin copy; its `mix`/`hash`/`uniform` core was already bit-identical to the module's, so only the namespace changes. The five draw sites in `GrainVoice.h` (note seed, cloud tick draws and skip, pulse draws and skip) are repointed. grain-engine was already linked for `BandlimitedReader.h` since 1.7.0, so CMake drops only the header from the source list. Convergence step 5 (quick 261029-md9).
+
+### Validation
+
+- Old-vs-new null, 2.0.0 build vs 2.0.1 build: 72/72 render pairs byte-identical. All 6 blocksize-null configs (3 Cloud + 3 Pulsar) × 3 seeded templates made on 2.0.0 × blocks 512/32/441/7. Every render is non-vacuous (−63.8 to −40.5 dBFS RMS), and seed liveness is 5/5 (the 5 randomised configs render pairwise distinct across seeds). `ninja -t deps`: `PluginProcessor.cpp.o` resolves `CounterRng.h` to the module copy.
+- On 2.0.1: blocksize-null 45 PASS / 0 FAIL, state persistence 34 PASS / 0 FAIL, pluginval 10 SUCCESS, auval SUCCEEDED. The pulsar gate was not re-run, because it needs control builds; the byte-identical null covers all 3 Pulsar configs.
+
 ## [2.0.0] — 2026-10-29
 
 **Pulsar mode**, a second synthesis engine beside the grain cloud (Roads, *Microsound*; research/granular-synthesis-2026-update.md §3.1, §3.6). The key sets the pulse rate f_p, and each pulse fires one short pulsaret whose length sets the formant, so pitch and formant move independently. MAJOR by choice for a headline mode; the change is additive. Seven parameters are appended and nothing is removed or rescaled. Cloud mode, and every session or preset saved before 2.0.0, renders bit-identically to 1.9.0.

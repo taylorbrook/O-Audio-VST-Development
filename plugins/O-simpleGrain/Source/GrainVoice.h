@@ -56,7 +56,7 @@
 #include "dsp/WindowLuts.h"
 #include "dsp/LagrangeInterpolation.h"
 #include "dsp/GrainSource.h"            // v1.7.0 — band-limited mipmap
-#include "dsp/CounterRng.h"
+#include "CounterRng.h"            // grain-engine module (ouaricon::grain::CounterRng), v2.0.1
 #include "dsp/GrainCloudFrame.h"        // Phase 2.3 — grain-event viz tap
 
 //==============================================================================
@@ -237,7 +237,7 @@ public:
 
         // A fresh random sequence for this note (v1.6.0).
         if (instanceSeed != nullptr && noteOnCounterPtr != nullptr)
-            noteSeed = CounterRng::hash (*instanceSeed, (*noteOnCounterPtr)++, kNoteSeedSlot);
+            noteSeed = ouaricon::grain::CounterRng::hash (*instanceSeed, (*noteOnCounterPtr)++, kNoteSeedSlot);
         spawnTick = 0;
 
         // v2.0.0 Pulsar: the key is the pulse rate (A4 = 440 Hz); the pulse clock
@@ -919,13 +919,13 @@ private:
 
     float pulseDraw (juce::uint32 slot, juce::uint64 k) const noexcept
     {
-        return CounterRng::uniform (noteSeed, k, slot) * 2.0f - 1.0f;
+        return ouaricon::grain::CounterRng::uniform (noteSeed, k, slot) * 2.0f - 1.0f;
     }
 
     bool skipThisPulse (juce::uint64 k) const noexcept
     {
         return params.grainSkip > 0.0f
-            && CounterRng::uniform (noteSeed, k, kSlotSkip) < params.grainSkip;
+            && ouaricon::grain::CounterRng::uniform (noteSeed, k, kSlotSkip) < params.grainSkip;
     }
 
     // Uniform in [-1, 1) for this note's current spawn tick. One tick per
@@ -933,7 +933,7 @@ private:
     // of (note seed, tick) — independent of block size and draw order (v1.6.0).
     float bipolarDraw (juce::uint32 slot) const noexcept
     {
-        return CounterRng::uniform (noteSeed, spawnTick, slot) * 2.0f - 1.0f;
+        return ouaricon::grain::CounterRng::uniform (noteSeed, spawnTick, slot) * 2.0f - 1.0f;
     }
 
     // v1.8.0 — true if this tick's grain is skipped. A pure function of (note
@@ -943,7 +943,7 @@ private:
     bool skipThisGrain() const noexcept
     {
         return params.grainSkip > 0.0f
-            && CounterRng::uniform (noteSeed, spawnTick, kSlotSkip) < params.grainSkip;
+            && ouaricon::grain::CounterRng::uniform (noteSeed, spawnTick, kSlotSkip) < params.grainSkip;
     }
 
     // The global playhead on buffer sample `sample` of this block (see

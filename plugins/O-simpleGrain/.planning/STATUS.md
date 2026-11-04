@@ -2,7 +2,8 @@
 plugin: O-simpleGrain
 stage: 4
 status: human_needed
-last_updated: 2026-10-29
+version: 2.0.1
+last_updated: 2026-11-03
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true

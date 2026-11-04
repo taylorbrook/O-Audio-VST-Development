@@ -6,7 +6,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 # juce_add_plugin below AND by tests/render-harness/CMakeLists.txt (whose
 # hand-rolled JucePlugin_VersionString/Code previously drifted).
 # VERSION_CODE = 0x00MMmmpp (major/minor/patch bytes) — keep in sync.
-set(OSIMPLEGRAIN_VERSION "2.0.0")
+set(OSIMPLEGRAIN_VERSION "2.0.1")
 set(OSIMPLEGRAIN_VERSION_CODE 0x020000)
 
 # O-simpleGrain - Pedagogical Granular Synthesizer
@@ -48,7 +48,6 @@ target_sources(O-simpleGrain
         # Stage 2.3 — viz taps (lock-free SPSC + ring/FFT + cloud frame POD)
         Source/dsp/TripleBuffer.h
         Source/dsp/GrainCloudFrame.h
-        Source/dsp/CounterRng.h
         Source/VizAnalyzer.h
         Source/SampleLibrary.h              # v1.9.0 — sample library (separate from presets)
 )
@@ -69,9 +68,9 @@ target_include_directories(O-simpleGrain
 # /js/modules/webview-drop-streaming.js by PluginEditor::getResource.
 ouaricon_add_module(O-simpleGrain webview-drop-streaming)
 
-# grain-engine 1.1.0: BandlimitedReader.h only (MipRing / MipSnapshot / SincBank),
-# for the band-limited read of up-transposed grains (v1.7.0). The plugin keeps its
-# own dsp/CounterRng.h (global namespace; the module's is ouaricon::grain).
+# grain-engine: BandlimitedReader.h (MipRing / MipSnapshot / SincBank) for the
+# band-limited read of up-transposed grains (v1.7.0), and CounterRng.h
+# (ouaricon::grain::CounterRng) since v2.0.1 -- the local dsp/CounterRng.h is gone.
 ouaricon_add_module(O-simpleGrain grain-engine)
 
 # preset-manager 1.1.0 (v1.9.0): user presets, C++ only — the page drives its own
