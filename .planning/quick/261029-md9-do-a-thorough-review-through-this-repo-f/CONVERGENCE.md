@@ -145,7 +145,10 @@ One `toHTML(engine, pluginName)` call site changes.
 
 Gate: render bit-identical. O-GrainScatter keeps its Stream/slot enums. Skip O-simpleGrain while `git status` shows it dirty.
 
-- [ ] O-Freeze `CounterRng.h` (drift)
+- [x] O-Freeze `CounterRng.h` (drift) — 2583d744
+  O-Freeze 2.9.2 gate. The local `Source/CounterRng.h` is removed, `ouaricon_add_module(O-Freeze grain-engine)` is added, and the two draw sites (`rand01`, `SpectralFreeze::uniform`) now call `ouaricon::grain::CounterRng`. O-Freeze never used `Draw`, so only the namespace changes.
+  - Old-vs-new null, 2.9.1 build vs 2.9.2 build: 84/84 render pairs bit-identical. All 7 blocksize-null configs (Granular + Spectral + engine switch) × 3 seeded templates made on 2.9.1 × blocks 512/32/441/7. Frozen sections ≥ −21.9 dBFS RMS. Seed liveness 7/7 (seeds render pairwise distinct).
+  - auval and pluginval 5 pass.
 - [ ] O-GrainScatter `dsp/CounterRng.h` (drift)
 - [ ] O-simpleGrain `dsp/CounterRng.h` (drift)
 - [ ] O-TextureForge `dsp/CounterRng.h` (drift)
