@@ -1,5 +1,5 @@
 ---
-version: 1.8.0
+version: 1.8.1
 plugin: O-TextureForge
 stage: 4
 gsd_phase: verified

@@ -1,5 +1,12 @@
 # O-TextureForge Changelog
 
+## [1.8.1] — 2026-11-03
+
+### Changed
+
+- **The counter RNG is now the grain-engine module's** (`ouaricon::grain::CounterRng`, `modules/synthesis/grain-engine/cpp/CounterRng.h`). The local `Source/dsp/CounterRng.h` is removed and the five draw sites in `dsp/GrainScheduler.cpp` (Variation jitter, scatter X/Y, position spread, Pick Spread slot 22) call the module namespace. The module's `mix`/`hash`/`uniform`/`uniformInt` core is the 1.6.0 copy verbatim, so no draw changes. Module convergence step 5 (quick 261029-md9). The plugin keeps its own GrainScheduler and GrainPool.
+- Gate: seeded scheduler-harness renders, 1.8.0 backup vs 1.8.1, both built with `NEW_ENGINE` + `HAS_SEED`, are byte-identical, 216/216 (8 mode/density/variation/search-path cases × seeds 0/12345/777 × blocks 32/512/variable × {defaults; weights 2.5/0.3/1.7/0.6 + Pick Spread 60 % + Repeat Avoid 80 %; band-limited read + Pick Spread 30 %}). All finite, −36.3 to −22.5 dBFS RMS, seed liveness 4/4. `clang -H` confirms the old build includes the local copy and the new one the module's.
+
 ## [1.8.0] — 2026-10-28
 
 The grain search can now be steered and loosened. Four new weights set how much each descriptor group counts when a grain is chosen. Pick Spread picks at random among the 16 nearest grains instead of always taking the nearest one. Repeat Avoid stops one grain from firing again and again. Until now, a steady setting with Variation at 0 played the same grain every time, the "machine gun" sound (research `granular-synthesis-2026-update.md` §3.5). MINOR: six new parameters and new UI. Nothing existing changed: at their defaults (weights 100 %, Pick Spread 0, Repeat Avoid 0) every render is bit-identical to 1.7.0, and a session saved before 1.8.0 loads with the new parameters at their defaults.

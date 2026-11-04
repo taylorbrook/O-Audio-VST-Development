@@ -412,7 +412,7 @@ uint32_t GrainScheduler::queryGrainIndex(
         // Add variation randomization
         float variationScale = params.variation * 2.0f;
         for (uint32_t d = 0; d < queryPoint.size(); ++d)
-            queryPoint[d] += (CounterRng::uniform(rngSeed, counter, d) - 0.5f) * variationScale;
+            queryPoint[d] += (ouaricon::grain::CounterRng::uniform(rngSeed, counter, d) - 0.5f) * variationScale;
 
         // Candidates: the 8 nearest to the jittered query (v1.7.0), or the cached
         // 16 with their distances to the jittered query recomputed exactly.
@@ -505,7 +505,7 @@ uint32_t GrainScheduler::queryGrainIndex(
             w[static_cast<size_t>(i)] = std::exp(-(scores[static_cast<size_t>(i)] - best) / tau);
             total += w[static_cast<size_t>(i)];
         }
-        float u = CounterRng::uniform(rngSeed, counter, 22) * total;
+        float u = ouaricon::grain::CounterRng::uniform(rngSeed, counter, 22) * total;
         for (int i = 0; i < n; ++i)
         {
             u -= w[static_cast<size_t>(i)];
@@ -522,8 +522,8 @@ uint32_t GrainScheduler::queryGrainIndex(
     // Fallback: prefer grains near scatter position in 2D projection space
     if (projX != nullptr)
     {
-        float targetX = params.scatterX + (CounterRng::uniform(rngSeed, counter, 19) - 0.5f) * params.variation * 0.5f;
-        float targetY = params.scatterY + (CounterRng::uniform(rngSeed, counter, 20) - 0.5f) * params.variation * 0.5f;
+        float targetX = params.scatterX + (ouaricon::grain::CounterRng::uniform(rngSeed, counter, 19) - 0.5f) * params.variation * 0.5f;
+        float targetY = params.scatterY + (ouaricon::grain::CounterRng::uniform(rngSeed, counter, 20) - 0.5f) * params.variation * 0.5f;
 
         float bestDist = std::numeric_limits<float>::max();
         uint32_t bestIndex = 0;
@@ -546,7 +546,7 @@ uint32_t GrainScheduler::queryGrainIndex(
     int centerGrain = static_cast<int>(params.position * static_cast<float>(totalGrains - 1));
     int spread = static_cast<int>(params.variation * static_cast<float>(totalGrains) * 0.25f);
     spread = juce::jmax(1, spread);
-    int randomOffset = CounterRng::uniformInt(rngSeed, counter, 21, spread * 2) - spread;
+    int randomOffset = ouaricon::grain::CounterRng::uniformInt(rngSeed, counter, 21, spread * 2) - spread;
     int grainIdx = juce::jlimit(0, totalGrains - 1, centerGrain + randomOffset);
     return static_cast<uint32_t>(grainIdx);
 }

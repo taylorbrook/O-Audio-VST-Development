@@ -32,7 +32,7 @@
 #include "SharedCorpus.h"
 #include "SearchIndex.h"
 #include "GrainVoice.h"
-#include "CounterRng.h"
+#include "CounterRng.h"   // grain-engine module (ouaricon::grain::CounterRng), v1.8.1
 #include <array>
 #include <cstdint>
 
