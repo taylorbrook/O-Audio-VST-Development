@@ -164,7 +164,11 @@ Gate: render bit-identical. O-GrainScatter keeps its Stream/slot enums. Skip O-s
     - density-gain 24
     - alias 10
   - auval and pluginval 5 pass.
-- [ ] O-simpleGrain `dsp/CounterRng.h` (drift)
+- [x] O-simpleGrain `dsp/CounterRng.h` (drift) — 5508f56d
+  O-simpleGrain 2.0.1 gate. The local `Source/dsp/CounterRng.h` is removed. The five draw sites in `GrainVoice.h` now call `ouaricon::grain::CounterRng`: the note seed `hash`, `pulseDraw`, `skipThisPulse`, `bipolarDraw` and `skipThisGrain`. O-simpleGrain never used `Draw`. grain-engine was already linked since 1.7.0 (BandlimitedReader), so CMake only drops the header from the source list and updates a comment.
+  - Old-vs-new null, 2.0.0 build (HEAD 19fda5a7) vs 2.0.1 build: 72/72 render pairs byte-identical. All 6 blocksize-null configs (scan-spray, reverse-steal, scan-only, pulsar-sine, pulsar-sample-fm, pulsar-mask-skip) × 3 seeded templates made on 2.0.0 × blocks 512/32/441/7. Renders −63.8 to −40.5 dBFS RMS, seed liveness 5/5. `ninja -t deps`: `PluginProcessor.cpp.o` → module copy. The skip slot is exercised by pulsar-mask-skip (Skip 30 %).
+  - The plugin's own gates on 2.0.1: blocksize-null 45 PASS / 0 FAIL, state-persistence 34/0 (needs `--with mido`), pluginval 10 SUCCESS, auval SUCCEEDED. The pulsar gate was not re-run because it needs control builds; the null covers its configs.
+  - Stale dep: the unbuilt `O-simpleGrain-library-gate` test target still records the deleted local header. A reconfigure or rebuild of that target clears it.
 - [x] O-TextureForge `dsp/CounterRng.h` (drift) — 2c820a0e
   O-TextureForge 1.8.1 gate. The local `Source/dsp/CounterRng.h` is removed; the five draw sites in `dsp/GrainScheduler.cpp` call `ouaricon::grain::CounterRng`. grain-engine was already linked since 1.7.0 (BandlimitedReader), so CMake changes only a comment; every test harness already had the module dir on `-idirafter`. The plugin's own GrainScheduler/GrainPool (forks) are untouched.
   - Old-vs-new null, 1.8.0 backup vs 1.8.1, both scheduler-harness builds with `NEW_ENGINE` + `HAS_SEED`: 216/216 renders byte-identical. 8 mode/density/variation/search-path cases × 3 seeds × blocks 32/512/variable × 3 feature sets (defaults; weights + Pick Spread + Repeat Avoid; band-limited read + Pick Spread). All finite, −36.3 to −22.5 dBFS RMS, seed liveness 4/4. `clang -H`: old → local copy, new → module copy.
