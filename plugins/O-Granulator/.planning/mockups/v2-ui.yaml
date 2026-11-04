@@ -1,0 +1,2839 @@
+# O-Granulator - UI Design Specification v2
+# Generated: 2026-11-04 by ui-design-agent (positions measured from v2-ui-test.html, headless Chrome)
+# v2 = v1 + full-featured microtonal scales (modelled on O-GrainScatter v3.0.0). Everything else is unchanged:
+#   aesthetic, page tabs, 1200x800, drag-to-route mod, 220 params, stream colours, header mod dock,
+#   Scale Root / Grain Limit placement, demo preset (except s2/s3 scale values, see scale_ui.demo_state).
+# Aesthetic: Ouaricon Naturalist (ouaricon-naturalist-001), DARK variant
+
+window:
+  width: 1200
+  height: 800
+  resizable: false
+
+aesthetic:
+  base: ouaricon-naturalist-001
+  variant: dark
+  illustration: "Engraved dandelion clock (Taraxacum pappus in dispersal), inline SVG; bleeds off bottom-right, strokes #32291F on ground (decoration only). Title glyph: small seed-head in ochre; stream glyph: engraved pollen grain in stream colour."
+  frame: "Engraved double plate rule (inset 6/9 px) with corner rivets"
+  knob: "Dark seed cross-section: 20-segment conic body #2F261D/#261F17, #54453A dividers, bone core + indicator; 270deg value arc (stream colour or bone); outer ochre bipolar mod ring + live dot"
+
+colors:
+  ground: "#14100C"
+  plate: "#1A1510"
+  panel: "#1E1913"
+  raised: "#262019"
+  rule: "#33291F"
+  rule_strong: "#4A3D30"
+  ink: "#ECE1CC"        # 14.6:1 on ground
+  ink_secondary: "#C9BBA2"  # 10.0:1
+  ink_tertiary: "#A8977D"   # 6.7:1 on ground, 5.5:1 on raised
+  value_arc: "#D9CBB0"
+  accent: "#E2B064"     # ochre - reserved for modulation, freeze, write head, active tab
+  on_accent: "#1A130B"  # 9.3:1 on accent
+  streams:
+    s1: "#A9C178"  # moss    9.5:1
+    s2: "#E39177"  # madder  7.7:1
+    s3: "#92A9E6"  # woad    8.2:1
+    s4: "#CB9AD0"  # thistle 8.2:1
+
+typography:
+  family: "'EB Garamond', 'Garamond', 'Times New Roman', serif"   # modules/ui/eb-garamond (embed css + woff2)
+  features: "lnum, tnum; all-small-caps for section titles/tabs/stream names"
+  title: "25px"
+  section_title: "13px small caps, 2px tracking"
+  group_heading: "12.5px italic + fading hairline"
+  knob_label: "11px Title Case (localisation headroom: label box 72px for a ~45px EN label)"
+  knob_value: "11.5px, scaled value + unit, thin space"
+  floor: "10.5px"
+  notes:
+    - "Glyphs NOT in the subset: infinity, sharp/flat, small triangles - use '-inf dB', '#', SVG chevrons"
+    - "Canvas text waits for document.fonts.load() before first paint"
+
+layout:
+  type: custom
+  regions:
+    - { id: header, y: 16, height: 70, contents: [title, preset_bar, freeze, sync_mode, input_gain, mix, output_gain, output_meter, page_tabs, mod_source_dock] }
+    - { id: buffer_strip, x: 18, y: 96, width: 1164, height: 140, contents: [buffer_view, buffer_length, scale_root, grain_limit, grain_count] }
+    - { id: page, y: 248, height: 537, pages: [streams, fx, mod] }
+  pages:
+    streams: "4 columns (x 18/312/606/900, 282 wide, 12 gutter). Per column: header (numeral, M, S, enable) / Position + Pitch / SCALE BAND (onset trigger + scale dropdown + edit; degree chips + All/None/Invert) / Size + Rate / Window (fig + 3 knobs) / Scatter + Mixer"
+    streams_v2_rhythm: "y: headings 292, knobs 308 | band row 401 (24), chips 429 (20) | Size/Rate heading 458, knobs 474 | Window heading 569, knobs 585 | Scatter/Mixer heading 680, knobs 696 (bottom 781, 19 px edge). The band costs +24 px vs v1, paid by knob-row->heading gaps 16->10 and the 7 px bottom reserve. No control resized; FX and MOD pages unchanged."
+    fx: "4 columns: Grain filter (type segmented + fig + cutoff/random/res) / Drive (fig + drive) + Crush / Ring modulator (fig + 3). Bottom band: Feedback network flow (5 knobs + loop gain readout) | Output reverb (3 knobs + decay fig)"
+    mod: "LFO 1-4 cards (chip, live wave, shape segmented, rate/phase) / Env, Pitch (note readout, clarity, follow I-IV), Onset cards / Macros 1-4 + routing legend | Modulation matrix 16 rows (source, destination, bipolar depth, value)"
+  grid:
+    knob_cell: { width: 62, height: 85 }
+    knob_cell_large: { width: 80, height: 97 }
+    header_knob: { width: 108, height: 58 }
+    column_slots_x: [0, 72, 148, 220]
+
+modulation_ux:
+  sources: ["LFO 1", "LFO 2", "LFO 3", "LFO 4", "Env", "Pitch", "Onset", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+  handles: "Header dock (always visible, all pages) + chips on each MOD-page source card; background tint tracks the live source value"
+  drop: "Drag a chip onto any knob with a destination index -> first empty slot gets source/dest/depth +40 %; ring + slot row flash. Duplicate source->dest flashes the existing slot. Non-destination knobs dim while dragging."
+  ring: "Ochre arc at r+7 around the knob from base to base+depth (bipolar sources show a faint +/- reach); live dot = modulated value"
+  edit: "Alt-drag knob = depth of latest route on it; matrix row depth bar (drag, dbl-click = 0); click slot number = clear"
+  tempo_alias: "In Tempo mode sN_size_sync / sN_density_sync / lfoN_rate_sync knobs drop onto the sN_size / sN_density / lfoN_rate destinations (offset -> multiplier)"
+  destination_table_size: 113
+
+controls:
+  - id: input_gain
+    type: knob
+    relay: WebSliderRelay
+    label: "Input"
+    name: "Input Gain"
+    page: shared
+    position: { x: 800, y: 16 }
+    size: { width: 108, height: 58 }
+    range: [-24, 12]
+    default: 0
+    skew: 1
+    unit: "dB"
+    mod_destination: 1
+  - id: buffer_length
+    type: knob
+    relay: WebSliderRelay
+    label: "Length"
+    name: "Buffer Length"
+    page: shared
+    position: { x: 986, y: 103 }
+    size: { width: 62, height: 85 }
+    range: [1, 30]
+    default: 8
+    skew: 0.5
+    unit: "s"
+    mod_destination: 4
+  - id: freeze
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Freeze"
+    page: shared
+    position: { x: 562, y: 16 }
+    size: { width: 90, height: 32 }
+    default: false
+  - id: sync_mode
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Sync"
+    page: shared
+    position: { x: 664, y: 16 }
+    size: { width: 120, height: 32 }
+    choices: ["Free", "Tempo"]
+    default: 0   # Free
+  - id: mix
+    type: knob
+    relay: WebSliderRelay
+    label: "Mix"
+    name: "Mix"
+    page: shared
+    position: { x: 920, y: 16 }
+    size: { width: 108, height: 58 }
+    range: [0, 100]
+    default: 50
+    skew: 1
+    unit: "%"
+    mod_destination: 2
+  - id: output_gain
+    type: knob
+    relay: WebSliderRelay
+    label: "Output"
+    name: "Output Gain"
+    page: shared
+    position: { x: 1040, y: 16 }
+    size: { width: 108, height: 58 }
+    range: [-24, 12]
+    default: 0
+    skew: 1
+    unit: "dB"
+    mod_destination: 3
+  - id: scale_root
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Scale Root"
+    page: shared
+    position: { x: 1062, y: 117 }
+    size: { width: 120, height: 24 }
+    choices: ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+    default: 0   # C
+  - id: grain_limit
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Grain Limit"
+    page: shared
+    position: { x: 1062, y: 161 }
+    size: { width: 120, height: 24 }
+    choices: ["32", "64", "96", "128"]
+    default: 3   # 128
+  - id: s1_enable
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Enable"
+    page: streams
+    position: { x: 268, y: 255 }
+    size: { width: 32, height: 20 }
+    default: true
+  - id: s1_mute
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Mute"
+    page: streams
+    position: { x: 194, y: 255 }
+    size: { width: 22, height: 20 }
+    default: false
+  - id: s1_solo
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Solo"
+    page: streams
+    position: { x: 226, y: 255 }
+    size: { width: 22, height: 20 }
+    default: false
+  - id: s1_level
+    type: knob
+    relay: WebSliderRelay
+    label: "Level"
+    name: "S1 · Level"
+    page: streams
+    position: { x: 166, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [-60, 6]
+    default: 0
+    skew: 1
+    unit: "dB"
+    mod_destination: 5
+  - id: s1_pan
+    type: knob
+    relay: WebSliderRelay
+    label: "Pan"
+    name: "S1 · Pan"
+    page: streams
+    position: { x: 238, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    mod_destination: 6
+  - id: s1_position
+    type: knob
+    relay: WebSliderRelay
+    label: "Position"
+    name: "S1 · Position"
+    page: streams
+    position: { x: 18, y: 308 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 7
+  - id: s1_spray
+    type: knob
+    relay: WebSliderRelay
+    label: "Spray"
+    name: "S1 · Spray"
+    page: streams
+    position: { x: 90, y: 308 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 10
+    skew: 1
+    unit: "%"
+    mod_destination: 8
+  - id: s1_size
+    type: knob
+    relay: WebSliderRelay
+    label: "Size"
+    name: "S1 · Size"
+    page: streams
+    position: { x: 18, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [5, 2000]
+    default: 100
+    skew: 0.3
+    unit: "ms"
+    mod_destination: 9
+    visible_when: "sync_mode == Free"
+  - id: s1_size_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Size"
+    page: streams
+    position: { x: 18, y: 474 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar", "2 bars"]
+    default: 7   # 1/16
+    mod_destination_alias: s1_size
+    visible_when: "sync_mode == Tempo"
+  - id: s1_size_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S1 · Size Random"
+    page: streams
+    position: { x: 90, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 10
+  - id: s1_density
+    type: knob
+    relay: WebSliderRelay
+    label: "Density"
+    name: "S1 · Density"
+    page: streams
+    position: { x: 166, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0.5, 200]
+    default: 10
+    skew: 0.3
+    unit: "grains/s"
+    mod_destination: 11
+    visible_when: "sync_mode == Free"
+  - id: s1_density_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Density"
+    page: streams
+    position: { x: 166, y: 474 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar"]
+    default: 7   # 1/16
+    mod_destination_alias: s1_density
+    visible_when: "sync_mode == Tempo"
+  - id: s1_jitter
+    type: knob
+    relay: WebSliderRelay
+    label: "Jitter"
+    name: "S1 · Jitter"
+    page: streams
+    position: { x: 238, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 20
+    skew: 1
+    unit: "%"
+    mod_destination: 12
+  - id: s1_pitch
+    type: knob
+    relay: WebSliderRelay
+    label: "Pitch"
+    name: "S1 · Pitch"
+    page: streams
+    position: { x: 166, y: 308 }
+    size: { width: 62, height: 85 }
+    range: [-24, 24]
+    default: 0
+    skew: 1
+    unit: "st"
+    mod_destination: 13
+  - id: s1_pitch_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S1 · Pitch Random"
+    page: streams
+    position: { x: 238, y: 308 }
+    size: { width: 62, height: 85 }
+    range: [0, 24]
+    default: 0
+    skew: 1
+    unit: "st"
+    mod_destination: 14
+  - id: s1_scale
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Scale"
+    page: streams
+    position: { x: 162, y: 401 }
+    size: { width: 112, height: 24 }
+    presentation: grouped_dropdown   # custom Naturalist list (scale_ui.dropdown), NOT a native <select>
+    choices: ["Off", "Chromatic", "Major", "Minor", "Pentatonic", "Whole Tone", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Locrian", "Harmonic Minor", "Melodic Minor", "Minor Pentatonic", "Blues", "Octatonic", "Augmented", "Fifths + Octaves", "Octaves", "19-EDO", "22-EDO", "24-EDO", "31-EDO", "53-EDO", "5-Limit Just", "7-Limit Just", "Harmonics 8-16", "Bohlen-Pierce", "Slendro", "Pelog", "Maqam Rast", "Custom"]
+    default: 0   # Off
+    choices_ref: scale_ui.collections   # index == choice value; cents tables + grouping live there
+  - id: s1_reverse_prob
+    type: knob
+    relay: WebSliderRelay
+    label: "Reverse"
+    name: "S1 · Reverse"
+    page: streams
+    position: { x: 238, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 15
+  - id: s1_window
+    type: knob
+    relay: WebSliderRelay
+    label: "Shape"
+    name: "S1 · Window"
+    page: streams
+    position: { x: 90, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [0, 1]
+    default: 0
+    skew: 1
+    mod_destination: 16
+  - id: s1_window_skew
+    type: knob
+    relay: WebSliderRelay
+    label: "Skew"
+    name: "S1 · Window Skew"
+    page: streams
+    position: { x: 166, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 17
+  - id: s1_stereo_spread
+    type: knob
+    relay: WebSliderRelay
+    label: "Stereo"
+    name: "S1 · Stereo Spread"
+    page: streams
+    position: { x: 18, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 30
+    skew: 1
+    unit: "%"
+    mod_destination: 18
+  - id: s1_gain_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Gain"
+    name: "S1 · Gain Random"
+    page: streams
+    position: { x: 90, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 19
+  - id: s1_onset_trigger
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Onset Trigger"
+    page: streams
+    position: { x: 18, y: 401 }
+    size: { width: 134, height: 24 }
+    default: false
+  - id: s1_filter_type
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Filter Type"
+    page: fx
+    position: { x: 18, y: 308 }
+    size: { width: 282, height: 24 }
+    choices: ["Off", "LP", "BP", "HP"]
+    default: 0   # Off
+  - id: s1_filter_cutoff
+    type: knob
+    relay: WebSliderRelay
+    label: "Cutoff"
+    name: "S1 · Filter Cutoff"
+    page: fx
+    position: { x: 90, y: 342 }
+    size: { width: 62, height: 85 }
+    range: [20, 20000]
+    default: 20000
+    skew: "log"
+    unit: "Hz"
+    mod_destination: 20
+  - id: s1_filter_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S1 · Filter Random"
+    page: fx
+    position: { x: 166, y: 342 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 21
+  - id: s1_filter_res
+    type: knob
+    relay: WebSliderRelay
+    label: "Resonance"
+    name: "S1 · Filter Res"
+    page: fx
+    position: { x: 238, y: 342 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 20
+    skew: 1
+    unit: "%"
+    mod_destination: 22
+  - id: s1_drive
+    type: knob
+    relay: WebSliderRelay
+    label: "Drive"
+    name: "S1 · Drive"
+    page: fx
+    position: { x: 90, y: 459 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 23
+  - id: s1_crush
+    type: knob
+    relay: WebSliderRelay
+    label: "Amount"
+    name: "S1 · Crush"
+    page: fx
+    position: { x: 166, y: 459 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 24
+  - id: s1_crush_prob
+    type: knob
+    relay: WebSliderRelay
+    label: "Chance"
+    name: "S1 · Crush Chance"
+    page: fx
+    position: { x: 238, y: 459 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 100
+    skew: 1
+    unit: "%"
+    mod_destination: 25
+  - id: s1_ring_freq
+    type: knob
+    relay: WebSliderRelay
+    label: "Freq"
+    name: "S1 · Ring Freq"
+    page: fx
+    position: { x: 90, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [20, 5000]
+    default: 200
+    skew: "log"
+    unit: "Hz"
+    mod_destination: 26
+  - id: s1_ring_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S1 · Ring Random"
+    page: fx
+    position: { x: 166, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 27
+  - id: s1_ring_mix
+    type: knob
+    relay: WebSliderRelay
+    label: "Mix"
+    name: "S1 · Ring Mix"
+    page: fx
+    position: { x: 238, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 28
+  - id: s2_enable
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Enable"
+    page: streams
+    position: { x: 562, y: 255 }
+    size: { width: 32, height: 20 }
+    default: false
+  - id: s2_mute
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Mute"
+    page: streams
+    position: { x: 488, y: 255 }
+    size: { width: 22, height: 20 }
+    default: false
+  - id: s2_solo
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Solo"
+    page: streams
+    position: { x: 520, y: 255 }
+    size: { width: 22, height: 20 }
+    default: false
+  - id: s2_level
+    type: knob
+    relay: WebSliderRelay
+    label: "Level"
+    name: "S2 · Level"
+    page: streams
+    position: { x: 460, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [-60, 6]
+    default: 0
+    skew: 1
+    unit: "dB"
+    mod_destination: 29
+  - id: s2_pan
+    type: knob
+    relay: WebSliderRelay
+    label: "Pan"
+    name: "S2 · Pan"
+    page: streams
+    position: { x: 532, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    mod_destination: 30
+  - id: s2_position
+    type: knob
+    relay: WebSliderRelay
+    label: "Position"
+    name: "S2 · Position"
+    page: streams
+    position: { x: 312, y: 308 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 31
+  - id: s2_spray
+    type: knob
+    relay: WebSliderRelay
+    label: "Spray"
+    name: "S2 · Spray"
+    page: streams
+    position: { x: 384, y: 308 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 10
+    skew: 1
+    unit: "%"
+    mod_destination: 32
+  - id: s2_size
+    type: knob
+    relay: WebSliderRelay
+    label: "Size"
+    name: "S2 · Size"
+    page: streams
+    position: { x: 312, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [5, 2000]
+    default: 100
+    skew: 0.3
+    unit: "ms"
+    mod_destination: 33
+    visible_when: "sync_mode == Free"
+  - id: s2_size_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Size"
+    page: streams
+    position: { x: 312, y: 474 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar", "2 bars"]
+    default: 7   # 1/16
+    mod_destination_alias: s2_size
+    visible_when: "sync_mode == Tempo"
+  - id: s2_size_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S2 · Size Random"
+    page: streams
+    position: { x: 384, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 34
+  - id: s2_density
+    type: knob
+    relay: WebSliderRelay
+    label: "Density"
+    name: "S2 · Density"
+    page: streams
+    position: { x: 460, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0.5, 200]
+    default: 10
+    skew: 0.3
+    unit: "grains/s"
+    mod_destination: 35
+    visible_when: "sync_mode == Free"
+  - id: s2_density_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Density"
+    page: streams
+    position: { x: 460, y: 474 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar"]
+    default: 7   # 1/16
+    mod_destination_alias: s2_density
+    visible_when: "sync_mode == Tempo"
+  - id: s2_jitter
+    type: knob
+    relay: WebSliderRelay
+    label: "Jitter"
+    name: "S2 · Jitter"
+    page: streams
+    position: { x: 532, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 20
+    skew: 1
+    unit: "%"
+    mod_destination: 36
+  - id: s2_pitch
+    type: knob
+    relay: WebSliderRelay
+    label: "Pitch"
+    name: "S2 · Pitch"
+    page: streams
+    position: { x: 460, y: 308 }
+    size: { width: 62, height: 85 }
+    range: [-24, 24]
+    default: 0
+    skew: 1
+    unit: "st"
+    mod_destination: 37
+  - id: s2_pitch_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S2 · Pitch Random"
+    page: streams
+    position: { x: 532, y: 308 }
+    size: { width: 62, height: 85 }
+    range: [0, 24]
+    default: 0
+    skew: 1
+    unit: "st"
+    mod_destination: 38
+  - id: s2_scale
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Scale"
+    page: streams
+    position: { x: 456, y: 401 }
+    size: { width: 112, height: 24 }
+    presentation: grouped_dropdown   # custom Naturalist list (scale_ui.dropdown), NOT a native <select>
+    choices: ["Off", "Chromatic", "Major", "Minor", "Pentatonic", "Whole Tone", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Locrian", "Harmonic Minor", "Melodic Minor", "Minor Pentatonic", "Blues", "Octatonic", "Augmented", "Fifths + Octaves", "Octaves", "19-EDO", "22-EDO", "24-EDO", "31-EDO", "53-EDO", "5-Limit Just", "7-Limit Just", "Harmonics 8-16", "Bohlen-Pierce", "Slendro", "Pelog", "Maqam Rast", "Custom"]
+    default: 0   # Off
+    choices_ref: scale_ui.collections   # index == choice value; cents tables + grouping live there
+  - id: s2_reverse_prob
+    type: knob
+    relay: WebSliderRelay
+    label: "Reverse"
+    name: "S2 · Reverse"
+    page: streams
+    position: { x: 532, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 39
+  - id: s2_window
+    type: knob
+    relay: WebSliderRelay
+    label: "Shape"
+    name: "S2 · Window"
+    page: streams
+    position: { x: 384, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [0, 1]
+    default: 0
+    skew: 1
+    mod_destination: 40
+  - id: s2_window_skew
+    type: knob
+    relay: WebSliderRelay
+    label: "Skew"
+    name: "S2 · Window Skew"
+    page: streams
+    position: { x: 460, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 41
+  - id: s2_stereo_spread
+    type: knob
+    relay: WebSliderRelay
+    label: "Stereo"
+    name: "S2 · Stereo Spread"
+    page: streams
+    position: { x: 312, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 30
+    skew: 1
+    unit: "%"
+    mod_destination: 42
+  - id: s2_gain_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Gain"
+    name: "S2 · Gain Random"
+    page: streams
+    position: { x: 384, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 43
+  - id: s2_onset_trigger
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Onset Trigger"
+    page: streams
+    position: { x: 312, y: 401 }
+    size: { width: 134, height: 24 }
+    default: false
+  - id: s2_filter_type
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Filter Type"
+    page: fx
+    position: { x: 312, y: 308 }
+    size: { width: 282, height: 24 }
+    choices: ["Off", "LP", "BP", "HP"]
+    default: 0   # Off
+  - id: s2_filter_cutoff
+    type: knob
+    relay: WebSliderRelay
+    label: "Cutoff"
+    name: "S2 · Filter Cutoff"
+    page: fx
+    position: { x: 384, y: 342 }
+    size: { width: 62, height: 85 }
+    range: [20, 20000]
+    default: 20000
+    skew: "log"
+    unit: "Hz"
+    mod_destination: 44
+  - id: s2_filter_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S2 · Filter Random"
+    page: fx
+    position: { x: 460, y: 342 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 45
+  - id: s2_filter_res
+    type: knob
+    relay: WebSliderRelay
+    label: "Resonance"
+    name: "S2 · Filter Res"
+    page: fx
+    position: { x: 532, y: 342 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 20
+    skew: 1
+    unit: "%"
+    mod_destination: 46
+  - id: s2_drive
+    type: knob
+    relay: WebSliderRelay
+    label: "Drive"
+    name: "S2 · Drive"
+    page: fx
+    position: { x: 384, y: 459 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 47
+  - id: s2_crush
+    type: knob
+    relay: WebSliderRelay
+    label: "Amount"
+    name: "S2 · Crush"
+    page: fx
+    position: { x: 460, y: 459 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 48
+  - id: s2_crush_prob
+    type: knob
+    relay: WebSliderRelay
+    label: "Chance"
+    name: "S2 · Crush Chance"
+    page: fx
+    position: { x: 532, y: 459 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 100
+    skew: 1
+    unit: "%"
+    mod_destination: 49
+  - id: s2_ring_freq
+    type: knob
+    relay: WebSliderRelay
+    label: "Freq"
+    name: "S2 · Ring Freq"
+    page: fx
+    position: { x: 384, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [20, 5000]
+    default: 200
+    skew: "log"
+    unit: "Hz"
+    mod_destination: 50
+  - id: s2_ring_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S2 · Ring Random"
+    page: fx
+    position: { x: 460, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 51
+  - id: s2_ring_mix
+    type: knob
+    relay: WebSliderRelay
+    label: "Mix"
+    name: "S2 · Ring Mix"
+    page: fx
+    position: { x: 532, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 52
+  - id: s3_enable
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Enable"
+    page: streams
+    position: { x: 856, y: 255 }
+    size: { width: 32, height: 20 }
+    default: false
+  - id: s3_mute
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Mute"
+    page: streams
+    position: { x: 782, y: 255 }
+    size: { width: 22, height: 20 }
+    default: false
+  - id: s3_solo
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Solo"
+    page: streams
+    position: { x: 814, y: 255 }
+    size: { width: 22, height: 20 }
+    default: false
+  - id: s3_level
+    type: knob
+    relay: WebSliderRelay
+    label: "Level"
+    name: "S3 · Level"
+    page: streams
+    position: { x: 754, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [-60, 6]
+    default: 0
+    skew: 1
+    unit: "dB"
+    mod_destination: 53
+  - id: s3_pan
+    type: knob
+    relay: WebSliderRelay
+    label: "Pan"
+    name: "S3 · Pan"
+    page: streams
+    position: { x: 826, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    mod_destination: 54
+  - id: s3_position
+    type: knob
+    relay: WebSliderRelay
+    label: "Position"
+    name: "S3 · Position"
+    page: streams
+    position: { x: 606, y: 308 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 55
+  - id: s3_spray
+    type: knob
+    relay: WebSliderRelay
+    label: "Spray"
+    name: "S3 · Spray"
+    page: streams
+    position: { x: 678, y: 308 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 10
+    skew: 1
+    unit: "%"
+    mod_destination: 56
+  - id: s3_size
+    type: knob
+    relay: WebSliderRelay
+    label: "Size"
+    name: "S3 · Size"
+    page: streams
+    position: { x: 606, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [5, 2000]
+    default: 100
+    skew: 0.3
+    unit: "ms"
+    mod_destination: 57
+    visible_when: "sync_mode == Free"
+  - id: s3_size_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Size"
+    page: streams
+    position: { x: 606, y: 474 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar", "2 bars"]
+    default: 7   # 1/16
+    mod_destination_alias: s3_size
+    visible_when: "sync_mode == Tempo"
+  - id: s3_size_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S3 · Size Random"
+    page: streams
+    position: { x: 678, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 58
+  - id: s3_density
+    type: knob
+    relay: WebSliderRelay
+    label: "Density"
+    name: "S3 · Density"
+    page: streams
+    position: { x: 754, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0.5, 200]
+    default: 10
+    skew: 0.3
+    unit: "grains/s"
+    mod_destination: 59
+    visible_when: "sync_mode == Free"
+  - id: s3_density_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Density"
+    page: streams
+    position: { x: 754, y: 474 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar"]
+    default: 7   # 1/16
+    mod_destination_alias: s3_density
+    visible_when: "sync_mode == Tempo"
+  - id: s3_jitter
+    type: knob
+    relay: WebSliderRelay
+    label: "Jitter"
+    name: "S3 · Jitter"
+    page: streams
+    position: { x: 826, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 20
+    skew: 1
+    unit: "%"
+    mod_destination: 60
+  - id: s3_pitch
+    type: knob
+    relay: WebSliderRelay
+    label: "Pitch"
+    name: "S3 · Pitch"
+    page: streams
+    position: { x: 754, y: 308 }
+    size: { width: 62, height: 85 }
+    range: [-24, 24]
+    default: 0
+    skew: 1
+    unit: "st"
+    mod_destination: 61
+  - id: s3_pitch_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S3 · Pitch Random"
+    page: streams
+    position: { x: 826, y: 308 }
+    size: { width: 62, height: 85 }
+    range: [0, 24]
+    default: 0
+    skew: 1
+    unit: "st"
+    mod_destination: 62
+  - id: s3_scale
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Scale"
+    page: streams
+    position: { x: 750, y: 401 }
+    size: { width: 112, height: 24 }
+    presentation: grouped_dropdown   # custom Naturalist list (scale_ui.dropdown), NOT a native <select>
+    choices: ["Off", "Chromatic", "Major", "Minor", "Pentatonic", "Whole Tone", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Locrian", "Harmonic Minor", "Melodic Minor", "Minor Pentatonic", "Blues", "Octatonic", "Augmented", "Fifths + Octaves", "Octaves", "19-EDO", "22-EDO", "24-EDO", "31-EDO", "53-EDO", "5-Limit Just", "7-Limit Just", "Harmonics 8-16", "Bohlen-Pierce", "Slendro", "Pelog", "Maqam Rast", "Custom"]
+    default: 0   # Off
+    choices_ref: scale_ui.collections   # index == choice value; cents tables + grouping live there
+  - id: s3_reverse_prob
+    type: knob
+    relay: WebSliderRelay
+    label: "Reverse"
+    name: "S3 · Reverse"
+    page: streams
+    position: { x: 826, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 63
+  - id: s3_window
+    type: knob
+    relay: WebSliderRelay
+    label: "Shape"
+    name: "S3 · Window"
+    page: streams
+    position: { x: 678, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [0, 1]
+    default: 0
+    skew: 1
+    mod_destination: 64
+  - id: s3_window_skew
+    type: knob
+    relay: WebSliderRelay
+    label: "Skew"
+    name: "S3 · Window Skew"
+    page: streams
+    position: { x: 754, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 65
+  - id: s3_stereo_spread
+    type: knob
+    relay: WebSliderRelay
+    label: "Stereo"
+    name: "S3 · Stereo Spread"
+    page: streams
+    position: { x: 606, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 30
+    skew: 1
+    unit: "%"
+    mod_destination: 66
+  - id: s3_gain_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Gain"
+    name: "S3 · Gain Random"
+    page: streams
+    position: { x: 678, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 67
+  - id: s3_onset_trigger
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Onset Trigger"
+    page: streams
+    position: { x: 606, y: 401 }
+    size: { width: 134, height: 24 }
+    default: false
+  - id: s3_filter_type
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Filter Type"
+    page: fx
+    position: { x: 606, y: 308 }
+    size: { width: 282, height: 24 }
+    choices: ["Off", "LP", "BP", "HP"]
+    default: 0   # Off
+  - id: s3_filter_cutoff
+    type: knob
+    relay: WebSliderRelay
+    label: "Cutoff"
+    name: "S3 · Filter Cutoff"
+    page: fx
+    position: { x: 678, y: 342 }
+    size: { width: 62, height: 85 }
+    range: [20, 20000]
+    default: 20000
+    skew: "log"
+    unit: "Hz"
+    mod_destination: 68
+  - id: s3_filter_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S3 · Filter Random"
+    page: fx
+    position: { x: 754, y: 342 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 69
+  - id: s3_filter_res
+    type: knob
+    relay: WebSliderRelay
+    label: "Resonance"
+    name: "S3 · Filter Res"
+    page: fx
+    position: { x: 826, y: 342 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 20
+    skew: 1
+    unit: "%"
+    mod_destination: 70
+  - id: s3_drive
+    type: knob
+    relay: WebSliderRelay
+    label: "Drive"
+    name: "S3 · Drive"
+    page: fx
+    position: { x: 678, y: 459 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 71
+  - id: s3_crush
+    type: knob
+    relay: WebSliderRelay
+    label: "Amount"
+    name: "S3 · Crush"
+    page: fx
+    position: { x: 754, y: 459 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 72
+  - id: s3_crush_prob
+    type: knob
+    relay: WebSliderRelay
+    label: "Chance"
+    name: "S3 · Crush Chance"
+    page: fx
+    position: { x: 826, y: 459 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 100
+    skew: 1
+    unit: "%"
+    mod_destination: 73
+  - id: s3_ring_freq
+    type: knob
+    relay: WebSliderRelay
+    label: "Freq"
+    name: "S3 · Ring Freq"
+    page: fx
+    position: { x: 678, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [20, 5000]
+    default: 200
+    skew: "log"
+    unit: "Hz"
+    mod_destination: 74
+  - id: s3_ring_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S3 · Ring Random"
+    page: fx
+    position: { x: 754, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 75
+  - id: s3_ring_mix
+    type: knob
+    relay: WebSliderRelay
+    label: "Mix"
+    name: "S3 · Ring Mix"
+    page: fx
+    position: { x: 826, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 76
+  - id: s4_enable
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Enable"
+    page: streams
+    position: { x: 1150, y: 255 }
+    size: { width: 32, height: 20 }
+    default: false
+  - id: s4_mute
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Mute"
+    page: streams
+    position: { x: 1076, y: 255 }
+    size: { width: 22, height: 20 }
+    default: false
+  - id: s4_solo
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Solo"
+    page: streams
+    position: { x: 1108, y: 255 }
+    size: { width: 22, height: 20 }
+    default: false
+  - id: s4_level
+    type: knob
+    relay: WebSliderRelay
+    label: "Level"
+    name: "S4 · Level"
+    page: streams
+    position: { x: 1048, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [-60, 6]
+    default: 0
+    skew: 1
+    unit: "dB"
+    mod_destination: 77
+  - id: s4_pan
+    type: knob
+    relay: WebSliderRelay
+    label: "Pan"
+    name: "S4 · Pan"
+    page: streams
+    position: { x: 1120, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    mod_destination: 78
+  - id: s4_position
+    type: knob
+    relay: WebSliderRelay
+    label: "Position"
+    name: "S4 · Position"
+    page: streams
+    position: { x: 900, y: 308 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 79
+  - id: s4_spray
+    type: knob
+    relay: WebSliderRelay
+    label: "Spray"
+    name: "S4 · Spray"
+    page: streams
+    position: { x: 972, y: 308 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 10
+    skew: 1
+    unit: "%"
+    mod_destination: 80
+  - id: s4_size
+    type: knob
+    relay: WebSliderRelay
+    label: "Size"
+    name: "S4 · Size"
+    page: streams
+    position: { x: 900, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [5, 2000]
+    default: 100
+    skew: 0.3
+    unit: "ms"
+    mod_destination: 81
+    visible_when: "sync_mode == Free"
+  - id: s4_size_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Size"
+    page: streams
+    position: { x: 900, y: 474 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar", "2 bars"]
+    default: 7   # 1/16
+    mod_destination_alias: s4_size
+    visible_when: "sync_mode == Tempo"
+  - id: s4_size_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S4 · Size Random"
+    page: streams
+    position: { x: 972, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 82
+  - id: s4_density
+    type: knob
+    relay: WebSliderRelay
+    label: "Density"
+    name: "S4 · Density"
+    page: streams
+    position: { x: 1048, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0.5, 200]
+    default: 10
+    skew: 0.3
+    unit: "grains/s"
+    mod_destination: 83
+    visible_when: "sync_mode == Free"
+  - id: s4_density_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Density"
+    page: streams
+    position: { x: 1048, y: 474 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar"]
+    default: 7   # 1/16
+    mod_destination_alias: s4_density
+    visible_when: "sync_mode == Tempo"
+  - id: s4_jitter
+    type: knob
+    relay: WebSliderRelay
+    label: "Jitter"
+    name: "S4 · Jitter"
+    page: streams
+    position: { x: 1120, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 20
+    skew: 1
+    unit: "%"
+    mod_destination: 84
+  - id: s4_pitch
+    type: knob
+    relay: WebSliderRelay
+    label: "Pitch"
+    name: "S4 · Pitch"
+    page: streams
+    position: { x: 1048, y: 308 }
+    size: { width: 62, height: 85 }
+    range: [-24, 24]
+    default: 0
+    skew: 1
+    unit: "st"
+    mod_destination: 85
+  - id: s4_pitch_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S4 · Pitch Random"
+    page: streams
+    position: { x: 1120, y: 308 }
+    size: { width: 62, height: 85 }
+    range: [0, 24]
+    default: 0
+    skew: 1
+    unit: "st"
+    mod_destination: 86
+  - id: s4_scale
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Scale"
+    page: streams
+    position: { x: 1044, y: 401 }
+    size: { width: 112, height: 24 }
+    presentation: grouped_dropdown   # custom Naturalist list (scale_ui.dropdown), NOT a native <select>
+    choices: ["Off", "Chromatic", "Major", "Minor", "Pentatonic", "Whole Tone", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Locrian", "Harmonic Minor", "Melodic Minor", "Minor Pentatonic", "Blues", "Octatonic", "Augmented", "Fifths + Octaves", "Octaves", "19-EDO", "22-EDO", "24-EDO", "31-EDO", "53-EDO", "5-Limit Just", "7-Limit Just", "Harmonics 8-16", "Bohlen-Pierce", "Slendro", "Pelog", "Maqam Rast", "Custom"]
+    default: 0   # Off
+    choices_ref: scale_ui.collections   # index == choice value; cents tables + grouping live there
+  - id: s4_reverse_prob
+    type: knob
+    relay: WebSliderRelay
+    label: "Reverse"
+    name: "S4 · Reverse"
+    page: streams
+    position: { x: 1120, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 87
+  - id: s4_window
+    type: knob
+    relay: WebSliderRelay
+    label: "Shape"
+    name: "S4 · Window"
+    page: streams
+    position: { x: 972, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [0, 1]
+    default: 0
+    skew: 1
+    mod_destination: 88
+  - id: s4_window_skew
+    type: knob
+    relay: WebSliderRelay
+    label: "Skew"
+    name: "S4 · Window Skew"
+    page: streams
+    position: { x: 1048, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 89
+  - id: s4_stereo_spread
+    type: knob
+    relay: WebSliderRelay
+    label: "Stereo"
+    name: "S4 · Stereo Spread"
+    page: streams
+    position: { x: 900, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 30
+    skew: 1
+    unit: "%"
+    mod_destination: 90
+  - id: s4_gain_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Gain"
+    name: "S4 · Gain Random"
+    page: streams
+    position: { x: 972, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 91
+  - id: s4_onset_trigger
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Onset Trigger"
+    page: streams
+    position: { x: 900, y: 401 }
+    size: { width: 134, height: 24 }
+    default: false
+  - id: s4_filter_type
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Filter Type"
+    page: fx
+    position: { x: 900, y: 308 }
+    size: { width: 282, height: 24 }
+    choices: ["Off", "LP", "BP", "HP"]
+    default: 0   # Off
+  - id: s4_filter_cutoff
+    type: knob
+    relay: WebSliderRelay
+    label: "Cutoff"
+    name: "S4 · Filter Cutoff"
+    page: fx
+    position: { x: 972, y: 342 }
+    size: { width: 62, height: 85 }
+    range: [20, 20000]
+    default: 20000
+    skew: "log"
+    unit: "Hz"
+    mod_destination: 92
+  - id: s4_filter_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S4 · Filter Random"
+    page: fx
+    position: { x: 1048, y: 342 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 93
+  - id: s4_filter_res
+    type: knob
+    relay: WebSliderRelay
+    label: "Resonance"
+    name: "S4 · Filter Res"
+    page: fx
+    position: { x: 1120, y: 342 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 20
+    skew: 1
+    unit: "%"
+    mod_destination: 94
+  - id: s4_drive
+    type: knob
+    relay: WebSliderRelay
+    label: "Drive"
+    name: "S4 · Drive"
+    page: fx
+    position: { x: 972, y: 459 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 95
+  - id: s4_crush
+    type: knob
+    relay: WebSliderRelay
+    label: "Amount"
+    name: "S4 · Crush"
+    page: fx
+    position: { x: 1048, y: 459 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 96
+  - id: s4_crush_prob
+    type: knob
+    relay: WebSliderRelay
+    label: "Chance"
+    name: "S4 · Crush Chance"
+    page: fx
+    position: { x: 1120, y: 459 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 100
+    skew: 1
+    unit: "%"
+    mod_destination: 97
+  - id: s4_ring_freq
+    type: knob
+    relay: WebSliderRelay
+    label: "Freq"
+    name: "S4 · Ring Freq"
+    page: fx
+    position: { x: 972, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [20, 5000]
+    default: 200
+    skew: "log"
+    unit: "Hz"
+    mod_destination: 98
+  - id: s4_ring_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S4 · Ring Random"
+    page: fx
+    position: { x: 1048, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 99
+  - id: s4_ring_mix
+    type: knob
+    relay: WebSliderRelay
+    label: "Mix"
+    name: "S4 · Ring Mix"
+    page: fx
+    position: { x: 1120, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 100
+  - id: feedback
+    type: knob
+    relay: WebSliderRelay
+    label: "Amount"
+    name: "Feedback"
+    page: fx
+    position: { x: 18, y: 697 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 101
+  - id: fb_low_cut
+    type: knob
+    relay: WebSliderRelay
+    label: "Low Cut"
+    name: "FB Low Cut"
+    page: fx
+    position: { x: 136, y: 697 }
+    size: { width: 62, height: 85 }
+    range: [20, 2000]
+    default: 80
+    skew: "log"
+    unit: "Hz"
+    mod_destination: 102
+  - id: fb_high_cut
+    type: knob
+    relay: WebSliderRelay
+    label: "High Cut"
+    name: "FB High Cut"
+    page: fx
+    position: { x: 254, y: 697 }
+    size: { width: 62, height: 85 }
+    range: [1000, 20000]
+    default: 12000
+    skew: "log"
+    unit: "Hz"
+    mod_destination: 103
+  - id: fb_saturation
+    type: knob
+    relay: WebSliderRelay
+    label: "Saturate"
+    name: "FB Saturation"
+    page: fx
+    position: { x: 372, y: 697 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 20
+    skew: 1
+    unit: "%"
+    mod_destination: 104
+  - id: fb_diffusion
+    type: knob
+    relay: WebSliderRelay
+    label: "Diffuse"
+    name: "FB Diffusion"
+    page: fx
+    position: { x: 490, y: 697 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 105
+  - id: reverb_mix
+    type: knob
+    relay: WebSliderRelay
+    label: "Mix"
+    name: "Reverb Mix"
+    page: fx
+    position: { x: 800, y: 697 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 106
+  - id: reverb_size
+    type: knob
+    relay: WebSliderRelay
+    label: "Size"
+    name: "Reverb Size"
+    page: fx
+    position: { x: 872, y: 697 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 50
+    skew: 1
+    unit: "%"
+    mod_destination: 107
+  - id: reverb_damp
+    type: knob
+    relay: WebSliderRelay
+    label: "Damp"
+    name: "Reverb Damp"
+    page: fx
+    position: { x: 944, y: 697 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 50
+    skew: 1
+    unit: "%"
+    mod_destination: 108
+  - id: lfo1_shape
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Shape"
+    page: mod
+    position: { x: 26, y: 344 }
+    size: { width: 163, height: 24 }
+    choices: ["Sine", "Triangle", "Saw", "Square", "S&H", "Smooth Random"]
+    default: 0   # Sine
+  - id: lfo1_rate
+    type: knob
+    relay: WebSliderRelay
+    label: "Rate"
+    name: "LFO 1 · Rate"
+    page: mod
+    position: { x: 38, y: 378 }
+    size: { width: 62, height: 85 }
+    range: [0.01, 20]
+    default: 0.5
+    skew: 0.3
+    unit: "Hz"
+    mod_destination: 109
+    visible_when: "sync_mode == Free"
+  - id: lfo1_rate_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Rate"
+    page: mod
+    position: { x: 38, y: 378 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar", "2 bars", "4 bars", "8 bars"]
+    default: 18   # 1 bar
+    mod_destination_alias: lfo1_rate
+    visible_when: "sync_mode == Tempo"
+  - id: lfo1_phase
+    type: knob
+    relay: WebSliderRelay
+    label: "Phase"
+    page: mod
+    position: { x: 115, y: 378 }
+    size: { width: 62, height: 85 }
+    range: [0, 360]
+    default: 0
+    skew: 1
+    unit: "deg"
+  - id: lfo2_shape
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Shape"
+    page: mod
+    position: { x: 219, y: 344 }
+    size: { width: 163, height: 24 }
+    choices: ["Sine", "Triangle", "Saw", "Square", "S&H", "Smooth Random"]
+    default: 0   # Sine
+  - id: lfo2_rate
+    type: knob
+    relay: WebSliderRelay
+    label: "Rate"
+    name: "LFO 2 · Rate"
+    page: mod
+    position: { x: 231, y: 378 }
+    size: { width: 62, height: 85 }
+    range: [0.01, 20]
+    default: 0.5
+    skew: 0.3
+    unit: "Hz"
+    mod_destination: 110
+    visible_when: "sync_mode == Free"
+  - id: lfo2_rate_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Rate"
+    page: mod
+    position: { x: 231, y: 378 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar", "2 bars", "4 bars", "8 bars"]
+    default: 18   # 1 bar
+    mod_destination_alias: lfo2_rate
+    visible_when: "sync_mode == Tempo"
+  - id: lfo2_phase
+    type: knob
+    relay: WebSliderRelay
+    label: "Phase"
+    page: mod
+    position: { x: 308, y: 378 }
+    size: { width: 62, height: 85 }
+    range: [0, 360]
+    default: 0
+    skew: 1
+    unit: "deg"
+  - id: lfo3_shape
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Shape"
+    page: mod
+    position: { x: 412, y: 344 }
+    size: { width: 163, height: 24 }
+    choices: ["Sine", "Triangle", "Saw", "Square", "S&H", "Smooth Random"]
+    default: 0   # Sine
+  - id: lfo3_rate
+    type: knob
+    relay: WebSliderRelay
+    label: "Rate"
+    name: "LFO 3 · Rate"
+    page: mod
+    position: { x: 424, y: 378 }
+    size: { width: 62, height: 85 }
+    range: [0.01, 20]
+    default: 0.5
+    skew: 0.3
+    unit: "Hz"
+    mod_destination: 111
+    visible_when: "sync_mode == Free"
+  - id: lfo3_rate_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Rate"
+    page: mod
+    position: { x: 424, y: 378 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar", "2 bars", "4 bars", "8 bars"]
+    default: 18   # 1 bar
+    mod_destination_alias: lfo3_rate
+    visible_when: "sync_mode == Tempo"
+  - id: lfo3_phase
+    type: knob
+    relay: WebSliderRelay
+    label: "Phase"
+    page: mod
+    position: { x: 501, y: 378 }
+    size: { width: 62, height: 85 }
+    range: [0, 360]
+    default: 0
+    skew: 1
+    unit: "deg"
+  - id: lfo4_shape
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Shape"
+    page: mod
+    position: { x: 605, y: 344 }
+    size: { width: 163, height: 24 }
+    choices: ["Sine", "Triangle", "Saw", "Square", "S&H", "Smooth Random"]
+    default: 0   # Sine
+  - id: lfo4_rate
+    type: knob
+    relay: WebSliderRelay
+    label: "Rate"
+    name: "LFO 4 · Rate"
+    page: mod
+    position: { x: 617, y: 378 }
+    size: { width: 62, height: 85 }
+    range: [0.01, 20]
+    default: 0.5
+    skew: 0.3
+    unit: "Hz"
+    mod_destination: 112
+    visible_when: "sync_mode == Free"
+  - id: lfo4_rate_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Rate"
+    page: mod
+    position: { x: 617, y: 378 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar", "2 bars", "4 bars", "8 bars"]
+    default: 18   # 1 bar
+    mod_destination_alias: lfo4_rate
+    visible_when: "sync_mode == Tempo"
+  - id: lfo4_phase
+    type: knob
+    relay: WebSliderRelay
+    label: "Phase"
+    page: mod
+    position: { x: 694, y: 378 }
+    size: { width: 62, height: 85 }
+    range: [0, 360]
+    default: 0
+    skew: 1
+    unit: "deg"
+  - id: env_attack
+    type: knob
+    relay: WebSliderRelay
+    label: "Attack"
+    page: mod
+    position: { x: 26, y: 514 }
+    size: { width: 62, height: 85 }
+    range: [1, 500]
+    default: 10
+    skew: 0.4
+    unit: "ms"
+  - id: env_release
+    type: knob
+    relay: WebSliderRelay
+    label: "Release"
+    page: mod
+    position: { x: 98, y: 514 }
+    size: { width: 62, height: 85 }
+    range: [10, 2000]
+    default: 200
+    skew: 0.4
+    unit: "ms"
+  - id: env_gain
+    type: knob
+    relay: WebSliderRelay
+    label: "Gain"
+    page: mod
+    position: { x: 170, y: 514 }
+    size: { width: 62, height: 85 }
+    range: [-24, 24]
+    default: 0
+    skew: 1
+    unit: "dB"
+  - id: pitch_follow_s1
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "I"
+    page: mod
+    position: { x: 322, y: 578 }
+    size: { width: 52, height: 22 }
+    default: false
+  - id: pitch_follow_s2
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "II"
+    page: mod
+    position: { x: 384, y: 578 }
+    size: { width: 52, height: 22 }
+    default: false
+  - id: pitch_follow_s3
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "III"
+    page: mod
+    position: { x: 446, y: 578 }
+    size: { width: 52, height: 22 }
+    default: false
+  - id: pitch_follow_s4
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "IV"
+    page: mod
+    position: { x: 508, y: 578 }
+    size: { width: 52, height: 22 }
+    default: false
+  - id: onset_threshold
+    type: knob
+    relay: WebSliderRelay
+    label: "Threshold"
+    page: mod
+    position: { x: 604, y: 514 }
+    size: { width: 62, height: 85 }
+    range: [-60, 0]
+    default: -30
+    skew: 1
+    unit: "dB"
+  - id: macro1
+    type: knob
+    relay: WebSliderRelay
+    label: "Macro 1"
+    page: mod
+    position: { x: 26, y: 680 }
+    size: { width: 80, height: 97 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: macro2
+    type: knob
+    relay: WebSliderRelay
+    label: "Macro 2"
+    page: mod
+    position: { x: 122, y: 680 }
+    size: { width: 80, height: 97 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: macro3
+    type: knob
+    relay: WebSliderRelay
+    label: "Macro 3"
+    page: mod
+    position: { x: 218, y: 680 }
+    size: { width: 80, height: 97 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: macro4
+    type: knob
+    relay: WebSliderRelay
+    label: "Macro 4"
+    page: mod
+    position: { x: 314, y: 680 }
+    size: { width: 80, height: 97 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod1_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 822, y: 295 }
+    size: { width: 72, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Env", "Pitch", "Onset", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod1_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 906, y: 295 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 113 entries, see below
+    default: 0
+  - id: mod1_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1040, y: 295 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod2_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 822, y: 325 }
+    size: { width: 72, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Env", "Pitch", "Onset", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod2_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 906, y: 325 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 113 entries, see below
+    default: 0
+  - id: mod2_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1040, y: 325 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod3_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 822, y: 355 }
+    size: { width: 72, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Env", "Pitch", "Onset", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod3_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 906, y: 355 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 113 entries, see below
+    default: 0
+  - id: mod3_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1040, y: 355 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod4_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 822, y: 385 }
+    size: { width: 72, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Env", "Pitch", "Onset", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod4_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 906, y: 385 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 113 entries, see below
+    default: 0
+  - id: mod4_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1040, y: 385 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod5_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 822, y: 415 }
+    size: { width: 72, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Env", "Pitch", "Onset", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod5_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 906, y: 415 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 113 entries, see below
+    default: 0
+  - id: mod5_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1040, y: 415 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod6_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 822, y: 445 }
+    size: { width: 72, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Env", "Pitch", "Onset", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod6_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 906, y: 445 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 113 entries, see below
+    default: 0
+  - id: mod6_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1040, y: 445 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod7_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 822, y: 475 }
+    size: { width: 72, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Env", "Pitch", "Onset", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod7_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 906, y: 475 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 113 entries, see below
+    default: 0
+  - id: mod7_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1040, y: 475 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod8_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 822, y: 505 }
+    size: { width: 72, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Env", "Pitch", "Onset", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod8_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 906, y: 505 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 113 entries, see below
+    default: 0
+  - id: mod8_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1040, y: 505 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod9_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 822, y: 535 }
+    size: { width: 72, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Env", "Pitch", "Onset", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod9_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 906, y: 535 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 113 entries, see below
+    default: 0
+  - id: mod9_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1040, y: 535 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod10_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 822, y: 565 }
+    size: { width: 72, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Env", "Pitch", "Onset", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod10_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 906, y: 565 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 113 entries, see below
+    default: 0
+  - id: mod10_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1040, y: 565 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod11_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 822, y: 595 }
+    size: { width: 72, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Env", "Pitch", "Onset", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod11_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 906, y: 595 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 113 entries, see below
+    default: 0
+  - id: mod11_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1040, y: 595 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod12_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 822, y: 625 }
+    size: { width: 72, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Env", "Pitch", "Onset", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod12_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 906, y: 625 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 113 entries, see below
+    default: 0
+  - id: mod12_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1040, y: 625 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod13_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 822, y: 655 }
+    size: { width: 72, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Env", "Pitch", "Onset", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod13_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 906, y: 655 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 113 entries, see below
+    default: 0
+  - id: mod13_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1040, y: 655 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod14_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 822, y: 685 }
+    size: { width: 72, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Env", "Pitch", "Onset", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod14_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 906, y: 685 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 113 entries, see below
+    default: 0
+  - id: mod14_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1040, y: 685 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod15_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 822, y: 715 }
+    size: { width: 72, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Env", "Pitch", "Onset", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod15_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 906, y: 715 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 113 entries, see below
+    default: 0
+  - id: mod15_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1040, y: 715 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod16_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 822, y: 745 }
+    size: { width: 72, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Env", "Pitch", "Onset", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod16_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 906, y: 745 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 113 entries, see below
+    default: 0
+  - id: mod16_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1040, y: 745 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+
+scale_ui:   # v2 - full-featured microtonal scales (model: O-GrainScatter v3.0.0 PitchEngine / index.html pitch-group)
+  decisions:
+    - "Free (unquantized) is DROPPED: in O-Granulator 'Off' already means unquantised pitch (no grid, continuous Pitch Random). Keeping both would put two identical behaviours in one list."
+    - "Off occupies index 0 (as in v1), so for GrainScatter ids >= 6 the indices coincide and ids 0..4 shift by +1 (map below). The shared module keeps GrainScatter's enum; O-Granulator maps choice -> id at the parameter boundary."
+    - "v1's 8-entry list (Octaves=6, Fifths=7) is replaced; the plugin is unreleased, so no session/preset migration is needed. Octaves is now 18, Fifths + Octaves 17."
+    - "Custom is the LAST entry (index 31). Host-facing name 'Custom'; the UI shows 'Custom…' or 'Custom — <name>' once a name is set."
+  collections:   # [choice index, host-facing name, gs: O-GrainScatter PitchCollections::Id]
+    - [0, "Off", gs: null]
+    - [1, "Chromatic", gs: 0]
+    - [2, "Major", gs: 1]
+    - [3, "Minor", gs: 2]
+    - [4, "Pentatonic", gs: 3]
+    - [5, "Whole Tone", gs: 4]
+    - [6, "Dorian", gs: 6]
+    - [7, "Phrygian", gs: 7]
+    - [8, "Lydian", gs: 8]
+    - [9, "Mixolydian", gs: 9]
+    - [10, "Locrian", gs: 10]
+    - [11, "Harmonic Minor", gs: 11]
+    - [12, "Melodic Minor", gs: 12]
+    - [13, "Minor Pentatonic", gs: 13]
+    - [14, "Blues", gs: 14]
+    - [15, "Octatonic", gs: 15]
+    - [16, "Augmented", gs: 16]
+    - [17, "Fifths + Octaves", gs: 17]
+    - [18, "Octaves", gs: 18]
+    - [19, "19-EDO", gs: 19]
+    - [20, "22-EDO", gs: 20]
+    - [21, "24-EDO", gs: 21]
+    - [22, "31-EDO", gs: 22]
+    - [23, "53-EDO", gs: 23]
+    - [24, "5-Limit Just", gs: 24]
+    - [25, "7-Limit Just", gs: 25]
+    - [26, "Harmonics 8-16", gs: 26]
+    - [27, "Bohlen-Pierce", gs: 27]
+    - [28, "Slendro", gs: 28]
+    - [29, "Pelog", gs: 29]
+    - [30, "Maqam Rast", gs: 30]
+    - [31, "Custom", gs: 31]
+  collection_tables: "Cents per degree inside one period, degree 0 = 0 ct, period 1200 except Bohlen-Pierce (13 ED3, period 1901.955 ct). Exactly O-GrainScatter builtIns() (Chromatic..Maqam Rast); Custom = the shared custom table. Max 64 degrees (kMaxPitches)."
+  dropdown:
+    trigger: "112x24 at column x+144 (after the 134 px onset pill + 10 px gap); shows the SHORT name (Harm. Minor, Mel. Minor, Minor Penta., Fifths + 8ves, Harm. 8–16), italic 'Scale off' at index 0, italic custom name when Custom. Stream-colour inset underline when a scale is active. Text budget 79 px - localisations supply their own short forms (FR full names measure 78-98 px)."
+    panel: "One shared panel, 620x296, opens under the invoking trigger (4 px gap), clamped to x 15..1185 and flipped above if it would cross y 785. Title row '<numeral> SCALE' + 'degrees per period'. 4 columns x 140 px; each entry shows its degree count (Bohlen-Pierce: '13 · 3/1'). Selected = stream-colour left bar + tint. Keyboard: arrows / Home / End / Enter, Escape closes; outside press closes (capture-phase pointerdown - knobs preventDefault)."
+    sections:   # optgroup-style headings; Off and Custom are single-entry sections without a repeated caption
+      - { column: 1, heading: "Off", entries: [0] }
+      - { column: 1, heading: "Western", entries: [1, 2, 3, 4, 11, 12, 13, 14] }
+      - { column: 2, heading: "Modes", entries: [6, 7, 8, 9, 10] }
+      - { column: 2, heading: "Symmetric", entries: [5, 15, 16, 17, 18] }
+      - { column: 3, heading: "Equal divisions", entries: [19, 20, 21, 22, 23, 27] }
+      - { column: 3, heading: "Just", entries: [24, 25, 26] }
+      - { column: 4, heading: "World", entries: [28, 29, 30] }
+      - { column: 4, heading: "Custom", entries: [31] }
+    custom_note: "Column 4 foot: 'Custom is one scale shared by all four streams. Edit it with the pencil beside any scale.'"
+    choosing_custom: "Selecting Custom… sets sN_scale = 31 AND opens the custom-scale editor anchored to that stream."
+  degree_chips:
+    area: "216x20 at (column x, 429); tools 60x20 at x+222 (All / None / Invert, SVG icons + tooltips)"
+    layout: "One chip per degree of the stream's CURRENT collection (up to 64). <= 24 degrees: one row, pitch = min(27, 216/N) px; > 24: two rows of ceil(N/2), 9 px tall (53-EDO -> 27 per row, 7 px chips; 64 -> 6 px). Left-aligned."
+    look: "On = stream-colour gradient chip, off = dark well with rule outline. Degree 0 carries a root bar. On non-12 collections a 2 px dot marks degrees within 6 ct of 12-TET (orientation in 19/22/24/31/53-EDO, Just, Partch)."
+    labels: "12-TET-based collections with chips >= 13 px show semitones from unison (0 2 4 5 7 9 11) - the quantiser is interval-based. When that stream's Pitch Follow is ON the labels switch to absolute note names from Scale Root (A B C# D E F# G#), matching the absolute follow mode. Other collections: no text; tooltip 'Degree k of N · cents (≈ 12-TET) · off'."
+    interaction: "Press a chip to toggle; drag across chips to paint the same state (interpolated, no skips). All = every degree, None = empty mask (the row gets a madder outline; grains collapse onto the base Pitch, no random spread), Invert = complement within N."
+    scale_off: "Chips cleared, tools hidden (layout reserved), italic hint 'Unquantised · pick a scale to choose its degrees'."
+    stream_disabled: "Chips desaturated like the knobs."
+  custom_editor:
+    anchor: "376 px wide popover, under the invoking stream's chip row (8 px gap) with a pointer to its pencil; clamped to x 15..1185, flipped above if it would cross y 785 (rendered: 321 px tall, y 457..778)."
+    contents: ["title 'Custom scale' + close (SVG x)", "'One scale, shared by all four streams · in use on <numerals in stream colours>'", "Name field (40 chars)", "Pitches textarea (cents / ratios / EDO shorthand)", "engraved pitch circle 104x104", "help line", "status / parse-error line", "Load .scl… · Save .scl… (ghost buttons) | Close · Apply"]
+    syntax: "Whitespace/comma/semicolon/newline separated pitches ABOVE 1/1; '/' = ratio (5/4), anything else = cents (386.3, bare integers are cents). Last pitch = period (1 < period <= 4800 ct). EDO shorthand: 'edo 19', '19-edo', 'edo 13 3/1' (period optional, default 2/1). Same rules as PitchCollections::parsePitch / tableFromText; .scl files use the Scala rule (bare integer = a/1) via tableFromScala."
+    errors: { noPitches: "Enter at least one pitch. The last one is the period.", badPitch: "“<token>” is not cents (386.3), a ratio (5/4) or edo N.", badPeriod: "The period (last pitch) must lie between 1 and 4800 ct.", tooMany: "More than 64 degrees: the per-collection limit.", badEdo: "edo needs 1 to 64 divisions.", badCount: "The .scl note count does not match its pitch lines." }
+    preview: "Every keystroke re-parses: the circle and status ('43 degrees · period 2/1', non-octave periods add the cents) update live; 'not applied' marks a draft. Apply is disabled while the text has an error. Enter in Name / Cmd-Enter in the textarea = Apply."
+    pitch_circle: "Period-aware: degree angle = cents / period x 360 deg, degree 0 at top with an inward tick. 100 ct graticule (longer tick per 1200 ct); a non-octave period (Bohlen-Pierce) gets an octave mark at 1200 ct. Active degrees filled in the invoking stream's colour and joined by a faint polygon; off degrees hollow (the invoking stream's Custom mask). Centre: degree count + 'per 2/1'."
+    apply: "Replaces the shared table (bumps customVersion), updates EVERY stream set to Custom (chips, trigger names, list label). If the degrees changed, each stream's Custom mask resets to all-on. Native: setCustomScale({name, text})."
+    load_save: "Load .scl… = file input -> tableFromScala -> fills Name (description line, else file name) + text as a draft. Save .scl… = Scala text from the applied/draft tokens (ratios kept verbatim, cents written with a '.'). Production: native file chooser (loadScala / saveScala)."
+    dismiss: "Close, the x, Escape or an outside press close it; an unapplied draft is kept until Apply or until the editor is reopened after Apply."
+  pitch_follow: "Without Pitch Follow the scale quantises the per-grain Pitch Random interval (degree 0 = unison, k x period). With pitch_follow_sN ON the tracked note snaps ABSOLUTELY to the nearest active degree of Scale Root + degree + k x period (same collection + mask). Shown as: MOD-page follower hint 'Follow snaps to the tracked note, quantised to each stream’s scale and degrees from Scale Root.' (2 lines, FR fits), the scale trigger tooltip, and chip labels switching to note names."
+  demo_state: "Pollen Drift: s2_scale = 19-EDO (19) with mask 0 3 6 8 11 14 17 ('diatonic' subset); s3_scale = Custom (31), shared custom = 'Partch 43' (Partch's 43-tone just scale, 43 degrees, 2-row chips) with 14 degrees off; s1/s4 stay Off. Test hash flags: #list<N>, #pop<N>, #chips53, #selftest, #measure."
+  i18n: "New strings carry data-i18n keys (list.*, hint.*, label.*, tip.*). FR checks (+30%): trigger short names need FR short forms (budget 79 px); popover action row FR 330 px of 348; hint 252 of 282; follower hint 2 lines of 252."
+
+state:   # plugin STATE (ValueTree), NOT parameters - parameter_count stays 220
+  custom_scale:
+    scope: "ONE custom collection shared by all 4 streams (sN_scale == 31 on any stream reads it)"
+    fields:
+      name: "string, <= 40 chars, '' = untitled ('Custom…' in the UI)"
+      text: "the pitch text as entered (cents / ratios / edo shorthand) - the source of truth, re-parsed on load"
+      period: "float cents (derived from text; stored for display/validation)"
+      cents: "derived table, <= 64 degrees, degree 0 = 0 ct"
+      version: "uint32 customVersion, bumped on every Apply (engine rebuild trigger, as GrainScatter)"
+    default: "12-EDO placeholder text '100 200 … 1200', name ''"
+  degree_masks:
+    shape: "4 streams x 32 collection indices -> uint64 bit mask (bit d = degree d active). Absent = all-on."
+    semantics: "Per stream AND per collection: switching a stream from 19-EDO to Major and back restores its 19-EDO mask. Custom masks reset to all-on when the shared custom table's degrees change."
+    persistence: "Saved as 16-hex-digit strings (juce::String) - NOT getLargeIntValue (clamps uint64 > INT64_MAX). Only non-default masks are written."
+    empty_mask: "Allowed (None). The engine then has no active pitch: grains stay at the stream's base Pitch (no random spread), as GrainScatter's activeCount == 0."
+  native_functions: ["setDegreeMask({stream, collection, mask: '0x…'})", "setCustomScale({name, text})", "loadScala / saveScala (file chooser)", "getScaleState() -> {custom, masks} on page load / preset load (push after preset apply - one-shot pushes go stale)"]
+  presets: "Presets store custom_scale + degree_masks with the APVTS state; preset apply resets them to defaults first (custom = 12-EDO, masks all-on)."
+  shared_module: "Extract O-GrainScatter's PitchCollections (Id enum, names, builtIns tables, Table, parsePitch, tableFromPitches, tableFromText, tableFromScala) into a shared module, provisional path modules/tuning/pitch-collections, during implementation; add the 'edo N [period]' shorthand there (GrainScatter gains it too). O-Granulator maps its choice index -> Id (index 0 = Off, 1..5 -> 0..4, 6..31 -> 6..31). Do not fork a copy."
+
+displays:
+  - { id: output_meter, page: shared, position: { x: 1162, y: 20 }, size: { width: 20, height: 50 } }
+  - { id: mod_source_dock, page: shared, position: { x: 394, y: 60 }, size: { width: 396, height: 24 } }
+  - { id: buffer_view, page: shared, position: { x: 18, y: 96 }, size: { width: 956, height: 140 } }
+  - { id: grain_count, page: shared, position: { x: 986, y: 200 }, size: { width: 196, height: 30 } }
+  - { id: s1_window_view, page: streams, position: { x: 18, y: 585 }, size: { width: 62, height: 85 } }
+  - { id: s2_window_view, page: streams, position: { x: 312, y: 585 }, size: { width: 62, height: 85 } }
+  - { id: s3_window_view, page: streams, position: { x: 606, y: 585 }, size: { width: 62, height: 85 } }
+  - { id: s4_window_view, page: streams, position: { x: 900, y: 585 }, size: { width: 62, height: 85 } }
+  - { id: lfo1_view, page: mod, position: { x: 0, y: 0 }, size: { width: 0, height: 0 } }
+  - { id: lfo2_view, page: mod, position: { x: 0, y: 0 }, size: { width: 0, height: 0 } }
+  - { id: lfo3_view, page: mod, position: { x: 0, y: 0 }, size: { width: 0, height: 0 } }
+  - { id: lfo4_view, page: mod, position: { x: 0, y: 0 }, size: { width: 0, height: 0 } }
+  - { id: env_view, page: mod, position: { x: 0, y: 0 }, size: { width: 0, height: 0 } }
+  - { id: onset_view, page: mod, position: { x: 0, y: 0 }, size: { width: 0, height: 0 } }
+  - { id: s1_filter_view, page: fx, position: { x: 18, y: 342 }, size: { width: 62, height: 85 } }
+  - { id: s1_drive_view, page: fx, position: { x: 18, y: 459 }, size: { width: 62, height: 85 } }
+  - { id: s1_ring_view, page: fx, position: { x: 18, y: 576 }, size: { width: 62, height: 85 } }
+  - { id: s2_filter_view, page: fx, position: { x: 312, y: 342 }, size: { width: 62, height: 85 } }
+  - { id: s2_drive_view, page: fx, position: { x: 312, y: 459 }, size: { width: 62, height: 85 } }
+  - { id: s2_ring_view, page: fx, position: { x: 312, y: 576 }, size: { width: 62, height: 85 } }
+  - { id: s3_filter_view, page: fx, position: { x: 606, y: 342 }, size: { width: 62, height: 85 } }
+  - { id: s3_drive_view, page: fx, position: { x: 606, y: 459 }, size: { width: 62, height: 85 } }
+  - { id: s3_ring_view, page: fx, position: { x: 606, y: 576 }, size: { width: 62, height: 85 } }
+  - { id: s4_filter_view, page: fx, position: { x: 900, y: 342 }, size: { width: 62, height: 85 } }
+  - { id: s4_drive_view, page: fx, position: { x: 900, y: 459 }, size: { width: 62, height: 85 } }
+  - { id: s4_ring_view, page: fx, position: { x: 900, y: 576 }, size: { width: 62, height: 85 } }
+  - { id: loop_gain, page: fx, position: { x: 590, y: 700 }, size: { width: 186, height: 80 } }
+  - { id: reverb_view, page: fx, position: { x: 1028, y: 697 }, size: { width: 154, height: 85 } }
+  - { id: pitch_readout, page: mod, position: { x: 322, y: 516 }, size: { width: 160, height: 28 } }
+  - { id: s1_scale_degrees, page: streams, position: { x: 18, y: 429 }, size: { width: 216, height: 20 }, note: "degree chips, stream colour; 1 row <= 24 degrees, else 2 rows; hidden content when scale = Off" }
+  - { id: s1_scale_tools, page: streams, position: { x: 240, y: 429 }, size: { width: 60, height: 20 }, note: "All / None / Invert (SVG icons, tooltips)" }
+  - { id: s1_scale_edit, page: streams, position: { x: 278, y: 401 }, size: { width: 22, height: 24 }, note: "pencil (SVG) - opens the shared custom-scale editor anchored to this stream" }
+  - { id: s2_scale_degrees, page: streams, position: { x: 312, y: 429 }, size: { width: 216, height: 20 }, note: "degree chips, stream colour; 1 row <= 24 degrees, else 2 rows; hidden content when scale = Off" }
+  - { id: s2_scale_tools, page: streams, position: { x: 534, y: 429 }, size: { width: 60, height: 20 }, note: "All / None / Invert (SVG icons, tooltips)" }
+  - { id: s2_scale_edit, page: streams, position: { x: 572, y: 401 }, size: { width: 22, height: 24 }, note: "pencil (SVG) - opens the shared custom-scale editor anchored to this stream" }
+  - { id: s3_scale_degrees, page: streams, position: { x: 606, y: 429 }, size: { width: 216, height: 20 }, note: "degree chips, stream colour; 1 row <= 24 degrees, else 2 rows; hidden content when scale = Off" }
+  - { id: s3_scale_tools, page: streams, position: { x: 828, y: 429 }, size: { width: 60, height: 20 }, note: "All / None / Invert (SVG icons, tooltips)" }
+  - { id: s3_scale_edit, page: streams, position: { x: 866, y: 401 }, size: { width: 22, height: 24 }, note: "pencil (SVG) - opens the shared custom-scale editor anchored to this stream" }
+  - { id: s4_scale_degrees, page: streams, position: { x: 900, y: 429 }, size: { width: 216, height: 20 }, note: "degree chips, stream colour; 1 row <= 24 degrees, else 2 rows; hidden content when scale = Off" }
+  - { id: s4_scale_tools, page: streams, position: { x: 1122, y: 429 }, size: { width: 60, height: 20 }, note: "All / None / Invert (SVG icons, tooltips)" }
+  - { id: s4_scale_edit, page: streams, position: { x: 1160, y: 401 }, size: { width: 22, height: 24 }, note: "pencil (SVG) - opens the shared custom-scale editor anchored to this stream" }
+  - { id: custom_scale_editor, page: streams, overlay: true, opened_from: s1, position: { x: 18, y: 457 }, size: { width: 376, height: 321 } }
+  - { id: custom_scale_editor, page: streams, overlay: true, opened_from: s4, position: { x: 809, y: 457 }, size: { width: 376, height: 321 } }
+  - { id: scale_list, page: streams, overlay: true, opened_from: s1, position: { x: 162, y: 429 }, size: { width: 620, height: 296 } }
+  - { id: scale_list, page: streams, overlay: true, opened_from: s4, position: { x: 565, y: 429 }, size: { width: 620, height: 296 } }
+
+destination_table:   # APPEND-ONLY (index = stored choice value)
+  - [0, None]
+  - [1, input_gain]
+  - [2, mix]
+  - [3, output_gain]
+  - [4, buffer_length]
+  - [5, s1_level]
+  - [6, s1_pan]
+  - [7, s1_position]
+  - [8, s1_spray]
+  - [9, s1_size]
+  - [10, s1_size_rand]
+  - [11, s1_density]
+  - [12, s1_jitter]
+  - [13, s1_pitch]
+  - [14, s1_pitch_rand]
+  - [15, s1_reverse_prob]
+  - [16, s1_window]
+  - [17, s1_window_skew]
+  - [18, s1_stereo_spread]
+  - [19, s1_gain_rand]
+  - [20, s1_filter_cutoff]
+  - [21, s1_filter_rand]
+  - [22, s1_filter_res]
+  - [23, s1_drive]
+  - [24, s1_crush]
+  - [25, s1_crush_prob]
+  - [26, s1_ring_freq]
+  - [27, s1_ring_rand]
+  - [28, s1_ring_mix]
+  - [29, s2_level]
+  - [30, s2_pan]
+  - [31, s2_position]
+  - [32, s2_spray]
+  - [33, s2_size]
+  - [34, s2_size_rand]
+  - [35, s2_density]
+  - [36, s2_jitter]
+  - [37, s2_pitch]
+  - [38, s2_pitch_rand]
+  - [39, s2_reverse_prob]
+  - [40, s2_window]
+  - [41, s2_window_skew]
+  - [42, s2_stereo_spread]
+  - [43, s2_gain_rand]
+  - [44, s2_filter_cutoff]
+  - [45, s2_filter_rand]
+  - [46, s2_filter_res]
+  - [47, s2_drive]
+  - [48, s2_crush]
+  - [49, s2_crush_prob]
+  - [50, s2_ring_freq]
+  - [51, s2_ring_rand]
+  - [52, s2_ring_mix]
+  - [53, s3_level]
+  - [54, s3_pan]
+  - [55, s3_position]
+  - [56, s3_spray]
+  - [57, s3_size]
+  - [58, s3_size_rand]
+  - [59, s3_density]
+  - [60, s3_jitter]
+  - [61, s3_pitch]
+  - [62, s3_pitch_rand]
+  - [63, s3_reverse_prob]
+  - [64, s3_window]
+  - [65, s3_window_skew]
+  - [66, s3_stereo_spread]
+  - [67, s3_gain_rand]
+  - [68, s3_filter_cutoff]
+  - [69, s3_filter_rand]
+  - [70, s3_filter_res]
+  - [71, s3_drive]
+  - [72, s3_crush]
+  - [73, s3_crush_prob]
+  - [74, s3_ring_freq]
+  - [75, s3_ring_rand]
+  - [76, s3_ring_mix]
+  - [77, s4_level]
+  - [78, s4_pan]
+  - [79, s4_position]
+  - [80, s4_spray]
+  - [81, s4_size]
+  - [82, s4_size_rand]
+  - [83, s4_density]
+  - [84, s4_jitter]
+  - [85, s4_pitch]
+  - [86, s4_pitch_rand]
+  - [87, s4_reverse_prob]
+  - [88, s4_window]
+  - [89, s4_window_skew]
+  - [90, s4_stereo_spread]
+  - [91, s4_gain_rand]
+  - [92, s4_filter_cutoff]
+  - [93, s4_filter_rand]
+  - [94, s4_filter_res]
+  - [95, s4_drive]
+  - [96, s4_crush]
+  - [97, s4_crush_prob]
+  - [98, s4_ring_freq]
+  - [99, s4_ring_rand]
+  - [100, s4_ring_mix]
+  - [101, feedback]
+  - [102, fb_low_cut]
+  - [103, fb_high_cut]
+  - [104, fb_saturation]
+  - [105, fb_diffusion]
+  - [106, reverb_mix]
+  - [107, reverb_size]
+  - [108, reverb_damp]
+  - [109, lfo1_rate]
+  - [110, lfo2_rate]
+  - [111, lfo3_rate]
+  - [112, lfo4_rate]
+
+parameter_count: 220
+v2_changes: "sN_scale choice list 8 -> 32 (Off + GrainScatter collections minus Free, Custom last); STREAMS page re-flowed for the scale band; new state section; parameter count unchanged"
+proposed_additions_confirmed: [scale_root, s1_onset_trigger, s2_onset_trigger, s3_onset_trigger, s4_onset_trigger, grain_limit]
+

@@ -3,7 +3,7 @@ plugin: O-Granulator
 stage: 0
 status: complete
 last_updated: 2026-11-04
-latest_mockup_version: 1
+latest_mockup_version: 2
 mockup_finalized: false
 complexity_score: 5.0
 complexity_tier: 6
@@ -34,7 +34,7 @@ Progress: [##..................] 10%
 
 **Ideation:** ✓ Complete. Brief, 30 requirements, and a draft param spec (214).
 
-**UI mockup:** v1 generated, in design iteration and not finalized. Files: `.planning/mockups/v1-ui.yaml` + `v1-ui-test.html`. It covers all 220 params, including the 6 proposed additions.
+**UI mockup:** v2 generated, in design iteration and not finalized. Files: `.planning/mockups/v2-ui.yaml` + `v2-ui-test.html` (v1 kept for comparison). It covers all 220 params, including the 6 proposed additions. v2 adds full microtonal scales, modelled on O-GrainScatter v3.0.0. `sN_scale` now has 32 choices: Off, then GrainScatter's collections without Free, with Custom last. Also new: a grouped dropdown, per-stream degree chips, and one custom scale shared by all streams (stored as state, not a param).
 
 **Stage 0:** ✓ Research & Planning complete. ARCHITECTURE.md and ROADMAP.md are documented (Complexity 5.0, raw 22.0, tier 6, DEEP).
 - Plugin type: Audio Effect (live-input granular, 4 streams, shared pool)
