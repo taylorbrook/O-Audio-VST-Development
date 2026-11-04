@@ -5,7 +5,7 @@ bow-friction excitation (2× oversampled), Schelleng-calibrated bow-force limiti
 cascaded-allpass dispersion, an 8-mode body resonator, 3-band bow-noise generator, and
 a mono→stereo master chain, plus the shared Scala tuning engine + VST3 Note Expression.
 
-**Status:** 📦 Installed — **v1.11.0** (2026-09-28). Stage-2 DSP engine complete through
+**Status:** 📦 Installed — **v1.12.3** (2026-11-03). Stage-2 DSP engine complete through
 Phase 2.6c; Stage-3 WebView editor complete (mockup v1 integrated, 31 bindings, preset
 bar, full Tuning tab, three real-data visualizations); Stage-4 polish shipped as v1.0.0.
 v1.1.0 closed the DSP-07/08/09 deferrals as **measurement** corrections with no audio-path
@@ -13,6 +13,10 @@ change (19/19 goldens byte-identical).
 
 ## Timeline
 
+- **2026-11-03 — v1.12.3 oversized host block no longer overruns the oversampler.**
+  `processBlock` renders synth + master chain in chunks ≤ the prepared block.
+  Gate `--oversize-block` (1×1024 == 4×256 bit-exact, live control, v1.12.2
+  segfaults); 21/21 goldens byte-identical.
 - **2026-10-16 — v1.12.0 bow noise rebuilt + Microtonal strip retired.** The noise
   is gated on the string's own slip: `|v_rel|` above the stick-phase creep floor,
   with `F^¼` level, an onset bite and slow level/colour wander. It sits ≈ 8 dB

@@ -4,6 +4,16 @@ All notable changes to the O-Contrabass physical-model bowed-contrabass synth.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — the pre-release `1.x-dev` engine track collapses into it.
 
+## [1.12.3] - 2026-11-03
+
+### Fixed
+- **No crash when a host sends a block longer than it announced.** Offline bounces and some hosts' first block can be longer than the size given to `prepareToPlay()`. Each voice's 2× oversampler and its scratch buffers are sized to the announced block, and `juce::dsp::Oversampling` only asserts on a longer one, so a Release build wrote past its buffers (heap overrun). `MPESynthesiser` splits blocks only at MIDI events, so nothing capped the length. `processBlock` now renders the synth and the master chain (saturator → width → limiter → output gain) in chunks no longer than the prepared block. MIDI is scoped per chunk by the synthesiser itself; the master chain runs on a non-allocating view of each chunk. A block within the prepared size is a single chunk — the same call sequence as before.
+
+### Notes
+- New harness gate `--oversize-block`: fresh instances prepared at 256 with vibrato, slow LFO and sub-harmonics on; 160 host blocks of 1024 vs the same timeline as 4 × 256, MIDI mid-chunk. Result: bit-exact (max diff 0). Control (prepared and fed at 1024) differs by 3.7e-2, so the comparison is live. Negative control: the v1.12.2 processor segfaults (exit 139) on the same gate.
+- 21/21 render goldens byte-identical; PERF-02 0.62 % median.
+- O-Bowed and O-Reed carry the same defect and are still open.
+
 ## [1.12.2] - 2026-10-19
 
 ### Fixed

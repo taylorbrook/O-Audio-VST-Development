@@ -553,6 +553,7 @@ bool OContrabassAudioProcessor::isBusesLayoutSupported(const BusesLayout& layout
 void OContrabassAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     synth.setCurrentPlaybackSampleRate(sampleRate);
+    preparedBlockSize = juce::jmax(1, samplesPerBlock);
 
     for (int i = 0; i < synth.getNumVoices(); ++i)
         if (auto* v = dynamic_cast<BowedContrabassVoice*>(synth.getVoice(i)))
@@ -625,7 +626,53 @@ void OContrabassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // and this degrades to a ~ns no-op).
     vst3Extensions.drainAndUpdate();
 
-    synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
+    // v1.12.3 — render in chunks no longer than the prepared block. Voices are
+    // sized to samplesPerBlock (Oversampling::initProcessing, voiceBuffer,
+    // traces) and MPESynthesiser splits only at MIDI events, so an oversized
+    // host block (offline bounce, some hosts' first block) overran the
+    // oversampler's stage buffers. A block within the prepared size is one
+    // chunk — the identical call sequence as before.
+    const int total = buffer.getNumSamples();
+    const int chunk = preparedBlockSize > 0 ? preparedBlockSize : total;
+    for (int start = 0; start < total; start += chunk)
+        renderChunk(buffer, midiMessages, start, juce::jmin(chunk, total - start));
+
+    // Stage 3 Task 12 — VU feed: post-limiter/post-gain RMS (dB), READ-ONLY tap
+    // AFTER the output-gain loop (the true final signal). Relaxed store; the
+    // editor timer polls at 30 Hz. Never inserts/reorders signal-path
+    // arithmetic — goldens-safe by construction.
+    {
+        const int numSamples = buffer.getNumSamples();
+        const int numChans   = buffer.getNumChannels();
+        if (numSamples > 0 && numChans > 0)
+        {
+            double sumSq = 0.0;
+            for (int ch = 0; ch < numChans; ++ch)
+            {
+                const float* r = buffer.getReadPointer (ch);
+                for (int i = 0; i < numSamples; ++i)
+                    sumSq += static_cast<double> (r[i]) * static_cast<double> (r[i]);
+            }
+            const float rms = std::sqrt (static_cast<float> (
+                sumSq / static_cast<double> (numSamples * numChans)));
+            outputRmsDb.store (juce::Decibels::gainToDecibels (rms, -80.0f),
+                               std::memory_order_relaxed);
+        }
+    }
+}
+
+void OContrabassAudioProcessor::renderChunk(juce::AudioBuffer<float>& fullBuffer,
+                                            juce::MidiBuffer& midiMessages,
+                                            int startSample, int numSamples)
+{
+    // Synthesiser scopes MIDI to [startSample, startSample + numSamples) itself.
+    synth.renderNextBlock(fullBuffer, midiMessages, startSample, numSamples);
+
+    // Non-owning view of this chunk (channel-pointer array is preallocated for
+    // <= 32 channels — no heap) so the master chain sees only these samples.
+    juce::AudioBuffer<float> buffer(fullBuffer.getArrayOfWritePointers(),
+                                    fullBuffer.getNumChannels(),
+                                    startSample, numSamples);
 
     // ─── Phase 2.6a — Master Output Chain ──────────────────────────────────
     // Voice writes mono L=R clone (no per-voice OUTPUT_GAIN applied).
@@ -663,29 +710,6 @@ void OContrabassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             const float g = outputGainSmoothed.getNextValue();
             for (int ch = 0; ch < numChans; ++ch)
                 buffer.getWritePointer(ch)[i] *= g;
-        }
-    }
-
-    // Stage 3 Task 12 — VU feed: post-limiter/post-gain RMS (dB), READ-ONLY tap
-    // AFTER the output-gain loop (the true final signal). Relaxed store; the
-    // editor timer polls at 30 Hz. Never inserts/reorders signal-path
-    // arithmetic — goldens-safe by construction.
-    {
-        const int numSamples = buffer.getNumSamples();
-        const int numChans   = buffer.getNumChannels();
-        if (numSamples > 0 && numChans > 0)
-        {
-            double sumSq = 0.0;
-            for (int ch = 0; ch < numChans; ++ch)
-            {
-                const float* r = buffer.getReadPointer (ch);
-                for (int i = 0; i < numSamples; ++i)
-                    sumSq += static_cast<double> (r[i]) * static_cast<double> (r[i]);
-            }
-            const float rms = std::sqrt (static_cast<float> (
-                sumSq / static_cast<double> (numSamples * numChans)));
-            outputRmsDb.store (juce::Decibels::gainToDecibels (rms, -80.0f),
-                               std::memory_order_relaxed);
         }
     }
 }

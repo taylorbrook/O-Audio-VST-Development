@@ -195,6 +195,14 @@ private:
     StereoWidth                  stereoWidth;
     juce::SmoothedValue<float>   outputGainSmoothed { 1.0f };
 
+    // v1.12.3 — samplesPerBlock from the last prepareToPlay. processBlock
+    // renders in chunks no longer than this: each voice's Oversampling and
+    // voiceBuffer are sized to it, and juce::dsp::Oversampling only jasserts
+    // on a longer block (Release = heap overrun). 0 = not prepared.
+    int preparedBlockSize = 0;
+    void renderChunk (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi,
+                      int startSample, int numSamples);
+
     // WR-02: cache the master-chain parameter atomics (resolved once in the
     // constructor) so processBlock does not re-walk the APVTS std::map 4× per block.
     std::atomic<float>* satAmountParam      = nullptr;

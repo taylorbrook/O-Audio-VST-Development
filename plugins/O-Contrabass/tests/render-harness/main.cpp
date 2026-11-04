@@ -210,6 +210,7 @@ struct Args
     // and writes NO WAV/JSON. The golden gate is WAV-sha256-only, so this cannot
     // shift the 19/19 byte-identical invariant.
     bool         perfMode        = false;
+    bool         oversizeBlockMode = false;   // v1.12.3 --oversize-block gate
     double       perfSampleRate  = 44100.0;   // --sample-rate {44100|48000}
     int          perfBlockSize   = 256;       // --block-size (PERF-02 = 256)
 
@@ -268,6 +269,7 @@ bool parseArgs (int argc, char** argv, Args& args)
         else if (key == "--sub-harmonics")          { args.subHarmonicsMode      = true; continue; }
         else if (key == "--sub-harmonics-stability") { args.subHarmonicsStability = true; continue; }
         else if (key == "--perf")                    { args.perfMode              = true; continue; }
+        else if (key == "--oversize-block")          { args.oversizeBlockMode     = true; continue; }
 
         if (i + 1 >= argc)
         {
@@ -784,6 +786,94 @@ int main (int argc, char** argv)
         std::printf ("  cpu_pct_max      : %.3f %%\n", cpuPctMax);
         std::printf ("  realtime_factor  : %.2fx\n", rtf);
         std::printf ("  PERF-02 (<5%% median): %s\n", pass ? "PASS" : "FAIL");
+        return pass ? 0 : 1;
+    }
+
+    // ─── v1.12.3 — --oversize-block gate ───────────────────────────────────────
+    // A host block longer than prepareToPlay's samplesPerBlock used to reach the
+    // voices whole and overrun the 2× Oversampling stage buffers (jassert only).
+    // Gate: fresh instances, both prepared at P = 256.
+    //   A: feed host blocks of 4P (1024) in one processBlock call each.
+    //   B: feed the SAME timeline as 4 × P calls.
+    // With the chunk loop, A's internal call sequence IS B's, so A == B bit-exact.
+    // MIDI lands mid-chunk (note-on @ 300, note-off inside a later host block @ 700,
+    // a 2nd note-on @ 1500) so chunk-scoped MIDI dispatch is exercised.
+    // Control: C = prepared at 4P and fed 1×4P must DIFFER from B (block-rate
+    // modulation) — proves the comparison can see a block-structure change.
+    // Writes no WAV/JSON; goldens untouched.
+    if (args.oversizeBlockMode)
+    {
+        constexpr double sr      = 44100.0;
+        constexpr int    P       = 256;
+        constexpr int    H       = 4 * P;
+        constexpr int    nHost   = 160;                                  // ~3.7 s
+        const int        total   = H * nHost;
+
+        auto render = [&] (int prepareSize, int callSize) -> std::vector<float>
+        {
+            OContrabassAudioProcessor proc;
+            proc.setPlayConfigDetails (0, 2, sr, prepareSize);
+            // Block-rate modulators on (vibrato + slow LFO + macro) so block
+            // structure is audible — otherwise the control C is vacuous.
+            for (const char* id : { "VIBRATO_DEPTH", "SLOW_LFO_DEPTH", "SUB_HARMONICS" })
+                if (auto* p = proc.parameters.getParameter (id))
+                    p->setValueNotifyingHost (0.5f);
+            proc.prepareToPlay (sr, prepareSize);
+
+            std::vector<float> out ((size_t) total * 2, 0.0f);
+            juce::AudioBuffer<float> buf (2, callSize);
+
+            struct Ev { int pos; juce::MidiMessage msg; };
+            const Ev events[] = {
+                {  300,          juce::MidiMessage::noteOn  (1, 28, (juce::uint8) 100) },
+                {  H * 90 + 700, juce::MidiMessage::noteOff (1, 28)                   },
+                {  H * 100 + 500, juce::MidiMessage::noteOn (1, 40, (juce::uint8) 90) },
+            };
+
+            for (int cursor = 0; cursor < total; cursor += callSize)
+            {
+                const int n = std::min (callSize, total - cursor);
+                buf.setSize (2, n, false, false, true);
+                buf.clear();
+                juce::MidiBuffer midi;
+                for (const auto& e : events)
+                    if (e.pos >= cursor && e.pos < cursor + n)
+                        midi.addEvent (e.msg, e.pos - cursor);
+                proc.processBlock (buf, midi);
+                for (int ch = 0; ch < 2; ++ch)
+                    for (int i = 0; i < n; ++i)
+                        out[(size_t) (cursor + i) * 2 + (size_t) ch] = buf.getSample (ch, i);
+            }
+            return out;
+        };
+
+        const auto a = render (P, H);       // oversized host blocks
+        const auto b = render (P, P);       // reference: prepared-size calls
+        const auto c = render (H, H);       // control: different block structure
+
+        auto maxDiff = [] (const std::vector<float>& x, const std::vector<float>& y)
+        {
+            double m = 0.0;
+            for (size_t i = 0; i < x.size(); ++i)
+                m = std::max (m, (double) std::abs (x[i] - y[i]));
+            return m;
+        };
+        double peak = 0.0; bool finite = true;
+        for (float v : a) { if (! std::isfinite (v)) finite = false; peak = std::max (peak, (double) std::abs (v)); }
+
+        const double dAB = maxDiff (a, b);
+        const double dBC = maxDiff (b, c);
+        const bool   live    = peak > 1.0e-3;                            // stimulus non-vacuous
+        const bool   exact   = (dAB == 0.0);
+        const bool   ctrlSees = (dBC > 0.0);
+        const bool   pass    = finite && live && exact && ctrlSees;
+
+        std::printf ("OVERSIZE-BLOCK gate (prepare %d, host block %d, %d host blocks)\n", P, H, nHost);
+        std::printf ("  finite               : %s\n", finite ? "yes" : "NO");
+        std::printf ("  peak (A)             : %.6f\n", peak);
+        std::printf ("  max|A-B| 1x%d vs 4x%d: %.3e  (%s)\n", H, P, dAB, exact ? "bit-exact" : "MISMATCH");
+        std::printf ("  max|B-C| control     : %.3e  (%s)\n", dBC, ctrlSees ? "differs, comparison live" : "IDENTICAL — control vacuous");
+        std::printf ("  OVERSIZE-BLOCK: %s\n", pass ? "PASS" : "FAIL");
         return pass ? 0 : 1;
     }
 
