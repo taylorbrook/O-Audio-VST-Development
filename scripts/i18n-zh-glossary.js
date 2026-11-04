@@ -531,6 +531,18 @@ const TERMS = {
     'divisions':                  ['分割'],
     'steps':                      ['步'],
     'pulses':                     ['脉冲'],
+    // O-simpleGrain v2.0.0 — pulsar synthesis. 滑奏 (not the 'glide' root 滑音)
+    // so a page carrying both a glide and a glisson never shows one word twice.
+    'grain mode':                 ['颗粒模式'],
+    'pulsar':                     ['脉冲星'],
+    'pulsaret':                   ['脉冲子'],
+    'mask':                       ['屏蔽'],
+    'pulse mask':                 ['脉冲屏蔽'],
+    'fm depth':                   ['调频深度'],
+    'fm ratio':                   ['调频比率'],
+    'glisson':                    ['滑奏'],
+    'pulsar vowel':               ['脉冲星元音'],
+    'subharmonic mask':           ['次谐波屏蔽'],
     'euclidean':                  ['欧几里得'],
     'pattern length':             ['模式长度'],
     'swing':                      ['摇摆'],

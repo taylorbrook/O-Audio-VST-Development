@@ -80,4 +80,18 @@ struct Grain
     // there; fadeGain stays exactly 1 for every grain that is not fading.
     float  fadeGain      = 1.0f;
     float  fadeStep      = 0.0f;   // per-sample decrement, > 0 while fading
+
+    // v2.0.0 Pulsar mode. `pulsaret` false = a Cloud grain, rendered by the
+    // unchanged Cloud expressions (the fields below are then never read).
+    // A pulsaret's content is one sine cycle (sineContent) or a slice of the
+    // source (readPos advances by contentInc); window phase/phaseInc as above.
+    bool   pulsaret      = false;
+    bool   sineContent   = false;
+    bool   glide         = false;  // glisson != 0: contentInc *= glideMul per sample
+    double contentPhase  = 0.0;    // sine content phase (cycles)
+    double contentInc    = 0.0;    // sine: cycles / sample; sample: source samples / sample
+    double glideMul      = 1.0;    // 2^(glisson / (12 L)) per sample
+    float  bhMix         = 0.0f;   // Blackman-Harris share, latched at spawn (0.75–1.25 ms band)
+    float  gUser         = 1.0f;   // √(μ₂_Hann / μ₂_user window)
+    float  gBh           = 1.0f;   // √(μ₂_Hann / μ₂_BH)
 };

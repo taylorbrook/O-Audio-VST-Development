@@ -12,6 +12,7 @@ juce_add_console_app(O-simpleGrain-render-test
 
 target_sources(O-simpleGrain-render-test PRIVATE
     main.cpp
+    pulsar_checks.cpp                       # v2.0.0 — Pulsar-mode checks P1..P6
     # Reach into the plugin source tree — share the engine, not a static lib.
     # PluginEditor.cpp is included so createEditor() resolves at link time.
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/PluginProcessor.cpp

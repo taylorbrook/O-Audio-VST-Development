@@ -195,6 +195,58 @@ OSimpleGrainAudioProcessor::createParameterLayout()
         juce::NormalisableRange<float> { -60.0f, 0.0f, 0.1f }, -6.0f,
         juce::AudioParameterFloatAttributes().withLabel ("dB")));
 
+    //--- Pulsar mode (v2.0.0) ----------------------------------------------
+    // Appended with version hint 2 (O-TextureForge v1.8.0 precedent); nothing
+    // above moves. Every default is the 1.9.0 sound: Mode = Cloud, and Cloud
+    // never reads the six pulsar controls.
+    // Mode: Cloud = the granular engine, unchanged. Pulsar = the key sets the
+    // pulse rate f_p and each pulse fires one pulsaret (Roads, Microsound).
+    params.push_back (std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { grainMode, 2 }, "Grain Mode",
+        juce::StringArray { "Cloud", "Pulsar" }, 0));
+
+    // Formant = f_formant / f_p = 1 / duty, 1–32x, log feel (centre at √32).
+    {
+        juce::NormalisableRange<float> formantRange { 1.0f, 32.0f, 0.0f };
+        formantRange.setSkewForCentre (std::sqrt (32.0f));
+        params.push_back (std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID { formant, 2 }, "Formant", formantRange, 4.0f,
+            juce::AudioParameterFloatAttributes().withLabel ("x")));
+    }
+
+    // Pulsaret content: one sine cycle, or one C3 period of the loaded sample.
+    params.push_back (std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { pulsaretSource, 2 }, "Pulsaret",
+        juce::StringArray { "Sine", "Sample" }, 0));
+
+    // Mask: mute pulse k when k mod N == N - 1 (a stable f_p / N subharmonic).
+    params.push_back (std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { pulseMask, 2 }, "Pulse Mask",
+        juce::StringArray { "Off", "2", "3", "4", "5", "6", "7", "8" }, 0));
+
+    // Rate FM: a sine at FM Ratio x f_p moves the pulse rate, linear deviation
+    // 0–100 % -> 0..0.95 (the mean rate stays f_p, so the pitch stays put).
+    // Whole-number ratios are inert by construction (the modulator repeats every
+    // pulse period, so onsets stay 1/f_p apart) — hence the 0.5 default.
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { fmDepth, 2 }, "FM Depth",
+        juce::NormalisableRange<float> { 0.0f, 100.0f, 0.0f }, 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("%")));
+    {
+        juce::NormalisableRange<float> ratioRange { 0.25f, 8.0f, 0.0f };
+        ratioRange.setSkewForCentre (1.0f);
+        params.push_back (std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID { fmRatio, 2 }, "FM Ratio", ratioRange, 0.5f,
+            juce::AudioParameterFloatAttributes().withLabel ("x")));
+    }
+
+    // Glisson: each pulsaret's content glides start -> start + glisson st over
+    // its own length. Continuous range (interval 0) so the 0 default is exact.
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { glisson, 2 }, "Glisson",
+        juce::NormalisableRange<float> { -24.0f, 24.0f, 0.0f }, 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("st")));
+
     return { params.begin(), params.end() };
 }
 
@@ -231,6 +283,13 @@ OSimpleGrainAudioProcessor::OSimpleGrainAudioProcessor()
     ampReleaseParam    = apvts.getRawParameterValue (ampRelease);
     adsrEnabledParam   = apvts.getRawParameterValue (adsrEnabled);
     outputLevelParam   = apvts.getRawParameterValue (outputLevel);
+    grainModeParam      = apvts.getRawParameterValue (grainMode);        // v2.0.0
+    formantParam        = apvts.getRawParameterValue (formant);
+    pulsaretSourceParam = apvts.getRawParameterValue (pulsaretSource);
+    pulseMaskParam      = apvts.getRawParameterValue (pulseMask);
+    fmDepthParam        = apvts.getRawParameterValue (fmDepth);
+    fmRatioParam        = apvts.getRawParameterValue (fmRatio);
+    glissonParam        = apvts.getRawParameterValue (glisson);
 
     // Preallocate all grain voices up front (no audio-thread allocation later).
     // Hand each voice the shared window-LUT table set (built at construction,
@@ -264,7 +323,7 @@ OSimpleGrainAudioProcessor::OSimpleGrainAudioProcessor()
     // v1.9.0 — user presets through the preset-manager module. The sample is NOT
     // a preset parameter (it lives in the library and rides customState as a
     // reference); Output Level is user-owned (v1.5.2). No factory presets are
-    // written: the eight concept lessons stay in applyFactoryPreset(), and no
+    // written: the ten concept lessons stay in applyFactoryPreset(), and no
     // file I/O happens at construction (auval/pluginval scans).
     presetManager.setExcludedParameters ({ sourceSample, outputLevel });
     presetManager.setCustomStateCallbacks (
@@ -312,6 +371,11 @@ void OSimpleGrainAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
     outputGain.reset (sampleRate, 0.02);
     const float outDb = outputLevelParam->load();
     outputGain.setCurrentAndTargetValue (juce::Decibels::decibelsToGain (outDb, -60.0f));
+    pulsarGain.reset (sampleRate, 0.02);
+    pulsarGain.setCurrentAndTargetValue (juce::Decibels::decibelsToGain (outDb, -60.0f));
+    pulsarBus.setSize (2, juce::jmax (samplesPerBlock, kMinPlayheadTrack));
+    pulsarBus.clear();
+    pulsarBusUsed = false;
 
     // --- Global read-head smoothing (Phase 2.2, ~20 ms ramps) ----------------
     // scan/position/playheadVelocity are smoothed so automation, freeze toggles,
@@ -1002,6 +1066,17 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     p.amp = juce::ADSR::Parameters {
         ampAttackParam->load(), ampDecayParam->load(),
         ampSustainParam->load(), ampReleaseParam->load() };
+    // v2.0.0 Pulsar mode (Cloud reads none of these).
+    p.grainMode      = (int) grainModeParam->load();
+    p.formant        = juce::jlimit (1.0f, 32.0f, formantParam->load());
+    p.pulsaretSource = (int) pulsaretSourceParam->load();
+    {
+        const int maskIdx = juce::jlimit (0, 7, (int) pulseMaskParam->load());
+        p.pulseMask = (maskIdx == 0) ? 0 : maskIdx + 1;        // Off, 2..8
+    }
+    p.fmDepth        = 0.95f * juce::jlimit (0.0f, 1.0f, fmDepthParam->load() * 0.01f);
+    p.fmRatio        = juce::jlimit (0.25f, 8.0f, fmRatioParam->load());
+    p.glisson        = juce::jlimit (-24.0f, 24.0f, glissonParam->load());
 
     // --- Global read head (Phase 2.2): advance per sample, freeze-pinnable -----
     // velocity (samples/sample) = (scan/100) * realtime: 100% = forward realtime,
@@ -1068,6 +1143,8 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         gv->setPlayheadTrack (playheadTrack.data(), trackLen);
         gv->setGrainCloudFrame  (&frame);            // viz: grain events
         gv->setActiveGrainCount (&activeGrainCount); // viz: live grain count (UI-05)
+        gv->setPulsarBus (pulsarBus.getWritePointer (0), pulsarBus.getWritePointer (1),
+                          pulsarBus.getNumSamples(), &pulsarBusUsed);
     }
 
     // --- Render the grain voices ---------------------------------------------
@@ -1156,6 +1233,10 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                          : windowLuts.meanSquare (shapeNow, taperEnd, (float) kMaxGrainsPerVoice / rawOverlap))
             / windowLuts.meanSquare (WindowLuts::kShapeHann);
     const float normGain = 1.0f / std::sqrt (juce::jmax (1.0f, overlap));
+    // v2.0.0 — the main bus carries only Cloud grains, in both modes, so it
+    // keeps normGain exactly as in 1.9.0: after a switch to Pulsar the draining
+    // Cloud grains stay at their own level (a mode-dependent bus gain swelled
+    // them by up to 1/normGain). Pulsarets are on pulsarBus, below.
     const float outDb = outputLevelParam->load();
     outputGain.setTargetValue (juce::Decibels::decibelsToGain (outDb, -60.0f) * normGain);
     // v1.6.0: per sample while ramping. applyGainRamp between per-block skip()
@@ -1173,6 +1254,43 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     else
     {
         buffer.applyGain (outputGain.getCurrentValue());
+    }
+
+    // v2.0.0 — pulsaret bus: the output trim only. Pulsarets never overlap by
+    // more than the FM swing and the density rule never boosts below an overlap
+    // of 1, so the only level law is each pulsaret's window-power gain (in the
+    // voice). No duty compensation: a narrow pulse is thinner and quieter — the
+    // pulsar character. The ramp advances per sample every block, used or not,
+    // so its state never depends on the host block size.
+    pulsarGain.setTargetValue (juce::Decibels::decibelsToGain (outDb, -60.0f));
+    if (pulsarBusUsed)
+    {
+        const int n = juce::jmin (numSamples, pulsarBus.getNumSamples());
+        auto* pl = pulsarBus.getWritePointer (0);
+        auto* pr = pulsarBus.getWritePointer (1);
+        for (int i = 0; i < numSamples; ++i)
+        {
+            const float g = pulsarGain.getNextValue();
+            if (i >= n)
+                continue;
+            if (numCh >= 2)
+            {
+                buffer.getWritePointer (0)[i] += pl[i] * g;
+                buffer.getWritePointer (1)[i] += pr[i] * g;
+            }
+            else if (numCh == 1)
+            {
+                buffer.getWritePointer (0)[i] += 0.5f * (pl[i] + pr[i]) * g;
+            }
+        }
+        std::fill (pl, pl + n, 0.0f);
+        std::fill (pr, pr + n, 0.0f);
+        pulsarBusUsed = false;
+    }
+    else if (pulsarGain.isSmoothing())
+    {
+        for (int i = 0; i < numSamples; ++i)
+            pulsarGain.getNextValue();
     }
 
     // --- Suite-wide NaN/Inf insurance ----------------------------------------
@@ -1218,8 +1336,8 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 }
 
 //==============================================================================
-// Concept-preset tour (Stage 3.3 / FUNC-06). Eight factory snapshots, each
-// isolating ONE granular concept. Every preset resets to defaults first (so it
+// Concept-preset tour (Stage 3.3 / FUNC-06). Ten factory snapshots (eight Cloud
+// lessons + two Pulsar lessons since v2.0.0), each isolating ONE concept. Every preset resets to defaults first (so it
 // reproduces regardless of prior state), then applies its named snapshot via
 // setValueNotifyingHost — real (scaled) floats through convertTo0to1, choices /
 // bool through their index. The WebView relays/attachments propagate every change
@@ -1380,6 +1498,32 @@ void OSimpleGrainAudioProcessor::applyFactoryPreset (const juce::String& name)
         setChoice (windowShape, 0);           // Rectangular → hard edges = clicks
         setReal   (grainSize, 45.0f);
         setReal   (density,   6.0f);          // sparse → each click stands alone
+        setReal   (ampSustain, 1.0f);
+    }
+    // ── v2.0.0 Pulsar lessons. The reset above already put grainMode back to
+    //    Cloud for every other lesson, so a Cloud lesson after one of these
+    //    returns to Cloud. Choice indices — grainMode: 0=Cloud 1=Pulsar;
+    //    pulsaretSource: 0=Sine 1=Sample; pulseMask: 0=Off, index i = N i+1.
+    // ── Pulsar Vowel — sine pulsarets at Formant 5x: the key sets the pitch and
+    //    the formant tracks it at that ratio — a buzzy, vowel-like tone.
+    else if (name == "Pulsar Vowel")
+    {
+        setChoice (grainMode, 1);             // Pulsar
+        setChoice (pulsaretSource, 0);        // Sine
+        setReal   (formant, 5.0f);
+        setChoice (pulseMask, 0);             // Off
+        setReal   (fmDepth, 0.0f);
+        setReal   (ampSustain, 1.0f);
+    }
+    // ── Subharmonic Mask — Mask 3 mutes every third pulse: a stable line at
+    //    f_p / 3, an octave and a fifth under the note.
+    else if (name == "Subharmonic Mask")
+    {
+        setChoice (grainMode, 1);             // Pulsar
+        setChoice (pulsaretSource, 0);        // Sine
+        setReal   (formant, 3.0f);
+        setChoice (pulseMask, 2);             // N = 3
+        setReal   (fmDepth, 0.0f);
         setReal   (ampSustain, 1.0f);
     }
     // Unknown name → leave at defaults (already reset above).
@@ -1844,7 +1988,13 @@ void OSimpleGrainAudioProcessor::setStateInformation (const void* data, int size
     // entry for them, and replaceState() would leave whatever this instance was
     // set to. Give the missing ones their defaults (Skip 0, Tilt 0), so an old
     // session renders exactly as it did in v1.7.0.
-    for (const char* id : { OSimpleGrain::ParamIDs::grainSkip, OSimpleGrain::ParamIDs::grainTilt })
+    // v2.0.0: the same for the seven Pulsar parameters — a pre-2.0.0 session
+    // loaded into an instance left in Pulsar comes back as Cloud.
+    for (const char* id : { OSimpleGrain::ParamIDs::grainSkip, OSimpleGrain::ParamIDs::grainTilt,
+                            OSimpleGrain::ParamIDs::grainMode, OSimpleGrain::ParamIDs::formant,
+                            OSimpleGrain::ParamIDs::pulsaretSource, OSimpleGrain::ParamIDs::pulseMask,
+                            OSimpleGrain::ParamIDs::fmDepth, OSimpleGrain::ParamIDs::fmRatio,
+                            OSimpleGrain::ParamIDs::glisson })
     {
         if (! state.getChildWithProperty ("id", juce::String (id)).isValid())
             if (auto* param = apvts.getParameter (id))

@@ -408,6 +408,19 @@ const TERMS = {
     'tone track':               ['suivi de timbre'],
     'lyrics':                   ['paroles'],
     'change tonic note (transposes instrument)': ['changer la tonique (transpose l\'instrument)'],
+    // O-simpleGrain v2.0.0 — pulsar synthesis (Roads, Microsound). Pulsaret,
+    // formant and glisson are the literature's own terms in French too.
+    'grain mode':               ['mode de grain'],
+    'pulsar':                   ['pulsar'],
+    'pulsaret':                 ['pulsaret'],
+    'formant':                  ['formant'],
+    'mask':                     ['masque'],
+    'pulse mask':               ['masque d\'impulsions', 'masque'],
+    'fm depth':                 ['profondeur fm', 'prof. fm'],   // O-simpleGrain: 56 px knob cell
+    'fm ratio':                 ['ratio fm'],
+    'glisson':                  ['glisson'],
+    'pulsar vowel':             ['voyelle pulsar'],
+    'subharmonic mask':         ['masque sous-harmonique', 'sous-harmonique'],   // O-simpleGrain: 107.2 px lesson chip
 };
 
 // Words that are wrong wherever they appear in a LABEL or tooltip TITLE.

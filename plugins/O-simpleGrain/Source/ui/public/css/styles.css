@@ -192,6 +192,10 @@ body {
      lesson caption out of the preset bar and onto the header's own row paid for
      it almost exactly. */
   min-height: 2.2em;
+  /* v2.0.0 — the 5-column lesson bar narrowed this block to 232px, so the
+     English strapline wraps too now. balance splits it at the middot instead
+     of orphaning "GUIDE" on line 2; the reserved two lines are unchanged. */
+  text-wrap: balance;
 }
 .fleuron-row { font-size: 22px; color: var(--fleuron-color); }
 
@@ -873,7 +877,7 @@ body {
    source drop zone. Same sepia/brown palette as the base components above.
    ============================================================================ */
 
-/* ── Header preset bar shell (8 concept-tour buttons; wired in 3.3) ───────── */
+/* ── Header preset bar shell (10 concept-tour buttons since v2.0.0; 8 before) */
 /* v1.3.0 — a fixed 4 x 2 GRID, not a wrapping flex row. As a wrapping row the
    eight chips shrink-wrapped their captions and re-wrapped when the language
    changed: "Async Cloud" sat on row 1 in English and "Nuage async" fell to row
@@ -884,16 +888,25 @@ body {
    the same box in both languages, so the bar cannot reflow at all. The chips
    are 110.5px each now rather than 60-90px of shrink-wrap; the block is the
    same 460px wide and the same two rows tall. */
+/* v2.0.0 — FIVE columns, 10 chips: the eight Cloud lessons keep their 4 x 2
+   block and the two Pulsar lessons are the fifth column. Budgeted in FRENCH,
+   the widest language (pattern_composed_readout_needs_setlabel_tokens_and_tour_
+   row_budget): "Bourdon harmonique" is 90.02px of text, so a chip at 6px side
+   padding + 2px border is 104.02px against a (560 - 4 x 6) / 5 = 107.2px cell.
+   The bar grew 460 -> 560px; the title block (flex 1 1 0) gives the 100px up
+   and keeps 232px for a 212.6px nowrap title. nowrap makes a too-narrow chip a
+   measurable overflow instead of a silent second line
+   (pattern_scrollwidth_fit_gate_misses_wrapped_caption). */
 .preset-bar-tour {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: center;
   gap: 6px;
   justify-content: end;
-  width: 460px;
-  max-width: 460px;
+  width: 560px;
+  max-width: 560px;
 }
-.preset-bar-tour .tour-btn { font-size: 9.5px; padding: 4px 8px; }
+.preset-bar-tour .tour-btn { font-size: 9.5px; padding: 4px 6px; white-space: nowrap; }
 
 /* The v1.2.1 "?" tooltip chip lived here. It MOVED into the settings popover at
    v1.3.0 — a plugin should not grow a second settings surface — and its rules
@@ -993,6 +1006,41 @@ body {
    "TILT" 22.11px), the D-04 pin rather than a shorter variant. Centred in its
    56px cell it overhangs 6px each side, inside the group's 12px padding. */
 .group-window [data-i18n="label.knobTilt"] { min-width: 68px; }
+
+/* ── v2.0.0 — Grain Mode select + the Pulsar group ───────────────────────────
+   Mode shares Freeze's row. The cell is pushed to the row's right edge and the
+   select carries an explicit width, so the caption grows LEFTWARD per language
+   and the select never moves (pattern_appearance_none_select_exposes_caption_
+   width: size the select, never pin the caption). 92px clears "Pulsar" with
+   the chevron. The caption wears the .knob-label face, inline. */
+.grain-toggle-row { align-items: center; }
+.mode-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.mode-label {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--brown-soft);
+  line-height: 1.1;
+  white-space: nowrap;
+  /* Floor at the widest language ("MODE" 30.38px in en and fr; 模式 20.63px),
+     right-aligned against the select: the cell keeps one box in all three. */
+  min-width: 31px;
+  text-align: right;
+}
+#combo-grainMode { min-width: 0; width: 92px; }
+/* Pulsar group: one row of four small knobs (the Spray & Scatter cell) and a
+   row of two selects, each half the 270px inner width less the 16px gap. */
+.group-pulsar .pulsar-select-row { margin-top: 8px; flex-wrap: nowrap; }
+.group-pulsar .pulsar-select-row .select-cell { width: 127px; }
+.group-pulsar select.combo { min-width: 0; width: 127px; }
+/* The inactive side of the Mode switch: dimmed and locked like Taper outside
+   Tukey and the ADSR knobs under bypass — never hidden, so no width moves. */
+.mode-inactive { opacity: 0.38; pointer-events: none; transition: opacity 0.2s ease; }
 
 /* ── Grain / overlap / CPU readout (below the grid) ───────────────────────── */
 .grain-readout {

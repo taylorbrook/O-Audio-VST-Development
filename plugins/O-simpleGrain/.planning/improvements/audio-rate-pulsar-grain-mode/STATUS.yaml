@@ -1,0 +1,30 @@
+milestone: audio-rate-pulsar-grain-mode
+created: 2026-10-28T00:00:00Z
+lastActivity: 2026-10-29T15:00:00Z
+phases:
+  discuss:
+    status: complete
+    completedAt: 2026-10-28T00:00:00Z
+  research:
+    status: complete
+    completedAt: 2026-10-28T12:00:00Z
+  plan:
+    status: complete
+    completedAt: 2026-10-28T22:00:00Z
+    approved: true
+    domain: mixed
+    executeAgent: general-purpose
+    decisions: {dutyLift: none, mask: mute-1-of-N, defaultContent: sine, formantCeil: 0.10fs, lessons: 2}
+  execute:
+    status: complete
+    startedAt: 2026-10-28T23:00:00Z
+    completedAt: 2026-10-29T00:00:00Z
+    backup: backups/O-simpleGrain/v1.9.0/
+    waves: A7 PASS, B1-B3 PASS, C1 gate.py 13/13 PASS, C2 pluginval10/auval/persistence PASS
+  verify:
+    status: complete
+    completedAt: 2026-10-29T15:00:00Z
+    result: first pass found I-1 (shared bus gain swelled Cloud tail on switch) + I-2 (FM Newton drift); both fixed (pulsarBus + bracketed Newton) and re-verified - all gates PASS with rebuilt controls; P7 added; version bumped 2.0.0
+versionBump: major
+baseVersion: 1.9.0
+targetVersion: 2.0.0

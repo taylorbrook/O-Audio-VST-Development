@@ -18,7 +18,14 @@
 # parked (2.6 s mono @ 48 kHz = 0.48 MiB each, ~190 MiB in all). Gate: current
 # RSS grows < 20 MiB.
 #
-# usage: uv run --python 3.12 --with pedalboard --with numpy python -I gate.py [plugin.vst3] [--expect-fail]
+# v2.0.0: three Pulsar configs (prefix "pulsar-"; Sine, Sample + FM + glisson + Scan,
+# Mask 3 + Skip 30 % with the ADSR off) run the same nulls. The pulse clock is a
+# double phase accumulator with fractional onsets, so these must be block-size
+# independent too. Their extra settings are applied by name (choices) or by
+# bisecting raw_value on the read-back value (Formant / FM Ratio are skewed).
+# --cloud-only skips them (a pre-2.0.0 binary has no Pulsar parameters).
+#
+# usage: uv run --python 3.12 --with pedalboard --with numpy python -I gate.py [plugin.vst3] [--expect-fail] [--cloud-only]
 import os
 import subprocess
 import sys
@@ -27,6 +34,7 @@ import pedalboard
 
 ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
 EXPECT_FAIL = "--expect-fail" in sys.argv
+CLOUD_ONLY = "--cloud-only" in sys.argv
 PLUGIN = ARGS[0] if ARGS else \
     "/Users/taylorbrook/Library/Audio/Plug-Ins/VST3/O-simpleGrain-dev.vst3"
 FS = 48000
@@ -53,6 +61,24 @@ def set_raw(p, name, value):
     par.raw_value = (value - par.min_value) / (par.max_value - par.min_value)
 
 
+def set_exact(p, name, value):
+    """Choices by name; numbers by bisecting raw_value on the read-back (skew-safe)."""
+    k = param_key(p, name)
+    if isinstance(value, (str, bool)):
+        setattr(p, k, value)
+        return
+    par = p.parameters[k]
+    lo, hi = 0.0, 1.0
+    for _ in range(48):
+        mid = 0.5 * (lo + hi)
+        par.raw_value = mid
+        if float(getattr(p, k)) < value:
+            lo = mid
+        else:
+            hi = mid
+    par.raw_value = hi
+
+
 # name: (numeric params as plain values, window, adsr on, uses randomness)
 CONFIGS = {
     # moving playhead + every spray and scatter
@@ -67,7 +93,21 @@ CONFIGS = {
     "scan-only": (dict(grain_size=41.0, density=97.0, scan=-61.0, position=45.0,
                        position_spray=0.0, pitch_spray=0.0, pan_spray=0.0, scatter=0.0,
                        vel_density=0.0), "Hann", True, False),
+    # v2.0.0 Pulsar: Sine pulsarets with pitch / pan spray
+    "pulsar-sine": (dict(pitch_spray=3.0, pan_spray=60.0), "Hann", True, True,
+                    dict(grain_mode="Pulsar", pulsaret="Sine", formant=5.0)),
+    # Sample content on a moving playhead, rate FM (non-integer ratio), glisson, Tukey
+    "pulsar-sample-fm": (dict(scan=73.0, position=20.0, position_spray=40.0, pan_spray=80.0),
+                         "Tukey", True, True,
+                         dict(grain_mode="Pulsar", pulsaret="Sample", formant=7.0, fm_depth=70.0,
+                              fm_ratio=1.37, glisson=5.0)),
+    # Mask 3 + Skip 30 %, ADSR bypassed (release drains), FM on
+    "pulsar-mask-skip": (dict(pan_spray=30.0), "Welch", False, True,
+                         dict(grain_mode="Pulsar", pulsaret="Sine", formant=3.0, pulse_mask="3",
+                              grain_skip=30.0, fm_depth=40.0, fm_ratio=0.5)),
 }
+if CLOUD_ONLY:
+    CONFIGS = {k: v for k, v in CONFIGS.items() if not k.startswith("pulsar-")}
 
 # (sample, status, note, velocity). Odd positions, plus pairs 13 and 5 samples
 # apart, which the synth's default 32-sample subdivision used to pull together.
@@ -86,12 +126,15 @@ def midi():
 
 
 def make_template(cfg):
-    nums, window, adsr, _ = CONFIGS[cfg]
+    nums, window, adsr, _ = CONFIGS[cfg][:4]
+    extra = CONFIGS[cfg][4] if len(CONFIGS[cfg]) > 4 else {}
     p = pedalboard.load_plugin(PLUGIN)
     for k, v in nums.items():
         set_raw(p, k, v)
     setattr(p, param_key(p, "window"), window)
     setattr(p, param_key(p, "adsr"), adsr)
+    for k, v in extra.items():
+        set_exact(p, k, v)
     return p.raw_state
 
 
@@ -102,6 +145,18 @@ def render(state, block):
           buffer_size=block, reset=True)
     assert np.isfinite(y).all(), f"block {block}: non-finite output"
     return y
+
+
+def k_pulsar_live(cfg):
+    """True (= a failure) if the Pulsar config renders the same in Cloud: the mode is dead."""
+    state = make_template(cfg)
+    p = pedalboard.load_plugin(PLUGIN)
+    p.raw_state = state
+    setattr(p, param_key(p, "grain_mode"), "Cloud")
+    d = np.max(np.abs(render(state, REF_BLOCK) - render(p.raw_state, REF_BLOCK)))
+    dead = d < 1e-3
+    print(f"{'FAIL' if dead else 'PASS'} {cfg}: Pulsar differs from the same state in Cloud (max diff {db(d):.1f} dBFS)")
+    return dead
 
 
 def db(v):
@@ -136,6 +191,8 @@ def main():
     scan_only_failed = False
     for cfg in CONFIGS:
         random_cfg = CONFIGS[cfg][3]
+        if cfg.startswith("pulsar-") and k_pulsar_live(cfg):
+            fails += 1
         refs = []
         for k in range(N_TEMPLATES + (N_SEED_CHECK if random_cfg else 0)):
             state = make_template(cfg)

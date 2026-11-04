@@ -18,5 +18,17 @@
   {
     "name": "preset save row OPEN (v1.9.0 — label.presetSave on the confirm button, label.presetSaveCancel and the name placeholder are invisible at rest)",
     "click": "#presetSave"
+  },
+  {
+    "name": "Grain Mode = Pulsar (v2.0.0 — the Cloud-only cells dim and the Pulsar group lights; dimming is opacity only, so every rect must hold in all three languages)",
+    "eval": "window.__stubStates.combos.get('grainMode').setChoiceIndex(1)"
+  },
+  {
+    "name": "the Pulsar Vowel lesson picked (label.captionPulsarVowel — a v2.0.0 caption, one line in every language)",
+    "click": ".tour-btn[data-preset=\"Pulsar Vowel\"]"
+  },
+  {
+    "name": "the Subharmonic Mask lesson picked (label.captionSubharmonicMask — the longest v2.0.0 caption in French)",
+    "click": ".tour-btn[data-preset=\"Subharmonic Mask\"]"
   }
 ]

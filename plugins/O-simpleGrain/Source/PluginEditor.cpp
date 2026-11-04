@@ -22,10 +22,9 @@
 
     O-simpleGrain - Plugin Editor (implementation)
 
-    Stage 3 (GUI): Ouaricon "Granular Field Guide" WebView UI. 16 slider relays
-    (grain / spray-scatter / amp ADSR / output) + 2 combo relays (sourceSample,
-    windowShape) + 2 toggle relays (freeze, adsrEnabled) bound two-way to the
-    APVTS. The five
+    Stage 3 (GUI): Ouaricon "Granular Field Guide" WebView UI. Slider, combo and
+    toggle relays bound two-way to the APVTS (v2.0.0: 22 sliders, 5 combos incl.
+    grainMode / pulsaretSource / pulseMask, 2 toggles). The five
     fixed-name source native functions (dropSessionStart/AddFile/CommitFile/
     CommitFolder, loadSourceFromFileChooser) bridge the JS drag-drop / picker to
     the processor's already-built decode path.
@@ -106,15 +105,18 @@ OSimpleGrainAudioProcessorEditor::OSimpleGrainAudioProcessorEditor (OSimpleGrain
 {
     using namespace OSimpleGrain::ParamIDs;
 
-    // 22 APVTS params = 18 float sliders + 2 combos + 2 toggles (v1.8.0: + grainSkip, grainTilt).
-    // (sourceSample / windowShape are choices; freeze / adsrEnabled are bools — NOT sliders.)
+    // 29 APVTS params = 22 float sliders + 5 combos + 2 toggles (v1.8.0: + grainSkip, grainTilt;
+    // v2.0.0: + formant, fmDepth, fmRatio, glisson sliders and grainMode, pulsaretSource,
+    // pulseMask combos). Choices are combos and bools toggles — NOT sliders.
     const juce::StringArray sliderIds {
         grainSize, density, position, scan,
         pitchSpray, positionSpray, scatter, grainPitch, panSpray, velToDensity,
         ampAttack, ampDecay, ampSustain, ampRelease,
-        outputLevel, windowTaper, grainSkip, grainTilt
+        outputLevel, windowTaper, grainSkip, grainTilt,
+        formant, fmDepth, fmRatio, glisson
     };
-    const juce::StringArray comboIds  { sourceSample, windowShape };
+    const juce::StringArray comboIds  { sourceSample, windowShape,
+                                        grainMode, pulsaretSource, pulseMask };
     const juce::StringArray toggleIds { freeze, adsrEnabled };
 
     // 1. RELAYS (before the WebView) ----------------------------------------

@@ -52,6 +52,21 @@
     window-envelope inset — app.js windowValue() / GAUSS_SIGMA / RECT_GUARD_MS /
     taperEndFor() (an accepted design decision: the inset recomputes JS-side
     rather than pushing tables). Any change here MUST be mirrored there.
+    v2.0.0: the Blackman-Harris table (below) is internal to Pulsar mode and not
+    a user shape, so the contract covers it only if the inset ever draws a
+    pulsaret window (kBhCoeffs would then be mirrored in app.js too).
+
+    v2.0.0 — a SIXTH, internal table: 4-term Blackman-Harris (kShapeBH), read
+    only by Pulsar-mode pulsarets through readBH(). It is not in the user's
+    Window choice: read() still clamps the shape to kNumShapes - 1, and the five
+    user tables are built exactly as before, so every Cloud read is unchanged.
+    Moments (continuous): μ₁ = a₀ = 0.35875, μ₂ = a₀² + (a₁² + a₂² + a₃²)/2
+    = 0.25796. powerGainVsHann() / bhPowerGain() give √(P_Hann / P_w), the
+    per-pulsaret level match that keeps the Hann -> BH crossfade free of a step.
+    P is the power the window gives its CONTENT: μ₂ for broadband (sample)
+    content, but for the one-cycle sine pulsaret it is mean(w² · sin²(2πφ)),
+    which weights the window's shoulders (φ = 1/4, 3/4) — μ₂ alone would leave
+    BH 1.7 dB under Hann there (measured). So each window carries both moments.
 
   ==============================================================================
 */
@@ -70,6 +85,10 @@ public:
     static constexpr int kShapeRect  = 0;
     static constexpr int kShapeHann  = 4;
     static constexpr int kShapeTukey = 5;
+    static constexpr int kShapeBH    = 6;    // v2.0.0 — internal (Pulsar), NOT a user shape
+
+    // 4-term Blackman-Harris (-92 dB sidelobes): a0 - a1 cos + a2 cos2 - a3 cos3.
+    static constexpr double kBhCoeffs[4] = { 0.35875, 0.48829, 0.14128, 0.01168 };
 
     // Rectangular guard fade, milliseconds per edge (v1.4.0). Short enough to
     // leave the "hard-edged" character (the pedagogical contrast with Hann is
@@ -94,7 +113,61 @@ public:
         : size (juce::jmax (2, lutSize))
     {
         build();
+        buildPulsarTables();   // v2.0.0 — after build(): the five user tables are untouched
     }
+
+    // v2.0.0 — the Blackman-Harris table at phase ∈ [0,1], linear-interp (Pulsar
+    // pulsarets only; a separate entry point so read()'s shape clamp stays put).
+    float readBH (float phase) const noexcept
+    {
+        const float p    = juce::jlimit (0.0f, 1.0f, phase);
+        const float fpos = p * (float) (size - 1);
+        const int   i0   = (int) fpos;
+        const int   i1   = juce::jmin (i0 + 1, size - 1);
+        const float frac = fpos - (float) i0;
+        return bhTable[(size_t) i0] + frac * (bhTable[(size_t) i1] - bhTable[(size_t) i0]);
+    }
+
+    // v2.0.0 — √(μ₂_Hann / μ₂_w) for a user shape at this taper: the gain that
+    // gives a pulsaret of that window the power of a Hann one. The table shapes
+    // use their cached μ₂; rect / Tukey are a flat top with Hann-half edges of
+    // total length 2·te, so μ₂ = (1 - 2te) + 2te·μ₂_Hann (closed form — the
+    // pulsar spawn runs at audio rate and cannot afford meanSquare()).
+    // sineContent: the sine-weighted moment instead of μ₂ (see the header);
+    // rect / Tukey then read a 65-point table over te ∈ [0, 0.5].
+    float powerGainVsHann (int shape, float taperEnd, bool sineContent = false) const noexcept
+    {
+        const int s = juce::jlimit (0, kNumShapes - 1, shape);
+        const float ref = sineContent ? hannSinMs : hannMs;
+        float ms = ref;
+        if (s == kShapeRect || s == kShapeTukey)
+        {
+            const float te = juce::jlimit (1.0e-4f, 0.5f, taperEnd);
+            if (sineContent)
+            {
+                const float x  = te / 0.5f * (float) (kTaperSteps - 1);
+                const int   i0 = juce::jlimit (0, kTaperSteps - 2, (int) x);
+                const float fr = x - (float) i0;
+                ms = taperSinMs[(size_t) i0] + fr * (taperSinMs[(size_t) i0 + 1] - taperSinMs[(size_t) i0]);
+            }
+            else
+            {
+                ms = (1.0f - 2.0f * te) + 2.0f * te * hannMs;
+            }
+        }
+        else
+        {
+            ms = sineContent ? tableSinMs[(size_t) s] : tableMs[(size_t) s];
+        }
+        return std::sqrt (ref / juce::jmax (1.0e-6f, ms));
+    }
+
+    // v2.0.0 — √(P_Hann / P_BH) (cached): 1.206 broadband, 1.469 sine content.
+    float bhPowerGain (bool sineContent = false) const noexcept { return sineContent ? bhSinGain : bhGain; }
+
+    // v2.0.0 — mean / mean-square of the BH table by the midpoint rule (tests).
+    float bhMean() const noexcept       { return bhMoment (1); }
+    float bhMeanSquare() const noexcept { return bhMoment (2); }
 
     // Read the envelope value for shape ∈ [0,5] at phase ∈ [0,1], linear-interp.
     // Hot-path: clamp + one table lookup + one lerp. No transcendental. Rect and
@@ -278,8 +351,73 @@ private:
         }
     }
 
+    // v2.0.0 — Pulsar-only state, built after the user tables.
+    void buildPulsarTables()
+    {
+        bhTable.assign ((size_t) size, 0.0f);
+        const double twoPi = juce::MathConstants<double>::twoPi;
+        for (int i = 0; i < size; ++i)
+        {
+            const double phi = (double) i / (double) (size - 1);
+            bhTable[(size_t) i] = (float) (kBhCoeffs[0] - kBhCoeffs[1] * std::cos (twoPi * phi)
+                                         + kBhCoeffs[2] * std::cos (2.0 * twoPi * phi)
+                                         - kBhCoeffs[3] * std::cos (3.0 * twoPi * phi));
+        }
+        for (int s = 0; s < kNumTables; ++s)
+        {
+            tableMs[(size_t) s]    = meanSquare (s);
+            tableSinMs[(size_t) s] = sineMoment ([&] (float p) { return read (s, p); });
+        }
+        for (int i = 0; i < kTaperSteps; ++i)
+        {
+            const float te = juce::jmax (1.0e-4f, 0.5f * (float) i / (float) (kTaperSteps - 1));
+            taperSinMs[(size_t) i] = sineMoment ([&] (float p) { return read (kShapeTukey, p, te); });
+        }
+        hannMs    = tableMs[(size_t) kShapeHann];
+        hannSinMs = tableSinMs[(size_t) kShapeHann];
+        bhGain    = std::sqrt (hannMs / bhMoment (2));
+        bhSinGain = std::sqrt (hannSinMs / sineMoment ([this] (float p) { return readBH (p); }));
+    }
+
+    // mean of w(φ)² · sin²(2πφ) by the midpoint rule (the one-cycle sine
+    // pulsaret's power through window w).
+    template <typename Fn>
+    static float sineMoment (Fn&& w)
+    {
+        constexpr int kSteps = 512;
+        double acc = 0.0;
+        for (int i = 0; i < kSteps; ++i)
+        {
+            const float  p = ((float) i + 0.5f) / (float) kSteps;
+            const double v = (double) w (p) * std::sin (juce::MathConstants<double>::twoPi * (double) p);
+            acc += v * v;
+        }
+        return (float) (acc / kSteps);
+    }
+
+    float bhMoment (int power) const noexcept
+    {
+        constexpr int kSteps = 512;
+        double acc = 0.0;
+        for (int i = 0; i < kSteps; ++i)
+        {
+            const double w = (double) readBH (((float) i + 0.5f) / (float) kSteps);
+            acc += (power == 1) ? w : w * w;
+        }
+        return (float) (acc / kSteps);
+    }
+
     int size;
     std::array<std::vector<float>, kNumTables> tables {};
+    std::vector<float> bhTable;                       // v2.0.0 — internal BH (kShapeBH)
+    static constexpr int kTaperSteps = 65;
+    std::array<float, kNumTables> tableMs {};         // v2.0.0 — μ₂ of each user table
+    std::array<float, kNumTables> tableSinMs {};      // v2.0.0 — sine-weighted moment of each
+    std::array<float, kTaperSteps> taperSinMs {};     // v2.0.0 — rect / Tukey, sine-weighted, by te
+    float hannMs    = 0.375f;
+    float hannSinMs = 0.15625f;
+    float bhGain    = 1.206f;
+    float bhSinGain = 1.469f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WindowLuts)
 };

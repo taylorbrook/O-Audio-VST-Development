@@ -37,7 +37,8 @@
   fight over one attribute, so every anchor moved: the knob and select cells to
   data-param (naming the APVTS parameter they drive, moved up from the inner
   .knob div where nothing read it), the four viz cells and the readout strip to
-  an id, and the eight lesson buttons to the data-preset they already carried.
+  an id, and the lesson buttons (eight then, ten since v2.0.0) to the
+  data-preset they already carried.
 -->
 <html lang="en">
 <head>
@@ -55,10 +56,13 @@
     <header class="header">
       <div class="title-block">
         <h1 class="title">O&#8202;&#8211;&#8202;simple<span class="title-accent">Grain</span></h1>
-        <p class="subtitle" data-i18n="label.subtitle">Granular Synthesizer &#183; A Field Guide</p>
+        <p class="subtitle" data-i18n="label.subtitle">Granular Synthesizer&nbsp;&#183; A Field Guide</p>
       </div>
 
-      <!-- Concept-preset tour bar (8 buttons; wired in Phase 3.3 — inert shell now) -->
+      <!-- Concept-preset tour bar (10 lesson buttons). v2.0.0: a 5 x 2 grid. The
+           eight Cloud lessons keep their 4 x 2 block on the left; the two Pulsar
+           lessons are the fifth COLUMN (Pulsar Vowel on row 1, Subharmonic Mask
+           on row 2), which is why Pulsar Vowel sits fifth in source order. -->
       <div class="preset-bar-container">
         <span class="preset-fleuron">&#10086;</span>
         <div class="preset-bar-tour" id="presetTour" role="group"
@@ -67,10 +71,12 @@
           <button class="tour-btn" data-preset="Pitched Buzz"       data-i18n="label.tourPitchedBuzz">Pitched Buzz</button>
           <button class="tour-btn" data-preset="Fragments"          data-i18n="label.tourFragments">Fragments</button>
           <button class="tour-btn" data-preset="Smooth Cloud"       data-i18n="label.tourSmoothCloud">Smooth Cloud</button>
+          <button class="tour-btn tour-btn-pulsar" data-preset="Pulsar Vowel" data-i18n="label.tourPulsarVowel">Pulsar Vowel</button>
           <button class="tour-btn" data-preset="Frozen Pad"         data-i18n="label.tourFrozenPad">Frozen Pad</button>
           <button class="tour-btn" data-preset="Asynchronous Cloud" data-i18n="label.tourAsyncCloud">Async Cloud</button>
           <button class="tour-btn" data-preset="Granular Fire"      data-i18n="label.tourGranularFire">Granular Fire</button>
           <button class="tour-btn" data-preset="Rect Click"         data-i18n="label.tourRectClick">Rect Click</button>
+          <button class="tour-btn tour-btn-pulsar" data-preset="Subharmonic Mask" data-i18n="label.tourSubharmonicMask">Subharmonic Mask</button>
         </div>
       </div>
 
@@ -256,9 +262,59 @@
               <div class="knob-value" id="val-scan">0%</div>
             </div>
           </div>
-          <div class="toggle-row">
+          <!-- v2.0.0 — the Mode select shares Freeze's row, pinned to the right
+               edge so its caption can grow leftward per language without moving
+               the select. It is OUTSIDE every dimmed region on purpose. -->
+          <div class="toggle-row grain-toggle-row">
             <button class="toggle" id="toggle-freeze" data-param="freeze"
                     data-i18n-aria="freeze" aria-label="Freeze"><span data-i18n="label.toggleFreeze">Freeze</span><span class="fleuron-corner">&#10086;</span></button>
+            <div class="mode-cell" data-param="grainMode">
+              <span class="mode-label" data-i18n="label.knobMode">Mode</span>
+              <select class="combo" id="combo-grainMode"
+                      data-i18n-aria="grainMode" aria-label="Grain Mode"></select>
+            </div>
+          </div>
+        </section>
+
+        <!-- v2.0.0 — Pulsar. Dimmed (never hidden) while Mode is Cloud, so every
+             pinned width holds; the title stays at full ink. -->
+        <section class="group group-pulsar" id="group-pulsar">
+          <h2 class="group-title" data-i18n="label.groupPulsar">Pulsar</h2>
+          <div class="pulsar-controls" id="pulsar-controls">
+            <div class="knob-row">
+              <div class="knob-cell" data-param="formant">
+                <div class="knob knob-sm" id="knob-formant" data-i18n-aria="formant"><div class="knob-stem"></div></div>
+                <div class="knob-label" data-i18n="label.knobFormant">Formant</div>
+                <div class="knob-value" id="val-formant">4.00&times;</div>
+              </div>
+              <div class="knob-cell" data-param="fmDepth">
+                <div class="knob knob-sm" id="knob-fmDepth" data-i18n-aria="fmDepth"><div class="knob-stem"></div></div>
+                <div class="knob-label" data-i18n="label.knobFmDepth">FM Depth</div>
+                <div class="knob-value" id="val-fmDepth">0%</div>
+              </div>
+              <div class="knob-cell" data-param="fmRatio">
+                <div class="knob knob-sm" id="knob-fmRatio" data-i18n-aria="fmRatio"><div class="knob-stem"></div></div>
+                <div class="knob-label" data-i18n="label.knobFmRatio">FM Ratio</div>
+                <div class="knob-value" id="val-fmRatio">0.50&times;</div>
+              </div>
+              <div class="knob-cell" data-param="glisson">
+                <div class="knob knob-sm" id="knob-glisson" data-i18n-aria="glisson"><div class="knob-stem"></div></div>
+                <div class="knob-label" data-i18n="label.knobGlisson">Glisson</div>
+                <div class="knob-value" id="val-glisson">+0.0 st</div>
+              </div>
+            </div>
+            <div class="knob-row pulsar-select-row">
+              <div class="select-cell" data-param="pulsaretSource">
+                <select class="combo" id="combo-pulsaretSource"
+                        data-i18n-aria="pulsaretSource" aria-label="Pulsaret"></select>
+                <div class="knob-label" data-i18n="label.knobPulsaret">Pulsaret</div>
+              </div>
+              <div class="select-cell" data-param="pulseMask">
+                <select class="combo" id="combo-pulseMask"
+                        data-i18n-aria="pulseMask" aria-label="Pulse Mask"></select>
+                <div class="knob-label" data-i18n="label.knobMask">Mask</div>
+              </div>
+            </div>
           </div>
         </section>
 

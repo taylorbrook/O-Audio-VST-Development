@@ -116,6 +116,17 @@ Every control is annotated with a short, plain-language tooltip (what overlap-ad
 - **Polyphony:** modest (proposing 8); confirm in research against the grain budget.
 - **Platform:** WebView UI (JUCE 8) for the four live visualizations + tooltips, consistent with the Ouaricon suite. Must set Windows WebView2 flags (`NEEDS_WEBVIEW2 TRUE` + `JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1`) per project standards.
 
+## Pulsar Mode (v2.0.0)
+
+A second synthesis mode beside the grain cloud: **pulsar synthesis** (Roads, *Microsound* §3.6). A **Mode** switch (Cloud / Pulsar) in the Grain group picks the engine; Cloud is unchanged and renders bit-identically to 1.9.0.
+
+- **The idea it teaches:** pitch and formant are two separate rates. The key sets the **pulse rate** f_p (the pitch you hear); each pulse fires one short **pulsaret**, and its length sets the **formant** (the vowel-like colour). **Formant** (1–32×) is f_formant / f_p, so raising it shortens the pulsaret and moves the formant up while the pitch stays put.
+- **Pulsaret content:** one **sine** cycle, or one period of the loaded **sample**, squeezed into the pulsaret.
+- **Extras:** **Pulse Mask** mutes 1 of every N pulses (a stable f_p / N subharmonic); Grain Skip drops pulses at random; **FM Depth / FM Ratio** modulate the pulse rate (whole-number ratios leave the sound unchanged by construction; 0.5 is the default); **Glisson** glides each pulsaret's content up or down across its own length.
+- **Clean at the top of the keyboard:** the formant's highest rate is held under 0.10 · fs, short pulsarets switch to a Blackman-Harris window, and onsets are placed between samples, so nothing folds back.
+- **Lessons:** two new concept lessons, "Pulsar Vowel" and "Subharmonic Mask" (10 in all).
+- In Pulsar, Grain Size, Density, Scatter, Vel → Density and Grain Tilt do nothing and are dimmed.
+
 ## Out of Scope (v1.0)
 
 - **Spectral processing (STFT freeze / blur / filter)** — the spectral half of the wk08 session. Deliberately deferred to a future sibling (**O-simpleSpectral**) to preserve the strict one-concept discipline of the trilogy; the title is "Grain."

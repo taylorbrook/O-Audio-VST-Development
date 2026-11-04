@@ -225,7 +225,10 @@
 // the host automation contract and stay English under D-01; translating the
 // page without translating the automation lane would make the page and the host
 // disagree about what the plugin is set to. They are not authored in the markup
-// and so are not in this table at all.
+// and so are not in this table at all. v2.0.0 adds three more menus under the
+// same rule — combo-grainMode (Cloud / Pulsar), combo-pulsaretSource (Sine /
+// Sample) and combo-pulseMask (Off, 2…8) — and lang-select's body now names
+// all five parameter menus.
 //
 // ALL FRENCH IS MACHINE-DRAFTED AND FLAGGED reviewed: false. No native speaker
 // has read it. node scripts/check-i18n.js prints the worklist.
@@ -251,12 +254,12 @@ export const I18N = Object.freeze({
     },
     'lang-select': {
         en: { t: "Language",
-              b: "The language of the labels on this page and of this hover help. Value readouts, the Source and Shape menus, and the names of your presets and samples stay as they are." },
+              b: "The language of the labels on this page and of this hover help. Value readouts, the Source, Shape, Mode, Pulsaret and Mask menus, and the names of your presets and samples stay as they are." },
         fr: { t: "Langue",
-              b: "La langue des libellés de cette page et de ces infobulles. Les valeurs affichées, les menus Source et Forme ainsi que les noms de vos préréglages et échantillons restent tels quels.",
+              b: "La langue des libellés de cette page et de ces infobulles. Les valeurs affichées, les menus Source, Forme, Mode, Pulsaret et Masque ainsi que les noms de vos préréglages et échantillons restent tels quels.",
               reviewed: false },
         'zh-Hans': { t: "语言",
-                     b: "本页标签与这些悬停帮助所用的语言。数值读数、源与形状两个菜单，以及您的预设和样本名称保持原样。",
+                     b: "本页标签与这些悬停帮助所用的语言。数值读数、源、形状、模式、脉冲子和屏蔽这几个菜单，以及您的预设和样本名称保持原样。",
                      reviewed: 'mt' },
     },
     'help-toggle': {
@@ -578,7 +581,83 @@ export const I18N = Object.freeze({
                      reviewed: 'bt' },
     },
 
-    // ── Concept presets (the 8-stop tour) ───────────────────────────────────
+    // ── Pulsar mode (v2.0.0) ───────────────────────────────────────────────
+    // The Mode / Pulsaret / Mask MENUS stay English like Source and Shape (the
+    // automation-lane rule in the header); the bodies below name their options
+    // by those English strings — Cloud, Pulsar, Sine, Sample, Off — and name
+    // every OTHER control by its face in the page's own language.
+    grainMode: {
+        en: { t: "Grain Mode",
+              b: "Cloud is the granular engine: grains sliced from the source at the Density rate. Pulsar turns each key into a pulse train at the note’s pitch, and every pulse fires one short pulsaret; Formant sets how much of each pulse period it fills. In Pulsar, Size, Density, Scatter and Vel→Density are ignored and Tilt is inert, so they dim." },
+        fr: { t: "Mode de grain",
+              b: "Cloud est le moteur granulaire\u00a0: des grains découpés dans la source au rythme de la densité. Pulsar fait de chaque touche un train d’impulsions à la hauteur de la note, et chaque impulsion déclenche un court pulsaret\u00a0; Formant règle la part de chaque période qu’il occupe. En Pulsar, Taille, Densité, Dispersion et Vél.→Densité sont ignorés et Inclinaison reste sans effet\u00a0: ils s’estompent.",
+              reviewed: false },
+        'zh-Hans': { t: "颗粒模式",
+                     b: "Cloud 是颗粒引擎：按密度的速率从源中切出颗粒。Pulsar 把每个琴键变成一串与音符同音高的脉冲，每个脉冲触发一个短促的脉冲子；共振峰决定它占满每个脉冲周期的多少。在 Pulsar 中，尺寸、密度、时间散布和力度→密度不起作用，倾斜也无效，所以它们会变暗。",
+                     reviewed: 'mt' },
+    },
+    formant: {
+        en: { t: "Formant",
+              b: "The pulsaret’s own frequency as a multiple of the pulse rate, 1–32×. At 1× each pulsaret fills its whole pulse period; at 8× it lasts an eighth of it and its energy sits around eight times the note. That peak is the formant, and it follows the key at a fixed ratio. The formant stops rising at 0.10 × the sample rate (4.41\u00a0kHz at 44.1\u00a0kHz): above that, it no longer climbs, which keeps the top of the keyboard free of aliasing." },
+        fr: { t: "Formant",
+              b: "La fréquence propre du pulsaret, en multiple de la cadence des impulsions, 1–32×. À 1× chaque pulsaret remplit toute sa période\u00a0; à 8× il en dure un huitième et son énergie se place vers huit fois la note. Ce pic est le formant, et il suit la touche selon un rapport fixe. Le formant cesse de monter à 0,10 × la fréquence d’échantillonnage (4,41\u00a0kHz à 44,1\u00a0kHz)\u00a0: au-delà, il ne grimpe plus, ce qui garde le haut du clavier sans repliement.",
+              reviewed: false },
+        'zh-Hans': { t: "共振峰",
+                     b: "脉冲子自身的频率，以脉冲速率的倍数表示，1–32×。1× 时每个脉冲子占满整个脉冲周期；8× 时它只持续八分之一，能量集中在音符频率的八倍附近。这个峰就是共振峰，它以固定比例跟随琴键。共振峰最高到采样率的 0.10 倍（44.1 kHz 时为 4.41 kHz）：超过之后不再升高，这让键盘高端不产生混叠。",
+                     reviewed: 'mt' },
+    },
+    pulsaretSource: {
+        en: { t: "Pulsaret",
+              b: "What each pulse contains. Sine is one cycle of a sine wave, the classic pulsar tone, and needs no sample. Sample plays one short slice of the loaded source from the read head, so Position, Scan, Freeze and Pos Spray shape it. A change takes effect from the next pulse." },
+        fr: { t: "Pulsaret",
+              b: "Le contenu de chaque impulsion. Sine est un cycle de sinusoïde, le timbre pulsar classique, et ne demande aucun échantillon. Sample joue une courte tranche de la source chargée à partir de la tête de lecture\u00a0: Position, Balayage, Gel et Dispersion position la façonnent. Un changement prend effet à l’impulsion suivante.",
+              reviewed: false },
+        'zh-Hans': { t: "脉冲子",
+                     b: "每个脉冲里装的内容。Sine 是一个周期的正弦波，即经典的脉冲星音色，不需要样本。Sample 从读取头处播放已载入源的一小段，所以位置、扫描、冻结和位置散布都会塑造它。更改从下一个脉冲起生效。",
+                     reviewed: 'mt' },
+    },
+    pulseMask: {
+        en: { t: "Pulse Mask",
+              b: "Mutes one pulse in every N, always the same one, so the gap repeats every N pulses and a subharmonic appears at the pulse rate ÷ N. 2 adds the octave below the note; 3 adds a note an octave and a fifth below. Off plays every pulse." },
+        fr: { t: "Masque d’impulsions",
+              b: "Coupe une impulsion sur N, toujours la même\u00a0: le trou revient toutes les N impulsions et une sous-harmonique apparaît à la cadence ÷ N. 2 ajoute l’octave inférieure\u00a0; 3 ajoute une note une octave et une quinte plus bas. Off joue toutes les impulsions.",
+              reviewed: false },
+        'zh-Hans': { t: "脉冲屏蔽",
+                     b: "每 N 个脉冲中静音一个，并且总是同一个位置，于是这个空缺每 N 个脉冲重复一次，在脉冲速率 ÷ N 处出现一个次谐波。2 加上低八度；3 加上低一个八度再低五度的音。Off 时所有脉冲都发声。",
+                     reviewed: 'mt' },
+    },
+    fmDepth: {
+        en: { t: "FM Depth",
+              b: "Wobbles the pulse rate with a sine at FM Ratio × the pulse rate, 0–100\u00a0%. The average rate stays put, so the note keeps its pitch while the pulse spacing turns uneven and sidebands appear. At 0\u00a0% the pulses are evenly spaced." },
+        fr: { t: "Profondeur FM",
+              b: "Fait onduler la cadence des impulsions avec une sinusoïde à Ratio FM × la cadence, 0–100\u00a0%. La cadence moyenne ne bouge pas\u00a0: la note garde sa hauteur pendant que l’espacement des impulsions devient inégal et que des bandes latérales apparaissent. À 0\u00a0% les impulsions sont régulièrement espacées.",
+              reviewed: false },
+        'zh-Hans': { t: "调频深度",
+                     b: "用一个频率为调频比率 × 脉冲速率的正弦波来摆动脉冲速率，0–100%。平均速率保持不变，所以音符保持音高，而脉冲间距变得不均匀，出现边带。0% 时脉冲间距均匀。",
+                     reviewed: 'mt' },
+    },
+    fmRatio: {
+        en: { t: "FM Ratio",
+              b: "The FM sine’s frequency as a multiple of the pulse rate, 0.25–8×. Whole-number ratios (1, 2, 3…) do nothing by construction: the sine then repeats in step with every pulse, so the pulses stay evenly spaced. Use a fractional ratio such as 0.5 or 1.5 to hear FM; 0.5, the default, adds a line an octave below the note." },
+        fr: { t: "Ratio FM",
+              b: "La fréquence de la sinusoïde de FM, en multiple de la cadence des impulsions, 0,25–8×. Les rapports entiers (1, 2, 3…) n’ont aucun effet par construction\u00a0: la sinusoïde se répète alors au pas de chaque impulsion, si bien que les impulsions restent régulièrement espacées. Prenez un rapport fractionnaire comme 0,5 ou 1,5 pour entendre la FM\u00a0; 0,5, la valeur par défaut, ajoute une raie une octave sous la note.",
+              reviewed: false },
+        'zh-Hans': { t: "调频比率",
+                     b: "调频正弦波的频率，以脉冲速率的倍数表示，0.25–8×。整数比率（1、2、3…）按其构造不起作用：这时正弦波与每个脉冲同步重复，脉冲间距保持均匀。要听到调频效果，请用 0.5 或 1.5 这样的分数比率；默认值 0.5 会在音符下方一个八度处加上一条谱线。",
+                     reviewed: 'mt' },
+    },
+    glisson: {
+        en: { t: "Glisson",
+              b: "Sweeps the pitch inside each pulsaret, −24…+24\u00a0st from its start to its end. An upward glisson pushes the formant up; a downward one pulls it down. Large upward values lower the top of the keyboard: the formant ceiling applies to the end of the sweep, so at +24\u00a0st the highest keys stop rising above about 1.1\u00a0kHz at 44.1\u00a0kHz." },
+        fr: { t: "Glisson",
+              b: "Fait glisser la hauteur à l’intérieur de chaque pulsaret, −24…+24\u00a0demi-tons du début à la fin. Un glisson montant pousse le formant vers le haut, un glisson descendant le tire vers le bas. Les grandes valeurs montantes abaissent le haut du clavier\u00a0: le plafond du formant s’applique à la fin du glissement, si bien qu’à +24\u00a0demi-tons les touches les plus aiguës cessent de monter au-delà d’environ 1,1\u00a0kHz à 44,1\u00a0kHz.",
+              reviewed: false },
+        'zh-Hans': { t: "滑奏",
+                     b: "在每个脉冲子内部滑动音高，从开头到结尾 −24…+24 半音。向上的滑奏把共振峰往上推，向下的则往下拉。较大的向上值会降低键盘的上限：共振峰上限作用于滑动的终点，所以在 +24 半音时，最高的几个键在约 1.1 kHz（44.1 kHz 采样率下）以上就不再升高。",
+                     reviewed: 'mt' },
+    },
+
+    // ── Concept presets (the 10-stop tour; 8 Cloud + 2 Pulsar since v2.0.0) ─
     lessonSingleGrain: {
         en: { t: "Single Grain",
               b: "One long grain fired slowly — density at the floor so grains stay separated. Hear a single slice on its own: the atom of granular synthesis." },
@@ -659,6 +738,26 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: "矩形击声",
                      b: "这堂课粗糙的一端：矩形窗是平顶的，两端各只有 1 ms 的保护，所以每个颗粒都突兀地开始和结束。稀疏的颗粒让每一个生硬的边缘独自呈现，和 Hann 比一比，就能听出窗口为什么重要。",
                      reviewed: 'bt' },
+    },
+    lessonPulsarVowel: {
+        en: { t: "Pulsar Vowel",
+              b: "Pulsar mode with sine pulsarets at Formant 5×: every pulse is a short sine burst at five times the note. The key sets the pitch and the formant rides along at that ratio, a buzzy, vowel-like tone. Turn Formant to change the vowel." },
+        fr: { t: "Voyelle pulsar",
+              b: "Le mode Pulsar avec des pulsarets sinusoïdaux à Formant 5×\u00a0: chaque impulsion est une courte salve de sinusoïde à cinq fois la note. La touche fixe la hauteur et le formant la suit à ce rapport, un timbre bourdonnant proche d’une voyelle. Tournez Formant pour changer de voyelle.",
+              reviewed: false },
+        'zh-Hans': { t: "脉冲星元音",
+                     b: "Pulsar 模式，正弦脉冲子，共振峰 5×：每个脉冲都是一段频率为音符五倍的短促正弦。琴键决定音高，共振峰按这个比例跟随，形成一种带嗡鸣、像元音的音色。转动共振峰即可改变元音。",
+                     reviewed: 'mt' },
+    },
+    lessonSubharmonicMask: {
+        en: { t: "Subharmonic Mask",
+              b: "Pulsar mode at Formant 3× with Mask 3: every third pulse is muted, so a subharmonic an octave and a fifth below the note joins it. Try Mask 2 for the octave below." },
+        fr: { t: "Masque sous-harmonique",
+              b: "Le mode Pulsar à Formant 3× avec Masque 3\u00a0: une impulsion sur trois est coupée, si bien qu’une sous-harmonique une octave et une quinte sous la note s’y ajoute. Essayez Masque 2 pour l’octave inférieure.",
+              reviewed: false },
+        'zh-Hans': { t: "次谐波屏蔽",
+                     b: "Pulsar 模式，共振峰 3×，屏蔽 3：每三个脉冲静音一个，于是在音符下方一个八度加五度处多出一个次谐波。试试屏蔽 2，得到低八度。",
+                     reviewed: 'mt' },
     },
 
     // ── v1.9.0: user presets + the sample library (kept separate) ───────────
@@ -757,8 +856,11 @@ export const LABELS = Object.freeze({
 
     // ── Header ──────────────────────────────────────────────────────────────
     'label.subtitle': {
-        en: { t: "Granular Synthesizer · A Field Guide" },
-        fr: { t: "Synthétiseur granulaire · un guide de terrain", reviewed: true },
+        // v2.0.0: no-break space BEFORE the middot, so the strapline (two
+        // lines in every Latin arm since the lesson bar widened) breaks after
+        // the dot and never opens line 2 with it.
+        en: { t: "Granular Synthesizer\u00a0· A Field Guide" },
+        fr: { t: "Synthétiseur granulaire\u00a0· un guide de terrain", reviewed: true },
         'zh-Hans': { t: "颗粒合成器 · 实地指南", reviewed: 'bt' },
     },
     'aria.presetTour': {
@@ -807,6 +909,19 @@ export const LABELS = Object.freeze({
         en: { t: "Rect Click" },
         fr: { t: "Clic rectangulaire", reviewed: true },
         'zh-Hans': { t: "矩形击声", reviewed: 'bt' },
+    },
+    'label.tourPulsarVowel': {
+        en: { t: "Pulsar Vowel" },
+        fr: { t: "Voyelle pulsar", reviewed: false },
+        'zh-Hans': { t: "脉冲星元音", reviewed: 'mt' },
+    },
+    // The French face is the glossary's width alternate: the root "Masque
+    // sous-harmonique" measures 126.89px against a 107.2px chip (the English
+    // "Async Cloud" face under an "Asynchronous Cloud" tip is the precedent).
+    'label.tourSubharmonicMask': {
+        en: { t: "Subharmonic Mask" },
+        fr: { t: "Sous-harmonique", reviewed: false },
+        'zh-Hans': { t: "次谐波屏蔽", reviewed: 'mt' },
     },
     'label.tourCaption': {
         en: { t: "Hover any control for an explanation · pick a concept preset to hear it isolated." },
@@ -1023,6 +1138,47 @@ export const LABELS = Object.freeze({
         fr: { t: "Omission", reviewed: false },
         'zh-Hans': { t: "跳过", reviewed: 'mt' },
     },
+    // ── v2.0.0: Grain Mode + the Pulsar group ──────────────────────────────
+    'label.knobMode': {
+        en: { t: "Mode" },
+        fr: { t: "Mode", sameAsEn: true, reviewed: false },
+        'zh-Hans': { t: "模式", reviewed: 'mt' },
+    },
+    'label.groupPulsar': {
+        en: { t: "Pulsar" },
+        fr: { t: "Pulsar", sameAsEn: true, reviewed: false },
+        'zh-Hans': { t: "脉冲星", reviewed: 'mt' },
+    },
+    'label.knobFormant': {
+        en: { t: "Formant" },
+        fr: { t: "Formant", sameAsEn: true, reviewed: false },
+        'zh-Hans': { t: "共振峰", reviewed: 'mt' },
+    },
+    'label.knobFmDepth': {
+        en: { t: "FM Depth" },
+        fr: { t: "Prof. FM", reviewed: false },
+        'zh-Hans': { t: "调频深度", reviewed: 'mt' },
+    },
+    'label.knobFmRatio': {
+        en: { t: "FM Ratio" },
+        fr: { t: "Ratio FM", reviewed: false },
+        'zh-Hans': { t: "调频比率", reviewed: 'mt' },
+    },
+    'label.knobGlisson': {
+        en: { t: "Glisson" },
+        fr: { t: "Glisson", sameAsEn: true, reviewed: false },
+        'zh-Hans': { t: "滑奏", reviewed: 'mt' },
+    },
+    'label.knobPulsaret': {
+        en: { t: "Pulsaret" },
+        fr: { t: "Pulsaret", sameAsEn: true, reviewed: false },
+        'zh-Hans': { t: "脉冲子", reviewed: 'mt' },
+    },
+    'label.knobMask': {
+        en: { t: "Mask" },
+        fr: { t: "Masque", reviewed: false },
+        'zh-Hans': { t: "屏蔽", reviewed: 'mt' },
+    },
     'label.groupEnv': {
         en: { t: "Amplitude Envelope" },
         fr: { t: "Enveloppe d’amplitude", reviewed: true },
@@ -1181,6 +1337,20 @@ export const LABELS = Object.freeze({
         en: { t: "Rect Click — the rough end of the lesson: a rectangular window is flat with only a 1\u00a0ms guard at each edge, so every grain starts and stops abruptly. Sparse grains let each hard edge stand alone. Compare with Hann to hear why windows matter." },
         fr: { t: "Clic rectangulaire — l’extrémité rugueuse de la leçon\u00a0: une fenêtre rectangulaire est plate avec seulement 1\u00a0ms de garde à chaque bord, donc chaque grain démarre et s’arrête brutalement. Des grains clairsemés laissent chaque bord dur isolé. Comparez avec Hann pour entendre pourquoi les fenêtres comptent.", reviewed: true },
         'zh-Hans': { t: "矩形击声 — 这堂课粗糙的一端：矩形窗是平顶的，两端各只有 1 ms 的保护，所以每个颗粒都突兀地开始和结束。稀疏的颗粒让每一个生硬的边缘独自呈现。和 Hann 比一比，就能听出窗口为什么重要。", reviewed: 'bt' },
+    },
+    // v2.0.0 captions, MEASURED NOWRAP on the live #tourCaption (846px box):
+    // Pulsar Vowel en 736.3 / fr 819.4 / zh 660.5; Subharmonic Mask en 721.1 /
+    // fr 816.3 / zh 619.2. The first French drafts were 840.5 and 874.7 (the
+    // second wrapped and moved the rack 13.2px in French only).
+    'label.captionPulsarVowel': {
+        en: { t: "Pulsar Vowel — sine pulsarets at Formant 5×. The key sets the pitch and the formant follows at that ratio: a buzzy, vowel-like tone. Turn Formant to change the vowel." },
+        fr: { t: "Voyelle pulsar — pulsarets sinusoïdaux à Formant 5×. La touche fixe la hauteur, le formant la suit à ce rapport\u00a0: un timbre bourdonnant de voyelle. Tournez Formant\u00a0: la voyelle change.", reviewed: false },
+        'zh-Hans': { t: "脉冲星元音 — 正弦脉冲子，共振峰 5×。琴键决定音高，共振峰按此比例跟随：一种带嗡鸣、像元音的音色。转动共振峰来改变元音。", reviewed: 'mt' },
+    },
+    'label.captionSubharmonicMask': {
+        en: { t: "Subharmonic Mask — Pulsar at Formant 3× with Mask 3: every third pulse is muted, adding a subharmonic an octave and a fifth below. Try Mask 2 for the octave." },
+        fr: { t: "Masque sous-harmonique — Pulsar, Formant 3×, Masque 3\u00a0: une impulsion sur trois est coupée, d’où une sous-harmonique une octave et une quinte plus bas. Masque 2 donne l’octave.", reviewed: false },
+        'zh-Hans': { t: "次谐波屏蔽 — Pulsar，共振峰 3×，屏蔽 3：每三个脉冲静音一个，加入低一个八度加五度的次谐波。试试屏蔽 2 得到低八度。", reviewed: 'mt' },
     },
 
     // ── v1.9.0: user presets + the sample library ───────────────────────────
@@ -1341,7 +1511,7 @@ export const I18N_EXEMPT = [
 // two select cells are addressed by data-param, which MOVED up from the inner
 // .knob div (nothing read it there — no JS, no CSS, no gate); the two toggles
 // gained one; the four visualization cells and the readout strip gained an id;
-// the eight lesson buttons are addressed by the data-preset they already
+// the lesson buttons (ten since v2.0.0) are addressed by the data-preset they already
 // carried, which is the C++ preset name and is never localized.
 //
 // The selector on a knob cell must find the CELL, not the .knob inside it —
@@ -1383,6 +1553,14 @@ export const TIP_BINDINGS = [
     ['[data-param="windowTaper"]',                   'windowTaper'],
     ['[data-param="grainTilt"]',                     'grainTilt'],
 
+    ['[data-param="grainMode"]',                     'grainMode'],          // v2.0.0
+    ['[data-param="formant"]',                       'formant'],
+    ['[data-param="fmDepth"]',                       'fmDepth'],
+    ['[data-param="fmRatio"]',                       'fmRatio'],
+    ['[data-param="glisson"]',                       'glisson'],
+    ['[data-param="pulsaretSource"]',                'pulsaretSource'],
+    ['[data-param="pulseMask"]',                     'pulseMask'],
+
     ['[data-param="pitchSpray"]',                    'pitchSpray'],
     ['[data-param="positionSpray"]',                 'positionSpray'],
     ['[data-param="scatter"]',                       'scatter'],
@@ -1407,6 +1585,8 @@ export const TIP_BINDINGS = [
     ['.tour-btn[data-preset="Asynchronous Cloud"]',  'lessonAsyncCloud'],
     ['.tour-btn[data-preset="Granular Fire"]',       'lessonGranularFire'],
     ['.tour-btn[data-preset="Rect Click"]',          'lessonRectClick'],
+    ['.tour-btn[data-preset="Pulsar Vowel"]',        'lessonPulsarVowel'],      // v2.0.0
+    ['.tour-btn[data-preset="Subharmonic Mask"]',    'lessonSubharmonicMask'],  // v2.0.0
 ];
 
 export function tr(key, lang, vars) {

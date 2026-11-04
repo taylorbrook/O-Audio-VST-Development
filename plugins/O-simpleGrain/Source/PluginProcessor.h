@@ -93,6 +93,16 @@ namespace OSimpleGrain::ParamIDs
 
     // Output
     inline constexpr auto outputLevel    = "outputLevel";    // master trim (dB)
+
+    // Pulsar mode (v2.0.0) — appended with ParameterID version hint 2. Cloud
+    // (grainMode 0, the default) never reads any of them.
+    inline constexpr auto grainMode      = "grainMode";      // choice: Cloud / Pulsar
+    inline constexpr auto formant        = "formant";        // 1–32 x (f_formant / f_pulse = 1 / duty)
+    inline constexpr auto pulsaretSource = "pulsaretSource"; // choice: Sine / Sample
+    inline constexpr auto pulseMask      = "pulseMask";      // choice: Off, 2..8 (mute 1 of N)
+    inline constexpr auto fmDepth        = "fmDepth";        // 0–100 % -> linear rate deviation 0..0.95
+    inline constexpr auto fmRatio        = "fmRatio";        // 0.25–8 x f_pulse
+    inline constexpr auto glisson        = "glisson";        // −24–+24 st across one pulsaret
 }
 
 //==============================================================================
@@ -239,8 +249,8 @@ public:
     juce::uint32 getSourceVersion() const noexcept { return sourceVersion.load (std::memory_order_relaxed); }
 
     //==========================================================================
-    // Concept-preset tour (Stage 3.3 / FUNC-06). Eight factory snapshots, each
-    // isolating ONE granular concept. Applied as a full APVTS snapshot via
+    // Concept-preset tour (Stage 3.3 / FUNC-06). Ten factory snapshots (eight
+    // Cloud + two Pulsar lessons since v2.0.0), each isolating ONE concept. Applied as a full APVTS snapshot via
     // setValueNotifyingHost so (a) the host records automation + state-save, and
     // (b) the WebView relays/attachments sync every knob/combo/toggle back to the
     // page automatically — no DOM poking. The editor registers an
@@ -308,6 +318,13 @@ public:
     static constexpr int kRootNote         = 60;    // C3 — key-track reference
     static constexpr int kMaxSourceSeconds = 10;    // source-length cap
     static constexpr int kWindowLutSize    = 2048;  // precomputed window LUT length
+
+    // v2.0.0 Pulsar: the highest content rate a pulsaret may reach, as a fraction
+    // of fs. A one-cycle Blackman-Harris pulsaret has content above -60 dB out to
+    // 4.61 x its formant, so f_form <= fs / (2 x 4.61) = 0.108 fs keeps every
+    // component above -60 dB from folding; 0.10 leaves ~1 dB of margin. Applied
+    // to formant x glisson x pitch-spray ceiling (RESEARCH.md, Measurements).
+    static constexpr double kFormantCeilRatio = 0.10;
 
 private:
     //==========================================================================
@@ -503,6 +520,15 @@ private:
     // overlapping clouds stay tamed below clip (see processBlock).
     juce::SmoothedValue<float> outputGain { 1.0f };
 
+    // v2.0.0 — pulsarets render into their own bus and take the output trim
+    // alone (no density normalization). Keeping the two buses apart means a mode
+    // switch never ramps one gain over the other kind's draining grains. Sized in
+    // prepareToPlay (never on the audio thread); a larger host block sends the
+    // excess pulsaret samples to the main bus.
+    juce::AudioBuffer<float>   pulsarBus;
+    bool                       pulsarBusUsed = false;
+    juce::SmoothedValue<float> pulsarGain { 1.0f };
+
     // Window power relative to Hann (μ₂/μ₂_Hann) for the normalization, cached
     // per (shape, taperEnd) — exactly 1.0f for Hann (v1.5.5).
     int   normShapeCache    = -1;
@@ -614,6 +640,14 @@ private:
     std::atomic<float>* ampReleaseParam    = nullptr;
     std::atomic<float>* adsrEnabledParam   = nullptr;
     std::atomic<float>* outputLevelParam   = nullptr;
+    // v2.0.0 Pulsar mode
+    std::atomic<float>* grainModeParam      = nullptr;
+    std::atomic<float>* formantParam        = nullptr;
+    std::atomic<float>* pulsaretSourceParam = nullptr;
+    std::atomic<float>* pulseMaskParam      = nullptr;
+    std::atomic<float>* fmDepthParam        = nullptr;
+    std::atomic<float>* fmRatioParam        = nullptr;
+    std::atomic<float>* glissonParam        = nullptr;
 
     //==========================================================================
     // Atomic (CR-02): written by prepareToPlay (host-controlled thread), read

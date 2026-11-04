@@ -19,9 +19,9 @@
 */
 // ============================================================================
 // O-simpleGrain — WebView UI controller (Phase 3.1)
-// Binds all 19 APVTS params two-way (15 sliders + 2 combos + 2 toggles), wires the
-// source drag-drop + "Load…" picker, and sets up DPR-aware canvas placeholders for
-// the four visualizations (real rendering + viz-event subscriptions land in 3.2).
+// Binds every APVTS param two-way (v2.0.0: 29 — 22 sliders + 5 combos + 2
+// toggles; 19 at Phase 3.1), wires the source drag-drop + "Load…" picker, and
+// sets up DPR-aware canvas placeholders for the four visualizations (real rendering + viz-event subscriptions land in 3.2).
 //
 // NOTE: getSliderState / getComboBoxState / getToggleState / getNativeFunction live
 // on the `Juce` ES-module namespace. The low-level backend (window.__JUCE__.backend)
@@ -154,8 +154,10 @@ const KNOB_IDS = [
   "pitchSpray", "positionSpray", "scatter", "grainPitch", "panSpray", "velToDensity",
   "ampAttack", "ampDecay", "ampSustain", "ampRelease",
   "outputLevel", "windowTaper", "grainSkip", "grainTilt",
+  "formant", "fmDepth", "fmRatio", "glisson",                // v2.0.0 Pulsar
 ];
-const COMBO_IDS = ["sourceSample", "windowShape"];
+const COMBO_IDS = ["sourceSample", "windowShape",
+                   "grainMode", "pulsaretSource", "pulseMask"];   // v2.0.0
 const TOGGLE_IDS = ["freeze", "adsrEnabled"];
 
 // ── Display formatters (keyed by param id) — receive the *scaled* value ─────
@@ -163,6 +165,9 @@ const fmtSec = (s) => (s < 1 ? `${Math.round(s * 1000)} ms` : `${s.toFixed(2)} s
 const fmtPct = (v) => `${Math.round(v)}%`;            // value already 0..100
 const fmtPct01 = (v) => `${Math.round(v * 100)}%`;    // value 0..1
 const fmtSt = (v) => `${v >= 0 ? "+" : ""}${v.toFixed(1)} st`;
+// v2.0.0 — multiplier readouts (Formant 1–32×, FM Ratio 0.25–8×). Two decimals
+// below 10 so 0.50× / 1.50× (the ratios that carry FM) read exactly.
+const fmtMul = (v) => `${v < 10 ? v.toFixed(2) : v.toFixed(1)}×`;
 const FORMAT = {
   grainSize: (v) => `${Math.round(v)} ms`,
   windowTaper: fmtPct,
@@ -180,6 +185,10 @@ const FORMAT = {
   ampAttack: fmtSec, ampDecay: fmtSec, ampRelease: fmtSec,
   ampSustain: fmtPct01,
   outputLevel: (v) => `${v.toFixed(1)} dB`,
+  formant: fmtMul,                                          // v2.0.0
+  fmDepth: fmtPct,
+  fmRatio: fmtMul,
+  glisson: fmtSt,
 };
 
 // ── Double-click value entry + Alt/Option-click reset (v1.5.2) ─────────────
@@ -349,6 +358,7 @@ FORMAT.scan.parse = parseDirect;          // stored -200..200 (%), reads signed 
 FORMAT.grainTilt.parse = parseDirect;     // stored -100..100 (%), reads signed %
 FORMAT.pitchSpray.parse = parseDirect;    // 0..12 st
 FORMAT.outputLevel.parse = parseDirect;   // -60..0 dB ("-inf" = floor)
+fmtMul.parse = parseDirect;               // v2.0.0 formant 1..32, fmRatio 0.25..8 (× ignored)
 
 // ── Tooltip copy ────────────────────────────────────────────────────────────
 // MOVED to js/i18n.js at v1.3.0. Through v1.2.1 the copy lived in a `TIPS`
@@ -556,6 +566,42 @@ function bindToggle(id) {
   refresh();
 
   el.addEventListener("click", () => { st.setValue(!st.getValue()); refresh(); });
+}
+
+// ── Grain Mode dimming (v2.0.0) ─────────────────────────────────────────────
+// Pulsar ignores Size, Density, Scatter and Vel→Density, and Grain Tilt is
+// inert there; Cloud never reads the Pulsar group. The inactive side is DIMMED
+// and locked (the taper-inactive / env-bypassed treatment), never hidden, so
+// every pinned width and the rail's geometry hold in both modes.
+//
+// Driven ONLY by the grainMode combo state's own events. The relay re-sends
+// that state whenever the parameter moves — a click, host automation, a lesson,
+// a user preset, a session restore — so there is no one-shot push here to go
+// stale (pattern_webview_one_shot_state_push_stale_on_preset_load).
+const CLOUD_ONLY_PARAMS = ["grainSize", "density", "scatter", "velToDensity", "grainTilt"];
+
+function isPulsarMode() {
+  const st = comboState.grainMode;
+  return !!st && st.getChoiceIndex() === 1;
+}
+
+function applyModeDimming() {
+  const pulsar = isPulsarMode();
+  for (const id of CLOUD_ONLY_PARAMS) {
+    const cell = document.querySelector(`.knob-cell[data-param="${id}"]`);
+    if (cell) cell.classList.toggle("mode-inactive", pulsar);
+  }
+  const pc = document.getElementById("pulsar-controls");
+  if (pc) pc.classList.toggle("mode-inactive", !pulsar);
+}
+
+function bindModeDimming() {
+  const st = comboState.grainMode;
+  if (!st) return;
+  const refresh = () => { applyModeDimming(); drawWindowInset(); };
+  st.valueChangedEvent.addListener(refresh);
+  st.propertiesChangedEvent.addListener(refresh);
+  applyModeDimming();
 }
 
 // ── Toast ────────────────────────────────────────────────────────────────────
@@ -788,6 +834,11 @@ function drawCloud(f) {
   for (let i = 0; i < grains.length; i++) {
     const g = grains[i];                 // [readPosNorm, sizeMs, pitchSemis, pan, spawn]
     const readPos = g[0], sizeMs = g[1], pitch = g[2], pan = g[3];
+    // v2.0.0: pulsaret events carry sub-ms sizes and pitches far outside the
+    // ±36 st field. Both are clamped below; a non-finite field is skipped
+    // rather than handed to arc().
+    if (!Number.isFinite(readPos) || !Number.isFinite(sizeMs)
+        || !Number.isFinite(pitch) || !Number.isFinite(pan)) continue;
 
     const lateral = (pan - 0.5) * 0.10 * w;   // small horizontal nudge from pan
     const x = Math.max(2, Math.min(w - 2, readPos * w + lateral));
@@ -1114,7 +1165,8 @@ function drawWindowInset() {
   const alpha = sliderState.windowTaper ? sliderState.windowTaper.getScaledValue() * 0.01 : 0.5;
   const grainMs = sliderState.grainSize ? sliderState.grainSize.getScaledValue() : 30;
   const taperEnd = taperEndFor(shape, alpha, grainMs);
-  const tiltPct = sliderState.grainTilt ? sliderState.grainTilt.getScaledValue() : 0;
+  // Grain Tilt is inert in Pulsar (v2.0.0): draw the untilted window there.
+  const tiltPct = (sliderState.grainTilt && !isPulsarMode()) ? sliderState.grainTilt.getScaledValue() : 0;
   const tilt = tiltPct !== 0 ? tiltFor(shape, tiltPct * 0.01, taperEnd, grainMs) : null;
 
   // Taper knob only means something for Tukey — dim + lock it otherwise.
@@ -1200,9 +1252,12 @@ function drawGrainReadout(n) {
 // reads more naturally and is what this was first written as. check-i18n
 // assertion 13 rejects it twice over, correctly: a computed key cannot be
 // checked against the table, and the `||` is the conditional-inside-a-localized-
-// string shape contract §6 forbids. Eight call sites, eight literals, and
-// assertion 15 can see that all eight keys are live.
+// string shape contract §6 forbids. Ten call sites (eight Cloud lessons, two
+// Pulsar lessons since v2.0.0), ten literals, and assertion 15 can see that all
+// ten keys are live.
 const LESSON_CAPTION_WRITERS = {
+  "Pulsar Vowel":       (el) => setLabel(el, "label.captionPulsarVowel"),       // v2.0.0
+  "Subharmonic Mask":   (el) => setLabel(el, "label.captionSubharmonicMask"),   // v2.0.0
   "Single Grain":       (el) => setLabel(el, "label.captionSingleGrain"),
   "Pitched Buzz":       (el) => setLabel(el, "label.captionPitchedBuzz"),
   "Fragments":          (el) => setLabel(el, "label.captionFragments"),
@@ -1345,7 +1400,7 @@ function setupTooltips() {
   });
   // v1.4.2 (Stage O item 58) — the focus latch, ported from O-Comp v1.7.0
   // setupTooltips. Before it, a pointer click on any anchor that TAKES focus
-  // (the eight .tour-btn lesson buttons, #gear-btn, #lang-select) hid the
+  // (the .tour-btn lesson buttons, #gear-btn, #lang-select) hid the
   // hover tip on pointerdown and then re-opened it from focusin — the tip
   // came back under the pointer the instant the click landed. A latch on the
   // last input device is the rule: pointerdown latches, ANY keydown releases,
@@ -1883,6 +1938,7 @@ function boot() {
   fetchSourceThumbnail();
   syncSourceStatus();     // v1.5.6: a restored user source is named on open
   drawWindowInset();
+  bindModeDimming();   // v2.0.0 — after the combos are bound and the inset canvas exists
 
   // The window inset is recomputed only on a windowShape / windowTaper /
   // grainSize change (Pitfall 4) — grainSize because the rect guard is a fixed

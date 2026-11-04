@@ -1,4 +1,5 @@
 """O-simpleGrain v1.5.6 source-persistence round trip, against the INSTALLED VST3.
+(v2.0.0: case 8 round-trips the 7 Pulsar parameters at non-default values.)
 
 Each case builds a session by editing the plugin's own state XML, loads it into a
 FRESH instance (= a project reopened after a DAW restart), plays a note, and
@@ -15,6 +16,8 @@ from mido import Message
 PLUGIN = os.path.expanduser("~/Library/Audio/Plug-Ins/VST3/O-simpleGrain-dev.vst3")
 if not os.path.exists(PLUGIN):
     PLUGIN = os.path.expanduser("~/Library/Audio/Plug-Ins/VST3/O-simpleGrain.vst3")
+if len(sys.argv) > 1:                       # v2.0.0: an explicit bundle (e.g. a build tree's)
+    PLUGIN = sys.argv[1]
 SR = 48000
 fails = []
 
@@ -188,6 +191,45 @@ st = join_state(pre, set_source(xml0, "dropped:bad.wav", "!!!notbase64@@@"), pos
 p = fresh(); p.raw_state = st; y = render(p)
 check(np.isfinite(y).all(), "case 7: corrupt data -> finite output")
 check(source_attrs(p.raw_state).get("identity") == "embedded:fire", "case 7: corrupt data -> embedded:fire")
+
+# 8. v2.0.0 Pulsar parameters: all 7 moved off their defaults survive save -> fresh
+#    instance (decoded values compared, source-after-set vs restored; normalised floats
+#    differ legitimately — the host's un-snapped value vs the snapped APVTS one).
+def pkey(p, name):
+    if name in p.parameters: return name
+    ks = [k for k in p.parameters if k.startswith(name + "_")]
+    assert len(ks) == 1, (name, ks); return ks[0]
+def bisect(p, name, value):
+    k = pkey(p, name); par = p.parameters[k]; lo, hi = 0.0, 1.0
+    for _ in range(48):
+        mid = 0.5 * (lo + hi); par.raw_value = mid
+        if float(getattr(p, k)) < value: lo = mid
+        else: hi = mid
+    par.raw_value = hi
+PULSAR = dict(grain_mode="Pulsar", pulsaret="Sample", pulse_mask="5")
+PULSAR_NUM = dict(formant=12.0, fm_depth=40.0, fm_ratio=1.5, glisson=-7.0)
+IDS = ("grainMode", "formant", "pulsaretSource", "pulseMask", "fmDepth", "fmRatio", "glisson")
+p = fresh()
+defaults = {n: getattr(p, pkey(p, n)) for n in list(PULSAR) + list(PULSAR_NUM)}
+for n, v in PULSAR.items(): setattr(p, pkey(p, n), v)
+for n, v in PULSAR_NUM.items(): bisect(p, n, v)
+set_vals = {n: getattr(p, pkey(p, n)) for n in defaults}
+saved = p.raw_state
+_, xml8, _ = split_state(saved)
+present = [i for i in IDS if re.search(rf'<PARAM id="{i}" value="[^"]*"', xml8)]
+check(len(present) == 7, f"case 8: state XML carries all 7 Pulsar params ({len(present)}/7: {present})")
+p2 = fresh(); p2.raw_state = saved
+got = {n: getattr(p2, pkey(p2, n)) for n in defaults}
+for n in defaults:
+    a, b, d = set_vals[n], got[n], defaults[n]
+    same = (a == b) if isinstance(a, str) else abs(float(a) - float(b)) <= 1e-4 * max(1.0, abs(float(a)))
+    moved = (a != d) if isinstance(a, str) else abs(float(a) - float(d)) > 1e-3
+    check(same and moved, f"case 8: {n} default {d!r} -> set {a!r} -> restored {b!r}")
+ya, yb = render(p), render(p2)
+check(np.isfinite(ya).all() and np.max(np.abs(ya)) > 1e-4 and np.array_equal(ya, yb),
+      f"case 8: restored Pulsar instance renders bit-identically to the source (max diff {np.max(np.abs(ya - yb)):.2e})")
+p3 = fresh(); y3 = render(p3)
+check(np.max(np.abs(ya - y3)) > 1e-3, f"case 8 control: a fresh (default, Cloud) instance renders differently ({np.max(np.abs(ya - y3)):.2e})")
 
 print(f"\n{len(fails)} FAIL(s)")
 sys.exit(1 if fails else 0)

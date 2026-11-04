@@ -60,6 +60,12 @@
                               output stops within ~a grain length of note-off,
                               where the enabled envelope still has a long tail.
 
+     P1..P6 (v2.0.0)        — Pulsar mode: BH table moments, Sine without a
+                              source, mid-note content switch, viz decimation,
+                              0 allocations + CPU, mid-note mode switch
+                              (pulsar_checks.cpp; --pulsar [P2,P6] runs only
+                              these, or a subset).
+
     Exit 0 iff all checks pass. Off by default; -DOUARICON_BUILD_TESTS=ON.
 
   ==============================================================================
@@ -404,10 +410,16 @@ static void resetDefaults (juce::AudioProcessorValueTreeState& a)
     setParam (a, PID::outputLevel,   0.0f);
 }
 
+int runPulsarChecks (const juce::String& only);   // v2.0.0 — pulsar_checks.cpp (P1..P6)
+
 //==============================================================================
-int main()
+int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI juceInit;   // message manager for async decode
+
+    // --pulsar [P2,P6]: only the v2.0.0 Pulsar-mode checks (optionally a subset).
+    if (argc > 1 && juce::String (argv[1]) == "--pulsar")
+        return runPulsarChecks (argc > 2 ? juce::String (argv[2]) : juce::String()) == 0 ? 0 : 1;
 
     const double fs = 44100.0;
     OSimpleGrainAudioProcessor proc;
@@ -881,6 +893,8 @@ int main()
     }
 
     proc.releaseResources();
+
+    failures += runPulsarChecks ({});   // v2.0.0 Pulsar mode (P1..P6)
 
     std::printf ("\n%s — %d failure(s)\n", failures == 0 ? "ALL PASS" : "FAILURES", failures);
     return failures == 0 ? 0 : 1;

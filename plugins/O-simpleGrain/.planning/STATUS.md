@@ -2,7 +2,7 @@
 plugin: O-simpleGrain
 stage: 4
 status: human_needed
-last_updated: 2026-06-25
+last_updated: 2026-10-29
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
@@ -143,3 +143,10 @@ v1.9.0 (user presets + sample library, GRN 3 style) is automated-verified: prese
 4. Remove the sample from the library, load the preset → toast names the missing sample, controls still change.
 5. Typing a preset name does not play the on-screen keyboard; reopen the project → preset name and Sample Lock restored.
 6. Output Level never moves on a preset load.
+
+## v2.0.0 Pulsar mode (2026-10-29) — verify PASS (after I-1/I-2 fix round), DAW hands-on pending
+
+Milestone `audio-rate-pulsar-grain-mode` (1.9.0 → 2.0.0, MAJOR; the version bump in CMakeLists.txt is applied after verify). Waves A–C done; see `improvements/audio-rate-pulsar-grain-mode/SUMMARY.md` and the CHANGELOG `## [2.0.0]` draft.
+- Grain Mode Cloud / Pulsar + 6 Pulsar params (Formant, Pulsaret, Pulse Mask, FM Depth, FM Ratio, Glisson), version hint 2; 2 new lessons (10 in all).
+- Gates on the installed build: `tests/pulsar-gate/gate.py` PASS (13 checks, every one with a negative control that fails); Cloud null vs 1.9.0 (`null_v190.py`) 21 PASS, bit-exact; blocksize-null 45 PASS; state-persistence 34 PASS (case 8: all 7 new params); pluginval 10 SUCCESS; auval SUCCEEDED.
+- Human check still needed: host automation round-trip of the 7 new params, Mode dimming after preset load / session reopen, real knob angles (FM Ratio 0.5 at ~11 o'clock), and a listen to both Pulsar lessons and a mid-note Cloud ↔ Pulsar switch.
