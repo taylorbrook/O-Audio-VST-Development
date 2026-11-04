@@ -149,6 +149,20 @@ Gate: render bit-identical. O-GrainScatter keeps its Stream/slot enums. Skip O-s
   O-Freeze 2.9.2 gate. The local `Source/CounterRng.h` is removed, `ouaricon_add_module(O-Freeze grain-engine)` is added, and the two draw sites (`rand01`, `SpectralFreeze::uniform`) now call `ouaricon::grain::CounterRng`. O-Freeze never used `Draw`, so only the namespace changes.
   - Old-vs-new null, 2.9.1 build vs 2.9.2 build: 84/84 render pairs bit-identical. All 7 blocksize-null configs (Granular + Spectral + engine switch) × 3 seeded templates made on 2.9.1 × blocks 512/32/441/7. Frozen sections ≥ −21.9 dBFS RMS. Seed liveness 7/7 (seeds render pairwise distinct).
   - auval and pluginval 5 pass.
-- [ ] O-GrainScatter `dsp/CounterRng.h` (drift)
+- [x] O-GrainScatter `dsp/CounterRng.h` (drift) — 0e1117b6
+  O-GrainScatter 3.5.1 gate. The local `Source/dsp/CounterRng.h` is removed. The Stream/GrainSlot enums stay in the plugin, in the new `Source/dsp/GrainScatterRng.h`. That header keeps the namespace name `CounterRng` and pulls `mix`/`hash`/`uniform`/`uniformInt`/`Draw` from `ouaricon::grain::CounterRng` with using-declarations, so no call site changes. Neither do the test drivers, which also compile against the v3.2.0/v3.3.0/v3.4.0 archives (adapt-gate calls `CounterRng::mix`). grain-engine was already linked since v3.3.0, so CMake changes only a comment. The module's `Draw` is the plugin's, verbatim.
+  - Old-vs-new null, v3.5.0 tree (`git archive` HEAD, local copy) vs the 3.5.1 tree: 76/76 dumps byte-identical (`cmp`). `ninja -t deps` confirms old → local `CounterRng.h` and new → shim + module copy.
+    - 36 named jobs: free, sync (repeats/Euclid/swing/stutter gate), spatial, freeze, +24 st, and Skip 50 + Tilt −60 + Adapt 70 with Freeze; each at 3 seeds × 512/variable blocks.
+    - 40 all-parameter random jobs.
+    - Seed liveness 6/6. 37/40 random jobs carry signal (−85 to −16 dBFS RMS), all finite.
+    - **Harness trap:** a random Freeze drawn on at sample 0 holds an empty buffer and renders silent. The first run had 19/40 silent jobs, so Freeze is now forced off at the start.
+  - The plugin's own gates on 3.5.1 all pass, with no FAIL rows:
+    - blocksize-null 21
+    - skip-tilt 30, row A bit-exact vs v3.3.0
+    - adapt-gate 47, row A bit-exact vs v3.4.0; the rows match the recorded 3.5.0 `RESULTS.txt` one for one
+    - fixed-K negative control: N1 fires
+    - density-gain 24
+    - alias 10
+  - auval and pluginval 5 pass.
 - [ ] O-simpleGrain `dsp/CounterRng.h` (drift)
 - [ ] O-TextureForge `dsp/CounterRng.h` (drift)
