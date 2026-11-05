@@ -1,8 +1,8 @@
 ---
 plugin: O-Granulator
 stage: 2
-status: stage_2_phase_2_1_discuss_complete
-current_phase: discuss
+status: stage_2_phase_2_1_research_complete
+current_phase: research
 current_dsp_phase: 2.1
 stage_0_status: ui_design_complete
 last_updated: 2026-11-04
@@ -14,7 +14,7 @@ complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_2_phase_2_1_research
+next_action: stage_2_phase_2_1_plan
 next_stage: 2
 ready_for_implementation: true
 blocked_on: null
@@ -31,7 +31,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — Phase 2.1 (Ring + pass engine + one stream) discuss ✓ 2026-11-04
+Stage: 2 of 4 (DSP) — Phase 2.1 (Ring + pass engine + one stream) discuss ✓ · research ✓ 2026-11-04 (RESEARCH-2.1.md: R1 read-fraction quantisation for the bitwise null, R2 0 dB snap + mix-0 bypass, R3 plugin-side grain_limit cap, R4 onset epoch across re-enable)
 Status: O-Granulator 0.1.0 shell builds VST3 + AU + Standalone; 220 params, pass-through, state codec; pluginval 10 + auval PASS. pitch-collections 1.0.0 module and O-GrainScatter 3.6.0 landed with it.
 Progress: [#####...............] 25% (Stage 1 verified — VERIFICATION.md)
 
