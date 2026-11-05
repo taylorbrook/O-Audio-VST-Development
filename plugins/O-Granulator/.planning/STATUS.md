@@ -1,9 +1,9 @@
 ---
 plugin: O-Granulator
 stage: 2
-status: stage_2_phase_2_2_verified
-current_phase: verify
-current_dsp_phase: 2.2
+status: stage_2_phase_2_3_discussed
+current_phase: discuss
+current_dsp_phase: 2.3
 stage_0_status: ui_design_complete
 last_updated: 2026-11-05
 latest_mockup_version: 2
@@ -14,7 +14,7 @@ complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_2_phase_2_3_discuss
+next_action: stage_2_phase_2_3_research
 next_stage: 2
 ready_for_implementation: true
 blocked_on: null
@@ -31,7 +31,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — Phase 2.1 (Ring + pass engine + one stream) discuss ✓ · research ✓ 2026-11-04 (RESEARCH-2.1.md: R1 read-fraction quantisation for the bitwise null, R2 0 dB snap + mix-0 bypass, R3 plugin-side grain_limit cap, R4 onset epoch across re-enable) · plan ✓ 2026-11-04 (PLAN-2.1.md: 17 tasks, 5 waves, 13 gate rows) · execute ✓ 2026-11-04 (SUMMARY-2.1.md: engine skeleton in Source/dsp/, harness 77/77 PASS, 0 warnings, auval + pluginval 10 VST3/AU PASS; D3 listening checkpoint pending at verify) · verify ✓ 2026-11-04 (VERIFICATION-2.1.md: independent re-run 77/77, pluginval 10 VST3/AU + auval PASS, D3 listening PASS; FUNC-01/07 + DSP-02 complete, 5 partial). Phase 2.2 discuss ✓ 2026-11-04 (CONTEXT-2.2.md: D4 GS-parity quantiser — uniform pick among active degrees within ±pitch_rand, base pitch unsnapped, ARCHITECTURE §5 erratum; D5 gain_rand cut-only −24 dB, no make-up) · research ✓ 2026-11-04 (RESEARCH-2.2.md: R5 derived partial-coherence output law replaces the κ dB-blend — jitter does not decorrelate, base pitch + reverse do; 2.1 law +19.7 dB hot at spray 0 × 200 g/s × 1 s; R6 cumulative ∫w/∫w² bank tables, worst capped P/μ₂ 333; R7 floor domain for level gates; R8 overQuota = live > ceil(q); R9 mask-by-source-index then sort; R10 spread = per-grain balance × bus balance; R11 sine-probe traps; R12 2.1-equivalence out-of-tree null) · plan ✓ 2026-11-05 (PLAN-2.2.md: 18 tasks / 7 waves, 15 gate criteria; T1 steal-free row lands first on the 2.1 tree; P10 R5 law, P11 custom-table try-lock, P12 10 ms mixer ramps, P15 solo probes) · execute ✓ 2026-11-05 (SUMMARY-2.2.md: 4 streams / water-fill quotas / R8 fair stealing / 65-step window bank / D4 quantiser / R5 law / 10 ms mixer; harness 135/135 PASS, 0 warnings; R12 out-of-tree null PASS both cases; auval + pluginval 10 VST3/AU PASS; CPU 9.01 % @ 48k/128; errata: S0n cap 64, F3 cap-128 steals, W2o scope narrowed) · verify ✓ 2026-11-05 (VERIFICATION-2.2.md: independent re-run 135/135, R12 null max|Δ| 0 both cases, auval + pluginval 10 VST3/AU PASS, CPU 8.92 %; errata 6–8 accepted, W2o margin 0.017 dB flagged fragile; FUNC-03, DSP-01/03/04 complete, QUAL-01 partial). Next: Phase 2.3 discuss (per-grain FX + CPU budget)
+Stage: 2 of 4 (DSP) — Phase 2.1 (Ring + pass engine + one stream) discuss ✓ · research ✓ 2026-11-04 (RESEARCH-2.1.md: R1 read-fraction quantisation for the bitwise null, R2 0 dB snap + mix-0 bypass, R3 plugin-side grain_limit cap, R4 onset epoch across re-enable) · plan ✓ 2026-11-04 (PLAN-2.1.md: 17 tasks, 5 waves, 13 gate rows) · execute ✓ 2026-11-04 (SUMMARY-2.1.md: engine skeleton in Source/dsp/, harness 77/77 PASS, 0 warnings, auval + pluginval 10 VST3/AU PASS; D3 listening checkpoint pending at verify) · verify ✓ 2026-11-04 (VERIFICATION-2.1.md: independent re-run 77/77, pluginval 10 VST3/AU + auval PASS, D3 listening PASS; FUNC-01/07 + DSP-02 complete, 5 partial). Phase 2.2 discuss ✓ 2026-11-04 (CONTEXT-2.2.md: D4 GS-parity quantiser — uniform pick among active degrees within ±pitch_rand, base pitch unsnapped, ARCHITECTURE §5 erratum; D5 gain_rand cut-only −24 dB, no make-up) · research ✓ 2026-11-04 (RESEARCH-2.2.md: R5 derived partial-coherence output law replaces the κ dB-blend — jitter does not decorrelate, base pitch + reverse do; 2.1 law +19.7 dB hot at spray 0 × 200 g/s × 1 s; R6 cumulative ∫w/∫w² bank tables, worst capped P/μ₂ 333; R7 floor domain for level gates; R8 overQuota = live > ceil(q); R9 mask-by-source-index then sort; R10 spread = per-grain balance × bus balance; R11 sine-probe traps; R12 2.1-equivalence out-of-tree null) · plan ✓ 2026-11-05 (PLAN-2.2.md: 18 tasks / 7 waves, 15 gate criteria; T1 steal-free row lands first on the 2.1 tree; P10 R5 law, P11 custom-table try-lock, P12 10 ms mixer ramps, P15 solo probes) · execute ✓ 2026-11-05 (SUMMARY-2.2.md: 4 streams / water-fill quotas / R8 fair stealing / 65-step window bank / D4 quantiser / R5 law / 10 ms mixer; harness 135/135 PASS, 0 warnings; R12 out-of-tree null PASS both cases; auval + pluginval 10 VST3/AU PASS; CPU 9.01 % @ 48k/128; errata: S0n cap 64, F3 cap-128 steals, W2o scope narrowed) · verify ✓ 2026-11-05 (VERIFICATION-2.2.md: independent re-run 135/135, R12 null max|Δ| 0 both cases, auval + pluginval 10 VST3/AU PASS, CPU 8.92 %; errata 6–8 accepted, W2o margin 0.017 dB flagged fragile; FUNC-03, DSP-01/03/04 complete, QUAL-01 partial). Phase 2.3 discuss ✓ 2026-11-05 (CONTEXT-2.3.md: D6 drive unity at −12 dBFS ref, r·tanh(dx)/tanh(dr), d = 16·drive² → continuous from 0; D7 crush mid-tread (silence stays 0); D8 BP = k·v1 normalised, LP/HP raw, output law ignores FX — three ARCH §9 errata; no listening checkpoint). Next: Phase 2.3 research
 Status: O-Granulator 0.1.0 shell builds VST3 + AU + Standalone; 220 params, pass-through, state codec; pluginval 10 + auval PASS. pitch-collections 1.0.0 module and O-GrainScatter 3.6.0 landed with it.
 Progress: [#####...............] 25% (Stage 1 verified — VERIFICATION.md)
 
@@ -53,7 +53,7 @@ Progress: [#####...............] 25% (Stage 1 verified — VERIFICATION.md)
 
 ## Next Steps
 
-1. Stage 2: DSP Phase 2.3 discuss (`/plugin-discuss O-Granulator 2-dsp`) — per-grain FX (SVF/drive/crush/ring) + first CPU-budget measurement. Phase 2.2 verified (VERIFICATION-2.2.md). Carry: W2o 0.017 dB margin — widen seeds, never the threshold, if 2.3 draw-order changes flip it.
+1. Stage 2: DSP Phase 2.3 research (`/plugin-research O-Granulator 2-dsp`) — per-grain FX (SVF/drive/crush/ring) + first CPU-budget measurement. Discuss done (CONTEXT-2.3.md, D6–D8). Carry: W2o 0.017 dB margin — widen seeds, never the threshold, if 2.3 draw-order changes flip it.
 2. Stage 3 integrates the UI with `mockups/v2-integration-checklist.md` (+ check-ui-labels, deferred from Stage 1).
 
 ## Context to Preserve
