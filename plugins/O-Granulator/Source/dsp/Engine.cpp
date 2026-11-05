@@ -45,6 +45,8 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
 
     for (auto& ch : fbDelay)
         std::fill (std::begin (ch), std::end (ch), 0.0f);
+    chain.prepare (fs);   // 2.4: lengths, AGC coefficients, state cleared (fixed arrays — no allocation)
+    chainLowHz = chainHighHz = -1.0f;
     for (auto& sb : bus)
         for (auto& ch : sb)
             std::fill (std::begin (ch), std::end (ch), 0.0f);
@@ -77,11 +79,13 @@ void Engine::snapRampsToParams() noexcept
     dryGain.reset (dw.a);
     wetGain.reset (dw.b);
 
-    float gOut[kMaxStreams] {}, aud[kMaxStreams] {};
-    computeStreamTargets (gOut, aud);
+    float gOut[kMaxStreams] {}, aud[kMaxStreams] {}, gFb[kMaxStreams] {};
+    computeStreamTargets (gOut, aud, gFb);
     for (int s = 0; s < kMaxStreams; ++s)
     {
         const auto& st = gp.s[s];
+        gFbRamp[s].reset (gFb[s]);
+        fbEnRamp[s].reset (st.enable ? 1.0f : 0.0f);
         levelRamp[s].reset (levelDbToGain (st.levelDb));
         panRamp[s].reset (st.pan);
         gOutRamp[s].reset (gOut[s]);
@@ -92,6 +96,43 @@ void Engine::snapRampsToParams() noexcept
         streamGainL[s].reset (g * pg.a);
         streamGainR[s].reset (g * pg.b);
     }
+
+    // 2.4 feedback network.
+    fbKnobRamp.reset (kFbKnob * gp.feedback);
+    fbDiffRamp.reset (gp.fbDiff);
+    fbSatDRamp.reset (1.0f + kSatSpan * gp.fbSat);
+    fbLowLogRamp.reset (std::log2 (gp.fbLowCutHz));
+    fbHighLogRamp.reset (std::log2 (gp.fbHighCutHz));
+    updateChainCutoffs();
+    pushFbTapGains (true);
+}
+
+/** Tap gain per stream from the CURRENT ramp values (R29 / R31): no pan, no
+    g_out; muted / un-soloed / disabled streams feed 0 and leave the Σ. */
+void Engine::pushFbTapGains (bool snap) noexcept
+{
+    float sum = 0.0f;
+    for (int s = 0; s < kMaxStreams; ++s)
+        sum += levelRamp[s].current() * audRamp[s].current() * fbEnRamp[s].current();
+    const float norm = 1.0f / std::max (1.0f, sum);
+    for (int s = 0; s < kMaxStreams; ++s)
+    {
+        const float g = gFbRamp[s].current() * levelRamp[s].current() * audRamp[s].current() * fbEnRamp[s].current() * norm;
+        if (snap) fbTapCell[s].reset (g);
+        else      fbTapCell[s].push (g);
+    }
+}
+
+/** fb HP / LP coefficients from the ramped log-cutoffs (tan only here, and only
+    when a cutoff moved). */
+void Engine::updateChainCutoffs() noexcept
+{
+    const float lo = std::exp2 (fbLowLogRamp.current()), hi = std::exp2 (fbHighLogRamp.current());
+    if (juce::exactlyEqual (lo, chainLowHz) && juce::exactlyEqual (hi, chainHighHz))
+        return;
+    chainLowHz = lo;
+    chainHighHz = hi;
+    chain.setCutoffs (static_cast<double> (lo), static_cast<double> (hi));
 }
 
 //==============================================================================
@@ -171,7 +212,7 @@ void Engine::updateScaleState() noexcept
 
 /** Quotas (T5) → per stream R5 coherence + g_out (T4), and the mute / solo
     audibility mask. Latched parameters only (never pool occupancy). */
-void Engine::computeStreamTargets (float (&gOut)[kMaxStreams], float (&audible)[kMaxStreams]) noexcept
+void Engine::computeStreamTargets (float (&gOut)[kMaxStreams], float (&audible)[kMaxStreams], float (&gFb)[kMaxStreams]) noexcept
 {
     double demand[kMaxStreams] {};
     bool anySolo = false;
@@ -203,6 +244,14 @@ void Engine::computeStreamTargets (float (&gOut)[kMaxStreams], float (&audible)[
                                    : streamDemand (static_cast<double> (st.density), static_cast<double> (st.sizeMs), fs);
         const double q = st.enable ? quotas.q[s] : static_cast<double> (gp.grainLimit);
         gOut[s] = outputGainFromPower (streamPower (n, q, win, coherence[s], static_cast<double> (st.spread), bank));
+
+        // 2.4 tap law (R29, signed off): 1/(S1 + 1), S1 pre-spread.
+        const double s1 = fbTapS1 (n, q, win, bank);
+        gFb[s] = fbTapGain (s1);
+       #if OGRAN_TEST_HOOKS
+        if (hooks.fbArchLaw)
+            gFb[s] = fbTapGainArch (s1);
+       #endif
 
         audible[s] = (! st.mute && (! anySolo || st.solo)) ? 1.0f : 0.0f;
     }
@@ -264,8 +313,39 @@ void Engine::process (const float* const* in, int numIn, float* const* out, int 
         if (seg < len)
             renderSegment (seg, len);
 
-        // 6 + 8. Stream mix, dry/wet, output gain.
+        // 6 + 8. Stream mix + feedback tap, reverb, knee, dry/wet, output gain.
         mixOut (inL + done, inR + done, outL + done, outR != nullptr ? outR + done : nullptr, numOut, len, cellPos);
+
+        // 7. Feedback chain over the tap → fbDelay (z^-32: step 3 of the pass
+        //    one cell later reads slot c). Runs every pass, frozen included.
+       #if OGRAN_TEST_HOOKS
+        if (hooks.tapProbe != nullptr)
+            for (int i = 0; i < len; ++i)
+                if (absCount + i < hooks.tapProbeLen)
+                {
+                    hooks.tapProbe[2 * (absCount + i)]     = tap[0][i];
+                    hooks.tapProbe[2 * (absCount + i) + 1] = tap[1][i];
+                }
+        {
+            auto& inj = hooks.injectFbNan;
+            if (inj.atSample >= 0 && ! inj.done && absCount + len > inj.atSample)
+            {
+                chain.testInjectAt  = static_cast<int> (std::max<std::int64_t> (0, inj.atSample - absCount));
+                chain.testInjectNan = ! inj.reset;
+                inj.done = true;
+            }
+        }
+       #endif
+        chain.process (tap[0], tap[1], len, cellPos, fbKnobRamp, fbDiffRamp, fbSatDRamp);
+       #if OGRAN_TEST_HOOKS
+        chain.testInjectAt = -1;
+        diag.fbScrubs = chain.scrubs;
+       #endif
+        for (int i = 0; i < len; ++i)
+        {
+            fbDelay[0][cellPos + i] = tap[0][i];
+            fbDelay[1][cellPos + i] = tap[1][i];
+        }
 
         absCount += len;
         done     += len;
@@ -299,11 +379,15 @@ void Engine::gridTick() noexcept
     wetGain.push (dw.b);
 
     // Quotas → coherence → g_out (20 ms); audibility, level, pan (10 ms, P12).
-    float gOut[kMaxStreams] {}, aud[kMaxStreams] {};
-    computeStreamTargets (gOut, aud);
+    float gOut[kMaxStreams] {}, aud[kMaxStreams] {}, gFb[kMaxStreams] {};
+    computeStreamTargets (gOut, aud, gFb);
     for (int s = 0; s < kMaxStreams; ++s)
     {
         const auto& st = gp.s[s];
+        gFbRamp[s].setTarget (gFb[s], rampCells);
+        gFbRamp[s].tick();
+        fbEnRamp[s].setTarget (st.enable ? 1.0f : 0.0f, mixerRampCells);
+        fbEnRamp[s].tick();
         levelRamp[s].setTarget (levelDbToGain (st.levelDb), mixerRampCells);
         levelRamp[s].tick();
         panRamp[s].setTarget (st.pan, mixerRampCells);
@@ -319,6 +403,32 @@ void Engine::gridTick() noexcept
         streamGainL[s].push (g * pg.a);
         streamGainR[s].push (g * pg.b);
     }
+
+    // 2.4 feedback network: tap gains, chain controls, cutoffs.
+    pushFbTapGains (false);
+    fbKnobRamp.setTarget (kFbKnob * gp.feedback, rampCells);
+    fbKnobRamp.tick();
+    fbDiffRamp.setTarget (gp.fbDiff, rampCells);
+    fbDiffRamp.tick();
+    fbSatDRamp.setTarget (1.0f + kSatSpan * gp.fbSat, rampCells);
+    fbSatDRamp.tick();
+    fbLowLogRamp.setTarget (std::log2 (gp.fbLowCutHz), rampCells);
+    fbLowLogRamp.tick();
+    fbHighLogRamp.setTarget (std::log2 (gp.fbHighCutHz), rampCells);
+    fbHighLogRamp.tick();
+    updateChainCutoffs();
+
+   #if OGRAN_TEST_HOOKS
+    if (hooks.snapshotChain)
+    {
+        auto& sn = chainSnaps[static_cast<size_t> (chainSnapCount % static_cast<std::uint64_t> (kChainSnaps))];
+        sn.tick  = absCount;
+        sn.hpIc1 = chain.hpIc1[0]; sn.hpIc2 = chain.hpIc2[0];
+        sn.lpIc1 = chain.lpIc1[0]; sn.lpIc2 = chain.lpIc2[0];
+        sn.env   = chain.env;
+        ++chainSnapCount;
+    }
+   #endif
 }
 
 int Engine::scheduleStreams (int len) noexcept
@@ -695,14 +805,18 @@ void Engine::mixOut (const float* dryL, const float* dryR, float* outL, float* o
     for (int i = 0; i < len; ++i)
     {
         const int c = cellPos + i;
-        float wl = 0.0f, wr = 0.0f;
+        float wl = 0.0f, wr = 0.0f, tl = 0.0f, tr = 0.0f;
         for (int s = 0; s < kMaxStreams; ++s)
         {
             wl += bus[s][0][i] * streamGainL[s].at (c);
             wr += bus[s][1][i] * streamGainR[s].at (c);
+            tl += bus[s][0][i] * fbTapCell[s].at (c);   // feedback tap: pre-g_out, no pan (R31)
+            tr += bus[s][1][i] * fbTapCell[s].at (c);
         }
         wet[0][i] = wl;
         wet[1][i] = wr;
+        tap[0][i] = tl;
+        tap[1][i] = tr;
     }
 
     // 8. reverb → D9 knee, BEFORE the mix-0 fast path: neither one's state may

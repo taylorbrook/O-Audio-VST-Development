@@ -187,6 +187,33 @@ namespace ogran
         return std::copysign (kKneeT + kKneeAT * std::tanh ((ax - kKneeT) * kKneeInvAT), x);
     }
 
+    // ========================================================================
+    // Phase 2.4 — feedback tap law (RESEARCH-2.4 R29 / R31, signed off at plan,
+    // PLAN-2.4 P34). S1 = mean Σw, the SAME branch structure as streamPower's
+    // s1 but BEFORE the spread factor (conservative: per-grain spread pans are
+    // random, so they cannot phase-lock). The unimodal bound Σ_k w(t − kH) <=
+    // S1 + max w = S1 + 1 holds for every bank window and tilt, so
+    //     g_fb = 1 / (S1 + 1)     (ARCH §10's 1/max (1, S1) peaks +4.8 dB high)
+    // streamPower is not touched (it keeps its own s1 expressions).
+    // ========================================================================
+    inline double fbTapS1 (double n, double q, const WindowSel& win, const WindowMorphBank& bank) noexcept
+    {
+        if (win.hann())
+        {
+            if (n <= q) return n * 0.5;
+            const double x = q / n;
+            return q * (hannCumW (x) / x);
+        }
+        if (n <= q) return n * bank.cum (1, win.step, win.tilt, 1.0);
+        const double x = q / n;
+        return q * (bank.cum (1, win.step, win.tilt, x) / x);
+    }
+
+    inline float fbTapGain (double s1) noexcept      { return static_cast<float> (1.0 / (s1 + 1.0)); }
+
+    /** The ARCH §10 law — test reference only (F3n / U8n negative controls). */
+    inline float fbTapGainArch (double s1) noexcept  { return static_cast<float> (1.0 / std::max (1.0, s1)); }
+
     /** g_out from P: 1 / sqrt (max (1, P / μ₂_Hann)) — the 2.1 tail, verbatim. */
     inline float outputGainFromPower (double p) noexcept
     {

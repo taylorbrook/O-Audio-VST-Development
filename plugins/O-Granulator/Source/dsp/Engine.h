@@ -26,6 +26,7 @@
 #include "CaptureWriter.h"
 #include "ControlGrid.h"
 #include "EngineConstants.h"
+#include "FeedbackChain.h"
 #include "Grain.h"
 #include "GrainFx.h"
 #include "OutputLaw.h"
@@ -145,8 +146,20 @@ namespace ogran
             struct FbNan { std::int64_t atSample = -1; bool reset = false; bool done = false; };
             FbNan injectFbNan;               // Z4 / M4: NaN into the chain input at the first piece >= atSample
                                              // (reset: std::fill the chain instead — the Z4 reference)
-            bool snapshotChain    = false;   // FZ7: chain state + ring hash at every tick (ring of 64)
+            bool snapshotChain    = false;   // FZ7: chain state at every tick (ring of 64; the ring hash is harness-side)
+            // FB5: per-sample tap capture into a harness buffer (L, R interleaved by absolute sample).
+            float*       tapProbe    = nullptr;
+            std::int64_t tapProbeLen = 0;
         };
+
+        /** FZ7 chain snapshot (one per grid tick while snapshotChain). */
+        struct ChainSnap { std::int64_t tick = 0; float hpIc1 = 0.0f, hpIc2 = 0.0f, lpIc1 = 0.0f, lpIc2 = 0.0f, env = 0.0f; };
+        static constexpr int kChainSnaps = 64;
+        std::array<ChainSnap, kChainSnaps> chainSnaps {};
+        std::uint64_t chainSnapCount = 0;
+        const FeedbackChain& getChainForTest() const noexcept { return chain; }
+        const Ring& getRingForTest() const noexcept           { return ring; }
+        float getFbTapTarget (int s) const noexcept           { return gFbRamp[s].getTarget(); }
 
         /** One spawn. The grain's readAbs at age k is anchor + dir·rate·(k + frac)
             (exact reference; the engine accumulates readAbs += dir·rate per sample). */
@@ -303,7 +316,9 @@ namespace ogran
         // 2.2 grid helpers (audio thread except where noted).
         void copyCustomTable (bool blocking) noexcept;     // P11 (blocking only in prepare)
         void updateScaleState() noexcept;                   // active sets + pitch windows
-        void computeStreamTargets (float (&gOut)[kMaxStreams], float (&audible)[kMaxStreams]) noexcept;
+        void computeStreamTargets (float (&gOut)[kMaxStreams], float (&audible)[kMaxStreams], float (&gFb)[kMaxStreams]) noexcept;
+        void pushFbTapGains (bool snap) noexcept;          // 2.4 tap gains from the current ramps
+        void updateChainCutoffs() noexcept;                // 2.4 fb HP / LP coefficients (tan) at ticks
         const PitchCollections::Table& tableForChoice (int choice) const noexcept;
 
         /** THE grain read site (R1). Every grain read goes through here, now and
@@ -398,7 +413,7 @@ namespace ogran
        #if OGRAN_TEST_HOOKS
         std::uint64_t guard5[8] {};
        #endif
-        [[maybe_unused]] float tap[2][kCell] {};       // 2.4: the feedback tap of one piece (→ chain → fbDelay)
+        float tap[2][kCell] {};                        // 2.4: the feedback tap of one piece (→ chain → fbDelay)
        #if OGRAN_TEST_HOOKS
         std::uint64_t guard6[8] {};
 
@@ -426,6 +441,14 @@ namespace ogran
         ExactRamp audRamp[kMaxStreams];                // mute / solo audibility 0 ↔ 1 (P12, 10 ms)
         CellLerp  dryGain, wetGain;                    // mixGains (mixRamp) per grid point
         CellLerp  streamGainL[kMaxStreams], streamGainR[kMaxStreams];   // g_out · level · audible · pan
+        // 2.4 feedback network (P34, P37)
+        FeedbackChain chain;
+        ExactRamp fbKnobRamp, fbDiffRamp, fbSatDRamp;   // 0.95·feedback, diffusion mix, d = 1 + 7·sat (20 ms)
+        ExactRamp fbLowLogRamp, fbHighLogRamp;          // log2 of the fb cutoffs (exponential, 20 ms)
+        ExactRamp gFbRamp[kMaxStreams];                 // g_fb = 1/(S1 + 1) (20 ms, like g_out)
+        ExactRamp fbEnRamp[kMaxStreams];                // stream enable → tap (10 ms: no step from tails)
+        CellLerp  fbTapCell[kMaxStreams];               // g_fb · level · audible · enable / max (1, Σ level·audible·enable)
+        float     chainLowHz = -1.0f, chainHighHz = -1.0f;   // last cutoffs given to the chain
 
        #if OGRAN_TEST_HOOKS
         // ── 2.3 test-only state (P28) ───────────────────────────────────────
