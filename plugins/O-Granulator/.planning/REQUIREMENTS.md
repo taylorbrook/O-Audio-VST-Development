@@ -21,7 +21,7 @@ lastUpdated: 2026-11-04
 |----|-------------|----------|--------|-------------|
 | FUNC-01 | Live input continuously recorded into a ring buffer (1–30 s active length) | must | complete | stage-2 |
 | FUNC-02 | Freeze latch holds buffer contents; unfreeze resumes recording without clicks | must | pending | stage-2 |
-| FUNC-03 | Four independent grain streams reading the shared buffer, each with enable/level/pan | must | pending | stage-2 |
+| FUNC-03 | Four independent grain streams reading the shared buffer, each with enable/level/pan | must | complete | stage-2 |
 | FUNC-04 | Free (grains/s) and tempo-synced density/size modes with onset jitter | must | pending | stage-2 |
 | FUNC-05 | Feedback network: grain output written back to buffer through tone filter, saturation, diffuser | must | pending | stage-2 |
 | FUNC-06 | Modulation matrix routing LFOs, env follower, pitch follower, onset follower, macros to continuous params | must | pending | stage-2 |
@@ -33,10 +33,10 @@ lastUpdated: 2026-11-04
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| DSP-01 | Per-grain pitch ±24 st with random spread and scale quantisation | must | partial | stage-2 |
+| DSP-01 | Per-grain pitch ±24 st with random spread and scale quantisation | must | complete | stage-2 |
 | DSP-02 | Band-limited reads for pitched-up grains (grain-engine BandlimitedReader) | must | complete | stage-2 |
-| DSP-03 | Window morph Hann→Tukey→Trapezoid→Exponential with skew; overlap-normalised level | must | pending | stage-2 |
-| DSP-04 | Per-grain reverse probability, position spray, size/gain randomisation, stereo spread | must | partial | stage-2 |
+| DSP-03 | Window morph Hann→Tukey→Trapezoid→Exponential with skew; overlap-normalised level | must | complete | stage-2 |
+| DSP-04 | Per-grain reverse probability, position spray, size/gain randomisation, stereo spread | must | complete | stage-2 |
 | DSP-05 | Per-grain FX: SVF (LP/BP/HP) with cutoff randomisation, drive, bitcrush with probability, ring mod with randomised carrier | must | pending | stage-2 |
 | DSP-06 | Feedback loop gain bounded — no runaway at feedback 100 % with any settings | must | pending | stage-2 |
 | DSP-07 | Output reverb/diffuser stage | should | pending | stage-2 |
@@ -71,7 +71,7 @@ lastUpdated: 2026-11-04
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| QUAL-01 | No audio artifacts (clicks, zipper) at normal parameter ranges, including freeze toggle and grain steal | must | pending | stage-2 |
+| QUAL-01 | No audio artifacts (clicks, zipper) at normal parameter ranges, including freeze toggle and grain steal | must | partial | stage-2 |
 | QUAL-02 | No NaN/denormal output under extreme settings (max feedback, max resonance, max density) | must | pending | stage-2 |
 | QUAL-03 | Per-sample smoothing on audible continuous params and mod-matrix targets | must | pending | stage-2 |
 | QUAL-04 | Hands-on listening pass in DAW across use cases | nice | pending | stage-4 |
