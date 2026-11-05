@@ -1,8 +1,9 @@
 ---
 plugin: O-Granulator
-stage: 1
-status: stage_1_complete
-current_phase: verify
+stage: 2
+status: stage_2_phase_2_1_discuss_complete
+current_phase: discuss
+current_dsp_phase: 2.1
 stage_0_status: ui_design_complete
 last_updated: 2026-11-04
 latest_mockup_version: 2
@@ -13,7 +14,7 @@ complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_2_discuss
+next_action: stage_2_phase_2_1_research
 next_stage: 2
 ready_for_implementation: true
 blocked_on: null
@@ -30,7 +31,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — ✓ VERIFIED 2026-11-04; Stage 2 (DSP) next
+Stage: 2 of 4 (DSP) — Phase 2.1 (Ring + pass engine + one stream) discuss ✓ 2026-11-04
 Status: O-Granulator 0.1.0 shell builds VST3 + AU + Standalone; 220 params, pass-through, state codec; pluginval 10 + auval PASS. pitch-collections 1.0.0 module and O-GrainScatter 3.6.0 landed with it.
 Progress: [#####...............] 25% (Stage 1 verified — VERIFICATION.md)
 
@@ -78,6 +79,17 @@ Progress: [#####...............] 25% (Stage 1 verified — VERIFICATION.md)
 - plugins/O-Granulator/.planning/stages/0-ideation/CONTEXT.md
 
 ## Phase Progress
+
+### Stage 2: DSP — Phase 2.1 (Ring + pass engine + one stream)
+| Phase | Status | Date | Skipped |
+|-------|--------|------|---------|
+| discuss | ✓ | 2026-11-04 | |
+| research | → | | |
+| plan | | | |
+| execute | | | |
+| verify | | | |
+
+Decisions: grain-engine 1.1.0 unmodified (G2/G3 local workarounds, promote after ship); ring 41 s at all rates (no ≥96 k clamp); human listening at end of 2.1 and 2.4 only. Stage 1 harness B1–B3 rescope to mix 0 % (mix default 50). See `stages/2-dsp/CONTEXT-2.1.md`.
 
 ### Stage 1: Foundation
 | Phase | Status | Date | Skipped |
