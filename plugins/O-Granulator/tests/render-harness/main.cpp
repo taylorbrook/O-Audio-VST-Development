@@ -372,6 +372,7 @@ static void busRows()
     for (auto& L : layouts)
     {
         auto q = make();
+        q->setSeed (0x5EED'B2B2'0000'0001ull);   // PLAN-2.4 P43: deterministic (VERIFICATION-2.3 deviation 4)
         q->setBusesLayout (layout (L.in, L.out));
         q->prepareToPlay (kSr, 512);
         const int inCh = L.in.size(), outCh = L.out.size(), numCh = juce::jmax (inCh, outCh);

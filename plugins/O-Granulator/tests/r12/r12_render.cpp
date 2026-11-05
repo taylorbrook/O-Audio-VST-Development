@@ -89,6 +89,7 @@ namespace
         std::unique_ptr<GranulatorProcessor> p (dynamic_cast<GranulatorProcessor*> (createPluginFilter()));
         const std::vector<std::pair<const char*, float>> ps {
             { "mix", 100.0f },
+            { "input_gain", -12.0f },   // PLAN-2.4 T1: both sides, keeps max|wet| below the D9 knee (T - 1 dB)
             { "s1_enable", 1.0f }, { "s2_enable", 0.0f }, { "s3_enable", 0.0f }, { "s4_enable", 0.0f },
             { "s1_spray", 10.0f }, { "s1_jitter", 20.0f },
             { "s1_window", 0.0f }, { "s1_window_skew", 0.0f },
@@ -118,6 +119,10 @@ namespace
                 out[(size_t) (2 * (pos + i) + 1)] = blk.getSample (1, i);
             }
         }
+        // PLAN-2.4 T1: max|out| = max|wet| (mix 100 %, output 0 dB) — must sit
+        // below the D9 knee (T = 0.501187) for this null to survive 2.4.
+        double maxWet = 0.0;
+        for (float v : out) maxWet = juce::jmax (maxWet, (double) std::abs (v));
         double e = 0.0;
         for (size_t i = (size_t) 2 * 48000; i < out.size(); ++i) e += (double) out[i] * out[i];
         const double db = 10.0 * std::log10 (juce::jmax (1e-300, e / (double) (out.size() - 2 * 48000)));
@@ -127,10 +132,10 @@ namespace
         std::fprintf (stderr, "  %s: %d/%d params exact; spawns %lld steals %lld kills %lld maxAlive %lld; wet %.2f dBFS\n",
                       which.toRawUTF8(), ok, (int) ps.size(), (long long) d.spawns, (long long) d.steals,
                       (long long) d.kills, (long long) d.maxAlive, db);
-        std::printf ("diag %s spawns %lld steals %lld kills %lld maxAlive %lld wetdb %.2f exact %d/%d\n", which.toRawUTF8(),
-                     (long long) d.spawns, (long long) d.steals, (long long) d.kills, (long long) d.maxAlive, db, ok, (int) ps.size());
+        std::printf ("diag %s spawns %lld steals %lld kills %lld maxAlive %lld wetdb %.2f maxwet %.6f exact %d/%d\n", which.toRawUTF8(),
+                     (long long) d.spawns, (long long) d.steals, (long long) d.kills, (long long) d.maxAlive, db, maxWet, ok, (int) ps.size());
        #else
-        std::printf ("diag %s wetdb %.2f exact %d/%d\n", which.toRawUTF8(), db, ok, (int) ps.size());
+        std::printf ("diag %s wetdb %.2f maxwet %.6f exact %d/%d\n", which.toRawUTF8(), db, maxWet, ok, (int) ps.size());
        #endif
 
         juce::File f (juce::File::getCurrentWorkingDirectory().getChildFile (outPath));

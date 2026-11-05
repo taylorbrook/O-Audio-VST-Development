@@ -32,20 +32,23 @@ JUCE_SRC="${JUCE_DIR:-/Users/taylorbrook/JUCE}"
 mkdir -p "$WORK"
 
 cd "$REPO"
-if ! git diff --quiet "${OLD_SHA}" -- modules scripts/param-dump; then
-    echo "N0: modules/ or scripts/param-dump differ from ${OLD_SHA} — archive them too before trusting a null" >&2
+# The engine's own modules must be byte-identical to the old tree. Every other
+# module (reverb-unit 1.2.0 from 2.4 T10 on) is taken from the OLD tree's
+# archive for the old side, so the old side builds exactly what it shipped.
+if ! git diff --quiet "${OLD_SHA}" -- modules/synthesis/grain-engine modules/tuning/pitch-collections scripts/param-dump; then
+    echo "N0: grain-engine / pitch-collections / scripts/param-dump differ from ${OLD_SHA} — archive them too before trusting a null" >&2
     exit 2
 fi
 
 # 1. Old tree (re-extracted every run: never trust a stale copy).
 rm -rf "$WORK/old"
 mkdir -p "$WORK/old"
-git archive "${OLD_SHA}" plugins/O-Granulator | tar -x -C "$WORK/old"
+git archive "${OLD_SHA}" plugins/O-Granulator modules | tar -x -C "$WORK/old"
 
-make_proj () {   # $1 = side, $2 = plugin tree
+make_proj () {   # $1 = side, $2 = plugin tree, $3 = modules tree
     local P="$WORK/proj-$1"
     mkdir -p "$P"
-    ln -sfn "$REPO/modules" "$P/modules"
+    ln -sfn "$3" "$P/modules"
     ln -sfn "$REPO/scripts" "$P/scripts"
     cat > "$P/CMakeLists.txt" <<EOF
 cmake_minimum_required(VERSION 3.22)
@@ -66,8 +69,8 @@ EOF
     ninja -C "$P/build" "proj-$1-n0" > "$P/build.log" 2>&1 || { tail -40 "$P/build.log"; exit 3; }
 }
 
-make_proj old "$WORK/old/plugins/O-Granulator"
-make_proj new "$REPO/plugins/O-Granulator"
+make_proj old "$WORK/old/plugins/O-Granulator" "$WORK/old/modules"
+make_proj new "$REPO/plugins/O-Granulator" "$REPO/modules"
 
 bin () { echo "$WORK/proj-$1/build/proj-$1-n0_artefacts/Release/proj-$1-n0"; }
 

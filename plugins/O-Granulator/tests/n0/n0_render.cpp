@@ -124,6 +124,7 @@ namespace
         std::unique_ptr<GranulatorProcessor> p (dynamic_cast<GranulatorProcessor*> (createPluginFilter()));
         std::vector<std::pair<std::string, float>> ps {
             { "mix", 100.0f },
+            { "input_gain", -12.0f },   // PLAN-2.4 T1: both sides, keeps max|wet| below the D9 knee (T - 1 dB)
             { "grain_limit", capped ? 0.0f /* 32 */ : 3.0f /* 128 */ },
         };
         for (int s = 1; s <= 4; ++s)
@@ -183,16 +184,20 @@ namespace
                 out[(size_t) (2 * (pos + i) + 1)] = blk.getSample (1, i);
             }
         }
+        // PLAN-2.4 T1: max|out| = max|wet| (mix 100 %, output 0 dB) — must sit
+        // below the D9 knee (T = 0.501187) for this null to survive 2.4.
+        double maxWet = 0.0;
+        for (float v : out) maxWet = juce::jmax (maxWet, (double) std::abs (v));
         double e = 0.0;
         for (size_t i = (size_t) 2 * 48000; i < out.size(); ++i) e += (double) out[i] * out[i];
         const double db = 10.0 * std::log10 (juce::jmax (1e-300, e / (double) (out.size() - 2 * 48000)));
 
         const auto& d = p->getEngineForTest().diag;
         std::printf ("diag %s/%s spawns %lld steals %lld kills %lld maxAlive %lld plan1 %lld plan2 %lld plan3 %lld plan4 %lld "
-                     "wetdb %.2f exact %d/%d landed %d raw %016llx\n",
+                     "wetdb %.2f maxwet %.6f exact %d/%d landed %d raw %016llx\n",
                      which.toRawUTF8(), variant.toRawUTF8(), (long long) d.spawns, (long long) d.steals, (long long) d.kills,
                      (long long) d.maxAlive, (long long) d.planCalls[0], (long long) d.planCalls[1],
-                     (long long) d.planCalls[2], (long long) d.planCalls[3], db, ok, (int) ps.size(), landed, (unsigned long long) rawSum);
+                     (long long) d.planCalls[2], (long long) d.planCalls[3], db, maxWet, ok, (int) ps.size(), landed, (unsigned long long) rawSum);
 
         juce::File f (juce::File::getCurrentWorkingDirectory().getChildFile (outPath));
         f.deleteFile();
