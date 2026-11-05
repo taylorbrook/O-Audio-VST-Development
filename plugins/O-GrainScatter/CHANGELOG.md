@@ -1,5 +1,40 @@
 # Changelog
 
+## [3.6.0] - 2026-11-04
+
+Pitch collections now come from the shared pitch-collections module, and the Custom
+field accepts an equal-division shorthand. MINOR: no parameter, state or audio change
+for existing sessions and scales.
+
+### Added
+
+- **`edo N [period]` in the Custom field.** `edo 19`, `19-edo`, `EDO 22` build N equal
+  steps per octave; an optional third token sets the period (`edo 13 3/1` is
+  Bohlen-Pierce). N must be 1 to 64 — outside that the field shows the new
+  "edo needs 1 to 64 divisions" message (en / fr / zh-Hans). `edo 19` gives exactly
+  the built-in 19-EDO table.
+
+### Changed
+
+- **`PitchCollections` is the pitch-collections module copy**
+  (`ouaricon::tuning::PitchCollections`, module 1.0.0) instead of the namespace in
+  `Source/dsp/PitchEngine.h`. The code moved verbatim; `PitchEngine.h` keeps the
+  engine and aliases the namespace, so no call site changes, and neither do the test
+  drivers that compile against older trees. The collection order and the host names
+  of the Scale parameter are frozen by the module.
+
+### Testing
+
+- New `tests/pitch-null` gate: the same driver compiled against v3.5.1 (`0e1117b6`,
+  `git archive`) and against this tree. All 190 renders are byte-identical: every
+  collection Id 0–31 (Free and Custom included) × 3 seeds (one at variable blocks),
+  the three ladder modes × Up / Down × six collections × two roots, degree masks on
+  four collections, and seven custom texts + three `.scl` bodies on Custom. The parse
+  corpus (34 texts + 7 `.scl` bodies through the module's v3.5.1 corpus) dumps
+  byte-identical. Positive control: the edo inputs differ (v3.5.1 rejects them).
+  Harness control: before the move the same run reports the positive control FAILED.
+- Seed liveness 32 / 32; quietest render −17.9 dBFS.
+
 ## [3.5.1] - 2026-11-03
 
 The counter RNG now comes from the shared grain-engine module. PATCH: no parameter,

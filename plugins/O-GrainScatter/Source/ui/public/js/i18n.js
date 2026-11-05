@@ -1313,6 +1313,10 @@ export const LABELS = Object.freeze({
                              fr: { t: 'Ce fichier .scl est mal formé.', reviewed: false },
         'zh-Hans': { t: '该 .scl 文件格式有误。', reviewed: 'mt' },
     },
+    'label.customErr.badEdo':    { en: { t: 'edo needs 1 to 64 divisions (edo 19, edo 13 3/1).' },
+                             fr: { t: 'edo demande de 1 à 64 divisions (edo 19, edo 13 3/1).', reviewed: false },
+        'zh-Hans': { t: 'edo 需要 1 到 64 个等分（edo 19、edo 13 3/1）。', reviewed: 'mt' },
+    },
     // The hint NAMES a control whose caption this table also owns, so it takes
     // the caption as a {n} token rather than a second copy of the same words.
     // trLabel() resolves a token that is itself a LABELS key, so a reviewer who

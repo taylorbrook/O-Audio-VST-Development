@@ -8,7 +8,7 @@ juce_add_plugin(OuariconGrainScatter
     PLUGIN_CODE OuGS
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-GrainScatter${OUARICON_DEV_SUFFIX}"
-    VERSION 3.5.1
+    VERSION 3.6.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -52,6 +52,10 @@ juce_generate_juce_header(OuariconGrainScatter)
 # plugin's Stream / GrainSlot enums). The local GrainScheduler / GrainPool in
 # Source/dsp are different classes and stay (global namespace, no clash).
 ouaricon_add_module(OuariconGrainScatter grain-engine)
+
+# v3.6.0: PitchCollections (collections, text / Scala parsers, edo shorthand)
+# comes from the shared pitch-collections module; dsp/PitchEngine.h aliases it.
+ouaricon_add_module(OuariconGrainScatter pitch-collections)
 
 # WebView UI Resources
 juce_add_binary_data(OuariconGrainScatter_UIResources
@@ -208,5 +212,30 @@ if(OUARICON_BUILD_TESTS)
         list(TRANSFORM _gs_ad_srcs REPLACE "^${CMAKE_CURRENT_SOURCE_DIR}/Source/" "${_gs_v340_src}/")
         set_property(TARGET O-GrainScatter-adapt-gate-v340 PROPERTY SOURCES ${_gs_ad_srcs})
         target_compile_definitions(O-GrainScatter-adapt-gate-v340 PRIVATE GS_ADAPT_V340=1)
+    endif()
+
+    # v3.6.0: pitch-collections null gate. PitchCollections moved to the shared
+    # module; the same driver compiled against v3.5.1 (commit 0e1117b6, extracted
+    # with git archive at configure time) dumps every render + the parse corpus,
+    # this build compares them byte for byte (edo inputs = positive control):
+    #   O-GrainScatter-pitch-null-v351 <dir> && O-GrainScatter-pitch-null <dir>
+    ouaricon_add_processor_console(OuariconGrainScatter ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/pitch-null/main.cpp pitch-null)
+    set(_gs_v351_root ${CMAKE_BINARY_DIR}/gs-v351-0e1117b6)
+    set(_gs_v351_src  ${_gs_v351_root}/plugins/O-GrainScatter/Source)
+    if(NOT EXISTS ${_gs_v351_src}/PluginProcessor.cpp)
+        file(MAKE_DIRECTORY ${_gs_v351_root})
+        execute_process(
+            COMMAND git -C ${CMAKE_SOURCE_DIR} archive 0e1117b6 plugins/O-GrainScatter/Source
+            COMMAND tar -x -C ${_gs_v351_root}
+            RESULT_VARIABLE _gs_v351_rc)
+    endif()
+    if(EXISTS ${_gs_v351_src}/PluginProcessor.cpp)
+        ouaricon_add_processor_console(OuariconGrainScatter ${_gs_v351_src}
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/pitch-null/main.cpp pitch-null-v351)
+        get_target_property(_gs_pn_srcs O-GrainScatter-pitch-null-v351 SOURCES)
+        list(TRANSFORM _gs_pn_srcs REPLACE "^${CMAKE_CURRENT_SOURCE_DIR}/Source/" "${_gs_v351_src}/")
+        set_property(TARGET O-GrainScatter-pitch-null-v351 PROPERTY SOURCES ${_gs_pn_srcs})
+        target_compile_definitions(O-GrainScatter-pitch-null-v351 PRIVATE GS_PITCHNULL_V351=1)
     endif()
 endif()

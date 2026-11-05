@@ -630,6 +630,7 @@ function initI18n() {
             else if (code === 'badPeriod') setLabel(errorEl, 'label.customErr.badPeriod');
             else if (code === 'tooMany')   setLabel(errorEl, 'label.customErr.tooMany');
             else if (code === 'badCount')  setLabel(errorEl, 'label.customErr.badCount');
+            else if (code === 'badEdo')    setLabel(errorEl, 'label.customErr.badEdo');
             else { delete errorEl.dataset.i18n; delete errorEl.dataset.label; errorEl.textContent = ''; }
         };
         const fillEditor = () => {
