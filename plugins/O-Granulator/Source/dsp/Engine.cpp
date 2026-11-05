@@ -53,6 +53,17 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
 
     absCount = 0;
     gp.latch (ptrs);
+    // Freeze: prepare starts LIVE (a saved freeze On engages at the first tick —
+    // its rising edge — with whatever has been captured by then).
+    frozen = false;
+    freezePending = false;
+    freezeStopTick = 0;
+    fz = {};
+    fz.xfadeLen = std::max (1, static_cast<int> (std::lround (kFreezeXfadeS * fs)));
+    fz.slopeLen = std::max (1, static_cast<int> (std::lround (kFreezeSlopeS * fs)));
+    // The deferral covers the 5 ms kill fade in whole cells (+1 for the float
+    // killStep's last decrement): 9 cells @ 48 k, 8 @ 44.1 k, 31 @ 192 k.
+    freezeDeferCells = rampCellsFor (fs, kKillFadeMs) + 1;
     spanSamples = static_cast<double> (gp.bufferLengthS) * fs;
     copyCustomTable (true);
     for (auto& a : activeSets)
@@ -288,7 +299,7 @@ void Engine::process (const float* const* in, int numIn, float* const* out, int 
         //    is the head before this piece's write. It equals absCount until the
         //    first freeze; after one, the ring lags absCount by whole cells.
         const std::int64_t wPiece = ring.getWriteCount();
-        CaptureWriter::write (ring, inL + done, inR + done, len, cellPos, inGainRamp, fbDelay);
+        CaptureWriter::write (ring, inL + done, inR + done, len, cellPos, inGainRamp, fbDelay, fz);
         jassert (ring.getWriteCount() == wPiece + (frozen ? 0 : len));
 
         // 4. Schedule.
@@ -357,6 +368,7 @@ void Engine::gridTick() noexcept
     activeSeed = pendingSeed;
     gp.latch (ptrs);
     spanSamples = static_cast<double> (gp.bufferLengthS) * fs;   // spawn-latched destination (no ramp)
+    handleFreezeEdges();
 
     // All four streams (2.2 removes the 2.1 P5 mask). Each keeps its R4 epoch and
     // rising-edge reset.
@@ -431,6 +443,102 @@ void Engine::gridTick() noexcept
    #endif
 }
 
+/** Freeze edges from the LATCHED Bool at absolute ticks (block-size invariant;
+    never a listener write).
+
+    Rising edge — DEFERRED head-stop (2.4 execution deviation, see SUMMARY-2.4):
+    the stop W0 is latched as the head freezeDeferCells cells AHEAD (the ring
+    keeps writing until then), and the R25 forced release is computed against
+    that W0. The deferral covers the 5 ms kill fade, so every crosser is silent
+    before the head stops and none ever reaches it: R25's reflect (value-
+    continuous, but a slope REVERSAL — a 2·s' kink on tonal material, κ ≈ 24x)
+    stays only as a safety net. Spawns inside the window already use the frozen
+    geometry against W0 (+ a head-lead clamp, Spawner::frozenDelay). The stop
+    lands on a tick, so the whole edge stays block-size invariant.
+    Falling edge: a 10 ms mirror crossfade (R26); during the deferral it just
+    cancels the pending stop. A rising edge inside a release fade restarts the
+    deferral; the fade ends at the stop (the push stops, nothing is blended). */
+void Engine::handleFreezeEdges() noexcept
+{
+    const bool engaged = frozen || freezePending;
+    if (gp.freeze && ! engaged)
+    {
+        bool deferStop = true;
+       #if OGRAN_TEST_HOOKS
+        deferStop = ! hooks.freezeNoDefer;
+       #endif
+        const std::int64_t lead = deferStop ? static_cast<std::int64_t> (freezeDeferCells) * kCell : 0;
+        fz.W0           = ring.getWriteCount() + lead;
+        fz.heldCaptured = std::clamp<std::int64_t> (fz.W0 - Ring::margin (kMaxLevel) - 1, 0, ringSamples);
+        freezePending   = true;
+        freezeStopTick  = absCount + lead;
+       #if OGRAN_TEST_HOOKS
+        ++diag.freezeEngages;
+        const auto& all = pool.getGrains();
+        for (int i = 0; i < kPoolLive + kPoolFade; ++i)
+        {
+            engageSnap[static_cast<size_t> (i)]   = all[static_cast<size_t> (i)];
+            engageActive[static_cast<size_t> (i)] = pool.isActive (i);
+        }
+        engageW0 = fz.W0;
+       #endif
+        forcedReleaseScan();
+    }
+    else if (! gp.freeze && engaged)
+    {
+        if (frozen)
+        {
+            frozen      = false;
+            fz.frozen   = false;
+            fz.xfading  = true;
+            fz.xfadePos = 0;
+            fz.heldSpan = std::min (static_cast<std::int64_t> (spanSamples), fz.heldCaptured);
+           #if OGRAN_TEST_HOOKS
+            fz.spliceOld = hooks.releaseSpliceOld;
+           #endif
+        }
+        freezePending = false;   // released inside the deferral: the head never stopped
+       #if OGRAN_TEST_HOOKS
+        ++diag.freezeReleases;
+       #endif
+    }
+
+    // The deferred stop, on its tick.
+    if (freezePending && absCount >= freezeStopTick)
+    {
+        jassert (ring.getWriteCount() == fz.W0);
+        freezePending = false;
+        frozen        = true;
+        fz.frozen     = true;
+        fz.xfading    = false;
+    }
+}
+
+/** R25: a live forward grain whose remaining reach crosses the stopped head
+    (δ − r·m < margin(level)) gets the 2.2 5 ms release. Reverse grains never
+    cross (δ grows by r per sample); fade slots are already fading. */
+void Engine::forcedReleaseScan() noexcept
+{
+    const auto& all = pool.getGrains();
+    for (int i = 0; i < kPoolLive; ++i)
+    {
+        if (! pool.isActive (i))
+            continue;
+        const Grain& g = all[static_cast<size_t> (i)];
+        if (g.dir < 0 || g.killStep > 0.0f || spawner.isPendingKill (i))
+            continue;
+        const double delta = static_cast<double> (fz.W0) - g.readAbs;
+        const double rem   = g.len - static_cast<double> (g.age) - g.frac;
+        if (delta - g.rate * rem < static_cast<double> (Ring::margin (g.level)))
+        {
+            spawner.requestKill (i);
+           #if OGRAN_TEST_HOOKS
+            ++diag.forcedReleases;
+           #endif
+        }
+    }
+}
+
 int Engine::scheduleStreams (int len) noexcept
 {
     int counts[kMaxStreams] {};
@@ -477,9 +585,24 @@ void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart, std::int64_t 
     forceLevel0 = hooks.forceLevel0;
    #endif
 
-    // Draw before obtain.
+    // Draw before obtain. While frozen: the R24 / R27 geometry against the
+    // captured span (span_frz re-taken at every grid point from the latch).
+    // Inside the deferral the head still moves toward W0: headLead = W0 − W_on(live).
+    FrozenGeom fzg;
+    const bool frozenGeom = frozen || freezePending;
+    if (frozenGeom)
+    {
+        fzg.on           = true;
+        fzg.heldCaptured = static_cast<double> (fz.heldCaptured);
+        fzg.spanFrz      = std::min (spanSamples, fzg.heldCaptured);
+        if (freezePending)
+            fzg.headLead = static_cast<double> (std::max<std::int64_t> (0, fz.W0 - (wPiece + o.offset + 1)));
+       #if OGRAN_TEST_HOOKS
+        fzg.noMinSpray   = hooks.freezeNoMinSpray;
+       #endif
+    }
     const GrainPlan gpl = Spawner::plan (gp.s[o.stream], spanSamples, fs, ringSamples,
-                                         activeSeed, o.stream, o.globalIndex, forceLevel0, pitchSel[o.stream]);
+                                         activeSeed, o.stream, o.globalIndex, forceLevel0, pitchSel[o.stream], fzg);
    #if OGRAN_TEST_HOOKS
     ++diag.planCalls[o.stream];
     if (hooks.snapshotSteals)
@@ -496,8 +619,9 @@ void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart, std::int64_t 
     // R23: absolute onset (telemetry, epochs) vs the ring-domain head the grain
     // anchors to. Live: the head after the onset sample is written. Frozen: the
     // stopped head (every frozen spawn sees the same W).
-    const std::int64_t wOn = frozen ? wPiece : wPiece + o.offset + 1;
+    const std::int64_t wOn = frozen ? wPiece : freezePending ? fz.W0 : wPiece + o.offset + 1;
     Spawner::fill (*acq.grain, gpl, o.stream, o.frac, wOn);
+    acq.grain->frozenSpawn = frozenGeom;
    #if OGRAN_TEST_HOOKS
     const std::int64_t onsetSample = pieceStart + o.offset;
    #else
@@ -524,7 +648,7 @@ void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart, std::int64_t 
             sh.ringRand   = 0.0f;
             sh.crushProb  = 1.0f;
             const GrainPlan shared = Spawner::plan (sh, spanSamples, fs, ringSamples, activeSeed, o.stream,
-                                                    o.globalIndex, forceLevel0, pitchSel[o.stream]);
+                                                    o.globalIndex, forceLevel0, pitchSel[o.stream], fzg);
             Spawner::assignFxLatch (g, shared);
         }
         if (hooks.fxNoReset && acq.slot >= 0 && acq.slot < kPoolLive && retireShadow[acq.slot].valid)
@@ -650,6 +774,7 @@ void Engine::renderSegment (int from, int to) noexcept
 
         const int slot = static_cast<int> (&g - base);
         juce::ignoreUnused (slot);
+        const bool releasing = slot >= kPoolLive || g.killStep > 0.0f;   // fade slot or forced release (R25 diag split)
 
        #if OGRAN_TEST_HOOKS
         bool forcedRetire = false;
@@ -689,7 +814,7 @@ void Engine::renderSegment (int from, int to) noexcept
             for (int i = from; i < to; ++i)
             {
                 float l = 0.0f, r = 0.0f;
-                readGrain (g, head, l, r);
+                readGrain (g, head, releasing, l, r);
 
                 // Window LAST (after the per-grain FX). killGain and fade are exactly
                 // 1.0f for a live, non-killing grain — bitwise no-ops.
@@ -718,7 +843,7 @@ void Engine::renderSegment (int from, int to) noexcept
             for (int i = from; i < to; ++i)
             {
                 float l = 0.0f, r = 0.0f;
-                readGrain (g, head, l, r);
+                readGrain (g, head, releasing, l, r);
 
                 const double phase = (static_cast<double> (g.age) + g.frac) * g.invLen;
                 W[n] = WindowMorphBank::read (tab, tilt, phase) * g.killGain * fade.next();

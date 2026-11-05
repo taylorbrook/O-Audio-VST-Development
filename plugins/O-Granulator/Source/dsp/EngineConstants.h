@@ -141,6 +141,7 @@ namespace ogran
     inline constexpr float  kKneeT     = 0.501187234f;   // D9 knee: identity at or below −6 dBFS
     inline constexpr float  kKneeA     = 1.99526231f;    // D9 ceiling +6 dBFS (output reaches float (A))
     inline constexpr double kFreezeXfadeS = 0.010;       // release content crossfade (raised cosine)
+    inline constexpr double kFreezeSlopeS = 0.002;       // held continuation: odd → even mirror blend (2.4 deviation)
     inline constexpr float  kRevPredelayMs = 20.0f;      // reverb fixed internals (ARCH §13)
     inline constexpr float  kRevMod        = 0.2f;
     inline constexpr float  kRevShimmer    = 0.0f;

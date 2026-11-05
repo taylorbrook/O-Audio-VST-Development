@@ -142,7 +142,8 @@ namespace ogran
             bool fbArchLaw        = false;   // F3n / U8n: g_fb = 1/max (1, S1) (the ARCH §10 law)
             bool freezeNoMinSpray = false;   // FZ3n: frozen spawns use the live formula + plain clamp
             bool releaseSpliceOld = false;   // FZ2bn: release continuation ring[W − heldSpan] (R26 control)
-            bool freezeNoReflect  = false;   // FZ2an: no R25 head reflect (the ring clamps instead)
+            bool freezeNoReflect  = false;   // INFO: no R25 head reflect (the ring clamps instead — stuck reads)
+            bool freezeNoDefer    = false;   // FZ2an / FZ6: stop the head AT the edge (the PLAN P38 form: crossers reflect)
             struct FbNan { std::int64_t atSample = -1; bool reset = false; bool done = false; };
             FbNan injectFbNan;               // Z4 / M4: NaN into the chain input at the first piece >= atSample
                                              // (reset: std::fill the chain instead — the Z4 reference)
@@ -158,6 +159,11 @@ namespace ogran
         std::array<ChainSnap, kChainSnaps> chainSnaps {};
         std::uint64_t chainSnapCount = 0;
         const FeedbackChain& getChainForTest() const noexcept { return chain; }
+        const FreezeState&   getFreezeForTest() const noexcept { return fz; }
+        /** FZ6: the pool as it was at the last freeze engage (before the R25 scan). */
+        std::array<Grain, kPoolLive + kPoolFade> engageSnap {};
+        std::array<bool,  kPoolLive + kPoolFade> engageActive {};
+        std::int64_t engageW0 = -1;
         const Ring& getRingForTest() const noexcept           { return ring; }
         float getFbTapTarget (int s) const noexcept           { return gFbRamp[s].getTarget(); }
 
@@ -288,6 +294,8 @@ namespace ogran
         void gridTick() noexcept;
         int  scheduleStreams (int len) noexcept;
         void spawn (const StreamOnset& o, std::int64_t pieceStart, std::int64_t wPiece) noexcept;
+        void handleFreezeEdges() noexcept;                 // 2.4: tick-sampled freeze edges
+        void forcedReleaseScan() noexcept;                 // 2.4 R25 engage scan
        #if OGRAN_TEST_HOOKS
         Spawner::Acquired nativeAcquireForTest() noexcept;
         void checkStealState (const Spawner::Acquired& acq) noexcept;
@@ -327,7 +335,7 @@ namespace ogran
             (< 2^24) and the delay is exact: locateStart recovers the same
             (t, phi) for every W — i.e. for every host block size. Error <= 1.9e-9
             samples; the accumulator stays full double (no drift). */
-        inline void readGrain (const Grain& g, std::int64_t writeHead, float& l, float& r) noexcept
+        inline void readGrain (const Grain& g, std::int64_t writeHead, bool releasing, float& l, float& r) noexcept
         {
             const double ri = std::floor (g.readAbs);
             const double fq = std::round ((g.readAbs - ri) * 0x1p28) * 0x1p-28;   // may round to 1.0 — still exact
@@ -358,10 +366,31 @@ namespace ogran
                 if (t1 != t2 || i1 != i2 || ! juce::exactlyEqual (u1, u2))
                     ++diag.r1Hazards;
             }
+            // 2.4: a crossing by a RELEASING grain (forced release / fade slot)
+            // is allowed and reflects; any other crossing is a spawner bug.
             if (delay > static_cast<double> (ringSamples)
-                || delay < static_cast<double> (Ring::margin (g.level)) - 1.0e-6)
+                || (delay < static_cast<double> (Ring::margin (g.level)) - 1.0e-6 && ! releasing))
                 ++diag.reachViolations;
+           #else
+            juce::ignoreUnused (releasing);
            #endif
+            // R25 reflect at the head: a grain that reaches the (stopped) head
+            // plays back out of it instead of sticking on the ring's margin clamp.
+            // Value-continuous; exact under R1 (integer margin). Unreachable live
+            // (the reach floor keeps delay >= margin), so live renders are bitwise
+            // 2.3 — the same 1e-6 tolerance as the reach diag.
+            const double mg = static_cast<double> (Ring::margin (g.level));
+            if (delay < mg - 1.0e-6)
+            {
+                bool reflect = true;
+               #if OGRAN_TEST_HOOKS
+                ++diag.headReflections;
+                if (g.frozenSpawn) ++diag.headReflectionsFrozenSpawn;
+                reflect = ! hooks.freezeNoReflect;
+               #endif
+                if (reflect)
+                    delay = 2.0 * mg - delay;
+            }
             ring.readStereo (g.level, delay, g.set, l, r);
         }
 
@@ -467,7 +496,11 @@ namespace ogran
         std::int64_t  absCount     = 0;
         std::uint64_t activeSeed   = 0;
         std::uint64_t pendingSeed  = 0;
-        bool          frozen       = false;   // freeze write arbiter state (2.4 T8; false until then)
+        bool          frozen       = false;   // the head is stopped (edges at ticks only)
+        bool          freezePending = false;  // rising edge seen, head stops at freezeStopTick
+        std::int64_t  freezeStopTick = 0;
+        int           freezeDeferCells = 9;
+        FreezeState   fz;                     // Write Arbiter (CaptureWriter.h)
         bool          prepared     = false;
     };
 } // namespace ogran

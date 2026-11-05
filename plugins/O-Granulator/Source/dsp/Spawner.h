@@ -104,6 +104,17 @@ namespace ogran
         int lo = 0, hi = 0;
     };
 
+    /** Frozen spawner geometry (2.4, RESEARCH-2.4 R24 / R27, PLAN P39). on ⇔ the
+        engine is frozen at this grid point; spanFrz = min (span, heldCaptured). */
+    struct FrozenGeom
+    {
+        bool   on           = false;
+        double spanFrz      = 0.0;
+        double heldCaptured = 0.0;
+        double headLead     = 0.0;     // inside the deferred stop: W0 − W_on(live) (> 0; the head still moves)
+        bool   noMinSpray   = false;   // test hook freezeNoMinSpray (FZ3n): live formula + plain clamp
+    };
+
     /** Victim-choice variants. Plugin builds always use the default (R8). */
     struct AcquirePolicy
     {
@@ -134,7 +145,7 @@ namespace ogran
             slot, so the order is documentation; the before-acquire rule is not.) */
         static GrainPlan plan (const GridParams::Stream& sp, double spanSamples, double fs, int ringSamples,
                                std::uint64_t seed, int stream, std::uint64_t globalIndex, bool forceLevel0,
-                               const PitchSel& pitchSel = {}) noexcept
+                               const PitchSel& pitchSel = {}, const FrozenGeom& fz = {}) noexcept
         {
             const ouaricon::grain::CounterRng::Draw draw (seed, kGrainStream + static_cast<std::uint64_t> (stream), globalIndex);
             auto uni = [&draw] (std::uint32_t slot) noexcept { return static_cast<double> (draw.nextFloat (slot)); };
@@ -184,24 +195,31 @@ namespace ogran
 
             // Position.
             const double margin = static_cast<double> (Ring::margin (p.level));
-            double x = static_cast<double> (sp.position) * spanSamples;
-            if (sp.spray > 0.0f)
-                x += static_cast<double> (sp.spray) * spanSamples * (uni (Slot::PosSpray) - 0.5);
-            double d = margin + reflectInto (x, spanSamples);
-
-            // Reach floor (P1).
-            if (p.dir > 0)
+            if (! fz.on)
             {
-                d = std::max (d, margin + std::max (0.0, (p.rate - 1.0) * p.len) + 1.0);
+                double x = static_cast<double> (sp.position) * spanSamples;
+                if (sp.spray > 0.0f)
+                    x += static_cast<double> (sp.spray) * spanSamples * (uni (Slot::PosSpray) - 0.5);
+                double d = margin + reflectInto (x, spanSamples);
+
+                // Reach floor (P1).
+                if (p.dir > 0)
+                {
+                    d = std::max (d, margin + std::max (0.0, (p.rate - 1.0) * p.len) + 1.0);
+                }
+                else
+                {
+                    d = std::max (d, margin + 1.0);
+                    const double maxD = static_cast<double> (ringSamples) - (p.rate + 1.0) * p.len;
+                    jassert (d <= maxD);   // never binds under D2 (RESEARCH §1)
+                    d = std::min (d, maxD);
+                }
+                p.delay = d;
             }
             else
             {
-                d = std::max (d, margin + 1.0);
-                const double maxD = static_cast<double> (ringSamples) - (p.rate + 1.0) * p.len;
-                jassert (d <= maxD);   // never binds under D2 (RESEARCH §1)
-                d = std::min (d, maxD);
+                p.delay = frozenDelay (sp, p, margin, fz, uni);
             }
-            p.delay = d;
 
             // Stereo spread (R10): x = spread · (2u − 1), constant-power balance about
             // centre (the stream pan stays on the bus). Spread 0 → no draw, (1, 1).
@@ -230,6 +248,53 @@ namespace ogran
 
             planFx (p, sp, fs, uni);
             return p;
+        }
+
+        /** Frozen position (R24 / R27). The head is stopped, so a forward grain's
+            delay falls by r per sample: floor = margin + r·len + 1 (forward), and
+            a reverse grain must not read past the captured span. Position is
+            measured FROM the floor over A = max (span_frz − floorOff, r·len/2),
+            with a minimum spray of ±½ grain of source (w >= r·len): PosSpray is
+            drawn even at user spray 0 (CounterRng is keyed by slot — no other
+            draw moves; live renders never come here).
+                x = position·A + w·(u − ½),  D = margin + floorOff + reflect (x, A) */
+        template <typename Uni>
+        static double frozenDelay (const GridParams::Stream& sp, const GrainPlan& p, double margin,
+                                   const FrozenGeom& fz, Uni&& uni) noexcept
+        {
+            const double rl   = p.rate * p.len;
+            const double span = fz.spanFrz;
+            const double pos  = static_cast<double> (sp.position), spray = static_cast<double> (sp.spray);
+            double d = 0.0;
+            if (fz.noMinSpray)
+            {
+                // FZ3n control: the live formula against the frozen span + the plain clamp.
+                double x = pos * span;
+                if (sp.spray > 0.0f)
+                    x += spray * span * (uni (Slot::PosSpray) - 0.5);
+                d = margin + reflectInto (x, span);
+                d = p.dir > 0 ? std::max (d, margin + rl + 1.0) : std::max (d, margin + 1.0);
+            }
+            else
+            {
+                const double floorOff = p.dir > 0 ? rl + 1.0 : 0.0;
+                const double A = std::max (span - floorOff, 0.5 * rl);
+                const double w = std::min (std::max (spray * span, rl), A);
+                const double x = pos * A + w * (uni (Slot::PosSpray) - 0.5);
+                d = margin + floorOff + reflectInto (x, A);
+            }
+            if (p.dir < 0)
+            {
+                d = std::max (d, margin + 1.0);
+                d = std::min (d, std::max (margin + 1.0, fz.heldCaptured - rl));   // D + r·len <= heldCaptured
+            }
+            // Deferred stop: anchored at the future W0 while the head is still
+            // headLead samples short of it — never read ahead of the moving head.
+            // Forward: head − read >= margin for every age up to the stop needs
+            // D >= margin + r·(headLead + 1); reverse only needs it at age 0.
+            if (fz.headLead > 0.0)
+                d = std::max (d, p.dir > 0 ? margin + p.rate * (fz.headLead + 1.0) + 1.0 : margin + fz.headLead + 1.0);
+            return d;
         }
 
         /** 2.3 per-grain FX latch (PLAN-2.3 P22–P24, ARCHITECTURE §9 order).
@@ -474,6 +539,18 @@ namespace ogran
 
         //======================================================================
         bool hasPendingKills() const noexcept { return anyPending; }
+
+        /** 2.4 freeze engage (R25): record a 5 ms forced release for live slot idx,
+            applied by the next render pass (the R3 kill path). */
+        void requestKill (int idx) noexcept
+        {
+            if (idx >= 0 && idx < kPoolLive)
+            {
+                pendingKill[idx] = 1;
+                anyPending = true;
+            }
+        }
+        bool isPendingKill (int idx) const noexcept { return idx >= 0 && idx < kPoolLive && pendingKill[idx] != 0; }
 
         /** Render-pass hook: applies a recorded kill to its grain (live slots only). */
         void applyPendingKill (Grain& g, const Grain* base) noexcept
