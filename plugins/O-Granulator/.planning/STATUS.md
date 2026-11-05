@@ -1,8 +1,8 @@
 ---
 plugin: O-Granulator
 stage: 2
-status: stage_2_phase_2_1_execute_complete
-current_phase: execute
+status: stage_2_phase_2_1_verified
+current_phase: verify
 current_dsp_phase: 2.1
 stage_0_status: ui_design_complete
 last_updated: 2026-11-04
@@ -14,13 +14,13 @@ complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_2_phase_2_1_verify
+next_action: stage_2_phase_2_2_discuss
 next_stage: 2
 ready_for_implementation: true
 blocked_on: null
 contract_checksums:
   brief: sha256:f9c748a8a256de9d2fb2bcbe1aff58b12999a640cc8d36fbdbf96e6deb5559d7
-  requirements: sha256:b9ba9106585001342afa9818ab895602eb351c23bf7ec82874208dcba536495d   # COMPAT-01 → complete (Stage 1 verify)
+  requirements: sha256:c74b5ebc60d1df2114e26529ac7cf49ec72e188985804749801bc4543a73392f   # 2.1 verify: FUNC-01/07, DSP-02 complete; DSP-01/04, PERF-01/02/03 partial
   parameter_spec_draft: sha256:d0b1457ea7c1624ff757fd12c1acb7bd62c9acf7bebbdd3460c7f1d30cdbbce3
   parameter_spec: sha256:f5ce35954c2c18e46faa914d95898ddb718d6b77ec4be8582be23b60a26b3688   # P3 uiLanguage amendment (Stage 1)
   architecture: sha256:f0cf753b4de2cb6099ad327b0887a0c254f013746b373000a28f01ad7949d9d9
@@ -31,7 +31,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — Phase 2.1 (Ring + pass engine + one stream) discuss ✓ · research ✓ 2026-11-04 (RESEARCH-2.1.md: R1 read-fraction quantisation for the bitwise null, R2 0 dB snap + mix-0 bypass, R3 plugin-side grain_limit cap, R4 onset epoch across re-enable) · plan ✓ 2026-11-04 (PLAN-2.1.md: 17 tasks, 5 waves, 13 gate rows) · execute ✓ 2026-11-04 (SUMMARY-2.1.md: engine skeleton in Source/dsp/, harness 77/77 PASS, 0 warnings, auval + pluginval 10 VST3/AU PASS; D3 listening checkpoint pending at verify)
+Stage: 2 of 4 (DSP) — Phase 2.1 (Ring + pass engine + one stream) discuss ✓ · research ✓ 2026-11-04 (RESEARCH-2.1.md: R1 read-fraction quantisation for the bitwise null, R2 0 dB snap + mix-0 bypass, R3 plugin-side grain_limit cap, R4 onset epoch across re-enable) · plan ✓ 2026-11-04 (PLAN-2.1.md: 17 tasks, 5 waves, 13 gate rows) · execute ✓ 2026-11-04 (SUMMARY-2.1.md: engine skeleton in Source/dsp/, harness 77/77 PASS, 0 warnings, auval + pluginval 10 VST3/AU PASS; D3 listening checkpoint pending at verify) · verify ✓ 2026-11-04 (VERIFICATION-2.1.md: independent re-run 77/77, pluginval 10 VST3/AU + auval PASS, D3 listening PASS; FUNC-01/07 + DSP-02 complete, 5 partial). Next: Phase 2.2 discuss
 Status: O-Granulator 0.1.0 shell builds VST3 + AU + Standalone; 220 params, pass-through, state codec; pluginval 10 + auval PASS. pitch-collections 1.0.0 module and O-GrainScatter 3.6.0 landed with it.
 Progress: [#####...............] 25% (Stage 1 verified — VERIFICATION.md)
 
@@ -53,7 +53,7 @@ Progress: [#####...............] 25% (Stage 1 verified — VERIFICATION.md)
 
 ## Next Steps
 
-1. Stage 2: DSP (`/plugin-discuss O-Granulator 2-dsp`) — 6 phases per ROADMAP. Carry-ins from Stage 1: sort the active pitch table (7-Limit Just unsorted at source); audio thread owns its own custom-table copy; never derive unity gain from `get()` on skewed ranges.
+1. Stage 2: DSP Phase 2.2 (`/plugin-discuss O-Granulator 2-dsp`). 2.1 verified 2026-11-04. 2.2 must first add the isolated steal-free bit-identity row (VERIFICATION-2.1 gap) and use the §10 single-normalisation output law. Carry-ins from Stage 1: sort the active pitch table (7-Limit Just unsorted at source); audio thread owns its own custom-table copy; never derive unity gain from `get()` on skewed ranges.
 2. Stage 3 integrates the UI with `mockups/v2-integration-checklist.md` (+ check-ui-labels, deferred from Stage 1).
 
 ## Context to Preserve

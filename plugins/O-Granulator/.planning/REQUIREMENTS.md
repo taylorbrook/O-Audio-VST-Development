@@ -4,7 +4,7 @@
 version: 1.0.0
 plugin: O-Granulator
 created: 2026-11-03
-lastUpdated: 2026-11-03
+lastUpdated: 2026-11-04
 ---
 
 ## Overview
@@ -19,13 +19,13 @@ lastUpdated: 2026-11-03
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| FUNC-01 | Live input continuously recorded into a ring buffer (1–30 s active length) | must | pending | stage-2 |
+| FUNC-01 | Live input continuously recorded into a ring buffer (1–30 s active length) | must | complete | stage-2 |
 | FUNC-02 | Freeze latch holds buffer contents; unfreeze resumes recording without clicks | must | pending | stage-2 |
 | FUNC-03 | Four independent grain streams reading the shared buffer, each with enable/level/pan | must | pending | stage-2 |
 | FUNC-04 | Free (grains/s) and tempo-synced density/size modes with onset jitter | must | pending | stage-2 |
 | FUNC-05 | Feedback network: grain output written back to buffer through tone filter, saturation, diffuser | must | pending | stage-2 |
 | FUNC-06 | Modulation matrix routing LFOs, env follower, pitch follower, onset follower, macros to continuous params | must | pending | stage-2 |
-| FUNC-07 | Dry/wet mix, input and output gain | must | pending | stage-2 |
+| FUNC-07 | Dry/wet mix, input and output gain | must | complete | stage-2 |
 | FUNC-08 | Onset follower can trigger grain bursts | should | pending | stage-2 |
 | FUNC-09 | Factory presets covering ambient, harmoniser, rhythmic, feedback-cascade use cases | should | pending | stage-4 |
 
@@ -33,10 +33,10 @@ lastUpdated: 2026-11-03
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| DSP-01 | Per-grain pitch ±24 st with random spread and scale quantisation | must | pending | stage-2 |
-| DSP-02 | Band-limited reads for pitched-up grains (grain-engine BandlimitedReader) | must | pending | stage-2 |
+| DSP-01 | Per-grain pitch ±24 st with random spread and scale quantisation | must | partial | stage-2 |
+| DSP-02 | Band-limited reads for pitched-up grains (grain-engine BandlimitedReader) | must | complete | stage-2 |
 | DSP-03 | Window morph Hann→Tukey→Trapezoid→Exponential with skew; overlap-normalised level | must | pending | stage-2 |
-| DSP-04 | Per-grain reverse probability, position spray, size/gain randomisation, stereo spread | must | pending | stage-2 |
+| DSP-04 | Per-grain reverse probability, position spray, size/gain randomisation, stereo spread | must | partial | stage-2 |
 | DSP-05 | Per-grain FX: SVF (LP/BP/HP) with cutoff randomisation, drive, bitcrush with probability, ring mod with randomised carrier | must | pending | stage-2 |
 | DSP-06 | Feedback loop gain bounded — no runaway at feedback 100 % with any settings | must | pending | stage-2 |
 | DSP-07 | Output reverb/diffuser stage | should | pending | stage-2 |
@@ -55,9 +55,9 @@ lastUpdated: 2026-11-03
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| PERF-01 | Real-time safe audio processing (no allocations/locks in processBlock, incl. grain spawn/steal) | must | pending | stage-2 |
-| PERF-02 | Shared grain pool (~128) with graceful cap; CPU budget defined in planning and met at 48 kHz/128 samples | must | pending | stage-2 |
-| PERF-03 | Block-size invariant output (seeded null across block sizes) | should | pending | stage-2 |
+| PERF-01 | Real-time safe audio processing (no allocations/locks in processBlock, incl. grain spawn/steal) | must | partial | stage-2 |
+| PERF-02 | Shared grain pool (~128) with graceful cap; CPU budget defined in planning and met at 48 kHz/128 samples | must | partial | stage-2 |
+| PERF-03 | Block-size invariant output (seeded null across block sizes) | should | partial | stage-2 |
 
 ### Compatibility (COMPAT)
 
