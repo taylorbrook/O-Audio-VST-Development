@@ -136,7 +136,7 @@ namespace ogran
         struct SpawnRecord
         {
             std::int64_t  onsetSample = 0;   // absolute sample index of the onset
-            std::int64_t  writeHead   = 0;   // W_on = onsetSample + 1
+            std::int64_t  writeHead   = 0;   // W_on, ring domain (R23): W_piece + offset + 1 live, the stopped head frozen
             std::uint64_t globalIndex = 0;   // CounterRng counter (epoch + index)
             int           stream      = 0;
             int           slot        = 0;   // pool slot at spawn (0..127)
@@ -249,7 +249,7 @@ namespace ogran
     private:
         void gridTick() noexcept;
         int  scheduleStreams (int len) noexcept;
-        void spawn (const StreamOnset& o, std::int64_t pieceStart) noexcept;
+        void spawn (const StreamOnset& o, std::int64_t pieceStart, std::int64_t wPiece) noexcept;
        #if OGRAN_TEST_HOOKS
         Spawner::Acquired nativeAcquireForTest() noexcept;
         void checkStealState (const Spawner::Acquired& acq) noexcept;
@@ -411,6 +411,7 @@ namespace ogran
         std::int64_t  absCount     = 0;
         std::uint64_t activeSeed   = 0;
         std::uint64_t pendingSeed  = 0;
+        bool          frozen       = false;   // freeze write arbiter state (2.4 T8; false until then)
         bool          prepared     = false;
     };
 } // namespace ogran

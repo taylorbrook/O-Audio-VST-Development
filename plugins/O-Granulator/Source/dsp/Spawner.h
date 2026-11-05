@@ -439,9 +439,11 @@ namespace ogran
         }
 
         /** Writes the plan into the freshly value-initialised slot.
-            writeHeadAtOnset = absolute index of the onset sample + 1 (the head a
-            sample-by-sample engine would see). readAbs = (W_on − D) + dir·rate·frac. */
-        static void fill (Grain& g, const GrainPlan& p, int stream, double frac, std::int64_t writeHeadAtOnset) noexcept
+            W_on is RING-domain (R23): the level-0 write count a sample-by-sample
+            engine would see at the onset — W_piece + offset + 1 while live (==
+            the absolute onset + 1 until the first freeze), the stopped head while
+            frozen. readAbs = (W_on − D) + dir·rate·frac. */
+        static void fill (Grain& g, const GrainPlan& p, int stream, double frac, std::int64_t W_on) noexcept
         {
             g.stream     = stream;
             g.level      = p.level;
@@ -454,7 +456,7 @@ namespace ogran
             g.len        = p.len;
             g.invLen     = 1.0 / p.len;
             g.startDelay = p.delay;
-            g.readAbs    = (static_cast<double> (writeHeadAtOnset) - p.delay) + g.step * frac;
+            g.readAbs    = (static_cast<double> (W_on) - p.delay) + g.step * frac;
             g.gainL      = p.gainL;
             g.gainR      = p.gainR;
             g.windowStep = p.windowStep;

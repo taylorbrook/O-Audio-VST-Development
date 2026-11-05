@@ -235,9 +235,12 @@ void Engine::process (const float* const* in, int numIn, float* const* out, int 
         if (cellPos == 0)
             gridTick();
 
-        // 3. Write before read.
+        // 3. Write before read. R23: grains anchor in the RING domain — W_piece
+        //    is the head before this piece's write. It equals absCount until the
+        //    first freeze; after one, the ring lags absCount by whole cells.
+        const std::int64_t wPiece = ring.getWriteCount();
         CaptureWriter::write (ring, inL + done, inR + done, len, cellPos, inGainRamp, fbDelay);
-        jassert (ring.getWriteCount() == absCount + len);
+        jassert (ring.getWriteCount() == wPiece + (frozen ? 0 : len));
 
         // 4. Schedule.
         const int numOnsets = scheduleStreams (len);
@@ -256,7 +259,7 @@ void Engine::process (const float* const* in, int numIn, float* const* out, int 
                 renderSegment (seg, o.offset);
                 seg = o.offset;
             }
-            spawn (o, absCount);
+            spawn (o, absCount, wPiece);
         }
         if (seg < len)
             renderSegment (seg, len);
@@ -357,7 +360,7 @@ Spawner::Acquired Engine::nativeAcquireForTest() noexcept
 }
 #endif
 
-void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart) noexcept
+void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart, std::int64_t wPiece) noexcept
 {
     bool forceLevel0 = false;
    #if OGRAN_TEST_HOOKS
@@ -380,8 +383,16 @@ void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart) noexcept
     const auto acq = spawner.acquire (pool, gp.grainLimit, quotas, o.stream);
    #endif
 
+    // R23: absolute onset (telemetry, epochs) vs the ring-domain head the grain
+    // anchors to. Live: the head after the onset sample is written. Frozen: the
+    // stopped head (every frozen spawn sees the same W).
+    const std::int64_t wOn = frozen ? wPiece : wPiece + o.offset + 1;
+    Spawner::fill (*acq.grain, gpl, o.stream, o.frac, wOn);
+   #if OGRAN_TEST_HOOKS
     const std::int64_t onsetSample = pieceStart + o.offset;
-    Spawner::fill (*acq.grain, gpl, o.stream, o.frac, onsetSample + 1);
+   #else
+    juce::ignoreUnused (pieceStart);
+   #endif
 
    #if OGRAN_TEST_HOOKS
     {
@@ -430,7 +441,7 @@ void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart) noexcept
 
     auto& rec = diag.log[static_cast<std::size_t> (diag.logCount % static_cast<std::uint64_t> (kSpawnLogSize))];
     rec.onsetSample = onsetSample;
-    rec.writeHead   = onsetSample + 1;
+    rec.writeHead   = wOn;
     rec.globalIndex = o.globalIndex;
     rec.stream      = o.stream;
     rec.slot        = acq.slot;
@@ -438,7 +449,7 @@ void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart) noexcept
     rec.level       = gpl.level;
     rec.set         = gpl.set;
     rec.delay       = gpl.delay;
-    rec.anchor      = static_cast<double> (onsetSample + 1) - gpl.delay;
+    rec.anchor      = static_cast<double> (wOn) - gpl.delay;
     rec.frac        = o.frac;
     rec.rate        = gpl.rate;
     rec.len         = gpl.len;
