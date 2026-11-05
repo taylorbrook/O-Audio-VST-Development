@@ -204,6 +204,28 @@ int Engine::scheduleStreams (int len) noexcept
     return mergeOnsets (streamOnsets, counts, onsets);
 }
 
+#if OGRAN_TEST_HOOKS
+// The S0 reference acquire: the pool's own policy, written independently of
+// Spawner (its own progress lambda; never touches Spawner::pendingKill).
+Spawner::Acquired Engine::nativeAcquireForTest() noexcept
+{
+    const Grain* const base = pool.getGrains().data();
+    Spawner::Acquired a;
+    a.grain = pool.tryObtain();
+    if (a.grain == nullptr)
+    {
+        a.grain  = &pool.obtain ([] (const Grain& g) noexcept { return static_cast<double> (g.age) * g.invLen; });
+        a.stolen = true;
+    }
+    a.slot = static_cast<int> (a.grain - base);
+    int alive = 0;
+    for (int i = 0; i < kPoolLive; ++i)
+        if (pool.isActive (i)) ++alive;
+    a.aliveAfter = alive;
+    return a;
+}
+#endif
+
 void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart) noexcept
 {
     bool forceLevel0 = false;
@@ -214,7 +236,11 @@ void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart) noexcept
     // Draw before obtain.
     const GrainPlan gpl = Spawner::plan (gp.s[o.stream], spanSamples, fs, ringSamples,
                                          activeSeed, o.stream, o.globalIndex, forceLevel0);
+   #if OGRAN_TEST_HOOKS
+    const auto acq = hooks.nativeAcquire ? nativeAcquireForTest() : spawner.acquire (pool, gp.grainLimit);
+   #else
     const auto acq = spawner.acquire (pool, gp.grainLimit);
+   #endif
 
     const std::int64_t onsetSample = pieceStart + o.offset;
     Spawner::fill (*acq.grain, gpl, o.stream, o.frac, onsetSample + 1);

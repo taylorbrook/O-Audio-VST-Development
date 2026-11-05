@@ -38,6 +38,15 @@
           steal / R3 kill / enable toggles / buffer_length sweeps; liveness = 1
       R3  PERF-02 grain_limit 32 / 64: maxAlive <= cap (engine + harness scan),
           kills > 0
+      S0  PERF-02 steal-free bit-identity (PLAN-2.2 P9/T1): grain_limit 128, s1,
+          N = 100 (density 100 × 1 s, jitter 20 %), 4 s — engine acquire vs
+          TestHooks::nativeAcquire (bare tryObtain() ?: obtain (age·invLen));
+          steals == kills == 0 on both runs (else vacuous); max|Δ| == 0
+      S0n negative control: N = 300 (density 150 × 2 s) with the R3 cap engaged
+          (grain_limit 64) — the pair must DIFFER (the hook really bypasses
+          Spawner::acquire). INFO: the same N = 300 pair at grain_limit 128 is
+          identical BY CONSTRUCTION on the 2.1 tree (acquire reduces to the
+          native policy at cap 128 in every regime), so it cannot be the control
       C1  CPU baseline (non-blocking INFO): 128 grains, 48 k / 128
 
   ==============================================================================
@@ -908,6 +917,56 @@ namespace { namespace eg
     }
 
     //==========================================================================
+    // S0 — steal-free bit-identity vs the native pool (PLAN-2.2 P9/T1)
+    void stealFreeRows()
+    {
+        std::printf ("\n-- S. PERF-02 steal-free bit-identity vs native pool\n");
+        const double fs = 48000.0;
+        auto job = [fs] (float density, float sizeMs, float limitIdx, bool native)
+        {
+            Job j; j.len = (juce::int64) (4.0 * fs); j.block = 512;
+            j.params = { { "mix", 100.0f }, { "s1_density", density }, { "s1_size", sizeMs }, { "s1_jitter", 20.0f },
+                         { "grain_limit", limitIdx } };
+            j.pre = [native] (Proc& p) { p.getEngineForTest().hooks.nativeAcquire = native; };
+            return j;
+        };
+        auto stats = [] (const Out& o)
+        {
+            const auto& d = o.eng().diag;
+            return juce::String::formatted ("spawns %lld steals %lld kills %lld maxAlive %lld", (long long) d.spawns,
+                                            (long long) d.steals, (long long) d.kills, (long long) d.maxAlive);
+        };
+
+        {
+            const auto e = render (job (100.0f, 1000.0f, 3.0f /* 128 */, false));
+            const auto n = render (job (100.0f, 1000.0f, 3.0f, true));
+            const auto& de = e.eng().diag; const auto& dn = n.eng().diag;
+            const auto d = diff (e, n);
+            const double lvl = rmsDb (e.L, (size_t) fs, e.L.size());
+            const bool live = de.spawns > 300 && de.spawns == dn.spawns && lvl > -40.0;
+            const bool stealFree = de.steals == 0 && de.kills == 0 && dn.steals == 0 && dn.kills == 0;
+            row (live && stealFree && d.count == 0,
+                 "S0 steal-free (cap 128, N 100, jitter 20 %, 4 s): engine vs native max|d| == 0",
+                 juce::String::formatted ("%d diffs max %.3g; ", d.count, d.maxAbs) + "engine " + stats (e) + " | native " + stats (n)
+                     + juce::String::formatted ("; wet %.1f dB", lvl) + (stealFree && live ? "" : "  VACUOUS"));
+        }
+        {
+            const auto e = render (job (150.0f, 2000.0f, 1.0f /* 64 */, false));
+            const auto n = render (job (150.0f, 2000.0f, 1.0f, true));
+            const auto d = diff (e, n);
+            const bool engaged = e.eng().diag.kills > 0 && n.eng().diag.kills == 0 && n.eng().diag.steals > 0;
+            row (d.count > 0 && engaged, "S0n negative control (N 300, cap 64): engine vs native DIFFER",
+                 juce::String::formatted ("%d diffs max %.3g; ", d.count, d.maxAbs) + "engine " + stats (e) + " | native " + stats (n));
+
+            const auto e128 = render (job (150.0f, 2000.0f, 3.0f, false));
+            const auto n128 = render (job (150.0f, 2000.0f, 3.0f, true));
+            const auto d128 = diff (e128, n128);
+            std::printf ("  [INFO] S0n' N 300 at cap 128: %d diffs max %.3g (identical by construction on 2.1); engine %s | native %s\n",
+                         d128.count, d128.maxAbs, stats (e128).toRawUTF8(), stats (n128).toRawUTF8());
+        }
+    }
+
+    //==========================================================================
     // C1 — CPU baseline (non-blocking)
     void cpuBaseline()
     {
@@ -959,5 +1018,6 @@ static void engineRows()
     eg::longBufferRows();
     eg::nullRows();
     eg::allocAndCapRows();
+    eg::stealFreeRows();
     eg::cpuBaseline();
 }

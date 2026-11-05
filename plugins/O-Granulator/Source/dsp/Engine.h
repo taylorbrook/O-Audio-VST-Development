@@ -86,6 +86,10 @@ namespace ogran
             bool forceLevel0      = false;   // DSP-02 negative control: every grain reads level 0
             bool disableFracQuant = false;   // R1 negative control: delay = (double) W − readAbs
             bool countR1Hazards   = false;   // count reads whose pre-R1 (t, phi) depends on the head
+            // S0 reference (PLAN-2.2 P9/T1): bypass Spawner::acquire entirely and take
+            // the bare pool policy, tryObtain() ?: obtain (age·invLen). No cap, no
+            // pending-kill bookkeeping, no Spawner state read or written.
+            bool nativeAcquire    = false;
         };
 
         /** One spawn. The grain's readAbs at age k is anchor + dir·rate·(k + frac)
@@ -153,6 +157,9 @@ namespace ogran
         void gridTick() noexcept;
         int  scheduleStreams (int len) noexcept;
         void spawn (const StreamOnset& o, std::int64_t pieceStart) noexcept;
+       #if OGRAN_TEST_HOOKS
+        Spawner::Acquired nativeAcquireForTest() noexcept;
+       #endif
         void renderSegment (int from, int to) noexcept;
         void mixOut (const float* dryL, const float* dryR, float* outL, float* outR,
                      int numOut, int len, int cellPos) noexcept;
