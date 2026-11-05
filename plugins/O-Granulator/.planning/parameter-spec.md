@@ -247,7 +247,7 @@ Stored as children / properties of the APVTS state tree (`parameters.state`), sa
 | `seed` | int64 | random at first instantiation, then persisted | Deterministic per-grain randomness (CounterRng). Saved as int64 (critical_juce_getlargeintvalue_clamps_unsigned_64). |
 | `stateVersion` | int | 1 | Session/preset schema version. |
 | `modDestTableVersion` | int | 1 | Version of the 113-entry destination table above. |
-| `uiLanguage` | int (0 en, 1 fr, 2 zh-Hans) | 0 | UI language (canon i18n), a `parameters.state` PROPERTY written in `getStateInformation` before the XML copy, restored only when present. Not preset content. |
+| `uiLanguage` | int (0 en, 1 fr, 2 zh-Hans) | 0 | UI language (canon i18n), a `parameters.state` PROPERTY written in `getStateInformation` before the XML copy, restored only when present. Not preset content. **Stage 1 amendment (P3, 2026-11-04):** persisted as the language CODE string (`"en"` / `"fr"` / `"zh-Hans"`, the GS / RD precedent); read tolerantly (a digit string → index, else the code). |
 
 **Presets** store `customScale` + `degreeMasks` through OuariconPresetManager's custom-state callbacks; preset apply resets them to defaults FIRST (custom = 12-EDO, masks all-on) — pattern_preset_apply_needs_reset_to_defaults. Strip the stale `<CustomState>` child after `setStateFromXml` (critical_preset_manager_stale_customstate_child). Bump `scaleStateRevision` only on state restore / preset apply so the WebView re-pulls (pattern_webview_one_shot_state_push_stale_on_preset_load).
 

@@ -1,8 +1,8 @@
 ---
 plugin: O-Granulator
 stage: 1
-status: stage_1_plan_complete
-current_phase: plan
+status: stage_1_execute_complete
+current_phase: execute
 stage_0_status: ui_design_complete
 last_updated: 2026-11-04
 latest_mockup_version: 2
@@ -13,7 +13,7 @@ complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_1_execute
+next_action: stage_1_verify
 next_stage: 1
 ready_for_implementation: true
 blocked_on: null
@@ -21,7 +21,7 @@ contract_checksums:
   brief: sha256:f9c748a8a256de9d2fb2bcbe1aff58b12999a640cc8d36fbdbf96e6deb5559d7
   requirements: sha256:15bce1f9a9c847f902559754fcdebc8b6b1eeb6920372d885c7010c1fdb35198
   parameter_spec_draft: sha256:d0b1457ea7c1624ff757fd12c1acb7bd62c9acf7bebbdd3460c7f1d30cdbbce3
-  parameter_spec: sha256:9b454d6ccb0238e84dae73e410f345806177371a56df7f84d93eea86437e48c1
+  parameter_spec: sha256:f5ce35954c2c18e46faa914d95898ddb718d6b77ec4be8582be23b60a26b3688   # P3 uiLanguage amendment (Stage 1)
   architecture: sha256:f0cf753b4de2cb6099ad327b0887a0c254f013746b373000a28f01ad7949d9d9
   roadmap: sha256:79d69576f70776e92ce498be990e1f3cbdc09e03a081563443545f9650c14b20
 ---
@@ -30,9 +30,9 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 0 of 4 (Research & Planning) — complete; UI design complete (mockup v2 finalized)
-Status: Ready for Stage 1. The parameter contract is the LOCKED `parameter-spec.md` (220 params).
-Progress: [###.................] 15%
+Stage: 1 of 4 (Foundation) — execute complete; verify next
+Status: O-Granulator 0.1.0 shell builds VST3 + AU + Standalone; 220 params, pass-through, state codec; pluginval 10 + auval PASS. pitch-collections 1.0.0 module and O-GrainScatter 3.6.0 landed with it.
+Progress: [#####...............] 25%
 
 ## Completed So Far
 
@@ -85,7 +85,9 @@ Progress: [###.................] 15%
 | discuss | ✓ | 2026-11-04 | |
 | research | ✓ | 2026-11-04 | |
 | plan | ✓ | 2026-11-04 | |
-| execute | → | | |
-| verify | | | |
+| execute | ✓ | 2026-11-04 | |
+| verify | → | | |
 
 Decisions: PitchCollections extract + migrate O-GrainScatter (→3.6.0) in Stage 1; GenericAudioProcessorEditor shell; all three bus layouts. See `stages/1-foundation/CONTEXT.md`.
+
+Execute (2026-11-04): see `stages/1-foundation/SUMMARY.md` — W1 pitch-collections 1.0.0 (229/229), W2 GS 3.6.0 (pitch-null 415/415, 190 renders byte-identical), W3 shell (render harness 47/47 + golden negative control), W4 pluginval 10 VST3 ×3 + AU, auval PASS.

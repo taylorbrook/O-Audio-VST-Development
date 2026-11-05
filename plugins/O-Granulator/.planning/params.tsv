@@ -1,0 +1,224 @@
+# plugin	O-Granulator-dev
+# params	220
+# note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
+#id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
+input_gain	Input Gain		2147483647	-24.0000000	12.0000000	0.666667	0.0000007	automatable
+buffer_length	Buffer Length		2147483647	1.0000000	30.0000000	0.491304	8.0000000	automatable
+freeze	Freeze		2	Off	On	0.000000	Off	automatable,discrete,boolean
+sync_mode	Sync Mode		2	Free	Tempo	0.000000	Free	automatable,discrete
+mix	Mix		2147483647	0.0000000	100.0000000	0.500000	50.0000000	automatable
+output_gain	Output Gain		2147483647	-24.0000000	12.0000000	0.666667	0.0000007	automatable
+scale_root	Scale Root		12	C	B	0.000000	C	automatable,discrete
+grain_limit	Grain Limit		4	32	128	1.000000	128	automatable,discrete
+s1_enable	S1 · Enable		2	Off	On	1.000000	On	automatable,discrete,boolean
+s1_mute	S1 · Mute		2	Off	On	0.000000	Off	automatable,discrete,boolean
+s1_solo	S1 · Solo		2	Off	On	0.000000	Off	automatable,discrete,boolean
+s1_level	S1 · Level		2147483647	-60.0000000	6.0000000	0.909091	0.0000018	automatable
+s1_pan	S1 · Pan		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
+s1_position	S1 · Position		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s1_spray	S1 · Spray		2147483647	0.0000000	100.0000000	0.100000	10.0000000	automatable
+s1_size	S1 · Size		2147483647	5.0000000	2000.0000000	0.401175	100.0000153	automatable
+s1_size_sync	S1 · Size Sync		20	1/64 T	2 bars	0.368421	1/16	automatable,discrete
+s1_size_rand	S1 · Size Random		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s1_density	S1 · Density		2147483647	0.5000000	200.0000000	0.401175	10.0000019	automatable
+s1_density_sync	S1 · Density Sync		19	1/64 T	1 bar	0.388889	1/16	automatable,discrete
+s1_jitter	S1 · Jitter		2147483647	0.0000000	100.0000000	0.200000	20.0000000	automatable
+s1_pitch	S1 · Pitch		2147483647	-24.0000000	24.0000000	0.500000	0.0000000	automatable
+s1_pitch_rand	S1 · Pitch Random		2147483647	0.0000000	24.0000000	0.000000	0.0000000	automatable
+s1_scale	S1 · Scale		32	Off	Custom	0.000000	Off	automatable,discrete
+s1_reverse_prob	S1 · Reverse		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s1_window	S1 · Window		2147483647	0.0000000	1.0000000	0.000000	0.0000000	automatable
+s1_window_skew	S1 · Window Skew		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
+s1_stereo_spread	S1 · Stereo Spread		2147483647	0.0000000	100.0000000	0.300000	30.0000019	automatable
+s1_gain_rand	S1 · Gain Random		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s1_onset_trigger	S1 · Onset Trigger		2	Off	On	0.000000	Off	automatable,discrete,boolean
+s1_filter_type	S1 · Filter Type		4	Off	HP	0.000000	Off	automatable,discrete
+s1_filter_cutoff	S1 · Filter Cutoff		2147483647	20.0000000	20000.0000000	1.000000	20000.0000000	automatable
+s1_filter_rand	S1 · Filter Random		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s1_filter_res	S1 · Filter Res		2147483647	0.0000000	100.0000000	0.200000	20.0000000	automatable
+s1_drive	S1 · Drive		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s1_crush	S1 · Crush		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s1_crush_prob	S1 · Crush Chance		2147483647	0.0000000	100.0000000	1.000000	100.0000000	automatable
+s1_ring_freq	S1 · Ring Freq		2147483647	20.0000000	5000.0000000	0.442415	200.0000000	automatable
+s1_ring_rand	S1 · Ring Random		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s1_ring_mix	S1 · Ring Mix		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s2_enable	S2 · Enable		2	Off	On	0.000000	Off	automatable,discrete,boolean
+s2_mute	S2 · Mute		2	Off	On	0.000000	Off	automatable,discrete,boolean
+s2_solo	S2 · Solo		2	Off	On	0.000000	Off	automatable,discrete,boolean
+s2_level	S2 · Level		2147483647	-60.0000000	6.0000000	0.909091	0.0000018	automatable
+s2_pan	S2 · Pan		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
+s2_position	S2 · Position		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s2_spray	S2 · Spray		2147483647	0.0000000	100.0000000	0.100000	10.0000000	automatable
+s2_size	S2 · Size		2147483647	5.0000000	2000.0000000	0.401175	100.0000153	automatable
+s2_size_sync	S2 · Size Sync		20	1/64 T	2 bars	0.368421	1/16	automatable,discrete
+s2_size_rand	S2 · Size Random		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s2_density	S2 · Density		2147483647	0.5000000	200.0000000	0.401175	10.0000019	automatable
+s2_density_sync	S2 · Density Sync		19	1/64 T	1 bar	0.388889	1/16	automatable,discrete
+s2_jitter	S2 · Jitter		2147483647	0.0000000	100.0000000	0.200000	20.0000000	automatable
+s2_pitch	S2 · Pitch		2147483647	-24.0000000	24.0000000	0.500000	0.0000000	automatable
+s2_pitch_rand	S2 · Pitch Random		2147483647	0.0000000	24.0000000	0.000000	0.0000000	automatable
+s2_scale	S2 · Scale		32	Off	Custom	0.000000	Off	automatable,discrete
+s2_reverse_prob	S2 · Reverse		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s2_window	S2 · Window		2147483647	0.0000000	1.0000000	0.000000	0.0000000	automatable
+s2_window_skew	S2 · Window Skew		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
+s2_stereo_spread	S2 · Stereo Spread		2147483647	0.0000000	100.0000000	0.300000	30.0000019	automatable
+s2_gain_rand	S2 · Gain Random		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s2_onset_trigger	S2 · Onset Trigger		2	Off	On	0.000000	Off	automatable,discrete,boolean
+s2_filter_type	S2 · Filter Type		4	Off	HP	0.000000	Off	automatable,discrete
+s2_filter_cutoff	S2 · Filter Cutoff		2147483647	20.0000000	20000.0000000	1.000000	20000.0000000	automatable
+s2_filter_rand	S2 · Filter Random		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s2_filter_res	S2 · Filter Res		2147483647	0.0000000	100.0000000	0.200000	20.0000000	automatable
+s2_drive	S2 · Drive		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s2_crush	S2 · Crush		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s2_crush_prob	S2 · Crush Chance		2147483647	0.0000000	100.0000000	1.000000	100.0000000	automatable
+s2_ring_freq	S2 · Ring Freq		2147483647	20.0000000	5000.0000000	0.442415	200.0000000	automatable
+s2_ring_rand	S2 · Ring Random		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s2_ring_mix	S2 · Ring Mix		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s3_enable	S3 · Enable		2	Off	On	0.000000	Off	automatable,discrete,boolean
+s3_mute	S3 · Mute		2	Off	On	0.000000	Off	automatable,discrete,boolean
+s3_solo	S3 · Solo		2	Off	On	0.000000	Off	automatable,discrete,boolean
+s3_level	S3 · Level		2147483647	-60.0000000	6.0000000	0.909091	0.0000018	automatable
+s3_pan	S3 · Pan		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
+s3_position	S3 · Position		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s3_spray	S3 · Spray		2147483647	0.0000000	100.0000000	0.100000	10.0000000	automatable
+s3_size	S3 · Size		2147483647	5.0000000	2000.0000000	0.401175	100.0000153	automatable
+s3_size_sync	S3 · Size Sync		20	1/64 T	2 bars	0.368421	1/16	automatable,discrete
+s3_size_rand	S3 · Size Random		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s3_density	S3 · Density		2147483647	0.5000000	200.0000000	0.401175	10.0000019	automatable
+s3_density_sync	S3 · Density Sync		19	1/64 T	1 bar	0.388889	1/16	automatable,discrete
+s3_jitter	S3 · Jitter		2147483647	0.0000000	100.0000000	0.200000	20.0000000	automatable
+s3_pitch	S3 · Pitch		2147483647	-24.0000000	24.0000000	0.500000	0.0000000	automatable
+s3_pitch_rand	S3 · Pitch Random		2147483647	0.0000000	24.0000000	0.000000	0.0000000	automatable
+s3_scale	S3 · Scale		32	Off	Custom	0.000000	Off	automatable,discrete
+s3_reverse_prob	S3 · Reverse		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s3_window	S3 · Window		2147483647	0.0000000	1.0000000	0.000000	0.0000000	automatable
+s3_window_skew	S3 · Window Skew		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
+s3_stereo_spread	S3 · Stereo Spread		2147483647	0.0000000	100.0000000	0.300000	30.0000019	automatable
+s3_gain_rand	S3 · Gain Random		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s3_onset_trigger	S3 · Onset Trigger		2	Off	On	0.000000	Off	automatable,discrete,boolean
+s3_filter_type	S3 · Filter Type		4	Off	HP	0.000000	Off	automatable,discrete
+s3_filter_cutoff	S3 · Filter Cutoff		2147483647	20.0000000	20000.0000000	1.000000	20000.0000000	automatable
+s3_filter_rand	S3 · Filter Random		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s3_filter_res	S3 · Filter Res		2147483647	0.0000000	100.0000000	0.200000	20.0000000	automatable
+s3_drive	S3 · Drive		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s3_crush	S3 · Crush		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s3_crush_prob	S3 · Crush Chance		2147483647	0.0000000	100.0000000	1.000000	100.0000000	automatable
+s3_ring_freq	S3 · Ring Freq		2147483647	20.0000000	5000.0000000	0.442415	200.0000000	automatable
+s3_ring_rand	S3 · Ring Random		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s3_ring_mix	S3 · Ring Mix		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s4_enable	S4 · Enable		2	Off	On	0.000000	Off	automatable,discrete,boolean
+s4_mute	S4 · Mute		2	Off	On	0.000000	Off	automatable,discrete,boolean
+s4_solo	S4 · Solo		2	Off	On	0.000000	Off	automatable,discrete,boolean
+s4_level	S4 · Level		2147483647	-60.0000000	6.0000000	0.909091	0.0000018	automatable
+s4_pan	S4 · Pan		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
+s4_position	S4 · Position		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s4_spray	S4 · Spray		2147483647	0.0000000	100.0000000	0.100000	10.0000000	automatable
+s4_size	S4 · Size		2147483647	5.0000000	2000.0000000	0.401175	100.0000153	automatable
+s4_size_sync	S4 · Size Sync		20	1/64 T	2 bars	0.368421	1/16	automatable,discrete
+s4_size_rand	S4 · Size Random		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s4_density	S4 · Density		2147483647	0.5000000	200.0000000	0.401175	10.0000019	automatable
+s4_density_sync	S4 · Density Sync		19	1/64 T	1 bar	0.388889	1/16	automatable,discrete
+s4_jitter	S4 · Jitter		2147483647	0.0000000	100.0000000	0.200000	20.0000000	automatable
+s4_pitch	S4 · Pitch		2147483647	-24.0000000	24.0000000	0.500000	0.0000000	automatable
+s4_pitch_rand	S4 · Pitch Random		2147483647	0.0000000	24.0000000	0.000000	0.0000000	automatable
+s4_scale	S4 · Scale		32	Off	Custom	0.000000	Off	automatable,discrete
+s4_reverse_prob	S4 · Reverse		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s4_window	S4 · Window		2147483647	0.0000000	1.0000000	0.000000	0.0000000	automatable
+s4_window_skew	S4 · Window Skew		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
+s4_stereo_spread	S4 · Stereo Spread		2147483647	0.0000000	100.0000000	0.300000	30.0000019	automatable
+s4_gain_rand	S4 · Gain Random		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s4_onset_trigger	S4 · Onset Trigger		2	Off	On	0.000000	Off	automatable,discrete,boolean
+s4_filter_type	S4 · Filter Type		4	Off	HP	0.000000	Off	automatable,discrete
+s4_filter_cutoff	S4 · Filter Cutoff		2147483647	20.0000000	20000.0000000	1.000000	20000.0000000	automatable
+s4_filter_rand	S4 · Filter Random		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s4_filter_res	S4 · Filter Res		2147483647	0.0000000	100.0000000	0.200000	20.0000000	automatable
+s4_drive	S4 · Drive		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s4_crush	S4 · Crush		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s4_crush_prob	S4 · Crush Chance		2147483647	0.0000000	100.0000000	1.000000	100.0000000	automatable
+s4_ring_freq	S4 · Ring Freq		2147483647	20.0000000	5000.0000000	0.442415	200.0000000	automatable
+s4_ring_rand	S4 · Ring Random		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+s4_ring_mix	S4 · Ring Mix		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+feedback	Feedback		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+fb_low_cut	FB Low Cut		2147483647	20.0000000	2000.0000000	0.363958	79.9999924	automatable
+fb_high_cut	FB High Cut		2147483647	1000.0000000	20000.0000000	0.800205	12000.0009766	automatable
+fb_saturation	FB Saturation		2147483647	0.0000000	100.0000000	0.200000	20.0000000	automatable
+fb_diffusion	FB Diffusion		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+reverb_mix	Reverb Mix		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+reverb_size	Reverb Size		2147483647	0.0000000	100.0000000	0.500000	50.0000000	automatable
+reverb_damp	Reverb Damp		2147483647	0.0000000	100.0000000	0.500000	50.0000000	automatable
+lfo1_shape	LFO 1 · Shape		6	Sine	Smooth Random	0.000000	Sine	automatable,discrete
+lfo1_rate	LFO 1 · Rate		2147483647	0.0100000	20.0000000	0.328712	0.5000002	automatable
+lfo1_rate_sync	LFO 1 · Rate Sync		22	1/64 T	8 bars	0.857143	1 bar	automatable,discrete
+lfo1_phase	LFO 1 · Phase		2147483647	0.0000000	360.0000000	0.000000	0.0000000	automatable
+lfo2_shape	LFO 2 · Shape		6	Sine	Smooth Random	0.000000	Sine	automatable,discrete
+lfo2_rate	LFO 2 · Rate		2147483647	0.0100000	20.0000000	0.328712	0.5000002	automatable
+lfo2_rate_sync	LFO 2 · Rate Sync		22	1/64 T	8 bars	0.857143	1 bar	automatable,discrete
+lfo2_phase	LFO 2 · Phase		2147483647	0.0000000	360.0000000	0.000000	0.0000000	automatable
+lfo3_shape	LFO 3 · Shape		6	Sine	Smooth Random	0.000000	Sine	automatable,discrete
+lfo3_rate	LFO 3 · Rate		2147483647	0.0100000	20.0000000	0.328712	0.5000002	automatable
+lfo3_rate_sync	LFO 3 · Rate Sync		22	1/64 T	8 bars	0.857143	1 bar	automatable,discrete
+lfo3_phase	LFO 3 · Phase		2147483647	0.0000000	360.0000000	0.000000	0.0000000	automatable
+lfo4_shape	LFO 4 · Shape		6	Sine	Smooth Random	0.000000	Sine	automatable,discrete
+lfo4_rate	LFO 4 · Rate		2147483647	0.0100000	20.0000000	0.328712	0.5000002	automatable
+lfo4_rate_sync	LFO 4 · Rate Sync		22	1/64 T	8 bars	0.857143	1 bar	automatable,discrete
+lfo4_phase	LFO 4 · Phase		2147483647	0.0000000	360.0000000	0.000000	0.0000000	automatable
+env_attack	Env Attack		2147483647	1.0000000	500.0000000	0.200658	10.0000010	automatable
+env_release	Env Release		2147483647	10.0000000	2000.0000000	0.390805	200.0000153	automatable
+env_gain	Env Gain		2147483647	-24.0000000	24.0000000	0.500000	0.0000000	automatable
+pitch_follow_s1	Pitch Follow S1		2	Off	On	0.000000	Off	automatable,discrete,boolean
+pitch_follow_s2	Pitch Follow S2		2	Off	On	0.000000	Off	automatable,discrete,boolean
+pitch_follow_s3	Pitch Follow S3		2	Off	On	0.000000	Off	automatable,discrete,boolean
+pitch_follow_s4	Pitch Follow S4		2	Off	On	0.000000	Off	automatable,discrete,boolean
+onset_threshold	Onset Threshold		2147483647	-60.0000000	0.0000000	0.500000	-30.0000000	automatable
+macro1	Macro 1		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+macro2	Macro 2		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+macro3	Macro 3		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+macro4	Macro 4		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
+mod1_source	Mod 1 · Source		12	None	Macro 4	0.000000	None	automatable,discrete
+mod1_dest	Mod 1 · Dest		113	None	LFO 4 · Rate	0.000000	None	automatable,discrete
+mod1_depth	Mod 1 · Depth		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
+mod2_source	Mod 2 · Source		12	None	Macro 4	0.000000	None	automatable,discrete
+mod2_dest	Mod 2 · Dest		113	None	LFO 4 · Rate	0.000000	None	automatable,discrete
+mod2_depth	Mod 2 · Depth		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
+mod3_source	Mod 3 · Source		12	None	Macro 4	0.000000	None	automatable,discrete
+mod3_dest	Mod 3 · Dest		113	None	LFO 4 · Rate	0.000000	None	automatable,discrete
+mod3_depth	Mod 3 · Depth		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
+mod4_source	Mod 4 · Source		12	None	Macro 4	0.000000	None	automatable,discrete
+mod4_dest	Mod 4 · Dest		113	None	LFO 4 · Rate	0.000000	None	automatable,discrete
+mod4_depth	Mod 4 · Depth		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
+mod5_source	Mod 5 · Source		12	None	Macro 4	0.000000	None	automatable,discrete
+mod5_dest	Mod 5 · Dest		113	None	LFO 4 · Rate	0.000000	None	automatable,discrete
+mod5_depth	Mod 5 · Depth		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
+mod6_source	Mod 6 · Source		12	None	Macro 4	0.000000	None	automatable,discrete
+mod6_dest	Mod 6 · Dest		113	None	LFO 4 · Rate	0.000000	None	automatable,discrete
+mod6_depth	Mod 6 · Depth		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
+mod7_source	Mod 7 · Source		12	None	Macro 4	0.000000	None	automatable,discrete
+mod7_dest	Mod 7 · Dest		113	None	LFO 4 · Rate	0.000000	None	automatable,discrete
+mod7_depth	Mod 7 · Depth		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
+mod8_source	Mod 8 · Source		12	None	Macro 4	0.000000	None	automatable,discrete
+mod8_dest	Mod 8 · Dest		113	None	LFO 4 · Rate	0.000000	None	automatable,discrete
+mod8_depth	Mod 8 · Depth		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
+mod9_source	Mod 9 · Source		12	None	Macro 4	0.000000	None	automatable,discrete
+mod9_dest	Mod 9 · Dest		113	None	LFO 4 · Rate	0.000000	None	automatable,discrete
+mod9_depth	Mod 9 · Depth		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
+mod10_source	Mod 10 · Source		12	None	Macro 4	0.000000	None	automatable,discrete
+mod10_dest	Mod 10 · Dest		113	None	LFO 4 · Rate	0.000000	None	automatable,discrete
+mod10_depth	Mod 10 · Depth		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
+mod11_source	Mod 11 · Source		12	None	Macro 4	0.000000	None	automatable,discrete
+mod11_dest	Mod 11 · Dest		113	None	LFO 4 · Rate	0.000000	None	automatable,discrete
+mod11_depth	Mod 11 · Depth		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
+mod12_source	Mod 12 · Source		12	None	Macro 4	0.000000	None	automatable,discrete
+mod12_dest	Mod 12 · Dest		113	None	LFO 4 · Rate	0.000000	None	automatable,discrete
+mod12_depth	Mod 12 · Depth		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
+mod13_source	Mod 13 · Source		12	None	Macro 4	0.000000	None	automatable,discrete
+mod13_dest	Mod 13 · Dest		113	None	LFO 4 · Rate	0.000000	None	automatable,discrete
+mod13_depth	Mod 13 · Depth		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
+mod14_source	Mod 14 · Source		12	None	Macro 4	0.000000	None	automatable,discrete
+mod14_dest	Mod 14 · Dest		113	None	LFO 4 · Rate	0.000000	None	automatable,discrete
+mod14_depth	Mod 14 · Depth		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
+mod15_source	Mod 15 · Source		12	None	Macro 4	0.000000	None	automatable,discrete
+mod15_dest	Mod 15 · Dest		113	None	LFO 4 · Rate	0.000000	None	automatable,discrete
+mod15_depth	Mod 15 · Depth		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
+mod16_source	Mod 16 · Source		12	None	Macro 4	0.000000	None	automatable,discrete
+mod16_dest	Mod 16 · Dest		113	None	LFO 4 · Rate	0.000000	None	automatable,discrete
+mod16_depth	Mod 16 · Depth		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
