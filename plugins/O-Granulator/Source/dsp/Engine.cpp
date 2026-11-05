@@ -369,6 +369,8 @@ void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart) noexcept
                                          activeSeed, o.stream, o.globalIndex, forceLevel0, pitchSel[o.stream]);
    #if OGRAN_TEST_HOOKS
     ++diag.planCalls[o.stream];
+    if (hooks.snapshotSteals)
+        std::copy (pool.getGrains().begin(), pool.getGrains().begin() + kPoolLive, stealSnap.begin());
     AcquirePolicy policy;
     policy.nativeProgress = hooks.nativeProgress;
     policy.noQuotaCeil    = hooks.noQuotaCeil;
@@ -382,6 +384,45 @@ void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart) noexcept
     Spawner::fill (*acq.grain, gpl, o.stream, o.frac, onsetSample + 1);
 
    #if OGRAN_TEST_HOOKS
+    {
+        Grain& g = *acq.grain;
+        // H3: every FX STATE field must be at its Grain {} default right after fill.
+        const Grain d {};
+        if (! juce::exactlyEqual (g.svfIc1[0], d.svfIc1[0]) || ! juce::exactlyEqual (g.svfIc1[1], d.svfIc1[1])
+            || ! juce::exactlyEqual (g.svfIc2[0], d.svfIc2[0]) || ! juce::exactlyEqual (g.svfIc2[1], d.svfIc2[1])
+            || ! juce::exactlyEqual (g.crushHeld[0], d.crushHeld[0]) || ! juce::exactlyEqual (g.crushHeld[1], d.crushHeld[1])
+            || ! juce::exactlyEqual (g.crushHoldPhase, d.crushHoldPhase)
+            || ! juce::exactlyEqual (g.ringRe, d.ringRe) || ! juce::exactlyEqual (g.ringIm, d.ringIm))
+            ++diag.fxStateNonDefaultAtSpawn;
+
+        if (hooks.fxSharedLatch)
+        {
+            // CounterRng is stateless: re-planning is side-effect free.
+            GridParams::Stream sh = gp.s[o.stream];
+            sh.filterRand = 0.0f;
+            sh.ringRand   = 0.0f;
+            sh.crushProb  = 1.0f;
+            const GrainPlan shared = Spawner::plan (sh, spanSamples, fs, ringSamples, activeSeed, o.stream,
+                                                    o.globalIndex, forceLevel0, pitchSel[o.stream]);
+            Spawner::assignFxLatch (g, shared);
+        }
+        if (hooks.fxNoReset && acq.slot >= 0 && acq.slot < kPoolLive && retireShadow[acq.slot].valid)
+        {
+            const auto& sh = retireShadow[acq.slot];
+            for (int c = 0; c < 2; ++c)
+            {
+                g.svfIc1[c] = sh.svfIc1[c];
+                g.svfIc2[c] = sh.svfIc2[c];
+                g.crushHeld[c] = sh.crushHeld[c];
+            }
+            g.crushHoldPhase = sh.crushHoldPhase;
+            g.ringRe = sh.ringRe;
+            g.ringIm = sh.ringIm;
+        }
+        if (hooks.snapshotSteals && acq.stolen)
+            checkStealState (acq);
+    }
+
     ++diag.spawns;
     if (acq.killed) ++diag.kills;
     if (acq.stolen) ++diag.steals;
@@ -412,9 +453,47 @@ void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart) noexcept
     rec.pitchCents  = gpl.pitchCents;
     rec.quota       = quotas.q[o.stream];
     rec.quotaCeil   = quotas.qCeil[o.stream];
+    rec.fxActive    = gpl.fxActive;
+    rec.svfMode     = gpl.svfMode;
+    rec.fcHz        = gpl.fcHz;
+    rec.ringHz      = gpl.ringHz;
+    rec.crushed     = gpl.crushed;
+    rec.driveD      = gpl.driveD;
     ++diag.logCount;
    #endif
 }
+
+#if OGRAN_TEST_HOOKS
+/** H2: the stolen grain (snapshot of acq.slot before acquire) must sit in a fade
+    slot with its FX latch AND state bitwise intact. */
+void Engine::checkStealState (const Spawner::Acquired& acq) noexcept
+{
+    const Grain& v = stealSnap[static_cast<size_t> (acq.slot)];
+    const auto& all = pool.getGrains();
+    for (int k = kPoolLive; k < kPoolLive + kPoolFade; ++k)
+    {
+        const Grain& f = all[static_cast<size_t> (k)];
+        if (! pool.isActive (k) || f.stream != v.stream || f.age != v.age
+            || std::memcmp (&f.readAbs, &v.readAbs, sizeof (double)) != 0)
+            continue;
+        ++diag.stealStateChecked;
+        auto same = [] (const void* a, const void* b, size_t n) { return std::memcmp (a, b, n) == 0; };
+        const bool ok = f.fxActive == v.fxActive && f.svfMode == v.svfMode
+                     && same (&f.svfK, &v.svfK, sizeof (float)) && same (&f.svfA1, &v.svfA1, sizeof (float))
+                     && same (&f.svfA2, &v.svfA2, sizeof (float)) && same (&f.svfA3, &v.svfA3, sizeof (float))
+                     && same (f.svfIc1, v.svfIc1, sizeof (f.svfIc1)) && same (f.svfIc2, v.svfIc2, sizeof (f.svfIc2))
+                     && same (&f.driveD, &v.driveD, sizeof (float)) && same (&f.driveNorm, &v.driveNorm, sizeof (float))
+                     && same (&f.crushHoldInc, &v.crushHoldInc, sizeof (float)) && same (&f.crushHoldPhase, &v.crushHoldPhase, sizeof (float))
+                     && same (&f.crushScale, &v.crushScale, sizeof (float)) && same (f.crushHeld, v.crushHeld, sizeof (f.crushHeld))
+                     && same (&f.ringRe, &v.ringRe, sizeof (float)) && same (&f.ringIm, &v.ringIm, sizeof (float))
+                     && same (&f.ringRotRe, &v.ringRotRe, sizeof (float)) && same (&f.ringRotIm, &v.ringRotIm, sizeof (float))
+                     && same (&f.ringMix, &v.ringMix, sizeof (float));
+        if (! ok)
+            ++diag.stealStateMismatches;
+        return;
+    }
+}
+#endif
 
 void Engine::renderSegment (int from, int to) noexcept
 {
@@ -423,14 +502,59 @@ void Engine::renderSegment (int from, int to) noexcept
     const std::int64_t head       = ring.getWriteCount();
     const bool         applyKills = spawner.hasPendingKills();
     const Grain* const base       = pool.getGrains().data();
+   #if OGRAN_TEST_HOOKS
+    const std::int64_t segStart   = absCount + from;
+   #endif
 
-    pool.render ([this, from, to, head, applyKills, base] (Grain& g, Pool::Fader& fade) noexcept -> bool
+    // P18: ONE kernel for every grain — gather → FX → scatter.
+    //   gather : the 2.2 per-sample loop (both window branches, statements
+    //            verbatim) into L / R / W, stopping at the retire condition;
+    //   FX     : one tight loop per ACTIVE stage (flag test hoisted per
+    //            segment), every operation per sample (R13);
+    //   scatter: bl[from + j] += W[j] · L[j] · gainL — the 2.2 expression.
+    // With fxActive == 0 the float expressions and their order are those of
+    // 2.2, so the render is bitwise 2.2 (N0). Do not split the W or scatter
+    // statements: FP contraction works per statement.
+    pool.render ([this, from, to, head, applyKills, base
+                 #if OGRAN_TEST_HOOKS
+                  , segStart
+                 #endif
+                 ] (Grain& g, Pool::Fader& fade) noexcept -> bool
     {
         if (applyKills)
             spawner.applyPendingKill (g, base);
 
-        float* const bl = bus[g.stream][0];
-        float* const br = bus[g.stream][1];
+        const int slot = static_cast<int> (&g - base);
+        juce::ignoreUnused (slot);
+
+       #if OGRAN_TEST_HOOKS
+        bool forcedRetire = false;
+        {
+            auto& inj = hooks.injectNan;
+            if (inj.slot == slot && ! inj.done && segStart >= inj.atSample && (g.fxActive & kFxSvf) != 0)
+            {
+                float* const f[4] { &g.svfIc1[0], &g.svfIc1[1], &g.svfIc2[0], &g.svfIc2[1] };
+                *f[std::clamp (inj.field, 0, 3)] = inj.value;
+                inj.done = true;
+            }
+            auto& fr = hooks.forceRetire;
+            if (fr.slot == slot && ! fr.done && segStart >= fr.atSample && (g.fxActive & kFxSvf) != 0)
+            {
+                forcedRetire = true;
+                fr.done = true;
+            }
+            if (hooks.fxLiveCoeffs && (g.fxActive & kFxSvf) != 0)
+            {
+                const auto& st = gp.s[std::clamp (g.stream, 0, kMaxStreams - 1)];
+                const auto c = fx::svfLatch (static_cast<double> (st.filterCutoffHz), static_cast<double> (st.filterRes), fs);
+                g.svfK = c.k; g.svfA1 = c.a1; g.svfA2 = c.a2; g.svfA3 = c.a3;
+            }
+        }
+       #endif
+
+        float L[kCell], R[kCell], W[kCell];
+        int  n      = 0;
+        bool retire = false;
 
         // P14: step 0 / skew 0 keeps the closed-form Hann (bitwise 2.1, R12);
         // every other window reads the bank (table + lerp + tilt warp). Latched
@@ -442,12 +566,13 @@ void Engine::renderSegment (int from, int to) noexcept
                 float l = 0.0f, r = 0.0f;
                 readGrain (g, head, l, r);
 
-                // Window LAST (after the 2.3 per-grain FX). killGain and fade are exactly
+                // Window LAST (after the per-grain FX). killGain and fade are exactly
                 // 1.0f for a live, non-killing grain — bitwise no-ops.
                 const double phase = (static_cast<double> (g.age) + g.frac) * g.invLen;
-                const float  w     = hannWindow (phase) * g.killGain * fade.next();
-                bl[i] += w * l * g.gainL;
-                br[i] += w * r * g.gainR;
+                W[n] = hannWindow (phase) * g.killGain * fade.next();
+                L[n] = l;
+                R[n] = r;
+                ++n;
 
                 g.readAbs += g.step;
                 ++g.age;
@@ -455,32 +580,77 @@ void Engine::renderSegment (int from, int to) noexcept
                     g.killGain = std::max (0.0f, g.killGain - g.killStep);
 
                 if (! ((static_cast<double> (g.age) + g.frac) < g.len && g.killGain > 0.0f))
-                    return false;   // retire
+                {
+                    retire = true;
+                    break;
+                }
             }
-            return true;
         }
-
-        const float* const tab = bank.table (g.windowStep);
-        const WindowMorphBank::Tilt tilt { g.tiltT, g.tiltA, g.tiltB };
-        for (int i = from; i < to; ++i)
+        else
         {
-            float l = 0.0f, r = 0.0f;
-            readGrain (g, head, l, r);
+            const float* const tab = bank.table (g.windowStep);
+            const WindowMorphBank::Tilt tilt { g.tiltT, g.tiltA, g.tiltB };
+            for (int i = from; i < to; ++i)
+            {
+                float l = 0.0f, r = 0.0f;
+                readGrain (g, head, l, r);
 
-            const double phase = (static_cast<double> (g.age) + g.frac) * g.invLen;
-            const float  w     = WindowMorphBank::read (tab, tilt, phase) * g.killGain * fade.next();
-            bl[i] += w * l * g.gainL;
-            br[i] += w * r * g.gainR;
+                const double phase = (static_cast<double> (g.age) + g.frac) * g.invLen;
+                W[n] = WindowMorphBank::read (tab, tilt, phase) * g.killGain * fade.next();
+                L[n] = l;
+                R[n] = r;
+                ++n;
 
-            g.readAbs += g.step;
-            ++g.age;
-            if (g.killStep > 0.0f)
-                g.killGain = std::max (0.0f, g.killGain - g.killStep);
+                g.readAbs += g.step;
+                ++g.age;
+                if (g.killStep > 0.0f)
+                    g.killGain = std::max (0.0f, g.killGain - g.killStep);
 
-            if (! ((static_cast<double> (g.age) + g.frac) < g.len && g.killGain > 0.0f))
-                return false;   // retire
+                if (! ((static_cast<double> (g.age) + g.frac) < g.len && g.killGain > 0.0f))
+                {
+                    retire = true;
+                    break;
+                }
+            }
         }
-        return true;
+
+        // FX, in ARCHITECTURE §9 order. The flags are latched per grain.
+        const std::uint32_t fxa = g.fxActive;
+        if (fxa != 0)
+        {
+            if ((fxa & kFxSvf) != 0)
+            {
+                fx::svf (g, L, R, n);
+                // P25 NaN kill: a non-finite integrator retires the grain and its
+                // segment contributes nothing (FTZ does not catch NaN).
+                bool finite = fx::svfStateFinite (g);
+               #if OGRAN_TEST_HOOKS
+                finite = finite && ! forcedRetire;
+               #endif
+                if (! finite)
+                {
+                   #if OGRAN_TEST_HOOKS
+                    ++diag.nanKills;
+                    recordRetire (g, slot);
+                   #endif
+                    return false;
+                }
+            }
+        }
+
+        float* const bl = bus[g.stream][0] + from;
+        float* const br = bus[g.stream][1] + from;
+        for (int j = 0; j < n; ++j)
+        {
+            bl[j] += W[j] * L[j] * g.gainL;
+            br[j] += W[j] * R[j] * g.gainR;
+        }
+
+       #if OGRAN_TEST_HOOKS
+        if (retire)
+            recordRetire (g, slot);
+       #endif
+        return ! retire;
     });
 
     if (applyKills)

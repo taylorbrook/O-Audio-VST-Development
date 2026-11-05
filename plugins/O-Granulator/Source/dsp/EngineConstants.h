@@ -100,6 +100,30 @@ namespace ogran
     inline constexpr int kWindowPoints = 2048;    // points per table (read at phase · 2047)
     inline constexpr int kMaxActive    = 512;     // ScaleQuantiser active-degree bound (GS parity)
 
+    // ── Phase 2.3 per-grain FX (PLAN-2.3 layout table; RESEARCH-2.3 R14–R18,
+    //    CONTEXT-2.3 D6–D8). Latched at spawn; see GrainFx.h. ──────────────
+    inline constexpr double kFxPi      = 3.14159265358979323846;
+    inline constexpr double kFxNyquist = 0.45;    // cutoff AND ring carrier ceiling (× fs), never a fixed 20 kHz
+    inline constexpr double kFxMinHz   = 20.0;    // SVF cutoff floor
+    inline constexpr double kFxRandOct = 4.0;     // 2^(rand · 4 · (u − ½)) = ±2 oct at rand 1
+    inline constexpr double kSvfKMax   = 2.0;     // k = 2 − 1.9 · res
+    inline constexpr double kSvfKSpan  = 1.9;
+    inline constexpr float  kDriveRef   = 0.25f;  // D6 r: unity at −12 dBFS
+    inline constexpr float  kDriveGain  = 16.0f;  // D6 d = 16 · drive²
+    inline constexpr float  kDriveGuard = 1.0e-4f; // R16: drive inactive below d = 1e-4
+    inline constexpr double kCrushHoldHz    = 1000.0;  // hold rate fs · (1000/fs)^crush
+    inline constexpr double kCrushScaleTop  = 15.0;    // scale = 2^(15 − 14 · crush) = 2^(b − 1)
+    inline constexpr double kCrushScaleSpan = 14.0;
+
+    /** Grain::fxActive bits (one per stage, latched at spawn). */
+    inline constexpr std::uint32_t kFxSvf   = 1u;
+    inline constexpr std::uint32_t kFxDrive = 2u;
+    inline constexpr std::uint32_t kFxCrush = 4u;
+    inline constexpr std::uint32_t kFxRing  = 8u;
+
+    /** Grain::svfMode == sN_filter_type choice index. */
+    inline constexpr int kSvfOff = 0, kSvfLP = 1, kSvfBP = 2, kSvfHP = 3;
+
     // ── CounterRng streams and slots ────────────────────────────────────────
     // Draw (seed, base + streamIndex, counter). Scheduler and grain draws use
     // different stream bases, so they never share values for the same counter.

@@ -35,6 +35,7 @@
       E*  Stage 2 / 2.1 engine rows — see engine_gates.h
       F, Q, D  Stage 2 / 2.2 rows (FUNC-03, DSP-01, DSP-04) — see engine_gates_22.h
       E0+, W, K, X, N5, M2, C2  Stage 2 / 2.2 law + QUAL/mixer/PERF rows — see engine_gates_22b.h
+      U, V, H  Stage 2 / 2.3 FX units, per-grain, no-bleed rows — see engine_gates_23.h
 
   ==============================================================================
 */
@@ -47,6 +48,8 @@
 #include <cstring>
 #include <map>
 #include <vector>
+#include <complex>
+#include <limits>
 
 #if defined (__clang__)
  #pragma clang diagnostic ignored "-Wfloat-equal"
@@ -161,6 +164,8 @@ namespace
 #include "engine_gates.h"   // Stage 2 section E (engine rows)
 #include "engine_gates_22.h" // Stage 2 / 2.2 sections F, Q, D (PLAN-2.2 P16)
 #include "engine_gates_22b.h" // Stage 2 / 2.2 sections E0+, W, K, X, N5, M2, C2 (T14 / T16)
+#include "engine_gates_23.h"  // Stage 2 / 2.3 sections U, V, H (PLAN-2.3 P29)
+#include "engine_gates_23b.h" // Stage 2 / 2.3 sections N6, Z, K2, M3, C3 (PLAN-2.3 P29)
 
 //==============================================================================
 static void paramRows()
@@ -576,9 +581,18 @@ static void scaleRows()
 }
 
 //==============================================================================
-int main()
+int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI init;
+    // Iteration aid (2.3): `--only23` runs the 2.3 sections alone. The gate run
+    // (no arguments) always runs every section.
+    if (argc > 1 && std::strcmp (argv[1], "--only23") == 0)
+    {
+        engineRows23();
+        engineRows23b();
+        std::printf ("\n%d PASS, %d FAIL -- %s (2.3 sections only)\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
+        return failures == 0 ? 0 : 1;
+    }
     std::printf ("O-Granulator render harness (Stage 1 + Stage 2 / 2.1)  goldens: %s\n", GOLDEN_DIR);
     paramRows();
     busRows();
@@ -587,6 +601,8 @@ int main()
     engineRows();
     engineRows22();
     engineRows22b();
+    engineRows23();
+    engineRows23b();
     std::printf ("\n%d PASS, %d FAIL -- %s\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
     return failures == 0 ? 0 : 1;
 }

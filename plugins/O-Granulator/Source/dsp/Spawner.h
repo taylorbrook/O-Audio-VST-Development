@@ -28,6 +28,7 @@
 #include "ControlGrid.h"
 #include "EngineConstants.h"
 #include "Grain.h"
+#include "GrainFx.h"
 #include "Quotas.h"
 #include "ScaleQuantiser.h"
 #include "WindowMorphBank.h"
@@ -81,6 +82,17 @@ namespace ogran
         float  windowSkew = 0.0f;
         WindowMorphBank::Tilt tilt {};   // {0.5, 1, 1} at skew 0
         float  pitchCents = 0.0f;        // the latched scale pick / continuous random offset
+        // 2.3 per-grain FX latch (Grain {} defaults when a stage is inactive)
+        std::uint32_t fxActive = 0;
+        int    svfMode = 0;
+        float  svfK = 0.0f, svfA1 = 0.0f, svfA2 = 0.0f, svfA3 = 0.0f;
+        float  driveD = 1.0f, driveNorm = 1.0f;
+        float  crushHoldInc = 0.0f, crushScale = 0.0f;
+        float  ringRotRe = 1.0f, ringRotIm = 0.0f, ringMix = 0.0f;
+        // telemetry (spawn log / census)
+        float  fcHz = 0.0f;              // post-clamp cutoff (0 when the SVF is inactive)
+        float  ringHz = 0.0f;            // post-clamp carrier (0 when the ring is inactive)
+        bool   crushed = false;          // the Bernoulli outcome (false when crush == 0)
     };
 
     /** The scale-on pitch source for one stream at this grid (D4): set != nullptr
@@ -214,7 +226,55 @@ namespace ogran
             p.windowStep = WindowMorphBank::stepFor (sp.window);
             p.windowSkew = sp.windowSkew;
             p.tilt       = ouaricon::grain::WindowLut::makeTilt (0.5f + 0.45f * sp.windowSkew);
+
+            planFx (p, sp, fs, uni);
             return p;
+        }
+
+        /** 2.3 per-grain FX latch (PLAN-2.3 P22–P24, ARCHITECTURE §9 order).
+            Reserved draw slots FxCutoff / FxCrushProb / FxRing, each drawn only
+            behind its gate, all BEFORE acquire() (called from plan()). A stage
+            at its neutral value latches nothing: its fields keep the Grain {}
+            defaults and its fxActive bit stays clear. */
+        template <typename Uni>
+        static void planFx (GrainPlan& p, const GridParams::Stream& sp, double fs, Uni&& uni) noexcept
+        {
+            // SVF: active for every type ≠ Off (also at the 20 kHz default, which
+            // clamps to 0.45·fs — CONTEXT).
+            if (sp.filterType != kSvfOff)
+            {
+                double fc = static_cast<double> (sp.filterCutoffHz);
+                if (sp.filterRand > 0.0f)
+                    fc = fx::randOct (fc, static_cast<double> (sp.filterRand), uni (Slot::FxCutoff));
+                const auto s = fx::svfLatch (fc, static_cast<double> (sp.filterRes), fs);
+                p.fxActive |= kFxSvf;
+                p.svfMode = sp.filterType;
+                p.svfK  = s.k;
+                p.svfA1 = s.a1;
+                p.svfA2 = s.a2;
+                p.svfA3 = s.a3;
+                p.fcHz  = s.fcHz;
+            }
+        }
+
+        /** Writes the FX LATCH (never FX state) into a filled grain. fill() calls
+            it; the fxSharedLatch test hook calls it again with a re-planned latch.
+            No-bleed comes from GrainPool::activate()'s value-initialisation. */
+        static void assignFxLatch (Grain& g, const GrainPlan& p) noexcept
+        {
+            g.fxActive     = p.fxActive;
+            g.svfMode      = p.svfMode;
+            g.svfK         = p.svfK;
+            g.svfA1        = p.svfA1;
+            g.svfA2        = p.svfA2;
+            g.svfA3        = p.svfA3;
+            g.driveD       = p.driveD;
+            g.driveNorm    = p.driveNorm;
+            g.crushHoldInc = p.crushHoldInc;
+            g.crushScale   = p.crushScale;
+            g.ringRotRe    = p.ringRotRe;
+            g.ringRotIm    = p.ringRotIm;
+            g.ringMix      = p.ringMix;
         }
 
         //======================================================================
@@ -363,7 +423,8 @@ namespace ogran
             g.tiltA      = p.tilt.a;
             g.tiltB      = p.tilt.b;
             g.pitchCents = p.pitchCents;
-            // killGain = 1, killStep = 0 from value-initialisation.
+            assignFxLatch (g, p);
+            // killGain = 1, killStep = 0 and every FX STATE field from value-initialisation.
         }
 
         //======================================================================

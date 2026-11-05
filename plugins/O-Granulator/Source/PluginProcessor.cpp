@@ -50,6 +50,7 @@ GranulatorProcessor::GranulatorProcessor()
     // Engine parameter pointers (raw denormalised atomics, cached once).
     // Phase 2.2: the five globals plus the 19 DSP parameters of every stream
     // (2.1's set + mute, solo, scale, window, window_skew, stereo_spread, gain_rand).
+    // Phase 2.3: + the 10 per-grain FX parameters of every stream.
     {
         auto raw = [this] (const juce::String& id)
         {
@@ -87,6 +88,17 @@ GranulatorProcessor::GranulatorProcessor()
             s.windowSkew  = raw (Ids::stream (n, "window_skew"));
             s.spread      = raw (Ids::stream (n, "stereo_spread"));
             s.gainRand    = raw (Ids::stream (n, "gain_rand"));
+            // 2.3 per-grain FX
+            s.filterType   = raw (Ids::stream (n, "filter_type"));
+            s.filterCutoff = raw (Ids::stream (n, "filter_cutoff"));
+            s.filterRand   = raw (Ids::stream (n, "filter_rand"));
+            s.filterRes    = raw (Ids::stream (n, "filter_res"));
+            s.drive        = raw (Ids::stream (n, "drive"));
+            s.crush        = raw (Ids::stream (n, "crush"));
+            s.crushProb    = raw (Ids::stream (n, "crush_prob"));
+            s.ringFreq     = raw (Ids::stream (n, "ring_freq"));
+            s.ringRand     = raw (Ids::stream (n, "ring_rand"));
+            s.ringMix      = raw (Ids::stream (n, "ring_mix"));
         }
 
         // P11: the engine reads masks (relaxed) and copies the custom table under

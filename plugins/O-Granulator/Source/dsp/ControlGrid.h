@@ -186,6 +186,17 @@ namespace ogran
             std::atomic<float>* windowSkew  = nullptr;
             std::atomic<float>* spread      = nullptr;
             std::atomic<float>* gainRand    = nullptr;
+            // 2.3 per-grain FX
+            std::atomic<float>* filterType   = nullptr;   // choice 0 Off, 1 LP, 2 BP, 3 HP
+            std::atomic<float>* filterCutoff = nullptr;   // Hz (skewed range: read raw, never invert the skew)
+            std::atomic<float>* filterRand   = nullptr;
+            std::atomic<float>* filterRes    = nullptr;
+            std::atomic<float>* drive        = nullptr;
+            std::atomic<float>* crush        = nullptr;
+            std::atomic<float>* crushProb    = nullptr;
+            std::atomic<float>* ringFreq     = nullptr;   // Hz (skewed range)
+            std::atomic<float>* ringRand     = nullptr;
+            std::atomic<float>* ringMix      = nullptr;
         };
         Stream s[kMaxStreams] {};
     };
@@ -226,6 +237,17 @@ namespace ogran
             float windowSkew  = 0.0f;    // −1..1 → tilt peak 0.5 + 0.45·skew
             float spread      = 0.3f;    // 0..1 (spec default 30 %)
             float gainRand    = 0.0f;    // 0..1 (D5: × 24 dB, cut only)
+            // 2.3 per-grain FX — spec defaults; latched per grain at spawn
+            int   filterType     = 0;        // 0 Off, 1 LP, 2 BP, 3 HP
+            float filterCutoffHz = 20000.0f; // 20..20000 Hz (raw)
+            float filterRand     = 0.0f;     // 0..1 (±2 oct at 1)
+            float filterRes      = 0.2f;     // 0..1
+            float drive          = 0.0f;     // 0..1
+            float crush          = 0.0f;     // 0..1
+            float crushProb      = 1.0f;     // 0..1
+            float ringFreqHz     = 200.0f;   // 20..5000 Hz (raw)
+            float ringRand       = 0.0f;     // 0..1
+            float ringMix        = 0.0f;     // 0..1
         };
         Stream s[kMaxStreams] {};
 
@@ -277,6 +299,22 @@ namespace ogran
                 read (ps.windowSkew, st.windowSkew, -100.0f, 100.0f, 100.0f);
                 readPct (ps.spread,      st.spread);
                 readPct (ps.gainRand,    st.gainRand);
+
+                if (ps.filterType != nullptr)
+                {
+                    const float v = ps.filterType->load (std::memory_order_relaxed);
+                    if (std::isfinite (v))
+                        st.filterType = std::clamp (static_cast<int> (std::lround (v)), 0, 3);
+                }
+                read (ps.filterCutoff, st.filterCutoffHz, 20.0f, 20000.0f);
+                readPct (ps.filterRand,  st.filterRand);
+                readPct (ps.filterRes,   st.filterRes);
+                readPct (ps.drive,       st.drive);
+                readPct (ps.crush,       st.crush);
+                readPct (ps.crushProb,   st.crushProb);
+                read (ps.ringFreq,     st.ringFreqHz,     20.0f,  5000.0f);
+                readPct (ps.ringRand,    st.ringRand);
+                readPct (ps.ringMix,     st.ringMix);
             }
         }
 

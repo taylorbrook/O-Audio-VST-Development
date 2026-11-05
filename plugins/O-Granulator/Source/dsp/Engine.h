@@ -27,6 +27,7 @@
 #include "ControlGrid.h"
 #include "EngineConstants.h"
 #include "Grain.h"
+#include "GrainFx.h"
 #include "OutputLaw.h"
 #include "Quotas.h"
 #include "ScaleQuantiser.h"
@@ -105,6 +106,29 @@ namespace ogran
             bool nativeProgress   = false;
             // F5 R8 control: overQuota = live_s > q_s (real-valued), not > ceil (q_s).
             bool noQuotaCeil      = false;
+
+            // ── 2.3 (PLAN-2.3 P28) ───────────────────────────────────────────
+            // V2n/V3n/V4n: the grain's FX latch is re-planned with filterRand =
+            // ringRand = 0 and crushProb = 1 (the "latch right, renderer ignores
+            // it" failure); the spawn log keeps the REAL draws.
+            bool fxSharedLatch    = false;
+            // H1n: the previous occupant's FX state (retire shadow) is copied into
+            // the new occupant after fill.
+            bool fxNoReset        = false;
+            // K2n / K2i: SVF coefficients re-derived from the LIVE stream cutoff /
+            // res at every segment (steps the coefficients mid-grain).
+            bool fxLiveCoeffs     = false;
+            // H2: snapshot the live grains before every acquire; on a native steal
+            // compare the fade-slot copy's FX latch + state with the snapshot.
+            bool snapshotSteals   = false;
+            // Z2: write `value` into SVF integrator `field` (0 ic1[0], 1 ic1[1],
+            // 2 ic2[0], 3 ic2[1]) of `slot` in the first segment starting at or
+            // after `atSample` (slot < 0 = off). forceRetire: the same trigger
+            // forces the P25 verdict to false instead.
+            struct Inject { int slot = -1; std::int64_t atSample = 0; int field = 0; float value = 0.0f; bool done = false; };
+            Inject injectNan;
+            struct Retire { int slot = -1; std::int64_t atSample = 0; bool done = false; };
+            Retire forceRetire;
         };
 
         /** One spawn. The grain's readAbs at age k is anchor + dir·rate·(k + frac)
@@ -136,6 +160,13 @@ namespace ogran
             float         pitchCents  = 0.0f; // scale pick / continuous offset (cents)
             double        quota       = 0.0;  // the stream's water-filled q_s at spawn
             int           quotaCeil   = 0;
+            // 2.3 (PLAN-2.3 T2) — the REAL latch (fxSharedLatch never rewrites these)
+            std::uint32_t fxActive    = 0;
+            int           svfMode     = 0;
+            float         fcHz        = 0.0f;
+            float         ringHz      = 0.0f;
+            bool          crushed     = false;
+            float         driveD      = 1.0f;
         };
 
         static constexpr int kSpawnLogSize = 4096;
@@ -156,6 +187,11 @@ namespace ogran
             std::int64_t activeSetRebuilds = 0;   // ActiveSet rebuilds (any stream)
             std::int64_t customCopies      = 0;   // P11 audio-side custom-table copies
             std::int64_t customTryFails    = 0;   // P11 try-lock misses (retried next grid)
+            // 2.3
+            std::int64_t nanKills                 = 0;   // P25 NaN-kill retirements
+            std::int64_t fxStateNonDefaultAtSpawn = 0;   // H3: FX state ≠ Grain {} right after fill
+            std::int64_t stealStateChecked        = 0;   // H2: steals whose fade copy was compared
+            std::int64_t stealStateMismatches     = 0;   // H2: … and differed from the snapshot
             std::uint64_t logCount       = 0;   // total spawns logged; entry k at log[k % kSpawnLogSize]
             std::array<SpawnRecord, kSpawnLogSize> log {};
 
@@ -165,6 +201,7 @@ namespace ogran
                 for (int s = 0; s < kMaxStreams; ++s)
                     planCalls[s] = schedCalls[s] = 0;
                 activeSetRebuilds = customCopies = customTryFails = 0;
+                nanKills = fxStateNonDefaultAtSpawn = stealStateChecked = stealStateMismatches = 0;
                 logCount = 0;
             }
             const SpawnRecord& record (std::uint64_t k) const noexcept
@@ -194,6 +231,18 @@ namespace ogran
         int    getRampCells() const noexcept                  { return rampCells; }
         std::uint32_t getCustomCopyVersion() const noexcept   { return customCopyVersion; }
         const PitchCollections::Table& getCustomCopy() const noexcept { return customCopy; }
+
+        /** 2.3 retire shadow: a live slot's FX STATE as its last occupant left it
+            (recorded at every retire in test builds; H1, fxNoReset). */
+        struct FxShadow
+        {
+            float svfIc1[2] {}, svfIc2[2] {};
+            float crushHeld[2] {};
+            float crushHoldPhase = 1.0f;
+            float ringRe = 1.0f, ringIm = 0.0f;
+            bool  valid = false;
+        };
+        const FxShadow& getRetireShadow (int slot) const noexcept { return retireShadow[slot]; }
        #endif
 
     private:
@@ -202,6 +251,23 @@ namespace ogran
         void spawn (const StreamOnset& o, std::int64_t pieceStart) noexcept;
        #if OGRAN_TEST_HOOKS
         Spawner::Acquired nativeAcquireForTest() noexcept;
+        void checkStealState (const Spawner::Acquired& acq) noexcept;
+        void recordRetire (const Grain& g, int slot) noexcept
+        {
+            if (slot < 0 || slot >= kPoolLive)
+                return;
+            auto& sh = retireShadow[slot];
+            for (int c = 0; c < 2; ++c)
+            {
+                sh.svfIc1[c] = g.svfIc1[c];
+                sh.svfIc2[c] = g.svfIc2[c];
+                sh.crushHeld[c] = g.crushHeld[c];
+            }
+            sh.crushHoldPhase = g.crushHoldPhase;
+            sh.ringRe = g.ringRe;
+            sh.ringIm = g.ringIm;
+            sh.valid  = true;
+        }
        #endif
         void renderSegment (int from, int to) noexcept;
         void mixOut (const float* dryL, const float* dryR, float* outL, float* outR,
@@ -326,6 +392,12 @@ namespace ogran
         ExactRamp audRamp[kMaxStreams];                // mute / solo audibility 0 ↔ 1 (P12, 10 ms)
         CellLerp  dryGain, wetGain;                    // mixGains (mixRamp) per grid point
         CellLerp  streamGainL[kMaxStreams], streamGainR[kMaxStreams];   // g_out · level · audible · pan
+
+       #if OGRAN_TEST_HOOKS
+        // ── 2.3 test-only state (P28) ───────────────────────────────────────
+        FxShadow retireShadow[kPoolLive] {};
+        std::array<Grain, kPoolLive> stealSnap {};
+       #endif
 
         // ── state ───────────────────────────────────────────────────────────
         double        fs           = 48000.0;

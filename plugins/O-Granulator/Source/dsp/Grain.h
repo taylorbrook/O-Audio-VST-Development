@@ -73,7 +73,10 @@ namespace ogran
         float svfIc1[2] {};
         float svfIc2[2] {};
         float driveD = 1.0f;
-        float crushHoldInc = 0.0f, crushHoldPhase = 0.0f, crushScale = 0.0f;
+        float driveNorm = 1.0f;                // D6 latched normaliser r / tanh (d·r) (2.3)
+        // crushHoldPhase defaults to 1 (P24): value-initialisation gives the
+        // "fresh hold" — the first sample is captured.
+        float crushHoldInc = 0.0f, crushHoldPhase = 1.0f, crushScale = 0.0f;
         float crushHeld[2] {};
         float ringRe = 1.0f, ringIm = 0.0f, ringRotRe = 1.0f, ringRotIm = 0.0f, ringMix = 0.0f;
     };
