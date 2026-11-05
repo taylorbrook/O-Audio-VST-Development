@@ -2,7 +2,7 @@
   ==============================================================================
 
     O-Granulator — render harness, section F/Q/D (Stage 2 / Phase 2.2 rows,
-    PLAN-2.2 P16, Wave 5: T12, T13, T15). T14 / T16 rows land here later.
+    PLAN-2.2 P16, Wave 5: T12, T13, T15). T14 / T16 rows: engine_gates_22b.h.
 
     Included by main.cpp AFTER engine_gates.h (reuses eg::Job / render / setP /
     diff / rmsDb / fft / hashNoise and main.cpp's row / Tally / make). Every row

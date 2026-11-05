@@ -34,6 +34,7 @@
       P1  scale choice → Id map; names cross-check against the module
       E*  Stage 2 / 2.1 engine rows — see engine_gates.h
       F, Q, D  Stage 2 / 2.2 rows (FUNC-03, DSP-01, DSP-04) — see engine_gates_22.h
+      E0+, W, K, X, N5, M2, C2  Stage 2 / 2.2 law + QUAL/mixer/PERF rows — see engine_gates_22b.h
 
   ==============================================================================
 */
@@ -159,6 +160,7 @@ namespace
 
 #include "engine_gates.h"   // Stage 2 section E (engine rows)
 #include "engine_gates_22.h" // Stage 2 / 2.2 sections F, Q, D (PLAN-2.2 P16)
+#include "engine_gates_22b.h" // Stage 2 / 2.2 sections E0+, W, K, X, N5, M2, C2 (T14 / T16)
 
 //==============================================================================
 static void paramRows()
@@ -584,6 +586,7 @@ int main()
     scaleRows();
     engineRows();
     engineRows22();
+    engineRows22b();
     std::printf ("\n%d PASS, %d FAIL -- %s\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
     return failures == 0 ? 0 : 1;
 }
