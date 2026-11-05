@@ -47,6 +47,10 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
         std::fill (std::begin (ch), std::end (ch), 0.0f);
     chain.prepare (fs);   // 2.4: lengths, AGC coefficients, state cleared (fixed arrays — no allocation)
     chainLowHz = chainHighHz = -1.0f;
+    for (auto& ch : wet)
+        std::fill (std::begin (ch), std::end (ch), 0.0f);
+    for (auto& ch : tap)
+        std::fill (std::begin (ch), std::end (ch), 0.0f);
     for (auto& sb : bus)
         for (auto& ch : sb)
             std::fill (std::begin (ch), std::end (ch), 0.0f);
@@ -71,6 +75,11 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     updateScaleState();
     snapRampsToParams();
     activeSeed = pendingSeed;
+
+    // 2.4 reverb: atomics from the latch, then prepare (allocates its lines —
+    // message thread). reverb_mix 0 → the unit never runs (bitwise, R35).
+    writeReverbAtomics();
+    reverb.prepare (fs, kCell);
 
    #if OGRAN_TEST_HOOKS
     diag.reset();
@@ -132,6 +141,17 @@ void Engine::pushFbTapGains (bool snap) noexcept
         if (snap) fbTapCell[s].reset (g);
         else      fbTapCell[s].push (g);
     }
+}
+
+/** D11: the reverb's plugin-owned atomics, written at grid ticks only (so a
+    target change is first seen by the piece that starts the cell — block-size
+    invariant, R35). Fixed internals: enabled 1, predelay 20 ms, mod 0.2,
+    shimmer 0. */
+void Engine::writeReverbAtomics() noexcept
+{
+    revSize.store (gp.reverbSize, std::memory_order_relaxed);
+    revDamp.store (gp.reverbDamp, std::memory_order_relaxed);
+    revMix.store (gp.reverbMix, std::memory_order_relaxed);
 }
 
 /** fb HP / LP coefficients from the ramped log-cutoffs (tan only here, and only
@@ -415,6 +435,9 @@ void Engine::gridTick() noexcept
         streamGainL[s].push (g * pg.a);
         streamGainR[s].push (g * pg.b);
     }
+
+    // 2.4 reverb atomics (base values; 2.5's matrix modulates them here).
+    writeReverbAtomics();
 
     // 2.4 feedback network: tap gains, chain controls, cutoffs.
     pushFbTapGains (false);
@@ -946,6 +969,21 @@ void Engine::mixOut (const float* dryL, const float* dryR, float* outL, float* o
 
     // 8. reverb → D9 knee, BEFORE the mix-0 fast path: neither one's state may
     //    depend on the outer mix (R35); the fast path still outputs dry bitwise.
+    {
+        float* const chans[2] { wet[0], wet[1] };
+        revView.setDataToReferTo (chans, 2, len);
+       #if OGRAN_TEST_HOOKS
+        float before[2][kCell];
+        std::copy (wet[0], wet[0] + len, before[0]);
+        std::copy (wet[1], wet[1] + len, before[1]);
+       #endif
+        reverb.process (revView);
+       #if OGRAN_TEST_HOOKS
+        if (std::memcmp (before[0], wet[0], sizeof (float) * (size_t) len) != 0
+            || std::memcmp (before[1], wet[1], sizeof (float) * (size_t) len) != 0)
+            ++diag.reverbCells;
+       #endif
+    }
     bool kneeOn = true;
    #if OGRAN_TEST_HOOKS
     kneeOn = ! hooks.legacyKnee;

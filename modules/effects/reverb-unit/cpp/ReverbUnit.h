@@ -105,6 +105,23 @@ public:
         jassert (pEnabled && pSize && pDamp && pPredelay && pMix && pMod && pShimmer);
     }
 
+    // 1.2.0: bind to caller-owned atomics instead of APVTS parameters — for a
+    // plugin that writes (e.g. modulated) values into them at its own control
+    // rate. Only assigns the seven pointers; the APVTS overload above is
+    // unchanged. Values are read with the same ranges as the APVTS parameters.
+    void bind (std::atomic<float>* enabled, std::atomic<float>* size, std::atomic<float>* damp,
+               std::atomic<float>* predelay, std::atomic<float>* mix, std::atomic<float>* mod,
+               std::atomic<float>* shimmer) noexcept
+    {
+        pEnabled  = enabled;
+        pSize     = size;
+        pDamp     = damp;
+        pPredelay = predelay;
+        pMix      = mix;
+        pMod      = mod;
+        pShimmer  = shimmer;
+    }
+
     void prepare (double sampleRate, int /*maxBlockSize*/)
     {
         currentSampleRate = static_cast<float> (sampleRate);

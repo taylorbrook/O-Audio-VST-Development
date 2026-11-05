@@ -20,6 +20,7 @@
 #pragma once
 
 #include <array>
+#include <atomic>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -31,6 +32,7 @@
 #include "GrainFx.h"
 #include "OutputLaw.h"
 #include "Quotas.h"
+#include "ReverbUnit.h"     // reverb-unit 1.2.0 (atomic bind, D11)
 #include "ScaleQuantiser.h"
 #include "Spawner.h"
 #include "StreamScheduler.h"
@@ -57,7 +59,8 @@
 //      (pre-g_out, no pan — R29, R31)
 //   7. feedback chain (FeedbackChain.h) over the tap → fbDelay (z^-32), run
 //      every pass, frozen included (the arbiter discards it while frozen)
-//   8. reverb (reverb-unit 1.2.0) → D9 wet knee → dry/wet + output gain → out
+//   8. reverb (reverb-unit 1.2.0, plugin atomics) → D9 wet knee → dry/wet +
+//      output gain → out. Reverb and knee run BEFORE the mix-0 fast path.
 // Every per-pass array is kCell long; nothing scales with the host block, so
 // an oversized block cannot overrun anything, and output is bit-identical at
 // every host block size.
@@ -81,6 +84,9 @@ namespace ogran
         {
             ptrs     = p;
             scaleSrc = scale;
+            // D11: the reverb reads plugin-owned atomics, written at grid ticks only
+            // (2.5's matrix will write modulated values into the same atomics).
+            reverb.bind (&revEnabled, &revSize, &revDamp, &revPredelay, &revMix, &revMod, &revShimmer);
         }
 
         /** Message thread. Allocates the ring, resets every clock and ramp
@@ -236,6 +242,7 @@ namespace ogran
             std::int64_t headReflections            = 0;   // R25 reflect taken (any grain)
             std::int64_t headReflectionsFrozenSpawn = 0;   // … by a grain spawned while frozen (expected 0)
             std::int64_t fbScrubs                   = 0;   // feedback chain NaN / Inf resets
+            std::int64_t reverbCells                = 0;   // pieces whose wet the reverb changed (RV4 / M4 liveness)
             std::uint64_t logCount       = 0;   // total spawns logged; entry k at log[k % kSpawnLogSize]
             std::array<SpawnRecord, kSpawnLogSize> log {};
 
@@ -246,7 +253,7 @@ namespace ogran
                     planCalls[s] = schedCalls[s] = 0;
                 activeSetRebuilds = customCopies = customTryFails = 0;
                 nanKills = fxStateNonDefaultAtSpawn = stealStateChecked = stealStateMismatches = nanKillNotRetired = 0;
-                freezeEngages = freezeReleases = forcedReleases = headReflections = headReflectionsFrozenSpawn = fbScrubs = 0;
+                freezeEngages = freezeReleases = forcedReleases = headReflections = headReflectionsFrozenSpawn = fbScrubs = reverbCells = 0;
                 logCount = 0;
             }
             const SpawnRecord& record (std::uint64_t k) const noexcept
@@ -327,6 +334,7 @@ namespace ogran
         void computeStreamTargets (float (&gOut)[kMaxStreams], float (&audible)[kMaxStreams], float (&gFb)[kMaxStreams]) noexcept;
         void pushFbTapGains (bool snap) noexcept;          // 2.4 tap gains from the current ramps
         void updateChainCutoffs() noexcept;                // 2.4 fb HP / LP coefficients (tan) at ticks
+        void writeReverbAtomics() noexcept;                // 2.4 reverb base values at ticks
         const PitchCollections::Table& tableForChoice (int choice) const noexcept;
 
         /** THE grain read site (R1). Every grain read goes through here, now and
@@ -478,6 +486,11 @@ namespace ogran
         ExactRamp fbEnRamp[kMaxStreams];                // stream enable → tap (10 ms: no step from tails)
         CellLerp  fbTapCell[kMaxStreams];               // g_fb · level · audible · enable / max (1, Σ level·audible·enable)
         float     chainLowHz = -1.0f, chainHighHz = -1.0f;   // last cutoffs given to the chain
+        // 2.4 output reverb (P40): plugin-owned atomics, fixed internals.
+        ReverbUnit reverb;
+        std::atomic<float> revEnabled { 1.0f }, revSize { 0.5f }, revDamp { 0.5f }, revPredelay { kRevPredelayMs },
+                           revMix { 0.0f }, revMod { kRevMod }, revShimmer { kRevShimmer };
+        juce::AudioBuffer<float> revView;              // refers to wet[] (setDataToReferTo: no allocation for 2 ch)
 
        #if OGRAN_TEST_HOOKS
         // ── 2.3 test-only state (P28) ───────────────────────────────────────

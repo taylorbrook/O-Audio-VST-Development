@@ -20,7 +20,13 @@
       FZ6 reach diag: 0 violations, engage reflections, forced releases ==
           snapshot geometry; frozen spawns never reflect; reverse cap
       FZ7 freeze + feedback: chain warm, ring held;  FZ8 release decay vs the
-          steady loop ±0.2 dB/s
+          steady loop (max (0.2 dB/s, 2 %))
+      RV1 reverb audible + tail RT60;  RV2 mix → 0 no step, gone in 60 ms;
+      RV3 re-enable (cold tank) no click;  RV4 mix-0 fast path bitwise dry with
+          the tank running
+      Z3 / Z3b 60 s max-feedback stress (3 rates; all FX-gain corners);  Z4
+          in-situ chain scrub == the reset reference
+      M4 0 allocations (freeze / feedback / reverb / scrub);  C4 CPU (INFO)
 
   ==============================================================================
 */
@@ -93,8 +99,13 @@ namespace { namespace eg24b
         if (form >= 1)
         {
             live = live && rd.freezeEngages == 2 && rd.freezeReleases == 2 && rd.forcedReleases > 0;
-            extra << juce::String::formatted (", engages %lld releases %lld forced %lld reflections %lld", (long long) rd.freezeEngages,
+            extra << juce::String::formatted (", engages %lld releases %lld forced %lld reflections %lld (0 by design: deferred stop)", (long long) rd.freezeEngages,
                                               (long long) rd.freezeReleases, (long long) rd.forcedReleases, (long long) rd.headReflections);
+        }
+        if (form >= 2)
+        {
+            live = live && rd.reverbCells > 0;
+            extra << juce::String::formatted (", reverb cells %lld", (long long) rd.reverbCells);
         }
         row (t.bad == 0 && live, juce::String ("N7 ") + fn[form] + ": 441/512/4096/var vs 32 max|d| == 0 (value compare)",
              t.detail (4) + juce::String::formatted ("  [spawns %lld kills %lld scrubs %lld", (long long) rd.spawns, (long long) rd.kills,
@@ -429,14 +440,317 @@ namespace { namespace eg24b
                  juce::String::formatted ("released %+.3f dB/s (%d fr), steady %+.3f dB/s (%d fr)", fs2.slope, fs2.frames, fc2.slope, fc2.frames) + note);
         }
     }
+    //==========================================================================
+    // RV — DSP-07 output reverb (T10)
+    //==========================================================================
+    void reverbRows()
+    {
+        std::printf ("\n-- RV. DSP-07 output reverb (reverb-unit 1.2.0, plugin atomics)\n");
+        auto job = [] (float rmix, float size, double inputUntil, std::vector<std::pair<juce::int64, float>> mixEdges = {})
+        {
+            Job j; j.len = (juce::int64) (4.0 * kFs); j.block = 512;
+            j.params = eg22::base ({ 1 });
+            for (auto& kv : P { { "s1_spray", 0.0f }, { "s1_jitter", 0.0f }, { "reverb_mix", rmix }, { "reverb_size", size } }) j.params.push_back (kv);
+            j.stim = eg24::gatedNoise (kFs, inputUntil, 0.3f);
+            for (auto& e : mixEdges) { const float v = e.second; j.events.push_back ({ e.first, [v] (Proc& p) { eg::setP (p, "reverb_mix", v); } }); }
+            return j;
+        };
+        auto diffDb = [] (const Out& a, const Out& b, double t0, double t1)
+        {
+            double e = 0.0; const size_t x = (size_t) (t0 * kFs), y = (size_t) (t1 * kFs);
+            for (size_t i = x; i < y; ++i)
+            {
+                const double dl = (double) a.L[i] - b.L[i], dr = (double) a.R[i] - b.R[i];
+                e += dl * dl + dr * dr;
+            }
+            e /= 2.0 * (double) (y - x);
+            return e > 0.0 ? 10.0 * std::log10 (e) : -400.0;
+        };
+
+        // RV1 — audible, with a tail.
+        {
+            const auto on = eg::render (job (50.0f, 0.0f, 2.0)), off = eg::render (job (0.0f, 0.0f, 2.0));
+            const double during = diffDb (on, off, 0.5, 2.0);
+            // Tail: input stops at 2.0 s, the direct grains (100 ms) by ~2.15 s; fit the reverb-only decay.
+            const auto f = eg24::decayFit (on, kFs, 2.2, 3.5, -200.0);
+            const double rt60 = f.slope < 0.0 ? 60.0 / -f.slope : 1.0e9;
+            const double offTail = eg22::db (eg22::meanPow (off, (size_t) (2.2 * kFs), (size_t) (2.5 * kFs)));
+            row (during > -40.0 && rt60 > 0.2 && f.frames >= 3, "RV1 reverb_mix 50 %, size 0: wet - (mix 0) > -40 dBFS during input; tail RT60 > 0.2 s",
+                 juce::String::formatted ("diff %.1f dBFS; tail %+.1f dB/s -> RT60 %.3f s (%d frames); mix-0 tail %.1f dBFS", during, f.slope, rt60, f.frames, offTail));
+        }
+
+        // RV2 — mix 50 → 0 at a tick: no step; the reverb's contribution gone within 60 ms.
+        {
+            const juce::int64 t = 2 * 48000;
+            const auto s = eg::render (job (50.0f, 50.0f, 4.0, { { t, 0.0f } })), st = eg::render (job (50.0f, 50.0f, 4.0));
+            const auto off = eg::render (job (0.0f, 50.0f, 4.0));
+            const double k = kappa (s, 1.5, 2.5) / kappa (st, 1.5, 2.5);
+            const double after = diffDb (s, off, 2.0 + 0.060, 2.5);
+            row (k <= 2.0 && after < -90.0, "RV2 reverb_mix 50 -> 0 at a tick: kappa <= 2.0x static; wet - input < -90 dBFS within 60 ms",
+                 juce::String::formatted ("ratio %.3f; residual %.1f dBFS after 60 ms", k, after));
+        }
+
+        // RV3 — re-enable after 2 s off: cold tank, 0 → 1 ramp, no click.
+        {
+            const juce::int64 t = 2 * 48000;
+            const auto s = eg::render (job (0.0f, 50.0f, 4.0, { { t, 50.0f } })), st = eg::render (job (50.0f, 50.0f, 4.0));
+            const double k = kappa (s, 1.5, 2.5) / kappa (st, 1.5, 2.5);
+            row (k <= 2.0, "RV3 reverb_mix 0 -> 50 after 2 s off (cold tank): kappa <= 2.0x static-on",
+                 juce::String::formatted ("ratio %.3f (the clearTank memset at the enable edge is INFO, not timed here)", k));
+        }
+
+        // RV4 — the mix-0 fast path stays bitwise dry with the tank running.
+        {
+            Job j; j.len = (juce::int64) (2.0 * kFs); j.block = 512;
+            j.params = eg22::base ({ 1 });
+            for (auto& kv : P { { "mix", 0.0f }, { "reverb_mix", 30.0f } }) j.params.push_back (kv);
+            j.stim = eg::noiseStim (0.3f);
+            const auto o = eg::render (j);
+            int diffs = 0;
+            for (juce::int64 i = 0; i < j.len; ++i)
+            {
+                const float xl = eg::hashNoise (i, 0, 0.3f), xr = eg::hashNoise (i, 1, 0.3f);
+                if (std::memcmp (&o.L[(size_t) i], &xl, 4) != 0 || std::memcmp (&o.R[(size_t) i], &xr, 4) != 0) ++diffs;
+            }
+            const auto cells = o.eng().diag.reverbCells;
+            row (diffs == 0 && cells > 0, "RV4 outer mix 0 % with reverb_mix 30 %: output bitwise dry, reverb tank running",
+                 juce::String::formatted ("%d diffs; cells the reverb changed %lld", diffs, (long long) cells));
+        }
+    }
+
+    //==========================================================================
+    // Z3 / Z4 — DSP-06 / QUAL-02 (T11)
+    //==========================================================================
+    struct ZRes { bool finite = true; int sub = 0, scans = 0; double peak = 0.0; long long scrubs = 0, nanKills = 0, spawns = 0; };
+
+    Job z3Job (double fs, bool allFx, ZRes* r)
+    {
+        Job j; j.fs = fs; j.len = (juce::int64) (60.0 * fs); j.block = 512;
+        j.params = eg22::base ({ 1, 2, 3, 4 });
+        for (auto& kv : P { { "grain_limit", 3.0f }, { "feedback", 100.0f }, { "fb_diffusion", 50.0f }, { "reverb_mix", 30.0f },
+                            { "output_gain", 0.0f } })
+            j.params.push_back (kv);
+        for (int s = 1; s <= 4; ++s)
+        {
+            for (auto& kv : P { { sp (s, "density"), 200.0f }, { sp (s, "size"), 500.0f }, { sp (s, "pitch"), 12.0f }, { sp (s, "level"), 6.0f },
+                                { sp (s, "filter_type"), allFx ? 3.0f : 1.0f }, { sp (s, "filter_res"), 100.0f }, { sp (s, "filter_cutoff"), 2000.0f } })
+                j.params.push_back (kv);
+            if (allFx)
+                for (auto& kv : P { { sp (s, "drive"), 100.0f }, { sp (s, "crush"), 100.0f }, { sp (s, "crush_prob"), 100.0f },
+                                    { sp (s, "ring_mix"), 100.0f } })
+                    j.params.push_back (kv);
+        }
+        const juce::int64 half = (juce::int64) (30.0 * fs);
+        j.stim = [half, fs] (juce::int64 i, int ch) -> float
+        {
+            if (i < half) return eg::hashNoise (i, ch, 1.0f);
+            return (float) std::sin (2.0 * eg::kPi * 2000.0 * (double) i / fs);
+        };
+        j.after = [r, half, len = j.len] (Proc& p, juce::int64 pos)
+        {
+            if ((pos >= half && pos < half + 512) || pos >= len)
+            {
+                const auto& e = p.getEngineForTest();
+                for (int k = 0; k < ogran::kPoolLive + ogran::kPoolFade; ++k)
+                {
+                    ++r->scans;
+                    if (eg23b::anySubnormal (e.getPool().getGrains()[(size_t) k])) ++r->sub;
+                }
+                const auto& c = e.getChainForTest();
+                auto sub = [] (float x) { return std::fpclassify (x) == FP_SUBNORMAL; };
+                for (int ch = 0; ch < 2; ++ch)
+                    if (sub (c.hpIc1[ch]) || sub (c.hpIc2[ch]) || sub (c.lpIc1[ch]) || sub (c.lpIc2[ch])) ++r->sub;
+                if (sub (c.env)) ++r->sub;
+            }
+        };
+        return j;
+    }
+
+    void stressRows24()
+    {
+        std::printf ("\n-- Z3/Z4. DSP-06 / QUAL-02 max feedback stress, in-situ scrub\n");
+        const double rates[3] { 48000.0, 44100.0, 192000.0 };
+        std::vector<ZRes> rs (4);
+        std::vector<Job> jobs; std::vector<double> cost;
+        for (int i = 0; i < 3; ++i) { jobs.push_back (z3Job (rates[i], false, &rs[(size_t) i])); cost.push_back (rates[i]); }
+        jobs.push_back (z3Job (48000.0, true, &rs[3])); cost.push_back (48000.0);
+        eg22b::renderPool (jobs, cost, [&] (size_t i, Out& o)
+        {
+            auto& r = rs[i];
+            for (size_t k = 0; k < o.L.size(); ++k)
+            {
+                if (! std::isfinite (o.L[k]) || ! std::isfinite (o.R[k])) r.finite = false;
+                r.peak = juce::jmax (r.peak, (double) std::abs (o.L[k]), (double) std::abs (o.R[k]));
+            }
+            const auto& d = o.eng().diag;
+            r.scrubs = d.fbScrubs; r.nanKills = d.nanKills; r.spawns = d.spawns;
+        });
+        auto verdict = [] (const ZRes& r) { return r.finite && r.peak <= (double) ogran::kKneeA && r.sub == 0 && r.scrubs == 0 && r.nanKills == 0 && r.spawns > 1000; };
+        juce::String det; bool ok = true;
+        for (int i = 0; i < 3; ++i)
+        {
+            ok = ok && verdict (rs[(size_t) i]);
+            det << juce::String::formatted ("%g k: pk %.4f sub %d/%d scrubs %lld nanKills %lld; ", rates[i] / 1000.0, rs[(size_t) i].peak,
+                                            rs[(size_t) i].sub, rs[(size_t) i].scans, rs[(size_t) i].scrubs, rs[(size_t) i].nanKills);
+        }
+        row (ok, "Z3 60 s fb 100 %, 4 x 200 g/s x 500 ms, +12 st, +6 dB, LP res 100 %, rev 30 % @ 48/44.1/192 k: peak <= A, finite, no subnormal, 0 scrubs", det);
+        const auto& b = rs[3];
+        row (verdict (b), "Z3b the same + HP res 100 % + drive / crush / ring 100 % (all FX-gain corners, 48 k)",
+             juce::String::formatted ("pk %.4f sub %d/%d scrubs %lld nanKills %lld", b.peak, b.sub, b.scans, b.scrubs, b.nanKills));
+
+        // Z4 — NaN into the chain at 3.0 s (the last sample of a cell) vs a reset reference.
+        {
+            constexpr juce::int64 at = 144000 + 31;
+            auto job = [] (bool nan, bool* zeroAfter)
+            {
+                Job j; j.len = (juce::int64) (5.0 * kFs); j.block = 512;
+                j.params = eg22::base ({ 1, 2 });
+                for (auto& kv : P { { "feedback", 80.0f }, { "fb_diffusion", 50.0f } }) j.params.push_back (kv);
+                j.pre = [nan] (Proc& p) { p.getEngineForTest().hooks.injectFbNan = { at, ! nan, false }; };
+                j.events.push_back ({ at + 1, [] (Proc&) {} });   // a shared block boundary right after the scrubbed sample
+                j.after = [zeroAfter] (Proc& p, juce::int64 pos)
+                {
+                    if (pos == at + 1 && zeroAfter != nullptr)
+                    {
+                        const auto& c = p.getEngineForTest().getChainForTest();
+                        bool z = c.env == 0.0f;
+                        for (int ch = 0; ch < 2; ++ch)
+                        {
+                            z = z && c.hpIc1[ch] == 0.0f && c.hpIc2[ch] == 0.0f && c.lpIc1[ch] == 0.0f && c.lpIc2[ch] == 0.0f;
+                            for (int s = 0; s < 4; ++s) for (int i = 0; i < ogran::kDiffuserMaxLen; ++i) z = z && c.line[ch][s][i] == 0.0f;
+                        }
+                        *zeroAfter = z;
+                    }
+                };
+                return j;
+            };
+            bool zero = false;
+            const auto a = eg::render (job (true, &zero)), b2 = eg::render (job (false, nullptr));
+            bool finite = true; double mx = 0.0;
+            for (size_t i = 0; i < a.L.size(); ++i)
+            {
+                finite = finite && std::isfinite (a.L[i]) && std::isfinite (a.R[i]);
+                mx = juce::jmax (mx, std::abs ((double) a.L[i] - b2.L[i]), std::abs ((double) a.R[i] - b2.R[i]));
+            }
+            row (a.eng().diag.fbScrubs == 1 && b2.eng().diag.fbScrubs == 0 && finite && zero && mx == 0.0,
+                 "Z4 in-situ scrub at 3.0 s, fb 80 %: 1 scrub, finite, chain state 0 after it, == the reset reference (max|d| 0)",
+                 juce::String::formatted ("scrubs %lld (ref %lld), finite %s, state zero %s, max|d| %.3g", (long long) a.eng().diag.fbScrubs,
+                                          (long long) b2.eng().diag.fbScrubs, finite ? "yes" : "NO", zero ? "yes" : "NO", mx));
+        }
+    }
+
+    //==========================================================================
+    // M4 / C4 — PERF-01 / PERF-02 (T12)
+    //==========================================================================
+    void allocRows24()
+    {
+        std::printf ("\n-- M4. PERF-01 allocations with freeze / feedback / reverb / scrub\n");
+       #if JUCE_MAC
+        using namespace eg;
+        audioThread = pthread_self();
+        malloc_logger = countAllocation;
+        allocCount = 0;
+        allocTrace = false;
+        allocArmed = true;
+        void* volatile probe = std::malloc (64);
+        allocArmed = false;
+        std::free (probe);
+        const int liveness = allocCount;
+        allocCount = 0;
+        allocTrace = true;
+
+        Job j; j.len = (juce::int64) (14.0 * kFs); j.block = 512;
+        j.params = { { "mix", 60.0f }, { "grain_limit", 3.0f }, { "feedback", 50.0f } };
+        for (int s = 1; s <= 4; ++s)
+            for (auto& kv : P { { sp (s, "enable"), 1.0f }, { sp (s, "density"), 60.0f }, { sp (s, "size"), 1000.0f },
+                                { sp (s, "size_rand"), 40.0f }, { sp (s, "spray"), 50.0f }, { sp (s, "jitter"), 50.0f },
+                                { sp (s, "pitch_rand"), 7.0f }, { sp (s, "reverse_prob"), 50.0f }, { sp (s, "scale"), (float) (s * 7) },
+                                { sp (s, "window"), 0.3f * (float) s }, { sp (s, "stereo_spread"), 50.0f }, { sp (s, "gain_rand"), 50.0f },
+                                { sp (s, "filter_type"), (float) (s % 4) }, { sp (s, "filter_res"), 70.0f }, { sp (s, "drive"), 30.0f },
+                                { sp (s, "crush"), 30.0f }, { sp (s, "ring_mix"), 40.0f } })
+                j.params.push_back (kv);
+        j.pre = [] (Proc& p)
+        {
+            juce::String bad; p.setCustomScale ("m4a", "edo 9", bad);
+            p.getEngineForTest().hooks.injectNan = { 5, (juce::int64) (7.0 * kFs), 0, std::numeric_limits<float>::quiet_NaN(), false };
+            p.getEngineForTest().hooks.injectFbNan = { (juce::int64) (8.5 * kFs), false, false };
+        };
+        j.events.push_back ({ (juce::int64) (3.0 * kFs), [] (Proc& p) { setP (p, "grain_limit", 0.0f); } });
+        j.events.push_back ({ (juce::int64) (9.0 * kFs), [] (Proc& p) { setP (p, "grain_limit", 1.0f); } });
+        for (int k = 1; k < 135; ++k)
+        {
+            const juce::int64 at = (juce::int64) (0.1 * k * kFs) + 7;
+            j.events.push_back ({ at, [k] (Proc& p)
+            {
+                switch (k % 9)
+                {
+                    case 0: setP (p, "freeze", (k / 9) % 2 == 0 ? 1.0f : 0.0f); break;
+                    case 1: setP (p, "feedback", (k / 9) % 2 == 0 ? 0.0f : 100.0f); break;
+                    case 2: setP (p, "fb_diffusion", (float) ((k * 13) % 101)); break;
+                    case 3: eg23b::setNorm (p, "fb_low_cut", (float) (20.0 * std::pow (1.7, (k % 9)))); break;
+                    case 4: eg23b::setNorm (p, "fb_high_cut", (float) (1000.0 * std::pow (1.4, (k % 9)))); break;
+                    case 5: setP (p, "fb_saturation", (float) ((k * 17) % 101)); break;
+                    case 6: setP (p, "reverb_mix", (k / 9) % 2 == 0 ? 0.0f : 40.0f); break;
+                    case 7: setP (p, "reverb_size", (float) ((k * 23) % 101)); setP (p, "reverb_damp", (float) ((k * 29) % 101)); break;
+                    default: setP (p, sp (1 + k % 4, "filter_type"), (float) ((k / 8) % 4)); break;
+                }
+            } });
+        }
+        armDuringProcess = false;
+        j.after = [] (Proc&, juce::int64) { armDuringProcess = true; };
+        const auto o = render (j);
+        armDuringProcess = false;
+        malloc_logger = nullptr;
+        allocTrace = false;
+        const auto& dg = o.eng().diag;
+        const int n = allocCount;
+        const bool live = dg.kills > 0 && dg.nanKills == 1 && dg.fbScrubs == 1 && dg.freezeEngages > 3 && dg.freezeReleases > 3
+                          && dg.reverbCells > 0;
+        row (liveness == 1, "M4 liveness: a deliberate malloc on the render thread counts exactly 1", juce::String (liveness));
+        row (liveness == 1 && n == 0 && live, "M4 0 allocations: freeze toggles, fb 0 <-> 100 %, diffusion / tone / sat sweeps, fb scrub, reverb on/off",
+             juce::String::formatted ("%d allocs; spawns %lld kills %lld nanKills %lld scrubs %lld engages %lld releases %lld forced %lld reverb cells %lld",
+                                      n, (long long) dg.spawns, (long long) dg.kills, (long long) dg.nanKills, (long long) dg.fbScrubs,
+                                      (long long) dg.freezeEngages, (long long) dg.freezeReleases, (long long) dg.forcedReleases, (long long) dg.reverbCells)
+                 + (live ? "" : "  VACUOUS"));
+       #else
+        row (false, "M4 alloc gate is macOS-only");
+       #endif
+    }
+
+    void cpuRows24()
+    {
+        std::printf ("\n-- C4. CPU with feedback + diffusion + reverb (INFO; budget gate in 2.6)\n");
+        P c2 { { "mix", 100.0f }, { "grain_limit", 3.0f } };
+        for (int s = 1; s <= 4; ++s)
+            for (auto& kv : P { { sp (s, "enable"), 1.0f }, { sp (s, "density"), 16.0f }, { sp (s, "size"), 2000.0f },
+                                { sp (s, "window"), 0.6f }, { sp (s, "scale"), 1.0f }, { sp (s, "pitch_rand"), 2.0f } })
+                c2.push_back (kv);
+        P worst = c2;
+        for (int s = 1; s <= 4; ++s)
+            for (auto& kv : P { { sp (s, "filter_type"), 1.0f }, { sp (s, "filter_res"), 100.0f }, { sp (s, "filter_rand"), 100.0f },
+                                { sp (s, "drive"), 100.0f }, { sp (s, "crush"), 100.0f }, { sp (s, "crush_prob"), 100.0f },
+                                { sp (s, "ring_mix"), 100.0f }, { sp (s, "ring_rand"), 100.0f } })
+                worst.push_back (kv);
+        P c4 = worst;
+        for (auto& kv : P { { "feedback", 100.0f }, { "fb_diffusion", 100.0f }, { "reverb_mix", 50.0f } }) c4.push_back (kv);
+        int aW, a4;
+        const double w = eg23b::timeConfig (worst, aW), c = eg23b::timeConfig (c4, a4);
+        std::printf ("  [INFO] C3w re-run: %.2f %% of one core (live %d; 2.3 verify 17.08 %%)\n", w, aW);
+        std::printf ("  [INFO] C4 = C3w + feedback 100 %% + diffusion 100 %% + reverb_mix 50 %%: %.2f %% (live %d), +%.2f over C3w; "
+                     "headroom to 30 %%: %.2f %%%s\n", c, a4, c - w, 30.0 - c, c > 25.0 ? "  -> OVER 25 %: flag for 2.6" : "");
+    }
 } } // namespace eg24b (anonymous)
 
 static void engineRows24b()
 {
     std::printf ("\n== N7/FZ/RV/Z3/Z4/M4/C4. Stage 2 / Phase 2.4 rows (engine_gates_24b.h)\n");
     const auto t0 = std::chrono::steady_clock::now();
-    eg24b::blockNullFbRows (1);
     eg24b::freezeRowsT8();
     eg24b::freezeRowsT9();
+    eg24b::reverbRows();
+    eg24b::stressRows24();
+    eg24b::blockNullFbRows (2);   // N7 final: feedback + freeze toggles + reverb toggles
+    eg24b::allocRows24();
+    eg24b::cpuRows24();
     std::printf ("  [INFO] 2.4b rows wall time %.1f s\n", std::chrono::duration<double> (std::chrono::steady_clock::now() - t0).count());
 }

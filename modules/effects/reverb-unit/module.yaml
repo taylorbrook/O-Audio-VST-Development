@@ -1,5 +1,5 @@
 name: reverb-unit
-version: 1.1.0
+version: 1.2.0
 category: effects
 description: |
   Compact 8-channel FDN plate reverb module for embedding in VST instruments.
@@ -53,6 +53,11 @@ tags:
 reuse_score: 9
 
 changelog:
+  - version: 1.2.0
+    date: 2026-11-05
+    changes:
+      - "bind (std::atomic<float>* enabled, size, damp, predelay, mix, mod, shimmer): a non-breaking overload that binds caller-owned atomics (only assigns the seven pointers); the APVTS bind() and every other line are unchanged, so existing consumers need no rebuild"
+      - First atomic-bind consumer O-Granulator (plugin-owned atomics written at its 32-sample control grid)
   - version: 1.1.0
     date: 2026-10-19
     changes:
