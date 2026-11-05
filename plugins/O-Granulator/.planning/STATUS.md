@@ -1,8 +1,8 @@
 ---
 plugin: O-Granulator
 stage: 1
-status: stage_1_execute_complete
-current_phase: execute
+status: stage_1_complete
+current_phase: verify
 stage_0_status: ui_design_complete
 last_updated: 2026-11-04
 latest_mockup_version: 2
@@ -13,13 +13,13 @@ complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_1_verify
-next_stage: 1
+next_action: stage_2_discuss
+next_stage: 2
 ready_for_implementation: true
 blocked_on: null
 contract_checksums:
   brief: sha256:f9c748a8a256de9d2fb2bcbe1aff58b12999a640cc8d36fbdbf96e6deb5559d7
-  requirements: sha256:15bce1f9a9c847f902559754fcdebc8b6b1eeb6920372d885c7010c1fdb35198
+  requirements: sha256:b9ba9106585001342afa9818ab895602eb351c23bf7ec82874208dcba536495d   # COMPAT-01 → complete (Stage 1 verify)
   parameter_spec_draft: sha256:d0b1457ea7c1624ff757fd12c1acb7bd62c9acf7bebbdd3460c7f1d30cdbbce3
   parameter_spec: sha256:f5ce35954c2c18e46faa914d95898ddb718d6b77ec4be8582be23b60a26b3688   # P3 uiLanguage amendment (Stage 1)
   architecture: sha256:f0cf753b4de2cb6099ad327b0887a0c254f013746b373000a28f01ad7949d9d9
@@ -30,9 +30,9 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — execute complete; verify next
+Stage: 1 of 4 (Foundation) — ✓ VERIFIED 2026-11-04; Stage 2 (DSP) next
 Status: O-Granulator 0.1.0 shell builds VST3 + AU + Standalone; 220 params, pass-through, state codec; pluginval 10 + auval PASS. pitch-collections 1.0.0 module and O-GrainScatter 3.6.0 landed with it.
-Progress: [#####...............] 25%
+Progress: [#####...............] 25% (Stage 1 verified — VERIFICATION.md)
 
 ## Completed So Far
 
@@ -52,8 +52,8 @@ Progress: [#####...............] 25%
 
 ## Next Steps
 
-1. Stage 1: Foundation (`/implement O-Granulator`) — build system from `mockups/v2-CMakeLists.txt`, all 220 APVTS params from `parameter-spec.md` (golden ID-order + destination-table tests), pass-through shell, COMPAT-01. Includes extracting PitchCollections from O-GrainScatter into `modules/tuning/pitch-collections`.
-2. Stage 3 integrates the UI with `mockups/v2-integration-checklist.md`.
+1. Stage 2: DSP (`/plugin-discuss O-Granulator 2-dsp`) — 6 phases per ROADMAP. Carry-ins from Stage 1: sort the active pitch table (7-Limit Just unsorted at source); audio thread owns its own custom-table copy; never derive unity gain from `get()` on skewed ranges.
+2. Stage 3 integrates the UI with `mockups/v2-integration-checklist.md` (+ check-ui-labels, deferred from Stage 1).
 
 ## Context to Preserve
 

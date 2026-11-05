@@ -63,7 +63,7 @@ lastUpdated: 2026-11-03
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| COMPAT-01 | Passes pluginval validation (VST3 and AU), strictness 10 | must | pending | stage-1 |
+| COMPAT-01 | Passes pluginval validation (VST3 and AU), strictness 10 | must | complete | stage-1 |
 | COMPAT-02 | State save/restore round-trips all parameters and mod matrix routings | must | pending | stage-4 |
 | COMPAT-03 | Mono and stereo I/O; Windows VST3 build | should | pending | stage-4 |
 
