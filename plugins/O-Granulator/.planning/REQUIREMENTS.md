@@ -37,7 +37,7 @@ lastUpdated: 2026-11-04
 | DSP-02 | Band-limited reads for pitched-up grains (grain-engine BandlimitedReader) | must | complete | stage-2 |
 | DSP-03 | Window morph Hann→Tukey→Trapezoid→Exponential with skew; overlap-normalised level | must | complete | stage-2 |
 | DSP-04 | Per-grain reverse probability, position spray, size/gain randomisation, stereo spread | must | complete | stage-2 |
-| DSP-05 | Per-grain FX: SVF (LP/BP/HP) with cutoff randomisation, drive, bitcrush with probability, ring mod with randomised carrier | must | pending | stage-2 |
+| DSP-05 | Per-grain FX: SVF (LP/BP/HP) with cutoff randomisation, drive, bitcrush with probability, ring mod with randomised carrier | must | complete | stage-2 |
 | DSP-06 | Feedback loop gain bounded — no runaway at feedback 100 % with any settings | must | pending | stage-2 |
 | DSP-07 | Output reverb/diffuser stage | should | pending | stage-2 |
 | DSP-08 | Pitch follower (YIN/MPM-class) usable as mod source | should | pending | stage-2 |
@@ -72,7 +72,7 @@ lastUpdated: 2026-11-04
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | QUAL-01 | No audio artifacts (clicks, zipper) at normal parameter ranges, including freeze toggle and grain steal | must | partial | stage-2 |
-| QUAL-02 | No NaN/denormal output under extreme settings (max feedback, max resonance, max density) | must | pending | stage-2 |
+| QUAL-02 | No NaN/denormal output under extreme settings (max feedback, max resonance, max density) | must | partial | stage-2 |
 | QUAL-03 | Per-sample smoothing on audible continuous params and mod-matrix targets | must | pending | stage-2 |
 | QUAL-04 | Hands-on listening pass in DAW across use cases | nice | pending | stage-4 |
 
