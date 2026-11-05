@@ -45,10 +45,14 @@ target_compile_features(OuariconGranulator PRIVATE cxx_std_20)
 # PluginEditor.cpp belongs to the PLUGIN target only — the offline render
 # harness compiles PluginProcessor.cpp with JUCE_WEB_BROWSER=0 and must never
 # see WebView types.
+#
+# Source/dsp/: the Stage 2 engine (header-first, namespace ogran). Engine.cpp is
+# the only DSP TU; the processor consoles below pick it up from this list.
 target_sources(OuariconGranulator
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
+        Source/dsp/Engine.cpp
 )
 
 target_include_directories(OuariconGranulator
@@ -155,6 +159,10 @@ if(OUARICON_BUILD_TESTS)
     ouaricon_add_processor_console(OuariconGranulator ${CMAKE_CURRENT_SOURCE_DIR}/Source
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/render-harness/main.cpp render-harness)
     target_compile_features(O-Granulator-render-harness PRIVATE cxx_std_20)
+    # OGRAN_TEST_HOOKS=1 on THIS target only: Engine::TestHooks (forceLevel0,
+    # disableFracQuant), Engine::Diag and the spawn log. The plugin and the
+    # param-dump console compile every hook out.
     target_compile_definitions(O-Granulator-render-harness PRIVATE
-        GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/golden")
+        GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/golden"
+        OGRAN_TEST_HOOKS=1)
 endif()

@@ -24,15 +24,17 @@
 #include <atomic>
 #include <cstdint>
 #include "GranulatorParamIds.h"
+#include "dsp/Engine.h"
 
 // ============================================================================
-// O-Granulator — Stage 1 shell.
+// O-Granulator.
 //
 // 220 APVTS parameters (GranulatorParamIds.h), three bus layouts (mono→mono,
-// mono→stereo, stereo→stereo), a bitwise pass-through processBlock, latency 0,
-// and the full non-parameter state codec: seed, shared custom scale, per-stream
-// × per-collection degree masks, uiLanguage. No DSP until Stage 2; the editor
-// is juce::GenericAudioProcessorEditor until Stage 3.
+// mono→stereo, stereo→stereo), latency 0, and the full non-parameter state
+// codec: seed, shared custom scale, per-stream × per-collection degree masks,
+// uiLanguage. Stage 2 (Phase 2.1): ogran::Engine — 41 s MipRing<2>, absolute
+// 32-sample pass grid, one live stream (s1), grain_limit cap, dry/wet. The
+// editor is juce::GenericAudioProcessorEditor until Stage 3.
 //
 // Threading: everything in the "scale state" and "seed" sections is message-
 // thread API (Stage 2 hands the audio thread its own copies). No listener and
@@ -57,7 +59,9 @@ public:
     bool acceptsMidi() const override  { return false; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
-    double getTailLengthSeconds() const override { return 0.0; }   // Stage 2 sets the real tail
+    // P7: stays 0 in 2.1. Phase 2.6 sets the real tail (grains <= 2 s + feedback
+    // + reverb) once every contributor exists.
+    double getTailLengthSeconds() const override { return 0.0; }
 
     int getNumPrograms() override { return 1; }
     int getCurrentProgram() override { return 0; }
@@ -119,6 +123,11 @@ public:
         return degreeCount >= 64 ? mask : (mask | ~((uint64_t (1) << degreeCount) - 1));
     }
 
+   #if OGRAN_TEST_HOOKS
+    /** Render-harness only: hooks (forceLevel0, disableFracQuant) and Diag. */
+    ogran::Engine& getEngineForTest() noexcept { return engine; }
+   #endif
+
 private:
     static constexpr int maskIndex (int stream, int collection) noexcept
     {
@@ -139,6 +148,12 @@ private:
     std::atomic<uint32_t> scaleStateRevision { 1 };
 
     bool monoToStereo = false;   // negotiated layout, decided in prepareToPlay
+    int  busInChannels  = 2;     // main-bus channel counts from the NEGOTIATED layout
+    int  busOutChannels = 2;     // (never from buffer width), decided in prepareToPlay
+
+    // DSP engine. Parameter pointers are bound in the constructor; prepare()
+    // allocates on the message thread; process() on the audio thread only.
+    ogran::Engine engine;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GranulatorProcessor)
 };

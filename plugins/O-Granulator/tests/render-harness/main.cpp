@@ -21,9 +21,10 @@
       D3  modM_dest choices == None + golden dest names   D4 table version 1
       B1  layouts: mono→mono, mono→stereo, stereo→stereo accepted; stereo→mono,
           disabled, 5.1 rejected
-      B2  pass-through memcmp-exact: 3 layouts × {defaults, mix 0 %} × blocks
-          {1, 32, 441, 512, 4096, seeded variable}; mono→stereo L == R == in;
-          with a playing MockPlayHead and with none
+      B2  (rescoped 2.1, P8) mix 0 % memcmp-exact, every param set through the
+          host normalised path: 3 layouts × blocks {1, 32, 441, 512, 4096,
+          seeded variable}; mono→stereo L == R == in; with a playing
+          MockPlayHead and with none. Defaults (mix 50 %): wet present.
       B3  latency 0 after prepare
       S1  state round trip: seed 0xF00DFACECAFEBEEF (> 2^63), high-bit masks,
           custom "edo 19" / "edo 64", uiLanguage 2, a parameter
@@ -31,6 +32,7 @@
       S3  two reopens with a change between: no stale / duplicate children
       S4  no Mask children at defaults
       P1  scale choice → Id map; names cross-check against the module
+      E*  Stage 2 / 2.1 engine rows — see engine_gates.h
 
   ==============================================================================
 */
@@ -143,7 +145,18 @@ namespace
         if (auto* rp = param (p, id))
             rp->setValueNotifyingHost (rp->convertTo0to1 (value));   // harness only (the host side)
     }
+
+    // Every parameter written with its default NORMALISED value, the way a host
+    // or pluginval writes it (R2: skewed / non-dyadic ranges land a hair off).
+    void setAllViaHostNormalised (juce::AudioProcessor& p)
+    {
+        for (auto* ap : p.getParameters())
+            if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (ap))
+                rp->setValueNotifyingHost (rp->getDefaultValue());
+    }
 }
+
+#include "engine_gates.h"   // Stage 2 section E (engine rows)
 
 //==============================================================================
 static void paramRows()
@@ -288,8 +301,13 @@ static void busRows()
         for (int i = 0; i < kLen; ++i)
             input.setSample (ch, i, (r.nextFloat() * 2.0f - 1.0f) * 0.7f + (ch ? 1e-30f : 0.0f));   // a denormal-ish offset on R
 
+    // P8 (deliberate gate change, Stage 2 / 2.1): mix defaults to 50 %, so the
+    // Stage 1 "defaults" bitwise rows are REPLACED by "defaults: wet present"
+    // below. The mix 0 % rows set EVERY parameter through the host normalised
+    // path (setValueNotifyingHost (default normalised)) — that exercises R2: the
+    // 0 dB output_gain default round-trips to 7.15e-7 dB.
     for (auto& L : layouts)
-        for (bool mix0 : { false, true })
+        for (bool mix0 : { true })
             for (int playheadMode : { 0, 1 })
             {
                 Tally tb;
@@ -300,6 +318,7 @@ static void busRows()
                     MockPlayHead ph;
                     if (playheadMode == 1) q->setPlayHead (&ph);
                     const bool okLayout = q->setBusesLayout (layout (L.in, L.out));
+                    setAllViaHostNormalised (*q);
                     if (mix0) setParam (*q, "mix", 0.0f);
                     q->prepareToPlay (kSr, b == 0 ? 512 : b);
                     latencyOk = latencyOk && q->getLatencySamples() == 0;
@@ -334,23 +353,53 @@ static void busRows()
                     tb.check (same, "block " + (b == 0 ? juce::String ("var") : juce::String (b)));
                     q->setPlayHead (nullptr);
                 }
-                row (tb.bad == 0, juce::String ("B2 ") + L.name + (mix0 ? " mix 0 %" : " defaults") + (playheadMode ? " +playhead" : " no playhead")
+                row (tb.bad == 0, juce::String ("B2 ") + L.name + (mix0 ? " mix 0 % (host-normalised)" : " defaults") + (playheadMode ? " +playhead" : " no playhead")
                          + " bitwise", tb.detail ((int) std::size (blocks)));
                 if (! latencyOk) row (false, "B3 latency 0", L.name);
             }
     row (true, "B3 latency 0 after prepare (all layouts / blocks)");
+
+    // B2 defaults: wet present (replaces the Stage 1 defaults pass-through rows).
+    for (auto& L : layouts)
+    {
+        auto q = make();
+        q->setBusesLayout (layout (L.in, L.out));
+        q->prepareToPlay (kSr, 512);
+        const int inCh = L.in.size(), outCh = L.out.size(), numCh = juce::jmax (inCh, outCh);
+        juce::AudioBuffer<float> blk (numCh, 512);
+        juce::MidiBuffer midi;
+        double accSq = 0.0; int nAcc = 0;
+        for (int pos = 0; pos < kLen * 2; pos += 512)
+        {
+            for (int ch = 0; ch < numCh; ++ch)
+                for (int i = 0; i < 512; ++i)
+                    blk.setSample (ch, i, ch < inCh ? input.getSample (ch, (pos + i) % kLen) : 0.0f);
+            q->processBlock (blk, midi);
+            if (pos >= kLen)   // after 1 s
+                for (int ch = 0; ch < outCh; ++ch)
+                    for (int i = 0; i < 512; ++i)
+                    {
+                        const double d = (double) blk.getSample (ch, i) - (double) input.getSample (ch < inCh ? ch : 0, (pos + i) % kLen);
+                        accSq += d * d; ++nAcc;
+                    }
+        }
+        const double db = 10.0 * std::log10 (juce::jmax (1e-30, accSq / juce::jmax (1, nAcc)));
+        row (db > -40.0, juce::String ("B2 ") + L.name + " defaults: wet present (RMS(out - dry) > -40 dBFS after 1 s)",
+             juce::String (db, 1) + " dBFS");
+    }
 
     // No-bpm playhead row (Stage 2 tempo code must survive it); shell passes through regardless.
     {
         auto q = make();
         MockPlayHead ph; ph.hasBpm = false; ph.playing = false;
         q->setPlayHead (&ph);
+        setParam (*q, "mix", 0.0f);
         q->prepareToPlay (kSr, 512);
         juce::AudioBuffer<float> blk (2, 512);
         for (int ch = 0; ch < 2; ++ch) blk.copyFrom (ch, 0, input, ch, 0, 512);
         juce::MidiBuffer midi;
         q->processBlock (blk, midi);
-        row (std::memcmp (blk.getReadPointer (0), input.getReadPointer (0), 512 * sizeof (float)) == 0, "B2 no-bpm stopped playhead passes through");
+        row (std::memcmp (blk.getReadPointer (0), input.getReadPointer (0), 512 * sizeof (float)) == 0, "B2 no-bpm stopped playhead, mix 0 %: passes through");
         q->setPlayHead (nullptr);
     }
 }
@@ -526,11 +575,12 @@ static void scaleRows()
 int main()
 {
     juce::ScopedJuceInitialiser_GUI init;
-    std::printf ("O-Granulator render harness (Stage 1)  goldens: %s\n", GOLDEN_DIR);
+    std::printf ("O-Granulator render harness (Stage 1 + Stage 2 / 2.1)  goldens: %s\n", GOLDEN_DIR);
     paramRows();
     busRows();
     stateRows();
     scaleRows();
+    engineRows();
     std::printf ("\n%d PASS, %d FAIL -- %s\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
     return failures == 0 ? 0 : 1;
 }

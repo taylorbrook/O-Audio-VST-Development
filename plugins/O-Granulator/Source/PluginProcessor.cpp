@@ -46,6 +46,44 @@ GranulatorProcessor::GranulatorProcessor()
         jassertquiet (ok);
         customText = defaultCustomText();
     }
+
+    // Engine parameter pointers (raw denormalised atomics, cached once).
+    // Phase 2.1 honours the 17 parameters below (CONTEXT-2.1) plus s2–s4_enable,
+    // which the engine reads and masks off (P5).
+    {
+        auto raw = [this] (const juce::String& id)
+        {
+            auto* p = parameters.getRawParameterValue (id);
+            jassert (p != nullptr);
+            return p;
+        };
+
+        ogran::ParamPointers p;
+        p.inputGain    = raw ("input_gain");
+        p.bufferLength = raw ("buffer_length");
+        p.mix          = raw ("mix");
+        p.outputGain   = raw ("output_gain");
+        p.grainLimit   = raw ("grain_limit");
+
+        auto& s1 = p.s[0];
+        s1.enable      = raw (Ids::stream (1, "enable"));
+        s1.level       = raw (Ids::stream (1, "level"));
+        s1.pan         = raw (Ids::stream (1, "pan"));
+        s1.position    = raw (Ids::stream (1, "position"));
+        s1.spray       = raw (Ids::stream (1, "spray"));
+        s1.size        = raw (Ids::stream (1, "size"));
+        s1.sizeRand    = raw (Ids::stream (1, "size_rand"));
+        s1.density     = raw (Ids::stream (1, "density"));
+        s1.jitter      = raw (Ids::stream (1, "jitter"));
+        s1.pitch       = raw (Ids::stream (1, "pitch"));
+        s1.pitchRand   = raw (Ids::stream (1, "pitch_rand"));
+        s1.reverseProb = raw (Ids::stream (1, "reverse_prob"));
+
+        for (int n = 2; n <= Ids::kStreams; ++n)
+            p.s[n - 1].enable = raw (Ids::stream (n, "enable"));
+
+        engine.bind (p);
+    }
 }
 
 //==============================================================================
@@ -91,14 +129,19 @@ juce::AudioProcessorValueTreeState::ParameterLayout GranulatorProcessor::createP
 }
 
 //==============================================================================
-void GranulatorProcessor::prepareToPlay (double, int)
+void GranulatorProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     // JUCE 8: getLatencySamples() is non-virtual — report through the setter.
     setLatencySamples (0);
 
     // Decide from the NEGOTIATED layout, never from buffer width (a host may
     // hand a mono-out bus a 2-channel buffer).
-    monoToStereo = getMainBusNumInputChannels() == 1 && getMainBusNumOutputChannels() == 2;
+    busInChannels  = getMainBusNumInputChannels();
+    busOutChannels = getMainBusNumOutputChannels();
+    monoToStereo   = busInChannels == 1 && busOutChannels == 2;
+
+    // Message thread: allocates the 41 s ring (D2) and resets every clock/ramp.
+    engine.prepare (sampleRate, samplesPerBlock);
 }
 
 bool GranulatorProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -118,19 +161,37 @@ void GranulatorProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
 {
     juce::ScopedNoDenormals noDenormals;
 
-    // Stage 1 shell: bitwise pass-through. Every loop is bounded by the
-    // buffer's own channel count (Standalone can hand 3–7 channel buffers).
-    const int numCh = buffer.getNumChannels();
-    const int n     = buffer.getNumSamples();
-    const int numIn = getTotalNumInputChannels();
+    // Every loop is bounded by the buffer's own channel count (Standalone can
+    // hand 3–7 channel buffers); the engine's channel counts come from the BUS.
+    const int numCh  = buffer.getNumChannels();
+    const int n      = buffer.getNumSamples();
+    const int numIn  = juce::jmin (busInChannels,  numCh);
+    const int numOut = juce::jmin (busOutChannels, numCh);
 
-    for (int ch = numIn; ch < numCh; ++ch)
+    if (n <= 0)
+        return;
+
+    if (numIn < 1 || numOut < 1 || ! engine.isPrepared())
     {
-        if (monoToStereo && ch == 1)
-            buffer.copyFrom (1, 0, buffer, 0, 0, n);   // mono input feeds both outputs
-        else
-            buffer.clear (ch, 0, n);
+        // Not prepared / degenerate layout: Stage 1 pass-through.
+        for (int ch = juce::jmax (numIn, 0); ch < numCh; ++ch)
+        {
+            if (monoToStereo && ch == 1 && numIn == 1)
+                buffer.copyFrom (1, 0, buffer, 0, 0, n);   // mono input feeds both outputs
+            else
+                buffer.clear (ch, 0, n);
+        }
+        return;
     }
+
+    const float* in[2] = { buffer.getReadPointer (0), buffer.getReadPointer (numIn > 1 ? 1 : 0) };
+    float* out[2]      = { buffer.getWritePointer (0), numOut > 1 ? buffer.getWritePointer (1) : nullptr };
+
+    // The seed is adopted by the engine at its next grid point.
+    engine.process (in, numIn, out, numOut, n, getSeed());
+
+    for (int ch = numOut; ch < numCh; ++ch)
+        buffer.clear (ch, 0, n);
 }
 
 juce::AudioProcessorEditor* GranulatorProcessor::createEditor()
