@@ -28,6 +28,9 @@
 #include "ControlGrid.h"
 #include "EngineConstants.h"
 #include "Grain.h"
+#include "Quotas.h"
+#include "ScaleQuantiser.h"
+#include "WindowMorphBank.h"
 
 // ============================================================================
 // Grain spawner (ARCHITECTURE §5–6, RESEARCH-2.1 §2, §3, §8, PLAN-2.1 T6).
@@ -71,6 +74,28 @@ namespace ogran
         int    level = 0;
         int    set   = 0;
         double delay = 0.0;   // D, level-0 samples behind the head at the onset
+        // 2.2
+        float  gainL = 1.0f;  // spread pan × gain_rand; exactly (1, 1) with both at 0
+        float  gainR = 1.0f;
+        int    windowStep = 0;
+        float  windowSkew = 0.0f;
+        WindowMorphBank::Tilt tilt {};   // {0.5, 1, 1} at skew 0
+        float  pitchCents = 0.0f;        // the latched scale pick / continuous random offset
+    };
+
+    /** The scale-on pitch source for one stream at this grid (D4): set != nullptr
+        ⇔ sN_scale ≠ Off; [lo, hi) = ActiveSet::window (pitch). */
+    struct PitchSel
+    {
+        const ActiveSet* set = nullptr;
+        int lo = 0, hi = 0;
+    };
+
+    /** Victim-choice variants. Plugin builds always use the default (R8). */
+    struct AcquirePolicy
+    {
+        bool nativeProgress = false;   // test hook: progress = age·invLen only (FUNC-03 negative control)
+        bool noQuotaCeil    = false;   // test hook: overQuota = live > q (real), not > ceil (q) (R8 control)
     };
 
     class Spawner
@@ -88,9 +113,15 @@ namespace ogran
 
         //======================================================================
         /** Draws + formulas. Each randomisation at 0 draws nothing; reverse_prob is
-            gated to (0, 1) before drawing, so 0 % / 100 % are exact. */
+            gated to (0, 1) before drawing, so 0 % / 100 % are exact.
+
+            Fixed draw order (R10, append-only): Size, Pitch, Reverse, PosSpray,
+            Pan, Gain — all here, BEFORE acquire(), so a refused or stolen spawn
+            consumes exactly the draws a granted one does. (CounterRng is keyed by
+            slot, so the order is documentation; the before-acquire rule is not.) */
         static GrainPlan plan (const GridParams::Stream& sp, double spanSamples, double fs, int ringSamples,
-                               std::uint64_t seed, int stream, std::uint64_t globalIndex, bool forceLevel0) noexcept
+                               std::uint64_t seed, int stream, std::uint64_t globalIndex, bool forceLevel0,
+                               const PitchSel& pitchSel = {}) noexcept
         {
             const ouaricon::grain::CounterRng::Draw draw (seed, kGrainStream + static_cast<std::uint64_t> (stream), globalIndex);
             auto uni = [&draw] (std::uint32_t slot) noexcept { return static_cast<double> (draw.nextFloat (slot)); };
@@ -103,10 +134,27 @@ namespace ogran
                 sizeMs *= 1.0 + static_cast<double> (sp.sizeRand) * (2.0 * uni (Slot::Size) - 1.0) * 0.5;
             p.len = std::clamp (sizeMs, kMinSizeMs, kMaxSizeMs) * 0.001 * fs;
 
-            // Pitch: st = clamp (pitch + pitchRand · (2u − 1), ±24); rate = 2^(st/12) in double.
+            // Pitch.
+            //   scale Off: st = clamp (pitch + pitchRand · (2u − 1), ±24) — the 2.1
+            //              expression verbatim (bitwise).
+            //   scale on (D4): st = pitch + pick/100, pick uniform over the active
+            //              degrees inside the window; no pick (pitch_rand 0, empty
+            //              mask, no degree in span) → st = pitch exactly, NO draw.
+            // rate = 2^(st/12) in double.
             double st = static_cast<double> (sp.pitch);
-            if (sp.pitchRand > 0.0f)
-                st += static_cast<double> (sp.pitchRand) * (2.0 * uni (Slot::Pitch) - 1.0);
+            if (pitchSel.set == nullptr)
+            {
+                if (sp.pitchRand > 0.0f)
+                {
+                    st += static_cast<double> (sp.pitchRand) * (2.0 * uni (Slot::Pitch) - 1.0);
+                    p.pitchCents = static_cast<float> (static_cast<double> (sp.pitchRand) * (2.0 * uni (Slot::Pitch) - 1.0) * 100.0);
+                }
+            }
+            else if (sp.pitchRand > 0.0f && pitchSel.hi > pitchSel.lo)
+            {
+                p.pitchCents = pitchSel.set->pick (draw, pitchSel.lo, pitchSel.hi);
+                st += static_cast<double> (p.pitchCents) / 100.0;
+            }
             st = std::clamp (st, -kMaxSemis, kMaxSemis);
             p.rate = std::exp2 (st / 12.0);
 
@@ -141,6 +189,31 @@ namespace ogran
                 d = std::min (d, maxD);
             }
             p.delay = d;
+
+            // Stereo spread (R10): x = spread · (2u − 1), constant-power balance about
+            // centre (the stream pan stays on the bus). Spread 0 → no draw, (1, 1).
+            if (sp.spread > 0.0f)
+            {
+                const float px = static_cast<float> (static_cast<double> (sp.spread) * (2.0 * uni (Slot::Pan) - 1.0));
+                const auto  g = panGains (px);
+                p.gainL = g.a;
+                p.gainR = g.b;
+            }
+
+            // Gain rand (D5): cut only, g = 10^(−gain_rand · u · 24 / 20); never
+            // seen by the output law. gain_rand 0 → no draw.
+            if (sp.gainRand > 0.0f)
+            {
+                const float g = static_cast<float> (std::pow (10.0, -static_cast<double> (sp.gainRand) * uni (Slot::Gain)
+                                                                    * kGainRandDb / 20.0));
+                p.gainL *= g;
+                p.gainR *= g;
+            }
+
+            // Window morph step + skew tilt, latched (P13).
+            p.windowStep = WindowMorphBank::stepFor (sp.window);
+            p.windowSkew = sp.windowSkew;
+            p.tilt       = ouaricon::grain::WindowLut::makeTilt (0.5f + 0.45f * sp.windowSkew);
             return p;
         }
 
@@ -155,26 +228,37 @@ namespace ogran
             bool   stolen     = false;   // native fade-on-steal (pool.obtain stole a slot)
         };
 
-        /** R3 cap (RESEARCH §3), exactly:
-              nAlive = live slots with killStep == 0 (pending kills count as killing)
+        /** R3 cap (RESEARCH-2.1 §3) with stream-fair progress (RESEARCH-2.2 §3, R8):
+              live_s     = live, non-killing grains of stream s (same scan)
+              overQuota  = live_s > ceil (q_s)
+              pri (g)    = 2·overQuota[g.stream] + (g.stream == spawning)       (integer)
+              progress   = pri + age·invLen
               nAlive >= limit:
                   free live slot → victim (argmax progress over non-killing live grains)
                                    gets killStep = 1/(5 ms·fs); g = tryObtain()
                   no free slot   → g = obtain (progress')   (native steal)
               else: g = tryObtain() ?: obtain (progress')
-              progress'(g) = (killing ? 3 : 0) + age·invLen
-            At grain_limit 128 this reduces to the pool's native behaviour.
+              progress'(g) = (killing ? 3 : 0) + progress (g)
+
+            Exactness: the argmax is LEXICOGRAPHIC on (pri, age·invLen) — the same
+            order as the real-valued sum (age·invLen < 1), without the rounding
+            of pri + x that could merge two candidates into a tie. progress' (a
+            scalar for GrainPool::obtain) subtracts the minimum pri over the live
+            grains (a common shift, order-preserving). With ONE stream every grain
+            has the same pri, so both reduce exactly to the 2.1 victim (S0 / F7).
 
             The pool exposes grains read-only (getGrains), so a kill is RECORDED here
             and applied by the next render pass through the pool's own Grain&
             (applyPendingKill) — before that grain renders another sample. */
-        Acquired acquire (Pool& pool, int grainLimit) noexcept
+        Acquired acquire (Pool& pool, int grainLimit, const Quotas& quotas, int spawning,
+                          AcquirePolicy policy = {}) noexcept
         {
             const Grain* const base = pool.getGrains().data();
 
-            int alive = 0, freeSlot = -1, victim = -1;
+            // Pass 1: occupancy (live[4], alive, free slot, killing).
+            int live[kMaxStreams] {};
+            int alive = 0, freeSlot = -1;
             bool anyKilling = false;
-            double best = -1.0;
             for (int i = 0; i < kPoolLive; ++i)
             {
                 if (! pool.isActive (i))
@@ -188,13 +272,38 @@ namespace ogran
                     continue;
                 }
                 ++alive;
-                const double pr = progress (base[i]);
-                if (pr > best) { best = pr; victim = i; }   // ties: lowest slot (as GrainPool)
+                ++live[std::clamp (base[i].stream, 0, kMaxStreams - 1)];
             }
 
-            auto progressPrime = [this, base] (const Grain& g) noexcept
+            int pk[kMaxStreams] {};   // pri per stream
+            if (! policy.nativeProgress)
+                for (int s = 0; s < kMaxStreams; ++s)
+                {
+                    const bool over = policy.noQuotaCeil ? static_cast<double> (live[s]) > quotas.q[s]
+                                                         : live[s] > quotas.qCeil[s];
+                    pk[s] = 2 * (over ? 1 : 0) + (s == spawning ? 1 : 0);
+                }
+            auto priOf = [&pk] (const Grain& g) noexcept { return pk[std::clamp (g.stream, 0, kMaxStreams - 1)]; };
+
+            // Pass 2: victim = lexicographic argmax (pri, age·invLen); ties: lowest slot.
+            int victim = -1, bestPri = -1, minPri = 3;
+            double best = -1.0;
+            for (int i = 0; i < kPoolLive; ++i)
             {
-                return (isKilling (g, static_cast<int> (&g - base)) ? 3.0 : 0.0) + progress (g);
+                if (! pool.isActive (i))
+                    continue;
+                const int pr = priOf (base[i]);
+                minPri = std::min (minPri, pr);
+                if (isKilling (base[i], i))
+                    continue;
+                const double x = progress (base[i]);
+                if (pr > bestPri || (pr == bestPri && x > best)) { bestPri = pr; best = x; victim = i; }
+            }
+
+            auto progressPrime = [this, base, &priOf, minPri] (const Grain& g) noexcept
+            {
+                const int k = (isKilling (g, static_cast<int> (&g - base)) ? 3 : 0) + (priOf (g) - minPri);
+                return static_cast<double> (k) + progress (g);
             };
 
             Acquired a;
@@ -246,7 +355,15 @@ namespace ogran
             g.invLen     = 1.0 / p.len;
             g.startDelay = p.delay;
             g.readAbs    = (static_cast<double> (writeHeadAtOnset) - p.delay) + g.step * frac;
-            // gainL/R = 1, killGain = 1, killStep = 0 from value-initialisation.
+            g.gainL      = p.gainL;
+            g.gainR      = p.gainR;
+            g.windowStep = p.windowStep;
+            g.windowSkew = p.windowSkew;
+            g.tiltT      = p.tilt.t;
+            g.tiltA      = p.tilt.a;
+            g.tiltB      = p.tilt.b;
+            g.pitchCents = p.pitchCents;
+            // killGain = 1, killStep = 0 from value-initialisation.
         }
 
         //======================================================================

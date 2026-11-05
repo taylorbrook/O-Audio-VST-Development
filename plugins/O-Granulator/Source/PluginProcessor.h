@@ -32,8 +32,9 @@
 // 220 APVTS parameters (GranulatorParamIds.h), three bus layouts (mono→mono,
 // mono→stereo, stereo→stereo), latency 0, and the full non-parameter state
 // codec: seed, shared custom scale, per-stream × per-collection degree masks,
-// uiLanguage. Stage 2 (Phase 2.1): ogran::Engine — 41 s MipRing<2>, absolute
-// 32-sample pass grid, one live stream (s1), grain_limit cap, dry/wet. The
+// uiLanguage. Stage 2 (Phases 2.1–2.2): ogran::Engine — 41 s MipRing<2>,
+// absolute 32-sample pass grid, four streams on one pool (water-filled quotas,
+// fair stealing), scale quantiser, window morph, R5 output law, dry/wet. The
 // editor is juce::GenericAudioProcessorEditor until Stage 3.
 //
 // Threading: everything in the "scale state" and "seed" sections is message-

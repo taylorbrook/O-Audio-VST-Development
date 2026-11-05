@@ -28,17 +28,22 @@
 #include "EngineConstants.h"
 #include "Grain.h"
 #include "OutputLaw.h"
+#include "Quotas.h"
+#include "ScaleQuantiser.h"
 #include "Spawner.h"
 #include "StreamScheduler.h"
+#include "WindowMorphBank.h"
 
 // ============================================================================
-// O-Granulator pass engine (Stage 2, Phase 2.1).
+// O-Granulator pass engine (Stage 2, Phases 2.1–2.2).
 // ARCHITECTURE Processing Chain (per-pass order, normative), §1–7, §10, §14, §16;
 // RESEARCH-2.1 R1–R4; PLAN-2.1 T7.
 //
 // The host block is cut at every ABSOLUTE multiple of kCell (absCount, int64).
 // Each piece [a, b) (<= 32 samples, inside one cell) runs:
-//   1. grid tick if a % 32 == 0: latch GridParams, retarget ramps, g_out
+//   1. grid tick if a % 32 == 0: latch GridParams, custom-table try-lock copy
+//      (P11), active-set rebuilds, water-filled quotas, R5 coherence → g_out,
+//      mute/solo audibility, mixer ramps (10 ms, P12)
 //   2. (analysis — 2.5)
 //   3. write the piece into the ring (input·inGain + fb[n − 32])
 //   4. schedule enabled streams → onsets, merged by (offset, stream)
@@ -61,10 +66,15 @@ namespace ogran
     public:
         using Pool = Spawner::Pool;
 
+        /** Message thread: builds the 1.6 MB WindowMorphBank (never rebuilt). */
         Engine() = default;
 
         /** Message thread, once (processor constructor). */
-        void bind (const ParamPointers& p) noexcept { ptrs = p; }
+        void bind (const ParamPointers& p, const ScaleSource& scale = {}) noexcept
+        {
+            ptrs     = p;
+            scaleSrc = scale;
+        }
 
         /** Message thread. Allocates the ring, resets every clock and ramp
             (ramps snapped to the current parameter values). */
@@ -90,6 +100,11 @@ namespace ogran
             // the bare pool policy, tryObtain() ?: obtain (age·invLen). No cap, no
             // pending-kill bookkeeping, no Spawner state read or written.
             bool nativeAcquire    = false;
+            // F4n (PLAN-2.2 T8): progress = age·invLen only (native steal-oldest
+            // ranking through the R3 cap) — the FUNC-03 starvation negative control.
+            bool nativeProgress   = false;
+            // F5 R8 control: overQuota = live_s > q_s (real-valued), not > ceil (q_s).
+            bool noQuotaCeil      = false;
         };
 
         /** One spawn. The grain's readAbs at age k is anchor + dir·rate·(k + frac)
@@ -113,6 +128,14 @@ namespace ogran
             int           grainLimit  = 128;
             bool          killed      = false;
             bool          stolen      = false;
+            // 2.2 (PLAN-2.2 T2)
+            float         gainL       = 1.0f; // latched spread × gain_rand
+            float         gainR       = 1.0f;
+            int           windowStep  = 0;
+            float         tiltT       = 0.5f;
+            float         pitchCents  = 0.0f; // scale pick / continuous offset (cents)
+            double        quota       = 0.0;  // the stream's water-filled q_s at spawn
+            int           quotaCeil   = 0;
         };
 
         static constexpr int kSpawnLogSize = 4096;
@@ -127,12 +150,21 @@ namespace ogran
             std::int64_t spawns          = 0;
             std::int64_t steals          = 0;   // native pool steals
             std::int64_t r1Hazards       = 0;   // see TestHooks::countR1Hazards
+            // FUNC-03 zero-draw proof: Spawner::plan / StreamScheduler::process calls per stream.
+            std::int64_t planCalls[kMaxStreams]  {};
+            std::int64_t schedCalls[kMaxStreams] {};
+            std::int64_t activeSetRebuilds = 0;   // ActiveSet rebuilds (any stream)
+            std::int64_t customCopies      = 0;   // P11 audio-side custom-table copies
+            std::int64_t customTryFails    = 0;   // P11 try-lock misses (retried next grid)
             std::uint64_t logCount       = 0;   // total spawns logged; entry k at log[k % kSpawnLogSize]
             std::array<SpawnRecord, kSpawnLogSize> log {};
 
             void reset() noexcept
             {
                 reachViolations = kills = maxAlive = spawns = steals = r1Hazards = 0;
+                for (int s = 0; s < kMaxStreams; ++s)
+                    planCalls[s] = schedCalls[s] = 0;
+                activeSetRebuilds = customCopies = customTryFails = 0;
                 logCount = 0;
             }
             const SpawnRecord& record (std::uint64_t k) const noexcept
@@ -151,6 +183,17 @@ namespace ogran
         double        getSampleRate() const noexcept          { return fs; }
         std::uint64_t getEpoch (int stream) const noexcept    { return scheds[stream].getEpoch(); }
         const GridParams& getGridParams() const noexcept      { return gp; }
+        const WindowMorphBank& getBank() const noexcept       { return bank; }
+        const Quotas& getQuotas() const noexcept              { return quotas; }
+        const ActiveSet& getActiveSet (int s) const noexcept  { return activeSets[s]; }
+        const PitchSel& getPitchSel (int s) const noexcept    { return pitchSel[s]; }
+        double getCoherence (int s) const noexcept            { return coherence[s]; }
+        float  getGOutTarget (int s) const noexcept           { return gOutRamp[s].getTarget(); }
+        float  getAudibleTarget (int s) const noexcept        { return audRamp[s].getTarget(); }
+        int    getMixerRampCells() const noexcept             { return mixerRampCells; }
+        int    getRampCells() const noexcept                  { return rampCells; }
+        std::uint32_t getCustomCopyVersion() const noexcept   { return customCopyVersion; }
+        const PitchCollections::Table& getCustomCopy() const noexcept { return customCopy; }
        #endif
 
     private:
@@ -164,6 +207,12 @@ namespace ogran
         void mixOut (const float* dryL, const float* dryR, float* outL, float* outR,
                      int numOut, int len, int cellPos) noexcept;
         void snapRampsToParams() noexcept;
+
+        // 2.2 grid helpers (audio thread except where noted).
+        void copyCustomTable (bool blocking) noexcept;     // P11 (blocking only in prepare)
+        void updateScaleState() noexcept;                   // active sets + pitch windows
+        void computeStreamTargets (float (&gOut)[kMaxStreams], float (&audible)[kMaxStreams]) noexcept;
+        const PitchCollections::Table& tableForChoice (int choice) const noexcept;
 
         /** THE grain read site (R1). Every grain read goes through here, now and
             in later phases. The delay is formed from the integer part of readAbs
@@ -211,7 +260,18 @@ namespace ogran
 
         // ── parameters ──────────────────────────────────────────────────────
         ParamPointers ptrs;
+        ScaleSource   scaleSrc;
         GridParams    gp;
+
+        // ── 2.2: window bank, scale state, quotas ───────────────────────────
+        WindowMorphBank bank;                              // ctor-built (message thread)
+        const std::array<PitchCollections::Table, PitchCollections::kCount>& builtIns = PitchCollections::builtIns();
+        PitchCollections::Table customCopy;                // the AUDIO thread's custom table (P11)
+        std::uint32_t customCopyVersion = 0;
+        ActiveSet  activeSets[kMaxStreams];
+        PitchSel   pitchSel[kMaxStreams] {};
+        Quotas     quotas;
+        double     coherence[kMaxStreams] {};
 
         // ── core ────────────────────────────────────────────────────────────
         Ring    ring;
@@ -263,13 +323,15 @@ namespace ogran
         // ── control grid ────────────────────────────────────────────────────
         ExactRamp inGainRamp, outGainRamp, mixRamp;
         ExactRamp levelRamp[kMaxStreams], panRamp[kMaxStreams], gOutRamp[kMaxStreams];
+        ExactRamp audRamp[kMaxStreams];                // mute / solo audibility 0 ↔ 1 (P12, 10 ms)
         CellLerp  dryGain, wetGain;                    // mixGains (mixRamp) per grid point
-        CellLerp  streamGainL[kMaxStreams], streamGainR[kMaxStreams];   // g_out · level · pan
+        CellLerp  streamGainL[kMaxStreams], streamGainR[kMaxStreams];   // g_out · level · audible · pan
 
         // ── state ───────────────────────────────────────────────────────────
         double        fs           = 48000.0;
         double        spanSamples  = 8.0 * 48000.0;
-        int           rampCells    = 30;
+        int           rampCells    = 30;   // 20 ms base (in/out gain, mix, g_out)
+        int           mixerRampCells = 15; // 10 ms (level, pan, audibility — P12)
         int           ringSamples  = 0;
         std::int64_t  absCount     = 0;
         std::uint64_t activeSeed   = 0;

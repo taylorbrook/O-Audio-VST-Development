@@ -605,8 +605,10 @@ namespace { namespace eg
                 // variant 0: D ~ 0.5 s, grain at 1 s vs grain at 26 s (readAbs ~1.25 M)
                 // variant 1: D ~ 25.5 s (buffer 30 s, position 85 %), grains at 26 s vs 28 s
                 Job j; j.stim = stim; j.block = 480;
+                // PLAN-2.2 T11: stereo_spread defaults to 30 % — the null compares two
+                // grains sample for sample, so they need identical (unity) grain gains.
                 j.params = { { "mix", 100.0f }, { "s1_spray", 0.0f }, { "s1_jitter", 0.0f }, { "s1_density", dens },
-                             { "s1_size", 200.0f }, { "s1_pitch", rt.st },
+                             { "s1_size", 200.0f }, { "s1_pitch", rt.st }, { "s1_stereo_spread", 0.0f },
                              { "buffer_length", variant == 0 ? 1.0f : 30.0f }, { "s1_position", variant == 0 ? 50.0f : 85.0f } };
                 const juce::int64 kA = firstAt (variant == 0 ? 1.0 : 26.0), kB = firstAt (variant == 0 ? 26.0 : 28.0);
                 j.len = kB * ivl + ivl;

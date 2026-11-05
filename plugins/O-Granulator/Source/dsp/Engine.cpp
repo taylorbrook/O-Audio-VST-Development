@@ -32,6 +32,7 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
 
     fs          = sampleRate > 0.0 ? sampleRate : 48000.0;
     rampCells   = rampCellsFor (fs);
+    mixerRampCells = rampCellsFor (fs, kMixerRampMs);
     ringSamples = kRingSamples (fs);
 
     // D2: full 41 s at every rate. prepare() re-assigns the same size on a repeat
@@ -51,6 +52,10 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     absCount = 0;
     gp.latch (ptrs);
     spanSamples = static_cast<double> (gp.bufferLengthS) * fs;
+    copyCustomTable (true);
+    for (auto& a : activeSets)
+        a.invalidate();
+    updateScaleState();
     snapRampsToParams();
     activeSeed = pendingSeed;
 
@@ -72,18 +77,134 @@ void Engine::snapRampsToParams() noexcept
     dryGain.reset (dw.a);
     wetGain.reset (dw.b);
 
+    float gOut[kMaxStreams] {}, aud[kMaxStreams] {};
+    computeStreamTargets (gOut, aud);
     for (int s = 0; s < kMaxStreams; ++s)
     {
         const auto& st = gp.s[s];
         levelRamp[s].reset (levelDbToGain (st.levelDb));
         panRamp[s].reset (st.pan);
-        gOutRamp[s].reset (streamOutputGain (static_cast<double> (st.density), static_cast<double> (st.sizeMs),
-                                             fs, gp.grainLimit));
+        gOutRamp[s].reset (gOut[s]);
+        audRamp[s].reset (aud[s]);
 
         const auto pg = panGains (panRamp[s].current());
-        const float g = gOutRamp[s].current() * levelRamp[s].current();
+        const float g = gOutRamp[s].current() * levelRamp[s].current() * audRamp[s].current();
         streamGainL[s].reset (g * pg.a);
         streamGainR[s].reset (g * pg.b);
+    }
+}
+
+//==============================================================================
+// 2.2 grid helpers
+//==============================================================================
+const PitchCollections::Table& Engine::tableForChoice (int choice) const noexcept
+{
+    const int id = scaleChoiceToId (choice);
+    if (id == PitchCollections::Custom)
+        return customCopy;
+    return builtIns[static_cast<size_t> (std::clamp (id, 0, PitchCollections::kCount - 1))];
+}
+
+/** P11: copy the processor's custom table when its version moved. On the audio
+    thread a NON-BLOCKING try-lock (a miss retries at the next grid); prepare()
+    (message thread) may block. A copy taken just after a newer write is merely
+    re-copied at the next grid (the version it is labelled with is older). */
+void Engine::copyCustomTable (bool blocking) noexcept
+{
+    if (scaleSrc.lock == nullptr || scaleSrc.customTable == nullptr || scaleSrc.customVersion == nullptr)
+        return;
+    const std::uint32_t v = scaleSrc.customVersion->load (std::memory_order_acquire);
+    if (blocking)
+    {
+        const juce::SpinLock::ScopedLockType sl (*scaleSrc.lock);
+        customCopy = *scaleSrc.customTable;
+        customCopyVersion = v;
+        return;
+    }
+    if (v == customCopyVersion)
+        return;
+    const juce::SpinLock::ScopedTryLockType tl (*scaleSrc.lock);
+    if (tl.isLocked())
+    {
+        customCopy = *scaleSrc.customTable;   // trivially copyable, ≈ 264 B
+        customCopyVersion = v;
+       #if OGRAN_TEST_HOOKS
+        ++diag.customCopies;
+       #endif
+    }
+   #if OGRAN_TEST_HOOKS
+    else
+    {
+        ++diag.customTryFails;
+    }
+   #endif
+}
+
+/** Per enabled stream with scale ≠ Off: rebuild the active set if its key moved
+    (T6), then the pick window for the current base pitch. Off / disabled →
+    PitchSel {} (the 2.1 continuous path). */
+void Engine::updateScaleState() noexcept
+{
+    for (int s = 0; s < kMaxStreams; ++s)
+    {
+        const auto& st = gp.s[s];
+        if (! st.enable || st.scale <= 0)
+        {
+            pitchSel[s] = {};
+            continue;
+        }
+        const std::uint64_t mask = scaleSrc.masks != nullptr
+                                       ? scaleSrc.masks[scaleMaskIndex (s, st.scale)].load (std::memory_order_relaxed)
+                                       : ~std::uint64_t (0);
+        const float spanCents = st.pitchRand * 100.0f;
+        if (activeSets[s].rebuildIfNeeded (st.scale, mask, spanCents, customCopyVersion, tableForChoice (st.scale)))
+        {
+           #if OGRAN_TEST_HOOKS
+            ++diag.activeSetRebuilds;
+           #endif
+        }
+        auto& ps = pitchSel[s];
+        ps.set = &activeSets[s];
+        activeSets[s].window (static_cast<double> (st.pitch), static_cast<double> (spanCents), ps.lo, ps.hi);
+    }
+}
+
+/** Quotas (T5) → per stream R5 coherence + g_out (T4), and the mute / solo
+    audibility mask. Latched parameters only (never pool occupancy). */
+void Engine::computeStreamTargets (float (&gOut)[kMaxStreams], float (&audible)[kMaxStreams]) noexcept
+{
+    double demand[kMaxStreams] {};
+    bool anySolo = false;
+    for (int s = 0; s < kMaxStreams; ++s)
+    {
+        const auto& st = gp.s[s];
+        if (st.enable)
+            demand[s] = streamDemand (static_cast<double> (st.density), static_cast<double> (st.sizeMs), fs);
+        anySolo = anySolo || (st.enable && st.solo);
+    }
+    quotas = waterFill (demand, gp.grainLimit);
+
+    for (int s = 0; s < kMaxStreams; ++s)
+    {
+        const auto& st = gp.s[s];
+        const bool scaleOn = pitchSel[s].set != nullptr;
+        coherence[s] = Coherence::compute (static_cast<double> (st.reverseProb), static_cast<double> (st.spray),
+                                           spanSamples, fs, static_cast<double> (st.pitch),
+                                           static_cast<double> (st.pitchRand), scaleOn,
+                                           scaleOn ? pitchSel[s].hi - pitchSel[s].lo : 0,
+                                           scaleOn && pitchSel[s].set->hasUnison());
+
+        // A disabled stream has demand 0 in the water-fill, but spawns nothing;
+        // its ringing grains keep the 2.1 form (own N against the whole cap).
+        WindowSel win;
+        win.step = WindowMorphBank::stepFor (st.window);
+        win.tilt = ouaricon::grain::WindowLut::makeTilt (0.5f + 0.45f * st.windowSkew);
+        const double n = st.enable ? demand[s]
+                                   : streamDemand (static_cast<double> (st.density), static_cast<double> (st.sizeMs), fs);
+        const double q = st.enable ? quotas.q[s] : static_cast<double> (gp.grainLimit);
+        gOut[s] = outputGainFromPower (streamPower (n, q, win, coherence[s], static_cast<double> (st.spread), bank));
+
+        audible[s] = (! st.mute && (! anySolo || st.solo)) ? 1.0f : 0.0f;
     }
 }
 
@@ -154,9 +275,14 @@ void Engine::gridTick() noexcept
     gp.latch (ptrs);
     spanSamples = static_cast<double> (gp.bufferLengthS) * fs;   // spawn-latched destination (no ramp)
 
-    // P5: 2.1 honours stream 1 only — s2..s4 are masked off (no clock, no draws).
+    // All four streams (2.2 removes the 2.1 P5 mask). Each keeps its R4 epoch and
+    // rising-edge reset.
     for (int s = 0; s < kMaxStreams; ++s)
-        scheds[s].setEnabled (s == 0 && gp.s[s].enable);
+        scheds[s].setEnabled (gp.s[s].enable);
+
+    // P11 custom-table copy (version-gated, non-blocking), then active sets.
+    copyCustomTable (false);
+    updateScaleState();
 
     inGainRamp.setTarget (dbToGain (gp.inputGainDb), rampCells);
     inGainRamp.tick();
@@ -169,22 +295,24 @@ void Engine::gridTick() noexcept
     dryGain.push (dw.a);
     wetGain.push (dw.b);
 
-    // One stream in 2.1: its quota is the whole cap (2.2 water-fills over 4).
-    const int quota = gp.grainLimit;
+    // Quotas → coherence → g_out (20 ms); audibility, level, pan (10 ms, P12).
+    float gOut[kMaxStreams] {}, aud[kMaxStreams] {};
+    computeStreamTargets (gOut, aud);
     for (int s = 0; s < kMaxStreams; ++s)
     {
         const auto& st = gp.s[s];
-        levelRamp[s].setTarget (levelDbToGain (st.levelDb), rampCells);
+        levelRamp[s].setTarget (levelDbToGain (st.levelDb), mixerRampCells);
         levelRamp[s].tick();
-        panRamp[s].setTarget (st.pan, rampCells);
+        panRamp[s].setTarget (st.pan, mixerRampCells);
         panRamp[s].tick();
-        gOutRamp[s].setTarget (streamOutputGain (static_cast<double> (st.density), static_cast<double> (st.sizeMs),
-                                                 fs, quota),
-                               rampCells);
+        audRamp[s].setTarget (aud[s], mixerRampCells);
+        audRamp[s].tick();
+        gOutRamp[s].setTarget (gOut[s], rampCells);
         gOutRamp[s].tick();
 
+        // (g_out · level) · audible: audible == 1.0f leaves the 2.1 product bitwise.
         const auto pg = panGains (panRamp[s].current());
-        const float g = gOutRamp[s].current() * levelRamp[s].current();
+        const float g = gOutRamp[s].current() * levelRamp[s].current() * audRamp[s].current();
         streamGainL[s].push (g * pg.a);
         streamGainR[s].push (g * pg.b);
     }
@@ -198,8 +326,11 @@ int Engine::scheduleStreams (int len) noexcept
         if (! scheds[s].isEnabled())
             continue;
         const auto& st = gp.s[s];
-        const double interval = fs / static_cast<double> (st.density);   // Free timing (P5)
+        const double interval = fs / static_cast<double> (st.density);   // Free timing (2.5: Tempo)
         counts[s] = scheds[s].process (len, s, activeSeed, interval, st.jitter, streamOnsets[s]);
+       #if OGRAN_TEST_HOOKS
+        ++diag.schedCalls[s];
+       #endif
     }
     return mergeOnsets (streamOnsets, counts, onsets);
 }
@@ -235,11 +366,16 @@ void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart) noexcept
 
     // Draw before obtain.
     const GrainPlan gpl = Spawner::plan (gp.s[o.stream], spanSamples, fs, ringSamples,
-                                         activeSeed, o.stream, o.globalIndex, forceLevel0);
+                                         activeSeed, o.stream, o.globalIndex, forceLevel0, pitchSel[o.stream]);
    #if OGRAN_TEST_HOOKS
-    const auto acq = hooks.nativeAcquire ? nativeAcquireForTest() : spawner.acquire (pool, gp.grainLimit);
+    ++diag.planCalls[o.stream];
+    AcquirePolicy policy;
+    policy.nativeProgress = hooks.nativeProgress;
+    policy.noQuotaCeil    = hooks.noQuotaCeil;
+    const auto acq = hooks.nativeAcquire ? nativeAcquireForTest()
+                                         : spawner.acquire (pool, gp.grainLimit, quotas, o.stream, policy);
    #else
-    const auto acq = spawner.acquire (pool, gp.grainLimit);
+    const auto acq = spawner.acquire (pool, gp.grainLimit, quotas, o.stream);
    #endif
 
     const std::int64_t onsetSample = pieceStart + o.offset;
@@ -269,6 +405,13 @@ void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart) noexcept
     rec.grainLimit  = gp.grainLimit;
     rec.killed      = acq.killed;
     rec.stolen      = acq.stolen;
+    rec.gainL       = gpl.gainL;
+    rec.gainR       = gpl.gainR;
+    rec.windowStep  = gpl.windowStep;
+    rec.tiltT       = gpl.tilt.t;
+    rec.pitchCents  = gpl.pitchCents;
+    rec.quota       = quotas.q[o.stream];
+    rec.quotaCeil   = quotas.qCeil[o.stream];
     ++diag.logCount;
    #endif
 }
@@ -289,15 +432,43 @@ void Engine::renderSegment (int from, int to) noexcept
         float* const bl = bus[g.stream][0];
         float* const br = bus[g.stream][1];
 
+        // P14: step 0 / skew 0 keeps the closed-form Hann (bitwise 2.1, R12);
+        // every other window reads the bank (table + lerp + tilt warp). Latched
+        // per grain, so the branch is constant for the whole grain.
+        if (g.windowStep == 0 && juce::exactlyEqual (g.tiltT, 0.5f))
+        {
+            for (int i = from; i < to; ++i)
+            {
+                float l = 0.0f, r = 0.0f;
+                readGrain (g, head, l, r);
+
+                // Window LAST (after the 2.3 per-grain FX). killGain and fade are exactly
+                // 1.0f for a live, non-killing grain — bitwise no-ops.
+                const double phase = (static_cast<double> (g.age) + g.frac) * g.invLen;
+                const float  w     = hannWindow (phase) * g.killGain * fade.next();
+                bl[i] += w * l * g.gainL;
+                br[i] += w * r * g.gainR;
+
+                g.readAbs += g.step;
+                ++g.age;
+                if (g.killStep > 0.0f)
+                    g.killGain = std::max (0.0f, g.killGain - g.killStep);
+
+                if (! ((static_cast<double> (g.age) + g.frac) < g.len && g.killGain > 0.0f))
+                    return false;   // retire
+            }
+            return true;
+        }
+
+        const float* const tab = bank.table (g.windowStep);
+        const WindowMorphBank::Tilt tilt { g.tiltT, g.tiltA, g.tiltB };
         for (int i = from; i < to; ++i)
         {
             float l = 0.0f, r = 0.0f;
             readGrain (g, head, l, r);
 
-            // Window LAST (after the 2.3 per-grain FX). killGain and fade are exactly
-            // 1.0f for a live, non-killing grain — bitwise no-ops.
             const double phase = (static_cast<double> (g.age) + g.frac) * g.invLen;
-            const float  w     = hannWindow (phase) * g.killGain * fade.next();
+            const float  w     = WindowMorphBank::read (tab, tilt, phase) * g.killGain * fade.next();
             bl[i] += w * l * g.gainL;
             br[i] += w * r * g.gainR;
 

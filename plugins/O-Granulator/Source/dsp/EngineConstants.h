@@ -45,7 +45,7 @@ namespace ogran
     static_assert (kCell <= kFbDelay, "a pass may not be longer than the feedback return delay "
                                       "(write-before-read with feedback, ARCHITECTURE Algorithm §1)");
 
-    inline constexpr int kMaxStreams = 4;     // shaped for 4; 2.1 honours stream 1 only
+    inline constexpr int kMaxStreams = 4;     // 2.2: all four streams live
     inline constexpr int kPoolLive   = 128;   // GrainPool live slots (grain_limit max)
     inline constexpr int kPoolFade   = 16;    // fade-on-steal spares (bursts can steal > 8 in 5 ms)
 
@@ -86,6 +86,19 @@ namespace ogran
     inline constexpr double kBaseRampMs = 20.0;   // control-grid base ramp (rounded UP to whole cells)
     inline constexpr double kKillFadeMs = 5.0;    // R3 / D1 forced release (Grain::killStep)
     inline constexpr double kPoolFadeMs = 5.0;    // GrainPool fade-on-steal
+    inline constexpr double kMixerRampMs = 10.0;  // P12: stream level / pan / mute-solo audibility
+
+    // ── Phase 2.2 (PLAN-2.2 layout table; RESEARCH-2.2 R5, R6, R9, D5) ─────
+    // R5 partial-coherence break-points. NOT retuned against a single source
+    // (RESEARCH-2.2 §1.4): the transition band is documented, not fitted.
+    inline constexpr double kCoherW0Ms = 5.0;     // spray width W₀ (ms)
+    inline constexpr double kCoherP0St = 0.5;     // |base pitch| p₀ (st)
+    inline constexpr double kCoherR0St = 0.5;     // pitch_rand r₀ (st, scale Off)
+    inline constexpr double kGainRandDb = 24.0;   // D5: gain_rand 100 % = −24 dB, cut only
+
+    inline constexpr int kWindowSteps  = 65;      // WindowMorphBank: step = round (window · 64)
+    inline constexpr int kWindowPoints = 2048;    // points per table (read at phase · 2047)
+    inline constexpr int kMaxActive    = 512;     // ScaleQuantiser active-degree bound (GS parity)
 
     // ── CounterRng streams and slots ────────────────────────────────────────
     // Draw (seed, base + streamIndex, counter). Scheduler and grain draws use

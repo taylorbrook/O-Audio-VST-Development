@@ -37,10 +37,17 @@ namespace ogran
 {
     inline constexpr float kCellInv = 1.0f / static_cast<float> (kCell);   // exact (power of two)
 
-    /** Base ramp length in whole cells: 20 ms rounded UP (parameter-derived, never block-derived). */
+    /** Ramp length in whole cells: ms rounded UP (parameter-derived, never block-derived).
+        10 ms at 48 k = 15 cells (P12 mixer ramps); 20 ms = 30. */
+    inline int rampCellsFor (double fs, double ms) noexcept
+    {
+        return std::max (1, static_cast<int> (std::ceil (ms / 1000.0 * fs / static_cast<double> (kCell))));
+    }
+
+    /** Base ramp length in whole cells: 20 ms (input / output gain, mix, g_out). */
     inline int rampCellsFor (double fs) noexcept
     {
-        return std::max (1, static_cast<int> (std::ceil (kBaseRampMs / 1000.0 * fs / static_cast<double> (kCell))));
+        return rampCellsFor (fs, kBaseRampMs);
     }
 
     //==========================================================================
@@ -171,14 +178,23 @@ namespace ogran
             std::atomic<float>* pitch       = nullptr;
             std::atomic<float>* pitchRand   = nullptr;
             std::atomic<float>* reverseProb = nullptr;
+            // 2.2
+            std::atomic<float>* mute        = nullptr;
+            std::atomic<float>* solo        = nullptr;
+            std::atomic<float>* scale       = nullptr;   // choice index 0 (Off) … 31 (Custom)
+            std::atomic<float>* window      = nullptr;
+            std::atomic<float>* windowSkew  = nullptr;
+            std::atomic<float>* spread      = nullptr;
+            std::atomic<float>* gainRand    = nullptr;
         };
         Stream s[kMaxStreams] {};
     };
 
     //==========================================================================
     /** Every parameter value the engine uses, latched at a grid point.
-        Engineering units, already converted: percentages → [0, 1], pan → [−1, 1],
-        grain_limit choice → {32, 64, 96, 128}. Non-finite reads hold the last
+        Engineering units, already converted: percentages → [0, 1], pan and
+        window_skew → [−1, 1], grain_limit choice → {32, 64, 96, 128}, scale →
+        raw choice index 0…31. Non-finite reads hold the last
         value; reads are clamped to the parameter ranges. */
     struct GridParams
     {
@@ -202,6 +218,14 @@ namespace ogran
             float pitch       = 0.0f;    // −24..24 st
             float pitchRand   = 0.0f;    // 0..24 st
             float reverseProb = 0.0f;    // 0..1
+            // 2.2
+            bool  mute        = false;
+            bool  solo        = false;
+            int   scale       = 0;       // 0 Off, 1…31 (spec index; 31 = Custom)
+            float window      = 0.0f;    // 0..1 → WindowMorphBank step round (·64)
+            float windowSkew  = 0.0f;    // −1..1 → tilt peak 0.5 + 0.45·skew
+            float spread      = 0.3f;    // 0..1 (spec default 30 %)
+            float gainRand    = 0.0f;    // 0..1 (D5: × 24 dB, cut only)
         };
         Stream s[kMaxStreams] {};
 
@@ -240,6 +264,19 @@ namespace ogran
                 read (ps.pitch,      st.pitch,     -24.0f,   24.0f);
                 read (ps.pitchRand,  st.pitchRand,   0.0f,   24.0f);
                 readPct (ps.reverseProb, st.reverseProb);
+
+                readBool (ps.mute, st.mute);
+                readBool (ps.solo, st.solo);
+                if (ps.scale != nullptr)
+                {
+                    const float v = ps.scale->load (std::memory_order_relaxed);
+                    if (std::isfinite (v))
+                        st.scale = std::clamp (static_cast<int> (std::lround (v)), 0, 31);
+                }
+                read (ps.window,     st.window,      0.0f,    1.0f);
+                read (ps.windowSkew, st.windowSkew, -100.0f, 100.0f, 100.0f);
+                readPct (ps.spread,      st.spread);
+                readPct (ps.gainRand,    st.gainRand);
             }
         }
 
@@ -258,6 +295,15 @@ namespace ogran
         static void readPct (const std::atomic<float>* src, float& dst) noexcept
         {
             read (src, dst, 0.0f, 100.0f, 100.0f);
+        }
+
+        static void readBool (const std::atomic<float>* src, bool& dst) noexcept
+        {
+            if (src == nullptr)
+                return;
+            const float v = src->load (std::memory_order_relaxed);
+            if (std::isfinite (v))
+                dst = v > 0.5f;
         }
     };
 } // namespace ogran

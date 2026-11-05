@@ -48,8 +48,8 @@ GranulatorProcessor::GranulatorProcessor()
     }
 
     // Engine parameter pointers (raw denormalised atomics, cached once).
-    // Phase 2.1 honours the 17 parameters below (CONTEXT-2.1) plus s2–s4_enable,
-    // which the engine reads and masks off (P5).
+    // Phase 2.2: the five globals plus the 19 DSP parameters of every stream
+    // (2.1's set + mute, solo, scale, window, window_skew, stereo_spread, gain_rand).
     {
         auto raw = [this] (const juce::String& id)
         {
@@ -65,24 +65,47 @@ GranulatorProcessor::GranulatorProcessor()
         p.outputGain   = raw ("output_gain");
         p.grainLimit   = raw ("grain_limit");
 
-        auto& s1 = p.s[0];
-        s1.enable      = raw (Ids::stream (1, "enable"));
-        s1.level       = raw (Ids::stream (1, "level"));
-        s1.pan         = raw (Ids::stream (1, "pan"));
-        s1.position    = raw (Ids::stream (1, "position"));
-        s1.spray       = raw (Ids::stream (1, "spray"));
-        s1.size        = raw (Ids::stream (1, "size"));
-        s1.sizeRand    = raw (Ids::stream (1, "size_rand"));
-        s1.density     = raw (Ids::stream (1, "density"));
-        s1.jitter      = raw (Ids::stream (1, "jitter"));
-        s1.pitch       = raw (Ids::stream (1, "pitch"));
-        s1.pitchRand   = raw (Ids::stream (1, "pitch_rand"));
-        s1.reverseProb = raw (Ids::stream (1, "reverse_prob"));
+        for (int n = 1; n <= Ids::kStreams; ++n)
+        {
+            auto& s = p.s[n - 1];
+            s.enable      = raw (Ids::stream (n, "enable"));
+            s.level       = raw (Ids::stream (n, "level"));
+            s.pan         = raw (Ids::stream (n, "pan"));
+            s.position    = raw (Ids::stream (n, "position"));
+            s.spray       = raw (Ids::stream (n, "spray"));
+            s.size        = raw (Ids::stream (n, "size"));
+            s.sizeRand    = raw (Ids::stream (n, "size_rand"));
+            s.density     = raw (Ids::stream (n, "density"));
+            s.jitter      = raw (Ids::stream (n, "jitter"));
+            s.pitch       = raw (Ids::stream (n, "pitch"));
+            s.pitchRand   = raw (Ids::stream (n, "pitch_rand"));
+            s.reverseProb = raw (Ids::stream (n, "reverse_prob"));
+            s.mute        = raw (Ids::stream (n, "mute"));
+            s.solo        = raw (Ids::stream (n, "solo"));
+            s.scale       = raw (Ids::stream (n, "scale"));
+            s.window      = raw (Ids::stream (n, "window"));
+            s.windowSkew  = raw (Ids::stream (n, "window_skew"));
+            s.spread      = raw (Ids::stream (n, "stereo_spread"));
+            s.gainRand    = raw (Ids::stream (n, "gain_rand"));
+        }
 
-        for (int n = 2; n <= Ids::kStreams; ++n)
-            p.s[n - 1].enable = raw (Ids::stream (n, "enable"));
+        // P11: the engine reads masks (relaxed) and copies the custom table under
+        // a non-blocking try-lock when customVersion moves. Index layouts agree:
+        static_assert (maskIndex (1, 0) == ogran::scaleMaskIndex (0, 0)
+                       && maskIndex (4, 31) == ogran::scaleMaskIndex (3, 31)
+                       && Ids::kNumCollections == ogran::kNumScaleChoices
+                       && Ids::kStreams == ogran::kMaxStreams
+                       && Ids::scaleChoiceToId (5) == ogran::scaleChoiceToId (5)
+                       && Ids::scaleChoiceToId (6) == ogran::scaleChoiceToId (6)
+                       && Ids::scaleChoiceToId (31) == ogran::scaleChoiceToId (31),
+                       "engine scale indexing must match the processor's mask / choice layout");
+        ogran::ScaleSource scale;
+        scale.masks         = degreeMasks.data();
+        scale.lock          = &customLock;
+        scale.customTable   = &customTable;
+        scale.customVersion = &customVersion;
 
-        engine.bind (p);
+        engine.bind (p, scale);
     }
 }
 

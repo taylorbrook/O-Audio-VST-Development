@@ -53,14 +53,18 @@ namespace ogran
         double startDelay = 0.0; // D at spawn (delay behind the head) — telemetry / tests
 
         // ── gains ───────────────────────────────────────────────────────────
-        float gainL = 1.0f;     // per-grain pan / gain (2.2: spread, gain_rand); 1 in 2.1
+        float gainL = 1.0f;     // per-grain spread pan × gain_rand (2.2); exactly 1 at spread 0 / gain_rand 0
         float gainR = 1.0f;
         float killGain = 1.0f;  // D1 forced release (R3 cap): exactly 1.0f unless killing
         float killStep = 0.0f;  // > 0 while killing: 1 / (5 ms · fs)
 
         // ── window morph (2.2) ──────────────────────────────────────────────
-        int   windowStep = 0;
-        float windowSkew = 0.0f;
+        int   windowStep = 0;       // 0..64 (WindowMorphBank step), latched at spawn
+        float windowSkew = 0.0f;    // telemetry only (the tilt below is what renders)
+        float tiltT = 0.5f;         // P13: WindowLut::Tilt {t, a, b}, makeTilt (0.5 + 0.45·skew)
+        float tiltA = 1.0f;         //      — {0.5, 1, 1} is the bitwise identity warp
+        float tiltB = 1.0f;
+        float pitchCents = 0.0f;    // P13: latched scale pick / continuous random offset (cents)
 
         // ── per-grain FX state (2.3) ────────────────────────────────────────
         std::uint32_t fxActive = 0;            // bit flags: SVF, drive, crush, ring
