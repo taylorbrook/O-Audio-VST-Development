@@ -33,6 +33,7 @@
       S4  no Mask children at defaults
       P1  scale choice → Id map; names cross-check against the module
       E*  Stage 2 / 2.1 engine rows — see engine_gates.h
+      F, Q, D  Stage 2 / 2.2 rows (FUNC-03, DSP-01, DSP-04) — see engine_gates_22.h
 
   ==============================================================================
 */
@@ -157,6 +158,7 @@ namespace
 }
 
 #include "engine_gates.h"   // Stage 2 section E (engine rows)
+#include "engine_gates_22.h" // Stage 2 / 2.2 sections F, Q, D (PLAN-2.2 P16)
 
 //==============================================================================
 static void paramRows()
@@ -581,6 +583,7 @@ int main()
     stateRows();
     scaleRows();
     engineRows();
+    engineRows22();
     std::printf ("\n%d PASS, %d FAIL -- %s\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
     return failures == 0 ? 0 : 1;
 }
