@@ -163,6 +163,16 @@ namespace ogran
         std::atomic<float>* mix          = nullptr;
         std::atomic<float>* outputGain   = nullptr;
         std::atomic<float>* grainLimit   = nullptr;
+        // 2.4: freeze, feedback network, output reverb
+        std::atomic<float>* freeze       = nullptr;
+        std::atomic<float>* feedback     = nullptr;
+        std::atomic<float>* fbLowCut     = nullptr;   // Hz (skewed range: read raw, never invert the skew)
+        std::atomic<float>* fbHighCut    = nullptr;   // Hz (skewed range)
+        std::atomic<float>* fbSaturation = nullptr;
+        std::atomic<float>* fbDiffusion  = nullptr;
+        std::atomic<float>* reverbMix    = nullptr;
+        std::atomic<float>* reverbSize   = nullptr;
+        std::atomic<float>* reverbDamp   = nullptr;
 
         struct Stream
         {
@@ -214,6 +224,16 @@ namespace ogran
         float mix           = 0.5f;    // 0..1
         float bufferLengthS = 8.0f;    // 1..30
         int   grainLimit    = 128;
+        // 2.4 — spec defaults
+        bool  freeze        = false;
+        float feedback      = 0.0f;      // 0..1
+        float fbLowCutHz    = 80.0f;     // 20..2000 Hz (raw)
+        float fbHighCutHz   = 12000.0f;  // 1000..20000 Hz (raw)
+        float fbSat         = 0.2f;      // 0..1
+        float fbDiff        = 0.0f;      // 0..1
+        float reverbMix     = 0.0f;      // 0..1
+        float reverbSize    = 0.5f;      // 0..1
+        float reverbDamp    = 0.5f;      // 0..1
 
         struct Stream
         {
@@ -264,6 +284,16 @@ namespace ogran
                 if (std::isfinite (v))
                     grainLimit = 32 * (1 + std::clamp (static_cast<int> (std::lround (v)), 0, 3));
             }
+
+            readBool (p.freeze, freeze);
+            readPct (p.feedback,     feedback);
+            read (p.fbLowCut,     fbLowCutHz,    20.0f,  2000.0f);
+            read (p.fbHighCut,    fbHighCutHz, 1000.0f, 20000.0f);
+            readPct (p.fbSaturation, fbSat);
+            readPct (p.fbDiffusion,  fbDiff);
+            readPct (p.reverbMix,    reverbMix);
+            readPct (p.reverbSize,   reverbSize);
+            readPct (p.reverbDamp,   reverbDamp);
 
             for (int i = 0; i < kMaxStreams; ++i)
             {

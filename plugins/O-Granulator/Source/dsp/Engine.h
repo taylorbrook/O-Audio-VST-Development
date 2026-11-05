@@ -36,7 +36,7 @@
 #include "WindowMorphBank.h"
 
 // ============================================================================
-// O-Granulator pass engine (Stage 2, Phases 2.1–2.2).
+// O-Granulator pass engine (Stage 2, Phases 2.1–2.4).
 // ARCHITECTURE Processing Chain (per-pass order, normative), §1–7, §10, §14, §16;
 // RESEARCH-2.1 R1–R4; PLAN-2.1 T7.
 //
@@ -46,12 +46,17 @@
 //      (P11), active-set rebuilds, water-filled quotas, R5 coherence → g_out,
 //      mute/solo audibility, mixer ramps (10 ms, P12)
 //   2. (analysis — 2.5)
-//   3. write the piece into the ring (input·inGain + fb[n − 32])
+//   3. write the piece into the ring (input·inGain + fb[n − 32]) through the
+//      freeze Write Arbiter (2.4: no push while frozen; 10 ms mirror content
+//      crossfade on release). Grains anchor in the RING domain (R23).
 //   4. schedule enabled streams → onsets, merged by (offset, stream)
 //   5. render grain-major, split at onset offsets, spawn at each split
-//   6. stream mixer: bus × g_out × level × pan → wet   (feedback tap — 2.4)
-//   7. (feedback chain — 2.4; fbDelay stays all zero in 2.1)
-//   8. (reverb, wet safety — 2.6) dry/wet + output gain → out
+//   6. stream mixer: bus × g_out × level × pan → wet[2][kCell]; feedback tap
+//      bus × g_fb × level × audible / max (1, Σ level·audible) → tap[2][kCell]
+//      (pre-g_out, no pan — R29, R31)
+//   7. feedback chain (FeedbackChain.h) over the tap → fbDelay (z^-32), run
+//      every pass, frozen included (the arbiter discards it while frozen)
+//   8. reverb (reverb-unit 1.2.0) → D9 wet knee → dry/wet + output gain → out
 // Every per-pass array is kCell long; nothing scales with the host block, so
 // an oversized block cannot overrun anything, and output is bit-identical at
 // every host block size.
@@ -129,6 +134,18 @@ namespace ogran
             Inject injectNan;
             struct Retire { int slot = -1; std::int64_t atSample = 0; bool done = false; };
             Retire forceRetire;
+
+            // ── 2.4 (PLAN-2.4 P33, P35, P38, P39) ───────────────────────────
+            bool legacyKnee       = false;   // P33: bypass the D9 wet knee (2.3 output law)
+            bool legacySvfMake    = false;   // P33: force svfMake = 1 (2.3 LP/HP, D8)
+            bool fbArchLaw        = false;   // F3n / U8n: g_fb = 1/max (1, S1) (the ARCH §10 law)
+            bool freezeNoMinSpray = false;   // FZ3n: frozen spawns use the live formula + plain clamp
+            bool releaseSpliceOld = false;   // FZ2bn: release continuation ring[W − heldSpan] (R26 control)
+            bool freezeNoReflect  = false;   // FZ2an: no R25 head reflect (the ring clamps instead)
+            struct FbNan { std::int64_t atSample = -1; bool reset = false; bool done = false; };
+            FbNan injectFbNan;               // Z4 / M4: NaN into the chain input at the first piece >= atSample
+                                             // (reset: std::fill the chain instead — the Z4 reference)
+            bool snapshotChain    = false;   // FZ7: chain state + ring hash at every tick (ring of 64)
         };
 
         /** One spawn. The grain's readAbs at age k is anchor + dir·rate·(k + frac)
@@ -175,7 +192,7 @@ namespace ogran
             BETWEEN blocks. Never feeds a gain law. */
         struct Diag
         {
-            std::int64_t reachViolations = 0;   // reads with delay > kRingSamples or < margin(level)
+            std::int64_t reachViolations = 0;   // reads with delay > kRingSamples, or < margin(level) by a NON-releasing grain (pre-reflect, 2.4)
             std::int64_t kills           = 0;   // R3 kill path taken
             std::int64_t maxAlive        = 0;   // max live non-killing grains right after any spawn
             std::int64_t spawns          = 0;
@@ -193,6 +210,13 @@ namespace ogran
             std::int64_t stealStateChecked        = 0;   // H2: steals whose fade copy was compared
             std::int64_t stealStateMismatches     = 0;   // H2: … and differed from the snapshot
             std::int64_t nanKillNotRetired        = 0;   // Z2: killed slot still active right after its segment
+            // 2.4
+            std::int64_t freezeEngages              = 0;
+            std::int64_t freezeReleases             = 0;
+            std::int64_t forcedReleases             = 0;   // R25 engage scan: live crossers given the 5 ms kill
+            std::int64_t headReflections            = 0;   // R25 reflect taken (any grain)
+            std::int64_t headReflectionsFrozenSpawn = 0;   // … by a grain spawned while frozen (expected 0)
+            std::int64_t fbScrubs                   = 0;   // feedback chain NaN / Inf resets
             std::uint64_t logCount       = 0;   // total spawns logged; entry k at log[k % kSpawnLogSize]
             std::array<SpawnRecord, kSpawnLogSize> log {};
 
@@ -203,6 +227,7 @@ namespace ogran
                     planCalls[s] = schedCalls[s] = 0;
                 activeSetRebuilds = customCopies = customTryFails = 0;
                 nanKills = fxStateNonDefaultAtSpawn = stealStateChecked = stealStateMismatches = nanKillNotRetired = 0;
+                freezeEngages = freezeReleases = forcedReleases = headReflections = headReflectionsFrozenSpawn = fbScrubs = 0;
                 logCount = 0;
             }
             const SpawnRecord& record (std::uint64_t k) const noexcept
@@ -368,17 +393,25 @@ namespace ogran
         StreamOnset onsets[kMaxStreams * kCell] {};
        #if OGRAN_TEST_HOOKS
         std::uint64_t guard4[8] {};
+       #endif
+        float wet[2][kCell] {};                        // 2.4: the wet bus of one piece (reverb → knee act here)
+       #if OGRAN_TEST_HOOKS
+        std::uint64_t guard5[8] {};
+       #endif
+        [[maybe_unused]] float tap[2][kCell] {};       // 2.4: the feedback tap of one piece (→ chain → fbDelay)
+       #if OGRAN_TEST_HOOKS
+        std::uint64_t guard6[8] {};
 
         void armGuards() noexcept
         {
-            for (auto* g : { guard0, guard1, guard2, guard3, guard4 })
+            for (auto* g : { guard0, guard1, guard2, guard3, guard4, guard5, guard6 })
                 std::fill (g, g + 8, kCanary);
         }
        public:
         /** True when every canary around the per-pass arrays is intact. */
         bool guardsIntact() const noexcept
         {
-            for (const auto* g : { guard0, guard1, guard2, guard3, guard4 })
+            for (const auto* g : { guard0, guard1, guard2, guard3, guard4, guard5, guard6 })
                 for (int i = 0; i < 8; ++i)
                     if (g[i] != kCanary)
                         return false;

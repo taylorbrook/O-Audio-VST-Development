@@ -57,6 +57,7 @@ namespace ogran::fx
     {
         float k = 0.0f, a1 = 0.0f, a2 = 0.0f, a3 = 0.0f;
         float fcHz = 0.0f;   // post-clamp (telemetry)
+        float make = 1.0f;   // D10 LP/HP make-down 1/√P(k) (2.4)
     };
 
     inline SvfLatch svfLatch (double fcHz, double res, double fs) noexcept
@@ -73,6 +74,16 @@ namespace ogran::fx
         s.a2 = static_cast<float> (a2);
         s.a3 = static_cast<float> (a3);
         s.fcHz = static_cast<float> (fc);
+        // D10 (R33): P(k) = 1/(k·√(1 − k²/4)) for k < √2, else 1 — the analog
+        // LP/HP peak, which the bilinear map preserves at any fc, so it depends
+        // on k only. m = 1/√P in double from the LATCHED float k: exactly 1.0f
+        // for res <= 30.83 % (k >= √2), so non-resonant renders stay bitwise.
+        const double kl = static_cast<double> (s.k);
+        if (kl < 1.41421356237309504880)
+        {
+            const double p = 1.0 / (kl * std::sqrt (1.0 - 0.25 * kl * kl));
+            s.make = static_cast<float> (1.0 / std::sqrt (p));
+        }
         return s;
     }
 
@@ -151,10 +162,23 @@ namespace ogran::fx
     // Stages (per sample; l / r hold n ≤ kCell gathered samples)
     //==========================================================================
 
-    /** Cytomic TPT SVF, stereo, latched mode (1 LP, 2 BP = k·v1 (D8), 3 HP). */
+    /** One Cytomic TPT SVF step — THE statements (2.3 verbatim), shared by the
+        per-grain SVF and the feedback chain's HP / LP (P36). Inlining does not
+        merge statements, so FP contraction is unchanged. */
+    inline void tptStep (float& ic1, float& ic2, float a1, float a2, float a3, float x, float& v1, float& v2) noexcept
+    {
+        const float v3 = x - ic2;
+        v1 = a1 * ic1 + a2 * v3;
+        v2 = ic2 + a2 * ic1 + a3 * v3;
+        ic1 = 2.0f * v1 - ic1;
+        ic2 = 2.0f * v2 - ic2;
+    }
+
+    /** Cytomic TPT SVF, stereo, latched mode (1 LP = m·v2, 2 BP = k·v1 (D8),
+        3 HP = m·(x − k·v1 − v2)); m = the D10 make-down (1.0f where P <= 1). */
     inline void svf (Grain& g, float* l, float* r, int n) noexcept
     {
-        const float a1 = g.svfA1, a2 = g.svfA2, a3 = g.svfA3, k = g.svfK;
+        const float a1 = g.svfA1, a2 = g.svfA2, a3 = g.svfA3, k = g.svfK, m = g.svfMake;
         float* const io[2] { l, r };
         for (int c = 0; c < 2; ++c)
         {
@@ -165,22 +189,16 @@ namespace ogran::fx
                 case kSvfLP:
                     for (int i = 0; i < n; ++i)
                     {
-                        const float v3 = x[i] - ic2;
-                        const float v1 = a1 * ic1 + a2 * v3;
-                        const float v2 = ic2 + a2 * ic1 + a3 * v3;
-                        ic1 = 2.0f * v1 - ic1;
-                        ic2 = 2.0f * v2 - ic2;
-                        x[i] = v2;
+                        float v1 = 0.0f, v2 = 0.0f;
+                        tptStep (ic1, ic2, a1, a2, a3, x[i], v1, v2);
+                        x[i] = m * v2;
                     }
                     break;
                 case kSvfBP:
                     for (int i = 0; i < n; ++i)
                     {
-                        const float v3 = x[i] - ic2;
-                        const float v1 = a1 * ic1 + a2 * v3;
-                        const float v2 = ic2 + a2 * ic1 + a3 * v3;
-                        ic1 = 2.0f * v1 - ic1;
-                        ic2 = 2.0f * v2 - ic2;
+                        float v1 = 0.0f, v2 = 0.0f;
+                        tptStep (ic1, ic2, a1, a2, a3, x[i], v1, v2);
                         x[i] = k * v1;
                     }
                     break;
@@ -188,12 +206,9 @@ namespace ogran::fx
                     for (int i = 0; i < n; ++i)
                     {
                         const float in = x[i];
-                        const float v3 = in - ic2;
-                        const float v1 = a1 * ic1 + a2 * v3;
-                        const float v2 = ic2 + a2 * ic1 + a3 * v3;
-                        ic1 = 2.0f * v1 - ic1;
-                        ic2 = 2.0f * v2 - ic2;
-                        x[i] = in - k * v1 - v2;
+                        float v1 = 0.0f, v2 = 0.0f;
+                        tptStep (ic1, ic2, a1, a2, a3, in, v1, v2);
+                        x[i] = m * (in - k * v1 - v2);
                     }
                     break;
                 default:

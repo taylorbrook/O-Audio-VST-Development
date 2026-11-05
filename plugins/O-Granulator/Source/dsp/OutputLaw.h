@@ -167,6 +167,26 @@ namespace ogran
         return std::max (c * s2, cs1 * cs1) + (1.0 - c) * s2;
     }
 
+    // ========================================================================
+    // Phase 2.4 — D9 wet knee (CONTEXT-2.4 D9, RESEARCH-2.4 R34, PLAN-2.4 P41).
+    //   |x| <= T → y = x (bitwise: every one of the 2.11e9 floats)
+    //   |x| >  T → y = sign (x)·(T + (A − T)·tanh ((|x| − T)/(A − T)))
+    // C¹ at T (slope 1), monotone, y <= x, max y == float (A) (+6 dBFS). NaN
+    // passes through; ±inf → ±A. The branch form with std::tanh — the form the
+    // research checked exhaustively; a switch to a branch-free / SIMD form is a
+    // numeric change (record it).
+    // ========================================================================
+    inline constexpr float kKneeAT    = kKneeA - kKneeT;
+    inline constexpr float kKneeInvAT = 1.0f / kKneeAT;
+
+    inline float wetKnee (float x) noexcept
+    {
+        const float ax = std::fabs (x);
+        if (! (ax > kKneeT))
+            return x;   // identity (NaN passes through)
+        return std::copysign (kKneeT + kKneeAT * std::tanh ((ax - kKneeT) * kKneeInvAT), x);
+    }
+
     /** g_out from P: 1 / sqrt (max (1, P / μ₂_Hann)) — the 2.1 tail, verbatim. */
     inline float outputGainFromPower (double p) noexcept
     {

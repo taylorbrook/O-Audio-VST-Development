@@ -86,6 +86,7 @@ namespace ogran
         std::uint32_t fxActive = 0;
         int    svfMode = 0;
         float  svfK = 0.0f, svfA1 = 0.0f, svfA2 = 0.0f, svfA3 = 0.0f;
+        float  svfMake = 1.0f;           // D10 (2.4)
         float  driveD = 1.0f, driveNorm = 1.0f;
         float  crushHoldInc = 0.0f, crushScale = 0.0f;
         float  ringRotRe = 1.0f, ringRotIm = 0.0f, ringMix = 0.0f;
@@ -253,6 +254,7 @@ namespace ogran
                 p.svfA1 = s.a1;
                 p.svfA2 = s.a2;
                 p.svfA3 = s.a3;
+                p.svfMake = s.make;
                 p.fcHz  = s.fcHz;
             }
 
@@ -308,6 +310,7 @@ namespace ogran
             g.svfA1        = p.svfA1;
             g.svfA2        = p.svfA2;
             g.svfA3        = p.svfA3;
+            g.svfMake      = p.svfMake;
             g.driveD       = p.driveD;
             g.driveNorm    = p.driveNorm;
             g.crushHoldInc = p.crushHoldInc;

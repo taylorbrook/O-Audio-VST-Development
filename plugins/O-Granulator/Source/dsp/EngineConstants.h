@@ -30,7 +30,7 @@
 #endif
 
 // ============================================================================
-// O-Granulator engine constants (Stage 2, Phase 2.1).
+// O-Granulator engine constants (Stage 2, Phases 2.1–2.4).
 // ARCHITECTURE §2, §6, §16; RESEARCH-2.1 §1; PLAN-2.1 T1.
 // ============================================================================
 namespace ogran
@@ -123,6 +123,27 @@ namespace ogran
 
     /** Grain::svfMode == sN_filter_type choice index. */
     inline constexpr int kSvfOff = 0, kSvfLP = 1, kSvfBP = 2, kSvfHP = 3;
+
+    // ── Phase 2.4 (PLAN-2.4 layout table; RESEARCH-2.4 R29–R36, CONTEXT-2.4
+    //    D9–D12). Feedback chain (FeedbackChain.h), wet knee, freeze, reverb. ─
+    inline constexpr float  kFbKnob    = 0.95f;          // g_knob = 0.95 · feedback (ARCH §12)
+    inline constexpr float  kFbK       = 1.41421366f;    // R31: the next float ABOVE √2 (Butterworth, no peak)
+    static_assert (static_cast<double> (kFbK) * static_cast<double> (kFbK) > 2.0,
+                   "kFbK must be >= sqrt 2 (float (sqrt 2) sits 1.7e-8 below it)");
+    inline constexpr double kFbNyquist = 0.45;           // fb LP ceiling (× fs)
+    inline constexpr double kDiffuserMs[4] { 4.7, 8.3, 13.9, 21.7 };   // THE source of the lengths (R32)
+    inline constexpr float  kDiffuserG = 0.7f;           // fixed allpass coefficient (diffusion is a MIX)
+    inline constexpr int    kDiffuserMaxLen = 4167;      // 21.7 ms × 192 kHz, rounded up
+    inline constexpr float  kSatSpan   = 7.0f;           // D12 d = 1 + 7·sat (listening fallback: 3)
+    inline constexpr double kAgcAttackS  = 0.001;        // loop AGC peak follower
+    inline constexpr double kAgcReleaseS = 0.4;
+    inline constexpr float  kAgcCeil   = 0.7f;
+    inline constexpr float  kKneeT     = 0.501187234f;   // D9 knee: identity at or below −6 dBFS
+    inline constexpr float  kKneeA     = 1.99526231f;    // D9 ceiling +6 dBFS (output reaches float (A))
+    inline constexpr double kFreezeXfadeS = 0.010;       // release content crossfade (raised cosine)
+    inline constexpr float  kRevPredelayMs = 20.0f;      // reverb fixed internals (ARCH §13)
+    inline constexpr float  kRevMod        = 0.2f;
+    inline constexpr float  kRevShimmer    = 0.0f;
 
     // ── CounterRng streams and slots ────────────────────────────────────────
     // Draw (seed, base + streamIndex, counter). Scheduler and grain draws use

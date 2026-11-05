@@ -70,6 +70,7 @@ namespace ogran
         std::uint32_t fxActive = 0;            // bit flags: SVF, drive, crush, ring
         int   svfMode = 0;                     // 0 off, 1 LP, 2 BP, 3 HP
         float svfK = 0.0f, svfA1 = 0.0f, svfA2 = 0.0f, svfA3 = 0.0f;
+        float svfMake = 1.0f;                  // D10 LP/HP make-down 1/√P(k) (2.4); exactly 1 where P(k) <= 1
         float svfIc1[2] {};
         float svfIc2[2] {};
         float driveD = 1.0f;
@@ -79,6 +80,9 @@ namespace ogran
         float crushHoldInc = 0.0f, crushHoldPhase = 1.0f, crushScale = 0.0f;
         float crushHeld[2] {};
         float ringRe = 1.0f, ringIm = 0.0f, ringRotRe = 1.0f, ringRotIm = 0.0f, ringMix = 0.0f;
+
+        // ── freeze telemetry (2.4) ──────────────────────────────────────────
+        bool frozenSpawn = false;              // spawned while frozen (FZ6 reach diag only; never read by DSP)
     };
 
     static_assert (std::is_trivially_copyable_v<Grain>,

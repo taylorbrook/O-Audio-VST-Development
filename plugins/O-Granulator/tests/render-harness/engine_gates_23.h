@@ -106,6 +106,7 @@ namespace { namespace eg23
         const auto s = ogran::fx::svfLatch (fc, res, fs);
         g.fxActive = ogran::kFxSvf; g.svfMode = mode;
         g.svfK = s.k; g.svfA1 = s.a1; g.svfA2 = s.a2; g.svfA3 = s.a3;
+        g.svfMake = s.make;   // 2.4 D10 (PLAN-2.4 P33): the production latch
         return g;
     }
 
@@ -169,7 +170,9 @@ namespace { namespace eg23
                                 const double f = fc * mul;
                                 if (f >= 0.5 * fs) continue;
                                 const auto lt = ogran::fx::svfLatch (fc, res, fs);
-                                const double h = oracle (mode, (double) lt.fcHz, (double) lt.k, fs, f);
+                                // 2.4 D10: LP / HP oracle × m(k) (BP unchanged, D8).
+                                const double h = oracle (mode, (double) lt.fcHz, (double) lt.k, fs, f)
+                                               * (mode == ogran::kSvfBP ? 1.0 : (double) lt.make);
                                 if (dB20 (h) <= -40.0) continue;
                                 const double d = dB20 (svfGain (mode, fc, res, fs, f)) - dB20 (h);
                                 ++n;

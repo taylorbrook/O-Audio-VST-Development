@@ -65,6 +65,16 @@ GranulatorProcessor::GranulatorProcessor()
         p.mix          = raw ("mix");
         p.outputGain   = raw ("output_gain");
         p.grainLimit   = raw ("grain_limit");
+        // Phase 2.4: freeze, the feedback network and the output reverb.
+        p.freeze       = raw ("freeze");
+        p.feedback     = raw ("feedback");
+        p.fbLowCut     = raw ("fb_low_cut");
+        p.fbHighCut    = raw ("fb_high_cut");
+        p.fbSaturation = raw ("fb_saturation");
+        p.fbDiffusion  = raw ("fb_diffusion");
+        p.reverbMix    = raw ("reverb_mix");
+        p.reverbSize   = raw ("reverb_size");
+        p.reverbDamp   = raw ("reverb_damp");
 
         for (int n = 1; n <= Ids::kStreams; ++n)
         {

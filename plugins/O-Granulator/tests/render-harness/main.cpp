@@ -36,6 +36,7 @@
       F, Q, D  Stage 2 / 2.2 rows (FUNC-03, DSP-01, DSP-04) — see engine_gates_22.h
       E0+, W, K, X, N5, M2, C2  Stage 2 / 2.2 law + QUAL/mixer/PERF rows — see engine_gates_22b.h
       U, V, H  Stage 2 / 2.3 FX units, per-grain, no-bleed rows — see engine_gates_23.h
+      U5–U8, FB  Stage 2 / 2.4 knee / D10 / chain / tap-law units, feedback rows — engine_gates_24.h
 
   ==============================================================================
 */
@@ -79,9 +80,17 @@ namespace
         juce::String detail (int total) const { return juce::String (total - bad) + "/" + juce::String (total) + (bad ? "  e.g. " + notes.joinIntoString ("; ") : juce::String()); }
     };
 
+    // PLAN-2.4 P33 attribution runs: `--legacy-24` (both), `--legacy-24=knee`
+    // (D9 bypass only) or `--legacy-24=svf` (D10 bypass only) default the hooks
+    // on EVERY processor the harness makes.
+    bool gLegacyKnee = false, gLegacySvf = false;
+
     std::unique_ptr<GranulatorProcessor> make()
     {
-        return std::unique_ptr<GranulatorProcessor> (dynamic_cast<GranulatorProcessor*> (createPluginFilter()));
+        auto p = std::unique_ptr<GranulatorProcessor> (dynamic_cast<GranulatorProcessor*> (createPluginFilter()));
+        p->getEngineForTest().hooks.legacyKnee    = gLegacyKnee;
+        p->getEngineForTest().hooks.legacySvfMake = gLegacySvf;
+        return p;
     }
 
     // ── Goldens ─────────────────────────────────────────────────────────────
@@ -166,6 +175,7 @@ namespace
 #include "engine_gates_22b.h" // Stage 2 / 2.2 sections E0+, W, K, X, N5, M2, C2 (T14 / T16)
 #include "engine_gates_23.h"  // Stage 2 / 2.3 sections U, V, H (PLAN-2.3 P29)
 #include "engine_gates_23b.h" // Stage 2 / 2.3 sections N6, Z, K2, M3, C3 (PLAN-2.3 P29)
+#include "engine_gates_24.h"  // Stage 2 / 2.4 sections U5–U8, FB (PLAN-2.4 P44)
 
 //==============================================================================
 static void paramRows()
@@ -585,6 +595,20 @@ static void scaleRows()
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI init;
+    for (int a = 1; a < argc; ++a)
+    {
+        if (std::strcmp (argv[a], "--legacy-24") == 0)       { gLegacyKnee = gLegacySvf = true; }
+        if (std::strcmp (argv[a], "--legacy-24=knee") == 0)  { gLegacyKnee = true; }
+        if (std::strcmp (argv[a], "--legacy-24=svf") == 0)   { gLegacySvf = true; }
+    }
+    if (gLegacyKnee || gLegacySvf)
+        std::printf ("[legacy-24] knee bypass %s, svfMake forced 1 %s\n", gLegacyKnee ? "ON" : "off", gLegacySvf ? "ON" : "off");
+    if (argc > 1 && std::strcmp (argv[1], "--only24") == 0)
+    {
+        engineRows24();
+        std::printf ("\n%d PASS, %d FAIL -- %s (2.4 sections only)\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
+        return failures == 0 ? 0 : 1;
+    }
     // Iteration aid (2.3): `--only23` runs the 2.3 sections alone. The gate run
     // (no arguments) always runs every section.
     if (argc > 1 && std::strcmp (argv[1], "--only23") == 0)
@@ -594,7 +618,7 @@ int main (int argc, char** argv)
         std::printf ("\n%d PASS, %d FAIL -- %s (2.3 sections only)\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
         return failures == 0 ? 0 : 1;
     }
-    std::printf ("O-Granulator render harness (Stage 1 + Stage 2 / 2.1)  goldens: %s\n", GOLDEN_DIR);
+    std::printf ("O-Granulator render harness (Stage 1 + Stage 2 / 2.1–2.4)  goldens: %s\n", GOLDEN_DIR);
     paramRows();
     busRows();
     stateRows();
@@ -604,6 +628,7 @@ int main (int argc, char** argv)
     engineRows22b();
     engineRows23();
     engineRows23b();
+    engineRows24();
     std::printf ("\n%d PASS, %d FAIL -- %s\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
     return failures == 0 ? 0 : 1;
 }

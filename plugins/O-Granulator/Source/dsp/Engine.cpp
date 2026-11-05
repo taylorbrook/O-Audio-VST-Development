@@ -430,6 +430,8 @@ void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart, std::int64_t 
             g.ringRe = sh.ringRe;
             g.ringIm = sh.ringIm;
         }
+        if (hooks.legacySvfMake)
+            g.svfMake = 1.0f;   // P33: the 2.3 LP/HP output (D8) — attribution runs
         if (hooks.snapshotSteals && acq.stolen)
             checkStealState (acq);
     }
@@ -492,6 +494,7 @@ void Engine::checkStealState (const Spawner::Acquired& acq) noexcept
         const bool ok = f.fxActive == v.fxActive && f.svfMode == v.svfMode
                      && same (&f.svfK, &v.svfK, sizeof (float)) && same (&f.svfA1, &v.svfA1, sizeof (float))
                      && same (&f.svfA2, &v.svfA2, sizeof (float)) && same (&f.svfA3, &v.svfA3, sizeof (float))
+                     && same (&f.svfMake, &v.svfMake, sizeof (float))
                      && same (f.svfIc1, v.svfIc1, sizeof (f.svfIc1)) && same (f.svfIc2, v.svfIc2, sizeof (f.svfIc2))
                      && same (&f.driveD, &v.driveD, sizeof (float)) && same (&f.driveNorm, &v.driveNorm, sizeof (float))
                      && same (&f.crushHoldInc, &v.crushHoldInc, sizeof (float)) && same (&f.crushHoldPhase, &v.crushHoldPhase, sizeof (float))
@@ -559,6 +562,7 @@ void Engine::renderSegment (int from, int to) noexcept
                 const auto& st = gp.s[std::clamp (g.stream, 0, kMaxStreams - 1)];
                 const auto c = fx::svfLatch (static_cast<double> (st.filterCutoffHz), static_cast<double> (st.filterRes), fs);
                 g.svfK = c.k; g.svfA1 = c.a1; g.svfA2 = c.a2; g.svfA3 = c.a3;
+                g.svfMake = hooks.legacySvfMake ? 1.0f : c.make;
             }
         }
        #endif
@@ -686,6 +690,34 @@ void Engine::renderSegment (int from, int to) noexcept
 void Engine::mixOut (const float* dryL, const float* dryR, float* outL, float* outR,
                      int numOut, int len, int cellPos) noexcept
 {
+    // 6. Stream mix → wet[2][kCell], ONCE per piece (P41) — the 2.3
+    //    `wl += bus·gain` statement verbatim (FP contraction is per statement).
+    for (int i = 0; i < len; ++i)
+    {
+        const int c = cellPos + i;
+        float wl = 0.0f, wr = 0.0f;
+        for (int s = 0; s < kMaxStreams; ++s)
+        {
+            wl += bus[s][0][i] * streamGainL[s].at (c);
+            wr += bus[s][1][i] * streamGainR[s].at (c);
+        }
+        wet[0][i] = wl;
+        wet[1][i] = wr;
+    }
+
+    // 8. reverb → D9 knee, BEFORE the mix-0 fast path: neither one's state may
+    //    depend on the outer mix (R35); the fast path still outputs dry bitwise.
+    bool kneeOn = true;
+   #if OGRAN_TEST_HOOKS
+    kneeOn = ! hooks.legacyKnee;
+   #endif
+    if (kneeOn)
+        for (int i = 0; i < len; ++i)
+        {
+            wet[0][i] = wetKnee (wet[0][i]);
+            wet[1][i] = wetKnee (wet[1][i]);
+        }
+
     // P4 / R2: with mix settled at exactly 0 and output gain settled at exactly
     // 1.0f for the whole cell, out = dry by COPY. dry·1 + wet·0 is not bitwise
     // (signed zeros, NaN/Inf wet). The grains above still ran, so the engine
@@ -709,13 +741,8 @@ void Engine::mixOut (const float* dryL, const float* dryR, float* outL, float* o
 
         const float xl = dryL[i];       // read before write: in/out may alias
         const float xr = dryR[i];
-
-        float wl = 0.0f, wr = 0.0f;
-        for (int s = 0; s < kMaxStreams; ++s)
-        {
-            wl += bus[s][0][i] * streamGainL[s].at (c);
-            wr += bus[s][1][i] * streamGainR[s].at (c);
-        }
+        const float wl = wet[0][i];
+        const float wr = wet[1][i];
 
         const float dg = dryGain.at (c);
         const float wg = wetGain.at (c);
