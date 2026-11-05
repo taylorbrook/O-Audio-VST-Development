@@ -42,6 +42,27 @@
           isolated grains (100 ms, 5 g/s, jitter 0, spray 10 %), >= 40 grains:
           Spearman ρ (log2 fcHz, per-grain log2 centroid) >= 0.9;
           V2n fxSharedLatch |ρ| <= 0.5
+      V1a cutoff census (LP 1 kHz, rand 100 %, >= 200 grains): log2 (fc/base)
+          ∈ [−2, 2], span >= 3.6; rand 0 → fc == latched base bitwise; clamp at
+          44.1 k: draws at or above 0.45·fs record exactly (float) (0.45·fs)
+      V1b ring census: same at base 200 Hz; clamp: base 5 kHz @ 44.1 k
+      V1c crush Bernoulli at crush 50 %: prob 0 → none, 100 % → all, 50 %
+          over >= 2000 spawns |z| <= 3.29
+      V1d fxActive gate table (records) + clear-bit stages keep Grain {}
+          defaults (live pool scan)
+      V3  ring carrier per grain (sine 1 kHz, ring 200 Hz, rand 100 %):
+          >= 95 % within 2 Hz of the latched ringHz; V3n shared latch < 20 %
+      V4  crush split (sine 440 @ 0.5, crush 80 %, prob 50 %): out-of-band
+          fraction vs −30 dB agrees with `crushed` >= 99 %, >= 10 per class;
+          V4n shared latch (all crushed) <= 60 %
+
+    H — DSP-05 no bleed
+      H1  slot reuse after a resonant grain (BP res 100 % @ 1 kHz + drive /
+          crush / ring): the next occupant B on silence outputs exactly 0;
+          same slot; A rang (shadow |ic| > 1e-3). H1n fxNoReset: non-zero
+      H2  native steal: the fade copy keeps FX latch + state bitwise (>= 50
+          checked, 0 mismatches); the copy's SVF state then moves on
+      H3  FX state == Grain {} at every spawn (kills render, steals render)
 
   ==============================================================================
 */
@@ -655,6 +676,331 @@ namespace { namespace eg23
         row (nn >= 40 && std::abs (rhon) <= 0.5, "V2n fxSharedLatch control: |rho| <= 0.5",
              juce::String::formatted ("rho %+.4f over %d grains, centroid span %.2f oct", rhon, nn, spann));
     }
+
+    //==========================================================================
+    // T9 — V1 census, V3 ring carrier, V4 crush split
+    //==========================================================================
+    void censusRows()
+    {
+        std::printf ("\n-- V1. DSP-05 latched-value census (spawn log)\n");
+        auto recs = [] (double fs, double secs, P extra, float& base, int which, float density = 100.0f)
+        {
+            Job j; j.fs = fs; j.len = (juce::int64) (secs * fs); j.block = 512;
+            j.params = eg22::base ({ 1 });
+            for (auto& kv : P { { "s1_density", density }, { "s1_size", density > 100.0f ? 20.0f : 50.0f } }) j.params.push_back (kv);
+            for (auto& kv : extra) j.params.push_back (kv);
+            eg22::RecLog L; j.after = eg22::collect (L);
+            const auto o = eg::render (j);
+            const auto& st = o.eng().getGridParams().s[0];
+            base = which == 0 ? st.filterCutoffHz : st.ringFreqHz;
+            return L.r;
+        };
+        // V1a / V1b
+        for (int which = 0; which < 2; ++which)
+        {
+            const char* rnd = which == 0 ? "s1_filter_rand" : "s1_ring_rand";
+            P on = which == 0 ? P { { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 1000.0f } }
+                              : P { { "s1_ring_mix", 100.0f }, { "s1_ring_freq", 200.0f } };
+            auto val = [which] (const Rec& r) { return which == 0 ? r.fcHz : r.ringHz; };
+            float base = 0.0f;
+            P p1 = on; p1.push_back ({ rnd, 100.0f });
+            const auto r1 = recs (kFs, 3.0, p1, base, which);
+            double lo = 1e9, hi = -1e9; int out = 0;
+            for (auto& r : r1) { const double x = std::log2 ((double) val (r) / (double) base); lo = juce::jmin (lo, x); hi = juce::jmax (hi, x); out += (x < -2.0 - 1e-6 || x > 2.0 + 1e-6) ? 1 : 0; }
+            float base0 = 0.0f;
+            P p0 = on; p0.push_back ({ rnd, 0.0f });
+            const auto r0 = recs (kFs, 1.0, p0, base0, which);
+            int exact = 0;
+            for (auto& r : r0) exact += juce::exactlyEqual (val (r), base0) ? 1 : 0;
+            // clamp sub-row @ 44.1 k
+            float baseC = 0.0f;
+            P pc = which == 0 ? P { { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 20000.0f }, { rnd, 100.0f } }
+                              : P { { "s1_ring_mix", 100.0f }, { "s1_ring_freq", 5000.0f }, { rnd, 100.0f } };
+            // The ring base (5 kHz, the range end) only reaches 0.45·fs for u > 0.997,
+            // so the clamp sub-render needs ~2400 grains to be non-vacuous.
+            const auto rc = which == 0 ? recs (44100.0, 2.0, pc, baseC, which) : recs (44100.0, 12.0, pc, baseC, which, 200.0f);
+            const float clampV = (float) (ogran::kFxNyquist * 44100.0);
+            int atClamp = 0, above = 0, wrong = 0;
+            for (auto& r : rc)
+            {
+                const float v = val (r);
+                if (v > clampV) ++above;
+                if (juce::exactlyEqual (v, clampV)) ++atClamp;
+            }
+            juce::ignoreUnused (wrong);
+            const bool ok = r1.size() >= 200 && out == 0 && hi - lo >= 3.6 && ! r0.empty() && exact == (int) r0.size()
+                            && atClamp > 0 && above == 0;
+            row (ok, which == 0 ? "V1a cutoff census: +-2 oct, span >= 3.6; rand 0 bitwise base; clamp 0.45*fs exact"
+                                : "V1b ring census: +-2 oct, span >= 3.6; rand 0 bitwise base; clamp 0.45*fs exact",
+                 juce::String::formatted ("%d grains, log2 span [%+.3f, %+.3f] = %.3f, %d out; rand 0 %d/%d == %.6g; clamp %d at %.1f, %d above (%d grains)",
+                                          (int) r1.size(), lo, hi, hi - lo, out, exact, (int) r0.size(), (double) base0, atClamp, (double) clampV, above, (int) rc.size()));
+        }
+        // V1c — crush Bernoulli, 4 streams.
+        {
+            auto run = [] (float prob, int& n, int& crushed, int& bitSet)
+            {
+                Job j; j.len = (juce::int64) (5.0 * kFs); j.block = 512;
+                j.params = eg22::base ({ 1, 2, 3, 4 });
+                j.params.push_back ({ "grain_limit", 3.0f });
+                for (int s = 1; s <= 4; ++s)
+                    for (auto& kv : P { { sp (s, "density"), 100.0f }, { sp (s, "size"), 20.0f }, { sp (s, "crush"), 50.0f }, { sp (s, "crush_prob"), prob } })
+                        j.params.push_back (kv);
+                eg22::RecLog L; j.after = eg22::collect (L);
+                eg::render (j);
+                n = (int) L.r.size(); crushed = 0; bitSet = 0;
+                for (auto& r : L.r) { crushed += r.crushed ? 1 : 0; bitSet += (r.fxActive & ogran::kFxCrush) ? 1 : 0; }
+            };
+            int n0, c0, b0, n1, c1, b1, n5, c5, b5;
+            run (0.0f, n0, c0, b0); run (100.0f, n1, c1, b1); run (50.0f, n5, c5, b5);
+            const double z = ((double) c5 - 0.5 * n5) / std::sqrt (0.25 * n5);
+            row (c0 == 0 && b0 == 0 && c1 == n1 && b1 == n1 && n5 >= 2000 && std::abs (z) <= 3.29 && b5 == c5,
+                 "V1c crush Bernoulli @ crush 50 %: prob 0 none, 100 % all, 50 % |z| <= 3.29 (>= 2000)",
+                 juce::String::formatted ("p0 %d/%d bits %d; p100 %d/%d; p50 %d/%d z %+.2f, bit==crushed %s", c0, n0, b0, c1, n1, c5, n5, z, b5 == c5 ? "yes" : "NO"));
+        }
+        // V1d — gate table.
+        {
+            struct Cfg { const char* name; P ps; std::uint32_t want; };
+            const std::vector<Cfg> cfgs {
+                { "filter Off rand 100", { { "s1_filter_type", 0.0f }, { "s1_filter_rand", 100.0f } }, 0u },
+                { "LP 20 kHz default", { { "s1_filter_type", 1.0f } }, ogran::kFxSvf },
+                { "drive 0", { { "s1_drive", 0.0f } }, 0u },
+                { "drive 0.2 %", { { "s1_drive", 0.2f } }, 0u },
+                { "drive 0.3 %", { { "s1_drive", 0.3f } }, ogran::kFxDrive },
+                { "crush 0 prob 37", { { "s1_crush", 0.0f }, { "s1_crush_prob", 37.0f } }, 0u },
+                { "crush 1 prob 0", { { "s1_crush", 1.0f }, { "s1_crush_prob", 0.0f } }, 0u },
+                { "ring mix 0 rand 100", { { "s1_ring_mix", 0.0f }, { "s1_ring_rand", 100.0f } }, 0u },
+                { "ring mix 1", { { "s1_ring_mix", 1.0f } }, ogran::kFxRing },
+            };
+            Tally t; int grains = 0, scanned = 0;
+            for (auto& c : cfgs)
+            {
+                Job j; j.len = (juce::int64) (1.0 * kFs); j.block = 512;
+                j.params = eg22::base ({ 1 });
+                for (auto& kv : P { { "s1_density", 40.0f }, { "s1_size", 100.0f } }) j.params.push_back (kv);
+                for (auto& kv : c.ps) j.params.push_back (kv);
+                eg22::RecLog L;
+                int badFields = 0;
+                j.after = eg22::collect (L, [&badFields, &scanned] (Proc& p, juce::int64)
+                {
+                    const auto& pool = p.getEngineForTest().getPool();
+                    const Grain d {};
+                    for (int k = 0; k < ogran::kPoolLive; ++k)
+                    {
+                        if (! pool.isActive (k)) continue;
+                        const auto& g = pool.getGrains()[(size_t) k];
+                        ++scanned;
+                        if (! (g.fxActive & ogran::kFxSvf) && (g.svfMode != d.svfMode || g.svfK != d.svfK || g.svfA1 != d.svfA1 || g.svfA2 != d.svfA2 || g.svfA3 != d.svfA3)) ++badFields;
+                        if (! (g.fxActive & ogran::kFxDrive) && (g.driveD != d.driveD || g.driveNorm != d.driveNorm)) ++badFields;
+                        if (! (g.fxActive & ogran::kFxCrush) && (g.crushHoldInc != d.crushHoldInc || g.crushScale != d.crushScale)) ++badFields;
+                        if (! (g.fxActive & ogran::kFxRing) && (g.ringRotRe != d.ringRotRe || g.ringRotIm != d.ringRotIm || g.ringMix != d.ringMix)) ++badFields;
+                    }
+                });
+                eg::render (j);
+                int badBits = 0;
+                for (auto& r : L.r) badBits += r.fxActive != c.want ? 1 : 0;
+                grains += (int) L.r.size();
+                t.check (badBits == 0 && badFields == 0 && ! L.r.empty(),
+                         juce::String (c.name) + juce::String::formatted (": %d bad bits, %d bad fields", badBits, badFields));
+            }
+            row (t.bad == 0, "V1d fxActive gate table == expected; clear-bit stages keep Grain {} defaults",
+                 t.detail ((int) cfgs.size()) + juce::String::formatted ("  [%d grains, %d live-grain scans]", grains, scanned));
+        }
+    }
+
+    // Parabolic (log) peak frequency in [loHz, hiHz).
+    double peakHz (const std::vector<double>& p, double fs, size_t N, double loHz, double hiHz)
+    {
+        const double bin = fs / (double) N;
+        size_t kb = (size_t) (loHz / bin) + 1;
+        for (size_t k = kb; k < (size_t) (hiHz / bin) && k + 1 < p.size(); ++k) if (p[k] > p[kb]) kb = k;
+        const double y0 = std::log (p[kb - 1] + 1e-300), y1 = std::log (p[kb] + 1e-300), y2 = std::log (p[kb + 1] + 1e-300);
+        const double den = y0 - 2.0 * y1 + y2;
+        return ((double) kb + (std::abs (den) > 0 ? 0.5 * (y0 - y2) / den : 0.0)) * bin;
+    }
+
+    void carrierRows()
+    {
+        std::printf ("\n-- V3. DSP-05 per-grain ring carrier (R17)\n");
+        auto run = [] (bool shared, int& used, int& within)
+        {
+            Job j = isoJob (12.0, { { "s1_ring_mix", 100.0f }, { "s1_ring_freq", 200.0f }, { "s1_ring_rand", 100.0f } });
+            j.stim = eg::sineStim (1000.0, kFs, 0.5);
+            j.pre = [shared] (Proc& p) { p.getEngineForTest().hooks.fxSharedLatch = shared; };
+            eg22::RecLog L; j.after = eg22::collect (L);
+            const auto o = eg::render (j);
+            constexpr size_t N = 1u << 17;
+            used = within = 0;
+            for (auto& r : isolated (L.r, o.L.size()))
+            {
+                if (r.onsetSample < (juce::int64) (0.3 * kFs) || (r.fxActive & ogran::kFxRing) == 0) continue;
+                const auto p = grainSpectrum (o, r, N);
+                const double fh = peakHz (p, kFs, N, 1025.0, 2000.0) - 1000.0;
+                ++used;
+                within += std::abs (fh - (double) r.ringHz) <= 2.0 ? 1 : 0;
+            }
+        };
+        int u = 0, w = 0, un = 0, wn = 0;
+        run (false, u, w); run (true, un, wn);
+        row (u >= 40 && w >= 0.95 * u, "V3 ring 200 Hz rand 100 %: USB carrier within 2 Hz of latched ringHz >= 95 %",
+             juce::String::formatted ("%d/%d grains", w, u) + (u >= 40 ? "" : "  VACUOUS"));
+        row (un >= 40 && wn < 0.2 * un, "V3n fxSharedLatch control: < 20 % within 2 Hz", juce::String::formatted ("%d/%d grains", wn, un));
+    }
+
+    void crushSplitRows()
+    {
+        std::printf ("\n-- V4. DSP-05 per-grain crush split (spectral, P28)\n");
+        auto run = [] (bool shared, int& used, int& agree, int& nC, int& nU, double& sepLo, double& sepHi)
+        {
+            Job j = isoJob (16.0, { { "s1_crush", 80.0f }, { "s1_crush_prob", 50.0f } });
+            j.stim = eg::sineStim (440.0, kFs, 0.5);
+            j.pre = [shared] (Proc& p) { p.getEngineForTest().hooks.fxSharedLatch = shared; };
+            eg22::RecLog L; j.after = eg22::collect (L);
+            const auto o = eg::render (j);
+            constexpr size_t N = 1u << 14;
+            used = agree = nC = nU = 0;
+            sepLo = 1e9; sepHi = -1e9;   // min crushed fraction / max uncrushed fraction (dB, real labels)
+            for (auto& r : isolated (L.r, o.L.size()))
+            {
+                if (r.onsetSample < (juce::int64) (0.3 * kFs)) continue;
+                const auto p = grainSpectrum (o, r, N);
+                double in = 0, outb = 0;
+                for (size_t k = 1; k < p.size(); ++k)
+                {
+                    const double f = (double) k * kFs / (double) N;
+                    (std::abs (f - 440.0) <= 50.0 ? in : outb) += p[k];
+                }
+                const double frac = 10.0 * std::log10 ((outb + 1e-300) / (in + outb + 1e-300));
+                const bool cl = frac > -30.0;
+                ++used;
+                agree += cl == r.crushed ? 1 : 0;
+                (r.crushed ? nC : nU)++;
+                if (r.crushed) sepLo = juce::jmin (sepLo, frac); else sepHi = juce::jmax (sepHi, frac);
+            }
+        };
+        int u, a, c, un_, n2, un, an, cn, unn; double lo, hi, lo2, hi2;
+        run (false, u, a, c, un_, lo, hi);
+        run (true, un, an, cn, unn, lo2, hi2);
+        juce::ignoreUnused (n2);
+        row (u >= 40 && c >= 10 && un_ >= 10 && a >= 0.99 * u, "V4 crush 80 % prob 50 %: out-of-band split (-30 dB) agrees with latch >= 99 %",
+             juce::String::formatted ("%d/%d agree, crushed %d / clean %d; crushed min %.1f dB, clean max %.1f dB", a, u, c, un_, lo, hi));
+        row (un >= 40 && an <= 0.6 * un, "V4n fxSharedLatch control (all crushed in render): agreement <= 60 %",
+             juce::String::formatted ("%d/%d agree", an, un));
+    }
+
+    //==========================================================================
+    // T10 — H1, H2, H3
+    //==========================================================================
+    void bleedRows()
+    {
+        std::printf ("\n-- H. DSP-05 no bleed (slot reuse, steal copy, fresh state)\n");
+        // H1 / H1n
+        {
+            const juce::int64 cut = (juce::int64) (1.8 * kFs), snap = (juce::int64) (1.9 * kFs);
+            auto run = [&] (bool noReset, bool& same, double& shadowIc, double& bPeak, juce::String& det)
+            {
+                Job j; j.len = (juce::int64) (3.0 * kFs); j.block = 512;
+                j.params = eg22::base ({ 1 });
+                for (auto& kv : P { { "s1_filter_type", 2.0f }, { "s1_filter_res", 100.0f }, { "s1_filter_cutoff", 1000.0f }, { "s1_filter_rand", 0.0f },
+                                    { "s1_drive", 30.0f }, { "s1_crush", 30.0f }, { "s1_crush_prob", 100.0f },
+                                    { "s1_ring_mix", 50.0f }, { "s1_ring_freq", 200.0f }, { "s1_ring_rand", 0.0f },
+                                    { "s1_density", 2.0f }, { "s1_size", 200.0f }, { "s1_jitter", 0.0f }, { "s1_spray", 0.0f }, { "s1_position", 0.0f } })
+                    j.params.push_back (kv);
+                j.stim = [] (juce::int64 i, int) { return i < cut ? (float) (0.5 * std::sin (2.0 * kPi * 1000.0 * (double) i / kFs)) : 0.0f; };
+                j.pre = [noReset] (Proc& p) { p.getEngineForTest().hooks.fxNoReset = noReset; };
+                ogran::Engine::FxShadow shadow[ogran::kPoolLive];
+                bool snapped = false;
+                eg22::RecLog L;
+                j.after = eg22::collect (L, [&] (Proc& p, juce::int64 pos)
+                {
+                    if (! snapped && pos >= snap)
+                    {
+                        for (int k = 0; k < ogran::kPoolLive; ++k) shadow[k] = p.getEngineForTest().getRetireShadow (k);
+                        snapped = true;
+                    }
+                });
+                const auto o = eg::render (j);
+                int ia = -1, ib = -1;
+                for (int k = 0; k < (int) L.r.size(); ++k)
+                {
+                    const auto& r = L.r[(size_t) k];
+                    const double end = r.anchor + r.rate * r.len + 64.0;
+                    if (end < (double) cut && (double) r.onsetSample + r.len < (double) snap) ia = k;
+                    if (ib < 0 && r.anchor >= (double) cut + 256.0) ib = k;
+                }
+                same = false; shadowIc = 0.0; bPeak = -1.0;
+                if (ia < 0 || ib != ia + 1) { det = juce::String::formatted ("A %d B %d not successive", ia, ib); return; }
+                const auto& A = L.r[(size_t) ia]; const auto& B = L.r[(size_t) ib];
+                same = A.slot == B.slot;
+                const auto& sh = shadow[A.slot];
+                shadowIc = sh.valid ? juce::jmax (std::abs ((double) sh.svfIc1[0]), std::abs ((double) sh.svfIc2[0]), std::abs ((double) sh.svfIc1[1])) : 0.0;
+                bPeak = 0.0;
+                for (juce::int64 i = B.onsetSample; i < B.onsetSample + (juce::int64) std::ceil (B.len) + 1 && i < (juce::int64) o.L.size(); ++i)
+                    bPeak = juce::jmax (bPeak, (double) std::abs (o.L[(size_t) i]), (double) std::abs (o.R[(size_t) i]));
+                det = juce::String::formatted ("A onset %lld slot %d, B onset %lld slot %d", (long long) A.onsetSample, A.slot, (long long) B.onsetSample, B.slot);
+            };
+            bool same = false, same2 = false; double ic = 0, ic2 = 0, pk = -1, pk2 = -1; juce::String d1, d2;
+            run (false, same, ic, pk, d1);
+            run (true, same2, ic2, pk2, d2);
+            row (same && ic > 1e-3 && pk == 0.0, "H1 slot reuse after resonant grain: B on silence == 0.0f exactly, same slot, A rang",
+                 juce::String::formatted ("B peak %.3g, A shadow |ic| %.4f; ", pk, ic) + d1);
+            row (same2 && pk2 > 1e-6, "H1n fxNoReset control: B non-zero", juce::String::formatted ("B peak %.3g; ", pk2) + d2);
+        }
+        // H2 — steal copy.
+        {
+            Job j; j.len = (juce::int64) (4.0 * kFs); j.block = 512;
+            j.params = eg22::base ({ 1 });
+            for (auto& kv : P { { "grain_limit", 3.0f }, { "s1_density", 200.0f }, { "s1_size", 1000.0f }, { "s1_jitter", 20.0f },
+                                { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 2000.0f }, { "s1_filter_res", 70.0f }, { "s1_filter_rand", 50.0f },
+                                { "s1_drive", 40.0f }, { "s1_crush", 30.0f }, { "s1_crush_prob", 50.0f }, { "s1_ring_mix", 50.0f }, { "s1_ring_rand", 50.0f } })
+                j.params.push_back (kv);
+            j.pre = [] (Proc& p) { p.getEngineForTest().hooks.snapshotSteals = true; };
+            struct Seen { bool active = false; int age = 0; float ic = 0.0f; double readAbs = 0.0; };
+            Seen prev[ogran::kPoolFade] {};
+            int moved = 0;
+            j.after = [&] (Proc& p, juce::int64)
+            {
+                const auto& pool = p.getEngineForTest().getPool();
+                for (int k = 0; k < ogran::kPoolFade; ++k)
+                {
+                    const int sl = ogran::kPoolLive + k;
+                    const auto& g = pool.getGrains()[(size_t) sl];
+                    Seen now { pool.isActive (sl), g.age, g.svfIc1[0], g.readAbs };
+                    if (now.active && prev[k].active && now.age > prev[k].age && (g.fxActive & ogran::kFxSvf) != 0
+                        && ! juce::exactlyEqual (now.ic, prev[k].ic)) ++moved;
+                    prev[k] = now;
+                }
+            };
+            const auto o = eg::render (j);
+            const auto& d = o.eng().diag;
+            row (d.stealStateChecked >= 50 && d.stealStateMismatches == 0 && moved > 0,
+                 "H2 native steal: fade copy keeps FX latch + state bitwise; copy's SVF state moves on",
+                 juce::String::formatted ("%lld checked, %lld mismatches (steals %lld); fade SVF state advanced %d times",
+                                          (long long) d.stealStateChecked, (long long) d.stealStateMismatches, (long long) d.steals, moved));
+        }
+        // H3 — fresh state at every spawn.
+        {
+            auto run = [] (bool kills)
+            {
+                Job j; j.len = (juce::int64) (kills ? 4.0 * kFs : 6.0 * kFs); j.block = 512;
+                j.params = eg22::base ({ 1, 2, 3, 4 });
+                j.params.push_back ({ "grain_limit", kills ? 0.0f : 3.0f });
+                for (int s = 1; s <= 4; ++s)
+                    for (auto& kv : P { { sp (s, "density"), kills ? 100.0f : 60.0f }, { sp (s, "size"), 1000.0f },
+                                        { sp (s, "filter_type"), (float) (1 + s % 3) }, { sp (s, "filter_res"), 90.0f }, { sp (s, "filter_rand"), 50.0f },
+                                        { sp (s, "drive"), 50.0f }, { sp (s, "crush"), 40.0f }, { sp (s, "ring_mix"), 60.0f }, { sp (s, "ring_rand"), 50.0f } })
+                        j.params.push_back (kv);
+                return eg::render (j);
+            };
+            const auto a = run (true), b = run (false);
+            const auto& da = a.eng().diag; const auto& db = b.eng().diag;
+            row (da.fxStateNonDefaultAtSpawn == 0 && db.fxStateNonDefaultAtSpawn == 0 && da.spawns >= 1000 && db.spawns >= 1000
+                     && da.kills > 0 && db.steals > 0,
+                 "H3 FX state == Grain {} at every spawn (kills render, steals render)",
+                 juce::String::formatted ("kills: %lld non-default / %lld spawns (%lld kills); steals: %lld / %lld (%lld steals)",
+                                          (long long) da.fxStateNonDefaultAtSpawn, (long long) da.spawns, (long long) da.kills,
+                                          (long long) db.fxStateNonDefaultAtSpawn, (long long) db.spawns, (long long) db.steals));
+        }
+    }
 } } // namespace eg23 (anonymous)
 
 static void engineRows23()
@@ -666,5 +1012,9 @@ static void engineRows23()
     eg23::crushUnitRows();
     eg23::ringUnitRows();
     eg23::centroidRows();
+    eg23::censusRows();
+    eg23::carrierRows();
+    eg23::crushSplitRows();
+    eg23::bleedRows();
     std::printf ("  [INFO] 2.3 rows wall time %.1f s\n", std::chrono::duration<double> (std::chrono::steady_clock::now() - t0).count());
 }

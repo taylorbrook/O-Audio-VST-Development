@@ -255,6 +255,46 @@ namespace ogran
                 p.svfA3 = s.a3;
                 p.fcHz  = s.fcHz;
             }
+
+            // Drive (D6 / P23): active iff d = 16·drive² >= 1e-4; drive 0 is the
+            // bitwise bypass. No draw.
+            const auto dl = fx::driveLatch (sp.drive);
+            if (dl.active)
+            {
+                p.fxActive |= kFxDrive;
+                p.driveD    = dl.d;
+                p.driveNorm = dl.norm;
+            }
+
+            // Crush (D7 / P24): drawn only when crush > 0 and 0 < prob < 1, so
+            // prob 0 % / 100 % are exact and draw nothing.
+            if (sp.crush > 0.0f)
+            {
+                const double cp = static_cast<double> (sp.crushProb);
+                p.crushed = cp >= 1.0 ? true : cp <= 0.0 ? false : uni (Slot::FxCrushProb) < cp;
+                if (p.crushed)
+                {
+                    const auto cl = fx::crushLatch (sp.crush, fs);
+                    p.fxActive    |= kFxCrush;
+                    p.crushHoldInc = cl.inc;
+                    p.crushScale   = cl.scale;
+                }
+            }
+
+            // Ring (R14 / P21): carrier drawn only when ring_rand > 0; the carrier
+            // starts at the Grain default (1, 0).
+            if (sp.ringMix > 0.0f)
+            {
+                double f = static_cast<double> (sp.ringFreqHz);
+                if (sp.ringRand > 0.0f)
+                    f = fx::randOct (f, static_cast<double> (sp.ringRand), uni (Slot::FxRing));
+                const auto rl = fx::ringLatch (f, fs);
+                p.fxActive |= kFxRing;
+                p.ringRotRe = rl.rotRe;
+                p.ringRotIm = rl.rotIm;
+                p.ringMix   = sp.ringMix;
+                p.ringHz    = rl.hz;
+            }
         }
 
         /** Writes the FX LATCH (never FX state) into a filled grain. fill() calls

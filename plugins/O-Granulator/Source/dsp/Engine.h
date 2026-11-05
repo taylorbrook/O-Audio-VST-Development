@@ -192,6 +192,7 @@ namespace ogran
             std::int64_t fxStateNonDefaultAtSpawn = 0;   // H3: FX state ≠ Grain {} right after fill
             std::int64_t stealStateChecked        = 0;   // H2: steals whose fade copy was compared
             std::int64_t stealStateMismatches     = 0;   // H2: … and differed from the snapshot
+            std::int64_t nanKillNotRetired        = 0;   // Z2: killed slot still active right after its segment
             std::uint64_t logCount       = 0;   // total spawns logged; entry k at log[k % kSpawnLogSize]
             std::array<SpawnRecord, kSpawnLogSize> log {};
 
@@ -201,7 +202,7 @@ namespace ogran
                 for (int s = 0; s < kMaxStreams; ++s)
                     planCalls[s] = schedCalls[s] = 0;
                 activeSetRebuilds = customCopies = customTryFails = 0;
-                nanKills = fxStateNonDefaultAtSpawn = stealStateChecked = stealStateMismatches = 0;
+                nanKills = fxStateNonDefaultAtSpawn = stealStateChecked = stealStateMismatches = nanKillNotRetired = 0;
                 logCount = 0;
             }
             const SpawnRecord& record (std::uint64_t k) const noexcept
@@ -396,6 +397,8 @@ namespace ogran
        #if OGRAN_TEST_HOOKS
         // ── 2.3 test-only state (P28) ───────────────────────────────────────
         FxShadow retireShadow[kPoolLive] {};
+        int nanKillSlots[kPoolLive + kPoolFade] {};   // slots NaN-killed in the current segment
+        int numNanKills = 0;
         std::array<Grain, kPoolLive> stealSnap {};
        #endif
 

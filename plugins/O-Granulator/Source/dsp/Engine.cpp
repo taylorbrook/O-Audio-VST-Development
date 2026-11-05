@@ -632,10 +632,18 @@ void Engine::renderSegment (int from, int to) noexcept
                    #if OGRAN_TEST_HOOKS
                     ++diag.nanKills;
                     recordRetire (g, slot);
+                    if (numNanKills < kPoolLive + kPoolFade)
+                        nanKillSlots[numNanKills++] = slot;
                    #endif
                     return false;
                 }
             }
+            if ((fxa & kFxDrive) != 0)
+                fx::drive (g, L, R, n);
+            if ((fxa & kFxCrush) != 0)
+                fx::crush (g, L, R, n);
+            if ((fxa & kFxRing) != 0)
+                fx::ring (g, L, R, n);
         }
 
         float* const bl = bus[g.stream][0] + from;
@@ -655,6 +663,13 @@ void Engine::renderSegment (int from, int to) noexcept
 
     if (applyKills)
         spawner.pendingKillsApplied();
+
+   #if OGRAN_TEST_HOOKS
+    for (int k = 0; k < numNanKills; ++k)
+        if (pool.isActive (nanKillSlots[k]))
+            ++diag.nanKillNotRetired;
+    numNanKills = 0;
+   #endif
 }
 
 void Engine::mixOut (const float* dryL, const float* dryR, float* outL, float* outR,
