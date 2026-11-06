@@ -207,10 +207,20 @@ namespace ogran
                     }
                     s.src  = want.src;
                     s.dest = want.dest;
-                    s.depth.reset (0.0f);
+                    if (noDepthRamp)
+                        s.depth.reset (want.depth);   // MX3nD / MF8n control: the new route enters at full depth
+                    else
+                        s.depth.reset (0.0f);
                 }
-                s.depth.setTarget (want.depth, rampCells);
-                s.depth.tick();
+                if (noDepthRamp)
+                {
+                    s.depth.reset (want.depth);       // … and a depth edit snaps
+                }
+                else
+                {
+                    s.depth.setTarget (want.depth, rampCells);
+                    s.depth.tick();
+                }
 
                 const bool live = s.src != ModSrc::None && s.dest != ModDest::None;
                 s.lastContrib = live ? s.depth.current() * src.v[s.src] : 0.0f;
@@ -300,6 +310,7 @@ namespace ogran
         // Test hooks (Engine copies TestHooks).
         bool noResidual    = false;
         bool fullRoundTrip = false;
+        bool noDepthRamp   = false;   // 2.6 P82: route / depth edits snap (no depth ramp)
 
         float residualValue (int d) const noexcept { return residual[static_cast<size_t> (d)].current(); }
 

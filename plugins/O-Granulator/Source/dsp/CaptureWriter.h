@@ -32,9 +32,17 @@
 // same pointer twice; channel counts come from the BUS layout, never from the
 // buffer width). Per sample:
 //
-//     ring.push (inL·g + fb[n − 32].L,  inR·g + fb[n − 32].R)
+//     ring.push (xL·g + fb[n − 32].L,  xR·g + fb[n − 32].R)
+//     x = in, or 0 when ! (|in·g| <= kAnalysisTapMax)        (R96 host guard)
 //
-// g = the input-gain ramp lerped inside the cell. fb is the z^-32 feedback
+// g = the input-gain ramp lerped inside the cell. R96 (PLAN-2.6 P81): a NaN,
+// ±Inf or absurd (> +80 dBFS after the input gain) host sample is replaced by 0
+// before it reaches the ring — one such sample used to poison the ring, every
+// grain reading it, the feedback loop and the reverb tank for good. The guard
+// selects the INPUT operand in its own statement and keeps each push statement's
+// arithmetic verbatim (FP contraction is per statement: `x·g + fb` stays one
+// fused expression), so every finite host sample within +80 dBFS is bitwise
+// unchanged, and a guarded sample pushes 0·g + fb == fb exactly. fb is the z^-32 feedback
 // return: slot (n mod 32) still holds what the feedback chain wrote 32 samples
 // ago, and is overwritten after this piece's feedback step (2.4).
 //
@@ -76,13 +84,31 @@ namespace ogran
     {
         /** Pushes piece samples [0, n) into the ring. cellPos = the piece's first
             sample's position inside its cell (piece ⊂ one cell, so cellPos + n <= kCell,
-            and since kFbDelay == kCell the return slot of sample i is cellPos + i). */
-        static void write (Ring& ring, const float* inL, const float* inR, int n, int cellPos,
-                           const ExactRamp& inputGain, const float (&fbReturn)[2][kFbDelay], FreezeState& fz) noexcept
+            and since kFbDelay == kCell the return slot of sample i is cellPos + i).
+            Returns the number of host samples (per channel) the R96 guard replaced by
+            0; sanitise = false is the Z7hn / Z7hr test control only. */
+        static int write (Ring& ring, const float* inL, const float* inR, int n, int cellPos,
+                          const ExactRamp& inputGain, const float (&fbReturn)[2][kFbDelay], FreezeState& fz,
+                          bool sanitise = true) noexcept
         {
             static_assert (kFbDelay == kCell, "return-slot indexing below assumes kFbDelay == kCell");
             if (fz.frozen)
-                return;   // head-stop: no push
+                return 0;   // head-stop: no push
+
+            int guarded = 0;
+            // R96: the input operand of one push, 0 when |x·g| is non-finite or > +80 dBFS
+            // (the analysis tap's predicate, Analysis.h). Own statements: the product
+            // here never fuses into the push.
+            auto operand = [sanitise, &guarded] (float x, float g) noexcept
+            {
+                const float xg = x * g;
+                if (sanitise && ! (std::abs (xg) <= kAnalysisTapMax))
+                {
+                    ++guarded;
+                    return 0.0f;
+                }
+                return x;
+            };
 
             int i = 0;
             for (; i < n && fz.xfading; ++i)
@@ -113,8 +139,10 @@ namespace ogran
                     hl = el + b * (ol - el);
                     hr = er + b * (orr - er);
                 }
-                ring.push (w * (inL[i] * g + fbReturn[0][c]) + (1.0f - w) * hl,
-                           w * (inR[i] * g + fbReturn[1][c]) + (1.0f - w) * hr);
+                const float xl = operand (inL[i], g);
+                const float xr = operand (inR[i], g);
+                ring.push (w * (xl * g + fbReturn[0][c]) + (1.0f - w) * hl,
+                           w * (xr * g + fbReturn[1][c]) + (1.0f - w) * hr);
                 if (++fz.xfadePos >= fz.xfadeLen)
                     fz.xfading = false;
             }
@@ -122,8 +150,11 @@ namespace ogran
             {
                 const int c = cellPos + i;
                 const float g = inputGain.value (c);
-                ring.push (inL[i] * g + fbReturn[0][c], inR[i] * g + fbReturn[1][c]);
+                const float xl = operand (inL[i], g);
+                const float xr = operand (inR[i], g);
+                ring.push (xl * g + fbReturn[0][c], xr * g + fbReturn[1][c]);
             }
+            return guarded;
         }
     };
 } // namespace ogran

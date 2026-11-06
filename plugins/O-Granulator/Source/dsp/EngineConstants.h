@@ -30,7 +30,7 @@
 #endif
 
 // ============================================================================
-// O-Granulator engine constants (Stage 2, Phases 2.1–2.5b).
+// O-Granulator engine constants (Stage 2, Phases 2.1–2.6).
 // ARCHITECTURE §2, §6, §16; RESEARCH-2.1 §1; PLAN-2.1 T1.
 // ============================================================================
 namespace ogran
@@ -197,7 +197,7 @@ namespace ogran
     inline constexpr double kOnsetRefractS   = 0.05;
     inline constexpr double kOnsetTauS       = 0.15;                 // Onset source time constant (ARCH "150 ms")
     inline constexpr double kOnsetZeroTaus   = 16.0;                 // P64: exactly 0 beyond 16 τ (no subnormal tail)
-    inline constexpr float  kAnalysisTapMax  = 1.0e4f;               // tap sanitiser: |a| beyond +80 dBFS (or non-finite) → 0
+    inline constexpr float  kAnalysisTapMax  = 1.0e4f;               // host-input sanitiser: analysis tap (P61) and ring write (R96): |x·g| beyond +80 dBFS (or non-finite) → 0
     // Decimator + MPM (ARCH §15 / Algorithm §7 contract; R68)
     inline constexpr double kDecimTargetHz = 12000.0;
     inline constexpr int    kDecimTaps     = 64;

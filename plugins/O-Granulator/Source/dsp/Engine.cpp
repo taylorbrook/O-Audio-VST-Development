@@ -39,8 +39,13 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     // D2: full 41 s at every rate. prepare() re-assigns the same size on a repeat
     // call (no reallocation) and clears 27.6 MB @ 48 k — message thread only.
     ring.prepare (ringSamples);
+   #if OGRAN_TEST_HOOKS
+    pool.prepare (fs, hooks.stealFadeMs >= 0.0 ? hooks.stealFadeMs : kPoolFadeMs);   // K3bn / QB3bn (P82)
+    spawner.prepare (fs, hooks.killFadeMs >= 0.0 ? hooks.killFadeMs : kKillFadeMs);  // K3an / QB3an (P82)
+   #else
     pool.prepare (fs, kPoolFadeMs);
     spawner.prepare (fs);
+   #endif
     for (auto& s : scheds)
         s.prepare();   // epochs zeroed here and nowhere else (R4)
     tracker.prepare (fs);   // 2.5a: virtual 120 bpm until the first host block
@@ -416,7 +421,11 @@ void Engine::process (const float* const* in, int numIn, float* const* out, int 
         //    first freeze; after one, the ring lags absCount by whole cells.
         const std::int64_t wPiece = ring.getWriteCount();
         const ExactRamp& inGain = useInMod ? inGainMod : inGainRamp;   // 2.5a: routed input_gain (R47)
-        CaptureWriter::write (ring, inL + done, inR + done, len, cellPos, inGain, fbDelay, fz);
+       #if OGRAN_TEST_HOOKS
+        diag.hostScrubs += CaptureWriter::write (ring, inL + done, inR + done, len, cellPos, inGain, fbDelay, fz, ! hooks.hostGuardOff);
+       #else
+        CaptureWriter::write (ring, inL + done, inR + done, len, cellPos, inGain, fbDelay, fz);   // R96 guard inside
+       #endif
         jassert (ring.getWriteCount() == wPiece + (frozen ? 0 : len));
 
         // 2.5a envelope follower on the conditioned input (post input_gain,
@@ -810,6 +819,7 @@ void Engine::matrixTick() noexcept
    #if OGRAN_TEST_HOOKS
     matrix.noResidual    = hooks.noResidual;
     matrix.fullRoundTrip = hooks.fullRoundTrip;
+    matrix.noDepthRamp   = hooks.noDepthRamp;
    #endif
     const int changes = matrix.tick (gp, srcVals);
    #if OGRAN_TEST_HOOKS
@@ -1461,6 +1471,30 @@ void Engine::mixOut (const float* dryL, const float* dryR, float* outL, float* o
         wet[1][i] = wr;
         tap[0][i] = tl;
         tap[1][i] = tr;
+    }
+
+    // 7b. R96 wet guard (PLAN-2.6 P81, defence in depth): a non-finite wet sample
+    //     never enters the reverb tank (a module state this plugin can't scrub;
+    //     the knee passes NaN by design). Runs whether or not the reverb is on.
+    {
+        bool wetGuard = true;
+       #if OGRAN_TEST_HOOKS
+        wetGuard = ! hooks.wetGuardOff;
+        std::int64_t scrubbed = 0;
+       #endif
+        if (wetGuard)
+            for (int ch = 0; ch < 2; ++ch)
+                for (int i = 0; i < len; ++i)
+                    if (! std::isfinite (wet[ch][i]))
+                    {
+                        wet[ch][i] = 0.0f;
+                       #if OGRAN_TEST_HOOKS
+                        ++scrubbed;
+                       #endif
+                    }
+       #if OGRAN_TEST_HOOKS
+        diag.wetScrubs += scrubbed;
+       #endif
     }
 
     // 8. reverb → D9 knee, BEFORE the mix-0 fast path: neither one's state may

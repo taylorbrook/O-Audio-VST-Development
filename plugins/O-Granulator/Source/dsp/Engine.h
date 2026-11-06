@@ -43,7 +43,7 @@
 #include "WindowMorphBank.h"
 
 // ============================================================================
-// O-Granulator pass engine (Stage 2, Phases 2.1–2.5b).
+// O-Granulator pass engine (Stage 2, Phases 2.1–2.6).
 // ARCHITECTURE Processing Chain (per-pass order, normative), §1–7, §10, §14, §16;
 // RESEARCH-2.1 R1–R4; PLAN-2.1 T7.
 //
@@ -226,6 +226,13 @@ namespace ogran
             bool liveF0Lookup         = false;   // FR5n / FR6n: follow the LIVE tracker note (the ARCH §5 form)
             struct InjectTap { std::int64_t at = -1; float value = 0.0f; bool done = false; };
             InjectTap injectAnalysis;            // OD6 / Z6b: replace the tap sample at `at`
+
+            // ── 2.6 (PLAN-2.6 P81, P82) ─────────────────────────────────────
+            bool   noDepthRamp  = false;   // MX3nD / MF8n: a route change / depth edit snaps the slot depth (no ramp)
+            double stealFadeMs  = -1.0;    // K3bn / QB3bn: pool steal fade (ms) at prepare; 0 = hard cut; < 0 = kPoolFadeMs
+            double killFadeMs   = -1.0;    // K3an / QB3an: R3 kill fade (ms) at prepare; 0 = hard cut; < 0 = kKillFadeMs
+            bool   hostGuardOff = false;   // Z7hn / Z7hr: no R96 ring-write guard (the host sample reaches the ring as is)
+            bool   wetGuardOff  = false;   // Z7hn: no R96 wet-bus guard before the reverb
         };
 
         /** P56 trace ring (test builds): {absolute sample, value}. */
@@ -245,6 +252,9 @@ namespace ogran
         std::array<bool,  kPoolLive + kPoolFade> engageActive {};
         std::int64_t engageW0 = -1;
         const Ring& getRingForTest() const noexcept           { return ring; }
+        /** 2.6 census (P82): the z^-32 feedback return and the reverb (its privates via the harness idiom). */
+        const float (&getFbDelayForTest() const noexcept)[2][kFbDelay] { return fbDelay; }
+        const ReverbUnit& getReverbForTest() const noexcept    { return reverb; }
         float getFbTapTarget (int s) const noexcept           { return gFbRamp[s].getTarget(); }
 
         /** One spawn. The grain's readAbs at age k is anchor + dir·rate·(k + frac)
@@ -347,6 +357,9 @@ namespace ogran
             std::int64_t followMiss[5]     {};    // by kind (index 0 unused)
             std::int64_t absSetRebuilds    = 0;
             std::int64_t analysisScrubs    = 0;
+            // 2.6 (PLAN-2.6 P81)
+            std::int64_t hostScrubs        = 0;   // R96: host samples the ring-write guard replaced by 0
+            std::int64_t wetScrubs         = 0;   // R96: non-finite wet samples zeroed before the reverb
             std::uint64_t logCount       = 0;   // total spawns logged; entry k at log[k % kSpawnLogSize]
             std::array<SpawnRecord, kSpawnLogSize> log {};
 
@@ -362,6 +375,7 @@ namespace ogran
                 maxWetPeak = 0.0f;
                 onsetEvents = maxEventsPerPiece = freeBursts = tempoBursts = mpmHops = mpmConfident = guardHeld = 0;
                 f0Writes = f0Skips = followLookups = followHits = absSetRebuilds = analysisScrubs = 0;
+                hostScrubs = wetScrubs = 0;
                 for (auto& m : followMiss) m = 0;
                 logCount = 0;
             }

@@ -137,9 +137,9 @@ namespace ogran
         using Pool = GrainPoolT;
 
         /** Message thread (Engine::prepare). */
-        void prepare (double sampleRate) noexcept
+        void prepare (double sampleRate, double killMs = kKillFadeMs) noexcept
         {
-            killStep = static_cast<float> (1.0 / std::max (1.0, kKillFadeMs * 0.001 * sampleRate));
+            killStep = static_cast<float> (1.0 / std::max (1.0, killMs * 0.001 * sampleRate));   // 2.6 P82: killMs 0 → a hard cut (test builds)
             std::fill (std::begin (pendingKill), std::end (pendingKill), std::uint8_t (0));
             anyPending = false;
         }
