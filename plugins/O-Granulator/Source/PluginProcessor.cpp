@@ -20,7 +20,7 @@
 #include "PluginProcessor.h"
 
 #if JUCE_WEB_BROWSER
- // #include "PluginEditor.h"   // Stage 3: GranulatorEditor
+ #include "PluginEditor.h"      // GranulatorEditor — plugin target only (consoles build JUCE_WEB_BROWSER=0)
 #endif
 
 namespace Ids = GranulatorParamIds;
@@ -324,7 +324,7 @@ void GranulatorProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
 juce::AudioProcessorEditor* GranulatorProcessor::createEditor()
 {
 #if JUCE_WEB_BROWSER
-    return new juce::GenericAudioProcessorEditor (*this);   // Stage 3: new GranulatorEditor (*this)
+    return new GranulatorEditor (*this);
 #else
     return new juce::GenericAudioProcessorEditor (*this);   // headless consoles
 #endif
