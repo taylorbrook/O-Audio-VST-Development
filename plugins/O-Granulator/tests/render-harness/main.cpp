@@ -39,6 +39,7 @@
       U5–U8, FB  Stage 2 / 2.4 knee / D10 / chain / tap-law units, feedback rows — engine_gates_24.h
       N7, FZ, RV, Z3, Z4, M4, C4  Stage 2 / 2.4 PERF / freeze / reverb / stress rows — engine_gates_24b.h
       TT, U9, TS, LS, EV, MC  Stage 2 / 2.5a tempo + source units / rows — engine_gates_25a.h
+      MF, PH, ZQ, TL, N8, M5, Z5, C5  Stage 2 / 2.5a matrix / QUAL / PERF rows — engine_gates_25ab.h
 
   ==============================================================================
 */
@@ -321,6 +322,7 @@ namespace
 #include "engine_gates_24.h"  // Stage 2 / 2.4 sections U5–U8, FB (PLAN-2.4 P44)
 #include "engine_gates_24b.h" // Stage 2 / 2.4 sections N7, FZ, RV, Z3/Z4, M4, C4 (PLAN-2.4 P44)
 #include "engine_gates_25a.h" // Stage 2 / 2.5a sections TT, U9, TS, LS, EV, MC (PLAN-2.5a P58)
+#include "engine_gates_25ab.h" // Stage 2 / 2.5a sections MF, PH, ZQ, TL, N8, M5, Z5, C5 (PLAN-2.5a P58)
 
 //==============================================================================
 static void paramRows()
@@ -751,6 +753,7 @@ int main (int argc, char** argv)
     if (argc > 1 && std::strcmp (argv[1], "--only25a") == 0)
     {
         engineRows25a();
+        engineRows25ab();
         std::printf ("\n%d PASS, %d FAIL -- %s (2.5a sections only)\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
         return failures == 0 ? 0 : 1;
     }
@@ -783,6 +786,7 @@ int main (int argc, char** argv)
     engineRows24();
     engineRows24b();
     engineRows25a();
+    engineRows25ab();
     std::printf ("\n%d PASS, %d FAIL -- %s\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
     return failures == 0 ? 0 : 1;
 }

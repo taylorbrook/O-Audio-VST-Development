@@ -156,6 +156,18 @@ GranulatorProcessor::GranulatorProcessor()
         scale.customVersion = &customVersion;
 
         engine.bind (p, scale);
+
+        // Phase 2.5a: the matrix range table from the parameter objects themselves
+        // (the same contract rows as createParameterLayout — R46 parity, U9c) and
+        // the raw atomic of every destination (message thread, once).
+        for (int d = 1; d < Ids::kModDests; ++d)
+        {
+            const juce::String id (Ids::kModDestIds[d]);
+            auto* f = dynamic_cast<juce::AudioParameterFloat*> (parameters.getParameter (id));
+            jassert (f != nullptr);
+            if (f != nullptr)
+                engine.setModDestination (d, f->getNormalisableRange(), raw (id));
+        }
     }
 }
 

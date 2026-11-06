@@ -106,6 +106,16 @@ namespace ogran
             }
         }
 
+        /** 2.5a: a settled one-cell segment prev → cur (the matrix substitutes of
+            ramped destinations; value (i) is then the CellLerp of the pair). */
+        void setCell (float p, float c) noexcept
+        {
+            prev = p;
+            cur = target = c;
+            step = 0.0f;
+            remaining = 0;
+        }
+
         float value (int i) const noexcept   { return prev + (cur - prev) * (static_cast<float> (i) * kCellInv); }
         float current() const noexcept       { return cur; }
         float previous() const noexcept      { return prev; }

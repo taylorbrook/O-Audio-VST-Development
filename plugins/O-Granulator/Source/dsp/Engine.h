@@ -30,6 +30,7 @@
 #include "FeedbackChain.h"
 #include "Grain.h"
 #include "GrainFx.h"
+#include "ModMatrix.h"
 #include "ModSources.h"
 #include "OutputLaw.h"
 #include "Quotas.h"
@@ -84,6 +85,16 @@ namespace ogran
 
         /** Message thread: builds the 1.6 MB WindowMorphBank (never rebuilt). */
         Engine() = default;
+
+        /** Message thread, once (processor constructor): the matrix range table
+            (the parameter objects' own NormalisableRanges — R46 parity) and the raw
+            APVTS atomic of every destination. */
+        void setModDestination (int dest, const juce::NormalisableRange<float>& range, std::atomic<float>* raw) noexcept
+        {
+            matrix.setRange (dest, range);
+            matrix.setRawPointer (dest, raw);
+        }
+        const ModMatrix& getMatrix() const noexcept { return matrix; }
 
         /** Message thread, once (processor constructor). */
         void bind (const ParamPointers& p, const ScaleSource& scale = {}) noexcept
@@ -194,7 +205,7 @@ namespace ogran
         };
 
         /** P56 trace ring (test builds): {absolute sample, value}. */
-        struct TracePoint { std::int64_t at = 0; double value = 0.0; };
+        struct TracePoint { std::int64_t at = 0; double value = 0.0; double aux = 0.0; };   // aux: the spawn's offset (latched)
         std::array<TracePoint, kTraceCapacity> trace {};
         std::uint64_t traceCount = 0;
 
@@ -289,6 +300,7 @@ namespace ogran
             std::int64_t routeChanges   = 0;   // slot source / dest changes seen at ticks
             std::int64_t routedDests    = 0;   // max routed destinations in one cell
             std::int64_t envScrubs      = 0;   // env follower NaN / Inf resets
+            float        maxWetPeak     = 0.0f; // Z5: max |wet| after the D9 knee (the knee's own bound, pre mix / output gain)
             std::uint64_t logCount       = 0;   // total spawns logged; entry k at log[k % kSpawnLogSize]
             std::array<SpawnRecord, kSpawnLogSize> log {};
 
@@ -301,6 +313,7 @@ namespace ogran
                 nanKills = fxStateNonDefaultAtSpawn = stealStateChecked = stealStateMismatches = nanKillNotRetired = 0;
                 freezeEngages = freezeReleases = forcedReleases = headReflections = headReflectionsFrozenSpawn = fbScrubs = reverbCells = 0;
                 tempoReanchors = tempoRelocks = tempoOnsets = routeChanges = routedDests = envScrubs = 0;
+                maxWetPeak = 0.0f;
                 logCount = 0;
             }
             const SpawnRecord& record (std::uint64_t k) const noexcept
@@ -356,6 +369,16 @@ namespace ogran
         void handleFreezeEdges() noexcept;                 // 2.4: tick-sampled freeze edges
         void applyTempoEffective() noexcept;               // 2.5a P50: effective Tempo density / size (R45)
         void tickSources() noexcept;                       // 2.5a P51: LFO ×4, env, macros (once per cell)
+        void matrixTick() noexcept;                        // 2.5a P52–P55: slots, residuals, sparse offsets, latched + tick dests, telemetry
+        void traceAt (int dest, std::int64_t at, double v, double aux = 0.0) noexcept
+        {
+           #if OGRAN_TEST_HOOKS
+            if (hooks.traceDest.dest == dest)
+                trace[static_cast<size_t> (traceCount++ % static_cast<std::uint64_t> (kTraceCapacity))] = { at, v, aux };
+           #else
+            juce::ignoreUnused (dest, at, v, aux);
+           #endif
+        }
         void forcedReleaseScan() noexcept;                 // 2.4 R25 engage scan
        #if OGRAN_TEST_HOOKS
         Spawner::Acquired nativeAcquireForTest() noexcept;
@@ -485,6 +508,17 @@ namespace ogran
         SourceValues srcVals;
         double       lfoRateHz[kLfos] {};              // the (modulated) rate of the PREVIOUS cell (R50.5)
         float        lfoRateOff[kLfos] {};             // the matrix offset on lfoN_rate of the previous cell
+        // 2.5a matrix (P52–P54)
+        ModMatrix    matrix;
+        float        rawBase[kModDests] {};            // raw base of each routed latched / tick dest, read at the tick
+        bool         streamRouted[kMaxStreams] {};     // any spawn-latched field of the stream routed this cell
+        double       tempoSizeBaseMs[kMaxStreams] {};  // Tempo: the synced size before modulation (P50)
+        // Ramped-destination substitutes (R47): a settled cell prev → cur, used
+        // while the dest is routed this cell or was routed in the previous one.
+        ExactRamp    inGainMod, outGainMod, fbKnobMod, fbDiffMod, fbSatDMod;
+        float        inGainNow = 1.0f, outGainNow = 1.0f, fbKnobNow = 0.0f, fbDiffNow = 0.0f, fbSatDNow = 1.0f;
+        bool         useInMod = false, useOutMod = false, useFbKnobMod = false, useFbDiffMod = false, useFbSatMod = false;
+        float        levelNow[kMaxStreams] {};         // the (modulated) level gain of this cell (mixer + tap)
 
         // ── fixed per-pass storage (kCell — never the host block) ───────────
         // Test builds bracket every per-pass array with canaries (PERF-03

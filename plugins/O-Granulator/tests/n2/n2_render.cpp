@@ -33,7 +33,8 @@
               (N2p, R46: offset exactly 0 → raw path; IDENTICAL always)
       TMP     sync_mode Tempo                            (T5)
       LFO     slot 9 LFO1 → s1_level depth 1 %           (T8)
-      MAC     slot 10 Macro 1 (50 %) → mix depth 1 %     (T8)
+      MAC     slot 10 Macro 1 (50 %) → mix depth −1 %    (T8; mix is at 100 %:
+              +1 % would clamp — the plan's +1 % is a vacuous stimulus)
       ENV     slot 11 Env → s1_pitch depth 1 %           (T9, spawn-latched)
     The driver prints maxwet = max|out| over the render: at mix 100 % and
     output 0 dB the output IS the wet (dg = 0, wg = og = 1).
@@ -221,7 +222,8 @@ namespace
         if (variant == "P")   { route (1, 1.0f, 5.0f, 0.0f); route (2, 5.0f, 2.0f, 0.0f); }   // LFO1 → s1_level, Env → mix, depth 0
         if (variant == "TMP") ps.push_back ({ "sync_mode", 1.0f });
         if (variant == "LFO") route (9, 1.0f, 5.0f, 1.0f);                                      // LFO1 → s1_level 1 %
-        if (variant == "MAC") { ps.push_back ({ "macro1", 50.0f }); route (10, 8.0f, 2.0f, 1.0f); }   // Macro 1 → mix 1 %
+        // Macro 1 → mix −1 %: the recipe's mix sits at 100 %, so +1 % would clamp at the range end (a vacuous control).
+        if (variant == "MAC") { ps.push_back ({ "macro1", 50.0f }); route (10, 8.0f, 2.0f, -1.0f); }
         if (variant == "ENV") route (11, 5.0f, 13.0f, 1.0f);                                    // Env → s1_pitch 1 %
 
         int ok = 0;

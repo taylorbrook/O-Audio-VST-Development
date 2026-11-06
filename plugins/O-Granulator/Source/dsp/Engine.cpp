@@ -91,6 +91,17 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     }
     env.prepare (fs, gp.envAttackMs, gp.envReleaseMs, gp.envGainDb);
     srcVals = {};
+
+    // 2.5a matrix: slots snap to the latched routes (no fade at load).
+    matrix.prepare (rampCellsFor (fs, kModRampMs), gp);
+    std::fill (std::begin (rawBase), std::end (rawBase), 0.0f);
+    for (auto& r : streamRouted) r = false;
+    inGainNow  = inGainRamp.current();   inGainMod.reset (inGainNow);
+    outGainNow = outGainRamp.current();  outGainMod.reset (outGainNow);
+    fbKnobNow  = fbKnobRamp.current();   fbKnobMod.reset (fbKnobNow);
+    fbDiffNow  = fbDiffRamp.current();   fbDiffMod.reset (fbDiffNow);
+    fbSatDNow  = fbSatDRamp.current();   fbSatDMod.reset (fbSatDNow);
+    useInMod = useOutMod = useFbKnobMod = useFbDiffMod = useFbSatMod = false;
     for (auto& t : srcTelemetry) t.store (0.0f, std::memory_order_relaxed);
 
     // 2.4 reverb: atomics from the latch, then prepare (allocates its lines —
@@ -132,6 +143,7 @@ void Engine::snapRampsToParams() noexcept
         const float g = gOutRamp[s].current() * levelRamp[s].current() * audRamp[s].current();
         streamGainL[s].reset (g * pg.a);
         streamGainR[s].reset (g * pg.b);
+        levelNow[s] = levelRamp[s].current();
     }
 
     // 2.4 feedback network.
@@ -150,11 +162,11 @@ void Engine::pushFbTapGains (bool snap) noexcept
 {
     float sum = 0.0f;
     for (int s = 0; s < kMaxStreams; ++s)
-        sum += levelRamp[s].current() * audRamp[s].current() * fbEnRamp[s].current();
+        sum += levelNow[s] * audRamp[s].current() * fbEnRamp[s].current();
     const float norm = 1.0f / std::max (1.0f, sum);
     for (int s = 0; s < kMaxStreams; ++s)
     {
-        const float g = gFbRamp[s].current() * levelRamp[s].current() * audRamp[s].current() * fbEnRamp[s].current() * norm;
+        const float g = gFbRamp[s].current() * levelNow[s] * audRamp[s].current() * fbEnRamp[s].current() * norm;
         if (snap) fbTapCell[s].reset (g);
         else      fbTapCell[s].push (g);
     }
@@ -166,16 +178,29 @@ void Engine::pushFbTapGains (bool snap) noexcept
     shimmer 0. */
 void Engine::writeReverbAtomics() noexcept
 {
-    revSize.store (gp.reverbSize, std::memory_order_relaxed);
-    revDamp.store (gp.reverbDamp, std::memory_order_relaxed);
-    revMix.store (gp.reverbMix, std::memory_order_relaxed);
+    // 2.5a (R54, closes the 2.4 carry): routed reverb dests write the modulated
+    // value of this cell; the unit smooths size (100 ms) and gates mix <= 0.001.
+    float size = gp.reverbSize, damp = gp.reverbDamp, mixV = gp.reverbMix;
+    if (matrix.routed (ModDest::RevSize)) size = matrix.apply (ModDest::RevSize, matrix.rawNow (ModDest::RevSize), matrix.offset (ModDest::RevSize)) / 100.0f;
+    if (matrix.routed (ModDest::RevDamp)) damp = matrix.apply (ModDest::RevDamp, matrix.rawNow (ModDest::RevDamp), matrix.offset (ModDest::RevDamp)) / 100.0f;
+    if (matrix.routed (ModDest::RevMix))  mixV = matrix.apply (ModDest::RevMix,  matrix.rawNow (ModDest::RevMix),  matrix.offset (ModDest::RevMix))  / 100.0f;
+    revSize.store (size, std::memory_order_relaxed);
+    revDamp.store (damp, std::memory_order_relaxed);
+    revMix.store (mixV, std::memory_order_relaxed);
+    traceAt (ModDest::RevSize, absCount, size);
+    traceAt (ModDest::RevDamp, absCount, damp);
+    traceAt (ModDest::RevMix,  absCount, mixV);
 }
 
 /** fb HP / LP coefficients from the ramped log-cutoffs (tan only here, and only
     when a cutoff moved). */
 void Engine::updateChainCutoffs() noexcept
 {
-    const float lo = std::exp2 (fbLowLogRamp.current()), hi = std::exp2 (fbHighLogRamp.current());
+    float lo = std::exp2 (fbLowLogRamp.current()), hi = std::exp2 (fbHighLogRamp.current());
+    if (matrix.routed (ModDest::FbLowCut))  lo = matrix.apply (ModDest::FbLowCut,  lo, matrix.offset (ModDest::FbLowCut));
+    if (matrix.routed (ModDest::FbHighCut)) hi = matrix.apply (ModDest::FbHighCut, hi, matrix.offset (ModDest::FbHighCut));
+    traceAt (ModDest::FbLowCut, absCount, lo);
+    traceAt (ModDest::FbHighCut, absCount, hi);
     if (juce::exactlyEqual (lo, chainLowHz) && juce::exactlyEqual (hi, chainHighHz))
         return;
     chainLowHz = lo;
@@ -346,12 +371,13 @@ void Engine::process (const float* const* in, int numIn, float* const* out, int 
         //    is the head before this piece's write. It equals absCount until the
         //    first freeze; after one, the ring lags absCount by whole cells.
         const std::int64_t wPiece = ring.getWriteCount();
-        CaptureWriter::write (ring, inL + done, inR + done, len, cellPos, inGainRamp, fbDelay, fz);
+        const ExactRamp& inGain = useInMod ? inGainMod : inGainRamp;   // 2.5a: routed input_gain (R47)
+        CaptureWriter::write (ring, inL + done, inR + done, len, cellPos, inGain, fbDelay, fz);
         jassert (ring.getWriteCount() == wPiece + (frozen ? 0 : len));
 
         // 2.5a envelope follower on the conditioned input (post input_gain,
         // pre-ring; runs while frozen). Never touches the audio path.
-        env.process (inL + done, inR + done, len, cellPos, [this] (int c) noexcept { return inGainRamp.value (c); });
+        env.process (inL + done, inR + done, len, cellPos, [&inGain] (int c) noexcept { return inGain.value (c); });
        #if OGRAN_TEST_HOOKS
         if (hooks.injectEnvNanAt >= 0 && absCount + len > hooks.injectEnvNanAt)
         {
@@ -411,7 +437,8 @@ void Engine::process (const float* const* in, int numIn, float* const* out, int 
             }
         }
        #endif
-        chain.process (tap[0], tap[1], len, cellPos, fbKnobRamp, fbDiffRamp, fbSatDRamp);
+        chain.process (tap[0], tap[1], len, cellPos, useFbKnobMod ? fbKnobMod : fbKnobRamp,
+                       useFbDiffMod ? fbDiffMod : fbDiffRamp, useFbSatMod ? fbSatDMod : fbSatDRamp);
        #if OGRAN_TEST_HOOKS
         chain.testInjectAt = -1;
         diag.fbScrubs = chain.scrubs;
@@ -434,8 +461,10 @@ void Engine::gridTick() noexcept
     spanSamples = static_cast<double> (gp.bufferLengthS) * fs;   // spawn-latched destination (no ramp)
     handleFreezeEdges();
 
-    // 2.5a: the modulation sources of this cell (sampled once, at the tick).
+    // 2.5a: the modulation sources of this cell (sampled once, at the tick),
+    // then the matrix (spawn-latched + tick destinations overwrite the latch).
     tickSources();
+    matrixTick();
 
     // 2.5a: Tempo mode reads the EFFECTIVE density / size (quotas, coherence,
     // the spawn size and the clock all see the synced values, R45).
@@ -462,7 +491,28 @@ void Engine::gridTick() noexcept
     mixRamp.setTarget (gp.mix, rampCells);
     mixRamp.tick();
 
-    const auto dw = mixGains (mixRamp.current());   // snapped ends: exactly (1, 0) at mix 0
+    // 2.5a R47: routed ramped destinations are modulated AFTER the base ramp,
+    // in that ramp's domain; per sample the substitute lerps prev → cur.
+    {
+        using namespace ModDest;
+        const bool ri = matrix.routed (InputGain), ro = matrix.routed (OutputGain);
+        const float gi = ri ? dbToGain (matrix.apply (InputGain, ModMap::gainToRaw (inGainRamp.current()), matrix.offset (InputGain)))
+                            : inGainRamp.current();
+        const float go = ro ? dbToGain (matrix.apply (OutputGain, ModMap::gainToRaw (outGainRamp.current()), matrix.offset (OutputGain)))
+                            : outGainRamp.current();
+        inGainMod.setCell (inGainNow, gi);   inGainNow = gi;
+        outGainMod.setCell (outGainNow, go); outGainNow = go;
+        useInMod  = ri || matrix.routedPrev (InputGain);
+        useOutMod = ro || matrix.routedPrev (OutputGain);
+        traceAt (InputGain, absCount, gi);
+        traceAt (OutputGain, absCount, go);
+    }
+    float mixNow = mixRamp.current();
+    if (matrix.routed (ModDest::Mix))
+        mixNow = matrix.apply (ModDest::Mix, mixNow * 100.0f, matrix.offset (ModDest::Mix)) / 100.0f;
+    traceAt (ModDest::Mix, absCount, mixNow);
+
+    const auto dw = mixGains (mixNow);   // snapped ends: exactly (1, 0) at mix 0
     dryGain.push (dw.a);
     wetGain.push (dw.b);
 
@@ -485,9 +535,18 @@ void Engine::gridTick() noexcept
         gOutRamp[s].setTarget (gOut[s], rampCells);
         gOutRamp[s].tick();
 
+        // 2.5a R47: routed level / pan modulate the ramped value.
+        float lv = levelRamp[s].current(), pn = panRamp[s].current();
+        const int dl = ModDest::stream (s, ModDest::Level), dp = ModDest::stream (s, ModDest::Pan);
+        if (matrix.routed (dl)) lv = levelDbToGain (matrix.apply (dl, ModMap::levelToRaw (lv), matrix.offset (dl)));
+        if (matrix.routed (dp)) pn = matrix.apply (dp, pn * 100.0f, matrix.offset (dp)) / 100.0f;
+        levelNow[s] = lv;
+        traceAt (dl, absCount, lv);
+        traceAt (dp, absCount, pn);
+
         // (g_out · level) · audible: audible == 1.0f leaves the 2.1 product bitwise.
-        const auto pg = panGains (panRamp[s].current());
-        const float g = gOutRamp[s].current() * levelRamp[s].current() * audRamp[s].current();
+        const auto pg = panGains (pn);
+        const float g = gOutRamp[s].current() * lv * audRamp[s].current();
         streamGainL[s].push (g * pg.a);
         streamGainR[s].push (g * pg.b);
     }
@@ -503,6 +562,25 @@ void Engine::gridTick() noexcept
     fbDiffRamp.tick();
     fbSatDRamp.setTarget (1.0f + kSatSpan * gp.fbSat, rampCells);
     fbSatDRamp.tick();
+    {
+        using namespace ModDest;
+        const bool rk = matrix.routed (Feedback), rd = matrix.routed (FbDiff), rs = matrix.routed (FbSat);
+        const float k = rk ? ModMap::fbKnobFromRaw (matrix.apply (Feedback, ModMap::fbKnobToRaw (fbKnobRamp.current()), matrix.offset (Feedback)))
+                           : fbKnobRamp.current();
+        const float df = rd ? ModMap::pctFromRaw (matrix.apply (FbDiff, fbDiffRamp.current() * 100.0f, matrix.offset (FbDiff)))
+                            : fbDiffRamp.current();
+        const float sd = rs ? ModMap::satDFromRaw (matrix.apply (FbSat, ModMap::satDToRaw (fbSatDRamp.current()), matrix.offset (FbSat)))
+                            : fbSatDRamp.current();
+        fbKnobMod.setCell (fbKnobNow, k);  fbKnobNow = k;
+        fbDiffMod.setCell (fbDiffNow, df); fbDiffNow = df;
+        fbSatDMod.setCell (fbSatDNow, sd); fbSatDNow = sd;
+        useFbKnobMod = rk || matrix.routedPrev (Feedback);
+        useFbDiffMod = rd || matrix.routedPrev (FbDiff);
+        useFbSatMod  = rs || matrix.routedPrev (FbSat);
+        traceAt (Feedback, absCount, k);
+        traceAt (FbDiff, absCount, df);
+        traceAt (FbSat, absCount, sd);
+    }
     fbLowLogRamp.setTarget (std::log2 (gp.fbLowCutHz), rampCells);
     fbLowLogRamp.tick();
     fbHighLogRamp.setTarget (std::log2 (gp.fbHighCutHz), rampCells);
@@ -643,13 +721,69 @@ void Engine::tickSources() noexcept
     }
     for (int k = 1; k < kModSources; ++k)
         srcTelemetry[static_cast<size_t> (k - 1)].store (srcVals.v[k], std::memory_order_relaxed);
+}
 
-    // Next cell's LFO rates (T7+: the matrix-modulated rate of THIS cell).
+/** P52–P55: the matrix of this cell. Spawn-latched and tick destinations
+    overwrite the latch with the cell's modulated value (tick consumers —
+    quotas, R5 coherence, the Free interval, the scale window — read it; the
+    spawn re-evaluates at its own sample, P54). Ramped destinations are applied
+    after their base ramps in gridTick (P53). Unrouted: nothing is touched. */
+void Engine::matrixTick() noexcept
+{
+   #if OGRAN_TEST_HOOKS
+    matrix.noResidual    = hooks.noResidual;
+    matrix.fullRoundTrip = hooks.fullRoundTrip;
+   #endif
+    const int changes = matrix.tick (gp, srcVals);
+   #if OGRAN_TEST_HOOKS
+    diag.routeChanges += changes;
+    diag.routedDests = std::max<std::int64_t> (diag.routedDests, matrix.routedCount());
+   #else
+    juce::ignoreUnused (changes);
+   #endif
+
+    // LFO rates of the NEXT cell (R50.5: no same-cell source cycle).
     for (int n = 0; n < kLfos; ++n)
     {
-        lfoRateHz[n]  = static_cast<double> (gp.lfo[n].rateHz);
-        lfoRateOff[n] = 0.0f;
+        const int d = ModDest::LfoRate1 + n;
+        if (matrix.routed (d))
+        {
+            lfoRateOff[n] = matrix.offset (d);
+            lfoRateHz[n]  = static_cast<double> (matrix.apply (d, gp.lfo[n].rateHz, lfoRateOff[n]));
+        }
+        else
+        {
+            lfoRateOff[n] = 0.0f;
+            lfoRateHz[n]  = static_cast<double> (gp.lfo[n].rateHz);
+        }
+        traceAt (d, absCount, lfoRateHz[n]);
     }
+
+    const bool tempoMode = gp.syncMode == 1;
+    for (int s = 0; s < kMaxStreams; ++s)
+    {
+        streamRouted[s] = false;
+        for (int f = ModDest::Position; f < ModDest::NumFields; ++f)
+        {
+            const int d = ModDest::stream (s, f);
+            if (! matrix.routed (d))
+                continue;
+            streamRouted[s] = true;
+            rawBase[d] = matrix.rawNow (d);
+            if (tempoMode && (f == ModDest::Size || f == ModDest::Density))
+                continue;   // Tempo: the offset scales the synced value (applyTempoEffective, P50)
+            ModMap::streamFieldFromRaw (gp.s[s], f, matrix.apply (d, rawBase[d], matrix.offset (d)));
+        }
+    }
+    if (matrix.routed (ModDest::BufferLength))
+    {
+        rawBase[ModDest::BufferLength] = matrix.rawNow (ModDest::BufferLength);
+        gp.bufferLengthS = std::clamp (matrix.apply (ModDest::BufferLength, rawBase[ModDest::BufferLength],
+                                                     matrix.offset (ModDest::BufferLength)), 1.0f, 30.0f);
+        spanSamples = static_cast<double> (gp.bufferLengthS) * fs;
+    }
+
+    matrix.writeTelemetry (destTelemetry);
 }
 
 /** P50 (R45, signed off): per stream, the synced density as a power-of-two
@@ -665,14 +799,15 @@ void Engine::applyTempoEffective() noexcept
         auto& st = gp.s[s];
         const double divBeats = tempoDivBeats (st.densitySync, A.barLen);
         const double d0 = beatsPerS / divBeats;
-        const double offD = 0.0;   // T9: the matrix offset on sN_density
+        const double offD = static_cast<double> (matrix.offset (ModDest::stream (s, ModDest::Density)));
         const double eLo = std::ceil (std::log2 (kDensityMin / d0)), eHi = std::floor (std::log2 (kDensityMax / d0));
         const double e = std::clamp (std::floor (4.0 * offD + 0.5), eLo, eHi);
         tempoDiv[s] = divBeats * std::exp2 (-e);
         st.density  = static_cast<float> (d0 * std::exp2 (e));
 
-        const double offS = 0.0;   // T9: the matrix offset on sN_size
-        const double ms = tempoDivBeats (st.sizeSync, A.barLen) * 60000.0 / A.bpm * std::exp2 (4.0 * offS);
+        const double offS = static_cast<double> (matrix.offset (ModDest::stream (s, ModDest::Size)));
+        tempoSizeBaseMs[s] = tempoDivBeats (st.sizeSync, A.barLen) * 60000.0 / A.bpm;
+        const double ms = tempoSizeBaseMs[s] * std::exp2 (4.0 * offS);
         st.sizeMs = static_cast<float> (std::clamp (ms, kMinSizeMs, kMaxSizeMs));
     }
 }
@@ -756,7 +891,56 @@ void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart, std::int64_t 
         fzg.noMinSpray   = hooks.freezeNoMinSpray;
        #endif
     }
-    const GrainPlan gpl = Spawner::plan (gp.s[o.stream], spanSamples, fs, ringSamples,
+    // 2.5a P54 (R48): routed spawn-latched fields are evaluated AT the spawn
+    // sample — the offset lerped prev → cur at the onset's cell position — into
+    // a local copy; unrouted fields are copied bitwise. No route: the 2.4 call.
+    const GridParams::Stream* sp = &gp.s[o.stream];
+    GridParams::Stream local;
+    double span = spanSamples;
+    const bool bufRouted = matrix.routed (ModDest::BufferLength);
+    if (streamRouted[o.stream] || bufRouted)
+    {
+        local = gp.s[o.stream];
+        const double at = static_cast<double> (absCount % kCell) + static_cast<double> (o.offset);
+        const bool tempoMode = gp.syncMode == 1;
+        for (int f = ModDest::Position; f < ModDest::NumFields && streamRouted[o.stream]; ++f)
+        {
+            const int d = ModDest::stream (o.stream, f);
+            if (! matrix.routed (d))
+                continue;
+            const float off = matrix.offsetAt (d, at);
+            if (tempoMode && f == ModDest::Density)
+                continue;
+            if (tempoMode && f == ModDest::Size)
+            {
+                local.sizeMs = static_cast<float> (std::clamp (tempoSizeBaseMs[o.stream] * std::exp2 (4.0 * static_cast<double> (off)),
+                                                               kMinSizeMs, kMaxSizeMs));
+                continue;
+            }
+            ModMap::streamFieldFromRaw (local, f, matrix.apply (d, rawBase[d], off));
+        }
+        if (bufRouted)
+        {
+            const float bl = std::clamp (matrix.apply (ModDest::BufferLength, rawBase[ModDest::BufferLength],
+                                                       matrix.offsetAt (ModDest::BufferLength, at)), 1.0f, 30.0f);
+            span = static_cast<double> (bl) * fs;
+        }
+        sp = &local;
+    }
+   #if OGRAN_TEST_HOOKS
+    {
+        const int td = hooks.traceDest.dest;
+        if (td >= ModDest::StreamBase && td < ModDest::Feedback && (td - ModDest::StreamBase) / ModDest::StreamStride == o.stream
+            && (td - ModDest::StreamBase) % ModDest::StreamStride >= ModDest::Position)   // level / pan are ramped (traced at ticks)
+            traceAt (td, pieceStart + o.offset, ModMap::streamFieldValue (*sp, (td - ModDest::StreamBase) % ModDest::StreamStride),
+                     matrix.offsetAt (td, static_cast<double> (absCount % kCell) + static_cast<double> (o.offset)));
+        if (td == ModDest::BufferLength)
+            traceAt (td, pieceStart + o.offset, span / fs);
+    }
+   #endif
+    if (frozenGeom)
+        fzg.spanFrz = std::min (span, fzg.heldCaptured);
+    const GrainPlan gpl = Spawner::plan (*sp, span, fs, ringSamples,
                                          activeSeed, o.stream, o.globalIndex, forceLevel0, pitchSel[o.stream], fzg);
    #if OGRAN_TEST_HOOKS
     ++diag.planCalls[o.stream];
@@ -844,7 +1028,7 @@ void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart, std::int64_t 
     rec.frac        = o.frac;
     rec.rate        = gpl.rate;
     rec.len         = gpl.len;
-    rec.spanSamples = static_cast<float> (spanSamples);
+    rec.spanSamples = static_cast<float> (span);
     rec.grainLimit  = gp.grainLimit;
     rec.killed      = acq.killed;
     rec.stolen      = acq.stolen;
@@ -1126,12 +1310,17 @@ void Engine::mixOut (const float* dryL, const float* dryR, float* outL, float* o
             wet[0][i] = wetKnee (wet[0][i]);
             wet[1][i] = wetKnee (wet[1][i]);
         }
+   #if OGRAN_TEST_HOOKS
+    for (int i = 0; i < len; ++i)
+        diag.maxWetPeak = std::max ({ diag.maxWetPeak, std::abs (wet[0][i]), std::abs (wet[1][i]) });
+   #endif
 
     // P4 / R2: with mix settled at exactly 0 and output gain settled at exactly
     // 1.0f for the whole cell, out = dry by COPY. dry·1 + wet·0 is not bitwise
     // (signed zeros, NaN/Inf wet). The grains above still ran, so the engine
     // stays warm and the draw sequence is unchanged.
-    if (wetGain.settledAt (0.0f) && dryGain.settledAt (1.0f) && outGainRamp.settledAt (1.0f))
+    const ExactRamp& outGain = useOutMod ? outGainMod : outGainRamp;   // 2.5a: routed output_gain (R47)
+    if (wetGain.settledAt (0.0f) && dryGain.settledAt (1.0f) && outGain.settledAt (1.0f))
     {
         for (int i = 0; i < len; ++i)
         {
@@ -1155,7 +1344,7 @@ void Engine::mixOut (const float* dryL, const float* dryR, float* outL, float* o
 
         const float dg = dryGain.at (c);
         const float wg = wetGain.at (c);
-        const float og = outGainRamp.value (c);
+        const float og = outGain.value (c);
         const float yl = (xl * dg + wl * wg) * og;
         const float yr = (xr * dg + wr * wg) * og;
 

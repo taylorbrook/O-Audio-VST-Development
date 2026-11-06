@@ -1304,7 +1304,8 @@ namespace { namespace eg25
                     changes += m.tick (gp, src);
                     for (int d : touched)
                     {
-                        worstStep = juce::jmax (worstStep, (double) std::abs (m.offset (d) - last[(size_t) d]));
+                        if (c > 0)   // cell 0: the slot snapped at prepare (no fade at load)
+                            worstStep = juce::jmax (worstStep, (double) std::abs (m.offset (d) - last[(size_t) d]));
                         last[(size_t) d] = m.offset (d);
                     }
                 }
