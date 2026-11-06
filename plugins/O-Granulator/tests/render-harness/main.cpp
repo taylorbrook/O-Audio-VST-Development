@@ -48,6 +48,7 @@
 
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
+#include "ScaleStateJson.h"   // Stage 3 (P106 / P107): the page's JSON payloads, shared with the editor
 
 #include <cmath>
 #include <cstdio>
@@ -611,6 +612,8 @@ static int countChildren (const juce::XmlElement& x, const juce::String& tag)
     return n;
 }
 
+#include "engine_gates_31.h"  // Stage 3 / 3.1 sections PM, WC, TL (PLAN-3.1 P104)
+
 static void stateRows()
 {
     std::printf ("\n-- S. state codec\n");
@@ -752,9 +755,119 @@ static void scaleRows()
 }
 
 //==============================================================================
+// PLAN-3.1 P106 / P107: `--dump-ui-overrides <path>` writes the generic UI
+// stub's seed (tests/ui-stub/generic-overrides.json) from the processor itself
+// — combos (choices + default index), every Float range (start / end / def /
+// skew / interval), and the natives the page pulls, through the SAME encoders
+// the editor uses (ScaleStateJson.h). Early exit; no gate runs. Deterministic:
+// nothing seeded, nothing timed, LF line endings.
+//==============================================================================
+static int dumpUiOverrides (const juce::File& out)
+{
+    auto p = make();
+
+    auto* combos  = new juce::DynamicObject();
+    auto* sliders = new juce::DynamicObject();
+    auto* defs    = new juce::DynamicObject();
+    int nc = 0, nf = 0;
+    for (auto* ap : p->getParameters())
+    {
+        auto* rp = dynamic_cast<juce::RangedAudioParameter*> (ap);
+        if (rp == nullptr) continue;
+        const auto id = rp->getParameterID();
+        if (auto* c = dynamic_cast<juce::AudioParameterChoice*> (rp))
+        {
+            juce::Array<juce::var> choices;
+            for (const auto& ch : c->choices) choices.add (ch);
+            auto* o = new juce::DynamicObject();
+            o->setProperty ("choices", choices);
+            o->setProperty ("def", juce::roundToInt (c->convertFrom0to1 (rp->getDefaultValue())));
+            combos->setProperty (id, juce::var (o));
+            ++nc;
+        }
+        else if (auto* f = dynamic_cast<juce::AudioParameterFloat*> (rp))
+        {
+            const auto& r = f->getNormalisableRange();
+            auto* o = new juce::DynamicObject();
+            o->setProperty ("start", r.start);
+            o->setProperty ("end", r.end);
+            o->setProperty ("def", f->convertFrom0to1 (rp->getDefaultValue()));
+            o->setProperty ("skew", r.skew);
+            o->setProperty ("interval", r.interval);
+            o->setProperty ("label", f->getLabel());
+            sliders->setProperty (id, juce::var (o));
+            ++nf;
+        }
+        // getParameterDefaults: every Float AND every Choice (choice = index),
+        // exactly as the editor's native answers (PluginEditor.cpp).
+        if (dynamic_cast<juce::AudioParameterBool*> (rp) == nullptr)
+            defs->setProperty (id, rp->convertFrom0to1 (rp->getDefaultValue()));
+    }
+
+    // getTelemetry: the widest realistic frame (RESEARCH-3.1 §7) — every 3.2 /
+    // 3.3 key present so the label gates measure the longest readouts.
+    GranulatorProcessor::Telemetry t;
+    p->readTelemetry (t);
+    t.hasBuffer = t.hasCounts = t.hasMeters = t.hasOnset = t.hasLoopGain = true;
+    t.frozen = false;
+    t.spanSec = 30.0f;                                   // buffer_length max
+    t.waveCount = GranulatorProcessor::Telemetry::kWaveBins;
+    for (int i = 0; i < t.waveCount; ++i)
+        t.wave[(size_t) i] = (float) (0.5 + 0.45 * std::sin (0.11 * i) * std::cos (0.017 * i));
+    t.grainCount = GranulatorProcessor::Telemetry::kMaxGrains;
+    for (int i = 0; i < t.grainCount; ++i)
+    {
+        auto& g = t.grains[(size_t) i];
+        g.stream = (uint8_t) (1 + i % 4);
+        g.delaySec = 0.2f * (float) i;
+        g.pitchSt = (float) ((i % 49) - 24);
+        g.pan = (float) ((i % 21) - 10) / 10.0f;
+        g.env = 0.5f;
+        g.gain = 0.8f;
+        g.lengthSec = 0.1f;
+    }
+    t.counts = { 128, 128, 128, 128 };
+    t.limit = 128;
+    t.outPeakL = t.outPeakR = t.inPeak = 0.9f;
+    t.onsetPulse = 1.0f;
+    t.onsetFired = true;
+    t.lfoPhase = { 0.25f, 0.5f, 0.75f, 0.9f };
+    t.pitchMidi = 61.0f; t.pitchCents = -49.0f; t.pitchClarity = 1.0f;
+    t.loopGainDb = -0.4f;
+
+    std::array<float, 64> curve {};
+    p->getWindowCurve (1, curve.data(), (int) curve.size());
+    juce::Array<juce::var> pts;
+    for (auto v : curve) pts.add (v);
+
+    auto* natives = new juce::DynamicObject();
+    natives->setProperty ("getScaleState", ogran::ui::buildScaleState (*p));
+    natives->setProperty ("getTelemetry", ogran::ui::telemetryToVar (t));
+    natives->setProperty ("getParameterDefaults", juce::var (defs));
+    natives->setProperty ("getWindowCurve", pts);
+
+    auto* root = new juce::DynamicObject();
+    root->setProperty ("_why", "Generated from the processor by the render harness (PLAN-3.1 P106) - never hand-edit. "
+                               "Regenerate: O-Granulator-render-harness --dump-ui-overrides "
+                               "plugins/O-Granulator/tests/ui-stub/generic-overrides.json");
+    root->setProperty ("combos", juce::var (combos));
+    root->setProperty ("sliders", juce::var (sliders));
+    root->setProperty ("natives", juce::var (natives));
+
+    out.getParentDirectory().createDirectory();
+    const bool ok = out.replaceWithText (juce::JSON::toString (juce::var (root), false) + "\n", false, false, "\n");
+    std::printf ("dump-ui-overrides: %d combos, %d sliders, %d defaults -> %s (%s)\n", nc, nf, defs->getProperties().size(),
+                 out.getFullPathName().toRawUTF8(), ok ? "ok" : "WRITE FAILED");
+    return ok && nc == 59 && nf == 140 ? 0 : 1;
+}
+
+//==============================================================================
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI init;
+    for (int a = 1; a + 1 < argc; ++a)
+        if (std::strcmp (argv[a], "--dump-ui-overrides") == 0)
+            return dumpUiOverrides (juce::File::getCurrentWorkingDirectory().getChildFile (juce::String (argv[a + 1])));
     for (int a = 1; a < argc; ++a)
     {
         if (std::strcmp (argv[a], "--legacy-24") == 0)       { gLegacyKnee = gLegacySvf = true; }
@@ -775,6 +888,13 @@ int main (int argc, char** argv)
         std::printf ("\n%d PASS, %d FAIL -- %s (2.6 sections only%s)\n", passes, failures,
                      failures == 0 ? (gNoVerdict ? "NO VERDICT (C7 contended)" : "ALL PASS") : "FAILURES", gLong ? ", --long" : "");
         return rc();
+    }
+    // Iteration aid (3.1): `--only31` runs the 3.1 sections alone.
+    if (argc > 1 && std::strcmp (argv[1], "--only31") == 0)
+    {
+        engineRows31();
+        std::printf ("\n%d PASS, %d FAIL -- %s (3.1 sections only)\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
+        return failures == 0 ? 0 : 1;
     }
     if (gLegacyKnee || gLegacySvf)
         std::printf ("[legacy-24] knee bypass %s, svfMake forced 1 %s\n", gLegacyKnee ? "ON" : "off", gLegacySvf ? "ON" : "off");
@@ -808,7 +928,7 @@ int main (int argc, char** argv)
         std::printf ("\n%d PASS, %d FAIL -- %s (2.3 sections only)\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
         return failures == 0 ? 0 : 1;
     }
-    std::printf ("O-Granulator render harness (Stage 1 + Stage 2 / 2.1–2.6%s)  goldens: %s\n", gLong ? ", --long" : "", GOLDEN_DIR);
+    std::printf ("O-Granulator render harness (Stage 1 + Stage 2 / 2.1–2.6 + Stage 3 / 3.1%s)  goldens: %s\n", gLong ? ", --long" : "", GOLDEN_DIR);
     paramRows();
     busRows();
     stateRows();
@@ -826,6 +946,7 @@ int main (int argc, char** argv)
     engineRows25bb();
     engineRows26();
     engineRows26b();
+    engineRows31();
     std::printf ("\n%d PASS, %d FAIL -- %s\n", passes, failures,
                  failures == 0 ? (gNoVerdict ? "NO VERDICT (C7 contended)" : "ALL PASS") : "FAILURES");
     return rc();

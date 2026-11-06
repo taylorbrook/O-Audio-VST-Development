@@ -145,6 +145,23 @@ namespace ogran
         float getPitchNote() const noexcept      { return pitchNoteTel.load (std::memory_order_relaxed); }
         bool  getPitchConfident() const noexcept { return pitchConfTel.load (std::memory_order_relaxed) > 0.5f; }
 
+        /** Stage 3 (PLAN-3.1 P101, RESEARCH-3.1 R107): the window figure. `n`
+            samples (phase i / (n − 1)) of the bank window a grain latches at
+            `window` (0…1) and raw `skewRaw` (−100…100) — the same step / tilt
+            mapping the grid uses (ModMatrix / spawn). Read-only on the bank,
+            which is built once in the constructor and never rebuilt, so a
+            message-thread call is race-free. Never called on the audio thread. */
+        void windowCurve (float window, float skewRaw, float* out, int n) const noexcept
+        {
+            if (out == nullptr || n <= 0)
+                return;
+            const int  step = WindowMorphBank::stepFor (std::clamp (window, 0.0f, 1.0f));
+            const auto tilt = ouaricon::grain::WindowLut::makeTilt (0.5f + 0.45f * (std::clamp (skewRaw, -100.0f, 100.0f) / 100.0f));
+            const float* tab = bank.table (step);
+            for (int i = 0; i < n; ++i)
+                out[i] = WindowMorphBank::read (tab, tilt, n > 1 ? static_cast<double> (i) / static_cast<double> (n - 1) : 0.0);
+        }
+
        #if OGRAN_TEST_HOOKS
         //======================================================================
         // Test hooks — compiled into the render-harness target only.

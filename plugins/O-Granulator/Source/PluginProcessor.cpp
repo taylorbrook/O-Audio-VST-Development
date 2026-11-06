@@ -175,6 +175,16 @@ GranulatorProcessor::GranulatorProcessor()
                 engine.setModDestination (d, f->getNormalisableRange(), raw (id));
         }
     }
+
+    // Stage 3 (PLAN-3.1 P100): preset FILES. Sign-offs: the seed travels in
+    // customState (a preset reproduces its texture); output_gain is the user's
+    // trim — never written by a preset, never reset by a load
+    // (feedback_presets_never_set_output_gain). No directory I/O here: the
+    // manager creates its folders lazily (auval).
+    presetManager.setCustomStateCallbacks ([this] { return presetCustomState(); },
+                                           [this] (const juce::var& v) { applyPresetCustomState (v); });
+    presetManager.setExcludedParameters ({ "output_gain" });
+    presetManager.setValidatedApply (true);
 }
 
 //==============================================================================
@@ -497,10 +507,6 @@ void GranulatorProcessor::setStateInformation (const void* data, int sizeInBytes
     removeCustomChildren (tree);
     parameters.replaceState (tree);
 
-    // Non-parameter state: defaults FIRST, so anything absent from the blob
-    // reads as default rather than as whatever this instance held.
-    resetNonParameterState();
-
     if (! lang.isVoid())
     {
         const auto s = lang.toString().trim();
@@ -509,30 +515,68 @@ void GranulatorProcessor::setStateInformation (const void* data, int sizeInBytes
                           std::memory_order_relaxed);
     }
 
+    // The XML children adapted into the shared apply path's inputs (P98): the
+    // property vars are passed through untouched (XML gives strings), so the
+    // parse below is the Stage 1 codec's, byte for byte.
+    juce::var custom, masks, seedVar;
     if (eng.isValid())
-    {
-        const auto s = eng.getProperty ("seed");
-        if (! s.isVoid() && s.toString().isNotEmpty() && s.toString().containsOnly ("-0123456789"))
-            setSeed (static_cast<uint64_t> (s.toString().getLargeIntValue()));
-        // stateVersion / modDestTableVersion: 1 is the only version so far (migrations land here).
-    }
-
+        seedVar = eng.getProperty ("seed");   // stateVersion / modDestTableVersion: 1 is the only version so far
     if (cs.isValid())
     {
-        const auto text = cs.getProperty ("text");
+        auto* o = new juce::DynamicObject();
+        o->setProperty ("name", cs.getProperty ("name"));
+        o->setProperty ("text", cs.getProperty ("text"));
+        custom = juce::var (o);
+    }
+    if (dm.isValid())
+    {
+        juce::Array<juce::var> list;
+        for (const auto& m : dm)
+        {
+            if (! m.hasType (kMask)) continue;
+            auto* o = new juce::DynamicObject();
+            o->setProperty ("stream",     m.getProperty ("stream"));
+            o->setProperty ("collection", m.getProperty ("collection"));
+            o->setProperty ("bits",       m.getProperty ("bits"));
+            list.add (juce::var (o));
+        }
+        masks = list;
+    }
+
+    applyNonParameterState (custom, masks, seedVar);
+}
+
+//==============================================================================
+// Non-parameter apply (P98) — ONE implementation for the session codec and
+// the preset customLoad.
+//==============================================================================
+void GranulatorProcessor::applyNonParameterState (const juce::var& custom, const juce::var& masks, const juce::var& seedVar)
+{
+    // Defaults FIRST, so anything absent reads as default rather than as
+    // whatever this instance held. The seed is not part of the reset (there is
+    // no default seed): absent keeps the live one.
+    resetNonParameterState();
+
+    if (! seedVar.isVoid() && seedVar.toString().isNotEmpty() && seedVar.toString().containsOnly ("-0123456789"))
+        setSeed (static_cast<uint64_t> (seedVar.toString().getLargeIntValue()));
+
+    if (auto* c = custom.getDynamicObject())
+    {
+        const auto text = c->getProperty ("text");
         if (! text.isVoid() && text.toString().isNotEmpty())
         {
             juce::String badToken;
-            const auto name = cs.getProperty ("name");
+            const auto name = c->getProperty ("name");
             setCustomScale (name.isVoid() ? juce::String() : name.toString(), text.toString(), badToken);   // failure keeps the 12-EDO default
         }
     }
 
-    if (dm.isValid())
-        for (const auto& m : dm)
+    if (const auto* list = masks.getArray())
+        for (const auto& m : *list)
         {
-            if (! m.hasType (kMask)) continue;
-            const auto sv = m.getProperty ("stream"), cv = m.getProperty ("collection"), bv = m.getProperty ("bits");
+            auto* o = m.getDynamicObject();
+            if (o == nullptr) continue;
+            const auto sv = o->getProperty ("stream"), cv = o->getProperty ("collection"), bv = o->getProperty ("bits");
             if (sv.isVoid() || cv.isVoid() || bv.isVoid()) continue;
             const auto bits = bv.toString();
             if (bits.length() != 16 || ! bits.containsOnly ("0123456789abcdefABCDEF")) continue;
@@ -540,6 +584,105 @@ void GranulatorProcessor::setStateInformation (const void* data, int sizeInBytes
         }
 
     bumpScaleRevision();
+}
+
+//==============================================================================
+// Presets (P99 / P100). Same encodings as the session codec: seed as an int64
+// decimal STRING (a JSON number is a double — it loses bits above 2^53 — and
+// getLargeIntValue clamps uint64 > INT64_MAX), masks as 16 hex digits, only
+// non-default ones written.
+//==============================================================================
+juce::var GranulatorProcessor::presetCustomState() const
+{
+    auto* root = new juce::DynamicObject();
+    root->setProperty ("seed", juce::String (static_cast<juce::int64> (getSeed())));
+
+    const auto c = getCustomScale();
+    auto* cs = new juce::DynamicObject();
+    cs->setProperty ("name", c.name);
+    cs->setProperty ("text", c.text);
+    root->setProperty ("custom", juce::var (cs));
+
+    juce::Array<juce::var> list;
+    for (int s = 1; s <= Ids::kStreams; ++s)
+        for (int col = 1; col < Ids::kNumCollections; ++col)
+        {
+            const uint64_t mask = getDegreeMask (s, col);
+            if (mask == kAllOn) continue;
+            auto* o = new juce::DynamicObject();
+            o->setProperty ("stream", s);
+            o->setProperty ("collection", col);
+            o->setProperty ("bits", juce::String::toHexString (static_cast<juce::int64> (mask)).paddedLeft ('0', 16));
+            list.add (juce::var (o));
+        }
+    root->setProperty ("masks", list);
+    return juce::var (root);
+}
+
+void GranulatorProcessor::applyPresetCustomState (const juce::var& customState)
+{
+    // P99: only an int64 decimal STRING is a seed; anything else counts as absent.
+    juce::var custom, masks, seedVar;
+    if (auto* o = customState.getDynamicObject())
+    {
+        custom = o->getProperty ("custom");
+        masks  = o->getProperty ("masks");
+        const auto sv = o->getProperty ("seed");
+        if (sv.isString())
+            seedVar = sv;
+    }
+    applyNonParameterState (custom, masks, seedVar);
+}
+
+//==============================================================================
+// Editor live data (Stage 3)
+//==============================================================================
+bool GranulatorProcessor::readTelemetry (Telemetry& t) const
+{
+    t = Telemetry {};
+    t.scaleRev = getScaleStateRevision();
+
+    for (int i = 0; i < Telemetry::kSources; ++i)
+        t.sources[(size_t) i] = engine.getSrcTelemetry (i + 1);
+
+    const float note = engine.getPitchNote();
+    if (note > 0.0f)
+    {
+        t.pitchMidi    = note;
+        t.pitchCents   = std::round (100.0f * (note - std::round (note)));
+        t.pitchClarity = engine.getPitchConfident() ? 1.0f : 0.0f;
+    }
+
+    // Routing from the APVTS (message thread): a destination is routed when any
+    // slot has source > 0 and that destination. The engine's destTelemetry is
+    // the modulated v01 for a routed destination.
+    for (int m = 1; m <= Ids::kModSlots; ++m)
+    {
+        const auto* src = parameters.getRawParameterValue (Ids::mod (m, "source"));
+        const auto* dst = parameters.getRawParameterValue (Ids::mod (m, "dest"));
+        if (src == nullptr || dst == nullptr) continue;
+        const int s = juce::roundToInt (src->load (std::memory_order_relaxed));
+        const int d = juce::roundToInt (dst->load (std::memory_order_relaxed));
+        if (s > 0 && d > 0 && d < Telemetry::kDests)
+            t.modRouted[(size_t) d] = true;
+    }
+    for (int d = 1; d < Telemetry::kDests; ++d)
+        if (t.modRouted[(size_t) d])
+            t.modNorm[(size_t) d] = engine.getDestTelemetry (d);
+
+    return true;
+}
+
+void GranulatorProcessor::getWindowCurve (int stream, float* out, int numPoints) const noexcept
+{
+    if (out == nullptr || numPoints <= 0)
+        return;
+    stream = juce::jlimit (1, Ids::kStreams, stream);
+    const auto* w  = parameters.getRawParameterValue (Ids::stream (stream, "window"));
+    const auto* sk = parameters.getRawParameterValue (Ids::stream (stream, "window_skew"));
+    engine.windowCurve (w  != nullptr ? w->load (std::memory_order_relaxed)  : 0.0f,
+                        sk != nullptr ? sk->load (std::memory_order_relaxed) : 0.0f,
+                        out, numPoints);
 }
 
 //==============================================================================

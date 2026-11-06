@@ -26,6 +26,7 @@
 #include <limits>
 #include "GranulatorParamIds.h"
 #include "dsp/Engine.h"
+#include "OuariconPresetManager.h"   // modules/persistence/preset-manager (files only — PLAN-3.1 P100)
 
 // ============================================================================
 // O-Granulator.
@@ -37,8 +38,10 @@
 // absolute 32-sample pass grid, four streams on one pool (water-filled quotas,
 // fair stealing), scale quantiser, window morph, per-grain FX, feedback chain,
 // freeze, reverb, modulation matrix, onset / pitch analysis, R5 output law,
-// dry/wet; infinite tail (D21). The editor is juce::GenericAudioProcessorEditor
-// until Stage 3.
+// dry/wet; infinite tail (D21). Stage 3 (Phase 3.1): the WebView editor
+// (GranulatorEditor, PluginEditor.h — plugin target only), an
+// OuariconPresetManager for preset FILES (the session stays on the codec
+// below), the Telemetry pull and the window figure.
 //
 // Threading: everything in the "scale state" and "seed" sections is message-
 // thread API (Stage 2 hands the audio thread its own copies). No listener and
@@ -136,6 +139,83 @@ public:
     float getPitchNote() const noexcept      { return engine.getPitchNote(); }
     bool  getPitchConfident() const noexcept { return engine.getPitchConfident(); }
 
+    // ── Presets (Stage 3, PLAN-3.1 P98–P100) ────────────────────────────────
+    /** Preset FILES only. The session (getState / setStateInformation) stays
+        on the Stage 1 codec: getStateAsXml / setStateFromXml are never called,
+        so no <CustomState> child can reach the live tree. output_gain is
+        excluded (a preset never writes it, a load never resets it); every
+        preset apply is gestured per parameter (validated apply). */
+    OuariconPresetManager& getPresetManager() noexcept { return presetManager; }
+
+    /** customSave: { seed: int64 decimal STRING, custom: { name, text },
+        masks: [ { stream, collection, bits: 16 hex } … non-default only ] }.
+        Message thread. */
+    juce::var presetCustomState() const;
+
+    /** customLoad (fires on EVERY preset apply; void var = no customState):
+        reset → apply what is present → bump the scale revision, through the
+        same applyNonParameterState() the session codec uses. An absent or
+        malformed seed keeps the live seed (P99). Message thread. */
+    void applyPresetCustomState (const juce::var& customState);
+
+    // ── Live data for the editor (Stage 3; PULLED by the page at ~30 Hz) ────
+    /** Every field the page can read (v2-integration-checklist §2). Phase 3.1
+        fills scaleRev, sources (→ lfo / env), pitch and modNorm / modRouted;
+        3.2 (hasBuffer: wave ring + grain snapshot) and 3.3 (hasCounts,
+        hasMeters, hasOnset, hasLoopGain, lfoPhase) fill the rest. A key whose
+        has* flag is false is omitted from the payload (ScaleStateJson.h). */
+    struct Telemetry
+    {
+        static constexpr int kWaveBins  = 464;
+        static constexpr int kMaxGrains = 128;
+        static constexpr int kSources   = ogran::kSrcTelemetry;   // 11
+        static constexpr int kDests     = ogran::kModDests;       // 113 incl. None (0)
+
+        struct Grain { uint8_t stream = 0; float delaySec = 0, pitchSt = 0, pan = 0, env = 0, gain = 0, lengthSec = 0; };
+
+        uint32_t scaleRev = 0;
+
+        bool hasBuffer = false;                        // 3.2
+        bool frozen = false;
+        float spanSec = 0.0f;
+        std::array<float, kWaveBins> wave {};
+        int waveCount = 0;
+        std::array<Grain, kMaxGrains> grains {};
+        int grainCount = 0;
+
+        bool hasCounts = false;                        // 3.3
+        std::array<int, 4> counts {};
+        int limit = 0;
+
+        bool hasMeters = false;                        // 3.3 (consuming peaks)
+        float outPeakL = 0.0f, outPeakR = 0.0f, inPeak = 0.0f;
+
+        std::array<float, kSources> sources {};        // 3.1: LFO 1–4, Env, Pitch, Onset, Macro 1–4
+        std::array<float, 4> lfoPhase {};              // 3.3 (zeros until then)
+
+        bool hasOnset = false;                         // 3.3
+        float onsetPulse = 0.0f;
+        bool onsetFired = false;
+
+        float pitchMidi = 0.0f, pitchCents = 0.0f, pitchClarity = 0.0f;   // 3.1; midi <= 0 = none
+
+        bool hasLoopGain = false;                      // 3.3; non-finite = loop open
+        float loopGainDb = std::numeric_limits<float>::quiet_NaN();
+
+        std::array<float, kDests> modNorm {};          // 3.1: routed destinations only
+        std::array<bool, kDests> modRouted {};
+    };
+
+    /** Message thread, copy-only (relaxed atomics; no seqlock in 3.1, so it
+        always returns true). 3.2 adds the grain / wave seqlock and the
+        false-on-torn path. Never touches the pool or the scheduler. */
+    bool readTelemetry (Telemetry& t) const;
+
+    /** The window figure: `numPoints` samples of the engine's own window
+        (WindowMorphBank) at stream 1…4's BASE sN_window / sN_window_skew.
+        Message thread. */
+    void getWindowCurve (int stream, float* out, int numPoints) const noexcept;
+
    #if OGRAN_TEST_HOOKS
     /** Render-harness only: hooks (forceLevel0, disableFracQuant) and Diag. */
     ogran::Engine& getEngineForTest() noexcept { return engine; }
@@ -148,9 +228,21 @@ private:
     }
     int degreeCountFor (int collection) const;
     void resetNonParameterState();
+
+    /** THE non-parameter apply path (P98), shared by setStateInformation and
+        the preset customLoad: reset to defaults → seed (if present and
+        well-formed; absent keeps the live seed) → custom scale (if `custom`
+        has a non-empty text) → masks → bumpScaleRevision(). Inputs are vars so
+        both encodings feed it as they are: `custom` an object { name, text },
+        `masks` an array of { stream, collection, bits } objects, `seed` an
+        int64 decimal string. Void = absent. Message thread. */
+    void applyNonParameterState (const juce::var& custom, const juce::var& masks, const juce::var& seed);
     void bumpScaleRevision() noexcept { scaleStateRevision.fetch_add (1, std::memory_order_acq_rel); }
 
     std::atomic<uint64_t> seed { 0 };
+
+    // Declared after `parameters` (constructed from it). Files only (P100).
+    OuariconPresetManager presetManager { parameters, "O-Granulator" };
 
     mutable juce::SpinLock customLock;
     PitchCollections::Table customTable;
