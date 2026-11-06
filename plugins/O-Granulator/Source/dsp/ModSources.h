@@ -61,7 +61,9 @@
 // 0, 1) at the tick — silence is exactly 0.
 //
 // Macros: macroN/100 through an ExactRamp (20 ms). Unipolar.
-// Pitch (6) and Onset (7) output exactly 0 in 2.5a (2.5b).
+// Pitch (6) and Onset (7): live from 2.5b, computed in Analysis.h (the Pitch
+// source slews the tracked note, the Onset source decays from the last event)
+// and sampled at the tick like every other source.
 // ============================================================================
 namespace ogran
 {

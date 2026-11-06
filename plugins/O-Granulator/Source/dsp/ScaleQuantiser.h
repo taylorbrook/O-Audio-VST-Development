@@ -175,4 +175,137 @@ namespace ogran
         float         keySpan    = -1.0f;
         std::uint32_t keyVersion = 0;
     };
+
+    //==========================================================================
+    /** 2.5b absolute pitch follow (PLAN-2.5b P71; RESEARCH-2.5b R70–R72, R71 and
+        D19 signed off / locked). One per stream, rebuilt at ticks only.
+
+        Members (cents relative to R = 6000 + 100·root, i.e. 1/1 at C4 + root,
+        R70) are c_d + k·P for the active degrees (mask tested by SOURCE index,
+        then insertion-sorted — R9), over [−2400 − P, 2400 + 2P]: the maximum
+        span, so the key is (table choice, mask, customVersion) only and a
+        modulated pitch_rand never rebuilds it. Stored in DOUBLE. Truncated
+        outward from k = 0 at kMaxActive (wasTruncated). D19: scale Off → the
+        Chromatic built-in, every degree (the caller passes allDegrees).
+
+        Per grain, in double, MIDI cents:
+          T = 100·(f0 + pitch),  o = T − R,  k0 = floor (o/P),  q = o − k0·P
+          clamp [100·f0 − 2400, 100·f0 + 2400] − R − k0·P   (|interval| <= 24 st)
+          span > 0 and members in [q ± span] ∩ clamp → uniform pick
+                       (draw.nextInt (Slot::Pitch, n), R72)
+          otherwise → the NEAREST member to q inside the clamp, ties up (R71)
+          none inside the clamp → NoMember (4); empty set → EmptySet (3)
+          target t = R + k0·P + member (MIDI cents). */
+    class AbsSet
+    {
+    public:
+        enum Result : int { Hit = 0, EmptySet = 3, NoMember = 4 };
+
+        bool rebuildIfNeeded (int choice, std::uint64_t mask, std::uint32_t customVersion,
+                              const PitchCollections::Table& table, bool allDegrees) noexcept
+        {
+            const std::uint64_t m = allDegrees ? ~std::uint64_t (0) : mask;
+            if (valid && choice == keyChoice && m == keyMask && customVersion == keyVersion)
+                return false;
+            valid      = true;
+            keyChoice  = choice;
+            keyMask    = m;
+            keyVersion = customVersion;
+
+            count     = 0;
+            truncated = false;
+            period    = static_cast<double> (table.period);
+            const int nDeg = std::clamp (table.count, 0, PitchCollections::kMaxPitches);
+            const std::uint64_t used = nDeg >= 64 ? ~std::uint64_t (0) : ((std::uint64_t (1) << nDeg) - 1);
+            if ((m & used) != 0 && period > 0.0)
+            {
+                const double lo = -kAbsMaxSpanCents - period, hi = kAbsMaxSpanCents + 2.0 * period;
+                const int kMax = static_cast<int> (std::ceil (hi / period)) + 1;
+                for (int a = 0; a <= kMax && ! truncated; ++a)
+                    for (int sgn = 0; sgn < (a == 0 ? 1 : 2) && ! truncated; ++sgn)
+                    {
+                        const int k = sgn == 0 ? a : -a;
+                        for (int d = 0; d < nDeg; ++d)
+                        {
+                            if ((m >> d & 1u) == 0)
+                                continue;
+                            const double c = static_cast<double> (table.cents[static_cast<size_t> (d)])
+                                           + static_cast<double> (k) * period;
+                            if (c < lo || c > hi)
+                                continue;
+                            if (count >= kMaxActive) { truncated = true; break; }
+                            cents[count++] = c;
+                        }
+                    }
+            }
+            for (int i = 1; i < count; ++i)
+            {
+                const double v = cents[i];
+                int j = i;
+                for (; j > 0 && cents[j - 1] > v; --j)
+                    cents[j] = cents[j - 1];
+                cents[j] = v;
+            }
+            return true;
+        }
+
+        /** The absolute target (MIDI cents) for a grain of a follow stream. */
+        int target (double f0Midi, double pitchSt, double pitchRandSt, int root,
+                    const ouaricon::grain::CounterRng::Draw& draw, double& targetCents) const noexcept
+        {
+            if (count <= 0 || ! (period > 0.0))
+                return EmptySet;
+            const double R  = kAbsRefCents + 100.0 * static_cast<double> (root);
+            const double T  = 100.0 * (f0Midi + pitchSt);
+            const double o  = T - R;
+            const double k0 = std::floor (o / period);
+            const double q  = o - k0 * period;
+            const double cLo = 100.0 * f0Midi - kAbsMaxSpanCents - R - k0 * period;
+            const double cHi = 100.0 * f0Midi + kAbsMaxSpanCents - R - k0 * period;
+            const double span = 100.0 * pitchRandSt;
+
+            if (span > 0.0)
+            {
+                const double a = std::max (q - span, cLo), b = std::min (q + span, cHi);
+                const int lo = static_cast<int> (std::lower_bound (cents, cents + count, a) - cents);
+                const int hi = static_cast<int> (std::upper_bound (cents, cents + count, b) - cents);
+                if (hi > lo)
+                {
+                    targetCents = R + k0 * period + cents[lo + draw.nextInt (Slot::Pitch, hi - lo)];
+                    return Hit;
+                }
+            }
+            // Nearest member to q inside the clamp, ties up (R71).
+            const int up = static_cast<int> (std::lower_bound (cents, cents + count, q) - cents);   // first >= q
+            int best = -1;
+            if (up < count && cents[up] <= cHi && cents[up] >= cLo)
+                best = up;
+            if (up - 1 >= 0 && cents[up - 1] >= cLo && cents[up - 1] <= cHi)
+                if (best < 0 || q - cents[up - 1] < cents[best] - q)
+                    best = up - 1;
+            // q lies inside the clamp (|pitch| <= 24), so any member inside it is
+            // either >= q (then cents[up] is inside) or < q (then cents[up − 1] is).
+            if (best < 0)
+                return NoMember;
+            targetCents = R + k0 * period + cents[best];
+            return Hit;
+        }
+
+        const double* data() const noexcept { return cents; }
+        int    size() const noexcept         { return count; }
+        double getPeriod() const noexcept    { return period; }
+        bool   wasTruncated() const noexcept { return truncated; }
+        void   invalidate() noexcept         { valid = false; }
+
+    private:
+        double cents[kMaxActive] {};
+        int    count = 0;
+        double period = 1200.0;
+        bool   truncated = false;
+
+        bool          valid      = false;
+        int           keyChoice  = -1;
+        std::uint64_t keyMask    = 0;
+        std::uint32_t keyVersion = 0;
+    };
 } // namespace ogran

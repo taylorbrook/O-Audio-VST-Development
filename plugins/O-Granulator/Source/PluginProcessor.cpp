@@ -112,7 +112,13 @@ GranulatorProcessor::GranulatorProcessor()
             // 2.5a tempo sync
             s.sizeSync     = raw (Ids::stream (n, "size_sync"));
             s.densitySync  = raw (Ids::stream (n, "density_sync"));
+            // 2.5b onset trigger + pitch follow (PLAN-2.5b P73)
+            s.onsetTrigger = raw (Ids::stream (n, "onset_trigger"));
+            s.follow       = raw (Ids::pitchFollow (n));
         }
+        // Phase 2.5b: scale root (absolute follow, R70) and the onset threshold.
+        p.scaleRoot      = raw ("scale_root");
+        p.onsetThreshold = raw ("onset_threshold");
 
         // Phase 2.5a: sync mode, LFO / env / macro sources, the 16-slot matrix.
         p.syncMode = raw ("sync_mode");

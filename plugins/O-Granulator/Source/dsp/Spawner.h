@@ -115,6 +115,15 @@ namespace ogran
         bool   noMinSpray   = false;   // test hook freezeNoMinSpray (FZ3n): live formula + plain clamp
     };
 
+    /** 2.5b absolute pitch follow (PLAN-2.5b P71 / P72): the pass-2 pitch of a
+        follow stream whose f0 lookup hit. st = the interval (target − f0) in
+        semitones, pitchCents = target − (f0 + pitch)·100 (the spawn log field). */
+    struct FollowPitch
+    {
+        double st         = 0.0;
+        float  pitchCents = 0.0f;
+    };
+
     /** Victim-choice variants. Plugin builds always use the default (R8). */
     struct AcquirePolicy
     {
@@ -145,8 +154,10 @@ namespace ogran
             slot, so the order is documentation; the before-acquire rule is not.) */
         static GrainPlan plan (const GridParams::Stream& sp, double spanSamples, double fs, int ringSamples,
                                std::uint64_t seed, int stream, std::uint64_t globalIndex, bool forceLevel0,
-                               const PitchSel& pitchSel = {}, const FrozenGeom& fz = {}) noexcept
+                               const PitchSel& pitchSel = {}, const FrozenGeom& fz = {},
+                               const FollowPitch* follow = nullptr) noexcept
         {
+            juce::ignoreUnused (follow);   // consumed from PLAN-2.5b T8
             const ouaricon::grain::CounterRng::Draw draw (seed, kGrainStream + static_cast<std::uint64_t> (stream), globalIndex);
             auto uni = [&draw] (std::uint32_t slot) noexcept { return static_cast<double> (draw.nextFloat (slot)); };
 

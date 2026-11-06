@@ -220,11 +220,17 @@ namespace ogran
             // 2.5a tempo sync (choice indices into the 20 / 19 division lists)
             std::atomic<float>* sizeSync     = nullptr;
             std::atomic<float>* densitySync  = nullptr;
+            // 2.5b (PLAN-2.5b P73)
+            std::atomic<float>* onsetTrigger = nullptr;   // Bool
+            std::atomic<float>* follow       = nullptr;   // pitch_follow_sN (Bool)
         };
         Stream s[kMaxStreams] {};
 
         // 2.5a: sync, LFO / env / macro sources, modulation matrix.
         std::atomic<float>* syncMode   = nullptr;   // choice 0 Free, 1 Tempo
+        // 2.5b: scale_root (choice 0–11, C … B) and onset_threshold (dB).
+        std::atomic<float>* scaleRoot      = nullptr;
+        std::atomic<float>* onsetThreshold = nullptr;
         struct Lfo
         {
             std::atomic<float>* shape    = nullptr;   // choice 0…5
@@ -306,11 +312,17 @@ namespace ogran
             // 2.5a tempo sync — spec defaults (index 7 = 1/16)
             int   sizeSync       = 7;        // 0…19
             int   densitySync    = 7;        // 0…18
+            // 2.5b — spec defaults
+            bool  onsetTrigger   = false;
+            bool  follow         = false;    // pitch_follow_sN
         };
         Stream s[kMaxStreams] {};
 
         // 2.5a — spec defaults
         int syncMode = 0;                    // 0 Free, 1 Tempo
+        // 2.5b — spec defaults
+        int   scaleRoot        = 0;          // 0 C … 11 B
+        float onsetThresholdDb = -30.0f;     // −60..0
         struct Lfo
         {
             int   shape    = 0;              // 0 Sine … 5 Smooth Random
@@ -408,10 +420,15 @@ namespace ogran
                 // 2.5a
                 readChoice (ps.sizeSync,    st.sizeSync,    19);
                 readChoice (ps.densitySync, st.densitySync, 18);
+                // 2.5b
+                readBool (ps.onsetTrigger, st.onsetTrigger);
+                readBool (ps.follow,       st.follow);
             }
 
             // 2.5a: sync, sources, matrix (choice indices with lround, clamped).
             readChoice (p.syncMode, syncMode, 1);
+            readChoice (p.scaleRoot, scaleRoot, 11);
+            read (p.onsetThreshold, onsetThresholdDb, -60.0f, 0.0f);
             for (int n = 0; n < kLfos; ++n)
             {
                 readChoice (p.lfo[n].shape,    lfo[n].shape,    5);

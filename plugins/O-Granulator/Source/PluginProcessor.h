@@ -124,6 +124,12 @@ public:
         return degreeCount >= 64 ? mask : (mask | ~((uint64_t (1) << degreeCount) - 1));
     }
 
+    /** 2.5b telemetry (ARCH Telemetry, P68): the live pitch-follower note (MIDI,
+        float) and its confidence (0 / 1). Relaxed atomics written per cell on the
+        audio thread; read by the UI (Stage 3). */
+    float getPitchNote() const noexcept      { return engine.getPitchNote(); }
+    bool  getPitchConfident() const noexcept { return engine.getPitchConfident(); }
+
    #if OGRAN_TEST_HOOKS
     /** Render-harness only: hooks (forceLevel0, disableFracQuant) and Diag. */
     ogran::Engine& getEngineForTest() noexcept { return engine; }

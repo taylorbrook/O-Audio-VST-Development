@@ -30,7 +30,7 @@
 #endif
 
 // ============================================================================
-// O-Granulator engine constants (Stage 2, Phases 2.1–2.5a).
+// O-Granulator engine constants (Stage 2, Phases 2.1–2.5b).
 // ARCHITECTURE §2, §6, §16; RESEARCH-2.1 §1; PLAN-2.1 T1.
 // ============================================================================
 namespace ogran
@@ -183,6 +183,50 @@ namespace ogran
         const int i = index < 0 ? 0 : (index >= kTempoDivs ? kTempoDivs - 1 : index);
         return kTempoDivBars[i] != 0 ? static_cast<double> (kTempoDivBars[i]) * barLen : kTempoDivBeats[i];
     }
+
+    // ── Phase 2.5b (PLAN-2.5b layout table; RESEARCH-2.5b R59–R78, CONTEXT-2.5b
+    //    D17–D20). Onset detector, decimator + MPM, D20 guard, Pitch source,
+    //    f0 history ring, absolute follow. See Analysis.h. ───────────────────
+    // Onset detector (R60 signed off: edge-triggered, +3 dB re-arm; R75 linear compare)
+    inline constexpr double kOnsetHpHz       = 150.0;
+    inline constexpr double kOnsetFastAttMs  = 0.5;
+    inline constexpr double kOnsetFastRelMs  = 10.0;
+    inline constexpr double kOnsetSlowMs     = 80.0;                 // slow attack == release
+    inline constexpr double kOnsetRatio      = 1.9952623149688795;   // 10^(6/20)
+    inline constexpr double kOnsetRearm      = 1.4125375446227544;   // 10^(3/20)
+    inline constexpr double kOnsetRefractS   = 0.05;
+    inline constexpr double kOnsetTauS       = 0.15;                 // Onset source time constant (ARCH "150 ms")
+    inline constexpr double kOnsetZeroTaus   = 16.0;                 // P64: exactly 0 beyond 16 τ (no subnormal tail)
+    inline constexpr float  kAnalysisTapMax  = 1.0e4f;               // tap sanitiser: |a| beyond +80 dBFS (or non-finite) → 0
+    // Decimator + MPM (ARCH §15 / Algorithm §7 contract; R68)
+    inline constexpr double kDecimTargetHz = 12000.0;
+    inline constexpr int    kDecimTaps     = 64;
+    inline constexpr double kDecimCutoff   = 0.4;                    // × fs/D
+    inline constexpr int    kMpmWindow     = 1024;
+    inline constexpr int    kMpmFftOrder   = 11;                     // 2048-point FFT (zero-pad ×2)
+    inline constexpr int    kMpmHop        = 128;                    // decimated samples
+    inline constexpr double kMpmKeyMax     = 0.9;
+    inline constexpr double kMpmClarity    = 0.8;
+    inline constexpr double kMpmGateDb     = -50.0;                  // window RMS gate (dBFS)
+    inline constexpr double kMpmMinHz      = 40.0;
+    inline constexpr double kMpmMaxHz      = 1500.0;
+    // D20 guard (R66 signed off: median-of-3 + asymmetric harmonic-class lookahead, N = 3)
+    inline constexpr double kGuardHarm[4] { 7.02, 12.0, 19.02, 24.0 };
+    inline constexpr double kGuardTolSt = 0.5;
+    inline constexpr int    kGuardN     = 3;
+    // Pitch source (P68)
+    inline constexpr double kPitchHoldS   = 0.25;
+    inline constexpr double kPitchSlewS   = 0.02;
+    inline constexpr double kPitchSrcLo   = 24.0;                    // MIDI → 0
+    inline constexpr double kPitchSrcSpan = 84.0;                    // MIDI 108 → 1
+    // Fixed capacities (no allocation after construction)
+    inline constexpr int    kF0RingCap  = 8192;
+    inline constexpr int    kCellLogCap = 2048;
+    // Tempo bursts (D18 / R73): counter 2^63 | n on kGrainStream + s, disjoint from every grid counter
+    inline constexpr std::uint64_t kBurstBit = 1ull << 63;
+    // Absolute follow (R70: 1/1 at C4 + scale_root; ±24 st interval clamp)
+    inline constexpr double kAbsRefCents     = 6000.0;
+    inline constexpr double kAbsMaxSpanCents = 2400.0;
 
     // ── CounterRng streams and slots ────────────────────────────────────────
     // Draw (seed, base + streamIndex, counter). Scheduler and grain draws use

@@ -24,6 +24,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include "Analysis.h"         // 2.5b onset detector, MPM, D20 guard, f0 ring (P61)
 #include "CaptureWriter.h"
 #include "ControlGrid.h"
 #include "EngineConstants.h"
@@ -42,7 +43,7 @@
 #include "WindowMorphBank.h"
 
 // ============================================================================
-// O-Granulator pass engine (Stage 2, Phases 2.1–2.5a).
+// O-Granulator pass engine (Stage 2, Phases 2.1–2.5b).
 // ARCHITECTURE Processing Chain (per-pass order, normative), §1–7, §10, §14, §16;
 // RESEARCH-2.1 R1–R4; PLAN-2.1 T7.
 //
@@ -55,11 +56,19 @@
 //      sampled once per cell) and the sparse matrix (routed destinations only;
 //      unrouted = the raw 2.4 value). The transport snapshot is taken once per
 //      HOST block (TempoTracker), before the first piece.
-//   2. (analysis — 2.5b)
+//      2.5b: after the freeze edges, the analysis tick (Analysis.h): cell log
+//      {absCount, W, live}, thrLin, scrub checks, the R59 commit of the pending
+//      MPM hop (D20 guard → f0 ring → live note), then the Pitch / Onset
+//      sources with the others.
+//   2. 2.5b analysis of the piece on the conditioned input (after the env
+//      follower): onset detector → at most one event; decimator; an MPM hop
+//      into the pending slot. It never touches an audio statement (N3).
 //   3. write the piece into the ring (input·inGain + fb[n − 32]) through the
 //      freeze Write Arbiter (2.4: no push while frozen; 10 ms mirror content
 //      crossfade on release). Grains anchor in the RING domain (R23).
-//   4. schedule enabled streams → onsets, merged by (offset, stream)
+//   4. schedule enabled streams → onsets, merged by (offset, stream); 2.5b: an
+//      event re-phases a trigger-on Free stream (D14) or adds one grain to a
+//      trigger-on Tempo stream (D18)
 //   5. render grain-major, split at onset offsets, spawn at each split
 //   6. stream mixer: bus × g_out × level × pan → wet[2][kCell]; feedback tap
 //      bus × g_fb × level × audible / max (1, Σ level·audible) → tap[2][kCell]
@@ -123,7 +132,7 @@ namespace ogran
         // Telemetry (P55, R58): relaxed atomics written per cell on the audio
         // thread, read by the UI (Stage 3). dest k: routed → v01, unrouted →
         // base01 (written only when the raw value changes). src 1…11: LFO 1–4
-        // in [−1, 1], Env / Macros in [0, 1], Pitch / Onset 0 (2.5b).
+        // in [−1, 1], Env / Macros / Pitch / Onset in [0, 1].
         float getDestTelemetry (int dest) const noexcept
         {
             return dest >= 0 && dest < kModDests ? destTelemetry[static_cast<size_t> (dest)].load (std::memory_order_relaxed) : 0.0f;
@@ -132,6 +141,9 @@ namespace ogran
         {
             return src >= 1 && src <= kSrcTelemetry ? srcTelemetry[static_cast<size_t> (src - 1)].load (std::memory_order_relaxed) : 0.0f;
         }
+        /** 2.5b (P68): the live pitch-follower note (MIDI) and confidence. */
+        float getPitchNote() const noexcept      { return pitchNoteTel.load (std::memory_order_relaxed); }
+        bool  getPitchConfident() const noexcept { return pitchConfTel.load (std::memory_order_relaxed) > 0.5f; }
 
        #if OGRAN_TEST_HOOKS
         //======================================================================
@@ -202,6 +214,18 @@ namespace ogran
             bool perBlockOrigin = false;   // TT1n / N8n: re-anchor on the host ppq every block (GrainScatter form, R39)
             bool ceilPerTick    = false;   // TS1n: the pending slot re-derived from ppq at every tick (R40 control)
             std::int64_t injectEnvNanAt = -1;   // EV3: NaN into the env follower state at the first piece >= this sample
+
+            // ── 2.5b (PLAN-2.5b P73) ────────────────────────────────────────
+            bool analysisOff          = false;   // OD0: skip the analysis (detector, MPM, sources stay 0)
+            bool levelTrigger         = false;   // OD1n: the ARCH §8 level-triggered detector (no armed state)
+            bool commitHopImmediately = false;   // N9n: commit a hop at its sample inside the piece (R59 class)
+            bool guardOff             = false;   // OG2n: raw hops straight through the D20 guard
+            bool ringHold             = false;   // FR7n: write the HELD live value into the f0 ring (R65 control)
+            bool strictNewest         = false;   // FR8n: a read point newer than the newest entry misses (strict D17)
+            bool lookupAtStart        = false;   // FR9n: look f0 up at the grain's read start, not the content midpoint
+            bool liveF0Lookup         = false;   // FR5n / FR6n: follow the LIVE tracker note (the ARCH §5 form)
+            struct InjectTap { std::int64_t at = -1; float value = 0.0f; bool done = false; };
+            InjectTap injectAnalysis;            // OD6 / Z6b: replace the tap sample at `at`
         };
 
         /** P56 trace ring (test builds): {absolute sample, value}. */
@@ -259,6 +283,13 @@ namespace ogran
             float         ringHz      = 0.0f;
             bool          crushed     = false;
             float         driveD      = 1.0f;
+            // 2.5b (PLAN-2.5b P71)
+            float         f0          = std::numeric_limits<float>::quiet_NaN();    // the looked-up f0 (MIDI), follow streams
+            double        target      = std::numeric_limits<double>::quiet_NaN();   // the absolute target (MIDI) on a hit
+            bool          followHit   = false;
+            int           followMiss  = 0;     // 0 none, 1 unconfident, 2 missing / overwritten, 3 empty set, 4 no member
+            double        lookupW     = 0.0;   // the ring position looked up (R64 content midpoint)
+            bool          burst       = false; // an onset-trigger burst (Free re-phase / Tempo extra grain)
         };
 
         static constexpr int kSpawnLogSize = 4096;
@@ -301,6 +332,21 @@ namespace ogran
             std::int64_t routedDests    = 0;   // max routed destinations in one cell
             std::int64_t envScrubs      = 0;   // env follower NaN / Inf resets
             float        maxWetPeak     = 0.0f; // Z5: max |wet| after the D9 knee (the knee's own bound, pre mix / output gain)
+            // 2.5b (PLAN-2.5b P73)
+            std::int64_t onsetEvents       = 0;   // detector events
+            std::int64_t maxEventsPerPiece = 0;
+            std::int64_t freeBursts        = 0;   // Free re-phases (per stream per event)
+            std::int64_t tempoBursts       = 0;   // Tempo extra grains
+            std::int64_t mpmHops           = 0;
+            std::int64_t mpmConfident      = 0;
+            std::int64_t guardHeld         = 0;   // D20: harmonic jumps held at acc
+            std::int64_t f0Writes          = 0;
+            std::int64_t f0Skips           = 0;   // decided hops centred in a frozen cell
+            std::int64_t followLookups     = 0;
+            std::int64_t followHits        = 0;
+            std::int64_t followMiss[5]     {};    // by kind (index 0 unused)
+            std::int64_t absSetRebuilds    = 0;
+            std::int64_t analysisScrubs    = 0;
             std::uint64_t logCount       = 0;   // total spawns logged; entry k at log[k % kSpawnLogSize]
             std::array<SpawnRecord, kSpawnLogSize> log {};
 
@@ -314,6 +360,9 @@ namespace ogran
                 freezeEngages = freezeReleases = forcedReleases = headReflections = headReflectionsFrozenSpawn = fbScrubs = reverbCells = 0;
                 tempoReanchors = tempoRelocks = tempoOnsets = routeChanges = routedDests = envScrubs = 0;
                 maxWetPeak = 0.0f;
+                onsetEvents = maxEventsPerPiece = freeBursts = tempoBursts = mpmHops = mpmConfident = guardHeld = 0;
+                f0Writes = f0Skips = followLookups = followHits = absSetRebuilds = analysisScrubs = 0;
+                for (auto& m : followMiss) m = 0;
                 logCount = 0;
             }
             const SpawnRecord& record (std::uint64_t k) const noexcept
@@ -339,6 +388,10 @@ namespace ogran
         const WindowMorphBank& getBank() const noexcept       { return bank; }
         const Quotas& getQuotas() const noexcept              { return quotas; }
         const ActiveSet& getActiveSet (int s) const noexcept  { return activeSets[s]; }
+        const AbsSet& getAbsSet (int s) const noexcept        { return absSets[s]; }
+        const Analysis& getAnalysis() const noexcept          { return analysis; }
+        std::uint64_t getBurstCount (int s) const noexcept    { return burstCount[s]; }
+        std::int64_t  getSlotNext (int s) const noexcept      { return scheds[s].getSlotNext(); }
         const PitchSel& getPitchSel (int s) const noexcept    { return pitchSel[s]; }
         double getCoherence (int s) const noexcept            { return coherence[s]; }
         double getTempoDiv (int s) const noexcept             { return tempoDiv[s]; }
@@ -491,6 +544,7 @@ namespace ogran
         std::uint32_t customCopyVersion = 0;
         ActiveSet  activeSets[kMaxStreams];
         PitchSel   pitchSel[kMaxStreams] {};
+        AbsSet     absSets[kMaxStreams];               // 2.5b absolute follow sets (P71), follow streams only
         Quotas     quotas;
         double     coherence[kMaxStreams] {};
 
@@ -513,6 +567,9 @@ namespace ogran
         float        rawBase[kModDests] {};            // raw base of each routed latched / tick dest, read at the tick
         bool         streamRouted[kMaxStreams] {};     // any spawn-latched field of the stream routed this cell
         double       tempoSizeBaseMs[kMaxStreams] {};  // Tempo: the synced size before modulation (P50)
+        // 2.5b analysis (P61): detector, decimator + MPM, D20 guard, f0 ring, sources.
+        Analysis      analysis;
+        std::uint64_t burstCount[kMaxStreams] {};      // Tempo bursts per stream (counter 2^63 | n), zeroed only in prepare()
         // Ramped-destination substitutes (R47): a settled cell prev → cur, used
         // while the dest is routed this cell or was routed in the previous one.
         ExactRamp    inGainMod, outGainMod, fbKnobMod, fbDiffMod, fbSatDMod;
@@ -535,11 +592,11 @@ namespace ogran
        #if OGRAN_TEST_HOOKS
         std::uint64_t guard2[8] {};
        #endif
-        StreamOnset streamOnsets[kMaxStreams][kCell] {};
+        StreamOnset streamOnsets[kMaxStreams][kOnsetCap] {};   // 2.5b: kCell + 1 (one Tempo burst)
        #if OGRAN_TEST_HOOKS
         std::uint64_t guard3[8] {};
        #endif
-        StreamOnset onsets[kMaxStreams * kCell] {};
+        StreamOnset onsets[kMaxStreams * kOnsetCap] {};
        #if OGRAN_TEST_HOOKS
         std::uint64_t guard4[8] {};
        #endif
@@ -592,6 +649,7 @@ namespace ogran
         // 2.5a telemetry (P55)
         std::array<std::atomic<float>, kModDests>     destTelemetry {};
         std::array<std::atomic<float>, kSrcTelemetry> srcTelemetry {};
+        std::atomic<float> pitchNoteTel { 0.0f }, pitchConfTel { 0.0f };   // 2.5b (P68)
 
        #if OGRAN_TEST_HOOKS
         // ── 2.3 test-only state (P28) ───────────────────────────────────────

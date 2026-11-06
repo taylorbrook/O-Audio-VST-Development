@@ -40,6 +40,8 @@
       N7, FZ, RV, Z3, Z4, M4, C4  Stage 2 / 2.4 PERF / freeze / reverb / stress rows — engine_gates_24b.h
       TT, U9, TS, LS, EV, MC  Stage 2 / 2.5a tempo + source units / rows — engine_gates_25a.h
       MF, PH, ZQ, TL, N8, M5, Z5, C5  Stage 2 / 2.5a matrix / QUAL / PERF rows — engine_gates_25ab.h
+      OD, OB, PS, MP, OG  Stage 2 / 2.5b onset / burst / source / MPM / D20 rows — engine_gates_25b.h
+      FR, AQ, MX, QB, N9, M6, Z6, C6  Stage 2 / 2.5b f0 ring / follow / PERF rows — engine_gates_25bb.h
 
   ==============================================================================
 */
@@ -323,6 +325,8 @@ namespace
 #include "engine_gates_24b.h" // Stage 2 / 2.4 sections N7, FZ, RV, Z3/Z4, M4, C4 (PLAN-2.4 P44)
 #include "engine_gates_25a.h" // Stage 2 / 2.5a sections TT, U9, TS, LS, EV, MC (PLAN-2.5a P58)
 #include "engine_gates_25ab.h" // Stage 2 / 2.5a sections MF, PH, ZQ, TL, N8, M5, Z5, C5 (PLAN-2.5a P58)
+#include "engine_gates_25b.h"  // Stage 2 / 2.5b sections OD, OB, PS, MP, OG (PLAN-2.5b P76)
+#include "engine_gates_25bb.h" // Stage 2 / 2.5b sections FR, AQ, MX, QB, N9, M6, Z6, C6 (PLAN-2.5b P76)
 
 //==============================================================================
 static void paramRows()
@@ -750,6 +754,13 @@ int main (int argc, char** argv)
     }
     if (gLegacyKnee || gLegacySvf)
         std::printf ("[legacy-24] knee bypass %s, svfMake forced 1 %s\n", gLegacyKnee ? "ON" : "off", gLegacySvf ? "ON" : "off");
+    if (argc > 1 && std::strcmp (argv[1], "--only25b") == 0)
+    {
+        engineRows25b();
+        engineRows25bb();
+        std::printf ("\n%d PASS, %d FAIL -- %s (2.5b sections only)\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
+        return failures == 0 ? 0 : 1;
+    }
     if (argc > 1 && std::strcmp (argv[1], "--only25a") == 0)
     {
         engineRows25a();
@@ -773,7 +784,7 @@ int main (int argc, char** argv)
         std::printf ("\n%d PASS, %d FAIL -- %s (2.3 sections only)\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
         return failures == 0 ? 0 : 1;
     }
-    std::printf ("O-Granulator render harness (Stage 1 + Stage 2 / 2.1–2.5a)  goldens: %s\n", GOLDEN_DIR);
+    std::printf ("O-Granulator render harness (Stage 1 + Stage 2 / 2.1–2.5b)  goldens: %s\n", GOLDEN_DIR);
     paramRows();
     busRows();
     stateRows();
@@ -787,6 +798,8 @@ int main (int argc, char** argv)
     engineRows24b();
     engineRows25a();
     engineRows25ab();
+    engineRows25b();
+    engineRows25bb();
     std::printf ("\n%d PASS, %d FAIL -- %s\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
     return failures == 0 ? 0 : 1;
 }

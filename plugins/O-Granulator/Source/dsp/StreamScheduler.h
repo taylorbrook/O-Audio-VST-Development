@@ -29,8 +29,18 @@
 // Stream scheduler (ARCHITECTURE §4, RESEARCH-2.1 §7 R4 and §8, PLAN-2.1 T4).
 //
 // A wrapper over grain-engine's GrainScheduler per stream. Free + Tempo
-// (2.5a): Free keeps GrainScheduler verbatim; Tempo is a plugin-local
-// absolute-time grid clock (RESEARCH-2.5a R40 / R41, PLAN-2.5a P49).
+// (2.5a) + onset bursts (2.5b): Free keeps GrainScheduler verbatim; Tempo is a
+// plugin-local absolute-time grid clock (RESEARCH-2.5a R40 / R41, PLAN-2.5a
+// P49).
+//
+// Onset bursts (2.5b, D14 via R73, D18; PLAN-2.5b P63). Free: the piece is
+// split at the event i — process (i), rephase() (= restart(): the onset count
+// folds into the epoch, GrainScheduler::reset()), process (len − i) — so the
+// re-phase grain is index 0 of the new epoch at frac 0 (u₀ = ½, no jitter
+// draw), and a grid onset due at i is never emitted twice. Tempo: the grid is
+// untouched; the engine appends one extra onset {i, 0, kBurstBit | n} after
+// every grid onset with offset <= i (no new index space below 2^63). Per-stream
+// list capacity kOnsetCap = kCell + 1 (≤ 1 onset per sample + one burst).
 //
 // Telescoping jitter (§8 pin):
 //     interval (k) = I · (1 + J · (u_{k+1} − u_k))
@@ -62,6 +72,10 @@
 // ============================================================================
 namespace ogran
 {
+    /** Per-stream onset list capacity: <= 1 onset per sample (kMinInterval 1)
+        plus one Tempo burst (D18). */
+    inline constexpr int kOnsetCap = kCell + 1;
+
     /** One onset inside the current piece. */
     struct StreamOnset
     {
@@ -69,6 +83,7 @@ namespace ogran
         double        frac        = 0.0;   // [0, 1): samples since the exact onset instant
         std::uint64_t globalIndex = 0;     // epoch + scheduler index — the CounterRng counter
         int           stream      = 0;
+        bool          burst       = false; // 2.5b: an onset-trigger burst (Free re-phase / Tempo extra grain)
     };
 
     class StreamScheduler
@@ -203,6 +218,11 @@ namespace ogran
             return r.count;
         }
 
+        /** 2.5b Free re-phase (D14 via R73): the R4 restart — the onset count
+            folds into the epoch and the clock fires on the next processed sample
+            as index 0 of the new epoch (frac 0, no jitter draw). */
+        void rephase() noexcept { restart(); }
+
     private:
         void restart() noexcept
         {
@@ -228,8 +248,9 @@ namespace ogran
 
     /** Merge per-stream onset lists (each sorted by offset) into one list ordered
         by (offset, stream index) — the explicit tie-break (memory: sort ties change
-        RNG assignment). Bounded: kMaxStreams × kCell entries. */
-    inline int mergeOnsets (const StreamOnset (&lists)[kMaxStreams][kCell], const int (&counts)[kMaxStreams],
+        RNG assignment); the in-stream order is kept (a Tempo burst follows the
+        grid onset it shares a sample with). Bounded: kMaxStreams × kOnsetCap. */
+    inline int mergeOnsets (const StreamOnset (&lists)[kMaxStreams][kOnsetCap], const int (&counts)[kMaxStreams],
                             StreamOnset* out) noexcept
     {
         int head[kMaxStreams] {};

@@ -104,6 +104,15 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     useInMod = useOutMod = useFbKnobMod = useFbDiffMod = useFbSatMod = false;
     for (auto& t : srcTelemetry) t.store (0.0f, std::memory_order_relaxed);
 
+    // 2.5b analysis (P61): D, Hs, N, the cell-log length, the R69 lags and every
+    // coefficient; all state cleared (fixed arrays — no allocation). Tempo burst
+    // counters are zeroed here and nowhere else (R73); follow sets rebuild.
+    analysis.prepare (fs);
+    for (auto& b : burstCount) b = 0;
+    for (auto& a : absSets) a.invalidate();
+    pitchNoteTel.store (0.0f, std::memory_order_relaxed);
+    pitchConfTel.store (0.0f, std::memory_order_relaxed);
+
     // 2.4 reverb: atomics from the latch, then prepare (allocates its lines —
     // message thread). reverb_mix 0 → the unit never runs (bitwise, R35).
     writeReverbAtomics();
@@ -698,7 +707,8 @@ void Engine::forcedReleaseScan() noexcept
 
 /** P51: LFO 1–4, the envelope follower and the macros, sampled ONCE per cell
     at the tick. The LFO rate (and its matrix offset) come from the PREVIOUS
-    cell (R50.5: no same-cell source cycle). Pitch / Onset stay 0 (2.5b). */
+    cell (R50.5: no same-cell source cycle). Pitch / Onset: the analysis
+    values of this tick (2.5b, Analysis::tick). */
 void Engine::tickSources() noexcept
 {
     const bool tempoMode = gp.syncMode == 1;
