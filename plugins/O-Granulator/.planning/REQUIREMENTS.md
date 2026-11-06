@@ -20,10 +20,10 @@ lastUpdated: 2026-11-04
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | FUNC-01 | Live input continuously recorded into a ring buffer (1–30 s active length) | must | complete | stage-2 |
-| FUNC-02 | Freeze latch holds buffer contents; unfreeze resumes recording without clicks | must | pending | stage-2 |
+| FUNC-02 | Freeze latch holds buffer contents; unfreeze resumes recording without clicks | must | complete | stage-2 |
 | FUNC-03 | Four independent grain streams reading the shared buffer, each with enable/level/pan | must | complete | stage-2 |
 | FUNC-04 | Free (grains/s) and tempo-synced density/size modes with onset jitter | must | pending | stage-2 |
-| FUNC-05 | Feedback network: grain output written back to buffer through tone filter, saturation, diffuser | must | pending | stage-2 |
+| FUNC-05 | Feedback network: grain output written back to buffer through tone filter, saturation, diffuser | must | complete | stage-2 |
 | FUNC-06 | Modulation matrix routing LFOs, env follower, pitch follower, onset follower, macros to continuous params | must | pending | stage-2 |
 | FUNC-07 | Dry/wet mix, input and output gain | must | complete | stage-2 |
 | FUNC-08 | Onset follower can trigger grain bursts | should | pending | stage-2 |
@@ -38,8 +38,8 @@ lastUpdated: 2026-11-04
 | DSP-03 | Window morph Hann→Tukey→Trapezoid→Exponential with skew; overlap-normalised level | must | complete | stage-2 |
 | DSP-04 | Per-grain reverse probability, position spray, size/gain randomisation, stereo spread | must | complete | stage-2 |
 | DSP-05 | Per-grain FX: SVF (LP/BP/HP) with cutoff randomisation, drive, bitcrush with probability, ring mod with randomised carrier | must | complete | stage-2 |
-| DSP-06 | Feedback loop gain bounded — no runaway at feedback 100 % with any settings | must | pending | stage-2 |
-| DSP-07 | Output reverb/diffuser stage | should | pending | stage-2 |
+| DSP-06 | Feedback loop gain bounded — no runaway at feedback 100 % with any settings | must | complete | stage-2 |
+| DSP-07 | Output reverb/diffuser stage | should | complete | stage-2 |
 | DSP-08 | Pitch follower (YIN/MPM-class) usable as mod source | should | pending | stage-2 |
 
 ### UI (UI)
