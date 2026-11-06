@@ -630,6 +630,620 @@ namespace { namespace eg25y
         }
     }
 
+    //==========================================================================
+    // MX1–MX2a — FUNC-06: Pitch / Onset × class, removal; QB1–QB2 — QUAL-01 bursts (T9)
+    //==========================================================================
+    namespace D = ogran::ModDest;
+
+    /** A stepped off-grid tone (233 → 311 → 227 Hz) + 2 ms 1 kHz Hann bursts every 250 ms. */
+    inline Stim toneBurstStim (double fs, double lenS, double ioi = 0.25)
+    {
+        auto x = steppedSine (fs, lenS, { { 0.0, 233.0 }, { lenS / 3.0, 311.0 }, { 2.0 * lenS / 3.0, 227.0 } }, 0.2);
+        for (double t = 0.05; t < lenS - 0.01; t += ioi) addBurst (*x, fs, t, 2.0, 1000.0, 0.5);
+        return fromBuffer (x);
+    }
+
+    void matrixRows()
+    {
+        std::printf ("\n-- MX. FUNC-06: Pitch / Onset x class (bipolar), removal without a step\n");
+        const double fs = 48000.0;
+        // MX1 — {Pitch, Onset} × 5 classes × ±100 %.
+        {
+            struct Cls { const char* name; int dest; float base; double baseEng, lo, hi; bool latched; };
+            const Cls classes[] {
+                { "mix (ramped)", D::Mix, 50.0f, 0.5, 0.0, 1.0, false },
+                { "s1_spray (latched)", D::stream (0, D::Spray), 30.0f, 0.3, 0.0, 1.0, true },
+                { "s1_size (skewed)", D::stream (0, D::Size), 100.0f, 100.0, 5.0, 2000.0, true },
+                { "reverb_size", D::RevSize, 50.0f, 0.5, 0.0, 1.0, false },
+                { "lfo1 rate", D::LfoRate1, 1.0f, 1.0, 0.01, 20.0, false } };
+            std::vector<Job> jobs;
+            std::vector<std::shared_ptr<eg25b::Cells>> cells;
+            struct Meta { int src; Cls cls; float depth; };
+            std::vector<Meta> meta;
+            for (int src : { ogran::ModSrc::Pitch, ogran::ModSrc::Onset })
+                for (const auto& c : classes)
+                    for (float depth : { 100.0f, -100.0f })
+                    {
+                        Job j = eg25b::modJob (48000, P { { "lfo1_rate", 1.0f }, { GranulatorParamIds::kModDestIds[c.dest], c.base } } + route (1, src, c.dest, depth), c.dest);
+                        j.stim = toneBurstStim (fs, 1.0);
+                        cells.push_back (eg25b::recordSources (j));
+                        jobs.push_back (j);
+                        meta.push_back ({ src, c, depth });
+                    }
+            auto outs = renderAll (jobs);
+            Tally t;
+            for (size_t k = 0; k < jobs.size(); ++k)
+            {
+                const auto& m = meta[k];
+                const auto tl = eg25b::traceList (outs[k].eng());
+                const auto& sv = cells[k]->src[m.src];
+                int wrong = 0, out = 0, checked = 0;
+                for (const auto& [at, v] : tl)
+                {
+                    const size_t cell = (size_t) (at / 32);
+                    if (cell < 1 || cell >= sv.size()) continue;
+                    if (v < m.cls.lo - 1e-6 || v > m.cls.hi + 1e-6 || ! std::isfinite (v)) ++out;
+                    const float a = sv[cell], b = m.cls.latched ? sv[cell - 1] : sv[cell];
+                    if (std::abs (a) < 0.02f || std::abs (b) < 0.02f) continue;
+                    const double want = m.depth > 0.0f ? 1.0 : -1.0;   // both sources are unipolar (>= 0)
+                    if (! ((v - m.cls.baseEng) * want > 0.0)) ++wrong;
+                    ++checked;
+                }
+                t.check (wrong == 0 && out == 0 && checked >= 5, juce::String (m.src == ogran::ModSrc::Pitch ? "Pitch -> " : "Onset -> ") + m.cls.name
+                                                                     + (m.depth > 0 ? " +" : " -") + juce::String::formatted (": %d wrong, %d out, %d checked", wrong, out, checked));
+            }
+            row (t.bad == 0, "MX1 Pitch / Onset x {mix, s1_spray, s1_size, reverb_size, lfo rate} x +-100 %: moves with sign (depth.src), stays in range",
+                 t.detail ((int) jobs.size()));
+        }
+        // MX2 / MX2n / MX2a — removal (source → None, dest → None, depth → 0, dest swap).
+        {
+            const juce::int64 tR = 938 * 32;
+            const char* kinds[] { "source -> None", "dest -> None", "depth -> 0", "dest swap" };
+            std::vector<Job> mj;
+            std::vector<std::shared_ptr<eg25b::Cells>> cells;
+            struct MM { int src, kind; bool noRes; };
+            std::vector<MM> mm;
+            for (int sid : { ogran::ModSrc::Pitch, ogran::ModSrc::Onset })
+                for (int kind = 0; kind < 4; ++kind)
+                    for (bool noRes : { false, true })
+                    {
+                        if (noRes && kind != 0) continue;
+                        Job j = eg25b::modJob (2 * 24000, P { { "mix", 50.0f } } + route (1, sid, D::Mix, 60.0f), D::Mix);
+                        j.stim = toneBurstStim (fs, 1.0);
+                        j.events.push_back ({ tR, [kind] (Proc& p)
+                        {
+                            if (kind == 0) eg::setP (p, "mod1_source", 0.0f);
+                            if (kind == 1) eg::setP (p, "mod1_dest", 0.0f);
+                            if (kind == 2) eg::setP (p, "mod1_depth", 0.0f);
+                            if (kind == 3) eg::setP (p, "mod1_dest", (float) D::stream (0, D::Pan));
+                        } });
+                        if (noRes) hook (j, [] (auto& h) { h.noResidual = true; });
+                        cells.push_back (eg25b::recordSources (j));
+                        mj.push_back (j);
+                        mm.push_back ({ sid, kind, noRes });
+                    }
+            auto mouts = renderAll (mj);
+            Tally t2;
+            double nWorst = 0.0, nBound = 0.0;
+            for (size_t k = 0; k < mj.size(); ++k)
+            {
+                const auto tm = eg25b::traceMap (mouts[k].eng());
+                const auto& sv = cells[k]->src[mm[k].src];
+                const double slope = mm[k].src == ogran::ModSrc::Pitch ? (double) eg25x::an (mouts[k]).getTracker().slewCoeff() / 32.0 : 1.0 / (0.15 * fs);
+                const double c = 0.6 * (double) sv[(size_t) (tR / 32 - 1)];
+                const double bound = 1.05 * (0.6 * slope + std::abs (c) / (30.0 * 32.0));
+                double worst = 0.0;
+                bool rawAfter = true;
+                for (juce::int64 cc = tR / 32 - 200; cc < tR / 32 + 200; ++cc)
+                {
+                    const bool attack = mm[k].src == ogran::ModSrc::Onset && sv[(size_t) cc] > sv[(size_t) cc - 1];   // the instant attack (excluded by design)
+                    const double a = tm.count ((cc - 1) * 32) ? tm.at ((cc - 1) * 32) : 0.0, b = tm.count (cc * 32) ? tm.at (cc * 32) : 0.0;
+                    if (! attack || cc >= tR / 32) worst = juce::jmax (worst, std::abs (b - a) / 32.0);
+                    if (cc >= tR / 32 + 31) rawAfter = rawAfter && juce::exactlyEqual ((float) b, 0.5f);
+                }
+                if (mm[k].noRes) { if (mm[k].src == ogran::ModSrc::Pitch) { nWorst = worst; nBound = bound; } continue; }
+                t2.check (worst <= bound && rawAfter && ! mouts[k].eng().getMatrix().routed (D::Mix),
+                          juce::String (mm[k].src == ogran::ModSrc::Pitch ? "Pitch " : "Onset ") + kinds[mm[k].kind]
+                              + juce::String::formatted (": max |dv|/sample %.3g (bound %.3g)%s", worst, bound, rawAfter ? "" : ", not raw after 20 ms"));
+            }
+            row (t2.bad == 0, "MX2 Pitch / Onset route removal x 4 kinds: |dv| per sample <= the P56 bound through the 20 ms tail, then exactly the raw path",
+                 t2.detail (8));
+            row (nWorst > 2.0 * nBound, "MX2n noResidual: Pitch source -> None steps past the bound", juce::String::formatted ("%.3g (bound %.3g)", nWorst, nBound));
+
+            Job held = eg25b::modJob (2 * 24000, P { { "mix", 50.0f } } + route (1, ogran::ModSrc::Pitch, D::Mix, 60.0f), -1);
+            auto carrier = steppedSine (fs, 1.0, { { 0.0, 440.0 } }, 0.4);
+            for (double tt = 0.05; tt < 0.99; tt += 0.25) addBurst (*carrier, fs, tt, 2.0, 1000.0, 0.3);
+            held.stim = fromBuffer (carrier);
+            Job rem = held;
+            rem.events.push_back ({ tR, [] (Proc& p) { eg::setP (p, "mod1_source", 0.0f); } });
+            auto ko = renderAll ({ held, rem });
+            const double t0 = (double) tR / fs - 0.03, t1 = (double) tR / fs + 0.05;
+            const double kh = eg24b::kappa (ko[0], t0, t1), kr = eg24b::kappa (ko[1], t0, t1);
+            row (kr <= 2.0 * kh, "MX2a audio: Pitch -> mix removal step-click kappa <= 2.0x the held-route reference (440 Hz + bursts)",
+                 juce::String::formatted ("%.2f vs %.2f (%.2fx)", kr, kh, kr / kh));
+        }
+    }
+
+    /** The P75 swell carrier: 440 Hz at 0.03 with +18 dB swells (1 ms raised-cosine
+        attack, 20 ms hold, 30 ms decay) every 125 ms. */
+    inline std::shared_ptr<std::vector<float>> swellCarrier (double fs, double lenS)
+    {
+        auto x = std::make_shared<std::vector<float>> ((size_t) (lenS * fs));
+        const double up = std::pow (10.0, 18.0 / 20.0);
+        for (size_t i = 0; i < x->size(); ++i)
+        {
+            const double t = (double) i / fs, tc = t - 0.125 * std::floor (t / 0.125);
+            double e = 1.0;
+            if (tc < 0.001) e = 1.0 + (up - 1.0) * 0.5 * (1.0 - std::cos (kPi * tc / 0.001));
+            else if (tc < 0.021) e = up;
+            else if (tc < 0.051) e = 1.0 + (up - 1.0) * 0.5 * (1.0 + std::cos (kPi * (tc - 0.021) / 0.030));
+            (*x)[i] = (float) (0.03 * e * std::sin (2.0 * kPi * 440.0 * t));
+        }
+        return x;
+    }
+
+    void burstClickRows()
+    {
+        std::printf ("\n-- QB. QUAL-01 bursts: step-click kappa vs a same-grain-count reference (R78)\n");
+        const double fs = 48000.0, lenS = 6.0;
+        auto car = swellCarrier (fs, lenS);
+        auto trigJob = [&] (bool tempo, float window)
+        {
+            Job j = anaJob (fs, lenS, fromBuffer (car), eg22::base ({ 1 }) + P { { "s1_onset_trigger", 1.0f }, { "s1_window", window }, { "s1_size", 60.0f },
+                                                                              { "grain_limit", 3.0f }, { "s1_jitter", 0.0f } });
+            if (tempo)
+            {
+                j.params = j.params + P { { "sync_mode", 1.0f }, { "s1_density_sync", 7.0f }, { "s1_size_sync", 2.0f } };
+                eg25::withTransport (j, Transport (fs, 120.0));
+            }
+            else j.params = j.params + P { { "s1_density", 20.0f } };
+            return j;
+        };
+        std::vector<Job> trig { trigJob (false, 0.0f), trigJob (true, 0.0f), trigJob (false, 1.0f), trigJob (true, 1.0f) };
+        auto ot = renderAll (trig);
+        auto rate = [&] (const Out& o) { return (double) o.eng().diag.spawns / lenS; };
+        std::vector<Job> refs;
+        for (int k = 0; k < 2; ++k)
+        {
+            Job r = anaJob (fs, lenS, fromBuffer (car), eg22::base ({ 1 }) + P { { "s1_window", 0.0f }, { "s1_size", 60.0f }, { "grain_limit", 3.0f },
+                                                                              { "s1_jitter", 0.0f }, { "s1_density", (float) rate (ot[(size_t) k]) } });
+            refs.push_back (r);
+        }
+        auto orf = renderAll (refs);
+        const double t0 = 0.5, t1 = lenS - 0.1;
+        juce::String d;
+        bool ok = true, nOk = true;
+        const char* nm[] { "Free", "Tempo" };
+        for (int k = 0; k < 2; ++k)
+        {
+            const double kt = eg24b::kappa (ot[(size_t) k], t0, t1), kr = eg24b::kappa (orf[(size_t) k], t0, t1), kn = eg24b::kappa (ot[(size_t) k + 2], t0, t1);
+            ok = ok && kt <= 2.0 * kr && ot[(size_t) k].eng().diag.onsetEvents > 20;
+            nOk = nOk && kn > 2.0 * kr;
+            d << nm[k] << juce::String::formatted (" %.2fx (%.1f g/s, %lld events), QB1n %.2fx; ", kt / kr, rate (ot[(size_t) k]),
+                                                   (long long) ot[(size_t) k].eng().diag.onsetEvents, kn / kr);
+        }
+        row (ok, "QB1 burst click kappa <= 2.0x the same-grain-count reference (Free 20 g/s; Tempo 1/16 @ 120; Hann 60 ms; swell carrier)", d.trim());
+        row (nOk, "QB1n the same trigger renders with s1_window 1 (instant attack) exceed 2.0x (the gate sees a click here)", d.trim());
+        // QB2 (INFO) — Tempo burst level (R78).
+        {
+            auto busy = burstTrain (fs, lenS, 0.05, 0.055, 100, 2.0, 1000.0, 0.5);
+            auto tj = [&] (bool on)
+            {
+                Job j = anaJob (fs, lenS, fromBuffer (busy), eg22::base ({ 1 }) + P { { "sync_mode", 1.0f }, { "s1_density_sync", 7.0f }, { "s1_size_sync", 4.0f },
+                                                                                   { "s1_onset_trigger", on ? 1.0f : 0.0f }, { "grain_limit", 3.0f } });
+                eg25::withTransport (j, Transport (fs, 120.0));
+                return j;
+            };
+            auto o = renderAll ({ tj (true), tj (false) });
+            const double dB = eg::rmsDb (o[0].L, (size_t) fs, (size_t) (lenS * fs)) - eg::rmsDb (o[1].L, (size_t) fs, (size_t) (lenS * fs));
+            eg25x::info (juce::String::formatted ("QB2 Tempo 1/16 @ 120, busy burst train: trigger-on vs off RMS %+.2f dB (R78: <= +5.4 dB expected); bursts %lld",
+                                                  dB, (long long) o[0].eng().diag.tempoBursts));
+        }
+    }
+
+    //==========================================================================
+    // N9 / M6 / Z6 / C6 — PERF-03, PERF-01, QUAL-02, PERF-02 (T10)
+    //==========================================================================
+    /** The N9 input: stepped off-grid tones, 2 ms bursts every 180 ms, a 300 ms
+        noise segment and 200 ms of silence (12 s). */
+    inline std::shared_ptr<std::vector<float>> n9Input (double fs, double lenS)
+    {
+        auto x = steppedSine (fs, lenS, { { 0.0, 233.0 }, { 3.0, 311.0 }, { 6.0, 227.0 }, { 9.0, 262.5 } }, 0.2);
+        for (double t = 0.1; t < lenS - 0.01; t += 0.18) addBurst (*x, fs, t, 2.0, 1000.0, 0.5);
+        for (size_t i = 0; i < x->size(); ++i)
+        {
+            const double t = (double) i / fs;
+            if (t >= 4.0 && t < 4.3) (*x)[i] = (float) (0.15 * gauss ((juce::int64) i, 99));
+            if (t >= 7.5 && t < 7.7) (*x)[i] = 0.0f;
+        }
+        return x;
+    }
+
+    /** Every 2.5b element on: triggers ×4, follow ×4 (Off, Major, 19-EDO, BP), the
+        Pitch / Onset routes, feedback 80 %, freeze toggles at mid-cell samples. */
+    inline Job n9Base (bool tempo, double lenS = 12.0)
+    {
+        const double fs = 48000.0;
+        Job j = anaJob (fs, lenS, fromBuffer (n9Input (fs, lenS)), eg22::base ({ 1, 2, 3, 4 }) + P { { "feedback", 80.0f }, { "grain_limit", 3.0f } });
+        const float dens[4] { 20, 15, 25, 10 }, size[4] { 120, 200, 80, 300 }, pos[4] { 0, 10, 25, 5 };
+        const int sc[4] { 0, scaleChoice ("Major"), scaleChoice ("19-EDO"), scaleChoice ("Bohlen-Pierce") };
+        for (int s = 1; s <= 4; ++s)
+            j.params = j.params + P { { eg22::sp (s, "onset_trigger"), 1.0f }, { "pitch_follow_s" + juce::String (s), 1.0f },
+                                      { eg22::sp (s, "scale"), (float) sc[s - 1] }, { eg22::sp (s, "density"), dens[s - 1] },
+                                      { eg22::sp (s, "size"), size[s - 1] }, { eg22::sp (s, "spray"), 20.0f }, { eg22::sp (s, "pitch_rand"), 3.0f },
+                                      { eg22::sp (s, "jitter"), 20.0f }, { eg22::sp (s, "position"), pos[s - 1] },
+                                      { eg22::sp (s, "density_sync"), (float) (6 + s) } };
+        j.params = j.params + route (1, ogran::ModSrc::Pitch, D::stream (0, D::Level), 40.0f) + route (2, ogran::ModSrc::Onset, D::Mix, -30.0f)
+                 + route (3, ogran::ModSrc::Pitch, D::stream (1, D::Pitch), 30.0f) + route (4, ogran::ModSrc::Onset, D::stream (2, D::Density), 40.0f)
+                 + route (5, 1, D::stream (3, D::Position), 50.0f) + route (6, ogran::ModSrc::Env, D::FbSat, 40.0f) + P { { "lfo1_rate", 0.7f } };
+        auto ev = [&j] (juce::int64 at, std::function<void (Proc&)> f) { j.events.push_back ({ at, std::move (f) }); };
+        ev (64 * 1500 + 7,  [] (Proc& p) { eg::setP (p, "freeze", 1.0f); });
+        ev (64 * 2100 + 13, [] (Proc& p) { eg::setP (p, "freeze", 0.0f); });
+        ev (64 * 4000 + 5,  [] (Proc& p) { eg::setP (p, "freeze", 1.0f); });
+        ev (64 * 4400 + 21, [] (Proc& p) { eg::setP (p, "freeze", 0.0f); });
+        if (tempo)
+        {
+            j.params = j.params + P { { "sync_mode", 1.0f } };
+            Transport tr (fs, 120.0);
+            tr.tempo (48017, 97.3).loopWrap (192005, 4.0, 12.0).locate (360003, 21.5);
+            eg25::withTransport (j, tr);
+        }
+        return j;
+    }
+
+    inline int vdiff (const Out& a, const Out& b)
+    {
+        int n = 0;
+        for (size_t i = 0; i < a.L.size() && i < b.L.size(); ++i)
+            if ((double) a.L[i] != (double) b.L[i] || (double) a.R[i] != (double) b.R[i]) ++n;
+        return n;
+    }
+    inline bool sameRing (const ogran::F0Ring& a, const ogran::F0Ring& b)
+    {
+        if (a.size() != b.size() || a.newest() != b.newest()) return false;
+        for (int k = 0; k < a.size(); ++k)
+            if (a.entry (k).tag != b.entry (k).tag || std::memcmp (&a.entry (k).note, &b.entry (k).note, 4) != 0) return false;
+        return true;
+    }
+    inline bool sameHops (const HopLog& a, const HopLog& b)
+    {
+        if (a.h.size() != b.h.size()) return false;
+        for (size_t k = 0; k < a.h.size(); ++k)
+            if (a.h[k].aHop != b.h[k].aHop || a.h[k].commitAt != b.h[k].commitAt || std::memcmp (&a.h[k].rawNote, &b.h[k].rawNote, 4) != 0
+                || std::memcmp (&a.h[k].decidedNote, &b.h[k].decidedNote, 4) != 0 || a.h[k].ringResult != b.h[k].ringResult)
+                return false;
+        return true;
+    }
+
+    void blockNullRows()
+    {
+        std::printf ("\n-- N9. PERF-03 block-size null with every 2.5b element on (value compare)\n");
+        for (int form = 0; form < 2; ++form)
+        {
+            const bool tempo = form == 1;
+            const Job base = n9Base (tempo);
+            std::vector<Job> jobs;
+            std::vector<std::shared_ptr<EvLog>> ev;
+            std::vector<std::shared_ptr<HopLog>> hp;
+            for (int b : { 32, 441, 512, 4096, 0 })
+            {
+                Job j = base; j.block = b;
+                ev.push_back (evInto (j));
+                hp.push_back (hopsInto (j));
+                jobs.push_back (j);
+            }
+            Job seed = base; seed.block = 32; seed.seed ^= 0x1ull; jobs.push_back (seed);
+            auto o = renderAll (jobs);
+            Tally t;
+            const int blocks[] { 441, 512, 4096, 0 };
+            for (int k = 1; k <= 4; ++k)
+            {
+                const int n = vdiff (o[0], o[(size_t) k]);
+                const bool same = ev[0]->at == ev[(size_t) k]->at && sameHops (*hp[0], *hp[(size_t) k]) && sameRing (eg25x::an (o[0]).getRing(), eg25x::an (o[(size_t) k]).getRing());
+                t.check (n == 0 && same, eg25::blockName (blocks[k - 1]) + juce::String::formatted (": %d diffs%s", n, same ? "" : ", analysis state differs"));
+            }
+            const auto& d = o[0].eng().diag;
+            std::int64_t miss = 0;
+            for (auto m : d.followMiss) miss += m;
+            bool live = d.onsetEvents > 0 && d.mpmConfident > 0 && d.followHits > 0 && miss > 0 && d.f0Skips > 0 && d.routedDests >= 4 && d.freezeEngages > 0;
+            live = live && (tempo ? d.tempoBursts > 0 && d.tempoReanchors > 0 && d.tempoRelocks > 0 : d.freeBursts > 0);
+            row (t.bad == 0 && live, juce::String (tempo ? "N9-T Tempo" : "N9-F Free") + ": 441/512/4096/var vs 32 max|d| == 0; events, hops, f0 ring bitwise",
+                 t.detail (4) + juce::String::formatted ("  [events %lld bursts %lld confident %lld hits %lld miss %lld skips %lld routed %lld re-anchors %lld re-locks %lld]",
+                                                         (long long) d.onsetEvents, (long long) (tempo ? d.tempoBursts : d.freeBursts), (long long) d.mpmConfident,
+                                                         (long long) d.followHits, (long long) miss, (long long) d.f0Skips, (long long) d.routedDests,
+                                                         (long long) d.tempoReanchors, (long long) d.tempoRelocks) + (live ? "" : "  VACUOUS"));
+            row (vdiff (o[0], o[5]) > 0, juce::String (tempo ? "N9c-T" : "N9c-F") + " seed + 1 differs", juce::String (vdiff (o[0], o[5])) + " diffs");
+        }
+        // N9n — commitHopImmediately (R59) on a tonal follow recipe.
+        {
+            Job a = followJob (6.0, fromBuffer (steppedSine (48000.0, 6.0, { { 0.0, 233.0 }, { 1.5, 311.0 }, { 3.0, 227.0 }, { 4.5, 262.5 } }, 0.25)), 0.0f,
+                               P { { "s1_density", 100.0f } });
+            hook (a, [] (auto& h) { h.commitHopImmediately = true; });
+            Job b = a;
+            a.block = 32; b.block = 441;
+            Job c = followJob (6.0, fromBuffer (steppedSine (48000.0, 6.0, { { 0.0, 233.0 }, { 1.5, 311.0 }, { 3.0, 227.0 }, { 4.5, 262.5 } }, 0.25)), 0.0f,
+                               P { { "s1_density", 100.0f } }), d2 = c;
+            c.block = 32; d2.block = 441;
+            auto o = renderAll ({ a, b, c, d2 });
+            row (vdiff (o[0], o[1]) > 0 && vdiff (o[2], o[3]) == 0, "N9n commitHopImmediately (the R59 class) breaks the 441 vs 32 null (the tick commit holds it)",
+                 juce::String::formatted ("%d diffs with the hook, %d without", vdiff (o[0], o[1]), vdiff (o[2], o[3])));
+        }
+    }
+
+    void allocRows()
+    {
+        std::printf ("\n-- M6. PERF-01 allocations across detector events, hops, follow, bursts, abs-set rebuilds\n");
+       #if JUCE_MAC
+        using namespace eg;
+        audioThread = pthread_self();
+        malloc_logger = countAllocation;
+        allocCount = 0;
+        allocTrace = false;
+        allocArmed = true;
+        void* volatile probe = std::malloc (64);
+        allocArmed = false;
+        std::free (probe);
+        const int liveness = allocCount;
+        allocCount = 0;
+        allocTrace = true;
+        int total = 0;
+        juce::String det;
+        for (int form = 0; form < 2; ++form)
+        {
+            Job j = n9Base (form == 1, 8.0);
+            j.block = 512;
+            auto ev = [&j] (juce::int64 at, std::function<void (Proc&)> f) { j.events.push_back ({ at, std::move (f) }); };
+            const int major = scaleChoice ("Major");
+            ev (40003,  [] (Proc& p) { eg::setP (p, "s1_scale", 5.0f); });                                     // scale change (follow on)
+            ev (60011,  [major] (Proc& p) { p.setDegreeMask (2, major, 0x95ull); });                           // mask change
+            ev (80021,  [] (Proc& p) { juce::String b; p.setCustomScale ("", "edo 7", b); eg::setP (p, "s3_scale", 31.0f); });   // custom apply
+            ev (100003, [] (Proc& p) { eg::setP (p, "mod7_source", (float) ogran::ModSrc::Onset); eg::setP (p, "mod7_dest", (float) D::RevMix);
+                                       eg::setP (p, "mod7_depth", 50.0f); });                                  // route add
+            ev (120007, [] (Proc& p) { eg::setP (p, "mod1_source", 0.0f); });                                  // route remove
+            ev (140009, [] (Proc& p) { eg::setP (p, "mod2_dest", (float) D::stream (0, D::Spray)); });         // route swap
+            ev (160001, [] (Proc& p) { eg::setP (p, "onset_threshold", -50.0f); eg::setP (p, "scale_root", 5.0f); });
+            ev (200001, [] (Proc& p) { eg::setP (p, "sync_mode", 1.0f); });
+            ev (250003, [] (Proc& p) { eg::setP (p, "sync_mode", 0.0f); eg::setP (p, "onset_threshold", -20.0f); eg::setP (p, "scale_root", 11.0f); });
+            auto prevAfter = j.after;
+            armDuringProcess = false;
+            j.after = [prevAfter] (Proc& p, juce::int64 pos) { if (prevAfter) prevAfter (p, pos); armDuringProcess = true; };
+            const auto o = render (j);
+            armDuringProcess = false;
+            const auto& d = o.eng().diag;
+            total += allocCount;
+            det << (form ? "Tempo" : "Free") << juce::String::formatted (": %d allocs (events %lld, hops %lld, lookups %lld, rebuilds %lld, bursts %lld, route changes %lld); ",
+                                                                        (int) allocCount, (long long) d.onsetEvents, (long long) d.mpmHops, (long long) d.followLookups,
+                                                                        (long long) d.absSetRebuilds, (long long) (d.freeBursts + d.tempoBursts), (long long) d.routeChanges);
+            allocCount = 0;
+        }
+        malloc_logger = nullptr;
+        allocTrace = false;
+        row (liveness == 1, "M6 liveness: a deliberate malloc on the render thread counts exactly 1", juce::String (liveness));
+        row (liveness == 1 && total == 0, "M6 0 allocations: events, re-phases, Tempo bursts, MPM hops (incl. the first), follow lookups + pass 2, abs-set rebuilds, routes, freeze, automation",
+             det.trim());
+       #else
+        row (false, "M6 alloc gate is macOS-only");
+       #endif
+    }
+
+    void stressRows()
+    {
+        std::printf ("\n-- Z6. QUAL-02 analysis stress (60 s x 3 rates) and tap injection\n");
+        const double rates[3] { 48000.0, 44100.0, 192000.0 };
+        struct ZR { bool finite = true; int sub = 0, scans = 0; double peak = 0.0, wetPeak = 0.0; long long scrubs = 0, nanKills = 0, envScrubs = 0, aScrubs = 0, events = 0, hits = 0; };
+        std::vector<ZR> rs (3);
+        std::vector<Job> jobs; std::vector<double> cost;
+        for (int i = 0; i < 3; ++i)
+        {
+            const double fs = rates[i];
+            Job j; j.fs = fs; j.len = (juce::int64) (60.0 * fs); j.block = 512;
+            j.params = eg22::base ({ 1, 2, 3, 4 }) + P { { "grain_limit", 3.0f }, { "mix", 100.0f }, { "feedback", 100.0f }, { "reverb_mix", 20.0f },
+                                                       { "onset_threshold", -60.0f }, { "lfo1_shape", 4.0f }, { "lfo1_rate", 20.0f } };
+            for (int s = 1; s <= 4; ++s)
+                j.params = j.params + P { { eg22::sp (s, "density"), 100.0f }, { eg22::sp (s, "size"), 300.0f }, { eg22::sp (s, "onset_trigger"), 1.0f },
+                                          { "pitch_follow_s" + juce::String (s), 1.0f }, { eg22::sp (s, "pitch"), s % 2 ? 24.0f : -24.0f },
+                                          { eg22::sp (s, "pitch_rand"), 24.0f }, { eg22::sp (s, "filter_type"), (float) (1 + s % 3) },
+                                          { eg22::sp (s, "filter_res"), 70.0f }, { eg22::sp (s, "drive"), 40.0f }, { eg22::sp (s, "scale"), (float) (s == 1 ? 0 : 2 * s) } };
+            const int dests[16] { D::stream (0, D::Level), D::stream (1, D::Level), D::stream (2, D::Level), D::stream (3, D::Level),
+                                  D::stream (0, D::Pitch), D::stream (1, D::Density), D::Feedback, D::FbSat, D::stream (0, D::FilterRes),
+                                  D::stream (1, D::Drive), D::stream (2, D::RingMix), D::RevMix, D::OutputGain, D::Mix,
+                                  D::stream (3, D::FilterRes), D::stream (2, D::Pitch) };
+            for (int m = 0; m < 16; ++m)
+                j.params = j.params + route (m + 1, m % 3 == 2 ? 1 : (m % 2 == 0 ? ogran::ModSrc::Pitch : ogran::ModSrc::Onset), dests[m], m % 2 == 0 ? 100.0f : -100.0f);
+            // Execution deviation (stimulus re-derived): the plan's CONTINUOUS 0 dBFS noise
+            // masks every burst (+6 dB over the slow envelope never holds: 1 event in 60 s)
+            // and gives the tracker nothing confident. Per 250 ms cycle: 60 ms of 0 dBFS
+            // noise, 150 ms of a 0.9 sine (110 / 220 / 440 / 880 Hz in turn), 40 ms of
+            // silence; 2 ms 0 dBFS 1 kHz bursts every 60 ms on top.
+            const double burstPeriod = 0.06;
+            j.stim = [fs, burstPeriod] (juce::int64 n, int ch)
+            {
+                const double t = (double) n / fs, tb = t - burstPeriod * std::floor (t / burstPeriod);
+                const double cyc = std::floor (t / 0.25), tc = t - 0.25 * cyc;
+                double v = 0.0;
+                if (tc < 0.06) v = eg::hashNoise (n, ch, 1.0f);
+                else if (tc < 0.21) v = 0.9 * std::sin (2.0 * kPi * 110.0 * std::exp2 ((double) ((juce::int64) cyc % 4)) * t);
+                if (tb < 0.002) v += std::sin (2.0 * kPi * 1000.0 * tb);
+                return (float) v;
+            };
+            for (int k = 0; k < 6; ++k)
+                j.events.push_back ({ (juce::int64) ((5.0 + 9.0 * k) * fs) + 7, [k] (Proc& p) { eg::setP (p, "freeze", k % 2 == 0 ? 1.0f : 0.0f); } });
+            auto* r = &rs[(size_t) i];
+            j.after = [r, len = j.len, fs] (Proc& p, juce::int64 pos)
+            {
+                const juce::int64 sect = (juce::int64) (20.0 * fs);
+                if (pos % sect < 512 || pos >= len)
+                {
+                    const auto& e = p.getEngineForTest();
+                    const auto& a = e.getAnalysis();
+                    auto sub = [] (float x) { return std::fpclassify (x) == FP_SUBNORMAL; };
+                    auto subd = [] (double x) { return std::fpclassify (x) == FP_SUBNORMAL; };
+                    for (int k = 0; k < ogran::kPoolLive + ogran::kPoolFade; ++k)
+                        if (eg23b::anySubnormal (e.getPool().getGrains()[(size_t) k])) ++r->sub;
+                    const auto& det = a.getDetector();
+                    int s = (sub (det.hpState()) ? 1 : 0) + (sub (det.fastEnv()) ? 1 : 0) + (sub (det.slowEnv()) ? 1 : 0);
+                    for (float x : a.getDecimator().history()) s += sub (x) ? 1 : 0;
+                    for (float x : a.getWindow()) s += sub (x) ? 1 : 0;
+                    for (int k = 0; k <= a.getMpm().getTauMax() + 1; ++k) s += subd (a.getMpm().nsdfData()[k]) ? 1 : 0;
+                    for (float x : a.getGuard().medians()) s += sub (x) ? 1 : 0;
+                    s += sub (a.getGuard().accepted()) ? 1 : 0;
+                    s += sub (a.getTracker().source()) ? 1 : 0;
+                    for (int k = 1; k < ogran::kModSources; ++k) s += sub (e.getSources().v[k]) ? 1 : 0;
+                    r->sub += s;
+                    ++r->scans;
+                }
+            };
+            jobs.push_back (j);
+            cost.push_back (fs);
+        }
+        eg22b::renderPool (jobs, cost, [&] (size_t i, Out& o)
+        {
+            auto& r = rs[i];
+            for (size_t k = 0; k < o.L.size(); ++k)
+            {
+                if (! std::isfinite (o.L[k]) || ! std::isfinite (o.R[k])) r.finite = false;
+                r.peak = juce::jmax (r.peak, (double) std::abs (o.L[k]), (double) std::abs (o.R[k]));
+            }
+            const auto& d = o.eng().diag;
+            r.scrubs = d.fbScrubs; r.nanKills = d.nanKills; r.envScrubs = d.envScrubs; r.aScrubs = d.analysisScrubs;
+            r.wetPeak = d.maxWetPeak; r.events = d.onsetEvents; r.hits = d.followHits;
+        });
+        bool ok = true;
+        juce::String det;
+        for (int i = 0; i < 3; ++i)
+        {
+            const auto& r = rs[(size_t) i];
+            const double outBound = std::sqrt (1.0 + (double) ogran::kKneeA * ogran::kKneeA) * (double) ogran::dbToGain (12.0f) * (1.0 + 1e-6);
+            ok = ok && r.finite && r.sub == 0 && r.wetPeak <= (double) ogran::kKneeA && r.peak <= outBound && r.scrubs == 0 && r.nanKills == 0
+                 && r.envScrubs == 0 && r.aScrubs == 0 && r.events > 100 && r.hits > 100 && r.scans >= 3;
+            det << juce::String::formatted ("%g k: wet %.4f out %.4f sub %d (%d scans) scrubs %lld/%lld/%lld/%lld events %lld hits %lld; ", rates[i] / 1000.0, r.wetPeak, r.peak,
+                                            r.sub, r.scans, r.scrubs, r.nanKills, r.envScrubs, r.aScrubs, r.events, r.hits);
+        }
+        row (ok, "Z6a 60 s @ 48/44.1/192 k, triggers -60 dB on 0 dBFS noise + bursts, follow +-24 / rand 24, Pitch / Onset +-100 %: finite, no subnormal, bounds, 0 scrubs", det);
+
+        // Z6b — NaN, +Inf, 1e30 at the tap: isolated.
+        {
+            const double fs = 48000.0;
+            Job base = anaJob (fs, 4.0, eg25x::compositeStim (fs), eg25x::neutralRecipe());
+            std::vector<Job> jobs2 { base };
+            std::vector<std::shared_ptr<EvLog>> ev { evInto (jobs2[0]) };
+            std::vector<std::shared_ptr<HopLog>> hp { hopsInto (jobs2[0]) };
+            const float vals[3] { std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity(), 1.0e30f };
+            for (float v : vals)
+            {
+                Job j = base;
+                const juce::int64 at = (juce::int64) (1.3 * fs) + 5;
+                hook (j, [v, at] (auto& h) { h.injectAnalysis = { at, v, false }; });
+                ev.push_back (evInto (j));
+                hp.push_back (hopsInto (j));
+                jobs2.push_back (j);
+            }
+            auto o = renderAll (jobs2);
+            Tally t;
+            const char* nm[] { "NaN", "+Inf", "1e30" };
+            juce::String counts;
+            for (int k = 1; k <= 3; ++k)
+            {
+                bool hopsOk = true;
+                for (const auto& h : hp[(size_t) k]->h) hopsOk = hopsOk && (! h.confident || (std::isfinite (h.rawNote) && std::isfinite (h.clarity)));
+                bool after = false;
+                for (auto e : ev[(size_t) k]->at) after = after || e > (juce::int64) (1.3 * fs);
+                const auto dd = eg::diff (o[0], o[(size_t) k]);
+                const auto sc = o[(size_t) k].eng().diag.analysisScrubs;
+                counts << nm[k - 1] << " " << (long long) sc << "  ";
+                t.check (dd.count == 0 && ev[(size_t) k]->at == ev[0]->at && hopsOk && after && sc >= 1,
+                         juce::String (nm[k - 1]) + juce::String::formatted (": %d diffs, events %d vs %d, scrubs %lld", dd.count, (int) ev[(size_t) k]->at.size(),
+                                                                             (int) ev[0]->at.size(), (long long) sc));
+            }
+            row (t.bad == 0, "Z6b NaN / +Inf / 1e30 at the tap: scrubbed, no event from them, hops finite or unconfident, the detector fires on the next burst; audio bitwise",
+                 t.detail (3) + "  scrubs: " + counts.trim());
+        }
+    }
+
+    /** timeConfig with a stimulus (tonal + bursts): warm-up 4.5 s, median of 3 × 10 s, % of one core. */
+    inline double timeConfigStim (const P& ps, const Stim& st, int& alive, std::vector<double>* blockUs = nullptr, std::vector<int>* blockHop = nullptr, int block = 128)
+    {
+        const double fs = 48000.0;
+        auto p = make();
+        eg::setAll (*p, ps);
+        p->setSeed (0xC2C2ull);
+        p->prepareToPlay (fs, block);
+        juce::AudioBuffer<float> buf (2, block);
+        juce::MidiBuffer midi;
+        juce::int64 pos = 0;
+        auto runFor = [&] (double secs, bool perBlock)
+        {
+            const juce::int64 end = pos + (juce::int64) (secs * fs);
+            for (; pos < end; pos += block)
+            {
+                for (int ch = 0; ch < 2; ++ch)
+                    for (int i = 0; i < block; ++i) buf.setSample (ch, i, st (pos + i, ch));
+                const auto hops = p->getEngineForTest().diag.mpmHops;
+                const auto t0 = std::chrono::steady_clock::now();
+                p->processBlock (buf, midi);
+                if (perBlock && blockUs != nullptr)
+                {
+                    blockUs->push_back (std::chrono::duration<double, std::micro> (std::chrono::steady_clock::now() - t0).count());
+                    blockHop->push_back (p->getEngineForTest().diag.mpmHops != hops ? 1 : 0);
+                }
+            }
+        };
+        runFor (4.5, false);
+        alive = 0;
+        for (int s = 0; s < ogran::kPoolLive; ++s) alive += p->getEngineForTest().getPool().isActive (s) ? 1 : 0;
+        if (blockUs != nullptr) { runFor (10.0, true); return 0.0; }
+        double t[3];
+        for (double& x : t)
+        {
+            const auto t0 = std::chrono::steady_clock::now();
+            runFor (10.0, false);
+            x = std::chrono::duration<double> (std::chrono::steady_clock::now() - t0).count() / 10.0;
+        }
+        std::sort (t, t + 3);
+        return t[1] * 100.0;
+    }
+
+    void cpuRows()
+    {
+        std::printf ("\n-- C6. CPU with the analysis + 4 follow streams + triggers (INFO; P77 phase fail > 25 %%)\n");
+        P c4 { { "mix", 100.0f }, { "grain_limit", 3.0f }, { "feedback", 100.0f }, { "fb_diffusion", 100.0f }, { "reverb_mix", 50.0f } };
+        for (int s = 1; s <= 4; ++s)
+            c4 = c4 + P { { eg22::sp (s, "enable"), 1.0f }, { eg22::sp (s, "density"), 16.0f }, { eg22::sp (s, "size"), 2000.0f }, { eg22::sp (s, "window"), 0.6f },
+                          { eg22::sp (s, "scale"), 1.0f }, { eg22::sp (s, "pitch_rand"), 2.0f }, { eg22::sp (s, "filter_type"), 1.0f }, { eg22::sp (s, "filter_res"), 100.0f },
+                          { eg22::sp (s, "filter_rand"), 100.0f }, { eg22::sp (s, "drive"), 100.0f }, { eg22::sp (s, "crush"), 100.0f }, { eg22::sp (s, "crush_prob"), 100.0f },
+                          { eg22::sp (s, "ring_mix"), 100.0f }, { eg22::sp (s, "ring_rand"), 100.0f } };
+        P c5 = c4 + P { { "lfo1_rate", 3.0f }, { "lfo2_shape", 5.0f }, { "lfo3_shape", 4.0f }, { "lfo3_rate", 9.0f }, { "lfo4_rate", 0.3f }, { "macro1", 50.0f } };
+        const int dests[16] { D::Mix, D::stream (0, D::Position), D::stream (1, D::Pitch), D::stream (2, D::FilterCutoff), D::stream (3, D::Spray),
+                              D::Feedback, D::FbSat, D::RevSize, D::stream (0, D::Level), D::stream (1, D::Pan), D::stream (2, D::Size),
+                              D::stream (3, D::Density), D::InputGain, D::OutputGain, D::LfoRate1 + 1, D::stream (0, D::RingMix) };
+        for (int m = 0; m < 16; ++m)
+            c5 = c5 + route (m + 1, 1 + m % 5, dests[m], m % 2 == 0 ? 30.0f : -30.0f);
+        P c6 = c5;
+        for (int s = 1; s <= 4; ++s)
+            c6 = c6 + P { { eg22::sp (s, "onset_trigger"), 1.0f }, { "pitch_follow_s" + juce::String (s), 1.0f } };
+        const auto st = toneBurstStim (48000.0, 30.0, 0.18);
+        int a5, a6;
+        const double c5v = timeConfigStim (c5, st, a5), c6v = timeConfigStim (c6, st, a6);
+        std::printf ("  [INFO] C5 re-run (tonal + burst input): %.2f %% of one core (live %d; 2.5a C5 16.26 %% / verify 16.63 %%)\n", c5v, a5);
+        std::printf ("  [INFO] C6 = C5 + detector + MPM + 4 follow streams + triggers x4: %.2f %% (live %d), %+.2f vs C5; phase-fail ceiling 25 %%%s\n", c6v, a6,
+                     c6v - c5v, c6v > 25.0 ? "  -> PHASE FAIL" : (c6v > 20.0 ? "  -> 20-25 %: flag for 2.6" : ""));
+        row (c6v <= 25.0, "C6 CPU <= 25 % (P77 phase-fail ceiling)", juce::String::formatted ("%.2f %%", c6v));
+        // C6s — host blocks of 32: blocks with an MPM hop vs blocks without.
+        std::vector<double> us;
+        std::vector<int> hop;
+        int a6s;
+        timeConfigStim (c6, st, a6s, &us, &hop, 32);
+        std::vector<double> withH, without;
+        for (size_t k = 0; k < us.size(); ++k) (hop[k] ? withH : without).push_back (us[k]);
+        auto med = [] (std::vector<double> v) { if (v.empty()) return 0.0; std::sort (v.begin(), v.end()); return v[v.size() / 2]; };
+        auto mx = [] (const std::vector<double>& v) { double m = 0.0; for (double x : v) m = juce::jmax (m, x); return m; };
+        const double excess = med (withH) - med (without);
+        std::printf ("  [INFO] C6s 32-sample blocks @ 48 k: hop blocks median %.2f us / worst %.2f us (%d); other blocks median %.2f us / worst %.2f us (%d); "
+                     "median hop excess %.2f us (%.1f %% of the 666.7 us budget)%s\n",
+                     med (withH), mx (withH), (int) withH.size(), med (without), mx (without), (int) without.size(), excess, excess / 666.7 * 100.0,
+                     excess > 66.7 ? "  -> > 10 %: flag for 2.6" : "");
+    }
+
 } } // namespace eg25y
 
 static void engineRows25bb()
@@ -639,4 +1253,10 @@ static void engineRows25bb()
     eg25y::ringRows();
     eg25y::followRows();
     eg25y::absRows();
+    eg25y::matrixRows();
+    eg25y::burstClickRows();
+    eg25y::blockNullRows();
+    eg25y::allocRows();
+    eg25y::stressRows();
+    eg25y::cpuRows();
 }
