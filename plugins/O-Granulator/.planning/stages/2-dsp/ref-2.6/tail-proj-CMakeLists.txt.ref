@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.22)
+project(r26tail VERSION 1.0.0)
+set(OUARICON_COMPANY_NAME "Ouaricon Audio Development")
+set(OUARICON_MANUFACTURER_CODE OuDv)
+set(OUARICON_DEV_SUFFIX "-tailprobe")
+add_subdirectory("/Users/taylorbrook/JUCE" JUCE)
+add_subdirectory("/private/tmp/claude-501/-Users-taylorbrook-Dev-VST-development/19d8d1ef-4962-445a-8bf2-749962913243/scratchpad/r26/tail/src/plugins/O-Granulator" gran)
