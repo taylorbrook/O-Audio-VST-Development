@@ -23,6 +23,7 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <limits>
 #include "GranulatorParamIds.h"
 #include "dsp/Engine.h"
 
@@ -32,10 +33,12 @@
 // 220 APVTS parameters (GranulatorParamIds.h), three bus layouts (mono→mono,
 // mono→stereo, stereo→stereo), latency 0, and the full non-parameter state
 // codec: seed, shared custom scale, per-stream × per-collection degree masks,
-// uiLanguage. Stage 2 (Phases 2.1–2.2): ogran::Engine — 41 s MipRing<2>,
+// uiLanguage. Stage 2 (Phases 2.1–2.6): ogran::Engine — 41 s MipRing<2>,
 // absolute 32-sample pass grid, four streams on one pool (water-filled quotas,
-// fair stealing), scale quantiser, window morph, R5 output law, dry/wet. The
-// editor is juce::GenericAudioProcessorEditor until Stage 3.
+// fair stealing), scale quantiser, window morph, per-grain FX, feedback chain,
+// freeze, reverb, modulation matrix, onset / pitch analysis, R5 output law,
+// dry/wet; infinite tail (D21). The editor is juce::GenericAudioProcessorEditor
+// until Stage 3.
 //
 // Threading: everything in the "scale state" and "seed" sections is message-
 // thread API (Stage 2 hands the audio thread its own copies). No listener and
@@ -60,9 +63,12 @@ public:
     bool acceptsMidi() const override  { return false; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
-    // P7: stays 0 in 2.1. Phase 2.6 sets the real tail (grains <= 2 s + feedback
-    // + reverb) once every contributor exists.
-    double getTailLengthSeconds() const override { return 0.0; }
+    // D21 (Phase 2.6): the tail is infinite. Freeze holds the ring content (and
+    // the grains reading it) for as long as it stays on, and feedback 100 % only
+    // reaches an exact 0 after 295.6 s under FTZ (RESEARCH-2.6 R81). JUCE maps
+    // +inf to VST3 kInfiniteTail (R79) and AU kAudioUnitProperty_TailTime +inf
+    // (R80), so hosts keep calling processBlock after the input stops.
+    double getTailLengthSeconds() const override { return std::numeric_limits<double>::infinity(); }
 
     int getNumPrograms() override { return 1; }
     int getCurrentProgram() override { return 0; }

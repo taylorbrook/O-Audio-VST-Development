@@ -90,6 +90,10 @@ namespace
     // on EVERY processor the harness makes.
     bool gLegacyKnee = false, gLegacySvf = false;
 
+    // PLAN-2.6 P94: `--long` adds Z7d / Z7dn and the C7 INFO extras; C7 sets
+    // gNoVerdict when fewer than 7 uncontended runs exist (rc 2, never a FAIL).
+    bool gLong = false, gNoVerdict = false;
+
     std::unique_ptr<GranulatorProcessor> make()
     {
         auto p = std::unique_ptr<GranulatorProcessor> (dynamic_cast<GranulatorProcessor*> (createPluginFilter()));
@@ -327,6 +331,7 @@ namespace
 #include "engine_gates_25ab.h" // Stage 2 / 2.5a sections MF, PH, ZQ, TL, N8, M5, Z5, C5 (PLAN-2.5a P58)
 #include "engine_gates_25b.h"  // Stage 2 / 2.5b sections OD, OB, PS, MP, OG (PLAN-2.5b P76)
 #include "engine_gates_25bb.h" // Stage 2 / 2.5b sections FR, AQ, MX, QB, N9, M6, Z6, C6 (PLAN-2.5b P76)
+#include "engine_gates_26.h"   // Stage 2 / 2.6 sections TA, Z7, HR (PLAN-2.6 P94)
 
 //==============================================================================
 static void paramRows()
@@ -751,6 +756,18 @@ int main (int argc, char** argv)
         if (std::strcmp (argv[a], "--legacy-24") == 0)       { gLegacyKnee = gLegacySvf = true; }
         if (std::strcmp (argv[a], "--legacy-24=knee") == 0)  { gLegacyKnee = true; }
         if (std::strcmp (argv[a], "--legacy-24=svf") == 0)   { gLegacySvf = true; }
+        if (std::strcmp (argv[a], "--long") == 0)            { gLong = true; }
+    }
+    bool only26 = false;
+    for (int a = 1; a < argc; ++a)
+        only26 = only26 || std::strcmp (argv[a], "--only26") == 0;
+    auto rc = [] { return failures != 0 ? 1 : (gNoVerdict ? 2 : 0); };
+    if (only26)
+    {
+        engineRows26();
+        std::printf ("\n%d PASS, %d FAIL -- %s (2.6 sections only%s)\n", passes, failures,
+                     failures == 0 ? (gNoVerdict ? "NO VERDICT (C7 contended)" : "ALL PASS") : "FAILURES", gLong ? ", --long" : "");
+        return rc();
     }
     if (gLegacyKnee || gLegacySvf)
         std::printf ("[legacy-24] knee bypass %s, svfMake forced 1 %s\n", gLegacyKnee ? "ON" : "off", gLegacySvf ? "ON" : "off");
@@ -784,7 +801,7 @@ int main (int argc, char** argv)
         std::printf ("\n%d PASS, %d FAIL -- %s (2.3 sections only)\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
         return failures == 0 ? 0 : 1;
     }
-    std::printf ("O-Granulator render harness (Stage 1 + Stage 2 / 2.1–2.5b)  goldens: %s\n", GOLDEN_DIR);
+    std::printf ("O-Granulator render harness (Stage 1 + Stage 2 / 2.1–2.6%s)  goldens: %s\n", gLong ? ", --long" : "", GOLDEN_DIR);
     paramRows();
     busRows();
     stateRows();
@@ -800,6 +817,8 @@ int main (int argc, char** argv)
     engineRows25ab();
     engineRows25b();
     engineRows25bb();
-    std::printf ("\n%d PASS, %d FAIL -- %s\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
-    return failures == 0 ? 0 : 1;
+    engineRows26();
+    std::printf ("\n%d PASS, %d FAIL -- %s\n", passes, failures,
+                 failures == 0 ? (gNoVerdict ? "NO VERDICT (C7 contended)" : "ALL PASS") : "FAILURES");
+    return rc();
 }
