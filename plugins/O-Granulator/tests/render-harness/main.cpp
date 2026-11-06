@@ -854,11 +854,13 @@ static int dumpUiOverrides (const juce::File& out)
     root->setProperty ("sliders", juce::var (sliders));
     root->setProperty ("natives", juce::var (natives));
 
+    const juce::var rootVar (root);   // owns the whole tree from here (DynamicObject is ref-counted)
+    const int nd = defs->getProperties().size();
     out.getParentDirectory().createDirectory();
-    const bool ok = out.replaceWithText (juce::JSON::toString (juce::var (root), false) + "\n", false, false, "\n");
-    std::printf ("dump-ui-overrides: %d combos, %d sliders, %d defaults -> %s (%s)\n", nc, nf, defs->getProperties().size(),
+    const bool ok = out.replaceWithText (juce::JSON::toString (rootVar, false) + "\n", false, false, "\n");
+    std::printf ("dump-ui-overrides: %d combos, %d sliders, %d defaults -> %s (%s)\n", nc, nf, nd,
                  out.getFullPathName().toRawUTF8(), ok ? "ok" : "WRITE FAILED");
-    return ok && nc == 59 && nf == 140 ? 0 : 1;
+    return ok && nc == 59 && nf == 140 && nd == 199 ? 0 : 1;
 }
 
 //==============================================================================
