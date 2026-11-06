@@ -360,6 +360,17 @@ void Engine::process (const float* const* in, int numIn, float* const* out, int 
 
     pendingSeed = seed;
 
+   #if OGRAN_TEST_HOOKS
+    // 2.5b hooks → the analysis (copied once per host block).
+    analysis.flags.levelTrigger         = hooks.levelTrigger;
+    analysis.flags.commitHopImmediately = hooks.commitHopImmediately;
+    analysis.flags.guardOff             = hooks.guardOff;
+    analysis.flags.ringHold             = hooks.ringHold;
+    if (hooks.injectAnalysis.at >= 0 && ! hooks.injectAnalysis.done)
+        analysis.inject = { hooks.injectAnalysis.at, hooks.injectAnalysis.value, false };
+   #endif
+    const bool runAnalysis = analysisOn();
+
     // Engine input is stereo: a mono bus feeds L = R.
     const float* const inL  = in[0];
     const float* const inR  = numIn > 1 ? in[1] : in[0];
@@ -401,8 +412,17 @@ void Engine::process (const float* const* in, int numIn, float* const* out, int 
            #endif
         }
 
-        // 4. Schedule.
-        const int numOnsets = scheduleStreams (len);
+        // 2.5b analysis of the piece (P61): the same conditioned input, evaluated
+        // by the analysis itself (env.process stays verbatim). At most one onset
+        // event per piece; an MPM hop goes to the pending slot (R59: committed at
+        // the next tick). Never reads the ring write, the feedback or the dry path.
+        int eventOffset = -1;
+        if (runAnalysis)
+            eventOffset = analysis.processPiece (inL + done, inR + done, len, cellPos, absCount,
+                                                 [&inGain] (int c) noexcept { return inGain.value (c); });
+
+        // 4. Schedule (2.5b: the event re-phases / adds a grain on trigger-on streams).
+        const int numOnsets = scheduleStreams (len, eventOffset);
 
         // 5. Render grain-major, split at each onset; spawn at the split.
         for (auto& sb : bus)
@@ -461,6 +481,21 @@ void Engine::process (const float* const* in, int numIn, float* const* out, int 
         absCount += len;
         done     += len;
     }
+
+   #if OGRAN_TEST_HOOKS
+    // 2.5b counters (the analysis keeps its own; mirrored for the harness).
+    if (analysis.inject.done)
+        hooks.injectAnalysis.done = true;
+    const auto& as = analysis.stats;
+    diag.onsetEvents       = as.onsetEvents;
+    diag.maxEventsPerPiece = as.maxEventsPerPiece;
+    diag.mpmHops           = as.mpmHops;
+    diag.mpmConfident      = as.mpmConfident;
+    diag.guardHeld         = as.guardHeld;
+    diag.f0Writes          = as.f0Writes;
+    diag.f0Skips           = as.f0Skips;
+    diag.analysisScrubs    = as.scrubs;
+   #endif
 }
 
 void Engine::gridTick() noexcept
@@ -469,6 +504,12 @@ void Engine::gridTick() noexcept
     gp.latch (ptrs);
     spanSamples = static_cast<double> (gp.bufferLengthS) * fs;   // spawn-latched destination (no ramp)
     handleFreezeEdges();
+
+    // 2.5b (P66, P69): the cell log {absCount, W, live} (after the freeze edges:
+    // a freezePending cell is live), thrLin, the scrub checks, the R59 commit
+    // of the pending hop, the Pitch / Onset sources of this cell.
+    if (analysisOn())
+        analysis.tick (absCount, ring.getWriteCount(), ! frozen, gp.onsetThresholdDb);
 
     // 2.5a: the modulation sources of this cell (sampled once, at the tick),
     // then the matrix (spawn-latched + tick destinations overwrite the latch).
@@ -722,7 +763,7 @@ void Engine::tickSources() noexcept
     env.setParams (gp.envAttackMs, gp.envReleaseMs, gp.envGainDb);
     srcVals.v[ModSrc::Env]   = env.source();
     srcVals.v[ModSrc::Pitch] = 0.0f;
-    srcVals.v[ModSrc::Onset] = 0.0f;
+    srcVals.v[ModSrc::Onset] = analysis.onsetSource();   // 2.5b P64: computed at this tick (Analysis::tick)
     for (int n = 0; n < kMacros; ++n)
     {
         macroRamp[n].setTarget (gp.macro[n], rampCells);
@@ -822,14 +863,15 @@ void Engine::applyTempoEffective() noexcept
     }
 }
 
-int Engine::scheduleStreams (int len) noexcept
+int Engine::scheduleStreams (int len, int eventOffset) noexcept
 {
     int counts[kMaxStreams] {};
     for (int s = 0; s < kMaxStreams; ++s)
     {
         if (! scheds[s].isEnabled())
-            continue;
+            continue;   // a disabled stream does nothing and draws nothing (FUNC-03 c1)
         const auto& st = gp.s[s];
+        const bool trig = eventOffset >= 0 && st.onsetTrigger;   // muted / frozen streams fire too
         if (scheds[s].isTempo())
         {
             StreamScheduler::TempoGrid g;
@@ -842,6 +884,42 @@ int Engine::scheduleStreams (int len) noexcept
             counts[s] = scheds[s].processTempo (len, absCount, s, activeSeed, g, st.jitter, streamOnsets[s]);
            #if OGRAN_TEST_HOOKS
             diag.tempoOnsets += counts[s];
+           #endif
+            if (trig)
+            {
+                // D18 (R73): one extra grain at the event, after every grid onset
+                // with offset <= i (grid first on ties). The slot, tIndex, lastEmit
+                // and the epoch are untouched; the draws use the counter 2^63 | n,
+                // disjoint from every grid counter.
+                int k = counts[s];
+                while (k > 0 && streamOnsets[s][k - 1].offset > eventOffset)
+                {
+                    streamOnsets[s][k] = streamOnsets[s][k - 1];
+                    --k;
+                }
+                streamOnsets[s][k] = { eventOffset, 0.0, kBurstBit | burstCount[s]++, s, true };
+                ++counts[s];
+               #if OGRAN_TEST_HOOKS
+                ++diag.tempoBursts;
+               #endif
+            }
+        }
+        else if (trig)
+        {
+            // D14 via R73: split at the event — process (i), re-phase, process
+            // (len − i). The re-phase grain is index 0 of the new epoch at i.
+            const double interval = fs / static_cast<double> (st.density);
+            const int c1 = scheds[s].process (eventOffset, s, activeSeed, interval, st.jitter, streamOnsets[s]);
+            scheds[s].rephase();
+            const int c2 = scheds[s].process (len - eventOffset, s, activeSeed, interval, st.jitter, streamOnsets[s] + c1);
+            for (int k = c1; k < c1 + c2; ++k)
+            {
+                streamOnsets[s][k].offset += eventOffset;
+                streamOnsets[s][k].burst = k == c1 && streamOnsets[s][k].offset == eventOffset;
+            }
+            counts[s] = c1 + c2;
+           #if OGRAN_TEST_HOOKS
+            ++diag.freeBursts;
            #endif
         }
         else
@@ -1055,6 +1133,12 @@ void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart, std::int64_t 
     rec.ringHz      = gpl.ringHz;
     rec.crushed     = gpl.crushed;
     rec.driveD      = gpl.driveD;
+    rec.burst       = o.burst;
+    rec.f0          = std::numeric_limits<float>::quiet_NaN();
+    rec.target      = std::numeric_limits<double>::quiet_NaN();
+    rec.followHit   = false;
+    rec.followMiss  = 0;
+    rec.lookupW     = 0.0;
     ++diag.logCount;
    #endif
 }

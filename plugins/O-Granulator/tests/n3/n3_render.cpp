@@ -19,9 +19,12 @@
       onset_threshold −24 dB; scale_root 7 (G); sN_onset_trigger Off ×4;
       pitch_follow_sN Off ×4; slot 12 Pitch → None (40 %), slot 13 Onset →
       None (−60 %). None of these is a route.
-    Stimulus (both sides): the N2 hash noise × 0.1 (peak 0.05) + a 0.1 sine at
-    227 Hz stepping phase-continuously to 301 Hz at 3 s + 2 ms 1 kHz Hann
-    bursts at 0.35 every 250 ms from 0.5 s. Peak <= 0.5 (the N2 bound), 6 s.
+    Stimulus (both sides): the N2 hash noise × 0.05 (peak 0.025) + a 0.05 sine
+    at 227 Hz stepping phase-continuously to 301 Hz at 3 s + 5 ms 1 kHz
+    hard-gated bursts at 0.4 every 250 ms from 0.5 s. Peak <= 0.5 (the N2
+    bound), 6 s. (Scaled at T3 from the plan's ×0.1 / 0.1 / 2 ms Hann 0.35: with
+    input_gain −12 dB those bursts never crossed the −24 dB threshold — the
+    liveness precondition failed; scaled on both sides, never the check.)
     The detector fires and the MPM is confident in the neutral case, so the
     null proves that the analysis never reaches the audio path.
     A MockPlayHead (constant 120 bpm, 4/4, playing from ppq 0) on BOTH sides.
@@ -147,21 +150,22 @@ namespace
         return static_cast<float> ((2.0 * u - 1.0) * 0.5);
     }
 
-    /** P60 composite: noise × 0.1 + 0.1 sine 227 → 301 Hz (phase-continuous at
-        3 s) + 2 ms 1 kHz Hann bursts at 0.35 every 250 ms from 0.5 s. */
+    /** P60 composite (scaled, see the header): noise × 0.05 + 0.05 sine 227 →
+        301 Hz (phase-continuous at 3 s) + 5 ms 1 kHz hard-gated bursts at 0.4
+        every 250 ms from 0.5 s. */
     float stimulus (juce::int64 i, int ch)
     {
         const double t = (double) i / kFs;
         const double tStep = 3.0;
         const double ph = t < tStep ? 2.0 * kPi * 227.0 * t
                                     : 2.0 * kPi * 227.0 * tStep + 2.0 * kPi * 301.0 * (t - tStep);
-        double v = 0.1 * (double) hashNoise (i, ch) + 0.1 * std::sin (ph);
+        double v = 0.05 * (double) hashNoise (i, ch) + 0.05 * std::sin (ph);
         if (t >= 0.5)
         {
             const double k  = std::floor ((t - 0.5) / 0.25);
             const double tb = t - (0.5 + 0.25 * k);
-            if (tb >= 0.0 && tb < 0.002)
-                v += 0.35 * 0.5 * (1.0 - std::cos (2.0 * kPi * tb / 0.002)) * std::sin (2.0 * kPi * 1000.0 * tb);
+            if (tb >= 0.0 && tb < 0.005)
+                v += 0.4 * std::sin (2.0 * kPi * 1000.0 * tb);
         }
         return (float) v;
     }

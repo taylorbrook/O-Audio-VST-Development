@@ -470,14 +470,27 @@ namespace { namespace eg25b
         row (t.bad == 0, "MF6 9 sources (LFO 1-4, Env, Macro 1-4) x 5 classes x +-100 %: moves with sign(depth*src), stays in range",
              t.detail ((int) jobs.size()));
 
-        // Pitch / Onset routed → identical to unrouted (2.5b).
+        // Pitch / Onset routed → live (2.5b, PLAN-2.5b P74: the one planned, attributed
+        // carried-row rewrite; baseline A'). The P75 tonal + burst stimulus: a 233 Hz
+        // sine + 2 ms 1 kHz Hann bursts every 125 ms (Pitch confident, Onset firing).
         {
+            const auto tonalStim = [] (juce::int64 i, int)
+            {
+                const double ts = (double) i / 48000.0;
+                double v = 0.2 * std::sin (2.0 * eg::kPi * 233.0 * ts);
+                const double tb = ts - 0.125 * std::floor (ts / 0.125);
+                if (ts >= 0.05 && tb < 0.002)
+                    v += 0.5 * 0.5 * (1.0 - std::cos (2.0 * eg::kPi * tb / 0.002)) * std::sin (2.0 * eg::kPi * 1000.0 * tb);
+                return (float) v;
+            };
             Job a = modJob (24000, P {}, -1), b = modJob (24000, route (1, 6, D::Mix, 100.0f) + route (2, 7, D::stream (0, D::Pitch), -100.0f), -1);
             a.block = b.block = 512;
+            a.stim = b.stim = tonalStim;
             auto o = renderAll ({ a, b });
             const auto dd = eg::diff (o[0], o[1]);
-            row (dd.count == 0 && o[1].eng().diag.routedDests == 0, "MF6 Pitch / Onset routed at +-100 %: bitwise == unrouted (inert until 2.5b)",
-                 juce::String::formatted ("%d diffs", dd.count));
+            // Detail kept value-free: the Pitch source goes live at 2.5b T6 (the A' line must not move).
+            row (dd.count > 0 && o[1].eng().diag.routedDests >= 1, "MF6 Pitch / Onset routed at +-100 %: live (2.5b) - differs from unrouted",
+                 juce::String (dd.count > 0 ? "differs" : "identical") + ", routedDests >= 1: " + (o[1].eng().diag.routedDests >= 1 ? "yes" : "no"));
         }
 
         // MF7 / MF7n — route removal (source → None, dest → None, depth → 0, dest swap).

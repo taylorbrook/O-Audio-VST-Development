@@ -258,7 +258,9 @@ namespace ogran
           x = w − mean, zero-padded to 2048; r(τ) = IFFT |FFT x|² (JUCE real FFT)
           m(τ) running difference (double) for τ <= τ_max + 1 only (R68)
           NSDF n(τ) = 2r/m; skip the zero-lag lobe; key maxima of the positive
-          regions in [τ_min, τ_max]; the first >= 0.9·max; parabolic refinement;
+          regions in [τ_min, τ_max] (local maxima only: a region unterminated at
+          the horizon τ_max + 1 offers no rising edge); the first >= 0.9·max;
+          parabolic refinement;
           clarity = the interpolated peak; confident iff clarity >= 0.8, the
           level gate passes and everything is finite.
           note = 69 + 12·log2 ((fs_d/τ)/440). */
@@ -347,8 +349,12 @@ namespace ogran
                     if (nsdf[static_cast<size_t> (t)] > nsdf[static_cast<size_t> (best)]) best = t;
                     ++t;
                 }
+                // A key maximum must be a local maximum: a region still positive at the
+                // horizon H (m(τ) stops at τ_max + 1, R68) would otherwise offer its
+                // rising edge, refined on a slope (|d| >> 1, clarity > 1).
                 if (best >= tauMin && best <= tauMax && best > 0 && best < H && numPeaks < kMaxPeaks
-                    && nsdf[static_cast<size_t> (best)] > 0.0)
+                    && nsdf[static_cast<size_t> (best)] > 0.0
+                    && nsdf[static_cast<size_t> (best + 1)] <= nsdf[static_cast<size_t> (best)])
                 {
                     peaks[numPeaks++] = best;
                     mx = std::max (mx, nsdf[static_cast<size_t> (best)]);

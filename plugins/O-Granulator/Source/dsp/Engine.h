@@ -417,7 +417,15 @@ namespace ogran
 
     private:
         void gridTick() noexcept;
-        int  scheduleStreams (int len) noexcept;
+        int  scheduleStreams (int len, int eventOffset) noexcept;   // 2.5b: eventOffset = the piece's onset event (−1 none)
+        bool analysisOn() const noexcept
+        {
+           #if OGRAN_TEST_HOOKS
+            return ! hooks.analysisOff;
+           #else
+            return true;
+           #endif
+        }
         void spawn (const StreamOnset& o, std::int64_t pieceStart, std::int64_t wPiece) noexcept;
         void handleFreezeEdges() noexcept;                 // 2.4: tick-sampled freeze edges
         void applyTempoEffective() noexcept;               // 2.5a P50: effective Tempo density / size (R45)
