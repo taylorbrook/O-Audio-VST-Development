@@ -207,8 +207,33 @@ namespace ogran
             std::atomic<float>* ringFreq     = nullptr;   // Hz (skewed range)
             std::atomic<float>* ringRand     = nullptr;
             std::atomic<float>* ringMix      = nullptr;
+            // 2.5a tempo sync (choice indices into the 20 / 19 division lists)
+            std::atomic<float>* sizeSync     = nullptr;
+            std::atomic<float>* densitySync  = nullptr;
         };
         Stream s[kMaxStreams] {};
+
+        // 2.5a: sync, LFO / env / macro sources, modulation matrix.
+        std::atomic<float>* syncMode   = nullptr;   // choice 0 Free, 1 Tempo
+        struct Lfo
+        {
+            std::atomic<float>* shape    = nullptr;   // choice 0…5
+            std::atomic<float>* rate     = nullptr;   // Hz (skewed range: read raw)
+            std::atomic<float>* rateSync = nullptr;   // choice 0…21
+            std::atomic<float>* phase    = nullptr;   // degrees
+        };
+        Lfo lfo[kLfos] {};
+        std::atomic<float>* envAttack  = nullptr;   // ms (skewed)
+        std::atomic<float>* envRelease = nullptr;   // ms (skewed)
+        std::atomic<float>* envGain    = nullptr;   // dB
+        std::atomic<float>* macro[kMacros] {};
+        struct Mod
+        {
+            std::atomic<float>* source = nullptr;   // choice 0…11
+            std::atomic<float>* dest   = nullptr;   // choice 0…112
+            std::atomic<float>* depth  = nullptr;   // −100…100 %
+        };
+        Mod mod[kModSlots] {};
     };
 
     //==========================================================================
@@ -268,8 +293,33 @@ namespace ogran
             float ringFreqHz     = 200.0f;   // 20..5000 Hz (raw)
             float ringRand       = 0.0f;     // 0..1
             float ringMix        = 0.0f;     // 0..1
+            // 2.5a tempo sync — spec defaults (index 7 = 1/16)
+            int   sizeSync       = 7;        // 0…19
+            int   densitySync    = 7;        // 0…18
         };
         Stream s[kMaxStreams] {};
+
+        // 2.5a — spec defaults
+        int syncMode = 0;                    // 0 Free, 1 Tempo
+        struct Lfo
+        {
+            int   shape    = 0;              // 0 Sine … 5 Smooth Random
+            float rateHz   = 0.5f;           // 0.01..20 (raw)
+            int   rateSync = 18;             // 0…21 (18 = 1 bar)
+            float phaseDeg = 0.0f;           // 0..360
+        };
+        Lfo   lfo[kLfos] {};
+        float envAttackMs  = 10.0f;          // 1..500
+        float envReleaseMs = 200.0f;         // 10..2000
+        float envGainDb    = 0.0f;           // −24..24
+        float macro[kMacros] {};             // 0..1
+        struct Mod
+        {
+            int   src   = 0;                 // 0 None … 11 Macro 4
+            int   dest  = 0;                 // 0 None … 112
+            float depth = 0.0f;              // −1..1
+        };
+        Mod mod[kModSlots] {};
 
         void latch (const ParamPointers& p) noexcept
         {
@@ -345,6 +395,30 @@ namespace ogran
                 read (ps.ringFreq,     st.ringFreqHz,     20.0f,  5000.0f);
                 readPct (ps.ringRand,    st.ringRand);
                 readPct (ps.ringMix,     st.ringMix);
+                // 2.5a
+                readChoice (ps.sizeSync,    st.sizeSync,    19);
+                readChoice (ps.densitySync, st.densitySync, 18);
+            }
+
+            // 2.5a: sync, sources, matrix (choice indices with lround, clamped).
+            readChoice (p.syncMode, syncMode, 1);
+            for (int n = 0; n < kLfos; ++n)
+            {
+                readChoice (p.lfo[n].shape,    lfo[n].shape,    5);
+                read       (p.lfo[n].rate,     lfo[n].rateHz,   0.01f, 20.0f);
+                readChoice (p.lfo[n].rateSync, lfo[n].rateSync, kTempoDivs - 1);
+                read       (p.lfo[n].phase,    lfo[n].phaseDeg, 0.0f, 360.0f);
+            }
+            read (p.envAttack,  envAttackMs,   1.0f,  500.0f);
+            read (p.envRelease, envReleaseMs, 10.0f, 2000.0f);
+            read (p.envGain,    envGainDb,   -24.0f,   24.0f);
+            for (int n = 0; n < kMacros; ++n)
+                readPct (p.macro[n], macro[n]);
+            for (int m = 0; m < kModSlots; ++m)
+            {
+                readChoice (p.mod[m].source, mod[m].src,  kModSources - 1);
+                readChoice (p.mod[m].dest,   mod[m].dest, kModDests - 1);
+                read       (p.mod[m].depth,  mod[m].depth, -100.0f, 100.0f, 100.0f);
             }
         }
 
@@ -363,6 +437,15 @@ namespace ogran
         static void readPct (const std::atomic<float>* src, float& dst) noexcept
         {
             read (src, dst, 0.0f, 100.0f, 100.0f);
+        }
+
+        static void readChoice (const std::atomic<float>* src, int& dst, int maxIndex) noexcept
+        {
+            if (src == nullptr)
+                return;
+            const float v = src->load (std::memory_order_relaxed);
+            if (std::isfinite (v))
+                dst = std::clamp (static_cast<int> (std::lround (v)), 0, maxIndex);
         }
 
         static void readBool (const std::atomic<float>* src, bool& dst) noexcept

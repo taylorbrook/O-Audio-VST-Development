@@ -38,6 +38,7 @@
       U, V, H  Stage 2 / 2.3 FX units, per-grain, no-bleed rows — see engine_gates_23.h
       U5–U8, FB  Stage 2 / 2.4 knee / D10 / chain / tap-law units, feedback rows — engine_gates_24.h
       N7, FZ, RV, Z3, Z4, M4, C4  Stage 2 / 2.4 PERF / freeze / reverb / stress rows — engine_gates_24b.h
+      TT, U9, TS, LS, EV, MC  Stage 2 / 2.5a tempo + source units / rows — engine_gates_25a.h
 
   ==============================================================================
 */
@@ -129,14 +130,71 @@ namespace
     }
 
     // ── Synthetic playhead (Stage 2 tempo gates inherit it) ──────────────────
+    // Legacy mode (script empty — B1/B2 and every carried row): ppq = t/fs·bpm/60,
+    // a bpm change is a ppq JUMP. v2 mode (PLAN-2.5a P47, RESEARCH-2.5a R56): a
+    // piecewise script of segments in HOST-SAMPLE time — tempo map (ppq
+    // integrated across steps), time signature with ppqPositionOfLastBarStart,
+    // start / stop, loop wrap, locate, negative start ppq. Hosts report a
+    // position only at block start, so v2 renders cut host blocks at every
+    // segment start (Transport::eventSamples → eg::withTransport).
     struct MockPlayHead : juce::AudioPlayHead
     {
         double bpm = 120.0, sampleRate = 48000.0;
         bool playing = true, hasBpm = true;
         juce::int64 timeInSamples = 0;
+
+        struct Seg
+        {
+            juce::int64 at = 0;          // first host sample of the segment
+            double ppq0 = 0.0;           // ppq at `at`
+            double bpm  = 120.0;
+            bool   playing = true;
+            int    num = 4, den = 4;
+            double barPpq = 0.0;         // a bar start in this segment's bar frame
+            bool   looping = false;
+            double loopA = 0.0, loopB = 0.0;
+            bool   hasBpm = true, hasPpq = true, hasSig = true;
+        };
+        std::vector<Seg> script;         // v2 iff non-empty (sorted by `at`, script[0].at == 0)
+
+        const Seg& segAt (juce::int64 t) const
+        {
+            size_t k = 0;
+            while (k + 1 < script.size() && script[k + 1].at <= t) ++k;
+            return script[k];
+        }
+        static double barLen (const Seg& s) { return 4.0 * (double) s.num / (double) s.den; }
+        double ppqAt (juce::int64 t) const
+        {
+            const auto& s = segAt (t);
+            return s.playing ? s.ppq0 + (double) (t - s.at) / sampleRate * s.bpm / 60.0 : s.ppq0;
+        }
+        double lastBarStartAt (juce::int64 t) const
+        {
+            const auto& s = segAt (t);
+            const double L = barLen (s), q = ppqAt (t);
+            return s.barPpq + std::floor ((q - s.barPpq) / L) * L;
+        }
+
         juce::Optional<PositionInfo> getPosition() const override
         {
             PositionInfo info;
+            if (! script.empty())
+            {
+                const auto& s = segAt (timeInSamples);
+                if (s.hasBpm) info.setBpm (s.bpm);
+                info.setIsPlaying (s.playing);
+                if (s.hasSig) info.setTimeSignature (TimeSignature { s.num, s.den });
+                info.setTimeInSamples (timeInSamples);
+                if (s.hasPpq)
+                {
+                    info.setPpqPosition (ppqAt (timeInSamples));
+                    info.setPpqPositionOfLastBarStart (lastBarStartAt (timeInSamples));
+                }
+                info.setIsLooping (s.looping);
+                if (s.looping) info.setLoopPoints (LoopPoints { s.loopA, s.loopB });
+                return info;
+            }
             if (hasBpm) info.setBpm (bpm);
             info.setIsPlaying (playing);
             info.setTimeSignature (TimeSignature { 4, 4 });
@@ -145,6 +203,90 @@ namespace
             return info;
         }
         void advance (int n) { if (playing) timeInSamples += n; }
+    };
+
+    /** v2 script builder. Every modifier takes the host sample it lands on
+        (strictly increasing) and derives the new segment from the state there. */
+    struct Transport
+    {
+        double fs = 48000.0;
+        std::vector<MockPlayHead::Seg> segs;
+
+        explicit Transport (double sampleRate = 48000.0, double bpm = 120.0, double startPpq = 0.0, bool playing = true,
+                            int num = 4, int den = 4)
+            : fs (sampleRate)
+        {
+            MockPlayHead::Seg s;
+            s.ppq0 = startPpq; s.bpm = bpm; s.playing = playing; s.num = num; s.den = den;
+            s.barPpq = 0.0;
+            segs.push_back (s);
+        }
+
+        double ppqAt (juce::int64 t) const
+        {
+            MockPlayHead m; m.sampleRate = fs; m.script = segs;
+            return m.ppqAt (t);
+        }
+        double lastBarStartAt (juce::int64 t) const
+        {
+            MockPlayHead m; m.sampleRate = fs; m.script = segs;
+            return m.lastBarStartAt (t);
+        }
+        const MockPlayHead::Seg& segAt (juce::int64 t) const
+        {
+            size_t k = 0;
+            while (k + 1 < segs.size() && segs[k + 1].at <= t) ++k;
+            return segs[k];
+        }
+
+        MockPlayHead::Seg& next (juce::int64 at)
+        {
+            jassert (at > segs.back().at);
+            MockPlayHead::Seg s = segs.back();
+            s.ppq0 = ppqAt (at);
+            s.at = at;
+            segs.push_back (s);
+            return segs.back();
+        }
+        Transport& tempo (juce::int64 at, double bpm)            { next (at).bpm = bpm; return *this; }
+        Transport& stop (juce::int64 at)                         { next (at).playing = false; return *this; }
+        Transport& start (juce::int64 at)                        { next (at).playing = true; return *this; }
+        Transport& locate (juce::int64 at, double ppq)           { next (at).ppq0 = ppq; return *this; }
+        /** The time signature changes at `at`; a bar starts there. */
+        Transport& timeSig (juce::int64 at, int num, int den)
+        {
+            auto& s = next (at);
+            s.num = num; s.den = den; s.barPpq = s.ppq0;
+            return *this;
+        }
+        /** Loop [a, b) engaged from the start; the wrap to a happens at host sample `at`. */
+        Transport& loopWrap (juce::int64 at, double a, double b)
+        {
+            for (auto& s : segs) { s.looping = true; s.loopA = a; s.loopB = b; }
+            auto& s = next (at);
+            s.ppq0 = a;
+            return *this;
+        }
+        /** Every segment loses bpm / ppq / time signature (the WR-09 / no-ppq fallback). */
+        Transport& noInfo (bool bpm, bool ppq, bool sig = true)
+        {
+            for (auto& s : segs) { s.hasBpm = bpm; s.hasPpq = ppq; s.hasSig = sig; }
+            return *this;
+        }
+
+        std::vector<juce::int64> eventSamples() const
+        {
+            std::vector<juce::int64> v;
+            for (size_t k = 1; k < segs.size(); ++k) v.push_back (segs[k].at);
+            return v;
+        }
+        std::shared_ptr<MockPlayHead> makeHead() const
+        {
+            auto h = std::make_shared<MockPlayHead>();
+            h->sampleRate = fs;
+            h->script = segs;
+            return h;
+        }
     };
 
     juce::RangedAudioParameter* param (juce::AudioProcessor& p, const juce::String& id)
@@ -178,6 +320,7 @@ namespace
 #include "engine_gates_23b.h" // Stage 2 / 2.3 sections N6, Z, K2, M3, C3 (PLAN-2.3 P29)
 #include "engine_gates_24.h"  // Stage 2 / 2.4 sections U5–U8, FB (PLAN-2.4 P44)
 #include "engine_gates_24b.h" // Stage 2 / 2.4 sections N7, FZ, RV, Z3/Z4, M4, C4 (PLAN-2.4 P44)
+#include "engine_gates_25a.h" // Stage 2 / 2.5a sections TT, U9, TS, LS, EV, MC (PLAN-2.5a P58)
 
 //==============================================================================
 static void paramRows()
@@ -605,6 +748,12 @@ int main (int argc, char** argv)
     }
     if (gLegacyKnee || gLegacySvf)
         std::printf ("[legacy-24] knee bypass %s, svfMake forced 1 %s\n", gLegacyKnee ? "ON" : "off", gLegacySvf ? "ON" : "off");
+    if (argc > 1 && std::strcmp (argv[1], "--only25a") == 0)
+    {
+        engineRows25a();
+        std::printf ("\n%d PASS, %d FAIL -- %s (2.5a sections only)\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
+        return failures == 0 ? 0 : 1;
+    }
     if (argc > 1 && std::strcmp (argv[1], "--only24") == 0)
     {
         engineRows24();
@@ -621,7 +770,7 @@ int main (int argc, char** argv)
         std::printf ("\n%d PASS, %d FAIL -- %s (2.3 sections only)\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
         return failures == 0 ? 0 : 1;
     }
-    std::printf ("O-Granulator render harness (Stage 1 + Stage 2 / 2.1–2.4)  goldens: %s\n", GOLDEN_DIR);
+    std::printf ("O-Granulator render harness (Stage 1 + Stage 2 / 2.1–2.5a)  goldens: %s\n", GOLDEN_DIR);
     paramRows();
     busRows();
     stateRows();
@@ -633,6 +782,7 @@ int main (int argc, char** argv)
     engineRows23b();
     engineRows24();
     engineRows24b();
+    engineRows25a();
     std::printf ("\n%d PASS, %d FAIL -- %s\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
     return failures == 0 ? 0 : 1;
 }

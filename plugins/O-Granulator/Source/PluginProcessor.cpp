@@ -109,7 +109,35 @@ GranulatorProcessor::GranulatorProcessor()
             s.ringFreq     = raw (Ids::stream (n, "ring_freq"));
             s.ringRand     = raw (Ids::stream (n, "ring_rand"));
             s.ringMix      = raw (Ids::stream (n, "ring_mix"));
+            // 2.5a tempo sync
+            s.sizeSync     = raw (Ids::stream (n, "size_sync"));
+            s.densitySync  = raw (Ids::stream (n, "density_sync"));
         }
+
+        // Phase 2.5a: sync mode, LFO / env / macro sources, the 16-slot matrix.
+        p.syncMode = raw ("sync_mode");
+        for (int n = 1; n <= Ids::kLfos; ++n)
+        {
+            auto& l = p.lfo[n - 1];
+            l.shape    = raw (Ids::lfo (n, "shape"));
+            l.rate     = raw (Ids::lfo (n, "rate"));
+            l.rateSync = raw (Ids::lfo (n, "rate_sync"));
+            l.phase    = raw (Ids::lfo (n, "phase"));
+        }
+        p.envAttack  = raw ("env_attack");
+        p.envRelease = raw ("env_release");
+        p.envGain    = raw ("env_gain");
+        for (int n = 1; n <= Ids::kMacros; ++n)
+            p.macro[n - 1] = raw (Ids::macro (n));
+        for (int m = 1; m <= Ids::kModSlots; ++m)
+        {
+            auto& md = p.mod[m - 1];
+            md.source = raw (Ids::mod (m, "source"));
+            md.dest   = raw (Ids::mod (m, "dest"));
+            md.depth  = raw (Ids::mod (m, "depth"));
+        }
+        static_assert (Ids::kLfos == ogran::kLfos && Ids::kMacros == ogran::kMacros && Ids::kModSlots == ogran::kModSlots
+                       && Ids::kModDests == ogran::kModDests, "engine 2.5a sizes must match the parameter contract");
 
         // P11: the engine reads masks (relaxed) and copies the custom table under
         // a non-blocking try-lock when customVersion moves. Index layouts agree:
@@ -232,8 +260,34 @@ void GranulatorProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     const float* in[2] = { buffer.getReadPointer (0), buffer.getReadPointer (numIn > 1 ? 1 : 0) };
     float* out[2]      = { buffer.getWritePointer (0), numOut > 1 ? buffer.getWritePointer (1) : nullptr };
 
+    // 2.5a: the host transport, read ONCE per block (by value — no allocation).
+    // The only playhead read in the plugin (PLAN-2.5a T12).
+    ogran::TransportSnapshot ts;
+    if (auto* ph = getPlayHead())
+    {
+        if (const auto pos = ph->getPosition())
+        {
+            const auto bpm = pos->getBpm();
+            const auto ppq = pos->getPpqPosition();
+            ts.valid   = bpm.hasValue() && ppq.hasValue();
+            ts.playing = pos->getIsPlaying();
+            ts.bpm     = bpm.orFallback (0.0);
+            ts.ppq     = ppq.orFallback (0.0);
+            if (const auto bar = pos->getPpqPositionOfLastBarStart())
+            {
+                ts.hasLastBar = true;
+                ts.lastBarPpq = *bar;
+            }
+            if (const auto sig = pos->getTimeSignature())
+            {
+                ts.num = sig->numerator;
+                ts.den = sig->denominator;
+            }
+        }
+    }
+
     // The seed is adopted by the engine at its next grid point.
-    engine.process (in, numIn, out, numOut, n, getSeed());
+    engine.process (in, numIn, out, numOut, n, getSeed(), ts);
 
     for (int ch = numOut; ch < numCh; ++ch)
         buffer.clear (ch, 0, n);

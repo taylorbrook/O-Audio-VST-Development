@@ -30,7 +30,7 @@
 #endif
 
 // ============================================================================
-// O-Granulator engine constants (Stage 2, Phases 2.1–2.4).
+// O-Granulator engine constants (Stage 2, Phases 2.1–2.5a).
 // ARCHITECTURE §2, §6, §16; RESEARCH-2.1 §1; PLAN-2.1 T1.
 // ============================================================================
 namespace ogran
@@ -146,11 +146,50 @@ namespace ogran
     inline constexpr float  kRevMod        = 0.2f;
     inline constexpr float  kRevShimmer    = 0.0f;
 
+    // ── Phase 2.5a (PLAN-2.5a layout table; RESEARCH-2.5a R39–R58, CONTEXT-2.5a
+    //    D13–D16). Tempo tracker / clock, LFO / env / macro sources, matrix. ──
+    inline constexpr int    kLfos       = 4;
+    inline constexpr int    kMacros     = 4;
+    inline constexpr int    kModSlots   = 16;
+    inline constexpr int    kModSources = 12;     // incl. None (0): LFO 1–4, Env, Pitch, Onset, Macro 1–4
+    inline constexpr int    kModDests   = 113;    // incl. None (0) — GranulatorParamIds::kModDestIds
+    inline constexpr int    kSrcTelemetry = 11;   // sources 1…11
+    inline constexpr double kModRampMs  = 20.0;   // slot depth, residual, macro and lfo_phase ramps
+    inline constexpr double kTempoFallbackBpm = 120.0;   // no playhead / no ppq / bpm <= 0 (WR-09)
+    inline constexpr double kRetimeSamples    = 0.5;     // R42: re-anchor when the host is off by more
+    inline constexpr double kRelockSeconds    = 0.001;   // R42: … and re-lock beyond 1 ms (loop, locate)
+    inline constexpr double kDensityMin = 0.5;    // R45: Tempo density multiplier clamp (g/s)
+    inline constexpr double kDensityMax = 200.0;
+    inline constexpr int    kTraceCapacity = 65536;   // test builds: traceDest ring
+
+    /** The 22 tempo divisions in QUARTER notes (parameter-spec order: 1/64 T …
+        8 bars). Bars hold their 4/4 value; kTempoDivBars ≠ 0 marks them, and the
+        engine uses bars × the host bar length (R44). T = ×2/3, D = ×3/2. */
+    inline constexpr int    kTempoDivs = 22;
+    inline constexpr double kTempoDivBeats[kTempoDivs] {
+        0.0625 * 2.0 / 3.0, 0.0625, 0.0625 * 1.5,     // 1/64 T, 1/64, 1/64 D
+        0.125  * 2.0 / 3.0, 0.125,  0.125  * 1.5,     // 1/32
+        0.25   * 2.0 / 3.0, 0.25,   0.25   * 1.5,     // 1/16
+        0.5    * 2.0 / 3.0, 0.5,    0.5    * 1.5,     // 1/8
+        1.0    * 2.0 / 3.0, 1.0,    1.0    * 1.5,     // 1/4
+        2.0    * 2.0 / 3.0, 2.0,    2.0    * 1.5,     // 1/2
+        4.0, 8.0, 16.0, 32.0                          // 1, 2, 4, 8 bars (4/4 values)
+    };
+    inline constexpr int kTempoDivBars[kTempoDivs] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 4, 8 };
+
+    /** Division length in quarters under a bar of barLen quarters (4·num/den). */
+    inline double tempoDivBeats (int index, double barLen) noexcept
+    {
+        const int i = index < 0 ? 0 : (index >= kTempoDivs ? kTempoDivs - 1 : index);
+        return kTempoDivBars[i] != 0 ? static_cast<double> (kTempoDivBars[i]) * barLen : kTempoDivBeats[i];
+    }
+
     // ── CounterRng streams and slots ────────────────────────────────────────
     // Draw (seed, base + streamIndex, counter). Scheduler and grain draws use
     // different stream bases, so they never share values for the same counter.
     inline constexpr std::uint64_t kSchedStream = 0x0A5C'0000ull;
     inline constexpr std::uint64_t kGrainStream = 0x0A6E'0000ull;
+    inline constexpr std::uint64_t kLfoStream   = 0x0A1F'0000ull;   // 2.5a R51: S&H / smooth random, counter = cycle
 
     /** Fixed slot per randomised quantity. APPEND-ONLY: 2.2/2.3 use the reserved
         entries; never renumber (it would change every seeded render). */

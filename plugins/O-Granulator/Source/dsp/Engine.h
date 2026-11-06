@@ -36,10 +36,11 @@
 #include "ScaleQuantiser.h"
 #include "Spawner.h"
 #include "StreamScheduler.h"
+#include "TempoTracker.h"
 #include "WindowMorphBank.h"
 
 // ============================================================================
-// O-Granulator pass engine (Stage 2, Phases 2.1–2.4).
+// O-Granulator pass engine (Stage 2, Phases 2.1–2.5a).
 // ARCHITECTURE Processing Chain (per-pass order, normative), §1–7, §10, §14, §16;
 // RESEARCH-2.1 R1–R4; PLAN-2.1 T7.
 //
@@ -48,7 +49,11 @@
 //   1. grid tick if a % 32 == 0: latch GridParams, custom-table try-lock copy
 //      (P11), active-set rebuilds, water-filled quotas, R5 coherence → g_out,
 //      mute/solo audibility, mixer ramps (10 ms, P12)
-//   2. (analysis — 2.5)
+//      2.5a: then the tempo slot state, the mod sources (LFO ×4, env, macros —
+//      sampled once per cell) and the sparse matrix (routed destinations only;
+//      unrouted = the raw 2.4 value). The transport snapshot is taken once per
+//      HOST block (TempoTracker), before the first piece.
+//   2. (analysis — 2.5b)
 //   3. write the piece into the ring (input·inGain + fb[n − 32]) through the
 //      freeze Write Arbiter (2.4: no push while frozen; 10 ms mirror content
 //      crossfade on release). Grains anchor in the RING domain (R23).
@@ -99,7 +104,22 @@ namespace ogran
             in and out may alias (JUCE in-place buffers). `seed` is adopted at the
             next grid point. */
         void process (const float* const* in, int numIn, float* const* out, int numOut,
-                      int numSamples, std::uint64_t seed) noexcept;
+                      int numSamples, std::uint64_t seed,
+                      const TransportSnapshot& transport = TransportSnapshot {}) noexcept;
+
+        //======================================================================
+        // Telemetry (P55, R58): relaxed atomics written per cell on the audio
+        // thread, read by the UI (Stage 3). dest k: routed → v01, unrouted →
+        // base01 (written only when the raw value changes). src 1…11: LFO 1–4
+        // in [−1, 1], Env / Macros in [0, 1], Pitch / Onset 0 (2.5b).
+        float getDestTelemetry (int dest) const noexcept
+        {
+            return dest >= 0 && dest < kModDests ? destTelemetry[static_cast<size_t> (dest)].load (std::memory_order_relaxed) : 0.0f;
+        }
+        float getSrcTelemetry (int src) const noexcept
+        {
+            return src >= 1 && src <= kSrcTelemetry ? srcTelemetry[static_cast<size_t> (src - 1)].load (std::memory_order_relaxed) : 0.0f;
+        }
 
        #if OGRAN_TEST_HOOKS
         //======================================================================
@@ -157,7 +177,24 @@ namespace ogran
             // FB5: per-sample tap capture into a harness buffer (L, R interleaved by absolute sample).
             float*       tapProbe    = nullptr;
             std::int64_t tapProbeLen = 0;
+
+            // ── 2.5a (PLAN-2.5a P56, T4–T9) ─────────────────────────────────
+            // P56 trajectory trace: dest = kModDests index (−1 off); stream for
+            // the latched record. Ramped dests: the per-sample engine value;
+            // latched dests: one entry per spawn of a grain whose field is read.
+            struct TraceDest { int dest = -1; int stream = 0; };
+            TraceDest traceDest;
+            int  forceLfoMode   = 0;       // PH controls: 0 off, 1 always Direct, 2 always Accum
+            bool noResidual     = false;   // U9en / MF7n: a route change drops the slot's contribution (a step)
+            bool fullRoundTrip  = false;   // U9g: every destination through convertFrom0to1 (convertTo0to1 (raw)) (R46 control)
+            bool perBlockOrigin = false;   // TT1n / N8n: re-anchor on the host ppq every block (GrainScatter form, R39)
+            bool ceilPerTick    = false;   // TS1n: the pending slot re-derived from ppq at every tick (R40 control)
         };
+
+        /** P56 trace ring (test builds): {absolute sample, value}. */
+        struct TracePoint { std::int64_t at = 0; double value = 0.0; };
+        std::array<TracePoint, kTraceCapacity> trace {};
+        std::uint64_t traceCount = 0;
 
         /** FZ7 chain snapshot (one per grid tick while snapshotChain). */
         struct ChainSnap { std::int64_t tick = 0; float hpIc1 = 0.0f, hpIc2 = 0.0f, lpIc1 = 0.0f, lpIc2 = 0.0f, env = 0.0f; };
@@ -243,6 +280,13 @@ namespace ogran
             std::int64_t headReflectionsFrozenSpawn = 0;   // … by a grain spawned while frozen (expected 0)
             std::int64_t fbScrubs                   = 0;   // feedback chain NaN / Inf resets
             std::int64_t reverbCells                = 0;   // pieces whose wet the reverb changed (RV4 / M4 liveness)
+            // 2.5a
+            std::int64_t tempoReanchors = 0;   // TempoTracker anchors adopted (excl. prepare)
+            std::int64_t tempoRelocks   = 0;   // … of which re-locks (transport start, loop, locate)
+            std::int64_t tempoOnsets    = 0;   // onsets emitted by the Tempo clock
+            std::int64_t routeChanges   = 0;   // slot source / dest changes seen at ticks
+            std::int64_t routedDests    = 0;   // max routed destinations in one cell
+            std::int64_t envScrubs      = 0;   // env follower NaN / Inf resets
             std::uint64_t logCount       = 0;   // total spawns logged; entry k at log[k % kSpawnLogSize]
             std::array<SpawnRecord, kSpawnLogSize> log {};
 
@@ -254,6 +298,7 @@ namespace ogran
                 activeSetRebuilds = customCopies = customTryFails = 0;
                 nanKills = fxStateNonDefaultAtSpawn = stealStateChecked = stealStateMismatches = nanKillNotRetired = 0;
                 freezeEngages = freezeReleases = forcedReleases = headReflections = headReflectionsFrozenSpawn = fbScrubs = reverbCells = 0;
+                tempoReanchors = tempoRelocks = tempoOnsets = routeChanges = routedDests = envScrubs = 0;
                 logCount = 0;
             }
             const SpawnRecord& record (std::uint64_t k) const noexcept
@@ -271,12 +316,14 @@ namespace ogran
         int           getRingSamples() const noexcept         { return ringSamples; }
         double        getSampleRate() const noexcept          { return fs; }
         std::uint64_t getEpoch (int stream) const noexcept    { return scheds[stream].getEpoch(); }
+        const TempoTracker& getTracker() const noexcept       { return tracker; }
         const GridParams& getGridParams() const noexcept      { return gp; }
         const WindowMorphBank& getBank() const noexcept       { return bank; }
         const Quotas& getQuotas() const noexcept              { return quotas; }
         const ActiveSet& getActiveSet (int s) const noexcept  { return activeSets[s]; }
         const PitchSel& getPitchSel (int s) const noexcept    { return pitchSel[s]; }
         double getCoherence (int s) const noexcept            { return coherence[s]; }
+        double getTempoDiv (int s) const noexcept             { return tempoDiv[s]; }
         float  getGOutTarget (int s) const noexcept           { return gOutRamp[s].getTarget(); }
         float  getAudibleTarget (int s) const noexcept        { return audRamp[s].getTarget(); }
         int    getMixerRampCells() const noexcept             { return mixerRampCells; }
@@ -302,6 +349,7 @@ namespace ogran
         int  scheduleStreams (int len) noexcept;
         void spawn (const StreamOnset& o, std::int64_t pieceStart, std::int64_t wPiece) noexcept;
         void handleFreezeEdges() noexcept;                 // 2.4: tick-sampled freeze edges
+        void applyTempoEffective() noexcept;               // 2.5a P50: effective Tempo density / size (R45)
         void forcedReleaseScan() noexcept;                 // 2.4 R25 engage scan
        #if OGRAN_TEST_HOOKS
         Spawner::Acquired nativeAcquireForTest() noexcept;
@@ -422,6 +470,8 @@ namespace ogran
         Pool    pool;
         Spawner spawner;
         StreamScheduler scheds[kMaxStreams];
+        TempoTracker    tracker;                       // 2.5a held anchor (R39, R42, R44)
+        double          tempoDiv[kMaxStreams] {};      // 2.5a div_eff per stream (quarters), set at ticks in Tempo mode
 
         // ── fixed per-pass storage (kCell — never the host block) ───────────
         // Test builds bracket every per-pass array with canaries (PERF-03
@@ -491,6 +541,10 @@ namespace ogran
         std::atomic<float> revEnabled { 1.0f }, revSize { 0.5f }, revDamp { 0.5f }, revPredelay { kRevPredelayMs },
                            revMix { 0.0f }, revMod { kRevMod }, revShimmer { kRevShimmer };
         juce::AudioBuffer<float> revView;              // refers to wet[] (setDataToReferTo: no allocation for 2 ch)
+
+        // 2.5a telemetry (P55)
+        std::array<std::atomic<float>, kModDests>     destTelemetry {};
+        std::array<std::atomic<float>, kSrcTelemetry> srcTelemetry {};
 
        #if OGRAN_TEST_HOOKS
         // ── 2.3 test-only state (P28) ───────────────────────────────────────

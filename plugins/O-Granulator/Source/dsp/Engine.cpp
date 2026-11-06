@@ -42,6 +42,7 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     spawner.prepare (fs);
     for (auto& s : scheds)
         s.prepare();   // epochs zeroed here and nowhere else (R4)
+    tracker.prepare (fs);   // 2.5a: virtual 120 bpm until the first host block
 
     for (auto& ch : fbDelay)
         std::fill (std::begin (ch), std::end (ch), 0.0f);
@@ -57,6 +58,8 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
 
     absCount = 0;
     gp.latch (ptrs);
+    if (gp.syncMode == 1)
+        applyTempoEffective();   // 2.5a: ramps snap to the synced values (virtual 120 bpm until the first block)
     // Freeze: prepare starts LIVE (a saved freeze On engages at the first tick —
     // its rising edge — with whatever has been captured by then).
     frozen = false;
@@ -292,10 +295,20 @@ void Engine::computeStreamTargets (float (&gOut)[kMaxStreams], float (&audible)[
 // Audio thread
 //==============================================================================
 void Engine::process (const float* const* in, int numIn, float* const* out, int numOut,
-                      int numSamples, std::uint64_t seed) noexcept
+                      int numSamples, std::uint64_t seed, const TransportSnapshot& transport) noexcept
 {
     if (! prepared || numSamples <= 0 || numIn < 1 || numOut < 1 || in == nullptr || out == nullptr)
         return;
+
+    // 2.5a: the host transport, once per host block (R39 held anchor, R42 rules).
+   #if OGRAN_TEST_HOOKS
+    tracker.perBlockOrigin = hooks.perBlockOrigin;
+   #endif
+    tracker.update (transport, absCount);
+   #if OGRAN_TEST_HOOKS
+    diag.tempoReanchors = tracker.getReanchors();
+    diag.tempoRelocks   = tracker.getRelocks();
+   #endif
 
     pendingSeed = seed;
 
@@ -390,10 +403,19 @@ void Engine::gridTick() noexcept
     spanSamples = static_cast<double> (gp.bufferLengthS) * fs;   // spawn-latched destination (no ramp)
     handleFreezeEdges();
 
+    // 2.5a: Tempo mode reads the EFFECTIVE density / size (quotas, coherence,
+    // the spawn size and the clock all see the synced values, R45).
+    const bool tempoMode = gp.syncMode == 1;
+    if (tempoMode)
+        applyTempoEffective();
+
     // All four streams (2.2 removes the 2.1 P5 mask). Each keeps its R4 epoch and
-    // rising-edge reset.
+    // rising-edge reset; a Free ↔ Tempo switch folds the epoch the same way.
     for (int s = 0; s < kMaxStreams; ++s)
+    {
+        scheds[s].setTempo (tempoMode);
         scheds[s].setEnabled (gp.s[s].enable);
+    }
 
     // P11 custom-table copy (version-gated, non-blocking), then active sets.
     copyCustomTable (false);
@@ -562,6 +584,31 @@ void Engine::forcedReleaseScan() noexcept
     }
 }
 
+/** P50 (R45, signed off): per stream, the synced density as a power-of-two
+    multiple of the division clamped to [0.5, 200] g/s, and the synced size
+    clamped to [5, 2000] ms. Overwrites the latched gp fields (re-latched every
+    tick), so every tick consumer and the spawn read the effective values. */
+void Engine::applyTempoEffective() noexcept
+{
+    const TempoAnchor& A = tracker.anchor();
+    const double beatsPerS = A.pps * fs;
+    for (int s = 0; s < kMaxStreams; ++s)
+    {
+        auto& st = gp.s[s];
+        const double divBeats = tempoDivBeats (st.densitySync, A.barLen);
+        const double d0 = beatsPerS / divBeats;
+        const double offD = 0.0;   // T9: the matrix offset on sN_density
+        const double eLo = std::ceil (std::log2 (kDensityMin / d0)), eHi = std::floor (std::log2 (kDensityMax / d0));
+        const double e = std::clamp (std::floor (4.0 * offD + 0.5), eLo, eHi);
+        tempoDiv[s] = divBeats * std::exp2 (-e);
+        st.density  = static_cast<float> (d0 * std::exp2 (e));
+
+        const double offS = 0.0;   // T9: the matrix offset on sN_size
+        const double ms = tempoDivBeats (st.sizeSync, A.barLen) * 60000.0 / A.bpm * std::exp2 (4.0 * offS);
+        st.sizeMs = static_cast<float> (std::clamp (ms, kMinSizeMs, kMaxSizeMs));
+    }
+}
+
 int Engine::scheduleStreams (int len) noexcept
 {
     int counts[kMaxStreams] {};
@@ -570,8 +617,25 @@ int Engine::scheduleStreams (int len) noexcept
         if (! scheds[s].isEnabled())
             continue;
         const auto& st = gp.s[s];
-        const double interval = fs / static_cast<double> (st.density);   // Free timing (2.5: Tempo)
-        counts[s] = scheds[s].process (len, s, activeSeed, interval, st.jitter, streamOnsets[s]);
+        if (scheds[s].isTempo())
+        {
+            StreamScheduler::TempoGrid g;
+            g.anchor      = &tracker.anchor();
+            g.div         = tempoDiv[s];
+            g.relockEpoch = tracker.getRelockEpoch();
+           #if OGRAN_TEST_HOOKS
+            g.rederive    = hooks.ceilPerTick && (absCount % kCell) == 0;
+           #endif
+            counts[s] = scheds[s].processTempo (len, absCount, s, activeSeed, g, st.jitter, streamOnsets[s]);
+           #if OGRAN_TEST_HOOKS
+            diag.tempoOnsets += counts[s];
+           #endif
+        }
+        else
+        {
+            const double interval = fs / static_cast<double> (st.density);   // Free timing (GrainScheduler, verbatim)
+            counts[s] = scheds[s].process (len, s, activeSeed, interval, st.jitter, streamOnsets[s]);
+        }
        #if OGRAN_TEST_HOOKS
         ++diag.schedCalls[s];
        #endif
