@@ -93,6 +93,9 @@ namespace
     // PLAN-2.6 P94: `--long` adds Z7d / Z7dn and the C7 INFO extras; C7 sets
     // gNoVerdict when fewer than 7 uncontended runs exist (rc 2, never a FAIL).
     bool gLong = false, gNoVerdict = false;
+    bool gNoC7 = false;   // `--no-c7`: iteration aid only (skips C7 / C7L timing); acceptance runs never pass it
+    juce::String gSect;   // `--sect=a,b`: iteration aid only — run just these 2.6 sections (with --only26)
+    bool sect (const char* name) { return gSect.isEmpty() || juce::StringArray::fromTokens (gSect, ",", "").contains (name); }
 
     std::unique_ptr<GranulatorProcessor> make()
     {
@@ -332,6 +335,7 @@ namespace
 #include "engine_gates_25b.h"  // Stage 2 / 2.5b sections OD, OB, PS, MP, OG (PLAN-2.5b P76)
 #include "engine_gates_25bb.h" // Stage 2 / 2.5b sections FR, AQ, MX, QB, N9, M6, Z6, C6 (PLAN-2.5b P76)
 #include "engine_gates_26.h"   // Stage 2 / 2.6 sections TA, Z7, HR (PLAN-2.6 P94)
+#include "engine_gates_26b.h"  // Stage 2 / 2.6 sections C7, GL, MX3, MF8, EN1, FZ9, K3, QB3, M7, N10, O2 (PLAN-2.6 P94)
 
 //==============================================================================
 static void paramRows()
@@ -757,6 +761,8 @@ int main (int argc, char** argv)
         if (std::strcmp (argv[a], "--legacy-24=knee") == 0)  { gLegacyKnee = true; }
         if (std::strcmp (argv[a], "--legacy-24=svf") == 0)   { gLegacySvf = true; }
         if (std::strcmp (argv[a], "--long") == 0)            { gLong = true; }
+        if (std::strcmp (argv[a], "--no-c7") == 0)           { gNoC7 = true; }
+        if (std::strncmp (argv[a], "--sect=", 7) == 0)       { gSect = juce::String (argv[a] + 7); }
     }
     bool only26 = false;
     for (int a = 1; a < argc; ++a)
@@ -765,6 +771,7 @@ int main (int argc, char** argv)
     if (only26)
     {
         engineRows26();
+        engineRows26b();
         std::printf ("\n%d PASS, %d FAIL -- %s (2.6 sections only%s)\n", passes, failures,
                      failures == 0 ? (gNoVerdict ? "NO VERDICT (C7 contended)" : "ALL PASS") : "FAILURES", gLong ? ", --long" : "");
         return rc();
@@ -818,6 +825,7 @@ int main (int argc, char** argv)
     engineRows25b();
     engineRows25bb();
     engineRows26();
+    engineRows26b();
     std::printf ("\n%d PASS, %d FAIL -- %s\n", passes, failures,
                  failures == 0 ? (gNoVerdict ? "NO VERDICT (C7 contended)" : "ALL PASS") : "FAILURES");
     return rc();

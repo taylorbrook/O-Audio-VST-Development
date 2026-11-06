@@ -121,7 +121,18 @@ namespace { namespace eg26
     /** P86 Q set: the C7 config with crush off, reverb off, LFOs 2 Hz, route depths ±30 %. */
     inline P qSet()
     {
-        return c7Params (30.0f, 2.0f) + perStream ("crush_prob", 0.0f) + P { { "reverb_mix", 0.0f } };
+        // Execution deviation (re-derived, recorded): C7's position 100 % + spray 100 % over a 30 s
+        // buffer reads 15–30 s back — every Q-set render shorter than that is silent (κ 0/0).
+        // position 0 + buffer 2 s keeps spray 100 % and every other C7 setting, and reads live content.
+        // Second re-derivation (execution deviation, recorded): under the literal Q set every
+        // κ negative control is vacuous (K3bn == K3b 0.947x, FZ9an 1.13x, EN1n 1.1x) — the set's
+        // own curvature swamps a click: window 1 + skew +100 (instant grain attacks), ring mod at
+        // 5 kHz ± rand, ±24 st pitch + rand 24, res 100 % at random cutoffs. Those four are set
+        // neutral here (Hann, ring off, pitch 0, res / filter_rand 0); everything else of C7 stays.
+        return c7Params (30.0f, 2.0f) + perStream ("crush_prob", 0.0f) + perStream ("position", 0.0f)
+             + perStream ("window", 0.0f) + perStream ("window_skew", 0.0f) + perStream ("ring_mix", 0.0f)
+             + perStream ("pitch", 0.0f) + perStream ("pitch_rand", 0.0f) + perStream ("filter_res", 0.0f) + perStream ("filter_rand", 0.0f)
+             + P { { "reverb_mix", 0.0f }, { "buffer_length", 2.0f } };
     }
 
     //==========================================================================
@@ -511,6 +522,560 @@ namespace { namespace eg26
     }
 
     //==========================================================================
+    // Z7a / Z7m / Z7f / Z7d — QUAL-02 (P90)
+    //==========================================================================
+    /** A bounded parallel pool WITH events (eg25::setup / eg25::loop): at most
+        `maxPar` renders in flight (192 k: 110 MB ring each), `consume` frees each. */
+    inline void renderPoolEv (const std::vector<Job>& jobs, size_t maxPar, const std::function<void (size_t, Out&)>& consume)
+    {
+        const size_t hw = juce::jmax ((size_t) 1, juce::jmin ((size_t) std::thread::hardware_concurrency(), maxPar));
+        for (size_t b0 = 0; b0 < jobs.size(); b0 += hw)
+        {
+            const size_t b1 = juce::jmin (jobs.size(), b0 + hw);
+            std::vector<Out> outs;
+            for (size_t i = b0; i < b1; ++i) outs.push_back (eg25::setup (jobs[i]));
+            std::vector<std::thread> th;
+            for (size_t i = b0; i < b1; ++i)
+                th.emplace_back ([&jobs, &outs, i, b0] { eg25::loop (jobs[i], outs[i - b0]); });
+            for (auto& t : th) t.join();
+            for (size_t i = b0; i < b1; ++i) consume (i, outs[i - b0]);
+        }
+    }
+
+    /** The P90 common gate's per-render record. */
+    struct StressRec
+    {
+        bool finite = true; double peakIn = 0.0, peakOut = 0.0, wetPeak = 0.0;
+        int scans = 0; Census worst; long long subScans = 0, nonFinScans = 0;
+        long long fb = 0, env = 0, ana = 0, host = 0, wet = 0, nanKills = 0, reach = 0;
+        bool guards = true;
+        long long spawns = 0, kills = 0, steals = 0, engages = 0, events = 0, hops = 0;
+        long long reachClamp = 0;   // Z7m3: records whose delay exceeds the user span (the reach clamp)
+        bool truncated = false;     // Z7m8: an ActiveSet truncated at kMaxActive
+        juce::int64 lastSec = 0;    // census cadence (second index of the last scan)
+    };
+    /** Scans the census every 1 s of render time (block-aligned) and at the end. */
+    inline void attachCensus (Job& j, StressRec* r)
+    {
+        auto prev = j.after;
+        const juce::int64 sec = (juce::int64) j.fs, len = j.len;
+        j.after = [prev, r, sec, len] (Proc& p, juce::int64 pos)
+        {
+            if (prev) prev (p, pos);
+            const auto& e = p.getEngineForTest();
+            const bool end = pos >= len;
+            const juce::int64 s = pos / sec;   // once per second boundary crossed, and at the end
+            if (end || s != r->lastSec)
+            {
+                r->lastSec = s;
+                const auto c = census (e, end ? -1.0 : 1.0);
+                ++r->scans;
+                if (c.subTotal() > 0) ++r->subScans;
+                if (c.nonFinTotal() > 0) ++r->nonFinScans;
+                r->worst.add (c);
+            }
+            for (int st = 0; st < ogran::kMaxStreams; ++st)
+                r->truncated = r->truncated || e.getActiveSet (st).wasTruncated() || e.getAbsSet (st).wasTruncated();
+        };
+    }
+    inline void finishRec (StressRec& r, const Out& o, const Stim& stim, double fs)
+    {
+        for (size_t k = 0; k < o.L.size(); ++k)
+        {
+            if (! std::isfinite (o.L[k]) || ! std::isfinite (o.R[k])) r.finite = false;
+            r.peakOut = juce::jmax (r.peakOut, (double) std::abs (o.L[k]), (double) std::abs (o.R[k]));
+            r.peakIn = juce::jmax (r.peakIn, (double) std::abs (stim ((juce::int64) k, 0)), (double) std::abs (stim ((juce::int64) k, 1)));
+        }
+        juce::ignoreUnused (fs);
+        const auto& e = o.eng();
+        const auto& d = e.diag;
+        r.wetPeak = d.maxWetPeak;
+        r.fb = d.fbScrubs; r.env = d.envScrubs; r.ana = d.analysisScrubs; r.host = d.hostScrubs; r.wet = d.wetScrubs; r.nanKills = d.nanKills;
+        r.reach = d.reachViolations; r.guards = e.guardsIntact();
+        r.spawns = d.spawns; r.kills = d.kills; r.steals = d.steals; r.engages = d.freezeEngages; r.events = d.onsetEvents; r.hops = d.mpmHops;
+    }
+    inline double outBound (double peakIn)
+    {
+        // out = (dry·dg + wet·wg)·og, dg² + wg² <= 1, |wet| <= A, og <= +12 dB (Z5 split gate, measured dry peak)
+        return std::sqrt (peakIn * peakIn + (double) ogran::kKneeA * ogran::kKneeA) * (double) ogran::dbToGain (12.0f) * (1.0 + 1e-6);
+    }
+    inline bool commonGate (const StressRec& r, juce::String& why)
+    {
+        const bool ok = r.finite && r.wetPeak <= (double) ogran::kKneeA && r.peakOut <= outBound (r.peakIn) && r.subScans == 0 && r.nonFinScans == 0
+                        && r.fb == 0 && r.env == 0 && r.ana == 0 && r.host == 0 && r.wet == 0 && r.nanKills == 0 && r.reach == 0 && r.guards && r.scans >= 2;
+        why = juce::String::formatted ("fin %d wet %.4f out %.3f (<= %.3f) census %lld/%lld of %d scans [%s] scrubs fb %lld env %lld ana %lld host %lld wet %lld nanK %lld reach %lld guards %d",
+                                       (int) r.finite, r.wetPeak, r.peakOut, outBound (r.peakIn), r.subScans, r.nonFinScans, r.scans, r.worst.worst().toRawUTF8(),
+                                       r.fb, r.env, r.ana, r.host, r.wet, r.nanKills, r.reach, (int) r.guards);
+        return ok;
+    }
+    inline Stim z7Stim (double fs, double stimS)
+    {
+        auto c = c7Stim (fs, 0.25f);
+        const juce::int64 end = (juce::int64) (stimS * fs);
+        return [c, end] (juce::int64 i, int ch) { return i < end ? c (i, ch) : 0.0f; };
+    }
+
+    void z7aRows()
+    {
+        std::printf ("\n-- Z7a. QUAL-02 max composite: C7 + input / output gain routes, flips every 10 s, freeze x6; 60 s + 30 s silence, 4 rates\n");
+        const double rates[4] { 44100.0, 48000.0, 96000.0, 192000.0 };
+        std::vector<Job> jobs;
+        std::vector<StressRec> rs (4);
+        std::vector<Stim> stims;
+        for (int i = 0; i < 4; ++i)
+        {
+            const double fs = rates[i];
+            Job j;
+            j.fs = fs; j.len = (juce::int64) (90.0 * fs); j.block = 512; j.prepBlock = 512; j.seed = 0x27A0ull + (std::uint64_t) i;
+            j.params = c7Params() + P { { "mod13_dest", (float) D::InputGain }, { "mod13_depth", 100.0f }, { "mod14_dest", (float) D::OutputGain }, { "mod14_depth", -100.0f } };
+            j.stim = z7Stim (fs, 60.0);
+            auto ev = [&j, fs] (double t, std::function<void (Proc&)> f) { j.events.push_back ({ (juce::int64) (t * fs) + 7, std::move (f) }); };
+            ev (30.0, [] (Proc& p) { eg::setP (p, "mod13_depth", -100.0f); eg::setP (p, "mod14_depth", 100.0f); });
+            for (int k = 1; k <= 8; ++k)
+            {
+                const bool odd = k % 2 == 1;
+                ev (10.0 * k, [odd] (Proc& p)
+                {
+                    for (int s = 1; s <= 4; ++s) { eg::setP (p, sp (s, "pitch"), odd ? -24.0f : 24.0f); eg::setP (p, sp (s, "reverse_prob"), odd ? 0.0f : 100.0f); }
+                    eg::setP (p, "fb_low_cut", odd ? 20.0f : 2000.0f);
+                    eg::setP (p, "fb_high_cut", odd ? 1000.0f : 20000.0f);
+                    eg::setP (p, "reverb_damp", odd ? 0.0f : 100.0f);
+                });
+            }
+            const double fzT[6] { 5.0, 12.0, 25.0, 33.0, 47.0, 55.0 };
+            for (int k = 0; k < 6; ++k) { const float v = k % 2 == 0 ? 1.0f : 0.0f; ev (fzT[k], [v] (Proc& p) { eg::setP (p, "freeze", v); }); }
+            attachCensus (j, &rs[(size_t) i]);
+            stims.push_back (j.stim);
+            jobs.push_back (j);
+        }
+        renderPoolEv (jobs, 8, [&] (size_t i, Out& o) { finishRec (rs[i], o, stims[i], rates[i]); });
+        Tally t;
+        juce::String det;
+        for (int i = 0; i < 4; ++i)
+        {
+            juce::String why;
+            const auto& r = rs[(size_t) i];
+            const bool live = r.engages >= 3 && r.events > 100 && r.spawns > 10000 && r.steals > 0;
+            t.check (commonGate (r, why) && live, juce::String::formatted ("%g k: ", rates[i] / 1000.0) + why);
+            det << juce::String::formatted ("%g k: wet %.3f out %.3f scans %d engages %lld events %lld steals %lld; ", rates[i] / 1000.0, r.wetPeak, r.peakOut, r.scans,
+                                            r.engages, r.events, r.steals);
+        }
+        row (t.bad == 0, "Z7a 90 s max composite x 4 rates: finite, wet <= A, out <= bound, census 0 / 0 every 1 s, 0 scrubs / nanKills / reach, guards", t.bad ? t.detail (4) : det.trim());
+    }
+
+    /** Z7m9 (D25, execution deviation): spawns inside the freeze deferral with r < 1 and grains
+        shorter than the lead (Z7f fuzz states 13 / 22 / 60): freeze on from block 0 and a mid-run
+        engage, 48 / 192 k. Z7m9n: the pre-2.6 r·(headLead + 1) floor reproduces the violations. */
+    void z7m9Rows()
+    {
+        std::printf ("\n-- Z7m9. freeze deferral with sub-unity-rate short grains (from block 0 and mid-run)\n");
+        std::vector<Job> jobs;
+        std::vector<StressRec> rs (8);
+        std::vector<Stim> stims;
+        std::vector<double> fss;
+        for (int nc = 0; nc < 2; ++nc)
+            for (int mid = 0; mid < 2; ++mid)
+                for (double fs : { 48000.0, 192000.0 })
+                {
+                    Job j;
+                    j.fs = fs; j.len = (juce::int64) (4.0 * fs); j.block = 512; j.prepBlock = 512; j.seed = 0x29A9ull;
+                    j.params = eg22::base ({ 1, 2, 3, 4 }) + perStream ("size", 5.0f) + perStream ("density", 200.0f) + perStream ("pitch", -18.0f)
+                             + perStream ("pitch_rand", 2.0f) + perStream ("position", 0.0f) + perStream ("spray", 0.0f) + P { { "freeze", mid ? 0.0f : 1.0f } };
+                    j.stim = c7Stim (fs, 0.25f);
+                    if (mid)
+                        for (int k = 0; k < 6; ++k)
+                        {
+                            const float v = k % 2 == 0 ? 1.0f : 0.0f;
+                            j.events.push_back ({ (juce::int64) ((1.0 + 0.4 * k) * fs) + 7, [v] (Proc& p) { eg::setP (p, "freeze", v); } });
+                        }
+                    const bool old = nc == 1;
+                    j.pre = [old] (Proc& p) { p.getEngineForTest().hooks.deferFloorR = old; };
+                    attachCensus (j, &rs[jobs.size()]);
+                    stims.push_back (j.stim);
+                    fss.push_back (fs);
+                    jobs.push_back (j);
+                }
+        renderPoolEv (jobs, 8, [&] (size_t i, Out& o) { finishRec (rs[i], o, stims[i], fss[i]); });
+        Tally t;
+        juce::String det, ndet;
+        long long ncStart = 1, ncMid = 0;
+        for (size_t i = 0; i < 8; ++i)
+        {
+            const auto& r = rs[i];
+            const juce::String tag = juce::String ((i % 4) / 2 ? "mid-run" : "from block 0") + ((i % 2) ? " 192 k" : " 48 k");
+            if (i < 4)
+            {
+                juce::String why;
+                t.check (commonGate (r, why) && r.engages >= 1 && r.spawns > 100, tag + ": " + why);
+                det << tag << juce::String::formatted (": reach %lld engages %lld spawns %lld; ", r.reach, r.engages, r.spawns);
+            }
+            else
+            {
+                if ((i % 4) / 2 == 0) ncStart = juce::jmin (ncStart, r.reach); else ncMid += r.reach;
+                ndet << tag << juce::String::formatted (": reach %lld; ", r.reach);
+            }
+        }
+        row (t.bad == 0, "Z7m9 freeze deferral, 5 ms grains at -18 st x 4 streams (from block 0 + 3 mid-run engages), 48 / 192 k: the P90 common gate (reach 0)",
+             t.bad ? t.detail (4) : det.trim());
+        row (ncStart > 0 && ncMid > 0, "Z7m9n deferFloorR (the pre-2.6 r * (headLead + 1) floor): reach violations from block 0 (both rates) and mid-run", ndet.trim());
+    }
+
+    void z7mRows()
+    {
+        std::printf ("\n-- Z7m. QUAL-02 min-side hazards, 10 s + 10 s silence @ 48 k and 192 k (P90)\n");
+        struct Item { const char* name; P params; std::function<void (Job&)> mod; int group; };
+        auto c7 = c7Params();
+        std::vector<Item> items;
+        // 1. cutoff 20 + res 100, LP / BP / HP, + rand 100 at cutoff 20
+        items.push_back ({ "Z7m1 filter cutoff 20 Hz res 100 % LP / BP / HP + rand 100 % (g ~ 3.3e-4 @ 192 k)",
+                           c7 + perStream ("filter_cutoff", 20.0f) + perStream ("filter_res", 100.0f) + perStream ("filter_rand", 0.0f)
+                              + P { { "s1_filter_type", 1.0f }, { "s2_filter_type", 2.0f }, { "s3_filter_type", 3.0f }, { "s4_filter_type", 1.0f }, { "s4_filter_rand", 100.0f } }, {}, 1 });
+        items.push_back ({ "Z7m2 ring 20 Hz + ring_rand 100 % (carrier clamps at 20)", c7 + perStream ("ring_freq", 20.0f) + perStream ("ring_rand", 100.0f), {}, 2 });
+        items.push_back ({ "Z7m3 buffer 1 s, size 2 s, +24 st, reverse 100 %, live then frozen: reach clamp taken, 0 violations",
+                           c7 + P { { "buffer_length", 1.0f } } + perStream ("size", 2000.0f) + perStream ("pitch", 24.0f) + perStream ("reverse_prob", 100.0f)
+                              + perStream ("pitch_rand", 0.0f),
+                           [] (Job& j) { j.events.push_back ({ (juce::int64) (5.0 * j.fs) + 3, [] (Proc& p) { eg::setP (p, "freeze", 1.0f); } }); }, 3 });
+        items.push_back ({ "Z7m4a size 5 ms x 200 g/s x 4 (spawn-bound)", c7 + perStream ("size", 5.0f) + perStream ("size_rand", 0.0f), {}, 4 });
+        items.push_back ({ "Z7m4b grain_limit 32 under demand 400 (kills)", c7 + perStream ("size", 500.0f) + perStream ("size_rand", 0.0f) + P { { "grain_limit", 0.0f } }, {}, 4 });
+        items.push_back ({ "Z7m4c grain_limit 128 under demand 400 (steals)", c7 + perStream ("size", 500.0f) + perStream ("size_rand", 0.0f) + P { { "grain_limit", 3.0f } }, {}, 4 });
+        items.push_back ({ "Z7m5 input_gain -24 dB on a -60 dBFS input; s_level -60 + gain_rand 100 % (-84 dB grains)",
+                           c7 + P { { "input_gain", -24.0f } } + perStream ("level", -60.0f) + perStream ("gain_rand", 100.0f), [] (Job& j)
+                           {
+                               auto base = j.stim;
+                               j.stim = [base] (juce::int64 i, int ch) { return 0.001f * base (i, ch); };
+                           }, 5 });
+        items.push_back ({ "Z7m6 env attack 1 ms / release 10 ms, LFO 0.01 Hz, onset threshold -60 (fires on the floor)",
+                           c7 + P { { "env_attack", 1.0f }, { "env_release", 10.0f }, { "onset_threshold", -60.0f }, { "lfo1_rate", 0.01f }, { "lfo2_rate", 0.01f },
+                                    { "lfo3_rate", 0.01f }, { "lfo4_rate", 0.01f } }, {}, 6 });
+        items.push_back ({ "Z7m7a drive 0.26 % (d = 16 drive^2 just above kDriveGuard 1e-4), crush 1 %", c7 + perStream ("drive", 0.26f) + perStream ("crush", 1.0f), {}, 7 });
+        items.push_back ({ "Z7m7b drive 0.24 % (just below the guard), crush 1 %", c7 + perStream ("drive", 0.24f) + perStream ("crush", 1.0f), {}, 7 });
+        items.push_back ({ "Z7m8 Custom 'edo 64 1.001', scale + follow on x 4 (ActiveSet / AbsSet truncate at kMaxActive)",
+                           c7 + perStream ("scale", (float) eg25y::scaleChoice ("Custom")), [] (Job& j)
+                           {
+                               auto pre = j.pre;
+                               j.pre = [pre] (Proc& p) { if (pre) pre (p); juce::String bad; p.setCustomScale ("", "edo 64 1.001", bad); };
+                           }, 8 });
+        std::vector<Job> jobs;
+        std::vector<StressRec> rs (items.size() * 2);
+        std::vector<Stim> stims;
+        std::vector<std::shared_ptr<eg22::RecLog>> logs;
+        std::vector<double> fss;
+        for (size_t it = 0; it < items.size(); ++it)
+            for (double fs : { 48000.0, 192000.0 })
+            {
+                Job j;
+                j.fs = fs; j.len = (juce::int64) (20.0 * fs); j.block = 512; j.prepBlock = 512; j.seed = 0x27B0ull + it;
+                j.params = items[it].params;
+                j.stim = z7Stim (fs, 10.0);
+                if (items[it].mod) items[it].mod (j);
+                auto L = std::make_shared<eg22::RecLog>();
+                if (it == 2) j.after = eg22::collect (*L);
+                logs.push_back (L);
+                attachCensus (j, &rs[jobs.size()]);
+                stims.push_back (j.stim);
+                fss.push_back (fs);
+                jobs.push_back (j);
+            }
+        renderPoolEv (jobs, 8, [&] (size_t i, Out& o)
+        {
+            finishRec (rs[i], o, stims[i], fss[i]);
+            const double span = 1.0 * fss[i];   // Z7m3: buffer_length 1 s
+            for (const auto& r : logs[i]->r) rs[i].reachClamp += r.delay > span ? 1 : 0;
+        });
+        const char* rowName[9] { "", "Z7m1 filter cutoff 20 Hz, res 100 %: LP / BP / HP, + rand 100 % at 20 Hz",
+                                 "Z7m2 ring 20 Hz + ring_rand 100 % (carrier clamps at 20 Hz)",
+                                 "Z7m3 buffer 1 s, size 2 s, +24 st, reverse 100 %, live then frozen: reach clamp taken, 0 violations",
+                                 "Z7m4 size 5 ms x 200 g/s x 4 (spawn-bound); demand 400 at cap 32 (kills) and 128 (steals)",
+                                 "Z7m5 input_gain -24 dB on a -60 dBFS input; s_level -60 + gain_rand 100 % (-84 dB grains)",
+                                 "Z7m6 env 1 / 10 ms, LFO 0.01 Hz, onset threshold -60 (fires on the floor)",
+                                 "Z7m7 drive 0.26 % / 0.24 % (d = 16 drive^2 either side of kDriveGuard 1e-4), crush 1 %",
+                                 "Z7m8 Custom 'edo 64 1.001', scale + follow x 4: ActiveSet truncates at kMaxActive" };
+        for (int g = 1; g <= 8; ++g)
+        {
+            Tally t;
+            juce::String det;
+            int total = 0;
+            for (size_t it = 0; it < items.size(); ++it)
+            {
+                if (items[it].group != g) continue;
+                for (int k = 0; k < 2; ++k)
+                {
+                    const auto& r = rs[it * 2 + (size_t) k];
+                    juce::String why;
+                    bool live = r.spawns > 100;
+                    if (g == 3) live = live && r.reachClamp > 0 && r.engages >= 1;
+                    if (it == 4) live = live && r.kills > 0;
+                    if (it == 5) live = live && r.steals > 0;
+                    if (g == 8) live = live && r.truncated;
+                    const juce::String tag = juce::String (items[it].name).upToFirstOccurrenceOf (" ", false, false) + (k ? " 192 k" : " 48 k");
+                    ++total;
+                    t.check (commonGate (r, why) && live, tag + ": " + why + juce::String::formatted (" [spawns %lld kills %lld steals %lld clamp %lld trunc %d]",
+                                                                                                    r.spawns, r.kills, r.steals, r.reachClamp, (int) r.truncated));
+                    det << tag << juce::String::formatted (": wet %.3f out %.3f scans %d spawns %lld kills %lld steals %lld clamp %lld trunc %d; ",
+                                                           r.wetPeak, r.peakOut, r.scans, r.spawns, r.kills, r.steals, r.reachClamp, (int) r.truncated);
+                }
+            }
+            row (t.bad == 0, rowName[g], t.bad ? t.detail (total) : det.trim());
+        }
+    }
+
+    /** Seeded uniform normalised value for parameter p of state k (draw r). */
+    inline float fuzzU (std::uint64_t seed, int k, int r, int p)
+    {
+        std::uint64_t x = seed * 0x9E3779B97F4A7C15ull ^ ((std::uint64_t) k << 40) ^ ((std::uint64_t) r << 20) ^ (std::uint64_t) p;
+        x ^= x >> 30; x *= 0xBF58476D1CE4E5B9ull; x ^= x >> 27; x *= 0x94D049BB133111EBull; x ^= x >> 31;
+        return (float) ((double) (x >> 40) / (double) (1ull << 24));
+    }
+
+    void z7fRows()
+    {
+        std::printf ("\n-- Z7f. QUAL-02 seeded full-parameter fuzz: 64 states x 2 s (8 jumps of 32 parameters each) per rate\n");
+        const double rates[4] { 44100.0, 48000.0, 96000.0, 192000.0 };
+        for (double fs : rates)
+        {
+            std::vector<Job> jobs;
+            std::vector<StressRec> rs (64);
+            std::vector<Stim> stims;
+            for (int k = 0; k < 64; ++k)
+            {
+                Job j;
+                j.fs = fs; j.len = (juce::int64) (2.0 * fs); j.block = 512; j.prepBlock = 512; j.seed = 0xF022ull + (std::uint64_t) k;
+                j.stim = c7Stim (fs, 0.25f);
+                j.pre = [k] (Proc& p)
+                {
+                    int i = 0;
+                    for (auto* ap : p.getParameters()) ap->setValueNotifyingHost (fuzzU (0xF0221ull, k, 0, i++));
+                };
+                for (int r = 1; r <= 8; ++r)
+                    j.events.push_back ({ (juce::int64) ((double) r * 0.22 * fs) + 13, [k, r] (Proc& p)
+                    {
+                        auto& ps = p.getParameters();
+                        for (int q = 0; q < 32; ++q)
+                        {
+                            const int idx = (int) (fuzzU (0xF0222ull, k, r, q) * (float) ps.size()) % ps.size();
+                            ps[idx]->setValueNotifyingHost (fuzzU (0xF0223ull, k, r, q));
+                        }
+                    } });
+                attachCensus (j, &rs[(size_t) k]);
+                stims.push_back (j.stim);
+                jobs.push_back (j);
+            }
+            renderPoolEv (jobs, fs > 100000.0 ? 8 : 16, [&] (size_t i, Out& o) { finishRec (rs[i], o, stims[i], fs); });
+            Tally t;
+            long long spawns = 0, engages = 0;
+            double wet = 0.0, out = 0.0;
+            for (int k = 0; k < 64; ++k)
+            {
+                juce::String why;
+                t.check (commonGate (rs[(size_t) k], why), juce::String::formatted ("state %d: ", k) + why);
+                spawns += rs[(size_t) k].spawns; engages += rs[(size_t) k].engages;
+                wet = juce::jmax (wet, rs[(size_t) k].wetPeak); out = juce::jmax (out, rs[(size_t) k].peakOut);
+            }
+            row (t.bad == 0 && spawns > 1000, juce::String::formatted ("Z7f fuzz @ %g k: 64 seeded states x 8 jumps: the P90 common gate", fs / 1000.0),
+                 t.detail (64) + juce::String::formatted ("  [spawns %lld, freeze engages %lld, max wet %.3f, max out %.3f]", spawns, engages, wet, out));
+        }
+    }
+
+    /** Z7d / Z7dn (--long): decay to 340 s, FTZ on (processBlock) vs off (Engine::process direct). */
+    void z7dRows()
+    {
+        if (! gLong) return;
+        std::printf ("\n-- Z7d. QUAL-02 decay to 340 s after 10 s of input (R81 config), FTZ on vs off (--long)\n");
+        P cfg { { "mix", 100.0f }, { "grain_limit", 3.0f }, { "buffer_length", 30.0f }, { "feedback", 100.0f }, { "fb_diffusion", 100.0f },
+                { "fb_saturation", 100.0f }, { "reverb_mix", 100.0f }, { "reverb_size", 100.0f }, { "reverb_damp", 0.0f } };
+        for (int s = 1; s <= 4; ++s)
+            cfg = cfg + P { { sp (s, "enable"), 1.0f }, { sp (s, "density"), 200.0f }, { sp (s, "size"), 2000.0f }, { sp (s, "spray"), 100.0f },
+                            { sp (s, "position"), 0.0f }, { sp (s, "pitch"), s % 2 ? 12.0f : -12.0f }, { sp (s, "filter_type"), 1.0f },
+                            { sp (s, "filter_res"), 100.0f }, { sp (s, "filter_cutoff"), 2000.0f }, { sp (s, "level"), 6.0f } };
+        struct Arm { double lastNonZero = -1.0; int scans = 0; long long subScans = 0, nonFinScans = 0; double firstSub = -1.0; Census worst; bool probe = false; double secs = 0.0; };
+        Arm arms[2];
+        auto run = [&] (int ftz, Arm& a)
+        {
+            const auto t0 = std::chrono::steady_clock::now();
+            const double fs = 48000.0;
+            const int block = 128;
+            auto p = make();
+            eg::setAll (*p, cfg);
+            p->prepareToPlay (fs, block);
+            a.probe = ftz == 1 ? true : ftzOffOnThisThread();
+            juce::AudioBuffer<float> buf (2, block);
+            juce::MidiBuffer midi;
+            const juce::int64 stimEnd = (juce::int64) (10.0 * fs), end = (juce::int64) (340.0 * fs);
+            for (juce::int64 pos = 0; pos < end; pos += block)
+            {
+                for (int c = 0; c < 2; ++c)
+                    for (int i = 0; i < block; ++i)
+                    {
+                        const juce::int64 n = pos + i;
+                        buf.setSample (c, i, n < stimEnd ? (float) (0.5 * std::sin (2.0 * eg::kPi * 220.0 * (double) n / fs) + 0.1 * std::sin (2.0 * eg::kPi * 3311.0 * (double) n / fs)) : 0.0f);
+                    }
+                if (ftz == 1) p->processBlock (buf, midi);
+                else processDirect (*p, buf);
+                for (int c = 0; c < 2; ++c)
+                    for (int i = 0; i < block; ++i)
+                        if (buf.getSample (c, i) != 0.0f) a.lastNonZero = (double) (pos + i) / fs;
+                if ((pos + block) % (juce::int64) fs < block)
+                {
+                    const auto cs = census (p->getEngineForTest(), 1.0);
+                    ++a.scans;
+                    if (cs.subTotal() > 0) { ++a.subScans; if (a.firstSub < 0.0) a.firstSub = (double) (pos + block) / fs; }
+                    if (cs.nonFinTotal() > 0) ++a.nonFinScans;
+                    a.worst.add (cs);
+                }
+            }
+            a.secs = std::chrono::duration<double> (std::chrono::steady_clock::now() - t0).count();
+        };
+        std::thread on ([&] { run (1, arms[0]); }), off ([&] { run (0, arms[1]); });
+        on.join(); off.join();
+        const auto& a = arms[0];
+        const auto& b = arms[1];
+        row (a.lastNonZero >= 0.0 && a.lastNonZero < 329.0 && a.subScans == 0 && a.nonFinScans == 0 && a.scans >= 330,
+             "Z7d FTZ on (processBlock): exact-zero output for >= 1 s before 330 s, census 0 / 0 at every 1 s scan",
+             juce::String::formatted ("last non-zero @ %.2f s (R81: 295.63 s); %d scans, subnormal scans %lld, non-finite %lld (%.0f s wall)", a.lastNonZero, a.scans, a.subScans,
+                                      a.nonFinScans, a.secs));
+        row (b.probe && b.firstSub >= 0.0 && b.firstSub <= 300.0,
+             "Z7dn FTZ off (Engine::process direct): the census sees subnormals by 300 s (the non-vacuity control)",
+             juce::String::formatted ("FTZ-off probe %d; first subnormal scan @ %.0f s (R93: ring 246 s, reverb 262 s); [%s]; last non-zero @ %.2f s", (int) b.probe, b.firstSub,
+                                      b.worst.worst().toRawUTF8(), b.lastNonZero));
+    }
+
+    //==========================================================================
+    // HR1–HR3 — 96 / 192 k smoke (P93; R101, R102)
+    //==========================================================================
+    /** The QB1 swell carrier on 220 Hz (no 10 kHz bursts: R101 decimator band at D = 16). */
+    inline Stim swell220 (double fs, double lenS)
+    {
+        auto x = std::make_shared<std::vector<float>> ((size_t) (lenS * fs));
+        const double up = std::pow (10.0, 18.0 / 20.0);
+        for (size_t i = 0; i < x->size(); ++i)
+        {
+            const double t = (double) i / fs, tc = t - 0.125 * std::floor (t / 0.125);
+            double e = 1.0;
+            if (tc < 0.001) e = 1.0 + (up - 1.0) * 0.5 * (1.0 - std::cos (eg::kPi * tc / 0.001));
+            else if (tc < 0.021) e = up;
+            else if (tc < 0.051) e = 1.0 + (up - 1.0) * 0.5 * (1.0 + std::cos (eg::kPi * (tc - 0.021) / 0.030));
+            (*x)[i] = (float) (0.03 * e * std::sin (2.0 * eg::kPi * 220.0 * t));
+        }
+        return eg25x::fromBuffer (x);
+    }
+
+    void highRateRows()
+    {
+        std::printf ("\n-- HR. 96 / 192 k smoke: analysis load-independence, coefficient clamps, ring bytes (P93)\n");
+        // HR1 — the hop log under the full C7 config == the same input with every stream disabled.
+        {
+            Tally t;
+            juce::String det;
+            for (double fs : { 96000.0, 192000.0 })
+            {
+                auto mk = [&] (bool streams)
+                {
+                    Job j;
+                    j.fs = fs; j.len = (juce::int64) (6.0 * fs); j.block = 512; j.prepBlock = 512; j.seed = 0x4A11ull;
+                    j.params = c7Params() + P { { "onset_threshold", -50.0f } } + (streams ? P {} : perStream ("enable", 0.0f));
+                    j.stim = swell220 (fs, 6.0);
+                    return j;
+                };
+                Job a = mk (true), b = mk (false);
+                auto ha = eg25x::hopsInto (a), hb = eg25x::hopsInto (b);
+                auto o = eg25::renderAll ({ a, b });
+                bool same = ha->h.size() == hb->h.size() && ! ha->overflow && ! hb->overflow;
+                long long conf = 0;
+                for (size_t k = 0; same && k < ha->h.size(); ++k)
+                {
+                    const auto& x = ha->h[k];
+                    const auto& y = hb->h[k];
+                    same = x.aHop == y.aHop && x.commitAt == y.commitAt && std::memcmp (&x.rawNote, &y.rawNote, 4) == 0 && std::memcmp (&x.clarity, &y.clarity, 8) == 0
+                           && x.confident == y.confident && std::memcmp (&x.decidedNote, &y.decidedNote, 4) == 0 && x.ringResult == y.ringResult;
+                    conf += x.confident ? 1 : 0;
+                }
+                const double cf = ha->h.empty() ? 0.0 : (double) conf / (double) ha->h.size();
+                const auto ev = o[0].eng().diag.onsetEvents;
+                t.check (same && cf >= 0.90 && ev > 0 && o[0].eng().diag.spawns > 1000,
+                         juce::String::formatted ("%g k: hops %d vs %d %s, confident %.1f %%, events %lld", fs / 1000.0, (int) ha->h.size(), (int) hb->h.size(),
+                                                  same ? "bitwise" : "DIFFER", 100.0 * cf, (long long) ev));
+                det << juce::String::formatted ("%g k: %d hops bitwise, confident %.1f %%, events %lld, spawns %lld; ", fs / 1000.0, (int) ha->h.size(), 100.0 * cf,
+                                                (long long) ev, (long long) o[0].eng().diag.spawns);
+            }
+            row (t.bad == 0, "HR1 96 / 192 k: hop log under the full C7 load == streams disabled (hop, commit, raw / decided note, clarity, confident); confident >= 90 %",
+                 t.bad ? t.detail (2) : det.trim());
+        }
+        // HR2 — fcHz / ringHz <= 0.45 fs at 4 rates; the 44.1 k bind; fb LP coefficients.
+        {
+            const double rates[4] { 44100.0, 48000.0, 96000.0, 192000.0 };
+            std::vector<Job> jobs;
+            std::vector<std::shared_ptr<eg22::RecLog>> logs;
+            for (double fs : rates)
+            {
+                Job j;
+                j.fs = fs; j.len = (juce::int64) (4.0 * fs); j.block = 512; j.prepBlock = 512; j.seed = 0x4A12ull;
+                j.params = eg22::base ({ 1, 2, 3, 4 }) + perStream ("density", 100.0f) + perStream ("size", 100.0f) + perStream ("filter_type", 1.0f)
+                         + perStream ("filter_cutoff", 20000.0f) + perStream ("filter_rand", 100.0f) + perStream ("ring_freq", 5000.0f) + perStream ("ring_rand", 100.0f)
+                         + perStream ("ring_mix", 100.0f) + P { { "fb_high_cut", 20000.0f }, { "feedback", 50.0f } };
+                j.stim = c7Stim (fs);
+                auto L = std::make_shared<eg22::RecLog>();
+                j.after = eg22::collect (*L);
+                logs.push_back (L);
+                jobs.push_back (j);
+            }
+            auto o = eg25::renderAll (jobs);
+            Tally t;
+            juce::String det;
+            for (size_t k = 0; k < 4; ++k)
+            {
+                const double fs = rates[k];
+                const float lim = (float) (0.45 * fs);
+                float fcMax = 0.0f, ringMax = 0.0f;
+                int over = 0, n = 0;
+                for (const auto& r : logs[k]->r)
+                {
+                    fcMax = juce::jmax (fcMax, r.fcHz); ringMax = juce::jmax (ringMax, r.ringHz);
+                    over += (r.fcHz > lim || r.ringHz > lim) ? 1 : 0;
+                    ++n;
+                }
+                const auto& ch = o[k].eng().getChainForTest();
+                // The chain's cutoff comes through exp2 (log2 ramp) in float (a few ulps off 20 000):
+                // recover the coefficient's effective cutoff fc = atan (a2 / a1) · fs / π (TPT: g = a2 / a1)
+                // and require it at min (20 k, 0.45 fs) within 1e-4 relative — the clamp, not the ulps.
+                const double wantFc = std::min (20000.0, 0.45 * fs);
+                const double gotFc = std::atan ((double) ch.lp.a2 / (double) ch.lp.a1) * fs / eg::kPi;
+                const bool lpOk = std::abs (gotFc - wantFc) <= 1e-4 * wantFc;
+                const bool bind = k != 0 || juce::exactlyEqual (fcMax, lim);
+                t.check (over == 0 && n > 100 && lpOk && bind && ! logs[k]->overflow,
+                         juce::String::formatted ("%g k: %d over of %d, fc max %.1f (lim %.1f), ring max %.1f, fb LP fc %.3f (want %.1f)", fs / 1000.0, over, n, fcMax, lim, ringMax, gotFc, wantFc));
+                det << juce::String::formatted ("%g k: fc max %.1f / ring max %.1f (lim %.1f) over %d of %d, fb LP fc %.3f; ", fs / 1000.0, fcMax, ringMax, lim, over, n, gotFc);
+            }
+            row (t.bad == 0, "HR2 every spawn's fcHz and ringHz <= 0.45 fs at 44.1 / 48 / 96 / 192 k; 44.1 k fc max == 19845 (binds); fb LP effective fc == min (20 k, 0.45 fs)",
+                 t.bad ? t.detail (4) : det.trim());
+        }
+        // HR3 — ring bytes.
+        {
+            const double rates[4] { 44100.0, 48000.0, 96000.0, 192000.0 };
+            const long long want[4] { 25315320LL, 27553920LL, 55105920LL, 110209920LL };
+            Tally t;
+            juce::String det;
+            for (int k = 0; k < 4; ++k)
+            {
+                auto p = make();
+                const auto t0 = std::chrono::steady_clock::now();
+                p->prepareToPlay (rates[k], 512);
+                const double ms1 = std::chrono::duration<double, std::milli> (std::chrono::steady_clock::now() - t0).count();
+                const auto t1 = std::chrono::steady_clock::now();
+                p->prepareToPlay (rates[k], 512);
+                const double ms2 = std::chrono::duration<double, std::milli> (std::chrono::steady_clock::now() - t1).count();
+                const auto& ring = p->getEngineForTest().getRingForTest();
+                long long bytes = 0;
+                for (int l = 0; l <= ogran::kMaxLevel; ++l) bytes += 8LL * (ring.getCapacity (l) + 16);
+                const bool rs = ogran::kRingSamples (rates[k]) == (int) std::ceil (41.0 * rates[k]);
+                t.check (bytes == want[k] && rs, juce::String::formatted ("%g k: %lld (want %lld), kRingSamples %d", rates[k] / 1000.0, bytes, want[k], ogran::kRingSamples (rates[k])));
+                det << juce::String::formatted ("%g k: %lld bytes, prepare %.1f / %.1f ms; ", rates[k] / 1000.0, bytes, ms1, ms2);
+            }
+            row (t.bad == 0, "HR3 ring bytes 8 * sum ((ceil (41 fs) >> l) + 64 + 16) == 25 315 320 / 27 553 920 / 55 105 920 / 110 209 920; kRingSamples == ceil (41 fs)",
+                 t.bad ? t.detail (4) : det.trim());
+        }
+    }
+
+    //==========================================================================
     // TA1 — D21 infinite tail (T1)
     //==========================================================================
     void tailRows()
@@ -529,7 +1094,13 @@ namespace { namespace eg26
 static void engineRows26()
 {
     std::printf ("\n== Stage 2 / 2.6 hardening rows (tail, census, host input, stress, high rate)\n");
-    eg26::tailRows();
-    eg26::censusRows();
-    eg26::hostInputRows();
+    if (sect ("tailRows")) eg26::tailRows();
+    if (sect ("censusRows")) eg26::censusRows();
+    if (sect ("hostInputRows")) eg26::hostInputRows();
+    if (sect ("z7aRows")) eg26::z7aRows();
+    if (sect ("z7mRows")) eg26::z7mRows();
+    if (sect ("z7m9Rows")) eg26::z7m9Rows();
+    if (sect ("z7fRows")) eg26::z7fRows();
+    if (sect ("z7dRows")) eg26::z7dRows();
+    if (sect ("highRateRows")) eg26::highRateRows();
 }

@@ -110,8 +110,11 @@ namespace ogran
                 // Outward from k = 0 (0, +1, −1, +2, …) so a truncation keeps the
                 // degrees nearest unison.
                 const int kMax = static_cast<int> (std::ceil (span / period)) + 1;
-                for (int a = 0; a <= kMax && count < kMaxActive; ++a)
-                    for (int sgn = 0; sgn < (a == 0 ? 1 : 2) && count < kMaxActive; ++sgn)
+                // ! truncated (2.6, the AbsSet form): with count < kMaxActive here a cap that
+                // landed exactly on a period boundary (512 = 8 × 64 degrees) ended the loops
+                // before the inner check could flag it — same members, wasTruncated() wrong.
+                for (int a = 0; a <= kMax && ! truncated; ++a)
+                    for (int sgn = 0; sgn < (a == 0 ? 1 : 2) && ! truncated; ++sgn)
                     {
                         const int k = sgn == 0 ? a : -a;
                         for (int d = 0; d < nDeg; ++d)

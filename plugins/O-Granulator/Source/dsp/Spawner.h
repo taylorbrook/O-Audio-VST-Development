@@ -113,6 +113,7 @@ namespace ogran
         double heldCaptured = 0.0;
         double headLead     = 0.0;     // inside the deferred stop: W0 − W_on(live) (> 0; the head still moves)
         bool   noMinSpray   = false;   // test hook freezeNoMinSpray (FZ3n): live formula + plain clamp
+        bool   deferFloorR  = false;   // test hook deferFloorR (Z7m9n): the pre-2.6 r·(headLead + 1) floor
     };
 
     /** 2.5b absolute pitch follow (PLAN-2.5b P71 / P72): the pass-2 pitch of a
@@ -129,6 +130,7 @@ namespace ogran
     {
         bool nativeProgress = false;   // test hook: progress = age·invLen only (FUNC-03 negative control)
         bool noQuotaCeil    = false;   // test hook: overQuota = live > q (real), not > ceil (q) (R8 control)
+        bool noConverge     = false;   // test hook: no over-cap convergence kill (GL3n: the pre-2.6 behaviour)
     };
 
     class Spawner
@@ -309,10 +311,17 @@ namespace ogran
             }
             // Deferred stop: anchored at the future W0 while the head is still
             // headLead samples short of it — never read ahead of the moving head.
-            // Forward: head − read >= margin for every age up to the stop needs
-            // D >= margin + r·(headLead + 1); reverse only needs it at age 0.
+            // Forward: head − read = D − headLead + a·(1 − r) at age a <= headLead, so
+            // r >= 1 needs D >= margin + r·(headLead + 1) (worst at the stop) and r < 1
+            // needs D >= margin + headLead (worst at age 0) -> max (r, 1). 2.6 (D25,
+            // execution deviation): the r-only floor let short sub-unity-rate grains
+            // spawned in the deferral start AHEAD of the moving head (Z7f fuzz).
+            // Reverse only needs it at age 0.
             if (fz.headLead > 0.0)
-                d = std::max (d, p.dir > 0 ? margin + p.rate * (fz.headLead + 1.0) + 1.0 : margin + fz.headLead + 1.0);
+            {
+                const double rf = fz.deferFloorR ? p.rate : std::max (p.rate, 1.0);
+                d = std::max (d, p.dir > 0 ? margin + rf * (fz.headLead + 1.0) + 1.0 : margin + fz.headLead + 1.0);
+            }
             return d;
         }
 
@@ -413,6 +422,7 @@ namespace ogran
             int    aliveAfter = 0;
             bool   killed     = false;   // R3 kill path taken (a victim got a 5 ms release)
             bool   stolen     = false;   // native fade-on-steal (pool.obtain stole a slot)
+            bool   capKill    = false;   // 2.6: one more over-cap grain got the R3 kill (alive > grainLimit)
         };
 
         /** R3 cap (RESEARCH-2.1 §3) with stream-fair progress (RESEARCH-2.2 §3, R8):
@@ -522,6 +532,35 @@ namespace ogran
             a.slot = static_cast<int> (a.grain - base);
             if (a.slot >= 0 && a.slot < kPoolLive)
                 pendingKill[a.slot] = 0;                  // the slot now holds the NEW grain
+
+            // 2.6 (PLAN-2.6 D25, execution deviation): converge to a LOWERED cap. Both paths
+            // above hold `alive` constant once alive >= grainLimit (R3: kill one, add one; a
+            // full pool: steal one for one), so a grain_limit lowered live (automation, preset
+            // load) under sustained demand never took effect — steal-oldest replaced grains
+            // before any could expire and the pool stayed at its old population. While alive
+            // exceeds the cap, each acquire gives one more over-cap grain the R3 kill fade (the
+            // same victim order), so the pool reaches the cap at the spawn rate. alive <= cap
+            // (every start-at-cap render) never comes here.
+            if (alive > grainLimit && ! policy.noConverge)
+            {
+                int extra = -1, ePri = -1;
+                double eBest = -1.0;
+                for (int i = 0; i < kPoolLive; ++i)
+                {
+                    if (i == a.slot || ! pool.isActive (i) || isKilling (base[i], i))
+                        continue;
+                    const int pr = priOf (base[i]);
+                    const double x = progress (base[i]);
+                    if (pr > ePri || (pr == ePri && x > eBest)) { ePri = pr; eBest = x; extra = i; }
+                }
+                if (extra >= 0)
+                {
+                    pendingKill[extra] = 1;
+                    anyPending   = true;
+                    a.capKill    = true;
+                    a.aliveAfter -= 1;
+                }
+            }
             return a;
         }
 

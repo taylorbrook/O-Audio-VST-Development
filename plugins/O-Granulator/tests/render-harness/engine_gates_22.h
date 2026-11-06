@@ -614,7 +614,12 @@ namespace { namespace eg22
                 for (int i = 0; i < kPoolLive; ++i) if (pool->isActive (i) && ! (pool->getGrains()[(size_t) i].killStep > 0.0f)) ++liveCount;
                 overQ += (pol.noQuotaCeil ? liveCount > q.q[0] : liveCount > q.qCeil[0]) ? 1 : 0;
 
-                const auto a = spn.acquire (*pool, limit, q, 0, pol);
+                // 2.6 (Taylor sign-off at execute, PLAN-2.6 D25): F7 proves the 2.1 victim / slot
+                // equivalence; the over-cap convergence kill (Spawner::acquire, alive > cap) is
+                // outside that reference and is gated by GL3 / GL3n — so F7 runs without it.
+                ogran::AcquirePolicy pol7 = pol;
+                pol7.noConverge = true;
+                const auto a = spn.acquire (*pool, limit, q, 0, pol7);
                 int gotVictim = -1;
                 const ogran::Grain* pb = pool->getGrains().data();
                 pool->render ([&] (ogran::Grain& g, PoolT::Fader&) -> bool

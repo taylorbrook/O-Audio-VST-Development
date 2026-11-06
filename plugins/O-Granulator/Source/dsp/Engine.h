@@ -233,6 +233,8 @@ namespace ogran
             double killFadeMs   = -1.0;    // K3an / QB3an: R3 kill fade (ms) at prepare; 0 = hard cut; < 0 = kKillFadeMs
             bool   hostGuardOff = false;   // Z7hn / Z7hr: no R96 ring-write guard (the host sample reaches the ring as is)
             bool   wetGuardOff  = false;   // Z7hn: no R96 wet-bus guard before the reverb
+            bool   capNoConverge = false;  // GL3n: no over-cap convergence kill (the pre-2.6 Spawner::acquire)
+            bool   deferFloorR   = false;  // Z7m9n: the pre-2.6 deferred-stop floor r·(headLead + 1) (no max (r, 1))
         };
 
         /** P56 trace ring (test builds): {absolute sample, value}. */
@@ -360,6 +362,7 @@ namespace ogran
             // 2.6 (PLAN-2.6 P81)
             std::int64_t hostScrubs        = 0;   // R96: host samples the ring-write guard replaced by 0
             std::int64_t wetScrubs         = 0;   // R96: non-finite wet samples zeroed before the reverb
+            std::int64_t capKills          = 0;   // D25: over-cap convergence kills (alive > grain_limit)
             std::uint64_t logCount       = 0;   // total spawns logged; entry k at log[k % kSpawnLogSize]
             std::array<SpawnRecord, kSpawnLogSize> log {};
 
@@ -375,7 +378,7 @@ namespace ogran
                 maxWetPeak = 0.0f;
                 onsetEvents = maxEventsPerPiece = freeBursts = tempoBursts = mpmHops = mpmConfident = guardHeld = 0;
                 f0Writes = f0Skips = followLookups = followHits = absSetRebuilds = analysisScrubs = 0;
-                hostScrubs = wetScrubs = 0;
+                hostScrubs = wetScrubs = capKills = 0;
                 for (auto& m : followMiss) m = 0;
                 logCount = 0;
             }

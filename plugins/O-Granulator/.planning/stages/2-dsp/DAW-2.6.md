@@ -1,0 +1,23 @@
+# O-Granulator — Phase 2.6 DAW checklist (infinite tail, sustained-tone onsets, 192 kHz CPU)
+
+**Stage:** 2-dsp / 2.6 · **Run at:** **Stage 3, with the WebView UI**, in the same pass as DAW-2.5a.md items 1–8 and DAW-2.5b.md items 1–5 (CONTEXT-2.6 D23: 2.6 verify is fully automated; execute does not wait on the DAW) · **Written:** execute T12 (PLAN-2.6 P96), 2026-11-06
+**Build:** the installed `O-Granulator-dev` VST3 / AU from the 2.6 execute commit (generic editor, or the WebView UI once Stage 3 lands).
+
+These items cover what the harness cannot: how real hosts treat an infinite tail, a listener judging missed hits under a held pad, and a 192 kHz session's CPU meter. The harness gates (TA1, C7 / C7L + the `--long` rate rows, Z7d) prove the tail value, the CPU at 48 k / 128 and the exact-zero decay; auval and pluginval 10 accepted the ∞ tail on the installed AU and VST3 (SUMMARY-2.6). **A FAIL on item 1 reopens D21** (pre-signed fallback (b): `getTailLengthSeconds()` = 600 s, PLAN-2.6 sign-off 4).
+
+**General setup (every item unless it says otherwise)**
+- Logic Pro (AU), Ableton Live (VST3) and Reaper (VST3), 48 kHz unless the item says otherwise, buffer 256, monitors at normal listening level.
+- O-Granulator on a stereo audio track, generic editor open, from defaults.
+
+Record PASS / FAIL and one line of what you saw / heard per item.
+
+| # | Item | Session recipe | Listen / look for | PASS if |
+|---|---|---|---|---|
+| 1 | ∞ tail (D21; R79, R80, R81) — Logic, Live, Reaper | A 4-bar audio region (any pitched loop) ending at bar 5. `mix` 100 %, `feedback` 100 %, `s1_density` 20 g/s, `s1_size` 500 ms. **(a) Freeze:** engage `freeze` at bar 4, leave it on. **(b) Feedback only:** freeze off. For each: (1) bounce / export bars 1–9 with "include tail" (Logic: *Bounce → Include Audio Tail*; Live: *Export → Render length* as set; Reaper: *Render → Tail* on) — (2) play past bar 5 and stop the transport at bar 9 — (3) note the CPU meter while the transport is stopped. | The bounce must end at the range you chose (no hang, no endless render, no host dialog about a tail that never ends). After the region ends during playback the frozen / ringing sound keeps going (the host must keep calling the plugin; an infinite tail stops it being idled). While stopped: the plugin keeps running (CPU meter > idle) as with any ∞-tail effect. | Every host bounces the chosen range and finishes; the tail is not cut when the region ends; nothing hangs. **A hang, an endless render or a cut tail reopens D21 → fallback (b) 600 s** (record which host). |
+| 2 | Drums over a sustained pad (R85, sign-off 5) | A drum loop (kick / snare / hats) mixed on the same track with a held, harmonically rich pad (one chord, 8 bars, at about the drums' level). `s1_onset_trigger` On, `s1_density` 4 g/s, `s1_size` 60 ms, `onset_threshold` −30 dB. Then mute the pad for 4 bars, unmute again. | Whether hits that land under the sustained pad still burst. Expected (documented, RESEARCH-2.6 R85): while the pad sustains, the detector's slow envelope sits high and the +3 dB re-arm (R60) never fires, so hits under the pad are **missed**; with the pad muted every hit bursts again. | Recorded behaviour, not a pass / fail of the code: note how many hits per bar are missed under the pad vs with it muted. Taylor decides after this pass whether to revisit R60 (a behaviour change outside 2.6). |
+| 3 | 192 kHz CPU (R87) | A 192 kHz session (Reaper or Logic). A C7-like patch: all four streams on, `sN_density` 200 g/s, `sN_size` 2000 ms, `grain_limit` 128, every per-stream FX at its max (crush 1 %), `feedback` 100 %, `fb_diffusion` 100 %, `reverb_mix` 100 %, triggers and follow on ×4, 16 modulation routes from all sources. Feed a held tone with drum hits. Buffer 128, then 256. | The host CPU meter for the track / plugin and any dropouts or crackles. Expected about ⅔ of one core at 192 k / 128 (R87: 67.3 %; worst block p99 518 µs of a 667 µs budget — SUMMARY-2.6 has the 2.6 `--long` measurement). | No dropouts at buffer 256; at 128 note whether the meter stays below the host's overload. Dropouts at 128 only are recorded (the 192 k worst case is an INFO row; 3.x UI copy says "at 192 kHz the worst case uses about ⅔ of a core"). |
+
+## Notes for the verifier
+- Item 1's CPU-while-stopped is expected: an ∞ tail means the host keeps the plugin running. Freeze holds its content for as long as it stays on; with feedback 100 % and no freeze the output reaches an exact 0 after ≈ 296 s (R81 / Z7d) — the host still calls the plugin.
+- Item 2 is the R85 watch item (sign-off 5): no R60 change was made in 2.6.
+- These three items join DAW-2.5a.md items 1–8 (watch item 6) and DAW-2.5b.md items 1–5 in the Stage 3 DAW pass.

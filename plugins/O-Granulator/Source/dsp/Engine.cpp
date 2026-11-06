@@ -1013,6 +1013,7 @@ void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart, std::int64_t 
             fzg.headLead = static_cast<double> (std::max<std::int64_t> (0, fz.W0 - (wPiece + o.offset + 1)));
        #if OGRAN_TEST_HOOKS
         fzg.noMinSpray   = hooks.freezeNoMinSpray;
+        fzg.deferFloorR  = hooks.deferFloorR;
        #endif
     }
     // 2.5a P54 (R48): routed spawn-latched fields are evaluated AT the spawn
@@ -1137,6 +1138,7 @@ void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart, std::int64_t 
     AcquirePolicy policy;
     policy.nativeProgress = hooks.nativeProgress;
     policy.noQuotaCeil    = hooks.noQuotaCeil;
+    policy.noConverge     = hooks.capNoConverge;
     const auto acq = hooks.nativeAcquire ? nativeAcquireForTest()
                                          : spawner.acquire (pool, gp.grainLimit, quotas, o.stream, policy);
    #else
@@ -1195,6 +1197,7 @@ void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart, std::int64_t 
 
     ++diag.spawns;
     if (acq.killed) ++diag.kills;
+    if (acq.capKill) { ++diag.kills; ++diag.capKills; }
     if (acq.stolen) ++diag.steals;
     diag.maxAlive = std::max (diag.maxAlive, static_cast<std::int64_t> (acq.aliveAfter));
 
