@@ -20,6 +20,7 @@
 #include "Engine.h"
 
 #include <algorithm>
+#include <limits>
 
 namespace ogran
 {
@@ -78,6 +79,19 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     updateScaleState();
     snapRampsToParams();
     activeSeed = pendingSeed;
+
+    // 2.5a sources: LFO phases ramp from the latched phase, accumulators at 0,
+    // the follower empty, macros snapped (no fade at load).
+    for (int n = 0; n < kLfos; ++n)
+    {
+        lfos[n].prepare (fs, rampCellsFor (fs, kModRampMs), gp.lfo[n].phaseDeg);
+        lfoRateHz[n]  = static_cast<double> (gp.lfo[n].rateHz);
+        lfoRateOff[n] = 0.0f;
+        macroRamp[n].reset (gp.macro[n]);
+    }
+    env.prepare (fs, gp.envAttackMs, gp.envReleaseMs, gp.envGainDb);
+    srcVals = {};
+    for (auto& t : srcTelemetry) t.store (0.0f, std::memory_order_relaxed);
 
     // 2.4 reverb: atomics from the latch, then prepare (allocates its lines —
     // message thread). reverb_mix 0 → the unit never runs (bitwise, R35).
@@ -335,6 +349,23 @@ void Engine::process (const float* const* in, int numIn, float* const* out, int 
         CaptureWriter::write (ring, inL + done, inR + done, len, cellPos, inGainRamp, fbDelay, fz);
         jassert (ring.getWriteCount() == wPiece + (frozen ? 0 : len));
 
+        // 2.5a envelope follower on the conditioned input (post input_gain,
+        // pre-ring; runs while frozen). Never touches the audio path.
+        env.process (inL + done, inR + done, len, cellPos, [this] (int c) noexcept { return inGainRamp.value (c); });
+       #if OGRAN_TEST_HOOKS
+        if (hooks.injectEnvNanAt >= 0 && absCount + len > hooks.injectEnvNanAt)
+        {
+            env.injectForTest (std::numeric_limits<float>::quiet_NaN());
+            hooks.injectEnvNanAt = -1;
+        }
+       #endif
+        if (env.scrub())
+        {
+           #if OGRAN_TEST_HOOKS
+            ++diag.envScrubs;
+           #endif
+        }
+
         // 4. Schedule.
         const int numOnsets = scheduleStreams (len);
 
@@ -402,6 +433,9 @@ void Engine::gridTick() noexcept
     gp.latch (ptrs);
     spanSamples = static_cast<double> (gp.bufferLengthS) * fs;   // spawn-latched destination (no ramp)
     handleFreezeEdges();
+
+    // 2.5a: the modulation sources of this cell (sampled once, at the tick).
+    tickSources();
 
     // 2.5a: Tempo mode reads the EFFECTIVE density / size (quotas, coherence,
     // the spawn size and the clock all see the synced values, R45).
@@ -581,6 +615,40 @@ void Engine::forcedReleaseScan() noexcept
             ++diag.forcedReleases;
            #endif
         }
+    }
+}
+
+/** P51: LFO 1–4, the envelope follower and the macros, sampled ONCE per cell
+    at the tick. The LFO rate (and its matrix offset) come from the PREVIOUS
+    cell (R50.5: no same-cell source cycle). Pitch / Onset stay 0 (2.5b). */
+void Engine::tickSources() noexcept
+{
+    const bool tempoMode = gp.syncMode == 1;
+    int forceMode = 0;
+   #if OGRAN_TEST_HOOKS
+    forceMode = hooks.forceLfoMode;
+   #endif
+    for (int n = 0; n < kLfos; ++n)
+        srcVals.v[ModSrc::Lfo1 + n] = lfos[n].tick (n, gp.lfo[n], tempoMode, tracker, absCount, lfoRateOff[n], lfoRateHz[n],
+                                                    activeSeed, forceMode);
+    env.setParams (gp.envAttackMs, gp.envReleaseMs, gp.envGainDb);
+    srcVals.v[ModSrc::Env]   = env.source();
+    srcVals.v[ModSrc::Pitch] = 0.0f;
+    srcVals.v[ModSrc::Onset] = 0.0f;
+    for (int n = 0; n < kMacros; ++n)
+    {
+        macroRamp[n].setTarget (gp.macro[n], rampCells);
+        macroRamp[n].tick();
+        srcVals.v[ModSrc::Macro1 + n] = macroRamp[n].current();
+    }
+    for (int k = 1; k < kModSources; ++k)
+        srcTelemetry[static_cast<size_t> (k - 1)].store (srcVals.v[k], std::memory_order_relaxed);
+
+    // Next cell's LFO rates (T7+: the matrix-modulated rate of THIS cell).
+    for (int n = 0; n < kLfos; ++n)
+    {
+        lfoRateHz[n]  = static_cast<double> (gp.lfo[n].rateHz);
+        lfoRateOff[n] = 0.0f;
     }
 }
 

@@ -846,6 +846,531 @@ namespace { namespace eg25
             row (t.bad == 0, "TS6 FUNC-04b Free density 0.5 / 200 g/s within 2 % over 10 s (LFOs running, unrouted)", t.detail (2));
         }
     }
+
+    //==========================================================================
+    // LS — LFO units (T6). The Lfo class is driven cell by cell from a
+    // TempoTracker fed by the v2 mock, block by block (the engine's order).
+    //==========================================================================
+    struct LfoRun
+    {
+        std::vector<double> pos;     // cycle + x of each cell's value
+        std::vector<float>  val;
+        std::vector<int>    mode;    // 0 Direct, 1 Accum
+        std::vector<double> ppq;     // tracker ppq at each tick
+        std::vector<double> origin;  // anchor bar origin at each tick
+        std::vector<double> barLen;
+    };
+
+    using LfoPer = std::function<void (juce::int64 cell, ogran::GridParams::Lfo&, float& rateOff, double& rateHz)>;
+
+    LfoRun runLfo (const Transport& tr, juce::int64 cells, ogran::GridParams::Lfo p, bool tempo, int index = 0,
+                   const LfoPer& per = {}, int block = 512, int forceMode = 0, std::uint64_t seed = 0x5EEDull)
+    {
+        LfoRun r;
+        auto head = tr.makeHead();
+        ogran::TempoTracker t;
+        t.prepare (tr.fs);
+        ogran::Lfo lfo;
+        lfo.prepare (tr.fs, ogran::rampCellsFor (tr.fs, ogran::kModRampMs), p.phaseDeg);
+        const juce::int64 len = cells * 32;
+        const auto starts = blockStarts (len, block, tr.eventSamples());
+        float off = 0.0f;
+        double rate = p.rateHz;
+        for (size_t k = 0; k < starts.size(); ++k)
+        {
+            const juce::int64 h = starts[k], e = k + 1 < starts.size() ? starts[k + 1] : len;
+            head->timeInSamples = h;
+            t.update (snapOf (*head), h);
+            for (juce::int64 c = ((h + 31) / 32) * 32; c < e; c += 32)
+            {
+                if (per) per (c / 32, p, off, rate);
+                else rate = p.rateHz;
+                r.val.push_back (lfo.tick (index, p, tempo, t, c, off, rate, seed, forceMode));
+                r.pos.push_back (lfo.position());
+                r.mode.push_back (lfo.getMode() == ogran::Lfo::Mode::Direct ? 0 : 1);
+                r.ppq.push_back (t.ppqAt (c));
+                r.origin.push_back (t.anchor().barOrigin);
+                r.barLen.push_back (t.anchor().barLen);
+            }
+        }
+        return r;
+    }
+
+    void lfoRows()
+    {
+        std::printf ("\n-- LS. LFO shapes / phase (R50, R51; D15 as amended)\n");
+        using L = ogran::Lfo;
+
+        // LS1 — shapes on a 1/1024 grid vs the R51 formulas; determinism; smooth continuity.
+        {
+            Tally t;
+            const std::uint64_t seed = 0xABCDull;
+            auto h = [] (std::uint64_t sd, int n, std::int64_t c)
+            {
+                return (double) ouaricon::grain::CounterRng::Draw (sd, ogran::kLfoStream + (std::uint64_t) n, (std::uint64_t) c).nextFloat (0);
+            };
+            bool range = true;
+            for (int s = 0; s < 6; ++s)
+                for (std::int64_t c : { (std::int64_t) -3, (std::int64_t) 0, (std::int64_t) 7 })
+                    for (int i = 0; i < 1024; ++i)
+                    {
+                        const double x = i / 1024.0;
+                        float want = 0.0f;
+                        switch (s)
+                        {
+                            case 0: want = (float) std::sin (2.0 * ogran::kFxPi * x); break;
+                            case 1: want = (float) (1.0 - 4.0 * std::abs (x - 0.5)); break;
+                            case 2: want = (float) (2.0 * x - 1.0); break;
+                            case 3: want = x < 0.5 ? 1.0f : -1.0f; break;
+                            case 4: want = (float) (2.0 * h (seed, 2, c) - 1.0); break;
+                            default:
+                            {
+                                const double a = h (seed, 2, c), b = h (seed, 2, c + 1);
+                                want = (float) (2.0 * (a + (b - a) * 0.5 * (1.0 - std::cos (ogran::kFxPi * x))) - 1.0);
+                            }
+                        }
+                        const float got = L::shape (s, x, c, seed, 2);
+                        t.check (std::memcmp (&got, &want, 4) == 0, juce::String::formatted ("shape %d c %lld x %.4f", s, (long long) c, x));
+                        range = range && got >= -1.0f && got <= 1.0f;
+                    }
+            bool det = true, differs = false;
+            for (std::int64_t c = 0; c < 64; ++c)
+            {
+                det = det && juce::exactlyEqual (L::shape (4, 0.3, c, seed, 1), L::shape (4, 0.3, c, seed, 1));
+                differs = differs || ! juce::exactlyEqual (L::shape (4, 0.3, c, seed, 1), L::shape (4, 0.3, c, seed + 1, 1));
+            }
+            row (t.bad == 0 && range && det && differs, "LS1 six shapes bitwise == R51 on a 1/1024 grid (c -3, 0, 7); [-1, 1]; S&H seeded, seed+1 differs",
+                 t.detail (6 * 3 * 1024));
+
+            // Smooth random continuity at 5 Hz over 10 s (Free accumulator).
+            ogran::GridParams::Lfo p; p.shape = 5; p.rateHz = 5.0f;
+            const auto r = runLfo (Transport (kFs, 120.0), 15000, p, false, 1, {}, 512, 0, seed);
+            const double inc = 32.0 * 5.0 / kFs;
+            double worstRatio = 0.0;
+            for (size_t k = 1; k < r.val.size(); ++k)
+            {
+                const auto c0 = (std::int64_t) std::floor (r.pos[k - 1]);
+                double dh = 0.0;
+                for (std::int64_t c = c0 - 1; c <= c0 + 1; ++c) dh = juce::jmax (dh, std::abs (h (seed, 1, c + 1) - h (seed, 1, c)));
+                const double bound = ogran::kFxPi * dh * inc * (1.0 + 1e-3) + 1e-6;
+                worstRatio = juce::jmax (worstRatio, std::abs ((double) r.val[k] - r.val[k - 1]) / bound);
+            }
+            row (worstRatio <= 1.0, "LS1 smooth random continuous across cycles: |dv| per cell <= pi*|dh|*inc",
+                 juce::String::formatted ("worst / bound %.3f", worstRatio));
+        }
+
+        // LS2 / LS2n — Free accumulator under rate automation 0.5 → 0.51 Hz at 60 s.
+        {
+            ogran::GridParams::Lfo p; p.rateHz = 0.5f;
+            const juce::int64 at = 60 * 48000 / 32, cells = 70 * 48000 / 32;
+            auto per = [] (juce::int64 cell, ogran::GridParams::Lfo& q, float&, double& rate) { q.rateHz = cell >= at ? 0.51f : 0.5f; rate = q.rateHz; };
+            const auto a = runLfo (Transport (kFs, 120.0), cells, p, false, 0, per);
+            const auto n = runLfo (Transport (kFs, 120.0), cells, p, false, 0, per, 512, 1);
+            double worst = 0.0, worstN = 0.0;
+            for (size_t k = 1; k < a.pos.size(); ++k)
+            {
+                worst  = juce::jmax (worst, a.pos[k] - a.pos[k - 1]);
+                worstN = juce::jmax (worstN, std::abs (n.pos[k] - n.pos[k - 1]));
+            }
+            const double bound = 32.0 * (double) 0.51f / kFs * (1.0 + 1e-9);
+            bool allAccum = true;
+            for (int m : a.mode) allAccum = allAccum && m == 1;
+            row (worst <= bound && allAccum, "LS2 Free accumulator: rate 0.5 -> 0.51 Hz at 60 s, |dphi| per cell <= increment (no jump)",
+                 juce::String::formatted ("max %.3e (bound %.3e)", worst, bound));
+            row (worstN >= 0.5, "LS2n Free direct frac(n*inc) (forceLfoMode Direct): jumps >= 0.5 cycle at the automation (R50)",
+                 juce::String::formatted ("max |dphi| %.3f cycle", worstN));
+        }
+
+        // LS3 — Tempo direct lock over 64 bars; re-lock after a loop and a locate.
+        {
+            Tally t;
+            for (double bpm : { 120.0, 133.0 })
+                for (int sync : { 18, 6, 11 })   // 1 bar, 1/16 T, 1/8 D
+                {
+                    ogran::GridParams::Lfo p; p.rateSync = sync;
+                    const auto cells = (juce::int64) std::ceil (64.0 * 4.0 / (bpm / 60.0) * kFs / 32.0);
+                    Transport tr (kFs, bpm);
+                    const auto r = runLfo (tr, cells, p, true);
+                    const double pps = bpm / 60.0 / kFs, div = ogran::tempoDivBeats (sync, 4.0);
+                    int bad = 0;
+                    for (size_t k = 0; k < r.pos.size(); ++k)
+                    {
+                        const double v = (0.0 + (double) ((juce::int64) k * 32 - 0) * pps - 0.0) / div;
+                        const double c = std::floor (v);
+                        const double want = c + (v - c);
+                        if (std::memcmp (&want, &r.pos[k], sizeof (double)) != 0 || r.mode[k] != 0) ++bad;
+                    }
+                    t.check (bad == 0, juce::String (bpm) + " bpm / " + GranulatorParamIds::lfoRateSyncs()[sync] + juce::String::formatted (": %d cells off", bad));
+                }
+            row (t.bad == 0, "LS3 Tempo direct: phase bitwise == frac((ppq - barOrigin)/div) every cell, 64 bars (120/133 x 1 bar, 1/16 T, 1/8 D)",
+                 t.detail (6));
+
+            Tally t2;
+            for (int kind = 0; kind < 2; ++kind)
+            {
+                Transport tr (kFs, 120.0);
+                if (kind == 0) tr.loopWrap (100000, 2.0, 10.0); else tr.locate (100000, 37.3);
+                ogran::GridParams::Lfo p; p.rateSync = 11;
+                const auto r = runLfo (tr, 6000, p, true);
+                int bad = 0;
+                for (size_t k = 0; k < r.pos.size(); ++k)
+                {
+                    const double v = (r.ppq[k] - r.origin[k]) / ogran::tempoDivBeats (11, r.barLen[k]);
+                    const double c = std::floor (v), want = c + (v - c);
+                    if (std::memcmp (&want, &r.pos[k], sizeof (double)) != 0) ++bad;
+                }
+                t2.check (bad == 0, juce::String (kind == 0 ? "loop" : "locate") + juce::String::formatted (" %d off", bad));
+            }
+            row (t2.bad == 0, "LS3 after a loop wrap and a locate: re-locked to the direct formula from the re-lock cell", t2.detail (2));
+        }
+
+        // LS4 — lfo_phase 359° → 1° moves +2° over 20 ms (shortest arc).
+        {
+            ogran::GridParams::Lfo p; p.phaseDeg = 359.0f; p.rateHz = 0.01f;
+            auto per = [] (juce::int64 cell, ogran::GridParams::Lfo& q, float&, double& rate) { q.phaseDeg = cell >= 100 ? 1.0f : 359.0f; rate = q.rateHz; };
+            Transport tr (kFs, 120.0);
+            auto head = tr.makeHead();
+            ogran::TempoTracker tt; tt.prepare (kFs); tt.update (snapOf (*head), 0);
+            ogran::Lfo lfo; lfo.prepare (kFs, ogran::rampCellsFor (kFs, ogran::kModRampMs), p.phaseDeg);
+            std::vector<float> ph;
+            float off = 0.0f; double rate = 0.01;
+            for (juce::int64 c = 0; c < 200; ++c)
+            {
+                per (c, p, off, rate);
+                lfo.tick (0, p, false, tt, c * 32, off, rate, 1);
+                ph.push_back (lfo.getPhaseDeg());
+            }
+            bool mono = true;
+            for (size_t k = 101; k < ph.size(); ++k) mono = mono && ph[k] >= ph[k - 1];
+            const float end = ph.back();
+            row (mono && std::abs (end - 361.0f) <= 1e-4f && juce::exactlyEqual (ph[99], 359.0f) && std::abs (ph[115] - 360.0f) < 1.0f,
+                 "LS4 lfo_phase 359 -> 1 deg: +2 deg over 20 ms (shortest arc, monotone)",
+                 juce::String::formatted ("%.4f -> %.4f (mid %.4f)", ph[99], end, ph[115]));
+        }
+
+        // LS5 — pre-roll: negative S&H cycles deterministic across block schedules, distinct from positive ones.
+        {
+            ogran::GridParams::Lfo p; p.shape = 4; p.rateSync = 13;   // 1/4 = 1 beat
+            Transport tr (kFs, 120.0, -8.0);
+            const auto a = runLfo (tr, 16 * 24000 / 32, p, true, 3, {}, 512);
+            const auto b = runLfo (tr, 16 * 24000 / 32, p, true, 3, {}, 441);
+            bool same = a.val.size() == b.val.size();
+            for (size_t k = 0; same && k < a.val.size(); ++k) same = juce::exactlyEqual (a.val[k], b.val[k]);
+            std::vector<float> neg, pos;
+            for (size_t k = 0; k < a.val.size(); ++k)
+            {
+                const auto c = (std::int64_t) std::floor (a.pos[k]);
+                if (c < 0 && (neg.empty() || ! juce::exactlyEqual (neg.back(), a.val[k]))) neg.push_back (a.val[k]);
+                if (c >= 0 && (pos.empty() || ! juce::exactlyEqual (pos.back(), a.val[k]))) pos.push_back (a.val[k]);
+            }
+            bool distinct = neg.size() >= 7 && pos.size() >= 7;
+            for (size_t k = 0; distinct && k < 7; ++k) distinct = ! juce::exactlyEqual (neg[k], pos[k]);
+            row (same && distinct, "LS5 pre-roll S&H: negative cycles deterministic (512 vs 441 blocks) and distinct from cycles >= 0",
+                 juce::String::formatted ("%d / %d steps", (int) neg.size(), (int) pos.size()));
+        }
+    }
+
+    //==========================================================================
+    // EV / MC — envelope follower and macros (engine renders, block 32: one
+    // cell per block, read after each block)
+    //==========================================================================
+    struct CellTrace { std::vector<float> envState, envSrc, macro1; bool srcInRange = true; };
+
+    Job srcJob (juce::int64 len, std::function<float (juce::int64, int)> stim, P extra = {})
+    {
+        Job j;
+        j.params = eg22::base ({ 1 });
+        for (auto& kv : P { { "mix", 0.0f }, { sp (1, "density"), 5.0f }, { sp (1, "size"), 50.0f } }) j.params.push_back (kv);
+        for (auto& kv : extra) j.params.push_back (kv);
+        j.len = len;
+        j.block = 32;
+        j.stim = std::move (stim);
+        return j;
+    }
+    std::shared_ptr<CellTrace> traceCells (Job& j)
+    {
+        auto tr = std::make_shared<CellTrace>();
+        auto prev = j.after;
+        j.after = [tr, prev] (Proc& p, juce::int64 pos)
+        {
+            if (prev) prev (p, pos);
+            const auto& e = p.getEngineForTest();
+            tr->envState.push_back (e.getEnv().state());
+            tr->envSrc.push_back (e.getSrcTelemetry (ogran::ModSrc::Env));
+            tr->macro1.push_back (e.getSrcTelemetry (ogran::ModSrc::Macro1));
+            for (int s = 1; s <= ogran::kSrcTelemetry; ++s)
+            {
+                const float v = e.getSrcTelemetry (s);
+                const bool bip = s >= ogran::ModSrc::Lfo1 && s <= ogran::ModSrc::Lfo4;
+                tr->srcInRange = tr->srcInRange && std::isfinite (v) && v <= 1.0f && v >= (bip ? -1.0f : 0.0f);
+            }
+        };
+        return tr;
+    }
+
+    void envRows()
+    {
+        std::printf ("\n-- EV / MC. envelope follower (R52) and macros\n");
+        auto dc = [] (float a, double t0, double t1)
+        {
+            return [a, t0, t1] (juce::int64 i, int) { const double t = (double) i / kFs; return t >= t0 && t < t1 ? a : 0.0f; };
+        };
+
+        // EV1 — the follower law on a −20 dBFS DC step (1 s on, 2 s off).
+        {
+            Job j = srcJob (3 * 48000, dc (0.1f, 0.0, 1.0), { { "env_attack", 10.0f }, { "env_release", 200.0f } });
+            auto tr = traceCells (j);
+            Job g = srcJob (2 * 48000, dc (0.01f, 0.0, 2.0), { { "env_gain", 24.0f } });
+            auto tg = traceCells (g);
+            auto outs = renderAll ({ j, g });
+            const auto& env = outs[0].eng().getEnv();
+            // Bitwise float reference of the one-pole (input gain 0 dB = 1.0f, env gain 1).
+            float e = 0.0f; int bad = 0;
+            const float aA = env.attackCoeff(), aR = env.releaseCoeff();
+            for (juce::int64 i = 0; i < 3 * 48000; ++i)
+            {
+                const float s = 0.5f * (dc (0.1f, 0.0, 1.0) (i, 0) + dc (0.1f, 0.0, 1.0) (i, 1)) * 1.0f;
+                const float x = std::abs (s * 1.0f);
+                e += (x > e ? aA : aR) * (x - e);
+                if ((i + 1) % 32 == 0 && ! juce::exactlyEqual (e, tr->envState[(size_t) ((i + 1) / 32 - 1)])) ++bad;
+            }
+            const double at63 = tr->envState[14] / 0.1;                 // after 480 samples = τ
+            const double expect63 = 1.0 - std::exp (-1.0);
+            const float settled = tr->envSrc[1499];                      // the tick at 1 s − 1 cell
+            const float silent = tr->envSrc.back();
+            row (bad == 0 && std::abs (at63 - expect63) <= 1e-4 && std::abs (settled - 2.0f / 3.0f) <= 1e-4f && juce::exactlyEqual (silent, 0.0f)
+                 && tr->srcInRange,
+                 "EV1 follower: state bitwise == the one-pole, 63 % at tau (10 ms), -20 dBFS -> 0.667, silence -> exactly 0",
+                 juce::String::formatted ("%d off, e(tau)/A %.6f (%.6f), src %.6f, silence %g", bad, at63, expect63, settled, silent));
+            row (std::abs (tg->envSrc.back() - (44.0f / 60.0f)) <= 1e-3f && tg->srcInRange,
+                 "EV1 env_gain +24 dB: -40 dBFS DC reads (-16 + 60)/60", juce::String::formatted ("%.5f", tg->envSrc.back()));
+        }
+
+        // EV2 — tap point: feedback return not tapped; input_gain applies; runs while frozen.
+        {
+            // Gated noise (DC would be removed by the loop's 80 Hz HP: nothing would recirculate).
+            auto gatedNoise = [] (juce::int64 i, int ch) { return i < 48000 ? eg::hashNoise (i, ch, 0.3f) : 0.0f; };
+            Job fb = srcJob (13 * 4800 * 4, gatedNoise, { { "feedback", 100.0f }, { "mix", 100.0f }, { sp (1, "density"), 40.0f },
+                                                       { sp (1, "size"), 200.0f } });
+            auto tfb = traceCells (fb);
+            Job lo = srcJob (48000, dc (0.1f, 0.0, 1.0), { { "input_gain", -24.0f } });
+            auto tlo = traceCells (lo);
+            Job hi = srcJob (48000, dc (0.1f, 0.0, 1.0));
+            auto thi = traceCells (hi);
+            Job fz = srcJob (2 * 48000, dc (0.1f, 1.0, 2.0));
+            fz.events.push_back ({ 24000, [] (Proc& p) { eg::setP (p, "freeze", 1.0f); } });
+            auto tfz = traceCells (fz);
+            auto outs = renderAll ({ fb, lo, hi, fz });
+            double wetTail = 0.0;
+            for (size_t i = 2 * 48000; i < outs[0].L.size(); ++i) wetTail = juce::jmax (wetTail, (double) std::abs (outs[0].L[i]));
+            row (juce::exactlyEqual (tfb->envSrc.back(), 0.0f) && wetTail > 1e-3,
+                 "EV2 feedback 100 %, input removed: env -> exactly 0 while the loop still rings (return not tapped)",
+                 juce::String::formatted ("env %g, wet tail peak %.4f", tfb->envSrc.back(), wetTail));
+            const float d = thi->envSrc.back() - tlo->envSrc.back();
+            row (std::abs (d - 0.4f) <= 1e-3f, "EV2 input_gain -24 dB lowers the env source by 24/60", juce::String::formatted ("%.5f", d));
+            row (std::abs (tfz->envSrc.back() - 2.0f / 3.0f) <= 1e-3f && outs[3].eng().diag.freezeEngages == 1,
+                 "EV2 freeze on: the follower still tracks the input", juce::String::formatted ("%.5f", tfz->envSrc.back()));
+        }
+
+        // EV3 — NaN at the tap: one scrub, 0 at the next tick, audio bitwise unaffected.
+        {
+            Job a = srcJob (2 * 48000, eg::noiseStim (0.3f), { { "mix", 100.0f } });
+            Job b = a;
+            auto ta = traceCells (a);
+            auto tb = traceCells (b);
+            auto pre = b.pre;
+            b.pre = [pre] (Proc& p) { if (pre) pre (p); p.getEngineForTest().hooks.injectEnvNanAt = 48000 + 7; };
+            auto outs = renderAll ({ a, b });
+            const auto d = eg::diff (outs[0], outs[1]);
+            const size_t k = 48000 / 32;   // the block holding the injection is cell 1500; the next tick reads 0
+            row (outs[1].eng().diag.envScrubs == 1 && outs[0].eng().diag.envScrubs == 0 && juce::exactlyEqual (tb->envSrc[k + 1], 0.0f)
+                 && ta->envSrc[k + 1] > 0.1f && d.count == 0,
+                 "EV3 NaN at the follower: 1 scrub, source 0 at the next tick, audio bitwise unaffected",
+                 juce::String::formatted ("scrubs %lld, src %g (clean %g), audio diffs %d", (long long) outs[1].eng().diag.envScrubs,
+                                          tb->envSrc[k + 1], ta->envSrc[k + 1], d.count));
+        }
+
+        // MC1 — macro1 0 → 100 % ramps linearly over 20 ms (30 cells), unipolar.
+        {
+            Job j = srcJob (48000, eg::noiseStim (0.1f));
+            j.events.push_back ({ 320 * 32, [] (Proc& p) { eg::setP (p, "macro1", 100.0f); } });
+            auto t = traceCells (j);
+            renderAll ({ j });
+            bool lin = juce::exactlyEqual (t->macro1[319], 0.0f);
+            for (int c = 0; c < 30; ++c)
+                lin = lin && std::abs (t->macro1[(size_t) (320 + c)] - (float) (c + 1) / 30.0f) <= 1e-6f;
+            lin = lin && juce::exactlyEqual (t->macro1[349], 1.0f) && juce::exactlyEqual (t->macro1.back(), 1.0f) && t->srcInRange;
+            row (lin, "MC1 macro 0 -> 100 %: linear over 30 cells (20 ms), exactly 1 on arrival; sources in range",
+                 juce::String::formatted ("%.6f %.6f %.6f", t->macro1[320], t->macro1[334], t->macro1[349]));
+        }
+    }
+
+    //==========================================================================
+    // U9b–g — matrix units (T7), on a copy of a processor's matrix (its ranges
+    // and raw pointers were built by the processor from the parameter objects).
+    //==========================================================================
+    void matrixUnitRows()
+    {
+        std::printf ("\n-- U9b-g. modulation matrix (R46, R49, R55)\n");
+        namespace D = ogran::ModDest;
+        auto proc = make();
+        const auto& eng = proc->getEngineForTest();
+        const ogran::ModMatrix& M = eng.getMatrix();
+
+        // U9b — the engine's destination layout == kModDestIds (the Stage 1 golden pins the ids).
+        {
+            Tally t;
+            static const char* fields[] { "level", "pan", "position", "spray", "size", "size_rand", "density", "jitter", "pitch",
+                                          "pitch_rand", "reverse_prob", "window", "window_skew", "stereo_spread", "gain_rand",
+                                          "filter_cutoff", "filter_rand", "filter_res", "drive", "crush", "crush_prob", "ring_freq",
+                                          "ring_rand", "ring_mix" };
+            for (int s = 0; s < 4; ++s)
+                for (int f = 0; f < D::NumFields; ++f)
+                    t.check (juce::String (GranulatorParamIds::kModDestIds[D::stream (s, f)]) == sp (s + 1, fields[f]), sp (s + 1, fields[f]));
+            const std::pair<int, const char*> g[] { { D::InputGain, "input_gain" }, { D::Mix, "mix" }, { D::OutputGain, "output_gain" },
+                                                    { D::BufferLength, "buffer_length" }, { D::Feedback, "feedback" }, { D::FbLowCut, "fb_low_cut" },
+                                                    { D::FbHighCut, "fb_high_cut" }, { D::FbSat, "fb_saturation" }, { D::FbDiff, "fb_diffusion" },
+                                                    { D::RevMix, "reverb_mix" }, { D::RevSize, "reverb_size" }, { D::RevDamp, "reverb_damp" },
+                                                    { D::LfoRate1, "lfo1_rate" }, { D::LfoRate1 + 3, "lfo4_rate" } };
+            for (auto& kv : g) t.check (juce::String (GranulatorParamIds::kModDestIds[kv.first]) == kv.second, kv.second);
+            bool allFloat = true;
+            for (int d = 1; d < ogran::kModDests; ++d)
+                allFloat = allFloat && dynamic_cast<juce::AudioParameterFloat*> (param (*proc, GranulatorParamIds::kModDestIds[d])) != nullptr;
+            row (t.bad == 0 && allFloat, "U9b engine destination layout == kModDestIds (golden-pinned); every dest != None is Float",
+                 t.detail (96 + 14));
+        }
+
+        // U9c — range parity: matrix base01 / convertFrom0to1 == the APVTS parameter, bitwise, 64 values per dest.
+        {
+            Tally t;
+            for (int d = 1; d < ogran::kModDests; ++d)
+            {
+                auto* rp = param (*proc, GranulatorParamIds::kModDestIds[d]);
+                const auto& r = M.range (d);
+                for (int k = 0; k < 64; ++k)
+                {
+                    const float v = r.start + (r.end - r.start) * (float) k / 63.0f, n = (float) k / 63.0f;
+                    const float a = r.convertTo0to1 (v), b = rp->convertTo0to1 (v);
+                    const float c = r.convertFrom0to1 (n), e = rp->convertFrom0to1 (n);
+                    t.check (std::memcmp (&a, &b, 4) == 0 && std::memcmp (&c, &e, 4) == 0, juce::String (GranulatorParamIds::kModDestIds[d]));
+                }
+            }
+            row (t.bad == 0, "U9c range parity: matrix convertTo0to1 / convertFrom0to1 == APVTS bitwise (112 dests x 64)", t.detail (112 * 64));
+        }
+
+        auto gpWith = [] (std::initializer_list<std::tuple<int, int, int, float>> slots)
+        {
+            ogran::GridParams gp;
+            for (auto& [m, src, dst, dep] : slots) { gp.mod[m].src = src; gp.mod[m].dest = dst; gp.mod[m].depth = dep; }
+            return gp;
+        };
+        ogran::SourceValues one;
+        for (auto& v : one.v) v = 1.0f;
+        one.v[0] = 0.0f;
+        const int lvl = D::stream (0, D::Level);
+
+        // U9d — sum before the single clamp.
+        {
+            ogran::ModMatrix m = M;
+            m.prepare (30, gpWith ({ { 0, 8, lvl, 0.8f }, { 1, 9, lvl, -0.8f } }));
+            m.tick (gpWith ({ { 0, 8, lvl, 0.8f }, { 1, 9, lvl, -0.8f } }), one);
+            const bool cancel = ! m.routed (lvl) && juce::exactlyEqual (m.offset (lvl), 0.0f);
+            ogran::ModMatrix m2 = M;
+            m2.prepare (30, gpWith ({ { 0, 8, lvl, 0.8f }, { 1, 9, lvl, 0.8f } }));
+            m2.tick (gpWith ({ { 0, 8, lvl, 0.8f }, { 1, 9, lvl, 0.8f } }), one);
+            const float raw = m2.apply (lvl, -12.0f, m2.offset (lvl));
+            row (cancel && m2.routed (lvl) && juce::exactlyEqual (raw, 6.0f),
+                 "U9d +80 % and -80 % on one dest -> offset 0 -> unrouted; +80 % + 80 % -> clamped at the range end",
+                 juce::String::formatted ("off %g / %g, raw %g", m.offset (lvl), m2.offset (lvl), raw));
+        }
+
+        // U9e / U9en — residual (R49): a source change mid-ramp, then a dest stepping burst.
+        {
+            auto run = [&] (bool noRes, double& worstStep, bool& settled, int& changes)
+            {
+                ogran::ModMatrix m = M;
+                m.noResidual = noRes;
+                ogran::SourceValues src {};
+                src.v[8] = 0.5f; src.v[9] = 0.2f;
+                auto gp = gpWith ({ { 0, 8, lvl, 1.0f } });
+                m.prepare (30, gp);
+                std::vector<int> touched { lvl };
+                std::array<float, ogran::kModDests> last {};
+                worstStep = 0.0; changes = 0;
+                for (int c = 0; c < 200; ++c)
+                {
+                    if (c == 40) gp.mod[0].src = 9;                                       // source change
+                    if (c >= 100 && c < 110) { gp.mod[0].dest = D::stream (1, D::Level) + (c - 100); touched.push_back (gp.mod[0].dest); }
+                    changes += m.tick (gp, src);
+                    for (int d : touched)
+                    {
+                        worstStep = juce::jmax (worstStep, (double) std::abs (m.offset (d) - last[(size_t) d]));
+                        last[(size_t) d] = m.offset (d);
+                    }
+                }
+                settled = true;
+                for (int d : touched)
+                    if (d != gp.mod[0].dest) settled = settled && ! m.routed (d) && juce::exactlyEqual (m.residualValue (d), 0.0f);
+            };
+            double w, wn; bool s, sn; int ch, chn;
+            run (false, w, s, ch);
+            run (true, wn, sn, chn);
+            const double bound = (0.5 + 0.2) / 30.0 + 1e-6;   // residual slope + the fade-in slope, worst sum
+            row (w <= bound && s && ch == 11, "U9e residual: source change + 10 dest changes in 20 ms value-continuous; every residual exactly 0 after 20 ms",
+                 juce::String::formatted ("max |d off| %.5f (bound %.5f), changes %d", w, bound, ch));
+            row (wn >= 10.0 * bound - 1e-9 || wn >= 0.2 - 1e-6, "U9en noResidual: a route change steps the offset (>= 10x the slope bound)",
+                 juce::String::formatted ("max |d off| %.4f", wn));
+        }
+
+        // U9f — engine <-> raw maps round-trip (R47 table).
+        {
+            namespace Mp = ogran::ModMap;
+            Tally t;
+            double worst = 0.0;
+            auto chk = [&] (const char* what, float x, float y)
+            {
+                const double rel = std::abs ((double) y - x) / juce::jmax (1e-30, (double) std::abs (x));
+                worst = juce::jmax (worst, rel);
+                t.check (rel <= 8.0 * 1.1920929e-7, juce::String (what) + juce::String::formatted (" %.9g -> %.9g", x, y));
+            };
+            for (int k = 1; k <= 1000; ++k)
+            {
+                const float u = (float) k / 1000.0f;
+                const float gIn = ogran::dbToGain (-24.0f + 36.0f * u);
+                chk ("gain", gIn, ogran::dbToGain (Mp::gainToRaw (gIn)));
+                const float gl = ogran::levelDbToGain (-59.0f + 65.0f * u);
+                chk ("level", gl, ogran::levelDbToGain (Mp::levelToRaw (gl)));
+                chk ("mix", u, (u * 100.0f) / 100.0f);
+                chk ("pan", 2.0f * u - 1.0f + 1e-3f, ((2.0f * u - 1.0f + 1e-3f) * 100.0f) / 100.0f);
+                const float k95 = ogran::kFbKnob * u;
+                chk ("feedback", k95, Mp::fbKnobFromRaw (Mp::fbKnobToRaw (k95)));
+                const float d = 1.0f + ogran::kSatSpan * u;
+                chk ("saturation", d, Mp::satDFromRaw (Mp::satDToRaw (d)));
+                const float lh = std::log2 (20.0f + 19980.0f * u);
+                chk ("log2 Hz", lh, std::log2 (std::exp2 (lh)));
+            }
+            row (t.bad == 0, "U9f engine <-> raw maps round-trip (gain, level, mix, pan, fb x0.95, sat, diffusion, log2 Hz) <= 8 ulp",
+                 t.detail (7000) + juce::String::formatted ("  worst %.2e rel", worst));
+        }
+
+        // U9g — the R46 control: a full round trip changes raw values on skewed ranges.
+        {
+            int changed = 0, levelChanged = 0, total = 0;
+            for (int d = 1; d < ogran::kModDests; ++d)
+            {
+                const auto& r = M.range (d);
+                for (int k = 0; k < 64; ++k)
+                {
+                    const float v = r.start + (r.end - r.start) * ((float) k + 0.37f) / 64.0f;
+                    const float y = M.apply (d, v, 0.0f);
+                    ++total;
+                    if (! juce::exactlyEqual (y, v)) { ++changed; if (d == lvl) ++levelChanged; }
+                }
+            }
+            row (changed > 0 && levelChanged > 0, "U9g full round trip (offset 0 through the matrix) changes raw values; the sparse form never runs it",
+                 juce::String::formatted ("%d / %d values moved (s1_level %d / 64)", changed, total, levelChanged));
+        }
+    }
 }}
 
 static void engineRows25a()
@@ -854,4 +1379,7 @@ static void engineRows25a()
     eg25::divisionRows();
     eg25::trackerRows();
     eg25::tempoClockRows();
+    eg25::lfoRows();
+    eg25::envRows();
+    eg25::matrixUnitRows();
 }

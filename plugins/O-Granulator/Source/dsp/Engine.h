@@ -30,6 +30,7 @@
 #include "FeedbackChain.h"
 #include "Grain.h"
 #include "GrainFx.h"
+#include "ModSources.h"
 #include "OutputLaw.h"
 #include "Quotas.h"
 #include "ReverbUnit.h"     // reverb-unit 1.2.0 (atomic bind, D11)
@@ -189,6 +190,7 @@ namespace ogran
             bool fullRoundTrip  = false;   // U9g: every destination through convertFrom0to1 (convertTo0to1 (raw)) (R46 control)
             bool perBlockOrigin = false;   // TT1n / N8n: re-anchor on the host ppq every block (GrainScatter form, R39)
             bool ceilPerTick    = false;   // TS1n: the pending slot re-derived from ppq at every tick (R40 control)
+            std::int64_t injectEnvNanAt = -1;   // EV3: NaN into the env follower state at the first piece >= this sample
         };
 
         /** P56 trace ring (test builds): {absolute sample, value}. */
@@ -317,6 +319,9 @@ namespace ogran
         double        getSampleRate() const noexcept          { return fs; }
         std::uint64_t getEpoch (int stream) const noexcept    { return scheds[stream].getEpoch(); }
         const TempoTracker& getTracker() const noexcept       { return tracker; }
+        const Lfo& getLfo (int n) const noexcept              { return lfos[n]; }
+        const EnvFollower& getEnv() const noexcept            { return env; }
+        const SourceValues& getSources() const noexcept       { return srcVals; }
         const GridParams& getGridParams() const noexcept      { return gp; }
         const WindowMorphBank& getBank() const noexcept       { return bank; }
         const Quotas& getQuotas() const noexcept              { return quotas; }
@@ -350,6 +355,7 @@ namespace ogran
         void spawn (const StreamOnset& o, std::int64_t pieceStart, std::int64_t wPiece) noexcept;
         void handleFreezeEdges() noexcept;                 // 2.4: tick-sampled freeze edges
         void applyTempoEffective() noexcept;               // 2.5a P50: effective Tempo density / size (R45)
+        void tickSources() noexcept;                       // 2.5a P51: LFO ×4, env, macros (once per cell)
         void forcedReleaseScan() noexcept;                 // 2.4 R25 engage scan
        #if OGRAN_TEST_HOOKS
         Spawner::Acquired nativeAcquireForTest() noexcept;
@@ -472,6 +478,13 @@ namespace ogran
         StreamScheduler scheds[kMaxStreams];
         TempoTracker    tracker;                       // 2.5a held anchor (R39, R42, R44)
         double          tempoDiv[kMaxStreams] {};      // 2.5a div_eff per stream (quarters), set at ticks in Tempo mode
+        // 2.5a sources (P51)
+        Lfo          lfos[kLfos];
+        EnvFollower  env;
+        ExactRamp    macroRamp[kMacros];
+        SourceValues srcVals;
+        double       lfoRateHz[kLfos] {};              // the (modulated) rate of the PREVIOUS cell (R50.5)
+        float        lfoRateOff[kLfos] {};             // the matrix offset on lfoN_rate of the previous cell
 
         // ── fixed per-pass storage (kCell — never the host block) ───────────
         // Test builds bracket every per-pass array with canaries (PERF-03
