@@ -762,8 +762,10 @@ void Engine::tickSources() noexcept
                                                     activeSeed, forceMode);
     env.setParams (gp.envAttackMs, gp.envReleaseMs, gp.envGainDb);
     srcVals.v[ModSrc::Env]   = env.source();
-    srcVals.v[ModSrc::Pitch] = 0.0f;
+    srcVals.v[ModSrc::Pitch] = analysis.pitchSource();   // 2.5b P68: slewed at this tick, after the R59 commit
     srcVals.v[ModSrc::Onset] = analysis.onsetSource();   // 2.5b P64: computed at this tick (Analysis::tick)
+    pitchNoteTel.store (analysis.liveNote(), std::memory_order_relaxed);
+    pitchConfTel.store (analysis.liveConfident() ? 1.0f : 0.0f, std::memory_order_relaxed);
     for (int n = 0; n < kMacros; ++n)
     {
         macroRamp[n].setTarget (gp.macro[n], rampCells);

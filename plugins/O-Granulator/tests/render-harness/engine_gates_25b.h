@@ -1173,6 +1173,302 @@ namespace { namespace eg25x
         }
     }
 
+    //==========================================================================
+    // OG1–OG3 — D20 guard (R66 signed off, R67) (T6)
+    //==========================================================================
+    struct GOut { std::vector<std::int64_t> idx; std::vector<float> note; };
+    inline GOut runGuard (const std::vector<float>& raw, int hold = 24, bool guardOff = false)   // NaN raw = unconfident
+    {
+        ogran::OctaveGuard g;
+        g.prepare (hold);
+        GOut o;
+        for (size_t i = 0; i < raw.size(); ++i)
+        {
+            const auto d = g.push ((std::int64_t) i, ! std::isnan (raw[i]), raw[i], guardOff);
+            if (d.valid) { o.idx.push_back (d.index); o.note.push_back (d.note); }
+        }
+        return o;
+    }
+    inline int wrongCount (const GOut& o, double truth)
+    {
+        int w = 0;
+        for (float v : o.note) w += (! std::isnan (v) && std::abs ((double) v - truth) > 0.5) ? 1 : 0;
+        return w;
+    }
+    /** Lengths of maximal runs of wrong (non-NaN, > 0.5 st off truth) decided values. */
+    inline std::vector<int> wrongRuns (const std::vector<float>& v, double truth)
+    {
+        std::vector<int> runs;
+        int r = 0;
+        for (float x : v)
+        {
+            const bool wrong = ! std::isnan (x) && std::abs ((double) x - truth) > 0.5;
+            if (wrong) ++r;
+            else if (r > 0) { runs.push_back (r); r = 0; }
+        }
+        if (r > 0) runs.push_back (r);
+        return runs;
+    }
+
+    void guardRows()
+    {
+        std::printf ("\n-- OG. D20 guard: median-of-3 + asymmetric harmonic-class lookahead N = 3 (R66)\n");
+        const float nan = std::numeric_limits<float>::quiet_NaN();
+        // OG1 — injected sequences.
+        {
+            Tally t;
+            for (double h : { 12.0, -12.0, 19.02, -19.02, 7.02, -7.02, 24.0, -24.0 })
+                for (int L = 1; L <= 5; ++L)
+                {
+                    std::vector<float> seq (10, 57.0f);
+                    for (int k = 0; k < L; ++k) seq.push_back ((float) (57.0 + h));
+                    for (int k = 0; k < 10; ++k) seq.push_back (57.0f);
+                    const int w = wrongCount (runGuard (seq), 57.0);
+                    t.check (L <= 2 ? w == 0 : w == L, juce::String::formatted ("%+.2f L %d: %d wrong", h, L, w));
+                }
+            row (t.bad == 0, "OG1 flips of +-7.02 / +-12 / +-19.02 / +-24 st, length L on 57: L <= 2 -> 0 wrong; L = 3..5 pass through (L wrong)", t.detail (40));
+        }
+        {
+            Tally t;
+            for (double to : { 69.0, 62.0, 76.02, 58.0, 56.0, 52.0, 62.0, 69.6 })   // leaps; non-harmonic +-1, -5, +5, 12.6
+            {
+                std::vector<float> seq (10, 57.0f);
+                for (int k = 0; k < 10; ++k) seq.push_back ((float) to);
+                const auto o = runGuard (seq);
+                bool exact = true;
+                for (size_t k = 0; k < o.note.size(); ++k)
+                {
+                    const double want = o.idx[k] < 10 ? 57.0 : (double) (float) to;   // the sequence is float
+                    exact = exact && std::abs ((double) o.note[k] - want) < 1e-6;
+                }
+                t.check (exact, juce::String::formatted ("57 -> %.2f", to));
+            }
+            row (t.bad == 0, "OG1 legit leaps 57 -> 69 / 62 / 76.02 and non-harmonic moves (+-1, +-5, 12.6 st): output switches exactly at the leap hop",
+                 t.detail (8));
+        }
+        {
+            // A held flip returns immediately; 2 of 3 confident → the newer; 1 of 3 → NaN.
+            std::vector<float> a { 57, 57, 57, 57, 69, 69, 57, 57, 57, 57, 57 };
+            const auto oa = runGuard (a);
+            std::vector<float> b { 57, 57, 57, 57, 57, 58, nan, 58, 58, 58, 58, 58 };   // median over {57, 58, NaN} = 58 at idx 5
+            const auto ob = runGuard (b);
+            std::vector<float> c { 57, 57, 57, 57, nan, 60, nan, nan, 57, 57, 57, 57, 57 }; // {NaN, 60, NaN} → NaN at idx 5
+            const auto oc = runGuard (c);
+            auto at = [] (const GOut& o, std::int64_t j) { for (size_t k = 0; k < o.idx.size(); ++k) if (o.idx[k] == j) return o.note[k]; return -1.0f; };
+            const bool idxOk = [&] { for (size_t k = 0; k < oa.idx.size(); ++k) if (oa.idx[k] != (std::int64_t) k) return false; return oa.idx.size() == a.size() - 3; }();
+            row (wrongCount (oa, 57.0) == 0 && at (ob, 5) == 58.0f && std::isnan (at (oc, 5)) && idxOk,
+                 "OG1 return to acc immediate; 2 of 3 confident -> the newer; 1 of 3 -> NaN; decided index = raw index - 3",
+                 juce::String::formatted ("2-of-3 %.2f, 1-of-3 %s", (double) at (ob, 5), std::isnan (at (oc, 5)) ? "NaN" : "value"));
+        }
+        {
+            // acc expiry: NaN for >= hold, then +12 for 2 hops → accepted at its first median; a short gap → held.
+            const int hold = 24;
+            auto seqGap = [&] (int gap)
+            {
+                std::vector<float> v (10, 57.0f);
+                for (int k = 0; k < gap; ++k) v.push_back (nan);
+                v.push_back (69.0f); v.push_back (69.0f);
+                for (int k = 0; k < 10; ++k) v.push_back (57.0f);
+                return v;
+            };
+            const auto ol = runGuard (seqGap (hold + 3), hold), os = runGuard (seqGap (5), hold);
+            int firstMed = -1;
+            for (size_t k = 0; k < ol.note.size(); ++k) if (! std::isnan (ol.note[k]) && ol.idx[k] > 10) { firstMed = (int) k; break; }
+            row (firstMed >= 0 && std::abs (ol.note[(size_t) firstMed] - 69.0f) < 1e-6f && wrongCount (os, 57.0) == 0,
+                 "OG1 acc expiry: NaN for >= the hold length, then +12 -> accepted at its first median (a short gap holds it)",
+                 juce::String::formatted ("after the long gap first median %.2f; short gap wrong %d", firstMed >= 0 ? (double) ol.note[(size_t) firstMed] : -1.0,
+                                          wrongCount (os, 57.0)));
+        }
+
+        // OG2 / OG2n — near boundary (R67): 220 Hz, H2/H1 = 4.36, white noise SNR 20 dB, 6 s @ 48 k.
+        auto harmTone = [] (double fs, double lenS, double hzF, int hk, double ratio, double snrDb, std::uint64_t seed)
+        {
+            auto x = std::make_shared<std::vector<float>> ((size_t) (lenS * fs));
+            double p2 = 0.0;
+            std::vector<double> sv (x->size());
+            for (size_t i = 0; i < x->size(); ++i)
+            {
+                const double t = (double) i / fs;
+                sv[i] = 0.02 * std::sin (2.0 * kPi * hzF * t) + 0.02 * ratio * std::sin (2.0 * kPi * hk * hzF * t + 0.7);
+                p2 += sv[i] * sv[i];
+            }
+            const double nstd = std::sqrt (p2 / (double) x->size()) * std::pow (10.0, -snrDb / 20.0);
+            for (size_t i = 0; i < x->size(); ++i) (*x)[i] = (float) (sv[i] + nstd * gauss ((juce::int64) i, seed));
+            return x;
+        };
+        {
+            const double fs = 48000.0;
+            auto x = harmTone (fs, 6.0, 220.0, 2, 4.36, 20.0, 31);
+            Job a = anaJob (fs, 6.0, fromBuffer (x)), b = a;
+            b.pre = [] (Proc& p) { p.getEngineForTest().hooks.guardOff = true; };
+            auto La = hopsInto (a), Lb = hopsInto (b);
+            renderAll ({ a, b });
+            auto decided = [] (const HopLog& L) { std::vector<float> v; for (const auto& h : L.h) if (h.decided >= 0) v.push_back (h.decidedNote); return v; };
+            const auto ra = wrongRuns (decided (*La), 57.0), rb = wrongRuns (decided (*Lb), 57.0);
+            int sa = 0, sb = 0, wa = 0, wb = 0;
+            for (int r : ra) { sa += r < 3 ? 1 : 0; wa += r; }
+            for (int r : rb) { sb += r < 3 ? 1 : 0; wb += r; }
+            row (sa == 0 && sb >= 10, "OG2 H2/H1 4.36 + white noise SNR 20 dB: 0 wrong runs shorter than 3 hops (guardOff: >= 10)",
+                 juce::String::formatted ("guard: %d short runs (%d wrong hops); guardOff: %d short runs (%d wrong)", sa, wa, sb, wb));
+        }
+        // OG3 (INFO).
+        {
+            const double fs = 48000.0;
+            struct C { const char* name; std::shared_ptr<std::vector<float>> x; double wantSt; };
+            std::vector<C> cs {
+                { "H2/H1 8", harmTone (fs, 3.0, 220.0, 2, 8.0, 60.0, 41), 12.0 },
+                { "H3/H1 4", harmTone (fs, 3.0, 220.0, 3, 4.0, 60.0, 42), 19.02 },
+                { "breathy SNR 20", harmTone (fs, 3.0, 220.0, 2, 0.0, 20.0, 43), 0.0 },
+                { "breathy SNR 10", harmTone (fs, 3.0, 220.0, 2, 0.0, 10.0, 44), 0.0 },
+                { "breathy SNR 0", harmTone (fs, 3.0, 220.0, 2, 0.0, 0.0, 45), 0.0 },
+            };
+            std::vector<Job> jobs;
+            std::vector<std::shared_ptr<HopLog>> logs;
+            for (auto& c : cs) { Job j = anaJob (fs, 3.0, fromBuffer (c.x)); logs.push_back (hopsInto (j)); jobs.push_back (j); }
+            renderAll (jobs);
+            juce::String d;
+            for (size_t k = 0; k < cs.size(); ++k)
+            {
+                int on = 0, n = 0, wrong = 0;
+                for (const auto& h : logs[k]->h)
+                {
+                    if (h.decided < 0 || std::isnan (h.decidedNote)) continue;
+                    ++n;
+                    on += std::abs ((double) h.decidedNote - (57.0 + cs[k].wantSt)) <= 0.5 ? 1 : 0;
+                    wrong += std::abs ((double) h.decidedNote - 57.0) > 0.5 ? 1 : 0;
+                }
+                if (cs[k].wantSt != 0.0) d << cs[k].name << ": +" << juce::String (cs[k].wantSt, 2) << " on " << on << "/" << n << "; ";
+                else d << cs[k].name << ": " << wrong << " wrong / " << n << "; ";
+            }
+            info ("OG3 " + d.trim());
+        }
+    }
+
+    //==========================================================================
+    // MP3 / PS2–PS4 — hold, Pitch source law, telemetry (T6)
+    //==========================================================================
+    struct PitchTrace { std::vector<float> src, tel, onsetTel, onsetSrc, note, noteTel; std::vector<int> conf, confTel; std::vector<std::uint64_t> hops; };
+    inline std::shared_ptr<PitchTrace> tracePitch (Job& j)
+    {
+        auto T = std::make_shared<PitchTrace>();
+        auto prev = j.after;
+        j.after = [T, prev] (Proc& p, juce::int64 pos)
+        {
+            if (prev) prev (p, pos);
+            const auto& e = p.getEngineForTest();
+            const auto& a = e.getAnalysis();
+            T->src.push_back (e.getSources().v[ogran::ModSrc::Pitch]);
+            T->tel.push_back (e.getSrcTelemetry (ogran::ModSrc::Pitch));
+            T->onsetSrc.push_back (e.getSources().v[ogran::ModSrc::Onset]);
+            T->onsetTel.push_back (e.getSrcTelemetry (ogran::ModSrc::Onset));
+            T->note.push_back (a.liveNote());
+            T->noteTel.push_back (e.getPitchNote());
+            T->conf.push_back (a.liveConfident() ? 1 : 0);
+            T->confTel.push_back (e.getPitchConfident() ? 1 : 0);
+            T->hops.push_back (a.hopCount);
+        };
+        return T;
+    }
+
+    void pitchSourceRows()
+    {
+        std::printf ("\n-- MP3 / PS2-PS4. hold, Pitch source law, telemetry\n");
+        const double fs = 48000.0;
+        // MP3 — 220 Hz for 2 s, then silence for 3 s.
+        {
+            Job j = anaJob (fs, 5.0, fromBuffer (steppedSine (fs, 5.0, { { 0.0, 220.0 } }, 0.25, 0.0, 2.0)));
+            j.block = 32;
+            auto H = hopsInto (j);
+            auto T = tracePitch (j);
+            auto o = renderAll ({ j });
+            const auto dm = ogran::AnalysisDims::compute (fs);
+            // per block: the decision committed in it (≤ 1) and the live confidence after it
+            std::int64_t lastConf = -1;
+            for (const auto& h : H->h) if (h.decided >= 0 && ! std::isnan (h.decidedNote)) lastConf = h.decided;
+            int trueAfter = 0, falseAt = -1;
+            size_t hk = 0;
+            for (size_t b = 0; b < T->conf.size(); ++b)
+            {
+                while (hk < H->h.size() && (std::uint64_t) hk < T->hops[b])
+                {
+                    const auto& h = H->h[hk++];
+                    if (h.decided > lastConf)
+                    {
+                        if (T->conf[b] && falseAt < 0) ++trueAfter;
+                        else if (! T->conf[b] && falseAt < 0) falseAt = (int) (h.decided - lastConf);
+                    }
+                }
+            }
+            float lastNote = 0.0f;
+            for (const auto& h : H->h) if (h.decided >= 0 && ! std::isnan (h.decidedNote)) lastNote = h.decidedNote;
+            const float target = ogran::PitchTracker::targetFor (lastNote);
+            const float endSrc = T->src.back();
+            // ring entries over the silence are NaN (R65)
+            const auto& ring = an (o[0]).getRing();
+            int nanEntries = 0, valEntries = 0;
+            for (int sl = 0; sl < ring.size(); ++sl)
+            {
+                const auto& e = ring.entry (sl);
+                if (e.tag < 0) continue;
+                const double W0 = (double) e.tag * ring.hop();
+                if (W0 > 2.1 * fs && W0 + ring.hop() < 5.0 * fs - dm.lagNewest - 64.0)
+                    (std::isnan (e.note) ? nanEntries : valEntries)++;
+            }
+            row (trueAfter == dm.hold && falseAt == dm.hold + 1, "MP3 hold: live confidence stays true for exactly ceil (0.25 fs/Hs) decided hops after the last confident one",
+                 juce::String::formatted ("true for %d, false at +%d (hold %d)", trueAfter, falseAt, dm.hold));
+            row (std::abs (endSrc - target) < 1e-6f && nanEntries > 50 && valEntries == 0,
+                 "MP3 the Pitch source holds the last target through 3 s of silence; the silence's ring entries are NaN (R65)",
+                 juce::String::formatted ("source %.7f target %.7f; ring NaN %d, valued %d", (double) endSrc, (double) target, nanEntries, valEntries));
+        }
+        // PS2 / PS3 / PS4 — a 233 → 311 Hz step (non-harmonic +5.0 st).
+        {
+            Job j = anaJob (fs, 4.0, fromBuffer (steppedSine (fs, 4.0, { { 0.3, 233.0 }, { 2.0, 311.0 } }, 0.25)));
+            j.block = 32;
+            auto H = hopsInto (j);
+            auto T = tracePitch (j);
+            auto o = renderAll ({ j });
+            const float a = an (o[0]).getTracker().slewCoeff();
+            float y = 0.0f, target = 0.0f;
+            int bad = 0, beforeFirst = 0, firstTick = -1;
+            size_t hk = 0;
+            for (size_t c = 0; c < T->src.size(); ++c)
+            {
+                const juce::int64 tick = (juce::int64) c * 32;
+                while (hk < H->h.size() && H->h[hk].commitAt == tick)
+                {
+                    const auto& h = H->h[hk++];
+                    if (h.decided >= 0 && ! std::isnan (h.decidedNote))
+                    {
+                        target = std::clamp ((h.decidedNote - 24.0f) / 84.0f, 0.0f, 1.0f);
+                        if (firstTick < 0) firstTick = (int) c;
+                    }
+                }
+                y += a * (target - y);
+                if (std::memcmp (&y, &T->src[c], 4) != 0) ++bad;
+                if (firstTick < 0 && T->src[c] == 0.0f) ++beforeFirst;
+            }
+            const bool unit = ogran::PitchTracker::targetFor (24.0f) == 0.0f && ogran::PitchTracker::targetFor (108.0f) == 1.0f;
+            row (bad == 0 && unit && beforeFirst > 0 && firstTick > 0, "PS2 Pitch source == y += a (clamp ((n - 24)/84, 0, 1) - y) from the decided notes, bitwise; 0 before; 24 -> 0, 108 -> 1",
+                 juce::String::formatted ("%d ticks, %d mismatches; 0 for %d ticks", (int) T->src.size(), bad, beforeFirst));
+            int telBad = 0, range = 0, noteBad = 0;
+            for (size_t c = 0; c < T->src.size(); ++c)
+            {
+                if (std::memcmp (&T->src[c], &T->tel[c], 4) != 0 || std::memcmp (&T->onsetSrc[c], &T->onsetTel[c], 4) != 0) ++telBad;
+                if (T->tel[c] < 0.0f || T->tel[c] > 1.0f || T->onsetTel[c] < 0.0f || T->onsetTel[c] > 1.0f) ++range;
+                if (std::memcmp (&T->note[c], &T->noteTel[c], 4) != 0 || T->conf[c] != T->confTel[c]) ++noteBad;
+            }
+            row (telBad == 0 && range == 0 && noteBad == 0, "PS3 telemetry: srcTelemetry Pitch / Onset == the engine sources, in [0, 1]; pitchNote / pitchConfident == the live tracker",
+                 juce::String::formatted ("%d / %d / %d", telBad, range, noteBad));
+            // PS4 — time to 50 % of the step after the 2 s change.
+            const float t0 = ogran::PitchTracker::targetFor ((float) midiOf (233.0)), t1 = ogran::PitchTracker::targetFor ((float) midiOf (311.0));
+            int cross = -1;
+            for (size_t c = (size_t) (2.0 * fs / 32); c < T->src.size(); ++c)
+                if (T->src[c] >= 0.5f * (t0 + t1)) { cross = (int) c; break; }
+            info (juce::String::formatted ("PS4 Pitch source 50 %% of a 233 -> 311 Hz step reached %.1f ms after the step (R69: ~75 ms + 20 ms slew)",
+                                           cross < 0 ? -1.0 : ((double) cross * 32.0 - 2.0 * fs) / fs * 1000.0));
+        }
+    }
+
 } } // namespace eg25x
 
 static void engineRows25b()
@@ -1184,4 +1480,6 @@ static void engineRows25b()
     eg25x::onsetSourceRows();
     eg25x::clickTrainRows();
     eg25x::mpmRows();
+    eg25x::guardRows();
+    eg25x::pitchSourceRows();
 }
