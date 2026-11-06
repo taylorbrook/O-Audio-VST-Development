@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 # ==============================================================================
-#   O-Granulator — HA host-automation cache gate (PLAN-2.5a P57, T13).
+#   O-Granulator — HA host-automation cache gate (PLAN-2.5a P57, T13; 2.5b P78).
 #
 #   usage (from the repo root, on the INSTALLED VST3):
 #     uv run --no-project --python 3.12 --with pedalboard --with numpy \
 #         python plugins/O-Granulator/tests/hostcache/run.py [path/to/O-Granulator*.vst3]
 #
 #   Sets every modM_source / dest / depth, lfoN_shape / rate / rate_sync / phase,
-#   sync_mode and macroN through the host's normalised raw_value, renders 2 s,
+#   sync_mode and macroN — and (2.5b, P78) scale_root, onset_threshold,
+#   sN_onset_trigger ×4 and pitch_follow_sN ×4 — through the host's normalised
+#   raw_value, renders 2 s,
 #   pumps the CFRunLoop (JUCE's async parameter / state machinery), renders
 #   again, then checks:
 #     HA1  the host cache (decoded values) equals what the host set, read right
@@ -18,8 +20,8 @@
 #     HA3  the plugin's own state XML (raw_state → VC2! → <IComponent> JUCE base64
 #          → plugin VC2!) holds the set values (choices exact, floats ≤ 1e-3 of span,
 #          the skewed LFO rate ≤ 1e-3 relative).
-#   Exit 0 = all three PASS. Nothing in 2.5a writes a parameter, so this should
-#   pass trivially; it is still run.
+#   Exit 0 = all three PASS. Nothing in 2.5a / 2.5b writes a parameter (the
+#   engine never writes APVTS), so this should pass trivially; it is still run.
 # ==============================================================================
 import ctypes, glob, os, re, struct, sys
 import numpy as np
@@ -68,6 +70,12 @@ def targets():
         t += [(f"mod{m}_source", f"Mod {m} · Source", "choice", MOD_SOURCES, m % MOD_SOURCES),
               (f"mod{m}_dest", f"Mod {m} · Dest", "choice", MOD_DESTS, (7 * m) % MOD_DESTS),
               (f"mod{m}_depth", f"Mod {m} · Depth", "linear", (-100.0, 100.0), -90.0 + 11.0 * m)]
+    # 2.5b (P78): +10 → HA1 79, HA2 142 untouched.
+    t += [("scale_root", "Scale Root", "choice", 12, 7),
+          ("onset_threshold", "Onset Threshold", "linear", (-60.0, 0.0), -24.0)]
+    for n in range(1, 5):
+        t += [(f"s{n}_onset_trigger", f"S{n} · Onset Trigger", "choice", 2, n % 2),
+              (f"pitch_follow_s{n}", f"Pitch Follow S{n}", "choice", 2, (n + 1) % 2)]
     return t
 
 def main():

@@ -1,0 +1,27 @@
+# O-Granulator — Phase 2.5b DAW checklist (onset bursts, pitch follow)
+
+**Stage:** 2-dsp / 2.5b · **Run at:** **Stage 3, with the WebView UI**, in the same pass as DAW-2.5a.md items 1–8 (CONTEXT-2.5b; execute does not wait on the DAW) · **Written:** execute T12 (PLAN-2.5b P78), 2026-11-05
+**Build:** the installed `O-Granulator-dev` VST3 / AU from the 2.5b execute commit (generic editor, or the WebView UI once Stage 3 lands).
+
+These items cover what the harness cannot: real drum loops and played lines, a listener judging flams, misses, harmony and level. The harness gates (OD, OB, MP, OG, FR, AQ, QB, N9) prove the detector, the bursts, the tracker, the guard, the f0 ring and the absolute quantiser against synthetic stimuli. **A FAIL here reopens FUNC-08 / DSP-08** (CONTEXT-2.5b).
+
+**General setup (every item unless it says otherwise)**
+- Logic Pro (AU) and/or Reaper (VST3), 48 kHz, buffer 256 (Reaper: also try 1024 once), monitors at normal listening level.
+- O-Granulator on a stereo audio track, generic editor open. From defaults: `mix` 100 %, `s1_jitter` 0 %, `s1_spray` 0 %, `s1_size_rand` 0 %, `s1_window` 0 (Hann). Only stream 1 is on unless an item says otherwise.
+- `onset_threshold` starts at its default (−30 dB); `scale_root` C.
+
+Record PASS / FAIL and one line of what you heard per item.
+
+| # | Item | Session recipe | Listen / look for | PASS if |
+|---|---|---|---|---|
+| 1 | Onset bursts on drums, Free and Tempo | A drum loop (kick / snare / hats with some ghost notes), 120 bpm. `s1_onset_trigger` On, `s1_size` 60 ms. **Free:** `s1_density` 4 g/s. Sweep `onset_threshold` −40 → −20 dB over 16 bars. **Tempo:** `sync_mode` Tempo, `s1_density_sync` 1/16, repeat the sweep. | Free: grains land on the hits and the cloud re-phases on each hit (D14). Tempo: the 1/16 grid stays locked to the click while each detected hit adds one grain (D18). Flams, double hits, missed accents. | Every accent and snare that crosses the threshold produces one grain on the hit, no flam or double grain on a single hit, no grid drift in Tempo. Ghost notes that sit under an accent's decay may be missed — that is expected (RESEARCH-2.5b §2: the detector needs +6 dB over its slow envelope). A late flam on a second hit 30–50 ms after the first is the signed-off refractory-edge rule (R60, OD3) — note it if heard. |
+| 2 | Follow on a monophonic line, at position 0 and at 2 s | A monophonic sung or played line (no chords) in a known key. `buffer_length` 8 s. s1: `pitch_follow_s1` On, `s1_scale` Major, `scale_root` the song's key. s2 and s3 on, `pitch_follow_s2/s3` On, Major, `s2_pitch` +4, `s3_pitch` +7, `s2_level` / `s3_level` −6 dB. Play 8 bars at `sN_position` 0 for all three; then set all three to 25 % (2 s behind) and play again. | Whether the harmony notes stay in key. At position 0: note changes reach the harmony ≈ 75 ms late (R62 / R69; the Pitch source itself needs ≈ 145 ms to swing halfway, PS4). At 25 %: the harmony follows the **delayed content** the grains read, not the note being sung now (D17). | Harmony stays in key; at position 0 the lag is short and steady (no wrong-note blips on note changes longer than a grain); at 25 % the harmony matches the 2 s-old content. Octave / fifth blips that last a single grain are D20 failures — note them. |
+| 3 | Frozen-chord harmonisation | Same as item 2 at position 25 %. Hold one note for 2 s, engage `freeze`, keep singing / playing other notes live for 8 bars. Route Mod 1: Pitch → S2 · Level, depth +50 % (to hear the live tracker). | The frozen grains keep the held note's harmony while you play other notes (the f0 ring keeps the frozen span's entries, D17). The Pitch-source route follows the LIVE input (s2's level moves with what you play). | Frozen harmony never changes while frozen; the level modulation tracks the live notes. |
+| 4 | Feedback-heavy follow (R74) | Item 2's session at position 25 %, `feedback` 80 %, `fb_diffusion` 30 %. Play 8 bars, then stop playing and let the loop ring 4 bars. | Pitch runaway (the harmony chasing itself upward / downward), smearing, or a harmony that keeps re-harmonising the tail. | The follow harmonises against the SOURCE note (the analysis taps the conditioned input, never the feedback return — R74, OD5); the ringing tail keeps the last harmony, no runaway. Record how the tail sounds. |
+| 5 | Tempo burst level (R78) | `sync_mode` Tempo, `s1_density_sync` 1/16, 120 bpm, `s1_onset_trigger` On, a busy drum loop (16ths on the hats). Toggle `s1_onset_trigger` every 4 bars for 16 bars. | The level difference between trigger on and off. Up to +5.4 dB is accepted (R78; QB2 measured on a synthetic train — see SUMMARY-2.5b); the D9 knee bounds the wet signal. | The rise reads as transient emphasis, not as pumping or overload. FAIL (flag for 2.6) if it pumps or clips audibly. |
+
+## Notes for the verifier
+- Every 2.5b parameter is reachable in the generic editor: `Scale Root`, `Onset Threshold`, `SN · Onset Trigger`, `Pitch Follow SN`. The Pitch and Onset modulation sources are live (`Mod N · Source` = Pitch / Onset).
+- Follow with `sN_scale` Off is chromatic from `scale_root` (D19). Absolute targets sit at 1/1 = C4 + root (R70); non-1200-cent scales (Bohlen-Pierce, Custom with another period) are anchored there.
+- Pitch tracking covers 40–1500 Hz (DSP-08); a confident note holds the Pitch source for 250 ms through silence, then it stays where it is (it never snaps back to 0).
+- These five items join DAW-2.5a.md items 1–8 (watch item 6) in the Stage 3 DAW pass.
