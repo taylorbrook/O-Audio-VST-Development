@@ -55,9 +55,9 @@ lastUpdated: 2026-11-06
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| PERF-01 | Real-time safe audio processing (no allocations/locks in processBlock, incl. grain spawn/steal) | must | partial | stage-2 |
-| PERF-02 | Shared grain pool (~128) with graceful cap; CPU budget defined in planning and met at 48 kHz/128 samples | must | partial | stage-2 |
-| PERF-03 | Block-size invariant output (seeded null across block sizes) | should | partial | stage-2 |
+| PERF-01 | Real-time safe audio processing (no allocations/locks in processBlock, incl. grain spawn/steal) | must | complete | stage-2 |
+| PERF-02 | Shared grain pool (~128) with graceful cap; CPU budget defined in planning and met at 48 kHz/128 samples | must | complete | stage-2 |
+| PERF-03 | Block-size invariant output (seeded null across block sizes) | should | complete | stage-2 |
 
 ### Compatibility (COMPAT)
 
@@ -71,8 +71,8 @@ lastUpdated: 2026-11-06
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| QUAL-01 | No audio artifacts (clicks, zipper) at normal parameter ranges, including freeze toggle and grain steal | must | partial | stage-2 |
-| QUAL-02 | No NaN/denormal output under extreme settings (max feedback, max resonance, max density) | must | partial | stage-2 |
+| QUAL-01 | No audio artifacts (clicks, zipper) at normal parameter ranges, including freeze toggle and grain steal | must | complete | stage-2 |
+| QUAL-02 | No NaN/denormal output under extreme settings (max feedback, max resonance, max density) | must | complete | stage-2 |
 | QUAL-03 | Per-sample smoothing on audible continuous params and mod-matrix targets | must | complete | stage-2 |
 | QUAL-04 | Hands-on listening pass in DAW across use cases | nice | pending | stage-4 |
 
