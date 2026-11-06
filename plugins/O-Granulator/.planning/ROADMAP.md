@@ -131,21 +131,38 @@ The raw score overstates novelty: ring/reader, pool, scheduler, RNG, loop topolo
 - [ ] Reverb audible, tails fade on mix → 0 (DSP-07)
 - [ ] Block-size null with feedback 80 % + freeze toggles at shared boundaries
 
-#### Phase 2.5: Tempo sync + modulation system
+#### Phase 2.5a: Tempo sync + LFO/env/macro sources + modulation matrix
 
-**Goal:** FUNC-04, FUNC-06, FUNC-08, DSP-08, QUAL-03.
+*Split from the original Phase 2.5 at the 2.5 discuss, 2026-11-05 (CONTEXT-2.5a D13).*
 
-**Components:** TempoTracker port (ppqAt), grid lock + re-time on discontinuity, sync divisions for size/density/LFO, power-of-two density modulation in Tempo mode; LFO ×4 (stateless, S&H/smooth via hash(cycle)); per-sample env follower; onset detector + burst trigger (`sN_onset_trigger`); decimator + MPM pitch follower (juce::dsp::FFT order 11) + absolute pitch follow with `scale_root`; macros; 16-slot matrix in normalised space with 20 ms slot ramps and route-change shadow crossfades; telemetry atomics for 113 destinations.
+**Goal:** FUNC-04, FUNC-06, QUAL-03. Also re-gates QUAL-01, PERF-01 and PERF-03 under modulation.
+
+**Components:** TempoTracker port (ppqAt), grid lock + re-time on discontinuity, sync divisions for size/density/LFO, power-of-two density modulation in Tempo mode; LFO ×4 (hybrid phase, D15; S&H/smooth via hash(cycle)); per-sample env follower; macros; 16-slot matrix in normalised space with 20 ms slot ramps and route-change shadow crossfades; the matrix writes the reverb atomics; telemetry atomics for 113 destinations and the source values. The Pitch and Onset sources are wired into the matrix as inert (0) slots until 2.5b.
 
 **Test criteria:**
+- [ ] Neutral null first: every slot None, sync Free, bitwise vs the 2.4 tree
 - [ ] Synced onsets within 1 sample of the host grid at jitter 0 (synthetic playhead) (FUNC-04)
 - [ ] Free density within 2 % over 10 s at jitter 0 (FUNC-04)
-- [ ] Every source modulates any destination, bipolar; removing a route returns to base without a step (FUNC-06)
-- [ ] Onset burst fires at the detected sample on enabled streams (FUNC-08)
-- [ ] Pitch follower: sine 55–1000 Hz within 10 cents, clarity hold on silence/noise (DSP-08)
+- [ ] Every 2.5a source modulates any destination, bipolar; removing a route returns to base without a step (FUNC-06)
 - [ ] Sweeps of position/pitch/cutoff/mix via LFO free of zipper (QUAL-03)
 - [ ] Host automation of matrix params: host cache matches plugin (no nested writes; pedalboard + CFRunLoop pump)
-- [ ] Block-size null with LFO + env + onset routings active
+- [ ] Block-size null with LFO + env + macro routings active, tempo synced
+- [ ] DAW tempo check at verify (D16)
+
+#### Phase 2.5b: Onset detector + burst + MPM pitch follower + absolute pitch follow
+
+*Split from the original Phase 2.5 (CONTEXT-2.5a D13).*
+
+**Goal:** FUNC-08, DSP-08. Also completes FUNC-06 for the Pitch and Onset sources.
+
+**Components:** onset detector + burst trigger (`sN_onset_trigger`, re-phase + clock runs, D14); decimator + MPM pitch follower (juce::dsp::FFT order 11) + absolute pitch follow with `scale_root`; the Pitch and Onset matrix sources go live.
+
+**Test criteria:**
+- [ ] Onset burst fires at the detected sample on enabled streams (FUNC-08)
+- [ ] Pitch follower: sine 55–1000 Hz within 10 cents, clarity hold on silence/noise (DSP-08)
+- [ ] Pitch and Onset sources modulate any destination (FUNC-06 completion)
+- [ ] Block-size null with LFO + env + onset + pitch routings active
+- [ ] DAW check at verify: onset bursts on drums (D16)
 
 #### Phase 2.6: Hardening
 
@@ -188,7 +205,7 @@ The raw score overstates novelty: ring/reader, pool, scheduler, RNG, loop topolo
 ## Implementation Flow
 
 ```
-Mockup + parameter-spec.md ──► Stage 1 ──► 2.1 ──► 2.2 ──► 2.3 ──► 2.4 ──► 2.5 ──► 2.6 ──► 3.1 ──► 3.2 ──► 3.3 ──► Stage 4
+Mockup + parameter-spec.md ──► Stage 1 ──► 2.1 ──► 2.2 ──► 2.3 ──► 2.4 ──► 2.5a ──► 2.5b ──► 2.6 ──► 3.1 ──► 3.2 ──► 3.3 ──► Stage 4
 ```
 Each phase ends with a git commit (path-scoped to `plugins/O-Granulator`) and its gates green.
 
