@@ -290,6 +290,30 @@ void Engine::updateScaleState() noexcept
         ps.set = &activeSets[s];
         activeSets[s].window (static_cast<double> (st.pitch), static_cast<double> (spanCents), ps.lo, ps.hi);
     }
+
+    // 2.5b (P71): the absolute follow sets of the enabled follow streams. Key:
+    // (choice, mask, customVersion) — no span (built over the maximum span), so
+    // a modulated pitch_rand never rebuilds. D19: scale Off → Chromatic, every
+    // degree (masks ignored).
+    for (int s = 0; s < kMaxStreams; ++s)
+    {
+        const auto& st = gp.s[s];
+        if (! st.enable || ! st.follow)
+            continue;
+        const bool d19 = st.scale <= 0;
+        const std::uint64_t mask = d19 || scaleSrc.masks == nullptr
+                                       ? ~std::uint64_t (0)
+                                       : scaleSrc.masks[scaleMaskIndex (s, st.scale)].load (std::memory_order_relaxed);
+        const auto& table = d19 ? builtIns[static_cast<size_t> (PitchCollections::Chromatic)] : tableForChoice (st.scale);
+        // The custom version keys the Custom choice only (a custom apply never rebuilds a built-in set).
+        const std::uint32_t version = scaleChoiceToId (st.scale) == PitchCollections::Custom ? customCopyVersion : 0u;
+        if (absSets[s].rebuildIfNeeded (d19 ? 0 : st.scale, mask, version, table, d19))
+        {
+           #if OGRAN_TEST_HOOKS
+            ++diag.absSetRebuilds;
+           #endif
+        }
+    }
 }
 
 /** Quotas (T5) → per stream R5 coherence + g_out (T4), and the mute / solo
@@ -1030,8 +1054,72 @@ void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart, std::int64_t 
    #endif
     if (frozenGeom)
         fzg.spanFrz = std::min (span, fzg.heldCaptured);
-    const GrainPlan gpl = Spawner::plan (*sp, span, fs, ringSamples,
-                                         activeSeed, o.stream, o.globalIndex, forceLevel0, pitchSel[o.stream], fzg);
+    // Pass 1 — the 2.5a plan (interval mode). For a follow-off stream it is the
+    // only call (N3).
+    GrainPlan gpl = Spawner::plan (*sp, span, fs, ringSamples,
+                                   activeSeed, o.stream, o.globalIndex, forceLevel0, pitchSel[o.stream], fzg);
+
+    // R23: the ring-domain head the grain anchors to (live: the head after the
+    // onset sample is written; frozen: the stopped head; pending: W0).
+    const std::int64_t wOn = frozen ? wPiece : freezePending ? fz.W0 : wPiece + o.offset + 1;
+
+    // 2.5b follow (P70 / P71, R62 / R64 signed off): f0 at the content midpoint
+    // of the provisional plan, the absolute target, pass 2. A miss leaves the
+    // pass-1 plan (interval mode, the D4 path). Draws are slot-keyed and pure,
+    // so no other draw moves (FR10).
+    float  followF0 = std::numeric_limits<float>::quiet_NaN();
+    double followTarget = std::numeric_limits<double>::quiet_NaN(), lookupW = 0.0;
+    int    followMiss = 0;
+    bool   followHit = false;
+    if (sp->follow)
+    {
+        bool atStart = false, live = false, strict = false;
+       #if OGRAN_TEST_HOOKS
+        atStart = hooks.lookupAtStart;
+        live    = hooks.liveF0Lookup;
+        strict  = hooks.strictNewest;
+       #endif
+        const double readStart = static_cast<double> (wOn) - gpl.delay;
+        lookupW = atStart ? readStart : readStart + static_cast<double> (gpl.dir) * gpl.rate * gpl.len * 0.5;
+        float f0 = 0.0f;
+        if (live)
+            followMiss = analysis.liveConfident() ? F0Ring::Hit : F0Ring::Unconfident;   // the ARCH §5 live form (FR5n / FR6n)
+        else
+            followMiss = analysis.getRing().lookup (lookupW, strict, f0);
+        if (live && followMiss == F0Ring::Hit)
+            f0 = analysis.liveNote();
+        if (followMiss == F0Ring::Hit)
+        {
+            const ouaricon::grain::CounterRng::Draw draw (activeSeed, kGrainStream + static_cast<std::uint64_t> (o.stream), o.globalIndex);
+            double t = 0.0;
+            const int r = absSets[o.stream].target (static_cast<double> (f0), static_cast<double> (sp->pitch), static_cast<double> (sp->pitchRand),
+                                                    gp.scaleRoot, draw, t);
+            if (r == AbsSet::Hit)
+            {
+                const double f0c = 100.0 * static_cast<double> (f0);
+                FollowPitch fp;
+                fp.st         = (t - f0c) / 100.0;
+                fp.pitchCents = static_cast<float> (t - (f0c + 100.0 * static_cast<double> (sp->pitch)));
+                gpl = Spawner::plan (*sp, span, fs, ringSamples, activeSeed, o.stream, o.globalIndex, forceLevel0,
+                                     pitchSel[o.stream], fzg, &fp);
+                followHit    = true;
+                followTarget = t / 100.0;
+            }
+            else
+            {
+                followMiss = r;
+            }
+        }
+        followF0 = f0;
+       #if OGRAN_TEST_HOOKS
+        ++diag.followLookups;
+        if (followHit) ++diag.followHits;
+        else ++diag.followMiss[std::clamp (followMiss, 0, 4)];
+       #endif
+    }
+   #if ! OGRAN_TEST_HOOKS
+    juce::ignoreUnused (followF0, followTarget, lookupW, followHit);
+   #endif
    #if OGRAN_TEST_HOOKS
     ++diag.planCalls[o.stream];
     if (hooks.snapshotSteals)
@@ -1045,10 +1133,6 @@ void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart, std::int64_t 
     const auto acq = spawner.acquire (pool, gp.grainLimit, quotas, o.stream);
    #endif
 
-    // R23: absolute onset (telemetry, epochs) vs the ring-domain head the grain
-    // anchors to. Live: the head after the onset sample is written. Frozen: the
-    // stopped head (every frozen spawn sees the same W).
-    const std::int64_t wOn = frozen ? wPiece : freezePending ? fz.W0 : wPiece + o.offset + 1;
     Spawner::fill (*acq.grain, gpl, o.stream, o.frac, wOn);
     acq.grain->frozenSpawn = frozenGeom;
    #if OGRAN_TEST_HOOKS
@@ -1136,11 +1220,11 @@ void Engine::spawn (const StreamOnset& o, std::int64_t pieceStart, std::int64_t 
     rec.crushed     = gpl.crushed;
     rec.driveD      = gpl.driveD;
     rec.burst       = o.burst;
-    rec.f0          = std::numeric_limits<float>::quiet_NaN();
-    rec.target      = std::numeric_limits<double>::quiet_NaN();
-    rec.followHit   = false;
-    rec.followMiss  = 0;
-    rec.lookupW     = 0.0;
+    rec.f0          = followF0;
+    rec.target      = followTarget;
+    rec.followHit   = followHit;
+    rec.followMiss  = followHit ? 0 : followMiss;
+    rec.lookupW     = lookupW;
     ++diag.logCount;
    #endif
 }

@@ -151,13 +151,14 @@ namespace ogran
             Fixed draw order (R10, append-only): Size, Pitch, Reverse, PosSpray,
             Pan, Gain — all here, BEFORE acquire(), so a refused or stolen spawn
             consumes exactly the draws a granted one does. (CounterRng is keyed by
-            slot, so the order is documentation; the before-acquire rule is not.) */
+            slot, so the order is documentation; the before-acquire rule is not.)
+            2.5b: follow != nullptr (pass 2 of a follow stream whose lookup hit,
+            P70 / P72) replaces the pitch step; nullptr → the 2.5a code verbatim. */
         static GrainPlan plan (const GridParams::Stream& sp, double spanSamples, double fs, int ringSamples,
                                std::uint64_t seed, int stream, std::uint64_t globalIndex, bool forceLevel0,
                                const PitchSel& pitchSel = {}, const FrozenGeom& fz = {},
                                const FollowPitch* follow = nullptr) noexcept
         {
-            juce::ignoreUnused (follow);   // consumed from PLAN-2.5b T8
             const ouaricon::grain::CounterRng::Draw draw (seed, kGrainStream + static_cast<std::uint64_t> (stream), globalIndex);
             auto uni = [&draw] (std::uint32_t slot) noexcept { return static_cast<double> (draw.nextFloat (slot)); };
 
@@ -177,7 +178,14 @@ namespace ogran
             //              mask, no degree in span) → st = pitch exactly, NO draw.
             // rate = 2^(st/12) in double.
             double st = static_cast<double> (sp.pitch);
-            if (pitchSel.set == nullptr)
+            if (follow != nullptr)
+            {
+                // 2.5b pass 2 (P72): the absolute-follow interval (target − f0) and
+                // its log field; then the ±24 clamp and the rest of plan, unchanged.
+                st = follow->st;
+                p.pitchCents = follow->pitchCents;
+            }
+            else if (pitchSel.set == nullptr)
             {
                 if (sp.pitchRand > 0.0f)
                 {

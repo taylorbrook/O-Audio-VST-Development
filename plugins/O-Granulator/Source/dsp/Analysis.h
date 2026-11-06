@@ -524,6 +524,7 @@ namespace ogran
 
         bool  hasAccepted() const noexcept { return accValid; }
         float accepted() const noexcept    { return acc; }
+        const std::array<float, 8>& medians() const noexcept { return med; }   // test visibility (Z6a subnormal scan)
 
     private:
         static constexpr int kHist = 8;
@@ -866,6 +867,8 @@ namespace ogran
         const OnsetDetector& getDetector() const noexcept { return detector; }
         const Decimator& getDecimator() const noexcept { return decim; }
         const PitchTracker& getTracker() const noexcept { return tracker; }
+        const Mpm& getMpm() const noexcept { return mpm; }
+        const OctaveGuard& getGuard() const noexcept { return guard; }
         const F0Ring& getRing() const noexcept { return f0ring; }
         const CellLog& getCells() const noexcept { return cells; }
         const std::array<float, 2 * kMpmWindow>& getWindow() const noexcept { return win; }
