@@ -4,7 +4,7 @@
 version: 1.0.0
 plugin: O-Granulator
 created: 2026-11-03
-lastUpdated: 2026-11-04
+lastUpdated: 2026-11-06
 ---
 
 ## Overview
@@ -24,9 +24,9 @@ lastUpdated: 2026-11-04
 | FUNC-03 | Four independent grain streams reading the shared buffer, each with enable/level/pan | must | complete | stage-2 |
 | FUNC-04 | Free (grains/s) and tempo-synced density/size modes with onset jitter | must | complete | stage-2 |
 | FUNC-05 | Feedback network: grain output written back to buffer through tone filter, saturation, diffuser | must | complete | stage-2 |
-| FUNC-06 | Modulation matrix routing LFOs, env follower, pitch follower, onset follower, macros to continuous params | must | partial | stage-2 |
+| FUNC-06 | Modulation matrix routing LFOs, env follower, pitch follower, onset follower, macros to continuous params | must | complete | stage-2 |
 | FUNC-07 | Dry/wet mix, input and output gain | must | complete | stage-2 |
-| FUNC-08 | Onset follower can trigger grain bursts | should | pending | stage-2 |
+| FUNC-08 | Onset follower can trigger grain bursts | should | complete | stage-2 |
 | FUNC-09 | Factory presets covering ambient, harmoniser, rhythmic, feedback-cascade use cases | should | pending | stage-4 |
 
 ### DSP (DSP)
@@ -40,7 +40,7 @@ lastUpdated: 2026-11-04
 | DSP-05 | Per-grain FX: SVF (LP/BP/HP) with cutoff randomisation, drive, bitcrush with probability, ring mod with randomised carrier | must | complete | stage-2 |
 | DSP-06 | Feedback loop gain bounded — no runaway at feedback 100 % with any settings | must | complete | stage-2 |
 | DSP-07 | Output reverb/diffuser stage | should | complete | stage-2 |
-| DSP-08 | Pitch follower (YIN/MPM-class) usable as mod source | should | pending | stage-2 |
+| DSP-08 | Pitch follower (YIN/MPM-class) usable as mod source | should | complete | stage-2 |
 
 ### UI (UI)
 
