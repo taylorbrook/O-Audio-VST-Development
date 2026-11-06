@@ -1,6 +1,6 @@
 # O-Granulator — Phase 2.5a DAW tempo checklist (D16)
 
-**Stage:** 2-dsp / 2.5a · **Run at:** verify · **Written:** execute T13 (PLAN-2.5a P59), 2026-11-05
+**Stage:** 2-dsp / 2.5a · **Run at:** ~~verify~~ **Stage 3, with the WebView UI** (deferred by Taylor at 2.5a verify, 2026-11-05) · **Written:** execute T13 (PLAN-2.5a P59), 2026-11-05
 **Build:** the installed `O-Granulator-dev` VST3 / AU from the 2.5a execute commit (generic editor — the WebView UI is Stage 3).
 
 These items cover what the harness cannot: real host transports report a position only at block starts, wrap loops mid-block, ramp tempo per block and may or may not report `isPlaying` during a count-in. The harness gates (TT, TS, LS, N8) prove the engine against a block-split mock; this sheet checks it against Logic and Reaper.
