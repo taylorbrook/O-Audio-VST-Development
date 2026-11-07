@@ -317,6 +317,19 @@ void GranulatorProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     // The seed is adopted by the engine at its next grid point.
     engine.process (in, numIn, out, numOut, n, getSeed(), ts);
 
+    // 3.3 (P130, R128): the out meter — the final output, channels [0, numOut);
+    // mono out → R = L. Bypass never reaches here (the meters then read 0).
+    {
+        const auto peakOf = [&buffer, n] (int ch)
+        {
+            const auto r = juce::FloatVectorOperations::findMinAndMax (buffer.getReadPointer (ch), n);
+            return juce::jmax (-r.getStart(), r.getEnd());
+        };
+        const float pL = peakOf (0);
+        ogran::pushMax (outPkL, pL);
+        ogran::pushMax (outPkR, numOut > 1 ? peakOf (1) : pL);
+    }
+
     for (int ch = numOut; ch < numCh; ++ch)
         buffer.clear (ch, 0, n);
 }
@@ -639,6 +652,11 @@ void GranulatorProcessor::applyPresetCustomState (const juce::var& customState)
 //==============================================================================
 bool GranulatorProcessor::readTelemetry (Telemetry& t) const
 {
+    return readTelemetry (t, juce::Time::getMillisecondCounterHiRes());
+}
+
+bool GranulatorProcessor::readTelemetry (Telemetry& t, double nowMs) const
+{
     t = Telemetry {};
     t.scaleRev = getScaleStateRevision();
 
@@ -675,6 +693,45 @@ bool GranulatorProcessor::readTelemetry (Telemetry& t) const
         return false;
 
     const juce::SpinLock::ScopedLockType sl (telemetryLock);
+
+    // ── 3.3 (P131): meters, onset, LFO phase, loop gain ────────────────────
+    {
+        const bool stale = nowMs - lastReadMs > 250.0;   // R130 (the first read included)
+        lastReadMs = nowMs;
+        const auto finite0 = [] (float v) { return std::isfinite (v) ? v : 0.0f; };
+        const float oL = finite0 (outPkL.exchange (0.0f, std::memory_order_relaxed));
+        const float oR = finite0 (outPkR.exchange (0.0f, std::memory_order_relaxed));
+        const float iP = finite0 (engine.consumeInPeak());
+        t.hasMeters = true;
+        if (! stale)
+        {
+            t.outPeakL = oL;
+            t.outPeakR = oR;
+            t.inPeak   = iP;
+        }
+
+        const uint32_t c = engine.onsetCountNow();   // R131: counter + reader wall clock
+        if (c != lastOnsetCount)
+        {
+            lastOnsetCount = c;
+            if (! stale)
+            {
+                t.onsetFired = true;
+                pulseStartMs = nowMs;
+            }
+        }
+        t.hasOnset   = true;
+        t.onsetPulse = stale ? 0.0f : (float) juce::jlimit (0.0, 1.0, 1.0 - (nowMs - pulseStartMs) / 200.0);
+
+        for (int n = 0; n < 4; ++n)                  // R132
+            t.lfoPhase[(size_t) n] = engine.lfoPhase (n);
+
+        const float k = engine.loopK(), g = engine.loopAgc();   // R133
+        t.hasLoopGain = ! (juce::exactlyEqual (k, 0.0f) || engine.isFrozenTel());
+        t.loopGainDb  = t.hasLoopGain ? (float) (20.0 * std::log10 ((double) k * (double) g))
+                                      : std::numeric_limits<float>::quiet_NaN();
+    }
+
     const ogran::UiSnapshot& snap = engine.readUiSnapshot();
     if (! (snap.fs > 0.0))
         return true;   // prepared, nothing published yet: has* stay false (the page draws the base knobs)

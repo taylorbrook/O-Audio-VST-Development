@@ -171,6 +171,22 @@ namespace ogran
         /** Reader: the newest complete snapshot (or the previous one again). */
         const UiSnapshot& readUiSnapshot() const noexcept     { return uiSnap.read(); }
         const PeakRing&   getPeakRing() const noexcept        { return peaks; }
+
+        //======================================================================
+        // Stage 3 / 3.3 (PLAN-3.3 P129). Audio-thread writers; nothing here is
+        // read by the DSP. Readers: the processor (under its telemetry lock).
+        /** The input peak (post input_gain, pre-mix) since the last call; resets it. */
+        float consumeInPeak() const noexcept                  { return inPk.exchange (0.0f, std::memory_order_relaxed); }
+        /** Onset events seen so far (+1 per event-bearing piece; wraps). */
+        std::uint32_t onsetCountNow() const noexcept          { return onsetCount.load (std::memory_order_relaxed); }
+        /** LFO n (0…3): the offset-free cycle position in [0, 1) (R132). */
+        float lfoPhase (int n) const noexcept                 { return n >= 0 && n < kLfos ? lfoPhaseTel[static_cast<size_t> (n)].load (std::memory_order_relaxed) : 0.0f; }
+        /** The effective (modulated) feedback knob gain k of the latest tick (R133). */
+        float loopK() const noexcept                          { return loopKTel.load (std::memory_order_relaxed); }
+        /** The AGC gain min (1, kAgcCeil / env) at the end of the latest block. */
+        float loopAgc() const noexcept                        { return loopAgcTel.load (std::memory_order_relaxed); }
+        /** The head is stopped (the tick edge, not freezePending). */
+        bool  isFrozenTel() const noexcept                    { return frozenTel.load (std::memory_order_relaxed); }
         /** Message thread: the grain's window value at `phase` — the exact
             renderSegment branch (closed-form Hann at step 0 / tilt 0.5, else the
             immutable bank). */
@@ -722,6 +738,12 @@ namespace ogran
         std::int64_t  lastPublish = 0;
         std::int64_t  publishInterval = 800;           // round (fs / 60)
         bool          publishFirst = true;
+        // 3.3 (P129): meters, onset counter, LFO phase, loop gain — written on the audio thread, never read by DSP.
+        mutable std::atomic<float>              inPk { 0.0f };            // max-since-read (the reader exchanges it)
+        std::atomic<std::uint32_t>              onsetCount { 0 };         // single writer; monotonic (not reset in prepare)
+        std::array<std::atomic<float>, kLfos>   lfoPhaseTel {};
+        std::atomic<float>                      loopKTel { 0.0f }, loopAgcTel { 1.0f };
+        std::atomic<bool>                       frozenTel { false };
 
        #if OGRAN_TEST_HOOKS
         // ── 2.3 test-only state (P28) ───────────────────────────────────────

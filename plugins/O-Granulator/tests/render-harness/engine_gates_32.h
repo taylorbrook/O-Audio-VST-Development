@@ -797,6 +797,6 @@ static void engineRows32()
     cnRows();
     bdRows();
     m8Rows();
-    tlRows();
+    // TL32 → TL33 (engine_gates_33.h, RESEARCH-3.3 R135)
     infoRows();
 }

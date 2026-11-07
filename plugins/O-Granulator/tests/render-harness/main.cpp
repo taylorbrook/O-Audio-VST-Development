@@ -614,6 +614,7 @@ static int countChildren (const juce::XmlElement& x, const juce::String& tag)
 
 #include "engine_gates_31.h"  // Stage 3 / 3.1 sections PM, WC (PLAN-3.1 P104); TL31 → TL32 (3.2)
 #include "engine_gates_32.h"  // Stage 3 / 3.2 sections TB, WV, GD, CN, BD, M8, TL32, FB1 / PL1 (PLAN-3.2 P120)
+#include "engine_gates_33.h"  // Stage 3 / 3.3 sections UX1 (PLAN-3.3 P128, P133)
 
 static void stateRows()
 {
@@ -893,7 +894,13 @@ int main (int argc, char** argv)
                      failures == 0 ? (gNoVerdict ? "NO VERDICT (C7 contended)" : "ALL PASS") : "FAILURES", gLong ? ", --long" : "");
         return rc();
     }
-    // Iteration aid (3.1): `--only31` runs the 3.1 sections alone.
+    // Iteration aid (3.1 / 3.2 / 3.3): `--only3N` runs that phase's sections alone.
+    if (argc > 1 && std::strcmp (argv[1], "--only33") == 0)
+    {
+        engineRows33();
+        std::printf ("\n%d PASS, %d FAIL -- %s (3.3 sections only)\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
+        return failures == 0 ? 0 : 1;
+    }
     if (argc > 1 && std::strcmp (argv[1], "--only32") == 0)
     {
         engineRows32();
@@ -938,7 +945,7 @@ int main (int argc, char** argv)
         std::printf ("\n%d PASS, %d FAIL -- %s (2.3 sections only)\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
         return failures == 0 ? 0 : 1;
     }
-    std::printf ("O-Granulator render harness (Stage 1 + Stage 2 / 2.1–2.6 + Stage 3 / 3.1–3.2%s)  goldens: %s\n", gLong ? ", --long" : "", GOLDEN_DIR);
+    std::printf ("O-Granulator render harness (Stage 1 + Stage 2 / 2.1–2.6 + Stage 3 / 3.1–3.3%s)  goldens: %s\n", gLong ? ", --long" : "", GOLDEN_DIR);
     paramRows();
     busRows();
     stateRows();
@@ -958,6 +965,7 @@ int main (int argc, char** argv)
     engineRows26b();
     engineRows31();
     engineRows32();
+    engineRows33();
     std::printf ("\n%d PASS, %d FAIL -- %s\n", passes, failures,
                  failures == 0 ? (gNoVerdict ? "NO VERDICT (C7 contended)" : "ALL PASS") : "FAILURES");
     return rc();

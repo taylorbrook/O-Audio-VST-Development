@@ -215,8 +215,18 @@ public:
         snapshot (never from the live ring head, R121). Readers are serialised
         by telemetryLock (a second editor, the harness); the audio thread never
         takes it. Returns false only when the engine is not prepared (then
-        hasBuffer = hasCounts = false). Never touches the pool or the scheduler. */
+        hasBuffer = hasCounts = false). Never touches the pool or the scheduler.
+
+        3.3 (PLAN-3.3 P131): the meters are max-since-read and DESTRUCTIVE (a
+        second reader sees only what arrived after the first); onsetFired is
+        "an event since the last read"; onsetPulse decays linearly over 200 ms
+        of READER wall clock from the read that first saw the event (R131).
+        A read more than 250 ms after the previous one (the first read
+        included) consumes everything and reports 0 / false for that frame
+        (R130). Loop gain = 20·log10 (k_eff · g_agc), absent at k == 0 or
+        frozen (R133). The 1-argument form uses Time::getMillisecondCounterHiRes. */
     bool readTelemetry (Telemetry& t) const;
+    bool readTelemetry (Telemetry& t, double nowMs) const;
 
     /** The window figure: `numPoints` samples of the engine's own window
         (WindowMorphBank) at stream 1…4's BASE sN_window / sN_window_skew.
@@ -253,6 +263,11 @@ private:
 
     mutable juce::SpinLock customLock;
     mutable juce::SpinLock telemetryLock;   // 3.2: readers of the engine's triple buffer (never the audio thread)
+    // 3.3 (P130, P131): the out meter (audio-thread fetch-max, reader exchange) and
+    // the reader state (guarded by telemetryLock).
+    mutable std::atomic<float> outPkL { 0.0f }, outPkR { 0.0f };
+    mutable double   lastReadMs = -1.0e9, pulseStartMs = -1.0e9;
+    mutable uint32_t lastOnsetCount = 0;
     PitchCollections::Table customTable;
     juce::String customText, customName;
     std::atomic<uint32_t> customVersion { 0 };

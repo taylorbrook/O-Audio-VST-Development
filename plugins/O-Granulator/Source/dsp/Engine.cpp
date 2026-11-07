@@ -131,6 +131,14 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     lastPublish  = 0;
     publishFirst = true;
 
+    // 3.3 (P129): telemetry from a clean state (the onset counter stays
+    // monotonic — the reader detects events by inequality).
+    inPk.store (0.0f, std::memory_order_relaxed);
+    for (auto& ph : lfoPhaseTel) ph.store (0.0f, std::memory_order_relaxed);
+    loopKTel.store (fbKnobNow, std::memory_order_relaxed);
+    loopAgcTel.store (1.0f, std::memory_order_relaxed);
+    frozenTel.store (false, std::memory_order_relaxed);
+
    #if OGRAN_TEST_HOOKS
     diag.reset();
     armGuards();
@@ -414,6 +422,8 @@ void Engine::process (const float* const* in, int numIn, float* const* out, int 
     float* const       outL = out[0];
     float* const       outR = numOut > 1 ? out[1] : nullptr;
 
+    float inPkBlock = 0.0f;   // 3.3 (P129): the block's input peak (telemetry only)
+
     int done = 0;
     while (done < numSamples)   // bounded: every iteration consumes >= 1 sample
     {
@@ -470,6 +480,12 @@ void Engine::process (const float* const* in, int numIn, float* const* out, int 
            #endif
         }
 
+        // 3.3 (P129, R128): the input meter — the conditioned input (post
+        // input_gain), read BEFORE mixOut overwrites the aliased buffer. Reads
+        // only; the value is the second std::max argument, so a NaN is dropped.
+        for (int i = 0; i < len; ++i)
+            inPkBlock = std::max (inPkBlock, std::max (std::abs (inL[done + i]), std::abs (inR[done + i])) * inGain.value (cellPos + i));
+
         // 2.5b analysis of the piece (P61): the same conditioned input, evaluated
         // by the analysis itself (env.process stays verbatim). At most one onset
         // event per piece; an MPM hop goes to the pending slot (R59: committed at
@@ -478,6 +494,8 @@ void Engine::process (const float* const* in, int numIn, float* const* out, int 
         if (runAnalysis)
             eventOffset = analysis.processPiece (inL + done, inR + done, len, cellPos, absCount,
                                                  [&inGain] (int c) noexcept { return inGain.value (c); });
+        if (eventOffset >= 0)   // 3.3 (P129, R131): at most one event per piece; single writer
+            onsetCount.store (onsetCount.load (std::memory_order_relaxed) + 1u, std::memory_order_relaxed);
 
         // 4. Schedule (2.5b: the event re-phases / adds a grain on trigger-on streams).
         const int numOnsets = scheduleStreams (len, eventOffset);
@@ -539,6 +557,11 @@ void Engine::process (const float* const* in, int numIn, float* const* out, int 
         absCount += len;
         done     += len;
     }
+
+    // 3.3 (P129): block telemetry — reads DSP state, writes telemetry members only.
+    pushMax (inPk, inPkBlock);
+    loopAgcTel.store (chain.env > 0.0f ? std::min (1.0f, kAgcCeil / chain.env) : 1.0f, std::memory_order_relaxed);
+    frozenTel.store (frozen, std::memory_order_relaxed);
 
     // 3.2 (P116): the buffer-strip snapshot, at most every fs / 60 samples
     // (and on the first block after prepare). Copy only.
@@ -735,6 +758,7 @@ void Engine::gridTick() noexcept
         const float sd = rs ? ModMap::satDFromRaw (matrix.apply (FbSat, ModMap::satDToRaw (fbSatDRamp.current()), matrix.offset (FbSat)))
                             : fbSatDRamp.current();
         fbKnobMod.setCell (fbKnobNow, k);  fbKnobNow = k;
+        loopKTel.store (k, std::memory_order_relaxed);   // 3.3 (P129, R133): telemetry only
         fbDiffMod.setCell (fbDiffNow, df); fbDiffNow = df;
         fbSatDMod.setCell (fbSatDNow, sd); fbSatDNow = sd;
         useFbKnobMod = rk || matrix.routedPrev (Feedback);
@@ -887,6 +911,16 @@ void Engine::tickSources() noexcept
     }
     for (int k = 1; k < kModSources; ++k)
         srcTelemetry[static_cast<size_t> (k - 1)].store (srcVals.v[k], std::memory_order_relaxed);
+
+    // 3.3 (P129, R132): the offset-free cycle position — the phased position
+    // minus φ / 360, wrapped to [0, 1). Telemetry only (the LFO is unchanged).
+    for (int n = 0; n < kLfos; ++n)
+    {
+        const double p = lfos[n].position() - static_cast<double> (lfos[n].getPhaseDeg()) / 360.0;
+        float ph = static_cast<float> (p - std::floor (p));
+        if (! (ph < 1.0f)) ph = 0.0f;
+        lfoPhaseTel[static_cast<size_t> (n)].store (ph, std::memory_order_relaxed);
+    }
 }
 
 /** P52–P55: the matrix of this cell. Spawn-latched and tick destinations

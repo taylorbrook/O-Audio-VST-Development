@@ -204,4 +204,18 @@ namespace ogran
             out[k] = waveDbMap (pk);
         }
     }
+
+    //==========================================================================
+    // 3.3 meters (PLAN-3.3 P129, R129): max-since-read accumulators. The audio
+    // thread folds a block's peak in with a relaxed CAS fetch-max (once per
+    // block); the reader exchanges the value with 0. A NaN `v` is a no-op
+    // (`v > cur` is false), so a non-finite peak never reaches the reader.
+    static_assert (std::atomic<float>::is_always_lock_free && std::atomic<std::uint32_t>::is_always_lock_free
+                   && std::atomic<bool>::is_always_lock_free, "3.3 telemetry atomics must be lock-free");
+
+    inline void pushMax (std::atomic<float>& a, float v) noexcept
+    {
+        float cur = a.load (std::memory_order_relaxed);
+        while (v > cur && ! a.compare_exchange_weak (cur, v, std::memory_order_relaxed)) {}
+    }
 } // namespace ogran
