@@ -27,7 +27,7 @@ lastUpdated: 2026-11-06
 | FUNC-06 | Modulation matrix routing LFOs, env follower, pitch follower, onset follower, macros to continuous params | must | complete | stage-2 |
 | FUNC-07 | Dry/wet mix, input and output gain | must | complete | stage-2 |
 | FUNC-08 | Onset follower can trigger grain bursts | should | complete | stage-2 |
-| FUNC-09 | Factory presets covering ambient, harmoniser, rhythmic, feedback-cascade use cases | should | pending | stage-4 |
+| FUNC-09 | Factory presets covering ambient, harmoniser, rhythmic, feedback-cascade use cases | should | complete | stage-4 |
 
 ### DSP (DSP)
 
@@ -49,7 +49,7 @@ lastUpdated: 2026-11-06
 | UI-01 | All parameters reachable; per-stream controls organised by stream selector/strips | must | complete | stage-3 |
 | UI-02 | Buffer waveform display with write head, per-stream position/spray regions, live grain indicators | should | complete | stage-3 |
 | UI-03 | Mod matrix view showing source → destination → depth; mod amount visible on targets | should | complete | stage-3 |
-| UI-04 | EN/FR/zh-Hans localisation consistent with the suite | nice | pending | stage-4 |
+| UI-04 | EN/FR/zh-Hans localisation consistent with the suite | nice | complete | stage-4 |
 
 ### Performance (PERF)
 
@@ -64,8 +64,8 @@ lastUpdated: 2026-11-06
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | COMPAT-01 | Passes pluginval validation (VST3 and AU), strictness 10 | must | complete | stage-1 |
-| COMPAT-02 | State save/restore round-trips all parameters and mod matrix routings | must | pending | stage-4 |
-| COMPAT-03 | Mono and stereo I/O; Windows VST3 build | should | pending | stage-4 |
+| COMPAT-02 | State save/restore round-trips all parameters and mod matrix routings | must | complete | stage-4 |
+| COMPAT-03 | Mono and stereo I/O; Windows VST3 build | should | complete-pending-CI | stage-4 |
 
 ### Quality (QUAL)
 
@@ -74,7 +74,7 @@ lastUpdated: 2026-11-06
 | QUAL-01 | No audio artifacts (clicks, zipper) at normal parameter ranges, including freeze toggle and grain steal | must | complete | stage-2 |
 | QUAL-02 | No NaN/denormal output under extreme settings (max feedback, max resonance, max density) | must | complete | stage-2 |
 | QUAL-03 | Per-sample smoothing on audible continuous params and mod-matrix targets | must | complete | stage-2 |
-| QUAL-04 | Hands-on listening pass in DAW across use cases | nice | pending | stage-4 |
+| QUAL-04 | Hands-on listening pass in DAW across use cases | nice | partial | stage-4 |
 
 ## Acceptance Criteria Details
 
