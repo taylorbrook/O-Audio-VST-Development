@@ -7,16 +7,23 @@ complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: ui_mockup_then_parameter_spec
+next_action: proceed_to_stage_1
 next_stage: 1
-ready_for_implementation: false
-blocked_on: mockup + LOCKED parameter-spec.md (Design Sync S1-S11); Phase 2.1 also waits for O-Granulator 3.3 to close (fork pin)
+ready_for_implementation: true
+blocked_on: Phase 2.1 waits for O-Granulator 3.3 to close (fork pin); Stage 1 is unblocked
 latest_mockup_version: 1
 mockup_finalized: true
+finalized_version: 1
+stage_0_status: ui_design_complete
+ui_scaffolding_phase_complete: true
+ui_scaffolding_timestamp: "2026-11-07"
+parameter_spec_locked: true
 brief_updated_from_mockup: true
 mockup_version_synced: 1
 brief_update_timestamp: "2026-11-07T19:40:17Z"
 contract_checksums:
+  parameter_spec: sha256:b6bc70e3a9dcd2611f241452b893f8318956cb946b1ac0694fe3957837ca751b
+  parameter_spec_body: sha256:c5553e0ccda2c7f5320a1891ba20c5a92913e089ab1fa1e47b0e33fa7c543191
   brief: sha256:74e7f8f24468ed9658aa8533733f45da24c61ad116d6ae47cd5c2af0e8524722
   requirements: sha256:ea9deda69106e02499b14601052eeefbe2e4d6742c7661e5240760f3dd56d54b
   parameter_spec_draft: sha256:3c4918748a4375940684a22ed6850a3184bdd96df53d152a8900d5f0e4260796
@@ -29,7 +36,7 @@ contract_checksums:
 ## Current Position
 
 Stage: 0 of 4 (Research & Planning) — complete
-Status: Research & Planning complete. Ready for implementation once the mockup and the LOCKED parameter-spec.md exist.
+Status: Research & Planning complete. Mockup v1 finalized, implementation scaffolding generated, parameter-spec.md LOCKED (261 params). Ready for Stage 1.
 Progress: [##..................] 10%
 
 ## Completed So Far
@@ -52,9 +59,9 @@ Progress: [##..................] 10%
 
 ## Next Steps
 
-1. UI mockup (`/start O-GranulatorInstrument` → option 3). Apply ARCHITECTURE.md "Design Sync" S1–S11. **v1 created 2026-11-07** (`.planning/mockups/v1-ui.yaml` + `v1-ui-test.html`, 261 params, S1–S11 mapped in `design_sync_applied`); in design iteration, not finalized.
-2. Write the LOCKED `parameter-spec.md` from the finalized mockup. Freeze the 126 destinations and 18 sources.
-3. Stage 1: Foundation (`/implement O-GranulatorInstrument`).
+1. ✓ UI mockup v1 finalized 2026-11-07 (Phase 5.5); Phase B scaffolding generated: `v1-ui.html`, `v1-i18n.js`, `v1-PluginEditor.{h,cpp}` (261 relays, 34 native fns, sidechain-aware Record-in telemetry), `v1-CMakeLists.txt`, `v1-integration-checklist.md`, `v1-i18n-states.json`. UI gates pre-verified on a scratch tree (check-i18n / fr / zh / check-ui-labels / boot-all-uis all clean).
+2. ✓ `parameter-spec.md` LOCKED (Stage 1 contract): 261 params, Design Sync S1–S11 applied, 126-entry destination order and 18-entry source order frozen (append-only). One description-level draft conflict recorded in its "Draft vs mockup" section (`polyphony` steal wording) — confirm at Stage 1 planning.
+3. Stage 1: Foundation (`/implement O-GranulatorInstrument`) — builds from `parameter-spec.md`, lands `v1-CMakeLists.txt`.
 4. Before Phase 2.1: confirm O-Granulator 3.3 has closed, then fork the leaves pinned to that commit.
 
 ## Context to Preserve
@@ -80,4 +87,6 @@ Progress: [##..................] 10%
 - plugins/O-GranulatorInstrument/.planning/REQUIREMENTS.md (ideation)
 - plugins/O-GranulatorInstrument/.planning/parameter-spec-draft.md (ideation, 2026-11-07)
 - plugins/O-GranulatorInstrument/.planning/mockups/v1-ui.yaml (UI mockup v1, 2026-11-07)
-- plugins/O-GranulatorInstrument/.planning/mockups/v1-ui-test.html (UI mockup v1 browser test, 2026-11-07)
+- plugins/O-GranulatorInstrument/.planning/mockups/v1-ui-test.html (UI mockup v1 browser test, 2026-11-07; gitignored)
+- plugins/O-GranulatorInstrument/.planning/parameter-spec.md (LOCKED, 2026-11-07)
+- plugins/O-GranulatorInstrument/.planning/mockups/v1-ui.html, v1-i18n.js, v1-PluginEditor.h, v1-PluginEditor.cpp, v1-CMakeLists.txt, v1-integration-checklist.md, v1-i18n-states.json (ui-finalization, 2026-11-07)
