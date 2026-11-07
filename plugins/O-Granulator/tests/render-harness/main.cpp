@@ -612,7 +612,8 @@ static int countChildren (const juce::XmlElement& x, const juce::String& tag)
     return n;
 }
 
-#include "engine_gates_31.h"  // Stage 3 / 3.1 sections PM, WC, TL (PLAN-3.1 P104)
+#include "engine_gates_31.h"  // Stage 3 / 3.1 sections PM, WC (PLAN-3.1 P104); TL31 → TL32 (3.2)
+#include "engine_gates_32.h"  // Stage 3 / 3.2 sections TB, WV, GD, CN, BD, M8, TL32, FB1 / PL1 (PLAN-3.2 P120)
 
 static void stateRows()
 {
@@ -826,6 +827,7 @@ static int dumpUiOverrides (const juce::File& out)
         g.gain = 0.8f;
         g.lengthSec = 0.1f;
     }
+    for (auto& b : t.bands) b = { 0.5f, 1.0f };          // 3.2 (D30): the widest band, every stream
     t.counts = { 128, 128, 128, 128 };
     t.limit = 128;
     t.outPeakL = t.outPeakR = t.inPeak = 0.9f;
@@ -892,6 +894,12 @@ int main (int argc, char** argv)
         return rc();
     }
     // Iteration aid (3.1): `--only31` runs the 3.1 sections alone.
+    if (argc > 1 && std::strcmp (argv[1], "--only32") == 0)
+    {
+        engineRows32();
+        std::printf ("\n%d PASS, %d FAIL -- %s (3.2 sections only)\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
+        return failures == 0 ? 0 : 1;
+    }
     if (argc > 1 && std::strcmp (argv[1], "--only31") == 0)
     {
         engineRows31();
@@ -930,7 +938,7 @@ int main (int argc, char** argv)
         std::printf ("\n%d PASS, %d FAIL -- %s (2.3 sections only)\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
         return failures == 0 ? 0 : 1;
     }
-    std::printf ("O-Granulator render harness (Stage 1 + Stage 2 / 2.1–2.6 + Stage 3 / 3.1%s)  goldens: %s\n", gLong ? ", --long" : "", GOLDEN_DIR);
+    std::printf ("O-Granulator render harness (Stage 1 + Stage 2 / 2.1–2.6 + Stage 3 / 3.1–3.2%s)  goldens: %s\n", gLong ? ", --long" : "", GOLDEN_DIR);
     paramRows();
     busRows();
     stateRows();
@@ -949,6 +957,7 @@ int main (int argc, char** argv)
     engineRows26();
     engineRows26b();
     engineRows31();
+    engineRows32();
     std::printf ("\n%d PASS, %d FAIL -- %s\n", passes, failures,
                  failures == 0 ? (gNoVerdict ? "NO VERDICT (C7 contended)" : "ALL PASS") : "FAILURES");
     return rc();

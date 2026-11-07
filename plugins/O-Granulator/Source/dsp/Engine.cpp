@@ -123,6 +123,14 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     writeReverbAtomics();
     reverb.prepare (fs, kCell);
 
+    // 3.2 buffer strip (P114, P116): the peak ring is zero-filled (never
+    // reallocated); the first block after prepare publishes a snapshot.
+    peaks.prepare (ringSamples);
+    for (auto& pn : panNow) pn = 0.0f;
+    publishInterval = std::max<std::int64_t> (1, std::llround (fs / 60.0));
+    lastPublish  = 0;
+    publishFirst = true;
+
    #if OGRAN_TEST_HOOKS
     diag.reset();
     armGuards();
@@ -428,6 +436,23 @@ void Engine::process (const float* const* in, int numIn, float* const* out, int 
        #endif
         jassert (ring.getWriteCount() == wPiece + (frozen ? 0 : len));
 
+        // 3.2 (P115, R120): the piece's peak, READ BACK from the ring (what the
+        // grains read) — copy only; CaptureWriter's statements are untouched.
+        // Frozen: nothing was pushed, nothing is written (the held cells keep
+        // their peaks).
+        if (ring.getWriteCount() != wPiece)
+        {
+            float tmp[kCell];
+            float pk = 0.0f;
+            for (int ch = 0; ch < 2; ++ch)
+            {
+                ring.copyLevel (0, ch, wPiece, len, tmp);
+                for (int i = 0; i < len; ++i)
+                    pk = std::max (pk, std::abs (tmp[i]));
+            }
+            peaks.write (wPiece, pk);
+        }
+
         // 2.5a envelope follower on the conditioned input (post input_gain,
         // pre-ring; runs while frozen). Never touches the audio path.
         env.process (inL + done, inR + done, len, cellPos, [&inGain] (int c) noexcept { return inGain.value (c); });
@@ -515,6 +540,15 @@ void Engine::process (const float* const* in, int numIn, float* const* out, int 
         done     += len;
     }
 
+    // 3.2 (P116): the buffer-strip snapshot, at most every fs / 60 samples
+    // (and on the first block after prepare). Copy only.
+    if (publishFirst || absCount - lastPublish >= publishInterval)
+    {
+        publishUi();
+        lastPublish  = absCount;
+        publishFirst = false;
+    }
+
    #if OGRAN_TEST_HOOKS
     // 2.5b counters (the analysis keeps its own; mirrored for the harness).
     if (analysis.inject.done)
@@ -529,6 +563,51 @@ void Engine::process (const float* const* in, int numIn, float* const* out, int 
     diag.f0Skips           = as.f0Skips;
     diag.analysisScrubs    = as.scrubs;
    #endif
+}
+
+/** 3.2 (P116, R119, R121, R123, R124): fill the back buffer and publish. Reads
+    pool / gp / ring / fz / spawner only; writes only telemetry members. */
+void Engine::publishUi() noexcept
+{
+    auto& s = uiSnap.writeBuffer();
+    s.seqHead = ++uiSeq;
+    s.head    = ring.getWriteCount();   // W0 while frozen: the head is stopped
+    s.fs      = fs;
+    s.frozen  = frozen;
+    s.spanSamples = frozen ? std::min (spanSamples, static_cast<double> (fz.heldCaptured)) : spanSamples;
+    for (int st = 0; st < kMaxStreams; ++st)
+    {
+        s.bands[st][0]  = gp.s[st].position;
+        s.bands[st][1]  = gp.s[st].spray;
+        s.streamPan[st] = panNow[st];
+    }
+    s.limit = gp.grainLimit;
+
+    const auto& all = pool.getGrains();
+    int n = 0;
+    for (int i = 0; i < kPoolLive + kPoolFade && n < UiSnapshot::kMaxGrains; ++i)
+    {
+        if (! pool.isActive (i))
+            continue;
+        const Grain& g = all[static_cast<size_t> (i)];
+        auto& u = s.grains[n++];
+        u.readAbs    = g.readAbs;
+        u.phase      = (static_cast<double> (g.age) + g.frac) * g.invLen;
+        u.rate       = g.rate;
+        u.lenSamples = static_cast<float> (g.len);
+        u.gainL      = g.gainL;
+        u.gainR      = g.gainR;
+        u.killGain   = g.killGain;
+        u.tiltT      = g.tiltT;
+        u.tiltA      = g.tiltA;
+        u.tiltB      = g.tiltB;
+        u.windowStep = static_cast<std::int16_t> (g.windowStep);
+        u.stream1    = static_cast<std::uint8_t> (g.stream + 1);   // R125
+        u.killing    = g.killStep > 0.0f || spawner.isPendingKill (i) || i >= kPoolLive;
+    }
+    s.count   = n;
+    s.seqTail = s.seqHead;
+    uiSnap.publish();
 }
 
 void Engine::gridTick() noexcept
@@ -624,6 +703,7 @@ void Engine::gridTick() noexcept
         if (matrix.routed (dl)) lv = levelDbToGain (matrix.apply (dl, ModMap::levelToRaw (lv), matrix.offset (dl)));
         if (matrix.routed (dp)) pn = matrix.apply (dp, pn * 100.0f, matrix.offset (dp)) / 100.0f;
         levelNow[s] = lv;
+        panNow[s]   = pn;   // 3.2 telemetry only (the dot pan, sign-off 2)
         traceAt (dl, absCount, lv);
         traceAt (dp, absCount, pn);
 

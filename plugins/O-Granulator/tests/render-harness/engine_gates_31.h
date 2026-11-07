@@ -30,7 +30,7 @@
 //        <CustomState> / duplicate custom child in the live tree
 //   PM5  seed 0xFEDC'BA98'7654'3211 (> INT64_MAX) exact through a preset
 //   WC1  windowCurve (0, 0) == closed-form Hann; WC2 skew ±100 / window 1 live
-//   TL31 readTelemetry: 3.1 fields == engine accessors; 3.2 / 3.3 fields zero / NaN
+//   (TL31 was rewritten as TL32 in engine_gates_32.h at 3.2 — R126)
 //   NCs  PM2n (exclusion off), PM3n (seed reset on absent), PM5n (seed written
 //        as a JSON number) — each row PASSes only when the variant FAILS the
 //        positive row's predicate.
@@ -342,52 +342,6 @@ static void engineRows31()
              t.detail (5));
     }
 
-    std::printf ("\n-- TL. telemetry (Stage 3 / 3.1, P102)\n");
-    {
-        auto p = make();
-        p->prepareToPlay (48000.0, 256);
-        // Route two slots so modNorm has keys; render a little so the sources move.
-        setParam (*p, "mod3_source", 1.0f);  setParam (*p, "mod3_dest", 5.0f);
-        setParam (*p, "mod7_source", 9.0f);  setParam (*p, "mod7_dest", 40.0f);
-        setParam (*p, "lfo1_rate", 7.0f);
-        setParam (*p, "macro2", 63.0f);
-        juce::AudioBuffer<float> buf (2, 256);
-        juce::MidiBuffer midi;
-        juce::Random rng (31);
-        for (int b = 0; b < 200; ++b)
-        {
-            for (int ch = 0; ch < 2; ++ch)
-                for (int i = 0; i < 256; ++i)
-                    buf.setSample (ch, i, 0.3f * std::sin (0.0577f * (float) (b * 256 + i)) + 0.01f * (rng.nextFloat() - 0.5f));
-            p->processBlock (buf, midi);
-        }
-        GranulatorProcessor::Telemetry t;
-        t.counts[0] = 99; t.hasBuffer = true; t.loopGainDb = 1.0f;   // dirty: readTelemetry must clear
-        const bool ok = p->readTelemetry (t);
-        const auto& e = p->getEngineForTest();
-        Tally tl;
-        for (int i = 0; i < 11; ++i)
-            tl.check (juce::exactlyEqual (t.sources[(size_t) i], e.getSrcTelemetry (i + 1)), "src " + juce::String (i + 1));
-        const float note = e.getPitchNote();
-        tl.check (juce::exactlyEqual (t.pitchMidi, note > 0.0f ? note : 0.0f), "pitchMidi");
-        tl.check (note <= 0.0f || juce::exactlyEqual (t.pitchClarity, e.getPitchConfident() ? 1.0f : 0.0f), "pitchClarity");
-        tl.check (t.scaleRev == p->getScaleStateRevision(), "scaleRev");
-        int routed = 0;
-        for (int d = 1; d < GranulatorProcessor::Telemetry::kDests; ++d)
-            if (t.modRouted[(size_t) d]) { ++routed; tl.check (juce::exactlyEqual (t.modNorm[(size_t) d], e.getDestTelemetry (d)), "modNorm " + juce::String (d)); }
-        tl.check (routed == 2 && t.modRouted[5] && t.modRouted[40], "routed set " + juce::String (routed));
-        bool zero = ! t.hasBuffer && ! t.hasCounts && ! t.hasMeters && ! t.hasOnset && ! t.hasLoopGain
-                    && t.waveCount == 0 && t.grainCount == 0 && t.limit == 0 && t.spanSec == 0.0f && ! t.frozen
-                    && t.outPeakL == 0.0f && t.outPeakR == 0.0f && t.inPeak == 0.0f && t.onsetPulse == 0.0f && ! t.onsetFired
-                    && std::isnan (t.loopGainDb);
-        for (auto c : t.counts) zero = zero && c == 0;
-        for (auto ph : t.lfoPhase) zero = zero && ph == 0.0f;
-        tl.check (zero, "3.2 / 3.3 fields not zero / NaN");
-        bool live = false;
-        for (auto v : t.sources) live = live || v != 0.0f;
-        tl.check (live, "liveness: every source reads 0 after 200 blocks");
-        row (ok && tl.bad == 0, "TL31 readTelemetry true; sources / pitch / modNorm == engine; 3.2 / 3.3 fields zero / NaN",
-             tl.detail (11 + 5 + routed) + "  pitch " + juce::String (t.pitchMidi, 2) + ", LFO1 " + juce::String (t.sources[0], 3)
-             + ", macro2 " + juce::String (t.sources[8], 3));
-    }
+    // TL31 → TL32 (PLAN-3.2 P120, RESEARCH-3.2 R126): the telemetry row lives in
+    // engine_gates_32.h now — the 3.2 fields are live.
 }

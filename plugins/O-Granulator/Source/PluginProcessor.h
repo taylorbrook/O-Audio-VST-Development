@@ -161,9 +161,10 @@ public:
     // ── Live data for the editor (Stage 3; PULLED by the page at ~30 Hz) ────
     /** Every field the page can read (v2-integration-checklist §2). Phase 3.1
         fills scaleRev, sources (→ lfo / env), pitch and modNorm / modRouted;
-        3.2 (hasBuffer: wave ring + grain snapshot) and 3.3 (hasCounts,
-        hasMeters, hasOnset, hasLoopGain, lfoPhase) fill the rest. A key whose
-        has* flag is false is omitted from the payload (ScaleStateJson.h). */
+        3.2 fills hasBuffer (wave, grains, span, frozen, bands) and hasCounts
+        (counts, limit — D32) from ONE engine snapshot; 3.3 (hasMeters,
+        hasOnset, hasLoopGain, lfoPhase) fills the rest. A key whose has* flag
+        is false is omitted from the payload (ScaleStateJson.h). */
     struct Telemetry
     {
         static constexpr int kWaveBins  = 464;
@@ -182,8 +183,9 @@ public:
         int waveCount = 0;
         std::array<Grain, kMaxGrains> grains {};
         int grainCount = 0;
+        std::array<std::array<float, 2>, 4> bands {};  // { position, spray } fractions, modulated (D30)
 
-        bool hasCounts = false;                        // 3.3
+        bool hasCounts = false;                        // 3.2 (D32: pulled in from 3.3)
         std::array<int, 4> counts {};
         int limit = 0;
 
@@ -206,9 +208,14 @@ public:
         std::array<bool, kDests> modRouted {};
     };
 
-    /** Message thread, copy-only (relaxed atomics; no seqlock in 3.1, so it
-        always returns true). 3.2 adds the grain / wave seqlock and the
-        false-on-torn path. Never touches the pool or the scheduler. */
+    /** Message thread. The 3.1 fields are relaxed atomics; the 3.2 fields come
+        from the engine's triple buffer (PLAN-3.2 P117): read() always returns a
+        complete frame — the newest, or the previous one again — so there is no
+        torn read and no retry. Every 3.2 quantity is derived HERE from that one
+        snapshot (never from the live ring head, R121). Readers are serialised
+        by telemetryLock (a second editor, the harness); the audio thread never
+        takes it. Returns false only when the engine is not prepared (then
+        hasBuffer = hasCounts = false). Never touches the pool or the scheduler. */
     bool readTelemetry (Telemetry& t) const;
 
     /** The window figure: `numPoints` samples of the engine's own window
@@ -245,6 +252,7 @@ private:
     OuariconPresetManager presetManager { parameters, "O-Granulator" };
 
     mutable juce::SpinLock customLock;
+    mutable juce::SpinLock telemetryLock;   // 3.2: readers of the engine's triple buffer (never the audio thread)
     PitchCollections::Table customTable;
     juce::String customText, customName;
     std::atomic<uint32_t> customVersion { 0 };

@@ -110,16 +110,15 @@ namespace ogran::ui
         live (Telemetry::has*); an omitted key reads as "default" in the page,
         whose every read is guarded (RESEARCH-3.1 R106). 3.1 has sources, lfo,
         lfoPhase (zeros), env, pitch, modNorm and scaleRev; 3.2 / 3.3 set the
-        remaining flags. `torn` = readTelemetry() returned false: only scaleRev
-        goes out and the page keeps its previous frame. */
-    inline juce::var telemetryToVar (const GranulatorProcessor::Telemetry& t, bool torn = false)
+        remaining flags. There is no torn path (PLAN-3.2 P118): readTelemetry()
+        reads a triple buffer that never tears; when it returns false (engine
+        not prepared) the has* flags are false and those keys are omitted. */
+    inline juce::var telemetryToVar (const GranulatorProcessor::Telemetry& t)
     {
         auto* obj = new juce::DynamicObject();
         obj->setProperty ("scaleRev", (int) (t.scaleRev & 0x3fffffffu));
-        if (torn)
-            return juce::var (obj);
 
-        if (t.hasBuffer)   // 3.2: wave ring + grain snapshot
+        if (t.hasBuffer)   // 3.2: wave ring + grain snapshot + modulated bands (D30)
         {
             // (Telemetry::frozen is not sent: the page draws freeze from the
             //  `freeze` parameter itself — an unread key would only hide a typo.)
@@ -141,9 +140,15 @@ namespace ogran::ui
                                                      g.env, g.gain, g.lengthSec });
             }
             obj->setProperty ("grains", grains);
+
+            // [[position, spray] × 4] — the tick-modulated fractions (D30, R123)
+            juce::Array<juce::var> bands;
+            for (const auto& b : t.bands)
+                bands.add (juce::Array<juce::var> { b[0], b[1] });
+            obj->setProperty ("bands", bands);
         }
 
-        if (t.hasCounts)   // 3.3
+        if (t.hasCounts)   // 3.2 (D32)
         {
             obj->setProperty ("counts", juce::Array<juce::var> { t.counts[0], t.counts[1], t.counts[2], t.counts[3] });
             obj->setProperty ("limit", t.limit);

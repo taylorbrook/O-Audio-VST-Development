@@ -670,6 +670,51 @@ bool GranulatorProcessor::readTelemetry (Telemetry& t) const
         if (t.modRouted[(size_t) d])
             t.modNorm[(size_t) d] = engine.getDestTelemetry (d);
 
+    // ── 3.2 buffer strip (P117): one snapshot, every derivation from it ─────
+    if (! engine.isPrepared())
+        return false;
+
+    const juce::SpinLock::ScopedLockType sl (telemetryLock);
+    const ogran::UiSnapshot& snap = engine.readUiSnapshot();
+    if (! (snap.fs > 0.0))
+        return true;   // prepared, nothing published yet: has* stay false (the page draws the base knobs)
+
+    const double fs = snap.fs;
+    t.hasBuffer = true;
+    t.frozen    = snap.frozen;
+    t.spanSec   = (float) (snap.spanSamples / fs);
+    for (int s = 0; s < 4; ++s)
+        t.bands[(size_t) s] = { snap.bands[s][0], snap.bands[s][1] };
+
+    // Wave: absolute-cell bins over [head − span, head), D31 dB map (R121, R122).
+    ogran::binWave (engine.getPeakRing(), snap.head, snap.spanSamples, t.wave.data(), Telemetry::kWaveBins);
+    t.waveCount = Telemetry::kWaveBins;
+
+    // Grains (R119): delay in the wave's time domain (the SNAPSHOT head).
+    constexpr double kPanScale = 4.0 / juce::MathConstants<double>::pi;
+    const int n = juce::jlimit (0, Telemetry::kMaxGrains, (int) snap.count);
+    for (int i = 0; i < n; ++i)
+    {
+        const auto& u = snap.grains[i];
+        auto& g = t.grains[(size_t) i];
+        const int s = juce::jlimit (1, 4, (int) u.stream1);
+        g.stream    = u.stream1;
+        g.delaySec  = (float) std::max (0.0, ((double) snap.head - u.readAbs) / fs);
+        g.pitchSt   = (float) (12.0 * std::log2 (u.rate));
+        // panGains inverse: θ = (p + 1)·π/4. Equal gains (spread 0 / centre) are
+        // exactly 0 — atan2 (1, 1)·4/π − 1 leaves an ulp residue otherwise.
+        const double grainPan = juce::exactlyEqual (u.gainL, u.gainR) ? 0.0
+                              : kPanScale * std::atan2 ((double) u.gainR, (double) u.gainL) - 1.0;
+        g.pan       = (float) juce::jlimit (-1.0, 1.0, grainPan + (double) snap.streamPan[s - 1]);
+        g.gain      = (float) std::sqrt (((double) u.gainL * u.gainL + (double) u.gainR * u.gainR) * 0.5);
+        g.env       = engine.grainWindow (u.windowStep, u.tiltT, u.tiltA, u.tiltB, u.phase) * u.killGain;
+        g.lengthSec = (float) ((double) u.lenSamples / fs);
+        if (! u.killing && u.stream1 >= 1 && u.stream1 <= 4)
+            ++t.counts[(size_t) (u.stream1 - 1)];
+    }
+    t.grainCount = n;
+    t.hasCounts  = true;
+    t.limit      = snap.limit;
     return true;
 }
 

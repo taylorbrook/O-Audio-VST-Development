@@ -398,13 +398,13 @@ juce::var GranulatorEditor::buildScaleState() const
 
 juce::var GranulatorEditor::buildTelemetry() const
 {
-    // Copy-only. A torn read (3.2+: a block landed mid-copy every retry) sends
-    // scaleRev alone; the page keeps drawing its previous frame.
+    // Copy-only, always the full var (PLAN-3.2 P118). The engine's triple
+    // buffer never tears, so there is no torn branch; readTelemetry() is false
+    // only before prepare, and then its has* flags are false and telemetryToVar
+    // omits those keys (the page falls back to the base knobs).
     GranulatorProcessor::Telemetry t;
-    const bool ok = processorRef.readTelemetry (t);
-    if (! ok)
-        t.scaleRev = processorRef.getScaleStateRevision();
-    return ogran::ui::telemetryToVar (t, ! ok);
+    processorRef.readTelemetry (t);
+    return ogran::ui::telemetryToVar (t);
 }
 
 //==============================================================================

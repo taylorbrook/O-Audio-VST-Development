@@ -40,6 +40,7 @@
 #include "Spawner.h"
 #include "StreamScheduler.h"
 #include "TempoTracker.h"
+#include "UiTelemetry.h"      // 3.2 buffer strip: triple buffer, peak ring (P114)
 #include "WindowMorphBank.h"
 
 // ============================================================================
@@ -162,6 +163,25 @@ namespace ogran
                 out[i] = WindowMorphBank::read (tab, tilt, n > 1 ? static_cast<double> (i) / static_cast<double> (n - 1) : 0.0);
         }
 
+        //======================================================================
+        // Stage 3 / 3.2 buffer strip (PLAN-3.2 P114–P116). The audio thread
+        // only COPIES into these (peak per ring cell after the capture write;
+        // a <= 60 Hz POD snapshot at the end of process()). Nothing here is
+        // read by the DSP. Readers: one at a time (the processor's SpinLock).
+        /** Reader: the newest complete snapshot (or the previous one again). */
+        const UiSnapshot& readUiSnapshot() const noexcept     { return uiSnap.read(); }
+        const PeakRing&   getPeakRing() const noexcept        { return peaks; }
+        /** Message thread: the grain's window value at `phase` — the exact
+            renderSegment branch (closed-form Hann at step 0 / tilt 0.5, else the
+            immutable bank). */
+        float grainWindow (int step, float tiltT, float tiltA, float tiltB, double phase) const noexcept
+        {
+            if (step == 0 && juce::exactlyEqual (tiltT, 0.5f))
+                return hannWindow (phase);
+            const WindowMorphBank::Tilt tilt { tiltT, tiltA, tiltB };
+            return WindowMorphBank::read (bank.table (std::clamp (step, 0, WindowMorphBank::kSteps - 1)), tilt, phase);
+        }
+
        #if OGRAN_TEST_HOOKS
         //======================================================================
         // Test hooks — compiled into the render-harness target only.
@@ -271,6 +291,7 @@ namespace ogran
         std::array<bool,  kPoolLive + kPoolFade> engageActive {};
         std::int64_t engageW0 = -1;
         const Ring& getRingForTest() const noexcept           { return ring; }
+        const Spawner& getSpawnerForTest() const noexcept     { return spawner; }   // 3.2 CN1 census (pending kills)
         /** 2.6 census (P82): the z^-32 feedback return and the reverb (its privates via the harness idiom). */
         const float (&getFbDelayForTest() const noexcept)[2][kFbDelay] { return fbDelay; }
         const ReverbUnit& getReverbForTest() const noexcept    { return reverb; }
@@ -499,6 +520,7 @@ namespace ogran
         void mixOut (const float* dryL, const float* dryR, float* outL, float* outR,
                      int numOut, int len, int cellPos) noexcept;
         void snapRampsToParams() noexcept;
+        void publishUi() noexcept;                          // 3.2 P116: the <= 60 Hz snapshot (copy only)
 
         // 2.2 grid helpers (audio thread except where noted).
         void copyCustomTable (bool blocking) noexcept;     // P11 (blocking only in prepare)
@@ -692,6 +714,14 @@ namespace ogran
         std::array<std::atomic<float>, kModDests>     destTelemetry {};
         std::array<std::atomic<float>, kSrcTelemetry> srcTelemetry {};
         std::atomic<float> pitchNoteTel { 0.0f }, pitchConfTel { 0.0f };   // 2.5b (P68)
+        // 3.2 buffer strip (P114–P116): written on the audio thread, never read by DSP.
+        mutable TripleBuffer<UiSnapshot> uiSnap;       // 3 × ≈ 8.2 KB, members (no heap)
+        PeakRing      peaks;                           // 2^18 entries, constructor-allocated (R120)
+        float         panNow[kMaxStreams] {};          // the cell's (modulated) bus pan — display only
+        std::uint64_t uiSeq = 0;
+        std::int64_t  lastPublish = 0;
+        std::int64_t  publishInterval = 800;           // round (fs / 60)
+        bool          publishFirst = true;
 
        #if OGRAN_TEST_HOOKS
         // ── 2.3 test-only state (P28) ───────────────────────────────────────
