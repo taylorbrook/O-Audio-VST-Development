@@ -1030,7 +1030,7 @@ namespace { namespace eg25y
     {
         std::printf ("\n-- Z6. QUAL-02 analysis stress (60 s x 3 rates) and tap injection\n");
         const double rates[3] { 48000.0, 44100.0, 192000.0 };
-        struct ZR { bool finite = true; int sub = 0, scans = 0; double peak = 0.0, wetPeak = 0.0; long long scrubs = 0, nanKills = 0, envScrubs = 0, aScrubs = 0, events = 0, hits = 0; };
+        struct ZR { bool finite = true; int sub = 0, scans = 0; double peak = 0.0, wetPeak = 0.0; long long scrubs = 0, nanKills = 0, envScrubs = 0, aScrubs = 0, events = 0, hits = 0, engages = 0; };
         std::vector<ZR> rs (3);
         std::vector<Job> jobs; std::vector<double> cost;
         for (int i = 0; i < 3; ++i)
@@ -1106,7 +1106,7 @@ namespace { namespace eg25y
             }
             const auto& d = o.eng().diag;
             r.scrubs = d.fbScrubs; r.nanKills = d.nanKills; r.envScrubs = d.envScrubs; r.aScrubs = d.analysisScrubs;
-            r.wetPeak = d.maxWetPeak; r.events = d.onsetEvents; r.hits = d.followHits;
+            r.wetPeak = d.maxWetPeak; r.events = d.onsetEvents; r.hits = d.followHits; r.engages = d.freezeEngages;
         });
         bool ok = true;
         juce::String det;
@@ -1115,11 +1115,12 @@ namespace { namespace eg25y
             const auto& r = rs[(size_t) i];
             const double outBound = std::sqrt (1.0 + (double) ogran::kKneeA * ogran::kKneeA) * (double) ogran::dbToGain (12.0f) * (1.0 + 1e-6);
             ok = ok && r.finite && r.sub == 0 && r.wetPeak <= (double) ogran::kKneeA && r.peak <= outBound && r.scrubs == 0 && r.nanKills == 0
-                 && r.envScrubs == 0 && r.aScrubs == 0 && r.events > 100 && r.hits > 100 && r.scans >= 3;
-            det << juce::String::formatted ("%g k: wet %.4f out %.4f sub %d (%d scans) scrubs %lld/%lld/%lld/%lld events %lld hits %lld; ", rates[i] / 1000.0, r.wetPeak, r.peak,
-                                            r.sub, r.scans, r.scrubs, r.nanKills, r.envScrubs, r.aScrubs, r.events, r.hits);
+                 && r.envScrubs == 0 && r.aScrubs == 0 && r.events > 100 && r.hits > 100 && r.scans >= 3
+                 && r.engages >= 3;   // PLAN-4 P149: the freeze arm is live (renderPool honours events)
+            det << juce::String::formatted ("%g k: wet %.4f out %.4f sub %d (%d scans) scrubs %lld/%lld/%lld/%lld events %lld hits %lld engages %lld; ", rates[i] / 1000.0, r.wetPeak, r.peak,
+                                            r.sub, r.scans, r.scrubs, r.nanKills, r.envScrubs, r.aScrubs, r.events, r.hits, r.engages);
         }
-        row (ok, "Z6a 60 s @ 48/44.1/192 k, triggers -60 dB on 0 dBFS noise + bursts, follow +-24 / rand 24, Pitch / Onset +-100 %: finite, no subnormal, bounds, 0 scrubs", det);
+        row (ok, "Z6a 60 s @ 48/44.1/192 k, triggers -60 dB on 0 dBFS noise + bursts, follow +-24 / rand 24, Pitch / Onset +-100 %: finite, no subnormal, bounds, 0 scrubs, freeze engages >= 3", det);
 
         // Z6b — NaN, +Inf, 1e30 at the tap: isolated.
         {

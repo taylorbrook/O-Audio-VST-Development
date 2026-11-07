@@ -50,10 +50,31 @@ namespace { namespace eg26b
         return (double) ts.tv_sec + 1e-9 * (double) ts.tv_nsec;
     }
 
+    /** PLAN-4 P150 (D47 c): fixed-work machine-speed calibration — a dependent
+        FMA chain (each step needs the last; ~50 ms on the 3.3 machine), sunk
+        into a volatile so it cannot be folded. Returns ns per step. A core that
+        is uniformly slowed (thermal, E-core) shows up here, where the duty
+        witness cannot see it. */
+    inline double calibrateNs()
+    {
+        constexpr int kSteps = 40'000'000;
+        static volatile double sink = 0.0;
+        double x = 1.0 + 1e-9 * (double) (sink != 0.0 ? 1 : 0);
+        const auto t0 = std::chrono::steady_clock::now();
+        for (int i = 0; i < kSteps; ++i)
+            x = std::fma (x, 0.999999999, 1.0e-9);
+        const double s = std::chrono::duration<double> (std::chrono::steady_clock::now() - t0).count();
+        sink = x;
+        return s * 1e9 / (double) kSteps;
+    }
+    inline double& sessionCalNs() { static double v = 0.0; return v; }   // the session's first calibration
+
     struct CpuRes
     {
         std::vector<double> pct, duty;      // valid runs only
         int contended = 0;
+        int slowed = 0;                     // P150: runs whose calibration ratio vs the session's first > 1.10
+        double calNs = 0.0, calMaxRatio = 0.0;
         std::vector<double> lastUs;         // per-block µs of the last valid run
         long long events = 0, hops = 0, confident = 0, steals = 0;
         long long maxAlive = 0; int aliveWarm = 0;
@@ -110,13 +131,20 @@ namespace { namespace eg26b
             auto& e = p->getEngineForTest();
             for (int s = 0; s < ogran::kPoolLive + ogran::kPoolFade; ++s) res.aliveWarm += e.getPool().isActive (s) ? 1 : 0;
             const auto d0 = e.diag;
+            if (sessionCalNs() <= 0.0) sessionCalNs() = calibrateNs();
+            res.calNs = sessionCalNs();
             for (int r = 0; (int) res.pct.size() < runs && r < runs + extra; ++r)
             {
                 std::vector<double> us;
+                const double cb = calibrateNs();
                 runFor (runS, w, c, &us);
+                const double ca = calibrateNs();
                 res.secs += runS;
+                const double ratio = std::max (cb, ca) / sessionCalNs();
+                res.calMaxRatio = std::max (res.calMaxRatio, ratio);
                 const double duty = w > 0.0 ? c / w : 0.0;
                 if (duty < 0.9) { ++res.contended; continue; }
+                if (ratio > 1.10) { ++res.contended; ++res.slowed; continue; }   // P150: a slowed core counts as contended
                 res.pct.push_back (w / runS * 100.0);
                 res.duty.push_back (duty);
                 res.lastUs = std::move (us);
@@ -140,9 +168,10 @@ namespace { namespace eg26b
         std::sort (us.begin(), us.end());
         const double mn = *std::min_element (r.pct.begin(), r.pct.end()), mx = *std::max_element (r.pct.begin(), r.pct.end());
         const double dmin = *std::min_element (r.duty.begin(), r.duty.end());
-        return juce::String::formatted ("median %.2f %% (min %.2f max %.2f spread %.2f, N %d valid, %d contended, duty >= %.3f); last run per block p50 %.1f p99 %.1f max %.1f us",
-                                        r.median(), mn, mx, mx - mn, (int) r.pct.size(), r.contended, dmin,
-                                        us.empty() ? 0.0 : us[us.size() / 2], us.empty() ? 0.0 : us[(size_t) (0.99 * (double) us.size())], us.empty() ? 0.0 : us.back());
+        return juce::String::formatted ("median %.2f %% (min %.2f max %.2f spread %.2f, N %d valid, %d contended (%d slowed), duty >= %.3f); last run per block p50 %.1f p99 %.1f max %.1f us; cal %.3f ns/op, max ratio %.3f",
+                                        r.median(), mn, mx, mx - mn, (int) r.pct.size(), r.contended, r.slowed, dmin,
+                                        us.empty() ? 0.0 : us[us.size() / 2], us.empty() ? 0.0 : us[(size_t) (0.99 * (double) us.size())], us.empty() ? 0.0 : us.back(),
+                                        r.calNs, r.calMaxRatio);
     }
 
     void cpuRows()

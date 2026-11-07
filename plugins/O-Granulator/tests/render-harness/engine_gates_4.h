@@ -457,9 +457,43 @@ namespace { namespace eg4
                  juce::String::formatted ("engages %lld, %d diffs", (long long) d.freezeEngages, eg::diff (a, b).count));
         }
     }
+    //==========================================================================
+    // US1 — D47 (e): prepare() publishes a cleared UI snapshot (P148)
+    //==========================================================================
+    void usRows()
+    {
+        std::printf ("\n-- US. prepare() clears the UI snapshot (D47 e)\n");
+        auto probe = [] (bool noClear, int& count, bool& frozen)
+        {
+            auto p = make();
+            eg::setAll (*p, eg22::base ({ 1, 2 }) + P { { "s1_density", 50.0f }, { "s2_density", 50.0f }, { "s1_size", 300.0f }, { "s2_size", 300.0f } });
+            p->getEngineForTest().hooks.noUiSnapClear = noClear;
+            p->prepareToPlay (kFs, 512);
+            juce::AudioBuffer<float> b (2, 512);
+            juce::MidiBuffer m;
+            for (juce::int64 pos = 0; pos < (juce::int64) (2.0 * kFs); pos += 512)
+            {
+                if (pos == (juce::int64) (1.0 * kFs) / 512 * 512) eg::setP (*p, "freeze", 1.0f);
+                for (int c = 0; c < 2; ++c)
+                    for (int i = 0; i < 512; ++i) b.setSample (c, i, eg::hashNoise (pos + i, c, 0.5f));
+                p->processBlock (b, m);
+            }
+            p->prepareToPlay (kFs, 512);
+            const auto& snap = p->getEngineForTest().readUiSnapshot();
+            count = snap.count; frozen = snap.frozen;
+        };
+        int c0 = 0, c1 = 0; bool f0 = true, f1 = false;
+        probe (false, c0, f0);
+        probe (true, c1, f1);
+        row (c0 == 0 && ! f0, "US1 busy 2 s (freeze on at 1 s) -> prepare -> the first readUiSnapshot(): 0 grains, not frozen",
+             juce::String::formatted ("%d grains, frozen %d", c0, (int) f0));
+        row (c1 > 0, "US1n control: noUiSnapClear, the first read after prepare still shows the old frame",
+             juce::String::formatted ("%d grains, frozen %d", c1, (int) f1));
+    }
 } }
 
 static void engineRows4()
 {
     eg4::agRows();
+    eg4::usRows();
 }

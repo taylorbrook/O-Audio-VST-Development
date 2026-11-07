@@ -139,6 +139,19 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     loopAgcTel.store (1.0f, std::memory_order_relaxed);
     frozenTel.store (false, std::memory_order_relaxed);
 
+    // Stage 4 (D47 e, PLAN-4 P148): publish a cleared UI snapshot, so the first
+    // read after prepare never shows the previous session's grains / frozen
+    // state. Through the normal write + publish path (the reader may be live;
+    // JUCE never runs prepareToPlay concurrently with processBlock, so this is
+    // still the single writer). The DSP never reads uiSnap: audio-neutral.
+   #if OGRAN_TEST_HOOKS
+    if (! hooks.noUiSnapClear)
+   #endif
+    {
+        uiSnap.writeBuffer() = UiSnapshot {};
+        uiSnap.publish();
+    }
+
    #if OGRAN_TEST_HOOKS
     diag.reset();
     armGuards();
@@ -465,6 +478,9 @@ void Engine::process (const float* const* in, int numIn, float* const* out, int 
 
         // 2.5a envelope follower on the conditioned input (post input_gain,
         // pre-ring; runs while frozen). Never touches the audio path.
+       #if OGRAN_TEST_HOOKS
+        env.testPinOff = hooks.envPinOff;
+       #endif
         env.process (inL + done, inR + done, len, cellPos, [&inGain] (int c) noexcept { return inGain.value (c); });
        #if OGRAN_TEST_HOOKS
         if (hooks.injectEnvNanAt >= 0 && absCount + len > hooks.injectEnvNanAt)

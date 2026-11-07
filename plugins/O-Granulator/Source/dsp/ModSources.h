@@ -259,7 +259,14 @@ namespace ogran
             for (int i = 0; i < n; ++i)
             {
                 const float s = 0.5f * (inL[i] + inR[i]) * gainAt (cellPos + i);
-                const float x = std::abs (s * g);
+                float x = std::abs (s * g);
+                // Stage 4 (D47 a, PLAN-4 P147): the R96 predicate — a non-finite or
+                // absurd (> +80 dBFS) sample contributes 0, as at the ring write and
+                // the analysis tap. Exactly a no-op for |s·g| <= kAnalysisTapMax.
+               #if OGRAN_TEST_HOOKS
+                if (! testPinOff)
+               #endif
+                if (! (x <= kAnalysisTapMax)) x = 0.0f;
                 e += (x > e ? aA : aR) * (x - e);
             }
         }
@@ -285,6 +292,7 @@ namespace ogran
         float releaseCoeff() const noexcept { return aR; }
        #if OGRAN_TEST_HOOKS
         void injectForTest (float v) noexcept { e = v; }
+        bool testPinOff = false;   // Z7h3n (PLAN-4 P147): no kAnalysisTapMax predicate at the input
        #endif
 
     private:

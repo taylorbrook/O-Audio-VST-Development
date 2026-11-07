@@ -373,13 +373,15 @@ namespace { namespace eg26
             if (std::memcmp (&a.L[i], &b.L[i], 4) != 0 || std::memcmp (&a.R[i], &b.R[i], 4) != 0) ++n;
         return n;
     }
-    inline void envPinCounter (Job& j, int* pinned)
+    inline void envPinCounter (Job& j, int* pinned, std::vector<float>* trace = nullptr)
     {
         auto prev = j.after;
-        j.after = [prev, pinned] (Proc& p, juce::int64 pos)
+        j.after = [prev, pinned, trace] (Proc& p, juce::int64 pos)
         {
             if (prev) prev (p, pos);
-            if (p.getEngineForTest().getSources().v[ogran::ModSrc::Env] >= 0.999f) ++*pinned;
+            const float v = p.getEngineForTest().getSources().v[ogran::ModSrc::Env];
+            if (v >= 0.999f) ++*pinned;
+            if (trace != nullptr) trace->push_back (v);
         };
     }
 
@@ -393,11 +395,14 @@ namespace { namespace eg26
         Tally tv[3];
         juce::String envInfo;
         std::vector<int> pins;
+        std::vector<std::vector<float>> envTr;
+        Tally tPin;   // PLAN-4 P147: Z7h3 is a row (pinned cells == reference; L+R / mono Env trace bitwise == reference)
         for (double fs : rates)
         {
             const juce::int64 at = (juce::int64) fs + 5;
             std::vector<Job> jobs;
             pins.assign (24, 0);
+            envTr.assign (24, {});
             for (int m = 0; m < 3; ++m)
                 for (int v = -1; v < 3; ++v)   // −1 = the reference (the sample(s) set to 0)
                 {
@@ -406,7 +411,7 @@ namespace { namespace eg26
                     j.inCh = m == 2 ? 1 : 2;
                     j.params = z7hBase();
                     j.stim = injected (sine220 (fs), { { at, m == 0 ? 1 : 3, v < 0 ? 0.0f : vals[v] } });
-                    envPinCounter (j, &pins[(size_t) jobs.size()]);
+                    envPinCounter (j, &pins[(size_t) jobs.size()], &envTr[(size_t) jobs.size()]);
                     jobs.push_back (j);
                 }
             auto o = eg25::renderAll (jobs);
@@ -423,8 +428,15 @@ namespace { namespace eg26
                     tv[v].check (r.finiteAfter && dd == 0 && nf == 0 && r.hostScrubs == want && r.wetScrubs == 0 && r.fbScrubs == 0 && r.nanKills == 0,
                                  juce::String::formatted ("%g k %s: firstBad %lld, %d diffs after, census nonfinite %lld, host %lld (want %d) wet %lld fb %lld nanKills %lld",
                                                           fs / 1000.0, mnm[m], (long long) r.firstBad, dd, nf, r.hostScrubs, want, r.wetScrubs, r.fbScrubs, r.nanKills));
-                    if (v == 2 && m == 0)
-                        envInfo << juce::String::formatted ("%g k: %d vs %d cells; ", fs / 1000.0, pins[k], pins[(size_t) (m * 4)]);
+                    if (v == 2)
+                    {
+                        const size_t rf = (size_t) (m * 4);
+                        const bool same = m == 0 || envTr[k] == envTr[rf];   // L-only: the pin drops R's half of that one sample too
+                        tPin.check (pins[k] == pins[rf] && same,
+                                    juce::String::formatted ("%g k %s: %d vs %d cells, trace %s", fs / 1000.0, mnm[m], pins[k], pins[rf], same ? "==" : "differs"));
+                        if (m == 0)
+                            envInfo << juce::String::formatted ("%g k: %d vs %d cells; ", fs / 1000.0, pins[k], pins[rf]);
+                    }
                 }
             }
         }
@@ -432,7 +444,20 @@ namespace { namespace eg26
             row (tv[v].bad == 0, juce::String ("Z7h") + juce::String (v + 1) + " host " + vnm[v]
                                      + " at fs + 5 (L / L+R / mono, 4 rates): finite after, bitwise == zero-sample ref after, census nonfinite 0, hostScrubs exact",
                  tv[v].detail (12));
-        info ("Z7h3 Env source pinned at >= 0.999 (blocks of 128) after a 1e30 host sample vs the zero-sample reference (P81, decision at verify): " + envInfo.trim());
+        row (tPin.bad == 0, "Z7h3e Env source after a 1e30 host sample: pinned (>= 0.999) cells == zero-sample ref; L+R / mono Env trace bitwise (4 rates)",
+             tPin.bad ? tPin.detail (12) : envInfo.trim());
+        // Z7h3n — the PLAN-4 P147 control: without the env-input predicate the same 1e30 sample pins the Env source.
+        {
+            Job j;
+            j.fs = 48000.0; j.len = (juce::int64) (12.0 * 48000.0); j.block = 128; j.prepBlock = 128;
+            j.params = z7hBase();
+            j.stim = injected (sine220 (48000.0), { { 48005, 3, 1.0e30f } });
+            j.pre = [] (Proc& p) { p.getEngineForTest().hooks.envPinOff = true; };
+            int pinned = 0;
+            envPinCounter (j, &pinned);
+            eg25::renderAll ({ j });
+            row (pinned > 0, "Z7h3n control: envPinOff, the same 1e30 sample (L+R, 48 k) pins the Env source", juce::String::formatted ("%d cells >= 0.999", pinned));
+        }
 
         // Z7h4 — inside the release crossfade.
         {

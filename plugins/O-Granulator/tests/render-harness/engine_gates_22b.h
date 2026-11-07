@@ -29,6 +29,8 @@
           R11 >= 8), jitter 20 %, pitch 0, spread 0; warm-up 2 s, 10 s window.
           W2o old-vs-old control: a second seed set, ±0.5 dB on every cell not
           R11-variance-limited (noise ×3, sine c = 1); incoherent sine spread INFO
+          W2o RULE (PLAN-4 P151, D47 d): a seeded row that moves gets a WIDER
+          SEED SET, never a wider threshold.
       W2n c = 1, density 200: 2.1 law (harness reference: same render rescaled
           by (g21/g22)²) > +15 dB, 2.2 within ±1.5 dB
       W3  sub-floor: size 100 ms, density 1, step 64, skew −1: g_out == 1.0f,
@@ -254,6 +256,43 @@ namespace { namespace eg22b
     }
 
     //==========================================================================
+    // PLAN-4 P149 (D47 b): the event-carrying block loop — eg::render's event
+    // splits (events land on a shared boundary). Fixed block sizes only (the
+    // pool never sees block 0). Jobs WITHOUT events never come here: they keep
+    // eg22::runLoop, so their bytes are unchanged by construction.
+    void runLoopEvents (const Job& j, Out& o)
+    {
+        jassert (j.block > 0);
+        const int numCh = juce::jmax (j.inCh, j.outCh);
+        o.L.assign ((size_t) j.len, 0.0f);
+        o.R.assign ((size_t) j.len, 0.0f);
+        juce::AudioBuffer<float> blk (numCh, 8192);
+        juce::MidiBuffer midi;
+        std::vector<eg::Event> ev = j.events;
+        std::sort (ev.begin(), ev.end(), [] (const eg::Event& a, const eg::Event& b) { return a.at < b.at; });
+        size_t ei = 0;
+        juce::int64 pos = 0;
+        while (pos < j.len)
+        {
+            while (ei < ev.size() && ev[ei].at <= pos) ev[ei++].fn (*o.p);
+            juce::int64 n = juce::jmin ((juce::int64) j.block, j.len - pos);
+            if (ei < ev.size()) n = juce::jmin (n, ev[ei].at - pos);
+            const int ni = (int) n;
+            blk.setSize (numCh, ni, false, false, true);
+            for (int ch = 0; ch < numCh; ++ch)
+                for (int i = 0; i < ni; ++i)
+                    blk.setSample (ch, i, ch < j.inCh ? j.stim (pos + i, ch) : 0.0f);
+            o.p->processBlock (blk, midi);
+            const float* l0 = blk.getReadPointer (0);
+            const float* r0 = blk.getReadPointer (j.outCh > 1 ? 1 : 0);
+            std::copy (l0, l0 + ni, o.L.begin() + pos);
+            std::copy (r0, r0 + ni, o.R.begin() + pos);
+            pos += n;
+            if (j.after) j.after (*o.p, pos);
+        }
+    }
+
+    //==========================================================================
     // Streaming render pool: like eg22::renderBatch (processors built, consumed
     // and destroyed on THIS thread; only processBlock runs on workers), but a
     // bounded queue keeps every worker busy instead of waiting for the slowest
@@ -261,6 +300,12 @@ namespace { namespace eg22b
     void renderPool (const std::vector<Job>& jobs, const std::vector<double>& cost,
                      const std::function<void (size_t, Out&)>& consume)
     {
+        if (std::getenv ("OGRAN_POOL_AUDIT") != nullptr)   // PLAN-4 P149 call-site audit (one-off, never in the gate run)
+        {
+            size_t withEv = 0;
+            for (auto& j : jobs) withEv += j.events.empty() ? 0u : 1u;
+            std::printf ("  [AUDIT] renderPool: %zu jobs, %zu with events\n", jobs.size(), withEv);
+        }
         const size_t hw = juce::jmax (1u, std::thread::hardware_concurrency());
         std::vector<size_t> order (jobs.size());
         for (size_t i = 0; i < order.size(); ++i) order[i] = i;
@@ -283,7 +328,8 @@ namespace { namespace eg22b
                         if (todo.empty()) return;
                         item = std::move (todo.front()); todo.pop_front();
                     }
-                    eg22::runLoop (jobs[item.first], *item.second);
+                    if (jobs[item.first].events.empty()) eg22::runLoop (jobs[item.first], *item.second);
+                    else                                   runLoopEvents (jobs[item.first], *item.second);   // P149
                     { std::lock_guard<std::mutex> lk (m); done.push_back (std::move (item)); }
                     cvDone.notify_one();
                 }
@@ -293,7 +339,6 @@ namespace { namespace eg22b
         {
             while (next < jobs.size() && inFlight < 2 * hw)
             {
-                jassert (jobs[order[next]].events.empty());
                 auto o = std::make_unique<Out> (eg22::setupOut (jobs[order[next]]));
                 { std::lock_guard<std::mutex> lk (m); todo.emplace_back (order[next], std::move (o)); }
                 cvWork.notify_one();
