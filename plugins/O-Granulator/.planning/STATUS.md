@@ -1,8 +1,8 @@
 ---
 plugin: O-Granulator
 stage: 4
-status: stage_4_discuss_complete
-current_phase: discuss
+status: stage_4_research_complete
+current_phase: research
 current_gui_phase: 3.3
 current_dsp_phase: 2.6
 stage_0_status: ui_design_complete
@@ -15,7 +15,7 @@ complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_4_research
+next_action: stage_4_plan
 next_stage: 4
 ready_for_implementation: true
 blocked_on: null
@@ -31,6 +31,8 @@ contract_checksums:
 # O-Granulator Status
 
 ## Current Position
+
+**Stage 4 (Polish / Validation) research ✓ 2026-11-07** (stages/4-polish/RESEARCH-4.md R134–R156: D43 → option 3, AGC follower on d·|y| (ceiling tracks saturation; engages at a sat-invariant +1.86 dB loop excess; bitwise at sat 0; env ≤ 1 structural) gated AG1–AG5 + AG1n legacy control, AG4 pumping threshold signed at plan; presets = name-prefix categories (module has none), engineering-unit table → convertTo0to1, fixed seed per preset, gated build-tree via applyPresetData + one real-path row; state codec immune to stale CustomState (no setStateFromXml) but ST2 two-reopen kept; Windows via ci-tests.yml dispatch (needs push, Taylor-confirmed); D47 a/b/c/e designs). Next: plan.
 
 **Stage 4 (Polish / Validation) discuss ✓ 2026-11-07** (stages/4-polish/CONTEXT-4.md: D42 16 factory presets 4×ambient/harmoniser/rhythmic/feedback-cascade; D43 AGC/saturator restage + gate — only DSP change, re-baseline D after it; D44 public 1.0.0 via /publish after Stage 4, Windows via CI; D45 i18n gates only, strings stay reviewed:false; D46 macOS VST3-host pass besides Logic AU; D47 carried housekeeping all in — Env 1e30 pin, event-aware renderPool Z6a, C7 calibration, W2o rule, uiSnap reset in prepare; freeze A/B already closed at 2.4). Next: research.
 
