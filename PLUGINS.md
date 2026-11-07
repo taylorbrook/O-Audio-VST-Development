@@ -73,7 +73,7 @@ Ouaricon Plugins:
 | O-Tapestop | 📦 Installed | 1.7.3 | Audio Effect (Tapestop/Start + Scratch/Continuous Varispeed) | 2026-10-19 |
 | O-Emulator | 📦 Installed | 1.5.1 | Audio Effect (Retro Console Emulation) | 2026-10-19 |
 | O-Granulator | 🚧 Stage 3 | 0.1.0 | Audio Effect (Live-Input Granular Engine) | 2026-11-06 |
-| O-GranulatorInstrument | 💡 Ideated | — | Synth (Sample-Based Polyphonic Granular) | 2026-11-06 |
+| O-GranulatorInstrument | 🚧 Stage 0 | — | Synth (Sample-Based Polyphonic Granular) | 2026-11-07 |
 
 **For detailed plugin information (lifecycle timeline, known issues, parameters, etc.), see:**
 `plugins/[PluginName]/NOTES.md`
