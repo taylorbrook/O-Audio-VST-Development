@@ -3059,7 +3059,8 @@ canvas.scope { position: absolute; }
         const audible = (n) => toggleOn(`s${n}_enable`) && !toggleOn(`s${n}_mute`) && (!anySolo || toggleOn(`s${n}_solo`));
         for (let n = 1; n <= 4; n++) {
             const col = STREAM_COLORS[n - 1], y = laneTop + (n - 1) * 6.5;
-            const pos = scaled(`s${n}_position`) / 100, spray = scaled(`s${n}_spray`) / 100;
+            const bd = t && Array.isArray(t.bands) && Array.isArray(t.bands[n - 1]) ? t.bands[n - 1] : null;
+            const pos = bd ? Number(bd[0]) : scaled(`s${n}_position`) / 100, spray = bd ? Number(bd[1]) : scaled(`s${n}_spray`) / 100;
             const a = Math.max(0, pos - spray / 2), b = Math.min(1, pos + spray / 2);
             g.fillStyle = 'rgba(236,225,204,0.05)'; g.fillRect(L, y, Rr - L, 4);
             if (!toggleOn(`s${n}_enable`)) {

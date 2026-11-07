@@ -436,7 +436,9 @@ console.log('-- [12] telemetry keys');
     const unread = setDiff(emitted, read);
     check(emitted.size >= 20, `[12] telemetryToVar emits ${emitted.size} keys`);
     check(unread.length === 0, '[12] every key the editor can emit is read by the page' + show(unread));
-    check(/telemetryToVar \(t, ! ok\)/.test(editorCpp), '[12] the getTelemetry native uses the shared builder');
+    check(emitted.has('bands') && read.has('bands'), '[12] 3.2 D30: the C++ emits `bands` and the page reads it');
+    check(/ogran::ui::telemetryToVar \(t\);/.test(editorCpp) && !/telemetryToVar \([^)]*torn/.test(jsonH) && !/\btorn\b/.test(stripC(editorCpp)),
+        '[12] the getTelemetry native uses the shared builder; no torn path (PLAN-3.2 P118)');
     check(/ogran::ui::buildScaleState \(processorRef\)/.test(editorCpp) && /proc\.getCustomTable\(\)/.test(jsonH),
         '[12] getScaleState uses the shared builder; collection 31 via getCustomTable() (R109)');
 }
