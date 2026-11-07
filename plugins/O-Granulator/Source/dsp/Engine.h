@@ -288,6 +288,11 @@ namespace ogran
             bool   wetGuardOff  = false;   // Z7hn: no R96 wet-bus guard before the reverb
             bool   capNoConverge = false;  // GL3n: no over-cap convergence kill (the pre-2.6 Spawner::acquire)
             bool   deferFloorR   = false;  // Z7m9n: the pre-2.6 deferred-stop floor r·(headLead + 1) (no max (r, 1))
+
+            // ── 4 (PLAN-4 P144, P147, P148) ─────────────────────────────────
+            bool   agcLegacy     = false;  // AG1n / AG3 / AG5: the pre-D43 AGC follower (un-normalised peak)
+            bool   envPinOff     = false;  // Z7h3n: no kAnalysisTapMax predicate at the env follower input
+            bool   noUiSnapClear = false;  // US1n: prepare() leaves the last UI snapshot published
         };
 
         /** P56 trace ring (test builds): {absolute sample, value}. */

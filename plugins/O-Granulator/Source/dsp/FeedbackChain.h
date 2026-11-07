@@ -37,7 +37,7 @@
 //     x   = LP_tpt (x)                   fc ≤ 0.45 · fs
 //     x   = (1 − m)·x + m·AP4 (x)        m = fb_diffusion (AP4 always runs; m 0 → bitwise x)
 //     x   = tanh (d·x) / d               d = 1 + 7 · sat (D12)
-//     env = stereo-linked peak follower  1 ms attack / 400 ms release
+//     env = stereo-linked peak follower  on d·|x| (D43: ≤ 1); 1 ms attack / 400 ms release
 //     x  *= min (1, 0.7 / env)           env 0 → 0.7/0 = +inf → gain 1
 //     non-finite (xL + xR) → reset every state (diffuser lines included), x = 0
 //     store x + 0.0f                     (R36: canonical +0)
@@ -175,10 +175,20 @@ namespace ogran
             }
         }
 
-        /** Stereo-linked peak AGC. */
-        inline void stepAgc (float& xl, float& xr) noexcept
+        /** Stereo-linked peak AGC on the normalised saturator output; env <= 1
+            structurally (Stage 4 D43, PLAN-4 P144). The follower runs on
+            d·|y| = |tanh (d·x)|, so the 0.7 ceiling tracks the saturation knob:
+            the AGC engages at the same loop excess at every setting, and d == 1
+            (saturation 0) is bitwise the pre-D43 stage. `d` is the per-sample
+            value the saturator used on this sample. */
+        inline void stepAgc (float& xl, float& xr, float d) noexcept
         {
-            const float peak = std::max (std::abs (xl), std::abs (xr));
+           #if OGRAN_TEST_HOOKS
+            const float peak = testAgcLegacy ? std::max (std::abs (xl), std::abs (xr))          // the pre-D43 staging (AG1n)
+                                             : d * std::max (std::abs (xl), std::abs (xr));
+           #else
+            const float peak = d * std::max (std::abs (xl), std::abs (xr));
+           #endif
             env = peak > env ? agc.att * env + (1.0f - agc.att) * peak
                              : agc.rel * env + (1.0f - agc.rel) * peak;
             const float g = std::min (1.0f, kAgcCeil / env);
@@ -216,7 +226,7 @@ namespace ogran
                 const float d = satD.value (c);
                 xl = fbSat (xl, d);
                 xr = fbSat (xr, d);
-                stepAgc (xl, xr);
+                stepAgc (xl, xr, d);
                 stepScrub (xl, xr);
                #if OGRAN_TEST_HOOKS
                 if (i == testInjectAt && ! testInjectNan)
@@ -243,6 +253,7 @@ namespace ogran
        #if OGRAN_TEST_HOOKS
         int  testInjectAt  = -1;      // sample index inside the next process() call (−1 off)
         bool testInjectNan = true;    // true: NaN at the input; false: reset after the sample (reference)
+        bool testAgcLegacy = false;   // PLAN-4 P144 AG1n: follower on the un-normalised peak (pre-D43)
        #endif
     };
 } // namespace ogran

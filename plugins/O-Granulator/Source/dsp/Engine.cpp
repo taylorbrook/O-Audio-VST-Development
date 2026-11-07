@@ -542,6 +542,9 @@ void Engine::process (const float* const* in, int numIn, float* const* out, int 
             }
         }
        #endif
+       #if OGRAN_TEST_HOOKS
+        chain.testAgcLegacy = hooks.agcLegacy;
+       #endif
         chain.process (tap[0], tap[1], len, cellPos, useFbKnobMod ? fbKnobMod : fbKnobRamp,
                        useFbDiffMod ? fbDiffMod : fbDiffRamp, useFbSatMod ? fbSatDMod : fbSatDRamp);
        #if OGRAN_TEST_HOOKS

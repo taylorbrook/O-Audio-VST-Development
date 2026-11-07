@@ -431,7 +431,7 @@ namespace { namespace eg24
             for (int i = 0; i < (int) fs; ++i)
             {
                 float l = 1.0f, r = 1.0f;
-                c->stepAgc (l, r);
+                c->stepAgc (l, r, 1.0f);
                 if (cross63 < 0 && c->env >= (float) (1.0 - std::exp (-1.0))) cross63 = i + 1;
                 gainEnd = l;
             }
@@ -439,12 +439,12 @@ namespace { namespace eg24
             for (int i = 0; i < (int) (2.0 * fs); ++i)
             {
                 float l = 0.0f, r = 0.0f;
-                c->stepAgc (l, r);
+                c->stepAgc (l, r, 1.0f);
                 if (crossRel < 0 && c->env <= (float) std::exp (-1.0)) crossRel = i + 1;
             }
             auto z = std::make_unique<ogran::FeedbackChain>(); z->prepare (fs);
             float zl = 0.0f, zr = -0.0f;
-            z->stepAgc (zl, zr);
+            z->stepAgc (zl, zr, 1.0f);
             const bool zeroOk = std::isfinite (zl) && std::isfinite (zr) && zl == 0.0f && zr == 0.0f;
             const int attWant = (int) std::lround (ogran::kAgcAttackS * fs), relWant = (int) std::lround (ogran::kAgcReleaseS * fs);
             row (std::abs (gainEnd - 0.7f) <= 0.001f && std::abs (cross63 - attWant) <= 1 && std::abs (crossRel - relWant) <= relWant / 100 && zeroOk,
@@ -940,15 +940,14 @@ namespace { namespace eg24
                 r.env = o.eng().getChainForTest().env;
             });
             bool ok = true; juce::String det;
-            const float d = 1.0f + ogran::kSatSpan * 0.2f;   // fb_saturation default 20 %
             for (size_t i = 0; i < cs.size(); ++i)
             {
                 const auto& r = rs[i];
-                const bool good = r.finite && r.peak <= (double) A && subs[i] == 0 && r.env <= 0.7 + 1.0 / d;
+                const bool good = r.finite && r.peak <= (double) A && subs[i] == 0 && r.env <= 1.0 + 1.0e-6;   // PLAN-4 P145 AG6: env <= 1 (structural under D43; was 0.7 + 1/d)
                 ok = ok && good;
                 det << cs[i].name << juce::String::formatted (" pk %.3f env %.3f sub %d%s; ", r.peak, r.env, subs[i], good ? "" : " BAD");
             }
-            row (ok, "FB4 FX-gain corners (drive / LP res / HP res / crush 100 %) at fb 100 %, 20 s: peak <= A, finite, no subnormal, env <= 0.7 + 1/d", det);
+            row (ok, "FB4 FX-gain corners (drive / LP res / HP res / crush 100 %) at fb 100 %, 20 s: peak <= A, finite, no subnormal, env <= 1 + 1e-6", det);
         }
 
         // FB5 — tap composition: no pan, muted / un-soloed / disabled streams feed 0.
