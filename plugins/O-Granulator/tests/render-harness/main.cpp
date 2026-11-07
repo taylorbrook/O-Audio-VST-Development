@@ -57,6 +57,9 @@
 #include <vector>
 #include <complex>
 #include <limits>
+#include <cstdlib>
+#include <string>
+#include <unistd.h>   // execv (PLAN-4 P155 temp home re-exec)
 
 #if defined (__clang__)
  #pragma clang diagnostic ignored "-Wfloat-equal"
@@ -615,7 +618,8 @@ static int countChildren (const juce::XmlElement& x, const juce::String& tag)
 #include "engine_gates_31.h"  // Stage 3 / 3.1 sections PM, WC (PLAN-3.1 P104); TL31 → TL32 (3.2)
 #include "engine_gates_32.h"  // Stage 3 / 3.2 sections TB, WV, GD, CN, BD, M8, TL32, FB1 / PL1 (PLAN-3.2 P120)
 #include "engine_gates_33.h"  // Stage 3 / 3.3 sections UX1 (PLAN-3.3 P128, P133)
-#include "engine_gates_4.h"   // Stage 4 sections AG, US, PR, ST, LY (PLAN-4 P145, P148, P155–P157)
+#include "engine_gates_4.h"   // Stage 4 sections AG, US (PLAN-4 P145, P148)
+#include "engine_gates_4b.h"  // Stage 4 sections PR, ST, LY (PLAN-4 P155–P157)
 
 static void stateRows()
 {
@@ -870,6 +874,32 @@ static int dumpUiOverrides (const juce::File& out)
 //==============================================================================
 int main (int argc, char** argv)
 {
+    // PLAN-4 P155: the processor constructor writes the factory bank under
+    // ~/Library/O-Granulator/Presets. The harness never touches the real one.
+    // JUCE resolves the home directory with NSHomeDirectory(), which honours
+    // CFFIXED_USER_HOME only when it is set at launch: re-exec once with a
+    // per-run temp home, then verify before ANY processor exists.
+    if (std::getenv ("OGRAN_HARNESS_HOME") == nullptr)
+    {
+        const char* td = std::getenv ("TMPDIR");
+        std::string tmpl = std::string (td != nullptr ? td : "/tmp/") + "/ogran-harness-home-XXXXXX";
+        if (mkdtemp (tmpl.data()) == nullptr) { std::printf ("FATAL: mkdtemp failed\n"); return 3; }
+        setenv ("OGRAN_HARNESS_HOME", tmpl.c_str(), 1);
+        setenv ("CFFIXED_USER_HOME", tmpl.c_str(), 1);
+        setenv ("HOME", tmpl.c_str(), 1);
+        std::fflush (stdout);
+        execv (argv[0], argv);
+        std::printf ("FATAL: re-exec failed\n");
+        return 3;
+    }
+    const juce::File tmpHome (juce::String::fromUTF8 (std::getenv ("OGRAN_HARNESS_HOME")));
+    struct HomeCleanup { juce::File d; ~HomeCleanup() { d.deleteRecursively(); } } homeCleanup { tmpHome };
+    if (juce::File::getSpecialLocation (juce::File::userHomeDirectory) != tmpHome)
+    {
+        std::printf ("FATAL: home redirect did not take (%s) -- refusing to run\n",
+                     juce::File::getSpecialLocation (juce::File::userHomeDirectory).getFullPathName().toRawUTF8());
+        return 3;
+    }
     juce::ScopedJuceInitialiser_GUI init;
     for (int a = 1; a + 1 < argc; ++a)
         if (std::strcmp (argv[a], "--dump-ui-overrides") == 0)
@@ -899,6 +929,7 @@ int main (int argc, char** argv)
     if (argc > 1 && std::strcmp (argv[1], "--only4") == 0)
     {
         engineRows4();
+        engineRows4b();
         std::printf ("\n%d PASS, %d FAIL -- %s (4 sections only)\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
         return failures == 0 ? 0 : 1;
     }
@@ -975,6 +1006,7 @@ int main (int argc, char** argv)
     engineRows32();
     engineRows33();
     engineRows4();
+    engineRows4b();
     std::printf ("\n%d PASS, %d FAIL -- %s\n", passes, failures,
                  failures == 0 ? (gNoVerdict ? "NO VERDICT (C7 contended)" : "ALL PASS") : "FAILURES");
     return rc();

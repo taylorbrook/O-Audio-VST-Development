@@ -18,6 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include "PluginProcessor.h"
+#include "FactoryPresets.h"
 
 #if JUCE_WEB_BROWSER
  #include "PluginEditor.h"      // GranulatorEditor — plugin target only (consoles build JUCE_WEB_BROWSER=0)
@@ -185,6 +186,11 @@ GranulatorProcessor::GranulatorProcessor()
                                            [this] (const juce::var& v) { applyPresetCustomState (v); });
     presetManager.setExcludedParameters ({ "output_gain" });
     presetManager.setValidatedApply (true);
+
+    // Stage 4 (D42, PLAN-4 P153): the 16 factory presets, authored in
+    // engineering units (FactoryPresets.h). The module writes the bank only when
+    // its .factory-version sentinel differs from this build's version string.
+    presetManager.initializeFactoryPresets (ogran::factory::makeFactoryPresets (parameters));
 }
 
 //==============================================================================
@@ -472,6 +478,9 @@ namespace
 void GranulatorProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     auto state = parameters.copyState();
+   #if OGRAN_TEST_HOOKS
+    if (! testNoStateStrip)
+   #endif
     removeCustomChildren (state);   // never duplicate children restored into the live tree
 
     state.setProperty ("uiLanguage", languageCode (uiLanguage.load (std::memory_order_relaxed)), nullptr);
@@ -517,6 +526,9 @@ void GranulatorProcessor::setStateInformation (const void* data, int sizeInBytes
     const auto cs   = tree.getChildWithName (kCustomScale);
     const auto dm   = tree.getChildWithName (kDegreeMasks);
     const auto lang = tree.getProperty ("uiLanguage");
+   #if OGRAN_TEST_HOOKS
+    if (! testNoStateStrip)
+   #endif
     removeCustomChildren (tree);
     parameters.replaceState (tree);
 

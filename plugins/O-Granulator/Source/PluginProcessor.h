@@ -236,6 +236,8 @@ public:
    #if OGRAN_TEST_HOOKS
     /** Render-harness only: hooks (forceLevel0, disableFracQuant) and Diag. */
     ogran::Engine& getEngineForTest() noexcept { return engine; }
+    /** ST2n (PLAN-4 P156): the codec without removeCustomChildren on either leg. */
+    bool testNoStateStrip = false;
    #endif
 
 private:
