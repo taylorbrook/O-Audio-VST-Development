@@ -1,16 +1,18 @@
 ---
 plugin: O-GranulatorInstrument
-stage: 0
-status: complete
+stage: 1
+status: stage_1_discuss_complete
+current_phase: 1-foundation
+gsd_phase: discuss_complete
 last_updated: 2026-11-07
 complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: proceed_to_stage_1
+next_action: stage_1_research
 next_stage: 1
 ready_for_implementation: true
-blocked_on: Phase 2.1 waits for O-Granulator 3.3 to close (fork pin); Stage 1 is unblocked
+blocked_on: none (O-Granulator 3.3 closed 1455e501; fork pin confirmed at 2.1 discuss)
 latest_mockup_version: 1
 mockup_finalized: true
 finalized_version: 1
@@ -35,8 +37,8 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 0 of 4 (Research & Planning) — complete
-Status: Research & Planning complete. Mockup v1 finalized, implementation scaffolding generated, parameter-spec.md LOCKED (261 params). Ready for Stage 1.
+Stage: 1 of 4 (Foundation) — discuss complete
+Status: Stage 1 CONTEXT.md written (D8 Generic editor + WebView plumbing; D9 sidechain bus on both formats, VST3-only drop only on gate failure; D10 polyphony keeps mockup wording). Next: Stage 1 research.
 Progress: [##..................] 10%
 
 ## Completed So Far
@@ -60,15 +62,16 @@ Progress: [##..................] 10%
 ## Next Steps
 
 1. ✓ UI mockup v1 finalized 2026-11-07 (Phase 5.5); Phase B scaffolding generated: `v1-ui.html`, `v1-i18n.js`, `v1-PluginEditor.{h,cpp}` (261 relays, 34 native fns, sidechain-aware Record-in telemetry), `v1-CMakeLists.txt`, `v1-integration-checklist.md`, `v1-i18n-states.json`. UI gates pre-verified on a scratch tree (check-i18n / fr / zh / check-ui-labels / boot-all-uis all clean).
-2. ✓ `parameter-spec.md` LOCKED (Stage 1 contract): 261 params, Design Sync S1–S11 applied, 126-entry destination order and 18-entry source order frozen (append-only). One description-level draft conflict recorded in its "Draft vs mockup" section (`polyphony` steal wording) — confirm at Stage 1 planning.
-3. Stage 1: Foundation (`/implement O-GranulatorInstrument`) — builds from `parameter-spec.md`, lands `v1-CMakeLists.txt`.
-4. Before Phase 2.1: confirm O-Granulator 3.3 has closed, then fork the leaves pinned to that commit.
+2. ✓ `parameter-spec.md` LOCKED (Stage 1 contract): 261 params, Design Sync S1–S11 applied, 126-entry destination order and 18-entry source order frozen (append-only). One description-level draft conflict recorded in its "Draft vs mockup" section (`polyphony` steal wording) — resolved Stage 1 discuss D10: keep mockup wording.
+3. Stage 1: Foundation — discuss ✓ (`stages/1-foundation/CONTEXT.md`); next `/plugin-research O-GranulatorInstrument 1-foundation` — builds from `parameter-spec.md`, lands `v1-CMakeLists.txt`.
+4. O-Granulator 3.3 closed (1455e501 verify, 00e462b8 last Source change). At Phase 2.1: confirm the pin SHA, then fork the leaves pinned to that commit.
 
 ## Context to Preserve
 
 - Architecture: `plugins/O-GranulatorInstrument/.planning/research/ARCHITECTURE.md`
 - Roadmap: `plugins/O-GranulatorInstrument/.planning/ROADMAP.md`
 - Stage 0 context: `plugins/O-GranulatorInstrument/.planning/stages/0-ideation/CONTEXT.md`
+- Stage 1 context: `plugins/O-GranulatorInstrument/.planning/stages/1-foundation/CONTEXT.md`
 - Complexity 5.0 (raw 27.0), tier 6, phased
 - Parent: O-Granulator @ 3043b72a (fork pin moves to the 3.3-closing commit)
 - Design Sync changes (no param IDs added or removed; still 261):
