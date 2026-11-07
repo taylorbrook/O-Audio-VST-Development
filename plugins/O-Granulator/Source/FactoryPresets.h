@@ -233,7 +233,7 @@ namespace ogran::factory
             // Cascade (feedback ≥ 70 %)
             //==================================================================
             { "Cascade \xc2\xb7 Infinite",
-              "Near-unity feedback through a gentle diffuser: an endless, slowly evolving tail held by the loop AGC.",
+              "Near-unity feedback through a gentle diffuser: an endless, slowly evolving tail.",
               0x2637485960A1B2C3ll,
               { { "mix", 60.0f },
                 { "s1_density", 15.0f }, { "s1_size", 400.0f }, { "s1_spray", 40.0f }, { "s1_stereo_spread", 60.0f },
