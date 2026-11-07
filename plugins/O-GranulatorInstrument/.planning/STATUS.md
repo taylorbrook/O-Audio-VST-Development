@@ -12,9 +12,12 @@ next_stage: 1
 ready_for_implementation: false
 blocked_on: mockup + LOCKED parameter-spec.md (Design Sync S1-S11); Phase 2.1 also waits for O-Granulator 3.3 to close (fork pin)
 latest_mockup_version: 1
-mockup_finalized: false
+mockup_finalized: true
+brief_updated_from_mockup: true
+mockup_version_synced: 1
+brief_update_timestamp: "2026-11-07T19:40:17Z"
 contract_checksums:
-  brief: sha256:31c873f27b5eafaee2e1574406d0bea2d645a5fc85c72721a7876fdc5fb81c86
+  brief: sha256:74e7f8f24468ed9658aa8533733f45da24c61ad116d6ae47cd5c2af0e8524722
   requirements: sha256:ea9deda69106e02499b14601052eeefbe2e4d6742c7661e5240760f3dd56d54b
   parameter_spec_draft: sha256:3c4918748a4375940684a22ed6850a3184bdd96df53d152a8900d5f0e4260796
   architecture: sha256:8c44e54f86994b1b84e1f8a516a95215d654d552aaa9e4b406eff8a8ed241f79

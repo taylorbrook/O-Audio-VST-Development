@@ -135,11 +135,17 @@ Inherited unchanged from O-Granulator: `sN_filterType/Cutoff/Rand/Res`, `sN_driv
 
 ## UI Concept
 
-Inherit O-Granulator's finalized v2 language: Ouaricon Naturalist dark, EB Garamond, ochre mod accent, moss/madder/woad/thistle stream colours, 1200×800, with the header, pages and drag-to-modulate. Expected differences, to be designed in the mockup phase:
-- The buffer strip becomes **per-stream waveform lanes**. Each lane has drag-and-drop, file name/relink, loop region handles, the scan playhead, and live grain dots for each voice.
-- A voice/amp-env section in the header or on the STREAMS page, plus a small keyboard/voice-activity indicator.
-- The MOD page swaps the follower panels for mod ADSRs and MIDI/MPE sources.
-- Record-in controls sit with the waveform lanes.
+**Finalized: mockup v1** (`.planning/mockups/v1-ui.yaml`). The mockup is the source of truth for layout.
+
+Inherits O-Granulator's v2 language: Ouaricon Naturalist dark, EB Garamond, ochre mod accent, moss/madder/woad/thistle stream colours, drag-to-modulate. 1200×800, not resizable.
+
+- **Header:** title, preset bar, Freeze, Sync mode, Output gain + meter, a 16-dot voice indicator (click → VOICE), 4 tabs (STREAMS | FX | MOD | VOICE) and a 17-chip mod-source dock. Per-voice sources are marked with a dot. No input gain or mix.
+- **Lane strip (y 96–276, all pages):** four stacked 40 px waveform lanes. Each lane has a drop target, file name, factory/file/rec tag, relink and trimmed badges, an Embed toggle, Load/Clear/Reset, loop handles (`sN_loop_start/end`), a scan marker, the feedback write head and the rewritten-copy crest, the record head, per-voice playheads and grain dots. On the right: the Record-in cluster (per-lane arm, trigger mode, length, gain, meter; No sidechain / No signal / Armed / Recording states), then Grain limit 32/64/128/256 with a "heavy" hint above 128, the grain count and Reset all.
+- **STREAMS:** the parent's 4 columns. The scale picker moves into each column header, with the degree chips beneath it. From Size/Rate down, rows sit at the parent's y-positions.
+- **FX:** as the parent. The loop-gain readout becomes "Write amount … per lap" (convex write, Design Sync S3).
+- **MOD:** LFO 1–4 with a Global/Voice mode, instrument source cards (Mod Env 1–2, Velocity, Key, Note-random, Mod wheel, Aftertouch, MPE pressure/slide/bend), Macros 1–4, and a 16-slot matrix (18 sources, 126 destinations). A "mono" badge marks per-voice → global routes (newest-voice rule).
+- **VOICE:** amp envelope + velocity, Voice · MIDI (polyphony, mode, glide, bend range, MPE), a 16-cell voice-activity strip (shows the ±48 st clamp), Mod Env 1–2, and a per-stream Playback block (root note + fine, key track, scan rate, scan mode).
+- No global Scale Root. The draft removes `scale_root`, so the count stays at 261.
 
 ## Use Cases
 

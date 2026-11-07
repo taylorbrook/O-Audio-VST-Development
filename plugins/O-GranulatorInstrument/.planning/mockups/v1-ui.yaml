@@ -3543,3 +3543,7 @@ deviations_from_invocation:
 parameter_count: 261
 parameter_count_by_group: { global_voice: 9, amp_envelope: 5, mod_envelopes: 8, per_stream: 152, record_in: 7, feedback: 5, reverb: 3, lfos: 20, macros: 4, matrix: 48 }
 ids_vs_draft: "every control id exists in parameter-spec-draft.md; none added, none removed"
+
+finalized: true
+finalized_at: 2026-11-07T19:40:17Z
+finalized_by_phase: 5.5
