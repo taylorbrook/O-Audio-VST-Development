@@ -46,7 +46,7 @@ lastUpdated: 2026-11-06
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| UI-01 | All parameters reachable; per-stream controls organised by stream selector/strips | must | pending | stage-3 |
+| UI-01 | All parameters reachable; per-stream controls organised by stream selector/strips | must | partial | stage-3 |
 | UI-02 | Buffer waveform display with write head, per-stream position/spray regions, live grain indicators | should | pending | stage-3 |
 | UI-03 | Mod matrix view showing source → destination → depth; mod amount visible on targets | should | pending | stage-3 |
 | UI-04 | EN/FR/zh-Hans localisation consistent with the suite | nice | pending | stage-4 |
