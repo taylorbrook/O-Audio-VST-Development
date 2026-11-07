@@ -1,0 +1,12 @@
+[
+  { "name": "mod-free",           "eval": "document.getElementById('tab-mod').click();" },
+  { "name": "mod-tempo",          "click": "#seg-sync_mode button[data-index=\"1\"]" },
+  { "name": "mod-matrix-widest-dests",
+    "eval": "document.getElementById('tab-mod').click(); [[1, 97], [2, 94], [3, 90]].forEach(([m, d]) => { const s = document.getElementById('combo-mod' + m + '_source'); s.selectedIndex = 7; s.dispatchEvent(new Event('change')); const e = document.getElementById('combo-mod' + m + '_dest'); e.selectedIndex = d; e.dispatchEvent(new Event('change')); });" },
+  { "name": "streams-tempo",      "eval": "document.getElementById('tab-streams').click();" },
+  { "name": "fx",                 "click": "#tab-fx" },
+  { "name": "streams-free",       "click": ["#tab-streams", "#seg-sync_mode button[data-index=\"0\"]"] },
+  { "name": "scale-list-open",    "eval": "document.getElementById('tab-streams').click(); document.getElementById('scale-trig-s1').click();" },
+  { "name": "custom-editor-open", "eval": "document.getElementById('scale-trig-s1').click(); document.getElementById('scale-edit-s1').click();" },
+  { "name": "settings-open",      "eval": "document.getElementById('sp-close')?.click(); document.getElementById('gear-btn').click();" }
+]

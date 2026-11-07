@@ -121,7 +121,8 @@ namespace ogran::ui
 
         if (t.hasBuffer)   // 3.2: wave ring + grain snapshot
         {
-            obj->setProperty ("frozen", t.frozen);
+            // (Telemetry::frozen is not sent: the page draws freeze from the
+            //  `freeze` parameter itself — an unread key would only hide a typo.)
             obj->setProperty ("spanSec", t.spanSec);
 
             juce::Array<juce::var> wave;
