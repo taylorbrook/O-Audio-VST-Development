@@ -1,8 +1,8 @@
 ---
 plugin: O-Granulator
 stage: 4
-status: stage_4_execute_complete
-current_phase: execute
+status: stage_4_polish_verify_partial_human_gates_pending
+current_phase: verify
 current_gui_phase: 3.3
 current_dsp_phase: 2.6
 stage_0_status: ui_design_complete
@@ -15,7 +15,7 @@ complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_4_verify
+next_action: run_hands_on_4_and_daw_4_then_reverify_then_install_plugin
 next_stage: 4
 ready_for_implementation: true
 blocked_on: null
@@ -31,6 +31,8 @@ contract_checksums:
 # O-Granulator Status
 
 ## Current Position
+
+**Stage 4 (Polish) verify ⚠️ PARTIAL 2026-11-07** (stages/4-polish/VERIFICATION-4.md). The automated bar was re-run independently on the installed 1.0.0 and is all green: auval PASS (4 known LFO Rate skew warnings), pluginval 10 VST3 + AU SUCCESS, factory bank 16 files @ 1.0.0 with no output_gain, CHANGELOG `## [1.0.0]`, no tag. Requirements: FUNC-09 / COMPAT-02 / UI-04 complete; COMPAT-03 complete-pending-CI (Windows at `/publish`); **QUAL-04 partial: HANDS-ON-4 (H1–H6) + DAW-4 (Logic L1–L7, Reaper R1–R5) are Taylor's to run.** When both PASS, re-run `/plugin-verify O-Granulator 4-polish` to close, then `/install-plugin O-Granulator`.
 
 **Stage 4 (Polish / Validation) execute ✓ 2026-11-07** (stages/4-polish/SUMMARY-4.md; commits 9253d3d4 · 638b86ea · ef01c549 · 9866e37a · 21304de0 + docs): **T1 D43** AGC follower on d·|y| — AG1 min g 0.745 (LP-res corner; drive-100 never runs away, deviation 2), AG1n g ≡ 1, AG2 holds at 0.7/d (tol 0.224) ≤ +0.0056 dB/gen at sat 0/20/50/100, **AG3 51/51 sat-0 renders bitwise vs legacy**, AG4 0.0 dB p-p (AGC does not engage at fb 50 % on a 0 dBFS drum loop), AG5 Z7d 295.77 s == legacy, AG6 env ≤ 1; C → D movers FB2c (sat-100 arm) + FB4 env (clause tightened), no sat-0 mover → **baseline D**. **T2 D47** Env pin (Z7h3e row + Z7h3n 4125 cells), uiSnap clear (US1 / US1n), event-aware renderPool (audit: only Z6a carries events; Z6a engages 3), C7 calibration (0.786 ns/op, ratio ≤ 1.006), W2o written; D movers Z6a (by design) + M7c env-scrub 2 → 1 (non-finite input, attributed). **T3/T4** 16 factory presets (FactoryPresets.h, engineering units, fixed seeds, no output_gain; spread 5.94 dB), PR0–PR5 + PR1n (PR4 240/240 bitwise), ST1–ST3 + ST2n, LY1 / LY1n; harness under a temp home (CFFIXED_USER_HOME re-exec). **T5** 1.0.0 + CHANGELOG `## [1.0.0]`; installed; auval + pluginval 10 VST3/AU PASS; Factory/ 16 @ 1.0.0; ST4 12/12; HA; codec 9/9 == B. **T6** UI gates green + PF1 (widest 150 / 172 px). 547/547, N3/N2/N1/N0 --strict + R12 rc 0. 14 deviations recorded. No tag. Requirements: FUNC-09, COMPAT-02, UI-04 complete; COMPAT-03 complete-pending-CI; QUAL-04 partial (HANDS-ON-4 + DAW-4 at verify).
 
