@@ -1,7 +1,7 @@
 ---
 plugin: O-Granulator
 stage: 4
-status: stage_4_polish_verify_partial_human_gates_pending
+status: stage_4_complete_verified
 current_phase: verify
 current_gui_phase: 3.3
 current_dsp_phase: 2.6
@@ -15,13 +15,13 @@ complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: run_hands_on_4_and_daw_4_then_reverify_then_install_plugin
+next_action: install_plugin
 next_stage: 4
 ready_for_implementation: true
 blocked_on: null
 contract_checksums:
   brief: sha256:f9c748a8a256de9d2fb2bcbe1aff58b12999a640cc8d36fbdbf96e6deb5559d7
-  requirements: sha256:44dd5f0151420275975a1ca9837b78cb19f4b273958a5ba9fa6b039773c9342f   # Stage 4 execute: FUNC-09 / COMPAT-02 / UI-04 complete, COMPAT-03 complete-pending-CI, QUAL-04 partial
+  requirements: sha256:068e98aefffea98fca76c3e59ce75986fedb21d3f2a0b8d88c1c2687c0b842b7   # Stage 4 verify: QUAL-04 complete (HANDS-ON-4 + DAW-4 PASS); COMPAT-03 complete-pending-CI
   parameter_spec_draft: sha256:d0b1457ea7c1624ff757fd12c1acb7bd62c9acf7bebbdd3460c7f1d30cdbbce3
   parameter_spec: sha256:f5ce35954c2c18e46faa914d95898ddb718d6b77ec4be8582be23b60a26b3688   # P3 uiLanguage amendment (Stage 1)
   architecture: sha256:f0cf753b4de2cb6099ad327b0887a0c254f013746b373000a28f01ad7949d9d9
@@ -32,7 +32,9 @@ contract_checksums:
 
 ## Current Position
 
-**Stage 4 (Polish) verify ⚠️ PARTIAL 2026-11-07** (stages/4-polish/VERIFICATION-4.md). The automated bar was re-run independently on the installed 1.0.0 and is all green: auval PASS (4 known LFO Rate skew warnings), pluginval 10 VST3 + AU SUCCESS, factory bank 16 files @ 1.0.0 with no output_gain, CHANGELOG `## [1.0.0]`, no tag. Requirements: FUNC-09 / COMPAT-02 / UI-04 complete; COMPAT-03 complete-pending-CI (Windows at `/publish`); **QUAL-04 partial: HANDS-ON-4 (H1–H6) + DAW-4 (Logic L1–L7, Reaper R1–R5) are Taylor's to run.** When both PASS, re-run `/plugin-verify O-Granulator 4-polish` to close, then `/install-plugin O-Granulator`.
+**Stage 4 (Polish) ✅ VERIFIED 2026-11-07 — PLUGIN COMPLETE** (stages/4-polish/VERIFICATION-4.md). Taylor ran the human gates: HANDS-ON-4 H1–H6 PASS (Standalone preset menu) and DAW-4 PASS (Logic AU L1–L7, Reaper VST3 R1–R5) → QUAL-04 complete. The automated bar on the installed 1.0.0 was already green (auval PASS with the 4 known LFO Rate skew warnings, pluginval 10 VST3 + AU SUCCESS, factory bank 16 @ 1.0.0 with no output_gain, CHANGELOG `## [1.0.0]`). Requirements: 29 / 30 complete; COMPAT-03 complete-pending-CI (Windows VST3 at `/publish`). No tag. Next: `/install-plugin O-Granulator`.
+
+**Stage 4 (Polish) verify ⚠️ PARTIAL 2026-11-07 (superseded above)** (stages/4-polish/VERIFICATION-4.md). The automated bar was re-run independently on the installed 1.0.0 and is all green: auval PASS (4 known LFO Rate skew warnings), pluginval 10 VST3 + AU SUCCESS, factory bank 16 files @ 1.0.0 with no output_gain, CHANGELOG `## [1.0.0]`, no tag. Requirements: FUNC-09 / COMPAT-02 / UI-04 complete; COMPAT-03 complete-pending-CI (Windows at `/publish`); **QUAL-04 partial: HANDS-ON-4 (H1–H6) + DAW-4 (Logic L1–L7, Reaper R1–R5) are Taylor's to run.** When both PASS, re-run `/plugin-verify O-Granulator 4-polish` to close, then `/install-plugin O-Granulator`.
 
 **Stage 4 (Polish / Validation) execute ✓ 2026-11-07** (stages/4-polish/SUMMARY-4.md; commits 9253d3d4 · 638b86ea · ef01c549 · 9866e37a · 21304de0 + docs): **T1 D43** AGC follower on d·|y| — AG1 min g 0.745 (LP-res corner; drive-100 never runs away, deviation 2), AG1n g ≡ 1, AG2 holds at 0.7/d (tol 0.224) ≤ +0.0056 dB/gen at sat 0/20/50/100, **AG3 51/51 sat-0 renders bitwise vs legacy**, AG4 0.0 dB p-p (AGC does not engage at fb 50 % on a 0 dBFS drum loop), AG5 Z7d 295.77 s == legacy, AG6 env ≤ 1; C → D movers FB2c (sat-100 arm) + FB4 env (clause tightened), no sat-0 mover → **baseline D**. **T2 D47** Env pin (Z7h3e row + Z7h3n 4125 cells), uiSnap clear (US1 / US1n), event-aware renderPool (audit: only Z6a carries events; Z6a engages 3), C7 calibration (0.786 ns/op, ratio ≤ 1.006), W2o written; D movers Z6a (by design) + M7c env-scrub 2 → 1 (non-finite input, attributed). **T3/T4** 16 factory presets (FactoryPresets.h, engineering units, fixed seeds, no output_gain; spread 5.94 dB), PR0–PR5 + PR1n (PR4 240/240 bitwise), ST1–ST3 + ST2n, LY1 / LY1n; harness under a temp home (CFFIXED_USER_HOME re-exec). **T5** 1.0.0 + CHANGELOG `## [1.0.0]`; installed; auval + pluginval 10 VST3/AU PASS; Factory/ 16 @ 1.0.0; ST4 12/12; HA; codec 9/9 == B. **T6** UI gates green + PF1 (widest 150 / 172 px). 547/547, N3/N2/N1/N0 --strict + R12 rc 0. 14 deviations recorded. No tag. Requirements: FUNC-09, COMPAT-02, UI-04 complete; COMPAT-03 complete-pending-CI; QUAL-04 partial (HANDS-ON-4 + DAW-4 at verify).
 
@@ -66,7 +68,8 @@ Progress: [###################.] 95% (Stage 4 executed — 1.0.0 installed; veri
 
 ## Next Steps
 
-1. **Stage 4 execute ✓ 2026-11-07.** Next: `/plugin-verify O-Granulator 4-polish` — independent re-run + Taylor runs `stages/4-polish/HANDS-ON-4.md` (Standalone) and `stages/4-polish/DAW-4.md` (Logic AU + Reaper VST3); QUAL-04 completes iff both PASS. Then `/install-plugin O-Granulator`; public 1.0.0 via `/publish` (tag `O-Granulator-v1.0.0`, Windows VST3 by CI) is a separate later step.
+1. **Stage 4 ✅ VERIFIED 2026-11-07 (HANDS-ON-4 + DAW-4 all PASS; QUAL-04 complete).** Next: `/install-plugin O-Granulator`. `/publish O-Granulator 1.0.0` (tag `O-Granulator-v1.0.0`, Windows VST3 by CI, closes COMPAT-03) is a separate decision.
+0. **Stage 4 execute ✓ 2026-11-07.** Next: `/plugin-verify O-Granulator 4-polish` — independent re-run + Taylor runs `stages/4-polish/HANDS-ON-4.md` (Standalone) and `stages/4-polish/DAW-4.md` (Logic AU + Reaper VST3); QUAL-04 completes iff both PASS. Then `/install-plugin O-Granulator`; public 1.0.0 via `/publish` (tag `O-Granulator-v1.0.0`, Windows VST3 by CI) is a separate later step.
 0. Stage 3 ✓ VERIFIED 2026-11-07 (VERIFICATION-3.3.md; HANDS-ON-3.3 + DAW-3.3 all PASS). Next: `/plugin-discuss O-Granulator 4-polish`. Carried into Stage 4: AGC / saturator staging (AGC cannot engage at default fb_saturation 20 %), Env 1e30 pin, C7 calibration, Z6a, W2o rule, uiSnap prepare reset, VST3-host DAW pass if COMPAT-03 calls for it.
 2. Stage 3 integrates the UI with `mockups/v2-integration-checklist.md` (+ check-ui-labels, deferred from Stage 1). Stage 3 also runs the deferred D16 DAW check: `stages/2-dsp/DAW-2.5a.md` items 1–8 + `stages/2-dsp/DAW-2.5b.md` items 1–5 + `stages/2-dsp/DAW-2.6.md` items 1–3; a FAIL reopens FUNC-04 / QUAL-03 (2.5a) or FUNC-08 / DSP-08 (2.5b), and DAW-2.6 item 1 FAIL → D21 fallback 600 s.
 

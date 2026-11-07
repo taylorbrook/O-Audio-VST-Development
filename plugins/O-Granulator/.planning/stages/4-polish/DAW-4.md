@@ -37,3 +37,12 @@
 ## Verdict
 
 QUAL-04 completes at Stage 4 verify only when **this pass and HANDS-ON-4.md** both PASS (PLAN-4 P162). A FAIL reopens the named requirement. Windows VST3 is proven by release CI at `/publish` (sign-off 4), not here.
+
+## Results (2026-11-07, Taylor)
+
+| Part | Items | Verdict |
+|---|---|---|
+| Logic Pro (AU) | L1 · L2 · L3 · L4 · L5 · L6 · L7 | PASS (7 / 7) |
+| Reaper (VST3) | R1 · R2 · R3 · R4 · R5 | PASS (5 / 5) |
+
+**DAW-4 PASS.** With HANDS-ON-4 PASS (H1–H6), QUAL-04 is complete. No requirement reopens.

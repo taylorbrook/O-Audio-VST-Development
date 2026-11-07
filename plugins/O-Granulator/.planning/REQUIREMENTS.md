@@ -74,7 +74,7 @@ lastUpdated: 2026-11-06
 | QUAL-01 | No audio artifacts (clicks, zipper) at normal parameter ranges, including freeze toggle and grain steal | must | complete | stage-2 |
 | QUAL-02 | No NaN/denormal output under extreme settings (max feedback, max resonance, max density) | must | complete | stage-2 |
 | QUAL-03 | Per-sample smoothing on audible continuous params and mod-matrix targets | must | complete | stage-2 |
-| QUAL-04 | Hands-on listening pass in DAW across use cases | nice | partial | stage-4 |
+| QUAL-04 | Hands-on listening pass in DAW across use cases | nice | complete | stage-4 |
 
 ## Acceptance Criteria Details
 

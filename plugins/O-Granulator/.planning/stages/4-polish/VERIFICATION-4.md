@@ -45,7 +45,7 @@
 5. Layouts: LY1 accepts all three layouts at 44.1 / 48 / 96 k. LY1n refuses stereo→mono, 5.1 and a disabled input. Windows is still pending CI.
 6. UI: all UI gates return rc 0. PF1 measures the widest name at 150 / 172 px in all three languages, and PF1n overflows as a negative control must.
 7. `CMakeLists.txt` VERSION is 1.0.0, and `CHANGELOG.md` has a single `## [1.0.0] - 2026-11-07` heading. The build was installed with auval and pluginval 10 run in execute, and re-run independently below.
-8. HANDS-ON-4.md (H1–H6) and DAW-4.md (L1–L7, R1–R5) are written. **They have not been run yet; Taylor runs them by hand.**
+8. HANDS-ON-4.md (H1–H6) and DAW-4.md (L1–L7, R1–R5) were run by Taylor on 2026-11-07: **all 18 items PASS.**
 
 ### Goal Achievement
 
@@ -58,7 +58,7 @@
 | COMPAT-03 layouts + Windows | ⚠️ Partial (by design) | LY1 / LY1n pass on macOS. Windows VST3 is deferred to release CI at `/publish` (sign-off 4) |
 | UI-04 i18n | ✅ Achieved | Gates rc 0, PF1 / PF1n. H2–H4 still have to be run |
 | Release 1.0.0 | ✅ Achieved | See Automated Checks (independent re-run) |
-| QUAL-04 hands-on | ⏳ Pending human | HANDS-ON-4 + DAW-4 verdict columns are empty |
+| QUAL-04 hands-on | ✅ Achieved | HANDS-ON-4 H1–H6 PASS; DAW-4 Logic L1–L7 + Reaper R1–R5 PASS (Taylor, 2026-11-07). L2 / L3 confirm D43 by ear |
 
 ## Requirements Verification
 
@@ -71,15 +71,15 @@
 | COMPAT-02: State round-trips all params + routings | must | ✅ Complete | All params, all 16 routes and the seed restored on a fresh instance (ST1–ST4) |
 | COMPAT-03: Mono/stereo I/O; Windows VST3 | should | ⚠️ Complete-pending-CI | Mono/stereo pass (LY1). Windows is built at `/publish` |
 | UI-04: EN/FR/zh-Hans | nice | ✅ Complete | Lint, fit and labels green; strings stay `reviewed: false` (D45) |
-| QUAL-04: Hands-on DAW pass | nice | ⚠️ Partial | Needs HANDS-ON-4 PASS + DAW-4 PASS |
+| QUAL-04: Hands-on DAW pass | nice | ✅ Complete | HANDS-ON-4 PASS (6 / 6) + DAW-4 PASS (12 / 12) |
 
 **Requirements Summary:**
-- ✅ Complete: 3
-- ⚠️ Partial: 2 (COMPAT-03 waits for CI, QUAL-04 waits for the human pass)
+- ✅ Complete: 4
+- ⚠️ Partial: 1 (COMPAT-03 waits for Windows CI at `/publish`)
 - ⏸️ Deferred: 0
 - ❌ Failed: 0
 
-All 30 requirements across stages 1–4: 28 complete, COMPAT-03 complete-pending-CI, QUAL-04 partial.
+All 30 requirements across stages 1–4: 29 complete, COMPAT-03 complete-pending-CI.
 
 ## Automated Checks (independent re-run at verify)
 
@@ -96,11 +96,11 @@ All 30 requirements across stages 1–4: 28 complete, COMPAT-03 complete-pending
 
 ## Human Verification
 
-Run by Taylor. Fill in the verdict columns in HANDS-ON-4.md and DAW-4.md.
+Run by Taylor, 2026-11-07. Verdicts recorded in HANDS-ON-4.md and DAW-4.md (§Results).
 
-- [ ] HANDS-ON-4 H1–H6 (Standalone preset menu, widest name, long user name, language switch with the menu open, ◀ ▶ through all 16, Output Gain kept)
-- [ ] DAW-4 Part 1, Logic AU, L1–L7 (16 presets by intent, AGC on Rust Spiral, no pumping at fb 50 %, freeze re-listen, A → B while playing, save / reopen ×2, mono + stereo insert)
-- [ ] DAW-4 Part 2, Reaper VST3, R1–R5 (load, 4 categories incl. 93 bpm sync, automation, save / reopen, mono track)
+- [x] HANDS-ON-4 H1–H6 (Standalone preset menu, widest name, long user name, language switch with the menu open, ◀ ▶ through all 16, Output Gain kept)
+- [x] DAW-4 Part 1, Logic AU, L1–L7 (16 presets by intent, AGC on Rust Spiral, no pumping at fb 50 %, freeze re-listen, A → B while playing, save / reopen ×2, mono + stereo insert)
+- [x] DAW-4 Part 2, Reaper VST3, R1–R5 (load, 4 categories incl. 93 bpm sync, automation, save / reopen, mono track)
 
 ## Issues Found
 
@@ -109,10 +109,12 @@ Run by Taylor. Fill in the verdict columns in HANDS-ON-4.md and DAW-4.md.
 
 ## Stage Verdict
 
-**Status:** ⚠️ PARTIAL. The automated bar is fully green, and the human gates are pending.
+**Status:** ✅ VERIFIED (2026-11-07). The automated bar is fully green and the human gates HANDS-ON-4 + DAW-4 PASS (18 / 18).
 
-**Ready for next stage:** Yes for `/install-plugin` once HANDS-ON-4 + DAW-4 PASS.
+**Ready for next stage:** Yes — `/install-plugin O-Granulator`.
 
-**Blockers:**
-- QUAL-04: HANDS-ON-4 + DAW-4 have not been run yet.
-- COMPAT-03 (Windows): release CI at `/publish`. This is not a blocker for install.
+**Blockers:** None.
+
+**Carried (not blocking install):**
+- COMPAT-03 (Windows VST3): release CI at `/publish` (sign-off 4). Confirm the `·` preset-file-name watch item there.
+- No tag. `/publish O-Granulator 1.0.0` is a separate decision.
