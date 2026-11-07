@@ -8,5 +8,6 @@
   { "name": "streams-free",       "click": ["#tab-streams", "#seg-sync_mode button[data-index=\"0\"]"] },
   { "name": "scale-list-open",    "eval": "document.getElementById('tab-streams').click(); document.getElementById('scale-trig-s1').click();" },
   { "name": "custom-editor-open", "eval": "document.getElementById('scale-trig-s1').click(); document.getElementById('scale-edit-s1').click();" },
-  { "name": "settings-open",      "eval": "document.getElementById('sp-close')?.click(); document.getElementById('gear-btn').click();" }
+  { "name": "settings-open",      "eval": "document.getElementById('sp-close')?.click(); document.getElementById('gear-btn').click();" },
+  { "name": "streams-all-enabled", "eval": "document.getElementById('sp-close')?.click(); document.getElementById('tab-streams').click(); ['s2', 's3', 's4'].forEach((s) => document.getElementById('toggle-' + s + '_enable').click());" }
 ]
