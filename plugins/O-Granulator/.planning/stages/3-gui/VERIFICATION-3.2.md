@@ -34,7 +34,7 @@ Every check below was re-run in this verify session at `7cd3137a`. `git diff f7d
 | 6 Transport | ✅ Achieved | TB1: 71.2 M reads, 0 torn, 0 backwards. TB1n: 10 365 torn. TL32u: false before prepare, has* false. Static read: `telemetryToVar` has no `torn` parameter, and the editor always sends the full var |
 | 7 Alloc / audio | ✅ Achieved | M8: 0 allocations (var, and fresh 8192 after a 512 prepare, with freeze edges). M8L == 1. Carried diff vs B = **18 added rows, 0 changed or removed** (TL31 → TL32 attributed; TL31 is outside the carried set). N3 / N2 / N1 / N0 `--strict` + R12 rc 0. HA 79/79. Codec bytes 9/9 == B |
 | 8 UI gates | ✅ Achieved | All green (table below). Page vs 3.1 = the band line (1 − / 2 +) |
-| 9 Hands-on | ⏳ Pending | HANDS-ON-3.2.md: Taylor, Standalone |
+| 9 Hands-on | ✅ Achieved | HANDS-ON-3.2.md A–G all PASS (Taylor, 2026-11-06, Standalone) |
 
 ## Code Review (static, `a368b4ae..f7d3cd01`)
 
@@ -70,7 +70,7 @@ Every check below was re-run in this verify session at `7cd3137a`. `git diff f7d
 | Requirement | Priority | Status | Acceptance Criteria |
 |-------------|----------|--------|---------------------|
 | UI-01: All parameters reachable | must | ✅ Complete (3.1) | Probe 220 / 220 ×2 re-run; no regression |
-| UI-02: Buffer waveform, write head, per-stream regions, live grains | should | ⚠️ Partial → complete on hands-on | Every automated layer passes; the real-WebView look is pending |
+| UI-02: Buffer waveform, write head, per-stream regions, live grains | should | ✅ Complete (partial → complete) | Every automated layer passes, and the real-WebView hands-on passes |
 | UI-03: Mod matrix view + mod amount on targets | should | ⏸️ Deferred | Phase 3.3 |
 
 ## Automated Checks
@@ -102,17 +102,17 @@ Every check below was re-run in this verify session at `7cd3137a`. `git diff f7d
 
 ## Human Verification — HANDS-ON-3.2.md
 
-**Pending:** Taylor, Standalone (`build/plugins/O-Granulator/OuariconGranulator_artefacts/Release/Standalone/O-Granulator-dev.app`, relinked 21:13), with live input.
+Run by Taylor, 2026-11-06, in the Standalone (`build/plugins/O-Granulator/OuariconGranulator_artefacts/Release/Standalone/O-Granulator-dev.app`, relinked 21:13), with live input: **all items PASS.**
 
 | Section | Verdict |
 |---|---|
-| A Waveform (A1–A4) | ⏳ |
-| B Freeze (B1–B3) | ⏳ |
-| C Grain dots (C1–C6) | ⏳ |
-| D Bands (D1–D3) | ⏳ |
-| E Counts (E1–E2) | ⏳ |
-| F Editor lifecycle (F1–F3) | ⏳ |
-| G Watch item (G1, INFO) | ⏳ |
+| A Waveform (A1–A4) | ✅ PASS |
+| B Freeze (B1–B3) | ✅ PASS |
+| C Grain dots (C1–C6) | ✅ PASS |
+| D Bands (D1–D3) | ✅ PASS |
+| E Counts (E1–E2) | ✅ PASS |
+| F Editor lifecycle (F1–F3) | ✅ PASS |
+| G Watch item (G1, INFO) | ✅ PASS |
 
 ## Issues Found
 
@@ -123,8 +123,8 @@ Every check below was re-run in this verify session at `7cd3137a`. `git diff f7d
 
 ## Phase Verdict
 
-**Status:** ⚠️ AUTOMATED VERIFIED — hands-on pending. It becomes ✅ VERIFIED (Phase 3.2) when HANDS-ON-3.2 A–F pass; G is INFO only.
+**Status:** ✅ VERIFIED (Phase 3.2). Every automated gate passes on an independent re-run, the hands-on passes (A–G), and deviations 1–12 are accepted.
 
-**Ready for next phase:** after the hands-on, Phase 3.3 (meters, LFO phase, onset, loop gain, mod matrix view, UI-03).
+**Ready for next phase:** Yes — Phase 3.3 (meters, LFO phase, onset, loop gain, mod matrix view, UI-03).
 
 **Blockers:** none in the automated set.
