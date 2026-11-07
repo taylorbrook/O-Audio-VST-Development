@@ -1,15 +1,15 @@
 ---
 plugin: O-GranulatorInstrument
 stage: 1
-status: stage_1_research_complete
+status: stage_1_plan_complete
 current_phase: 1-foundation
-gsd_phase: research_complete
+gsd_phase: plan_complete
 last_updated: 2026-11-07
 complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_1_plan
+next_action: stage_1_execute
 next_stage: 1
 ready_for_implementation: true
 blocked_on: none (O-Granulator 3.3 closed 1455e501; fork pin confirmed at 2.1 discuss)
@@ -37,8 +37,8 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — research complete
-Status: Stage 1 RESEARCH.md written (D9 kAux via note-expression extensions subclass overriding getPluginHasMainInput, O-Texture precedent passes auval + pluginval 10; D8 UI binary-data block commented out until 3.1, check-i18n rule [8] cannot fire; OuGI unused; spec self-consistent 261 = 176/70/15; sidechain-disabled gate needs a gate-only build option). Next: Stage 1 plan.
+Stage: 1 of 4 (Foundation) — plan complete
+Status: Stage 1 RESEARCH.md written (D9 kAux via note-expression extensions subclass overriding getPluginHasMainInput, O-Texture precedent passes auval + pluginval 10; D8 UI binary-data block commented out until 3.1, check-i18n rule [8] cannot fire; OuGI unused; spec self-consistent 261 = 176/70/15; sidechain-disabled gate needs a gate-only build option). Plan: Stage 1 PLAN.md written (10 tasks T1–T10 in waves W0–W6 + D9 contingency; P1–P11: uiLanguage on root, scale codec → 2.2, kAux = harness H2 + code citation, no D10 header note, loadSlotSync 0…3, note-expression registry bump to 1.1.2, OGI_GATE_SC_DEFAULT_OFF arm, CMake written last, scratchpad negative controls, AU sidechain failure = escalate). Next: Stage 1 execute.
 Progress: [##..................] 10%
 
 ## Completed So Far
@@ -63,7 +63,7 @@ Progress: [##..................] 10%
 
 1. ✓ UI mockup v1 finalized 2026-11-07 (Phase 5.5); Phase B scaffolding generated: `v1-ui.html`, `v1-i18n.js`, `v1-PluginEditor.{h,cpp}` (261 relays, 34 native fns, sidechain-aware Record-in telemetry), `v1-CMakeLists.txt`, `v1-integration-checklist.md`, `v1-i18n-states.json`. UI gates pre-verified on a scratch tree (check-i18n / fr / zh / check-ui-labels / boot-all-uis all clean).
 2. ✓ `parameter-spec.md` LOCKED (Stage 1 contract): 261 params, Design Sync S1–S11 applied, 126-entry destination order and 18-entry source order frozen (append-only). One description-level draft conflict recorded in its "Draft vs mockup" section (`polyphony` steal wording) — resolved Stage 1 discuss D10: keep mockup wording.
-3. Stage 1: Foundation — discuss ✓ (`stages/1-foundation/CONTEXT.md`), research ✓ (`stages/1-foundation/RESEARCH.md`); next `/plugin-plan O-GranulatorInstrument 1-foundation` — builds from `parameter-spec.md`, lands `v1-CMakeLists.txt`.
+3. Stage 1: Foundation — discuss ✓ (`stages/1-foundation/CONTEXT.md`), research ✓ (`stages/1-foundation/RESEARCH.md`), plan ✓ (`stages/1-foundation/PLAN.md`); next `/plugin-execute O-GranulatorInstrument 1-foundation` — builds from `parameter-spec.md`, lands `v1-CMakeLists.txt`.
 4. O-Granulator 3.3 closed (1455e501 verify, 00e462b8 last Source change). At Phase 2.1: confirm the pin SHA, then fork the leaves pinned to that commit.
 
 ## Context to Preserve
@@ -72,6 +72,7 @@ Progress: [##..................] 10%
 - Roadmap: `plugins/O-GranulatorInstrument/.planning/ROADMAP.md`
 - Stage 0 context: `plugins/O-GranulatorInstrument/.planning/stages/0-ideation/CONTEXT.md`
 - Stage 1 context: `plugins/O-GranulatorInstrument/.planning/stages/1-foundation/CONTEXT.md`
+- Stage 1 plan: `plugins/O-GranulatorInstrument/.planning/stages/1-foundation/PLAN.md` (authoritative for execute)
 - Stage 1 research: `plugins/O-GranulatorInstrument/.planning/stages/1-foundation/RESEARCH.md` (open: uiLanguage on state root not <Engine>; skip D10 header note; note-expression registry 1.1.1 vs disk 1.1.2)
 - Complexity 5.0 (raw 27.0), tier 6, phased
 - Parent: O-Granulator @ 3043b72a (fork pin moves to the 3.3-closing commit)
