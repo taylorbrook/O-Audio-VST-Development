@@ -1,0 +1,3545 @@
+# O-GranulatorInstrument - UI Design Specification v1
+# Generated: 2026-11-07 by ui-design-agent (positions measured from v1-ui-test.html#measure, headless Chrome 1200x800)
+# Base: O-Granulator v2-ui.yaml / v2-ui-test.html (finalized 2026-11-04), inherited verbatim where unchanged:
+#   aesthetic, colour tokens, EB Garamond, knob / seed cross-section, plate frame, engraved dandelion, drag-to-modulate,
+#   scale band + degree chips + shared custom scale, FX columns, matrix UX.
+# Instrument changes: 4 stacked waveform lanes (replaces the 140 px buffer strip), inline Record-in, VOICE page (4th tab),
+#   instrument mod sources (18-entry list), per-voice markers + mono badges, header voice indicator, input_gain/mix removed.
+# Aesthetic: Ouaricon Naturalist (ouaricon-naturalist-001), DARK variant
+
+window:
+  width: 1200
+  height: 800
+  resizable: false
+
+aesthetic:
+  base: ouaricon-naturalist-001
+  variant: dark
+  inherited_from: "plugins/O-Granulator/.planning/mockups/v2-ui.yaml (aesthetic, colors, typography sections apply verbatim)"
+  illustration: "Engraved dandelion clock (Taraxacum pappus in dispersal), inline SVG; bleeds off bottom-right, strokes #32291F on ground (decoration only). Title glyph: small seed-head in ochre; stream glyph: engraved pollen grain in stream colour."
+  frame: "Engraved double plate rule (inset 6/9 px) with corner rivets; engraved rules at y 91.5 (under header) and 282.5 (under the lane strip)"
+  knob: "Dark seed cross-section: 20-segment conic body #2F261D/#261F17, #54453A dividers, bone core + indicator; 270deg value arc (stream colour or bone); outer ochre bipolar mod ring + live dot"
+  title: "O·Granulator + stacked italic 'Instrument' (12 px ink-2) over 'Ouaricon' (11 px ink-3) - the sibling keeps the parent's word-mark and reads as its instrument edition"
+
+colors:
+  ground: "#14100C"
+  plate: "#1A1510"
+  panel: "#1E1913"
+  raised: "#262019"
+  rule: "#33291F"
+  rule_strong: "#4A3D30"
+  ink: "#ECE1CC"        # 14.6:1 on ground
+  ink_secondary: "#C9BBA2"  # 10.0:1
+  ink_tertiary: "#A8977D"   # 6.7:1 on ground, 5.5:1 on raised
+  value_arc: "#D9CBB0"
+  accent: "#E2B064"     # ochre - reserved for modulation, freeze, write/record heads, active tab (unchanged rule)
+  on_accent: "#1A130B"  # 9.3:1 on accent
+  warning: "#EDA48F"    # parent's scale-editor error tone; here also: relink badge, pitch-clamp readout, clamped grain cores
+  streams:
+    s1: "#A9C178"  # moss    9.5:1
+    s2: "#E39177"  # madder  7.7:1
+    s3: "#92A9E6"  # woad    8.2:1
+    s4: "#CB9AD0"  # thistle 8.2:1
+  ochre_uses_in_v1: ["modulation (rings, chips, matrix, mono badge, newest-voice tick)", "Freeze latch", "feedback record heads (lane, bottom tick)", "Record-in head + armed/recording states", "active tab"]
+
+typography:
+  family: "'EB Garamond', 'Garamond', 'Times New Roman', serif"   # modules/ui/eb-garamond (embed css + woff2)
+  features: "lnum, tnum; all-small-caps for section titles/tabs/badges"
+  title: "25px"
+  section_title: "13px small caps, 2px tracking"
+  group_heading: "12.5px italic + fading hairline"
+  knob_label: "11px Title Case"
+  knob_value: "11.5px, scaled value + unit, thin space"
+  lane_name: "11.5px italic ink (user text, ellipsis)"
+  badge: "10.5px all-small-caps, 1px tracking, 1px rule border (factory / rec / save… / trimmed / relink)"
+  floor: "10.5px (audit: 0 text nodes below the floor on all 4 pages, overlays and lane/record states)"
+  notes:
+    - "Glyphs NOT in the subset: infinity, sharp/flat, small triangles, lambda, record dot - use '-inf dB', '#', SVG chevrons/icons; 'w' for the write amount"
+    - "Canvas text waits for document.fonts.load() before first paint"
+
+layout:
+  type: custom
+  regions:
+    - { id: header, y: 16, height: 70, contents: [title, preset_bar, freeze, sync_mode, voice_activity_mini, output_gain, output_meter, page_tabs, mod_source_dock] }
+    - { id: lane_strip, x: 18, y: 96, width: 1164, height: 180, contents: [4 waveform lanes, lane tools, rec_target pips, record_in cluster, grain_limit, grain_count, reset_all] }
+    - { id: page, y: 288, height: 493, pages: [streams, fx, mod, voice] }
+  header_v1: "input_gain and mix removed (no dry path). Row 1: title 18-270 | preset 280-560 | Freeze 572-662 | Sync 674-794 | Voices indicator 812-1024 | Output 1040 + meter 1162. Row 2: tabs 18-414 (104/128/76/88) | dock 426-1030 (17 chips, 2 px gaps, 5 px group spacers: LFO | Env Vel Key Rand | Wheel Press Slide Bend | M1-M4)."
+  lane_strip_geometry: "strip 18,96 1164x180. Lane n: x 22, y 100 + 44(n-1), 682x40 = tab 24 (numeral, stream colour) + waveform canvas 656x40 at x 48. Tools at x 710 / 736 (22x18, rows y+1 / y+21): Load, Embed / Reset, Clear. rec_target pip x 766, y+11. Divider x 798. Record-in 810-1064. Divider 1072. Globals 1082-1182 (grain limit 116, heavy hint 144, grains 168, Reset all 242)."
+  pages:
+    streams: "4 columns (x 18/312/606/900, 282 wide, 12 gutter), parent v2 grid. The column HEADER is now the scale band (key-signature reading): numeral | scale trigger 108 + edit 22 | M S enable. Degree chips + All/None/Invert sit directly under the header rule. Rows: Position + Pitch / Size + Rate / Window (fig + 3) / Scatter + Mixer. Onset-trigger pill removed with sN_onset_trigger."
+    streams_v1_rhythm: "y: header row 288 (24) | rule 316 | chips 321 (20) | Position/Pitch headings 349, knobs 365 | Size/Rate headings 458, knobs 474 | Window heading 569, knobs 585 | Scatter/Mixer heading 680, knobs 696 (bottom 781, 19 px edge = parent). The lane strip took 40 px; it is paid entirely by folding the parent band row (24) and its gaps into the column header, so from Size/Rate down every y equals parent v2. No control resized. Gaps: chips->heading 8, knob row->heading 8/10/10."
+    instrument_params_placement: "sN_root_note/root_fine/key_track/scan_rate/scan_mode live on VOICE > Playback (4 columns aligned to the STREAMS columns), sN_loop_start/end are the lane handles. Why: STREAMS already holds the parent's full 16-slot grid in 493 px with the parent's rhythm; a 5th knob row (101 px) does not fit and shrinking cells is ruled out. Root/key-track/scan are per-note playback setup (how a key plays the file), which is what the VOICE page is about; Position stays on STREAMS and is mirrored live in the lanes (scan-start marker)."
+    fx: "Parent v2 grid; filter-type segmented joins its 'Grain filter' heading row (y 324, 196 wide at x+86), knobs 354 | Drive/Crush heading 449, knobs 465 | Ring heading 560, knobs 576 (= parent) | Feedback network title 677, knobs 697 (= parent) + write_amount readout (was loop gain) | Output reverb unchanged."
+    mod: "LFO 1-4 cards (x 18/207/396/585, 175x218 at y 288): chip + Global/Voice mode segmented (lfoN_mode), live wave (per-voice: one dot per sounding voice, newest ochre), shape, rate/phase. Source cards y 516 / 572 (50 tall): Mod Env 1 + 2 (mini envelope), Velocity, Key (mini keyboard) / Note random, Mod wheel, Expression (Pressure, Slide, Bend). Macros 634 (chips 654, large knobs 680). Routing legend 432-760. Matrix x 776, 406 wide: title 288, labels 312, 16 rows from 330 at 28 px (26 tall): # | source 68 | arrow | destination 122 | mono badge | depth 100 | value 42."
+    voice: "Amp envelope (fig 212 + attack/decay/sustain/release/velocity) | Voice · MIDI (polyphony, glide, bend range; Mode segmented; MPE pill; bend-range note) at 288-395. Voices strip 410 (16 cells 67x54 at 73 px). Mod envelopes 502 (2 cards 572x92: chip + live figure + 4 knobs). Playback 628 (per stream: Root field + fine field, Key Track, Scan Rate, Scan choice-knob at 668). Clamp note 762."
+  grid:
+    knob_cell: { width: 62, height: 85 }
+    knob_cell_large: { width: 80, height: 97 }
+    header_knob: { width: 108, height: 58 }
+    column_slots_x: [0, 72, 148, 220]
+    lane: { height: 40, pitch: 44, canvas_width: 656 }
+
+lanes:   # per-stream waveform lanes, visible on every page
+  canvas: "656x40 per lane; mirrored peak envelope of the WORKING COPY in stream colour (alpha 0.62, 0.28 when stream is inaudible); outside the loop region the envelope is bone 14 % with a 42 % ground wash; columns already rewritten by feedback carry a pale bone crest (copy differs from the file)"
+  name: "top-left 11.5px italic ink, ellipsised (user text); tooltip = source scheme + path"
+  info: "top-right 11px italic ink-2: '<len> s · <n> grains' | 'stream off' | 'recording · <t> s of <L>' | 'missing · click relink'"
+  badges:   # S9 / S10
+    factory: "'factory' - source scheme factory:<id>; built into the binary (BinaryData FLAC, ≤ 8 MB); embed toggle disabled ('nothing to embed')"
+    file: "no badge; scheme file: shown in the name tooltip (absolute + relative path)"
+    rec: "'rec' + 'save…' link (Save recording to WAV, native)"
+    trimmed: "'trimmed' when the file exceeded the slot maximum: tooltip 'This file is 48.2 s. A slot holds at most 30 s (2,880,000 frames; 15 s at 192 kHz), so only the first 30.0 s is loaded.' (S8 / D2)"
+    relink: "'relink' (warning tone, clickable) when the file is missing; name struck through in ink-3, flat dashed centre line, grains silent"
+  empty: "dashed 1 px rule-2 frame; centred italic 'Drop a file · or Record' - both words are links (file chooser / sets rec_target to this lane and arms)"
+  drag_over: "1.5 px dashed stream-colour frame, 14 % stream tint, 'Release to load into stream <N>'; tab tint rises (flag #dragover)"
+  loop_handles: "sN_loop_start / sN_loop_end: 9x40 hit zone, 1.5 px stream-colour rule + 6 px flag (start points right, end points left); drag horizontally, double-click resets; they are mod drop targets (ochre while a source is dragged); a routed edge shows an ochre tick at its live modulated position"
+  scan_start: "sN_position marker: stream-colour triangle on the bottom edge + dotted line, inside the loop region"
+  playheads: "one 1 px bone line per sounding voice at that voice's scan centre (alpha 0.22 + 0.7 x amp env), cap dot at the top (larger while held)"
+  grains: "dots in stream colour (lighter blend, radial glow), y = stereo position, size ~ grain length, alpha ~ window; a grain whose pitch hit the ±48 st clamp has a warning-tone core (S6)"
+  feedback_head: "ochre 1x record head per slot (D7): bottom tick + small triangle moving at real-time speed through the loop region while Amount > 0; frozen = dashed outline, stopped (S4)"
+  record_head: "Record-in into this slot: full-height 1.6 px ochre line + top triangle, ochre wash behind it, lane outline ochre-dim; the waveform builds left to right"
+  tools:
+    load: "folder icon - file chooser (native chooseFileForSlot/loadSlot); dropping a file on the lane does the same"
+    embed: "S11 embed toggle (state, not a parameter): lit in stream colour when on; default on for recordings, off for files; disabled for factory; tooltip states the 16 MB FLAC-24 cap and the slot's encoded size; outlined in warning tone when the slot is too large to embed"
+    reset: "per-slot Reset (native resetSlot); a stream-colour dot marks a dirty working copy"
+    clear: "Clear slot (native clearSlot)"
+  rec_target_pips: "rec_target radio: one record pip per lane right of the tools; target pip filled bone; filled ochre while armed / recording"
+
+record_in:   # inline at the right end of the lane strip (x 810-1064)
+  title: "section title 'Record-in' (810,100) + status at right (930-1064): lamp + italic text, tooltip explains"
+  states:
+    no_sidechain: "flag #nosc. Status 'No sidechain' (ink-3); cluster at 42 % opacity and inert (disabled-control exemption); input meter crossed out. Tooltip: host has not connected the side-chain input; Logic: pick a source in the plugin header's Side Chain menu; some AU hosts never route a key bus to an instrument - use the VST3 or load a file."
+    no_signal: "flag #nosignal. Bus present but silent: 'No signal' (ink-3). Tooltip: an unrouted AU key bus delivers silence, not an error. A silent capture is discarded and the slot stays as it was (toast)."
+    ready: "'Ready', lamp bone"
+    armed: "flag #armed. Arm latch outlined ochre with blinking lamp; status 'Waiting for level' (Threshold, with an ochre threshold tick on the input meter) or 'Waiting for a note' (Next note). Manual starts immediately."
+    recording: "flag #recording. Arm latch filled ochre; status 'Recording into IV'; progress '2.3 / 8.0 s' + ochre bar; target lane shows the ochre record head; target pip ochre."
+    done: "'Captured into IV'; the slot becomes rec: 'Recording N' with Embed on; disarm + arm to retake"
+  controls: "rec_trigger segmented (810,122 254x22) | rec_length / rec_length_sync knob (810,150, Free/Tempo alternates) | rec_threshold (882; dimmed unless Threshold) | rec_gain (954) | sidechain meter 1030,164 20x52 | rec_arm latch (810,242 92x26) | progress (912,242 152x26: length + 'into slot IV' / 'capped 30 s')"
+  run_state: "Armed -> Recording -> Done is ENGINE state shown by the UI; rec_arm stays a plain Bool parameter (no parameter writes another)."
+
+voice_page:
+  amp_envelope: "fig. amp envelope (212 wide, sqrt time axis so short and long stages both read, bone fill) with one live dot per sounding voice (held = bright, releasing = dim); value line 'A 180 ms · D 600 ms · S 80 % · R 2.40 s'"
+  voice_midi: "polyphony, glide, pitch_bend_range knobs; voice_mode segmented; mpe_enable pill; bend_range_note (S2 long form)"
+  voices_strip: "16 cells (67x54): voice number, state (held / release / stolen / off above Polyphony, hatched), note name 16 px, transposition on the first enabled stream ('+4 st'; '+48 st · clamp' in warning tone when |st| > 48 - S6), amp bar; newest voice has an ochre top rule (it drives mono routes)"
+  mod_envelopes: "2 cards: draggable chip (Env 1 / Env 2, per-voice pip), live figure (one ochre dot per voice, newest brighter), 4 knobs, 'newest 0.34' readout, one-line note"
+  playback: "per stream (columns x 18/312/606/900): header numeral + '<file> · plays as A3'; Root = note field (62x26, 16 px, drag/scroll/dbl-click) over fine field (62x20); 'MIDI 57' caption; Key Track, Scan Rate, Scan (choice knob: Free-run / Retrigger / Ping-pong)"
+  clamp_note: "y 762: 'Grain pitch = key track × (note − root) + pitch + random + bend, clamped to ±48 st. A voice past the clamp shows it in its cell above.'"
+  header_indicator: "voice_activity_mini (812,16 212x32): 'Voices' + '3 held · 2 fading · max 8'; 16 dots (8 px, 13 px pitch): filled bone = held (opacity ~ amp), ring = releasing, dash = above polyphony, ochre underline = newest; click opens VOICE"
+
+modulation_ux:
+  sources: ["LFO 1", "LFO 2", "LFO 3", "LFO 4", "Mod Env 1", "Mod Env 2", "Velocity", "Key", "Note Random", "Mod Wheel", "Pressure", "Slide", "Bend", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+  per_voice_sources: ["LFO n when lfoN_mode = Per-voice", "Mod Env 1", "Mod Env 2", "Velocity", "Key", "Note Random", "Pressure", "Slide", "Bend"]
+  global_sources: ["LFO n when lfoN_mode = Global", "Mod Wheel", "Macro 1-4"]
+  per_voice_marker: "6 px bone pip on the chip rim (top-right) in the header dock and on every card chip; LFO chips gain/lose it live with lfoN_mode; chip tooltip says per voice / global"
+  handles: "Header dock (17 chips, all pages) + chips on MOD source cards, LFO cards, VOICE mod-envelope cards and macros; background tint tracks the live value (newest voice for per-voice sources)"
+  drop: "Drag a chip onto any knob with a destination index OR a lane loop handle -> first empty slot gets source/dest/depth +40 %; ring/handle + row flash; toast notes 'mono (newest voice)' when it applies. Duplicate source->dest flashes the existing slot."
+  mono_badge: "Design Sync S7: matrix rows routing a per-voice source to a GLOBAL destination (output_gain = 1, feedback..lfo4_rate = 114-125) show an ochre 'mono' pill and an ochre arrow; tooltip: 'Mono route: a per-voice source on a global destination follows the NEWEST voice (Stage 0 D4).'"
+  ring: "Ochre arc at r+7 around the knob from base to base+depth (bipolar sources show a faint +/- reach); live dot = modulated value (newest voice for per-voice sources)"
+  edit: "Alt-drag knob = depth of latest route on it; matrix row depth bar (drag, dbl-click = 0); click slot number = clear"
+  tempo_alias: "In Tempo mode sN_size_sync / sN_density_sync / lfoN_rate_sync knobs drop onto the sN_size / sN_density / lfoN_rate destinations"
+  bipolar_sources: ["LFO 1-4", "Key", "Note Random", "Bend"]
+  destination_table_size: 126
+
+controls:
+  - id: polyphony
+    type: knob
+    relay: WebSliderRelay
+    label: "Polyphony"
+    name: "Polyphony"
+    page: voice
+    position: { x: 612, y: 310 }
+    size: { width: 62, height: 85 }
+    range: [1, 16]
+    default: 8
+    skew: 1
+    interval: 1
+    unit: "voices"
+    tooltip: "Most notes at once. A new note past the limit steals the oldest voice with a fade."
+  - id: voice_mode
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Mode"
+    page: voice
+    position: { x: 836, y: 326 }
+    size: { width: 180, height: 24 }
+    presentation: "segmented: Poly | Mono | Legato"
+    choices: ["Poly", "Mono", "Legato"]
+    default: 0   # Poly
+  - id: glide
+    type: knob
+    relay: WebSliderRelay
+    label: "Glide"
+    name: "Glide"
+    page: voice
+    position: { x: 684, y: 310 }
+    size: { width: 62, height: 85 }
+    range: [0, 2000]
+    default: 0
+    skew: 0.3
+    unit: "ms"
+    tooltip: "Portamento. Mono and Legato always glide; poly voices glide when this is above zero."
+  - id: pitch_bend_range
+    type: knob
+    relay: WebSliderRelay
+    label: "Bend Range"
+    name: "Pitch Bend Range"
+    page: voice
+    position: { x: 756, y: 310 }
+    size: { width: 62, height: 85 }
+    range: [0, 48]
+    default: 2
+    skew: 1
+    interval: 1
+    unit: "st"
+    tooltip: "Bend range (MPE: master channel; member notes use RPN 0, default 48).\nWith MPE off it applies to every note."
+    note: "Design Sync S2: label \"Bend Range\"; tooltip \"Bend range (MPE: master channel; member notes use RPN 0, default 48)\". Long form in display bend_range_note."
+  - id: mpe_enable
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "MPE"
+    page: voice
+    position: { x: 836, y: 362 }
+    size: { width: 180, height: 24 }
+    presentation: "pill toggle \"MPE · lower zone\""
+    default: false
+  - id: grain_limit
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Grain Limit"
+    page: shared
+    position: { x: 1082, y: 116 }
+    size: { width: 100, height: 24 }
+    presentation: "select, options read \"<n> grains\""
+    choices: ["32", "64", "128", "256"]
+    default: 3   # 256
+    note: "Design Sync S1: 4 entries 32/64/128/256 (draft had 5 incl. 512), default 3 (256). Display grain_limit_heavy_hint (\"heavy on CPU\", italic ink-2 + CPU glyph) is visible when value > 128."
+  - id: freeze
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Freeze"
+    page: shared
+    position: { x: 572, y: 16 }
+    size: { width: 90, height: 32 }
+    presentation: "latch button (ochre when on)"
+    default: false
+    note: "Design Sync S4: tooltip \"the record heads stop, so nothing is written into the working copies ... the feedback chains stay warm and their returns are discarded\". Lane feedback heads turn dashed and stop."
+  - id: sync_mode
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Sync"
+    page: shared
+    position: { x: 674, y: 16 }
+    size: { width: 120, height: 32 }
+    presentation: "segmented"
+    choices: ["Free", "Tempo"]
+    default: 0   # Free
+  - id: output_gain
+    type: knob
+    relay: WebSliderRelay
+    label: "Output"
+    name: "Output Gain"
+    page: shared
+    position: { x: 1040, y: 16 }
+    size: { width: 108, height: 58 }
+    range: [-24, 12]
+    default: 0
+    skew: 1
+    unit: "dB"
+    mod_destination: 1
+  - id: amp_attack
+    type: knob
+    relay: WebSliderRelay
+    label: "Attack"
+    name: "Amp Attack"
+    page: voice
+    position: { x: 244, y: 310 }
+    size: { width: 62, height: 85 }
+    range: [0, 10000]
+    default: 20
+    skew: 0.1977   # setSkewForCentre
+    unit: "ms"
+  - id: amp_decay
+    type: knob
+    relay: WebSliderRelay
+    label: "Decay"
+    name: "Amp Decay"
+    page: voice
+    position: { x: 316, y: 310 }
+    size: { width: 62, height: 85 }
+    range: [0, 10000]
+    default: 300
+    skew: 0.1977   # setSkewForCentre
+    unit: "ms"
+  - id: amp_sustain
+    type: knob
+    relay: WebSliderRelay
+    label: "Sustain"
+    name: "Amp Sustain"
+    page: voice
+    position: { x: 388, y: 310 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 100
+    skew: 1
+    unit: "%"
+  - id: amp_release
+    type: knob
+    relay: WebSliderRelay
+    label: "Release"
+    name: "Amp Release"
+    page: voice
+    position: { x: 460, y: 310 }
+    size: { width: 62, height: 85 }
+    range: [0, 20000]
+    default: 1500
+    skew: 0.1879   # setSkewForCentre
+    unit: "ms"
+  - id: vel_to_amp
+    type: knob
+    relay: WebSliderRelay
+    label: "Velocity"
+    name: "Velocity to Amp"
+    page: voice
+    position: { x: 532, y: 310 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 70
+    skew: 1
+    unit: "%"
+    tooltip: "Velocity sensitivity of the voice level: (1 − d) + d · velocity²."
+  - id: menv1_attack
+    type: knob
+    relay: WebSliderRelay
+    label: "Attack"
+    name: "Mod Env 1 · Attack"
+    page: voice
+    position: { x: 202, y: 527 }
+    size: { width: 62, height: 85 }
+    range: [0, 10000]
+    default: 10
+    skew: 0.1977   # setSkewForCentre
+    unit: "ms"
+  - id: menv1_decay
+    type: knob
+    relay: WebSliderRelay
+    label: "Decay"
+    name: "Mod Env 1 · Decay"
+    page: voice
+    position: { x: 274, y: 527 }
+    size: { width: 62, height: 85 }
+    range: [0, 10000]
+    default: 500
+    skew: 0.1977   # setSkewForCentre
+    unit: "ms"
+  - id: menv1_sustain
+    type: knob
+    relay: WebSliderRelay
+    label: "Sustain"
+    name: "Mod Env 1 · Sustain"
+    page: voice
+    position: { x: 346, y: 527 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: menv1_release
+    type: knob
+    relay: WebSliderRelay
+    label: "Release"
+    name: "Mod Env 1 · Release"
+    page: voice
+    position: { x: 418, y: 527 }
+    size: { width: 62, height: 85 }
+    range: [0, 20000]
+    default: 500
+    skew: 0.1879   # setSkewForCentre
+    unit: "ms"
+  - id: menv2_attack
+    type: knob
+    relay: WebSliderRelay
+    label: "Attack"
+    name: "Mod Env 2 · Attack"
+    page: voice
+    position: { x: 794, y: 527 }
+    size: { width: 62, height: 85 }
+    range: [0, 10000]
+    default: 10
+    skew: 0.1977   # setSkewForCentre
+    unit: "ms"
+  - id: menv2_decay
+    type: knob
+    relay: WebSliderRelay
+    label: "Decay"
+    name: "Mod Env 2 · Decay"
+    page: voice
+    position: { x: 866, y: 527 }
+    size: { width: 62, height: 85 }
+    range: [0, 10000]
+    default: 500
+    skew: 0.1977   # setSkewForCentre
+    unit: "ms"
+  - id: menv2_sustain
+    type: knob
+    relay: WebSliderRelay
+    label: "Sustain"
+    name: "Mod Env 2 · Sustain"
+    page: voice
+    position: { x: 938, y: 527 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: menv2_release
+    type: knob
+    relay: WebSliderRelay
+    label: "Release"
+    name: "Mod Env 2 · Release"
+    page: voice
+    position: { x: 1010, y: 527 }
+    size: { width: 62, height: 85 }
+    range: [0, 20000]
+    default: 500
+    skew: 0.1879   # setSkewForCentre
+    unit: "ms"
+  - id: s1_enable
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Enable"
+    page: streams
+    position: { x: 268, y: 290 }
+    size: { width: 32, height: 20 }
+    default: true
+  - id: s1_mute
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Mute"
+    page: streams
+    position: { x: 194, y: 290 }
+    size: { width: 22, height: 20 }
+    default: false
+  - id: s1_solo
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Solo"
+    page: streams
+    position: { x: 226, y: 290 }
+    size: { width: 22, height: 20 }
+    default: false
+  - id: s1_level
+    type: knob
+    relay: WebSliderRelay
+    label: "Level"
+    name: "S1 · Level"
+    page: streams
+    position: { x: 166, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [-60, 6]
+    default: 0
+    skew: 1
+    unit: "dB"
+    mod_destination: 2
+  - id: s1_pan
+    type: knob
+    relay: WebSliderRelay
+    label: "Pan"
+    name: "S1 · Pan"
+    page: streams
+    position: { x: 238, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: ""
+    mod_destination: 3
+  - id: s1_position
+    type: knob
+    relay: WebSliderRelay
+    label: "Position"
+    name: "S1 · Position"
+    page: streams
+    position: { x: 18, y: 365 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 4
+    tooltip: "Start point inside the loop region; also the live read centre (modulatable)."
+  - id: s1_spray
+    type: knob
+    relay: WebSliderRelay
+    label: "Spray"
+    name: "S1 · Spray"
+    page: streams
+    position: { x: 90, y: 365 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 10
+    skew: 1
+    unit: "%"
+    mod_destination: 5
+  - id: s1_scan_rate
+    type: knob
+    relay: WebSliderRelay
+    label: "Scan Rate"
+    name: "S1 · Scan Rate"
+    page: voice
+    position: { x: 166, y: 668 }
+    size: { width: 62, height: 85 }
+    range: [-400, 400]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 26
+    tooltip: "Playhead speed through the loop region: 0 = static, 100 % = real time, negative = backwards."
+  - id: s1_scan_mode
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Scan"
+    page: voice
+    position: { x: 238, y: 668 }
+    size: { width: 62, height: 85 }
+    choices: ["Free-run", "Retrigger", "Ping-pong"]
+    default: 1   # Retrigger
+    tooltip: "Retrigger: each note restarts at Position.\nFree-run: one running playhead shared by every note.\nPing-pong: bounces between the loop points."
+  - id: s1_loop_start
+    type: handle
+    relay: WebSliderRelay
+    label: "Loop Start"
+    name: "S1 · Loop Start"
+    page: shared
+    position: { x: 44, y: 100 }
+    size: { width: 9, height: 40 }
+    presentation: "lane loop handle (horizontal drag inside the 656 px lane canvas); position shown at the default value"
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 27
+    tooltip: "Loop region: the scan and spray stay inside it. Drag a handle; double-click resets."
+  - id: s1_loop_end
+    type: handle
+    relay: WebSliderRelay
+    label: "Loop End"
+    name: "S1 · Loop End"
+    page: shared
+    position: { x: 700, y: 100 }
+    size: { width: 9, height: 40 }
+    presentation: "lane loop handle (horizontal drag inside the 656 px lane canvas); position shown at the default value"
+    range: [0, 100]
+    default: 100
+    skew: 1
+    unit: "%"
+    mod_destination: 28
+    tooltip: "Loop region: the scan and spray stay inside it. Drag a handle; double-click resets."
+  - id: s1_root_note
+    type: field
+    relay: WebSliderRelay
+    label: "Root"
+    name: "S1 · Root Note"
+    page: voice
+    position: { x: 18, y: 683 }
+    size: { width: 62, height: 26 }
+    presentation: "value field (vertical drag, scroll, double-click default)"
+    range: [0, 127]
+    default: 48
+    skew: 1
+    interval: 1
+    unit: "note"
+    tooltip: "The key at which the file plays untransposed. Drag, scroll or double-click (C3)."
+  - id: s1_root_fine
+    type: field
+    relay: WebSliderRelay
+    label: "Fine"
+    name: "S1 · Root Fine"
+    page: voice
+    position: { x: 18, y: 714 }
+    size: { width: 62, height: 20 }
+    presentation: "value field (vertical drag, scroll, double-click default)"
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "ct"
+    tooltip: "Fine tuning of the root, for files that are not at concert pitch."
+  - id: s1_key_track
+    type: knob
+    relay: WebSliderRelay
+    label: "Key Track"
+    name: "S1 · Key Track"
+    page: voice
+    position: { x: 90, y: 668 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 100
+    skew: 1
+    unit: "%"
+    mod_destination: 29
+    tooltip: "How far the played key transposes this stream: 100 % chromatic, 0 % fixed pitch (drone).\nFinal grain pitch clamps at ±48 st."
+  - id: s1_size
+    type: knob
+    relay: WebSliderRelay
+    label: "Size"
+    name: "S1 · Size"
+    page: streams
+    position: { x: 18, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [5, 2000]
+    default: 100
+    skew: 0.3
+    unit: "ms"
+    mod_destination: 6
+    visible_when: "sync_mode == Free"
+  - id: s1_size_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Size"
+    page: streams
+    position: { x: 18, y: 474 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar", "2 bars"]
+    default: 7   # 1/16
+    mod_destination_alias: s1_size
+    visible_when: "sync_mode == Tempo"
+  - id: s1_size_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S1 · Size Random"
+    page: streams
+    position: { x: 90, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 7
+  - id: s1_density
+    type: knob
+    relay: WebSliderRelay
+    label: "Density"
+    name: "S1 · Density"
+    page: streams
+    position: { x: 166, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0.5, 200]
+    default: 10
+    skew: 0.3
+    unit: "grains/s"
+    mod_destination: 8
+    visible_when: "sync_mode == Free"
+  - id: s1_density_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Density"
+    page: streams
+    position: { x: 166, y: 474 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar"]
+    default: 7   # 1/16
+    mod_destination_alias: s1_density
+    visible_when: "sync_mode == Tempo"
+  - id: s1_jitter
+    type: knob
+    relay: WebSliderRelay
+    label: "Jitter"
+    name: "S1 · Jitter"
+    page: streams
+    position: { x: 238, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 20
+    skew: 1
+    unit: "%"
+    mod_destination: 9
+  - id: s1_pitch
+    type: knob
+    relay: WebSliderRelay
+    label: "Pitch"
+    name: "S1 · Pitch"
+    page: streams
+    position: { x: 166, y: 365 }
+    size: { width: 62, height: 85 }
+    range: [-24, 24]
+    default: 0
+    skew: 1
+    unit: "st"
+    mod_destination: 10
+    tooltip: "Offset on top of key tracking.\nFinal grain pitch (key track + pitch + random + bend) clamps at ±48 st."
+  - id: s1_pitch_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S1 · Pitch Random"
+    page: streams
+    position: { x: 238, y: 365 }
+    size: { width: 62, height: 85 }
+    range: [0, 24]
+    default: 0
+    skew: 1
+    unit: "st"
+    mod_destination: 11
+    tooltip: "Random pitch spread per grain, quantised by the stream’s scale from unison.\nFinal grain pitch clamps at ±48 st."
+  - id: s1_scale
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Scale"
+    page: streams
+    position: { x: 48, y: 288 }
+    size: { width: 108, height: 24 }
+    presentation: grouped_dropdown   # inherited Naturalist list (O-Granulator v2 scale_ui.dropdown), NOT a native <select>
+    choices_ref: scale_ui.collections   # 32 entries, inherited unchanged
+    default: 0   # Off
+  - id: s1_reverse_prob
+    type: knob
+    relay: WebSliderRelay
+    label: "Reverse"
+    name: "S1 · Reverse"
+    page: streams
+    position: { x: 238, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 12
+  - id: s1_window
+    type: knob
+    relay: WebSliderRelay
+    label: "Shape"
+    name: "S1 · Window"
+    page: streams
+    position: { x: 90, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [0, 1]
+    default: 0
+    skew: 1
+    unit: ""
+    mod_destination: 13
+  - id: s1_window_skew
+    type: knob
+    relay: WebSliderRelay
+    label: "Skew"
+    name: "S1 · Window Skew"
+    page: streams
+    position: { x: 166, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 14
+  - id: s1_stereo_spread
+    type: knob
+    relay: WebSliderRelay
+    label: "Stereo"
+    name: "S1 · Stereo Spread"
+    page: streams
+    position: { x: 18, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 30
+    skew: 1
+    unit: "%"
+    mod_destination: 15
+  - id: s1_gain_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Gain"
+    name: "S1 · Gain Random"
+    page: streams
+    position: { x: 90, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 16
+  - id: s1_filter_type
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Filter Type"
+    page: fx
+    position: { x: 104, y: 324 }
+    size: { width: 196, height: 22 }
+    choices: ["Off", "LP", "BP", "HP"]
+    default: 0   # Off
+  - id: s1_filter_cutoff
+    type: knob
+    relay: WebSliderRelay
+    label: "Cutoff"
+    name: "S1 · Filter Cutoff"
+    page: fx
+    position: { x: 90, y: 354 }
+    size: { width: 62, height: 85 }
+    range: [20, 20000]
+    default: 20000
+    skew: "log"
+    unit: "Hz"
+    mod_destination: 17
+  - id: s1_filter_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S1 · Filter Random"
+    page: fx
+    position: { x: 166, y: 354 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 18
+  - id: s1_filter_res
+    type: knob
+    relay: WebSliderRelay
+    label: "Resonance"
+    name: "S1 · Filter Res"
+    page: fx
+    position: { x: 238, y: 354 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 20
+    skew: 1
+    unit: "%"
+    mod_destination: 19
+  - id: s1_drive
+    type: knob
+    relay: WebSliderRelay
+    label: "Drive"
+    name: "S1 · Drive"
+    page: fx
+    position: { x: 90, y: 465 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 20
+  - id: s1_crush
+    type: knob
+    relay: WebSliderRelay
+    label: "Amount"
+    name: "S1 · Crush"
+    page: fx
+    position: { x: 166, y: 465 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 21
+  - id: s1_crush_prob
+    type: knob
+    relay: WebSliderRelay
+    label: "Chance"
+    name: "S1 · Crush Chance"
+    page: fx
+    position: { x: 238, y: 465 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 100
+    skew: 1
+    unit: "%"
+    mod_destination: 22
+  - id: s1_ring_freq
+    type: knob
+    relay: WebSliderRelay
+    label: "Freq"
+    name: "S1 · Ring Freq"
+    page: fx
+    position: { x: 90, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [20, 5000]
+    default: 200
+    skew: "log"
+    unit: "Hz"
+    mod_destination: 23
+  - id: s1_ring_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S1 · Ring Random"
+    page: fx
+    position: { x: 166, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 24
+  - id: s1_ring_mix
+    type: knob
+    relay: WebSliderRelay
+    label: "Mix"
+    name: "S1 · Ring Mix"
+    page: fx
+    position: { x: 238, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 25
+  - id: s2_enable
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Enable"
+    page: streams
+    position: { x: 562, y: 290 }
+    size: { width: 32, height: 20 }
+    default: false
+  - id: s2_mute
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Mute"
+    page: streams
+    position: { x: 488, y: 290 }
+    size: { width: 22, height: 20 }
+    default: false
+  - id: s2_solo
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Solo"
+    page: streams
+    position: { x: 520, y: 290 }
+    size: { width: 22, height: 20 }
+    default: false
+  - id: s2_level
+    type: knob
+    relay: WebSliderRelay
+    label: "Level"
+    name: "S2 · Level"
+    page: streams
+    position: { x: 460, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [-60, 6]
+    default: 0
+    skew: 1
+    unit: "dB"
+    mod_destination: 30
+  - id: s2_pan
+    type: knob
+    relay: WebSliderRelay
+    label: "Pan"
+    name: "S2 · Pan"
+    page: streams
+    position: { x: 532, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: ""
+    mod_destination: 31
+  - id: s2_position
+    type: knob
+    relay: WebSliderRelay
+    label: "Position"
+    name: "S2 · Position"
+    page: streams
+    position: { x: 312, y: 365 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 32
+    tooltip: "Start point inside the loop region; also the live read centre (modulatable)."
+  - id: s2_spray
+    type: knob
+    relay: WebSliderRelay
+    label: "Spray"
+    name: "S2 · Spray"
+    page: streams
+    position: { x: 384, y: 365 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 10
+    skew: 1
+    unit: "%"
+    mod_destination: 33
+  - id: s2_scan_rate
+    type: knob
+    relay: WebSliderRelay
+    label: "Scan Rate"
+    name: "S2 · Scan Rate"
+    page: voice
+    position: { x: 460, y: 668 }
+    size: { width: 62, height: 85 }
+    range: [-400, 400]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 54
+    tooltip: "Playhead speed through the loop region: 0 = static, 100 % = real time, negative = backwards."
+  - id: s2_scan_mode
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Scan"
+    page: voice
+    position: { x: 532, y: 668 }
+    size: { width: 62, height: 85 }
+    choices: ["Free-run", "Retrigger", "Ping-pong"]
+    default: 1   # Retrigger
+    tooltip: "Retrigger: each note restarts at Position.\nFree-run: one running playhead shared by every note.\nPing-pong: bounces between the loop points."
+  - id: s2_loop_start
+    type: handle
+    relay: WebSliderRelay
+    label: "Loop Start"
+    name: "S2 · Loop Start"
+    page: shared
+    position: { x: 44, y: 144 }
+    size: { width: 9, height: 40 }
+    presentation: "lane loop handle (horizontal drag inside the 656 px lane canvas); position shown at the default value"
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 55
+    tooltip: "Loop region: the scan and spray stay inside it. Drag a handle; double-click resets."
+  - id: s2_loop_end
+    type: handle
+    relay: WebSliderRelay
+    label: "Loop End"
+    name: "S2 · Loop End"
+    page: shared
+    position: { x: 700, y: 144 }
+    size: { width: 9, height: 40 }
+    presentation: "lane loop handle (horizontal drag inside the 656 px lane canvas); position shown at the default value"
+    range: [0, 100]
+    default: 100
+    skew: 1
+    unit: "%"
+    mod_destination: 56
+    tooltip: "Loop region: the scan and spray stay inside it. Drag a handle; double-click resets."
+  - id: s2_root_note
+    type: field
+    relay: WebSliderRelay
+    label: "Root"
+    name: "S2 · Root Note"
+    page: voice
+    position: { x: 312, y: 683 }
+    size: { width: 62, height: 26 }
+    presentation: "value field (vertical drag, scroll, double-click default)"
+    range: [0, 127]
+    default: 48
+    skew: 1
+    interval: 1
+    unit: "note"
+    tooltip: "The key at which the file plays untransposed. Drag, scroll or double-click (C3)."
+  - id: s2_root_fine
+    type: field
+    relay: WebSliderRelay
+    label: "Fine"
+    name: "S2 · Root Fine"
+    page: voice
+    position: { x: 312, y: 714 }
+    size: { width: 62, height: 20 }
+    presentation: "value field (vertical drag, scroll, double-click default)"
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "ct"
+    tooltip: "Fine tuning of the root, for files that are not at concert pitch."
+  - id: s2_key_track
+    type: knob
+    relay: WebSliderRelay
+    label: "Key Track"
+    name: "S2 · Key Track"
+    page: voice
+    position: { x: 384, y: 668 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 100
+    skew: 1
+    unit: "%"
+    mod_destination: 57
+    tooltip: "How far the played key transposes this stream: 100 % chromatic, 0 % fixed pitch (drone).\nFinal grain pitch clamps at ±48 st."
+  - id: s2_size
+    type: knob
+    relay: WebSliderRelay
+    label: "Size"
+    name: "S2 · Size"
+    page: streams
+    position: { x: 312, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [5, 2000]
+    default: 100
+    skew: 0.3
+    unit: "ms"
+    mod_destination: 34
+    visible_when: "sync_mode == Free"
+  - id: s2_size_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Size"
+    page: streams
+    position: { x: 312, y: 474 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar", "2 bars"]
+    default: 7   # 1/16
+    mod_destination_alias: s2_size
+    visible_when: "sync_mode == Tempo"
+  - id: s2_size_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S2 · Size Random"
+    page: streams
+    position: { x: 384, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 35
+  - id: s2_density
+    type: knob
+    relay: WebSliderRelay
+    label: "Density"
+    name: "S2 · Density"
+    page: streams
+    position: { x: 460, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0.5, 200]
+    default: 10
+    skew: 0.3
+    unit: "grains/s"
+    mod_destination: 36
+    visible_when: "sync_mode == Free"
+  - id: s2_density_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Density"
+    page: streams
+    position: { x: 460, y: 474 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar"]
+    default: 7   # 1/16
+    mod_destination_alias: s2_density
+    visible_when: "sync_mode == Tempo"
+  - id: s2_jitter
+    type: knob
+    relay: WebSliderRelay
+    label: "Jitter"
+    name: "S2 · Jitter"
+    page: streams
+    position: { x: 532, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 20
+    skew: 1
+    unit: "%"
+    mod_destination: 37
+  - id: s2_pitch
+    type: knob
+    relay: WebSliderRelay
+    label: "Pitch"
+    name: "S2 · Pitch"
+    page: streams
+    position: { x: 460, y: 365 }
+    size: { width: 62, height: 85 }
+    range: [-24, 24]
+    default: 0
+    skew: 1
+    unit: "st"
+    mod_destination: 38
+    tooltip: "Offset on top of key tracking.\nFinal grain pitch (key track + pitch + random + bend) clamps at ±48 st."
+  - id: s2_pitch_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S2 · Pitch Random"
+    page: streams
+    position: { x: 532, y: 365 }
+    size: { width: 62, height: 85 }
+    range: [0, 24]
+    default: 0
+    skew: 1
+    unit: "st"
+    mod_destination: 39
+    tooltip: "Random pitch spread per grain, quantised by the stream’s scale from unison.\nFinal grain pitch clamps at ±48 st."
+  - id: s2_scale
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Scale"
+    page: streams
+    position: { x: 342, y: 288 }
+    size: { width: 108, height: 24 }
+    presentation: grouped_dropdown   # inherited Naturalist list (O-Granulator v2 scale_ui.dropdown), NOT a native <select>
+    choices_ref: scale_ui.collections   # 32 entries, inherited unchanged
+    default: 0   # Off
+  - id: s2_reverse_prob
+    type: knob
+    relay: WebSliderRelay
+    label: "Reverse"
+    name: "S2 · Reverse"
+    page: streams
+    position: { x: 532, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 40
+  - id: s2_window
+    type: knob
+    relay: WebSliderRelay
+    label: "Shape"
+    name: "S2 · Window"
+    page: streams
+    position: { x: 384, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [0, 1]
+    default: 0
+    skew: 1
+    unit: ""
+    mod_destination: 41
+  - id: s2_window_skew
+    type: knob
+    relay: WebSliderRelay
+    label: "Skew"
+    name: "S2 · Window Skew"
+    page: streams
+    position: { x: 460, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 42
+  - id: s2_stereo_spread
+    type: knob
+    relay: WebSliderRelay
+    label: "Stereo"
+    name: "S2 · Stereo Spread"
+    page: streams
+    position: { x: 312, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 30
+    skew: 1
+    unit: "%"
+    mod_destination: 43
+  - id: s2_gain_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Gain"
+    name: "S2 · Gain Random"
+    page: streams
+    position: { x: 384, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 44
+  - id: s2_filter_type
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Filter Type"
+    page: fx
+    position: { x: 398, y: 324 }
+    size: { width: 196, height: 22 }
+    choices: ["Off", "LP", "BP", "HP"]
+    default: 0   # Off
+  - id: s2_filter_cutoff
+    type: knob
+    relay: WebSliderRelay
+    label: "Cutoff"
+    name: "S2 · Filter Cutoff"
+    page: fx
+    position: { x: 384, y: 354 }
+    size: { width: 62, height: 85 }
+    range: [20, 20000]
+    default: 20000
+    skew: "log"
+    unit: "Hz"
+    mod_destination: 45
+  - id: s2_filter_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S2 · Filter Random"
+    page: fx
+    position: { x: 460, y: 354 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 46
+  - id: s2_filter_res
+    type: knob
+    relay: WebSliderRelay
+    label: "Resonance"
+    name: "S2 · Filter Res"
+    page: fx
+    position: { x: 532, y: 354 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 20
+    skew: 1
+    unit: "%"
+    mod_destination: 47
+  - id: s2_drive
+    type: knob
+    relay: WebSliderRelay
+    label: "Drive"
+    name: "S2 · Drive"
+    page: fx
+    position: { x: 384, y: 465 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 48
+  - id: s2_crush
+    type: knob
+    relay: WebSliderRelay
+    label: "Amount"
+    name: "S2 · Crush"
+    page: fx
+    position: { x: 460, y: 465 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 49
+  - id: s2_crush_prob
+    type: knob
+    relay: WebSliderRelay
+    label: "Chance"
+    name: "S2 · Crush Chance"
+    page: fx
+    position: { x: 532, y: 465 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 100
+    skew: 1
+    unit: "%"
+    mod_destination: 50
+  - id: s2_ring_freq
+    type: knob
+    relay: WebSliderRelay
+    label: "Freq"
+    name: "S2 · Ring Freq"
+    page: fx
+    position: { x: 384, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [20, 5000]
+    default: 200
+    skew: "log"
+    unit: "Hz"
+    mod_destination: 51
+  - id: s2_ring_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S2 · Ring Random"
+    page: fx
+    position: { x: 460, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 52
+  - id: s2_ring_mix
+    type: knob
+    relay: WebSliderRelay
+    label: "Mix"
+    name: "S2 · Ring Mix"
+    page: fx
+    position: { x: 532, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 53
+  - id: s3_enable
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Enable"
+    page: streams
+    position: { x: 856, y: 290 }
+    size: { width: 32, height: 20 }
+    default: false
+  - id: s3_mute
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Mute"
+    page: streams
+    position: { x: 782, y: 290 }
+    size: { width: 22, height: 20 }
+    default: false
+  - id: s3_solo
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Solo"
+    page: streams
+    position: { x: 814, y: 290 }
+    size: { width: 22, height: 20 }
+    default: false
+  - id: s3_level
+    type: knob
+    relay: WebSliderRelay
+    label: "Level"
+    name: "S3 · Level"
+    page: streams
+    position: { x: 754, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [-60, 6]
+    default: 0
+    skew: 1
+    unit: "dB"
+    mod_destination: 58
+  - id: s3_pan
+    type: knob
+    relay: WebSliderRelay
+    label: "Pan"
+    name: "S3 · Pan"
+    page: streams
+    position: { x: 826, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: ""
+    mod_destination: 59
+  - id: s3_position
+    type: knob
+    relay: WebSliderRelay
+    label: "Position"
+    name: "S3 · Position"
+    page: streams
+    position: { x: 606, y: 365 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 60
+    tooltip: "Start point inside the loop region; also the live read centre (modulatable)."
+  - id: s3_spray
+    type: knob
+    relay: WebSliderRelay
+    label: "Spray"
+    name: "S3 · Spray"
+    page: streams
+    position: { x: 678, y: 365 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 10
+    skew: 1
+    unit: "%"
+    mod_destination: 61
+  - id: s3_scan_rate
+    type: knob
+    relay: WebSliderRelay
+    label: "Scan Rate"
+    name: "S3 · Scan Rate"
+    page: voice
+    position: { x: 754, y: 668 }
+    size: { width: 62, height: 85 }
+    range: [-400, 400]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 82
+    tooltip: "Playhead speed through the loop region: 0 = static, 100 % = real time, negative = backwards."
+  - id: s3_scan_mode
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Scan"
+    page: voice
+    position: { x: 826, y: 668 }
+    size: { width: 62, height: 85 }
+    choices: ["Free-run", "Retrigger", "Ping-pong"]
+    default: 1   # Retrigger
+    tooltip: "Retrigger: each note restarts at Position.\nFree-run: one running playhead shared by every note.\nPing-pong: bounces between the loop points."
+  - id: s3_loop_start
+    type: handle
+    relay: WebSliderRelay
+    label: "Loop Start"
+    name: "S3 · Loop Start"
+    page: shared
+    position: { x: 44, y: 188 }
+    size: { width: 9, height: 40 }
+    presentation: "lane loop handle (horizontal drag inside the 656 px lane canvas); position shown at the default value"
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 83
+    tooltip: "Loop region: the scan and spray stay inside it. Drag a handle; double-click resets."
+  - id: s3_loop_end
+    type: handle
+    relay: WebSliderRelay
+    label: "Loop End"
+    name: "S3 · Loop End"
+    page: shared
+    position: { x: 700, y: 188 }
+    size: { width: 9, height: 40 }
+    presentation: "lane loop handle (horizontal drag inside the 656 px lane canvas); position shown at the default value"
+    range: [0, 100]
+    default: 100
+    skew: 1
+    unit: "%"
+    mod_destination: 84
+    tooltip: "Loop region: the scan and spray stay inside it. Drag a handle; double-click resets."
+  - id: s3_root_note
+    type: field
+    relay: WebSliderRelay
+    label: "Root"
+    name: "S3 · Root Note"
+    page: voice
+    position: { x: 606, y: 683 }
+    size: { width: 62, height: 26 }
+    presentation: "value field (vertical drag, scroll, double-click default)"
+    range: [0, 127]
+    default: 48
+    skew: 1
+    interval: 1
+    unit: "note"
+    tooltip: "The key at which the file plays untransposed. Drag, scroll or double-click (C3)."
+  - id: s3_root_fine
+    type: field
+    relay: WebSliderRelay
+    label: "Fine"
+    name: "S3 · Root Fine"
+    page: voice
+    position: { x: 606, y: 714 }
+    size: { width: 62, height: 20 }
+    presentation: "value field (vertical drag, scroll, double-click default)"
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "ct"
+    tooltip: "Fine tuning of the root, for files that are not at concert pitch."
+  - id: s3_key_track
+    type: knob
+    relay: WebSliderRelay
+    label: "Key Track"
+    name: "S3 · Key Track"
+    page: voice
+    position: { x: 678, y: 668 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 100
+    skew: 1
+    unit: "%"
+    mod_destination: 85
+    tooltip: "How far the played key transposes this stream: 100 % chromatic, 0 % fixed pitch (drone).\nFinal grain pitch clamps at ±48 st."
+  - id: s3_size
+    type: knob
+    relay: WebSliderRelay
+    label: "Size"
+    name: "S3 · Size"
+    page: streams
+    position: { x: 606, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [5, 2000]
+    default: 100
+    skew: 0.3
+    unit: "ms"
+    mod_destination: 62
+    visible_when: "sync_mode == Free"
+  - id: s3_size_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Size"
+    page: streams
+    position: { x: 606, y: 474 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar", "2 bars"]
+    default: 7   # 1/16
+    mod_destination_alias: s3_size
+    visible_when: "sync_mode == Tempo"
+  - id: s3_size_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S3 · Size Random"
+    page: streams
+    position: { x: 678, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 63
+  - id: s3_density
+    type: knob
+    relay: WebSliderRelay
+    label: "Density"
+    name: "S3 · Density"
+    page: streams
+    position: { x: 754, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0.5, 200]
+    default: 10
+    skew: 0.3
+    unit: "grains/s"
+    mod_destination: 64
+    visible_when: "sync_mode == Free"
+  - id: s3_density_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Density"
+    page: streams
+    position: { x: 754, y: 474 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar"]
+    default: 7   # 1/16
+    mod_destination_alias: s3_density
+    visible_when: "sync_mode == Tempo"
+  - id: s3_jitter
+    type: knob
+    relay: WebSliderRelay
+    label: "Jitter"
+    name: "S3 · Jitter"
+    page: streams
+    position: { x: 826, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 20
+    skew: 1
+    unit: "%"
+    mod_destination: 65
+  - id: s3_pitch
+    type: knob
+    relay: WebSliderRelay
+    label: "Pitch"
+    name: "S3 · Pitch"
+    page: streams
+    position: { x: 754, y: 365 }
+    size: { width: 62, height: 85 }
+    range: [-24, 24]
+    default: 0
+    skew: 1
+    unit: "st"
+    mod_destination: 66
+    tooltip: "Offset on top of key tracking.\nFinal grain pitch (key track + pitch + random + bend) clamps at ±48 st."
+  - id: s3_pitch_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S3 · Pitch Random"
+    page: streams
+    position: { x: 826, y: 365 }
+    size: { width: 62, height: 85 }
+    range: [0, 24]
+    default: 0
+    skew: 1
+    unit: "st"
+    mod_destination: 67
+    tooltip: "Random pitch spread per grain, quantised by the stream’s scale from unison.\nFinal grain pitch clamps at ±48 st."
+  - id: s3_scale
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Scale"
+    page: streams
+    position: { x: 636, y: 288 }
+    size: { width: 108, height: 24 }
+    presentation: grouped_dropdown   # inherited Naturalist list (O-Granulator v2 scale_ui.dropdown), NOT a native <select>
+    choices_ref: scale_ui.collections   # 32 entries, inherited unchanged
+    default: 0   # Off
+  - id: s3_reverse_prob
+    type: knob
+    relay: WebSliderRelay
+    label: "Reverse"
+    name: "S3 · Reverse"
+    page: streams
+    position: { x: 826, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 68
+  - id: s3_window
+    type: knob
+    relay: WebSliderRelay
+    label: "Shape"
+    name: "S3 · Window"
+    page: streams
+    position: { x: 678, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [0, 1]
+    default: 0
+    skew: 1
+    unit: ""
+    mod_destination: 69
+  - id: s3_window_skew
+    type: knob
+    relay: WebSliderRelay
+    label: "Skew"
+    name: "S3 · Window Skew"
+    page: streams
+    position: { x: 754, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 70
+  - id: s3_stereo_spread
+    type: knob
+    relay: WebSliderRelay
+    label: "Stereo"
+    name: "S3 · Stereo Spread"
+    page: streams
+    position: { x: 606, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 30
+    skew: 1
+    unit: "%"
+    mod_destination: 71
+  - id: s3_gain_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Gain"
+    name: "S3 · Gain Random"
+    page: streams
+    position: { x: 678, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 72
+  - id: s3_filter_type
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Filter Type"
+    page: fx
+    position: { x: 692, y: 324 }
+    size: { width: 196, height: 22 }
+    choices: ["Off", "LP", "BP", "HP"]
+    default: 0   # Off
+  - id: s3_filter_cutoff
+    type: knob
+    relay: WebSliderRelay
+    label: "Cutoff"
+    name: "S3 · Filter Cutoff"
+    page: fx
+    position: { x: 678, y: 354 }
+    size: { width: 62, height: 85 }
+    range: [20, 20000]
+    default: 20000
+    skew: "log"
+    unit: "Hz"
+    mod_destination: 73
+  - id: s3_filter_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S3 · Filter Random"
+    page: fx
+    position: { x: 754, y: 354 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 74
+  - id: s3_filter_res
+    type: knob
+    relay: WebSliderRelay
+    label: "Resonance"
+    name: "S3 · Filter Res"
+    page: fx
+    position: { x: 826, y: 354 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 20
+    skew: 1
+    unit: "%"
+    mod_destination: 75
+  - id: s3_drive
+    type: knob
+    relay: WebSliderRelay
+    label: "Drive"
+    name: "S3 · Drive"
+    page: fx
+    position: { x: 678, y: 465 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 76
+  - id: s3_crush
+    type: knob
+    relay: WebSliderRelay
+    label: "Amount"
+    name: "S3 · Crush"
+    page: fx
+    position: { x: 754, y: 465 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 77
+  - id: s3_crush_prob
+    type: knob
+    relay: WebSliderRelay
+    label: "Chance"
+    name: "S3 · Crush Chance"
+    page: fx
+    position: { x: 826, y: 465 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 100
+    skew: 1
+    unit: "%"
+    mod_destination: 78
+  - id: s3_ring_freq
+    type: knob
+    relay: WebSliderRelay
+    label: "Freq"
+    name: "S3 · Ring Freq"
+    page: fx
+    position: { x: 678, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [20, 5000]
+    default: 200
+    skew: "log"
+    unit: "Hz"
+    mod_destination: 79
+  - id: s3_ring_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S3 · Ring Random"
+    page: fx
+    position: { x: 754, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 80
+  - id: s3_ring_mix
+    type: knob
+    relay: WebSliderRelay
+    label: "Mix"
+    name: "S3 · Ring Mix"
+    page: fx
+    position: { x: 826, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 81
+  - id: s4_enable
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Enable"
+    page: streams
+    position: { x: 1150, y: 290 }
+    size: { width: 32, height: 20 }
+    default: false
+  - id: s4_mute
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Mute"
+    page: streams
+    position: { x: 1076, y: 290 }
+    size: { width: 22, height: 20 }
+    default: false
+  - id: s4_solo
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Solo"
+    page: streams
+    position: { x: 1108, y: 290 }
+    size: { width: 22, height: 20 }
+    default: false
+  - id: s4_level
+    type: knob
+    relay: WebSliderRelay
+    label: "Level"
+    name: "S4 · Level"
+    page: streams
+    position: { x: 1048, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [-60, 6]
+    default: 0
+    skew: 1
+    unit: "dB"
+    mod_destination: 86
+  - id: s4_pan
+    type: knob
+    relay: WebSliderRelay
+    label: "Pan"
+    name: "S4 · Pan"
+    page: streams
+    position: { x: 1120, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: ""
+    mod_destination: 87
+  - id: s4_position
+    type: knob
+    relay: WebSliderRelay
+    label: "Position"
+    name: "S4 · Position"
+    page: streams
+    position: { x: 900, y: 365 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 88
+    tooltip: "Start point inside the loop region; also the live read centre (modulatable)."
+  - id: s4_spray
+    type: knob
+    relay: WebSliderRelay
+    label: "Spray"
+    name: "S4 · Spray"
+    page: streams
+    position: { x: 972, y: 365 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 10
+    skew: 1
+    unit: "%"
+    mod_destination: 89
+  - id: s4_scan_rate
+    type: knob
+    relay: WebSliderRelay
+    label: "Scan Rate"
+    name: "S4 · Scan Rate"
+    page: voice
+    position: { x: 1048, y: 668 }
+    size: { width: 62, height: 85 }
+    range: [-400, 400]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 110
+    tooltip: "Playhead speed through the loop region: 0 = static, 100 % = real time, negative = backwards."
+  - id: s4_scan_mode
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Scan"
+    page: voice
+    position: { x: 1120, y: 668 }
+    size: { width: 62, height: 85 }
+    choices: ["Free-run", "Retrigger", "Ping-pong"]
+    default: 1   # Retrigger
+    tooltip: "Retrigger: each note restarts at Position.\nFree-run: one running playhead shared by every note.\nPing-pong: bounces between the loop points."
+  - id: s4_loop_start
+    type: handle
+    relay: WebSliderRelay
+    label: "Loop Start"
+    name: "S4 · Loop Start"
+    page: shared
+    position: { x: 44, y: 232 }
+    size: { width: 9, height: 40 }
+    presentation: "lane loop handle (horizontal drag inside the 656 px lane canvas); position shown at the default value"
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 111
+    tooltip: "Loop region: the scan and spray stay inside it. Drag a handle; double-click resets."
+  - id: s4_loop_end
+    type: handle
+    relay: WebSliderRelay
+    label: "Loop End"
+    name: "S4 · Loop End"
+    page: shared
+    position: { x: 700, y: 232 }
+    size: { width: 9, height: 40 }
+    presentation: "lane loop handle (horizontal drag inside the 656 px lane canvas); position shown at the default value"
+    range: [0, 100]
+    default: 100
+    skew: 1
+    unit: "%"
+    mod_destination: 112
+    tooltip: "Loop region: the scan and spray stay inside it. Drag a handle; double-click resets."
+  - id: s4_root_note
+    type: field
+    relay: WebSliderRelay
+    label: "Root"
+    name: "S4 · Root Note"
+    page: voice
+    position: { x: 900, y: 683 }
+    size: { width: 62, height: 26 }
+    presentation: "value field (vertical drag, scroll, double-click default)"
+    range: [0, 127]
+    default: 48
+    skew: 1
+    interval: 1
+    unit: "note"
+    tooltip: "The key at which the file plays untransposed. Drag, scroll or double-click (C3)."
+  - id: s4_root_fine
+    type: field
+    relay: WebSliderRelay
+    label: "Fine"
+    name: "S4 · Root Fine"
+    page: voice
+    position: { x: 900, y: 714 }
+    size: { width: 62, height: 20 }
+    presentation: "value field (vertical drag, scroll, double-click default)"
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "ct"
+    tooltip: "Fine tuning of the root, for files that are not at concert pitch."
+  - id: s4_key_track
+    type: knob
+    relay: WebSliderRelay
+    label: "Key Track"
+    name: "S4 · Key Track"
+    page: voice
+    position: { x: 972, y: 668 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 100
+    skew: 1
+    unit: "%"
+    mod_destination: 113
+    tooltip: "How far the played key transposes this stream: 100 % chromatic, 0 % fixed pitch (drone).\nFinal grain pitch clamps at ±48 st."
+  - id: s4_size
+    type: knob
+    relay: WebSliderRelay
+    label: "Size"
+    name: "S4 · Size"
+    page: streams
+    position: { x: 900, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [5, 2000]
+    default: 100
+    skew: 0.3
+    unit: "ms"
+    mod_destination: 90
+    visible_when: "sync_mode == Free"
+  - id: s4_size_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Size"
+    page: streams
+    position: { x: 900, y: 474 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar", "2 bars"]
+    default: 7   # 1/16
+    mod_destination_alias: s4_size
+    visible_when: "sync_mode == Tempo"
+  - id: s4_size_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S4 · Size Random"
+    page: streams
+    position: { x: 972, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 91
+  - id: s4_density
+    type: knob
+    relay: WebSliderRelay
+    label: "Density"
+    name: "S4 · Density"
+    page: streams
+    position: { x: 1048, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0.5, 200]
+    default: 10
+    skew: 0.3
+    unit: "grains/s"
+    mod_destination: 92
+    visible_when: "sync_mode == Free"
+  - id: s4_density_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Density"
+    page: streams
+    position: { x: 1048, y: 474 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar"]
+    default: 7   # 1/16
+    mod_destination_alias: s4_density
+    visible_when: "sync_mode == Tempo"
+  - id: s4_jitter
+    type: knob
+    relay: WebSliderRelay
+    label: "Jitter"
+    name: "S4 · Jitter"
+    page: streams
+    position: { x: 1120, y: 474 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 20
+    skew: 1
+    unit: "%"
+    mod_destination: 93
+  - id: s4_pitch
+    type: knob
+    relay: WebSliderRelay
+    label: "Pitch"
+    name: "S4 · Pitch"
+    page: streams
+    position: { x: 1048, y: 365 }
+    size: { width: 62, height: 85 }
+    range: [-24, 24]
+    default: 0
+    skew: 1
+    unit: "st"
+    mod_destination: 94
+    tooltip: "Offset on top of key tracking.\nFinal grain pitch (key track + pitch + random + bend) clamps at ±48 st."
+  - id: s4_pitch_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S4 · Pitch Random"
+    page: streams
+    position: { x: 1120, y: 365 }
+    size: { width: 62, height: 85 }
+    range: [0, 24]
+    default: 0
+    skew: 1
+    unit: "st"
+    mod_destination: 95
+    tooltip: "Random pitch spread per grain, quantised by the stream’s scale from unison.\nFinal grain pitch clamps at ±48 st."
+  - id: s4_scale
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Scale"
+    page: streams
+    position: { x: 930, y: 288 }
+    size: { width: 108, height: 24 }
+    presentation: grouped_dropdown   # inherited Naturalist list (O-Granulator v2 scale_ui.dropdown), NOT a native <select>
+    choices_ref: scale_ui.collections   # 32 entries, inherited unchanged
+    default: 0   # Off
+  - id: s4_reverse_prob
+    type: knob
+    relay: WebSliderRelay
+    label: "Reverse"
+    name: "S4 · Reverse"
+    page: streams
+    position: { x: 1120, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 96
+  - id: s4_window
+    type: knob
+    relay: WebSliderRelay
+    label: "Shape"
+    name: "S4 · Window"
+    page: streams
+    position: { x: 972, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [0, 1]
+    default: 0
+    skew: 1
+    unit: ""
+    mod_destination: 97
+  - id: s4_window_skew
+    type: knob
+    relay: WebSliderRelay
+    label: "Skew"
+    name: "S4 · Window Skew"
+    page: streams
+    position: { x: 1048, y: 585 }
+    size: { width: 62, height: 85 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 98
+  - id: s4_stereo_spread
+    type: knob
+    relay: WebSliderRelay
+    label: "Stereo"
+    name: "S4 · Stereo Spread"
+    page: streams
+    position: { x: 900, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 30
+    skew: 1
+    unit: "%"
+    mod_destination: 99
+  - id: s4_gain_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Gain"
+    name: "S4 · Gain Random"
+    page: streams
+    position: { x: 972, y: 696 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 100
+  - id: s4_filter_type
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Filter Type"
+    page: fx
+    position: { x: 986, y: 324 }
+    size: { width: 196, height: 22 }
+    choices: ["Off", "LP", "BP", "HP"]
+    default: 0   # Off
+  - id: s4_filter_cutoff
+    type: knob
+    relay: WebSliderRelay
+    label: "Cutoff"
+    name: "S4 · Filter Cutoff"
+    page: fx
+    position: { x: 972, y: 354 }
+    size: { width: 62, height: 85 }
+    range: [20, 20000]
+    default: 20000
+    skew: "log"
+    unit: "Hz"
+    mod_destination: 101
+  - id: s4_filter_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S4 · Filter Random"
+    page: fx
+    position: { x: 1048, y: 354 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 102
+  - id: s4_filter_res
+    type: knob
+    relay: WebSliderRelay
+    label: "Resonance"
+    name: "S4 · Filter Res"
+    page: fx
+    position: { x: 1120, y: 354 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 20
+    skew: 1
+    unit: "%"
+    mod_destination: 103
+  - id: s4_drive
+    type: knob
+    relay: WebSliderRelay
+    label: "Drive"
+    name: "S4 · Drive"
+    page: fx
+    position: { x: 972, y: 465 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 104
+  - id: s4_crush
+    type: knob
+    relay: WebSliderRelay
+    label: "Amount"
+    name: "S4 · Crush"
+    page: fx
+    position: { x: 1048, y: 465 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 105
+  - id: s4_crush_prob
+    type: knob
+    relay: WebSliderRelay
+    label: "Chance"
+    name: "S4 · Crush Chance"
+    page: fx
+    position: { x: 1120, y: 465 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 100
+    skew: 1
+    unit: "%"
+    mod_destination: 106
+  - id: s4_ring_freq
+    type: knob
+    relay: WebSliderRelay
+    label: "Freq"
+    name: "S4 · Ring Freq"
+    page: fx
+    position: { x: 972, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [20, 5000]
+    default: 200
+    skew: "log"
+    unit: "Hz"
+    mod_destination: 107
+  - id: s4_ring_rand
+    type: knob
+    relay: WebSliderRelay
+    label: "Random"
+    name: "S4 · Ring Random"
+    page: fx
+    position: { x: 1048, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 108
+  - id: s4_ring_mix
+    type: knob
+    relay: WebSliderRelay
+    label: "Mix"
+    name: "S4 · Ring Mix"
+    page: fx
+    position: { x: 1120, y: 576 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 109
+  - id: rec_target
+    type: radio
+    relay: WebComboBoxRelay
+    label: "Target"
+    page: shared
+    position: { x: 766, y: 111 }
+    size: { width: 22, height: 150 }
+    presentation: "per-lane record pips (one 22x18 pip per lane at x 766, y = lane + 11); the lit pip is the target"
+    choices: ["Slot 1", "Slot 2", "Slot 3", "Slot 4"]
+    default: 0   # Slot 1
+  - id: rec_arm
+    type: toggle
+    relay: WebToggleButtonRelay
+    label: "Arm"
+    page: shared
+    position: { x: 810, y: 242 }
+    size: { width: 92, height: 26 }
+    presentation: "latch button \"Arm\" (ochre when on; outlined + blinking lamp while waiting)"
+    default: false
+  - id: rec_trigger
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Trigger"
+    page: shared
+    position: { x: 810, y: 122 }
+    size: { width: 254, height: 22 }
+    presentation: "segmented: Manual | Threshold | Next note"
+    choices: ["Manual", "Threshold", "Next Note"]
+    default: 0   # Manual
+  - id: rec_threshold
+    type: knob
+    relay: WebSliderRelay
+    label: "Threshold"
+    page: shared
+    position: { x: 882, y: 150 }
+    size: { width: 62, height: 85 }
+    range: [-60, 0]
+    default: -30
+    skew: 1
+    unit: "dB"
+    tooltip: "Level that starts a Threshold capture."
+  - id: rec_length
+    type: knob
+    relay: WebSliderRelay
+    label: "Length"
+    page: shared
+    position: { x: 810, y: 150 }
+    size: { width: 62, height: 85 }
+    range: [0.5, 30]
+    default: 4
+    skew: 0.5
+    unit: "s"
+    visible_when: "sync_mode == Free"
+    tooltip: "Capture length, capped at the slot maximum (30 s; 15 s at 192 kHz)."
+    note: "Capped at 30 s (S8 / D2)."
+  - id: rec_length_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Length"
+    page: shared
+    position: { x: 810, y: 150 }
+    size: { width: 62, height: 85 }
+    choices: ["1 bar", "2 bars", "4 bars", "8 bars", "16 bars", "32 bars"]
+    default: 2   # 4 bars
+    visible_when: "sync_mode == Tempo"
+    tooltip: "Capture length, capped at the slot maximum (30 s; 15 s at 192 kHz)."
+    note: "Design Sync S8: value reads \"cap 30 s\" when the bar count exceeds the 30 s slot maximum at the host tempo."
+  - id: rec_gain
+    type: knob
+    relay: WebSliderRelay
+    label: "Gain"
+    page: shared
+    position: { x: 954, y: 150 }
+    size: { width: 62, height: 85 }
+    range: [-24, 12]
+    default: 0
+    skew: 1
+    unit: "dB"
+    tooltip: "Sidechain input level for the capture only. The sidechain never reaches the output."
+  - id: feedback
+    type: knob
+    relay: WebSliderRelay
+    label: "Amount"
+    name: "Feedback"
+    page: fx
+    position: { x: 18, y: 697 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 114
+    tooltip: "Write amount per record-head lap: w = 0.95 × Amount.\nEach lap the working copy becomes (1 − w) · copy + w · grains: a convex blend, not a loop gain, so it can never exceed the source peak.\nReset restores the file; Freeze stops the writes."
+    note: "Design Sync S3: tooltip + display write_amount (\"Write amount\", value = round(0.95 x Amount) % per lap; \"Held · frozen · no writes\" when frozen)."
+  - id: fb_low_cut
+    type: knob
+    relay: WebSliderRelay
+    label: "Low Cut"
+    name: "FB Low Cut"
+    page: fx
+    position: { x: 136, y: 697 }
+    size: { width: 62, height: 85 }
+    range: [20, 2000]
+    default: 80
+    skew: "log"
+    unit: "Hz"
+    mod_destination: 115
+  - id: fb_high_cut
+    type: knob
+    relay: WebSliderRelay
+    label: "High Cut"
+    name: "FB High Cut"
+    page: fx
+    position: { x: 254, y: 697 }
+    size: { width: 62, height: 85 }
+    range: [1000, 20000]
+    default: 12000
+    skew: "log"
+    unit: "Hz"
+    mod_destination: 116
+  - id: fb_saturation
+    type: knob
+    relay: WebSliderRelay
+    label: "Saturate"
+    name: "FB Saturation"
+    page: fx
+    position: { x: 372, y: 697 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 20
+    skew: 1
+    unit: "%"
+    mod_destination: 117
+  - id: fb_diffusion
+    type: knob
+    relay: WebSliderRelay
+    label: "Diffuse"
+    name: "FB Diffusion"
+    page: fx
+    position: { x: 490, y: 697 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 118
+  - id: reverb_mix
+    type: knob
+    relay: WebSliderRelay
+    label: "Mix"
+    name: "Reverb Mix"
+    page: fx
+    position: { x: 800, y: 697 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+    mod_destination: 119
+  - id: reverb_size
+    type: knob
+    relay: WebSliderRelay
+    label: "Size"
+    name: "Reverb Size"
+    page: fx
+    position: { x: 872, y: 697 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 50
+    skew: 1
+    unit: "%"
+    mod_destination: 120
+  - id: reverb_damp
+    type: knob
+    relay: WebSliderRelay
+    label: "Damp"
+    name: "Reverb Damp"
+    page: fx
+    position: { x: 944, y: 697 }
+    size: { width: 62, height: 85 }
+    range: [0, 100]
+    default: 50
+    skew: 1
+    unit: "%"
+    mod_destination: 121
+  - id: lfo1_shape
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Shape"
+    page: mod
+    position: { x: 26, y: 384 }
+    size: { width: 159, height: 24 }
+    choices: ["Sine", "Triangle", "Saw", "Square", "S&H", "Smooth Random"]
+    default: 0   # Sine
+  - id: lfo1_rate
+    type: knob
+    relay: WebSliderRelay
+    label: "Rate"
+    name: "LFO 1 · Rate"
+    page: mod
+    position: { x: 36, y: 418 }
+    size: { width: 62, height: 85 }
+    range: [0.01, 20]
+    default: 0.5
+    skew: 0.3
+    unit: "Hz"
+    mod_destination: 122
+    visible_when: "sync_mode == Free"
+  - id: lfo1_rate_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Rate"
+    page: mod
+    position: { x: 36, y: 418 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar", "2 bars", "4 bars", "8 bars"]
+    default: 18   # 1 bar
+    mod_destination_alias: lfo1_rate
+    visible_when: "sync_mode == Tempo"
+  - id: lfo1_phase
+    type: knob
+    relay: WebSliderRelay
+    label: "Phase"
+    page: mod
+    position: { x: 113, y: 418 }
+    size: { width: 62, height: 85 }
+    range: [0, 360]
+    default: 0
+    skew: 1
+    unit: "deg"
+  - id: lfo1_mode
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Mode"
+    page: mod
+    position: { x: 84, y: 294 }
+    size: { width: 101, height: 22 }
+    choices: ["Global", "Per-voice"]
+    default: 0   # Global
+  - id: lfo2_shape
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Shape"
+    page: mod
+    position: { x: 215, y: 384 }
+    size: { width: 159, height: 24 }
+    choices: ["Sine", "Triangle", "Saw", "Square", "S&H", "Smooth Random"]
+    default: 0   # Sine
+  - id: lfo2_rate
+    type: knob
+    relay: WebSliderRelay
+    label: "Rate"
+    name: "LFO 2 · Rate"
+    page: mod
+    position: { x: 225, y: 418 }
+    size: { width: 62, height: 85 }
+    range: [0.01, 20]
+    default: 0.5
+    skew: 0.3
+    unit: "Hz"
+    mod_destination: 123
+    visible_when: "sync_mode == Free"
+  - id: lfo2_rate_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Rate"
+    page: mod
+    position: { x: 225, y: 418 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar", "2 bars", "4 bars", "8 bars"]
+    default: 18   # 1 bar
+    mod_destination_alias: lfo2_rate
+    visible_when: "sync_mode == Tempo"
+  - id: lfo2_phase
+    type: knob
+    relay: WebSliderRelay
+    label: "Phase"
+    page: mod
+    position: { x: 302, y: 418 }
+    size: { width: 62, height: 85 }
+    range: [0, 360]
+    default: 0
+    skew: 1
+    unit: "deg"
+  - id: lfo2_mode
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Mode"
+    page: mod
+    position: { x: 273, y: 294 }
+    size: { width: 101, height: 22 }
+    choices: ["Global", "Per-voice"]
+    default: 0   # Global
+  - id: lfo3_shape
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Shape"
+    page: mod
+    position: { x: 404, y: 384 }
+    size: { width: 159, height: 24 }
+    choices: ["Sine", "Triangle", "Saw", "Square", "S&H", "Smooth Random"]
+    default: 0   # Sine
+  - id: lfo3_rate
+    type: knob
+    relay: WebSliderRelay
+    label: "Rate"
+    name: "LFO 3 · Rate"
+    page: mod
+    position: { x: 414, y: 418 }
+    size: { width: 62, height: 85 }
+    range: [0.01, 20]
+    default: 0.5
+    skew: 0.3
+    unit: "Hz"
+    mod_destination: 124
+    visible_when: "sync_mode == Free"
+  - id: lfo3_rate_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Rate"
+    page: mod
+    position: { x: 414, y: 418 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar", "2 bars", "4 bars", "8 bars"]
+    default: 18   # 1 bar
+    mod_destination_alias: lfo3_rate
+    visible_when: "sync_mode == Tempo"
+  - id: lfo3_phase
+    type: knob
+    relay: WebSliderRelay
+    label: "Phase"
+    page: mod
+    position: { x: 491, y: 418 }
+    size: { width: 62, height: 85 }
+    range: [0, 360]
+    default: 0
+    skew: 1
+    unit: "deg"
+  - id: lfo3_mode
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Mode"
+    page: mod
+    position: { x: 462, y: 294 }
+    size: { width: 101, height: 22 }
+    choices: ["Global", "Per-voice"]
+    default: 0   # Global
+  - id: lfo4_shape
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Shape"
+    page: mod
+    position: { x: 593, y: 384 }
+    size: { width: 159, height: 24 }
+    choices: ["Sine", "Triangle", "Saw", "Square", "S&H", "Smooth Random"]
+    default: 0   # Sine
+  - id: lfo4_rate
+    type: knob
+    relay: WebSliderRelay
+    label: "Rate"
+    name: "LFO 4 · Rate"
+    page: mod
+    position: { x: 603, y: 418 }
+    size: { width: 62, height: 85 }
+    range: [0.01, 20]
+    default: 0.5
+    skew: 0.3
+    unit: "Hz"
+    mod_destination: 125
+    visible_when: "sync_mode == Free"
+  - id: lfo4_rate_sync
+    type: knob
+    relay: WebComboBoxRelay
+    label: "Rate"
+    page: mod
+    position: { x: 603, y: 418 }
+    size: { width: 62, height: 85 }
+    choices: ["1/64 T", "1/64", "1/64 D", "1/32 T", "1/32", "1/32 D", "1/16 T", "1/16", "1/16 D", "1/8 T", "1/8", "1/8 D", "1/4 T", "1/4", "1/4 D", "1/2 T", "1/2", "1/2 D", "1 bar", "2 bars", "4 bars", "8 bars"]
+    default: 18   # 1 bar
+    mod_destination_alias: lfo4_rate
+    visible_when: "sync_mode == Tempo"
+  - id: lfo4_phase
+    type: knob
+    relay: WebSliderRelay
+    label: "Phase"
+    page: mod
+    position: { x: 680, y: 418 }
+    size: { width: 62, height: 85 }
+    range: [0, 360]
+    default: 0
+    skew: 1
+    unit: "deg"
+  - id: lfo4_mode
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Mode"
+    page: mod
+    position: { x: 651, y: 294 }
+    size: { width: 101, height: 22 }
+    choices: ["Global", "Per-voice"]
+    default: 0   # Global
+  - id: macro1
+    type: knob
+    relay: WebSliderRelay
+    label: "Macro 1"
+    page: mod
+    position: { x: 26, y: 680 }
+    size: { width: 80, height: 97 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: macro2
+    type: knob
+    relay: WebSliderRelay
+    label: "Macro 2"
+    page: mod
+    position: { x: 122, y: 680 }
+    size: { width: 80, height: 97 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: macro3
+    type: knob
+    relay: WebSliderRelay
+    label: "Macro 3"
+    page: mod
+    position: { x: 218, y: 680 }
+    size: { width: 80, height: 97 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: macro4
+    type: knob
+    relay: WebSliderRelay
+    label: "Macro 4"
+    page: mod
+    position: { x: 314, y: 680 }
+    size: { width: 80, height: 97 }
+    range: [0, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod1_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 800, y: 333 }
+    size: { width: 68, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Mod Env 1", "Mod Env 2", "Velocity", "Key", "Note Random", "Mod Wheel", "Pressure", "Slide", "Bend", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod1_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 880, y: 333 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 126 entries, see below
+    default: 0   # None
+  - id: mod1_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1038, y: 333 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod2_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 800, y: 361 }
+    size: { width: 68, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Mod Env 1", "Mod Env 2", "Velocity", "Key", "Note Random", "Mod Wheel", "Pressure", "Slide", "Bend", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod2_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 880, y: 361 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 126 entries, see below
+    default: 0   # None
+  - id: mod2_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1038, y: 361 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod3_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 800, y: 389 }
+    size: { width: 68, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Mod Env 1", "Mod Env 2", "Velocity", "Key", "Note Random", "Mod Wheel", "Pressure", "Slide", "Bend", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod3_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 880, y: 389 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 126 entries, see below
+    default: 0   # None
+  - id: mod3_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1038, y: 389 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod4_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 800, y: 417 }
+    size: { width: 68, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Mod Env 1", "Mod Env 2", "Velocity", "Key", "Note Random", "Mod Wheel", "Pressure", "Slide", "Bend", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod4_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 880, y: 417 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 126 entries, see below
+    default: 0   # None
+  - id: mod4_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1038, y: 417 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod5_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 800, y: 445 }
+    size: { width: 68, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Mod Env 1", "Mod Env 2", "Velocity", "Key", "Note Random", "Mod Wheel", "Pressure", "Slide", "Bend", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod5_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 880, y: 445 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 126 entries, see below
+    default: 0   # None
+  - id: mod5_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1038, y: 445 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod6_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 800, y: 473 }
+    size: { width: 68, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Mod Env 1", "Mod Env 2", "Velocity", "Key", "Note Random", "Mod Wheel", "Pressure", "Slide", "Bend", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod6_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 880, y: 473 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 126 entries, see below
+    default: 0   # None
+  - id: mod6_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1038, y: 473 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod7_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 800, y: 501 }
+    size: { width: 68, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Mod Env 1", "Mod Env 2", "Velocity", "Key", "Note Random", "Mod Wheel", "Pressure", "Slide", "Bend", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod7_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 880, y: 501 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 126 entries, see below
+    default: 0   # None
+  - id: mod7_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1038, y: 501 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod8_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 800, y: 529 }
+    size: { width: 68, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Mod Env 1", "Mod Env 2", "Velocity", "Key", "Note Random", "Mod Wheel", "Pressure", "Slide", "Bend", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod8_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 880, y: 529 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 126 entries, see below
+    default: 0   # None
+  - id: mod8_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1038, y: 529 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod9_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 800, y: 557 }
+    size: { width: 68, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Mod Env 1", "Mod Env 2", "Velocity", "Key", "Note Random", "Mod Wheel", "Pressure", "Slide", "Bend", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod9_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 880, y: 557 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 126 entries, see below
+    default: 0   # None
+  - id: mod9_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1038, y: 557 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod10_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 800, y: 585 }
+    size: { width: 68, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Mod Env 1", "Mod Env 2", "Velocity", "Key", "Note Random", "Mod Wheel", "Pressure", "Slide", "Bend", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod10_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 880, y: 585 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 126 entries, see below
+    default: 0   # None
+  - id: mod10_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1038, y: 585 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod11_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 800, y: 613 }
+    size: { width: 68, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Mod Env 1", "Mod Env 2", "Velocity", "Key", "Note Random", "Mod Wheel", "Pressure", "Slide", "Bend", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod11_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 880, y: 613 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 126 entries, see below
+    default: 0   # None
+  - id: mod11_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1038, y: 613 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod12_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 800, y: 641 }
+    size: { width: 68, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Mod Env 1", "Mod Env 2", "Velocity", "Key", "Note Random", "Mod Wheel", "Pressure", "Slide", "Bend", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod12_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 880, y: 641 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 126 entries, see below
+    default: 0   # None
+  - id: mod12_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1038, y: 641 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod13_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 800, y: 669 }
+    size: { width: 68, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Mod Env 1", "Mod Env 2", "Velocity", "Key", "Note Random", "Mod Wheel", "Pressure", "Slide", "Bend", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod13_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 880, y: 669 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 126 entries, see below
+    default: 0   # None
+  - id: mod13_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1038, y: 669 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod14_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 800, y: 697 }
+    size: { width: 68, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Mod Env 1", "Mod Env 2", "Velocity", "Key", "Note Random", "Mod Wheel", "Pressure", "Slide", "Bend", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod14_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 880, y: 697 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 126 entries, see below
+    default: 0   # None
+  - id: mod14_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1038, y: 697 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod15_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 800, y: 725 }
+    size: { width: 68, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Mod Env 1", "Mod Env 2", "Velocity", "Key", "Note Random", "Mod Wheel", "Pressure", "Slide", "Bend", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod15_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 880, y: 725 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 126 entries, see below
+    default: 0   # None
+  - id: mod15_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1038, y: 725 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+  - id: mod16_source
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Source"
+    page: mod
+    position: { x: 800, y: 753 }
+    size: { width: 68, height: 20 }
+    choices: ["None", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Mod Env 1", "Mod Env 2", "Velocity", "Key", "Note Random", "Mod Wheel", "Pressure", "Slide", "Bend", "Macro 1", "Macro 2", "Macro 3", "Macro 4"]
+    default: 0   # None
+  - id: mod16_dest
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Destination"
+    page: mod
+    position: { x: 880, y: 753 }
+    size: { width: 122, height: 20 }
+    choices: destination_table   # 126 entries, see below
+    default: 0   # None
+  - id: mod16_depth
+    type: slider
+    relay: WebSliderRelay
+    label: "Depth"
+    page: mod
+    position: { x: 1038, y: 753 }
+    size: { width: 100, height: 20 }
+    range: [-100, 100]
+    default: 0
+    skew: 1
+    unit: "%"
+
+scale_ui:   # inherited from O-Granulator v2-ui.yaml scale_ui - collections, dropdown, chips, custom-scale editor, i18n
+  inherited: "verbatim: 32-entry sN_scale list (Off first, Custom last), grouped Naturalist dropdown, per-stream degree chips (1 row <= 24 degrees, 2 rows above), All/None/Invert, ONE shared custom scale + pitch-circle editor, Scala load/save"
+  changes:
+    - "Scale trigger (108 wide) + edit pencil move into the STREAMS column header (x+30 / x+142, y 288); chips + tools stay full width under the header rule (y 321)."
+    - "No Pitch Follow and no Scale Root in the instrument: the scale quantises the Pitch Random spread only, counted from unison; the played key is never quantised. Chip labels are always semitone numbers for 12-tone collections; the trigger tooltip says so."
+  overlays_measured: [{"id": "scale_list", "from": 4, "rect": {"x": 565, "y": 316, "width": 620, "height": 274}}, {"id": "custom_scale_editor", "from": 4, "rect": {"x": 809, "y": 349, "width": 376, "height": 321}, "above": false}, {"id": "scale_list", "from": 1, "rect": {"x": 48, "y": 316, "width": 620, "height": 274}}, {"id": "custom_scale_editor", "from": 1, "rect": {"x": 18, "y": 349, "width": 376, "height": 321}, "above": false}]
+  demo_state: "Lichen Choir: s2_scale = 19-EDO (19) with mask 0 3 6 8 11 14 17; s3_scale = Custom (31) = 'Partch 43' with 14 degrees off; s1/s4 Off."
+
+state:   # plugin STATE (ValueTree), NOT parameters - parameter_count stays 261
+  inherited: "customScale.*, degreeMasks[4][32] (16-hex strings), seed (int64), stateVersion, uiLanguage - as O-Granulator v2 state section"
+  modDestTableVersion: 1
+  slots:   # Design Sync S9 / S10 / S11 - <Slots> child, one <Slot n> each
+    source: "scheme 'factory:<id>' | 'file:<abs>' (+ relative-to-session path) | 'rec:<n>'"
+    name: "display name"
+    embed: "bool, opt-in; default ON for recordings, OFF for files; ignored for factory (always resolvable). UI: lane Embed tool."
+    embedded: "base64 FLAC-24 blob when embed is on, capped at 16 MB encoded per slot (tool shows 'too large to embed' above the cap)"
+    fileSize: "bytes, for relink matching"
+    contentHash: "for relink matching"
+    trimmed: "bool - file longer than the slot max (30 s / 2,880,000 frames); UI badge 'trimmed'"
+    not_saved: "working-copy contents (reload restarts from the pristine file)"
+  native_functions: ["chooseFileForSlot({slot})", "loadSlot({slot, file})", "relinkSlot({slot})", "clearSlot({slot})", "resetSlot({slot})", "resetBuffers()", "setSlotEmbed({slot, embed})", "saveRecording({slot})", "getSlotState() -> [{scheme, name, seconds, trimmed, missing, embed, encodedBytes}] (push after preset load)", "setDegreeMask / setCustomScale / loadScala / saveScala (inherited)"]
+  telemetry_ui_reads: "per lane: overview peaks of the working copy + dirty mask, feedback record-head position, record-in head; per voice: note, gate/release, amp level, scan centre per stream, pitch-clamped flag; grains {voice, stream, normPos, gain, reversed, clamped}; record-in run state + sidechain peak; 17 source values (newest voice for per-voice)"
+
+displays:
+  - { id: voice_activity_mini, page: shared, position: { x: 812, y: 16 }, size: { width: 212, height: 32 }, note: "Voice activity (16 slots). Filled: held · ring: releasing · dash: above Polyphony.\nOchre tick: newest voice (drives mono routes). Click for the Voice page." }
+  - { id: output_meter, page: shared, position: { x: 1162, y: 20 }, size: { width: 20, height: 50 } }
+  - { id: mod_source_dock, page: shared, position: { x: 426, y: 60 }, size: { width: 604, height: 24 } }
+  - { id: s1_lane, page: shared, position: { x: 22, y: 100 }, size: { width: 682, height: 40 } }
+  - { id: s1_load, page: shared, position: { x: 710, y: 101 }, size: { width: 22, height: 18 }, note: "Load a file into slot 1 (or drop one on the lane)" }
+  - { id: s1_embed, page: shared, position: { x: 736, y: 101 }, size: { width: 22, height: 18 }, note: "Factory sources are built in: nothing to embed" }
+  - { id: s1_reset, page: shared, position: { x: 710, y: 121 }, size: { width: 22, height: 18 }, note: "Reset slot 1: restore its working copy to the pristine source (undoes feedback writes)" }
+  - { id: s1_clear, page: shared, position: { x: 736, y: 121 }, size: { width: 22, height: 18 }, note: "Clear slot 1" }
+  - { id: s2_lane, page: shared, position: { x: 22, y: 144 }, size: { width: 682, height: 40 } }
+  - { id: s2_load, page: shared, position: { x: 710, y: 145 }, size: { width: 22, height: 18 }, note: "Load a file into slot 2 (or drop one on the lane)" }
+  - { id: s2_embed, page: shared, position: { x: 736, y: 145 }, size: { width: 22, height: 18 }, note: "Embed the audio in the session and presets (FLAC-24, up to 16 MB per slot). Off stores only the file path.\nNow: path only · about 2.6 MB encoded" }
+  - { id: s2_reset, page: shared, position: { x: 710, y: 165 }, size: { width: 22, height: 18 }, note: "Reset slot 2: restore its working copy to the pristine source (undoes feedback writes)" }
+  - { id: s2_clear, page: shared, position: { x: 736, y: 165 }, size: { width: 22, height: 18 }, note: "Clear slot 2" }
+  - { id: s3_lane, page: shared, position: { x: 22, y: 188 }, size: { width: 682, height: 40 } }
+  - { id: s3_load, page: shared, position: { x: 710, y: 189 }, size: { width: 22, height: 18 }, note: "Load a file into slot 3 (or drop one on the lane)" }
+  - { id: s3_embed, page: shared, position: { x: 736, y: 189 }, size: { width: 22, height: 18 }, note: "Embed the audio in the session and presets (FLAC-24, up to 16 MB per slot). Off stores only the file path.\nNow: path only · about 9.8 MB encoded" }
+  - { id: s3_reset, page: shared, position: { x: 710, y: 209 }, size: { width: 22, height: 18 }, note: "Reset slot 3: restore its working copy to the pristine source (undoes feedback writes)" }
+  - { id: s3_clear, page: shared, position: { x: 736, y: 209 }, size: { width: 22, height: 18 }, note: "Clear slot 3" }
+  - { id: s4_lane, page: shared, position: { x: 22, y: 232 }, size: { width: 682, height: 40 } }
+  - { id: s4_load, page: shared, position: { x: 710, y: 233 }, size: { width: 22, height: 18 }, note: "Load a file into slot 4 (or drop one on the lane)" }
+  - { id: s4_embed, page: shared, position: { x: 736, y: 233 }, size: { width: 22, height: 18 }, note: "Embed the audio in the session and presets (FLAC-24, up to 16 MB per slot). Off stores only the file path.\nNow: embedded · about 1.2 MB encoded" }
+  - { id: s4_reset, page: shared, position: { x: 710, y: 253 }, size: { width: 22, height: 18 }, note: "Reset slot 4: restore its working copy to the pristine source (undoes feedback writes)" }
+  - { id: s4_clear, page: shared, position: { x: 736, y: 253 }, size: { width: 22, height: 18 }, note: "Clear slot 4" }
+  - { id: record_in, page: shared, position: { x: 810, y: 98 }, size: { width: 254, height: 174 } }
+  - { id: record_status, page: shared, position: { x: 930, y: 100 }, size: { width: 134, height: 16 }, note: "Sidechain present and live." }
+  - { id: sidechain_meter, page: shared, position: { x: 1030, y: 164 }, size: { width: 20, height: 52 } }
+  - { id: record_progress, page: shared, position: { x: 912, y: 242 }, size: { width: 152, height: 26 } }
+  - { id: grain_limit_heavy_hint, page: shared, position: { x: 1082, y: 144 }, size: { width: 100, height: 14 }, note: "Most grains sounding at once, shared by every voice and stream.\n256 is heavy: about twice the CPU of 128 at 16 voices. Lower it if the host meter runs hot." }
+  - { id: grain_count, page: shared, position: { x: 1082, y: 168 }, size: { width: 100, height: 30 }, note: "Grains sounding now, by stream, against the shared limit" }
+  - { id: reset_all, page: shared, position: { x: 1082, y: 242 }, size: { width: 100, height: 26 }, note: "Reset all: restore every working copy to its pristine source, undoing feedback writes.\n(Native action, not a parameter: not automatable.)" }
+  - { id: s1_scale_edit, page: streams, position: { x: 160, y: 288 }, size: { width: 22, height: 24 }, note: "Edit the custom scale (one scale, shared by all streams)" }
+  - { id: s1_scale_degrees, page: streams, position: { x: 18, y: 321 }, size: { width: 216, height: 20 } }
+  - { id: s1_scale_tools, page: streams, position: { x: 240, y: 321 }, size: { width: 60, height: 20 } }
+  - { id: s1_window_view, page: streams, position: { x: 18, y: 585 }, size: { width: 62, height: 85 } }
+  - { id: s2_scale_edit, page: streams, position: { x: 454, y: 288 }, size: { width: 22, height: 24 }, note: "Edit the custom scale (one scale, shared by all streams)" }
+  - { id: s2_scale_degrees, page: streams, position: { x: 312, y: 321 }, size: { width: 216, height: 20 } }
+  - { id: s2_scale_tools, page: streams, position: { x: 534, y: 321 }, size: { width: 60, height: 20 } }
+  - { id: s2_window_view, page: streams, position: { x: 312, y: 585 }, size: { width: 62, height: 85 } }
+  - { id: s3_scale_edit, page: streams, position: { x: 748, y: 288 }, size: { width: 22, height: 24 }, note: "Edit the custom scale (one scale, shared by all streams)" }
+  - { id: s3_scale_degrees, page: streams, position: { x: 606, y: 321 }, size: { width: 216, height: 20 } }
+  - { id: s3_scale_tools, page: streams, position: { x: 828, y: 321 }, size: { width: 60, height: 20 } }
+  - { id: s3_window_view, page: streams, position: { x: 606, y: 585 }, size: { width: 62, height: 85 } }
+  - { id: s4_scale_edit, page: streams, position: { x: 1042, y: 288 }, size: { width: 22, height: 24 }, note: "Edit the custom scale (one scale, shared by all streams)" }
+  - { id: s4_scale_degrees, page: streams, position: { x: 900, y: 321 }, size: { width: 216, height: 20 } }
+  - { id: s4_scale_tools, page: streams, position: { x: 1122, y: 321 }, size: { width: 60, height: 20 } }
+  - { id: s4_window_view, page: streams, position: { x: 900, y: 585 }, size: { width: 62, height: 85 } }
+  - { id: lfo1_view, page: mod, position: { x: 0, y: 0 }, size: { width: 0, height: 0 } }
+  - { id: lfo2_view, page: mod, position: { x: 0, y: 0 }, size: { width: 0, height: 0 } }
+  - { id: lfo3_view, page: mod, position: { x: 0, y: 0 }, size: { width: 0, height: 0 } }
+  - { id: lfo4_view, page: mod, position: { x: 0, y: 0 }, size: { width: 0, height: 0 } }
+  - { id: menv1_mini_view, page: mod, position: { x: 0, y: 0 }, size: { width: 0, height: 0 } }
+  - { id: menv2_mini_view, page: mod, position: { x: 0, y: 0 }, size: { width: 0, height: 0 } }
+  - { id: key_view, page: mod, position: { x: 0, y: 0 }, size: { width: 0, height: 0 } }
+  - { id: menv1_view, page: voice, position: { x: 0, y: 0 }, size: { width: 0, height: 0 } }
+  - { id: menv2_view, page: voice, position: { x: 0, y: 0 }, size: { width: 0, height: 0 } }
+  - { id: s1_filter_view, page: fx, position: { x: 18, y: 354 }, size: { width: 62, height: 85 } }
+  - { id: s1_drive_view, page: fx, position: { x: 18, y: 465 }, size: { width: 62, height: 85 } }
+  - { id: s1_ring_view, page: fx, position: { x: 18, y: 576 }, size: { width: 62, height: 85 } }
+  - { id: s2_filter_view, page: fx, position: { x: 312, y: 354 }, size: { width: 62, height: 85 } }
+  - { id: s2_drive_view, page: fx, position: { x: 312, y: 465 }, size: { width: 62, height: 85 } }
+  - { id: s2_ring_view, page: fx, position: { x: 312, y: 576 }, size: { width: 62, height: 85 } }
+  - { id: s3_filter_view, page: fx, position: { x: 606, y: 354 }, size: { width: 62, height: 85 } }
+  - { id: s3_drive_view, page: fx, position: { x: 606, y: 465 }, size: { width: 62, height: 85 } }
+  - { id: s3_ring_view, page: fx, position: { x: 606, y: 576 }, size: { width: 62, height: 85 } }
+  - { id: s4_filter_view, page: fx, position: { x: 900, y: 354 }, size: { width: 62, height: 85 } }
+  - { id: s4_drive_view, page: fx, position: { x: 900, y: 465 }, size: { width: 62, height: 85 } }
+  - { id: s4_ring_view, page: fx, position: { x: 900, y: 576 }, size: { width: 62, height: 85 } }
+  - { id: write_amount, page: fx, position: { x: 590, y: 698 }, size: { width: 186, height: 82 }, note: "Write amount per record-head lap: w = 0.95 × Amount.\nEach lap the working copy becomes (1 − w) · copy + w · grains: a convex blend, not a loop gain, so it can n" }
+  - { id: reverb_view, page: fx, position: { x: 1028, y: 697 }, size: { width: 154, height: 85 } }
+  - { id: mod6_mono_badge, page: mod, position: { x: 1004, y: 476 }, size: { width: 43, height: 14 }, note: "Mono route: a per-voice source on a global destination follows the NEWEST voice (Stage 0 D4).\nMod Env 1 → Feedback: one value for the whole instrument, taken fr" }
+  - { id: amp_env_view, page: voice, position: { x: 18, y: 310 }, size: { width: 212, height: 85 } }
+  - { id: bend_range_note, page: voice, position: { x: 1030, y: 312 }, size: { width: 152, height: 80 } }
+  - { id: voice_activity_strip, page: voice, position: { x: 18, y: 432 }, size: { width: 1162, height: 54 } }
+  - { id: pitch_clamp_note, page: voice, position: { x: 18, y: 762 }, size: { width: 1164, height: 14 } }
+
+destination_table:   # APPEND-ONLY once parameter-spec.md is LOCKED (index = stored choice value); per-stream base b = 2 + 28(N-1)
+  - [0, None]
+  - [1, output_gain]
+  - [2, s1_level]
+  - [3, s1_pan]
+  - [4, s1_position]
+  - [5, s1_spray]
+  - [6, s1_size]
+  - [7, s1_size_rand]
+  - [8, s1_density]
+  - [9, s1_jitter]
+  - [10, s1_pitch]
+  - [11, s1_pitch_rand]
+  - [12, s1_reverse_prob]
+  - [13, s1_window]
+  - [14, s1_window_skew]
+  - [15, s1_stereo_spread]
+  - [16, s1_gain_rand]
+  - [17, s1_filter_cutoff]
+  - [18, s1_filter_rand]
+  - [19, s1_filter_res]
+  - [20, s1_drive]
+  - [21, s1_crush]
+  - [22, s1_crush_prob]
+  - [23, s1_ring_freq]
+  - [24, s1_ring_rand]
+  - [25, s1_ring_mix]
+  - [26, s1_scan_rate]
+  - [27, s1_loop_start]
+  - [28, s1_loop_end]
+  - [29, s1_key_track]
+  - [30, s2_level]
+  - [31, s2_pan]
+  - [32, s2_position]
+  - [33, s2_spray]
+  - [34, s2_size]
+  - [35, s2_size_rand]
+  - [36, s2_density]
+  - [37, s2_jitter]
+  - [38, s2_pitch]
+  - [39, s2_pitch_rand]
+  - [40, s2_reverse_prob]
+  - [41, s2_window]
+  - [42, s2_window_skew]
+  - [43, s2_stereo_spread]
+  - [44, s2_gain_rand]
+  - [45, s2_filter_cutoff]
+  - [46, s2_filter_rand]
+  - [47, s2_filter_res]
+  - [48, s2_drive]
+  - [49, s2_crush]
+  - [50, s2_crush_prob]
+  - [51, s2_ring_freq]
+  - [52, s2_ring_rand]
+  - [53, s2_ring_mix]
+  - [54, s2_scan_rate]
+  - [55, s2_loop_start]
+  - [56, s2_loop_end]
+  - [57, s2_key_track]
+  - [58, s3_level]
+  - [59, s3_pan]
+  - [60, s3_position]
+  - [61, s3_spray]
+  - [62, s3_size]
+  - [63, s3_size_rand]
+  - [64, s3_density]
+  - [65, s3_jitter]
+  - [66, s3_pitch]
+  - [67, s3_pitch_rand]
+  - [68, s3_reverse_prob]
+  - [69, s3_window]
+  - [70, s3_window_skew]
+  - [71, s3_stereo_spread]
+  - [72, s3_gain_rand]
+  - [73, s3_filter_cutoff]
+  - [74, s3_filter_rand]
+  - [75, s3_filter_res]
+  - [76, s3_drive]
+  - [77, s3_crush]
+  - [78, s3_crush_prob]
+  - [79, s3_ring_freq]
+  - [80, s3_ring_rand]
+  - [81, s3_ring_mix]
+  - [82, s3_scan_rate]
+  - [83, s3_loop_start]
+  - [84, s3_loop_end]
+  - [85, s3_key_track]
+  - [86, s4_level]
+  - [87, s4_pan]
+  - [88, s4_position]
+  - [89, s4_spray]
+  - [90, s4_size]
+  - [91, s4_size_rand]
+  - [92, s4_density]
+  - [93, s4_jitter]
+  - [94, s4_pitch]
+  - [95, s4_pitch_rand]
+  - [96, s4_reverse_prob]
+  - [97, s4_window]
+  - [98, s4_window_skew]
+  - [99, s4_stereo_spread]
+  - [100, s4_gain_rand]
+  - [101, s4_filter_cutoff]
+  - [102, s4_filter_rand]
+  - [103, s4_filter_res]
+  - [104, s4_drive]
+  - [105, s4_crush]
+  - [106, s4_crush_prob]
+  - [107, s4_ring_freq]
+  - [108, s4_ring_rand]
+  - [109, s4_ring_mix]
+  - [110, s4_scan_rate]
+  - [111, s4_loop_start]
+  - [112, s4_loop_end]
+  - [113, s4_key_track]
+  - [114, feedback]
+  - [115, fb_low_cut]
+  - [116, fb_high_cut]
+  - [117, fb_saturation]
+  - [118, fb_diffusion]
+  - [119, reverb_mix]
+  - [120, reverb_size]
+  - [121, reverb_damp]
+  - [122, lfo1_rate]
+  - [123, lfo2_rate]
+  - [124, lfo3_rate]
+  - [125, lfo4_rate]
+
+source_table:   # modM_source, 18 entries (order frozen by parameter-spec-draft.md)
+  - [0, "None", "—"]
+  - [1, "LFO 1", "per-voice or global (lfoN_mode)"]
+  - [2, "LFO 2", "per-voice or global (lfoN_mode)"]
+  - [3, "LFO 3", "per-voice or global (lfoN_mode)"]
+  - [4, "LFO 4", "per-voice or global (lfoN_mode)"]
+  - [5, "Mod Env 1", "per-voice"]
+  - [6, "Mod Env 2", "per-voice"]
+  - [7, "Velocity", "per-voice"]
+  - [8, "Key", "per-voice"]
+  - [9, "Note Random", "per-voice"]
+  - [10, "Mod Wheel", "global"]
+  - [11, "Pressure", "per-voice"]
+  - [12, "Slide", "per-voice"]
+  - [13, "Bend", "per-voice"]
+  - [14, "Macro 1", "global"]
+  - [15, "Macro 2", "global"]
+  - [16, "Macro 3", "global"]
+  - [17, "Macro 4", "global"]
+
+layout_validation:   # run on the measured rects (per page + shared header/strip; Free/Tempo alternates treated as exclusive)
+  passed: true
+  checks: "bounds, 15 px edge padding, pairwise overlap (12537 pairs), minimum sizes (knob 40, toggle 20x20, slider 100), spacing < 10 px (warning)"
+  errors: []
+  warnings_total: 74   # all VERTICAL; horizontal gaps < 10 px: 0
+  warnings_by_kind:   # non-blocking; each is a deliberate rhythm, explained
+    - "modN_depth / modN_depth @ 8 px x15 - matrix rows at 28 px pitch (26 px rows) - parent used 30; selects are 20 px inside each row"
+    - "modN_dest / modN_dest @ 8 px x15 - matrix rows at 28 px pitch (26 px rows) - parent used 30; selects are 20 px inside each row"
+    - "modN_source / modN_source @ 8 px x15 - matrix rows at 28 px pitch (26 px rows) - parent used 30; selects are 20 px inside each row"
+    - "rec_arm / rec_length @ 7 px x1 - Record-in cluster: knob cells begin/end with label/value text, visible gap >= 12 px"
+    - "rec_arm / rec_length_sync @ 7 px x1 - Record-in cluster: knob cells begin/end with label/value text, visible gap >= 12 px"
+    - "rec_arm / rec_threshold @ 7 px x1 - Record-in cluster: knob cells begin/end with label/value text, visible gap >= 12 px"
+    - "rec_trigger / rec_gain @ 6 px x1 - Record-in cluster: knob cells begin/end with label/value text, visible gap >= 12 px"
+    - "rec_trigger / rec_length @ 6 px x1 - Record-in cluster: knob cells begin/end with label/value text, visible gap >= 12 px"
+    - "rec_trigger / rec_length_sync @ 6 px x1 - Record-in cluster: knob cells begin/end with label/value text, visible gap >= 12 px"
+    - "rec_trigger / rec_threshold @ 6 px x1 - Record-in cluster: knob cells begin/end with label/value text, visible gap >= 12 px"
+    - "sN_filter_type / sN_filter_cutoff @ 8 px x4 - segmented row to knob cells; the cell begins with its 13 px label, so the visible gap is ~22 px"
+    - "sN_filter_type / sN_filter_rand @ 8 px x4 - segmented row to knob cells; the cell begins with its 13 px label, so the visible gap is ~22 px"
+    - "sN_filter_type / sN_filter_res @ 8 px x4 - segmented row to knob cells; the cell begins with its 13 px label, so the visible gap is ~22 px"
+    - "sN_loop_end / sN_loop_end @ 4 px x3 - adjacent lanes stack at 44 px pitch with a 4 px rule between lanes (handles are lane-tall)"
+    - "sN_loop_start / sN_loop_start @ 4 px x3 - adjacent lanes stack at 44 px pitch with a 4 px rule between lanes (handles are lane-tall)"
+    - "sN_root_note / sN_root_fine @ 5 px x4 - intentional pair: root note field over its fine field"
+  text_audit: { below_10_5px: 0, clipped_overflow: 0, contrast_below_4_5: 0, outside_8px_frame: 0, scope: "all 4 pages, scale list + editor from streams I and IV, lane states (empty / relink / trimmed), record-in states (no sidechain / no signal / ready)" }
+
+test_html:
+  file: v1-ui-test.html
+  self_contained: "single file; EB Garamond woff2 embedded; mock JUCE backend (getSliderState / getToggleState / getComboBoxState / getNativeFunction), every call logged"
+  animation: "scripted MIDI: 3-note chords every 4.2 s (A2 E3 C#4, F#2 C#3 A3, ...), amp release 2.4 s -> ~3 held + 3 fading voices; per-voice scan, grains, playheads, feedback heads, mod sources, voice strip"
+  hash_flags:
+    "#empty": "all four slots empty"
+    "#relink": "slot 2 file missing (relink badge)"
+    "#trimmed": "slot 3 is a 48.2 s file trimmed to 30 s; 21.4 MB, too large to embed"
+    "#nosc": "no sidechain bus"
+    "#nosignal": "sidechain bus present, silent"
+    "#armed": "Record-in armed on Threshold (0 dB), target slot IV - waiting for level"
+    "#recording": "Record-in Manual into slot IV, 8 s, loops every capture"
+    "#heavy": "grain_limit 256 (heavy hint)"
+    "#dragover": "lane IV in drag-over state"
+    "#clamp": "adds C8 to every other chord: voice cells show '+48 st · clamp', grain cores turn warning-tone"
+    "#mpe": "mpe_enable on (expression card reads MPE)"
+    "#freeze": "Freeze on (feedback heads dashed + stopped, strip glow)"
+    "#tempo": "sync_mode Tempo (sync knobs swap in)"
+    "#page=<streams|fx|mod|voice>": "open a page"
+    "#list<N> / #pop<N>": "open the scale list / custom-scale editor from stream N"
+    "#measure": "headless measurement -> <script id=measure-out>"
+    "#selftest": "drag Env 2 -> Output (mono badge), LFO 2 -> S1 loop-end handle, LFO 2 per-voice -> reverb (mono), heavy hint on/off, trimmed load, record-in Manual cycle -> rec slot with embed on"
+
+design_sync_applied:
+  S1: "grain_limit select: 4 choices 32/64/128/256 grains, default 3 (256); 'heavy on CPU' hint (grain_limit_heavy_hint, 1082,144) visible when > 128; tooltip explains the cost. Lane strip globals column."
+  S2: "pitch_bend_range label 'Bend Range', tooltip 'Bend range (MPE: master channel; member notes use RPN 0, default 48)'; long form in bend_range_note (VOICE, 1030,312)."
+  S3: "feedback tooltip: write amount per record-head lap, w = 0.95 × Amount, convex blend not a loop gain; FX readout write_amount ('Write amount  27 % per lap', note 'A convex blend into the copy, never a gain: it cannot exceed the source peak.') replaces the parent's loop-gain readout; lanes show the 1x feedback record head and a pale crest where the copy has been rewritten."
+  S4: "Freeze latch tooltip: record heads stop, nothing written, chains warm, returns discarded; lane feedback heads turn dashed + still; write_amount reads 'Held · frozen · no writes'."
+  S5: "sN_position tooltip: start point inside the loop region AND the live read centre (modulatable); lane scan-start marker sits inside the region."
+  S6: "±48 st clamp: pitch / pitch_rand / key_track tooltips; VOICE pitch_clamp_note (18,762); voice cells read '+48 st · clamp' in warning tone; clamped grains get a warning-tone core in the lanes (#clamp demo)."
+  S7: "MOD matrix 'mono' badge (ochre pill + ochre arrow) on rows routing a per-voice source (incl. per-voice LFOs) to a global destination (1, 114-125); tooltip states the newest-voice rule; per-voice pip on all source chips; legend item 4; demo slot 6 Env 1 -> Feedback."
+  S8: "rec_length capped at 30 s; rec_length_sync value reads 'cap 30 s' when the bars exceed the slot maximum; progress line shows 'capped 30 s'; 'trimmed' lane badge for files beyond 30 s / 2,880,000 frames."
+  S9: "lane source scheme visible: factory (badge), file (path tooltip), rec (badge + save…); state keys embed / fileSize / contentHash / trimmed listed under state.slots; embed tooltip shows the 16 MB FLAC-24 cap and the slot's encoded size."
+  S10: "factory slots show the 'factory' tag (tooltip: built into the binary, BinaryData FLAC ≤ 8 MB) and their Embed tool is disabled."
+  S11: "per-slot Embed toggle in the lane tools (native setSlotEmbed -> state), default on for recordings; Reset / Clear / Load / Reset all are native actions, not parameters."
+
+deviations_from_invocation:
+  - "Scale Root is NOT placed in the strip: parameter-spec-draft.md removed scale_root (it only served Pitch Follow) and the 261 count forbids adding IDs. The per-stream root lives in sN_root_note (VOICE > Playback). If a global scale root is wanted it must be added to the spec first (262 params)."
+  - "grain_limit uses the Design Sync S1 list (4 entries) instead of the draft's 5; the ID is unchanged."
+  - "PLUGINS.md not touched (commit is path-scoped to plugins/O-GranulatorInstrument)."
+
+parameter_count: 261
+parameter_count_by_group: { global_voice: 9, amp_envelope: 5, mod_envelopes: 8, per_stream: 152, record_in: 7, feedback: 5, reverb: 3, lfos: 20, macros: 4, matrix: 48 }
+ids_vs_draft: "every control id exists in parameter-spec-draft.md; none added, none removed"

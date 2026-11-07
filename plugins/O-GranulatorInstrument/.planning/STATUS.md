@@ -11,6 +11,7 @@ next_action: ui_mockup_then_parameter_spec
 next_stage: 1
 ready_for_implementation: false
 blocked_on: mockup + LOCKED parameter-spec.md (Design Sync S1-S11); Phase 2.1 also waits for O-Granulator 3.3 to close (fork pin)
+latest_mockup_version: 1
 mockup_finalized: false
 contract_checksums:
   brief: sha256:31c873f27b5eafaee2e1574406d0bea2d645a5fc85c72721a7876fdc5fb81c86
@@ -48,7 +49,7 @@ Progress: [##..................] 10%
 
 ## Next Steps
 
-1. UI mockup (`/start O-GranulatorInstrument` → option 3). Apply ARCHITECTURE.md "Design Sync" S1–S11.
+1. UI mockup (`/start O-GranulatorInstrument` → option 3). Apply ARCHITECTURE.md "Design Sync" S1–S11. **v1 created 2026-11-07** (`.planning/mockups/v1-ui.yaml` + `v1-ui-test.html`, 261 params, S1–S11 mapped in `design_sync_applied`); in design iteration, not finalized.
 2. Write the LOCKED `parameter-spec.md` from the finalized mockup. Freeze the 126 destinations and 18 sources.
 3. Stage 1: Foundation (`/implement O-GranulatorInstrument`).
 4. Before Phase 2.1: confirm O-Granulator 3.3 has closed, then fork the leaves pinned to that commit.
@@ -75,3 +76,5 @@ Progress: [##..................] 10%
 - plugins/O-GranulatorInstrument/.planning/BRIEF.md (ideation)
 - plugins/O-GranulatorInstrument/.planning/REQUIREMENTS.md (ideation)
 - plugins/O-GranulatorInstrument/.planning/parameter-spec-draft.md (ideation, 2026-11-07)
+- plugins/O-GranulatorInstrument/.planning/mockups/v1-ui.yaml (UI mockup v1, 2026-11-07)
+- plugins/O-GranulatorInstrument/.planning/mockups/v1-ui-test.html (UI mockup v1 browser test, 2026-11-07)
