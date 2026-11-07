@@ -1,8 +1,8 @@
 ---
 plugin: O-Granulator
 stage: 4
-status: stage_4_research_complete
-current_phase: research
+status: stage_4_plan_complete
+current_phase: plan
 current_gui_phase: 3.3
 current_dsp_phase: 2.6
 stage_0_status: ui_design_complete
@@ -15,7 +15,7 @@ complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_4_plan
+next_action: stage_4_execute
 next_stage: 4
 ready_for_implementation: true
 blocked_on: null
@@ -31,6 +31,8 @@ contract_checksums:
 # O-Granulator Status
 
 ## Current Position
+
+**Stage 4 (Polish / Validation) plan ✓ 2026-11-07** (stages/4-polish/PLAN-4.md P143–P162, T0–T7: sign-offs — D43 option 3 locked, descriptions docs-only, AG4 ≤ 1 dB p-p (FAIL = stop), no Windows push/dispatch in Stage 4 (COMPAT-03 complete-pending-CI at /publish); T1 D43 + AG1–AG6/AG1n → re-baseline ledger → freeze D; T2 D47 a–e bitwise vs D; T3 16 presets FactoryPresets.h + PR0–PR5; T4 ST1–ST3 + LY1; T5 VERSION 1.0.0 + CHANGELOG + install + auval/pluginval 10 + ST4 pedalboard; T6 UI gates + PF1; T7 HANDS-ON-4 + DAW-4 (Logic AU + Reaper VST3); no tag). Next: execute.
 
 **Stage 4 (Polish / Validation) research ✓ 2026-11-07** (stages/4-polish/RESEARCH-4.md R134–R156: D43 → option 3, AGC follower on d·|y| (ceiling tracks saturation; engages at a sat-invariant +1.86 dB loop excess; bitwise at sat 0; env ≤ 1 structural) gated AG1–AG5 + AG1n legacy control, AG4 pumping threshold signed at plan; presets = name-prefix categories (module has none), engineering-unit table → convertTo0to1, fixed seed per preset, gated build-tree via applyPresetData + one real-path row; state codec immune to stale CustomState (no setStateFromXml) but ST2 two-reopen kept; Windows via ci-tests.yml dispatch (needs push, Taylor-confirmed); D47 a/b/c/e designs). Next: plan.
 
