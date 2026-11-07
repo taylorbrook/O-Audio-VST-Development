@@ -34,7 +34,7 @@ Every check below was re-run in this verify session on a clean tree at `4526261e
 | 6 Window + telemetry | ✅ Achieved | WC1 worst 5.86e-7 vs closed-form Hann. WC2 5/5. TL31 18/18 (pitch 69.03, LFO1 0.263, macro2 0.630; 3.2 / 3.3 fields zero / NaN) |
 | 7 UI gates | ✅ Achieved | overrides regenerated twice byte-identical, `git diff` clean; check-i18n 0 · fr-lint 0 · zh-lint 0; check-ui-labels rc 0, banner `seed=param-dump (220 rows) + overrides`, `states: default + 9`; boot-all-uis `--strict-tips` rc 0, 0 warn, 0 failed, 0 DEAD, 0 late |
 | 8 Audio unchanged | ✅ Achieved | Harness **474 PASS, 0 FAIL**, rc 0. Carried extract == execute T11 extract exactly, and == B modulo the extract's whitespace trim / HR3 timing mask (no verdict or value moved). W2o **+0.483 dB** unchanged. N3 / N2 / N1 / N0 `--strict` + R12 rc 0, free + capped max\|Δ\| 0, every control differs. HA 79/79, 142 untouched, 79/79. Session-codec bytes (`codec_bytes.py`, installed VST3) identical to B on all 9 fixtures incl. second reopens |
-| 9 Hands-on | ⏳ Pending | HANDS-ON-3.1.md — Taylor, Standalone + one DAW |
+| 9 Hands-on | ✅ Achieved | HANDS-ON-3.1.md A–G all PASS (Taylor, 2026-11-06). Buffer strip empty = §H expected 3.2 stub (NOTE) |
 
 ## Deviation Review (SUMMARY-3.1 deviations 1–10)
 
@@ -59,7 +59,7 @@ Static notes (no action): the P98 refactor moves `resetNonParameterState()` afte
 
 | Requirement | Priority | Status | Acceptance Criteria |
 |-------------|----------|--------|---------------------|
-| UI-01: All parameters reachable; per-stream controls | must | ⚠️ Partial (unchanged) | Automated layers 1 + 2 complete (static closure, 220 × 2 probe). Layer 3 (real-WebView relay ↔ attachment, host automation, preset recall) = HANDS-ON-3.1.md |
+| UI-01: All parameters reachable; per-stream controls | must | ✅ Complete (partial → complete) | Layer 1 static closure, layer 2 220 × 2 probe, layer 3 real-WebView hands-on (relay ↔ attachment, host automation, preset recall, two reopens) all PASS |
 | UI-02: Buffer waveform / grains | should | ⏸️ Deferred | Phase 3.2 |
 | UI-03: Mod matrix view + mod amount on targets | should | ⏸️ Deferred | Phase 3.3 (routing + modNorm already live in 3.1) |
 
@@ -91,17 +91,21 @@ Static notes (no action): the P98 refactor moves `resetNonParameterState()` afte
 
 ## Human Verification — HANDS-ON-3.1.md
 
-**Pending (Taylor).** Standalone + one DAW, sections A–G (§H lists the expected 3.1 stub artefacts — not defects). UI-01 → complete on PASS. A FAIL in B / C / D / E reopens UI-01 and routes to a 3.1 fix before 3.2.
+Run by Taylor, 2026-11-06 (Standalone + DAW): **all items PASS.**
 
 | Section | Verdict |
 |---|---|
-| A Load and look (A1–A6) | ⏳ |
-| B UI → host (B1–B10) | ⏳ |
-| C Host → UI (C1–C4) | ⏳ |
-| D Presets (D1–D5) | ⏳ |
-| E Two reopens (E1–E2) | ⏳ |
-| F Robustness (F1–F3) | ⏳ |
-| G Hands-on §9 (G1–G9, incl. G9 R108 paint-drag watch) | ⏳ |
+| A Load and look (A1–A6) | ✅ PASS |
+| B UI → host (B1–B10) | ✅ PASS |
+| C Host → UI (C1–C4) | ✅ PASS |
+| D Presets (D1–D5) | ✅ PASS |
+| E Two reopens (E1–E2) | ✅ PASS |
+| F Robustness (F1–F3) | ✅ PASS |
+| G Hands-on §9 (G1–G9) | ✅ PASS |
+
+Notes:
+- **Buffer strip shows no waveform or grains.** Expected 3.1 stub (§H): the wave ring and grain seqlock are Phase 3.2 scope (UI-02). NOTE, not a defect.
+- **Reverb seemed on by default.** It was not a defect: `reverb_mix` defaults to 0 % (spec, processor, page), and at 0 % the tank never runs (R35). The instance carried a value from an earlier test (Taylor). Closed with no change. Side observation, logged for 3.3 polish only if wanted: the "fig. decay" figure draws at 25 % amplitude when mix is 0 (`index.html` `drawReverbFigure`, `0.25 + 0.75·mx`).
 
 ## Issues Found
 
@@ -110,8 +114,8 @@ Static notes (no action): the P98 refactor moves `resetNonParameterState()` afte
 
 ## Phase Verdict
 
-**Status:** ⚠️ AUTOMATED VERIFIED — the hands-on is pending. Every automated gate passes on an independent re-run, and deviations 1–10 are accepted.
+**Status:** ✅ VERIFIED (Phase 3.1). Every automated gate passes on an independent re-run, the hands-on passes, and deviations 1–10 are accepted.
 
-**Ready for next phase:** after HANDS-ON-3.1.md passes (→ UI-01 complete for 3.1 scope, Phase 3.1 ✓, next Phase 3.2).
+**Ready for next phase:** Yes — Phase 3.2 (wave ring + grain seqlock → buffer display, UI-02).
 
-**Blockers:** none, other than the pending hands-on.
+**Blockers:** none.
