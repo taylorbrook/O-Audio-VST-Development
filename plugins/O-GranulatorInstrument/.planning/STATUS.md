@@ -1,18 +1,18 @@
 ---
 plugin: O-GranulatorInstrument
-stage: 1
-status: stage_1_complete_verified
-current_phase: 1-foundation
-gsd_phase: verify_complete
+stage: 2
+status: stage_2_phase_2_1_discuss_complete
+current_phase: 2-dsp/2.1
+gsd_phase: discuss_complete
 last_updated: 2026-11-07
 complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_2_discuss
+next_action: stage_2_research
 next_stage: 2
 ready_for_implementation: true
-blocked_on: none (O-Granulator 3.3 closed 1455e501; fork pin confirmed at 2.1 discuss)
+blocked_on: none (fork pin 82406fce, D11)
 latest_mockup_version: 1
 mockup_finalized: true
 finalized_version: 1
@@ -37,7 +37,8 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — VERIFIED
+Stage: 2 of 4 (DSP) — Phase 2.1 discuss complete (`stages/2-dsp/CONTEXT-2.1.md`: D11 fork pin O-Granulator 82406fce, zero drift, D43 + D47a included; D12 water-fill + onset thinning on the voice axis in 2.1; D13 `OGI_DEV_LOADER` dev-loader editor until 3.1). Next: research 2.1.
+Stage 1: VERIFIED
 Status: Stage 1 executed (74606bb3): 0.1.0 VST3 + AU + Standalone built; 261 params (176/70/15), dest 126 / src 18 goldens; harness 55 PASS / 0 FAIL + golden and spec negative controls; pluginval 10 VST3 ×3 + AU SUCCESS with SC active (2 ch) and gate variant inactive (0 ch), auval PASS [1, 2] [2, 2] (frozen); D9 contingency did not fire; shipping build restored + installed. See stages/1-foundation/SUMMARY.md. Verified 2026-11-07 (stages/1-foundation/VERIFICATION.md): independent re-run on the installed shipping build — goldens + param-dump byte-identical, harness 55/0, auval PASS [1, 2] [2, 2], pluginval 10 VST3 + AU SUCCESS (2 ch in); COMPAT-01 complete. Next: Stage 2 discuss (Phase 2.1 fork).
 Progress: [####................] 20%
 
@@ -64,7 +65,7 @@ Progress: [####................] 20%
 1. ✓ UI mockup v1 finalized 2026-11-07 (Phase 5.5); Phase B scaffolding generated: `v1-ui.html`, `v1-i18n.js`, `v1-PluginEditor.{h,cpp}` (261 relays, 34 native fns, sidechain-aware Record-in telemetry), `v1-CMakeLists.txt`, `v1-integration-checklist.md`, `v1-i18n-states.json`. UI gates pre-verified on a scratch tree (check-i18n / fr / zh / check-ui-labels / boot-all-uis all clean).
 2. ✓ `parameter-spec.md` LOCKED (Stage 1 contract): 261 params, Design Sync S1–S11 applied, 126-entry destination order and 18-entry source order frozen (append-only). One description-level draft conflict recorded in its "Draft vs mockup" section (`polyphony` steal wording) — resolved Stage 1 discuss D10: keep mockup wording.
 3. Stage 1: Foundation — discuss ✓ (`stages/1-foundation/CONTEXT.md`), research ✓ (`stages/1-foundation/RESEARCH.md`), plan ✓ (`stages/1-foundation/PLAN.md`); execute ✓ (`SUMMARY.md`, 74606bb3), verify ✓ (`VERIFICATION.md`). Next: `/plugin-discuss O-GranulatorInstrument 2-dsp` (Phase 2.1 fork pin).
-4. O-Granulator 3.3 closed (1455e501 verify, 00e462b8 last Source change). At Phase 2.1: confirm the pin SHA, then fork the leaves pinned to that commit.
+4. Stage 2 Phase 2.1: discuss ✓ (`stages/2-dsp/CONTEXT-2.1.md`). Fork pin = O-Granulator `82406fce` (D11, supersedes the 3.3-close pin). Next: `/plugin-research O-GranulatorInstrument 2-dsp`.
 
 ## Context to Preserve
 
