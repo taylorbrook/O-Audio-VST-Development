@@ -168,19 +168,23 @@ namespace ogi
     }
 
     //==========================================================================
-    // O-GranulatorInstrument (ADAPTED, Phase 2.1): the parent's ParamPointers /
-    // GridParams are replaced by the instrument's own structs. They cover the
-    // global rows and the s1 subset that Phase 2.1 reads (PLAN-2.1 T2, CONTEXT
-    // "Parameters 2.1 does not read"). 2.2 widens Stream to s1...s4 and adds the
-    // per-grain rows; 2.4 / 2.5 add feedback, reverb, sync and the matrix.
+    // O-GranulatorInstrument (ADAPTED, Phases 2.1 / 2.2): the parent's
+    // ParamPointers / GridParams are replaced by the instrument's own structs.
+    // They cover the global rows and the stream subset the engine reads
+    // (PLAN-2.1 T2, PLAN-2.2 T4). 2.4 / 2.5 add feedback, reverb, sync and the
+    // matrix.
     //
-    // Read in 2.1: polyphony, pitch_bend_range, grain_limit, output_gain,
-    // amp_attack / decay / sustain / release, vel_to_amp, and s1_enable, s1_mute,
-    // s1_level, s1_pan, s1_position, s1_scan_rate, s1_scan_mode, s1_loop_start,
-    // s1_loop_end, s1_root_note, s1_root_fine, s1_key_track, s1_size,
-    // s1_size_rand, s1_density, s1_pitch. Everything else is never bound.
+    // Read since 2.1: polyphony, pitch_bend_range, grain_limit, output_gain,
+    // amp_attack / decay / sustain / release, vel_to_amp, and per stream
+    // sN_enable, mute, level, pan, position, scan_rate, scan_mode, loop_start,
+    // loop_end, root_note, root_fine, key_track, size, size_rand, density,
+    // pitch.
+    // 2.2: s1...s4 (kGiGridStreams 4) + sN_solo, spray, jitter, pitch_rand,
+    // scale, reverse_prob, window, window_skew, stereo_spread, gain_rand.
+    // Never bound: the 10 per-grain FX rows (2.3), sN_size_sync and
+    // sN_density_sync (2.5), every other global row.
     //==========================================================================
-    inline constexpr int kGiGridStreams = 1;   // 2.1: s1 only (2.2 → 4)
+    inline constexpr int kGiGridStreams = 4;   // 2.2: s1...s4 (2.1: s1 only)
 
     /** Raw APVTS atomics, cached once in the processor constructor (bind). A
         null pointer is simply not read (the GiGridParams default stays). */
@@ -215,6 +219,17 @@ namespace ogi
             std::atomic<float>* sizeRand  = nullptr;
             std::atomic<float>* density   = nullptr;
             std::atomic<float>* pitch     = nullptr;
+            // 2.2
+            std::atomic<float>* solo         = nullptr;
+            std::atomic<float>* spray        = nullptr;
+            std::atomic<float>* jitter       = nullptr;
+            std::atomic<float>* pitchRand    = nullptr;
+            std::atomic<float>* scale        = nullptr;   // choice 0 Off ... 31 Custom
+            std::atomic<float>* reverseProb  = nullptr;
+            std::atomic<float>* window       = nullptr;
+            std::atomic<float>* windowSkew   = nullptr;
+            std::atomic<float>* stereoSpread = nullptr;
+            std::atomic<float>* gainRand     = nullptr;
         };
         Stream s[kGiGridStreams] {};
 
@@ -251,16 +266,28 @@ namespace ogi
                 ps.sizeRand  = apvts.getRawParameterValue (GiParamIds::stream (n, "size_rand"));
                 ps.density   = apvts.getRawParameterValue (GiParamIds::stream (n, "density"));
                 ps.pitch     = apvts.getRawParameterValue (GiParamIds::stream (n, "pitch"));
+
+                ps.solo         = apvts.getRawParameterValue (GiParamIds::stream (n, "solo"));
+                ps.spray        = apvts.getRawParameterValue (GiParamIds::stream (n, "spray"));
+                ps.jitter       = apvts.getRawParameterValue (GiParamIds::stream (n, "jitter"));
+                ps.pitchRand    = apvts.getRawParameterValue (GiParamIds::stream (n, "pitch_rand"));
+                ps.scale        = apvts.getRawParameterValue (GiParamIds::stream (n, "scale"));
+                ps.reverseProb  = apvts.getRawParameterValue (GiParamIds::stream (n, "reverse_prob"));
+                ps.window       = apvts.getRawParameterValue (GiParamIds::stream (n, "window"));
+                ps.windowSkew   = apvts.getRawParameterValue (GiParamIds::stream (n, "window_skew"));
+                ps.stereoSpread = apvts.getRawParameterValue (GiParamIds::stream (n, "stereo_spread"));
+                ps.gainRand     = apvts.getRawParameterValue (GiParamIds::stream (n, "gain_rand"));
             }
         }
     };
 
     //==========================================================================
-    /** Every parameter value the 2.1 engine uses, latched at a grid point.
+    /** Every parameter value the engine uses, latched at a grid point.
         Engineering units, already converted: percentages → [0, 1], pan → [−1, 1],
-        scan_rate → [−4, 4] (1 = real time), grain_limit choice → {32, 64, 128,
-        256}, choices → index. Non-finite reads hold the last value; reads are
-        clamped to the parameter ranges. Defaults = the spec defaults. */
+        scan_rate → [−4, 4] (1 = real time), window_skew → [−1, 1], grain_limit
+        choice → {32, 64, 128, 256}, choices → index. Non-finite reads hold the
+        last value; reads are clamped to the parameter ranges (params.tsv).
+        Defaults = the spec defaults. */
     struct GiGridParams
     {
         int   polyphony        = 8;        // 1..16
@@ -292,6 +319,17 @@ namespace ogi
             float sizeRand   = 0.0f;       // 0..1
             float density    = 10.0f;      // 0.5..200 grains/s
             float pitchSt    = 0.0f;       // −24..24
+            // 2.2
+            bool  solo        = false;
+            float spray       = 0.1f;      // 0..1
+            float jitter      = 0.2f;      // 0..1
+            float pitchRand   = 0.0f;      // 0..24 st
+            int   scale       = 0;         // 0 Off, 1...31 (spec index; 31 = Custom)
+            float reverseProb = 0.0f;      // 0..1
+            float window      = 0.0f;      // 0..1 → WindowMorphBank step round (·64)
+            float windowSkew  = 0.0f;      // −1..1 → tilt peak 0.5 + 0.45·skew
+            float spread      = 0.3f;      // 0..1 (stereo_spread)
+            float gainRand    = 0.0f;      // 0..1 (× 24 dB, cut only)
         };
         Stream s[kGiGridStreams] {};
 
@@ -333,6 +371,17 @@ namespace ogi
                 readPct (ps.sizeRand, st.sizeRand);
                 read (ps.density,   st.density,      0.5f,  200.0f);
                 read (ps.pitch,     st.pitchSt,    -24.0f,   24.0f);
+
+                readBool (ps.solo, st.solo);
+                readPct (ps.spray,  st.spray);
+                readPct (ps.jitter, st.jitter);
+                read (ps.pitchRand, st.pitchRand,    0.0f,   24.0f);
+                readInt (ps.scale,  st.scale, 0, 31);
+                readPct (ps.reverseProb, st.reverseProb);
+                read (ps.window,     st.window,      0.0f,    1.0f);
+                read (ps.windowSkew, st.windowSkew, -100.0f, 100.0f, 100.0f);
+                readPct (ps.stereoSpread, st.spread);
+                readPct (ps.gainRand,     st.gainRand);
             }
         }
 

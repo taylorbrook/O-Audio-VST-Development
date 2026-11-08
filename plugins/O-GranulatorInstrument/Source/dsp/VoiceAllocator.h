@@ -31,7 +31,7 @@
 // 20 fixed slots = <= 16 COUNTED voices (gated or releasing; they spawn) +
 // 4 steal spares. A stolen voice is not counted: a 5 ms forced release with
 // its grains rendering under the ramp; it spawns nothing (demand 0). Poly
-// only in 2.1 (Mono / Legato / glide / CC64 are 2.5).
+// only in 2.1 / 2.2 (Mono / Legato / glide / CC64 are 2.5).
 //
 // Victim policy = O-simpleWavetable WtSynthesiser.h:33-115, ported as a
 // POLICY over the fixed array (the JUCE Synthesiser class mallocs per steal):
@@ -62,8 +62,12 @@ namespace ogi
         std::int64_t  noteOnAbs = 0;
 
         AmpEnv                        env;
-        ouaricon::grain::GrainScheduler sched;
-        ScanAnchor                    scan;
+        // 2.2: one Free-mode scheduler, scan line and draw epoch per stream
+        // (stream s reads slot s). epoch[s] absorbs the onset count at an
+        // enable edge while the voice sounds (P14), so draws never replay.
+        ouaricon::grain::GrainScheduler sched[kGiStreams];
+        ScanAnchor                    scan[kGiStreams];
+        std::uint64_t                 epoch[kGiStreams] {};
 
         bool isFree() const noexcept     { return state == State::free; }
         bool isCounted() const noexcept  { return state == State::active; }

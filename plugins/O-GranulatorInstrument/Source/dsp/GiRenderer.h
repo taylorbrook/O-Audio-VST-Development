@@ -31,14 +31,19 @@
 #include "forked/OutputLaw.h"   // hannWindow, streamPower, outputGainFromPower
 
 // ============================================================================
-// GiRenderer — Hann-only grain render + the per-voice output law
-// (ARCHITECTURE §12 / §15, PLAN-2.1 T8, P1).
+// GiRenderer — grain render + the per-voice output law
+// (ARCHITECTURE §12 / §15, PLAN-2.1 T8, P1; PLAN-2.2 T8, PD8).
 //
 // Per grain per sample (grain-major over a segment of one cell):
-//   phase = (age + frac) · invLen      w = hannWindow (phase)   (window LAST)
+//   phase = (age + frac) · invLen      w = window (phase)       (window LAST)
 //   (l, r) = tape.readStereo (level, readAbs, set)   positional, double pos
-//   bus[voice] += (l, r) · w · killGain · fade · (gainL, gainR)
-//   readAbs += step (wrapped inside the loop region when wrapW > 0)
+//   bus[voice][stream] += (l, r) · w · killGain · fade · (gainL, gainR)
+//   readAbs += step (step = dir · rate; wrapped inside the loop region when
+//   wrapW > 0: forward past the top, reverse below the bottom — P20)
+// Window (PD8, the parent P14 rule): windowStep 0 && tiltT == 0.5 → the
+// closed-form hannWindow (phase), the 2.1 statements verbatim (bitwise);
+// every other latched window reads the forked WindowMorphBank (table + lerp +
+// tilt warp). forceBank (test hook forceBankPath) disables the fast path.
 // During an SR-rebuild crossfade the grain also reads its OLD tape at its old
 // coordinates: (1 − x)·old + x·new, x = (t − start) / len over 20 ms.
 // Every quantity advances one sample at a time; nothing is keyed to the
@@ -68,10 +73,10 @@ namespace ogi
         }
     };
 
-    /** Per-voice bus: [voice][channel][cell offset]. */
+    /** Per-(voice, stream) bus: [voice][stream][channel][cell offset] (20 KB). */
     struct VoiceBus
     {
-        float s[kVoiceSlots][2][kCell] {};
+        float s[kVoiceSlots][kGiStreams][2][kCell] {};
     };
 
     struct GiRenderer
@@ -120,7 +125,8 @@ namespace ogi
         /** Renders one grain over cell offsets [c0, c1); t0 = absolute sample of
             offset c0. Returns false when the grain is finished (retire). */
         static bool renderGrain (VoiceGrain& vg, GiPool::Fader& fader, VoiceBus& bus,
-                                 int c0, int c1, std::int64_t t0, const XfadeState (&xf)[kTapeSlots]) noexcept
+                                 int c0, int c1, std::int64_t t0, const XfadeState (&xf)[kTapeSlots],
+                                 const WindowMorphBank& bank, bool forceBank = false) noexcept
         {
             const int s = std::clamp (vg.slot, 0, kTapeSlots - 1);
             const XfadeState& x = xf[s];
@@ -140,9 +146,15 @@ namespace ogi
                 return false;
 
             Grain& g = vg.g;
-            const int v = std::clamp (vg.voice, 0, kVoiceSlots - 1);
-            float* bl = bus.s[v][0];
-            float* br = bus.s[v][1];
+            const int v  = std::clamp (vg.voice, 0, kVoiceSlots - 1);
+            const int st = std::clamp (g.stream, 0, kGiStreams - 1);
+            float* bl = bus.s[v][st][0];
+            float* br = bus.s[v][st][1];
+
+            // PD8 / P14: latched per grain, so the branch is constant for its life.
+            const bool hann = ! forceBank && g.windowStep == 0 && juce::exactlyEqual (g.tiltT, 0.5f);
+            const float* const tab = bank.table (g.windowStep);
+            const WindowMorphBank::Tilt tilt { g.tiltT, g.tiltA, g.tiltB };
 
             bool done = false;
             for (int c = c0; c < c1; ++c)
@@ -153,7 +165,7 @@ namespace ogi
                     done = true;
                     break;
                 }
-                const float w = hannWindow (phase);
+                const float w = hann ? hannWindow (phase) : WindowMorphBank::read (tab, tilt, phase);
 
                 float l = 0.0f, r = 0.0f;
                 tp->tape.readStereo (g.level, g.readAbs, g.set, l, r);
@@ -168,6 +180,8 @@ namespace ogi
                     vg.xReadAbs += vg.xStep;
                     if (vg.xWrapW > 0.0 && vg.xReadAbs >= vg.xWrapLo + vg.xWrapW)
                         vg.xReadAbs -= vg.xWrapW;
+                    else if (vg.xWrapW > 0.0 && vg.xReadAbs < vg.xWrapLo)
+                        vg.xReadAbs += vg.xWrapW;   // reverse (P20)
                 }
 
                 const float gk = w * g.killGain * fader.next();
@@ -187,6 +201,8 @@ namespace ogi
                 g.readAbs += g.step;
                 if (vg.wrapW > 0.0 && g.readAbs >= vg.wrapLo + vg.wrapW)
                     g.readAbs -= vg.wrapW;
+                else if (vg.wrapW > 0.0 && g.readAbs < vg.wrapLo)
+                    g.readAbs += vg.wrapW;   // reverse (P20)
 
                 ++g.age;
                 if ((static_cast<double> (g.age) + g.frac) * g.invLen >= 1.0)

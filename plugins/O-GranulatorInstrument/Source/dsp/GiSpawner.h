@@ -26,13 +26,15 @@
 #include "VoiceQuotas.h"
 
 // ============================================================================
-// GiSpawner — grain acquisition on the voice axis (RESEARCH-2.1 §1.4,
-// PLAN-2.1 T8). A re-derivation of the parent Spawner::acquire
-// (82406fce Spawner.h:428-565) keyed on the VOICE (2.2: (voice, stream)).
+// GiSpawner — grain acquisition on the (voice, stream) axis (RESEARCH-2.1
+// §1.4, PLAN-2.1 T8, PLAN-2.2 T5). A re-derivation of the parent
+// Spawner::acquire (82406fce Spawner.h:428-565) keyed on the PAIR (k, s):
+// k = vg.voice, s = vg.g.stream.
 //
-//   live_k     = live, non-killing grains of voice k (one scan of the 256 live slots)
-//   pri (g)    = 4·stolenVoice (g.voice) + 2·(live_k > m_k) + (k == spawning)
-//                (m_k = the P1 thinning integer; kQuotaUncapped never over)
+//   live_kS    = live, non-killing grains of pair (k, s) (one scan of the 256 live slots)
+//   pri (g)    = 4·stolenVoice (k) + 2·(live_kS > m_kS) + ((k, s) == spawning)
+//                (m_kS = the P1 thinning integer; kQuotaUncapped never over)
+//   With one stream every grain has s = 0, so pri is the 2.1 voice-axis key.
 //   victim     = LEXICOGRAPHIC argmax on (pri, age·invLen) over non-killing
 //                live grains, ties → the lowest pool slot
 //   alive >= limit, free slot, victim → R3: the victim gets the 5 ms killStep
@@ -88,14 +90,14 @@ namespace ogi
             bool        capKill    = false;   // D25 extra kill
         };
 
-        Acquired acquire (GiPool& pool, int grainLimit, const int (&m)[kVoiceSlots],
-                          const bool (&stolenVoice)[kVoiceSlots], int spawning,
+        Acquired acquire (GiPool& pool, int grainLimit, const int (&m)[kVoiceSlots][kGiStreams],
+                          const bool (&stolenVoice)[kVoiceSlots], int spawnK, int spawnS,
                           AcquirePolicy policy = {}) noexcept
         {
             const VoiceGrain* const base = pool.getGrains().data();
 
             // Pass 1: occupancy.
-            int live[kVoiceSlots] {};
+            int live[kVoiceSlots][kGiStreams] {};
             int alive = 0, freeSlot = -1;
             bool anyKilling = false;
             for (int i = 0; i < kPoolLive; ++i)
@@ -111,15 +113,16 @@ namespace ogi
                     continue;
                 }
                 ++alive;
-                ++live[voiceOf (base[i])];
+                ++live[voiceOf (base[i])][streamOf (base[i])];
             }
 
-            int pk[kVoiceSlots] {};
+            int pk[kVoiceSlots][kGiStreams] {};
             for (int k = 0; k < kVoiceSlots; ++k)
-            {
-                const bool over = ! policy.overQuotaOff && m[k] < kQuotaUncapped && live[k] > m[k];
-                pk[k] = 4 * (stolenVoice[k] ? 1 : 0) + 2 * (over ? 1 : 0) + (k == spawning ? 1 : 0);
-            }
+                for (int s = 0; s < kGiStreams; ++s)
+                {
+                    const bool over = ! policy.overQuotaOff && m[k][s] < kQuotaUncapped && live[k][s] > m[k][s];
+                    pk[k][s] = 4 * (stolenVoice[k] ? 1 : 0) + 2 * (over ? 1 : 0) + ((k == spawnK && s == spawnS) ? 1 : 0);
+                }
 
             // Pass 2: victim = lexicographic argmax (pri, age·invLen); ties: lowest slot.
             int victim = -1, bestPri = -1, minPri = 7;
@@ -128,7 +131,7 @@ namespace ogi
             {
                 if (! pool.isActive (i))
                     continue;
-                const int pr = pk[voiceOf (base[i])];
+                const int pr = priOf (pk, base[i]);
                 minPri = std::min (minPri, pr);
                 if (isKilling (base[i], i))
                     continue;
@@ -139,7 +142,7 @@ namespace ogi
             auto progressPrime = [this, base, &pk, minPri] (const VoiceGrain& g) noexcept
             {
                 const int idx = static_cast<int> (&g - base);
-                const int k = (isKilling (g, idx) ? 8 : 0) + (pk[voiceOf (g)] - minPri);
+                const int k = (isKilling (g, idx) ? 8 : 0) + (priOf (pk, g) - minPri);
                 return static_cast<double> (k) + progress (g);
             };
 
@@ -191,7 +194,7 @@ namespace ogi
                 {
                     if (i == a.slot || ! pool.isActive (i) || isKilling (base[i], i))
                         continue;
-                    const int pr = pk[voiceOf (base[i])];
+                    const int pr = priOf (pk, base[i]);
                     const double x = progress (base[i]);
                     if (pr > ePri || (pr == ePri && x > eBest)) { ePri = pr; eBest = x; extra = i; }
                 }
@@ -244,7 +247,7 @@ namespace ogi
             return alive;
         }
 
-        /** Per-voice non-killing live counts (hooks / gates). */
+        /** Per-voice non-killing live counts, summed over streams (hooks / gates). */
         void countAlivePerVoice (const GiPool& pool, int (&out)[kVoiceSlots]) const noexcept
         {
             for (auto& x : out) x = 0;
@@ -252,6 +255,18 @@ namespace ogi
             for (int i = 0; i < kPoolLive; ++i)
                 if (pool.isActive (i) && ! isKilling (base[i], i))
                     ++out[voiceOf (base[i])];
+        }
+
+        /** Per-(voice, stream) non-killing live counts (hooks / gates). */
+        void countAlivePerPair (const GiPool& pool, int (&out)[kVoiceSlots][kGiStreams]) const noexcept
+        {
+            for (auto& row : out)
+                for (auto& x : row)
+                    x = 0;
+            const VoiceGrain* const base = pool.getGrains().data();
+            for (int i = 0; i < kPoolLive; ++i)
+                if (pool.isActive (i) && ! isKilling (base[i], i))
+                    ++out[voiceOf (base[i])][streamOf (base[i])];
         }
 
         float getKillStep() const noexcept { return killStep; }
@@ -262,7 +277,12 @@ namespace ogi
         }
 
     private:
-        static int voiceOf (const VoiceGrain& g) noexcept { return std::clamp (g.voice, 0, kVoiceSlots - 1); }
+        static int voiceOf (const VoiceGrain& g) noexcept  { return std::clamp (g.voice, 0, kVoiceSlots - 1); }
+        static int streamOf (const VoiceGrain& g) noexcept { return std::clamp (g.g.stream, 0, kGiStreams - 1); }
+        static int priOf (const int (&pk)[kVoiceSlots][kGiStreams], const VoiceGrain& g) noexcept
+        {
+            return pk[voiceOf (g)][streamOf (g)];
+        }
         static double progress (const VoiceGrain& g) noexcept { return static_cast<double> (g.g.age) * g.g.invLen; }
 
         std::uint8_t pendingKill[kSlots] {};

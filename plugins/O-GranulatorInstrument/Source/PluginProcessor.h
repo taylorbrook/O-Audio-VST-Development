@@ -20,6 +20,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include <array>
 #include <atomic>
 #include <cstdint>
 #include "GiParamIds.h"
@@ -49,17 +50,25 @@ struct GiVst3Extensions final : Ouaricon::NoteExpression::VST3Extensions
 };
 
 // ============================================================================
-// O-GranulatorInstrument, Stage 2 / Phase 2.1.
+// O-GranulatorInstrument, Stage 2 / Phase 2.2.
 //
 // 261 APVTS parameters (GiParamIds.h), a stereo instrument output plus ONE
 // optional stereo "Sidechain" input that never reaches the output, latency 0,
-// and the state scaffold: root uiLanguage attribute, <Engine seed stateVersion
-// modDestTableVersion/> and an empty <Slots/> (slot paths persist from 2.6).
+// and the state: root uiLanguage attribute, <Engine seed stateVersion
+// modDestTableVersion/>, <CustomScale/>, <DegreeMasks/> and an empty <Slots/>
+// (slot paths persist from 2.6).
 //
-// Phase 2.1: the ogi::Engine renders the slot-0 tape as one grain stream (s1)
-// per voice (Source/dsp/Engine.h); every output channel is cleared first, so
-// the sidechain never reaches the output. Slot files load off-thread through
-// ogi::SlotLoader and are installed lock-free by ogi::SlotHandoff.
+// Phase 2.2: the ogi::Engine renders 4 grain streams per voice, stream N
+// reading slot N (Source/dsp/Engine.h); every output channel is cleared first,
+// so the sidechain never reaches the output. Slot files load off-thread
+// through ogi::SlotLoader and are installed lock-free by ogi::SlotHandoff.
+//
+// Scale state (CONTEXT-2.2 D17, PLAN-2.2 T6 / PD3 / PD4): ONE shared custom
+// scale (used by any sN_scale = Custom) and 4 × 32 degree masks (per stream
+// and per collection), ported from O-Granulator 82406fce. The engine reads
+// the masks as relaxed atomics and copies the custom table through a
+// non-blocking try-lock when customVersion moves; nothing parses on the audio
+// thread. Message-thread API only (no native functions / UI until Stage 3).
 //
 // Threading: no listener and no audio-thread code writes a parameter. The
 // slot API (requestSlotLoad / getSlotInfo) is message-thread; the dev-loader
@@ -125,6 +134,48 @@ public:
     /** A copy of the slot's status, taken under the loader lock. */
     ogi::SlotInfo getSlotInfo (int slot) const;
 
+    // ── Scale state (message thread; D17) ─────────────────────────────────────
+    struct CustomScale
+    {
+        juce::String name, text;
+        float period = 1200.0f;
+        uint32_t version = 0;
+    };
+    static constexpr int kMaxCustomNameChars = 40;
+    static const juce::String& defaultCustomText();
+
+    CustomScale getCustomScale() const;
+    PitchCollections::Table getCustomTable() const;
+
+    /** Parses `text` (cents, ratios or edo N [period]) into the ONE custom scale
+        shared by all streams. Returns an error KEY (empty = applied); badToken
+        names the offending token for badPitch. On success every stream's Custom
+        mask resets to all-on (the degrees re-numbered), then customVersion
+        advances (acq_rel) so the engine copies the table at its next tick. */
+    juce::String setCustomScale (const juce::String& name, const juce::String& text, juce::String& badToken);
+
+    /** sN_scale choice → table: nullptr for 0 (Off) / out of range; 1…30 the
+        built-ins (via scaleChoiceToId), 31 the custom table. */
+    const PitchCollections::Table* getCollectionTable (int choice) const;
+
+    /** Degree mask for stream 1…4 × collection choice 1…31. Bit d = degree d
+        on. Stored canonical (bits at and above the degree count set), so
+        "all on" is always ~0. Out-of-range arguments read ~0 / are ignored. */
+    uint64_t getDegreeMask (int stream, int collection) const noexcept;
+    void setDegreeMask (int stream, int collection, uint64_t mask) noexcept;
+
+    static constexpr uint64_t kAllOn = ~uint64_t (0);
+    static uint64_t canonicalMask (uint64_t mask, int degreeCount) noexcept
+    {
+        return degreeCount >= 64 ? mask : (mask | ~((uint64_t (1) << degreeCount) - 1));
+    }
+
+    /** Mask array index for stream 1…4 (1-based) × collection 0…31. */
+    static constexpr int maskIndex (int stream, int collection) noexcept
+    {
+        return (stream - 1) * GiParamIds::kNumCollections + collection;
+    }
+
    #if OGI_TEST_HOOKS
     /** Render harness only. Decode / resample + build the tape for slot 0...3
         (= the rec_target index) on the CALLING thread and publish it through the
@@ -137,14 +188,41 @@ public:
     ogi::Engine&      getEngine() noexcept  { return *engine; }
     ogi::SlotLoader&  getLoader() noexcept  { return *loader; }
     ogi::SlotHandoff& getHandoff() noexcept { return handoff; }
+
+    /** ST6: the harness holds this to prove the engine's try-lock never blocks. */
+    juce::SpinLock& getCustomLockForTest() noexcept { return customLock; }
+    /** ST4 control: the codec without removeCustomChildren on either leg. */
+    bool testNoStateStrip = false;
+    /** ST3 control: setStateInformation skips resetNonParameterState(). */
+    bool testNoStateReset = false;
    #endif
 
 private:
     void updateSidechainChannelCount() noexcept;
 
+    int degreeCountFor (int collection) const;
+    void resetNonParameterState();
+
+    /** THE non-parameter apply path (parent P98): reset to defaults FIRST →
+        seed (if present and well-formed; absent keeps the live seed) → custom
+        scale (if `custom` has a non-empty text) → masks. Inputs are vars:
+        `custom` an object { name, text }, `masks` an array of { stream,
+        collection, bits } objects, `seed` an int64 decimal string. Void =
+        absent. Message thread. */
+    void applyNonParameterState (const juce::var& custom, const juce::var& masks, const juce::var& seed);
+
     GiVst3Extensions vst3Extensions;
     std::atomic<uint64_t> seed { 0 };
     std::atomic<int> sidechainChannels { 0 };
+
+    // Scale state (D17 / PD3). customLock guards customTable / customText /
+    // customName; the audio thread only ever TRY-locks it (at a grid tick, when
+    // customVersion moved). degreeMasks: relaxed atomics, all-on by default.
+    mutable juce::SpinLock customLock;
+    PitchCollections::Table customTable;
+    juce::String customText, customName;
+    std::atomic<uint32_t> customVersion { 0 };
+    std::array<std::atomic<uint64_t>, GiParamIds::kStreams * GiParamIds::kNumCollections> degreeMasks;
 
     // Declaration order = construction order; destruction runs in reverse, so
     // the loader (worker jobs that publish) goes first, then the engine (frees

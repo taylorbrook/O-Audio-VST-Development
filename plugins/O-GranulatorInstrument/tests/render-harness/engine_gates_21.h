@@ -210,27 +210,50 @@ namespace { namespace eg21
         return b;
     }
 
-    /** Every parameter the 2.1 engine reads, at a known gate baseline. */
-    P base()
+    /** Every 2.2 control at its neutral value: the s1 randomisation / window /
+        scale / solo rows at 0 and s2-s4 disabled (PLAN-2.2 T9, R§12.2). */
+    P pins22()
     {
-        return { { "polyphony", 16.0f }, { "grain_limit", 3.0f }, { "pitch_bend_range", 2.0f }, { "output_gain", 0.0f },
-                 { "amp_attack", 0.0f }, { "amp_decay", 0.0f }, { "amp_sustain", 100.0f }, { "amp_release", 50.0f },
-                 { "vel_to_amp", 0.0f },
-                 { s1 ("enable"), 1.0f }, { s1 ("mute"), 0.0f }, { s1 ("level"), 0.0f }, { s1 ("pan"), 0.0f },
-                 { s1 ("position"), 0.0f }, { s1 ("scan_rate"), 0.0f }, { s1 ("scan_mode"), 1.0f },
-                 { s1 ("loop_start"), 0.0f }, { s1 ("loop_end"), 100.0f }, { s1 ("root_note"), 48.0f },
-                 { s1 ("root_fine"), 0.0f }, { s1 ("key_track"), 100.0f }, { s1 ("size"), 100.0f },
-                 { s1 ("size_rand"), 0.0f }, { s1 ("density"), 10.0f }, { s1 ("pitch"), 0.0f } };
+        P p;
+        for (const char* x : { "spray", "jitter", "stereo_spread", "gain_rand", "pitch_rand", "reverse_prob",
+                               "window", "window_skew", "scale", "solo" })
+            p.push_back ({ s1 (x), 0.0f });
+        for (int n = 2; n <= 4; ++n)
+            p.push_back ({ juce::String (Ids::stream (n, "enable")), 0.0f });
+        return p;
     }
 
-    /** The 25 IDs the 2.1 engine binds (ControlGrid.h GiParamPointers::bind). */
-    juce::StringArray readSet21()
+    /** Every parameter the 2.1 engine reads, at a known gate baseline, plus
+        pins22() (2.2: the deterministic 2.1 rows never rely on spec defaults). */
+    P base()
+    {
+        P b { { "polyphony", 16.0f }, { "grain_limit", 3.0f }, { "pitch_bend_range", 2.0f }, { "output_gain", 0.0f },
+              { "amp_attack", 0.0f }, { "amp_decay", 0.0f }, { "amp_sustain", 100.0f }, { "amp_release", 50.0f },
+              { "vel_to_amp", 0.0f },
+              { s1 ("enable"), 1.0f }, { s1 ("mute"), 0.0f }, { s1 ("level"), 0.0f }, { s1 ("pan"), 0.0f },
+              { s1 ("position"), 0.0f }, { s1 ("scan_rate"), 0.0f }, { s1 ("scan_mode"), 1.0f },
+              { s1 ("loop_start"), 0.0f }, { s1 ("loop_end"), 100.0f }, { s1 ("root_note"), 48.0f },
+              { s1 ("root_fine"), 0.0f }, { s1 ("key_track"), 100.0f }, { s1 ("size"), 100.0f },
+              { s1 ("size_rand"), 0.0f }, { s1 ("density"), 10.0f }, { s1 ("pitch"), 0.0f } };
+        for (const auto& kv : pins22())
+            b.push_back (kv);
+        return b;
+    }
+
+    /** The 113 IDs the 2.2 engine binds (ControlGrid.h GiParamPointers::bind):
+        9 globals + 26 rows × 4 streams. Everything else (148 IDs: the per-grain
+        FX rows, sN_size_sync / sN_density_sync, feedback, freeze, reverb, mod,
+        voice mode, MPE, record) is unread in 2.2. */
+    juce::StringArray readSet22()
     {
         juce::StringArray a { "polyphony", "pitch_bend_range", "grain_limit", "output_gain", "amp_attack", "amp_decay",
                               "amp_sustain", "amp_release", "vel_to_amp" };
-        for (const char* x : { "enable", "mute", "level", "pan", "position", "scan_rate", "scan_mode", "loop_start",
-                               "loop_end", "root_note", "root_fine", "key_track", "size", "size_rand", "density", "pitch" })
-            a.add (s1 (x));
+        for (int n = 1; n <= 4; ++n)
+            for (const char* x : { "enable", "mute", "solo", "level", "pan", "position", "spray", "scan_rate", "scan_mode",
+                                   "loop_start", "loop_end", "root_note", "root_fine", "key_track", "size", "size_rand",
+                                   "density", "jitter", "pitch", "pitch_rand", "scale", "reverse_prob", "window",
+                                   "window_skew", "stereo_spread", "gain_rand" })
+                a.add (Ids::stream (n, x));
         return a;
     }
 
@@ -326,6 +349,7 @@ namespace { namespace eg21
         {
             setAll (*p, params);
             p->setSeed (seed);
+            p->getEngine().hooks.coherenceOff = true;   // PLAN-2.2 T9 / R§12.2: the 2.1 law (c := 0)
             p->prepareToPlay (fs, prepBlock);
             mb.ensureSize (32768);
         }
@@ -2029,7 +2053,9 @@ namespace { namespace eg21
              "meas differing samples" + d + " (8192 = large-block probe, prepared 512; kills " + i64 (kills) + ") | thr 0 | margin "
                  + juce::String (-worst) + " | " + ctrl (fired, "seed change -> " + juce::String (nSeed) + " differ"));
 
-        const auto readSet = readSet21();
+        // 2.2: the unread set is everything outside readSet22() (the 2.1 set
+        // plus every row 2.2 binds); s2-s4 stay disabled by base().
+        const auto readSet = readSet22();
         int bound = 0;
         {
             auto probe = make();
@@ -2053,9 +2079,9 @@ namespace { namespace eg21
         const int nUnread = diffCount (base512, renderN (512, kSeed, unread));
         const int nDensity = diffCount (base512, renderN (512, kSeed, [] (Proc& p) { setP (p, s1 ("density"), 120.0f); }));
         const bool fired2 = nDensity > 0;
-        row (nUnread == 0 && bound == 25 && touched == 236 && fired2, "N2 unread params (s2-s4, FX, fb, reverb, mod, ...) bit-identical",
+        row (nUnread == 0 && bound == 113 && touched == 148 && fired2, "N2 unread params (FX, sync, fb, reverb, mod, ...) bit-identical",
              "meas " + juce::String (nUnread) + " samples differ with " + juce::String (touched) + " unread params randomised ("
-                 + juce::String (bound) + "/25 read IDs bound) | thr 0 | margin " + juce::String (-nUnread)
+                 + juce::String (bound) + "/113 read IDs bound, readSet22) | thr 0 | margin " + juce::String (-nUnread)
                  + " | " + ctrl (fired2, "s1_density 120 -> " + juce::String (nDensity) + " differ"));
     }
 

@@ -24,6 +24,7 @@
 #include <array>
 #include <climits>
 #include <cstdint>
+#include <limits>
 #include <vector>
 
 #include "BandlimitedReader.h"   // grain-engine 1.1.0
@@ -38,6 +39,7 @@
 #include "forked/WindowMorphBank.h"
 #include "AmpEnv.h"
 #include "GiRenderer.h"
+#include "GiScale.h"
 #include "GiSpawner.h"
 #include "MidiCursor.h"
 #include "ScanPlayhead.h"
@@ -48,49 +50,68 @@
 #include "VoiceQuotas.h"
 
 // ============================================================================
-// Engine — Phase 2.1 (PLAN-2.1 T8, ARCHITECTURE Processing Chain).
+// Engine — Phases 2.1 / 2.2 (PLAN-2.1 T8, PLAN-2.2 T7 / T8, ARCHITECTURE
+// Processing Chain).
 //
 // Absolute 32-sample grid pass engine. The host block is cut at every
 // absolute multiple of kCell; each piece [a, b) runs:
-//   1. grid tick (at a multiple of 32): latch GiGridParams, ramps, take the
-//      pending tapes (kill fade / SR-rebuild crossfade), finish crossfades,
-//      retire tapes no grain holds (288-slot scan), loop region, polyphony
-//      shrink (engine events BEFORE the sample's host events), quotas
-//      (water-fill + P1 thinning, rescheduleNext on a quota decrease), law
-//      gains, scan re-anchor;
+//   1. grid tick (at a multiple of 32): latch GiGridParams, enable edges
+//      (epoch += onset count, P14), ramps, take the pending tapes (kill fade /
+//      SR-rebuild crossfade), finish crossfades, retire tapes no grain holds
+//      (288-slot scan), loop regions (one per stream), polyphony shrink
+//      (engine events BEFORE the sample's host events), scale state (custom
+//      table try-lock copy, ActiveSets, PD3), quotas (water-fill over the 80
+//      (voice, stream) demands + jitter-aware P1 thinning, rescheduleNext on a
+//      quota decrease), per-(k,s) law gains with coherence (PD2), scan
+//      re-anchor;
 //   2. host MIDI at its clamped offsets (iterated in place; P5), splitting the
 //      piece into segments;
 //   3. per segment: amp envs (a[k][n]), schedulers (Free, one per counted
-//      voice), onsets merged by (offset, serial) together with voice-end
-//      points, rendered grain-major in sub-segments split at those points;
-//   4. mix: Σ_k a_k · g_out,k · bus_k, × s1 level / pan / audible ramps ×
-//      kVoiceGainDb (−6 dB, provisional) → wet safety 1.9953·tanh (x/1.9953)
-//      → output_gain → out. Reverb absent (unity), feedback return zeroed (P8).
+//      voice × enabled stream, telescoping jitter), onsets merged by
+//      (offset, serial, stream) together with voice-end points, rendered
+//      grain-major in sub-segments split at those points;
+//   4. mix (PD12): per stream acc_s = Σ_k a_k · g_out,kS · bus_kS, then
+//      Σ_s acc_s · level_s · aud_s · voiceGain · pan_s (the sum starts from the
+//      first audible stream's term; a stream whose audibility ramp sits at 0
+//      is skipped) → wet safety 1.9953·tanh (x/1.9953) → output_gain → out.
+//      Reverb absent (unity), feedback return zeroed (P8).
 //
-// Stream 1 reads slot 0. Every random draw keys on (seed, kGrainStream + 0,
-// (serial << 24) | onsetIndex) — never the voice slot. The only 2.1 draw is
-// s1_size_rand (P2).
+// Stream s reads slot s. Every random draw keys on (seed, kGrainStream + s /
+// kSchedStream + s, (serial << 24) | ((epoch_kS + onsetIndex) & 0xFFFFFF)) —
+// never the voice slot (PD13).
 //
-// Threads: process() is the audio thread (no lock, no allocation; the caller
-// holds ScopedNoDenormals). prepare() / bind() / the constructor run on a
-// host / message thread while process() is not running.
+// Threads: process() is the audio thread (no allocation; the only lock is the
+// PD3 non-blocking try-lock of the custom scale table; the caller holds
+// ScopedNoDenormals). prepare() / bind() / bindScale() / the constructor run
+// on a host / message thread while process() is not running.
 // ============================================================================
 namespace ogi
 {
    #if OGI_TEST_HOOKS
-    /** One spawned grain (row V3 / N1 per-serial logs). */
+    /** One spawned grain (row V3 / N1 per-serial logs; 2.2 statistics arm). */
     struct GrainLogEntry
     {
         std::uint64_t serial      = 0;
-        std::uint64_t onsetIndex  = 0;    // scheduler index since note-on
+        std::uint64_t onsetIndex  = 0;    // scheduler index since note-on / the last enable edge
         std::int64_t  onsetSample = 0;    // absolute engine sample of the onset
         double        frac        = 0.0;  // onset fraction [0, 1)
         double        len         = 0.0;  // grain length, output samples
         double        startPos    = 0.0;  // tape frames (region-fit p0, before the frac advance)
-        double        rate        = 0.0;  // tape frames per output sample
+        double        rate        = 0.0;  // tape frames per output sample (forward magnitude)
         int           voice       = 0;    // voice slot (NOT part of the identity)
         int           level       = 0;
         int           poolSlot    = 0;
+        // 2.2
+        int           stream      = 0;    // 0..3 (= the tape slot read)
+        int           dir         = 1;    // +1 forward, −1 reverse
+        float         gainL       = 1.0f; // spread pan × gain_rand
+        float         gainR       = 1.0f;
+        int           windowStep  = 0;    // WindowMorphBank step 0..64
+        float         tiltT       = 0.5f; // makeTilt (0.5 + 0.45·skew).t
+        float         pitchCents  = 0.0f; // latched random / scale-pick offset (cents)
+        double        centre      = 0.0;  // scan centre c (tape frames), before spray
+        double        regionW     = 0.0;  // loop-region width W (tape frames)
+        std::uint64_t counterIdx  = 0;    // epoch_kS + onsetIndex (the CounterRng index)
     };
 
     /** Render-harness hooks. Plain fields written on the audio thread and read
@@ -114,9 +135,17 @@ namespace ogi
         std::uint64_t seedOverride = 0;
         bool slotPermOn = false;      // V3: free-slot search order = slotPerm[0..19]
         int  slotPerm[kVoiceSlots] {};
+        // 2.2 (PLAN-2.2 T8 / T9)
+        bool   coherenceOff      = false;   // PD2 / RB1: c := 0 (2.1 law equivalence)
+        bool   coherenceVerbatim = false;   // CO1 control: option (a), pitch arg = sN_pitch
+        bool   lawOff            = false;   // LF1 control: g_out := 1
+        bool   forceBankPath     = false;   // W0b control: no P14 closed-form Hann fast path
+        bool   mixerRampZero     = false;   // MX1 control: stream level / pan / audibility step (0 ms)
+        double voiceGainDbOverride = std::numeric_limits<double>::quiet_NaN();   // NaN = off (kVoiceGainDb)
+        double jitterScale       = 1.0;     // PS3 engine-side control: J × jitterScale
 
-        // ── voice readouts (per voice SLOT) ───────────────────────────────────
-        double        voiceRate[kVoiceSlots]   {};   // rate the voice latches now (tick, note-on, spawn)
+        // ── voice readouts (per voice SLOT; stream-0 views) ──────────────────
+        double        voiceRate[kVoiceSlots]   {};   // rate the voice latches now (tick, note-on, s1 spawn)
         int           voiceLevel[kVoiceSlots]  {};   // latchLevel (rate, 4) of that rate
         std::uint64_t voiceSerial[kVoiceSlots] {};
         int           voiceNote[kVoiceSlots]   {};
@@ -132,20 +161,30 @@ namespace ogi
         std::uint64_t stolenSerials[kStolenCapacity] {};   // ring of stolen note serials
         std::uint64_t stolenCount = 0;
         std::uint64_t tapesTaken = 0, xfadesStarted = 0, earlyRetires = 0, retiredByEngine = 0;
+        // 2.2 scale state (PD3)
+        std::uint64_t customCopies = 0, customTryFails = 0, activeSetRebuilds = 0;
 
         // ── per-tick pool / quota state (written at every grid tick) ──────────
         int    liveNow = 0;                 // non-killing grains in the 256 live slots
         int    liveMin = INT_MAX, liveMax = 0;
         int    activeNow = 0;               // every sounding slot (live + killing + fade), 288
-        int    liveVoice[kVoiceSlots] {};   // non-killing live grains per voice slot
-        int    quotaM[kVoiceSlots]    {};   // P1 thinning integer (INT_MAX = uncapped)
-        double quotaQ[kVoiceSlots]    {};
-        double periodT[kVoiceSlots]   {};   // thinned onset period, samples
+        int    liveVoice[kVoiceSlots] {};   // non-killing live grains per voice slot (all streams)
+        int    quotaM[kVoiceSlots]    {};   // stream-0 view of quotaMVS
+        double quotaQ[kVoiceSlots]    {};   // stream-0 view of quotaQVS
+        double periodT[kVoiceSlots]   {};   // stream-0 view of periodTVS
         double lambda = 0.0;
         bool   capped = false;
+        // 2.2 per (voice slot, stream)
+        int    quotaMVS[kVoiceSlots][kGiStreams]    {};   // P1 thinning integer (INT_MAX = uncapped)
+        double quotaQVS[kVoiceSlots][kGiStreams]    {};
+        double periodTVS[kVoiceSlots][kGiStreams]   {};   // thinned onset period, samples
+        int    liveVS[kVoiceSlots][kGiStreams]      {};   // non-killing live grains
+        float  lawTargetVS[kVoiceSlots][kGiStreams] {};   // g_out target pushed this tick
+        double coherenceVS[kVoiceSlots][kGiStreams] {};   // c used by that target
 
         // ── slots ─────────────────────────────────────────────────────────────
         double regionLo = 0.0, regionHi = 0.0;      // s1 loop region, tape frames
+        double regionLoS[kGiStreams] {}, regionHiS[kGiStreams] {};   // per stream (2.2)
         bool   xfadeActive[kTapeSlots] {};
         double tapeRate[kTapeSlots]    {};
         int    retiringNow = 0;
@@ -158,6 +197,7 @@ namespace ogi
             voiceSteals = polyForceReleases = gridTicks = 0;
             stolenCount = 0;
             tapesTaken = xfadesStarted = earlyRetires = retiredByEngine = 0;
+            customCopies = customTryFails = activeSetRebuilds = 0;
             liveMin = INT_MAX;
             liveMax = 0;
         }
@@ -195,6 +235,10 @@ namespace ogi
         /** Message thread (processor constructor). */
         void bind (juce::AudioProcessorValueTreeState& apvts);
 
+        /** Message thread (processor constructor, after bind): the processor's
+            scale state (PD3). Copies the custom table (blocking) once. */
+        void bindScale (const ScaleSource& source) noexcept;
+
         /** Host thread (prepareToPlay); process() is not running. Allocates the
             feedback return; clears voices and pool; retires idle tapes. */
         void prepare (double sampleRate, int maxBlockSize);
@@ -211,9 +255,10 @@ namespace ogi
             return (slot >= 0 && slot < kTapeSlots) ? current[(size_t) slot] : nullptr;
         }
 
-        /** Rate (tape frames per output sample) a voice on `note` latches with the
-            current grid parameters and the current slot-0 tape (0 without a tape). */
-        double rateForNote (int note) const noexcept;
+        /** Rate (tape frames per output sample) a voice on `note` latches on
+            stream s with the current grid parameters and the current slot-s
+            tape (0 without a tape). No random pitch term. */
+        double rateForNote (int note, int s = 0) const noexcept;
 
        #if OGI_TEST_HOOKS
         EngineTestHooks hooks;
@@ -226,16 +271,20 @@ namespace ogi
         const Voice&     getVoice (int k) const noexcept    { return voices[std::clamp (k, 0, kVoiceSlots - 1)]; }
         const GiGridParams& getGridParams() const noexcept  { return gp; }
         int              getRetiringCount() const noexcept  { return numRetiring; }
-        const LoopRegion& getRegion() const noexcept        { return region; }
+        const LoopRegion& getRegion (int s = 0) const noexcept { return region[std::clamp (s, 0, kGiStreams - 1)]; }
+        const GiScaleState& getScaleState() const noexcept  { return scale; }
+        const WindowMorphBank& getMorphBank() const noexcept { return morphBank; }
        #endif
 
     private:
         struct PendingOnset
         {
             int           voice  = 0;
+            int           stream = 0;
             int           offset = 0;    // segment-relative
             double        frac   = 0.0;
-            std::uint64_t index  = 0;
+            std::uint64_t index  = 0;    // scheduler index since the last reset
+            std::uint64_t idx    = 0;    // epoch_kS + index (the CounterRng index, PD13)
             std::uint64_t serial = 0;
         };
 
@@ -254,6 +303,7 @@ namespace ogi
         void killGrainsOfTape (const SlotTape* tape) noexcept;
         void updateRegion() noexcept;
         void enforcePolyphony() noexcept;
+        void updateScale() noexcept;
         void updateQuotas() noexcept;
         void updateScan (std::int64_t t) noexcept;
 
@@ -277,22 +327,36 @@ namespace ogi
 
         // helpers
         AmpParams ampParams() const noexcept;
-        double voiceRate (const Voice& v, const SlotTape& tape) const noexcept;
-        double uncappedPeriod() const noexcept;
-        double lMaxSamples() const noexcept;
-        double lenBarSamples() const noexcept;
+        double voiceSemis (const Voice& v, int s) const noexcept;
+        double voiceRate (const Voice& v, const SlotTape& tape, int s) const noexcept;
+        double uncappedPeriod (int s) const noexcept;
+        double lMaxSamples (int s) const noexcept;
+        double lenBarSamples (int s) const noexcept;
+        double jitterOf (int s) const noexcept;
+        bool   audibleTarget (int s, bool anySolo) const noexcept;
+        double jitterU (int s, std::uint64_t serial, std::uint64_t epoch, std::uint64_t k) const noexcept;
+        double jitterGap (double T, double J, int s, std::uint64_t serial, std::uint64_t epoch, std::uint64_t k) const noexcept;
+        double pairCoherence (int k, int s) const noexcept;
+        float  pairLaw (int k, int s, double nEff) noexcept;
+        void   setStreamRamps (bool snap) noexcept;
         void   writeVoiceHooks (int k) noexcept;
+
+        static constexpr int kLawKeyPerStream = 16;
+        static constexpr int kLawKeySize = kGiStreams * kLawKeyPerStream + 5;
+        void fillLawKey (double (&key)[kLawKeySize]) const noexcept;
 
         SlotHandoff& handoff;
         GiParamPointers ptrs;
         GiGridParams gp;
-        WindowMorphBank morphBank;   // built once here (message thread); Hann-only law in 2.1
+        WindowMorphBank morphBank;   // built once here (message thread); renderer bank path + law
+        GiScaleState scale;          // PD3: custom-table copy + per-stream ActiveSets
 
         double        fs = 44100.0;
         std::int64_t  absPos = 0;
         std::uint64_t seed = 0;
         float         bend = 0.0f;   // −1..1, channel pitch wheel (non-MPE; any channel)
         float         voiceGainLin = 1.0f;
+        float         voiceGainNow = 1.0f;   // voiceGainLin, or the test override (per block)
 
         GiPool    pool;
         GiSpawner spawner;
@@ -307,28 +371,34 @@ namespace ogi
 
         float    envBuf[kVoiceSlots][kCell] {};
         VoiceBus bus;
-        CellLerp lawGain[kVoiceSlots];
-        float    lawTarget[kVoiceSlots] {};
+        CellLerp lawGain[kVoiceSlots][kGiStreams];
+        float    lawTarget[kVoiceSlots][kGiStreams] {};
+        double   coher[kVoiceSlots][kGiStreams] {};
+        float    accL[kGiStreams][kCell] {}, accR[kGiStreams][kCell] {};   // mixer scratch
 
-        ExactRamp outGainRamp, levelRamp, panLRamp, panRRamp, audibleRamp;
+        ExactRamp outGainRamp;
+        ExactRamp levelRamp[kGiStreams], panLRamp[kGiStreams], panRRamp[kGiStreams], audibleRamp[kGiStreams];
         int rampCells20 = 1, rampCells10 = 1;
 
-        QuotasN<kVoiceSlots> quotas;
-        int    quotaM[kVoiceSlots] {};
-        double periodT[kVoiceSlots] {};
-        double prevDemand[kVoiceSlots] {};
+        QuotasN<kPairs> quotas;
+        int    quotaM[kVoiceSlots][kGiStreams] {};
+        double periodT[kVoiceSlots][kGiStreams] {};
+        double prevDemand[kPairs] {};
         int    prevCap = -1;
-        double prevLMax = -1.0, prevDensity = -1.0;
-        int   prevThinOff = 0;
+        double prevLMax[kGiStreams] {}, prevDensity[kGiStreams] {}, prevJitter[kGiStreams] {};
+        double prevLawKey[kLawKeySize] {};
+        int    prevThinOff = 0;
         bool   quotasDirty = true;
+        double jit[kGiStreams] {};          // effective jitter J_s latched at the tick
+        bool   prevEnable[kGiStreams] {};   // P14 enable-edge detection
 
-        ScanAnchor freeRun;
-        LoopRegion region;
+        ScanAnchor freeRun[kGiStreams];
+        LoopRegion region[kGiStreams];
 
-        std::vector<float> fbReturn;   // P8: allocated in prepare, zero-filled, never written in 2.1
+        std::vector<float> fbReturn;   // P8: allocated in prepare, zero-filled, never written in 2.2
 
-        ouaricon::grain::Onset onsetBuf[kVoiceSlots][kOnsetCap] {};
-        PendingOnset merged[kVoiceSlots * kOnsetCap] {};
+        ouaricon::grain::Onset onsetBuf[kVoiceSlots][kGiStreams][kOnsetCap] {};
+        PendingOnset merged[kVoiceSlots * kGiStreams * kOnsetCap] {};
         PendingEnd   ends[kVoiceSlots] {};
 
         JUCE_DECLARE_NON_COPYABLE (Engine)

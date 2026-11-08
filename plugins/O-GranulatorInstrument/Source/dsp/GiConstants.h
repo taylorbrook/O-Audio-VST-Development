@@ -23,7 +23,7 @@
 #include "forked/EngineConstants.h"
 
 // ============================================================================
-// Instrument-only constants (Phase 2.1). The forked EngineConstants.h keeps
+// Instrument-only constants (Phases 2.1 / 2.2). The forked EngineConstants.h keeps
 // the parent's names; everything the instrument adds lives here so the
 // adapted leaf stays a small, recorded diff (FORK-MANIFEST).
 // ============================================================================
@@ -37,7 +37,8 @@ namespace ogi
 
     // ── Slots / streams ─────────────────────────────────────────────────────
     inline constexpr int kTapeSlots = 4;           // file / record slots (stream N reads slot N)
-    inline constexpr int kGiStreams = 1;           // 2.1: s1 only (2.2 → 4)
+    inline constexpr int kGiStreams = 4;           // 2.2: s1...s4 (2.1: s1 only)
+    inline constexpr int kPairs     = kVoiceSlots * kGiStreams;   // (voice, stream) demands: 80
 
     // ── Tape (ARCHITECTURE §7, S6) ──────────────────────────────────────────
     inline constexpr int kTapeLevels = kMaxLevel;  // MipTape<4>; latchLevel (rate, 4) ALWAYS (P6)
@@ -51,7 +52,16 @@ namespace ogi
     inline constexpr double kMinSourceMs = 10.0;   // a shorter source is refused by the loader
 
     // ── Levels ──────────────────────────────────────────────────────────────
-    inline constexpr double kVoiceGainDb = -6.0;   // per-voice headroom, PROVISIONAL (2.2 listening pass)
+    // D16 / PLAN-2.2 PD1: kVoiceGainDb = measured target + ear trim.
+    //   kVoiceGainMeasuredDb: measured vs O-Granulator 82406fce, mix 100 %,
+    //     PLAN-2.2 T12, user 2026-11-08. GV0 target +0.0212 dB (4 seeds
+    //     +0.025 / +0.010 / +0.019 / +0.031, spread 0.021 dB; parent s1 defaults
+    //     live, ours 1 voice root 48 vel 127 defaults; −30 dBFS RMS noise),
+    //     rounded to 0.01 dB. Was −6.0 (the 2.1 placeholder).
+    //   kVoiceGainEarTrimDb: HANDS-ON-2.2 row 6 (0.0 until the user trims).
+    inline constexpr double kVoiceGainMeasuredDb = 0.02;
+    inline constexpr double kVoiceGainEarTrimDb  = 0.0;
+    inline constexpr double kVoiceGainDb = kVoiceGainMeasuredDb + kVoiceGainEarTrimDb;   // per-voice headroom
     inline constexpr double kEnvEndLevel = 1.5848931924611134e-5;   // −96 dB: a voice ends below this
     inline constexpr float  kWetCeil     = 1.99526231f;            // P8 wet safety 1.9953·tanh (x / 1.9953)
 

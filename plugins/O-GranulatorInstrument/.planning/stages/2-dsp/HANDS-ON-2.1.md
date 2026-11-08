@@ -4,6 +4,8 @@
 **Run in:** the Standalone **and** one DAW (Logic preferred; AU `aumu OuGI OuDv`).
 **Not self-certified.** Mark each row ✅ / ❌ and add a note for every ❌.
 
+> **Deferred (2026-11-08).** The user overrode D14 and ran Phase 2.2 execute first. This sheet and HANDS-ON-2.2 run together once the Stage 3 UI is in place.
+
 Defaults to know before you start:
 - Only stream 1 plays, and it reads **slot 1**. Slots 2–4 load and report status, but nothing plays from them until 2.2.
 - There is no spray, jitter, window morph, FX, feedback, reverb, modulation, glide or MPE yet. The sound will be plainer than the final instrument.

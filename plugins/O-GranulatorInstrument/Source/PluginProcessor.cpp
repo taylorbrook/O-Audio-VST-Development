@@ -58,11 +58,45 @@ GranulatorInstrumentProcessor::GranulatorInstrumentProcessor()
     // builtIns() is a function-local static: build it here, never first on the audio thread.
     (void) PitchCollections::builtIns();
 
-    // Phase 2.1 engine + slot store. registerBasicFormats here (message thread);
+    // Scale state defaults (D17): every mask all-on, the 12-EDO custom scale.
+    for (auto& m : degreeMasks)
+        m.store (kAllOn, std::memory_order_relaxed);
+    {
+        juce::String error, badToken;
+        const bool ok = PitchCollections::tableFromText (defaultCustomText(), customTable, error, badToken);
+        jassertquiet (ok);
+        customText = defaultCustomText();
+    }
+
+    // Phase 2.2 engine + slot store. registerBasicFormats here (message thread);
     // reader creation happens on the loader worker.
     formatManager.registerBasicFormats();
     engine = std::make_unique<ogi::Engine> (handoff);
     engine->bind (parameters);
+
+    // PD3: the engine reads the masks (relaxed) and copies the custom table under
+    // a non-blocking try-lock when customVersion moves. The index layouts agree:
+    static_assert ([]
+                   {
+                       for (int s = 1; s <= Ids::kStreams; ++s)
+                           for (int c = 0; c < Ids::kNumCollections; ++c)
+                               if (maskIndex (s, c) != ogi::scaleMaskIndex (s - 1, c))
+                                   return false;
+                       for (int c = 0; c < Ids::kNumCollections; ++c)
+                           if (Ids::scaleChoiceToId (c) != ogi::scaleChoiceToId (c))
+                               return false;
+                       return true;
+                   }()
+                   && Ids::kNumCollections == ogi::kNumScaleChoices
+                   && Ids::kStreams == ogi::kGiStreams,
+                   "engine scale indexing must match the processor's mask / choice layout");
+    ogi::ScaleSource scale;
+    scale.masks         = degreeMasks.data();
+    scale.lock          = &customLock;
+    scale.customTable   = &customTable;
+    scale.customVersion = &customVersion;
+    engine->bindScale (scale);
+
     loader = std::make_unique<ogi::SlotLoader> (formatManager, handoff);
 
     updateSidechainChannelCount();
@@ -202,25 +236,128 @@ ogi::SlotInfo GranulatorInstrumentProcessor::getSlotInfo (int slot) const
 }
 
 //==============================================================================
+// Scale state (D17; parent 82406fce PluginProcessor.cpp:355-445, names only changed)
+const juce::String& GranulatorInstrumentProcessor::defaultCustomText()
+{
+    static const juce::String t ("100 200 300 400 500 600 700 800 900 1000 1100 1200");
+    return t;
+}
+
+GranulatorInstrumentProcessor::CustomScale GranulatorInstrumentProcessor::getCustomScale() const
+{
+    const juce::SpinLock::ScopedLockType sl (customLock);
+    return { customName, customText, customTable.period, customVersion.load (std::memory_order_relaxed) };
+}
+
+PitchCollections::Table GranulatorInstrumentProcessor::getCustomTable() const
+{
+    const juce::SpinLock::ScopedLockType sl (customLock);
+    return customTable;
+}
+
+juce::String GranulatorInstrumentProcessor::setCustomScale (const juce::String& name, const juce::String& text, juce::String& badToken)
+{
+    // Parse OUTSIDE the lock; swap under it.
+    PitchCollections::Table t;
+    juce::String error;
+    if (! PitchCollections::tableFromText (text, t, error, badToken))
+        return error.isNotEmpty() ? error : juce::String ("badPitch");
+
+    {
+        const juce::SpinLock::ScopedLockType sl (customLock);
+        customTable = t;
+        customText  = text.trim();
+        customName  = name.substring (0, kMaxCustomNameChars);
+    }
+    // The degrees re-numbered: every stream's Custom mask starts from all-on.
+    for (int s = 1; s <= Ids::kStreams; ++s)
+        degreeMasks[static_cast<size_t> (maskIndex (s, PitchCollections::Custom))].store (kAllOn, std::memory_order_relaxed);
+    customVersion.fetch_add (1, std::memory_order_acq_rel);
+    return {};
+}
+
+const PitchCollections::Table* GranulatorInstrumentProcessor::getCollectionTable (int choice) const
+{
+    const int id = Ids::scaleChoiceToId (choice);
+    if (id < 0 || choice >= Ids::kNumCollections)
+        return nullptr;
+    if (id == PitchCollections::Custom)
+        return &customTable;   // message thread: setCustomScale runs there too
+    return &PitchCollections::builtIns()[static_cast<size_t> (id)];
+}
+
+int GranulatorInstrumentProcessor::degreeCountFor (int collection) const
+{
+    if (collection == PitchCollections::Custom)
+    {
+        const juce::SpinLock::ScopedLockType sl (customLock);
+        return customTable.count;
+    }
+    const auto* t = getCollectionTable (collection);
+    return t != nullptr ? t->count : 64;
+}
+
+uint64_t GranulatorInstrumentProcessor::getDegreeMask (int stream, int collection) const noexcept
+{
+    if (stream < 1 || stream > Ids::kStreams || collection < 1 || collection >= Ids::kNumCollections)
+        return kAllOn;
+    return degreeMasks[static_cast<size_t> (maskIndex (stream, collection))].load (std::memory_order_relaxed);
+}
+
+void GranulatorInstrumentProcessor::setDegreeMask (int stream, int collection, uint64_t mask) noexcept
+{
+    if (stream < 1 || stream > Ids::kStreams || collection < 1 || collection >= Ids::kNumCollections)
+        return;
+    degreeMasks[static_cast<size_t> (maskIndex (stream, collection))]
+        .store (canonicalMask (mask, degreeCountFor (collection)), std::memory_order_relaxed);
+}
+
+void GranulatorInstrumentProcessor::resetNonParameterState()
+{
+    juce::String error, badToken;
+    PitchCollections::Table t;
+    PitchCollections::tableFromText (defaultCustomText(), t, error, badToken);
+    {
+        const juce::SpinLock::ScopedLockType sl (customLock);
+        customTable = t;
+        customText  = defaultCustomText();
+        customName  = {};
+    }
+    customVersion.fetch_add (1, std::memory_order_acq_rel);
+    for (auto& m : degreeMasks)
+        m.store (kAllOn, std::memory_order_relaxed);
+}
+
+//==============================================================================
 // State codec
 //
 //   <OGranulatorInstrument uiLanguage="fr" ...PARAM children...>
 //     <Engine seed="-1234" stateVersion="1" modDestTableVersion="1"/>
-//     <Slots/>                     (Slot children: Phase 2.1, keyed by "index")
+//     <CustomScale name="..." text="edo 19" period="1200" version="3"/>
+//     <DegreeMasks> <Mask stream="1" collection="19" bits="8000000000000001"/> ... </DegreeMasks>
+//     <Slots/>                     (Slot children: Phase 2.6, keyed by "index")
 //   </OGranulatorInstrument>
 //
 // - Written onto the copyState() COPY; the live tree is never mutated from a host thread.
 // - No `id` attribute on any custom child: APVTS treats a top-level child's
 //   `id` as a parameter ID.
 // - seed as an int64 STRING (getLargeIntValue clamps a uint64 above INT64_MAX).
+// - Scale state (D17, PD4): SIBLING children <CustomScale> / <DegreeMasks>
+//   (the parent's names; this refines CONTEXT D17's "keys on <Engine>").
+//   Masks as 16 hex digits (%016x), only non-default (≠ all-on) ones written,
+//   read back ONLY as exactly 16 hex digits through getHexValue64 (never
+//   getLargeIntValue: it clamps bit 63, P17). version is written & 0x7fffffff.
+// - Restore reads Engine / CustomScale / DegreeMasks BEFORE stripping them,
+//   strips before replaceState (a stale child never shadows a reopen, P19),
+//   then applyNonParameterState resets every non-parameter value to its
+//   default FIRST (absent = default, never "leave as is", P18).
 // - Every property comes back from XML as a string var: isVoid() guards, then
 //   parse; never isBool().
-// - CustomScale / DegreeMasks are reserved in the strip list for Phase 2.2.
 //==============================================================================
 namespace
 {
     const juce::Identifier kEngineTag ("Engine"), kSlotsTag ("Slots"),
-                           kCustomScaleTag ("CustomScale"), kDegreeMasksTag ("DegreeMasks");
+                           kCustomScaleTag ("CustomScale"), kDegreeMasksTag ("DegreeMasks"), kMaskTag ("Mask");
     const juce::Identifier kUiLanguageAttr ("uiLanguage");
 
     void removeCustomChildren (juce::ValueTree& tree)
@@ -237,6 +374,9 @@ namespace
 void GranulatorInstrumentProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     auto state = parameters.copyState();
+   #if OGI_TEST_HOOKS
+    if (! testNoStateStrip)
+   #endif
     removeCustomChildren (state);   // never duplicate children restored into the live tree
 
     state.setProperty (kUiLanguageAttr, languageCode (uiLanguage.load (std::memory_order_relaxed)), nullptr);
@@ -246,6 +386,26 @@ void GranulatorInstrumentProcessor::getStateInformation (juce::MemoryBlock& dest
     eng.setProperty ("stateVersion", Ids::kStateVersion, nullptr);
     eng.setProperty ("modDestTableVersion", Ids::kModDestTableVersion, nullptr);
     state.appendChild (eng, nullptr);
+
+    const auto custom = getCustomScale();
+    juce::ValueTree cs (kCustomScaleTag);
+    cs.setProperty ("name", custom.name, nullptr);
+    cs.setProperty ("text", custom.text, nullptr);
+    cs.setProperty ("period", custom.period, nullptr);
+    cs.setProperty ("version", static_cast<int> (custom.version & 0x7fffffffu), nullptr);
+    state.appendChild (cs, nullptr);
+
+    juce::ValueTree dm (kDegreeMasksTag);
+    for (int s = 1; s <= Ids::kStreams; ++s)
+        for (int c = 1; c < Ids::kNumCollections; ++c)
+        {
+            const uint64_t mask = getDegreeMask (s, c);
+            if (mask != kAllOn)
+                dm.appendChild (juce::ValueTree (kMaskTag, { { "stream", s }, { "collection", c },
+                                                             { "bits", juce::String::toHexString (static_cast<juce::int64> (mask)).paddedLeft ('0', 16) } }),
+                                nullptr);
+        }
+    state.appendChild (dm, nullptr);
 
     state.appendChild (juce::ValueTree (kSlotsTag), nullptr);
 
@@ -265,15 +425,17 @@ void GranulatorInstrumentProcessor::setStateInformation (const void* data, int s
 
     // Read the non-parameter state BEFORE stripping it from the tree.
     const juce::ValueTree eng = tree.getChildWithName (kEngineTag);
+    const juce::ValueTree cs  = tree.getChildWithName (kCustomScaleTag);
+    const juce::ValueTree dm  = tree.getChildWithName (kDegreeMasksTag);
     const juce::var lang = tree.getProperty (kUiLanguageAttr);
-    // <Slots>: Phase 2.1 parses its <Slot index> children and enqueues loader jobs.
+    // <Slots>: Phase 2.6 parses its <Slot index> children and enqueues loader jobs.
 
+   #if OGI_TEST_HOOKS
+    if (! testNoStateStrip)
+   #endif
     removeCustomChildren (tree);
     tree.removeProperty (kUiLanguageAttr, nullptr);
     parameters.replaceState (tree);
-
-    // Non-parameter state back to defaults: Stage 1 holds none besides the
-    // seed, which is kept (there is no default seed) unless the blob has one.
 
     if (! lang.isVoid())
     {
@@ -283,17 +445,79 @@ void GranulatorInstrumentProcessor::setStateInformation (const void* data, int s
                           std::memory_order_relaxed);
     }
 
+    // The XML children adapted into the shared apply path's inputs (parent P98):
+    // the property vars pass through untouched (XML gives strings).
+    juce::var custom, masks, seedVar;
     if (eng.isValid())
+        seedVar = eng.getProperty ("seed");   // stateVersion / modDestTableVersion: 1 is the only version so far
+    if (cs.isValid())
     {
-        // stateVersion / modDestTableVersion: 1 is the only version so far.
-        const juce::var seedVar = eng.getProperty ("seed");
-        if (! seedVar.isVoid())
+        auto* o = new juce::DynamicObject();
+        o->setProperty ("name", cs.getProperty ("name"));
+        o->setProperty ("text", cs.getProperty ("text"));
+        custom = juce::var (o);
+    }
+    if (dm.isValid())
+    {
+        juce::Array<juce::var> list;
+        for (const auto& m : dm)
         {
-            const auto s = seedVar.toString().trim();
-            if (s.isNotEmpty() && s.containsOnly ("-0123456789"))
-                setSeed (static_cast<uint64_t> (s.getLargeIntValue()));
+            if (! m.hasType (kMaskTag))
+                continue;
+            auto* o = new juce::DynamicObject();
+            o->setProperty ("stream",     m.getProperty ("stream"));
+            o->setProperty ("collection", m.getProperty ("collection"));
+            o->setProperty ("bits",       m.getProperty ("bits"));
+            list.add (juce::var (o));
+        }
+        masks = list;
+    }
+
+    applyNonParameterState (custom, masks, seedVar);
+}
+
+void GranulatorInstrumentProcessor::applyNonParameterState (const juce::var& custom, const juce::var& masks, const juce::var& seedVar)
+{
+    // Defaults FIRST (P18), so anything absent reads as default rather than as
+    // whatever this instance held. The seed is not part of the reset (there is
+    // no default seed): absent keeps the live one.
+   #if OGI_TEST_HOOKS
+    if (! testNoStateReset)
+   #endif
+    resetNonParameterState();
+
+    if (! seedVar.isVoid())
+    {
+        const auto s = seedVar.toString().trim();
+        if (s.isNotEmpty() && s.containsOnly ("-0123456789"))
+            setSeed (static_cast<uint64_t> (s.getLargeIntValue()));
+    }
+
+    if (auto* c = custom.getDynamicObject())
+    {
+        const auto text = c->getProperty ("text");
+        if (! text.isVoid() && text.toString().isNotEmpty())
+        {
+            juce::String badToken;
+            const auto name = c->getProperty ("name");
+            setCustomScale (name.isVoid() ? juce::String() : name.toString(), text.toString(), badToken);   // failure keeps the 12-EDO default
         }
     }
+
+    if (const auto* list = masks.getArray())
+        for (const auto& m : *list)
+        {
+            auto* o = m.getDynamicObject();
+            if (o == nullptr)
+                continue;
+            const auto sv = o->getProperty ("stream"), cv = o->getProperty ("collection"), bv = o->getProperty ("bits");
+            if (sv.isVoid() || cv.isVoid() || bv.isVoid())
+                continue;
+            const auto bits = bv.toString();
+            if (bits.length() != 16 || ! bits.containsOnly ("0123456789abcdefABCDEF"))
+                continue;   // P17: exactly 16 hex digits, or ignored (all-on stays)
+            setDegreeMask (static_cast<int> (sv), static_cast<int> (cv), static_cast<uint64_t> (bits.getHexValue64()));
+        }
 }
 
 //==============================================================================

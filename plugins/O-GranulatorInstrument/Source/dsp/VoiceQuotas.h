@@ -44,6 +44,11 @@
 // Σ live <= Σ ⌊q_k⌋ <= Q exactly (R3 kills become a transitions-only path).
 // The output law uses what thinning produces: N_eff = len̄ / T_k.
 //
+// 2.2 (PLAN-2.2 T5): the engine calls waterFillN<kPairs> (80 (voice, stream)
+// demands, index k·4 + s) with this code unchanged. Zero demands sort first
+// and subtract 0.0 exactly, so with one stream the nonzero shares are bitwise
+// those of waterFillN<20> (R§10.1).
+//
 // Header-only, allocation-free, no JUCE. Grid thread (= audio thread).
 // ============================================================================
 namespace ogi
@@ -139,14 +144,22 @@ namespace ogi
     }
 
     /** P1: T = max (fs / density, (L_max + 1) / m). m = kQuotaUncapped → fs / density.
-        m < 1 is treated as 1 (a capped voice always keeps one grain). */
-    inline double thinnedPeriod (double fs, double density, double lMaxSamples, int m) noexcept
+        m < 1 is treated as 1 (a capped voice always keeps one grain).
+
+        PLAN-2.2 PD7 (jitter J in [0, 1], the latched sN_jitter): onset k sits
+        at k·T + J·T·(u_k − ½), so any m + 1 consecutive onsets span at least
+        T·(m − J). For m >= 2 the bound becomes T = max (fs / density,
+        (L_max + 1) / (m − J)); m <= 1 keeps (L_max + 1) / 1 (no finite T bounds
+        a jittered m = 1 pair: R3 kills there are expected, P10 / R5).
+        J = 0: m − 0.0 == m exactly, so every 2.1 period is bitwise unchanged. */
+    inline double thinnedPeriod (double fs, double density, double lMaxSamples, int m, double jitter = 0.0) noexcept
     {
         const double base = fs / std::max (1.0e-9, density);
         if (m >= kQuotaUncapped)
             return base;
         const double mm = static_cast<double> (std::max (1, m));
-        return std::max (base, (lMaxSamples + 1.0) / mm);
+        const double den = mm >= 2.0 ? mm - std::clamp (jitter, 0.0, 1.0) : mm;
+        return std::max (base, (lMaxSamples + 1.0) / den);
     }
 
     /** N_eff = len̄ / T (full windows under thinning). */
