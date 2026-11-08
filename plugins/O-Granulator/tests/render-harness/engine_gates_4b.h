@@ -24,7 +24,7 @@
 //==============================================================================
 // Stage 4 rows, part b (PLAN-4 P155–P157): presets, state round trip, layouts.
 //
-//   PR0    table: 16, 4 per prefix, unique, <= 24 chars, no / \ :, no
+//   PR0    table: 64, 8 per prefix (8 categories), unique, <= 24 chars, no / \ :, no
 //          output_gain, every value in range, a seed on every preset
 //   PR1    apply (fresh processor, no disk): engineering read-back == table,
 //          absent == default, output_gain -7 dB kept;  PR1n linear-fraction
@@ -33,9 +33,12 @@
 //          bound, RMS (2–20 s) > -60 dBFS; loudness spread <= 9 dB
 //   PR3    use case: Harmoniser follow hits on scale degrees; Rhythmic tempo
 //          lock at 120 / 93 bpm + grid onsets; Cascade min g_agc < 1 or loop
-//          gain >= -3 dB; Ambient >= 2 s of tail > -60 dBFS
-//   PR4    load A -> load B == fresh load of B (10 s, bitwise), all 240 pairs
-//   PR5    the real path under a temp HOME: 16 files, loadPreset read-back,
+//          gain >= -3 dB; Ambient / Drone >= 2 s of tail > -60 dBFS;
+//          Texture / Pitch FX / Glitch: PR2 only (no use-case criterion)
+//   PR4    load A -> load B == fresh load of B (10 s, bitwise), 320 ordered
+//          pairs: A = B + k (mod 64), k in {1, 8, 13, 32, 63} (1.1.0; all
+//          4032 pairs would be ~17x the 1.0.0 cost for the same reset check)
+//   PR5    the real path under a temp HOME: 64 files, loadPreset read-back,
 //          save as user -> load == factory apply (10 s, bitwise)
 //   ST1–3  state round trip on fresh instances (codec, two reopens, preset data)
 //   ST2n   the codec without the custom-child strip shows the stale value
@@ -172,19 +175,21 @@ namespace { namespace eg4b
     //==========================================================================
     void prRows()
     {
-        std::printf ("\n-- PR. FUNC-09 factory presets: 16 x 4 categories, engineering-unit table, fixed seeds (D42)\n");
+        std::printf ("\n-- PR. FUNC-09 factory presets: 64 x 8 categories, engineering-unit table, fixed seeds (D42, 1.1.0)\n");
         const auto specs = F::factoryPresetSpecs();
+        const int N = (int) specs.size();
         auto probe = make();
         const auto defs = defsFor (*probe);
 
         // PR0
         {
-            const char* cats[4] { "Ambient \xc2\xb7 ", "Harmoniser \xc2\xb7 ", "Rhythmic \xc2\xb7 ", "Cascade \xc2\xb7 " };
-            int perCat[4] {}; juce::StringArray names; juce::String why; int maxLen = 0;
+            const char* cats[8] { "Ambient \xc2\xb7 ", "Harmoniser \xc2\xb7 ", "Rhythmic \xc2\xb7 ", "Cascade \xc2\xb7 ",
+                                  "Texture \xc2\xb7 ", "Pitch FX \xc2\xb7 ", "Glitch \xc2\xb7 ", "Drone \xc2\xb7 " };
+            int perCat[8] {}; juce::StringArray names; juce::String why; int maxLen = 0; juce::int64 seeds[128] {}; int nSeeds = 0;
             for (const auto& s : specs)
             {
                 const auto n = juce::String::fromUTF8 (s.name);
-                for (int c = 0; c < 4; ++c) if (n.startsWith (juce::String::fromUTF8 (cats[c]))) ++perCat[c];
+                for (int c = 0; c < 8; ++c) if (n.startsWith (juce::String::fromUTF8 (cats[c]))) ++perCat[c];
                 if (names.contains (n) && why.isEmpty()) why = "duplicate " + n;
                 names.add (n);
                 maxLen = std::max (maxLen, n.length());
@@ -193,10 +198,15 @@ namespace { namespace eg4b
                 const auto v = F::validateSpec (s, probe->parameters);
                 if (v.isNotEmpty() && why.isEmpty()) why = v;
                 if (s.seed == 0 && why.isEmpty()) why = n + " seed 0";
+                for (int k = 0; k < nSeeds; ++k) if (seeds[k] == s.seed && why.isEmpty()) why = n + " duplicate seed";
+                if (nSeeds < 128) seeds[nSeeds++] = s.seed;
             }
-            const bool ok = specs.size() == 16 && perCat[0] == 4 && perCat[1] == 4 && perCat[2] == 4 && perCat[3] == 4 && why.isEmpty() && defs.size() == 16;
-            row (ok, "PR0 table: 16, 4 per category prefix, unique, <= 24 chars, no / \\ :, no output_gain, in range, seeded",
-                 juce::String::formatted ("%d presets, %d/%d/%d/%d, longest %d chars", (int) specs.size(), perCat[0], perCat[1], perCat[2], perCat[3], maxLen)
+            bool cats8 = true;
+            for (int c = 0; c < 8; ++c) cats8 = cats8 && perCat[c] == 8;
+            const bool ok = N == 64 && cats8 && why.isEmpty() && (int) defs.size() == 64;
+            row (ok, "PR0 table: 64, 8 per category prefix (8), unique names + seeds, <= 24 chars, no / \\ :, no output_gain, in range, seeded",
+                 juce::String::formatted ("%d presets, %d/%d/%d/%d/%d/%d/%d/%d, longest %d chars", N, perCat[0], perCat[1], perCat[2], perCat[3],
+                                          perCat[4], perCat[5], perCat[6], perCat[7], maxLen)
                      + (why.isEmpty() ? juce::String() : " BAD " + why));
         }
 
@@ -211,7 +221,7 @@ namespace { namespace eg4b
                 bad += readBack (*p, specs[i], why, -7.0f);
             }
             row (bad == 0, "PR1 apply: engineering read-back == table (interval / snap tol), absent == default (decoded, 1e-6 rel), output_gain -7 dB kept",
-                 bad == 0 ? juce::String ("16/16, 220 params each") : juce::String (bad) + " bad, e.g. " + why);
+                 bad == 0 ? juce::String (N) + "/" + juce::String (N) + ", 220 params each" : juce::String (bad) + " bad, e.g. " + why);
             // PR1n: s1_size (skewed) written as a linear fraction.
             auto d = defs[0];
             auto* rp = probe->parameters.getParameter ("s1_size");
@@ -337,7 +347,7 @@ namespace { namespace eg4b
             row (ok, "PR2 20 s per preset (standard stimulus, 120 bpm): finite, peak <= sqrt (in^2 + A^2), RMS 2-20 s > -60 dBFS",
                  juce::String::formatted ("RMS %.1f .. %.1f dBFS", lo, hi));
             info ("PR2 RMS (dBFS, 2-20 s): " + tab);
-            row (hi - lo <= 9.0, "PR2 loudness spread across the 16 <= 9 dB", juce::String::formatted ("%.2f dB", hi - lo));
+            row (hi - lo <= 9.0, "PR2 loudness spread across the 64 <= 9 dB", juce::String::formatted ("%.2f dB", hi - lo));
         }
         {
             Tally t; juce::String det;
@@ -362,17 +372,18 @@ namespace { namespace eg4b
                     t.check (r.gmin < 1.0f || r.lgMax >= -3.0, sh + juce::String::formatted (": g %.3f LG %.2f", (double) r.gmin, r.lgMax));
                     det << sh << juce::String::formatted (" g %.3f LG %.2f dB; ", (double) r.gmin, r.lgMax);
                 }
-                else
+                else if (n.startsWith ("Ambient") || n.startsWith ("Drone"))
                 {
                     t.check (r.tailS >= 2.0, sh + juce::String::formatted (": tail %.2f s", r.tailS));
                     det << sh << juce::String::formatted (" tail %.2f s; ", r.tailS);
                 }
+                // Texture / Pitch FX / Glitch: PR2 (finite, bounded, audible, in the spread) only.
             }
-            row (t.bad == 0, "PR3 use case: Harmoniser on-scale follow hits; Rhythmic lock 120/93 + grid; Cascade g < 1 or LG >= -3 dB; Ambient tail >= 2 s",
+            row (t.bad == 0, "PR3 use case: Harmoniser on-scale follow hits; Rhythmic lock 120/93 + grid; Cascade g < 1 or LG >= -3 dB; Ambient / Drone tail >= 2 s",
                  t.bad ? t.detail (16) : det.trim());
         }
 
-        // PR4 — load A -> load B == fresh B (10 s, bitwise), all 240 ordered pairs.
+        // PR4 — load A -> load B == fresh B (10 s, bitwise), 320 ordered pairs A = B + k.
         {
             const juce::int64 len = (juce::int64) (10.0 * kFs);
             auto job = [&] (int a, int b)
@@ -387,13 +398,17 @@ namespace { namespace eg4b
                 return j;
             };
             std::vector<Job> fresh; std::vector<double> c1;
-            for (int b = 0; b < 16; ++b) { fresh.push_back (job (-1, b)); c1.push_back (1.0); }
-            std::vector<std::vector<float>> fL (16), fR (16);
+            for (int b = 0; b < N; ++b) { fresh.push_back (job (-1, b)); c1.push_back (1.0); }
+            std::vector<std::vector<float>> fL ((size_t) N), fR ((size_t) N);
             eg22b::renderPool (fresh, c1, [&] (size_t i, Out& o) { fL[i] = std::move (o.L); fR[i] = std::move (o.R); });
             std::vector<Job> pairs; std::vector<std::pair<int, int>> ab; std::vector<double> c2;
-            for (int a = 0; a < 16; ++a)
-                for (int b = 0; b < 16; ++b)
-                    if (a != b) { pairs.push_back (job (a, b)); ab.push_back ({ a, b }); c2.push_back (1.0); }
+            for (int k : { 1, 8, 13, 32, 63 })
+                for (int b = 0; b < N; ++b)
+                {
+                    const int a = (b + k) % N;
+                    pairs.push_back (job (a, b)); ab.push_back ({ a, b }); c2.push_back (1.0);
+                }
+            const int nPairs = (int) pairs.size();
             int bad = 0; juce::String why;
             eg22b::renderPool (pairs, c2, [&] (size_t i, Out& o)
             {
@@ -406,9 +421,9 @@ namespace { namespace eg4b
             });
             // non-vacuity: the 16 fresh renders are pairwise different
             int same = 0;
-            for (int a = 0; a < 16; ++a) for (int b = a + 1; b < 16; ++b) same += sameBits (fL[(size_t) a], fL[(size_t) b]) ? 1 : 0;
-            row (bad == 0 && same == 0, "PR4 load A -> load B == fresh load of B, 10 s bitwise, all 240 ordered pairs (16 fresh renders distinct)",
-                 juce::String::formatted ("%d/240 identical, %d equal fresh pairs", 240 - bad, same) + (why.isEmpty() ? juce::String() : " first diff " + why));
+            for (int a = 0; a < N; ++a) for (int b = a + 1; b < N; ++b) same += sameBits (fL[(size_t) a], fL[(size_t) b]) ? 1 : 0;
+            row (bad == 0 && same == 0 && nPairs == 320, "PR4 load A -> load B == fresh load of B, 10 s bitwise, 320 ordered pairs A = B + {1,8,13,32,63} (64 fresh renders distinct)",
+                 juce::String::formatted ("%d/%d identical, %d equal fresh pairs", nPairs - bad, nPairs, same) + (why.isEmpty() ? juce::String() : " first diff " + why));
         }
 
         // PR5 — the real path, under the harness's temp HOME (main() sets it).
@@ -442,13 +457,16 @@ namespace { namespace eg4b
                     bad += readBack (*q, s, why, -7.0f);
                 }
                 // save as user -> load == factory apply (10 s render, bitwise)
-                const auto& s0 = specs[13];   // Cascade · Rust Spiral (fb 90 %, sat 60 %)
+                size_t rust = 0;   // Cascade · Rust Spiral (fb 90 %, sat 60 %)
+                for (size_t k = 0; k < specs.size(); ++k)
+                    if (juce::String::fromUTF8 (specs[k].name) == juce::String::fromUTF8 ("Cascade \xc2\xb7 Rust Spiral")) rust = k;
+                const auto& s0 = specs[rust];
                 auto a = make();
-                a->getPresetManager().applyPresetData (F::presetJsonOf (defs[13]));
+                a->getPresetManager().applyPresetData (F::presetJsonOf (defs[rust]));
                 a->getPresetManager().savePreset ("PR5 user copy");
                 auto b = make();
                 const bool loaded = b->getPresetManager().loadPreset ("PR5 user copy");
-                auto c = withPreset (defs[13]);
+                auto c = withPreset (defs[rust]);
                 auto rend = [] (GranulatorProcessor& g)
                 {
                     g.prepareToPlay (kFs, 512);
@@ -458,9 +476,9 @@ namespace { namespace eg4b
                 const bool same = loaded && sameBits (rb.L, rc.L) && sameBits (rb.R, rc.R);
                 b->getPresetManager().deletePreset ("PR5 user copy");
                 const bool sentinel = factory.getChildFile (".factory-version").existsAsFile();
-                row (files == 16 && onDisk == 16 && sentinel && bad == 0 && same,
-                     "PR5 real path (temp HOME): fresh bank 16 files + sentinel; loadPreset read-back == table; user copy == factory apply (10 s bitwise)",
-                     juce::String::formatted ("%d/16 named files (%d .json), sentinel %d, read-back bad %d, user copy %s (", files, onDisk, (int) sentinel, bad,
+                row (files == N && onDisk == N && sentinel && bad == 0 && same,
+                     "PR5 real path (temp HOME): fresh bank 64 files + sentinel; loadPreset read-back == table; user copy == factory apply (10 s bitwise)",
+                     juce::String::formatted ("%d/%d named files (%d .json), sentinel %d, read-back bad %d, user copy %s (", files, N, onDisk, (int) sentinel, bad,
                                               same ? "bitwise" : "DIFFERS") + juce::String::fromUTF8 (s0.name) + ")"
                          + (missing.isEmpty() ? juce::String() : " missing " + missing.joinIntoString (", ")) + (why.isEmpty() ? juce::String() : " " + why));
                 info ("PR5 factory dir " + factory.getFullPathName() + "; names keep U+00B7 on disk (sanitiser maps only / \\ :)");

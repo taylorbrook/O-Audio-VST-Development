@@ -1,7 +1,7 @@
 ---
 plugin: O-Granulator
 stage: 4
-status: stage_4_complete_verified
+status: v1_1_0_preset_bank_built_installed_daw_check_pending   # /improve 1.1.0: 64 presets (8x8), all Mix 100 %; harness 547/547, PF1, auval, pluginval 10 VST3+AU PASS
 current_phase: verify
 current_gui_phase: 3.3
 current_dsp_phase: 2.6
@@ -15,7 +15,7 @@ complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: install_plugin
+next_action: daw_check_v1_1_0_presets
 next_stage: 4
 ready_for_implementation: true
 blocked_on: null

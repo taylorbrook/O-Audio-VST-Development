@@ -925,6 +925,13 @@ int main (int argc, char** argv)
                      failures == 0 ? (gNoVerdict ? "NO VERDICT (C7 contended)" : "ALL PASS") : "FAILURES", gLong ? ", --long" : "");
         return rc();
     }
+    // Iteration aid (1.1.0 bank): `--onlyPR` runs the factory-preset rows alone.
+    if (argc > 1 && std::strcmp (argv[1], "--onlyPR") == 0)
+    {
+        eg4b::prRows();
+        std::printf ("\n%d PASS, %d FAIL -- %s (PR rows only)\n", passes, failures, failures == 0 ? "ALL PASS" : "FAILURES");
+        return failures == 0 ? 0 : 1;
+    }
     // Iteration aid (4): `--only4` runs the Stage 4 sections alone.
     if (argc > 1 && std::strcmp (argv[1], "--only4") == 0)
     {

@@ -3369,6 +3369,9 @@ canvas.scope { position: absolute; }
         file.addEventListener('click', async () => { closePresetMenu(); await presetManager.loadFromFile(); });
         menu.appendChild(file);
         menu.hidden = false;
+        // 1.1.0: 64 factory presets overflow the 420 px list — open on the current one.
+        const selItem = menu.querySelector('.pm-item.sel');
+        menu.scrollTop = selItem ? Math.max(0, selItem.offsetTop - (menu.clientHeight - selItem.offsetHeight) / 2) : 0;
         presetMenuOpen = true;
         document.getElementById('preset-name').setAttribute('aria-expanded', 'true');
     }

@@ -22,7 +22,7 @@
 
     preset_name_fit.js — PF1 / PF1n (Stage 4, PLAN-4 P160, UI-04)
 
-    The 16 factory preset names (parsed from Source/FactoryPresets.h) must fit
+    The 64 factory preset names (parsed from Source/FactoryPresets.h) must fit
     the preset bar's name box, #preset-name-text (.pname b, nowrap + ellipsis),
     in EN / FR / zh-Hans: scrollWidth <= clientWidth for every name (the
     names are not localised, but the box font can differ per language). Real
@@ -47,7 +47,7 @@ const S = require(path.join(repoRoot, 'scripts', 'serve-ui.js'));
 
 function presetNames() {
     const src = fs.readFileSync(path.join(pluginRoot, 'Source', 'FactoryPresets.h'), 'utf8');
-    const re = /\{ "((?:Ambient|Harmoniser|Rhythmic|Cascade) \\xc2\\xb7 [^"]+)",/g;
+    const re = /\{ "((?:Ambient|Harmoniser|Rhythmic|Cascade|Texture|Pitch FX|Glitch|Drone) \\xc2\\xb7 [^"]+)",/g;
     const out = [];
     let m;
     while ((m = re.exec(src)) !== null) out.push(m[1].replace(/\\xc2\\xb7/g, '·'));
@@ -64,7 +64,7 @@ function presetNames() {
     console.log(`== O-Granulator preset_name_fit (PF1 / PF1n) — ${names.length} names ==`);
     let failures = 0;
     const fail = (msg) => { ++failures; console.log(`  FAIL: ${msg}`); };
-    if (names.length !== 16) fail(`parsed ${names.length} names from FactoryPresets.h (want 16)`);
+    if (names.length !== 64) fail(`parsed ${names.length} names from FactoryPresets.h (want 64)`);
 
     const built = S.buildRoot('O-Granulator');
     const srv = await S.serve(built.root);
@@ -111,9 +111,9 @@ function presetNames() {
         const worst = r.box.reduce((a, x) => (x.sw > a.sw ? x : a), r.box[0]);   // the box is content-sized up to its 172 px max
         const over = r.box.filter((x) => x.sw > x.cw);
         const menuOver = r.menu.filter((x) => x.sw > x.cw);
-        console.log(`  ${over.length ? 'FAIL' : 'PASS'}: PF1 ${lang}: 16 names in .pname b — widest "${worst.n}" ${worst.sw} / ${worst.cw} px`);
+        console.log(`  ${over.length ? 'FAIL' : 'PASS'}: PF1 ${lang}: ${names.length} names in .pname b — widest "${worst.n}" ${worst.sw} / ${worst.cw} px`);
         if (over.length) fail(`PF1 ${lang}: ${over.map((x) => `"${x.n}" ${x.sw}/${x.cw}`).join(', ')}`);
-        console.log(`  ${menuOver.length ? 'FAIL' : 'PASS'}: PF1 ${lang}: 16 names in .pm-item — ${menuOver.length} overflow`);
+        console.log(`  ${menuOver.length ? 'FAIL' : 'PASS'}: PF1 ${lang}: ${names.length} names in .pm-item — ${menuOver.length} overflow`);
         if (menuOver.length) fail(`PF1 menu ${lang}: ${menuOver.map((x) => `"${x.n}" ${x.sw}/${x.cw}`).join(', ')}`);
     }
     await page.evaluate(() => window.__setLanguage('en'));
