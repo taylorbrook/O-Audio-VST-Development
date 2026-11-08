@@ -1,15 +1,15 @@
 ---
 plugin: O-GranulatorInstrument
 stage: 2
-status: stage_2_phase_2_2_discuss_complete_hands_on_2_1_pending
+status: stage_2_phase_2_2_research_complete_hands_on_2_1_pending
 current_phase: 2-dsp/2.2
-gsd_phase: discuss_complete
+gsd_phase: research_complete
 last_updated: 2026-11-08
 complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: research_2_2 (2.2 execute gated on HANDS-ON-2.1, D14)
+next_action: plan_2_2 (2.2 execute gated on HANDS-ON-2.1, D14)
 next_stage: 2
 ready_for_implementation: true
 blocked_on: none (fork pin 82406fce, D11)
@@ -37,7 +37,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — Phase 2.1 verified 2026-11-07 (`stages/2-dsp/VERIFICATION-2.1.md`): ⚠️ PARTIAL — every automated gate re-run green in verify (harness 88/0, 22 controls fire; param-dump byte-identical; fork drift 0 with NC-a/NC-b re-made, rc 1; auval PASS; pluginval 10 VST3 + AU SUCCESS, 2 ch in; console exclusion 0 refs). HANDS-ON-2.1 (human, 13 rows) pending — closes FUNC-01–04, DSP-02, DSP-07, PERF-01–03, QUAL-01 partials (REQUIREMENTS). Phase 2.2 discuss ✓ 2026-11-08 (`stages/2-dsp/CONTEXT-2.2.md`, D14–D17). Next: Phase 2.2 research; 2.2 execute gated on HANDS-ON-2.1 all ✅ (D14).
+Stage: 2 of 4 (DSP) — Phase 2.1 verified 2026-11-07 (`stages/2-dsp/VERIFICATION-2.1.md`): ⚠️ PARTIAL — every automated gate re-run green in verify (harness 88/0, 22 controls fire; param-dump byte-identical; fork drift 0 with NC-a/NC-b re-made, rc 1; auval PASS; pluginval 10 VST3 + AU SUCCESS, 2 ch in; console exclusion 0 refs). HANDS-ON-2.1 (human, 13 rows) pending — closes FUNC-01–04, DSP-02, DSP-07, PERF-01–03, QUAL-01 partials (REQUIREMENTS). Phase 2.2 discuss ✓ 2026-11-08 (`stages/2-dsp/CONTEXT-2.2.md`, D14–D17). Phase 2.2 research ✓ 2026-11-08 (`stages/2-dsp/RESEARCH-2.2.md`). Next: Phase 2.2 plan; 2.2 execute gated on HANDS-ON-2.1 all ✅ (D14).
 Stage 1: VERIFIED
 Status: Stage 1 executed (74606bb3): 0.1.0 VST3 + AU + Standalone built; 261 params (176/70/15), dest 126 / src 18 goldens; harness 55 PASS / 0 FAIL + golden and spec negative controls; pluginval 10 VST3 ×3 + AU SUCCESS with SC active (2 ch) and gate variant inactive (0 ch), auval PASS [1, 2] [2, 2] (frozen); D9 contingency did not fire; shipping build restored + installed. See stages/1-foundation/SUMMARY.md. Verified 2026-11-07 (stages/1-foundation/VERIFICATION.md): independent re-run on the installed shipping build — goldens + param-dump byte-identical, harness 55/0, auval PASS [1, 2] [2, 2], pluginval 10 VST3 + AU SUCCESS (2 ch in); COMPAT-01 complete. Next: Stage 2 discuss (Phase 2.1 fork).
 Progress: [####................] 20%
@@ -66,7 +66,7 @@ Progress: [####................] 20%
 2. ✓ `parameter-spec.md` LOCKED (Stage 1 contract): 261 params, Design Sync S1–S11 applied, 126-entry destination order and 18-entry source order frozen (append-only). One description-level draft conflict recorded in its "Draft vs mockup" section (`polyphony` steal wording) — resolved Stage 1 discuss D10: keep mockup wording.
 3. Stage 1: Foundation — discuss ✓ (`stages/1-foundation/CONTEXT.md`), research ✓ (`stages/1-foundation/RESEARCH.md`), plan ✓ (`stages/1-foundation/PLAN.md`); execute ✓ (`SUMMARY.md`, 74606bb3), verify ✓ (`VERIFICATION.md`). Next: `/plugin-discuss O-GranulatorInstrument 2-dsp` (Phase 2.1 fork pin).
 4. Stage 2 Phase 2.1: discuss ✓ (`stages/2-dsp/CONTEXT-2.1.md`). Fork pin = O-Granulator `82406fce` (D11, supersedes the 3.3-close pin). research ✓ (`RESEARCH-2.1.md`), plan ✓ (`PLAN-2.1.md`), execute ✓ (`SUMMARY-2.1.md`), verify ⚠️ partial (`VERIFICATION-2.1.md`, automated green; HANDS-ON-2.1 pending). Next: run HANDS-ON-2.1, then `/plugin-discuss O-GranulatorInstrument 2-dsp` (Phase 2.2).
-5. Stage 2 Phase 2.2: discuss ✓ (`stages/2-dsp/CONTEXT-2.2.md`): D14 HANDS-ON-2.1 gates 2.2 execute only; D15 DSP-01 = derandomised −90 dB null vs parent @ 82406fce + statistical arm on latched grain fields; D16 kVoiceGainDb from measured RMS match to parent default (±0.5 dB) + ear row; D17 scale state (customScale + degreeMasks hex) engine API + `<Engine>` save/restore, harness-only. CPU INFO only (verdict 2.3). Next: `/plugin-research O-GranulatorInstrument 2-dsp` (Phase 2.2).
+5. Stage 2 Phase 2.2: discuss ✓ (`stages/2-dsp/CONTEXT-2.2.md`): D14 HANDS-ON-2.1 gates 2.2 execute only; D15 DSP-01 = derandomised −90 dB null vs parent @ 82406fce + statistical arm on latched grain fields; D16 kVoiceGainDb from measured RMS match to parent default (±0.5 dB) + ear row; D17 scale state (customScale + degreeMasks hex) engine API + `<Engine>` save/restore, harness-only. CPU INFO only (verdict 2.3). research ✓ (`RESEARCH-2.2.md`): parent-at-pin parity via out-of-tree extract+build (n1/run.sh precedent, `--parity` harness mode); null rows need parent `freezeNoMinSpray` + integer Δ multiple of 2^level; stats arm n=4000/side KS+variance; parent scale state = relaxed atomics + SpinLock try-lock copy, `<CustomScale>`/`<DegreeMasks>` siblings of `<Engine>`; D16 parent default s1-only, mix 50 % → target ≈ 0 dB vs −6 dB placeholder; muted streams keep demand (confirmed); window-0 bitwise needs the parent closed-form Hann fast path. Planner decisions: D16 reference at mix 100 % vs 50 %; coherence input on a stationary tape; try-lock vs no-locks; steady-state cap kills when pairs > cap. Next: `/plugin-plan O-GranulatorInstrument 2-dsp` (Phase 2.2).
 
 ## Context to Preserve
 
