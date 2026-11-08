@@ -19,6 +19,18 @@
 */
 #include "PluginProcessor.h"
 
+// OGI_DEV_LOADER (CONTEXT-2.1 D13, PLAN-2.1 P4) is defined =1 on the PLUGIN
+// target only (CMake option, default ON until Phase 3.1). The consoles never
+// see it and build with JUCE_WEB_BROWSER=0, so they compile the generic editor
+// branch and never include the dev-loader header.
+#ifndef OGI_DEV_LOADER
+ #define OGI_DEV_LOADER 0
+#endif
+
+#if JUCE_WEB_BROWSER && OGI_DEV_LOADER
+ #include "PluginEditorDevLoader.h"   // removed in Phase 3.1 with OGI_DEV_LOADER
+#endif
+
 // Stage 1 (D8): the GenericAudioProcessorEditor on every target. Phase 3.1
 // swaps the WebView editor into the JUCE_WEB_BROWSER branch of createEditor()
 // and includes its header under the same guard (consoles build with
@@ -46,7 +58,22 @@ GranulatorInstrumentProcessor::GranulatorInstrumentProcessor()
     // builtIns() is a function-local static: build it here, never first on the audio thread.
     (void) PitchCollections::builtIns();
 
+    // Phase 2.1 engine + slot store. registerBasicFormats here (message thread);
+    // reader creation happens on the loader worker.
+    formatManager.registerBasicFormats();
+    engine = std::make_unique<ogi::Engine> (handoff);
+    engine->bind (parameters);
+    loader = std::make_unique<ogi::SlotLoader> (formatManager, handoff);
+
     updateSidechainChannelCount();
+}
+
+GranulatorInstrumentProcessor::~GranulatorInstrumentProcessor()
+{
+    // Explicit order (members would do the same): stop and join the loader
+    // worker first, then free the engine's tapes; the handoff frees the rest.
+    loader.reset();
+    engine.reset();
 }
 
 //==============================================================================
@@ -99,14 +126,20 @@ void GranulatorInstrumentProcessor::updateSidechainChannelCount() noexcept
 
 void GranulatorInstrumentProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    juce::ignoreUnused (sampleRate, samplesPerBlock);
-
     // JUCE 8: getLatencySamples() is non-virtual; report through the setter, here only.
     setLatencySamples (0);
 
     // From the NEGOTIATED layout, never from the buffer width (a host may hand
     // a 2-channel buffer to any layout).
     updateSidechainChannelCount();
+
+    // Engine: pool, voices, feedback return (zeroed), ramps. Loaded tapes stay;
+    // until their rebuild lands the reader corrects the pitch by tapeRate / fs.
+    engine->prepare (sampleRate, samplesPerBlock);
+
+    // Host thread: SlotInfo only under the loader lock; SR rebuilds are queued
+    // via callAsync and deduped by (slot, rate) on the message thread.
+    loader->setSessionRate (sampleRate);
 }
 
 bool GranulatorInstrumentProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -122,29 +155,50 @@ bool GranulatorInstrumentProcessor::isBusesLayoutSupported (const BusesLayout& l
 
 void GranulatorInstrumentProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
+    // Entry / exit counters bracket EVERY path (SlotHandoff reaper quiescence).
+    handoff.blockEntered();
     juce::ScopedNoDenormals noDenormals;
 
     // Keep the note-expression raw-event queue cycling (a no-op outside VST3).
     vst3Extensions.drainAndUpdate();
 
-    // MIDI is consumed and not acted on in Stage 1 (producesMidi() == false).
-    midiMessages.clear();
-
-    // Silent shell: clear EVERY channel the buffer carries (outputs and
-    // input-only channels alike). No parameter and no sidechain sample is read.
+    // Clear EVERY channel the buffer carries first (outputs and input-only
+    // channels alike): the in-place buffer holds the sidechain, which never
+    // reaches the output (D9). The sidechain is not read in 2.1.
     const int n = buffer.getNumSamples();
     for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
         buffer.clear (ch, 0, n);
+
+    // Render into the (cleared) stereo output. The output bus is stereo by
+    // isBusesLayoutSupported; a buffer narrower than 2 stays silent.
+    if (n > 0 && buffer.getNumChannels() >= 2)
+        engine->process (buffer.getWritePointer (0), buffer.getWritePointer (1), n, midiMessages, getSeed());
+
+    // MIDI is consumed (producesMidi() == false).
+    midiMessages.clear();
+
+    handoff.blockExited();
 }
 
 juce::AudioProcessorEditor* GranulatorInstrumentProcessor::createEditor()
 {
-#if JUCE_WEB_BROWSER
-    // Phase 3.1: the WebView editor replaces this line.
-    return new juce::GenericAudioProcessorEditor (*this);
+#if JUCE_WEB_BROWSER && OGI_DEV_LOADER
+    // D13 audition path until Phase 3.1 (the WebView editor replaces it).
+    return new DevLoaderEditor (*this);
 #else
-    return new juce::GenericAudioProcessorEditor (*this);   // headless consoles
+    return new juce::GenericAudioProcessorEditor (*this);   // headless consoles / OGI_DEV_LOADER off
 #endif
+}
+
+//==============================================================================
+void GranulatorInstrumentProcessor::requestSlotLoad (int slot, const juce::File& file)
+{
+    loader->requestSlotLoad (slot, file);
+}
+
+ogi::SlotInfo GranulatorInstrumentProcessor::getSlotInfo (int slot) const
+{
+    return loader->getSlotInfo (slot);
 }
 
 //==============================================================================
@@ -246,17 +300,13 @@ void GranulatorInstrumentProcessor::setStateInformation (const void* data, int s
 #if OGI_TEST_HOOKS
 bool GranulatorInstrumentProcessor::loadSlotSync (int slot, const juce::File& file, juce::String& error)
 {
-    juce::ignoreUnused (slot, file);
-    error = "loadSlotSync: stub until 2.1";
-    return false;
+    return loader->loadSync (slot, file, error);
 }
 
 bool GranulatorInstrumentProcessor::loadSlotSync (int slot, const juce::AudioBuffer<float>& pcm, double sourceRate,
                                                   const juce::String& name, juce::String& error)
 {
-    juce::ignoreUnused (slot, pcm, sourceRate, name);
-    error = "loadSlotSync: stub until 2.1";
-    return false;
+    return loader->loadSync (slot, pcm, sourceRate, name, error);
 }
 #endif
 

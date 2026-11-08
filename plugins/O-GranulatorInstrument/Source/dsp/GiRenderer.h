@@ -1,0 +1,200 @@
+/*
+   This file is part of O-GranulatorInstrument, an Ouaricon Audio plugin.
+   Copyright (C) 2026  Ouaricon Audio
+
+   SPDX-License-Identifier: AGPL-3.0-or-later
+
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Affero General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Affero General Public License for more details.
+
+   You should have received a copy of the GNU Affero General Public License
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+#pragma once
+
+#include <juce_audio_basics/juce_audio_basics.h>   // juce::exactlyEqual (OutputLaw.h)
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include "BandlimitedReader.h"
+#include "GiConstants.h"
+#include "SlotTape.h"
+#include "VoiceGrain.h"
+#include "GiSpawner.h"
+#include "forked/OutputLaw.h"   // hannWindow, streamPower, outputGainFromPower
+
+// ============================================================================
+// GiRenderer — Hann-only grain render + the per-voice output law
+// (ARCHITECTURE §12 / §15, PLAN-2.1 T8, P1).
+//
+// Per grain per sample (grain-major over a segment of one cell):
+//   phase = (age + frac) · invLen      w = hannWindow (phase)   (window LAST)
+//   (l, r) = tape.readStereo (level, readAbs, set)   positional, double pos
+//   bus[voice] += (l, r) · w · killGain · fade · (gainL, gainR)
+//   readAbs += step (wrapped inside the loop region when wrapW > 0)
+// During an SR-rebuild crossfade the grain also reads its OLD tape at its old
+// coordinates: (1 − x)·old + x·new, x = (t − start) / len over 20 ms.
+// Every quantity advances one sample at a time; nothing is keyed to the
+// segment, so the render is block-size invariant.
+//
+// Output law per voice (P1): N_eff = len̄ / T_k (thinning keeps full
+// windows), g_out = outputGainFromPower (streamPower (N_eff, N_eff, Hann, c 0,
+// spread 0)) = 1 / sqrt (max (1, N_eff)). Never (N, q) with N > q (the
+// parent's truncation model is wrong under thinning).
+// ============================================================================
+namespace ogi
+{
+    /** One slot's SR-rebuild crossfade (audio thread). */
+    struct XfadeState
+    {
+        bool            active  = false;
+        const SlotTape* oldTape = nullptr;
+        const SlotTape* newTape = nullptr;
+        double          ratio   = 1.0;     // newRate / oldRate (tape frames per tape frame)
+        std::int64_t    start   = 0;       // absolute sample of the take
+        int             len     = 1;       // 20 ms in samples
+
+        float weightAt (std::int64_t t) const noexcept
+        {
+            const double x = static_cast<double> (t - start) / static_cast<double> (std::max (1, len));
+            return static_cast<float> (std::clamp (x, 0.0, 1.0));
+        }
+    };
+
+    /** Per-voice bus: [voice][channel][cell offset]. */
+    struct VoiceBus
+    {
+        float s[kVoiceSlots][2][kCell] {};
+    };
+
+    struct GiRenderer
+    {
+        /** The Hann window selection of the law (step 0, identity tilt). */
+        static WindowSel hannSel() noexcept
+        {
+            WindowSel sel;
+            sel.step   = 0;
+            sel.tilt.t = 0.5f;
+            sel.tilt.a = 1.0f;
+            sel.tilt.b = 1.0f;
+            return sel;
+        }
+
+        /** g_out for one voice from its effective count (P1 full-window branch). */
+        static float voiceLawGain (double nEff, const WindowMorphBank& bank) noexcept
+        {
+            const double p = streamPower (nEff, nEff, hannSel(), 0.0, 0.0, bank);
+            return outputGainFromPower (p);
+        }
+
+        /** Rebases a grain onto the new tape of a starting crossfade (lazy, at its
+            first render after the take): the old coordinates move to x*. */
+        static void rebaseForXfade (VoiceGrain& vg, const XfadeState& xf) noexcept
+        {
+            Grain& g = vg.g;
+            vg.xTape    = xf.oldTape;
+            vg.xReadAbs = g.readAbs;
+            vg.xStep    = g.step;
+            vg.xWrapLo  = vg.wrapLo;
+            vg.xWrapW   = vg.wrapW;
+            vg.xLevel   = g.level;
+            vg.xSet     = g.set;
+
+            g.readAbs *= xf.ratio;
+            g.step    *= xf.ratio;
+            g.rate    *= xf.ratio;
+            vg.wrapLo *= xf.ratio;
+            vg.wrapW  *= xf.ratio;
+            g.level = ouaricon::grain::latchLevel (g.rate, kTapeLevels);
+            g.set   = ouaricon::grain::SincBank::setFor (std::ldexp (g.rate, -g.level));
+            vg.tape = xf.newTape;
+        }
+
+        /** Renders one grain over cell offsets [c0, c1); t0 = absolute sample of
+            offset c0. Returns false when the grain is finished (retire). */
+        static bool renderGrain (VoiceGrain& vg, GiPool::Fader& fader, VoiceBus& bus,
+                                 int c0, int c1, std::int64_t t0, const XfadeState (&xf)[kTapeSlots]) noexcept
+        {
+            const int s = std::clamp (vg.slot, 0, kTapeSlots - 1);
+            const XfadeState& x = xf[s];
+
+            if (vg.xTape == nullptr)
+            {
+                if (x.active && vg.tape == x.oldTape && x.oldTape != nullptr)
+                    rebaseForXfade (vg, x);
+            }
+            else if (! x.active || vg.xTape != x.oldTape)
+            {
+                vg.xTape = nullptr;   // crossfade over: new tape only
+            }
+
+            const SlotTape* tp = vg.tape;
+            if (tp == nullptr)
+                return false;
+
+            Grain& g = vg.g;
+            const int v = std::clamp (vg.voice, 0, kVoiceSlots - 1);
+            float* bl = bus.s[v][0];
+            float* br = bus.s[v][1];
+
+            bool done = false;
+            for (int c = c0; c < c1; ++c)
+            {
+                const double phase = (static_cast<double> (g.age) + g.frac) * g.invLen;
+                if (phase >= 1.0)
+                {
+                    done = true;
+                    break;
+                }
+                const float w = hannWindow (phase);
+
+                float l = 0.0f, r = 0.0f;
+                tp->tape.readStereo (g.level, g.readAbs, g.set, l, r);
+
+                if (vg.xTape != nullptr)
+                {
+                    float xl = 0.0f, xr = 0.0f;
+                    vg.xTape->tape.readStereo (vg.xLevel, vg.xReadAbs, vg.xSet, xl, xr);
+                    const float wt = x.weightAt (t0 + (c - c0));
+                    l = xl + wt * (l - xl);
+                    r = xr + wt * (r - xr);
+                    vg.xReadAbs += vg.xStep;
+                    if (vg.xWrapW > 0.0 && vg.xReadAbs >= vg.xWrapLo + vg.xWrapW)
+                        vg.xReadAbs -= vg.xWrapW;
+                }
+
+                const float gk = w * g.killGain * fader.next();
+                bl[c] += l * gk * g.gainL;
+                br[c] += r * gk * g.gainR;
+
+                if (g.killStep > 0.0f)
+                {
+                    g.killGain -= g.killStep;
+                    if (! (g.killGain > 0.0f))
+                    {
+                        g.killGain = 0.0f;
+                        done = true;
+                    }
+                }
+
+                g.readAbs += g.step;
+                if (vg.wrapW > 0.0 && g.readAbs >= vg.wrapLo + vg.wrapW)
+                    g.readAbs -= vg.wrapW;
+
+                ++g.age;
+                if ((static_cast<double> (g.age) + g.frac) * g.invLen >= 1.0)
+                    done = true;
+                if (done)
+                    break;
+            }
+            return ! done;
+        }
+    };
+} // namespace ogi

@@ -62,11 +62,18 @@ target_sources(OuariconGranulatorInstrument
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
+        Source/dsp/SlotLoader.cpp
+        Source/dsp/Engine.cpp
+        # Phase 2.1 dev loader (D13). The name matches "PluginEditor", so the
+        # consoles (harness, param-dump) drop it (ParamDump.cmake editor filter).
+        Source/PluginEditorDevLoader.cpp
 )
 
 target_include_directories(OuariconGranulatorInstrument
     PRIVATE
         Source
+        Source/dsp
+        Source/dsp/forked
 )
 
 # ── Shared modules ──────────────────────────────────────────────────────────
@@ -188,6 +195,15 @@ option(OGI_GATE_SC_DEFAULT_OFF "Gate-only: Sidechain inactive by default. Never 
 if(OGI_GATE_SC_DEFAULT_OFF)
     target_compile_definitions(OuariconGranulatorInstrument PRIVATE OGI_SC_DEFAULT_ACTIVE=0)
     message(WARNING "[O-GranulatorInstrument] OGI_GATE_SC_DEFAULT_OFF=ON: gate variant, do not ship")
+endif()
+
+# Phase 2.1 dev-loader editor (D13): file buttons over the generic editor until
+# the WebView lands. PLUGIN TARGET ONLY — consoles never see the define.
+# Removed in Phase 3.1 together with Source/PluginEditorDevLoader.* and the
+# createEditor() branch.
+option(OGI_DEV_LOADER "Dev loader editor until Phase 3.1" ON)
+if(OGI_DEV_LOADER)
+    target_compile_definitions(OuariconGranulatorInstrument PRIVATE OGI_DEV_LOADER=1)
 endif()
 
 # Offline render-test harness + gates (Stage 1/2). Off by default.

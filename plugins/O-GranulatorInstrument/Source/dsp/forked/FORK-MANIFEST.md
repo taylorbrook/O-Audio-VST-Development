@@ -1,0 +1,39 @@
+# FORK-MANIFEST — O-GranulatorInstrument `Source/dsp/forked/`
+
+Provenance of the 13 leaves forked from O-Granulator (CONTEXT-2.1 D11, ARCHITECTURE §A1, RESEARCH-2.1 §2).
+
+- **Pin:** `82406fce` (O-Granulator 1.1.0; `Source/dsp/` byte-identical to 1.0.0 `9866e37a`). Zero upstream drift at fork time.
+- **Copy rule:** `git show "82406fce:plugins/O-Granulator/Source/dsp/<leaf>" | perl -pe 's/\bogran\b/ogi/g; s/OGRAN_TEST_HOOKS/OGI_TEST_HOOKS/g'`. Every leaf carries this rename (namespace `ogran` → `ogi`, macro `OGRAN_TEST_HOOKS` → `OGI_TEST_HOOKS`); it is the only local edit of a VERBATIM or `ADAPTED (pending 2.x)` leaf.
+- **Classes** (machine-read by `tests/fork-drift-check.sh`, column 6, exact strings):
+  - `VERBATIM` — rename only. Check 2: the renamed pin blob equals the local file byte for byte.
+  - `ADAPTED (pending 2.x)` — rename only today; adapted in phase 2.x. Until then Check 2 treats it exactly like VERBATIM. Included by no 2.1 translation unit.
+  - `ADAPTED` — edited now. Check 2: sha256 of the local file equals column 5, so an unrecorded edit fires. Every edit is listed in column 7.
+- **Included at pin (do not re-flag in the Stage 4 fork-drift review):** D43 in `FeedbackChain.h` (the AGC follower runs on `d·|x|`; `stepAgc` takes a `d` argument; hook `testAgcLegacy`) and D47a in `ModSources.h` (R96 predicate: a non-finite sample or one above `kAnalysisTapMax` contributes 0; hook `testPinOff`).
+- **sha256 columns:** column 4 = sha256 of the pin blob as stored in git (before the rename); column 5 = sha256 of the local file. Filled with `shasum -a 256` by the runner at T2; the literal placeholders `SHA_PIN` / `SHA_LOCAL` mean "not filled yet" and the drift check reports them as drift.
+- **Re-pin procedure:** a parent change found by Check 1 gets a hunk-by-hunk review (memory `pattern_fork_review_drift_label_can_hide_local_fix`) and an explicit take/skip note below the table; re-copy, re-hash, update the pin column.
+
+## Leaves
+
+| leaf | parent path | pin | sha256(pin blob) | sha256(local) | class | local edits | first-used phase |
+|---|---|---|---|---|---|---|---|
+| GrainFx.h | plugins/O-Granulator/Source/dsp/GrainFx.h | 82406fce | feb5b568f5a02a762cfdb5e70914773f2580939965e0907ded389c944a430e9b | d92940e582803cf7905499d56f69519e0130c3823b617e0ac2c71937cbba2dcb | VERBATIM | rename only | 2.3 |
+| WindowMorphBank.h | plugins/O-Granulator/Source/dsp/WindowMorphBank.h | 82406fce | 683671ec0f251e62d9f20266c6dd892f770b9b9a32bef81d4292a7cb5664f421 | b5a303ec6be64028ec1e901f6338213bd6d116b4865c545d569a09016ec568e4 | VERBATIM | rename only | 2.1 (via OutputLaw.h; bank used from 2.2) |
+| OutputLaw.h | plugins/O-Granulator/Source/dsp/OutputLaw.h | 82406fce | 7ea6bda3d433c2299503bd2b7fa7341bf67c0f1f85a20dde4f9d15a46798d0a8 | a550ff9d418d5a392959c03a05be077f973cb3e15616dbdb735e983ee8be3179 | VERBATIM | rename only | 2.1 |
+| Quotas.h | plugins/O-Granulator/Source/dsp/Quotas.h | 82406fce | e39508609c82131085158e12566997a7a5a74002d89219e443a03aac8af11051 | b9701f7270b8ca8b9df44ee85e0912e79a17e84954735ed23e0b1c886c3c64c0 | VERBATIM | rename only (reference for the waterFillN<4> parity row Q0; the engine uses Source/dsp/VoiceQuotas.h) | 2.1 (harness only) |
+| ScaleQuantiser.h | plugins/O-Granulator/Source/dsp/ScaleQuantiser.h | 82406fce | 51f1ec7484399a5416b7024d8aa82840c5f38622d4a88a1d16db97b3eaae6c87 | 604bccf155a98f15c1afec76c77e3449014e63cb5f7f46234c8bfcd1991c5747 | ADAPTED (pending 2.2) | rename only; 2.2 replaces GranulatorParamIds::scaleChoiceToId with GiParamIds | 2.2 |
+| FeedbackChain.h | plugins/O-Granulator/Source/dsp/FeedbackChain.h | 82406fce | c0c95357d77b4f1dcc12a78c5bf0bbe878b0c7338dfdacc8052ede78e0c5e048 | 49b29942cf82b6e03e8e411e58215d47a4de4fa45025e8a37ca65072da58af25 | VERBATIM | rename only; D43 included at pin | 2.4 |
+| TempoTracker.h | plugins/O-Granulator/Source/dsp/TempoTracker.h | 82406fce | 4d70495a0cd50666cb5e8693a0a7fd2ec35e4c081886837cf8cfbac17a22471d | ad697748c4a1f85d8d34bb17af0c8e987263a53a0be4267eff16e0a6e058adc4 | VERBATIM | rename only | 2.5 |
+| ControlGrid.h | plugins/O-Granulator/Source/dsp/ControlGrid.h | 82406fce | 2b3249b76f2794e39b147acb7c2c7d856bd90cfd18a90128fff88d969ae74dbb | 58432882ad93242e966b107633ab2234dc0031a2643625a08b3865a900a68576 | ADAPTED | rename; + includes juce_audio_processors and ../../GiParamIds.h; CellLerp / ExactRamp / snapDb / dbToGain / levelDbToGain / GainPair / mixGains / panGains (parent :38-164) kept byte-identical; parent ParamPointers / GridParams (:166-487) replaced by GiParamPointers (+ bind) / GiGridParams for the 2.1 global rows + s1 subset (kGiGridStreams = 1) | 2.1 |
+| Grain.h | plugins/O-Granulator/Source/dsp/Grain.h | 82406fce | 143c4b22ce7adddc7287551be30f4d53a2b426a3698605c0f729d0d0df6950d2 | f7df68e1117592003cfdb99be7e4b7210361dafaed184a66032819ed98d780d0 | VERBATIM | rename only (wrapped by Source/dsp/VoiceGrain.h; the `latchLevel (rate, 2)` comment stays as the parent wrote it — the instrument latches with 4) | 2.1 |
+| EngineConstants.h | plugins/O-Granulator/Source/dsp/EngineConstants.h | 82406fce | e7336a55f5b63fa443bec91dcffef9ea54a7870e11bf567452bf32aa6e5874b3 | 8e0fc042fa102584b89f98098494f0bd8d11ef5720b91075c1c138a8f5ff85e8 | ADAPTED | rename; kPoolLive 128→256; kPoolFade 16→32; kMaxSemis 24→48; kMaxRate 4→16; kMaxLevel 2→4 (Ring = MipRing<4>); kMaxReachS 10→34 and kRingSeconds 41→65 (needed so the parent reach static_assert holds at kMaxRate 16; the instrument never allocates that ring); comments marking each edit. FLAG: kModSources 12 / kModDests 113 / kSrcTelemetry 11 stay at parent values, unused until 2.5 (spec: 18 sources, 126 dests) | 2.1 |
+| ModSources.h | plugins/O-Granulator/Source/dsp/ModSources.h | 82406fce | d1023aedd317fedc7f1d470590fb5a70d92d70e18ae103541e10ffe0b7bc2c3e | 25f70e73f3a1325efabebf0554d5ce63b4e278a7feedd464d1a3cac6426dd2e8 | ADAPTED (pending 2.5) | rename only; D47a included at pin; 2.5 adapts GranulatorParamIds and the kModSources size | 2.5 |
+| ModMatrix.h | plugins/O-Granulator/Source/dsp/ModMatrix.h | 82406fce | 71a35dcdd568086f68cd3e6fe7f1085b38002bbc6fe4deddb8e23cb83bf54faa | e2d15f6a11357341112e57154a7f9ba438e0616661d85e5dcc2e7ae3e635776e | ADAPTED (pending 2.5) | rename only; 2.5 adapts GranulatorParamIds and kModDests | 2.5 |
+| UiTelemetry.h | plugins/O-Granulator/Source/dsp/UiTelemetry.h | 82406fce | 2821537deb569dbe7b6f996911bc734db8c3d829d6fde0bcb3beeae64d5fb64c | e8cd82e142a6b8bcfae2a775710bed8566a74b1c68ee0bb4adc3dda7927ff619 | ADAPTED (pending 2.6) | rename only; 2.6 changes kMaxGrains 128 → 288 | 2.6 |
+
+## Changed-symbol audit (R§2.2)
+
+The EngineConstants edits touch `kPoolLive`, `kPoolFade`, `kMaxSemis`, `kMaxRate`, `kMaxLevel`, `Ring`, `kMaxReachS`, `kRingSeconds`, `kRingSamples` (derived). Of the leaves a 2.1 translation unit includes (`Grain.h`, `OutputLaw.h`, `WindowMorphBank.h`, `ControlGrid.h`, `EngineConstants.h`; `Quotas.h` in the harness only), none reads any of them: OutputLaw.h reads `kMinSizeMs`, `kMaxSizeMs`, `kKneeA`, `kKneeT`, `kCoher*`; WindowMorphBank.h reads `kWindowSteps`, `kWindowPoints`; Quotas.h reads `kMaxStreams`. Runner check (T2 done-when): `grep -nE '\b(kPoolLive|kPoolFade|kMaxSemis|kMaxRate|kMaxLevel|kMaxReachS|kRingSeconds|kRingSamples)\b|\bRing::' ` over the VERBATIM leaves must print 0 lines (comment-only hits are reviewed by hand).
+
+## Take / skip log
+
+(empty — zero drift at pin)

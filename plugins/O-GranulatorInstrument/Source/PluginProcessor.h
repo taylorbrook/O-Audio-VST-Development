@@ -24,6 +24,9 @@
 #include <cstdint>
 #include "GiParamIds.h"
 #include "NoteExpression.h"   // modules/tuning/note-expression 1.1.2 (ouaricon_add_module)
+#include "dsp/Engine.h"
+#include "dsp/SlotHandoff.h"
+#include "dsp/SlotLoader.h"
 
 // Sidechain default-active flag. The shipping build leaves it at 1; the
 // gate-only CMake option OGI_GATE_SC_DEFAULT_OFF compiles 0 into the PLUGIN
@@ -46,22 +49,27 @@ struct GiVst3Extensions final : Ouaricon::NoteExpression::VST3Extensions
 };
 
 // ============================================================================
-// O-GranulatorInstrument, Stage 1 shell.
+// O-GranulatorInstrument, Stage 2 / Phase 2.1.
 //
 // 261 APVTS parameters (GiParamIds.h), a stereo instrument output plus ONE
 // optional stereo "Sidechain" input that never reaches the output, latency 0,
 // and the state scaffold: root uiLanguage attribute, <Engine seed stateVersion
-// modDestTableVersion/> and an empty <Slots/>. The output is silent: every
-// channel is cleared, MIDI is consumed and not acted on.
+// modDestTableVersion/> and an empty <Slots/> (slot paths persist from 2.6).
 //
-// Threading: no listener and no audio-thread code writes a parameter. Actions
-// (slot load / clear / reset, ...) are Stage 3 native functions.
+// Phase 2.1: the ogi::Engine renders the slot-0 tape as one grain stream (s1)
+// per voice (Source/dsp/Engine.h); every output channel is cleared first, so
+// the sidechain never reaches the output. Slot files load off-thread through
+// ogi::SlotLoader and are installed lock-free by ogi::SlotHandoff.
+//
+// Threading: no listener and no audio-thread code writes a parameter. The
+// slot API (requestSlotLoad / getSlotInfo) is message-thread; the dev-loader
+// editor and the Phase 3.2 drop / browser use the same calls.
 // ============================================================================
 class GranulatorInstrumentProcessor : public juce::AudioProcessor
 {
 public:
     GranulatorInstrumentProcessor();
-    ~GranulatorInstrumentProcessor() override = default;
+    ~GranulatorInstrumentProcessor() override;
 
     /** D9 seam: the one place the bus set is declared. Sidechain input (active
         per OGI_SC_DEFAULT_ACTIVE) + stereo output. Any D9 fallback lands here. */
@@ -110,13 +118,25 @@ public:
         decided in prepareToPlay. Never derived from the buffer width. */
     int getSidechainChannelCount() const noexcept { return sidechainChannels.load (std::memory_order_relaxed); }
 
+    // ── Slots (message thread; shared with Phase 3.2) ─────────────────────────
+    /** Enqueues an off-thread load of `file` into slot 0...3 (a newer request
+        for the same slot cancels the older one). */
+    void requestSlotLoad (int slot, const juce::File& file);
+    /** A copy of the slot's status, taken under the loader lock. */
+    ogi::SlotInfo getSlotInfo (int slot) const;
+
    #if OGI_TEST_HOOKS
     /** Render harness only. Decode / resample + build the tape for slot 0...3
-        (= the rec_target index) on the CALLING thread and publish it as if the
-        loader worker had finished. Stage 1 stubs: return false with an error. */
+        (= the rec_target index) on the CALLING thread and publish it through the
+        same pending exchange as the loader worker. False + error on failure
+        (missing / unreadable file, source shorter than 10 ms, bad rate). */
     bool loadSlotSync (int slot, const juce::File& file, juce::String& error);
     bool loadSlotSync (int slot, const juce::AudioBuffer<float>& pcm, double sourceRate,
                        const juce::String& name, juce::String& error);
+
+    ogi::Engine&      getEngine() noexcept  { return *engine; }
+    ogi::SlotLoader&  getLoader() noexcept  { return *loader; }
+    ogi::SlotHandoff& getHandoff() noexcept { return handoff; }
    #endif
 
 private:
@@ -125,6 +145,15 @@ private:
     GiVst3Extensions vst3Extensions;
     std::atomic<uint64_t> seed { 0 };
     std::atomic<int> sidechainChannels { 0 };
+
+    // Declaration order = construction order; destruction runs in reverse, so
+    // the loader (worker jobs that publish) goes first, then the engine (frees
+    // the tapes it holds), then the handoff (pending / ring / deferred tapes),
+    // then the format manager the loader's reader creation used.
+    juce::AudioFormatManager formatManager;
+    ogi::SlotHandoff handoff;
+    std::unique_ptr<ogi::Engine> engine;
+    std::unique_ptr<ogi::SlotLoader> loader;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GranulatorInstrumentProcessor)
 };

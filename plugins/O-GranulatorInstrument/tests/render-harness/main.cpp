@@ -35,6 +35,12 @@
   ==============================================================================
 */
 
+// Phase 2.1: engine_gates_21.h pumps the message loop with CFRunLoopRunInMode.
+// CoreFoundation must be seen BEFORE `using namespace juce` (MacTypes Point vs
+// juce::Point ambiguity); its own later include is then a guarded no-op.
+#if JUCE_MAC || defined (__APPLE__)
+ #include <CoreFoundation/CoreFoundation.h>
+#endif
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 
@@ -980,6 +986,11 @@ static void hookRows()
 }
 
 //==============================================================================
+// Stage 2 / Phase 2.1 engine gates (PLAN-2.1 T11). Included HERE, after the
+// helpers above (row / Tally / make / param / allValues / stateOf) it uses.
+#include "engine_gates_21.h"
+
+//==============================================================================
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI init;
@@ -995,13 +1006,14 @@ int main (int argc, char** argv)
         }
     }
 
-    std::printf ("O-GranulatorInstrument render harness (Stage 1)\n");
+    std::printf ("O-GranulatorInstrument render harness (Stage 1 + Phase 2.1)\n");
     paramRows();
     busRows();
     midiRows();
     renderRows();
     stateRows();
     hookRows();
+    eg21::runAll();
 
     std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
     return juce::jmin (failures, 255);
