@@ -60,7 +60,7 @@ lastUpdated: 2026-11-06
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | pending | stage-1 |
+| COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | complete | stage-1 |
 | COMPAT-02 | MPE / VST3 note expression per the O-Lyrica reference | nice | pending | stage-4 |
 
 ### Quality (QUAL)
@@ -123,7 +123,7 @@ lastUpdated: 2026-11-06
 - [ ] The documented budget is met at 16 voices × 4 streams with the default grainLimit
 
 ### COMPAT-01: pluginval
-- [ ] pluginval strictness 10 passes for VST3 and AU
+- [x] pluginval strictness 10 passes for VST3 and AU
 
 ### QUAL-01: Artifacts
 - [ ] Click gates pass for note-off, steal, file swap, reset and freeze toggle
