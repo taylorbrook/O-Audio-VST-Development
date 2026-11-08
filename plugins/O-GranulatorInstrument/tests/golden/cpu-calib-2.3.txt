@@ -1,0 +1,16 @@
+# PLAN-2.3 T2 / PD2 — machine-speed witness reference (frozen; do not re-record).
+# Workload: tests/render-harness/cpu_calib.h calibOnceNs() (5e7 x 4 double FMA chains), median of 5.
+# Three --calib processes run alone on the UNMODIFIED 2.2 engine; ref_ns = median of the three medians.
+ref_ns 40523708
+samples 40523708 40553000 40095542
+max_over_min 1.0114
+date 2026-11-08
+cpu Apple M4 Max
+harness_rev e6736e14 (+ cpu_calib.h / --calib, uncommitted at T2)
+# C22 on the unmodified 2.2 engine (--cpu22), bracketed by --calib:
+c22_22_pct 14.37
+c22_22_min_max 14.35 14.64
+c22_22_live 243.2
+c22_22_duty 0.964
+c22_22_calib_before 40095542
+c22_22_calib_after 40320750

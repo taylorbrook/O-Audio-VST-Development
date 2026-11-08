@@ -119,8 +119,8 @@ namespace
             setP (*p, "buffer_length", (float) parity::kBufLenS);
             for (int s = 1; s <= 4; ++s)
                 setP (*p, sid (s, "enable"), 0.0f);    // enabled at T_e
-            const int s0 = row.kind == parity::Kind::stats ? 1 : row.stream;
-            const int s1 = row.kind == parity::Kind::stats ? row.streams : row.stream;
+            const int s0 = parity::isStatsKind (row.kind) ? 1 : row.stream;
+            const int s1 = parity::isStatsKind (row.kind) ? row.streams : row.stream;
             for (int s = s0; s <= s1; ++s)
                 for (const auto& kv : row.sp)
                     setP (*p, sid (s, kv.id), kv.v);
@@ -129,7 +129,7 @@ namespace
         p->setSeed (row.seed);
         p->prepareToPlay (parity::kFs, 512);
 
-        const int sRow = row.kind == parity::Kind::stats ? 1 : row.stream;
+        const int sRow = parity::isStatsKind (row.kind) ? 1 : row.stream;
         const float sizeRaw    = gv ? rawOf (*p, "s1_size") : rawOf (*p, sid (sRow, "size"));
         const float densityRaw = gv ? rawOf (*p, "s1_density") : rawOf (*p, sid (sRow, "density"));
 
@@ -137,7 +137,7 @@ namespace
         if (! gv)
         {
             g = parity::solve (row, sizeRaw);
-            if (! g.ok && row.kind == parity::Kind::null_) { fail (juce::String (row.id) + " geometry: " + g.why); return 1; }
+            if (! g.ok && parity::isNullKind (row.kind)) { fail (juce::String (row.id) + " geometry: " + g.why); return 1; }
         }
 
         const juce::int64 tStart = gv ? 0 : parity::kTe;
@@ -154,7 +154,7 @@ namespace
             f.deleteFile();
             glOwner = std::make_unique<juce::FileOutputStream> (f);
             gl = glOwner.get();
-            gl->writeText ("#onsetSample\twriteHead\tstream\tdir\tlevel\tdelay\tanchor\tfrac\trate\tlen\tgainL\tgainR\twindowStep\ttiltT\tpitchCents\tglobalIndex\n",
+            gl->writeText ("#onsetSample\twriteHead\tstream\tdir\tlevel\tdelay\tanchor\tfrac\trate\tlen\tgainL\tgainR\twindowStep\ttiltT\tpitchCents\tglobalIndex\tfxActive\tsvfMode\tfcHz\tringHz\tcrushed\tdriveD\n",
                            false, false, "\n");
         }
 
@@ -163,6 +163,7 @@ namespace
         juce::MidiBuffer midi;
         std::uint64_t drained = 0;
         int grains = 0, anchorBad = 0, headBad = 0;
+        int fxBitsBad = 0, crushBad = 0, statBit = 0, crushedN = 0;   // 2.3 self-checks
         juce::int64 pos = 0;
         while (pos < tEnd)
         {
@@ -170,8 +171,8 @@ namespace
                 freezeP->setValueNotifyingHost (1.0f);
             if (! gv && pos == parity::kTe)
             {
-                const int s0 = row.kind == parity::Kind::stats ? 1 : row.stream;
-                const int s1 = row.kind == parity::Kind::stats ? row.streams : row.stream;
+                const int s0 = parity::isStatsKind (row.kind) ? 1 : row.stream;
+                const int s1 = parity::isStatsKind (row.kind) ? row.streams : row.stream;
                 for (int s = s0; s <= s1; ++s)
                     param (*p, sid (s, "enable"))->setValueNotifyingHost (1.0f);
             }
@@ -188,7 +189,7 @@ namespace
             {
                 float* d = blk.getWritePointer (ch);
                 for (int i = 0; i < ni; ++i)
-                    d[i] = gv ? parity::gvNoise (pos + i, ch) : parity::parentInput (g, pos + i, ch);
+                    d[i] = gv ? parity::gvNoise (pos + i, ch) : parity::parentInput (g, pos + i, ch, row.matPeak);
             }
             p->processBlock (blk, midi);
 
@@ -210,14 +211,26 @@ namespace
                 ++grains;
                 if (gl != nullptr)
                 {
-                    char line[640];
-                    std::snprintf (line, sizeof line, "%lld\t%lld\t%d\t%d\t%d\t%.17g\t%.17g\t%.17g\t%.17g\t%.17g\t%.9g\t%.9g\t%d\t%.9g\t%.9g\t%llu\n",
+                    char line[800];
+                    // 2.3 (PLAN-2.3 PD11): the FX columns are APPENDED (the 2.2 readers take lower bounds).
+                    std::snprintf (line, sizeof line, "%lld\t%lld\t%d\t%d\t%d\t%.17g\t%.17g\t%.17g\t%.17g\t%.17g\t%.9g\t%.9g\t%d\t%.9g\t%.9g\t%llu\t%u\t%d\t%.9g\t%.9g\t%d\t%.9g\n",
                                    (long long) r.onsetSample, (long long) r.writeHead, r.stream, r.dir, r.level, r.delay, r.anchor,
                                    r.frac, r.rate, r.len, (double) r.gainL, (double) r.gainR, r.windowStep, (double) r.tiltT,
-                                   (double) r.pitchCents, (unsigned long long) r.globalIndex);
+                                   (double) r.pitchCents, (unsigned long long) r.globalIndex,
+                                   (unsigned) r.fxActive, r.svfMode, (double) r.fcHz, (double) r.ringHz, r.crushed ? 1 : 0, (double) r.driveD);
                     gl->writeText (line, false, false, "\n");
                 }
-                if (row.kind == parity::Kind::null_)
+                if (row.kind == parity::Kind::fxNull)
+                    fxBitsBad += r.fxActive == parity::expectedFxBits (row.sp) ? 0 : 1;
+                if (row.kind == parity::Kind::fxStats)
+                {
+                    const bool fxRow = juce::String (row.id) == "PS7";
+                    if (fxRow)
+                        crushBad += (((r.fxActive & 4u) != 0) == r.crushed) ? 0 : 1;
+                    statBit += (r.fxActive & (juce::String (row.id) == "PS5" ? 1u : juce::String (row.id) == "PS6" ? 8u : 4u)) != 0 ? 1 : 0;
+                    crushedN += r.crushed ? 1 : 0;
+                }
+                if (parity::isNullKind (row.kind))
                 {
                     anchorBad += juce::exactlyEqual (r.anchor, (double) g.A) ? 0 : 1;
                     headBad   += r.writeHead == parity::kW0 ? 0 : 1;
@@ -229,21 +242,41 @@ namespace
 
         writeF32 (out.getChildFile (juce::String (row.id) + (gv ? ".f32" : ".f32")), rec);
         const double db = rmsDb (rec);
+        double peak = 0.0;
+        for (float x : rec) peak = std::max (peak, (double) std::abs (x));
 
         juce::String m;
         m << row.id << "\t" << (juce::int64) parity::kW0 << "\t" << (juce::int64) g.A << "\t" << (juce::int64) g.delta << "\t"
           << (juce::int64) parity::kF << "\t" << (juce::int64) parity::kTf << "\t" << (juce::int64) parity::kTe << "\t"
           << landed << "\t" << total << "\t" << juce::String (sizeRaw, 9) << "\t" << juce::String (densityRaw, 9) << "\t"
-          << g.level << "\t" << grains << "\t" << juce::String (db, 3) << "\n";
+          << g.level << "\t" << grains << "\t" << juce::String (db, 3);
+        // 2.3 (PD11): landed FX raws (stream sRow) + max |out|, appended.
+        for (const auto& fid : parity::fxIds())
+            m << "\t" << juce::String (gv ? 0.0f : rawOf (*p, sid (sRow, fid)), 9);
+        m << "\t" << juce::String (peak, 9) << "\n";
         manifest.writeText (m, false, false, "\n");
 
         std::printf ("  %-5s grains %5d  landed %d/%d  rms %7.2f dBFS  delta %lld  A %lld  l %d%s\n", row.id.c_str(), grains,
                      landed, total, db, (long long) g.delta, (long long) g.A, g.level,
-                     row.kind == parity::Kind::null_ ? (juce::String ("  anchorBad ") + juce::String (anchorBad) + " headBad " + juce::String (headBad)).toRawUTF8() : "");
+                     parity::isNullKind (row.kind) ? (juce::String ("  anchorBad ") + juce::String (anchorBad) + " headBad " + juce::String (headBad)).toRawUTF8() : "");
 
         if (landed != total) fail (juce::String (row.id) + " params landed " + juce::String (landed) + "/" + juce::String (total));
         if (db < -70.0)      fail (juce::String (row.id) + " reference RMS below -70 dBFS (vacuous)");
         if (grains == 0)     fail (juce::String (row.id) + " no grains");
+        if (row.kind == parity::Kind::fxNull)
+        {
+            std::printf ("        fx: peak %.4f  fxActive bad %d (expect %u)\n", peak, fxBitsBad, (unsigned) parity::expectedFxBits (row.sp));
+            if (peak > 0.45) fail (juce::String (row.id) + " INVALID: parent peak " + juce::String (peak, 4) + " > 0.45 (PD5)");
+            if (fxBitsBad > 0) fail (juce::String (row.id) + " fxActive != expected on " + juce::String (fxBitsBad) + " grains");
+        }
+        if (row.kind == parity::Kind::fxStats && grains > 0)
+        {
+            const double bitFrac = (double) statBit / grains, ph = (double) crushedN / grains;
+            std::printf ("        fx stats: stage bit on %.4f of grains, crushed p %.4f, crush bit != crushed %d\n", bitFrac, ph, crushBad);
+            if (juce::String (row.id) != "PS7" && bitFrac < 0.99) fail (juce::String (row.id) + " stage bit on < 99 % of grains (P11)");
+            if (juce::String (row.id) == "PS7" && (crushBad > 0 || ! (ph > 0.0 && ph < 1.0)))
+                fail (juce::String (row.id) + " crush bit != crushed or p-hat not in (0, 1) (P11)");
+        }
         if (anchorBad + headBad > 0)
             fail (juce::String (row.id) + " derivation self-check: anchor != A on " + juce::String (anchorBad)
                   + ", writeHead != W0 on " + juce::String (headBad));
@@ -343,7 +376,7 @@ int main (int argc, char** argv)
     auto mf = out.getChildFile ("manifest.tsv");
     mf.deleteFile();
     juce::FileOutputStream manifest (mf);
-    manifest.writeText ("#row\tW0\tA\tdelta\tF\tT_f\tT_e\tlanded\ttotal\tsizeRaw\tdensityRaw\tlevel\tgrains\trmsDb\n", false, false, "\n");
+    manifest.writeText ("#row\tW0\tA\tdelta\tF\tT_f\tT_e\tlanded\ttotal\tsizeRaw\tdensityRaw\tlevel\tgrains\trmsDb\tfilterType\tcutoff\tfilterRand\tres\tdrive\tcrush\tcrushProb\tringFreq\tringRand\tringMix\tpeak\n", false, false, "\n");
 
     for (const auto& row : parity::rows())
     {

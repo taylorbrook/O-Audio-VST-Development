@@ -506,6 +506,25 @@ void Engine::gridTick (std::int64_t t) noexcept
     updateScan (t);
 
    #if OGI_TEST_HOOKS
+    if (hooks.poisonFreeSlots || hooks.fxSubnormalScan)
+    {
+        // The pool's array is non-const storage; the hooks write it only here,
+        // between renders, and only for INACTIVE slots (PD12).
+        auto* gs = const_cast<VoiceGrain*> (pool.getGrains().data());
+        for (int j = 0; j < GiPool::kNumSlots; ++j)
+        {
+            if (pool.isActive (j))
+            {
+                if (hooks.fxSubnormalScan)
+                    hooks.fxSubnormals += (std::uint64_t) fxstate::subnormals (gs[j].g);
+            }
+            else if (hooks.poisonFreeSlots)
+            {
+                fxstate::poison (gs[j].g);
+                fxstate::copy (hooks.fxShadow[j], gs[j].g);
+            }
+        }
+    }
     ++hooks.gridTicks;
     hooks.liveNow   = spawner.countAlive (pool);
     hooks.liveMin   = std::min (hooks.liveMin, hooks.liveNow);
@@ -1110,12 +1129,57 @@ void Engine::renderGrains (int c0, int c1, std::int64_t t0) noexcept
     forceBank = hooks.forceBankPath;
    #endif
     const VoiceGrain* const base = pool.getGrains().data();
-    pool.render ([this, base, c0, c1, t0, forceBank] (VoiceGrain& vg, GiPool::Fader& fader) noexcept
+   #if OGI_TEST_HOOKS
+    int killedSlots[GiPool::kNumSlots];
+    int numKilled = 0;
+   #endif
+    pool.render ([this, base, c0, c1, t0, forceBank
+                 #if OGI_TEST_HOOKS
+                  , &killedSlots, &numKilled
+                 #endif
+                 ] (VoiceGrain& vg, GiPool::Fader& fader) noexcept
     {
         spawner.applyPendingKill (vg, base);
-        return GiRenderer::renderGrain (vg, fader, bus, c0, c1, t0, xfade, morphBank, forceBank);
+        GiFxRenderFlags ff;
+       #if OGI_TEST_HOOKS
+        const int slot = static_cast<int> (&vg - base);
+        Grain& g = vg.g;
+        ff.nanKillOff  = hooks.nanKillOff;
+        ff.fxOrderSwap = hooks.fxOrderSwap;
+        {
+            auto& inj = hooks.injectNan;
+            if (inj.slot == slot && ! inj.done && t0 >= inj.atSample && (g.fxActive & kFxSvf) != 0)
+            {
+                float* const f[4] { &g.svfIc1[0], &g.svfIc1[1], &g.svfIc2[0], &g.svfIc2[1] };
+                *f[std::clamp (inj.field, 0, 3)] = inj.value;
+                inj.done = true;
+            }
+            auto& fr = hooks.forceRetire;
+            if (fr.slot == slot && ! fr.done && t0 >= fr.atSample && (g.fxActive & kFxSvf) != 0)
+            {
+                ff.forceKill = true;
+                fr.done = true;
+            }
+        }
+       #endif
+        const bool keep = GiRenderer::renderGrain (vg, fader, bus, c0, c1, t0, xfade, morphBank, ff, forceBank);
+       #if OGI_TEST_HOOKS
+        if (ff.nanKilled)
+        {
+            ++hooks.nanKills;
+            killedSlots[numKilled++] = slot;
+        }
+        if (! keep || fader.isSilent())
+            fxstate::copy (hooks.fxShadow[slot], vg.g);   // retire shadow (fxNoReset control)
+       #endif
+        return keep;
     });
     spawner.pendingKillsApplied();
+   #if OGI_TEST_HOOKS
+    for (int k = 0; k < numKilled; ++k)
+        if (pool.isActive (killedSlots[k]))
+            ++hooks.nanKillNotRetired;
+   #endif
 }
 
 void Engine::spawn (const PendingOnset& o, std::int64_t tAbs) noexcept
@@ -1227,6 +1291,19 @@ void Engine::spawn (const PendingOnset& o, std::int64_t tAbs) noexcept
     const int  windowStep = WindowMorphBank::stepFor (sp.window);
     const auto tilt       = ouaricon::grain::WindowLut::makeTilt (0.5f + 0.45f * sp.windowSkew);
 
+    // Per-grain FX latch (PLAN-2.3 T5): the parent planFx, before acquire, so a
+    // refused or stolen spawn consumes the same draws (FxCutoff / FxCrushProb /
+    // FxRing are keyed by slot: no 2.2 draw moves).
+    FxPlan fxp;
+    planFx (fxp, sp, fs, uni);
+   #if OGI_TEST_HOOKS
+    if (hooks.legacySvfMake && (fxp.fxActive & kFxSvf) != 0)
+        fxp.svfMake = 1.0f;   // PFc6: the pre-D10 latch
+    if (hooks.snapshotSteals)
+        for (int j = 0; j < kPoolLive; ++j)
+            hooks.stealSnap[(size_t) j] = pool.getGrains()[(size_t) j];
+   #endif
+
     bool stolenFlags[kVoiceSlots];
     for (int k = 0; k < kVoiceSlots; ++k)
         stolenFlags[k] = voices[k].isStolen();
@@ -1266,7 +1343,9 @@ void Engine::spawn (const PendingOnset& o, std::int64_t tAbs) noexcept
     g.tiltA      = tilt.a;
     g.tiltB      = tilt.b;
     g.pitchCents = pitchCents;
-    // killGain = 1, killStep = 0 and every FX field from value-initialisation.
+    assignFxLatch (g, fxp);
+    // killGain 1, killStep 0 and every FX STATE field from value-initialisation;
+    // the FX LATCH from assignFxLatch.
 
     vg.voice  = o.voice;
     vg.serial = v.serial;
@@ -1276,6 +1355,47 @@ void Engine::spawn (const PendingOnset& o, std::int64_t tAbs) noexcept
     vg.wrapW  = wW;
 
    #if OGI_TEST_HOOKS
+    if (hooks.fxSharedLatch)
+    {
+        // FV2–FV4 control: the renderer gets a latch WITHOUT the per-grain draws;
+        // the log below keeps the real ones.
+        auto sp2 = sp;
+        sp2.filterRand = 0.0f;
+        sp2.ringRand   = 0.0f;
+        sp2.crushProb  = 1.0f;
+        FxPlan q;
+        planFx (q, sp2, fs, uni);
+        if (hooks.legacySvfMake && (q.fxActive & kFxSvf) != 0)
+            q.svfMake = 1.0f;
+        assignFxLatch (g, q);
+    }
+    if (hooks.fxNoReset)
+        fxstate::copy (g, hooks.fxShadow[a.slot]);
+    {
+        const Grain fresh {};
+        if (! fxstate::stateEq (g, fresh))
+            ++hooks.fxStateNonDefaultAtSpawn;
+    }
+    if (hooks.snapshotSteals && a.stolen)
+    {
+        VoiceGrain snap = hooks.stealSnap[(size_t) std::clamp (a.slot, 0, kPoolLive - 1)];
+        if (hooks.stealSnapPerturb)
+            snap.g.svfIc1[0] = std::nextafter (snap.g.svfIc1[0], 2.0f);
+        const auto& gs = pool.getGrains();
+        for (int j = kPoolLive; j < GiPool::kNumSlots; ++j)
+        {
+            if (! pool.isActive (j))
+                continue;
+            const VoiceGrain& f = gs[(size_t) j];
+            if (f.serial == snap.serial && f.g.age == snap.g.age && juce::exactlyEqual (f.g.readAbs, snap.g.readAbs))
+            {
+                ++hooks.stealStateChecked;
+                if (! (fxstate::stateEq (f.g, snap.g) && fxstate::latchEq (f.g, snap.g)))
+                    ++hooks.stealStateMismatches;
+                break;
+            }
+        }
+    }
     ++hooks.spawns;
     if (a.killed)  ++hooks.r3Kills;
     if (a.stolen)  ++hooks.nativeSteals;
@@ -1308,6 +1428,12 @@ void Engine::spawn (const PendingOnset& o, std::int64_t tAbs) noexcept
         entry.centre      = c;
         entry.regionW     = W;
         entry.counterIdx  = o.idx;
+        entry.fxActive    = fxp.fxActive;
+        entry.svfMode     = fxp.svfMode;
+        entry.fcHz        = fxp.fcHz;
+        entry.ringHz      = fxp.ringHz;
+        entry.crushed     = fxp.crushed;
+        entry.driveD      = fxp.driveD;
         ++hooks.logCount;
     }
    #endif
@@ -1395,8 +1521,13 @@ void Engine::mixPiece (int c0, int c1, float* outL, float* outR) noexcept
         }
 
         // P8 wet safety, then output_gain.
-        yL = kWetCeil * std::tanh (yL / kWetCeil);
-        yR = kWetCeil * std::tanh (yR / kWetCeil);
+       #if OGI_TEST_HOOKS
+        if (! hooks.wetSafetyOff)   // PF rows (PLAN-2.3 PD5): identity
+       #endif
+        {
+            yL = kWetCeil * std::tanh (yL / kWetCeil);
+            yR = kWetCeil * std::tanh (yR / kWetCeil);
+        }
         const float og = outGainRamp.value (c);
         outL[c - c0] = yL * og;
         outR[c - c0] = yR * og;

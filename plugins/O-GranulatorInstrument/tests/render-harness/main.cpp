@@ -999,6 +999,15 @@ static void hookRows()
 // PLAN-2.2 T9: engine gates (non-parity rows) + --cpu22.
 #include "engine_gates_22.h"
 
+// PLAN-2.3 T2: machine-speed witness (--calib; frozen reference tests/golden/cpu-calib-2.3.txt).
+#include "cpu_calib.h"
+
+// PLAN-2.3 T7: per-grain FX gates — ported unit rows (FU), engine rows (FN / FR /
+// FV / FB / FZ / FA) + --cpu23, DSP-03 parity rows (PF / PFc / PS5-7, --parity).
+#include "fx_units_23.h"
+#include "parity_gates_23.h"
+#include "engine_gates_23.h"
+
 //==============================================================================
 int main (int argc, char** argv)
 {
@@ -1020,6 +1029,9 @@ int main (int argc, char** argv)
             const int rc = pg22::run (dir, prefix);
             if (rc != 0)
                 return rc;
+            if (prefix.isEmpty() || prefix.startsWith ("PF") || prefix == "PS" || prefix.startsWith ("PS5")
+                || prefix.startsWith ("PS6") || prefix.startsWith ("PS7"))
+                pg23::run (dir, prefix);
             std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
             return juce::jmin (failures, 255);
         }
@@ -1028,16 +1040,24 @@ int main (int argc, char** argv)
             eg22::cpu22();
             return 0;
         }
+        else if (std::strcmp (argv[a], "--cpu23") == 0)
+        {
+            const int f = eg23::cpu23();
+            std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
+            return f;
+        }
+        else if (std::strcmp (argv[a], "--calib") == 0)
+            return cal::runCalib();
         else if (std::strcmp (argv[a], "--dump-render-hashes") == 0 && a + 1 < argc)
             return rh::dump (juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a])));
         else
         {
-            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--parity <dir> [--rows <prefix>]] [--cpu22]\n", argv[a], argv[0]);
+            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--calib]\n", argv[a], argv[0]);
             return 255;
         }
     }
 
-    std::printf ("O-GranulatorInstrument render harness (Stage 1 + Phase 2.1 + Phase 2.2)\n");
+    std::printf ("O-GranulatorInstrument render harness (Stage 1 + Phase 2.1 + Phase 2.2 + Phase 2.3)\n");
     paramRows();
     busRows();
     midiRows();
@@ -1046,6 +1066,8 @@ int main (int argc, char** argv)
     hookRows();
     eg21::runAll();
     eg22::runAll();
+    fu23::runAll();
+    eg23::runAll();
 
     std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
     return juce::jmin (failures, 255);

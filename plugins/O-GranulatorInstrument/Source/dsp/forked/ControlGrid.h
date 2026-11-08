@@ -181,8 +181,11 @@ namespace ogi
     // pitch.
     // 2.2: s1...s4 (kGiGridStreams 4) + sN_solo, spray, jitter, pitch_rand,
     // scale, reverse_prob, window, window_skew, stereo_spread, gain_rand.
-    // Never bound: the 10 per-grain FX rows (2.3), sN_size_sync and
-    // sN_density_sync (2.5), every other global row.
+    // 2.3: the 10 per-grain FX rows sN_filter_type, filter_cutoff,
+    // filter_rand, filter_res, drive, crush, crush_prob, ring_freq, ring_rand,
+    // ring_mix (PLAN-2.3 T4; the parent planFx field names and conversions).
+    // Never bound: sN_size_sync and sN_density_sync (2.5), every other global
+    // row.
     //==========================================================================
     inline constexpr int kGiGridStreams = 4;   // 2.2: s1...s4 (2.1: s1 only)
 
@@ -230,6 +233,17 @@ namespace ogi
             std::atomic<float>* windowSkew   = nullptr;
             std::atomic<float>* stereoSpread = nullptr;
             std::atomic<float>* gainRand     = nullptr;
+            // 2.3
+            std::atomic<float>* filterType   = nullptr;   // choice 0 Off, 1 LP, 2 BP, 3 HP
+            std::atomic<float>* filterCutoff = nullptr;   // Hz (skewed range: read raw, never invert the skew)
+            std::atomic<float>* filterRand   = nullptr;
+            std::atomic<float>* filterRes    = nullptr;
+            std::atomic<float>* drive        = nullptr;
+            std::atomic<float>* crush        = nullptr;
+            std::atomic<float>* crushProb    = nullptr;
+            std::atomic<float>* ringFreq     = nullptr;   // Hz (skewed range)
+            std::atomic<float>* ringRand     = nullptr;
+            std::atomic<float>* ringMix      = nullptr;
         };
         Stream s[kGiGridStreams] {};
 
@@ -277,6 +291,17 @@ namespace ogi
                 ps.windowSkew   = apvts.getRawParameterValue (GiParamIds::stream (n, "window_skew"));
                 ps.stereoSpread = apvts.getRawParameterValue (GiParamIds::stream (n, "stereo_spread"));
                 ps.gainRand     = apvts.getRawParameterValue (GiParamIds::stream (n, "gain_rand"));
+
+                ps.filterType   = apvts.getRawParameterValue (GiParamIds::stream (n, "filter_type"));
+                ps.filterCutoff = apvts.getRawParameterValue (GiParamIds::stream (n, "filter_cutoff"));
+                ps.filterRand   = apvts.getRawParameterValue (GiParamIds::stream (n, "filter_rand"));
+                ps.filterRes    = apvts.getRawParameterValue (GiParamIds::stream (n, "filter_res"));
+                ps.drive        = apvts.getRawParameterValue (GiParamIds::stream (n, "drive"));
+                ps.crush        = apvts.getRawParameterValue (GiParamIds::stream (n, "crush"));
+                ps.crushProb    = apvts.getRawParameterValue (GiParamIds::stream (n, "crush_prob"));
+                ps.ringFreq     = apvts.getRawParameterValue (GiParamIds::stream (n, "ring_freq"));
+                ps.ringRand     = apvts.getRawParameterValue (GiParamIds::stream (n, "ring_rand"));
+                ps.ringMix      = apvts.getRawParameterValue (GiParamIds::stream (n, "ring_mix"));
             }
         }
     };
@@ -330,6 +355,17 @@ namespace ogi
             float windowSkew  = 0.0f;      // −1..1 → tilt peak 0.5 + 0.45·skew
             float spread      = 0.3f;      // 0..1 (stereo_spread)
             float gainRand    = 0.0f;      // 0..1 (× 24 dB, cut only)
+            // 2.3 per-grain FX (the parent planFx names)
+            int   filterType     = 0;        // 0 Off, 1 LP, 2 BP, 3 HP
+            float filterCutoffHz = 20000.0f; // 20..20000 Hz (raw)
+            float filterRand     = 0.0f;     // 0..1 (±2 oct at 1)
+            float filterRes      = 0.2f;     // 0..1
+            float drive          = 0.0f;     // 0..1
+            float crush          = 0.0f;     // 0..1
+            float crushProb      = 1.0f;     // 0..1
+            float ringFreqHz     = 200.0f;   // 20..5000 Hz (raw)
+            float ringRand       = 0.0f;     // 0..1
+            float ringMix        = 0.0f;     // 0..1
         };
         Stream s[kGiGridStreams] {};
 
@@ -382,6 +418,17 @@ namespace ogi
                 read (ps.windowSkew, st.windowSkew, -100.0f, 100.0f, 100.0f);
                 readPct (ps.stereoSpread, st.spread);
                 readPct (ps.gainRand,     st.gainRand);
+
+                readInt (ps.filterType, st.filterType, 0, 3);
+                read (ps.filterCutoff, st.filterCutoffHz, 20.0f, 20000.0f);
+                readPct (ps.filterRand,  st.filterRand);
+                readPct (ps.filterRes,   st.filterRes);
+                readPct (ps.drive,       st.drive);
+                readPct (ps.crush,       st.crush);
+                readPct (ps.crushProb,   st.crushProb);
+                read (ps.ringFreq,     st.ringFreqHz,     20.0f,  5000.0f);
+                readPct (ps.ringRand,    st.ringRand);
+                readPct (ps.ringMix,     st.ringMix);
             }
         }
 

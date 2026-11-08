@@ -23,7 +23,9 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <array>
 #include <climits>
+#include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <vector>
 
@@ -38,6 +40,7 @@
 #include "forked/OutputLaw.h"
 #include "forked/WindowMorphBank.h"
 #include "AmpEnv.h"
+#include "GiFxLatch.h"
 #include "GiRenderer.h"
 #include "GiScale.h"
 #include "GiSpawner.h"
@@ -112,7 +115,80 @@ namespace ogi
         double        centre      = 0.0;  // scan centre c (tape frames), before spray
         double        regionW     = 0.0;  // loop-region width W (tape frames)
         std::uint64_t counterIdx  = 0;    // epoch_kS + onsetIndex (the CounterRng index)
+        // 2.3 (PLAN-2.3 T5) — the REAL latch (fxSharedLatch never rewrites these)
+        std::uint32_t fxActive    = 0;
+        int           svfMode     = 0;
+        float         fcHz        = 0.0f;
+        float         ringHz      = 0.0f;
+        bool          crushed     = false;
+        float         driveD      = 1.0f;
     };
+
+    /** FX STATE of a grain (PLAN-2.3 PD12): the fields the stages advance. The
+        latch is separate (assignFxLatch). Test-only helpers. */
+    namespace fxstate
+    {
+        inline void copy (Grain& dst, const Grain& src) noexcept
+        {
+            dst.svfIc1[0] = src.svfIc1[0]; dst.svfIc1[1] = src.svfIc1[1];
+            dst.svfIc2[0] = src.svfIc2[0]; dst.svfIc2[1] = src.svfIc2[1];
+            dst.crushHoldPhase = src.crushHoldPhase;
+            dst.crushHeld[0] = src.crushHeld[0]; dst.crushHeld[1] = src.crushHeld[1];
+            dst.ringRe = src.ringRe; dst.ringIm = src.ringIm;
+        }
+
+        inline bool sameBits (float a, float b) noexcept
+        {
+            std::uint32_t x = 0, y = 0;
+            std::memcpy (&x, &a, 4);
+            std::memcpy (&y, &b, 4);
+            return x == y;
+        }
+
+        /** Bitwise equality of the FX state. */
+        inline bool stateEq (const Grain& a, const Grain& b) noexcept
+        {
+            return sameBits (a.svfIc1[0], b.svfIc1[0]) && sameBits (a.svfIc1[1], b.svfIc1[1])
+                && sameBits (a.svfIc2[0], b.svfIc2[0]) && sameBits (a.svfIc2[1], b.svfIc2[1])
+                && sameBits (a.crushHoldPhase, b.crushHoldPhase)
+                && sameBits (a.crushHeld[0], b.crushHeld[0]) && sameBits (a.crushHeld[1], b.crushHeld[1])
+                && sameBits (a.ringRe, b.ringRe) && sameBits (a.ringIm, b.ringIm);
+        }
+
+        /** Bitwise equality of the FX latch. */
+        inline bool latchEq (const Grain& a, const Grain& b) noexcept
+        {
+            return a.fxActive == b.fxActive && a.svfMode == b.svfMode
+                && sameBits (a.svfK, b.svfK) && sameBits (a.svfA1, b.svfA1) && sameBits (a.svfA2, b.svfA2)
+                && sameBits (a.svfA3, b.svfA3) && sameBits (a.svfMake, b.svfMake)
+                && sameBits (a.driveD, b.driveD) && sameBits (a.driveNorm, b.driveNorm)
+                && sameBits (a.crushHoldInc, b.crushHoldInc) && sameBits (a.crushScale, b.crushScale)
+                && sameBits (a.ringRotRe, b.ringRotRe) && sameBits (a.ringRotIm, b.ringRotIm)
+                && sameBits (a.ringMix, b.ringMix);
+        }
+
+        /** PD12 poison: every FX state field away from its Grain {} default. */
+        inline void poison (Grain& g) noexcept
+        {
+            g.svfIc1[0] = g.svfIc1[1] = 0.7f;
+            g.svfIc2[0] = g.svfIc2[1] = 0.7f;
+            g.crushHeld[0] = g.crushHeld[1] = 0.4f;
+            g.crushHoldPhase = 0.3f;
+            g.ringRe = 0.0f;
+            g.ringIm = 1.0f;
+        }
+
+        /** FZ1: subnormal FX state fields of one grain. */
+        inline int subnormals (const Grain& g) noexcept
+        {
+            const float f[9] { g.svfIc1[0], g.svfIc1[1], g.svfIc2[0], g.svfIc2[1], g.crushHoldPhase,
+                               g.crushHeld[0], g.crushHeld[1], g.ringRe, g.ringIm };
+            int n = 0;
+            for (float x : f)
+                n += std::fpclassify (x) == FP_SUBNORMAL ? 1 : 0;
+            return n;
+        }
+    }
 
     /** Render-harness hooks. Plain fields written on the audio thread and read
         by the (single-threaded) harness between processBlock calls. Fixed-size
@@ -143,6 +219,21 @@ namespace ogi
         bool   mixerRampZero     = false;   // MX1 control: stream level / pan / audibility step (0 ms)
         double voiceGainDbOverride = std::numeric_limits<double>::quiet_NaN();   // NaN = off (kVoiceGainDb)
         double jitterScale       = 1.0;     // PS3 engine-side control: J × jitterScale
+        // 2.3 (PLAN-2.3 PD12; the parent Engine.h:218-242 shapes)
+        bool fxSharedLatch    = false;   // FV2–FV4 control: latch re-planned with filter_rand = ring_rand = 0, crush_prob = 1 (log keeps the real draws)
+        bool fxNoReset        = false;   // FB control: the previous occupant's FX state (fxShadow) is copied into the new grain
+        bool poisonFreeSlots  = false;   // FB1 / FB4: every inactive slot's FX state := poison at each grid tick
+        bool snapshotSteals   = false;   // FB3: snapshot the live slots before acquire, compare the fade copy on a steal
+        bool stealSnapPerturb = false;   // FB3 control: 1-ulp flip of the snapshot's svfIc1[0] before comparing
+        bool nanKillOff       = false;   // FZ control: skip the P12 finite check
+        bool fxOrderSwap      = false;   // PFc5: crush before drive
+        bool legacySvfMake    = false;   // PFc6: svfMake := 1 (the pre-D10 latch)
+        bool wetSafetyOff     = false;   // PF rows: the two kWetCeil·tanh statements skipped (identity)
+        bool fxSubnormalScan  = false;   // FZ1: per-tick scan of the active slots' FX state for subnormals
+        struct Inject { int slot = -1; std::int64_t atSample = 0; int field = 0; float value = 0.0f; bool done = false; };
+        Inject injectNan;                // write value into SVF field (0 ic1[0], 1 ic1[1], 2 ic2[0], 3 ic2[1]) of slot, first segment t0 >= atSample
+        struct Retire { int slot = -1; std::int64_t atSample = 0; bool done = false; };
+        Retire forceRetire;              // same trigger → the P12 verdict forced false
 
         // ── voice readouts (per voice SLOT; stream-0 views) ──────────────────
         double        voiceRate[kVoiceSlots]   {};   // rate the voice latches now (tick, note-on, s1 spawn)
@@ -163,6 +254,11 @@ namespace ogi
         std::uint64_t tapesTaken = 0, xfadesStarted = 0, earlyRetires = 0, retiredByEngine = 0;
         // 2.2 scale state (PD3)
         std::uint64_t customCopies = 0, customTryFails = 0, activeSetRebuilds = 0;
+        // 2.3
+        std::uint64_t nanKills = 0, nanKillNotRetired = 0, fxStateNonDefaultAtSpawn = 0;
+        std::uint64_t stealStateChecked = 0, stealStateMismatches = 0, fxSubnormals = 0;
+        Grain fxShadow[kPoolLive + kPoolFade] {};            // FX state at the last retire (and poison)
+        std::array<VoiceGrain, kPoolLive> stealSnap {};      // FB3 snapshot
 
         // ── per-tick pool / quota state (written at every grid tick) ──────────
         int    liveNow = 0;                 // non-killing grains in the 256 live slots
@@ -198,6 +294,8 @@ namespace ogi
             stolenCount = 0;
             tapesTaken = xfadesStarted = earlyRetires = retiredByEngine = 0;
             customCopies = customTryFails = activeSetRebuilds = 0;
+            nanKills = nanKillNotRetired = fxStateNonDefaultAtSpawn = 0;
+            stealStateChecked = stealStateMismatches = fxSubnormals = 0;
             liveMin = INT_MAX;
             liveMax = 0;
         }

@@ -29,6 +29,7 @@
 #include "VoiceGrain.h"
 #include "GiSpawner.h"
 #include "forked/OutputLaw.h"   // hannWindow, streamPower, outputGainFromPower
+#include "forked/GrainFx.h"     // per-grain FX stages (2.3)
 
 // ============================================================================
 // GiRenderer — grain render + the per-voice output law
@@ -48,6 +49,17 @@
 // coordinates: (1 − x)·old + x·new, x = (t − start) / len over 20 ms.
 // Every quantity advances one sample at a time; nothing is keyed to the
 // segment, so the render is block-size invariant.
+//
+// 2.3 (PLAN-2.3 T6 / PD8): ONE kernel for every grain — gather → FX → scatter.
+//   gather : the 2.2 per-sample loop, unchanged, into L / R / GK
+//            (GK[n] = w · killGain · fade, the 2.2 gk statement verbatim);
+//   FX     : per ACTIVE stage (fxActive hoisted per segment), ARCHITECTURE §13
+//            order SVF → drive → crush → ring, every operation per sample; the
+//            SVF NaN kill (P12) retires the grain BEFORE the scatter;
+//   scatter: bus += L · GK · gain — the 2.2 single statements, same operand
+//            order. With fxActive == 0 every float expression and its order is
+//            that of 2.2, so FX-off renders are bitwise 2.2 (FR1 / RB1). Do not
+//            split the GK or scatter statements: FP contraction is per statement.
 //
 // Output law per voice (P1): N_eff = len̄ / T_k (thinning keeps full
 // windows), g_out = outputGainFromPower (streamPower (N_eff, N_eff, Hann, c 0,
@@ -77,6 +89,18 @@ namespace ogi
     struct VoiceBus
     {
         float s[kVoiceSlots][kGiStreams][2][kCell] {};
+    };
+
+    /** Test-hook plumbing for the FX block (PLAN-2.3 T6). Empty in the shipping
+        build, so the shipping kernel carries no extra branches. */
+    struct GiFxRenderFlags
+    {
+       #if OGI_TEST_HOOKS
+        bool forceKill   = false;   // FZ2 forceRetire: the P12 verdict forced false
+        bool nanKillOff  = false;   // FZ control: no finite check
+        bool fxOrderSwap = false;   // PFc5: crush before drive
+        bool nanKilled   = false;   // out: the grain was NaN-killed this segment
+       #endif
     };
 
     struct GiRenderer
@@ -126,8 +150,9 @@ namespace ogi
             offset c0. Returns false when the grain is finished (retire). */
         static bool renderGrain (VoiceGrain& vg, GiPool::Fader& fader, VoiceBus& bus,
                                  int c0, int c1, std::int64_t t0, const XfadeState (&xf)[kTapeSlots],
-                                 const WindowMorphBank& bank, bool forceBank = false) noexcept
+                                 const WindowMorphBank& bank, GiFxRenderFlags& ff, bool forceBank = false) noexcept
         {
+            juce::ignoreUnused (ff);
             const int s = std::clamp (vg.slot, 0, kTapeSlots - 1);
             const XfadeState& x = xf[s];
 
@@ -155,6 +180,9 @@ namespace ogi
             const bool hann = ! forceBank && g.windowStep == 0 && juce::exactlyEqual (g.tiltT, 0.5f);
             const float* const tab = bank.table (g.windowStep);
             const WindowMorphBank::Tilt tilt { g.tiltT, g.tiltA, g.tiltB };
+
+            float L[kCell], R[kCell], GK[kCell];
+            int n = 0;
 
             bool done = false;
             for (int c = c0; c < c1; ++c)
@@ -184,9 +212,10 @@ namespace ogi
                         vg.xReadAbs += vg.xWrapW;   // reverse (P20)
                 }
 
-                const float gk = w * g.killGain * fader.next();
-                bl[c] += l * gk * g.gainL;
-                br[c] += r * gk * g.gainR;
+                GK[n] = w * g.killGain * fader.next();
+                L[n] = l;
+                R[n] = r;
+                ++n;
 
                 if (g.killStep > 0.0f)
                 {
@@ -209,6 +238,53 @@ namespace ogi
                     done = true;
                 if (done)
                     break;
+            }
+
+            // FX, in ARCHITECTURE §13 order. The flags are latched per grain.
+            const std::uint32_t fxa = g.fxActive;
+            if (fxa != 0)
+            {
+                if ((fxa & kFxSvf) != 0)
+                {
+                    fx::svf (g, L, R, n);
+                    // P12 NaN kill: a non-finite integrator retires the grain and
+                    // its segment contributes nothing (FTZ does not catch NaN).
+                    bool finite = fx::svfStateFinite (g);
+                   #if OGI_TEST_HOOKS
+                    finite = (finite || ff.nanKillOff) && ! ff.forceKill;
+                   #endif
+                    if (! finite)
+                    {
+                       #if OGI_TEST_HOOKS
+                        ff.nanKilled = true;
+                       #endif
+                        return false;
+                    }
+                }
+               #if OGI_TEST_HOOKS
+                if (ff.fxOrderSwap)
+                {
+                    if ((fxa & kFxCrush) != 0)
+                        fx::crush (g, L, R, n);
+                    if ((fxa & kFxDrive) != 0)
+                        fx::drive (g, L, R, n);
+                }
+                else
+               #endif
+                {
+                    if ((fxa & kFxDrive) != 0)
+                        fx::drive (g, L, R, n);
+                    if ((fxa & kFxCrush) != 0)
+                        fx::crush (g, L, R, n);
+                }
+                if ((fxa & kFxRing) != 0)
+                    fx::ring (g, L, R, n);
+            }
+
+            for (int j = 0; j < n; ++j)
+            {
+                bl[c0 + j] += L[j] * GK[j] * g.gainL;
+                br[c0 + j] += R[j] * GK[j] * g.gainR;
             }
             return ! done;
         }

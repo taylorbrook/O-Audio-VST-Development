@@ -32,7 +32,7 @@
       A2   0 audio-thread allocations, 4 streams + scale    ctrl liveness malloc(64)
       NB1  block-size null, all randomisation               ctrl seed + 1
       V3s  slot invariance, 4 streams                       ctrl seed + 1
-      N2s  148 unread params bit-identical, 4 streams       ctrl s1_density / s4_window
+      N2s  108 unread params bit-identical, 4 streams       ctrl s1_density / s4_window (readSet23, PLAN-2.3 PD10)
     cpu22(): PLAN-2.2 T13 C22 recipe, INFO only (--cpu22).
 
   ==============================================================================
@@ -1440,7 +1440,7 @@ namespace { namespace eg22
 
     void rowN2s()
     {
-        const auto readSet = eg21::readSet22();
+        const auto readSet = eg21::readSet23();   // PLAN-2.3 PD10 (was readSet22: 113 / 148)
         int bound = 0;
         {
             auto probe = make();
@@ -1467,9 +1467,9 @@ namespace { namespace eg22
         const int nD = diffCount (ref, renderNB (512, kSeed, [] (Proc& p) { setP (p, Ids::stream (1, "density"), 120.0f); }, P0, false));
         const int nW = diffCount (ref, renderNB (512, kSeed, [] (Proc& p) { setP (p, Ids::stream (4, "window"), 0.5f); }, P0, false));
         const bool fired = nD > 0 && nW > 0;
-        row (n == 0 && bound == 113 && touched == 148 && fired, "N2s unread params bit-identical, 4 streams on (readSet22)",
+        row (n == 0 && bound == 153 && touched == 108 && fired, "N2s unread params bit-identical, 4 streams on (readSet23)",
              "meas " + juce::String (n) + " samples differ with " + juce::String (touched) + " unread params randomised ("
-                 + juce::String (bound) + "/113 read IDs bound) | thr 0 | margin " + juce::String (-n)
+                 + juce::String (bound) + "/153 read IDs bound) | thr 0 | margin " + juce::String (-n)
                  + " | " + ctrl (fired, "s1_density -> " + juce::String (nD) + ", s4_window -> " + juce::String (nW) + " differ"));
     }
 

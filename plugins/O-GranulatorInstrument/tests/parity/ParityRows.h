@@ -1,6 +1,7 @@
 #pragma once
 // ============================================================================
-//   O-GranulatorInstrument — DSP-01 parity rows (PLAN-2.2 T3 / PD5, R§1–§3)
+//   O-GranulatorInstrument — DSP-01 / DSP-03 parity rows (PLAN-2.2 T3 / PD5,
+//   R§1–§3; PLAN-2.3 T3: PF / PFc / PS5–7)
 //
 //   ONE source of truth, included by BOTH drivers:
 //     - tests/parity/parent_render.cpp   (O-Granulator @ 82406fce, out of tree)
@@ -71,8 +72,10 @@ namespace parity
         return static_cast<float> ((2.0 * u - 1.0) * amp);
     }
 
-    /** PN / PS material M[n], n ∈ [0, F): hash noise, peak ≤ −40 dBFS. */
-    inline float material (int64_t n, int ch) { return hashNoise (n, ch, kMatPeak, 0x9A); }
+    /** PN / PS material M[n], n ∈ [0, F): hash noise, peak ≤ −40 dBFS (2.2 rows).
+        PLAN-2.3 PD5: PF rows pass their own peak (0.1 / 0.25 / 0.4); the hash is
+        unchanged, so the 2.2 material is bitwise the same. */
+    inline float material (int64_t n, int ch, float peak = kMatPeak) { return hashNoise (n, ch, peak, 0x9A); }
 
     /** GV material: uniform hash noise at −30 dBFS RMS (a = 0.0316·√3 = 0.05477, peak ≤ 0.1). */
     constexpr float kGvAmp = 0.054772256f;
@@ -82,7 +85,10 @@ namespace parity
     // ── rows ────────────────────────────────────────────────────────────────
     struct KV { std::string id; float v; };   // id: a stream SUFFIX ("size") or a global ID ("grain_limit")
 
-    enum class Kind { null_, stats, gv };
+    enum class Kind { null_, stats, gv, fxNull, fxStats };   // fx*: PLAN-2.3 PD11 (pg22 never sees them)
+
+    inline bool isNullKind (Kind k)  { return k == Kind::null_ || k == Kind::fxNull; }
+    inline bool isStatsKind (Kind k) { return k == Kind::stats || k == Kind::fxStats; }
 
     struct Row
     {
@@ -97,6 +103,9 @@ namespace parity
         int64_t ourOnsetShift = 0;            // PNc1: our note-on at T_on + 1
         std::string parentOf;                 // control rows reuse this parent render
         uint64_t seed = 0x5EED22A0B1ull;
+        // 2.3 (PLAN-2.3 PD5 / PD11)
+        float matPeak = kMatPeak;             // material peak (0.01 = every 2.2 row unchanged)
+        std::vector<std::string> oursHooks;   // our-side test hooks: "legacySvfMake", "fxOrderSwap"
     };
 
     /** Base stream settings for the null rows (spray 0, jitter 0, every random control 0). */
@@ -125,6 +134,38 @@ namespace parity
         for (const auto& kv : v) if (kv.id == id) return kv.v;
         return dflt;
     }
+
+    // ── 2.3 per-grain FX (PLAN-2.3 T3) ─────────────────────────────────────
+    /** The 10 FX stream suffixes, in manifest column order. */
+    inline const std::vector<std::string>& fxIds()
+    {
+        static const std::vector<std::string> v { "filter_type", "filter_cutoff", "filter_rand", "filter_res", "drive",
+                                                  "crush", "crush_prob", "ring_freq", "ring_rand", "ring_mix" };
+        return v;
+    }
+
+    /** Every FX row at its spec default (set explicitly on both sides). */
+    inline std::vector<KV> fxBase()
+    {
+        return { { "filter_type", 0.0f }, { "filter_cutoff", 20000.0f }, { "filter_rand", 0.0f }, { "filter_res", 20.0f },
+                 { "drive", 0.0f }, { "crush", 0.0f }, { "crush_prob", 100.0f }, { "ring_freq", 200.0f },
+                 { "ring_rand", 0.0f }, { "ring_mix", 0.0f } };
+    }
+
+    /** Expected latched fxActive bits (SVF 1, drive 2, crush 4, ring 8) for a
+        deterministic row (crush_prob 0 / 100 only). */
+    inline uint32_t expectedFxBits (const std::vector<KV>& sp)
+    {
+        uint32_t b = 0;
+        if (findV (sp, "filter_type", 0.0f) >= 0.5f) b |= 1u;
+        const double d = findV (sp, "drive", 0.0f) / 100.0;
+        if (16.0 * d * d >= 1.0e-4) b |= 2u;
+        if (findV (sp, "crush", 0.0f) > 0.0f && findV (sp, "crush_prob", 100.0f) >= 100.0f) b |= 4u;
+        if (findV (sp, "ring_mix", 0.0f) > 0.0f) b |= 8u;
+        return b;
+    }
+
+    inline bool isPfControl (const std::string& id) { return id.rfind ("PFc", 0) == 0; }
 
     inline std::vector<Row> rows()
     {
@@ -185,6 +226,75 @@ namespace parity
         ps ("PS3", { { "jitter", 50.0f } }, 5.02);   // displacements drop k = 0 per sequence: 5.02 s keeps n ≥ 4000
         ps ("PS4", { { "scale", 2.0f /* Major */ }, { "pitch_rand", 12.0f } });
 
+        // ── 2.3 DSP-03 null rows (PLAN-2.3 T3, PD5–PD7): PN01 geometry + FX ──
+        auto pf = [&r] (const std::string& id, std::vector<KV> o, float peak)
+        {
+            Row x; x.id = id; x.kind = Kind::fxNull; x.stream = 1;
+            x.sp = over (over (nullBase(), fxBase()), o); x.seconds = 1.0; x.matPeak = peak;
+            r.push_back (x);
+        };
+        pf ("PF0", {}, 0.25f);
+        {
+            const float cut[3] { 200.0f, 2000.0f, 12000.0f };
+            const float res[3] { 0.0f, 50.0f, 100.0f };
+            const char* fam[3] { "PFL", "PFB", "PFH" };
+            for (int t = 0; t < 3; ++t)
+                for (int c = 0; c < 3; ++c)
+                    for (int q = 0; q < 3; ++q)
+                        pf (std::string (fam[t]) + std::to_string (3 * c + q + 1),
+                            { { "filter_type", (float) (t + 1) }, { "filter_cutoff", cut[c] }, { "filter_res", res[q] } }, 0.1f);
+        }
+        {
+            const float dv[4] { 1.0f, 25.0f, 50.0f, 100.0f };
+            for (int i = 0; i < 4; ++i)
+                pf ("PFD" + std::to_string (i + 1), { { "drive", dv[i] } }, 0.25f);
+        }
+        {
+            const float cv[4] { 10.0f, 40.0f, 70.0f, 100.0f };
+            for (int i = 0; i < 4; ++i)
+                pf ("PFC" + std::to_string (i + 1), { { "crush", cv[i] }, { "crush_prob", 0.0f } }, 0.25f);
+            for (int i = 0; i < 3; ++i)
+                pf ("PFC" + std::to_string (i + 5), { { "crush", cv[i] }, { "crush_prob", 100.0f } }, 0.25f);
+            // PD5: at 0.25 crush 100 % is silent on both sides (scale 2, |2x| <= 0.5 → 0);
+            // 0.4 peak + stream level −6 dB (post-FX) keeps the parent below 0.45.
+            pf ("PFC8", { { "crush", 100.0f }, { "crush_prob", 100.0f }, { "level", -6.0f } }, 0.4f);
+        }
+        {
+            const float rf[3] { 20.0f, 200.0f, 5000.0f };
+            const float rm[2] { 25.0f, 100.0f };
+            int k = 1;
+            for (int f = 0; f < 3; ++f)
+                for (int m = 0; m < 2; ++m)
+                    pf ("PFR" + std::to_string (k++), { { "ring_freq", rf[f] }, { "ring_mix", rm[m] } }, 0.25f);
+        }
+        for (int t = 0; t < 3; ++t)
+            pf ("PFX" + std::to_string (t + 1), { { "filter_type", (float) (t + 1) }, { "filter_cutoff", 2000.0f }, { "filter_res", 80.0f },
+                                                 { "drive", 50.0f }, { "crush", 40.0f }, { "crush_prob", 100.0f },
+                                                 { "ring_freq", 200.0f }, { "ring_mix", 50.0f } }, 0.25f);
+        // controls (ours only; the parent render is reused)
+        {
+            auto byId = [&r] (const std::string& id) -> Row { for (const auto& x : r) if (x.id == id) return x; return Row {}; };
+            const float semi = 1.0594630943592953f;   // 2^(1/12)
+            Row c1 = byId ("PFB5"); c1.id = "PFc1"; c1.parentOf = "PFB5"; c1.oursOnly = { { "filter_cutoff", 2000.0f * semi } }; r.push_back (c1);
+            Row c2 = byId ("PFD3"); c2.id = "PFc2"; c2.parentOf = "PFD3"; c2.oursOnly = { { "drive", 51.0f } }; r.push_back (c2);
+            Row c3 = byId ("PFC6"); c3.id = "PFc3"; c3.parentOf = "PFC6"; c3.oursOnly = { { "crush", 41.0f } }; r.push_back (c3);
+            Row c4 = byId ("PFR4"); c4.id = "PFc4"; c4.parentOf = "PFR4"; c4.oursOnly = { { "ring_freq", 200.0f * semi } }; r.push_back (c4);
+            Row c5 = byId ("PFX1"); c5.id = "PFc5"; c5.parentOf = "PFX1"; c5.oursHooks = { "fxOrderSwap" }; r.push_back (c5);
+            Row c6 = byId ("PFL6"); c6.id = "PFc6"; c6.parentOf = "PFL6"; c6.oursHooks = { "legacySvfMake" }; r.push_back (c6);
+        }
+
+        // ── 2.3 statistics (the ps() geometry, fxStats) ──
+        auto pfs = [&r] (const char* id, std::vector<KV> o)
+        {
+            Row x; x.id = id; x.kind = Kind::fxStats; x.streams = 4;
+            x.sp = over (over (over (nullBase(), fxBase()), { { "density", 200.0f }, { "size", 20.0f }, { "position", 50.0f } }), o);
+            x.seconds = 5.0;
+            r.push_back (x);
+        };
+        pfs ("PS5", { { "filter_type", 1.0f }, { "filter_cutoff", 1000.0f }, { "filter_rand", 70.0f } });
+        pfs ("PS6", { { "ring_freq", 200.0f }, { "ring_mix", 50.0f }, { "ring_rand", 70.0f } });
+        pfs ("PS7", { { "crush", 50.0f }, { "crush_prob", 30.0f } });
+
         // D16 gain: parent live (not frozen), defaults, mix 100 %; 4 seeds
         for (int s = 1; s <= 4; ++s)
         {
@@ -237,10 +347,10 @@ namespace parity
     }
 
     /** Parent input at absolute sample k for a null / stats row. */
-    inline float parentInput (const Geometry& g, int64_t k, int ch)
+    inline float parentInput (const Geometry& g, int64_t k, int ch, float peak = kMatPeak)
     {
         const int64_t n = k - g.delta;
-        return (n >= 0 && n < kF) ? material (n, ch) : 0.0f;
+        return (n >= 0 && n < kF) ? material (n, ch, peak) : 0.0f;
     }
 
     // ── SC grid (T9 SC1 / SC3) ──────────────────────────────────────────────
