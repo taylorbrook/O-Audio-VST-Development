@@ -27,13 +27,13 @@ lastUpdated: 2026-11-07
 | FUNC-06 | File references persist in state; a missing file shows relink without crashing; factory sources resolve from the content folder | must | pending | stage-2 |
 | FUNC-07 | Record-in: capture sidechain input into a target slot (manual / threshold / next-note trigger) | should | pending | stage-2 |
 | FUNC-08 | Small factory source set plus presets that load out of the box | should | pending | stage-4 |
-| FUNC-09 | Scale-quantised pitch spread, degree masks and the custom scale, as O-Granulator | must | pending | stage-2 |
+| FUNC-09 | Scale-quantised pitch spread, degree masks and the custom scale, as O-Granulator | must | partial | stage-2 |
 
 ### DSP (DSP)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| DSP-01 | Grain engine parity with O-Granulator streams (size, density, jitter, spray, window morph, reverse, stereo spread, gain rand) on file sources | must | pending | stage-2 |
+| DSP-01 | Grain engine parity with O-Granulator streams (size, density, jitter, spray, window morph, reverse, stereo spread, gain rand) on file sources | must | complete | stage-2 |
 | DSP-02 | Per-voice amp ADSR with velocity sensitivity; grains continue during release | must | partial | stage-2 |
 | DSP-03 | Per-grain FX (SVF filter, drive, crush, ring) inherited | must | pending | stage-2 |
 | DSP-04 | Feedback into per-stream working copies, with Freeze and Reset; voice-count-aware runaway guard | must | pending | stage-2 |
@@ -96,7 +96,7 @@ lastUpdated: 2026-11-07
 - [ ] Scale quantisation and degree masks behave identically to O-Granulator
 
 ### DSP-01: Engine parity
-- [ ] With 1 voice, a fixed key and scan 0, a stream renders equivalently to the O-Granulator stream on the same frozen material (stated tolerance)
+- [x] With 1 voice, a fixed key and scan 0, a stream renders equivalently to the O-Granulator stream on the same frozen material (stated tolerance)
 
 ### DSP-02: Amp envelope
 - [ ] ADSR stages are audible and click-free; velocity scales level per velToAmp
