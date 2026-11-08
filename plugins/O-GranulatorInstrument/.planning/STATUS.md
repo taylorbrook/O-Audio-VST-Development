@@ -1,15 +1,15 @@
 ---
 plugin: O-GranulatorInstrument
 stage: 2
-status: stage_2_phase_2_1_research_complete
+status: stage_2_phase_2_1_plan_complete
 current_phase: 2-dsp/2.1
-gsd_phase: research_complete
+gsd_phase: plan_complete
 last_updated: 2026-11-07
 complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_2_plan
+next_action: stage_2_execute
 next_stage: 2
 ready_for_implementation: true
 blocked_on: none (fork pin 82406fce, D11)
@@ -37,7 +37,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — Phase 2.1 research complete (`stages/2-dsp/RESEARCH-2.1.md`: parent waterFill is 4-only → `waterFillN<N>`; integer-quota thinning against L_max so Σlive ≤ cap holds exactly [flag]; no MIDI re-sort (off-before-on strands zero-length notes); MipTape uses MipRing storage + `levelPos`, sized F + margin(4); fresh Kaiser resampler with per-sample normalisation; leaves split VERBATIM / ADAPTED with a two-part drift check; wire `s1_size_rand` so the seed control is non-vacuous [flag]). Next: plan 2.1.
+Stage: 2 of 4 (DSP) — Phase 2.1 plan complete (`stages/2-dsp/PLAN-2.1.md`: 15 tasks / 6 waves — fork 13 leaves to `Source/dsp/forked/` + manifest + two-part drift check; VoiceQuotas `waterFillN<20>` + integer thinning [P1, research flag adopted]; Kaiser resampler; MipTape<4>; loader + handoff + reaper; allocator/env/scan/pitch/spawner/renderer/32-grid Engine; `s1_size_rand` wired [P2, flag adopted]; `PluginEditorDevLoader` (console filter excludes it); 33 harness rows each with a control; pluginval/auval; HANDS-ON-2.1). Next: execute 2.1.
 Stage 1: VERIFIED
 Status: Stage 1 executed (74606bb3): 0.1.0 VST3 + AU + Standalone built; 261 params (176/70/15), dest 126 / src 18 goldens; harness 55 PASS / 0 FAIL + golden and spec negative controls; pluginval 10 VST3 ×3 + AU SUCCESS with SC active (2 ch) and gate variant inactive (0 ch), auval PASS [1, 2] [2, 2] (frozen); D9 contingency did not fire; shipping build restored + installed. See stages/1-foundation/SUMMARY.md. Verified 2026-11-07 (stages/1-foundation/VERIFICATION.md): independent re-run on the installed shipping build — goldens + param-dump byte-identical, harness 55/0, auval PASS [1, 2] [2, 2], pluginval 10 VST3 + AU SUCCESS (2 ch in); COMPAT-01 complete. Next: Stage 2 discuss (Phase 2.1 fork).
 Progress: [####................] 20%
@@ -65,7 +65,7 @@ Progress: [####................] 20%
 1. ✓ UI mockup v1 finalized 2026-11-07 (Phase 5.5); Phase B scaffolding generated: `v1-ui.html`, `v1-i18n.js`, `v1-PluginEditor.{h,cpp}` (261 relays, 34 native fns, sidechain-aware Record-in telemetry), `v1-CMakeLists.txt`, `v1-integration-checklist.md`, `v1-i18n-states.json`. UI gates pre-verified on a scratch tree (check-i18n / fr / zh / check-ui-labels / boot-all-uis all clean).
 2. ✓ `parameter-spec.md` LOCKED (Stage 1 contract): 261 params, Design Sync S1–S11 applied, 126-entry destination order and 18-entry source order frozen (append-only). One description-level draft conflict recorded in its "Draft vs mockup" section (`polyphony` steal wording) — resolved Stage 1 discuss D10: keep mockup wording.
 3. Stage 1: Foundation — discuss ✓ (`stages/1-foundation/CONTEXT.md`), research ✓ (`stages/1-foundation/RESEARCH.md`), plan ✓ (`stages/1-foundation/PLAN.md`); execute ✓ (`SUMMARY.md`, 74606bb3), verify ✓ (`VERIFICATION.md`). Next: `/plugin-discuss O-GranulatorInstrument 2-dsp` (Phase 2.1 fork pin).
-4. Stage 2 Phase 2.1: discuss ✓ (`stages/2-dsp/CONTEXT-2.1.md`). Fork pin = O-Granulator `82406fce` (D11, supersedes the 3.3-close pin). Next: `/plugin-research O-GranulatorInstrument 2-dsp`.
+4. Stage 2 Phase 2.1: discuss ✓ (`stages/2-dsp/CONTEXT-2.1.md`). Fork pin = O-Granulator `82406fce` (D11, supersedes the 3.3-close pin). research ✓ (`RESEARCH-2.1.md`), plan ✓ (`PLAN-2.1.md`). Next: `/plugin-execute O-GranulatorInstrument 2-dsp`.
 
 ## Context to Preserve
 
