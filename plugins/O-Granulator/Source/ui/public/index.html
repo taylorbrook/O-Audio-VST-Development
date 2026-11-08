@@ -221,7 +221,10 @@ input[type="text"], textarea { -webkit-user-select: text; user-select: text; cur
 .knob-cell { position: absolute; width: 62px; height: 85px; }
 .knob-cell.lg { width: 80px; height: 97px; }
 .knob-cell.hdr { width: 108px; height: 58px; }
-.knob-label { position: absolute; left: -5px; right: -5px; top: 0; height: 13px; text-align: center; font-size: 11px; line-height: 13px; color: var(--ink-2); white-space: nowrap; overflow: hidden; pointer-events: none; }
+.knob-label { position: absolute; left: -5px; right: -5px; top: 0; height: 13px; text-align: center; font-size: 11px; line-height: 13px; color: var(--ink-2); white-space: nowrap; overflow: hidden; cursor: text; transition: color 0.12s ease; }
+/* Clicking a label opens keyboard entry over the readout (attachValueEntry). */
+.knob-label:hover, .knob-cell.editing .knob-label { color: var(--ink); }
+.knob-value-input { position: absolute; left: 0; top: -2px; width: 100%; height: calc(100% + 4px); box-sizing: border-box; margin: 0; padding: 0 2px; border: 1px solid var(--rule-3); border-radius: 2px; background: var(--raised); color: var(--ink); font: inherit; line-height: inherit; text-align: inherit; outline: none; pointer-events: auto; }
 .knob-value { position: absolute; left: -5px; right: -5px; top: 72px; height: 13px; text-align: center; font-size: 11.5px; line-height: 13px; color: var(--ink); white-space: nowrap; overflow: hidden; pointer-events: none; }
 .knob-cell.lg .knob-value { top: 84px; }
 .knob-dial { position: absolute; left: 2px; top: 14px; width: 58px; height: 58px; }
@@ -1575,7 +1578,7 @@ canvas.scope { position: absolute; }
             knob.setAttribute('aria-valuetext', text);         // same text as the readout
         }
         const valEl = document.getElementById(`val-${id}`);
-        if (valEl) valEl.textContent = text;
+        if (valEl && valEl.dataset.editing !== '1') valEl.textContent = text;   // entry open: its <input> lives here
         renderKnobArc(id, st.getNormalisedValue());
     }
 
@@ -1740,7 +1743,7 @@ canvas.scope { position: absolute; }
             knob.setAttribute('aria-valuenow', String(idx));
         }
         const valEl = document.getElementById(`val-${id}`);
-        if (valEl) valEl.textContent = text;
+        if (valEl && valEl.dataset.editing !== '1') valEl.textContent = text;   // entry open: its <input> lives here
         renderKnobArc(id, n);
     }
 
@@ -1812,6 +1815,157 @@ canvas.scope { position: absolute; }
         knob.addEventListener('dblclick', (e) => {
             if (paramDefaults && id in paramDefaults) setIndex(Number(paramDefaults[id]));
             e.preventDefault();
+        });
+    }
+
+    // ── Keyboard value entry (click a knob label) ──────────────────────────
+    // Display text -> SCALED value in C++ units, or null to reject. Keyed by
+    // the FORMAT function, so a parser always matches what its readout shows.
+    function numOf(t) {
+        const m = String(t).replace(/[−–]/g, '-').replace(',', '.').match(/[-+]?\d*\.?\d+/);
+        if (!m) return null;
+        const v = parseFloat(m[0]);
+        return isFinite(v) ? v : null;
+    }
+    const kMul = (t, v) => (/k/i.test(t) ? v * 1000 : v);              // "1.2k", "1.20 kHz"
+    const PARSERS = new Map([
+        [fDb,    (t) => numOf(t)],
+        [fLevel, (t) => (/inf/i.test(t) ? -Infinity : numOf(t))],     // clamps to the range floor
+        [fPct,   (t) => numOf(t)],
+        [fPctBi, (t) => numOf(t)],
+        [fSt,    (t) => numOf(t)],
+        [fStR,   (t) => { const v = numOf(t); return v === null ? null : Math.abs(v); }],
+        [fGr,    (t) => numOf(t)],
+        [fSec,   (t) => { const v = numOf(t); return v === null ? null : (/ms/i.test(t) ? v / 1000 : v); }],
+        [fDeg,   (t) => numOf(t)],
+        [fHz,    (t) => { const v = numOf(t); return v === null ? null : kMul(t, v); }],
+        [fLfo,   (t) => { const v = numOf(t); return v === null ? null : kMul(t, v); }],
+        // A bare number is ms; an explicit "s" (not "ms") means seconds.
+        [fMs,    (t) => { const v = numOf(t); return v === null ? null : (/s/i.test(t) && !/ms/i.test(t) ? v * 1000 : v); }],
+        // "C" = centre; "L 30" / "R 30"; a bare signed number is the scaled value.
+        [fPan,   (t) => {
+            const s = String(t).trim();
+            if (/^c/i.test(s)) return 0;
+            const v = numOf(s);
+            if (v === null) return null;
+            if (/^l/i.test(s)) return -Math.abs(v);
+            if (/^r/i.test(s)) return Math.abs(v);
+            return v;
+        }],
+        // Window morph: an anchor name (first two letters are enough), or the raw 0–1 morph.
+        [fWin,   (t) => {
+            const s = String(t).trim().toLowerCase();
+            const i = ['ha', 'tu', 'tr', 'ex'].findIndex((p) => s.startsWith(p));
+            if (i >= 0) return i / 3;
+            return numOf(s);
+        }],
+    ]);
+
+    // Tempo division text -> choice index. Case and spaces are ignored; a bare
+    // "8" / "8t" / "8d" means 1/8…, "1" / "2 bar" match the bar entries.
+    function parseDivision(t, choices) {
+        const norm = (x) => String(x).toLowerCase().replace(/\s+/g, '').replace(/bars?$/, 'bar');
+        const s = norm(t);
+        if (!s) return null;
+        const list = choices.map(norm);
+        for (const cand of [s, '1/' + s, s + 'bar']) {
+            const i = list.indexOf(cand);
+            if (i >= 0) return i;
+        }
+        return null;
+    }
+
+    // Opens an inline field over valueEl. read() -> current readout text;
+    // write(text) applies the typed text (returns nothing; rejects silently);
+    // refresh() re-renders the readout from live state. Untouched text is never
+    // written back (readouts are rounded; re-writing would quantise the value).
+    function attachValueEntry(cell, valueEl, write, refresh) {
+        if (!valueEl || valueEl.dataset.editing === '1') return;
+        const currentText = valueEl.textContent;
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'knob-value-input';
+        input.value = currentText;
+        input.spellcheck = false;
+        input.autocomplete = 'off';
+        const lbl = cell.querySelector('.knob-label');
+        if (lbl) input.setAttribute('aria-label', lbl.textContent);
+
+        // The readout keeps its (now transparent) text so its box keeps its size.
+        valueEl.dataset.editing = '1';
+        const prevPosition = valueEl.style.position, prevColor = valueEl.style.color;
+        valueEl.style.position = 'absolute';
+        valueEl.style.color = 'transparent';
+        valueEl.style.overflow = 'visible';
+        cell.classList.add('editing');
+        valueEl.appendChild(input);
+        input.focus();
+        input.select();
+
+        let closed = false;
+        // Knobs preventDefault their pointerdown, which suppresses the focus change
+        // that would blur this field — commit from a capture-phase listener instead
+        // (pattern_value_entry_blur_commit_needs_capture_pointerdown).
+        const onOutsidePointer = (e) => { if (e.target !== input) input.blur(); };
+        document.addEventListener('pointerdown', onOutsidePointer, true);
+
+        const close = () => {
+            if (closed) return;
+            closed = true;
+            document.removeEventListener('pointerdown', onOutsidePointer, true);
+            input.remove();
+            delete valueEl.dataset.editing;
+            valueEl.style.position = prevPosition;
+            valueEl.style.color = prevColor;
+            valueEl.style.overflow = '';
+            cell.classList.remove('editing');
+            refresh();     // automation or a preset may have moved it while open
+        };
+        const commit = () => {
+            if (closed) return;
+            if (input.value.trim() !== currentText.trim()) write(input.value);
+            close();
+        };
+
+        input.addEventListener('keydown', (e) => {
+            e.stopPropagation();                        // keep digits away from page shortcuts
+            if (e.key === 'Enter') { e.preventDefault(); commit(); }
+            else if (e.key === 'Escape') { e.preventDefault(); close(); }
+        });
+        input.addEventListener('blur', commit);
+        ['pointerdown', 'mousedown', 'dblclick', 'wheel'].forEach((t) =>
+            input.addEventListener(t, (e) => e.stopPropagation()));
+    }
+
+    function bindLabelEntry(id, isChoice) {
+        const cell = document.getElementById(`cell-${id}`);
+        const label = cell ? cell.querySelector('.knob-label') : null;
+        const valEl = document.getElementById(`val-${id}`);
+        if (!label || !valEl) return;                   // matrix depth faders have no knob label
+        label.addEventListener('click', () => {
+            if (isChoice) {
+                const st = comboState[id];
+                if (!st) return;
+                attachValueEntry(cell, valEl, (text) => {
+                    const choices = (st.properties && st.properties.choices) || [];
+                    const i = parseDivision(text, choices);
+                    if (i !== null && i !== st.getChoiceIndex()) st.setChoiceIndex(i);
+                }, () => updateChoiceKnobVisual(id));
+                return;
+            }
+            const st = sliderState[id];
+            const parse = st && PARSERS.get(FORMAT[id]);
+            if (!parse) return;
+            attachValueEntry(cell, valEl, (text) => {
+                let v = parse(text);
+                if (v === null || isNaN(v)) return;
+                const p = st.properties;
+                v = Math.min(p.end, Math.max(p.start, v));   // ±Infinity → the range ends
+                st.sliderDragStarted();
+                st.setNormalisedValue(scaledToNorm(st, v));  // setNormalisedValue snaps to the interval
+                st.sliderDragEnded();
+            }, () => updateKnobVisual(id));
         });
     }
 
@@ -3677,6 +3831,8 @@ function initI18n() {
         KNOB_IDS.forEach(bindAltDepthDrag);        // BEFORE bindKnob (stopImmediatePropagation)
         KNOB_IDS.forEach((id) => bindKnob(Juce, id));
         CHOICE_KNOB_IDS.forEach((id) => bindChoiceKnob(Juce, id));
+        KNOB_IDS.forEach((id) => bindLabelEntry(id, false));
+        CHOICE_KNOB_IDS.forEach((id) => bindLabelEntry(id, true));
         TOGGLE_IDS.forEach((id) => bindToggle(Juce, id));
         SEGMENT_IDS.forEach((id) => bindSegmented(Juce, id));
         SELECT_IDS.forEach((id) => bindSelectCombo(Juce, id));

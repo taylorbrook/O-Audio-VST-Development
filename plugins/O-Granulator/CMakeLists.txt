@@ -31,7 +31,7 @@ juce_add_plugin(OuariconGranulator
     PLUGIN_CODE OuGn                       # verified unused across plugins/*/CMakeLists.txt
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Granulator${OUARICON_DEV_SUFFIX}"
-    VERSION 1.1.0                          # JUCE reads VERSION (PLUGIN_VERSION is ignored)
+    VERSION 1.2.0                          # JUCE reads VERSION (PLUGIN_VERSION is ignored)
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT FALSE
     NEEDS_MIDI_OUTPUT FALSE

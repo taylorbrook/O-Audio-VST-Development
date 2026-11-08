@@ -1,5 +1,18 @@
 # O-Granulator Changelog
 
+## [1.2.0] - 2026-11-07
+
+Every knob can now be set by typing a value.
+
+### Added
+
+- **Click a knob's name to type a value.** The readout under the knob becomes a text field holding the current value, with the text selected. Press Enter to apply it, or Esc to cancel. Clicking anywhere else, including another knob, also applies it. This works on every knob, including the header knobs (Input, Mix, Output) and the tempo-synced Size, Density and LFO Rate.
+  - Units are optional: `25` on Density means 25 gr/s, and `80` on Size means 80 ms. `1.5 s` on Size and `2.5k` on a cutoff are converted.
+  - Pan takes `C`, `L 40`, `R 40` or a signed number. Level takes `-inf`. Shape takes the window name (`hann`, `tukey`, `trapez`, `expon`; the first two letters are enough). Tempo divisions take `1/8 T`, `8t`, `16d`, `2 bars` and similar.
+  - A value outside the range is clamped to the nearest end. Text that isn't a value is ignored and the parameter is left as it was. If you apply the text unchanged, nothing is written, so a rounded readout never moves the parameter.
+  - Each typed value is written as a single automation gesture.
+- Names light up on hover to show they can be clicked.
+
 ## [1.1.0] - 2026-11-07
 
 The factory bank grows from 16 to 64 presets, eight in each of eight categories, and every factory preset now runs fully wet.
