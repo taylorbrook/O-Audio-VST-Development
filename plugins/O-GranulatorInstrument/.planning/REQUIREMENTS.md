@@ -4,7 +4,7 @@
 version: 1.0.0
 plugin: O-GranulatorInstrument
 created: 2026-11-06
-lastUpdated: 2026-11-06
+lastUpdated: 2026-11-07
 ---
 
 ## Overview
@@ -19,10 +19,10 @@ lastUpdated: 2026-11-06
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| FUNC-01 | MIDI instrument: notes spawn polyphonic voices, each running grain clouds across the enabled streams | must | pending | stage-2 |
-| FUNC-02 | One audio file per stream slot (4 slots), loaded by drag-drop or a file browser; slots may share a file | must | pending | stage-2 |
-| FUNC-03 | Key-tracked pitch relative to the per-stream root note, with keyTrack amount and pitch-bend range | must | pending | stage-2 |
-| FUNC-04 | Per-stream scan: position, scan rate, scan mode (free/retrigger/ping-pong), loop region | must | pending | stage-2 |
+| FUNC-01 | MIDI instrument: notes spawn polyphonic voices, each running grain clouds across the enabled streams | must | partial | stage-2 |
+| FUNC-02 | One audio file per stream slot (4 slots), loaded by drag-drop or a file browser; slots may share a file | must | partial | stage-2 |
+| FUNC-03 | Key-tracked pitch relative to the per-stream root note, with keyTrack amount and pitch-bend range | must | partial | stage-2 |
+| FUNC-04 | Per-stream scan: position, scan rate, scan mode (free/retrigger/ping-pong), loop region | must | partial | stage-2 |
 | FUNC-05 | Voice modes Poly / Mono / Legato with glide | should | pending | stage-2 |
 | FUNC-06 | File references persist in state; a missing file shows relink without crashing; factory sources resolve from the content folder | must | pending | stage-2 |
 | FUNC-07 | Record-in: capture sidechain input into a target slot (manual / threshold / next-note trigger) | should | pending | stage-2 |
@@ -34,12 +34,12 @@ lastUpdated: 2026-11-06
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | DSP-01 | Grain engine parity with O-Granulator streams (size, density, jitter, spray, window morph, reverse, stereo spread, gain rand) on file sources | must | pending | stage-2 |
-| DSP-02 | Per-voice amp ADSR with velocity sensitivity; grains continue during release | must | pending | stage-2 |
+| DSP-02 | Per-voice amp ADSR with velocity sensitivity; grains continue during release | must | partial | stage-2 |
 | DSP-03 | Per-grain FX (SVF filter, drive, crush, ring) inherited | must | pending | stage-2 |
 | DSP-04 | Feedback into per-stream working copies, with Freeze and Reset; voice-count-aware runaway guard | must | pending | stage-2 |
 | DSP-05 | Output reverb/diffuser inherited | should | pending | stage-2 |
 | DSP-06 | Mod matrix (16 slots): LFOs (global/per-voice), 2 mod ADSRs, velocity, key, note-random, mod wheel, aftertouch, MPE pressure/slide/bend, 4 macros | must | pending | stage-2 |
-| DSP-07 | Files resampled to the session rate on load; band-limited reads when pitched up | must | pending | stage-2 |
+| DSP-07 | Files resampled to the session rate on load; band-limited reads when pitched up | must | partial | stage-2 |
 
 ### UI (UI)
 
@@ -52,9 +52,9 @@ lastUpdated: 2026-11-06
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| PERF-01 | Real-time safe audio processing (no allocations/locks in processBlock, incl. voice steal and file swap) | must | pending | stage-2 |
-| PERF-02 | Shared grain pool with a global cap and a defined CPU budget at 16 voices × 4 streams | must | pending | stage-2 |
-| PERF-03 | File load and decode off the audio thread; atomic swap + retired-buffer reaper that works while the host idles | must | pending | stage-2 |
+| PERF-01 | Real-time safe audio processing (no allocations/locks in processBlock, incl. voice steal and file swap) | must | partial | stage-2 |
+| PERF-02 | Shared grain pool with a global cap and a defined CPU budget at 16 voices × 4 streams | must | partial | stage-2 |
+| PERF-03 | File load and decode off the audio thread; atomic swap + retired-buffer reaper that works while the host idles | must | partial | stage-2 |
 
 ### Compatibility (COMPAT)
 
@@ -67,7 +67,7 @@ lastUpdated: 2026-11-06
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| QUAL-01 | No audio artifacts at normal parameter ranges (incl. voice steal, note-off, file swap, reset) | must | pending | stage-2 |
+| QUAL-01 | No audio artifacts at normal parameter ranges (incl. voice steal, note-off, file swap, reset) | must | partial | stage-2 |
 | QUAL-02 | Sidechain absent or unrouted (AU) degrades cleanly: record-in disabled, no crash or noise | nice | pending | stage-4 |
 
 ## Acceptance Criteria Details
