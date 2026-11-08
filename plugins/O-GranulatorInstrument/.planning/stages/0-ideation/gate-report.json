@@ -1,0 +1,19 @@
+{
+  "gate": "gate-0-to-1",
+  "plugin": "O-GranulatorInstrument",
+  "fromStage": "0-ideation",
+  "toStage": "1-foundation",
+  "timestamp": "2026-11-07T23:38:54Z",
+  "checks": {
+    "critical": [{"name":"schema","status":"skipped","duration":0,"attempts":1,"output":"\n","error":"No handoff file found\n"},{"name":"build","status":"failed","duration":0,"attempts":3,"output":"[0/2] Re-checking globbed directories...\n","error":"ninja: error: unknown target 'O-GranulatorInstrument_VST3'\n"},{"name":"pluginval","status":"skipped","duration":0,"attempts":1,"output":"\n","error":"VST3 plugin not found at /Users/taylorbrook/Dev/VST-development/build/plugins/O-GranulatorInstrument/O-GranulatorInstrument_artefacts/Release/VST3/O-GranulatorInstrument.vst3\n"}],
+    "advisory": [{"name":"style","status":"skipped","duration":0,"attempts":1,"output":"\n","error":"Placeholder - future work\n"},{"name":"naming","status":"skipped","duration":0,"attempts":1,"output":"\n","error":"Placeholder - future work\n"},{"name":"docs","status":"skipped","duration":0,"attempts":1,"output":"\n","error":"Placeholder - future work\n"}]
+  },
+  "overallStatus": "BYPASSED",
+  "totalDuration": 2000
+,
+  "bypass": {
+    "used": true,
+    "justification": "0→1 transition: plugin has no CMakeLists.txt yet; Stage 1 creates it (known gate limitation)\n",
+    "failedChecks": ["build"]
+  }
+}

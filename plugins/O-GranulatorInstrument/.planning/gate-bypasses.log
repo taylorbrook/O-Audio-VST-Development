@@ -1,0 +1,7 @@
+
+## Bypass: 0-ideation -> 1-foundation
+**Date:** 2026-11-07T23:38:54Z
+**Failed checks:** build
+**Justification:** 0→1 transition: plugin has no CMakeLists.txt yet; Stage 1 creates it (known gate limitation)
+**User:** taylorbrook
+---

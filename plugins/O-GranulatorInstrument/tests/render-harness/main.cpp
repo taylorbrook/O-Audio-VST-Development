@@ -1,0 +1,1008 @@
+/*
+  ==============================================================================
+
+    O-GranulatorInstrument: render harness (Stage 1 gate; Stage 2 extends it)
+
+      O-GranulatorInstrument-render-harness [--golden-dir <dir>]
+      prints "N PASS, M FAIL"; exit code = number of FAILs (capped at 255)
+
+    Goldens come from the LOCKED spec (tests/golden/extract_spec.py ->
+    params.tsv / mod-dests.tsv / mod-sources.tsv), never from the code.
+    --golden-dir points the run at another golden set (negative controls,
+    PLAN P10); the default is GOLDEN_DIR.
+
+      G1  261 params, ID order == params.tsv (and allIdsInOrder())
+      G2  per-ID type; totals 176 Float / 70 Choice / 15 Bool
+      G3  version hint 1 everywhere; host names byte-equal to the golden
+      G4  Float start / end / interval / skew == golden; 19 setSkewForCentre
+          rows (== reference AND +-1e-4 of the spec skew); 14 raw-skew rows
+          exact; 6 interval-1 rows (interval 1, get() == default exactly);
+          43 negative-start rows interval 0; default normalised ==
+          convertTo0to1 (spec) exactly, engineering default within 1e-6 of span
+      G5  70 choice lists: strings, order, default index
+      G6  Bools: s1_enable On, the other 14 Off
+      D1  kModDestIds == mod-dests.tsv (126, order)   D2 every dest != None is a Float
+      D3  16 modM_dest lists == None + golden host names   D4 table version 1
+      D5  the literal == the formula b = 2 + 28 (N - 1)
+      SRC1 16 modM_source lists == mod-sources.tsv (18); kModSources (+ class) == golden
+      B1  buses + MIDI flags; B3 latency 0 (44.1 k / 96 k), tail 0
+      M1  MidiScript self-test (absolute sample times, never block-relative)
+      R1  sidechain-only render -> output bitwise +0.0f and finite
+          (R1v input-level vacuity guard, R1n comparator negative control)
+      S1a S1b S2 S3 S4 S5  state codec
+      H1  seed injection + loadSlotSync stubs link   H2 VST3 kAux (getPluginHasMainInput false)
+
+  ==============================================================================
+*/
+
+#include <JuceHeader.h>
+#include "PluginProcessor.h"
+
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <initializer_list>
+#include <memory>
+#include <vector>
+
+#if defined (__clang__)
+ #pragma clang diagnostic ignored "-Wfloat-equal"
+#endif
+
+extern juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter();
+
+#ifndef GOLDEN_DIR
+ #error "GOLDEN_DIR must point at tests/golden"
+#endif
+
+namespace Ids = GiParamIds;
+
+namespace
+{
+    int failures = 0, passes = 0;
+    juce::File gGoldenDir { juce::String (GOLDEN_DIR) };
+
+    void row (bool ok, const juce::String& name, const juce::String& detail = {})
+    {
+        std::printf ("  [%s] %-66s %s\n", ok ? "PASS" : "FAIL", name.toRawUTF8(), detail.toRawUTF8());
+        std::fflush (stdout);
+        if (ok) ++passes; else ++failures;
+    }
+
+    // Collects sub-failures of a many-item row; prints the first few.
+    struct Tally
+    {
+        int bad = 0; juce::StringArray notes;
+        void check (bool ok, const juce::String& what) { if (! ok) { ++bad; if (notes.size() < 4) notes.add (what); } }
+        juce::String detail (int total) const { return juce::String (total - bad) + "/" + juce::String (total) + (bad ? "  e.g. " + notes.joinIntoString ("; ") : juce::String()); }
+    };
+
+    std::unique_ptr<GranulatorInstrumentProcessor> make()
+    {
+        std::unique_ptr<juce::AudioProcessor> raw (createPluginFilter());
+        auto* p = dynamic_cast<GranulatorInstrumentProcessor*> (raw.get());
+        jassert (p != nullptr);
+        raw.release();
+        return std::unique_ptr<GranulatorInstrumentProcessor> (p);
+    }
+
+    // ── Goldens ─────────────────────────────────────────────────────────────
+    struct GoldenParam
+    {
+        int idx = 0;
+        juce::String id, name, type;
+        double lo = 0, hi = 0, interval = 0, def = 0, skew = 1, centre = 0;
+        juce::StringArray choices;
+    };
+
+    std::vector<juce::StringArray> readTsv (const juce::String& file)
+    {
+        std::vector<juce::StringArray> rows;
+        const auto f = gGoldenDir.getChildFile (file);
+        juce::StringArray lines;
+        lines.addLines (f.loadFileAsString());
+        bool header = true;
+        for (auto& l : lines)
+        {
+            if (l.startsWith ("#") || l.isEmpty()) continue;
+            if (header) { header = false; continue; }
+            juce::StringArray cols;
+            cols.addTokens (l, "\t", "");
+            rows.push_back (cols);
+        }
+        return rows;
+    }
+
+    // params.tsv: idx id name type start end interval default skew centre choices
+    std::vector<GoldenParam> goldenParams()
+    {
+        std::vector<GoldenParam> g;
+        for (auto& c : readTsv ("params.tsv"))
+        {
+            GoldenParam p;
+            p.idx = c[0].getIntValue();
+            p.id = c[1]; p.name = c[2]; p.type = c[3];
+            p.lo = c[4].getDoubleValue(); p.hi = c[5].getDoubleValue(); p.interval = c[6].getDoubleValue();
+            p.def = c[7].getDoubleValue(); p.skew = c[8].getDoubleValue(); p.centre = c[9].getDoubleValue();
+            if (c[10].isNotEmpty()) p.choices.addTokens (c[10], "|", "");
+            g.push_back (p);
+        }
+        return g;
+    }
+
+    // ── Synthetic playhead (Stage 2 tempo gates inherit it; parent verbatim) ─
+    // Legacy mode (script empty): ppq = t/fs*bpm/60, a bpm change is a ppq JUMP.
+    // v2 mode: a piecewise script of segments in HOST-SAMPLE time: tempo map,
+    // time signature with ppqPositionOfLastBarStart, start / stop, loop wrap,
+    // locate, negative start ppq.
+    struct MockPlayHead : juce::AudioPlayHead
+    {
+        double bpm = 120.0, sampleRate = 48000.0;
+        bool playing = true, hasBpm = true;
+        juce::int64 timeInSamples = 0;
+
+        struct Seg
+        {
+            juce::int64 at = 0;          // first host sample of the segment
+            double ppq0 = 0.0;           // ppq at `at`
+            double bpm  = 120.0;
+            bool   playing = true;
+            int    num = 4, den = 4;
+            double barPpq = 0.0;         // a bar start in this segment's bar frame
+            bool   looping = false;
+            double loopA = 0.0, loopB = 0.0;
+            bool   hasBpm = true, hasPpq = true, hasSig = true;
+        };
+        std::vector<Seg> script;         // v2 iff non-empty (sorted by `at`, script[0].at == 0)
+
+        const Seg& segAt (juce::int64 t) const
+        {
+            size_t k = 0;
+            while (k + 1 < script.size() && script[k + 1].at <= t) ++k;
+            return script[k];
+        }
+        static double barLen (const Seg& s) { return 4.0 * (double) s.num / (double) s.den; }
+        double ppqAt (juce::int64 t) const
+        {
+            const auto& s = segAt (t);
+            return s.playing ? s.ppq0 + (double) (t - s.at) / sampleRate * s.bpm / 60.0 : s.ppq0;
+        }
+        double lastBarStartAt (juce::int64 t) const
+        {
+            const auto& s = segAt (t);
+            const double L = barLen (s), q = ppqAt (t);
+            return s.barPpq + std::floor ((q - s.barPpq) / L) * L;
+        }
+
+        juce::Optional<PositionInfo> getPosition() const override
+        {
+            PositionInfo info;
+            if (! script.empty())
+            {
+                const auto& s = segAt (timeInSamples);
+                if (s.hasBpm) info.setBpm (s.bpm);
+                info.setIsPlaying (s.playing);
+                if (s.hasSig) info.setTimeSignature (TimeSignature { s.num, s.den });
+                info.setTimeInSamples (timeInSamples);
+                if (s.hasPpq)
+                {
+                    info.setPpqPosition (ppqAt (timeInSamples));
+                    info.setPpqPositionOfLastBarStart (lastBarStartAt (timeInSamples));
+                }
+                info.setIsLooping (s.looping);
+                if (s.looping) info.setLoopPoints (LoopPoints { s.loopA, s.loopB });
+                return info;
+            }
+            if (hasBpm) info.setBpm (bpm);
+            info.setIsPlaying (playing);
+            info.setTimeSignature (TimeSignature { 4, 4 });
+            info.setTimeInSamples (timeInSamples);
+            info.setPpqPosition (static_cast<double> (timeInSamples) / sampleRate * bpm / 60.0);
+            return info;
+        }
+        void advance (int n) { if (playing) timeInSamples += n; }
+    };
+
+    // ── MIDI script: ABSOLUTE sample times (never block-relative) ───────────
+    struct MidiEv { juce::int64 t; juce::MidiMessage m; };
+
+    struct MidiScript
+    {
+        std::vector<MidiEv> events;
+        size_t cursor = 0;
+        int late = 0;   // events found behind the block start: a scheduling bug
+
+        MidiScript& add (juce::int64 t, const juce::MidiMessage& msg) { events.push_back ({ t, msg }); return *this; }
+        MidiScript& chord (juce::int64 t, int ch, std::initializer_list<int> notes, float vel)
+        {
+            for (int note : notes) add (t, juce::MidiMessage::noteOn (ch, note, vel));
+            return *this;
+        }
+        MidiScript& noteOff (juce::int64 t, int ch, int note)            { return add (t, juce::MidiMessage::noteOff (ch, note)); }
+        MidiScript& bend (juce::int64 t, int ch, int value14)            { return add (t, juce::MidiMessage::pitchWheel (ch, value14)); }
+        MidiScript& cc (juce::int64 t, int ch, int number, int value)    { return add (t, juce::MidiMessage::controllerEvent (ch, number, value)); }
+        MidiScript& channelPressure (juce::int64 t, int ch, int value)   { return add (t, juce::MidiMessage::channelPressureChange (ch, value)); }
+        MidiScript& polyAT (juce::int64 t, int ch, int note, int value)  { return add (t, juce::MidiMessage::aftertouchChange (ch, note, value)); }
+        MidiScript& mpeMember (juce::int64 t, int ch, int note, float vel)
+        {
+            jassert (ch >= 2 && ch <= 16);   // MPE lower zone member channels
+            return add (t, juce::MidiMessage::noteOn (ch, note, vel));
+        }
+        MidiScript& allNotesOff (juce::int64 t, int ch)                  { return add (t, juce::MidiMessage::allNotesOff (ch)); }
+
+        void finalise()
+        {
+            std::stable_sort (events.begin(), events.end(), [] (const MidiEv& a, const MidiEv& b) { return a.t < b.t; });
+            rewind();
+        }
+        void rewind() { cursor = 0; late = 0; }
+
+        /** The events with blockStart <= t < blockStart + n, at offset t - blockStart. */
+        void fill (juce::MidiBuffer& mb, juce::int64 blockStart, int n)
+        {
+            mb.clear();
+            while (cursor < events.size() && events[cursor].t < blockStart) { ++late; ++cursor; }
+            while (cursor < events.size() && events[cursor].t < blockStart + n)
+            {
+                mb.addEvent (events[cursor].m, static_cast<int> (events[cursor].t - blockStart));
+                ++cursor;
+            }
+        }
+    };
+
+    // ── Parameter helpers (the HOST side: notifying-host writes are harness only)
+    juce::RangedAudioParameter* param (juce::AudioProcessor& p, const juce::String& id)
+    {
+        for (auto* ap : p.getParameters())
+            if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (ap))
+                if (rp->getParameterID() == id) return rp;
+        return nullptr;
+    }
+
+    /** A normalised value n with T (F (n)) == n through the parameter's own
+        conversions, so the value a host writes is exactly what a reopen yields. */
+    float settledNorm (const juce::RangedAudioParameter& rp, float n)
+    {
+        for (int k = 0; k < 16; ++k)
+        {
+            const float nn = rp.convertTo0to1 (rp.convertFrom0to1 (n));
+            if (nn == n) break;
+            n = nn;
+        }
+        return n;
+    }
+
+    /** Engineering value written through the host-normalised path. */
+    void setParam (juce::AudioProcessor& p, const juce::String& id, float value)
+    {
+        if (auto* rp = param (p, id))
+            rp->setValueNotifyingHost (settledNorm (*rp, rp->convertTo0to1 (value)));
+    }
+
+    // Every parameter written with its default NORMALISED value, the way a host
+    // or pluginval writes it.
+    void setAllViaHostNormalised (juce::AudioProcessor& p)
+    {
+        for (auto* ap : p.getParameters())
+            if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (ap))
+                rp->setValueNotifyingHost (rp->getDefaultValue());
+    }
+
+    // Every parameter set to a seeded random normalised value through the host path.
+    void setAllRandomViaHost (juce::AudioProcessor& p, juce::Random& r)
+    {
+        for (auto* ap : p.getParameters())
+            if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (ap))
+                rp->setValueNotifyingHost (r.nextFloat());
+    }
+
+    std::vector<float> allValues (juce::AudioProcessor& p)
+    {
+        std::vector<float> v;
+        for (auto* ap : p.getParameters()) v.push_back (ap->getValue());
+        return v;
+    }
+
+    bool bitwiseEqual (const std::vector<float>& a, const std::vector<float>& b)
+    {
+        return a.size() == b.size() && (a.empty() || std::memcmp (a.data(), b.data(), sizeof (float) * a.size()) == 0);
+    }
+
+    juce::AudioProcessor::BusesLayout layout (const juce::AudioChannelSet& in, const juce::AudioChannelSet& out)
+    {
+        juce::AudioProcessor::BusesLayout l;
+        l.inputBuses.add (in);
+        l.outputBuses.add (out);
+        return l;
+    }
+
+    // ── State helpers ───────────────────────────────────────────────────────
+    juce::MemoryBlock stateOf (juce::AudioProcessor& p) { juce::MemoryBlock m; p.getStateInformation (m); return m; }
+    void load (juce::AudioProcessor& p, const juce::MemoryBlock& m) { p.setStateInformation (m.getData(), (int) m.getSize()); }
+    std::unique_ptr<juce::XmlElement> xmlOf (const juce::MemoryBlock& m) { return juce::AudioProcessor::getXmlFromBinary (m.getData(), (int) m.getSize()); }
+    juce::MemoryBlock blobOf (const juce::XmlElement& x) { juce::MemoryBlock m; juce::AudioProcessor::copyXmlToBinary (x, m); return m; }
+
+    int countChildren (const juce::XmlElement& x, const juce::String& tag)
+    {
+        int n = 0;
+        for (auto* c : x.getChildIterator()) n += c->hasTagName (tag) ? 1 : 0;
+        return n;
+    }
+
+    // ── R1 comparator: every sample of every channel is +0.0f bitwise and finite
+    bool bitwiseZeroAndFinite (const juce::AudioBuffer<float>& b, int n)
+    {
+        static const std::vector<float> zeros (8192, 0.0f);
+        if (n > (int) zeros.size()) return false;
+        for (int ch = 0; ch < b.getNumChannels(); ++ch)
+        {
+            const float* x = b.getReadPointer (ch);
+            if (std::memcmp (x, zeros.data(), sizeof (float) * (size_t) n) != 0) return false;
+            for (int i = 0; i < n; ++i)
+                if (! std::isfinite (x[i])) return false;
+        }
+        return true;
+    }
+}
+
+//==============================================================================
+static void paramRows()
+{
+    std::printf ("\n-- G. parameters vs spec golden (%s)\n", gGoldenDir.getFullPathName().toRawUTF8());
+    const auto golden = goldenParams();
+    auto p = make();
+    const auto& params = p->getParameters();
+
+    std::vector<juce::RangedAudioParameter*> ranged;
+    for (auto* ap : params) ranged.push_back (dynamic_cast<juce::RangedAudioParameter*> (ap));
+
+    // G1
+    const bool seq = golden.size() == 261 && params.size() == 261;
+    Tally t1;
+    for (size_t i = 0; seq && i < golden.size(); ++i)
+        t1.check (ranged[i] != nullptr && ranged[i]->getParameterID() == golden[i].id, golden[i].id);
+    row (seq && t1.bad == 0, "G1 261 params, ID order == params.tsv",
+         t1.detail (261) + "  (golden " + juce::String ((int) golden.size()) + ", plugin " + juce::String (params.size()) + ")");
+    if (! seq) return;
+
+    const auto& ids = Ids::allIdsInOrder();
+    Tally t1b;
+    for (int i = 0; i < 261; ++i) t1b.check (ids[i] == golden[(size_t) i].id, golden[(size_t) i].id);
+    row (ids.size() == 261 && t1b.bad == 0, "G1 allIdsInOrder() == params.tsv", t1b.detail (261));
+
+    // G2 / G3
+    int nf = 0, nc = 0, nb = 0;
+    Tally t2, t3, tn;
+    for (size_t i = 0; i < 261; ++i)
+    {
+        auto* rp = ranged[i];
+        const auto& g = golden[i];
+        const bool isF = dynamic_cast<juce::AudioParameterFloat*> (rp) != nullptr;
+        const bool isC = dynamic_cast<juce::AudioParameterChoice*> (rp) != nullptr;
+        const bool isB = dynamic_cast<juce::AudioParameterBool*> (rp) != nullptr;
+        nf += isF ? 1 : 0; nc += isC ? 1 : 0; nb += isB ? 1 : 0;
+        t2.check ((g.type == "Float" && isF) || (g.type == "Choice" && isC) || (g.type == "Bool" && isB), g.id + " type");
+        t3.check (rp->getVersionHint() == 1, g.id);
+        tn.check (rp->getName (256) == g.name, g.id + " '" + rp->getName (256) + "' != '" + g.name + "'");
+    }
+    row (t2.bad == 0, "G2 per-ID type", t2.detail (261));
+    row (nf == 176 && nc == 70 && nb == 15, "G2 totals 176 Float / 70 Choice / 15 Bool",
+         juce::String (nf) + " / " + juce::String (nc) + " / " + juce::String (nb));
+    row (t3.bad == 0, "G3 version hint 1", t3.detail (261));
+    row (tn.bad == 0, "G3 host names byte-equal to golden", tn.detail (261));
+
+    // G4 / G5 / G6
+    Tally t4r, t4c, t4k, t4i, t4n, t4d, t4e, t5, t6;
+    int floats = 0, choices = 0, bools = 0, nCentre = 0, nRaw = 0, nStep = 0, nNeg = 0, nOn = 0;
+    double worstEng = 0.0;
+    for (size_t i = 0; i < 261; ++i)
+    {
+        const auto& g = golden[i];
+        if (auto* f = dynamic_cast<juce::AudioParameterFloat*> (ranged[i]))
+        {
+            ++floats;
+            const auto& r = f->getNormalisableRange();
+            const bool isCentre = g.centre > 0.0;
+            const bool isRaw = ! isCentre && g.skew != 1.0;
+            const bool isStep = g.interval == 1.0;
+            const bool isNeg = g.lo < 0.0;
+
+            t4r.check (r.start == (float) g.lo && r.end == (float) g.hi && r.interval == (float) g.interval
+                       && (isCentre || r.skew == (float) g.skew) && ! r.symmetricSkew,
+                       g.id + " range (skew " + juce::String (r.skew, 5) + ", interval " + juce::String (r.interval) + ")");
+            if (isCentre)
+            {
+                ++nCentre;
+                juce::NormalisableRange<float> ref ((float) g.lo, (float) g.hi, (float) g.interval, 1.0f);
+                ref.setSkewForCentre ((float) g.centre);
+                t4c.check (r.skew == ref.skew && std::abs ((double) r.skew - g.skew) <= 1e-4,
+                           g.id + " skew " + juce::String (r.skew, 6) + " ref " + juce::String (ref.skew, 6));
+            }
+            if (isRaw)
+            {
+                ++nRaw;
+                t4k.check (r.skew == (float) g.skew, g.id + " skew " + juce::String (r.skew, 6));
+            }
+            if (isStep)
+            {
+                ++nStep;
+                t4i.check (r.interval == 1.0f && f->get() == (float) g.def, g.id + " get " + juce::String (f->get(), 6));
+            }
+            if (isNeg)
+            {
+                ++nNeg;
+                t4n.check (r.interval == 0.0f, g.id + " interval " + juce::String (r.interval));
+            }
+
+            const float normSpec = r.convertTo0to1 ((float) g.def);
+            t4d.check (ranged[i]->getDefaultValue() == normSpec, g.id + " default norm");
+            const double eng = f->convertFrom0to1 (ranged[i]->getDefaultValue());
+            const double span = juce::jmax (1.0, std::abs (g.hi - g.lo));
+            worstEng = juce::jmax (worstEng, std::abs (eng - g.def) / span);
+            t4e.check (std::abs (eng - g.def) <= 1e-6 * span && std::abs ((double) f->get() - g.def) <= 1e-6 * span,
+                       g.id + " default eng " + juce::String (eng, 7));
+        }
+        else if (auto* c = dynamic_cast<juce::AudioParameterChoice*> (ranged[i]))
+        {
+            ++choices;
+            t5.check (c->choices == g.choices && c->getIndex() == (int) g.def
+                      && ranged[i]->getDefaultValue() == c->convertTo0to1 ((float) g.def),
+                      g.id + " (" + juce::String (c->choices.size()) + " vs " + juce::String (g.choices.size()) + ")");
+        }
+        else if (auto* b = dynamic_cast<juce::AudioParameterBool*> (ranged[i]))
+        {
+            ++bools;
+            const bool on = g.def != 0.0;
+            nOn += b->get() ? 1 : 0;
+            t6.check (b->get() == on && (ranged[i]->getDefaultValue() > 0.5f) == on && on == (g.id == "s1_enable"), g.id);
+        }
+    }
+    row (t4r.bad == 0, "G4 float start / end / interval / skew == golden", t4r.detail (floats));
+    row (t4c.bad == 0 && nCentre == 19, "G4 setSkewForCentre rows (19): == reference, +-1e-4 of spec",
+         t4c.detail (nCentre) + "  rows " + juce::String (nCentre));
+    row (t4k.bad == 0 && nRaw == 14, "G4 raw-skew rows (14): skew exact", t4k.detail (nRaw) + "  rows " + juce::String (nRaw));
+    row (t4i.bad == 0 && nStep == 6, "G4 interval-1 rows (6): interval 1, get() == default exactly",
+         t4i.detail (nStep) + "  rows " + juce::String (nStep));
+    row (t4n.bad == 0 && nNeg == 43, "G4 negative-start rows (43): interval 0", t4n.detail (nNeg) + "  rows " + juce::String (nNeg));
+    row (t4d.bad == 0, "G4 float default normalised == convertTo0to1 (spec) exactly", t4d.detail (floats));
+    row (t4e.bad == 0, "G4 float default engineering (tol 1e-6 of span)", t4e.detail (floats) + "  worst " + juce::String (worstEng, 9));
+    row (t5.bad == 0 && choices == 70, "G5 70 choice lists: strings / order / default index", t5.detail (choices));
+    row (t6.bad == 0 && bools == 15 && nOn == 1, "G6 bools: s1_enable On, the other 14 Off", t6.detail (bools));
+
+    // ── D: modulation destination table ─────────────────────────────────────
+    std::printf ("\n-- D. modulation destination table\n");
+    const auto dg = readTsv ("mod-dests.tsv");
+    Tally d1, d2;
+    const bool sized = dg.size() == 126 && Ids::kModDests == 126;
+    for (int k = 0; sized && k < 126; ++k)
+        d1.check (juce::String (Ids::kModDestIds[k]) == dg[(size_t) k][1] && dg[(size_t) k][0].getIntValue() == k,
+                  juce::String (k) + " " + Ids::kModDestIds[k] + " vs " + dg[(size_t) k][1]);
+    row (sized && d1.bad == 0 && juce::String (Ids::kModDestIds[0]) == "None", "D1 kModDestIds == mod-dests.tsv (126, order)",
+         d1.detail (126) + "  (golden " + juce::String ((int) dg.size()) + ")");
+    for (int k = 1; k < Ids::kModDests; ++k)
+        d2.check (dynamic_cast<juce::AudioParameterFloat*> (param (*p, Ids::kModDestIds[k])) != nullptr, Ids::kModDestIds[k]);
+    row (d2.bad == 0, "D2 every destination != None is a registered Float", d2.detail (125));
+
+    Tally d3;
+    juce::StringArray expect;
+    for (auto& r : dg) expect.add (r[2]);
+    for (int m = 1; m <= Ids::kModSlots; ++m)
+    {
+        auto* c = dynamic_cast<juce::AudioParameterChoice*> (param (*p, Ids::mod (m, "dest")));
+        d3.check (c != nullptr && c->choices == expect, "mod" + juce::String (m) + "_dest");
+    }
+    row (d3.bad == 0 && expect.size() == 126 && expect[0] == "None" && Ids::modDestChoices() == expect,
+         "D3 16 modM_dest lists == None + golden host names", d3.detail (16));
+    row (Ids::kModDestTableVersion == 1, "D4 kModDestTableVersion == 1");
+
+    // D5: the literal == the formula b = 2 + 28 (N - 1), from the 28 per-stream suffixes.
+    {
+        static const char* const kStream28[] = {
+            "level", "pan", "position", "spray", "size", "size_rand", "density", "jitter", "pitch", "pitch_rand",
+            "reverse_prob", "window", "window_skew", "stereo_spread", "gain_rand", "filter_cutoff", "filter_rand",
+            "filter_res", "drive", "crush", "crush_prob", "ring_freq", "ring_rand", "ring_mix",
+            "scan_rate", "loop_start", "loop_end", "key_track" };
+        juce::StringArray formula { "None", "output_gain" };
+        bool bases = true;
+        for (int n = 1; n <= 4; ++n)
+        {
+            bases = bases && formula.size() == 2 + 28 * (n - 1);
+            for (const char* s : kStream28) formula.add (Ids::stream (n, s));
+        }
+        for (const char* s : { "feedback", "fb_low_cut", "fb_high_cut", "fb_saturation", "fb_diffusion",
+                               "reverb_mix", "reverb_size", "reverb_damp" })
+            formula.add (s);
+        for (int n = 1; n <= 4; ++n) formula.add (Ids::lfo (n, "rate"));
+        Tally d5;
+        for (int k = 0; k < juce::jmin (126, formula.size()); ++k)
+            d5.check (formula[k] == Ids::kModDestIds[k], juce::String (k) + " " + formula[k] + " vs " + Ids::kModDestIds[k]);
+        row (bases && formula.size() == 126 && d5.bad == 0, "D5 kModDestIds == formula b = 2 + 28 (N - 1)", d5.detail (126));
+    }
+
+    // ── SRC1: modulation sources ────────────────────────────────────────────
+    std::printf ("\n-- SRC. modulation sources\n");
+    {
+        const auto sg = readTsv ("mod-sources.tsv");
+        juce::StringArray names;
+        for (auto& r : sg) names.add (r[1]);
+        Tally s1, s2;
+        const bool srcSized = sg.size() == 18;
+        for (int k = 0; srcSized && k < 18; ++k)
+            s1.check (sg[(size_t) k][0].getIntValue() == k
+                      && juce::String (Ids::kModSources[k].name) == sg[(size_t) k][1]
+                      && juce::String (Ids::sourceClassToken (Ids::kModSources[k].cls)) == sg[(size_t) k][2],
+                      juce::String (k) + " " + Ids::kModSources[k].name);
+        for (int m = 1; m <= Ids::kModSlots; ++m)
+        {
+            auto* c = dynamic_cast<juce::AudioParameterChoice*> (param (*p, Ids::mod (m, "source")));
+            s2.check (c != nullptr && c->choices == names, "mod" + juce::String (m) + "_source");
+        }
+        row (srcSized && s1.bad == 0 && s2.bad == 0 && Ids::modSources() == names,
+             "SRC1 16 modM_source lists + kModSources (class) == mod-sources.tsv (18)",
+             s1.detail (18) + "; slots " + s2.detail (16) + "  (golden " + juce::String ((int) sg.size()) + ")");
+    }
+}
+
+//==============================================================================
+static void busRows()
+{
+    std::printf ("\n-- B. buses, MIDI, latency\n");
+    using CS = juce::AudioChannelSet;
+    auto p = make();
+
+    const auto* inBus = p->getBus (true, 0);
+    const auto* outBus = p->getBus (false, 0);
+    const bool defaults = p->getBusCount (true) == 1 && p->getBusCount (false) == 1
+                       && inBus != nullptr && outBus != nullptr
+                       && inBus->getName() == "Sidechain" && inBus->getCurrentLayout() == CS::stereo()
+                       && inBus->isEnabled() && inBus->isEnabledByDefault()
+                       && outBus->getName() == "Output" && outBus->getCurrentLayout() == CS::stereo() && outBus->isEnabled();
+    row (defaults, "B1 default buses: input 'Sidechain' stereo enabled; output 'Output' stereo");
+
+    const bool acc = p->checkBusesLayoutSupported (layout (CS::disabled(), CS::stereo()))
+                  && p->checkBusesLayoutSupported (layout (CS::mono(), CS::stereo()))
+                  && p->checkBusesLayoutSupported (layout (CS::stereo(), CS::stereo()));
+    row (acc, "B1 accepts input {disabled, mono, stereo} x output stereo");
+
+    const bool rej = ! p->checkBusesLayoutSupported (layout (CS::stereo(), CS::mono()))
+                  && ! p->checkBusesLayoutSupported (layout (CS::stereo(), CS::disabled()))
+                  && ! p->checkBusesLayoutSupported (layout (CS::stereo(), CS::create5point1()))
+                  && ! p->checkBusesLayoutSupported (layout (CS::create5point1(), CS::stereo()))
+                  && ! p->checkBusesLayoutSupported (layout (CS::createLCR(), CS::stereo()));
+    row (rej, "B1 rejects output mono / disabled / 5.1, input 5.1 / LCR");
+
+    {
+        struct L { const char* name; CS in; int expect; };
+        const L cases[] = { { "stereo", CS::stereo(), 2 }, { "mono", CS::mono(), 1 }, { "disabled", CS::disabled(), 0 } };
+        Tally tc;
+        for (const auto& c : cases)
+        {
+            auto q = make();
+            const bool ok = q->setBusesLayout (layout (c.in, CS::stereo()));
+            q->prepareToPlay (48000.0, 512);
+            tc.check (ok && q->getSidechainChannelCount() == c.expect,
+                      juce::String (c.name) + " -> " + juce::String (q->getSidechainChannelCount()));
+        }
+        row (tc.bad == 0, "B1 getSidechainChannelCount() after layout + prepare = 2 / 1 / 0", tc.detail (3));
+    }
+
+    row (p->acceptsMidi() && ! p->producesMidi() && ! p->isMidiEffect(),
+         "B1 acceptsMidi true, producesMidi false, isMidiEffect false");
+
+    // B3
+    {
+        Tally tl;
+        for (double sr : { 44100.0, 96000.0 })
+        {
+            auto q = make();
+            q->prepareToPlay (sr, 512);
+            tl.check (q->getLatencySamples() == 0, juce::String (sr) + " latency " + juce::String (q->getLatencySamples()));
+            tl.check (q->getTailLengthSeconds() == 0.0, juce::String (sr) + " tail");
+        }
+        row (tl.bad == 0, "B3 latency 0 after prepare (44.1 k, 96 k); tail 0", tl.detail (4));
+    }
+}
+
+//==============================================================================
+static void midiRows()
+{
+    std::printf ("\n-- M. MIDI script self-test\n");
+    const juce::int64 times[] = { 0, 511, 512, 513, 4095, 4096 };
+    constexpr int kEvents = 6;
+    const int blocks[] = { 1, 441, 512, 0 /* seeded variable */ };
+
+    for (int b : blocks)
+    {
+        MidiScript s;
+        for (int k = kEvents; --k >= 0;)   // added out of order: finalise() sorts
+            s.add (times[k], juce::MidiMessage::noteOn (1, 60 + k, 0.5f));
+        s.finalise();
+
+        std::vector<int> count ((size_t) kEvents, 0);
+        bool ok = true;
+        juce::MidiBuffer mb;
+        mb.ensureSize (1024);
+        juce::Random vr ((juce::int64) 0x4D310001);
+        const juce::int64 total = 4096 + 700;
+        juce::int64 pos = 0;
+        while (pos < total)
+        {
+            const int n = (int) juce::jmin ((juce::int64) (b == 0 ? 1 + vr.nextInt (512) : b), total - pos);
+            s.fill (mb, pos, n);
+            for (const auto meta : mb)
+            {
+                const int k = meta.getMessage().getNoteNumber() - 60;
+                if (k < 0 || k >= kEvents) { ok = false; continue; }
+                ++count[(size_t) k];
+                ok = ok && meta.samplePosition >= 0 && meta.samplePosition < n && pos + meta.samplePosition == times[k];
+            }
+            pos += n;
+        }
+        bool once = true;
+        for (int c : count) once = once && c == 1;
+        row (ok && once && s.late == 0,
+             "M1 events at 0/511/512/513/4095/4096 once, right block + offset, block "
+                 + (b == 0 ? juce::String ("var") : juce::String (b)),
+             "late " + juce::String (s.late));
+    }
+}
+
+//==============================================================================
+static MidiScript makeR1Script()
+{
+    MidiScript s;
+    s.chord (0, 1, { 48, 52, 55, 60 }, 0.8f);
+    int note = 64;
+    for (juce::int64 edge : { (juce::int64) 32, (juce::int64) 441, (juce::int64) 512, (juce::int64) 4096 })
+        for (juce::int64 d = -1; d <= 1; ++d)
+            s.add (edge + d, juce::MidiMessage::noteOn (1, note++, 0.6f));
+    s.bend (1000, 1, 12000).bend (2000, 1, 8192);
+    s.cc (3000, 1, 74, 90).cc (5000, 1, 64, 127).cc (6000, 1, 1, 64);
+    s.channelPressure (7000, 1, 100).polyAT (7500, 1, 60, 80);
+    // MPE lower zone member notes (mpe_enable On) with per-note expression.
+    s.mpeMember (8000, 2, 67, 0.7f).mpeMember (8001, 3, 71, 0.7f).mpeMember (8002, 16, 74, 0.7f);
+    s.bend (9000, 2, 10000).channelPressure (9500, 3, 90).cc (10000, 16, 74, 100);
+    s.cc (20000, 1, 64, 0);
+    for (int k : { 48, 52, 55, 60 }) s.noteOff (30000, 1, k);
+    for (int k = 64; k < note; ++k) s.noteOff (30001, 1, k);
+    s.noteOff (31000, 2, 67).noteOff (31000, 3, 71).noteOff (31000, 16, 74);
+    s.allNotesOff (40000, 1);
+    s.finalise();
+    return s;
+}
+
+static void renderRows()
+{
+    std::printf ("\n-- R. sidechain-only render -> output bitwise zero\n");
+    using CS = juce::AudioChannelSet;
+    constexpr double kSr = 48000.0;
+    constexpr int kLen = 48000;   // 1 s per case
+    constexpr int kMaxBlock = 4096;
+
+    // Stimulus: seeded noise at 0.7 + a full-scale 997 Hz sine on every channel.
+    juce::AudioBuffer<float> stim (2, kLen);
+    for (int ch = 0; ch < 2; ++ch)
+    {
+        juce::Random r ((juce::int64) 0x5C000001 + ch);
+        for (int i = 0; i < kLen; ++i)
+        {
+            const double sine = std::sin (2.0 * juce::MathConstants<double>::pi * 997.0 * (double) i / kSr);
+            stim.setSample (ch, i, (r.nextFloat() * 2.0f - 1.0f) * 0.7f + (float) sine);
+        }
+    }
+
+    auto script = makeR1Script();
+
+    // R1n part 1: the comparator itself (positive + negative controls).
+    bool comparatorOk = true;
+    {
+        juce::AudioBuffer<float> z (2, 64);
+        z.clear();
+        for (int i = 0; i < 64; ++i) { z.setSample (0, i, 0.0f); z.setSample (1, i, 0.0f); }
+        comparatorOk = comparatorOk && bitwiseZeroAndFinite (z, 64);            // +0.0f passes
+        z.setSample (1, 63, -0.0f);
+        comparatorOk = comparatorOk && ! bitwiseZeroAndFinite (z, 64);          // -0.0f fails
+    }
+
+    struct L { const char* name; CS in; int scCh; };
+    const L layouts[] = { { "stereo SC -> stereo", CS::stereo(), 2 },
+                          { "mono SC -> stereo", CS::mono(), 1 },
+                          { "SC disabled -> stereo (control)", CS::disabled(), 0 } };
+    const int blocks[] = { 1, 32, 441, 512, 4096, 0 /* seeded variable */ };
+
+    int caseIndex = 0;
+    bool unprocessedAlwaysFails = true;
+    for (const auto& lay : layouts)
+    {
+        Tally tv;
+        for (int playheadMode : { 0, 1 })
+            for (int paramMode : { 0, 1 })
+            {
+                Tally tb;
+                for (int b : blocks)
+                {
+                    ++caseIndex;
+                    MockPlayHead ph;
+                    ph.sampleRate = kSr;
+                    auto q = make();
+                    if (playheadMode == 1) q->setPlayHead (&ph);
+                    const bool okLayout = q->setBusesLayout (layout (lay.in, CS::stereo()));
+                    if (paramMode == 0)
+                        setAllViaHostNormalised (*q);
+                    else
+                    {
+                        juce::Random pr ((juce::int64) 0xA1100000 + caseIndex);
+                        setAllRandomViaHost (*q, pr);
+                    }
+                    setParam (*q, "mpe_enable", 1.0f);   // the script carries MPE member notes
+                    q->prepareToPlay (kSr, b == 0 ? 512 : b);
+                    const bool okCount = q->getSidechainChannelCount() == lay.scCh;
+
+                    juce::AudioBuffer<float> blk (2, kMaxBlock);
+                    juce::MidiBuffer mb;
+                    mb.ensureSize (4096);
+                    script.rewind();
+                    juce::Random vr ((juce::int64) 0xB10C0000 + caseIndex);
+                    double sumSq[2] = { 0.0, 0.0 };
+                    bool zeroOk = true, stimOk = true;
+                    int pos = 0;
+                    while (pos < kLen)
+                    {
+                        const int n = juce::jmin (b == 0 ? 1 + vr.nextInt (512) : b, kLen - pos);
+                        blk.setSize (2, n, false, false, true);
+                        for (int ch = 0; ch < 2; ++ch)
+                        {
+                            if (lay.scCh == 1 && ch == 1)
+                                for (int i = 0; i < n; ++i) blk.setSample (ch, i, 12345.0f);   // host garbage past a mono SC
+                            else
+                                blk.copyFrom (ch, 0, stim, ch, pos, n);
+                        }
+
+                        // R1v: the stimulus is really in the buffer handed to processBlock.
+                        stimOk = stimOk && ! blk.hasBeenCleared();
+                        for (int ch = 0; ch < 2; ++ch)
+                        {
+                            const float* x = blk.getReadPointer (ch);
+                            for (int i = 0; i < n; ++i) sumSq[ch] += (double) x[i] * (double) x[i];
+                        }
+                        // R1n part 2: the comparator FAILS on the unprocessed copy.
+                        if (pos == 0)
+                            unprocessedAlwaysFails = unprocessedAlwaysFails && ! bitwiseZeroAndFinite (blk, n);
+
+                        script.fill (mb, pos, n);
+                        q->processBlock (blk, mb);
+                        ph.advance (n);
+                        zeroOk = zeroOk && bitwiseZeroAndFinite (blk, n);
+                        pos += n;
+                    }
+                    for (int ch = 0; ch < 2; ++ch)
+                    {
+                        const double rmsDb = 10.0 * std::log10 (juce::jmax (1e-30, sumSq[ch] / kLen));
+                        tv.check (stimOk && rmsDb > -20.0, juce::String ("ch ") + juce::String (ch) + " " + juce::String (rmsDb, 1) + " dBFS");
+                    }
+                    tb.check (okLayout && okCount && zeroOk && script.late == 0,
+                              "block " + (b == 0 ? juce::String ("var") : juce::String (b))
+                                  + (okLayout ? "" : " layout refused") + (okCount ? "" : " SC count")
+                                  + (zeroOk ? "" : " non-zero output"));
+                    q->setPlayHead (nullptr);
+                }
+                row (tb.bad == 0,
+                     juce::String ("R1 ") + lay.name + (playheadMode ? " +playhead" : " no playhead")
+                         + (paramMode ? " random params" : " defaults"),
+                     tb.detail ((int) std::size (blocks)));
+            }
+        row (tv.bad == 0, juce::String ("R1v input RMS > -20 dBFS on every channel, not flagged clear: ") + lay.name,
+             tv.detail (2 * 2 * 2 * (int) std::size (blocks)));
+    }
+    row (comparatorOk && unprocessedAlwaysFails, "R1n comparator: +0 passes, -0.0f fails, unprocessed copy fails");
+}
+
+//==============================================================================
+static void stateRows()
+{
+    std::printf ("\n-- S. state codec\n");
+
+    // S1a: seed > INT32_MAX (catches an int32 truncation), one non-default per class.
+    {
+        constexpr uint64_t kSeed = 0x0000000080000001ull;
+        auto a = make();
+        a->setSeed (kSeed);
+        a->uiLanguage = 2;
+        setParam (*a, "polyphony", 12.0f);
+        setParam (*a, "amp_release", 3000.0f);
+        setParam (*a, "glide", 250.0f);
+        setParam (*a, "mod16_dest", 125.0f);
+        setParam (*a, "s4_enable", 1.0f);
+        setParam (*a, "mod1_depth", -37.0f);
+        auto* poly = dynamic_cast<juce::AudioParameterFloat*> (param (*a, "polyphony"));
+        auto* dest = dynamic_cast<juce::AudioParameterChoice*> (param (*a, "mod16_dest"));
+        auto* s4 = dynamic_cast<juce::AudioParameterBool*> (param (*a, "s4_enable"));
+        const bool applied = poly != nullptr && poly->get() == 12.0f && dest != nullptr && dest->getIndex() == 125
+                          && s4 != nullptr && s4->get();
+        const auto before = allValues (*a);
+        auto b = make();
+        load (*b, stateOf (*a));
+        const auto after = allValues (*b);
+        int diff = 0;
+        for (size_t i = 0; i < juce::jmin (before.size(), after.size()); ++i)
+            diff += std::memcmp (&before[i], &after[i], sizeof (float)) != 0 ? 1 : 0;
+        row (applied && b->getSeed() == kSeed && bitwiseEqual (before, after) && before.size() == 261 && b->uiLanguage.load() == 2,
+             "S1a round trip: seed 0x80000001, 261 values bitwise, uiLanguage 2",
+             juce::String (diff) + " value(s) differ; seed " + juce::String::toHexString ((juce::int64) b->getSeed()));
+    }
+
+    // S1b: seed > 2^63 -> the XML attribute is the negative int64 string.
+    {
+        constexpr uint64_t kSeed = 0xF00DFACECAFEBEEFull;
+        auto a = make();
+        a->setSeed (kSeed);
+        const auto blob = stateOf (*a);
+        const auto x = xmlOf (blob);
+        auto* eng = x != nullptr ? x->getChildByName ("Engine") : nullptr;
+        const auto attr = eng != nullptr ? eng->getStringAttribute ("seed") : juce::String();
+        auto b = make();
+        load (*b, blob);
+        row (attr == juce::String ((juce::int64) kSeed) && attr.startsWith ("-") && b->getSeed() == kSeed,
+             "S1b seed 0xF00DFACECAFEBEEF: negative int64 string, reads back equal", attr);
+    }
+
+    // S2: XML shape.
+    {
+        auto a = make();
+        a->uiLanguage = 2;
+        const auto x = xmlOf (stateOf (*a));
+        bool ok = x != nullptr && x->hasTagName ("OGranulatorInstrument");
+        juce::String detail;
+        if (ok)
+        {
+            auto* eng = x->getChildByName ("Engine");
+            auto* slots = x->getChildByName ("Slots");
+            ok = countChildren (*x, "Engine") == 1 && countChildren (*x, "Slots") == 1
+              && eng != nullptr && slots != nullptr
+              && eng->getStringAttribute ("stateVersion") == "1" && eng->getStringAttribute ("modDestTableVersion") == "1"
+              && slots->getNumChildElements() == 0
+              && ! eng->hasAttribute ("id") && ! slots->hasAttribute ("id")
+              && x->getStringAttribute ("uiLanguage") == "zh-Hans"
+              && countChildren (*x, "PARAM") == 261;
+            detail = "Engine " + juce::String (countChildren (*x, "Engine")) + ", Slots " + juce::String (countChildren (*x, "Slots"))
+                   + ", PARAM " + juce::String (countChildren (*x, "PARAM")) + ", uiLanguage " + x->getStringAttribute ("uiLanguage");
+        }
+        row (ok, "S2 XML: one <Engine v1/v1>, one empty <Slots>, no id, uiLanguage zh-Hans, 261 PARAM", detail);
+    }
+
+    // S3: A -> B -> change -> C (two reopens into the same instance).
+    {
+        constexpr uint64_t kSeedA = 0x1111222233334444ull, kSeedB = 0x9999AAAABBBBCCCCull;
+        auto a = make();
+        a->setSeed (kSeedA);
+        setParam (*a, "s3_pitch", 7.5f);
+        auto b = make();
+        load (*b, stateOf (*a));
+        setParam (*b, "s3_pitch", -3.25f);
+        b->setSeed (kSeedB);
+        b->uiLanguage = 1;
+        const auto blob2 = stateOf (*b);
+        auto c = make();
+        load (*c, stateOf (*a));
+        load (*c, blob2);
+        load (*c, blob2);
+        const auto x = xmlOf (stateOf (*c));
+        const bool shape = x != nullptr && countChildren (*x, "Engine") == 1 && countChildren (*x, "Slots") == 1
+                        && countChildren (*x, "PARAM") == 261;
+        const bool liveClean = ! c->parameters.state.getChildWithName ("Engine").isValid()
+                            && ! c->parameters.state.getChildWithName ("Slots").isValid();
+        auto* pb = param (*b, "s3_pitch");
+        auto* pc = param (*c, "s3_pitch");
+        const bool follows = pb != nullptr && pc != nullptr && pb->getValue() == pc->getValue()
+                          && std::abs (pc->convertFrom0to1 (pc->getValue()) + 3.25f) < 1e-4f
+                          && c->getSeed() == kSeedB && c->uiLanguage.load() == 1 && bitwiseEqual (allValues (*b), allValues (*c));
+        row (shape && liveClean && follows, "S3 A -> B -> change -> C: one of each child, values follow the change",
+             juce::String (shape ? "" : "shape ") + (liveClean ? "" : "live tree carries custom children ") + (follows ? "" : "values"));
+    }
+
+    // S4: no <Engine> / uiLanguage -> seed and language unchanged; uiLanguage "1" -> fr.
+    {
+        auto a = make();
+        a->setSeed (0x7777ull);
+        a->uiLanguage = 2;
+        auto x = xmlOf (stateOf (*a));
+        x->removeChildElement (x->getChildByName ("Engine"), true);
+        x->removeAttribute ("uiLanguage");
+        auto b = make();
+        b->setSeed (0x1234ull);
+        b->uiLanguage = 1;
+        load (*b, blobOf (*x));
+        const bool kept = b->getSeed() == 0x1234ull && b->uiLanguage.load() == 1;
+
+        x->setAttribute ("uiLanguage", "1");
+        auto c = make();
+        load (*c, blobOf (*x));
+        row (kept && c->uiLanguage.load() == 1 && c->getSeed() != 0x7777ull,
+             "S4 absent <Engine> / uiLanguage: seed + language kept; uiLanguage \"1\" -> fr");
+    }
+
+    // S5: a wrong root tag changes nothing; a garbage seed leaves the seed unchanged.
+    {
+        auto a = make();
+        a->setSeed (0xABCDull);
+        a->uiLanguage = 2;
+        setParam (*a, "polyphony", 3.0f);
+        setParam (*a, "output_gain", -12.0f);
+        auto x = xmlOf (stateOf (*a));
+        x->setTagName ("NotThisPlugin");
+
+        auto b = make();
+        b->setSeed (0x5555ull);
+        b->uiLanguage = 1;
+        setParam (*b, "glide", 100.0f);
+        const auto before = allValues (*b);
+        load (*b, blobOf (*x));
+        const bool rootOk = b->getSeed() == 0x5555ull && b->uiLanguage.load() == 1 && bitwiseEqual (before, allValues (*b));
+
+        bool seedOk = true;
+        for (const char* bad : { "12ab", "" })
+        {
+            auto y = xmlOf (stateOf (*a));
+            y->getChildByName ("Engine")->setAttribute ("seed", bad);
+            auto c = make();
+            c->setSeed (0x6666ull);
+            load (*c, blobOf (*y));
+            seedOk = seedOk && c->getSeed() == 0x6666ull;
+        }
+        row (rootOk && seedOk, "S5 wrong root tag: params / seed / language unchanged; seed \"12ab\" / \"\" ignored",
+             juce::String (rootOk ? "" : "root ") + (seedOk ? "" : "seed"));
+    }
+}
+
+//==============================================================================
+static void hookRows()
+{
+    std::printf ("\n-- H. test hooks, VST3 extensions\n");
+    {
+        constexpr uint64_t kSeed = 0xDEADBEEF00C0FFEEull;
+        auto q = make();
+        q->setSeed (kSeed);
+        q->prepareToPlay (48000.0, 512);
+        juce::String e1, e2;
+        const bool r1 = q->loadSlotSync (0, juce::File(), e1);
+        juce::AudioBuffer<float> pcm (2, 16);
+        pcm.clear();
+        const bool r2 = q->loadSlotSync (0, pcm, 48000.0, "stub", e2);
+        row (q->getSeed() == kSeed && ! r1 && ! r2 && e1.isNotEmpty() && e2.isNotEmpty(),
+             "H1 setSeed before prepare survives; both loadSlotSync stubs return false + error", e1);
+    }
+    {
+        auto q = make();
+        auto* ext = q->getVST3ClientExtensions();
+        row (ext != nullptr && ! ext->getPluginHasMainInput(), "H2 VST3 extensions present, getPluginHasMainInput() false (kAux)");
+    }
+}
+
+//==============================================================================
+int main (int argc, char** argv)
+{
+    juce::ScopedJuceInitialiser_GUI init;
+
+    for (int a = 1; a < argc; ++a)
+    {
+        if (std::strcmp (argv[a], "--golden-dir") == 0 && a + 1 < argc)
+            gGoldenDir = juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a]));
+        else
+        {
+            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>]\n", argv[a], argv[0]);
+            return 255;
+        }
+    }
+
+    std::printf ("O-GranulatorInstrument render harness (Stage 1)\n");
+    paramRows();
+    busRows();
+    midiRows();
+    renderRows();
+    stateRows();
+    hookRows();
+
+    std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
+    return juce::jmin (failures, 255);
+}
