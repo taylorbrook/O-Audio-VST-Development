@@ -35,7 +35,7 @@ lastUpdated: 2026-11-07
 |----|-------------|----------|--------|-------------|
 | DSP-01 | Grain engine parity with O-Granulator streams (size, density, jitter, spray, window morph, reverse, stereo spread, gain rand) on file sources | must | complete | stage-2 |
 | DSP-02 | Per-voice amp ADSR with velocity sensitivity; grains continue during release | must | partial | stage-2 |
-| DSP-03 | Per-grain FX (SVF filter, drive, crush, ring) inherited | must | pending | stage-2 |
+| DSP-03 | Per-grain FX (SVF filter, drive, crush, ring) inherited | must | partial | stage-2 |
 | DSP-04 | Feedback into per-stream working copies, with Freeze and Reset; voice-count-aware runaway guard | must | pending | stage-2 |
 | DSP-05 | Output reverb/diffuser inherited | should | pending | stage-2 |
 | DSP-06 | Mod matrix (16 slots): LFOs (global/per-voice), 2 mod ADSRs, velocity, key, note-random, mod wheel, aftertouch, MPE pressure/slide/bend, 4 macros | must | pending | stage-2 |
@@ -102,7 +102,7 @@ lastUpdated: 2026-11-07
 - [ ] ADSR stages are audible and click-free; velocity scales level per velToAmp
 
 ### DSP-03: Per-grain FX
-- [ ] Each FX audibly applies per grain; no per-grain allocation
+- [ ] Each FX audibly applies per grain; no per-grain allocation (2.3 verify: automated arm green — FV2–4, PS5–7, PF nulls, FA3, FB1–4, FZ1–2; "audibly" = HANDS-ON-2.3 rows 1–7, deferred post-Stage-3)
 
 ### DSP-04: Feedback
 - [ ] Feedback 100 % with 16 voices never exceeds the limiter ceiling or produces NaN
