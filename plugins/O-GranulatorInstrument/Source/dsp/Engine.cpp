@@ -85,6 +85,7 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     absPos = 0;
     serialCounter = 0;
     bend = 0.0f;
+    tracker.prepare (fs);   // 2.5a: virtual 120 bpm until the first host block
 
     pool.prepare (fs, kPoolFadeMs);
     spawner.prepare (fs, kKillFadeMs);
@@ -117,6 +118,48 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     outGainRamp.reset (dbToGain (gp.outputGainDb));
     setStreamRamps (true);
 
+    // 2.5a sources (mirrors 82406fce Engine.cpp:90-101, P4): LFO phases ramp
+    // from the latched phase, accumulators at 0, macros snapped (no fade at
+    // load), the matrix slots snapped to the latched routes.
+    rampCellsMod = rampCellsFor (fs, kModRampMs);
+    for (int n = 0; n < kGiLfos; ++n)
+    {
+        lfos[n].prepare (fs, rampCellsMod, gp.lfo[n].phaseDeg);
+        lfoRateHz[n]  = static_cast<double> (gp.lfo[n].rateHz);
+        lfoRateOff[n] = 0.0f;
+        lfoXf[n].reset (gp.lfoMode[n] != 0 ? 1.0f : 0.0f);
+    }
+    for (int n = 0; n < kGiMacros; ++n)
+        macroRamp[n].reset (gp.macro[n]);
+    std::fill (std::begin (srcG), std::end (srcG), 0.0f);
+    wheelMsb = wheelLsb = 0;
+    chanPressure = 0.0f;
+    chanSlide = 0.0f;
+    for (auto& m : vm)
+        m.clear();
+    matrix.prepare (rampCellsMod, gp);
+    std::fill (std::begin (rawBase), std::end (rawBase), 0.0f);
+    for (int s = 0; s < kGiStreams; ++s)
+    {
+        streamRoutedG[s] = false;
+        levelNow[s] = levelRamp[s].current();   levelMod[s].reset (levelNow[s]);   useLevelMod[s] = false;
+        panValRamp[s].reset (gp.s[s].pan);
+        panLNow[s] = panLRamp[s].current();     panLMod[s].reset (panLNow[s]);
+        panRNow[s] = panRRamp[s].current();     panRMod[s].reset (panRNow[s]);
+        usePanMod[s] = false;
+    }
+    outGainNow = outGainRamp.current();  outGainMod.reset (outGainNow);  useOutMod = false;
+    for (auto& x : pairMix) x = false;
+    numPairsRouted = numPairsRoutedPrev = 0;
+    // PD8: the held mono values start at 0; the first note ramps from 0.
+    std::fill (std::begin (monoFrom), std::end (monoFrom), 0.0f);
+    std::fill (std::begin (monoVal), std::end (monoVal), 0.0f);
+    newestW.reset (1.0f);
+    newestSer = 0;
+    for (auto& a : destTel) a.store (0.0f, std::memory_order_relaxed);
+    for (auto& a : srcTel) a.store (0.0f, std::memory_order_relaxed);
+    for (auto& a : lfoPhaseTel) a.store (0.0f, std::memory_order_relaxed);
+
     // PLAN-2.4 PD11: reverb (allocates: host thread), atomics from the params.
     writeReverbAtomics();
     reverb.prepare (fs, kCell);
@@ -145,6 +188,9 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     // PLAN-2.4 PD4 / PD5: heads parked at their region start (a saved freeze On
     // stays parked: run starts at 0), λ ramp snapped to the feedback param.
     fbRamp.reset (gp.feedback);
+    fbNow = fbRamp.current();   fbMod.reset (fbNow);     useFbMod = false;
+    diffNow = diffRamp.current(); diffMod.reset (diffNow); useDiffMod = false;
+    satDNow = satDRamp.current(); satDMod.reset (satDNow); useSatMod = false;
     prevFreeze = gp.freeze;
     pkRel = static_cast<float> (std::exp (-static_cast<double> (kCell) / (0.05 * fs)));
     for (int s = 0; s < kTapeSlots; ++s)
@@ -217,11 +263,10 @@ AmpParams Engine::ampParams() const noexcept
     return p;
 }
 
-double Engine::voiceSemis (const Voice& v, int s) const noexcept
+double Engine::voiceSemis (const Voice& v, const GiGridParams::Stream& sp) const noexcept
 {
     // ARCHITECTURE Algorithm §2: st = κ·(note + bend − root − fine/100) + pitch
     // (before the random term and the ±48 clamp).
-    const auto& sp = gp.s[s];
     const double key = static_cast<double> (v.note) - static_cast<double> (sp.rootNote)
                      - static_cast<double> (sp.rootFineCt) / 100.0
                      + static_cast<double> (bend) * static_cast<double> (gp.pitchBendRangeSt);
@@ -229,10 +274,10 @@ double Engine::voiceSemis (const Voice& v, int s) const noexcept
     return st0;
 }
 
-double Engine::voiceRate (const Voice& v, const SlotTape& tape, int s) const noexcept
+double Engine::voiceRate (const Voice& v, const SlotTape& tape, const GiGridParams::Stream& sp) const noexcept
 {
     // st clamped to ±48; rate = 2^(st/12) · tapeRate / fs (double).
-    const double st0 = voiceSemis (v, s);
+    const double st0 = voiceSemis (v, sp);
     const double st  = std::clamp (st0, -kMaxSemis, kMaxSemis);
     return std::exp2 (st / 12.0) * tape.rate / fs;
 }
@@ -248,26 +293,25 @@ double Engine::rateForNote (int note, int s) const noexcept
     return voiceRate (v, *tp, s);
 }
 
-double Engine::uncappedPeriod (int s) const noexcept
+double Engine::uncappedPeriod (const GiGridParams::Stream& sp) const noexcept
 {
-    return thinnedPeriod (fs, static_cast<double> (gp.s[s].density), lMaxSamples (s), kQuotaUncapped);
+    return thinnedPeriod (fs, static_cast<double> (sp.density), lMaxSamples (sp), kQuotaUncapped);
 }
 
-double Engine::lMaxSamples (int s) const noexcept
+double Engine::lMaxSamples (const GiGridParams::Stream& sp) const noexcept
 {
-    const auto& sp = gp.s[s];
     const double ms = static_cast<double> (sp.sizeMs) * (1.0 + 0.5 * static_cast<double> (sp.sizeRand));
     return std::clamp (ms, kMinSizeMs, kMaxSizeMs) * 0.001 * fs;
 }
 
-double Engine::lenBarSamples (int s) const noexcept
+double Engine::lenBarSamples (const GiGridParams::Stream& sp) const noexcept
 {
-    return std::clamp (static_cast<double> (gp.s[s].sizeMs), kMinSizeMs, kMaxSizeMs) * 0.001 * fs;
+    return std::clamp (static_cast<double> (sp.sizeMs), kMinSizeMs, kMaxSizeMs) * 0.001 * fs;
 }
 
-double Engine::jitterOf (int s) const noexcept
+double Engine::jitterOf (const GiGridParams::Stream& sp) const noexcept
 {
-    double J = static_cast<double> (gp.s[s].jitter);
+    double J = static_cast<double> (sp.jitter);
    #if OGI_TEST_HOOKS
     J *= hooks.jitterScale;
    #endif
@@ -352,15 +396,15 @@ double Engine::pairCoherence (int k, int s) const noexcept
     if (hooks.coherenceOff)
         return 0.0;
    #endif
-    const auto& sp = gp.s[s];
+    const auto& sp = pairSp (k, s);
     const SlotTape* tp = current[(size_t) s];
     const Voice& v = voices[k];
     if (tp == nullptr || ! (tp->rate > 0.0) || v.isFree())
         return 0.0;
 
     // Span in OUTPUT samples (the parent's spanSamples): W tape frames / tapeRate · fs.
-    const double span = region[s].width() * fs / tp->rate;
-    const PitchSel& sel = scale.selection (s);
+    const double span = pairRegion (k, s).width() * fs / tp->rate;
+    const PitchSel& sel = pairSel (k, s);
     const bool scaleOn = sel.set != nullptr;
 
     // PD2 option (b): the "pitch" argument is the relative velocity
@@ -377,7 +421,7 @@ double Engine::pairCoherence (int k, int s) const noexcept
     }
     else
     {
-        const double r     = voiceRate (v, *tp, s);
+        const double r     = voiceRate (v, *tp, sp);
         const double vScan = static_cast<double> (sp.scanRate) * tp->rate / fs;
         if (vScan > 0.0 && r > 0.0)
             pitchArg = 12.0 * std::abs (std::log2 (r / vScan));
@@ -392,7 +436,7 @@ double Engine::pairCoherence (int k, int s) const noexcept
     GiRenderer::voiceLawGain expression, bitwise. */
 float Engine::pairLaw (int k, int s, double nEff) noexcept
 {
-    const auto& sp = gp.s[s];
+    const auto& sp = pairSp (k, s);
     const double c = pairCoherence (k, s);
     coher[k][s] = c;
    #if OGI_TEST_HOOKS
@@ -411,8 +455,7 @@ float Engine::pairLaw (int k, int s, double nEff) noexcept
     the pair's output law. Hook fbArchLaw: the ARCH §10 law (FL8 control). */
 float Engine::pairFbGain (int k, int s, double nEff) const noexcept
 {
-    juce::ignoreUnused (k);
-    const auto& sp = gp.s[s];
+    const auto& sp = pairSp (k, s);
     WindowSel win;
     win.step = WindowMorphBank::stepFor (sp.window);
     win.tilt = ouaricon::grain::WindowLut::makeTilt (0.5f + 0.45f * sp.windowSkew);
@@ -428,7 +471,10 @@ float Engine::pairFbGain (int k, int s, double nEff) const noexcept
     Engine.cpp:240-251 minus the matrix): tan only when a cutoff moved. */
 void Engine::updateChainCutoffs() noexcept
 {
-    const float lo = std::exp2 (fbLowLogRamp.current()), hi = std::exp2 (fbHighLogRamp.current());
+    float lo = std::exp2 (fbLowLogRamp.current()), hi = std::exp2 (fbHighLogRamp.current());
+    // PLAN-2.5a PD6 (parent :240-251): the routed cutoffs from the ramped raw Hz.
+    if (matrix.routed (GiDest::FbLowCut))  lo = matrix.apply (GiDest::FbLowCut,  lo, matrix.offset (GiDest::FbLowCut));
+    if (matrix.routed (GiDest::FbHighCut)) hi = matrix.apply (GiDest::FbHighCut, hi, matrix.offset (GiDest::FbHighCut));
     if (juce::exactlyEqual (lo, chainLowHz) && juce::exactlyEqual (hi, chainHighHz))
         return;
     chainLowHz = lo;
@@ -500,10 +546,13 @@ void Engine::writeVoiceHooks (int k) noexcept
 
 //==============================================================================
 void Engine::process (float* outL, float* outR, int numSamples, const juce::MidiBuffer& midi,
-                      std::uint64_t seedIn) noexcept
+                      std::uint64_t seedIn, const TransportSnapshot& transport) noexcept
 {
     if (numSamples <= 0 || outL == nullptr || outR == nullptr)
         return;
+
+    // PLAN-2.5a PD12: the host transport, once per host block (R39 held anchor).
+    tracker.update (transport, absPos);
 
     seed = seedIn;
     voiceGainNow = voiceGainLin;
@@ -554,6 +603,10 @@ void Engine::gridTick (std::int64_t t) noexcept
 {
     gp.latch (ptrs);
 
+    // PLAN-2.5a PD5 step 2: the modulation sources of this cell (sampled once).
+    tickSources (t);
+    matrixTick (t);
+
     for (int s = 0; s < kGiStreams; ++s)
     {
         jit[s] = jitterOf (s);
@@ -578,6 +631,21 @@ void Engine::gridTick (std::int64_t t) noexcept
     outGainRamp.tick();
     setStreamRamps (false);
 
+    // PLAN-2.5a PD6 (parent R47, 82406fce Engine.cpp:698-755): routed ramped
+    // G destinations are modulated AFTER the base ramp, in that ramp's domain.
+    {
+        using namespace GiDest;
+        const bool ro = matrix.routed (OutputGain);
+        const float go = ro ? dbToGain (matrix.apply (OutputGain, GiModMap::gainToRaw (outGainRamp.current()), matrix.offset (OutputGain)))
+                            : outGainRamp.current();
+        outGainMod.setCell (outGainNow, go);
+        outGainNow = go;
+        useOutMod = ro || matrix.routedPrev (OutputGain);
+        traceAt (OutputGain, go);
+    }
+    applyLevelPanMod();
+    updatePairMix();   // PLAN-2.5a PD7
+
     // PLAN-2.4 PD11 / P9: reverb atomics at the tick only (block-size invariant).
     writeReverbAtomics();
 
@@ -589,6 +657,21 @@ void Engine::gridTick (std::int64_t t) noexcept
     diffRamp.tick();
     satDRamp.setTarget (1.0f + kSatSpan * gp.fbSaturation, rampCells20);
     satDRamp.tick();
+    {
+        // PLAN-2.5a PD6 (parent :772-785): diffusion / saturation substitutes.
+        using namespace GiDest;
+        const bool rd = matrix.routed (FbDiff), rs = matrix.routed (FbSat);
+        const float df = rd ? GiModMap::pctFromRaw (matrix.apply (FbDiff, diffRamp.current() * 100.0f, matrix.offset (FbDiff)))
+                            : diffRamp.current();
+        const float sd = rs ? GiModMap::satDFromRaw (matrix.apply (FbSat, GiModMap::satDToRaw (satDRamp.current()), matrix.offset (FbSat)))
+                            : satDRamp.current();
+        diffMod.setCell (diffNow, df); diffNow = df;
+        satDMod.setCell (satDNow, sd); satDNow = sd;
+        useDiffMod = rd || matrix.routedPrev (FbDiff);
+        useSatMod  = rs || matrix.routedPrev (FbSat);
+        traceAt (FbDiff, df);
+        traceAt (FbSat, sd);
+    }
     fbLowLogRamp.setTarget (std::log2 (gp.fbLowCutHz), rampCells20);
     fbLowLogRamp.tick();
     fbHighLogRamp.setTarget (std::log2 (gp.fbHighCutHz), rampCells20);
@@ -893,7 +976,13 @@ void Engine::updateQuotas() noexcept
     double demand[kPairs];
     for (int k = 0; k < kVoiceSlots; ++k)
         for (int s = 0; s < kGiStreams; ++s)
-            demand[k * kGiStreams + s] = (canSpawn[s] && voices[k].isCounted()) ? n[s] : 0.0;
+        {
+            // PD6: a routed pair demands from its own view.
+            const double nk = pairRoutedK[k][s] ? streamDemand (static_cast<double> (view[k][s].density),
+                                                                 static_cast<double> (view[k][s].sizeMs), fs)
+                                                : n[s];
+            demand[k * kGiStreams + s] = (canSpawn[s] && voices[k].isCounted()) ? nk : 0.0;
+        }
 
     bool thinOff = false, periodOff = false;
    #if OGI_TEST_HOOKS
@@ -909,7 +998,8 @@ void Engine::updateQuotas() noexcept
                       || ! sameBits (lMax, prevLMax, sizeof (lMax)) || ! sameBits (density, prevDensity, sizeof (density))
                       || ! sameBits (jit, prevJitter, sizeof (jit))
                       || ! sameBits (demand, prevDemand, sizeof (demand))
-                      || ! sameBits (lawKey, prevLawKey, sizeof (lawKey));
+                      || ! sameBits (lawKey, prevLawKey, sizeof (lawKey))
+                      || numPairsRouted > 0 || numPairsRoutedPrev > 0;   // PD5 / P8: routed pairs recompute every tick
     if (! changed)
     {
         // Inputs unchanged: hold every law gain (a CellLerp needs a push per tick).
@@ -931,6 +1021,9 @@ void Engine::updateQuotas() noexcept
     prevCap = gp.grainLimit;
     prevThinOff = thinMode;
     quotasDirty = false;
+   #if OGI_TEST_HOOKS
+    ++hooks.quotaRecomputes;
+   #endif
 
     double lenBar[kGiStreams];
     for (int s = 0; s < kGiStreams; ++s)
@@ -946,8 +1039,11 @@ void Engine::updateQuotas() noexcept
             if (! gp.s[s].enable)
                 m = kQuotaUncapped;
             quotaM[k][s] = m;
-            const double J = jit[s];
-            const double T = thinnedPeriod (fs, density[s], lMax[s], periodOff ? kQuotaUncapped : m, J);
+            const bool pr = pairRoutedK[k][s];
+            const double J = pr ? jitKS[k][s] : jit[s];
+            const double T = pr ? thinnedPeriod (fs, static_cast<double> (view[k][s].density), lMaxSamples (view[k][s]),
+                                                 periodOff ? kQuotaUncapped : m, J)
+                                : thinnedPeriod (fs, density[s], lMax[s], periodOff ? kQuotaUncapped : m, J);
             // R§1.3 / R§8: a quota DECREASE re-times the pending gap at once with
             // the jittered gap of the pending onset (a pure function of its index
             // and the grid snapshot: block-size invariant); an increase lets the
@@ -959,7 +1055,7 @@ void Engine::updateQuotas() noexcept
                 v.sched[s].rescheduleNext (gap);
             }
             periodT[k][s] = T;
-            const double nEff = effectiveCount (lenBar[s], T);
+            const double nEff = effectiveCount (pr ? lenBarSamples (view[k][s]) : lenBar[s], T);
             lawTarget[k][s] = pairLaw (k, s, nEff);
             lawGain[k][s].push (lawTarget[k][s]);
             gFbTarget[k][s] = pairFbGain (k, s, nEff);   // PLAN-2.4 PD8
@@ -977,10 +1073,640 @@ void Engine::updateScan (std::int64_t t) noexcept
         const double tapeRate = current[(size_t) s] != nullptr ? current[(size_t) s]->rate : 0.0;
         freeRun[s].reanchor (t, rateSec, scanPeriodSec (region[s], tapeRate, kScanFreeRun));
         const double voicePeriod = scanPeriodSec (region[s], tapeRate, sp.scanMode);
-        for (auto& v : voices)
-            if (! v.isFree())
+        for (int k = 0; k < kVoiceSlots; ++k)
+        {
+            auto& v = voices[k];
+            if (v.isFree())
+                continue;
+            if (pairRoutedK[k][s])   // PD6: the voice's own scan rate / read region
+                v.scan[s].reanchor (t, static_cast<double> (view[k][s].scanRate) / fs,
+                                    scanPeriodSec (pairRegion (k, s), tapeRate, sp.scanMode));
+            else
                 v.scan[s].reanchor (t, rateSec, voicePeriod);
+        }
     }
+}
+
+//==============================================================================
+// 2.5a sources (PLAN-2.5a T5, PD10 / PD11)
+ModEnvParams Engine::menvParams (int e) const noexcept
+{
+    const auto& g = gp.menv[std::clamp (e, 0, kGiModEnvs - 1)];
+    ModEnvParams p;
+    p.attackMs  = g.attackMs;
+    p.decayMs   = g.decayMs;
+    p.sustain   = g.sustain;
+    p.releaseMs = g.releaseMs;
+    return p;
+}
+
+/** PD9: per-voice LFO N ticks while its mode is Per-voice or the 20 ms
+    crossfade has not returned to exactly 0. */
+bool Engine::lfoPerVoiceActive (int n) const noexcept
+{
+    return gp.lfoMode[n] != 0 || ! lfoXf[n].settledAt (0.0f);
+}
+
+/** PD10: the per-voice S&H / smooth-random seed, keyed on the note serial
+    (hook slotKeyedSeed: on the voice SLOT — the VL2 control). */
+std::uint64_t Engine::voiceLfoSeed (std::uint64_t key) const noexcept
+{
+    return mix64 (seed ^ kVoiceLfoStream ^ mix64 (key));
+}
+
+/** Note-on: the voice's sources (velocity, key, note random, pressure /
+    slide / bend from channel state, Mod Envs from 0, per-voice LFOs prepared
+    at lfoN_phase). */
+void Engine::initVoiceMod (int k) noexcept
+{
+    auto& m = vm[k];
+    const Voice& v = voices[k];
+    bool noReset = false, slotKey = false;
+   #if OGI_TEST_HOOKS
+    noReset = hooks.pvLfoNoReset;
+    slotKey = hooks.slotKeyedSeed;
+   #endif
+    // VL1 control (pvLfoNoReset): the new voice adopts a running voice's LFO
+    // state instead of restarting at lfoN_phase.
+    int donor = -1;
+    if (noReset)
+        for (int j = 0; j < kVoiceSlots && donor < 0; ++j)
+            if (j != k && ! voices[j].isFree() && vm[j].lfoOn[0])
+                donor = j;
+
+    m.clear();
+    m.pressure = chanPressure;
+    m.slide    = chanSlide;
+    m.bendSrc  = bend;
+    for (int e = 0; e < kGiModEnvs; ++e)
+        m.env[e].noteOn (menvParams (e), fs);
+
+    const bool tempoMode = gp.syncMode == 1;
+    const TempoAnchor& A = tracker.anchor();
+    for (int n = 0; n < kGiLfos; ++n)
+    {
+        m.lfoRateOff[n] = 0.0f;
+        m.lfoRateHz[n] = tempoMode ? fs * A.pps / tempoDivBeats (gp.lfo[n].rateSync, A.barLen)
+                                   : static_cast<double> (gp.lfo[n].rateHz);
+        if (! lfoPerVoiceActive (n))
+            continue;
+        if (donor >= 0 && vm[donor].lfoOn[n])
+            m.lfo[n] = vm[donor].lfo[n];
+        else
+            m.lfo[n].prepare (fs, rampCellsMod, gp.lfo[n].phaseDeg);
+        m.lfoOn[n] = true;
+    }
+
+    // Source values of the voice's first cell (the LFOs: the value their first
+    // tick will produce — frac 0, phase lfoN_phase).
+    const std::uint64_t key = slotKey ? static_cast<std::uint64_t> (k) : v.serial;
+    for (int i = 0; i < kGiModSources; ++i)
+        m.src[i] = srcG[i];
+    for (int n = 0; n < kGiLfos; ++n)
+    {
+        if (! m.lfoOn[n])
+            continue;
+        double ph = static_cast<double> (m.lfo[n].getPhaseDeg()) / 360.0 + m.lfo[n].getFrac();
+        ph -= std::floor (ph);
+        const float pv = Lfo::shape (gp.lfo[n].shape, ph, m.lfo[n].getCycle(), voiceLfoSeed (key), n);
+        const float xf = lfoXf[n].current();
+        m.src[GiSrc::Lfo1 + n] = (1.0f - xf) * srcG[GiSrc::Lfo1 + n] + xf * pv;
+    }
+    m.src[GiSrc::ModEnv1]    = 0.0f;
+    m.src[GiSrc::ModEnv2]    = 0.0f;
+    m.src[GiSrc::Velocity]   = v.velocity;
+    m.src[GiSrc::Key]        = std::clamp (static_cast<float> (v.note - 60) / 64.0f, -1.0f, 1.0f);
+    m.src[GiSrc::NoteRandom] = ouaricon::grain::CounterRng::Draw (seed, kNoteRandStream, key).nextFloat (0);
+    m.src[GiSrc::Pressure]   = m.pressure;
+    m.src[GiSrc::Slide]      = m.slide;
+    m.src[GiSrc::Bend]       = m.bendSrc;
+
+    // PD4: the voice's offsets / views at note-on (the slot depths of now).
+    voicePass (k, true);
+    buildPairViews (k);
+    voiceLfoRates (k);
+    for (int s = 0; s < kGiStreams; ++s)
+        if (pairMix[s])
+        {
+            float gl = 1.0f, gr = 1.0f, lv = 1.0f;
+            pairGainTarget (k, s, gl, gr, lv);
+            pairGL[k][s].reset (gl);
+            pairGR[k][s].reset (gr);
+            pairLv[k][s].reset (lv);
+        }
+}
+
+/** The voice's own LFOs for this cell (PD9 / PD12: Free = the modulated rate
+    of the previous cell; Tempo = a tempo-rate free run from note-on, P5). */
+void Engine::tickVoiceLfos (int k, std::int64_t t) noexcept
+{
+    auto& m = vm[k];
+    bool slotKey = false;
+   #if OGI_TEST_HOOKS
+    slotKey = hooks.slotKeyedSeed;
+   #endif
+    const std::uint64_t sd = voiceLfoSeed (slotKey ? static_cast<std::uint64_t> (k) : voices[k].serial);
+    for (int n = 0; n < kGiLfos; ++n)
+    {
+        const float g = srcG[GiSrc::Lfo1 + n];
+        if (! lfoPerVoiceActive (n))
+        {
+            m.lfoOn[n] = false;
+            m.src[GiSrc::Lfo1 + n] = g;
+            continue;
+        }
+        if (! m.lfoOn[n])
+        {
+            // Global → Per-voice (PD9): re-prepared at lfoN_phase at the switch tick.
+            m.lfo[n].prepare (fs, rampCellsMod, gp.lfo[n].phaseDeg);
+            m.lfoOn[n] = true;
+        }
+        const float pv = m.lfo[n].tick (n, gp.lfo[n], false, tracker, t, m.lfoRateOff[n], m.lfoRateHz[n], sd, 0);
+        const float xf = lfoXf[n].current();
+        m.src[GiSrc::Lfo1 + n] = (1.0f - xf) * g + xf * pv;
+    }
+}
+
+/** PD5 step 2: global LFOs (the VERBATIM class, parent tickSources), macros
+    (20 ms), the wheel, the lfoN_mode crossfades, then per voice the LFOs,
+    Mod Env levels and MIDI sources. Rates come from the PREVIOUS cell (R50.5). */
+void Engine::tickSources (std::int64_t t) noexcept
+{
+    const bool tempoMode = gp.syncMode == 1;
+    for (int n = 0; n < kGiLfos; ++n)
+        srcG[GiSrc::Lfo1 + n] = lfos[n].tick (n, gp.lfo[n], tempoMode, tracker, t, lfoRateOff[n], lfoRateHz[n], seed, 0);
+
+    bool macroSnap = false, xfSnap = false;
+   #if OGI_TEST_HOOKS
+    macroSnap = hooks.macroRampZero;
+    xfSnap    = hooks.modeSwitchSnap;
+   #endif
+    for (int n = 0; n < kGiMacros; ++n)
+    {
+        if (macroSnap)
+            macroRamp[n].reset (gp.macro[n]);   // PMc1 control: no 20 ms ramp
+        else
+        {
+            macroRamp[n].setTarget (gp.macro[n], rampCellsMod);
+            macroRamp[n].tick();
+        }
+        srcG[GiSrc::Macro1 + n] = macroRamp[n].current();
+    }
+    srcG[GiSrc::ModWheel] = static_cast<float> (wheelMsb * 128 + wheelLsb) / 16383.0f;
+
+    for (int n = 0; n < kGiLfos; ++n)
+    {
+        const float x = gp.lfoMode[n] != 0 ? 1.0f : 0.0f;
+        if (xfSnap)
+            lfoXf[n].reset (x);                  // LM1n control: the mode switch steps
+        else
+        {
+            lfoXf[n].setTarget (x, rampCellsMod);
+            lfoXf[n].tick();
+        }
+    }
+
+    for (int k = 0; k < kVoiceSlots; ++k)
+    {
+        if (voices[k].isFree())
+            continue;
+        auto& m = vm[k];
+        tickVoiceLfos (k, t);
+        m.src[GiSrc::ModEnv1]  = static_cast<float> (m.env[0].getLevel());
+        m.src[GiSrc::ModEnv2]  = static_cast<float> (m.env[1].getLevel());
+        m.src[GiSrc::ModWheel] = srcG[GiSrc::ModWheel];
+        for (int n = 0; n < kGiMacros; ++n)
+            m.src[GiSrc::Macro1 + n] = srcG[GiSrc::Macro1 + n];
+        m.src[GiSrc::Pressure] = m.pressure;
+        m.src[GiSrc::Slide]    = m.slide;
+        m.src[GiSrc::Bend]     = m.bendSrc;
+    }
+    updateNewest();   // PD8: per-voice sources on the global path
+}
+
+/** PD8 (D4): newest = the highest serial among COUNTED voices (never a stolen
+    spare), at the tick. A handover snapshots every mono value into `from` and
+    restarts the shared 20 ms ramp (never stacked); no counted voice → held.
+    LFO N on the global path (xf at exactly 0) is pinned to the global value. */
+void Engine::updateNewest() noexcept
+{
+    int nk = -1;
+    std::uint64_t best = 0;
+    for (int k = 0; k < kVoiceSlots; ++k)
+        if (voices[k].isCounted() && voices[k].serial > best)
+        {
+            best = voices[k].serial;
+            nk = k;
+        }
+    bool snap = false, stack = false;
+   #if OGI_TEST_HOOKS
+    snap  = hooks.newestNoRamp;
+    stack = hooks.newestStack;
+   #endif
+    if (nk >= 0 && best != newestSer)
+    {
+        const bool inRamp = ! newestW.settledAt (1.0f);
+        for (int p = 1; p < kGiModSources; ++p)
+        {
+            // NV4 control (newestStack): a handover inside a ramp restarts from
+            // the OLD voice's value instead of the current blend.
+            float from = monoVal[p];
+            if (stack && inRamp && newestSer != 0)
+                for (int k = 0; k < kVoiceSlots; ++k)
+                    if (! voices[k].isFree() && voices[k].serial == newestSer)
+                        from = vm[k].src[p];
+            monoFrom[p] = from;
+        }
+        if (snap)
+            newestW.reset (1.0f);
+        else
+        {
+            newestW.reset (0.0f);
+            newestW.setTarget (1.0f, rampCellsMod);
+        }
+        newestSer = best;
+       #if OGI_TEST_HOOKS
+        ++hooks.handovers;
+        if (voices[nk].isStolen())
+            ++hooks.newestWasStolen;
+       #endif
+    }
+    newestW.tick();
+    const float w = newestW.current();
+    for (int p = 1; p < kGiModSources; ++p)
+    {
+        const bool pv = GiSrc::isPerVoice (p) || (GiSrc::isLfo (p) && lfoPerVoiceActive (p - GiSrc::Lfo1));
+        if (! pv)
+        {
+            monoFrom[p] = monoVal[p] = srcG[p];   // global value (pinned)
+            continue;
+        }
+        if (nk >= 0)
+            monoVal[p] = monoFrom[p] + (vm[nk].src[p] - monoFrom[p]) * w;
+        else
+            monoFrom[p] = monoVal[p];             // held when silent
+        srcG[p] = monoVal[p];
+    }
+   #if OGI_TEST_HOOKS
+    hooks.newestSerial = newestSer;
+   #endif
+}
+
+/** PD16: relaxed atomics for the UI at the tick (never APVTS). */
+void Engine::writeTelemetry() noexcept
+{
+    int nk = -1;
+    for (int k = 0; k < kVoiceSlots; ++k)
+        if (voices[k].isCounted() && voices[k].serial == newestSer)
+            nk = k;
+    matrix.writeTelemetry (destTel.data(), nk >= 0 ? vm[nk].offCur() : nullptr);
+    for (int p = 1; p < kGiModSources; ++p)
+        srcTel[(size_t) p].store (srcG[p], std::memory_order_relaxed);
+    for (int n = 0; n < kGiLfos; ++n)
+    {
+        const double p = lfos[n].position() - static_cast<double> (lfos[n].getPhaseDeg()) / 360.0;
+        float ph = static_cast<float> (p - std::floor (p));
+        if (! (ph < 1.0f)) ph = 0.0f;
+        lfoPhaseTel[(size_t) n].store (ph, std::memory_order_relaxed);
+    }
+}
+
+//==============================================================================
+// 2.5a matrix (PLAN-2.5a T6, PD3 / PD5 / PD6)
+void Engine::traceAt (int dest, float v) noexcept
+{
+   #if OGI_TEST_HOOKS
+    auto& tr = hooks.traceDest;
+    if (tr.dest == dest && tr.buf != nullptr && tr.n < tr.len)
+        tr.buf[tr.n++] = v;
+   #else
+    juce::ignoreUnused (dest, v);
+   #endif
+}
+
+/** PD5 step 3: the global pass of this cell (the parent ModMatrix port), the
+    LFO rates of the NEXT cell (R50.5), and the tick-destination overwrite of
+    the latched gp fields (parent 82406fce Engine.cpp:950-1007). Unrouted:
+    nothing is touched. */
+void Engine::matrixTick (std::int64_t t) noexcept
+{
+    juce::ignoreUnused (t);
+   #if OGI_TEST_HOOKS
+    matrix.noResidual    = hooks.noResidual;
+    matrix.fullRoundTrip = hooks.fullRoundTrip;
+    matrix.noDepthRamp   = hooks.noDepthRamp;
+   #endif
+    // PD4 / PD5: a live slot with a per-voice source and a class-V
+    // destination runs on the per-voice path this cell.
+    for (int m = 0; m < kGiModSlots; ++m)
+    {
+        const auto& w = gp.mod[m];
+        pvPath[m] = w.src != GiSrc::None && w.dest != GiDest::None && srcPerVoiceNow (w.src) && destVoiceNow (w.dest);
+    }
+    matrix.tick (gp, srcG, pvPath);
+
+    // LFO rates of the NEXT cell (global LFOs).
+    for (int n = 0; n < kGiLfos; ++n)
+    {
+        const int d = GiDest::LfoRate1 + n;
+        if (matrix.routed (d))
+        {
+            lfoRateOff[n] = matrix.offset (d);
+            lfoRateHz[n]  = static_cast<double> (matrix.apply (d, gp.lfo[n].rateHz, lfoRateOff[n]));
+        }
+        else
+        {
+            lfoRateOff[n] = 0.0f;
+            lfoRateHz[n]  = static_cast<double> (gp.lfo[n].rateHz);
+        }
+        traceAt (d, static_cast<float> (lfoRateHz[n]));
+    }
+
+    // Stream fields (Position … KeyTrack): the cell's modulated value
+    // overwrites the latch (gp is re-latched every tick); tick consumers read
+    // it, the spawn re-evaluates at its own sample.
+    const bool tempoMode = gp.syncMode == 1;
+    for (int s = 0; s < kGiStreams; ++s)
+    {
+        streamRoutedG[s] = false;
+        for (int f = GiDest::Position; f < GiDest::NumFields; ++f)
+        {
+            const int d = GiDest::stream (s, f);
+            if (! matrix.routed (d))
+                continue;
+            streamRoutedG[s] = true;
+            rawBase[d] = matrix.rawNow (d);
+            if (tempoMode && (f == GiDest::Size || f == GiDest::Density))
+                continue;   // Tempo: the offset scales the synced value (T12)
+            GiModMap::streamFieldFromRaw (gp.s[s], f, matrix.apply (d, rawBase[d], matrix.offset (d)));
+        }
+    }
+
+    // PD5: the per-voice pass, then the pair views (from the raw + offG + offV,
+    // one clamp, P3) and the per-voice LFO rates of the next cell. The pair
+    // flags come from routed || routedPrev and are derived here, before any
+    // dirty check (P8).
+    numPairsRoutedPrev = numPairsRouted;
+    numPairsRouted = 0;
+    int maxDests = 0;
+    bool anyCounted = false;
+    for (int k = 0; k < kVoiceSlots; ++k)
+    {
+        if (voices[k].isFree())
+        {
+            for (int s = 0; s < kGiStreams; ++s)
+                pairRoutedK[k][s] = pairRegionOn[k][s] = pairSelOn[k][s] = false;
+            continue;
+        }
+        anyCounted = anyCounted || voices[k].isCounted();
+        voicePass (k, false);
+        maxDests = std::max (maxDests, vm[k].numRoutedLast);
+        buildPairViews (k);
+        voiceLfoRates (k);
+    }
+    writeTelemetry();
+   #if OGI_TEST_HOOKS
+    hooks.routedPvDests = maxDests;
+    if (anyCounted)
+        hooks.routedPvDestsMin = std::min (hooks.routedPvDestsMin, maxDests);
+   #else
+    juce::ignoreUnused (maxDests, anyCounted);
+   #endif
+}
+
+bool Engine::srcPerVoiceNow (int src) const noexcept
+{
+    return GiSrc::isPerVoice (src) || (GiSrc::isLfo (src) && lfoPerVoiceActive (src - GiSrc::Lfo1));
+}
+
+bool Engine::destVoiceNow (int dest) const noexcept
+{
+    return GiDest::isVoiceClass (dest) || (GiDest::isLfoRate (dest) && lfoPerVoiceActive (dest - GiDest::LfoRate1));
+}
+
+/** PD4: the per-voice routes of voice k into its offsets (with per-voice
+    route-change residuals). noteOnSeed: at note-on — the current slot depths,
+    prev := cur, so the voice's first grain already carries its modulation. */
+void Engine::voicePass (int k, bool noteOnSeed) noexcept
+{
+    auto& m = vm[k];
+    m.beginCell();
+    const float* sv = m.src;
+    bool noRes = false;
+   #if OGI_TEST_HOOKS
+    noRes = hooks.noResidual;
+    if (hooks.pvSharedSource)
+        for (int j = 0; j < kVoiceSlots; ++j)
+            if (! voices[j].isFree()) { sv = vm[j].src; break; }   // PV1n: one shared source vector
+   #endif
+    for (int ms = 0; ms < kGiModSlots; ++ms)
+    {
+        const auto s = matrix.slot (ms);
+        if (! noteOnSeed && s.changed && s.oldPv && ! noRes && ! juce::exactlyEqual (m.lastContrib[ms], 0.0f))
+            m.pushResidual (s.oldDest, m.lastContrib[ms], rampCellsMod);
+        if (! s.pv)
+        {
+            m.lastContrib[ms] = 0.0f;
+            continue;
+        }
+        const float c = s.depth * sv[s.src];
+        m.lastContrib[ms] = c;
+        m.add (s.dest, c);
+    }
+    if (! noteOnSeed)
+        m.tickResiduals();
+    m.numRoutedLast = m.finishCell();
+    if (noteOnSeed)
+        m.seedPrevFromCur();
+}
+
+/** PD5 / PD6: the tick view of every pair of voice k that carries a per-voice
+    offset (now or in the previous cell). Unrouted pairs read gp.s[s]. */
+void Engine::buildPairViews (int k) noexcept
+{
+    auto& m = vm[k];
+    const bool tempoMode = gp.syncMode == 1;
+    for (int s = 0; s < kGiStreams; ++s)
+    {
+        pairRegionOn[k][s] = pairSelOn[k][s] = false;
+        pairRoutedK[k][s] = m.pairRouted (s);
+        if (! pairRoutedK[k][s])
+            continue;
+        ++numPairsRouted;
+        auto& v = view[k][s];
+        v = gp.s[s];
+        for (int f = GiDest::Position; f < GiDest::NumFields; ++f)
+        {
+            const int d = GiDest::stream (s, f);
+            const float off = m.offCurAt (d);
+            if (! (off > 0.0f || off < 0.0f))
+                continue;
+            if (tempoMode && (f == GiDest::Size || f == GiDest::Density))
+                continue;   // Tempo: the effective values (T12)
+            rawBase[d] = matrix.rawNow (d);
+            GiModMap::streamFieldFromRaw (v, f, matrix.apply (d, rawBase[d], matrix.offset (d) + off));
+        }
+        jitKS[k][s] = jitterOf (v);
+
+        // PD6: a per-voice loop region moves only this voice's READ region (P17).
+        const SlotTape* tp = current[(size_t) s];
+        if (tp != nullptr && (! juce::exactlyEqual (v.loopStart, gp.s[s].loopStart) || ! juce::exactlyEqual (v.loopEnd, gp.s[s].loopEnd)))
+        {
+            regionV[k][s] = loopRegion (static_cast<double> (v.loopStart), static_cast<double> (v.loopEnd),
+                                        tp->frames, kMinLoopMs * 0.001 * tp->rate);
+            pairRegionOn[k][s] = true;
+        }
+        // Per-pair scale window on the stream's ActiveSet (built at the global pitch_rand).
+        const PitchSel& gs = scale.selection (s);
+        if (gs.set != nullptr && (! juce::exactlyEqual (v.pitchSt, gp.s[s].pitchSt) || ! juce::exactlyEqual (v.pitchRand, gp.s[s].pitchRand)))
+        {
+            selV[k][s].set = gs.set;
+            gs.set->window (static_cast<double> (v.pitchSt), static_cast<double> (v.pitchRand) * 100.0, selV[k][s].lo, selV[k][s].hi);
+            pairSelOn[k][s] = true;
+        }
+    }
+}
+
+/** PD12 / R50.5: the rates of voice k's own LFOs for the NEXT cell. */
+void Engine::voiceLfoRates (int k) noexcept
+{
+    auto& m = vm[k];
+    const bool tempoMode = gp.syncMode == 1;
+    const TempoAnchor& A = tracker.anchor();
+    for (int n = 0; n < kGiLfos; ++n)
+    {
+        if (! m.lfoOn[n])
+            continue;
+        const int d = GiDest::LfoRate1 + n;
+        const float off = matrix.offset (d) + m.offCurAt (d);
+        m.lfoRateOff[n] = off;
+        if (tempoMode)
+            m.lfoRateHz[n] = fs * A.pps / tempoDivBeats (gp.lfo[n].rateSync, A.barLen) * std::exp2 (4.0 * static_cast<double> (off));
+        else
+            m.lfoRateHz[n] = (off > 0.0f || off < 0.0f) ? static_cast<double> (matrix.apply (d, gp.lfo[n].rateHz, off))
+                                                         : static_cast<double> (gp.lfo[n].rateHz);
+    }
+}
+
+/** Level / pan substitutes of globally routed streams (parent R47 :742-755):
+    the base ramp's current value → raw → apply → the engine domain. */
+void Engine::applyLevelPanMod() noexcept
+{
+    bool zero = false;
+   #if OGI_TEST_HOOKS
+    zero = hooks.mixerRampZero;
+   #endif
+    for (int s = 0; s < kGiStreams; ++s)
+    {
+        const auto& sp = gp.s[s];
+        if (zero)
+            panValRamp[s].setCell (sp.pan, sp.pan);
+        else
+        {
+            panValRamp[s].setTarget (sp.pan, rampCells20);
+            panValRamp[s].tick();
+        }
+
+        const int dl = GiDest::stream (s, GiDest::Level), dp = GiDest::stream (s, GiDest::Pan);
+        const bool rl = matrix.routed (dl), rp = matrix.routed (dp);
+        float lv = levelRamp[s].current();
+        if (rl)
+            lv = levelDbToGain (matrix.apply (dl, GiModMap::levelToRaw (lv), matrix.offset (dl)));
+        levelMod[s].setCell (levelNow[s], lv);
+        levelNow[s] = lv;
+        useLevelMod[s] = rl || matrix.routedPrev (dl);
+        traceAt (dl, lv);
+
+        float gl = panLRamp[s].current(), gr = panRRamp[s].current();
+        if (rp)
+        {
+            const float pn = matrix.apply (dp, panValRamp[s].current() * 100.0f, matrix.offset (dp)) / 100.0f;
+            const auto pg = panGains (pn);
+            gl = pg.a;
+            gr = pg.b;
+            traceAt (dp, pn);
+        }
+        panLMod[s].setCell (panLNow[s], gl);  panLNow[s] = gl;
+        panRMod[s].setCell (panRNow[s], gr);  panRNow[s] = gr;
+        usePanMod[s] = rp || matrix.routedPrev (dp);
+    }
+}
+
+/** PD7: voice k carries a per-voice level / pan offset on stream s (cur or prev). */
+bool Engine::pairLevelPanRouted (int k, int s) const noexcept
+{
+    const auto& m = vm[k];
+    const int dl = GiDest::stream (s, GiDest::Level), dp = GiDest::stream (s, GiDest::Pan);
+    const float a = m.offCurAt (dl), b = m.offPrev()[dl], c = m.offCurAt (dp), d = m.offPrev()[dp];
+    return a > 0.0f || a < 0.0f || b > 0.0f || b < 0.0f || c > 0.0f || c < 0.0f || d > 0.0f || d < 0.0f;
+}
+
+/** PD7: the pair's level / pan of this cell — the stream substitute's base
+    (the 2.4 ramp) with offG + offV_k summed before the single clamp. */
+void Engine::pairGainTarget (int k, int s, float& gl, float& gr, float& lv) const noexcept
+{
+    const int dl = GiDest::stream (s, GiDest::Level), dp = GiDest::stream (s, GiDest::Pan);
+    const float ol = matrix.offset (dl) + vm[k].offCurAt (dl);
+    const float op = matrix.offset (dp) + vm[k].offCurAt (dp);
+    lv = (ol > 0.0f || ol < 0.0f) ? levelDbToGain (matrix.apply (dl, GiModMap::levelToRaw (levelRamp[s].current()), ol))
+                                  : levelNow[s];
+    if (op > 0.0f || op < 0.0f)
+    {
+        const auto pg = panGains (matrix.apply (dp, panValRamp[s].current() * 100.0f, op) / 100.0f);
+        gl = lv * pg.a;
+        gr = lv * pg.b;
+    }
+    else
+    {
+        gl = lv * panLNow[s];
+        gr = lv * panRNow[s];
+    }
+}
+
+/** PD7 at the tick (after the stream substitutes): which streams mix per pair,
+    and every non-free voice's pair gains for this cell. A stream entering the
+    mode starts each pair from the stream's previous-cell gains. */
+void Engine::updatePairMix() noexcept
+{
+    int count = 0;
+    bool anyCounted = false;
+    for (int s = 0; s < kGiStreams; ++s)
+    {
+        bool on = false;
+        for (int k = 0; k < kVoiceSlots && ! on; ++k)
+            on = ! voices[k].isFree() && pairLevelPanRouted (k, s);
+        const bool entering = on && ! pairMix[s];
+        pairMix[s] = on;
+        if (! on)
+            continue;
+        ++count;
+        const float lvPrev = levelR (s).previous();
+        const float glPrev = lvPrev * panLR (s).previous(), grPrev = lvPrev * panRR (s).previous();
+        for (int k = 0; k < kVoiceSlots; ++k)
+        {
+            if (voices[k].isFree())
+                continue;
+            anyCounted = anyCounted || voices[k].isCounted();
+            float gl = 1.0f, gr = 1.0f, lv = 1.0f;
+            pairGainTarget (k, s, gl, gr, lv);
+            if (entering)
+            {
+                pairGL[k][s].reset (glPrev);
+                pairGR[k][s].reset (grPrev);
+                pairLv[k][s].reset (lvPrev);
+            }
+            pairGL[k][s].push (gl);
+            pairGR[k][s].push (gr);
+            pairLv[k][s].push (lv);
+        }
+    }
+   #if OGI_TEST_HOOKS
+    hooks.pairModeStreams = count;
+    if (anyCounted)
+        hooks.pairModeStreamsMin = std::min (hooks.pairModeStreamsMin, count);
+   #else
+    juce::ignoreUnused (count, anyCounted);
+   #endif
 }
 
 //==============================================================================
@@ -1008,13 +1734,63 @@ void Engine::applyEvent (const MidiEvent& e, std::int64_t t) noexcept
         const int value = (e.data1 & 0x7F) | ((e.data2 & 0x7F) << 7);
         const int d = value - 8192;
         bend = d >= 0 ? static_cast<float> (d) / 8191.0f : static_cast<float> (d) / 8192.0f;
+        for (int k = 0; k < kVoiceSlots; ++k)   // PLAN-2.5a PD10: the Bend source (2.5b seam)
+            if (! voices[k].isFree())
+                vm[k].bendSrc = bend;
     }
     else if (type == 0xB0 && e.numBytes >= 3)
     {
-        if (e.data1 == 120)
+        const int cc = e.data1 & 0x7F, v = e.data2 & 0x7F;
+        if (cc == 120)
             allSoundOff();
-        else if (e.data1 == 123)
+        else if (cc == 123)
             allNotesOff();
+        else if (cc == 1)
+        {
+            wheelMsb = v;   // a CC1 write clears the LSB (14-bit pair, PD10)
+            wheelLsb = 0;
+        }
+        else if (cc == 33)
+            wheelLsb = v;
+        else if (cc == 74)
+        {
+            chanSlide = std::clamp (static_cast<float> (v - 64) / 64.0f, -1.0f, 1.0f);
+            for (int k = 0; k < kVoiceSlots; ++k)
+                if (! voices[k].isFree())
+                    vm[k].slide = chanSlide;
+        }
+        else if (cc == 121)
+        {
+            // Reset all controllers (PD10): wheel 0, pressure 0, slide 64, bend 0.
+            wheelMsb = wheelLsb = 0;
+            chanPressure = 0.0f;
+            chanSlide = 0.0f;
+            bend = 0.0f;
+            for (int k = 0; k < kVoiceSlots; ++k)
+                if (! voices[k].isFree())
+                {
+                    vm[k].pressure = 0.0f;
+                    vm[k].slide = 0.0f;
+                    vm[k].bendSrc = 0.0f;
+                }
+        }
+    }
+    else if (type == 0xD0 && e.numBytes >= 2)
+    {
+        // Channel aftertouch → every voice (non-MPE, any channel; last write wins).
+        chanPressure = static_cast<float> (e.data1 & 0x7F) / 127.0f;
+        for (int k = 0; k < kVoiceSlots; ++k)
+            if (! voices[k].isFree())
+                vm[k].pressure = chanPressure;
+    }
+    else if (type == 0xA0 && e.numBytes >= 3)
+    {
+        // Poly aftertouch → the voices on that note.
+        const int note = e.data1 & 0x7F;
+        const float p = static_cast<float> (e.data2 & 0x7F) / 127.0f;
+        for (int k = 0; k < kVoiceSlots; ++k)
+            if (! voices[k].isFree() && voices[k].note == note)
+                vm[k].pressure = p;
     }
 }
 
@@ -1061,18 +1837,20 @@ void Engine::startVoice (int k, int channel, int note, float velocity01, std::in
     v.serial    = ++serialCounter;
     v.noteOnAbs = t;
     v.env.noteOn (ampParams(), fs, AmpEnv::velocityGain (velocity01, gp.velToAmp));
+    initVoiceMod (k);   // PLAN-2.5a PD10 / PD11: per-voice sources
     for (int s = 0; s < kGiStreams; ++s)
     {
         v.sched[s].reset();                    // first onset exactly at the note-on sample
-        v.scan[s].restart (t, static_cast<double> (gp.s[s].scanRate) / fs);
+        v.scan[s].restart (t, static_cast<double> (pairSp (k, s).scanRate) / fs);
     }
 
     // Until the next grid tick includes it, the new voice runs unthinned.
     for (int s = 0; s < kGiStreams; ++s)
     {
         quotaM[k][s]  = kQuotaUncapped;
-        periodT[k][s] = uncappedPeriod (s);
-        const double n = streamDemand (static_cast<double> (gp.s[s].density), static_cast<double> (gp.s[s].sizeMs), fs);
+        const auto& spk = pairSp (k, s);
+        periodT[k][s] = uncappedPeriod (spk);
+        const double n = streamDemand (static_cast<double> (spk.density), static_cast<double> (spk.sizeMs), fs);
         lawTarget[k][s] = pairLaw (k, s, n);
         lawGain[k][s].reset (lawTarget[k][s]);
         gFbTarget[k][s] = pairFbGain (k, s, n);   // PLAN-2.4 PD8
@@ -1092,6 +1870,9 @@ void Engine::noteOff (int channel, int note) noexcept
         {
             v.gated = false;
             v.env.noteOff (p, fs);
+            auto& m = vm[&v - voices];
+            for (int e = 0; e < kGiModEnvs; ++e)
+                m.env[e].noteOff (menvParams (e), fs);
         }
     }
 }
@@ -1105,6 +1886,9 @@ void Engine::allNotesOff() noexcept
         {
             v.gated = false;
             v.env.noteOff (p, fs);
+            auto& m = vm[&v - voices];
+            for (int e = 0; e < kGiModEnvs; ++e)
+                m.env[e].noteOff (menvParams (e), fs);
         }
     }
 }
@@ -1157,7 +1941,10 @@ void Engine::endVoice (int k) noexcept
     }
     voices[k] = Voice {};
     for (int s = 0; s < kGiStreams; ++s)
+    {
         quotaM[k][s] = kQuotaUncapped;
+        pairRoutedK[k][s] = pairRegionOn[k][s] = pairSelOn[k][s] = false;
+    }
     quotasDirty = true;
     writeVoiceHooks (k);
 }
@@ -1195,6 +1982,19 @@ void Engine::runSegment (int c0, int c1, std::int64_t t0) noexcept
         if (e >= 0)
             ends[numEnds++] = { k, e, v.serial };
     }
+    // PLAN-2.5a PD11: the Mod Envs advance over the same segment splits
+    // (sampled at the tick). They never end a voice.
+    {
+        bool live = false;
+       #if OGI_TEST_HOOKS
+        live = hooks.envLiveTimes;
+       #endif
+        const ModEnvParams mp[kGiModEnvs] { menvParams (0), menvParams (1) };
+        for (int k = 0; k < kVoiceSlots; ++k)
+            if (! voices[k].isFree())
+                for (int m = 0; m < kGiModEnvs; ++m)
+                    vm[k].env[m].advance (len, mp[m], fs, live);
+    }
     for (int i = 1; i < numEnds; ++i)
         for (int j = i; j > 0 && (ends[j].offset < ends[j - 1].offset
                                   || (ends[j].offset == ends[j - 1].offset && ends[j].serial < ends[j - 1].serial)); --j)
@@ -1216,7 +2016,7 @@ void Engine::runSegment (int c0, int c1, std::int64_t t0) noexcept
             if (! gp.s[s].enable)
                 continue;
             const double T = periodT[k][s];
-            const double J = jit[s];
+            const double J = pairRoutedK[k][s] ? jitKS[k][s] : jit[s];
             const std::uint64_t serial = v.serial, ep = v.epoch[s];
             const auto res = v.sched[s].process (len, onsetBuf[k][s], kOnsetCap,
                 [this, T, J, s, serial, ep] (std::uint64_t idx) noexcept { return jitterGap (T, J, s, serial, ep, idx); });
@@ -1368,7 +2168,49 @@ void Engine::spawn (const PendingOnset& o, std::int64_t tAbs) noexcept
         return;   // ended / stolen inside this segment
 
     const int s = std::clamp (o.stream, 0, kGiStreams - 1);
-    const auto& sp = gp.s[s];
+
+    // PLAN-2.5a PD5 / P54 (parent 82406fce Engine.cpp:1155-1182): routed
+    // spawn-latched fields are evaluated AT the spawn sample — the offset
+    // lerped prev → cur at the onset's cell position — into a local copy built
+    // BEFORE any draw; unrouted: &gp.s[s] (the 2.4 path, bitwise).
+    const GiGridParams::Stream* spp = &gp.s[s];
+    GiGridParams::Stream local;
+    const bool pairR = pairRoutedK[o.voice][s];
+    if (streamRoutedG[s] || pairR)
+    {
+        local = pairR ? view[o.voice][s] : gp.s[s];
+        const double at = static_cast<double> (tAbs & static_cast<std::int64_t> (kCell - 1));
+        const bool tempoMode = gp.syncMode == 1;
+        const auto& mv = vm[o.voice];
+        for (int f = GiDest::Position; f < GiDest::NumFields; ++f)
+        {
+            if (f == GiDest::ScanRate || f == GiDest::LoopStart || f == GiDest::LoopEnd)
+                continue;   // tick-only (scan anchor, loop region)
+            const int d = GiDest::stream (s, f);
+            const bool gR = matrix.routed (d);
+            const float vp = pairR ? mv.offPrev()[d] : 0.0f, vc = pairR ? mv.offCurAt (d) : 0.0f;
+            const bool vR = vp > 0.0f || vp < 0.0f || vc > 0.0f || vc < 0.0f;
+            if (! gR && ! vR)
+                continue;
+            if (tempoMode && (f == GiDest::Density || f == GiDest::Size))
+                continue;   // Tempo: the effective values (T12)
+            // offG + offV at the spawn sample, summed BEFORE the single clamp (P3).
+            const float off = (gR ? matrix.offsetAt (d, at) : 0.0f) + (vR ? mv.offsetAt (d, at) : 0.0f);
+            if (vR && ! gR)
+                rawBase[d] = matrix.rawNow (d);
+            GiModMap::streamFieldFromRaw (local, f, matrix.apply (d, rawBase[d], off));
+        }
+        spp = &local;
+    }
+    const auto& sp = *spp;
+   #if OGI_TEST_HOOKS
+    {
+        const int td = hooks.traceDest.dest;
+        if (GiDest::isStream (td) && GiDest::streamOf (td) == s && GiDest::fieldOf (td) >= GiDest::Position
+            && (hooks.traceDest.voice < 0 || hooks.traceDest.voice == o.voice))
+            traceAt (td, GiModMap::streamFieldValue (sp, GiDest::fieldOf (td)));
+    }
+   #endif
     SlotTape* tp = current[(size_t) s];   // stream s reads slot s
     if (! sp.enable || tp == nullptr || tp->frames <= 0)
         return;
@@ -1393,8 +2235,8 @@ void Engine::spawn (const PendingOnset& o, std::int64_t tAbs) noexcept
     //              and hi > lo (P13), else no draw;
     // then the ±48 clamp; rate = 2^(st/12) · tapeRate / fs.
     float pitchCents = 0.0f;
-    double st = voiceSemis (v, s);
-    const PitchSel& sel = scale.selection (s);
+    double st = voiceSemis (v, sp);
+    const PitchSel& sel = pairSel (o.voice, s);
     if (sel.set == nullptr)
     {
         if (sp.pitchRand > 0.0f)
@@ -1423,7 +2265,7 @@ void Engine::spawn (const PendingOnset& o, std::int64_t tAbs) noexcept
 
     // Position: scan centre c, spray c + s·W·(u − ½), region fit (no
     // record-head clamp): forward [lo, hi − reach], reverse [lo + reach, hi] (P20).
-    const LoopRegion& rg = region[s];
+    const LoopRegion& rg = pairRegion (o.voice, s);   // PD6: a per-voice READ region
     const double W = rg.width();
     if (! (W > 0.0))
         return;
@@ -1680,7 +2522,8 @@ void Engine::runChains (int c0, int c1, std::int64_t tAbs) noexcept
     {
         for (int c = c0; c < c1; ++c)
         {
-            const float lv = std::min (levelRamp[s].value (c), 1.0f) * audibleRamp[s].value (c);
+            const float lv = pairMix[s] ? audibleRamp[s].value (c)   // PD7: per-pair level already in the tap
+                                        : std::min (levelR (s).value (c), 1.0f) * audibleRamp[s].value (c);
             float l = tapAcc[s][0][c] * lv;
             float r = tapAcc[s][1][c] * lv;
             if (! sumT)
@@ -1710,7 +2553,8 @@ void Engine::runChains (int c0, int c1, std::int64_t tAbs) noexcept
             }
         }
        #endif
-        chain[s].process (tapBuf[0], tapBuf[1], len, c0, parity ? parityKnob : unityKnob, diffRamp, satDRamp);
+        chain[s].process (tapBuf[0], tapBuf[1], len, c0, parity ? parityKnob : unityKnob,
+                          useDiffMod ? diffMod : diffRamp, useSatMod ? satDMod : satDRamp);
        #if OGI_TEST_HOOKS
         chain[s].testInjectAt = -1;
         if (hooks.retProbe.buf != nullptr && hooks.retProbe.slot == s)
@@ -1765,6 +2609,16 @@ void Engine::updateHeads (std::int64_t t) noexcept
         fbRamp.setTarget (gp.feedback, rampCells20);
         fbRamp.tick();
     }
+    {
+        // PLAN-2.5a PD6: routed feedback modulates the λ ramp in its domain (0..1).
+        const bool rk = matrix.routed (GiDest::Feedback);
+        const float k = rk ? GiModMap::pctFromRaw (matrix.apply (GiDest::Feedback, fbRamp.current() * 100.0f, matrix.offset (GiDest::Feedback)))
+                           : fbRamp.current();
+        fbMod.setCell (fbNow, k);
+        fbNow = k;
+        useFbMod = rk || matrix.routedPrev (GiDest::Feedback);
+        traceAt (GiDest::Feedback, k);
+    }
 
     const bool freezeEdge = gp.freeze && ! prevFreeze;
     prevFreeze = gp.freeze;
@@ -1807,7 +2661,7 @@ void Engine::updateHeads (std::int64_t t) noexcept
             hd.run.tick();
         }
 
-        const bool parkedNow = fbRamp.settledAt (0.0f) || hd.run.settledAt (0.0f);
+        const bool parkedNow = fbEff().settledAt (0.0f) || hd.run.settledAt (0.0f);
         if (parkedNow && ! hd.parked && tp != nullptr)
             hd.park (current[(size_t) s]->tape, fl, headCounters (s));
         hd.parked = parkedNow;
@@ -1851,7 +2705,7 @@ void Engine::writeHeads (std::int64_t t) noexcept
         }
        #endif
         auto& c = headCounters (s);
-        hd.writeCell (tp->tape, rL, rR, fbRamp,
+        hd.writeCell (tp->tape, rL, rR, fbEff(),
                       region[s].lo, region[s].hi, tp->frames, fl, c);
     }
 }
@@ -1861,9 +2715,19 @@ void Engine::writeHeads (std::int64_t t) noexcept
     internals (enabled 1, predelay 20 ms, mod 0.2, shimmer 0) are set once. */
 void Engine::writeReverbAtomics() noexcept
 {
-    revSize.store (gp.reverbSize, std::memory_order_relaxed);
-    revDamp.store (gp.reverbDamp, std::memory_order_relaxed);
-    revMix.store (gp.reverbMix, std::memory_order_relaxed);
+    // PLAN-2.5a PD6: tick-rate atomics; routed → the modulated raw / 100
+    // (parent :222-235). R54: mix <= 0.001 restarts a cold tank (INFO).
+    using namespace GiDest;
+    float size = gp.reverbSize, damp = gp.reverbDamp, mixV = gp.reverbMix;
+    if (matrix.routed (RevSize)) size = matrix.apply (RevSize, matrix.rawNow (RevSize), matrix.offset (RevSize)) / 100.0f;
+    if (matrix.routed (RevDamp)) damp = matrix.apply (RevDamp, matrix.rawNow (RevDamp), matrix.offset (RevDamp)) / 100.0f;
+    if (matrix.routed (RevMix))  mixV = matrix.apply (RevMix,  matrix.rawNow (RevMix),  matrix.offset (RevMix))  / 100.0f;
+    revSize.store (size, std::memory_order_relaxed);
+    revDamp.store (damp, std::memory_order_relaxed);
+    revMix.store (mixV, std::memory_order_relaxed);
+    traceAt (RevSize, size);
+    traceAt (RevDamp, damp);
+    traceAt (RevMix, mixV);
 }
 
 void Engine::mixPiece (int c0, int c1, float* outL, float* outR, std::int64_t tAbs) noexcept
@@ -1909,6 +2773,33 @@ void Engine::mixPiece (int c0, int c1, float* outL, float* outR, std::int64_t tA
             float* tL = tapAcc[s][0];
             float* tR = tapAcc[s][1];
             float* es = envSum[s];
+            if (pairMix[s])
+            {
+                // PLAN-2.5a PD7: the pair mixer mode (per-voice level / pan).
+                const CellLerp& pl = pairGL[k][s];
+                const CellLerp& pr = pairGR[k][s];
+                const CellLerp& pv = pairLv[k][s];
+                for (int c = c0; c < c1; ++c)
+                {
+                    const float a = envBuf[k][c] * lg.at (c);
+                    if (a > 0.0f)
+                    {
+                        aL[c] += a * (bl[c] * pl.at (c));
+                        aR[c] += a * (br[c] * pr.at (c));
+                    }
+                    const float e = envBuf[k][c];
+                    if (e > 0.0f)
+                    {
+                        const float g = e * gf.at (c) * std::min (pv.at (c), 1.0f);
+                        tL[c] += g * bl[c];
+                        tR[c] += g * br[c];
+                        es[c] += e;
+                    }
+                    bl[c] = 0.0f;
+                    br[c] = 0.0f;
+                }
+                continue;
+            }
             for (int c = c0; c < c1; ++c)
             {
                 const float a = envBuf[k][c] * lg.at (c);
@@ -1948,9 +2839,19 @@ void Engine::mixPiece (int c0, int c1, float* outL, float* outR, std::int64_t tA
         {
             if (! audible[s])
                 continue;
-            const float lv = levelRamp[s].value (c) * audibleRamp[s].value (c) * vgain;
-            const float tL = accL[s][c] * lv * panLRamp[s].value (c);
-            const float tR = accR[s][c] * lv * panRRamp[s].value (c);
+            float tL = 0.0f, tR = 0.0f;
+            if (pairMix[s])
+            {
+                const float lv = audibleRamp[s].value (c) * vgain;   // PD7: level · pan per pair
+                tL = accL[s][c] * lv;
+                tR = accR[s][c] * lv;
+            }
+            else
+            {
+                const float lv = levelR (s).value (c) * audibleRamp[s].value (c) * vgain;
+                tL = accL[s][c] * lv * panLR (s).value (c);
+                tR = accR[s][c] * lv * panRR (s).value (c);
+            }
             if (! have)
             {
                 yL = tL;
@@ -1965,9 +2866,18 @@ void Engine::mixPiece (int c0, int c1, float* outL, float* outR, std::int64_t tA
         }
         if (! have)
         {
-            const float lv = levelRamp[0].value (c) * audibleRamp[0].value (c) * vgain;
-            yL = accL[0][c] * lv * panLRamp[0].value (c);
-            yR = accR[0][c] * lv * panRRamp[0].value (c);
+            if (pairMix[0])
+            {
+                const float lv = audibleRamp[0].value (c) * vgain;
+                yL = accL[0][c] * lv;
+                yR = accR[0][c] * lv;
+            }
+            else
+            {
+                const float lv = levelR (0).value (c) * audibleRamp[0].value (c) * vgain;
+                yL = accL[0][c] * lv * panLR (0).value (c);
+                yR = accR[0][c] * lv * panRR (0).value (c);
+            }
         }
 
         wet[0][c - c0] = yL;
@@ -2030,7 +2940,7 @@ void Engine::mixPiece (int c0, int c1, float* outL, float* outR, std::int64_t tA
        #if OGI_TEST_HOOKS
         hooks.kneePeak = std::max ({ hooks.kneePeak, std::abs (yL), std::abs (yR) });
        #endif
-        const float og = outGainRamp.value (c);
+        const float og = (useOutMod ? outGainMod : outGainRamp).value (c);
         outL[c - c0] = yL * og;
         outR[c - c0] = yR * og;
     }

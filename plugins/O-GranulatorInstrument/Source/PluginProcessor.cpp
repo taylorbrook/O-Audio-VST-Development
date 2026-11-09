@@ -73,6 +73,7 @@ GranulatorInstrumentProcessor::GranulatorInstrumentProcessor()
     formatManager.registerBasicFormats();
     engine = std::make_unique<ogi::Engine> (handoff);
     engine->bind (parameters);
+    setEngineDestRanges();
 
     // PD3: the engine reads the masks (relaxed) and copies the custom table under
     // a non-blocking try-lock when customVersion moves. The index layouts agree:
@@ -151,6 +152,22 @@ juce::AudioProcessorValueTreeState::ParameterLayout GranulatorInstrumentProcesso
 }
 
 //==============================================================================
+/** PLAN-2.5a PD3: the matrix range table from the parameter objects themselves
+    (the same contract rows as createParameterLayout) and the raw atomic of every
+    destination. Message / host thread only (process() not running). */
+void GranulatorInstrumentProcessor::setEngineDestRanges()
+{
+    for (int d = 1; d < Ids::kModDests; ++d)
+    {
+        const juce::String id (Ids::kModDestIds[d]);
+        auto* f = dynamic_cast<juce::AudioParameterFloat*> (parameters.getParameter (id));
+        jassert (f != nullptr);
+        if (f != nullptr)
+            engine->setDestRange (d, f->getNormalisableRange(), parameters.getRawParameterValue (id));
+    }
+}
+
+//==============================================================================
 void GranulatorInstrumentProcessor::updateSidechainChannelCount() noexcept
 {
     const auto* sc = getBus (true, 0);
@@ -169,6 +186,7 @@ void GranulatorInstrumentProcessor::prepareToPlay (double sampleRate, int sample
 
     // Engine: pool, voices, feedback return (zeroed), ramps. Loaded tapes stay;
     // until their rebuild lands the reader corrects the pitch by tapeRate / fs.
+    setEngineDestRanges();   // PLAN-2.5a PD3: host thread, process() not running
     engine->prepare (sampleRate, samplesPerBlock);
 
     // Host thread: SlotInfo only under the loader lock; SR rebuilds are queued
@@ -205,8 +223,35 @@ void GranulatorInstrumentProcessor::processBlock (juce::AudioBuffer<float>& buff
 
     // Render into the (cleared) stereo output. The output bus is stereo by
     // isBusesLayoutSupported; a buffer narrower than 2 stays silent.
+    // PLAN-2.5a PD12: the host transport, read ONCE per block by value (no
+    // allocation). The only playhead read in the plugin; no playhead → the
+    // tracker's own 120 bpm virtual transport.
+    ogi::TransportSnapshot ts;
+    if (auto* ph = getPlayHead())
+    {
+        if (const auto pos = ph->getPosition())
+        {
+            const auto bpm = pos->getBpm();
+            const auto ppq = pos->getPpqPosition();
+            ts.valid   = bpm.hasValue() && ppq.hasValue();
+            ts.playing = pos->getIsPlaying();
+            ts.bpm     = bpm.orFallback (0.0);
+            ts.ppq     = ppq.orFallback (0.0);
+            if (const auto bar = pos->getPpqPositionOfLastBarStart())
+            {
+                ts.hasLastBar = true;
+                ts.lastBarPpq = *bar;
+            }
+            if (const auto sig = pos->getTimeSignature())
+            {
+                ts.num = sig->numerator;
+                ts.den = sig->denominator;
+            }
+        }
+    }
+
     if (n > 0 && buffer.getNumChannels() >= 2)
-        engine->process (buffer.getWritePointer (0), buffer.getWritePointer (1), n, midiMessages, getSeed());
+        engine->process (buffer.getWritePointer (0), buffer.getWritePointer (1), n, midiMessages, getSeed(), ts);
 
     // MIDI is consumed (producesMidi() == false).
     midiMessages.clear();

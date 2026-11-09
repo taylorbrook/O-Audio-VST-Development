@@ -19,6 +19,9 @@
       tap_<row>.f32 / ret_<row>.f32   PB rows (PLAN-2.4 PD12): the parent's
                         feedback tap (hooks.tapProbe) and its z^-32 return
                         (getFbDelayForTest after every 32-sample block), from T_e
+      trace_<row>.f64   PL0t (PLAN-2.5a PD13): the parent's per-tick traceDest values
+      modraw_<row>.tsv  PL / PM / PE rows: landed raw of every row global + the landed
+                        route indices (our harness compares its own)
       activesets.tsv    SC1: parent ActiveSet members + [lo, hi) per case
       customtables.tsv  SC3: parent tableFromText via setCustomScale per text
 
@@ -102,6 +105,53 @@ namespace
     int failures = 0;
     void fail (const juce::String& m) { ++failures; std::printf ("  [FAIL] %s\n", m.toRawUTF8()); }
 
+    // ── 2.5a (PLAN-2.5a PD13): routes by NAME, the mock transport ─────────
+    int choiceIndex (Proc& p, const juce::String& id, const std::string& name)
+    {
+        auto* c = dynamic_cast<juce::AudioParameterChoice*> (param (p, id));
+        return c != nullptr ? c->choices.indexOf (juce::String::fromUTF8 (name.c_str())) : -1;
+    }
+
+    /** Sets slot fields by name; returns false (and fails the row) on an unknown name. */
+    bool setRoute (Proc& p, const juce::String& rowId, int slot, const std::string& src, const std::string& dest,
+                   bool setDepth, float depth, juce::String& landedOut)
+    {
+        const juce::String b = "mod" + juce::String (slot) + "_";
+        bool ok = true;
+        if (! src.empty())
+        {
+            const int i = choiceIndex (p, b + "source", src);
+            if (i < 0) { fail (rowId + " unknown source name " + juce::String::fromUTF8 (src.c_str())); ok = false; }
+            else { setP (p, b + "source", (float) i); landedOut << " " << b << "source=" << i; }
+        }
+        if (! dest.empty())
+        {
+            const int i = choiceIndex (p, b + "dest", dest);
+            if (i < 0) { fail (rowId + " unknown dest name " + juce::String::fromUTF8 (dest.c_str())); ok = false; }
+            else { setP (p, b + "dest", (float) i); landedOut << " " << b << "dest=" << i; }
+        }
+        if (setDepth)
+            setP (p, b + "depth", depth);
+        return ok;
+    }
+
+    struct MockPlayHead final : public juce::AudioPlayHead
+    {
+        parity::Transport t;
+        juce::int64 pos = 0;
+        juce::Optional<PositionInfo> getPosition() const override
+        {
+            PositionInfo pi;
+            const double ppq = parity::tpPpqAt (t, pos, parity::kFs);
+            pi.setBpm (parity::tpBpmAt (t, pos));
+            pi.setPpqPosition (ppq);
+            pi.setIsPlaying (true);
+            pi.setPpqPositionOfLastBarStart (std::floor (ppq / 4.0) * 4.0);
+            pi.setTimeSignature (juce::AudioPlayHead::TimeSignature { 4, 4 });
+            return pi;
+        }
+    };
+
     //==========================================================================
     int renderRow (const parity::Row& row, const juce::File& out, juce::FileOutputStream& manifest)
     {
@@ -132,6 +182,27 @@ namespace
                     setP (*p, sid (s, kv.id), kv.v);
             eng.hooks.freezeNoMinSpray = true;
         }
+        // 2.5a (PD13): routes by name (snapped at prepare, like a loaded state).
+        const bool modRow = parity::isModKind (row.kind);
+        juce::String routeLanded;
+        for (const auto& rt : row.routes)
+            setRoute (*p, juce::String (row.id), rt.slot, rt.src, rt.dest, true, rt.depth, routeLanded);
+        MockPlayHead mock;
+        mock.t = row.tp;
+        mock.t.bpmAdd = 0.0;   // ours-only perturbation
+        if (row.tp.on)
+            p->setPlayHead (&mock);
+        int traceIdx = -1;
+        if (! row.traceDest.empty())
+        {
+            traceIdx = choiceIndex (*p, "mod1_dest", row.traceDest);
+            if (traceIdx < 0) fail (juce::String (row.id) + " unknown trace dest");
+            eng.hooks.traceDest.dest = traceIdx;
+            eng.hooks.traceDest.stream = 0;
+        }
+        std::vector<double> traceRec;
+        std::uint64_t traceDrained = 0;
+
         p->setSeed (row.seed);
         p->prepareToPlay (parity::kFs, 512);
 
@@ -193,12 +264,28 @@ namespace
                 for (int s = s0; s <= s1; ++s)
                     param (*p, sid (s, "enable"))->setValueNotifyingHost (1.0f);
             }
+            // 2.5a: events / route edits at their block-boundary sample.
+            if (modRow)
+            {
+                for (const auto& ev : row.events)
+                    if (ev.at == pos) setP (*p, juce::String (ev.id), ev.value);
+                for (const auto& ed : row.edits)
+                    if (ed.at == pos) setRoute (*p, juce::String (row.id), ed.slot, ed.src, ed.dest, ed.setDepth, ed.depth, routeLanded);
+            }
+            mock.pos = pos;
             juce::int64 n = row.blockSize;
             n = std::min (n, tEnd - pos);
             if (! gv)
             {
                 if (pos < parity::kTf) n = std::min (n, parity::kTf - pos);
                 else if (pos < parity::kTe) n = std::min (n, parity::kTe - pos);
+            }
+            if (modRow)
+            {
+                for (const auto& ev : row.events)
+                    if (ev.at > pos) n = std::min (n, (juce::int64) ev.at - pos);
+                for (const auto& ed : row.edits)
+                    if (ed.at > pos) n = std::min (n, (juce::int64) ed.at - pos);
             }
             const int ni = (int) n;
             blk.setSize (2, ni, false, false, true);
@@ -231,6 +318,15 @@ namespace
                         rec.push_back (blk.getSample (0, i));
                         rec.push_back (blk.getSample (1, i));
                     }
+
+            // 2.5a: drain the traceDest ring after every block.
+            if (traceIdx >= 0)
+            {
+                if (eng.traceCount - traceDrained > (std::uint64_t) eng.trace.size())
+                    fail (juce::String (row.id) + " trace ring overran between drains");
+                for (; traceDrained < eng.traceCount; ++traceDrained)
+                    traceRec.push_back (eng.trace[(size_t) (traceDrained % (std::uint64_t) eng.trace.size())].value);
+            }
 
             // Drain the 4096-entry spawn log after EVERY block (P15).
             const auto& dg = eng.diag;
@@ -272,6 +368,25 @@ namespace
         if (gl != nullptr) gl->flush();
 
         writeF32 (out.getChildFile (juce::String (row.id) + (gv ? ".f32" : ".f32")), rec);
+        p->setPlayHead (nullptr);
+        if (traceIdx >= 0)
+        {
+            auto tf = out.getChildFile ("trace_" + juce::String (row.id) + ".f64");
+            tf.deleteFile();
+            juce::FileOutputStream os (tf);
+            os.write (traceRec.data(), traceRec.size() * sizeof (double));
+            std::printf ("        trace: %d ticks (dest index %d)\n", (int) traceRec.size(), traceIdx);
+        }
+        if (modRow)
+        {
+            auto mf = out.getChildFile ("modraw_" + juce::String (row.id) + ".tsv");
+            mf.deleteFile();
+            juce::FileOutputStream os (mf);
+            for (const auto& kv : row.gl)
+                os.writeText (juce::String (kv.id) + "\t" + juce::String (rawOf (*p, juce::String (kv.id)), 9) + "\n", false, false, "\n");
+            os.writeText ("#routes" + routeLanded + "\n", false, false, "\n");
+            std::printf ("        mod: routes%s\n", routeLanded.toRawUTF8());
+        }
         int tapNonZero = 0;
         if (fbRow)
         {

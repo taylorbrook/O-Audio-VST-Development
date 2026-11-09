@@ -206,6 +206,7 @@ public:
 
 private:
     void updateSidechainChannelCount() noexcept;
+    void setEngineDestRanges();   // PLAN-2.5a PD3 (message / host thread)
 
     int degreeCountFor (int collection) const;
     void resetNonParameterState();

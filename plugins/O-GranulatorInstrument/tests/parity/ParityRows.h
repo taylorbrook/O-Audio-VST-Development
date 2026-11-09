@@ -86,14 +86,51 @@ namespace parity
     // ── rows ────────────────────────────────────────────────────────────────
     struct KV { std::string id; float v; };   // id: a stream SUFFIX ("size") or a global ID ("grain_limit")
 
-    enum class Kind { null_, stats, gv, fxNull, fxStats, fbNull, revNull };   // fx*: PLAN-2.3 PD11; fb / rev: PLAN-2.4 PD12 (pg22 / pg23 never see them)
+    enum class Kind { null_, stats, gv, fxNull, fxStats, fbNull, revNull, modNull };   // fx*: PLAN-2.3 PD11; fb / rev: PLAN-2.4 PD12; mod: PLAN-2.5a PD13 (pg22 / pg23 never see them)
 
     inline bool isNullKind (Kind k)  { return k == Kind::null_ || k == Kind::fxNull; }
     inline bool isStatsKind (Kind k) { return k == Kind::stats || k == Kind::fxStats; }
     inline bool isFbKind (Kind k)    { return k == Kind::fbNull; }
     inline bool isRevKind (Kind k)   { return k == Kind::revNull; }
-    /** PB / PR rows use the PN01 null geometry, so the parent self-checks apply. */
-    inline bool isGeomKind (Kind k)  { return isNullKind (k) || isFbKind (k) || isRevKind (k); }
+    inline bool isModKind (Kind k)   { return k == Kind::modNull; }
+    /** PB / PR / PL rows use the PN01 null geometry, so the parent self-checks apply. */
+    inline bool isGeomKind (Kind k)  { return isNullKind (k) || isFbKind (k) || isRevKind (k) || isModKind (k); }
+
+    // ── 2.5a (PLAN-2.5a PD13): routes, timed events, a mock transport ─────
+    /** A matrix route by NAME: each side maps the names to its own choice
+        index (AudioParameterChoice::choices.indexOf, P2) and self-checks it. */
+    struct Route { int slot = 1; std::string src; std::string dest; float depth = 0.0f; };
+    /** A parameter set at absolute sample `at` (a block boundary on both sides). */
+    struct Event { int64_t at = 0; std::string id; float value = 0.0f; };
+    /** A route edit at `at`: slot fields by NAME (empty = unchanged). */
+    struct RouteEdit { int64_t at = 0; int slot = 1; std::string src; std::string dest; bool setDepth = false; float depth = 0.0f; };
+    /** The mock transport (both drivers wrap it in a juce::AudioPlayHead,
+        evaluated at every block start). 4/4, last bar = floor (ppq / 4)·4. */
+    struct Transport
+    {
+        bool    on = false;
+        double  bpm = 120.0, ppq0 = 0.0;
+        int64_t stepAt = -1;  double bpm2 = 120.0;     // a tempo step at stepAt
+        int64_t loopAt = -1;  double loopBack = 0.0;   // ppq jumps back by loopBack at loopAt
+        double  bpmAdd = 0.0;                           // PLc3: ours-only +0.1
+    };
+    inline double tpBpmAt (const Transport& t, int64_t s)
+    {
+        return ((t.stepAt >= 0 && s >= t.stepAt) ? t.bpm2 : t.bpm) + t.bpmAdd;
+    }
+    inline double tpPpqAt (const Transport& t, int64_t s, double fs)
+    {
+        const double b1 = t.bpm + t.bpmAdd, b2 = t.bpm2 + t.bpmAdd;
+        double q = (t.stepAt >= 0 && s >= t.stepAt)
+                       ? t.ppq0 + static_cast<double> (t.stepAt) * b1 / 60.0 / fs + static_cast<double> (s - t.stepAt) * b2 / 60.0 / fs
+                       : t.ppq0 + static_cast<double> (s) * b1 / 60.0 / fs;
+        if (t.loopAt >= 0 && s >= t.loopAt)
+            q -= t.loopBack;
+        return q;
+    }
+    constexpr int64_t kModBlock = 512;
+    /** A time T_e + k·512: a block boundary on both drivers. */
+    inline int64_t atBlock (int k) { return kTe + kModBlock * static_cast<int64_t> (k); }
 
     struct Row
     {
@@ -116,6 +153,15 @@ namespace parity
         int blockSize = 512;                  // render block (PB rows 32: the parent return is read per cell)
         std::vector<KV> gl;                   // GLOBAL params, both sides (feedback, fb_*, reverb_*)
         std::vector<KV> oursGl;               // our-side-only global overrides (PBc1 / PBc3 / PRc1)
+        // 2.5a (PLAN-2.5a PD13)
+        std::vector<Route> routes;            // both sides
+        std::vector<Event> events;            // both sides
+        std::vector<Event> oursEvents;        // our-side-only events (controls)
+        std::vector<RouteEdit> edits;         // both sides
+        std::vector<RouteEdit> oursEdits;     // our-side-only route edits (PEc3)
+        Transport tp;                         // both sides (bpmAdd ours only)
+        std::string traceDest;                // dest NAME traced per tick (PL0t), both sides
+        bool deferred = false;                // needs the Tempo stream path (T12)
     };
 
     /** Base stream settings for the null rows (spray 0, jitter 0, every random control 0). */
@@ -378,6 +424,78 @@ namespace parity
             auto byId = [&r] (const std::string& id) -> Row { for (const auto& x : r) if (x.id == id) return x; return Row {}; };
             Row c1 = byId ("PR9"); c1.id = "PRc1"; c1.parentOf = "PR9"; c1.oursGl = { { "reverb_size", 51.0f } }; r.push_back (c1);
             Row c2 = byId ("PRk"); c2.id = "PRc2"; c2.parentOf = "PRk"; c2.oursHooks = { "legacyWetTanh" }; r.push_back (c2);
+        }
+
+        // ── 2.5a PL / PM / PE: matrix nulls (PLAN-2.5a PD13) ─────────────────
+        //   PN01 geometry, s1 level −12 dB, peak 0.1, every 2.4 global off.
+        //   LFO rates differ per LFO; every source busy in PL0.
+        auto pl = [&r] (const std::string& id, std::vector<Route> routes, std::vector<KV> g = {})
+        {
+            Row x; x.id = id; x.kind = Kind::modNull; x.stream = 1;
+            x.sp = over (over (nullBase(), fxBase()), { { "level", -12.0f } });
+            x.seconds = 1.0; x.matPeak = 0.1f; x.blockSize = 512;
+            x.gl = over (over (fbRevBase(), { { "lfo1_rate", 3.7f }, { "lfo2_rate", 2.3f }, { "lfo3_rate", 5.1f }, { "lfo4_rate", 7.9f },
+                                               { "lfo1_shape", 0.0f }, { "lfo2_shape", 0.0f }, { "lfo3_shape", 2.0f }, { "lfo4_shape", 4.0f },
+                                               { "lfo1_phase", 0.0f }, { "lfo2_phase", 0.0f }, { "lfo3_phase", 0.0f }, { "lfo4_phase", 0.0f },
+                                               { "sync_mode", 0.0f }, { "macro1", 0.0f }, { "macro2", 0.0f }, { "macro3", 0.0f }, { "macro4", 0.0f } }), g);
+            x.routes = routes;
+            r.push_back (x);
+            return r.size() - 1;
+        };
+        const std::string L1 = "S1 \xC2\xB7 Level";
+        {
+            // PL0: no route, every source busy (macros stepping, LFOs running).
+            const auto i0 = pl ("PL0", {});
+            r[i0].events = { { atBlock (10), "macro1", 70.0f }, { atBlock (30), "macro2", 40.0f }, { atBlock (50), "macro3", 90.0f },
+                             { atBlock (70), "macro4", 20.0f } };
+            for (int k = 0; k < 6; ++k)
+                pl ("PL" + std::to_string (k + 1), { { 1, "LFO 1", L1, 50.0f } }, { { "lfo1_shape", static_cast<float> (k) } });
+            pl ("PL7", { { 1, "LFO 2", L1, -50.0f } });
+            pl ("PL8", { { 1, "LFO 3", L1, -50.0f } });
+            pl ("PL9", { { 1, "LFO 4", L1, -50.0f } });
+            const auto i10 = pl ("PL10", { { 1, "LFO 1", L1, 50.0f } });
+            r[i10].events = { { atBlock (20), "lfo1_phase", 90.0f }, { atBlock (45), "lfo1_phase", 359.0f }, { atBlock (70), "lfo1_phase", 1.0f } };
+            // Tempo (sync_mode Tempo puts the parent streams on the R41 grid too: deferred to T12)
+            const auto i11 = pl ("PL11", { { 1, "LFO 1", L1, 50.0f } }, { { "sync_mode", 1.0f }, { "lfo1_rate_sync", 13.0f } });
+            r[i11].tp.on = true; r[i11].tp.bpm = r[i11].tp.bpm2 = 120.0; r[i11].tp.ppq0 = 0.0; r[i11].deferred = true;
+            const auto i12 = pl ("PL12", { { 1, "LFO 1", L1, 50.0f } }, { { "sync_mode", 1.0f }, { "lfo1_rate_sync", 9.0f }, { "lfo1_shape", 4.0f } });
+            r[i12].tp.on = true; r[i12].tp.bpm = r[i12].tp.bpm2 = 133.0; r[i12].tp.ppq0 = 0.5; r[i12].deferred = true;
+            const auto i13 = pl ("PL13", { { 1, "LFO 1", L1, 50.0f } }, { { "sync_mode", 1.0f }, { "lfo1_rate_sync", 18.0f }, { "lfo1_shape", 2.0f } });
+            r[i13].tp.on = true; r[i13].tp.bpm = 97.3; r[i13].tp.ppq0 = 0.0; r[i13].tp.stepAt = atBlock (30); r[i13].tp.bpm2 = 128.0;
+            r[i13].tp.loopAt = atBlock (60); r[i13].tp.loopBack = 2.0; r[i13].deferred = true;
+            pl ("PL14", { { 1, "LFO 2", "LFO 1 \xC2\xB7 Rate", 30.0f }, { 2, "LFO 1", L1, 50.0f } });
+            pl ("PL15", { { 1, "LFO 1", "Output Gain", 30.0f } });
+            pl ("PLs1", { { 1, "LFO 1", "S1 \xC2\xB7 Size", 10.0f } });
+            for (int m = 1; m <= 4; ++m)
+            {
+                const auto i = pl ("PM" + std::to_string (m), { { 1, "Macro " + std::to_string (m), L1, 50.0f } });
+                const std::string id = "macro" + std::to_string (m);
+                r[i].events = { { atBlock (15), id, 70.0f }, { atBlock (55), id, 20.0f } };
+            }
+            const auto e1 = pl ("PE1", { { 1, "LFO 1", L1, 60.0f } });
+            r[e1].edits = { { atBlock (40), 1, "", "", true, -60.0f } };
+            const auto e2 = pl ("PE2", { { 1, "LFO 1", L1, 0.0f } });
+            r[e2].edits = { { atBlock (40), 1, "", "", true, 60.0f } };
+            const auto e3 = pl ("PE3", { { 1, "LFO 1", L1, 50.0f } });
+            r[e3].edits = { { atBlock (40), 1, "LFO 2", "", false, 0.0f } };
+            const auto e4 = pl ("PE4", { { 1, "LFO 1", L1, 50.0f } });
+            r[e4].edits = { { atBlock (40), 1, "", "Output Gain", false, 0.0f } };
+            const auto e5 = pl ("PE5", { { 1, "LFO 1", L1, 50.0f } });
+            r[e5].edits = { { atBlock (40), 1, "None", "", false, 0.0f } };
+            pl ("PE6", { { 1, "Macro 1", L1, 100.0f }, { 2, "Macro 2", L1, 100.0f }, { 3, "LFO 1", L1, 60.0f }, { 4, "Macro 3", L1, -40.0f } },
+                { { "macro1", 40.0f }, { "macro2", 50.0f }, { "macro3", 30.0f } });
+
+            // controls (ours only; the parent render is reused)
+            auto byId = [&r] (const std::string& id) -> Row { for (const auto& x : r) if (x.id == id) return x; return Row {}; };
+            Row c1 = byId ("PL1"); c1.id = "PLc1"; c1.parentOf = "PL1"; c1.oursGl = { { "lfo1_phase", 1.0f } }; r.push_back (c1);
+            Row c2 = byId ("PL5"); c2.id = "PLc2"; c2.parentOf = "PL5"; c2.seed = c2.seed + 1; r.push_back (c2);
+            Row c3 = byId ("PL11"); c3.id = "PLc3"; c3.parentOf = "PL11"; c3.tp.bpmAdd = 0.1; r.push_back (c3);
+            Row m1 = byId ("PM1"); m1.id = "PMc1"; m1.parentOf = "PM1"; m1.oursHooks = { "macroRampZero" }; r.push_back (m1);
+            Row q1 = byId ("PE1"); q1.id = "PEc1"; q1.parentOf = "PE1"; q1.oursHooks = { "noDepthRamp" }; r.push_back (q1);
+            Row q2 = byId ("PE3"); q2.id = "PEc2"; q2.parentOf = "PE3"; q2.oursHooks = { "noResidual" }; r.push_back (q2);
+            Row q3 = byId ("PE1"); q3.id = "PEc3"; q3.parentOf = "PE1"; q3.edits.clear(); q3.oursEdits = { { atBlock (40), 1, "", "", true, -59.0f } }; r.push_back (q3);
+            // PL0t: the per-tick s1_level trace on the PL1 stimulus (the phase precondition).
+            Row t0 = byId ("PL1"); t0.id = "PL0t"; t0.traceDest = L1; r.push_back (t0);
         }
 
         // D16 gain: parent live (not frozen), defaults, mix 100 %; 4 seeds

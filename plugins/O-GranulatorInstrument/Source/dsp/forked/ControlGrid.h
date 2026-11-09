@@ -187,10 +187,18 @@ namespace ogi
     // 2.4: the 9 global rows feedback, fb_low_cut, fb_high_cut, fb_saturation,
     // fb_diffusion, freeze, reverb_mix, reverb_size, reverb_damp (PLAN-2.4 T5;
     // the cutoffs raw Hz from the skewed ranges, never inverted by hand).
-    // Never bound: sN_size_sync and sN_density_sync (2.5), mod, voice mode,
-    // MPE, record.
+    // 2.5a (PLAN-2.5a T3, PD2 / PD15): the 89 mod / sync rows — sync_mode,
+    // sN_size_sync / sN_density_sync, menvN_attack / decay / sustain / release,
+    // lfoN_shape / rate / rate_sync / phase / mode, macroN, modM_source / dest /
+    // depth. `struct Lfo` carries the parent field names and types
+    // (82406fce ControlGrid.h:326-331) so the VERBATIM ModSources.h compiles
+    // through `using GridParams = GiGridParams`.
+    // Never bound after 2.5a: voice_mode, glide, mpe_enable, rec_* (2.5b / 2.6).
     //==========================================================================
     inline constexpr int kGiGridStreams = 4;   // 2.2: s1...s4 (2.1: s1 only)
+    inline constexpr int kGiLfos = 4, kGiModEnvs = 2, kGiMacros = 4, kGiModSlots = 16;
+    inline constexpr int kGiModSources = 18;   // GiParamIds::kNumModSources (incl. None)
+    inline constexpr int kGiModDests   = 126;  // GiParamIds::kModDests (incl. None)
 
     /** Raw APVTS atomics, cached once in the processor constructor (bind). A
         null pointer is simply not read (the GiGridParams default stays). */
@@ -258,8 +266,39 @@ namespace ogi
             std::atomic<float>* ringFreq     = nullptr;   // Hz (skewed range)
             std::atomic<float>* ringRand     = nullptr;
             std::atomic<float>* ringMix      = nullptr;
+            // 2.5a
+            std::atomic<float>* sizeSync     = nullptr;   // choice 0…19
+            std::atomic<float>* densitySync  = nullptr;   // choice 0…18
         };
         Stream s[kGiGridStreams] {};
+
+        // 2.5a: sync, sources, matrix
+        std::atomic<float>* syncMode = nullptr;           // choice 0 Free, 1 Tempo
+        struct ModEnv
+        {
+            std::atomic<float>* attack = nullptr;         // ms (skewed range: read raw)
+            std::atomic<float>* decay = nullptr;
+            std::atomic<float>* sustain = nullptr;        // %
+            std::atomic<float>* release = nullptr;
+        };
+        ModEnv menv[kGiModEnvs] {};
+        struct Lfo
+        {
+            std::atomic<float>* shape = nullptr;          // choice 0 Sine … 5 Smooth Random
+            std::atomic<float>* rate = nullptr;           // Hz (skewed range: read raw)
+            std::atomic<float>* rateSync = nullptr;       // choice 0…21
+            std::atomic<float>* phase = nullptr;          // degrees
+            std::atomic<float>* mode = nullptr;           // choice 0 Global, 1 Per-voice
+        };
+        Lfo lfo[kGiLfos] {};
+        std::atomic<float>* macro[kGiMacros] {};          // %
+        struct Mod
+        {
+            std::atomic<float>* source = nullptr;         // choice 0 None … 17 Macro 4
+            std::atomic<float>* dest = nullptr;           // choice 0 None … 125
+            std::atomic<float>* depth = nullptr;          // −100..100 %
+        };
+        Mod mod[kGiModSlots] {};
 
         /** Message thread (processor constructor). */
         void bind (juce::AudioProcessorValueTreeState& apvts)
@@ -325,6 +364,37 @@ namespace ogi
                 ps.ringFreq     = apvts.getRawParameterValue (GiParamIds::stream (n, "ring_freq"));
                 ps.ringRand     = apvts.getRawParameterValue (GiParamIds::stream (n, "ring_rand"));
                 ps.ringMix      = apvts.getRawParameterValue (GiParamIds::stream (n, "ring_mix"));
+
+                ps.sizeSync     = apvts.getRawParameterValue (GiParamIds::stream (n, "size_sync"));
+                ps.densitySync  = apvts.getRawParameterValue (GiParamIds::stream (n, "density_sync"));
+            }
+
+            syncMode = apvts.getRawParameterValue ("sync_mode");
+            for (int i = 0; i < kGiModEnvs; ++i)
+            {
+                const juce::String b = "menv" + juce::String (i + 1) + "_";
+                menv[i].attack  = apvts.getRawParameterValue (b + "attack");
+                menv[i].decay   = apvts.getRawParameterValue (b + "decay");
+                menv[i].sustain = apvts.getRawParameterValue (b + "sustain");
+                menv[i].release = apvts.getRawParameterValue (b + "release");
+            }
+            for (int i = 0; i < kGiLfos; ++i)
+            {
+                const juce::String b = "lfo" + juce::String (i + 1) + "_";
+                lfo[i].shape    = apvts.getRawParameterValue (b + "shape");
+                lfo[i].rate     = apvts.getRawParameterValue (b + "rate");
+                lfo[i].rateSync = apvts.getRawParameterValue (b + "rate_sync");
+                lfo[i].phase    = apvts.getRawParameterValue (b + "phase");
+                lfo[i].mode     = apvts.getRawParameterValue (b + "mode");
+            }
+            for (int i = 0; i < kGiMacros; ++i)
+                macro[i] = apvts.getRawParameterValue ("macro" + juce::String (i + 1));
+            for (int m = 0; m < kGiModSlots; ++m)
+            {
+                const juce::String b = "mod" + juce::String (m + 1) + "_";
+                mod[m].source = apvts.getRawParameterValue (b + "source");
+                mod[m].dest   = apvts.getRawParameterValue (b + "dest");
+                mod[m].depth  = apvts.getRawParameterValue (b + "depth");
             }
         }
     };
@@ -400,8 +470,39 @@ namespace ogi
             float ringFreqHz     = 200.0f;   // 20..5000 Hz (raw)
             float ringRand       = 0.0f;     // 0..1
             float ringMix        = 0.0f;     // 0..1
+            // 2.5a
+            int   sizeSync       = 7;        // 0…19 (7 = 1/16)
+            int   densitySync    = 7;        // 0…18 (7 = 1/16)
         };
         Stream s[kGiGridStreams] {};
+
+        // 2.5a — spec defaults
+        int syncMode = 0;                    // 0 Free, 1 Tempo
+        struct Lfo                           // parent ControlGrid.h:326-331 (names + types)
+        {
+            int   shape    = 0;              // 0 Sine … 5 Smooth Random
+            float rateHz   = 0.5f;           // 0.01..20 (raw)
+            int   rateSync = 18;             // 0…21 (18 = 1 bar)
+            float phaseDeg = 0.0f;           // 0..360
+        };
+        Lfo   lfo[kGiLfos] {};
+        int   lfoMode[kGiLfos] {};           // 0 Global, 1 Per-voice
+        struct ModEnv
+        {
+            float attackMs  = 10.0f;         // 0..10000 (raw)
+            float decayMs   = 500.0f;        // 0..10000
+            float sustain   = 0.0f;          // 0..1
+            float releaseMs = 500.0f;        // 0..20000
+        };
+        ModEnv menv[kGiModEnvs] {};
+        float macro[kGiMacros] {};           // 0..1
+        struct Mod
+        {
+            int   src   = 0;                 // 0 None … 17 Macro 4
+            int   dest  = 0;                 // 0 None … 125
+            float depth = 0.0f;              // −1..1
+        };
+        Mod mod[kGiModSlots] {};
 
         void latch (const GiParamPointers& p) noexcept
         {
@@ -473,6 +574,35 @@ namespace ogi
                 read (ps.ringFreq,     st.ringFreqHz,     20.0f,  5000.0f);
                 readPct (ps.ringRand,    st.ringRand);
                 readPct (ps.ringMix,     st.ringMix);
+                // 2.5a
+                readInt (ps.sizeSync,    st.sizeSync,    0, 19);
+                readInt (ps.densitySync, st.densitySync, 0, 18);
+            }
+
+            // 2.5a: sync, sources, matrix (choice indices with lround, clamped).
+            readInt (p.syncMode, syncMode, 0, 1);
+            for (int n = 0; n < kGiLfos; ++n)
+            {
+                readInt (p.lfo[n].shape,    lfo[n].shape,    0, 5);
+                read    (p.lfo[n].rate,     lfo[n].rateHz,   0.01f, 20.0f);
+                readInt (p.lfo[n].rateSync, lfo[n].rateSync, 0, kTempoDivs - 1);
+                read    (p.lfo[n].phase,    lfo[n].phaseDeg, 0.0f, 360.0f);
+                readInt (p.lfo[n].mode,     lfoMode[n],      0, 1);
+            }
+            for (int n = 0; n < kGiModEnvs; ++n)
+            {
+                read    (p.menv[n].attack,  menv[n].attackMs,  0.0f, 10000.0f);
+                read    (p.menv[n].decay,   menv[n].decayMs,   0.0f, 10000.0f);
+                readPct (p.menv[n].sustain, menv[n].sustain);
+                read    (p.menv[n].release, menv[n].releaseMs, 0.0f, 20000.0f);
+            }
+            for (int n = 0; n < kGiMacros; ++n)
+                readPct (p.macro[n], macro[n]);
+            for (int m = 0; m < kGiModSlots; ++m)
+            {
+                readInt (p.mod[m].source, mod[m].src,  0, kGiModSources - 1);
+                readInt (p.mod[m].dest,   mod[m].dest, 0, kGiModDests - 1);
+                read    (p.mod[m].depth,  mod[m].depth, -100.0f, 100.0f, 100.0f);
             }
         }
 
@@ -511,4 +641,8 @@ namespace ogi
                 dst = v > 0.5f;
         }
     };
+
+    /** 2.5a (PLAN-2.5a PD2): the parent leaves (ModSources.h, TempoTracker.h)
+        compile VERBATIM against the instrument's grid through this alias. */
+    using GridParams = GiGridParams;
 } // namespace ogi

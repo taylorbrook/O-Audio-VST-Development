@@ -1018,6 +1018,9 @@ static void hookRows()
 // PLAN-2.4 T14: DSP-04 / DSP-05 parity rows (PB / PBc / PBd, PR / PRk / PRc, --parity).
 #include "parity_gates_24.h"
 
+// PLAN-2.5a T7: DSP-06 matrix parity rows (PL / PL0t / PLs / PM / PE + controls, --parity).
+#include "parity_gates_25a.h"
+
 //==============================================================================
 int main (int argc, char** argv)
 {
@@ -1044,6 +1047,8 @@ int main (int argc, char** argv)
                 pg23::run (dir, prefix);
             if (prefix.isEmpty() || prefix.startsWith ("PB") || prefix.startsWith ("PR"))
                 pg24::run (dir, prefix);
+            if (prefix.isEmpty() || prefix.startsWith ("PL") || prefix.startsWith ("PM") || prefix.startsWith ("PE"))
+                pg25a::run (dir, prefix);
             std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
             return juce::jmin (failures, 255);
         }

@@ -672,7 +672,7 @@ namespace { namespace eg24
 
     void rowFL7()
     {
-        const auto readSet = eg21::readSet24();
+        const auto readSet = eg21::readSet25a();   // PLAN-2.5a PD15 + S8 user decision 2026-11-09 (2.4: readSet24 162 / 99)
         int bound = 0;
         {
             auto probe = make();
@@ -699,10 +699,10 @@ namespace { namespace eg24
         const auto cR = fl7Render ([] (Proc& p) { setP (p, "reverb_size", 51.0f); });
         const int nD = eg21::diffCount (ref.out, cD.out), nR = eg21::diffCount (ref.out, cR.out);
         const bool fired = (nD > 0 || cD.hash != ref.hash) && nR > 0;
-        row (n == 0 && o.hash == ref.hash && bound == 162 && touched == 99 && fired,
-             "FL7 99 unread params bit-identical with the loop active (fb 80 %, reverb 50 %, freeze x 2; readSet24)",
+        row (n == 0 && o.hash == ref.hash && bound == 251 && touched == 10 && fired,
+             "FL7 10 unread params bit-identical with the loop active (fb 80 %, reverb 50 %, freeze x 2; readSet25a)",
              "meas " + juce::String (n) + " samples differ, tape hashes " + (o.hash == ref.hash ? "equal" : "DIFFER") + " (" + juce::String (touched)
-                 + " randomised, " + juce::String (bound) + "/162 bound) | thr 0 | margin " + juce::String (-n)
+                 + " randomised, " + juce::String (bound) + "/251 bound) | thr 0 | margin " + juce::String (-n)
                  + " | " + ctrl (fired, "fb_diffusion 51 -> " + juce::String (nD) + ", reverb_size 51 -> " + juce::String (nR) + " differ"));
     }
 

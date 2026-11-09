@@ -38,6 +38,8 @@
 #include "GiConstants.h"
 #include "forked/ControlGrid.h"
 #include "forked/FeedbackChain.h"
+#include "forked/TempoTracker.h"   // VERBATIM (PLAN-2.5a T4)
+#include "forked/ModSources.h"     // VERBATIM: the Lfo class (PLAN-2.5a PD2)
 #include "forked/Grain.h"
 #include "forked/OutputLaw.h"
 #include "forked/WindowMorphBank.h"
@@ -45,6 +47,8 @@
 #include "GiFxLatch.h"
 #include "GiRecordHead.h"
 #include "GiHeadClamp.h"
+#include "GiModMatrix.h"
+#include "GiVoiceMod.h"
 #include "KaiserResampler.h"   // kaiser::ratesEqual
 #include "GiRenderer.h"
 #include "GiScale.h"
@@ -251,6 +255,23 @@ namespace ogi
         bool runRampZero      = false;   // CK3 control: the head run ramp steps (hard start / stop)
         bool freezeHardStop   = false;   // CK1 control: on a freeze edge the run ramp snaps to 0
         bool resetHardSwap    = false;   // CK4 control: a Reset take swaps tapes with no crossfade (x.len 1)
+        // 2.5a (PLAN-2.5a PD20)
+        bool noResidual       = false;   // PEc2 / RTn: a route change drops the slot's contribution (a step)
+        bool noDepthRamp      = false;   // PEc1 / REn: route / depth edits snap (no 20 ms depth ramp)
+        bool fullRoundTrip    = false;   // every destination takes the normalised round trip
+        bool macroRampZero    = false;   // PMc1: macros step (no 20 ms ramp)
+        bool pvSharedSource   = false;   // PV1n: every voice reads voice slot 0's per-voice sources
+        bool pvLfoNoReset     = false;   // VL1 control: a new voice adopts a running voice's LFO (no phase reset)
+        bool slotKeyedSeed    = false;   // VL2 control: per-voice random keyed on the voice SLOT
+        bool envLiveTimes     = false;   // ME3 control: Mod Env segments re-read their time every sample
+        bool newestNoRamp     = false;   // NV1n: the newest-voice handover snaps
+        bool newestStack      = false;   // NV4 control: a handover inside a ramp restarts from the OLD target (stacked)
+        bool modeSwitchSnap   = false;   // LM1n: lfoN_mode switch with no 20 ms crossfade
+        bool tempoContinuousThin = false;   // TS2n: Tempo thinning as a continuous period (off-grid)
+        bool ceilPerTick      = false;   // TS1n: the pending Tempo slot re-derived at every tick
+        bool tempoGridOnly    = false;   // TS6 control / parity: no note-on burst (parent R41)
+        struct TraceDest { int dest = -1; int voice = -1; float* buf = nullptr; std::int64_t len = 0; std::int64_t n = 0; };
+        TraceDest traceDest;             // per-tick value (ramped / tick dests) or per-spawn latched value
         bool writeScrubOff    = false;   // FL6 control: a non-finite write lands in the tape
         bool rClampOff        = false;   // FL1s control: no ±0.7 writer clamp
         bool settleOff        = false;   // MS1 control: no mip settle at wrap / park
@@ -292,6 +313,14 @@ namespace ogi
         float preKneePeak = 0.0f, kneePeak = 0.0f;   // max |y| before / after the knee (before output_gain)
         RecordHeadCounters head[kTapeSlots] {};      // writes, rClamps, writeScrubs, settles, parks, maxWritten per slot
         std::uint64_t swapWaits = 0;                 // ticks a pending tape waited for its head to park
+        // 2.5a (PLAN-2.5a PD20)
+        std::uint64_t quotaRecomputes = 0;           // updateQuotas passes that recomputed (the dirty check fired)
+        int routedPvDests = 0;                       // last tick: max per-voice routed destinations over the voices
+        int routedPvDestsMin = INT_MAX;              // min of that over ticks with a counted voice
+        int pairModeStreams = 0;                     // last tick: streams in the per-pair mixer mode
+        int pairModeStreamsMin = INT_MAX;            // min over ticks with a counted voice
+        std::uint64_t newestSerial = 0, handovers = 0, newestWasStolen = 0;
+        std::uint64_t tempoOnsets = 0, burstOnsets = 0, relocks = 0;
         std::uint64_t forcedCrossings = 0;           // PD9: no feasible p0 (or reach >= W) while the head runs
         std::uint64_t clampMoves = 0;                // PD9: p0 moved out of the forbidden set
         std::uint64_t headScanViolations = 0;        // headReadScan: a grain spawned with a running head read inside [−g_b, g_a]
@@ -343,6 +372,13 @@ namespace ogi
             for (auto& h : head)
                 h = RecordHeadCounters {};
             swapWaits = 0;
+            quotaRecomputes = 0;
+            routedPvDests = 0;
+            routedPvDestsMin = INT_MAX;
+            pairModeStreams = 0;
+            pairModeStreamsMin = INT_MAX;
+            newestSerial = handovers = newestWasStolen = 0;
+            tempoOnsets = burstOnsets = relocks = 0;
             forcedCrossings = clampMoves = headScanViolations = parkedSpawnCrossings = headScanSegments = 0;
             liveMin = INT_MAX;
             liveMax = 0;
@@ -392,9 +428,26 @@ namespace ogi
         /** Audio thread. outL / outR must be CLEARED by the caller; numSamples
             may exceed the prepared block size (everything is 32-sample scratch). */
         void process (float* outL, float* outR, int numSamples, const juce::MidiBuffer& midi,
-                      std::uint64_t seed) noexcept;
+                      std::uint64_t seed, const TransportSnapshot& transport = {}) noexcept;
+
+        /** Message thread (processor constructor / prepareToPlay; process() not
+            running): the matrix range + raw atomic of destination d (PLAN-2.5a
+            PD3, P15 — a NormalisableRange copy holds std::function members, so
+            it is never copied on the audio thread). */
+        void setDestRange (int d, const juce::NormalisableRange<float>& r, std::atomic<float>* raw) noexcept
+        {
+            matrix.setRange (d, r);
+            matrix.setRawPointer (d, raw);
+        }
 
         double       getSampleRate() const noexcept     { return fs; }
+
+        /** PLAN-2.5a PD16: UI telemetry (relaxed atomics written at grid ticks;
+            any thread reads). Destinations 1…125 as normalised 0..1 (G from the
+            global pass; V from the newest voice); sources 1…17; LFO phase 0..1. */
+        float getDestTelemetry (int d) const noexcept   { return (d > 0 && d < kGiModDests) ? destTel[(size_t) d].load (std::memory_order_relaxed) : 0.0f; }
+        float getSourceTelemetry (int s) const noexcept { return (s > 0 && s < kGiModSources) ? srcTel[(size_t) s].load (std::memory_order_relaxed) : 0.0f; }
+        float getLfoPhaseTelemetry (int n) const noexcept { return (n >= 0 && n < kGiLfos) ? lfoPhaseTel[(size_t) n].load (std::memory_order_relaxed) : 0.0f; }
         std::int64_t getSamplePosition() const noexcept { return absPos; }
         const SlotTape* getCurrentTape (int slot) const noexcept
         {
@@ -418,6 +471,14 @@ namespace ogi
         const GiGridParams& getGridParams() const noexcept  { return gp; }
         int              getRetiringCount() const noexcept  { return numRetiring; }
         const LoopRegion& getRegion (int s = 0) const noexcept { return region[std::clamp (s, 0, kGiStreams - 1)]; }
+        // 2.5a (PD20)
+        const GiVoiceMod&  getVoiceModForTest (int k) const noexcept { return vm[std::clamp (k, 0, kVoiceSlots - 1)]; }
+        const GiModMatrix& getMatrixForTest() const noexcept         { return matrix; }
+        const TempoTracker& getTrackerForTest() const noexcept       { return tracker; }
+        float getMonoForTest (int src) const noexcept                { return monoVal[std::clamp (src, 0, kGiModSources - 1)]; }
+        float getSrcGForTest (int src) const noexcept                { return srcG[std::clamp (src, 0, kGiModSources - 1)]; }
+        const GiGridParams::Stream& getPairViewForTest (int k, int s) const noexcept { return pairSp (std::clamp (k, 0, kVoiceSlots - 1), std::clamp (s, 0, kGiStreams - 1)); }
+        bool  getPairMixForTest (int s) const noexcept               { return pairMix[std::clamp (s, 0, kGiStreams - 1)]; }
         const GiScaleState& getScaleState() const noexcept  { return scale; }
         const FeedbackChain& getChainForTest (int s) const noexcept { return chain[std::clamp (s, 0, kGiStreams - 1)]; }
         FeedbackChain&       chainForTest (int s) noexcept          { return chain[std::clamp (s, 0, kGiStreams - 1)]; }
@@ -479,6 +540,39 @@ namespace ogi
        #endif
         void writeReverbAtomics() noexcept;
         void updateChainCutoffs() noexcept;
+
+        // 2.5a sources (PLAN-2.5a T5, PD10 / PD11)
+        void tickSources (std::int64_t t) noexcept;
+        void initVoiceMod (int k) noexcept;
+        ModEnvParams menvParams (int e) const noexcept;
+        bool lfoPerVoiceActive (int n) const noexcept;
+        std::uint64_t voiceLfoSeed (std::uint64_t serial) const noexcept;
+        void tickVoiceLfos (int k, std::int64_t t) noexcept;
+
+        // 2.5a per-voice pass (PLAN-2.5a T9, PD4–PD6)
+        bool srcPerVoiceNow (int src) const noexcept;
+        bool destVoiceNow (int dest) const noexcept;
+        void voicePass (int k, bool noteOnSeed) noexcept;
+        void buildPairViews (int k) noexcept;
+        void voiceLfoRates (int k) noexcept;
+        const GiGridParams::Stream& pairSp (int k, int s) const noexcept { return pairRoutedK[k][s] ? view[k][s] : gp.s[s]; }
+        const LoopRegion& pairRegion (int k, int s) const noexcept       { return pairRegionOn[k][s] ? regionV[k][s] : region[s]; }
+        const PitchSel& pairSel (int k, int s) const noexcept            { return pairSelOn[k][s] ? selV[k][s] : scale.selection (s); }
+        float offVAt (int k, int d, double at) const noexcept            { return vm[k].offsetAt (d, at); }
+        // T10 (PD7): per-pair level / pan
+        bool pairLevelPanRouted (int k, int s) const noexcept;
+        void pairGainTarget (int k, int s, float& gl, float& gr, float& lv) const noexcept;
+        void updatePairMix() noexcept;
+        bool  anyPairRouted() const noexcept                              { return numPairsRouted > 0; }
+
+        // 2.5a matrix (PLAN-2.5a T6, PD3 / PD5 / PD6)
+        void matrixTick (std::int64_t t) noexcept;
+        void applyLevelPanMod() noexcept;
+        void traceAt (int dest, float v) noexcept;
+        const ExactRamp& levelR (int s) const noexcept { return useLevelMod[s] ? levelMod[s] : levelRamp[s]; }
+        const ExactRamp& panLR (int s) const noexcept  { return usePanMod[s] ? panLMod[s] : panLRamp[s]; }
+        const ExactRamp& panRR (int s) const noexcept  { return usePanMod[s] ? panRMod[s] : panRRamp[s]; }
+        const ExactRamp& fbEff() const noexcept        { return useFbMod ? fbMod : fbRamp; }
         float pairFbGain (int k, int s, double nEff) const noexcept;
         void runChains (int c0, int c1, std::int64_t tAbs) noexcept;
         void updateHeads (std::int64_t t) noexcept;   // ramps, run condition, park (before takeTapes)
@@ -487,12 +581,17 @@ namespace ogi
 
         // helpers
         AmpParams ampParams() const noexcept;
-        double voiceSemis (const Voice& v, int s) const noexcept;
-        double voiceRate (const Voice& v, const SlotTape& tape, int s) const noexcept;
-        double uncappedPeriod (int s) const noexcept;
-        double lMaxSamples (int s) const noexcept;
-        double lenBarSamples (int s) const noexcept;
-        double jitterOf (int s) const noexcept;
+        double voiceSemis (const Voice& v, const GiGridParams::Stream& sp) const noexcept;
+        double voiceRate (const Voice& v, const SlotTape& tape, const GiGridParams::Stream& sp) const noexcept;
+        double voiceRate (const Voice& v, const SlotTape& tape, int s) const noexcept { return voiceRate (v, tape, gp.s[s]); }
+        double uncappedPeriod (int s) const noexcept                      { return uncappedPeriod (gp.s[s]); }
+        double lMaxSamples (int s) const noexcept                         { return lMaxSamples (gp.s[s]); }
+        double lenBarSamples (int s) const noexcept                       { return lenBarSamples (gp.s[s]); }
+        double jitterOf (int s) const noexcept                            { return jitterOf (gp.s[s]); }
+        double uncappedPeriod (const GiGridParams::Stream& sp) const noexcept;
+        double lMaxSamples (const GiGridParams::Stream& sp) const noexcept;
+        double lenBarSamples (const GiGridParams::Stream& sp) const noexcept;
+        double jitterOf (const GiGridParams::Stream& sp) const noexcept;
         bool   audibleTarget (int s, bool anySolo) const noexcept;
         double jitterU (int s, std::uint64_t serial, std::uint64_t epoch, std::uint64_t k) const noexcept;
         double jitterGap (double T, double J, int s, std::uint64_t serial, std::uint64_t epoch, std::uint64_t k) const noexcept;
@@ -576,6 +675,69 @@ namespace ogi
         bool       prevFreeze = false;
         float      pkRel = 0.0f;                 // returnPk release per cell (50 ms)
         RecordHeadCounters headCntShip[kTapeSlots] {};
+
+        // 2.5a transport (PLAN-2.5a PD12): updated once per host block.
+        TempoTracker tracker;
+        GiModMatrix  matrix;
+
+        // 2.5a sources (PLAN-2.5a PD10 / PD11). srcG = the GLOBAL-path value of
+        // every source this cell (global LFOs, macros, wheel; per-voice sources
+        // through the newest-voice rule, PD8).
+        Lfo       lfos[kGiLfos];
+        double    lfoRateHz[kGiLfos] {};
+        float     lfoRateOff[kGiLfos] {};
+        ExactRamp macroRamp[kGiMacros];
+        ExactRamp lfoXf[kGiLfos];          // PD9: 0 Global … 1 Per-voice (20 ms)
+        float     srcG[kGiModSources] {};
+        int       wheelMsb = 0, wheelLsb = 0;
+        float     chanPressure = 0.0f;
+        float     chanSlide = 0.0f;
+        int       rampCellsMod = 1;        // rampCellsFor (fs, kModRampMs)
+        GiVoiceMod vm[kVoiceSlots];
+        bool       pvPath[kGiModSlots] {};
+        bool       pairRoutedK[kVoiceSlots][kGiStreams] {};   // per-voice offset on (k, s) now or in the previous cell
+        GiGridParams::Stream view[kVoiceSlots][kGiStreams];   // the pair's tick view (built only while routed)
+        bool       pairRegionOn[kVoiceSlots][kGiStreams] {};
+        LoopRegion regionV[kVoiceSlots][kGiStreams];          // per-voice READ region (P17: the head keeps the global one)
+        bool       pairSelOn[kVoiceSlots][kGiStreams] {};
+        PitchSel   selV[kVoiceSlots][kGiStreams];
+        double     jitKS[kVoiceSlots][kGiStreams] {};          // effective jitter per pair (the stream's when unrouted)
+        int        numPairsRouted = 0, numPairsRoutedPrev = 0;
+        // T10 (PD7): a stream with any per-voice level / pan offset (now or in
+        // the previous cell) mixes per pair: gL / gR = level_kS · pan_kS, lv =
+        // level_kS (the tap's min (level, 1)); the y statement then carries
+        // aud · vgain only. Unrouted streams keep the 2.4 statements.
+        bool       pairMix[kGiStreams] {};
+
+        // T11 (PD8): the newest-voice rule — one `from` value per source and
+        // one shared 20 ms ramp w; a handover snapshots the current blend.
+        float      monoFrom[kGiModSources] {}, monoVal[kGiModSources] {};
+        ExactRamp  newestW;
+        std::uint64_t newestSer = 0;
+        void       updateNewest() noexcept;
+
+        // PD16 telemetry (never APVTS)
+        std::array<std::atomic<float>, kGiModDests>   destTel {};
+        std::array<std::atomic<float>, kGiModSources> srcTel {};
+        std::array<std::atomic<float>, kGiLfos>       lfoPhaseTel {};
+        void       writeTelemetry() noexcept;
+        CellLerp   pairGL[kVoiceSlots][kGiStreams], pairGR[kVoiceSlots][kGiStreams], pairLv[kVoiceSlots][kGiStreams];
+
+        // 2.5a matrix substitutes of ramped G destinations (parent R47): the
+        // modulated value of this cell as a settled one-cell segment; used
+        // while routed now or in the previous cell (useX), so the unrouted
+        // path reads the 2.4 ramps untouched.
+        float     rawBase[kGiModDests] {};
+        bool      streamRoutedG[kGiStreams] {};
+        ExactRamp outGainMod;          float outGainNow = 1.0f;   bool useOutMod = false;
+        ExactRamp levelMod[kGiStreams]; float levelNow[kGiStreams] {}; bool useLevelMod[kGiStreams] {};
+        ExactRamp panValRamp[kGiStreams];   // pan in the value domain (the routed base; parent panRamp)
+        ExactRamp panLMod[kGiStreams], panRMod[kGiStreams];
+        float     panLNow[kGiStreams] {}, panRNow[kGiStreams] {};
+        bool      usePanMod[kGiStreams] {};
+        ExactRamp fbMod;               float fbNow = 0.0f;        bool useFbMod = false;
+        ExactRamp diffMod;             float diffNow = 0.0f;      bool useDiffMod = false;
+        ExactRamp satDMod;             float satDNow = 1.0f;      bool useSatMod = false;
 
         // 2.4 output (PLAN-2.4 PD11): ReverbUnit bound to engine-owned atomics
         // (size / damp / mix written at grid ticks only; fixed internals), the

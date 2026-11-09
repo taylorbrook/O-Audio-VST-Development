@@ -282,6 +282,35 @@ namespace { namespace eg21
         return a;
     }
 
+    /** PLAN-2.5a PD15: readSet24() + the 89 mod / sync rows = 251 bound IDs
+        (unread 10: voice_mode, glide, mpe_enable, rec_target, rec_arm,
+        rec_trigger, rec_threshold, rec_length, rec_length_sync, rec_gain).
+        N2 / N2s / FN3 / FL7 re-scoped (RESEARCH-2.5a Summary 11; FL7 by user
+        decision 2026-11-09, S8): the mod rows are READ now, so randomising
+        them would route live modulation. */
+    juce::StringArray readSet25a()
+    {
+        auto a = readSet24();
+        a.add ("sync_mode");
+        for (int n = 1; n <= 4; ++n)
+        {
+            a.add (Ids::stream (n, "size_sync"));
+            a.add (Ids::stream (n, "density_sync"));
+        }
+        for (int n = 1; n <= 2; ++n)
+            for (const char* x : { "attack", "decay", "sustain", "release" })
+                a.add ("menv" + juce::String (n) + "_" + x);
+        for (int n = 1; n <= 4; ++n)
+            for (const char* x : { "shape", "rate", "rate_sync", "phase", "mode" })
+                a.add ("lfo" + juce::String (n) + "_" + x);
+        for (int n = 1; n <= 4; ++n)
+            a.add ("macro" + juce::String (n));
+        for (int m = 1; m <= 16; ++m)
+            for (const char* x : { "source", "dest", "depth" })
+                a.add ("mod" + juce::String (m) + "_" + x);
+        return a;
+    }
+
     //==========================================================================
     // Position-deterministic sources.
     float hashNoise (juce::int64 i, int ch, float amp)
@@ -2082,7 +2111,7 @@ namespace { namespace eg21
         // plus every row 2.2 binds); s2-s4 stay disabled by base().
         // 2.3 (PLAN-2.3 PD10) / 2.4 (PLAN-2.4 PD16): readSet24() — the FX rows
         // and the 9 feedback / freeze / reverb globals are bound now.
-        const auto readSet = readSet24();
+        const auto readSet = readSet25a();   // PLAN-2.5a PD15 (2.4: readSet24 162 / 99)
         int bound = 0;
         {
             auto probe = make();
@@ -2106,9 +2135,9 @@ namespace { namespace eg21
         const int nUnread = diffCount (base512, renderN (512, kSeed, unread));
         const int nDensity = diffCount (base512, renderN (512, kSeed, [] (Proc& p) { setP (p, s1 ("density"), 120.0f); }));
         const bool fired2 = nDensity > 0;
-        row (nUnread == 0 && bound == 162 && touched == 99 && fired2, "N2 unread params (sync, mod, voice mode, MPE, record) bit-identical (readSet24)",
+        row (nUnread == 0 && bound == 251 && touched == 10 && fired2, "N2 unread params (voice mode, glide, MPE, record) bit-identical (readSet25a)",
              "meas " + juce::String (nUnread) + " samples differ with " + juce::String (touched) + " unread params randomised ("
-                 + juce::String (bound) + "/162 read IDs bound, readSet24) | thr 0 | margin " + juce::String (-nUnread)
+                 + juce::String (bound) + "/251 read IDs bound, readSet25a) | thr 0 | margin " + juce::String (-nUnread)
                  + " | " + ctrl (fired2, "s1_density 120 -> " + juce::String (nDensity) + " differ"));
     }
 

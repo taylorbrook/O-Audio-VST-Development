@@ -12,7 +12,7 @@
 
       FN1  stage chunk invariance {1, 3, 17, 32} vs 32      ctrl per-call ring renorm, chunks 17
       FN2  engine block-size null, all FX                   ctrl seed + 1
-      FN3  99 unread params bit-identical (readSet24)       ctrl s1_filter_cutoff / s4_ring_freq
+      FN3  10 unread params bit-identical (readSet25a)       ctrl s1_filter_cutoff / s4_ring_freq
       FR1  FX-off ≡ renders-2.2 (14 jobs)                   ctrl N1-default + s1_drive 1 %
       FV1a cutoff census (+ 44.1 k clamp)                   ctrl rand 50 % -> span < 3.6
       FV1b ring census (+ 44.1 k clamp)                     ctrl rand 50 % -> span < 3.6
@@ -331,7 +331,7 @@ namespace { namespace eg23
 
     void rowFN3()
     {
-        const auto readSet = eg21::readSet24();   // PLAN-2.4 PD16 (2.3: readSet23 153 / 108)
+        const auto readSet = eg21::readSet25a();   // PLAN-2.5a PD15 (2.4: readSet24 162 / 99; 2.3: readSet23 153 / 108)
         int bound = 0;
         {
             auto probe = make();
@@ -356,9 +356,9 @@ namespace { namespace eg23
         const int nC = diffCount (ref, renderFN (512, kSeed, [] (Proc& p) { setP (p, sn (1, "filter_cutoff"), 3000.0f); }, false));
         const int nR = diffCount (ref, renderFN (512, kSeed, [] (Proc& p) { setP (p, sn (4, "ring_freq"), 900.0f); }, false));
         const bool fired = nC > 0 && nR > 0;
-        row (n == 0 && bound == 162 && touched == 99 && fired, "FN3 unread params bit-identical, 4 streams, every FX on (readSet24)",
+        row (n == 0 && bound == 251 && touched == 10 && fired, "FN3 unread params bit-identical, 4 streams, every FX on (readSet25a)",
              "meas " + juce::String (n) + " samples differ with " + juce::String (touched) + " unread params randomised ("
-                 + juce::String (bound) + "/162 read IDs bound) | thr 0 | margin " + juce::String (-n)
+                 + juce::String (bound) + "/251 read IDs bound) | thr 0 | margin " + juce::String (-n)
                  + " | " + ctrl (fired, "s1_filter_cutoff -> " + juce::String (nC) + ", s4_ring_freq -> " + juce::String (nR) + " differ"));
     }
 

@@ -76,4 +76,19 @@ namespace ogi
 
     // ── Scheduler ───────────────────────────────────────────────────────────
     inline constexpr int kOnsetCap = kCell + 1;    // <= 1 onset per sample per voice and segment
+
+    // ── Modulation (PLAN-2.5a PD10) ─────────────────────────────────────────
+    // CounterRng stream bases, disjoint from kLfoStream 0x0A1F / kSchedStream
+    // 0x0A5C / kGrainStream 0x0A6E (+ their small index offsets).
+    inline constexpr std::uint64_t kNoteRandStream = 0x0A7A'0000ull;   // Note Random: counter = the note serial
+    inline constexpr std::uint64_t kVoiceLfoStream = 0x0A7B'0000ull;   // per-voice LFO S&H seed salt
+
+    /** splitmix64 finaliser (per-voice seed derivation, never on a hot path). */
+    inline constexpr std::uint64_t mix64 (std::uint64_t x) noexcept
+    {
+        x ^= x >> 30; x *= 0xBF58476D1CE4E5B9ull;
+        x ^= x >> 27; x *= 0x94D049BB133111EBull;
+        x ^= x >> 31;
+        return x;
+    }
 } // namespace ogi
