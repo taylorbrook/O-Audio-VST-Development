@@ -2759,6 +2759,10 @@ void Engine::applyNe (const GiNeEvent& e) noexcept
     for (auto& v : voices)
         if (! v.isFree() && v.noteId == e.noteId)
         {
+            // A running glide keeps its start: the target moves with the tuning
+            // (g is relative to glTo = note + ne), so it ends on the tuned pitch.
+            if (v.glN > 0.0)
+                v.glTo += semis - v.neSemis;
             v.neSemis = semis;
             hit = true;
         }

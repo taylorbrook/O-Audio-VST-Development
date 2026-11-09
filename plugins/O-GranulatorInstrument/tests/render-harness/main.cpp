@@ -1024,6 +1024,12 @@ static void hookRows()
 #include "engine_gates_25a.h"
 #include "engine_gates_25b.h"
 
+// PLAN-2.5b T11 / T12: voice modes, glide, D32 switch, sustain (VM / FB / GL / MS / SU);
+// MPE, note expression, clicks, invariance, allocations, bypass (MP / MR / NE / CK5 /
+// BS1 / AL1 / TB5 / TB6) + --cpu25b.
+#include "engine_gates_25c.h"
+#include "engine_gates_25d.h"
+
 // PLAN-2.5a T7: DSP-06 matrix parity rows (PL / PL0t / PLs / PM / PE + controls, --parity).
 #include "parity_gates_25a.h"
 
@@ -1082,9 +1088,22 @@ int main (int argc, char** argv)
             std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
             return juce::jmin (failures, 255);
         }
+        else if (std::strcmp (argv[a], "--eg25b") == 0)   // dev: the Phase 2.5b engine gates only (eg25c + eg25d; OGI_ROWS filters)
+        {
+            eg25c::runAll();
+            eg25d::runAll();
+            std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
+            return juce::jmin (failures, 255);
+        }
         else if (std::strcmp (argv[a], "--cpu25a") == 0)  // PLAN-2.5a PD18: run alone; rc = FAIL count
         {
             const int f = eg25b::cpu25a();
+            std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
+            return f;
+        }
+        else if (std::strcmp (argv[a], "--cpu25b") == 0)  // PLAN-2.5b PD18: run alone; C25mpe INFO, rc = INVALID count
+        {
+            const int f = eg25d::cpu25b();
             std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
             return f;
         }
@@ -1103,12 +1122,12 @@ int main (int argc, char** argv)
             return rh::dump (juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a])), true);
         else
         {
-            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--cpu25a] [--eg24] [--eg25] [--calib]\n", argv[a], argv[0]);
+            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--cpu25a] [--cpu25b] [--eg24] [--eg25] [--eg25b] [--calib]\n", argv[a], argv[0]);
             return 255;
         }
     }
 
-    std::printf ("O-GranulatorInstrument render harness (Stage 1 + Phase 2.1 + Phase 2.2 + Phase 2.3 + Phase 2.4)\n");
+    std::printf ("O-GranulatorInstrument render harness (Stage 1 + Phase 2.1 + Phase 2.2 + Phase 2.3 + Phase 2.4 + Phase 2.5a + Phase 2.5b)\n");
     paramRows();
     busRows();
     midiRows();
@@ -1123,6 +1142,8 @@ int main (int argc, char** argv)
     eg24b::runAll();
     eg25a::runAll();
     eg25b::runAll();
+    eg25c::runAll();
+    eg25d::runAll();
 
     std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
     return juce::jmin (failures, 255);

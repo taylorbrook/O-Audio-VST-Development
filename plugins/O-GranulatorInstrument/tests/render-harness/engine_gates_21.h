@@ -401,6 +401,9 @@ namespace { namespace eg21
         std::vector<Ev> events;
         size_t ecur = 0;
         std::function<void (Session&)> afterBlock;
+        // PLAN-2.5b PD19: called before each processBlock with (blockStart, blockLen),
+        // after the block's MIDI is gathered (NE raw events injected at t − blockStart).
+        std::function<void (Session&, juce::int64, int)> beforeBlock;
         bool arm = false;        // A1: arm the allocation hook around processBlock (from the 2nd block)
         bool record = true;
         juce::int64 blocksDone = 0;
@@ -485,6 +488,8 @@ namespace { namespace eg21
                     ++mcur;
                 }
 
+                if (beforeBlock)
+                    beforeBlock (*this, pos, ni);
                #if JUCE_MAC
                 if (arm && blocksDone > 0)
                     allocArmed = true;

@@ -525,6 +525,16 @@ namespace ogi
         }
         float getLawTargetForTest (int k, int s) const noexcept { return lawTarget[std::clamp (k, 0, kVoiceSlots - 1)][std::clamp (s, 0, kGiStreams - 1)]; }
         float getLawFreshForTest (int k, int s, std::int64_t t) noexcept;   // GL6: pairLaw recomputed now at sample t
+        std::array<float, 4> getLawLerpForTest (int k, int s) const noexcept   // VM5: lawGain / gFbLerp prev, cur
+        {
+            k = std::clamp (k, 0, kVoiceSlots - 1); s = std::clamp (s, 0, kGiStreams - 1);
+            return { lawGain[k][s].prev, lawGain[k][s].cur, gFbLerp[k][s].prev, gFbLerp[k][s].cur };
+        }
+        std::array<float, 2> getPairGainForTest (int k, int s) const noexcept   // VM6: pair-mixer gL / gR (current)
+        {
+            k = std::clamp (k, 0, kVoiceSlots - 1); s = std::clamp (s, 0, kGiStreams - 1);
+            return { pairGL[k][s].cur, pairGR[k][s].cur };
+        }
         const GiGridParams& getGridParams() const noexcept  { return gp; }
         int              getRetiringCount() const noexcept  { return numRetiring; }
         const LoopRegion& getRegion (int s = 0) const noexcept { return region[std::clamp (s, 0, kGiStreams - 1)]; }
