@@ -36,8 +36,8 @@ lastUpdated: 2026-11-07
 | DSP-01 | Grain engine parity with O-Granulator streams (size, density, jitter, spray, window morph, reverse, stereo spread, gain rand) on file sources | must | complete | stage-2 |
 | DSP-02 | Per-voice amp ADSR with velocity sensitivity; grains continue during release | must | partial | stage-2 |
 | DSP-03 | Per-grain FX (SVF filter, drive, crush, ring) inherited | must | partial | stage-2 |
-| DSP-04 | Feedback into per-stream working copies, with Freeze and Reset; voice-count-aware runaway guard | must | pending | stage-2 |
-| DSP-05 | Output reverb/diffuser inherited | should | pending | stage-2 |
+| DSP-04 | Feedback into per-stream working copies, with Freeze and Reset; voice-count-aware runaway guard | must | complete | stage-2 |
+| DSP-05 | Output reverb/diffuser inherited | should | complete | stage-2 |
 | DSP-06 | Mod matrix (16 slots): LFOs (global/per-voice), 2 mod ADSRs, velocity, key, note-random, mod wheel, aftertouch, MPE pressure/slide/bend, 4 macros | must | pending | stage-2 |
 | DSP-07 | Files resampled to the session rate on load; band-limited reads when pitched up | must | partial | stage-2 |
 
@@ -105,8 +105,11 @@ lastUpdated: 2026-11-07
 - [ ] Each FX audibly applies per grain; no per-grain allocation (2.3 verify: automated arm green — FV2–4, PS5–7, PF nulls, FA3, FB1–4, FZ1–2; "audibly" = HANDS-ON-2.3 rows 1–7, deferred post-Stage-3)
 
 ### DSP-04: Feedback
-- [ ] Feedback 100 % with 16 voices never exceeds the limiter ceiling or produces NaN
-- [ ] Reset restores the pristine file; Freeze halts writes
+- [x] Feedback 100 % with 16 voices never exceeds the limiter ceiling or produces NaN (2.4 verify: FL1 0 bound violations, CL1 knee 1.965 ≤ 1.995, CL2 FZ1, FL6; runaway guard FL2)
+- [x] Reset restores the pristine file; Freeze halts writes (2.4 verify: RS1/RS2 == pristine incl. while frozen, FL3 writes frozen)
+
+### DSP-05: Reverb
+- [x] Reverb inherited from O-Granulator (2.4 verify: PR1–12/PRk nulls ≤ −96.8 dB vs the parent; RV1–RV3 audible / tail fade / cold re-enable; listening confirmation = HANDS-ON-2.4 row 7, deferred)
 
 ### DSP-06: Modulation
 - [ ] Each listed source routes to a continuous destination with bipolar depth
@@ -120,7 +123,7 @@ lastUpdated: 2026-11-07
 - [ ] Alloc gate: 0 allocations in processBlock across note on/off, steal, file swap and reset
 
 ### PERF-02: CPU budget
-- [ ] The documented budget is met at 16 voices × 4 streams with the default grainLimit
+- [ ] The documented budget is met at 16 voices × 4 streams with the default grainLimit (2.4 verify: worst case C25w 26.59 % ≤ 40 % with chains + reverb; open: matrix re-check 2.5, typical on factory presets Stage 4)
 
 ### COMPAT-01: pluginval
 - [x] pluginval strictness 10 passes for VST3 and AU
