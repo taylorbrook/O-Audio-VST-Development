@@ -54,7 +54,7 @@ About 60 % of the DSP is forked, proven O-Granulator code. The genuinely new wor
 - Stage 0: Research & Planning ✓ (this document + research/ARCHITECTURE.md)
 - **Prerequisite:** mockup + LOCKED parameter-spec.md ← Next
 - Stage 1: Foundation — build system, ~261 APVTS params, silent synth shell, buses, COMPAT-01
-- Stage 2: DSP — 6 phases (2.1–2.6)
+- Stage 2: DSP — 7 phases (2.1–2.4, 2.5a, 2.5b, 2.6)
 - Stage 3: GUI — 3 phases (3.1–3.3)
 - Stage 4: Polish/Validation — factory content + presets, DAW passes (Logic AU sidechain, Dorico NE, MPE controller), Windows, i18n, pluginval 10, hands-on
 
@@ -153,24 +153,36 @@ About 60 % of the DSP is forked, proven O-Granulator code. The genuinely new wor
 - [ ] Reverb audible; tails fade on mix → 0 (DSP-05)
 - [ ] Block-size null with feedback 80 % + freeze toggles
 
-#### Phase 2.5: Modulation, voice modes, MPE + note expression, tempo
+#### Phase 2.5a: Modulation sources, matrix, tempo (split 2026-11-08, D26)
 
-**Goal:** DSP-06, FUNC-05, the MPE/NE engine path (COMPAT-02 is DAW-verified in Stage 4).
+**Goal:** DSP-06; the final PERF-02 worst-case verdict with the matrix live (D28).
 
 **Components:**
-- Mod ADSR ×2, global/per-voice LFOs (`lfoN_mode`), MIDI sources (velocity, key, note random, mod wheel, channel/poly AT, slide, bend), macros.
-- Forked ControlGrid + ModMatrix with per-voice evaluation, the newest-voice rule for global destinations, 20 ms ramps and shadow crossfades (including the parent's D36 route-edit fix, if it landed).
-- Mono/Legato + glide (note stack), sustain pedal.
-- MPE lower-zone parser (RPN 0/6), note-expression drain + per-note cents.
+- Mod ADSR ×2, global/per-voice LFOs (`lfoN_mode`), MIDI sources in non-MPE form (velocity, key, note random, mod wheel, channel/poly AT, CC74 slide, channel bend), macros.
+- Forked ControlGrid + ModMatrix with per-voice evaluation, the newest-voice rule for global destinations, 20 ms ramps and shadow crossfades (parent D36 closed with no DSP change).
 - Forked TempoTracker, Tempo divisions, thinning in Tempo mode (power of two).
 
 **Test criteria:**
+- [ ] Parity nulls vs parent @ 82406fce ≤ −90 dB on global LFO / macro / ramps / shadow crossfade (D27)
 - [ ] Each listed source routes to a continuous destination with bipolar depth; per-voice sources modulate each voice independently (DSP-06)
 - [ ] Per-voice source → global destination follows the newest voice with no step on handover
+- [ ] Sync onsets within 1 sample on a synthetic playhead; route-edit click gate; block-size null with every source live
+- [ ] CPU worst case with 16 per-voice routes ≤ 40 % (D28)
+- [ ] Allocation gate across route edits / mode switches / tempo changes / steals
+
+#### Phase 2.5b: Voice modes, MPE + note expression (split 2026-11-08, D26)
+
+**Goal:** FUNC-05, the MPE/NE engine path (COMPAT-02 is DAW-verified in Stage 4).
+
+**Components:**
+- Mono/Legato + glide (note stack), sustain pedal.
+- MPE lower-zone parser (RPN 0/6), member-channel rerouting of Pressure / Slide / Bend, note-expression drain + per-note cents.
+
+**Test criteria:**
 - [ ] Mono/Legato glide correct; Legato does not retrigger env or scan (FUNC-05)
 - [ ] MPE: member-channel bend/pressure/slide move only their own note; RPN 0 sets the member range
 - [ ] NE −50 ¢ on C#4 renders a quarter-sharp C4 (harness raw-event injection)
-- [ ] Sync onsets within 1 sample on a synthetic playhead; route-edit click gate; block-size null with every source live
+- [ ] 2.5a goldens with `mpe_enable` off unchanged
 - [ ] Allocation gate across the whole MIDI/MPE script
 
 #### Phase 2.6: Record-in, state/relink, factory sources
@@ -236,7 +248,8 @@ About 60 % of the DSP is forked, proven O-Granulator code. The genuinely new wor
   - Phase 2.2 Four streams / quotas / thinning
   - Phase 2.3 Per-grain FX + CPU
   - Phase 2.4 Working-copy feedback / Freeze / Reset / reverb
-  - Phase 2.5 Modulation / voice modes / MPE + NE / tempo
+  - Phase 2.5a Modulation sources / matrix / tempo
+  - Phase 2.5b Voice modes / MPE + NE
   - Phase 2.6 Record-in / state / factory sources
 - Stage 3: GUI — 3 phases (3.1 layout, 3.2 lanes + file I/O, 3.3 MOD + voices + meters)
 - Stage 4: Polish/Validation
