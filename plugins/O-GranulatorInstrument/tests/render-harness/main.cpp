@@ -1012,6 +1012,12 @@ static void hookRows()
 // (TB / FL / CL / MS / RS / SR / FA4) + --cpu25.
 #include "engine_gates_24.h"
 
+// PLAN-2.4 T13: head clamp, click gates, reverb transitions (HC / CK / RV).
+#include "engine_gates_24b.h"
+
+// PLAN-2.4 T14: DSP-04 / DSP-05 parity rows (PB / PBc / PBd, PR / PRk / PRc, --parity).
+#include "parity_gates_24.h"
+
 //==============================================================================
 int main (int argc, char** argv)
 {
@@ -1036,6 +1042,8 @@ int main (int argc, char** argv)
             if (prefix.isEmpty() || prefix.startsWith ("PF") || prefix == "PS" || prefix.startsWith ("PS5")
                 || prefix.startsWith ("PS6") || prefix.startsWith ("PS7"))
                 pg23::run (dir, prefix);
+            if (prefix.isEmpty() || prefix.startsWith ("PB") || prefix.startsWith ("PR"))
+                pg24::run (dir, prefix);
             std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
             return juce::jmin (failures, 255);
         }
@@ -1050,6 +1058,19 @@ int main (int argc, char** argv)
             std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
             return f;
         }
+        else if (std::strcmp (argv[a], "--cpu25") == 0)   // PLAN-2.4 PD17: run alone; rc = FAIL count
+        {
+            const int f = eg24::cpu25();
+            std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
+            return f;
+        }
+        else if (std::strcmp (argv[a], "--eg24") == 0)    // dev: the Phase 2.4 engine gates only (eg24 + eg24b)
+        {
+            eg24::runAll();
+            eg24b::runAll();
+            std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
+            return juce::jmin (failures, 255);
+        }
         else if (std::strcmp (argv[a], "--calib") == 0)
             return cal::runCalib();
         else if (std::strcmp (argv[a], "--dump-render-hashes") == 0 && a + 1 < argc)
@@ -1058,7 +1079,7 @@ int main (int argc, char** argv)
             return rh::dump (juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a])), true);
         else
         {
-            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--calib]\n", argv[a], argv[0]);
+            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--eg24] [--calib]\n", argv[a], argv[0]);
             return 255;
         }
     }
@@ -1075,6 +1096,7 @@ int main (int argc, char** argv)
     fu23::runAll();
     eg23::runAll();
     eg24::runAll();
+    eg24b::runAll();
 
     std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
     return juce::jmin (failures, 255);

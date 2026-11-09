@@ -133,6 +133,11 @@ public:
     void requestSlotLoad (int slot, const juce::File& file);
     /** A copy of the slot's status, taken under the loader lock. */
     ogi::SlotInfo getSlotInfo (int slot) const;
+    /** PLAN-2.4 PD6: Reset slot 0...3 (−1 = all) to its pristine source: an
+        off-thread rebuild taken through the 20 ms dual-read crossfade. Not a
+        parameter, never saved (the working copy reloads pristine). Stage 3
+        binds the native function. */
+    void requestReset (int slot);
 
     // ── Scale state (message thread; D17) ─────────────────────────────────────
     struct CustomScale
@@ -184,6 +189,8 @@ public:
     bool loadSlotSync (int slot, const juce::File& file, juce::String& error);
     bool loadSlotSync (int slot, const juce::AudioBuffer<float>& pcm, double sourceRate,
                        const juce::String& name, juce::String& error);
+    /** PLAN-2.4 PD6: Reset on the CALLING thread (deterministic rows). */
+    bool resetSlotSync (int slot);
 
     ogi::Engine&      getEngine() noexcept  { return *engine; }
     ogi::SlotLoader&  getLoader() noexcept  { return *loader; }

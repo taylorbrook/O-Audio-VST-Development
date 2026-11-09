@@ -235,6 +235,11 @@ ogi::SlotInfo GranulatorInstrumentProcessor::getSlotInfo (int slot) const
     return loader->getSlotInfo (slot);
 }
 
+void GranulatorInstrumentProcessor::requestReset (int slot)
+{
+    loader->requestReset (slot);
+}
+
 //==============================================================================
 // Scale state (D17; parent 82406fce PluginProcessor.cpp:355-445, names only changed)
 const juce::String& GranulatorInstrumentProcessor::defaultCustomText()
@@ -531,6 +536,19 @@ bool GranulatorInstrumentProcessor::loadSlotSync (int slot, const juce::AudioBuf
                                                   const juce::String& name, juce::String& error)
 {
     return loader->loadSync (slot, pcm, sourceRate, name, error);
+}
+
+bool GranulatorInstrumentProcessor::resetSlotSync (int slot)
+{
+    juce::String error;
+    if (slot == -1)
+    {
+        bool ok = true;
+        for (int s = 0; s < ogi::kTapeSlots; ++s)
+            ok = loader->resetSync (s, error) && ok;
+        return ok;
+    }
+    return loader->resetSync (slot, error);
 }
 #endif
 

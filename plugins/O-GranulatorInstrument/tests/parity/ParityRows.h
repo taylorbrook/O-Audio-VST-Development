@@ -1,7 +1,8 @@
 #pragma once
 // ============================================================================
-//   O-GranulatorInstrument — DSP-01 / DSP-03 parity rows (PLAN-2.2 T3 / PD5,
-//   R§1–§3; PLAN-2.3 T3: PF / PFc / PS5–7)
+//   O-GranulatorInstrument — DSP-01 / DSP-03 / DSP-04 / DSP-05 parity rows
+//   (PLAN-2.2 T3 / PD5, R§1–§3; PLAN-2.3 T3: PF / PFc / PS5–7; PLAN-2.4 T11:
+//   PB / PBc / PBd FeedbackChain leaf nulls, PR / PRk / PRc reverb + knee)
 //
 //   ONE source of truth, included by BOTH drivers:
 //     - tests/parity/parent_render.cpp   (O-Granulator @ 82406fce, out of tree)
@@ -85,10 +86,14 @@ namespace parity
     // ── rows ────────────────────────────────────────────────────────────────
     struct KV { std::string id; float v; };   // id: a stream SUFFIX ("size") or a global ID ("grain_limit")
 
-    enum class Kind { null_, stats, gv, fxNull, fxStats };   // fx*: PLAN-2.3 PD11 (pg22 never sees them)
+    enum class Kind { null_, stats, gv, fxNull, fxStats, fbNull, revNull };   // fx*: PLAN-2.3 PD11; fb / rev: PLAN-2.4 PD12 (pg22 / pg23 never see them)
 
     inline bool isNullKind (Kind k)  { return k == Kind::null_ || k == Kind::fxNull; }
     inline bool isStatsKind (Kind k) { return k == Kind::stats || k == Kind::fxStats; }
+    inline bool isFbKind (Kind k)    { return k == Kind::fbNull; }
+    inline bool isRevKind (Kind k)   { return k == Kind::revNull; }
+    /** PB / PR rows use the PN01 null geometry, so the parent self-checks apply. */
+    inline bool isGeomKind (Kind k)  { return isNullKind (k) || isFbKind (k) || isRevKind (k); }
 
     struct Row
     {
@@ -105,7 +110,12 @@ namespace parity
         uint64_t seed = 0x5EED22A0B1ull;
         // 2.3 (PLAN-2.3 PD5 / PD11)
         float matPeak = kMatPeak;             // material peak (0.01 = every 2.2 row unchanged)
-        std::vector<std::string> oursHooks;   // our-side test hooks: "legacySvfMake", "fxOrderSwap"
+        std::vector<std::string> oursHooks;   // our-side test hooks: "legacySvfMake", "fxOrderSwap";
+                                              // 2.4: "chainKnobParity", "legacyWetTanh", "testAgcLegacy", "retLag31"
+        // 2.4 (PLAN-2.4 PD12)
+        int blockSize = 512;                  // render block (PB rows 32: the parent return is read per cell)
+        std::vector<KV> gl;                   // GLOBAL params, both sides (feedback, fb_*, reverb_*)
+        std::vector<KV> oursGl;               // our-side-only global overrides (PBc1 / PBc3 / PRc1)
     };
 
     /** Base stream settings for the null rows (spray 0, jitter 0, every random control 0). */
@@ -127,6 +137,22 @@ namespace parity
             if (! found) b.push_back (kv);
         }
         return b;
+    }
+
+    /** Every 2.4 global at an explicit value (both sides): feedback off, the
+        spec chain defaults, reverb off (the 2.3 fxBase() pattern). */
+    inline std::vector<KV> fbRevBase()
+    {
+        return { { "feedback", 0.0f }, { "fb_low_cut", 80.0f }, { "fb_high_cut", 12000.0f }, { "fb_saturation", 20.0f },
+                 { "fb_diffusion", 0.0f }, { "reverb_mix", 0.0f }, { "reverb_size", 50.0f }, { "reverb_damp", 50.0f } };
+    }
+
+    /** The 8 global IDs in manifest column order (appended after the 2.3 peak). */
+    inline const std::vector<std::string>& fbRevIds()
+    {
+        static const std::vector<std::string> v { "feedback", "fb_low_cut", "fb_high_cut", "fb_saturation", "fb_diffusion",
+                                                  "reverb_mix", "reverb_size", "reverb_damp" };
+        return v;
     }
 
     inline float findV (const std::vector<KV>& v, const std::string& id, float dflt)
@@ -294,6 +320,65 @@ namespace parity
         pfs ("PS5", { { "filter_type", 1.0f }, { "filter_cutoff", 1000.0f }, { "filter_rand", 70.0f } });
         pfs ("PS6", { { "ring_freq", 200.0f }, { "ring_mix", 50.0f }, { "ring_rand", 70.0f } });
         pfs ("PS7", { { "crush", 50.0f }, { "crush_prob", 30.0f } });
+
+        // ── 2.4 PB: FeedbackChain leaf nulls (PLAN-2.4 PD12) ──────────────────
+        //   PN01 geometry, 1 voice, s1, matPeak 0.25, frozen parent (no capture
+        //   push: its chain runs on the live tap, output unchanged); 32-sample
+        //   blocks so the parent return is read once per cell.
+        auto pb = [&r] (const std::string& id, std::vector<KV> g)
+        {
+            Row x; x.id = id; x.kind = Kind::fbNull; x.stream = 1;
+            x.sp = over (nullBase(), fxBase()); x.seconds = 1.0; x.matPeak = 0.25f; x.blockSize = 32;
+            x.gl = over (fbRevBase(), g);
+            x.oursHooks = { "chainKnobParity" };
+            r.push_back (x);
+        };
+        {
+            const float lowHigh[3][2] { { 20.0f, 20000.0f }, { 80.0f, 12000.0f }, { 2000.0f, 1000.0f } };
+            const float fb[2] { 25.0f, 100.0f };
+            int k = 1;
+            for (int f = 0; f < 2; ++f)
+                for (int c = 0; c < 3; ++c)
+                    pb ("PB" + std::to_string (k++), { { "feedback", fb[f] }, { "fb_low_cut", lowHigh[c][0] }, { "fb_high_cut", lowHigh[c][1] } });
+            // PB5 = f 100 at the default cutoffs; PB7–9 sat {0, 50, 100}; PB10–12 diffusion {25, 50, 100}
+            const float sat[3] { 0.0f, 50.0f, 100.0f };
+            for (int i = 0; i < 3; ++i)
+                pb ("PB" + std::to_string (k++), { { "feedback", 100.0f }, { "fb_saturation", sat[i] } });
+            const float dif[3] { 25.0f, 50.0f, 100.0f };
+            for (int i = 0; i < 3; ++i)
+                pb ("PB" + std::to_string (k++), { { "feedback", 100.0f }, { "fb_diffusion", dif[i] } });
+        }
+        {
+            auto byId = [&r] (const std::string& id) -> Row { for (const auto& x : r) if (x.id == id) return x; return Row {}; };
+            const float semi = 1.0594630943592953f;   // 2^(1/12)
+            Row p0 = byId ("PB5"); p0.id = "PB0"; p0.parentOf = "PB5"; r.push_back (p0);   // tap precondition + g_PB
+            Row pd = byId ("PB5"); pd.id = "PBd"; pd.parentOf = "PB5"; r.push_back (pd);   // delay row
+            Row c1 = byId ("PB5"); c1.id = "PBc1"; c1.parentOf = "PB5"; c1.oursGl = { { "fb_low_cut", 80.0f * semi } }; r.push_back (c1);
+            Row c2 = byId ("PB1"); c2.id = "PBc2"; c2.parentOf = "PB1"; c2.oursHooks = {}; r.push_back (c2);   // unity knob
+            Row c3 = byId ("PB11"); c3.id = "PBc3"; c3.parentOf = "PB11"; c3.oursGl = { { "fb_diffusion", 51.0f } }; r.push_back (c3);
+            Row c4 = byId ("PB9"); c4.id = "PBc4"; c4.parentOf = "PB9"; c4.oursHooks = { "chainKnobParity", "testAgcLegacy" }; r.push_back (c4);
+            Row c5 = byId ("PB5"); c5.id = "PBc5"; c5.parentOf = "PB5"; c5.oursHooks = { "chainKnobParity", "retLag31" }; r.push_back (c5);
+        }
+        // ── 2.4 PR: reverb + knee (PLAN-2.4 PD12) ────────────────────────────
+        auto pr = [&r] (const std::string& id, std::vector<KV> g, float peak)
+        {
+            Row x; x.id = id; x.kind = Kind::revNull; x.stream = 1;
+            x.sp = over (nullBase(), fxBase()); x.seconds = 1.0; x.matPeak = peak;
+            x.gl = over (fbRevBase(), g);
+            r.push_back (x);
+        };
+        {
+            const float mix[2] { 25.0f, 100.0f }, size[3] { 0.0f, 50.0f, 100.0f }, damp[2] { 0.0f, 100.0f };
+            int k = 1;
+            for (int m = 0; m < 2; ++m)
+                for (int z = 0; z < 3; ++z)
+                    for (int d = 0; d < 2; ++d)
+                        pr ("PR" + std::to_string (k++), { { "reverb_mix", mix[m] }, { "reverb_size", size[z] }, { "reverb_damp", damp[d] } }, 0.25f);
+            pr ("PRk", { { "reverb_mix", 100.0f }, { "reverb_size", 100.0f }, { "reverb_damp", 50.0f } }, 0.4f);
+            auto byId = [&r] (const std::string& id) -> Row { for (const auto& x : r) if (x.id == id) return x; return Row {}; };
+            Row c1 = byId ("PR9"); c1.id = "PRc1"; c1.parentOf = "PR9"; c1.oursGl = { { "reverb_size", 51.0f } }; r.push_back (c1);
+            Row c2 = byId ("PRk"); c2.id = "PRc2"; c2.parentOf = "PRk"; c2.oursHooks = { "legacyWetTanh" }; r.push_back (c2);
+        }
 
         // D16 gain: parent live (not frozen), defaults, mix 100 %; 4 seeds
         for (int s = 1; s <= 4; ++s)

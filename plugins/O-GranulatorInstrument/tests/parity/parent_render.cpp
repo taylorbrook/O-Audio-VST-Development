@@ -15,6 +15,10 @@
       <row>.f32         L/R interleaved float32, from T_e (null / stats) or 0 (GV)
       <row>.grains.tsv  one SpawnRecord per line (null / stats rows)
       manifest.tsv      row W0 A delta F T_f T_e landed total sizeRaw densityRaw level grains rmsDb
+                        (2.3: + 10 FX raws + peak; 2.4: + 8 feedback / reverb raws)
+      tap_<row>.f32 / ret_<row>.f32   PB rows (PLAN-2.4 PD12): the parent's
+                        feedback tap (hooks.tapProbe) and its z^-32 return
+                        (getFbDelayForTest after every 32-sample block), from T_e
       activesets.tsv    SC1: parent ActiveSet members + [lo, hi) per case
       customtables.tsv  SC3: parent tableFromText via setCustomScale per text
 
@@ -113,6 +117,8 @@ namespace
         setP (*p, "feedback", 0.0f);
         setP (*p, "reverb_mix", 0.0f);
         setP (*p, "freeze", 0.0f);
+        for (const auto& kv : row.gl)                  // 2.4 (PD12): feedback / reverb globals, both sides
+            setP (*p, juce::String (kv.id), kv.v);
         if (! gv)
         {
             setP (*p, "grain_limit", 3.0f);           // 128
@@ -137,7 +143,7 @@ namespace
         if (! gv)
         {
             g = parity::solve (row, sizeRaw);
-            if (! g.ok && parity::isNullKind (row.kind)) { fail (juce::String (row.id) + " geometry: " + g.why); return 1; }
+            if (! g.ok && parity::isGeomKind (row.kind)) { fail (juce::String (row.id) + " geometry: " + g.why); return 1; }
         }
 
         const juce::int64 tStart = gv ? 0 : parity::kTe;
@@ -158,8 +164,19 @@ namespace
                            false, false, "\n");
         }
 
+        // 2.4 PB rows: the tap probe (absolute sample) and the per-cell return.
+        const bool fbRow = parity::isFbKind (row.kind);
+        std::vector<float> tapBuf, retRec;
+        if (fbRow)
+        {
+            tapBuf.assign ((size_t) (2 * tEnd), 0.0f);
+            eng.hooks.tapProbe    = tapBuf.data();
+            eng.hooks.tapProbeLen = tEnd;
+            retRec.reserve ((size_t) (2 * len));
+        }
+
         auto* freezeP = param (*p, "freeze");
-        juce::AudioBuffer<float> blk (2, 512);
+        juce::AudioBuffer<float> blk (2, std::max (512, row.blockSize));
         juce::MidiBuffer midi;
         std::uint64_t drained = 0;
         int grains = 0, anchorBad = 0, headBad = 0;
@@ -176,7 +193,7 @@ namespace
                 for (int s = s0; s <= s1; ++s)
                     param (*p, sid (s, "enable"))->setValueNotifyingHost (1.0f);
             }
-            juce::int64 n = 512;
+            juce::int64 n = row.blockSize;
             n = std::min (n, tEnd - pos);
             if (! gv)
             {
@@ -192,6 +209,20 @@ namespace
                     d[i] = gv ? parity::gvNoise (pos + i, ch) : parity::parentInput (g, pos + i, ch, row.matPeak);
             }
             p->processBlock (blk, midi);
+
+            if (fbRow)
+            {
+                // Blocks are whole cells (32, aligned: T_f and T_e are multiples
+                // of 32), so the z^-32 return array holds exactly this block.
+                const auto& fd = eng.getFbDelayForTest();
+                for (int i = 0; i < ni; ++i)
+                    if (pos + i >= tStart)
+                    {
+                        const int c = (int) ((pos + i) & 31);
+                        retRec.push_back (fd[0][c]);
+                        retRec.push_back (fd[1][c]);
+                    }
+            }
 
             if (pos + ni > tStart)
                 for (int i = 0; i < ni; ++i)
@@ -230,7 +261,7 @@ namespace
                     statBit += (r.fxActive & (juce::String (row.id) == "PS5" ? 1u : juce::String (row.id) == "PS6" ? 8u : 4u)) != 0 ? 1 : 0;
                     crushedN += r.crushed ? 1 : 0;
                 }
-                if (parity::isNullKind (row.kind))
+                if (parity::isGeomKind (row.kind))
                 {
                     anchorBad += juce::exactlyEqual (r.anchor, (double) g.A) ? 0 : 1;
                     headBad   += r.writeHead == parity::kW0 ? 0 : 1;
@@ -241,6 +272,16 @@ namespace
         if (gl != nullptr) gl->flush();
 
         writeF32 (out.getChildFile (juce::String (row.id) + (gv ? ".f32" : ".f32")), rec);
+        int tapNonZero = 0;
+        if (fbRow)
+        {
+            eng.hooks.tapProbe = nullptr;
+            eng.hooks.tapProbeLen = 0;
+            std::vector<float> tapRec (tapBuf.begin() + 2 * tStart, tapBuf.end());
+            for (float x : tapRec) tapNonZero += (x != 0.0f) ? 1 : 0;
+            writeF32 (out.getChildFile ("tap_" + juce::String (row.id) + ".f32"), tapRec);
+            writeF32 (out.getChildFile ("ret_" + juce::String (row.id) + ".f32"), retRec);
+        }
         const double db = rmsDb (rec);
         double peak = 0.0;
         for (float x : rec) peak = std::max (peak, (double) std::abs (x));
@@ -253,12 +294,16 @@ namespace
         // 2.3 (PD11): landed FX raws (stream sRow) + max |out|, appended.
         for (const auto& fid : parity::fxIds())
             m << "\t" << juce::String (gv ? 0.0f : rawOf (*p, sid (sRow, fid)), 9);
-        m << "\t" << juce::String (peak, 9) << "\n";
+        m << "\t" << juce::String (peak, 9);
+        // 2.4 (PD12): landed feedback / reverb raws, appended.
+        for (const auto& gid : parity::fbRevIds())
+            m << "\t" << juce::String (rawOf (*p, juce::String (gid)), 9);
+        m << "\n";
         manifest.writeText (m, false, false, "\n");
 
         std::printf ("  %-5s grains %5d  landed %d/%d  rms %7.2f dBFS  delta %lld  A %lld  l %d%s\n", row.id.c_str(), grains,
                      landed, total, db, (long long) g.delta, (long long) g.A, g.level,
-                     parity::isNullKind (row.kind) ? (juce::String ("  anchorBad ") + juce::String (anchorBad) + " headBad " + juce::String (headBad)).toRawUTF8() : "");
+                     parity::isGeomKind (row.kind) ? (juce::String ("  anchorBad ") + juce::String (anchorBad) + " headBad " + juce::String (headBad)).toRawUTF8() : "");
 
         if (landed != total) fail (juce::String (row.id) + " params landed " + juce::String (landed) + "/" + juce::String (total));
         if (db < -70.0)      fail (juce::String (row.id) + " reference RMS below -70 dBFS (vacuous)");
@@ -277,6 +322,14 @@ namespace
             if (juce::String (row.id) == "PS7" && (crushBad > 0 || ! (ph > 0.0 && ph < 1.0)))
                 fail (juce::String (row.id) + " crush bit != crushed or p-hat not in (0, 1) (P11)");
         }
+        if (fbRow)
+        {
+            std::printf ("        fb: tap samples non-zero %d, return samples %d\n", tapNonZero, (int) retRec.size() / 2);
+            if (tapNonZero == 0) fail (juce::String (row.id) + " tap all zero after T_e (vacuous)");
+            if ((juce::int64) retRec.size() != 2 * len) fail (juce::String (row.id) + " return dump length");
+        }
+        if (parity::isRevKind (row.kind))
+            std::printf ("        rev: parent peak %.4f\n", peak);
         if (anchorBad + headBad > 0)
             fail (juce::String (row.id) + " derivation self-check: anchor != A on " + juce::String (anchorBad)
                   + ", writeHead != W0 on " + juce::String (headBad));
@@ -376,7 +429,7 @@ int main (int argc, char** argv)
     auto mf = out.getChildFile ("manifest.tsv");
     mf.deleteFile();
     juce::FileOutputStream manifest (mf);
-    manifest.writeText ("#row\tW0\tA\tdelta\tF\tT_f\tT_e\tlanded\ttotal\tsizeRaw\tdensityRaw\tlevel\tgrains\trmsDb\tfilterType\tcutoff\tfilterRand\tres\tdrive\tcrush\tcrushProb\tringFreq\tringRand\tringMix\tpeak\n", false, false, "\n");
+    manifest.writeText ("#row\tW0\tA\tdelta\tF\tT_f\tT_e\tlanded\ttotal\tsizeRaw\tdensityRaw\tlevel\tgrains\trmsDb\tfilterType\tcutoff\tfilterRand\tres\tdrive\tcrush\tcrushProb\tringFreq\tringRand\tringMix\tpeak\tfeedback\tfbLow\tfbHigh\tfbSat\tfbDiff\trevMix\trevSize\trevDamp\n", false, false, "\n");
 
     for (const auto& row : parity::rows())
     {

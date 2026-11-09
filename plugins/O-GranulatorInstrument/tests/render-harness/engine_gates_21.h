@@ -270,6 +270,18 @@ namespace { namespace eg21
         return a;
     }
 
+    /** PLAN-2.4 PD16: readSet23() + the 9 global feedback / freeze / reverb rows
+        = 162 bound IDs (unread 99: sN_size_sync / sN_density_sync, mod, voice
+        mode, MPE, record). */
+    juce::StringArray readSet24()
+    {
+        auto a = readSet23();
+        for (const char* x : { "feedback", "fb_low_cut", "fb_high_cut", "fb_saturation", "fb_diffusion", "freeze",
+                               "reverb_mix", "reverb_size", "reverb_damp" })
+            a.add (x);
+        return a;
+    }
+
     //==========================================================================
     // Position-deterministic sources.
     float hashNoise (juce::int64 i, int ch, float amp)
@@ -2068,8 +2080,9 @@ namespace { namespace eg21
 
         // 2.2: the unread set is everything outside readSet22() (the 2.1 set
         // plus every row 2.2 binds); s2-s4 stay disabled by base().
-        // 2.3 (PLAN-2.3 PD10): readSet23() — the FX rows are bound now.
-        const auto readSet = readSet23();
+        // 2.3 (PLAN-2.3 PD10) / 2.4 (PLAN-2.4 PD16): readSet24() — the FX rows
+        // and the 9 feedback / freeze / reverb globals are bound now.
+        const auto readSet = readSet24();
         int bound = 0;
         {
             auto probe = make();
@@ -2093,9 +2106,9 @@ namespace { namespace eg21
         const int nUnread = diffCount (base512, renderN (512, kSeed, unread));
         const int nDensity = diffCount (base512, renderN (512, kSeed, [] (Proc& p) { setP (p, s1 ("density"), 120.0f); }));
         const bool fired2 = nDensity > 0;
-        row (nUnread == 0 && bound == 153 && touched == 108 && fired2, "N2 unread params (sync, fb, reverb, mod, ...) bit-identical",
+        row (nUnread == 0 && bound == 162 && touched == 99 && fired2, "N2 unread params (sync, mod, voice mode, MPE, record) bit-identical (readSet24)",
              "meas " + juce::String (nUnread) + " samples differ with " + juce::String (touched) + " unread params randomised ("
-                 + juce::String (bound) + "/153 read IDs bound, readSet23) | thr 0 | margin " + juce::String (-nUnread)
+                 + juce::String (bound) + "/162 read IDs bound, readSet24) | thr 0 | margin " + juce::String (-nUnread)
                  + " | " + ctrl (fired2, "s1_density 120 -> " + juce::String (nDensity) + " differ"));
     }
 

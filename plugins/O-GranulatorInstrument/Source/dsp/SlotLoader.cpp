@@ -331,6 +331,7 @@ void SlotLoader::cancelActiveJobLocked (SlotRecord& r)
         r.activeJob = nullptr;
     }
     r.rebuildRate = 0.0;
+    r.resetInFlight = false;
 }
 
 void SlotLoader::requestSlotLoad (int slot, const juce::File& file)
@@ -405,6 +406,66 @@ void SlotLoader::requestRebuild (int slot, double rate)
     startRebuildLocked (slot, rate);
 }
 
+void SlotLoader::requestReset (int slot)
+{
+    if (shuttingDown.load (std::memory_order_acquire))
+        return;
+    if (slot == -1)
+    {
+        for (int s = 0; s < kTapeSlots; ++s)
+            requestReset (s);
+        return;
+    }
+    if (! validSlot (slot))
+        return;
+
+    const juce::ScopedLock sl (lock);
+    auto& r = records[(size_t) slot];
+    if (! r.info.loaded || r.pristine == nullptr || r.info.loading)
+        return;                                         // nothing to reset (a load in flight owns the slot)
+    if (r.resetInFlight && r.activeJob != nullptr)
+        return;                                         // dedupe: a Reset of this slot is already queued / running
+    startRebuildLocked (slot, sessionRate);             // bypasses requestRebuild's "already at this rate" early-out
+    r.resetInFlight = true;
+}
+
+bool SlotLoader::resetSync (int slot, juce::String& error)
+{
+    if (! validSlot (slot))
+    {
+        error = "slot out of range";
+        return false;
+    }
+
+    std::shared_ptr<const Pristine> src;
+    std::uint64_t gen = 0;
+    double fs = 0.0;
+    {
+        const juce::ScopedLock sl (lock);
+        auto& r = records[(size_t) slot];
+        if (! r.info.loaded || r.pristine == nullptr)
+        {
+            error = "slot holds no source";
+            return false;
+        }
+        cancelActiveJobLocked (r);
+        src = r.pristine;
+        gen = r.info.generation;
+        fs  = sessionRate;
+    }
+
+    const CancelFn cancel = [this, slot, gen] { return isSuperseded (slot, gen); };
+    std::vector<float> overview;
+    auto tape = buildTape (*src, fs, overview, cancel, error);
+    if (tape == nullptr)
+        return false;
+    tape->slot       = slot;
+    tape->generation = gen;
+    tape->rebuild    = true;
+    publishResult (slot, gen, std::move (tape), std::move (src), std::move (overview), true, nullptr);
+    return true;
+}
+
 void SlotLoader::startRebuildLocked (int slot, double rate)
 {
     auto& r = records[(size_t) slot];
@@ -428,6 +489,7 @@ void SlotLoader::publishResult (int slot, std::uint64_t generation, std::unique_
     {
         r.activeJob = nullptr;
         r.rebuildRate = 0.0;
+        r.resetInFlight = false;
     }
     if (generation != r.info.generation || tape == nullptr || shuttingDown.load (std::memory_order_acquire))
         return;   // superseded: the tape was never published and dies here
@@ -463,6 +525,7 @@ void SlotLoader::jobFailed (int slot, std::uint64_t generation, const juce::Stri
         r.activeJob = nullptr;
         wasRebuild = r.rebuildRate > 0.0;
         r.rebuildRate = 0.0;
+        r.resetInFlight = false;
     }
     if (generation != r.info.generation || cancelled)
         return;   // a newer request owns the slot status

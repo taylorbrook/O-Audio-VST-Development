@@ -45,6 +45,8 @@ Engine::Engine (SlotHandoff& h)
    #endif
     voiceGainLin = juce::Decibels::decibelsToGain (static_cast<float> (kVoiceGainDb));
     voiceGainNow = voiceGainLin;
+    // PLAN-2.4 PD11: the reverb reads engine-owned atomics (bound once).
+    reverb.bind (&revEnabled, &revSize, &revDamp, &revPredelay, &revMix, &revMod, &revShimmer);
     prepare (44100.0, 512);
 }
 
@@ -102,7 +104,11 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
         retiring[i] = nullptr;
     numRetiring = keep;
 
-    fbReturn.assign (static_cast<std::size_t> (2 * kFbDelay), 0.0f);
+    // PLAN-2.4 PD3 / PD7: the fixed z^-32 returns zeroed; the chains prepared
+    // (lengths, AGC coefficients, state cleared; no allocation).
+    std::memset (fbRet, 0, sizeof (fbRet));
+    for (auto& c : chain)
+        c.prepare (fs);
 
     rampCells20 = rampCellsFor (fs);
     rampCells10 = rampCellsFor (fs, kMixerRampMs);
@@ -110,6 +116,22 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     gp.latch (ptrs);
     outGainRamp.reset (dbToGain (gp.outputGainDb));
     setStreamRamps (true);
+
+    // PLAN-2.4 PD11: reverb (allocates: host thread), atomics from the params.
+    writeReverbAtomics();
+    reverb.prepare (fs, kCell);
+    revMixWasOn = gp.reverbMix > 0.0f;
+
+    // PLAN-2.4 PD7: chain controls snapped to the params; the knob is UNITY
+    // (reset once, never ticked: value (c) == 1.0f exactly, P1).
+    unityKnob.reset (1.0f);
+    parityKnob.reset (kFbKnob * gp.feedback);
+    diffRamp.reset (gp.fbDiffusion);
+    satDRamp.reset (1.0f + kSatSpan * gp.fbSaturation);
+    fbLowLogRamp.reset (std::log2 (gp.fbLowCutHz));
+    fbHighLogRamp.reset (std::log2 (gp.fbHighCutHz));
+    chainLowHz = chainHighHz = 0.0f;
+    updateChainCutoffs();
     for (int s = 0; s < kGiStreams; ++s)
     {
         prevEnable[s] = gp.s[s].enable;
@@ -119,6 +141,33 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     updateRegion();
     for (int s = 0; s < kGiStreams; ++s)
         freeRun[s].restart (0, static_cast<double> (gp.s[s].scanRate) / fs);
+
+    // PLAN-2.4 PD4 / PD5: heads parked at their region start (a saved freeze On
+    // stays parked: run starts at 0), λ ramp snapped to the feedback param.
+    fbRamp.reset (gp.feedback);
+    prevFreeze = gp.freeze;
+    pkRel = static_cast<float> (std::exp (-static_cast<double> (kCell) / (0.05 * fs)));
+    for (int s = 0; s < kTapeSlots; ++s)
+    {
+        auto& hd = head[s];
+        hd.run.reset (0.0f);
+        hd.parked = true;
+        hd.swapWaiting = false;
+        hd.returnPk = 0.0f;
+        hd.wrapOff = -1;
+        const SlotTape* tp = current[(size_t) s];
+        if (tp != nullptr)
+        {
+            hd.relatch (region[s].lo, region[s].hi, tp->frames);
+            headRelatch[s] = false;
+        }
+        else
+        {
+            hd.h = hd.lo = hd.cellStart = 0;
+            hd.hi = 1;
+            headRelatch[s] = true;
+        }
+    }
 
     // PD3: the only blocking copy of the custom table (process() not running).
     scale.copyCustomTable (true);
@@ -140,6 +189,8 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
             lawTarget[k][s] = 1.0f;
             lawGain[k][s].reset (1.0f);
             coher[k][s] = 0.0;
+            gFbTarget[k][s] = 1.0f;
+            gFbLerp[k][s].reset (1.0f);
         }
 
     for (auto& row : envBuf)
@@ -355,6 +406,37 @@ float Engine::pairLaw (int k, int s, double nEff) noexcept
     return outputGainFromPower (p);
 }
 
+/** PLAN-2.4 PD8: the feedback tap gain of pair (k, s), g_fb = 1 / (S1 + 1)
+    (parent fbTapGain / fbTapS1, OutputLaw.h:199-212), from the same nEff as
+    the pair's output law. Hook fbArchLaw: the ARCH §10 law (FL8 control). */
+float Engine::pairFbGain (int k, int s, double nEff) const noexcept
+{
+    juce::ignoreUnused (k);
+    const auto& sp = gp.s[s];
+    WindowSel win;
+    win.step = WindowMorphBank::stepFor (sp.window);
+    win.tilt = ouaricon::grain::WindowLut::makeTilt (0.5f + 0.45f * sp.windowSkew);
+    const double s1 = fbTapS1 (nEff, nEff, win, morphBank);
+   #if OGI_TEST_HOOKS
+    if (hooks.fbArchLaw)
+        return fbTapGainArch (s1);
+   #endif
+    return fbTapGain (s1);
+}
+
+/** fb HP / LP coefficients from the ramped log-cutoffs (parent
+    Engine.cpp:240-251 minus the matrix): tan only when a cutoff moved. */
+void Engine::updateChainCutoffs() noexcept
+{
+    const float lo = std::exp2 (fbLowLogRamp.current()), hi = std::exp2 (fbHighLogRamp.current());
+    if (juce::exactlyEqual (lo, chainLowHz) && juce::exactlyEqual (hi, chainHighHz))
+        return;
+    chainLowHz = lo;
+    chainHighHz = hi;
+    for (auto& c : chain)
+        c.setCutoffs (static_cast<double> (lo), static_cast<double> (hi));
+}
+
 void Engine::fillLawKey (double (&key)[kLawKeySize]) const noexcept
 {
     int i = 0;
@@ -460,7 +542,7 @@ void Engine::process (float* outL, float* outR, int numSamples, const juce::Midi
         if (b > seg)
             runSegment (cellOff + (seg - pos), cellOff + (b - pos), blockStart + seg);
 
-        mixPiece (cellOff, cellOff + len, outL + pos, outR + pos);
+        mixPiece (cellOff, cellOff + len, outL + pos, outR + pos, t);
         pos = b;
     }
     absPos = blockStart + numSamples;
@@ -496,14 +578,47 @@ void Engine::gridTick (std::int64_t t) noexcept
     outGainRamp.tick();
     setStreamRamps (false);
 
+    // PLAN-2.4 PD11 / P9: reverb atomics at the tick only (block-size invariant).
+    writeReverbAtomics();
+
+    // PLAN-2.4 PD7: chain controls (20 ms), cutoffs as log2 ramps of raw Hz
+    // (parent updateChainCutoffs: tan only when a cutoff moved).
+    parityKnob.setTarget (kFbKnob * gp.feedback, rampCells20);
+    parityKnob.tick();
+    diffRamp.setTarget (gp.fbDiffusion, rampCells20);
+    diffRamp.tick();
+    satDRamp.setTarget (1.0f + kSatSpan * gp.fbSaturation, rampCells20);
+    satDRamp.tick();
+    fbLowLogRamp.setTarget (std::log2 (gp.fbLowCutHz), rampCells20);
+    fbLowLogRamp.tick();
+    fbHighLogRamp.setTarget (std::log2 (gp.fbHighCutHz), rampCells20);
+    fbHighLogRamp.tick();
+    updateChainCutoffs();
+   #if OGI_TEST_HOOKS
+    {
+        const bool on = gp.reverbMix > 0.0f;
+        if (hooks.reverbHardCut && revMixWasOn && ! on)
+            reverb.reset();   // RV2 control: the tail is cut, no 50 ms fade
+        revMixWasOn = on;
+    }
+   #endif
+
+    updateHeads (t);   // PLAN-2.4 PD4: λ / run ramps, freeze, park (the swap rule reads it)
     takeTapes (t);
     finishXfades (t);
     retireScan();
     updateRegion();
+    for (int s = 0; s < kTapeSlots; ++s)
+        if (headRelatch[s] && current[(size_t) s] != nullptr)
+        {
+            head[s].relatch (region[s].lo, region[s].hi, current[(size_t) s]->frames);   // PD5: new tape → region lo, parked
+            headRelatch[s] = false;
+        }
     enforcePolyphony();
     updateScale();
     updateQuotas();
     updateScan (t);
+    writeHeads (t);    // PLAN-2.4 PD3: the whole cell, before any MIDI or segment of it
 
    #if OGI_TEST_HOOKS
     if (hooks.poisonFreeSlots || hooks.fxSubnormalScan)
@@ -573,6 +688,15 @@ void Engine::takeTapes (std::int64_t t) noexcept
             continue;                      // one crossfade per slot at a time; the tape waits
         if (numRetiring >= kMaxRetiring)
             break;                         // back-pressure: pending tapes wait in their slot
+        if (! head[s].parked && handoff.pendingDepth (s) > 0)
+        {
+            // PLAN-2.4 PD5: every take waits for a parked head (the run target
+            // went false in updateHeads; ≤ 20 ms + 1 cell).
+           #if OGI_TEST_HOOKS
+            ++hooks.swapWaits;
+           #endif
+            continue;
+        }
 
         SlotTape* p = handoff.take (s);
         if (p == nullptr)
@@ -583,6 +707,12 @@ void Engine::takeTapes (std::int64_t t) noexcept
        #endif
         SlotTape* old = current[(size_t) s];
         current[(size_t) s] = p;
+        // PLAN-2.4 PD5: a Reset take (same source, same rate) keeps the head;
+        // any other take (new file, SR rebuild, first load) re-latches it.
+        const bool resetTake = old != nullptr && p->rebuild && old->generation == p->generation
+                            && kaiser::ratesEqual (old->rate, p->rate);
+        if (! resetTake)
+            headRelatch[s] = true;
         if (old == nullptr)
             continue;
 
@@ -598,6 +728,8 @@ void Engine::takeTapes (std::int64_t t) noexcept
             x.start   = t;
             x.len     = std::max (1, static_cast<int> (std::lround (kXfadeMs * 0.001 * fs)));
            #if OGI_TEST_HOOKS
+            if (hooks.resetHardSwap && resetTake)
+                x.len = 1;   // CK4 control: the grains switch tape at the take
             ++hooks.xfadesStarted;
            #endif
         }
@@ -783,7 +915,10 @@ void Engine::updateQuotas() noexcept
         // Inputs unchanged: hold every law gain (a CellLerp needs a push per tick).
         for (int k = 0; k < kVoiceSlots; ++k)
             for (int s = 0; s < kGiStreams; ++s)
+            {
                 lawGain[k][s].push (lawTarget[k][s]);
+                gFbLerp[k][s].push (gFbTarget[k][s]);
+            }
         return;
     }
 
@@ -824,8 +959,11 @@ void Engine::updateQuotas() noexcept
                 v.sched[s].rescheduleNext (gap);
             }
             periodT[k][s] = T;
-            lawTarget[k][s] = pairLaw (k, s, effectiveCount (lenBar[s], T));
+            const double nEff = effectiveCount (lenBar[s], T);
+            lawTarget[k][s] = pairLaw (k, s, nEff);
             lawGain[k][s].push (lawTarget[k][s]);
+            gFbTarget[k][s] = pairFbGain (k, s, nEff);   // PLAN-2.4 PD8
+            gFbLerp[k][s].push (gFbTarget[k][s]);
         }
     }
 }
@@ -937,6 +1075,8 @@ void Engine::startVoice (int k, int channel, int note, float velocity01, std::in
         const double n = streamDemand (static_cast<double> (gp.s[s].density), static_cast<double> (gp.s[s].sizeMs), fs);
         lawTarget[k][s] = pairLaw (k, s, n);
         lawGain[k][s].reset (lawTarget[k][s]);
+        gFbTarget[k][s] = pairFbGain (k, s, n);   // PLAN-2.4 PD8
+        gFbLerp[k][s].reset (gFbTarget[k][s]);
     }
     quotasDirty = true;
 
@@ -1162,6 +1302,10 @@ void Engine::renderGrains (int c0, int c1, std::int64_t t0) noexcept
             }
         }
        #endif
+       #if OGI_TEST_HOOKS
+        if (hooks.headReadScan)
+            scanGrainVsHead (vg, slot, c0, c1);
+       #endif
         const bool keep = GiRenderer::renderGrain (vg, fader, bus, c0, c1, t0, xfade, morphBank, ff, forceBank);
        #if OGI_TEST_HOOKS
         if (ff.nanKilled)
@@ -1181,6 +1325,41 @@ void Engine::renderGrains (int c0, int c1, std::int64_t t0) noexcept
             ++hooks.nanKillNotRetired;
    #endif
 }
+
+#if OGI_TEST_HOOKS
+/** headReadScan (PLAN-2.4 PD9): the exact interval test of the grain's linear
+    read path vs the running head over this segment (live slots only). */
+void Engine::scanGrainVsHead (const VoiceGrain& vg, int slot, int c0, int c1) noexcept
+{
+    if (slot < 0 || slot >= kPoolLive || vg.tape == nullptr)
+        return;
+    const int s = std::clamp (vg.slot, 0, kTapeSlots - 1);
+    const RecordHead& hd = head[s];
+    if (hd.parked || vg.tape != current[(size_t) s] || vg.wrapW > 0.0)
+        return;   // no writes this cell / another tape / the wrap-read branch (forced)
+    const Grain& g = vg.g;
+    const double remain = g.len - g.frac - static_cast<double> (g.age);
+    if (! (remain > 0.0))
+        return;
+    const int n = std::min (c1 - c0, static_cast<int> (std::ceil (remain)));
+    if (n <= 0)
+        return;
+    const double h0 = static_cast<double> (hd.headAt (c0));
+    const double d0 = g.readAbs - h0;
+    const double d1 = (g.readAbs + g.step * static_cast<double> (n - 1)) - (h0 + static_cast<double> (n - 1));
+    std::int64_t rlo = 0, rhi = 0;
+    RecordHead::latchRegion (region[s].lo, region[s].hi, vg.tape->frames, rlo, rhi);
+    const bool circular = rlo == hd.lo && rhi == hd.hi;
+    const bool hit = headPathTouches (d0, d1, g.level, static_cast<double> (hd.hi - hd.lo), circular);
+    if (hooks.spawnedRunning[slot] && ! hooks.spawnedForced[slot])
+    {
+        ++hooks.headScanSegments;
+        if (hit) ++hooks.headScanViolations;
+    }
+    else if (! hooks.spawnedRunning[slot] && hit)
+        ++hooks.parkedSpawnCrossings;
+}
+#endif
 
 void Engine::spawn (const PendingOnset& o, std::int64_t tAbs) noexcept
 {
@@ -1269,6 +1448,43 @@ void Engine::spawn (const PendingOnset& o, std::int64_t tAbs) noexcept
         wW  = W;
     }
 
+    // PLAN-2.4 PD9: record-head clamp. No draws, skipped while the head is
+    // parked (fb 0 / frozen / no voice): every derandomised row is untouched.
+    bool headRunning = false, clampForced = false;
+    {
+        const RecordHead& hd = head[s];
+        bool off = false;
+       #if OGI_TEST_HOOKS
+        off = hooks.headClampOff;
+       #endif
+        headRunning = ! hd.parked;
+        if (headRunning && ! off)
+        {
+            const double hpos = static_cast<double> (hd.headAt (static_cast<int> (tAbs & static_cast<std::int64_t> (kCell - 1))));
+            const double Wh = static_cast<double> (hd.hi - hd.lo);
+            std::int64_t rlo = 0, rhi = 0;
+            RecordHead::latchRegion (rg.lo, rg.hi, tp->frames, rlo, rhi);
+            const bool circular = rlo == hd.lo && rhi == hd.hi && hpos >= static_cast<double> (hd.lo)
+                               && hpos < static_cast<double> (hd.hi);
+            if (wW > 0.0)
+                clampForced = true;   // reach >= W: the wrap-read branch is always infeasible
+            else
+            {
+                const double fitLo = dir > 0 ? rg.lo : rg.lo + reach;
+                const double fitHi = dir > 0 ? rg.hi - reach : rg.hi;
+                const auto res = clampToHead (p0, dir, rate, len, level, fitLo, fitHi, Wh, circular, hpos);
+                p0 = res.p0;
+                clampForced = res.forced;
+               #if OGI_TEST_HOOKS
+                if (res.moved) ++hooks.clampMoves;
+               #endif
+            }
+           #if OGI_TEST_HOOKS
+            if (clampForced) ++hooks.forcedCrossings;
+           #endif
+        }
+    }
+
     // Stereo spread (constant-power balance about centre; the stream pan stays
     // on the bus) and gain rand (cut only): parent Spawner.h:247-263 verbatim.
     float gainL = 1.0f, gainR = 1.0f;
@@ -1353,6 +1569,15 @@ void Engine::spawn (const PendingOnset& o, std::int64_t tAbs) noexcept
     vg.slot   = s;
     vg.wrapLo = wLo;
     vg.wrapW  = wW;
+   #if OGI_TEST_HOOKS
+    if (a.slot >= 0 && a.slot < kPoolLive)
+    {
+        hooks.spawnedRunning[a.slot] = headRunning;
+        hooks.spawnedForced[a.slot]  = clampForced;
+    }
+   #else
+    juce::ignoreUnused (headRunning, clampForced);
+   #endif
 
    #if OGI_TEST_HOOKS
     if (hooks.fxSharedLatch)
@@ -1439,7 +1664,209 @@ void Engine::spawn (const PendingOnset& o, std::int64_t tAbs) noexcept
    #endif
 }
 
-void Engine::mixPiece (int c0, int c1, float* outL, float* outR) noexcept
+/** PLAN-2.4 PD7 / PD8: per stream the mean tap
+        tap = (Σ_k a_k·g_fb,kS·bus_kS) · min (level, 1) · aud / max (1, Σ_k a_k)
+    (no pan, no g_out, no voice gain: parent R31) → chain[s] (unity knob, or
+    the parent's 0.95·feedback under chainKnobParity) → fbRet[s][·][c]. */
+void Engine::runChains (int c0, int c1, std::int64_t tAbs) noexcept
+{
+    const int len = c1 - c0;
+    bool parity = false, sumT = false;
+   #if OGI_TEST_HOOKS
+    parity = hooks.chainKnobParity;
+    sumT   = hooks.sumTap;
+   #endif
+    for (int s = 0; s < kGiStreams; ++s)
+    {
+        for (int c = c0; c < c1; ++c)
+        {
+            const float lv = std::min (levelRamp[s].value (c), 1.0f) * audibleRamp[s].value (c);
+            float l = tapAcc[s][0][c] * lv;
+            float r = tapAcc[s][1][c] * lv;
+            if (! sumT)
+            {
+                const float d = std::max (1.0f, envSum[s][c]);
+                l /= d;
+                r /= d;
+            }
+            tapBuf[0][c - c0] = l;
+            tapBuf[1][c - c0] = r;
+        }
+       #if OGI_TEST_HOOKS
+        if (hooks.tapProbe.buf != nullptr && hooks.tapProbe.slot == s)
+            for (int i = 0; i < len; ++i)
+                if (tAbs + i >= 0 && tAbs + i < hooks.tapProbe.len)
+                {
+                    hooks.tapProbe.buf[2 * (tAbs + i)]     = tapBuf[0][i];
+                    hooks.tapProbe.buf[2 * (tAbs + i) + 1] = tapBuf[1][i];
+                }
+        {
+            auto& inj = hooks.injectFbNan;
+            if (inj.slot == s && inj.atSample >= 0 && ! inj.done && tAbs + len > inj.atSample)
+            {
+                chain[s].testInjectAt  = static_cast<int> (std::max<std::int64_t> (0, inj.atSample - tAbs));
+                chain[s].testInjectNan = true;
+                inj.done = true;
+            }
+        }
+       #endif
+        chain[s].process (tapBuf[0], tapBuf[1], len, c0, parity ? parityKnob : unityKnob, diffRamp, satDRamp);
+       #if OGI_TEST_HOOKS
+        chain[s].testInjectAt = -1;
+        if (hooks.retProbe.buf != nullptr && hooks.retProbe.slot == s)
+            for (int i = 0; i < len; ++i)
+                if (tAbs + i >= 0 && tAbs + i < hooks.retProbe.len)
+                {
+                    hooks.retProbe.buf[2 * (tAbs + i)]     = tapBuf[0][i];
+                    hooks.retProbe.buf[2 * (tAbs + i) + 1] = tapBuf[1][i];
+                }
+       #else
+        juce::ignoreUnused (tAbs);
+       #endif
+        for (int i = 0; i < len; ++i)
+        {
+            fbRet[s][0][c0 + i] = tapBuf[0][i];
+            fbRet[s][1][c0 + i] = tapBuf[1][i];
+        }
+    }
+}
+
+RecordHeadCounters& Engine::headCounters (int s) noexcept
+{
+   #if OGI_TEST_HOOKS
+    return hooks.head[s];
+   #else
+    return headCntShip[s];
+   #endif
+}
+
+/** PLAN-2.4 PD4 (at the tick, before takeTapes): the λ ramp, freeze edges, the
+    per-slot run condition
+        run = ! freeze && rate == fs && ! xfade && ! pending
+              && ((enabled && audible && a counted voice) || returnPk > −100 dBFS)
+    and the park transition (λ_eff settled at exactly 0 → settle, parked). */
+void Engine::updateHeads (std::int64_t t) noexcept
+{
+    juce::ignoreUnused (t);
+    bool lz = false, rz = false, fh = false, ignRate = false;
+    RecordHeadFlags fl;
+   #if OGI_TEST_HOOKS
+    lz = hooks.lambdaRampZero;
+    rz = hooks.runRampZero;
+    fh = hooks.freezeHardStop;
+    ignRate = hooks.runIgnoreRate;
+    fl.settleOff = hooks.settleOff;
+   #endif
+
+    if (lz)
+        fbRamp.setCell (gp.feedback, gp.feedback);
+    else
+    {
+        fbRamp.setTarget (gp.feedback, rampCells20);
+        fbRamp.tick();
+    }
+
+    const bool freezeEdge = gp.freeze && ! prevFreeze;
+    prevFreeze = gp.freeze;
+
+    bool anySolo = false;
+    for (int s = 0; s < kGiStreams; ++s)
+        anySolo = anySolo || (gp.s[s].enable && gp.s[s].solo);
+    const bool anyVoice = VoiceAllocator::countCounted (voices) > 0;
+
+    for (int s = 0; s < kTapeSlots; ++s)
+    {
+        auto& hd = head[s];
+        const SlotTape* tp = current[(size_t) s];
+
+        // Held return peak of the previous cell (50 ms release at the tick).
+        float pk = 0.0f;
+        for (int ch = 0; ch < 2; ++ch)
+            for (int i = 0; i < kFbDelay; ++i)
+            {
+                const float a = std::abs (fbRet[s][ch][i]);
+                if (a > pk) pk = a;   // NaN never wins
+            }
+        hd.returnPk = std::max (pk, hd.returnPk * pkRel);
+
+        const bool pending = handoff.pendingDepth (s) > 0;
+        hd.swapWaiting = pending && ! hd.parked;
+        const bool rateOk = tp != nullptr && (ignRate || kaiser::ratesEqual (tp->rate, fs));
+        const bool voiceTerm = gp.s[s].enable && audibleTarget (s, anySolo) && anyVoice;
+        const bool target = ! gp.freeze && rateOk && ! xfade[s].active && ! pending
+                         && (voiceTerm || hd.returnPk > 1.0e-5f);
+        const float v = target ? 1.0f : 0.0f;
+
+        if (fh && freezeEdge)
+            hd.run.reset (0.0f);
+        if (rz)
+            hd.run.setCell (v, v);
+        else
+        {
+            hd.run.setTarget (v, rampCells20);
+            hd.run.tick();
+        }
+
+        const bool parkedNow = fbRamp.settledAt (0.0f) || hd.run.settledAt (0.0f);
+        if (parkedNow && ! hd.parked && tp != nullptr)
+            hd.park (current[(size_t) s]->tape, fl, headCounters (s));
+        hd.parked = parkedNow;
+    }
+}
+
+/** PLAN-2.4 PD3: every running head writes its whole cell at the tick. */
+void Engine::writeHeads (std::int64_t t) noexcept
+{
+    RecordHeadFlags fl;
+   #if OGI_TEST_HOOKS
+    fl.rClampOff     = hooks.rClampOff;
+    fl.writeScrubOff = hooks.writeScrubOff;
+    fl.settleOff     = hooks.settleOff;
+   #else
+    juce::ignoreUnused (t);
+   #endif
+    for (int s = 0; s < kTapeSlots; ++s)
+    {
+        auto& hd = head[s];
+        SlotTape* tp = current[(size_t) s];
+        if (hd.parked || tp == nullptr)
+        {
+            hd.cellStart = hd.h;
+            hd.wrapOff = -1;
+            continue;
+        }
+        const float* rL = fbRet[s][0];
+        const float* rR = fbRet[s][1];
+       #if OGI_TEST_HOOKS
+        float rInj[2][kFbDelay];
+        auto& inj = hooks.injectReturn;
+        if (inj.slot == s && ! inj.done && inj.atSample >= t && inj.atSample < t + kCell)
+        {
+            std::memcpy (rInj, fbRet[s], sizeof (rInj));
+            const int i = static_cast<int> (inj.atSample - t);
+            rInj[0][i] = rInj[1][i] = inj.value;
+            inj.done = true;
+            rL = rInj[0];
+            rR = rInj[1];
+        }
+       #endif
+        auto& c = headCounters (s);
+        hd.writeCell (tp->tape, rL, rR, fbRamp,
+                      region[s].lo, region[s].hi, tp->frames, fl, c);
+    }
+}
+
+/** PLAN-2.4 PD11: the reverb's engine-owned atomics, written at grid ticks
+    only (parent Engine.cpp:222-235 without the 2.5 matrix lines). Fixed
+    internals (enabled 1, predelay 20 ms, mod 0.2, shimmer 0) are set once. */
+void Engine::writeReverbAtomics() noexcept
+{
+    revSize.store (gp.reverbSize, std::memory_order_relaxed);
+    revDamp.store (gp.reverbDamp, std::memory_order_relaxed);
+    revMix.store (gp.reverbMix, std::memory_order_relaxed);
+}
+
+void Engine::mixPiece (int c0, int c1, float* outL, float* outR, std::int64_t tAbs) noexcept
 {
     // PD12. A stream whose audibility ramp sits at exactly 0 for the whole cell
     // is skipped (never added as +0.0f: −0 + 0 = +0 would break the 2.1 hashes).
@@ -1451,6 +1878,10 @@ void Engine::mixPiece (int c0, int c1, float* outL, float* outR) noexcept
 
     for (int s = 0; s < kGiStreams; ++s)
     {
+        // PLAN-2.4 PD8: the stream's tap accumulators start at 0 every piece.
+        std::fill (tapAcc[s][0] + c0, tapAcc[s][0] + c1, 0.0f);
+        std::fill (tapAcc[s][1] + c0, tapAcc[s][1] + c1, 0.0f);
+        std::fill (envSum[s] + c0, envSum[s] + c1, 0.0f);
         if (! audible[s] && s != 0)
         {
             for (int k = 0; k < kVoiceSlots; ++k)
@@ -1474,6 +1905,10 @@ void Engine::mixPiece (int c0, int c1, float* outL, float* outR) noexcept
             float* bl = bus.s[k][s][0];
             float* br = bus.s[k][s][1];
             const CellLerp& lg = lawGain[k][s];
+            const CellLerp& gf = gFbLerp[k][s];
+            float* tL = tapAcc[s][0];
+            float* tR = tapAcc[s][1];
+            float* es = envSum[s];
             for (int c = c0; c < c1; ++c)
             {
                 const float a = envBuf[k][c] * lg.at (c);
@@ -1482,16 +1917,31 @@ void Engine::mixPiece (int c0, int c1, float* outL, float* outR) noexcept
                     aL[c] += a * bl[c];
                     aR[c] += a * br[c];
                 }
+                // PLAN-2.4 PD8 / P11: the feedback tap, separate statements
+                // (the mix statements above are untouched): Σ_k a_k·g_fb·bus.
+                const float e = envBuf[k][c];
+                if (e > 0.0f)
+                {
+                    const float g = e * gf.at (c);
+                    tL[c] += g * bl[c];
+                    tR[c] += g * br[c];
+                    es[c] += e;
+                }
                 bl[c] = 0.0f;
                 br[c] = 0.0f;
             }
         }
     }
 
+    // PLAN-2.4 PD7 / PD8: tap → 4 chains → fbRet (every piece, frozen or not).
+    runChains (c0, c1, tAbs);
+
     const float vgain = voiceGainNow;
+    const int len = c1 - c0;
     for (int c = c0; c < c1; ++c)
     {
-        // Per stream level / audibility / pan, voice headroom; reverb absent (unity).
+        // Per stream level / audibility / pan, voice headroom (PD12 statements,
+        // unchanged; PLAN-2.4 PD11 step 1 stores y into the wet bus).
         float yL = 0.0f, yR = 0.0f;
         bool have = false;
         for (int s = 0; s < kGiStreams; ++s)
@@ -1520,9 +1970,52 @@ void Engine::mixPiece (int c0, int c1, float* outL, float* outR) noexcept
             yR = accR[0][c] * lv * panRRamp[0].value (c);
         }
 
-        // Wet safety = the parent D9 knee (PLAN-2.4 PD1; identity at or below
-        // kKneeT), then output_gain.
+        wet[0][c - c0] = yL;
+        wet[1][c - c0] = yR;
+    }
+
+    // 2. R96 wet guard (parent Engine.cpp:1612-1634): a non-finite wet sample
+    //    never enters the reverb tank (a module state the engine cannot scrub).
+    for (int ch = 0; ch < 2; ++ch)
+        for (int i = 0; i < len; ++i)
+            if (! std::isfinite (wet[ch][i]))
+            {
+                wet[ch][i] = 0.0f;
+               #if OGI_TEST_HOOKS
+                ++hooks.wetScrubs;
+               #endif
+            }
+
+    // 3. Reverb over the piece, in place (mix 0 and not running: the unit
+    //    returns before touching the buffer — a bitwise bypass).
+    {
+        float* const chans[2] { wet[0], wet[1] };
+        revView.setDataToReferTo (chans, 2, len);
+        reverb.process (revView);
+    }
+
+   #if OGI_TEST_HOOKS
+    {
+        auto& inj = hooks.injectPreKnee;
+        if (inj.atSample >= 0 && ! inj.done && tAbs + len > inj.atSample && tAbs <= inj.atSample)
+        {
+            const int i = static_cast<int> (inj.atSample - tAbs);
+            wet[0][i] = wet[1][i] = inj.value;
+            inj.done = true;
+        }
+    }
+   #else
+    juce::ignoreUnused (tAbs);
+   #endif
+
+    // 4. Wet safety = the parent D9 knee (PLAN-2.4 PD1; identity at or below
+    //    kKneeT), then 5. output_gain as its own statement.
+    for (int c = c0; c < c1; ++c)
+    {
+        float yL = wet[0][c - c0];
+        float yR = wet[1][c - c0];
        #if OGI_TEST_HOOKS
+        hooks.preKneePeak = std::max ({ hooks.preKneePeak, std::abs (yL), std::abs (yR) });
         if (hooks.legacyWetTanh)    // PLAN-2.4 PD1: the exact 2.1–2.3 statements
         {
             yL = kWetCeil * std::tanh (yL / kWetCeil);
@@ -1534,6 +2027,9 @@ void Engine::mixPiece (int c0, int c1, float* outL, float* outR) noexcept
             yL = wetKnee (yL);
             yR = wetKnee (yR);
         }
+       #if OGI_TEST_HOOKS
+        hooks.kneePeak = std::max ({ hooks.kneePeak, std::abs (yL), std::abs (yR) });
+       #endif
         const float og = outGainRamp.value (c);
         outL[c - c0] = yL * og;
         outR[c - c0] = yR * og;

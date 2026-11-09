@@ -107,6 +107,12 @@ namespace ogi
         // Message thread.
         void requestSlotLoad (int slot, const juce::File& file);
         void requestRebuild (int slot, double rate);
+        /** PLAN-2.4 PD6: Reset = an off-thread rebuild of the slot's working copy
+            from its pristine at the session rate (slot −1 = all four). Bypasses
+            the "already at this rate" early-out; deduped on a reset in flight.
+            The engine takes it as a same-generation rebuild: the 20 ms
+            dual-read crossfade, after its record head parks. */
+        void requestReset (int slot);
 
         // Any non-audio thread.
         SlotInfo           getSlotInfo (int slot) const;
@@ -116,6 +122,11 @@ namespace ogi
         bool loadSync (int slot, const juce::File& file, juce::String& error);
         bool loadSync (int slot, const juce::AudioBuffer<float>& pcm, double sourceRate,
                        const juce::String& name, juce::String& error);
+        /** Calling thread (the loadSync pattern; deterministic harness rows):
+            build the slot's tape from its pristine at the session rate as a
+            same-generation rebuild and publish it. False + error when the slot
+            holds nothing. */
+        bool resetSync (int slot, juce::String& error);
 
         //======================================================================
         // The job body pieces (static; also used by the harness rows L1 / L2).
@@ -145,6 +156,7 @@ namespace ogi
             std::vector<float>              overview;
             juce::ThreadPoolJob*            activeJob   = nullptr;   // owned by the pool
             double                          rebuildRate = 0.0;       // in-flight rebuild target (0 = none)
+            bool                            resetInFlight = false;   // PLAN-2.4 PD6: a Reset job is queued / running
         };
 
         void timerCallback() override;

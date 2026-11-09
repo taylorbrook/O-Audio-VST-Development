@@ -184,8 +184,11 @@ namespace ogi
     // 2.3: the 10 per-grain FX rows sN_filter_type, filter_cutoff,
     // filter_rand, filter_res, drive, crush, crush_prob, ring_freq, ring_rand,
     // ring_mix (PLAN-2.3 T4; the parent planFx field names and conversions).
-    // Never bound: sN_size_sync and sN_density_sync (2.5), every other global
-    // row.
+    // 2.4: the 9 global rows feedback, fb_low_cut, fb_high_cut, fb_saturation,
+    // fb_diffusion, freeze, reverb_mix, reverb_size, reverb_damp (PLAN-2.4 T5;
+    // the cutoffs raw Hz from the skewed ranges, never inverted by hand).
+    // Never bound: sN_size_sync and sN_density_sync (2.5), mod, voice mode,
+    // MPE, record.
     //==========================================================================
     inline constexpr int kGiGridStreams = 4;   // 2.2: s1...s4 (2.1: s1 only)
 
@@ -203,6 +206,17 @@ namespace ogi
         std::atomic<float>* ampSustain = nullptr;      // %
         std::atomic<float>* ampRelease = nullptr;
         std::atomic<float>* velToAmp   = nullptr;      // %
+
+        // 2.4 globals
+        std::atomic<float>* feedback     = nullptr;    // %
+        std::atomic<float>* fbLowCut     = nullptr;    // Hz (skewed range: read raw)
+        std::atomic<float>* fbHighCut    = nullptr;    // Hz (skewed range: read raw)
+        std::atomic<float>* fbSaturation = nullptr;    // %
+        std::atomic<float>* fbDiffusion  = nullptr;    // %
+        std::atomic<float>* freeze       = nullptr;    // bool
+        std::atomic<float>* reverbMix    = nullptr;    // %
+        std::atomic<float>* reverbSize   = nullptr;    // %
+        std::atomic<float>* reverbDamp   = nullptr;    // %
 
         struct Stream
         {
@@ -259,6 +273,15 @@ namespace ogi
             ampSustain     = apvts.getRawParameterValue ("amp_sustain");
             ampRelease     = apvts.getRawParameterValue ("amp_release");
             velToAmp       = apvts.getRawParameterValue ("vel_to_amp");
+            feedback       = apvts.getRawParameterValue ("feedback");
+            fbLowCut       = apvts.getRawParameterValue ("fb_low_cut");
+            fbHighCut      = apvts.getRawParameterValue ("fb_high_cut");
+            fbSaturation   = apvts.getRawParameterValue ("fb_saturation");
+            fbDiffusion    = apvts.getRawParameterValue ("fb_diffusion");
+            freeze         = apvts.getRawParameterValue ("freeze");
+            reverbMix      = apvts.getRawParameterValue ("reverb_mix");
+            reverbSize     = apvts.getRawParameterValue ("reverb_size");
+            reverbDamp     = apvts.getRawParameterValue ("reverb_damp");
 
             for (int i = 0; i < kGiGridStreams; ++i)
             {
@@ -326,6 +349,17 @@ namespace ogi
         float ampReleaseMs = 1500.0f;      // 0..20000
         float velToAmp     = 0.7f;         // 0..1
 
+        // 2.4 globals (spec defaults)
+        float feedback     = 0.0f;         // 0..1
+        float fbLowCutHz   = 80.0f;        // 20..2000 Hz (raw)
+        float fbHighCutHz  = 12000.0f;     // 1000..20000 Hz (raw)
+        float fbSaturation = 0.2f;         // 0..1
+        float fbDiffusion  = 0.0f;         // 0..1
+        bool  freeze       = false;
+        float reverbMix    = 0.0f;         // 0..1
+        float reverbSize   = 0.5f;         // 0..1
+        float reverbDamp   = 0.5f;         // 0..1
+
         struct Stream
         {
             bool  enable     = false;      // s1 defaults On through the APVTS
@@ -386,6 +420,16 @@ namespace ogi
             readPct (p.ampSustain, ampSustain);
             read (p.ampRelease, ampReleaseMs, 0.0f, 20000.0f);
             readPct (p.velToAmp, velToAmp);
+
+            readPct (p.feedback, feedback);
+            read (p.fbLowCut,  fbLowCutHz,  20.0f,  2000.0f);
+            read (p.fbHighCut, fbHighCutHz, 1000.0f, 20000.0f);
+            readPct (p.fbSaturation, fbSaturation);
+            readPct (p.fbDiffusion,  fbDiffusion);
+            readBool (p.freeze, freeze);
+            readPct (p.reverbMix,  reverbMix);
+            readPct (p.reverbSize, reverbSize);
+            readPct (p.reverbDamp, reverbDamp);
 
             for (int i = 0; i < kGiGridStreams; ++i)
             {

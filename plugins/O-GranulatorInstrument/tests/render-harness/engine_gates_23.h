@@ -12,7 +12,7 @@
 
       FN1  stage chunk invariance {1, 3, 17, 32} vs 32      ctrl per-call ring renorm, chunks 17
       FN2  engine block-size null, all FX                   ctrl seed + 1
-      FN3  108 unread params bit-identical (readSet23)      ctrl s1_filter_cutoff / s4_ring_freq
+      FN3  99 unread params bit-identical (readSet24)       ctrl s1_filter_cutoff / s4_ring_freq
       FR1  FX-off ≡ renders-2.2 (14 jobs)                   ctrl N1-default + s1_drive 1 %
       FV1a cutoff census (+ 44.1 k clamp)                   ctrl rand 50 % -> span < 3.6
       FV1b ring census (+ 44.1 k clamp)                     ctrl rand 50 % -> span < 3.6
@@ -331,7 +331,7 @@ namespace { namespace eg23
 
     void rowFN3()
     {
-        const auto readSet = eg21::readSet23();
+        const auto readSet = eg21::readSet24();   // PLAN-2.4 PD16 (2.3: readSet23 153 / 108)
         int bound = 0;
         {
             auto probe = make();
@@ -356,9 +356,9 @@ namespace { namespace eg23
         const int nC = diffCount (ref, renderFN (512, kSeed, [] (Proc& p) { setP (p, sn (1, "filter_cutoff"), 3000.0f); }, false));
         const int nR = diffCount (ref, renderFN (512, kSeed, [] (Proc& p) { setP (p, sn (4, "ring_freq"), 900.0f); }, false));
         const bool fired = nC > 0 && nR > 0;
-        row (n == 0 && bound == 153 && touched == 108 && fired, "FN3 unread params bit-identical, 4 streams, every FX on (readSet23)",
+        row (n == 0 && bound == 162 && touched == 99 && fired, "FN3 unread params bit-identical, 4 streams, every FX on (readSet24)",
              "meas " + juce::String (n) + " samples differ with " + juce::String (touched) + " unread params randomised ("
-                 + juce::String (bound) + "/153 read IDs bound) | thr 0 | margin " + juce::String (-n)
+                 + juce::String (bound) + "/162 read IDs bound) | thr 0 | margin " + juce::String (-n)
                  + " | " + ctrl (fired, "s1_filter_cutoff -> " + juce::String (nC) + ", s4_ring_freq -> " + juce::String (nR) + " differ"));
     }
 
@@ -867,7 +867,7 @@ namespace { namespace eg23
         return p;
     }
 
-    struct FzOut { std::uint64_t nonFinite = 0, subn = 0, kills = 0, spawns = 0; double peak = 0; bool hit = false; juce::int64 youngAt = -1; };
+    struct FzOut { std::uint64_t nonFinite = 0, subn = 0, kills = 0, spawns = 0, wetScrubs = 0; double peak = 0; bool hit = false; juce::int64 youngAt = -1; };
 
     /** injectAt >= 0: the control (injectNan into slot 0 + nanKillOff). youngAt
         returns the first cell >= 0.5 s that lands 64 samples into a slot-0 grain
@@ -900,6 +900,7 @@ namespace { namespace eg23
             else o.peak = std::max ({ o.peak, (double) std::abs (l), (double) std::abs (r) });
         }
         o.subn = s.hk().fxSubnormals;
+        o.wetScrubs = s.hk().wetScrubs;   // PLAN-2.4 PD11: the R96 wet guard zeroes a non-finite wet sample before the output
         o.kills = s.hk().nanKills;
         o.spawns = s.hk().spawns;
         o.hit = s.hk().injectNan.done;
@@ -928,9 +929,11 @@ namespace { namespace eg23
         Grain dn {};
         dn.svfIc2[1] = std::numeric_limits<float>::denorm_min();
         const int scan = ogi::fxstate::subnormals (dn);
-        const bool fired = c.nonFinite > 0 && scan == 1;
+        // PLAN-2.4: the R96 wet guard (PD11 step 2) now zeroes the un-killed NaN on
+        // the wet bus, so the control counts the bus (guard scrubs) as well as the output.
+        const bool fired = (c.nonFinite + c.wetScrubs) > 0 && scan == 1;
         row (t.bad == 0 && fired, "FZ1 stress 44.1 / 48 / 96 k (res 100, drive / crush / ring 100, +48 / -24 st, full scale): finite, 0 subnormal FX state",
-             "meas" + d + " | thr 0 / 0 / 0 | margin 0 | " + ctrl (fired, "injectNan + nanKillOff (hit " + juce::String (c.hit ? "yes" : "NO") + ") -> " + i64 (c.nonFinite) + " non-finite samples; scanner fed denorm_min -> "
+             "meas" + d + " | thr 0 / 0 / 0 | margin 0 | " + ctrl (fired, "injectNan + nanKillOff (hit " + juce::String (c.hit ? "yes" : "NO") + ") -> " + i64 (c.nonFinite) + " non-finite output samples, " + i64 (c.wetScrubs) + " wet-guard scrubs; scanner fed denorm_min -> "
                                                               + juce::String (scan)));
     }
 

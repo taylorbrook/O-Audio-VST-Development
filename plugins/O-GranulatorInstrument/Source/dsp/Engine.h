@@ -30,17 +30,22 @@
 #include <vector>
 
 #include "BandlimitedReader.h"   // grain-engine 1.1.0
+#include "ReverbUnit.h"          // reverb-unit 1.2.0 (atomic bind, PLAN-2.4 PD11)
 #include "CounterRng.h"
 #include "GrainPool.h"
 #include "GrainScheduler.h"
 
 #include "GiConstants.h"
 #include "forked/ControlGrid.h"
+#include "forked/FeedbackChain.h"
 #include "forked/Grain.h"
 #include "forked/OutputLaw.h"
 #include "forked/WindowMorphBank.h"
 #include "AmpEnv.h"
 #include "GiFxLatch.h"
+#include "GiRecordHead.h"
+#include "GiHeadClamp.h"
+#include "KaiserResampler.h"   // kaiser::ratesEqual
 #include "GiRenderer.h"
 #include "GiScale.h"
 #include "GiSpawner.h"
@@ -232,6 +237,28 @@ namespace ogi
         bool wetSafetyOff     = false;   // PF rows: the wet knee skipped (identity)
         // 2.4 (PLAN-2.4 PD19)
         bool legacyWetTanh    = false;   // PD1 attribution: the 2.1–2.3 kWetCeil·tanh statements instead of wetKnee
+        bool reverbHardCut    = false;   // RV2 control: reverb.reset() at the mix-0 edge (no 50 ms fade)
+        struct InjectAt { std::int64_t atSample = -1; float value = 0.0f; bool done = false; };
+        InjectAt injectPreKnee;          // CL2 control: wet L / R := value at atSample (before the knee)
+        bool chainKnobParity  = false;   // PB rows: the chains read 0.95·feedback (the parent drive), not unity
+        bool sumTap           = false;   // FL2 control: tap ÷ 1 instead of ÷ max (1, Σa)
+        bool fbArchLaw        = false;   // FL8 control: g_fb = fbTapGainArch (1 / max (1, S1))
+        struct Probe { float* buf = nullptr; std::int64_t len = 0; int slot = 0; };
+        Probe tapProbe, retProbe;        // interleaved L / R per absolute sample of one slot (PB rows)
+        struct InjectFb { int slot = -1; std::int64_t atSample = -1; bool done = false; };
+        InjectFb injectFbNan;            // FL6: the leaf's testInjectAt in the first piece >= atSample
+        bool lambdaRampZero   = false;   // CK2 control: the feedback (λ) ramp steps at the tick (0 ms)
+        bool runRampZero      = false;   // CK3 control: the head run ramp steps (hard start / stop)
+        bool freezeHardStop   = false;   // CK1 control: on a freeze edge the run ramp snaps to 0
+        bool resetHardSwap    = false;   // CK4 control: a Reset take swaps tapes with no crossfade (x.len 1)
+        bool writeScrubOff    = false;   // FL6 control: a non-finite write lands in the tape
+        bool rClampOff        = false;   // FL1s control: no ±0.7 writer clamp
+        bool settleOff        = false;   // MS1 control: no mip settle at wrap / park
+        bool runIgnoreRate    = false;   // SR1 control: the run condition ignores tape rate != fs
+        struct InjectRet { int slot = -1; std::int64_t atSample = -1; float value = 0.0f; bool done = false; };
+        InjectRet injectReturn;          // FL1s / FL6 controls: the writer's return r := value at atSample
+        bool headClampOff     = false;   // HC1 control: no spawner head clamp
+        bool headReadScan     = false;   // HC1: per segment, live grain path vs the running head path
         bool fxSubnormalScan  = false;   // FZ1: per-tick scan of the active slots' FX state for subnormals
         struct Inject { int slot = -1; std::int64_t atSample = 0; int field = 0; float value = 0.0f; bool done = false; };
         Inject injectNan;                // write value into SVF field (0 ic1[0], 1 ic1[1], 2 ic2[0], 3 ic2[1]) of slot, first segment t0 >= atSample
@@ -260,6 +287,18 @@ namespace ogi
         // 2.3
         std::uint64_t nanKills = 0, nanKillNotRetired = 0, fxStateNonDefaultAtSpawn = 0;
         std::uint64_t stealStateChecked = 0, stealStateMismatches = 0, fxSubnormals = 0;
+        // 2.4
+        std::uint64_t wetScrubs = 0;                 // R96 wet guard: non-finite wet samples zeroed
+        float preKneePeak = 0.0f, kneePeak = 0.0f;   // max |y| before / after the knee (before output_gain)
+        RecordHeadCounters head[kTapeSlots] {};      // writes, rClamps, writeScrubs, settles, parks, maxWritten per slot
+        std::uint64_t swapWaits = 0;                 // ticks a pending tape waited for its head to park
+        std::uint64_t forcedCrossings = 0;           // PD9: no feasible p0 (or reach >= W) while the head runs
+        std::uint64_t clampMoves = 0;                // PD9: p0 moved out of the forbidden set
+        std::uint64_t headScanViolations = 0;        // headReadScan: a grain spawned with a running head read inside [−g_b, g_a]
+        std::uint64_t parkedSpawnCrossings = 0;      // headReadScan INFO: the same for grains spawned while parked
+        std::uint64_t headScanSegments = 0;          // headReadScan liveness: grain segments tested against a running head
+        bool spawnedRunning[kPoolLive] {};           // headReadScan: the head was running (and the clamp ran) at spawn
+        bool spawnedForced[kPoolLive] {};
         Grain fxShadow[kPoolLive + kPoolFade] {};            // FX state at the last retire (and poison)
         std::array<VoiceGrain, kPoolLive> stealSnap {};      // FB3 snapshot
 
@@ -299,6 +338,12 @@ namespace ogi
             customCopies = customTryFails = activeSetRebuilds = 0;
             nanKills = nanKillNotRetired = fxStateNonDefaultAtSpawn = 0;
             stealStateChecked = stealStateMismatches = fxSubnormals = 0;
+            wetScrubs = 0;
+            preKneePeak = kneePeak = 0.0f;
+            for (auto& h : head)
+                h = RecordHeadCounters {};
+            swapWaits = 0;
+            forcedCrossings = clampMoves = headScanViolations = parkedSpawnCrossings = headScanSegments = 0;
             liveMin = INT_MAX;
             liveMax = 0;
         }
@@ -374,6 +419,10 @@ namespace ogi
         int              getRetiringCount() const noexcept  { return numRetiring; }
         const LoopRegion& getRegion (int s = 0) const noexcept { return region[std::clamp (s, 0, kGiStreams - 1)]; }
         const GiScaleState& getScaleState() const noexcept  { return scale; }
+        const FeedbackChain& getChainForTest (int s) const noexcept { return chain[std::clamp (s, 0, kGiStreams - 1)]; }
+        FeedbackChain&       chainForTest (int s) noexcept          { return chain[std::clamp (s, 0, kGiStreams - 1)]; }
+        const float (&getFbRetForTest (int s) const noexcept)[2][kFbDelay] { return fbRet[std::clamp (s, 0, kGiStreams - 1)]; }
+        const RecordHead& getHeadForTest (int s) const noexcept     { return head[std::clamp (s, 0, kTapeSlots - 1)]; }
         const WindowMorphBank& getMorphBank() const noexcept { return morphBank; }
        #endif
 
@@ -424,7 +473,17 @@ namespace ogi
         void runSegment (int c0, int c1, std::int64_t t0) noexcept;
         void renderGrains (int c0, int c1, std::int64_t t0) noexcept;
         void spawn (const PendingOnset& o, std::int64_t tAbs) noexcept;
-        void mixPiece (int c0, int c1, float* outL, float* outR) noexcept;
+        void mixPiece (int c0, int c1, float* outL, float* outR, std::int64_t tAbs) noexcept;
+       #if OGI_TEST_HOOKS
+        void scanGrainVsHead (const VoiceGrain& vg, int slot, int c0, int c1) noexcept;
+       #endif
+        void writeReverbAtomics() noexcept;
+        void updateChainCutoffs() noexcept;
+        float pairFbGain (int k, int s, double nEff) const noexcept;
+        void runChains (int c0, int c1, std::int64_t tAbs) noexcept;
+        void updateHeads (std::int64_t t) noexcept;   // ramps, run condition, park (before takeTapes)
+        void writeHeads (std::int64_t t) noexcept;    // the whole cell, at the tick (after updateRegion)
+        RecordHeadCounters& headCounters (int s) noexcept;
 
         // helpers
         AmpParams ampParams() const noexcept;
@@ -496,7 +555,37 @@ namespace ogi
         ScanAnchor freeRun[kGiStreams];
         LoopRegion region[kGiStreams];
 
-        std::vector<float> fbReturn;   // P8: allocated in prepare, zero-filled, never written in 2.2
+        // 2.4 feedback network (PLAN-2.4 PD7 / PD8): per stream a mean tap →
+        // FeedbackChain (VERBATIM leaf, driven at a UNITY knob: the loop gain
+        // lives in the writer's λ, P1) → fbRet, the z^-32 return of the
+        // previous cell (kFbDelay == kCell). Fixed arrays, zeroed in prepare.
+        FeedbackChain chain[kGiStreams];
+        float fbRet[kGiStreams][2][kFbDelay] {};
+        ExactRamp unityKnob, parityKnob, fbLowLogRamp, fbHighLogRamp, diffRamp, satDRamp;
+        float chainLowHz = 0.0f, chainHighHz = 0.0f;
+        CellLerp gFbLerp[kVoiceSlots][kGiStreams];
+        float gFbTarget[kVoiceSlots][kGiStreams] {};
+        float tapAcc[kGiStreams][2][kCell] {};
+        float envSum[kGiStreams][kCell] {};
+        float tapBuf[2][kCell] {};
+
+        // 2.4 record heads (PLAN-2.4 PD2–PD5): one per slot, λ = 0.95·fbRamp·run.
+        ExactRamp  fbRamp;
+        RecordHead head[kTapeSlots];
+        bool       headRelatch[kTapeSlots] {};
+        bool       prevFreeze = false;
+        float      pkRel = 0.0f;                 // returnPk release per cell (50 ms)
+        RecordHeadCounters headCntShip[kTapeSlots] {};
+
+        // 2.4 output (PLAN-2.4 PD11): ReverbUnit bound to engine-owned atomics
+        // (size / damp / mix written at grid ticks only; fixed internals), the
+        // wet bus of one piece (reverb → knee act here) and a non-owning view.
+        ReverbUnit reverb;
+        std::atomic<float> revEnabled { 1.0f }, revSize { 0.5f }, revDamp { 0.5f }, revPredelay { kRevPredelayMs },
+                           revMix { 0.0f }, revMod { kRevMod }, revShimmer { kRevShimmer };
+        float wet[2][kCell] {};
+        juce::AudioBuffer<float> revView;
+        bool  revMixWasOn = false;     // reverbHardCut edge detection (test)
 
         ouaricon::grain::Onset onsetBuf[kVoiceSlots][kGiStreams][kOnsetCap] {};
         PendingOnset merged[kVoiceSlots * kGiStreams * kOnsetCap] {};

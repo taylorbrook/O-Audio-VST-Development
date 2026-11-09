@@ -58,8 +58,10 @@
 // the stored span (a guard: region fit + flush keep reads inside).
 // Callers latch with latchLevel (rate, 4) — ALWAYS pass 4 (P6).
 //
-// Threads: prepare / writeRun / flushTail run on the loader worker (they
-// allocate / are offline). readStereo is audio-thread safe (const, no alloc).
+// Threads: prepare runs on the loader worker (it allocates); flushTail is
+// offline (loader). writeRun / settleRun are audio-thread safe as well (no
+// allocation; `written` stays a max): the 2.4 record heads write the working
+// copy at grid ticks (PLAN-2.4 PD10). readStereo is audio-thread safe (const).
 // ============================================================================
 namespace ogi
 {
@@ -158,6 +160,81 @@ namespace ogi
                 pEnd   = cEnd;
             }
         }
+
+        /** PLAN-2.4 PD10: re-derives every child whose parent index lies in
+            [pos, pos + n) (writeRun's child loop; level 0 untouched). The record
+            head calls it past a wrap point and past a park point, so children
+            whose window reaches newly written frames are never stale. */
+        void settleRun (std::int64_t pos, int n) noexcept
+        {
+            if (n <= 0 || pos < 0 || bank == nullptr)
+                return;
+            // Never past the flushed span F + margin (L): flushTail derives the
+            // children of exactly that span, so a settle reaching further would
+            // derive children no build ever derives (and no read reaches).
+            std::int64_t pStart = pos;
+            std::int64_t pEnd   = std::min<std::int64_t> ({ pos + n, (std::int64_t) sizes[0],
+                                                            (std::int64_t) frames + tailFrames() });
+            for (int l = 1; l <= L; ++l)
+            {
+                if (pEnd <= pStart)
+                    break;
+                const std::int64_t cStart = pStart >> 1;
+                const std::int64_t cEnd   = std::min<std::int64_t> (pEnd >> 1, sizes[(size_t) l]);
+                for (std::int64_t j = cStart; j < cEnd; ++j)
+                {
+                    const std::int64_t parent = 2 * j + 1;
+                    for (int ch = 0; ch < 2; ++ch)
+                        data[(size_t) l][(size_t) ch][(size_t) (j + kPre)] = halfband (l - 1, ch, parent);
+                }
+                pStart = cStart;
+                pEnd   = cEnd;
+            }
+        }
+
+       #if OGI_TEST_HOOKS
+        /** FNV-1a 64 over every level, both channels, the full stored span
+            (PLAN-2.4 PD10; the FL3 / FL4 / RS / MS1 hashes). */
+        std::uint64_t hashForTest() const noexcept
+        {
+            std::uint64_t hsh = 0xcbf29ce484222325ull;
+            for (int l = 0; l < kNumLevels; ++l)
+                for (int ch = 0; ch < 2; ++ch)
+                {
+                    const auto* b = reinterpret_cast<const unsigned char*> (data[(size_t) l][(size_t) ch].data() + kPre);
+                    const std::size_t nb = static_cast<std::size_t> (sizes[(size_t) l]) * sizeof (float);
+                    for (std::size_t i = 0; i < nb; ++i)
+                    {
+                        hsh ^= b[i];
+                        hsh *= 0x100000001b3ull;
+                    }
+                }
+            return hsh;
+        }
+
+        /** max |x| of one level over the stored span (both channels). */
+        float levelPeak (int level) const noexcept
+        {
+            float p = 0.0f;
+            for (int ch = 0; ch < 2; ++ch)
+                for (int j = 0; j < sizes[(size_t) level]; ++j)
+                    p = std::max (p, std::abs (data[(size_t) level][(size_t) ch][(size_t) (j + kPre)]));
+            return p;
+        }
+
+        /** Non-finite / subnormal samples over every level (FL1 end scan). */
+        void scanForTest (std::uint64_t& nonFinite, std::uint64_t& subnormal) const noexcept
+        {
+            for (int l = 0; l < kNumLevels; ++l)
+                for (int ch = 0; ch < 2; ++ch)
+                    for (int j = 0; j < sizes[(size_t) l]; ++j)
+                    {
+                        const float x = data[(size_t) l][(size_t) ch][(size_t) (j + kPre)];
+                        if (! std::isfinite (x)) ++nonFinite;
+                        else if (std::fpclassify (x) == FP_SUBNORMAL) ++subnormal;
+                    }
+        }
+       #endif
 
         /** Writes the margin (L) zero frames past F, so every level is settled
             over [0, F). Call once after the last writeRun (worker thread). */
