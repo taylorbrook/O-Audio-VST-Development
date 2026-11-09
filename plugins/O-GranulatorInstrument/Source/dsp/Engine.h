@@ -48,6 +48,8 @@
 #include "GiRecordHead.h"
 #include "GiHeadClamp.h"
 #include "GiModMatrix.h"
+#include "GiMpe.h"
+#include "GiNoteStack.h"
 #include "GiVoiceMod.h"
 #include "GiTempoClock.h"
 #include "KaiserResampler.h"   // kaiser::ratesEqual
@@ -101,6 +103,21 @@
 // ============================================================================
 namespace ogi
 {
+    /** PLAN-2.5b PD6: one VST3 raw event of this host block, converted by the
+        processor from Vst3RawEvent (no Steinberg header here). type 0 NoteOn,
+        1 NoteOff, 2 NoteExpressionValue. channel 1..16 (NoteOn / Off), pitch
+        0..127, typeId = the NE type (kTuningTypeID = 2), value normalised. */
+    struct GiNeEvent
+    {
+        int           offset  = 0;
+        int           type    = 0;
+        int           channel = 1;
+        int           pitch   = -1;
+        int           noteId  = -1;
+        std::uint32_t typeId  = 0;
+        double        value   = 0.0;
+    };
+
    #if OGI_TEST_HOOKS
     /** One spawned grain (row V3 / N1 per-serial logs; 2.2 statistics arm). */
     struct GrainLogEntry
@@ -271,6 +288,19 @@ namespace ogi
         bool tempoContinuousThin = false;   // TS2n: Tempo thinning as a continuous period (off-grid)
         bool ceilPerTick      = false;   // TS1n: the pending Tempo slot re-derived at every tick
         bool tempoGridOnly    = false;   // TS6 control / parity: no note-on burst (parent R41)
+        // 2.5b (PLAN-2.5b PD19)
+        bool ampResetZero     = false;   // VM1n / CK5an: a Mono retrigger restarts the amp env + Mod Envs from 0
+        bool gainSnap         = false;   // VM2n / CK5gn: the retrigger velocity gain steps (no 5 ms glide)
+        bool legatoAsMono     = false;   // VM3n: Legato note-on handled as a Mono retrigger
+        bool retrigViaStartVoice = false;   // VM5n: a Mono retrigger runs startVoice (law-gain snaps)
+        bool noPvResidual     = false;   // VM6n: no per-voice level / pan residual at a Mono retrigger
+        bool fallbackRetrig   = false;   // FB1n: a D30 fallback retriggers (new serial)
+        bool glideStep        = false;   // GL1n: glide jumps to the target at t0
+        bool pvKeyOff         = false;   // GL6n: the law key omits the per-voice pitch terms
+        bool modeSwitchHard   = false;   // CK5dn: the D32 releases cut in 0 ms
+        bool pedalUpHard      = false;   // CK5en: pedal-up cuts sustained voices in 0 ms
+        bool mpeBroadcast     = false;   // MP1n: member-channel writes go to every voice
+        bool neModuleTable    = false;   // NE2n: NE read once at note-on from the module's pitch-keyed table
         struct TraceDest { int dest = -1; int voice = -1; float* buf = nullptr; std::int64_t len = 0; std::int64_t n = 0; };
         TraceDest traceDest;             // per-tick value (ramped / tick dests) or per-spawn latched value
         bool writeScrubOff    = false;   // FL6 control: a non-finite write lands in the tape
@@ -322,6 +352,10 @@ namespace ogi
         int pairModeStreamsMin = INT_MAX;            // min over ticks with a counted voice
         std::uint64_t newestSerial = 0, handovers = 0, newestWasStolen = 0;
         std::uint64_t tempoOnsets = 0, burstOnsets = 0, relocks = 0;
+        // 2.5b (PLAN-2.5b PD19)
+        std::uint64_t serialsMinted = 0, retriggers = 0, legatoMoves = 0, fallbacks = 0, modeSwitches = 0;
+        std::uint64_t sustainDeferred = 0, restrikeReleases = 0, rpnMessages = 0, memberWrites = 0;
+        std::uint64_t neApplied = 0, neDropped = 0, stackDropped = 0, lawRecomputes = 0;
         std::uint64_t forcedCrossings = 0;           // PD9: no feasible p0 (or reach >= W) while the head runs
         std::uint64_t clampMoves = 0;                // PD9: p0 moved out of the forbidden set
         std::uint64_t headScanViolations = 0;        // headReadScan: a grain spawned with a running head read inside [−g_b, g_a]
@@ -381,6 +415,9 @@ namespace ogi
             newestSerial = handovers = newestWasStolen = 0;
             tempoOnsets = burstOnsets = relocks = 0;
             forcedCrossings = clampMoves = headScanViolations = parkedSpawnCrossings = headScanSegments = 0;
+            serialsMinted = retriggers = legatoMoves = fallbacks = modeSwitches = 0;
+            sustainDeferred = restrikeReleases = rpnMessages = memberWrites = 0;
+            neApplied = neDropped = stackDropped = lawRecomputes = 0;
             liveMin = INT_MAX;
             liveMax = 0;
         }
@@ -429,7 +466,11 @@ namespace ogi
         /** Audio thread. outL / outR must be CLEARED by the caller; numSamples
             may exceed the prepared block size (everything is 32-sample scratch). */
         void process (float* outL, float* outR, int numSamples, const juce::MidiBuffer& midi,
-                      std::uint64_t seed, const TransportSnapshot& transport = {}) noexcept;
+                      std::uint64_t seed, const TransportSnapshot& transport = {},
+                      const GiNeEvent* ne = nullptr, int numNe = 0) noexcept;   // PLAN-2.5b PD6
+
+        static constexpr int kNeCapacity = 64;              // per block (the module's WR-02 capacity)
+        static constexpr std::uint32_t kTuningTypeID = 2;   // VST3 SDK ivstnoteexpression.h:49 (kTuningTypeID; P7 literal)
 
         /** Message thread (processor constructor / prepareToPlay; process() not
             running): the matrix range + raw atomic of destination d (PLAN-2.5a
@@ -469,6 +510,21 @@ namespace ogi
         void testSetPoolFadeMs (double ms) noexcept       { pool.prepare (fs, ms); }
         const GiSpawner& getSpawner() const noexcept        { return spawner; }
         const Voice&     getVoice (int k) const noexcept    { return voices[std::clamp (k, 0, kVoiceSlots - 1)]; }
+        // 2.5b (PD19)
+        const GiNoteStack& getStackForTest() const noexcept { return noteStack; }
+        const GiMpe& getMpeForTest() const noexcept         { return mpe; }
+        bool  getSustainForTest() const noexcept            { return sustainDown; }
+        bool  getDetachedForTest() const noexcept           { return detached; }
+        int   getMonoCloudForTest() const noexcept          { return monoCloud(); }
+        std::int64_t getNowForTest() const noexcept         { return nowT; }
+        /** Pitch key (semitones, stream s view) the voice would spawn at sample t. */
+        double getVoiceSemisForTest (int k, int s, std::int64_t t) const noexcept
+        {
+            k = std::clamp (k, 0, kVoiceSlots - 1);
+            return voiceSemis (voices[k], pairSp (k, std::clamp (s, 0, kGiStreams - 1)), t);
+        }
+        float getLawTargetForTest (int k, int s) const noexcept { return lawTarget[std::clamp (k, 0, kVoiceSlots - 1)][std::clamp (s, 0, kGiStreams - 1)]; }
+        float getLawFreshForTest (int k, int s, std::int64_t t) noexcept;   // GL6: pairLaw recomputed now at sample t
         const GiGridParams& getGridParams() const noexcept  { return gp; }
         int              getRetiringCount() const noexcept  { return numRetiring; }
         const LoopRegion& getRegion (int s = 0) const noexcept { return region[std::clamp (s, 0, kGiStreams - 1)]; }
@@ -526,12 +582,37 @@ namespace ogi
         // events
         void applyEvent (const MidiEvent& e, std::int64_t t) noexcept;
         void noteOn (int channel, int note, float velocity01, std::int64_t t) noexcept;
-        void noteOff (int channel, int note) noexcept;
+        void noteOff (int channel, int note, std::int64_t t) noexcept;
         void allNotesOff() noexcept;
         void allSoundOff() noexcept;
-        void startVoice (int k, int channel, int note, float velocity01, std::int64_t t) noexcept;
+        int  allocateVoice (int channel, int note, float velocity01, std::int64_t t, int noteId, double glideFromKey) noexcept;
+        void startVoice (int k, int channel, int note, float velocity01, std::int64_t t,
+                         int noteId = -1, double glideFromKey = std::numeric_limits<double>::quiet_NaN()) noexcept;
         void stealVoice (int k) noexcept;
         void forceReleaseVoice (int k) noexcept;
+        void forceReleaseVoiceMs (int k, double ms) noexcept;
+
+        // 2.5b voice modes / sustain (PLAN-2.5b T5–T7, D29–D32, PD1–PD5, PD9, PD13)
+        int  monoCloud() const noexcept;                 // the max-serial counted voice, −1 when none
+        void noteOnMono (int channel, int note, float velocity01, std::int64_t t, int noteId) noexcept;
+        void noteOffMono (int channel, int note, std::int64_t t) noexcept;
+        void retriggerVoice (int k, const GiNoteEntry& e, float velocity01, std::int64_t t) noexcept;
+        void retrigVoiceMod (int k) noexcept;
+        void moveCloudPitch (int k, const GiNoteEntry& e, std::int64_t t) noexcept;   // Legato / D30 fallback
+        void setGlide (Voice& v, double toKey, std::int64_t t) noexcept;
+        void releaseVoice (int k) noexcept;              // env + Mod Envs noteOff (gate closes)
+        void pedalUp() noexcept;
+        void modeSwitch() noexcept;                      // D32, at the tick
+        double glideFromLast() const noexcept;           // PD13 Poly / fresh-voice glide-from-last (NaN = none)
+        int  takeNoteId (int channel, int note, std::int64_t t) noexcept;   // PD6 correlation (T10)
+        void applyNe (const GiNeEvent& e) noexcept;      // a tuning value → voices + stack entries by noteId
+
+        // PD6: this block's raw NoteOns for noteId correlation (MIDI first at a tie).
+        struct NeOn { int offset = 0, channel = 1, pitch = -1, noteId = -1; bool used = false; };
+        NeOn neOn[kNeCapacity] {};
+        int  numNeOn = 0;
+        std::int64_t neBlockStart = 0;
+        double neTable[128] {};          // neModuleTable hook: the module's pitch-keyed table emulation
         void endVoice (int k) noexcept;
         bool endQuietestStolen() noexcept;
 
@@ -586,9 +667,11 @@ namespace ogi
 
         // helpers
         AmpParams ampParams() const noexcept;
-        double voiceSemis (const Voice& v, const GiGridParams::Stream& sp) const noexcept;
-        double voiceRate (const Voice& v, const SlotTape& tape, const GiGridParams::Stream& sp) const noexcept;
-        double voiceRate (const Voice& v, const SlotTape& tape, int s) const noexcept { return voiceRate (v, tape, gp.s[s]); }
+        // PLAN-2.5b PD11: t = the absolute sample the pitch is read at (the spawn
+        // sample, or the tick / event sample nowT) — the closed-form glide.
+        double voiceSemis (const Voice& v, const GiGridParams::Stream& sp, std::int64_t t) const noexcept;
+        double voiceRate (const Voice& v, const SlotTape& tape, const GiGridParams::Stream& sp, std::int64_t t) const noexcept;
+        double voiceRate (const Voice& v, const SlotTape& tape, int s, std::int64_t t) const noexcept { return voiceRate (v, tape, gp.s[s], t); }
         double uncappedPeriod (int s) const noexcept                      { return uncappedPeriod (gp.s[s]); }
         double lMaxSamples (int s) const noexcept                         { return lMaxSamples (gp.s[s]); }
         double lenBarSamples (int s) const noexcept                       { return lenBarSamples (gp.s[s]); }
@@ -606,7 +689,7 @@ namespace ogi
         void   writeVoiceHooks (int k) noexcept;
 
         static constexpr int kLawKeyPerStream = 16;
-        static constexpr int kLawKeySize = kGiStreams * kLawKeyPerStream + 5;
+        static constexpr int kLawKeySize = kGiStreams * kLawKeyPerStream + 5 + kVoiceSlots;   // PLAN-2.5b PD12: + pvSemis
         void fillLawKey (double (&key)[kLawKeySize]) const noexcept;
 
         SlotHandoff& handoff;
@@ -617,6 +700,7 @@ namespace ogi
 
         double        fs = 44100.0;
         std::int64_t  absPos = 0;
+        std::int64_t  nowT = 0;      // PLAN-2.5b: the sample of the current tick / event (pitch readouts, law)
         std::uint64_t seed = 0;
         float         bend = 0.0f;   // −1..1, channel pitch wheel (non-MPE; any channel)
         float         voiceGainLin = 1.0f;
@@ -627,6 +711,24 @@ namespace ogi
 
         Voice voices[kVoiceSlots];
         std::uint64_t serialCounter = 0;
+
+        // 2.5b (PLAN-2.5b T5–T7): the physical-key stack (Mono / Legato), CC64,
+        // the D32 detached-cloud flag (PD5), the latched mode of the previous
+        // tick, and the last note-on's key for the Poly glide-from-last (PD13).
+        GiNoteStack noteStack;
+        bool   sustainDown   = false;
+        bool   detached      = false;
+        int    prevVoiceMode = 0;
+        double lastKey       = 0.0;
+        bool   lastKeySet    = false;
+        int    lastKeyNoteId = -1;
+        int    lastKeyNote   = 0;
+
+        // 2.5b MPE (PLAN-2.5b T9, PD7 / PD8)
+        GiMpe  mpe;
+        void   applyMemberState (int k) noexcept;   // MPE on: the voice takes its channel's member values
+        void   memberWrite (int channel, int what, float value) noexcept;
+        void   memberReset (int channel) noexcept;
 
         std::array<SlotTape*, kTapeSlots> current {};
         SlotTape* retiring[kMaxRetiring] {};

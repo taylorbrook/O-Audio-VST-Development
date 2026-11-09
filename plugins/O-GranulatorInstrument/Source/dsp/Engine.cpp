@@ -85,6 +85,15 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     absPos = 0;
     serialCounter = 0;
     bend = 0.0f;
+    nowT = 0;
+    noteStack.clear();
+    sustainDown = false;
+    detached = false;
+    lastKey = 0.0;
+    lastKeySet = false;
+    lastKeyNoteId = -1;
+    lastKeyNote = 0;
+    mpe.reset();   // PLAN-2.5b PD7
     tracker.prepare (fs);   // 2.5a: virtual 120 bpm until the first host block
 
     pool.prepare (fs, kPoolFadeMs);
@@ -115,6 +124,7 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     rampCells10 = rampCellsFor (fs, kMixerRampMs);
 
     gp.latch (ptrs);
+    prevVoiceMode = gp.voiceMode;   // PLAN-2.5b T7: no D32 switch at the first tick
     outGainRamp.reset (dbToGain (gp.outputGainDb));
     setStreamRamps (true);
 
@@ -272,21 +282,28 @@ AmpParams Engine::ampParams() const noexcept
     return p;
 }
 
-double Engine::voiceSemis (const Voice& v, const GiGridParams::Stream& sp) const noexcept
+double Engine::voiceSemis (const Voice& v, const GiGridParams::Stream& sp, std::int64_t t) const noexcept
 {
     // ARCHITECTURE Algorithm §2: st = κ·(note + bend − root − fine/100) + pitch
     // (before the random term and the ±48 clamp).
-    const double key = static_cast<double> (v.note) - static_cast<double> (sp.rootNote)
-                     - static_cast<double> (sp.rootFineCt) / 100.0
-                     + static_cast<double> (bend) * static_cast<double> (gp.pitchBendRangeSt);
+    double key = static_cast<double> (v.note) - static_cast<double> (sp.rootNote)
+               - static_cast<double> (sp.rootFineCt) / 100.0
+               + static_cast<double> (bend) * static_cast<double> (gp.pitchBendRangeSt);
+    // PLAN-2.5b PD11 [correction ARCH §10 term order]: the 2.5b terms are
+    // APPENDED — glide g(t), MPE member bend · memberRange, VST3 NE cents —
+    // and an exactly-zero term is not added, so the 2.5a key stays bitwise.
+    const double g = v.glideAt (t);
+    if (g > 0.0 || g < 0.0)                     key += g;
+    if (v.mpeSemis > 0.0 || v.mpeSemis < 0.0)   key += v.mpeSemis;
+    if (v.neSemis > 0.0 || v.neSemis < 0.0)     key += v.neSemis;
     const double st0 = static_cast<double> (sp.keyTrack) * key + static_cast<double> (sp.pitchSt);
     return st0;
 }
 
-double Engine::voiceRate (const Voice& v, const SlotTape& tape, const GiGridParams::Stream& sp) const noexcept
+double Engine::voiceRate (const Voice& v, const SlotTape& tape, const GiGridParams::Stream& sp, std::int64_t t) const noexcept
 {
     // st clamped to ±48; rate = 2^(st/12) · tapeRate / fs (double).
-    const double st0 = voiceSemis (v, sp);
+    const double st0 = voiceSemis (v, sp, t);
     const double st  = std::clamp (st0, -kMaxSemis, kMaxSemis);
     return std::exp2 (st / 12.0) * tape.rate / fs;
 }
@@ -299,7 +316,7 @@ double Engine::rateForNote (int note, int s) const noexcept
         return 0.0;
     Voice v;
     v.note = note;
-    return voiceRate (v, *tp, s);
+    return voiceRate (v, *tp, s, absPos);
 }
 
 double Engine::uncappedPeriod (const GiGridParams::Stream& sp) const noexcept
@@ -430,7 +447,7 @@ double Engine::pairCoherence (int k, int s) const noexcept
     }
     else
     {
-        const double r     = voiceRate (v, *tp, sp);
+        const double r     = voiceRate (v, *tp, sp, nowT);
         const double vScan = static_cast<double> (sp.scanRate) * tp->rate / fs;
         if (vScan > 0.0 && r > 0.0)
             pitchArg = 12.0 * std::abs (std::log2 (r / vScan));
@@ -521,6 +538,21 @@ void Engine::fillLawKey (double (&key)[kLawKeySize]) const noexcept
     }
     key[i++] = static_cast<double> (bend);
     key[i++] = static_cast<double> (gp.pitchBendRangeSt);
+    // PLAN-2.5b PD12: per-voice pitch of each counted voice — glide at the
+    // tick + member bend + NE + (note − the note its serial started on);
+    // +0.0 in bypass, so the key compares as in 2.5a. Hook pvKeyOff (GL6n).
+    bool pvOff = false;
+   #if OGI_TEST_HOOKS
+    pvOff = hooks.pvKeyOff;
+   #endif
+    for (int k = 0; k < kVoiceSlots; ++k)
+    {
+        const Voice& v = voices[k];
+        double pv = 0.0;
+        if (! pvOff && v.isCounted())
+            pv = v.glideAt (nowT) + v.mpeSemis + v.neSemis + static_cast<double> (v.note - v.serialNote);
+        key[i++] = pv;
+    }
     double hk[3] { 0.0, 0.0, 0.0 };
    #if OGI_TEST_HOOKS
     hk[0] = hooks.coherenceOff ? 1.0 : 0.0;
@@ -542,7 +574,7 @@ void Engine::writeVoiceHooks (int k) noexcept
     hooks.voiceState[k]  = v.isCounted() ? 1 : (v.isStolen() ? 2 : 0);
     if (! v.isFree() && current[0] != nullptr)
     {
-        hooks.voiceRate[k]  = voiceRate (v, *current[0], 0);
+        hooks.voiceRate[k]  = voiceRate (v, *current[0], 0, nowT);
         hooks.voiceLevel[k] = ouaricon::grain::latchLevel (hooks.voiceRate[k], kTapeLevels);
     }
     else if (v.isFree())
@@ -555,9 +587,27 @@ void Engine::writeVoiceHooks (int k) noexcept
    #endif
 }
 
+#if OGI_TEST_HOOKS
+float Engine::getLawFreshForTest (int k, int s, std::int64_t t) noexcept
+{
+    k = std::clamp (k, 0, kVoiceSlots - 1);
+    s = std::clamp (s, 0, kGiStreams - 1);
+    const std::int64_t keep = nowT;
+    const double keepC = coher[k][s];
+    nowT = t;
+    const bool pr = pairRoutedK[k][s];
+    const double nEff = effectiveCount (pr ? lenBarSamples (view[k][s]) : lenBarSamples (s), periodT[k][s]);
+    const float g = pairLaw (k, s, nEff);
+    nowT = keep;
+    coher[k][s] = keepC;
+    return g;
+}
+#endif
+
 //==============================================================================
 void Engine::process (float* outL, float* outR, int numSamples, const juce::MidiBuffer& midi,
-                      std::uint64_t seedIn, const TransportSnapshot& transport) noexcept
+                      std::uint64_t seedIn, const TransportSnapshot& transport,
+                      const GiNeEvent* ne, int numNe) noexcept
 {
     if (numSamples <= 0 || outL == nullptr || outR == nullptr)
         return;
@@ -576,6 +626,41 @@ void Engine::process (float* outL, float* outR, int numSamples, const juce::Midi
 
     MidiCursor cursor (midi, numSamples);
     const std::int64_t blockStart = absPos;
+
+    // PLAN-2.5b PD6: the stamped VST3 raw events. Offsets are clamped into the
+    // block and made non-decreasing (host order kept); NoteOns go to the
+    // per-block correlation list up front (a MIDI note-on takes its noteId).
+    numNe = (ne != nullptr) ? std::clamp (numNe, 0, kNeCapacity) : 0;
+    int neOff[kNeCapacity];
+    numNeOn = 0;
+    neBlockStart = blockStart;
+    bool moduleTable = false;
+   #if OGI_TEST_HOOKS
+    moduleTable = hooks.neModuleTable;
+    if (moduleTable)
+        std::fill (std::begin (neTable), std::end (neTable), 0.0);
+   #endif
+    {
+        int last = 0;
+        for (int i = 0; i < numNe; ++i)
+        {
+            last = std::max (last, std::clamp (ne[i].offset, 0, numSamples - 1));
+            neOff[i] = last;
+            if (ne[i].type == 0 && numNeOn < kNeCapacity)
+                neOn[numNeOn++] = { last, ne[i].channel, ne[i].pitch, ne[i].noteId, false };
+        }
+        // neModuleTable (NE2n / NE3 control): the module's model — a tuning
+        // reaches a pitch-keyed table only when its noteId's NoteOn is in this
+        // block, and is read once at note-on (NoteExpression_VST3.cpp:216-235).
+        if (moduleTable)
+            for (int i = 0; i < numNe; ++i)
+                if (ne[i].type == 2 && ne[i].typeId == kTuningTypeID)
+                    for (int j = 0; j < numNeOn; ++j)
+                        if (neOn[j].noteId == ne[i].noteId && neOn[j].pitch >= 0 && neOn[j].pitch < 128)
+                            neTable[neOn[j].pitch] = 240.0 * (ne[i].value - 0.5);
+    }
+    int ni = 0;
+
     int pos = 0;
     while (pos < numSamples)
     {
@@ -588,16 +673,33 @@ void Engine::process (float* outL, float* outR, int numSamples, const juce::Midi
         const int b = pos + len;
 
         int seg = pos;
-        while (cursor.nextPos() < b)
+        for (;;)
         {
-            const MidiEvent e = cursor.pop();
-            const int at = std::max (e.pos, seg);
+            // Merged cursor: MIDI first at a tie (the NoteOn exists before its NE).
+            const int mPos = cursor.nextPos();
+            const int nPos = ni < numNe ? neOff[ni] : INT_MAX;
+            const int nx = std::min (mPos, nPos);
+            if (nx >= b)
+                break;
+            const bool isMidi = mPos <= nPos;
+            const int at = std::max (isMidi ? mPos : nPos, seg);
             if (at > seg)
             {
                 runSegment (cellOff + (seg - pos), cellOff + (at - pos), blockStart + seg);
                 seg = at;
             }
-            applyEvent (e, blockStart + at);
+            if (isMidi)
+            {
+                const MidiEvent e = cursor.pop();
+                applyEvent (e, blockStart + at);
+            }
+            else
+            {
+                nowT = blockStart + at;
+                if (! moduleTable)
+                    applyNe (ne[ni]);
+                ++ni;
+            }
         }
         if (b > seg)
             runSegment (cellOff + (seg - pos), cellOff + (b - pos), blockStart + seg);
@@ -612,7 +714,9 @@ void Engine::process (float* outL, float* outR, int numSamples, const juce::Midi
 // Grid tick
 void Engine::gridTick (std::int64_t t) noexcept
 {
+    nowT = t;
     gp.latch (ptrs);
+    modeSwitch();   // PLAN-2.5b T7 (D32): engine events before the sample's host events
 
     // PLAN-2.5a PD5 step 2: the modulation sources of this cell (sampled once).
     tickSources (t);
@@ -1064,6 +1168,7 @@ void Engine::updateQuotas() noexcept
     quotasDirty = false;
    #if OGI_TEST_HOOKS
     ++hooks.quotaRecomputes;
+    ++hooks.lawRecomputes;
    #endif
 
     double lenBar[kGiStreams];
@@ -1208,6 +1313,15 @@ void Engine::initVoiceMod (int k) noexcept
     m.pressure = chanPressure;
     m.slide    = chanSlide;
     m.bendSrc  = bend;
+    if (gp.mpeEnable)
+    {
+        // PLAN-2.5b PD8: under MPE the per-voice sources come from the note's member channel.
+        const int ch = v.channel;
+        const bool mem = mpe.isMember (ch);
+        m.pressure = mem ? mpe.pressure[ch] : 0.0f;
+        m.slide    = mem ? mpe.slide[ch] : 0.0f;
+        m.bendSrc  = mem ? mpe.bend[ch] : 0.0f;
+    }
     for (int e = 0; e < kGiModEnvs; ++e)
         m.env[e].noteOn (menvParams (e), fs);
 
@@ -1834,6 +1948,7 @@ void Engine::applyEvent (const MidiEvent& e, std::int64_t t) noexcept
 {
     if (e.numBytes < 1)
         return;
+    nowT = t;
     const int type    = e.status & 0xF0;
     const int channel = (e.status & 0x0F) + 1;
 
@@ -1842,28 +1957,65 @@ void Engine::applyEvent (const MidiEvent& e, std::int64_t t) noexcept
         if (e.data2 > 0)
             noteOn (channel, e.data1 & 0x7F, static_cast<float> (e.data2) / 127.0f, t);
         else
-            noteOff (channel, e.data1 & 0x7F);
+            noteOff (channel, e.data1 & 0x7F, t);
     }
     else if (type == 0x80 && e.numBytes >= 3)
     {
-        noteOff (channel, e.data1 & 0x7F);
+        noteOff (channel, e.data1 & 0x7F, t);
     }
     else if (type == 0xE0 && e.numBytes >= 3)
     {
         const int value = (e.data1 & 0x7F) | ((e.data2 & 0x7F) << 7);
         const int d = value - 8192;
-        bend = d >= 0 ? static_cast<float> (d) / 8191.0f : static_cast<float> (d) / 8192.0f;
-        for (int k = 0; k < kVoiceSlots; ++k)   // PLAN-2.5a PD10: the Bend source (2.5b seam)
-            if (! voices[k].isFree())
-                vm[k].bendSrc = bend;
+        const float b = d >= 0 ? static_cast<float> (d) / 8191.0f : static_cast<float> (d) / 8192.0f;
+        mpe.bend[channel] = b;   // PLAN-2.5b PD8: written always, read only with MPE on
+        if (! gp.mpeEnable)
+        {
+            bend = b;
+            for (int k = 0; k < kVoiceSlots; ++k)   // PLAN-2.5a PD10: the Bend source (2.5b seam)
+                if (! voices[k].isFree())
+                    vm[k].bendSrc = bend;
+        }
+        else if (channel == 1)
+            bend = b;                       // D31: the master bend moves the pitch of every note only
+        else if (mpe.isMember (channel))
+            memberWrite (channel, 0, b);   // member bend: pitch term + Bend source of its notes
     }
     else if (type == 0xB0 && e.numBytes >= 3)
     {
         const int cc = e.data1 & 0x7F, v = e.data2 & 0x7F;
-        if (cc == 120)
+        if (GiMpe::isRpnCc (cc))
+        {
+            // PLAN-2.5b PD7: the RPN detector is fed whether MPE is on or off.
+            const auto r = mpe.feed (channel, cc, v);
+            if (r != GiMpe::Rpn::none)
+            {
+               #if OGI_TEST_HOOKS
+                ++hooks.rpnMessages;
+               #endif
+                if (gp.mpeEnable)
+                    for (int k = 0; k < kVoiceSlots; ++k)   // the new range applies to the sounding member notes
+                        if (! voices[k].isFree() && mpe.isMember (voices[k].channel))
+                            voices[k].mpeSemis = static_cast<double> (mpe.bend[voices[k].channel]) * mpe.memberRange;
+            }
+        }
+        else if (cc == 120)
             allSoundOff();
         else if (cc == 123)
             allNotesOff();
+        else if (cc == 64)
+        {
+            // PLAN-2.5b T5 (R§6): CC64 >= 64 = down; the pedal holds the gate.
+            // Under MPE only the master channel's pedal counts (PD8, zone-level).
+            if (! gp.mpeEnable || channel == 1)
+            {
+                const bool down = v >= 64;
+                if (down && ! sustainDown)
+                    sustainDown = true;
+                else if (! down && sustainDown)
+                    pedalUp();
+            }
+        }
         else if (cc == 1)
         {
             wheelMsb = v;   // a CC1 write clears the LSB (14-bit pair, PD10)
@@ -1873,10 +2025,21 @@ void Engine::applyEvent (const MidiEvent& e, std::int64_t t) noexcept
             wheelLsb = v;
         else if (cc == 74)
         {
-            chanSlide = std::clamp (static_cast<float> (v - 64) / 64.0f, -1.0f, 1.0f);
-            for (int k = 0; k < kVoiceSlots; ++k)
-                if (! voices[k].isFree())
-                    vm[k].slide = chanSlide;
+            const float sl = std::clamp (static_cast<float> (v - 64) / 64.0f, -1.0f, 1.0f);
+            mpe.slide[channel] = sl;
+            if (! gp.mpeEnable)
+            {
+                chanSlide = sl;
+                for (int k = 0; k < kVoiceSlots; ++k)
+                    if (! voices[k].isFree())
+                        vm[k].slide = chanSlide;
+            }
+            else if (mpe.isMember (channel))
+                memberWrite (channel, 2, sl);   // D31: master CC74 ignored under MPE
+        }
+        else if (cc == 121 && gp.mpeEnable && channel != 1)
+        {
+            memberReset (channel);   // PD8: a member CC121 resets that channel's expression only
         }
         else if (cc == 121)
         {
@@ -1892,19 +2055,31 @@ void Engine::applyEvent (const MidiEvent& e, std::int64_t t) noexcept
                     vm[k].slide = 0.0f;
                     vm[k].bendSrc = 0.0f;
                 }
+            // PLAN-2.5b T5 (RP-015): CC121 also lifts sustain; pending offs apply now.
+            if (sustainDown)
+                pedalUp();
         }
     }
     else if (type == 0xD0 && e.numBytes >= 2)
     {
         // Channel aftertouch → every voice (non-MPE, any channel; last write wins).
-        chanPressure = static_cast<float> (e.data1 & 0x7F) / 127.0f;
-        for (int k = 0; k < kVoiceSlots; ++k)
-            if (! voices[k].isFree())
-                vm[k].pressure = chanPressure;
+        const float pr = static_cast<float> (e.data1 & 0x7F) / 127.0f;
+        mpe.pressure[channel] = pr;
+        if (! gp.mpeEnable)
+        {
+            chanPressure = pr;
+            for (int k = 0; k < kVoiceSlots; ++k)
+                if (! voices[k].isFree())
+                    vm[k].pressure = chanPressure;
+        }
+        else if (mpe.isMember (channel))
+            memberWrite (channel, 1, pr);   // D31: master AT ignored under MPE
     }
     else if (type == 0xA0 && e.numBytes >= 3)
     {
-        // Poly aftertouch → the voices on that note.
+        // Poly aftertouch → the voices on that note (ignored under MPE, D31).
+        if (gp.mpeEnable)
+            return;
         const int note = e.data1 & 0x7F;
         const float p = static_cast<float> (e.data2 & 0x7F) / 127.0f;
         for (int k = 0; k < kVoiceSlots; ++k)
@@ -1913,7 +2088,111 @@ void Engine::applyEvent (const MidiEvent& e, std::int64_t t) noexcept
     }
 }
 
+//==============================================================================
+// 2.5b MPE (PLAN-2.5b T9)
+/** what: 0 bend, 1 pressure, 2 slide. Writes the voices on `channel`
+    (mpeBroadcast hook: every voice, MP1n control). */
+void Engine::memberWrite (int channel, int what, float value) noexcept
+{
+    bool broadcast = false;
+   #if OGI_TEST_HOOKS
+    broadcast = hooks.mpeBroadcast;
+   #endif
+    for (int k = 0; k < kVoiceSlots; ++k)
+    {
+        Voice& v = voices[k];
+        if (v.isFree() || (! broadcast && v.channel != channel))
+            continue;
+        auto& m = vm[k];
+        if (what == 0)
+        {
+            m.bendSrc  = value;
+            v.mpeSemis = static_cast<double> (value) * mpe.memberRange;
+        }
+        else if (what == 1)
+            m.pressure = value;
+        else
+            m.slide = value;
+       #if OGI_TEST_HOOKS
+        ++hooks.memberWrites;
+       #endif
+    }
+}
+
+void Engine::memberReset (int channel) noexcept
+{
+    if (channel < 1 || channel > 16)
+        return;
+    mpe.bend[channel] = mpe.pressure[channel] = mpe.slide[channel] = 0.0f;
+    if (! mpe.isMember (channel))
+        return;
+    memberWrite (channel, 0, 0.0f);
+    memberWrite (channel, 1, 0.0f);
+    memberWrite (channel, 2, 0.0f);
+}
+
+/** MPE on: the voice takes its channel's current member values (MPE spec
+    initial values); a non-member note under MPE has no member expression. */
+void Engine::applyMemberState (int k) noexcept
+{
+    if (! gp.mpeEnable)
+        return;
+    Voice& v = voices[k];
+    auto& m = vm[k];
+    if (mpe.isMember (v.channel))
+    {
+        m.bendSrc  = mpe.bend[v.channel];
+        m.pressure = mpe.pressure[v.channel];
+        m.slide    = mpe.slide[v.channel];
+        v.mpeSemis = static_cast<double> (mpe.bend[v.channel]) * mpe.memberRange;
+    }
+    else
+    {
+        m.bendSrc = m.pressure = m.slide = 0.0f;
+        v.mpeSemis = 0.0;
+    }
+    m.src[GiSrc::Pressure] = m.pressure;
+    m.src[GiSrc::Slide]    = m.slide;
+    m.src[GiSrc::Bend]     = m.bendSrc;
+}
+
 void Engine::noteOn (int channel, int note, float velocity01, std::int64_t t) noexcept
+{
+    const int noteId = takeNoteId (channel, note, t);   // PD6 (−1 without a raw NoteOn)
+
+    if (gp.voiceMode != 0)
+        noteOnMono (channel, note, velocity01, t, noteId);
+    else
+    {
+        // PD9 (USER): re-striking a pedal-held (channel, note) releases the old
+        // voice with its normal tail (JUCE Synthesiser precedent), then the new
+        // note allocates normally. Never fires without CC64 (keyDown == gated).
+        for (int k = 0; k < kVoiceSlots; ++k)
+        {
+            const Voice& v = voices[k];
+            if (v.isCounted() && v.gated && ! v.keyDown && v.note == note && v.channel == channel)
+            {
+                releaseVoice (k);
+               #if OGI_TEST_HOOKS
+                ++hooks.restrikeReleases;
+               #endif
+            }
+        }
+        allocateVoice (channel, note, velocity01, t, noteId, glideFromLast());
+    }
+
+    lastKeyNote = note;
+    lastKey = static_cast<double> (note);
+    lastKeySet = true;
+    lastKeyNoteId = noteId;
+}
+
+double Engine::glideFromLast() const noexcept
+{
+    return (gp.glideMs > 0.0f && lastKeySet) ? lastKey : std::numeric_limits<double>::quiet_NaN();
+}
+
+int Engine::allocateVoice (int channel, int note, float velocity01, std::int64_t t, int noteId, double glideFromKey) noexcept
 {
     const int poly = std::clamp (gp.polyphony, 1, kMaxCountedVoices);
     if (VoiceAllocator::countCounted (voices) >= poly)
@@ -1939,12 +2218,13 @@ void Engine::noteOn (int channel, int note, float velocity01, std::int64_t t) no
     while (k < 0 && endQuietestStolen())
         k = VoiceAllocator::findFree (voices, nullptr);
     if (k < 0)
-        return;
+        return -1;
 
-    startVoice (k, channel, note, velocity01, t);
+    startVoice (k, channel, note, velocity01, t, noteId, glideFromKey);
+    return k;
 }
 
-void Engine::startVoice (int k, int channel, int note, float velocity01, std::int64_t t) noexcept
+void Engine::startVoice (int k, int channel, int note, float velocity01, std::int64_t t, int noteId, double glideFromKey) noexcept
 {
     Voice& v = voices[k];
     v = Voice {};
@@ -1953,8 +2233,39 @@ void Engine::startVoice (int k, int channel, int note, float velocity01, std::in
     v.channel   = channel;
     v.velocity  = velocity01;
     v.gated     = true;
+    v.keyDown   = true;    // PLAN-2.5b PD14
     v.serial    = ++serialCounter;
+    v.serialNote = note;
     v.noteOnAbs = t;
+    v.noteId    = noteId;
+    if (gp.mpeEnable && mpe.isMember (channel))   // PLAN-2.5b PD11: the member bend at note-on
+        v.mpeSemis = static_cast<double> (mpe.bend[channel]) * mpe.memberRange;
+   #if OGI_TEST_HOOKS
+    if (hooks.neModuleTable && note >= 0 && note < 128)
+    {
+        v.neSemis = neTable[note];   // applyPendingTuning: exchange-to-0 at note-on
+        neTable[note] = 0.0;
+    }
+   #endif
+    // PLAN-2.5b PD13: a fresh voice glides from the last key (Poly with glide
+    // > 0, or Mono / Legato with no cloud); NaN / glide 0 → no glide state.
+    if (! std::isnan (glideFromKey))
+    {
+        bool step = false;
+       #if OGI_TEST_HOOKS
+        step = hooks.glideStep;
+       #endif
+        if (gp.glideMs > 0.0f && ! step)
+        {
+            v.glFrom = glideFromKey;
+            v.glTo   = static_cast<double> (note) + v.neSemis;
+            v.glT0   = t;
+            v.glN    = static_cast<double> (gp.glideMs) * 0.001 * fs;
+        }
+    }
+   #if OGI_TEST_HOOKS
+    ++hooks.serialsMinted;
+   #endif
     v.env.noteOn (ampParams(), fs, AmpEnv::velocityGain (velocity01, gp.velToAmp));
     initVoiceMod (k);   // PLAN-2.5a PD10 / PD11: per-voice sources
     for (int s = 0; s < kGiStreams; ++s)
@@ -1993,36 +2304,77 @@ void Engine::startVoice (int k, int channel, int note, float velocity01, std::in
     writeVoiceHooks (k);
 }
 
-void Engine::noteOff (int channel, int note) noexcept
+void Engine::noteOff (int channel, int note, std::int64_t t) noexcept
 {
-    const AmpParams p = ampParams();
-    for (auto& v : voices)
+    if (gp.voiceMode != 0)
     {
+        noteOffMono (channel, note, t);
+        return;
+    }
+    for (int k = 0; k < kVoiceSlots; ++k)
+    {
+        Voice& v = voices[k];
         if (v.isKeyDown() && v.note == note && v.channel == channel)
         {
-            v.gated = false;
-            v.env.noteOff (p, fs);
-            auto& m = vm[&v - voices];
-            for (int e = 0; e < kGiModEnvs; ++e)
-                m.env[e].noteOff (menvParams (e), fs);
+            if (sustainDown)
+            {
+                // PLAN-2.5b T5: the pedal holds the gate; applied at pedal-up.
+                v.keyDown = false;
+               #if OGI_TEST_HOOKS
+                ++hooks.sustainDeferred;
+               #endif
+            }
+            else
+                releaseVoice (k);
+        }
+    }
+}
+
+/** Gate close: amp env + both Mod Envs release from their current level. */
+void Engine::releaseVoice (int k) noexcept
+{
+    Voice& v = voices[k];
+    if (! v.isCounted() || ! v.gated)
+        return;
+    v.gated = false;
+    v.keyDown = false;
+    v.env.noteOff (ampParams(), fs);
+    auto& m = vm[k];
+    for (int e = 0; e < kGiModEnvs; ++e)
+        m.env[e].noteOff (menvParams (e), fs);
+}
+
+/** CC64 up (or CC121): every pedal-held voice (gate open, no key down)
+    releases at this sample. Hook pedalUpHard: a 0 ms cut (CK5en control). */
+void Engine::pedalUp() noexcept
+{
+    sustainDown = false;
+    bool hard = false;
+   #if OGI_TEST_HOOKS
+    hard = hooks.pedalUpHard;
+   #endif
+    for (int k = 0; k < kVoiceSlots; ++k)
+    {
+        const Voice& v = voices[k];
+        if (v.isCounted() && v.gated && ! v.keyDown)
+        {
+            if (hard)
+                forceReleaseVoiceMs (k, 0.0);
+            else
+                releaseVoice (k);
         }
     }
 }
 
 void Engine::allNotesOff() noexcept
 {
-    const AmpParams p = ampParams();
-    for (auto& v : voices)
-    {
-        if (v.isKeyDown())
-        {
-            v.gated = false;
-            v.env.noteOff (p, fs);
-            auto& m = vm[&v - voices];
-            for (int e = 0; e < kGiModEnvs; ++e)
-                m.env[e].noteOff (menvParams (e), fs);
-        }
-    }
+    // CC123 releases every open gate and IGNORES the pedal (P10: the
+    // transport-stop safety); the Mono stack is cleared.
+    for (int k = 0; k < kVoiceSlots; ++k)
+        if (voices[k].isCounted() && voices[k].gated)
+            releaseVoice (k);
+    noteStack.clear();
+    detached = false;
 }
 
 void Engine::allSoundOff() noexcept
@@ -2030,23 +2382,400 @@ void Engine::allSoundOff() noexcept
     for (int k = 0; k < kVoiceSlots; ++k)
         if (voices[k].isCounted())
             forceReleaseVoice (k);
+    noteStack.clear();
+    detached = false;
 }
 
 void Engine::forceReleaseVoice (int k) noexcept
 {
-    Voice& v = voices[k];
-    if (v.isFree() || v.isStolen())
-        return;
     double ms = kStealMs;
    #if OGI_TEST_HOOKS
     if (hooks.stealRampZero)
         ms = 0.0;
    #endif
+    forceReleaseVoiceMs (k, ms);
+}
+
+void Engine::forceReleaseVoiceMs (int k, double ms) noexcept
+{
+    Voice& v = voices[k];
+    if (v.isFree() || v.isStolen())
+        return;
     v.state = Voice::State::stolen;
     v.gated = false;
+    v.keyDown = false;
     v.env.forceRelease (fs, ms);
     quotasDirty = true;
     writeVoiceHooks (k);
+}
+
+//==============================================================================
+// 2.5b voice modes (PLAN-2.5b T6 / T7)
+int Engine::monoCloud() const noexcept
+{
+    int best = -1;
+    for (int k = 0; k < kVoiceSlots; ++k)
+        if (voices[k].isCounted() && (best < 0 || voices[k].serial > voices[best].serial))
+            best = k;
+    return best;
+}
+
+/** PD13: glide from the voice's CURRENT key (note + ne + g(t)) to toKey;
+    retarget mid-glide is continuous at t. glide 0 / glideStep → no glide. */
+void Engine::setGlide (Voice& v, double toKey, std::int64_t t) noexcept
+{
+    const double cur = static_cast<double> (v.note) + v.neSemis + v.glideAt (t);
+    bool step = false;
+   #if OGI_TEST_HOOKS
+    step = hooks.glideStep;
+   #endif
+    if (gp.glideMs > 0.0f && ! step)
+    {
+        v.glFrom = cur;
+        v.glTo   = toKey;
+        v.glT0   = t;
+        v.glN    = static_cast<double> (gp.glideMs) * 0.001 * fs;
+    }
+    else
+        v.glN = 0.0;
+}
+
+/** R§2.1 + PD2 / PD5. The cloud = the max-serial counted voice. */
+void Engine::noteOnMono (int channel, int note, float velocity01, std::int64_t t, int noteId) noexcept
+{
+    GiNoteEntry e;
+    e.channel = channel;
+    e.note    = note;
+    e.noteId  = noteId;
+    e.neSemis = 0.0;
+
+    const int c = monoCloud();
+    const bool held = c >= 0 && ! detached && voices[c].gated && voices[c].keyDown;
+    noteStack.push (e);
+   #if OGI_TEST_HOOKS
+    hooks.stackDropped = noteStack.dropped;
+   #endif
+
+    bool legatoAsMono = false;
+   #if OGI_TEST_HOOKS
+    legatoAsMono = hooks.legatoAsMono;
+   #endif
+    if (held)
+    {
+        if (gp.voiceMode == 2 && ! legatoAsMono)
+        {
+            moveCloudPitch (c, e, t);   // D29 Legato: same serial, pitch only
+           #if OGI_TEST_HOOKS
+            ++hooks.legatoMoves;
+           #endif
+        }
+        else
+            retriggerVoice (c, e, velocity01, t);   // D29 Mono
+    }
+    else if (c >= 0)
+        retriggerVoice (c, e, velocity01, t);       // PD2 / PD5: no key held → full retrigger on the cloud's slot
+    else
+        allocateVoice (channel, note, velocity01, t, noteId, glideFromLast());
+    detached = false;
+}
+
+void Engine::noteOffMono (int channel, int note, std::int64_t t) noexcept
+{
+    const bool wasTop  = noteStack.isTop (channel, note);
+    const bool removed = noteStack.remove (channel, note);
+    const int c = monoCloud();
+    if (c < 0)
+        return;
+    if (detached)
+    {
+        // PD5: a held key's release never releases the detached cloud (the
+        // pedal governs it); the flag clears when no physical key is left.
+        if (noteStack.empty())
+            detached = false;
+        return;
+    }
+    if (! removed)
+        return;   // not a stack key (overflow-dropped)
+    Voice& v = voices[c];
+    if (! v.keyDown)
+        return;
+    if (wasTop && ! noteStack.empty())
+    {
+        // D30: glide back to the new top, no retrigger (both modes).
+        const GiNoteEntry top = *noteStack.top();
+        bool retrig = false;
+       #if OGI_TEST_HOOKS
+        retrig = hooks.fallbackRetrig;
+        ++hooks.fallbacks;
+       #endif
+        if (retrig)
+            retriggerVoice (c, top, v.velocity, t);
+        else
+            moveCloudPitch (c, top, t);
+    }
+    else if (noteStack.empty())
+    {
+        if (sustainDown)
+        {
+            v.keyDown = false;   // the gate holds until pedal-up
+           #if OGI_TEST_HOOKS
+            ++hooks.sustainDeferred;
+           #endif
+        }
+        else
+            releaseVoice (c);
+    }
+}
+
+/** D29 Legato / D30 fallback: the target note moves (glide), same serial;
+    the Key source follows the target (PD3); nothing retriggers. */
+void Engine::moveCloudPitch (int k, const GiNoteEntry& e, std::int64_t t) noexcept
+{
+    Voice& v = voices[k];
+    setGlide (v, static_cast<double> (e.note) + e.neSemis, t);
+    v.note    = e.note;
+    v.channel = e.channel;
+    v.noteId  = e.noteId;
+    v.neSemis = e.neSemis;
+    v.keyDown = true;
+    vm[k].src[GiSrc::Key] = std::clamp (static_cast<float> (e.note - 60) / 64.0f, -1.0f, 1.0f);
+    applyMemberState (k);   // PD8: member expression follows the sounding key
+    quotasDirty = true;
+    writeVoiceHooks (k);
+}
+
+/** D29 Mono (R§2.2): a NEW serial on the same slot; amp env + Mod Envs from
+    the current level (PD1 gain glide), scan / schedulers / Tempo restart,
+    per-voice LFOs at lfoN_phase, NR / velocity / Key updated, PD4 residuals.
+    Never startVoice (P2: it snaps lawGain / gFbLerp). */
+void Engine::retriggerVoice (int k, const GiNoteEntry& e, float velocity01, std::int64_t t) noexcept
+{
+    Voice& v = voices[k];
+    bool viaStart = false, resetZero = false, snap = false;
+   #if OGI_TEST_HOOKS
+    viaStart  = hooks.retrigViaStartVoice;
+    resetZero = hooks.ampResetZero;
+    snap      = hooks.gainSnap;
+    ++hooks.retriggers;
+   #endif
+    if (viaStart)
+    {
+        // VM5n control: the Poly note-on path on the sounding slot.
+        const double from = static_cast<double> (v.note) + v.neSemis + v.glideAt (t);
+        startVoice (k, e.channel, e.note, velocity01, t, e.noteId, gp.glideMs > 0.0f ? from : std::numeric_limits<double>::quiet_NaN());
+        voices[k].neSemis = e.neSemis;
+        return;
+    }
+
+    setGlide (v, static_cast<double> (e.note) + e.neSemis, t);
+    v.note       = e.note;
+    v.channel    = e.channel;
+    v.noteId     = e.noteId;
+    v.neSemis    = e.neSemis;
+    v.velocity   = velocity01;
+    v.gated      = true;
+    v.keyDown    = true;
+    v.serial     = ++serialCounter;
+    v.serialNote = e.note;
+    v.noteOnAbs  = t;
+   #if OGI_TEST_HOOKS
+    ++hooks.serialsMinted;
+   #endif
+    const float gv = AmpEnv::velocityGain (velocity01, gp.velToAmp);
+    if (resetZero)
+        v.env.noteOn (ampParams(), fs, gv);
+    else
+        v.env.retrigger (ampParams(), fs, gv, snap ? 0.0 : kStealMs);
+
+    applyMemberState (k);   // PD8: member expression follows the sounding key
+    retrigVoiceMod (k);
+
+    for (int s = 0; s < kGiStreams; ++s)
+    {
+        v.epoch[s] = 0;              // new serial: the counter space is fresh
+        v.sched[s].reset();          // first onset at the retrigger sample
+        bool gridOnly = false;
+       #if OGI_TEST_HOOKS
+        gridOnly = hooks.tempoGridOnly;
+       #endif
+        const bool burst = gp.syncMode == 1 && ! gridOnly && gp.s[s].enable;
+        tclk[k][s].restart (burst ? t + 1 : -1);
+        burstPending[k][s] = burst;
+        burstCount[k][s] = 0;
+        divKS[k][s] = pairRoutedK[k][s] ? tempoDivKS[k][s] : tempoDivS[s];
+        v.scan[s].restart (t, static_cast<double> (pairSp (k, s).scanRate) / fs);
+    }
+    quotasDirty = true;
+    writeVoiceHooks (k);
+}
+
+/** The per-voice source part of a Mono retrigger (initVoiceMod minus the
+    clear and the pair-mixer snap): Mod Envs retrigger from their level, the
+    per-voice LFOs re-prepare at lfoN_phase, NR / velocity / Key are new; per-
+    voice level / pan routes get a 20 ms residual (PD4). */
+void Engine::retrigVoiceMod (int k) noexcept
+{
+    auto& m = vm[k];
+    const Voice& v = voices[k];
+    bool resetZero = false, noRes = false, slotKey = false;
+   #if OGI_TEST_HOOKS
+    resetZero = hooks.ampResetZero;
+    noRes     = hooks.noPvResidual;
+    slotKey   = hooks.slotKeyedSeed;
+   #endif
+    float oldC[kGiModSlots];
+    std::copy (std::begin (m.lastContrib), std::end (m.lastContrib), oldC);
+
+    for (int e = 0; e < kGiModEnvs; ++e)
+    {
+        if (resetZero)
+            m.env[e].noteOn (menvParams (e), fs);
+        else
+            m.env[e].retrigger (menvParams (e), fs);
+    }
+
+    const bool tempoMode = gp.syncMode == 1;
+    const TempoAnchor& A = tracker.anchor();
+    for (int n = 0; n < kGiLfos; ++n)
+    {
+        m.lfoRateOff[n] = 0.0f;
+        m.lfoRateHz[n] = tempoMode ? fs * A.pps / tempoDivBeats (gp.lfo[n].rateSync, A.barLen)
+                                   : static_cast<double> (gp.lfo[n].rateHz);
+        m.lfoOn[n] = false;
+        if (! lfoPerVoiceActive (n))
+            continue;
+        m.lfo[n].prepare (fs, rampCellsMod, gp.lfo[n].phaseDeg);
+        m.lfoOn[n] = true;
+    }
+
+    const std::uint64_t key = slotKey ? static_cast<std::uint64_t> (k) : v.serial;
+    for (int n = 0; n < kGiLfos; ++n)
+    {
+        if (! m.lfoOn[n])
+        {
+            m.src[GiSrc::Lfo1 + n] = srcG[GiSrc::Lfo1 + n];
+            continue;
+        }
+        double ph = static_cast<double> (m.lfo[n].getPhaseDeg()) / 360.0 + m.lfo[n].getFrac();
+        ph -= std::floor (ph);
+        const float pv = Lfo::shape (gp.lfo[n].shape, ph, m.lfo[n].getCycle(), voiceLfoSeed (key), n);
+        const float xf = lfoXf[n].current();
+        m.src[GiSrc::Lfo1 + n] = (1.0f - xf) * srcG[GiSrc::Lfo1 + n] + xf * pv;
+    }
+    m.src[GiSrc::ModEnv1]    = static_cast<float> (m.env[0].getLevel());
+    m.src[GiSrc::ModEnv2]    = static_cast<float> (m.env[1].getLevel());
+    m.src[GiSrc::Velocity]   = v.velocity;
+    m.src[GiSrc::Key]        = std::clamp (static_cast<float> (v.note - 60) / 64.0f, -1.0f, 1.0f);
+    m.src[GiSrc::NoteRandom] = ouaricon::grain::CounterRng::Draw (seed, kNoteRandStream, key).nextFloat (0);
+
+    // PD4: per-voice level / pan routes carry (old − new) over 20 ms.
+    if (! noRes)
+        for (int ms = 0; ms < kGiModSlots; ++ms)
+        {
+            const auto sl = matrix.slot (ms);
+            if (! sl.pv || ! GiDest::isStream (sl.dest))
+                continue;
+            const int f = GiDest::fieldOf (sl.dest);
+            if (f != GiDest::Level && f != GiDest::Pan)
+                continue;
+            const float d = oldC[ms] - sl.depth * m.src[sl.src];
+            if (d > 0.0f || d < 0.0f)
+                m.pushResidual (sl.dest, d, rampCellsMod);
+        }
+
+    voicePass (k, true);
+    buildPairViews (k);
+    if (gp.syncMode == 1)
+        pairTempo (k);
+    voiceLfoRates (k);
+}
+
+/** D32 at the tick where the latched voice_mode changes. Poly → Mono /
+    Legato: the newest counted voice is kept, the rest force-release (5 ms);
+    the stack is rebuilt from the physical keys (oldest serial at the
+    bottom); PD5 detached cloud. Other switches: no voice action. */
+void Engine::modeSwitch() noexcept
+{
+    const int mode = gp.voiceMode;
+    if (mode == prevVoiceMode)
+        return;
+   #if OGI_TEST_HOOKS
+    ++hooks.modeSwitches;
+   #endif
+    if (prevVoiceMode == 0)
+    {
+        double ms = kStealMs;
+       #if OGI_TEST_HOOKS
+        if (hooks.modeSwitchHard)
+            ms = 0.0;
+       #endif
+        int order[kVoiceSlots] {};
+        const int n = VoiceAllocator::countedOldestFirst (voices, order);
+        noteStack.clear();
+        for (int i = 0; i < n; ++i)
+        {
+            const Voice& v = voices[order[i]];
+            if (v.keyDown)
+                noteStack.push ({ v.channel, v.note, v.noteId, v.neSemis });
+        }
+        for (int i = 0; i + 1 < n; ++i)
+            forceReleaseVoiceMs (order[i], ms);
+        detached = n > 0 && ! voices[order[n - 1]].keyDown && ! noteStack.empty();
+    }
+    else if (mode == 0)
+    {
+        noteStack.clear();
+        detached = false;
+    }
+    prevVoiceMode = mode;
+}
+
+/** PD6: the first unconsumed raw NoteOn of this block at the same
+    (offset, channel, pitch) → its noteId; −1 when none (AU / Standalone). */
+int Engine::takeNoteId (int channel, int note, std::int64_t t) noexcept
+{
+    const std::int64_t off = t - neBlockStart;
+    for (int j = 0; j < numNeOn; ++j)
+    {
+        NeOn& r = neOn[j];
+        if (! r.used && r.offset == off && r.channel == channel && r.pitch == note)
+        {
+            r.used = true;
+            return r.noteId;
+        }
+    }
+    return -1;
+}
+
+/** PD6: a kTuningTypeID value → semis = 240·(value − 0.5), written to every
+    non-free voice and stack entry with that noteId (noteId −1 ignored). The
+    pitch is latched per grain, so only grains spawned from this sample move. */
+void Engine::applyNe (const GiNeEvent& e) noexcept
+{
+    if (e.type != 2 || e.typeId != kTuningTypeID || e.noteId < 0)
+        return;
+    const double semis = 240.0 * (e.value - 0.5);
+    bool hit = false;
+    for (auto& v : voices)
+        if (! v.isFree() && v.noteId == e.noteId)
+        {
+            v.neSemis = semis;
+            hit = true;
+        }
+    for (int i = 0; i < noteStack.size(); ++i)
+        if (noteStack.at (i).noteId == e.noteId)
+        {
+            noteStack.at (i).neSemis = semis;
+            hit = true;
+        }
+    if (lastKeySet && lastKeyNoteId == e.noteId)
+        lastKey = static_cast<double> (lastKeyNote) + semis;
+   #if OGI_TEST_HOOKS
+    if (hit)
+        ++hooks.neApplied;
+   #else
+    juce::ignoreUnused (hit);
+   #endif
 }
 
 void Engine::stealVoice (int k) noexcept
@@ -2079,6 +2808,8 @@ void Engine::endVoice (int k) noexcept
     }
     quotasDirty = true;
     writeVoiceHooks (k);
+    if (detached && monoCloud() < 0)
+        detached = false;   // PD5: cleared by the cloud's end
 }
 
 bool Engine::endQuietestStolen() noexcept
@@ -2407,7 +3138,7 @@ void Engine::spawn (const PendingOnset& o, std::int64_t tAbs) noexcept
     //              and hi > lo (P13), else no draw;
     // then the ±48 clamp; rate = 2^(st/12) · tapeRate / fs.
     float pitchCents = 0.0f;
-    double st = voiceSemis (v, sp);
+    double st = voiceSemis (v, sp, tAbs);
     const PitchSel& sel = pairSel (o.voice, s);
     if (sel.set == nullptr)
     {

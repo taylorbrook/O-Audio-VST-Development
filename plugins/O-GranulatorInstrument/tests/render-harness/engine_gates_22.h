@@ -32,7 +32,7 @@
       A2   0 audio-thread allocations, 4 streams + scale    ctrl liveness malloc(64)
       NB1  block-size null, all randomisation               ctrl seed + 1
       V3s  slot invariance, 4 streams                       ctrl seed + 1
-      N2s  10 unread params bit-identical, 4 streams        ctrl s1_density / s4_window (readSet25a, PLAN-2.5a PD15)
+      N2s   7 unread params bit-identical, 4 streams        ctrl s1_density / s4_window (readSet25b, PLAN-2.5b PD15)
     cpu22(): PLAN-2.2 T13 C22 recipe, INFO only (--cpu22).
 
   ==============================================================================
@@ -1441,7 +1441,7 @@ namespace { namespace eg22
 
     void rowN2s()
     {
-        const auto readSet = eg21::readSet25a();   // PLAN-2.5a PD15 (2.4: readSet24 162 / 99; 2.3: readSet23 153 / 108; 2.2: readSet22 113 / 148)
+        const auto readSet = eg21::readSet25b();   // PLAN-2.5b PD15 (2.5a: readSet25a 251 / 10; 2.4: readSet24 162 / 99; 2.3: readSet23 153 / 108; 2.2: readSet22 113 / 148)
         int bound = 0;
         {
             auto probe = make();
@@ -1468,9 +1468,9 @@ namespace { namespace eg22
         const int nD = diffCount (ref, renderNB (512, kSeed, [] (Proc& p) { setP (p, Ids::stream (1, "density"), 120.0f); }, P0, false));
         const int nW = diffCount (ref, renderNB (512, kSeed, [] (Proc& p) { setP (p, Ids::stream (4, "window"), 0.5f); }, P0, false));
         const bool fired = nD > 0 && nW > 0;
-        row (n == 0 && bound == 251 && touched == 10 && fired, "N2s unread params bit-identical, 4 streams on (readSet25a)",
+        row (n == 0 && bound == 254 && touched == 7 && fired, "N2s unread params bit-identical, 4 streams on (readSet25b)",
              "meas " + juce::String (n) + " samples differ with " + juce::String (touched) + " unread params randomised ("
-                 + juce::String (bound) + "/251 read IDs bound) | thr 0 | margin " + juce::String (-n)
+                 + juce::String (bound) + "/254 read IDs bound) | thr 0 | margin " + juce::String (-n)
                  + " | " + ctrl (fired, "s1_density -> " + juce::String (nD) + ", s4_window -> " + juce::String (nW) + " differ"));
     }
 

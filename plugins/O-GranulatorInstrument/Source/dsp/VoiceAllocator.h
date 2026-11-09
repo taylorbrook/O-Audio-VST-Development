@@ -42,7 +42,8 @@
 //   released unprotected → the oldest unprotected with no key down → the oldest
 //   unprotected → top → low.
 // (Without CC64, "released" and "no key down" coincide; both rules stay so 2.5
-// only changes what keyDown means.)
+// only changes what keyDown means. 2.5b, PD14: keyDown is the physical key, so
+// a pedal-held voice is "no key down" but not "released".)
 //
 // Every decision keys on note SERIALS, never on slot indices, so a different
 // slot assignment cannot change which NOTE is stolen (row V3).
@@ -57,9 +58,28 @@ namespace ogi
         int           note     = 0;
         int           channel  = 1;
         float         velocity = 0.0f;     // 0..1
-        bool          gated    = false;    // key down (not released)
+        bool          gated    = false;    // gate open (not released); held by CC64 after key-up
+        bool          keyDown  = false;    // 2.5b (PD14): the PHYSICAL key; == gated without CC64
         std::uint64_t serial   = 0;
         std::int64_t  noteOnAbs = 0;
+
+        // 2.5b pitch terms (PLAN-2.5b PD11 / PD13), all +0.0 in bypass.
+        int           noteId   = -1;       // VST3 note id (−1 = none)
+        double        neSemis  = 0.0;      // VST3 per-note tuning, semitones
+        double        mpeSemis = 0.0;      // MPE member bend · memberRange, semitones
+        int           serialNote = 0;      // the note the current serial started on (PD12 law key)
+        // closed-form glide: g(t) = (glFrom − glTo)·max (0, 1 − (t − glT0)/glN); glN 0 = none
+        double        glFrom = 0.0, glTo = 0.0, glN = 0.0;
+        std::int64_t  glT0   = 0;
+
+        /** Glide offset (semitones) at absolute sample t; +0.0 without glide state. */
+        double glideAt (std::int64_t t) const noexcept
+        {
+            if (! (glN > 0.0))
+                return 0.0;
+            const double x = 1.0 - static_cast<double> (t - glT0) / glN;
+            return x > 0.0 ? (glFrom - glTo) * x : 0.0;
+        }
 
         AmpEnv                        env;
         // 2.2: one Free-mode scheduler, scan line and draw epoch per stream
@@ -73,7 +93,7 @@ namespace ogi
         bool isCounted() const noexcept  { return state == State::active; }
         bool isStolen() const noexcept   { return state == State::stolen; }
         bool isReleased() const noexcept { return state == State::active && ! gated; }
-        bool isKeyDown() const noexcept  { return state == State::active && gated; }
+        bool isKeyDown() const noexcept  { return state == State::active && keyDown; }   // PD14
     };
 
     struct VoiceAllocator

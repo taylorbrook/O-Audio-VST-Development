@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include "GiConstants.h"
 
 // ============================================================================
@@ -72,6 +73,30 @@ namespace ogi
         {
             level = 0.0;
             gain = velGain;
+            gainN = 0;
+            enterAttack (p, fs);
+        }
+
+        /** PLAN-2.5b PD1: Mono retrigger — the attack restarts from the CURRENT
+            level (the ModEnv::retrigger precedent) and the velocity gain glides
+            linearly to newGain over rampMs (a sample-counted ramp latched here:
+            gain_i = from + step·i, exactly newGain at i = N; 0 ms → a step). */
+        void retrigger (const AmpParams& p, double fs, float newGain, double rampMs) noexcept
+        {
+            const double n = std::floor (rampMs * 0.001 * fs + 0.5);
+            gainFrom = gain;
+            gainTo   = newGain;
+            if (n >= 1.0)
+            {
+                gainN    = static_cast<std::int64_t> (n);
+                gainI    = 0;
+                gainStep = (static_cast<double> (newGain) - static_cast<double> (gain)) / n;
+            }
+            else
+            {
+                gainN = 0;
+                gain  = newGain;
+            }
             enterAttack (p, fs);
         }
 
@@ -152,6 +177,16 @@ namespace ogi
                         level = 0.0;
                         break;
                 }
+                if (gainN > 0)   // PD1 gain glide (never armed outside a Mono retrigger)
+                {
+                    if (++gainI >= gainN)
+                    {
+                        gain  = gainTo;
+                        gainN = 0;
+                    }
+                    else
+                        gain = static_cast<float> (static_cast<double> (gainFrom) + gainStep * static_cast<double> (gainI));
+                }
                 out[i] = static_cast<float> (level) * gain;
             }
             return endedAt;
@@ -202,5 +237,9 @@ namespace ogi
         double decayEps = 0.0;
         double forcedStep = 0.0;
         float  gain = 1.0f;
+        // PD1 gain glide
+        float        gainFrom = 1.0f, gainTo = 1.0f;
+        double       gainStep = 0.0;
+        std::int64_t gainN = 0, gainI = 0;
     };
 } // namespace ogi

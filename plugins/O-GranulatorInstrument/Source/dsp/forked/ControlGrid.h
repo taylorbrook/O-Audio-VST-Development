@@ -193,7 +193,9 @@ namespace ogi
     // depth. `struct Lfo` carries the parent field names and types
     // (82406fce ControlGrid.h:326-331) so the VERBATIM ModSources.h compiles
     // through `using GridParams = GiGridParams`.
-    // Never bound after 2.5a: voice_mode, glide, mpe_enable, rec_* (2.5b / 2.6).
+    // 2.5b (PLAN-2.5b T3, PD15): voice_mode (choice index), glide (ms, read
+    // raw through the skewed range), mpe_enable (bool), latched at the tick.
+    // Never bound after 2.5b: rec_* (2.6).
     //==========================================================================
     inline constexpr int kGiGridStreams = 4;   // 2.2: s1...s4 (2.1: s1 only)
     inline constexpr int kGiLfos = 4, kGiModEnvs = 2, kGiMacros = 4, kGiModSlots = 16;
@@ -206,6 +208,9 @@ namespace ogi
     {
         std::atomic<float>* polyphony      = nullptr;
         std::atomic<float>* pitchBendRange = nullptr;
+        std::atomic<float>* voiceMode      = nullptr;   // 2.5b: choice 0 Poly, 1 Mono, 2 Legato
+        std::atomic<float>* glide          = nullptr;   // 2.5b: ms (skewed range: read raw)
+        std::atomic<float>* mpeEnable      = nullptr;   // 2.5b: bool
         std::atomic<float>* grainLimit     = nullptr;   // choice 0..3 → 32 / 64 / 128 / 256
         std::atomic<float>* outputGain     = nullptr;
 
@@ -305,6 +310,9 @@ namespace ogi
         {
             polyphony      = apvts.getRawParameterValue ("polyphony");
             pitchBendRange = apvts.getRawParameterValue ("pitch_bend_range");
+            voiceMode      = apvts.getRawParameterValue ("voice_mode");
+            glide          = apvts.getRawParameterValue ("glide");
+            mpeEnable      = apvts.getRawParameterValue ("mpe_enable");
             grainLimit     = apvts.getRawParameterValue ("grain_limit");
             outputGain     = apvts.getRawParameterValue ("output_gain");
             ampAttack      = apvts.getRawParameterValue ("amp_attack");
@@ -410,6 +418,9 @@ namespace ogi
     {
         int   polyphony        = 8;        // 1..16
         float pitchBendRangeSt = 2.0f;     // 0..48
+        int   voiceMode        = 0;        // 2.5b: 0 Poly, 1 Mono, 2 Legato
+        float glideMs          = 0.0f;     // 2.5b: 0..2000
+        bool  mpeEnable        = false;    // 2.5b
         int   grainLimit       = 256;      // 32 / 64 / 128 / 256
         float outputGainDb     = 0.0f;     // −24..12
 
@@ -508,6 +519,9 @@ namespace ogi
         {
             readInt (p.polyphony, polyphony, 1, 16);
             read (p.pitchBendRange, pitchBendRangeSt, 0.0f, 48.0f);
+            readInt (p.voiceMode, voiceMode, 0, 2);
+            read (p.glide, glideMs, 0.0f, 2000.0f);
+            readBool (p.mpeEnable, mpeEnable);
             if (p.grainLimit != nullptr)
             {
                 const float v = p.grainLimit->load (std::memory_order_relaxed);

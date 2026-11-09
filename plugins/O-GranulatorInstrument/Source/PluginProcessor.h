@@ -47,6 +47,25 @@
 struct GiVst3Extensions final : Ouaricon::NoteExpression::VST3Extensions
 {
     bool getPluginHasMainInput() const override { return false; }
+
+    // PLAN-2.5b PD6: the stamped NE path (no module edit). The VST3 wrapper
+    // calls this on the audio thread inside the same process() call, before
+    // processBlock / processBlockBypassed (juce_audio_plugin_client_VST3.cpp
+    // :3588-3640 → :3779, patched). The module path runs first (its table
+    // stays intact); then a fixed 64-entry copy (drop beyond 64, counted).
+    void onVst3RawEvent (const Vst3RawEvent& e) override
+    {
+        VST3Extensions::onVst3RawEvent (e);
+        if (neCount < kNeCap)
+            neBuf[(size_t) neCount++] = e;
+        else
+            ++neDropped;
+    }
+
+    static constexpr int kNeCap = 64;
+    std::array<Vst3RawEvent, kNeCap> neBuf {};
+    int neCount = 0;
+    std::uint64_t neDropped = 0;
 };
 
 // ============================================================================
@@ -89,6 +108,10 @@ public:
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
     using AudioProcessor::processBlock;
+    /** PLAN-2.5b PD6 / P6: a bypassed block drops this block's raw NE events
+        (never replayed later at stale offsets), then the base behaviour. */
+    void processBlockBypassed (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+    using AudioProcessor::processBlockBypassed;
 
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
@@ -220,6 +243,7 @@ private:
     void applyNonParameterState (const juce::var& custom, const juce::var& masks, const juce::var& seed);
 
     GiVst3Extensions vst3Extensions;
+    std::array<ogi::GiNeEvent, GiVst3Extensions::kNeCap> neEvents {};   // PD6: this block's converted raw events
     std::atomic<uint64_t> seed { 0 };
     std::atomic<int> sidechainChannels { 0 };
 

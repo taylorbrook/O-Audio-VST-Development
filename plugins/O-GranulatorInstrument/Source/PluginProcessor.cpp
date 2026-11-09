@@ -250,13 +250,45 @@ void GranulatorInstrumentProcessor::processBlock (juce::AudioBuffer<float>& buff
         }
     }
 
+    // PLAN-2.5b PD6: this block's stamped VST3 raw events (NoteOn / NoteOff
+    // with noteIds, Note Expression values), converted for the engine. Empty
+    // outside VST3 (AU / Standalone deliver none).
+    int numNe = 0;
+    for (int i = 0; i < vst3Extensions.neCount; ++i)
+    {
+        const auto& r = vst3Extensions.neBuf[(size_t) i];
+        using Kind = juce::VST3ClientExtensions::Vst3RawEvent::Kind;
+        ogi::GiNeEvent g;
+        g.offset  = (int) r.sampleOffset;
+        g.type    = r.kind == Kind::NoteOn ? 0 : (r.kind == Kind::NoteOff ? 1 : 2);
+        g.channel = (int) r.channel + 1;   // VST3 channel 0-15 → MIDI 1-16
+        g.pitch   = (int) r.pitch;
+        g.noteId  = (int) r.noteId;
+        g.typeId  = r.typeId;
+        g.value   = r.value;
+        neEvents[(size_t) numNe++] = g;
+    }
+    vst3Extensions.neCount = 0;
+   #if OGI_TEST_HOOKS
+    engine->hooks.neDropped += vst3Extensions.neDropped;
+   #endif
+    vst3Extensions.neDropped = 0;
+
     if (n > 0 && buffer.getNumChannels() >= 2)
-        engine->process (buffer.getWritePointer (0), buffer.getWritePointer (1), n, midiMessages, getSeed(), ts);
+        engine->process (buffer.getWritePointer (0), buffer.getWritePointer (1), n, midiMessages, getSeed(), ts,
+                         neEvents.data(), numNe);
 
     // MIDI is consumed (producesMidi() == false).
     midiMessages.clear();
 
     handoff.blockExited();
+}
+
+void GranulatorInstrumentProcessor::processBlockBypassed (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
+{
+    vst3Extensions.neCount = 0;   // P6: a bypassed block's NE events never replay
+    vst3Extensions.neDropped = 0;
+    AudioProcessor::processBlockBypassed (buffer, midiMessages);
 }
 
 juce::AudioProcessorEditor* GranulatorInstrumentProcessor::createEditor()
