@@ -51,6 +51,7 @@
 #include <initializer_list>
 #include <memory>
 #include <vector>
+#include <regex>
 
 #if defined (__clang__)
  #pragma clang diagnostic ignored "-Wfloat-equal"
@@ -1018,6 +1019,11 @@ static void hookRows()
 // PLAN-2.4 T14: DSP-04 / DSP-05 parity rows (PB / PBc / PBd, PR / PRk / PRc, --parity).
 #include "parity_gates_24.h"
 
+// PLAN-2.5a T13 / T14: the law arm (PV / VL / ME / RG / NZ / CP / NV / SD / DR / MD) and
+// edits, tempo, invariance, bypass (RT / RE / LM / TS / TT / BN / FA5 / TB3 / TB4 / ST1) + --cpu25a.
+#include "engine_gates_25a.h"
+#include "engine_gates_25b.h"
+
 // PLAN-2.5a T7: DSP-06 matrix parity rows (PL / PL0t / PLs / PM / PE + controls, --parity).
 #include "parity_gates_25a.h"
 
@@ -1069,6 +1075,19 @@ int main (int argc, char** argv)
             std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
             return f;
         }
+        else if (std::strcmp (argv[a], "--eg25") == 0)    // dev: the Phase 2.5a engine gates only (eg25a + eg25b; OGI_ROWS filters)
+        {
+            eg25a::runAll();
+            eg25b::runAll();
+            std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
+            return juce::jmin (failures, 255);
+        }
+        else if (std::strcmp (argv[a], "--cpu25a") == 0)  // PLAN-2.5a PD18: run alone; rc = FAIL count
+        {
+            const int f = eg25b::cpu25a();
+            std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
+            return f;
+        }
         else if (std::strcmp (argv[a], "--eg24") == 0)    // dev: the Phase 2.4 engine gates only (eg24 + eg24b)
         {
             eg24::runAll();
@@ -1084,7 +1103,7 @@ int main (int argc, char** argv)
             return rh::dump (juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a])), true);
         else
         {
-            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--eg24] [--calib]\n", argv[a], argv[0]);
+            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--cpu25a] [--eg24] [--eg25] [--calib]\n", argv[a], argv[0]);
             return 255;
         }
     }
@@ -1102,6 +1121,8 @@ int main (int argc, char** argv)
     eg23::runAll();
     eg24::runAll();
     eg24b::runAll();
+    eg25a::runAll();
+    eg25b::runAll();
 
     std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
     return juce::jmin (failures, 255);

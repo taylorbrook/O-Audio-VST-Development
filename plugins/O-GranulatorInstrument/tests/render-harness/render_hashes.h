@@ -61,6 +61,7 @@ namespace { namespace rh
         bool wetOff = false;   // TB2 identity half: wetSafetyOff (identity) instead of the knee
         P extra;
         std::vector<std::pair<juce::int64, P>> events;
+        std::vector<std::pair<juce::int64, juce::MidiMessage>> midi;   // PLAN-2.5a TB3: CC / AT / bend added to every job
     };
     inline Overrides overrides;
 
@@ -83,6 +84,8 @@ namespace { namespace rh
             const P ps = ev.second;
             s.at (ev.first, [ps] (Session& ss) { eg21::setAll (*ss.p, ps); });
         }
+        for (const auto& m : overrides.midi)
+            s.addMidi (m.first, m.second);
         s.hk().legacyWetTanh = overrides.legacy;
         s.hk().wetSafetyOff  = overrides.wetOff;
     }

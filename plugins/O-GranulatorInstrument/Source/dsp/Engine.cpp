@@ -151,6 +151,15 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     outGainNow = outGainRamp.current();  outGainMod.reset (outGainNow);  useOutMod = false;
     for (auto& x : pairMix) x = false;
     numPairsRouted = numPairsRoutedPrev = 0;
+    prevTempo = gp.syncMode == 1;
+    for (int k = 0; k < kVoiceSlots; ++k)
+        for (int s = 0; s < kGiStreams; ++s)
+        {
+            tclk[k][s].restart();
+            burstPending[k][s] = false;
+        }
+    if (prevTempo)
+        applyTempoEffective();
     // PD8: the held mono values start at 0; the first note ramps from 0.
     std::fill (std::begin (monoFrom), std::end (monoFrom), 0.0f);
     std::fill (std::begin (monoVal), std::end (monoVal), 0.0f);
@@ -475,6 +484,8 @@ void Engine::updateChainCutoffs() noexcept
     // PLAN-2.5a PD6 (parent :240-251): the routed cutoffs from the ramped raw Hz.
     if (matrix.routed (GiDest::FbLowCut))  lo = matrix.apply (GiDest::FbLowCut,  lo, matrix.offset (GiDest::FbLowCut));
     if (matrix.routed (GiDest::FbHighCut)) hi = matrix.apply (GiDest::FbHighCut, hi, matrix.offset (GiDest::FbHighCut));
+    traceAt (GiDest::FbLowCut, lo);
+    traceAt (GiDest::FbHighCut, hi);
     if (juce::exactlyEqual (lo, chainLowHz) && juce::exactlyEqual (hi, chainHighHz))
         return;
     chainLowHz = lo;
@@ -607,6 +618,34 @@ void Engine::gridTick (std::int64_t t) noexcept
     tickSources (t);
     matrixTick (t);
 
+    // PLAN-2.5a PD12: Tempo mode reads the EFFECTIVE density / size (quotas,
+    // coherence, the spawn size and the clock all see the synced values, R45).
+    const bool tempoNow = gp.syncMode == 1;
+    if (tempoNow)
+        applyTempoEffective();
+    if (tempoNow != prevTempo)
+    {
+        // Free ↔ Tempo folds the onset count into the epoch (P14 pattern): the
+        // draws never replay.
+        for (int k = 0; k < kVoiceSlots; ++k)
+        {
+            Voice& v = voices[k];
+            if (! v.isCounted())
+                continue;
+            for (int s = 0; s < kGiStreams; ++s)
+            {
+                v.epoch[s] += prevTempo ? tclk[k][s].getOnsetCount() : v.sched[s].getOnsetCount();
+                v.sched[s].reset();
+                tclk[k][s].restart();
+                burstPending[k][s] = false;
+            }
+        }
+        prevTempo = tempoNow;
+    }
+   #if OGI_TEST_HOOKS
+    hooks.relocks = static_cast<std::uint64_t> (tracker.getRelocks());
+   #endif
+
     for (int s = 0; s < kGiStreams; ++s)
     {
         jit[s] = jitterOf (s);
@@ -616,12 +655,14 @@ void Engine::gridTick (std::int64_t t) noexcept
         const bool en = gp.s[s].enable;
         if (en && ! prevEnable[s])
         {
-            for (auto& v : voices)
+            for (int k = 0; k < kVoiceSlots; ++k)
             {
+                Voice& v = voices[k];
                 if (! v.isCounted())
                     continue;
-                v.epoch[s] += v.sched[s].getOnsetCount();
+                v.epoch[s] += tempoNow ? tclk[k][s].getOnsetCount() : v.sched[s].getOnsetCount();
                 v.sched[s].reset();
+                tclk[k][s].restart();
             }
         }
         prevEnable[s] = en;
@@ -1041,14 +1082,43 @@ void Engine::updateQuotas() noexcept
             quotaM[k][s] = m;
             const bool pr = pairRoutedK[k][s];
             const double J = pr ? jitKS[k][s] : jit[s];
-            const double T = pr ? thinnedPeriod (fs, static_cast<double> (view[k][s].density), lMaxSamples (view[k][s]),
-                                                 periodOff ? kQuotaUncapped : m, J)
-                                : thinnedPeriod (fs, density[s], lMax[s], periodOff ? kQuotaUncapped : m, J);
+            double T = pr ? thinnedPeriod (fs, static_cast<double> (view[k][s].density), lMaxSamples (view[k][s]),
+                                           periodOff ? kQuotaUncapped : m, J)
+                          : thinnedPeriod (fs, density[s], lMax[s], periodOff ? kQuotaUncapped : m, J);
             // R§1.3 / R§8: a quota DECREASE re-times the pending gap at once with
             // the jittered gap of the pending onset (a pure function of its index
             // and the grid snapshot: block-size invariant); an increase lets the
             // latched gap roll.
-            if (v.isCounted() && T > periodT[k][s])
+            if (gp.syncMode == 1)
+            {
+                // PD12 (corrects ARCH §9): Tempo thinning on the DIVISION —
+                // div = tempoDiv·2^j, j = min { j >= 0 : I·2^j >= T }, so a
+                // thinned stream drops only power-of-two onsets and stays on
+                // the bar-anchored grid. Hook tempoContinuousThin: the
+                // continuous period (TS2n control, off-grid).
+                const TempoAnchor& A = tracker.anchor();
+                const double div0 = pr ? tempoDivKS[k][s] : tempoDivS[s];
+                bool cont = false;
+               #if OGI_TEST_HOOKS
+                cont = hooks.tempoContinuousThin;
+               #endif
+                if (cont)
+                    divKS[k][s] = T * A.pps;
+                else
+                {
+                    const double I = div0 / A.pps;
+                    double Tt = I;
+                    int j = 0;
+                    while (Tt < T * (1.0 - 1.0e-6) && j < 40)   // 1e-6: the float density's rounding (I == fs / density up to ~6e-8)
+                    {
+                        Tt *= 2.0;
+                        ++j;
+                    }
+                    divKS[k][s] = std::ldexp (div0, j);
+                    T = Tt;
+                }
+            }
+            else if (v.isCounted() && T > periodT[k][s])
             {
                 const std::uint64_t cnt = v.sched[s].getOnsetCount();
                 const double gap = cnt > 0 ? jitterGap (T, J, s, v.serial, v.epoch[s], cnt - 1) : T;
@@ -1184,6 +1254,8 @@ void Engine::initVoiceMod (int k) noexcept
     // PD4: the voice's offsets / views at note-on (the slot depths of now).
     voicePass (k, true);
     buildPairViews (k);
+    if (gp.syncMode == 1)
+        pairTempo (k);
     voiceLfoRates (k);
     for (int s = 0; s < kGiStreams; ++s)
         if (pairMix[s])
@@ -1626,9 +1698,56 @@ void Engine::applyLevelPanMod() noexcept
             gr = pg.b;
             traceAt (dp, pn);
         }
+        else
+            traceAt (dp, panValRamp[s].current());
         panLMod[s].setCell (panLNow[s], gl);  panLNow[s] = gl;
         panRMod[s].setCell (panRNow[s], gr);  panRNow[s] = gr;
         usePanMod[s] = rp || matrix.routedPrev (dp);
+    }
+}
+
+/** PD12 (parent P50, 82406fce Engine.cpp:1013-1033): the synced density as a
+    power-of-two multiple of the division clamped to [0.5, 200] g/s, and the
+    synced size scaled by 2^(4·off) clamped to [5, 2000] ms. */
+void Engine::tempoEffective (float offD, float offS, GiGridParams::Stream& st, double& divOut, double& sizeBaseOut) const noexcept
+{
+    const TempoAnchor& A = tracker.anchor();
+    const double beatsPerS = A.pps * fs;
+    const double divBeats = tempoDivBeats (st.densitySync, A.barLen);
+    const double d0 = beatsPerS / divBeats;
+    const double eLo = std::ceil (std::log2 (kDensityMin / d0)), eHi = std::floor (std::log2 (kDensityMax / d0));
+    const double e = std::clamp (std::floor (4.0 * static_cast<double> (offD) + 0.5), eLo, eHi);
+    divOut = divBeats * std::exp2 (-e);
+    st.density = static_cast<float> (d0 * std::exp2 (e));
+    sizeBaseOut = tempoDivBeats (st.sizeSync, A.barLen) * 60000.0 / A.bpm;
+    st.sizeMs = static_cast<float> (std::clamp (sizeBaseOut * std::exp2 (4.0 * static_cast<double> (offS)), kMinSizeMs, kMaxSizeMs));
+}
+
+/** Tempo, at the tick: the global stream values (global offsets) and every
+    routed pair's view (offG + offV). */
+void Engine::applyTempoEffective() noexcept
+{
+    for (int s = 0; s < kGiStreams; ++s)
+        tempoEffective (matrix.offset (GiDest::stream (s, GiDest::Density)), matrix.offset (GiDest::stream (s, GiDest::Size)),
+                        gp.s[s], tempoDivS[s], tempoSizeBase[s]);
+    for (int k = 0; k < kVoiceSlots; ++k)
+        if (! voices[k].isFree())
+            pairTempo (k);
+}
+
+void Engine::pairTempo (int k) noexcept
+{
+    for (int s = 0; s < kGiStreams; ++s)
+    {
+        if (! pairRoutedK[k][s])
+        {
+            tempoDivKS[k][s] = tempoDivS[s];
+            continue;
+        }
+        const int dd = GiDest::stream (s, GiDest::Density), dz = GiDest::stream (s, GiDest::Size);
+        double sb = 0.0;
+        tempoEffective (matrix.offset (dd) + vm[k].offCurAt (dd), matrix.offset (dz) + vm[k].offCurAt (dz),
+                        view[k][s], tempoDivKS[k][s], sb);
     }
 }
 
@@ -1841,6 +1960,19 @@ void Engine::startVoice (int k, int channel, int note, float velocity01, std::in
     for (int s = 0; s < kGiStreams; ++s)
     {
         v.sched[s].reset();                    // first onset exactly at the note-on sample
+        {
+            // PD1 (USER): Tempo → one burst onset at the note-on sample, then the
+            // grid strictly after it; tempoGridOnly → the parent R41 (grid only).
+            bool gridOnly = false;
+           #if OGI_TEST_HOOKS
+            gridOnly = hooks.tempoGridOnly;
+           #endif
+            const bool burst = gp.syncMode == 1 && ! gridOnly && gp.s[s].enable;
+            tclk[k][s].restart (burst ? t + 1 : -1);
+            burstPending[k][s] = burst;
+            burstCount[k][s] = 0;
+            divKS[k][s] = pairRoutedK[k][s] ? tempoDivKS[k][s] : tempoDivS[s];
+        }
         v.scan[s].restart (t, static_cast<double> (pairSp (k, s).scanRate) / fs);
     }
 
@@ -2007,6 +2139,13 @@ void Engine::runSegment (int c0, int c1, std::int64_t t0) noexcept
     int order[kVoiceSlots] {};
     const int nv = VoiceAllocator::countedOldestFirst (voices, order);
     int numOnsets = 0;
+    const bool tempo = gp.syncMode == 1;
+    const TempoAnchor& A = tracker.anchor();
+    const std::uint64_t lock = tracker.getRelockEpoch();
+    bool rederive = false;
+   #if OGI_TEST_HOOKS
+    rederive = hooks.ceilPerTick && (t0 & static_cast<std::int64_t> (kCell - 1)) == 0;
+   #endif
     for (int i = 0; i < nv; ++i)
     {
         const int k = order[i];
@@ -2014,16 +2153,41 @@ void Engine::runSegment (int c0, int c1, std::int64_t t0) noexcept
         for (int s = 0; s < kGiStreams; ++s)
         {
             if (! gp.s[s].enable)
+            {
+                burstPending[k][s] = false;
                 continue;
+            }
             const double T = periodT[k][s];
             const double J = pairRoutedK[k][s] ? jitKS[k][s] : jit[s];
             const std::uint64_t serial = v.serial, ep = v.epoch[s];
+            if (tempo)
+            {
+                // PD1 (USER): one burst onset at the note-on sample (this
+                // segment's start), on the reserved counter kBurstBit | n …
+                if (burstPending[k][s])
+                {
+                    merged[numOnsets++] = { k, s, 0, 0.0, 0, burstCount[k][s]++, serial, true };
+                    burstPending[k][s] = false;
+                   #if OGI_TEST_HOOKS
+                    ++hooks.burstOnsets;
+                   #endif
+                }
+                // … then the bar-anchored grid (PD12, the parent processTempo port).
+                const int c = tclk[k][s].process (len, t0, A, divKS[k][s], lock, rederive, J,
+                    [this, s, serial, ep] (std::uint64_t idx) noexcept { return jitterU (s, serial, ep, idx); }, tOnBuf);
+                for (int j = 0; j < c; ++j)
+                    merged[numOnsets++] = { k, s, tOnBuf[j].offset, tOnBuf[j].frac, tOnBuf[j].index, ep + tOnBuf[j].index, serial, false };
+               #if OGI_TEST_HOOKS
+                hooks.tempoOnsets += static_cast<std::uint64_t> (c);
+               #endif
+                continue;
+            }
             const auto res = v.sched[s].process (len, onsetBuf[k][s], kOnsetCap,
                 [this, T, J, s, serial, ep] (std::uint64_t idx) noexcept { return jitterGap (T, J, s, serial, ep, idx); });
             for (int j = 0; j < res.count; ++j)
             {
                 const auto& o = onsetBuf[k][s][j];
-                merged[numOnsets++] = { k, s, o.offset, o.frac, o.index, ep + o.index, serial };
+                merged[numOnsets++] = { k, s, o.offset, o.frac, o.index, ep + o.index, serial, false };
             }
         }
     }
@@ -2192,10 +2356,17 @@ void Engine::spawn (const PendingOnset& o, std::int64_t tAbs) noexcept
             const bool vR = vp > 0.0f || vp < 0.0f || vc > 0.0f || vc < 0.0f;
             if (! gR && ! vR)
                 continue;
-            if (tempoMode && (f == GiDest::Density || f == GiDest::Size))
-                continue;   // Tempo: the effective values (T12)
             // offG + offV at the spawn sample, summed BEFORE the single clamp (P3).
             const float off = (gR ? matrix.offsetAt (d, at) : 0.0f) + (vR ? mv.offsetAt (d, at) : 0.0f);
+            if (tempoMode && f == GiDest::Density)
+                continue;   // Tempo: the effective density (tick)
+            if (tempoMode && f == GiDest::Size)
+            {
+                // parent P54: the synced size scaled by 2^(4·off) at the spawn sample
+                local.sizeMs = static_cast<float> (std::clamp (tempoSizeBase[s] * std::exp2 (4.0 * static_cast<double> (off)),
+                                                               kMinSizeMs, kMaxSizeMs));
+                continue;
+            }
             if (vR && ! gR)
                 rawBase[d] = matrix.rawNow (d);
             GiModMap::streamFieldFromRaw (local, f, matrix.apply (d, rawBase[d], off));
@@ -2219,7 +2390,8 @@ void Engine::spawn (const PendingOnset& o, std::int64_t tAbs) noexcept
     // same draws. Keyed on the note serial and the per-(k,s) counter index
     // epoch + onsetIndex (PD13), never the voice slot. Every draw goes through
     // its fixed Slot; a randomisation at 0 draws nothing.
-    const std::uint64_t counter = (v.serial << 24) | (o.idx & 0xFFFFFFull);
+    const std::uint64_t counter = o.burst ? (kBurstBit | (v.serial << 24) | (o.idx & 0xFFFFFFull))   // PD1: disjoint from every grid counter
+                                          : (v.serial << 24) | (o.idx & 0xFFFFFFull);
     const ouaricon::grain::CounterRng::Draw draw (seed, kGrainStream + static_cast<std::uint64_t> (s), counter);
     auto uni = [&draw] (std::uint32_t slot) noexcept { return static_cast<double> (draw.nextFloat (slot)); };
 
@@ -2494,7 +2666,7 @@ void Engine::spawn (const PendingOnset& o, std::int64_t tAbs) noexcept
         entry.pitchCents  = pitchCents;
         entry.centre      = c;
         entry.regionW     = W;
-        entry.counterIdx  = o.idx;
+        entry.counterIdx  = o.burst ? (kBurstBit | o.idx) : o.idx;
         entry.fxActive    = fxp.fxActive;
         entry.svfMode     = fxp.svfMode;
         entry.fcHz        = fxp.fcHz;

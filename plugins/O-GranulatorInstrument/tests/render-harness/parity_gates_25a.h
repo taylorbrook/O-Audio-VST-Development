@@ -42,7 +42,7 @@ namespace { namespace pg25a
     using eg21::setP;
 
     /** T12 lands the Tempo stream path: the Tempo rows (PL11-13, PLc3) run then. */
-    constexpr bool kTempoStreamsReady = false;
+    constexpr bool kTempoStreamsReady = true;
 
     struct MockPlayHead final : public juce::AudioPlayHead
     {

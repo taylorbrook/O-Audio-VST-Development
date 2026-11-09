@@ -49,6 +49,7 @@
 #include "GiHeadClamp.h"
 #include "GiModMatrix.h"
 #include "GiVoiceMod.h"
+#include "GiTempoClock.h"
 #include "KaiserResampler.h"   // kaiser::ratesEqual
 #include "GiRenderer.h"
 #include "GiScale.h"
@@ -479,6 +480,9 @@ namespace ogi
         float getSrcGForTest (int src) const noexcept                { return srcG[std::clamp (src, 0, kGiModSources - 1)]; }
         const GiGridParams::Stream& getPairViewForTest (int k, int s) const noexcept { return pairSp (std::clamp (k, 0, kVoiceSlots - 1), std::clamp (s, 0, kGiStreams - 1)); }
         bool  getPairMixForTest (int s) const noexcept               { return pairMix[std::clamp (s, 0, kGiStreams - 1)]; }
+        float getPairLevelForTest (int k, int s) const noexcept      { return pairLv[std::clamp (k, 0, kVoiceSlots - 1)][std::clamp (s, 0, kGiStreams - 1)].cur; }
+        float getRevMixForTest() const noexcept                      { return revMix.load (std::memory_order_relaxed); }
+        int   getRampCellsModForTest() const noexcept                { return rampCellsMod; }
         const GiScaleState& getScaleState() const noexcept  { return scale; }
         const FeedbackChain& getChainForTest (int s) const noexcept { return chain[std::clamp (s, 0, kGiStreams - 1)]; }
         FeedbackChain&       chainForTest (int s) noexcept          { return chain[std::clamp (s, 0, kGiStreams - 1)]; }
@@ -495,8 +499,9 @@ namespace ogi
             int           offset = 0;    // segment-relative
             double        frac   = 0.0;
             std::uint64_t index  = 0;    // scheduler index since the last reset
-            std::uint64_t idx    = 0;    // epoch_kS + index (the CounterRng index, PD13)
+            std::uint64_t idx    = 0;    // epoch_kS + index (the CounterRng index, PD13); burst: n
             std::uint64_t serial = 0;
+            bool          burst  = false;   // PLAN-2.5a PD1: the Tempo note-on burst (counter kBurstBit | …)
         };
 
         struct PendingEnd
@@ -721,6 +726,20 @@ namespace ogi
         std::array<std::atomic<float>, kGiModSources> srcTel {};
         std::array<std::atomic<float>, kGiLfos>       lfoPhaseTel {};
         void       writeTelemetry() noexcept;
+
+        // T12 (PD1 / PD12): Tempo
+        GiTempoClock tclk[kVoiceSlots][kGiStreams];
+        GiTempoOnset tOnBuf[kCell + 1];
+        double     tempoDivS[kGiStreams] {};                  // effective division (global offsets), quarters
+        double     tempoSizeBase[kGiStreams] {};              // the synced size before the offset, ms
+        double     tempoDivKS[kVoiceSlots][kGiStreams] {};    // the pair's effective division (before thinning)
+        double     divKS[kVoiceSlots][kGiStreams] {};         // the clock's division (after thinning, PD12)
+        bool       burstPending[kVoiceSlots][kGiStreams] {};
+        std::uint64_t burstCount[kVoiceSlots][kGiStreams] {};
+        bool       prevTempo = false;
+        void       tempoEffective (float offD, float offS, GiGridParams::Stream& st, double& divOut, double& sizeBaseOut) const noexcept;
+        void       applyTempoEffective() noexcept;
+        void       pairTempo (int k) noexcept;
         CellLerp   pairGL[kVoiceSlots][kGiStreams], pairGR[kVoiceSlots][kGiStreams], pairLv[kVoiceSlots][kGiStreams];
 
         // 2.5a matrix substitutes of ramped G destinations (parent R47): the
