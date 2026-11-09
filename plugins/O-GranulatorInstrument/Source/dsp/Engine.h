@@ -76,7 +76,8 @@
 //   4. mix (PD12): per stream acc_s = Σ_k a_k · g_out,kS · bus_kS, then
 //      Σ_s acc_s · level_s · aud_s · voiceGain · pan_s (the sum starts from the
 //      first audible stream's term; a stream whose audibility ramp sits at 0
-//      is skipped) → wet safety 1.9953·tanh (x/1.9953) → output_gain → out.
+//      is skipped) → wet safety = the parent D9 knee wetKnee (identity at or
+//      below kKneeT; PLAN-2.4 PD1) → output_gain → out.
 //      Reverb absent (unity), feedback return zeroed (P8).
 //
 // Stream s reads slot s. Every random draw keys on (seed, kGrainStream + s /
@@ -228,7 +229,9 @@ namespace ogi
         bool nanKillOff       = false;   // FZ control: skip the P12 finite check
         bool fxOrderSwap      = false;   // PFc5: crush before drive
         bool legacySvfMake    = false;   // PFc6: svfMake := 1 (the pre-D10 latch)
-        bool wetSafetyOff     = false;   // PF rows: the two kWetCeil·tanh statements skipped (identity)
+        bool wetSafetyOff     = false;   // PF rows: the wet knee skipped (identity)
+        // 2.4 (PLAN-2.4 PD19)
+        bool legacyWetTanh    = false;   // PD1 attribution: the 2.1–2.3 kWetCeil·tanh statements instead of wetKnee
         bool fxSubnormalScan  = false;   // FZ1: per-tick scan of the active slots' FX state for subnormals
         struct Inject { int slot = -1; std::int64_t atSample = 0; int field = 0; float value = 0.0f; bool done = false; };
         Inject injectNan;                // write value into SVF field (0 ic1[0], 1 ic1[1], 2 ic2[0], 3 ic2[1]) of slot, first segment t0 >= atSample

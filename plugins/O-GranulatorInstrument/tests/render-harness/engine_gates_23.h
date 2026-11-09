@@ -369,7 +369,7 @@ namespace { namespace eg23
         juce::StringArray gold;
         gold.addLines (gGoldenDir.getChildFile ("renders-2.2.sha256").loadFileAsString());
         gold.removeEmptyStrings();
-        const auto now = rh::computeAll();
+        const auto now = rh::computeAllLegacy();   // PLAN-2.4 PD1: hashes under legacyWetTanh
         int same = 0;
         for (const auto& l : now)
             same += gold.contains (l) ? 1 : 0;
@@ -381,6 +381,7 @@ namespace { namespace eg23
                            { "amp_attack", 5.0f }, { "amp_release", 200.0f }, { eg21::s1 ("drive"), 1.0f } };
             Session s (48000.0, rh::stim (over, false), kSeed, 512);
             rh::prepareJob (s, false);
+            s.hk().legacyWetTanh = true;   // PLAN-2.4 PD1: same path as the jobs above
             s.load (0, noiseBuf (2, 3 * 48000, 0.3f, 7), 48000.0);
             eg21::n1Script (s);
             s.run (96000, 512);
@@ -390,7 +391,7 @@ namespace { namespace eg23
         for (const auto& l : gold)
             if (l.startsWith ("N1-default ")) hN1 = l.fromLastOccurrenceOf (" ", false, false);
         const bool fired = hC.isNotEmpty() && hN1.isNotEmpty() && hC != hN1;
-        row (gold.size() == 14 && now.size() == 14 && same == 14 && fired, "FR1 FX-off renders == renders-2.2.sha256 (14 jobs, true bypass)",
+        row (gold.size() == 14 && now.size() == 14 && same == 14 && fired, "FR1 FX-off renders == renders-2.2.sha256 (14 jobs, true bypass; legacyWetTanh, PLAN-2.4 PD1)",
              "meas " + juce::String (same) + "/14 lines identical | thr 14 | margin " + juce::String (same - 14)
                  + " | " + ctrl (fired, "N1-default + s1_drive 1 % -> hash differs"));
     }

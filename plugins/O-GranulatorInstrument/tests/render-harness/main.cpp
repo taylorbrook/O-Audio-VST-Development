@@ -1008,6 +1008,10 @@ static void hookRows()
 #include "parity_gates_23.h"
 #include "engine_gates_23.h"
 
+// PLAN-2.4 T3 / T12: working-copy feedback, Freeze, Reset, reverb + knee gates
+// (TB / FL / CL / MS / RS / SR / FA4) + --cpu25.
+#include "engine_gates_24.h"
+
 //==============================================================================
 int main (int argc, char** argv)
 {
@@ -1050,14 +1054,16 @@ int main (int argc, char** argv)
             return cal::runCalib();
         else if (std::strcmp (argv[a], "--dump-render-hashes") == 0 && a + 1 < argc)
             return rh::dump (juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a])));
+        else if (std::strcmp (argv[a], "--dump-render-hashes-legacy") == 0 && a + 1 < argc)   // PLAN-2.4 PD1
+            return rh::dump (juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a])), true);
         else
         {
-            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--calib]\n", argv[a], argv[0]);
+            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--calib]\n", argv[a], argv[0]);
             return 255;
         }
     }
 
-    std::printf ("O-GranulatorInstrument render harness (Stage 1 + Phase 2.1 + Phase 2.2 + Phase 2.3)\n");
+    std::printf ("O-GranulatorInstrument render harness (Stage 1 + Phase 2.1 + Phase 2.2 + Phase 2.3 + Phase 2.4)\n");
     paramRows();
     busRows();
     midiRows();
@@ -1068,6 +1074,7 @@ int main (int argc, char** argv)
     eg22::runAll();
     fu23::runAll();
     eg23::runAll();
+    eg24::runAll();
 
     std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
     return juce::jmin (failures, 255);

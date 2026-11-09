@@ -1520,13 +1520,19 @@ void Engine::mixPiece (int c0, int c1, float* outL, float* outR) noexcept
             yR = accR[0][c] * lv * panRRamp[0].value (c);
         }
 
-        // P8 wet safety, then output_gain.
+        // Wet safety = the parent D9 knee (PLAN-2.4 PD1; identity at or below
+        // kKneeT), then output_gain.
        #if OGI_TEST_HOOKS
-        if (! hooks.wetSafetyOff)   // PF rows (PLAN-2.3 PD5): identity
-       #endif
+        if (hooks.legacyWetTanh)    // PLAN-2.4 PD1: the exact 2.1–2.3 statements
         {
             yL = kWetCeil * std::tanh (yL / kWetCeil);
             yR = kWetCeil * std::tanh (yR / kWetCeil);
+        }
+        else if (! hooks.wetSafetyOff)   // PF rows (PLAN-2.3 PD5): identity
+       #endif
+        {
+            yL = wetKnee (yL);
+            yR = wetKnee (yR);
         }
         const float og = outGainRamp.value (c);
         outL[c - c0] = yL * og;

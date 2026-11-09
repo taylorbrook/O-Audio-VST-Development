@@ -169,6 +169,7 @@ namespace { namespace eg22
         s.hk().coherenceOff = true;
         s.hk().voiceGainDbOverride = -6.0;
         s.hk().forceBankPath = forceBank;
+        s.hk().legacyWetTanh = true;   // PLAN-2.4 PD1: W0a / W0b compare against renders-2.1 (the RB1 attribution)
         s.load (0, sineBuf (1, (int) (6.0 * kFs), 440.0, kFs, 0.5), kFs);
         s.noteOn (0, 60);
         s.run ((juce::int64) (2.05 * kFs), 512);
@@ -185,7 +186,7 @@ namespace { namespace eg22
                 if (l.trim().isNotEmpty())
                     gold[l.upToFirstOccurrenceOf (" ", false, false)] = l.fromLastOccurrenceOf (" ", false, false).trim();
         }
-        for (const auto& l : rh::computeAll())
+        for (const auto& l : rh::computeAllLegacy())   // PLAN-2.4 PD1: hashes under legacyWetTanh
             now[l.upToFirstOccurrenceOf (" ", false, false)] = l.fromLastOccurrenceOf (" ", false, false).trim();
 
         int pinnedOk = 0, pinnedN = 0, defDiff = 0, defN = 0;
@@ -206,7 +207,7 @@ namespace { namespace eg22
             }
         }
         const bool fired = defDiff >= 1;
-        row (gold.size() == 14 && pinnedN == 7 && pinnedOk == 7 && fired, "RB1 re-baseline proof: 7 -pinned hashes == renders-2.1.sha256",
+        row (gold.size() == 14 && pinnedN == 7 && pinnedOk == 7 && fired, "RB1 re-baseline proof: 7 -pinned hashes == renders-2.1.sha256 (legacyWetTanh, PLAN-2.4 PD1)",
              "meas " + juce::String (pinnedOk) + "/7 pinned equal" + (bad.isEmpty() ? juce::String() : " (differ:" + bad + ")")
                  + " | thr 7/7 | margin " + juce::String (pinnedOk - 7)
                  + " | " + ctrl (fired, "-default jobs: " + juce::String (defDiff) + "/" + juce::String (defN) + " differ from 2.1"));

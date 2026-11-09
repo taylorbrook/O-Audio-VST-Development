@@ -63,7 +63,7 @@ namespace ogi
     inline constexpr double kVoiceGainEarTrimDb  = 0.0;
     inline constexpr double kVoiceGainDb = kVoiceGainMeasuredDb + kVoiceGainEarTrimDb;   // per-voice headroom
     inline constexpr double kEnvEndLevel = 1.5848931924611134e-5;   // −96 dB: a voice ends below this
-    inline constexpr float  kWetCeil     = 1.99526231f;            // P8 wet safety 1.9953·tanh (x / 1.9953)
+    inline constexpr float  kWetCeil     = 1.99526231f;            // legacy wet safety (2.1–2.3); the legacyWetTanh hook only (PLAN-2.4 PD1)
 
     // ── Slot store (D2, S8) ─────────────────────────────────────────────────
     inline constexpr double kSlotMaxSeconds = 30.0;

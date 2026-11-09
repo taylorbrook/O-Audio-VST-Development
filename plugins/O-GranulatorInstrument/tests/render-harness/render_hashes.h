@@ -51,10 +51,40 @@ namespace { namespace rh
         return p;
     }
 
-    /** THE single extension point (PLAN-2.2 PD10). Empty at T2. */
+    /** PLAN-2.4 PD1 / T3: job overrides applied by prepareJob. `legacy` renders
+        under the 2.1–2.3 wet safety (legacyWetTanh, the attribution proof);
+        `extra` is applied after the pins; `events` are parameter sets at
+        absolute sample positions (multiples of 32, event-split blocks: TB1). */
+    struct Overrides
+    {
+        bool legacy = false;
+        bool wetOff = false;   // TB2 identity half: wetSafetyOff (identity) instead of the knee
+        P extra;
+        std::vector<std::pair<juce::int64, P>> events;
+    };
+    inline Overrides overrides;
+
+    /** RAII: install overrides for a scope, restore the previous ones after. */
+    struct ScopedOverrides
+    {
+        explicit ScopedOverrides (Overrides o) : saved (overrides) { overrides = std::move (o); }
+        ~ScopedOverrides() { overrides = saved; }
+        Overrides saved;
+    };
+
+    /** THE single extension point (PLAN-2.2 PD10; PLAN-2.4 T3 adds the overrides). */
     inline void prepareJob (Session& s, bool pinned)
     {
         if (pinned) { s.hk().coherenceOff = true; s.hk().voiceGainDbOverride = -6.0; }
+        if (! overrides.extra.empty())
+            eg21::setAll (*s.p, overrides.extra);
+        for (const auto& ev : overrides.events)
+        {
+            const P ps = ev.second;
+            s.at (ev.first, [ps] (Session& ss) { eg21::setAll (*ss.p, ps); });
+        }
+        s.hk().legacyWetTanh = overrides.legacy;
+        s.hk().wetSafetyOff  = overrides.wetOff;
     }
 
     inline P stim (P over, bool pinned)
@@ -217,9 +247,22 @@ namespace { namespace rh
         return lines;
     }
 
-    /** --dump-render-hashes <file>: writes the table; returns failures (control + pinned==default INFO). */
-    int dump (const juce::File& out)
+    /** computeAll() under legacyWetTanh (PLAN-2.4 PD1: renders-2.1 / 2.2 attribution). */
+    juce::StringArray computeAllLegacy()
     {
+        Overrides o = overrides;
+        o.legacy = true;
+        ScopedOverrides so (o);
+        return computeAll();
+    }
+
+    /** --dump-render-hashes <file> (shipping) / --dump-render-hashes-legacy <file>
+        (legacyWetTanh): writes the table; returns failures (control + pinned==default INFO). */
+    int dump (const juce::File& out, bool legacy = false)
+    {
+        Overrides o = overrides;
+        o.legacy = legacy;
+        ScopedOverrides so (o);
         const auto lines = computeAll();
         out.replaceWithText (lines.joinIntoString ("\n") + "\n", false, false, "\n");
 
