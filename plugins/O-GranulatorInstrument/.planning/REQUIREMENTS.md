@@ -23,7 +23,7 @@ lastUpdated: 2026-11-09
 | FUNC-02 | One audio file per stream slot (4 slots), loaded by drag-drop or a file browser; slots may share a file | must | partial | stage-2 |
 | FUNC-03 | Key-tracked pitch relative to the per-stream root note, with keyTrack amount and pitch-bend range | must | partial | stage-2 |
 | FUNC-04 | Per-stream scan: position, scan rate, scan mode (free/retrigger/ping-pong), loop region | must | partial | stage-2 |
-| FUNC-05 | Voice modes Poly / Mono / Legato with glide | should | pending | stage-2 |
+| FUNC-05 | Voice modes Poly / Mono / Legato with glide | should | partial | stage-2 |
 | FUNC-06 | File references persist in state; a missing file shows relink without crashing; factory sources resolve from the content folder | must | pending | stage-2 |
 | FUNC-07 | Record-in: capture sidechain input into a target slot (manual / threshold / next-note trigger) | should | pending | stage-2 |
 | FUNC-08 | Small factory source set plus presets that load out of the box | should | pending | stage-4 |
@@ -38,7 +38,7 @@ lastUpdated: 2026-11-09
 | DSP-03 | Per-grain FX (SVF filter, drive, crush, ring) inherited | must | partial | stage-2 |
 | DSP-04 | Feedback into per-stream working copies, with Freeze and Reset; voice-count-aware runaway guard | must | complete | stage-2 |
 | DSP-05 | Output reverb/diffuser inherited | should | complete | stage-2 |
-| DSP-06 | Mod matrix (16 slots): LFOs (global/per-voice), 2 mod ADSRs, velocity, key, note-random, mod wheel, aftertouch, MPE pressure/slide/bend, 4 macros | must | partial | stage-2 |
+| DSP-06 | Mod matrix (16 slots): LFOs (global/per-voice), 2 mod ADSRs, velocity, key, note-random, mod wheel, aftertouch, MPE pressure/slide/bend, 4 macros | must | complete | stage-2 |
 | DSP-07 | Files resampled to the session rate on load; band-limited reads when pitched up | must | partial | stage-2 |
 
 ### UI (UI)
@@ -88,6 +88,9 @@ lastUpdated: 2026-11-09
 - [ ] scanRate 100 % traverses the loop region in real time; 0 % holds still
 - [ ] Retrigger restarts at `position` on each note; Free-run does not
 
+### FUNC-05: Voice modes
+- [ ] Poly / Mono / Legato with glide; Legato retriggers neither env nor scan (2.5b verify: VM1–VM6, FK1–FK3, GL1–GL6, VS1–VS4, SU1–SU6 with firing controls; VM3 Legato bitwise == single note; feel = HANDS-ON-2.5b rows 1–6, deferred)
+
 ### FUNC-06: File state
 - [ ] Save/reopen restores all 4 files, loop regions and the scale state
 - [ ] A missing file shows relink and the plugin stays stable
@@ -112,7 +115,7 @@ lastUpdated: 2026-11-09
 - [x] Reverb inherited from O-Granulator (2.4 verify: PR1–12/PRk nulls ≤ −96.8 dB vs the parent; RV1–RV3 audible / tail fade / cold re-enable; listening confirmation = HANDS-ON-2.4 row 7, deferred)
 
 ### DSP-06: Modulation
-- [ ] Each listed source routes to a continuous destination with bipolar depth (2.5a verify: every 2.5a source routes — SD1 17/17, DR1 125/125, parity PL/PM/PE ≤ −143.0 dB vs the parent; open: MPE per-member pressure/slide/bend = 2.5b)
+- [x] Each listed source routes to a continuous destination with bipolar depth (2.5a verify: every 2.5a source routes — SD1 17/17, DR1 125/125, parity PL/PM/PE ≤ −143.0 dB vs the parent; 2.5b verify: MPE per-member pressure/slide/bend move only their own note — MP1 0 st / neighbours bitwise, MP6, MR1 5/5, MR2–MR4; controller feel = HANDS-ON-2.5b row 7, deferred)
 - [x] Per-voice sources modulate each voice independently (2.5a verify: PV1 3 voices 0 ulp, VL1–VL3 phase reset + allocation-order invariance; feel = HANDS-ON-2.5a, deferred)
 
 ### DSP-07: Resampling / anti-aliasing
@@ -120,7 +123,7 @@ lastUpdated: 2026-11-09
 - [ ] +24 st grains show no aliasing above the gate threshold
 
 ### PERF-01 / PERF-03: RT safety
-- [ ] Alloc gate: 0 allocations in processBlock across note on/off, steal, file swap and reset
+- [ ] Alloc gate: 0 allocations in processBlock across note on/off, steal, file swap and reset (2.5a verify: FA5 matrix / tempo / steals; 2.5b verify: AL1 MIDI / MPE / NE script incl. 130 held keys + mode switches, NE5 raw-event overflow; open: file swap / Record-in = 2.6)
 
 ### PERF-02: CPU budget
 - [ ] The documented budget is met at 16 voices × 4 streams with the default grainLimit (2.4 verify: worst case C25w 26.59 % ≤ 40 % with chains + reverb; 2.5a verify: final worst case with 16 per-voice routes C25m 26.81 % ≤ 40 %, typical + 4 routes C25tm 6.37 % ≤ 12 %; open: typical on factory presets Stage 4)
@@ -129,7 +132,7 @@ lastUpdated: 2026-11-09
 - [x] pluginval strictness 10 passes for VST3 and AU
 
 ### QUAL-01: Artifacts
-- [ ] Click gates pass for note-off, steal, file swap, reset and freeze toggle
+- [ ] Click gates pass for note-off, steal, file swap, reset and freeze toggle (2.5b verify: CK5a/d/e/g Mono retrigger, D32 switch, pedal-up, Mono velocity ≤ 1.542× with firing controls; CK5b/c/f bound-only → HANDS-ON-2.5b row 10; open: file swap = 2.6)
 
 ---
 
