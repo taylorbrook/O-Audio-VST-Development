@@ -321,6 +321,7 @@ namespace ogi
         // 2.6 (PLAN-2.6 PD23)
         bool baseBypass       = false;   // LK2n: processBlockBypassed calls the JUCE base (the pre-2.6 leak)
         bool scNoClear        = false;   // LK1n: no per-piece output zero AND the mixer accumulates (out +=)
+        bool swapKillHard     = false;   // CK6n: a new-source swap cuts the old tape's grains in 1 sample
 
         // ── voice readouts (per voice SLOT; stream-0 views) ──────────────────
         double        voiceRate[kVoiceSlots]   {};   // rate the voice latches now (tick, note-on, s1 spawn)
@@ -534,6 +535,7 @@ namespace ogi
             any note). The shipping fade stays kPoolFadeMs. */
         void testSetPoolFadeMs (double ms) noexcept       { pool.prepare (fs, ms); }
         const GiSpawner& getSpawner() const noexcept        { return spawner; }
+        GiSpawner&       spawnerForTest() noexcept          { return spawner; }
         const Voice&     getVoice (int k) const noexcept    { return voices[std::clamp (k, 0, kVoiceSlots - 1)]; }
         // 2.5b (PD19)
         const GiNoteStack& getStackForTest() const noexcept { return noteStack; }

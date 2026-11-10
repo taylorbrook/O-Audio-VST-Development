@@ -232,9 +232,17 @@ namespace ogi
             {
                 if (! (g.g.killStep > 0.0f))
                     g.g.killStep = killStep;
+               #if OGI_TEST_HOOKS
+                if (testKillStepOverride > 0.0f)
+                    g.g.killStep = testKillStepOverride;   // CK6n: swapKillHard (a 1-sample cut)
+               #endif
                 pendingKill[idx] = 0;
             }
         }
+
+       #if OGI_TEST_HOOKS
+        float testKillStepOverride = 0.0f;   // PLAN-2.6 PD23 swapKillHard (0 = the 5 ms law)
+       #endif
 
         /** Non-killing live grains of the 256 live slots (hooks / gates). */
         int countAlive (const GiPool& pool) const noexcept

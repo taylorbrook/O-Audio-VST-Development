@@ -1058,6 +1058,11 @@ static void hookRows()
 // PLAN-2.5a T7: DSP-06 matrix parity rows (PL / PL0t / PLs / PM / PE + controls, --parity).
 #include "parity_gates_25a.h"
 
+// PLAN-2.6 T12 / T13: Record-in capture / leaks / commit (eg26a); state / resolve /
+// factory / hash / alloc / clicks / block size / telemetry / bypass (eg26b) + --cpu26.
+#include "engine_gates_26a.h"
+#include "engine_gates_26b.h"
+
 //==============================================================================
 // PLAN-2.6 T10 / PD16: the factory stub generator (--gen-factory <dir> [--force]).
 // The same JUCE FLAC encoder, int path and quantiser as the plugin
@@ -1225,6 +1230,20 @@ int main (int argc, char** argv)
             std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
             return juce::jmin (failures, 255);
         }
+        else if (std::strcmp (argv[a], "--eg26") == 0)    // dev: the Phase 2.6 engine gates only (eg26a + eg26b; OGI_ROWS filters)
+        {
+            eg26b::guardStart();
+            eg26a::runAll();
+            eg26b::runAll();
+            std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
+            return juce::jmin (failures, 255);
+        }
+        else if (std::strcmp (argv[a], "--cpu26") == 0)   // PLAN-2.6 T17: run alone; rc = FAIL count (C25m / C25tm), C26rec INFO
+        {
+            const int f = eg26b::cpu26();
+            std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
+            return f;
+        }
         else if (std::strcmp (argv[a], "--cpu25a") == 0)  // PLAN-2.5a PD18: run alone; rc = FAIL count
         {
             const int f = eg25b::cpu25a();
@@ -1252,12 +1271,13 @@ int main (int argc, char** argv)
             return rh::dump (juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a])), true);
         else
         {
-            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--cpu25a] [--cpu25b] [--eg24] [--eg25] [--eg25b] [--calib]\n", argv[a], argv[0]);
+            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--cpu25a] [--cpu25b] [--cpu26] [--eg24] [--eg25] [--eg25b] [--eg26] [--gen-factory <dir> [--force]] [--calib]\n", argv[a], argv[0]);
             return 255;
         }
     }
 
-    std::printf ("O-GranulatorInstrument render harness (Stage 1 + Phase 2.1 + Phase 2.2 + Phase 2.3 + Phase 2.4 + Phase 2.5a + Phase 2.5b)\n");
+    std::printf ("O-GranulatorInstrument render harness (Stage 1 + Phase 2.1 + Phase 2.2 + Phase 2.3 + Phase 2.4 + Phase 2.5a + Phase 2.5b + Phase 2.6)\n");
+    eg26b::guardStart();   // GD1: the real Recordings folder, snapshot before any row
     paramRows();
     busRows();
     midiRows();
@@ -1274,6 +1294,8 @@ int main (int argc, char** argv)
     eg25b::runAll();
     eg25c::runAll();
     eg25d::runAll();
+    eg26a::runAll();
+    eg26b::runAll();
 
     std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
     return juce::jmin (failures, 255);

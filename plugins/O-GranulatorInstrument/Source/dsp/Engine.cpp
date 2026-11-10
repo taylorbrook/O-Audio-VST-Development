@@ -1128,6 +1128,9 @@ void Engine::takeTapes (std::int64_t t) noexcept
 
 void Engine::killGrainsOfTape (const SlotTape* tape) noexcept
 {
+   #if OGI_TEST_HOOKS
+    spawner.testKillStepOverride = hooks.swapKillHard ? 1.0f : 0.0f;
+   #endif
     const VoiceGrain* const base = pool.getGrains().data();
     for (int i = 0; i < kPoolLive; ++i)   // fade slots already fade out within 5 ms
     {
