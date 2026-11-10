@@ -43,6 +43,8 @@
 #endif
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
+#include "dsp/GiHash.h"
+#include "dsp/GiFactory.h"
 
 #include <algorithm>
 #include <cmath>
@@ -85,12 +87,33 @@ namespace
         juce::String detail (int total) const { return juce::String (total - bad) + "/" + juce::String (total) + (bad ? "  e.g. " + notes.joinIntoString ("; ") : juce::String()); }
     };
 
+    /** PLAN-2.6 PD17 / P19: every processor's Recordings folder is a temp
+        subdir with a NON-ASCII component (built through juce::File /
+        String::fromUTF8, never String (const char*)); deleted at exit. The
+        real ~/Music/Ouaricon/... folder is never resolved by the harness. */
+    juce::File harnessRecordingsDir()
+    {
+        static const juce::File dir = []
+        {
+            auto base = juce::File::getSpecialLocation (juce::File::tempDirectory)
+                            .getChildFile ("ogi-harness-rec-" + juce::String (juce::Time::currentTimeMillis()));
+            return base.getChildFile (juce::String::fromUTF8 ("R\xc3\xa9" "cordings \xe2\x9c\x93"));
+        }();
+        return dir;
+    }
+
+    struct RecDirGuard
+    {
+        ~RecDirGuard() { harnessRecordingsDir().getParentDirectory().deleteRecursively(); }
+    };
+
     std::unique_ptr<GranulatorInstrumentProcessor> make()
     {
         std::unique_ptr<juce::AudioProcessor> raw (createPluginFilter());
         auto* p = dynamic_cast<GranulatorInstrumentProcessor*> (raw.get());
         jassert (p != nullptr);
         raw.release();
+        p->getLoader().setRecordingsDirectory (harnessRecordingsDir());
         return std::unique_ptr<GranulatorInstrumentProcessor> (p);
     }
 
@@ -743,6 +766,8 @@ static void renderRows()
                         setAllRandomViaHost (*q, pr);
                     }
                     setParam (*q, "mpe_enable", 1.0f);   // the script carries MPE member notes
+                    // PLAN-2.6 PD17 (P9): rec_arm pinned Off — capture-on leak coverage is LK1.
+                    setParam (*q, "rec_arm", 0.0f);
                     q->prepareToPlay (kSr, b == 0 ? 512 : b);
                     const bool okCount = q->getSidechainChannelCount() == lay.scCh;
 
@@ -1034,13 +1059,118 @@ static void hookRows()
 #include "parity_gates_25a.h"
 
 //==============================================================================
+// PLAN-2.6 T10 / PD16: the factory stub generator (--gen-factory <dir> [--force]).
+// The same JUCE FLAC encoder, int path and quantiser as the plugin
+// (SlotLoader::encodeFlac24, quality 5). Deterministic; licence-clean.
+namespace { namespace genfactory
+{
+    ogi::SlotLoader::Pristine stubTone()
+    {
+        constexpr double fs = 48000.0;
+        constexpr int n = 144000;               // 3.0 s
+        constexpr int ramp = 480;               // 10 ms raised-cosine ends
+        ogi::SlotLoader::Pristine p;
+        p.rate = fs;
+        p.name = "stub_tone";
+        p.pcm.setSize (1, n);
+        std::vector<double> x ((size_t) n);
+        double pk = 0.0;
+        for (int i = 0; i < n; ++i)
+        {
+            double v = 0.0;
+            for (int k = 1; k <= 8; ++k)
+                v += std::sin (2.0 * juce::MathConstants<double>::pi * 220.0 * k * (double) i / fs) / (double) k;
+            x[(size_t) i] = v;
+            pk = std::max (pk, std::abs (v));
+        }
+        const double g = std::pow (10.0, -12.0 / 20.0) / pk;   // −12 dBFS peak
+        for (int i = 0; i < n; ++i)
+        {
+            double w = 1.0;
+            if (i < ramp)          w = 0.5 - 0.5 * std::cos (juce::MathConstants<double>::pi * (double) i / (double) ramp);
+            else if (i >= n - ramp) w = 0.5 - 0.5 * std::cos (juce::MathConstants<double>::pi * (double) (n - 1 - i) / (double) ramp);
+            p.pcm.setSample (0, i, (float) (x[(size_t) i] * g * w));
+        }
+        return p;
+    }
+
+    ogi::SlotLoader::Pristine stubNoise()
+    {
+        constexpr double fs = 48000.0;
+        constexpr int n = 144000;
+        ogi::SlotLoader::Pristine p;
+        p.rate = fs;
+        p.name = "stub_noise";
+        p.pcm.setSize (2, n);
+        double acc = 0.0;
+        std::vector<double> y (2 * (size_t) n);
+        for (int c = 0; c < 2; ++c)
+        {
+            double z = 0.0;
+            for (int i = 0; i < n; ++i)
+            {
+                z += 0.25 * ((double) eg21::hashNoise ((juce::int64) i, c, 1.0f) - z);   // one-pole LP
+                y[(size_t) c * (size_t) n + (size_t) i] = z;
+                acc += z * z;
+            }
+        }
+        const double rms = std::sqrt (acc / (2.0 * n));
+        const double g = std::pow (10.0, -18.0 / 20.0) / rms;   // −18 dBFS RMS
+        for (int c = 0; c < 2; ++c)
+            for (int i = 0; i < n; ++i)
+                p.pcm.setSample (c, i, (float) (y[(size_t) c * (size_t) n + (size_t) i] * g));
+        return p;
+    }
+
+    int run (const juce::File& dir, bool force)
+    {
+        dir.createDirectory();
+        int rc = 0;
+        for (auto* make : { &stubTone, &stubNoise })
+        {
+            const auto p = make();
+            const auto f = dir.getChildFile (p.name + ".flac");
+            if (f.exists() && ! force)
+            {
+                std::printf ("refusing to overwrite %s (use --force)\n", f.getFullPathName().toRawUTF8());
+                rc = 1;
+                continue;
+            }
+            juce::MemoryBlock mb;
+            if (! ogi::SlotLoader::encodeFlac24 (p, mb, 5))
+            {
+                std::printf ("encode failed: %s\n", p.name.toRawUTF8());
+                rc = 1;
+                continue;
+            }
+            f.replaceWithData (mb.getData(), mb.getSize());
+            ogi::SlotLoader::Pristine d;
+            juce::String err;
+            const bool ok = ogi::SlotLoader::decodeMemoryFlac (mb.getData(), mb.getSize(), p.name, 48000.0, d, err);
+            std::printf ("%s  %d bytes  decoded %s  contentHash %s  (%d ch, %d frames)\n", f.getFileName().toRawUTF8(),
+                         (int) mb.getSize(), ok ? "ok" : err.toRawUTF8(),
+                         ok ? ogi::gihash::toHex (ogi::gihash::contentHash (d.pcm)).toRawUTF8() : "-",
+                         d.pcm.getNumChannels(), d.pcm.getNumSamples());
+        }
+        return rc;
+    }
+} }
+
+//==============================================================================
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI init;
+    RecDirGuard recDirGuard;   // PLAN-2.6: the harness Recordings temp tree is removed at exit
 
     for (int a = 1; a < argc; ++a)
     {
-        if (std::strcmp (argv[a], "--golden-dir") == 0 && a + 1 < argc)
+        if (std::strcmp (argv[a], "--gen-factory") == 0 && a + 1 < argc)   // PLAN-2.6 PD16
+        {
+            const juce::File dir = juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a]));
+            const bool force = a + 1 < argc && std::strcmp (argv[a + 1], "--force") == 0;
+            return genfactory::run (dir, force);
+        }
+        else if (std::strcmp (argv[a], "--golden-dir") == 0 && a + 1 < argc)
             gGoldenDir = juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a]));
         else if (std::strcmp (argv[a], "--parity") == 0 && a + 1 < argc)
         {

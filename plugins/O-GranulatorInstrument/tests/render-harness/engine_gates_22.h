@@ -32,7 +32,7 @@
       A2   0 audio-thread allocations, 4 streams + scale    ctrl liveness malloc(64)
       NB1  block-size null, all randomisation               ctrl seed + 1
       V3s  slot invariance, 4 streams                       ctrl seed + 1
-      N2s   7 unread params bit-identical, 4 streams        ctrl s1_density / s4_window (readSet25b, PLAN-2.5b PD15)
+      N2s   7 rec_* + silent SC bit-identical, 4 streams  ctrl s1_density / s4_window (readSet26, PLAN-2.6 PD17)
     cpu22(): PLAN-2.2 T13 C22 recipe, INFO only (--cpu22).
 
   ==============================================================================
@@ -1441,7 +1441,7 @@ namespace { namespace eg22
 
     void rowN2s()
     {
-        const auto readSet = eg21::readSet25b();   // PLAN-2.5b PD15 (2.5a: readSet25a 251 / 10; 2.4: readSet24 162 / 99; 2.3: readSet23 153 / 108; 2.2: readSet22 113 / 148)
+        const auto readSet = eg21::readSet26();   // PLAN-2.6 PD17 (2.5b: readSet25b 254 / 7; 2.5a: readSet25a 251 / 10; 2.4: readSet24 162 / 99; 2.3: readSet23 153 / 108; 2.2: readSet22 113 / 148)
         int bound = 0;
         {
             auto probe = make();
@@ -1451,26 +1451,15 @@ namespace { namespace eg22
         const P P0 = cat ({ base4 (4), all4 ("density", 50.0f), all4 ("size", 200.0f), all4 ("spray", 20.0f), all4 ("jitter", 30.0f),
                             all4 ("stereo_spread", 50.0f), { { "polyphony", 4.0f } } });
         int touched = 0;
-        auto unread = [&readSet, &touched] (Proc& p)
-        {
-            juce::Random r ((juce::int64) 0x4E220002);
-            touched = 0;
-            for (auto* ap : p.getParameters())
-                if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (ap))
-                    if (! readSet.contains (rp->getParameterID()))
-                    {
-                        rp->setValueNotifyingHost (r.nextFloat());
-                        ++touched;
-                    }
-        };
+        auto unread = [&touched] (Proc& p) { touched = eg21::touchRec26 (p, (juce::int64) 0x4E220002); };
         const auto ref = renderNB (512, kSeed, {}, P0, false);
         const int n = diffCount (ref, renderNB (512, kSeed, unread, P0, false));
         const int nD = diffCount (ref, renderNB (512, kSeed, [] (Proc& p) { setP (p, Ids::stream (1, "density"), 120.0f); }, P0, false));
         const int nW = diffCount (ref, renderNB (512, kSeed, [] (Proc& p) { setP (p, Ids::stream (4, "window"), 0.5f); }, P0, false));
         const bool fired = nD > 0 && nW > 0;
-        row (n == 0 && bound == 254 && touched == 7 && fired, "N2s unread params bit-identical, 4 streams on (readSet25b)",
-             "meas " + juce::String (n) + " samples differ with " + juce::String (touched) + " unread params randomised ("
-                 + juce::String (bound) + "/254 read IDs bound) | thr 0 | margin " + juce::String (-n)
+        row (n == 0 && bound == 261 && touched == 7 && fired, "N2s rec_* with a silent sidechain bit-identical, 4 streams on (readSet26)",
+             "meas " + juce::String (n) + " samples differ with " + juce::String (touched) + " rec_* randomised, arm On ("
+                 + juce::String (bound) + "/261 read IDs bound) | thr 0 | margin " + juce::String (-n)
                  + " | " + ctrl (fired, "s1_density -> " + juce::String (nD) + ", s4_window -> " + juce::String (nW) + " differ"));
     }
 

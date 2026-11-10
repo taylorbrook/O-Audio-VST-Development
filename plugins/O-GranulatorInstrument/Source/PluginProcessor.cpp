@@ -18,6 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include "PluginProcessor.h"
+#include "dsp/GiHash.h"
 
 // OGI_DEV_LOADER (CONTEXT-2.1 D13, PLAN-2.1 P4) is defined =1 on the PLUGIN
 // target only (CMake option, default ON until Phase 3.1). The consoles never
@@ -99,16 +100,51 @@ GranulatorInstrumentProcessor::GranulatorInstrumentProcessor()
     engine->bindScale (scale);
 
     loader = std::make_unique<ogi::SlotLoader> (formatManager, handoff);
+    // PLAN-2.6: a published commit with a failed WAV → the recorder's reason
+    // (an atomic flag; the worker never touches audio state otherwise).
+    loader->onCommitted = [rec = &engine->getRecorder()] (int, bool wavFailed)
+    {
+        if (wavFailed)
+            rec->noteWavFailed();
+    };
 
     updateSidechainChannelCount();
+
+    // PLAN-2.6 PD7: the commit poll (never AsyncUpdater: it locks + reallocs
+    // on the audio thread).
+    if (juce::MessageManager::getInstanceWithoutCreating() != nullptr)
+    {
+        recPollTimer = std::make_unique<RecPollTimer> (*this);
+        recPollTimer->startTimer (20);
+    }
+    else
+    {
+        recPollThread = std::make_unique<RecPollThread> (*this);
+        recPollThread->startThread();
+    }
 }
 
 GranulatorInstrumentProcessor::~GranulatorInstrumentProcessor()
 {
-    // Explicit order (members would do the same): stop and join the loader
-    // worker first, then free the engine's tapes; the handoff frees the rest.
+    // Explicit order: stop the commit poll first (it calls the loader and the
+    // engine), then stop and join the loader worker, then free the engine's
+    // tapes; the handoff frees the rest.
+    if (recPollThread != nullptr)
+        recPollThread->stopThread (2000);
+    recPollThread.reset();
+    recPollTimer.reset();
     loader.reset();
     engine.reset();
+}
+
+void GranulatorInstrumentProcessor::pollRecorder()
+{
+    auto take = std::make_shared<ogi::SlotLoader::Pristine>();
+    ogi::RecCommit c;
+    if (! engine->getRecorder().takeCommit (take->pcm, c))
+        return;
+    take->rate = c.rate;
+    loader->requestCommit (c.slot, std::move (take));
 }
 
 //==============================================================================
@@ -214,15 +250,19 @@ void GranulatorInstrumentProcessor::processBlock (juce::AudioBuffer<float>& buff
     // Keep the note-expression raw-event queue cycling (a no-op outside VST3).
     vst3Extensions.drainAndUpdate();
 
-    // Clear EVERY channel the buffer carries first (outputs and input-only
-    // channels alike): the in-place buffer holds the sidechain, which never
-    // reaches the output (D9). The sidechain is not read in 2.1.
+    // PLAN-2.6 PD19: channels >= 2 are never outputs and are cleared here.
+    // Channels 0 / 1 hold the in-place sidechain: the engine copies it into a
+    // scratch per 32-grid piece, then zeroes and renders the output (the
+    // sidechain never reaches the output, D9 / QUAL-02). Only the NEGOTIATED
+    // sidechain channels are read (ch 1 of a mono sidechain is host garbage).
     const int n = buffer.getNumSamples();
-    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+    const int nCh = buffer.getNumChannels();
+    const int scCh = sidechainChannels.load (std::memory_order_relaxed);
+    for (int ch = 2; ch < nCh; ++ch)
         buffer.clear (ch, 0, n);
 
-    // Render into the (cleared) stereo output. The output bus is stereo by
-    // isBusesLayoutSupported; a buffer narrower than 2 stays silent.
+    // Render the stereo output. The output bus is stereo by
+    // isBusesLayoutSupported; a buffer narrower than 2 is cleared (silent).
     // PLAN-2.5a PD12: the host transport, read ONCE per block by value (no
     // allocation). The only playhead read in the plugin; no playhead → the
     // tracker's own 120 bpm virtual transport.
@@ -274,9 +314,17 @@ void GranulatorInstrumentProcessor::processBlock (juce::AudioBuffer<float>& buff
    #endif
     vst3Extensions.neDropped = 0;
 
-    if (n > 0 && buffer.getNumChannels() >= 2)
-        engine->process (buffer.getWritePointer (0), buffer.getWritePointer (1), n, midiMessages, getSeed(), ts,
-                         neEvents.data(), numNe);
+    if (n > 0 && nCh >= 2)
+    {
+        float* ch0 = buffer.getWritePointer (0);
+        float* ch1 = buffer.getWritePointer (1);
+        engine->process (ch0, ch1, n, midiMessages, getSeed(), ts, neEvents.data(), numNe,
+                         scCh >= 1 ? ch0 : nullptr, scCh >= 2 ? ch1 : nullptr);
+    }
+    else
+    {
+        buffer.clear();   // the engine was not called: nothing of the input survives
+    }
 
     // MIDI is consumed (producesMidi() == false).
     midiMessages.clear();
@@ -288,7 +336,22 @@ void GranulatorInstrumentProcessor::processBlockBypassed (juce::AudioBuffer<floa
 {
     vst3Extensions.neCount = 0;   // P6: a bypassed block's NE events never replay
     vst3Extensions.neDropped = 0;
-    AudioProcessor::processBlockBypassed (buffer, midiMessages);
+   #if OGI_TEST_HOOKS
+    if (engine->hooks.baseBypass)
+    {
+        // LK2n: the JUCE base clears only channels >= the main-input count
+        // (juce_AudioProcessor.cpp:601-602); the Sidechain IS the main input
+        // bus, so a stereo sidechain passes straight to the output (RS1).
+        AudioProcessor::processBlockBypassed (buffer, midiMessages);
+        return;
+    }
+   #endif
+    // PLAN-2.6 PD20 (RS1 leak fix): every channel cleared — the in-place
+    // buffer holds the sidechain, which never reaches the output. The base is
+    // never called.
+    buffer.clear();
+    juce::ignoreUnused (midiMessages);   // MIDI passes untouched (producesMidi() == false)
+    engine->bypassedBlock();
 }
 
 juce::AudioProcessorEditor* GranulatorInstrumentProcessor::createEditor()
@@ -315,6 +378,16 @@ ogi::SlotInfo GranulatorInstrumentProcessor::getSlotInfo (int slot) const
 void GranulatorInstrumentProcessor::requestReset (int slot)
 {
     loader->requestReset (slot);
+}
+
+void GranulatorInstrumentProcessor::requestRelink (int slot, const juce::File& file)
+{
+    loader->requestRelink (slot, file);
+}
+
+void GranulatorInstrumentProcessor::setSlotEmbed (int slot, bool on)
+{
+    loader->setSlotEmbed (slot, on);
 }
 
 //==============================================================================
@@ -417,7 +490,10 @@ void GranulatorInstrumentProcessor::resetNonParameterState()
 //     <Engine seed="-1234" stateVersion="1" modDestTableVersion="1"/>
 //     <CustomScale name="..." text="edo 19" period="1200" version="3"/>
 //     <DegreeMasks> <Mask stream="1" collection="19" bits="8000000000000001"/> ... </DegreeMasks>
-//     <Slots/>                     (Slot children: Phase 2.6, keyed by "index")
+//     <Slots>                      (PLAN-2.6 PD21; only non-empty slots, fixed attribute order)
+//       <Slot index="0" source="rec:/…/GI-Rec-….wav" name="…" fileSize="123" contentHash="0123456789abcdef"
+//             embed="1" trimmed="0" embedded="…base64 FLAC-24…"/>
+//     </Slots>
 //   </OGranulatorInstrument>
 //
 // - Written onto the copyState() COPY; the live tree is never mutated from a host thread.
@@ -438,7 +514,7 @@ void GranulatorInstrumentProcessor::resetNonParameterState()
 //==============================================================================
 namespace
 {
-    const juce::Identifier kEngineTag ("Engine"), kSlotsTag ("Slots"),
+    const juce::Identifier kEngineTag ("Engine"), kSlotsTag ("Slots"), kSlotTag ("Slot"),
                            kCustomScaleTag ("CustomScale"), kDegreeMasksTag ("DegreeMasks"), kMaskTag ("Mask");
     const juce::Identifier kUiLanguageAttr ("uiLanguage");
 
@@ -489,7 +565,25 @@ void GranulatorInstrumentProcessor::getStateInformation (juce::MemoryBlock& dest
         }
     state.appendChild (dm, nullptr);
 
-    state.appendChild (juce::ValueTree (kSlotsTag), nullptr);
+    // PLAN-2.6 PD21: the loader's records, copied under its lock (never
+    // encodes: a blob still encoding → embed="1" without `embedded`).
+    juce::ValueTree slots (kSlotsTag);
+    for (const auto& x : loader->getSavedSlots())
+    {
+        juce::ValueTree t (kSlotTag);
+        t.setProperty ("index", juce::String (x.index), nullptr);
+        t.setProperty ("source", x.source, nullptr);
+        t.setProperty ("name", x.name, nullptr);
+        t.setProperty ("fileSize", juce::String (x.fileSize), nullptr);
+        if (x.hasHash)
+            t.setProperty ("contentHash", ogi::gihash::toHex (x.hash), nullptr);
+        t.setProperty ("embed", x.embed ? "1" : "0", nullptr);
+        t.setProperty ("trimmed", x.trimmed ? "1" : "0", nullptr);
+        if (x.embed && x.blob.isNotEmpty())
+            t.setProperty ("embedded", x.blob, nullptr);
+        slots.appendChild (t, nullptr);
+    }
+    state.appendChild (slots, nullptr);
 
     if (auto xml = state.createXml())
         copyXmlToBinary (*xml, destData);
@@ -510,7 +604,8 @@ void GranulatorInstrumentProcessor::setStateInformation (const void* data, int s
     const juce::ValueTree cs  = tree.getChildWithName (kCustomScaleTag);
     const juce::ValueTree dm  = tree.getChildWithName (kDegreeMasksTag);
     const juce::var lang = tree.getProperty (kUiLanguageAttr);
-    // <Slots>: Phase 2.6 parses its <Slot index> children and enqueues loader jobs.
+    // PLAN-2.6 PD21: <Slots> parsed BEFORE the strip (P7); applied below.
+    const auto slots = parseSlots (tree.getChildWithName (kSlotsTag));
 
    #if OGI_TEST_HOOKS
     if (! testNoStateStrip)
@@ -556,6 +651,69 @@ void GranulatorInstrumentProcessor::setStateInformation (const void* data, int s
     }
 
     applyNonParameterState (custom, masks, seedVar);
+
+    // Records written at once + resolve jobs queued (host thread; never decodes).
+    loader->restoreSlots (slots);
+}
+
+std::vector<ogi::SavedSlot> GranulatorInstrumentProcessor::parseSlots (const juce::ValueTree& slotsTree) const
+{
+    // R§6.1: every property is an XML string var. index = exactly one digit
+    // 0–3; a known source prefix or the slot is empty; embed / trimmed as "1"
+    // or "true" (never isBool, P6); fileSize digits only; contentHash exactly
+    // 16 hex (never getLargeIntValue, P5); embedded bounded + base64 alphabet.
+    std::vector<ogi::SavedSlot> out;
+    if (! slotsTree.isValid())
+        return out;
+
+    bool isBool = false;
+   #if OGI_TEST_HOOKS
+    isBool = testParseIsBool;
+   #endif
+    auto flag = [isBool] (const juce::var& v, bool dflt)
+    {
+        if (v.isVoid())
+            return dflt;
+        if (isBool)
+            return v.isBool() ? static_cast<bool> (v) : dflt;   // ST5n: XML never yields a bool
+        const auto s = v.toString().trim();
+        return s == "1" || s.equalsIgnoreCase ("true");
+    };
+
+    for (const auto& c : slotsTree)
+    {
+        if (! c.hasType (kSlotTag))
+            continue;
+        const auto idx = c.getProperty ("index").toString().trim();
+        if (idx.length() != 1 || ! idx.containsOnly ("0123"))
+            continue;
+
+        ogi::SavedSlot x;
+        x.index  = idx.getIntValue();
+        x.source = c.getProperty ("source").toString();
+        if (! (x.source.startsWith ("factory:") || x.source.startsWith ("file:") || x.source.startsWith ("rec:")))
+            continue;   // unknown scheme → empty
+        x.name = c.getProperty ("name").toString();
+
+        const auto fsz = c.getProperty ("fileSize").toString().trim();
+        if (fsz.isNotEmpty() && fsz.length() <= 18 && fsz.containsOnly ("0123456789"))
+            x.fileSize = fsz.getLargeIntValue();
+
+        x.hasHash = ogi::gihash::fromHex (c.getProperty ("contentHash").toString().trim(), x.hash);
+        x.embed   = flag (c.getProperty ("embed"), false);
+        x.trimmed = flag (c.getProperty ("trimmed"), false);
+
+        const auto blob = c.getProperty ("embedded");
+        if (! blob.isVoid())
+        {
+            const auto b = blob.toString();
+            if (b.length() <= ogi::SlotLoader::kBlobMaxChars && (b.length() % 4) == 0
+                && b.containsOnly ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="))
+                x.blob = b;
+        }
+        out.push_back (std::move (x));
+    }
+    return out;
 }
 
 void GranulatorInstrumentProcessor::applyNonParameterState (const juce::var& custom, const juce::var& masks, const juce::var& seedVar)
@@ -613,6 +771,17 @@ bool GranulatorInstrumentProcessor::loadSlotSync (int slot, const juce::AudioBuf
                                                   const juce::String& name, juce::String& error)
 {
     return loader->loadSync (slot, pcm, sourceRate, name, error);
+}
+
+bool GranulatorInstrumentProcessor::commitSync()
+{
+    auto take = std::make_shared<ogi::SlotLoader::Pristine>();
+    ogi::RecCommit c;
+    if (! engine->getRecorder().takeCommit (take->pcm, c))
+        return false;
+    take->rate = c.rate;
+    juce::String error;
+    return loader->commitSync (c.slot, std::move (take), error);
 }
 
 bool GranulatorInstrumentProcessor::resetSlotSync (int slot)

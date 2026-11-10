@@ -78,8 +78,9 @@ struct GiVst3Extensions final : Ouaricon::NoteExpression::VST3Extensions
 // (slot paths persist from 2.6).
 //
 // Phase 2.2: the ogi::Engine renders 4 grain streams per voice, stream N
-// reading slot N (Source/dsp/Engine.h); every output channel is cleared first,
-// so the sidechain never reaches the output. Slot files load off-thread
+// reading slot N (Source/dsp/Engine.h); the engine copies the in-place
+// sidechain into a scratch and zeroes each output piece before rendering it
+// (PLAN-2.6 PD19), so the sidechain never reaches the output. Slot files load off-thread
 // through ogi::SlotLoader and are installed lock-free by ogi::SlotHandoff.
 //
 // Scale state (CONTEXT-2.2 D17, PLAN-2.2 T6 / PD3 / PD4): ONE shared custom
@@ -109,7 +110,9 @@ public:
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
     using AudioProcessor::processBlock;
     /** PLAN-2.5b PD6 / P6: a bypassed block drops this block's raw NE events
-        (never replayed later at stale offsets), then the base behaviour. */
+        (never replayed later at stale offsets). PLAN-2.6 PD20: then clears
+        EVERY channel (the base would pass the sidechain through, RS1) and
+        tells the engine (the recorder cancels / stops). */
     void processBlockBypassed (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
     using AudioProcessor::processBlockBypassed;
 
@@ -161,6 +164,15 @@ public:
         parameter, never saved (the working copy reloads pristine). Stage 3
         binds the native function. */
     void requestReset (int slot);
+
+    /** PLAN-2.6 (message thread; Stage 3.2 binds them): relink a missing /
+        moved slot to `file` (PD14), and the D36 per-slot embed toggle. */
+    void requestRelink (int slot, const juce::File& file);
+    void setSlotEmbed (int slot, bool on);
+
+    /** PLAN-2.6 PD15: Record-in telemetry (any thread, lock-free).
+        recState = state | reason << 8 | heldArm << 16 (GiRecorder.h codes). */
+    std::uint32_t getRecordState() const noexcept { return engine->getRecorder().getPackedState(); }
 
     // ── Scale state (message thread; D17) ─────────────────────────────────────
     struct CustomScale
@@ -225,7 +237,19 @@ public:
     bool testNoStateStrip = false;
     /** ST3 control: setStateInformation skips resetNonParameterState(). */
     bool testNoStateReset = false;
+    /** PLAN-2.6 ST5n control: <Slot> embed / trimmed parsed with var::isBool()
+        (XML gives strings, so the defaults come back). */
+    bool testParseIsBool = false;
+
+    /** PLAN-2.6 PD7: the commit poll + job on the CALLING thread
+        (deterministic rows). False when no take is ready. */
+    bool commitSync();
    #endif
+
+    /** PLAN-2.6 PD7: the off-audio poll (message-thread Timer, or a watcher
+        thread when there is no MessageManager): copy a ready take out of the
+        recorder, then hand it to the loader's worker. */
+    void pollRecorder();
 
 private:
     void updateSidechainChannelCount() noexcept;
@@ -241,6 +265,9 @@ private:
         collection, bits } objects, `seed` an int64 decimal string. Void =
         absent. Message thread. */
     void applyNonParameterState (const juce::var& custom, const juce::var& masks, const juce::var& seed);
+
+    /** PLAN-2.6 PD21: the <Slots> children, type-safely parsed (R§6.1). */
+    std::vector<ogi::SavedSlot> parseSlots (const juce::ValueTree& slotsTree) const;
 
     GiVst3Extensions vst3Extensions;
     std::array<ogi::GiNeEvent, GiVst3Extensions::kNeCap> neEvents {};   // PD6: this block's converted raw events
@@ -264,6 +291,31 @@ private:
     ogi::SlotHandoff handoff;
     std::unique_ptr<ogi::Engine> engine;
     std::unique_ptr<ogi::SlotLoader> loader;
+
+    // PLAN-2.6 PD7: the commit poll. A 20 ms message-thread Timer; without a
+    // MessageManager a small watcher thread runs the same poll. Destroyed
+    // first (declared last), before the loader / engine it calls.
+    struct RecPollTimer final : juce::Timer
+    {
+        explicit RecPollTimer (GranulatorInstrumentProcessor& o) : owner (o) {}
+        void timerCallback() override { owner.pollRecorder(); }
+        GranulatorInstrumentProcessor& owner;
+    };
+    struct RecPollThread final : juce::Thread
+    {
+        explicit RecPollThread (GranulatorInstrumentProcessor& o) : juce::Thread ("OGI rec poll"), owner (o) {}
+        void run() override
+        {
+            while (! threadShouldExit())
+            {
+                owner.pollRecorder();
+                wait (20);
+            }
+        }
+        GranulatorInstrumentProcessor& owner;
+    };
+    std::unique_ptr<RecPollTimer>  recPollTimer;
+    std::unique_ptr<RecPollThread> recPollThread;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GranulatorInstrumentProcessor)
 };

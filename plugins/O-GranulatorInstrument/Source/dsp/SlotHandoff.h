@@ -58,6 +58,13 @@
 // Threads: publish / sweep / dtor take `lock` (off-audio only; host threads
 // publish too — prepareToPlay re-rates, loadSlotSync). take / retire /
 // blockEntered / blockExited never lock and never allocate.
+//
+// PLAN-2.6 PD11 — the clear sentinel. clearTape() is one static, never-freed
+// SlotTape (frames 0). publishClear (s) publishes it through the same pending
+// exchange; the engine's take sees it, kill-fades the slot's grains (5 ms),
+// retires the old tape and sets current = nullptr. The sentinel never enters
+// the engine's current / retiring sets, and publish / the dtor / the deferred
+// list skip it (a pending clear superseded by a load is dropped, not freed).
 // ============================================================================
 namespace ogi
 {
@@ -68,18 +75,32 @@ namespace ogi
         {
             for (auto& p : pending)
                 p.store (nullptr, std::memory_order_relaxed);
+            (void) clearTape();   // construct the sentinel here, never first on the audio thread
         }
 
         ~SlotHandoff()
         {
             const juce::ScopedLock sl (lock);
             for (auto& p : pending)
-                delete p.exchange (nullptr, std::memory_order_acq_rel);
+            {
+                SlotTape* t = p.exchange (nullptr, std::memory_order_acq_rel);
+                if (! isClear (t))
+                    delete t;
+            }
             drainRingLocked();
             for (auto& d : deferred)
-                delete d.tape;
+                if (! isClear (d.tape))
+                    delete d.tape;
             deferred.clear();
         }
+
+        /** PLAN-2.6 PD11: the slot-clear sentinel (static, never deleted). */
+        static SlotTape* clearTape() noexcept
+        {
+            static SlotTape sentinel;   // frames 0, rate 0: never rendered
+            return &sentinel;
+        }
+        static bool isClear (const SlotTape* t) noexcept { return t != nullptr && t == clearTape(); }
 
         //======================================================================
         // Audio thread (and prepareToPlay, which never runs concurrently with it).
@@ -116,21 +137,28 @@ namespace ogi
         //======================================================================
         // Off-audio (message / worker / host threads).
 
-        /** Installs tape as the slot's pending tape (takes ownership). */
+        /** Installs tape as the slot's pending tape (takes ownership; the
+            sentinel is never owned). */
         void publish (int slot, SlotTape* tape)
         {
             if (slot < 0 || slot >= kTapeSlots)
             {
-                delete tape;
+                if (! isClear (tape))
+                    delete tape;
                 return;
             }
             const juce::ScopedLock sl (lock);
             SlotTape* old = pending[(size_t) slot].exchange (tape, std::memory_order_acq_rel);
-            if (old != nullptr)
+            if (old != nullptr && ! isClear (old))   // a superseded clear is dropped, not freed
                 deferred.push_back ({ old, exits.load (std::memory_order_acquire) });
             publishedCount.fetch_add (1, std::memory_order_relaxed);
+            if (isClear (tape))
+                clearsPublished.fetch_add (1, std::memory_order_relaxed);
             sweepLocked();
         }
+
+        /** PLAN-2.6 PD11: empties the slot through the pending exchange. */
+        void publishClear (int slot) { publish (slot, clearTape()); }
 
         /** Reaper: deletes retired tapes and frees superseded ones when safe. */
         void sweep()
@@ -158,6 +186,7 @@ namespace ogi
         std::uint64_t getReapedCount() const noexcept     { return reapedCount.load (std::memory_order_relaxed); }
         std::uint64_t getSupersededFreed() const noexcept { return supersededFreed.load (std::memory_order_relaxed); }
         std::uint64_t getPublishedCount() const noexcept  { return publishedCount.load (std::memory_order_relaxed); }
+        std::uint64_t getClearsPublished() const noexcept { return clearsPublished.load (std::memory_order_relaxed); }
         std::uint64_t getBlockEntries() const noexcept    { return entries.load (std::memory_order_acquire); }
         std::uint64_t getBlockExits() const noexcept      { return exits.load (std::memory_order_acquire); }
 
@@ -181,7 +210,8 @@ namespace ogi
             while (r != w)
             {
                 auto& slotRef = ring[(size_t) (r % static_cast<std::uint32_t> (kRetireRingCap))];
-                delete slotRef;
+                if (! isClear (slotRef))   // never retired by the engine; belt and braces (P15)
+                    delete slotRef;
                 slotRef = nullptr;
                 ++r;
                 reapedCount.fetch_add (1, std::memory_order_relaxed);
@@ -209,7 +239,8 @@ namespace ogi
                 const auto d = deferred[i];
                 if (quiescent || ex >= d.stamp + 2)
                 {
-                    delete d.tape;
+                    if (! isClear (d.tape))
+                        delete d.tape;
                     supersededFreed.fetch_add (1, std::memory_order_relaxed);
                 }
                 else
@@ -227,6 +258,7 @@ namespace ogi
 
         std::atomic<std::uint64_t> entries { 0 }, exits { 0 };
         std::atomic<std::uint64_t> retiredCount { 0 }, reapedCount { 0 }, supersededFreed { 0 }, publishedCount { 0 };
+        std::atomic<std::uint64_t> clearsPublished { 0 };
 
         juce::CriticalSection lock;
         std::vector<Deferred> deferred;   // guarded by lock

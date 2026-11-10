@@ -322,6 +322,39 @@ namespace { namespace eg21
         return a;
     }
 
+    /** PLAN-2.6 PD17: readSet25b() + the 7 rec_* rows = all 261 IDs bound.
+        N2 / N2s / FN3 re-scoped: "touched" = the 7 rec_* randomised (rec_arm
+        forced On, so a take is always attempted) with a SILENT sidechain —
+        the D6 presence discard must leave the output bitwise identical. */
+    juce::StringArray recSet26()
+    {
+        return { "rec_target", "rec_arm", "rec_trigger", "rec_threshold", "rec_length", "rec_length_sync", "rec_gain" };
+    }
+
+    juce::StringArray readSet26()
+    {
+        auto a = readSet25b();
+        a.addArray (recSet26());
+        return a;
+    }
+
+    /** Randomises the 7 rec_* (host normalised), then rec_arm On (an Off→On
+        edge at the first block after prepare). Returns the count touched. */
+    int touchRec26 (Proc& p, juce::int64 seed)
+    {
+        juce::Random r (seed);
+        int touched = 0;
+        for (const auto& id : recSet26())
+            if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (p.parameters.getParameter (id)))
+            {
+                rp->setValueNotifyingHost (r.nextFloat());
+                ++touched;
+            }
+        if (auto* arm = p.parameters.getParameter ("rec_arm"))
+            arm->setValueNotifyingHost (1.0f);
+        return touched;
+    }
+
     //==========================================================================
     // Position-deterministic sources.
     float hashNoise (juce::int64 i, int ch, float amp)
@@ -2127,7 +2160,7 @@ namespace { namespace eg21
         // plus every row 2.2 binds); s2-s4 stay disabled by base().
         // 2.3 (PLAN-2.3 PD10) / 2.4 (PLAN-2.4 PD16): readSet24() — the FX rows
         // and the 9 feedback / freeze / reverb globals are bound now.
-        const auto readSet = readSet25b();   // PLAN-2.5b PD15 (2.5a: readSet25a 251 / 10; 2.4: readSet24 162 / 99)
+        const auto readSet = readSet26();   // PLAN-2.6 PD17 (2.5b: readSet25b 254 / 7; 2.5a: readSet25a 251 / 10)
         int bound = 0;
         {
             auto probe = make();
@@ -2135,25 +2168,14 @@ namespace { namespace eg21
                 bound += param (*probe, id) != nullptr ? 1 : 0;
         }
         int touched = 0;
-        auto unread = [&readSet, &touched] (Proc& p)
-        {
-            juce::Random r ((juce::int64) 0x4E200002);
-            touched = 0;
-            for (auto* ap : p.getParameters())
-                if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (ap))
-                    if (! readSet.contains (rp->getParameterID()))
-                    {
-                        rp->setValueNotifyingHost (r.nextFloat());
-                        ++touched;
-                    }
-        };
+        auto unread = [&touched] (Proc& p) { touched = touchRec26 (p, (juce::int64) 0x4E200002); };
         const auto base512 = renderN (512, kSeed, {});
         const int nUnread = diffCount (base512, renderN (512, kSeed, unread));
         const int nDensity = diffCount (base512, renderN (512, kSeed, [] (Proc& p) { setP (p, s1 ("density"), 120.0f); }));
         const bool fired2 = nDensity > 0;
-        row (nUnread == 0 && bound == 254 && touched == 7 && fired2, "N2 unread params (record) bit-identical (readSet25b)",
-             "meas " + juce::String (nUnread) + " samples differ with " + juce::String (touched) + " unread params randomised ("
-                 + juce::String (bound) + "/254 read IDs bound, readSet25b) | thr 0 | margin " + juce::String (-nUnread)
+        row (nUnread == 0 && bound == 261 && touched == 7 && fired2, "N2 rec_* with a silent sidechain bit-identical (readSet26)",
+             "meas " + juce::String (nUnread) + " samples differ with " + juce::String (touched) + " rec_* randomised, arm On ("
+                 + juce::String (bound) + "/261 read IDs bound, readSet26) | thr 0 | margin " + juce::String (-nUnread)
                  + " | " + ctrl (fired2, "s1_density 120 -> " + juce::String (nDensity) + " differ"));
     }
 

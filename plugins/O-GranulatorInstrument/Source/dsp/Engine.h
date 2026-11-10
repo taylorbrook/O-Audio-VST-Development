@@ -46,6 +46,8 @@
 #include "AmpEnv.h"
 #include "GiFxLatch.h"
 #include "GiRecordHead.h"
+#include "GiRecorder.h"
+#include "GiTelemetry.h"
 #include "GiHeadClamp.h"
 #include "GiModMatrix.h"
 #include "GiMpe.h"
@@ -316,6 +318,9 @@ namespace ogi
         Inject injectNan;                // write value into SVF field (0 ic1[0], 1 ic1[1], 2 ic2[0], 3 ic2[1]) of slot, first segment t0 >= atSample
         struct Retire { int slot = -1; std::int64_t atSample = 0; bool done = false; };
         Retire forceRetire;              // same trigger → the P12 verdict forced false
+        // 2.6 (PLAN-2.6 PD23)
+        bool baseBypass       = false;   // LK2n: processBlockBypassed calls the JUCE base (the pre-2.6 leak)
+        bool scNoClear        = false;   // LK1n: no per-piece output zero AND the mixer accumulates (out +=)
 
         // ── voice readouts (per voice SLOT; stream-0 views) ──────────────────
         double        voiceRate[kVoiceSlots]   {};   // rate the voice latches now (tick, note-on, s1 spawn)
@@ -463,11 +468,31 @@ namespace ogi
             feedback return; clears voices and pool; retires idle tapes. */
         void prepare (double sampleRate, int maxBlockSize);
 
-        /** Audio thread. outL / outR must be CLEARED by the caller; numSamples
-            may exceed the prepared block size (everything is 32-sample scratch). */
+        /** Audio thread. numSamples may exceed the prepared block size
+            (everything is 32-sample scratch). PLAN-2.6 PD19: scL / scR are the
+            sidechain channels of the in-place host buffer (nullptr = absent;
+            scL may alias outL, scR outR). Per 32-grid piece the engine copies
+            sc[pos, b) into a fixed scratch FIRST, then zeroes out[pos, b), then
+            renders: the sidechain never reaches the output, and the caller no
+            longer clears the outputs. */
         void process (float* outL, float* outR, int numSamples, const juce::MidiBuffer& midi,
                       std::uint64_t seed, const TransportSnapshot& transport = {},
-                      const GiNeEvent* ne = nullptr, int numNe = 0) noexcept;   // PLAN-2.5b PD6
+                      const GiNeEvent* ne = nullptr, int numNe = 0,   // PLAN-2.5b PD6
+                      const float* scL = nullptr, const float* scR = nullptr) noexcept;
+
+        /** PLAN-2.6 PD10 (audio thread): the host bypassed this block
+            (processBlockBypassed). Armed → cancel; Recording → stop. */
+        void bypassedBlock() noexcept;
+
+        /** PLAN-2.6 T6: the Record-in capture. takeCommit / noteWavFailed /
+            the telemetry getters are the off-audio surface. */
+        GiRecorder&       getRecorder() noexcept       { return recorder; }
+        const GiRecorder& getRecorder() const noexcept { return recorder; }
+
+        /** PLAN-2.6 PD15: the Stage 3 feeds (any thread reads; the engine
+            writes once per host block / per head cell). */
+        GiTelemetry&       getTelemetry() noexcept       { return tel; }
+        const GiTelemetry& getTelemetry() const noexcept { return tel; }
 
         static constexpr int kNeCapacity = 64;              // per block (the module's WR-02 capacity)
         static constexpr std::uint32_t kTuningTypeID = 2;   // VST3 SDK ivstnoteexpression.h:49 (kTuningTypeID; P7 literal)
@@ -751,6 +776,12 @@ namespace ogi
         float    lawTarget[kVoiceSlots][kGiStreams] {};
         double   coher[kVoiceSlots][kGiStreams] {};
         float    accL[kGiStreams][kCell] {}, accR[kGiStreams][kCell] {};   // mixer scratch
+        float    scS[2][kCell] {};   // PLAN-2.6 PD19: this piece's sidechain (copied before the output zero)
+        int      scChNow = 0;        // sidechain channels handed to this block (0 / 1 / 2)
+        GiRecorder recorder;         // PLAN-2.6 T6
+        GiTelemetry tel;             // PLAN-2.6 T11 (constructor-allocated, ≈ 290 KB)
+        void publishTelemetry (const float* outL, const float* outR, int n, float scPk) noexcept;
+        void foldOverview (int s) noexcept;   // after a head writes its cell
 
         ExactRamp outGainRamp;
         ExactRamp levelRamp[kGiStreams], panLRamp[kGiStreams], panRRamp[kGiStreams], audibleRamp[kGiStreams];

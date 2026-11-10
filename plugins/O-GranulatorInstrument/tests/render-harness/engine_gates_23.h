@@ -12,7 +12,7 @@
 
       FN1  stage chunk invariance {1, 3, 17, 32} vs 32      ctrl per-call ring renorm, chunks 17
       FN2  engine block-size null, all FX                   ctrl seed + 1
-      FN3   7 unread params bit-identical (readSet25b)       ctrl s1_filter_cutoff / s4_ring_freq
+      FN3   7 rec_* + silent SC bit-identical (readSet26)  ctrl s1_filter_cutoff / s4_ring_freq
       FR1  FX-off ≡ renders-2.2 (14 jobs)                   ctrl N1-default + s1_drive 1 %
       FV1a cutoff census (+ 44.1 k clamp)                   ctrl rand 50 % -> span < 3.6
       FV1b ring census (+ 44.1 k clamp)                     ctrl rand 50 % -> span < 3.6
@@ -331,7 +331,7 @@ namespace { namespace eg23
 
     void rowFN3()
     {
-        const auto readSet = eg21::readSet25b();   // PLAN-2.5b PD15 (2.5a: readSet25a 251 / 10; 2.4: readSet24 162 / 99; 2.3: readSet23 153 / 108)
+        const auto readSet = eg21::readSet26();   // PLAN-2.6 PD17 (2.5b: readSet25b 254 / 7; 2.5a: readSet25a 251 / 10; 2.4: readSet24 162 / 99; 2.3: readSet23 153 / 108)
         int bound = 0;
         {
             auto probe = make();
@@ -339,26 +339,15 @@ namespace { namespace eg23
                 bound += param (*probe, id) != nullptr ? 1 : 0;
         }
         int touched = 0;
-        auto unread = [&readSet, &touched] (Proc& p)
-        {
-            juce::Random r ((juce::int64) 0x4E230003);
-            touched = 0;
-            for (auto* ap : p.getParameters())
-                if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (ap))
-                    if (! readSet.contains (rp->getParameterID()))
-                    {
-                        rp->setValueNotifyingHost (r.nextFloat());
-                        ++touched;
-                    }
-        };
+        auto unread = [&touched] (Proc& p) { touched = eg21::touchRec26 (p, (juce::int64) 0x4E230003); };
         const auto ref = renderFN (512, kSeed, {}, false);
         const int n = diffCount (ref, renderFN (512, kSeed, unread, false));
         const int nC = diffCount (ref, renderFN (512, kSeed, [] (Proc& p) { setP (p, sn (1, "filter_cutoff"), 3000.0f); }, false));
         const int nR = diffCount (ref, renderFN (512, kSeed, [] (Proc& p) { setP (p, sn (4, "ring_freq"), 900.0f); }, false));
         const bool fired = nC > 0 && nR > 0;
-        row (n == 0 && bound == 254 && touched == 7 && fired, "FN3 unread params bit-identical, 4 streams, every FX on (readSet25b)",
-             "meas " + juce::String (n) + " samples differ with " + juce::String (touched) + " unread params randomised ("
-                 + juce::String (bound) + "/254 read IDs bound) | thr 0 | margin " + juce::String (-n)
+        row (n == 0 && bound == 261 && touched == 7 && fired, "FN3 rec_* with a silent sidechain bit-identical, 4 streams, every FX on (readSet26)",
+             "meas " + juce::String (n) + " samples differ with " + juce::String (touched) + " rec_* randomised, arm On ("
+                 + juce::String (bound) + "/261 read IDs bound) | thr 0 | margin " + juce::String (-n)
                  + " | " + ctrl (fired, "s1_filter_cutoff -> " + juce::String (nC) + ", s4_ring_freq -> " + juce::String (nR) + " differ"));
     }
 

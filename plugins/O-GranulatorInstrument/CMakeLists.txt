@@ -163,19 +163,24 @@ juce_generate_juce_header(OuariconGranulatorInstrument)
 #         OuariconGranulatorInstrument_UIResources
 # )
 
-# ── Factory sources (Design Sync S10) ───────────────────────────────────────
+# ── Factory sources (Design Sync S10; CONTEXT-2.6 D33, PLAN-2.6 T10) ─────────
 # Embedded BinaryData FLAC, addressed as factory:<id>, budget ≤ 8 MB in total.
 # A SECOND binary-data target with its OWN namespace and header — sharing the
 # default BinaryData namespace with the UI target is a link-time collision.
-# Stage 4 adds the 6–8 licence-clean files; until then the target is absent and
-# the processor's factory table is empty (factory: sources resolve to missing).
-# juce_add_binary_data(OuariconGranulatorInstrument_FactorySources
-#     NAMESPACE FactorySourceData
-#     HEADER_NAME FactorySourceData.h
-#     SOURCES
-#         Resources/factory/<id>.flac
-# )
-# target_link_libraries(OuariconGranulatorInstrument PRIVATE OuariconGranulatorInstrument_FactorySources)
+# Resource names keep [A-Za-z0-9_] (hyphens are STRIPPED): ids use
+# underscores. Linked BEFORE the console block so the harness / param-dump
+# inherit it (ParamDump.cmake carries the plugin's non-JUCE link targets).
+# 2.6: two generated stubs (render harness --gen-factory; pins in
+# Source/dsp/GiFactory.h + tests/golden/factory-stubs.sha256). Stage 4
+# replaces them by id with the curated 6–8 licence-clean sources.
+juce_add_binary_data(OuariconGranulatorInstrument_FactorySources
+    NAMESPACE FactorySourceData
+    HEADER_NAME FactorySourceData.h
+    SOURCES
+        Resources/factory/stub_tone.flac
+        Resources/factory/stub_noise.flac
+)
+target_link_libraries(OuariconGranulatorInstrument PRIVATE OuariconGranulatorInstrument_FactorySources)
 
 target_compile_definitions(OuariconGranulatorInstrument
     PUBLIC

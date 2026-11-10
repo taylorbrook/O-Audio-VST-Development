@@ -71,6 +71,7 @@ void Engine::bind (juce::AudioProcessorValueTreeState& apvts)
 {
     ptrs.bind (apvts);
     gp.latch (ptrs);
+    recorder.bind (apvts);   // PLAN-2.6 PD18: rec_* as raw atomics (no ControlGrid edit)
 }
 
 void Engine::bindScale (const ScaleSource& source) noexcept
@@ -95,6 +96,7 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     lastKeyNote = 0;
     mpe.reset();   // PLAN-2.5b PD7
     tracker.prepare (fs);   // 2.5a: virtual 120 bpm until the first host block
+    recorder.prepare (fs);  // PLAN-2.6 PD9: a take in flight commits at the old rate; buffer grow-only
 
     pool.prepare (fs, kPoolFadeMs);
     spawner.prepare (fs, kKillFadeMs);
@@ -607,10 +609,21 @@ float Engine::getLawFreshForTest (int k, int s, std::int64_t t) noexcept
 //==============================================================================
 void Engine::process (float* outL, float* outR, int numSamples, const juce::MidiBuffer& midi,
                       std::uint64_t seedIn, const TransportSnapshot& transport,
-                      const GiNeEvent* ne, int numNe) noexcept
+                      const GiNeEvent* ne, int numNe, const float* scL, const float* scR) noexcept
 {
+    // Nothing to zero on this path (no samples, or no output pointer); the
+    // processor clears the whole buffer whenever it does not call process().
     if (numSamples <= 0 || outL == nullptr || outR == nullptr)
         return;
+
+    // PLAN-2.6 PD6 / PD19: only the negotiated sidechain channels are read
+    // (ch 1 of a mono sidechain is host garbage, P14).
+    scChNow = scL == nullptr ? 0 : (scR == nullptr ? 1 : 2);
+    float scPk = 0.0f;
+    bool scZero = true;
+   #if OGI_TEST_HOOKS
+    scZero = ! hooks.scNoClear;
+   #endif
 
     // PLAN-2.5a PD12: the host transport, once per host block (R39 held anchor).
     tracker.update (transport, absPos);
@@ -626,6 +639,10 @@ void Engine::process (float* outL, float* outR, int numSamples, const juce::Midi
 
     MidiCursor cursor (midi, numSamples);
     const std::int64_t blockStart = absPos;
+
+    // PLAN-2.6 PD5: rec_arm / target / trigger read once; the arm edge is
+    // stamped at the block start (a host changes parameters between blocks).
+    recorder.beginBlock (blockStart, scChNow, tracker);
 
     // PLAN-2.5b PD6: the stamped VST3 raw events. Offsets are clamped into the
     // block and made non-decreasing (host order kept); NoteOns go to the
@@ -672,6 +689,22 @@ void Engine::process (float* outL, float* outR, int numSamples, const juce::Midi
         const int len = std::min (numSamples - pos, kCell - cellOff);
         const int b = pos + len;
 
+        // PLAN-2.6 PD19: the sidechain of [pos, b) into the scratch FIRST (the
+        // buffer is in place: outL / scL alias), then the output zeroed. The
+        // zero keeps the leak guarantee local even if the mixer ever
+        // accumulates; mixPiece assigns every sample, so renders are unchanged.
+        for (int i = 0; i < len; ++i)
+        {
+            scS[0][cellOff + i] = scL != nullptr ? scL[pos + i] : 0.0f;
+            scS[1][cellOff + i] = scR != nullptr ? scR[pos + i] : 0.0f;
+            scPk = std::max ({ scPk, std::abs (scS[0][cellOff + i]), std::abs (scS[1][cellOff + i]) });
+        }
+        if (scZero)
+        {
+            std::fill (outL + pos, outL + b, 0.0f);
+            std::fill (outR + pos, outR + b, 0.0f);
+        }
+
         int seg = pos;
         for (;;)
         {
@@ -704,10 +737,111 @@ void Engine::process (float* outL, float* outR, int numSamples, const juce::Midi
         if (b > seg)
             runSegment (cellOff + (seg - pos), cellOff + (b - pos), blockStart + seg);
 
+        // PLAN-2.6 PD19: the capture runs over this piece's scratch after the
+        // event loop (Next Note stamps arrive from startVoice / retriggerVoice).
+        recorder.runPiece (cellOff, cellOff + len, t, scS, tracker);
+
         mixPiece (cellOff, cellOff + len, outL + pos, outR + pos, t);
         pos = b;
     }
     absPos = blockStart + numSamples;
+    publishTelemetry (outL, outR, numSamples, scPk);
+}
+
+//==============================================================================
+// PLAN-2.6 T11 / PD15: the Stage 3 feeds. Written here only; never read back.
+void Engine::publishTelemetry (const float* outL, const float* outR, int n, float scPk) noexcept
+{
+    float op = 0.0f;
+    for (int i = 0; i < n; ++i)
+        op = std::max ({ op, std::abs (outL[i]), std::abs (outR[i]) });
+    pushMax (tel.outPeak, op);
+    pushMax (tel.scInPeak, scPk);
+
+    for (int s = 0; s < kTapeSlots; ++s)
+    {
+        tel.headPos[(size_t) s].store (head[s].h, std::memory_order_relaxed);
+        const std::uint8_t sw = static_cast<std::uint8_t> ((handoff.pendingDepth (s) > 0 ? 1 : 0)
+                                                          | (xfade[s].active ? 2 : 0)
+                                                          | (head[s].parked ? 4 : 0)
+                                                          | (head[s].swapWaiting ? 8 : 0));
+        tel.swapState[(size_t) s].store (sw, std::memory_order_relaxed);
+    }
+
+    // One complete frame per host block (TripleBuffer: seqHead first, seqTail last).
+    auto& f = tel.frames.writeBuffer();
+    const std::uint64_t sq = ++tel.seq;
+    f.seqHead = sq;
+    int count = 0;
+    const VoiceGrain* const base = pool.getGrains().data();
+    for (int i = 0; i < GiPool::kNumSlots && count < GiUiFrame::kMaxGrains; ++i)
+    {
+        if (! pool.isActive (i))
+            continue;
+        const VoiceGrain& vg = base[i];
+        const double frames = vg.tape != nullptr ? static_cast<double> (vg.tape->frames) : 0.0;
+        auto& u = f.grains[count++];
+        u.voice   = static_cast<std::uint8_t> (vg.voice);
+        u.stream  = static_cast<std::uint8_t> (vg.slot);
+        u.flags   = static_cast<std::uint8_t> ((vg.g.dir < 0 ? 1 : 0) | ((i >= kPoolLive || spawner.isKilling (vg, i)) ? 2 : 0));
+        u.normPos = frames > 0.0 ? static_cast<float> (vg.g.readAbs / frames) : 0.0f;
+        u.gain    = vg.g.killGain;
+    }
+    f.count = count;
+    for (int k = 0; k < kVoiceSlots; ++k)
+    {
+        const Voice& v = voices[k];
+        auto& u = f.voices[k];
+        u.note = v.isCounted() ? static_cast<std::int8_t> (std::clamp (v.note, 0, 127)) : static_cast<std::int8_t> (-1);
+        u.amp  = static_cast<float> (v.env.getLevel());
+        for (int s = 0; s < kGiStreams; ++s)
+        {
+            const SlotTape* tp = current[(size_t) s];
+            if (tp == nullptr || ! v.isCounted() || ! (tp->frames > 0))
+            {
+                u.scan[s] = 0.0f;
+                continue;
+            }
+            const auto& sp = pairSp (k, s);
+            const auto& rg = pairRegion (k, s);
+            const double sigmaSec = (sp.scanMode == kScanFreeRun) ? freeRun[s].at (absPos) : v.scan[s].at (absPos);
+            const double c = rg.width() > 0.0 ? scanCentre (rg, static_cast<double> (sp.position), sigmaSec * tp->rate, sp.scanMode) : 0.0;
+            u.scan[s] = static_cast<float> (c / static_cast<double> (tp->frames));
+        }
+    }
+    f.seqTail = sq;
+    tel.frames.publish();
+}
+
+void Engine::foldOverview (int s) noexcept
+{
+    // The cell the head just wrote: 32 frames, possibly across a wrap. Folded
+    // into the running bin accumulator; the bin is stored at every cell.
+    const SlotTape* tp = current[(size_t) s];
+    if (tp == nullptr)
+        return;
+    auto& a = tel.acc[s];
+    for (int o = 0; o < kCell; ++o)
+    {
+        const std::int64_t fr = head[s].headAt (o);
+        const int b = static_cast<int> (fr / kOverviewBin);
+        const float l = tp->tape.levelSample (0, 0, fr), r = tp->tape.levelSample (0, 1, fr);
+        if (b != a.bin)
+        {
+            if (a.bin >= 0)
+                tel.overview.write (s, a.bin, a.lo, a.hi);
+            a.bin = b;
+            a.lo = std::min (l, r);
+            a.hi = std::max (l, r);
+        }
+        else
+        {
+            a.lo = std::min ({ a.lo, l, r });
+            a.hi = std::max ({ a.hi, l, r });
+        }
+    }
+    if (a.bin >= 0)
+        tel.overview.write (s, a.bin, a.lo, a.hi);
 }
 
 //==============================================================================
@@ -716,6 +850,7 @@ void Engine::gridTick (std::int64_t t) noexcept
 {
     nowT = t;
     gp.latch (ptrs);
+    recorder.gridTick();   // PLAN-2.6 PD5: threshold + gain (20 ms ramp) latch
     modeSwitch();   // PLAN-2.5b T7 (D32): engine events before the sample's host events
 
     // PLAN-2.5a PD5 step 2: the modulation sources of this cell (sampled once).
@@ -934,6 +1069,22 @@ void Engine::takeTapes (std::int64_t t) noexcept
         ++hooks.tapesTaken;
        #endif
         SlotTape* old = current[(size_t) s];
+        if (SlotHandoff::isClear (p))
+        {
+            // PLAN-2.6 PD11: the clear sentinel — the slot's grains get the
+            // 5 ms kill fade, the old tape retires, the slot is empty. The
+            // sentinel itself is never held or retired.
+            current[(size_t) s] = nullptr;
+            headRelatch[s] = false;
+            tel.overview.bumpEpoch (s);
+            tel.acc[s].bin = -1;
+            if (old != nullptr)
+            {
+                killGrainsOfTape (old);
+                retiring[numRetiring++] = old;
+            }
+            continue;
+        }
         current[(size_t) s] = p;
         // PLAN-2.4 PD5: a Reset take (same source, same rate) keeps the head;
         // any other take (new file, SR rebuild, first load) re-latches it.
@@ -941,6 +1092,10 @@ void Engine::takeTapes (std::int64_t t) noexcept
                             && kaiser::ratesEqual (old->rate, p->rate);
         if (! resetTake)
             headRelatch[s] = true;
+        // PLAN-2.6 T11: any take rebuilds the tape from pristine (a Reset, an
+        // SR rebuild, a new source) — the head-written bins are stale.
+        tel.overview.bumpEpoch (s);
+        tel.acc[s].bin = -1;
         if (old == nullptr)
             continue;
 
@@ -2238,6 +2393,7 @@ void Engine::startVoice (int k, int channel, int note, float velocity01, std::in
     v.serialNote = note;
     v.noteOnAbs = t;
     v.noteId    = noteId;
+    recorder.noteMinted (t);   // PLAN-2.6: Next Note = a serial-minting note event
     if (gp.mpeEnable && mpe.isMember (channel))   // PLAN-2.5b PD11: the member bend at note-on
         v.mpeSemis = static_cast<double> (mpe.bend[channel]) * mpe.memberRange;
    #if OGI_TEST_HOOKS
@@ -2532,6 +2688,10 @@ void Engine::noteOffMono (int channel, int note, std::int64_t t) noexcept
 void Engine::moveCloudPitch (int k, const GiNoteEntry& e, std::int64_t t) noexcept
 {
     Voice& v = voices[k];
+   #if OGI_TEST_HOOKS
+    if (recorder.hooks.nnAnyNote)
+        recorder.noteMinted (t);   // MN1n: a Legato pitch move (same serial) counted as Next Note
+   #endif
     setGlide (v, static_cast<double> (e.note) + e.neSemis, t);
     v.note    = e.note;
     v.channel = e.channel;
@@ -2578,6 +2738,7 @@ void Engine::retriggerVoice (int k, const GiNoteEntry& e, float velocity01, std:
     v.serial     = ++serialCounter;
     v.serialNote = e.note;
     v.noteOnAbs  = t;
+    recorder.noteMinted (t);   // PLAN-2.6: a Mono retrigger mints → Next Note
    #if OGI_TEST_HOOKS
     ++hooks.serialsMinted;
    #endif
@@ -3614,6 +3775,7 @@ void Engine::writeHeads (std::int64_t t) noexcept
         auto& c = headCounters (s);
         hd.writeCell (tp->tape, rL, rR, fbEff(),
                       region[s].lo, region[s].hi, tp->frames, fl, c);
+        foldOverview (s);   // PLAN-2.6 T11: the evolving overview
     }
 }
 
@@ -3848,8 +4010,22 @@ void Engine::mixPiece (int c0, int c1, float* outL, float* outR, std::int64_t tA
         hooks.kneePeak = std::max ({ hooks.kneePeak, std::abs (yL), std::abs (yR) });
        #endif
         const float og = (useOutMod ? outGainMod : outGainRamp).value (c);
+       #if OGI_TEST_HOOKS
+        if (hooks.scNoClear)   // LK1n: an accumulating mixer over an uncleared buffer
+        {
+            outL[c - c0] += yL * og;
+            outR[c - c0] += yR * og;
+            continue;
+        }
+       #endif
         outL[c - c0] = yL * og;
         outR[c - c0] = yR * og;
     }
+}
+
+//==============================================================================
+void Engine::bypassedBlock() noexcept
+{
+    recorder.bypassedBlock();   // PD10: Armed → cancel (Bypassed); Recording → stop
 }
 } // namespace ogi
