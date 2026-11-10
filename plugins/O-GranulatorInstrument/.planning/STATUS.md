@@ -1,15 +1,15 @@
 ---
 plugin: O-GranulatorInstrument
-stage: 2
-status: stage_2_verified_partial_hands_on_deferred
+stage: 3
+status: stage_3_phase_3_1_discuss_complete
 current_phase: 3-gui/3.1
-gsd_phase: stage_2_verify_complete
-last_updated: 2026-11-09
+gsd_phase: discuss_complete
+last_updated: 2026-11-10
 complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: discuss_3_1 (Stage 3 Phase 3.1 layout + basic controls; HANDS-ON-2.1–2.6 deferred to post-Stage-3)
+next_action: research_3_1 (Stage 3 Phase 3.1 layout + basic controls; HANDS-ON-2.1–2.6 run once at 3.3 verify, D39)
 next_stage: 3
 ready_for_implementation: true
 blocked_on: none (fork pin 82406fce, D11)
@@ -37,7 +37,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — **all 6 phases verified ⚠️ PARTIAL** (2.6 verified 2026-11-09, `stages/2-dsp/VERIFICATION-2.6.md`): every automated gate re-run green (harness 357/0, 159 controls fire, 0 NOT FIRED; parity 168/0 + GV 2/0; renders-2.4 + legacy byte-identical; param-dump identical; drift 0/13 + NC-a/NC-b; C25m 27.85 % ≤ 40, C25tm 6.55 % ≤ 12; auval PASS; pluginval 10 VST3 + AU SUCCESS with SC on and off; X2 0). HANDS-ON-2.1–2.6 (human) deferred post-Stage-3 (D14 override). Next: Stage 3 Phase 3.1.
+Stage: 3 of 4 (GUI) — **Phase 3.1 discuss ✓** 2026-11-10 (`stages/3-gui/CONTEXT-3.1.md`, D37–D42); next: research 3.1. Stage 2 (DSP) — **all 6 phases verified ⚠️ PARTIAL** (2.6 verified 2026-11-09, `stages/2-dsp/VERIFICATION-2.6.md`): every automated gate re-run green (harness 357/0, 159 controls fire, 0 NOT FIRED; parity 168/0 + GV 2/0; renders-2.4 + legacy byte-identical; param-dump identical; drift 0/13 + NC-a/NC-b; C25m 27.85 % ≤ 40, C25tm 6.55 % ≤ 12; auval PASS; pluginval 10 VST3 + AU SUCCESS with SC on and off; X2 0). HANDS-ON-2.1–2.6 (human) deferred post-Stage-3 (D14 override). Next: Stage 3 Phase 3.1.
 Stage 1: VERIFIED
 Status: Stage 1 executed (74606bb3): 0.1.0 VST3 + AU + Standalone built; 261 params (176/70/15), dest 126 / src 18 goldens; harness 55 PASS / 0 FAIL + golden and spec negative controls; pluginval 10 VST3 ×3 + AU SUCCESS with SC active (2 ch) and gate variant inactive (0 ch), auval PASS [1, 2] [2, 2] (frozen); D9 contingency did not fire; shipping build restored + installed. See stages/1-foundation/SUMMARY.md. Verified 2026-11-07 (stages/1-foundation/VERIFICATION.md): independent re-run on the installed shipping build — goldens + param-dump byte-identical, harness 55/0, auval PASS [1, 2] [2, 2], pluginval 10 VST3 + AU SUCCESS (2 ch in); COMPAT-01 complete. Next: Stage 2 discuss (Phase 2.1 fork).
 Progress: [##########..........] 50%
@@ -72,6 +72,7 @@ Progress: [##########..........] 50%
 8. Stage 2 Phase 2.5a (split D26): discuss ✓ 2026-11-08 (`CONTEXT-2.5a.md`, D26–D28), research ✓ (`RESEARCH-2.5a.md`), plan ✓ 2026-11-09 (`PLAN-2.5a.md`), execute ✓ 2026-11-09 (`SUMMARY-2.5a.md`), verify ⚠️ partial 2026-11-09 (`VERIFICATION-2.5a.md`; automated green incl. C25m 26.81 % ≤ 40; HANDS-ON-2.1–2.5a deferred). 
 9. Stage 2 Phase 2.5b: discuss ✓ 2026-11-09 (`CONTEXT-2.5b.md`, D29–D32), research ✓ 2026-11-09 (`RESEARCH-2.5b.md`), plan ✓ (`PLAN-2.5b.md`), execute ✓ (`SUMMARY-2.5b.md`), verify ⚠️ partial 2026-11-09 (`VERIFICATION-2.5b.md`; automated green incl. C25m 27.62 % ≤ 40; HANDS-ON-2.1–2.5b deferred).
 10. Stage 2 Phase 2.6 (Record-in, state / relink, factory sources): discuss ✓ 2026-11-09 (`CONTEXT-2.6.md`, D33–D36), research ✓ 2026-11-09 (`RESEARCH-2.6.md`), plan ✓ 2026-11-09 (`PLAN-2.6.md`, 20 tasks / 8 waves), execute ✓ 2026-11-09 (`SUMMARY-2.6.md`; harness 357/0, parity 168/0, C25m 29.26 %; HANDS-ON-2.6 deferred), verify ⚠️ partial 2026-11-09 (`VERIFICATION-2.6.md`; automated green incl. C25m 27.85 % ≤ 40, pluginval SC on/off; PERF-01 → complete; HANDS-ON-2.1–2.6 deferred). **Stage 2 verified (automated).** Next: `/plugin-discuss O-GranulatorInstrument 3-gui` (Phase 3.1).
+11. Stage 3 Phase 3.1 (layout + basic controls): discuss ✓ 2026-11-10 (`stages/3-gui/CONTEXT-3.1.md`): D37 all 34 native functions registered, slot actions live (load / relink / reset / embed / slot state), telemetry = what exists + well-formed empties; D38 DevLoader removed; D39 HANDS-ON-2.1–2.6 (79 rows) run once at 3.3 verify; D40 v1 locked, defects only, gear accepted as placed; D41 port parent 1.2.0 value entry (knob name → type a value) in 3.1; D42 `tests/i18n-states.json` lands in 3.1. Next: `/plugin-research O-GranulatorInstrument 3-gui` (Phase 3.1).
 
 ## Context to Preserve
 
