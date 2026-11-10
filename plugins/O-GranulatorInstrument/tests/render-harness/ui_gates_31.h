@@ -25,8 +25,9 @@
              CustomState child in any live tree
       UPM5   seed 0xFEDCBA9876543211 exact through a preset (a string)
       UPM5n  the seed written as a JSON number -> mismatch (must FAIL)
-      UPM6   slots: file in slot 1 + factory stub in slot 3, save, clear, load ->
-             both restored, slots 2 / 4 empty; no `embedded` key, < 64 KB
+      UPM6   slots: file in slot 1 + factory stub in slot 3, save, clear, put
+             buffers in slots 2 / 4, load -> both restored, slots 2 / 4 left
+             untouched (PLAN-3.2 PD15, D45); no `embedded` key, < 64 KB
       UPM6b  a preset with no `slots` key leaves the loaded slots as they are
       UWC1   windowCurve (0, 0, 64) == closed-form Hann within 1e-6
       UWC2   skew +-100 and window 1: finite, in [0, 1], endpoints 0, differ
@@ -476,6 +477,16 @@ namespace { namespace ug31
         for (int k = 0; k < 4; ++k)
             cleared = cleared && ! s.p->getSlotInfo (k).loaded && s.p->getSlotInfo (k).source.isEmpty() && s.eng().getCurrentTape (k) == nullptr;
 
+        // PLAN-3.2 PD15 (D45): the lanes the preset has no source for hold a
+        // tape of their own when it loads, and must come out untouched.
+        const bool l1 = s.load (1, noiseBuf (2, 24000, 0.2f, 362), kFs, "lane 2");
+        const bool l3 = s.load (3, noiseBuf (2, 24000, 0.2f, 363), kFs, "lane 4");
+        s.run (2048, 256);
+        const auto u1 = s.p->getSlotInfo (1), u3 = s.p->getSlotInfo (3);
+        const auto* t1 = s.eng().getCurrentTape (1);
+        const auto* t3 = s.eng().getCurrentTape (3);
+        const bool unlistedLoaded = l1 && l3 && u1.loaded && u3.loaded && t1 != nullptr && t3 != nullptr;
+
         const bool loaded = loadPreset (*s.p, file);
         const bool idle = ld.waitForIdle (20000);   // the sync point (PD11)
         s.run (2048, 256);
@@ -483,19 +494,21 @@ namespace { namespace ug31
         const bool restored = b0.loaded && b0.source == a0.source && b0.hasHash && b0.contentHash == a0.contentHash && b0.embed
                            && b2.loaded && b2.source == "factory:stub_tone" && b2.contentHash == ogi::kHashTone
                            && s.eng().getCurrentTape (0) != nullptr && s.eng().getCurrentTape (2) != nullptr;
-        const bool empties = ! b1.loaded && b1.source.isEmpty() && ! b3.loaded && b3.source.isEmpty()
-                          && s.eng().getCurrentTape (1) == nullptr && s.eng().getCurrentTape (3) == nullptr;
+        const bool untouched = b1.loaded && b3.loaded && b1.generation == u1.generation && b3.generation == u3.generation
+                            && b1.name == u1.name && b3.name == u3.name && b1.source == u1.source && b3.source == u3.source
+                            && s.eng().getCurrentTape (1) == t1 && s.eng().getCurrentTape (3) == t3;
         const bool noBlob = ! text.contains ("embedded");
         const auto bytes = file.getSize();
 
-        row (setup && saved && cleared && loaded && idle && restored && empties && noBlob && bytes < 65536 && listed == 2,
-             "UPM6 PD1 slots: file in slot 1 + factory stub in slot 3 -> save, clear, load: both restored, 2 / 4 empty",
+        row (setup && saved && cleared && unlistedLoaded && loaded && idle && restored && untouched && noBlob && bytes < 65536 && listed == 2,
+             "UPM6 PD1 slots: file in slot 1 + factory stub in slot 3 -> save, clear, load: both restored, 2 / 4 untouched (D45)",
              juce::String ("meas cleared ") + (cleared ? "4/4" : "NO") + ", restored slot 1 " + (b0.loaded ? "rung " + juce::String (b0.resolvedBy) : juce::String ("NO"))
                  + " (hash " + (b0.contentHash == a0.contentHash ? "equal" : "DIFFERS") + "), slot 3 "
-                 + (b2.loaded ? "rung " + juce::String (b2.resolvedBy) : juce::String ("NO")) + ", slots 2 / 4 " + (empties ? "empty" : "NOT EMPTY")
+                 + (b2.loaded ? "rung " + juce::String (b2.resolvedBy) : juce::String ("NO")) + ", slots 2 / 4 (a buffer each, not in the preset) "
+                 + (untouched ? "same tape, same generation" : "CHANGED")
                  + ", preset " + juce::String (bytes) + " bytes, " + juce::String (listed) + " slots listed, `embedded` "
                  + (noBlob ? "absent" : "PRESENT") + " (session state carries a blob: " + (sessionHasBlob ? "yes" : "NO")
-                 + ") | thr rungs 1 / 4, < 65536 bytes, absent | ctrl - (session blob present)");
+                 + ") | thr rungs 1 / 4, 2 / 4 untouched, < 65536 bytes, absent | ctrl - (session blob present; UPM6cn clears)");
 
         // UPM6b: the same preset without the `slots` key, on the loaded slots.
         auto v = juce::JSON::parse (text);

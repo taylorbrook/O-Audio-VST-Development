@@ -746,6 +746,7 @@ void Engine::process (float* outL, float* outR, int numSamples, const juce::Midi
     }
     absPos = blockStart + numSamples;
     publishTelemetry (outL, outR, numSamples, scPk);
+    serviceTapeSnapshot();   // PLAN-3.2 PD18: after the block's last tape write; reads only
 }
 
 //==============================================================================
@@ -786,6 +787,15 @@ void Engine::publishTelemetry (const float* outL, const float* outR, int n, floa
         u.flags   = static_cast<std::uint8_t> ((vg.g.dir < 0 ? 1 : 0) | ((i >= kPoolLive || spawner.isKilling (vg, i)) ? 2 : 0));
         u.normPos = frames > 0.0 ? static_cast<float> (vg.g.readAbs / frames) : 0.0f;
         u.gain    = vg.g.killGain;
+        // PLAN-3.2 PD1: field copies for the lane painter (reader-side derivation).
+        u.windowStep = static_cast<std::uint8_t> (std::clamp (vg.g.windowStep, 0, 255));
+        u.gainL      = vg.g.gainL;
+        u.gainR      = vg.g.gainR;
+        u.phase      = static_cast<float> ((static_cast<double> (vg.g.age) + vg.g.frac) * vg.g.invLen);
+        u.lenSamples = static_cast<float> (vg.g.len);
+        u.tiltT      = vg.g.tiltT;
+        u.tiltA      = vg.g.tiltA;
+        u.tiltB      = vg.g.tiltB;
     }
     f.count = count;
     for (int k = 0; k < kVoiceSlots; ++k)
@@ -813,6 +823,65 @@ void Engine::publishTelemetry (const float* outL, const float* outR, int n, floa
     tel.frames.publish();
 }
 
+// PLAN-3.2 PD18 (GiTapeSnapshot.h): the Save-recording copy-out. Audio thread,
+// once per process() / bypassedBlock() call: one relaxed load while nothing is
+// in flight; else at most kChunkFrames level-0 frames of the slot's tape into
+// the requester's buffers. The tape is only read; no allocation, no lock.
+void Engine::serviceTapeSnapshot() noexcept
+{
+    using S = GiTapeSnapshot;
+    if (! tapeSnap.audioActive())
+        return;
+
+    const S::State st = tapeSnap.state();   // acquire: the request fields are visible from Requested on
+    if (st == S::CancelRequested)
+    {
+        tapeSnap.audioAckCancel();
+        return;
+    }
+    if (st != S::Requested && st != S::Copying)
+        return;
+
+    const int s = tapeSnap.slot;
+    const SlotTape* const tp = (s >= 0 && s < kTapeSlots) ? current[(size_t) s] : nullptr;
+    const std::uint32_t epoch = (s >= 0 && s < kTapeSlots) ? tel.overview.epoch (s) : 0u;
+
+    if (st == S::Requested)
+    {
+        if (tp == nullptr || tapeSnap.L == nullptr || tapeSnap.R == nullptr || tapeSnap.frames <= 0 || tp->frames != tapeSnap.frames)
+        {
+            tapeSnap.audioMove (S::Requested, S::Aborted);
+            return;
+        }
+        tapeSnap.tape      = tp;
+        tapeSnap.tapeEpoch = epoch;
+        tapeSnap.cursor    = 0;
+        if (! tapeSnap.audioBegin())
+            return;   // cancelled before the first chunk (acknowledged)
+    }
+    else if (tp == nullptr || tp != tapeSnap.tape || tp->frames != tapeSnap.frames || epoch != tapeSnap.tapeEpoch)
+    {
+        // The slot's tape changed (take, clear, Reset): `changed`. The epoch
+        // is bumped at every take, so a new tape at a recycled address counts.
+        tapeSnap.audioMove (S::Copying, S::Aborted);
+        return;
+    }
+
+    const int n = std::min (S::kChunkFrames, tapeSnap.frames - tapeSnap.cursor);
+    float* const dl = tapeSnap.L + tapeSnap.cursor;
+    float* const dr = tapeSnap.R + tapeSnap.cursor;
+    for (int i = 0; i < n; ++i)
+    {
+        const std::int64_t fr = static_cast<std::int64_t> (tapeSnap.cursor) + i;
+        dl[i] = tp->tape.levelSample (0, 0, fr);
+        dr[i] = tp->tape.levelSample (0, 1, fr);
+    }
+    tapeSnap.cursor += n;
+    tapeSnap.audioBumpProgress();
+    if (tapeSnap.cursor >= tapeSnap.frames)
+        tapeSnap.audioMove (S::Copying, S::Done);
+}
+
 void Engine::foldOverview (int s) noexcept
 {
     // The cell the head just wrote: 32 frames, possibly across a wrap. Folded
@@ -820,6 +889,7 @@ void Engine::foldOverview (int s) noexcept
     const SlotTape* tp = current[(size_t) s];
     if (tp == nullptr)
         return;
+    tel.ovWrites[(size_t) s].fetch_add (1, std::memory_order_relaxed);   // PLAN-3.2 PD6 (never read here)
     auto& a = tel.acc[s];
     for (int o = 0; o < kCell; ++o)
     {
@@ -4030,5 +4100,6 @@ void Engine::mixPiece (int c0, int c1, float* outL, float* outR, std::int64_t tA
 void Engine::bypassedBlock() noexcept
 {
     recorder.bypassedBlock();   // PD10: Armed → cancel (Bypassed); Recording → stop
+    serviceTapeSnapshot();      // PLAN-3.2 PD18: a Save still completes while bypassed
 }
 } // namespace ogi

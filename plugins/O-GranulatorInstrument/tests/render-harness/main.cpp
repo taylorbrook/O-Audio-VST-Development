@@ -103,6 +103,16 @@ namespace
         return dir;
     }
 
+    /** PLAN-3.2 PD24: the Imports folder of every processor, a sibling of the
+        Recordings temp dir (same temp tree, also a NON-ASCII component). */
+    juce::File harnessImportsDir()
+    {
+        static const juce::File dir = harnessRecordingsDir().getParentDirectory()
+                                          .getChildFile (juce::String::fromUTF8 ("Imp\xc3\xb4rts \xe2\x9c\x93"));
+        return dir;
+    }
+
+    /** Removes the whole harness temp tree (Recordings + Imports) at exit. */
     struct RecDirGuard
     {
         ~RecDirGuard() { harnessRecordingsDir().getParentDirectory().deleteRecursively(); }
@@ -115,8 +125,83 @@ namespace
         jassert (p != nullptr);
         raw.release();
         p->getLoader().setRecordingsDirectory (harnessRecordingsDir());
+        p->getLoader().setImportsDirectory (harnessImportsDir());   // PLAN-3.2 PD24
         return std::unique_ptr<GranulatorInstrumentProcessor> (p);
     }
+
+    /** PLAN-3.2 PD24: the test-directory guard of EVERY harness mode.
+        start() runs before any other processor work: a processor from make()
+        must resolve its Recordings AND Imports folders to the harness temp
+        tree, never under the real ~/Music/Ouaricon; it also snapshots the
+        plugin's real folder. end() runs after the mode: the real folder must
+        be as it was. Either failure fails the run (main()). */
+    namespace pd24
+    {
+        juce::File realOuaricon() { return juce::File::getSpecialLocation (juce::File::userMusicDirectory).getChildFile ("Ouaricon"); }
+        juce::File realPluginDir() { return realOuaricon().getChildFile ("O-GranulatorInstrument"); }
+
+        bool underReal (const juce::File& f)
+        {
+            const auto real = realOuaricon();
+            return f == juce::File() || f == real || f.isAChildOf (real);
+        }
+
+        struct RealSnap
+        {
+            bool exists = false;
+            int files = 0;
+            juce::int64 newest = 0;
+            bool operator== (const RealSnap& o) const { return exists == o.exists && files == o.files && newest == o.newest; }
+        };
+
+        RealSnap snapReal()
+        {
+            RealSnap d;
+            const auto dir = realPluginDir();
+            d.exists = dir.isDirectory();
+            if (d.exists)
+                for (const auto& e : juce::RangedDirectoryIterator (dir, true, "*", juce::File::findFilesAndDirectories))
+                {
+                    ++d.files;
+                    d.newest = std::max (d.newest, e.getModificationTime().toMilliseconds());
+                }
+            return d;
+        }
+
+        RealSnap gStart;
+        bool gRedirected = false;
+
+        bool start()
+        {
+            juce::File recDir, impDir;
+            {
+                auto p = make();
+                recDir = p->getLoader().getRecordingsDirectory();
+                impDir = p->getLoader().getImportsDirectory();
+            }
+            gRedirected = ! underReal (recDir) && ! underReal (impDir) && recDir == harnessRecordingsDir() && impDir == harnessImportsDir()
+                       && recDir != impDir;
+            gStart = snapReal();
+            if (! gRedirected)
+                std::printf ("PD24 GUARD FAILED: the Recordings / Imports folder of a harness processor is not redirected "
+                             "(Recordings %s, Imports %s the real ~/Music/Ouaricon). Nothing was run.\n",
+                             underReal (recDir) ? "UNDER" : "outside", underReal (impDir) ? "UNDER" : "outside");
+            return gRedirected;
+        }
+
+        bool end()
+        {
+            const auto e = snapReal();
+            if (e == gStart)
+                return true;
+            std::printf ("PD24 GUARD FAILED: the real ~/Music/Ouaricon/O-GranulatorInstrument changed during the run "
+                         "(start %s / %d entries, end %s / %d entries)\n",
+                         gStart.exists ? "present" : "absent", gStart.files, e.exists ? "present" : "absent", e.files);
+            return false;
+        }
+    }
+
+    bool dirGuardRedirected() { return pd24::gRedirected; }
 
     // ── Goldens ─────────────────────────────────────────────────────────────
     struct GoldenParam
@@ -1068,6 +1153,11 @@ static void hookRows()
 // slot / overview revisions, overview, telemetry shape) + --ug31.
 #include "ui_gates_31.h"
 
+// PLAN-3.2 T6 / PD23: the Stage 3.2 processor surface (grain / voice telemetry,
+// feedback + record heads, live overview + dirty, clear, import, save,
+// encodedBytes) + --ug32.
+#include "ui_gates_32.h"
+
 //==============================================================================
 // PLAN-2.6 T10 / PD16: the factory stub generator (--gen-factory <dir> [--force]).
 // The same JUCE FLAC encoder, int path and quantiser as the plugin
@@ -1167,22 +1257,37 @@ namespace { namespace genfactory
 } }
 
 //==============================================================================
-// PLAN-3.1 PD12: `--dump-ui-overrides <path>` writes the generic UI stub's seed
-// (tests/ui-stub/generic-overrides.json) from the processor itself: combos
-// (choices + default index), every Float range, and the natives the page
-// pulls, through the SAME encoders the editor uses (GiUiJson.h). Early exit; no
-// gate runs. Deterministic: nothing seeded, nothing timed, no path, LF line
-// ends. scripts/ui-stub/generic-juce-stub.js answers a native with ONE value
-// whatever its arguments, so getSlotOverview / getWindowCurve carry the slot 1
-// / stream 1 answer.
+// PLAN-3.1 PD12 / PLAN-3.2 PD25: `--dump-ui-overrides <path>` writes the generic
+// UI stub's seed (tests/ui-stub/generic-overrides.json) from the processor
+// itself: combos (choices + default index), every Float range, and the natives
+// the page pulls, through the SAME encoders the editor uses (GiUiJson.h). Early
+// exit; no gate runs. Deterministic: a pinned seed, a scripted clock (never a
+// wall clock), a fixed block count, no path, LF line ends. scripts/ui-stub/generic-juce-stub.js
+// answers a native with ONE value whatever its arguments, so getSlotOverview /
+// getWindowCurve carry the slot 1 / stream 1 answer.
 //
-// Slot fixture: slot 1 the factory tone (really loaded, so its overview is the
-// stub's), slot 2 a trimmed `file:` source, slot 3 a missing recording, slot 4
-// empty (2 - 4 are plain SlotInfo values through the pure encoder).
+// Slot fixture: slot 1 the factory tone (really loaded; 150 blocks of a held
+// note with feedback 80 % rewrite its tape, so its overview carries REAL live
+// bins and `dirty` bytes and slots[0].dirty is the processor's own flag), slot
+// 2 a trimmed `file:` source, slot 3 a missing recording, slot 4 empty with a
+// failed-import `error` (2 - 4 are plain SlotInfo values through the pure
+// encoder).
+//
+// Telemetry fixture (3.2 shape, GiUiJson::telemetryToVar (UiTelemetry)): the
+// revisions, the four ovRev and lane 1's feedback head are the REAL values of
+// that run (buildUiTelemetry on the scripted clock). Voices, grains, counts and
+// the Record-in block are written BY HAND into the struct before it is encoded
+// (one held voice; 3 / 2 / 2 / 3 grains on streams 1 - 4, one reversed; lane 2
+// recording: run 2, slot 2, pos 0.4), so the page fixture does not depend on
+// the engine's grain schedule. Grains sit on all four streams (the painter's
+// stream indexing is what the stub page exercises) although slots 3 / 4 hold
+// no tape; their playheads are -1.
 //==============================================================================
 static int dumpUiOverrides (const juce::File& out)
 {
     auto p = make();
+    p->setSeed (0x5EED3200CAFE0001ull);   // a fresh processor draws its seed: pinned, or the fed-back tape differs per run
+    setParam (*p, "feedback", 80.0f);
     p->prepareToPlay (48000.0, 512);
 
     ogi::SavedSlot tone;
@@ -1191,6 +1296,26 @@ static int dumpUiOverrides (const juce::File& out)
     tone.name   = "stub_tone";
     p->getLoader().restoreSlots ({ tone });
     const bool idle = p->getLoader().waitForIdle (20000);
+
+    // The real part of the fixture: a held note, feedback writing slot 1's
+    // tape, on a scripted clock (ms = 1000 + samples / 48).
+    using Tel = GranulatorInstrumentProcessor::UiTelemetry;
+    constexpr int kBlocks = 150;
+    double clock = 1000.0;
+    {
+        juce::AudioBuffer<float> buf (2, 512);
+        juce::MidiBuffer midi;
+        midi.addEvent (juce::MidiMessage::noteOn (1, 60, 0.8f), 0);
+        for (int k = 0; k < kBlocks; ++k)
+        {
+            buf.clear();
+            p->processBlock (buf, midi);
+            midi.clear();
+            clock += 1000.0 * 512.0 / 48000.0;
+        }
+    }
+    Tel tel = p->buildUiTelemetry (clock);
+    const bool realOk = ! tel.stale && tel.lanes[0].hasFb && p->getSlotDirty (0);
 
     auto* combos  = new juce::DynamicObject();
     auto* sliders = new juce::DynamicObject();
@@ -1227,13 +1352,7 @@ static int dumpUiOverrides (const juce::File& out)
         }
     }
 
-    // The revisions FIRST (as the editor reads them), then the infos.
-    const auto scaleRev = p->getScaleStateRevision();
-    const auto slotRev  = p->getSlotStateRevision();
-    std::array<std::uint32_t, ogi::kTapeSlots> ovRevs {};
-    for (int s = 0; s < ogi::kTapeSlots; ++s)
-        ovRevs[(size_t) s] = p->getOverviewRev (s);
-
+    // The infos AFTER the telemetry build (its slotRev is the state's revision).
     std::array<ogi::SlotInfo, ogi::kTapeSlots> infos;
     infos[0] = p->getSlotInfo (0);
     const bool toneOk = idle && infos[0].loaded && infos[0].source == "factory:stub_tone";
@@ -1247,7 +1366,7 @@ static int dumpUiOverrides (const juce::File& out)
         i.frames = 1440000;
         i.nativeRate = 44100.0;
         i.nativeFrames = 1323000;
-        ovRevs[1] |= 1u;      // loaded
+        tel.lanes[1].ovRev |= 1u;   // loaded
     }
     {
         auto& i = infos[2];   // a recording whose file is gone (reference kept)
@@ -1256,18 +1375,54 @@ static int dumpUiOverrides (const juce::File& out)
         i.missing = true;
         i.embed = true;
     }
+    infos[3].lastError = "import failed (unreadable file): bad take.wav";   // an empty lane after a refused drop
+    const std::array<bool, ogi::kTapeSlots> dirtyFlags { p->getSlotDirty (0), false, false, false };
+
+    // The hand-written part of the telemetry (see the header note).
+    for (auto& v : tel.voices)
+        v = Tel::Voice {};
+    tel.voices[0].state = 1;
+    tel.voices[0].note  = 60;
+    tel.voices[0].amp   = 0.8f;
+    tel.voices[0].scan  = { { 0.25f, 0.4f, -1.0f, -1.0f } };
+    {
+        // { stream, normPos, pan, env, gain, lengthSec, voice, flags }
+        const Tel::Grain fixture[] = {
+            { 1, 0.22f, -0.4f, 0.35f, 1.0f, 0.2f,  0, 0 }, { 1, 0.25f, 0.0f, 0.95f, 0.8f, 0.2f,  0, 0 }, { 1, 0.29f, 0.5f, 0.6f, 1.0f, 0.2f,  0, 1 },
+            { 2, 0.38f, -0.7f, 0.5f, 0.9f, 0.12f, 0, 0 }, { 2, 0.43f, 0.3f, 0.85f, 1.0f, 0.12f, 0, 0 },
+            { 3, 0.55f, 0.0f, 0.7f, 1.0f, 0.35f, 0, 0 },  { 3, 0.61f, 0.8f, 0.25f, 0.7f, 0.35f, 0, 0 },
+            { 4, 0.72f, -1.0f, 0.9f, 1.0f, 0.06f, 0, 0 }, { 4, 0.78f, 0.2f, 0.45f, 0.85f, 0.06f, 0, 0 }, { 4, 0.83f, 1.0f, 0.15f, 1.0f, 0.06f, 0, 0 }
+        };
+        tel.grainCount = 0;
+        for (const auto& g : fixture)
+            tel.grains[static_cast<size_t> (tel.grainCount++)] = g;
+        tel.counts = { { 3, 2, 2, 3 } };
+    }
+    tel.stale = false;
+    tel.rec.bus = 1;
+    tel.rec.signal = true;
+    tel.rec.run = 2;
+    tel.rec.slot = 2;
+    tel.rec.pos = 0.4f;
+    tel.rec.len = 4.0f;
+    tel.rec.capped = false;
+    tel.rec.peak = 0.25f;
+    for (auto& lane : tel.lanes)
+        lane.hasRec = false;
+    tel.lanes[1].hasRec = true;
+    tel.lanes[1].rec = 0.4f;
 
     auto* natives = new juce::DynamicObject();
     natives->setProperty ("getScaleState", GiUiJson::scaleStateToVar (*p));
-    natives->setProperty ("getSlotState", GiUiJson::slotStateToVar (slotRev, infos));
-    natives->setProperty ("getTelemetry", GiUiJson::telemetryToVar (scaleRev, slotRev, ovRevs, p->getSidechainChannelCount()));
+    natives->setProperty ("getSlotState", GiUiJson::slotStateToVar (tel.slotRev, infos, dirtyFlags));
+    natives->setProperty ("getTelemetry", GiUiJson::telemetryToVar (tel));
     natives->setProperty ("getParameterDefaults", GiUiJson::parameterDefaultsToVar (*p));
     natives->setProperty ("getWindowCurve", GiUiJson::windowCurveToVar (*p, 0));
     natives->setProperty ("getSlotOverview", GiUiJson::slotOverviewToVar (*p, 0));
     natives->setProperty ("getUiLanguage", "en");
 
     auto* root = new juce::DynamicObject();
-    root->setProperty ("_why", "Generated from the processor by the render harness (PLAN-3.1 PD12) - never hand-edit. "
+    root->setProperty ("_why", "Generated from the processor by the render harness (PLAN-3.1 PD12, PLAN-3.2 PD25) - never hand-edit. "
                                "Regenerate (cwd plugins/O-GranulatorInstrument): O-GranulatorInstrument-render-harness "
                                "--dump-ui-overrides tests/ui-stub/generic-overrides.json");
     root->setProperty ("combos", juce::var (combos));
@@ -1286,6 +1441,22 @@ static int dumpUiOverrides (const juce::File& out)
     const bool revs  = static_cast<int> (nat["getTelemetry"]["slotRev"]) == static_cast<int> (nat["getSlotState"]["revision"])
                     && static_cast<int> (nat["getTelemetry"]["scaleRev"]) == static_cast<int> (nat["getScaleState"]["revision"])
                     && static_cast<int> (nat["getTelemetry"]["lanes"][0]["ovRev"]) == static_cast<int> (nat["getSlotOverview"]["rev"]);
+    // The 3.2 fixture (PD25): one held voice, 10 grains over four streams, fb
+    // on lane 1, lane 2 recording at 0.4, live dirty on lane 1, one error.
+    const auto telVar = nat["getTelemetry"];
+    int held = 0, ticks = 0, errors = 0;
+    for (int k = 0; k < telVar["voices"].size(); ++k)
+        held += static_cast<int> (telVar["voices"][k][0]);
+    for (int k = 0; k < nat["getSlotOverview"]["dirty"].size(); ++k)
+        ticks += static_cast<int> (nat["getSlotOverview"]["dirty"][k]) > 12 ? 1 : 0;   // above the page's 5 % tick threshold
+    for (int k = 0; k < nat["getSlotState"]["slots"].size(); ++k)
+        errors += nat["getSlotState"]["slots"][k]["error"].toString().isNotEmpty() ? 1 : 0;
+    const bool fixture = realOk && held == 1 && telVar["voices"].size() == 20 && telVar["grains"].size() == 10
+                      && static_cast<double> (telVar["lanes"][0]["fb"]) > 0.0 && telVar["lanes"][0]["rec"].isVoid()
+                      && telVar["lanes"][1]["fb"].isVoid() && static_cast<double> (telVar["lanes"][1]["rec"]) == 0.4
+                      && static_cast<int> (telVar["rec"]["run"]) == 2 && static_cast<int> (telVar["rec"]["slot"]) == 2
+                      && static_cast<double> (telVar["rec"]["pos"]) == 0.4 && ticks > 0
+                      && static_cast<bool> (nat["getSlotState"]["slots"][0]["dirty"]) && errors == 1;
     bool clean = ! text.contains ("\r");
     for (const auto& dir : { juce::File::getSpecialLocation (juce::File::userHomeDirectory),
                              juce::File::getSpecialLocation (juce::File::tempDirectory),
@@ -1295,25 +1466,25 @@ static int dumpUiOverrides (const juce::File& out)
     clean = clean && ! text.contains (harnessRecordingsDir().getParentDirectory().getFileName())                       // the temp-dir name
                   && ! text.contains (juce::File::getSpecialLocation (juce::File::userHomeDirectory).getFileName());    // the user name
 
-    const bool shape = toneOk && nc == 70 && nf == 176 && nd == 246 && curve == 64 && peaks == 656 && revs && clean;
+    const bool shape = toneOk && nc == 70 && nf == 176 && nd == 246 && curve == 64 && peaks == 656 && revs && fixture && clean;
     bool ok = false;
     if (shape)
     {
         out.getParentDirectory().createDirectory();
         ok = out.replaceWithText (text, false, false, "\n");
     }
-    std::printf ("dump-ui-overrides: %d combos, %d sliders, %d defaults, %d curve points, %d peaks, revisions %s, tone %s, hygiene %s -> %s (%s)\n",
-                 nc, nf, nd, curve, peaks, revs ? "match" : "MISMATCH", toneOk ? "loaded" : "NOT LOADED", clean ? "clean" : "PATH / CR FOUND",
+    std::printf ("dump-ui-overrides: %d combos, %d sliders, %d defaults, %d curve points, %d peaks, revisions %s, tone %s, "
+                 "3.2 fixture %s (%d held voice, %d grains, fb %.4f, %d dirty ticks, %d error), hygiene %s -> %s (%s)\n",
+                 nc, nf, nd, curve, peaks, revs ? "match" : "MISMATCH", toneOk ? "loaded" : "NOT LOADED", fixture ? "ok" : "INCOMPLETE",
+                 held, static_cast<int> (telVar["grains"].size()), static_cast<double> (telVar["lanes"][0]["fb"]), ticks, errors,
+                 clean ? "clean" : "PATH / CR FOUND",
                  out.getFileName().toRawUTF8(), ok ? "ok" : (shape ? "WRITE FAILED" : "NOT WRITTEN"));
     return ok ? 0 : 1;
 }
 
 //==============================================================================
-int main (int argc, char** argv)
+static int runHarness (int argc, char** argv)
 {
-    juce::ScopedJuceInitialiser_GUI init;
-    RecDirGuard recDirGuard;   // PLAN-2.6: the harness Recordings temp tree is removed at exit
-
     for (int a = 1; a < argc; ++a)
     {
         if (std::strcmp (argv[a], "--gen-factory") == 0 && a + 1 < argc)   // PLAN-2.6 PD16
@@ -1391,7 +1562,13 @@ int main (int argc, char** argv)
             std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
             return juce::jmin (failures, 255);
         }
-        else if (std::strcmp (argv[a], "--dump-ui-overrides") == 0 && a + 1 < argc)   // PLAN-3.1 PD12: early exit, no gate runs
+        else if (std::strcmp (argv[a], "--ug32") == 0)    // dev: the Phase 3.2 processor-surface gates only (OGI_ROWS filters)
+        {
+            ug32::runAll();
+            std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
+            return juce::jmin (failures, 255);
+        }
+        else if (std::strcmp (argv[a], "--dump-ui-overrides") == 0 && a + 1 < argc)   // PLAN-3.1 PD12 / PLAN-3.2 PD25: early exit, no gate runs
             return dumpUiOverrides (juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a])));
         else if (std::strcmp (argv[a], "--cpu26") == 0)   // PLAN-2.6 T17: run alone; rc = FAIL count (C25m / C25tm), C26rec INFO
         {
@@ -1426,7 +1603,7 @@ int main (int argc, char** argv)
             return rh::dump (juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a])), true);
         else
         {
-            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--cpu25a] [--cpu25b] [--cpu26] [--eg24] [--eg25] [--eg25b] [--eg26] [--ug31] [--dump-ui-overrides <file>] [--gen-factory <dir> [--force]] [--calib]\n", argv[a], argv[0]);
+            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--cpu25a] [--cpu25b] [--cpu26] [--eg24] [--eg25] [--eg25b] [--eg26] [--ug31] [--ug32] [--dump-ui-overrides <file>] [--gen-factory <dir> [--force]] [--calib]\n", argv[a], argv[0]);
             return 255;
         }
     }
@@ -1452,7 +1629,23 @@ int main (int argc, char** argv)
     eg26a::runAll();
     eg26b::runAll();
     ug31::runAll();   // PLAN-3.1 PD11 (after every existing row: their order and output are unchanged)
+    ug32::runAll();   // PLAN-3.2 PD23 (after ug31: the carried rows keep their order and output)
 
     std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
     return juce::jmin (failures, 255);
+}
+
+//==============================================================================
+int main (int argc, char** argv)
+{
+    juce::ScopedJuceInitialiser_GUI init;
+    RecDirGuard recDirGuard;   // PLAN-2.6 / PLAN-3.2 PD24: the harness Recordings + Imports temp tree is removed at exit
+
+    // PD24: before any other processor work, in every mode.
+    if (! pd24::start())
+        return 254;
+    int rc = runHarness (argc, argv);
+    if (! pd24::end())
+        rc = juce::jmax (rc, 1);
+    return rc;
 }

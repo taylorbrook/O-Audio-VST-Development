@@ -79,6 +79,18 @@
 //   requestSlotLoad (slot, File) / getSlotInfo (slot).
 // loadSync (both forms) runs the same job body on the CALLING thread and
 // publishes through the same pending exchange (render harness).
+//
+// Phase 3.2 (PLAN-3.2 PD14 / PD15 / PD16 / PD20):
+//   * requestClear: the clear of restoreSlots as a call of its own (the
+//     sentinel through the handoff, never a direct write).
+//   * restoreSlots (slots, clearUnlisted): a preset passes false and leaves the
+//     lanes it has no source for alone (D45).
+//   * requestImport (D44): a worker job hashes the WHOLE dropped file (streaming
+//     XXH64), moves it to Imports/<16 hex>.<ext> through a .part sibling, then
+//     loads it as an ordinary file: source under the dropped file's name. The
+//     slot is not touched (generation, tape, source, loading) until the file
+//     is in place; a failure before that only sets lastError.
+//   * SlotInfo::encodedBytes follows the blob wherever one is installed.
 // ============================================================================
 namespace ogi
 {
@@ -110,6 +122,9 @@ namespace ogi
         bool          relocated      = false;   // rung 3 found the file elsewhere (path rewritten)
         bool          wavFailed      = false;   // the commit could not write its WAV
         int           resolvedBy     = 0;       // 0 none / direct, 1 path, 2 blob, 3 search, 4 factory, 5 missing
+        // 3.2 (PLAN-3.2 PD20): FLAC bytes of the blob (from its base64 length
+        // minus padding); 0 without a blob; kEmbedMaxBytes + 1 when tooLarge.
+        juce::int64   encodedBytes   = 0;
     };
 
     /** One <Slot> of the state (PLAN-2.6 PD21), parsed or emitted. */
@@ -134,12 +149,22 @@ namespace ogi
         std::atomic<bool> searchUnbounded { false };  // RS8n: no 1024-entry / 16-hash bounds
         std::atomic<bool> floatWriterPath { false };  // ST2n / HS2: FLAC through writeFromAudioSampleBuffer
         std::atomic<bool> failWav { false };          // CM6: the WAV write fails
+        // PLAN-3.2 PD16 (rows UIM1–UIM3).
+        std::atomic<bool> failImportDir { false };    // the Imports folder cannot be created
+        std::atomic<bool> failImportMove { false };   // temp → <target>.part fails (nothing is moved)
+        std::atomic<bool> failImportRename { false }; // <target>.part → target fails (the .part exists)
+        std::atomic<int>  importHoldMs { 0 };         // the job waits this long (cancel-polled) with the .part on disk
+        std::atomic<bool> importHolding { false };    // true while a job sits in that wait
         std::atomic<std::uint64_t> fsTouches { 0 }, dirEntriesScanned { 0 }, candidatesHashed { 0 }, encodes { 0 },
                                    blobsCarried { 0 }, commitsPublished { 0 }, resolves { 0 };
+        std::atomic<std::uint64_t> importsHashed { 0 }, importsMoved { 0 }, importsReused { 0 }, importsLoaded { 0 },
+                                   importsFailed { 0 }, importsSuperseded { 0 }, importPartsRemoved { 0 };
         std::atomic<std::uint64_t> resolveRung[6] {};
         void resetCounters() noexcept
         {
-            for (auto* a : { &fsTouches, &dirEntriesScanned, &candidatesHashed, &encodes, &blobsCarried, &commitsPublished, &resolves })
+            for (auto* a : { &fsTouches, &dirEntriesScanned, &candidatesHashed, &encodes, &blobsCarried, &commitsPublished, &resolves,
+                             &importsHashed, &importsMoved, &importsReused, &importsLoaded, &importsFailed, &importsSuperseded,
+                             &importPartsRemoved })
                 a->store (0);
             for (auto& r : resolveRung)
                 r.store (0);
@@ -202,8 +227,12 @@ namespace ogi
         bool commitSync (int slot, std::shared_ptr<Pristine> take, juce::String& error);
 
         /** Host thread (setStateInformation): PD21 — records written at once,
-            resolve jobs queued; never decodes inline. */
-        void restoreSlots (const std::vector<SavedSlot>& slots);
+            resolve jobs queued; never decodes inline.
+            PLAN-3.2 PD15 (D45): clearUnlisted = false (a preset) leaves a slot
+            the list has no source for alone — tape, source, working copy and
+            any job in flight. true (the session path) clears a SOURCED slot
+            the list does not name, as before. */
+        void restoreSlots (const std::vector<SavedSlot>& slots, bool clearUnlisted = true);
         /** Host thread (getStateInformation): the non-empty sources, copied
             under the lock; never encodes. */
         std::vector<SavedSlot> getSavedSlots() const;
@@ -213,6 +242,37 @@ namespace ogi
         /** Message thread: D36 embed toggle (factory ignored). On → encode if
             no blob; off → the blob is dropped. */
         void setSlotEmbed (int slot, bool on);
+
+        //======================================================================
+        // 3.2 (PLAN-3.2 PD14 / PD16)
+
+        enum class ClearResult
+        {
+            cleared,        // the slot was emptied (sentinel published when a tape was loaded)
+            alreadyEmpty,   // nothing loaded, no source, no load in flight (or shutting down)
+            badSlot         // slot outside 0…kTapeSlots−1
+        };
+        /** Message thread (PD14): empties the slot through the handoff — the
+            same clear a session restore does for an unlisted slot, but also for
+            a buffer without a source and for a load in flight. A pending import
+            for the slot is superseded in every case. "Recording into this slot"
+            is the caller's refusal, not checked here. */
+        ClearResult requestClear (int slot);
+
+        /** PD16: the Imports folder (default userMusic/Ouaricon/
+            O-GranulatorInstrument/Imports, resolved lazily). */
+        void       setImportsDirectory (const juce::File& dir);
+        juce::File getImportsDirectory() const;
+
+        /** Message thread (PD16, D44): queues the import of a dropped temp file
+            into `slot` under `displayName` (empty = the temp file's name).
+            The loader owns `tempFile` from here: it is moved into the Imports
+            folder or deleted on every path. False = not queued (bad slot or
+            shutting down; the file is left where it is). */
+        bool requestImport (int slot, const juce::File& tempFile, const juce::String& displayName);
+        /** Calling thread: the same import body (harness). False + error on a
+            failure or a supersession ("cancelled"). */
+        bool importSync (int slot, const juce::File& tempFile, const juce::String& displayName, juce::String& error);
 
         /** Harness: waits (sleeping) until the worker has no job, ≤ ms. */
         bool waitForIdle (int ms) const;
@@ -299,9 +359,18 @@ namespace ogi
         void timerCallback() override;
 
         // 2.6 job bodies (worker, or the calling thread for the *Sync forms).
-        enum class Kind { Load, Rebuild, Commit, Resolve, Relink, Encode };
+        enum class Kind { Load, Rebuild, Commit, Resolve, Relink, Encode, Import };
+        /** nameOverride (PD16): the display name installed instead of the file
+            name (an import's file is named by its hash). */
         bool runLoadFile (int slot, std::uint64_t gen, const juce::File& file, double fs, const CancelFn& cancel,
-                          const juce::ThreadPoolJob* job, juce::String& error);
+                          const juce::ThreadPoolJob* job, juce::String& error, const juce::String& nameOverride = {});
+        /** PD16: hash → Imports/<hash>.<ext> (reuse, or move through .part) →
+            takes the slot over → runLoadFile. Does its own failure bookkeeping.
+            `seq` / `genAtRequest` are the slot's import sequence and generation
+            when the import was requested; `exiting` is the job's shouldExit. */
+        bool runImport (int slot, std::uint64_t seq, std::uint64_t genAtRequest, const juce::File& tempFile,
+                        const juce::String& displayName, const CancelFn& exiting, juce::ThreadPoolJob* job,
+                        juce::String& error);
         bool runCommit (int slot, std::uint64_t gen, std::shared_ptr<Pristine> take, double fs, const CancelFn& cancel,
                         const juce::ThreadPoolJob* job, juce::String& error);
         void runResolve (int slot, std::uint64_t gen, const SavedSlot& want, double fs, const CancelFn& cancel,
@@ -318,12 +387,19 @@ namespace ogi
                                 const CancelFn& cancel, int maxFrames = -1);
         bool hashFileHead (const juce::File& f, std::uint64_t& out);
         juce::File recordingsDirResolved() const;
+        juce::File importsDirResolved() const;
         std::uint64_t bumpGenerationLocked (int slot);
         void enqueueLocked (int slot, Kind kind, std::uint64_t gen, const juce::File& file,
                             std::shared_ptr<const Pristine> src, const SavedSlot* want);
 
         // All *Locked functions expect `lock` held.
         void cancelActiveJobLocked (SlotRecord& r);
+        /** PD14: cancels the slot's job, bumps the generation, publishes the
+            clear sentinel when a tape is loaded and resets the record (the
+            generation is kept). Unconditional: the callers decide. */
+        void clearLocked (int slot);
+        /** PD20: SlotInfo::encodedBytes from the record's blob / tooLarge. */
+        static void syncEncodedBytesLocked (SlotRecord& r);
         void startRebuildLocked (int slot, double rate);
         void queueRebuildAsyncLocked (int slot, double rate);
 
@@ -342,7 +418,9 @@ namespace ogi
         juce::CriticalSection lock;                       // never taken on the audio thread
         std::array<SlotRecord, kTapeSlots> records;
         juce::File recordingsDir;                         // guarded by lock (empty = the lazy default)
+        juce::File importsDir;                            // guarded by lock (empty = the lazy default)
         std::array<std::atomic<std::uint64_t>, kTapeSlots> generationNow;   // lock-free supersession check
+        std::array<std::atomic<std::uint64_t>, kTapeSlots> importSeqNow;    // bumped under lock: the newest import request wins
         double sessionRate = 44100.0;                     // guarded by lock
         std::atomic<bool> shuttingDown { false };
         std::shared_ptr<std::atomic<bool>> alive;         // guards callAsync lambdas

@@ -48,6 +48,7 @@
 #include "GiRecordHead.h"
 #include "GiRecorder.h"
 #include "GiTelemetry.h"
+#include "GiTapeSnapshot.h"
 #include "GiHeadClamp.h"
 #include "GiModMatrix.h"
 #include "GiMpe.h"
@@ -495,6 +496,17 @@ namespace ogi
         GiTelemetry&       getTelemetry() noexcept       { return tel; }
         const GiTelemetry& getTelemetry() const noexcept { return tel; }
 
+        /** PLAN-3.2 PD18: the Save-recording copy-out request. Engine-owned
+            (lives as long as the engine); the caller owns the sample buffers
+            and follows the protocol + lifetime invariant in GiTapeSnapshot.h.
+            Owner calls: request / cancel / release / state / progress (worker
+            or message thread), resetAudioStopped (audio stopped only). The
+            audio thread serves it at the end of process() and in
+            bypassedBlock(): ≤ GiTapeSnapshot::kChunkFrames level-0 frames per
+            call, tape read only. */
+        GiTapeSnapshot&       tapeSnapshot() noexcept       { return tapeSnap; }
+        const GiTapeSnapshot& tapeSnapshot() const noexcept { return tapeSnap; }
+
         static constexpr int kNeCapacity = 64;              // per block (the module's WR-02 capacity)
         static constexpr std::uint32_t kTuningTypeID = 2;   // VST3 SDK ivstnoteexpression.h:49 (kTuningTypeID; P7 literal)
 
@@ -544,6 +556,23 @@ namespace ogi
             const float* tab = morphBank.table (step);
             for (int i = 0; i < n; ++i)
                 out[i] = WindowMorphBank::read (tab, tilt, n > 1 ? static_cast<double> (i) / static_cast<double> (n - 1) : 0.0);
+        }
+
+        /** Stage 3 (PLAN-3.2 PD1; parent O-Granulator Engine.h grainWindow):
+            the window value of a grain at `phase`, from the fields the grain
+            frame carries (GiUiGrain windowStep / tiltT / tiltA / tiltB / phase)
+            — the exact GiRenderer::renderGrain branch: the closed-form Hann at
+            step 0 with tilt 0.5, else the morph bank (table + lerp + tilt
+            warp). 0 outside [0, 1). Read-only on the immutable bank (built once
+            in the constructor); message thread, NEVER the audio thread. */
+        float grainWindow (int step, float tiltT, float tiltA, float tiltB, double phase) const noexcept
+        {
+            if (! (phase >= 0.0 && phase < 1.0))
+                return 0.0f;
+            if (step == 0 && juce::exactlyEqual (tiltT, 0.5f))
+                return hannWindow (phase);
+            const WindowMorphBank::Tilt tilt { tiltT, tiltA, tiltB };
+            return WindowMorphBank::read (morphBank.table (step), tilt, phase);
         }
 
        #if OGI_TEST_HOOKS
@@ -803,6 +832,8 @@ namespace ogi
         GiTelemetry tel;             // PLAN-2.6 T11 (constructor-allocated, ≈ 290 KB)
         void publishTelemetry (const float* outL, const float* outR, int n, float scPk) noexcept;
         void foldOverview (int s) noexcept;   // after a head writes its cell
+        GiTapeSnapshot tapeSnap;         // PLAN-3.2 PD18 (buffers owned by the requester)
+        void serviceTapeSnapshot() noexcept;  // audio thread, once per process / bypassedBlock call
 
         ExactRamp outGainRamp;
         ExactRamp levelRamp[kGiStreams], panLRamp[kGiStreams], panRRamp[kGiStreams], audibleRamp[kGiStreams];

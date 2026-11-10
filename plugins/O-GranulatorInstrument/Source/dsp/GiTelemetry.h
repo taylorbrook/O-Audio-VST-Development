@@ -47,15 +47,27 @@
 //                           seq[bin] == tapeEpoch[s]; else the reader uses the
 //                           loader's pristine overview. Constructor-allocated,
 //                           never reallocated (the PeakRing rule).
+//   ovWrites[4]             per-slot count of foldOverview calls (PLAN-3.2 PD6):
+//                           the reader folds it into ovRev so a lane redraws
+//                           while the head rewrites its tape. Never read by
+//                           the engine.
 //   frames                  GiUiFrame: ≤ 288 grains + 20 voices.
 // ============================================================================
 namespace ogi
 {
     struct GiUiGrain
     {
-        std::uint8_t voice = 0, stream = 0, flags = 0;   // flags: 1 reversed, 2 killing / fade
+        std::uint8_t voice = 0, stream = 0, flags = 0;   // stream 0-based; flags: 1 reversed, 2 killing / fade
+        std::uint8_t windowStep = 0;                      // Grain::windowStep (0..64)
         float        normPos = 0.0f;                      // read position / tape frames (0..1)
-        float        gain = 0.0f;                         // window × kill gain (display)
+        float        gain = 0.0f;                         // the kill gain (Grain::killGain)
+        // PLAN-3.2 PD1: plain copies of the Grain's fields (the audio thread
+        // does no math beyond `phase`); pan / level / envelope / length are
+        // derived by the message-thread reader (Engine::grainWindow for env).
+        float        gainL = 1.0f, gainR = 1.0f;          // spread pan × gain_rand (NO stream pan: that is on the bus)
+        float        phase = 0.0f;                        // (age + frac) · invLen
+        float        lenSamples = 0.0f;                   // Grain::len (output samples)
+        float        tiltT = 0.5f, tiltA = 1.0f, tiltB = 1.0f;   // Grain::tiltT / A / B
     };
 
     struct GiUiVoice
@@ -136,6 +148,9 @@ namespace ogi
         std::array<std::atomic<std::int64_t>, kTapeSlots> headPos {};
         std::array<std::atomic<std::uint8_t>, kTapeSlots> swapState {};
         GiOverviewLive overview;
+        // PLAN-3.2 PD6: +1 per foldOverview call that had a tape (audio thread,
+        // relaxed). Wraps; the reader only needs "moved".
+        std::array<std::atomic<std::uint32_t>, kTapeSlots> ovWrites {};
         TripleBuffer<GiUiFrame> frames;
 
         // The record head's running bin accumulator per slot (audio thread only).
@@ -146,5 +161,9 @@ namespace ogi
         /** Reader helpers (any thread). */
         float takeScInPeak() noexcept { return scInPeak.exchange (0.0f, std::memory_order_acq_rel); }
         float takeOutPeak() noexcept  { return outPeak.exchange (0.0f, std::memory_order_acq_rel); }
+        std::uint32_t getOvWrites (int s) const noexcept
+        {
+            return (s >= 0 && s < kTapeSlots) ? ovWrites[(size_t) s].load (std::memory_order_relaxed) : 0u;
+        }
     };
 } // namespace ogi

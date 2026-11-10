@@ -129,6 +129,30 @@ namespace ogi
             return static_cast<int> (std::min (std::floor (kSlotMaxSeconds * fs), static_cast<double> (kSlotMaxFrames)));
         }
 
+        /** The UNCAPPED take length in frames (≥ 1), the one formula of the
+            recorder (startTake) and of the UI's `rec.capped` (PLAN-3.2 PD11).
+            tempo: rec_length_sync index `barsIndex` (clamped 0…5 → 1, 2, 4, 8,
+            16, 32 bars) × the bar in samples (barLenQuarters / pps; pps =
+            quarters per sample = bpm / 60 / fs; 0 when pps ≤ 0). Otherwise
+            `seconds` × sampleRate. The caller applies the F_max cap. */
+        static std::int64_t takeLengthFrames (bool tempo, int barsIndex, double barLenQuarters, double pps,
+                                              double seconds, double sampleRate) noexcept
+        {
+            double len;
+            if (tempo)
+            {
+                static constexpr int kBars[6] = { 1, 2, 4, 8, 16, 32 };
+                const int bi = std::clamp (barsIndex, 0, 5);
+                const double barSamples = pps > 0.0 ? barLenQuarters / pps : 0.0;
+                len = static_cast<double> (kBars[bi]) * barSamples;
+            }
+            else
+            {
+                len = seconds * sampleRate;
+            }
+            return std::max<std::int64_t> (1, std::llround (len));
+        }
+
         /** Message thread (processor constructor via Engine::bind). */
         void bind (juce::AudioProcessorValueTreeState& apvts)
         {
@@ -478,20 +502,9 @@ namespace ogi
 
             // Length latched at the start sample (PD5).
             const bool tempo = load (pSyncMode, 0.0f) > 0.5f && tracker.isPlaying();
-            double len;
-            if (tempo)
-            {
-                static constexpr int kBars[6] = { 1, 2, 4, 8, 16, 32 };
-                const int bi = std::clamp (static_cast<int> (std::lround (load (pLenSync, 2.0f))), 0, 5);
-                const auto& an = tracker.anchor();
-                const double barSamples = an.pps > 0.0 ? an.barLen / an.pps : 0.0;
-                len = static_cast<double> (kBars[bi]) * barSamples;
-            }
-            else
-            {
-                len = static_cast<double> (load (pLength, 4.0f)) * fs;
-            }
-            std::int64_t tgt = std::max<std::int64_t> (1, std::llround (len));
+            const auto& an = tracker.anchor();
+            std::int64_t tgt = takeLengthFrames (tempo, static_cast<int> (std::lround (load (pLenSync, 2.0f))), an.barLen, an.pps,
+                                                 static_cast<double> (load (pLength, 4.0f)), fs);
             bool capped = true;
            #if OGI_TEST_HOOKS
             capped = ! hooks.capOff;

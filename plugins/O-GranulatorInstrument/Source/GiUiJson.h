@@ -118,15 +118,19 @@ namespace GiUiJson
     }
 
     /** One slot as the page reads it (RESEARCH-3.1 §2). `name` is user text
-        (never localized). 3.1 values: `encodedBytes` is 0, or 16 MiB + 1 when
-        the encode was refused (so the page's 16 MB comparison fires; the exact
-        figure is 3.2); `dirty` is false (needs the record-head epoch, 3.2).
+        (never localized). `encodedBytes` (PLAN-3.2 PD20) is
+        SlotInfo::encodedBytes: the FLAC bytes of the cached blob, 0 without
+        one, 16 MiB + 1 when the encode was refused (so the page's 16 MB
+        comparison fires) — no blob copy on a state pull. `dirty` (PD7) is the
+        processor's cached "the working copy differs from the pristine" flag
+        (false for a fixture built without a processor).
         No absolute path is emitted: the page reads none, and the editor takes
         paths from SlotInfo directly. */
-    inline juce::var slotInfoToVar (const ogi::SlotInfo& info)
+    inline juce::var slotInfoToVar (const ogi::SlotInfo& info, bool dirty = false)
     {
         const auto scheme = schemeOf (info.source);
-        const int encodedBytes = info.tooLarge ? static_cast<int> (ogi::SlotLoader::kEmbedMaxBytes) + 1 : 0;
+        const int encodedBytes = static_cast<int> (juce::jlimit (static_cast<juce::int64> (0),
+                                                                 ogi::SlotLoader::kEmbedMaxBytes + 1, info.encodedBytes));
 
         auto* o = new juce::DynamicObject();
         o->setProperty ("scheme", scheme);
@@ -141,20 +145,22 @@ namespace GiUiJson
         o->setProperty ("embed", info.embed);
         o->setProperty ("encodedBytes", encodedBytes);
         o->setProperty ("embeddable", encodedBytes <= static_cast<int> (ogi::SlotLoader::kEmbedMaxBytes) && scheme != "factory");
-        o->setProperty ("dirty", false);
+        o->setProperty ("dirty", dirty);
         o->setProperty ("loading", info.loading);
         o->setProperty ("error", info.lastError);   // load / relink errors reach the page on the next state pull
         return juce::var (o);
     }
 
-    /** getSlotState: { revision, slots[4] }. */
-    inline juce::var slotStateToVar (std::uint32_t revision, const std::array<ogi::SlotInfo, ogi::kTapeSlots>& infos)
+    /** getSlotState: { revision, slots[4] }. `dirty` = the per-slot flags
+        (PLAN-3.2 PD7); omitted → all false. */
+    inline juce::var slotStateToVar (std::uint32_t revision, const std::array<ogi::SlotInfo, ogi::kTapeSlots>& infos,
+                                     const std::array<bool, ogi::kTapeSlots>& dirty = {})
     {
         auto* root = new juce::DynamicObject();
         root->setProperty ("revision", revToInt (revision));
         juce::Array<juce::var> slots;
-        for (const auto& info : infos)
-            slots.add (slotInfoToVar (info));
+        for (std::size_t s = 0; s < infos.size(); ++s)
+            slots.add (slotInfoToVar (infos[s], dirty[s]));
         root->setProperty ("slots", slots);
         return juce::var (root);
     }
@@ -164,14 +170,20 @@ namespace GiUiJson
         // The revision FIRST: an info that changes after it is caught by the next poll.
         const auto revision = p.getSlotStateRevision();
         std::array<ogi::SlotInfo, ogi::kTapeSlots> infos;
+        std::array<bool, ogi::kTapeSlots> dirty {};
         for (int s = 0; s < ogi::kTapeSlots; ++s)
+        {
             infos[static_cast<std::size_t> (s)] = p.getSlotInfo (s);
-        return slotStateToVar (revision, infos);
+            dirty[static_cast<std::size_t> (s)] = p.getSlotDirty (s);   // the flag the revision was hashed with
+        }
+        return slotStateToVar (revision, infos, dirty);
     }
 
     //==========================================================================
-    /** getTelemetry, the 3.1 shape (PLAN-3.1 PD8, exact). ALWAYS the full
-        object — the page replaces its telemetry wholesale on each answer:
+    /** getTelemetry, the 3.1 PLACEHOLDER shape (PLAN-3.1 PD8, exact). Kept
+        for the 3.1 editor call site and row UTL31 until the editor switches to
+        the 3.2 form below (PLAN-3.2 T8); it reads no consuming feed. ALWAYS
+        the full object — the page replaces its telemetry wholesale on each answer:
 
           { scaleRev, slotRev,
             lanes: [ { ovRev, fb: null, rec: null } × 4 ],     (no lo / hi)
@@ -248,6 +260,115 @@ namespace GiUiJson
     }
 
     //==========================================================================
+    /** getTelemetry, the 3.2 shape (PLAN-3.2 PD13) from the processor's ONE
+        telemetry builder (GranulatorInstrumentProcessor::buildUiTelemetry —
+        the editor passes Time::getMillisecondCounterHiRes(), the harness a
+        scripted clock). ALWAYS the full object:
+
+          { scaleRev, slotRev,
+            lanes: [ { ovRev, fb: 0…1 | null, rec: 0…1 | null } × 4 ],   (no lo / hi)
+            voices: [ [state, note, amp, scan1, scan2, scan3, scan4, 0] × 20 ],
+            newest: -1, menv: [],
+            grains: [ [stream 1…4, normPos, pan, env, gain, lengthSec, voice, flags] … ],
+            counts: [n1, n2, n3, n4], limit: 0, out: [0, 0],
+            rec: { bus: 0 | 1, signal, run: 0…5, slot: 0…4, pos, len, capped,
+                   peak: [p, p] },
+            sources: [], modNorm: {} }
+
+        Absent stays null, never 0 (fb / rec). scan = −1 → no playhead. flags
+        carries the reversed bit only. Unchanged until 3.3: newest, menv,
+        limit 0, out, sources, modNorm; lo / hi, lfoPh, frozen, modRouted are
+        omitted. Floats are rounded to 4 decimals here (in double, so the JSON
+        stays short); a non-finite value is sent as 0. */
+    inline juce::var telemetryToVar (const GranulatorInstrumentProcessor::UiTelemetry& t)
+    {
+        const auto r4 = [] (double v) { return std::isfinite (v) ? std::round (v * 10000.0) / 10000.0 : 0.0; };
+        const auto emptyArray = [] { return juce::var (juce::Array<juce::var>()); };
+
+        auto* obj = new juce::DynamicObject();
+        obj->setProperty ("scaleRev", revToInt (t.scaleRev));
+        obj->setProperty ("slotRev",  revToInt (t.slotRev));
+
+        juce::Array<juce::var> lanes;
+        for (const auto& lane : t.lanes)
+        {
+            auto* o = new juce::DynamicObject();
+            o->setProperty ("ovRev", revToInt (lane.ovRev));
+            o->setProperty ("fb",  lane.hasFb  ? juce::var (r4 (static_cast<double> (lane.fb)))  : juce::var());
+            o->setProperty ("rec", lane.hasRec ? juce::var (r4 (static_cast<double> (lane.rec))) : juce::var());
+            lanes.add (juce::var (o));
+        }
+        obj->setProperty ("lanes", lanes);
+
+        juce::Array<juce::var> voices;
+        voices.ensureStorageAllocated (static_cast<int> (t.voices.size()));
+        for (const auto& v : t.voices)
+        {
+            juce::Array<juce::var> row;
+            row.ensureStorageAllocated (8);
+            row.add (v.state);
+            row.add (v.note);
+            row.add (r4 (static_cast<double> (v.amp)));
+            for (const auto sc : v.scan)
+                row.add (r4 (static_cast<double> (sc)));
+            row.add (0);   // wantSt (3.3)
+            voices.add (juce::var (row));
+        }
+        obj->setProperty ("voices", voices);
+        obj->setProperty ("newest", -1);
+        obj->setProperty ("menv", emptyArray());
+
+        juce::Array<juce::var> grains;
+        const int numGrains = juce::jlimit (0, static_cast<int> (t.grains.size()), t.grainCount);
+        grains.ensureStorageAllocated (numGrains);
+        for (int i = 0; i < numGrains; ++i)
+        {
+            const auto& g = t.grains[static_cast<std::size_t> (i)];
+            juce::Array<juce::var> row;
+            row.ensureStorageAllocated (8);
+            row.add (g.stream);
+            row.add (r4 (static_cast<double> (g.normPos)));
+            row.add (r4 (static_cast<double> (g.pan)));
+            row.add (r4 (static_cast<double> (g.env)));
+            row.add (r4 (static_cast<double> (g.gain)));
+            row.add (r4 (static_cast<double> (g.lengthSec)));
+            row.add (g.voice);
+            row.add (g.flags);
+            grains.add (juce::var (row));
+        }
+        obj->setProperty ("grains", grains);
+
+        juce::Array<juce::var> counts;
+        for (const auto c : t.counts)
+            counts.add (c);
+        obj->setProperty ("counts", counts);
+        obj->setProperty ("limit", t.limit);
+
+        juce::Array<juce::var> out;
+        out.add (0);
+        out.add (0);
+        obj->setProperty ("out", out);
+
+        auto* rec = new juce::DynamicObject();
+        rec->setProperty ("bus", t.rec.bus > 0 ? 1 : 0);
+        rec->setProperty ("signal", t.rec.signal);
+        rec->setProperty ("run", t.rec.run);
+        rec->setProperty ("slot", t.rec.slot);
+        rec->setProperty ("pos", r4 (static_cast<double> (t.rec.pos)));
+        rec->setProperty ("len", r4 (static_cast<double> (t.rec.len)));
+        rec->setProperty ("capped", t.rec.capped);
+        juce::Array<juce::var> peak;
+        peak.add (r4 (static_cast<double> (t.rec.peak)));
+        peak.add (r4 (static_cast<double> (t.rec.peak)));
+        rec->setProperty ("peak", peak);
+        obj->setProperty ("rec", juce::var (rec));
+
+        obj->setProperty ("sources", emptyArray());
+        obj->setProperty ("modNorm", juce::var (new juce::DynamicObject()));
+        return juce::var (obj);
+    }
+
+    //==========================================================================
     /** getParameterDefaults (dblclick reset): every Float in ENGINEERING units
         and every Choice as its INDEX, keyed by parameter ID, in registration
         order. Read from the parameter objects, so it cannot drift from the
@@ -275,8 +396,9 @@ namespace GiUiJson
     //==========================================================================
     /** getSlotOverview for slot 0…3: { slot (1…4), rev, peaks[656], dirty[656] },
         or { slot } alone when the slot holds no tape (the lane then draws its
-        empty state). Peaks are rounded to 3 decimals (in double, so the JSON
-        stays short). */
+        empty state). Peaks (pristine with the live bins over them, PLAN-3.2
+        PD7) are rounded to 3 decimals (in double, so the JSON stays short);
+        dirty is 0…255 (GranulatorInstrumentProcessor::kDirtyFullScale). */
     inline juce::var slotOverviewToVar (const GranulatorInstrumentProcessor& p, int slot0)
     {
         std::array<float, static_cast<std::size_t> (kOverviewPeaks)> peaks {};

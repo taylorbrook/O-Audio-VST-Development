@@ -25,6 +25,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <vector>
 
 // ============================================================================
@@ -34,6 +35,7 @@
 //   * xxh64: written from the xxHash specification (doc/xxhash_spec.md,
 //     BSD-2-Clause library / permissive spec). Lanes are assembled byte by
 //     byte (little-endian on every host). Known-answer gate HS1.
+//     Xxh64Stream is the same hash fed in pieces (PLAN-3.2 PD16, gate UIM3).
 //   * quantise / dequantise: Q(x) = clamp (nearbyint (x · 2²³), −2²³, 2²³−1),
 //     deq(q) = q · 2⁻²³ — exactly what JUCE's FLAC reader returns for a
 //     24-bit sample, so Q(deq(q)) == q for every code (gate HS2). JUCE's
@@ -144,6 +146,126 @@ namespace gihash
         h ^= h >> 32;
         return h;
     }
+
+    /** Streaming XXH64 (PLAN-3.2 PD16): update() in any chunking, digest()
+        at any point; the result is bit-identical to xxh64 () over the
+        concatenated bytes for every length (harness row UIM3). Used to name a
+        dropped file by its WHOLE content without reading it in one piece.
+        No allocation; any one thread at a time. */
+    class Xxh64Stream
+    {
+    public:
+        explicit Xxh64Stream (std::uint64_t seed = 0) noexcept { reset (seed); }
+
+        void reset (std::uint64_t seed = 0) noexcept
+        {
+            seedValue = seed;
+            acc[0] = seed + kP1 + kP2;
+            acc[1] = seed + kP2;
+            acc[2] = seed;
+            acc[3] = seed - kP1;
+            totalLen = 0;
+            buffered = 0;
+        }
+
+        void update (const void* data, std::size_t len) noexcept
+        {
+            if (data == nullptr || len == 0)
+                return;
+            const auto* p = static_cast<const std::uint8_t*> (data);
+            const std::uint8_t* const end = p + len;
+            totalLen += static_cast<std::uint64_t> (len);
+
+            if (buffered + len < 32)
+            {
+                std::memcpy (stripe + buffered, p, len);
+                buffered += len;
+                return;
+            }
+            if (buffered > 0)
+            {
+                const std::size_t fill = 32 - buffered;
+                std::memcpy (stripe + buffered, p, fill);
+                consume (stripe);
+                p += fill;
+                buffered = 0;
+            }
+            while (static_cast<std::size_t> (end - p) >= 32)
+            {
+                consume (p);
+                p += 32;
+            }
+            if (p < end)
+            {
+                buffered = static_cast<std::size_t> (end - p);
+                std::memcpy (stripe, p, buffered);
+            }
+        }
+
+        std::uint64_t digest() const noexcept
+        {
+            std::uint64_t h;
+            if (totalLen >= 32)
+            {
+                h = rotl (acc[0], 1) + rotl (acc[1], 7) + rotl (acc[2], 12) + rotl (acc[3], 18);
+                h = merge (h, acc[0]);
+                h = merge (h, acc[1]);
+                h = merge (h, acc[2]);
+                h = merge (h, acc[3]);
+            }
+            else
+            {
+                h = seedValue + kP5;
+            }
+
+            h += totalLen;
+
+            const std::uint8_t* p = stripe;
+            const std::uint8_t* const end = stripe + buffered;
+            while (p + 8 <= end)
+            {
+                h ^= round (0, read64 (p));
+                h = rotl (h, 27) * kP1 + kP4;
+                p += 8;
+            }
+            if (p + 4 <= end)
+            {
+                h ^= static_cast<std::uint64_t> (read32 (p)) * kP1;
+                h = rotl (h, 23) * kP2 + kP3;
+                p += 4;
+            }
+            while (p < end)
+            {
+                h ^= static_cast<std::uint64_t> (*p) * kP5;
+                h = rotl (h, 11) * kP1;
+                ++p;
+            }
+
+            h ^= h >> 33;
+            h *= kP2;
+            h ^= h >> 29;
+            h *= kP3;
+            h ^= h >> 32;
+            return h;
+        }
+
+        std::uint64_t totalBytes() const noexcept { return totalLen; }
+
+    private:
+        void consume (const std::uint8_t* p) noexcept
+        {
+            acc[0] = round (acc[0], read64 (p));
+            acc[1] = round (acc[1], read64 (p + 8));
+            acc[2] = round (acc[2], read64 (p + 16));
+            acc[3] = round (acc[3], read64 (p + 24));
+        }
+
+        std::uint64_t seedValue = 0;
+        std::uint64_t acc[4] {};
+        std::uint64_t totalLen = 0;
+        std::uint8_t  stripe[32] {};
+        std::size_t   buffered = 0;   // 0…31 bytes waiting in `stripe`
+    };
 
     /** PD3: the 24-bit quantiser (round half to even; clips at ±1). */
     inline std::int32_t quantise (float x) noexcept

@@ -24,6 +24,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 
 namespace ogi
 {
@@ -33,6 +34,7 @@ namespace
     constexpr int kBuildChunk  = 4096;     // frames per writeRun
     constexpr int kCancelEvery = 65536;    // build frames between cancel polls
     constexpr int kReaperMs    = 100;
+    constexpr int kImportReadBytes = 65536;   // PLAN-3.2 PD16: whole-file hash, 64 KiB per read
 
     bool validSlot (int slot) noexcept { return slot >= 0 && slot < kTapeSlots; }
 
@@ -70,6 +72,47 @@ namespace
         return (sc == kFile || sc == kRec) ? source.substring (sc.length()) : juce::String();
     }
 
+    /** PLAN-3.2 PD20: the decoded size of a base64 string (RFC 4648, padded
+        or not) from its length alone. One strlen, no copy. */
+    juce::int64 base64DecodedSize (const juce::String& b64) noexcept
+    {
+        const char* const p = b64.toRawUTF8();
+        std::size_t n = std::strlen (p);
+        while (n > 0 && p[n - 1] == '=')
+            --n;
+        return static_cast<juce::int64> ((n / 4) * 3 + ((n % 4) * 3) / 4);
+    }
+
+    /** PLAN-3.2 PD16: XXH64 of the WHOLE file in 64 KiB reads (never a
+        one-shot read: a drop may be 256 MiB). False on an open / read error or
+        a cancel (the caller asks `cancelled` which). */
+    bool hashWholeFile (const juce::File& f, std::uint64_t& hash, juce::int64& bytes, const SlotLoader::CancelFn& cancelled)
+    {
+        juce::FileInputStream in (f);
+        if (! in.openedOk())
+            return false;
+        juce::HeapBlock<char> buf (static_cast<std::size_t> (kImportReadBytes));
+        gihash::Xxh64Stream h;
+        juce::int64 total = 0;
+        for (;;)
+        {
+            const int n = in.read (buf.get(), kImportReadBytes);
+            if (n < 0 || in.getStatus().failed())
+                return false;
+            if (n == 0)
+                break;
+            h.update (buf.get(), static_cast<std::size_t> (n));
+            total += n;
+            if (cancelled && cancelled())
+                return false;
+        }
+        if (total != in.getTotalLength())
+            return false;   // a short read is an error, never a different name
+        hash  = h.digest();
+        bytes = total;
+        return true;
+    }
+
     /** float32 WAV (the Record-in master copy). */
     bool writeWavFloat (const juce::File& f, const juce::AudioBuffer<float>& pcm, double rate)
     {
@@ -103,6 +146,21 @@ public:
     {
         if (w != nullptr)
             want = *w;
+    }
+
+    ~Job() override
+    {
+        // PD16: an import that was removed from the queue before it ran (a
+        // shutdown) still owns its temp file.
+        if (kind == Kind::Import && ! importRan)
+            file.deleteFile();
+    }
+
+    /** PD16: an Import job's `generation` is the slot generation at request. */
+    void setImport (std::uint64_t seq, const juce::String& name)
+    {
+        importSeq   = seq;
+        displayName = name;
     }
 
     JobStatus runJob() override
@@ -154,6 +212,11 @@ public:
             case Kind::Encode:
                 owner.runEncode (slot, generation, source, 5);
                 break;
+
+            case Kind::Import:
+                importRan = true;
+                owner.runImport (slot, importSeq, generation, file, displayName, [this] { return shouldExit(); }, this, error);
+                break;
         }
         return jobHasFinished;
     }
@@ -167,6 +230,9 @@ private:
     std::shared_ptr<const Pristine> source;
     const double rate;
     SavedSlot want;
+    std::uint64_t importSeq = 0;
+    juce::String displayName;
+    bool importRan = false;
 };
 
 //==============================================================================
@@ -178,6 +244,8 @@ SlotLoader::SlotLoader (juce::AudioFormatManager& fm, SlotHandoff& h)
 {
     for (auto& g : generationNow)
         g.store (0, std::memory_order_relaxed);
+    for (auto& q : importSeqNow)
+        q.store (0, std::memory_order_relaxed);
 
     // The reaper Timer needs a message loop; consoles without one still get
     // the producer-side sweep inside every publish.
@@ -672,6 +740,7 @@ void SlotLoader::publishResult (int slot, std::uint64_t generation, std::unique_
             r.blobGen = 0;
         }
         r.info.hasBlob = r.blob.isNotEmpty();
+        syncEncodedBytesLocked (r);
     }
 
     r.pristine = std::move (pristine);
@@ -834,6 +903,34 @@ juce::File SlotLoader::recordingsDirResolved() const
                .getChildFile ("Ouaricon").getChildFile ("O-GranulatorInstrument").getChildFile ("Recordings");
 }
 
+void SlotLoader::setImportsDirectory (const juce::File& dir)
+{
+    const juce::ScopedLock sl (lock);
+    importsDir = dir;
+}
+
+juce::File SlotLoader::getImportsDirectory() const
+{
+    return importsDirResolved();
+}
+
+juce::File SlotLoader::importsDirResolved() const
+{
+    {
+        const juce::ScopedLock sl (lock);
+        if (importsDir != juce::File())
+            return importsDir;
+    }
+    // PLAN-3.2 PD16: resolved lazily (first import), never in a constructor.
+    return juce::File::getSpecialLocation (juce::File::userMusicDirectory)
+               .getChildFile ("Ouaricon").getChildFile ("O-GranulatorInstrument").getChildFile ("Imports");
+}
+
+void SlotLoader::syncEncodedBytesLocked (SlotRecord& r)
+{
+    r.info.encodedBytes = r.info.tooLarge ? kEmbedMaxBytes + 1 : base64DecodedSize (r.blob);
+}
+
 bool SlotLoader::decodeFileCounted (const juce::File& f, double fs, Pristine& out, juce::String& error,
                                     const CancelFn& cancel, int maxFrames)
 {
@@ -875,6 +972,12 @@ bool SlotLoader::buildAndPublish (int slot, std::uint64_t gen, std::shared_ptr<P
     tape->generation = gen;
     tape->rebuild    = false;
 
+    // PLAN-3.2 PD16: a rebuild publish (SR change, Reset) re-installs the
+    // pristine's name, so the pristine carries the installed display name —
+    // otherwise an import would show its hash file name after the first rebuild.
+    if (ns.name.isNotEmpty())
+        src->name = ns.name;
+
     bool encode = ns.embed && ! ns.source.startsWith (kFactory) && ! (ns.keepBlob && ns.blob.isNotEmpty());
    #if OGI_TEST_HOOKS
     if (ns.keepBlob && ns.blob.isNotEmpty())
@@ -910,6 +1013,7 @@ void SlotLoader::runEncode (int slot, std::uint64_t gen, std::shared_ptr<const P
     const bool ok = encodeFlac24 (*src, mb, quality, floatPath);
     const bool tooLarge = ok && static_cast<juce::int64> (mb.getSize()) > kEmbedMaxBytes;
     const juce::String b64 = (ok && ! tooLarge) ? juce::Base64::toBase64 (mb.getData(), mb.getSize()) : juce::String();
+    const juce::int64 bytes = base64DecodedSize (b64);   // PD20: outside the lock
 
     const juce::ScopedLock sl (lock);
     auto& r = records[(size_t) slot];
@@ -919,17 +1023,18 @@ void SlotLoader::runEncode (int slot, std::uint64_t gen, std::shared_ptr<const P
     r.blob    = b64;
     r.blobGen = b64.isNotEmpty() ? gen : 0;
     r.info.hasBlob = b64.isNotEmpty();
+    r.info.encodedBytes = tooLarge ? kEmbedMaxBytes + 1 : bytes;
 }
 
 bool SlotLoader::runLoadFile (int slot, std::uint64_t gen, const juce::File& file, double fs, const CancelFn& cancel,
-                              const juce::ThreadPoolJob* job, juce::String& error)
+                              const juce::ThreadPoolJob* job, juce::String& error, const juce::String& nameOverride)
 {
     auto decoded = std::make_shared<Pristine>();
     if (! decodeFileCounted (file, fs, *decoded, error, cancel))
         return false;
     NewState ns;
     ns.source   = kFile + file.getFullPathName();
-    ns.name     = file.getFileName();
+    ns.name     = nameOverride.isNotEmpty() ? nameOverride : file.getFileName();
     ns.fileSize = file.getSize();
     ns.hash     = gihash::contentHash (decoded->pcm);
     ns.embed    = false;   // D36: user files are opt-in
@@ -1240,7 +1345,7 @@ void SlotLoader::runResolve (int slot, std::uint64_t gen, const SavedSlot& want,
     markMissing (slot, gen, job);
 }
 
-void SlotLoader::restoreSlots (const std::vector<SavedSlot>& slots)
+void SlotLoader::restoreSlots (const std::vector<SavedSlot>& slots, bool clearUnlisted)
 {
     if (shuttingDown.load (std::memory_order_acquire))
         return;
@@ -1258,19 +1363,11 @@ void SlotLoader::restoreSlots (const std::vector<SavedSlot>& slots)
             // An empty source clears a SOURCED slot through the publish path
             // (PD11). A slot without a source string (a harness buffer) is
             // never persisted, so a restore leaves it alone.
-            if (r.info.source.isEmpty())
+            // PLAN-3.2 PD15 (D45): a preset (clearUnlisted false) leaves every
+            // slot it has no source for alone.
+            if (! clearUnlisted || r.info.source.isEmpty())
                 continue;
-            cancelActiveJobLocked (r);
-            bumpGenerationLocked (s);
-            if (r.info.loaded)
-                handoff.publishClear (s);
-            const auto gen = r.info.generation;
-            r.info = SlotInfo {};
-            r.info.generation = gen;
-            r.pristine.reset();
-            r.overview.clear();
-            r.blob.clear();
-            r.blobGen = 0;
+            clearLocked (s);
             continue;
         }
 
@@ -1292,6 +1389,7 @@ void SlotLoader::restoreSlots (const std::vector<SavedSlot>& slots)
                 r.blob.clear();
                 r.info.hasBlob = false;
             }
+            syncEncodedBytesLocked (r);
             continue;
         }
 
@@ -1318,8 +1416,269 @@ void SlotLoader::restoreSlots (const std::vector<SavedSlot>& slots)
         r.blob    = w->blob;
         r.blobGen = 0;
         r.info.hasBlob = r.blob.isNotEmpty();
+        syncEncodedBytesLocked (r);
         enqueueLocked (s, Kind::Resolve, gen, {}, nullptr, w);
     }
+}
+
+//==============================================================================
+// Phase 3.2 (PLAN-3.2 PD14 / PD16)
+void SlotLoader::clearLocked (int slot)
+{
+    auto& r = records[(size_t) slot];
+    cancelActiveJobLocked (r);
+    bumpGenerationLocked (slot);   // a job in flight (and a pending import) is superseded
+    if (r.info.loaded)
+        handoff.publishClear (slot);
+    const auto gen = r.info.generation;
+    r.info = SlotInfo {};
+    r.info.generation = gen;
+    r.pristine.reset();
+    r.overview.clear();
+    r.blob.clear();
+    r.blobGen = 0;
+}
+
+SlotLoader::ClearResult SlotLoader::requestClear (int slot)
+{
+    if (! validSlot (slot))
+        return ClearResult::badSlot;
+    if (shuttingDown.load (std::memory_order_acquire))
+        return ClearResult::alreadyEmpty;
+
+    const juce::ScopedLock sl (lock);
+    importSeqNow[(size_t) slot].fetch_add (1, std::memory_order_acq_rel);   // a pending import never refills the lane
+    auto& r = records[(size_t) slot];
+    // PD14: by tape or source (a harness buffer has no source), and a first
+    // load still in flight on an otherwise empty slot.
+    if (! r.info.loaded && r.info.source.isEmpty() && ! r.info.loading && r.activeJob == nullptr)
+    {
+        r.info.lastError.clear();
+        return ClearResult::alreadyEmpty;
+    }
+    clearLocked (slot);
+    return ClearResult::cleared;
+}
+
+bool SlotLoader::requestImport (int slot, const juce::File& tempFile, const juce::String& displayName)
+{
+    if (! validSlot (slot) || shuttingDown.load (std::memory_order_acquire))
+        return false;
+
+    const juce::ScopedLock sl (lock);
+    auto& r = records[(size_t) slot];
+    // The slot is NOT taken here (no generation bump, no loading flag, the
+    // active job keeps running): a failed import must leave the lane as it was.
+    const std::uint64_t seq = importSeqNow[(size_t) slot].fetch_add (1, std::memory_order_acq_rel) + 1;
+    r.info.lastError.clear();   // so a repeated failure reads as a change on the page
+    auto* job = new Job (*this, slot, Kind::Import, r.info.generation, tempFile, nullptr, sessionRate);
+    job->setImport (seq, displayName);
+    pool.addJob (job, true);
+    return true;
+}
+
+bool SlotLoader::importSync (int slot, const juce::File& tempFile, const juce::String& displayName, juce::String& error)
+{
+    if (! validSlot (slot))
+    {
+        error = "slot out of range";
+        return false;
+    }
+    std::uint64_t seq = 0, gen = 0;
+    {
+        const juce::ScopedLock sl (lock);
+        auto& r = records[(size_t) slot];
+        seq = importSeqNow[(size_t) slot].fetch_add (1, std::memory_order_acq_rel) + 1;
+        gen = r.info.generation;
+        r.info.lastError.clear();
+    }
+    return runImport (slot, seq, gen, tempFile, displayName, {}, nullptr, error);
+}
+
+bool SlotLoader::runImport (int slot, std::uint64_t seq, std::uint64_t genAtRequest, const juce::File& tempFile,
+                            const juce::String& displayName, const CancelFn& exiting, juce::ThreadPoolJob* job,
+                            juce::String& error)
+{
+    // Superseded = a newer import for the slot, any request that took the slot
+    // since (load, relink, commit, restore, clear: they bump the generation),
+    // the job being removed, or a shutdown.
+    const CancelFn superseded = [this, slot, seq, genAtRequest, &exiting]
+    {
+        return (exiting && exiting()) || shuttingDown.load (std::memory_order_acquire)
+            || importSeqNow[(size_t) slot].load (std::memory_order_acquire) != seq
+            || isSuperseded (slot, genAtRequest);
+    };
+
+    const juce::String label = displayName.isNotEmpty() ? displayName : tempFile.getFileName();
+    juce::File part;   // set while <target>.part may exist
+
+    // Nothing of a dead import stays behind: the .part and the temp file go.
+    const auto cleanup = [&part, &tempFile, this]
+    {
+        if (part != juce::File() && part.existsAsFile())
+        {
+            part.deleteFile();
+           #if OGI_TEST_HOOKS
+            hooks.importPartsRemoved.fetch_add (1);
+           #endif
+        }
+        tempFile.deleteFile();
+        juce::ignoreUnused (this);
+    };
+    const auto dropped = [&cleanup, &error, this]
+    {
+        cleanup();
+       #if OGI_TEST_HOOKS
+        hooks.importsSuperseded.fetch_add (1);
+       #endif
+        juce::ignoreUnused (this);
+        error = "cancelled";
+        return false;
+    };
+    // A failure before the slot is taken: the lane keeps its tape, source,
+    // generation and loading state; only lastError moves (the slot
+    // fingerprint mixes it, so the page pulls and shows the toast).
+    const auto failed = [&cleanup, &error, &superseded, this, slot] (const juce::String& why)
+    {
+        cleanup();
+        error = why;
+        {
+            const juce::ScopedLock sl (lock);
+            if (! superseded())
+                records[(size_t) slot].info.lastError = why;
+        }
+       #if OGI_TEST_HOOKS
+        hooks.importsFailed.fetch_add (1);
+       #endif
+        return false;
+    };
+
+    if (superseded())
+        return dropped();
+    if (! tempFile.existsAsFile())
+        return failed ("import failed (file not found): " + label);
+
+    // 1. The name: XXH64 of every byte (contentHash covers the first 131072
+    //    frames only and would alias stems with a common head).
+    std::uint64_t hash = 0;
+    juce::int64 size = 0;
+    if (! hashWholeFile (tempFile, hash, size, superseded))
+        return superseded() ? dropped() : failed ("import failed (unreadable file): " + label);
+   #if OGI_TEST_HOOKS
+    hooks.importsHashed.fetch_add (1);
+   #endif
+
+    // 2. Imports/<16 hex>.<ext>: reuse an identical file, else move through .part.
+    const auto dir = importsDirResolved();
+    bool dirOk = true;
+   #if OGI_TEST_HOOKS
+    dirOk = ! hooks.failImportDir.load();
+   #endif
+    if (! dirOk || ! dir.createDirectory())
+        return failed ("import failed (Imports folder unavailable): " + label);
+
+    const auto target = dir.getChildFile (gihash::toHex (hash) + tempFile.getFileExtension().toLowerCase());
+    bool created = false;
+    if (target.existsAsFile() && target.getSize() == size)
+    {
+        tempFile.deleteFile();
+       #if OGI_TEST_HOOKS
+        hooks.importsReused.fetch_add (1);
+       #endif
+    }
+    else
+    {
+        bool moveOk = true, renameOk = true;
+       #if OGI_TEST_HOOKS
+        moveOk   = ! hooks.failImportMove.load();
+        renameOk = ! hooks.failImportRename.load();
+       #endif
+        part = target.getSiblingFile (target.getFileName() + ".part");
+        if (! moveOk || ! tempFile.moveFileTo (part))   // rename; copy + delete across volumes
+            return failed ("import failed (could not move the file): " + label);
+
+       #if OGI_TEST_HOOKS
+        // UIM3: hold here, with the .part on disk, until the time is up or the
+        // import is superseded.
+        if (const int holdMs = hooks.importHoldMs.load(); holdMs > 0)
+        {
+            hooks.importHolding.store (true);
+            const auto until = juce::Time::getMillisecondCounterHiRes() + static_cast<double> (holdMs);
+            while (juce::Time::getMillisecondCounterHiRes() < until && ! superseded())
+                juce::Thread::sleep (1);
+            hooks.importHolding.store (false);
+        }
+       #endif
+        if (superseded())
+            return dropped();
+
+        if (renameOk && part.moveFileTo (target))
+        {
+            created = true;
+           #if OGI_TEST_HOOKS
+            hooks.importsMoved.fetch_add (1);
+           #endif
+        }
+        else if (renameOk && target.existsAsFile() && target.getSize() == size)
+        {
+            // Another instance put the same content there meanwhile: reuse it.
+            part.deleteFile();
+           #if OGI_TEST_HOOKS
+            hooks.importsReused.fetch_add (1);
+           #endif
+        }
+        else
+        {
+            return failed ("import failed (could not write to the Imports folder): " + label);
+        }
+        part = juce::File();
+    }
+
+    // 3. Only now is the slot taken, exactly as requestSlotLoad takes it.
+    std::uint64_t gen = 0;
+    double fs = 0.0;
+    {
+        const juce::ScopedLock sl (lock);
+        if (superseded())
+        {
+            // The file is complete and correctly named; it stays (D44: no cleanup).
+           #if OGI_TEST_HOOKS
+            hooks.importsSuperseded.fetch_add (1);
+           #endif
+            error = "cancelled";
+            return false;
+        }
+        auto& r = records[(size_t) slot];
+        cancelActiveJobLocked (r);
+        gen = bumpGenerationLocked (slot);
+        r.info.loading = true;
+        r.info.lastError.clear();
+        r.activeJob = job;
+        fs = sessionRate;
+    }
+
+    // 4. An ordinary file: load of the target under the dropped file's name.
+    const CancelFn cancel = [this, slot, gen, &exiting]
+    {
+        return (exiting && exiting()) || shuttingDown.load (std::memory_order_acquire) || isSuperseded (slot, gen);
+    };
+    if (! runLoadFile (slot, gen, target, fs, cancel, job, error, label))
+    {
+        const bool cancelled = cancel();
+        jobFailed (slot, gen, error, cancelled, job);
+        // A file this import brought in and that does not decode is of no use
+        // to any slot; a reused one, or a cancelled load, is left alone.
+        if (created && ! cancelled)
+            target.deleteFile();
+       #if OGI_TEST_HOOKS
+        (cancelled ? hooks.importsSuperseded : hooks.importsFailed).fetch_add (1);
+       #endif
+        return false;
+    }
+   #if OGI_TEST_HOOKS
+    hooks.importsLoaded.fetch_add (1);
+   #endif
+    return true;
 }
 
 std::vector<SavedSlot> SlotLoader::getSavedSlots() const
@@ -1423,6 +1782,7 @@ void SlotLoader::setSlotEmbed (int slot, bool on)
         r.blob.clear();
         r.blobGen = 0;
         r.info.hasBlob = false;
+        syncEncodedBytesLocked (r);
     }
 }
 

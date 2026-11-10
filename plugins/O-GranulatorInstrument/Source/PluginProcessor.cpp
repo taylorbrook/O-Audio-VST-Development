@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 // Phase 3.1 (PD15): the WebView editor under JUCE_WEB_BROWSER, the generic
 // editor otherwise. The consoles build with JUCE_WEB_BROWSER=0, drop
@@ -131,6 +132,33 @@ GranulatorInstrumentProcessor::GranulatorInstrumentProcessor()
 
 GranulatorInstrumentProcessor::~GranulatorInstrumentProcessor()
 {
+    // PLAN-3.2 PD19: the save worker goes FIRST (it calls into the engine's
+    // tape snapshot and owns the buffers the audio thread may hold). Its waits
+    // are all exit-polled, so the join is bounded by one WAV chunk write. The
+    // audio callback is stopped while a processor is destroyed and the worker
+    // is joined, so rule (b) of the snapshot's lifetime invariant applies:
+    // resetAudioStopped(), THEN free. What is still undelivered completes here.
+    saveAlive->store (false, std::memory_order_release);
+    if (saveWorker != nullptr)
+        saveWorker->stopThread (-1);
+    saveWorker.reset();
+    {
+        const juce::ScopedLock sl (saveLock);
+        engine->tapeSnapshot().resetAudioStopped();
+        saveBufL.free();
+        saveBufR.free();
+        saveLent = false;
+        if (saveJob != nullptr)   // queued, never started
+        {
+            SaveResult r;
+            r.error = "cancelled";
+            saveDone.emplace_back (std::move (saveJob->completion), r);
+            saveJob.reset();
+        }
+        saveInFlight = false;
+    }
+    deliverSaveCompletions();
+
     // Explicit order: stop the commit poll first (it calls the loader and the
     // engine), then stop and join the loader worker, then free the engine's
     // tapes; the handoff frees the rest.
@@ -225,6 +253,12 @@ void GranulatorInstrumentProcessor::prepareToPlay (double sampleRate, int sample
     // a 2-channel buffer to any layout).
     updateSidechainChannelCount();
 
+    // PLAN-3.2 PD18 / PD19: the audio callback is stopped here, so the buffer
+    // of a timed-out save that the audio thread never acknowledged can go
+    // (rule (b)). A save IN FLIGHT is left alone: its copy resumes or aborts
+    // with the first block, or times out.
+    reclaimSaveBufferAudioStopped();
+
     // Engine: pool, voices, feedback return (zeroed), ramps. Loaded tapes stay;
     // until their rebuild lands the reader corrects the pitch by tapeRate / fs.
     setEngineDestRanges();   // PLAN-2.5a PD3: host thread, process() not running
@@ -233,6 +267,11 @@ void GranulatorInstrumentProcessor::prepareToPlay (double sampleRate, int sample
     // Host thread: SlotInfo only under the loader lock; SR rebuilds are queued
     // via callAsync and deduped by (slot, rate) on the message thread.
     loader->setSessionRate (sampleRate);
+}
+
+void GranulatorInstrumentProcessor::releaseResources()
+{
+    reclaimSaveBufferAudioStopped();   // PLAN-3.2 PD18: audio stopped (rule (b))
 }
 
 bool GranulatorInstrumentProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -294,6 +333,13 @@ void GranulatorInstrumentProcessor::processBlock (juce::AudioBuffer<float>& buff
             }
         }
     }
+
+    // PLAN-3.2 PD11: the tempo for the UI's `rec.capped`, as the tracker will
+    // read this snapshot (bpm 0 = not valid → its 120 bpm fallback). Two
+    // relaxed stores; nothing on the audio thread reads them back.
+    uiBpm.store (ts.valid && std::isfinite (ts.ppq) ? ts.bpm : 0.0, std::memory_order_relaxed);
+    uiBarQuarters.store (4.0 * static_cast<double> (ts.num > 0 ? ts.num : 4) / static_cast<double> (ts.den > 0 ? ts.den : 4),
+                         std::memory_order_relaxed);
 
     // PLAN-2.5b PD6: this block's stamped VST3 raw events (NoteOn / NoteOff
     // with noteIds, Note Expression values), converted for the engine. Empty
@@ -928,11 +974,13 @@ void GranulatorInstrumentProcessor::applyPresetCustomState (const juce::var& cus
 
     applyNonParameterState (custom, masks, seedVar);   // defaults first; bumps the scale revision
 
-    // PD1: a `slots` array → exactly that list (unlisted sourced slots are
-    // cleared; an identical source is a no-op). Absent (or not an array) →
-    // the slots stay as they are.
+    // PD1 + PLAN-3.2 PD15 (D45): a `slots` array → the listed slots are
+    // restored (an identical source is a no-op); a slot the list has no source
+    // for is LEFT ALONE (clearUnlisted = false: a parameter-only preset never
+    // wipes a loaded lane or an evolved tape). Absent (or not an array) → all
+    // slots stay as they are. The session path keeps clearing.
     if (const auto* list = slotsVar.getArray())
-        loader->restoreSlots (parsePresetSlots (*list));
+        loader->restoreSlots (parsePresetSlots (*list), false);
 }
 
 //==============================================================================
@@ -941,7 +989,15 @@ void GranulatorInstrumentProcessor::applyPresetCustomState (const juce::var& cus
 //==============================================================================
 std::uint32_t GranulatorInstrumentProcessor::getOverviewRev (int slot0) const
 {
-    // PD6 is generation · 2 + loaded. Reading SlotLoader.cpp, `generation`
+    // The count is read FIRST: a publish that lands after it leaves this value
+    // stale, and the next poll asks again.
+    const std::uint64_t published = handoff.getPublishedCount();
+    return overviewRevFor (slot0, loader->getSlotInfo (slot0), published);
+}
+
+std::uint32_t GranulatorInstrumentProcessor::overviewRevFor (int slot0, const ogi::SlotInfo& info, std::uint64_t published) const noexcept
+{
+    // PD6 (3.1) is generation · 2 + loaded. Reading SlotLoader.cpp, `generation`
     // moves at the REQUEST of a load / relink / commit / restore, not at the
     // publish, and never for a Reset or a rate rebuild (startRebuildLocked
     // reuses the slot's generation). A reload of a loaded slot would therefore
@@ -951,25 +1007,46 @@ std::uint32_t GranulatorInstrumentProcessor::getOverviewRev (int slot0) const
     // every clear. It is global, so a publish on one slot also moves the other
     // three (a redundant fetch, never a missed one).
     //
-    // 2 · (generation + published) + loaded: both terms only grow, so two
-    // states share a value only when nothing changed. The count is read FIRST:
-    // a publish that lands after it leaves this value stale, and the next poll
-    // asks again.
-    const std::uint64_t published = handoff.getPublishedCount();
-    const auto info = loader->getSlotInfo (slot0);
-    return static_cast<std::uint32_t> ((info.generation + published) * 2u + (info.loaded ? 1u : 0u));
+    // PLAN-3.2 PD6: + ovWrites[slot], the engine's count of record-head cells
+    // folded into the live overview, so the lane refetches while feedback
+    // rewrites its tape (the page limits itself to 10 Hz per lane).
+    //
+    // 2 · (generation + published) + loaded + writes: every term but `loaded`
+    // only grows, and `loaded` falls only together with a generation bump.
+    std::uint32_t rev = static_cast<std::uint32_t> ((info.generation + published) * 2u + (info.loaded ? 1u : 0u));
+    bool withWrites = true;
+   #if OGI_TEST_HOOKS
+    withWrites = ! testOvRevNoWrites;   // UOV2n
+   #endif
+    if (withWrites)
+        rev += engine->getTelemetry().getOvWrites (slot0);
+    return rev;
 }
 
 std::uint32_t GranulatorInstrumentProcessor::getSlotStateRevision()
 {
+    const std::uint64_t published = handoff.getPublishedCount();
+    std::array<ogi::SlotInfo, ogi::kTapeSlots> infos;
+    for (int s = 0; s < ogi::kTapeSlots; ++s)
+        infos[static_cast<std::size_t> (s)] = loader->getSlotInfo (s);
+    return slotRevisionFor (infos, published);
+}
+
+std::uint32_t GranulatorInstrumentProcessor::slotRevisionFor (const std::array<ogi::SlotInfo, ogi::kTapeSlots>& infos,
+                                                              std::uint64_t published)
+{
     // PD3: a fingerprint, not a counter bumped at each SlotInfo write (about
     // 15 sites, several on the worker). FNV-style mixing of what the page
     // shows; the tape-identity term (generation + the publish count, see
-    // getOverviewRev) makes a same-source reload and a Reset visible.
+    // overviewRevFor) makes a same-source reload and a Reset visible.
+    // PLAN-3.2 PD7: the cached dirty flag is part of it (bit 7 of the flag
+    // word; 0 while clean, so a clean slot hashes as in 3.1) — the page pulls
+    // slot state on slotRev, so the Reset highlight follows the flag.
    #if OGI_TEST_HOOKS
-    const bool tapeTerm = ! testSlotRevNoGeneration;   // SR1n
+    const bool tapeTerm  = ! testSlotRevNoGeneration;   // SR1n
+    const bool dirtyTerm = ! testSlotRevNoDirty;        // UOV2n-b
    #else
-    const bool tapeTerm = true;
+    const bool tapeTerm = true, dirtyTerm = true;
    #endif
 
     std::uint64_t h = 0xcbf29ce484222325ull;
@@ -980,15 +1057,16 @@ std::uint32_t GranulatorInstrumentProcessor::getSlotStateRevision()
     };
 
     if (tapeTerm)
-        mix (handoff.getPublishedCount());
+        mix (published);
 
     for (int s = 0; s < ogi::kTapeSlots; ++s)
     {
-        const auto info = loader->getSlotInfo (s);
+        const auto& info = infos[static_cast<std::size_t> (s)];
         if (tapeTerm)
             mix (info.generation);
         mix ((info.loaded ? 1u : 0u) | (info.loading ? 2u : 0u) | (info.missing ? 4u : 0u) | (info.embed ? 8u : 0u)
-             | (info.hasBlob ? 16u : 0u) | (info.tooLarge ? 32u : 0u) | (info.trimmed ? 64u : 0u));
+             | (info.hasBlob ? 16u : 0u) | (info.tooLarge ? 32u : 0u) | (info.trimmed ? 64u : 0u)
+             | (dirtyTerm && slotDirty[static_cast<std::size_t> (s)] ? 128u : 0u));
         mix (static_cast<std::uint64_t> (info.source.hashCode64()));
         mix (static_cast<std::uint64_t> (info.name.hashCode64()));
         mix (static_cast<std::uint64_t> (info.lastError.hashCode64()));
@@ -1010,7 +1088,7 @@ bool GranulatorInstrumentProcessor::getSlotOverview (int slot0, float* peaks, st
     if (n > 0 && peaks != nullptr)
         std::fill_n (peaks, n, 0.0f);
     if (n > 0 && dirty != nullptr)
-        std::fill_n (dirty, n, static_cast<std::uint8_t> (0));   // 3.1: the pristine read only (live overlay = 3.2)
+        std::fill_n (dirty, n, static_cast<std::uint8_t> (0));
     if (n <= 0 || peaks == nullptr)
         return false;
 
@@ -1021,18 +1099,670 @@ bool GranulatorInstrumentProcessor::getSlotOverview (int slot0, float* peaks, st
     if (! info.loaded || bins <= 0)
         return false;
 
+    // PLAN-3.2 PD7: the engine's live bins (same 512-frame grid) replace the
+    // pristine pair where the record head rewrote the CURRENT tape (epoch-
+    // valid; a stale epoch reads false and the pristine pair stands).
+    const auto& live = engine->getTelemetry().overview;
+
     for (int i = 0; i < n; ++i)
     {
         // Source bins [b0, b1) of peak i (at least one: a short tape repeats bins).
         const std::int64_t b0 = static_cast<std::int64_t> (i) * bins / n;
         const std::int64_t b1 = std::max (b0 + 1, std::min (bins, static_cast<std::int64_t> (i + 1) * bins / n));
-        float pk = 0.0f;
+        float pk = 0.0f, moved = 0.0f;
         for (std::int64_t b = b0; b < b1; ++b)
-            pk = std::max (pk, std::max (std::abs (pairs[static_cast<std::size_t> (2 * b)]),
-                                         std::abs (pairs[static_cast<std::size_t> (2 * b + 1)])));
+        {
+            const float pLo = pairs[static_cast<std::size_t> (2 * b)], pHi = pairs[static_cast<std::size_t> (2 * b + 1)];
+            float lo = pLo, hi = pHi;
+            if (live.read (slot0, static_cast<int> (b), lo, hi))
+                moved = std::max (moved, std::abs (lo - pLo) + std::abs (hi - pHi));
+            pk = std::max (pk, std::max (std::abs (lo), std::abs (hi)));
+        }
         peaks[i] = std::min (1.0f, pk);
+        if (dirty != nullptr)
+        {
+            const float d = std::isfinite (moved) ? moved : kDirtyFullScale;
+            dirty[i] = static_cast<std::uint8_t> (std::min (255.0f, std::round (255.0f * d / kDirtyFullScale)));
+        }
     }
     return true;
+}
+
+void GranulatorInstrumentProcessor::updateSlotDirty (int slot0, const ogi::SlotInfo& info, std::uint64_t published, double nowMs)
+{
+    // PD7: `slots[i].dirty` is a real difference test (some live bin of the
+    // current tape differs from its pristine bin), evaluated only when the
+    // head wrote (ovWrites), the tape changed (epoch: bumped by the audio
+    // thread when it takes a tape, which invalidates every live bin) or the
+    // loader's side changed, and at most every kDirtyMinMs per slot. A key
+    // that moved inside the limit stays "moved" until it is evaluated.
+    const auto i = static_cast<std::size_t> (slot0);
+    const auto& tel = engine->getTelemetry();
+    DirtyKey key;
+    key.writes = tel.getOvWrites (slot0);
+    key.epoch  = tel.overview.epoch (slot0);
+    key.tape   = info.generation + published;
+    key.loaded = info.loaded;
+
+    if (slotDirtyKeyValid[i] && (key == slotDirtyKey[i] || nowMs - slotDirtyEvalMs[i] < kDirtyMinMs))
+        return;
+
+    bool differs = false;
+    if (info.loaded)
+    {
+        const auto pairs = loader->getOverview (slot0);
+        const int bins = static_cast<int> (pairs.size() / 2);
+        for (int b = 0; b < bins && ! differs; ++b)
+        {
+            float lo = 0.0f, hi = 0.0f;
+            if (tel.overview.read (slot0, b, lo, hi))
+                differs = ! juce::exactlyEqual (lo, pairs[static_cast<std::size_t> (2 * b)])
+                       || ! juce::exactlyEqual (hi, pairs[static_cast<std::size_t> (2 * b + 1)]);
+        }
+    }
+    slotDirty[i] = differs;
+    slotDirtyKey[i] = key;          // the key read BEFORE the bins: a write during the scan re-evaluates
+    slotDirtyKeyValid[i] = true;
+    slotDirtyEvalMs[i] = nowMs;
+}
+
+//==============================================================================
+// Stage 3 / 3.2: the telemetry builder (PLAN-3.2 PD2 – PD5, PD9 – PD13).
+//==============================================================================
+GranulatorInstrumentProcessor::UiTelemetry GranulatorInstrumentProcessor::buildUiTelemetry (double nowMs)
+{
+    // Two editors may poll (RESEARCH-3.2 §10): one reader at a time on the
+    // single-reader frame buffer and on the consuming peak.
+    const juce::ScopedLock sl (telemetryLock);
+
+    UiTelemetry t;
+    auto& tel = engine->getTelemetry();
+    auto& recorder = engine->getRecorder();
+    const double fs = engine->getSampleRate();
+
+    const auto raw = [this] (const juce::String& id, float fallback)
+    {
+        const auto* v = parameters.getRawParameterValue (id);
+        return v != nullptr ? v->load (std::memory_order_relaxed) : fallback;
+    };
+
+    // ── revisions: the publish count FIRST, then one SlotInfo copy per slot ──
+    const std::uint64_t published = handoff.getPublishedCount();
+    std::array<ogi::SlotInfo, ogi::kTapeSlots> infos;
+    for (int s = 0; s < ogi::kTapeSlots; ++s)
+        infos[static_cast<std::size_t> (s)] = loader->getSlotInfo (s);
+    for (int s = 0; s < ogi::kTapeSlots; ++s)
+        updateSlotDirty (s, infos[static_cast<std::size_t> (s)], published, nowMs);   // before the fingerprint (PD7)
+
+    t.scaleRev = getScaleStateRevision();
+    t.slotRev  = slotRevisionFor (infos, published);
+    for (int s = 0; s < ogi::kTapeSlots; ++s)
+        t.lanes[static_cast<std::size_t> (s)].ovRev = overviewRevFor (s, infos[static_cast<std::size_t> (s)], published);
+
+    // ── the grain frame: THE one read (PD12) ─────────────────────────────────
+    const ogi::GiUiFrame& f = tel.frames.read();
+
+    // PD4: stale when seqHead has not moved for kStaleMs on the caller's
+    // clock. The first observation counts as a move.
+    if (! frameSeqSeen || f.seqHead != frameSeqLast)
+    {
+        frameSeqSeen = true;
+        frameSeqLast = f.seqHead;
+        frameSeqMovedMs = nowMs;
+    }
+    t.stale = nowMs - frameSeqMovedMs >= kStaleMs;
+
+    // Which streams have a tape (the loader's view; the engine writes scan 0
+    // for a stream without one, which would draw a playhead at x = 0).
+    std::array<bool, ogi::kGiStreams> hasTape {};
+    for (int s = 0; s < ogi::kGiStreams; ++s)
+        hasTape[static_cast<std::size_t> (s)] = infos[static_cast<std::size_t> (s)].loaded && infos[static_cast<std::size_t> (s)].frames > 0;
+
+    if (! t.stale)
+    {
+        // PD2: 20 rows; state 1 = counted (note >= 0).
+        for (int k = 0; k < UiTelemetry::kVoices; ++k)
+        {
+            const auto& u = f.voices[k];
+            auto& v = t.voices[static_cast<std::size_t> (k)];
+            if (u.note < 0)
+                continue;   // a free row: state 0, note −1, scans −1
+            v.state = 1;
+            v.note  = static_cast<int> (u.note);
+            v.amp   = std::isfinite (u.amp) ? u.amp : 0.0f;
+            for (int s = 0; s < ogi::kGiStreams; ++s)
+                if (hasTape[static_cast<std::size_t> (s)] && std::isfinite (u.scan[s]))
+                    v.scan[static_cast<std::size_t> (s)] = juce::jlimit (0.0f, 1.0f, u.scan[s]);
+        }
+
+        // PD1: the reader-side derivations (parent PluginProcessor.cpp grains).
+        // The frame's gainL / gainR are spread pan × gain_rand ONLY (the stream
+        // pan is applied on the stream bus, Engine.cpp spawn), so the stream
+        // pan is added here, once: the BASE sN_pan parameter (−100…100 → ±1;
+        // pan modulation is not followed — the mod telemetry is 3.3).
+        std::array<double, ogi::kGiStreams> streamPan {};
+        for (int s = 0; s < ogi::kGiStreams; ++s)
+            streamPan[static_cast<std::size_t> (s)] = juce::jlimit (-1.0, 1.0, static_cast<double> (raw (Ids::stream (s + 1, "pan"), 0.0f)) / 100.0);
+
+        constexpr double kPanScale = 4.0 / juce::MathConstants<double>::pi;
+        const int n = juce::jlimit (0, UiTelemetry::kMaxGrains, static_cast<int> (f.count));
+        int out = 0;
+        for (int i = 0; i < n; ++i)
+        {
+            const auto& u = f.grains[i];
+            if (u.stream >= ogi::kGiStreams)
+                continue;
+            const auto stream0 = static_cast<std::size_t> (u.stream);
+            auto& g = t.grains[static_cast<std::size_t> (out++)];
+            g.stream  = static_cast<int> (u.stream) + 1;   // 1-based on the wire
+            g.normPos = std::isfinite (u.normPos) ? u.normPos : 0.0f;
+            // panGains inverse: θ = (p + 1) · π / 4. Equal gains (spread 0) are
+            // exactly 0 — atan2 (1, 1) · 4 / π − 1 leaves an ulp residue otherwise.
+            const double grainPan = juce::exactlyEqual (u.gainL, u.gainR)
+                                        ? 0.0
+                                        : kPanScale * std::atan2 (static_cast<double> (u.gainR), static_cast<double> (u.gainL)) - 1.0;
+            const double pan = juce::jlimit (-1.0, 1.0, grainPan + streamPan[stream0]);
+            g.pan  = std::isfinite (pan) ? static_cast<float> (pan) : 0.0f;
+            const double level = std::sqrt ((static_cast<double> (u.gainL) * u.gainL + static_cast<double> (u.gainR) * u.gainR) * 0.5);
+            g.gain = std::isfinite (level) ? static_cast<float> (level) : 0.0f;
+            const float env = engine->grainWindow (static_cast<int> (u.windowStep), u.tiltT, u.tiltA, u.tiltB, static_cast<double> (u.phase)) * u.gain;
+            g.env  = std::isfinite (env) ? env : 0.0f;
+            g.lengthSec = fs > 0.0 ? static_cast<float> (static_cast<double> (u.lenSamples) / fs) : 0.0f;
+            g.voice = static_cast<int> (u.voice);
+            g.flags = static_cast<int> (u.flags & 1u);   // reversed only (PD1: the killing bit is never sent)
+            if ((u.flags & 2u) == 0)                      // PD3: neither killing nor in a fade slot
+                ++t.counts[stream0];
+        }
+        t.grainCount = out;
+    }
+
+    // ── PD5: the feedback head ───────────────────────────────────────────────
+    // Shown when the slot has a tape and (the head is not parked, or freeze is
+    // on with feedback > 0: the head parks when frozen and the page draws it
+    // dashed). Nothing before the engine published its first frame (the
+    // telemetry atomics still read 0 = "not parked").
+    if (f.seqHead != 0)
+    {
+        const bool frozenWithFeedback = raw ("freeze", 0.0f) > 0.5f && raw ("feedback", 0.0f) > 0.0f;
+        for (int s = 0; s < ogi::kTapeSlots; ++s)
+        {
+            const auto i = static_cast<std::size_t> (s);
+            if (! hasTape[i])
+                continue;
+            const bool parked = (tel.swapState[i].load (std::memory_order_relaxed) & 4u) != 0;
+            if (parked && ! frozenWithFeedback)
+                continue;
+            const double pos = static_cast<double> (tel.headPos[i].load (std::memory_order_relaxed)) / static_cast<double> (infos[i].frames);
+            t.lanes[i].hasFb = true;
+            t.lanes[i].fb = static_cast<float> (juce::jlimit (0.0, 1.0, pos));
+        }
+    }
+
+    // ── PD9 – PD11: Record-in ────────────────────────────────────────────────
+    t.rec.bus = getSidechainChannelCount() > 0 ? 1 : 0;
+    t.rec.run = recRunHold.update (recorder.getPackedState(), nowMs);
+
+    const int target = recorder.getTargetTelemetry();
+    const int taken  = recorder.getFramesTelemetry();
+    if (target > 0)
+    {
+        t.rec.slot = juce::jlimit (0, ogi::kTapeSlots - 1, recorder.getTargetSlotTelemetry()) + 1;
+        t.rec.pos  = static_cast<float> (juce::jlimit (0.0, 1.0, static_cast<double> (taken) / static_cast<double> (target)));
+        t.rec.len  = fs > 0.0 ? static_cast<float> (static_cast<double> (target) / fs) : 0.0f;
+        if (t.rec.run == 2)
+        {
+            auto& lane = t.lanes[static_cast<std::size_t> (t.rec.slot - 1)];
+            lane.hasRec = true;
+            lane.rec = t.rec.pos;
+        }
+    }
+
+    // PD10: THE one consumer of the post-gain sidechain peak.
+    float peak = recorder.takeScPeak();
+    if (! std::isfinite (peak))
+        peak = 0.0f;
+    if (peak >= ogi::GiRecorder::kPresenceLin)
+    {
+        signalSeen = true;
+        signalLastMs = nowMs;
+    }
+    t.rec.signal = signalSeen && nowMs - signalLastMs <= kSignalHoldMs;
+    t.rec.peak = peak;
+
+    // PD11: Tempo length mode, not recording, and the take the recorder would
+    // start — its OWN length function, at the block's tempo — exceeds F_max.
+    if (raw ("sync_mode", 0.0f) > 0.5f && t.rec.run != 2 && fs > 0.0)
+    {
+        const double b = uiBpm.load (std::memory_order_relaxed);
+        const double bpm = (b > 0.0 && std::isfinite (b)) ? b : ogi::kTempoFallbackBpm;
+        const double pps = bpm / 60.0 / fs;   // TempoTracker::update's expression
+        const auto len = ogi::GiRecorder::takeLengthFrames (true, static_cast<int> (std::lround (raw ("rec_length_sync", 2.0f))),
+                                                            uiBarQuarters.load (std::memory_order_relaxed), pps, 0.0, fs);
+        t.rec.capped = len > static_cast<std::int64_t> (ogi::GiRecorder::maxFramesFor (fs));
+    }
+
+    return t;
+}
+
+//==============================================================================
+// Stage 3 / 3.2: slot actions (PLAN-3.2 PD14, PD16).
+//==============================================================================
+juce::String GranulatorInstrumentProcessor::clearSlot (int slot0)
+{
+    if (slot0 < 0 || slot0 >= ogi::kTapeSlots)
+        return "badSlot";
+
+    // A commit job arrives after the clear and would refill the lane: refuse
+    // while a take is running or being copied out into THIS slot. Armed is
+    // allowed (the take then lands in an empty lane).
+    const auto& recorder = engine->getRecorder();
+    const auto state = static_cast<ogi::RecState> (recorder.getPackedState() & 0xffu);
+    if ((state == ogi::RecState::Recording || state == ogi::RecState::Committing)
+        && recorder.getTargetSlotTelemetry() == slot0)
+        return "recording";
+
+    return loader->requestClear (slot0) == ogi::SlotLoader::ClearResult::badSlot ? juce::String ("badSlot") : juce::String();
+}
+
+bool GranulatorInstrumentProcessor::importDroppedFile (int slot0, const juce::File& tempFile, const juce::String& displayName)
+{
+    return loader->requestImport (slot0, tempFile, displayName);
+}
+
+//==============================================================================
+// Stage 3 / 3.2: Save recording (PLAN-3.2 PD19, D46) over the engine's
+// GiTapeSnapshot (PD18).
+//
+// THREADS. saveRecordingTo runs on the message thread (guards, then one queued
+// SaveJob). ONE worker thread (SaveWorker, started at the first save, joined
+// first in the destructor) runs the job: allocate → request → wait → write.
+// The audio thread copies the tape (Engine::serviceTapeSnapshot). prepareToPlay
+// / releaseResources run on a host thread with the callback stopped.
+//
+// LOCK. saveLock guards saveJob / saveInFlight / saveLent / saveBufL / saveBufR
+// / saveDone and EVERY owner call into the snapshot (request, cancel, release,
+// resetAudioStopped). The audio thread never takes it.
+//
+// BUFFER LIFETIME (the invariant of GiTapeSnapshot.h). saveBufL / R are freed
+// at exactly four places, each under saveLock:
+//   1. after release() returned true           (rule (a): the audio thread
+//      wrote a terminal state as its last access) — reclaimSaveBufferLocked
+//      and the Done / Aborted paths of runSaveJob;
+//   2. prepareToPlay / releaseResources, ONLY when saveLent (no job running,
+//      so no other owner thread is in the snapshot) — resetAudioStopped()
+//      first (rule (b));
+//   3. the destructor, after the worker is joined — resetAudioStopped() first
+//      (rule (b));
+//   4. a request() that returned false (nothing was retained).
+// Never on a timeout. Every exit of runSaveJob:
+//   allocation failed        nothing lent                     → writeFailed
+//   request() false          4.                               → busy
+//   Done                     release() → write from the buffer → free
+//                                                             → ok | writeFailed | cancelled (exit during the write)
+//   Aborted                  release() → free                 → changed
+//   no progress for 2000 ms  cancel(); it returned false (the audio thread
+//                            finished first) → the Done / Aborted path;
+//                            else wait ≤ 100 ms for the acknowledgement:
+//                            release() true → free; false → saveLent = true,
+//                            the buffer STAYS (audio may resume and write the
+//                            chunk it was in, then acknowledge)  → timeout
+//   worker told to exit      cancel(); terminal → release() → free; else
+//                            saveLent = true (the destructor frees under
+//                            rule (b))                         → cancelled
+// While saveLent, saveRecordingTo answers `busy` unless release() succeeds at
+// that moment; the worker's idle loop also retries release() every 100 ms, so
+// the buffer goes soon after audio resumes. saveInFlight stays true from the
+// queueing until the result is recorded, so only one job ever owns the buffer.
+//==============================================================================
+namespace
+{
+    juce::String slotSourcePath (const juce::String& source)
+    {
+        if (source.startsWith ("file:") || source.startsWith ("rec:"))
+            return source.fromFirstOccurrenceOf (":", false, false);
+        return {};
+    }
+}
+
+bool GranulatorInstrumentProcessor::reclaimSaveBufferLocked() noexcept
+{
+    if (! saveLent)
+        return true;
+    if (! engine->tapeSnapshot().release())   // not terminal: the audio thread still owes its acknowledgement
+        return false;
+    saveBufL.free();
+    saveBufR.free();
+    saveLent = false;
+    return true;
+}
+
+void GranulatorInstrumentProcessor::reclaimSaveBufferAudioStopped() noexcept
+{
+    const juce::ScopedLock sl (saveLock);
+    if (! saveLent)
+        return;   // nothing lent, or a job in flight owns the request (left alone)
+    engine->tapeSnapshot().resetAudioStopped();
+    saveBufL.free();
+    saveBufR.free();
+    saveLent = false;
+}
+
+void GranulatorInstrumentProcessor::saveRecordingTo (int slot0, const juce::File& file, SaveCompletion completion)
+{
+    const auto refuse = [&completion] (const char* error)
+    {
+        SaveResult r;
+        r.error = error;
+        if (completion)
+            completion (r);
+    };
+
+    // Guards, in order (PD19).
+    if (slot0 < 0 || slot0 >= ogi::kTapeSlots)
+        return refuse ("notRecording");
+    const auto info = loader->getSlotInfo (slot0);
+    if (! info.source.startsWith ("rec:"))
+        return refuse ("notRecording");
+    if (! info.loaded || info.frames <= 0 || ! (info.tapeRate > 0.0))
+        return refuse ("empty");
+
+    {
+        const juce::ScopedLock sl (saveLock);
+        if (saveInFlight || ! reclaimSaveBufferLocked())
+            return refuse ("busy");
+    }
+
+    const auto target = file.withFileExtension ("wav");
+    for (int s = 0; s < ogi::kTapeSlots; ++s)
+    {
+        const auto path = slotSourcePath (s == slot0 ? info.source : loader->getSlotInfo (s).source);
+        if (path.isNotEmpty() && juce::File::isAbsolutePath (path) && juce::File (path) == target)
+            return refuse ("inUse");
+    }
+
+    {
+        // The message thread is the only caller, so nothing was queued since
+        // the busy check above.
+        const juce::ScopedLock sl (saveLock);
+        saveInFlight = true;
+        saveJob = std::make_unique<SaveJob>();
+        saveJob->slot0 = slot0;
+        saveJob->file = target;
+        saveJob->frames = info.frames;
+        saveJob->rate = info.tapeRate;
+        saveJob->completion = std::move (completion);
+    }
+
+    if (saveWorker == nullptr)
+    {
+        saveWorker = std::make_unique<SaveWorker> (*this);
+        saveWorker->startThread();
+    }
+    saveWorker->notify();
+}
+
+void GranulatorInstrumentProcessor::saveWorkerRun()
+{
+    while (! juce::Thread::currentThreadShouldExit())
+    {
+        std::unique_ptr<SaveJob> job;
+        bool lent = false;
+        {
+            const juce::ScopedLock sl (saveLock);
+            job = std::move (saveJob);
+            if (job == nullptr)
+                lent = ! reclaimSaveBufferLocked();   // a timed-out save: free once the audio thread acknowledged
+        }
+
+        if (job == nullptr)
+        {
+            saveWorker->wait (lent ? 100 : -1);   // notify() from saveRecordingTo / signalThreadShouldExit
+            continue;
+        }
+
+        const auto result = runSaveJob (*job);
+        finishSave (std::move (job->completion), result);
+    }
+}
+
+GranulatorInstrumentProcessor::SaveResult GranulatorInstrumentProcessor::runSaveJob (const SaveJob& job)
+{
+    using Snap = ogi::GiTapeSnapshot;
+    auto& snap = engine->tapeSnapshot();
+    const auto fail = [] (const char* error)
+    {
+        SaveResult r;
+        r.error = error;
+        return r;
+    };
+
+    {
+        // saveBufL / R are free here: saveRecordingTo queued this job only
+        // after reclaimSaveBufferLocked() returned true, and saveInFlight has
+        // kept every other owner out since.
+        const juce::ScopedLock sl (saveLock);
+        saveBufL.malloc (static_cast<std::size_t> (job.frames));
+        saveBufR.malloc (static_cast<std::size_t> (job.frames));
+        if (saveBufL.get() == nullptr || saveBufR.get() == nullptr)
+        {
+            saveBufL.free();
+            saveBufR.free();
+            return fail ("writeFailed");
+        }
+        if (! snap.request (job.slot0, saveBufL.get(), saveBufR.get(), job.frames))
+        {
+            saveBufL.free();   // nothing was retained by the snapshot
+            saveBufR.free();
+            return fail ("busy");
+        }
+    }
+
+    // The buffers are the audio thread's until a terminal state + release().
+    const auto releaseAndFree = [this, &snap]
+    {
+        const juce::ScopedLock sl (saveLock);
+        const bool released = snap.release();
+        jassertquiet (released);
+        if (released)
+        {
+            saveBufL.free();
+            saveBufR.free();
+        }
+        else
+        {
+            saveLent = true;   // cannot happen from a terminal state; never free without the release
+        }
+    };
+    const auto finishDone = [this, &snap, &job, &fail]
+    {
+        {
+            const juce::ScopedLock sl (saveLock);
+            const bool released = snap.release();   // Done → Idle: the buffers are ours, and stay ours
+            jassertquiet (released);                // (saveInFlight keeps every other owner out)
+            if (! released)
+            {
+                saveLent = true;
+                return fail ("writeFailed");
+            }
+        }
+        const auto error = writeSaveWav (job);
+        {
+            const juce::ScopedLock sl (saveLock);
+            saveBufL.free();
+            saveBufR.free();
+        }
+        SaveResult r;
+        r.ok = error.isEmpty();
+        r.error = error;
+        if (r.ok)
+            r.path = job.file.getFullPathName();
+        return r;
+    };
+
+    std::uint32_t lastProgress = snap.progress();
+    double lastMoveMs = juce::Time::getMillisecondCounterHiRes();
+
+    for (;;)
+    {
+        const auto st = snap.state();
+        if (st == Snap::Done)
+            return finishDone();
+        if (st == Snap::Aborted)
+        {
+            releaseAndFree();
+            return fail ("changed");
+        }
+
+        const bool exiting = juce::Thread::currentThreadShouldExit();
+        const double nowMs = juce::Time::getMillisecondCounterHiRes();
+        const auto progress = snap.progress();
+        if (progress != lastProgress)
+        {
+            lastProgress = progress;
+            lastMoveMs = nowMs;
+        }
+
+        if (exiting || nowMs - lastMoveMs >= kSaveNoProgressMs)
+        {
+            bool owed;
+            {
+                const juce::ScopedLock sl (saveLock);
+                owed = snap.cancel();   // true: the audio thread now owes a Cancelled
+            }
+            if (! owed)
+            {
+                // The audio thread reached a terminal state before the cancel.
+                if (snap.state() == Snap::Done && ! exiting)
+                    return finishDone();
+                const bool changed = snap.state() == Snap::Aborted;
+                releaseAndFree();
+                return fail (exiting ? "cancelled" : (changed ? "changed" : "timeout"));
+            }
+
+            // Bounded wait for the acknowledgement (none while the host idles
+            // the callback, and none at all once the worker must exit).
+            const double until = nowMs + 100.0;
+            while (! exiting && ! Snap::isTerminal (snap.state()) && juce::Time::getMillisecondCounterHiRes() < until
+                   && ! juce::Thread::currentThreadShouldExit())
+                juce::Thread::sleep (2);
+            {
+                const juce::ScopedLock sl (saveLock);
+                if (snap.release())
+                {
+                    saveBufL.free();
+                    saveBufR.free();
+                }
+                else
+                {
+                    saveLent = true;   // NOT freed: the audio thread may still write into it when it resumes
+                }
+            }
+            return fail (exiting ? "cancelled" : "timeout");
+        }
+
+        saveWorker->wait (2);
+    }
+}
+
+juce::String GranulatorInstrumentProcessor::writeSaveWav (const SaveJob& job)
+{
+    // Worker thread; the snapshot is Idle and saveBufL / R hold [0, frames).
+    // 24-bit stereo at the tape rate, through a ".part" sibling, then renamed
+    // over the target (the chooser already asked about overwriting).
+    const auto part = job.file.getSiblingFile (job.file.getFileName() + ".part");
+    job.file.getParentDirectory().createDirectory();
+    part.deleteFile();
+
+    juce::String error;
+    {
+        auto fos = std::make_unique<juce::FileOutputStream> (part);
+        if (fos->failedToOpen())
+            return "writeFailed";
+        std::unique_ptr<juce::OutputStream> os (std::move (fos));
+        juce::WavAudioFormat wav;
+        const auto opts = juce::AudioFormatWriterOptions{}
+                              .withSampleRate (job.rate)
+                              .withNumChannels (2)
+                              .withBitsPerSample (24);
+        auto w = wav.createWriterFor (os, opts);
+        if (w == nullptr)
+        {
+            os.reset();
+            part.deleteFile();
+            return "writeFailed";
+        }
+
+        // Samples beyond ±1.0 clip (PD19, R§12.8): clamped here, explicitly.
+        constexpr int kChunk = 32768;
+        juce::HeapBlock<float> cl (kChunk), cr (kChunk);
+        const float* const chans[2] = { cl.get(), cr.get() };
+        for (int pos = 0; pos < job.frames && error.isEmpty(); pos += kChunk)
+        {
+            if (juce::Thread::currentThreadShouldExit())
+            {
+                error = "cancelled";
+                break;
+            }
+            const int n = std::min (kChunk, job.frames - pos);
+            for (int i = 0; i < n; ++i)
+            {
+                const float l = saveBufL[pos + i], r = saveBufR[pos + i];
+                cl[i] = std::isfinite (l) ? juce::jlimit (-1.0f, 1.0f, l) : 0.0f;
+                cr[i] = std::isfinite (r) ? juce::jlimit (-1.0f, 1.0f, r) : 0.0f;
+            }
+            if (! w->writeFromFloatArrays (chans, 2, n))
+                error = "writeFailed";
+        }
+        if (error.isEmpty() && ! w->flush())
+            error = "writeFailed";
+        w.reset();   // closes the file (header length written)
+    }
+
+    // 6 bytes per frame after the header: a short file is a failed write.
+    if (error.isEmpty() && part.getSize() < static_cast<juce::int64> (job.frames) * 6)
+        error = "writeFailed";
+    if (error.isEmpty() && ! part.moveFileTo (job.file))
+        error = "writeFailed";
+    if (error.isNotEmpty())
+        part.deleteFile();
+    return error;
+}
+
+void GranulatorInstrumentProcessor::finishSave (SaveCompletion completion, const SaveResult& result)
+{
+    {
+        const juce::ScopedLock sl (saveLock);
+        saveDone.emplace_back (std::move (completion), result);
+        saveInFlight = false;
+    }
+
+    // To the message thread. Without a MessageManager (a console) the worker
+    // delivers; the destructor delivers whatever is left (the flag keeps a
+    // late message off a dead processor).
+    if (juce::MessageManager::getInstanceWithoutCreating() != nullptr)
+    {
+        juce::MessageManager::callAsync ([alive = saveAlive, this]
+        {
+            if (alive->load (std::memory_order_acquire))
+                deliverSaveCompletions();
+        });
+    }
+    else
+    {
+        deliverSaveCompletions();
+    }
+}
+
+void GranulatorInstrumentProcessor::deliverSaveCompletions()
+{
+    std::vector<std::pair<SaveCompletion, SaveResult>> done;
+    {
+        const juce::ScopedLock sl (saveLock);
+        done.swap (saveDone);
+    }
+    for (auto& d : done)
+        if (d.first)
+            d.first (d.second);
 }
 
 void GranulatorInstrumentProcessor::getWindowCurve (int stream0, float* out, int n) const noexcept
@@ -1069,6 +1799,44 @@ bool GranulatorInstrumentProcessor::commitSync()
     take->rate = c.rate;
     juce::String error;
     return loader->commitSync (c.slot, std::move (take), error);
+}
+
+GranulatorInstrumentProcessor::SaveResult GranulatorInstrumentProcessor::saveRecordingSync (int slot0, const juce::File& file,
+                                                                                            const std::function<void()>& pump)
+{
+    // The harness has a MessageManager but no running loop: the callAsync of
+    // finishSave never dispatches, so this loop delivers on the calling thread.
+    struct Box
+    {
+        std::atomic<bool> done { false };
+        SaveResult result;
+    };
+    auto box = std::make_shared<Box>();
+    saveRecordingTo (slot0, file, [box] (const SaveResult& r)
+    {
+        box->result = r;
+        box->done.store (true, std::memory_order_release);
+    });
+    while (! box->done.load (std::memory_order_acquire))
+    {
+        if (pump)
+        {
+            pump();
+            juce::Thread::yield();
+        }
+        else
+        {
+            juce::Thread::sleep (1);
+        }
+        deliverSaveCompletions();
+    }
+    return box->result;
+}
+
+bool GranulatorInstrumentProcessor::saveBufferHeldForTest() const
+{
+    const juce::ScopedLock sl (saveLock);
+    return saveBufL.get() != nullptr || saveBufR.get() != nullptr;
 }
 
 bool GranulatorInstrumentProcessor::resetSlotSync (int slot)
