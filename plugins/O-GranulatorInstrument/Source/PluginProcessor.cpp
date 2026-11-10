@@ -20,6 +20,9 @@
 #include "PluginProcessor.h"
 #include "dsp/GiHash.h"
 
+#include <algorithm>
+#include <cmath>
+
 // OGI_DEV_LOADER (CONTEXT-2.1 D13, PLAN-2.1 P4) is defined =1 on the PLUGIN
 // target only (CMake option, default ON until Phase 3.1). The consoles never
 // see it and build with JUCE_WEB_BROWSER=0, so they compile the generic editor
@@ -109,6 +112,18 @@ GranulatorInstrumentProcessor::GranulatorInstrumentProcessor()
     };
 
     updateSidechainChannelCount();
+
+    // Stage 3 (PLAN-3.1 PD2): preset FILES. The seed, the custom scale, the
+    // masks and the slot SOURCES (never a blob, PD1) travel in customState.
+    // output_gain is the user's trim; rec_arm must never see the Off → On edge
+    // a preset apply would produce (reset to default, then the saved value —
+    // that edge arms a capture, D34). Neither is written, reset or applied.
+    // No directory I/O here: the manager creates its folders lazily (auval).
+    // No factory presets (Stage 4).
+    presetManager.setCustomStateCallbacks ([this] { return presetCustomState(); },
+                                           [this] (const juce::var& v) { applyPresetCustomState (v); });
+    presetManager.setExcludedParameters ({ "output_gain", "rec_arm" });
+    presetManager.setValidatedApply (true);
 
     // PLAN-2.6 PD7: the commit poll (never AsyncUpdater: it locks + reallocs
     // on the audio thread).
@@ -428,6 +443,7 @@ juce::String GranulatorInstrumentProcessor::setCustomScale (const juce::String& 
     for (int s = 1; s <= Ids::kStreams; ++s)
         degreeMasks[static_cast<size_t> (maskIndex (s, PitchCollections::Custom))].store (kAllOn, std::memory_order_relaxed);
     customVersion.fetch_add (1, std::memory_order_acq_rel);
+    bumpScaleRevision();   // PLAN-3.1 PD4 (UI only; the engine reads customVersion)
     return {};
 }
 
@@ -465,6 +481,7 @@ void GranulatorInstrumentProcessor::setDegreeMask (int stream, int collection, u
         return;
     degreeMasks[static_cast<size_t> (maskIndex (stream, collection))]
         .store (canonicalMask (mask, degreeCountFor (collection)), std::memory_order_relaxed);
+    bumpScaleRevision();   // PLAN-3.1 PD4
 }
 
 void GranulatorInstrumentProcessor::resetNonParameterState()
@@ -481,6 +498,7 @@ void GranulatorInstrumentProcessor::resetNonParameterState()
     customVersion.fetch_add (1, std::memory_order_acq_rel);
     for (auto& m : degreeMasks)
         m.store (kAllOn, std::memory_order_relaxed);
+    bumpScaleRevision();   // PLAN-3.1 PD4
 }
 
 //==============================================================================
@@ -758,6 +776,286 @@ void GranulatorInstrumentProcessor::applyNonParameterState (const juce::var& cus
                 continue;   // P17: exactly 16 hex digits, or ignored (all-on stays)
             setDegreeMask (static_cast<int> (sv), static_cast<int> (cv), static_cast<uint64_t> (bits.getHexValue64()));
         }
+
+    bumpScaleRevision();   // PLAN-3.1 PD4: one more after the whole apply (session restore and preset load)
+}
+
+//==============================================================================
+// Presets (PLAN-3.1 PD1 / PD2; the parent's P99 / P100 wiring plus the slots).
+// Same encodings as the session codec: the seed as an int64 decimal STRING (a
+// JSON number is a double — it loses bits above 2^53 — and getLargeIntValue
+// clamps a uint64 above INT64_MAX), masks as 16 hex digits, only non-default
+// ones written. Slots: the loader's records WITHOUT the blob (sign-off
+// 2026-11-10: sources, no blobs), fileSize as a decimal string, contentHash as
+// 16 hex digits.
+//
+// Message thread. Nothing here decodes: restoreSlots writes the records under
+// the loader lock and queues one resolve job per changed slot on its worker.
+// The manager's XML session calls are never used (no <CustomState> child can
+// reach the live tree).
+//==============================================================================
+namespace
+{
+    /** A JSON flag: a bool, a number (non-zero), or the codec's "1" / "true". */
+    bool presetFlag (const juce::var& v)
+    {
+        if (v.isBool())
+            return static_cast<bool> (v);
+        if (v.isInt() || v.isInt64() || v.isDouble())
+            return static_cast<double> (v) != 0.0;
+        if (v.isString())
+        {
+            const auto s = v.toString().trim();
+            return s == "1" || s.equalsIgnoreCase ("true");
+        }
+        return false;
+    }
+
+    /** customState.slots → SavedSlot records. Every field is type-checked;
+        a malformed entry is skipped (its slot then counts as not listed). An
+        `embedded` key in a hand-edited file is never read (PD1). */
+    std::vector<ogi::SavedSlot> parsePresetSlots (const juce::Array<juce::var>& list)
+    {
+        std::vector<ogi::SavedSlot> out;
+        for (const auto& v : list)
+        {
+            auto* o = v.getDynamicObject();
+            if (o == nullptr)
+                continue;
+
+            int index = -1;
+            const auto iv = o->getProperty ("index");
+            if (iv.isInt() || iv.isInt64())
+            {
+                const auto i64 = static_cast<juce::int64> (iv);
+                if (i64 >= 0 && i64 < ogi::kTapeSlots)
+                    index = static_cast<int> (i64);
+            }
+            else if (iv.isString())
+            {
+                const auto t = iv.toString().trim();
+                if (t.length() == 1 && t.containsOnly ("0123"))
+                    index = t.getIntValue();
+            }
+            if (index < 0)
+                continue;
+
+            const auto sv = o->getProperty ("source");
+            if (! sv.isString())
+                continue;
+
+            ogi::SavedSlot x;
+            x.index  = index;
+            x.source = sv.toString();
+            if (! (x.source.startsWith ("factory:") || x.source.startsWith ("file:") || x.source.startsWith ("rec:")))
+                continue;   // unknown scheme → not listed
+
+            const auto nv = o->getProperty ("name");
+            if (nv.isString())
+                x.name = nv.toString();
+
+            const auto fv = o->getProperty ("fileSize");
+            if (fv.isString())
+            {
+                const auto t = fv.toString().trim();
+                if (t.isNotEmpty() && t.length() <= 18 && t.containsOnly ("0123456789"))
+                    x.fileSize = t.getLargeIntValue();
+            }
+            else if (fv.isInt() || fv.isInt64())
+            {
+                x.fileSize = std::max (static_cast<juce::int64> (0), static_cast<juce::int64> (fv));
+            }
+
+            const auto hv = o->getProperty ("contentHash");
+            x.hasHash = hv.isString() && ogi::gihash::fromHex (hv.toString().trim(), x.hash);
+            x.embed   = presetFlag (o->getProperty ("embed"));
+            x.trimmed = presetFlag (o->getProperty ("trimmed"));
+            out.push_back (std::move (x));
+        }
+        return out;
+    }
+}
+
+juce::var GranulatorInstrumentProcessor::presetCustomState() const
+{
+    auto* root = new juce::DynamicObject();
+    root->setProperty ("seed", juce::String (static_cast<juce::int64> (getSeed())));
+
+    const auto c = getCustomScale();
+    auto* cs = new juce::DynamicObject();
+    cs->setProperty ("name", c.name);
+    cs->setProperty ("text", c.text);
+    root->setProperty ("custom", juce::var (cs));
+
+    juce::Array<juce::var> maskList;
+    for (int s = 1; s <= Ids::kStreams; ++s)
+        for (int col = 1; col < Ids::kNumCollections; ++col)
+        {
+            const uint64_t mask = getDegreeMask (s, col);
+            if (mask == kAllOn)
+                continue;
+            auto* o = new juce::DynamicObject();
+            o->setProperty ("stream", s);
+            o->setProperty ("collection", col);
+            o->setProperty ("bits", ogi::gihash::toHex (mask));
+            maskList.add (juce::var (o));
+        }
+    root->setProperty ("masks", maskList);
+
+    // PD1: the loader's records, copied under its lock; the blob is dropped.
+    // Always present (an empty array = "this preset has no sources").
+    juce::Array<juce::var> slotList;
+    for (const auto& x : loader->getSavedSlots())
+    {
+        auto* o = new juce::DynamicObject();
+        o->setProperty ("index", x.index);
+        o->setProperty ("source", x.source);
+        o->setProperty ("name", x.name);
+        o->setProperty ("fileSize", juce::String (x.fileSize));
+        if (x.hasHash)
+            o->setProperty ("contentHash", ogi::gihash::toHex (x.hash));
+        o->setProperty ("embed", x.embed);
+        o->setProperty ("trimmed", x.trimmed);
+        slotList.add (juce::var (o));
+    }
+    root->setProperty ("slots", slotList);
+    return juce::var (root);
+}
+
+void GranulatorInstrumentProcessor::applyPresetCustomState (const juce::var& customState)
+{
+    // Only an int64 decimal STRING is a seed; anything else counts as absent
+    // (a JSON number has already lost its low bits).
+    juce::var custom, masks, seedVar, slotsVar;
+    if (auto* o = customState.getDynamicObject())
+    {
+        custom = o->getProperty ("custom");
+        masks  = o->getProperty ("masks");
+        const auto sv = o->getProperty ("seed");
+        if (sv.isString())
+            seedVar = sv;
+        slotsVar = o->getProperty ("slots");
+    }
+
+    applyNonParameterState (custom, masks, seedVar);   // defaults first; bumps the scale revision
+
+    // PD1: a `slots` array → exactly that list (unlisted sourced slots are
+    // cleared; an identical source is a no-op). Absent (or not an array) →
+    // the slots stay as they are.
+    if (const auto* list = slotsVar.getArray())
+        loader->restoreSlots (parsePresetSlots (*list));
+}
+
+//==============================================================================
+// Stage 3 / 3.1: what the page polls (PLAN-3.1 PD3 – PD6, PD9). Message thread;
+// only the loader lock and relaxed atomics — nothing the audio thread waits on.
+//==============================================================================
+std::uint32_t GranulatorInstrumentProcessor::getOverviewRev (int slot0) const
+{
+    // PD6 is generation · 2 + loaded. Reading SlotLoader.cpp, `generation`
+    // moves at the REQUEST of a load / relink / commit / restore, not at the
+    // publish, and never for a Reset or a rate rebuild (startRebuildLocked
+    // reuses the slot's generation). A reload of a loaded slot would therefore
+    // move the revision once, before its new overview exists, and never again.
+    // So the handoff's publish count is folded in: it advances inside the same
+    // loader-locked step that installs the overview (publishResult) and on
+    // every clear. It is global, so a publish on one slot also moves the other
+    // three (a redundant fetch, never a missed one).
+    //
+    // 2 · (generation + published) + loaded: both terms only grow, so two
+    // states share a value only when nothing changed. The count is read FIRST:
+    // a publish that lands after it leaves this value stale, and the next poll
+    // asks again.
+    const std::uint64_t published = handoff.getPublishedCount();
+    const auto info = loader->getSlotInfo (slot0);
+    return static_cast<std::uint32_t> ((info.generation + published) * 2u + (info.loaded ? 1u : 0u));
+}
+
+std::uint32_t GranulatorInstrumentProcessor::getSlotStateRevision()
+{
+    // PD3: a fingerprint, not a counter bumped at each SlotInfo write (about
+    // 15 sites, several on the worker). FNV-style mixing of what the page
+    // shows; the tape-identity term (generation + the publish count, see
+    // getOverviewRev) makes a same-source reload and a Reset visible.
+   #if OGI_TEST_HOOKS
+    const bool tapeTerm = ! testSlotRevNoGeneration;   // SR1n
+   #else
+    const bool tapeTerm = true;
+   #endif
+
+    std::uint64_t h = 0xcbf29ce484222325ull;
+    const auto mix = [&h] (std::uint64_t v) noexcept
+    {
+        h = (h ^ v) * 0x100000001b3ull;
+        h ^= h >> 29;
+    };
+
+    if (tapeTerm)
+        mix (handoff.getPublishedCount());
+
+    for (int s = 0; s < ogi::kTapeSlots; ++s)
+    {
+        const auto info = loader->getSlotInfo (s);
+        if (tapeTerm)
+            mix (info.generation);
+        mix ((info.loaded ? 1u : 0u) | (info.loading ? 2u : 0u) | (info.missing ? 4u : 0u) | (info.embed ? 8u : 0u)
+             | (info.hasBlob ? 16u : 0u) | (info.tooLarge ? 32u : 0u) | (info.trimmed ? 64u : 0u));
+        mix (static_cast<std::uint64_t> (info.source.hashCode64()));
+        mix (static_cast<std::uint64_t> (info.name.hashCode64()));
+        mix (static_cast<std::uint64_t> (info.lastError.hashCode64()));
+    }
+
+    if (! slotFingerprintValid || h != slotFingerprint)
+    {
+        slotFingerprint = h;
+        slotFingerprintValid = true;
+        ++slotRevision;
+    }
+    return slotRevision;
+}
+
+bool GranulatorInstrumentProcessor::getSlotOverview (int slot0, float* peaks, std::uint8_t* dirty, int n, std::uint32_t& rev) const
+{
+    rev = getOverviewRev (slot0);   // BEFORE the copy: a stale answer is re-fetched, never kept
+
+    if (n > 0 && peaks != nullptr)
+        std::fill_n (peaks, n, 0.0f);
+    if (n > 0 && dirty != nullptr)
+        std::fill_n (dirty, n, static_cast<std::uint8_t> (0));   // 3.1: the pristine read only (live overlay = 3.2)
+    if (n <= 0 || peaks == nullptr)
+        return false;
+
+    // The loader's overview: one (min, max) pair per 512 tape frames.
+    const auto info  = loader->getSlotInfo (slot0);
+    const auto pairs = loader->getOverview (slot0);
+    const auto bins  = static_cast<std::int64_t> (pairs.size() / 2);
+    if (! info.loaded || bins <= 0)
+        return false;
+
+    for (int i = 0; i < n; ++i)
+    {
+        // Source bins [b0, b1) of peak i (at least one: a short tape repeats bins).
+        const std::int64_t b0 = static_cast<std::int64_t> (i) * bins / n;
+        const std::int64_t b1 = std::max (b0 + 1, std::min (bins, static_cast<std::int64_t> (i + 1) * bins / n));
+        float pk = 0.0f;
+        for (std::int64_t b = b0; b < b1; ++b)
+            pk = std::max (pk, std::max (std::abs (pairs[static_cast<std::size_t> (2 * b)]),
+                                         std::abs (pairs[static_cast<std::size_t> (2 * b + 1)])));
+        peaks[i] = std::min (1.0f, pk);
+    }
+    return true;
+}
+
+void GranulatorInstrumentProcessor::getWindowCurve (int stream0, float* out, int n) const noexcept
+{
+    if (out == nullptr || n <= 0)
+        return;
+    const int stream = juce::jlimit (0, Ids::kStreams - 1, stream0) + 1;
+    const auto* w  = parameters.getRawParameterValue (Ids::stream (stream, "window"));
+    const auto* sk = parameters.getRawParameterValue (Ids::stream (stream, "window_skew"));
+    engine->windowCurve (w  != nullptr ? w->load (std::memory_order_relaxed)  : 0.0f,
+                         sk != nullptr ? sk->load (std::memory_order_relaxed) : 0.0f,
+                         out, n);
 }
 
 //==============================================================================

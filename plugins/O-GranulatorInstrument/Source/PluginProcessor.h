@@ -25,6 +25,7 @@
 #include <cstdint>
 #include "GiParamIds.h"
 #include "NoteExpression.h"   // modules/tuning/note-expression 1.1.2 (ouaricon_add_module)
+#include "OuariconPresetManager.h"   // modules/persistence/preset-manager 1.1.1 (preset FILES only, PLAN-3.1 PD2)
 #include "dsp/Engine.h"
 #include "dsp/SlotHandoff.h"
 #include "dsp/SlotLoader.h"
@@ -93,6 +94,14 @@ struct GiVst3Extensions final : Ouaricon::NoteExpression::VST3Extensions
 // Threading: no listener and no audio-thread code writes a parameter. The
 // slot API (requestSlotLoad / getSlotInfo) is message-thread; the dev-loader
 // editor and the Phase 3.2 drop / browser use the same calls.
+//
+// Stage 3 / Phase 3.1 (PLAN-3.1 PD1 – PD10), all message-thread, none of it
+// read by the engine: OuariconPresetManager for preset FILES (the session
+// stays on the codec below; the manager's XML session calls are never used),
+// the scale / slot revisions the page polls, the pristine lane overview and
+// the window figure. No WebView type appears in this header (the consoles
+// build with JUCE_WEB_BROWSER=0); the JSON the page reads is built in
+// GiUiJson.h.
 // ============================================================================
 class GranulatorInstrumentProcessor : public juce::AudioProcessor
 {
@@ -216,6 +225,55 @@ public:
         return (stream - 1) * GiParamIds::kNumCollections + collection;
     }
 
+    // ── Stage 3 / 3.1: presets (message thread; PLAN-3.1 PD1 / PD2) ───────────
+    /** Preset FILES only. `output_gain` (the user's trim) and `rec_arm` (a
+        preset must never arm a capture) are excluded: never written, never
+        reset, never applied. No directory I/O happens until a preset call. */
+    OuariconPresetManager& getPresetManager() noexcept { return presetManager; }
+
+    /** The preset's customState: { seed (int64 decimal STRING), custom { name,
+        text }, masks [ { stream, collection, bits (16 hex) } ] (non-default
+        only), slots [ { index, source, name, fileSize (decimal string),
+        contentHash (16 hex, when known), embed, trimmed } ] (non-empty slots
+        only; NEVER the embedded blob, PD1) }. */
+    juce::var presetCustomState() const;
+
+    /** Applies a preset's customState through applyNonParameterState (reset
+        to defaults first; a seed that is not a decimal string counts as absent
+        and keeps the live seed). Then the slots: a `slots` ARRAY → the loader
+        restores exactly that list (unlisted slots are cleared, an identical
+        source is a no-op, the resolve runs on the loader worker — nothing
+        decodes here); no `slots` array → the slots are left as they are. */
+    void applyPresetCustomState (const juce::var& customState);
+
+    // ── Stage 3 / 3.1: what the page polls (PLAN-3.1 PD3 – PD6, PD9) ──────────
+    static constexpr int kOverviewPeaks = 656;   // lane canvas width (v1-ui.yaml lanes.canvas)
+
+    /** Moves whenever the custom scale or a degree mask may have changed
+        (any thread reads; the engine never does). */
+    std::uint32_t getScaleStateRevision() const noexcept { return scaleRevision.load (std::memory_order_acquire); }
+
+    /** MESSAGE THREAD (non-const: it owns the last fingerprint). Copies the
+        four SlotInfo under the loader lock, hashes what the page shows, and
+        advances the revision when the hash moved. The first call returns 1. */
+    std::uint32_t getSlotStateRevision();
+
+    /** Per-slot overview revision for slot 0…3: moves on every event that can
+        change the slot's tape (request, publish, clear, missing). See the
+        definition for the formula (PD6 + the publish count). */
+    std::uint32_t getOverviewRev (int slot0) const;
+
+    /** The slot's PRISTINE overview folded to `n` peaks in 0…1
+        (max (|min|, |max|) per bin); `dirty` (may be nullptr) is all 0 in 3.1.
+        Always sets `rev` (= getOverviewRev, read BEFORE the copy, so a stale
+        answer is re-fetched, never kept). False + zeros when the slot holds
+        no tape. Message thread; takes only the loader lock. */
+    bool getSlotOverview (int slot0, float* peaks, std::uint8_t* dirty, int n, std::uint32_t& rev) const;
+
+    /** The window figure of stream 0…3: `n` points of the engine's own bank
+        curve at the BASE sN_window / sN_window_skew (no modulation). */
+    void getWindowCurve (int stream0, float* out, int n) const noexcept;
+
    #if OGI_TEST_HOOKS
     /** Render harness only. Decode / resample + build the tape for slot 0...3
         (= the rec_target index) on the CALLING thread and publish it through the
@@ -244,6 +302,11 @@ public:
     /** PLAN-2.6 PD7: the commit poll + job on the CALLING thread
         (deterministic rows). False when no take is ready. */
     bool commitSync();
+
+    /** PLAN-3.1 SR1n control: the slot fingerprint WITHOUT its tape-identity
+        term (SlotInfo::generation and the handoff publish count folded with
+        it), so a same-source reload is missed. getOverviewRev is unaffected. */
+    bool testSlotRevNoGeneration = false;
    #endif
 
     /** PLAN-2.6 PD7: the off-audio poll (message-thread Timer, or a watcher
@@ -269,6 +332,8 @@ private:
     /** PLAN-2.6 PD21: the <Slots> children, type-safely parsed (R§6.1). */
     std::vector<ogi::SavedSlot> parseSlots (const juce::ValueTree& slotsTree) const;
 
+    void bumpScaleRevision() noexcept { scaleRevision.fetch_add (1, std::memory_order_acq_rel); }
+
     GiVst3Extensions vst3Extensions;
     std::array<ogi::GiNeEvent, GiVst3Extensions::kNeCap> neEvents {};   // PD6: this block's converted raw events
     std::atomic<uint64_t> seed { 0 };
@@ -282,6 +347,16 @@ private:
     juce::String customText, customName;
     std::atomic<uint32_t> customVersion { 0 };
     std::array<std::atomic<uint64_t>, GiParamIds::kStreams * GiParamIds::kNumCollections> degreeMasks;
+
+    // Stage 3 / 3.1 (PLAN-3.1 PD2 – PD4). The manager holds a reference to
+    // `parameters` (declared above) and two callbacks into this object; it
+    // touches no directory until a preset call. scaleRevision is a UI-only
+    // counter. The slot fingerprint members are message-thread only.
+    OuariconPresetManager presetManager { parameters, "O-GranulatorInstrument" };
+    std::atomic<std::uint32_t> scaleRevision { 0 };
+    std::uint64_t slotFingerprint = 0;
+    std::uint32_t slotRevision = 0;
+    bool slotFingerprintValid = false;
 
     // Declaration order = construction order; destruction runs in reverse, so
     // the loader (worker jobs that publish) goes first, then the engine (frees

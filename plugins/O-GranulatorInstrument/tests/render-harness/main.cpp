@@ -43,6 +43,7 @@
 #endif
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
+#include "GiUiJson.h"   // PLAN-3.1 PD10: the encoders the editor uses (UTL31, --dump-ui-overrides)
 #include "dsp/GiHash.h"
 #include "dsp/GiFactory.h"
 
@@ -1063,6 +1064,10 @@ static void hookRows()
 #include "engine_gates_26a.h"
 #include "engine_gates_26b.h"
 
+// PLAN-3.1 T5 / PD11: the Stage 3.1 processor surface (presets, window curve,
+// slot / overview revisions, overview, telemetry shape) + --ug31.
+#include "ui_gates_31.h"
+
 //==============================================================================
 // PLAN-2.6 T10 / PD16: the factory stub generator (--gen-factory <dir> [--force]).
 // The same JUCE FLAC encoder, int path and quantiser as the plugin
@@ -1162,6 +1167,148 @@ namespace { namespace genfactory
 } }
 
 //==============================================================================
+// PLAN-3.1 PD12: `--dump-ui-overrides <path>` writes the generic UI stub's seed
+// (tests/ui-stub/generic-overrides.json) from the processor itself: combos
+// (choices + default index), every Float range, and the natives the page
+// pulls, through the SAME encoders the editor uses (GiUiJson.h). Early exit; no
+// gate runs. Deterministic: nothing seeded, nothing timed, no path, LF line
+// ends. scripts/ui-stub/generic-juce-stub.js answers a native with ONE value
+// whatever its arguments, so getSlotOverview / getWindowCurve carry the slot 1
+// / stream 1 answer.
+//
+// Slot fixture: slot 1 the factory tone (really loaded, so its overview is the
+// stub's), slot 2 a trimmed `file:` source, slot 3 a missing recording, slot 4
+// empty (2 - 4 are plain SlotInfo values through the pure encoder).
+//==============================================================================
+static int dumpUiOverrides (const juce::File& out)
+{
+    auto p = make();
+    p->prepareToPlay (48000.0, 512);
+
+    ogi::SavedSlot tone;
+    tone.index  = 0;
+    tone.source = "factory:stub_tone";
+    tone.name   = "stub_tone";
+    p->getLoader().restoreSlots ({ tone });
+    const bool idle = p->getLoader().waitForIdle (20000);
+
+    auto* combos  = new juce::DynamicObject();
+    auto* sliders = new juce::DynamicObject();
+    int nc = 0, nf = 0;
+    for (auto* ap : p->getParameters())
+    {
+        auto* rp = dynamic_cast<juce::RangedAudioParameter*> (ap);
+        if (rp == nullptr)
+            continue;
+        const auto id = rp->getParameterID();
+        if (auto* c = dynamic_cast<juce::AudioParameterChoice*> (rp))
+        {
+            juce::Array<juce::var> choices;
+            for (const auto& ch : c->choices)
+                choices.add (ch);
+            auto* o = new juce::DynamicObject();
+            o->setProperty ("choices", choices);
+            o->setProperty ("def", juce::roundToInt (c->convertFrom0to1 (rp->getDefaultValue())));
+            combos->setProperty (id, juce::var (o));
+            ++nc;
+        }
+        else if (auto* f = dynamic_cast<juce::AudioParameterFloat*> (rp))
+        {
+            const auto& r = f->getNormalisableRange();
+            auto* o = new juce::DynamicObject();
+            o->setProperty ("start", r.start);
+            o->setProperty ("end", r.end);
+            o->setProperty ("def", f->convertFrom0to1 (rp->getDefaultValue()));
+            o->setProperty ("skew", r.skew);
+            o->setProperty ("interval", r.interval);
+            o->setProperty ("label", f->getLabel());
+            sliders->setProperty (id, juce::var (o));
+            ++nf;
+        }
+    }
+
+    // The revisions FIRST (as the editor reads them), then the infos.
+    const auto scaleRev = p->getScaleStateRevision();
+    const auto slotRev  = p->getSlotStateRevision();
+    std::array<std::uint32_t, ogi::kTapeSlots> ovRevs {};
+    for (int s = 0; s < ogi::kTapeSlots; ++s)
+        ovRevs[(size_t) s] = p->getOverviewRev (s);
+
+    std::array<ogi::SlotInfo, ogi::kTapeSlots> infos;
+    infos[0] = p->getSlotInfo (0);
+    const bool toneOk = idle && infos[0].loaded && infos[0].source == "factory:stub_tone";
+    {
+        auto& i = infos[1];   // a 30 s trimmed file
+        i.name = "Field Recording 03.wav";
+        i.source = "file:/fixture/Field Recording 03.wav";   // never emitted (the page reads no path)
+        i.loaded = true;
+        i.trimmed = true;
+        i.tapeRate = 48000.0;
+        i.frames = 1440000;
+        i.nativeRate = 44100.0;
+        i.nativeFrames = 1323000;
+        ovRevs[1] |= 1u;      // loaded
+    }
+    {
+        auto& i = infos[2];   // a recording whose file is gone (reference kept)
+        i.name = "GI-Rec-fixture.wav";
+        i.source = "rec:/fixture/GI-Rec-fixture.wav";
+        i.missing = true;
+        i.embed = true;
+    }
+
+    auto* natives = new juce::DynamicObject();
+    natives->setProperty ("getScaleState", GiUiJson::scaleStateToVar (*p));
+    natives->setProperty ("getSlotState", GiUiJson::slotStateToVar (slotRev, infos));
+    natives->setProperty ("getTelemetry", GiUiJson::telemetryToVar (scaleRev, slotRev, ovRevs, p->getSidechainChannelCount()));
+    natives->setProperty ("getParameterDefaults", GiUiJson::parameterDefaultsToVar (*p));
+    natives->setProperty ("getWindowCurve", GiUiJson::windowCurveToVar (*p, 0));
+    natives->setProperty ("getSlotOverview", GiUiJson::slotOverviewToVar (*p, 0));
+    natives->setProperty ("getUiLanguage", "en");
+
+    auto* root = new juce::DynamicObject();
+    root->setProperty ("_why", "Generated from the processor by the render harness (PLAN-3.1 PD12) - never hand-edit. "
+                               "Regenerate (cwd plugins/O-GranulatorInstrument): O-GranulatorInstrument-render-harness "
+                               "--dump-ui-overrides tests/ui-stub/generic-overrides.json");
+    root->setProperty ("combos", juce::var (combos));
+    root->setProperty ("sliders", juce::var (sliders));
+    root->setProperty ("natives", juce::var (natives));
+    const juce::var rootVar (root);   // owns the whole tree from here
+
+    // JSON::toString breaks lines with juce::newLine (CRLF): LF only, here and on disk.
+    const auto text = (juce::JSON::toString (rootVar, false) + "\n").replace ("\r\n", "\n");
+
+    // Shape + hygiene: the counts, the fixture, and nothing machine-specific.
+    const auto nat = rootVar["natives"];
+    const int nd     = nat["getParameterDefaults"].getDynamicObject()->getProperties().size();
+    const int curve  = nat["getWindowCurve"].size();
+    const int peaks  = nat["getSlotOverview"]["peaks"].size();
+    const bool revs  = static_cast<int> (nat["getTelemetry"]["slotRev"]) == static_cast<int> (nat["getSlotState"]["revision"])
+                    && static_cast<int> (nat["getTelemetry"]["scaleRev"]) == static_cast<int> (nat["getScaleState"]["revision"])
+                    && static_cast<int> (nat["getTelemetry"]["lanes"][0]["ovRev"]) == static_cast<int> (nat["getSlotOverview"]["rev"]);
+    bool clean = ! text.contains ("\r");
+    for (const auto& dir : { juce::File::getSpecialLocation (juce::File::userHomeDirectory),
+                             juce::File::getSpecialLocation (juce::File::tempDirectory),
+                             juce::File::getCurrentWorkingDirectory(),
+                             harnessRecordingsDir().getParentDirectory() })
+        clean = clean && ! text.contains (dir.getFullPathName());
+    clean = clean && ! text.contains (harnessRecordingsDir().getParentDirectory().getFileName())                       // the temp-dir name
+                  && ! text.contains (juce::File::getSpecialLocation (juce::File::userHomeDirectory).getFileName());    // the user name
+
+    const bool shape = toneOk && nc == 70 && nf == 176 && nd == 246 && curve == 64 && peaks == 656 && revs && clean;
+    bool ok = false;
+    if (shape)
+    {
+        out.getParentDirectory().createDirectory();
+        ok = out.replaceWithText (text, false, false, "\n");
+    }
+    std::printf ("dump-ui-overrides: %d combos, %d sliders, %d defaults, %d curve points, %d peaks, revisions %s, tone %s, hygiene %s -> %s (%s)\n",
+                 nc, nf, nd, curve, peaks, revs ? "match" : "MISMATCH", toneOk ? "loaded" : "NOT LOADED", clean ? "clean" : "PATH / CR FOUND",
+                 out.getFileName().toRawUTF8(), ok ? "ok" : (shape ? "WRITE FAILED" : "NOT WRITTEN"));
+    return ok ? 0 : 1;
+}
+
+//==============================================================================
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI init;
@@ -1238,6 +1385,14 @@ int main (int argc, char** argv)
             std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
             return juce::jmin (failures, 255);
         }
+        else if (std::strcmp (argv[a], "--ug31") == 0)    // dev: the Phase 3.1 processor-surface gates only (OGI_ROWS filters)
+        {
+            ug31::runAll();
+            std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
+            return juce::jmin (failures, 255);
+        }
+        else if (std::strcmp (argv[a], "--dump-ui-overrides") == 0 && a + 1 < argc)   // PLAN-3.1 PD12: early exit, no gate runs
+            return dumpUiOverrides (juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a])));
         else if (std::strcmp (argv[a], "--cpu26") == 0)   // PLAN-2.6 T17: run alone; rc = FAIL count (C25m / C25tm), C26rec INFO
         {
             const int f = eg26b::cpu26();
@@ -1271,7 +1426,7 @@ int main (int argc, char** argv)
             return rh::dump (juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a])), true);
         else
         {
-            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--cpu25a] [--cpu25b] [--cpu26] [--eg24] [--eg25] [--eg25b] [--eg26] [--gen-factory <dir> [--force]] [--calib]\n", argv[a], argv[0]);
+            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--cpu25a] [--cpu25b] [--cpu26] [--eg24] [--eg25] [--eg25b] [--eg26] [--ug31] [--dump-ui-overrides <file>] [--gen-factory <dir> [--force]] [--calib]\n", argv[a], argv[0]);
             return 255;
         }
     }
@@ -1296,6 +1451,7 @@ int main (int argc, char** argv)
     eg25d::runAll();
     eg26a::runAll();
     eg26b::runAll();
+    ug31::runAll();   // PLAN-3.1 PD11 (after every existing row: their order and output are unchanged)
 
     std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
     return juce::jmin (failures, 255);

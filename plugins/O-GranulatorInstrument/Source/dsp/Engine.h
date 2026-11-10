@@ -527,6 +527,25 @@ namespace ogi
             tape (0 without a tape). No random pitch term. */
         double rateForNote (int note, int s = 0) const noexcept;
 
+        /** Stage 3 (PLAN-3.1 PD9; parent O-Granulator Engine.h windowCurve):
+            the window figure. `n` samples (phase i / (n − 1)) of the bank
+            window a grain latches at `window` (0…1) and raw `skewRaw`
+            (−100…100) — the same step / tilt mapping the grid uses
+            (stepFor; makeTilt (0.5 + 0.45 · skew), skew = raw / 100). Read-only
+            on the morph bank, which is built once in the constructor and never
+            rebuilt, so a message-thread call is race-free. NEVER called on the
+            audio thread; nothing the DSP reads is touched. */
+        void windowCurve (float window, float skewRaw, float* out, int n) const noexcept
+        {
+            if (out == nullptr || n <= 0)
+                return;
+            const int  step = WindowMorphBank::stepFor (std::clamp (window, 0.0f, 1.0f));
+            const auto tilt = ouaricon::grain::WindowLut::makeTilt (0.5f + 0.45f * (std::clamp (skewRaw, -100.0f, 100.0f) / 100.0f));
+            const float* tab = morphBank.table (step);
+            for (int i = 0; i < n; ++i)
+                out[i] = WindowMorphBank::read (tab, tilt, n > 1 ? static_cast<double> (i) / static_cast<double> (n - 1) : 0.0);
+        }
+
        #if OGI_TEST_HOOKS
         EngineTestHooks hooks;
         const GiPool&    getPool() const noexcept           { return pool; }
