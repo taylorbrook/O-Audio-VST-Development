@@ -24,8 +24,8 @@ lastUpdated: 2026-11-09
 | FUNC-03 | Key-tracked pitch relative to the per-stream root note, with keyTrack amount and pitch-bend range | must | partial | stage-2 |
 | FUNC-04 | Per-stream scan: position, scan rate, scan mode (free/retrigger/ping-pong), loop region | must | partial | stage-2 |
 | FUNC-05 | Voice modes Poly / Mono / Legato with glide | should | partial | stage-2 |
-| FUNC-06 | File references persist in state; a missing file shows relink without crashing; factory sources resolve from the content folder | must | pending | stage-2 |
-| FUNC-07 | Record-in: capture sidechain input into a target slot (manual / threshold / next-note trigger) | should | pending | stage-2 |
+| FUNC-06 | File references persist in state; a missing file shows relink without crashing; factory sources resolve from the content folder | must | partial | stage-2 |
+| FUNC-07 | Record-in: capture sidechain input into a target slot (manual / threshold / next-note trigger) | should | partial | stage-2 |
 | FUNC-08 | Small factory source set plus presets that load out of the box | should | pending | stage-4 |
 | FUNC-09 | Scale-quantised pitch spread, degree masks and the custom scale, as O-Granulator | must | partial | stage-2 |
 
@@ -52,7 +52,7 @@ lastUpdated: 2026-11-09
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| PERF-01 | Real-time safe audio processing (no allocations/locks in processBlock, incl. voice steal and file swap) | must | partial | stage-2 |
+| PERF-01 | Real-time safe audio processing (no allocations/locks in processBlock, incl. voice steal and file swap) | must | complete | stage-2 |
 | PERF-02 | Shared grain pool with a global cap and a defined CPU budget at 16 voices × 4 streams | must | partial | stage-2 |
 | PERF-03 | File load and decode off the audio thread; atomic swap + retired-buffer reaper that works while the host idles | must | partial | stage-2 |
 
@@ -68,7 +68,7 @@ lastUpdated: 2026-11-09
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | QUAL-01 | No audio artifacts at normal parameter ranges (incl. voice steal, note-off, file swap, reset) | must | partial | stage-2 |
-| QUAL-02 | Sidechain absent or unrouted (AU) degrades cleanly: record-in disabled, no crash or noise | nice | pending | stage-4 |
+| QUAL-02 | Sidechain absent or unrouted (AU) degrades cleanly: record-in disabled, no crash or noise | nice | partial | stage-4 |
 
 ## Acceptance Criteria Details
 
@@ -92,8 +92,8 @@ lastUpdated: 2026-11-09
 - [ ] Poly / Mono / Legato with glide; Legato retriggers neither env nor scan (2.5b verify: VM1–VM6, FK1–FK3, GL1–GL6, VS1–VS4, SU1–SU6 with firing controls; VM3 Legato bitwise == single note; feel = HANDS-ON-2.5b rows 1–6, deferred)
 
 ### FUNC-06: File state
-- [ ] Save/reopen restores all 4 files, loop regions and the scale state
-- [ ] A missing file shows relink and the plugin stays stable
+- [x] Save/reopen restores all 4 files, loop regions and the scale state (2.6 verify: SS1 file / rec / factory / embedded restored via rungs 1 / 1 / 4 / 2, loop 10–80 + `edo 19` scale; SS2–SS7, RL1–RL8; DAW reopen = HANDS-ON-2.6 row 7, deferred)
+- [ ] A missing file shows relink and the plugin stays stable (2.6 verify: engine arm green — RL6 missing flagged, stable, reference re-saved; RL7 relink match / mismatch; open: the relink UI = Stage 3.2, HANDS-ON-2.6 row 8)
 
 ### FUNC-09: Scales
 - [ ] Scale quantisation and degree masks behave identically to O-Granulator
@@ -123,7 +123,7 @@ lastUpdated: 2026-11-09
 - [ ] +24 st grains show no aliasing above the gate threshold
 
 ### PERF-01 / PERF-03: RT safety
-- [ ] Alloc gate: 0 allocations in processBlock across note on/off, steal, file swap and reset (2.5a verify: FA5 matrix / tempo / steals; 2.5b verify: AL1 MIDI / MPE / NE script incl. 130 held keys + mode switches, NE5 raw-event overflow; open: file swap / Record-in = 2.6)
+- [x] Alloc gate: 0 allocations in processBlock across note on/off, steal, file swap and reset (2.5a verify: FA5 matrix / tempo / steals; 2.5b verify: AL1 MIDI / MPE / NE script incl. 130 held keys + mode switches, NE5 raw-event overflow; 2.6 verify: AL26 0 allocs across Record-in arm / record / commit / swap, discard, cancel, embedded save / load, missing + factory resolves, prepare mid-record, bypassed blocks)
 
 ### PERF-02: CPU budget
 - [ ] The documented budget is met at 16 voices × 4 streams with the default grainLimit (2.4 verify: worst case C25w 26.59 % ≤ 40 % with chains + reverb; 2.5a verify: final worst case with 16 per-voice routes C25m 26.81 % ≤ 40 %, typical + 4 routes C25tm 6.37 % ≤ 12 %; open: typical on factory presets Stage 4)
@@ -132,7 +132,7 @@ lastUpdated: 2026-11-09
 - [x] pluginval strictness 10 passes for VST3 and AU
 
 ### QUAL-01: Artifacts
-- [ ] Click gates pass for note-off, steal, file swap, reset and freeze toggle (2.5b verify: CK5a/d/e/g Mono retrigger, D32 switch, pedal-up, Mono velocity ≤ 1.542× with firing controls; CK5b/c/f bound-only → HANDS-ON-2.5b row 10; open: file swap = 2.6)
+- [ ] Click gates pass for note-off, steal, file swap, reset and freeze toggle (2.5b verify: CK5a/d/e/g Mono retrigger, D32 switch, pedal-up, Mono velocity ≤ 1.542× with firing controls; CK5b/c/f bound-only → HANDS-ON-2.5b row 10; 2.6 verify: file swap via commit + state-load, CK6a / CK6b |d2| 1.202× with CK6n firing — S6 user decision; open: HANDS-ON-2.1–2.6 listening)
 
 ---
 
