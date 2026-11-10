@@ -27,9 +27,9 @@ A Playwright probe with a rich telemetry fixture also rendered all four pages in
 - [ ] Copy `v1-ui.html` to `Source/ui/public/index.html`
 - [ ] Copy `v1-i18n.js` to `Source/ui/public/js/i18n.js`
 - [ ] Copy the JUCE frontend library to `Source/ui/public/js/juce/index.js` and `check_native_interop.js` (from a working plugin, e.g. `git show HEAD:plugins/O-Granulator/Source/ui/public/js/juce/index.js`)
-- [ ] Copy `v1-i18n-states.json` to `tests/i18n-states.json`
+- [x] Copy `v1-i18n-states.json` to `tests/i18n-states.json` (done in 3.1; the tree file then gained 3 value-entry states, 19 in total)
 - [ ] Do NOT copy `preset-manager.js`, `webview-drop-streaming.js` or the EB Garamond files into `Source/ui/public/` — CMake embeds them from `modules/` and `getResource` serves them at `/js/preset-manager.js`, `/js/webview-drop-streaming.js`, `/css/eb-garamond.css`, `/fonts/*.woff2`. (`ouaricon_add_module` also copies module JS to `Source/ui/public/modules/`: a gitignored build artefact, never committed — pattern_module_js_move_build_recopies_tracked_file.)
-- [x] **Settings popover** (`#gear-btn` + `#settings-popover` with `#lang-select` and `#tips-toggle`) — the mockup had none, so it is placed exactly where the parent's was accepted (O-Granulator CONTEXT-3.1 D28): top-right at (1124, 62), 24 × 24, under the OUTPUT knob's text column, opening down-left over the lane strip's globals column. Designer: confirm it still reads well beside the 604 px source dock.
+- [x] **Settings popover** (`#gear-btn` + `#settings-popover` with `#lang-select` and `#tips-toggle`) — the mockup had none, so it is placed exactly where the parent's was accepted (O-Granulator CONTEXT-3.1 D28): top-right at (1124, 62), 24 × 24, under the OUTPUT knob's text column, opening down-left over the lane strip's globals column. **Closed (CONTEXT-3.1 D40): accepted as placed;** the user looks at it beside the 604 px source dock at HANDS-ON-3.1 row 12.
 
 ## 2. Update PluginEditor and processor files
 - [ ] Replace `PluginEditor.h` / `.cpp` with the v1 templates; rename `GranulatorInstrumentEditor` / `GranulatorInstrumentProcessor` to the Stage 1 class names
@@ -69,7 +69,7 @@ A Playwright probe with a rich telemetry fixture also rendered all four pages in
 - [ ] `modules/core/webview-relay-manager` is deliberately NOT used: no `WebComboBoxRelay` (70 of 261 are choices) and no WebView2 handling.
 
 ## 3. Update CMakeLists.txt
-- [ ] `v1-CMakeLists.txt` is the whole file (not a snippet). Land it as `plugins/O-GranulatorInstrument/CMakeLists.txt`
+- [x] **Corrected in Phase 3.1 (RESEARCH-3.1 RS1): do NOT land `v1-CMakeLists.txt`.** It predates Stage 2 and would delete `dsp/SlotLoader.cpp`, `dsp/Engine.cpp`, the FactorySources target, `OGI_GATE_SC_DEFAULT_OFF` and the render-harness console. The real `CMakeLists.txt` took exactly three edits instead (done, commit `12b210a4`): UIResources block + its link made active, `Source/PluginEditorDevLoader.cpp` removed, `OGI_DEV_LOADER` option removed.
 - [ ] `IS_SYNTH TRUE`, `NEEDS_MIDI_INPUT TRUE`, `NEEDS_WEB_BROWSER TRUE`, `NEEDS_WEBVIEW2 TRUE`, `JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1`, `JUCE_WEB_BROWSER=1`, `JUCE_USE_CURL=0`
 - [ ] `juce_generate_juce_header (OuariconGranulatorInstrument)`; `target_compile_features (... cxx_std_20)`
 - [ ] `ouaricon_add_module` for grain-engine, pitch-collections, reverb-unit, preset-manager, eb-garamond, note-expression, webview-drop-streaming
