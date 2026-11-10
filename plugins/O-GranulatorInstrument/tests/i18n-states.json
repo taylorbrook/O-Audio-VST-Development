@@ -1,0 +1,19 @@
+[
+  { "name": "fx",                 "click": "#tab-fx" },
+  { "name": "mod-free",           "click": "#tab-mod" },
+  { "name": "mod-tempo",          "click": "#seg-sync_mode button[data-index=\"1\"]" },
+  { "name": "mod-matrix-widest",
+    "eval": "document.getElementById('tab-mod').click(); [[1, 95], [2, 103], [3, 116]].forEach(([m, d]) => { const s = document.getElementById('combo-mod' + m + '_source'); s.selectedIndex = 9; s.dispatchEvent(new Event('change')); const e = document.getElementById('combo-mod' + m + '_dest'); e.selectedIndex = d; e.dispatchEvent(new Event('change')); });" },
+  { "name": "voice-tempo",        "click": "#tab-voice" },
+  { "name": "voice-free",         "click": "#seg-sync_mode button[data-index=\"0\"]" },
+  { "name": "streams-tempo",      "click": ["#tab-streams", "#seg-sync_mode button[data-index=\"1\"]"] },
+  { "name": "streams-free",       "click": "#seg-sync_mode button[data-index=\"0\"]" },
+  { "name": "scale-list-open",    "eval": "document.getElementById('scale-trig-s1').click();" },
+  { "name": "custom-editor-open", "eval": "document.getElementById('scale-trig-s1').click(); document.getElementById('scale-edit-s1').click();" },
+  { "name": "settings-open",      "eval": "document.getElementById('sp-close')?.click(); document.getElementById('gear-btn').click();" },
+  { "name": "lanes-loaded-badges", "eval": "document.getElementById('gear-btn').click(); document.querySelectorAll('.lane').forEach((l) => l.classList.remove('empty')); document.querySelectorAll('.badge').forEach((b) => { b.hidden = false; }); document.querySelectorAll('.lane-nm, .lane-name .nm').forEach((n) => { n.textContent = 'Lichen choir.wav'; });" },
+  { "name": "lane-drag-over",     "eval": "document.querySelectorAll('.lane').forEach((l) => l.classList.add('drag-over'));" },
+  { "name": "rec-wait-level",     "eval": "document.querySelectorAll('.lane').forEach((l) => l.classList.remove('drag-over')); window.__setLabel(document.getElementById('rec-status-t'), 'rec.waitLevel'); window.__setLabel(document.getElementById('rec-prog-s'), 'rec.capped', { s: '30 s' });" },
+  { "name": "rec-no-sidechain",   "eval": "window.__setLabel(document.getElementById('rec-status-t'), 'rec.noSidechain'); document.getElementById('heavy').classList.add('on');" },
+  { "name": "rec-recording",      "eval": "window.__setLabel(document.getElementById('rec-status-t'), 'rec.recording', { n: 'IV' }); ['s2', 's3', 's4'].forEach((s) => document.getElementById('toggle-' + s + '_enable').click());" }
+]

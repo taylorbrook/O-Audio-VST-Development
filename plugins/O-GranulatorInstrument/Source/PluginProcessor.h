@@ -92,7 +92,7 @@ struct GiVst3Extensions final : Ouaricon::NoteExpression::VST3Extensions
 // thread. Message-thread API only (no native functions / UI until Stage 3).
 //
 // Threading: no listener and no audio-thread code writes a parameter. The
-// slot API (requestSlotLoad / getSlotInfo) is message-thread; the dev-loader
+// slot API (requestSlotLoad / getSlotInfo) is message-thread; the WebView
 // editor and the Phase 3.2 drop / browser use the same calls.
 //
 // Stage 3 / Phase 3.1 (PLAN-3.1 PD1 – PD10), all message-thread, none of it

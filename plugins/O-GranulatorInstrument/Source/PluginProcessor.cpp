@@ -23,22 +23,12 @@
 #include <algorithm>
 #include <cmath>
 
-// OGI_DEV_LOADER (CONTEXT-2.1 D13, PLAN-2.1 P4) is defined =1 on the PLUGIN
-// target only (CMake option, default ON until Phase 3.1). The consoles never
-// see it and build with JUCE_WEB_BROWSER=0, so they compile the generic editor
-// branch and never include the dev-loader header.
-#ifndef OGI_DEV_LOADER
- #define OGI_DEV_LOADER 0
+// Phase 3.1 (PD15): the WebView editor under JUCE_WEB_BROWSER, the generic
+// editor otherwise. The consoles build with JUCE_WEB_BROWSER=0, drop
+// PluginEditor.cpp and must never see WebView types.
+#if JUCE_WEB_BROWSER
+ #include "PluginEditor.h"
 #endif
-
-#if JUCE_WEB_BROWSER && OGI_DEV_LOADER
- #include "PluginEditorDevLoader.h"   // removed in Phase 3.1 with OGI_DEV_LOADER
-#endif
-
-// Stage 1 (D8): the GenericAudioProcessorEditor on every target. Phase 3.1
-// swaps the WebView editor into the JUCE_WEB_BROWSER branch of createEditor()
-// and includes its header under the same guard (consoles build with
-// JUCE_WEB_BROWSER=0 and must never see WebView types).
 
 namespace Ids = GiParamIds;
 
@@ -371,11 +361,10 @@ void GranulatorInstrumentProcessor::processBlockBypassed (juce::AudioBuffer<floa
 
 juce::AudioProcessorEditor* GranulatorInstrumentProcessor::createEditor()
 {
-#if JUCE_WEB_BROWSER && OGI_DEV_LOADER
-    // D13 audition path until Phase 3.1 (the WebView editor replaces it).
-    return new DevLoaderEditor (*this);
+#if JUCE_WEB_BROWSER
+    return new GranulatorInstrumentEditor (*this);
 #else
-    return new juce::GenericAudioProcessorEditor (*this);   // headless consoles / OGI_DEV_LOADER off
+    return new juce::GenericAudioProcessorEditor (*this);   // headless consoles
 #endif
 }
 

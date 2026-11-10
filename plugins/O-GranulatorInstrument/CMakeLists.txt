@@ -64,9 +64,6 @@ target_sources(OuariconGranulatorInstrument
         Source/PluginEditor.cpp
         Source/dsp/SlotLoader.cpp
         Source/dsp/Engine.cpp
-        # Phase 2.1 dev loader (D13). The name matches "PluginEditor", so the
-        # consoles (harness, param-dump) drop it (ParamDump.cmake editor filter).
-        Source/PluginEditorDevLoader.cpp
 )
 
 target_include_directories(OuariconGranulatorInstrument
@@ -142,26 +139,26 @@ juce_generate_juce_header(OuariconGranulatorInstrument)
 # The page is ONE file (inline <style> + inline module controller); i18n.js is
 # the only separate authored UI file. Every SOURCES entry has a getResource()
 # branch in PluginEditor.cpp and vice versa.
-# juce_add_binary_data(OuariconGranulatorInstrument_UIResources
-#     NAMESPACE UIBinaryData
-#     HEADER_NAME UIBinaryData.h
-#     SOURCES
-#         Source/ui/public/index.html
-#         Source/ui/public/js/i18n.js
-#         Source/ui/public/js/juce/index.js
-#         Source/ui/public/js/juce/check_native_interop.js
-#         ${CMAKE_SOURCE_DIR}/modules/persistence/preset-manager/js/preset-manager.js
-#         ${CMAKE_SOURCE_DIR}/modules/core/webview-drop-streaming/js/webview-drop-streaming.js
-#         ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
-#         ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
-#         ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
-#         ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
-# )
-#
-# target_link_libraries(OuariconGranulatorInstrument
-#     PRIVATE
-#         OuariconGranulatorInstrument_UIResources
-# )
+juce_add_binary_data(OuariconGranulatorInstrument_UIResources
+    NAMESPACE UIBinaryData
+    HEADER_NAME UIBinaryData.h
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/js/i18n.js
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+        ${CMAKE_SOURCE_DIR}/modules/persistence/preset-manager/js/preset-manager.js
+        ${CMAKE_SOURCE_DIR}/modules/core/webview-drop-streaming/js/webview-drop-streaming.js
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
+)
+
+target_link_libraries(OuariconGranulatorInstrument
+    PRIVATE
+        OuariconGranulatorInstrument_UIResources
+)
 
 # ── Factory sources (Design Sync S10; CONTEXT-2.6 D33, PLAN-2.6 T10) ─────────
 # Embedded BinaryData FLAC, addressed as factory:<id>, budget ≤ 8 MB in total.
@@ -200,15 +197,6 @@ option(OGI_GATE_SC_DEFAULT_OFF "Gate-only: Sidechain inactive by default. Never 
 if(OGI_GATE_SC_DEFAULT_OFF)
     target_compile_definitions(OuariconGranulatorInstrument PRIVATE OGI_SC_DEFAULT_ACTIVE=0)
     message(WARNING "[O-GranulatorInstrument] OGI_GATE_SC_DEFAULT_OFF=ON: gate variant, do not ship")
-endif()
-
-# Phase 2.1 dev-loader editor (D13): file buttons over the generic editor until
-# the WebView lands. PLUGIN TARGET ONLY — consoles never see the define.
-# Removed in Phase 3.1 together with Source/PluginEditorDevLoader.* and the
-# createEditor() branch.
-option(OGI_DEV_LOADER "Dev loader editor until Phase 3.1" ON)
-if(OGI_DEV_LOADER)
-    target_compile_definitions(OuariconGranulatorInstrument PRIVATE OGI_DEV_LOADER=1)
 endif()
 
 # Offline render-test harness + gates (Stage 1/2). Off by default.
