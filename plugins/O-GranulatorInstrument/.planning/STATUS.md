@@ -1,16 +1,16 @@
 ---
 plugin: O-GranulatorInstrument
-stage: 3
-status: stage_3_phase_3_3_verify_partial_hands_on_session_pending
-current_phase: 3-gui/3.3
-gsd_phase: verify_partial
+stage: 4
+status: stage_4_discuss_complete
+current_phase: 4-polish
+gsd_phase: discuss_complete
 last_updated: 2026-11-11
 complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: run HANDS-ON-SESSION-3.3 (D47; 79 + 61 rows + Logic AU pass), then /plugin-discuss O-GranulatorInstrument 4-polish
-next_stage: 3
+next_action: /plugin-research O-GranulatorInstrument 4-polish (D47 hands-on folded into Stage 4 verify, D51)
+next_stage: 4
 ready_for_implementation: true
 blocked_on: none (fork pin 82406fce, D11)
 latest_mockup_version: 1
@@ -36,6 +36,8 @@ contract_checksums:
 # O-GranulatorInstrument Status
 
 ## Current Position
+
+**Stage 4 (Polish / Validation) discuss ✓** 2026-11-11 (`stages/4-polish/CONTEXT.md`, D51–D59): D51 D47 hands-on folded into one combined Stage 4 verify session (plan / execute not gated); D52 factory sources generated in-harness (6–8, pinned hashes); D53 64 factory presets, sources-only (PD1 kept); D54 Windows = CI build only, drop / browse row deferred; D55 all four D50 carried fixes incl. `output_gain` exact 0 dB (param-dump re-pin); D56 1.0.0 public, ready for `/publish`; D57 DAW passes Logic AU + Live VST3 only (COMPAT-02 stays partial); D58 fork drift record-only in FORK-MANIFEST.md; D59 FR / zh-Hans for new strings. Next: `/plugin-research O-GranulatorInstrument 4-polish`.
 
 Stage: 3 of 4 (GUI) — **Phase 3.1 discuss ✓** 2026-11-10 (`stages/3-gui/CONTEXT-3.1.md`, D37–D42), **research ✓** 2026-11-10 (`stages/3-gui/RESEARCH-3.1.md`), **plan ✓** 2026-11-10 (`stages/3-gui/PLAN-3.1.md`, 16 tasks / 5 waves, PD1–PD22); **execute ✓** 2026-11-10 (`stages/3-gui/SUMMARY-3.1.md`, C1 35524e1b / C2 12b210a4 / C3 6ea16b17 / C4); **verify ⚠️ PARTIAL** 2026-11-10 (`stages/3-gui/VERIFICATION-3.1.md`: every automated gate re-run green; HANDS-ON-3.1 pending); **Phase 3.2 discuss ✓** 2026-11-10 (`stages/3-gui/CONTEXT-3.2.md`, D43–D46), **research ✓** 2026-11-10 (`stages/3-gui/RESEARCH-3.2.md`), **plan ✓** 2026-11-10 (`stages/3-gui/PLAN-3.2.md`, 15 tasks / 5 waves, PD1–PD30), **execute ✓** 2026-11-10 (`stages/3-gui/SUMMARY-3.2.md`, C1 7a446ab5 / C2 c13119a0 / C3 399fd122 / C4), **verify ⚠️ PARTIAL** 2026-11-10 (`stages/3-gui/VERIFICATION-3.2.md`: every automated gate re-run green; UI-01 → partial; HANDS-ON-3.1 + 3.2 pending); next: Phase 3.3 research. **Phase 3.3 discuss ✓** 2026-11-10 (`stages/3-gui/CONTEXT-3.3.md`, D47–D50: all hands-on + Logic pass at 3.3 verify; v1 locked; 3.2 carry-overs fixed in 3.3). **Phase 3.3 research ✓** 2026-11-10 (`stages/3-gui/RESEARCH-3.3.md`: 16-row display map keyed by serial (engine slots 16–19 invisible today), sticky steal ring + 300 ms hold, GiUiVoice extension (state / serial / menv / stages / LFO phases / wantSt), out + SC peaks split L / R, sources = srcG, routed-only modNorm, CM6 = WAV-fail naming bug, LFO-dot phase defect; 11 decisions for the plan). **Phase 3.3 plan ✓** 2026-11-10 (`stages/3-gui/PLAN-3.3.md`, 14 tasks / 5 waves, PD1–PD28). **Phase 3.3 execute ✓** 2026-11-11 (`stages/3-gui/SUMMARY-3.3.md`, C1 0389000c / C2 bbbc6de3 / C3 34f8e83e / C4: harness 431 / 0 (402 carried + 29), parity 168 / 0 + GV 2 / 0, renders + legacy byte-identical, param-dump identical, drift 0 / 13, --cpu26 C25m 27.54 % / C25tm 6.47 %, auval PASS, pluginval 10 VST3 + AU SUCCESS SC on / off, X2 0; closure 155, probe 261 x 2 + VE 14 + lanes 12 / 12 + mod 14 / 14 (DM2 137 / 137), five UI gates green with 46 states; zh-Hans clamp fit fix; HANDS-ON-3.3 + HANDS-ON-SESSION-3.3 written). **Phase 3.3 verify ⚠️ PARTIAL** 2026-11-11 (`stages/3-gui/VERIFICATION-3.3.md`): independent re-run on `77d5ad04` — harness 431 / 0 (all NCs fire, carried rows 0 missing vs a rebuilt 3.2 baseline), parity 168 / 0 + GV 2 / 0, renders + legacy byte-identical, param-dump identical, drift 0 / 13, X2 0, UAL2 0 allocs, `--cpu26` C25m 29.62 % / C25tm 6.91 % (C25w baseline rose with it), auval PASS, pluginval 10 VST3 + AU SC on / off, closure 155 + 4 NCs, probe 261 × 2 + VE 14 + lanes 12 + mod 14 (DM2 137 == 137) + 6 NCs, five UI gates green (46 states); UI-02 pending → partial. **Stage 3 automated complete.** Next: run `HANDS-ON-SESSION-3.3.md` (D47), then `/plugin-discuss O-GranulatorInstrument 4-polish`. HANDS-ON-3.1 runs at 3.2 verify (D43). Stage 2 (DSP) — **all 6 phases verified ⚠️ PARTIAL** (2.6 verified 2026-11-09, `stages/2-dsp/VERIFICATION-2.6.md`): every automated gate re-run green (harness 357/0, 159 controls fire, 0 NOT FIRED; parity 168/0 + GV 2/0; renders-2.4 + legacy byte-identical; param-dump identical; drift 0/13 + NC-a/NC-b; C25m 27.85 % ≤ 40, C25tm 6.55 % ≤ 12; auval PASS; pluginval 10 VST3 + AU SUCCESS with SC on and off; X2 0). HANDS-ON-2.1–2.6 (human) deferred post-Stage-3 (D14 override). Next: Stage 3 Phase 3.1.
 Stage 1: VERIFIED
