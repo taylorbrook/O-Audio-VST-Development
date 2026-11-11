@@ -46,7 +46,7 @@ lastUpdated: 2026-11-09
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | UI-01 | O-Granulator v2 visual language; per-stream waveform lanes with drag-drop, loop handles, scan playhead and grain dots | should | partial | stage-3 |
-| UI-02 | Drag-to-modulate onto knobs; the MOD page shows instrument sources | should | pending | stage-3 |
+| UI-02 | Drag-to-modulate onto knobs; the MOD page shows instrument sources | should | partial | stage-3 |
 
 ### Performance (PERF)
 
