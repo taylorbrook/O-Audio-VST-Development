@@ -2008,6 +2008,7 @@ canvas.scope { position: absolute; }
     let scaleState        = null;     // from getScaleState: { revision, tables, custom, masks }
     let scaleStateFn      = null;
     let slotState         = null;     // from getSlotState: { revision, slots[4] }
+    let slotErrSeen       = null;     // per slot: the last slots[i].error pulled (null until the first pull)
     let presetManager     = null;
     let presetMenuOpen    = false;
     let dropModule        = null;     // webview-drop-streaming.js (dynamic import; a lane drop works without it via loadSlot)
@@ -3723,8 +3724,22 @@ canvas.scope { position: absolute; }
         const raw = await callNative('getSlotState');
         if (!raw) return;
         slotState = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        noteSlotErrors();
         for (let n = 1; n <= 4; n++) renderLane(n);
         renderPlaybackCaps();
+    }
+
+    // A failed load (drop or browser) reaches the page only as slots[i].error:
+    // toast when it CHANGES to non-empty. An error already there at the first
+    // pull is not news (a reopened editor), and an empty one re-arms the lane.
+    function noteSlotErrors() {
+        const errs = [1, 2, 3, 4].map((n) => { const s = slotInfo(n); return s && s.error ? String(s.error) : ''; });
+        if (slotErrSeen) {
+            for (let n = 4; n >= 1; n--) {
+                if (errs[n - 1] && errs[n - 1] !== slotErrSeen[n - 1]) showToast((el) => setLabel(el, 'toast.loadFailed', { n: String(n) }));
+            }
+        }
+        slotErrSeen = errs;
     }
 
     function slotInfo(n) {
@@ -3776,6 +3791,7 @@ canvas.scope { position: absolute; }
         if (res && res.error === 'tooLarge') showToast((el) => setLabel(el, 'toast.tooLarge', { n: String(n) }));
         else if (res && res.ok && name === 'resetSlot') showToast((el) => setLabel(el, 'toast.slotReset', { n: String(n) }));
         else if (res && res.ok && name === 'resetAll') showToast((el) => setLabel(el, 'toast.allReset'));
+        else if (res && res.ok === false && name === 'saveRecording' && res.error !== 'cancelled') showToast((el) => setLabel(el, 'toast.saveFailed', { n: String(n) }));
         pullSlotState();
         return res;
     }
@@ -3903,7 +3919,7 @@ canvas.scope { position: absolute; }
             const raw = await Juce.getNativeFunction('getSlotOverview')({ slot: n });
             const o = typeof raw === 'string' ? JSON.parse(raw) : raw;
             overviews[n - 1] = o && Array.isArray(o.peaks) ? o : null;
-            ovRevSeen[n - 1] = rev;
+            ovRevSeen[n - 1] = o && typeof o.rev === 'number' ? o.rev : rev;   // the ANSWER's revision; the asked one only if it carries none
         } catch (e) {
             /* the next telemetry frame asks again */
         } finally {
@@ -5045,7 +5061,14 @@ function initI18n() {
         // Wrapped HERE because the canon region is byte-compared (check-i18n [6]);
         // its own callers and __reapplyI18n resolve this binding at call time.
         const applyI18nCanon = applyI18n;
-        applyI18n = (lang) => { closeValueEntry(); return applyI18nCanon(lang); };
+        // Then re-face the scan-mode knobs: their aria-valuetext is a copy of the
+        // readout text, which the sweep above has just re-localized.
+        applyI18n = (lang) => {
+            closeValueEntry();
+            const r = applyI18nCanon(lang);
+            CHOICE_KNOB_IDS.forEach(updateChoiceKnobVisual);
+            return r;
+        };
         window.__setLanguage = applyI18n;
         try { initI18n(); }            catch (e) { console.error('i18n init failed:', e); }
         try { initTooltips(); }        catch (e) { console.error('tooltip init failed:', e); }

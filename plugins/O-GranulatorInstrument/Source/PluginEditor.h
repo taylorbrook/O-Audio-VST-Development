@@ -20,7 +20,7 @@
 /*
   ==============================================================================
 
-    O-GranulatorInstrument - Plugin Editor (Stage 3 / Phase 3.1, PLAN-3.1 PD13)
+    O-GranulatorInstrument - Plugin Editor (Stage 3 / Phases 3.1 - 3.2, PLAN-3.1 PD13)
 
     The v1 page (Source/ui/public/index.html) in a WebView at a fixed
     1200 x 800. Adapted from .planning/mockups/v1-PluginEditor.h; the deltas
@@ -84,6 +84,11 @@ private:
     // every path except a dead editor (bare return).
     void launchSlotChooser (int slot0, bool relink, juce::WebBrowserComponent::NativeFunctionCompletion complete);
 
+    // saveRecording (PLAN-3.2 PD19): refusals, then the chooser, then the
+    // processor's saveRecordingTo. `slot0` is 0...3, or -1 for a bad slot.
+    // Completes exactly once on every path except a dead editor (bare return).
+    void launchSaveRecording (int slot0, juce::WebBrowserComponent::NativeFunctionCompletion complete);
+
     GranulatorInstrumentProcessor& processorRef;
 
     // ========================================================================
@@ -120,6 +125,11 @@ private:
     // Native file choosers (slots, presets, .scl). One dialog at a time.
     std::shared_ptr<juce::FileChooser> fileChooser;
     bool fileDialogOpen = false;
+
+    // saveRecording: true from its chooser opening until the processor's save
+    // has answered (the write outlives the dialog). A second click meanwhile
+    // answers "busy".
+    bool recordingSaveOpen = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GranulatorInstrumentEditor)
 };

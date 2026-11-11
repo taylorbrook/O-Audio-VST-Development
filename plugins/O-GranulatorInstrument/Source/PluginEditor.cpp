@@ -20,10 +20,12 @@
 /*
   ==============================================================================
 
-    O-GranulatorInstrument - Plugin Editor implementation (Stage 3 / Phase 3.1)
+    O-GranulatorInstrument - Plugin Editor implementation (Stage 3 / Phases
+    3.1 and 3.2)
 
     Adapted from .planning/mockups/v1-PluginEditor.cpp. Deltas against that
-    template (PLAN-3.1 PD13, RESEARCH-3.1 section 2):
+    template (PLAN-3.1 PD13, RESEARCH-3.1 section 2; PLAN-3.2 PD12, PD14, PD16,
+    PD19 for notes 2, 6 and 7):
 
       1. SLOTS. The page speaks 1...4, the processor 0...3. The conversion
          happens once, in slotArg() (and for a dropped file in onCommitFile,
@@ -33,7 +35,11 @@
       2. JSON. getSlotState, getScaleState, getTelemetry, getParameterDefaults,
          getSlotOverview and getWindowCurve answer through GiUiJson.h, the
          encoders the render harness dumps for the UI stub. getTelemetry is
-         ALWAYS the full 3.1 object (the page replaces its copy on each answer).
+         ALWAYS the full 3.2 object (the page replaces its copy on each answer),
+         encoded from the processor's buildUiTelemetry (now): that builder is
+         the one reader of the grain frame and of the sidechain peak, so the
+         editor reads neither. getSlotState carries the processor's per-slot
+         `dirty` flags.
       3. loadSlot (chooser -> requestSlotLoad) and relinkSlot (chooser ->
          requestRelink) answer { ok: true }: the load runs on the loader's
          worker, and a failure reaches the page through the slot's `error`
@@ -44,15 +50,35 @@
          refusals are derived from SlotInfo::source BEFORE the call, and
          "tooLarge" from SlotInfo::tooLarge when a previous encode already
          refused. The answer carries the resulting `embed`.
-      6. clearSlot and saveRecording answer { ok: false, error: "unavailable" }
-         (D37; both land in 3.2). saveRecording keeps the template's
-         "notRecording" guard for a slot that holds no rec: source.
+      6. clearSlot -> processor clearSlot (slot 0...3): { ok: true }, or
+         { ok: false, error: "recording" | "badSlot" } ("recording" = a take is
+         being captured or committed into that slot).
+         saveRecording (D46) writes the slot's working copy as a WAV:
+           a. refusals answered BEFORE a dialog opens: "notRecording" (bad slot
+              or no rec: source), "empty" (nothing loaded), "busy" (a chooser
+              is open, or a save started from this editor has not answered);
+           b. chooser FIRST: save mode, warnAboutOverwriting, opened beside
+              the take (a rec: source is the take's absolute path, written
+              into the Recordings folder) on "<take stem>-edit.wav"; no file
+              chosen -> "cancelled";
+           c. then the processor's saveRecordingTo, whose answer arrives on the
+              message thread on every path: { ok: true, path }, or { ok: false,
+              error } with busy | notRecording | empty | inUse | changed |
+              timeout | writeFailed.
+         recordingSaveOpen spans b and c. The native function completes exactly
+         once on every path; the one exception is an editor destroyed during b
+         or c (bare return: `complete` belongs to the dead WebView).
       7. Drop sessions: onCommitFolder has the module's 8-parameter signature
          (a slot holds one file, so it does nothing); onCommitFile ->
-         requestSlotLoad; tempDirPrefix "ogranulatorinstrument-drop-". The four
-         drop functions are registered by their literal names (the module's
-         handlers, looked up by name), so the 34 registrations are all visible
-         in this file.
+         importDroppedFile (slot, temp file, the dropped file's name): the
+         loader's worker hashes the file, moves it into the Imports folder and
+         loads it from there (D44), so a slot never references the session's
+         temp path. A drop that is not queued (bad slot, import refused) leaves
+         the temp file to the session's reaper; a later failure reaches the
+         page through the slot's `error`. tempDirPrefix
+         "ogranulatorinstrument-drop-". The four drop functions are registered
+         by their literal names (the module's handlers, looked up by name), so
+         the 34 registrations are all visible in this file.
       8. The template's Telemetry aggregate, its buildX members and its
          unused table constants are gone; the collection and slot counts come
          from GiParamIds.h / GiConstants.h.
@@ -439,6 +465,37 @@ namespace
         }
         return juce::File::getSpecialLocation (juce::File::userMusicDirectory);
     }
+
+    /** saveRecording's default file name: "<take stem>-edit.wav", the stem
+        taken from the slot's rec:<path> source (else from its display name). */
+    juce::String editedTakeFileName (const ogi::SlotInfo& info)
+    {
+        juce::String stem;
+        if (GiUiJson::schemeOf (info.source) == "rec")
+        {
+            const auto path = info.source.substring (4);   // after "rec:"
+            if (juce::File::isAbsolutePath (path))
+                stem = juce::File (path).getFileNameWithoutExtension();
+        }
+        if (stem.isEmpty())
+            stem = juce::File::createLegalFileName (info.name.upToLastOccurrenceOf (".", false, false));
+        if (stem.isEmpty())
+            stem = juce::File::createLegalFileName (info.name);
+        if (stem.isEmpty())
+            stem = "take";
+        return stem + "-edit.wav";
+    }
+
+    // saveRecording: { ok: true, path } | { ok: false, error }.
+    juce::var makeSaveAnswer (const GranulatorInstrumentProcessor::SaveResult& result)
+    {
+        auto answer = makeOk (result.ok, result.ok ? juce::String()
+                                                    : (result.error.isNotEmpty() ? result.error
+                                                                                 : juce::String ("writeFailed")));
+        if (result.ok)
+            answer.getDynamicObject()->setProperty ("path", result.path);
+        return answer;
+    }
 }
 
 //==============================================================================
@@ -531,6 +588,62 @@ void GranulatorInstrumentEditor::launchSlotChooser (int slot0, bool relink, Comp
 }
 
 //==============================================================================
+void GranulatorInstrumentEditor::launchSaveRecording (int slot0, Completion complete)
+{
+    // Answered before a dialog opens, so nobody picks a file for nothing. The
+    // processor repeats the first two when the save starts.
+    const auto info = slot0 >= 0 ? processorRef.getSlotInfo (slot0) : ogi::SlotInfo();
+    if (slot0 < 0 || GiUiJson::schemeOf (info.source) != "rec")
+    {
+        complete (makeOk (false, "notRecording"));
+        return;
+    }
+    if (! info.loaded) { complete (makeOk (false, "empty")); return; }
+    if (fileDialogOpen || recordingSaveOpen) { complete (makeOk (false, "busy")); return; }
+
+    // MSVC: hoist the SafePointer to a local, capture it by copy.
+    auto safeThis = juce::Component::SafePointer<GranulatorInstrumentEditor> (this);
+    fileDialogOpen = true;
+    recordingSaveOpen = true;   // until the save has answered, not just the chooser
+
+    fileChooser = std::make_shared<juce::FileChooser> (
+        juce::String ("Save the recording in slot ") + juce::String (slot0 + 1),
+        slotStartDirectory (info).getChildFile (editedTakeFileName (info)),   // beside the take = the Recordings folder
+        "*.wav");
+    fileChooser->launchAsync (
+        juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles
+            | juce::FileBrowserComponent::warnAboutOverwriting,
+        [safeThis, complete, slot0] (const juce::FileChooser& fc)
+        {
+            // Editor gone: BARE return. `complete` belongs to the dead WebView.
+            if (safeThis == nullptr)
+                return;
+            safeThis->fileDialogOpen = false;
+            const auto file = fc.getResult();
+            if (file == juce::File{})
+            {
+                safeThis->recordingSaveOpen = false;
+                complete (makeOk (false, "cancelled"));
+                return;
+            }
+
+            // The processor answers exactly once, on the message thread: inline
+            // for a refusal, later for a save that started (the audio thread
+            // copies the tape, a worker writes the file).
+            safeThis->processorRef.saveRecordingTo (slot0, file,
+                [safeThis, complete] (const GranulatorInstrumentProcessor::SaveResult& result)
+                {
+                    // Second hop, same rule: nothing at all for a dead editor.
+                    if (auto* editor = safeThis.getComponent())
+                    {
+                        editor->recordingSaveOpen = false;
+                        complete (makeSaveAnswer (result));
+                    }
+                });
+        });
+}
+
+//==============================================================================
 GranulatorInstrumentEditor::GranulatorInstrumentEditor (GranulatorInstrumentProcessor& p)
     : AudioProcessorEditor (&p),
       processorRef (p)
@@ -545,7 +658,9 @@ GranulatorInstrumentEditor::GranulatorInstrumentEditor (GranulatorInstrumentProc
 
     // Drag-drop: a file dropped on a lane is streamed into a session temp dir
     // (the WebView strips paths) and committed with midi = the page's slot
-    // number (1...4). Folders do nothing: a slot holds one file.
+    // number (1...4). The loader then moves it into the Imports folder and
+    // loads it from there under the dropped file's own name (D44); the temp
+    // path is never a slot source. Folders do nothing: a slot holds one file.
     {
         Ouaricon::WebViewDropStreaming::SessionManager::Config cfg;
         cfg.tempDirPrefix = "ogranulatorinstrument-drop-";   // per-plugin: the reaper matches the prefix
@@ -554,8 +669,12 @@ GranulatorInstrumentEditor::GranulatorInstrumentEditor (GranulatorInstrumentProc
         cfg.onCommitFile = [this] (const juce::File& file, int midi, int)
         {
             const int slot0 = midi - 1;
+            // The loader owns the temp file once the import is queued. Not
+            // queued (false): it stays in the session's temp dir for the
+            // module's reaper. A failure after queuing shows as the slot's
+            // `error` on the next state pull.
             if (slot0 >= 0 && slot0 < ogi::kTapeSlots)
-                processorRef.requestSlotLoad (slot0, file);   // enqueues the off-thread loader
+                juce::ignoreUnused (processorRef.importDroppedFile (slot0, file, file.getFileName()));
         };
         dropSessions = std::make_unique<Ouaricon::WebViewDropStreaming::SessionManager> (std::move (cfg));
     }
@@ -607,10 +726,13 @@ GranulatorInstrumentEditor::GranulatorInstrumentEditor (GranulatorInstrumentProc
         });
 
     // Live data, PULLED by the page at about 30 Hz. Always the full object.
+    // buildUiTelemetry is the ONLY reader of the grain frame and of the
+    // sidechain peak; the clock is read here, never inside it.
     options = options.withNativeFunction ("getTelemetry",
         [this] (auto&, auto complete)
         {
-            complete (GiUiJson::telemetryToVar (processorRef));
+            complete (GiUiJson::telemetryToVar (
+                processorRef.buildUiTelemetry (juce::Time::getMillisecondCounterHiRes())));
         });
 
     // The window figure is the engine's own curve, never a JS reimplementation.
@@ -762,7 +884,17 @@ GranulatorInstrumentEditor::GranulatorInstrumentEditor (GranulatorInstrumentProc
     options = options.withNativeFunction ("getSlotState",
         [this] (auto&, auto complete)
         {
-            complete (GiUiJson::slotStateToVar (processorRef));
+            // The revision first, then each slot with the `dirty` flag that
+            // revision was hashed with.
+            const auto revision = processorRef.getSlotStateRevision();
+            std::array<ogi::SlotInfo, ogi::kTapeSlots> infos;
+            std::array<bool, ogi::kTapeSlots> dirty {};
+            for (int s = 0; s < ogi::kTapeSlots; ++s)
+            {
+                infos[static_cast<std::size_t> (s)] = processorRef.getSlotInfo (s);
+                dirty[static_cast<std::size_t> (s)] = processorRef.getSlotDirty (s);
+            }
+            complete (GiUiJson::slotStateToVar (revision, infos, dirty));
         });
 
     // A bad slot answers null: the page then keeps that lane without peaks.
@@ -789,11 +921,16 @@ GranulatorInstrumentEditor::GranulatorInstrumentEditor (GranulatorInstrumentProc
             launchSlotChooser (slot0, true, complete);
         });
 
-    // 3.1 (D37): registered so the promise resolves; the clear path lands in 3.2.
+    // Empties the lane through the loader / handoff. The processor answers an
+    // error key: empty = done, "recording" while a take is being captured or
+    // committed into this slot, "badSlot".
     options = options.withNativeFunction ("clearSlot",
-        [] (auto& args, auto complete)
+        [this] (auto& args, auto complete)
         {
-            complete (makeOk (false, slotArg (args) < 0 ? "badSlot" : "unavailable"));
+            const int slot0 = slotArg (args);
+            if (slot0 < 0) { complete (makeOk (false, "badSlot")); return; }
+            const auto error = processorRef.clearSlot (slot0);
+            complete (makeOk (error.isEmpty(), error));
         });
 
     options = options.withNativeFunction ("resetSlot",
@@ -844,18 +981,12 @@ GranulatorInstrumentEditor::GranulatorInstrumentEditor (GranulatorInstrumentProc
             complete (result);
         });
 
-    // 3.1 (D37): no save path yet (3.2). A slot without a rec: source keeps the
-    // template's "notRecording" answer.
+    // D46: the slot's working copy (feedback writes included) as a WAV.
+    // Chooser first, then the processor's save; see launchSaveRecording.
     options = options.withNativeFunction ("saveRecording",
         [this] (auto& args, auto complete)
         {
-            const int slot0 = slotArg (args);
-            if (slot0 < 0 || GiUiJson::schemeOf (processorRef.getSlotInfo (slot0).source) != "rec")
-            {
-                complete (makeOk (false, "notRecording"));
-                return;
-            }
-            complete (makeOk (false, "unavailable"));
+            launchSaveRecording (slotArg (args), complete);
         });
 
     // -- webview-drop-streaming: the module's four handlers, registered under

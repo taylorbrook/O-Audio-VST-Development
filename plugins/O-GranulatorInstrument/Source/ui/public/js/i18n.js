@@ -2656,6 +2656,11 @@ export const LABELS = Object.freeze({
         fr: { t: "{src} module déjà {p} (emplacement {m})", reviewed: false },
         'zh-Hans': { t: "{src} 已路由到 {p}（插槽 {m}）", reviewed: 'mt' },
     },
+    'toast.loadFailed': {
+        en: { t: "Slot {n}: the file could not be loaded" },
+        fr: { t: "Emplacement {n} : le fichier n’a pas pu être chargé", reviewed: false },
+        'zh-Hans': { t: "插槽 {n}：文件载入失败", reviewed: 'mt' },
+    },
     'toast.loading': {
         en: { t: "Loading into stream {n}…" },
         fr: { t: "Chargement dans le flux {n}…", reviewed: false },
@@ -2675,6 +2680,11 @@ export const LABELS = Object.freeze({
         en: { t: "Slot {m}: {src} → {p} · mono (newest voice)" },
         fr: { t: "Emplacement {m} : {src} → {p} · mono (voix la plus récente)", reviewed: false },
         'zh-Hans': { t: "插槽 {m}：{src} → {p} · 单声道（最新声部）", reviewed: 'mt' },
+    },
+    'toast.saveFailed': {
+        en: { t: "Slot {n}: the recording could not be saved" },
+        fr: { t: "Emplacement {n} : la prise n’a pas pu être enregistrée", reviewed: false },
+        'zh-Hans': { t: "插槽 {n}：录音保存失败", reviewed: 'mt' },
     },
     'toast.slotReset': {
         en: { t: "Slot {n}: working copy restored" },
