@@ -1,15 +1,15 @@
 ---
 plugin: O-GranulatorInstrument
 stage: 3
-status: stage_3_phase_3_3_discuss_complete
+status: stage_3_phase_3_3_research_complete
 current_phase: 3-gui/3.3
-gsd_phase: discuss_complete
+gsd_phase: research_complete
 last_updated: 2026-11-10
 complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: /plugin-research O-GranulatorInstrument 3-gui (Phase 3.3); all hands-on (2.1–2.6, 3.1, 3.2, 3.3 + Logic AU pass) run once at 3.3 verify (D47)
+next_action: /plugin-plan O-GranulatorInstrument 3-gui (Phase 3.3); all hands-on (2.1–2.6, 3.1, 3.2, 3.3 + Logic AU pass) run once at 3.3 verify (D47)
 next_stage: 3
 ready_for_implementation: true
 blocked_on: none (fork pin 82406fce, D11)
@@ -37,7 +37,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 3 of 4 (GUI) — **Phase 3.1 discuss ✓** 2026-11-10 (`stages/3-gui/CONTEXT-3.1.md`, D37–D42), **research ✓** 2026-11-10 (`stages/3-gui/RESEARCH-3.1.md`), **plan ✓** 2026-11-10 (`stages/3-gui/PLAN-3.1.md`, 16 tasks / 5 waves, PD1–PD22); **execute ✓** 2026-11-10 (`stages/3-gui/SUMMARY-3.1.md`, C1 35524e1b / C2 12b210a4 / C3 6ea16b17 / C4); **verify ⚠️ PARTIAL** 2026-11-10 (`stages/3-gui/VERIFICATION-3.1.md`: every automated gate re-run green; HANDS-ON-3.1 pending); **Phase 3.2 discuss ✓** 2026-11-10 (`stages/3-gui/CONTEXT-3.2.md`, D43–D46), **research ✓** 2026-11-10 (`stages/3-gui/RESEARCH-3.2.md`), **plan ✓** 2026-11-10 (`stages/3-gui/PLAN-3.2.md`, 15 tasks / 5 waves, PD1–PD30), **execute ✓** 2026-11-10 (`stages/3-gui/SUMMARY-3.2.md`, C1 7a446ab5 / C2 c13119a0 / C3 399fd122 / C4), **verify ⚠️ PARTIAL** 2026-11-10 (`stages/3-gui/VERIFICATION-3.2.md`: every automated gate re-run green; UI-01 → partial; HANDS-ON-3.1 + 3.2 pending); next: Phase 3.3 research. **Phase 3.3 discuss ✓** 2026-11-10 (`stages/3-gui/CONTEXT-3.3.md`, D47–D50: all hands-on + Logic pass at 3.3 verify; v1 locked; 3.2 carry-overs fixed in 3.3). HANDS-ON-3.1 runs at 3.2 verify (D43). Stage 2 (DSP) — **all 6 phases verified ⚠️ PARTIAL** (2.6 verified 2026-11-09, `stages/2-dsp/VERIFICATION-2.6.md`): every automated gate re-run green (harness 357/0, 159 controls fire, 0 NOT FIRED; parity 168/0 + GV 2/0; renders-2.4 + legacy byte-identical; param-dump identical; drift 0/13 + NC-a/NC-b; C25m 27.85 % ≤ 40, C25tm 6.55 % ≤ 12; auval PASS; pluginval 10 VST3 + AU SUCCESS with SC on and off; X2 0). HANDS-ON-2.1–2.6 (human) deferred post-Stage-3 (D14 override). Next: Stage 3 Phase 3.1.
+Stage: 3 of 4 (GUI) — **Phase 3.1 discuss ✓** 2026-11-10 (`stages/3-gui/CONTEXT-3.1.md`, D37–D42), **research ✓** 2026-11-10 (`stages/3-gui/RESEARCH-3.1.md`), **plan ✓** 2026-11-10 (`stages/3-gui/PLAN-3.1.md`, 16 tasks / 5 waves, PD1–PD22); **execute ✓** 2026-11-10 (`stages/3-gui/SUMMARY-3.1.md`, C1 35524e1b / C2 12b210a4 / C3 6ea16b17 / C4); **verify ⚠️ PARTIAL** 2026-11-10 (`stages/3-gui/VERIFICATION-3.1.md`: every automated gate re-run green; HANDS-ON-3.1 pending); **Phase 3.2 discuss ✓** 2026-11-10 (`stages/3-gui/CONTEXT-3.2.md`, D43–D46), **research ✓** 2026-11-10 (`stages/3-gui/RESEARCH-3.2.md`), **plan ✓** 2026-11-10 (`stages/3-gui/PLAN-3.2.md`, 15 tasks / 5 waves, PD1–PD30), **execute ✓** 2026-11-10 (`stages/3-gui/SUMMARY-3.2.md`, C1 7a446ab5 / C2 c13119a0 / C3 399fd122 / C4), **verify ⚠️ PARTIAL** 2026-11-10 (`stages/3-gui/VERIFICATION-3.2.md`: every automated gate re-run green; UI-01 → partial; HANDS-ON-3.1 + 3.2 pending); next: Phase 3.3 research. **Phase 3.3 discuss ✓** 2026-11-10 (`stages/3-gui/CONTEXT-3.3.md`, D47–D50: all hands-on + Logic pass at 3.3 verify; v1 locked; 3.2 carry-overs fixed in 3.3). **Phase 3.3 research ✓** 2026-11-10 (`stages/3-gui/RESEARCH-3.3.md`: 16-row display map keyed by serial (engine slots 16–19 invisible today), sticky steal ring + 300 ms hold, GiUiVoice extension (state / serial / menv / stages / LFO phases / wantSt), out + SC peaks split L / R, sources = srcG, routed-only modNorm, CM6 = WAV-fail naming bug, LFO-dot phase defect; 11 decisions for the plan). HANDS-ON-3.1 runs at 3.2 verify (D43). Stage 2 (DSP) — **all 6 phases verified ⚠️ PARTIAL** (2.6 verified 2026-11-09, `stages/2-dsp/VERIFICATION-2.6.md`): every automated gate re-run green (harness 357/0, 159 controls fire, 0 NOT FIRED; parity 168/0 + GV 2/0; renders-2.4 + legacy byte-identical; param-dump identical; drift 0/13 + NC-a/NC-b; C25m 27.85 % ≤ 40, C25tm 6.55 % ≤ 12; auval PASS; pluginval 10 VST3 + AU SUCCESS with SC on and off; X2 0). HANDS-ON-2.1–2.6 (human) deferred post-Stage-3 (D14 override). Next: Stage 3 Phase 3.1.
 Stage 1: VERIFIED
 Status: Stage 1 executed (74606bb3): 0.1.0 VST3 + AU + Standalone built; 261 params (176/70/15), dest 126 / src 18 goldens; harness 55 PASS / 0 FAIL + golden and spec negative controls; pluginval 10 VST3 ×3 + AU SUCCESS with SC active (2 ch) and gate variant inactive (0 ch), auval PASS [1, 2] [2, 2] (frozen); D9 contingency did not fire; shipping build restored + installed. See stages/1-foundation/SUMMARY.md. Verified 2026-11-07 (stages/1-foundation/VERIFICATION.md): independent re-run on the installed shipping build — goldens + param-dump byte-identical, harness 55/0, auval PASS [1, 2] [2, 2], pluginval 10 VST3 + AU SUCCESS (2 ch in); COMPAT-01 complete. Next: Stage 2 discuss (Phase 2.1 fork).
 Progress: [##########..........] 50%
