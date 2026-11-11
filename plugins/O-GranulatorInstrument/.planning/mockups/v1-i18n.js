@@ -2713,7 +2713,7 @@ export const LABELS = Object.freeze({
     },
     'vstate.held': {
         en: { t: "held" },
-        fr: { t: "enfoncée", reviewed: false },
+        fr: { t: "tenue", reviewed: false, termNote: "voice state (note tenue), not the Sustain stage; \u00ab enfonc\u00e9e \u00bb overlaps the voice number in the 67 px cell" },
         'zh-Hans': { t: "保持", reviewed: 'mt' },
     },
     'vstate.off': {

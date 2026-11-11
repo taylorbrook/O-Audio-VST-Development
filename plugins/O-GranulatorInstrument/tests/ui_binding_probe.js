@@ -73,8 +73,31 @@
     ("NOT RUN") — a run on the wrong page cannot look green. Only
     --liveness-only leaves them out, and says so in the verdict line.
 
+    LANES (PLAN-3.2 PD27), after value entry. Every row first proves its
+    stimulus reached the page (the stub answer was pulled after the edit),
+    then asserts the result; the stub hands the page its fixture objects by
+    reference, so a row edits them in place and puts them back.
+      LN1  lane "recording" class on the target lane only
+      LN2  each #rec-status class + label key, run 0–5 and bus 0, in the
+           page's precedence: bus → 2 → 3 → 1 → 5 → !signal → 4 → 0
+      LN3  Clear / Save / Relink call their natives with the 1-based slot;
+           Save is absent on a file: lane
+      LN4  toast.loadFailed when slots[i].error turns non-empty, not again
+           while it is unchanged, not for an error present at the first pull
+      LN5  toast.saveFailed on `timeout`, none on `cancelled`
+      LN6  fetchOverview refetches when ovRev moves and stores the ANSWER's rev
+      LN7  scan-mode aria-valuetext is French after a switch to fr
+      PX1  playhead            PX4  record head
+      PX2  grain dot, stream 1 and stream 4 (the 0-based / 1-based class)
+      PX3  feedback head       PX5  dirty tick
+    A PX row compares two frames of a lane canvas read inside one animation
+    frame — the feature present and the feature removed from the stub answer —
+    and wants the differing pixels at the expected x within ± 2 px and none
+    outside the feature's footprint (canvas backing pixels are mapped through
+    canvas.width / clientWidth, so the row holds at any devicePixelRatio).
+
     Usage (from anywhere):
-      node plugins/O-GranulatorInstrument/tests/ui_binding_probe.js                    liveness + VE on the tree's page
+      node plugins/O-GranulatorInstrument/tests/ui_binding_probe.js                    liveness + VE + lanes on the tree's page
       node plugins/O-GranulatorInstrument/tests/ui_binding_probe.js --liveness-only    261 x 2 only
       node plugins/O-GranulatorInstrument/tests/ui_binding_probe.js --page <file>      serve <file> as index.html
            (env OGI_UI_PAGE=<file> is the same). The served ROOT is still the
@@ -83,8 +106,12 @@
       node plugins/O-GranulatorInstrument/tests/ui_binding_probe.js --nc [--page <file>]
            negative control: re-runs itself (liveness only) on a page copy with
            ONE bindKnob removed (s2_drive); exits 0 only if that run FAILS at
-           260 / 261 both ways on exactly that id.
+           260 / 261 both ways on exactly that id. THEN a second control
+           (PD27): re-runs itself (lanes only) with the stub's grain rows sent
+           0-based; passes only if that run FAILS on exactly the PX2 row.
       --mutate-bindknob <id>   the raw mutated run --nc drives (exits non-zero).
+      --lanes-only             skip liveness and value entry (the verdict line says so).
+      --mutate-grains-0based   the stub's grain rows carry stream 0…3 (raw run of the second control).
     Exit: 0 = all pass; n = failures (max 76); 78 = refused (no overrides
     banner / page not served as asked); 70 = crashed; 77 = Playwright missing —
     NOTHING was verified, which is NOT a pass.
@@ -108,6 +135,11 @@ const argVal = (f) => { const i = argv.indexOf(f); return i >= 0 && i + 1 < argv
 const PAGE = argVal('--page') || process.env.OGI_UI_PAGE || null;
 const LIVENESS_ONLY = argv.includes('--liveness-only');
 const MUTATE = argVal('--mutate-bindknob');
+const LANES_ONLY = argv.includes('--lanes-only');
+const GRAINS_0BASED = argv.includes('--mutate-grains-0based');
+const PX_TOL = 2;          // px: expected x of a canvas feature (PD27)
+const PX_DIFF = 6;         // 0…255: a pixel "differs" between two frames at or above this
+const PX_STRONG = 90;      // 0…255: the record head against its own 8 % tint and the dimmed waveform
 const NC_ID = 's2_drive';
 const N_PARAMS = 261;
 const KIND_COUNTS = { knob: 144, fader: 16, handle: 8, field: 8, choiceKnob: 17, segment: 15, select: 33, radio: 1, scale: 4, toggle: 15 };
@@ -129,7 +161,20 @@ if (argv.includes('--nc')) {
     console.log(`  ${ok ? 'PASS' : 'FAIL'}: mutated page -> exit ${r.status}; ${tallyLine}; ${fails.length} FAIL line(s), ${onlyThatId ? 'all on ' + NC_ID : 'NOT confined to ' + NC_ID}`);
     if (!ok) console.log(r.stdout.split('\n').slice(-12).join('\n') + (r.stderr ? '\n' + r.stderr.slice(-600) : ''));
     console.log(ok ? 'negative control: the mutated page FAILS at 260 — the gate is live' : 'negative control: the mutated page did NOT fail as required');
-    process.exit(ok ? 0 : 1);
+
+    // Second control (PLAN-3.2 PD27): grain rows sent 0-based -> the PX stream row fails, and only it.
+    console.log(`== ${PLUGIN} ui_binding_probe — negative control (stub grain rows sent 0-based) ==`);
+    const r2 = spawnSync(process.execPath, [__filename, '--mutate-grains-0based', '--lanes-only', ...(PAGE ? ['--page', PAGE] : [])], { encoding: 'utf8', maxBuffer: 1 << 26 });
+    if (r2.status === 77) { console.log('  Playwright could not be resolved — NOTHING verified (exit 77 is not a pass).'); process.exit(77); }
+    const fails2 = r2.stdout.match(/^ {2}FAIL: .*$/gm) || [];
+    const onlyPx2 = fails2.length === 1 && /FAIL: PX2 /.test(fails2[0]);
+    const lanesLine = (r2.stdout.match(/^ {3}lanes \d+ \/ \d+ rows$/m) || ['   (no lanes tally line)'])[0].trim();
+    for (const f of fails2.slice(0, 4)) console.log(`      ${f.trim().slice(0, 600)}`);
+    const ok2 = r2.status === 1 && onlyPx2;
+    console.log(`  ${ok2 ? 'PASS' : 'FAIL'}: 0-based grain rows -> exit ${r2.status}; ${lanesLine}; ${fails2.length} FAIL line(s), ${onlyPx2 ? 'confined to PX2' : 'NOT confined to PX2'}`);
+    if (!ok2) console.log(r2.stdout.split('\n').slice(-14).join('\n') + (r2.stderr ? '\n' + r2.stderr.slice(-600) : ''));
+    console.log(ok2 ? 'negative control: 0-based grain rows FAIL the stream pixel row — the gate is live' : 'negative control: 0-based grain rows did NOT fail as required');
+    process.exit(ok && ok2 ? 0 : 1);
 }
 
 function readTypes() {
@@ -160,7 +205,7 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
     }
 
     const params = readTypes();
-    console.log(`== ${PLUGIN} ui_binding_probe${MUTATE ? ' (MUTATED: bindKnob(' + MUTATE + ') removed)' : ''}${LIVENESS_ONLY ? ' (liveness only)' : ''} ==`);
+    console.log(`== ${PLUGIN} ui_binding_probe${MUTATE ? ' (MUTATED: bindKnob(' + MUTATE + ') removed)' : ''}${GRAINS_0BASED ? ' (MUTATED: stub grain rows 0-based)' : ''}${LIVENESS_ONLY ? ' (liveness only)' : ''}${LANES_ONLY ? ' (lanes only)' : ''} ==`);
     console.log(`   params.tsv: ${params.length} ids`);
 
     const built = S.buildRoot(PLUGIN);
@@ -218,6 +263,17 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
     page.on('console', (m) => { if (m.type() === 'error') errors.push(`console.error: ${m.text()}`); });
     const finish = async (code) => { await browser.close(); await srv.close(); cleanup(); process.exit(code); };
 
+    // Every label the page puts in #toast, from before its first script runs
+    // (LN4 needs the boot: an error already there at the first pull is not news).
+    await page.addInitScript(() => {
+        window.__toastLog = [];
+        new MutationObserver((recs) => {
+            for (const r of recs) {
+                if (r.target.id !== 'toast') continue;
+                window.__toastLog.push({ key: r.target.getAttribute('data-i18n'), vars: r.target.getAttribute('data-i18n-vars'), text: r.target.textContent });
+            }
+        }).observe(document, { subtree: true, attributes: true, attributeFilter: ['data-i18n'] });
+    });
     await page.goto(`http://127.0.0.1:${srv.port}/`);
     // Quiesce: init() ran (readouts written), the first telemetry tick landed,
     // slot state + a lane overview were pulled, the preset bar initialised.
@@ -262,6 +318,12 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
     console.log(`   states requested at boot: sliders ${boot.states.s}, combos ${boot.states.c}, toggles ${boot.states.t}; `
               + `natives the stub had to guess: [${boot.unknown.join(', ')}]; EB Garamond loaded: ${boot.font}; 404s: [${misses.join(', ')}]`);
     if (misses.length) fail(`the served tree 404'd: ${misses.join(', ')}`);
+    // LN4 boot fact, taken before anything edits the stub.
+    const bootToast = await page.evaluate(() => ({
+        log: window.__toastLog.map((t) => t.key),
+        pulls: window.__stubNativeCalls.filter((c) => c.name === 'getSlotState').length,
+        errs: window.__stubOverrides.natives.getSlotState.slots.map((s) => String((s && s.error) || '')),
+    }));
 
     // In-page helpers (installed once).
     await page.evaluate(() => {
@@ -362,7 +424,7 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
     let hostOk = 0, uiOk = 0;
     const kinds = {};
 
-    for (const { id, type } of params) {
+    for (const { id, type } of (LANES_ONLY ? [] : params)) {
         const info = await page.evaluate(({ id, type }) => {
             const H = window.__probe;
             const kind = H.kind(id, type);
@@ -522,14 +584,18 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
         if (acted && u.ok) ++uiOk; else fail(`${id}: UI->host (${info.kind}): ${acted ? u.why : 'action failed: ' + actErr}`);
     }
 
-    console.log(`   binders: ${Object.keys(KIND_COUNTS).map((k) => `${k} ${kinds[k] || 0}`).join(', ')}${kinds.none ? ', NONE ' + kinds.none : ''}`
-              + ` = ${Object.values(kinds).reduce((a, b) => a + b, 0)}`);
-    for (const [k, n] of Object.entries(KIND_COUNTS))
-        if ((kinds[k] || 0) !== n) fail(`binder census: ${k} ${kinds[k] || 0}, expected ${n}`);
-    console.log(`\n   host -> UI ${hostOk} / ${params.length}, UI -> host ${uiOk} / ${params.length}`);
-    if (params.length !== N_PARAMS) fail(`params.tsv has ${params.length} ids, expected ${N_PARAMS}`);
     const liveFailuresBefore = failures;
-    if ((hostOk !== N_PARAMS || uiOk !== N_PARAMS) && failures === 0) fail(`liveness: not ${N_PARAMS} / ${N_PARAMS} both ways`);
+    if (LANES_ONLY) {
+        console.log('\n   liveness: NOT RUN (--lanes-only)');
+    } else {
+        console.log(`   binders: ${Object.keys(KIND_COUNTS).map((k) => `${k} ${kinds[k] || 0}`).join(', ')}${kinds.none ? ', NONE ' + kinds.none : ''}`
+                  + ` = ${Object.values(kinds).reduce((a, b) => a + b, 0)}`);
+        for (const [k, n] of Object.entries(KIND_COUNTS))
+            if ((kinds[k] || 0) !== n) fail(`binder census: ${k} ${kinds[k] || 0}, expected ${n}`);
+        console.log(`\n   host -> UI ${hostOk} / ${params.length}, UI -> host ${uiOk} / ${params.length}`);
+        if (params.length !== N_PARAMS) fail(`params.tsv has ${params.length} ids, expected ${N_PARAMS}`);
+        if ((hostOk !== N_PARAMS || uiOk !== N_PARAMS) && failures === 0) fail(`liveness: not ${N_PARAMS} / ${N_PARAMS} both ways`);
+    }
 
     // ════════════════════════════════════════════════════════ value entry ══
     const VE_NAMES = ['VE1 Enter applies', 'VE2 Esc cancels', 'VE3 outside click applies',
@@ -539,8 +605,8 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
         'VE12a scan mode typed in French, page in fr', 'VE12b language switch closes an open field', 'VE12c Sync twin hidden closes an open field'];
     let veRun = 0, vePass = 0;
 
-    if (LIVENESS_ONLY) {
-        console.log('\n   value entry: NOT RUN (--liveness-only)');
+    if (LIVENESS_ONLY || LANES_ONLY) {
+        console.log(`\n   value entry: NOT RUN (${LANES_ONLY ? '--lanes-only' : '--liveness-only'})`);
     } else if (!hasVE) {
         console.log('\n-- value entry (VE1–VE12)');
         for (const n of VE_NAMES) fail(`${n} — NOT RUN: the served page has no value-entry code (attachValueEntry / bindLabelEntry / .knob-value-input)`);
@@ -826,13 +892,487 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
         console.log(`\n   value entry ${vePass} / ${veRun} rows`);
     }
 
+    // ═════════════════════════════════════════════ lanes (PLAN-3.2 PD27) ══
+    const LN_NAMES = ['LN1 recording class on the target lane only',
+        'LN2 rec-status class + label for run 0–5 and bus 0, in the page\'s precedence',
+        'LN3 Clear / Save / Relink call their natives with the 1-based slot; Save absent on a file: lane',
+        'LN4 toast.loadFailed when error turns non-empty, not again while unchanged, not at the first pull',
+        'LN5 toast.saveFailed on timeout, none on cancelled',
+        'LN6 fetchOverview refetches when ovRev moves and stores the answer\'s rev',
+        'LN7 scan-mode aria-valuetext is French after a switch to fr',
+        'PX1 playhead', 'PX2 grain dot of stream 1 and of stream 4', 'PX3 feedback head', 'PX4 record head', 'PX5 dirty tick'];
+    let lnRun = 0, lnPass = 0;
+
+    if (LIVENESS_ONLY) {
+        console.log('\n   lanes: NOT RUN (--liveness-only)');
+    } else {
+        console.log('\n-- lanes (LN1–LN7, PX1–PX5)');
+        // The fixture as the C++ encoders dumped it (expectations come from DISK;
+        // the page gets the in-page copy, which the 0-based control alters).
+        const disk = JSON.parse(fs.readFileSync(path.join(pluginRoot, 'tests', 'ui-stub', 'generic-overrides.json'), 'utf8')).natives;
+
+        await page.evaluate((zeroBased) => {
+            const nat = window.__stubOverrides.natives, calls = window.__stubNativeCalls;
+            const L = window.__ln = { nat };
+            if (zeroBased) nat.getTelemetry.grains.forEach((r) => { r[0] -= 1; });      // the negative control's whole mutation
+            L.saved = { tel: JSON.stringify(nat.getTelemetry), slots: JSON.stringify(nat.getSlotState.slots),
+                        ovDirty: nat.getSlotOverview.dirty.slice(), ovRev: nat.getSlotOverview.rev };
+            L.count = (name, slot) => { let k = 0; for (const c of calls) if (c.name === name && (slot === undefined || (c.args[0] && c.args[0].slot === slot))) ++k; return k; };
+            const raf = () => new Promise((r) => requestAnimationFrame(r));
+            L.until = async (pred, what) => { const t0 = performance.now(); while (!pred()) { if (performance.now() - t0 > 5000) throw new Error(`timed out waiting for ${what}`); await raf(); } };
+            // The page pulled telemetry at least once AFTER the edit and ingested it; then a frame was drawn from it.
+            L.settle = async () => { const b = L.count('getTelemetry'); await L.until(() => L.count('getTelemetry') >= b + 2, 'two telemetry pulls'); await raf(); await raf(); return L.count('getTelemetry') - b; };
+            L.set = (root, ops) => { for (const [pathArr, value] of ops) { let o = root; for (const k of pathArr.slice(0, -1)) o = o[k]; o[pathArr[pathArr.length - 1]] = value; } };
+            L.restoreTel = () => { const keep = nat.getTelemetry.slotRev; Object.assign(nat.getTelemetry, JSON.parse(L.saved.tel)); nat.getTelemetry.slotRev = keep; };
+            // New slot state behind a slotRev bump; resolves once the page has pulled it.
+            L.pushSlots = async () => {
+                const b = L.count('getSlotState');
+                nat.getSlotState.revision += 1; nat.getTelemetry.slotRev += 1;
+                await L.until(() => L.count('getSlotState') > b, 'a slot-state pull'); await raf(); await raf();
+                return L.count('getSlotState') - b;
+            };
+            L.restoreSlots = async () => { nat.getSlotState.slots.splice(0, 4, ...JSON.parse(L.saved.slots)); return L.pushSlots(); };
+            // ── pixel frames of the four lane canvases ──
+            L.frames = [];
+            L.shot = async () => {
+                await L.settle();
+                const f = [1, 2, 3, 4].map((n) => { const c = document.getElementById(`lane-canvas-${n}`); return c.getContext('2d').getImageData(0, 0, c.width, c.height); });
+                L.frames.push(f);
+                return L.frames.length - 1;
+            };
+            L.geom = (n) => { const c = document.getElementById(`lane-canvas-${n}`); return { W: c.clientWidth, H: c.clientHeight, bw: c.width, bh: c.height, dpr: window.devicePixelRatio || 1 }; };
+            // Pixels of lane n that differ by >= thr (any channel) between two frames,
+            // binned to CSS pixels: columns, the column / row holding the most of them.
+            L.diff = (a, b, n, thr) => {
+                const A = L.frames[a][n - 1], B = L.frames[b][n - 1], g = L.geom(n);
+                const sx = A.width / g.W, sy = A.height / g.H;
+                const col = new Array(g.W).fill(0), row = new Array(g.H).fill(0);
+                let total = 0, max = 0;
+                for (let y = 0; y < A.height; y++) for (let x = 0; x < A.width; x++) {
+                    const i = (y * A.width + x) * 4;
+                    const d = Math.max(Math.abs(A.data[i] - B.data[i]), Math.abs(A.data[i + 1] - B.data[i + 1]), Math.abs(A.data[i + 2] - B.data[i + 2]), Math.abs(A.data[i + 3] - B.data[i + 3]));
+                    if (d > max) max = d;
+                    if (d >= thr) { ++total; ++col[Math.min(g.W - 1, Math.floor(x / sx))]; ++row[Math.min(g.H - 1, Math.floor(y / sy))]; }
+                }
+                const peak = (arr) => { const m = Math.max(...arr); if (m === 0) return null; const at = arr.map((v, i) => (v === m ? i : -1)).filter((i) => i >= 0); return (at[0] + at[at.length - 1]) / 2; };
+                const span = (arr) => { const at = arr.map((v, i) => (v > 0 ? i : -1)).filter((i) => i >= 0); return at.length ? [at[0], at[at.length - 1]] : null; };
+                return { total, max, cols: span(col), rows: span(row), peakCol: peak(col), peakRow: peak(row), nCols: col.filter((v) => v > 0).length };
+            };
+        }, GRAINS_0BASED);
+
+        const lnRow = async (name, fn) => {
+            ++lnRun;
+            const notes = [], facts = [];
+            const need = (cond, msg) => { if (!cond) notes.push(msg); };
+            const say = (msg) => facts.push(msg);
+            try { await fn(need, say); } catch (e) { notes.push(`threw: ${e.message.split('\n')[0]}`); }
+            // Whatever a row did, the next one starts from the fixture.
+            try {
+                await page.evaluate(async () => {
+                    const L = window.__ln;
+                    L.restoreTel(); delete L.nat.saveRecording;
+                    L.nat.getSlotOverview.dirty = L.saved.ovDirty.slice(); L.nat.getSlotOverview.rev = L.saved.ovRev;
+                    if (JSON.stringify(L.nat.getSlotState.slots) !== L.saved.slots) await L.restoreSlots();
+                    await L.settle();
+                });
+            } catch (e) { notes.push(`restore threw: ${e.message.split('\n')[0]}`); }
+            if (notes.length === 0) { ++lnPass; pass(`${name}${facts.length ? ' — ' + facts.join('; ') : ''}`); }
+            else fail(`${name} — ${notes.join('; ')}${facts.length ? ' [measured: ' + facts.join('; ') + ']' : ''}`);
+        };
+        const tel = (ops) => page.evaluate(async (ops) => { const L = window.__ln; L.set(L.nat.getTelemetry, ops); return L.settle(); }, ops);
+        const lang = (code) => page.evaluate((code) => { window.__setLanguage(code); return document.documentElement.lang; }, code);
+        const toastLen = () => page.evaluate(() => window.__toastLog.length);
+        const toastSince = (from) => page.evaluate((from) => window.__toastLog.slice(from), from);
+        const laneTab = async (id) => gotoTab(await page.evaluate((id) => window.__probe.pageOf(document.getElementById(id)), id));
+        const clickNative = async (sel, name) => {
+            const base = await page.evaluate(() => window.__stubNativeCalls.length);
+            await page.click(sel, { timeout: 2000 });
+            // The native was called and slotAction ran to its end (it pulls slot state last).
+            await page.waitForFunction(({ base, name }) => {
+                const c = window.__stubNativeCalls.slice(base); const i = c.findIndex((x) => x.name === name);
+                return i >= 0 && c.slice(i + 1).some((x) => x.name === 'getSlotState');
+            }, { base, name }, { timeout: 5000 });
+            await page.waitForTimeout(60);
+            return page.evaluate(({ base, name }) => window.__stubNativeCalls.slice(base).filter((x) => x.name === name).map((x) => JSON.stringify(x.args)), { base, name });
+        };
+
+        // ── LN1 ────────────────────────────────────────────────────────────
+        await lnRow(LN_NAMES[0], async (need, say) => {
+            const recLanes = () => page.evaluate(() => [1, 2, 3, 4].filter((n) => document.getElementById(`lane-${n}`).classList.contains('recording')));
+            const seen = [];
+            for (const [run, slot, want] of [[2, 2, [2]], [2, 3, [3]], [2, 1, [1]], [2, 4, [4]], [1, 2, []], [3, 2, []], [0, 0, []], [2, 2, [2]]]) {
+                const pulls = await tel([[['rec', 'run'], run], [['rec', 'slot'], slot], [['rec', 'bus'], 1]]);
+                const got = await recLanes();
+                need(pulls >= 2, `run ${run} slot ${slot}: the page did not pull the edited telemetry`);
+                need(JSON.stringify(got) === JSON.stringify(want), `run ${run} slot ${slot}: recording lanes [${got}], expected [${want}]`);
+                seen.push(`run ${run} slot ${slot} -> [${got}]`);
+            }
+            say(seen.join(', '));
+        });
+
+        // ── LN2 ────────────────────────────────────────────────────────────
+        await lnRow(LN_NAMES[1], async (need, say) => {
+            const trig0 = await page.evaluate(() => window.__stubStates.combos.get('rec_trigger').getChoiceIndex());
+            const setTrig = (i) => page.evaluate((i) => { const st = window.__stubStates.combos.get('rec_trigger'); window.__probe.push(st, 'choice', i); return st.getChoiceIndex(); }, i);
+            // [bus, run, signal, trigger] -> [class, label key]; each pair of neighbours is one precedence step.
+            const cases = [
+                [0, 2, true, 0, 'nosc', 'rec.noSidechain'],        // bus beats 2
+                [0, 0, true, 0, 'nosc', 'rec.noSidechain'],        // bus 0
+                [1, 2, false, 0, 'recording', 'rec.recording'],    // 2 beats !signal
+                [1, 3, false, 0, 'recording', 'rec.committing'],   // 3 beats !signal
+                [1, 1, false, 0, 'armed', 'rec.armed'],            // 1 beats !signal
+                [1, 1, true, 1, 'armed', 'rec.waitLevel'],
+                [1, 1, true, 2, 'armed', 'rec.waitNote'],
+                [1, 5, true, 0, 'nosignal', 'rec.discarded'],      // 5 with a live signal
+                [1, 5, false, 0, 'nosignal', 'rec.discarded'],     // 5 beats !signal (the label tells them apart)
+                [1, 4, false, 0, 'nosignal', 'rec.noSignal'],      // !signal beats 4
+                [1, 0, false, 0, 'nosignal', 'rec.noSignal'],
+                [1, 4, true, 0, 'ready', 'rec.done'],              // 4
+                [1, 0, true, 0, 'ready', 'rec.ready'],             // 0
+            ];
+            const seen = [];
+            try {
+                for (const [bus, run, signal, trig, cls, key] of cases) {
+                    const t = await setTrig(trig);
+                    const pulls = await tel([[['rec', 'bus'], bus], [['rec', 'run'], run], [['rec', 'signal'], signal], [['rec', 'slot'], 2]]);
+                    const got = await page.evaluate(() => ({ cls: document.getElementById('rec-status').className, key: document.getElementById('rec-status-t').dataset.i18n,
+                        nosc: document.getElementById('plugin').classList.contains('rec-nosc') }));
+                    const tag = `bus ${bus} run ${run} signal ${signal ? 1 : 0} trig ${trig}`;
+                    need(pulls >= 2 && t === trig, `${tag}: the stimulus did not reach the page (pulls ${pulls}, trigger ${t})`);
+                    need(got.cls === cls && got.key === key, `${tag}: class "${got.cls}" label ${got.key}, expected "${cls}" ${key}`);
+                    need(got.nosc === (bus === 0), `${tag}: #plugin.rec-nosc is ${got.nosc}`);
+                    seen.push(`${bus}/${run}/${signal ? 1 : 0}/${trig} ${got.cls}:${String(got.key).replace('rec.', '')}`);
+                }
+            } finally { await setTrig(trig0); }
+            say(`${cases.length} states (bus/run/signal/trig class:label) ${seen.join(', ')}`);
+        });
+
+        // ── LN3 ────────────────────────────────────────────────────────────
+        await lnRow(LN_NAMES[2], async (need, say) => {
+            const schemes = await page.evaluate(() => window.__ln.nat.getSlotState.slots.map((s) => `${s.scheme || 'empty'}${s.missing ? '+missing' : ''}`));
+            need(schemes.join(',') === 'factory,file,rec+missing,empty', `the fixture lanes are [${schemes}], expected factory, file, rec+missing, empty`);
+            await laneTab('lane-1');
+            const shown = (id) => page.evaluate((id) => { const e = document.getElementById(id); return !!e && !e.hidden && !e.disabled && e.getClientRects().length > 0; }, id);
+            const seen = [];
+            for (const [sel, name, slot] of [['#lane-clear-1', 'clearSlot', 1], ['#lane-clear-2', 'clearSlot', 2],
+                                             ['#lane-badge-save-3', 'saveRecording', 3], ['#lane-badge-relink-3', 'relinkSlot', 3]]) {
+                const got = await clickNative(sel, name);
+                need(got.length === 1 && got[0] === `[{"slot":${slot}}]`, `${sel}: ${name} called with ${got.join(' ') || 'nothing'}, expected [{"slot":${slot}}]`);
+                seen.push(`${sel.slice(1)} -> ${name}${got[0] || '()'}`);
+            }
+            for (const id of ['lane-badge-save-2', 'lane-badge-save-1', 'lane-badge-save-4', 'lane-badge-relink-1', 'lane-badge-relink-2'])
+                need(!(await shown(id)), `${id} is shown (Save is for rec: lanes, Relink for missing ones)`);
+            need(await page.evaluate(() => document.getElementById('lane-clear-4').disabled), 'Clear is enabled on the empty lane 4');
+            // Per-row answer: lane 2 becomes a recording -> Save appears there and carries slot 2.
+            const pulled = await page.evaluate(async () => { const L = window.__ln; Object.assign(L.nat.getSlotState.slots[1], { scheme: 'rec', name: 'probe-take.wav' }); return L.pushSlots(); });
+            need(pulled >= 1 && await shown('lane-badge-save-2'), 'Save did not appear on lane 2 after its slot became rec:');
+            const got = await clickNative('#lane-badge-save-2', 'saveRecording');
+            need(got.length === 1 && got[0] === '[{"slot":2}]', `#lane-badge-save-2: saveRecording called with ${got.join(' ') || 'nothing'}`);
+            seen.push(`lane-badge-save-2 (slot 2 as rec:) -> saveRecording${got[0] || '()'}`);
+            say(`${seen.join(', ')}; Save hidden on file: lane 2, factory lane 1, empty lane 4`);
+        });
+
+        // ── LN4 ────────────────────────────────────────────────────────────
+        await lnRow(LN_NAMES[3], async (need, say) => {
+            // Boot: the fixture's slot 4 carries an error at the FIRST pull -> no toast.
+            need(bootToast.errs[3] !== '' && bootToast.pulls >= 1, `boot stimulus missing: slot 4 error "${bootToast.errs[3]}", ${bootToast.pulls} slot-state pull(s)`);
+            need(!bootToast.log.includes('toast.loadFailed'), `the page toasted at boot for an error already present (${bootToast.log.join(', ')})`);
+            const step = async (error) => {
+                const from = await toastLen();
+                const pulls = await page.evaluate(async (error) => { const L = window.__ln; if (error !== null) L.nat.getSlotState.slots[1].error = error; return L.pushSlots(); }, error);
+                await page.waitForTimeout(80);
+                return { pulls, toasts: (await toastSince(from)).filter((t) => t.key === 'toast.loadFailed') };
+            };
+            const seen = [];
+            const want = async (label, error, n) => {
+                const r = await step(error);
+                need(r.pulls >= 1, `${label}: the page did not pull the new slot state`);
+                need(r.toasts.length === n, `${label}: ${r.toasts.length} toast.loadFailed, expected ${n}`);
+                if (n === 1 && r.toasts.length === 1) {
+                    need(r.toasts[0].vars === '{"n":"2"}', `${label}: toast vars ${r.toasts[0].vars}, expected {"n":"2"}`);
+                    need(/2/.test(r.toasts[0].text) && r.toasts[0].text.length > 8, `${label}: toast text "${r.toasts[0].text}"`);
+                }
+                seen.push(`${label} ${r.toasts.length}${r.toasts[0] ? ' "' + r.toasts[0].text + '"' : ''}`);
+            };
+            await want('error "" -> "decode failed: a"', 'decode failed: a', 1);
+            need(await page.evaluate(() => document.getElementById('toast').classList.contains('show')), 'the toast is not shown (#toast.show)');
+            await want('unchanged, pulled again', null, 0);
+            await want('unchanged, pulled a third time', null, 0);
+            await want('-> "decode failed: b" (changed)', 'decode failed: b', 1);
+            await want('-> "" (cleared)', '', 0);
+            await want('-> "decode failed: b" (re-armed)', 'decode failed: b', 1);
+            say(seen.join(', ') + '; boot: slot 4 error present, 0 toasts');
+        });
+
+        // ── LN5 ────────────────────────────────────────────────────────────
+        await lnRow(LN_NAMES[4], async (need, say) => {
+            await laneTab('lane-3');
+            const seen = [];
+            for (const [answer, n] of [[{ ok: false, error: 'timeout' }, 1], [{ ok: false, error: 'cancelled' }, 0],
+                                       [{ ok: false, error: 'writeFailed' }, 1], [{ ok: true, path: 'x.wav' }, 0]]) {
+                // The stub must really answer with this object before the click counts.
+                const echoed = await page.evaluate(async (answer) => {
+                    window.__ln.nat.saveRecording = answer;
+                    const m = await import('/js/juce/index.js');
+                    return JSON.stringify(await m.getNativeFunction('saveRecording')({ probe: true }));
+                }, answer);
+                need(echoed === JSON.stringify(answer), `the stub answers saveRecording with ${echoed}, not ${JSON.stringify(answer)}`);
+                const from = await toastLen();
+                const got = await clickNative('#lane-badge-save-3', 'saveRecording');
+                const toasts = (await toastSince(from)).filter((t) => t.key === 'toast.saveFailed');
+                const tag = answer.ok ? 'ok' : answer.error;
+                need(got.includes('[{"slot":3}]'), `${tag}: saveRecording was not called with slot 3 (${got.join(' ')})`);
+                need(toasts.length === n, `${tag}: ${toasts.length} toast.saveFailed, expected ${n}`);
+                if (n === 1 && toasts.length === 1) need(toasts[0].vars === '{"n":"3"}', `${tag}: toast vars ${toasts[0].vars}, expected {"n":"3"}`);
+                seen.push(`${tag} -> ${toasts.length}${toasts[0] ? ' "' + toasts[0].text + '"' : ''}`);
+            }
+            say(seen.join(', '));
+        });
+
+        // ── LN6 ────────────────────────────────────────────────────────────
+        await lnRow(LN_NAMES[5], async (need, say) => {
+            // Lane 1 only: its telemetry ovRev equals the fixture answer's rev, so it is quiet at rest.
+            const fetches = (ms) => page.evaluate(async (ms) => {
+                const L = window.__ln; const b = L.count('getSlotOverview', 1), t = L.count('getTelemetry');
+                await new Promise((r) => setTimeout(r, ms));
+                return { n: L.count('getSlotOverview', 1) - b, pulls: L.count('getTelemetry') - t };
+            }, ms);
+            const set = (ovRev, rev) => page.evaluate(async ({ ovRev, rev }) => {
+                const L = window.__ln;
+                if (ovRev !== null) L.nat.getTelemetry.lanes[0].ovRev = ovRev;
+                if (rev === 'none') delete L.nat.getSlotOverview.rev; else if (rev !== null) L.nat.getSlotOverview.rev = rev;
+                await L.settle(); await new Promise((r) => setTimeout(r, 250));
+            }, { ovRev, rev });
+            const r0 = disk.getTelemetry.lanes[0].ovRev;
+            need(r0 === disk.getSlotOverview.rev, `fixture: lanes[0].ovRev ${r0} != overview rev ${disk.getSlotOverview.rev}`);
+            const rest = await fetches(500);
+            need(rest.pulls >= 5 && rest.n === 0, `at rest (ovRev == stored rev): ${rest.n} fetch(es) of lane 1 over ${rest.pulls} telemetry pulls, expected 0`);
+            // ovRev moves, the answer still says the old rev: a page that stores the
+            // ANSWER's rev keeps asking; one that stored the asked rev would stop after one.
+            await set(r0 + 96, null);
+            const stale = await fetches(700);
+            need(stale.pulls >= 5 && stale.n >= 3, `ovRev moved, answer rev stale: ${stale.n} fetch(es) in 700 ms, expected >= 3 (refetch while the stored rev is the answer's old one)`);
+            // The answer catches up: stored == telemetry, the lane goes quiet.
+            await set(null, r0 + 96);
+            const caught = await fetches(500);
+            need(caught.pulls >= 5 && caught.n === 0, `answer rev == ovRev: ${caught.n} fetch(es), expected 0`);
+            // An answer without a rev: the asked one is stored (one fetch, then quiet).
+            await set(r0 + 200, 'none');
+            const bare = await fetches(500);
+            need(bare.pulls >= 5 && bare.n === 0, `answer without rev: ${bare.n} fetch(es) after the first, expected 0 (the asked rev is stored)`);
+            say(`lane 1 fetches: at rest ${rest.n} / ${rest.pulls} pulls; ovRev ${r0} -> ${r0 + 96} with answer rev ${r0}: ${stale.n} in 700 ms; answer rev ${r0 + 96}: ${caught.n}; no rev in the answer: ${bare.n}`);
+        });
+
+        // ── LN7 ────────────────────────────────────────────────────────────
+        await lnRow(LN_NAMES[6], async (need, say) => {
+            const faces = await page.evaluate(async () => {
+                const m = await import('/js/i18n.js');
+                return ['opt.scan.free', 'opt.scan.retrigger', 'opt.scan.pingpong'].map((k) => ({ en: m.LABELS[k].en.t, fr: m.LABELS[k].fr.t }));
+            });
+            const k = faces.findIndex((f) => f.fr && f.fr !== f.en);
+            if (k < 0) throw new Error(`no scan-mode face differs in French: ${JSON.stringify(faces)}`);
+            const ids = [1, 2, 3, 4].map((n) => `s${n}_scan_mode`);
+            const v0 = await page.evaluate(({ ids, k }) => ids.map((id) => { const st = window.__stubStates.combos.get(id); const v = st.getChoiceIndex(); window.__probe.push(st, 'choice', k); return v; }), { ids, k });
+            const read = () => page.evaluate((ids) => ids.map((id) => ({ aria: document.getElementById(`knob-${id}`).getAttribute('aria-valuetext'), val: document.getElementById(`val-${id}`).textContent })), ids);
+            try {
+                const en = await read();
+                need(en.every((r) => norm(r.aria) === norm(faces[k].en)), `before the switch: aria-valuetext [${en.map((r) => r.aria)}], expected "${faces[k].en}"`);
+                need(await lang('fr') === 'fr', 'the page did not switch to fr (html lang)');
+                const fr = await read();
+                need(fr.every((r) => norm(r.val) === norm(faces[k].fr)), `stimulus: the readouts are [${fr.map((r) => r.val)}] after the switch, expected "${faces[k].fr}"`);
+                need(fr.every((r) => norm(r.aria) === norm(faces[k].fr)), `aria-valuetext after the switch to fr: [${fr.map((r) => r.aria)}], expected "${faces[k].fr}"`);
+                need(await lang('en') === 'en', 'the page did not switch back to en');
+                const back = await read();
+                need(back.every((r) => norm(r.aria) === norm(faces[k].en)), `aria-valuetext back in en: [${back.map((r) => r.aria)}], expected "${faces[k].en}"`);
+                say(`4 scan-mode knobs at choice ${k}: en "${en[0].aria}" -> fr "${fr[0].aria}" -> en "${back[0].aria}"`);
+            } finally {
+                await lang('en');
+                await page.evaluate(({ ids, v0 }) => ids.forEach((id, i) => window.__probe.push(window.__stubStates.combos.get(id), 'choice', v0[i])), { ids, v0 });
+            }
+        });
+
+        // ── pixel rows ─────────────────────────────────────────────────────
+        const geom = await page.evaluate(() => [1, 2, 3, 4].map((n) => window.__ln.geom(n)));
+        const { W, H } = geom[0];
+        const mid = H / 2 + 2;                                    // drawLane's centre line
+        console.log(`   lane canvas ${W} x ${H} CSS px, backing ${geom[0].bw} x ${geom[0].bh}, devicePixelRatio ${geom[0].dpr}; `
+                  + `a pixel differs at >= ${PX_DIFF} / 255 (record head: >= ${PX_STRONG}); x tolerance ± ${PX_TOL} px`);
+        const shot = (ops) => page.evaluate(async (ops) => { const L = window.__ln; if (ops) L.set(L.nat.getTelemetry, ops); return L.shot(); }, ops || null);
+        const diff = (a, b, n, thr = PX_DIFF) => page.evaluate(({ a, b, n, thr }) => window.__ln.diff(a, b, n, thr), { a, b, n, thr });
+        const fmt = (d) => (d.total ? `${d.total} px, cols ${d.cols[0]}–${d.cols[1]}, peak col ${d.peakCol}, rows ${d.rows[0]}–${d.rows[1]}, peak row ${d.peakRow}` : '0 px');
+        // The feature: differing pixels exist, the densest column is at x ± 2, none outside x ± reach.
+        const featureAt = (need, d, what, x, reach, y) => {
+            if (!d.total) { need(false, `${what}: NO pixel differs from the frame without it (expected at x ${x})`); return; }
+            need(Math.abs(d.peakCol - x) <= PX_TOL, `${what}: densest column ${d.peakCol}, expected ${x} ± ${PX_TOL}`);
+            need(d.cols[0] >= x - reach && d.cols[1] <= x + reach, `${what}: pixels differ in cols ${d.cols[0]}–${d.cols[1]}, outside ${x} ± ${reach}`);
+            if (y !== undefined) need(Math.abs(d.peakRow - y) <= PX_TOL, `${what}: densest row ${d.peakRow}, expected ${y} ± ${PX_TOL}`);
+        };
+        const blank = async (need, a, b, lanesToCheck, what) => {
+            for (const n of lanesToCheck) { const d = await diff(a, b, n, 1); need(d.total === 0, `${what}: lane ${n} changed where the feature is absent (${fmt(d)})`); }
+        };
+        // Two frames of an unchanged stub answer are identical: any later difference is the feature.
+        const s0 = await shot(), s1 = await shot();
+        const still = [];
+        for (const n of [1, 2, 3, 4]) still.push((await diff(s0, s1, n, 1)).total);
+        const pxStable = still.every((v) => v === 0);
+        console.log(`   two frames of the unchanged fixture differ in [${still.join(', ')}] pixels per lane (must be 0)`);
+
+        // ── PX1 playhead ──
+        await lnRow(LN_NAMES[7], async (need, say) => {
+            need(pxStable, `frames of an unchanged answer are not identical ([${still}])`);
+            const v = disk.getTelemetry.voices[0];
+            need(v[0] === 1 && v[3] >= 0, `fixture voice 0 is not a held voice with a stream-1 scan (${JSON.stringify(v)})`);
+            const on = await shot();
+            const off = await shot([[['voices', 0, 0], 0]]);
+            const x1 = Math.floor(Math.round(v[3] * W) + 0.5);
+            const d1 = await diff(on, off, 1);
+            featureAt(need, d1, `playhead of the fixture voice (scan ${v[3]})`, x1, 3);
+            need(d1.total > 0 && d1.rows[0] <= 4 && d1.rows[1] >= H - 5, `playhead: differing rows ${d1.rows}, expected the lane's height (3 … ${H - 3})`);
+            // A second position (per-row answer), and scan −1 = no playhead.
+            const moved = await shot([[['voices', 0, 0], 1], [['voices', 0, 3], 0.7]]);
+            const x2 = Math.floor(Math.round(0.7 * W) + 0.5);
+            const d2 = await diff(moved, off, 1);
+            featureAt(need, d2, 'playhead at scan 0.7', x2, 3);
+            const none = await shot([[['voices', 0, 3], -1]]);
+            const d3 = await diff(none, off, 1, 1);
+            need(d3.total === 0, `scan −1 still draws on lane 1 (${fmt(d3)})`);
+            await blank(need, on, off, [3, 4], 'playhead');
+            say(`scan ${v[3]} -> expected col ${x1}: ${fmt(d1)}; scan 0.7 -> expected col ${x2}: ${fmt(d2)}; scan −1: ${d3.total} px; lanes 3 / 4 unchanged`);
+        });
+
+        // ── PX2 grain dots, stream 1 and stream 4 ──
+        await lnRow(LN_NAMES[8], async (need, say) => {
+            need(pxStable, `frames of an unchanged answer are not identical ([${still}])`);
+            const rows = disk.getTelemetry.grains;
+            const streams = [...new Set(rows.map((r) => r[0]))].sort();
+            need(streams.join(',') === '1,2,3,4', `the C++-dumped fixture's grain streams are [${streams}], expected 1…4 (1-based)`);
+            // One fixture row per stream, away from the playhead column; expectations from DISK, pixels from the page's copy.
+            const pick = (st) => rows.findIndex((r, i) => r[0] === st && Math.abs(r[1] - disk.getTelemetry.voices[0][3]) > 0.02 && i >= 0);
+            const i1 = pick(1), i4 = pick(4);
+            if (i1 < 0 || i4 < 0) throw new Error('the fixture has no usable grain row for stream 1 / stream 4');
+            const sent = await page.evaluate(({ i1, i4 }) => { const g = JSON.parse(window.__ln.saved.tel).grains; return [g[i1], g[i4]]; }, { i1, i4 });
+            need(sent[0][1] === rows[i1][1] && sent[1][1] === rows[i4][1], 'the stub does not carry the fixture rows');
+            await setLaneLoaded(4, true);                           // lane 4 is empty in the fixture: an empty lane draws nothing
+            try {
+                const none = await shot([[['grains'], []]]);
+                const seen = [];
+                for (const [st, i] of [[1, i1], [4, i4]]) {
+                    const r = rows[i];
+                    const on = await shot([[['grains'], [sent[st === 1 ? 0 : 1]]]]);
+                    const x = Math.floor(r[1] * W), y = Math.floor(mid - r[2] * (H / 2 - 9));
+                    const rad = 3 * (1.1 + Math.min(2.4, Math.sqrt((r[5] || 0.1) * 1000) / 12));
+                    const d = await diff(on, none, st);
+                    featureAt(need, d, `stream-${st} grain (row ${JSON.stringify(r)}) on lane ${st}`, x, Math.ceil(rad) + 2, Math.min(H - 1, y));
+                    const others = [1, 2, 3, 4].filter((n) => n !== st);
+                    const stray = [];
+                    for (const n of others) { const o = await diff(on, none, n, 1); if (o.total) stray.push(`lane ${n}: ${fmt(o)}`); }
+                    need(stray.length === 0, `stream-${st} grain drew on another lane (${stray.join(' | ')})`);
+                    seen.push(`stream ${st} row sent as ${JSON.stringify(sent[st === 1 ? 0 : 1])} -> lane ${st} expected (${x}, ${y}): ${fmt(d)}; other lanes ${stray.length ? stray.join(' | ') : 'unchanged'}`);
+                }
+                say(seen.join(' || '));
+            } finally { await setLaneLoaded(4, false); }
+        });
+
+        // ── PX3 feedback head ──
+        await lnRow(LN_NAMES[9], async (need, say) => {
+            need(pxStable, `frames of an unchanged answer are not identical ([${still}])`);
+            const fb = disk.getTelemetry.lanes[0].fb;
+            need(typeof fb === 'number' && disk.getTelemetry.lanes[0].rec === null, `fixture lane 1: fb ${fb}, rec ${disk.getTelemetry.lanes[0].rec}`);
+            const frozen = await page.evaluate(() => window.__stubStates.toggles.get('freeze').getValue());
+            need(frozen === false, 'freeze is on: the head would be dashed');
+            const on = await shot();
+            const off = await shot([[['lanes', 0, 'fb'], null]]);
+            const x1 = Math.floor(Math.round(fb * W) + 0.5);
+            const d1 = await diff(on, off, 1);
+            featureAt(need, d1, `feedback head (fb ${fb})`, x1, 5);
+            need(d1.total > 0 && d1.rows[0] >= H - 16 && d1.rows[1] === H - 1, `feedback head: rows ${d1.rows}, expected the lane's bottom (${H - 15} … ${H - 1})`);
+            const moved = await shot([[['lanes', 0, 'fb'], 0.2]]);
+            const x2 = Math.floor(Math.round(0.2 * W) + 0.5);
+            const d2 = await diff(moved, off, 1);
+            featureAt(need, d2, 'feedback head at fb 0.2', x2, 5);
+            await blank(need, on, off, [2, 3, 4], 'feedback head');
+            say(`fb ${fb} -> expected col ${x1}: ${fmt(d1)}; fb 0.2 -> expected col ${x2}: ${fmt(d2)}; lanes 2–4 unchanged`);
+        });
+
+        // ── PX4 record head ──
+        await lnRow(LN_NAMES[10], async (need, say) => {
+            need(pxStable, `frames of an unchanged answer are not identical ([${still}])`);
+            const rec = disk.getTelemetry.lanes[1].rec;
+            need(typeof rec === 'number', `fixture lane 2 rec is ${rec}`);
+            const on = await shot();
+            const off = await shot([[['lanes', 1, 'rec'], null]]);
+            const x1 = Math.floor(Math.round(rec * W) + 0.5);
+            const d1 = await diff(on, off, 2, PX_STRONG);
+            featureAt(need, d1, `record head (rec ${rec})`, x1, 6);
+            need(d1.total > 0 && d1.rows[0] === 0 && d1.rows[1] === H - 1, `record head: rows ${d1.rows}, expected the full height (0 … ${H - 1})`);
+            // The tint: the lane left of the head changes too (weakly), the lane right of the head + 6 px only where the waveform dims.
+            const weak = await diff(on, off, 2, PX_DIFF);
+            need(weak.total > d1.total && weak.cols[0] <= 2, `record tint: weak differences start at col ${weak.cols ? weak.cols[0] : '—'}, expected the lane's left edge`);
+            const moved = await shot([[['lanes', 1, 'rec'], 0.7]]);
+            const x2 = Math.floor(Math.round(0.7 * W) + 0.5);
+            const d2 = await diff(moved, off, 2, PX_STRONG);
+            featureAt(need, d2, 'record head at rec 0.7', x2, 6);
+            await blank(need, on, off, [1, 3, 4], 'record head');
+            say(`rec ${rec} -> expected col ${x1}: ${fmt(d1)} (>= ${PX_STRONG}); tint + dimmed waveform (>= ${PX_DIFF}): ${fmt(weak)}; rec 0.7 -> expected col ${x2}: ${fmt(d2)}; lanes 1 / 3 / 4 unchanged`);
+        });
+
+        // ── PX5 dirty tick ──
+        await lnRow(LN_NAMES[11], async (need, say) => {
+            need(pxStable, `frames of an unchanged answer are not identical ([${still}])`);
+            const ov = disk.getSlotOverview, nb = ov.peaks.length;
+            const lit = (k) => ov.dirty[k] / 255 > 0.05 && Math.min(1, ov.peaks[k]) * (H / 2 - 4) >= 0.3;      // drawLane's two conditions
+            const colOf = (k) => { const xs = []; for (let x = 0; x < W; x++) if (Math.min(nb - 1, Math.floor(x / W * nb)) === k) xs.push(x); return xs; };
+            const litBins = ov.dirty.map((_, k) => k).filter(lit);
+            need(litBins.length > 0, 'the fixture overview has no dirty bin above the page\'s 5 % threshold');
+            // A new overview answer reaches the page through a revision move (the LN6 path).
+            const overview = (dirty) => page.evaluate(async (dirty) => {
+                const L = window.__ln, o = L.nat.getSlotOverview, b = L.count('getSlotOverview', 1);
+                o.dirty = dirty; o.rev += 1; L.nat.getTelemetry.lanes[0].ovRev = o.rev;
+                await L.until(() => L.count('getSlotOverview', 1) > b, 'an overview refetch of lane 1');
+                const id = await L.shot();
+                return { id, fetched: L.count('getSlotOverview', 1) - b };
+            }, dirty);
+            const zeros = new Array(nb).fill(0);
+            const clean = await overview(zeros);
+            const fx = await overview(ov.dirty.slice());
+            need(clean.fetched >= 1 && fx.fetched >= 1, 'the page did not refetch the edited overview');
+            // (a) the fixture's own dirty bins (the C++ dump): ticks from the first lit column to the last, none beyond.
+            const first = colOf(litBins[0])[0], last = colOf(litBins[litBins.length - 1]).pop();
+            const d1 = await diff(fx.id, clean.id, 1);
+            need(d1.total > 0, 'fixture dirty bins: no tick drawn');
+            if (d1.total) {
+                need(Math.abs(d1.cols[0] - first) <= PX_TOL && Math.abs(d1.cols[1] - last) <= PX_TOL, `fixture dirty bins: ticks in cols ${d1.cols[0]}–${d1.cols[1]}, expected ${first}–${last} ± ${PX_TOL}`);
+                need(d1.rows[1] <= mid, `dirty ticks reach row ${d1.rows[1]}, below the centre line ${mid} (a tick hangs from the top of the upper half)`);
+            }
+            // (b) one bin alone, in the fixture's clean part: one tick at its column, nothing else.
+            const k0 = ov.dirty.findIndex((v, k) => k > litBins[litBins.length - 1] + 40 && v === 0 && Math.min(1, ov.peaks[k]) * (H / 2 - 4) >= 3);
+            if (k0 < 0) throw new Error('no clean, loud bin in the fixture to light alone');
+            const one = zeros.slice(); one[k0] = 255;
+            const single = await overview(one);
+            const xk = colOf(k0)[0];
+            const d2 = await diff(single.id, clean.id, 1);
+            featureAt(need, d2, `single dirty bin ${k0}`, xk, PX_TOL);
+            const amp = Math.min(1, ov.peaks[k0]) * (H / 2 - 4);
+            if (d2.total) need(d2.rows[0] >= Math.floor(mid - amp) - 1 && d2.rows[1] <= Math.ceil(mid - amp + Math.min(amp, 6)) + 1,
+                `single dirty bin: rows ${d2.rows}, expected the top of the peak (${(mid - amp).toFixed(1)} … ${(mid - amp + Math.min(amp, 6)).toFixed(1)})`);
+            await blank(need, single.id, clean.id, [3], 'dirty tick');
+            say(`fixture dirty bins ${litBins[0]}–${litBins[litBins.length - 1]} -> expected cols ${first}–${last}: ${fmt(d1)}; bin ${k0} alone -> expected col ${xk}: ${fmt(d2)}; refetches ${clean.fetched} / ${fx.fetched} / ${single.fetched}`);
+        });
+
+        console.log(`\n   lanes ${lnPass} / ${lnRun} rows`);
+        if (lnRun !== LN_NAMES.length) fail(`lanes: ${lnRun} rows ran, expected ${LN_NAMES.length}`);
+    }
+
     console.log(`   page errors: ${errors.length}${errors.length ? ' — ' + errors.slice(0, 3).join(' | ') : ''}`);
     if (errors.length) fail(`${errors.length} page / console error(s)`);
     void liveFailuresBefore;
 
     const liveOk = hostOk === N_PARAMS && uiOk === N_PARAMS;
-    const veText = LIVENESS_ONLY ? 'value entry NOT RUN (--liveness-only)' : !hasVE ? 'value entry NOT RUN — page has no value-entry code' : `value entry ${vePass} / ${veRun}`;
-    console.log(failures === 0 ? `ALL PASS (${N_PARAMS} / ${N_PARAMS} both ways; ${veText})`
-                               : `${failures} FAILED (liveness ${liveOk ? 'OK ' : ''}${hostOk} / ${uiOk} of ${N_PARAMS}; ${veText})`);
+    const veText = LANES_ONLY ? 'value entry NOT RUN (--lanes-only)' : LIVENESS_ONLY ? 'value entry NOT RUN (--liveness-only)'
+        : !hasVE ? 'value entry NOT RUN — page has no value-entry code' : `value entry ${vePass} / ${veRun}`;
+    const lnText = LIVENESS_ONLY ? 'lanes NOT RUN (--liveness-only)' : `lanes ${lnPass} / ${lnRun}`;
+    const liveText = LANES_ONLY ? 'liveness NOT RUN (--lanes-only)' : `${N_PARAMS} / ${N_PARAMS} both ways`;
+    console.log(failures === 0 ? `ALL PASS (${liveText}; ${veText}; ${lnText})`
+                               : `${failures} FAILED (liveness ${LANES_ONLY ? 'NOT RUN' : `${liveOk ? 'OK ' : ''}${hostOk} / ${uiOk} of ${N_PARAMS}`}; ${veText}; ${lnText})`);
     await finish(Math.min(failures, 76));
 })().catch((e) => { console.error(e); process.exit(70); });

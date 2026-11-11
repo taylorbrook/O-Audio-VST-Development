@@ -66,16 +66,25 @@
          processor includes / creates it only under JUCE_WEB_BROWSER.
      14. No DevLoader / OGI_DEV_LOADER token under Source/ (ui/public/modules
          excluded) or in CMakeLists.txt.
+     15. Phase 3.2 closure (PLAN-3.2 PD26): every 3.2 key is EMITTED by its
+         C++ encoder (Source/GiUiJson.h: the UiTelemetry telemetryToVar,
+         slotInfoToVar, slotOverviewToVar) AND READ by the page function that
+         uses it; no "unavailable" answer left in the editor; the three lane
+         natives are live; both failure toasts exist in en / fr / zh-Hans and
+         are raised by the page.
 
     Usage (from anywhere):
       node plugins/O-GranulatorInstrument/tests/ui_frontend_check.js
       node plugins/O-GranulatorInstrument/tests/ui_frontend_check.js --negative-controls   (alias --nc)
     Exit code = number of failed assertions (0 = all pass). With
-    --negative-controls the script re-runs itself on two scratch editor copies
-    (one ID moved kSliderIds -> kToggleIds; one withNativeFunction removed) and
-    exits 0 only if BOTH copies fail the check that targets them. Scratch copies
-    live under os.tmpdir() (set TMPDIR to move them) and are removed.
-    --editor-cpp <path>  point sections 3 / 6 / 8 / 9 / 10 at another PluginEditor.cpp
+    --negative-controls the script re-runs itself on three scratch copies (an
+    editor with one ID moved kSliderIds -> kToggleIds; an editor with one
+    withNativeFunction removed; a GiUiJson.h whose 3.2 encoder emits "grains"
+    under another name) and exits 0 only if EVERY copy fails the check that
+    targets it. Scratch copies live under os.tmpdir() (set TMPDIR to move
+    them) and are removed.
+    --editor-cpp <path>  point sections 3 / 6 / 8 / 9 / 10 / 12 / 15 at another PluginEditor.cpp
+    --json-h <path>      point sections 12 / 13 / 15 at another GiUiJson.h
     --page <path>        point the page checks at another index.html
     --param-dump <path>  override the param-dump binary (default: the build tree;
                          a missing binary is retried for 90 s, never built here)
@@ -101,7 +110,8 @@ const argVal = (f) => { const i = argv.indexOf(f); return i >= 0 && i + 1 < argv
 const htmlPath      = argVal('--page') || path.join(pluginRoot, 'Source', 'ui', 'public', 'index.html');
 const editorCppPath = argVal('--editor-cpp') || path.join(pluginRoot, 'Source', 'PluginEditor.cpp');
 const editorHPath   = path.join(pluginRoot, 'Source', 'PluginEditor.h');
-const jsonHPath     = path.join(pluginRoot, 'Source', 'GiUiJson.h');
+const jsonHPath     = argVal('--json-h') || path.join(pluginRoot, 'Source', 'GiUiJson.h');
+const i18nPath      = path.join(pluginRoot, 'Source', 'ui', 'public', 'js', 'i18n.js');
 const procCppPath   = path.join(pluginRoot, 'Source', 'PluginProcessor.cpp');
 const cmakePath     = path.join(pluginRoot, 'CMakeLists.txt');
 const harnessPath   = path.join(pluginRoot, 'tests', 'render-harness', 'main.cpp');
@@ -114,7 +124,7 @@ const N_FLOAT = 176, N_CHOICE = 70, N_BOOL = 15, N_PARAMS = 261, N_NATIVE = 34;
 
 // ───────────────────────────────────────────── negative controls (PD18) ──
 if (argv.includes('--negative-controls') || argv.includes('--nc')) {
-    const src = fs.readFileSync(editorCppPath, 'utf8');
+    const sources = { editor: fs.readFileSync(editorCppPath, 'utf8'), jsonH: fs.readFileSync(jsonHPath, 'utf8') };
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogi-ufc-nc-'));
     const variants = [
         {
@@ -128,16 +138,25 @@ if (argv.includes('--negative-controls') || argv.includes('--nc')) {
             expect: /FAIL: \[3\]/,
             make: (s) => s.replace('withNativeFunction ("getWindowCurve"', 'withNativeFunction_REMOVED ("getWindowCurve"'),
         },
+        {
+            // PLAN-3.2 PD26: the page keeps reading t.grains, the encoder sends another name.
+            name: 'NC3 one telemetry key renamed in the 3.2 encoder (grains -> grainRows)',
+            file: 'jsonH',
+            expect: /FAIL: \[15\] emitted and read: grains\b/,
+            make: (s) => s.replace('obj->setProperty ("grains", grains);', 'obj->setProperty ("grainRows", grains);'),
+        },
     ];
     let bad = 0;
     console.log(`== ${PLUGIN} ui_frontend_check — negative controls ==`);
     for (const v of variants) {
+        const which = v.file || 'editor';
+        const src = sources[which];
         const mutated = v.make(src);
         if (mutated === src) { console.log(`  FAIL: ${v.name} — the mutation did not apply`); ++bad; continue; }
-        const p = path.join(dir, 'PluginEditor.cpp');
+        const p = path.join(dir, which === 'jsonH' ? 'GiUiJson.h' : 'PluginEditor.cpp');
         fs.writeFileSync(p, mutated);
         const pass = argv.filter((a, i) => ['--page', '--param-dump'].includes(a) || ['--page', '--param-dump'].includes(argv[i - 1]));
-        const r = spawnSync(process.execPath, [__filename, '--editor-cpp', p, ...pass], { encoding: 'utf8', maxBuffer: 1 << 26 });
+        const r = spawnSync(process.execPath, [__filename, which === 'jsonH' ? '--json-h' : '--editor-cpp', p, ...pass], { encoding: 'utf8', maxBuffer: 1 << 26 });
         const failedTarget = v.expect.test(r.stdout);
         const fails = (r.stdout.match(/^ {2}FAIL: .*$/gm) || []);
         const ok = r.status !== 0 && failedTarget;
@@ -146,7 +165,7 @@ if (argv.includes('--negative-controls') || argv.includes('--nc')) {
         if (!ok) ++bad;
     }
     fs.rmSync(dir, { recursive: true, force: true });
-    console.log(bad === 0 ? 'negative controls: both copies FAIL the closure — the gate is live'
+    console.log(bad === 0 ? `negative controls: all ${variants.length} copies FAIL the closure — the gate is live`
                           : `negative controls: ${bad} did not fail`);
     process.exit(bad);
 }
@@ -563,7 +582,16 @@ console.log('-- [12] telemetry keys');
         const unread = setDiff(emitted[k], read[k]);
         check(unread.length === 0, `[12] every ${k === 'top' ? 'top-level' : k} key the editor emits is read by the page` + show(unread));
     }
-    check(/complete \(GiUiJson::telemetryToVar \(processorRef\)\);/.test(editorCpp), '[12] the getTelemetry native uses the shared builder (GiUiJson::telemetryToVar)');
+    // 3.2 (PLAN-3.2 PD12 / T8): the native encodes the processor's ONE telemetry
+    // builder with the editor's clock; nothing else in the editor reads a
+    // consuming feed (the grain frame, the sidechain peak).
+    const edCode = stripC(editorCpp);
+    check(/complete \(GiUiJson::telemetryToVar \(\s*processorRef\.buildUiTelemetry \(juce::Time::getMillisecondCounterHiRes\(\)\)\)\);/.test(edCode),
+        '[12] the getTelemetry native uses the shared builder (GiUiJson::telemetryToVar (processorRef.buildUiTelemetry (now)))');
+    const builds = (edCode.match(/\bbuildUiTelemetry\b/g) || []).length;
+    const otherReaders = edCode.match(/\breadUiFrame\b|\btakeScPeak\b|\bframes\s*\.\s*read\b/g) || [];
+    check(builds === 1 && otherReaders.length === 0,
+        `[12] buildUiTelemetry is called exactly once in the editor (${builds}) and no other frame / sidechain-peak reader exists (${otherReaders.length})` + show(otherReaders));
     let fixture = null;
     try { fixture = JSON.parse(fs.readFileSync(overridesPath, 'utf8')).natives.getTelemetry; } catch (_) { /* reported below */ }
     const fx = new Set(fixture ? Object.keys(fixture) : []);
@@ -605,6 +633,107 @@ console.log('-- [14] DevLoader removed');
     walk(srcDir);
     cmake.split('\n').forEach((l, i) => { if (token.test(l)) hits.push(`CMakeLists.txt:${i + 1}`); });
     check(scanned >= 10 && hits.length === 0, `[14] no DevLoader / OGI_DEV_LOADER token under Source/ (${scanned} files; ui/public/modules excluded) or CMakeLists.txt` + show(hits));
+}
+
+// ───────────────────────────────────────────── 15. Phase 3.2 closure (PD26) ──
+console.log('-- [15] Phase 3.2 closure: emitted and read, live natives, failure toasts');
+{
+    const code = moduleSrc.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+    // One C++ function body: from its signature to the first "\n    }\n" (the
+    // namespace-level closing brace of an inline function in GiUiJson.h).
+    const cppFn = (sig) => {
+        const a = jsonH.indexOf(sig);
+        if (a < 0) return '';
+        const b = jsonH.indexOf('\n    }\n', a);
+        return b > a ? jsonH.slice(a, b) : '';
+    };
+    // One page function body: from "function name(" to the next top-of-controller
+    // function declaration (4-space indent), so a reader elsewhere does not count.
+    const jsFn = (name) => {
+        const m = code.match(new RegExp(`\\n    (?:async )?function ${name}\\(`));
+        if (!m) return '';
+        const rest = code.slice(m.index + 1);
+        const next = rest.slice(1).search(/\n    (?:async )?function [A-Za-z]/);
+        return next < 0 ? rest : rest.slice(0, next + 1);
+    };
+    const tel32 = cppFn('inline juce::var telemetryToVar (const GranulatorInstrumentProcessor::UiTelemetry& t)');
+    const tel31 = cppFn('inline juce::var telemetryToVar (std::uint32_t');
+    const slotFn = cppFn('inline juce::var slotInfoToVar (const ogi::SlotInfo& info');
+    const ovFn = cppFn('inline juce::var slotOverviewToVar (const GranulatorInstrumentProcessor& p, int slot0)');
+    check(!!tel32 && !!tel31 && !!slotFn && !!ovFn, '[15] the four encoders are found in GiUiJson.h (3.2 telemetry, 3.1 placeholder, slot, overview)');
+    const keys = (body, recv) => new Set([...body.matchAll(new RegExp(`\\b${recv}->setProperty \\("([A-Za-z]+)"`, 'g'))].map((m) => m[1]));
+    const e32 = { top: keys(tel32, 'obj'), lane: keys(tel32, 'o'), rec: keys(tel32, 'rec') };
+    const e31 = { top: keys(tel31, 'obj'), lane: keys(tel31, 'o'), rec: keys(tel31, 'rec') };
+    const same = (a, b) => setDiff(a, b).length === 0 && setDiff(b, a).length === 0;
+    check(e32.top.size === 13 && e32.lane.size === 3 && e32.rec.size === 8
+       && same(e32.top, e31.top) && same(e32.lane, e31.lane) && same(e32.rec, e31.rec),
+        `[15] the 3.2 encoder emits the 3.1 key set, nothing renamed or dropped (${e32.top.size} top-level + ${e32.lane.size} lane + ${e32.rec.size} rec)`
+        + show([...setDiff(e31.top, e32.top), ...setDiff(e31.lane, e32.lane), ...setDiff(e31.rec, e32.rec)].map((x) => `-${x}`)
+            .concat([...setDiff(e32.top, e31.top), ...setDiff(e32.lane, e31.lane), ...setDiff(e32.rec, e31.rec)].map((x) => `+${x}`))));
+
+    const fn = {
+        drawLane: jsFn('drawLane'), renderRec: jsFn('renderRec'), ingest: jsFn('ingestTelemetry'), renderLane: jsFn('renderLane'),
+        noteErr: jsFn('noteSlotErrors'), counts: jsFn('updateReadouts'), fetchOv: jsFn('fetchOverview'), slotAction: jsFn('slotAction'),
+    };
+    const missingFn = Object.entries(fn).filter(([, b]) => !b).map(([k]) => k);
+    check(missingFn.length === 0, '[15] the page functions that read the 3.2 keys are found' + show(missingFn));
+    // key, emitted (C++), read (page): [label, emitted?, read?, where]
+    const rows = [
+        ['fb',           e32.lane.has('fb') && /lane\.hasFb\s*\?/.test(tel32),   /\blane\.fb\b/.test(fn.drawLane),                     'lanes[].fb -> drawLane'],
+        ['rec',          e32.lane.has('rec') && /lane\.hasRec\s*\?/.test(tel32), /\blane\.rec\b/.test(fn.drawLane),                    'lanes[].rec -> drawLane'],
+        ['voices',       /obj->setProperty \("voices", voices\);/.test(tel32),   /\bt\.voices\b/.test(fn.drawLane),                    'voices -> drawLane'],
+        ['grains',       /obj->setProperty \("grains", grains\);/.test(tel32),   /\bt\.grains\b/.test(fn.drawLane),                    'grains -> drawLane'],
+        ['counts',       /obj->setProperty \("counts", counts\);/.test(tel32),   /\bt\.counts\b/.test(fn.counts),                      'counts -> updateReadouts'],
+        ['rec.run',      /rec->setProperty \("run", t\.rec\.run\);/.test(tel32),       /\br\.run\b/.test(fn.renderRec),              'rec.run -> renderRec'],
+        ['rec.slot',     /rec->setProperty \("slot", t\.rec\.slot\);/.test(tel32),     /\br\.slot\b/.test(fn.renderRec),             'rec.slot -> renderRec'],
+        ['rec.pos',      /rec->setProperty \("pos", r4 \(/.test(tel32),                /\br\.pos\b/.test(fn.renderRec),              'rec.pos -> renderRec'],
+        ['rec.len',      /rec->setProperty \("len", r4 \(/.test(tel32),                /\br\.len\b/.test(fn.renderRec),              'rec.len -> renderRec'],
+        ['rec.signal',   /rec->setProperty \("signal", t\.rec\.signal\);/.test(tel32), /\br\.signal\b/.test(fn.renderRec),           'rec.signal -> renderRec'],
+        ['rec.capped',   /rec->setProperty \("capped", t\.rec\.capped\);/.test(tel32), /\br\.capped\b/.test(fn.renderRec),           'rec.capped -> renderRec'],
+        ['rec.peak',     /rec->setProperty \("peak", peak\);/.test(tel32),             /\bt\.rec\.peak\b/.test(fn.ingest),            'rec.peak -> ingestTelemetry'],
+        ['dirty (slot)', /o->setProperty \("dirty", dirty\);/.test(slotFn),            /\b[sq]\.dirty\b/.test(fn.renderLane),          'slots[].dirty -> renderLane'],
+        ['dirty (overview)', /obj->setProperty \("dirty", dt\);/.test(ovFn),           /\bov\.dirty\b/.test(fn.drawLane),             'overview dirty[] -> drawLane'],
+        ['encodedBytes', /o->setProperty \("encodedBytes", encodedBytes\);/.test(slotFn), /\bs\.encodedBytes\b/.test(fn.renderLane),  'slots[].encodedBytes -> renderLane'],
+        ['error',        /o->setProperty \("error", info\.lastError\);/.test(slotFn), /\bs\.error\b/.test(fn.noteErr),               'slots[].error -> noteSlotErrors'],
+    ];
+    for (const [key, emitted, read, where] of rows)
+        check(emitted && read, `[15] emitted and read: ${key} (${where})${emitted ? '' : ' — NOT emitted by the encoder'}${read ? '' : ' — NOT read by the page'}`);
+
+    // The real values reach the encoders: grain rows are the eight page columns,
+    // the slot flags come from the processor, the overview answer carries its rev.
+    check(/row\.add \(g\.stream\);\s*\n\s*row\.add \(r4 \(static_cast<double> \(g\.normPos\)\)\);\s*\n\s*row\.add \(r4 \(static_cast<double> \(g\.pan\)\)\);\s*\n\s*row\.add \(r4 \(static_cast<double> \(g\.env\)\)\);\s*\n\s*row\.add \(r4 \(static_cast<double> \(g\.gain\)\)\);\s*\n\s*row\.add \(r4 \(static_cast<double> \(g\.lengthSec\)\)\);\s*\n\s*row\.add \(g\.voice\);\s*\n\s*row\.add \(g\.flags\);/.test(tel32),
+        '[15] a grain row is [stream, normPos, pan, env, gain, lengthSec, voice, flags], the order drawLane indexes');
+    const edCode = stripC(editorCpp);
+    check(/dirty\[static_cast<std::size_t> \(s\)\] = processorRef\.getSlotDirty \(s\);/.test(edCode)
+       && /complete \(GiUiJson::slotStateToVar \(revision, infos, dirty\)\);/.test(edCode),
+        '[15] the getSlotState native passes the processor\'s dirty flags (getSlotDirty -> slotStateToVar (revision, infos, dirty))');
+    check(/obj->setProperty \("rev", revToInt \(rev\)\);/.test(ovFn) && /typeof o\.rev === 'number' \? o\.rev : rev/.test(fn.fetchOv),
+        '[15] the overview answer carries its rev and fetchOverview stores the ANSWER\'s rev (PD8)');
+
+    // No refused-by-design answer left.
+    const un = editorCpp.split('\n').map((l, i) => ({ l, i })).filter((x) => /"unavailable"/.test(x.l));
+    check(un.length === 0, '[15] no "unavailable" literal left in PluginEditor.cpp' + show(un.map((x) => `:${x.i + 1}`)));
+    // The three lane natives are registered and the page calls them through slotAction.
+    const lane = ['clearSlot', 'saveRecording', 'relinkSlot'];
+    const laneBad = lane.filter((n) => !new RegExp(`\\.withNativeFunction\\s*\\(\\s*"${n}"`).test(editorCpp) || !new RegExp(`slotAction\\('${n}', n\\)`).test(code));
+    const regCount = new Set([...editorCpp.matchAll(/\.withNativeFunction\s*\(\s*"([A-Za-z]+)"/g)].map((m) => m[1])).size;
+    check(laneBad.length === 0 && regCount === N_NATIVE,
+        `[15] clearSlot / saveRecording / relinkSlot are registered and called with the lane number; the surface is still ${N_NATIVE} (${regCount})` + show(laneBad));
+
+    // Failure toasts (PD17): three languages, the {n} variable, raised by the page.
+    const i18n = fs.existsSync(i18nPath) ? fs.readFileSync(i18nPath, 'utf8') : '';
+    for (const [key, raiser, rule] of [
+        ['toast.loadFailed', fn.noteErr, /errs\[n - 1\] && errs\[n - 1\] !== slotErrSeen\[n - 1\]/],
+        ['toast.saveFailed', fn.slotAction, /res\.ok === false && name === 'saveRecording' && res\.error !== 'cancelled'/]]) {
+        const block = (i18n.match(new RegExp(`\\n    '${key.replace('.', '\\.')}': \\{([\\s\\S]*?)\\n    \\},`)) || [])[1] || '';
+        const langs = { en: /\n\s*en: \{ t: "([^"]*)"/, fr: /\n\s*fr: \{ t: "([^"]*)"/, 'zh-Hans': /\n\s*'zh-Hans': \{ t: "([^"]*)"/ };
+        const bad = Object.entries(langs).filter(([, re]) => { const m = block.match(re); return !m || !m[1].trim() || !m[1].includes('{n}'); }).map(([l]) => l);
+        const texts = Object.values(langs).map((re) => (block.match(re) || [])[1]);
+        check(!!block && bad.length === 0 && new Set(texts).size === 3,
+            `[15] ${key} has en / fr / zh-Hans texts, each with {n}, all different (js/i18n.js)` + show(bad));
+        check(new RegExp(`setLabel\\(el, '${key.replace('.', '\\.')}', \\{ n: String\\(n\\) \\}\\)`).test(raiser) && rule.test(raiser),
+            `[15] the page raises ${key} with { n } under its rule (${key === 'toast.loadFailed' ? 'error changed to non-empty' : 'saveRecording refused, not cancelled'})`);
+    }
 }
 
 console.log(failed === 0 ? '\nALL PASS' : `\n${failed} FAILED`);
