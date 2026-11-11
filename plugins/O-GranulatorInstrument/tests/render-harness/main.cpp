@@ -55,6 +55,11 @@
 #include <memory>
 #include <vector>
 #include <regex>
+#include <cstdlib>
+#include <string>
+#include <pwd.h>
+#include <unistd.h>
+#include <mach-o/dyld.h>   // _NSGetExecutablePath (PLAN-4 PD15 re-exec)
 
 #if defined (__clang__)
  #pragma clang diagnostic ignored "-Wfloat-equal"
@@ -87,6 +92,31 @@ namespace
         void check (bool ok, const juce::String& what) { if (! ok) { ++bad; if (notes.size() < 4) notes.add (what); } }
         juce::String detail (int total) const { return juce::String (total - bad) + "/" + juce::String (total) + (bad ? "  e.g. " + notes.joinIntoString ("; ") : juce::String()); }
     };
+
+    /** PLAN-4 PD15: from Stage 4 the processor constructor writes the factory
+        bank under ~/Library/O-GranulatorInstrument/Presets. main() re-execs
+        once with CFFIXED_USER_HOME = a per-run temp dir (JUCE resolves home
+        through NSHomeDirectory(), which ignores HOME), so every processor
+        sees the TEMP home. The REAL home is captured before the re-exec
+        (OGI_REAL_HOME) for the guards that must look at the real folders:
+        PD24, GD1, HM1 and the overrides hygiene check. */
+    juce::File realHome()
+    {
+        static const juce::File f = []
+        {
+            if (const char* h = std::getenv ("OGI_REAL_HOME"))
+                return juce::File (juce::String::fromUTF8 (h));
+            return juce::File::getSpecialLocation (juce::File::userHomeDirectory);
+        }();
+        return f;
+    }
+    juce::File realMusic() { return realHome().getChildFile ("Music"); }   // JUCE mac userMusicDirectory = ~/Music
+    juce::File realLibraryDir() { return realHome().getChildFile ("Library").getChildFile ("O-GranulatorInstrument"); }
+    juce::File tempHome()
+    {
+        const char* h = std::getenv ("OGI_HARNESS_HOME");
+        return h != nullptr ? juce::File (juce::String::fromUTF8 (h)) : juce::File();
+    }
 
     /** PLAN-2.6 PD17 / P19: every processor's Recordings folder is a temp
         subdir with a NON-ASCII component (built through juce::File /
@@ -137,7 +167,7 @@ namespace
         be as it was. Either failure fails the run (main()). */
     namespace pd24
     {
-        juce::File realOuaricon() { return juce::File::getSpecialLocation (juce::File::userMusicDirectory).getChildFile ("Ouaricon"); }
+        juce::File realOuaricon() { return realMusic().getChildFile ("Ouaricon"); }   // PLAN-4 PD15: the REAL home
         juce::File realPluginDir() { return realOuaricon().getChildFile ("O-GranulatorInstrument"); }
 
         bool underReal (const juce::File& f)
@@ -154,10 +184,9 @@ namespace
             bool operator== (const RealSnap& o) const { return exists == o.exists && files == o.files && newest == o.newest; }
         };
 
-        RealSnap snapReal()
+        RealSnap snapDir (const juce::File& dir)
         {
             RealSnap d;
-            const auto dir = realPluginDir();
             d.exists = dir.isDirectory();
             if (d.exists)
                 for (const auto& e : juce::RangedDirectoryIterator (dir, true, "*", juce::File::findFilesAndDirectories))
@@ -167,8 +196,10 @@ namespace
                 }
             return d;
         }
+        RealSnap snapReal() { return snapDir (realPluginDir()); }
+        RealSnap snapLib()  { return snapDir (realLibraryDir()); }   // PLAN-4 PD15: ~/Library/O-GranulatorInstrument (presets)
 
-        RealSnap gStart;
+        RealSnap gStart, gLibStart;
         bool gRedirected = false;
 
         bool start()
@@ -182,6 +213,7 @@ namespace
             gRedirected = ! underReal (recDir) && ! underReal (impDir) && recDir == harnessRecordingsDir() && impDir == harnessImportsDir()
                        && recDir != impDir;
             gStart = snapReal();
+            gLibStart = snapLib();
             if (! gRedirected)
                 std::printf ("PD24 GUARD FAILED: the Recordings / Imports folder of a harness processor is not redirected "
                              "(Recordings %s, Imports %s the real ~/Music/Ouaricon). Nothing was run.\n",
@@ -192,6 +224,14 @@ namespace
         bool end()
         {
             const auto e = snapReal();
+            const auto l = snapLib();
+            if (! (l == gLibStart))
+            {
+                std::printf ("PD24 GUARD FAILED: the real ~/Library/O-GranulatorInstrument changed during the run "
+                             "(start %s / %d entries, end %s / %d entries)\n",
+                             gLibStart.exists ? "present" : "absent", gLibStart.files, l.exists ? "present" : "absent", l.files);
+                return false;
+            }
             if (e == gStart)
                 return true;
             std::printf ("PD24 GUARD FAILED: the real ~/Music/Ouaricon/O-GranulatorInstrument changed during the run "
@@ -1163,6 +1203,10 @@ static void hookRows()
 // take names) + --ug33.
 #include "ui_gates_33.h"
 
+// PLAN-4 (Stage 4 polish): auval drift set, factory presets / sources, D55
+// rows + --pg4 / --cpu4.
+#include "preset_gates_4.h"
+
 //==============================================================================
 // PLAN-2.6 T10 / PD16: the factory stub generator (--gen-factory <dir> [--force]).
 // The same JUCE FLAC encoder, int path and quantiser as the plugin
@@ -1524,12 +1568,14 @@ static int dumpUiOverrides (const juce::File& out)
                       && static_cast<bool> (nat["getSlotState"]["slots"][0]["dirty"]) && errors == 1;
     bool clean = ! text.contains ("\r");
     for (const auto& dir : { juce::File::getSpecialLocation (juce::File::userHomeDirectory),
+                             realHome(),   // PLAN-4 PD15: the process home is the temp one; the real one is checked too
                              juce::File::getSpecialLocation (juce::File::tempDirectory),
                              juce::File::getCurrentWorkingDirectory(),
                              harnessRecordingsDir().getParentDirectory() })
         clean = clean && ! text.contains (dir.getFullPathName());
     clean = clean && ! text.contains (harnessRecordingsDir().getParentDirectory().getFileName())                       // the temp-dir name
-                  && ! text.contains (juce::File::getSpecialLocation (juce::File::userHomeDirectory).getFileName());    // the user name
+                  && ! text.contains (juce::File::getSpecialLocation (juce::File::userHomeDirectory).getFileName())     // the temp-home name
+                  && ! text.contains (realHome().getFileName());                                                       // the user name
 
     const bool shape = toneOk && nc == 70 && nf == 176 && nd == 246 && curve == 64 && peaks == 656 && revs && fixture && clean;
     bool ok = false;
@@ -1548,6 +1594,89 @@ static int dumpUiOverrides (const juce::File& out)
 }
 
 //==============================================================================
+// PLAN-4 PD15 — HM1: the harness never writes the real home. Predicates:
+//   (a) the process home is the per-run temp dir (the re-exec took), never the
+//       real one — checked BEFORE any processor is built: without it no
+//       processor is made at all (HM1n, `--no-home-redirect`, must not write
+//       the real bank either);
+//   (b) a processor's Factory and User preset dirs resolve under the temp home,
+//       and a real user-preset save lands there (the stimulus: the same
+//       userHomeDirectory resolution the factory-bank write uses);
+//   (c) the real ~/Library/O-GranulatorInstrument and the real
+//       ~/Music/Ouaricon/O-GranulatorInstrument are unchanged since main()
+//       (both snapshots are taken from the REAL home: realHome() != the process
+//       home is asserted, so the guards GD1 / PD24 / hygiene are not vacuous).
+static void rowHM1()
+{
+    const auto home = juce::File::getSpecialLocation (juce::File::userHomeDirectory);
+    const auto tmp = tempHome();
+    const bool redirected = tmp != juce::File() && home == tmp && home != realHome() && tmp.isDirectory();
+    const bool realDistinct = realHome() != home && realHome().isDirectory();
+    bool dirsUnder = false, wroteTemp = false;
+    if (redirected)
+    {
+        struct NullLogger final : juce::Logger { void logMessage (const juce::String&) override {} } nullLogger;
+        struct LoggerScope
+        {
+            explicit LoggerScope (juce::Logger* l) : previous (juce::Logger::getCurrentLogger()) { juce::Logger::setCurrentLogger (l); }
+            ~LoggerScope() { juce::Logger::setCurrentLogger (previous); }
+            juce::Logger* previous;
+        } loggerScope (&nullLogger);
+        auto p = make();
+        auto& pm = p->getPresetManager();
+        dirsUnder = pm.getFactoryPresetsDirectory().isAChildOf (tmp) && pm.getUserPresetsDirectory().isAChildOf (tmp);
+        const auto probe = pm.getUserPresetsDirectory().getChildFile ("HM1 probe.json");
+        wroteTemp = pm.savePreset ("HM1 probe") && probe.existsAsFile();
+        probe.deleteFile();
+    }
+    const auto lib = pd24::snapLib();
+    const auto mus = pd24::snapReal();
+    const bool realSame = lib == pd24::gLibStart && mus == pd24::gStart;
+    row (redirected && realDistinct && dirsUnder && wroteTemp && realSame,
+         "HM1 PD15 the harness never writes the real home (CFFIXED_USER_HOME temp re-exec)",
+         juce::String ("meas redirected ") + (redirected ? "yes" : "NO") + ", real home distinct " + (realDistinct ? "yes" : "NO")
+             + ", preset dirs under temp " + (dirsUnder ? "yes" : "no") + ", probe save in temp " + (wroteTemp ? "yes" : "no")
+             + ", real ~/Library/O-GranulatorInstrument " + (lib.exists ? juce::String (lib.files) + " entries" : "absent")
+             + (lib == pd24::gLibStart ? " (unchanged)" : " (CHANGED)") + ", real ~/Music/.../O-GranulatorInstrument "
+             + (mus == pd24::gStart ? "unchanged" : "CHANGED") + " | thr all | ctrl HM1n --no-home-redirect");
+}
+
+// HM1n: the same binary re-run with --no-home-redirect (a child process; it
+// builds no processor) -> its HM1 must FAIL.
+static void rowHM1n()
+{
+    char exe[4096];
+    std::uint32_t exeLen = sizeof (exe);
+    juce::String out;
+    int rc = -1;
+    if (_NSGetExecutablePath (exe, &exeLen) == 0)
+    {
+        // The child must launch with the REAL environment (no CFFIXED_USER_HOME,
+        // no OGI_HARNESS_HOME): unset around start() only, then restored. The
+        // parent's own home was resolved at its launch and does not move.
+        const std::string keepTmp = tempHome().getFullPathName().toStdString(), keepReal = realHome().getFullPathName().toStdString();
+        unsetenv ("OGI_HARNESS_HOME");
+        unsetenv ("OGI_REAL_HOME");
+        unsetenv ("CFFIXED_USER_HOME");
+        setenv ("HOME", keepReal.c_str(), 1);
+        juce::ChildProcess c;
+        const bool started = c.start (juce::StringArray { juce::String::fromUTF8 (exe), "--no-home-redirect" });
+        setenv ("OGI_HARNESS_HOME", keepTmp.c_str(), 1);
+        setenv ("OGI_REAL_HOME", keepReal.c_str(), 1);
+        setenv ("CFFIXED_USER_HOME", keepTmp.c_str(), 1);
+        setenv ("HOME", keepTmp.c_str(), 1);
+        if (started)
+        {
+            out = c.readAllProcessOutput();
+            c.waitForProcessToFinish (30000);
+            rc = static_cast<int> (c.getExitCode());
+        }
+    }
+    const bool fired = rc == 1 && out.contains ("[FAIL] HM1 ") && out.contains ("redirected NO");
+    row (fired, "HM1n control: --no-home-redirect -> HM1 FAILS (predicate must FAIL; no processor built)",
+         "meas child rc " + juce::String (rc) + " | thr HM1 FAIL | " + eg21::ctrl (fired, "HM1 predicate"));
+}
+
 static int runHarness (int argc, char** argv)
 {
     for (int a = 1; a < argc; ++a)
@@ -1666,6 +1795,19 @@ static int runHarness (int argc, char** argv)
             std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
             return juce::jmin (failures, 255);
         }
+        else if (std::strcmp (argv[a], "--pg4") == 0)     // dev: the Stage 4 gates only (OGI_ROWS filters)
+        {
+            pg4::runAll();
+            std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
+            return juce::jmin (failures, 255);
+        }
+        else if (std::strcmp (argv[a], "--hm1") == 0)     // dev: PLAN-4 PD15 HM1 + HM1n alone (the T11 pre-check)
+        {
+            rowHM1();
+            rowHM1n();
+            std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
+            return juce::jmin (failures, 255);
+        }
         else if (std::strcmp (argv[a], "--calib") == 0)
             return cal::runCalib();
         else if (std::strcmp (argv[a], "--dump-render-hashes") == 0 && a + 1 < argc)
@@ -1674,7 +1816,7 @@ static int runHarness (int argc, char** argv)
             return rh::dump (juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a])), true);
         else
         {
-            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--cpu25a] [--cpu25b] [--cpu26] [--eg24] [--eg25] [--eg25b] [--eg26] [--ug31] [--ug32] [--ug33] [--dump-ui-overrides <file>] [--gen-factory <dir> [--force]] [--calib]\n", argv[a], argv[0]);
+            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--cpu25a] [--cpu25b] [--cpu26] [--eg24] [--eg25] [--eg25b] [--eg26] [--ug31] [--ug32] [--ug33] [--dump-ui-overrides <file>] [--gen-factory <dir> [--force]] [--pg4] [--hm1] [--no-home-redirect] [--calib]\n", argv[a], argv[0]);
             return 255;
         }
     }
@@ -1702,6 +1844,9 @@ static int runHarness (int argc, char** argv)
     ug31::runAll();   // PLAN-3.1 PD11 (after every existing row: their order and output are unchanged)
     ug32::runAll();   // PLAN-3.2 PD23 (after ug31: the carried rows keep their order and output)
     ug33::runAll();   // PLAN-3.3 PD21 (after ug32: the carried rows keep their order)
+    pg4::runAll();    // PLAN-4 (after ug33: the carried rows keep their order)
+    rowHM1();         // PLAN-4 PD15 (last: it judges the whole run)
+    rowHM1n();
 
     std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
     return juce::jmin (failures, 255);
@@ -1710,7 +1855,54 @@ static int runHarness (int argc, char** argv)
 //==============================================================================
 int main (int argc, char** argv)
 {
+    // PLAN-4 PD15: re-exec once with a per-run temp home (the parent
+    // O-Granulator main.cpp pattern). JUCE resolves home through
+    // NSHomeDirectory(), which honours CFFIXED_USER_HOME only when it is set
+    // at launch; HOME alone is ignored. The real home is captured first.
+    bool noRedirect = false;
+    for (int a = 1; a < argc; ++a)
+        noRedirect = noRedirect || std::strcmp (argv[a], "--no-home-redirect") == 0;
+    if (! noRedirect && std::getenv ("OGI_HARNESS_HOME") == nullptr)
+    {
+        const char* fixed = std::getenv ("CFFIXED_USER_HOME");
+        const passwd* pw = getpwuid (getuid());
+        const std::string real = fixed != nullptr ? fixed : (pw != nullptr && pw->pw_dir != nullptr ? pw->pw_dir : "");
+        if (real.empty()) { std::printf ("FATAL: cannot resolve the real home\n"); return 3; }
+        const char* td = std::getenv ("TMPDIR");
+        std::string tmpl = std::string (td != nullptr ? td : "/tmp/") + "/ogi-harness-home-XXXXXX";
+        if (mkdtemp (tmpl.data()) == nullptr) { std::printf ("FATAL: mkdtemp failed\n"); return 3; }
+        char exe[4096];
+        std::uint32_t exeLen = sizeof (exe);
+        if (_NSGetExecutablePath (exe, &exeLen) != 0) { std::printf ("FATAL: executable path\n"); return 3; }
+        setenv ("OGI_REAL_HOME", real.c_str(), 1);
+        setenv ("OGI_HARNESS_HOME", tmpl.c_str(), 1);
+        setenv ("CFFIXED_USER_HOME", tmpl.c_str(), 1);
+        setenv ("HOME", tmpl.c_str(), 1);
+        std::fflush (stdout);
+        execv (exe, argv);
+        std::printf ("FATAL: re-exec failed\n");
+        return 3;
+    }
+    struct HomeCleanup { juce::File d; ~HomeCleanup() { if (d != juce::File()) d.deleteRecursively(); } } homeCleanup { tempHome() };
+
     juce::ScopedJuceInitialiser_GUI init;
+    if (noRedirect)
+    {
+        // HM1n: no re-exec. HM1's predicate (a) fails before any processor is
+        // built, so nothing (no factory bank, no Recordings) is written.
+        pd24::gStart = pd24::snapReal();
+        pd24::gLibStart = pd24::snapLib();
+        std::printf ("O-GranulatorInstrument render harness: HM1n (--no-home-redirect) -- HM1 must FAIL\n");
+        rowHM1();
+        std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
+        return juce::jmin (failures, 255);
+    }
+    if (juce::File::getSpecialLocation (juce::File::userHomeDirectory) != tempHome())
+    {
+        std::printf ("FATAL: home redirect did not take (%s) -- refusing to run\n",
+                     juce::File::getSpecialLocation (juce::File::userHomeDirectory).getFullPathName().toRawUTF8());
+        return 3;
+    }
     RecDirGuard recDirGuard;   // PLAN-2.6 / PLAN-3.2 PD24: the harness Recordings + Imports temp tree is removed at exit
 
     // PD24: before any other processor work, in every mode.

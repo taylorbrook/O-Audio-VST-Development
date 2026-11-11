@@ -18,6 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include "PluginProcessor.h"
+#include <thread>
 #include "dsp/GiHash.h"
 
 #include <algorithm>
@@ -134,7 +135,9 @@ GranulatorInstrumentProcessor::~GranulatorInstrumentProcessor()
 {
     // PLAN-3.2 PD19: the save worker goes FIRST (it calls into the engine's
     // tape snapshot and owns the buffers the audio thread may hold). Its waits
-    // are all exit-polled, so the join is bounded by one WAV chunk write. The
+    // are all exit-polled — the WAV write itself runs on a detached writer
+    // (PLAN-4 PD12), which the worker abandons on exit — so the join is bounded
+    // (about 2 ms + one 100 ms acknowledgement wait), even on a hung disk. The
     // audio callback is stopped while a processor is destroyed and the worker
     // is joined, so rule (b) of the snapshot's lifetime invariant applies:
     // resetAudioStopped(), THEN free. What is still undelivered completes here.
@@ -197,7 +200,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout GranulatorInstrumentProcesso
             {
                 // start / end / interval / skew only; setSkewForCentre for the
                 // log-like rows. Interval is 1 on the 6 contract rows, 0 elsewhere.
-                juce::NormalisableRange<float> range (d.lo, d.hi, d.interval, d.skew);
+                // PLAN-4 PD8: the six 0 dB rows get the snap-only range (exact 0
+                // default; skew 1 / interval 0 unchanged, see GiParamIds.h).
+                const bool exactZero = Ids::isExactZeroDbRow (e.id);
+                jassert (! exactZero || (juce::exactlyEqual (d.skew, 1.0f) && juce::exactlyEqual (d.centre, 0.0f) && juce::exactlyEqual (d.interval, 0.0f)));
+                juce::NormalisableRange<float> range = exactZero ? Ids::exactZeroDbRange (d.lo, d.hi)
+                                                                 : juce::NormalisableRange<float> (d.lo, d.hi, d.interval, d.skew);
                 if (d.centre > 0.0f)
                     range.setSkewForCentre (d.centre);
                 layout.add (std::make_unique<juce::AudioParameterFloat> (pid, e.name, range, d.def));
@@ -1604,8 +1612,12 @@ bool GranulatorInstrumentProcessor::importDroppedFile (int slot0, const juce::Fi
 // Never on a timeout. Every exit of runSaveJob:
 //   allocation failed        nothing lent                     → writeFailed
 //   request() false          4.                               → busy
-//   Done                     release() → write from the buffer → free
-//                                                             → ok | writeFailed | cancelled (exit during the write)
+//   Done                     release() → the buffer moves into a WritePayload
+//                            → a DETACHED writer writes it (PLAN-4 PD12) while
+//                            the worker waits exit-polled
+//                                                             → ok | writeFailed | cancelled (exit during the write:
+//                                                               the writer is abandoned, frees the payload and
+//                                                               deletes its .part when it next gets control)
 //   Aborted                  release() → free                 → changed
 //   no progress for 2000 ms  cancel(); it returned false (the audio thread
 //                            finished first) → the Done / Aborted path;
@@ -1782,6 +1794,7 @@ GranulatorInstrumentProcessor::SaveResult GranulatorInstrumentProcessor::runSave
     };
     const auto finishDone = [this, &snap, &job, &fail]
     {
+        auto payload = std::make_shared<WritePayload>();
         {
             const juce::ScopedLock sl (saveLock);
             const bool released = snap.release();   // Done → Idle: the buffers are ours, and stay ours
@@ -1791,13 +1804,15 @@ GranulatorInstrumentProcessor::SaveResult GranulatorInstrumentProcessor::runSave
                 saveLent = true;
                 return fail ("writeFailed");
             }
+            // PLAN-4 PD12: the buffers move into the writer's payload (freed
+            // with it, by whichever of the worker / writer lets go last).
+            payload->bufL.swapWith (saveBufL);
+            payload->bufR.swapWith (saveBufR);
         }
-        const auto error = writeSaveWav (job);
-        {
-            const juce::ScopedLock sl (saveLock);
-            saveBufL.free();
-            saveBufR.free();
-        }
+        payload->frames = job.frames;
+        payload->rate = job.rate;
+        payload->file = job.file;
+        const auto error = runSaveWrite (std::move (payload));
         SaveResult r;
         r.ok = error.isEmpty();
         r.error = error;
@@ -1871,11 +1886,51 @@ GranulatorInstrumentProcessor::SaveResult GranulatorInstrumentProcessor::runSave
     }
 }
 
-juce::String GranulatorInstrumentProcessor::writeSaveWav (const SaveJob& job)
+juce::String GranulatorInstrumentProcessor::runSaveWrite (std::shared_ptr<WritePayload> payload)
 {
-    // Worker thread; the snapshot is Idle and saveBufL / R hold [0, frames).
-    // 24-bit stereo at the tape rate, through a ".part" sibling, then renamed
-    // over the target (the chooser already asked about overwriting).
+    // SaveWorker thread (PLAN-4 PD12). The writer owns `payload` and `shared`
+    // only; nothing of the processor. Its completion is read after state == 1.
+    auto shared = std::make_shared<SaveShared>();
+   #if OGI_TEST_HOOKS
+    if (testInlineWrite.load (std::memory_order_acquire))
+        return writeSaveWav (*payload, shared->abandon);   // USV3n control: the 3.2 in-worker write
+   #endif
+    try
+    {
+        std::thread ([payload, shared]
+        {
+            auto error = writeSaveWav (*payload, shared->abandon);
+            shared->error = std::move (error);
+            shared->state.store (1, std::memory_order_release);
+           #if OGI_TEST_HOOKS
+            writerExits.fetch_add (1, std::memory_order_acq_rel);
+           #endif
+        }).detach();
+    }
+    catch (...)
+    {
+        return writeSaveWav (*payload, shared->abandon);   // no thread available: write here (the 3.2 behaviour)
+    }
+
+    while (shared->state.load (std::memory_order_acquire) == 0)
+    {
+        if (juce::Thread::currentThreadShouldExit())
+        {
+            shared->abandon.store (true, std::memory_order_release);
+            return "cancelled";
+        }
+        saveWorker->wait (2);
+    }
+    return shared->error;
+}
+
+juce::String GranulatorInstrumentProcessor::writeSaveWav (const WritePayload& job, const std::atomic<bool>& abandon)
+{
+    // The detached writer (or, as a fallback / the USV3n control, the
+    // SaveWorker). job.bufL / R hold [0, frames). 24-bit stereo at the tape
+    // rate, through a ".part" sibling, then renamed over the target (the
+    // chooser already asked about overwriting). `abandon` is checked per
+    // chunk; an abandoned write deletes its ".part".
     const auto part = job.file.getSiblingFile (job.file.getFileName() + ".part");
     job.file.getParentDirectory().createDirectory();
     part.deleteFile();
@@ -1903,9 +1958,16 @@ juce::String GranulatorInstrumentProcessor::writeSaveWav (const SaveJob& job)
         constexpr int kChunk = 32768;
         juce::HeapBlock<float> cl (kChunk), cr (kChunk);
         const float* const chans[2] = { cl.get(), cr.get() };
+       #if OGI_TEST_HOOKS
+        if (auto* hold = testHoldWrite.load (std::memory_order_acquire))
+        {
+            testWriterEntered.fetch_add (1, std::memory_order_acq_rel);
+            hold->wait (-1);   // no exit polling: a hung disk syscall
+        }
+       #endif
         for (int pos = 0; pos < job.frames && error.isEmpty(); pos += kChunk)
         {
-            if (juce::Thread::currentThreadShouldExit())
+            if (abandon.load (std::memory_order_acquire) || juce::Thread::currentThreadShouldExit())
             {
                 error = "cancelled";
                 break;
@@ -1913,7 +1975,7 @@ juce::String GranulatorInstrumentProcessor::writeSaveWav (const SaveJob& job)
             const int n = std::min (kChunk, job.frames - pos);
             for (int i = 0; i < n; ++i)
             {
-                const float l = saveBufL[pos + i], r = saveBufR[pos + i];
+                const float l = job.bufL[pos + i], r = job.bufR[pos + i];
                 cl[i] = std::isfinite (l) ? juce::jlimit (-1.0f, 1.0f, l) : 0.0f;
                 cr[i] = std::isfinite (r) ? juce::jlimit (-1.0f, 1.0f, r) : 0.0f;
             }

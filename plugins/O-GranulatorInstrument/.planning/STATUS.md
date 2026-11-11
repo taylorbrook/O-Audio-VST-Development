@@ -24,7 +24,7 @@ brief_updated_from_mockup: true
 mockup_version_synced: 1
 brief_update_timestamp: "2026-11-07T19:40:17Z"
 contract_checksums:
-  parameter_spec: sha256:b6bc70e3a9dcd2611f241452b893f8318956cb946b1ac0694fe3957837ca751b
+  parameter_spec: sha256:7cdcca74ffbfcb9e004d939a67ff2a0ce21c5b651f3a986801be498313025a0e   # Stage 4 T3: header addenda A (PD8 snap-only ranges) + B (D53 no blobs); body unchanged
   parameter_spec_body: sha256:c5553e0ccda2c7f5320a1891ba20c5a92913e089ab1fa1e47b0e33fa7c543191
   brief: sha256:74e7f8f24468ed9658aa8533733f45da24c61ad116d6ae47cd5c2af0e8524722
   requirements: sha256:42418aca0f5599a2d4b4266c481dc04cac89c643e2373ced6aff443c4cd5ce72   # Phase 3.3 verify: UI-02 pending -> partial

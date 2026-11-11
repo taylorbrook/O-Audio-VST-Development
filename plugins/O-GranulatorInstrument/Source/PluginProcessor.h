@@ -687,6 +687,17 @@ public:
     void getWindowCurve (int stream0, float* out, int n) const noexcept;
 
    #if OGI_TEST_HOOKS
+    /** PLAN-4 PD12 (USV3 / USV3n). testHoldWrite: the WAV writer blocks on it
+        before chunk 0 WITHOUT polling any exit flag (a hung disk syscall);
+        testWriterEntered counts writers that reached that point;
+        testInlineWrite: the control — the 3.2 write on the SaveWorker itself;
+        writerExits: detached writers that returned. Static: they outlive the
+        processor, as the detached writer does. */
+    static inline std::atomic<juce::WaitableEvent*> testHoldWrite { nullptr };
+    static inline std::atomic<int>  testWriterEntered { 0 };
+    static inline std::atomic<bool> testInlineWrite { false };
+    static inline std::atomic<int>  writerExits { 0 };
+
     /** Render harness only. Decode / resample + build the tape for slot 0...3
         (= the rec_target index) on the CALLING thread and publish it through the
         same pending exchange as the loader worker. False + error on failure
@@ -789,9 +800,31 @@ private:
         double         rate = 0.0;
         SaveCompletion completion;
     };
+    /** PLAN-4 PD12 (D55c): the WAV write runs on a DETACHED writer thread that
+        owns only these two shared objects (never `this`). The SaveWorker waits
+        on `state` exit-polled every 2 ms, so the destructor's stopThread (-1)
+        stays bounded even while the disk hangs inside a write; on exit it sets
+        `abandon` and answers `cancelled`, and the writer deletes its ".part"
+        when it next gets control. Never stopThread (timeout): JUCE kills the
+        thread and can leave saveLock held. */
+    struct WritePayload
+    {
+        juce::HeapBlock<float> bufL, bufR;   // moved out of saveBufL / R after release()
+        int        frames = 0;
+        double     rate = 0.0;
+        juce::File file;
+    };
+    struct SaveShared
+    {
+        std::atomic<bool> abandon { false };
+        std::atomic<int>  state { 0 };   // 0 writing, 1 finished (`error` valid)
+        juce::String      error;          // written by the writer BEFORE state = 1 (release)
+    };
+
     void saveWorkerRun();
     SaveResult runSaveJob (const SaveJob& job);
-    juce::String writeSaveWav (const SaveJob& job);   // empty = written; else writeFailed | cancelled
+    juce::String runSaveWrite (std::shared_ptr<WritePayload> payload);   // SaveWorker: detached write, exit-polled wait
+    static juce::String writeSaveWav (const WritePayload& payload, const std::atomic<bool>& abandon);   // empty = written; else writeFailed | cancelled
     void finishSave (SaveCompletion completion, const SaveResult& result);
     void deliverSaveCompletions();
     bool reclaimSaveBufferLocked() noexcept;         // release() → free; true = nothing is lent any more

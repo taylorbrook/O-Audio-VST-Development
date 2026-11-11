@@ -1072,7 +1072,7 @@ namespace { namespace eg26b
     DirSnap snapReal()
     {
         DirSnap d;
-        const auto dir = juce::File::getSpecialLocation (juce::File::userMusicDirectory)
+        const auto dir = realMusic()   // PLAN-4 PD15: the REAL home (the processor sees the temp one)
                              .getChildFile ("Ouaricon").getChildFile ("O-GranulatorInstrument").getChildFile ("Recordings");
         d.exists = dir.isDirectory();
         if (d.exists)

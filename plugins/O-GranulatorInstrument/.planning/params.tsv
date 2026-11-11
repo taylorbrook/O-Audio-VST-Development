@@ -10,7 +10,7 @@ mpe_enable	MPE		2	Off	On	0.000000	Off	automatable,discrete,boolean
 grain_limit	Grain Limit		4	32	256	1.000000	256	automatable,discrete
 freeze	Freeze		2	Off	On	0.000000	Off	automatable,discrete,boolean
 sync_mode	Sync Mode		2	Free	Tempo	0.000000	Free	automatable,discrete
-output_gain	Output Gain		2147483647	-24.0000000	12.0000000	0.666667	0.0000007	automatable
+output_gain	Output Gain		2147483647	-24.0000000	12.0000000	0.666667	0.0000000	automatable
 amp_attack	Amp Attack		2147483647	0.0000000	10000.0000000	0.292745	19.9999981	automatable
 amp_decay	Amp Decay		2147483647	0.0000000	10000.0000000	0.500000	300.0000000	automatable
 amp_sustain	Amp Sustain		2147483647	0.0000000	100.0000000	1.000000	100.0000000	automatable
@@ -27,7 +27,7 @@ menv2_release	Mod Env 2 · Release		2147483647	0.0000000	20000.0000000	0.500000	
 s1_enable	S1 · Enable		2	Off	On	1.000000	On	automatable,discrete,boolean
 s1_mute	S1 · Mute		2	Off	On	0.000000	Off	automatable,discrete,boolean
 s1_solo	S1 · Solo		2	Off	On	0.000000	Off	automatable,discrete,boolean
-s1_level	S1 · Level		2147483647	-60.0000000	6.0000000	0.909091	0.0000018	automatable
+s1_level	S1 · Level		2147483647	-60.0000000	6.0000000	0.909091	0.0000000	automatable
 s1_pan	S1 · Pan		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
 s1_position	S1 · Position		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
 s1_spray	S1 · Spray		2147483647	0.0000000	100.0000000	0.100000	10.0000000	automatable
@@ -65,7 +65,7 @@ s1_ring_mix	S1 · Ring Mix		2147483647	0.0000000	100.0000000	0.000000	0.0000000	
 s2_enable	S2 · Enable		2	Off	On	0.000000	Off	automatable,discrete,boolean
 s2_mute	S2 · Mute		2	Off	On	0.000000	Off	automatable,discrete,boolean
 s2_solo	S2 · Solo		2	Off	On	0.000000	Off	automatable,discrete,boolean
-s2_level	S2 · Level		2147483647	-60.0000000	6.0000000	0.909091	0.0000018	automatable
+s2_level	S2 · Level		2147483647	-60.0000000	6.0000000	0.909091	0.0000000	automatable
 s2_pan	S2 · Pan		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
 s2_position	S2 · Position		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
 s2_spray	S2 · Spray		2147483647	0.0000000	100.0000000	0.100000	10.0000000	automatable
@@ -103,7 +103,7 @@ s2_ring_mix	S2 · Ring Mix		2147483647	0.0000000	100.0000000	0.000000	0.0000000	
 s3_enable	S3 · Enable		2	Off	On	0.000000	Off	automatable,discrete,boolean
 s3_mute	S3 · Mute		2	Off	On	0.000000	Off	automatable,discrete,boolean
 s3_solo	S3 · Solo		2	Off	On	0.000000	Off	automatable,discrete,boolean
-s3_level	S3 · Level		2147483647	-60.0000000	6.0000000	0.909091	0.0000018	automatable
+s3_level	S3 · Level		2147483647	-60.0000000	6.0000000	0.909091	0.0000000	automatable
 s3_pan	S3 · Pan		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
 s3_position	S3 · Position		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
 s3_spray	S3 · Spray		2147483647	0.0000000	100.0000000	0.100000	10.0000000	automatable
@@ -141,7 +141,7 @@ s3_ring_mix	S3 · Ring Mix		2147483647	0.0000000	100.0000000	0.000000	0.0000000	
 s4_enable	S4 · Enable		2	Off	On	0.000000	Off	automatable,discrete,boolean
 s4_mute	S4 · Mute		2	Off	On	0.000000	Off	automatable,discrete,boolean
 s4_solo	S4 · Solo		2	Off	On	0.000000	Off	automatable,discrete,boolean
-s4_level	S4 · Level		2147483647	-60.0000000	6.0000000	0.909091	0.0000018	automatable
+s4_level	S4 · Level		2147483647	-60.0000000	6.0000000	0.909091	0.0000000	automatable
 s4_pan	S4 · Pan		2147483647	-100.0000000	100.0000000	0.500000	0.0000000	automatable
 s4_position	S4 · Position		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
 s4_spray	S4 · Spray		2147483647	0.0000000	100.0000000	0.100000	10.0000000	automatable
@@ -182,7 +182,7 @@ rec_trigger	Record Trigger		3	Manual	Next Note	0.000000	Manual	automatable,discr
 rec_threshold	Record Threshold		2147483647	-60.0000000	0.0000000	0.500000	-30.0000000	automatable
 rec_length	Record Length		2147483647	0.5000000	30.0000000	0.344447	4.0000000	automatable
 rec_length_sync	Record Length Sync		6	1 bar	32 bars	0.400000	4 bars	automatable,discrete
-rec_gain	Record Gain		2147483647	-24.0000000	12.0000000	0.666667	0.0000007	automatable
+rec_gain	Record Gain		2147483647	-24.0000000	12.0000000	0.666667	0.0000000	automatable
 feedback	Feedback		2147483647	0.0000000	100.0000000	0.000000	0.0000000	automatable
 fb_low_cut	FB Low Cut		2147483647	20.0000000	2000.0000000	0.363958	79.9999924	automatable
 fb_high_cut	FB High Cut		2147483647	1000.0000000	20000.0000000	0.800205	12000.0009766	automatable

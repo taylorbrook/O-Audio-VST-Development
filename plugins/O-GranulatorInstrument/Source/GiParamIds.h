@@ -42,6 +42,15 @@ namespace PitchCollections = ouaricon::tuning::PitchCollections;
 // Interval is 1 on polyphony, pitch_bend_range and sN_root_note (6 rows, all
 // with start >= 0) and 0 everywhere else, including every negative-start row
 // (a stepped range with a negative start snaps a 0 default off zero).
+// PLAN-4 PD8 (D55): six 0 dB-default rows (output_gain, rec_gain, s1-s4_level)
+// get a SNAP-ONLY range (exactZeroDbRange): no interval, skew 1, null convert
+// functions (so the WebView still sees plain start / end / skew / interval);
+// the snap clamps to [start, end], then maps |v| < 1e-5 to exactly 0. Without
+// it, arm64 fuses start + (end - start) * p into an FMA and the 0 dB default
+// reads 7.15e-07 (output_gain, rec_gain) / 1.8e-06 (levels). The audio was
+// already exact (ControlGrid::snapDb). The APVTS raw atomic is still seeded
+// UNSNAPPED at construction (JUCE: "should not be snapped"), so it reads the
+// FMA value until the first set; get() and every setter path are exact.
 //
 // Host names that contain the middle dot are built by concatenation with
 // dot() (UTF-8 explicitly); a raw char literal holding it would go through
@@ -97,6 +106,24 @@ namespace GiParamIds
     inline Def boolDef (const char* id, const char* name, bool def)
     {
         return Def { id, name, Kind::Bool, 0.0f, 1.0f, def ? 1.0f : 0.0f, 1.0f, 0.0f, 0.0f, nullptr };
+    }
+
+    /** PLAN-4 PD8: the six rows whose 0 dB default must read exactly 0. */
+    inline bool isExactZeroDbRow (const juce::String& fullId)
+    {
+        return fullId == "output_gain" || fullId == "rec_gain" || fullId == "s1_level" || fullId == "s2_level"
+            || fullId == "s3_level" || fullId == "s4_level";
+    }
+
+    /** PLAN-4 PD8: start / end, skew 1, interval 0, null convert functions; the
+        snap replaces JUCE's clamp, so it clamps first, then |v| < 1e-5 -> 0. */
+    inline juce::NormalisableRange<float> exactZeroDbRange (float lo, float hi)
+    {
+        return juce::NormalisableRange<float> (lo, hi, nullptr, nullptr, [] (float start, float end, float v)
+        {
+            const float c = juce::jlimit (start, end, v);
+            return std::abs (c) < 1.0e-5f ? 0.0f : c;
+        });
     }
 
     /** " . " with the U+00B7 middle dot, decoded as UTF-8. */
