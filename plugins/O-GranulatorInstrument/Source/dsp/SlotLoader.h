@@ -149,6 +149,7 @@ namespace ogi
         std::atomic<bool> searchUnbounded { false };  // RS8n: no 1024-entry / 16-hash bounds
         std::atomic<bool> floatWriterPath { false };  // ST2n / HS2: FLAC through writeFromAudioSampleBuffer
         std::atomic<bool> failWav { false };          // CM6: the WAV write fails
+        std::atomic<bool> legacyTakeName { false };   // PLAN-3.3 UCM6bn: unique take name chosen INSIDE the write branch (the 2.6 order)
         // PLAN-3.2 PD16 (rows UIM1–UIM3).
         std::atomic<bool> failImportDir { false };    // the Imports folder cannot be created
         std::atomic<bool> failImportMove { false };   // temp → <target>.part fails (nothing is moved)

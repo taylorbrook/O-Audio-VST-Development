@@ -1101,16 +1101,26 @@ bool SlotLoader::runCommit (int slot, std::uint64_t gen, std::shared_ptr<Pristin
     const auto stamp = juce::Time::getCurrentTime().formatted ("%Y%m%d-%H%M%S");
     const auto base = "GI-Rec-" + stamp + "-S" + juce::String (slot + 1) + ".wav";
     bool wavOk = false;
+    // PLAN-3.3 PD17 (CM6, D49b): the unique name is chosen BEFORE the write
+    // branch, so a take whose WAV write fails (or is never attempted) still
+    // names a file no other take holds — its `rec:` source can never resolve
+    // to another take's audio. On a missing directory the base name is
+    // already unique (getNonexistentSibling returns it unchanged).
     juce::File f = dir.getChildFile (base);
    #if OGI_TEST_HOOKS
     hooks.fsTouches.fetch_add (1);
     const bool failWav = hooks.failWav.load();
+    const bool legacyTakeName = hooks.legacyTakeName.load();   // UCM6bn: the 2.6 order (sibling inside the branch)
    #else
     const bool failWav = false;
+    constexpr bool legacyTakeName = false;
    #endif
+    if (! legacyTakeName)
+        f = f.getNonexistentSibling (false);
     if (! failWav && dir.createDirectory())
     {
-        f = f.getNonexistentSibling (false);
+        if (legacyTakeName)
+            f = f.getNonexistentSibling (false);
         wavOk = writeWavFloat (f, take->pcm, take->rate);
         if (! wavOk)
             f.deleteFile();

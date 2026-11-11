@@ -18,7 +18,8 @@
              inverse, env == the bank curve from the PARAMETERS; stream pan
              -100 / +100 / +50 -> -1 / +1 / 0.5 exactly (added once)
       UCN1   counts[s] == an independent pool census every frame while two
-             tape swaps kill grains and the grain limit drops 256 -> 32; limit 0
+             tape swaps kill grains and the grain limit drops 256 -> 32; limit
+             == 32 << grain_limit (PLAN-3.3 PD20; 3.2: limit 0)
       UCN1n  killing / fade grains counted -> sum > census (must FAIL)
       UPH1   a held note: scan of a stream with a tape inside its loop region,
              -1 for a stream without a tape; free rows state 0 / note -1 / -1
@@ -66,12 +67,15 @@
              with a lent buffer
       UEB1   encodedBytes 0 before an embed, == the blob's decoded size after
              (file, take, restored state), 16 MiB + 1 when too large
-      UST1   no processBlock for >= 250 scripted ms -> 20 free voice rows, no
-             grains, zero counts; the next block resumes
+      UST1   no processBlock for >= 250 scripted ms -> 16 (UiTelemetry::kVoices,
+             PLAN-3.3 PD20; 3.2: 20) free voice rows, no grains, zero counts;
+             the next block resumes
       UAL1   0 audio-thread allocations with 256 grains publishing and a tape
              snapshot copying
-      UTL32  telemetryToVar (UiTelemetry): the exact PD13 key set and shapes
-             through JSON text; fb / rec null when absent; 4 decimals
+      UTL32  telemetryToVar (UiTelemetry): the 3.2 keys and shapes through
+             JSON text; fb / rec null when absent; 4 decimals (PLAN-3.3 PD20:
+             the 3.3-owned asserts -- row count, newest, menv, sources, limit,
+             out, modNorm, lfoPh, peak equality -- moved to UTL33)
       INFO UPL1  widest telemetry JSON bytes + build / encode / text cost
       INFO UPB1  frame-copy cost, old 12-byte grain vs the 3.2 40-byte grain
                  (a harness re-enactment: the old engine code is gone)
@@ -486,7 +490,7 @@ namespace { namespace ug32
     // UCN1 / UCN1n — counts against the pool census, killing grains present
     void rowsCN1()
     {
-        struct Scan { int frames = 0, mismatch = 0, mismatchAll = 0, killingMax = 0, killingFrames = 0, maxSum = 0, excessMax = 0, limitBad = 0, countBad = 0; };
+        struct Scan { int frames = 0, mismatch = 0, mismatchAll = 0, killingMax = 0, killingFrames = 0, maxSum = 0, excessMax = 0, limitBad = 0, countBad = 0, seen256 = 0, seen32 = 0; };
         Scan sc;
         Session s (kFs, with (fourStreams (60.0f, 400.0f), P { { "grain_limit", 3.0f } }), kSeed, 128);
         loadNoise4 (s, 4.0, 0.2f);
@@ -528,20 +532,25 @@ namespace { namespace ug32
             sc.killingFrames += killing > 0 ? 1 : 0;
             sc.maxSum = std::max (sc.maxSum, sum);
             sc.excessMax = std::max (sc.excessMax, sumAll - sum);
-            sc.limitBad += t.limit == 0 ? 0 : 1;
+            // PLAN-3.3 PD20: limit == 32 << grain_limit on every frame (256 and 32 both seen).
+            const int want = 32 << juce::jlimit (0, 3, juce::roundToInt (rawOf (*ss.p, "grain_limit")));
+            sc.limitBad += t.limit == want ? 0 : 1;
+            sc.seen256 += t.limit == 256 ? 1 : 0;
+            sc.seen32 += t.limit == 32 ? 1 : 0;
             sc.countBad += (killing == c.killing && t.grainCount == c.active) ? 0 : 1;
         };
         s.run (120000, 128);
 
         const auto swapKills = s.hk().swapKills;
         const bool stim = sc.frames > 500 && sc.killingMax > 0 && sc.maxSum > 32 && swapKills > 0 && s.hk().liveNow <= 32;
-        row (stim && sc.mismatch == 0 && sc.limitBad == 0 && sc.countBad == 0,
-             "UCN1 PD3 counts[s] == an independent pool census every frame (two tape swaps kill grains, grain limit 256 -> 32); limit 0",
+        row (stim && sc.mismatch == 0 && sc.limitBad == 0 && sc.seen256 > 0 && sc.seen32 > 0 && sc.countBad == 0,
+             "UCN1 PD3 counts[s] == an independent pool census every frame (two tape swaps kill grains, grain limit 256 -> 32); limit == 32 << grain_limit",
              "meas " + juce::String (sc.frames - sc.mismatch) + "/" + juce::String (sc.frames) + " frames equal, max sum " + juce::String (sc.maxSum)
                  + " (ends at " + juce::String (s.hk().liveNow) + "), swap kills " + i64 (swapKills) + ", frames holding killing / fade grains "
                  + juce::String (sc.killingFrames) + " (max " + juce::String (sc.killingMax)
                  + " in one frame), dots == active slots " + juce::String (sc.frames - sc.countBad) + "/" + juce::String (sc.frames)
-                 + ", limit 0 on every frame " + yn (sc.limitBad == 0) + " | thr 0 mismatches, killing present | ctrl UCN1n");
+                 + ", limit == 32 << grain_limit on every frame " + yn (sc.limitBad == 0) + " (256 on " + juce::String (sc.seen256) + ", 32 on "
+                 + juce::String (sc.seen32) + " frames) | thr 0 mismatches, killing present | ctrl UCN1n");
         const bool fired = stim && sc.mismatchAll > 0 && sc.mismatchAll == sc.killingFrames && sc.excessMax == sc.killingMax;
         row (fired, "UCN1n control: killing / fade grains counted -> counts exceed the census (predicate must FAIL)",
              "meas " + juce::String (sc.mismatchAll) + "/" + juce::String (sc.frames) + " frames differ (every frame that holds a killing grain), sum over the census by up to "
@@ -1882,8 +1891,8 @@ namespace { namespace ug32
         };
         const auto text = juce::JSON::toString (GiUiJson::telemetryToVar (c), false);
         const auto parsed = juce::JSON::parse (text);
-        bool jsonOk = parsed["voices"].size() == 20 && parsed["grains"].size() == 0 && parsed["counts"].size() == 4;
-        for (int k = 0; jsonOk && k < 20; ++k)
+        bool jsonOk = parsed["voices"].size() == Tel::kVoices && parsed["grains"].size() == 0 && parsed["counts"].size() == 4;   // PLAN-3.3 PD20: 16 rows
+        for (int k = 0; jsonOk && k < Tel::kVoices; ++k)
             jsonOk = static_cast<int> (parsed["voices"][k][0]) == 0 && static_cast<int> (parsed["voices"][k][1]) == -1;
         for (int k = 0; jsonOk && k < 4; ++k)
             jsonOk = static_cast<int> (parsed["counts"][k]) == 0;
@@ -1891,10 +1900,10 @@ namespace { namespace ug32
         const bool stim = ! live.stale && live.grainCount >= 20 && held (live) == 2;
         row (stim && ! a.stale && a.grainCount == live.grainCount && held (a) == 2 && empty (b) && empty (c) && jsonOk && ! d.stale && d.grainCount >= 20
                  && held (d) == 2,
-             "UST1 PD4 stale frame: no processBlock for >= 250 scripted ms -> 20 free voice rows, no grains, zero counts; the next block resumes",
+             "UST1 PD4 stale frame: no processBlock for >= 250 scripted ms -> 16 free voice rows, no grains, zero counts; the next block resumes",
              "meas live " + juce::String (live.grainCount) + " grains / " + juce::String (held (live)) + " voices; +249.5 ms " + juce::String (a.grainCount)
                  + " grains (stale " + (a.stale ? "YES" : "no") + "); +250 ms stale " + yn (b.stale) + ", empty " + yn (empty (b)) + "; +300 ms empty " + yn (empty (c))
-                 + ", JSON 20 free rows / [] / [0, 0, 0, 0] " + yn (jsonOk) + "; one block later " + juce::String (d.grainCount) + " grains / "
+                 + ", JSON " + juce::String (Tel::kVoices) + " free rows / [] / [0, 0, 0, 0] " + yn (jsonOk) + "; one block later " + juce::String (d.grainCount) + " grains / "
                  + juce::String (held (d)) + " voices | thr stale at exactly 250 ms on the injected clock | ctrl - (the +249.5 ms read is live)");
     }
 
@@ -1969,10 +1978,12 @@ namespace { namespace ug32
         const auto text = juce::JSON::toString (GiUiJson::telemetryToVar (src), false);
         const auto t = juce::JSON::parse (text);
         juce::StringArray bad;
+        // PLAN-3.3 PD20: the 3.2 keys are all present (the exact 14-key set is UTL33's).
         const juce::StringArray topKeys { "scaleRev", "slotRev", "lanes", "voices", "newest", "menv", "grains", "counts", "limit", "out",
                                           "rec", "sources", "modNorm" };
-        if (keysOf (t) != topKeys)
-            bad.add ("top keys " + keysOf (t).joinIntoString (","));
+        for (const auto& k : topKeys)
+            if (! t.hasProperty (juce::Identifier (k)))
+                bad.add ("top key " + k + " missing");
         if (! (t["scaleRev"].isInt() && t["slotRev"].isInt()))
             bad.add ("revisions not ints");
 
@@ -1985,7 +1996,10 @@ namespace { namespace ug32
             {
                 const auto l = lanes[i];
                 const auto& sl = src.lanes[(size_t) i];
-                if (keysOf (l) != juce::StringArray { "ovRev", "fb", "rec" })
+                auto laneKeys = keysOf (l);   // PLAN-3.3 PD20: lo / hi (3.3) are UTL33's
+                laneKeys.removeString ("lo");
+                laneKeys.removeString ("hi");
+                if (laneKeys != juce::StringArray { "ovRev", "fb", "rec" })
                     bad.add ("lane " + juce::String (i) + " keys " + keysOf (l).joinIntoString (","));
                 if (! l["ovRev"].isInt())
                     bad.add ("lane " + juce::String (i) + " ovRev");
@@ -2002,18 +2016,19 @@ namespace { namespace ug32
         if (literal != nulls)
             bad.add ("literal nulls " + juce::String (literal) + " != " + juce::String (nulls));
 
+        // PLAN-3.3 PD20: the row COUNT and column 8 (wantSt) are UTL33's; the
+        // 3.2 columns of every row are checked here.
         const auto voices = t["voices"];
-        if (! voices.isArray() || voices.size() != 20)
-            bad.add ("voices not 20");
+        if (! voices.isArray() || voices.size() != Tel::kVoices)
+            bad.add ("voices not an array of the struct's rows");
         else
-            for (int k = 0; k < 20; ++k)
+            for (int k = 0; k < voices.size(); ++k)
             {
                 const auto v = voices[k];
                 bool ok = v.isArray() && v.size() == 8;
                 for (int c = 0; ok && c < 8; ++c)
                     ok = isNumber (v[c]);
-                ok = ok && static_cast<int> (v[0]) == src.voices[(size_t) k].state && static_cast<int> (v[1]) == src.voices[(size_t) k].note
-                        && static_cast<int> (v[7]) == 0;
+                ok = ok && static_cast<int> (v[0]) == src.voices[(size_t) k].state && static_cast<int> (v[1]) == src.voices[(size_t) k].note;
                 for (int c = 0; ok && c < 4; ++c)
                     ok = std::abs (static_cast<double> (v[3 + c]) - (double) src.voices[(size_t) k].scan[(size_t) c]) <= 5.0e-5;
                 if (! ok)
@@ -2032,7 +2047,7 @@ namespace { namespace ug32
                 for (int c = 0; ok && c < 8; ++c)
                     ok = isNumber (g[c]);
                 ok = ok && g[0].isInt() && static_cast<int> (g[0]) >= 1 && static_cast<int> (g[0]) <= 4 && static_cast<int> (g[0]) == sg.stream
-                        && g[6].isInt() && static_cast<int> (g[6]) == sg.voice && g[7].isInt() && (static_cast<int> (g[7]) == 0 || static_cast<int> (g[7]) == 1)
+                        && g[6].isInt() && static_cast<int> (g[6]) == sg.voice && g[7].isInt() && (static_cast<int> (g[7]) & 1) == (sg.flags & 1)
                         && std::abs (static_cast<double> (g[1]) - (double) sg.normPos) <= 5.0e-5 && std::abs (static_cast<double> (g[2]) - (double) sg.pan) <= 5.0e-5
                         && std::abs (static_cast<double> (g[3]) - (double) sg.env) <= 5.0e-5 && std::abs (static_cast<double> (g[4]) - (double) sg.gain) <= 5.0e-5
                         && std::abs (static_cast<double> (g[5]) - (double) sg.lengthSec) <= 5.0e-5;
@@ -2050,18 +2065,9 @@ namespace { namespace ug32
         if (! cOk)
             bad.add ("counts");
 
-        if (! (t["newest"].isInt() && static_cast<int> (t["newest"]) == -1))
-            bad.add ("newest");
-        for (const char* k : { "menv", "sources" })
-            if (! t[k].isArray() || t[k].size() != 0)
-                bad.add (juce::String (k) + " not []");
-        if (! (t["limit"].isInt() && static_cast<int> (t["limit"]) == 0))
-            bad.add ("limit");
-        if (! (t["out"].isArray() && t["out"].size() == 2 && static_cast<double> (t["out"][0]) == 0.0 && static_cast<double> (t["out"][1]) == 0.0))
-            bad.add ("out");
-        if (! (t["modNorm"].getDynamicObject() != nullptr && keysOf (t["modNorm"]).isEmpty()))
-            bad.add ("modNorm not {}");
-        for (const char* k : { "lfoPh", "frozen", "modRouted", "stale" })
+        // PLAN-3.3 PD20: newest, menv, sources, limit, out, modNorm, lfoPh and
+        // the rec.peak values moved to UTL33 (the 3.3 owner).
+        for (const char* k : { "frozen", "modRouted", "stale" })
             if (t.hasProperty (k))
                 bad.add (juce::String (k) + " present");
 
@@ -2073,8 +2079,7 @@ namespace { namespace ug32
                && static_cast<int> (r["slot"]) == src.rec.slot && isNumber (r["pos"]) && std::abs (static_cast<double> (r["pos"]) - (double) src.rec.pos) <= 5.0e-5
                && isNumber (r["len"]) && std::abs (static_cast<double> (r["len"]) - (double) src.rec.len) <= 5.0e-5 && r["capped"].isBool()
                && static_cast<bool> (r["capped"]) == src.rec.capped && r["peak"].isArray() && r["peak"].size() == 2
-               && std::abs (static_cast<double> (r["peak"][0]) - (double) src.rec.peak) <= 5.0e-5
-               && static_cast<double> (r["peak"][0]) == static_cast<double> (r["peak"][1])))
+               && isNumber (r["peak"][0]) && isNumber (r["peak"][1])))
             bad.add ("rec values");
 
         // PD12: floats carry at most 4 decimals in the text.
@@ -2098,7 +2103,7 @@ namespace { namespace ug32
                 allNull = allNull && ! l.hasFb && ! l.hasRec;
             const auto problems = tl32Problems (tel);
             t.check (allNull && tel.grainCount == 0 && tel.rec.bus == 1 && tel.rec.slot == 0 && problems.isEmpty(), "defaults: " + problems);
-            d << "defaults: 8 nulls, 20 free rows, rec.slot 0";
+            d << "defaults: 8 nulls, " << Tel::kVoices << " free rows, rec.slot 0";
         }
         // (2) grains on four streams + the feedback head on lane 1.
         {
@@ -2131,8 +2136,8 @@ namespace { namespace ug32
             d << "; recording: run " << tel.rec.run << ", slot " << tel.rec.slot << ", lanes[1].rec " << juce::String (tel.lanes[1].rec, 4) << ", len "
               << juce::String (tel.rec.len, 1) << ", signal " << (tel.rec.signal ? "true" : "false");
         }
-        row (t.bad == 0, "UTL32 PD13 telemetryToVar (UiTelemetry): exact key set, fb / rec null when absent, voices 20 x 8, grains n x 8, counts x 4, 4 decimals",
-             "meas " + t.detail (3) + ", " + d + " | thr 13 keys exact, values == the struct within 5e-5 | ctrl - (case 1 nulls vs case 2 / 3 numbers)");
+        row (t.bad == 0, "UTL32 PD13 telemetryToVar (UiTelemetry): the 3.2 keys, fb / rec null when absent, grains n x 8, counts x 4, 4 decimals",
+             "meas " + t.detail (3) + ", " + d + " | thr the 13 3.2 keys present, 3.2 values == the struct within 5e-5 (3.3-owned keys: UTL33) | ctrl - (case 1 nulls vs case 2 / 3 numbers)");
     }
 
     //==========================================================================

@@ -37,7 +37,8 @@
 // host block (the reader always gets a complete frame; seqHead == seqTail).
 //
 //   recState / progress     GiRecorder (getPackedState, frames / target)
-//   scInPeak / outPeak      max |x| of the raw sidechain / the output since read
+//   scInPeak / outPeakL / R max |x| of the raw sidechain / the output L, R since read
+//   stolen / stolenCount    PLAN-3.3 PD2 steal ring (serials of stolen voices)
 //   headPos[4]              per-slot record-head position (tape frames)
 //   swapState[4]            bit 0 pending tape, 1 crossfade, 2 head parked,
 //                           3 swap waiting for the head
@@ -51,7 +52,7 @@
 //                           the reader folds it into ovRev so a lane redraws
 //                           while the head rewrites its tape. Never read by
 //                           the engine.
-//   frames                  GiUiFrame: ≤ 288 grains + 20 voices.
+//   frames                  GiUiFrame: ≤ 288 grains + 20 voices (+ newestSerial, 3.3).
 // ============================================================================
 namespace ogi
 {
@@ -70,11 +71,24 @@ namespace ogi
         float        tiltT = 0.5f, tiltA = 1.0f, tiltB = 1.0f;   // Grain::tiltT / A / B
     };
 
+    // PLAN-3.3 PD3: sizes of the per-voice mod blocks the frame carries (the
+    // engine's kGiLfos / kGiModEnvs; Engine.cpp static_asserts the equality —
+    // this header does not pull the forked ControlGrid in).
+    inline constexpr int kUiLfos = 4, kUiModEnvs = 2;
+
     struct GiUiVoice
     {
-        std::int8_t note = -1;          // −1 = free
+        std::int8_t note = -1;          // −1 unless counted (3.2 meaning kept)
         float       amp = 0.0f;         // envelope level
         float       scan[kGiStreams] {};   // scan centre / tape frames (0..1), per stream
+        // PLAN-3.3 PD3 (written in publishTelemetry only; never read by the DSP)
+        std::uint8_t  state = 0;        // 0 free · 1 gated (incl. CC64-held) · 2 released (counted, gate closed) · 3 stolen
+        std::uint8_t  ampStage = 0;     // page stages: 0 off · 1 A · 2 D · 3 S · 4 R (forced → 4)
+        std::uint8_t  menvStage[kUiModEnvs] {};
+        std::uint64_t serial = 0;       // the slot's note serial (0 when free)
+        float         menv[kUiModEnvs] {};   // Mod Env 1 / 2 level
+        float         lfoPh[kUiLfos] {};     // per-voice LFO phase 0..1 (offset removed); −1 = not per-voice / free
+        float         wantSt[kGiStreams] {}; // voiceSemis before the ±48 clamp (counted voice + stream with a tape), else 0
     };
 
     struct GiUiFrame
@@ -84,6 +98,7 @@ namespace ogi
         std::int32_t  count = 0;        // grains[0, count)
         GiUiGrain     grains[kMaxGrains] {};
         GiUiVoice     voices[kVoiceSlots] {};
+        std::uint64_t newestSerial = 0; // PLAN-3.3 PD3: the engine's newestSer (PD8 rule, 2.5b)
         std::uint64_t seqTail = 0;      // written LAST
     };
     static_assert (std::is_trivially_copyable_v<GiUiFrame>, "TripleBuffer frames are PODs");
@@ -144,7 +159,18 @@ namespace ogi
 
     struct GiTelemetry
     {
-        std::atomic<float> scInPeak { 0.0f }, outPeak { 0.0f };
+        // PLAN-3.3 PD5: the output peak per side (replaces the 2.6 outPeak =
+        // max (|L|, |R|)); post output_gain, max since read.
+        std::atomic<float> scInPeak { 0.0f }, outPeakL { 0.0f }, outPeakR { 0.0f };
+
+        // PLAN-3.3 PD2: the steal ring. Written ONLY in Engine::stealVoice
+        // (audio thread): the victim's serial at stolenCount % kStealRing
+        // (relaxed), then stolenCount + 1 (release). Polyphony shrink, All
+        // Sound Off and mono handovers are not steals and do not write it.
+        // ONE reader (the processor's buildUiTelemetry) keeps its own cursor.
+        static constexpr int kStealRing = 16;
+        std::array<std::atomic<std::uint64_t>, kStealRing> stolen {};
+        std::atomic<std::uint32_t> stolenCount { 0 };
         std::array<std::atomic<std::int64_t>, kTapeSlots> headPos {};
         std::array<std::atomic<std::uint8_t>, kTapeSlots> swapState {};
         GiOverviewLive overview;
@@ -160,7 +186,19 @@ namespace ogi
 
         /** Reader helpers (any thread). */
         float takeScInPeak() noexcept { return scInPeak.exchange (0.0f, std::memory_order_acq_rel); }
-        float takeOutPeak() noexcept  { return outPeak.exchange (0.0f, std::memory_order_acq_rel); }
+        /** PLAN-3.3 PD5: ONE caller, the processor's buildUiTelemetry. */
+        void takeOutPeaks (float& l, float& r) noexcept
+        {
+            l = outPeakL.exchange (0.0f, std::memory_order_acq_rel);
+            r = outPeakR.exchange (0.0f, std::memory_order_acq_rel);
+        }
+        /** Writer (audio thread, Engine::stealVoice only). */
+        void pushSteal (std::uint64_t serial) noexcept
+        {
+            const std::uint32_t c = stolenCount.load (std::memory_order_relaxed);
+            stolen[(size_t) (c % (std::uint32_t) kStealRing)].store (serial, std::memory_order_relaxed);
+            stolenCount.store (c + 1u, std::memory_order_release);
+        }
         std::uint32_t getOvWrites (int s) const noexcept
         {
             return (s >= 0 && s < kTapeSlots) ? ovWrites[(size_t) s].load (std::memory_order_relaxed) : 0u;

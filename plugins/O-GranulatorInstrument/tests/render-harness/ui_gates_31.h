@@ -535,7 +535,7 @@ namespace { namespace ug31
              "UPM6b PD1 a preset with no `slots` key leaves the loaded slots as they are",
              juce::String ("meas slots 1 / 3 ") + (kept ? "same tape, same generation" : "CHANGED") + ", publishes "
                  + i64 (s.p->getHandoff().getPublishedCount() - pub0) + ", preset applied (seed 424242) " + (applied ? "yes" : "NO")
-                 + " | thr same, 0 publishes, applied | ctrl - (UPM6: a `slots` array clears unlisted slots)");
+                 + " | thr same, 0 publishes, applied | ctrl - (UPM6: a preset's `slots` array leaves unlisted slots alone; a session's clears them - D45)");
     }
 
     //==========================================================================

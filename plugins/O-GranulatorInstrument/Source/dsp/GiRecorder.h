@@ -305,7 +305,9 @@ namespace ogi
             ordered, so block-size invariant. */
         void runPiece (int c0, int c1, std::int64_t t0, const float (&sc)[2][kCell], const TempoTracker& tracker) noexcept
         {
-            float pk = 0.0f;
+            // PLAN-3.3 PD5: the meter peaks per side (telemetry only); `a`
+            // (threshold, capture peak) is unchanged. Mono: xR == xL.
+            float pkL = 0.0f, pkR = 0.0f;
             for (int c = c0; c < c1; ++c)
             {
                 const std::int64_t t = t0 + (c - c0);
@@ -313,7 +315,8 @@ namespace ogi
                 const float xL = sc[0][c] * g;
                 const float xR = channels > 1 ? sc[1][c] * g : xL;
                 const float a  = std::max (std::abs (xL), std::abs (xR));
-                pk = std::max (pk, a);
+                pkL = std::max (pkL, std::abs (xL));
+                pkR = std::max (pkR, std::abs (xR));
                 lastSample = t + 1;
 
                 if (state == RecState::Armed)
@@ -372,7 +375,8 @@ namespace ogi
                         stopTake (t + 1);
                 }
             }
-            scPeakPush (pk);
+            scPeakPush (scPeakL, pkL);
+            scPeakPush (scPeakR, pkR);
             framesTel.store (frames, std::memory_order_relaxed);
             publish();
         }
@@ -423,10 +427,22 @@ namespace ogi
         int  getFramesTelemetry() const noexcept        { return framesTel.load (std::memory_order_relaxed); }
         int  getTargetTelemetry() const noexcept        { return targetTel.load (std::memory_order_relaxed); }
         int  getTargetSlotTelemetry() const noexcept    { return slotTel.load (std::memory_order_relaxed); }
-        /** Max post-gain |sc| since the last read (the reader takes it). */
-        float takeScPeak() noexcept                     { return scPeak.exchange (0.0f, std::memory_order_acq_rel); }
+        /** PLAN-3.3 PD5: max post-gain |sc L| and |sc R| since the last read
+            (the reader takes both; ONE caller, the processor's
+            buildUiTelemetry). Mono sidechain: both sides carry the L sample. */
+        void takeScPeaks (float& l, float& r) noexcept
+        {
+            l = scPeakL.exchange (0.0f, std::memory_order_acq_rel);
+            r = scPeakR.exchange (0.0f, std::memory_order_acq_rel);
+        }
 
        #if OGI_TEST_HOOKS
+        /** PLAN-3.3 UMT4n control: the peaks WITHOUT the exchange. */
+        void peekScPeaksForTest (float& l, float& r) const noexcept
+        {
+            l = scPeakL.load (std::memory_order_relaxed);
+            r = scPeakR.load (std::memory_order_relaxed);
+        }
         RecorderTestHooks hooks;
         RecorderProbe probe() const noexcept
         {
@@ -568,10 +584,10 @@ namespace ogi
                           std::memory_order_relaxed);
         }
 
-        void scPeakPush (float v) noexcept
+        static void scPeakPush (std::atomic<float>& acc, float v) noexcept
         {
-            float cur = scPeak.load (std::memory_order_relaxed);
-            while (v > cur && ! scPeak.compare_exchange_weak (cur, v, std::memory_order_relaxed))
+            float cur = acc.load (std::memory_order_relaxed);
+            while (v > cur && ! acc.compare_exchange_weak (cur, v, std::memory_order_relaxed))
             {
             }
         }
@@ -613,6 +629,6 @@ namespace ogi
         // telemetry
         std::atomic<std::uint32_t> packed { 0 };
         std::atomic<int> framesTel { 0 }, targetTel { 0 }, slotTel { 0 };
-        std::atomic<float> scPeak { 0.0f };
+        std::atomic<float> scPeakL { 0.0f }, scPeakR { 0.0f };   // PLAN-3.3 PD5 (replaces scPeak)
     };
 } // namespace ogi

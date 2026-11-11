@@ -630,6 +630,9 @@ namespace ogi
         const float (&getFbRetForTest (int s) const noexcept)[2][kFbDelay] { return fbRet[std::clamp (s, 0, kGiStreams - 1)]; }
         const RecordHead& getHeadForTest (int s) const noexcept     { return head[std::clamp (s, 0, kTapeSlots - 1)]; }
         const WindowMorphBank& getMorphBank() const noexcept { return morphBank; }
+        // PLAN-3.3 PD3 (UMB1): the engine's mono-badge predicates.
+        bool srcPerVoiceNowForTest (int src) const noexcept          { return srcPerVoiceNow (src); }
+        bool destVoiceNowForTest (int dest) const noexcept           { return destVoiceNow (dest); }
        #endif
 
     private:

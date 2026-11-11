@@ -1167,7 +1167,8 @@ void GranulatorInstrumentProcessor::updateSlotDirty (int slot0, const ogi::SlotI
 }
 
 //==============================================================================
-// Stage 3 / 3.2: the telemetry builder (PLAN-3.2 PD2 – PD5, PD9 – PD13).
+// Stage 3 / 3.2 + 3.3: the telemetry builder (PLAN-3.2 PD2 – PD5, PD9 – PD13;
+// PLAN-3.3 PD1 – PD12, PD15).
 //==============================================================================
 GranulatorInstrumentProcessor::UiTelemetry GranulatorInstrumentProcessor::buildUiTelemetry (double nowMs)
 {
@@ -1218,32 +1219,153 @@ GranulatorInstrumentProcessor::UiTelemetry GranulatorInstrumentProcessor::buildU
     for (int s = 0; s < ogi::kGiStreams; ++s)
         hasTape[static_cast<std::size_t> (s)] = infos[static_cast<std::size_t> (s)].loaded && infos[static_cast<std::size_t> (s)].frames > 0;
 
+    // ── PLAN-3.3 PD2: the steal ring (THE one cursor). At most the kStealRing
+    // newest entries per poll (older ones are lost; they could only shorten a
+    // hold); stolenCount is re-read after the copy and every entry the writer
+    // may have overwritten meanwhile is discarded. Drained on every poll, the
+    // stale ones included, so an old steal never fires late.
+    std::array<std::uint64_t, ogi::GiTelemetry::kStealRing> steals {};
+    int numSteals = 0;
+    {
+        constexpr std::uint32_t kRing = static_cast<std::uint32_t> (ogi::GiTelemetry::kStealRing);
+        const std::uint32_t c1 = tel.stolenCount.load (std::memory_order_acquire);
+        const std::uint32_t from = (c1 - stolenSeen > kRing) ? c1 - kRing : stolenSeen;
+        std::array<std::uint64_t, ogi::GiTelemetry::kStealRing> copy {};
+        for (std::uint32_t c = from; c != c1; ++c)
+            copy[static_cast<std::size_t> (c - from)] = tel.stolen[static_cast<std::size_t> (c % kRing)].load (std::memory_order_relaxed);
+        std::atomic_thread_fence (std::memory_order_acquire);
+        const std::uint32_t c2 = tel.stolenCount.load (std::memory_order_relaxed);
+        for (std::uint32_t c = from; c != c1; ++c)
+            if (c2 - c < kRing)   // the writer has not reached slot c + kRing
+                steals[static_cast<std::size_t> (numSteals++)] = copy[static_cast<std::size_t> (c - from)];
+        stolenSeen = c1;
+    }
+
+    // ── PLAN-3.3 PD1: the display rows (a stale frame clears the map) ──────────
+   #if OGI_TEST_HOOKS
+    const bool identityRows = testRowMapIdentity;   // UVR1n
+   #else
+    constexpr bool identityRows = false;
+   #endif
+    if (t.stale)
+        voiceRowMap.clear();
+    else if (! identityRows)
+        voiceRowMap.update (f, steals.data(), numSteals, nowMs);
+
+    // Engine slot → display row, −1 when unmapped (also the grain `voice`).
+    const auto rowOfSlot = [&] (int k) -> int
+    {
+        if (identityRows)
+            return (k >= 0 && k < UiTelemetry::kVoices && f.voices[k].state != 0) ? k : -1;
+        return voiceRowMap.rowOfSlot (k);
+    };
+
+    // PD11: the stream whose wantSt the row shows: the first enabled one with a tape.
+    int wantStream = -1;
+    for (int s = 0; s < ogi::kGiStreams && wantStream < 0; ++s)
+        if (hasTape[static_cast<std::size_t> (s)] && raw (Ids::stream (s + 1, "enable"), 0.0f) > 0.5f)
+            wantStream = s;
+
+    // PD8: lfoPh rows start at −1 (empty row / stolen row / Global-mode LFO).
+    for (int n = 0; n < UiTelemetry::kLfos; ++n)
+    {
+        auto& lr = t.lfoPh[static_cast<std::size_t> (n)];
+        lr.fill (-1.0f);
+        const float g = engine->getLfoPhaseTelemetry (n);
+        lr[0] = std::isfinite (g) ? g : 0.0f;
+    }
+
     if (! t.stale)
     {
-        // PD2: 20 rows; state 1 = counted (note >= 0).
-        for (int k = 0; k < UiTelemetry::kVoices; ++k)
+        // PD1 / PD3 / PD7 / PD11: 16 display rows.
+        for (int r = 0; r < UiTelemetry::kVoices; ++r)
         {
+            auto& v  = t.voices[static_cast<std::size_t> (r)];
+            auto& me = t.menv[static_cast<std::size_t> (r)];
+            int k = -1, shown = 0, note = -1;
+            if (identityRows)
+            {
+                if (f.voices[r].state != 0)
+                {
+                    k = r;
+                    shown = static_cast<int> (f.voices[r].state);
+                    note = static_cast<int> (f.voices[r].note);
+                }
+            }
+            else
+            {
+                const auto& row = voiceRowMap.row (r);
+                if (row.serial == 0)
+                    continue;   // empty: state 0, note −1, scans −1, menv zeros
+                k = row.slot;
+                shown = row.shown;
+                note = row.note;
+            }
+            if (shown == 0)
+                continue;
+            v.state = shown;
+            v.note  = note;
+            if (shown == 3)
+            {
+                // A stolen row: the fading voice's amp and mod envs while its
+                // slot still holds the serial (else 0), amp stage R, no
+                // playhead, no LFO dot, wantSt 0.
+                me.ampSt = 4;
+                if (k >= 0)
+                {
+                    const auto& u = f.voices[k];
+                    v.amp  = std::isfinite (u.amp) ? u.amp : 0.0f;
+                    me.e1  = std::isfinite (u.menv[0]) ? u.menv[0] : 0.0f;
+                    me.e2  = std::isfinite (u.menv[1]) ? u.menv[1] : 0.0f;
+                    me.st1 = static_cast<int> (u.menvStage[0]);
+                    me.st2 = static_cast<int> (u.menvStage[1]);
+                }
+                continue;
+            }
             const auto& u = f.voices[k];
-            auto& v = t.voices[static_cast<std::size_t> (k)];
-            if (u.note < 0)
-                continue;   // a free row: state 0, note −1, scans −1
-            v.state = 1;
-            v.note  = static_cast<int> (u.note);
-            v.amp   = std::isfinite (u.amp) ? u.amp : 0.0f;
+            v.amp = std::isfinite (u.amp) ? u.amp : 0.0f;
             for (int s = 0; s < ogi::kGiStreams; ++s)
                 if (hasTape[static_cast<std::size_t> (s)] && std::isfinite (u.scan[s]))
                     v.scan[static_cast<std::size_t> (s)] = juce::jlimit (0.0f, 1.0f, u.scan[s]);
+            if (wantStream >= 0 && std::isfinite (u.wantSt[wantStream]))
+                v.wantSt = u.wantSt[wantStream];
+            me.e1    = std::isfinite (u.menv[0]) ? u.menv[0] : 0.0f;
+            me.e2    = std::isfinite (u.menv[1]) ? u.menv[1] : 0.0f;
+            me.st1   = static_cast<int> (u.menvStage[0]);
+            me.st2   = static_cast<int> (u.menvStage[1]);
+            me.ampSt = static_cast<int> (u.ampStage);
+            for (int n = 0; n < UiTelemetry::kLfos; ++n)
+                if (u.lfoPh[n] >= 0.0f && u.lfoPh[n] < 1.0f)
+                    t.lfoPh[static_cast<std::size_t> (n)][static_cast<std::size_t> (1 + r)] = u.lfoPh[n];
         }
+
+        // PD4: the row of the engine's newest voice, only while it is counted.
+        if (f.newestSerial != 0)
+            for (int r = 0; r < UiTelemetry::kVoices; ++r)
+            {
+                const auto& v = t.voices[static_cast<std::size_t> (r)];
+                const std::uint64_t ser = identityRows ? f.voices[r].serial : voiceRowMap.row (r).serial;
+                if (ser == f.newestSerial && (v.state == 1 || v.state == 2))
+                {
+                    t.newest = r;
+                    break;
+                }
+            }
 
         // PD1: the reader-side derivations (parent PluginProcessor.cpp grains).
         // The frame's gainL / gainR are spread pan × gain_rand ONLY (the stream
         // pan is applied on the stream bus, Engine.cpp spawn), so the stream
         // pan is added here, once: the BASE sN_pan parameter (−100…100 → ±1;
-        // pan modulation is not followed — the mod telemetry is 3.3).
+        // pan modulation is not followed).
         std::array<double, ogi::kGiStreams> streamPan {};
         for (int s = 0; s < ogi::kGiStreams; ++s)
             streamPan[static_cast<std::size_t> (s)] = juce::jlimit (-1.0, 1.0, static_cast<double> (raw (Ids::stream (s + 1, "pan"), 0.0f)) / 100.0);
 
+       #if OGI_TEST_HOOKS
+        const bool clampFromStream0 = testClampFromStream0;   // UWS1n
+       #else
+        constexpr bool clampFromStream0 = false;
+       #endif
         constexpr double kPanScale = 4.0 / juce::MathConstants<double>::pi;
         const int n = juce::jlimit (0, UiTelemetry::kMaxGrains, static_cast<int> (f.count));
         int out = 0;
@@ -1268,13 +1390,85 @@ GranulatorInstrumentProcessor::UiTelemetry GranulatorInstrumentProcessor::buildU
             const float env = engine->grainWindow (static_cast<int> (u.windowStep), u.tiltT, u.tiltA, u.tiltB, static_cast<double> (u.phase)) * u.gain;
             g.env  = std::isfinite (env) ? env : 0.0f;
             g.lengthSec = fs > 0.0 ? static_cast<float> (static_cast<double> (u.lenSamples) / fs) : 0.0f;
-            g.voice = static_cast<int> (u.voice);
-            g.flags = static_cast<int> (u.flags & 1u);   // reversed only (PD1: the killing bit is never sent)
+            const int slotK = static_cast<int> (u.voice);
+            g.voice = rowOfSlot (slotK);                  // PLAN-3.3 PD1: the display row, −1 when unmapped
+            g.flags = static_cast<int> (u.flags & 1u);   // reversed (the killing bit is never sent)
+            // PLAN-3.3 PD11: bit 1 = the grain's voice (ENGINE slot, before the
+            // mapping) wants more than ±48 st on the grain's stream.
+            if (slotK >= 0 && slotK < ogi::kVoiceSlots)
+            {
+                const float want = f.voices[slotK].wantSt[clampFromStream0 ? 0 : static_cast<int> (u.stream)];
+                if (std::isfinite (want) && std::abs (want) > 48.0f)
+                    g.flags |= 2;
+            }
             if ((u.flags & 2u) == 0)                      // PD3: neither killing nor in a fade slot
                 ++t.counts[stream0];
         }
         t.grainCount = out;
     }
+
+    // ── PLAN-3.3 PD6 / PD9 / PD10: sources, routed modNorm, lane lo / hi ─────
+    for (int i = 0; i < UiTelemetry::kSources; ++i)
+    {
+        const float sv = engine->getSourceTelemetry (i + 1);
+        t.sources[static_cast<std::size_t> (i)] = std::isfinite (sv) ? sv : 0.0f;
+    }
+    for (int m = 1; m <= Ids::kModSlots; ++m)
+    {
+        if (! (raw (Ids::mod (m, "source"), 0.0f) > 0.5f))
+            continue;
+        const int d = juce::roundToInt (raw (Ids::mod (m, "dest"), 0.0f));
+        if (d > 0 && d < UiTelemetry::kDests)
+            t.modRouted[static_cast<std::size_t> (d)] = true;   // depth ignored (the page's routesFor rule)
+    }
+   #if OGI_TEST_HOOKS
+    if (testModNormAll)   // UMN1n
+        std::fill (t.modRouted.begin() + 1, t.modRouted.end(), true);
+    const bool loHiAlways = testLoHiAlways;   // ULH1n
+   #else
+    constexpr bool loHiAlways = false;
+   #endif
+    for (int d = 1; d < UiTelemetry::kDests; ++d)
+        if (t.modRouted[static_cast<std::size_t> (d)])
+        {
+            const float dv = engine->getDestTelemetry (d);
+            t.modNorm[static_cast<std::size_t> (d)] = std::isfinite (dv) ? dv : 0.0f;
+        }
+    for (int s = 0; s < ogi::kTapeSlots; ++s)
+    {
+        const int dLo = 27 + 28 * s, dHi = 28 + 28 * s;   // sN_loop_start / sN_loop_end (mod-dests.tsv)
+        if (! (loHiAlways || t.modRouted[static_cast<std::size_t> (dLo)] || t.modRouted[static_cast<std::size_t> (dHi)]))
+            continue;
+        const float a = engine->getDestTelemetry (dLo), b = engine->getDestTelemetry (dHi);
+        auto& lane = t.lanes[static_cast<std::size_t> (s)];
+        lane.hasLoHi = true;
+        lane.lo = std::isfinite (a) && std::isfinite (b) ? std::min (a, b) : 0.0f;
+        lane.hi = std::isfinite (a) && std::isfinite (b) ? std::max (a, b) : 1.0f;
+    }
+
+    // ── PLAN-3.3 PD12: limit = the grain_limit value (32 · 2^index) ─────────
+    t.limit = 32 << juce::jlimit (0, 3, juce::roundToInt (raw ("grain_limit", 3.0f)));
+
+    // ── PLAN-3.3 PD5: THE one consumer of the output peaks ──────────────────
+   #if OGI_TEST_HOOKS
+    const bool peaksMax = testPeaksMax;
+    const bool peaksNoExchange = testPeaksNoExchange;
+   #else
+    constexpr bool peaksMax = false, peaksNoExchange = false;
+   #endif
+    if (! peaksNoExchange)
+        tel.takeOutPeaks (t.outL, t.outR);
+   #if OGI_TEST_HOOKS
+    else   // UMT4n: read without the exchange
+    {
+        t.outL = tel.outPeakL.load (std::memory_order_relaxed);
+        t.outR = tel.outPeakR.load (std::memory_order_relaxed);
+    }
+   #endif
+    if (! std::isfinite (t.outL)) t.outL = 0.0f;
+    if (! std::isfinite (t.outR)) t.outR = 0.0f;
+    if (peaksMax)   // UMT2n
+        t.outL = t.outR = std::max (t.outL, t.outR);
 
     // ── PD5: the feedback head ───────────────────────────────────────────────
     // Shown when the slot has a tape and (the head is not parked, or freeze is
@@ -1317,17 +1511,30 @@ GranulatorInstrumentProcessor::UiTelemetry GranulatorInstrumentProcessor::buildU
         }
     }
 
-    // PD10: THE one consumer of the post-gain sidechain peak.
-    float peak = recorder.takeScPeak();
-    if (! std::isfinite (peak))
-        peak = 0.0f;
+    // PD10: THE one consumer of the post-gain sidechain peaks.
+    // PLAN-3.3 PD5: L / R; `signal` keys on max (L, R) (identical to the
+    // 3.2 single peak by construction).
+    float scL = 0.0f, scR = 0.0f;
+    if (! peaksNoExchange)
+        recorder.takeScPeaks (scL, scR);
+   #if OGI_TEST_HOOKS
+    else   // UMT4n
+        recorder.peekScPeaksForTest (scL, scR);
+   #endif
+    if (! std::isfinite (scL)) scL = 0.0f;
+    if (! std::isfinite (scR)) scR = 0.0f;
+    if (peaksMax)   // UMT2n
+        scL = scR = std::max (scL, scR);
+    const float peak = std::max (scL, scR);
     if (peak >= ogi::GiRecorder::kPresenceLin)
     {
         signalSeen = true;
         signalLastMs = nowMs;
     }
     t.rec.signal = signalSeen && nowMs - signalLastMs <= kSignalHoldMs;
-    t.rec.peak = peak;
+    t.rec.peak  = peak;
+    t.rec.peakL = scL;
+    t.rec.peakR = scR;
 
     // PD11: Tempo length mode, not recording, and the take the recorder would
     // start — its OWN length function, at the block's tempo — exceeds F_max.
@@ -1837,6 +2044,12 @@ bool GranulatorInstrumentProcessor::saveBufferHeldForTest() const
 {
     const juce::ScopedLock sl (saveLock);
     return saveBufL.get() != nullptr || saveBufR.get() != nullptr;
+}
+
+void GranulatorInstrumentProcessor::testSetStealHoldMs (double ms)
+{
+    const juce::ScopedLock sl (telemetryLock);
+    voiceRowMap = GiVoiceRowMap (ms);
 }
 
 bool GranulatorInstrumentProcessor::resetSlotSync (int slot)

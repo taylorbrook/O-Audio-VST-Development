@@ -1158,6 +1158,11 @@ static void hookRows()
 // encodedBytes) + --ug32.
 #include "ui_gates_32.h"
 
+// PLAN-3.3 T5 / PD21: the Stage 3.3 processor surface (16 display rows, steal
+// ring + hold, menv / lfoPh / sources / modNorm / lo-hi, L / R meters, limit,
+// take names) + --ug33.
+#include "ui_gates_33.h"
+
 //==============================================================================
 // PLAN-2.6 T10 / PD16: the factory stub generator (--gen-factory <dir> [--force]).
 // The same JUCE FLAC encoder, int path and quantiser as the plugin
@@ -1273,15 +1278,19 @@ namespace { namespace genfactory
 // failed-import `error` (2 - 4 are plain SlotInfo values through the pure
 // encoder).
 //
-// Telemetry fixture (3.2 shape, GiUiJson::telemetryToVar (UiTelemetry)): the
-// revisions, the four ovRev and lane 1's feedback head are the REAL values of
-// that run (buildUiTelemetry on the scripted clock). Voices, grains, counts and
-// the Record-in block are written BY HAND into the struct before it is encoded
-// (one held voice; 3 / 2 / 2 / 3 grains on streams 1 - 4, one reversed; lane 2
-// recording: run 2, slot 2, pos 0.4), so the page fixture does not depend on
-// the engine's grain schedule. Grains sit on all four streams (the painter's
-// stream indexing is what the stub page exercises) although slots 3 / 4 hold
-// no tape; their playheads are -1.
+// Telemetry fixture (3.3 shape, GiUiJson::telemetryToVar (UiTelemetry); PLAN-3.3
+// PD22): the revisions, the four ovRev and lane 1's feedback head are the REAL
+// values of that run (buildUiTelemetry on the scripted clock). Everything else
+// is written BY HAND into the struct before it is encoded, so the page fixture
+// does not depend on the engine's grain / mod schedule: 16 display rows (row 0
+// held + newest, row 1 released, row 2 stolen-held), menv for the three, 4 x 17
+// lfoPh with LFO 1 per-voice, 17 sources with signs, modNorm for two routes
+// (an LFO on lane 1's loop end = dest 28, Env 2 -> output_gain = dest 1),
+// lo / hi on lane 1, out [0.5012, 0.1] (-6 / -20 dBFS), rec.peak [0.25, 0.05],
+// limit 256; 3 / 2 / 2 / 3 grains on streams 1 - 4, one reversed, one with the
+// clamp bit (flags 2); lane 2 recording: run 2, slot 2, pos 0.4. Grains sit on
+// all four streams (the painter's stream indexing is what the stub page
+// exercises) although slots 3 / 4 hold no tape; their playheads are -1.
 //==============================================================================
 static int dumpUiOverrides (const juce::File& out)
 {
@@ -1381,15 +1390,58 @@ static int dumpUiOverrides (const juce::File& out)
     // The hand-written part of the telemetry (see the header note).
     for (auto& v : tel.voices)
         v = Tel::Voice {};
-    tel.voices[0].state = 1;
-    tel.voices[0].note  = 60;
-    tel.voices[0].amp   = 0.8f;
-    tel.voices[0].scan  = { { 0.25f, 0.4f, -1.0f, -1.0f } };
+    for (auto& m : tel.menv)
+        m = Tel::Menv {};
+    // row 0: held, the newest voice (note 60, root 48 -> wantSt 12)
+    tel.voices[0].state  = 1;
+    tel.voices[0].note   = 60;
+    tel.voices[0].amp    = 0.8f;
+    tel.voices[0].scan   = { { 0.25f, 0.4f, -1.0f, -1.0f } };
+    tel.voices[0].wantSt = 12.0f;
+    // row 1: released (note 64, its release tail)
+    tel.voices[1].state  = 2;
+    tel.voices[1].note   = 64;
+    tel.voices[1].amp    = 0.3f;
+    tel.voices[1].scan   = { { 0.32f, 0.47f, -1.0f, -1.0f } };
+    tel.voices[1].wantSt = 16.0f;
+    // row 2: stolen, inside its hold (no playhead, amp fading)
+    tel.voices[2].state  = 3;
+    tel.voices[2].note   = 55;
+    tel.voices[2].amp    = 0.05f;
+    tel.newest = 0;
+    tel.menv[0] = { 0.7f, 0.4f, 3, 2, 3 };   // { e1, e2, st1, st2, ampSt }: Env 1 sustain, Env 2 decay, amp sustain
+    tel.menv[1] = { 0.2f, 0.1f, 4, 4, 4 };   // all releasing
+    tel.menv[2] = { 0.05f, 0.0f, 4, 0, 4 };  // stolen: amp stage R
+    for (auto& lr : tel.lfoPh)
+        lr.fill (-1.0f);
+    tel.lfoPh[0][0] = 0.125f;                // LFO 1 per-voice: global + rows 0 / 1
+    tel.lfoPh[0][1] = 0.25f;
+    tel.lfoPh[0][2] = 0.6f;
+    tel.lfoPh[1][0] = 0.5f;                  // LFO 2-4 Global: the global phase only
+    tel.lfoPh[2][0] = 0.75f;
+    tel.lfoPh[3][0] = 0.0f;
+    // sources 1-17: LFO 1-4, Env 1, Env 2, Velocity, Key, Note Random, Wheel,
+    // Pressure, Slide, Bend, Macro 1-4 (Key 0 = note 60 newest).
+    tel.sources = { { 0.5f, -0.3f, 0.8f, -0.9f, 0.7f, 0.4f, 0.8f, 0.0f, 0.37f, 0.2f, 0.15f, 0.3f, -0.25f, 0.6f, 0.0f, 1.0f, 0.45f } };
+    tel.modRouted.fill (false);
+    tel.modNorm.fill (0.0f);
+    tel.modRouted[28] = true;                // LFO -> s1_loop_end (lane 1)
+    tel.modNorm[28]   = 0.82f;
+    tel.modRouted[1]  = true;                // Env 2 -> output_gain
+    tel.modNorm[1]    = 0.64f;
+    for (auto& lane : tel.lanes)
+        lane.hasLoHi = false;
+    tel.lanes[0].hasLoHi = true;             // lane 1: loop start unrouted (0), loop end modulated
+    tel.lanes[0].lo = 0.0f;
+    tel.lanes[0].hi = 0.82f;
+    tel.outL = 0.5012f;                      // -6 dBFS
+    tel.outR = 0.1f;                         // -20 dBFS
+    tel.limit = 256;
     {
         // { stream, normPos, pan, env, gain, lengthSec, voice, flags }
         const Tel::Grain fixture[] = {
             { 1, 0.22f, -0.4f, 0.35f, 1.0f, 0.2f,  0, 0 }, { 1, 0.25f, 0.0f, 0.95f, 0.8f, 0.2f,  0, 0 }, { 1, 0.29f, 0.5f, 0.6f, 1.0f, 0.2f,  0, 1 },
-            { 2, 0.38f, -0.7f, 0.5f, 0.9f, 0.12f, 0, 0 }, { 2, 0.43f, 0.3f, 0.85f, 1.0f, 0.12f, 0, 0 },
+            { 2, 0.38f, -0.7f, 0.5f, 0.9f, 0.12f, 1, 2 }, { 2, 0.43f, 0.3f, 0.85f, 1.0f, 0.12f, 0, 0 },
             { 3, 0.55f, 0.0f, 0.7f, 1.0f, 0.35f, 0, 0 },  { 3, 0.61f, 0.8f, 0.25f, 0.7f, 0.35f, 0, 0 },
             { 4, 0.72f, -1.0f, 0.9f, 1.0f, 0.06f, 0, 0 }, { 4, 0.78f, 0.2f, 0.45f, 0.85f, 0.06f, 0, 0 }, { 4, 0.83f, 1.0f, 0.15f, 1.0f, 0.06f, 0, 0 }
         };
@@ -1407,6 +1459,8 @@ static int dumpUiOverrides (const juce::File& out)
     tel.rec.len = 4.0f;
     tel.rec.capped = false;
     tel.rec.peak = 0.25f;
+    tel.rec.peakL = 0.25f;
+    tel.rec.peakR = 0.05f;
     for (auto& lane : tel.lanes)
         lane.hasRec = false;
     tel.lanes[1].hasRec = true;
@@ -1422,7 +1476,7 @@ static int dumpUiOverrides (const juce::File& out)
     natives->setProperty ("getUiLanguage", "en");
 
     auto* root = new juce::DynamicObject();
-    root->setProperty ("_why", "Generated from the processor by the render harness (PLAN-3.1 PD12, PLAN-3.2 PD25) - never hand-edit. "
+    root->setProperty ("_why", "Generated from the processor by the render harness (PLAN-3.1 PD12, PLAN-3.2 PD25, PLAN-3.3 PD22) - never hand-edit. "
                                "Regenerate (cwd plugins/O-GranulatorInstrument): O-GranulatorInstrument-render-harness "
                                "--dump-ui-overrides tests/ui-stub/generic-overrides.json");
     root->setProperty ("combos", juce::var (combos));
@@ -1441,17 +1495,28 @@ static int dumpUiOverrides (const juce::File& out)
     const bool revs  = static_cast<int> (nat["getTelemetry"]["slotRev"]) == static_cast<int> (nat["getSlotState"]["revision"])
                     && static_cast<int> (nat["getTelemetry"]["scaleRev"]) == static_cast<int> (nat["getScaleState"]["revision"])
                     && static_cast<int> (nat["getTelemetry"]["lanes"][0]["ovRev"]) == static_cast<int> (nat["getSlotOverview"]["rev"]);
-    // The 3.2 fixture (PD25): one held voice, 10 grains over four streams, fb
-    // on lane 1, lane 2 recording at 0.4, live dirty on lane 1, one error.
+    // The 3.3 fixture (PLAN-3.3 PD22 over the 3.2 PD25 one): 16 rows (held /
+    // released / stolen), newest 0, menv / lfoPh / sources / modNorm / lo-hi /
+    // out / rec.peak L R / limit, 10 grains over four streams (one clamp bit),
+    // fb on lane 1, lane 2 recording at 0.4, live dirty on lane 1, one error.
     const auto telVar = nat["getTelemetry"];
-    int held = 0, ticks = 0, errors = 0;
+    int held = 0, ticks = 0, errors = 0, clampBits = 0;
+    std::array<int, 4> byState {};
     for (int k = 0; k < telVar["voices"].size(); ++k)
-        held += static_cast<int> (telVar["voices"][k][0]);
+        ++byState[(size_t) juce::jlimit (0, 3, static_cast<int> (telVar["voices"][k][0]))];
+    held = byState[1];
+    for (int k = 0; k < telVar["grains"].size(); ++k)
+        clampBits += (static_cast<int> (telVar["grains"][k][7]) & 2) != 0 ? 1 : 0;
+    const auto mnKeys = telVar["modNorm"].getDynamicObject() != nullptr ? telVar["modNorm"].getDynamicObject()->getProperties().size() : -1;
     for (int k = 0; k < nat["getSlotOverview"]["dirty"].size(); ++k)
         ticks += static_cast<int> (nat["getSlotOverview"]["dirty"][k]) > 12 ? 1 : 0;   // above the page's 5 % tick threshold
     for (int k = 0; k < nat["getSlotState"]["slots"].size(); ++k)
         errors += nat["getSlotState"]["slots"][k]["error"].toString().isNotEmpty() ? 1 : 0;
-    const bool fixture = realOk && held == 1 && telVar["voices"].size() == 20 && telVar["grains"].size() == 10
+    const bool fixture = realOk && held == 1 && byState[2] == 1 && byState[3] == 1 && telVar["voices"].size() == 16 && telVar["grains"].size() == 10
+                      && static_cast<int> (telVar["newest"]) == 0 && telVar["menv"].size() == 16 && telVar["lfoPh"].size() == 4
+                      && telVar["lfoPh"][0].size() == 17 && telVar["sources"].size() == 17 && mnKeys == 2 && clampBits == 1
+                      && telVar["lanes"][0].hasProperty ("hi") && ! telVar["lanes"][1].hasProperty ("hi") && static_cast<int> (telVar["limit"]) == 256
+                      && static_cast<double> (telVar["out"][0]) == 0.5012 && static_cast<double> (telVar["rec"]["peak"][1]) == 0.05
                       && static_cast<double> (telVar["lanes"][0]["fb"]) > 0.0 && telVar["lanes"][0]["rec"].isVoid()
                       && telVar["lanes"][1]["fb"].isVoid() && static_cast<double> (telVar["lanes"][1]["rec"]) == 0.4
                       && static_cast<int> (telVar["rec"]["run"]) == 2 && static_cast<int> (telVar["rec"]["slot"]) == 2
@@ -1474,9 +1539,9 @@ static int dumpUiOverrides (const juce::File& out)
         ok = out.replaceWithText (text, false, false, "\n");
     }
     std::printf ("dump-ui-overrides: %d combos, %d sliders, %d defaults, %d curve points, %d peaks, revisions %s, tone %s, "
-                 "3.2 fixture %s (%d held voice, %d grains, fb %.4f, %d dirty ticks, %d error), hygiene %s -> %s (%s)\n",
+                 "3.3 fixture %s (%d held / %d released / %d stolen rows, %d grains, fb %.4f, %d dirty ticks, %d error), hygiene %s -> %s (%s)\n",
                  nc, nf, nd, curve, peaks, revs ? "match" : "MISMATCH", toneOk ? "loaded" : "NOT LOADED", fixture ? "ok" : "INCOMPLETE",
-                 held, static_cast<int> (telVar["grains"].size()), static_cast<double> (telVar["lanes"][0]["fb"]), ticks, errors,
+                 held, byState[2], byState[3], static_cast<int> (telVar["grains"].size()), static_cast<double> (telVar["lanes"][0]["fb"]), ticks, errors,
                  clean ? "clean" : "PATH / CR FOUND",
                  out.getFileName().toRawUTF8(), ok ? "ok" : (shape ? "WRITE FAILED" : "NOT WRITTEN"));
     return ok ? 0 : 1;
@@ -1568,6 +1633,12 @@ static int runHarness (int argc, char** argv)
             std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
             return juce::jmin (failures, 255);
         }
+        else if (std::strcmp (argv[a], "--ug33") == 0)    // dev: the Phase 3.3 processor-surface gates only (OGI_ROWS filters)
+        {
+            ug33::runAll();
+            std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
+            return juce::jmin (failures, 255);
+        }
         else if (std::strcmp (argv[a], "--dump-ui-overrides") == 0 && a + 1 < argc)   // PLAN-3.1 PD12 / PLAN-3.2 PD25: early exit, no gate runs
             return dumpUiOverrides (juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a])));
         else if (std::strcmp (argv[a], "--cpu26") == 0)   // PLAN-2.6 T17: run alone; rc = FAIL count (C25m / C25tm), C26rec INFO
@@ -1603,7 +1674,7 @@ static int runHarness (int argc, char** argv)
             return rh::dump (juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a])), true);
         else
         {
-            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--cpu25a] [--cpu25b] [--cpu26] [--eg24] [--eg25] [--eg25b] [--eg26] [--ug31] [--ug32] [--dump-ui-overrides <file>] [--gen-factory <dir> [--force]] [--calib]\n", argv[a], argv[0]);
+            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--cpu25a] [--cpu25b] [--cpu26] [--eg24] [--eg25] [--eg25b] [--eg26] [--ug31] [--ug32] [--ug33] [--dump-ui-overrides <file>] [--gen-factory <dir> [--force]] [--calib]\n", argv[a], argv[0]);
             return 255;
         }
     }
@@ -1630,6 +1701,7 @@ static int runHarness (int argc, char** argv)
     eg26b::runAll();
     ug31::runAll();   // PLAN-3.1 PD11 (after every existing row: their order and output are unchanged)
     ug32::runAll();   // PLAN-3.2 PD23 (after ug31: the carried rows keep their order and output)
+    ug33::runAll();   // PLAN-3.3 PD21 (after ug32: the carried rows keep their order)
 
     std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
     return juce::jmin (failures, 255);

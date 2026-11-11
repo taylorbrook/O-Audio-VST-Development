@@ -753,10 +753,15 @@ void Engine::process (float* outL, float* outR, int numSamples, const juce::Midi
 // PLAN-2.6 T11 / PD15: the Stage 3 feeds. Written here only; never read back.
 void Engine::publishTelemetry (const float* outL, const float* outR, int n, float scPk) noexcept
 {
-    float op = 0.0f;
+    // PLAN-3.3 PD5: the output peak per side (telemetry only).
+    float opL = 0.0f, opR = 0.0f;
     for (int i = 0; i < n; ++i)
-        op = std::max ({ op, std::abs (outL[i]), std::abs (outR[i]) });
-    pushMax (tel.outPeak, op);
+    {
+        opL = std::max (opL, std::abs (outL[i]));
+        opR = std::max (opR, std::abs (outR[i]));
+    }
+    pushMax (tel.outPeakL, opL);
+    pushMax (tel.outPeakR, opR);
     pushMax (tel.scInPeak, scPk);
 
     for (int s = 0; s < kTapeSlots; ++s)
@@ -798,20 +803,81 @@ void Engine::publishTelemetry (const float* outL, const float* outR, int n, floa
         u.tiltB      = vg.g.tiltB;
     }
     f.count = count;
+
+    // PLAN-3.3 PD3: per-voice LFO N is shown while its per-voice path runs
+    // (evaluated once per n, outside the voice loop).
+    static_assert (kUiLfos == kGiLfos && kUiModEnvs == kGiModEnvs, "GiUiVoice mod blocks match the engine");
+    bool lfoPv[kGiLfos] {};
+    for (int ln = 0; ln < kGiLfos; ++ln)
+        lfoPv[ln] = lfoPerVoiceActive (ln);
+    const auto ampStageOf = [] (AmpEnv::Stage st) noexcept -> std::uint8_t
+    {
+        switch (st)
+        {
+            case AmpEnv::Stage::attack:  return 1;
+            case AmpEnv::Stage::decay:   return 2;
+            case AmpEnv::Stage::sustain: return 3;
+            case AmpEnv::Stage::release:
+            case AmpEnv::Stage::forced:  return 4;
+            case AmpEnv::Stage::idle:    break;
+        }
+        return 0;
+    };
+    const auto menvStageOf = [] (GiModEnv::Stage st) noexcept -> std::uint8_t
+    {
+        switch (st)
+        {
+            case GiModEnv::Stage::attack:  return 1;
+            case GiModEnv::Stage::decay:   return 2;
+            case GiModEnv::Stage::sustain: return 3;
+            case GiModEnv::Stage::release: return 4;
+            case GiModEnv::Stage::idle:    break;
+        }
+        return 0;
+    };
+    f.newestSerial = newestSer;
+
     for (int k = 0; k < kVoiceSlots; ++k)
     {
         const Voice& v = voices[k];
         auto& u = f.voices[k];
         u.note = v.isCounted() ? static_cast<std::int8_t> (std::clamp (v.note, 0, 127)) : static_cast<std::int8_t> (-1);
         u.amp  = static_cast<float> (v.env.getLevel());
+
+        // PLAN-3.3 PD3: state / serial / stages / mod envs / per-voice LFO phases.
+        u.state    = v.isFree() ? std::uint8_t { 0 }
+                   : v.isStolen() ? std::uint8_t { 3 }
+                   : (v.gated ? std::uint8_t { 1 } : std::uint8_t { 2 });
+        u.serial   = v.isFree() ? 0 : v.serial;
+        u.ampStage = v.isFree() ? std::uint8_t { 0 } : ampStageOf (v.env.getStage());
+        for (int e = 0; e < kGiModEnvs; ++e)
+        {
+            u.menv[e]      = v.isFree() ? 0.0f : static_cast<float> (vm[k].env[e].getLevel());
+            u.menvStage[e] = v.isFree() ? std::uint8_t { 0 } : menvStageOf (vm[k].env[e].getStage());
+        }
+        for (int ln = 0; ln < kGiLfos; ++ln)
+        {
+            float ph = -1.0f;
+            if (! v.isFree() && lfoPv[ln] && vm[k].lfoOn[ln])
+            {
+                // The global path's own expression (writeTelemetry).
+                const double p = vm[k].lfo[ln].position() - static_cast<double> (vm[k].lfo[ln].getPhaseDeg()) / 360.0;
+                ph = static_cast<float> (p - std::floor (p));
+                if (! (ph < 1.0f)) ph = 0.0f;
+            }
+            u.lfoPh[ln] = ph;
+        }
+
         for (int s = 0; s < kGiStreams; ++s)
         {
             const SlotTape* tp = current[(size_t) s];
             if (tp == nullptr || ! v.isCounted() || ! (tp->frames > 0))
             {
                 u.scan[s] = 0.0f;
+                u.wantSt[s] = 0.0f;
                 continue;
             }
+            u.wantSt[s] = static_cast<float> (voiceSemis (v, pairSp (k, s), absPos));   // PD3: before the ±48 clamp
             const auto& sp = pairSp (k, s);
             const auto& rg = pairRegion (k, s);
             const double sigmaSec = (sp.scanMode == kScanFreeRun) ? freeRun[s].at (absPos) : v.scan[s].at (absPos);
@@ -3018,6 +3084,8 @@ void Engine::applyNe (const GiNeEvent& e) noexcept
 
 void Engine::stealVoice (int k) noexcept
 {
+    // PLAN-3.3 PD2: the UI steal ring (production telemetry; the ONLY writer).
+    tel.pushSteal (voices[k].serial);
    #if OGI_TEST_HOOKS
     ++hooks.voiceSteals;
     hooks.stolenSerials[hooks.stolenCount % EngineTestHooks::kStolenCapacity] = voices[k].serial;

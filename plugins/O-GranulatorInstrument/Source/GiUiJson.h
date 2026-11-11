@@ -260,30 +260,33 @@ namespace GiUiJson
     }
 
     //==========================================================================
-    /** getTelemetry, the 3.2 shape (PLAN-3.2 PD13) from the processor's ONE
-        telemetry builder (GranulatorInstrumentProcessor::buildUiTelemetry —
-        the editor passes Time::getMillisecondCounterHiRes(), the harness a
-        scripted clock). ALWAYS the full object:
+    /** getTelemetry, the 3.3 shape (PLAN-3.3 PD13; 3.2 PD13 extended) from the
+        processor's ONE telemetry builder (GranulatorInstrumentProcessor::
+        buildUiTelemetry — the editor passes Time::getMillisecondCounterHiRes(),
+        the harness a scripted clock). ALWAYS the full object, 14 keys:
 
           { scaleRev, slotRev,
-            lanes: [ { ovRev, fb: 0…1 | null, rec: 0…1 | null } × 4 ],   (no lo / hi)
-            voices: [ [state, note, amp, scan1, scan2, scan3, scan4, 0] × 20 ],
-            newest: -1, menv: [],
-            grains: [ [stream 1…4, normPos, pan, env, gain, lengthSec, voice, flags] … ],
-            counts: [n1, n2, n3, n4], limit: 0, out: [0, 0],
+            lanes: [ { ovRev, fb: 0…1 | null, rec: 0…1 | null[, lo, hi] } × 4 ],
+            voices: [ [state 0…3, note, amp, scan1, scan2, scan3, scan4, wantSt] × 16 ],
+            newest: row | -1,
+            menv: [ [e1Level, e1Stage, e2Level, e2Stage, ampStage] × 16 ],
+            lfoPh: [ [global, row0 … row15] × 4 ],
+            grains: [ [stream 1…4, normPos, pan, env, gain, lengthSec, voice row, flags] … ],
+            counts: [n1, n2, n3, n4], limit: 32 << grain_limit, out: [L, R],
             rec: { bus: 0 | 1, signal, run: 0…5, slot: 0…4, pos, len, capped,
-                   peak: [p, p] },
-            sources: [], modNorm: {} }
+                   peak: [L, R] },
+            sources: [17 values], modNorm: { "d": v } (routed d only) }
 
-        Absent stays null, never 0 (fb / rec). scan = −1 → no playhead. flags
-        carries the reversed bit only. Unchanged until 3.3: newest, menv,
-        limit 0, out, sources, modNorm; lo / hi, lfoPh, frozen, modRouted are
-        omitted. Floats are rounded to 4 decimals here (in double, so the JSON
-        stays short); a non-finite value is sent as 0. */
+        Absent stays absent / null, never 0: fb / rec null; lo / hi only
+        while a loop destination of the lane is routed; modNorm keys only for
+        routed destinations. scan = −1 → no playhead; lfoPh −1 → no dot.
+        flags: bit 0 reversed, bit 1 the voice's wanted pitch beyond ±48 st on
+        that stream. frozen, modRouted and stale are not emitted. Floats are
+        rounded to 4 decimals here (in double, so the JSON stays short); a
+        non-finite value is sent as 0. */
     inline juce::var telemetryToVar (const GranulatorInstrumentProcessor::UiTelemetry& t)
     {
         const auto r4 = [] (double v) { return std::isfinite (v) ? std::round (v * 10000.0) / 10000.0 : 0.0; };
-        const auto emptyArray = [] { return juce::var (juce::Array<juce::var>()); };
 
         auto* obj = new juce::DynamicObject();
         obj->setProperty ("scaleRev", revToInt (t.scaleRev));
@@ -296,6 +299,11 @@ namespace GiUiJson
             o->setProperty ("ovRev", revToInt (lane.ovRev));
             o->setProperty ("fb",  lane.hasFb  ? juce::var (r4 (static_cast<double> (lane.fb)))  : juce::var());
             o->setProperty ("rec", lane.hasRec ? juce::var (r4 (static_cast<double> (lane.rec))) : juce::var());
+            if (lane.hasLoHi)
+            {
+                o->setProperty ("lo", r4 (static_cast<double> (lane.lo)));
+                o->setProperty ("hi", r4 (static_cast<double> (lane.hi)));
+            }
             lanes.add (juce::var (o));
         }
         obj->setProperty ("lanes", lanes);
@@ -311,12 +319,37 @@ namespace GiUiJson
             row.add (r4 (static_cast<double> (v.amp)));
             for (const auto sc : v.scan)
                 row.add (r4 (static_cast<double> (sc)));
-            row.add (0);   // wantSt (3.3)
+            row.add (r4 (static_cast<double> (v.wantSt)));
             voices.add (juce::var (row));
         }
         obj->setProperty ("voices", voices);
-        obj->setProperty ("newest", -1);
-        obj->setProperty ("menv", emptyArray());
+        obj->setProperty ("newest", t.newest);
+
+        juce::Array<juce::var> menv;
+        menv.ensureStorageAllocated (static_cast<int> (t.menv.size()));
+        for (const auto& m : t.menv)
+        {
+            juce::Array<juce::var> row;
+            row.ensureStorageAllocated (5);
+            row.add (r4 (static_cast<double> (m.e1)));
+            row.add (m.st1);
+            row.add (r4 (static_cast<double> (m.e2)));
+            row.add (m.st2);
+            row.add (m.ampSt);
+            menv.add (juce::var (row));
+        }
+        obj->setProperty ("menv", menv);
+
+        juce::Array<juce::var> lfoPh;
+        for (const auto& lr : t.lfoPh)
+        {
+            juce::Array<juce::var> row;
+            row.ensureStorageAllocated (static_cast<int> (lr.size()));
+            for (const auto ph : lr)
+                row.add (r4 (static_cast<double> (ph)));
+            lfoPh.add (juce::var (row));
+        }
+        obj->setProperty ("lfoPh", lfoPh);
 
         juce::Array<juce::var> grains;
         const int numGrains = juce::jlimit (0, static_cast<int> (t.grains.size()), t.grainCount);
@@ -345,8 +378,8 @@ namespace GiUiJson
         obj->setProperty ("limit", t.limit);
 
         juce::Array<juce::var> out;
-        out.add (0);
-        out.add (0);
+        out.add (r4 (static_cast<double> (t.outL)));
+        out.add (r4 (static_cast<double> (t.outR)));
         obj->setProperty ("out", out);
 
         auto* rec = new juce::DynamicObject();
@@ -358,13 +391,22 @@ namespace GiUiJson
         rec->setProperty ("len", r4 (static_cast<double> (t.rec.len)));
         rec->setProperty ("capped", t.rec.capped);
         juce::Array<juce::var> peak;
-        peak.add (r4 (static_cast<double> (t.rec.peak)));
-        peak.add (r4 (static_cast<double> (t.rec.peak)));
+        peak.add (r4 (static_cast<double> (t.rec.peakL)));
+        peak.add (r4 (static_cast<double> (t.rec.peakR)));
         rec->setProperty ("peak", peak);
         obj->setProperty ("rec", juce::var (rec));
 
-        obj->setProperty ("sources", emptyArray());
-        obj->setProperty ("modNorm", juce::var (new juce::DynamicObject()));
+        juce::Array<juce::var> sources;
+        sources.ensureStorageAllocated (static_cast<int> (t.sources.size()));
+        for (const auto sv : t.sources)
+            sources.add (r4 (static_cast<double> (sv)));
+        obj->setProperty ("sources", sources);
+
+        auto* modNorm = new juce::DynamicObject();
+        for (std::size_t d = 1; d < t.modRouted.size(); ++d)
+            if (t.modRouted[d])
+                modNorm->setProperty (juce::Identifier (juce::String (static_cast<int> (d))), r4 (static_cast<double> (t.modNorm[d])));
+        obj->setProperty ("modNorm", juce::var (modNorm));
         return juce::var (obj);
     }
 

@@ -140,6 +140,192 @@ private:
 };
 
 // ============================================================================
+// PLAN-3.3 PD1 / PD2 / PD4: the 16 display rows of the voice strip, keyed by
+// the engine's note SERIAL (the engine has 20 slots: 16 counted + 4 steal
+// spares, first-free identity allocation, so a voice can sit in slot 16–19).
+// Pure: no engine, no time source — the frame, this poll's new steals and the
+// clock are passed in. Owned by the processor, used only inside
+// buildUiTelemetry under telemetryLock.
+//
+// Per poll (update), in this order:
+//   1. each new steal (the engine's ring) → the row holding that serial shows
+//      3 (stolen) and starts a hold of `stealHoldMs` (once per serial);
+//   2. a row whose serial is not in the frame as a non-free voice and is not
+//      inside its hold → empty;
+//   3. rows whose serial is in the frame follow it (state 1 / 2; a frame
+//      state 3 also starts the hold; once stolen a row stays 3);
+//   4. frame voices without a row, by ascending serial: a COUNTED voice takes
+//      the lowest empty row, else the lowest stolen row whose hold expired,
+//      else the stolen row with the oldest hold (a counted voice always wins a
+//      row; counted ≤ polyphony ≤ 16). A STOLEN voice without a row only takes
+//      an empty row (it never displaces anything).
+// A voice keeps its row for its life. A held stolen row keeps the note of its
+// last counted observation (the frame sends −1 for stolen voices).
+// Accepted limit (HANDS-ON-3.3): at polyphony 16 every row is counted, so the
+// new voice takes the victim's row at once and the steal reads as a note change.
+// ============================================================================
+struct GiVoiceRowMap
+{
+    static constexpr int    kRows        = ogi::kMaxCountedVoices;   // 16 (the page draws 16)
+    static constexpr double kStealHoldMs = 300.0;                    // PD2: ≈ 9 polls at 30 Hz
+
+    struct Row
+    {
+        std::uint64_t serial = 0;       // 0 = empty
+        int    note = -1;               // the last counted observation
+        int    shown = 0;               // 0 empty · 1 gated · 2 released · 3 stolen
+        bool   stolen = false;          // sticky once the serial is known stolen
+        double holdUntilMs = 0.0;       // valid while stolen
+        int    slot = -1;               // engine slot holding `serial` in THIS poll's frame, −1 = gone
+    };
+
+    explicit GiVoiceRowMap (double stealHoldMs = kStealHoldMs) noexcept : holdMs (stealHoldMs) { clear(); }
+
+    void clear() noexcept
+    {
+        rows.fill (Row {});
+        slotRow.fill (-1);
+    }
+
+    void update (const ogi::GiUiFrame& f, const std::uint64_t* steals, int numSteals, double nowMs) noexcept
+    {
+        slotRow.fill (-1);
+
+        // 1. new steals from the ring
+        for (int i = 0; i < numSteals; ++i)
+            if (steals[i] != 0)
+                for (auto& r : rows)
+                    if (r.serial == steals[i])
+                        markStolen (r, nowMs);
+
+        // 2 + 3. existing rows follow the frame, or empty outside a hold
+        for (int ri = 0; ri < kRows; ++ri)
+        {
+            auto& r = rows[static_cast<std::size_t> (ri)];
+            if (r.serial == 0)
+                continue;
+            const int k = slotOf (f, r.serial);
+            r.slot = k;
+            if (k < 0)
+            {
+                if (! (r.stolen && nowMs < r.holdUntilMs))
+                    r = Row {};
+                continue;
+            }
+            slotRow[static_cast<std::size_t> (k)] = ri;
+            follow (r, f.voices[k], nowMs);
+        }
+
+        // 4. frame voices without a row, ascending serial
+        int order[ogi::kVoiceSlots] {};
+        int n = 0;
+        for (int k = 0; k < ogi::kVoiceSlots; ++k)
+            if (f.voices[k].state != 0 && f.voices[k].serial != 0 && slotRow[static_cast<std::size_t> (k)] < 0)
+            {
+                int j = n++;
+                while (j > 0 && f.voices[order[j - 1]].serial > f.voices[k].serial)
+                {
+                    order[j] = order[j - 1];
+                    --j;
+                }
+                order[j] = k;
+            }
+        for (int i = 0; i < n; ++i)
+        {
+            const int k = order[i];
+            const auto& u = f.voices[k];
+            const bool counted = u.state == 1 || u.state == 2;
+            int ri = lowestEmpty();
+            if (ri < 0)
+                ri = lowestExpired (nowMs);
+            if (ri < 0 && counted)
+                ri = oldestHold();
+            if (ri < 0)
+                continue;   // a stolen voice finds no free row: not shown
+            auto& r = rows[static_cast<std::size_t> (ri)];
+            if (r.slot >= 0)
+                slotRow[static_cast<std::size_t> (r.slot)] = -1;   // the evicted stolen voice loses its row
+            r = Row {};
+            r.serial = u.serial;
+            r.slot = k;
+            slotRow[static_cast<std::size_t> (k)] = ri;
+            follow (r, u, nowMs);
+        }
+    }
+
+    /** The row of engine slot k in the last update, −1 when unmapped. */
+    int rowOfSlot (int k) const noexcept
+    {
+        return (k >= 0 && k < ogi::kVoiceSlots) ? slotRow[static_cast<std::size_t> (k)] : -1;
+    }
+    const Row& row (int r) const noexcept { return rows[static_cast<std::size_t> (juce::jlimit (0, kRows - 1, r))]; }
+    double stealHoldMs() const noexcept   { return holdMs; }
+
+private:
+    static int slotOf (const ogi::GiUiFrame& f, std::uint64_t serial) noexcept
+    {
+        for (int k = 0; k < ogi::kVoiceSlots; ++k)
+            if (f.voices[k].state != 0 && f.voices[k].serial == serial)
+                return k;
+        return -1;
+    }
+    void markStolen (Row& r, double nowMs) const noexcept
+    {
+        if (! r.stolen)
+        {
+            r.stolen = true;
+            r.holdUntilMs = nowMs + holdMs;
+        }
+        r.shown = 3;
+    }
+    void follow (Row& r, const ogi::GiUiVoice& u, double nowMs) const noexcept
+    {
+        if (u.state == 3)
+            markStolen (r, nowMs);
+        if (r.stolen)
+        {
+            r.shown = 3;
+            return;
+        }
+        r.shown = static_cast<int> (u.state);   // 1 | 2
+        if (u.note >= 0)
+            r.note = static_cast<int> (u.note);
+    }
+    int lowestEmpty() const noexcept
+    {
+        for (int i = 0; i < kRows; ++i)
+            if (rows[static_cast<std::size_t> (i)].serial == 0)
+                return i;
+        return -1;
+    }
+    int lowestExpired (double nowMs) const noexcept
+    {
+        for (int i = 0; i < kRows; ++i)
+        {
+            const auto& r = rows[static_cast<std::size_t> (i)];
+            if (r.stolen && ! (nowMs < r.holdUntilMs))
+                return i;
+        }
+        return -1;
+    }
+    int oldestHold() const noexcept
+    {
+        int best = -1;
+        for (int i = 0; i < kRows; ++i)
+        {
+            const auto& r = rows[static_cast<std::size_t> (i)];
+            if (r.stolen && (best < 0 || r.holdUntilMs < rows[static_cast<std::size_t> (best)].holdUntilMs))
+                best = i;
+        }
+        return best;
+    }
+
+    double holdMs;
+    std::array<Row, kRows> rows {};
+    std::array<int, ogi::kVoiceSlots> slotRow {};
+};
+
+// ============================================================================
 // O-GranulatorInstrument, Stage 2 / Phase 2.2.
 //
 // 261 APVTS parameters (GiParamIds.h), a stereo instrument output plus ONE
@@ -370,15 +556,19 @@ public:
         return slot0 >= 0 && slot0 < ogi::kTapeSlots && slotDirty[static_cast<std::size_t> (slot0)];
     }
 
-    // ── Stage 3 / 3.2: telemetry (PLAN-3.2 PD2 – PD5, PD9 – PD13) ─────────────
+    // ── Stage 3 / 3.2 + 3.3: telemetry (PLAN-3.2 PD2 – PD5, PD9 – PD13; PLAN-3.3 PD1 – PD13) ──
     /** What getTelemetry sends, as plain values (GiUiJson::telemetryToVar
         encodes it). Slots / streams are 0-based array indices here; the
         numbers the page reads 1-based (grain stream, rec.slot) are already
-        1-based in the fields. */
+        1-based in the fields. Voice / menv / lfoPh rows, `newest` and the grain
+        `voice` are DISPLAY rows (GiVoiceRowMap), never engine slots. */
     struct UiTelemetry
     {
-        static constexpr int kVoices    = ogi::kVoiceSlots;              // 20 rows
+        static constexpr int kVoices    = GiVoiceRowMap::kRows;          // 16 display rows (PLAN-3.3 PD1)
         static constexpr int kMaxGrains = ogi::GiUiFrame::kMaxGrains;    // 288
+        static constexpr int kSources   = ogi::kGiModSources - 1;        // 17 (1…17 on the engine side)
+        static constexpr int kDests     = ogi::kGiModDests;              // 126 (index 0 = None, unused)
+        static constexpr int kLfos      = ogi::kGiLfos;                  // 4
 
         struct Lane
         {
@@ -387,20 +577,28 @@ public:
             float fb = 0.0f;        // feedback head, 0…1
             bool  hasRec = false;   // false → `rec: null`
             float rec = 0.0f;       // record progress, 0…1 (only while run == 2, target lane)
+            bool  hasLoHi = false;  // PLAN-3.3 PD10: a loop dest of this lane is routed (else lo / hi absent)
+            float lo = 0.0f, hi = 1.0f;
         };
-        struct Voice   // row [state, note, amp, scan1..4, 0]
+        struct Voice   // row [state, note, amp, scan1..4, wantSt]
         {
-            int   state = 0;        // 1 = counted voice, 0 = free (no releasing state until 3.3)
+            int   state = 0;        // 0 empty · 1 gated · 2 released · 3 stolen (held, PLAN-3.3 PD1 / PD2)
             int   note = -1;
             float amp = 0.0f;
             std::array<float, ogi::kGiStreams> scan { { -1.0f, -1.0f, -1.0f, -1.0f } };   // −1 = no playhead
+            float wantSt = 0.0f;    // PLAN-3.3 PD11: the first enabled stream with a tape, before the ±48 clamp
+        };
+        struct Menv    // row [e1Level, e1Stage, e2Level, e2Stage, ampStage] (PLAN-3.3 PD7)
+        {
+            float e1 = 0.0f, e2 = 0.0f;
+            int   st1 = 0, st2 = 0, ampSt = 0;   // 0 off · 1 A · 2 D · 3 S · 4 R
         };
         struct Grain   // row [stream, normPos, pan, env, gain, lengthSec, voice, flags]
         {
             int   stream = 1;       // 1…4
             float normPos = 0.0f, pan = 0.0f, env = 0.0f, gain = 0.0f, lengthSec = 0.0f;
-            int   voice = 0;
-            int   flags = 0;        // bit 0 = reversed, nothing else (the engine's killing bit is never sent)
+            int   voice = -1;       // display row 0…15, −1 when the grain's voice has no row (PLAN-3.3 PD1)
+            int   flags = 0;        // bit 0 = reversed, bit 1 = its voice × stream wants > ±48 st (PLAN-3.3 PD11); the killing bit is never sent
         };
         struct Rec
         {
@@ -410,17 +608,25 @@ public:
             int   slot = 0;         // 1…4 (0 before the first take)
             float pos = 0.0f, len = 0.0f;   // frames / target; target / fs (seconds)
             bool  capped = false;   // Tempo mode, not recording, bars × bar > F_max
-            float peak = 0.0f;      // sent as [peak, peak]
+            float peak = 0.0f;      // max (peakL, peakR) (the signal test; URC2)
+            float peakL = 0.0f, peakR = 0.0f;   // PLAN-3.3 PD5: sent as [L, R]
         };
 
         std::uint32_t scaleRev = 0, slotRev = 0;
         std::array<Lane, ogi::kTapeSlots> lanes {};
         std::array<Voice, kVoices> voices {};
+        int  newest = -1;           // PLAN-3.3 PD4: display row of the engine's newest voice (counted only), else −1
+        std::array<Menv, kVoices> menv {};
+        std::array<std::array<float, 1 + kVoices>, kLfos> lfoPh {};   // PLAN-3.3 PD8: [global, row0 … row15]; −1 = none
         std::array<Grain, kMaxGrains> grains {};
         int  grainCount = 0;
         std::array<int, ogi::kGiStreams> counts {};   // neither killing nor in a fade slot
-        int  limit = 0;             // 0 → the page parses the grain_limit choice (3.3)
+        int  limit = 0;             // PLAN-3.3 PD12: 32 << grain_limit
+        float outL = 0.0f, outR = 0.0f;               // PLAN-3.3 PD5: max |out| per side since the last read
         Rec  rec;
+        std::array<float, kSources> sources {};       // PLAN-3.3 PD6: getSourceTelemetry (1…17)
+        std::array<bool, kDests>  modRouted {};       // PLAN-3.3 PD9: modNorm keys (index 1…125)
+        std::array<float, kDests> modNorm {};
         bool stale = false;         // PD4: the frame did not move for ≥ kStaleMs (voices / grains / counts emptied)
     };
 
@@ -429,8 +635,9 @@ public:
     static constexpr double kDirtyMinMs   = 100.0;    // PD7: ≤ 10 Hz per slot
 
     /** MESSAGE THREAD, under telemetryLock (two editors). THE ONLY caller of
-        the grain frame (frames.read()) and of the recorder's takeScPeak();
-        owns the stale-frame, run-hold, signal and dirty state. `nowMs` is the
+        the grain frame (frames.read()), the engine's takeOutPeaks(), the
+        recorder's takeScPeaks() and the steal-ring cursor (PLAN-3.3 PD15);
+        owns the stale-frame, run-hold, signal, dirty and voice-row state. `nowMs` is the
         caller's clock (the editor: Time::getMillisecondCounterHiRes(); the
         harness: a scripted one) — never read inside. */
     UiTelemetry buildUiTelemetry (double nowMs);
@@ -528,6 +735,16 @@ public:
     SaveResult saveRecordingSync (int slot0, const juce::File& file, const std::function<void()>& pump = {});
     /** USV2: true while a timed-out save's buffer is still allocated. */
     bool saveBufferHeldForTest() const;
+
+    /** PLAN-3.3 controls for the ui_gates_33 negative rows (message thread;
+        set before the polls they affect). */
+    void testSetStealHoldMs (double ms);         // UVS1n: hold 0 (resets the row map)
+    bool testRowMapIdentity  = false;            // UVR1n: row = engine slot 0…15 (no map)
+    bool testClampFromStream0 = false;           // UWS1n: stream 0's wantSt decides every stream's clamp bit
+    bool testModNormAll      = false;            // UMN1n: all 125 modNorm keys sent
+    bool testLoHiAlways      = false;            // ULH1n: lo / hi on every lane
+    bool testPeaksMax        = false;            // UMT2n: out / rec.peak sent as [max, max]
+    bool testPeaksNoExchange = false;            // UMT4n: the peaks are read without the exchange
    #endif
 
     /** PLAN-2.6 PD7: the off-audio poll (message-thread Timer, or a watcher
@@ -646,6 +863,8 @@ private:
     GiRecRunHold  recRunHold;                  // PD9
     bool          signalSeen = false;          // PD10
     double        signalLastMs = 0.0;
+    GiVoiceRowMap voiceRowMap;                 // PLAN-3.3 PD1
+    std::uint32_t stolenSeen = 0;              // PLAN-3.3 PD2: the steal-ring cursor (the ONE reader's)
 
     // PD7 (message thread): the cached dirty flags and the key each was
     // evaluated at.
