@@ -96,6 +96,35 @@
     outside the feature's footprint (canvas backing pixels are mapped through
     canvas.width / clientWidth, so the row holds at any devicePixelRatio).
 
+    MOD / VOICE / METERS (PLAN-3.3 PD24), after the lanes, on a FRESHLY LOADED
+    page (the rows edit the stub's fixture objects; ST1 consumes the page):
+      VC1  voice cell + header dot classes and vstt-* keys for states 0–3;
+           .newest only on the newest row (none at newest −1)
+      VC2  column 8: +50 -> vstate.clamp {s: +48} + .clamp, +12 -> "+12 st"
+      VC3  header voicesHeld / voicesState / voicesIdle with the held / released counts
+      MV1  chip glow from sources (bipolar mapping), the source read-outs and
+           bars, the key view's newest colour (pixel)
+      MV2  ring dot at modNorm on a routed knob; base when the key is absent;
+           hidden when unrouted
+      MV3  loop shading from lanes[].lo / .hi; loop-edge tick from modNorm, only routed (pixel)
+      MV4  LFO dot on the drawn curve at lfo1_phase 90° (pixel, ± 2 px)
+      MV5  mrow-1.mono-on for source x dest x LFO mode (18 cases)
+      MV6  menv dot on its envelope figure at the stage position (pixel);
+           label.newest vs label.idle
+      DM1  drag-to-modulate: each of the 17 dock chips onto a knob and a loop
+           handle by a real pointer sequence (never addRoute); matrix reset
+           before each drop; modM_source / dest / depth = chip / data-dest / 40
+      DM2  every .knob-cell[data-dest], .loop-h[data-dest] (the page's own
+           target selector) takes one drop, page by page; census == the
+           runtime count of that selector, every destination 1…125 covered
+      MT1  meter bar tops for out and rec.peak at (dB + 48) / 54 of the
+           height, ± 1 px, L and R independent
+      HV1  #heavy.on at grain_limit 3, off at 2
+      ST1  tests/i18n-states.json replayed in file order: every state that
+           names a target (__giState sel / key / extra targets, or a
+           __setLabel call) shows its key (and vars) at +150 ms AND +450 ms,
+           with >= 10 telemetry polls in between
+
     Usage (from anywhere):
       node plugins/O-GranulatorInstrument/tests/ui_binding_probe.js                    liveness + VE + lanes on the tree's page
       node plugins/O-GranulatorInstrument/tests/ui_binding_probe.js --liveness-only    261 x 2 only
@@ -112,6 +141,14 @@
       --mutate-bindknob <id>   the raw mutated run --nc drives (exits non-zero).
       --lanes-only             skip liveness and value entry (the verdict line says so).
       --mutate-grains-0based   the stub's grain rows carry stream 0…3 (raw run of the second control).
+      --mod-only               the MOD / voice / meter group only (VC, MV, DM, MT, HV, ST).
+      The --nc run adds four PD24 controls, each a raw --mod-only run that must
+      FAIL on exactly its row:
+      --mutate-lfo-dot-prefix  the pre-PD16 LFO dot expression (lfoShapeAt(shape, pp))  -> MV4
+      --mutate-drop-dest       handle-s2_loop_start loses its data-dest                  -> DM2
+      --mutate-out-max         the stub answers out as [max, max]                        -> MT1
+      --mutate-states-old-rec  the 3.2 rec-recording (__setLabel) state inserted into a
+                               COPY of the state file, at its old position               -> ST1
     Exit: 0 = all pass; n = failures (max 76); 78 = refused (no overrides
     banner / page not served as asked); 70 = crashed; 77 = Playwright missing —
     NOTHING was verified, which is NOT a pass.
@@ -137,6 +174,25 @@ const LIVENESS_ONLY = argv.includes('--liveness-only');
 const MUTATE = argVal('--mutate-bindknob');
 const LANES_ONLY = argv.includes('--lanes-only');
 const GRAINS_0BASED = argv.includes('--mutate-grains-0based');
+const MOD_ONLY = argv.includes('--mod-only');
+const MUT_LFO = argv.includes('--mutate-lfo-dot-prefix');
+const MUT_DEST = argv.includes('--mutate-drop-dest');
+const MUT_OUT = argv.includes('--mutate-out-max');
+const MUT_STATES = argv.includes('--mutate-states-old-rec');
+const MV_NAMES = ['VC1 voice cell / dot classes and vstt keys for states 0–3; .newest only on the newest row',
+    'VC2 column 8: +50 -> vstate.clamp +48 (.clamp), +12 -> "+12 st"',
+    'VC3 header voicesHeld / voicesState / voicesIdle counts',
+    'MV1 chip glow from sources (bipolar mapping), source read-outs and bars, key view newest colour',
+    'MV2 ring dot at modNorm on a routed knob, base when the key is absent, hidden when unrouted',
+    'MV3 loop shading from lanes[].lo / .hi, loop-edge tick from modNorm (routed only)',
+    'MV4 LFO dot on the drawn curve at lfo1_phase 90°',
+    'MV5 mrow-1.mono-on for source x dest x LFO mode',
+    'MV6 menv dot on its envelope figure at the stage position; label.newest vs label.idle',
+    'DM1 drag-to-modulate: 17 dock chips onto a knob and a loop handle by real pointer sequences',
+    'DM2 drop-target census: every .knob-cell[data-dest], .loop-h[data-dest] takes a drop',
+    'MT1 meter bar tops for out and rec.peak, L / R independent',
+    'HV1 #heavy.on at grain_limit 3, off at 2',
+    'ST1 i18n-states.json replayed in file order: every named target holds at +150 and +450 ms'];
 const PX_TOL = 2;          // px: expected x of a canvas feature (PD27)
 const PX_DIFF = 6;         // 0…255: a pixel "differs" between two frames at or above this
 const PX_STRONG = 90;      // 0…255: the record head against its own 8 % tint and the dimmed waveform
@@ -174,7 +230,27 @@ if (argv.includes('--nc')) {
     console.log(`  ${ok2 ? 'PASS' : 'FAIL'}: 0-based grain rows -> exit ${r2.status}; ${lanesLine}; ${fails2.length} FAIL line(s), ${onlyPx2 ? 'confined to PX2' : 'NOT confined to PX2'}`);
     if (!ok2) console.log(r2.stdout.split('\n').slice(-14).join('\n') + (r2.stderr ? '\n' + r2.stderr.slice(-600) : ''));
     console.log(ok2 ? 'negative control: 0-based grain rows FAIL the stream pixel row — the gate is live' : 'negative control: 0-based grain rows did NOT fail as required');
-    process.exit(ok && ok2 ? 0 : 1);
+
+    // PLAN-3.3 PD24: four controls on the MOD / voice / meter group, each confined to its row.
+    let okMod = true;
+    for (const [flag, row, what] of [['--mutate-lfo-dot-prefix', 'MV4', 'the pre-fix LFO dot expression'],
+                                     ['--mutate-drop-dest', 'DM2', 'one drop target without its data-dest'],
+                                     ['--mutate-out-max', 'MT1', 'out sent as [max, max]'],
+                                     ['--mutate-states-old-rec', 'ST1', 'the old rec-recording __setLabel state in a copy of the state file']]) {
+        console.log(`== ${PLUGIN} ui_binding_probe — negative control (${what}) ==`);
+        const rm = spawnSync(process.execPath, [__filename, flag, '--mod-only', ...(PAGE ? ['--page', PAGE] : [])], { encoding: 'utf8', maxBuffer: 1 << 26 });
+        if (rm.status === 77) { console.log('  Playwright could not be resolved — NOTHING verified (exit 77 is not a pass).'); process.exit(77); }
+        const fm = rm.stdout.match(/^ {2}FAIL: .*$/gm) || [];
+        const only = fm.length === 1 && new RegExp(`FAIL: ${row} `).test(fm[0]);
+        const modLine = (rm.stdout.match(/^ {3}mod \d+ \/ \d+ rows$/m) || ['   (no mod tally line)'])[0].trim();
+        for (const f of fm.slice(0, 4)) console.log(`      ${f.trim().slice(0, 600)}`);
+        const okm = rm.status === 1 && only;
+        console.log(`  ${okm ? 'PASS' : 'FAIL'}: ${what} -> exit ${rm.status}; ${modLine}; ${fm.length} FAIL line(s), ${only ? 'confined to ' + row : 'NOT confined to ' + row}`);
+        if (!okm) console.log(rm.stdout.split('\n').slice(-14).join('\n') + (rm.stderr ? '\n' + rm.stderr.slice(-600) : ''));
+        console.log(okm ? `negative control: ${what} FAILS ${row} — the gate is live` : `negative control: ${what} did NOT fail ${row} as required`);
+        okMod = okMod && okm;
+    }
+    process.exit(ok && ok2 && okMod ? 0 : 1);
 }
 
 function readTypes() {
@@ -205,7 +281,10 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
     }
 
     const params = readTypes();
-    console.log(`== ${PLUGIN} ui_binding_probe${MUTATE ? ' (MUTATED: bindKnob(' + MUTATE + ') removed)' : ''}${GRAINS_0BASED ? ' (MUTATED: stub grain rows 0-based)' : ''}${LIVENESS_ONLY ? ' (liveness only)' : ''}${LANES_ONLY ? ' (lanes only)' : ''} ==`);
+    console.log(`== ${PLUGIN} ui_binding_probe${MUTATE ? ' (MUTATED: bindKnob(' + MUTATE + ') removed)' : ''}${GRAINS_0BASED ? ' (MUTATED: stub grain rows 0-based)' : ''}`
+              + `${MUT_LFO ? ' (MUTATED: pre-fix LFO dot)' : ''}${MUT_DEST ? ' (MUTATED: handle-s2_loop_start data-dest removed)' : ''}`
+              + `${MUT_OUT ? ' (MUTATED: out sent [max, max])' : ''}${MUT_STATES ? ' (MUTATED: old rec-recording state in a copy)' : ''}`
+              + `${LIVENESS_ONLY ? ' (liveness only)' : ''}${LANES_ONLY ? ' (lanes only)' : ''}${MOD_ONLY ? ' (mod only)' : ''} ==`);
     console.log(`   params.tsv: ${params.length} ids`);
 
     const built = S.buildRoot(PLUGIN);
@@ -247,6 +326,14 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
         const call = 'KNOB_IDS.forEach((id) => bindKnob(Juce, id));';
         if (!served.includes(call)) { console.log('  REFUSED: the mutation did not apply'); cleanup(); process.exit(78); }
         served = served.replace(call, `KNOB_IDS.filter((id) => id !== '${MUTATE}').forEach((id) => bindKnob(Juce, id));`);
+        fs.writeFileSync(indexPath, served);
+    }
+    // PD24 page mutations (served copy only; the tree page is never written).
+    for (const [on, from, to] of [[MUT_LFO, 'Y = h / 2 - lfoShapeAt(shape, (pp + ph0) % 1) * (h / 2 - 6);', 'Y = h / 2 - lfoShapeAt(shape, pp) * (h / 2 - 6);'],
+                                  [MUT_DEST, 'id="handle-s2_loop_start" data-param="s2_loop_start" data-dest="55" ', 'id="handle-s2_loop_start" data-param="s2_loop_start" ']]) {
+        if (!on) continue;
+        if (served.split(from).length !== 2) { console.log(`  REFUSED: the page mutation did not apply (${from.slice(0, 60)})`); cleanup(); process.exit(78); }
+        served = served.replace(from, to);
         fs.writeFileSync(indexPath, served);
     }
 
@@ -424,7 +511,7 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
     let hostOk = 0, uiOk = 0;
     const kinds = {};
 
-    for (const { id, type } of (LANES_ONLY ? [] : params)) {
+    for (const { id, type } of (LANES_ONLY || MOD_ONLY ? [] : params)) {
         const info = await page.evaluate(({ id, type }) => {
             const H = window.__probe;
             const kind = H.kind(id, type);
@@ -585,8 +672,8 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
     }
 
     const liveFailuresBefore = failures;
-    if (LANES_ONLY) {
-        console.log('\n   liveness: NOT RUN (--lanes-only)');
+    if (LANES_ONLY || MOD_ONLY) {
+        console.log(`\n   liveness: NOT RUN (${MOD_ONLY ? '--mod-only' : '--lanes-only'})`);
     } else {
         console.log(`   binders: ${Object.keys(KIND_COUNTS).map((k) => `${k} ${kinds[k] || 0}`).join(', ')}${kinds.none ? ', NONE ' + kinds.none : ''}`
                   + ` = ${Object.values(kinds).reduce((a, b) => a + b, 0)}`);
@@ -605,8 +692,8 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
         'VE12a scan mode typed in French, page in fr', 'VE12b language switch closes an open field', 'VE12c Sync twin hidden closes an open field'];
     let veRun = 0, vePass = 0;
 
-    if (LIVENESS_ONLY || LANES_ONLY) {
-        console.log(`\n   value entry: NOT RUN (${LANES_ONLY ? '--lanes-only' : '--liveness-only'})`);
+    if (LIVENESS_ONLY || LANES_ONLY || MOD_ONLY) {
+        console.log(`\n   value entry: NOT RUN (${MOD_ONLY ? '--mod-only' : LANES_ONLY ? '--lanes-only' : '--liveness-only'})`);
     } else if (!hasVE) {
         console.log('\n-- value entry (VE1–VE12)');
         for (const n of VE_NAMES) fail(`${n} — NOT RUN: the served page has no value-entry code (attachValueEntry / bindLabelEntry / .knob-value-input)`);
@@ -903,8 +990,8 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
         'PX1 playhead', 'PX2 grain dot of stream 1 and of stream 4', 'PX3 feedback head', 'PX4 record head', 'PX5 dirty tick'];
     let lnRun = 0, lnPass = 0;
 
-    if (LIVENESS_ONLY) {
-        console.log('\n   lanes: NOT RUN (--liveness-only)');
+    if (LIVENESS_ONLY || MOD_ONLY) {
+        console.log(`\n   lanes: NOT RUN (${MOD_ONLY ? '--mod-only' : '--liveness-only'})`);
     } else {
         console.log('\n-- lanes (LN1–LN7, PX1–PX5)');
         // The fixture as the C++ encoders dumped it (expectations come from DISK;
@@ -1363,16 +1450,598 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
         if (lnRun !== LN_NAMES.length) fail(`lanes: ${lnRun} rows ran, expected ${LN_NAMES.length}`);
     }
 
+    // ══════════════════════════════ MOD / voice / meters (PLAN-3.3 PD24) ══
+    let mvRun = 0, mvPass = 0, dmCensus = '';
+    if (LIVENESS_ONLY || LANES_ONLY) {
+        console.log(`\n   mod: NOT RUN (${LIVENESS_ONLY ? '--liveness-only' : '--lanes-only'})`);
+    } else {
+        console.log('\n-- mod / voice / meters (VC1–VC3, MV1–MV6, DM1–DM2, MT1, HV1, ST1)');
+        // A FRESH page: these rows edit the stub's fixture objects freely, and
+        // ST1 replays the state file into the page the way check-ui-labels does.
+        const freshPage = async () => {
+            await page.goto(`http://127.0.0.1:${srv.port}/`);
+            await page.waitForFunction((presetFns) => {
+                const calls = window.__stubNativeCalls;
+                if (!window.__stubStates || !Array.isArray(calls)) return false;
+                const called = (n) => calls.some((c) => c.name === n);
+                const v = document.getElementById('val-polyphony');
+                return called('getTelemetry') && called('getSlotState') && called('getSlotOverview') && called('getScaleState')
+                    && presetFns.every((n) => window.__stubReport.nativeKnown.includes(n)) && v && v.textContent !== '—';
+            }, PRESET_FNS, { timeout: 15000 });
+            await page.waitForTimeout(400);
+            await page.mouse.move(1195, 795);                       // off every chip (a hovered chip keeps its colour)
+        };
+        await freshPage();
+        const bipolar = ((served.match(/const BIPOLAR_SOURCES = \[([^\]]*)\];/) || [])[1] || '').split(',').map((x) => Number(x.trim())).filter((x) => x > 0);
+
+        await page.evaluate((outMax) => {
+            const nat = window.__stubOverrides.natives, calls = window.__stubNativeCalls, T = nat.getTelemetry, St = window.__stubStates;
+            const M = window.__mv = { nat };
+            if (outMax) {                                               // NC: whatever a row stores, the page reads [max, max]
+                let stored = T.out;
+                Object.defineProperty(T, 'out', { configurable: true, enumerable: true,
+                    get: () => { const m = Math.max(...stored.map(Number)); return [m, m]; }, set: (v) => { stored = v; } });
+            }
+            M.count = (name) => { let k = 0; for (const c of calls) if (c.name === name) ++k; return k; };
+            const raf = M.raf = () => new Promise((r) => requestAnimationFrame(r));
+            M.until = async (pred, what) => { const t0 = performance.now(); while (!pred()) { if (performance.now() - t0 > 5000) throw new Error(`timed out waiting for ${what}`); await raf(); } };
+            // The page pulled the edited answer at least twice and drew a frame from it.
+            M.settle = async () => { const b = M.count('getTelemetry'); await M.until(() => M.count('getTelemetry') >= b + 2, 'two telemetry pulls'); await raf(); await raf(); return M.count('getTelemetry') - b; };
+            M.set = (ops) => { for (const [p, v] of ops) { let o = T; for (const k of p.slice(0, -1)) o = o[k]; o[p[p.length - 1]] = v; } };
+            M.saved = JSON.stringify(T);
+            M.restoreTel = () => { const keep = T.slotRev, fresh = JSON.parse(M.saved); for (const k of Object.keys(T)) if (!(k in fresh)) delete T[k]; Object.assign(T, fresh); T.slotRev = keep; };
+            M.snap = () => ({ s: [...St.sliders].map(([id, st]) => [id, st.getNormalisedValue()]), c: [...St.combos].map(([id, st]) => [id, st.getChoiceIndex()]),
+                              t: [...St.toggles].map(([id, st]) => [id, !!st.getValue()]) });
+            M.params0 = M.snap();
+            M.restoreParams = () => {
+                for (const [id, v] of M.params0.c) { const st = St.combos.get(id); if (st.getChoiceIndex() !== v) st.setChoiceIndex(v); }
+                for (const [id, v] of M.params0.s) { const st = St.sliders.get(id); if (st.getNormalisedValue() !== v) st.setNormalisedValue(v); }
+                for (const [id, v] of M.params0.t) { const st = St.toggles.get(id); if (!!st.getValue() !== v) st.setValue(v); }
+            };
+            M.combo = (id, i) => { const st = St.combos.get(id); if (st.getChoiceIndex() !== i) st.setChoiceIndex(i); return st.getChoiceIndex(); };
+            M.norm = (id, n) => { St.sliders.get(id).setNormalisedValue(n); return St.sliders.get(id).getScaledValue(); };
+            M.scaled = (id) => St.sliders.get(id).getScaledValue();
+            M.resetMatrix = () => { for (let m = 1; m <= 16; m++) { M.combo(`mod${m}_source`, 0); M.combo(`mod${m}_dest`, 0); } };
+            M.routes = () => { const r = []; for (let m = 1; m <= 16; m++) { const s = St.combos.get(`mod${m}_source`).getChoiceIndex(); if (s) r.push({ m, s, d: St.combos.get(`mod${m}_dest`).getChoiceIndex(), depth: St.sliders.get(`mod${m}_depth`).getScaledValue() }); } return r; };
+            // Host-side slot state (the lanes' pattern): new answer behind a slotRev bump.
+            M.slots0 = JSON.stringify(nat.getSlotState.slots);
+            M.pushSlots = async () => { const b = M.count('getSlotState'); nat.getSlotState.revision += 1; T.slotRev += 1; await M.until(() => M.count('getSlotState') > b, 'a slot-state pull'); await raf(); await raf(); };
+            M.loadLanes = async (ns) => {
+                const slots = nat.getSlotState.slots, loaded = slots.find((s) => s && s.scheme === 'file' && !s.missing);
+                ns.forEach((n) => { slots[n - 1] = Object.assign({}, loaded, { name: `probe-slot-${n}.wav` }); });
+                await M.pushSlots();
+                await M.until(() => ns.every((n) => !/\b(empty|missing)\b/.test(document.getElementById(`lane-${n}`).className)), 'lanes shown');
+            };
+            M.restoreSlots = async () => { if (JSON.stringify(nat.getSlotState.slots) === M.slots0) return; nat.getSlotState.slots.splice(0, 4, ...JSON.parse(M.slots0)); await M.pushSlots(); };
+            // ── canvas frames ──
+            M.frames = [];
+            M.grab = (id) => { const c = document.getElementById(id); M.frames.push({ f: c.getContext('2d').getImageData(0, 0, c.width, c.height), W: c.clientWidth, H: c.clientHeight }); return M.frames.length - 1; };
+            M.shot = async (id) => { await M.settle(); return M.grab(id); };
+            // Pixels differing by >= thr between two frames, binned to CSS pixels; rowsWin = row histogram inside cols [x0, x1].
+            M.diff = (a, b, thr, win) => {
+                const A = M.frames[a], B = M.frames[b], sx = A.f.width / A.W, sy = A.f.height / A.H;
+                const col = new Array(A.W).fill(0), row = new Array(A.H).fill(0), rowW = new Array(A.H).fill(0);
+                let total = 0;
+                for (let y = 0; y < A.f.height; y++) for (let x = 0; x < A.f.width; x++) {
+                    const i = (y * A.f.width + x) * 4, p = A.f.data, q = B.f.data;
+                    const d = Math.max(Math.abs(p[i] - q[i]), Math.abs(p[i + 1] - q[i + 1]), Math.abs(p[i + 2] - q[i + 2]), Math.abs(p[i + 3] - q[i + 3]));
+                    if (d < thr) continue;
+                    const cx = Math.min(A.W - 1, Math.floor(x / sx)), cy = Math.min(A.H - 1, Math.floor(y / sy));
+                    ++total; ++col[cx]; ++row[cy]; if (win && cx >= win[0] && cx <= win[1]) ++rowW[cy];
+                }
+                const peak = (arr) => { const m = Math.max(...arr); if (m === 0) return null; const at = arr.map((v, i) => (v === m ? i : -1)).filter((i) => i >= 0); return (at[0] + at[at.length - 1]) / 2; };
+                const span = (arr) => { const at = arr.map((v, i) => (v > 0 ? i : -1)).filter((i) => i >= 0); return at.length ? [at[0], at[at.length - 1]] : null; };
+                return { total, col, cols: span(col), rows: span(row), peakCol: peak(col), peakRow: peak(row), peakRowWin: peak(rowW), W: A.W, H: A.H };
+            };
+            M.px = (k, x, y) => { const A = M.frames[k], sx = A.f.width / A.W, sy = A.f.height / A.H; const i = (Math.floor(y * sy) * A.f.width + Math.floor(x * sx)) * 4; return [...A.f.data.slice(i, i + 4)]; };
+            // The point (x, y) lies on the drawn stroke: the brightest pixel within r of it is >= 70 % as bright as the column's brightest.
+            M.onStroke = (k, x, y, r) => {
+                const A = M.frames[k], sx = A.f.width / A.W, sy = A.f.height / A.H, lum = (i) => A.f.data[i] + A.f.data[i + 1] + A.f.data[i + 2];
+                let near = 0, colMax = 0;
+                for (let py = 0; py < A.f.height; py++) for (let px = Math.floor((x - 1) * sx); px <= Math.floor((x + 1) * sx); px++) {
+                    if (px < 0 || px >= A.f.width) continue;
+                    const v = lum((py * A.f.width + px) * 4);
+                    if (v > colMax) colMax = v;
+                    if (Math.abs(py / sy - y) <= r) near = Math.max(near, v);
+                }
+                return { near, colMax, ok: colMax > 0 && near >= 0.7 * colMax };
+            };
+        }, MUT_OUT);
+
+        const mvRow = async (name, fn) => {
+            ++mvRun;
+            const notes = [], facts = [];
+            const need = (cond, msg) => { if (!cond) notes.push(msg); };
+            const say = (msg) => facts.push(msg);
+            try { await fn(need, say); } catch (e) { notes.push(`threw: ${e.message.split('\n')[0]}`); }
+            try {
+                await page.mouse.up().catch(() => {});
+                await page.mouse.move(1195, 795);
+                await page.evaluate(async () => { const M = window.__mv; if (!M) return; M.restoreTel(); M.restoreParams(); await M.restoreSlots(); await M.settle(); });   // ST1 leaves a fresh page (no __mv)
+            } catch (e) { notes.push(`restore threw: ${e.message.split('\n')[0]}`); }
+            if (notes.length === 0) { ++mvPass; pass(`${name}${facts.length ? ' — ' + facts.join('; ') : ''}`); }
+            else fail(`${name} — ${notes.join('; ')}${facts.length ? ' [measured: ' + facts.join('; ') + ']' : ''}`);
+        };
+        const mtel = (ops) => page.evaluate(async (ops) => { const M = window.__mv; M.set(ops); return M.settle(); }, ops);
+        const mev = (fn, arg) => page.evaluate(fn, arg);
+        const tab = async (k) => { await page.click(`#tab-${k}`, { timeout: 2000 }); await page.waitForTimeout(40); };
+        const shotOf = (id, ops) => page.evaluate(async ({ id, ops }) => { const M = window.__mv; if (ops) M.set(ops); return M.shot(id); }, { id, ops: ops || null });
+        const mdiff = (a, b, thr, win) => page.evaluate(({ a, b, thr, win }) => { const d = window.__mv.diff(a, b, thr, win || null); return d; }, { a, b, thr, win });
+        const fmtD = (d) => (d.total ? `${d.total} px, cols ${d.cols[0]}–${d.cols[1]}, peak col ${d.peakCol}, rows ${d.rows[0]}–${d.rows[1]}` : '0 px');
+        const blankRows = () => Array.from({ length: 16 }, () => [0, -1, 0, -1, -1, -1, -1, 0]);
+        const poly = await mev(() => Math.round(window.__mv.scaled('polyphony')) || 16);
+        const MINUS = '−';
+        const signed2 = (v) => (v >= 0 ? '+' : MINUS) + Math.abs(v).toFixed(2);
+
+        // ── VC1 ────────────────────────────────────────────────────────────
+        await mvRow(MV_NAMES[0], async (need, say) => {
+            await tab('voice');
+            need(poly >= 4 && poly <= 16, `polyphony ${poly}: rows 0–3 must lie inside it`);
+            const rows = blankRows();
+            rows[0] = [1, 60, 0.8, 0.25, -1, -1, -1, 0]; rows[1] = [2, 62, 0.5, 0.4, -1, -1, -1, 0]; rows[2] = [3, 64, 0.2, -1, -1, -1, -1, 0];
+            const pulls = await mtel([[['voices'], rows], [['newest'], 0]]);
+            need(pulls >= 2, 'the page did not pull the edited telemetry');
+            const r = await mev(() => Array.from({ length: 16 }, (_, i) => ({ cell: document.getElementById(`vcell-${i}`).className,
+                dot: document.getElementById(`vdot-${i}`).className, key: document.getElementById(`vstt-${i}`).dataset.i18n || null })));
+            const want = (i) => (i === 0 ? ['vcell held newest', 'held newest', 'vstate.held'] : i === 1 ? ['vcell rel', 'rel', 'vstate.release']
+                : i === 2 ? ['vcell rel', 'rel', 'vstate.stolen'] : i < poly ? ['vcell', '', null] : ['vcell na', 'na', 'vstate.off']);
+            r.forEach((x, i) => { const [c, d, k] = want(i); need(x.cell === c && x.dot === d && x.key === k, `row ${i}: cell "${x.cell}", dot "${x.dot}", key ${x.key}; expected "${c}", "${d}", ${k}`); });
+            const newestIds = () => mev(() => [...document.querySelectorAll('.vcell.newest, #voice-ind .dots i.newest')].map((e) => e.id).sort().join(','));
+            await mtel([[['newest'], -1]]);
+            const n1 = await newestIds();
+            need(n1 === '', `newest −1: .newest on [${n1}]`);
+            await mtel([[['newest'], 1]]);
+            const n2 = await newestIds();
+            need(n2 === 'vcell-1,vdot-1', `newest 1: .newest on [${n2}], expected vcell-1, vdot-1`);
+            say(`states 1 / 2 / 3 / 0 -> ${r.slice(0, 4).map((x) => `"${x.cell}" ${x.key}`).join(', ')}; rows ${poly}–15 na (polyphony ${poly}); newest −1 -> [${n1}], newest 1 -> [${n2}]`);
+        });
+
+        // ── VC2 ────────────────────────────────────────────────────────────
+        await mvRow(MV_NAMES[1], async (need, say) => {
+            await tab('voice');
+            const rows = blankRows();
+            const read = () => mev(() => { const e = document.getElementById('vtr-0'); return { key: e.dataset.i18n || null, vars: e.dataset.i18nVars || null, clamp: e.classList.contains('clamp'), text: e.textContent }; });
+            const seen = [];
+            for (const [want, key, vars, text] of [[50, 'vstate.clamp', '{"s":"+48"}', null], [12, null, null, '+12 st'], [-60, 'vstate.clamp', `{"s":"${MINUS}48"}`, null]]) {
+                rows[0] = [1, 98, 0.8, 0.25, -1, -1, -1, want];
+                await mtel([[['voices'], rows], [['newest'], 0]]);
+                const a = await read();
+                need(a.key === key && (key === null || a.vars === vars) && a.clamp === (key !== null) && (text === null ? a.text.trim().length > 0 : norm(a.text) === text),
+                    `wantSt ${want}: key ${a.key} vars ${a.vars} .clamp ${a.clamp} text "${norm(a.text)}"; expected ${key} ${vars} .clamp ${key !== null}${text ? ' "' + text + '"' : ''}`);
+                seen.push(`${want} -> ${a.key || 'no key'} "${norm(a.text)}"${a.clamp ? ' .clamp' : ''}`);
+            }
+            say(seen.join(', '));
+        });
+
+        // ── VC3 ────────────────────────────────────────────────────────────
+        await mvRow(MV_NAMES[2], async (need, say) => {
+            const seen = [];
+            for (const [states, key, vars] of [[[1, 1], 'label.voicesHeld', { h: '2', n: String(poly) }], [[1, 1, 2], 'label.voicesState', { h: '2', r: '1', n: String(poly) }],
+                                               [[1, 1, 2, 3], 'label.voicesState', { h: '2', r: '2', n: String(poly) }], [[2], 'label.voicesState', { h: '0', r: '1', n: String(poly) }],
+                                               [[], 'label.voicesIdle', { n: String(poly) }]]) {
+                const rows = blankRows();
+                states.forEach((st, i) => { rows[i] = [st, 60 + i, 0.5, -1, -1, -1, -1, 0]; });
+                await mtel([[['voices'], rows], [['newest'], states.length ? 0 : -1]]);
+                const a = await mev(() => { const e = document.getElementById('voice-ind-v'); return { key: e.dataset.i18n, vars: e.dataset.i18nVars || null, text: e.textContent }; });
+                need(a.key === key && a.vars === JSON.stringify(vars), `states [${states}]: ${a.key} ${a.vars}, expected ${key} ${JSON.stringify(vars)}`);
+                seen.push(`[${states}] -> ${a.key.replace('label.', '')} "${norm(a.text)}"`);
+            }
+            say(seen.join(', '));
+        });
+
+        // ── MV1 ────────────────────────────────────────────────────────────
+        await mvRow(MV_NAMES[3], async (need, say) => {
+            await tab('mod');
+            need(bipolar.length > 0, 'BIPOLAR_SOURCES not found in the served page');
+            const src = [0.5, -0.3, 0.8, -0.9, 0.7, 0.4, 0.8, -0.6, 0.37, 0.2, 0.15, 0.3, -0.25, 0.6, 0, 1, 0.45];
+            const rows = blankRows();
+            rows[0] = [1, 60, 0.8, -1, -1, -1, -1, 0]; rows[1] = [1, 64, 0.6, -1, -1, -1, -1, 0];
+            await mtel([[['sources'], src], [['voices'], rows], [['newest'], 0]]);
+            const g = await mev(() => ({
+                // the inline colour the reader writes (the computed one is mid-transition for 0.2 s)
+                chips: [...document.querySelectorAll('.chip[data-src]')].map((c) => ({ id: c.id, s: Number(c.dataset.src), bg: c.style.backgroundColor, hover: c.matches(':hover') })),
+                ro: Object.fromEntries(['lfo1-ro', 'lfo2-ro', 'lfo3-ro', 'lfo4-ro', ...[5, 6, 7, 8, 9, 10, 11, 12, 13].map((s) => `src-ro-${s}`)].map((id) => [id, (document.getElementById(id) || {}).textContent])),
+                bars: Object.fromEntries([7, 9, 10, 11, 12, 13].map((s) => { const i = document.querySelector(`#src-bar-${s} i`); return [s, i ? { left: i.style.left, width: i.style.width } : null]; })),
+            }));
+            const alpha = (bg) => { const m = /rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/.exec(bg); return m ? { rgb: [m[1], m[2], m[3]].map(Number), a: m[4] === undefined ? 1 : Number(m[4]) } : null; };
+            let chipBad = 0;
+            for (const c of g.chips) {
+                const raw = src[c.s - 1], v = bipolar.includes(c.s) ? (raw + 1) / 2 : raw, want = 0.04 + 0.2 * Math.max(0, Math.min(1, v));
+                const a = alpha(c.bg);
+                if (c.hover || !a || a.rgb.join(',') !== '226,176,100' || Math.abs(a.a - want) > 0.002) { ++chipBad; need(false, `${c.id} (source ${c.s}, ${raw}): background ${c.bg}, expected alpha ${want.toFixed(3)}${c.hover ? ' (hovered)' : ''}`); }
+            }
+            need(g.chips.length >= 17, `${g.chips.length} chips`);
+            const wantRo = { 'lfo1-ro': signed2(src[0]), 'lfo2-ro': signed2(src[1]), 'lfo3-ro': signed2(src[2]), 'lfo4-ro': signed2(src[3]),
+                'src-ro-5': src[4].toFixed(2), 'src-ro-6': src[5].toFixed(2), 'src-ro-7': src[6].toFixed(2), 'src-ro-8': `C4 · ${signed2(src[7])}`,
+                'src-ro-9': src[8].toFixed(2), 'src-ro-10': src[9].toFixed(2), 'src-ro-11': src[10].toFixed(2), 'src-ro-12': signed2(src[11]), 'src-ro-13': signed2(src[12]) };
+            for (const [id, w] of Object.entries(wantRo)) need(norm(g.ro[id]) === norm(w), `${id}: "${g.ro[id]}", expected "${w}"`);
+            const num = (s) => Number((/(-?[\d.]+)%/.exec(s || '') || [])[1]);
+            for (const s of [7, 9, 10, 11]) { const b = g.bars[s]; need(!!b && Math.abs(num(b.width) - src[s - 1] * 100) < 0.01, `src-bar-${s}: width ${b && b.width}, expected ${src[s - 1] * 100}% - 2px`); }
+            for (const s of [12, 13]) { const b = g.bars[s], c = src[s - 1]; need(!!b && Math.abs(num(b.left) - (50 + Math.min(0, c) * 50)) < 0.01 && Math.abs(num(b.width) - Math.abs(c) * 50) < 0.01, `src-bar-${s}: left ${b && b.left} width ${b && b.width}, expected ${50 + Math.min(0, c) * 50}% / ${Math.abs(c) * 50}%`); }
+            // Key view: the newest voice's key ochre, another sounding key bone, a silent key dark.
+            const keys = async () => {
+                const id = await mev(() => window.__mv.grab('key-view'));
+                return mev((id) => {
+                    const M = window.__mv, F = M.frames[id], whites = [];
+                    for (let m = 36; m <= 96; m++) if (![1, 3, 6, 8, 10].includes(m % 12)) whites.push(m);
+                    const kw = F.W / whites.length, at = (m) => M.px(id, whites.indexOf(m) * kw + kw / 2, F.H * 0.85);
+                    return { 60: at(60), 64: at(64), 62: at(62) };
+                }, id);
+            };
+            const near3 = (p, hex) => { const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)); return p && c.every((v, i) => Math.abs(p[i] - v) <= 4); };
+            const k0 = await keys();
+            need(near3(k0[60], '#E2B064') && near3(k0[64], '#D9CBB0') && near3(k0[62], '#2A2219'), `key view, newest row 0 (note 60): 60 ${k0[60]}, 64 ${k0[64]}, 62 ${k0[62]}; expected ochre / bone / dark`);
+            await mtel([[['newest'], 1]]);
+            const k1 = await keys();
+            need(near3(k1[64], '#E2B064') && near3(k1[60], '#D9CBB0'), `key view, newest row 1 (note 64): 60 ${k1[60]}, 64 ${k1[64]}; expected bone / ochre`);
+            const ro8 = await mev(() => document.getElementById('src-ro-8').textContent);
+            need(norm(ro8) === `E4 · ${signed2(src[7])}`, `src-ro-8 with newest row 1: "${ro8}"`);
+            await mtel([[['newest'], -1]]);
+            const ro8b = await mev(() => document.getElementById('src-ro-8').textContent);
+            need(norm(ro8b) === '—', `src-ro-8 with no newest voice: "${ro8b}", expected "—"`);
+            say(`${g.chips.length} chips, ${g.chips.length - chipBad} at their glow (bipolar [${bipolar}]); read-outs ${Object.keys(wantRo).length} + 6 bars; key view newest 60 -> [${k0[60].slice(0, 3)}], then 64 -> [${k1[64].slice(0, 3)}]; Key read-out "${norm(ro8)}" / "${norm(ro8b)}"`);
+        });
+
+        // ── MV2 ────────────────────────────────────────────────────────────
+        await mvRow(MV_NAMES[4], async (need, say) => {
+            await tab('streams');
+            const geo = () => mev(() => {
+                const svg = document.querySelector('#cell-output_gain svg.arc'), D = Number(svg.getAttribute('width'));
+                const rR = Number(svg.querySelector('circle.drop-ring').getAttribute('r'));
+                const dot = [...svg.querySelectorAll('circle')].find((c) => c.getAttribute('fill') === '#FFE7B8');
+                return { D, rR, cx: Number(dot.getAttribute('cx')), cy: Number(dot.getAttribute('cy')), op: dot.getAttribute('opacity'),
+                         base: window.__stubStates.sliders.get('output_gain').getNormalisedValue(), dest: Number(document.getElementById('cell-output_gain').dataset.dest) };
+            });
+            const at = (g, n) => { const a = (-135 + 270 * n - 90) * Math.PI / 180, c = g.D / 2; return [c + g.rR * Math.cos(a), c + g.rR * Math.sin(a)]; };
+            const g0 = await geo();
+            need(g0.dest === 1, `cell-output_gain data-dest ${g0.dest}, expected 1`);
+            await mev((d) => { window.__mv.combo('mod1_source', 1); window.__mv.combo('mod1_dest', d); }, g0.dest);
+            const seen = [];
+            for (const n of [0.64, 0.2, 0.93]) {
+                await mtel([[['modNorm'], { [g0.dest]: n }]]);
+                const g = await geo(), [x, y] = at(g, n);
+                need(g.op === '1' && Math.abs(g.cx - x) <= 0.02 && Math.abs(g.cy - y) <= 0.02, `routed, modNorm ${n}: dot (${g.cx}, ${g.cy}) opacity ${g.op}, expected (${x.toFixed(2)}, ${y.toFixed(2)}) opacity 1`);
+                seen.push(`${n} -> (${g.cx}, ${g.cy})`);
+            }
+            await mtel([[['modNorm'], {}]]);
+            const gb = await geo(), [bx, by] = at(gb, gb.base);
+            need(gb.op === '1' && Math.abs(gb.cx - bx) <= 0.02 && Math.abs(gb.cy - by) <= 0.02, `routed, no modNorm key: dot (${gb.cx}, ${gb.cy}), expected the base ${gb.base.toFixed(4)} at (${bx.toFixed(2)}, ${by.toFixed(2)})`);
+            await mev(() => window.__mv.combo('mod1_source', 0));
+            await mtel([[['modNorm'], { [g0.dest]: 0.64 }]]);
+            const gu = await geo();
+            need(gu.op === '0', `unrouted (key still sent): dot opacity ${gu.op}, expected 0`);
+            say(`output_gain (dest 1) routed from LFO 1: ${seen.join(', ')}; key absent -> base ${gb.base.toFixed(3)} (${gb.cx}, ${gb.cy}); unrouted -> opacity ${gu.op}`);
+        });
+
+        // ── MV3 ────────────────────────────────────────────────────────────
+        await mvRow(MV_NAMES[5], async (need, say) => {
+            await tab('streams');
+            const dEnd = await mev(() => { window.__mv.norm('s1_position', 0); return Number(document.getElementById('handle-s1_loop_end').dataset.dest); });
+            await mev((d) => { window.__mv.combo('mod2_source', 1); window.__mv.combo('mod2_dest', d); }, dEnd);
+            const f0 = await shotOf('lane-canvas-1', [[['lanes', 0, 'lo'], 0], [['lanes', 0, 'hi'], 1], [['modNorm'], { [dEnd]: 0.5 }]]);
+            const f0b = await shotOf('lane-canvas-1');
+            const still = await mdiff(f0, f0b, 1);
+            need(still.total === 0, `two frames of an unchanged answer differ (${fmtD(still)})`);
+            const f1 = await shotOf('lane-canvas-1', [[['lanes', 0, 'lo'], 0.2], [['lanes', 0, 'hi'], 0.6]]);
+            const d1 = await mdiff(f0, f1, 6);
+            const W = d1.W, H = d1.H, xl = 0.2 * W, xh = 0.6 * W;
+            const inside = d1.col.slice(Math.ceil(xl + 4), Math.floor(xh - 4)).reduce((a, b) => a + b, 0);
+            const sum = (a, b) => d1.col.slice(Math.max(0, Math.floor(a)), Math.ceil(b)).reduce((x, y) => x + y, 0);
+            need(d1.total > 0 && inside === 0, `lo 0.2 / hi 0.6 vs 0 / 1: ${inside} differing px inside the loop (cols ${Math.ceil(xl + 4)}–${Math.floor(xh - 4)}); ${fmtD(d1)}`);
+            need(sum(0.05 * W, 0.15 * W) > 0 && sum(0.75 * W, 0.95 * W) > 0, 'lo 0.2 / hi 0.6: no shading change left of lo or right of hi');
+            need(d1.cols && d1.cols[0] <= 2 && d1.cols[1] >= W - 3, `shading changes in cols ${d1.cols}, expected 0 … ${W - 1}`);
+            const f2 = await shotOf('lane-canvas-1', [[['modNorm'], { [dEnd]: 0.8 }]]);
+            const d2 = await mdiff(f1, f2, 6);
+            const tick = (x) => d2.col.slice(Math.floor(x) - 2, Math.floor(x) + 3).reduce((a, b) => a + b, 0);
+            const xa = Math.round(0.5 * W) + 0.5, xb = Math.round(0.8 * W) + 0.5;
+            const stray = d2.col.reduce((a, v, i) => a + (Math.abs(i - xa) > 3 && Math.abs(i - xb) > 3 ? v : 0), 0);
+            need(tick(xa) > 0 && tick(xb) > 0 && stray === 0 && d2.rows && d2.rows[0] >= H - 8, `routed loop end, modNorm 0.5 -> 0.8: tick change at ${xa} (${tick(xa)} px) and ${xb} (${tick(xb)} px), ${stray} px elsewhere; rows ${d2.rows}`);
+            await mev(() => window.__mv.combo('mod2_source', 0));
+            const f3 = await shotOf('lane-canvas-1', [[['modNorm'], { [dEnd]: 0.5 }]]);
+            const f4 = await shotOf('lane-canvas-1', [[['modNorm'], { [dEnd]: 0.8 }]]);
+            const d3 = await mdiff(f3, f4, 1);
+            need(d3.total === 0, `unrouted loop end: modNorm 0.5 -> 0.8 still draws (${fmtD(d3)})`);
+            say(`lane 1 ${W} x ${H}: shading 0/1 -> 0.2/0.6 ${fmtD(d1)}, 0 px inside; edge tick (dest ${dEnd}) 0.5 -> 0.8: ${fmtD(d2)}; unrouted ${d3.total} px`);
+        });
+
+        // ── MV4 ────────────────────────────────────────────────────────────
+        await mvRow(MV_NAMES[6], async (need, say) => {
+            await tab('mod');
+            const ph = await mev(() => { const M = window.__mv; M.combo('lfo1_shape', 0); M.combo('lfo1_mode', 0); return M.norm('lfo1_phase', 0.25); });
+            need(Math.abs(ph - 90) < 1e-6, `lfo1_phase is ${ph}°, expected 90`);
+            const row = (p) => [p, ...new Array(16).fill(-1)];
+            const off = await shotOf('lfo1-view', [[['lfoPh'], null]]);
+            const seen = [];
+            for (const p of [0.3, 0.8, 0.05]) {
+                const on = await shotOf('lfo1-view', [[['lfoPh'], [row(p), row(0.5), row(0.75), row(0)]]]);
+                const geo = await mev((k) => ({ W: window.__mv.frames[k].W, H: window.__mv.frames[k].H }), on);
+                const X = 4 + p / 2 * (geo.W - 8), Y = geo.H / 2 - Math.sin(2 * Math.PI * ((p + 0.25) % 1)) * (geo.H / 2 - 6);
+                const d = await mdiff(on, off, 6, [Math.round(X) - 4, Math.round(X) + 4]);
+                const curve = await mev(({ k, X, Y }) => window.__mv.onStroke(k, X, Y, 1.5), { k: off, X, Y });
+                need(d.total > 0 && Math.abs(d.peakCol - X) <= PX_TOL && Math.abs(d.peakRowWin - Y) <= PX_TOL,
+                    `phase ${p}: the dot is at (${d.peakCol}, ${d.peakRowWin}), expected (${X.toFixed(1)}, ${Y.toFixed(1)}) ± ${PX_TOL} (${fmtD(d)})`);
+                need(curve.ok, `phase ${p}: the expected dot (${X.toFixed(1)}, ${Y.toFixed(1)}) is not on the drawn curve (brightness ${curve.near} vs the column's ${curve.colMax})`);
+                seen.push(`${p} -> (${d.peakCol}, ${d.peakRowWin}) vs (${X.toFixed(1)}, ${Y.toFixed(1)})`);
+            }
+            say(`sine, Global, phase 90°: ${seen.join('; ')}; each on the curve`);
+        });
+
+        // ── MV5 ────────────────────────────────────────────────────────────
+        await mvRow(MV_NAMES[7], async (need, say) => {
+            await tab('mod');
+            let n = 0, on = 0;
+            for (const s of [5, 1, 14]) for (const d of [1, 122, 27]) for (const mode of [0, 1]) {
+                const r = await mev(({ s, d, mode }) => {
+                    const M = window.__mv; M.combo('mod1_source', s); M.combo('mod1_dest', d); M.combo('lfo1_mode', mode);
+                    const row = document.getElementById('mrow-1'); return { mono: row.classList.contains('mono-on'), used: row.classList.contains('used') };
+                }, { s, d, mode });
+                const pv = s === 5 || (s === 1 && mode === 1), gd = d === 1 || (d === 122 && mode === 0), want = pv && gd;
+                ++n; if (r.mono) ++on;
+                need(r.used && r.mono === want, `source ${s} -> dest ${d}, lfo1_mode ${mode}: mono-on ${r.mono}, used ${r.used}; expected mono-on ${want}`);
+            }
+            say(`${n} cases (Env 1 / LFO 1 / M1 x output_gain / lfo1_rate / s1 loop start x Global / Per-voice, the mode switched AFTER the route), ${on} mono-on`);
+        });
+
+        // ── MV6 ────────────────────────────────────────────────────────────
+        await mvRow(MV_NAMES[8], async (need, say) => {
+            await tab('voice');
+            const P = await mev(() => { const M = window.__mv; M.norm('menv1_attack', 0.6); M.norm('menv1_sustain', 0.5);
+                return { A: M.scaled('menv1_attack'), D: M.scaled('menv1_decay'), S: M.scaled('menv1_sustain') / 100, R: M.scaled('menv1_release') }; });
+            const rows = blankRows();
+            rows[0] = [1, 60, 0.8, -1, -1, -1, -1, 0];
+            const zero = Array.from({ length: 16 }, () => [0, 0, 0, 0, 0]);
+            const off = await shotOf('menv1-view', [[['voices'], rows], [['newest'], 0], [['menv'], zero]]);
+            const geo = await mev((k) => ({ W: window.__mv.frames[k].W, H: window.__mv.frames[k].H }), off);
+            // adsrGeom, transcribed: x widths ~ sqrt(ms) + 0.02, sustain 0.55, 4 px margins.
+            const tA = Math.sqrt(P.A / 1000) + 0.02, tD = Math.sqrt(P.D / 1000) + 0.02, tS = 0.55, tR = Math.sqrt(P.R / 1000) + 0.02;
+            const k = (geo.W - 8) / (tA + tD + tS + tR), x0 = 4, xA = x0 + tA * k, xD = xA + tD * k, xS = xD + tS * k, xR = xS + tR * k;
+            const yOf = (l) => geo.H - 5 - l * (geo.H - 11);
+            const seen = [];
+            for (const [stage, lvl, X, curve] of [[1, 0.5, x0 + (xA - x0) * 0.5, true], [3, P.S, xD + (xS - xD) * 0.5, true], [4, P.S * 0.5, xS + (xR - xS) * 0.5, false]]) {
+                const m = zero.map((r) => r.slice());
+                m[0] = [lvl, stage, 0, 0, 3];
+                const on = await shotOf('menv1-view', [[['menv'], m]]);
+                const Y = yOf(lvl);
+                const d = await mdiff(on, off, 6, [Math.round(X) - 5, Math.round(X) + 5]);
+                need(d.total > 0 && Math.abs(d.peakCol - X) <= PX_TOL && Math.abs(d.peakRowWin - Y) <= PX_TOL,
+                    `stage ${stage} level ${lvl.toFixed(3)}: dot at (${d.peakCol}, ${d.peakRowWin}), expected (${X.toFixed(1)}, ${Y.toFixed(1)}) ± ${PX_TOL} (${fmtD(d)})`);
+                if (curve) {
+                    const c = await mev(({ k, X, Y }) => window.__mv.onStroke(k, X, Y, 1.5), { k: off, X, Y });
+                    need(c.ok, `stage ${stage}: the expected dot (${X.toFixed(1)}, ${Y.toFixed(1)}) is not on the drawn envelope (brightness ${c.near} vs ${c.colMax})`);
+                }
+                seen.push(`stage ${stage} -> (${d.peakCol}, ${d.peakRowWin}) vs (${X.toFixed(1)}, ${Y.toFixed(1)})${curve ? ' on the curve' : ''}`);
+            }
+            const src = await mev(() => window.__mv.nat.getTelemetry.sources.slice());
+            await mtel([[['newest'], 0]]);
+            const l1 = await mev(() => { const e = document.getElementById('menv1-ro'); return { key: e.dataset.i18n, vars: e.dataset.i18nVars || null, text: e.textContent }; });
+            need(l1.key === 'label.newest' && l1.vars === JSON.stringify({ v: Number(src[4] || 0).toFixed(2) }), `newest 0: menv1-ro ${l1.key} ${l1.vars}, expected label.newest {"v":"${Number(src[4] || 0).toFixed(2)}"}`);
+            await mtel([[['newest'], -1]]);
+            const l2 = await mev(() => { const e = document.getElementById('menv1-ro'); return { key: e.dataset.i18n, text: e.textContent }; });
+            need(l2.key === 'label.idle', `newest −1: menv1-ro ${l2.key}, expected label.idle`);
+            say(`Env 1 A ${P.A.toFixed(0)} ms S ${P.S.toFixed(2)}: ${seen.join('; ')}; read-out "${norm(l1.text)}" / "${norm(l2.text)}"`);
+        });
+
+        // ── drag helpers (real pointer sequences; never addRoute) ──
+        const centre = (b) => [b.x + b.width / 2, b.y + b.height / 2];
+        // A point of the target that the page's own hit test (elementFromPoint + closest) resolves to it.
+        const dropPoint = (sel) => mev((sel) => {
+            const t = document.querySelector(sel);
+            if (!t) return null;
+            const parts = [t.querySelector('.knob-dial'), t].filter(Boolean);
+            for (const p of parts) {
+                const b = p.getBoundingClientRect();
+                if (!(b.width > 0 && b.height > 0)) continue;
+                for (const [fx, fy] of [[0.5, 0.5], [0.5, 0.3], [0.5, 0.7], [0.3, 0.5], [0.7, 0.5]]) {
+                    const x = b.left + b.width * fx, y = b.top + b.height * fy, e = document.elementFromPoint(x, y);
+                    if (e && e.closest && e.closest('.knob-cell[data-dest], .loop-h[data-dest]') === t) return [x, y];
+                }
+            }
+            return null;
+        }, sel);
+        const dragTo = async (chipSel, pt) => {
+            const cb = await page.locator(chipSel).boundingBox();
+            if (!cb) throw new Error(`${chipSel} has no box`);
+            const [cx, cy] = centre(cb);
+            await mev(() => window.__mv.resetMatrix());
+            await page.mouse.move(cx, cy);
+            await page.mouse.down();
+            await page.mouse.move(cx + 8, cy + 8, { steps: 2 });
+            await page.mouse.move(pt[0], pt[1], { steps: 6 });
+            const hover = await mev(() => [...document.querySelectorAll('.drop-hover')].map((e) => e.id || e.dataset.probeDm || e.className).join(','));
+            await page.mouse.up();
+            await page.waitForTimeout(15);
+            return { hover, routes: await mev(() => window.__mv.routes()) };
+        };
+
+        // ── DM1 ────────────────────────────────────────────────────────────
+        await mvRow(MV_NAMES[9], async (need, say) => {
+            await tab('streams');
+            const targets = [['#cell-output_gain', 'cell-output_gain'], ['#handle-s1_loop_start', 'handle-s1_loop_start']];
+            let ok = 0, n = 0;
+            for (const [sel, id] of targets) {
+                const dest = await mev((sel) => Number(document.querySelector(sel).dataset.dest), sel);
+                for (let s = 1; s <= 17; s++) {
+                    ++n;
+                    const pt = await dropPoint(sel);
+                    if (!pt) { need(false, `${id}: no point of it resolves to the drop target`); continue; }
+                    const r = await dragTo(`#dock-src-${s}`, pt);
+                    const good = r.routes.length === 1 && r.routes[0].m === 1 && r.routes[0].s === s && r.routes[0].d === dest && Math.abs(r.routes[0].depth - 40) < 1e-3;
+                    need(good && r.hover === id, `chip ${s} -> ${id} (dest ${dest}): hover [${r.hover}], routes ${JSON.stringify(r.routes)}; expected mod1 source ${s} dest ${dest} depth 40`);
+                    if (good && r.hover === id) ++ok;
+                }
+            }
+            say(`${ok} / ${n} drops (17 dock chips x output_gain knob + s1 loop-start handle) wrote mod1 source = chip, dest = data-dest, depth 40, matrix reset before each`);
+        });
+
+        // ── DM2 ────────────────────────────────────────────────────────────
+        await mvRow(MV_NAMES[10], async (need, say) => {
+            await mev(async () => { await window.__mv.loadLanes([3, 4]); });   // the fixture's lane 3 is missing and lane 4 empty: their handles are hidden
+            const T = await mev(() => [...document.querySelectorAll('.knob-cell[data-dest], .loop-h[data-dest]')].map((e, i) => {
+                e.dataset.probeDm = String(i);
+                const pg = e.closest('.page'), sy = e.closest('[data-sync]');
+                return { i, id: e.id, dest: Number(e.dataset.dest), page: pg ? pg.id.replace('page-', '') : null, sync: sy ? sy.dataset.sync : null };
+            }));
+            const nDest = await mev(() => window.__stubStates.combos.get('mod1_dest').properties.choices.length - 1);
+            const byPage = {};
+            let ok = 0;
+            const covered = new Set(), bad = [];
+            const order = ['streams', 'fx', 'mod', 'voice'];
+            const sorted = T.slice().sort((a, b) => order.indexOf(a.page || 'streams') - order.indexOf(b.page || 'streams'));
+            let curTab = null;
+            for (const t of sorted) {
+                const pg = t.page || 'streams';
+                if (pg !== curTab) { await tab(pg); curTab = pg; }
+                await mev((sync) => window.__mv.combo('sync_mode', sync === 'tempo' ? 1 : 0), t.sync);
+                const sel = `[data-probe-dm="${t.i}"]`;
+                const pt = await dropPoint(sel);
+                if (!pt) { bad.push(`${t.id || sel} (dest ${t.dest}, ${pg}${t.sync ? ', ' + t.sync : ''}): unreachable`); continue; }
+                const r = await dragTo('#dock-src-14', pt);
+                if (r.routes.length === 1 && r.routes[0].s === 14 && r.routes[0].d === t.dest) { ++ok; covered.add(t.dest); byPage[t.page || 'shared'] = (byPage[t.page || 'shared'] || 0) + 1; }
+                else bad.push(`${t.id || sel} (dest ${t.dest}): routes ${JSON.stringify(r.routes)}`);
+            }
+            const missingDest = Array.from({ length: nDest }, (_, k) => k + 1).filter((d) => !covered.has(d));
+            dmCensus = `${ok} / ${T.length} targets, ${covered.size} / ${nDest} destinations`;
+            need(bad.length === 0, `${bad.length} target(s) refused a drop: ${bad.slice(0, 6).join('; ')}`);
+            need(ok === T.length && T.length > 0, `census ${ok} drops != runtime count ${T.length} of .knob-cell[data-dest], .loop-h[data-dest]`);
+            need(missingDest.length === 0 && covered.size === nDest, `destinations without a drop target: [${missingDest.join(', ')}] (${covered.size} / ${nDest})`);
+            say(`census ${ok} == runtime count ${T.length} (${Object.entries(byPage).map(([k, v]) => `${k} ${v}`).join(', ')}); ${covered.size} / ${nDest} destinations covered`);
+        });
+
+        // ── MT1 ────────────────────────────────────────────────────────────
+        await mvRow(MV_NAMES[11], async (need, say) => {
+            await mev(() => window.__mv.combo('rec_trigger', 0));      // no threshold tick across the input meter
+            // The tallest bar over 16 frames = the frame drawn right after an ingest (the page decays between pulls).
+            const tops = () => mev(async () => {
+                const M = window.__mv, best = { out: [1e9, 1e9], inp: [1e9, 1e9] }, geo = {};
+                for (let f = 0; f < 16; f++) {
+                    await M.raf();
+                    for (const [key, id] of [['out', 'outmeter'], ['inp', 'inmeter']]) {
+                        const k = M.grab(id), F = M.frames[k];
+                        geo[key] = { W: F.W, H: F.H };
+                        [3, 12].forEach((x, ch) => {
+                            for (let y = 1; y < F.H - 1; y++) {
+                                const p = M.px(k, x + 2.5, y + 0.5), bg = [0x0D, 0x0A, 0x08];
+                                if (Math.max(...bg.map((v, i) => Math.abs(p[i] - v))) >= 24) { best[key][ch] = Math.min(best[key][ch], y); break; }
+                            }
+                        });
+                        M.frames.pop();
+                    }
+                }
+                return { best, geo };
+            });
+            const wantTop = (v, H) => { const db = 20 * Math.log10(Math.max(1e-5, v)); return H - 1 - Math.max(0, Math.min(1, (db + 48) / 54)) * (H - 2); };
+            const seen = [];
+            for (const [out, sc] of [[[0.5012, 0.1], [0.5, 0.1]], [[0.1, 0.5012], [0.1, 0.5]]]) {
+                await mtel([[['out'], out], [['rec', 'peak'], sc], [['rec', 'bus'], 1]]);
+                await page.waitForTimeout(900);                        // the previous, louder side decays below the new peak
+                const t = await tops();
+                for (const [key, vals] of [['out', out], ['inp', sc]]) {
+                    const H = t.geo[key].H;
+                    vals.forEach((v, ch) => {
+                        const w = wantTop(v, H), got = t.best[key][ch];
+                        need(Math.abs(got - w) <= 1, `${key === 'out' ? 'output' : 'record-in'} meter ${ch ? 'R' : 'L'} at ${v} (${(20 * Math.log10(v)).toFixed(2)} dBFS): bar top row ${got}, expected ${w.toFixed(2)} ± 1`);
+                    });
+                    seen.push(`${key} [${vals}] -> tops [${t.best[key]}] vs [${vals.map((v) => wantTop(v, H).toFixed(1))}]`);
+                }
+            }
+            say(seen.join('; '));
+        });
+
+        // ── HV1 ────────────────────────────────────────────────────────────
+        await mvRow(MV_NAMES[12], async (need, say) => {
+            const seen = [];
+            for (const [i, want] of [[3, true], [2, false], [3, true], [0, false]]) {
+                const r = await mev((i) => { const idx = window.__mv.combo('grain_limit', i); const h = document.getElementById('heavy');
+                    return { idx, on: h.classList.contains('on'), vis: getComputedStyle(h).visibility, sel: document.getElementById('combo-grain_limit').selectedIndex }; }, i);
+                need(r.idx === i && r.on === want && r.vis === (want ? 'visible' : 'hidden') && r.sel === i, `grain_limit ${i}: #heavy.on ${r.on} (${r.vis}), select ${r.sel}; expected ${want}`);
+                seen.push(`${i} -> ${r.on ? 'on' : 'off'} (${r.vis})`);
+            }
+            say(seen.join(', '));
+        });
+
+        // ── ST1 (class gate, D49a) ─────────────────────────────────────────
+        await mvRow(MV_NAMES[13], async (need, say) => {
+            await freshPage();                                     // the replay starts where check-ui-labels starts
+            let states = JSON.parse(fs.readFileSync(path.join(pluginRoot, 'tests', 'i18n-states.json'), 'utf8'));
+            if (MUT_STATES) states = states.concat([{ name: 'rec-recording (3.2, __setLabel)',
+                eval: "window.__setLabel(document.getElementById('rec-status-t'), 'rec.recording', { n: 'IV' }); ['s2', 's3', 's4'].forEach((s) => document.getElementById('toggle-' + s + '_enable').click());" }]);
+            let named = 0, held = 0, minPolls = Infinity;
+            const bad = [];
+            for (const st of states) {
+                const sels = st.click || st.dblclick ? (Array.isArray(st.click || st.dblclick) ? st.click || st.dblclick : [st.click || st.dblclick]) : [];
+                let reached = true;
+                for (const one of sels) {
+                    const el = await page.$(one);
+                    if (!el) { bad.push(`${st.name}: selector ${one} missing`); reached = false; break; }
+                    if (st.dblclick) await el.dblclick({ force: true }); else await el.click({ force: true });
+                    await page.waitForTimeout(250);
+                }
+                if (!reached || !st.eval) continue;
+                const p0 = await mev(() => window.__stubNativeCalls.filter((c) => c.name === 'getTelemetry').length);
+                const t0 = Date.now();
+                const threw = await mev((src) => {
+                    window.__giTargets = null; window.__st1Set = [];
+                    window.__st1Orig = window.__st1Orig || window.__setLabel;
+                    window.__setLabel = (el, k, v) => { window.__st1Set.push({ el, k, v: v ? JSON.stringify(v) : null }); return window.__st1Orig(el, k, v); };
+                    try { window.__st1Done = Promise.resolve((0, eval)(src)).then(() => null, (e) => String((e && e.message) || e)); return null; }
+                    catch (e) { window.__st1Done = Promise.resolve(null); return String((e && e.message) || e); }
+                    finally { window.__setLabel = window.__st1Orig; }
+                }, st.eval);
+                if (threw) { bad.push(`${st.name}: eval threw — ${threw}`); continue; }
+                const spec = await mev(() => {
+                    window.__st1Els = [];
+                    const out = (window.__giTargets || []).map(([sel, k, v]) => ({ sel, k, v: v ? JSON.stringify(v) : null }));
+                    for (const s of window.__st1Set) { window.__st1Els.push(s.el); out.push({ el: window.__st1Els.length - 1, sel: s.el && s.el.id ? '#' + s.el.id : '(node)', k: s.k, v: s.v }); }
+                    return out;
+                });
+                const look = () => mev((spec) => spec.map((t) => {
+                    const el = t.el !== undefined ? window.__st1Els[t.el] : document.querySelector(t.sel);
+                    if (!el) return `${t.sel}: no node`;
+                    const cs = getComputedStyle(el), b = el.getBoundingClientRect();
+                    if (cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0' || !(b.width > 0 && b.height > 0)) return `${t.sel}: not visible`;
+                    if (el.dataset.i18n !== t.k) return `${t.sel}: shows ${el.dataset.i18n}, expected ${t.k}`;
+                    if (t.v !== null && (el.dataset.i18nVars || null) !== t.v) return `${t.sel}: vars ${el.dataset.i18nVars}, expected ${t.v}`;
+                    return null;
+                }).filter(Boolean), spec);
+                let lateBad = [];
+                if (spec.length) {
+                    ++named;
+                    await page.waitForTimeout(Math.max(0, t0 + 150 - Date.now()));
+                    const at150 = await look();
+                    await page.waitForTimeout(Math.max(0, t0 + 450 - Date.now()));
+                    const at450 = await look();
+                    const polls = await mev((p0) => window.__stubNativeCalls.filter((c) => c.name === 'getTelemetry').length - p0, p0);
+                    minPolls = Math.min(minPolls, polls);
+                    if (polls < 10) lateBad.push(`only ${polls} telemetry polls in 450 ms`);
+                    at150.forEach((m) => lateBad.push(`+150 ms ${m}`));
+                    at450.forEach((m) => lateBad.push(`+450 ms ${m}`));
+                }
+                const asyncErr = await mev(() => window.__st1Done);
+                if (asyncErr) lateBad.push(`its check threw — ${asyncErr}`);
+                if (lateBad.length) bad.push(`${st.name}: ${lateBad.join(', ')}`);
+                else if (spec.length) ++held;
+                await page.waitForTimeout(100);
+            }
+            need(bad.length === 0, `${bad.length} state(s) do not hold: ${bad.slice(0, 5).join(' | ')}`);
+            need(named >= 20, `only ${named} states name a target`);
+            say(`${states.length} states replayed in file order, ${named} name a target, ${held} hold at +150 and +450 ms (>= ${minPolls === Infinity ? 0 : minPolls} telemetry polls each); ${states.length - named} without a named target (clicks, inline asserts)`);
+        });
+
+        console.log(`\n   mod ${mvPass} / ${mvRun} rows`);
+        if (mvRun !== MV_NAMES.length) fail(`mod: ${mvRun} rows ran, expected ${MV_NAMES.length}`);
+    }
+
     console.log(`   page errors: ${errors.length}${errors.length ? ' — ' + errors.slice(0, 3).join(' | ') : ''}`);
     if (errors.length) fail(`${errors.length} page / console error(s)`);
     void liveFailuresBefore;
 
     const liveOk = hostOk === N_PARAMS && uiOk === N_PARAMS;
-    const veText = LANES_ONLY ? 'value entry NOT RUN (--lanes-only)' : LIVENESS_ONLY ? 'value entry NOT RUN (--liveness-only)'
+    const veText = MOD_ONLY ? 'value entry NOT RUN (--mod-only)' : LANES_ONLY ? 'value entry NOT RUN (--lanes-only)' : LIVENESS_ONLY ? 'value entry NOT RUN (--liveness-only)'
         : !hasVE ? 'value entry NOT RUN — page has no value-entry code' : `value entry ${vePass} / ${veRun}`;
-    const lnText = LIVENESS_ONLY ? 'lanes NOT RUN (--liveness-only)' : `lanes ${lnPass} / ${lnRun}`;
-    const liveText = LANES_ONLY ? 'liveness NOT RUN (--lanes-only)' : `${N_PARAMS} / ${N_PARAMS} both ways`;
-    console.log(failures === 0 ? `ALL PASS (${liveText}; ${veText}; ${lnText})`
-                               : `${failures} FAILED (liveness ${LANES_ONLY ? 'NOT RUN' : `${liveOk ? 'OK ' : ''}${hostOk} / ${uiOk} of ${N_PARAMS}`}; ${veText}; ${lnText})`);
+    const lnText = LIVENESS_ONLY ? 'lanes NOT RUN (--liveness-only)' : MOD_ONLY ? 'lanes NOT RUN (--mod-only)' : `lanes ${lnPass} / ${lnRun}`;
+    const mvText = LIVENESS_ONLY || LANES_ONLY ? `mod NOT RUN (${LIVENESS_ONLY ? '--liveness-only' : '--lanes-only'})` : `mod ${mvPass} / ${mvRun}${dmCensus ? ', DM2 census ' + dmCensus : ''}`;
+    const liveText = LANES_ONLY || MOD_ONLY ? `liveness NOT RUN (${MOD_ONLY ? '--mod-only' : '--lanes-only'})` : `${N_PARAMS} / ${N_PARAMS} both ways`;
+    console.log(failures === 0 ? `ALL PASS (${liveText}; ${veText}; ${lnText}; ${mvText})`
+                               : `${failures} FAILED (liveness ${LANES_ONLY || MOD_ONLY ? 'NOT RUN' : `${liveOk ? 'OK ' : ''}${hostOk} / ${uiOk} of ${N_PARAMS}`}; ${veText}; ${lnText}; ${mvText})`);
     await finish(Math.min(failures, 76));
 })().catch((e) => { console.error(e); process.exit(70); });

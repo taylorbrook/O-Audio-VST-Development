@@ -59,9 +59,14 @@
          first, never %TEMP%), areOptionsSupported probe; the CMake WebView flags.
      11. Geometry: setSize (1200, 800) + setResizable (false, false) == body and
          #plugin 1200 x 800 px.
-     12. Telemetry keys telemetryToVar emits (Source/GiUiJson.h) are a subset of
-         the keys the page reads, per object (top level, lanes[], rec); the
-         stub fixture's getTelemetry has the same top-level keys.
+     12. Telemetry keys the LIVE telemetryToVar (const UiTelemetry&) emits
+         (Source/GiUiJson.h; PLAN-3.3 PD14 — the frozen 3.1 placeholder is no
+         longer the key source) are a subset of the keys the page reads, per
+         object (top level, lanes[], rec); the stub fixture's getTelemetry has
+         the same top-level keys; one reader per consuming feed (PD15): the
+         editor calls buildUiTelemetry once and reads no feed itself, and in
+         PluginProcessor.cpp every frames.read / takeOutPeaks / takeScPeaks /
+         stolenCount read sits inside buildUiTelemetry.
      13. Headless isolation: the render harness never compiles the editor; the
          processor includes / creates it only under JUCE_WEB_BROWSER.
      14. No DevLoader / OGI_DEV_LOADER token under Source/ (ui/public/modules
@@ -71,20 +76,35 @@
          slotInfoToVar, slotOverviewToVar) AND READ by the page function that
          uses it; no "unavailable" answer left in the editor; the three lane
          natives are live; both failure toasts exist in en / fr / zh-Hans and
-         are raised by the page.
+         are raised by the page. Amended at 3.3 (PD14): the live encoder emits
+         14 top-level / 3 + lo, hi lane / 8 rec keys and the frozen 3.1
+         placeholder's set is a subset of it, the difference exactly lfoPh (top)
+         and lo, hi (lane).
+     16. Phase 3.3 closure (PLAN-3.3 PD23): every 3.3 key / column / bit is
+         EMITTED by the live encoder AND READ by its page function; frozen /
+         modRouted / stale are not emitted; the page's mono rule
+         (PER_VOICE_SOURCES, isPerVoiceSource, isGlobalDest) equals the
+         transcription the harness row UMB1 tests the engine against
+         (tests/render-harness/ui_gates_33.h, namespace pageRule) for all
+         17 x 125 x LFO-mode pairs; the LFO dot uses the phase offset (PD16);
+         class gate (D49a): no state in tests/i18n-states.json calls __setLabel
+         on a node a page reader writes — the reader-written ids are DERIVED
+         from the page (every setLabel target inside the functions reachable
+         from the setInterval / requestAnimationFrame roots).
 
     Usage (from anywhere):
       node plugins/O-GranulatorInstrument/tests/ui_frontend_check.js
       node plugins/O-GranulatorInstrument/tests/ui_frontend_check.js --negative-controls   (alias --nc)
     Exit code = number of failed assertions (0 = all pass). With
-    --negative-controls the script re-runs itself on three scratch copies (an
+    --negative-controls the script re-runs itself on four scratch copies (an
     editor with one ID moved kSliderIds -> kToggleIds; an editor with one
-    withNativeFunction removed; a GiUiJson.h whose 3.2 encoder emits "grains"
-    under another name) and exits 0 only if EVERY copy fails the check that
-    targets it. Scratch copies live under os.tmpdir() (set TMPDIR to move
-    them) and are removed.
+    withNativeFunction removed; a GiUiJson.h whose live encoder emits "grains"
+    under another name; a GiUiJson.h whose live encoder no longer emits
+    lfoPh) and exits 0 only if EVERY copy fails the check that targets it.
+    Scratch copies live under os.tmpdir() (set TMPDIR to move them) and are
+    removed; the tree is never written.
     --editor-cpp <path>  point sections 3 / 6 / 8 / 9 / 10 / 12 / 15 at another PluginEditor.cpp
-    --json-h <path>      point sections 12 / 13 / 15 at another GiUiJson.h
+    --json-h <path>      point sections 12 / 13 / 15 / 16 at another GiUiJson.h
     --page <path>        point the page checks at another index.html
     --param-dump <path>  override the param-dump binary (default: the build tree;
                          a missing binary is retried for 90 s, never built here)
@@ -140,10 +160,17 @@ if (argv.includes('--negative-controls') || argv.includes('--nc')) {
         },
         {
             // PLAN-3.2 PD26: the page keeps reading t.grains, the encoder sends another name.
-            name: 'NC3 one telemetry key renamed in the 3.2 encoder (grains -> grainRows)',
+            name: 'NC3 one telemetry key renamed in the live encoder (grains -> grainRows)',
             file: 'jsonH',
             expect: /FAIL: \[15\] emitted and read: grains\b/,
             make: (s) => s.replace('obj->setProperty ("grains", grains);', 'obj->setProperty ("grainRows", grains);'),
+        },
+        {
+            // PLAN-3.3 PD23: the page keeps reading t.lfoPh, the encoder stops sending it.
+            name: 'NC4 lfoPh removed from the live encoder',
+            file: 'jsonH',
+            expect: /FAIL: \[16\] emitted and read: lfoPh\b/,
+            make: (s) => s.replace('obj->setProperty ("lfoPh", lfoPh);', '/* lfoPh not emitted (NC4) */'),
         },
     ];
     let bad = 0;
@@ -562,15 +589,22 @@ console.log('-- [11] geometry');
 // ─────────────────────────────────────────────── 12. telemetry key closure ──
 console.log('-- [12] telemetry keys');
 {
-    const fnStart = jsonH.indexOf('inline juce::var telemetryToVar (std::uint32_t');
-    const fnEnd = fnStart >= 0 ? jsonH.indexOf('return juce::var (obj);', fnStart) : -1;
+    // PLAN-3.3 PD14: the key source is the LIVE encoder (the one getTelemetry
+    // calls), not the frozen 3.1 placeholder telemetryToVar (std::uint32_t …).
+    const fnStart = jsonH.indexOf('inline juce::var telemetryToVar (const GranulatorInstrumentProcessor::UiTelemetry& t)');
+    const fnEnd = fnStart >= 0 ? jsonH.indexOf('\n    }\n', fnStart) : -1;
     const body = fnStart >= 0 && fnEnd > fnStart ? jsonH.slice(fnStart, fnEnd) : '';
+    check(!!body, '[12] the live encoder telemetryToVar (const GranulatorInstrumentProcessor::UiTelemetry& t) is found in GiUiJson.h');
     const keysOf = (recv) => new Set([...body.matchAll(new RegExp(`\\b${recv}->setProperty \\("([A-Za-z]+)"`, 'g'))].map((m) => m[1]));
     const emitted = { top: keysOf('obj'), lane: keysOf('o'), rec: keysOf('rec') };
-    const total = (body.match(/->setProperty \("/g) || []).length;
-    check(emitted.top.size === 13 && emitted.lane.size === 3 && emitted.rec.size === 8
-       && total === emitted.top.size + emitted.lane.size + emitted.rec.size,
-        `[12] telemetryToVar emits ${emitted.top.size} top-level + ${emitted.lane.size} lane + ${emitted.rec.size} rec keys (${total} setProperty calls)`);
+    const literal = (body.match(/->setProperty \("/g) || []).length;
+    // modNorm's keys are the routed destination numbers, set by ONE computed call.
+    const modNormCalls = (body.match(/\bmodNorm->setProperty \(/g) || []).length;
+    const anyCalls = (body.match(/->setProperty \(/g) || []).length;
+    check(emitted.top.size === 14 && emitted.lane.size === 5 && emitted.rec.size === 8
+       && literal === emitted.top.size + emitted.lane.size + emitted.rec.size && modNormCalls === 1 && anyCalls === literal + modNormCalls,
+        `[12] the live telemetryToVar emits ${emitted.top.size} top-level + ${emitted.lane.size} lane + ${emitted.rec.size} rec keys `
+        + `(${literal} literal setProperty calls + ${modNormCalls} computed modNorm key; ${anyCalls} in all)`);
     const code = moduleSrc.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
     const reads = (re) => new Set([...code.matchAll(re)].map((m) => m[1]));
     const read = {
@@ -589,9 +623,27 @@ console.log('-- [12] telemetry keys');
     check(/complete \(GiUiJson::telemetryToVar \(\s*processorRef\.buildUiTelemetry \(juce::Time::getMillisecondCounterHiRes\(\)\)\)\);/.test(edCode),
         '[12] the getTelemetry native uses the shared builder (GiUiJson::telemetryToVar (processorRef.buildUiTelemetry (now)))');
     const builds = (edCode.match(/\bbuildUiTelemetry\b/g) || []).length;
-    const otherReaders = edCode.match(/\breadUiFrame\b|\btakeScPeak\b|\bframes\s*\.\s*read\b/g) || [];
+    // PLAN-3.3 PD15: the feeds buildUiTelemetry consumes — the grain frame, the
+    // output peaks L / R, the sidechain peaks L / R, the steal ring's cursor.
+    const feedRe = /\breadUiFrame\b|\btakeScPeak\b|\bframes\s*\.\s*read\b|\btakeOutPeaks\b|\btakeScPeaks\b|\bstolenCount\b|\btakeOutPeak\b/g;
+    const otherReaders = edCode.match(feedRe) || [];
     check(builds === 1 && otherReaders.length === 0,
-        `[12] buildUiTelemetry is called exactly once in the editor (${builds}) and no other frame / sidechain-peak reader exists (${otherReaders.length})` + show(otherReaders));
+        `[12] buildUiTelemetry is called exactly once in the editor (${builds}) and no other frame / peak / steal-ring reader exists (${otherReaders.length})` + show(otherReaders));
+    // ... and inside the processor every read of those feeds is in buildUiTelemetry.
+    const pc = stripC(procCpp);
+    const bStart = pc.indexOf('GranulatorInstrumentProcessor::UiTelemetry GranulatorInstrumentProcessor::buildUiTelemetry (double nowMs)');
+    const bEnd = bStart >= 0 ? pc.indexOf('\n}\n', bStart) : -1;
+    const inside = bStart >= 0 && bEnd > bStart ? pc.slice(bStart, bEnd) : '';
+    const outsideB = bStart >= 0 && bEnd > bStart ? pc.slice(0, bStart) + pc.slice(bEnd) : pc;
+    const feedsIn = (s) => ({
+        frame: (s.match(/\bframes\s*\.\s*read\s*\(/g) || []).length, out: (s.match(/\btakeOutPeaks\s*\(/g) || []).length,
+        sc: (s.match(/\btakeScPeaks\s*\(/g) || []).length, steal: (s.match(/\bstolenCount\s*\.\s*load\s*\(/g) || []).length,
+    });
+    const fin = feedsIn(inside), fout = feedsIn(outsideB);
+    const strays = (outsideB.match(feedRe) || []);
+    check(!!inside && fin.frame === 1 && fin.out === 1 && fin.sc === 1 && fin.steal >= 1 && Object.values(fout).every((n) => n === 0) && strays.length === 0,
+        `[12] PluginProcessor.cpp: frames.read / takeOutPeaks / takeScPeaks / stolenCount.load only inside buildUiTelemetry `
+        + `(inside ${fin.frame} / ${fin.out} / ${fin.sc} / ${fin.steal}; outside ${fout.frame} / ${fout.out} / ${fout.sc} / ${fout.steal})` + show(strays));
     let fixture = null;
     try { fixture = JSON.parse(fs.readFileSync(overridesPath, 'utf8')).natives.getTelemetry; } catch (_) { /* reported below */ }
     const fx = new Set(fixture ? Object.keys(fixture) : []);
@@ -660,16 +712,27 @@ console.log('-- [15] Phase 3.2 closure: emitted and read, live natives, failure 
     const tel31 = cppFn('inline juce::var telemetryToVar (std::uint32_t');
     const slotFn = cppFn('inline juce::var slotInfoToVar (const ogi::SlotInfo& info');
     const ovFn = cppFn('inline juce::var slotOverviewToVar (const GranulatorInstrumentProcessor& p, int slot0)');
-    check(!!tel32 && !!tel31 && !!slotFn && !!ovFn, '[15] the four encoders are found in GiUiJson.h (3.2 telemetry, 3.1 placeholder, slot, overview)');
+    check(!!tel32 && !!tel31 && !!slotFn && !!ovFn, '[15] the four encoders are found in GiUiJson.h (live telemetry, frozen 3.1 placeholder, slot, overview)');
     const keys = (body, recv) => new Set([...body.matchAll(new RegExp(`\\b${recv}->setProperty \\("([A-Za-z]+)"`, 'g'))].map((m) => m[1]));
     const e32 = { top: keys(tel32, 'obj'), lane: keys(tel32, 'o'), rec: keys(tel32, 'rec') };
     const e31 = { top: keys(tel31, 'obj'), lane: keys(tel31, 'o'), rec: keys(tel31, 'rec') };
-    const same = (a, b) => setDiff(a, b).length === 0 && setDiff(b, a).length === 0;
-    check(e32.top.size === 13 && e32.lane.size === 3 && e32.rec.size === 8
-       && same(e32.top, e31.top) && same(e32.lane, e31.lane) && same(e32.rec, e31.rec),
-        `[15] the 3.2 encoder emits the 3.1 key set, nothing renamed or dropped (${e32.top.size} top-level + ${e32.lane.size} lane + ${e32.rec.size} rec)`
-        + show([...setDiff(e31.top, e32.top), ...setDiff(e31.lane, e32.lane), ...setDiff(e31.rec, e32.rec)].map((x) => `-${x}`)
-            .concat([...setDiff(e32.top, e31.top), ...setDiff(e32.lane, e31.lane), ...setDiff(e32.rec, e31.rec)].map((x) => `+${x}`))));
+    const eqList = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
+    // PLAN-3.3 PD13 / PD14: the live set is explicit (14 / 3 + lo, hi / 8); the
+    // frozen placeholder's set is a subset; the difference is exactly lfoPh
+    // (top level) and lo, hi (lane) — nothing of 3.1 / 3.2 renamed or dropped.
+    const laneStatic = ['ovRev', 'fb', 'rec'];
+    check(e32.top.size === 14 && e32.lane.size === 5 && e32.rec.size === 8
+       && laneStatic.every((k) => e32.lane.has(k)) && e32.lane.has('lo') && e32.lane.has('hi'),
+        `[15] the live encoder emits 14 top-level + 3 lane (+ lo, hi) + 8 rec keys (found ${e32.top.size} + ${e32.lane.size} + ${e32.rec.size})`);
+    check(/if \(lane\.hasLoHi\)\s*\n\s*\{\s*\n\s*o->setProperty \("lo", [^\n]*\n\s*o->setProperty \("hi", /.test(tel32),
+        '[15] lanes[].lo / .hi are emitted only under lane.hasLoHi (absent otherwise, never 0)');
+    const sub = setDiff(e31.top, e32.top).length === 0 && setDiff(e31.lane, e32.lane).length === 0 && setDiff(e31.rec, e32.rec).length === 0;
+    const dTop = setDiff(e32.top, e31.top), dLane = setDiff(e32.lane, e31.lane), dRec = setDiff(e32.rec, e31.rec);
+    check(e31.top.size === 13 && e31.lane.size === 3 && e31.rec.size === 8 && sub
+       && eqList(dTop, ['lfoPh']) && eqList(dLane, ['lo', 'hi']) && dRec.length === 0,
+        `[15] frozen placeholder (13 / 3 / 8) ⊂ live, difference exactly lfoPh (top) and lo, hi (lane)`
+        + ` (found +top [${dTop}], +lane [${dLane}], +rec [${dRec}]`
+        + `${sub ? '' : '; placeholder keys missing from live: ' + [...setDiff(e31.top, e32.top), ...setDiff(e31.lane, e32.lane), ...setDiff(e31.rec, e32.rec)].join(', ')})`);
 
     const fn = {
         drawLane: jsFn('drawLane'), renderRec: jsFn('renderRec'), ingest: jsFn('ingestTelemetry'), renderLane: jsFn('renderLane'),
@@ -734,6 +797,189 @@ console.log('-- [15] Phase 3.2 closure: emitted and read, live natives, failure 
         check(new RegExp(`setLabel\\(el, '${key.replace('.', '\\.')}', \\{ n: String\\(n\\) \\}\\)`).test(raiser) && rule.test(raiser),
             `[15] the page raises ${key} with { n } under its rule (${key === 'toast.loadFailed' ? 'error changed to non-empty' : 'saveRecording refused, not cancelled'})`);
     }
+}
+
+// ───────────────────────────────────────────── 16. Phase 3.3 closure (PD23) ──
+console.log('-- [16] Phase 3.3 closure: emitted and read, mono rule == UMB1 transcription, LFO dot, state class gate');
+{
+    const code = moduleSrc.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+    const fnNames = [...code.matchAll(/\n {4}(?:async )?function ([A-Za-z0-9_]+)\(/g)].map((m) => m[1]);
+    const jsFn = (name) => {
+        const m = code.match(new RegExp(`\\n    (?:async )?function ${name}\\(`));
+        if (!m) return '';
+        const rest = code.slice(m.index + 1);
+        const next = rest.slice(1).search(/\n    (?:async )?function [A-Za-z]/);
+        return next < 0 ? rest : rest.slice(0, next + 1);
+    };
+    const a = jsonH.indexOf('inline juce::var telemetryToVar (const GranulatorInstrumentProcessor::UiTelemetry& t)');
+    const b = a >= 0 ? jsonH.indexOf('\n    }\n', a) : -1;
+    const tel = a >= 0 && b > a ? jsonH.slice(a, b) : '';
+    check(!!tel, '[16] the live encoder is found');
+    const keys = (recv) => new Set([...tel.matchAll(new RegExp(`\\b${recv}->setProperty \\("([A-Za-z]+)"`, 'g'))].map((m) => m[1]));
+    const top = keys('obj'), lane = keys('o'), rec = keys('rec');
+
+    const fn = {};
+    for (const n of ['drawVoices', 'drawMenvFigure', 'drawLfos', 'drawModSources', 'drawAmpFigure', 'updateLiveModulation',
+                     'modulatedNorm', 'ingestTelemetry', 'updateReadouts', 'drawLane'])
+        fn[n] = jsFn(n);
+    const missingFn = Object.entries(fn).filter(([, s]) => !s).map(([k]) => k);
+    check(missingFn.length === 0, '[16] the page functions that read the 3.3 keys are found' + show(missingFn));
+    const tRead = (body, key) => new RegExp(`\\b(?:t|telemetry)\\.${key}\\b`).test(body || '');
+    // The voice row as the encoder writes it: state, note, amp, 4 scans, wantSt.
+    const voiceRow = /row\.add \(v\.state\);\s*\n\s*row\.add \(v\.note\);\s*\n\s*row\.add \(r4 \(static_cast<double> \(v\.amp\)\)\);\s*\n\s*for \(const auto sc : v\.scan\)\s*\n\s*row\.add \(r4 \(static_cast<double> \(sc\)\)\);\s*\n\s*row\.add \(r4 \(static_cast<double> \(v\.wantSt\)\)\);/.test(tel);
+    // Four scan columns (v[3]…v[6]) so wantSt is column 8 (v[7]): UiTelemetry's scan is std::array<float, kGiStreams>, kGiStreams 4.
+    const scanDecl = /std::array<float, ogi::kGiStreams> scan\b/.test(fs.readFileSync(path.join(pluginRoot, 'Source', 'PluginProcessor.h'), 'utf8'));
+    const streamsN = Number((/inline constexpr int kGiStreams = (\d+);/.exec(fs.readFileSync(path.join(pluginRoot, 'Source', 'dsp', 'GiConstants.h'), 'utf8')) || [])[1]);
+    const scanN = scanDecl ? String(streamsN) : '';
+    const procC = stripC(procCpp);
+    // key, emitted (C++), read (page), where
+    const rows = [
+        ['newest', /obj->setProperty \("newest", t\.newest\);/.test(tel),
+            ['drawVoices', 'drawMenvFigure', 'drawLfos', 'drawModSources'].every((f) => tRead(fn[f], 'newest')),
+            'drawVoices / drawMenvFigure / drawLfos / drawModSources'],
+        ['menv', /obj->setProperty \("menv", menv\);/.test(tel) && /row\.add \(r4 \(static_cast<double> \(m\.e1\)\)\);\s*\n\s*row\.add \(m\.st1\);\s*\n\s*row\.add \(r4 \(static_cast<double> \(m\.e2\)\)\);\s*\n\s*row\.add \(m\.st2\);\s*\n\s*row\.add \(m\.ampSt\);/.test(tel),
+            tRead(fn.drawAmpFigure, 'menv') && tRead(fn.drawMenvFigure, 'menv') && /me\[i\]\[4\]/.test(fn.drawAmpFigure) && /m\[\(e - 1\) \* 2\]/.test(fn.drawMenvFigure) && /m\[\(e - 1\) \* 2 \+ 1\]/.test(fn.drawMenvFigure),
+            'drawAmpFigure (ampSt, column 5) / drawMenvFigure (e1, st1, e2, st2)'],
+        ['sources', /obj->setProperty \("sources", sources\);/.test(tel),
+            ['drawLfos', 'drawModSources', 'updateLiveModulation', 'drawVoices'].every((f) => tRead(fn[f], 'sources')),
+            'drawLfos / drawModSources / updateLiveModulation / drawVoices'],
+        ['modNorm', /obj->setProperty \("modNorm", juce::var \(modNorm\)\);/.test(tel) && /if \(t\.modRouted\[d\]\)\s*\n\s*modNorm->setProperty \(/.test(tel),
+            tRead(fn.modulatedNorm, 'modNorm') && /modulatedNorm\(/.test(fn.updateLiveModulation) && /modulatedNorm\(/.test(fn.drawLane),
+            'modulatedNorm (routed keys only) <- updateLiveModulation (rings) / drawLane (edge tick)'],
+        ['lfoPh', /obj->setProperty \("lfoPh", lfoPh\);/.test(tel), tRead(fn.drawLfos, 'lfoPh'), 'drawLfos'],
+        ['out', /obj->setProperty \("out", out\);/.test(tel) && /out\.add \(r4 \(static_cast<double> \(t\.outL\)\)\);\s*\n\s*out\.add \(r4 \(static_cast<double> \(t\.outR\)\)\);/.test(tel),
+            tRead(fn.ingestTelemetry, 'out') && /peaks\[0\]/.test(fn.ingestTelemetry) && /peaks\[1\]/.test(fn.ingestTelemetry), 'ingestTelemetry ([L, R])'],
+        ['rec.peak [L, R]', /peak\.add \(r4 \(static_cast<double> \(t\.rec\.peakL\)\)\);\s*\n\s*peak\.add \(r4 \(static_cast<double> \(t\.rec\.peakR\)\)\);/.test(tel) && rec.has('peak'),
+            /\bt\.rec\.peak\b/.test(fn.ingestTelemetry) && /sc\[0\]/.test(fn.ingestTelemetry) && /sc\[1\]/.test(fn.ingestTelemetry), 'ingestTelemetry ([L, R])'],
+        ['limit', /obj->setProperty \("limit", t\.limit\);/.test(tel), tRead(fn.updateReadouts, 'limit'), 'updateReadouts'],
+        ['lanes[].lo / .hi', lane.has('lo') && lane.has('hi'), /\blane\.lo\b/.test(fn.drawLane) && /\blane\.hi\b/.test(fn.drawLane), 'drawLane'],
+        ['voice row column 8 (wantSt)', voiceRow && scanN === '4', /Number\(v\[7\]\)/.test(fn.drawVoices) && /Math\.abs\(want\) > 48/.test(fn.drawVoices), 'drawVoices v[7] (> 48 -> vstate.clamp)'],
+        ['voice states 2 / 3', voiceRow, /st === 2\) setLabel\(stt, 'vstate\.release'\)/.test(fn.drawVoices) && /st === 3\) setLabel\(stt, 'vstate\.stolen'\)/.test(fn.drawVoices), 'drawVoices (vstate.release / vstate.stolen)'],
+        ['grain bit 2 (clamp)', /row\.add \(g\.flags\);/.test(tel) && /g\.flags \|= 2;/.test(procC), /\(Number\(gr\[7\]\) & 2\)/.test(fn.drawLane), 'drawLane (warn colour)'],
+    ];
+    for (const [key, emitted, read, where] of rows)
+        check(emitted && read, `[16] emitted and read: ${key} (${where})${emitted ? '' : ' — NOT emitted by the encoder'}${read ? '' : ' — NOT read by the page'}`);
+    const notSent = ['frozen', 'modRouted', 'stale'].filter((k) => top.has(k) || lane.has(k) || rec.has(k) || new RegExp(`setProperty \\("${k}"`).test(tel));
+    check(notSent.length === 0, '[16] not emitted: frozen, modRouted, stale (no page reader)' + show(notSent));
+
+    // ── the mono rule: page == the UMB1 transcription (ui_gates_33.h pageRule) ──
+    const g33Path = path.join(pluginRoot, 'tests', 'render-harness', 'ui_gates_33.h');
+    const g33 = fs.existsSync(g33Path) ? stripC(fs.readFileSync(g33Path, 'utf8')) : '';
+    const nsM = g33.match(/namespace pageRule\s*\{([\s\S]*?)\n {4}\}/);
+    const ns = nsM ? nsM[1] : '';
+    const cInt = (name) => { const m = ns.match(new RegExp(`\\b${name} = (-?\\d+)`)); return m ? Number(m[1]) : NaN; };
+    const cPv = ((ns.match(/kPerVoiceSources\[\] = \{([^}]*)\}/) || [])[1] || '').split(',').map((x) => Number(x.trim())).filter((x) => Number.isFinite(x));
+    const C = { lfoLo: cInt('kLfoSrcLo'), lfoHi: cInt('kLfoSrcHi'), g: cInt('kGlobalDest'), gLo: cInt('kGlobalDestLo'), gHi: cInt('kGlobalDestHi'),
+                rLo: cInt('kLfoRateDestLo'), rHi: cInt('kLfoRateDestHi'), rBase: cInt('kLfoRateDestBase') };
+    const cFnOk = /return src >= kLfoSrcLo && src <= kLfoSrcHi && lfoMode\[src - 1\] == 1;/.test(ns)
+               && /if \(d == kGlobalDest \|\| \(d >= kGlobalDestLo && d <= kGlobalDestHi\)\)\s*\n\s*return true;/.test(ns)
+               && /if \(d >= kLfoRateDestLo && d <= kLfoRateDestHi\)\s*\n\s*return lfoMode\[d - kLfoRateDestBase - 1\] == 0;/.test(ns);
+    check(!!ns && cPv.length > 0 && Object.values(C).every(Number.isFinite) && cFnOk,
+        `[16] ui_gates_33.h pageRule found: kPerVoiceSources [${cPv}], LFO src ${C.lfoLo}–${C.lfoHi}, global ${C.g} + ${C.gLo}–${C.gHi}, LFO rate ${C.rLo}–${C.rHi} (base ${C.rBase})`);
+    const pagePv = ((moduleSrc.match(/const PER_VOICE_SOURCES = \[([^\]]*)\];/) || [])[1] || '').split(',').map((x) => Number(x.trim())).filter((x) => Number.isFinite(x));
+    check(JSON.stringify(pagePv) === JSON.stringify([5, 6, 7, 8, 9, 11, 12, 13]) && JSON.stringify(pagePv) === JSON.stringify(cPv),
+        `[16] PER_VOICE_SOURCES == [5, 6, 7, 8, 9, 11, 12, 13] == pageRule::kPerVoiceSources (page [${pagePv}], harness [${cPv}])`);
+    // Evaluate the page's own two functions (their text, a comboIndex stub) against
+    // the C++ transcription for every source x destination x LFO-mode set.
+    let pageFns = null;
+    try {
+        const src = (n) => { const s = jsFn(n); if (!s) throw new Error(`${n} not found`); return s; };
+        pageFns = new Function('PER_VOICE_SOURCES', 'comboIndex', `${src('isPerVoiceSource')}\n${src('isGlobalDest')}\nreturn { isPerVoiceSource, isGlobalDest };`);
+    } catch (e) { pageFns = null; check(false, `[16] the page's isPerVoiceSource / isGlobalDest could not be evaluated — ${e.message}`); }
+    if (pageFns) {
+        const ruleIsPv = (s, mode) => cPv.includes(s) || (s >= C.lfoLo && s <= C.lfoHi && mode[s - 1] === 1);
+        const ruleIsG = (d, mode) => d === C.g || (d >= C.gLo && d <= C.gHi) || (d >= C.rLo && d <= C.rHi ? mode[d - C.rBase - 1] === 0 : false);
+        let pairs = 0, bad = 0, monoOn = 0, first = '';
+        for (let m = 0; m < 16; m++) {                                   // every combination of the four lfoN_mode values
+            const mode = [0, 1, 2, 3].map((i) => (m >> i) & 1);
+            const P = pageFns(pagePv, (id) => { const k = /^lfo(\d)_mode$/.exec(id); return k ? mode[Number(k[1]) - 1] : 0; });
+            for (let s = 1; s <= 17; s++) for (let d = 1; d <= 125; d++) {
+                ++pairs;
+                const page = P.isPerVoiceSource(s) && P.isGlobalDest(d), rule = ruleIsPv(s, mode) && ruleIsG(d, mode);
+                if (page) ++monoOn;
+                if (page !== rule) { ++bad; if (!first) first = `modes ${mode.join('')} src ${s} dest ${d}: page ${page}, rule ${rule}`; }
+            }
+        }
+        check(pairs === 16 * 17 * 125 && bad === 0 && monoOn > 0,
+            `[16] the page's mono rule == the UMB1 transcription: ${pairs - bad} / ${pairs} pairs (17 x 125 x 16 LFO-mode sets; mono-on ${monoOn})${first ? ' — first ' + first : ''}`);
+        const gl = (mode) => { const P = pageFns(pagePv, (id) => { const k = /^lfo(\d)_mode$/.exec(id); return k ? mode[Number(k[1]) - 1] : 0; }); return range(125).filter((d) => P.isGlobalDest(d)); };
+        const g0 = gl([0, 0, 0, 0]), g1 = gl([1, 1, 1, 1]);
+        check(JSON.stringify(g0) === JSON.stringify([1, ...range(8).map((i) => 113 + i), 122, 123, 124, 125]) && JSON.stringify(g1) === JSON.stringify([1, ...range(8).map((i) => 113 + i)]),
+            `[16] isGlobalDest ranges: 1, 114–121 always; 122–125 only while that LFO is Global (Global: [${g0.join(',')}]; Per-voice: [${g1.join(',')}])`);
+    }
+
+    // ── the LFO dot sits on the drawn curve: Y uses the phase offset (PD16) ──
+    const lf = fn.drawLfos || '';
+    check(/const pp = \(\(p % 1\) \+ 1\) % 1, X = 4 \+ pp \/ 2 \* \(w - 8\), Y = h \/ 2 - lfoShapeAt\(shape, \(pp \+ ph0\) % 1\) \* \(h \/ 2 - 6\);/.test(lf)
+       && /const p = i \/ 120 \* 2 \+ ph0, v = lfoShapeAt\(shape, p % 1\)/.test(lf) && !/lfoShapeAt\(shape, pp\)/.test(lf),
+        '[16] LFO dot: Y = lfoShapeAt(shape, (pp + ph0) % 1), the curve\'s own phase; X = pp / 2 (PD16)');
+
+    // ── class gate (D49a): no state __setLabel's a node a page reader writes ──
+    // Roots: the functions the page arms with setInterval / requestAnimationFrame.
+    const roots = [...new Set([...code.matchAll(/\b(?:setInterval|requestAnimationFrame)\(\s*([A-Za-z0-9_]+)/g)].map((m) => m[1]))].filter((n) => fnNames.includes(n));
+    const reach = new Set(roots), queue = [...roots];
+    while (queue.length) {
+        const body = jsFn(queue.shift());
+        for (const n of fnNames) if (!reach.has(n) && new RegExp(`(?<![.\\w])${n}\\(`).test(body)) { reach.add(n); queue.push(n); }
+    }
+    // Every setLabel(<x>, …) target inside those functions, resolved to an id (template parts -> wildcards).
+    const toRe = (lit) => lit.replace(/[.*+?^${}()|[\]\\]/g, (c) => '\\' + c).replace(/\\\$\\\{[^}]*\\\}/g, '[^\\s\'"]+');
+    const written = new Map(), unresolved = [], created = [];
+    for (const n of reach) {
+        const body = jsFn(n);
+        for (const m of body.matchAll(/(?<![.\w])setLabel\(\s*([A-Za-z_$][\w$]*)\s*,/g)) {
+            const v = m[1];
+            let id = null;
+            const decl = body.match(new RegExp(`\\b${v.replace('$', '\\$')} = document\\.getElementById\\((['\`])([^'\`]+)\\1\\)`));
+            const vq = v.replace('$', '\\$');
+            const sub = body.match(new RegExp(`\\b${vq} = [\\w$.]+\\.querySelector\\((['\`])([^'\`]+)\\1\\)`));
+            const made = new RegExp(`\\b${vq} = (?:svgEl|document\\.createElement(?:NS)?)\\(`).test(body);
+            if (decl) id = decl[2];
+            else if (v === 'el' && /showToast\(\(el\) => setLabel\(el,/.test(body)) id = 'toast';
+            else if (v === 'toastEl') id = 'toast';
+            else if (sub) { created.push(`${n}: ${v} = …querySelector('${sub[2]}')`); continue; }   // a child of a built row: no id to address
+            else if (made) { created.push(`${n}: ${v} = a node it creates`); continue; }
+            if (id === null) { unresolved.push(`${n}: setLabel(${v}, …)`); continue; }
+            if (!written.has(id)) written.set(id, new Set());
+            written.get(id).add(n);
+        }
+    }
+    const writtenRe = [...written.keys()].map((id) => ({ id, re: new RegExp(`^${toRe(id)}$`) }));
+    check(roots.length >= 2 && unresolved.length === 0 && ['rec-status-t', 'rec-prog-s'].every((id) => written.has(id)),
+        `[16] reader-written ids derived from the page: roots [${roots.join(', ')}] reach ${reach.size} functions, `
+        + `${written.size} id targets (${[...written.keys()].join(', ')}) + ${created.length} id-less (created nodes / row children)` + show(unresolved));
+    // A state's __setLabel target: a literal getElementById / querySelector('#id').
+    const setLabelTargets = (src) => {
+        const out = [];
+        for (const m of String(src).matchAll(/__setLabel\(\s*([^,]+),/g)) {
+            const t = m[1].trim();
+            const lit = t.match(/^document\.getElementById\((['"])([^'"]+)\1\)$/) || t.match(/^document\.querySelector\((['"])#([A-Za-z0-9_-]+)\1\)$/);
+            out.push(lit ? { id: lit[2] } : { id: null, raw: t });
+        }
+        return out;
+    };
+    const violations = (states) => {
+        const bad = [];
+        for (const st of states) for (const t of setLabelTargets(st.eval || '')) {
+            if (t.id === null) bad.push(`${st.name}: __setLabel on an unresolvable node (${t.raw})`);
+            else { const w = writtenRe.find((x) => x.re.test(t.id)); if (w) bad.push(`${st.name}: __setLabel #${t.id} (written by ${[...written.get(w.id)].join(' / ')})`); }
+        }
+        return bad;
+    };
+    // The gate must catch the three 3.2 vacuous states (SUMMARY-3.2 deviation 3) — its own liveness.
+    const vacuous32 = [
+        { name: 'rec-wait-level', eval: "window.__setLabel(document.getElementById('rec-status-t'), 'rec.waitLevel'); window.__setLabel(document.getElementById('rec-prog-s'), 'rec.capped', { s: '30 s' });" },
+        { name: 'rec-no-sidechain', eval: "window.__setLabel(document.getElementById('rec-status-t'), 'rec.noSidechain');" },
+        { name: 'rec-recording', eval: "window.__setLabel(document.getElementById('rec-status-t'), 'rec.recording', { n: 'IV' });" },
+    ];
+    const caught = violations(vacuous32);
+    check(caught.length === 4, `[16] class gate is live: the three 3.2 vacuous states are caught (${caught.length} / 4 __setLabel calls)`);
+    let statesJson = null;
+    try { statesJson = JSON.parse(fs.readFileSync(path.join(pluginRoot, 'tests', 'i18n-states.json'), 'utf8')); } catch (_) { /* reported below */ }
+    const v = Array.isArray(statesJson) ? violations(statesJson) : ['tests/i18n-states.json missing or unparsable'];
+    const nSet = Array.isArray(statesJson) ? statesJson.reduce((k, st) => k + setLabelTargets(st.eval || '').length, 0) : 0;
+    check(v.length === 0, `[16] class gate (D49a): no state in tests/i18n-states.json __setLabel's a reader-written node `
+        + `(${Array.isArray(statesJson) ? statesJson.length : 0} states, ${nSet} __setLabel call(s))` + show(v));
 }
 
 console.log(failed === 0 ? '\nALL PASS' : `\n${failed} FAILED`);
