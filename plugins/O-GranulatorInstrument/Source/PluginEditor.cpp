@@ -35,10 +35,11 @@
       2. JSON. getSlotState, getScaleState, getTelemetry, getParameterDefaults,
          getSlotOverview and getWindowCurve answer through GiUiJson.h, the
          encoders the render harness dumps for the UI stub. getTelemetry is
-         ALWAYS the full 3.2 object (the page replaces its copy on each answer),
+         ALWAYS the full 3.3 object (the page replaces its copy on each answer),
          encoded from the processor's buildUiTelemetry (now): that builder is
-         the one reader of the grain frame and of the sidechain peak, so the
-         editor reads neither. getSlotState carries the processor's per-slot
+         the one reader of every consuming feed (the grain / voice frame, the
+         output peaks L / R, the sidechain peaks L / R and the steal ring
+         cursor), so the editor reads none of them. getSlotState carries the processor's per-slot
          `dirty` flags.
       3. loadSlot (chooser -> requestSlotLoad) and relinkSlot (chooser ->
          requestRelink) answer { ok: true }: the load runs on the loader's
@@ -726,8 +727,9 @@ GranulatorInstrumentEditor::GranulatorInstrumentEditor (GranulatorInstrumentProc
         });
 
     // Live data, PULLED by the page at about 30 Hz. Always the full object.
-    // buildUiTelemetry is the ONLY reader of the grain frame and of the
-    // sidechain peak; the clock is read here, never inside it.
+    // buildUiTelemetry is the ONLY reader of the consuming feeds (frame,
+    // output peaks L / R, sidechain peaks L / R, steal ring cursor); the
+    // clock is read here, never inside it.
     options = options.withNativeFunction ("getTelemetry",
         [this] (auto&, auto complete)
         {

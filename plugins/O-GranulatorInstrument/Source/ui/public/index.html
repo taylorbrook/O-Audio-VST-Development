@@ -4406,7 +4406,7 @@ canvas.scope { position: absolute; }
             // Global: one dot at the global phase. Per-voice: one dot per sounding voice, newest ochre.
             const dots = !row ? [] : pv ? row.slice(1).map((p, i) => [Number(p), i === newest]).filter((d) => d[0] >= 0) : [[Number(row[0]), true]];
             dots.forEach(([p, main]) => {
-                const pp = ((p % 1) + 1) % 1, X = 4 + pp / 2 * (w - 8), Y = h / 2 - lfoShapeAt(shape, pp) * (h / 2 - 6);
+                const pp = ((p % 1) + 1) % 1, X = 4 + pp / 2 * (w - 8), Y = h / 2 - lfoShapeAt(shape, (pp + ph0) % 1) * (h / 2 - 6);
                 if (main) { g.strokeStyle = ACCENT + '55'; g.beginPath(); g.moveTo(X + 0.5, 2); g.lineTo(X + 0.5, h - 2); g.stroke(); }
                 g.fillStyle = main ? ACCENT : 'rgba(226,176,100,0.45)'; g.beginPath(); g.arc(X, Y, main ? 3 : 2.2, 0, 6.283); g.fill();
             });
