@@ -1,0 +1,28 @@
+T11 audit (PLAN-R1 PD21), 2026-11-12: which carried rows turn Record-in Arm On AND run the message loop before reading Arm, a take count or recorder state.
+
+Mechanism facts (read in the code):
+  - The auto-clear will be written from RecPollTimer (a juce::Timer). In the harness a Timer fires only while the message loop is run:
+    eg21::pump (engine_gates_21.h:142) and eg21::waitIdle (:1784, pumps 1 ms per spin).
+  - SlotLoader::waitForIdle sleeps and does not pump. GranulatorInstrumentProcessor::commitSync and the `land ()` helper
+    (engine_gates_26a.h:179) do not pump. So a row that arms through recBase / armAt and commits through land () never sees the clear.
+  - Every pump site in the harness: engine_gates_21.h:1796 (waitIdle), 1880, 1898, 1996, 2045, 2052, 2221; engine_gates_24.h:956, 965, 987, 989, 1081;
+    engine_gates_26a.h:767, 794, 810, 821, 826, 833; ui_gates_32.h:1348. waitIdle callers: engine_gates_21.h:1871, 1879, 1896, 2048; engine_gates_24.h:955.
+
+Rows that arm and pump (3):
+  CM1 (engine_gates_26a.h, Timer path arm)  arms (armAt), pumps until commitPending clears, then reads the tape, the WAV and the source.
+       D66: Arm reads Off after the pump. The row reads none of Arm / take counts afterwards -> verdict unchanged. Label gains "(Arm Off after the pump from D66)".
+  CM2  same shape, offline. Verdict unchanged; no label change needed.
+  CM3  arms, pumps to the commit, then getStateInformation, 50 x (relink, setStateInformation), run 1 s, pump 250 ms; reads handoff depth, live count, landed, drained.
+       D66: the saved blob now carries rec_arm 0 instead of 1 (Arm was cleared before the save). Before: 50 restores of On onto On (no edge). After: Off onto Off.
+       No take can start either way -> verdict unchanged.
+
+Rows that arm but never pump (unaffected at engine level; Arm stays On because no Timer runs):
+  OS1 (engine_gates_26a.h:387) "arm held On after a commit stays Idle (2 s)": commits through land (). Stays true. Label gains "engine level, no pump".
+  Every other recBase / armAt row in engine_gates_26a.h (57 helper lines), 26b.h (18), ui_gates_32.h (15), ui_gates_31.h (3), ui_gates_33.h (2):
+    none sits before a pump site (the only pump in the ui headers, ui_gates_32.h:1348, is the drop-import rate rebuild; no arm in that row).
+  N2 / N2s / FN3 (touchRec26, engine_gates_21.h:2171, 22.h:1454, 23.h:342): arm On with a silent sidechain through renderN; no pump.
+  UPM3 / UPM3n (ui_gates_31.h): a preset carrying rec_arm; reads Arm before / after a load; no pump, and presets never apply rec_arm.
+
+Rows that pump but never arm: H1-H5 (engine_gates_21.h), RS3 / SR1 (engine_gates_24.h:940-1081), the fuzz row in main.cpp (rec_arm pinned Off, :895), UDR rows (ui_gates_32.h:1348).
+
+Prediction for T14: ids == B; full moves only on OS1 and CM1 (label text) plus the 8 wall-clock rows of b0-notes.txt.

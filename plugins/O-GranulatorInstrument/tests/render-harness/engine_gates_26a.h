@@ -384,7 +384,7 @@ namespace { namespace eg26a
         oneShot (false, c1, a1, s1);
         oneShot (true, cn, an, sn_);
         const bool fired = an > 1;
-        row (c1 == 1 && a1 == 1 && s1 == RS::Idle && fired, "OS1 D34 one-shot: arm held On after a commit stays Idle (2 s)",
+        row (c1 == 1 && a1 == 1 && s1 == RS::Idle && fired, "OS1 D34 one-shot: arm held On after a commit stays Idle (2 s; engine level, no pump)",
              "meas commits " + i64 (c1) + ", arms " + i64 (a1) + ", state " + stName (s1) + " | thr 1 / 1 / Idle | "
                  + ctrl (fired, "OS1n armLevelTrigger -> " + i64 (an) + " arms, state " + stName (sn_)));
 
@@ -776,7 +776,7 @@ namespace { namespace eg26a
                 ok[path] = tapeDiff (s, 2, g, 1.0f, p.start, p.frames, 2) == 0 && info.source.startsWith ("rec:");
             }
             row (ok[0] && ok[1] && wav[0] && wav[1] && nonAscii[0] && nonAscii[1],
-                 "CM1 commit via commitSync and via the Timer + pump: tape, WAV, source rec:<path>",
+                 "CM1 commit via commitSync and via the Timer + pump: tape, WAV, source rec:<path> (D66: Arm Off after the pump)",
                  juce::String ("meas sync ") + (ok[0] ? "tape ok" : "tape BAD") + ", timer " + (ok[1] ? "tape ok" : "tape BAD") + ", WAVs in the override dir "
                      + (wav[0] && wav[1] ? "yes" : "no") + ", non-ASCII path round-trips " + (nonAscii[0] && nonAscii[1] ? "yes" : "no") + " | e.g. "
                      + src[0].fromLastOccurrenceOf ("/", false, false) + " | ctrl -");
