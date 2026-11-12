@@ -89,7 +89,7 @@ No source file has changed since the T13 harness build and the T14 install. C5 i
 ## Open items for verify
 
 - **D51:** run `HANDS-ON-SESSION-4.md` (one human session). Every ❌ is triaged into the `PLAN-4.F` gap wave, CHANGELOG known issues, or a row rewrite.
-- **D54:** the Windows CI arm (T19) waits for Taylor's go-ahead on push + validate dispatch. Until then: "D54 CI arm pending".
+- **D54:** T19 asked 2026-11-11; Taylor chose **hold** (no push, no dispatch). **D54 CI arm pending `/publish`**: the first Windows / x86_64 compile happens when main is pushed or the release is tagged. The grep gate (above) is the local evidence.
 - registry.yaml: see STATUS (own-hunk bump in C5).
 
 ## Requirements
