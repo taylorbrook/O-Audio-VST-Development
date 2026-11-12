@@ -112,7 +112,7 @@ modules:
     reuse_score: 8
     used_by:
       - plugin: O-GranulatorInstrument
-        version: 0.1.0
+        version: 1.0.0
       - plugin: O-MicrotonalSampler
         version: 1.28.2
       - plugin: O-simpleGrain
@@ -192,7 +192,7 @@ modules:
       - plugin: O-Granulator
         version: 0.1.0
       - plugin: O-GranulatorInstrument
-        version: 0.1.0
+        version: 1.0.0
       - plugin: O-Lyrica
         version: 2.6.7
       - plugin: O-MultiBandCompressor
@@ -405,7 +405,7 @@ modules:
       - plugin: O-Formant
         version: 1.34.3
       - plugin: O-GranulatorInstrument
-        version: 0.1.0
+        version: 1.0.0
       - plugin: O-IntonationPad
         version: 2.11.3
       - plugin: O-Lyrica
@@ -449,7 +449,7 @@ modules:
       - plugin: O-Granulator
         version: 0.1.0
       - plugin: O-GranulatorInstrument
-        version: 0.1.0
+        version: 1.0.0
 
   # ============================================================================
   # SYNTHESIS MODULES
@@ -517,7 +517,7 @@ modules:
       - plugin: O-Granulator
         version: 0.1.0
       - plugin: O-GranulatorInstrument
-        version: 0.1.0
+        version: 1.0.0
       - plugin: O-Polystutter
         version: 1.19.1
       - plugin: O-ReverseDelay
@@ -655,7 +655,7 @@ modules:
       - plugin: O-Granulator
         version: 0.1.0
       - plugin: O-GranulatorInstrument
-        version: 0.1.0
+        version: 1.0.0
       - plugin: O-Marimba
         version: 1.16.3
 
@@ -722,7 +722,7 @@ modules:
       - plugin: O-Granulator
         version: 0.1.0
       - plugin: O-GranulatorInstrument
-        version: 0.1.0
+        version: 1.0.0
       - plugin: O-IntonationPad
         version: 2.11.3
       - plugin: O-Lyrica

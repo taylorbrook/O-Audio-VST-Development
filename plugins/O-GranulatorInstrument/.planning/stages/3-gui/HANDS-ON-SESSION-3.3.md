@@ -1,5 +1,7 @@
 # O-GranulatorInstrument — HANDS-ON-SESSION-3.3 (one human session at 3.3 verify, D47)
 
+> **Superseded by [HANDS-ON-SESSION-4](../4-polish/HANDS-ON-SESSION-4.md) (2026-11-11).** Run that sheet; this one is kept for history.
+
 Every pending hands-on file runs here, once, in this order, followed by the Logic AU pass. Execute is not gated on any of it (PD27). Mark rows in each file; copy the totals into the results table below.
 
 ## 0. Prepare
@@ -60,4 +62,4 @@ Software Instrument track with O-GranulatorInstrument-dev; an audio track playin
 | HANDS-ON-3.3 | | | |
 | Logic AU pass | | | |
 
-A ❌ in a 2.x file reopens that DSP phase; a ❌ in 3.x reopens `3-gui`. UI-01 and UI-02 close at 3.3 verify only when their files are ✅.
+A ❌ in any row routes to the Stage 4 gap wave (`PLAN-4.F` via `/plugin-execute O-GranulatorInstrument 4-polish`), not to 2-dsp / 3-gui *(rewritten at Stage 4)*. UI-01 and UI-02 close at 3.3 verify only when their files are ✅.

@@ -1,5 +1,7 @@
 # O-GranulatorInstrument — HANDS-ON-3.1 (human gate)
 
+> **Superseded by [HANDS-ON-SESSION-4](../4-polish/HANDS-ON-SESSION-4.md) (2026-11-11).** Run that sheet; this one is kept for history.
+
 **Build:** 0.1.0 dev (`O-GranulatorInstrument-dev`), Phase 3.1: the v1 page in the WebView editor at a fixed 1200 × 800, 261 parameters bound, 34 native functions, presets, slot actions, value entry.
 **Run in:** the Standalone and one DAW (Logic AU `aumu OuGI OuDv`, or a VST3 host). Rebuild the Standalone first: `ninja -C build OuariconGranulatorInstrument_Standalone`.
 **Not self-certified.** Mark each row ✅ / ❌ and add a note for every ❌. 3.1 rows only; HANDS-ON-2.1–2.6 and the Logic DAW pass run once at 3.3 verify (D39).

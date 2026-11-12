@@ -1,5 +1,7 @@
 # O-GranulatorInstrument — HANDS-ON-2.6 (human gate)
 
+> **Superseded by [HANDS-ON-SESSION-4](../4-polish/HANDS-ON-SESSION-4.md) (2026-11-11).** Run that sheet; this one is kept for history.
+
 **Build:** 0.1.0 dev (`O-GranulatorInstrument-dev`), Phase 2.6 engine (Record-in capture by Manual / Threshold / Next Note, `<Slots>` state with file / rec / factory / embedded sources, relink, the 2 factory stubs), with the `DevLoaderEditor` (four Load buttons above the generic editor).
 **Run in:** Logic (AU `aumu OuGI OuDv`), Ableton Live and Reaper (VST3), and the Standalone where a row says so.
 **Not self-certified.** Mark each row ✅ / ❌ and add a note for every ❌.
@@ -23,12 +25,12 @@ Defaults to know before you start:
 | 4 | Threshold feel | Threshold at −40 and −20 dB on drums and on voice | The take starts just before the hit / word; the attack is not cut (10 ms pre-roll) | | | |
 | 5 | Next Note | Next Note trigger: play a note to start; then repeat in Legato with overlapping notes | The take starts with the played note. In Legato, a pitch change on a held key does not start it | | | |
 | 6 | Bars | Sync Mode Tempo, Length Sync 2 bars, transport playing; then stopped | Playing: exactly 2 bars at the session tempo. Stopped: Record Length seconds | | | |
-| 7 | Save / reopen | A session with Slot 1 = a file, Slot 2 = a recording, Slot 3 = factory (not reachable from the UI until Stage 3; skip if no way to set it), Slot 4 = a recording whose WAV you then delete. Save, close, reopen | All slots come back and sound; Slot 4 comes back from the embedded copy. Loop regions and the custom scale come back too | | | |
+| 7 | Save / reopen | A session with Slot 1 = a file, Slot 2 = a recording, Slot 3 = factory (factory sources are reachable through factory presets, whose lanes load `factory:<id>` sources; e.g. Pads · Fifth Bloom puts Drone on lane III) *(rewritten at Stage 4)*, Slot 4 = a recording whose WAV you then delete. Save, close, reopen | All slots come back and sound; Slot 4 comes back from the embedded copy. Loop regions and the custom scale come back too | | | |
 | 8 | Moved / deleted files | Move a recording WAV to another folder inside Recordings (or rename it); reopen. Then delete a user file a slot uses; reopen | The moved / renamed recording is found again. The deleted user file leaves its slot empty ("missing"), the plugin stays stable, and saving keeps the reference | | | |
 | 9 | Hot take | Record Gain +12 dB on a loud source; reload the session with the WAV deleted | Audible clipping only on the blob-only reload (the WAV master is unclipped) — PD3, by design | | | |
 | 10 | Bypass mid-take | Logic: bypass the plugin while recording, then unbypass | A take ≥ 0.5 s is kept up to the bypass; if Logic stops rendering while bypassed, the take has a gap at that point (PD10) | | | |
 | 11 | Save time | Logic: 4 slots of ~11 MB embedded takes (30 s stereo at 48 k); save the project a few times | Saves stay usable (note the time); no hang | | | |
-| 12 | Old patches | Load 2.1–2.5b patches with Record-in idle | They sound unchanged (proven bitwise: TB7) | | | |
+| 12 | Old patches | N/A *(rewritten at Stage 4)*: no pre-1.0 sessions exist | Harness-covered (TB7 / state rows) | | | |
 | 13 | Swap dip (S6) | Hold a chord on a sounding slot; commit a take into that slot, and separately reopen a state that changes its file | No click. A brief level dip (old grains fade in 5 ms, new grains fade in through their windows) is the 2.1 swap rule; note whether it is noticeable (CK6a/b judged on raw curvature by user decision 2026-11-09; local κ 3.6× / 3.8× is the dip) | | | |
 
 Listening notes: capture timing (rows 1, 4, 5): ______ · threshold feel (row 4): ______ · relink behaviour (row 8): ______ · save time (row 11): ______ · swap dip (row 13): ______

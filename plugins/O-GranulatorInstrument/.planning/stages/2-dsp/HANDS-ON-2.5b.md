@@ -1,5 +1,7 @@
 # O-GranulatorInstrument — HANDS-ON-2.5b (human gate)
 
+> **Superseded by [HANDS-ON-SESSION-4](../4-polish/HANDS-ON-SESSION-4.md) (2026-11-11).** Run that sheet; this one is kept for history.
+
 **Build:** 0.1.0 dev (`O-GranulatorInstrument-dev`), Phase 2.5b engine (Poly / Mono / Legato with glide, sustain pedal, the MPE lower zone, VST3 note expression), with the `DevLoaderEditor` (four Load buttons above the generic editor).
 **Run in:** the Standalone, Logic (AU `aumu OuGI OuDv`) **and** Dorico (VST3, for rows 9 only).
 **Not self-certified.** Mark each row ✅ / ❌ and add a note for every ❌.
@@ -26,7 +28,7 @@ Defaults to know before you start:
 | 8 | MPE bend range | Set the controller's pitch-bend range (it sends RPN 0, e.g. 24 or 48) | The per-note bend covers exactly that range | | | |
 | 9 | Dorico NE | Dorico + VST3: quarter-tone accidentals in a melody; playback and note-input preview. Then Legato with glide on the same passage | Quarter-tones sound at the right pitch in preview and playback; Legato glides land on the tuned pitch | | | |
 | 10 | No-hard-control click rows | Legato glide (CK5b), fallback glide (CK5c), MPE member bend sweep (CK5f) on a sine source | No clicks or zipper (pitch is latched per grain, so a step makes no click by construction; listening check) | | | |
-| 11 | Old patches | Load 2.1–2.5a patches in Poly with MPE off | They sound unchanged | | | |
+| 11 | Old patches | N/A *(rewritten at Stage 4)*: no pre-1.0 sessions exist | Harness-covered (TB7 / state rows) | | | |
 
 Listening notes: Mono re-attack feel (row 1): ______ · Legato smoothness (row 2): ______ · glide curve (row 4): ______ · MPE expression (row 7): ______ · Dorico tuning (row 9): ______
 

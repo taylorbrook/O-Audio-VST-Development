@@ -1,5 +1,7 @@
 # O-GranulatorInstrument — HANDS-ON-2.5a (human gate)
 
+> **Superseded by [HANDS-ON-SESSION-4](../4-polish/HANDS-ON-SESSION-4.md) (2026-11-11).** Run that sheet; this one is kept for history.
+
 **Build:** 0.1.0 dev (`O-GranulatorInstrument-dev`), Phase 2.5a engine (mod sources, the 16-slot matrix with per-voice evaluation, the newest-voice rule, Tempo sync), with the `DevLoaderEditor` (four Load buttons above the generic editor).
 **Run in:** the Standalone **and** one DAW (Logic preferred; AU `aumu OuGI OuDv`).
 **Not self-certified.** Mark each row ✅ / ❌ and add a note for every ❌.
@@ -26,7 +28,7 @@ Defaults to know before you start:
 | 9 | Tempo sync | Sync Mode Tempo; S1 Density Sync and Size Sync at 1/16, 1/8 T and 1 bar in a DAW loop at 3 tempi; change tempo and jump the loop while notes sound | Grains stay locked to the beat. The note-on grain sounds immediately. Heavy chords thin but stay on the grid | | | |
 | 10 | LFO Tempo sync | Sync Mode Tempo, LFO 1 Rate Sync 1 bar → S1 Level; Global, then Per-voice | Global: locked to the bar, even across loop jumps. Per-voice: each note restarts the LFO at tempo rate | | | |
 | 11 | LFO → Reverb Mix through 0 | LFO 1 → Reverb Mix at depth ±50 with Reverb Mix at 0 | The tank restarts cold each time the mix reaches 0 (parent R54). **Listening call:** is this acceptable? | | | |
-| 12 | Old patches | Load 2.1–2.4 patches (no routes) | They sound unchanged | | | |
+| 12 | Old patches | N/A *(rewritten at Stage 4)*: no pre-1.0 sessions exist | Harness-covered (TB7 / state rows) | | | |
 
 Listening notes: LFO feel (row 1): ______ · per-voice spread on chords (row 2): ______ · Tempo burst feel (row 9): ______ · reverb cold restarts (row 11): ______
 

@@ -1,5 +1,7 @@
 # O-GranulatorInstrument — HANDS-ON-2.2 (human gate)
 
+> **Superseded by [HANDS-ON-SESSION-4](../4-polish/HANDS-ON-SESSION-4.md) (2026-11-11).** Run that sheet; this one is kept for history.
+
 **Build:** 0.1.0 dev (`O-GranulatorInstrument-dev`), Phase 2.2 engine with the `DevLoaderEditor` (four Load buttons above the generic editor).
 **Run in:** the Standalone **and** one DAW (Logic preferred; AU `aumu OuGI OuDv`).
 **Not self-certified.** Mark each row ✅ / ❌ and add a note for every ❌.
@@ -24,7 +26,7 @@ Defaults to know before you start:
 | 7 | Grain Limit | 4 streams × a dense chord; lower Grain Limit 256 → 32 | Density thins quickly; no clicks or stuck grains | | | |
 | 8 | Steals | Polyphony 4, play 6+ distinct notes legato with 4 streams enabled | Steals are inaudible | | | |
 | 9 | Release | Release 500 ms+, 4 streams, release a chord | Every stream keeps spawning through the release and fades out | | | |
-| 10 | Session reopen | Set different `sN_scale` choices, save the project, close and reopen it | The scale choices come back. Slots come back **empty**, which is expected until 2.6 | | | |
+| 10 | Session reopen | Set different `sN_scale` choices, save the project, close and reopen it | The scale choices come back. Slots come back too (slots restore from the session) *(rewritten at Stage 4)* | | | |
 
 Voice-gain trim (row 6): ______ dB (0.0 = confirmed as measured)
 

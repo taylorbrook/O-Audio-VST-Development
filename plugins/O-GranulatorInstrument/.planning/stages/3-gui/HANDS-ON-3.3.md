@@ -1,5 +1,7 @@
 # O-GranulatorInstrument — HANDS-ON-3.3 (human gate)
 
+> **Superseded by [HANDS-ON-SESSION-4](../4-polish/HANDS-ON-SESSION-4.md) (2026-11-11).** Run that sheet; this one is kept for history.
+
 **Build:** 0.1.0 dev (`O-GranulatorInstrument-dev`), Phase 3.3: MOD page (17 sources, drag-to-modulate, rings, mono badges, loop-edge ticks), VOICE page (voice strip with releases and steals, env scopes, LFO views, `+48` clamp marker), output and sidechain meters L / R, grain caption and heavy hint.
 **Run in:** the Standalone and Logic (AU `aumu OuGI OuDv`). Rebuild the Standalone first: `ninja -C build OuariconGranulatorInstrument_Standalone`.
 **Run inside the one session** described in `HANDS-ON-SESSION-3.3.md` (D47), after 2.1–2.6, 3.1 and 3.2. A ❌ here routes to `/plugin-execute O-GranulatorInstrument 3-gui`.

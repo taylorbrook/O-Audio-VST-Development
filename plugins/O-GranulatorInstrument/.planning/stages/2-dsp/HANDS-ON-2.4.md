@@ -1,5 +1,7 @@
 # O-GranulatorInstrument — HANDS-ON-2.4 (human gate)
 
+> **Superseded by [HANDS-ON-SESSION-4](../4-polish/HANDS-ON-SESSION-4.md) (2026-11-11).** Run that sheet; this one is kept for history.
+
 **Build:** 0.1.0 dev (`O-GranulatorInstrument-dev`), Phase 2.4 engine (working-copy feedback, Freeze, Reset, reverb, the parent D9 wet knee) with the `DevLoaderEditor` (four Load buttons above the generic editor).
 **Run in:** the Standalone **and** one DAW (Logic preferred; AU `aumu OuGI OuDv`).
 **Not self-certified.** Mark each row ✅ / ❌ and add a note for every ❌.
@@ -21,13 +23,13 @@ Defaults to know before you start:
 | 2 | Feedback filters + diffusion | At Feedback 80 %, sweep FB Low Cut and FB High Cut, then FB Diffusion 0 → 100 % | The written layer thins and darkens with the cuts; diffusion smears it | | | |
 | 3 | Freeze | Toggle Freeze on and off while playing at Feedback 80 % | The heads stop with no click and the evolved copy holds; unfreeze resumes smoothly | | | |
 | 4 | Head stop / start | At Feedback 100 %, release every note, wait 2 s, play again | No splice or tick as grains sweep the point where the head stopped | | | |
-| 5 | Reset | (Stage 3 UI.) Reset one slot, then all, while playing and while frozen | Back to the pristine sound through a smooth 20 ms crossfade. Frozen stays frozen | | | |
+| 5 | Reset | Press a lane's Reset button, then Reset All, while playing and while frozen *(rewritten at Stage 4)* | Back to the pristine sound through a smooth 20 ms crossfade. Frozen stays frozen | | | |
 | 6 | Chords vs unison | Feedback 80 %: a single note, then a wide chord | Chords thin in the copy (the ARCH §3 mean tap). **Listening call:** is the `1/sqrt(Σa)` chord fallback needed? (Any change is a later decision.) | | | |
 | 7 | Reverb | Sweep Reverb Mix, Size and Damp; then pull Mix to 0 while a tail rings; then raise it again after a pause | Audible and smooth. The tail fades out with no step when Mix goes to 0. A cold re-enable is clean | | | |
 | 8 | Extreme patch | Feedback 100 % + Reverb Mix 100 % + Filter Res 100 % on all streams + 16 voices | The output never exceeds +6 dBFS before Output Gain (watch the DAW meter with Output Gain at 0 dB). **Listening note:** judge the knee's limiting character | | | |
 | 9 | Sample-rate change | In the DAW, switch 44.1 ↔ 96 kHz with Feedback on and a note held | The pitch stays correct. The heads resume after the slot rebuild lands (a short pause in the copy's evolution is expected) | | | |
 | 10 | Session reopen | Set Feedback, the FB controls, Freeze and the Reverb controls; save, close and reopen | Every parameter comes back. The working copy reloads pristine (by design) | | | |
-| 11 | Knee adoption | Load a 2.1–2.3 patch with the defaults above | It sounds unchanged at normal levels (the knee is identity at or below −6 dBFS). Only hot peaks differ | | | |
+| 11 | Knee adoption | N/A *(rewritten at Stage 4)*: no pre-1.0 sessions exist | Harness-covered (TB7 / state rows) | | | |
 
 Listening notes — saturation character (row 1): ______ · chord fallback needed? (row 6): ______ · knee limiting character (row 8): ______
 

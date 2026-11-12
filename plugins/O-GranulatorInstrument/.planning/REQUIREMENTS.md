@@ -26,7 +26,7 @@ lastUpdated: 2026-11-09
 | FUNC-05 | Voice modes Poly / Mono / Legato with glide | should | partial | stage-2 |
 | FUNC-06 | File references persist in state; a missing file shows relink without crashing; factory sources resolve from the content folder | must | partial | stage-2 |
 | FUNC-07 | Record-in: capture sidechain input into a target slot (manual / threshold / next-note trigger) | should | partial | stage-2 |
-| FUNC-08 | Small factory source set plus presets that load out of the box | should | pending | stage-4 |
+| FUNC-08 | Small factory source set plus presets that load out of the box | should | partial | stage-4 |
 | FUNC-09 | Scale-quantised pitch spread, degree masks and the custom scale, as O-Granulator | must | partial | stage-2 |
 
 ### DSP (DSP)
@@ -61,7 +61,7 @@ lastUpdated: 2026-11-09
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | complete | stage-1 |
-| COMPAT-02 | MPE / VST3 note expression per the O-Lyrica reference | nice | pending | stage-4 |
+| COMPAT-02 | MPE / VST3 note expression per the O-Lyrica reference | nice | partial | stage-4 |
 
 ### Quality (QUAL)
 

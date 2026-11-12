@@ -1,5 +1,7 @@
 # O-GranulatorInstrument — HANDS-ON-3.2 (human gate)
 
+> **Superseded by [HANDS-ON-SESSION-4](../4-polish/HANDS-ON-SESSION-4.md) (2026-11-11).** Run that sheet; this one is kept for history.
+
 **Build:** 0.1.0 dev (`O-GranulatorInstrument-dev`), Phase 3.2: live lanes (playheads, grain dots, feedback head, record head, evolving overview with dirty ticks), Record-in panel from engine state, Clear, Save recording, durable drops, preset slot rule.
 **Run in:** the Standalone and Logic (AU `aumu OuGI OuDv`). Rebuild the Standalone first: `ninja -C build OuariconGranulatorInstrument_Standalone`.
 **Run together with** the 16 rows of `HANDS-ON-3.1.md` (D43). A ❌ in a 3.1 row routes to `/plugin-execute O-GranulatorInstrument 3-gui` for 3.1's code.

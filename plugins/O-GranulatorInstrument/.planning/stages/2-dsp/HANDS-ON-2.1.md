@@ -1,6 +1,8 @@
 # O-GranulatorInstrument — HANDS-ON-2.1 (human gate)
 
-**Build:** 0.1.0 dev (`O-GranulatorInstrument-dev`), Phase 2.1 engine with the `DevLoaderEditor` (four Load buttons above the generic editor).
+> **Superseded by [HANDS-ON-SESSION-4](../4-polish/HANDS-ON-SESSION-4.md) (2026-11-11).** Run that sheet; this one is kept for history.
+
+**Build:** 0.1.0 dev (`O-GranulatorInstrument-dev`), Phase 2.1 engine. The WebView UI is the editor (lanes accept drop and browse); the `DevLoaderEditor` no longer exists *(rewritten at Stage 4)*.
 **Run in:** the Standalone **and** one DAW (Logic preferred; AU `aumu OuGI OuDv`).
 **Not self-certified.** Mark each row ✅ / ❌ and add a note for every ❌.
 
@@ -9,11 +11,11 @@
 Defaults to know before you start:
 - Only stream 1 plays, and it reads **slot 1**. Slots 2–4 load and report status, but nothing plays from them until 2.2.
 - There is no spray, jitter, window morph, FX, feedback, reverb, modulation, glide or MPE yet. The sound will be plainer than the final instrument.
-- Voice gain is −6 dB and provisional. It is re-tuned in the 2.2 listening pass.
+- Voice gain is the value measured against O-Granulator in 2.2 (HANDS-ON-2.2 row 6), no longer a provisional −6 dB *(rewritten at Stage 4)*.
 
 | # | Row | How | Expected | Standalone | DAW | Notes |
 |---|---|---|---|---|---|---|
-| 1 | Load each slot | Click **Load slot 1…4** and pick a WAV/AIFF/FLAC in each | Each status line shows name, frames, native rate and the trimmed flag | | | |
+| 1 | Load each lane | Drop a WAV/AIFF/FLAC on each of lanes I–IV, or use each lane's browse button *(rewritten at Stage 4)* | Each lane shows the file's name and waveform; a > 30 s file shows the trimmed badge | | | |
 | 2 | Chord | Load a pitched sample into slot 1 (set Root to its pitch) and hold a 4-note chord | Four distinct pitched clouds | | | |
 | 3 | Root / key tracking | Play the root key, then set Key Track to 0 and play several keys | Root = the file's pitch; with Key Track 0 every key sounds the same pitch | | | |
 | 4 | Steals | Set Polyphony 4 and play 6+ distinct notes legato | Notes beyond 4 steal the oldest; no clicks | | | |
@@ -25,6 +27,6 @@ Defaults to know before you start:
 | 10 | Session rate change | Standalone: hold a note and change the audio device rate (e.g. 48 → 96 k) in Audio Settings | Pitch holds after the switch (short crossfade); no crash | | — | |
 | 11 | Grain Limit | Hold a dense chord and lower Grain Limit 256 → 32 | Density thins quickly; no clicks or stuck grains | | | |
 | 12 | **UAF row** | Click **Load slot N** to open the chooser, close the plugin window (DAW) or editor, then pick a file | No crash, and no load happens | | | |
-| 13 | Session reopen | Save the project with slots loaded, close and reopen it | Slots come back **empty**, which is expected until 2.6 (`<Slots>` state) | | | |
+| 13 | Session reopen | Save the project with slots loaded, close and reopen it | Slots come back loaded (slots restore from the session) *(rewritten at Stage 4)* | | | |
 
 Result: ______ (all ✅ → Phase 2.1 hands-on PASS; any ❌ → note it and re-run `/plugin-execute O-GranulatorInstrument 2-dsp` for the fix)

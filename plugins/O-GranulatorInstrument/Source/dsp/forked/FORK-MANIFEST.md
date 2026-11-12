@@ -36,4 +36,4 @@ The EngineConstants edits touch `kPoolLive`, `kPoolFade`, `kMaxSemis`, `kMaxRate
 
 ## Take / skip log
 
-(empty — zero drift at pin)
+- `e77d29c8` — UI only (index.html value entry), no leaf; taken at 3.1 D41; skip; pin unchanged (Stage 4 D58, 2026-11-11)
