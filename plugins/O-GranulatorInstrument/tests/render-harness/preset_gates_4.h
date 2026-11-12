@@ -1272,6 +1272,173 @@ namespace { namespace pg4
     }
 
     //==========================================================================
+    // PLAN-R1 PD29: `--dump-preset-renders <dir>` / `--cmp-preset-renders <dir>
+    // [--all-bitwise] [--exclude-showcase]`. Outside the full set: they need a
+    // reference directory (rework R1's B0, kept under build/). Per preset: the
+    // FP2 session (shipping law, 120 bpm, Live templates on the stand-in
+    // lanes) and note script, a fixed 10 s render; the raw file is L then R,
+    // float32 little-endian. `preset-renders.sha256` lists them in bank order
+    // (shasum format, LF). A missing directory or file = exit 77 (not run).
+    constexpr double kPtSeconds = 10.0;
+
+    /** PD28: the 10 re-voiced presets leave the comparison by name (T23 on). */
+    constexpr const char* kShowcase[] = {
+        "Drones \xc2\xb7 Deep Well", "Drones \xc2\xb7 Organ Loft", "Drones \xc2\xb7 Night Engine", "Expressive \xc2\xb7 Bend Choir",
+        "Live \xc2\xb7 Four Lanes", "Motion \xc2\xb7 Phase Garden", "Pads \xc2\xb7 Fifth Bloom", "Pads \xc2\xb7 Slow Tide",
+        "Rhythmic \xc2\xb7 Triplet Rain", "Textures \xc2\xb7 Broken Radio" };
+
+    bool isShowcase (const F::FactoryPresetSpec& s)
+    {
+        for (const char* n : kShowcase)
+            if (std::strcmp (s.name, n) == 0)
+                return true;
+        return false;
+    }
+
+    juce::String ptFileOf (const F::FactoryPresetSpec& s)
+    {
+        return catOf (s).replaceCharacter (' ', '_') + "__" + shortOf (s).replaceCharacter (' ', '_') + ".f32";
+    }
+
+    int ptStreams (const F::FactoryPresetSpec& s)
+    {
+        int n = 0;
+        for (int k = 1; k <= 4; ++k)
+            n += streamOn (s, k) ? 1 : 0;
+        return n;
+    }
+
+    /** L then R, 10 s at 48 kHz. */
+    std::vector<float> ptRender (int i)
+    {
+        PSess ps;
+        ps.apply (i);
+        script (*ps.s);
+        ps.s->run ((juce::int64) (kPtSeconds * kFsP), 512);
+        std::vector<float> v (ps.s->L);
+        v.insert (v.end(), ps.s->R.begin(), ps.s->R.end());
+        return v;
+    }
+
+    int dumpPresetRenders (const juce::File& dir)
+    {
+        dir.createDirectory();
+        const auto& b = bank();
+        const int N = (int) b.specs.size();
+        std::vector<juce::String> sha ((size_t) N);
+        std::vector<int> ok ((size_t) N, 0);
+        parallelFor (N, [&] (int i)
+        {
+            const auto v = ptRender (i);
+            const auto f = dir.getChildFile (ptFileOf (b.specs[(size_t) i]));
+            ok[(size_t) i] = v.size() == (size_t) (2.0 * kPtSeconds * kFsP) && f.replaceWithData (v.data(), v.size() * sizeof (float)) ? 1 : 0;
+            sha[(size_t) i] = juce::SHA256 (v.data(), v.size() * sizeof (float)).toHexString();
+        });
+        juce::String list;
+        int n = 0, per[5] = { 0, 0, 0, 0, 0 };
+        for (int i = 0; i < N; ++i)
+        {
+            const auto& s = b.specs[(size_t) i];
+            list << sha[(size_t) i] << "  " << ptFileOf (s) << "\n";
+            n += ok[(size_t) i];
+            ++per[juce::jlimit (0, 4, ptStreams (s))];
+            std::printf ("  %s  streams %d  %s\n", sha[(size_t) i].toRawUTF8(), ptStreams (s), s.name);
+        }
+        const bool wrote = dir.getChildFile ("preset-renders.sha256").replaceWithText (list, false, false, "\n");
+        std::printf ("dump-preset-renders: %d files -> %s; enabled streams 1 / 2 / 3 / 4 = %d / %d / %d / %d (0: %d)\n",
+                     n, dir.getFullPathName().toRawUTF8(), per[1], per[2], per[3], per[4], per[0]);
+        return n == N && wrote ? 0 : 1;
+    }
+
+    int cmpPresetRenders (const juce::File& dir, bool allBitwise, bool excludeShowcase)
+    {
+        if (! dir.isDirectory())
+        {
+            std::printf ("cmp-preset-renders: reference directory missing: %s (exit 77 = not run)\n", dir.getFullPathName().toRawUTF8());
+            return 77;
+        }
+        const auto& b = bank();
+        const int N = (int) b.specs.size();
+        struct R { bool have = false, skip = false; juce::int64 differ = 0; double nullDb = -400.0, g = 1.0; int streams = 0; };
+        std::vector<R> rs ((size_t) N);
+        parallelFor (N, [&] (int i)
+        {
+            const auto& s = b.specs[(size_t) i];
+            auto& r = rs[(size_t) i];
+            r.streams = ptStreams (s);
+            if (excludeShowcase && isShowcase (s)) { r.skip = true; return; }
+            juce::MemoryBlock mb;
+            const auto f = dir.getChildFile (ptFileOf (s));
+            if (! f.existsAsFile() || ! f.loadFileAsData (mb)) return;
+            const auto v = ptRender (i);
+            if (mb.getSize() != v.size() * sizeof (float)) return;
+            r.have = true;
+            const auto* ref = static_cast<const float*> (mb.getData());
+            double rr = 0.0, xr = 0.0, dd = 0.0;
+            for (size_t k = 0; k < v.size(); ++k)
+            {
+                if (std::memcmp (&v[k], &ref[k], sizeof (float)) != 0) ++r.differ;
+                const double x = v[k], y = ref[k];
+                rr += y * y; xr += x * y; dd += (x - y) * (x - y);
+            }
+            r.g = rr > 0.0 ? xr / rr : 1.0;
+            r.nullDb = dd > 0.0 && rr > 0.0 ? 10.0 * std::log10 (dd / rr) : -400.0;
+        });
+        int missing = 0, skipped = 0, single = 0, singleOk = 0, multi = 0, multiOk = 0, bit = 0, counted = 0;
+        double worstNull = -400.0, worstG = 0.0;
+        juce::String firstBad, excluded;
+        for (int i = 0; i < N; ++i)
+        {
+            const auto& s = b.specs[(size_t) i];
+            const auto& r = rs[(size_t) i];
+            if (r.skip) { ++skipped; excluded << shortOf (s) << "; "; continue; }
+            if (! r.have) { ++missing; continue; }
+            ++counted;
+            std::printf ("  PT %-34s streams %d  differ %9lld  null %8.2f dB  g-1 %+.3e\n", s.name, r.streams, (long long) r.differ, r.nullDb, r.g - 1.0);
+            bit += r.differ == 0 ? 1 : 0;
+            bool ok = true;
+            if (r.streams <= 1)
+            {
+                ++single;
+                ok = r.differ == 0;
+                singleOk += ok ? 1 : 0;
+            }
+            else
+            {
+                ++multi;
+                ok = r.nullDb <= -110.0 && std::abs (r.g - 1.0) <= 1e-5 && r.differ > 0;
+                multiOk += ok ? 1 : 0;
+                worstNull = std::max (worstNull, r.nullDb);
+                worstG = std::max (worstG, std::abs (r.g - 1.0));
+            }
+            if ((allBitwise ? r.differ != 0 : ! ok) && firstBad.isEmpty())
+                firstBad = juce::String::fromUTF8 (s.name) + juce::String::formatted (" (streams %d, differ %lld, null %.2f dB)", r.streams, (long long) r.differ, r.nullDb);
+        }
+        if (missing > 0)
+        {
+            std::printf ("cmp-preset-renders: %d reference file(s) missing or of the wrong size in %s (exit 77 = not run)\n", missing, dir.getFullPathName().toRawUTF8());
+            return 77;
+        }
+        if (excludeShowcase)
+            std::printf ("  INFO PT excluded (showcase, PD28): %d: %s\n", skipped, excluded.toRawUTF8());
+        const juce::String why = firstBad.isEmpty() ? juce::String() : " first: " + firstBad;
+        if (allBitwise)
+            row (bit == counted, "PT0 every preset render bitwise equal to the reference (10 s, FP2 script)",
+                 "meas " + juce::String (bit) + " / " + juce::String (counted) + " bitwise" + why + " | thr all | ctrl -");
+        else
+        {
+            row (singleOk == single, "PT1 single-stream presets bitwise equal to the reference",
+                 "meas " + juce::String (singleOk) + " / " + juce::String (single) + (singleOk == single ? juce::String() : why) + " | thr all, differ == 0 | ctrl -");
+            row (multiOk == multi, "PT2 multi-stream presets null <= -110 dB, |g - 1| <= 1e-5, differ > 0",
+                 "meas " + juce::String (multiOk) + " / " + juce::String (multi)
+                     + juce::String::formatted (", worst null %.2f dB, worst |g - 1| %.2e", worstNull, worstG) + (multiOk == multi ? juce::String() : why)
+                     + " | thr <= -110 dB, <= 1e-5, > 0 | ctrl PT2n");
+        }
+        std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
+        return juce::jmin (failures, 255);
+    }
+
+    //==========================================================================
     // --cpu4 (PD16): the PERF-02 verdict on the real bank. Run ALONE, in the
     // background. First the --cpu26 rows (C25m <= 40, C25tm <= 12: the frozen
     // proxy regression + the session factor), then per preset: a fresh

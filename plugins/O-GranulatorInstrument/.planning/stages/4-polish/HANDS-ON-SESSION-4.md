@@ -294,9 +294,9 @@ Software Instrument track with `O-GranulatorInstrument-dev` (AU `aumu OuGI OuDv`
 
 | ID | Do | Expect | ✅ / ❌ | Notes |
 |---|---|---|---|---|
-| S3.3-L1 | Plugin header → Side Chain → an audio track | Record-in meter moves (SC L / R); "No signal" clears | | |
+| S3.3-L1 | Plugin header → Side Chain → an audio track | Record-in meter moves (SC L / R); "Select a sidechain input" clears *(rewritten after F1)* | | |
 | S3.3-L2 | Record-in Manual: Arm into slot I, then Threshold into slot II, then Next Note into slot III | Each take lands in its slot (waveform at commit); statuses as 3.2-13 / 3.2-14 | | |
-| S3.3-L3 | Side Chain → None, Arm | No signal / take discarded | | |
+| S3.3-L3 | Side Chain → None, Arm | "Select a sidechain input" / take discarded *(rewritten after F1)* | | |
 | S3.3-L4 | Save the project, quit Logic, reopen | All three takes come back with names and waveforms | | |
 | S3.3-L5 | Stop the transport so the instrument idles, audio track muted | SC meter reads 0 (expected: Logic does not feed an idle instrument's side-chain) | | |
 | S3.3-L6 | Automate one knob and play with an LFO routed (MOD) | Automation and rings move together; no clicks; CPU reasonable at Grain Limit 256 | | |
@@ -333,7 +333,7 @@ Software Instrument track with `O-GranulatorInstrument-dev` (AU `aumu OuGI OuDv`
 | 3.2-15 | Sidechain routed but silent; Manual: Arm, let it run | Discarded ~4 s, then "no signal" | | |
 | 3.2-17 | Tempo length: set bars so the take exceeds the 30 s cap, not recording | Capped note shows; faster tempo / fewer bars → it goes | | |
 | 3.2-20 | Track idle (not selected / transport stopped): Save on a `rec:` lane | Toast: could not be saved; with the track live the retry works | | |
-| 3.3-15 | Side-chain the left-only signal | SC L moves, R rests; no side-chain → slashed / No signal | | |
+| 3.3-15 | Side-chain the left-only signal | SC L moves, R rests; no side-chain → slashed / "Select a sidechain input" | | |
 | CPU-1 | 48 kHz / 128 buffer: load each of the 3 heaviest factory presets, hold a dense chord 20 s | Logic's CPU meter: no overloads, no "System Overload". Peaks: ______ | | |
 
 Heaviest 3 factory presets for CPU-1 (`--cpu4` T, harness): **Drones · Hollow Wind** (8.64 %), **Motion · Reverse River** (8.10 %), **Pads · Fifth Bloom** (7.93 %). Logic’s meter at 48 kHz / 128 should sit well under the 12 % typical budget per instance.
@@ -348,7 +348,7 @@ Ableton Live: a MIDI track with `O-GranulatorInstrument-dev` (VST3; rescan plugi
 |---|---|---|---|---|
 | 2.6-3 (Live arm) | Route audio into the VST3 sidechain (aux); capture once. Then bypass the plugin with audio still routed | The take lands. Bypassed: no sidechain audio bleeds into the output | | |
 | LV1 | Aux into Record-in, all three triggers (Manual, Threshold, Next Note) | Each take lands in its slot | | |
-| LV2 | No sidechain routed, Arm | "No signal"; nothing captured (QUAL-02) | | |
+| LV2 | No sidechain routed, Arm | "Select a sidechain input"; nothing captured (QUAL-02) | | |
 | LV3 | Save the Set, close, reopen | Lanes, takes and preset come back | | |
 | LV4 | Automation + Sync Tempo (Density / Size Sync) in a looped clip (2.5a-9 in Live) | Automation plays back; grains stay locked across loop jumps | | |
 | LV5 | Factory presets: browse and load from the plugin's preset bar | List shows the 64 presets by category; a load sounds right | | |
@@ -401,7 +401,8 @@ Verify returns PARTIAL with the list. **VERSION stays 1.0.0** (nothing is publis
 
 | ID | Symptom | Route (a / b / c) | Follow-up |
 |---|---|---|---|
-| | | | |
+| F1 (S3.3-L1 / L2, 2026-11-11) | Logic: Record-in captures nothing until a source is picked in the plugin header's Side Chain menu, and the UI only said "No signal" (the instruction lived in a hover tooltip). By design the host owns side-chain routing — a plugin cannot preselect it. | (a) UI copy | Status `rec.noSignal` → "Select a sidechain input" / "Choisir une sidechain" / "请选择侧链输入"; `rec-status` tooltip rewritten (en / fr / zh-Hans); `v1-i18n.js` synced. check-i18n, fr-lint, zh-lint, check-ui-labels (47 states), `ui_frontend_check.js` green. **Open:** rebuild + reinstall (Logic must be quit), then retest S3.3-L1 – L3, LV2, 3.3-15 by eye; full automated bar rerun; CHANGELOG line. |
+| F2 (FX · FEEDBACK page, 2026-11-11) | Design change requested at hands-on: the global FEEDBACK NETWORK + OUTPUT REVERB band is to be redone. Feedback (Amount, Low Cut, High Cut, Saturate, Diffuse) and reverb (Mix, Size, Damp) become per-stream, each stream column on this tab carrying all eight. | Not a defect — scope change. **Decided 2026-11-11:** lands before 1.0.0 (nothing published, so no migration); the global band is removed, no global Amount and no output reverb. Route: Stage 4 rework cycle, starting at `/plugin-discuss O-GranulatorInstrument 4-polish`. | Rows 2.4-1 – 2.4-7, 2.5a-7, 2.5a-11, 3.2-10 – 3.2-12 and the Pass 2 audition are provisional until this lands. |
 
 ## Results
 

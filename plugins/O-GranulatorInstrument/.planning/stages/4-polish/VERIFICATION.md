@@ -135,3 +135,21 @@ None blocking.
 **Ready for next stage:** the build is installed and release-ready on the automated side; 1.0.0 should not be published before the hands-on session.
 
 **Blockers:** none on the automated side. Open: `HANDS-ON-SESSION-4.md` (a ❌ routes per the sheet's triage table: `PLAN-4.F` gap wave, CHANGELOG known issue, or a row rewrite), then the Windows validate run at `/publish`.
+
+## Addendum — hands-on findings, 2026-11-11 (session in progress, verdict still PARTIAL)
+
+The D51 session was started and is not finished. Two findings so far (sheet triage table, F1 / F2).
+
+**F1 — Record-in gave no instruction when no side-chain source is selected (Logic).** By design: the host owns side-chain routing and a plugin cannot preselect it. Fixed in source as UI copy: `rec.noSignal` now reads "Select a sidechain input" / "Choisir une sidechain" / "请选择侧链输入", and the `rec-status` tooltip leads with the instruction; `v1-i18n.js` synced. Re-run on the change: check-i18n, fr-lint, zh-lint, check-ui-labels (default + 47 states), `ui_frontend_check.js` — all green. **Not** done: build, install, the rest of the automated bar, the by-eye retest (S3.3-L1 – L3, LV2, 3.3-15), CHANGELOG line, commit.
+
+Noticed while tracing F1, not changed: `rec_arm` stays On after a commit or discard (D34 one-shot), so the next click on Arm only turns it Off, and the lane "Record" button (`index.html:3835`) does nothing while Arm is On. Candidate for the rework cycle.
+
+**F2 — per-stream feedback and reverb (scope change, user decision).** The global FEEDBACK NETWORK + OUTPUT REVERB band on the FX · FEEDBACK page is to be redone: each stream column carries its own feedback controls (Amount, Low Cut, High Cut, Saturate, Diffuse) and its own reverb (Mix, Size, Damp). Decided: before 1.0.0; the globals are removed (no master Amount, no output reverb); Freeze and Reset All stay global.
+
+Inputs for the discuss phase:
+- Parameters: the 8 globals (`feedback`, `fb_low_cut`, `fb_high_cut`, `fb_saturation`, `fb_diffusion`, `reverb_mix`, `reverb_size`, `reverb_damp`) become 32 per-stream rows; 261 → 285. `parameter-spec.md`, `params.tsv`, the param-dump golden and the 126-entry destination table (8 global entries → 32 per-stream) all re-pin. Nothing is published, so the "append-only" rule can be broken once, deliberately.
+- DSP: the four feedback chains and record heads are already per stream; only their parameter sources change. Reverb goes from one output tank to four per-stream tanks — CPU to be measured against the 40 % / 12 % budgets (C25m, `--cpu4`). Whether the reverb sits before or after the feedback tap is open (today the reverb is outside the loop).
+- Modulation: these destinations are per stream but not per voice, so D4 (newest voice, "mono" badge) still applies.
+- UI: the stream columns need 8 more knobs each in a 1200 × 800 frame; the freed band gives roughly one knob row, two are needed. Needs a mockup pass (the "fig." cells, knob pitch, or the frame height are the levers). An optional per-stream feedback on / off came up in the same conversation.
+- Presets: 10 factory presets set `feedback` and 59 set `reverb_mix`; all 64 specs are rewritten and FP0–FP6 / `--cpu4` rerun. Render goldens with feedback or reverb on re-pin; feedback-0 / reverb-0 renders should stay byte-identical.
+- Hands-on: rows 2.4-1 – 2.4-7, 2.5a-7, 2.5a-11, 3.2-10 – 3.2-12 and the Pass 2 audition are provisional until this lands; the sheet is regenerated at the end of the rework.

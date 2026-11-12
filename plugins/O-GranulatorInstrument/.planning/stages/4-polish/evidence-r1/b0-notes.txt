@@ -1,0 +1,19 @@
+B0 baseline (PLAN-R1 T3), 2026-11-12, tree = C0 a7ad2199 + the two harness modes (tests only; Source and CMakeLists.txt unchanged).
+
+Quality gate 3-gui -> 4-polish: PASSED (build, pluginval 10).
+Full harness: 454 PASS / 0 FAIL, 0 NOT FIRED, twice (before and after adding the modes). ids identical.
+  Rows whose printed detail differs between two identical runs (wall-clock text): CM1 H4 UCM6b UCM6bn USV2 USV3 USV3n.
+  B.full.txt is the second run. A later diff on these 7 rows is not a move.
+Preset renders: --dump-preset-renders twice -> 64 identical sha256 lines (b0-preset-renders.sha256); raws in build/plugins/O-GranulatorInstrument/r1-b0/ (235 MB, gitignored).
+  Enabled streams 1 / 2 / 3 / 4 = 38 / 24 / 1 / 1 (b0-preset-streams.txt).
+  --cmp-preset-renders r1-b0 --all-bitwise: PT0 64 / 64.
+  Without the flag: PT1 38 / 38; PT2 0 / 26 FAIL on `differ > 0` (all 26 bitwise): the one-output-tank signature, firing on the tree that has one tank.
+Render hashes == renders-2.4.sha256; legacy == renders-2.2.sha256; 7 -pinned lines == renders-2.1.sha256; both print ctrl FIRED.
+Parity: 168 PASS / 0 FAIL incl. GV rows (b0-parity.txt: PB / PR lines).
+--eg24: 29 / 0 (b0-eg24.txt). param-dump == .planning/params.tsv. Fork drift 0 / 13. --dump-ui-overrides twice identical == committed file.
+Real home (~/Library/O-GranulatorInstrument 64 + 2, ~/Music/Ouaricon) listing unchanged by the harness and param-dump.
+R-ui: frontend ALL PASS, --nc 4 / 4 fail; probe 261 x 2 ALL PASS (DM2 137 / 125), --nc live; check-i18n / fr / zh 0 / 0 / 0;
+  check-ui-labels `param-dump (261 rows) + overrides`, default + 47, ALL CHECKS PASSED; boot-all-uis --strict-tips rc 0, 0 DEAD, 0 late; PN1 ALL PASS.
+auval aumu OuGI OuDv: PASS, exactly 4 warnings (LFO rate default not retained).
+CPU (alone): C25w 26.82, C25t 5.78, C25m 29.00, C25tm 6.87 (session factor 0.994 vs 6.91); bank T median 4.43 / p90 6.69 / max 8.70 (Hollow Wind), W max 10.61 (b0-cpu.txt).
+Build warnings: 15, all under tests/render-harness (pre-existing sign/precision conversions); 0 in Source/.

@@ -1,0 +1,65 @@
+streams 1 Drones · Iron Sky
+streams 2 Drones · Deep Well
+streams 2 Drones · Organ Loft
+streams 1 Drones · Frozen Field
+streams 1 Drones · Hollow Wind
+streams 2 Drones · Low Orbit
+streams 1 Drones · Tape Halo
+streams 2 Drones · Night Engine
+streams 1 Expressive · MPE Breath
+streams 1 Expressive · Slide Glass
+streams 1 Expressive · Press Vowel
+streams 2 Expressive · Bend Choir
+streams 1 Expressive · Mono Lead
+streams 1 Expressive · Glide Bass
+streams 1 Expressive · Wheel Morph
+streams 1 Expressive · Velo Shards
+streams 1 Keys · Grain Piano
+streams 1 Keys · Celesta
+streams 1 Keys · Bell
+streams 2 Keys · Glass Mallet
+streams 1 Keys · Soft Rhodes
+streams 1 Keys · Kalimba
+streams 2 Keys · Harp Cascade
+streams 1 Keys · Toy Box
+streams 1 Live · Init
+streams 1 Live · Manual Loop
+streams 1 Live · Threshold Catch
+streams 1 Live · Next Note Grab
+streams 1 Live · Tempo Bars
+streams 1 Live · Feedback Loop
+streams 1 Live · Freeze Cloud
+streams 4 Live · Four Lanes
+streams 2 Motion · Orbit Lines
+streams 1 Motion · Reverse River
+streams 1 Motion · Loop Weaver
+streams 1 Motion · Ring Spinner
+streams 2 Motion · Crush Tides
+streams 2 Motion · Swarm
+streams 2 Motion · Phase Garden
+streams 1 Motion · Clockwork
+streams 2 Pads · Warm Choir
+streams 3 Pads · Fifth Bloom
+streams 2 Pads · Pentatonic Mist
+streams 2 Pads · Just Glow
+streams 2 Pads · Nineteen
+streams 2 Pads · Seventeen Glass
+streams 2 Pads · Slow Tide
+streams 2 Pads · Velvet Strings
+streams 1 Rhythmic · Pulse Grid
+streams 1 Rhythmic · Pluck Arp
+streams 1 Rhythmic · Stutter Kit
+streams 1 Rhythmic · Dotted Echo
+streams 2 Rhythmic · Triplet Rain
+streams 1 Rhythmic · Gated Pad
+streams 1 Rhythmic · Broken Beat
+streams 2 Rhythmic · Ratchet
+streams 2 Textures · Rain Glass
+streams 1 Textures · Static Choir
+streams 1 Textures · Sand Drift
+streams 2 Textures · Broken Radio
+streams 1 Textures · Ember Field
+streams 2 Textures · Wind Harp
+streams 1 Textures · Glitter Haze
+streams 2 Textures · Rust Cloud
+64 files -> /Users/taylorbrook/Dev/VST-development/build/plugins/O-GranulatorInstrument/r1-b0; enabled streams 1 / 2 / 3 / 4 = 38 / 24 / 1 / 1 (0: 0)

@@ -66,3 +66,5 @@
 ## Next Phase
 
 Ready for: research phase (`/plugin-research O-GranulatorInstrument 4-polish`).
+
+> Rework R1 (per-stream feedback + reverb, D60–D69): see `CONTEXT-R1.md`.
