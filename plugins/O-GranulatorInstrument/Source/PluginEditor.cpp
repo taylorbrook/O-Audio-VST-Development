@@ -1073,10 +1073,12 @@ GranulatorInstrumentEditor::GranulatorInstrumentEditor (GranulatorInstrumentProc
                     auto  name = result.getFileNameWithoutExtension();
                     auto& pm   = safeThis->processorRef.getPresetManager();
                     // savePresetToFile has NO factory guard: use it only for a
-                    // directory OUTSIDE the user-presets dir.
+                    // directory OUTSIDE the user-presets dir, and only through
+                    // the processor's guard (PLAN-4 PD4: a target in or under
+                    // Presets/Factory is refused -> the existing save-failed path).
                     const bool ok = result.isAChildOf (pm.getUserPresetsDirectory())
                                       ? pm.savePreset (name)
-                                      : pm.savePresetToFile (result.withFileExtension ("json"));
+                                      : safeThis->processorRef.savePresetToFileGuarded (result.withFileExtension ("json"));
                     complete (makePresetDialogResult (ok, name));
                 });
         })

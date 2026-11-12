@@ -44,7 +44,7 @@ juce_add_plugin(OuariconGranulatorInstrument
     PLUGIN_CODE OuGI                       # verified unused across plugins/*/CMakeLists.txt (2026-11-07)
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-GranulatorInstrument${OUARICON_DEV_SUFFIX}"
-    VERSION 0.1.0                          # JUCE reads VERSION (PLUGIN_VERSION is ignored)
+    VERSION 1.0.0                          # JUCE reads VERSION (PLUGIN_VERSION is ignored)
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -215,6 +215,10 @@ if(OUARICON_BUILD_TESTS)
     include(${CMAKE_SOURCE_DIR}/scripts/param-dump/ParamDump.cmake)
     ouaricon_add_param_dump(OuariconGranulatorInstrument ${CMAKE_CURRENT_SOURCE_DIR}/Source)
     target_compile_features(O-GranulatorInstrument-param-dump PRIVATE cxx_std_20)
+    # PLAN-4: the processor constructor writes the factory bank under the real
+    # ~/Library; the param-dump console (run by the UI gates and the contract
+    # checks) must never do that. Its output does not depend on presets.
+    target_compile_definitions(O-GranulatorInstrument-param-dump PRIVATE OGI_NO_FACTORY_WRITE=1)
 
     # Stage 1 gate (G1-G6 params, D1-D5 dest table, SRC1 sources, B1/B3 buses +
     # latency, M1 MIDI script, R1 sidechain-zero render, S1-S5 state, H1/H2

@@ -1815,6 +1815,15 @@ static int runHarness (int argc, char** argv)
             std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
             return juce::jmin (failures, 255);
         }
+        else if (std::strcmp (argv[a], "--cpu4") == 0)    // PLAN-4 PD16: run alone, in the background; rc = FAIL count
+            return juce::jmin (pg4::cpu4(), 255);
+        else if (std::strcmp (argv[a], "--dump-factory-presets") == 0 && a + 1 < argc)   // PLAN-4 PD16: early exit, no gate runs
+        {
+            const juce::File dir = juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a]));
+            const int n = pg4::dumpFactoryPresets (dir);
+            std::printf ("dump-factory-presets: %d files -> %s\n", n, dir.getFullPathName().toRawUTF8());
+            return n == 64 ? 0 : 1;
+        }
         else if (std::strcmp (argv[a], "--hm1") == 0)     // dev: PLAN-4 PD15 HM1 + HM1n alone (the T11 pre-check)
         {
             rowHM1();
@@ -1830,7 +1839,7 @@ static int runHarness (int argc, char** argv)
             return rh::dump (juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a])), true);
         else
         {
-            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--cpu25a] [--cpu25b] [--cpu26] [--eg24] [--eg25] [--eg25b] [--eg26] [--ug31] [--ug32] [--ug33] [--dump-ui-overrides <file>] [--gen-factory <dir> [--force]] [--gen-factory-stubs <dir> [--force]] [--pg4] [--hm1] [--no-home-redirect] [--calib]\n", argv[a], argv[0]);
+            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--cpu25a] [--cpu25b] [--cpu26] [--eg24] [--eg25] [--eg25b] [--eg26] [--ug31] [--ug32] [--ug33] [--dump-ui-overrides <file>] [--gen-factory <dir> [--force]] [--gen-factory-stubs <dir> [--force]] [--pg4] [--cpu4] [--dump-factory-presets <dir>] [--hm1] [--no-home-redirect] [--calib]\n", argv[a], argv[0]);
             return 255;
         }
     }

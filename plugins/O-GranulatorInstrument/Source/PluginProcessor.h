@@ -493,6 +493,12 @@ public:
         reset, never applied. No directory I/O happens until a preset call. */
     OuariconPresetManager& getPresetManager() noexcept { return presetManager; }
 
+    /** PLAN-4 PD4: the editor's "save outside User/" path. A target that is
+        the factory dir or lies under it is refused (false): savePresetToFile
+        itself has no factory guard, and a factory JSON overwritten in place
+        would survive until the next bank change. Message thread. */
+    bool savePresetToFileGuarded (const juce::File& target);
+
     /** The preset's customState: { seed (int64 decimal STRING), custom { name,
         text }, masks [ { stream, collection, bits (16 hex) } ] (non-default
         only), slots [ { index, source, name, fileSize (decimal string),
@@ -693,6 +699,8 @@ public:
         testInlineWrite: the control — the 3.2 write on the SaveWorker itself;
         writerExits: detached writers that returned. Static: they outlive the
         processor, as the detached writer does. */
+    bool testNoFactoryGuard = false;   // PLAN-4 PG1n control: savePresetToFileGuarded without the guard
+
     static inline std::atomic<juce::WaitableEvent*> testHoldWrite { nullptr };
     static inline std::atomic<int>  testWriterEntered { 0 };
     static inline std::atomic<bool> testInlineWrite { false };
@@ -821,6 +829,7 @@ private:
         juce::String      error;          // written by the writer BEFORE state = 1 (release)
     };
 
+    void initFactoryBank();   // PLAN-4 PD3: the bank stamp, then initializeFactoryPresets
     void saveWorkerRun();
     SaveResult runSaveJob (const SaveJob& job);
     juce::String runSaveWrite (std::shared_ptr<WritePayload> payload);   // SaveWorker: detached write, exit-polled wait

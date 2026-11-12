@@ -19,6 +19,7 @@
 */
 #include "PluginProcessor.h"
 #include <thread>
+#include "FactoryPresets.h"
 #include "dsp/GiHash.h"
 
 #include <algorithm>
@@ -110,12 +111,17 @@ GranulatorInstrumentProcessor::GranulatorInstrumentProcessor()
     // output_gain is the user's trim; rec_arm must never see the Off → On edge
     // a preset apply would produce (reset to default, then the saved value —
     // that edge arms a capture, D34). Neither is written, reset or applied.
-    // No directory I/O here: the manager creates its folders lazily (auval).
-    // No factory presets (Stage 4).
+    // Stage 4 (PLAN-4 PD3): the 64-preset factory bank is written under
+    // ~/Library/O-GranulatorInstrument/Presets/Factory (the manager skips the
+    // write while its .factory-version sentinel matches the version; the bank
+    // stamp below also refreshes it when the bank changes at a fixed version).
     presetManager.setCustomStateCallbacks ([this] { return presetCustomState(); },
                                            [this] (const juce::var& v) { applyPresetCustomState (v); });
     presetManager.setExcludedParameters ({ "output_gain", "rec_arm" });
     presetManager.setValidatedApply (true);
+   #if ! OGI_NO_FACTORY_WRITE
+    initFactoryBank();   // never in the param-dump console (CMakeLists.txt): a contract tool must not write ~/Library
+   #endif
 
     // PLAN-2.6 PD7: the commit poll (never AsyncUpdater: it locks + reallocs
     // on the audio thread).
@@ -129,6 +135,48 @@ GranulatorInstrumentProcessor::GranulatorInstrumentProcessor()
         recPollThread = std::make_unique<RecPollThread> (*this);
         recPollThread->startThread();
     }
+}
+
+//==============================================================================
+// PLAN-4 PD3: the factory bank. The manager's sentinel is keyed on the
+// version string and its init never deletes, so an edited or renamed bank at
+// an unchanged 1.0.0 would never reach ~/Library (and a renamed preset would
+// leave an undeletable orphan: isFactoryPreset is true for it). The stamp —
+// XXH64 over the canonical bank, in Factory/.bank-hash — fixes both: on a
+// mismatch or a missing stamp, the *.json files DIRECTLY in the factory dir
+// and the two sentinels are deleted, the bank is written, and the stamp is
+// written LAST (an interrupted init re-runs). Nothing outside Factory/ is
+// touched; User/ never.
+void GranulatorInstrumentProcessor::initFactoryBank()
+{
+    const auto defs  = ogi::factory::makeFactoryPresets (parameters);
+    const auto stamp = ogi::factory::bankHash (defs);
+    const auto dir   = presetManager.getFactoryPresetsDirectory();
+    const auto stampFile = dir.getChildFile (".bank-hash");
+    const bool current = stampFile.existsAsFile() && stampFile.loadFileAsString().trim() == stamp;
+    if (! current && dir.isDirectory())
+    {
+        for (const auto& f : dir.findChildFiles (juce::File::findFiles, false, "*.json"))
+            f.deleteFile();
+        dir.getChildFile (".factory-version").deleteFile();
+        stampFile.deleteFile();
+    }
+    presetManager.initializeFactoryPresets (defs);   // a no-op while .factory-version matches
+    if (! current && dir.getChildFile (".factory-version").existsAsFile())
+        stampFile.replaceWithText (stamp);
+}
+
+bool GranulatorInstrumentProcessor::savePresetToFileGuarded (const juce::File& target)
+{
+    const auto factory = presetManager.getFactoryPresetsDirectory();
+    const bool inFactory = target == factory || target.isAChildOf (factory);
+   #if OGI_TEST_HOOKS
+    if (testNoFactoryGuard)
+        return presetManager.savePresetToFile (target);
+   #endif
+    if (inFactory)
+        return false;
+    return presetManager.savePresetToFile (target);
 }
 
 GranulatorInstrumentProcessor::~GranulatorInstrumentProcessor()
