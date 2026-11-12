@@ -988,7 +988,7 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
         'LN6 fetchOverview refetches when ovRev moves and stores the answer\'s rev',
         'LN7 scan-mode aria-valuetext is French after a switch to fr',
         'PX1 playhead', 'PX2 grain dot of stream 1 and of stream 4', 'PX3 feedback head', 'PX4 record head', 'PX5 dirty tick'];
-    let lnRun = 0, lnPass = 0;
+    let lnRun = 0, lnPass = 0, tcRun = 0, tcPass = 0;
 
     if (LIVENESS_ONLY || MOD_ONLY) {
         console.log(`\n   lanes: NOT RUN (${MOD_ONLY ? '--mod-only' : '--liveness-only'})`);
@@ -1448,6 +1448,82 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
 
         console.log(`\n   lanes ${lnPass} / ${lnRun} rows`);
         if (lnRun !== LN_NAMES.length) fail(`lanes: ${lnRun} rows ran, expected ${LN_NAMES.length}`);
+
+        // ══════════ Stage 4 lane toasts (PLAN-4 PD10 / PD11: TC1, TC1n, TW1) ══
+        // Run through lnRow (same restore) but counted on their own, so the
+        // carried "lanes 12 / 12" stays as it was.
+        console.log('\n-- lane toasts (TC1, TC1n, TW1)');
+        const lnRun0 = lnRun, lnPass0 = lnPass;
+        // A timestamped #toast log for one row: { key, vars, t } from the row's t0.
+        const tcWatch = () => page.evaluate(() => {
+            window.__tcLog = [];
+            window.__tcT0 = performance.now();
+            const el = document.getElementById('toast');
+            window.__tcObs && window.__tcObs.disconnect();
+            window.__tcObs = new MutationObserver(() => window.__tcLog.push({ key: el.getAttribute('data-i18n'), vars: el.getAttribute('data-i18n-vars'),
+                                                                              t: performance.now() - window.__tcT0 }));
+            window.__tcObs.observe(el, { attributes: true, attributeFilter: ['data-i18n', 'data-i18n-vars'] });
+        });
+        const tcAt = (ms) => page.evaluate(async (ms) => {
+            const wait = ms - (performance.now() - window.__tcT0);
+            if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+            const el = document.getElementById('toast');
+            return { key: el.getAttribute('data-i18n'), vars: el.getAttribute('data-i18n-vars'), shown: el.classList.contains('show') };
+        }, ms);
+        const tcLog = () => page.evaluate(() => { window.__tcObs && window.__tcObs.disconnect(); return window.__tcLog.slice(); });
+        const twoErrors = (tag) => page.evaluate((tag) => {
+            const L = window.__ln;
+            L.nat.getSlotState.slots[1].error = 'decode failed: ' + tag + ' 2';
+            L.nat.getSlotState.slots[2].error = 'decode failed: ' + tag + ' 3';
+            L.nat.getSlotState.revision += 1; L.nat.getTelemetry.slotRev += 1;
+        }, tag);
+
+        await lnRow('TC1 two lane errors in one pull -> toast.loadFailed {n:2} now, {n:3} at +1600 ms (one toast per lane)', async (need, say) => {
+            await tcWatch();
+            await twoErrors('tc1');
+            const a = await tcAt(150), b = await tcAt(1750);
+            const log = (await tcLog()).filter((x) => x.key === 'toast.loadFailed');
+            need(a.key === 'toast.loadFailed' && a.vars === '{"n":"2"}' && a.shown, `+150 ms: ${a.key} ${a.vars} shown ${a.shown}`);
+            need(b.key === 'toast.loadFailed' && b.vars === '{"n":"3"}' && b.shown, `+1750 ms: ${b.key} ${b.vars} shown ${b.shown}`);
+            const third = log.find((x) => x.vars === '{"n":"3"}');
+            need(!!third && third.t >= 1500, `{n:3} landed at ${third ? third.t.toFixed(0) : 'never'} ms (the chain step is 1600 ms)`);
+            say(`+150 ms ${a.vars}, +1750 ms ${b.vars}; log ${log.map((x) => `${x.vars}@${x.t.toFixed(0)}`).join(' ')}`);
+        });
+
+        await lnRow('TC1n control: __giToastChainOff (the 3.3 loop) -> {n:3} never shown (TC1 must FAIL)', async (need, say) => {
+            await page.evaluate(() => { window.__giToastChainOff = true; });
+            await tcWatch();
+            await twoErrors('tc1n');
+            const b = await tcAt(1750);
+            const log = (await tcLog()).filter((x) => x.key === 'toast.loadFailed');
+            await page.evaluate(() => { window.__giToastChainOff = false; });
+            const fired = !(b.vars === '{"n":"3"}') && !log.some((x) => x.vars === '{"n":"3"}' && x.t >= 1500) && log.length >= 1;
+            need(fired, `the control did not fire: +1750 ms ${b.vars}, log ${log.map((x) => `${x.vars}@${x.t.toFixed(0)}`).join(' ')}`);
+            say(`ctrl FIRED: +1750 ms ${b.vars || 'none'}; log ${log.map((x) => `${x.vars}@${x.t.toFixed(0)}`).join(' ')}`);
+        });
+
+        await lnRow('TW1 wavFailed false -> true toasts toast.wavFailed once (lane 3); unchanged pulls and the first pull are silent', async (need, say) => {
+            need(!bootToast.log.includes('toast.wavFailed'), `the page toasted toast.wavFailed at boot (${bootToast.log.join(', ')})`);
+            const step = async (val) => {
+                await tcWatch();
+                const pulls = await page.evaluate(async (val) => { const L = window.__ln; if (val !== null) L.nat.getSlotState.slots[2].wavFailed = val; return L.pushSlots(); }, val);
+                await page.waitForTimeout(120);
+                return { pulls, toasts: (await tcLog()).filter((x) => x.key === 'toast.wavFailed') };
+            };
+            const seen = [];
+            for (const [label, val, n] of [['false -> true', true, 1], ['unchanged', null, 0], ['true -> false', false, 0], ['false -> true (re-armed)', true, 1]]) {
+                const r = await step(val);
+                need(r.pulls >= 1, `${label}: no slot-state pull`);
+                need(r.toasts.length === n, `${label}: ${r.toasts.length} toast.wavFailed, expected ${n}`);
+                if (n === 1 && r.toasts[0]) need(r.toasts[0].vars === '{"n":"3"}', `${label}: vars ${r.toasts[0].vars}`);
+                seen.push(`${label} ${r.toasts.length}`);
+            }
+            say(seen.join(', ') + '; boot 0');
+        });
+        tcRun = lnRun - lnRun0; tcPass = lnPass - lnPass0;
+        lnRun = lnRun0; lnPass = lnPass0;
+        console.log(`\n   toasts ${tcPass} / ${tcRun} rows`);
+        if (tcRun !== 3) fail(`toasts: ${tcRun} rows ran, expected 3`);
     }
 
     // ══════════════════════════════ MOD / voice / meters (PLAN-3.3 PD24) ══
@@ -2038,7 +2114,7 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
     const liveOk = hostOk === N_PARAMS && uiOk === N_PARAMS;
     const veText = MOD_ONLY ? 'value entry NOT RUN (--mod-only)' : LANES_ONLY ? 'value entry NOT RUN (--lanes-only)' : LIVENESS_ONLY ? 'value entry NOT RUN (--liveness-only)'
         : !hasVE ? 'value entry NOT RUN — page has no value-entry code' : `value entry ${vePass} / ${veRun}`;
-    const lnText = LIVENESS_ONLY ? 'lanes NOT RUN (--liveness-only)' : MOD_ONLY ? 'lanes NOT RUN (--mod-only)' : `lanes ${lnPass} / ${lnRun}`;
+    const lnText = LIVENESS_ONLY ? 'lanes NOT RUN (--liveness-only)' : MOD_ONLY ? 'lanes NOT RUN (--mod-only)' : `lanes ${lnPass} / ${lnRun}; toasts ${tcPass} / ${tcRun}`;
     const mvText = LIVENESS_ONLY || LANES_ONLY ? `mod NOT RUN (${LIVENESS_ONLY ? '--liveness-only' : '--lanes-only'})` : `mod ${mvPass} / ${mvRun}${dmCensus ? ', DM2 census ' + dmCensus : ''}`;
     const liveText = LANES_ONLY || MOD_ONLY ? `liveness NOT RUN (${MOD_ONLY ? '--mod-only' : '--lanes-only'})` : `${N_PARAMS} / ${N_PARAMS} both ways`;
     console.log(failures === 0 ? `ALL PASS (${liveText}; ${veText}; ${lnText}; ${mvText})`
