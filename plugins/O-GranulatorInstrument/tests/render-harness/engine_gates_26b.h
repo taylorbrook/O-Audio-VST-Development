@@ -630,13 +630,16 @@ namespace { namespace eg26b
     // FA — factory
     void rowsFA()
     {
+        // PLAN-4 PD7 (planned amendment; row name unchanged): the stubs are
+        // harness-only fixtures appended after the 8 curated sources, so FA1
+        // checks that the two stub ids resolve with their carried pins (it was
+        // factoryCount () == 2). The curated sources are FSP1's.
         juce::String d;
-        bool ok = ogi::factoryCount() == 2;
-        for (int k = 0; k < ogi::factoryCount(); ++k)
+        bool ok = true;
+        for (const char* id : { "stub_tone", "stub_noise" })
         {
-            const auto e = ogi::factoryEntry (k);
-            ogi::FactoryEntry f;
-            const bool found = ogi::findFactory (juce::String (e.id), f) && f.data == e.data;
+            ogi::FactoryEntry e;
+            const bool found = ogi::findFactory (juce::String (id), e) && e.data != nullptr && juce::String (e.id) == id;
             ogi::SlotLoader::Pristine p;
             juce::String err;
             const bool dec = ogi::SlotLoader::decodeMemoryFlac (e.data, e.size, e.id, kFs, p, err);

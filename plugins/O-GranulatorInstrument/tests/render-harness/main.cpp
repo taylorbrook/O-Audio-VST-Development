@@ -1203,6 +1203,14 @@ static void hookRows()
 // take names) + --ug33.
 #include "ui_gates_33.h"
 
+// PLAN-4 PD5 / PD6: the curated factory-source generator (factory_gen.cpp,
+// its own TU with -ffp-contract=off).
+namespace factorygen
+{
+    int run (const juce::File& dir, bool force);
+    std::uint64_t fullPcmHash (const juce::AudioBuffer<float>& pcm);
+}
+
 // PLAN-4 (Stage 4 polish): auval drift set, factory presets / sources, D55
 // rows + --pg4 / --cpu4.
 #include "preset_gates_4.h"
@@ -1681,7 +1689,13 @@ static int runHarness (int argc, char** argv)
 {
     for (int a = 1; a < argc; ++a)
     {
-        if (std::strcmp (argv[a], "--gen-factory") == 0 && a + 1 < argc)   // PLAN-2.6 PD16
+        if (std::strcmp (argv[a], "--gen-factory") == 0 && a + 1 < argc)   // PLAN-4 PD5: the 8 curated sources
+        {
+            const juce::File dir = juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a]));
+            const bool force = a + 1 < argc && std::strcmp (argv[a + 1], "--force") == 0;
+            return factorygen::run (dir, force);
+        }
+        else if (std::strcmp (argv[a], "--gen-factory-stubs") == 0 && a + 1 < argc)   // PLAN-2.6 PD16: the two harness fixtures
         {
             const juce::File dir = juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a]));
             const bool force = a + 1 < argc && std::strcmp (argv[a + 1], "--force") == 0;
@@ -1816,7 +1830,7 @@ static int runHarness (int argc, char** argv)
             return rh::dump (juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a])), true);
         else
         {
-            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--cpu25a] [--cpu25b] [--cpu26] [--eg24] [--eg25] [--eg25b] [--eg26] [--ug31] [--ug32] [--ug33] [--dump-ui-overrides <file>] [--gen-factory <dir> [--force]] [--pg4] [--hm1] [--no-home-redirect] [--calib]\n", argv[a], argv[0]);
+            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--cpu25a] [--cpu25b] [--cpu26] [--eg24] [--eg25] [--eg25b] [--eg26] [--ug31] [--ug32] [--ug33] [--dump-ui-overrides <file>] [--gen-factory <dir> [--force]] [--gen-factory-stubs <dir> [--force]] [--pg4] [--hm1] [--no-home-redirect] [--calib]\n", argv[a], argv[0]);
             return 255;
         }
     }

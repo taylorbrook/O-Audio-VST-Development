@@ -126,6 +126,10 @@ namespace GiUiJson
         (false for a fixture built without a processor).
         No absolute path is emitted: the page reads none, and the editor takes
         paths from SlotInfo directly. */
+   #if OGI_TEST_HOOKS
+    inline bool testOmitWavFailed = false;   // PLAN-4 UWF1n control
+   #endif
+
     inline juce::var slotInfoToVar (const ogi::SlotInfo& info, bool dirty = false)
     {
         const auto scheme = schemeOf (info.source);
@@ -148,6 +152,13 @@ namespace GiUiJson
         o->setProperty ("dirty", dirty);
         o->setProperty ("loading", info.loading);
         o->setProperty ("error", info.lastError);   // load / relink errors reach the page on the next state pull
+        // PLAN-4 PD10 (D55a): the take's WAV could not be written (the take still
+        // plays). The page edge-toasts it on the slotRev pull, so it works while
+        // the host idles the audio callback. UWF1n omits it (test builds only).
+       #if OGI_TEST_HOOKS
+        if (! testOmitWavFailed)
+       #endif
+        o->setProperty ("wavFailed", info.wavFailed);
         return juce::var (o);
     }
 

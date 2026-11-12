@@ -2010,6 +2010,8 @@ html:lang(zh-Hans) .vcell .tr.clamp { left: 0; right: 0; font-size: 10px; }   /*
     let scaleStateFn      = null;
     let slotState         = null;     // from getSlotState: { revision, slots[4] }
     let slotErrSeen       = null;     // per slot: the last slots[i].error pulled (null until the first pull)
+    let slotWavSeen       = null;     // per slot: the last slots[i].wavFailed pulled (PLAN-4 D55a)
+    let slotToastChain    = [];       // pending timers of the current lane-toast batch (PLAN-4 D55b)
     let presetManager     = null;
     let presetMenuOpen    = false;
     let dropModule        = null;     // webview-drop-streaming.js (dynamic import; a lane drop works without it via loadSlot)
@@ -3730,17 +3732,40 @@ html:lang(zh-Hans) .vcell .tr.clamp { left: 0; right: 0; font-size: 10px; }   /*
         renderPlaybackCaps();
     }
 
-    // A failed load (drop or browser) reaches the page only as slots[i].error:
-    // toast when it CHANGES to non-empty. An error already there at the first
-    // pull is not news (a reopened editor), and an empty one re-arms the lane.
+    // A failed load (drop or browser) reaches the page only as slots[i].error,
+    // a take whose WAV file could not be written (it still plays) only as
+    // slots[i].wavFailed (PLAN-4 D55a): toast when either CHANGES to set. One
+    // already there at the first pull is not news (a reopened editor), and a
+    // cleared one re-arms the lane. Several lanes in one pull (D55b): one toast
+    // per lane, ascending, the first now and the rest at +1600 ms steps; the
+    // chain is batch-scoped (the next batch clears its pending steps) and every
+    // other toast keeps replacing at once. __giToastChainOff = the 3.3
+    // behaviour (the probe's TC1n control).
     function noteSlotErrors() {
         const errs = [1, 2, 3, 4].map((n) => { const s = slotInfo(n); return s && s.error ? String(s.error) : ''; });
+        const wavs = [1, 2, 3, 4].map((n) => { const s = slotInfo(n); return !!(s && s.wavFailed); });
+        const batch = [];
         if (slotErrSeen) {
-            for (let n = 4; n >= 1; n--) {
-                if (errs[n - 1] && errs[n - 1] !== slotErrSeen[n - 1]) showToast((el) => setLabel(el, 'toast.loadFailed', { n: String(n) }));
+            for (let n = 1; n <= 4; n++) {
+                if (errs[n - 1] && errs[n - 1] !== slotErrSeen[n - 1]) batch.push({ wav: false, n });
+                if (wavs[n - 1] && !(slotWavSeen && slotWavSeen[n - 1])) batch.push({ wav: true, n });
             }
         }
         slotErrSeen = errs;
+        slotWavSeen = wavs;
+        if (!batch.length) return;
+        const toastOf = (b) => () => (b.wav ? showToast((el) => setLabel(el, 'toast.wavFailed', { n: String(b.n) }))
+                                            : showToast((el) => setLabel(el, 'toast.loadFailed', { n: String(b.n) })));
+        if (window.__giToastChainOff) {
+            for (let i = batch.length - 1; i >= 0; i--) toastOf(batch[i])();
+            return;
+        }
+        slotToastChain.forEach((t) => clearTimeout(t));
+        slotToastChain = [];
+        batch.forEach((b, i) => {
+            if (i === 0) toastOf(b)();
+            else slotToastChain.push(setTimeout(toastOf(b), 1600 * i));
+        });
     }
 
     function slotInfo(n) {

@@ -396,11 +396,11 @@ export const I18N = Object.freeze({
     },
     'lane-embed': {
         en: { t: "Embed",
-              b: "Embed slot {n}’s audio in the session and presets (FLAC-24, up to 16 MB per slot). Off stores only the file path. On by default for recordings; factory sources are built in." },
+              b: "Embed slot {n}’s audio in the session (FLAC-24, up to 16 MB per slot). Off stores only the file path. On by default for recordings; factory sources are built in." },
         fr: { t: "Intégrer",
-              b: "Intègre l’audio de l’emplacement {n} dans la session et les préréglages (FLAC 24 bits, jusqu’à 16 Mo par emplacement). Désactivé : seul le chemin du fichier est conservé. Activé par défaut pour les enregistrements ; les sources d’usine sont intégrées au plugin.", reviewed: false },
+              b: "Intègre l’audio de l’emplacement {n} dans la session (FLAC 24 bits, jusqu’à 16 Mo par emplacement). Désactivé : seul le chemin du fichier est conservé. Activé par défaut pour les enregistrements ; les sources d’usine sont intégrées au plugin.", reviewed: false },
         'zh-Hans': { t: "嵌入",
-              b: "将插槽 {n} 的音频嵌入会话和预设（FLAC-24，每个插槽最多 16 MB）。关闭时只保存文件路径。录音默认开启；出厂音源已内置。", reviewed: 'mt' },
+              b: "将插槽 {n} 的音频嵌入会话（FLAC-24，每个插槽最多 16 MB）。关闭时只保存文件路径。录音默认开启；出厂音源已内置。", reviewed: 'mt' },
     },
     'lane-load': {
         en: { t: "Load",
@@ -2695,6 +2695,11 @@ export const LABELS = Object.freeze({
         en: { t: "Slot {n} is too large to embed (over 16 MB of FLAC)" },
         fr: { t: "L’emplacement {n} est trop gros pour être intégré (plus de 16 Mo de FLAC)", reviewed: false },
         'zh-Hans': { t: "插槽 {n} 太大，无法嵌入（超过 16 MB 的 FLAC）", reviewed: 'mt' },
+    },
+    'toast.wavFailed': {
+        en: { t: "Slot {n}: the take plays, but its WAV file could not be written" },
+        fr: { t: "Emplacement {n} : la prise joue, mais son fichier WAV n’a pas pu être écrit", reviewed: false },
+        'zh-Hans': { t: "插槽 {n}：录音可播放，但 WAV 文件写入失败", reviewed: 'mt' },
     },
     'ui.off': {
         en: { t: "Off" },

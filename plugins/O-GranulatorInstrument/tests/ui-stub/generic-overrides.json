@@ -5182,7 +5182,8 @@
           "embeddable": false,
           "dirty": true,
           "loading": false,
-          "error": ""
+          "error": "",
+          "wavFailed": false
         },
         {
           "scheme": "file",
@@ -5197,7 +5198,8 @@
           "embeddable": true,
           "dirty": false,
           "loading": false,
-          "error": ""
+          "error": "",
+          "wavFailed": false
         },
         {
           "scheme": "rec",
@@ -5212,7 +5214,8 @@
           "embeddable": true,
           "dirty": false,
           "loading": false,
-          "error": ""
+          "error": "",
+          "wavFailed": false
         },
         {
           "scheme": "",
@@ -5227,7 +5230,8 @@
           "embeddable": true,
           "dirty": false,
           "loading": false,
-          "error": "import failed (unreadable file): bad take.wav"
+          "error": "import failed (unreadable file): bad take.wav",
+          "wavFailed": false
         }
       ]
     },

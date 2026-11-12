@@ -14,6 +14,17 @@
              (setValue (default) -> getValue () != default on the REAL
              parameter objects) == { lfo1_rate ... lfo4_rate } exactly
       AU1n   a skew-0.3 range at a drifting default joins the set
+      FSP1   the 8 curated factory sources: each decodes to the recipe's
+             channels / 48 kHz / frames; contentHash == kHash*, full-PCM hash
+             == kFull*; every id resolves; each FLAC <= 3 145 728 B, total
+             <= 8 388 608 B; 8 curated entries (the shipping table) + the 2
+             stubs only under OGI_TEST_HOOKS
+      FSP1n  one pin perturbed (kFullDust ^ 1) -> FSP1 FAILS
+      UWF1   D55a: a take whose WAV write fails (hooks.failWav) -> the page's
+             slot JSON carries wavFailed == true and slotRev moved; the next
+             good take on that lane -> false (slotRev moved again)
+      UWF1n  the field omitted (GiUiJson::testOmitWavFailed) -> the page reads
+             no wavFailed -> UWF1 FAILS
       USV3   D55c: a take save whose WAV writer hangs before chunk 0 (a
              non-polling hold = a hung disk syscall): destroying the processor
              takes <= 500 ms; the completion runs once (`cancelled`); after the
@@ -114,6 +125,106 @@ namespace { namespace pg4
             exactN = exactN && withTmp.contains (id);
         row (! exactN, "AU1n control: a skew-0.3 range at default 0.5 joins the set -> FAILS (predicate must FAIL)",
              "meas set " + juce::String (withTmp.size()) + " members | thr predicate FAILS | " + ctrl (! exactN, "AU1 predicate"));
+    }
+
+    //==========================================================================
+    // FSP1 / FSP1n — the curated factory sources (PD6)
+    struct SourceSpec { const char* id; int channels; int frames; };
+    constexpr SourceSpec kSources[] = {
+        { "harmonic", 1, 384000 }, { "pluck", 1, 144000 }, { "bell", 1, 288000 }, { "vowel", 1, 384000 },
+        { "noise_bed", 2, 288000 }, { "dust", 2, 288000 }, { "drone", 2, 576000 }, { "pulse", 1, 192000 },
+    };
+
+    struct Fsp1 { int good = 0; std::int64_t total = 0, largest = 0; juce::String detail; };
+
+    Fsp1 runFsp1 (std::uint64_t perturbDustFull)
+    {
+        Fsp1 r;
+        for (int k = 0; k < ogi::kCuratedFactoryCount; ++k)
+        {
+            const auto e = ogi::factoryEntry (k);
+            const auto& spec = kSources[k];
+            ogi::FactoryEntry f;
+            const bool found = e.id != nullptr && juce::String (e.id) == spec.id && ogi::findFactory (juce::String (spec.id), f) && f.data == e.data;
+            ogi::SlotLoader::Pristine p;
+            juce::String err;
+            const bool dec = found && ogi::SlotLoader::decodeMemoryFlac (e.data, e.size, e.id, 48000.0, p, err);
+            const bool shape = dec && p.pcm.getNumChannels() == spec.channels && p.pcm.getNumSamples() == spec.frames
+                            && juce::exactlyEqual (p.rate, 48000.0);
+            const auto h = dec ? ogi::gihash::contentHash (p.pcm) : 0;
+            const auto full = dec ? factorygen::fullPcmHash (p.pcm) : 0;
+            const auto pinFull = juce::String (spec.id) == "dust" ? (e.full ^ perturbDustFull) : e.full;
+            const bool pins = h == e.hash && e.hash != 0 && full == pinFull && pinFull != 0;
+            const bool size = e.size > 0 && e.size <= 3145728;
+            r.total += (std::int64_t) e.size;
+            r.largest = std::max (r.largest, (std::int64_t) e.size);
+            if (found && shape && pins && size)
+                ++r.good;
+            else
+                r.detail << " " << spec.id << (found ? "" : " not-found") << (shape ? "" : " shape") << (pins ? "" : " PIN") << (size ? "" : " size");
+        }
+        return r;
+    }
+
+    void rowsFSP1()
+    {
+        const auto a = runFsp1 (0);
+        const int curated = ogi::factoryCount() - (OGI_HAS_TEST_FACTORY ? 2 : 0);
+        ogi::FactoryEntry stub;
+        const bool stubsTail = OGI_HAS_TEST_FACTORY && ogi::findFactory ("stub_tone", stub) && ogi::factoryEntry (8).data == stub.data;
+        const bool ok = a.good == 8 && a.total <= 8388608 && a.largest <= 3145728 && curated == 8 && ogi::kCuratedFactoryCount == 8 && stubsTail;
+        row (ok, "FSP1 PD6 8 curated factory sources: shape, kHash + full-PCM pins, ids, size budget",
+             "meas " + juce::String (a.good) + " / 8 good" + a.detail + ", total " + juce::String (a.total) + " B, largest "
+                 + juce::String (a.largest) + " B, curated " + juce::String (curated) + " + stubs at 8 / 9 " + (stubsTail ? "yes" : "no")
+                 + " | thr 8 / 8, <= 8388608, <= 3145728 | ctrl FSP1n");
+        const auto b = runFsp1 (1);
+        const bool fired = b.good == 7;
+        row (fired, "FSP1n control: kFullDust ^ 1 -> FSP1 FAILS (predicate must FAIL)",
+             "meas " + juce::String (b.good) + " / 8 good" + b.detail + " | thr 7 / 8 | " + ctrl (fired, "FSP1 predicate"));
+    }
+
+    //==========================================================================
+    // UWF1 / UWF1n — wavFailed reaches the page's slot JSON (PD10)
+    struct Wf1 { bool take1 = false, take2 = false, flag1 = false, flag2 = true, rev1 = false, rev2 = false, has1 = false; };
+
+    Wf1 runWf1 (bool omit, int salt)
+    {
+        Wf1 r;
+        GiUiJson::testOmitWavFailed = omit;
+        eg21::Session s (48000.0, eg26b::stBase(), eg21::kSeed, 512);
+        s.record = false;
+        auto& ld = s.p->getLoader();
+        const auto rev0 = s.p->getSlotStateRevision();
+        ld.hooks.failWav.store (true);
+        r.take1 = ug32::commitTake (s, 0, 4800, 0.3f, salt);
+        ld.hooks.failWav.store (false);
+        const auto rev1 = s.p->getSlotStateRevision();
+        const auto j1 = GiUiJson::slotStateToVar (*s.p)["slots"][0];
+        r.has1 = j1.hasProperty ("wavFailed");
+        r.flag1 = r.has1 && static_cast<bool> (j1["wavFailed"]);
+        r.rev1 = rev1 != rev0;
+        r.take2 = ug32::commitTake (s, 0, 4800, 0.3f, salt + 1);
+        const auto rev2 = s.p->getSlotStateRevision();
+        const auto j2 = GiUiJson::slotStateToVar (*s.p)["slots"][0];
+        r.flag2 = j2.hasProperty ("wavFailed") ? static_cast<bool> (j2["wavFailed"]) : true;
+        r.rev2 = rev2 != rev1;
+        GiUiJson::testOmitWavFailed = false;
+        return r;
+    }
+
+    bool wf1Pred (const Wf1& r) { return r.take1 && r.take2 && r.flag1 && r.rev1 && ! r.flag2 && r.rev2; }
+
+    void rowsWF1()
+    {
+        const auto yn = [] (bool b) { return juce::String (b ? "yes" : "no"); };
+        const auto a = runWf1 (false, 511);
+        row (wf1Pred (a), "UWF1 PD10 D55a a failed take WAV -> slot JSON wavFailed true (slotRev moved); next good take -> false",
+             "meas takes " + yn (a.take1) + " / " + yn (a.take2) + ", failed take wavFailed " + yn (a.flag1) + " (rev moved " + yn (a.rev1)
+                 + "), good take wavFailed " + yn (a.flag2) + " (rev moved " + yn (a.rev2) + ") | thr true then false, rev moves | ctrl UWF1n");
+        const auto b = runWf1 (true, 513);
+        const bool fired = ! wf1Pred (b) && b.take1 && ! b.has1;
+        row (fired, "UWF1n control: wavFailed omitted from the slot JSON -> the page reads nothing (predicate must FAIL)",
+             "meas field present " + yn (b.has1) + " | thr UWF1 FAILS | " + ctrl (fired, "UWF1 predicate"));
     }
 
     //==========================================================================
@@ -221,6 +332,8 @@ namespace { namespace pg4
 
         section ("4  polish: auval drift set, presets, factory sources, D55 (PLAN-4)");
         if (want ("AU1"))  rowsAU1();
+        if (want ("FSP1")) rowsFSP1();
+        if (want ("UWF1")) rowsWF1();
         if (want ("USV3")) rowsSV3();
     }
 } }

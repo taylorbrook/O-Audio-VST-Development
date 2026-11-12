@@ -167,15 +167,23 @@ target_link_libraries(OuariconGranulatorInstrument
 # Resource names keep [A-Za-z0-9_] (hyphens are STRIPPED): ids use
 # underscores. Linked BEFORE the console block so the harness / param-dump
 # inherit it (ParamDump.cmake carries the plugin's non-JUCE link targets).
-# 2.6: two generated stubs (render harness --gen-factory; pins in
-# Source/dsp/GiFactory.h + tests/golden/factory-stubs.sha256). Stage 4
-# replaces them by id with the curated 6–8 licence-clean sources.
+# Stage 4 (PLAN-4 PD5 / PD6): the 8 curated, generated sources (render
+# harness --gen-factory; pins in Source/dsp/GiFactory.h + tests/golden/
+# factory-sources.sha256), 3 455 333 B in total, each <= 3 MB (FSP1). The two
+# 2.6 stubs are harness-only fixtures now (OuariconGranulatorInstrument_TestFactory
+# below, linked to the render harness only; never shipped).
 juce_add_binary_data(OuariconGranulatorInstrument_FactorySources
     NAMESPACE FactorySourceData
     HEADER_NAME FactorySourceData.h
     SOURCES
-        Resources/factory/stub_tone.flac
-        Resources/factory/stub_noise.flac
+        Resources/factory/harmonic.flac
+        Resources/factory/pluck.flac
+        Resources/factory/bell.flac
+        Resources/factory/vowel.flac
+        Resources/factory/noise_bed.flac
+        Resources/factory/dust.flac
+        Resources/factory/drone.flac
+        Resources/factory/pulse.flac
 )
 target_link_libraries(OuariconGranulatorInstrument PRIVATE OuariconGranulatorInstrument_FactorySources)
 
@@ -221,4 +229,23 @@ if(OUARICON_BUILD_TESTS)
     target_compile_definitions(O-GranulatorInstrument-render-harness PRIVATE
         GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/golden"
         OGI_TEST_HOOKS=1)
+    # PLAN-4 PD7: the 2.6 stubs as harness-only fixtures — a THIRD binary-data
+    # target (own namespace + header), linked to the render harness only.
+    # GiFactory.h appends them after the 8 curated entries under OGI_TEST_HOOKS.
+    juce_add_binary_data(OuariconGranulatorInstrument_TestFactory
+        NAMESPACE TestFactoryData
+        HEADER_NAME TestFactoryData.h
+        SOURCES
+            tests/fixtures/factory/stub_tone.flac
+            tests/fixtures/factory/stub_noise.flac
+    )
+    target_link_libraries(O-GranulatorInstrument-render-harness PRIVATE OuariconGranulatorInstrument_TestFactory)
+
+    # PLAN-4 PD5: the factory-source generator (--gen-factory) is its own TU,
+    # compiled with -ffp-contract=off so arm64 never fuses a + b * c into an
+    # FMA (regeneration byte-identical on mac arm64; the FLACs are checked in).
+    target_sources(O-GranulatorInstrument-render-harness PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/render-harness/factory_gen.cpp)
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/tests/render-harness/factory_gen.cpp
+        PROPERTIES COMPILE_OPTIONS "-ffp-contract=off")
 endif()

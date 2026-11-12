@@ -758,6 +758,7 @@ console.log('-- [15] Phase 3.2 closure: emitted and read, live natives, failure 
         ['dirty (overview)', /obj->setProperty \("dirty", dt\);/.test(ovFn),           /\bov\.dirty\b/.test(fn.drawLane),             'overview dirty[] -> drawLane'],
         ['encodedBytes', /o->setProperty \("encodedBytes", encodedBytes\);/.test(slotFn), /\bs\.encodedBytes\b/.test(fn.renderLane),  'slots[].encodedBytes -> renderLane'],
         ['error',        /o->setProperty \("error", info\.lastError\);/.test(slotFn), /\bs\.error\b/.test(fn.noteErr),               'slots[].error -> noteSlotErrors'],
+        ['wavFailed',    /o->setProperty \("wavFailed", info\.wavFailed\);/.test(slotFn), /\bs\.wavFailed\b/.test(fn.noteErr),       'slots[].wavFailed -> noteSlotErrors (PLAN-4 D55a)'],
     ];
     for (const [key, emitted, read, where] of rows)
         check(emitted && read, `[15] emitted and read: ${key} (${where})${emitted ? '' : ' — NOT emitted by the encoder'}${read ? '' : ' — NOT read by the page'}`);
@@ -787,6 +788,8 @@ console.log('-- [15] Phase 3.2 closure: emitted and read, live natives, failure 
     const i18n = fs.existsSync(i18nPath) ? fs.readFileSync(i18nPath, 'utf8') : '';
     for (const [key, raiser, rule] of [
         ['toast.loadFailed', fn.noteErr, /errs\[n - 1\] && errs\[n - 1\] !== slotErrSeen\[n - 1\]/],
+        // PLAN-4 PD10 (D55a): a take whose WAV could not be written, edge-tracked like `error`.
+        ['toast.wavFailed', fn.noteErr, /wavs\[n - 1\] && !\(slotWavSeen && slotWavSeen\[n - 1\]\)/],
         ['toast.saveFailed', fn.slotAction, /res\.ok === false && name === 'saveRecording' && res\.error !== 'cancelled'/]]) {
         const block = (i18n.match(new RegExp(`\\n    '${key.replace('.', '\\.')}': \\{([\\s\\S]*?)\\n    \\},`)) || [])[1] || '';
         const langs = { en: /\n\s*en: \{ t: "([^"]*)"/, fr: /\n\s*fr: \{ t: "([^"]*)"/, 'zh-Hans': /\n\s*'zh-Hans': \{ t: "([^"]*)"/ };
@@ -794,8 +797,9 @@ console.log('-- [15] Phase 3.2 closure: emitted and read, live natives, failure 
         const texts = Object.values(langs).map((re) => (block.match(re) || [])[1]);
         check(!!block && bad.length === 0 && new Set(texts).size === 3,
             `[15] ${key} has en / fr / zh-Hans texts, each with {n}, all different (js/i18n.js)` + show(bad));
-        check(new RegExp(`setLabel\\(el, '${key.replace('.', '\\.')}', \\{ n: String\\(n\\) \\}\\)`).test(raiser) && rule.test(raiser),
-            `[15] the page raises ${key} with { n } under its rule (${key === 'toast.loadFailed' ? 'error changed to non-empty' : 'saveRecording refused, not cancelled'})`);
+        // PLAN-4 PD11: the lane toasts are raised from the batch chain, so their { n } is the batch entry's (b.n).
+        check(new RegExp(`setLabel\\(el, '${key.replace('.', '\\.')}', \\{ n: String\\((?:b\\.)?n\\) \\}\\)`).test(raiser) && rule.test(raiser),
+            `[15] the page raises ${key} with { n } under its rule (${key === 'toast.loadFailed' ? 'error changed to non-empty' : key === 'toast.wavFailed' ? 'wavFailed false -> true (PLAN-4 D55a)' : 'saveRecording refused, not cancelled'})`);
     }
 }
 
