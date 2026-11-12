@@ -323,6 +323,18 @@ namespace ogi
         bool baseBypass       = false;   // LK2n: processBlockBypassed calls the JUCE base (the pre-2.6 leak)
         bool scNoClear        = false;   // LK1n: no per-piece output zero AND the mixer accumulates (out +=)
         bool swapKillHard     = false;   // CK6n: a new-source swap cuts the old tape's grains in 1 sample
+        // R1 (PLAN-R1 PD11): the per-stream audible tanks (tank A)
+        int  dropTankTerm     = -1;      // PT2n: that stream's (tank-processed) term is dropped from the sum (−1 = off)
+        bool revTailOff       = false;   // CK9 control: gate A ignores tailPk (the tank is cut when the stream stops being live)
+        bool tankGateSticky   = false;   // TK1 control: gate A never returns to off
+        bool tankOnSum        = false;   // SI1 control: the legacy topology (one tank, reverbA[0], on the stream sum)
+        bool addZeroTerm      = false;   // MZ1 control: an inaudible stream's zero term joins the sum
+        // R1 (PLAN-R1 PD8 / PD9 / PD11): the loop tanks (tank B) and the feedback toggle
+        bool preHardCut       = false;   // CK8 control: a Pre → Post edge resets reverbB[s] at the tick (no 50 ms fade)
+        bool preHoldOff       = false;   // RS2p control: a Reset take does not arm preHold (the loop tank keeps its tail)
+        bool tankGuardOff     = false;   // TG1 control: no finite guard on the tap before tank B
+        bool gateBIgnoreAudible = false; // MU1 control: gate B drops its audibleTarget term
+        bool fbOnHardStop     = false;   // CK7 control: on a feedback-toggle edge the run ramp snaps (no 20 ms ramp)
 
         // ── voice readouts (per voice SLOT; stream-0 views) ──────────────────
         double        voiceRate[kVoiceSlots]   {};   // rate the voice latches now (tick, note-on, s1 spawn)
@@ -347,7 +359,12 @@ namespace ogi
         std::uint64_t nanKills = 0, nanKillNotRetired = 0, fxStateNonDefaultAtSpawn = 0;
         std::uint64_t stealStateChecked = 0, stealStateMismatches = 0, fxSubnormals = 0;
         // 2.4
-        std::uint64_t wetScrubs = 0;                 // R96 wet guard: non-finite wet samples zeroed
+        std::uint64_t wetScrubs = 0;                 // R96 wet guard: non-finite wet samples zeroed (sum level + R1 per-stream tank guard)
+        // R1 (PLAN-R1 PD11)
+        std::uint64_t tankRunCells[kGiStreams] {};   // grid ticks at which tank A of stream s had its gate on
+        std::uint64_t tankProcessCalls = 0;          // ReverbUnit::process calls on the audible tanks (4 per piece)
+        std::uint64_t tankBRunCells[kGiStreams] {};  // grid ticks at which tank B (loop side) of stream s had its gate on
+        std::uint64_t tankGuardScrubs = 0;           // non-finite tap samples zeroed before a live tank B
         float preKneePeak = 0.0f, kneePeak = 0.0f;   // max |y| before / after the knee (before output_gain)
         RecordHeadCounters head[kTapeSlots] {};      // writes, rClamps, writeScrubs, settles, parks, maxWritten per slot
         std::uint64_t swapWaits = 0;                 // ticks a pending tape waited for its head to park
@@ -410,6 +427,12 @@ namespace ogi
             nanKills = nanKillNotRetired = fxStateNonDefaultAtSpawn = 0;
             stealStateChecked = stealStateMismatches = fxSubnormals = 0;
             wetScrubs = 0;
+            for (auto& n : tankRunCells)
+                n = 0;
+            tankProcessCalls = 0;
+            for (auto& n : tankBRunCells)
+                n = 0;
+            tankGuardScrubs = 0;
             preKneePeak = kneePeak = 0.0f;
             for (auto& h : head)
                 h = RecordHeadCounters {};
@@ -622,7 +645,17 @@ namespace ogi
         const GiGridParams::Stream& getPairViewForTest (int k, int s) const noexcept { return pairSp (std::clamp (k, 0, kVoiceSlots - 1), std::clamp (s, 0, kGiStreams - 1)); }
         bool  getPairMixForTest (int s) const noexcept               { return pairMix[std::clamp (s, 0, kGiStreams - 1)]; }
         float getPairLevelForTest (int k, int s) const noexcept      { return pairLv[std::clamp (k, 0, kVoiceSlots - 1)][std::clamp (s, 0, kGiStreams - 1)].cur; }
-        float getRevMixForTest() const noexcept                      { return revMix.load (std::memory_order_relaxed); }
+        float getRevMixForTest (int s = 0) const noexcept            { return revMix[std::clamp (s, 0, kGiStreams - 1)].load (std::memory_order_relaxed); }   // R1 PD11: per stream
+        bool  getTankGateForTest (int s) const noexcept              { return tankGate[std::clamp (s, 0, kGiStreams - 1)]; }
+        float getTailPkForTest (int s) const noexcept                { return tailPk[std::clamp (s, 0, kGiStreams - 1)]; }
+        // R1 PD10: the engine-private per-stream controls (parameters from T17).
+        // Written on the test thread between blocks; plain members.
+        void  setFbOnForTest (int s, bool on) noexcept               { fbOn[std::clamp (s, 0, kGiStreams - 1)] = on; }
+        void  setReverbPreForTest (int s, bool pre) noexcept         { reverbPre[std::clamp (s, 0, kGiStreams - 1)] = pre; }
+        bool  getFbOnForTest (int s) const noexcept                  { return fbOn[std::clamp (s, 0, kGiStreams - 1)]; }
+        bool  getReverbPreForTest (int s) const noexcept             { return reverbPre[std::clamp (s, 0, kGiStreams - 1)]; }
+        bool  getTankGateBForTest (int s) const noexcept             { return tankGateB[std::clamp (s, 0, kGiStreams - 1)]; }
+        int   getPreHoldForTest (int s) const noexcept               { return preHold[std::clamp (s, 0, kGiStreams - 1)]; }
         int   getRampCellsModForTest() const noexcept                { return rampCellsMod; }
         const GiScaleState& getScaleState() const noexcept  { return scale; }
         const FeedbackChain& getChainForTest (int s) const noexcept { return chain[std::clamp (s, 0, kGiStreams - 1)]; }
@@ -746,7 +779,7 @@ namespace ogi
         const ExactRamp& levelR (int s) const noexcept { return useLevelMod[s] ? levelMod[s] : levelRamp[s]; }
         const ExactRamp& panLR (int s) const noexcept  { return usePanMod[s] ? panLMod[s] : panLRamp[s]; }
         const ExactRamp& panRR (int s) const noexcept  { return usePanMod[s] ? panRMod[s] : panRRamp[s]; }
-        const ExactRamp& fbEff() const noexcept        { return useFbMod ? fbMod : fbRamp; }
+        const ExactRamp& fbEff (int s) const noexcept  { return useFbMod[s] ? fbMod[s] : fbRamp[s]; }   // R1 PD6: per stream
         float pairFbGain (int k, int s, double nEff) const noexcept;
         void runChains (int c0, int c1, std::int64_t tAbs) noexcept;
         void updateHeads (std::int64_t t) noexcept;   // ramps, run condition, park (before takeTapes)
@@ -863,16 +896,21 @@ namespace ogi
         // previous cell (kFbDelay == kCell). Fixed arrays, zeroed in prepare.
         FeedbackChain chain[kGiStreams];
         float fbRet[kGiStreams][2][kFbDelay] {};
-        ExactRamp unityKnob, parityKnob, fbLowLogRamp, fbHighLogRamp, diffRamp, satDRamp;
-        float chainLowHz = 0.0f, chainHighHz = 0.0f;
+        // R1 PD6: the chain controls are per stream (index s = stream = slot;
+        // kTapeSlots == kGiStreams). unityKnob stays shared (a constant 1).
+        static_assert (kTapeSlots == kGiStreams, "per-stream feedback controls are indexed by tape slot");
+        ExactRamp unityKnob;
+        ExactRamp parityKnob[kGiStreams], fbLowLogRamp[kGiStreams], fbHighLogRamp[kGiStreams];
+        ExactRamp diffRamp[kGiStreams], satDRamp[kGiStreams];
+        float chainLowHz[kGiStreams] {}, chainHighHz[kGiStreams] {};   // one dirty-check cache per chain
         CellLerp gFbLerp[kVoiceSlots][kGiStreams];
         float gFbTarget[kVoiceSlots][kGiStreams] {};
         float tapAcc[kGiStreams][2][kCell] {};
         float envSum[kGiStreams][kCell] {};
         float tapBuf[2][kCell] {};
 
-        // 2.4 record heads (PLAN-2.4 PD2–PD5): one per slot, λ = 0.95·fbRamp·run.
-        ExactRamp  fbRamp;
+        // 2.4 record heads (PLAN-2.4 PD2–PD5): one per slot, λ = 0.95·fbRamp[s]·run.
+        ExactRamp  fbRamp[kGiStreams];           // R1 PD6: per stream
         RecordHead head[kTapeSlots];
         bool       headRelatch[kTapeSlots] {};
         bool       prevFreeze = false;
@@ -952,19 +990,63 @@ namespace ogi
         ExactRamp panLMod[kGiStreams], panRMod[kGiStreams];
         float     panLNow[kGiStreams] {}, panRNow[kGiStreams] {};
         bool      usePanMod[kGiStreams] {};
-        ExactRamp fbMod;               float fbNow = 0.0f;        bool useFbMod = false;
-        ExactRamp diffMod;             float diffNow = 0.0f;      bool useDiffMod = false;
-        ExactRamp satDMod;             float satDNow = 1.0f;      bool useSatMod = false;
+        // R1 PD6: per stream (prepare() snaps every entry; satDNow's 1.0f
+        // default is re-established there).
+        ExactRamp fbMod[kGiStreams];   float fbNow[kGiStreams] {};   bool useFbMod[kGiStreams] {};
+        ExactRamp diffMod[kGiStreams]; float diffNow[kGiStreams] {}; bool useDiffMod[kGiStreams] {};
+        ExactRamp satDMod[kGiStreams]; float satDNow[kGiStreams] {}; bool useSatMod[kGiStreams] {};
 
-        // 2.4 output (PLAN-2.4 PD11): ReverbUnit bound to engine-owned atomics
-        // (size / damp / mix written at grid ticks only; fixed internals), the
-        // wet bus of one piece (reverb → knee act here) and a non-owning view.
-        ReverbUnit reverb;
-        std::atomic<float> revEnabled { 1.0f }, revSize { 0.5f }, revDamp { 0.5f }, revPredelay { kRevPredelayMs },
-                           revMix { 0.0f }, revMod { kRevMod }, revShimmer { kRevShimmer };
+        // 2.4 output (PLAN-2.4 PD11) → R1 PD7: one audible tank ("tank A") per
+        // stream, on the stream's term BEFORE the stream sum. Each ReverbUnit
+        // is bound once (constructor) to engine-owned atomics: enabled (gate
+        // A), size, damp, mix per stream, written at grid ticks only; predelay
+        // / mod / shimmer are shared constants. ys = the stream terms of the
+        // current cell (indexed by cell position c; each tank processes its
+        // piece in place), tailPk = the held peak of the tank's own output
+        // (previous cell, 50 ms release pkRel), tankGate = gate A as written at
+        // the last tick. wet = the stream sum of one piece (R96 guard → knee
+        // act here); revView is a non-owning view shared by the four tanks.
+        ReverbUnit reverbA[kGiStreams];
+        std::atomic<float> revOnA[kGiStreams] {}, revSize[kGiStreams] {}, revDamp[kGiStreams] {}, revMix[kGiStreams] {};
+        std::atomic<float> revPredelay { kRevPredelayMs }, revMod { kRevMod }, revShimmer { kRevShimmer };
+        float ys[kGiStreams][2][kCell] {};
+        float tailPk[kGiStreams] {};
+        bool  tankGate[kGiStreams] {};
+        // Fade hold: after gate A drops the module ramps its wet out over 50 ms;
+        // the stream's term stays in the sum (and guarded) for 60 ms so the tail
+        // fades instead of stepping out. Never armed while the gate was never on.
+        int   tankFade[kGiStreams] {};
+        int   tankFadeCells = 1;       // rampCellsFor (fs, 60 ms)
         float wet[2][kCell] {};
         juce::AudioBuffer<float> revView;
-        bool  revMixWasOn = false;     // reverbHardCut edge detection (test)
+        bool  revMixWasOn[kGiStreams] {};   // reverbHardCut edge detection (test)
+
+        // R1 PD8: one loop tank ("tank B") per stream, on the stream's tap in
+        // runChains — after the tap is filled, before chain[s].process. Same
+        // size / damp / mix atomics as tank A of that stream; its own enabled
+        // atomic revOnB = gate B, derived at every tick beside gate A:
+        //     gateB_s = reverbPre_s && fbOn_s && audibleTarget_s
+        //               && ! fbEff (s).settledAt (0) && preHold_s == 0   (&& mix > 0)
+        // Pre ↔ Post IS gate B: the module's 50 ms active-gain ramp is the
+        // crossfade (no engine crossfade, no flush). tankGateB = gate B as
+        // written at the last tick; tankFadeB = the 60 ms hold that keeps the
+        // tap guard on while the module fades out (tankFadeCells). preHold = the
+        // Reset hold: a Reset take of slot s forces gate B off for preHoldCells
+        // ticks (60 ms), so the loop tank fades, idles and restarts cold.
+        // R1 PD9 / PD10: fbOn (the feedback toggle, a term of the head's run
+        // target) and reverbPre are engine-private with fixed defaults until
+        // T17 binds them to parameters.
+        static_assert (kGiStreams == 4, "fbOn's initialiser lists one true per stream");
+        ReverbUnit reverbB[kGiStreams];
+        std::atomic<float> revOnB[kGiStreams] {};
+        bool  fbOn[kGiStreams] { true, true, true, true };
+        bool  reverbPre[kGiStreams] {};
+        bool  tankGateB[kGiStreams] {};
+        int   tankFadeB[kGiStreams] {};
+        int   preHold[kGiStreams] {};
+        int   preHoldCells = 1;             // rampCellsFor (fs, 60 ms)
+        bool  prevPre[kGiStreams] {};       // preHardCut edge detection (test)
+        bool  prevFbOn[kGiStreams] {};      // fbOnHardStop edge detection (test)
 
         ouaricon::grain::Onset onsetBuf[kVoiceSlots][kGiStreams][kOnsetCap] {};
         PendingOnset merged[kVoiceSlots * kGiStreams * kOnsetCap] {};

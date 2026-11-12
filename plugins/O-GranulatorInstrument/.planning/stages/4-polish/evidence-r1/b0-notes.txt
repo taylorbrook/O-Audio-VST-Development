@@ -17,3 +17,4 @@ R-ui: frontend ALL PASS, --nc 4 / 4 fail; probe 261 x 2 ALL PASS (DM2 137 / 125)
 auval aumu OuGI OuDv: PASS, exactly 4 warnings (LFO rate default not retained).
 CPU (alone): C25w 26.82, C25t 5.78, C25m 29.00, C25tm 6.87 (session factor 0.994 vs 6.91); bank T median 4.43 / p90 6.69 / max 8.70 (Hollow Wind), W max 10.61 (b0-cpu.txt).
 Build warnings: 15, all under tests/render-harness (pre-existing sign/precision conversions); 0 in Source/.
+  SR1's 'writes after' count also varies run to run on one build (async rebuild landing; seen 132480 / 133600 / 134016 / 136064 on the T7 build and B0): an 8th wall-clock row.

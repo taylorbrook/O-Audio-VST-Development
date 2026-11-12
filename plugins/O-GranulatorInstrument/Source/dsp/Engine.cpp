@@ -45,8 +45,21 @@ Engine::Engine (SlotHandoff& h)
    #endif
     voiceGainLin = juce::Decibels::decibelsToGain (static_cast<float> (kVoiceGainDb));
     voiceGainNow = voiceGainLin;
-    // PLAN-2.4 PD11: the reverb reads engine-owned atomics (bound once).
-    reverb.bind (&revEnabled, &revSize, &revDamp, &revPredelay, &revMix, &revMod, &revShimmer);
+    // PLAN-2.4 PD11 / R1 PD7: each audible tank reads engine-owned atomics
+    // (bound once): its own enabled (gate A) / size / damp / mix, and the
+    // shared predelay / mod / shimmer constants.
+    for (int s = 0; s < kGiStreams; ++s)
+    {
+        revOnA[s].store (0.0f, std::memory_order_relaxed);
+        revSize[s].store (0.5f, std::memory_order_relaxed);
+        revDamp[s].store (0.5f, std::memory_order_relaxed);
+        revMix[s].store (0.0f, std::memory_order_relaxed);
+        reverbA[s].bind (&revOnA[s], &revSize[s], &revDamp[s], &revPredelay, &revMix[s], &revMod, &revShimmer);
+        // R1 PD8: the loop tank shares the stream's size / damp / mix atomics
+        // and has its own enabled atomic (gate B).
+        revOnB[s].store (0.0f, std::memory_order_relaxed);
+        reverbB[s].bind (&revOnB[s], &revSize[s], &revDamp[s], &revPredelay, &revMix[s], &revMod, &revShimmer);
+    }
     prepare (44100.0, 512);
 }
 
@@ -182,19 +195,54 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     for (auto& a : lfoPhaseTel) a.store (0.0f, std::memory_order_relaxed);
 
     // PLAN-2.4 PD11: reverb (allocates: host thread), atomics from the params.
+    // R1 PD7: four audible tanks; the stream-term buffers, held tail peaks
+    // and gates start cleared (gate A is then derived from the latched params).
+    tankFadeCells = rampCellsFor (fs, 60.0);
+    std::memset (ys, 0, sizeof (ys));
+    for (int s = 0; s < kGiStreams; ++s)
+    {
+        tailPk[s] = 0.0f;
+        tankGate[s] = false;
+        tankFade[s] = 0;
+    }
+    preHoldCells = rampCellsFor (fs, 60.0);
+    for (int s = 0; s < kGiStreams; ++s)
+    {
+        tankGateB[s] = false;
+        tankFadeB[s] = 0;
+        preHold[s] = 0;
+    }
     writeReverbAtomics();
-    reverb.prepare (fs, kCell);
-    revMixWasOn = gp.reverbMix > 0.0f;
+    for (int s = 0; s < kGiStreams; ++s)
+    {
+        reverbA[s].prepare (fs, kCell);
+        revMixWasOn[s] = gp.reverbMix > 0.0f;
+        // R1 PD8: the loop tanks (allocates: host thread). Gate B starts off —
+        // the λ ramps are snapped further down, so the value just derived read
+        // a stale ramp; the first tick derives it from the snapped state, and
+        // a cold tank has nothing to fade (no hold armed).
+        reverbB[s].prepare (fs, kCell);
+        revOnB[s].store (0.0f, std::memory_order_relaxed);
+        tankGateB[s] = false;
+        tankFadeB[s] = 0;
+        prevPre[s]  = reverbPre[s];
+        prevFbOn[s] = fbOn[s];
+    }
 
     // PLAN-2.4 PD7: chain controls snapped to the params; the knob is UNITY
     // (reset once, never ticked: value (c) == 1.0f exactly, P1).
+    // R1 PD6: the controls are per stream; in B1 every stream reads the
+    // global parameter through the same statement.
     unityKnob.reset (1.0f);
-    parityKnob.reset (kFbKnob * gp.feedback);
-    diffRamp.reset (gp.fbDiffusion);
-    satDRamp.reset (1.0f + kSatSpan * gp.fbSaturation);
-    fbLowLogRamp.reset (std::log2 (gp.fbLowCutHz));
-    fbHighLogRamp.reset (std::log2 (gp.fbHighCutHz));
-    chainLowHz = chainHighHz = 0.0f;
+    for (int s = 0; s < kGiStreams; ++s)
+    {
+        parityKnob[s].reset (kFbKnob * gp.feedback);
+        diffRamp[s].reset (gp.fbDiffusion);
+        satDRamp[s].reset (1.0f + kSatSpan * gp.fbSaturation);
+        fbLowLogRamp[s].reset (std::log2 (gp.fbLowCutHz));
+        fbHighLogRamp[s].reset (std::log2 (gp.fbHighCutHz));
+        chainLowHz[s] = chainHighHz[s] = 0.0f;
+    }
     updateChainCutoffs();
     for (int s = 0; s < kGiStreams; ++s)
     {
@@ -208,10 +256,13 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
 
     // PLAN-2.4 PD4 / PD5: heads parked at their region start (a saved freeze On
     // stays parked: run starts at 0), λ ramp snapped to the feedback param.
-    fbRamp.reset (gp.feedback);
-    fbNow = fbRamp.current();   fbMod.reset (fbNow);     useFbMod = false;
-    diffNow = diffRamp.current(); diffMod.reset (diffNow); useDiffMod = false;
-    satDNow = satDRamp.current(); satDMod.reset (satDNow); useSatMod = false;
+    for (int s = 0; s < kGiStreams; ++s)   // R1 PD6: per stream
+    {
+        fbRamp[s].reset (gp.feedback);
+        fbNow[s] = fbRamp[s].current();   fbMod[s].reset (fbNow[s]);     useFbMod[s] = false;
+        diffNow[s] = diffRamp[s].current(); diffMod[s].reset (diffNow[s]); useDiffMod[s] = false;
+        satDNow[s] = satDRamp[s].current(); satDMod[s].reset (satDNow[s]); useSatMod[s] = false;
+    }
     prevFreeze = gp.freeze;
     pkRel = static_cast<float> (std::exp (-static_cast<double> (kCell) / (0.05 * fs)));
     for (int s = 0; s < kTapeSlots; ++s)
@@ -499,18 +550,25 @@ float Engine::pairFbGain (int k, int s, double nEff) const noexcept
     Engine.cpp:240-251 minus the matrix): tan only when a cutoff moved. */
 void Engine::updateChainCutoffs() noexcept
 {
-    float lo = std::exp2 (fbLowLogRamp.current()), hi = std::exp2 (fbHighLogRamp.current());
-    // PLAN-2.5a PD6 (parent :240-251): the routed cutoffs from the ramped raw Hz.
-    if (matrix.routed (GiDest::FbLowCut))  lo = matrix.apply (GiDest::FbLowCut,  lo, matrix.offset (GiDest::FbLowCut));
-    if (matrix.routed (GiDest::FbHighCut)) hi = matrix.apply (GiDest::FbHighCut, hi, matrix.offset (GiDest::FbHighCut));
-    traceAt (GiDest::FbLowCut, lo);
-    traceAt (GiDest::FbHighCut, hi);
-    if (juce::exactlyEqual (lo, chainLowHz) && juce::exactlyEqual (hi, chainHighHz))
-        return;
-    chainLowHz = lo;
-    chainHighHz = hi;
-    for (auto& c : chain)
-        c.setCutoffs (static_cast<double> (lo), static_cast<double> (hi));
+    // R1 PD6: one dirty check and one cached pair PER CHAIN (a shared pair
+    // would leave three chains without coefficients once the values differ).
+    for (int s = 0; s < kGiStreams; ++s)
+    {
+        float lo = std::exp2 (fbLowLogRamp[s].current()), hi = std::exp2 (fbHighLogRamp[s].current());
+        // PLAN-2.5a PD6 (parent :240-251): the routed cutoffs from the ramped raw Hz.
+        if (matrix.routed (GiDest::FbLowCut))  lo = matrix.apply (GiDest::FbLowCut,  lo, matrix.offset (GiDest::FbLowCut));
+        if (matrix.routed (GiDest::FbHighCut)) hi = matrix.apply (GiDest::FbHighCut, hi, matrix.offset (GiDest::FbHighCut));
+        if (s == 0)   // R1 B1: per-stream from T17 (one trace sample per tick, as before)
+        {
+            traceAt (GiDest::FbLowCut, lo);
+            traceAt (GiDest::FbHighCut, hi);
+        }
+        if (juce::exactlyEqual (lo, chainLowHz[s]) && juce::exactlyEqual (hi, chainHighHz[s]))
+            continue;
+        chainLowHz[s] = lo;
+        chainHighHz[s] = hi;
+        chain[s].setCutoffs (static_cast<double> (lo), static_cast<double> (hi));
+    }
 }
 
 void Engine::fillLawKey (double (&key)[kLawKeySize]) const noexcept
@@ -1063,42 +1121,67 @@ void Engine::gridTick (std::int64_t t) noexcept
     updatePairMix();   // PLAN-2.5a PD7
 
     // PLAN-2.4 PD11 / P9: reverb atomics at the tick only (block-size invariant).
+    // R1 PD7: per stream, with gate A — derived here at EVERY tick, never
+    // behind a dirty check.
     writeReverbAtomics();
+   #if OGI_TEST_HOOKS
+    for (int s = 0; s < kGiStreams; ++s)
+    {
+        if (tankGate[s])
+            ++hooks.tankRunCells[s];
+        if (tankGateB[s])
+            ++hooks.tankBRunCells[s];
+    }
+   #endif
 
     // PLAN-2.4 PD7: chain controls (20 ms), cutoffs as log2 ramps of raw Hz
     // (parent updateChainCutoffs: tan only when a cutoff moved).
-    parityKnob.setTarget (kFbKnob * gp.feedback, rampCells20);
-    parityKnob.tick();
-    diffRamp.setTarget (gp.fbDiffusion, rampCells20);
-    diffRamp.tick();
-    satDRamp.setTarget (1.0f + kSatSpan * gp.fbSaturation, rampCells20);
-    satDRamp.tick();
+    // R1 PD6: per stream; in B1 every stream reads the global parameter and
+    // the global destination through the same statements.
+    for (int s = 0; s < kGiStreams; ++s)
     {
-        // PLAN-2.5a PD6 (parent :772-785): diffusion / saturation substitutes.
-        using namespace GiDest;
-        const bool rd = matrix.routed (FbDiff), rs = matrix.routed (FbSat);
-        const float df = rd ? GiModMap::pctFromRaw (matrix.apply (FbDiff, diffRamp.current() * 100.0f, matrix.offset (FbDiff)))
-                            : diffRamp.current();
-        const float sd = rs ? GiModMap::satDFromRaw (matrix.apply (FbSat, GiModMap::satDToRaw (satDRamp.current()), matrix.offset (FbSat)))
-                            : satDRamp.current();
-        diffMod.setCell (diffNow, df); diffNow = df;
-        satDMod.setCell (satDNow, sd); satDNow = sd;
-        useDiffMod = rd || matrix.routedPrev (FbDiff);
-        useSatMod  = rs || matrix.routedPrev (FbSat);
-        traceAt (FbDiff, df);
-        traceAt (FbSat, sd);
+        parityKnob[s].setTarget (kFbKnob * gp.feedback, rampCells20);
+        parityKnob[s].tick();
+        diffRamp[s].setTarget (gp.fbDiffusion, rampCells20);
+        diffRamp[s].tick();
+        satDRamp[s].setTarget (1.0f + kSatSpan * gp.fbSaturation, rampCells20);
+        satDRamp[s].tick();
+        {
+            // PLAN-2.5a PD6 (parent :772-785): diffusion / saturation substitutes.
+            using namespace GiDest;
+            const bool rd = matrix.routed (FbDiff), rs = matrix.routed (FbSat);
+            const float df = rd ? GiModMap::pctFromRaw (matrix.apply (FbDiff, diffRamp[s].current() * 100.0f, matrix.offset (FbDiff)))
+                                : diffRamp[s].current();
+            const float sd = rs ? GiModMap::satDFromRaw (matrix.apply (FbSat, GiModMap::satDToRaw (satDRamp[s].current()), matrix.offset (FbSat)))
+                                : satDRamp[s].current();
+            diffMod[s].setCell (diffNow[s], df); diffNow[s] = df;
+            satDMod[s].setCell (satDNow[s], sd); satDNow[s] = sd;
+            useDiffMod[s] = rd || matrix.routedPrev (FbDiff);
+            useSatMod[s]  = rs || matrix.routedPrev (FbSat);
+            if (s == 0)   // R1 B1: per-stream from T17 (one trace sample per tick, as before)
+            {
+                traceAt (FbDiff, df);
+                traceAt (FbSat, sd);
+            }
+        }
+        fbLowLogRamp[s].setTarget (std::log2 (gp.fbLowCutHz), rampCells20);
+        fbLowLogRamp[s].tick();
+        fbHighLogRamp[s].setTarget (std::log2 (gp.fbHighCutHz), rampCells20);
+        fbHighLogRamp[s].tick();
     }
-    fbLowLogRamp.setTarget (std::log2 (gp.fbLowCutHz), rampCells20);
-    fbLowLogRamp.tick();
-    fbHighLogRamp.setTarget (std::log2 (gp.fbHighCutHz), rampCells20);
-    fbHighLogRamp.tick();
     updateChainCutoffs();
    #if OGI_TEST_HOOKS
+    for (int s = 0; s < kGiStreams; ++s)   // R1 PD11: per stream (B1: the global Mix for all four)
     {
         const bool on = gp.reverbMix > 0.0f;
-        if (hooks.reverbHardCut && revMixWasOn && ! on)
-            reverb.reset();   // RV2 control: the tail is cut, no 50 ms fade
-        revMixWasOn = on;
+        if (hooks.reverbHardCut && revMixWasOn[s] && ! on)
+            reverbA[s].reset();   // RV2 control: the tail is cut, no 50 ms fade
+        revMixWasOn[s] = on;
+        // CK8 control (R1 PD11): a Pre → Post edge cuts the loop tank at once
+        // (gate B is already off: the unit idles, the tap steps to dry).
+        if (hooks.preHardCut && prevPre[s] && ! reverbPre[s])
+            reverbB[s].reset();
+        prevPre[s] = reverbPre[s];
     }
    #endif
 
@@ -1228,6 +1311,19 @@ void Engine::takeTapes (std::int64_t t) noexcept
                             && kaiser::ratesEqual (old->rate, p->rate);
         if (! resetTake)
             headRelatch[s] = true;
+        if (resetTake)
+        {
+            // R1 PD8 (sign-off 4): a Reset holds gate B of this stream off for
+            // 60 ms — the loop tank fades, idles and restarts cold instead of
+            // writing the old copy's tail into the fresh one. Tank A (the
+            // audible tail) is not touched. Counted down in writeReverbAtomics.
+            bool hold = true;
+           #if OGI_TEST_HOOKS
+            hold = ! hooks.preHoldOff;   // RS2p control
+           #endif
+            if (hold)
+                preHold[s] = preHoldCells;
+        }
         // PLAN-2.6 T11: any take rebuilds the tape from pristine (a Reset, an
         // SR rebuild, a new source) — the head-written bins are stale.
         tel.overview.bumpEpoch (s);
@@ -3717,7 +3813,8 @@ void Engine::spawn (const PendingOnset& o, std::int64_t tAbs) noexcept
 
 /** PLAN-2.4 PD7 / PD8: per stream the mean tap
         tap = (Σ_k a_k·g_fb,kS·bus_kS) · min (level, 1) · aud / max (1, Σ_k a_k)
-    (no pan, no g_out, no voice gain: parent R31) → chain[s] (unity knob, or
+    (no pan, no g_out, no voice gain: parent R31) → [R1 PD8: finite guard →
+    tank B, live only in Pre] → chain[s] (unity knob, or
     the parent's 0.95·feedback under chainKnobParity) → fbRet[s][·][c]. */
 void Engine::runChains (int c0, int c1, std::int64_t tAbs) noexcept
 {
@@ -3744,7 +3841,36 @@ void Engine::runChains (int c0, int c1, std::int64_t tAbs) noexcept
             tapBuf[0][c - c0] = l;
             tapBuf[1][c - c0] = r;
         }
+
+        // R1 PD8: the loop tank (tank B) of this stream, in place on the tap,
+        // before the chain. The finite guard runs only while gate B is on or
+        // its 60 ms fade hold is running (a NaN inside a tank is permanent;
+        // with the gate off the 2.4 tap arithmetic is kept). process is called
+        // for every stream on every piece: an idle unit returns before it
+        // touches the buffer, an uncalled one could not finish its fade.
+        {
+            bool guard = tankGateB[s] || tankFadeB[s] > 0;
+           #if OGI_TEST_HOOKS
+            if (hooks.tankGuardOff)   // TG1 control
+                guard = false;
+           #endif
+            if (guard)
+                for (int ch = 0; ch < 2; ++ch)
+                    for (int i = 0; i < len; ++i)
+                        if (! std::isfinite (tapBuf[ch][i]))
+                        {
+                            tapBuf[ch][i] = 0.0f;
+                           #if OGI_TEST_HOOKS
+                            ++hooks.tankGuardScrubs;
+                           #endif
+                        }
+            float* const chans[2] { tapBuf[0], tapBuf[1] };
+            revView.setDataToReferTo (chans, 2, len);
+            reverbB[s].process (revView);
+        }
+
        #if OGI_TEST_HOOKS
+        // The probe reads the chain's real input (after tank B; identical in Post).
         if (hooks.tapProbe.buf != nullptr && hooks.tapProbe.slot == s)
             for (int i = 0; i < len; ++i)
                 if (tAbs + i >= 0 && tAbs + i < hooks.tapProbe.len)
@@ -3762,8 +3888,8 @@ void Engine::runChains (int c0, int c1, std::int64_t tAbs) noexcept
             }
         }
        #endif
-        chain[s].process (tapBuf[0], tapBuf[1], len, c0, parity ? parityKnob : unityKnob,
-                          useDiffMod ? diffMod : diffRamp, useSatMod ? satDMod : satDRamp);
+        chain[s].process (tapBuf[0], tapBuf[1], len, c0, parity ? parityKnob[s] : unityKnob,
+                          useDiffMod[s] ? diffMod[s] : diffRamp[s], useSatMod[s] ? satDMod[s] : satDRamp[s]);
        #if OGI_TEST_HOOKS
         chain[s].testInjectAt = -1;
         if (hooks.retProbe.buf != nullptr && hooks.retProbe.slot == s)
@@ -3811,22 +3937,28 @@ void Engine::updateHeads (std::int64_t t) noexcept
     fl.settleOff = hooks.settleOff;
    #endif
 
-    if (lz)
-        fbRamp.setCell (gp.feedback, gp.feedback);
-    else
+    // R1 PD6: one λ ramp (and substitute) per stream; in B1 every stream
+    // reads the global parameter / destination through the same statements.
+    for (int s = 0; s < kGiStreams; ++s)
     {
-        fbRamp.setTarget (gp.feedback, rampCells20);
-        fbRamp.tick();
-    }
-    {
-        // PLAN-2.5a PD6: routed feedback modulates the λ ramp in its domain (0..1).
-        const bool rk = matrix.routed (GiDest::Feedback);
-        const float k = rk ? GiModMap::pctFromRaw (matrix.apply (GiDest::Feedback, fbRamp.current() * 100.0f, matrix.offset (GiDest::Feedback)))
-                           : fbRamp.current();
-        fbMod.setCell (fbNow, k);
-        fbNow = k;
-        useFbMod = rk || matrix.routedPrev (GiDest::Feedback);
-        traceAt (GiDest::Feedback, k);
+        if (lz)
+            fbRamp[s].setCell (gp.feedback, gp.feedback);
+        else
+        {
+            fbRamp[s].setTarget (gp.feedback, rampCells20);
+            fbRamp[s].tick();
+        }
+        {
+            // PLAN-2.5a PD6: routed feedback modulates the λ ramp in its domain (0..1).
+            const bool rk = matrix.routed (GiDest::Feedback);
+            const float k = rk ? GiModMap::pctFromRaw (matrix.apply (GiDest::Feedback, fbRamp[s].current() * 100.0f, matrix.offset (GiDest::Feedback)))
+                               : fbRamp[s].current();
+            fbMod[s].setCell (fbNow[s], k);
+            fbNow[s] = k;
+            useFbMod[s] = rk || matrix.routedPrev (GiDest::Feedback);
+            if (s == 0)   // R1 B1: per-stream from T17 (one trace sample per tick, as before)
+                traceAt (GiDest::Feedback, k);
+        }
     }
 
     const bool freezeEdge = gp.freeze && ! prevFreeze;
@@ -3856,13 +3988,22 @@ void Engine::updateHeads (std::int64_t t) noexcept
         hd.swapWaiting = pending && ! hd.parked;
         const bool rateOk = tp != nullptr && (ignRate || kaiser::ratesEqual (tp->rate, fs));
         const bool voiceTerm = gp.s[s].enable && audibleTarget (s, anySolo) && anyVoice;
-        const bool target = ! gp.freeze && rateOk && ! xfade[s].active && ! pending
+        // R1 PD9: the feedback toggle is a term of the run target — Off is a
+        // per-stream Freeze (20 ms run ramp, park, no writes). The Amount ramp
+        // is not touched, so a routed Amount cannot lift it.
+        const bool target = fbOn[s] && ! gp.freeze && rateOk && ! xfade[s].active && ! pending
                          && (voiceTerm || hd.returnPk > 1.0e-5f);
         const float v = target ? 1.0f : 0.0f;
 
+        bool fbSnap = false;
+       #if OGI_TEST_HOOKS
+        fbSnap = hooks.fbOnHardStop && fbOn[s] != prevFbOn[s];   // CK7 control: the toggle edge steps the run ramp
+        prevFbOn[s] = fbOn[s];
+       #endif
+
         if (fh && freezeEdge)
             hd.run.reset (0.0f);
-        if (rz)
+        if (rz || fbSnap)
             hd.run.setCell (v, v);
         else
         {
@@ -3870,7 +4011,7 @@ void Engine::updateHeads (std::int64_t t) noexcept
             hd.run.tick();
         }
 
-        const bool parkedNow = fbEff().settledAt (0.0f) || hd.run.settledAt (0.0f);
+        const bool parkedNow = fbEff (s).settledAt (0.0f) || hd.run.settledAt (0.0f);
         if (parkedNow && ! hd.parked && tp != nullptr)
             hd.park (current[(size_t) s]->tape, fl, headCounters (s));
         hd.parked = parkedNow;
@@ -3914,7 +4055,7 @@ void Engine::writeHeads (std::int64_t t) noexcept
         }
        #endif
         auto& c = headCounters (s);
-        hd.writeCell (tp->tape, rL, rR, fbEff(),
+        hd.writeCell (tp->tape, rL, rR, fbEff (s),
                       region[s].lo, region[s].hi, tp->frames, fl, c);
         foldOverview (s);   // PLAN-2.6 T11: the evolving overview
     }
@@ -3932,9 +4073,92 @@ void Engine::writeReverbAtomics() noexcept
     if (matrix.routed (RevSize)) size = matrix.apply (RevSize, matrix.rawNow (RevSize), matrix.offset (RevSize)) / 100.0f;
     if (matrix.routed (RevDamp)) damp = matrix.apply (RevDamp, matrix.rawNow (RevDamp), matrix.offset (RevDamp)) / 100.0f;
     if (matrix.routed (RevMix))  mixV = matrix.apply (RevMix,  matrix.rawNow (RevMix),  matrix.offset (RevMix))  / 100.0f;
-    revSize.store (size, std::memory_order_relaxed);
-    revDamp.store (damp, std::memory_order_relaxed);
-    revMix.store (mixV, std::memory_order_relaxed);
+
+    // R1 PD7: the four audible tanks. In B1 every stream reads the global
+    // values above (per-stream parameters arrive in T17). Gate A (the tank's
+    // `enabled` atomic) is derived here at every tick, unconditionally:
+    //     gateA_s = mix > 0 && (streamLive_s || tailPk_s > −100 dBFS)
+    //     streamLive_s = enable && audibleTarget, or the audibility ramp not
+    //                    yet settled at 0
+    //     tailPk_s     = held peak of the tank's own output over the previous
+    //                    cell (50 ms release, pkRel)
+    // With Mix 0 a tank is never live (the 2.1 skip statements then decide the
+    // sum alone). No input-energy idle: an audible stream's tank runs from the
+    // cell its Mix opens, as the single output tank did.
+    bool anySolo = false;
+    for (int s = 0; s < kGiStreams; ++s)
+        anySolo = anySolo || (gp.s[s].enable && gp.s[s].solo);
+    bool tailOff = false, sticky = false, onSum = false, ignAud = false;
+   #if OGI_TEST_HOOKS
+    tailOff = hooks.revTailOff;
+    sticky  = hooks.tankGateSticky;
+    onSum   = hooks.tankOnSum;
+    ignAud  = hooks.gateBIgnoreAudible;   // MU1 control
+   #endif
+    for (int s = 0; s < kGiStreams; ++s)
+    {
+        revSize[s].store (size, std::memory_order_relaxed);
+        revDamp[s].store (damp, std::memory_order_relaxed);
+        revMix[s].store (mixV, std::memory_order_relaxed);
+
+        float pk = 0.0f;
+        for (int ch = 0; ch < 2; ++ch)
+            for (int i = 0; i < kCell; ++i)
+            {
+                const float a = std::abs (ys[s][ch][i]);
+                if (a > pk) pk = a;   // NaN never wins
+            }
+        tailPk[s] = std::max (pk, tailPk[s] * pkRel);
+
+        const bool streamLive = (gp.s[s].enable && audibleTarget (s, anySolo))
+                             || ! audibleRamp[s].settledAt (0.0f);
+        bool gate = mixV > 0.0f && (streamLive || (! tailOff && tailPk[s] > 1.0e-5f));
+        if (sticky)
+            gate = gate || tankGate[s];   // TK1 control: never returns to off
+        if (onSum)
+        {
+            // SI1 control (legacy topology): reverbA[0] sits on the stream sum
+            // with the 2.4 constant enable; no per-stream tank is live.
+            gate = false;
+            revOnA[s].store (s == 0 ? 1.0f : 0.0f, std::memory_order_relaxed);
+        }
+        else
+        {
+            revOnA[s].store (gate ? 1.0f : 0.0f, std::memory_order_relaxed);
+        }
+        // Fade hold (see Engine.h): armed on the gate's falling edge, unless the
+        // CK9 control asks for the hard cut.
+        if (gate)
+            tankFade[s] = 0;
+        else if (tankGate[s] && ! tailOff)
+            tankFade[s] = tankFadeCells;
+        else if (tankFade[s] > 0)
+            --tankFade[s];
+        tankGate[s] = gate;
+
+        // R1 PD8: gate B (the loop tank's `enabled` atomic), derived here at
+        // every tick, unconditionally. Pre ↔ Post is this gate: the module's
+        // 50 ms active-gain ramp is the crossfade. A muted / un-soloed /
+        // disabled stream, a toggle Off, an Amount settled at 0 and the Reset
+        // hold each close it. Mix > 0 as for gate A (same stored value).
+        const bool audB  = ignAud || audibleTarget (s, anySolo);
+        const bool gateB = reverbPre[s] && fbOn[s] && audB
+                        && ! fbEff (s).settledAt (0.0f) && preHold[s] == 0
+                        && mixV > 0.0f;
+        revOnB[s].store (gateB ? 1.0f : 0.0f, std::memory_order_relaxed);
+        // Fade hold of the tap guard (as tankFade for tank A): armed on the
+        // gate's falling edge, counted down while the module fades out.
+        if (gateB)
+            tankFadeB[s] = 0;
+        else if (tankGateB[s])
+            tankFadeB[s] = tankFadeCells;
+        else if (tankFadeB[s] > 0)
+            --tankFadeB[s];
+        tankGateB[s] = gateB;
+        // The Reset hold (armed in takeTapes) counts down one per tick.
+        if (preHold[s] > 0)
+            --preHold[s];
+    }
     traceAt (RevSize, size);
     traceAt (RevDamp, damp);
     traceAt (RevMix, mixV);
@@ -4039,16 +4263,48 @@ void Engine::mixPiece (int c0, int c1, float* outL, float* outR, std::int64_t tA
 
     const float vgain = voiceGainNow;
     const int len = c1 - c0;
-    for (int c = c0; c < c1; ++c)
+
+    // R1 PD7 / PD10. The stream sum is formed in three steps so that no tank
+    // output ever shares an expression with the sum (FMA contraction):
+    //   1a. each stream's term, by the PD12 statements, STORED in ys[s];
+    //   1b. per stream: finite guard (only while that tank's gate is on), then
+    //       its audible tank over the piece, in place — every tank on every
+    //       piece (an uncalled unit cannot finish its 50 ms fade);
+    //   1c. the 2.1 accumulation (yL = tL / yL += tL, the `have` logic) reading
+    //       the stored terms.
+    // A stream's term joins the sum iff it is audible or its tank is live
+    // (gate A). With Mix 0 no tank is live: the join set is the audible set
+    // and an inaudible stream's +0.0f term is never added.
+    bool live[kGiStreams], join[kGiStreams];
+    bool onSum = false, zeroTerm = false;
+    int  dropTerm = -1;
+   #if OGI_TEST_HOOKS
+    onSum    = hooks.tankOnSum;      // SI1 control: one tank on the sum (below)
+    zeroTerm = hooks.addZeroTerm;    // MZ1 control
+    dropTerm = hooks.dropTankTerm;   // PT2n control
+   #endif
+    for (int s = 0; s < kGiStreams; ++s)
     {
-        // Per stream level / audibility / pan, voice headroom (PD12 statements,
-        // unchanged; PLAN-2.4 PD11 step 1 stores y into the wet bus).
-        float yL = 0.0f, yR = 0.0f;
-        bool have = false;
-        for (int s = 0; s < kGiStreams; ++s)
+        live[s] = tankGate[s] || tankFade[s] > 0;
+        join[s] = (audible[s] || live[s] || zeroTerm) && s != dropTerm;
+    }
+
+    // 1a. Per stream level / audibility / pan, voice headroom (PD12 statements,
+    //     unchanged). Stream 0's term is always formed (its accumulator always
+    //     is): it is the output when no stream joins. An inaudible stream
+    //     s >= 1 has no accumulator this piece: its tank is fed silence.
+    for (int s = 0; s < kGiStreams; ++s)
+    {
+        float* const sL = ys[s][0];
+        float* const sR = ys[s][1];
+        if (! audible[s] && s != 0)
         {
-            if (! audible[s])
-                continue;
+            std::fill (sL + c0, sL + c1, 0.0f);
+            std::fill (sR + c0, sR + c1, 0.0f);
+            continue;
+        }
+        for (int c = c0; c < c1; ++c)
+        {
             float tL = 0.0f, tR = 0.0f;
             if (pairMix[s])
             {
@@ -4062,6 +4318,48 @@ void Engine::mixPiece (int c0, int c1, float* outL, float* outR, std::int64_t tA
                 tL = accL[s][c] * lv * panLR (s).value (c);
                 tR = accR[s][c] * lv * panRR (s).value (c);
             }
+            sL[c] = tL;
+            sR[c] = tR;
+        }
+    }
+
+    // 1b. Tank A per stream. The guard is the R96 scrub, applied only while
+    //     the tank's gate is on (a non-finite sample never enters a live tank;
+    //     with the gate off the 2.4 arithmetic and wetScrubs counts are kept).
+    if (! onSum)
+    {
+        for (int s = 0; s < kGiStreams; ++s)
+        {
+            if (live[s])
+                for (int ch = 0; ch < 2; ++ch)
+                    for (int c = c0; c < c1; ++c)
+                        if (! std::isfinite (ys[s][ch][c]))
+                        {
+                            ys[s][ch][c] = 0.0f;
+                           #if OGI_TEST_HOOKS
+                            ++hooks.wetScrubs;
+                           #endif
+                        }
+            float* const chans[2] { ys[s][0] + c0, ys[s][1] + c0 };
+            revView.setDataToReferTo (chans, 2, len);
+            reverbA[s].process (revView);   // gate off and not running: returns before touching the buffer
+           #if OGI_TEST_HOOKS
+            ++hooks.tankProcessCalls;
+           #endif
+        }
+    }
+
+    // 1c. The stream sum (the 2.1 accumulation order and `have` logic).
+    for (int c = c0; c < c1; ++c)
+    {
+        float yL = 0.0f, yR = 0.0f;
+        bool have = false;
+        for (int s = 0; s < kGiStreams; ++s)
+        {
+            if (! join[s])
+                continue;
+            const float tL = ys[s][0][c];
+            const float tR = ys[s][1][c];
             if (! have)
             {
                 yL = tL;
@@ -4074,20 +4372,11 @@ void Engine::mixPiece (int c0, int c1, float* outL, float* outR, std::int64_t tA
                 yR += tR;
             }
         }
-        if (! have)
+        if (! have && dropTerm != 0)
         {
-            if (pairMix[0])
-            {
-                const float lv = audibleRamp[0].value (c) * vgain;
-                yL = accL[0][c] * lv;
-                yR = accR[0][c] * lv;
-            }
-            else
-            {
-                const float lv = levelR (0).value (c) * audibleRamp[0].value (c) * vgain;
-                yL = accL[0][c] * lv * panLR (0).value (c);
-                yR = accR[0][c] * lv * panRR (0).value (c);
-            }
+            // No stream joins: stream 0's term (through its tank) is the output.
+            yL = ys[0][0][c];
+            yR = ys[0][1][c];
         }
 
         wet[0][c - c0] = yL;
@@ -4106,12 +4395,16 @@ void Engine::mixPiece (int c0, int c1, float* outL, float* outR, std::int64_t tA
                #endif
             }
 
-    // 3. Reverb over the piece, in place (mix 0 and not running: the unit
-    //    returns before touching the buffer — a bitwise bypass).
+    // 3. R1 PD7: the reverb moved to step 1b (per stream, before the sum).
+    //    Only the SI1 control keeps the 2.4 topology: one tank on the sum.
+    if (onSum)
     {
         float* const chans[2] { wet[0], wet[1] };
         revView.setDataToReferTo (chans, 2, len);
-        reverb.process (revView);
+        reverbA[0].process (revView);
+       #if OGI_TEST_HOOKS
+        ++hooks.tankProcessCalls;
+       #endif
     }
 
    #if OGI_TEST_HOOKS

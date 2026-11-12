@@ -1,0 +1,21 @@
+B1 (PLAN-R1 W2, T7-T10), 2026-11-12: all DSP on the OLD parameter IDs; fbOn true x4 and Pre false x4 are engine-private.
+
+T7 control ramps x4: hashes 14 / 14 / 14 (renders-2.4, legacy 2.2, 7 pinned 2.1), PT0 64 / 64 bitwise vs B0, parity 168 / 0 with PB / PR lines == b0, harness 454 / 0, ids == B,
+   full == B except the wall-clock rows. traceAt for the five feedback destinations is guarded `s == 0` (one trace sample per tick, as before).
+T8 tank A x4 + gate A: hashes unchanged; PT1 38 / 38 bitwise; PT2 26 / 26 (worst null -131.18 dB, worst |g - 1| 5.2e-09, differ > 0 on all 26);
+   PT2n FIRED (Deep Well, stream 2's tank dropped: null -4.47 dB). Parity lines == b0. Harness 454 / 0, ids == B.
+   PD3 moves vs B (measured text only): CL1 knee peak 1.96514666 -> 1.99324679 (pre-knee 3.9280 -> 5.9552; thr 1.99526227 holds: the knee's maximum is A by construction);
+   NZ1 control count 95998 -> 95997; FL7 control count 283754 -> 283753. FL1, FL5, FA4, DR1, FP2, FP5, FP6 printed values did not move.
+   DEVIATION (found by FP6, first T8 build): a stream whose gate A dropped (disabled by a preset switch, Mix -> 0) left the sum as a step:
+   FP6 SlowTide > GlideBass 16.66x (thr 2.0). Fix: a 60 ms fade hold (tankFade) keeps the term joined and guarded while the module ramps its wet out (50 ms).
+   Never armed when the gate was never on, so the Mix-0 join set is unchanged. After the fix FP6 worst 0.938x (== B), that pair 0.59x. The CK9 control (revTailOff) skips the hold.
+T9 tank B x4, gate B, tap guard, Reset hold, toggle fold (dormant): hashes unchanged; PT0 64 / 64 bitwise vs B1a (the T8 dump, build/plugins/O-GranulatorInstrument/r1-b1a);
+   full == T8's except the wall-clock rows.
+T10: VST3 / AU / Standalone / param-dump build rc 0, 0 warnings in Source/; param-dump == pin; fork drift 0 / 13 with no manifest edit and no byte moved under forked/;
+   overrides twice identical == committed; frontend ALL PASS, --nc 4 / 4; real home unchanged.
+   --cpu26 (alone): C25m 30.18 % (B0 29.00, +1.18), C25tm 6.76 % (B0 6.87).
+B1.full.txt = the T9 full extract.
+
+Open for T24 (dsp-agent notes, not built): preHold gates tank B only, not the head; with returnPk's 50 ms release the head may keep writing ~0.55 s after a Reset
+   (RS2p "pristine at 200 ms") and after a mute (MU1 "frozen from t + 0.5 s"). Gate B reads fbEff / preHold one cell late (derived before updateHeads / takeTapes).
+   Only Reset takes arm preHold: a new file or a recording into a Pre stream keeps the old tail in tank B.

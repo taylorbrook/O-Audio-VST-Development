@@ -1309,10 +1309,11 @@ namespace { namespace pg4
     }
 
     /** L then R, 10 s at 48 kHz. */
-    std::vector<float> ptRender (int i)
+    std::vector<float> ptRender (int i, int dropTank = -1)
     {
         PSess ps;
         ps.apply (i);
+        ps.s->hk().dropTankTerm = dropTank;   // PT2n control (-1 = off)
         script (*ps.s);
         ps.s->run ((juce::int64) (kPtSeconds * kFsP), 512);
         std::vector<float> v (ps.s->L);
@@ -1433,6 +1434,27 @@ namespace { namespace pg4
                  "meas " + juce::String (multiOk) + " / " + juce::String (multi)
                      + juce::String::formatted (", worst null %.2f dB, worst |g - 1| %.2e", worstNull, worstG) + (multiOk == multi ? juce::String() : why)
                      + " | thr <= -110 dB, <= 1e-5, > 0 | ctrl PT2n");
+            // PT2n: stream 2's tank term dropped from the sum on the first multi-stream preset
+            // that moved -> the PT2 predicate must FAIL (a build that lost a tank is not within -110 dB).
+            int k = -1;
+            for (int i = 0; i < N && k < 0; ++i)
+                if (! rs[(size_t) i].skip && rs[(size_t) i].streams >= 2 && rs[(size_t) i].differ > 0 && streamOn (b.specs[(size_t) i], 2))
+                    k = i;
+            double nd = -400.0;
+            if (k >= 0)
+            {
+                juce::MemoryBlock mb;
+                dir.getChildFile (ptFileOf (b.specs[(size_t) k])).loadFileAsData (mb);
+                const auto v = ptRender (k, 1);
+                const auto* ref = static_cast<const float*> (mb.getData());
+                double rr = 0.0, dd = 0.0;
+                for (size_t q = 0; q < v.size(); ++q) { const double x = v[q], y = ref[q]; rr += y * y; dd += (x - y) * (x - y); }
+                nd = dd > 0.0 && rr > 0.0 ? 10.0 * std::log10 (dd / rr) : -400.0;
+            }
+            const bool fired = k >= 0 && nd > -110.0;
+            row (fired, "PT2n control: dropTankTerm on stream 2 -> the PT2 null FAILS (predicate must FAIL)",
+                 "meas " + (k >= 0 ? juce::String::fromUTF8 (b.specs[(size_t) k].name) + juce::String::formatted (" null %.2f dB", nd) : juce::String ("no multi-stream preset moved"))
+                     + " | thr > -110 dB | " + ctrl (fired, "PT2 predicate"));
         }
         std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
         return juce::jmin (failures, 255);
