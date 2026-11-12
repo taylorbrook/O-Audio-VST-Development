@@ -1,0 +1,20 @@
+W3 Record-in Arm auto-clear (PLAN-R1 T11-T14, D66), 2026-11-12.
+
+T12: GiRecorder armGen / endGen (relaxed atomics), RecEnding, endArm at seven statements covering endings 1, 2, 3, 6, 7, 8, 9, 10, 11; not on Cancelled; waiting arms never stamp.
+     Processor: autoClearRecArm() from RecPollTimer::timerCallback after pollRecorder() only (gesture begin / setValueNotifyingHost (0) / end); never on RecPollThread, a listener,
+     an AsyncUpdater or the editor. getStateInformation / setStateInformation untouched (OS2 default). Hooks under OGI_TEST_HOOKS.
+     Row 11 as built is slightly wider than "seeded true while Idle": any prepare that finds an inert On (and did not itself end an arm, nothing held) ends it.
+     Carried rows after T12: 454 / 0, ids == B. PD3 move: AP1's control count on PluginProcessor.cpp 1 -> 3 (the new parameter write; the engine scan stays 0 in 44 files).
+T13: tests/render-harness/engine_gates_r1.h (namespace egr1, flag --egr1, in the full run after pg4::runAll and before HM1): AC1, AC1n, AC2, AC2n, AC3, AC3n, AC4, AC5, AC5n,
+     AC6, AC6n, AC7, AC7n, AC8 = 14 / 14 PASS, every n control FIRED. Probe: AC9 PASS (arm 1 / 1), control live under --nc.
+     DEVIATION AC7 (b): "save, restore, save byte-identical" cannot pass on this plugin, R1 or not: every restore bumps the <CustomScale version> runtime counter
+     (PluginProcessor.cpp customVersion.fetch_add) and the save serialises it (0 -> 2 across the round trip). (b) amended to: identical, or the only differing element is that
+     counter and every <PARAM> row (rec_arm included) is identical. Measured: 1 element differs, all PARAM rows identical, Arm On and Arm Off. The counter itself is carried, not R1's.
+     Other departures: AC2n runs the skip on all five branches; AC3 waits on a silent sidechain; AC8 adds a tail (the latched take still starts on the latched slot).
+T14 R-core: hashes 14 / 14 / 14; PT0 64 / 64 vs B1a; parity 168 / 0, PB / PR lines == b0; harness 468 / 0 (454 carried + 14), 0 NOT FIRED; full moved vs T12 only on the new rows + wall-clock rows;
+     shipping targets rc 0, 0 warnings in Source/; param-dump == pin; drift 0 / 13; overrides clean; frontend ALL PASS, --nc 4 / 4; probe ALL PASS (261 x 2, arm 1 / 1), --nc live;
+     no byte moved under Source/ui, tests/i18n-states.json or mockups; real home unchanged by the harness / param-dump.
+T14 R-val (OS4 did not fire): build-and-install rc 0; auval aumu OuGI OuDv PASS with exactly 4 warnings (retrievedValue 0.328712 = the LFO rates); Record Arm: -parameter PASS.
+     pluginval 10, seeds 0x1a2b3c / 0x51ced / 0x7e57: VST3 + AU SUCCESS x3 with the sidechain on; VST3 + AU SUCCESS x3 with OGI_GATE_SC_DEFAULT_OFF=ON (main input 0 ch).
+     No rec_arm / Record Arm line in any pluginval log. Cache variable back to OFF; shipping build restored and reinstalled; installed VST3 / AU cmp-identical to the build;
+     auval on the restored build PASS, 4 warnings. F1 copy is now built and installed.

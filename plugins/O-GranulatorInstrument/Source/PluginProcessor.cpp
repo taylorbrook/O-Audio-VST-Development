@@ -231,6 +231,50 @@ void GranulatorInstrumentProcessor::pollRecorder()
     loader->requestCommit (c.slot, std::move (take));
 }
 
+// CONTEXT-R1 D66 (PLAN-R1 PD18 / PD19). The recorder stamps endGen = armGen at
+// every ending that leaves rec_arm On; this is the ONE place the parameter is
+// written back. A Timer callback: outside any parameter listener, so a VST3
+// host receives the edit (a write nested in a host-driven parameterChanged is
+// swallowed), and it runs with the editor closed. endGen is read BEFORE armGen:
+// armGen only grows, so an arm held during Committing that lands between the
+// two reads makes them differ (no clear) — the clear of take N never cancels
+// arm N + 1. The audio thread sees the Off as an ordinary Off edge: Idle →
+// nothing; Committing → heldArm = false, and nothing is held at that point,
+// because a held arm would have moved armGen.
+void GranulatorInstrumentProcessor::autoClearRecArm()
+{
+    JUCE_ASSERT_MESSAGE_THREAD
+
+    const auto& rec = engine->getRecorder();
+    const std::uint32_t endGen = rec.getEndGen();
+    const std::uint32_t armGen = rec.getArmGen();
+    const bool moved = endGen != recEndGenSeen;
+    recEndGenSeen = endGen;
+
+    bool clear = moved && endGen == armGen;
+   #if OGI_TEST_HOOKS
+    if (testNoGenGuard)
+        clear = moved;                                                              // AC5n
+    if (testClearWheneverNotRecording)
+        clear = static_cast<ogi::RecState> (rec.getPackedState() & 0xffu) != ogi::RecState::Recording;   // AC3n
+    if (testNoArmAutoClear)
+        clear = false;                                                              // AC1n
+   #endif
+    if (! clear)
+        return;
+
+    auto* arm = parameters.getParameter ("rec_arm");
+    if (arm == nullptr || ! (arm->getValue() > 0.5f))
+        return;   // already Off (the user's Off ended the take): nothing to write
+
+    arm->beginChangeGesture();
+    arm->setValueNotifyingHost (0.0f);
+    arm->endChangeGesture();
+   #if OGI_TEST_HOOKS
+    ++recAutoClears;
+   #endif
+}
+
 //==============================================================================
 juce::AudioProcessorValueTreeState::ParameterLayout GranulatorInstrumentProcessor::createParameterLayout()
 {

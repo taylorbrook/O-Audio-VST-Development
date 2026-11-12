@@ -764,6 +764,17 @@ public:
     bool testLoHiAlways      = false;            // ULH1n: lo / hi on every lane
     bool testPeaksMax        = false;            // UMT2n: out / rec.peak sent as [max, max]
     bool testPeaksNoExchange = false;            // UMT4n: the peaks are read without the exchange
+
+    /** PLAN-R1 PD31 controls for the AC rows (message thread; set before the
+        pump they affect). All default inert. */
+    bool testNoArmAutoClear            = false;  // AC1n: the check runs, the write is skipped (Arm stays 1)
+    bool testClearWheneverNotRecording = false;  // AC3n: clears whenever the recorder is not Recording and Arm is On (a waiting arm is cleared)
+    bool testNoGenGuard                = false;  // AC5n: the endGen == armGen guard is skipped (a held arm is cancelled)
+    bool testClearFromListener         = false;  // AC6n: the TIMER skips the check entirely; the harness calls testRunArmAutoClear() from inside its own APVTS parameterChanged
+    std::uint64_t recAutoClears = 0;             // auto-clears issued (gesture + Off written)
+    /** AC6n: the timer's check, on the caller's stack (the harness's
+        parameterChanged callback, message thread). */
+    void testRunArmAutoClear() { autoClearRecArm(); }
    #endif
 
     /** PLAN-2.6 PD7: the off-audio poll (message-thread Timer, or a watcher
@@ -772,6 +783,14 @@ public:
     void pollRecorder();
 
 private:
+    /** CONTEXT-R1 D66 (PLAN-R1 PD18): rec_arm back to Off when the recorder
+        reports the arm over. MESSAGE THREAD, called only by RecPollTimer after
+        pollRecorder() — never by RecPollThread, a parameter listener, an
+        AsyncUpdater or the editor. Writes when endGen moved since the last
+        call, endGen == armGen and the parameter reads On: one gesture around
+        setValueNotifyingHost (0). */
+    void autoClearRecArm();
+
     void updateSidechainChannelCount() noexcept;
     void setEngineDestRanges();   // PLAN-2.5a PD3 (message / host thread)
 
@@ -875,10 +894,20 @@ private:
     // PLAN-2.6 PD7: the commit poll. A 20 ms message-thread Timer; without a
     // MessageManager a small watcher thread runs the same poll. Destroyed
     // first (declared last), before the loader / engine it calls.
+    // D66 (PLAN-R1 PD18): the Timer — and ONLY the Timer — then runs the
+    // rec_arm auto-clear. The watcher thread never writes a parameter.
     struct RecPollTimer final : juce::Timer
     {
         explicit RecPollTimer (GranulatorInstrumentProcessor& o) : owner (o) {}
-        void timerCallback() override { owner.pollRecorder(); }
+        void timerCallback() override
+        {
+            owner.pollRecorder();
+           #if OGI_TEST_HOOKS
+            if (owner.testClearFromListener)
+                return;   // AC6n: the harness issues the write from a listener instead
+           #endif
+            owner.autoClearRecArm();
+        }
         GranulatorInstrumentProcessor& owner;
     };
     struct RecPollThread final : juce::Thread
@@ -896,6 +925,7 @@ private:
     };
     std::unique_ptr<RecPollTimer>  recPollTimer;
     std::unique_ptr<RecPollThread> recPollThread;
+    std::uint32_t recEndGenSeen = 0;   // D66: the recorder's endGen at the last autoClearRecArm (message thread only)
 
     // ── 3.2 telemetry state (message thread, under telemetryLock) ────────────
     juce::CriticalSection telemetryLock;       // never taken on the audio thread

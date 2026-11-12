@@ -149,6 +149,14 @@
       --mutate-out-max         the stub answers out as [max, max]                        -> MT1
       --mutate-states-old-rec  the 3.2 rec-recording (__setLabel) state inserted into a
                                COPY of the state file, at its old position               -> ST1
+      PLAN-R1 PD31 / PD32 (D66, Record-in Arm returns to Off by itself): one row
+      after the lane toasts, counted on its own ("arm 1 / 1 rows"):
+      AC9  rec_arm On, then a host push of rec_arm = 0 (the auto-clear as the
+           relay delivers it); a click on lane-arm-2 writes rec_target = 1 and
+           rec_arm = true once, and #toggle-rec_arm reads pressed
+      and its --nc control, a raw --lanes-only run that must FAIL on exactly AC9:
+      --mutate-lane-arm-no-arm the lane Record handler without its
+                               `if (a && !a.getValue()) a.setValue(true);` branch        -> AC9
     Exit: 0 = all pass; n = failures (max 76); 78 = refused (no overrides
     banner / page not served as asked); 70 = crashed; 77 = Playwright missing —
     NOTHING was verified, which is NOT a pass.
@@ -179,6 +187,7 @@ const MUT_LFO = argv.includes('--mutate-lfo-dot-prefix');
 const MUT_DEST = argv.includes('--mutate-drop-dest');
 const MUT_OUT = argv.includes('--mutate-out-max');
 const MUT_STATES = argv.includes('--mutate-states-old-rec');
+const MUT_ARM = argv.includes('--mutate-lane-arm-no-arm');   // PLAN-R1 PD31: AC9's control
 const MV_NAMES = ['VC1 voice cell / dot classes and vstt keys for states 0–3; .newest only on the newest row',
     'VC2 column 8: +50 -> vstate.clamp +48 (.clamp), +12 -> "+12 st"',
     'VC3 header voicesHeld / voicesState / voicesIdle counts',
@@ -250,7 +259,20 @@ if (argv.includes('--nc')) {
         console.log(okm ? `negative control: ${what} FAILS ${row} — the gate is live` : `negative control: ${what} did NOT fail ${row} as required`);
         okMod = okMod && okm;
     }
-    process.exit(ok && ok2 && okMod ? 0 : 1);
+
+    // PLAN-R1 PD31: AC9's control — the lane Record handler without its arm branch.
+    console.log(`== ${PLUGIN} ui_binding_probe — negative control (lane Record handler without its !a.getValue() branch) ==`);
+    const r9 = spawnSync(process.execPath, [__filename, '--mutate-lane-arm-no-arm', '--lanes-only', ...(PAGE ? ['--page', PAGE] : [])], { encoding: 'utf8', maxBuffer: 1 << 26 });
+    if (r9.status === 77) { console.log('  Playwright could not be resolved — NOTHING verified (exit 77 is not a pass).'); process.exit(77); }
+    const fails9 = r9.stdout.match(/^ {2}FAIL: .*$/gm) || [];
+    const onlyAc9 = fails9.length === 1 && /FAIL: AC9 /.test(fails9[0]);
+    const armLine = (r9.stdout.match(/^ {3}arm \d+ \/ \d+ rows$/m) || ['   (no arm tally line)'])[0].trim();
+    for (const f of fails9.slice(0, 4)) console.log(`      ${f.trim().slice(0, 600)}`);
+    const ok9 = r9.status === 1 && onlyAc9;
+    console.log(`  ${ok9 ? 'PASS' : 'FAIL'}: handler without its arm branch -> exit ${r9.status}; ${armLine}; ${fails9.length} FAIL line(s), ${onlyAc9 ? 'confined to AC9' : 'NOT confined to AC9'}`);
+    if (!ok9) console.log(r9.stdout.split('\n').slice(-14).join('\n') + (r9.stderr ? '\n' + r9.stderr.slice(-600) : ''));
+    console.log(ok9 ? 'negative control: the handler without its arm branch FAILS AC9 — the gate is live' : 'negative control: the handler without its arm branch did NOT fail AC9 as required');
+    process.exit(ok && ok2 && okMod && ok9 ? 0 : 1);
 }
 
 function readTypes() {
@@ -283,7 +305,7 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
     const params = readTypes();
     console.log(`== ${PLUGIN} ui_binding_probe${MUTATE ? ' (MUTATED: bindKnob(' + MUTATE + ') removed)' : ''}${GRAINS_0BASED ? ' (MUTATED: stub grain rows 0-based)' : ''}`
               + `${MUT_LFO ? ' (MUTATED: pre-fix LFO dot)' : ''}${MUT_DEST ? ' (MUTATED: handle-s2_loop_start data-dest removed)' : ''}`
-              + `${MUT_OUT ? ' (MUTATED: out sent [max, max])' : ''}${MUT_STATES ? ' (MUTATED: old rec-recording state in a copy)' : ''}`
+              + `${MUT_OUT ? ' (MUTATED: out sent [max, max])' : ''}${MUT_STATES ? ' (MUTATED: old rec-recording state in a copy)' : ''}${MUT_ARM ? ' (MUTATED: lane Record handler without its arm branch)' : ''}`
               + `${LIVENESS_ONLY ? ' (liveness only)' : ''}${LANES_ONLY ? ' (lanes only)' : ''}${MOD_ONLY ? ' (mod only)' : ''} ==`);
     console.log(`   params.tsv: ${params.length} ids`);
 
@@ -330,7 +352,8 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
     }
     // PD24 page mutations (served copy only; the tree page is never written).
     for (const [on, from, to] of [[MUT_LFO, 'Y = h / 2 - lfoShapeAt(shape, (pp + ph0) % 1) * (h / 2 - 6);', 'Y = h / 2 - lfoShapeAt(shape, pp) * (h / 2 - 6);'],
-                                  [MUT_DEST, 'id="handle-s2_loop_start" data-param="s2_loop_start" data-dest="55" ', 'id="handle-s2_loop_start" data-param="s2_loop_start" ']]) {
+                                  [MUT_DEST, 'id="handle-s2_loop_start" data-param="s2_loop_start" data-dest="55" ', 'id="handle-s2_loop_start" data-param="s2_loop_start" '],
+                                  [MUT_ARM, 'if (a && !a.getValue()) a.setValue(true);', '/* AC9n: the arm branch removed */']]) {
         if (!on) continue;
         if (served.split(from).length !== 2) { console.log(`  REFUSED: the page mutation did not apply (${from.slice(0, 60)})`); cleanup(); process.exit(78); }
         served = served.replace(from, to);
@@ -988,7 +1011,7 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
         'LN6 fetchOverview refetches when ovRev moves and stores the answer\'s rev',
         'LN7 scan-mode aria-valuetext is French after a switch to fr',
         'PX1 playhead', 'PX2 grain dot of stream 1 and of stream 4', 'PX3 feedback head', 'PX4 record head', 'PX5 dirty tick'];
-    let lnRun = 0, lnPass = 0, tcRun = 0, tcPass = 0;
+    let lnRun = 0, lnPass = 0, tcRun = 0, tcPass = 0, acRun = 0, acPass = 0;
 
     if (LIVENESS_ONLY || MOD_ONLY) {
         console.log(`\n   lanes: NOT RUN (${MOD_ONLY ? '--mod-only' : '--liveness-only'})`);
@@ -1524,6 +1547,63 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
         lnRun = lnRun0; lnPass = lnPass0;
         console.log(`\n   toasts ${tcPass} / ${tcRun} rows`);
         if (tcRun !== 3) fail(`toasts: ${tcRun} rows ran, expected 3`);
+
+        // ══════════ Record-in Arm after the auto-clear (PLAN-R1 PD31 / PD32: AC9) ══
+        // Through lnRow (same restore), counted on its own like the toasts.
+        console.log('\n-- record arm (AC9)');
+        await lnRow('AC9 click lane-arm-2 after a host push of rec_arm = 0: rec_target 1, the Arm toggle pressed', async (need, say) => {
+            await laneTab('lane-arm-2');
+            // The Record link shows only in an empty lane that is not recording: the recorder is idle
+            // (the fixture has a take running on slot 2) and slot 2 takes the fixture's empty slot (no error text).
+            const telPulls = await tel([[['rec', 'run'], 0], [['rec', 'slot'], 0]]);
+            need(telPulls >= 2, 'the page did not pull the idle recorder telemetry');
+            const pulls = await page.evaluate(async () => {
+                const L = window.__ln, slots = L.nat.getSlotState.slots;
+                const empty = slots.find((s) => s && s.scheme === '' && !s.missing);
+                slots[1] = Object.assign({}, empty, { error: '' });
+                return L.pushSlots();
+            });
+            const laneCls = await page.evaluate(() => document.getElementById('lane-2').className);
+            need(pulls >= 1 && /\bempty\b/.test(laneCls), `lane 2 did not turn empty (pulls ${pulls}, class "${laneCls}")`);
+
+            const pressed = () => page.evaluate(() => document.getElementById('toggle-rec_arm').getAttribute('aria-pressed'));
+            const setup = await page.evaluate(() => {
+                const H = window.__probe, arm = H.state('rec_arm', 'bool'), tgt = H.state('rec_target', 'choice');
+                const was = { arm: arm.getValue(), tgt: tgt.getChoiceIndex() };
+                H.push(tgt, 'choice', 3);          // anywhere but slot 2
+                H.push(arm, 'bool', true);         // the stale On a finished take left behind
+                const onPressed = document.getElementById('toggle-rec_arm').getAttribute('aria-pressed');
+                H.push(arm, 'bool', false);        // D66: the host-visible auto-clear, as the relay delivers it
+                H.track(arm); H.track(tgt);
+                return { was, onPressed, offPressed: document.getElementById('toggle-rec_arm').getAttribute('aria-pressed'), arm: arm.getValue(), tgt: tgt.getChoiceIndex() };
+            });
+            // The stimulus reached the page: pressed while On, released by the push, target elsewhere.
+            need(setup.onPressed === 'true' && setup.offPressed === 'false' && setup.arm === false && setup.tgt === 3,
+                `the stimulus did not reach the page (pressed ${setup.onPressed} -> ${setup.offPressed}, rec_arm ${setup.arm}, rec_target ${setup.tgt})`);
+            try {
+                await page.click('#lane-arm-2', { timeout: 2000 });
+                await page.waitForTimeout(120);
+                const got = await page.evaluate(() => {
+                    const H = window.__probe, arm = H.state('rec_arm', 'bool'), tgt = H.state('rec_target', 'choice');
+                    return { arm: arm.getValue(), tgt: tgt.getChoiceIndex(), armLog: H.log(arm), tgtLog: H.log(tgt) };
+                });
+                const btn = await pressed();
+                need(got.tgt === 1 && got.tgtLog === 'C', `rec_target is ${got.tgt} (writes "${got.tgtLog}"), expected 1 by one setChoiceIndex`);
+                need(got.arm === true && got.armLog === 'T', `rec_arm is ${got.arm} (writes "${got.armLog}"), expected true by one setValue`);
+                need(btn === 'true', `#toggle-rec_arm aria-pressed is ${btn}, expected true`);
+                say(`host pushes rec_arm true -> false (pressed ${setup.onPressed} -> ${setup.offPressed}), rec_target ${setup.tgt}; click -> rec_target ${got.tgt} (writes ${got.tgtLog || 'none'}), rec_arm ${got.arm} (writes ${got.armLog || 'none'}), toggle pressed ${btn}`);
+            } finally {
+                await page.evaluate((was) => {
+                    const H = window.__probe, arm = H.state('rec_arm', 'bool'), tgt = H.state('rec_target', 'choice');
+                    H.untrack(arm); H.untrack(tgt);
+                    H.push(arm, 'bool', was.arm); H.push(tgt, 'choice', was.tgt);
+                }, setup.was);
+            }
+        });
+        acRun = lnRun - lnRun0; acPass = lnPass - lnPass0;
+        lnRun = lnRun0; lnPass = lnPass0;
+        console.log(`\n   arm ${acPass} / ${acRun} rows`);
+        if (acRun !== 1) fail(`arm: ${acRun} rows ran, expected 1`);
     }
 
     // ══════════════════════════════ MOD / voice / meters (PLAN-3.3 PD24) ══
@@ -2114,7 +2194,7 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
     const liveOk = hostOk === N_PARAMS && uiOk === N_PARAMS;
     const veText = MOD_ONLY ? 'value entry NOT RUN (--mod-only)' : LANES_ONLY ? 'value entry NOT RUN (--lanes-only)' : LIVENESS_ONLY ? 'value entry NOT RUN (--liveness-only)'
         : !hasVE ? 'value entry NOT RUN — page has no value-entry code' : `value entry ${vePass} / ${veRun}`;
-    const lnText = LIVENESS_ONLY ? 'lanes NOT RUN (--liveness-only)' : MOD_ONLY ? 'lanes NOT RUN (--mod-only)' : `lanes ${lnPass} / ${lnRun}; toasts ${tcPass} / ${tcRun}`;
+    const lnText = LIVENESS_ONLY ? 'lanes NOT RUN (--liveness-only)' : MOD_ONLY ? 'lanes NOT RUN (--mod-only)' : `lanes ${lnPass} / ${lnRun}; toasts ${tcPass} / ${tcRun}; arm ${acPass} / ${acRun}`;
     const mvText = LIVENESS_ONLY || LANES_ONLY ? `mod NOT RUN (${LIVENESS_ONLY ? '--liveness-only' : '--lanes-only'})` : `mod ${mvPass} / ${mvRun}${dmCensus ? ', DM2 census ' + dmCensus : ''}`;
     const liveText = LANES_ONLY || MOD_ONLY ? `liveness NOT RUN (${MOD_ONLY ? '--mod-only' : '--lanes-only'})` : `${N_PARAMS} / ${N_PARAMS} both ways`;
     console.log(failures === 0 ? `ALL PASS (${liveText}; ${veText}; ${lnText}; ${mvText})`

@@ -46,6 +46,20 @@
 //     arm is still On. On→Off: Armed → Cancelled; Recording → stop (≥ 0.5 s and
 //     present → commit, else discard). An edge during Committing is HELD and
 //     goes Armed at the first block start after the copy-out.
+//     Auto-clear (CONTEXT-R1 D66, PLAN-R1 PD18 / PD19): the one-shot rule above
+//     is unchanged; the recorder only REPORTS that an arm is over, and the
+//     processor's 20 ms message-thread timer writes rec_arm back to Off (never
+//     this class, never a listener, never the audio thread). Two relaxed
+//     generation counters: armGen moves on every accepted On edge (Idle: armed
+//     or no sidechain bus; Committing: held); endGen = armGen at every ending
+//     that leaves the parameter On: commit, NoSignal, TooShort, prepare() while
+//     Armed / Recording, bypass while Armed / Recording, no sidechain bus, the
+//     capacity overrun, and an On that prepare() finds with no take behind it
+//     (the edge was swallowed: armGen moves, then ends). Not on Cancelled (the
+//     user wrote Off). A waiting arm (Threshold, Next Note) writes nothing. The
+//     timer clears only while endGen == armGen, so the clear of take N cannot
+//     cancel an arm N + 1 held during Committing; that arm's own ending is
+//     stamped N + 1 (enterArmed does not move armGen).
 //   * rec_threshold / rec_gain at grid ticks (gain = a 20 ms ExactRamp through
 //     ControlGrid's dbToGain, so the 7e-7 dB default is exactly unity, P11).
 //   * rec_length / rec_length_sync / sync_mode at the start sample: bars only
@@ -74,6 +88,23 @@ namespace ogi
     };
     enum class RecTrigger : int { Manual = 0, Threshold = 1, NextNote = 2 };
 
+    /** D66 (PLAN-R1 PD19): the seven statements that end an arm with the
+        parameter still On (endGen = armGen). The table rows of RESEARCH-R1
+        D·Q9 they cover:
+          Committed            1 (and 7 / 8 / 10 when the stopped take commits)
+          NoSignal             2 (and 7 / 8 / 10 when the stopped take is silent)
+          TooShort             3 (reached through 5, 7, 8)
+          Interrupted          6  prepare() while Armed
+          Bypassed             8  bypass while Armed
+          SidechainUnavailable 9  an On edge with no sidechain bus
+          StaleOn              11 prepare() finds On with no take behind it
+        The values are what RecorderTestHooks::skipEndGen names. */
+    enum class RecEnding : int
+    {
+        None = 0, Committed = 1, NoSignal = 2, TooShort = 3, Interrupted = 4, Bypassed = 5,
+        SidechainUnavailable = 6, StaleOn = 7
+    };
+
     /** The commit record the audio thread hands over with `ready`. */
     struct RecCommit
     {
@@ -93,13 +124,16 @@ namespace ogi
         bool armLevelTrigger = false;   // OS1n: arm by level (re-arms while held On)
         bool capOff          = false;   // LN4n: the length is not capped at F_max (an overrun is counted, dropped)
         bool nnAnyNote       = false;   // MN1n: a Legato pitch move counts as Next Note
+        int  skipEndGen      = 0;       // AC2n / AC7n (PLAN-R1 PD31): the RecEnding (1…7) whose endGen write is removed; 0 = none
         // counters
         std::uint64_t recArms = 0, recStarts = 0, recCommits = 0, recDiscards = 0, recCancels = 0, heldArms = 0;
         std::uint64_t overruns = 0, unavailable = 0, interrupted = 0, bypassed = 0;
+        std::uint64_t armEnds = 0, staleArms = 0;   // D66: endGen writes; StaleOn endings reached (counted before the skip)
         void resetCounters() noexcept
         {
             recArms = recStarts = recCommits = recDiscards = recCancels = heldArms = 0;
             overruns = unavailable = interrupted = bypassed = 0;
+            armEnds = staleArms = 0;
         }
     };
 
@@ -174,10 +208,18 @@ namespace ogi
             never while a copy-out is pending). */
         void prepare (double sampleRate)
         {
+            // D66: an arm this prepare() ends is stamped by its own ending
+            // (stopTake / Interrupted), never a second time as StaleOn below.
+            const bool endedHere = state == RecState::Recording || state == RecState::Armed;
             if (state == RecState::Recording)
+            {
                 stopTake (lastSample);
+            }
             else if (state == RecState::Armed)
+            {
                 toIdle (RecReason::Interrupted);
+                endArm (RecEnding::Interrupted);
+            }
            #if OGI_TEST_HOOKS
             if (state == RecState::Idle && reason == RecReason::Interrupted)
                 ++hooks.interrupted;
@@ -209,6 +251,18 @@ namespace ogi
             gain.reset (dbToGain (load (pGain, 0.0f)));
             thrLin = juce::Decibels::decibelsToGain (load (pThreshold, -30.0f));
             prevArm = load (pArm, 0.0f) > 0.5f;   // an arm held On never re-arms by itself
+            // D66 row 11: an On with no take behind it (Idle, or Committing
+            // with nothing held) can never start: the seed above swallows its
+            // edge. It gets a generation of its own, ended at once. A held arm
+            // is a real arm (it goes Armed after the copy-out) and is left.
+            if (prevArm && ! endedHere && ! heldArm)
+            {
+                armGen.fetch_add (1, std::memory_order_relaxed);
+               #if OGI_TEST_HOOKS
+                ++hooks.staleArms;
+               #endif
+                endArm (RecEnding::StaleOn);
+            }
             publish();
         }
 
@@ -244,12 +298,14 @@ namespace ogi
             {
                 if (state == RecState::Idle)
                 {
+                    armGen.fetch_add (1, std::memory_order_relaxed);   // D66: an accepted On edge
                     if (scChannels <= 0)
                     {
                         reason = RecReason::SidechainUnavailable;   // no bus: the arm is inert
                        #if OGI_TEST_HOOKS
                         ++hooks.unavailable;
                        #endif
+                        endArm (RecEnding::SidechainUnavailable);
                     }
                     else
                     {
@@ -258,6 +314,7 @@ namespace ogi
                 }
                 else if (state == RecState::Committing)
                 {
+                    armGen.fetch_add (1, std::memory_order_relaxed);   // D66: the held arm is newer than the take being copied out
                     heldArm = true;   // held, not dropped
                    #if OGI_TEST_HOOKS
                     ++hooks.heldArms;
@@ -387,6 +444,7 @@ namespace ogi
             if (state == RecState::Armed)
             {
                 toIdle (RecReason::Bypassed);
+                endArm (RecEnding::Bypassed);
                #if OGI_TEST_HOOKS
                 ++hooks.bypassed;
                #endif
@@ -427,6 +485,11 @@ namespace ogi
         int  getFramesTelemetry() const noexcept        { return framesTel.load (std::memory_order_relaxed); }
         int  getTargetTelemetry() const noexcept        { return targetTel.load (std::memory_order_relaxed); }
         int  getTargetSlotTelemetry() const noexcept    { return slotTel.load (std::memory_order_relaxed); }
+        /** D66 (relaxed; any thread). A reader that compares them reads endGen
+            FIRST: armGen only grows, so a held arm that lands between the two
+            reads makes them differ (no clear), never agree. */
+        std::uint32_t getArmGen() const noexcept        { return armGen.load (std::memory_order_relaxed); }
+        std::uint32_t getEndGen() const noexcept        { return endGen.load (std::memory_order_relaxed); }
         /** PLAN-3.3 PD5: max post-gain |sc L| and |sc R| since the last read
             (the reader takes both; ONE caller, the processor's
             buildUiTelemetry). Mono sidechain: both sides carry the L sample. */
@@ -543,6 +606,7 @@ namespace ogi
             if (! (peak >= kPresenceLin))
             {
                 toIdle (RecReason::NoSignal);
+                endArm (RecEnding::NoSignal);
                #if OGI_TEST_HOOKS
                 ++hooks.recDiscards;
                #endif
@@ -551,6 +615,7 @@ namespace ogi
             if (frames < minFrames)
             {
                 toIdle (RecReason::TooShort);
+                endArm (RecEnding::TooShort);   // the timer writes only while the parameter is still On
                #if OGI_TEST_HOOKS
                 ++hooks.recDiscards;
                #endif
@@ -563,6 +628,7 @@ namespace ogi
             commit.startAbs = startAbs;
             state  = RecState::Committing;
             reason = RecReason::Committed;
+            endArm (RecEnding::Committed);   // before `ready`: the poll that sees the take also sees its ending
             ready.store (frames, std::memory_order_release);
            #if OGI_TEST_HOOKS
             ++hooks.recCommits;
@@ -575,6 +641,20 @@ namespace ogi
             reason = r;
             nnAt = -1;
             ringCount = ringPos = 0;
+        }
+
+        /** D66: this arm is over and the parameter may still be On. Audio
+            thread, or prepare() with the callback stopped. One relaxed store. */
+        void endArm (RecEnding e) noexcept
+        {
+           #if OGI_TEST_HOOKS
+            if (hooks.skipEndGen == static_cast<int> (e))
+                return;
+            ++hooks.armEnds;
+           #else
+            juce::ignoreUnused (e);
+           #endif
+            endGen.store (armGen.load (std::memory_order_relaxed), std::memory_order_relaxed);
         }
 
         void publish() noexcept
@@ -625,6 +705,10 @@ namespace ogi
         RecCommit commit;
         std::atomic<int> ready { 0 };
         std::atomic<bool> wavFailedFlag { false };
+
+        // D66 auto-clear generations (relaxed; written on the audio thread and
+        // in prepare(), read by the processor's message-thread timer)
+        std::atomic<std::uint32_t> armGen { 0 }, endGen { 0 };
 
         // telemetry
         std::atomic<std::uint32_t> packed { 0 };
