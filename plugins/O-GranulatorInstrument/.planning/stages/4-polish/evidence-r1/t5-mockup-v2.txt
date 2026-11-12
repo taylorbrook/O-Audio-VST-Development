@@ -1,0 +1,32 @@
+T5 (PLAN-R1), 2026-11-12: v2 mockup on the scratch tree build/ui-mockup-v2 (Variant B; Variant A behind the MOCKUP-ONLY switch, 54 lines).
+
+Gates, re-run independently by the orchestrator after the gui-agent's own run (scratch tree cmp-equal to the three v2 files):
+  check-i18n --root <abs> --plugin O-GranulatorInstrument   rc 0
+  i18n-fr-lint (scratch scripts/)                           rc 0
+  i18n-zh-lint (scratch scripts/)                           rc 0
+  check-ui-labels --root <abs>                              rc 0, `param-dump (293 rows) + overrides`, `default + 48`, ALL CHECKS PASSED
+  boot-all-uis --strict-tips (scratch scripts/)             rc 0, 0 DEAD, 0 late
+  --root MUST be absolute: a relative root resolves ${CMAKE_SOURCE_DIR}/modules wrongly, the font CSS 404s and French widths are measured in the fallback face (37 false FAILs).
+v1 pairs still cmp clean; no byte under Source/ or tests/ moved since C1.
+
+Counts (gui-agent, by script): KNOB_IDS 168, FORMAT 200, TOGGLE_IDS 19, SEGMENT_IDS 19, DEST_COUNT 150, data-dest 161 attributes / 149 distinct,
+  I18N 136, LABELS 310, TIP_BINDINGS 477, states 48, figures 18 -> 5; canon region byte-identical. v1 -> v2: ui +325 / -322, i18n +122 / -142, states +5 / -4.
+
+Measurements (gui-agent, Variant B, 1200 x 800; not re-measured by the orchestrator):
+  row-4 label gaps: en 17.1, fr 8.6 (Coupe-bas | Coupe-haut), zh-Hans 34.5 px; readout gaps 23.2
+  title cells <= 2 lines in all languages (widest 63.8 px in the 70 px box); bottom edge 784 (<= 786)
+  open value field on s1_fb_low_cut: 74..130, right neighbour text starts 138.7 (8.7 px clear)
+  stream IV tooltips clamp at right = 1192
+  destination select (98 px): en 0 / 150 clip (widest 94.7); fr 33 / 150 clip (widest 138.4); zh widest 77.4
+  mod-matrix-widest re-picked: [[1,109],[2,104],[3,87]]
+
+Departures from PLAN-R1 / C·7.4 / C·D69 (for the D65 gate):
+  1 .n5 boxes use left / right 3 px (the literal -1 / -1 gives 64 px, not the required 56)
+  2 vertical segments mark the pressed option with a 2 px bar on the left edge (not specified)
+  3 Pre above Post in the DOM (choice index 0 is still Post)
+  4 `fb_enable` arm in onParamChanged is its own line; cells carry data-fb
+  5 column rules between streams 368 -> 488 px
+  6 I18N key is `fb_enable` (D69 said `fb_on`); reverb_pre fr / zh follow PD24's two-reverb wording
+  7 fb_diffusion body gained "into this stream's working copy"; feedback body ends "Freeze or this stream's feedback switch stops the writes"
+  8 fb-off state asserts the five dimmed cells only
+  9 one header comment line added to v2-ui.html and v2-i18n.js
