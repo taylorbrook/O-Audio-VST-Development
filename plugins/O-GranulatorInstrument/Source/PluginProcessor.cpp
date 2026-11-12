@@ -311,7 +311,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout GranulatorInstrumentProcesso
             }
             case Kind::Bool:
             {
-                // s1_enable defaults On; every other Bool Off.
+                // s1_enable and the four sN_fb_enable default On; every other Bool Off.
                 layout.add (std::make_unique<juce::AudioParameterBool> (pid, e.name, Ids::boolDefaultFor (e)));
                 break;
             }
@@ -640,7 +640,7 @@ void GranulatorInstrumentProcessor::resetNonParameterState()
 // State codec
 //
 //   <OGranulatorInstrument uiLanguage="fr" ...PARAM children...>
-//     <Engine seed="-1234" stateVersion="1" modDestTableVersion="1"/>
+//     <Engine seed="-1234" stateVersion="1" modDestTableVersion="2"/>
 //     <CustomScale name="..." text="edo 19" period="1200" version="3"/>
 //     <DegreeMasks> <Mask stream="1" collection="19" bits="8000000000000001"/> ... </DegreeMasks>
 //     <Slots>                      (PLAN-2.6 PD21; only non-empty slots, fixed attribute order)
@@ -779,7 +779,7 @@ void GranulatorInstrumentProcessor::setStateInformation (const void* data, int s
     // the property vars pass through untouched (XML gives strings).
     juce::var custom, masks, seedVar;
     if (eng.isValid())
-        seedVar = eng.getProperty ("seed");   // stateVersion / modDestTableVersion: 1 is the only version so far
+        seedVar = eng.getProperty ("seed");   // stateVersion 1 is the only version so far; modDestTableVersion (2 since R1) is not read: no remap (PLAN-R1 PD14)
     if (cs.isValid())
     {
         auto* o = new juce::DynamicObject();
@@ -1572,17 +1572,21 @@ GranulatorInstrumentProcessor::UiTelemetry GranulatorInstrumentProcessor::buildU
 
     // ── PD5: the feedback head ───────────────────────────────────────────────
     // Shown when the slot has a tape and (the head is not parked, or freeze is
-    // on with feedback > 0: the head parks when frozen and the page draws it
-    // dashed). Nothing before the engine published its first frame (the
+    // on with that stream's feedback On and > 0: the head parks when frozen
+    // and the page draws it dashed; R1: slot N reads sN_feedback and
+    // sN_fb_enable). Nothing before the engine published its first frame (the
     // telemetry atomics still read 0 = "not parked").
     if (f.seqHead != 0)
     {
-        const bool frozenWithFeedback = raw ("freeze", 0.0f) > 0.5f && raw ("feedback", 0.0f) > 0.0f;
+        const bool frozen = raw ("freeze", 0.0f) > 0.5f;
         for (int s = 0; s < ogi::kTapeSlots; ++s)
         {
             const auto i = static_cast<std::size_t> (s);
             if (! hasTape[i])
                 continue;
+            const bool frozenWithFeedback = frozen
+                                         && raw (GiParamIds::stream (s + 1, "feedback"), 0.0f) > 0.0f
+                                         && raw (GiParamIds::stream (s + 1, "fb_enable"), 1.0f) > 0.5f;
             const bool parked = (tel.swapState[i].load (std::memory_order_relaxed) & 4u) != 0;
             if (parked && ! frozenWithFeedback)
                 continue;

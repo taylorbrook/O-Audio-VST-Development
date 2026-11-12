@@ -10,7 +10,7 @@
     collide with parity rows PR1-12 and the 2.3 alloc row FA3, so the preset
     rows are FP* and the source-pin row is FSP1 — SUMMARY deviation 1):
 
-      AU1    the auval default round-trip drift set over all 261 parameters
+      AU1    the auval default round-trip drift set over all 293 parameters
              (setValue (default) -> getValue () != default on the REAL
              parameter objects) == { lfo1_rate ... lfo4_rate } exactly
       AU1n   a skew-0.3 range at a drifting default joins the set
@@ -23,7 +23,9 @@
       FP0    the bank table: 64 presets, 8 per category, unique names / seeds,
              "<Cat> · <Name>" <= 24 chars, no / \ :, validateSpec clean (no
              output_gain / rec_arm, ids, ranges, seed, factory ids, enabled
-             stream -> listed slot), per-category feature coverage
+             stream -> listed slot), per-category feature coverage (R1: the
+             feedback / reverb rules read per stream — a range rule holds when
+             at least one ENABLED stream meets it)
       FP1    apply from fresh (no disk): engineering read-back == table
              (absent == default, the PD8 six exact 0), output_gain -7 dB kept,
              seed / custom scale, listed slots loaded / resolvedBy 4 / hash ==
@@ -34,11 +36,11 @@
              peak <= 4.0, RMS 2-20 s > -60 dBFS; bank loudness spread <= 9 dB
       FP3    Rhythmic: every stream-0 grain onset on its density_sync grid
              (<= 1 sample) at 120 and 93 bpm
-      FP4    load after dirty: 259 random params + custom scale + 3 masks +
+      FP4    load after dirty: 291 random params + custom scale + 3 masks +
              seed + foreign file: lanes (Live: the fixed preload) -> apply B ==
              fresh B, 10 s bitwise, 320 ordered pairs A = B + {1,8,13,32,63};
              the 64 fresh renders pairwise distinct
-      FP4b   load after play (A 5 s at feedback 80 %, notes off, apply B):
+      FP4b   load after play (A 5 s at feedback 80 % on all four streams, notes off, apply B):
              parameters + seed / custom / masks + listed slots == fresh B;
              listed slots re-resolved (generation moved), not dirty
       FP5    the real path under the temp HOME: the constructor writes 64
@@ -149,7 +151,7 @@ namespace { namespace pg4
                     ++exactZero;
             }
 
-        row (counted == 261 && exact && exactZero == 6, "AU1 PD9 auval default round-trip drift set == { lfo1..4_rate } (261 params)",
+        row (counted == 293 && exact && exactZero == 6, "AU1 PD9 auval default round-trip drift set == { lfo1..4_rate } (293 params)",
              "meas " + juce::String (counted) + " params, set { " + set.joinIntoString (", ") + " }, PD8 rows exact 0 "
                  + juce::String (exactZero) + " / 6 | thr set == 4 LFO rates, 6 / 6 | ctrl AU1n");
 
@@ -240,6 +242,11 @@ namespace { namespace pg4
         {
             Bank x;
             x.specs = F::factoryPresetSpecs();
+            // PLAN-R1 PD27: the table readers below see the keys a preset really
+            // carries ("s*_x" -> the four "sN_x"); makeFactoryPresets expands the
+            // authored table itself, and FP0 validates the authored form too.
+            for (auto& s : x.specs)
+                F::expandSpecValues (s.values);
             auto p = make();
             x.defs = F::makeFactoryPresets (p->parameters);
             return x;
@@ -263,12 +270,14 @@ namespace { namespace pg4
                 return true;
         return false;
     }
+    /** The LAST pair wins (PLAN-R1 PD27: a literal "sN_x" after a wildcard overrides it). */
     float val (const F::FactoryPresetSpec& s, const char* id, float def)
     {
+        float out = def;
         for (const auto& [k, v] : s.values)
             if (juce::String (k) == id)
-                return v;
-        return def;
+                out = v;
+        return out;
     }
     struct Route { int src = 0; juce::String dest; float depth = 0.0f; };
     std::vector<Route> routesOf (const F::FactoryPresetSpec& s)
@@ -287,6 +296,20 @@ namespace { namespace pg4
     bool streamOn (const F::FactoryPresetSpec& s, int n)
     {
         return val (s, ("s" + juce::String (n) + "_enable").toRawUTF8(), n == 1 ? 1.0f : 0.0f) > 0.5f;
+    }
+    /** A per-stream row of the preset (sN_<suffix>). */
+    float sval (const F::FactoryPresetSpec& s, int n, const char* suffix, float def)
+    {
+        return val (s, ("s" + juce::String (n) + "_" + suffix).toRawUTF8(), def);
+    }
+    /** PLAN-R1 PD16 (FP0): a feedback / reverb rule holds when at least one
+        ENABLED stream meets it. */
+    bool anyOnStream (const F::FactoryPresetSpec& s, const std::function<bool (int)>& rule)
+    {
+        for (int n = 1; n <= 4; ++n)
+            if (streamOn (s, n) && rule (n))
+                return true;
+        return false;
     }
 
     /** Runs fn (i) for i in [0, n) on a few threads (each job owns its processors). */
@@ -419,6 +442,14 @@ namespace { namespace pg4
             t.check (v.isEmpty(), v);
             ++perCat[catOf (s)];
         }
+        // PLAN-R1 PD27: the AUTHORED table (wildcards unexpanded) validates too;
+        // not counted in `checks` (a failure still fails the row).
+        for (const auto& s : F::factoryPresetSpecs())
+        {
+            const auto v = F::validateSpec (s, p->parameters);
+            if (v.isNotEmpty())
+                t.check (false, "authored: " + v);
+        }
         const juce::StringArray cats { "Drones", "Expressive", "Keys", "Live", "Motion", "Pads", "Rhythmic", "Textures" };
         for (const auto& c : cats)
             t.check (perCat[c] == 8, c + " count " + juce::String (perCat[c]));
@@ -457,8 +488,8 @@ namespace { namespace pg4
                         const float pt = val (s, ("s" + juce::String (k) + "_pitch").toRawUTF8(), 0.0f);
                         interval = interval || pt == 7.0f || pt == 12.0f || pt == -12.0f;
                     }
-                const float rv = val (s, "reverb_mix", 0.0f);
-                t.check (on >= 2 && interval && val (s, "amp_attack", 20) >= 700 && val (s, "amp_release", 1500) >= 2500 && rv >= 30 && rv <= 60
+                const bool rvOk = anyOnStream (s, [&s] (int k) { const float rv = sval (s, k, "reverb_mix", 0.0f); return rv >= 30 && rv <= 60; });
+                t.check (on >= 2 && interval && val (s, "amp_attack", 20) >= 700 && val (s, "amp_release", 1500) >= 2500 && rvOk
                              && routed ([] (const Route& r) { return r.src >= 1 && r.src <= 4 && r.dest.endsWith ("_position"); }),
                          "Pads " + n);
                 padsCustom += s.customJson.contains ("\"custom\"") && s.customJson.contains ("\"masks\"") ? 1 : 0;
@@ -476,9 +507,9 @@ namespace { namespace pg4
             }
             if (c == "Drones")
             {
-                const float fb = val (s, "feedback", 0);
-                t.check (val (s, "s1_key_track", 100) <= 50 && val (s, "s1_scan_mode", 1) == 2 && fb >= 30 && fb <= 80
-                             && val (s, "fb_diffusion", 0) > 0 && val (s, "amp_release", 1500) >= 5000,
+                const bool fbOk = anyOnStream (s, [&s] (int k) { const float fb = sval (s, k, "feedback", 0); return fb >= 30 && fb <= 80 && sval (s, k, "fb_diffusion", 0) > 0; });
+                t.check (val (s, "s1_key_track", 100) <= 50 && val (s, "s1_scan_mode", 1) == 2 && fbOk
+                             && val (s, "amp_release", 1500) >= 5000,
                          "Drones " + n);
                 drFreeze += val (s, "freeze", 0) == 1 ? 1 : 0;
                 for (int l = 1; l <= 4; ++l)
@@ -538,7 +569,7 @@ namespace { namespace pg4
                 liveTarget.insert ((int) val (s, "rec_target", 0));
                 liveSync = liveSync || (val (s, "sync_mode", 0) == 1 && has (s, "rec_length_sync"));
                 liveGain = liveGain || val (s, "rec_gain", 0) != 0;
-                liveFb = liveFb || val (s, "feedback", 0) > 0;
+                liveFb = liveFb || anyOnStream (s, [&s] (int k) { return sval (s, k, "feedback", 0) > 0; });
                 liveFreeze = liveFreeze || val (s, "freeze", 0) == 1;
                 liveInit = liveInit || (n == "Init" && s.values.empty());
             }
@@ -825,7 +856,7 @@ namespace { namespace pg4
                 same += sameBits (fL[(size_t) x], fL[(size_t) y]) && sameBits (fR[(size_t) x], fR[(size_t) y]) ? 1 : 0;
         const int nPairs = (int) ab.size();
         row (bad.load() == 0 && same == 0 && nPairs == 320,
-             "FP4 PD14 load after dirty (259 random params, scale, masks, seed, foreign lanes) == fresh B, 10 s bitwise, 320 pairs",
+             "FP4 PD14 load after dirty (291 random params, scale, masks, seed, foreign lanes) == fresh B, 10 s bitwise, 320 pairs",
              "meas " + juce::String (nPairs - bad.load()) + " / " + juce::String (nPairs) + " identical, " + juce::String (same)
                  + " equal fresh pairs" + (why.isEmpty() ? juce::String() : ", first diff " + why) + " | thr 320 / 320, 0 equal | ctrl non-vacuity (64 distinct)");
     }
@@ -851,8 +882,11 @@ namespace { namespace pg4
             PSess ps;
             auto& p = *ps.s->p;
             ps.apply (a);
-            auto* fb = p.parameters.getParameter ("feedback");
-            fb->setValueNotifyingHost (fb->convertTo0to1 (80.0f));
+            for (int n = 1; n <= 4; ++n)   // PLAN-R1 PD16: all four sN_feedback
+            {
+                auto* fb = p.parameters.getParameter (GiParamIds::stream (n, "feedback"));
+                fb->setValueNotifyingHost (fb->convertTo0to1 (80.0f));
+            }
             ps.s->noteOn (64, 48, 100);
             ps.s->noteOn (64, 55, 100);
             ps.s->noteOff ((juce::int64) (5.0 * kFsP) - 4096, 48);
@@ -1309,10 +1343,11 @@ namespace { namespace pg4
     }
 
     /** L then R, 10 s at 48 kHz. */
-    std::vector<float> ptRender (int i, int dropTank = -1)
+    std::vector<float> ptRender (int i, int dropTank = -1, const std::function<void (GranulatorInstrumentProcessor&)>& tweak = {})
     {
         PSess ps;
         ps.apply (i);
+        if (tweak) tweak (*ps.s->p);          // PT2n2 control
         ps.s->hk().dropTankTerm = dropTank;   // PT2n control (-1 = off)
         script (*ps.s);
         ps.s->run ((juce::int64) (kPtSeconds * kFsP), 512);
@@ -1433,7 +1468,7 @@ namespace { namespace pg4
             row (multiOk == multi, "PT2 multi-stream presets null <= -110 dB, |g - 1| <= 1e-5, differ > 0",
                  "meas " + juce::String (multiOk) + " / " + juce::String (multi)
                      + juce::String::formatted (", worst null %.2f dB, worst |g - 1| %.2e", worstNull, worstG) + (multiOk == multi ? juce::String() : why)
-                     + " | thr <= -110 dB, <= 1e-5, > 0 | ctrl PT2n");
+                     + " | thr <= -110 dB, <= 1e-5, > 0 | ctrl PT2n, PT2n2");
             // PT2n: stream 2's tank term dropped from the sum on the first multi-stream preset
             // that moved -> the PT2 predicate must FAIL (a build that lost a tank is not within -110 dB).
             int k = -1;
@@ -1455,6 +1490,38 @@ namespace { namespace pg4
             row (fired, "PT2n control: dropTankTerm on stream 2 -> the PT2 null FAILS (predicate must FAIL)",
                  "meas " + (k >= 0 ? juce::String::fromUTF8 (b.specs[(size_t) k].name) + juce::String::formatted (" null %.2f dB", nd) : juce::String ("no multi-stream preset moved"))
                      + " | thr > -110 dB | " + ctrl (fired, "PT2 predicate"));
+
+            // PT2n2 (PLAN-R1 PD29, from T20): s2_reverb_size + 1 on a two-stream preset
+            // whose stream 2 has reverb -> worse than -60 dB (the -110 dB tolerance is
+            // not vacuous: one step of one stream's own knob is far outside it).
+            int k2 = -1;
+            for (int i = 0; i < N && k2 < 0; ++i)
+                if (! rs[(size_t) i].skip && rs[(size_t) i].streams == 2 && streamOn (b.specs[(size_t) i], 2)
+                    && sval (b.specs[(size_t) i], 2, "reverb_mix", 0.0f) > 0.0f)
+                    k2 = i;
+            double nd2 = -400.0;
+            float size0 = 0.0f, size1 = 0.0f;
+            if (k2 >= 0)
+            {
+                juce::MemoryBlock mb;
+                dir.getChildFile (ptFileOf (b.specs[(size_t) k2])).loadFileAsData (mb);
+                size0 = sval (b.specs[(size_t) k2], 2, "reverb_size", 50.0f);
+                size1 = size0 <= 99.0f ? size0 + 1.0f : size0 - 1.0f;
+                const auto v = ptRender (k2, -1, [size1] (GranulatorInstrumentProcessor& q)
+                {
+                    auto* rp = q.parameters.getParameter ("s2_reverb_size");
+                    rp->setValueNotifyingHost (rp->convertTo0to1 (size1));
+                });
+                const auto* ref = static_cast<const float*> (mb.getData());
+                double rr = 0.0, dd = 0.0;
+                for (size_t q = 0; q < v.size(); ++q) { const double x = v[q], y = ref[q]; rr += y * y; dd += (x - y) * (x - y); }
+                nd2 = dd > 0.0 && rr > 0.0 ? 10.0 * std::log10 (dd / rr) : -400.0;
+            }
+            const bool fired2 = k2 >= 0 && nd2 > -60.0;
+            row (fired2, "PT2n2 control: s2_reverb_size + 1 on a two-stream preset -> worse than -60 dB (the PT2 predicate must FAIL)",
+                 "meas " + (k2 >= 0 ? juce::String::fromUTF8 (b.specs[(size_t) k2].name) + juce::String::formatted (" s2_reverb_size %.0f -> %.0f, null %.2f dB", (double) size0, (double) size1, nd2)
+                                    : juce::String ("no two-stream preset with reverb on stream 2"))
+                     + " | thr > -60 dB | " + ctrl (fired2, "PT2 predicate"));
         }
         std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
         return juce::jmin (failures, 255);

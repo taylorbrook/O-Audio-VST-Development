@@ -111,7 +111,7 @@ namespace { namespace pg25a
         P params = pg22::globalsNull();
         for (auto& kv : pg22::streamParams (row.stream, parity::over (row.sp, row.oursOnly)))
             params.push_back (kv);
-        for (const auto& kv : parity::over (row.gl, row.oursGl))
+        for (const auto& kv : parity::oursGlobals (parity::over (row.gl, row.oursGl)))   // PLAN-R1 PD16: sN_ ids on our side
             params.push_back ({ juce::String (kv.id), kv.v });
         params.push_back ({ "freeze", 0.0f });
         for (const auto& rt : row.routes)
@@ -174,7 +174,7 @@ namespace { namespace pg25a
         o.R.assign (ses.R.begin() + parity::kTe, ses.R.end());
         o.log = ses.hk().logInOrder();
         for (const auto& kv : row.gl)
-            o.raws[juce::String (kv.id)] = eg21::rawOf (*ses.p, juce::String (kv.id));
+            o.raws[juce::String (kv.id)] = eg21::rawOf (*ses.p, juce::String (parity::oursId (kv.id, row.stream)));   // PLAN-R1 PD16: keyed by the parent id
         return o;
     }
 

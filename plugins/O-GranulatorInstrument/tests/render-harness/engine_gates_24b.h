@@ -114,7 +114,7 @@ namespace { namespace eg24b
 
     HcOut hcRender (float loopEnd, float size, bool clampOff, double seconds = 10.0)
     {
-        P p = cat ({ base4 (4), { { "polyphony", 16.0f }, { "grain_limit", 3.0f }, { "feedback", 80.0f } },
+        P p = cat ({ base4 (4), { { "polyphony", 16.0f }, { "grain_limit", 3.0f } }, all4 ("feedback", 80.0f),   // PLAN-R1 PD16
                      all4 ("density", 200.0f), all4 ("size", size), all4 ("reverse_prob", 50.0f), all4 ("loop_end", loopEnd),
                      { { sn (1, "pitch"), 24.0f }, { sn (2, "pitch"), -24.0f }, { sn (3, "pitch"), 0.0f }, { sn (4, "pitch"), 12.0f } } });
         Session s (kFs, p, kSeed, 512);
@@ -258,10 +258,10 @@ namespace { namespace eg24b
         1000 Hz, the PB3 / PB6 setting) makes r ≈ 0: the writer erases at λ, and
         every head stop / start / tape swap leaves the worst-case splice 0.95·wc,
         which only the 20 ms ramps / fades can smooth. */
-    P ckChain() { return { { "fb_low_cut", 2000.0f }, { "fb_high_cut", 1000.0f } }; }
+    P ckChain() { return cat ({ all4 ("fb_low_cut", 2000.0f), all4 ("fb_high_cut", 1000.0f) }); }   // PLAN-R1 PD16: all four streams
     /** CK3: a clean tonal return (sat 0, HP 20 Hz, LP 1 kHz) — the park splice is
         r(t_park) vs wc, and the content stays a 440 Hz tone. */
-    P ckChainClean() { return { { "fb_saturation", 0.0f }, { "fb_low_cut", 20.0f }, { "fb_high_cut", 1000.0f } }; }
+    P ckChainClean() { return cat ({ all4 ("fb_saturation", 0.0f), all4 ("fb_low_cut", 20.0f), all4 ("fb_high_cut", 1000.0f) }); }
 
     Out ckRender (const P& extra, double seconds, const std::function<void (Session&)>& setup, int streams = 1, double regionPct = 66.0f)
     {
@@ -300,7 +300,7 @@ namespace { namespace eg24b
 
     void rowCK1()
     {
-        const P fb { { "feedback", 100.0f } };
+        const P fb = all4 ("feedback", 100.0f);
         auto notes = [] (Session& s) { for (int n : { 48, 55, 60 }) s.noteOn (0, n); };
         // Freeze at 1 s: the head stops mid-lap (region 2 s), erased behind / pristine ahead.
         const auto subj = ckRender (fb, 2.0, [&] (Session& s) { notes (s); eg24::setFreezeAt (s, 48000, true); });
@@ -321,13 +321,13 @@ namespace { namespace eg24b
             notes (s);
             s.hk().lambdaRampZero = hardStep;
             eg24::setFreezeAt (s, 24000, true);
-            setAt (s, 28800, "feedback", 0.0f);
+            eg22::setAt4 (s, 28800, "feedback", 0.0f);
             eg24::setFreezeAt (s, 38400, false);
-            setAt (s, 48000, "feedback", 100.0f);
+            eg22::setAt4 (s, 48000, "feedback", 100.0f);
         };
-        const auto subj = ckRender ({ { "feedback", 100.0f } }, 2.0, [&] (Session& s) { pulse (s, false); });
-        const auto stat = ckRender ({ { "feedback", 100.0f } }, 2.0, notes);
-        const auto hard = ckRender ({ { "feedback", 100.0f } }, 2.0, [&] (Session& s) { pulse (s, true); });
+        const auto subj = ckRender (all4 ("feedback", 100.0f), 2.0, [&] (Session& s) { pulse (s, false); });
+        const auto stat = ckRender (all4 ("feedback", 100.0f), 2.0, notes);
+        const auto hard = ckRender (all4 ("feedback", 100.0f), 2.0, [&] (Session& s) { pulse (s, true); });
         ckInfo ("CK2", "QUAL-01 / D24 feedback 0 -> 100 % at a tick (20 ms lambda ramp) vs fb 100 % held", subj, stat, hard, 1.0, 2.0, "lambdaRampZero");
     }
 
@@ -340,9 +340,9 @@ namespace { namespace eg24b
             for (int n : { 48, 55, 60 }) { s.noteOn (0, n); s.noteOff (48000, n); }
             s.noteOn (120000, 48);
         };
-        const auto subj = ckRender (cat ({ { { "feedback", 100.0f } }, ckChainClean() }), 4.5, script);
-        const auto stat = ckRender (cat ({ { { "feedback", 0.0f } }, ckChainClean() }), 4.5, script);
-        const auto hard = ckRender (cat ({ { { "feedback", 100.0f } }, ckChainClean() }), 4.5, [&] (Session& s) { script (s); s.hk().runRampZero = true; });
+        const auto subj = ckRender (cat ({ all4 ("feedback", 100.0f), ckChainClean() }), 4.5, script);
+        const auto stat = ckRender (cat ({ all4 ("feedback", 0.0f), ckChainClean() }), 4.5, script);
+        const auto hard = ckRender (cat ({ all4 ("feedback", 100.0f), ckChainClean() }), 4.5, [&] (Session& s) { script (s); s.hk().runRampZero = true; });
         ckInfo ("CK3", "QUAL-01 / D24 head stop (park) / start: grains sweep the park point after a new note vs fb 0", subj, stat, hard, 2.5, 4.5, "runRampZero");
     }
 
@@ -352,14 +352,14 @@ namespace { namespace eg24b
         // with the same head motion (park → take → 20 ms fade → resume) and no swap.
         auto notes = [] (Session& s) { for (int n : { 48, 55, 60 }) s.noteOn (0, n); };
         const juce::int64 tR = 72000;   // 1.5 s
-        const auto subj = ckRender ({ { "feedback", 100.0f } }, 2.5, [&] (Session& s) { notes (s); s.at (tR, [] (Session& ss) { ss.p->resetSlotSync (0); }); });
-        const auto stat = ckRender ({ { "feedback", 100.0f } }, 2.5, [&] (Session& s)
+        const auto subj = ckRender (all4 ("feedback", 100.0f), 2.5, [&] (Session& s) { notes (s); s.at (tR, [] (Session& ss) { ss.p->resetSlotSync (0); }); });
+        const auto stat = ckRender (all4 ("feedback", 100.0f), 2.5, [&] (Session& s)
         {
             notes (s);
             eg24::setFreezeAt (s, tR, true);
             eg24::setFreezeAt (s, tR + 32 * 32 + 960 + 64, false);   // park (31 cells) + take + the 20 ms fade
         });
-        const auto hard = ckRender ({ { "feedback", 100.0f } }, 2.5, [&] (Session& s)
+        const auto hard = ckRender (all4 ("feedback", 100.0f), 2.5, [&] (Session& s)
         {
             notes (s);
             s.hk().resetHardSwap = true;
@@ -373,7 +373,7 @@ namespace { namespace eg24b
     Out rvRender (float mix0, double seconds, bool noise, std::vector<std::pair<juce::int64, float>> edges = {}, bool hardCut = false,
                   float size = 50.0f, double noteOffS = -1.0)
     {
-        P p = cat ({ base4 (1), { { "reverb_mix", mix0 }, { "reverb_size", size } },
+        P p = cat ({ base4 (1), all4 ("reverb_mix", mix0), all4 ("reverb_size", size),   // PLAN-R1 PD16
                      eg23::s1p ({ { "density", 50.0f }, { "size", 100.0f }, { "spray", 0.0f }, { "position", 0.0f } }) });
         Session s (kFs, p, kSeed, 512);
         shipping (s);
@@ -381,7 +381,7 @@ namespace { namespace eg24b
         s.load (0, noise ? noiseBuf (2, (int) (4.0 * kFs), 0.3f, 91) : sineBuf (2, (int) (4.0 * kFs), 440.0, kFs, 0.5), kFs);
         s.noteOn (0, 48);
         if (noteOffS > 0.0) s.noteOff ((juce::int64) (noteOffS * kFs), 48);
-        for (auto& e : edges) setAt (s, e.first, "reverb_mix", e.second);
+        for (auto& e : edges) eg22::setAt4 (s, e.first, "reverb_mix", e.second);
         s.run ((juce::int64) (seconds * kFs), 512);
         return { s.L, s.R };
     }

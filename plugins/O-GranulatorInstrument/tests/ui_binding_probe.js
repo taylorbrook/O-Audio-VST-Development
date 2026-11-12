@@ -21,7 +21,7 @@
   ==============================================================================
 
     ui_binding_probe.js
-    O-GranulatorInstrument — two-way page binding probe, all 261 parameters,
+    O-GranulatorInstrument — two-way page binding probe, all 293 parameters,
     plus the value-entry rows VE1–VE12 (Stage 3 / Phase 3.1, PLAN-3.1 PD19,
     PD16; RESEARCH-3.1 §7).
 
@@ -57,7 +57,7 @@
     Free-only cells by setting sync_mode through its own state first. Every
     value is restored after each probe.
 
-    LIVENESS: passes only with 261 / 261 assertions in EACH direction (an id
+    LIVENESS: passes only with 293 / 293 assertions in EACH direction (an id
     the page never binds has no state -> its row fails, it is not skipped).
 
     VALUE ENTRY (PD16), after liveness, each with real clicks and keys:
@@ -108,7 +108,7 @@
            hidden when unrouted
       MV3  loop shading from lanes[].lo / .hi; loop-edge tick from modNorm, only routed (pixel)
       MV4  LFO dot on the drawn curve at lfo1_phase 90° (pixel, ± 2 px)
-      MV5  mrow-1.mono-on for source x dest x LFO mode (18 cases)
+      MV5  mrow-1.mono-on for source x dest x LFO mode (24 cases)
       MV6  menv dot on its envelope figure at the stage position (pixel);
            label.newest vs label.idle
       DM1  drag-to-modulate: each of the 17 dock chips onto a knob and a loop
@@ -116,7 +116,7 @@
            before each drop; modM_source / dest / depth = chip / data-dest / 40
       DM2  every .knob-cell[data-dest], .loop-h[data-dest] (the page's own
            target selector) takes one drop, page by page; census == the
-           runtime count of that selector, every destination 1…125 covered
+           runtime count of that selector, every destination 1…149 covered
       MT1  meter bar tops for out and rec.peak at (dB + 48) / 54 of the
            height, ± 1 px, L and R independent
       HV1  #heavy.on at grain_limit 3, off at 2
@@ -127,7 +127,7 @@
 
     Usage (from anywhere):
       node plugins/O-GranulatorInstrument/tests/ui_binding_probe.js                    liveness + VE + lanes on the tree's page
-      node plugins/O-GranulatorInstrument/tests/ui_binding_probe.js --liveness-only    261 x 2 only
+      node plugins/O-GranulatorInstrument/tests/ui_binding_probe.js --liveness-only    293 x 2 only
       node plugins/O-GranulatorInstrument/tests/ui_binding_probe.js --page <file>      serve <file> as index.html
            (env OGI_UI_PAGE=<file> is the same). The served ROOT is still the
            one serve-ui.js assembles — module JS, eb-garamond css + woff2, the
@@ -135,7 +135,7 @@
       node plugins/O-GranulatorInstrument/tests/ui_binding_probe.js --nc [--page <file>]
            negative control: re-runs itself (liveness only) on a page copy with
            ONE bindKnob removed (s2_drive); exits 0 only if that run FAILS at
-           260 / 261 both ways on exactly that id. THEN a second control
+           292 / 293 both ways on exactly that id. THEN a second control
            (PD27): re-runs itself (lanes only) with the stub's grain rows sent
            0-based; passes only if that run FAILS on exactly the PX2 row.
       --mutate-bindknob <id>   the raw mutated run --nc drives (exits non-zero).
@@ -157,6 +157,19 @@
       and its --nc control, a raw --lanes-only run that must FAIL on exactly AC9:
       --mutate-lane-arm-no-arm the lane Record handler without its
                                `if (a && !a.getValue()) a.setValue(true);` branch        -> AC9
+      PLAN-R1 PD32 (D60–D62, per-stream feedback and reverb on the FX page):
+      FD1  after AC9, counted on its own ("fb 1 / 1 rows"): with all four
+           streams enabled, a host push of sN_fb_enable = false puts .off on
+           exactly that stream's five data-fb cells (no other cell, not the
+           switch) and a push of true takes it off again, N = 1…4; then the
+           same through two real clicks on #toggle-s1_fb_enable
+      FD1n its --nc control, a raw --lanes-only run that must FAIL on exactly FD1:
+      --mutate-fb-arm-removed  onParamChanged without its
+                               `if (/^s\d_fb_enable$/.test(id)) applyStreamStates();` arm  -> FD1
+      VE15 last value-entry row: the field open on each of stream 1's five
+           row-4 cells (.knob-cell.n5, 57 px pitch) does not overlap either
+           neighbour's readout TEXT (a Range over the text, at the neighbour's
+           default, start and end values) nor its readout box, in en and in fr
     Exit: 0 = all pass; n = failures (max 76); 78 = refused (no overrides
     banner / page not served as asked); 70 = crashed; 77 = Playwright missing —
     NOTHING was verified, which is NOT a pass.
@@ -188,6 +201,7 @@ const MUT_DEST = argv.includes('--mutate-drop-dest');
 const MUT_OUT = argv.includes('--mutate-out-max');
 const MUT_STATES = argv.includes('--mutate-states-old-rec');
 const MUT_ARM = argv.includes('--mutate-lane-arm-no-arm');   // PLAN-R1 PD31: AC9's control
+const MUT_FB = argv.includes('--mutate-fb-arm-removed');     // PLAN-R1 PD32: FD1's control (FD1n)
 const MV_NAMES = ['VC1 voice cell / dot classes and vstt keys for states 0–3; .newest only on the newest row',
     'VC2 column 8: +50 -> vstate.clamp +48 (.clamp), +12 -> "+12 st"',
     'VC3 header voicesHeld / voicesState / voicesIdle counts',
@@ -206,8 +220,8 @@ const PX_TOL = 2;          // px: expected x of a canvas feature (PD27)
 const PX_DIFF = 6;         // 0…255: a pixel "differs" between two frames at or above this
 const PX_STRONG = 90;      // 0…255: the record head against its own 8 % tint and the dimmed waveform
 const NC_ID = 's2_drive';
-const N_PARAMS = 261;
-const KIND_COUNTS = { knob: 144, fader: 16, handle: 8, field: 8, choiceKnob: 17, segment: 15, select: 33, radio: 1, scale: 4, toggle: 15 };
+const N_PARAMS = 293;
+const KIND_COUNTS = { knob: 168, fader: 16, handle: 8, field: 8, choiceKnob: 17, segment: 19, select: 33, radio: 1, scale: 4, toggle: 19 };
 const PRESET_FNS = ['savePreset', 'loadPreset', 'getPresetList', 'getCurrentPreset', 'selectNextPreset', 'selectPreviousPreset',
                     'deletePreset', 'isFactoryPreset', 'savePresetWithDialog', 'loadPresetFromFile'];
 
@@ -218,14 +232,14 @@ if (argv.includes('--nc')) {
     const r = spawnSync(process.execPath, args, { encoding: 'utf8', maxBuffer: 1 << 26 });
     if (r.status === 77) { console.log('  Playwright could not be resolved — NOTHING verified (exit 77 is not a pass).'); process.exit(77); }
     const fails = r.stdout.match(/^ {2}FAIL: .*$/gm) || [];
-    const tally = /host -> UI 260 \/ 261, UI -> host 260 \/ 261/.test(r.stdout);
+    const tally = /host -> UI 292 \/ 293, UI -> host 292 \/ 293/.test(r.stdout);
     const onlyThatId = fails.length === 2 && fails.every((f) => f.includes(`FAIL: ${NC_ID}:`));
     for (const f of fails.slice(0, 6)) console.log(`      ${f.trim().slice(0, 170)}`);
     const tallyLine = (r.stdout.match(/^ {3}host -> UI .*$/m) || ['   (no tally line)'])[0].trim();
     const ok = r.status === 2 && tally && onlyThatId;
     console.log(`  ${ok ? 'PASS' : 'FAIL'}: mutated page -> exit ${r.status}; ${tallyLine}; ${fails.length} FAIL line(s), ${onlyThatId ? 'all on ' + NC_ID : 'NOT confined to ' + NC_ID}`);
     if (!ok) console.log(r.stdout.split('\n').slice(-12).join('\n') + (r.stderr ? '\n' + r.stderr.slice(-600) : ''));
-    console.log(ok ? 'negative control: the mutated page FAILS at 260 — the gate is live' : 'negative control: the mutated page did NOT fail as required');
+    console.log(ok ? 'negative control: the mutated page FAILS at 292 — the gate is live' : 'negative control: the mutated page did NOT fail as required');
 
     // Second control (PLAN-3.2 PD27): grain rows sent 0-based -> the PX stream row fails, and only it.
     console.log(`== ${PLUGIN} ui_binding_probe — negative control (stub grain rows sent 0-based) ==`);
@@ -272,7 +286,20 @@ if (argv.includes('--nc')) {
     console.log(`  ${ok9 ? 'PASS' : 'FAIL'}: handler without its arm branch -> exit ${r9.status}; ${armLine}; ${fails9.length} FAIL line(s), ${onlyAc9 ? 'confined to AC9' : 'NOT confined to AC9'}`);
     if (!ok9) console.log(r9.stdout.split('\n').slice(-14).join('\n') + (r9.stderr ? '\n' + r9.stderr.slice(-600) : ''));
     console.log(ok9 ? 'negative control: the handler without its arm branch FAILS AC9 — the gate is live' : 'negative control: the handler without its arm branch did NOT fail AC9 as required');
-    process.exit(ok && ok2 && okMod && ok9 ? 0 : 1);
+
+    // PLAN-R1 PD32: FD1's control (FD1n) — onParamChanged without its sN_fb_enable arm.
+    console.log(`== ${PLUGIN} ui_binding_probe — negative control FD1n (onParamChanged without its sN_fb_enable arm) ==`);
+    const rf = spawnSync(process.execPath, [__filename, '--mutate-fb-arm-removed', '--lanes-only', ...(PAGE ? ['--page', PAGE] : [])], { encoding: 'utf8', maxBuffer: 1 << 26 });
+    if (rf.status === 77) { console.log('  Playwright could not be resolved — NOTHING verified (exit 77 is not a pass).'); process.exit(77); }
+    const failsF = rf.stdout.match(/^ {2}FAIL: .*$/gm) || [];
+    const onlyFd1 = failsF.length === 1 && /FAIL: FD1 /.test(failsF[0]);
+    const fbLine = (rf.stdout.match(/^ {3}fb \d+ \/ \d+ rows$/m) || ['   (no fb tally line)'])[0].trim();
+    for (const f of failsF.slice(0, 4)) console.log(`      ${f.trim().slice(0, 600)}`);
+    const okF = rf.status === 1 && onlyFd1;
+    console.log(`  ${okF ? 'PASS' : 'FAIL'}: onParamChanged without its fb_enable arm -> exit ${rf.status}; ${fbLine}; ${failsF.length} FAIL line(s), ${onlyFd1 ? 'confined to FD1' : 'NOT confined to FD1'}`);
+    if (!okF) console.log(rf.stdout.split('\n').slice(-14).join('\n') + (rf.stderr ? '\n' + rf.stderr.slice(-600) : ''));
+    console.log(okF ? 'negative control: onParamChanged without its fb_enable arm FAILS FD1 — the gate is live' : 'negative control: onParamChanged without its fb_enable arm did NOT fail FD1 as required');
+    process.exit(ok && ok2 && okMod && ok9 && okF ? 0 : 1);
 }
 
 function readTypes() {
@@ -305,7 +332,7 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
     const params = readTypes();
     console.log(`== ${PLUGIN} ui_binding_probe${MUTATE ? ' (MUTATED: bindKnob(' + MUTATE + ') removed)' : ''}${GRAINS_0BASED ? ' (MUTATED: stub grain rows 0-based)' : ''}`
               + `${MUT_LFO ? ' (MUTATED: pre-fix LFO dot)' : ''}${MUT_DEST ? ' (MUTATED: handle-s2_loop_start data-dest removed)' : ''}`
-              + `${MUT_OUT ? ' (MUTATED: out sent [max, max])' : ''}${MUT_STATES ? ' (MUTATED: old rec-recording state in a copy)' : ''}${MUT_ARM ? ' (MUTATED: lane Record handler without its arm branch)' : ''}`
+              + `${MUT_OUT ? ' (MUTATED: out sent [max, max])' : ''}${MUT_STATES ? ' (MUTATED: old rec-recording state in a copy)' : ''}${MUT_ARM ? ' (MUTATED: lane Record handler without its arm branch)' : ''}${MUT_FB ? ' (MUTATED: onParamChanged without its sN_fb_enable arm)' : ''}`
               + `${LIVENESS_ONLY ? ' (liveness only)' : ''}${LANES_ONLY ? ' (lanes only)' : ''}${MOD_ONLY ? ' (mod only)' : ''} ==`);
     console.log(`   params.tsv: ${params.length} ids`);
 
@@ -352,8 +379,9 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
     }
     // PD24 page mutations (served copy only; the tree page is never written).
     for (const [on, from, to] of [[MUT_LFO, 'Y = h / 2 - lfoShapeAt(shape, (pp + ph0) % 1) * (h / 2 - 6);', 'Y = h / 2 - lfoShapeAt(shape, pp) * (h / 2 - 6);'],
-                                  [MUT_DEST, 'id="handle-s2_loop_start" data-param="s2_loop_start" data-dest="55" ', 'id="handle-s2_loop_start" data-param="s2_loop_start" '],
-                                  [MUT_ARM, 'if (a && !a.getValue()) a.setValue(true);', '/* AC9n: the arm branch removed */']]) {
+                                  [MUT_DEST, 'id="handle-s2_loop_start" data-param="s2_loop_start" data-dest="63" ', 'id="handle-s2_loop_start" data-param="s2_loop_start" '],
+                                  [MUT_ARM, 'if (a && !a.getValue()) a.setValue(true);', '/* AC9n: the arm branch removed */'],
+                                  [MUT_FB, 'if (/^s\\d_fb_enable$/.test(id)) applyStreamStates();', '/* FD1n: the sN_fb_enable arm removed */']]) {
         if (!on) continue;
         if (served.split(from).length !== 2) { console.log(`  REFUSED: the page mutation did not apply (${from.slice(0, 60)})`); cleanup(); process.exit(78); }
         served = served.replace(from, to);
@@ -420,8 +448,8 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
         states: { s: window.__stubStates.sliders.size, c: window.__stubStates.combos.size, t: window.__stubStates.toggles.size },
         font: document.fonts.check('11px "EB Garamond"'),
     }), PRESET_FNS);
-    if (boot.banner !== wantSeed || boot.combos !== 70) fail(`in-page overrides banner is "${boot.banner}" with ${boot.combos} combos (expected "${wantSeed}", 70)`);
-    else pass(`overrides banner in the page: "${boot.banner}" (70 combos, natives: ${boot.natives.join(', ')})`);
+    if (boot.banner !== wantSeed || boot.combos !== 74) fail(`in-page overrides banner is "${boot.banner}" with ${boot.combos} combos (expected "${wantSeed}", 74)`);
+    else pass(`overrides banner in the page: "${boot.banner}" (74 combos, natives: ${boot.natives.join(', ')})`);
     if (boot.presetKnown.length === 10 && boot.unknown.filter((n) => PRESET_FNS.includes(n)).length === 0 && norm(boot.presetText) === 'Default')
         pass(`the stub answers the ten preset functions (preset bar shows "${norm(boot.presetText)}"; called at boot: ${boot.presetAnswered.join(', ')})`);
     else fail(`preset functions: ${boot.presetKnown.length} / 10 resolved by the stub, preset bar "${norm(boot.presetText)}", unknown [${boot.unknown.join(', ')}]`);
@@ -712,16 +740,17 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
         'VE4 outside press on a choice knob (preventDefault) applies', 'VE5 unchanged text writes nothing',
         'VE6 exactly one gesture pair per value', 'VE7 clamp above end', 'VE8 -inf on a gain', 'VE9 fCount',
         'VE10 fBend with and without ± / st', 'VE11 a tempo division',
-        'VE12a scan mode typed in French, page in fr', 'VE12b language switch closes an open field', 'VE12c Sync twin hidden closes an open field'];
+        'VE12a scan mode typed in French, page in fr', 'VE12b language switch closes an open field', 'VE12c Sync twin hidden closes an open field',
+        'VE15 the field open on a row-4 .n5 cell clears both neighbours\' readout text (en, fr)'];
     let veRun = 0, vePass = 0;
 
     if (LIVENESS_ONLY || LANES_ONLY || MOD_ONLY) {
         console.log(`\n   value entry: NOT RUN (${MOD_ONLY ? '--mod-only' : LANES_ONLY ? '--lanes-only' : '--liveness-only'})`);
     } else if (!hasVE) {
-        console.log('\n-- value entry (VE1–VE12)');
+        console.log('\n-- value entry (VE1–VE12, VE15)');
         for (const n of VE_NAMES) fail(`${n} — NOT RUN: the served page has no value-entry code (attachValueEntry / bindLabelEntry / .knob-value-input)`);
     } else {
-        console.log('\n-- value entry (VE1–VE12)');
+        console.log('\n-- value entry (VE1–VE12, VE15)');
         const ov = JSON.parse(fs.readFileSync(path.join(pluginRoot, 'tests', 'ui-stub', 'generic-overrides.json'), 'utf8'));
         const rng = (id) => ov.sliders[id];
         const choices = (id) => ov.combos[id].choices;
@@ -999,6 +1028,67 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
             }
         });
 
+        // ── VE15 (PLAN-R1 PD32): row 4 of the FX page, five cells at 57 px pitch ──
+        await row(VE_NAMES[14], async (need) => {
+            const ids = ['s1_feedback', 's1_fb_low_cut', 's1_fb_high_cut', 's1_fb_saturation', 's1_fb_diffusion'];
+            await gotoTab('fx');
+            const geo = await page.evaluate((ids) => ids.map((id) => {
+                const c = document.getElementById(`cell-${id}`);
+                const b = c ? c.getBoundingClientRect() : null;
+                return { id, n5: !!c && c.classList.contains('n5'), fb: !!c && c.dataset.fb !== undefined, x: b ? b.left : NaN, y: b ? b.top : NaN };
+            }), ids);
+            need(geo.every((g) => g.n5 && g.fb), `not every cell is .knob-cell.n5[data-fb]: ${geo.filter((g) => !(g.n5 && g.fb)).map((g) => g.id).join(', ')}`);
+            const pitch = geo.slice(1).map((g, i) => Math.round((g.x - geo[i].x) * 10) / 10);
+            need(pitch.every((p) => p === 57) && geo.every((g) => g.y === geo[0].y), `the five cells are not one row at 57 px pitch (pitch ${pitch.join(' / ')}, tops ${geo.map((g) => g.y).join(' / ')})`);
+            const seen = [];
+            for (const code of ['en', 'fr']) {
+                if (code !== 'en') await setLangByUi(code);
+                try {
+                    // Each cell's readout text extent at its default, start and end values (the widest and the narrowest text it can show).
+                    const texts = await page.evaluate((ids) => {
+                        const H = window.__probe, out = {};
+                        for (const id of ids) {
+                            const st = H.state(id, 'float'), v0 = st.getScaledValue(), el = document.getElementById(`val-${id}`);
+                            const one = () => { const r = document.createRange(); r.selectNodeContents(el); const b = r.getBoundingClientRect(), bx = el.getBoundingClientRect(); return { l: b.left, r: b.right, t: el.textContent, bl: bx.left, br: bx.right }; };
+                            out[id] = [];
+                            for (const v of [v0, st.properties.start, st.properties.end]) { H.push(st, 'float', v); out[id].push(one()); }
+                            H.push(st, 'float', v0);
+                        }
+                        return out;
+                    }, ids);
+                    let worst = Infinity, worstAt = '', worstBox = Infinity, pairs = 0;
+                    for (let i = 0; i < ids.length; i++) {
+                        await open(ids[i]);
+                        const f = await page.evaluate((id) => {
+                            const inp = document.querySelector(`#cell-${id} .knob-value-input`);
+                            const b = inp ? inp.getBoundingClientRect() : null;
+                            return b ? { l: b.left, r: b.right, w: b.width } : null;
+                        }, ids[i]);
+                        await page.keyboard.press('Escape');
+                        if (!f) { need(false, `${code} ${ids[i]}: no .knob-value-input in the cell after the label click`); continue; }
+                        need(f.w > 20, `${code} ${ids[i]}: the open field is ${f.w} px wide`);
+                        for (const [j, side] of [[i - 1, 'left'], [i + 1, 'right']]) {
+                            if (j < 0 || j >= ids.length) continue;
+                            for (const t of texts[ids[j]]) {
+                                ++pairs;
+                                need(t.r > t.l && norm(t.t) !== '', `${code} ${ids[j]}: an empty readout text was measured`);
+                                const gap = side === 'left' ? f.l - t.r : t.l - f.r;
+                                if (gap < worst) { worst = gap; worstAt = `${ids[i]} field ${f.l.toFixed(1)}…${f.r.toFixed(1)} vs ${ids[j]} "${norm(t.t)}" ${t.l.toFixed(1)}…${t.r.toFixed(1)}`; }
+                                // The readout BOX too (56 px at 57 px pitch): the text check alone passes by a hair on 72 px boxes.
+                                const boxGap = side === 'left' ? f.l - t.br : t.bl - f.r;
+                                if (boxGap < worstBox) worstBox = boxGap;
+                                need(boxGap >= 0, `${code}: the field on ${ids[i]} (${f.l.toFixed(1)}…${f.r.toFixed(1)}) overlaps its ${side} neighbour ${ids[j]}'s readout box (${t.bl.toFixed(1)}…${t.br.toFixed(1)}) by ${(-boxGap).toFixed(1)} px`);
+                                need(gap >= 0, `${code}: the field on ${ids[i]} (${f.l.toFixed(1)}…${f.r.toFixed(1)}) overlaps its ${side} neighbour ${ids[j]}'s readout "${norm(t.t)}" (${t.l.toFixed(1)}…${t.r.toFixed(1)}) by ${(-gap).toFixed(1)} px`);
+                            }
+                        }
+                    }
+                    need(pairs === 24, `${code}: ${pairs} field / neighbour-text pairs measured, expected 24 (8 neighbour sides x 3 values)`);
+                    seen.push(`${code} ${pairs} pairs, smallest text gap ${worst.toFixed(1)} px (${worstAt}), smallest readout-box gap ${worstBox.toFixed(1)} px`);
+                } finally { if (code !== 'en') await setLangByUi('en'); }
+            }
+            console.log(`   VE15 measured: ${seen.join('; ')}`);
+        });
+
         console.log(`\n   value entry ${vePass} / ${veRun} rows`);
     }
 
@@ -1011,7 +1101,7 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
         'LN6 fetchOverview refetches when ovRev moves and stores the answer\'s rev',
         'LN7 scan-mode aria-valuetext is French after a switch to fr',
         'PX1 playhead', 'PX2 grain dot of stream 1 and of stream 4', 'PX3 feedback head', 'PX4 record head', 'PX5 dirty tick'];
-    let lnRun = 0, lnPass = 0, tcRun = 0, tcPass = 0, acRun = 0, acPass = 0;
+    let lnRun = 0, lnPass = 0, tcRun = 0, tcPass = 0, acRun = 0, acPass = 0, fdRun = 0, fdPass = 0;
 
     if (LIVENESS_ONLY || MOD_ONLY) {
         console.log(`\n   lanes: NOT RUN (${MOD_ONLY ? '--mod-only' : '--liveness-only'})`);
@@ -1604,6 +1694,76 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
         lnRun = lnRun0; lnPass = lnPass0;
         console.log(`\n   arm ${acPass} / ${acRun} rows`);
         if (acRun !== 1) fail(`arm: ${acRun} rows ran, expected 1`);
+
+        // ══════════ Per-stream feedback switch dims its five cells (PLAN-R1 PD22 / PD32: FD1) ══
+        // Through lnRow, counted on its own like the toasts and AC9.
+        console.log('\n-- feedback switch (FD1)');
+        const lnRun1 = lnRun, lnPass1 = lnPass;
+        await lnRow('FD1 a stream\'s five feedback cells take .off when its switch goes off and lose it when it comes back', async (need, say) => {
+            await gotoTab('fx');
+            const FB = ['feedback', 'fb_low_cut', 'fb_high_cut', 'fb_saturation', 'fb_diffusion'];
+            // Per stream: how many of its data-fb cells are .off, which ids they are, how many of its OTHER cells are .off, the switch.
+            const census = () => page.evaluate(() => {
+                const out = {};
+                for (let n = 1; n <= 4; n++) {
+                    const fb = [...document.querySelectorAll(`.knob-cell[data-fb][data-stream="${n}"]`)];
+                    const rest = [...document.querySelectorAll(`.knob-cell[data-stream="${n}"]:not([data-fb])`)];
+                    const sw = document.getElementById(`toggle-s${n}_fb_enable`);
+                    out[n] = { ids: fb.map((c) => c.id.replace(`cell-s${n}_`, '')), off: fb.filter((c) => c.classList.contains('off')).length, n: fb.length,
+                               restOff: rest.filter((c) => c.classList.contains('off')).length, rest: rest.length,
+                               swOff: !!sw && sw.classList.contains('off'), pressed: sw ? sw.getAttribute('aria-pressed') : null };
+                }
+                return out;
+            });
+            const pushBool = (id, v) => page.evaluate(({ id, v }) => { const H = window.__probe; H.push(H.state(id, 'bool'), 'bool', v); }, { id, v });
+            const was = await page.evaluate(() => {
+                const H = window.__probe, w = {};
+                for (let n = 1; n <= 4; n++) for (const k of ['enable', 'fb_enable']) { const st = H.state(`s${n}_${k}`, 'bool'); w[`s${n}_${k}`] = st ? st.getValue() : null; }
+                return w;
+            });
+            need(Object.values(was).every((v) => v !== null), `a stream / feedback switch state is missing: ${Object.entries(was).filter(([, v]) => v === null).map(([k]) => k).join(', ')}`);
+            try {
+                // All four streams on, all four switches on: nothing dimmed (a disabled stream would dim its cells anyway).
+                for (let n = 1; n <= 4; n++) { await pushBool(`s${n}_enable`, true); await pushBool(`s${n}_fb_enable`, true); }
+                const c0 = await census();
+                for (let n = 1; n <= 4; n++) {
+                    need(c0[n].n === 5 && JSON.stringify(c0[n].ids) === JSON.stringify(FB), `stream ${n}: data-fb cells [${c0[n].ids.join(', ')}], expected the five feedback cells in chain order`);
+                    need(c0[n].off === 0 && c0[n].restOff === 0 && !c0[n].swOff && c0[n].pressed === 'true', `stream ${n} baseline (stream on, switch on): ${c0[n].off} / ${c0[n].n} feedback cells off, ${c0[n].restOff} other cells off, switch .off ${c0[n].swOff}, pressed ${c0[n].pressed}`);
+                }
+                const seen = [];
+                for (let n = 1; n <= 4; n++) {
+                    await pushBool(`s${n}_fb_enable`, false);                    // the relay delivering a host write
+                    const a = await census();
+                    for (let m = 1; m <= 4; m++) {
+                        const want = m === n ? 5 : 0;
+                        need(a[m].off === want, `s${n}_fb_enable off: stream ${m} has ${a[m].off} / ${a[m].n} feedback cells .off, expected ${want}`);
+                        need(a[m].restOff === 0 && !a[m].swOff, `s${n}_fb_enable off: stream ${m} has ${a[m].restOff} other cell(s) .off, switch .off ${a[m].swOff} (only the five feedback cells may dim)`);
+                    }
+                    need(a[n].pressed === 'false', `s${n}_fb_enable off: the switch reads aria-pressed ${a[n].pressed}`);
+                    await pushBool(`s${n}_fb_enable`, true);
+                    const b = await census();
+                    need([1, 2, 3, 4].every((m) => b[m].off === 0 && b[m].restOff === 0) && b[n].pressed === 'true', `s${n}_fb_enable back on: feedback cells off ${[1, 2, 3, 4].map((m) => b[m].off).join(' / ')}, pressed ${b[n].pressed}; expected 0 / 0 / 0 / 0, true`);
+                    seen.push(`s${n} off ${[1, 2, 3, 4].map((m) => a[m].off).join(' / ')} -> on ${[1, 2, 3, 4].map((m) => b[m].off).join(' / ')}`);
+                }
+                // The same through the switch itself (two real clicks on stream 1's).
+                await page.click('#toggle-s1_fb_enable', { timeout: 2000 });
+                const u1 = await census(), v1 = await page.evaluate(() => window.__probe.state('s1_fb_enable', 'bool').getValue());
+                need(v1 === false && u1[1].off === 5 && u1[2].off === 0 && u1[1].restOff === 0, `click on #toggle-s1_fb_enable: value ${v1}, stream 1 ${u1[1].off} / 5 feedback cells off, stream 2 ${u1[2].off}, other cells ${u1[1].restOff}; expected false, 5, 0, 0`);
+                await page.click('#toggle-s1_fb_enable', { timeout: 2000 });
+                const u2 = await census(), v2 = await page.evaluate(() => window.__probe.state('s1_fb_enable', 'bool').getValue());
+                need(v2 === true && u2[1].off === 0, `second click on #toggle-s1_fb_enable: value ${v2}, stream 1 ${u2[1].off} / 5 feedback cells off; expected true, 0`);
+                say(`feedback cells .off per stream I / II / III / IV by host push: ${seen.join('; ')}; by click on stream I's switch: ${u1[1].off} / 5 -> ${u2[1].off} / 5; other cells off 0, switch never .off`);
+            } finally {
+                await page.evaluate((was) => {
+                    const H = window.__probe;
+                    for (const [id, v] of Object.entries(was)) { const st = H.state(id, 'bool'); if (st && v !== null) H.push(st, 'bool', v); }
+                }, was);
+            }
+        });
+        fdRun = lnRun - lnRun1; fdPass = lnPass - lnPass1;
+        lnRun = lnRun1; lnPass = lnPass1;
+        console.log(`\n   fb ${fdPass} / ${fdRun} rows`);
+        if (fdRun !== 1) fail(`fb: ${fdRun} rows ran, expected 1`);
     }
 
     // ══════════════════════════════ MOD / voice / meters (PLAN-3.3 PD24) ══
@@ -1926,16 +2086,16 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
         await mvRow(MV_NAMES[7], async (need, say) => {
             await tab('mod');
             let n = 0, on = 0;
-            for (const s of [5, 1, 14]) for (const d of [1, 122, 27]) for (const mode of [0, 1]) {
+            for (const s of [5, 1, 14]) for (const d of [1, 146, 27, 30]) for (const mode of [0, 1]) {
                 const r = await mev(({ s, d, mode }) => {
                     const M = window.__mv; M.combo('mod1_source', s); M.combo('mod1_dest', d); M.combo('lfo1_mode', mode);
                     const row = document.getElementById('mrow-1'); return { mono: row.classList.contains('mono-on'), used: row.classList.contains('used') };
                 }, { s, d, mode });
-                const pv = s === 5 || (s === 1 && mode === 1), gd = d === 1 || (d === 122 && mode === 0), want = pv && gd;
+                const pv = s === 5 || (s === 1 && mode === 1), gd = d === 1 || d === 30 || (d === 146 && mode === 0), want = pv && gd;
                 ++n; if (r.mono) ++on;
                 need(r.used && r.mono === want, `source ${s} -> dest ${d}, lfo1_mode ${mode}: mono-on ${r.mono}, used ${r.used}; expected mono-on ${want}`);
             }
-            say(`${n} cases (Env 1 / LFO 1 / M1 x output_gain / lfo1_rate / s1 loop start x Global / Per-voice, the mode switched AFTER the route), ${on} mono-on`);
+            say(`${n} cases (Env 1 / LFO 1 / M1 x output_gain / lfo1_rate / s1 loop start / s1 feedback x Global / Per-voice, the mode switched AFTER the route), ${on} mono-on`);
         });
 
         // ── MV6 ────────────────────────────────────────────────────────────
@@ -2121,6 +2281,7 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
             let states = JSON.parse(fs.readFileSync(path.join(pluginRoot, 'tests', 'i18n-states.json'), 'utf8'));
             if (MUT_STATES) states = states.concat([{ name: 'rec-recording (3.2, __setLabel)',
                 eval: "window.__setLabel(document.getElementById('rec-status-t'), 'rec.recording', { n: 'IV' }); ['s2', 's3', 's4'].forEach((s) => document.getElementById('toggle-' + s + '_enable').click());" }]);
+            need(states.length === (MUT_STATES ? 49 : 48), `tests/i18n-states.json has ${states.length} states, expected ${MUT_STATES ? '48 + the control\'s one' : 48} (PLAN-R1 PD25)`);
             let named = 0, held = 0, minPolls = Infinity;
             const bad = [];
             for (const st of states) {
@@ -2194,7 +2355,7 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
     const liveOk = hostOk === N_PARAMS && uiOk === N_PARAMS;
     const veText = MOD_ONLY ? 'value entry NOT RUN (--mod-only)' : LANES_ONLY ? 'value entry NOT RUN (--lanes-only)' : LIVENESS_ONLY ? 'value entry NOT RUN (--liveness-only)'
         : !hasVE ? 'value entry NOT RUN — page has no value-entry code' : `value entry ${vePass} / ${veRun}`;
-    const lnText = LIVENESS_ONLY ? 'lanes NOT RUN (--liveness-only)' : MOD_ONLY ? 'lanes NOT RUN (--mod-only)' : `lanes ${lnPass} / ${lnRun}; toasts ${tcPass} / ${tcRun}; arm ${acPass} / ${acRun}`;
+    const lnText = LIVENESS_ONLY ? 'lanes NOT RUN (--liveness-only)' : MOD_ONLY ? 'lanes NOT RUN (--mod-only)' : `lanes ${lnPass} / ${lnRun}; toasts ${tcPass} / ${tcRun}; arm ${acPass} / ${acRun}; fb ${fdPass} / ${fdRun}`;
     const mvText = LIVENESS_ONLY || LANES_ONLY ? `mod NOT RUN (${LIVENESS_ONLY ? '--liveness-only' : '--lanes-only'})` : `mod ${mvPass} / ${mvRun}${dmCensus ? ', DM2 census ' + dmCensus : ''}`;
     const liveText = LANES_ONLY || MOD_ONLY ? `liveness NOT RUN (${MOD_ONLY ? '--mod-only' : '--lanes-only'})` : `${N_PARAMS} / ${N_PARAMS} both ways`;
     console.log(failures === 0 ? `ALL PASS (${liveText}; ${veText}; ${lnText}; ${mvText})`

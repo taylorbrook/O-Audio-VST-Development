@@ -193,6 +193,11 @@ namespace ogi
     // depth. `struct Lfo` carries the parent field names and types
     // (82406fce ControlGrid.h:326-331) so the VERBATIM ModSources.h compiles
     // through `using GridParams = GiGridParams`.
+    // R1 (PLAN-R1 PD13 / PD14, OS1): the 8 global feedback / reverb rows of 2.4
+    // are per stream (sN_feedback, sN_fb_low_cut, sN_fb_high_cut,
+    // sN_fb_saturation, sN_fb_diffusion, sN_reverb_mix, sN_reverb_size,
+    // sN_reverb_damp) with sN_fb_enable (bool) and sN_reverb_pre (choice
+    // 0 Post, 1 Pre); freeze stays global. kGiModDests 150.
     // 2.5b (PLAN-2.5b T3, PD15): voice_mode (choice index), glide (ms, read
     // raw through the skewed range), mpe_enable (bool), latched at the tick.
     // Never bound after 2.5b: rec_* (2.6).
@@ -200,7 +205,7 @@ namespace ogi
     inline constexpr int kGiGridStreams = 4;   // 2.2: s1...s4 (2.1: s1 only)
     inline constexpr int kGiLfos = 4, kGiModEnvs = 2, kGiMacros = 4, kGiModSlots = 16;
     inline constexpr int kGiModSources = 18;   // GiParamIds::kNumModSources (incl. None)
-    inline constexpr int kGiModDests   = 126;  // GiParamIds::kModDests (incl. None)
+    inline constexpr int kGiModDests   = 150;  // GiParamIds::kModDests (incl. None)
 
     /** Raw APVTS atomics, cached once in the processor constructor (bind). A
         null pointer is simply not read (the GiGridParams default stays). */
@@ -220,16 +225,8 @@ namespace ogi
         std::atomic<float>* ampRelease = nullptr;
         std::atomic<float>* velToAmp   = nullptr;      // %
 
-        // 2.4 globals
-        std::atomic<float>* feedback     = nullptr;    // %
-        std::atomic<float>* fbLowCut     = nullptr;    // Hz (skewed range: read raw)
-        std::atomic<float>* fbHighCut    = nullptr;    // Hz (skewed range: read raw)
-        std::atomic<float>* fbSaturation = nullptr;    // %
-        std::atomic<float>* fbDiffusion  = nullptr;    // %
+        // 2.4 global (R1: feedback and reverb are per stream)
         std::atomic<float>* freeze       = nullptr;    // bool
-        std::atomic<float>* reverbMix    = nullptr;    // %
-        std::atomic<float>* reverbSize   = nullptr;    // %
-        std::atomic<float>* reverbDamp   = nullptr;    // %
 
         struct Stream
         {
@@ -274,6 +271,17 @@ namespace ogi
             // 2.5a
             std::atomic<float>* sizeSync     = nullptr;   // choice 0…19
             std::atomic<float>* densitySync  = nullptr;   // choice 0…18
+            // R1: the stream's feedback and reverb
+            std::atomic<float>* fbEnable     = nullptr;   // bool
+            std::atomic<float>* feedback     = nullptr;   // %
+            std::atomic<float>* fbLowCut     = nullptr;   // Hz (skewed range: read raw)
+            std::atomic<float>* fbHighCut    = nullptr;   // Hz (skewed range: read raw)
+            std::atomic<float>* fbSaturation = nullptr;   // %
+            std::atomic<float>* fbDiffusion  = nullptr;   // %
+            std::atomic<float>* reverbPre    = nullptr;   // choice 0 Post, 1 Pre
+            std::atomic<float>* reverbMix    = nullptr;   // %
+            std::atomic<float>* reverbSize   = nullptr;   // %
+            std::atomic<float>* reverbDamp   = nullptr;   // %
         };
         Stream s[kGiGridStreams] {};
 
@@ -300,7 +308,7 @@ namespace ogi
         struct Mod
         {
             std::atomic<float>* source = nullptr;         // choice 0 None … 17 Macro 4
-            std::atomic<float>* dest = nullptr;           // choice 0 None … 125
+            std::atomic<float>* dest = nullptr;           // choice 0 None … 149
             std::atomic<float>* depth = nullptr;          // −100..100 %
         };
         Mod mod[kGiModSlots] {};
@@ -320,15 +328,7 @@ namespace ogi
             ampSustain     = apvts.getRawParameterValue ("amp_sustain");
             ampRelease     = apvts.getRawParameterValue ("amp_release");
             velToAmp       = apvts.getRawParameterValue ("vel_to_amp");
-            feedback       = apvts.getRawParameterValue ("feedback");
-            fbLowCut       = apvts.getRawParameterValue ("fb_low_cut");
-            fbHighCut      = apvts.getRawParameterValue ("fb_high_cut");
-            fbSaturation   = apvts.getRawParameterValue ("fb_saturation");
-            fbDiffusion    = apvts.getRawParameterValue ("fb_diffusion");
             freeze         = apvts.getRawParameterValue ("freeze");
-            reverbMix      = apvts.getRawParameterValue ("reverb_mix");
-            reverbSize     = apvts.getRawParameterValue ("reverb_size");
-            reverbDamp     = apvts.getRawParameterValue ("reverb_damp");
 
             for (int i = 0; i < kGiGridStreams; ++i)
             {
@@ -375,6 +375,17 @@ namespace ogi
 
                 ps.sizeSync     = apvts.getRawParameterValue (GiParamIds::stream (n, "size_sync"));
                 ps.densitySync  = apvts.getRawParameterValue (GiParamIds::stream (n, "density_sync"));
+
+                ps.fbEnable     = apvts.getRawParameterValue (GiParamIds::stream (n, "fb_enable"));
+                ps.feedback     = apvts.getRawParameterValue (GiParamIds::stream (n, "feedback"));
+                ps.fbLowCut     = apvts.getRawParameterValue (GiParamIds::stream (n, "fb_low_cut"));
+                ps.fbHighCut    = apvts.getRawParameterValue (GiParamIds::stream (n, "fb_high_cut"));
+                ps.fbSaturation = apvts.getRawParameterValue (GiParamIds::stream (n, "fb_saturation"));
+                ps.fbDiffusion  = apvts.getRawParameterValue (GiParamIds::stream (n, "fb_diffusion"));
+                ps.reverbPre    = apvts.getRawParameterValue (GiParamIds::stream (n, "reverb_pre"));
+                ps.reverbMix    = apvts.getRawParameterValue (GiParamIds::stream (n, "reverb_mix"));
+                ps.reverbSize   = apvts.getRawParameterValue (GiParamIds::stream (n, "reverb_size"));
+                ps.reverbDamp   = apvts.getRawParameterValue (GiParamIds::stream (n, "reverb_damp"));
             }
 
             syncMode = apvts.getRawParameterValue ("sync_mode");
@@ -430,16 +441,8 @@ namespace ogi
         float ampReleaseMs = 1500.0f;      // 0..20000
         float velToAmp     = 0.7f;         // 0..1
 
-        // 2.4 globals (spec defaults)
-        float feedback     = 0.0f;         // 0..1
-        float fbLowCutHz   = 80.0f;        // 20..2000 Hz (raw)
-        float fbHighCutHz  = 12000.0f;     // 1000..20000 Hz (raw)
-        float fbSaturation = 0.2f;         // 0..1
-        float fbDiffusion  = 0.0f;         // 0..1
+        // 2.4 global (R1: feedback and reverb are per stream)
         bool  freeze       = false;
-        float reverbMix    = 0.0f;         // 0..1
-        float reverbSize   = 0.5f;         // 0..1
-        float reverbDamp   = 0.5f;         // 0..1
 
         struct Stream
         {
@@ -484,6 +487,17 @@ namespace ogi
             // 2.5a
             int   sizeSync       = 7;        // 0…19 (7 = 1/16)
             int   densitySync    = 7;        // 0…18 (7 = 1/16)
+            // R1: the stream's feedback and reverb (spec defaults)
+            bool  fbOn           = true;     // sN_fb_enable
+            float feedback       = 0.0f;     // 0..1
+            float fbLowCutHz     = 80.0f;    // 20..2000 Hz (raw)
+            float fbHighCutHz    = 12000.0f; // 1000..20000 Hz (raw)
+            float fbSaturation   = 0.2f;     // 0..1
+            float fbDiffusion    = 0.0f;     // 0..1
+            bool  reverbPre      = false;    // sN_reverb_pre: false Post, true Pre
+            float reverbMix      = 0.0f;     // 0..1
+            float reverbSize     = 0.5f;     // 0..1
+            float reverbDamp     = 0.5f;     // 0..1
         };
         Stream s[kGiGridStreams] {};
 
@@ -510,7 +524,7 @@ namespace ogi
         struct Mod
         {
             int   src   = 0;                 // 0 None … 17 Macro 4
-            int   dest  = 0;                 // 0 None … 125
+            int   dest  = 0;                 // 0 None … 149
             float depth = 0.0f;              // −1..1
         };
         Mod mod[kGiModSlots] {};
@@ -536,15 +550,7 @@ namespace ogi
             read (p.ampRelease, ampReleaseMs, 0.0f, 20000.0f);
             readPct (p.velToAmp, velToAmp);
 
-            readPct (p.feedback, feedback);
-            read (p.fbLowCut,  fbLowCutHz,  20.0f,  2000.0f);
-            read (p.fbHighCut, fbHighCutHz, 1000.0f, 20000.0f);
-            readPct (p.fbSaturation, fbSaturation);
-            readPct (p.fbDiffusion,  fbDiffusion);
             readBool (p.freeze, freeze);
-            readPct (p.reverbMix,  reverbMix);
-            readPct (p.reverbSize, reverbSize);
-            readPct (p.reverbDamp, reverbDamp);
 
             for (int i = 0; i < kGiGridStreams; ++i)
             {
@@ -591,6 +597,17 @@ namespace ogi
                 // 2.5a
                 readInt (ps.sizeSync,    st.sizeSync,    0, 19);
                 readInt (ps.densitySync, st.densitySync, 0, 18);
+                // R1
+                readBool (ps.fbEnable, st.fbOn);
+                readPct (ps.feedback, st.feedback);
+                read (ps.fbLowCut,  st.fbLowCutHz,  20.0f,  2000.0f);
+                read (ps.fbHighCut, st.fbHighCutHz, 1000.0f, 20000.0f);
+                readPct (ps.fbSaturation, st.fbSaturation);
+                readPct (ps.fbDiffusion,  st.fbDiffusion);
+                readBool (ps.reverbPre, st.reverbPre);
+                readPct (ps.reverbMix,  st.reverbMix);
+                readPct (ps.reverbSize, st.reverbSize);
+                readPct (ps.reverbDamp, st.reverbDamp);
             }
 
             // 2.5a: sync, sources, matrix (choice indices with lround, clamped).

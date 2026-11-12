@@ -133,6 +133,21 @@ namespace { namespace eg22
         s.at (t, [id, v] (Session& ss) { setP (*ss.p, id, v); });
     }
 
+    /** PLAN-R1 PD16: one row value on every stream of a live processor (the
+        former global feedback / reverb rows: four identical streams are the
+        old global). */
+    void setP4 (Proc& p, const char* x, float v)
+    {
+        for (int n = 1; n <= 4; ++n)
+            setP (p, sn (n, x), v);
+    }
+
+    /** setP4 at sample t (one scheduled event). */
+    void setAt4 (Session& s, juce::int64 t, const char* x, float v)
+    {
+        s.at (t, [x, v] (Session& ss) { setP4 (*ss.p, x, v); });
+    }
+
     int countLog (const Log& log, int stream, juce::int64 a, juce::int64 b)
     {
         int n = 0;
@@ -1457,9 +1472,9 @@ namespace { namespace eg22
         const int nD = diffCount (ref, renderNB (512, kSeed, [] (Proc& p) { setP (p, Ids::stream (1, "density"), 120.0f); }, P0, false));
         const int nW = diffCount (ref, renderNB (512, kSeed, [] (Proc& p) { setP (p, Ids::stream (4, "window"), 0.5f); }, P0, false));
         const bool fired = nD > 0 && nW > 0;
-        row (n == 0 && bound == 261 && touched == 7 && fired, "N2s rec_* with a silent sidechain bit-identical, 4 streams on (readSet26)",
+        row (n == 0 && bound == 293 && touched == 7 && fired, "N2s rec_* with a silent sidechain bit-identical, 4 streams on (readSet26)",
              "meas " + juce::String (n) + " samples differ with " + juce::String (touched) + " rec_* randomised, arm On ("
-                 + juce::String (bound) + "/261 read IDs bound) | thr 0 | margin " + juce::String (-n)
+                 + juce::String (bound) + "/293 read IDs bound) | thr 0 | margin " + juce::String (-n)
                  + " | " + ctrl (fired, "s1_density -> " + juce::String (nD) + ", s4_window -> " + juce::String (nW) + " differ"));
     }
 

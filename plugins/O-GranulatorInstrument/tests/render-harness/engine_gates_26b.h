@@ -63,6 +63,7 @@ namespace { namespace eg26b
     using eg22::cat;
     using eg22::sn;
     using eg22::base4;
+    using eg22::all4;
     using eg24b::want;
     using eg24b::section;
     using eg25a::baseMod;
@@ -1029,7 +1030,7 @@ namespace { namespace eg26b
              "meas max count " + juce::String (worst) + ", 40 reads complete " + (complete ? "yes" : "no") + " | thr <= 288 | ctrl TL1n");
 
         // TL3: feedback on → the head rewrites bins (epoch-tagged); a Reset makes them stale.
-        Session f (kFs, cat ({ stBase(), { { "feedback", 80.0f } } }), kSeed, 512);
+        Session f (kFs, cat ({ stBase(), all4 ("feedback", 80.0f) }), kSeed, 512);   // PLAN-R1 PD16
         f.load (0, noiseBuf (2, 48000, 0.3f, 121), kFs);
         for (int n : { 48, 60 })
             f.noteOn (64, n);

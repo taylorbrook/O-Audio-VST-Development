@@ -34,11 +34,11 @@
       UMN1   modNorm key set == routed set, values == destTel; a per-voice
              route follows the newest voice and rests at base with no voice; a
              global source moves its key without notes
-      UMN1n  all 125 keys sent -> extra keys
+      UMN1n  all 149 keys sent -> extra keys
       ULH1   lanes[].lo / hi only on a lane with a routed loop dest, == min /
              max of the two destTel
       ULH1n  always emitted -> the unrouted lanes carry lo / hi
-      UMB1   17 x 125 x LFO mode: the engine's mono predicates == the page rule
+      UMB1   17 x 149 x LFO mode: the engine's mono predicates == the page rule
              (a C++ transcription; the constants below, pinned by closure [16])
       UMT1   out[L] / out[R] == the harness's own max |x| since the last poll,
              bit-exact
@@ -89,6 +89,7 @@ namespace { namespace ug33
     using eg21::rawOf;
     using eg21::sameF;
     using eg22::sn;
+    using eg22::all4;    // PLAN-R1 PD16: the former global feedback / reverb rows on all four streams
     using eg24b::want;
     using eg24b::section;
     using eg25a::baseMod;
@@ -116,17 +117,20 @@ namespace { namespace ug33
     //
     //   isPerVoiceSource (src) = PER_VOICE_SOURCES.includes (src)
     //                         || (1 <= src <= 4 && lfo<src>_mode == 1)
-    //   isGlobalDest (d)       = d == 1 || 114 <= d <= 121
-    //                         || (122 <= d <= 125 && lfo<d - 121>_mode == 0)
+    //   isGlobalDest (d)       = d == 1 || (2 <= d <= 145 && (d - 2) % 36 >= 28)
+    //                         || (146 <= d <= 149 && lfo<d - 145>_mode == 0)
+    //   (PLAN-R1 PD14: fields 28...35 of each 36-entry stream block are the
+    //   stream's feedback and reverb — one value per stream, not per voice.)
     //   mono-on                = isPerVoiceSource (src) && isGlobalDest (d)
     namespace pageRule
     {
         constexpr int kPerVoiceSources[] = { 5, 6, 7, 8, 9, 11, 12, 13 };   // PER_VOICE_SOURCES
         constexpr int kLfoSrcLo = 1, kLfoSrcHi = 4;                         // LFO n per-voice while lfoN_mode == 1
         constexpr int kGlobalDest = 1;                                      // output_gain
-        constexpr int kGlobalDestLo = 114, kGlobalDestHi = 121;             // feedback ... reverb_damp
-        constexpr int kLfoRateDestLo = 122, kLfoRateDestHi = 125;           // lfoN_rate: global while lfoN_mode == 0
-        constexpr int kLfoRateDestBase = 121;                               // lfo<d - 121>_mode
+        constexpr int kStreamDestLo = 2, kStreamDestHi = 145;               // the four 36-entry stream blocks
+        constexpr int kStreamStride = 36, kStreamGlobalField = 28;          // fields 28...35: sN_feedback ... sN_reverb_damp
+        constexpr int kLfoRateDestLo = 146, kLfoRateDestHi = 149;           // lfoN_rate: global while lfoN_mode == 0
+        constexpr int kLfoRateDestBase = 145;                               // lfo<d - 145>_mode
 
         inline bool isPerVoiceSource (int src, const int (&lfoMode)[4])
         {
@@ -137,7 +141,7 @@ namespace { namespace ug33
         }
         inline bool isGlobalDest (int d, const int (&lfoMode)[4])
         {
-            if (d == kGlobalDest || (d >= kGlobalDestLo && d <= kGlobalDestHi))
+            if (d == kGlobalDest || (d >= kStreamDestLo && d <= kStreamDestHi && (d - kStreamDestLo) % kStreamStride >= kStreamGlobalField))
                 return true;
             if (d >= kLfoRateDestLo && d <= kLfoRateDestHi)
                 return lfoMode[d - kLfoRateDestBase - 1] == 0;
@@ -846,14 +850,14 @@ namespace { namespace ug33
     {
         // mod1 Env 1 (per-voice) -> s1_level (a per-voice dest): destTel's voice
         //      part is the newest voice's offset; with no voice it is the base.
-        // mod2 LFO 1 (global)    -> reverb_mix: moves without notes.
+        // mod2 LFO 1 (global)    -> s1_reverb_mix (35; PLAN-R1 PD16): moves without notes.
         // mod3 Velocity -> output_gain (a mono route: the global pass reads the
         //      HELD srcG, so it does not rest at base after the last voice --
         //      not asserted), mod4 Macro 1 (depth 0) -> s1_pan: routed (depth ignored).
         P ps = with (baseMod (1), P { { sn (1, "density"), 20.0f }, { "lfo1_rate", 3.0f }, { "menv1_attack", 50.0f }, { "menv1_decay", 300.0f },
                                       { "menv1_sustain", 70.0f } });
         ps = with (ps, route (1, ogi::GiSrc::ModEnv1, 2, 60.0f));
-        ps = with (ps, route (2, ogi::GiSrc::Lfo1, 119, 50.0f));
+        ps = with (ps, route (2, ogi::GiSrc::Lfo1, 35, 50.0f));
         ps = with (ps, route (3, ogi::GiSrc::Velocity, 1, 40.0f));
         ps = with (ps, route (4, ogi::GiSrc::Macro1, 3, 0.0f));
         Session s (kFs, ps, kSeed, 256);
@@ -863,7 +867,7 @@ namespace { namespace ug33
         s.noteOff (72000, 60);
         s.record = false;
         auto* og = dynamic_cast<juce::AudioParameterFloat*> (param (*s.p, sn (1, "level")));
-        const std::set<int> routed { 1, 2, 3, 119 };
+        const std::set<int> routed { 1, 2, 3, 35 };
         Mn1 m;
         juce::int64 next = 0;
         s.afterBlock = [&] (Session& ss)
@@ -890,8 +894,8 @@ namespace { namespace ug33
                 m.baseBad += std::abs (t.modNorm[2] - base) <= 1.0e-6f ? 0 : 1;
                 if (ss.pos < 48000)
                 {
-                    m.gLo = std::min (m.gLo, t.modNorm[119]);
-                    m.gHi = std::max (m.gHi, t.modNorm[119]);
+                    m.gLo = std::min (m.gLo, t.modNorm[35]);
+                    m.gHi = std::max (m.gHi, t.modNorm[35]);
                 }
             }
             else if (std::abs (t.modNorm[2] - base) > 0.01f)
@@ -909,12 +913,12 @@ namespace { namespace ug33
         const auto n = mn1Run (true);
         const bool stim = a.polls > 60 && a.baseRest > 20 && a.voiceMoved > 5 && a.gHi - a.gLo > 0.1f;
         row (stim && mn1Predicate (a), "UMN1 PD9 modNorm: key set == routed set, values == destTel; per-voice route follows the newest, rests at base; global moves",
-             "meas key set == {1, 2, 3, 119} on " + juce::String (a.polls - a.keyBad) + "/" + juce::String (a.polls) + " polls, values bit-equal (" + juce::String (a.valBad)
+             "meas key set == {1, 2, 3, 35} on " + juce::String (a.polls - a.keyBad) + "/" + juce::String (a.polls) + " polls, values bit-equal (" + juce::String (a.valBad)
                  + " bad); Env 1 -> s1_level: at base on " + juce::String (a.baseRest - a.baseBad) + "/" + juce::String (a.baseRest) + " voiceless polls, off base on "
-                 + juce::String (a.voiceMoved) + " polls with a voice; LFO 1 -> reverb_mix without notes " + juce::String (a.gLo, 3) + " ... " + juce::String (a.gHi, 3)
+                 + juce::String (a.voiceMoved) + " polls with a voice; LFO 1 -> s1_reverb_mix without notes " + juce::String (a.gLo, 3) + " ... " + juce::String (a.gHi, 3)
                  + " | thr exact | ctrl UMN1n");
         const bool fired = n.polls > 60 && ! mn1Predicate (n) && n.extra > 0;
-        row (fired, "UMN1n control: all 125 modNorm keys sent -> extra keys (predicate must FAIL)",
+        row (fired, "UMN1n control: all 149 modNorm keys sent -> extra keys (predicate must FAIL)",
              "meas " + juce::String (n.extra) + " extra keys on " + juce::String (n.keyBad) + " polls | thr predicate FAILS | "
                  + ctrl (fired, "testModNormAll -> +" + juce::String (n.extra) + " keys"));
     }
@@ -989,7 +993,7 @@ namespace { namespace ug33
             s.run (9600, 256);   // the 20 ms mode crossfade settles (lfoPerVoiceActive follows the mode only when settled)
             int on = 0;
             for (int src = 1; src <= 17; ++src)
-                for (int d = 1; d <= 125; ++d)
+                for (int d = 1; d <= 149; ++d)
                 {
                     ++pairs;
                     const bool engine = s.eng().srcPerVoiceNowForTest (src) && ! s.eng().destVoiceNowForTest (d);
@@ -1005,7 +1009,7 @@ namespace { namespace ug33
             monoOn += on;
             perCfg << (perCfg.isEmpty() ? "" : ", ") << c.name << " " << on;
         }
-        row (pairs == 3 * 17 * 125 && bad == 0 && monoOn > 0, "UMB1 PD23 mono badge: engine srcPerVoiceNow && ! destVoiceNow == the page rule, 17 x 125 x LFO mode",
+        row (pairs == 3 * 17 * 149 && bad == 0 && monoOn > 0, "UMB1 PD23 mono badge: engine srcPerVoiceNow && ! destVoiceNow == the page rule, 17 x 149 x LFO mode",
              "meas " + juce::String (pairs - bad) + "/" + juce::String (pairs) + " pairs agree (mono-on pairs: " + perCfg + ")" + (first.isNotEmpty() ? ", first " + first : juce::String())
                  + " | thr all | ctrl - (closure [16] pins the transcription)");
     }
@@ -1054,8 +1058,8 @@ namespace { namespace ug33
 
     Mt2 mt2Run (bool peaksMax)
     {
-        Session s (kFs, with (baseMod (1), P { { sn (1, "pan"), -100.0f }, { sn (1, "stereo_spread"), 0.0f }, { "reverb_mix", 0.0f },
-                                               { sn (1, "density"), 30.0f } }), kSeed, 256);
+        Session s (kFs, with (with (baseMod (1), P { { sn (1, "pan"), -100.0f }, { sn (1, "stereo_spread"), 0.0f },
+                                                     { sn (1, "density"), 30.0f } }), all4 ("reverb_mix", 0.0f)), kSeed, 256);
         s.p->testPeaksMax = peaksMax;
         s.load (0, noiseBuf (2, 96000, 0.3f, 416), kFs);
         s.noteOn (512, 60);
@@ -1487,7 +1491,7 @@ namespace { namespace ug33
             routedKeys = got.size();
             bool ok = got == want;
             for (const auto& k : got)
-                ok = ok && k.containsOnly ("0123456789") && k.getIntValue() >= 1 && k.getIntValue() <= 125 && near (mn[juce::Identifier (k)], src.modNorm[(size_t) k.getIntValue()]);
+                ok = ok && k.containsOnly ("0123456789") && k.getIntValue() >= 1 && k.getIntValue() <= 149 && near (mn[juce::Identifier (k)], src.modNorm[(size_t) k.getIntValue()]);
             if (! ok)
                 bad.add ("modNorm keys " + got.joinIntoString (","));
         }
@@ -1519,7 +1523,7 @@ namespace { namespace ug33
                                           { sn (1, "density"), 30.0f }, { sn (2, "density"), 30.0f } });
             ps = with (ps, route (1, ogi::GiSrc::Lfo1, 28, 30.0f));
             ps = with (ps, route (2, ogi::GiSrc::ModEnv2, 1, 50.0f));
-            ps = with (ps, route (3, ogi::GiSrc::Lfo1, 119, 20.0f));
+            ps = with (ps, route (3, ogi::GiSrc::Lfo1, 35, 20.0f));   // s1_reverb_mix (PLAN-R1 PD16)
             Session s (kFs, ps, kSeed, 256);
             s.load (0, noiseBuf (2, 96000, 0.2f, 441), kFs);
             s.load (1, noiseBuf (2, 96000, 0.2f, 442), kFs);
@@ -1576,11 +1580,15 @@ namespace { namespace ug33
     {
         // UPL2: 16 routes, 256 grains, 16 rows, per-voice LFOs.
         {
-            P ps = with (fullPool(), P { { "feedback", 60.0f }, { "lfo1_mode", 1.0f }, { "lfo2_mode", 1.0f } });
+            P ps = with (with (fullPool(), all4 ("feedback", 60.0f)), P { { "lfo1_mode", 1.0f }, { "lfo2_mode", 1.0f } });
             for (int n = 1; n <= 4; ++n)
                 ps = with (ps, P { { sn (n, "stereo_spread"), 100.0f }, { sn (n, "gain_rand"), 50.0f }, { sn (n, "reverse_prob"), 30.0f } });
+            // PLAN-R1 PD16: the same 16 destinations under table version 2 (the
+            // version-1 index d: stream (d - 2) / 28, field (d - 2) % 28; 114 was
+            // `feedback`, now stream 1's).
+            const auto v2 = [] (int d1) { return d1 == 114 ? ogi::GiDest::stream (0, ogi::GiDest::Feedback) : ogi::GiDest::stream ((d1 - 2) / 28, (d1 - 2) % 28); };
             for (int m = 1; m <= 16; ++m)   // 16 routes to 16 distinct destinations, loop ends among them
-                ps = with (ps, route (m, 1 + (m - 1) % 17, m <= 4 ? 28 * m : 2 + 7 * m, 25.0f));
+                ps = with (ps, route (m, 1 + (m - 1) % 17, v2 (m <= 4 ? 28 * m : 2 + 7 * m), 25.0f));
             Session s (kFs, ps, kSeed, 256);
             s.record = false;
             eg22::loadNoise4 (s, 4.0, 0.2f);

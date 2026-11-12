@@ -683,7 +683,7 @@ namespace { namespace eg25b
                      route (1, S::Lfo1, dS (1, F::Level), 40.0f), route (2, S::Lfo2, dS (1, F::Size), 30.0f), route (3, S::Env1, dS (2, F::Pitch), 20.0f),
                      route (4, S::Vel, dS (1, F::Pan), 50.0f), route (5, S::Key, dS (2, F::FilterCutoff), 30.0f), route (6, S::Rand, dS (1, F::Spray), 40.0f),
                      route (7, S::Wheel, 1, 20.0f), route (8, S::Press, dS (2, F::Level), -30.0f), route (9, S::Slide, dS (1, F::Density), 30.0f),
-                     route (10, S::Bend, ogi::GiDest::RevMix, 40.0f), route (11, S::Mac1, dS (2, F::Size), 40.0f), route (12, S::Vel, ogi::GiDest::Feedback, 30.0f),
+                     route (10, S::Bend, dS (1, F::RevMix), 40.0f), route (11, S::Mac1, dS (2, F::Size), 40.0f), route (12, S::Vel, dS (1, F::Feedback), 30.0f),   // PLAN-R1 PD16: stream 1's
                      route (13, S::Lfo2, ogi::GiDest::LfoRate1, 20.0f), route (14, S::Env1, dS (1, F::ScanRate), 30.0f), route (15, S::Mac2, dS (2, F::Pan), 50.0f),
                      route (16, S::Lfo1, dS (1, F::Density), 20.0f) });
         Session s (kFs, p, seed, block > 0 ? block : 512);
@@ -827,8 +827,9 @@ namespace { namespace eg25b
         {
             rh::Overrides o;
             const int srcs[5] { S::Wheel, S::Press, S::Slide, S::Mac4, S::Mac3 };   // N1 bends: Bend is not neutral there
-            const int dests[16] { dS (1, F::Level), dS (1, F::Size), dS (1, F::Pitch), 1, ogi::GiDest::RevMix, ogi::GiDest::Feedback, dS (1, F::Pan),
-                                  dS (1, F::Density), dS (1, F::ScanRate), ogi::GiDest::LfoRate1, dS (1, F::LoopEnd), ogi::GiDest::FbLowCut,
+            // PLAN-R1 PD16: the former global destinations are stream 1's.
+            const int dests[16] { dS (1, F::Level), dS (1, F::Size), dS (1, F::Pitch), 1, dS (1, F::RevMix), dS (1, F::Feedback), dS (1, F::Pan),
+                                  dS (1, F::Density), dS (1, F::ScanRate), ogi::GiDest::LfoRate1, dS (1, F::LoopEnd), dS (1, F::FbLowCut),
                                   dS (1, F::FilterCutoff), dS (1, F::Spray), dS (1, F::Window), dS (2, F::Level) };
             for (int m = 0; m < 16; ++m)
                 o.extra = with (o.extra, route (m + 1, srcs[m % 5], dests[m], (m % 2) == 0 ? 100.0f : -100.0f));

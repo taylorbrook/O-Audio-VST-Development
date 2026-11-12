@@ -25,7 +25,7 @@
     Phase 3.1, PLAN-3.1 PD18, RESEARCH-3.1 §7).
 
     Copied from plugins/O-Granulator/tests/ui_frontend_check.js and adapted:
-    261 parameters through three editor ID tables (176 / 70 / 15), ten page
+    293 parameters through three editor ID tables (200 / 74 / 19), ten page
     binders (knob, fader, lane handle, root field, choice knob, segment row,
     <select>, rec_target radio, scale trigger, toggle), 34 native functions
     spread over the page + preset-manager.js + webview-drop-streaming.js, a
@@ -86,7 +86,7 @@
          (PER_VOICE_SOURCES, isPerVoiceSource, isGlobalDest) equals the
          transcription the harness row UMB1 tests the engine against
          (tests/render-harness/ui_gates_33.h, namespace pageRule) for all
-         17 x 125 x LFO-mode pairs; the LFO dot uses the phase offset (PD16);
+         17 x 149 x LFO-mode pairs; the LFO dot uses the phase offset (PD16);
          class gate (D49a): no state in tests/i18n-states.json calls __setLabel
          on a node a page reader writes — the reader-written ids are DERIVED
          from the page (every setLabel target inside the functions reachable
@@ -140,7 +140,7 @@ const overridesPath = path.join(pluginRoot, 'tests', 'ui-stub', 'generic-overrid
 const paramDumpBin  = argVal('--param-dump') || path.join(repoRoot, 'build', 'plugins', PLUGIN,
     `${PLUGIN}-param-dump_artefacts`, 'Release', `${PLUGIN}-param-dump`);
 
-const N_FLOAT = 176, N_CHOICE = 70, N_BOOL = 15, N_PARAMS = 261, N_NATIVE = 34;
+const N_FLOAT = 200, N_CHOICE = 74, N_BOOL = 19, N_PARAMS = 293, N_NATIVE = 34;
 
 // ───────────────────────────────────────────── negative controls (PD18) ──
 if (argv.includes('--negative-controls') || argv.includes('--nc')) {
@@ -873,13 +873,14 @@ console.log('-- [16] Phase 3.3 closure: emitted and read, mono rule == UMB1 tran
     const ns = nsM ? nsM[1] : '';
     const cInt = (name) => { const m = ns.match(new RegExp(`\\b${name} = (-?\\d+)`)); return m ? Number(m[1]) : NaN; };
     const cPv = ((ns.match(/kPerVoiceSources\[\] = \{([^}]*)\}/) || [])[1] || '').split(',').map((x) => Number(x.trim())).filter((x) => Number.isFinite(x));
-    const C = { lfoLo: cInt('kLfoSrcLo'), lfoHi: cInt('kLfoSrcHi'), g: cInt('kGlobalDest'), gLo: cInt('kGlobalDestLo'), gHi: cInt('kGlobalDestHi'),
+    const C = { lfoLo: cInt('kLfoSrcLo'), lfoHi: cInt('kLfoSrcHi'), g: cInt('kGlobalDest'), sLo: cInt('kStreamDestLo'), sHi: cInt('kStreamDestHi'),
+                stride: cInt('kStreamStride'), gField: cInt('kStreamGlobalField'),
                 rLo: cInt('kLfoRateDestLo'), rHi: cInt('kLfoRateDestHi'), rBase: cInt('kLfoRateDestBase') };
     const cFnOk = /return src >= kLfoSrcLo && src <= kLfoSrcHi && lfoMode\[src - 1\] == 1;/.test(ns)
-               && /if \(d == kGlobalDest \|\| \(d >= kGlobalDestLo && d <= kGlobalDestHi\)\)\s*\n\s*return true;/.test(ns)
+               && /if \(d == kGlobalDest \|\| \(d >= kStreamDestLo && d <= kStreamDestHi && \(d - kStreamDestLo\) % kStreamStride >= kStreamGlobalField\)\)\s*\n\s*return true;/.test(ns)
                && /if \(d >= kLfoRateDestLo && d <= kLfoRateDestHi\)\s*\n\s*return lfoMode\[d - kLfoRateDestBase - 1\] == 0;/.test(ns);
     check(!!ns && cPv.length > 0 && Object.values(C).every(Number.isFinite) && cFnOk,
-        `[16] ui_gates_33.h pageRule found: kPerVoiceSources [${cPv}], LFO src ${C.lfoLo}–${C.lfoHi}, global ${C.g} + ${C.gLo}–${C.gHi}, LFO rate ${C.rLo}–${C.rHi} (base ${C.rBase})`);
+        `[16] ui_gates_33.h pageRule found: kPerVoiceSources [${cPv}], LFO src ${C.lfoLo}–${C.lfoHi}, global ${C.g} + streams ${C.sLo}–${C.sHi} (stride ${C.stride}, fields >= ${C.gField}), LFO rate ${C.rLo}–${C.rHi} (base ${C.rBase})`);
     const pagePv = ((moduleSrc.match(/const PER_VOICE_SOURCES = \[([^\]]*)\];/) || [])[1] || '').split(',').map((x) => Number(x.trim())).filter((x) => Number.isFinite(x));
     check(JSON.stringify(pagePv) === JSON.stringify([5, 6, 7, 8, 9, 11, 12, 13]) && JSON.stringify(pagePv) === JSON.stringify(cPv),
         `[16] PER_VOICE_SOURCES == [5, 6, 7, 8, 9, 11, 12, 13] == pageRule::kPerVoiceSources (page [${pagePv}], harness [${cPv}])`);
@@ -892,24 +893,25 @@ console.log('-- [16] Phase 3.3 closure: emitted and read, mono rule == UMB1 tran
     } catch (e) { pageFns = null; check(false, `[16] the page's isPerVoiceSource / isGlobalDest could not be evaluated — ${e.message}`); }
     if (pageFns) {
         const ruleIsPv = (s, mode) => cPv.includes(s) || (s >= C.lfoLo && s <= C.lfoHi && mode[s - 1] === 1);
-        const ruleIsG = (d, mode) => d === C.g || (d >= C.gLo && d <= C.gHi) || (d >= C.rLo && d <= C.rHi ? mode[d - C.rBase - 1] === 0 : false);
+        const ruleIsG = (d, mode) => d === C.g || (d >= C.sLo && d <= C.sHi && (d - C.sLo) % C.stride >= C.gField) || (d >= C.rLo && d <= C.rHi ? mode[d - C.rBase - 1] === 0 : false);
         let pairs = 0, bad = 0, monoOn = 0, first = '';
         for (let m = 0; m < 16; m++) {                                   // every combination of the four lfoN_mode values
             const mode = [0, 1, 2, 3].map((i) => (m >> i) & 1);
             const P = pageFns(pagePv, (id) => { const k = /^lfo(\d)_mode$/.exec(id); return k ? mode[Number(k[1]) - 1] : 0; });
-            for (let s = 1; s <= 17; s++) for (let d = 1; d <= 125; d++) {
+            for (let s = 1; s <= 17; s++) for (let d = 1; d <= 149; d++) {
                 ++pairs;
                 const page = P.isPerVoiceSource(s) && P.isGlobalDest(d), rule = ruleIsPv(s, mode) && ruleIsG(d, mode);
                 if (page) ++monoOn;
                 if (page !== rule) { ++bad; if (!first) first = `modes ${mode.join('')} src ${s} dest ${d}: page ${page}, rule ${rule}`; }
             }
         }
-        check(pairs === 16 * 17 * 125 && bad === 0 && monoOn > 0,
-            `[16] the page's mono rule == the UMB1 transcription: ${pairs - bad} / ${pairs} pairs (17 x 125 x 16 LFO-mode sets; mono-on ${monoOn})${first ? ' — first ' + first : ''}`);
-        const gl = (mode) => { const P = pageFns(pagePv, (id) => { const k = /^lfo(\d)_mode$/.exec(id); return k ? mode[Number(k[1]) - 1] : 0; }); return range(125).filter((d) => P.isGlobalDest(d)); };
+        check(pairs === 16 * 17 * 149 && bad === 0 && monoOn > 0,
+            `[16] the page's mono rule == the UMB1 transcription: ${pairs - bad} / ${pairs} pairs (17 x 149 x 16 LFO-mode sets; mono-on ${monoOn})${first ? ' — first ' + first : ''}`);
+        const gl = (mode) => { const P = pageFns(pagePv, (id) => { const k = /^lfo(\d)_mode$/.exec(id); return k ? mode[Number(k[1]) - 1] : 0; }); return range(149).filter((d) => P.isGlobalDest(d)); };
         const g0 = gl([0, 0, 0, 0]), g1 = gl([1, 1, 1, 1]);
-        check(JSON.stringify(g0) === JSON.stringify([1, ...range(8).map((i) => 113 + i), 122, 123, 124, 125]) && JSON.stringify(g1) === JSON.stringify([1, ...range(8).map((i) => 113 + i)]),
-            `[16] isGlobalDest ranges: 1, 114–121 always; 122–125 only while that LFO is Global (Global: [${g0.join(',')}]; Per-voice: [${g1.join(',')}])`);
+        const gStream = [0, 1, 2, 3].flatMap((n) => range(8).map((i) => 29 + 36 * n + i));   // 30–37, 66–73, 102–109, 138–145
+        check(JSON.stringify(g0) === JSON.stringify([1, ...gStream, 146, 147, 148, 149]) && JSON.stringify(g1) === JSON.stringify([1, ...gStream]),
+            `[16] isGlobalDest ranges: 1, 30–37, 66–73, 102–109, 138–145 always; 146–149 only while that LFO is Global (Global: [${g0.join(',')}]; Per-voice: [${g1.join(',')}])`);
     }
 
     // ── the LFO dot sits on the drawn curve: Y uses the phase offset (PD16) ──

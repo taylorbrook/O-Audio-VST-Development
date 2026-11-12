@@ -311,6 +311,7 @@ input[type="text"], textarea { -webkit-user-select: text; user-select: text; cur
 .knob-cell.lg .knob-stem { height: 22px; width: 2.5px; }
 
 .knob-cell.off .knob { filter: saturate(0.4) brightness(0.8); }
+.sw.off { filter: saturate(0.4) brightness(0.8); }
 .knob-cell.off .val-arc { stroke: #5E4F3F; }
 .knob-cell.off .knob-stem { background: #9E8D74; }
 .knob-cell.choice .knob { cursor: ns-resize; }
@@ -3064,13 +3065,18 @@ html:lang(zh-Hans) .vcell .tr.clamp { left: 0; right: 0; font-size: 10px; }   /*
     }
 
     // A stream's cells dim while the stream is off; its five feedback cells
-    // (data-fb) also dim while that stream's feedback switch is off.
+    // (data-fb) also dim while that stream's feedback switch is off. The
+    // feedback switch itself dims only with a disabled stream.
     function applyStreamStates() {
         document.querySelectorAll('.knob-cell[data-stream]').forEach((cell) => {
             const s = cell.dataset.stream;
             const fbOff = cell.dataset.fb !== undefined && !toggleOn(`s${s}_fb_enable`);
             cell.classList.toggle('off', !toggleOn(`s${s}_enable`) || fbOff);
         });
+        for (let n = 1; n <= 4; n++) {
+            const sw = document.getElementById(`toggle-s${n}_fb_enable`);
+            if (sw) sw.classList.toggle('off', !toggleOn(`s${n}_enable`));
+        }
     }
 
     // ── Pages ───────────────────────────────────────────────────────────────
@@ -5067,59 +5073,5 @@ function initI18n() {
     init();
 </script>
 
-<button type="button" id="mockup-variant" data-v="B"></button><!-- MOCKUP-ONLY: layout switch, B (authored) / A (D61 literal 4 + 4 on an 80 px cell); strip every MOCKUP-ONLY line before landing -->
-<script>/* MOCKUP-ONLY */
-(function () { /* MOCKUP-ONLY: Variant A is applied to the authored Variant B DOM and undone again; nothing here ships */
-    const pg = document.getElementById('page-fx'), btn = document.getElementById('mockup-variant'), ui = document.getElementById('ui'); /* MOCKUP-ONLY */
-    if (!pg || !btn) return; /* MOCKUP-ONLY */
-    (ui || document.body).appendChild(btn); /* MOCKUP-ONLY */
-    const css = document.createElement('style'); /* MOCKUP-ONLY */
-    css.append([ /* MOCKUP-ONLY: append(), so no prose-to-textContent row in check-i18n [12] */
-        '#mockup-variant { position: absolute; left: 1122px; top: 786px; width: 72px; height: 13px; z-index: 50; padding: 0; border: 1px dashed #6A5946; border-radius: 3px; background: #14100C; color: #D9CBB0; font: 9px/11px Menlo, monospace; cursor: pointer; }', /* MOCKUP-ONLY */
-        '#mockup-variant::after { content: "layout " attr(data-v); }', /* MOCKUP-ONLY */
-        '#page-fx.var-a .knob-cell { height: 80px; }', /* MOCKUP-ONLY */
-        '#page-fx.var-a .knob-cell .knob-value { top: 67px; }', /* MOCKUP-ONLY */
-        '#page-fx.var-a .knob-cell.n5 .knob-label, #page-fx.var-a .knob-cell.n5 .knob-value { left: -5px; right: -5px; }', /* MOCKUP-ONLY */
-        '#page-fx.var-a .rtitle.mo-head { height: 14px; white-space: nowrap; display: flex; align-items: center; gap: 8px; }', /* MOCKUP-ONLY */
-        '#page-fx.var-a .rtitle.mo-head::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--rule-2), transparent); }', /* MOCKUP-ONLY */
-        '#page-fx.var-a .seg.mo-h { flex-direction: row; }', /* MOCKUP-ONLY */
-        '#page-fx.var-a .seg.mo-h button { border-top: 0; border-left: 1px solid var(--rule); line-height: normal; }', /* MOCKUP-ONLY */
-        '#page-fx.var-a .seg.mo-h button:first-child { border-left: 0; }', /* MOCKUP-ONLY */
-        '#page-fx.var-a .seg.mo-h.stream button[aria-pressed="true"] { box-shadow: inset 0 -2px 0 var(--sc); }', /* MOCKUP-ONLY */
-    ].join('\n')); /* MOCKUP-ONLY */
-    document.head.appendChild(css); /* MOCKUP-ONLY */
-    const all = (sel) => [...pg.querySelectorAll(sel)]; /* MOCKUP-ONLY */
-    const R = [319, 404, 489, 595, 699]; /* MOCKUP-ONLY: C·7.5 row tops */
-    const moves = []; /* MOCKUP-ONLY: [element, inline style appended for A] */
-    const mv = (e, s) => { if (e) moves.push([e, s]); }; /* MOCKUP-ONLY */
-    for (let n = 1; n <= 4; n++) { /* MOCKUP-ONLY */
-        const x0 = 18 + 294 * (n - 1), kx = [x0, x0 + 72, x0 + 148, x0 + 220]; /* MOCKUP-ONLY */
-        const cell = (k) => document.getElementById(`cell-s${n}_${k}`); /* MOCKUP-ONLY */
-        [['filter_cutoff', 'filter_rand', 'filter_res'], ['drive', 'crush', 'crush_prob'], ['ring_freq', 'ring_rand', 'ring_mix']] /* MOCKUP-ONLY */
-            .forEach((row, r) => row.forEach((k, i) => mv(cell(k), `left:${kx[i + 1]}px;top:${R[r]}px`))); /* MOCKUP-ONLY */
-        ['feedback', 'fb_low_cut', 'fb_high_cut', 'fb_saturation'].forEach((k, i) => mv(cell(k), `left:${kx[i]}px;top:${R[3]}px`)); /* MOCKUP-ONLY */
-        ['fb_diffusion', 'reverb_mix', 'reverb_size', 'reverb_damp'].forEach((k, i) => mv(cell(k), `left:${kx[i]}px;top:${R[4]}px`)); /* MOCKUP-ONLY */
-        ['h.filter', 'h.driveCrush', 'h.ringMod'].forEach((k, r) => mv(all(`.rtitle[data-i18n="${k}"]`)[n - 1], `top:${R[r]}px`)); /* MOCKUP-ONLY */
-        mv(document.getElementById(`seg-s${n}_filter_type`), `top:${R[0] + 16}px;height:62px`); /* MOCKUP-ONLY */
-        mv(all('.heading')[n - 1], 'top:578px'); /* MOCKUP-ONLY */
-        mv(document.getElementById(`toggle-s${n}_fb_enable`), 'top:575px'); /* MOCKUP-ONLY */
-        mv(all('.rtitle[data-i18n="h.reverb"]')[n - 1], `left:${x0 + 72}px;top:682px;width:126px`); /* MOCKUP-ONLY */
-        mv(document.getElementById(`seg-s${n}_reverb_pre`), `left:${x0 + 206}px;top:680px;width:76px;height:18px`); /* MOCKUP-ONLY */
-    } /* MOCKUP-ONLY */
-    function apply(v) { /* MOCKUP-ONLY */
-        const a = v === 'A'; /* MOCKUP-ONLY */
-        moves.forEach(([e, s]) => { /* MOCKUP-ONLY */
-            if (e.dataset.moB === undefined) e.dataset.moB = e.style.cssText; /* MOCKUP-ONLY: the authored (B) inline style */
-            e.style.cssText = a ? `${e.dataset.moB};${s}` : e.dataset.moB; /* MOCKUP-ONLY */
-        }); /* MOCKUP-ONLY */
-        all('.rtitle[data-i18n="h.reverb"]').forEach((e) => e.classList.toggle('mo-head', a)); /* MOCKUP-ONLY */
-        all('.seg[id$="_reverb_pre"]').forEach((e) => { e.classList.toggle('v', !a); e.classList.toggle('mo-h', a); }); /* MOCKUP-ONLY */
-        pg.classList.toggle('var-a', a); /* MOCKUP-ONLY */
-        btn.dataset.v = v; /* MOCKUP-ONLY */
-    } /* MOCKUP-ONLY */
-    btn.addEventListener('click', () => apply(btn.dataset.v === 'B' ? 'A' : 'B')); /* MOCKUP-ONLY */
-    window.__mockupVariant = apply; /* MOCKUP-ONLY: scripted screenshots */
-})(); /* MOCKUP-ONLY */
-</script><!-- MOCKUP-ONLY -->
 </body>
 </html>

@@ -1,7 +1,7 @@
 ---
 plugin: O-GranulatorInstrument
 stage: 4
-status: stage_4_polish_rework_r1_d65_approved_w4_next
+status: stage_4_polish_rework_r1_c5_landed_w5_next
 current_phase: 4-polish
 gsd_phase: rework_r1_execute_in_progress
 last_updated: 2026-11-12
@@ -9,7 +9,7 @@ complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: /plugin-execute O-GranulatorInstrument 4-polish (rework R1: D65 APPROVED 2026-11-12, Variant B; resume at T15 = finalize v2 (strip MOCKUP-ONLY + Variant A, dim the feedback switch on a disabled stream), then W4 T16–T22 → C5, W5–W7)
+next_action: /plugin-execute O-GranulatorInstrument 4-polish (rework R1: C5 landed; resume at W5 = T24 new rows (engine_gates_r1.h, run before T23 by the executor), T23 showcase re-voices, T25 CPU, C6; then W6 install / validators, W7 docs)
 next_stage: 4
 ready_for_implementation: true
 blocked_on: none (fork pin 82406fce, D11)
@@ -24,8 +24,8 @@ brief_updated_from_mockup: true
 mockup_version_synced: 1
 brief_update_timestamp: "2026-11-07T19:40:17Z"
 contract_checksums:
-  parameter_spec: sha256:7cdcca74ffbfcb9e004d939a67ff2a0ce21c5b651f3a986801be498313025a0e   # Stage 4 T3: header addenda A (PD8 snap-only ranges) + B (D53 no blobs); body unchanged
-  parameter_spec_body: sha256:c5553e0ccda2c7f5320a1891ba20c5a92913e089ab1fa1e47b0e33fa7c543191
+  parameter_spec: sha256:d56a8f2e2d1276b8e511c48344c55b826dd5e87c3804549a16390fa54e2c2dff   # R1 T16 / C5: addendum C + body rewrite (293 params, dest table 150, version 2, rec_arm auto-clear)
+  parameter_spec_body: sha256:91be022dd2aa8ba9e7013c833b9fdd46cd3a73494fa12ff04b41e65152235a95   # R1 T16 / C5: body rewritten once (addendum C)
   brief: sha256:74e7f8f24468ed9658aa8533733f45da24c61ad116d6ae47cd5c2af0e8524722
   requirements: sha256:d2cfc66d0396a4c4b82f8789fd2def70e3d943c701311f18085da71f0c484ad4   # Stage 4 execute: FUNC-08, COMPAT-02 pending -> partial
   parameter_spec_draft: sha256:3c4918748a4375940684a22ed6850a3184bdd96df53d152a8900d5f0e4260796
@@ -38,6 +38,8 @@ contract_checksums:
 ## Current Position
 
 **D65 APPROVAL RECORDED — Taylor, 2026-11-12** (T6): (1) **Variant B**; (2) row density OK as shown; (3) destination names OK as shown; (4) **OS1 yes** — edit `forked/ControlGrid.h` in T17 and re-pin its manifest hash; (5) **OS2 default** — `rec_arm` state functions stay untouched (as built in C4), no restore-swallow; (6) **OS3** — French and Chinese destination titles unchanged; (7) the two unplanned mockup choices left to the executor's judgement, taken as: keep the 2 px left-edge bar on vertical segments; **dim the feedback switch with the rest of a disabled stream's column** (apply in T15, both the page and the `fb-off` / stream-off state checks). T15 onward is unblocked.
+
+**R1 W4 ✓ (T15–T22, C5)** 2026-11-12: v2 finalized (MOCKUP-ONLY 0; the feedback switch dims with a disabled stream, `.sw.off`, state checks on `stream-off-head` / `fb-off`), scratch gates green; spec addendum C + body rewrite, extractor `OK: 293 params (200 Float / 74 Choice / 19 Bool), 150 dests, 18 sources`, goldens from the spec, 3 controls exit 1; C++ surface 293 / 150 / table version 2, `forked/ControlGrid.h` edited (drift 1 / 13 → manifest re-pin → 0 / 13); harness + parity port, bank copy on `s*_` wildcards (`expandSpecValues`); T20: hashes 14 / 14 / 7 unchanged, harness 468 / 0 (454 carried present, text moves = count / label rows, `evidence-r1/B2.full.txt`), parity 168 / 0 with PB / PR == B0, PT1 38 / 38 bitwise, PT2 26 / 26 (−131.18 dB), PT2n / PT2n2 fire, FP2 spread 6.32 dB, AU1 = 4 LFO rates; page landed (three v2 pairs `cmp` clean), `.planning/params.tsv` + overrides re-pinned, frontend ALL PASS + `--nc` 4 / 4, probe 293 × 2 with FD1 / VE15 / AC9 and 8 live controls, check-i18n · fr · zh 0 · 0 · 0, check-ui-labels default + 48, boot 0 DEAD, PN1; VST3 / AU / Standalone build, 0 warnings in `Source/`. Not installed (T27). Last task T22; next T24 → T23 → T25.
 
 **Stage 4 rework R1 execute — progress** 2026-11-12: T1 pre-flight clean (7 / 7 hashes, pairs `cmp`, 0 row-name collisions); gate 3-gui → 4-polish PASSED; **C0 `a7ad2199`** F1 copy (2 files); **T3 baseline B0** on C0 + `--dump-preset-renders` / `--cmp-preset-renders` (tests only): harness 454 / 0 twice, PT0 64 / 64, PT2 fails `differ > 0` on all 26 as designed, renders / legacy / pinned / parity 168 / 0 / param-dump / drift / overrides / R-ui / auval (4 warnings) green, CPU C25w 26.82 / C25m 29.00 / C25tm 6.87 / bank T max 8.70; evidence in `stages/4-polish/evidence-r1/` (`b0-notes.txt`), raws in `build/plugins/O-GranulatorInstrument/r1-b0/` (do not delete `build/`). C1 `9b00a1d4`. **T4 / T5 v2 mockup** (`mockups/v2-ui.html`, `v2-i18n.js`, `v2-i18n-states.json`; Variant B native, A behind the `MOCKUP-ONLY` switch): five gates rc 0 on `build/ui-mockup-v2` (293 rows, default + 48, 0 DEAD), measurements + departures in `evidence-r1/t5-mockup-v2.txt`; commit C2. **Paused at T6 = D65 approval** (variant B / A, row density, destination names, OS1–OS3). Mockup fields stay 1 (correction 14). **W2 B1 DSP ✓ (T7–T10, C3)**: per-stream control ramps, tank A ×4 + gate A (+ 60 ms fade hold, deviation found by FP6), tank B / gate B / toggle fold dormant; hashes unchanged, PT1 38 bitwise / PT2 26 ≤ −131 dB, parity lines == B0, 454 / 0, C25m 30.18 % (`evidence-r1/b1-notes.txt`). **W3 `rec_arm` auto-clear ✓ (T11–T14, C4)**: audit (`ac-audit.txt`), `armGen` / `endGen` + Timer-path write, AC1–AC9 PASS with controls (AC7 (b) amended: PARAM-level compare, the `CustomScale version` counter moves on every restore, carried), harness 468 / 0, auval 4 warnings, pluginval 10 ×3 seeds VST3 + AU sidechain on and off SUCCESS, no `rec_arm` line (OS4 did not fire), shipping build restored + installed incl. F1 (`evidence-r1/w3-notes.txt`). **Everything not blocked is done.** Last task T14; next T15 (approval recorded above).
 

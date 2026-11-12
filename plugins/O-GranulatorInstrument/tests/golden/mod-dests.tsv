@@ -30,99 +30,123 @@ idx	id	name	class
 27	s1_loop_start	S1 · Loop Start	V
 28	s1_loop_end	S1 · Loop End	V
 29	s1_key_track	S1 · Key Track	V
-30	s2_level	S2 · Level	V
-31	s2_pan	S2 · Pan	V
-32	s2_position	S2 · Position	V
-33	s2_spray	S2 · Spray	V
-34	s2_size	S2 · Size	V
-35	s2_size_rand	S2 · Size Random	V
-36	s2_density	S2 · Density	V
-37	s2_jitter	S2 · Jitter	V
-38	s2_pitch	S2 · Pitch	V
-39	s2_pitch_rand	S2 · Pitch Random	V
-40	s2_reverse_prob	S2 · Reverse	V
-41	s2_window	S2 · Window	V
-42	s2_window_skew	S2 · Window Skew	V
-43	s2_stereo_spread	S2 · Stereo Spread	V
-44	s2_gain_rand	S2 · Gain Random	V
-45	s2_filter_cutoff	S2 · Filter Cutoff	V
-46	s2_filter_rand	S2 · Filter Random	V
-47	s2_filter_res	S2 · Filter Res	V
-48	s2_drive	S2 · Drive	V
-49	s2_crush	S2 · Crush	V
-50	s2_crush_prob	S2 · Crush Chance	V
-51	s2_ring_freq	S2 · Ring Freq	V
-52	s2_ring_rand	S2 · Ring Random	V
-53	s2_ring_mix	S2 · Ring Mix	V
-54	s2_scan_rate	S2 · Scan Rate	V
-55	s2_loop_start	S2 · Loop Start	V
-56	s2_loop_end	S2 · Loop End	V
-57	s2_key_track	S2 · Key Track	V
-58	s3_level	S3 · Level	V
-59	s3_pan	S3 · Pan	V
-60	s3_position	S3 · Position	V
-61	s3_spray	S3 · Spray	V
-62	s3_size	S3 · Size	V
-63	s3_size_rand	S3 · Size Random	V
-64	s3_density	S3 · Density	V
-65	s3_jitter	S3 · Jitter	V
-66	s3_pitch	S3 · Pitch	V
-67	s3_pitch_rand	S3 · Pitch Random	V
-68	s3_reverse_prob	S3 · Reverse	V
-69	s3_window	S3 · Window	V
-70	s3_window_skew	S3 · Window Skew	V
-71	s3_stereo_spread	S3 · Stereo Spread	V
-72	s3_gain_rand	S3 · Gain Random	V
-73	s3_filter_cutoff	S3 · Filter Cutoff	V
-74	s3_filter_rand	S3 · Filter Random	V
-75	s3_filter_res	S3 · Filter Res	V
-76	s3_drive	S3 · Drive	V
-77	s3_crush	S3 · Crush	V
-78	s3_crush_prob	S3 · Crush Chance	V
-79	s3_ring_freq	S3 · Ring Freq	V
-80	s3_ring_rand	S3 · Ring Random	V
-81	s3_ring_mix	S3 · Ring Mix	V
-82	s3_scan_rate	S3 · Scan Rate	V
-83	s3_loop_start	S3 · Loop Start	V
-84	s3_loop_end	S3 · Loop End	V
-85	s3_key_track	S3 · Key Track	V
-86	s4_level	S4 · Level	V
-87	s4_pan	S4 · Pan	V
-88	s4_position	S4 · Position	V
-89	s4_spray	S4 · Spray	V
-90	s4_size	S4 · Size	V
-91	s4_size_rand	S4 · Size Random	V
-92	s4_density	S4 · Density	V
-93	s4_jitter	S4 · Jitter	V
-94	s4_pitch	S4 · Pitch	V
-95	s4_pitch_rand	S4 · Pitch Random	V
-96	s4_reverse_prob	S4 · Reverse	V
-97	s4_window	S4 · Window	V
-98	s4_window_skew	S4 · Window Skew	V
-99	s4_stereo_spread	S4 · Stereo Spread	V
-100	s4_gain_rand	S4 · Gain Random	V
-101	s4_filter_cutoff	S4 · Filter Cutoff	V
-102	s4_filter_rand	S4 · Filter Random	V
-103	s4_filter_res	S4 · Filter Res	V
-104	s4_drive	S4 · Drive	V
-105	s4_crush	S4 · Crush	V
-106	s4_crush_prob	S4 · Crush Chance	V
-107	s4_ring_freq	S4 · Ring Freq	V
-108	s4_ring_rand	S4 · Ring Random	V
-109	s4_ring_mix	S4 · Ring Mix	V
-110	s4_scan_rate	S4 · Scan Rate	V
-111	s4_loop_start	S4 · Loop Start	V
-112	s4_loop_end	S4 · Loop End	V
-113	s4_key_track	S4 · Key Track	V
-114	feedback	Feedback	G
-115	fb_low_cut	FB Low Cut	G
-116	fb_high_cut	FB High Cut	G
-117	fb_saturation	FB Saturation	G
-118	fb_diffusion	FB Diffusion	G
-119	reverb_mix	Reverb Mix	G
-120	reverb_size	Reverb Size	G
-121	reverb_damp	Reverb Damp	G
-122	lfo1_rate	LFO 1 · Rate	G/V
-123	lfo2_rate	LFO 2 · Rate	G/V
-124	lfo3_rate	LFO 3 · Rate	G/V
-125	lfo4_rate	LFO 4 · Rate	G/V
+30	s1_feedback	S1 · Feedback	G
+31	s1_fb_low_cut	S1 · FB Low Cut	G
+32	s1_fb_high_cut	S1 · FB High Cut	G
+33	s1_fb_saturation	S1 · FB Saturation	G
+34	s1_fb_diffusion	S1 · FB Diffusion	G
+35	s1_reverb_mix	S1 · Reverb Mix	G
+36	s1_reverb_size	S1 · Reverb Size	G
+37	s1_reverb_damp	S1 · Reverb Damp	G
+38	s2_level	S2 · Level	V
+39	s2_pan	S2 · Pan	V
+40	s2_position	S2 · Position	V
+41	s2_spray	S2 · Spray	V
+42	s2_size	S2 · Size	V
+43	s2_size_rand	S2 · Size Random	V
+44	s2_density	S2 · Density	V
+45	s2_jitter	S2 · Jitter	V
+46	s2_pitch	S2 · Pitch	V
+47	s2_pitch_rand	S2 · Pitch Random	V
+48	s2_reverse_prob	S2 · Reverse	V
+49	s2_window	S2 · Window	V
+50	s2_window_skew	S2 · Window Skew	V
+51	s2_stereo_spread	S2 · Stereo Spread	V
+52	s2_gain_rand	S2 · Gain Random	V
+53	s2_filter_cutoff	S2 · Filter Cutoff	V
+54	s2_filter_rand	S2 · Filter Random	V
+55	s2_filter_res	S2 · Filter Res	V
+56	s2_drive	S2 · Drive	V
+57	s2_crush	S2 · Crush	V
+58	s2_crush_prob	S2 · Crush Chance	V
+59	s2_ring_freq	S2 · Ring Freq	V
+60	s2_ring_rand	S2 · Ring Random	V
+61	s2_ring_mix	S2 · Ring Mix	V
+62	s2_scan_rate	S2 · Scan Rate	V
+63	s2_loop_start	S2 · Loop Start	V
+64	s2_loop_end	S2 · Loop End	V
+65	s2_key_track	S2 · Key Track	V
+66	s2_feedback	S2 · Feedback	G
+67	s2_fb_low_cut	S2 · FB Low Cut	G
+68	s2_fb_high_cut	S2 · FB High Cut	G
+69	s2_fb_saturation	S2 · FB Saturation	G
+70	s2_fb_diffusion	S2 · FB Diffusion	G
+71	s2_reverb_mix	S2 · Reverb Mix	G
+72	s2_reverb_size	S2 · Reverb Size	G
+73	s2_reverb_damp	S2 · Reverb Damp	G
+74	s3_level	S3 · Level	V
+75	s3_pan	S3 · Pan	V
+76	s3_position	S3 · Position	V
+77	s3_spray	S3 · Spray	V
+78	s3_size	S3 · Size	V
+79	s3_size_rand	S3 · Size Random	V
+80	s3_density	S3 · Density	V
+81	s3_jitter	S3 · Jitter	V
+82	s3_pitch	S3 · Pitch	V
+83	s3_pitch_rand	S3 · Pitch Random	V
+84	s3_reverse_prob	S3 · Reverse	V
+85	s3_window	S3 · Window	V
+86	s3_window_skew	S3 · Window Skew	V
+87	s3_stereo_spread	S3 · Stereo Spread	V
+88	s3_gain_rand	S3 · Gain Random	V
+89	s3_filter_cutoff	S3 · Filter Cutoff	V
+90	s3_filter_rand	S3 · Filter Random	V
+91	s3_filter_res	S3 · Filter Res	V
+92	s3_drive	S3 · Drive	V
+93	s3_crush	S3 · Crush	V
+94	s3_crush_prob	S3 · Crush Chance	V
+95	s3_ring_freq	S3 · Ring Freq	V
+96	s3_ring_rand	S3 · Ring Random	V
+97	s3_ring_mix	S3 · Ring Mix	V
+98	s3_scan_rate	S3 · Scan Rate	V
+99	s3_loop_start	S3 · Loop Start	V
+100	s3_loop_end	S3 · Loop End	V
+101	s3_key_track	S3 · Key Track	V
+102	s3_feedback	S3 · Feedback	G
+103	s3_fb_low_cut	S3 · FB Low Cut	G
+104	s3_fb_high_cut	S3 · FB High Cut	G
+105	s3_fb_saturation	S3 · FB Saturation	G
+106	s3_fb_diffusion	S3 · FB Diffusion	G
+107	s3_reverb_mix	S3 · Reverb Mix	G
+108	s3_reverb_size	S3 · Reverb Size	G
+109	s3_reverb_damp	S3 · Reverb Damp	G
+110	s4_level	S4 · Level	V
+111	s4_pan	S4 · Pan	V
+112	s4_position	S4 · Position	V
+113	s4_spray	S4 · Spray	V
+114	s4_size	S4 · Size	V
+115	s4_size_rand	S4 · Size Random	V
+116	s4_density	S4 · Density	V
+117	s4_jitter	S4 · Jitter	V
+118	s4_pitch	S4 · Pitch	V
+119	s4_pitch_rand	S4 · Pitch Random	V
+120	s4_reverse_prob	S4 · Reverse	V
+121	s4_window	S4 · Window	V
+122	s4_window_skew	S4 · Window Skew	V
+123	s4_stereo_spread	S4 · Stereo Spread	V
+124	s4_gain_rand	S4 · Gain Random	V
+125	s4_filter_cutoff	S4 · Filter Cutoff	V
+126	s4_filter_rand	S4 · Filter Random	V
+127	s4_filter_res	S4 · Filter Res	V
+128	s4_drive	S4 · Drive	V
+129	s4_crush	S4 · Crush	V
+130	s4_crush_prob	S4 · Crush Chance	V
+131	s4_ring_freq	S4 · Ring Freq	V
+132	s4_ring_rand	S4 · Ring Random	V
+133	s4_ring_mix	S4 · Ring Mix	V
+134	s4_scan_rate	S4 · Scan Rate	V
+135	s4_loop_start	S4 · Loop Start	V
+136	s4_loop_end	S4 · Loop End	V
+137	s4_key_track	S4 · Key Track	V
+138	s4_feedback	S4 · Feedback	G
+139	s4_fb_low_cut	S4 · FB Low Cut	G
+140	s4_fb_high_cut	S4 · FB High Cut	G
+141	s4_fb_saturation	S4 · FB Saturation	G
+142	s4_fb_diffusion	S4 · FB Diffusion	G
+143	s4_reverb_mix	S4 · Reverb Mix	G
+144	s4_reverb_size	S4 · Reverb Size	G
+145	s4_reverb_damp	S4 · Reverb Damp	G
+146	lfo1_rate	LFO 1 · Rate	G/V
+147	lfo2_rate	LFO 2 · Rate	G/V
+148	lfo3_rate	LFO 3 · Rate	G/V
+149	lfo4_rate	LFO 4 · Rate	G/V

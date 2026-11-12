@@ -23,7 +23,7 @@
       NV4  2nd handover 10 ms into the ramp: bound, no overshoot                   ctrl newestStack → overshoot
       SD1  each of the 17 sources → s1_level +60 moves it up
       SD2  per-voice sources → reverb_mix (G) move it via the newest voice
-      DR1  Macro 1 → each of the 125 destinations: its consumer moves, nothing else routed (+ MX0 table self-check)
+      DR1  Macro 1 → each of the 149 destinations: its consumer moves, nothing else routed (+ MX0 table self-check)
       MD1  MIDI script CC1 / 33, CC74, channel AT, poly AT, bend, CC121 → source values at the next tick
 
   ==============================================================================
@@ -514,12 +514,13 @@ namespace { namespace eg25a
     // NZ1 / CP1
     std::vector<float> nzRender (bool routed, float macro)
     {
-        P p = cat ({ baseMod (2), { { "macro1", macro }, { sn (1, "level"), -6.0f }, { "reverb_mix", 20.0f } } });
+        P p = cat ({ baseMod (2), { { "macro1", macro }, { sn (1, "level"), -6.0f } }, all4 ("reverb_mix", 20.0f) });   // PLAN-R1 PD16
         if (routed)
         {
-            const int dests[16] { dS (1, F::Level), dS (1, F::Size), dS (1, F::Pitch), 1, ogi::GiDest::RevMix, ogi::GiDest::Feedback,
+            // PLAN-R1 PD16: the former global destinations are stream 1's.
+            const int dests[16] { dS (1, F::Level), dS (1, F::Size), dS (1, F::Pitch), 1, dS (1, F::RevMix), dS (1, F::Feedback),
                                   dS (1, F::Pan), dS (1, F::Density), dS (1, F::ScanRate), ogi::GiDest::LfoRate1, dS (1, F::LoopEnd),
-                                  ogi::GiDest::FbLowCut, dS (1, F::FilterCutoff), dS (1, F::Spray), dS (1, F::Window), dS (2, F::Level) };
+                                  dS (1, F::FbLowCut), dS (1, F::FilterCutoff), dS (1, F::Spray), dS (1, F::Window), dS (2, F::Level) };
             const int srcs[6] { S::Mac1, S::Wheel, S::Press, S::Slide, S::Bend, S::Key };   // Mac1 → s1_level, s1_pan, s1_spray
             for (int m = 0; m < 16; ++m)
                 p = with (p, route (m + 1, srcs[m % 6], dests[m], (m % 2) == 0 ? 100.0f : -100.0f));
@@ -714,7 +715,7 @@ namespace { namespace eg25a
                 s.hk().traceDest = { dest, -1, tr.data(), (std::int64_t) tr.size(), 0 };
             s.run (19200, 512);
             float v = 0.0f;
-            if (dest == ogi::GiDest::RevMix) v = s.eng().getRevMixForTest();
+            if (dest == dS (1, F::RevMix)) v = s.eng().getRevMixForTest (0);   // PLAN-R1 PD16: stream 1's
             else if (pv) v = s.eng().getPairMixForTest (0) ? s.eng().getPairLevelForTest (0, 0) : ogi::levelDbToGain (-12.0f);
             else v = s.hk().traceDest.n > 0 ? tr[(size_t) s.hk().traceDest.n - 1] : 0.0f;
             s.hk().traceDest = {};
@@ -731,7 +732,7 @@ namespace { namespace eg25a
             if (pv)
             {
                 ++n2;
-                const float r = probe (st, ogi::GiDest::RevMix, true, false);
+                const float r = probe (st, dS (1, F::RevMix), true, false);
                 if (r > 1.0e-3f) ++ok2; else bad2 << " " << names[st.src] << "=" << juce::String (r, 5);
             }
         }
@@ -761,7 +762,7 @@ namespace { namespace eg25a
 
         auto run = [] (int d, float depth)
         {
-            P p = cat ({ baseMod (4), { { "macro1", 100.0f }, { "feedback", 30.0f }, { "reverb_mix", 20.0f } } });
+            P p = cat ({ baseMod (4), { { "macro1", 100.0f } }, all4 ("feedback", 30.0f), all4 ("reverb_mix", 20.0f) });   // PLAN-R1 PD16
             for (int n = 1; n <= 4; ++n) p = with (p, { { sn (n, "filter_type"), 1.0f } });
             if (d > 0) p = with (p, route (1, S::Mac1, d, depth));
             Session s (kFs, p, kSeed, 512);
@@ -792,9 +793,9 @@ namespace { namespace eg25a
             single += mod.second == 1 ? 1 : 0;
             if (! mv || mod.second != 1) bad << " " << Ids::kModDestIds[d] << "(n " << (int) n << ", routed " << mod.second << ")";
         }
-        row (moved == 125 && single == 125 && mx0Bad == 0, "DR1 DSP-06 Macro 1 -> each of the 125 destinations: its consumer moves, only it routed (+ MX0)",
-             "meas consumer moved " + juce::String (moved) + "/125, routedCount == 1 on " + juce::String (single) + "/125, MX0 table mismatches "
-                 + juce::String (mx0Bad) + (bad.isEmpty() ? juce::String() : " |" + bad.substring (0, 300)) + " | thr 125 / 125 / 0");
+        row (moved == 149 && single == 149 && mx0Bad == 0, "DR1 DSP-06 Macro 1 -> each of the 149 destinations: its consumer moves, only it routed (+ MX0)",
+             "meas consumer moved " + juce::String (moved) + "/149, routedCount == 1 on " + juce::String (single) + "/149, MX0 table mismatches "
+                 + juce::String (mx0Bad) + (bad.isEmpty() ? juce::String() : " |" + bad.substring (0, 300)) + " | thr 149 / 149 / 0");
     }
 
     void runAll()

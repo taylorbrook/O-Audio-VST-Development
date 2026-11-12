@@ -109,6 +109,8 @@ namespace { namespace ug32
     using eg21::rawOf;
     using eg21::sameF;
     using eg22::sn;
+    using eg22::all4;    // PLAN-R1 PD16: the former global feedback / reverb rows on all four streams
+    using eg22::setP4;
     using eg22::loadNoise4;
     using eg24b::want;
     using eg24b::section;
@@ -632,7 +634,7 @@ namespace { namespace ug32
     // UFB1 / UFB1n — the feedback head
     void rowsFB1()
     {
-        Session s (kFs, with (baseMod (1), P { { sn (1, "density"), 30.0f }, { "feedback", 0.0f } }), kSeed, 512);
+        Session s (kFs, with (with (baseMod (1), P { { sn (1, "density"), 30.0f } }), all4 ("feedback", 0.0f)), kSeed, 512);
         s.load (0, noiseBuf (2, 96000, 0.3f, 221), kFs);
         for (int n : { 48, 60 })
             s.noteOn (64, n);
@@ -647,7 +649,7 @@ namespace { namespace ug32
         const bool nullAtZero = ! t0.lanes[0].hasFb && parked();
 
         // 2. feedback 80: fb == headPos / frames, moving.
-        setP (*s.p, "feedback", 80.0f);
+        setP4 (*s.p, "feedback", 80.0f);
         int polls = 0, shown = 0, equal = 0, otherLanes = 0;
         std::set<float> values;
         s.afterBlock = [&] (Session& ss)
@@ -687,7 +689,7 @@ namespace { namespace ug32
         const bool frozenOk = frozenShown == 20 && frozenValues.size() == 1 && frozenParked == 20;
 
         // 4. frozen with feedback 0: null again.
-        setP (*s.p, "feedback", 0.0f);
+        setP4 (*s.p, "feedback", 0.0f);
         s.run (12000, 512);
         const auto t4 = s.p->buildUiTelemetry (nowOf (s));
         const bool nullFrozenZero = ! t4.lanes[0].hasFb;
@@ -726,7 +728,7 @@ namespace { namespace ug32
     {
         constexpr int kN = Proc::kOverviewPeaks;
         OvR r;
-        Session s (kFs, with (baseMod (1), P { { sn (1, "density"), 40.0f }, { sn (1, "size"), 150.0f }, { "feedback", 0.0f } }), kSeed, 512);
+        Session s (kFs, with (with (baseMod (1), P { { sn (1, "density"), 40.0f }, { sn (1, "size"), 150.0f } }), all4 ("feedback", 0.0f)), kSeed, 512);
         s.p->testOvRevNoWrites  = hook == 1;
         s.p->testSlotRevNoDirty = hook == 2;
         r.setup = s.load (0, noiseBuf (2, 96000, 0.3f, 231), kFs);
@@ -751,7 +753,7 @@ namespace { namespace ug32
 
         // B. feedback 90: the head writes.
         r.writes0 = tel.getOvWrites (0);
-        setP (*s.p, "feedback", 90.0f);
+        setP4 (*s.p, "feedback", 90.0f);
         bool flag = false;
         s.afterBlock = [&] (Session& ss)
         {
@@ -816,7 +818,7 @@ namespace { namespace ug32
         r.jsonDirty = static_cast<bool> (GiUiJson::slotStateToVar (*s.p)["slots"][0]["dirty"]);
 
         // C. feedback 0 (the head parks), then Reset: clean again.
-        setP (*s.p, "feedback", 0.0f);
+        setP4 (*s.p, "feedback", 0.0f);
         s.run (24000, 512);
         const auto before = s.p->buildUiTelemetry (nowOf (s));
         s.p->resetSlotSync (0);
@@ -1218,9 +1220,9 @@ namespace { namespace ug32
         const auto fresh = tapeCopy (s, 0);
         for (int n : { 48, 60 })
             s.noteOn (s.pos + 64, n);
-        setP (*s.p, "feedback", 90.0f);
+        setP4 (*s.p, "feedback", 90.0f);
         s.run (48000, 512);
-        setP (*s.p, "feedback", 0.0f);
+        setP4 (*s.p, "feedback", 0.0f);
         s.run (24000, 512);                               // the head parks: the working copy is static
         (void) s.p->buildUiTelemetry (nowOf (s));
         const auto before = tapeCopy (s, 0);
@@ -1633,7 +1635,7 @@ namespace { namespace ug32
             const bool take = commitTake (s, 0, 48000, 0.4f, 313);
             for (int n : { 48, 60 })
                 s.noteOn (s.pos + 64, n);
-            setP (*s.p, "feedback", 90.0f);
+            setP4 (*s.p, "feedback", 90.0f);
             s.run (24000, 512);
             auto& snap = s.eng().tapeSnapshot();
             struct Chunk { std::uint32_t index = 0; std::vector<float> pre, post; };
@@ -2107,7 +2109,7 @@ namespace { namespace ug32
         }
         // (2) grains on four streams + the feedback head on lane 1.
         {
-            Session s (kFs, with (fourStreams (40.0f, 200.0f), P { { "feedback", 80.0f }, { sn (1, "reverse_prob"), 30.0f } }), kSeed, 512);
+            Session s (kFs, with (with (fourStreams (40.0f, 200.0f), all4 ("feedback", 80.0f)), P { { sn (1, "reverse_prob"), 30.0f } }), kSeed, 512);
             loadNoise4 (s, 4.0, 0.2f);
             for (int n : { 48, 60 })
                 s.noteOn (64, n);
@@ -2147,7 +2149,7 @@ namespace { namespace ug32
         // UPL1: the widest frame (256 live grains + fade spares) through the builder and the encoder.
         {
             // Spread, gain_rand and reverse on: every grain row carries signed 4-decimal numbers.
-            P ps = with (fullPool(), P { { "feedback", 60.0f } });
+            P ps = with (fullPool(), all4 ("feedback", 60.0f));
             for (int n = 1; n <= 4; ++n)
                 ps = with (ps, P { { sn (n, "stereo_spread"), 100.0f }, { sn (n, "gain_rand"), 50.0f }, { sn (n, "reverse_prob"), 30.0f } });
             Session s (kFs, ps, kSeed, 256);

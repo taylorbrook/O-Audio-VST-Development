@@ -35,7 +35,7 @@
 // A line-for-line PORT of the parent ModMatrix (82406fce
 // plugins/O-Granulator/Source/dsp/ModMatrix.h, kept VERBATIM and uncompiled
 // in forked/ModMatrix.h) sized to the instrument's frozen tables:
-// 126 destinations (GiParamIds::kModDestIds) × 18 sources (mod-sources.tsv).
+// 150 destinations (GiParamIds::kModDestIds) × 18 sources (mod-sources.tsv).
 //
 // Per grid tick (statement order of the parent ModMatrix::tick):
 //   1. slot compare: source / dest changed → if the old route was live on
@@ -71,31 +71,42 @@ namespace ogi
         inline constexpr bool isPerVoice (int s) noexcept  { return (s >= ModEnv1 && s <= NoteRandom) || (s >= Pressure && s <= Bend); }
     }
 
-    /** The 126-entry destination table (GiParamIds::kModDestIds, APPEND-ONLY). */
+    /** The 150-entry destination table (GiParamIds::kModDestIds, APPEND-ONLY;
+        table version 2, PLAN-R1 PD14). */
     namespace GiDest
     {
         enum : int
         {
-            None = 0, OutputGain = 1, StreamBase = 2, StreamStride = 28,
-            Feedback = 114, FbLowCut = 115, FbHighCut = 116, FbSat = 117, FbDiff = 118,
-            RevMix = 119, RevSize = 120, RevDamp = 121, LfoRate1 = 122
+            None = 0, OutputGain = 1, StreamBase = 2, StreamStride = 36, LfoRate1 = 146
         };
-        /** Per-stream field order: the parent's 24, then scan_rate, loop_start, loop_end, key_track. */
+        /** Per-stream field order. Fields 0...27 are the VOICE fields (the
+            parent's 24, then scan_rate, loop_start, loop_end, key_track):
+            NumFields stays their count, so every per-voice loop is bounded by
+            it. Fields 28...35 are the stream's feedback and reverb (R1): one
+            value per stream, never per voice (class G). */
         enum Field : int
         {
             Level = 0, Pan, Position, Spray, Size, SizeRand, Density, Jitter, Pitch, PitchRand, ReverseProb,
             Window, WindowSkew, StereoSpread, GainRand, FilterCutoff, FilterRand, FilterRes, Drive, Crush,
-            CrushProb, RingFreq, RingRand, RingMix, ScanRate, LoopStart, LoopEnd, KeyTrack, NumFields
+            CrushProb, RingFreq, RingRand, RingMix, ScanRate, LoopStart, LoopEnd, KeyTrack, NumFields,
+            Feedback = NumFields, FbLowCut, FbHighCut, FbSat, FbDiff, RevMix, RevSize, RevDamp, NumStreamDests
         };
-        static_assert (static_cast<int> (NumFields) == static_cast<int> (StreamStride), "28 per-stream destinations");
+        static_assert (static_cast<int> (NumFields) == 28, "28 per-voice stream destinations");
+        static_assert (static_cast<int> (NumStreamDests) == static_cast<int> (StreamStride), "36 per-stream destinations (28 voice + 8 stream-global)");
         inline constexpr int stream (int s, int field) noexcept { return StreamBase + StreamStride * s + field; }
-        static_assert (stream (3, KeyTrack) == 113 && Feedback == 114 && LfoRate1 + 3 == kGiModDests - 1, "destination table layout");
-        inline constexpr bool isStream (int d) noexcept    { return d >= StreamBase && d < Feedback; }
+        static_assert (stream (3, KeyTrack) == 137 && stream (0, 28) == 30 && stream (3, RevDamp) == 145
+                       && LfoRate1 == 146 && LfoRate1 + 3 == kGiModDests - 1, "destination table layout");
+        inline constexpr bool isStream (int d) noexcept    { return d >= StreamBase && d < LfoRate1; }
         inline constexpr int  streamOf (int d) noexcept    { return (d - StreamBase) / StreamStride; }
         inline constexpr int  fieldOf (int d) noexcept     { return (d - StreamBase) % StreamStride; }
         inline constexpr bool isLfoRate (int d) noexcept   { return d >= LfoRate1 && d < LfoRate1 + kGiLfos; }
-        /** Class V (mod-dests.tsv): every stream field. G/V: the LFO rates. */
-        inline constexpr bool isVoiceClass (int d) noexcept { return isStream (d); }
+        /** Class V (mod-dests.tsv): the 28 voice fields of each stream. The 8
+            feedback / reverb fields share the stream block but are class G —
+            a per-voice source reaches them through the global path (newest
+            voice, D4). G/V: the LFO rates. */
+        inline constexpr bool isVoiceClass (int d) noexcept { return isStream (d) && fieldOf (d) < NumFields; }
+        static_assert (isVoiceClass (stream (3, KeyTrack)) && ! isVoiceClass (stream (0, Feedback)) && ! isVoiceClass (stream (3, RevDamp)),
+                       "the stream-global fields are not per-voice");
     }
 
     //==========================================================================

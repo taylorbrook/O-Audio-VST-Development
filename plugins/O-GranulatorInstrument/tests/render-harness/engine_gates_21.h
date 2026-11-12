@@ -270,19 +270,22 @@ namespace { namespace eg21
         return a;
     }
 
-    /** PLAN-2.4 PD16: readSet23() + the 9 global feedback / freeze / reverb rows
-        = 162 bound IDs (unread 99: sN_size_sync / sN_density_sync, mod, voice
-        mode, MPE, record). */
+    /** PLAN-2.4 PD16: readSet23() + the feedback / freeze / reverb rows.
+        PLAN-R1 PD16: freeze + the 10 per-stream rows × 4 (sN_fb_enable,
+        sN_feedback … sN_reverb_damp, sN_reverb_pre) = 194 bound IDs (unread 99:
+        sN_size_sync / sN_density_sync, mod, voice mode, MPE, record). */
     juce::StringArray readSet24()
     {
         auto a = readSet23();
-        for (const char* x : { "feedback", "fb_low_cut", "fb_high_cut", "fb_saturation", "fb_diffusion", "freeze",
-                               "reverb_mix", "reverb_size", "reverb_damp" })
-            a.add (x);
+        a.add ("freeze");
+        for (int n = 1; n <= 4; ++n)
+            for (const char* x : { "fb_enable", "feedback", "fb_low_cut", "fb_high_cut", "fb_saturation", "fb_diffusion",
+                                   "reverb_pre", "reverb_mix", "reverb_size", "reverb_damp" })
+                a.add (Ids::stream (n, x));
         return a;
     }
 
-    /** PLAN-2.5a PD15: readSet24() + the 89 mod / sync rows = 251 bound IDs
+    /** PLAN-2.5a PD15: readSet24() + the 89 mod / sync rows = 283 bound IDs (R1; 251 before)
         (unread 10: voice_mode, glide, mpe_enable, rec_target, rec_arm,
         rec_trigger, rec_threshold, rec_length, rec_length_sync, rec_gain).
         N2 / N2s / FN3 / FL7 re-scoped (RESEARCH-2.5a Summary 11; FL7 by user
@@ -311,7 +314,7 @@ namespace { namespace eg21
         return a;
     }
 
-    /** PLAN-2.5b PD15: readSet25a() + voice_mode, glide, mpe_enable = 254
+    /** PLAN-2.5b PD15: readSet25a() + voice_mode, glide, mpe_enable = 286 (R1; 254 before)
         bound IDs (unread 7: rec_target, rec_arm, rec_trigger, rec_threshold,
         rec_length, rec_length_sync, rec_gain). N2 / N2s / FN3 re-scoped. */
     juce::StringArray readSet25b()
@@ -322,7 +325,7 @@ namespace { namespace eg21
         return a;
     }
 
-    /** PLAN-2.6 PD17: readSet25b() + the 7 rec_* rows = all 261 IDs bound.
+    /** PLAN-2.6 PD17: readSet25b() + the 7 rec_* rows = all 293 IDs bound (R1; 261 before).
         N2 / N2s / FN3 re-scoped: "touched" = the 7 rec_* randomised (rec_arm
         forced On, so a take is always attempted) with a SILENT sidechain —
         the D6 presence discard must leave the output bitwise identical. */
@@ -2173,9 +2176,9 @@ namespace { namespace eg21
         const int nUnread = diffCount (base512, renderN (512, kSeed, unread));
         const int nDensity = diffCount (base512, renderN (512, kSeed, [] (Proc& p) { setP (p, s1 ("density"), 120.0f); }));
         const bool fired2 = nDensity > 0;
-        row (nUnread == 0 && bound == 261 && touched == 7 && fired2, "N2 rec_* with a silent sidechain bit-identical (readSet26)",
+        row (nUnread == 0 && bound == 293 && touched == 7 && fired2, "N2 rec_* with a silent sidechain bit-identical (readSet26)",
              "meas " + juce::String (nUnread) + " samples differ with " + juce::String (touched) + " rec_* randomised, arm On ("
-                 + juce::String (bound) + "/261 read IDs bound, readSet26) | thr 0 | margin " + juce::String (-nUnread)
+                 + juce::String (bound) + "/293 read IDs bound, readSet26) | thr 0 | margin " + juce::String (-nUnread)
                  + " | " + ctrl (fired2, "s1_density 120 -> " + juce::String (nDensity) + " differ"));
     }
 

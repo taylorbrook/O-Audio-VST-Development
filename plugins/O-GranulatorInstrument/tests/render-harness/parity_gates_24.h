@@ -49,7 +49,7 @@ namespace { namespace pg24
         P params = pg22::globalsNull();
         for (auto& kv : pg22::streamParams (row.stream, parity::over (row.sp, row.oursOnly)))
             params.push_back (kv);
-        for (const auto& kv : parity::over (row.gl, row.oursGl))
+        for (const auto& kv : parity::oursGlobals (parity::over (row.gl, row.oursGl)))   // PLAN-R1 PD16: sN_ ids on our side
             params.push_back ({ juce::String (kv.id), kv.v });
         params.push_back ({ "freeze", freezeOn ? 1.0f : 0.0f });
         // PB rows: the stream is enabled AT T_e, as on the parent side. The
@@ -116,7 +116,7 @@ namespace { namespace pg24
             }
         }
         for (int k = 0; k < 8; ++k)
-            o.glRaw[k] = eg21::rawOf (*ses.p, juce::String (parity::fbRevIds()[(size_t) k]));
+            o.glRaw[k] = eg21::rawOf (*ses.p, juce::String (parity::oursId (parity::fbRevIds()[(size_t) k], row.stream)));   // PLAN-R1 PD16
         o.writes = ses.hk().head[row.stream - 1].writes;
         return o;
     }
@@ -306,7 +306,7 @@ namespace { namespace pg24
                 const parity::Row& r5 = *row;
                 P params = pg22::globalsNull();
                 for (auto& kv : pg22::streamParams (r5.stream, r5.sp)) params.push_back (kv);
-                for (const auto& kv : r5.gl) params.push_back ({ juce::String (kv.id), kv.v });
+                for (const auto& kv : parity::oursGlobals (r5.gl)) params.push_back ({ juce::String (kv.id), kv.v });   // PLAN-R1 PD16
                 params.push_back ({ "freeze", 0.0f });
                 for (auto& kv : params)
                     if (kv.first == sid (r5.stream, "enable")) kv.second = 0.0f;

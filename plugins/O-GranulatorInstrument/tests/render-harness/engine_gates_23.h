@@ -345,9 +345,9 @@ namespace { namespace eg23
         const int nC = diffCount (ref, renderFN (512, kSeed, [] (Proc& p) { setP (p, sn (1, "filter_cutoff"), 3000.0f); }, false));
         const int nR = diffCount (ref, renderFN (512, kSeed, [] (Proc& p) { setP (p, sn (4, "ring_freq"), 900.0f); }, false));
         const bool fired = nC > 0 && nR > 0;
-        row (n == 0 && bound == 261 && touched == 7 && fired, "FN3 rec_* with a silent sidechain bit-identical, 4 streams, every FX on (readSet26)",
+        row (n == 0 && bound == 293 && touched == 7 && fired, "FN3 rec_* with a silent sidechain bit-identical, 4 streams, every FX on (readSet26)",
              "meas " + juce::String (n) + " samples differ with " + juce::String (touched) + " rec_* randomised, arm On ("
-                 + juce::String (bound) + "/261 read IDs bound) | thr 0 | margin " + juce::String (-n)
+                 + juce::String (bound) + "/293 read IDs bound) | thr 0 | margin " + juce::String (-n)
                  + " | " + ctrl (fired, "s1_filter_cutoff -> " + juce::String (nC) + ", s4_ring_freq -> " + juce::String (nR) + " differ"));
     }
 

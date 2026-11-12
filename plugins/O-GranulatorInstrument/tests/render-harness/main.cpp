@@ -11,19 +11,19 @@
     --golden-dir points the run at another golden set (negative controls,
     PLAN P10); the default is GOLDEN_DIR.
 
-      G1  261 params, ID order == params.tsv (and allIdsInOrder())
-      G2  per-ID type; totals 176 Float / 70 Choice / 15 Bool
+      G1  293 params, ID order == params.tsv (and allIdsInOrder())
+      G2  per-ID type; totals 200 Float / 74 Choice / 19 Bool
       G3  version hint 1 everywhere; host names byte-equal to the golden
-      G4  Float start / end / interval / skew == golden; 19 setSkewForCentre
+      G4  Float start / end / interval / skew == golden; 25 setSkewForCentre
           rows (== reference AND +-1e-4 of the spec skew); 14 raw-skew rows
           exact; 6 interval-1 rows (interval 1, get() == default exactly);
           43 negative-start rows interval 0; default normalised ==
           convertTo0to1 (spec) exactly, engineering default within 1e-6 of span
-      G5  70 choice lists: strings, order, default index
-      G6  Bools: s1_enable On, the other 14 Off
-      D1  kModDestIds == mod-dests.tsv (126, order)   D2 every dest != None is a Float
-      D3  16 modM_dest lists == None + golden host names   D4 table version 1
-      D5  the literal == the formula b = 2 + 28 (N - 1)
+      G5  74 choice lists: strings, order, default index
+      G6  Bools: s1_enable and the four sN_fb_enable On, the other 14 Off
+      D1  kModDestIds == mod-dests.tsv (150, order)   D2 every dest != None is a Float
+      D3  16 modM_dest lists == None + golden host names   D4 table version 2
+      D5  the literal == the formula b = 2 + 36 (N - 1)
       SRC1 16 modM_source lists == mod-sources.tsv (18); kModSources (+ class) == golden
       B1  buses + MIDI flags; B3 latency 0 (44.1 k / 96 k), tail 0
       M1  MidiScript self-test (absolute sample times, never block-relative)
@@ -514,23 +514,23 @@ static void paramRows()
     for (auto* ap : params) ranged.push_back (dynamic_cast<juce::RangedAudioParameter*> (ap));
 
     // G1
-    const bool seq = golden.size() == 261 && params.size() == 261;
+    const bool seq = golden.size() == 293 && params.size() == 293;
     Tally t1;
     for (size_t i = 0; seq && i < golden.size(); ++i)
         t1.check (ranged[i] != nullptr && ranged[i]->getParameterID() == golden[i].id, golden[i].id);
-    row (seq && t1.bad == 0, "G1 261 params, ID order == params.tsv",
-         t1.detail (261) + "  (golden " + juce::String ((int) golden.size()) + ", plugin " + juce::String (params.size()) + ")");
+    row (seq && t1.bad == 0, "G1 293 params, ID order == params.tsv",
+         t1.detail (293) + "  (golden " + juce::String ((int) golden.size()) + ", plugin " + juce::String (params.size()) + ")");
     if (! seq) return;
 
     const auto& ids = Ids::allIdsInOrder();
     Tally t1b;
-    for (int i = 0; i < 261; ++i) t1b.check (ids[i] == golden[(size_t) i].id, golden[(size_t) i].id);
-    row (ids.size() == 261 && t1b.bad == 0, "G1 allIdsInOrder() == params.tsv", t1b.detail (261));
+    for (int i = 0; i < 293; ++i) t1b.check (ids[i] == golden[(size_t) i].id, golden[(size_t) i].id);
+    row (ids.size() == 293 && t1b.bad == 0, "G1 allIdsInOrder() == params.tsv", t1b.detail (293));
 
     // G2 / G3
     int nf = 0, nc = 0, nb = 0;
     Tally t2, t3, tn;
-    for (size_t i = 0; i < 261; ++i)
+    for (size_t i = 0; i < 293; ++i)
     {
         auto* rp = ranged[i];
         const auto& g = golden[i];
@@ -542,17 +542,17 @@ static void paramRows()
         t3.check (rp->getVersionHint() == 1, g.id);
         tn.check (rp->getName (256) == g.name, g.id + " '" + rp->getName (256) + "' != '" + g.name + "'");
     }
-    row (t2.bad == 0, "G2 per-ID type", t2.detail (261));
-    row (nf == 176 && nc == 70 && nb == 15, "G2 totals 176 Float / 70 Choice / 15 Bool",
+    row (t2.bad == 0, "G2 per-ID type", t2.detail (293));
+    row (nf == 200 && nc == 74 && nb == 19, "G2 totals 200 Float / 74 Choice / 19 Bool",
          juce::String (nf) + " / " + juce::String (nc) + " / " + juce::String (nb));
-    row (t3.bad == 0, "G3 version hint 1", t3.detail (261));
-    row (tn.bad == 0, "G3 host names byte-equal to golden", tn.detail (261));
+    row (t3.bad == 0, "G3 version hint 1", t3.detail (293));
+    row (tn.bad == 0, "G3 host names byte-equal to golden", tn.detail (293));
 
     // G4 / G5 / G6
     Tally t4r, t4c, t4k, t4i, t4n, t4d, t4e, t5, t6;
     int floats = 0, choices = 0, bools = 0, nCentre = 0, nRaw = 0, nStep = 0, nNeg = 0, nOn = 0;
     double worstEng = 0.0;
-    for (size_t i = 0; i < 261; ++i)
+    for (size_t i = 0; i < 293; ++i)
     {
         const auto& g = golden[i];
         if (auto* f = dynamic_cast<juce::AudioParameterFloat*> (ranged[i]))
@@ -611,11 +611,12 @@ static void paramRows()
             ++bools;
             const bool on = g.def != 0.0;
             nOn += b->get() ? 1 : 0;
-            t6.check (b->get() == on && (ranged[i]->getDefaultValue() > 0.5f) == on && on == (g.id == "s1_enable"), g.id);
+            // PLAN-R1 PD13: s1_enable and the four sN_fb_enable default On.
+            t6.check (b->get() == on && (ranged[i]->getDefaultValue() > 0.5f) == on && on == (g.id == "s1_enable" || g.id.endsWith ("_fb_enable")), g.id);
         }
     }
     row (t4r.bad == 0, "G4 float start / end / interval / skew == golden", t4r.detail (floats));
-    row (t4c.bad == 0 && nCentre == 19, "G4 setSkewForCentre rows (19): == reference, +-1e-4 of spec",
+    row (t4c.bad == 0 && nCentre == 25, "G4 setSkewForCentre rows (25): == reference, +-1e-4 of spec",
          t4c.detail (nCentre) + "  rows " + juce::String (nCentre));
     row (t4k.bad == 0 && nRaw == 14, "G4 raw-skew rows (14): skew exact", t4k.detail (nRaw) + "  rows " + juce::String (nRaw));
     row (t4i.bad == 0 && nStep == 6, "G4 interval-1 rows (6): interval 1, get() == default exactly",
@@ -623,22 +624,22 @@ static void paramRows()
     row (t4n.bad == 0 && nNeg == 43, "G4 negative-start rows (43): interval 0", t4n.detail (nNeg) + "  rows " + juce::String (nNeg));
     row (t4d.bad == 0, "G4 float default normalised == convertTo0to1 (spec) exactly", t4d.detail (floats));
     row (t4e.bad == 0, "G4 float default engineering (tol 1e-6 of span)", t4e.detail (floats) + "  worst " + juce::String (worstEng, 9));
-    row (t5.bad == 0 && choices == 70, "G5 70 choice lists: strings / order / default index", t5.detail (choices));
-    row (t6.bad == 0 && bools == 15 && nOn == 1, "G6 bools: s1_enable On, the other 14 Off", t6.detail (bools));
+    row (t5.bad == 0 && choices == 74, "G5 74 choice lists: strings / order / default index", t5.detail (choices));
+    row (t6.bad == 0 && bools == 19 && nOn == 5, "G6 bools: s1_enable + the four sN_fb_enable On, the other 14 Off", t6.detail (bools));
 
     // ── D: modulation destination table ─────────────────────────────────────
     std::printf ("\n-- D. modulation destination table\n");
     const auto dg = readTsv ("mod-dests.tsv");
     Tally d1, d2;
-    const bool sized = dg.size() == 126 && Ids::kModDests == 126;
-    for (int k = 0; sized && k < 126; ++k)
+    const bool sized = dg.size() == 150 && Ids::kModDests == 150;
+    for (int k = 0; sized && k < 150; ++k)
         d1.check (juce::String (Ids::kModDestIds[k]) == dg[(size_t) k][1] && dg[(size_t) k][0].getIntValue() == k,
                   juce::String (k) + " " + Ids::kModDestIds[k] + " vs " + dg[(size_t) k][1]);
-    row (sized && d1.bad == 0 && juce::String (Ids::kModDestIds[0]) == "None", "D1 kModDestIds == mod-dests.tsv (126, order)",
-         d1.detail (126) + "  (golden " + juce::String ((int) dg.size()) + ")");
+    row (sized && d1.bad == 0 && juce::String (Ids::kModDestIds[0]) == "None", "D1 kModDestIds == mod-dests.tsv (150, order)",
+         d1.detail (150) + "  (golden " + juce::String ((int) dg.size()) + ")");
     for (int k = 1; k < Ids::kModDests; ++k)
         d2.check (dynamic_cast<juce::AudioParameterFloat*> (param (*p, Ids::kModDestIds[k])) != nullptr, Ids::kModDestIds[k]);
-    row (d2.bad == 0, "D2 every destination != None is a registered Float", d2.detail (125));
+    row (d2.bad == 0, "D2 every destination != None is a registered Float", d2.detail (149));
 
     Tally d3;
     juce::StringArray expect;
@@ -648,32 +649,32 @@ static void paramRows()
         auto* c = dynamic_cast<juce::AudioParameterChoice*> (param (*p, Ids::mod (m, "dest")));
         d3.check (c != nullptr && c->choices == expect, "mod" + juce::String (m) + "_dest");
     }
-    row (d3.bad == 0 && expect.size() == 126 && expect[0] == "None" && Ids::modDestChoices() == expect,
+    row (d3.bad == 0 && expect.size() == 150 && expect[0] == "None" && Ids::modDestChoices() == expect,
          "D3 16 modM_dest lists == None + golden host names", d3.detail (16));
-    row (Ids::kModDestTableVersion == 1, "D4 kModDestTableVersion == 1");
+    row (Ids::kModDestTableVersion == 2, "D4 kModDestTableVersion == 2");
 
-    // D5: the literal == the formula b = 2 + 28 (N - 1), from the 28 per-stream suffixes.
+    // D5: the literal == the formula b = 2 + 36 (N - 1), from the 36 per-stream
+    // suffixes (PLAN-R1 PD14: the 28 voice fields, then the stream's feedback and reverb).
     {
-        static const char* const kStream28[] = {
+        static const char* const kStream36[] = {
             "level", "pan", "position", "spray", "size", "size_rand", "density", "jitter", "pitch", "pitch_rand",
             "reverse_prob", "window", "window_skew", "stereo_spread", "gain_rand", "filter_cutoff", "filter_rand",
             "filter_res", "drive", "crush", "crush_prob", "ring_freq", "ring_rand", "ring_mix",
-            "scan_rate", "loop_start", "loop_end", "key_track" };
+            "scan_rate", "loop_start", "loop_end", "key_track",
+            "feedback", "fb_low_cut", "fb_high_cut", "fb_saturation", "fb_diffusion",
+            "reverb_mix", "reverb_size", "reverb_damp" };
         juce::StringArray formula { "None", "output_gain" };
         bool bases = true;
         for (int n = 1; n <= 4; ++n)
         {
-            bases = bases && formula.size() == 2 + 28 * (n - 1);
-            for (const char* s : kStream28) formula.add (Ids::stream (n, s));
+            bases = bases && formula.size() == 2 + 36 * (n - 1);
+            for (const char* s : kStream36) formula.add (Ids::stream (n, s));
         }
-        for (const char* s : { "feedback", "fb_low_cut", "fb_high_cut", "fb_saturation", "fb_diffusion",
-                               "reverb_mix", "reverb_size", "reverb_damp" })
-            formula.add (s);
         for (int n = 1; n <= 4; ++n) formula.add (Ids::lfo (n, "rate"));
         Tally d5;
-        for (int k = 0; k < juce::jmin (126, formula.size()); ++k)
+        for (int k = 0; k < juce::jmin (150, formula.size()); ++k)
             d5.check (formula[k] == Ids::kModDestIds[k], juce::String (k) + " " + formula[k] + " vs " + Ids::kModDestIds[k]);
-        row (bases && formula.size() == 126 && d5.bad == 0, "D5 kModDestIds == formula b = 2 + 28 (N - 1)", d5.detail (126));
+        row (bases && formula.size() == 150 && d5.bad == 0, "D5 kModDestIds == formula b = 2 + 36 (N - 1)", d5.detail (150));
     }
 
     // ── SRC1: modulation sources ────────────────────────────────────────────
@@ -970,13 +971,13 @@ static void stateRows()
         setParam (*a, "polyphony", 12.0f);
         setParam (*a, "amp_release", 3000.0f);
         setParam (*a, "glide", 250.0f);
-        setParam (*a, "mod16_dest", 125.0f);
+        setParam (*a, "mod16_dest", 149.0f);
         setParam (*a, "s4_enable", 1.0f);
         setParam (*a, "mod1_depth", -37.0f);
         auto* poly = dynamic_cast<juce::AudioParameterFloat*> (param (*a, "polyphony"));
         auto* dest = dynamic_cast<juce::AudioParameterChoice*> (param (*a, "mod16_dest"));
         auto* s4 = dynamic_cast<juce::AudioParameterBool*> (param (*a, "s4_enable"));
-        const bool applied = poly != nullptr && poly->get() == 12.0f && dest != nullptr && dest->getIndex() == 125
+        const bool applied = poly != nullptr && poly->get() == 12.0f && dest != nullptr && dest->getIndex() == 149
                           && s4 != nullptr && s4->get();
         const auto before = allValues (*a);
         auto b = make();
@@ -985,8 +986,8 @@ static void stateRows()
         int diff = 0;
         for (size_t i = 0; i < juce::jmin (before.size(), after.size()); ++i)
             diff += std::memcmp (&before[i], &after[i], sizeof (float)) != 0 ? 1 : 0;
-        row (applied && b->getSeed() == kSeed && bitwiseEqual (before, after) && before.size() == 261 && b->uiLanguage.load() == 2,
-             "S1a round trip: seed 0x80000001, 261 values bitwise, uiLanguage 2",
+        row (applied && b->getSeed() == kSeed && bitwiseEqual (before, after) && before.size() == 293 && b->uiLanguage.load() == 2,
+             "S1a round trip: seed 0x80000001, 293 values bitwise, uiLanguage 2",
              juce::String (diff) + " value(s) differ; seed " + juce::String::toHexString ((juce::int64) b->getSeed()));
     }
 
@@ -1018,15 +1019,15 @@ static void stateRows()
             auto* slots = x->getChildByName ("Slots");
             ok = countChildren (*x, "Engine") == 1 && countChildren (*x, "Slots") == 1
               && eng != nullptr && slots != nullptr
-              && eng->getStringAttribute ("stateVersion") == "1" && eng->getStringAttribute ("modDestTableVersion") == "1"
+              && eng->getStringAttribute ("stateVersion") == "1" && eng->getStringAttribute ("modDestTableVersion") == "2"
               && slots->getNumChildElements() == 0
               && ! eng->hasAttribute ("id") && ! slots->hasAttribute ("id")
               && x->getStringAttribute ("uiLanguage") == "zh-Hans"
-              && countChildren (*x, "PARAM") == 261;
+              && countChildren (*x, "PARAM") == 293;
             detail = "Engine " + juce::String (countChildren (*x, "Engine")) + ", Slots " + juce::String (countChildren (*x, "Slots"))
                    + ", PARAM " + juce::String (countChildren (*x, "PARAM")) + ", uiLanguage " + x->getStringAttribute ("uiLanguage");
         }
-        row (ok, "S2 XML: one <Engine v1/v1>, one empty <Slots>, no id, uiLanguage zh-Hans, 261 PARAM", detail);
+        row (ok, "S2 XML: one <Engine v1/v2>, one empty <Slots>, no id, uiLanguage zh-Hans, 293 PARAM", detail);
     }
 
     // S3: A -> B -> change -> C (two reopens into the same instance).
@@ -1047,7 +1048,7 @@ static void stateRows()
         load (*c, blob2);
         const auto x = xmlOf (stateOf (*c));
         const bool shape = x != nullptr && countChildren (*x, "Engine") == 1 && countChildren (*x, "Slots") == 1
-                        && countChildren (*x, "PARAM") == 261;
+                        && countChildren (*x, "PARAM") == 293;
         const bool liveClean = ! c->parameters.state.getChildWithName ("Engine").isValid()
                             && ! c->parameters.state.getChildWithName ("Slots").isValid();
         auto* pb = param (*b, "s3_pitch");
@@ -1351,7 +1352,8 @@ static int dumpUiOverrides (const juce::File& out)
 {
     auto p = make();
     p->setSeed (0x5EED3200CAFE0001ull);   // a fresh processor draws its seed: pinned, or the fed-back tape differs per run
-    setParam (*p, "feedback", 80.0f);
+    for (int n = 1; n <= 4; ++n)   // PLAN-R1 PD16: the former global on all four streams
+        setParam (*p, Ids::stream (n, "feedback"), 80.0f);
     p->prepareToPlay (48000.0, 512);
 
     ogi::SavedSlot tone;
@@ -1588,7 +1590,7 @@ static int dumpUiOverrides (const juce::File& out)
                   && ! text.contains (juce::File::getSpecialLocation (juce::File::userHomeDirectory).getFileName())     // the temp-home name
                   && ! text.contains (realHome().getFileName());                                                       // the user name
 
-    const bool shape = toneOk && nc == 70 && nf == 176 && nd == 246 && curve == 64 && peaks == 656 && revs && fixture && clean;
+    const bool shape = toneOk && nc == 74 && nf == 200 && nd == 274 && curve == 64 && peaks == 656 && revs && fixture && clean;
     bool ok = false;
     if (shape)
     {

@@ -21,8 +21,10 @@
 
 #include <JuceHeader.h>
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <cstring>
+#include <string>
 #include <utility>
 #include <vector>
 #include "GiParamIds.h"
@@ -45,6 +47,13 @@
 // non-excluded parameter before it applies). output_gain and rec_arm are
 // never part of a preset (excluded in the manager; validateSpec refuses them).
 // Every preset carries a fixed seed (an absent seed keeps the live one).
+//
+// R1 (D64, PLAN-R1 PD27): feedback and reverb are per stream. A key written
+// "s*_<suffix>" is a WILDCARD: expandSpecValues() turns it into the four
+// "sN_<suffix>" pairs in place (disabled streams included), so a preset that
+// set a former global keeps that value on every stream. A literal "sN_<suffix>"
+// pair after the wildcard overrides it for that stream. sN_fb_enable (On) and
+// sN_reverb_pre (Post) are the defaults and are not written.
 //
 // Sources (PD2, D53): a preset lists its lanes as { index 0–3, "factory:<id>",
 // name } with NO contentHash, so every load re-resolves a pristine tape (a
@@ -123,7 +132,7 @@ namespace ogi::factory
                 { "s1_level", 2.4f }, { "s1_key_track", 30.0f }, { "s1_scan_mode", 2.0f }, { "s1_scan_rate", 8.0f }, { "s1_size", 900.0f }, { "s1_density", 9.0f },
                 { "s1_spray", 30.0f }, { "s1_stereo_spread", 70.0f },
                 { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 2800.0f }, { "s1_filter_res", 30.0f },
-                { "feedback", 50.0f }, { "fb_diffusion", 60.0f }, { "reverb_mix", 40.0f }, { "reverb_size", 80.0f },
+                { "s*_feedback", 50.0f }, { "s*_fb_diffusion", 60.0f }, { "s*_reverb_mix", 40.0f }, { "s*_reverb_size", 80.0f },
                 { "lfo1_shape", SH }, { "lfo1_rate", 0.4f },
                 { "mod1_source", Lfo1 }, { "mod1_dest", modDest ("s1_filter_cutoff") }, { "mod1_depth", 35.0f } },
               { { 0, "factory:drone", "Drone" } } },
@@ -136,8 +145,8 @@ namespace ogi::factory
                 { "s1_spray", 40.0f }, { "s1_pitch", -12.0f },
                 { "s2_enable", 1.0f }, { "s2_level", -14.0f }, { "s2_key_track", 0.0f }, { "s2_size", 600.0f }, { "s2_density", 8.0f },
                 { "s2_spray", 100.0f }, { "s2_filter_type", 1.0f }, { "s2_filter_cutoff", 900.0f },
-                { "feedback", 70.0f }, { "fb_diffusion", 80.0f }, { "fb_high_cut", 4000.0f },
-                { "reverb_mix", 45.0f }, { "reverb_size", 85.0f }, { "reverb_damp", 65.0f } },
+                { "s*_feedback", 70.0f }, { "s*_fb_diffusion", 80.0f }, { "s*_fb_high_cut", 4000.0f },
+                { "s*_reverb_mix", 45.0f }, { "s*_reverb_size", 85.0f }, { "s*_reverb_damp", 65.0f } },
               { { 0, "factory:drone", "Drone" }, { 1, "factory:noise_bed", "Noise Bed" } } },
 
             { "Drones \xc2\xb7 Organ Loft",
@@ -148,7 +157,7 @@ namespace ogi::factory
                 { "s1_spray", 25.0f },
                 { "s2_enable", 1.0f }, { "s2_level", -8.0f }, { "s2_pitch", -12.0f }, { "s2_key_track", 50.0f }, { "s2_scan_mode", 2.0f },
                 { "s2_scan_rate", 3.0f }, { "s2_size", 900.0f }, { "s2_density", 8.0f }, { "s2_spray", 35.0f },
-                { "feedback", 30.0f }, { "fb_diffusion", 40.0f }, { "reverb_mix", 60.0f }, { "reverb_size", 90.0f } },
+                { "s*_feedback", 30.0f }, { "s*_fb_diffusion", 40.0f }, { "s*_reverb_mix", 60.0f }, { "s*_reverb_size", 90.0f } },
               { { 0, "factory:harmonic", "Harmonic" }, { 1, "factory:harmonic", "Harmonic" } } },
 
             { "Drones \xc2\xb7 Frozen Field",
@@ -157,7 +166,7 @@ namespace ogi::factory
               { { "polyphony", 6.0f }, { "freeze", 1.0f }, { "amp_attack", 2000.0f }, { "amp_release", 7000.0f },
                 { "s1_level", -6.9f }, { "s1_key_track", 40.0f }, { "s1_scan_mode", 2.0f }, { "s1_scan_rate", 4.0f }, { "s1_size", 1200.0f }, { "s1_density", 7.0f },
                 { "s1_spray", 60.0f }, { "s1_stereo_spread", 90.0f },
-                { "feedback", 40.0f }, { "fb_diffusion", 70.0f }, { "reverb_mix", 50.0f }, { "reverb_size", 85.0f } },
+                { "s*_feedback", 40.0f }, { "s*_fb_diffusion", 70.0f }, { "s*_reverb_mix", 50.0f }, { "s*_reverb_size", 85.0f } },
               { { 0, "factory:drone", "Drone" } } },
 
             { "Drones \xc2\xb7 Hollow Wind",
@@ -167,7 +176,7 @@ namespace ogi::factory
                 { "s1_level", 6.0f }, { "s1_key_track", 40.0f }, { "s1_scan_mode", 2.0f }, { "s1_scan_rate", 12.0f }, { "s1_size", 600.0f }, { "s1_density", 30.0f },
                 { "s1_spray", 80.0f }, { "s1_stereo_spread", 80.0f },
                 { "s1_filter_type", 2.0f }, { "s1_filter_cutoff", 650.0f }, { "s1_filter_res", 35.0f },
-                { "feedback", 45.0f }, { "fb_diffusion", 55.0f }, { "reverb_mix", 45.0f },
+                { "s*_feedback", 45.0f }, { "s*_fb_diffusion", 55.0f }, { "s*_reverb_mix", 45.0f },
                 { "lfo2_shape", SH }, { "lfo2_rate", 0.3f },
                 { "mod1_source", Lfo2 }, { "mod1_dest", modDest ("s1_filter_cutoff") }, { "mod1_depth", 30.0f } },
               { { 0, "factory:noise_bed", "Noise Bed" } } },
@@ -180,7 +189,7 @@ namespace ogi::factory
                 { "s1_spray", 30.0f },
                 { "s2_enable", 1.0f }, { "s2_level", -9.0f }, { "s2_pitch", 7.0f }, { "s2_key_track", 25.0f }, { "s2_size", 800.0f },
                 { "s2_density", 8.0f }, { "s2_spray", 50.0f }, { "s2_scan_mode", 2.0f }, { "s2_scan_rate", 6.0f },
-                { "feedback", 35.0f }, { "fb_diffusion", 50.0f }, { "reverb_mix", 45.0f }, { "reverb_size", 75.0f },
+                { "s*_feedback", 35.0f }, { "s*_fb_diffusion", 50.0f }, { "s*_reverb_mix", 45.0f }, { "s*_reverb_size", 75.0f },
                 { "lfo1_rate", 0.05f },
                 { "mod1_source", Lfo1 }, { "mod1_dest", modDest ("s1_pan") }, { "mod1_depth", 60.0f } },
               { { 0, "factory:drone", "Drone" }, { 1, "factory:harmonic", "Harmonic" } } },
@@ -191,8 +200,8 @@ namespace ogi::factory
               { { "polyphony", 6.0f }, { "amp_attack", 1500.0f }, { "amp_release", 6000.0f },
                 { "s1_key_track", 50.0f }, { "s1_scan_mode", 2.0f }, { "s1_scan_rate", 6.0f }, { "s1_size", 800.0f }, { "s1_density", 10.0f },
                 { "s1_spray", 40.0f }, { "s1_level", 6.0f },
-                { "feedback", 80.0f }, { "fb_saturation", 40.0f }, { "fb_diffusion", 70.0f }, { "fb_high_cut", 6000.0f },
-                { "reverb_mix", 35.0f }, { "reverb_size", 70.0f } },
+                { "s*_feedback", 80.0f }, { "s*_fb_saturation", 40.0f }, { "s*_fb_diffusion", 70.0f }, { "s*_fb_high_cut", 6000.0f },
+                { "s*_reverb_mix", 35.0f }, { "s*_reverb_size", 70.0f } },
               { { 0, "factory:harmonic", "Harmonic" } } },
 
             { "Drones \xc2\xb7 Night Engine",
@@ -203,7 +212,7 @@ namespace ogi::factory
                 { "s1_ring_freq", 55.0f }, { "s1_ring_mix", 25.0f }, { "s1_spray", 30.0f },
                 { "s2_enable", 1.0f }, { "s2_level", -16.0f }, { "s2_key_track", 0.0f }, { "s2_size", 400.0f }, { "s2_density", 10.0f },
                 { "s2_spray", 100.0f }, { "s2_filter_type", 2.0f }, { "s2_filter_cutoff", 300.0f }, { "s2_filter_res", 40.0f },
-                { "feedback", 55.0f }, { "fb_diffusion", 45.0f }, { "reverb_mix", 35.0f } },
+                { "s*_feedback", 55.0f }, { "s*_fb_diffusion", 45.0f }, { "s*_reverb_mix", 35.0f } },
               { { 0, "factory:drone", "Drone" }, { 1, "factory:noise_bed", "Noise Bed" } } },
 
             //==================================================================
@@ -216,7 +225,7 @@ namespace ogi::factory
               { { "mpe_enable", 1.0f }, { "pitch_bend_range", 48.0f }, { "amp_attack", 60.0f }, { "amp_release", 900.0f },
                 { "s1_size", 180.0f }, { "s1_density", 30.0f }, { "s1_spray", 15.0f }, { "s1_position", 30.0f }, { "s1_level", -1.0f },
                 { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 1200.0f }, { "s1_filter_res", 20.0f },
-                { "reverb_mix", 25.0f },
+                { "s*_reverb_mix", 25.0f },
                 { "mod1_source", Press }, { "mod1_dest", modDest ("s1_level") }, { "mod1_depth", 40.0f },
                 { "mod2_source", Press }, { "mod2_dest", modDest ("s1_filter_cutoff") }, { "mod2_depth", 50.0f },
                 { "mod3_source", Slide }, { "mod3_dest", modDest ("s1_position") }, { "mod3_depth", 45.0f } },
@@ -229,7 +238,7 @@ namespace ogi::factory
                 { "amp_sustain", 50.0f }, { "amp_release", 1500.0f },
                 { "s1_scan_rate", 60.0f }, { "s1_size", 120.0f }, { "s1_density", 40.0f }, { "s1_spray", 8.0f }, { "s1_level", 2.9f },
                 { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 1500.0f }, { "s1_filter_res", 30.0f },
-                { "reverb_mix", 35.0f }, { "reverb_size", 70.0f },
+                { "s*_reverb_mix", 35.0f }, { "s*_reverb_size", 70.0f },
                 { "mod1_source", Slide }, { "mod1_dest", modDest ("s1_filter_cutoff") }, { "mod1_depth", 60.0f },
                 { "mod2_source", Press }, { "mod2_dest", modDest ("s1_level") }, { "mod2_depth", 35.0f } },
               { { 0, "factory:bell", "Bell" } } },
@@ -240,7 +249,7 @@ namespace ogi::factory
               { { "mpe_enable", 1.0f }, { "pitch_bend_range", 48.0f }, { "amp_attack", 40.0f }, { "amp_release", 700.0f },
                 { "s1_size", 160.0f }, { "s1_density", 32.0f }, { "s1_spray", 5.0f }, { "s1_position", 10.0f }, { "s1_level", -0.7f },
                 { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 2500.0f },
-                { "reverb_mix", 20.0f },
+                { "s*_reverb_mix", 20.0f },
                 { "mod1_source", Press }, { "mod1_dest", modDest ("s1_position") }, { "mod1_depth", 70.0f },
                 { "mod2_source", Slide }, { "mod2_dest", modDest ("s1_filter_cutoff") }, { "mod2_depth", 40.0f } },
               { { 0, "factory:vowel", "Vowel" } } },
@@ -252,7 +261,7 @@ namespace ogi::factory
                 { "s1_size", 300.0f }, { "s1_density", 18.0f }, { "s1_spray", 25.0f }, { "s1_position", 40.0f }, { "s1_level", -5.0f },
                 { "s2_enable", 1.0f }, { "s2_level", -10.0f }, { "s2_pitch", 12.0f }, { "s2_size", 350.0f }, { "s2_density", 12.0f },
                 { "s2_spray", 30.0f },
-                { "reverb_mix", 40.0f }, { "reverb_size", 75.0f },
+                { "s*_reverb_mix", 40.0f }, { "s*_reverb_size", 75.0f },
                 { "mod1_source", Bend }, { "mod1_dest", modDest ("s1_pan") }, { "mod1_depth", 50.0f },
                 { "mod2_source", Press }, { "mod2_dest", modDest ("s2_level") }, { "mod2_depth", 40.0f },
                 { "mod3_source", Slide }, { "mod3_dest", modDest ("s1_position") }, { "mod3_depth", 30.0f } },
@@ -264,7 +273,7 @@ namespace ogi::factory
               { { "voice_mode", 1.0f }, { "glide", 120.0f }, { "amp_attack", 15.0f }, { "amp_release", 400.0f },
                 { "s1_size", 90.0f }, { "s1_density", 60.0f }, { "s1_spray", 3.0f }, { "s1_jitter", 5.0f }, { "s1_level", 4.1f },
                 { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 2000.0f }, { "s1_filter_res", 35.0f }, { "s1_drive", 20.0f },
-                { "reverb_mix", 18.0f },
+                { "s*_reverb_mix", 18.0f },
                 { "mod1_source", Wheel }, { "mod1_dest", modDest ("s1_filter_cutoff") }, { "mod1_depth", 50.0f } },
               { { 0, "factory:harmonic", "Harmonic" } } },
 
@@ -284,7 +293,7 @@ namespace ogi::factory
               { { "amp_attack", 30.0f }, { "amp_release", 900.0f },
                 { "s1_size", 200.0f }, { "s1_density", 26.0f }, { "s1_spray", 10.0f }, { "s1_level", -3.1f },
                 { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 1500.0f },
-                { "reverb_mix", 25.0f },
+                { "s*_reverb_mix", 25.0f },
                 { "mod1_source", Wheel }, { "mod1_dest", modDest ("s1_position") }, { "mod1_depth", 80.0f },
                 { "mod2_source", Vel }, { "mod2_dest", modDest ("s1_filter_cutoff") }, { "mod2_depth", 45.0f },
                 { "mod3_source", Key }, { "mod3_dest", modDest ("s1_size") }, { "mod3_depth", -30.0f } },
@@ -296,7 +305,7 @@ namespace ogi::factory
               { { "vel_to_amp", 45.0f }, { "amp_attack", 2.0f }, { "amp_decay", 2500.0f }, { "amp_sustain", 45.0f }, { "amp_release", 1200.0f },
                 { "s1_scan_rate", 80.0f }, { "s1_size", 70.0f }, { "s1_density", 70.0f }, { "s1_spray", 20.0f }, { "s1_level", 6.0f },
                 { "s1_crush", 30.0f }, { "s1_crush_prob", 40.0f },
-                { "reverb_mix", 30.0f },
+                { "s*_reverb_mix", 30.0f },
                 { "mod1_source", Vel }, { "mod1_dest", modDest ("s1_density") }, { "mod1_depth", 40.0f },
                 { "mod2_source", NoteRnd }, { "mod2_dest", modDest ("s1_pan") }, { "mod2_depth", 70.0f },
                 { "mod3_source", Vel }, { "mod3_dest", modDest ("s1_crush") }, { "mod3_depth", 50.0f } },
@@ -312,7 +321,7 @@ namespace ogi::factory
               { { "amp_attack", 2.0f }, { "amp_decay", 1800.0f }, { "amp_sustain", 50.0f }, { "amp_release", 600.0f }, { "vel_to_amp", 50.0f },
                 { "s1_scan_rate", 100.0f }, { "s1_size", 60.0f }, { "s1_density", 140.0f }, { "s1_spray", 2.0f }, { "s1_jitter", 10.0f },
                 { "s1_window", 0.5f }, { "s1_window_skew", -40.0f }, { "s1_level", 6.0f },
-                { "reverb_mix", 18.0f } },
+                { "s*_reverb_mix", 18.0f } },
               { { 0, "factory:pluck", "Pluck" } } },
 
             { "Keys \xc2\xb7 Celesta",
@@ -321,7 +330,7 @@ namespace ogi::factory
               { { "amp_attack", 1.0f }, { "amp_decay", 2500.0f }, { "amp_sustain", 45.0f }, { "amp_release", 800.0f }, { "vel_to_amp", 50.0f },
                 { "s1_pitch", 12.0f }, { "s1_scan_rate", 100.0f }, { "s1_size", 50.0f }, { "s1_density", 150.0f }, { "s1_spray", 1.0f },
                 { "s1_jitter", 5.0f }, { "s1_window", 0.6f }, { "s1_window_skew", -50.0f }, { "s1_level", 6.0f },
-                { "reverb_mix", 25.0f }, { "reverb_size", 45.0f } },
+                { "s*_reverb_mix", 25.0f }, { "s*_reverb_size", 45.0f } },
               { { 0, "factory:bell", "Bell" } } },
 
             { "Keys \xc2\xb7 Bell",
@@ -330,7 +339,7 @@ namespace ogi::factory
               { { "amp_attack", 1.0f }, { "amp_decay", 4000.0f }, { "amp_sustain", 20.0f }, { "amp_release", 2000.0f }, { "vel_to_amp", 50.0f },
                 { "s1_scan_rate", 100.0f }, { "s1_size", 80.0f }, { "s1_density", 60.0f }, { "s1_spray", 2.0f }, { "s1_jitter", 5.0f },
                 { "s1_window", 0.6f }, { "s1_window_skew", -30.0f }, { "s1_level", 6.0f },
-                { "reverb_mix", 30.0f }, { "reverb_size", 65.0f } },
+                { "s*_reverb_mix", 30.0f }, { "s*_reverb_size", 65.0f } },
               { { 0, "factory:bell", "Bell" } } },
 
             { "Keys \xc2\xb7 Glass Mallet",
@@ -342,7 +351,7 @@ namespace ogi::factory
                 { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 6000.0f },
                 { "s2_enable", 1.0f }, { "s2_level", -12.0f }, { "s2_pitch", 12.0f }, { "s2_scan_rate", 100.0f }, { "s2_size", 40.0f },
                 { "s2_density", 100.0f }, { "s2_spray", 3.0f }, { "s2_window", 0.9f },
-                { "reverb_mix", 22.0f } },
+                { "s*_reverb_mix", 22.0f } },
               { { 0, "factory:bell", "Bell" }, { 1, "factory:pluck", "Pluck" } } },
 
             { "Keys \xc2\xb7 Soft Rhodes",
@@ -352,7 +361,7 @@ namespace ogi::factory
                 { "s1_scan_rate", 100.0f }, { "s1_size", 120.0f }, { "s1_density", 40.0f }, { "s1_spray", 3.0f }, { "s1_jitter", 10.0f },
                 { "s1_window", 0.5f }, { "s1_level", 5.5f },
                 { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 2500.0f }, { "s1_filter_res", 10.0f }, { "s1_drive", 15.0f },
-                { "reverb_mix", 20.0f },
+                { "s*_reverb_mix", 20.0f },
                 { "mod1_source", Vel }, { "mod1_dest", modDest ("s1_filter_cutoff") }, { "mod1_depth", 35.0f } },
               { { 0, "factory:harmonic", "Harmonic" } } },
 
@@ -363,7 +372,7 @@ namespace ogi::factory
                 { "s1_scan_rate", 120.0f }, { "s1_size", 60.0f }, { "s1_density", 200.0f }, { "s1_spray", 2.0f }, { "s1_jitter", 6.0f },
                 { "s1_window", 0.6f }, { "s1_window_skew", -60.0f }, { "s1_level", 6.0f },
                 { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 4000.0f }, { "s1_filter_res", 10.0f },
-                { "reverb_mix", 15.0f } },
+                { "s*_reverb_mix", 15.0f } },
               { { 0, "factory:pluck", "Pluck" } } },
 
             { "Keys \xc2\xb7 Harp Cascade",
@@ -374,7 +383,7 @@ namespace ogi::factory
                 { "s1_level", 6.0f },
                 { "s2_enable", 1.0f }, { "s2_level", -10.0f }, { "s2_pitch", 12.0f }, { "s2_scan_rate", 100.0f }, { "s2_size", 60.0f },
                 { "s2_density", 50.0f }, { "s2_spray", 6.0f }, { "s2_window", 0.7f },
-                { "reverb_mix", 35.0f }, { "reverb_size", 75.0f } },
+                { "s*_reverb_mix", 35.0f }, { "s*_reverb_size", 75.0f } },
               { { 0, "factory:pluck", "Pluck" }, { 1, "factory:pluck", "Pluck" } } },
 
             { "Keys \xc2\xb7 Toy Box",
@@ -384,7 +393,7 @@ namespace ogi::factory
                 { "s1_pitch", 12.0f }, { "s1_scan_rate", 100.0f }, { "s1_size", 70.0f }, { "s1_density", 130.0f }, { "s1_spray", 2.0f },
                 { "s1_window", 0.6f }, { "s1_window_skew", -50.0f }, { "s1_level", 6.0f }, { "s1_stereo_spread", 60.0f },
                 { "s1_crush", 30.0f }, { "s1_crush_prob", 50.0f },
-                { "reverb_mix", 20.0f } },
+                { "s*_reverb_mix", 20.0f } },
               { { 0, "factory:bell", "Bell" } } },
 
             //==================================================================
@@ -404,7 +413,7 @@ namespace ogi::factory
               0x4F47490401000002ll,
               { { "rec_target", 0.0f }, { "rec_trigger", 0.0f }, { "rec_length", 4.0f },
                 { "s1_scan_mode", 0.0f }, { "s1_scan_rate", 100.0f }, { "s1_size", 200.0f }, { "s1_density", 20.0f }, { "s1_spray", 5.0f },
-                { "reverb_mix", 15.0f } },
+                { "s*_reverb_mix", 15.0f } },
               {}, true },
 
             { "Live \xc2\xb7 Threshold Catch",
@@ -412,7 +421,7 @@ namespace ogi::factory
               0x4F47490401000003ll,
               { { "s1_level", -1.0f }, { "rec_target", 0.0f }, { "rec_trigger", 1.0f }, { "rec_threshold", -36.0f }, { "rec_length", 2.0f },
                 { "s1_size", 150.0f }, { "s1_density", 20.0f }, { "s1_spray", 60.0f }, { "s1_stereo_spread", 70.0f },
-                { "reverb_mix", 25.0f } },
+                { "s*_reverb_mix", 25.0f } },
               {}, true },
 
             { "Live \xc2\xb7 Next Note Grab",
@@ -421,7 +430,7 @@ namespace ogi::factory
               { { "s2_level", -1.0f }, { "rec_target", 1.0f }, { "rec_trigger", 2.0f }, { "rec_length", 3.0f },
                 { "s1_enable", 0.0f },
                 { "s2_enable", 1.0f }, { "s2_scan_rate", 100.0f }, { "s2_size", 180.0f }, { "s2_density", 22.0f }, { "s2_spray", 10.0f },
-                { "reverb_mix", 20.0f } },
+                { "s*_reverb_mix", 20.0f } },
               {}, true },
 
             { "Live \xc2\xb7 Tempo Bars",
@@ -438,7 +447,7 @@ namespace ogi::factory
                 { "s1_enable", 0.0f },
                 { "s2_enable", 1.0f }, { "s2_scan_mode", 0.0f }, { "s2_scan_rate", 50.0f }, { "s2_size", 300.0f }, { "s2_density", 15.0f },
                 { "s2_spray", 40.0f },
-                { "feedback", 60.0f }, { "fb_diffusion", 50.0f }, { "reverb_mix", 30.0f } },
+                { "s*_feedback", 60.0f }, { "s*_fb_diffusion", 50.0f }, { "s*_reverb_mix", 30.0f } },
               {}, true },
 
             { "Live \xc2\xb7 Freeze Cloud",
@@ -447,7 +456,7 @@ namespace ogi::factory
               { { "rec_target", 2.0f }, { "rec_trigger", 0.0f }, { "rec_length", 8.0f }, { "rec_gain", 6.0f }, { "freeze", 1.0f },
                 { "s1_enable", 0.0f },
                 { "s3_enable", 1.0f }, { "s3_size", 700.0f }, { "s3_density", 10.0f }, { "s3_spray", 100.0f }, { "s3_stereo_spread", 90.0f },
-                { "reverb_mix", 45.0f }, { "reverb_size", 80.0f } },
+                { "s*_reverb_mix", 45.0f }, { "s*_reverb_size", 80.0f } },
               {}, true },
 
             { "Live \xc2\xb7 Four Lanes",
@@ -458,7 +467,7 @@ namespace ogi::factory
                 { "s2_enable", 1.0f }, { "s2_level", -9.0f }, { "s2_pitch", 7.0f }, { "s2_size", 200.0f }, { "s2_density", 10.0f },
                 { "s3_enable", 1.0f }, { "s3_level", -11.0f }, { "s3_pitch", 12.0f }, { "s3_size", 200.0f }, { "s3_density", 8.0f },
                 { "s4_enable", 1.0f }, { "s4_level", -9.0f }, { "s4_scan_rate", 100.0f }, { "s4_size", 250.0f }, { "s4_density", 12.0f },
-                { "reverb_mix", 20.0f } },
+                { "s*_reverb_mix", 20.0f } },
               {}, true },
 
             //==================================================================
@@ -473,7 +482,7 @@ namespace ogi::factory
                 { "s1_level", -13.2f }, { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 4000.0f },
                 { "s2_enable", 1.0f }, { "s2_level", -8.0f }, { "s2_scan_mode", 0.0f }, { "s2_scan_rate", 35.0f }, { "s2_size", 250.0f },
                 { "s2_density", 15.0f }, { "s2_pitch", 12.0f },
-                { "reverb_mix", 30.0f },
+                { "s*_reverb_mix", 30.0f },
                 { "lfo1_mode", 1.0f }, { "lfo1_rate", 0.7f }, { "lfo2_rate", 0.11f }, { "lfo2_shape", Tri },
                 { "menv1_attack", 800.0f }, { "menv1_sustain", 60.0f },
                 { "mod1_source", Lfo1 }, { "mod1_dest", modDest ("s1_pan") }, { "mod1_depth", 60.0f },
@@ -490,7 +499,7 @@ namespace ogi::factory
               { { "amp_attack", 400.0f }, { "amp_release", 2500.0f },
                 { "s1_scan_mode", 0.0f }, { "s1_scan_rate", -60.0f }, { "s1_size", 300.0f }, { "s1_density", 18.0f }, { "s1_spray", 20.0f },
                 { "s1_level", -4.0f }, { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 5000.0f },
-                { "reverb_mix", 35.0f },
+                { "s*_reverb_mix", 35.0f },
                 { "lfo1_rate", 0.09f }, { "lfo2_mode", 1.0f }, { "lfo2_rate", 0.5f }, { "lfo2_shape", SmoothRnd },
                 { "menv2_attack", 1500.0f }, { "menv2_sustain", 80.0f },
                 { "mod1_source", Lfo1 }, { "mod1_dest", modDest ("s1_position") }, { "mod1_depth", 30.0f },
@@ -507,7 +516,7 @@ namespace ogi::factory
               { { "amp_attack", 80.0f }, { "amp_release", 1200.0f },
                 { "s1_scan_mode", 0.0f }, { "s1_scan_rate", 50.0f }, { "s1_loop_start", 40.0f }, { "s1_loop_end", 52.0f },
                 { "s1_size", 160.0f }, { "s1_density", 28.0f }, { "s1_spray", 5.0f }, { "s1_level", -1.2f },
-                { "reverb_mix", 25.0f },
+                { "s*_reverb_mix", 25.0f },
                 { "lfo1_rate", 0.13f }, { "lfo1_shape", Tri }, { "lfo2_mode", 1.0f }, { "lfo2_rate", 1.1f },
                 { "mod1_source", Lfo1 }, { "mod1_dest", modDest ("s1_loop_start") }, { "mod1_depth", 20.0f },
                 { "mod2_source", Mac3 }, { "mod2_dest", modDest ("s1_loop_start") }, { "mod2_depth", 30.0f },
@@ -523,7 +532,7 @@ namespace ogi::factory
               { { "amp_attack", 5.0f }, { "amp_decay", 1500.0f }, { "amp_sustain", 70.0f }, { "amp_release", 1200.0f },
                 { "s1_scan_mode", 0.0f }, { "s1_scan_rate", 40.0f }, { "s1_size", 120.0f }, { "s1_density", 80.0f }, { "s1_spray", 10.0f },
                 { "s1_level", 6.0f }, { "s1_ring_freq", 300.0f }, { "s1_ring_rand", 30.0f }, { "s1_ring_mix", 20.0f },
-                { "reverb_mix", 30.0f },
+                { "s*_reverb_mix", 30.0f },
                 { "lfo1_rate", 0.25f }, { "lfo2_mode", 1.0f }, { "lfo2_rate", 2.0f }, { "lfo2_shape", Tri },
                 { "mod1_source", Lfo1 }, { "mod1_dest", modDest ("s1_ring_freq") }, { "mod1_depth", 40.0f },
                 { "mod2_source", Mac4 }, { "mod2_dest", modDest ("s1_ring_mix") }, { "mod2_depth", 50.0f },
@@ -542,7 +551,7 @@ namespace ogi::factory
                 { "s1_filter_type", 2.0f }, { "s1_filter_cutoff", 1800.0f }, { "s1_filter_res", 30.0f },
                 { "s2_enable", 1.0f }, { "s2_level", -6.0f }, { "s2_scan_rate", 100.0f }, { "s2_size", 80.0f }, { "s2_density", 25.0f },
                 { "s2_spray", 5.0f }, { "s2_crush", 25.0f },
-                { "reverb_mix", 25.0f },
+                { "s*_reverb_mix", 25.0f },
                 { "lfo1_mode", 1.0f }, { "lfo1_rate", 0.6f }, { "lfo2_rate", 0.07f },
                 { "mod1_source", Lfo1 }, { "mod1_dest", modDest ("s1_crush") }, { "mod1_depth", 35.0f },
                 { "mod2_source", Lfo2 }, { "mod2_dest", modDest ("s1_position") }, { "mod2_depth", 40.0f },
@@ -560,7 +569,7 @@ namespace ogi::factory
                 { "s1_level", -7.8f }, { "s1_gain_rand", 40.0f },
                 { "s2_enable", 1.0f }, { "s2_level", -6.0f }, { "s2_scan_mode", 0.0f }, { "s2_scan_rate", -20.0f }, { "s2_size", 200.0f },
                 { "s2_density", 18.0f }, { "s2_spray", 40.0f },
-                { "reverb_mix", 35.0f },
+                { "s*_reverb_mix", 35.0f },
                 { "lfo1_mode", 1.0f }, { "lfo1_rate", 0.9f }, { "lfo1_shape", SmoothRnd }, { "lfo2_mode", 1.0f }, { "lfo2_rate", 0.4f },
                 { "mod1_source", Lfo1 }, { "mod1_dest", modDest ("s1_density") }, { "mod1_depth", 30.0f },
                 { "mod2_source", Lfo2 }, { "mod2_dest", modDest ("s2_pan") }, { "mod2_depth", 60.0f },
@@ -578,7 +587,7 @@ namespace ogi::factory
                 { "s1_level", -8.1f },
                 { "s2_enable", 1.0f }, { "s2_level", -8.0f }, { "s2_pitch", 7.0f }, { "s2_scan_mode", 0.0f }, { "s2_scan_rate", 17.0f },
                 { "s2_size", 260.0f }, { "s2_density", 14.0f }, { "s2_spray", 10.0f },
-                { "reverb_mix", 40.0f }, { "reverb_size", 70.0f },
+                { "s*_reverb_mix", 40.0f }, { "s*_reverb_size", 70.0f },
                 { "lfo1_mode", 1.0f }, { "lfo1_rate", 0.2f }, { "lfo2_mode", 1.0f }, { "lfo2_rate", 0.23f }, { "lfo2_phase", 90.0f },
                 { "mod1_source", Lfo1 }, { "mod1_dest", modDest ("s1_position") }, { "mod1_depth", 25.0f },
                 { "mod2_source", Lfo2 }, { "mod2_dest", modDest ("s2_position") }, { "mod2_depth", 25.0f },
@@ -594,7 +603,7 @@ namespace ogi::factory
               { { "amp_attack", 5.0f }, { "amp_release", 600.0f },
                 { "s1_scan_mode", 0.0f }, { "s1_scan_rate", 100.0f }, { "s1_size", 110.0f }, { "s1_density", 24.0f }, { "s1_spray", 8.0f },
                 { "s1_key_track", 50.0f }, { "s1_level", -7.9f }, { "s1_ring_freq", 800.0f }, { "s1_ring_mix", 20.0f },
-                { "reverb_mix", 20.0f },
+                { "s*_reverb_mix", 20.0f },
                 { "lfo1_mode", 1.0f }, { "lfo1_rate", 1.5f }, { "lfo1_shape", Square }, { "lfo2_rate", 0.17f }, { "lfo2_shape", Saw },
                 { "mod1_source", Lfo1 }, { "mod1_dest", modDest ("s1_reverse_prob") }, { "mod1_depth", 40.0f },
                 { "mod2_source", Lfo2 }, { "mod2_dest", modDest ("s1_position") }, { "mod2_depth", 35.0f },
@@ -616,7 +625,7 @@ namespace ogi::factory
                 { "s1_position", 30.0f }, { "s1_size", 400.0f }, { "s1_density", 16.0f }, { "s1_spray", 40.0f }, { "s1_level", -5.0f },
                 { "s2_enable", 1.0f }, { "s2_level", -10.0f }, { "s2_pitch", 12.0f }, { "s2_size", 500.0f }, { "s2_density", 10.0f },
                 { "s2_spray", 50.0f }, { "s2_position", 50.0f },
-                { "reverb_mix", 45.0f }, { "reverb_size", 75.0f },
+                { "s*_reverb_mix", 45.0f }, { "s*_reverb_size", 75.0f },
                 { "lfo1_rate", 0.08f },
                 { "mod1_source", Lfo1 }, { "mod1_dest", modDest ("s1_position") }, { "mod1_depth", 25.0f } },
               { { 0, "factory:vowel", "Vowel" }, { 1, "factory:vowel", "Vowel" } } },
@@ -630,7 +639,7 @@ namespace ogi::factory
                 { "s2_spray", 40.0f },
                 { "s3_enable", 1.0f }, { "s3_level", -12.0f }, { "s3_pitch", -12.0f }, { "s3_size", 900.0f }, { "s3_density", 7.0f },
                 { "s3_spray", 50.0f },
-                { "reverb_mix", 50.0f }, { "reverb_size", 85.0f },
+                { "s*_reverb_mix", 50.0f }, { "s*_reverb_size", 85.0f },
                 { "lfo1_rate", 0.06f },
                 { "mod1_source", Lfo1 }, { "mod1_dest", modDest ("s1_position") }, { "mod1_depth", 30.0f } },
               { { 0, "factory:harmonic", "Harmonic" }, { 1, "factory:harmonic", "Harmonic" }, { 2, "factory:drone", "Drone" } } },
@@ -643,7 +652,7 @@ namespace ogi::factory
                 { "s1_level", -9.4f },
                 { "s2_enable", 1.0f }, { "s2_level", -11.0f }, { "s2_pitch", 12.0f }, { "s2_size", 300.0f }, { "s2_density", 14.0f },
                 { "s2_spray", 50.0f }, { "s2_pitch_rand", 7.0f }, { "s2_scale", 4.0f },
-                { "reverb_mix", 55.0f }, { "reverb_size", 80.0f },
+                { "s*_reverb_mix", 55.0f }, { "s*_reverb_size", 80.0f },
                 { "lfo2_rate", 0.1f },
                 { "mod1_source", Lfo2 }, { "mod1_dest", modDest ("s2_position") }, { "mod1_depth", 35.0f } },
               { { 0, "factory:harmonic", "Harmonic" }, { 1, "factory:vowel", "Vowel" } } },
@@ -655,7 +664,7 @@ namespace ogi::factory
                 { "s1_size", 800.0f }, { "s1_density", 9.0f }, { "s1_spray", 30.0f }, { "s1_level", -7.0f },
                 { "s2_enable", 1.0f }, { "s2_level", -9.0f }, { "s2_pitch", 12.0f }, { "s2_size", 400.0f }, { "s2_density", 14.0f },
                 { "s2_spray", 40.0f }, { "s2_pitch_rand", 7.0f }, { "s2_scale", 24.0f },
-                { "reverb_mix", 40.0f }, { "reverb_size", 75.0f },
+                { "s*_reverb_mix", 40.0f }, { "s*_reverb_size", 75.0f },
                 { "lfo1_rate", 0.07f },
                 { "mod1_source", Lfo1 }, { "mod1_dest", modDest ("s2_position") }, { "mod1_depth", 30.0f } },
               { { 0, "factory:drone", "Drone" }, { 1, "factory:harmonic", "Harmonic" } } },
@@ -668,7 +677,7 @@ namespace ogi::factory
                 { "s1_level", -7.0f },
                 { "s2_enable", 1.0f }, { "s2_level", -12.0f }, { "s2_pitch", 12.0f }, { "s2_size", 400.0f }, { "s2_density", 10.0f },
                 { "s2_spray", 50.0f }, { "s2_pitch_rand", 5.0f }, { "s2_scale", 31.0f },
-                { "reverb_mix", 45.0f }, { "reverb_size", 75.0f },
+                { "s*_reverb_mix", 45.0f }, { "s*_reverb_size", 75.0f },
                 { "lfo1_rate", 0.09f },
                 { "mod1_source", Lfo1 }, { "mod1_dest", modDest ("s1_position") }, { "mod1_depth", 30.0f } },
               { { 0, "factory:harmonic", "Harmonic" }, { 1, "factory:vowel", "Vowel" } }, false,
@@ -681,7 +690,7 @@ namespace ogi::factory
                 { "s1_size", 300.0f }, { "s1_density", 18.0f }, { "s1_spray", 45.0f }, { "s1_pitch_rand", 12.0f }, { "s1_scale", 31.0f },
                 { "s1_pitch", 12.0f }, { "s1_level", -11.4f },
                 { "s2_enable", 1.0f }, { "s2_level", -8.0f }, { "s2_size", 900.0f }, { "s2_density", 7.0f }, { "s2_spray", 30.0f },
-                { "reverb_mix", 50.0f }, { "reverb_size", 80.0f },
+                { "s*_reverb_mix", 50.0f }, { "s*_reverb_size", 80.0f },
                 { "lfo1_rate", 0.05f },
                 { "mod1_source", Lfo1 }, { "mod1_dest", modDest ("s2_position") }, { "mod1_depth", 30.0f } },
               { { 0, "factory:harmonic", "Harmonic" }, { 1, "factory:drone", "Drone" } }, false,
@@ -695,7 +704,7 @@ namespace ogi::factory
                 { "s1_level", -11.0f },
                 { "s2_enable", 1.0f }, { "s2_level", -10.0f }, { "s2_pitch", -12.0f }, { "s2_size", 600.0f }, { "s2_density", 9.0f },
                 { "s2_spray", 50.0f },
-                { "reverb_mix", 60.0f }, { "reverb_size", 85.0f },
+                { "s*_reverb_mix", 60.0f }, { "s*_reverb_size", 85.0f },
                 { "lfo1_shape", SmoothRnd }, { "lfo1_rate", 0.15f }, { "lfo2_rate", 0.04f },
                 { "mod1_source", Lfo1 }, { "mod1_dest", modDest ("s1_pan") }, { "mod1_depth", 50.0f },
                 { "mod2_source", Lfo2 }, { "mod2_dest", modDest ("s2_position") }, { "mod2_depth", 35.0f } },
@@ -709,7 +718,7 @@ namespace ogi::factory
                 { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 4000.0f },
                 { "s2_enable", 1.0f }, { "s2_level", -9.0f }, { "s2_pitch", 12.0f }, { "s2_root_fine", 8.0f }, { "s2_size", 250.0f },
                 { "s2_density", 22.0f }, { "s2_spray", 20.0f }, { "s2_filter_type", 1.0f }, { "s2_filter_cutoff", 5000.0f },
-                { "reverb_mix", 35.0f }, { "reverb_size", 70.0f },
+                { "s*_reverb_mix", 35.0f }, { "s*_reverb_size", 70.0f },
                 { "lfo1_rate", 0.12f },
                 { "mod1_source", Lfo1 }, { "mod1_dest", modDest ("s1_position") }, { "mod1_depth", 20.0f } },
               { { 0, "factory:harmonic", "Harmonic" }, { 1, "factory:harmonic", "Harmonic" } } },
@@ -724,7 +733,7 @@ namespace ogi::factory
               { { "sync_mode", 1.0f }, { "amp_attack", 2.0f }, { "amp_release", 200.0f },
                 { "s1_scan_mode", 1.0f }, { "s1_scan_rate", 100.0f }, { "s1_key_track", 0.0f }, { "s1_density_sync", 7.0f },
                 { "s1_size_sync", 7.0f }, { "s1_jitter", 0.0f }, { "s1_spray", 0.0f }, { "s1_level", -6.2f },
-                { "reverb_mix", 10.0f } },
+                { "s*_reverb_mix", 10.0f } },
               { { 0, "factory:pulse", "Pulse" } } },
 
             { "Rhythmic \xc2\xb7 Pluck Arp",
@@ -733,7 +742,7 @@ namespace ogi::factory
               { { "sync_mode", 1.0f }, { "amp_attack", 2.0f }, { "amp_release", 400.0f },
                 { "s1_scan_mode", 1.0f }, { "s1_density_sync", 10.0f }, { "s1_size_sync", 7.0f }, { "s1_jitter", 0.0f }, { "s1_spray", 0.0f },
                 { "s1_window", 0.8f }, { "s1_level", 1.4f }, { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 2500.0f }, { "s1_filter_res", 40.0f },
-                { "reverb_mix", 18.0f },
+                { "s*_reverb_mix", 18.0f },
                 { "lfo1_shape", Tri }, { "lfo1_rate_sync", 16.0f },
                 { "mod1_source", Lfo1 }, { "mod1_dest", modDest ("s1_filter_cutoff") }, { "mod1_depth", 40.0f } },
               { { 0, "factory:pluck", "Pluck" } } },
@@ -754,7 +763,7 @@ namespace ogi::factory
               { { "sync_mode", 1.0f }, { "amp_attack", 2.0f }, { "amp_release", 600.0f },
                 { "s1_scan_mode", 1.0f }, { "s1_density_sync", 11.0f }, { "s1_size_sync", 7.0f }, { "s1_jitter", 0.0f }, { "s1_spray", 0.0f },
                 { "s1_window", 0.7f }, { "s1_level", 6.0f },
-                { "feedback", 40.0f }, { "fb_diffusion", 20.0f }, { "reverb_mix", 20.0f } },
+                { "s*_feedback", 40.0f }, { "s*_fb_diffusion", 20.0f }, { "s*_reverb_mix", 20.0f } },
               { { 0, "factory:pluck", "Pluck" } } },
 
             { "Rhythmic \xc2\xb7 Triplet Rain",
@@ -765,7 +774,7 @@ namespace ogi::factory
                 { "s1_window", 0.7f }, { "s1_level", -5.5f },
                 { "s2_enable", 1.0f }, { "s2_level", -9.0f }, { "s2_scan_mode", 1.0f }, { "s2_scan_rate", 100.0f }, { "s2_key_track", 0.0f },
                 { "s2_density_sync", 6.0f }, { "s2_size_sync", 6.0f }, { "s2_jitter", 0.0f }, { "s2_spray", 0.0f },
-                { "reverb_mix", 15.0f } },
+                { "s*_reverb_mix", 15.0f } },
               { { 0, "factory:pluck", "Pluck" }, { 1, "factory:pulse", "Pulse" } } },
 
             { "Rhythmic \xc2\xb7 Gated Pad",
@@ -774,7 +783,7 @@ namespace ogi::factory
               { { "sync_mode", 1.0f }, { "amp_attack", 20.0f }, { "amp_release", 800.0f },
                 { "s1_scan_mode", 1.0f }, { "s1_density_sync", 10.0f }, { "s1_size_sync", 8.0f }, { "s1_jitter", 0.0f }, { "s1_spray", 0.0f },
                 { "s1_level", -8.5f }, { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 3000.0f },
-                { "reverb_mix", 25.0f },
+                { "s*_reverb_mix", 25.0f },
                 { "lfo1_shape", Square }, { "lfo1_rate_sync", 13.0f },
                 { "mod1_source", Lfo1 }, { "mod1_dest", modDest ("s1_level") }, { "mod1_depth", 15.0f } },
               { { 0, "factory:pluck", "Pluck" } } },
@@ -797,7 +806,7 @@ namespace ogi::factory
                 { "s1_size_sync", 4.0f }, { "s1_jitter", 0.0f }, { "s1_spray", 0.0f }, { "s1_gain_rand", 40.0f }, { "s1_level", -4.0f },
                 { "s2_enable", 1.0f }, { "s2_level", -9.0f }, { "s2_pitch", 12.0f }, { "s2_scan_mode", 1.0f }, { "s2_density_sync", 7.0f },
                 { "s2_size_sync", 7.0f }, { "s2_jitter", 0.0f }, { "s2_spray", 0.0f },
-                { "reverb_mix", 12.0f } },
+                { "s*_reverb_mix", 12.0f } },
               { { 0, "factory:pulse", "Pulse" }, { 1, "factory:pluck", "Pluck" } } },
 
             //==================================================================
@@ -812,7 +821,7 @@ namespace ogi::factory
                 { "s1_filter_type", 2.0f }, { "s1_filter_cutoff", 3500.0f }, { "s1_filter_res", 15.0f }, { "s1_filter_rand", 60.0f },
                 { "s2_enable", 1.0f }, { "s2_level", 0.0f }, { "s2_size", 200.0f }, { "s2_density", 30.0f }, { "s2_spray", 100.0f },
                 { "s2_filter_type", 2.0f }, { "s2_filter_cutoff", 1200.0f },
-                { "reverb_mix", 40.0f }, { "reverb_size", 70.0f } },
+                { "s*_reverb_mix", 40.0f }, { "s*_reverb_size", 70.0f } },
               { { 0, "factory:dust", "Dust" }, { 1, "factory:noise_bed", "Noise Bed" } } },
 
             { "Textures \xc2\xb7 Static Choir",
@@ -822,7 +831,7 @@ namespace ogi::factory
                 { "s1_size", 90.0f }, { "s1_density", 100.0f }, { "s1_spray", 100.0f }, { "s1_reverse_prob", 40.0f }, { "s1_level", 2.0f },
                 { "s1_crush", 35.0f }, { "s1_crush_prob", 40.0f },
                 { "s1_filter_type", 2.0f }, { "s1_filter_cutoff", 1500.0f }, { "s1_filter_rand", 40.0f }, { "s1_gain_rand", 30.0f },
-                { "reverb_mix", 30.0f } },
+                { "s*_reverb_mix", 30.0f } },
               { { 0, "factory:vowel", "Vowel" } } },
 
             { "Textures \xc2\xb7 Sand Drift",
@@ -831,7 +840,7 @@ namespace ogi::factory
               { { "polyphony", 4.0f }, { "amp_attack", 500.0f }, { "amp_release", 2500.0f },
                 { "s1_size", 150.0f }, { "s1_density", 80.0f }, { "s1_spray", 100.0f }, { "s1_gain_rand", 60.0f }, { "s1_level", 6.0f },
                 { "s1_filter_type", 3.0f }, { "s1_filter_cutoff", 800.0f }, { "s1_filter_rand", 30.0f },
-                { "reverb_mix", 25.0f },
+                { "s*_reverb_mix", 25.0f },
                 { "lfo1_rate", 0.1f },
                 { "mod1_source", Lfo1 }, { "mod1_dest", modDest ("s1_filter_cutoff") }, { "mod1_depth", 35.0f } },
               { { 0, "factory:noise_bed", "Noise Bed" } } },
@@ -845,7 +854,7 @@ namespace ogi::factory
                 { "s1_filter_type", 2.0f }, { "s1_filter_cutoff", 2000.0f }, { "s1_filter_res", 50.0f }, { "s1_filter_rand", 30.0f },
                 { "s1_ring_freq", 600.0f }, { "s1_ring_mix", 20.0f },
                 { "s2_enable", 1.0f }, { "s2_level", -10.0f }, { "s2_size", 100.0f }, { "s2_density", 30.0f }, { "s2_spray", 100.0f },
-                { "reverb_mix", 15.0f } },
+                { "s*_reverb_mix", 15.0f } },
               { { 0, "factory:vowel", "Vowel" }, { 1, "factory:dust", "Dust" } } },
 
             { "Textures \xc2\xb7 Ember Field",
@@ -854,7 +863,7 @@ namespace ogi::factory
               { { "polyphony", 4.0f }, { "amp_attack", 300.0f }, { "amp_release", 2500.0f },
                 { "s1_size", 110.0f }, { "s1_density", 190.0f }, { "s1_spray", 100.0f }, { "s1_reverse_prob", 50.0f }, { "s1_gain_rand", 40.0f },
                 { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 8000.0f }, { "s1_filter_rand", 50.0f }, { "s1_level", 6.0f },
-                { "reverb_mix", 50.0f }, { "reverb_size", 75.0f } },
+                { "s*_reverb_mix", 50.0f }, { "s*_reverb_size", 75.0f } },
               { { 0, "factory:dust", "Dust" } } },
 
             { "Textures \xc2\xb7 Wind Harp",
@@ -865,7 +874,7 @@ namespace ogi::factory
                 { "s1_filter_type", 2.0f }, { "s1_filter_cutoff", 900.0f }, { "s1_filter_res", 70.0f }, { "s1_filter_rand", 30.0f },
                 { "s2_enable", 1.0f }, { "s2_level", -12.0f }, { "s2_pitch", 12.0f }, { "s2_size", 250.0f }, { "s2_density", 25.0f },
                 { "s2_spray", 60.0f },
-                { "reverb_mix", 45.0f },
+                { "s*_reverb_mix", 45.0f },
                 { "mod1_source", Key }, { "mod1_dest", modDest ("s1_filter_cutoff") }, { "mod1_depth", 40.0f } },
               { { 0, "factory:noise_bed", "Noise Bed" }, { 1, "factory:vowel", "Vowel" } } },
 
@@ -876,7 +885,7 @@ namespace ogi::factory
                 { "s1_pitch", 24.0f }, { "s1_size", 35.0f }, { "s1_density", 140.0f }, { "s1_spray", 100.0f }, { "s1_reverse_prob", 30.0f },
                 { "s1_filter_type", 2.0f }, { "s1_filter_cutoff", 6000.0f }, { "s1_filter_rand", 50.0f }, { "s1_level", 2.7f },
                 { "s1_crush", 20.0f }, { "s1_crush_prob", 30.0f }, { "s1_gain_rand", 40.0f },
-                { "reverb_mix", 55.0f }, { "reverb_size", 80.0f } },
+                { "s*_reverb_mix", 55.0f }, { "s*_reverb_size", 80.0f } },
               { { 0, "factory:vowel", "Vowel" } } },
 
             { "Textures \xc2\xb7 Rust Cloud",
@@ -888,17 +897,63 @@ namespace ogi::factory
                 { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 2500.0f }, { "s1_filter_rand", 60.0f }, { "s1_gain_rand", 40.0f },
                 { "s2_enable", 1.0f }, { "s2_level", -10.0f }, { "s2_size", 80.0f }, { "s2_density", 40.0f }, { "s2_spray", 100.0f },
                 { "s2_drive", 40.0f },
-                { "reverb_mix", 25.0f } },
+                { "s*_reverb_mix", 25.0f } },
               { { 0, "factory:noise_bed", "Noise Bed" }, { 1, "factory:dust", "Dust" } } },
         };
+    }
+
+    /** PLAN-R1 PD27: every "s*_<suffix>" pair becomes the four "sN_<suffix>"
+        pairs, in place and in stream order. The suffix must be a row of
+        GiParamIds::streamDefs(); any other wildcard is left as written (and
+        validateSpec then refuses it as an unknown key). The expanded ids live
+        in a table built once (a spec holds const char*). */
+    inline void expandSpecValues (std::vector<std::pair<const char*, float>>& values)
+    {
+        static const std::vector<std::array<std::string, 4>> table = []
+        {
+            std::vector<std::array<std::string, 4>> t;
+            for (const auto& d : GiParamIds::streamDefs())
+            {
+                std::array<std::string, 4> row;
+                for (int n = 1; n <= 4; ++n)
+                    row[(size_t) (n - 1)] = "s" + std::to_string (n) + "_" + d.id;
+                t.push_back (std::move (row));
+            }
+            return t;
+        }();
+
+        std::vector<std::pair<const char*, float>> out;
+        out.reserve (values.size() + 24);
+        for (const auto& [id, v] : values)
+        {
+            const std::array<std::string, 4>* row = nullptr;
+            if (std::strncmp (id, "s*_", 3) == 0)
+            {
+                size_t k = 0;
+                for (const auto& d : GiParamIds::streamDefs())
+                {
+                    if (std::strcmp (d.id, id + 3) == 0)
+                        row = &table[k];
+                    ++k;
+                }
+            }
+            if (row == nullptr)
+                out.emplace_back (id, v);
+            else
+                for (const auto& full : *row)
+                    out.emplace_back (full.c_str(), v);
+        }
+        values = std::move (out);
     }
 
     /** Validation (PD2): no output_gain / rec_arm, every key a real parameter,
         every value inside its range, a seed, every slot a known factory id at
         index 0–3 (unique), every enabled stream with a listed slot (Live
         templates exempt). Returns the first problem, or an empty string. */
-    inline juce::String validateSpec (const FactoryPresetSpec& s, juce::AudioProcessorValueTreeState& apvts)
+    inline juce::String validateSpec (const FactoryPresetSpec& spec, juce::AudioProcessorValueTreeState& apvts)
     {
+        auto s = spec;
+        expandSpecValues (s.values);   // PLAN-R1 PD27
         const auto who = juce::String::fromUTF8 (s.name) + ": ";
         if (s.seed == 0)
             return who + "no seed";
@@ -971,8 +1026,9 @@ namespace ogi::factory
     inline std::vector<OuariconPresetManager::FactoryPresetDef> makeFactoryPresets (juce::AudioProcessorValueTreeState& apvts)
     {
         std::vector<OuariconPresetManager::FactoryPresetDef> defs;
-        for (const auto& s : factoryPresetSpecs())
+        for (auto& s : factoryPresetSpecs())
         {
+            expandSpecValues (s.values);   // PLAN-R1 PD27
             jassert (validateSpec (s, apvts).isEmpty());
             OuariconPresetManager::FactoryPresetDef d;
             d.name = juce::String::fromUTF8 (s.name);

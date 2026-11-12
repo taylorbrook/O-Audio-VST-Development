@@ -216,7 +216,7 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     for (int s = 0; s < kGiStreams; ++s)
     {
         reverbA[s].prepare (fs, kCell);
-        revMixWasOn[s] = gp.reverbMix > 0.0f;
+        revMixWasOn[s] = gp.s[s].reverbMix > 0.0f;
         // R1 PD8: the loop tanks (allocates: host thread). Gate B starts off —
         // the λ ramps are snapped further down, so the value just derived read
         // a stale ramp; the first tick derives it from the snapped state, and
@@ -225,22 +225,22 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
         revOnB[s].store (0.0f, std::memory_order_relaxed);
         tankGateB[s] = false;
         tankFadeB[s] = 0;
-        prevPre[s]  = reverbPre[s];
-        prevFbOn[s] = fbOn[s];
+        prevPre[s]  = gp.s[s].reverbPre;
+        prevFbOn[s] = gp.s[s].fbOn;
     }
 
     // PLAN-2.4 PD7: chain controls snapped to the params; the knob is UNITY
     // (reset once, never ticked: value (c) == 1.0f exactly, P1).
-    // R1 PD6: the controls are per stream; in B1 every stream reads the
-    // global parameter through the same statement.
+    // R1 PD6 / PD13: the controls are per stream, each from its own
+    // parameters (gp.s[s]) through the statement the global used.
     unityKnob.reset (1.0f);
     for (int s = 0; s < kGiStreams; ++s)
     {
-        parityKnob[s].reset (kFbKnob * gp.feedback);
-        diffRamp[s].reset (gp.fbDiffusion);
-        satDRamp[s].reset (1.0f + kSatSpan * gp.fbSaturation);
-        fbLowLogRamp[s].reset (std::log2 (gp.fbLowCutHz));
-        fbHighLogRamp[s].reset (std::log2 (gp.fbHighCutHz));
+        parityKnob[s].reset (kFbKnob * gp.s[s].feedback);
+        diffRamp[s].reset (gp.s[s].fbDiffusion);
+        satDRamp[s].reset (1.0f + kSatSpan * gp.s[s].fbSaturation);
+        fbLowLogRamp[s].reset (std::log2 (gp.s[s].fbLowCutHz));
+        fbHighLogRamp[s].reset (std::log2 (gp.s[s].fbHighCutHz));
         chainLowHz[s] = chainHighHz[s] = 0.0f;
     }
     updateChainCutoffs();
@@ -258,7 +258,7 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     // stays parked: run starts at 0), λ ramp snapped to the feedback param.
     for (int s = 0; s < kGiStreams; ++s)   // R1 PD6: per stream
     {
-        fbRamp[s].reset (gp.feedback);
+        fbRamp[s].reset (gp.s[s].feedback);
         fbNow[s] = fbRamp[s].current();   fbMod[s].reset (fbNow[s]);     useFbMod[s] = false;
         diffNow[s] = diffRamp[s].current(); diffMod[s].reset (diffNow[s]); useDiffMod[s] = false;
         satDNow[s] = satDRamp[s].current(); satDMod[s].reset (satDNow[s]); useSatMod[s] = false;
@@ -556,13 +556,12 @@ void Engine::updateChainCutoffs() noexcept
     {
         float lo = std::exp2 (fbLowLogRamp[s].current()), hi = std::exp2 (fbHighLogRamp[s].current());
         // PLAN-2.5a PD6 (parent :240-251): the routed cutoffs from the ramped raw Hz.
-        if (matrix.routed (GiDest::FbLowCut))  lo = matrix.apply (GiDest::FbLowCut,  lo, matrix.offset (GiDest::FbLowCut));
-        if (matrix.routed (GiDest::FbHighCut)) hi = matrix.apply (GiDest::FbHighCut, hi, matrix.offset (GiDest::FbHighCut));
-        if (s == 0)   // R1 B1: per-stream from T17 (one trace sample per tick, as before)
-        {
-            traceAt (GiDest::FbLowCut, lo);
-            traceAt (GiDest::FbHighCut, hi);
-        }
+        // R1 PD14: the stream's own destinations.
+        const int dLo = GiDest::stream (s, GiDest::FbLowCut), dHi = GiDest::stream (s, GiDest::FbHighCut);
+        if (matrix.routed (dLo)) lo = matrix.apply (dLo, lo, matrix.offset (dLo));
+        if (matrix.routed (dHi)) hi = matrix.apply (dHi, hi, matrix.offset (dHi));
+        traceAt (dLo, lo);
+        traceAt (dHi, hi);
         if (juce::exactlyEqual (lo, chainLowHz[s]) && juce::exactlyEqual (hi, chainHighHz[s]))
             continue;
         chainLowHz[s] = lo;
@@ -1136,19 +1135,21 @@ void Engine::gridTick (std::int64_t t) noexcept
 
     // PLAN-2.4 PD7: chain controls (20 ms), cutoffs as log2 ramps of raw Hz
     // (parent updateChainCutoffs: tan only when a cutoff moved).
-    // R1 PD6: per stream; in B1 every stream reads the global parameter and
-    // the global destination through the same statements.
+    // R1 PD6 / PD13 / PD14: per stream, each from its own parameters
+    // (gp.s[s]) and its own destinations, through the statements the global
+    // used.
     for (int s = 0; s < kGiStreams; ++s)
     {
-        parityKnob[s].setTarget (kFbKnob * gp.feedback, rampCells20);
+        const auto& gs = gp.s[s];
+        parityKnob[s].setTarget (kFbKnob * gs.feedback, rampCells20);
         parityKnob[s].tick();
-        diffRamp[s].setTarget (gp.fbDiffusion, rampCells20);
+        diffRamp[s].setTarget (gs.fbDiffusion, rampCells20);
         diffRamp[s].tick();
-        satDRamp[s].setTarget (1.0f + kSatSpan * gp.fbSaturation, rampCells20);
+        satDRamp[s].setTarget (1.0f + kSatSpan * gs.fbSaturation, rampCells20);
         satDRamp[s].tick();
         {
             // PLAN-2.5a PD6 (parent :772-785): diffusion / saturation substitutes.
-            using namespace GiDest;
+            const int FbDiff = GiDest::stream (s, GiDest::FbDiff), FbSat = GiDest::stream (s, GiDest::FbSat);
             const bool rd = matrix.routed (FbDiff), rs = matrix.routed (FbSat);
             const float df = rd ? GiModMap::pctFromRaw (matrix.apply (FbDiff, diffRamp[s].current() * 100.0f, matrix.offset (FbDiff)))
                                 : diffRamp[s].current();
@@ -1158,30 +1159,27 @@ void Engine::gridTick (std::int64_t t) noexcept
             satDMod[s].setCell (satDNow[s], sd); satDNow[s] = sd;
             useDiffMod[s] = rd || matrix.routedPrev (FbDiff);
             useSatMod[s]  = rs || matrix.routedPrev (FbSat);
-            if (s == 0)   // R1 B1: per-stream from T17 (one trace sample per tick, as before)
-            {
-                traceAt (FbDiff, df);
-                traceAt (FbSat, sd);
-            }
+            traceAt (FbDiff, df);
+            traceAt (FbSat, sd);
         }
-        fbLowLogRamp[s].setTarget (std::log2 (gp.fbLowCutHz), rampCells20);
+        fbLowLogRamp[s].setTarget (std::log2 (gs.fbLowCutHz), rampCells20);
         fbLowLogRamp[s].tick();
-        fbHighLogRamp[s].setTarget (std::log2 (gp.fbHighCutHz), rampCells20);
+        fbHighLogRamp[s].setTarget (std::log2 (gs.fbHighCutHz), rampCells20);
         fbHighLogRamp[s].tick();
     }
     updateChainCutoffs();
    #if OGI_TEST_HOOKS
-    for (int s = 0; s < kGiStreams; ++s)   // R1 PD11: per stream (B1: the global Mix for all four)
+    for (int s = 0; s < kGiStreams; ++s)   // R1 PD11: per stream
     {
-        const bool on = gp.reverbMix > 0.0f;
+        const bool on = gp.s[s].reverbMix > 0.0f;
         if (hooks.reverbHardCut && revMixWasOn[s] && ! on)
             reverbA[s].reset();   // RV2 control: the tail is cut, no 50 ms fade
         revMixWasOn[s] = on;
         // CK8 control (R1 PD11): a Pre → Post edge cuts the loop tank at once
         // (gate B is already off: the unit idles, the tap steps to dry).
-        if (hooks.preHardCut && prevPre[s] && ! reverbPre[s])
+        if (hooks.preHardCut && prevPre[s] && ! gp.s[s].reverbPre)
             reverbB[s].reset();
-        prevPre[s] = reverbPre[s];
+        prevPre[s] = gp.s[s].reverbPre;
     }
    #endif
 
@@ -2057,7 +2055,14 @@ bool Engine::srcPerVoiceNow (int src) const noexcept
 
 bool Engine::destVoiceNow (int dest) const noexcept
 {
-    return GiDest::isVoiceClass (dest) || (GiDest::isLfoRate (dest) && lfoPerVoiceActive (dest - GiDest::LfoRate1));
+    // R1 PD14: class V = the 28 voice fields of a stream. The stream's
+    // feedback / reverb destinations sit in the same block but are class G.
+    bool v = GiDest::isVoiceClass (dest);
+   #if OGI_TEST_HOOKS
+    if (hooks.destClassLegacy)
+        v = GiDest::isStream (dest);   // DC1 / MC1 control: class by position (the route then modulates nothing)
+   #endif
+    return v || (GiDest::isLfoRate (dest) && lfoPerVoiceActive (dest - GiDest::LfoRate1));
 }
 
 /** PD4: the per-voice routes of voice k into its offsets (with per-voice
@@ -3069,7 +3074,7 @@ void Engine::retrigVoiceMod (int k) noexcept
         for (int ms = 0; ms < kGiModSlots; ++ms)
         {
             const auto sl = matrix.slot (ms);
-            if (! sl.pv || ! GiDest::isStream (sl.dest))
+            if (! sl.pv || ! GiDest::isVoiceClass (sl.dest))
                 continue;
             const int f = GiDest::fieldOf (sl.dest);
             if (f != GiDest::Level && f != GiDest::Pan)
@@ -3510,7 +3515,7 @@ void Engine::spawn (const PendingOnset& o, std::int64_t tAbs) noexcept
    #if OGI_TEST_HOOKS
     {
         const int td = hooks.traceDest.dest;
-        if (GiDest::isStream (td) && GiDest::streamOf (td) == s && GiDest::fieldOf (td) >= GiDest::Position
+        if (GiDest::isVoiceClass (td) && GiDest::streamOf (td) == s && GiDest::fieldOf (td) >= GiDest::Position
             && (hooks.traceDest.voice < 0 || hooks.traceDest.voice == o.voice))
             traceAt (td, GiModMap::streamFieldValue (sp, GiDest::fieldOf (td)));
     }
@@ -3937,27 +3942,28 @@ void Engine::updateHeads (std::int64_t t) noexcept
     fl.settleOff = hooks.settleOff;
    #endif
 
-    // R1 PD6: one λ ramp (and substitute) per stream; in B1 every stream
-    // reads the global parameter / destination through the same statements.
+    // R1 PD6 / PD13 / PD14: one λ ramp (and substitute) per stream, from the
+    // stream's own Amount and its own destination.
     for (int s = 0; s < kGiStreams; ++s)
     {
+        const float fbAmt = gp.s[s].feedback;
         if (lz)
-            fbRamp[s].setCell (gp.feedback, gp.feedback);
+            fbRamp[s].setCell (fbAmt, fbAmt);
         else
         {
-            fbRamp[s].setTarget (gp.feedback, rampCells20);
+            fbRamp[s].setTarget (fbAmt, rampCells20);
             fbRamp[s].tick();
         }
         {
             // PLAN-2.5a PD6: routed feedback modulates the λ ramp in its domain (0..1).
-            const bool rk = matrix.routed (GiDest::Feedback);
-            const float k = rk ? GiModMap::pctFromRaw (matrix.apply (GiDest::Feedback, fbRamp[s].current() * 100.0f, matrix.offset (GiDest::Feedback)))
+            const int dFb = GiDest::stream (s, GiDest::Feedback);
+            const bool rk = matrix.routed (dFb);
+            const float k = rk ? GiModMap::pctFromRaw (matrix.apply (dFb, fbRamp[s].current() * 100.0f, matrix.offset (dFb)))
                                : fbRamp[s].current();
             fbMod[s].setCell (fbNow[s], k);
             fbNow[s] = k;
-            useFbMod[s] = rk || matrix.routedPrev (GiDest::Feedback);
-            if (s == 0)   // R1 B1: per-stream from T17 (one trace sample per tick, as before)
-                traceAt (GiDest::Feedback, k);
+            useFbMod[s] = rk || matrix.routedPrev (dFb);
+            traceAt (dFb, k);
         }
     }
 
@@ -3991,14 +3997,14 @@ void Engine::updateHeads (std::int64_t t) noexcept
         // R1 PD9: the feedback toggle is a term of the run target — Off is a
         // per-stream Freeze (20 ms run ramp, park, no writes). The Amount ramp
         // is not touched, so a routed Amount cannot lift it.
-        const bool target = fbOn[s] && ! gp.freeze && rateOk && ! xfade[s].active && ! pending
+        const bool target = gp.s[s].fbOn && ! gp.freeze && rateOk && ! xfade[s].active && ! pending
                          && (voiceTerm || hd.returnPk > 1.0e-5f);
         const float v = target ? 1.0f : 0.0f;
 
         bool fbSnap = false;
        #if OGI_TEST_HOOKS
-        fbSnap = hooks.fbOnHardStop && fbOn[s] != prevFbOn[s];   // CK7 control: the toggle edge steps the run ramp
-        prevFbOn[s] = fbOn[s];
+        fbSnap = hooks.fbOnHardStop && gp.s[s].fbOn != prevFbOn[s];   // CK7 control: the toggle edge steps the run ramp
+        prevFbOn[s] = gp.s[s].fbOn;
        #endif
 
         if (fh && freezeEdge)
@@ -4068,14 +4074,8 @@ void Engine::writeReverbAtomics() noexcept
 {
     // PLAN-2.5a PD6: tick-rate atomics; routed → the modulated raw / 100
     // (parent :222-235). R54: mix <= 0.001 restarts a cold tank (INFO).
-    using namespace GiDest;
-    float size = gp.reverbSize, damp = gp.reverbDamp, mixV = gp.reverbMix;
-    if (matrix.routed (RevSize)) size = matrix.apply (RevSize, matrix.rawNow (RevSize), matrix.offset (RevSize)) / 100.0f;
-    if (matrix.routed (RevDamp)) damp = matrix.apply (RevDamp, matrix.rawNow (RevDamp), matrix.offset (RevDamp)) / 100.0f;
-    if (matrix.routed (RevMix))  mixV = matrix.apply (RevMix,  matrix.rawNow (RevMix),  matrix.offset (RevMix))  / 100.0f;
-
-    // R1 PD7: the four audible tanks. In B1 every stream reads the global
-    // values above (per-stream parameters arrive in T17). Gate A (the tank's
+    // R1 PD7 / PD13 / PD14: the four audible tanks, each from its stream's
+    // own Size / Damp / Mix and its own destinations. Gate A (the tank's
     // `enabled` atomic) is derived here at every tick, unconditionally:
     //     gateA_s = mix > 0 && (streamLive_s || tailPk_s > −100 dBFS)
     //     streamLive_s = enable && audibleTarget, or the audibility ramp not
@@ -4097,6 +4097,16 @@ void Engine::writeReverbAtomics() noexcept
    #endif
     for (int s = 0; s < kGiStreams; ++s)
     {
+        const int RevSize = GiDest::stream (s, GiDest::RevSize), RevDamp = GiDest::stream (s, GiDest::RevDamp),
+                  RevMix = GiDest::stream (s, GiDest::RevMix);
+        float size = gp.s[s].reverbSize, damp = gp.s[s].reverbDamp, mixV = gp.s[s].reverbMix;
+        if (matrix.routed (RevSize)) size = matrix.apply (RevSize, matrix.rawNow (RevSize), matrix.offset (RevSize)) / 100.0f;
+        if (matrix.routed (RevDamp)) damp = matrix.apply (RevDamp, matrix.rawNow (RevDamp), matrix.offset (RevDamp)) / 100.0f;
+        if (matrix.routed (RevMix))  mixV = matrix.apply (RevMix,  matrix.rawNow (RevMix),  matrix.offset (RevMix))  / 100.0f;
+        traceAt (RevSize, size);
+        traceAt (RevDamp, damp);
+        traceAt (RevMix, mixV);
+
         revSize[s].store (size, std::memory_order_relaxed);
         revDamp[s].store (damp, std::memory_order_relaxed);
         revMix[s].store (mixV, std::memory_order_relaxed);
@@ -4142,7 +4152,7 @@ void Engine::writeReverbAtomics() noexcept
         // disabled stream, a toggle Off, an Amount settled at 0 and the Reset
         // hold each close it. Mix > 0 as for gate A (same stored value).
         const bool audB  = ignAud || audibleTarget (s, anySolo);
-        const bool gateB = reverbPre[s] && fbOn[s] && audB
+        const bool gateB = gp.s[s].reverbPre && gp.s[s].fbOn && audB
                         && ! fbEff (s).settledAt (0.0f) && preHold[s] == 0
                         && mixV > 0.0f;
         revOnB[s].store (gateB ? 1.0f : 0.0f, std::memory_order_relaxed);
@@ -4159,9 +4169,6 @@ void Engine::writeReverbAtomics() noexcept
         if (preHold[s] > 0)
             --preHold[s];
     }
-    traceAt (RevSize, size);
-    traceAt (RevDamp, damp);
-    traceAt (RevMix, mixV);
 }
 
 void Engine::mixPiece (int c0, int c1, float* outL, float* outR, std::int64_t tAbs) noexcept

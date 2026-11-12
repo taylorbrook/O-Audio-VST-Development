@@ -26,8 +26,8 @@
     1200 x 800. Adapted from .planning/mockups/v1-PluginEditor.h; the deltas
     against that template are listed at the top of PluginEditor.cpp.
 
-    261 APVTS parameters bound two-way through 176 WebSliderRelay + 70
-    WebComboBoxRelay + 15 WebToggleButtonRelay. With 261 relays the members are
+    293 APVTS parameters bound two-way through 200 WebSliderRelay + 74
+    WebComboBoxRelay + 19 WebToggleButtonRelay. With 293 relays the members are
     VECTORS, filled in the ID order of the k*Ids tables in PluginEditor.cpp.
 
     Native-function surface: exactly 34, each registered by its literal name in
@@ -100,10 +100,10 @@ private:
     // go last.
     // ========================================================================
 
-    // 1. RELAYS FIRST (no dependencies): one per parameter, 261 in total
-    std::vector<std::unique_ptr<juce::WebSliderRelay>>       sliderRelays;   // 176, kSliderIds order
-    std::vector<std::unique_ptr<juce::WebComboBoxRelay>>     comboRelays;    //  70, kComboIds order
-    std::vector<std::unique_ptr<juce::WebToggleButtonRelay>> toggleRelays;   //  15, kToggleIds order
+    // 1. RELAYS FIRST (no dependencies): one per parameter, 293 in total
+    std::vector<std::unique_ptr<juce::WebSliderRelay>>       sliderRelays;   // 200, kSliderIds order
+    std::vector<std::unique_ptr<juce::WebComboBoxRelay>>     comboRelays;    //  74, kComboIds order
+    std::vector<std::unique_ptr<juce::WebToggleButtonRelay>> toggleRelays;   //  19, kToggleIds order
 
     // Drag-drop session manager (webview-drop-streaming): its native functions
     // capture it, so it is constructed BEFORE the WebView and dies after it.

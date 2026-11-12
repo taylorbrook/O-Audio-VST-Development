@@ -328,7 +328,7 @@ private:
 // ============================================================================
 // O-GranulatorInstrument, Stage 2 / Phase 2.2.
 //
-// 261 APVTS parameters (GiParamIds.h), a stereo instrument output plus ONE
+// 293 APVTS parameters (GiParamIds.h), a stereo instrument output plus ONE
 // optional stereo "Sidechain" input that never reaches the output, latency 0,
 // and the state: root uiLanguage attribute, <Engine seed stateVersion
 // modDestTableVersion/>, <CustomScale/>, <DegreeMasks/> and an empty <Slots/>
@@ -573,7 +573,7 @@ public:
         static constexpr int kVoices    = GiVoiceRowMap::kRows;          // 16 display rows (PLAN-3.3 PD1)
         static constexpr int kMaxGrains = ogi::GiUiFrame::kMaxGrains;    // 288
         static constexpr int kSources   = ogi::kGiModSources - 1;        // 17 (1…17 on the engine side)
-        static constexpr int kDests     = ogi::kGiModDests;              // 126 (index 0 = None, unused)
+        static constexpr int kDests     = ogi::kGiModDests;              // 150 (index 0 = None, unused)
         static constexpr int kLfos      = ogi::kGiLfos;                  // 4
 
         struct Lane
@@ -631,7 +631,7 @@ public:
         float outL = 0.0f, outR = 0.0f;               // PLAN-3.3 PD5: max |out| per side since the last read
         Rec  rec;
         std::array<float, kSources> sources {};       // PLAN-3.3 PD6: getSourceTelemetry (1…17)
-        std::array<bool, kDests>  modRouted {};       // PLAN-3.3 PD9: modNorm keys (index 1…125)
+        std::array<bool, kDests>  modRouted {};       // PLAN-3.3 PD9: modNorm keys (index 1…149)
         std::array<float, kDests> modNorm {};
         bool stale = false;         // PD4: the frame did not move for ≥ kStaleMs (voices / grains / counts emptied)
     };
@@ -760,7 +760,7 @@ public:
     void testSetStealHoldMs (double ms);         // UVS1n: hold 0 (resets the row map)
     bool testRowMapIdentity  = false;            // UVR1n: row = engine slot 0…15 (no map)
     bool testClampFromStream0 = false;           // UWS1n: stream 0's wantSt decides every stream's clamp bit
-    bool testModNormAll      = false;            // UMN1n: all 125 modNorm keys sent
+    bool testModNormAll      = false;            // UMN1n: all 149 modNorm keys sent
     bool testLoHiAlways      = false;            // ULH1n: lo / hi on every lane
     bool testPeaksMax        = false;            // UMT2n: out / rec.peak sent as [max, max]
     bool testPeaksNoExchange = false;            // UMT4n: the peaks are read without the exchange

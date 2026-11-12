@@ -319,7 +319,7 @@ namespace ogi
                 if (o > 0.0f || o < 0.0f)
                 {
                     ++n;
-                    if (GiDest::isStream (d))
+                    if (GiDest::isVoiceClass (d))   // R1 PD14: the 28 voice fields only
                         streamRouted[GiDest::streamOf (d)] = true;
                 }
                 else

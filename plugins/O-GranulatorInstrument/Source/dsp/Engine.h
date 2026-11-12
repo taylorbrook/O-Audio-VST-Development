@@ -335,6 +335,8 @@ namespace ogi
         bool tankGuardOff     = false;   // TG1 control: no finite guard on the tap before tank B
         bool gateBIgnoreAudible = false; // MU1 control: gate B drops its audibleTarget term
         bool fbOnHardStop     = false;   // CK7 control: on a feedback-toggle edge the run ramp snaps (no 20 ms ramp)
+        // R1 (PLAN-R1 PD14): the destination class
+        bool destClassLegacy  = false;   // DC1 / MC1 control: every stream destination is class V (the pre-R1 rule)
 
         // ── voice readouts (per voice SLOT; stream-0 views) ──────────────────
         double        voiceRate[kVoiceSlots]   {};   // rate the voice latches now (tick, note-on, s1 spawn)
@@ -546,7 +548,7 @@ namespace ogi
         double       getSampleRate() const noexcept     { return fs; }
 
         /** PLAN-2.5a PD16: UI telemetry (relaxed atomics written at grid ticks;
-            any thread reads). Destinations 1…125 as normalised 0..1 (G from the
+            any thread reads). Destinations 1…149 as normalised 0..1 (G from the
             global pass; V from the newest voice); sources 1…17; LFO phase 0..1. */
         float getDestTelemetry (int d) const noexcept   { return (d > 0 && d < kGiModDests) ? destTel[(size_t) d].load (std::memory_order_relaxed) : 0.0f; }
         float getSourceTelemetry (int s) const noexcept { return (s > 0 && s < kGiModSources) ? srcTel[(size_t) s].load (std::memory_order_relaxed) : 0.0f; }
@@ -648,12 +650,10 @@ namespace ogi
         float getRevMixForTest (int s = 0) const noexcept            { return revMix[std::clamp (s, 0, kGiStreams - 1)].load (std::memory_order_relaxed); }   // R1 PD11: per stream
         bool  getTankGateForTest (int s) const noexcept              { return tankGate[std::clamp (s, 0, kGiStreams - 1)]; }
         float getTailPkForTest (int s) const noexcept                { return tailPk[std::clamp (s, 0, kGiStreams - 1)]; }
-        // R1 PD10: the engine-private per-stream controls (parameters from T17).
-        // Written on the test thread between blocks; plain members.
-        void  setFbOnForTest (int s, bool on) noexcept               { fbOn[std::clamp (s, 0, kGiStreams - 1)] = on; }
-        void  setReverbPreForTest (int s, bool pre) noexcept         { reverbPre[std::clamp (s, 0, kGiStreams - 1)] = pre; }
-        bool  getFbOnForTest (int s) const noexcept                  { return fbOn[std::clamp (s, 0, kGiStreams - 1)]; }
-        bool  getReverbPreForTest (int s) const noexcept             { return reverbPre[std::clamp (s, 0, kGiStreams - 1)]; }
+        // R1 PD13: the per-stream toggles as latched at the last tick
+        // (sN_fb_enable, sN_reverb_pre).
+        bool  getFbOnForTest (int s) const noexcept                  { return gp.s[std::clamp (s, 0, kGiStreams - 1)].fbOn; }
+        bool  getReverbPreForTest (int s) const noexcept             { return gp.s[std::clamp (s, 0, kGiStreams - 1)].reverbPre; }
         bool  getTankGateBForTest (int s) const noexcept             { return tankGateB[std::clamp (s, 0, kGiStreams - 1)]; }
         int   getPreHoldForTest (int s) const noexcept               { return preHold[std::clamp (s, 0, kGiStreams - 1)]; }
         int   getRampCellsModForTest() const noexcept                { return rampCellsMod; }
@@ -1033,14 +1033,11 @@ namespace ogi
         // tap guard on while the module fades out (tankFadeCells). preHold = the
         // Reset hold: a Reset take of slot s forces gate B off for preHoldCells
         // ticks (60 ms), so the loop tank fades, idles and restarts cold.
-        // R1 PD9 / PD10: fbOn (the feedback toggle, a term of the head's run
-        // target) and reverbPre are engine-private with fixed defaults until
-        // T17 binds them to parameters.
-        static_assert (kGiStreams == 4, "fbOn's initialiser lists one true per stream");
+        // R1 PD9 / PD13: fbOn (the feedback toggle, a term of the head's run
+        // target) and reverbPre are the latched parameters sN_fb_enable and
+        // sN_reverb_pre (gp.s[s].fbOn / .reverbPre).
         ReverbUnit reverbB[kGiStreams];
         std::atomic<float> revOnB[kGiStreams] {};
-        bool  fbOn[kGiStreams] { true, true, true, true };
-        bool  reverbPre[kGiStreams] {};
         bool  tankGateB[kGiStreams] {};
         int   tankFadeB[kGiStreams] {};
         int   preHold[kGiStreams] {};

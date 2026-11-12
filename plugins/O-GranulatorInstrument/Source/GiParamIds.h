@@ -30,9 +30,9 @@ namespace PitchCollections = ouaricon::tuning::PitchCollections;
 // ============================================================================
 // O-GranulatorInstrument parameter contract: .planning/parameter-spec.md (LOCKED).
 //
-// 261 parameters (176 Float / 70 Choice / 15 Bool), registered in the spec's
+// 293 parameters (200 Float / 74 Choice / 19 Bool), registered in the spec's
 // "Full ID list" order. IDs are generated from the FROZEN suffix tables below
-// (sN_, menvN_, lfoN_, macroN, modM_). The 126-entry modulation destination
+// (sN_, menvN_, lfoN_, macroN, modM_). The 150-entry modulation destination
 // table and the 18-entry source table are LITERALS on purpose: a diff shows an
 // append, a generated table would hide a re-order.
 //
@@ -64,20 +64,20 @@ namespace PitchCollections = ouaricon::tuning::PitchCollections;
 namespace GiParamIds
 {
     inline constexpr int kStreams = 4, kModEnvs = 2, kLfos = 4, kMacros = 4, kModSlots = 16;
-    inline constexpr int kModDests = 126;
+    inline constexpr int kModDests = 150;
     inline constexpr int kNumModSources = 18;
-    inline constexpr int kModDestTableVersion = 1;
+    inline constexpr int kModDestTableVersion = 2;   // R1 (D67): the one-time re-layout, stream stride 28 -> 36
     inline constexpr int kStateVersion = 1;
     inline constexpr int kNumCollections = 32;   // sN_scale choices: 0 Off ... 31 Custom
     inline constexpr int kSlots = 4;              // Record-in / file slots (rec_target index 0...3)
 
     // Group sizes in contract order.
-    inline constexpr int kGlobalCount = 9, kAmpCount = 5, kModEnvCount = 4, kStreamCount = 38, kRecCount = 7,
-                         kFeedbackCount = 5, kReverbCount = 3, kLfoCount = 5, kModCount = 3;
+    inline constexpr int kGlobalCount = 9, kAmpCount = 5, kModEnvCount = 4, kStreamCount = 48, kRecCount = 7,
+                         kLfoCount = 5, kModCount = 3;
     inline constexpr int kNumParams = kGlobalCount + kAmpCount + kModEnvCount * kModEnvs + kStreamCount * kStreams
-                                    + kRecCount + kFeedbackCount + kReverbCount + kLfoCount * kLfos + kMacros
+                                    + kRecCount + kLfoCount * kLfos + kMacros
                                     + kModCount * kModSlots;
-    static_assert (kNumParams == 261, "parameter-spec.md: 261 parameters");
+    static_assert (kNumParams == 293, "parameter-spec.md: 293 parameters");
 
     enum class Kind { Float, Choice, Bool };
 
@@ -148,6 +148,7 @@ namespace GiParamIds
     }
     inline const juce::StringArray& lfoShapes()    { static const juce::StringArray a { "Sine", "Triangle", "Saw", "Square", "S&H", "Smooth Random" }; return a; }
     inline const juce::StringArray& lfoModes()     { static const juce::StringArray a { "Global", "Per-voice" }; return a; }
+    inline const juce::StringArray& reverbPositions() { static const juce::StringArray a { "Post", "Pre" }; return a; }   // R1: sN_reverb_pre
 
     /** Tempo divisions, first n of the 22-entry list (size_sync 20, density_sync 19, rate_sync 22). */
     inline juce::StringArray tempoDivisions (int n)
@@ -285,8 +286,12 @@ namespace GiParamIds
         return d;
     }
 
-    // ── Per stream: sN_ + suffix, 38 x 4. FROZEN order. ─────────────────────
+    // ── Per stream: sN_ + suffix, 48 x 4. FROZEN order. ─────────────────────
     // s1_enable defaults On, s2...s4 Off (special-cased in the layout loop).
+    // R1 (D60 / D68, PLAN-R1 PD13): the last ten rows are the stream's own
+    // feedback and reverb (the 8 global parameters they replace are gone).
+    // sN_fb_enable defaults On through its row (def 1); the Float ranges,
+    // defaults and skew centres are the former globals', verbatim.
     inline const std::array<Def, kStreamCount>& streamDefs()
     {
         static const std::array<Def, kStreamCount> d {{
@@ -328,6 +333,16 @@ namespace GiParamIds
             floatDef  ("ring_freq",     "Ring Freq",       20.0f,  5000.0f,   200.0f, 1.0f, 316.2278f),
             floatDef  ("ring_rand",     "Ring Random",      0.0f,   100.0f,     0.0f),
             floatDef  ("ring_mix",      "Ring Mix",         0.0f,   100.0f,     0.0f),
+            boolDef   ("fb_enable",     "Feedback On",   true),
+            floatDef  ("feedback",      "Feedback",         0.0f,   100.0f,     0.0f),
+            floatDef  ("fb_low_cut",    "FB Low Cut",      20.0f,  2000.0f,    80.0f, 1.0f, 200.0f),
+            floatDef  ("fb_high_cut",   "FB High Cut",   1000.0f, 20000.0f, 12000.0f, 1.0f, 4472.136f),
+            floatDef  ("fb_saturation", "FB Saturation",    0.0f,   100.0f,    20.0f),
+            floatDef  ("fb_diffusion",  "FB Diffusion",     0.0f,   100.0f,     0.0f),
+            choiceDef ("reverb_pre",    "Reverb Position", &reverbPositions(), 0),
+            floatDef  ("reverb_mix",    "Reverb Mix",       0.0f,   100.0f,     0.0f),
+            floatDef  ("reverb_size",   "Reverb Size",      0.0f,   100.0f,    50.0f),
+            floatDef  ("reverb_damp",   "Reverb Damp",      0.0f,   100.0f,    50.0f),
         }};
         return d;
     }
@@ -343,30 +358,6 @@ namespace GiParamIds
             floatDef  ("rec_length",      "Record Length",      0.5f, 30.0f,   4.0f, 0.5f),
             choiceDef ("rec_length_sync", "Record Length Sync", &recLengthSyncs(), 2),
             floatDef  ("rec_gain",        "Record Gain",      -24.0f, 12.0f,   0.0f),
-        }};
-        return d;
-    }
-
-    // ── Feedback network (5) ────────────────────────────────────────────────
-    inline const std::array<Def, kFeedbackCount>& feedbackDefs()
-    {
-        static const std::array<Def, kFeedbackCount> d {{
-            floatDef ("feedback",      "Feedback",         0.0f,   100.0f,     0.0f),
-            floatDef ("fb_low_cut",    "FB Low Cut",      20.0f,  2000.0f,    80.0f, 1.0f, 200.0f),
-            floatDef ("fb_high_cut",   "FB High Cut",   1000.0f, 20000.0f, 12000.0f, 1.0f, 4472.136f),
-            floatDef ("fb_saturation", "FB Saturation",    0.0f,   100.0f,    20.0f),
-            floatDef ("fb_diffusion",  "FB Diffusion",     0.0f,   100.0f,     0.0f),
-        }};
-        return d;
-    }
-
-    // ── Output reverb (3) ───────────────────────────────────────────────────
-    inline const std::array<Def, kReverbCount>& reverbDefs()
-    {
-        static const std::array<Def, kReverbCount> d {{
-            floatDef ("reverb_mix",  "Reverb Mix",  0.0f, 100.0f,  0.0f),
-            floatDef ("reverb_size", "Reverb Size", 0.0f, 100.0f, 50.0f),
-            floatDef ("reverb_damp", "Reverb Damp", 0.0f, 100.0f, 50.0f),
         }};
         return d;
     }
@@ -413,7 +404,8 @@ namespace GiParamIds
         int instance;   // stream / mod env / LFO / macro / slot number, 0 for globals
     };
 
-    /** True for the one Bool that defaults On (s1_enable). */
+    /** A Bool's default. sN_enable is On for stream 1 only; every other Bool
+        takes its row's default (On for the four sN_fb_enable, Off elsewhere). */
     inline bool boolDefaultFor (const Entry& e) noexcept
     {
         if (std::strcmp (e.def->id, "enable") == 0 && e.instance > 0)
@@ -437,8 +429,6 @@ namespace GiParamIds
                 for (const auto& d : streamDefs())
                     e.push_back ({ stream (n, d.id), "S" + juce::String (n) + dot() + d.name, &d, n });
             for (const auto& d : recDefs())      e.push_back ({ d.id, d.name, &d, 0 });
-            for (const auto& d : feedbackDefs()) e.push_back ({ d.id, d.name, &d, 0 });
-            for (const auto& d : reverbDefs())   e.push_back ({ d.id, d.name, &d, 0 });
             for (int n = 1; n <= kLfos; ++n)
                 for (const auto& d : lfoDefs())
                     e.push_back ({ lfo (n, d.id), "LFO " + juce::String (n) + dot() + d.name, &d, n });
@@ -465,44 +455,54 @@ namespace GiParamIds
     }
 
     // ── Modulation destination table: APPEND-ONLY. modM_dest stores the index.
-    // Never re-order or remove; a new destination gets index 126, 127, ... and
+    // Never re-order or remove; a new destination gets index 150, 151, ... and
     // kModDestTableVersion is bumped. Every entry other than None is a Float.
-    // Per stream base b = 2 + 28 * (N - 1): the parent's 24 suffixes in their
-    // original order, then scan_rate, loop_start, loop_end, key_track.
+    // Per stream base b = 2 + 36 * (N - 1): the parent's 24 suffixes in their
+    // original order, then scan_rate, loop_start, loop_end, key_track (fields
+    // 0...27, per voice), then the stream's feedback and reverb (fields
+    // 28...35, per stream: class G).
+    // R1 (D67, PLAN-R1 PD14): table version 2 is the ONE break of the
+    // append-only rule (stride 28 -> 36, the 8 global entries 114...121 gone,
+    // LFO rates 122...125 -> 146...149). No remap of version-1 indices.
     inline constexpr const char* kModDestIds[kModDests] = {
         "None",
         "output_gain",
-        // s1 (2...29)
+        // s1 (2...37)
         "s1_level", "s1_pan", "s1_position", "s1_spray", "s1_size", "s1_size_rand", "s1_density", "s1_jitter",
         "s1_pitch", "s1_pitch_rand", "s1_reverse_prob", "s1_window", "s1_window_skew", "s1_stereo_spread",
         "s1_gain_rand", "s1_filter_cutoff", "s1_filter_rand", "s1_filter_res", "s1_drive", "s1_crush",
         "s1_crush_prob", "s1_ring_freq", "s1_ring_rand", "s1_ring_mix",
         "s1_scan_rate", "s1_loop_start", "s1_loop_end", "s1_key_track",
-        // s2 (30...57)
+        "s1_feedback", "s1_fb_low_cut", "s1_fb_high_cut", "s1_fb_saturation", "s1_fb_diffusion",
+        "s1_reverb_mix", "s1_reverb_size", "s1_reverb_damp",
+        // s2 (38...73)
         "s2_level", "s2_pan", "s2_position", "s2_spray", "s2_size", "s2_size_rand", "s2_density", "s2_jitter",
         "s2_pitch", "s2_pitch_rand", "s2_reverse_prob", "s2_window", "s2_window_skew", "s2_stereo_spread",
         "s2_gain_rand", "s2_filter_cutoff", "s2_filter_rand", "s2_filter_res", "s2_drive", "s2_crush",
         "s2_crush_prob", "s2_ring_freq", "s2_ring_rand", "s2_ring_mix",
         "s2_scan_rate", "s2_loop_start", "s2_loop_end", "s2_key_track",
-        // s3 (58...85)
+        "s2_feedback", "s2_fb_low_cut", "s2_fb_high_cut", "s2_fb_saturation", "s2_fb_diffusion",
+        "s2_reverb_mix", "s2_reverb_size", "s2_reverb_damp",
+        // s3 (74...109)
         "s3_level", "s3_pan", "s3_position", "s3_spray", "s3_size", "s3_size_rand", "s3_density", "s3_jitter",
         "s3_pitch", "s3_pitch_rand", "s3_reverse_prob", "s3_window", "s3_window_skew", "s3_stereo_spread",
         "s3_gain_rand", "s3_filter_cutoff", "s3_filter_rand", "s3_filter_res", "s3_drive", "s3_crush",
         "s3_crush_prob", "s3_ring_freq", "s3_ring_rand", "s3_ring_mix",
         "s3_scan_rate", "s3_loop_start", "s3_loop_end", "s3_key_track",
-        // s4 (86...113)
+        "s3_feedback", "s3_fb_low_cut", "s3_fb_high_cut", "s3_fb_saturation", "s3_fb_diffusion",
+        "s3_reverb_mix", "s3_reverb_size", "s3_reverb_damp",
+        // s4 (110...145)
         "s4_level", "s4_pan", "s4_position", "s4_spray", "s4_size", "s4_size_rand", "s4_density", "s4_jitter",
         "s4_pitch", "s4_pitch_rand", "s4_reverse_prob", "s4_window", "s4_window_skew", "s4_stereo_spread",
         "s4_gain_rand", "s4_filter_cutoff", "s4_filter_rand", "s4_filter_res", "s4_drive", "s4_crush",
         "s4_crush_prob", "s4_ring_freq", "s4_ring_rand", "s4_ring_mix",
         "s4_scan_rate", "s4_loop_start", "s4_loop_end", "s4_key_track",
-        // feedback + reverb (114...121)
-        "feedback", "fb_low_cut", "fb_high_cut", "fb_saturation", "fb_diffusion",
-        "reverb_mix", "reverb_size", "reverb_damp",
-        // LFO rates (122...125)
+        "s4_feedback", "s4_fb_low_cut", "s4_fb_high_cut", "s4_fb_saturation", "s4_fb_diffusion",
+        "s4_reverb_mix", "s4_reverb_size", "s4_reverb_damp",
+        // LFO rates (146...149)
         "lfo1_rate", "lfo2_rate", "lfo3_rate", "lfo4_rate",
     };
-    static_assert (std::size (kModDestIds) == 126, "parameter-spec.md: 126 modulation destinations");
+    static_assert (std::size (kModDestIds) == 150, "parameter-spec.md: 150 modulation destinations");
 
     /** modM_dest choices: "None", then each destination's host name. */
     inline const juce::StringArray& modDestChoices()

@@ -11,7 +11,7 @@
     UOV, UTL.
 
       UPM1   preset round trip (savePresetToFile / loadPresetFromFile, temp dir,
-             fresh instance): 259 parameters, custom scale, 3 masks, seed equal;
+             fresh instance): 291 parameters, custom scale, 3 masks, seed equal;
              the 2 excluded stay the loader's own; scale revision moved
       UPM2   output_gain -12 dB survives a load; no output_gain / rec_arm key in
              the file                                   ctrl UPM2n exclusion off
@@ -222,7 +222,7 @@ namespace { namespace ug31
         const bool exclKept = og != nullptr && ra != nullptr && og->getValue() == og->getDefaultValue() && ra->getValue() == ra->getDefaultValue()
                            && param (*a, "output_gain")->getValue() != og->getValue() && param (*a, "rec_arm")->getValue() != ra->getValue();
 
-        row (stim && saved && loaded && after.compared == 259 && after.differ == 0 && before.differ > 200 && scale && masks
+        row (stim && saved && loaded && after.compared == 291 && after.differ == 0 && before.differ > 200 && scale && masks
                  && b->getSeed() == kSeedA && rev1 != rev0 && exclKept,
              "UPM1 PD2 preset round trip (temp file, fresh instance): params, custom scale, 3 masks, seed",
              "meas " + juce::String (after.compared - after.differ) + "/" + juce::String (after.compared) + " params bitwise ("
@@ -230,7 +230,7 @@ namespace { namespace ug31
                  + (after.differ ? ", e.g. " + after.first : juce::String()) + "), scale " + (scale ? "edo 19 / 'pm1 scale'" : "LOST")
                  + ", masks " + juce::String (124 - md) + "/124 (3 non-default " + (masks ? "kept" : "LOST") + "), seed " + hex (b->getSeed())
                  + ", output_gain / rec_arm " + (exclKept ? "kept the loader's" : "OVERWRITTEN") + ", scaleRev " + juce::String ((int) rev0)
-                 + " -> " + juce::String ((int) rev1) + " | thr 259/259, seed " + hex (kSeedA) + ", scaleRev moved | margin 0 | ctrl - (UPM2n / UPM5n)");
+                 + " -> " + juce::String ((int) rev1) + " | thr 291/291, seed " + hex (kSeedA) + ", scaleRev moved | margin 0 | ctrl - (UPM2n / UPM5n)");
     }
 
     //==========================================================================
@@ -270,11 +270,11 @@ namespace { namespace ug31
     void rowsPM2()
     {
         const auto r = runPM2 (false, gTmp31.getChildFile ("pm2.json"));
-        row (r.ok && pm2Predicate (r) && ! r.hasGain && ! r.hasArm && r.keys == 259,
+        row (r.ok && pm2Predicate (r) && ! r.hasGain && ! r.hasArm && r.keys == 291,
              "UPM2 PD2 output_gain -12 dB survives a preset load; no output_gain / rec_arm key in the file",
              "meas output_gain " + f2 (r.before, 2) + " -> " + f2 (r.after, 2) + " dB (preset saved at +3), file keys " + juce::String (r.keys)
                  + ", output_gain key " + (r.hasGain ? "PRESENT" : "absent") + ", rec_arm key " + (r.hasArm ? "PRESENT" : "absent")
-                 + " | thr -12.00 exactly, 259 keys, both absent | margin 0 | ctrl UPM2n");
+                 + " | thr -12.00 exactly, 291 keys, both absent | margin 0 | ctrl UPM2n");
 
         const auto n = runPM2 (true, gTmp31.getChildFile ("pm2n.json"));
         const bool fired = n.ok && ! pm2Predicate (n) && n.hasGain;
@@ -394,7 +394,7 @@ namespace { namespace ug31
         row (saved && loaded && same && moved && values && liveChildren == 0 && xmlChildren == 0,
              "UPM4 preset load -> state -> fresh restore -> change a mask -> state -> fresh restore == the changed state",
              juce::String ("meas reopen 2 state ") + (same ? "identical" : "DIFFERS") + " to the changed one (" + juce::String (n2.length())
-                 + " chars), differs from reopen 1 " + (moved ? "yes" : "NO") + ", mask / scale / seed / 261 values " + (values ? "follow" : "LOST")
+                 + " chars), differs from reopen 1 " + (moved ? "yes" : "NO") + ", mask / scale / seed / 293 values " + (values ? "follow" : "LOST")
                  + ", CustomState children: live " + juce::String (liveChildren) + ", saved " + juce::String (xmlChildren)
                  + " | thr identical, 0, 0 | margin 0 | ctrl - (the changed state != the first)");
     }

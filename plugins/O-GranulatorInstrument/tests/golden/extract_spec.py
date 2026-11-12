@@ -5,7 +5,7 @@ Derives the Stage 1 parameter goldens from the LOCKED contract only, never from
 the code (a code-derived golden is self-referential).
 
 Input:   .planning/parameter-spec.md ONLY (group tables, choice lists, the
-         32-entry scale grid, the 18-row source table, the 126-entry dest grid
+         32-entry scale grid, the 18-row source table, the 150-entry dest grid
          and the Full ID list, which carries every host name). No YAML.
 Outputs: <out>/params.tsv       idx id name type start end interval default skew centre choices
          <out>/mod-dests.tsv    idx id name class
@@ -261,8 +261,19 @@ for idx, (pid, ptype, name) in enumerate(idlist):
             default = 1
         elif d == 'Off':
             default = 0
-        elif tpl == 'sN_enable' and re.match(r'^s1 On; s2.s4 Off$', d):
-            default = 1 if n == 1 else 0
+        elif tpl.startswith('sN_') and re.match(r'^s[1-4](.s[1-4])? (On|Off)(; s[1-4](.s[1-4])? (On|Off))*$', d):
+            # per-stream default, e.g. "s1 On; s2–s4 Off": every stream named exactly once
+            per = {}
+            for seg in d.split('; '):
+                m = re.match(r'^s([1-4])(?:.s([1-4]))? (On|Off)$', seg)
+                for k in range(int(m.group(1)), int(m.group(2) or m.group(1)) + 1):
+                    if k in per:
+                        err('bool default %s: stream %d named twice in %r' % (pid, k, d))
+                    per[k] = 1 if m.group(3) == 'On' else 0
+            if sorted(per) != [1, 2, 3, 4]:
+                err('bool default %s: %r does not cover s1..s4' % (pid, d))
+                continue
+            default = per[n]
         else:
             err('bool default %s: %r' % (pid, d))
             continue
@@ -273,7 +284,7 @@ for idx, (pid, ptype, name) in enumerate(idlist):
             err('Mod dest on a %s row (%s)' % (base, pid))
         d = int(dcol)
         if tpl.startswith('sN_'):
-            d += 28 * (n - 1)
+            d += 36 * (n - 1)
         elif tpl.startswith('lfoN_'):
             d += n - 1
         if not 0 < d < len(dest_ids) or dest_ids[d] != pid:
@@ -286,14 +297,14 @@ for idx, (pid, ptype, name) in enumerate(idlist):
 # ---------------------------------------------------------------- checks
 types = [t for _, t, _ in idlist]
 counts = (types.count('Float'), types.count('Choice'), types.count('Bool'))
-if len(idlist) != 261 or counts != (176, 70, 15):
-    err('counts: %d params, %d Float / %d Choice / %d Bool (expected 261, 176 / 70 / 15)' % ((len(idlist),) + counts))
+if len(idlist) != 293 or counts != (200, 74, 19):
+    err('counts: %d params, %d Float / %d Choice / %d Bool (expected 293, 200 / 74 / 19)' % ((len(idlist),) + counts))
 if len(out) != len(idlist):
     err('rows built %d of %d' % (len(out), len(idlist)))
 if len(sources) != 18:
     err('sources %d != 18' % len(sources))
-if len(dests) != 126 or not dests or dests[0][0] != 'None':
-    err('dest table size %d (expected 126, None at 0)' % len(dests))
+if len(dests) != 150 or not dests or dests[0][0] != 'None':
+    err('dest table size %d (expected 150, None at 0)' % len(dests))
 
 mism = 0
 for k, (did, nm, cl) in enumerate(dests[1:], start=1):
@@ -311,21 +322,30 @@ PARENT24 = ['level', 'pan', 'position', 'spray', 'size', 'size_rand', 'density',
             'reverse_prob', 'window', 'window_skew', 'stereo_spread', 'gain_rand', 'filter_cutoff', 'filter_rand',
             'filter_res', 'drive', 'crush', 'crush_prob', 'ring_freq', 'ring_rand', 'ring_mix']
 STREAM28 = PARENT24 + ['scan_rate', 'loop_start', 'loop_end', 'key_track']
+# R1 (D67): fields 28-35 of every stream block, per stream and not per voice (class G).
+STREAM_GLOBAL8 = ['feedback', 'fb_low_cut', 'fb_high_cut', 'fb_saturation', 'fb_diffusion', 'reverb_mix', 'reverb_size', 'reverb_damp']
+STREAM36 = STREAM28 + STREAM_GLOBAL8
 formula = ['None', 'output_gain']
+formula_class = ['-', 'G']
 for N in range(1, 5):
-    if len(formula) != 2 + 28 * (N - 1):
+    if len(formula) != 2 + 36 * (N - 1):
         err('formula base for s%d' % N)
-    formula += ['s%d_%s' % (N, s) for s in STREAM28]
-formula += ['feedback', 'fb_low_cut', 'fb_high_cut', 'fb_saturation', 'fb_diffusion', 'reverb_mix', 'reverb_size', 'reverb_damp']
+    formula += ['s%d_%s' % (N, s) for s in STREAM36]
+    formula_class += ['V'] * len(STREAM28) + ['G'] * len(STREAM_GLOBAL8)
 formula += ['lfo%d_rate' % N for N in range(1, 5)]
+formula_class += ['G/V'] * 4
 if formula != dest_ids:
     bad = [k for k in range(max(len(formula), len(dest_ids)))
            if k >= len(formula) or k >= len(dest_ids) or formula[k] != dest_ids[k]]
-    err('dest table != formula b = 2 + 28*(N-1) at indices %s' % bad[:8])
-if len(dest_ids) > 122 and (dest_ids[114] != 'feedback' or dest_ids[122] != 'lfo1_rate'):
-    err('dest anchors: 114 %s, 122 %s' % (dest_ids[114], dest_ids[122]))
+    err('dest table != formula b = 2 + 36*(N-1) at indices %s' % bad[:8])
+else:
+    badc = [k for k in range(len(dests)) if dests[k][2] != formula_class[k]]
+    if badc:
+        err('dest class column != V (fields 0-27) / G (fields 28-35, output_gain) / G/V (LFO rates) at indices %s' % badc[:8])
+if len(dest_ids) > 146 and (dest_ids[30] != 's1_feedback' or dest_ids[146] != 'lfo1_rate'):
+    err('dest anchors: 30 %s, 146 %s' % (dest_ids[30], dest_ids[146]))
 
-for label, got, want in (('setSkewForCentre', n_centre, 19), ('raw skew', n_rawskew, 14),
+for label, got, want in (('setSkewForCentre', n_centre, 25), ('raw skew', n_rawskew, 14),
                          ('interval-1', n_interval1, 6), ('negative-start', n_negstart, 43)):
     if got != want:
         err('%s rows %d != %d' % (label, got, want))
@@ -335,8 +355,9 @@ if len(set(o[2] for o in out)) != len(out):
 if len(set(o[1] for o in out)) != len(out):
     err('IDs not unique')
 on = [o[1] for o in out if o[3] == 'Bool' and o[7] == 1]
-if on != ['s1_enable']:
-    err('bools defaulting On: %s (expected only s1_enable)' % on)
+ON_BOOLS = ['s1_enable'] + ['s%d_fb_enable' % N for N in range(1, 5)]
+if sorted(on) != sorted(ON_BOOLS):
+    err('bools defaulting On: %s (expected only %s)' % (on, ON_BOOLS))
 for o in out:
     if '\t' in o[2] or '|' in o[2]:
         err('host name with tab or | (%s)' % o[1])
@@ -373,4 +394,4 @@ with open(os.path.join(args.out, 'mod-sources.tsv'), 'w', encoding='utf-8', newl
     for k, (nm, cl) in enumerate(sources):
         f.write('%d\t%s\t%s\n' % (k, nm, cl))
 
-print('OK: 261 params (176 Float / 70 Choice / 15 Bool), 126 dests, 18 sources')
+print('OK: 293 params (200 Float / 74 Choice / 19 Bool), 150 dests, 18 sources')

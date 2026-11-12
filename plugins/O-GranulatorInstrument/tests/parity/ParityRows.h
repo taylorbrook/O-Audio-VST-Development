@@ -201,6 +201,35 @@ namespace parity
         return v;
     }
 
+    /** PLAN-R1 PD16 — the OURS-side ID map. The parent keeps its 8 global
+        feedback / reverb IDs (fbRevIds(), the manifest columns, the rows
+        above); the instrument's are per stream since R1. oursId: a parent
+        global ID → "s<stream>_<id>"; every other ID is returned unchanged. */
+    inline std::string oursId (const std::string& id, int stream = 1)
+    {
+        for (const auto& g : fbRevIds())
+            if (g == id)
+                return "s" + std::to_string (stream) + "_" + id;
+        return id;
+    }
+
+    /** Our side of a row's globals: each of the 8 parent globals lands on ALL
+        FOUR streams (four identical streams are the old global); every other
+        pair is kept as written, in order. Never used on the parent side. */
+    inline std::vector<KV> oursGlobals (const std::vector<KV>& gl)
+    {
+        std::vector<KV> out;
+        for (const auto& kv : gl)
+        {
+            if (oursId (kv.id) == kv.id)
+                out.push_back (kv);
+            else
+                for (int n = 1; n <= 4; ++n)
+                    out.push_back ({ oursId (kv.id, n), kv.v });
+        }
+        return out;
+    }
+
     inline float findV (const std::vector<KV>& v, const std::string& id, float dflt)
     {
         for (const auto& kv : v) if (kv.id == id) return kv.v;

@@ -122,8 +122,9 @@ namespace { namespace eg24
     void rowTB1()
     {
         rh::Overrides o;
-        o.extra = { { "feedback", 0.0f }, { "reverb_mix", 0.0f }, { "fb_low_cut", 2000.0f }, { "fb_high_cut", 1000.0f },
-                    { "fb_saturation", 100.0f }, { "fb_diffusion", 100.0f }, { "reverb_size", 100.0f }, { "reverb_damp", 0.0f } };
+        // PLAN-R1 PD16: the former globals on all four streams.
+        o.extra = cat ({ all4 ("feedback", 0.0f), all4 ("reverb_mix", 0.0f), all4 ("fb_low_cut", 2000.0f), all4 ("fb_high_cut", 1000.0f),
+                         all4 ("fb_saturation", 100.0f), all4 ("fb_diffusion", 100.0f), all4 ("reverb_size", 100.0f), all4 ("reverb_damp", 0.0f) });
         o.events = { { 24000, { { "freeze", 1.0f } } }, { 48000, { { "freeze", 0.0f } } } };
         juce::StringArray ship, legacy;
         {
@@ -143,8 +144,8 @@ namespace { namespace eg24
         };
         const auto it = gold.find ("N1-default");
         const juce::String g = it != gold.end() ? it->second : juce::String();
-        const bool fFb  = n1With ({ { "feedback", 0.1f } }) != g;
-        const bool fRev = n1With ({ { "reverb_mix", 1.0f } }) != g;
+        const bool fFb  = n1With (all4 ("feedback", 0.1f)) != g;
+        const bool fRev = n1With (all4 ("reverb_mix", 1.0f)) != g;
         row (sameShip == 14 && sameLeg == 14 && fFb && fRev && g.isNotEmpty(),
              "TB1 true bypass at moved 2.4 params (fb 0, reverb 0, cutoffs / sat / diffusion / size / damp moved, freeze toggled)",
              "meas shipping " + juce::String (sameShip) + "/14 == renders-2.4, legacy " + juce::String (sameLeg) + "/14 == renders-2.2 | thr 14 / 14 | "
@@ -332,8 +333,8 @@ namespace { namespace eg24
     // FL1 / FL1s / CL1 — the Algorithm §3 stress
     P flParams (float sat, float fb = 100.0f)
     {
-        P p = cat ({ base4 (4), { { "polyphony", 16.0f }, { "grain_limit", 3.0f }, { "feedback", fb }, { "fb_saturation", sat },
-                                  { "reverb_mix", 100.0f }, { "reverb_size", 100.0f } },
+        P p = cat ({ base4 (4), { { "polyphony", 16.0f }, { "grain_limit", 3.0f } },
+                     all4 ("feedback", fb), all4 ("fb_saturation", sat), all4 ("reverb_mix", 100.0f), all4 ("reverb_size", 100.0f),   // PLAN-R1 PD16
                      all4 ("density", 200.0f), all4 ("size", 500.0f), all4 ("pitch", 12.0f), all4 ("level", 6.0f),
                      all4 ("filter_res", 100.0f), all4 ("filter_cutoff", 1000.0f) });
         const float types[4] { 1.0f, 2.0f, 3.0f, 1.0f };
@@ -463,7 +464,7 @@ namespace { namespace eg24
     // FL2 — runaway guard
     double fl2TapRms (int voices, bool sumTap)
     {
-        P p = cat ({ base4 (1), { { "polyphony", 16.0f }, { "grain_limit", 3.0f }, { "feedback", 100.0f } },
+        P p = cat ({ base4 (1), { { "polyphony", 16.0f }, { "grain_limit", 3.0f } }, all4 ("feedback", 100.0f),
                      eg23::s1p ({ { "density", 200.0f }, { "size", 500.0f }, { "key_track", 0.0f }, { "level", 6.0f },
                                   { "filter_type", 1.0f }, { "filter_cutoff", 1000.0f }, { "filter_res", 100.0f },
                                   { "spray", 30.0f }, { "jitter", 50.0f } }) });
@@ -499,7 +500,7 @@ namespace { namespace eg24
     // FL3 — freeze hash
     P loopParams (float fb)
     {
-        return cat ({ base4 (4), { { "polyphony", 16.0f }, { "feedback", fb } }, all4 ("density", 50.0f), all4 ("size", 200.0f) });
+        return cat ({ base4 (4), { { "polyphony", 16.0f } }, all4 ("feedback", fb), all4 ("density", 50.0f), all4 ("size", 200.0f) });
     }
 
     void loadLoop4 (Session& s, double seconds, float amp, std::vector<juce::AudioBuffer<float>>* keep = nullptr)
@@ -564,7 +565,7 @@ namespace { namespace eg24
 
     BlockOut fl5Render (int block, std::uint64_t seed)
     {
-        P p = cat ({ eg23::fn2Params(), eg22::randomised(), { { "polyphony", 8.0f }, { "feedback", 80.0f }, { "reverb_mix", 50.0f } } });
+        P p = cat ({ eg23::fn2Params(), eg22::randomised(), { { "polyphony", 8.0f } }, all4 ("feedback", 80.0f), all4 ("reverb_mix", 50.0f) });
         Session s (kFs, p, seed, 512);
         shipping (s);
         eg22::loadNoise4 (s, 3.0, 0.3f);
@@ -582,8 +583,8 @@ namespace { namespace eg24
             setFreezeAt (s, t, t == 96000 || t == 384000);
         s.at (288000, [] (Session& ss) { ss.p->resetSlotSync (0); });
         s.at (576000, [] (Session& ss) { ss.p->resetSlotSync (2); });
-        eg22::setAt (s, 432000, "reverb_mix", 0.0f);
-        eg22::setAt (s, 672000, "reverb_mix", 50.0f);
+        eg22::setAt4 (s, 432000, "reverb_mix", 0.0f);
+        eg22::setAt4 (s, 672000, "reverb_mix", 50.0f);
         s.run ((juce::int64) (20.0 * kFs), block);
         return { eg22::lr (s), tapeHashes (s) };
     }
@@ -657,7 +658,7 @@ namespace { namespace eg24
 
     Fl7Out fl7Render (const std::function<void (Proc&)>& tweak)
     {
-        P p = cat ({ loopParams (80.0f), eg22::randomised(), { { "reverb_mix", 50.0f } } });
+        P p = cat ({ loopParams (80.0f), eg22::randomised(), all4 ("reverb_mix", 50.0f) });
         Session s (kFs, p, kSeed, 512);
         shipping (s);
         if (tweak) tweak (*s.p);
@@ -695,14 +696,14 @@ namespace { namespace eg24
         const auto ref = fl7Render ({});
         const auto o = fl7Render (unread);
         const int n = eg21::diffCount (ref.out, o.out);
-        const auto cD = fl7Render ([] (Proc& p) { setP (p, "fb_diffusion", 51.0f); });
-        const auto cR = fl7Render ([] (Proc& p) { setP (p, "reverb_size", 51.0f); });
+        const auto cD = fl7Render ([] (Proc& p) { eg22::setP4 (p, "fb_diffusion", 51.0f); });
+        const auto cR = fl7Render ([] (Proc& p) { eg22::setP4 (p, "reverb_size", 51.0f); });
         const int nD = eg21::diffCount (ref.out, cD.out), nR = eg21::diffCount (ref.out, cR.out);
         const bool fired = (nD > 0 || cD.hash != ref.hash) && nR > 0;
-        row (n == 0 && o.hash == ref.hash && bound == 254 && touched == 7 && fired,
+        row (n == 0 && o.hash == ref.hash && bound == 286 && touched == 7 && fired,
              "FL7 7 unread params bit-identical with the loop active (fb 80 %, reverb 50 %, freeze x 2; readSet25b)",
              "meas " + juce::String (n) + " samples differ, tape hashes " + (o.hash == ref.hash ? "equal" : "DIFFER") + " (" + juce::String (touched)
-                 + " randomised, " + juce::String (bound) + "/254 bound) | thr 0 | margin " + juce::String (-n)
+                 + " randomised, " + juce::String (bound) + "/286 bound) | thr 0 | margin " + juce::String (-n)
                  + " | " + ctrl (fired, "fb_diffusion 51 -> " + juce::String (nD) + ", reverb_size 51 -> " + juce::String (nR) + " differ"));
     }
 
@@ -1133,8 +1134,8 @@ namespace { namespace eg24
                              { sn (n, "drive"), 50.0f }, { sn (n, "crush"), 40.0f }, { sn (n, "crush_prob"), 50.0f },
                              { sn (n, "ring_freq"), 300.0f }, { sn (n, "ring_mix"), 50.0f } });
         Session s (kFs, cat ({ base4 (4), eg22::randomised(), all4 ("density", 100.0f), all4 ("size", 200.0f), all4 ("loop_end", 10.0f),
-                               { { "polyphony", 8.0f }, { "amp_attack", 5.0f }, { "amp_release", 100.0f },
-                                 { "feedback", 100.0f }, { "reverb_mix", 50.0f } }, fx }));
+                               { { "polyphony", 8.0f }, { "amp_attack", 5.0f }, { "amp_release", 100.0f } },
+                               all4 ("feedback", 100.0f), all4 ("reverb_mix", 50.0f), fx }));
         shipping (s);
         s.record = false;
         loadLoop4 (s, 3.0, 0.3f);
@@ -1147,8 +1148,8 @@ namespace { namespace eg24
         s.at (38400, [] (Session& ss) { ss.p->resetSlotSync (-1); });
         setFreezeAt (s, 48000, true);
         setFreezeAt (s, 52800, false);
-        eg22::setAt (s, 57600, "feedback", 0.0f);
-        eg22::setAt (s, 62400, "feedback", 100.0f);
+        eg22::setAt4 (s, 57600, "feedback", 0.0f);
+        eg22::setAt4 (s, 62400, "feedback", 100.0f);
         s.at (67200, [] (Session& ss)
         {
             // An SR-rebuild take: slot 2 rebuilt at 44.1 k (same generation, rebuild flag).
@@ -1168,8 +1169,8 @@ namespace { namespace eg24
                 }
             }
         });
-        eg22::setAt (s, 72000, "reverb_mix", 0.0f);
-        eg22::setAt (s, 81600, "reverb_mix", 50.0f);   // re-enable after the 50 ms fade: clearTank
+        eg22::setAt4 (s, 72000, "reverb_mix", 0.0f);
+        eg22::setAt4 (s, 81600, "reverb_mix", 50.0f);   // re-enable after the 50 ms fade: clearTank
         for (int n = 48; n < 54; ++n) s.noteOff (96000, n);
         s.noteOn (4800, 72);
         s.noteOff (96000, 72);
@@ -1279,8 +1280,9 @@ namespace { namespace eg24
 
     P c25Extra()
     {
-        return { { "feedback", 100.0f }, { "fb_diffusion", 100.0f }, { "fb_saturation", 20.0f }, { "reverb_mix", 100.0f },
-                 { "reverb_size", 100.0f }, { "freeze", 0.0f } };
+        // PLAN-R1 PD16: all four streams' feedback, diffusion, saturation, Mix and Size.
+        return cat ({ all4 ("feedback", 100.0f), all4 ("fb_diffusion", 100.0f), all4 ("fb_saturation", 20.0f), all4 ("reverb_mix", 100.0f),
+                      all4 ("reverb_size", 100.0f), { { "freeze", 0.0f } } });
     }
 
     int cpu25()
