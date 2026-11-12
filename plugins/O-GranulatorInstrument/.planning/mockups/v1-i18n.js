@@ -708,11 +708,11 @@ export const I18N = Object.freeze({
     },
     'rec-status': {
         en: { t: "Record-in Status",
-              b: "No sidechain: the host has not connected the side-chain input (in Logic, pick a source in the plugin header’s Side Chain menu; some AU hosts never route one to an instrument). No signal: the bus is connected but silent, and a silent capture is discarded." },
+              b: "Select a sidechain input: no audio is reaching Record-in. In Logic, pick a source in the plugin header’s Side Chain menu; in other hosts, route a track to the plugin’s sidechain. A silent capture is discarded. No sidechain: this host gives the instrument no side-chain input at all." },
         fr: { t: "État de l’enregistrement",
-              b: "Pas de sidechain : l’hôte n’a pas connecté l’entrée sidechain (dans Logic, choisissez une source dans le menu Side Chain de l’en-tête du plugin ; certains hôtes AU n’en routent jamais vers un instrument). Aucun signal : le bus est connecté mais silencieux, et une capture silencieuse est rejetée.", reviewed: false },
+              b: "Choisir une sidechain : aucun son n’arrive à l’entrée d’enregistrement. Dans Logic, choisissez une source dans le menu Side Chain de l’en-tête du plugin ; dans les autres hôtes, routez une piste vers la sidechain du plugin. Une capture silencieuse est rejetée. Pas de sidechain : cet hôte ne fournit aucune entrée sidechain à l’instrument.", reviewed: false },
         'zh-Hans': { t: "录入状态",
-              b: "无侧链：宿主未连接侧链输入（在 Logic 中，请在插件标题栏的 Side Chain 菜单中选择一个源；某些 AU 宿主从不为乐器路由侧链）。无信号：总线已连接但无声，无声的捕获会被丢弃。", reviewed: 'mt' },
+              b: "请选择侧链输入：没有音频到达录入。在 Logic 中，请在插件标题栏的 Side Chain 菜单中选择一个源；在其他宿主中，请将一条音轨路由到插件的侧链。无声的捕获会被丢弃。无侧链：此宿主不为乐器提供侧链输入。", reviewed: 'mt' },
     },
     'rec_arm': {
         en: { t: "Arm",
@@ -2237,9 +2237,9 @@ export const LABELS = Object.freeze({
         'zh-Hans': { t: "无侧链", reviewed: 'mt' },
     },
     'rec.noSignal': {
-        en: { t: "No signal" },
-        fr: { t: "Aucun signal", reviewed: false },
-        'zh-Hans': { t: "无信号", reviewed: 'mt' },
+        en: { t: "Select a sidechain input" },
+        fr: { t: "Choisir une sidechain", reviewed: false },
+        'zh-Hans': { t: "请选择侧链输入", reviewed: 'mt' },
     },
     'rec.ready': {
         en: { t: "Ready" },
