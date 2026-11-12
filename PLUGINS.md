@@ -74,7 +74,7 @@ Ouaricon Plugins:
 | O-Emulator | 📦 Installed | 1.5.1 | Audio Effect (Retro Console Emulation) | 2026-10-19 |
 | O-Granulator | ✅ Working | 1.2.0 | Audio Effect (Live-Input Granular Engine) | 2026-11-07 |
 | O-GranulatorInstrument | 🚧 Stage 4 | 1.0.0 | Synth (Sample-Based Polyphonic Granular) | 2026-11-11 |
-| O-ParametricEQ | 💡 Ideated | - | Audio Effect (Parametric EQ) | 2026-11-12 |
+| O-ParametricEQ | 🚧 Stage 0 | - | Audio Effect (Parametric EQ) | 2026-11-12 |
 
 **For detailed plugin information (lifecycle timeline, known issues, parameters, etc.), see:**
 `plugins/[PluginName]/NOTES.md`
