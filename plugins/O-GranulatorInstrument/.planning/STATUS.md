@@ -1,15 +1,15 @@
 ---
 plugin: O-GranulatorInstrument
 stage: 4
-status: stage_4_rework_r1_execute_complete
+status: stage_4_rework_r1_verify_partial_human_gates_pending
 current_phase: 4-polish
-gsd_phase: rework_r1_execute_complete
+gsd_phase: rework_r1_verify_partial
 last_updated: 2026-11-12
 complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: /plugin-verify O-GranulatorInstrument 4-polish (rework R1 executed, SUMMARY-R1.md; then HANDS-ON-SESSION-4, 243 run rows; D54 Windows CI at /publish)
+next_action: run HANDS-ON-SESSION-4 (243 run rows, D51) on the installed R1 build, then /plugin-verify O-GranulatorInstrument 4-polish to close; D54 Windows CI at /publish
 next_stage: 4
 ready_for_implementation: true
 blocked_on: none (fork pin 82406fce, D11)
@@ -27,7 +27,7 @@ contract_checksums:
   parameter_spec: sha256:d56a8f2e2d1276b8e511c48344c55b826dd5e87c3804549a16390fa54e2c2dff   # R1 T16 / C5: addendum C + body rewrite (293 params, dest table 150, version 2, rec_arm auto-clear)
   parameter_spec_body: sha256:91be022dd2aa8ba9e7013c833b9fdd46cd3a73494fa12ff04b41e65152235a95   # R1 T16 / C5: body rewritten once (addendum C)
   brief: sha256:74e7f8f24468ed9658aa8533733f45da24c61ad116d6ae47cd5c2af0e8524722
-  requirements: sha256:d2cfc66d0396a4c4b82f8789fd2def70e3d943c701311f18085da71f0c484ad4   # Stage 4 execute: FUNC-08, COMPAT-02 pending -> partial
+  requirements: sha256:42401004d006c358dada1505b559a8a828b0a7f6699039dd2efce25d60d419e0   # R1 verify: evidence lines of DSP-04 / 05 / 06, FUNC-07 / 08, PERF-02 (no status moved)
   parameter_spec_draft: sha256:3c4918748a4375940684a22ed6850a3184bdd96df53d152a8900d5f0e4260796
   architecture: sha256:243d0190e53b5c763f045251ff2675f1b4ea811689431c1fa6d73bd2b45510b6   # R1 C7: one R1 addendum paragraph
   roadmap: sha256:5137142de157eedc3f3f5965dd431e4d2c9f0308b56e9e3df48a88fcf9f5dd65   # R1 C7: one R1 addendum paragraph
@@ -36,6 +36,8 @@ contract_checksums:
 # O-GranulatorInstrument Status
 
 ## Current Position
+
+**Stage 4 rework R1 verify ⚠️ PARTIAL** 2026-11-12 (`stages/4-polish/VERIFICATION-R1.md`): every automated gate re-run green on the R1 tree — build 0 warnings in `Source/`, harness 512 / 0 (454 carried IDs + 58 new), renders byte-identical, parity 168 / 0 (PB / PR == B0), PT1 38 bitwise / PT2 16 at −132.57 dB, extractor + param-dump + PD17 join, drift 0 / 13, 7 / 7 hashes, CPU C25m 29.99 % / C25mPre 31.21 % / bank T max 9.13 %, UI chain (probe 293 × 2 with `--nc`, default + 48 states), auval PASS (4 LFO-rate warnings), pluginval 10 VST3 + AU × 3 seeds with the sidechain on and off, shipping build restored and installed, X2 0, Windows grep gate. REQUIREMENTS evidence lines rewritten (no status moved; checksum re-pinned). Finding: the bank installed at the end of execute was the pre-showcase copy (`.bank-hash` 39997c18); verify's install stamped HEAD's bank (331e7660, == harness dump). Open: HANDS-ON-SESSION-4 (243 run rows, not run on the R1 build), D54 Windows CI at `/publish`.
 
 **D65 APPROVAL RECORDED — Taylor, 2026-11-12** (T6): (1) **Variant B**; (2) row density OK as shown; (3) destination names OK as shown; (4) **OS1 yes** — edit `forked/ControlGrid.h` in T17 and re-pin its manifest hash; (5) **OS2 default** — `rec_arm` state functions stay untouched (as built in C4), no restore-swallow; (6) **OS3** — French and Chinese destination titles unchanged; (7) the two unplanned mockup choices left to the executor's judgement, taken as: keep the 2 px left-edge bar on vertical segments; **dim the feedback switch with the rest of a disabled stream's column** (apply in T15, both the page and the `fb-off` / stream-off state checks). T15 onward is unblocked.
 
