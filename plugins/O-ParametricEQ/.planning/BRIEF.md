@@ -62,8 +62,13 @@ Exact IDs, ranges, skews and the automation layout for 24 bands are settled in S
 
 ## UI Concept
 
-**Layout:** A large interactive frequency-response display is the instrument. Bands are nodes on the curve: click to create, drag for frequency and gain, scroll for Q. A compact strip for the selected band gives exact values, type, slope and placement. Output gain, auto gain and analyzer controls sit at the edge.
-**Visual Style:** Ouaricon house style (EB Garamond, suite palette and tokens), to be designed in the mockup stage.
+*Synced from finalized mockup v1 (2026-11-12); `mockups/v1-ui.yaml` is the source of truth for UI details.*
+
+**Window:** 960 × 600 default, resizable 800 × 500 to 1600 × 1000, aspect not locked. Header (40 px) and band strip (76 px) keep their heights; the response display takes all extra space.
+**Layout:** A large interactive frequency-response display is the instrument (820 × 440 at default). Bands are nodes on the curve: click to create, drag for frequency and gain, scroll for Q, double-click to reset gain. Under the display, a 24-chip band row (empty / exists / bypassed / selected) and a display-range selector (±6 / ±12 / ±30 dB). A docked bottom strip for the selected band: type, frequency, gain, Q, slope, placement segments, and icon buttons for band bypass, listen and delete. Slope is disabled for Bell / Notch / Band Pass; gain for Low Cut / High Cut / Notch / Band Pass. Header: title, preset manager, analyzer mode, global bypass. Right column (124 px): output meter, output gain, gain scale, auto gain.
+**Visual Style:** Ouaricon Naturalist house style (`ouaricon-naturalist-001`), EB Garamond with tabular lining figures. The display is the paper: sepia grid, ink summed curve, watercolour-wash band fills, graphite analyzer wash, and an emperor dragonfly plate (hairlines, 30 % opacity) behind the grid — production needs a real engraving. Bands are coloured by index from an 8-pigment cycle (ochre, madder, verdigris, indigo, sienna, sap green, tyrian, prussian blue). Placement badge on the node: L / R / M / S, none for Stereo (strip segments LR / L / R / M / S).
+**UI state, not host parameters:** analyzer mode, display range, selected band, listen, window size.
+**Carried to Stage 3 (as built in v1, open to change):** single summed curve across all placements; header controls 6 px from the top edge; reflow resize needs a DAW check at min / default / max; typed entry opens after the 240 ms double-click window; clicking an empty chip enables that band at its stored values.
 **Key Elements:**
 - Real-time spectrum analyzer behind the curve (pre / post)
 - Per-band curve fills plus the summed response

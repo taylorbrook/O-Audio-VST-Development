@@ -310,3 +310,8 @@ notes:
   - 196 host parameters, none added or renamed by this mockup
   - Text contrast figures are WCAG 2.x ratios on flat colour; no text is dimmed with opacity
   - Tooltip element lives outside the plugin root and is clamped to the frame
+
+# Finalization metadata
+finalized: true
+finalized_at: 2026-11-13T02:26:56Z
+finalized_by_phase: 5.5

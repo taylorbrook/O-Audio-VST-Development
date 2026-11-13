@@ -11,9 +11,13 @@ next_stage: 1
 ready_for_implementation: true
 blocked_on: parameter-spec.md (mockup finalization)
 latest_mockup_version: 1
-mockup_finalized: false
+mockup_finalized: true
+finalized_version: 1
+brief_updated_from_mockup: true
+mockup_version_synced: 1
+brief_update_timestamp: "2026-11-13T02:26:56Z"
 contract_checksums:
-  brief: sha256:8d3242ebdc9a07001f5e25e759969d4d4b84d5798ecfcbff0f6502f0ebbf8edb
+  brief: sha256:6fbb1b97c9c64ca3f159a409f807f13c74cb16dab8d6ab14b6a1a13c2e6991ff
   parameter_spec: sha256:d2e3f4a88cf089fb654852f71005f6692018d72c57a827fcfd54998055798e44
   architecture: sha256:559de652fde7ef79d8231112913833f86522bcf58cf8ee21e61f8e48f7706fe4
   roadmap: sha256:41be732176b54c37a13036ce9f3f2dd923a161b1220d919f9dc6b760b211b3ad
@@ -51,7 +55,7 @@ Progress: [##..................] 10%
 - Strategy: staged implementation (Stage 2 in 6 phases, Stage 3 in 3 phases)
 - **Stage 0:** Research & Planning complete - ARCHITECTURE.md and ROADMAP.md documented (Complexity 5.0)
 
-**UI mockup (Phase A, design iteration):** v1 design created, awaiting user approval
+**UI mockup (Phase A, design iteration):** v1 design approved and finalized 2026-11-12; brief synced
 - `mockups/v1-ui.yaml` + `mockups/v1-ui-test.html` (960 × 600, resizable 800 × 500 – 1600 × 1000, paper ground, dragonfly plate)
 - Not finalized: no Phase B files, `parameter-spec.md` still to be written at finalization
 
