@@ -146,9 +146,10 @@ Suite traps to check here: the first-order `IIR::Filter` default constructor is 
 
 **Test criteria:**
 - [ ] 24 bands enabled together, each changes the output independently (FUNC-01)
-- [ ] Rendered impulse response of each of the 8 types matches the designer's closed form within 0.01 dB (FUNC-02)
-- [ ] Gate G4 (a), (b), (c), (g) (QUAL-01, FUNC-03); mono layout: every placement processes the channel
-- [ ] Gate G8 (DSP-02)
+- [ ] Rendered impulse response of each of the 8 types matches the designer's closed form within 0.01 dB where the closed form is above -80 dB, on a render whose tail is at least 140 dB below its peak (asserted); 1e-6 dB in the double engine (FUNC-02; wording amended 2026-11-13)
+- [ ] Gate G4 (a), (b), (c), (g) as amended 2026-11-13 (QUAL-01, FUNC-03); mono layout: every placement processes the channel
+- [ ] Gate G8 as amended 2026-11-13 (DSP-02)
+- [ ] `Band::dynOffsetDb` is added to the effective gain and is 0 in v1 (DSP-07, engine half; added 2026-11-13)
 - [ ] Gate G6 with static parameters (PERF-01)
 - [ ] Frequencies above Nyquist at 44.1 kHz render finite and follow the frequency policy (DSP-06)
 
