@@ -9,6 +9,12 @@
 **Contracts read:** `BRIEF.md`, `REQUIREMENTS.md` (27 requirements), `parameter-spec-draft.md`, `research/parametric-eq-filter-design.md`
 **Mockup:** none yet. The binding `parameter-spec.md` comes from mockup finalization; this document fixes IDs, order, ranges and skews.
 
+**Amendments**
+
+| Date | Authority | What changed |
+|------|-----------|--------------|
+| 2026-11-13 | Stage 2 CONTEXT D7 (user), `stages/2-dsp/RESEARCH-2.1.md`, plan P1–P4 in `stages/2-dsp/PLAN-2.1b.md` | The accuracy polish is in v1 (Phase 2.1b). "Accuracy backlog (not v1)" is replaced by "Accuracy polish (v1, Phase 2.1b)". Gate G1 has a second, tighter threshold set that binds from Phase 2.1b. Performance: measured design cost and a row for sweeping steep shelves; gate G10 gains an INFO row. Notch and Band Pass above their clamps are characterised. Nothing else is changed; Stage 0 text that the amendment overrides is marked in place. |
+
 **Evidence labels used in this document**
 
 | Label | Meaning |
@@ -402,8 +408,8 @@ The parameter runs to 30 kHz; Nyquist is 22.05 kHz at 44.1 kHz. Nothing is ever 
 |------|------|------|
 | Shelves, Tilt, High Cut, Low Cut | Design at the true frequency (pole / zero angles clamp at π). | 12 dB/oct Butterworth shelf: ≤ 0.43 / 0.78 / 1.22 dB at ±6 / ±12 / ±30 dB. 12 dB/oct high cut, Q 1: ≤ 0.57 dB down to -80 dB. |
 | Bell | For `wc > wL = 0.95 π`: re-centre. Design a bell at `wL` whose gain is the true prototype's gain at `wL` and whose Q makes it also hit the true prototype at `wL / 2`. Closed form: `Ge = |Ha(wL)|`, `T = |Ha(wL/2)|²`, `Qe = sqrt( 0.25 (Ge − T/Ge) / (0.5625 (T − 1)) )` (fall back to `Qu` when numerator or denominator is ≤ 0, clamp to [0.025, 160]). Continuous at `wL`. | ≤ 0.95 / 1.72 / 2.70 dB at ±6 / ±12 / ±30 dB |
-| Notch | `wc ← min(wc, 0.95 π)`. A notch above that has almost no in-band effect unless Q is very low. | not modelled above the clamp [UNVERIFIED] |
-| Band Pass | `wc ← min(wc, 0.9 π)` | not modelled above the clamp [UNVERIFIED] |
+| Notch | `wc ← min(wc, 0.95 π)`. A notch above that has almost no in-band effect unless Q is very low. | Finite. The clamp parks the notch at 20.95 kHz: against the true above-Nyquist prototype, up to 13.6 dB (clamp - 25 kHz) and 18.9 dB (25 - 30 kHz) below 20 kHz [MODEL, Stage 2 research Q2]. Reported by G1, not gated. |
+| Band Pass | `wc ← min(wc, 0.9 π)` | Finite. The peak is parked at 19.85 kHz: up to 25.4 dB (clamp - 25 kHz; 2.5 dB for Q ≤ 0.3) and 30.6 dB (25 - 30 kHz) against the true prototype [MODEL, Stage 2 research Q2]. Reported by G1, not gated. |
 
 Sessions therefore translate across sample rates for bells, shelves and cuts: a 25 kHz bell made at 96 kHz still produces only its lower skirt at 44.1 kHz instead of a peak parked below Nyquist.
 
@@ -429,7 +435,9 @@ Maximum |digital − analog| in dB, 10 Hz - 20 kHz, worst case over Q and freque
 | Reference: Vicanek 2016 section 4.4 bell alone (boost side) | 44.1 k | fc ≤ 20 k | 0.79 | 1.44 | 2.56 |
 | Reference: best single biquad found by a 5-parameter numerical fit (24 sampled settings, Q 0.1 - 10) | 44.1 k | fc 1 k - 20 k | 0.08 | 0.16 | 0.37 |
 
-Known weak spots, reported by gate G1 as INFO rows, not gating in v1:
+The table above is the closed form (the seed). From Phase 2.1b the bell and second-order shelf sections are polished; their figures are under "Accuracy polish (v1, Phase 2.1b)".
+
+Known weak spots of the closed form, reported by gate G1 as INFO rows in Phase 2.1 (from Phase 2.1b the steep-shelf row is binding and the resonant-shelf row stays INFO at the polished level):
 - Resonant shelves (Q above 1.41) with the corner above 10 kHz at 44.1 / 48 kHz: the resonance sits at or beyond Nyquist; up to about 5 dB at ±6 dB, Q 10, fc 20 kHz. Below 10 kHz they are within 0.14 / 0.31 dB at ±6 / ±12 dB.
 - Shelves of 24 dB/oct and steeper with the corner above 10 kHz at 44.1 kHz: section errors add (table row above).
 - High cut skirts: 12 dB/oct within 1.1 dB down to -80 dB for fc ≤ 10 kHz. 48 and 96 dB/oct, measured in the top 30 dB: within 2.1 / 1.2 dB for fc ≤ 10 kHz and 3.6 / 5.7 dB for fc 10 - 20 kHz, which on those skirts is a frequency shift of under 0.1 octave. The corner itself is matched exactly.
@@ -548,7 +556,7 @@ Rejected: measured loudness matching (input vs output RMS / LUFS). It depends on
 3. Matched-Z with DC normalisation only: up to 3 dB at ±6 dB above 18 kHz.
 4. Three-point numerator fit on matched poles (DC, centre, Nyquist): infeasible (negative `mB²`) for most cuts and for high shelves.
 5. Five-point linear solve for all coefficients: infeasible stripes and 5 - 25 dB errors for in-band peaks.
-6. Gauss-Newton polish of the five SVF parameters: reaches 2 - 5x lower error in two iterations where it converges, but diverged at low Q with a naive match grid. Not robust enough to adopt blind.
+6. Gauss-Newton polish of the five SVF parameters: reaches 2 - 5x lower error in two iterations where it converges, but diverged at low Q with a naive match grid. Not robust enough to adopt blind. (Amended 2026-11-13: Stage 2 research found the cause, a match grid with no points tied to the peak, and a robust form. See "Accuracy polish (v1, Phase 2.1b)".)
 7. Massberg 2011: low-pass only; not evaluated numerically.
 8. Oversampling: excluded by the brief (latency, and it is not needed).
 
@@ -632,8 +640,58 @@ Rejected: measured loudness matching (input vs output RMS / LUFS). It depends on
 **Decision:** `supportsDoublePrecisionProcessing()` returns false; the engine converts to double working buffers. Float → double → float is exact for untouched samples.
 **Rationale:** one code path; the precision that matters is the filter state.
 
-### Accuracy backlog (not v1)
-A fixed-iteration Gauss-Newton polish of the SVF parameters toward the analog magnitude would approach the single-biquad optimum (model: about 3x below MLR for the bell). It fits behind the designer interface without touching anything else. It is deliberately out of v1: it failed to converge at low Q in the Stage 0 trial and needs its own study.
+### Accuracy polish (v1, Phase 2.1b)
+
+Replaces "Accuracy backlog (not v1)" (amended 2026-11-13; Stage 2 CONTEXT D7, `stages/2-dsp/RESEARCH-2.1.md`). Figures are [MODEL] from that research unless marked.
+
+**Decision:** every MLR section of a Bell, Low Shelf, High Shelf or Tilt Shelf (the second-order gain sections) is refined by a fixed-iteration anchored Gauss-Newton fit toward the true analog section. Cuts, Notch, Band Pass and the first-order shelf section keep the closed form. The closed form is the seed and the fallback (D7c). No section is added: the fit uses the corrector one-pole that MLR already carries.
+
+**What was found.** Stage 0's "best single biquad" reference (0.08 / 0.16 / 0.37 dB) does not extend to the full G1 grid, where a lone biquad is no better than MLR (0.24 / 0.54 / 1.40 dB). The shipped section is a biquad plus the corrector, and that third-order section can reach about 0.005 / 0.009 / 0.021 dB at ±6 / ±12 / ±30 dB at 44.1 kHz. The v1 polish reaches about 0.04 / 0.08 / 0.19 dB for bells and 0.04 / 0.12 / 0.19 dB for 12 dB/oct shelves with Q ≤ 1.41 (seed: 0.34 / 0.61 / 0.98 and 0.66 / 1.17 / 1.48).
+
+**Algorithm** (the constants are part of the design; one header, both threads):
+
+```
+free:    φ = ln (g, k, mB, mH, G, cH)          mL and cL stay at the seed's values (DC gain exact)
+target:  the TRUE analog section (wz, Qz, wp, Qp, c), also for a bell whose seed is re-centred
+grid:    26 points: 16 fixed, log-spaced 20 Hz … min(20 kHz, 0.499 fs)   (tan² constants per rate)
+         + 10 tied: for each of (wz, Qz) and (wp, Qp): w0, and w0 (sqrt(1 + h²) ± h), h = s / (2Q), s = 0.5, 1.5
+         all clamped into 20 Hz … min(20 kHz, 0.499 fs)
+r_j   =  (10 / ln 10) (ln |H(w_j)|² − ln |Ha(w_j)|²)                     dB
+step:    A = JᵀJ + (λ diag(JᵀJ) + μ) I,   b = Jᵀr + μ (φ − φ0),   φ ← φ − A⁻¹ b      6x6 Cholesky
+         λ = 1e-3,  μ = 0.1
+run:     S0 = Σ r² at the seed.  If S0 / 26 ≤ Sa²: keep the seed, exactly.      Sa = 0.002 dB
+         K = 2 steps → φ2.  wx = sstep((rms(φ2) − Sx) / Sx),  Sx = 0.03 dB.
+         If wx > 0: two more steps → φ4;  φ ← φ2 + wx (φ4 − φ2)
+accept:  out = φ0 + a (φ − φ0),
+         a = sstep((S0/26 − Sa²) / (Sb² − Sa²)) · sstep((1 − S1/S0) / 0.1),   Sb = 0.006 dB
+         a = 0 for any non-finite value.     sstep = cubic smoothstep
+cut:     design and polish the boost (gEff ≥ 0; for a shelf, Gl ≥ 1), then emit the exact inverse:
+         g' = g sqrt(mL/mH)   k' = mB / sqrt(mL mH)   mL' = 1/mL   mB' = k / sqrt(mL mH)   mH' = 1/mH
+         G' = G cL / cH       cL' = 1/cL              cH' = 1/cH
+```
+
+The Jacobian is closed form (RESEARCH-2.1 Q3). No step is accepted or rejected inside the loop and every decision is a weight, so the output is a continuous function of the inputs; a binary version of the same logic measured 0.06 - 0.13 dB jumps.
+
+**Properties.** `g, k, G > 0` and positive numerator parameters by construction (log parameters): stable, minimum phase, invertible. Reciprocity holds to about 1e-12 dB. Allocation-free, bounded (2 or 4 steps), deterministic. No sample-rate branch: where the seed is already within 0.002 dB RMS on the match grid the section keeps it (68 → 49 % of bell settings at 44.1 kHz from ±6 to ±30 dB; 79 - 94 % at 192 kHz).
+
+**Results, polished** (max |err| dB, 20 Hz - 20 kHz, ±6 / ±12 / ±30 dB):
+
+| Design | 44.1 k | 48 k | ≥ 88.2 k |
+|--------|--------|------|----------|
+| Bell, Q 0.025 - 40, fc ≤ 20 k | 0.043 / 0.081 / 0.193 | 0.016 / 0.026 / 0.073 | ≤ 0.013 |
+| Shelf 12 dB/oct, Q ≤ 1.41 | 0.04 / 0.12 / 0.19 | ≤ 0.03 / 0.06 / 0.11 | ≤ 0.01 / 0.01 / 0.06 |
+| Shelf 24 - 96 dB/oct, Q 1.0 | 0.06 / 0.12 / 0.23 | same bound as above | same bound as above |
+| Shelf 18 dB/oct, Q 1.0 (odd order: the first-order section is not polished) | 0.06 / 0.15 / 0.28 | | |
+| Bell, 20 k < fc ≤ 30 k (re-centred seed), random sweep to ±30 dB | 2.66 → 0.40 | 2.51 → 0.17 | |
+
+**Known limits (INFO rows of G1 from Phase 2.1b):**
+- Resonant shelves (Q above 1.41) with the corner above 10 kHz at 44.1 kHz: mostly under 0.25 dB (seed 5 - 15 dB), up to 0.93 dB at Q 20 - 40, ±12 dB. One region stays poor: 12 dB/oct, Q 2 - 10, ±30 dB, corner above 10 kHz at 44.1 kHz (4.25 dB; the section's optimum there is 0.01 dB). A better seed is the likely fix; v1.x.
+- Odd-order shelves carry the unpolished Vicanek 2019 one-pole; the 6 dB/oct shelf is unchanged (0.17 / 0.31 / 0.49).
+- Below 44.1 kHz (22.05, 32 kHz) the polish is stable and finite but not reliably more accurate. Not gated; G5 covers stability.
+- The objective is least squares on 26 points, not the gate's maximum error; that is the gap between 0.04 dB and the 0.005 dB optimum.
+- Not modelled in research, measured by the Phase 2.1b harness: Tilt as its own type, 36 and 72 dB/oct shelves, 96 dB/oct shelves with user Q above 4.
+
+**Cost.** Seed 30 - 36 ns per section, seed plus polish 0.77 - 0.90 µs per section (C++ research port, Apple M4 Max, scalar). See "Performance". The polish runs on every control tick while a band ramps (plan P2). The documented fallback if the Phase 2.2 smoke reading shows a problem is a correction hold: seed every tick, polish every fourth tick, and add the last log-domain correction `φ − φ0` to the new seed in between (untested).
 
 ---
 
@@ -663,6 +721,14 @@ Cost model [TARGET]: settled SVF about 8 multiplies and 11 adds, serially depend
 | Same as PERF-02 case with all 24 bands sweeping (design ≤ 2 µs per 8-section band per tick x 3000 ticks/s = 14 %, settled cost 4.6 %, one division per section per sample about 3 %) | about 22 % | ≤ 35 % |
 | 0 bands enabled | buffer untouched | ≤ 0.3 % and ≤ 1.5x a pass-through harness |
 
+Amended 2026-11-13, measured design cost (C++ research port, Apple M4 Max, scalar): the seed is 30 - 36 ns per section, so the "≤ 2 µs per 8-section band" line above is about 7x pessimistic for cuts (which are never polished; the PERF-02 rows are unaffected). A polished section costs 0.77 - 0.90 µs. Design cost with every band sweeping at 3000 ticks/s and every section polished on every tick:
+
+| Case | Polished sections | Design cost |
+|------|-------------------|-------------|
+| 24 bells, or 24 shelves x 12 dB/oct | 24 | 5.8 % of a core |
+| 24 shelves x 48 dB/oct | 96 | 23 % |
+| 24 shelves x 96 dB/oct | 192 | 46 % (INFO row of G10; not a PERF-02 case) |
+
 Gate G10 measures on the development machine in Release at 512-sample blocks and also checks a ratio that is machine-independent: cost(24 bands) ≤ 24 x cost(1 band) x 1.15.
 
 SIMD: deferred. The model meets the budget in scalar code, and the serial band order offers no cross-band vectorisation. Data layout keeps a Stereo band's two lanes adjacent with shared parameters so the 2-wide path can be added without restructuring.
@@ -687,7 +753,7 @@ Stage 2 builds a render harness (`tests/render-harness`, suite pattern) and an o
 
 | Gate | Requirement | Stimulus and measure | Threshold |
 |------|-------------|----------------------|-----------|
-| **G1 Magnitude match** | DSP-01, FUNC-02 | Designer harness and rendered impulse responses at 44.1 kHz; magnitude vs the analog prototypes of this document, 20 Hz - 20 kHz; grid: fc 20 Hz - 20 kHz (40 points), gain ±3, ±6, ±12, ±18, ±30 dB. | Bell, Q 0.025 - 40: `|err| ≤ 0.15 dB + 0.05 |gain dB|`. Shelf 12 dB/oct, Q ≤ 1.0: `≤ 0.15 + 0.06 |g|`. Shelf 6 dB/oct: `≤ 0.10 + 0.02 |g|`. At fs ≥ 88.2 kHz, all three: `≤ 0.10 + 0.015 |g|`. Boost / cut mirror: `|H(+g)·H(−g)| = 1` within 1e-9 dB. Negative control: an RBJ bilinear build of the same grid must fail. INFO rows: the weak spots listed under "Model results". |
+| **G1 Magnitude match** | DSP-01, FUNC-02 | Designer harness and rendered impulse responses at 44.1 kHz; magnitude vs the analog prototypes of this document, 20 Hz - 20 kHz; grid: fc 20 Hz - 20 kHz (40 points), gain ±3, ±6, ±12, ±18, ±30 dB. | Bell, Q 0.025 - 40: `|err| ≤ 0.15 dB + 0.05 |gain dB|`. Shelf 12 dB/oct, Q ≤ 1.0: `≤ 0.15 + 0.06 |g|`. Shelf 6 dB/oct: `≤ 0.10 + 0.02 |g|`. At fs ≥ 88.2 kHz, all three: `≤ 0.10 + 0.015 |g|`. Boost / cut mirror: `|H(+g)·H(−g)| = 1` within 1e-9 dB. Negative control: an RBJ bilinear build of the same grid must fail. INFO rows: the weak spots listed under "Model results". **The thresholds above bind in Phase 2.1 (closed form). From Phase 2.1b (amended 2026-11-13) they are replaced by:** Bell, Q 0.025 - 40; Shelf 12 dB/oct, Q ≤ 1.41; Shelf 24 - 96 dB/oct (even orders), Q 1.0: `≤ 0.05 + 0.012 |g|` at 44.1 / 48 kHz and `≤ 0.03 + 0.002 |g|` at fs ≥ 88.2 kHz. Shelf 6 dB/oct unchanged (`≤ 0.10 + 0.02 |g|`; `≤ 0.10 + 0.015 |g|` at fs ≥ 88.2 kHz). Per section, polished error ≤ seed error + 1e-3 dB. Negative controls: the RBJ build and the closed-form seed must both fail the 44.1 kHz bell row. The error is evaluated on a log grid plus points tied to each section's peak. INFO rows: odd-order shelves (ceiling 0.10 / 0.15 / 0.30 at ±6 / ±12 / ±30), resonant shelves, Notch and Band Pass, and the polished / blended / seed share per zone. |
 | **G2 Slopes** | DSP-03 | Low cut and high cut, each of 8 slopes, Q 1.0, fc 100 Hz - 2 kHz at 48 kHz. | Stop-band slope between the -20 and -50 dB points within ±1.0 dB/oct of nominal. Corner gain -3.01 ± 0.10 dB. Corner gain with Q = 4: +9.03 ± 0.25 dB. |
 | **G3 Click** | DSP-04, FUNC-01, FUNC-04 | Sustained 50 Hz sine at -6 dBFS (second pass 1 kHz), 48 kHz, block sizes 32 and 512. Sweeps: frequency 10 Hz → 30 kHz and back in 50 ms; gain -30 → +30 dB in 20 ms; Q 0.025 → 40 in 20 ms; on a bell, a 96 dB/oct low cut at 30 Hz, and a high shelf. Steps every 100 ms: all type pairs from a deep setting (±18 dB, or a cut at the tone), all slopes, all placements, enable, band bypass, global bypass. | Local κ (maximum over 5 ms frames of max |Δ²y| / frame RMS, frames below -80 dBFS skipped) ≤ 2.0x the larger of the two held references. Hard control: the same run with smoothing and crossfades disabled must read ≥ 10x, or the gate is void. |
 | **G4 Null / bit transparency** | QUAL-01, FUNC-03, FUNC-04, FUNC-05 | White noise -12 dBFS, block sizes 1, 16, 64, 512, 1024, 4096 and a random sequence; mono and stereo. | (a) no band enabled, output 0 dB: `memcmp` equal. (b) Left bands only: right channel `memcmp` equal, and the converse. (c) Mid bands only: side `0.5 (L − R)` differs from the input's by ≤ -130 dB re input peak, and the converse. (d) 24 bell bands enabled at 0 dB, after 200 ms: `memcmp` equal. (e) `gain_scale` 0 % with 24 gain-bearing bands at ±12 dB, after 200 ms: `memcmp` equal. (f) global bypass, 100 ms after the toggle: `memcmp` equal. (g) static settings rendered at block sizes 32, 64, 512, 2048: outputs bit-identical. |
@@ -696,7 +762,7 @@ Stage 2 builds a render harness (`tests/render-harness`, suite pattern) and an o
 | **G7 Noise floor** | DSP-05 | 192 kHz, one bell at 10 Hz, Q 40, +12 dB. 1 kHz sine at -6 dBFS with a 2 s raised-cosine fade-in, 7 s; least-squares remove the 1 kHz component from the last 3 s. | Engine output in double: residual ≤ **-180 dBFS RMS** (model: -234 dBFS). Plugin float output: ≤ -140 dBFS RMS. Silence after excitation: level falls monotonically (1 s windows), ≤ -300 dBFS at 60 s, and block time during silence ≤ 1.2x block time with signal. |
 | **G8 Latency / phase** | DSP-02 | Unit impulse through 20 random configurations. | `getLatencySamples() == 0`; first non-zero output sample index equals the impulse index; no output before it. |
 | **G9 Display truth** | UI-02 | 50 random configurations at 44.1, 48, 88.2, 96, 192 kHz. (a) C++ closed-form response of the designer output vs the response measured from a rendered impulse (LL, RR, MM, SS). (b) The page's JS evaluator run under node on the same section packets vs (a). | (a) ≤ 0.05 dB where the response is above -80 dB. (b) ≤ 0.01 dB. Together within the 0.1 dB of UI-02. |
-| **G10 CPU** | PERF-02 | Render-time ratio, Release, 48 kHz stereo, 512-sample blocks, 60 s. | 24 cuts x 96 dB/oct settled ≤ 10 % of one core; all sweeping ≤ 35 %; 0 bands ≤ 0.3 % and ≤ 1.5x pass-through; cost(24) ≤ 24 x cost(1) x 1.15. |
+| **G10 CPU** | PERF-02 | Render-time ratio, Release, 48 kHz stereo, 512-sample blocks, 60 s. | 24 cuts x 96 dB/oct settled ≤ 10 % of one core; all sweeping ≤ 35 %; 0 bands ≤ 0.3 % and ≤ 1.5x pass-through; cost(24) ≤ 24 x cost(1) x 1.15. INFO (amended 2026-11-13): 24 shelves x 96 dB/oct all sweeping, reported against the 35 % line, not gated (model: 46 % of design cost alone). |
 | **G11 Layout / state** | DSP-07, COMPAT-01 | `param-dump` golden; state round trip; a state with one unknown parameter and one missing parameter; a state with `stateVersion="2"`. | Golden diff empty; round trip exact; foreign states load without error, known values applied, others default. |
 | **G12 Gains** | FUNC-05, FUNC-06 | Output gain at -36, -12, 0, +12, +36 dB on a 1 kHz sine; gain scale 200 % on a ±6 dB bell; auto gain on a +12 dB low shelf at 200 Hz with pink noise band-limited to 40 Hz - 16 kHz. | Output gain ±0.05 dB; 200 % measures as ±12 dB within G1 tolerance; auto gain: output RMS within ±0.5 dB of input RMS on that noise, and two renders are bit-identical; toggling auto gain passes G3. |
 | **G13 Layouts** | COMPAT-02, FUNC-03 | `auval`, pluginval strictness 10 (VST3, AU), mono and stereo; a probe that offers (2,1) and (1,2). | Pass; asymmetric layouts refused; on mono every placement processes the channel. |

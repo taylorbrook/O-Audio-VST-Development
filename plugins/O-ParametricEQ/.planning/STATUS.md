@@ -1,13 +1,13 @@
 ---
 plugin: O-ParametricEQ
 stage: 2
-phase: research
-status: stage_2_research_2_1_complete
-last_updated: 2026-11-13 01:30:00
+phase: plan
+status: stage_2_plan_2_1_complete
+last_updated: 2026-11-13 12:00:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_2_plan_phase_2_1
+next_action: stage_2_execute_phase_2_1
 next_stage: 2
 ready_for_implementation: true
 blocked_on: none
@@ -21,15 +21,15 @@ brief_update_timestamp: "2026-11-13T02:26:56Z"
 contract_checksums:
   brief: sha256:6fbb1b97c9c64ca3f159a409f807f13c74cb16dab8d6ab14b6a1a13c2e6991ff
   parameter_spec: sha256:60e7cf7fc335929259b4930d156a4f0d91cfa3b0a9f26d751ec31c5328c6229f
-  architecture: sha256:559de652fde7ef79d8231112913833f86522bcf58cf8ee21e61f8e48f7706fe4
-  roadmap: sha256:41be732176b54c37a13036ce9f3f2dd923a161b1220d919f9dc6b760b211b3ad
+  architecture: sha256:f2e29e814205c83951280d006ba6c8fad74825eee84274e55c13fc47fba7b585
+  roadmap: sha256:fa10298b5d69701b59807ba2eb82ba1a20ab0e6af4048687e015a1b26504af7c
 ---
 
 # O-ParametricEQ Status
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — discuss ✓ 2026-11-12 (`stages/2-dsp/CONTEXT.md`, D6–D11); research 2.1 / 2.1b ✓ 2026-11-12 (`stages/2-dsp/RESEARCH-2.1.md`); next is plan for Phase 2.1 / 2.1b. Stage 1 (Foundation): VERIFIED
+Stage: 2 of 4 (DSP) — discuss ✓ 2026-11-12 (`stages/2-dsp/CONTEXT.md`, D6–D11); research 2.1 / 2.1b ✓ 2026-11-12 (`stages/2-dsp/RESEARCH-2.1.md`); plan 2.1 / 2.1b ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.1.md`, `PLAN-2.1b.md`); next is execute, Phase 2.1. Stage 1 (Foundation): VERIFIED
 Status: 0.1.0 built and installed (VST3 + AU + Standalone); harness 36 PASS / 0 FAIL, pluginval 10 and auval pass (`stages/1-foundation/SUMMARY.md`). Verified 2026-11-12 by an independent re-run on a fresh compile and reinstalled bundles, plus a mutation run (`stages/1-foundation/VERIFICATION.md`); next is Stage 2 discuss
 Progress: [####................] 20%
 
@@ -78,7 +78,8 @@ Progress: [####................] 20%
 |-------|--------|------|---------|
 | discuss (stage-wide) | ✓ | 2026-11-12 | |
 | research 2.1 / 2.1b | ✓ | 2026-11-12 | |
-| plan 2.1 / 2.1b | | | |
+| plan 2.1 / 2.1b | ✓ | 2026-11-13 | |
+| execute 2.1 | | | |
 
 ## Next Steps
 
@@ -90,7 +91,8 @@ Progress: [####................] 20%
 6. ~~Stage 1 verify~~ Done 2026-11-12: `stages/1-foundation/VERIFICATION.md`, VERIFIED. COMPAT-01 complete; DSP-07 partial (state format and layout met; the `Band::dynOffsetDb` hook is Phase 2.2). Carry to Stage 2: RESEARCH pitfall 2 is wrong for JUCE 8.0.15 (a missing parameter already loads at its default through `valueTreeChildAdded`; the default fill is redundant and S5 does not gate it). Hands-on DAW smoke (three items in VERIFICATION) is open and not blocking.
 7. ~~Stage 2 discuss~~ Done 2026-11-12: `stages/2-dsp/CONTEXT.md`. The six deferred calls are answered: D6 slope inert on Bell / Notch / Band Pass, D8 tilt ±g/2, D9 Q 1.0 = Butterworth, D10 keep the in-band skirt above Nyquist, D11 listen = the band's region of the input, all as recommended. **D7 departs from the recommendation: the accuracy polish is in v1** (target near the second-order optimum, about 0.15 / 0.30 / 0.70 dB at ±6 / ±12 / ±30 dB at 44.1 kHz, one section per bell; bells and shelves including the weak spots; hybrid with the closed form as seed and fallback). Consequence: a new Phase 2.1b between 2.1 and 2.2; the plan phase amends `ROADMAP.md` and `ARCHITECTURE.md` ("Accuracy backlog (not v1)", G1 tolerance) and refreshes their checksums. Neither contract was edited in discuss.
 8. ~~Stage 2 research, Phase 2.1 / 2.1b~~ Done 2026-11-12: `stages/2-dsp/RESEARCH-2.1.md` (model and scripts in `stages/2-dsp/research-2.1/`). Stage 0 tables reproduced within 0.01 dB; the closed form passes G1 at the Stage 0 tolerance at five rates. Polish: anchored Gauss-Newton on six log parameters, 26-point grid with points tied to the peak, two iterations, blend weights in place of switches. Model at 44.1 kHz: bell 0.04 / 0.08 / 0.19 dB at ±6 / ±12 / ±30 (seed 0.34 / 0.61 / 0.98); the section-plus-corrector optimum is 0.005 / 0.009 / 0.021, far below D7a's single-biquad reference. Reciprocity kept (polish the boost, invert). Cost 0.8 µs per polished section (seed 35 ns), measured in a C++ port. **Calls for the plan:** every-tick polish puts 24 sweeping 96 dB/oct shelves at about 46 % of a core (PERF-02's cut case is unaffected); proposed G1 tolerance for 2.1b `0.05 + 0.012 |g|` at 44.1 / 48 kHz; the first-order shelf section stays unpolished; one weak spot stays poor (12 dB/oct, Q 2–10, ±30 dB, corner above 10 kHz).
-9. Stage 2 plan, Phase 2.1 / 2.1b — `/plugin-plan O-ParametricEQ 2-dsp`
+9. ~~Stage 2 plan, Phase 2.1 / 2.1b~~ Done 2026-11-13: `stages/2-dsp/PLAN-2.1.md` (9 tasks) and `PLAN-2.1b.md` (8 tasks). Research's calls taken as recommended: G1 for 2.1b is `0.05 + 0.012 |g|` at 44.1 / 48 kHz and `0.03 + 0.002 |g|` at 88.2 kHz and above; the polish runs on every control tick (24 sweeping 96 dB/oct shelves become a G10 INFO row, correction hold is the documented fallback, read at the 2.2 smoke measurement); the first-order shelf section stays unpolished; the one stubborn weak spot is reported, not gated. **Contracts amended** (D7): `ROADMAP.md` (Phase 2.1b, 7 phases, risks) and `research/ARCHITECTURE.md` (Amendments table, "Accuracy polish (v1, Phase 2.1b)", G1, G10, Performance, notch / band pass above the clamp); checksums above refreshed. Stage 0 decision 14 carries an amendment note. Other plan decisions: the designer is std-only C++17 headers in `Source/dsp/`; the Python model is promoted to `tests/model/` and writes the designs goldens; a G1 failure in 2.1 stops and escalates before any Vicanek fallback is written; neither phase touches the processor or the plugin binary.
+10. Stage 2 execute, Phase 2.1 — `/plugin-execute O-ParametricEQ 2-dsp`, then verify, then execute 2.1b (`PLAN-2.1b.md`)
 
 ## Context to Preserve
 
@@ -147,3 +149,5 @@ Progress: [####................] 20%
 - plugins/O-ParametricEQ/.planning/stages/2-dsp/CONTEXT.md
 - plugins/O-ParametricEQ/.planning/stages/2-dsp/RESEARCH-2.1.md
 - plugins/O-ParametricEQ/.planning/stages/2-dsp/research-2.1/ (model scripts and C++ timing port)
+- plugins/O-ParametricEQ/.planning/stages/2-dsp/PLAN-2.1.md
+- plugins/O-ParametricEQ/.planning/stages/2-dsp/PLAN-2.1b.md

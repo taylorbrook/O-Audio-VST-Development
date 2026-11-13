@@ -37,7 +37,7 @@ created: 2026-11-12
 
 - Stage 0: Research and planning ✓ (this document, `research/ARCHITECTURE.md`)
 - Stage 1: Foundation ← next, after the mockup is finalized and `parameter-spec.md` exists
-- Stage 2: DSP, 6 phases
+- Stage 2: DSP, 7 phases (2.1b added 2026-11-13, Stage 2 CONTEXT D7)
 - Stage 3: GUI, 3 phases
 - Stage 4: Polish and validation
 
@@ -48,7 +48,8 @@ created: 2026-11-12
 | Stage / phase | Requirements verified |
 |---------------|-----------------------|
 | 1 Foundation | COMPAT-01, DSP-07 |
-| 2.1 Designer | DSP-01, DSP-03 (static), DSP-06 (design side), FUNC-02 (design targets) |
+| 2.1 Designer | DSP-01 (closed form, Stage 0 tolerance), DSP-03 (static), DSP-06 (design side), FUNC-02 (design targets) |
+| 2.1b Designer polish | DSP-01 (final tolerance), DSP-06 (design side, re-run with the polish) |
 | 2.2 Static engine | FUNC-01, FUNC-02, FUNC-03, DSP-02, DSP-06, QUAL-01, PERF-01 |
 | 2.3 Continuous modulation | DSP-04 (sweeps, stress), DSP-05 |
 | 2.4 Structural crossfades | DSP-04 (stepped), DSP-03 (live), FUNC-04, FUNC-01 (enable / remove click) |
@@ -101,8 +102,31 @@ Suite traps to check here: the first-order `IIR::Filter` default constructor is 
 - [ ] 10 Hz, Q 40 bell at 192 kHz within 1e-6 dB of the prototype around the peak
 - [ ] Every design output finite with `g, k, G > 0` over a 1e6-point random sweep of the full parameter ranges at 22.05 - 192 kHz (DSP-06)
 - [ ] Gate G2 static part: corner gains and stop-band slopes from the closed form (DSP-03)
+- [ ] Notch and Band Pass: below-clamp regression ceilings hold; above-clamp figures reported (Stage 2 research Q2)
+- [ ] Designer output agrees with the Python reference model on a committed golden
 
-**Decision point at the end of 2.1:** if G1 fails for MLR, switch to the documented fallback (Vicanek 2016 section 4.4 bell, Vicanek 2024 Butterworth shelves, shelf Q inert) and record it in the stage CONTEXT. Nothing downstream changes.
+**Decision point at the end of 2.1:** if G1 fails for MLR, switch to the documented fallback (Vicanek 2016 section 4.4 bell, Vicanek 2024 Butterworth shelves, shelf Q inert) and record it in the stage CONTEXT. Nothing downstream changes. Amended 2026-11-13: the fallback has no general-Q shelf, so D7b's shelf coverage would need a new user call; a G1 failure therefore stops the phase and escalates before any fallback is written.
+
+---
+
+#### Phase 2.1b: Designer polish (added 2026-11-13; Stage 2 CONTEXT D7)
+
+**Goal:** the accuracy polish behind the same designer interface, proved offline; G1 tightened. Still no processor code.
+
+**Components:**
+- `eq::Polish` (ARCHITECTURE.md "Accuracy polish (v1, Phase 2.1b)"): per-rate grid constants, anchored Gauss-Newton refine of each second-order gain section, blend weights, exact inverse for cuts
+- One constants header shared by both threads
+- Designer harness rows for the tightened gate; Python reference of the polish
+
+**Test criteria:**
+- [ ] Gate G1 at the Phase 2.1b thresholds at 44.1, 48, 88.2, 96, 192 kHz; the RBJ build and the closed-form seed both fail the 44.1 kHz bell row (DSP-01)
+- [ ] Per section, polished error ≤ seed error + 1e-3 dB over the G1 grid at five rates (D7c)
+- [ ] Boost / cut reciprocity within 1e-9 dB with the polish on
+- [ ] Continuity: on fine sweeps along random lines in parameter space at 44.1 and 48 kHz, the polished design's neighbour-step response change is within 2x of the seed's and shrinks with the step
+- [ ] Every output finite with `g, k, G > 0` over a 1e6-point random sweep, gain to ±60 dB, 22.05 - 192 kHz (DSP-06)
+- [ ] Share of polished / blended / seed sections reported per zone; INFO rows for odd-order shelves, resonant shelves, Tilt, 36 / 72 dB/oct, 96 dB/oct with Q above 4
+- [ ] Allocation-free and bit-identical between two threads; design time per section reported (model: seed about 35 ns, polished about 0.8 µs)
+- [ ] Every Phase 2.1 row still passes with the seed designer
 
 ---
 
@@ -247,7 +271,7 @@ Suite traps to check here: the first-order `IIR::Filter` default constructor is 
 
 - Factory presets through `preset-manager` (reset-to-defaults before apply; presets never set `output_gain`) (FUNC-07)
 - French and zh-Hans (glossary and lint first) (UI-05)
-- Gate G10 CPU (PERF-02); lane-pair SIMD only if the scalar budget is missed
+- Gate G10 CPU (PERF-02); lane-pair SIMD only if the scalar budget is missed. INFO row: 24 shelves x 96 dB/oct all sweeping (polish on every tick; fallback is the correction hold in ARCHITECTURE.md "Accuracy polish")
 - Gate G13 and renders at 44.1, 48, 88.2, 96, 192 kHz; Logic mono and stereo; one VST3 host; Windows VST3 CI with pluginval (COMPAT-02)
 - Full gate battery re-run, listening pass across the factory presets (QUAL-01)
 
@@ -257,7 +281,7 @@ Suite traps to check here: the first-order `IIR::Filter` default constructor is 
 
 - Mockup finalization → `parameter-spec.md`
 - Stage 1: Foundation
-- Stage 2: DSP — 2.1, 2.2, 2.3, 2.4, 2.5, 2.6 (one commit per phase, path-scoped)
+- Stage 2: DSP — 2.1, 2.1b, 2.2, 2.3, 2.4, 2.5, 2.6 (one commit per phase, path-scoped)
 - Stage 3: GUI — 3.1, 3.2, 3.3
 - Stage 4: Polish
 
@@ -268,13 +292,14 @@ Suite traps to check here: the first-order `IIR::Filter` default constructor is 
 | Risk | Level | Phase that retires it | Fallback |
 |------|-------|-----------------------|----------|
 | MLR gain-section design is a Stage 0 derivation proved only in a float64 model | MEDIUM-HIGH | 2.1 | Vicanek 2016 bell + Vicanek 2024 Butterworth shelves |
-| Resonant and steep shelves near Nyquist at 44.1 / 48 kHz are inaccurate (INFO rows) | MEDIUM | 2.1 reports; v1.x polish | Ship with the limitation; the display shows the truth |
+| Resonant and steep shelves near Nyquist at 44.1 / 48 kHz are inaccurate in the closed form | LOW-MEDIUM | 2.1 reports; 2.1b polishes (steep shelves become binding; one resonant region stays poor, INFO) | Per section the closed form is kept wherever the polish is not better (D7c); the display shows the truth |
+| Polish cost with many steep shelves sweeping at once (model: 46 % of a core for 24 x 96 dB/oct) | MEDIUM | 2.2 smoke reading; 4 (G10 INFO row) | Correction hold: polish every fourth tick |
 | Time-varying stability is argued from a paper whose proof was not read | MEDIUM | 2.3 (G3, G5) | Longer ramps, 40 ms crossfades |
 | Click metric confounded by level changes of slow filters | MEDIUM | 2.3 / 2.4 | Local κ and a firing hard control are already specified |
 | CPU model is not a measurement | MEDIUM | 4 (early smoke measurement in 2.2) | 2-wide SIMD over Stereo lanes |
 | 196 WebView relays | MEDIUM | 3.1 | Relays for the selected band only |
 | `vu-meter` 1.0.0 has no consumer in the registry | LOW | 3.3 | O-AnalogEQ's `outputLevel` event |
-| Notch and band pass above their frequency clamp, and band pass above 10 kHz, were not characterised | LOW | 2.1 INFO rows | Clamp as specified |
+| Notch and band pass above their frequency clamp park a feature inside the audio band (characterised in Stage 2 research Q2; D10 keeps the clamp) | LOW | 2.1 INFO rows | Clamp as specified |
 
 ---
 
@@ -289,7 +314,7 @@ Suite traps to check here: the first-order `IIR::Filter` default constructor is 
 ### Performance
 - PERF-02 budget: 24 cuts x 96 dB/oct, stereo, 48 kHz, settled ≤ 10 % of one core (model 4.6 %); all sweeping ≤ 35 % (model about 22 %); nothing enabled ≤ 0.3 %.
 - Hot loop: per active band, per lane, per section over the block. Settled bands use constant parameters.
-- Take a smoke CPU reading at the end of 2.2 so a miss is known early.
+- Take a smoke CPU reading at the end of 2.2 so a miss is known early. It includes 24 shelves x 96 dB/oct sweeping (polish on every tick).
 
 ### Latency
 - 0 samples in every configuration. `setLatencySamples (0)` in `prepareToPlay`.
