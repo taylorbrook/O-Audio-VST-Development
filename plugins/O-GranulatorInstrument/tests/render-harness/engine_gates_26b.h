@@ -1140,6 +1140,13 @@ namespace { namespace eg26b
         std::printf ("  INFO %s (C26rec: C25m with a Manual take in flight, 30 s cap; %d sessions)\n",
                      eg23::cpuLine ("C26rec", m, refNs).toRawUTF8(), (int) starts);
         std::fflush (stdout);
+        // PLAN-R1 PD33: C25m with Reverb Pre on all four streams (eight tanks). INFO, not a row; above 40 % = stop and ask.
+        const auto mp = eg24::measure25 ([] { return eg24::c25Session (kFs, kBlock, true, eg23::worstFx(),
+                                                  cat ({ eg24::c25Extra(), eg25b::c25mRoutes(), eg24::all4 ("reverb_pre", 1.0f) })); },
+                                        n16, kFs, kBlock, refNs, true);
+        std::printf ("  INFO %s (C25mPre: C25m with sN_reverb_pre = Pre on 4 streams, 8 tanks; delta vs C26rec %+.2f points)\n",
+                     eg23::cpuLine ("C25mPre", mp, refNs).toRawUTF8(), mp.pct - m.pct);
+        std::fflush (stdout);
         return f;
     }
 } }

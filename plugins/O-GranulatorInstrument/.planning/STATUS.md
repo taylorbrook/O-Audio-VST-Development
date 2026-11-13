@@ -1,7 +1,7 @@
 ---
 plugin: O-GranulatorInstrument
 stage: 4
-status: stage_4_polish_rework_r1_c5_landed_w5_next
+status: stage_4_polish_rework_r1_c6_landed_w6_next
 current_phase: 4-polish
 gsd_phase: rework_r1_execute_in_progress
 last_updated: 2026-11-12
@@ -9,7 +9,7 @@ complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: /plugin-execute O-GranulatorInstrument 4-polish (rework R1: C5 landed; resume at W5 = T24 new rows (engine_gates_r1.h, run before T23 by the executor), T23 showcase re-voices, T25 CPU, C6; then W6 install / validators, W7 docs)
+next_action: /plugin-execute O-GranulatorInstrument 4-polish (rework R1: C6 landed; resume at W6 = T27 build / install / validators, T28; W7 docs drafted uncommitted (T29 / T30), T31 SUMMARY-R1 + C7, T32 hold)
 next_stage: 4
 ready_for_implementation: true
 blocked_on: none (fork pin 82406fce, D11)
@@ -38,6 +38,8 @@ contract_checksums:
 ## Current Position
 
 **D65 APPROVAL RECORDED — Taylor, 2026-11-12** (T6): (1) **Variant B**; (2) row density OK as shown; (3) destination names OK as shown; (4) **OS1 yes** — edit `forked/ControlGrid.h` in T17 and re-pin its manifest hash; (5) **OS2 default** — `rec_arm` state functions stay untouched (as built in C4), no restore-swallow; (6) **OS3** — French and Chinese destination titles unchanged; (7) the two unplanned mockup choices left to the executor's judgement, taken as: keep the 2 px left-edge bar on vertical segments; **dim the feedback switch with the rest of a disabled stream's column** (apply in T15, both the page and the `fb-off` / stream-off state checks). T15 onward is unblocked.
+
+**R1 W5 ✓ (T23–T26, C6)** 2026-11-12 (`evidence-r1/w5-notes.txt`, `r1-cpu.txt`, `B3.full.txt`): T24 run before T23; 22 new rows + 22 controls in `engine_gates_r1.h` PASS, one engine fix (`resetTailHold`: a Reset on a Pre stream no longer writes the old tail, RS2p), three stimulus deviations (FL1p / FL1sp raised, MZ1 second clause); 10 showcase presets re-voiced, no swap, FP2 spread 6.32 dB; harness 512 / 0, hashes unchanged, parity 168 / 0, PT1 38 / PT2 16 (−132.57 dB); CPU C25w 27.84, C25m 29.49, C25mPre 30.93, C25tm 6.70, bank T max 9.19 (Fifth Bloom) / W max 10.29. Last task T26; next T27.
 
 **R1 W4 ✓ (T15–T22, C5)** 2026-11-12: v2 finalized (MOCKUP-ONLY 0; the feedback switch dims with a disabled stream, `.sw.off`, state checks on `stream-off-head` / `fb-off`), scratch gates green; spec addendum C + body rewrite, extractor `OK: 293 params (200 Float / 74 Choice / 19 Bool), 150 dests, 18 sources`, goldens from the spec, 3 controls exit 1; C++ surface 293 / 150 / table version 2, `forked/ControlGrid.h` edited (drift 1 / 13 → manifest re-pin → 0 / 13); harness + parity port, bank copy on `s*_` wildcards (`expandSpecValues`); T20: hashes 14 / 14 / 7 unchanged, harness 468 / 0 (454 carried present, text moves = count / label rows, `evidence-r1/B2.full.txt`), parity 168 / 0 with PB / PR == B0, PT1 38 / 38 bitwise, PT2 26 / 26 (−131.18 dB), PT2n / PT2n2 fire, FP2 spread 6.32 dB, AU1 = 4 LFO rates; page landed (three v2 pairs `cmp` clean), `.planning/params.tsv` + overrides re-pinned, frontend ALL PASS + `--nc` 4 / 4, probe 293 × 2 with FD1 / VE15 / AC9 and 8 live controls, check-i18n · fr · zh 0 · 0 · 0, check-ui-labels default + 48, boot 0 DEAD, PN1; VST3 / AU / Standalone build, 0 warnings in `Source/`. Not installed (T27). Last task T22; next T24 → T23 → T25.
 

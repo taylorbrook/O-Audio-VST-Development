@@ -211,6 +211,7 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
         tankGateB[s] = false;
         tankFadeB[s] = 0;
         preHold[s] = 0;
+        resetTailHold[s] = false;
     }
     writeReverbAtomics();
     for (int s = 0; s < kGiStreams; ++s)
@@ -1320,7 +1321,13 @@ void Engine::takeTapes (std::int64_t t) noexcept
             hold = ! hooks.preHoldOff;   // RS2p control
            #endif
             if (hold)
+            {
                 preHold[s] = preHoldCells;
+                // T24 (RS2p): in Pre the head must not run on what is left of
+                // the old copy's tail either (see resetTailHold, Engine.h).
+                if (gp.s[s].reverbPre)
+                    resetTailHold[s] = true;
+            }
         }
         // PLAN-2.6 T11: any take rebuilds the tape from pristine (a Reset, an
         // SR rebuild, a new source) — the head-written bins are stale.
@@ -3997,8 +4004,14 @@ void Engine::updateHeads (std::int64_t t) noexcept
         // R1 PD9: the feedback toggle is a term of the run target — Off is a
         // per-stream Freeze (20 ms run ramp, park, no writes). The Amount ramp
         // is not touched, so a routed Amount cannot lift it.
+        // R1 PD8 (T24): after a Reset take of a Pre stream the tail term is
+        // dropped until a voice drives the stream again — the fresh copy stays
+        // pristine while nothing new is played. Never set for a Post stream.
+        if (voiceTerm)
+            resetTailHold[s] = false;
+        const bool tailTerm = hd.returnPk > 1.0e-5f && ! resetTailHold[s];
         const bool target = gp.s[s].fbOn && ! gp.freeze && rateOk && ! xfade[s].active && ! pending
-                         && (voiceTerm || hd.returnPk > 1.0e-5f);
+                         && (voiceTerm || tailTerm);
         const float v = target ? 1.0f : 0.0f;
 
         bool fbSnap = false;

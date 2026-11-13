@@ -1,0 +1,29 @@
+W5 (PLAN-R1 T23-T26), 2026-11-12. Executor order: T24 before T23 (deviation: a DSP fix at T24 would have re-run the showcase rows; outcome-equivalent, bank verdicts taken on the final DSP).
+
+T24 new rows (engine_gates_r1.h, --egr1): 22 rows + 22 controls PASS / FIRED, 0 INVALID: FL1p FL1sp FL2p FL3p FL4p FL4t FL4m FL5p TG1 RS2p MU1 IN1 SI1 TK1 MZ1 FA4p CK7 CK8 CK9 DC1 MC1 UHD1.
+  Engine fix (RS2p failed as b1-notes predicted: after a Reset with notes off the head resumed on the chain's residual return, 8640 frames by 200 ms):
+  `resetTailHold[4]` - a Reset take of a Pre stream drops the returnPk tail term of the head's run target until a voice drives that stream again. Never set on a Post stream.
+  After the fix: RS2p 0 writes; hashes 14 / 14 / 7, PT rows, parity, carried extract == B2 except the 8 wall-clock rows. MU1 needed no fix (parks 370 ms after the mute).
+  Measured: SI1 null -185.5 dBFS; CK7 0.945x / 1.315x (ctrl 14.7x / 28.0x); CK8 on the return 1.227x / 1.400x (ctrl 10.3x / 20.1x); CK9 1.166x / 0.288x (ctrl 10.8x / 15.6x);
+  DC1 0 mismatches of 150 (ctrl 32); TG1 guard scrubs 9600; FA4p 0 allocations; FL2p -19.5 / -29.5 dB (ctrl +61.5 / +54.3).
+  INFO: PreTail head writes 9.7 s after note-off, return peak 10 s later 0.000007; FL8p chain-input peak 2.1044, tape peak 0.5000; CK8o output 1.000x (the output cannot see the switch).
+  DEVIATIONS (predicates and thresholds unchanged):
+   1 FL1p / FL1sp stimulus raised (Key Track 0, Pitch 0, Scan Rate 100 % on four streams): with FL1's grain rows on noise the Pre loop decays, the validity clauses are unreachable
+     (literal stimulus printed as INFO FL1lit: chain-input peak 0.0859 / 0.0429, rClamps 0).
+   2 MZ1: no golden job has a -0 output sample, so addZeroTerm cannot move N1's hash; a second clause (hard-panned N1 keeps its zero signs) carries the control.
+   3 CK9: mute at sample 48032 with a silent second stream enabled (frame-grid and fallback-path reasons).
+   4 UHD1n is a harness-side model of the stream-1-only rule; TK1 stops by mute; FL4t 20 s per arm; IN1n runs the 10 parameters separately.
+  OPEN (not gated): Reset in Pre with notes held can write ~30 ms of fading old tail; gate B reads fbEff / preHold one cell late; only a Reset arms the hold
+   (a new file or a recording into a Pre stream keeps the old loop-tank tail); FL2p is green but weak at its stimulus.
+
+T23 showcase (10 of PD28, no swap): literal sN_ keys on the enabled streams; FP0-FP6 PASS, FP2 spread 6.32 dB (unchanged), bank 64, no output_gain.
+  --cmp-preset-renders r1-b0 --exclude-showcase: PT1 38 / 38 bitwise, PT2 16 / 16 (worst -132.57 dB, |g - 1| 4.66e-09), PT2n / PT2n2 fire, 10 names printed.
+  Judgement calls: Pre needs feedback > 0 to act, so Four Lanes S4 and Fifth Bloom S3 got fb 25 / diffusion 30; Organ Loft S1 feedback 30 -> 0;
+  Phase Garden's 7th route uses LFO 3 (global, 0.08 Hz) -> s2_reverb_mix depth 35; Broken Radio s1_level 5.7 of 6.0 (band-limited feedback costs ~5.7 dB), fb_low_cut 300.
+Full harness on the W5 tree: 512 PASS / 0 FAIL (454 carried + 14 AC + 44), 0 NOT FIRED, 0 INVALID; parity 168 / 0, PB / PR == B0; home unchanged; drift 0 / 13. B3.full.txt = that extract.
+
+T25 CPU (alone, r1-cpu.txt; session C25tm 6.70 vs B0 6.87): C25w 27.84 (B0 26.82), C25t 5.70, C25m 29.49 (B0 29.00), C25tm 6.70, C26rec 29.51,
+  C25mPre 30.93 (new INFO, Pre x4, 8 tanks; <= 40). --cpu4 64 / 64: T median 4.34, p90 6.60, max 9.19 (Fifth Bloom), W max 10.29 (Reverse River).
+  Showcase T, B0 -> R1: Deep Well 6.18 -> 6.11, Organ Loft 6.51 -> 6.75, Night Engine 6.78 -> 6.34, Bend Choir 4.51 -> 4.65, Four Lanes 4.52 -> 5.65,
+  Phase Garden 6.05 -> 6.20, Fifth Bloom 7.96 -> 9.19, Slow Tide 5.34 -> 6.23, Triplet Rain 1.78 -> 2.05, Broken Radio 4.95 -> 4.96.
+  C25mPre line added to cpu26 (engine_gates_26b.h) after T23's regression; harness-only, INFO.

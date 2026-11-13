@@ -1042,6 +1042,14 @@ namespace ogi
         int   tankFadeB[kGiStreams] {};
         int   preHold[kGiStreams] {};
         int   preHoldCells = 1;             // rampCellsFor (fs, 60 ms)
+        // R1 PD8 (T24, row RS2p): the Reset hold's second half. The chain's
+        // return keeps ringing after the loop tank has faded (its filters, and
+        // returnPk's 50 ms release), and a head that runs on that tail writes
+        // the OLD copy's sound into the fresh one. A Reset take of a Pre
+        // stream therefore also drops the tail term (returnPk) of that head's
+        // run target until a voice drives the stream again (updateHeads). Post
+        // streams never set it: their run target is the 2.4 statement.
+        bool  resetTailHold[kGiStreams] {};
         bool  prevPre[kGiStreams] {};       // preHardCut edge detection (test)
         bool  prevFbOn[kGiStreams] {};      // fbOnHardStop edge detection (test)
 
