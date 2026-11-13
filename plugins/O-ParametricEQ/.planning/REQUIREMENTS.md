@@ -38,7 +38,7 @@ lastUpdated: 2026-11-12
 | DSP-04 | Click-free under automation and fast drags of every parameter, including type, slope, placement and enable | must | pending | stage-2 |
 | DSP-05 | Numerically stable and quiet at low frequency / high Q at all supported sample rates | must | pending | stage-2 |
 | DSP-06 | Parameter ranges: frequency 10 Hz – 30 kHz, gain ±30 dB, Q 0.025 – 40 | must | pending | stage-2 |
-| DSP-07 | Band engine and state format leave room for dynamic EQ without breaking v1 sessions | should | pending | stage-1 |
+| DSP-07 | Band engine and state format leave room for dynamic EQ without breaking v1 sessions | should | partial | stage-1 |
 
 ### UI (UI)
 
@@ -63,7 +63,7 @@ lastUpdated: 2026-11-12
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| COMPAT-01 | Passes pluginval validation (VST3 and AU) and auval | must | pending | stage-1 |
+| COMPAT-01 | Passes pluginval validation (VST3 and AU) and auval | must | complete | stage-1 |
 | COMPAT-02 | Mono and stereo layouts; 44.1 – 192 kHz; macOS VST3 + AU, Windows VST3 | must | pending | stage-4 |
 
 ### Quality (QUAL)
@@ -169,8 +169,8 @@ lastUpdated: 2026-11-12
 ### COMPAT-01: Validation
 
 **Acceptance Criteria:**
-- [ ] pluginval strictness 10 passes for VST3 and AU
-- [ ] `auval` passes
+- [x] pluginval strictness 10 passes for VST3 and AU
+- [x] `auval` passes
 
 ### COMPAT-02: Layouts, rates, platforms
 
@@ -191,7 +191,7 @@ lastUpdated: 2026-11-12
 
 | Stage | Requirements Verified |
 |-------|----------------------|
-| stage-1 | COMPAT-01, DSP-07 |
+| stage-1 | COMPAT-01, DSP-07 (state format and layout; the band-engine half is checked in Phase 2.2) |
 | stage-2 | FUNC-01–06, DSP-01–06, PERF-01, QUAL-01 |
 | stage-3 | FUNC-08, UI-01–04, UI-06, UI-07 |
 | stage-4 | FUNC-07, UI-05, PERF-02, COMPAT-02, all remaining |

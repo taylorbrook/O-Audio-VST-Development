@@ -1,14 +1,14 @@
 ---
 plugin: O-ParametricEQ
 stage: 1
-phase: execute
-status: stage_1_execute_complete
-last_updated: 2026-11-12 23:30:00
+phase: verify
+status: stage_1_complete_verified
+last_updated: 2026-11-12 23:55:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: plugin_verify_stage_1
-next_stage: 1
+next_action: stage_2_discuss
+next_stage: 2
 ready_for_implementation: true
 blocked_on: none
 ui_scaffolding_phase_complete: true
@@ -29,9 +29,9 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — execute complete
-Status: 0.1.0 built and installed (VST3 + AU + Standalone); harness 36 PASS / 0 FAIL, pluginval 10 and auval pass (`stages/1-foundation/SUMMARY.md`); next is verify
-Progress: [###.................] 15%
+Stage: 1 of 4 (Foundation) — VERIFIED
+Status: 0.1.0 built and installed (VST3 + AU + Standalone); harness 36 PASS / 0 FAIL, pluginval 10 and auval pass (`stages/1-foundation/SUMMARY.md`). Verified 2026-11-12 by an independent re-run on a fresh compile and reinstalled bundles, plus a mutation run (`stages/1-foundation/VERIFICATION.md`); next is Stage 2 discuss
+Progress: [####................] 20%
 
 `parameter_spec` checksum above is of `parameter-spec.md` (written by mockup finalization, 2026-11-12; 196 host parameters). `parameter-spec-draft.md` is kept for reference and is superseded.
 
@@ -71,7 +71,7 @@ Progress: [###.................] 15%
 | research | ✓ | 2026-11-12 | |
 | plan | ✓ | 2026-11-12 | |
 | execute | ✓ | 2026-11-12 | |
-| verify | → | | |
+| verify | ✓ | 2026-11-12 | |
 
 ## Next Steps
 
@@ -80,7 +80,8 @@ Progress: [###.................] 15%
 3. ~~Stage 1 research~~ Done 2026-11-12: `stages/1-foundation/RESEARCH.md`. Carry to Stage 2 discuss: skewed raw defaults are 999.99988 Hz and 0.99999976 (normalised 0.5 exactly).
 4. ~~Stage 1 plan~~ Done 2026-11-12: `stages/1-foundation/PLAN.md`. Plan decisions to note: an invalid state blob leaves the state unchanged (deviates from ARCHITECTURE "→ defaults"); `uiLanguage` is a root attribute; save always writes `stateVersion="1"`.
 5. ~~Stage 1 execute~~ Done 2026-11-12: `stages/1-foundation/SUMMARY.md`. Gate 0→1 bypassed with `--force` (no CMakeLists before Stage 1). AU channel capabilities `[1, 1] [2, 2]` are now frozen.
-6. Stage 1 verify — `/plugin-verify O-ParametricEQ 1-foundation`
+6. ~~Stage 1 verify~~ Done 2026-11-12: `stages/1-foundation/VERIFICATION.md`, VERIFIED. COMPAT-01 complete; DSP-07 partial (state format and layout met; the `Band::dynOffsetDb` hook is Phase 2.2). Carry to Stage 2: RESEARCH pitfall 2 is wrong for JUCE 8.0.15 (a missing parameter already loads at its default through `valueTreeChildAdded`; the default fill is redundant and S5 does not gate it). Hands-on DAW smoke (three items in VERIFICATION) is open and not blocking.
+7. Stage 2 discuss — `/plugin-discuss O-ParametricEQ` (raise the six deferred DSP calls, D3)
 
 ## Context to Preserve
 
@@ -133,3 +134,4 @@ Progress: [###.................] 15%
 - plugins/O-ParametricEQ/tests/golden/check_spec.py
 - plugins/O-ParametricEQ/tests/golden/params.tsv
 - plugins/O-ParametricEQ/.planning/stages/1-foundation/SUMMARY.md
+- plugins/O-ParametricEQ/.planning/stages/1-foundation/VERIFICATION.md
