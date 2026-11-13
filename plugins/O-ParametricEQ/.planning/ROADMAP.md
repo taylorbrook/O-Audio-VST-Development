@@ -115,6 +115,7 @@ Suite traps to check here: the first-order `IIR::Filter` default constructor is 
 
 **Components:**
 - `eq::Polish` (ARCHITECTURE.md "Accuracy polish (v1, Phase 2.1b)"): per-rate grid constants, anchored Gauss-Newton refine of each second-order gain section, blend weights, exact inverse for cuts
+- Rework (2026-11-13, `stages/2-dsp/RESEARCH-2.1b-continuity.md`): shelf re-centre on the seed side (`Prototype.h`, model, designs golden regenerated), step limit 0.35, no polish below 44.1 kHz
 - One constants header shared by both threads
 - Designer harness rows for the tightened gate; Python reference of the polish
 
@@ -122,7 +123,10 @@ Suite traps to check here: the first-order `IIR::Filter` default constructor is 
 - [ ] Gate G1 at the Phase 2.1b thresholds at 44.1, 48, 88.2, 96, 192 kHz; the RBJ build and the closed-form seed both fail the 44.1 kHz bell row (DSP-01)
 - [ ] Per section, polished error ≤ seed error + 1e-3 dB over the G1 grid at five rates (D7c)
 - [ ] Boost / cut reciprocity within 1e-9 dB with the polish on
-- [ ] Continuity: on fine sweeps along random lines in parameter space at 44.1 and 48 kHz, the polished design's neighbour-step response change is within 2x of the seed's and shrinks with the step
+- [ ] Continuity (amended 2026-11-13, `stages/2-dsp/PLAN-2.1b-rework.md`): on fine sweeps along random lines in parameter space at 44.1 and 48 kHz (bells; shelves at 12, 18, 24, 48, 72, 96 dB/oct; tilt at 12 and 48 dB/oct) and at 88.2, 96, 192 kHz, the polished design's neighbour-step response change is within 4x of the seed's and its 32 000-step figure is at most 0.5x its 8000-step figure
+- [ ] Random full-range never-worse at 44.1 and 48 kHz, per section: polished error ≤ seed error + 1.0 dB; 0 sections accepted with g or k more than 10x from the seed; the first Phase 2.1b build fails all three of these rows (added 2026-11-13)
+- [ ] Below 44.1 kHz the design is the closed form bit for bit (no polish; added 2026-11-13)
+- [ ] Shelf re-centre (a Phase 2.1 seed change): continuous at its boundaries; designs outside its region bit-unchanged from the verified Phase 2.1 golden (added 2026-11-13)
 - [ ] Every output finite with `g, k, G > 0` over a 1e6-point random sweep, gain to ±60 dB, 22.05 - 192 kHz (DSP-06)
 - [ ] Share of polished / blended / seed sections reported per zone; INFO rows for odd-order shelves, resonant shelves, Tilt, 36 / 72 dB/oct, 96 dB/oct with Q above 4
 - [ ] Allocation-free and bit-identical between two threads; design time per section reported (model: seed about 35 ns, polished about 0.8 µs)
