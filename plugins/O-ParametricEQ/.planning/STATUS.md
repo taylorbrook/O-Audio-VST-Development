@@ -1,13 +1,13 @@
 ---
 plugin: O-ParametricEQ
 stage: 2
-phase: discuss
-status: stage_2_discuss_complete
-last_updated: 2026-11-12 23:59:00
+phase: research
+status: stage_2_research_2_1_complete
+last_updated: 2026-11-13 01:30:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_2_research_phase_2_1
+next_action: stage_2_plan_phase_2_1
 next_stage: 2
 ready_for_implementation: true
 blocked_on: none
@@ -29,7 +29,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — discuss ✓ 2026-11-12 (`stages/2-dsp/CONTEXT.md`, D6–D11); next is research for Phase 2.1 / 2.1b. Stage 1 (Foundation): VERIFIED
+Stage: 2 of 4 (DSP) — discuss ✓ 2026-11-12 (`stages/2-dsp/CONTEXT.md`, D6–D11); research 2.1 / 2.1b ✓ 2026-11-12 (`stages/2-dsp/RESEARCH-2.1.md`); next is plan for Phase 2.1 / 2.1b. Stage 1 (Foundation): VERIFIED
 Status: 0.1.0 built and installed (VST3 + AU + Standalone); harness 36 PASS / 0 FAIL, pluginval 10 and auval pass (`stages/1-foundation/SUMMARY.md`). Verified 2026-11-12 by an independent re-run on a fresh compile and reinstalled bundles, plus a mutation run (`stages/1-foundation/VERIFICATION.md`); next is Stage 2 discuss
 Progress: [####................] 20%
 
@@ -77,7 +77,8 @@ Progress: [####................] 20%
 | Phase | Status | Date | Skipped |
 |-------|--------|------|---------|
 | discuss (stage-wide) | ✓ | 2026-11-12 | |
-| research 2.1 / 2.1b | | | |
+| research 2.1 / 2.1b | ✓ | 2026-11-12 | |
+| plan 2.1 / 2.1b | | | |
 
 ## Next Steps
 
@@ -88,7 +89,8 @@ Progress: [####................] 20%
 5. ~~Stage 1 execute~~ Done 2026-11-12: `stages/1-foundation/SUMMARY.md`. Gate 0→1 bypassed with `--force` (no CMakeLists before Stage 1). AU channel capabilities `[1, 1] [2, 2]` are now frozen.
 6. ~~Stage 1 verify~~ Done 2026-11-12: `stages/1-foundation/VERIFICATION.md`, VERIFIED. COMPAT-01 complete; DSP-07 partial (state format and layout met; the `Band::dynOffsetDb` hook is Phase 2.2). Carry to Stage 2: RESEARCH pitfall 2 is wrong for JUCE 8.0.15 (a missing parameter already loads at its default through `valueTreeChildAdded`; the default fill is redundant and S5 does not gate it). Hands-on DAW smoke (three items in VERIFICATION) is open and not blocking.
 7. ~~Stage 2 discuss~~ Done 2026-11-12: `stages/2-dsp/CONTEXT.md`. The six deferred calls are answered: D6 slope inert on Bell / Notch / Band Pass, D8 tilt ±g/2, D9 Q 1.0 = Butterworth, D10 keep the in-band skirt above Nyquist, D11 listen = the band's region of the input, all as recommended. **D7 departs from the recommendation: the accuracy polish is in v1** (target near the second-order optimum, about 0.15 / 0.30 / 0.70 dB at ±6 / ±12 / ±30 dB at 44.1 kHz, one section per bell; bells and shelves including the weak spots; hybrid with the closed form as seed and fallback). Consequence: a new Phase 2.1b between 2.1 and 2.2; the plan phase amends `ROADMAP.md` and `ARCHITECTURE.md` ("Accuracy backlog (not v1)", G1 tolerance) and refreshes their checksums. Neither contract was edited in discuss.
-8. Stage 2 research, Phase 2.1 / 2.1b — `/plugin-research O-ParametricEQ 2-dsp`
+8. ~~Stage 2 research, Phase 2.1 / 2.1b~~ Done 2026-11-12: `stages/2-dsp/RESEARCH-2.1.md` (model and scripts in `stages/2-dsp/research-2.1/`). Stage 0 tables reproduced within 0.01 dB; the closed form passes G1 at the Stage 0 tolerance at five rates. Polish: anchored Gauss-Newton on six log parameters, 26-point grid with points tied to the peak, two iterations, blend weights in place of switches. Model at 44.1 kHz: bell 0.04 / 0.08 / 0.19 dB at ±6 / ±12 / ±30 (seed 0.34 / 0.61 / 0.98); the section-plus-corrector optimum is 0.005 / 0.009 / 0.021, far below D7a's single-biquad reference. Reciprocity kept (polish the boost, invert). Cost 0.8 µs per polished section (seed 35 ns), measured in a C++ port. **Calls for the plan:** every-tick polish puts 24 sweeping 96 dB/oct shelves at about 46 % of a core (PERF-02's cut case is unaffected); proposed G1 tolerance for 2.1b `0.05 + 0.012 |g|` at 44.1 / 48 kHz; the first-order shelf section stays unpolished; one weak spot stays poor (12 dB/oct, Q 2–10, ±30 dB, corner above 10 kHz).
+9. Stage 2 plan, Phase 2.1 / 2.1b — `/plugin-plan O-ParametricEQ 2-dsp`
 
 ## Context to Preserve
 
@@ -143,3 +145,5 @@ Progress: [####................] 20%
 - plugins/O-ParametricEQ/.planning/stages/1-foundation/SUMMARY.md
 - plugins/O-ParametricEQ/.planning/stages/1-foundation/VERIFICATION.md
 - plugins/O-ParametricEQ/.planning/stages/2-dsp/CONTEXT.md
+- plugins/O-ParametricEQ/.planning/stages/2-dsp/RESEARCH-2.1.md
+- plugins/O-ParametricEQ/.planning/stages/2-dsp/research-2.1/ (model scripts and C++ timing port)
