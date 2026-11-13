@@ -1,13 +1,13 @@
 ---
 plugin: O-ParametricEQ
 stage: 2
-phase: plan
-status: stage_2_plan_2_1_complete
-last_updated: 2026-11-13 12:00:00
+phase: execute
+status: stage_2_execute_2_1_complete
+last_updated: 2026-11-13 14:00:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_2_execute_phase_2_1
+next_action: stage_2_verify_phase_2_1
 next_stage: 2
 ready_for_implementation: true
 blocked_on: none
@@ -29,7 +29,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — discuss ✓ 2026-11-12 (`stages/2-dsp/CONTEXT.md`, D6–D11); research 2.1 / 2.1b ✓ 2026-11-12 (`stages/2-dsp/RESEARCH-2.1.md`); plan 2.1 / 2.1b ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.1.md`, `PLAN-2.1b.md`); next is execute, Phase 2.1. Stage 1 (Foundation): VERIFIED
+Stage: 2 of 4 (DSP) — discuss ✓ 2026-11-12 (`stages/2-dsp/CONTEXT.md`, D6–D11); research 2.1 / 2.1b ✓ 2026-11-12 (`stages/2-dsp/RESEARCH-2.1.md`); plan 2.1 / 2.1b ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.1.md`, `PLAN-2.1b.md`); execute 2.1 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.1.md`, designer harness 28 PASS / 0 FAIL / 6 INFO); next is verify, Phase 2.1. Stage 1 (Foundation): VERIFIED
 Status: 0.1.0 built and installed (VST3 + AU + Standalone); harness 36 PASS / 0 FAIL, pluginval 10 and auval pass (`stages/1-foundation/SUMMARY.md`). Verified 2026-11-12 by an independent re-run on a fresh compile and reinstalled bundles, plus a mutation run (`stages/1-foundation/VERIFICATION.md`); next is Stage 2 discuss
 Progress: [####................] 20%
 
@@ -79,7 +79,8 @@ Progress: [####................] 20%
 | discuss (stage-wide) | ✓ | 2026-11-12 | |
 | research 2.1 / 2.1b | ✓ | 2026-11-12 | |
 | plan 2.1 / 2.1b | ✓ | 2026-11-13 | |
-| execute 2.1 | | | |
+| execute 2.1 | ✓ | 2026-11-13 | |
+| verify 2.1 | | | |
 
 ## Next Steps
 
@@ -92,7 +93,8 @@ Progress: [####................] 20%
 7. ~~Stage 2 discuss~~ Done 2026-11-12: `stages/2-dsp/CONTEXT.md`. The six deferred calls are answered: D6 slope inert on Bell / Notch / Band Pass, D8 tilt ±g/2, D9 Q 1.0 = Butterworth, D10 keep the in-band skirt above Nyquist, D11 listen = the band's region of the input, all as recommended. **D7 departs from the recommendation: the accuracy polish is in v1** (target near the second-order optimum, about 0.15 / 0.30 / 0.70 dB at ±6 / ±12 / ±30 dB at 44.1 kHz, one section per bell; bells and shelves including the weak spots; hybrid with the closed form as seed and fallback). Consequence: a new Phase 2.1b between 2.1 and 2.2; the plan phase amends `ROADMAP.md` and `ARCHITECTURE.md` ("Accuracy backlog (not v1)", G1 tolerance) and refreshes their checksums. Neither contract was edited in discuss.
 8. ~~Stage 2 research, Phase 2.1 / 2.1b~~ Done 2026-11-12: `stages/2-dsp/RESEARCH-2.1.md` (model and scripts in `stages/2-dsp/research-2.1/`). Stage 0 tables reproduced within 0.01 dB; the closed form passes G1 at the Stage 0 tolerance at five rates. Polish: anchored Gauss-Newton on six log parameters, 26-point grid with points tied to the peak, two iterations, blend weights in place of switches. Model at 44.1 kHz: bell 0.04 / 0.08 / 0.19 dB at ±6 / ±12 / ±30 (seed 0.34 / 0.61 / 0.98); the section-plus-corrector optimum is 0.005 / 0.009 / 0.021, far below D7a's single-biquad reference. Reciprocity kept (polish the boost, invert). Cost 0.8 µs per polished section (seed 35 ns), measured in a C++ port. **Calls for the plan:** every-tick polish puts 24 sweeping 96 dB/oct shelves at about 46 % of a core (PERF-02's cut case is unaffected); proposed G1 tolerance for 2.1b `0.05 + 0.012 |g|` at 44.1 / 48 kHz; the first-order shelf section stays unpolished; one weak spot stays poor (12 dB/oct, Q 2–10, ±30 dB, corner above 10 kHz).
 9. ~~Stage 2 plan, Phase 2.1 / 2.1b~~ Done 2026-11-13: `stages/2-dsp/PLAN-2.1.md` (9 tasks) and `PLAN-2.1b.md` (8 tasks). Research's calls taken as recommended: G1 for 2.1b is `0.05 + 0.012 |g|` at 44.1 / 48 kHz and `0.03 + 0.002 |g|` at 88.2 kHz and above; the polish runs on every control tick (24 sweeping 96 dB/oct shelves become a G10 INFO row, correction hold is the documented fallback, read at the 2.2 smoke measurement); the first-order shelf section stays unpolished; the one stubborn weak spot is reported, not gated. **Contracts amended** (D7): `ROADMAP.md` (Phase 2.1b, 7 phases, risks) and `research/ARCHITECTURE.md` (Amendments table, "Accuracy polish (v1, Phase 2.1b)", G1, G10, Performance, notch / band pass above the clamp); checksums above refreshed. Stage 0 decision 14 carries an amendment note. Other plan decisions: the designer is std-only C++17 headers in `Source/dsp/`; the Python model is promoted to `tests/model/` and writes the designs goldens; a G1 failure in 2.1 stops and escalates before any Vicanek fallback is written; neither phase touches the processor or the plugin binary.
-10. Stage 2 execute, Phase 2.1 — `/plugin-execute O-ParametricEQ 2-dsp`, then verify, then execute 2.1b (`PLAN-2.1b.md`)
+10. ~~Stage 2 execute, Phase 2.1~~ Done 2026-11-13: `stages/2-dsp/SUMMARY-2.1.md`. Designer is four std-only headers in `Source/dsp/`; designer harness 28 PASS / 0 FAIL / 6 INFO; MLR passes G1 in C++ at five rates and the RBJ control fails; the C++ matches the Python golden bit-exactly (162,855 rows, 30 MB, committed at that size on Taylor's call); all negative controls fire; Stage 1 harness still 36 / 0. Gate 1→2 passed with the human review checkpoint skipped (`--skip-review`, justification recorded). For verify: G2s cannot measure the High Cut stop-band slope at 6 dB/oct (11 cells skipped); the agent-written code was gated, not read line by line. Plugin binary unchanged (0.1.0), no install, no tag.
+11. Stage 2 verify, Phase 2.1 — `/plugin-verify O-ParametricEQ 2-dsp`, then execute 2.1b (`PLAN-2.1b.md`)
 
 ## Context to Preserve
 
@@ -151,3 +153,13 @@ Progress: [####................] 20%
 - plugins/O-ParametricEQ/.planning/stages/2-dsp/research-2.1/ (model scripts and C++ timing port)
 - plugins/O-ParametricEQ/.planning/stages/2-dsp/PLAN-2.1.md
 - plugins/O-ParametricEQ/.planning/stages/2-dsp/PLAN-2.1b.md
+- plugins/O-ParametricEQ/Source/dsp/EqTypes.h
+- plugins/O-ParametricEQ/Source/dsp/ResponseEval.h
+- plugins/O-ParametricEQ/Source/dsp/Prototype.h
+- plugins/O-ParametricEQ/Source/dsp/Designer.h
+- plugins/O-ParametricEQ/tests/designer-harness/main.cpp
+- plugins/O-ParametricEQ/tests/model/eqmodel.py
+- plugins/O-ParametricEQ/tests/model/dump_designs.py
+- plugins/O-ParametricEQ/tests/model/README.md
+- plugins/O-ParametricEQ/tests/golden/designs.tsv
+- plugins/O-ParametricEQ/.planning/stages/2-dsp/SUMMARY-2.1.md

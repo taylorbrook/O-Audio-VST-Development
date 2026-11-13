@@ -102,4 +102,34 @@ if(OUARICON_BUILD_TESTS)
 
     target_compile_definitions(O-ParametricEQ-render-harness PRIVATE
         GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/golden")
+
+    # Gate G1 (offline): O-ParametricEQ-designer-harness. A plain C++17 console
+    # over the std-only headers in Source/dsp: no plugin target, no framework
+    # modules, and no floating-point options of its own, so the designer is
+    # compiled with the same arithmetic as the plugin. Threads is the standard
+    # library's std::thread dependency (row B1), nothing else.
+    find_package(Threads REQUIRED)
+
+    add_executable(O-ParametricEQ-designer-harness EXCLUDE_FROM_ALL
+        tests/designer-harness/main.cpp)
+
+    set_target_properties(O-ParametricEQ-designer-harness PROPERTIES
+        CXX_STANDARD 17
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF)
+
+    target_include_directories(O-ParametricEQ-designer-harness PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Source)
+
+    target_compile_definitions(O-ParametricEQ-designer-harness PRIVATE
+        GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/golden")
+
+    target_link_libraries(O-ParametricEQ-designer-harness PRIVATE Threads::Threads)
+
+    # Release optimisation whatever the build type, and the warning set the
+    # build log is checked against. (MSVC keeps the build type's own flags.)
+    if(NOT MSVC)
+        target_compile_options(O-ParametricEQ-designer-harness PRIVATE
+            -O3 -Wall -Wextra -Wconversion -Wshadow -Wsign-conversion -Wfloat-equal)
+    endif()
 endif()
