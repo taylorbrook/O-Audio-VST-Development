@@ -1,13 +1,13 @@
 ---
 plugin: O-ParametricEQ
 stage: 1
-phase: plan
-status: stage_1_plan_complete
-last_updated: 2026-11-12 23:00:00
+phase: execute
+status: stage_1_execute_complete
+last_updated: 2026-11-12 23:30:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: plugin_execute_stage_1
+next_action: plugin_verify_stage_1
 next_stage: 1
 ready_for_implementation: true
 blocked_on: none
@@ -29,9 +29,9 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — plan complete
-Status: Stage 1 planned (`stages/1-foundation/PLAN.md`, 9 tasks in 6 waves); next is execute
-Progress: [##..................] 10%
+Stage: 1 of 4 (Foundation) — execute complete
+Status: 0.1.0 built and installed (VST3 + AU + Standalone); harness 36 PASS / 0 FAIL, pluginval 10 and auval pass (`stages/1-foundation/SUMMARY.md`); next is verify
+Progress: [###.................] 15%
 
 `parameter_spec` checksum above is of `parameter-spec.md` (written by mockup finalization, 2026-11-12; 196 host parameters). `parameter-spec-draft.md` is kept for reference and is superseded.
 
@@ -70,8 +70,8 @@ Progress: [##..................] 10%
 | discuss | ✓ | 2026-11-12 | |
 | research | ✓ | 2026-11-12 | |
 | plan | ✓ | 2026-11-12 | |
-| execute | → | | |
-| verify | | | |
+| execute | ✓ | 2026-11-12 | |
+| verify | → | | |
 
 ## Next Steps
 
@@ -79,7 +79,8 @@ Progress: [##..................] 10%
 2. ~~Answer the items under "Needs the user's call before Stage 1"~~ Items 3 and 6 answered 2026-11-12 (196 parameters, `b01_` IDs; no spec change). Items 1, 2, 4, 5, 7, 8 are deferred to Stage 2 discuss.
 3. ~~Stage 1 research~~ Done 2026-11-12: `stages/1-foundation/RESEARCH.md`. Carry to Stage 2 discuss: skewed raw defaults are 999.99988 Hz and 0.99999976 (normalised 0.5 exactly).
 4. ~~Stage 1 plan~~ Done 2026-11-12: `stages/1-foundation/PLAN.md`. Plan decisions to note: an invalid state blob leaves the state unchanged (deviates from ARCHITECTURE "→ defaults"); `uiLanguage` is a root attribute; save always writes `stateVersion="1"`.
-5. Stage 1 execute — `/plugin-execute O-ParametricEQ 1-foundation`
+5. ~~Stage 1 execute~~ Done 2026-11-12: `stages/1-foundation/SUMMARY.md`. Gate 0→1 bypassed with `--force` (no CMakeLists before Stage 1). AU channel capabilities `[1, 1] [2, 2]` are now frozen.
+6. Stage 1 verify — `/plugin-verify O-ParametricEQ 1-foundation`
 
 ## Context to Preserve
 
@@ -124,3 +125,11 @@ Progress: [##..................] 10%
 - plugins/O-ParametricEQ/.planning/stages/1-foundation/CONTEXT.md
 - plugins/O-ParametricEQ/.planning/stages/1-foundation/RESEARCH.md
 - plugins/O-ParametricEQ/.planning/stages/1-foundation/PLAN.md
+- plugins/O-ParametricEQ/CMakeLists.txt
+- plugins/O-ParametricEQ/CHANGELOG.md
+- plugins/O-ParametricEQ/Source/PluginProcessor.h
+- plugins/O-ParametricEQ/Source/PluginProcessor.cpp
+- plugins/O-ParametricEQ/tests/render-harness/main.cpp
+- plugins/O-ParametricEQ/tests/golden/check_spec.py
+- plugins/O-ParametricEQ/tests/golden/params.tsv
+- plugins/O-ParametricEQ/.planning/stages/1-foundation/SUMMARY.md
