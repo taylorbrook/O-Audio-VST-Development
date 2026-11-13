@@ -118,12 +118,22 @@ Totals unchanged: 6 complete, 19 partial, 0 pending, 0 failed.
 
 ## Human Verification (D51 — one session, `HANDS-ON-SESSION-4.md`, 243 run rows)
 
-- [ ] Pass 0 Setup (7 rows; delete pre-R1 user presets, do not reopen pre-R1 projects)
-- [ ] Pass 1 Standalone (111 rows, incl. section 1d: the 16 R1 rows)
-- [ ] Pass 2 Preset audition (71 rows; the 10 showcase presets have per-stream "expect" text)
-- [ ] Pass 3 Logic AU (46 rows, incl. the F1 retests S3.3-L1 – L3)
-- [ ] Pass 4 Live VST3 (8 rows, incl. LV2)
+**Recorded 2026-11-12 (second `/plugin-verify` pass).** Taylor ran passes 0–4 on the R1 build and reported every row passing with one finding. The marks were entered in the sheet from that whole-session report, not row by row; the sheet's "Note" / "Listening call" / "Decide" blanks were not dictated and stay empty.
+
+- [x] Pass 0 Setup: 7 / 7
+- [ ] Pass 1 Standalone: 110 / 111. ❌ 2.4-1 → **F3**
+- [x] Pass 2 Preset audition: 71 / 71
+- [x] Pass 3 Logic AU: 46 / 46 (F1 retests S3.3-L1 – L3 pass)
+- [x] Pass 4 Live VST3: 8 / 8
 - Pass 5 (7 rows) is deferred, not run: Windows, MPE hardware, Dorico, Reaper.
+
+**F3 — a lane under feedback fades toward silence.** With a stream's Feedback on, its lane is overwritten lap by lap and eventually tends toward silence. Code check: this is the designed write law, not a regression. `GiRecordHead.h:187` writes `w = (1 − λ)·wc + λ·rw` with λ = 0.95 · Amount, and every stage of the return has gain ≤ 1 (coherent-law tap gain `1 / (S1 + 1)`, amp-weighted mean over voices, HP / LP, diffuser mix, `tanh`, the ±0.7 writer clamp), so the lane only loses energy until Reset (ARCHITECTURE D7, Algorithm §3, A3: "the copy drifts; Reset restores"). The automated rows bound the loop from above (FL1 / FL1p, CL1) and none bounds the lane level from below, which is why every gate is green on it.
+
+**Route (a), decided by Taylor 2026-11-12: fix before 1.0.0.** It is a DSP design change, so it runs as rework cycle R2 (as F2 ran as R1), starting at discuss. Direction to settle there: level-holding makeup on the feedback return. The writer clamp and the convex write keep the no-runaway bound whatever the makeup. R2 needs a gate that bounds the lane level from below, and re-pins nothing at Feedback 0 (the writer is skipped there).
+
+**Requirements moved on this record** (REQUIREMENTS.md, checksum re-pinned): 14 partial → complete (FUNC-01 / 03 / 04 / 05 / 06 / 07 / 09, DSP-02 / 03 / 07, UI-02, PERF-03, QUAL-01, QUAL-02); DSP-04 complete → partial (F3). Still partial: FUNC-02 (Windows drop / browse row, D54), FUNC-08 (presets with feedback are re-auditioned after R2), PERF-02 (`--cpu4` re-measured after R2), UI-01 (Windows arm, D54), COMPAT-02 (MPE / Dorico, D57). Totals: 19 complete, 6 partial, 0 pending, 0 failed. This supersedes the "Totals unchanged" line in the table above.
+
+**One evidence note on Pass 0.** At 23:21 the Factory folder's last write was 22:25:48 (this report's own install) and it had not been re-created since, so rows 0-5 / 0-6 (delete, relaunch) were not repeated after that install. Their purpose is met: `.bank-hash` 331e7660 equals HEAD and 64 files are present. If any of Pass 2 was auditioned before 22:25, it heard the pre-showcase bank (issue 1 below); the R2 re-audition of the feedback presets covers the showcase set either way.
 
 ## Issues Found
 
@@ -139,8 +149,11 @@ None blocking.
 
 ## Stage Verdict
 
-**Status:** ⚠️ PARTIAL. Every automated gate independently verified green on the R1 tree. The D51 hands-on session (243 run rows) and the D54 Windows CI arm are open.
+**Status:** ⚠️ PARTIAL. Every automated gate verified green on the R1 tree; the D51 hands-on session is recorded at 242 / 243 with finding F3 routed (a). Stage 4 does not close on R1.
 
-**Ready for next stage:** the shipping build is installed and release-ready on the automated side. 1.0.0 should not be published before the hands-on session.
+**Ready for next stage:** No. 1.0.0 is not installed as final or published until rework R2 lands and its retest passes.
 
-**Blockers:** none on the automated side. Open: `HANDS-ON-SESSION-4.md` (a ❌ routes per the sheet's triage table), then the Windows validate run at `/publish`.
+**Blockers:**
+- F3: a lane under feedback fades toward silence → rework R2, `/plugin-discuss O-GranulatorInstrument 4-polish`.
+- After R2: the full automated bar, then retest 2.4-1 – 2.4-7, 3.2-10 / 3.2-11, 3.2-24, section 1d and every Pass 2 preset with a Feedback Amount above 0.
+- D54 Windows validate run at `/publish` (unchanged).
