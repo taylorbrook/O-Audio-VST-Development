@@ -4,7 +4,7 @@
 version: 1.0.0
 plugin: O-GranulatorInstrument
 created: 2026-11-06
-lastUpdated: 2026-11-12
+lastUpdated: 2026-11-13
 ---
 
 ## Overview
@@ -53,7 +53,7 @@ lastUpdated: 2026-11-12
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | PERF-01 | Real-time safe audio processing (no allocations/locks in processBlock, incl. voice steal and file swap) | must | complete | stage-2 |
-| PERF-02 | Shared grain pool with a global cap and a defined CPU budget at 16 voices × 4 streams | must | partial | stage-2 |
+| PERF-02 | Shared grain pool with a global cap and a defined CPU budget at 16 voices × 4 streams | must | complete | stage-2 |
 | PERF-03 | File load and decode off the audio thread; atomic swap + retired-buffer reaper that works while the host idles | must | complete | stage-2 |
 
 ### Compatibility (COMPAT)
@@ -102,6 +102,7 @@ lastUpdated: 2026-11-12
 ### FUNC-08: Factory content
 - [ ] 8 factory sources and 64 presets load out of the box (Stage 4 verify: FSP1, FP0–FP6; Stage 4 R1 verify 2026-11-12: bank on the per-stream parameters, 10 showcase presets re-voiced, FP0–FP6 green, FP2 spread 6.32 dB, installed Factory folder byte-identical to the build's bank, no bare `reverb_mix` / `feedback` / `output_gain` key. Open: HANDS-ON-SESSION-4 Pass 2 audition)
 - Stage 4 hands-on (2026-11-12, Taylor): Pass 2 audition ✅ on the R1 bank. Stays partial: finding F3 (rework R2) changes how every preset with feedback sounds, so those presets are re-auditioned after R2.
+- Stage 4 R2 verify (2026-11-13): 51 presets render bitwise as on R1 (PT0r); the 13 feedback presets change (PT3) and ten of them carry an `sN_level` trim, nothing else (levels within 0.16 dB of R1 over the 10 s audition render). FP0–FP6 green, FP2 spread 7.00 dB ≤ 9; installed Factory folder (64 files, bank hash 1a994b77) byte-identical to the build's bank, no `output_gain` key. Stays partial until the Pass 2 re-audition of the 14 presets with a Feedback Amount above 0 (seven moved in tone: row R2-6).
 
 ### FUNC-09: Scales
 - [x] Scale quantisation and degree masks behave identically to O-Granulator — Stage 4 hands-on 2026-11-12: HANDS-ON-SESSION-4 Pass 1 ✅ (Taylor, reported as a whole-pass result)
@@ -120,6 +121,7 @@ lastUpdated: 2026-11-12
 - [x] Feedback 100 % with 16 voices never exceeds the limiter ceiling or produces NaN (2.4 verify: FL1 0 bound violations, CL1 knee 1.965 ≤ 1.995, CL2 FZ1, FL6; runaway guard FL2)
 - [x] Reset restores the pristine file; Freeze halts writes (2.4 verify: RS1/RS2 == pristine incl. while frozen, FL3 writes frozen)
 - **Stage 4 hands-on (2026-11-12, Taylor): row 2.4-1 ❌, finding F3.** A lane under feedback is overwritten lap by lap and fades toward silence: the convex write with a return of gain ≤ 1 only loses energy. Both criteria below still hold (bounded, Reset / Freeze), but the requirement is back to partial until rework R2 lets an evolving lane hold its level (route (a), decided by Taylor: fix before 1.0.0).
+- **Stage 4 R2 verify (2026-11-13): F3 fixed in the engine, automated arm green.** A level-hold makeup on the feedback return (`RecordHead::writeCell`, against the pristine level of the latched loop) and a stop-writing latch after note-off. The lane level is now bounded from below: chord held 60 s, lane dB re t = 0 — LH1 (Amount 100 %, Saturate 0 / 20 / 100, Post) min −2.9, max +1.5, margin 0.15 dB against −3 / +2; LH1p (Pre) −0.6 … +0.6; LH2 (Amount 50 / 25 %) −0.8 … +0.2; LH3 (Pre, Mix 100, Size 100) −0.5 … +0.5; LHB (13 feedback presets, 15 streams) −0.4 … 0.0 at 60 s, lowest mark −2.8; LH8 after note-off −0.3 / −0.6 dB. Each control fails with the makeup off (LH1n −275 dB). The upper bound is unchanged: FL1 / FL1p / FL1s / FL1sp, CL1 (knee 1.99504 ≤ 1.99526) and RS1 / RS2 / RS2p pass in the 543; feedback 0, the switch Off and Freeze still write nothing. Stays partial until the human retest of rows 2.4-1 – 2.4-7, section 1d and R2-1 – R2-12 (HANDS-ON-SESSION-4).
 
 ### DSP-05: Reverb
 - Stage 4 R1 verify (2026-11-12): the output reverb is replaced by one reverb per stream with a Pre / Post switch (8 `reverb-unit` 1.2.0 instances, module unedited). Parity evidence unchanged: 168 / 0, PB / PR residual lines equal to the pre-R1 baseline digit for digit. Per-stream rows: SI1 −185.5 dBFS (reverb before the stream sum), TK1, MZ1, CK8 / CK9; 38 single-stream presets bitwise and 16 multi-stream presets ≤ −132.57 dB vs the one-tank baseline.
@@ -138,8 +140,9 @@ lastUpdated: 2026-11-12
 - [x] Alloc gate: 0 allocations in processBlock across note on/off, steal, file swap and reset (2.5a verify: FA5 matrix / tempo / steals; 2.5b verify: AL1 MIDI / MPE / NE script incl. 130 held keys + mode switches, NE5 raw-event overflow; 2.6 verify: AL26 0 allocs across Record-in arm / record / commit / swap, discard, cancel, embedded save / load, missing + factory resolves, prepare mid-record, bypassed blocks)
 
 ### PERF-02: CPU budget
-- [ ] The documented budget is met at 16 voices × 4 streams with the default grainLimit (2.4 verify: worst case C25w 26.59 % ≤ 40 % with chains + reverb; 2.5a verify: final worst case with 16 per-voice routes C25m 26.81 % ≤ 40 %, typical + 4 routes C25tm 6.37 % ≤ 12 %; Stage 4 R1 verify 2026-11-12, four audible tanks + four loop tanks: C25w 28.47 %, C25m 29.99 % ≤ 40 %, C25tm 6.75 % ≤ 12 %, C25mPre 31.21 % (Pre ×4, 8 tanks, INFO); factory bank `--cpu4` 64 / 64, T max 9.13 % ≤ 12 %, W max 10.32 % ≤ 40 %; open: the Logic CPU meter row, HANDS-ON-SESSION-4)
+- [x] The documented budget is met at 16 voices × 4 streams with the default grainLimit (2.4 verify: worst case C25w 26.59 % ≤ 40 % with chains + reverb; 2.5a verify: final worst case with 16 per-voice routes C25m 26.81 % ≤ 40 %, typical + 4 routes C25tm 6.37 % ≤ 12 %; Stage 4 R1 verify 2026-11-12, four audible tanks + four loop tanks: C25w 28.47 %, C25m 29.99 % ≤ 40 %, C25tm 6.75 % ≤ 12 %, C25mPre 31.21 % (Pre ×4, 8 tanks, INFO); factory bank `--cpu4` 64 / 64, T max 9.13 % ≤ 12 %, W max 10.32 % ≤ 40 %; open: the Logic CPU meter row, HANDS-ON-SESSION-4)
 - Stage 4 hands-on (2026-11-12, Taylor): Logic CPU row ✅ on the R1 build. Stays partial: rework R2 (F3) adds to the feedback path, so the `--cpu4` verdict is re-measured there.
+- Stage 4 R2 verify (2026-11-13), with the makeup in the feedback path, run alone: C25w 28.79 %, C25m 29.65 % ≤ 40 %, C25tm 6.69 % ≤ 12 %, C25mPre 30.93 % (INFO); factory bank `--cpu4` 64 / 64, T median 4.23 %, max 8.97 % (Fifth Bloom) ≤ 12 %, W max 10.11 % ≤ 40 %. This is the re-measure the requirement waited on; the Logic CPU meter row passed on the R1 build and is not among the rows reset for R2 (the makeup adds 0.1 – 0.6 points per feedback preset). → complete.
 
 ### COMPAT-01: pluginval
 - [x] pluginval strictness 10 passes for VST3 and AU
