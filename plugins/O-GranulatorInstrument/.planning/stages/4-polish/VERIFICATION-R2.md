@@ -115,6 +115,8 @@ Four rows ask for a decision, not only a mark:
 
 R2-6 is a listening call on the seven presets whose tone moved most.
 
+**Decisions recorded 2026-11-13 (Taylor):** R2-3 keep the 6 dB latch threshold; R2-5 brightness walk accepted, cuts not re-voiced; R2-9 accepted; R2-10 (b) accepted. No source change follows from any of them. These are the decisions only: the ✅ / ❌ marks of the 45 rows are still open.
+
 ## Issues Found
 
 None blocking.
@@ -135,5 +137,5 @@ None blocking.
 **Ready for next stage:** No.
 
 **Blockers:**
-- The human retest on the R2 build (45 rows), with the four decisions above.
+- The human retest on the R2 build (45 rows). The four decisions are taken; the marks are not.
 - D54 Windows validate run at `/publish` (unchanged, by decision).
