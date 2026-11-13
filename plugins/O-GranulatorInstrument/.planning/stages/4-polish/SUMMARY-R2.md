@@ -1,6 +1,6 @@
 # O-GranulatorInstrument — Stage 4 (Polish / Validation) — SUMMARY, Rework R2 (feedback holds the lane level)
 
-**Date:** 2026-11-13 · **Plan:** `PLAN-R2.md` (16 tasks / 5 waves) · **Commits:** C1 `16fde35c` (planning docs + baseline), C2 `b7d025f7` (DSP, rows, trims, evidence), C3 (docs, sheet, this file) · **VERSION:** 1.0.0, no tag, no push.
+**Date:** 2026-11-13 · **Plan:** `PLAN-R2.md` (16 tasks / 5 waves) · **Commits:** C1 `16fde35c` (planning docs + baseline), C2 `b7d025f7` (DSP, rows, trims, evidence), C3 `57cbcadc` (docs, sheet, this file) · **VERSION:** 1.0.0, no tag, no push.
 **Evidence:** `stages/4-polish/evidence-r2/` (`rb-notes.txt` = baseline, `r2-notes.txt` = every wave, `R2.full.txt` = the final harness extract). The baseline renders live in `build/plugins/O-GranulatorInstrument/r2-b0/` (`$RB`, gitignored; do not delete `build/` before verify).
 
 ## What was built
