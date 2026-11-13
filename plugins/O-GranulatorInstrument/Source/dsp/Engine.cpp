@@ -212,6 +212,7 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
         tankFadeB[s] = 0;
         preHold[s] = 0;
         resetTailHold[s] = false;
+        mkLatch[s] = false;
     }
     writeReverbAtomics();
     for (int s = 0; s < kGiStreams; ++s)
@@ -266,6 +267,7 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     }
     prevFreeze = gp.freeze;
     pkRel = static_cast<float> (std::exp (-static_cast<double> (kCell) / (0.05 * fs)));
+    mkCoef.prepare (fs);   // PLAN-R2 PD7: the only place the makeup's exp / pow run
     for (int s = 0; s < kTapeSlots; ++s)
     {
         auto& hd = head[s];
@@ -274,6 +276,7 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
         hd.swapWaiting = false;
         hd.returnPk = 0.0f;
         hd.wrapOff = -1;
+        hd.mk.reset();
         const SlotTape* tp = current[(size_t) s];
         if (tp != nullptr)
         {
@@ -3932,10 +3935,18 @@ RecordHeadCounters& Engine::headCounters (int s) noexcept
 }
 
 /** PLAN-2.4 PD4 (at the tick, before takeTapes): the λ ramp, freeze edges, the
-    per-slot run condition
-        run = ! freeze && rate == fs && ! xfade && ! pending
-              && ((enabled && audible && a counted voice) || returnPk > −100 dBFS)
-    and the park transition (λ_eff settled at exactly 0 → settle, parked). */
+    per-slot run condition (R1 PD8 / PD9, R2 PD9)
+        run = fbOn && ! freeze && rate == fs && ! xfade && ! pending
+              && ((enabled && audible && a counted voice)
+                  || (returnPk > −100 dBFS && ! resetTailHold))
+              && ! mkLatch
+        mkLatch: set when no GATED voice drives the stream and the levelled
+                 return has been more than 6 dB short of the κ-normalised
+                 target for 50 ms of written cells (RecordHead::mk.shortRun);
+                 cleared by the next gated voice. A releasing voice does not
+                 clear it; a voice held by the sustain pedal is gated.
+    and the park transition (λ_eff settled at exactly 0 → settle, parked).
+    Every term is recomputed at every tick (none sits behind a dirty check). */
 void Engine::updateHeads (std::int64_t t) noexcept
 {
     juce::ignoreUnused (t);
@@ -3981,6 +3992,17 @@ void Engine::updateHeads (std::int64_t t) noexcept
     for (int s = 0; s < kGiStreams; ++s)
         anySolo = anySolo || (gp.s[s].enable && gp.s[s].solo);
     const bool anyVoice = VoiceAllocator::countCounted (voices) > 0;
+    // PLAN-R2 PD9: a gated voice = counted and not released (key down, or held by CC64).
+    bool anyGated = false;
+    for (int k = 0; k < kVoiceSlots; ++k)
+        anyGated = anyGated || (voices[k].isCounted() && voices[k].gated);
+    const bool mkOn = makeupOn();
+    bool latchOff = false;
+   #if OGI_TEST_HOOKS
+    latchOff = hooks.mkLatchOff;
+    if (hooks.mkLatchOnCounted)
+        anyGated = anyVoice;
+   #endif
 
     for (int s = 0; s < kTapeSlots; ++s)
     {
@@ -4010,8 +4032,13 @@ void Engine::updateHeads (std::int64_t t) noexcept
         if (voiceTerm)
             resetTailHold[s] = false;
         const bool tailTerm = hd.returnPk > 1.0e-5f && ! resetTailHold[s];
+        // R2 PD9: the stop-writing latch (never set with the makeup off: shortRun stays 0).
+        if (gp.s[s].enable && audibleTarget (s, anySolo) && anyGated)
+            mkLatch[s] = false;
+        else if (mkOn && ! latchOff && hd.mk.shortRun >= mkCoef.latchCells)
+            mkLatch[s] = true;
         const bool target = gp.s[s].fbOn && ! gp.freeze && rateOk && ! xfade[s].active && ! pending
-                         && (voiceTerm || tailTerm);
+                         && (voiceTerm || tailTerm) && ! mkLatch[s];
         const float v = target ? 1.0f : 0.0f;
 
         bool fbSnap = false;
@@ -4037,16 +4064,42 @@ void Engine::updateHeads (std::int64_t t) noexcept
     }
 }
 
-/** PLAN-2.4 PD3: every running head writes its whole cell at the tick. */
+/** PLAN-R2 PD8: the makeup runs in every shipping build. The parity rows
+    compare the loop with the parent (which has none), so chainKnobParity
+    implies it off. */
+bool Engine::makeupOn() const noexcept
+{
+   #if OGI_TEST_HOOKS
+    return ! (hooks.makeupOff || hooks.chainKnobParity || EngineTestHooks::makeupOffAll);
+   #else
+    return true;
+   #endif
+}
+
+/** PLAN-2.4 PD3: every running head writes its whole cell at the tick.
+    PLAN-R2 PD6: with the level-hold makeup, against the pristine mean square
+    of the head's LATCHED loop (a region change is picked up at the next
+    latch). A parked head resets its makeup state, so Freeze, the toggle Off
+    and Amount 0 start clean. */
 void Engine::writeHeads (std::int64_t t) noexcept
 {
     RecordHeadFlags fl;
+    fl.makeup = makeupOn();
    #if OGI_TEST_HOOKS
     fl.rClampOff     = hooks.rClampOff;
     fl.writeScrubOff = hooks.writeScrubOff;
     fl.settleOff     = hooks.settleOff;
+    fl.mkAttackSlew  = hooks.mkAttackSlew;
+    fl.mkPeakOff     = hooks.mkPeakOff;
+    fl.mkCapOff      = hooks.mkCapOff;
+    fl.mkStatScrubOff = hooks.mkStatScrubOff;
+    MakeupCoef coefHook = mkCoef;   // LH8i: another latch threshold (test builds only)
+    if (! juce::exactlyEqual (hooks.mkLatchDb, static_cast<float> (kMkLatchDb)))
+        coefHook.shortRatio = std::pow (10.0, -static_cast<double> (hooks.mkLatchDb) / 10.0);
+    const MakeupCoef& coef = coefHook;
    #else
     juce::ignoreUnused (t);
+    const MakeupCoef& coef = mkCoef;
    #endif
     for (int s = 0; s < kTapeSlots; ++s)
     {
@@ -4056,6 +4109,7 @@ void Engine::writeHeads (std::int64_t t) noexcept
         {
             hd.cellStart = hd.h;
             hd.wrapOff = -1;
+            hd.mk.reset();
             continue;
         }
         const float* rL = fbRet[s][0];
@@ -4074,8 +4128,18 @@ void Engine::writeHeads (std::int64_t t) noexcept
         }
        #endif
         auto& c = headCounters (s);
+        double refMs = 0.0;
+        if (fl.makeup)
+        {
+            refMs = tp->refMeanSq (hd.lo, hd.hi);
+           #if OGI_TEST_HOOKS
+            if (hooks.mkWholeTapeRef)
+                refMs = tp->refMeanSq (0, tp->frames);
+            fl.stats = &hooks.mk[s];
+           #endif
+        }
         hd.writeCell (tp->tape, rL, rR, fbEff (s),
-                      region[s].lo, region[s].hi, tp->frames, fl, c);
+                      region[s].lo, region[s].hi, tp->frames, fl, c, coef, refMs);
         foldOverview (s);   // PLAN-2.6 T11: the evolving overview
     }
 }

@@ -1329,6 +1329,22 @@ namespace { namespace pg4
         return false;
     }
 
+    /** PLAN-R2 PD12: the 13 presets whose render moves with the level-hold
+        makeup (a feedback Amount above 0 on a head that runs; Drones · Frozen
+        Field has Freeze on and stays bitwise). Short names. */
+    constexpr const char* kFeedbackMoved[] = {
+        "Iron Sky", "Deep Well", "Organ Loft", "Hollow Wind", "Low Orbit", "Tape Halo", "Night Engine",
+        "Feedback Loop", "Four Lanes", "Fifth Bloom", "Slow Tide", "Dotted Echo", "Broken Radio" };
+
+    bool isFeedbackMoved (const F::FactoryPresetSpec& s)
+    {
+        const auto n = shortOf (s);
+        for (const char* m : kFeedbackMoved)
+            if (n == juce::String::fromUTF8 (m))
+                return true;
+        return false;
+    }
+
     juce::String ptFileOf (const F::FactoryPresetSpec& s)
     {
         return catOf (s).replaceCharacter (' ', '_') + "__" + shortOf (s).replaceCharacter (' ', '_') + ".f32";
@@ -1386,7 +1402,7 @@ namespace { namespace pg4
         return n == N && wrote ? 0 : 1;
     }
 
-    int cmpPresetRenders (const juce::File& dir, bool allBitwise, bool excludeShowcase)
+    int cmpPresetRenders (const juce::File& dir, bool allBitwise, bool excludeShowcase, bool r2 = false)
     {
         if (! dir.isDirectory())
         {
@@ -1458,7 +1474,81 @@ namespace { namespace pg4
         if (excludeShowcase)
             std::printf ("  INFO PT excluded (showcase, PD28): %d: %s\n", skipped, excluded.toRawUTF8());
         const juce::String why = firstBad.isEmpty() ? juce::String() : " first: " + firstBad;
-        if (allBitwise)
+        if (r2)
+        {
+            // PLAN-R2 PD12: PT0r (the other 51 bitwise), PT3 (each of the 13 differs),
+            // PT3n (the same compare under makeupOff: the 13 are bitwise, PT3's predicate fails).
+            int moved = 0, movedDiff = 0, rest = 0, restBit = 0;
+            juce::String badRest, badMoved;
+            std::vector<int> mi;
+            for (int i = 0; i < N; ++i)
+            {
+                const auto& s = b.specs[(size_t) i];
+                const auto& r = rs[(size_t) i];
+                if (isFeedbackMoved (s))
+                {
+                    ++moved; mi.push_back (i);
+                    if (r.differ > 0) ++movedDiff; else if (badMoved.isEmpty()) badMoved = shortOf (s);
+                }
+                else
+                {
+                    ++rest;
+                    if (r.differ == 0) ++restBit; else if (badRest.isEmpty()) badRest = shortOf (s) + juce::String::formatted (" (differ %lld)", (long long) r.differ);
+                }
+            }
+            // T10 deviation (recorded): after the D72 trims a makeup-off render of a
+            // trimmed preset is no longer the baseline, so "the 13 are bitwise under
+            // makeupOff" cannot be the control. PT3 judges the makeup itself: each of
+            // the 13 differs from the baseline AND from its own makeupOff render.
+            // PT3n runs the same on-vs-off compare on 13 presets outside the set:
+            // all bitwise, so the predicate fails. The members whose makeupOff render
+            // IS the baseline (the untrimmed ones) are counted as INFO.
+            const auto offTweak = [] (GranulatorInstrumentProcessor& q) { q.getEngine().hooks.makeupOff = true; };
+            const auto countDiff = [] (const std::vector<float>& a, const float* bptr, size_t n)
+            {
+                juce::int64 d = 0;
+                for (size_t q = 0; q < n; ++q)
+                    d += std::memcmp (&a[q], &bptr[q], sizeof (float)) != 0 ? 1 : 0;
+                return d;
+            };
+            std::vector<int> ci;   // the control set: the first 13 presets outside the feedback set
+            for (int i = 0; i < N && ci.size() < mi.size(); ++i)
+                if (! isFeedbackMoved (b.specs[(size_t) i]))
+                    ci.push_back (i);
+            std::vector<juce::int64> onOff (mi.size(), -1), offRef (mi.size(), -1), ctlOnOff (ci.size(), -1);
+            parallelFor ((int) (mi.size() + ci.size()), [&] (int k)
+            {
+                const bool isCtl = k >= (int) mi.size();
+                const int i = isCtl ? ci[(size_t) k - mi.size()] : mi[(size_t) k];
+                const auto on = ptRender (i), off = ptRender (i, -1, offTweak);
+                if (on.size() != off.size()) return;
+                if (isCtl) { ctlOnOff[(size_t) k - mi.size()] = countDiff (on, off.data(), on.size()); return; }
+                onOff[(size_t) k] = countDiff (on, off.data(), on.size());
+                juce::MemoryBlock mb;
+                if (dir.getChildFile (ptFileOf (b.specs[(size_t) i])).loadFileAsData (mb) && mb.getSize() == off.size() * sizeof (float))
+                    offRef[(size_t) k] = countDiff (off, static_cast<const float*> (mb.getData()), off.size());
+            });
+            int actOn = 0, offIsRef = 0, ctlBit = 0;
+            juce::String badAct;
+            for (size_t k = 0; k < mi.size(); ++k)
+            {
+                if (onOff[k] > 0) ++actOn; else if (badAct.isEmpty()) badAct = shortOf (b.specs[(size_t) mi[k]]);
+                offIsRef += offRef[k] == 0 ? 1 : 0;
+            }
+            for (auto d : ctlOnOff) ctlBit += d == 0 ? 1 : 0;
+            const int nMoved = (int) (sizeof (kFeedbackMoved) / sizeof (kFeedbackMoved[0]));
+            row (moved == nMoved && rest == N - nMoved && restBit == rest, "PT0r every preset outside the feedback set renders bitwise as the R2 baseline (10 s, FP2 script)",
+                 "meas " + juce::String (restBit) + " / " + juce::String (rest) + " bitwise" + (badRest.isEmpty() ? juce::String() : " first: " + badRest) + " | thr all | ctrl -");
+            row (moved == nMoved && movedDiff == moved && actOn == moved, "PT3 each of the 13 feedback presets differs from the R2 baseline and from its own makeupOff render (the makeup acts on it)",
+                 "meas " + juce::String (movedDiff) + " / " + juce::String (moved) + " differ from the baseline, " + juce::String (actOn) + " / " + juce::String (moved) + " from makeupOff"
+                     + (badMoved.isEmpty() ? juce::String() : " first bitwise vs baseline: " + badMoved) + (badAct.isEmpty() ? juce::String() : " first bitwise vs makeupOff: " + badAct)
+                     + " | thr all, differ > 0 | ctrl PT3n");
+            std::printf ("  INFO PT3 under makeupOff %d of the %d render bitwise as the baseline (the presets with no level trim)\n", offIsRef, moved);
+            const bool fired = ! ci.empty() && ctlBit == (int) ci.size();
+            row (fired, "PT3n control: the same on-vs-makeupOff compare on 13 presets outside the feedback set -> bitwise (the PT3 predicate must FAIL)",
+                 "meas " + juce::String (ctlBit) + " / " + juce::String ((int) ci.size()) + " bitwise | thr predicate 'differ > 0' FAILS on all | " + ctrl (fired, "PT3 predicate on presets the makeup does not reach"));
+        }
+        else if (allBitwise)
             row (bit == counted, "PT0 every preset render bitwise equal to the reference (10 s, FP2 script)",
                  "meas " + juce::String (bit) + " / " + juce::String (counted) + " bitwise" + why + " | thr all | ctrl -");
         else
@@ -1525,6 +1615,100 @@ namespace { namespace pg4
         }
         std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
         return juce::jmin (failures, 255);
+    }
+
+    //==========================================================================
+    // PLAN-R2 PD13: `--preset-level-table <refDir>` (D72, sign-off 4). Per
+    // preset, for the reference raw and the current render: RMS over 0-10 s and
+    // 6-10 s, and the magnitude-weighted spectral centroid of the mono sum over
+    // 2-10 s (one FFT of the whole span, zero-padded to 2^19). It prints; it is
+    // not a row. Outlier: more than 3 dB louder over 0-10 s, or the centroid
+    // moved by more than 0.5 octave. 77 = no reference.
+    double ptRmsDb (const float* v, size_t n, double t0, double t1)
+    {
+        const size_t a = (size_t) (t0 * kFsP), b = std::min ((size_t) (t1 * kFsP), n);
+        double acc = 0.0;
+        for (size_t k = a; k < b; ++k)
+            acc += (double) v[k] * v[k] + (double) v[n + k] * v[n + k];
+        return 10.0 * std::log10 (std::max (b > a ? acc / (2.0 * (double) (b - a)) : 0.0, 1e-30));
+    }
+
+    /** power = false: magnitude-weighted (PD13); true: power-weighted (the
+        weighting RESEARCH-R2's preset table used; T9 found it by reproducing
+        that table). */
+    double ptCentroidHz (const float* v, size_t n, double t0, double t1, bool power = false)
+    {
+        constexpr int kOrder = 19;
+        const size_t a = (size_t) (t0 * kFsP), b = std::min ({ (size_t) (t1 * kFsP), n, a + ((size_t) 1 << kOrder) });
+        juce::dsp::FFT fft (kOrder);
+        std::vector<float> x ((size_t) 2 << kOrder, 0.0f);
+        for (size_t k = a; k < b; ++k)
+            x[k - a] = 0.5f * (v[k] + v[n + k]);
+        fft.performFrequencyOnlyForwardTransform (x.data());
+        double num = 0.0, den = 0.0;
+        const size_t half = (size_t) 1 << (kOrder - 1);
+        for (size_t k = 1; k < half; ++k)
+        {
+            const double m = power ? (double) x[k] * x[k] : (double) x[k];
+            num += m * ((double) k * kFsP / (double) ((size_t) 1 << kOrder));
+            den += m;
+        }
+        return den > 0.0 ? num / den : 0.0;
+    }
+
+    int presetLevelTable (const juce::File& dir)
+    {
+        if (! dir.isDirectory())
+        {
+            std::printf ("preset-level-table: reference directory missing: %s (exit 77 = not run)\n", dir.getFullPathName().toRawUTF8());
+            return 77;
+        }
+        const auto& b = bank();
+        const int N = (int) b.specs.size();
+        struct R { bool have = false; double r0 = 0, r6 = 0, rc = 0, c0 = 0, c6 = 0, cc = 0, rp = 0, cp = 0; juce::int64 differ = 0; };
+        std::vector<R> rs ((size_t) N);
+        parallelFor (N, [&] (int i)
+        {
+            auto& r = rs[(size_t) i];
+            juce::MemoryBlock mb;
+            const auto f = dir.getChildFile (ptFileOf (b.specs[(size_t) i]));
+            if (! f.existsAsFile() || ! f.loadFileAsData (mb)) return;
+            const auto v = ptRender (i);
+            if (mb.getSize() != v.size() * sizeof (float)) return;
+            const auto* ref = static_cast<const float*> (mb.getData());
+            const size_t n = v.size() / 2;
+            for (size_t k = 0; k < v.size(); ++k)
+                r.differ += std::memcmp (&v[k], &ref[k], sizeof (float)) != 0 ? 1 : 0;
+            r.r0 = ptRmsDb (ref, n, 0.0, 10.0);      r.c0 = ptRmsDb (v.data(), n, 0.0, 10.0);
+            r.r6 = ptRmsDb (ref, n, 6.0, 10.0);      r.c6 = ptRmsDb (v.data(), n, 6.0, 10.0);
+            r.rc = ptCentroidHz (ref, n, 2.0, 10.0); r.cc = ptCentroidHz (v.data(), n, 2.0, 10.0);
+            r.rp = ptCentroidHz (ref, n, 2.0, 10.0, true); r.cp = ptCentroidHz (v.data(), n, 2.0, 10.0, true);
+            r.have = true;
+        });
+        int missing = 0, moved = 0, level = 0, cent = 0;
+        std::printf ("preset-level-table vs %s\n", dir.getFullPathName().toRawUTF8());
+        std::printf ("  %-34s %9s %9s %7s | %9s %9s %7s | %8s %8s %7s | %8s %8s %7s | %s\n", "preset", "ref 0-10", "cur 0-10", "d dB", "ref 6-10", "cur 6-10", "d dB",
+                     "mag Hz", "cur", "oct", "pow Hz", "cur", "oct", "outlier");
+        for (int i = 0; i < N; ++i)
+        {
+            const auto& r = rs[(size_t) i];
+            if (! r.have) { ++missing; continue; }
+            const double d0 = r.c0 - r.r0, d6 = r.c6 - r.r6;
+            const double oct = r.rc > 0.0 && r.cc > 0.0 ? std::log2 (r.cc / r.rc) : 0.0;
+            const double octP = r.rp > 0.0 && r.cp > 0.0 ? std::log2 (r.cp / r.rp) : 0.0;
+            const bool lv = d0 > 3.0, ce = std::abs (oct) > 0.5 || std::abs (octP) > 0.5;
+            moved += r.differ > 0 ? 1 : 0; level += lv ? 1 : 0; cent += ce ? 1 : 0;
+            std::printf ("  LT %-31s %9.2f %9.2f %+7.2f | %9.2f %9.2f %+7.2f | %8.0f %8.0f %+7.2f | %8.0f %8.0f %+7.2f | %s%s%s\n", b.specs[(size_t) i].name, r.r0, r.c0, d0, r.r6, r.c6, d6, r.rc, r.cc, oct,
+                         r.rp, r.cp, octP,
+                         lv ? "LEVEL " : "", ce ? "CENTROID " : "", r.differ == 0 ? "(bitwise)" : "");
+        }
+        if (missing > 0)
+        {
+            std::printf ("preset-level-table: %d reference file(s) missing or of the wrong size (exit 77 = not run)\n", missing);
+            return 77;
+        }
+        std::printf ("preset-level-table: %d presets, %d differ from the reference, %d level outliers (> +3.0 dB over 0-10 s), %d centroid outliers (> 0.5 octave, magnitude- or power-weighted)\n", N, moved, level, cent);
+        return 0;
     }
 
     //==========================================================================

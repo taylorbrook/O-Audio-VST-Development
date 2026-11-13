@@ -502,6 +502,7 @@ std::unique_ptr<SlotTape> SlotLoader::buildTape (const Pristine& source, double 
         }
     }
     tape->tape.flushTail();
+    tape->buildRef (left.data(), right.data(), frames);   // PLAN-R2 PD5: the pristine level reference
     tape->rate   = fsSession;
     tape->frames = frames;
 

@@ -1219,6 +1219,9 @@ namespace factorygen
 // PLAN-R1 (Stage 4 R1): Record-in Arm auto-clear rows AC1-AC8 (PD31) + --egr1.
 #include "engine_gates_r1.h"
 
+// PLAN-R2 (Stage 4 R2): the level-hold makeup rows LH1-LH14 / LHB / LHF (PD11) + --egr2.
+#include "engine_gates_r2.h"
+
 //==============================================================================
 // PLAN-2.6 T10 / PD16: the factory stub generator (--gen-factory <dir> [--force]).
 // The same JUCE FLAC encoder, int path and quantiser as the plugin
@@ -1354,6 +1357,13 @@ static int dumpUiOverrides (const juce::File& out)
     p->setSeed (0x5EED3200CAFE0001ull);   // a fresh processor draws its seed: pinned, or the fed-back tape differs per run
     for (int n = 1; n <= 4; ++n)   // PLAN-R1 PD16: the former global on all four streams
         setParam (*p, Ids::stream (n, "feedback"), 80.0f);
+    // PLAN-R2 (T4 deviation): the page fixture is a DATA stub for the UI gates,
+    // not evidence of the loop's level. Its live overview bins come from 1.6 s
+    // of a fed-back tape, so the level-hold makeup would move 1237 lines of the
+    // committed file (tests/ui-stub is outside R2's fence). The fixture run
+    // keeps the R1 write; the next UI-driven regeneration may drop this line
+    // and re-pin.
+    p->getEngine().hooks.makeupOff = true;
     p->prepareToPlay (48000.0, 512);
 
     ogi::SavedSlot tone;
@@ -1708,6 +1718,8 @@ static int runHarness (int argc, char** argv)
         }
         else if (std::strcmp (argv[a], "--golden-dir") == 0 && a + 1 < argc)
             gGoldenDir = juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a]));
+        else if (std::strcmp (argv[a], "--makeup-off") == 0)   // PLAN-R2 PD8: applied in main() (before any processor); a modifier, not a mode
+            continue;
         else if (std::strcmp (argv[a], "--parity") == 0 && a + 1 < argc)
         {
             const juce::File dir = juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a]));
@@ -1826,6 +1838,12 @@ static int runHarness (int argc, char** argv)
             std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
             return juce::jmin (failures, 255);
         }
+        else if (std::strcmp (argv[a], "--egr2") == 0 || std::strcmp (argv[a], "--egr2-long") == 0)   // dev: the R2 rows only (PLAN-R2 PD11; OGI_ROWS filters; -long adds INFO LH11)
+        {
+            egr2::runAll (std::strcmp (argv[a], "--egr2-long") == 0);
+            std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
+            return juce::jmin (failures, 255);
+        }
         else if (std::strcmp (argv[a], "--cpu4") == 0)    // PLAN-4 PD16: run alone, in the background; rc = FAIL count
             return juce::jmin (pg4::cpu4(), 255);
         else if (std::strcmp (argv[a], "--dump-factory-presets") == 0 && a + 1 < argc)   // PLAN-4 PD16: early exit, no gate runs
@@ -1843,14 +1861,20 @@ static int runHarness (int argc, char** argv)
         else if (std::strcmp (argv[a], "--cmp-preset-renders") == 0 && a + 1 < argc)    // PLAN-R1 PD29: PT0 / PT1 / PT2; 77 = no reference
         {
             const juce::File dir = juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a]));
-            bool allBitwise = false, excludeShowcase = false;
+            bool allBitwise = false, excludeShowcase = false, r2 = false;
             for (; a + 1 < argc; ++a)
             {
                 if (std::strcmp (argv[a + 1], "--all-bitwise") == 0) allBitwise = true;
                 else if (std::strcmp (argv[a + 1], "--exclude-showcase") == 0) excludeShowcase = true;
+                else if (std::strcmp (argv[a + 1], "--r2") == 0) r2 = true;   // PLAN-R2 PD12: PT0r / PT3 / PT3n
                 else break;
             }
-            return pg4::cmpPresetRenders (dir, allBitwise, excludeShowcase);
+            return pg4::cmpPresetRenders (dir, allBitwise, excludeShowcase, r2);
+        }
+        else if (std::strcmp (argv[a], "--preset-level-table") == 0 && a + 1 < argc)    // PLAN-R2 PD13: prints, not a row; 77 = no reference
+        {
+            const juce::File dir = juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a]));
+            return pg4::presetLevelTable (dir);
         }
         else if (std::strcmp (argv[a], "--hm1") == 0)     // dev: PLAN-4 PD15 HM1 + HM1n alone (the T11 pre-check)
         {
@@ -1867,7 +1891,7 @@ static int runHarness (int argc, char** argv)
             return rh::dump (juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a])), true);
         else
         {
-            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--cpu25a] [--cpu25b] [--cpu26] [--eg24] [--eg25] [--eg25b] [--eg26] [--ug31] [--ug32] [--ug33] [--dump-ui-overrides <file>] [--gen-factory <dir> [--force]] [--gen-factory-stubs <dir> [--force]] [--pg4] [--egr1] [--cpu4] [--dump-factory-presets <dir>] [--dump-preset-renders <dir>] [--cmp-preset-renders <dir> [--all-bitwise] [--exclude-showcase]] [--hm1] [--no-home-redirect] [--calib]\n", argv[a], argv[0]);
+            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--cpu25a] [--cpu25b] [--cpu26] [--eg24] [--eg25] [--eg25b] [--eg26] [--ug31] [--ug32] [--ug33] [--dump-ui-overrides <file>] [--gen-factory <dir> [--force]] [--gen-factory-stubs <dir> [--force]] [--pg4] [--egr1] [--cpu4] [--dump-factory-presets <dir>] [--dump-preset-renders <dir>] [--cmp-preset-renders <dir> [--all-bitwise] [--exclude-showcase]] [--hm1] [--no-home-redirect] [--calib] [--makeup-off (first)] [--egr2] [--egr2-long] [--preset-level-table <dir>]\n", argv[a], argv[0]);
             return 255;
         }
     }
@@ -1897,6 +1921,7 @@ static int runHarness (int argc, char** argv)
     ug33::runAll();   // PLAN-3.3 PD21 (after ug32: the carried rows keep their order)
     pg4::runAll();    // PLAN-4 (after ug33: the carried rows keep their order)
     egr1::runAll();   // PLAN-R1 PD30 (after pg4, before HM1: the carried order is unchanged)
+    egr2::runAll();   // PLAN-R2 PD11 (after egr1, before HM1)
     rowHM1();         // PLAN-4 PD15 (last: it judges the whole run)
     rowHM1n();
 
@@ -1936,6 +1961,18 @@ int main (int argc, char** argv)
         return 3;
     }
     struct HomeCleanup { juce::File d; ~HomeCleanup() { if (d != juce::File()) d.deleteRecursively(); } } homeCleanup { tempHome() };
+
+    // PLAN-R2 PD8: the harness-wide makeup-off switch (`--makeup-off` first, or
+    // OGI_MAKEUP_OFF=1): every engine of this process runs the R1 write, so a
+    // whole run can be compared with the R2 baseline (RB).
+    {
+        bool mkOff = std::getenv ("OGI_MAKEUP_OFF") != nullptr && std::strcmp (std::getenv ("OGI_MAKEUP_OFF"), "0") != 0;
+        for (int a = 1; a < argc; ++a)
+            mkOff = mkOff || std::strcmp (argv[a], "--makeup-off") == 0;
+        ogi::EngineTestHooks::makeupOffAll = mkOff;
+        if (mkOff)
+            std::printf ("MAKEUP OFF (harness-wide, PLAN-R2 PD8): every engine runs the R1 write\n");
+    }
 
     juce::ScopedJuceInitialiser_GUI init;
     if (noRedirect)

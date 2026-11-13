@@ -1,0 +1,4 @@
+INFO LH11 600 s held chord, lane dB re t0 every 30 s: Iron Sky s1: min -0.8 max +0.4 at 600 s -0.5 dB
+INFO LH11 600 s held chord, lane dB re t0 every 30 s: Tape Halo s1: min -0.0 max +0.1 at 600 s -0.0 dB
+INFO LH11 600 s held chord, lane dB re t0 every 30 s: Fifth Bloom s3: min -0.8 max +0.2 at 600 s -0.1 dB
+INFO LH11 600 s held chord, lane dB re t0 every 30 s: Dotted Echo s1: min -0.1 max +0.1 at 600 s +0.1 dB

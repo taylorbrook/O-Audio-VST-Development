@@ -337,6 +337,21 @@ namespace ogi
         bool fbOnHardStop     = false;   // CK7 control: on a feedback-toggle edge the run ramp snaps (no 20 ms ramp)
         // R1 (PLAN-R1 PD14): the destination class
         bool destClassLegacy  = false;   // DC1 / MC1 control: every stream destination is class V (the pre-R1 rule)
+        // R2 (PLAN-R2 PD8): the level-hold makeup of the record heads
+        bool makeupOff        = false;   // LH1n / PT3n / neutrality: g = 1 and no latch (the R1 engine). Implied by chainKnobParity.
+        bool mkAttackSlew     = false;   // LH4 control: the makeup gain falls at the rise limit too
+        bool mkPeakOff        = false;   // LH10 control: no peak limit
+        bool mkCapOff         = false;   // LH7 control: no cap
+        bool mkWholeTapeRef   = false;   // LH6 control: the reference is the whole tape, not the latched loop
+        bool mkStatScrubOff   = false;   // LH12 control: a non-finite return cell enters the running values
+        MakeupStats mk[kTapeSlots] {};   // gain statistics per slot (LHg, LH1's validity, the CK validity clauses)
+        // R2 (PLAN-R2 PD9): the stop-writing latch
+        bool  mkLatchOff      = false;   // LH8 control: no stop-writing latch
+        bool  mkLatchOnCounted = false;  // LH14 control: any counted voice (a releasing one included) clears the latch
+        float mkLatchDb       = 6.0f;    // LH8i INFO only: the latch threshold (the shipped value is kMkLatchDb)
+        /** Harness-wide switch (`--makeup-off`): every engine of the process
+            behaves as makeupOff. Set once before any session; test builds only. */
+        inline static bool makeupOffAll = false;
 
         // ── voice readouts (per voice SLOT; stream-0 views) ──────────────────
         double        voiceRate[kVoiceSlots]   {};   // rate the voice latches now (tick, note-on, s1 spawn)
@@ -662,6 +677,7 @@ namespace ogi
         FeedbackChain&       chainForTest (int s) noexcept          { return chain[std::clamp (s, 0, kGiStreams - 1)]; }
         const float (&getFbRetForTest (int s) const noexcept)[2][kFbDelay] { return fbRet[std::clamp (s, 0, kGiStreams - 1)]; }
         const RecordHead& getHeadForTest (int s) const noexcept     { return head[std::clamp (s, 0, kTapeSlots - 1)]; }
+        bool getMakeupLatchForTest (int s) const noexcept           { return mkLatch[std::clamp (s, 0, kTapeSlots - 1)]; }
         const WindowMorphBank& getMorphBank() const noexcept { return morphBank; }
         // PLAN-3.3 PD3 (UMB1): the engine's mono-badge predicates.
         bool srcPerVoiceNowForTest (int src) const noexcept          { return srcPerVoiceNow (src); }
@@ -915,6 +931,8 @@ namespace ogi
         bool       headRelatch[kTapeSlots] {};
         bool       prevFreeze = false;
         float      pkRel = 0.0f;                 // returnPk release per cell (50 ms)
+        MakeupCoef mkCoef;                       // PLAN-R2 PD7: formed once in prepare
+        bool       makeupOn() const noexcept;    // PLAN-R2 PD8: false only under a test hook
         RecordHeadCounters headCntShip[kTapeSlots] {};
 
         // 2.5a transport (PLAN-2.5a PD12): updated once per host block.
@@ -1050,6 +1068,13 @@ namespace ogi
         // run target until a voice drives the stream again (updateHeads). Post
         // streams never set it: their run target is the 2.4 statement.
         bool  resetTailHold[kGiStreams] {};
+        // PLAN-R2 PD9: the stop-writing latch. With no GATED voice on a stream,
+        // a return the makeup cannot bring within kMkLatchDb of the target for
+        // kMkLatchS means the lane can no longer be held: writing on would erase
+        // it. The head then stops (run target false: 20 ms ramp, park) until a
+        // gated voice drives the stream again. A second, independent term beside
+        // resetTailHold; it replaces R1's "the head writes for the tail's length".
+        bool  mkLatch[kTapeSlots] {};
         bool  prevPre[kGiStreams] {};       // preHardCut edge detection (test)
         bool  prevFbOn[kGiStreams] {};      // fbOnHardStop edge detection (test)
 

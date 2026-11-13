@@ -2144,6 +2144,7 @@ namespace { namespace egr1
     {
         eg24b::Out out, ret;            // the output; the return probe of the stream's chain
         std::uint64_t aCells = 0, bCells = 0, parks = 0;
+        double capPct = 0.0, laneDb = 0.0;   // PLAN-R2 PD10 validity (CK7): cap-limited makeup cells; the lane re pristine at the end
     };
 
     /** companion: stream n + 1 is enabled too, on a SILENT tape (an audible
@@ -2171,9 +2172,25 @@ namespace { namespace egr1
         for (int note : { 48, 55, 60 })
             s.noteOn (0, note);
         if (setup) setup (s);
-        s.run (N, 512);
+        auto laneMs = [&s, n]
+        {
+            const auto* t = s.eng().getCurrentTape (n - 1);
+            const auto& hd = s.eng().getHeadForTest (n - 1);
+            double acc = 0.0;
+            for (std::int64_t i = hd.lo; t != nullptr && i < hd.hi; ++i)
+                for (int ch = 0; ch < 2; ++ch) { const double v = t->tape.levelSample (0, ch, i); acc += v * v; }
+            return hd.hi > hd.lo ? acc / (2.0 * (double) (hd.hi - hd.lo)) : 0.0;
+        };
+        s.run (64, 32);
+        const double ms0 = laneMs();
+        s.run (N - 64, 512);
         s.hk().retProbe = {};
         CkR r;
+        {
+            const auto& st = s.hk().mk[n - 1];
+            r.capPct = st.cells ? 100.0 * (double) st.capCells / (double) st.cells : 0.0;
+            r.laneDb = 10.0 * std::log10 (std::max (laneMs(), 1e-30) / std::max (ms0, 1e-30));
+        }
         r.out = { s.L, s.R };
         if (probeRet)
         {
@@ -2220,6 +2237,7 @@ namespace { namespace egr1
     {
         CkArm arm[2];
         std::uint64_t parks[2] {};
+        double capPct[2] {}, laneDb[2] {};
         for (int k = 0; k < 2; ++k)
         {
             const int n = k == 0 ? 1 : 3;
@@ -2237,12 +2255,15 @@ namespace { namespace egr1
             arm[k].kc = kc;
             arm[k].ratio = arm[k].ks / std::max (1e-30, kc);
             arm[k].hard = eg24b::kappa (hard.out, 1.0, 2.5) / std::max (1e-30, kc);
-            arm[k].stim = kc > 0.0 && subj.parks > stat.parks && hard.parks > stat.parks;
+            arm[k].stim = kc > 0.0 && subj.parks > stat.parks && hard.parks > stat.parks
+                       && stat.capPct > 90.0 && stat.laneDb <= -20.0;   // PLAN-R2 PD10: cap-limited, the lane erased
             parks[k] = subj.parks;
+            capPct[k] = stat.capPct; laneDb[k] = stat.laneDb;
         }
         ckRows ("CK7", "QUAL-01 / PD9 feedback toggle Off at 1 s, On at 1.5 s (fb 100 %, empty chain passband, 20 ms run ramp) vs the same render untouched",
                 "fbOnHardStop (the run ramp steps at the toggle edge)", "fbOnHardStop", arm, 1.0, 2.5,
-                "the toggled head parked " + i64 (parks[0]) + " / " + i64 (parks[1]) + " times");
+                "the toggled head parked " + i64 (parks[0]) + " / " + i64 (parks[1]) + " times; static render: makeup cap-limited " + f2 (capPct[0], 1) + " / " + f2 (capPct[1], 1)
+                    + " % of cells, lane " + f2 (laneDb[0], 1) + " / " + f2 (laneDb[1], 1) + " dB re pristine (stream level " + f2 (eg24b::kCkLevelDb, 0) + " dB, PLAN-R2 PD10)");
     }
 
     void rowCK8()

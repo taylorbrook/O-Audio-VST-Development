@@ -258,10 +258,25 @@ namespace { namespace eg24b
         1000 Hz, the PB3 / PB6 setting) makes r ≈ 0: the writer erases at λ, and
         every head stop / start / tape swap leaves the worst-case splice 0.95·wc,
         which only the 20 ms ramps / fades can smooth. */
-    P ckChain() { return cat ({ all4 ("fb_low_cut", 2000.0f), all4 ("fb_high_cut", 1000.0f) }); }   // PLAN-R1 PD16: all four streams
+    /** PLAN-R2 PD10 (T7, recorded). With the level-hold makeup the erased lane is
+        refilled: up to +40 dB of gain on whatever passes the empty pass band, so
+        the hard controls of CK1 / CK4 / CK7 read under 2.0x again. The stream
+        level scales the tap on any material; at -30 dB the return sits about
+        15 dB beyond the cap, the makeup is cap-limited throughout and the writer
+        erases as before (the lane ends one lap more than 20 dB under pristine:
+        the validity clause of each row). The subject always runs the shipping
+        path. The level is on stream level, so the OUTPUT is 30 dB lower too;
+        kappa is a ratio per 5 ms frame and its -80 dBFS floor is not reached. */
+    constexpr float kCkLevelDb = -30.0f;
+    P ckChain() { return cat ({ all4 ("fb_low_cut", 2000.0f), all4 ("fb_high_cut", 1000.0f), all4 ("level", kCkLevelDb) }); }   // PLAN-R1 PD16: all four streams
     /** CK3: a clean tonal return (sat 0, HP 20 Hz, LP 1 kHz) — the park splice is
         r(t_park) vs wc, and the content stays a 440 Hz tone. */
     P ckChainClean() { return cat ({ all4 ("fb_saturation", 0.0f), all4 ("fb_low_cut", 20.0f), all4 ("fb_high_cut", 1000.0f) }); }
+
+    /** Validity of the last ckRender (PLAN-R2 PD10): the share of cap-limited
+        makeup cells and the lane (latched loop of slot 0) re its pristine level. */
+    struct CkValid { double capPct = 0.0, laneDb = 0.0; bool ok() const { return capPct > 90.0 && laneDb <= -20.0; } };
+    CkValid gCkLast;
 
     Out ckRender (const P& extra, double seconds, const std::function<void (Session&)>& setup, int streams = 1, double regionPct = 66.0f)
     {
@@ -274,18 +289,33 @@ namespace { namespace eg24b
         shipping (s);
         s.load (0, sineBuf (2, (int) (3.0 * kFs), 440.0, kFs, 0.5), kFs);
         if (setup) setup (s);
-        s.run ((juce::int64) (seconds * kFs), 512);
+        auto laneMs = [&s]
+        {
+            const auto* t = s.eng().getCurrentTape (0);
+            const auto& hd = s.eng().getHeadForTest (0);
+            double acc = 0.0;
+            for (std::int64_t i = hd.lo; t != nullptr && i < hd.hi; ++i)
+                for (int ch = 0; ch < 2; ++ch) { const double v = t->tape.levelSample (0, ch, i); acc += v * v; }
+            return hd.hi > hd.lo ? acc / (2.0 * (double) (hd.hi - hd.lo)) : 0.0;
+        };
+        s.run (64, 32);
+        const double ms0 = laneMs();
+        s.run ((juce::int64) (seconds * kFs) - 64, 512);
+        const auto& st = s.hk().mk[0];
+        gCkLast.capPct = st.cells ? 100.0 * (double) st.capCells / (double) st.cells : 0.0;
+        gCkLast.laneDb = 10.0 * std::log10 (std::max (laneMs(), 1e-30) / std::max (ms0, 1e-30));
         return { s.L, s.R };
     }
 
-    void ckRow (const char* id, const char* title, const Out& subj, const Out& stat, const Out& hard, double t0, double t1, const char* hardName)
+    void ckRow (const char* id, const char* title, const Out& subj, const Out& stat, const Out& hard, double t0, double t1, const char* hardName, const CkValid& v)
     {
         const double ks = kappa (subj, t0, t1), kc = kappa (stat, t0, t1), kh = kappa (hard, t0, t1);
         const double r = ks / std::max (1e-30, kc), rh = kh / std::max (1e-30, kc);
         const bool fired = rh > kRatio;
-        row (r <= kRatio && fired, juce::String (id) + " " + title,
+        row (v.ok() && r <= kRatio && fired, juce::String (id) + " " + title,
              "meas kappa ratio " + f2 (r, 3) + " (subject " + f2 (ks, 4) + ", static " + f2 (kc, 4) + ", window " + f2 (t0, 2) + "-" + f2 (t1, 2)
-                 + " s) | thr <= " + f2 (kRatio, 1) + "x | margin " + f2 (kRatio - r, 3) + " | " + ctrl (fired, juce::String (hardName) + " -> " + f2 (rh, 3) + "x"));
+                 + " s) | stimulus (static render): makeup cap-limited " + f2 (v.capPct, 1) + " % of cells, lane " + f2 (v.laneDb, 1) + " dB re pristine" + (v.ok() ? "" : ", INVALID")
+                 + " | thr <= " + f2 (kRatio, 1) + "x | margin " + f2 (kRatio - r, 3) + " | " + ctrl (fired, juce::String (hardName) + " -> " + f2 (rh, 3) + "x"));
     }
 
     /** CK2 / CK3 (user decision 2026-11-08): INFO, not gates. Their hard
@@ -305,8 +335,9 @@ namespace { namespace eg24b
         // Freeze at 1 s: the head stops mid-lap (region 2 s), erased behind / pristine ahead.
         const auto subj = ckRender (fb, 2.0, [&] (Session& s) { notes (s); eg24::setFreezeAt (s, 48000, true); });
         const auto stat = ckRender (fb, 2.0, notes);
+        const auto valid = gCkLast;
         const auto hard = ckRender (fb, 2.0, [&] (Session& s) { notes (s); s.hk().freezeHardStop = true; eg24::setFreezeAt (s, 48000, true); });
-        ckRow ("CK1", "QUAL-01 / D24 freeze edge (fb 100 %, heads stop over 20 ms) vs the same render unfrozen", subj, stat, hard, 1.0, 2.0, "freezeHardStop");
+        ckRow ("CK1", "QUAL-01 / D24 freeze edge (fb 100 %, heads stop over 20 ms) vs the same render unfrozen", subj, stat, hard, 1.0, 2.0, "freezeHardStop", valid);
     }
 
     void rowCK2()
@@ -365,7 +396,9 @@ namespace { namespace eg24b
             s.hk().resetHardSwap = true;
             s.at (tR, [] (Session& ss) { ss.p->resetSlotSync (0); });
         });
-        ckRow ("CK4", "QUAL-01 / D24 Reset swap (20 ms dual-read fade) vs a same-motion freeze pulse", subj, stat, hard, 1.5, 2.5, "resetHardSwap");
+        (void) ckRender (all4 ("feedback", 100.0f), 2.0, notes);   // PLAN-R2 PD10 validity: the plain held render (this row's static arm carries a freeze pulse)
+        const auto valid = gCkLast;
+        ckRow ("CK4", "QUAL-01 / D24 Reset swap (20 ms dual-read fade) vs a same-motion freeze pulse", subj, stat, hard, 1.5, 2.5, "resetHardSwap", valid);
     }
 
     //==========================================================================

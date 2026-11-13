@@ -1,0 +1,51 @@
+R2 W1 + W2 (PLAN-R2 T3 - T12), 2026-11-13. Reference = RB (rb-notes.txt). Proof binaries are snapshots under build/plugins/O-GranulatorInstrument/r2-bin/.
+
+T3 energy table (SlotTape.h, SlotLoader.cpp; nothing reads it): harness 512 / 0, ids == B, text diff = wall-clock rows only; PT0 64 / 64; hashes 14 / 14 / 7; param-dump, drift, overrides, home green.
+   Run from the r2-bin copy, SS3 and UPM6 print a different byte count (a path length in the text); from the build's own path they equal B (T12).
+T4 makeup gain (GiRecordHead.h, Engine.h / .cpp, --makeup-off in main.cpp):
+   makeup OFF: 512 / 0, ids == B, text diff = wall-clock rows; PT0 64 / 64; hashes; parity not affected.
+   makeup ON : hashes 14 / 14 / 7 identical; parity 168 / 0, the 34 PB / PR lines == rb-parity.txt digit for digit (the first measured parity run with the makeup in the tree;
+               chainKnobParity implies makeup off, no parity file changed); 64-preset dump: 51 sha lines == RB, 13 differ = PD12's 13 names exactly.
+   DEVIATION: tests/ui-stub/generic-overrides.json (outside the fence) carries a live overview from 1.6 s of a fed-back tape; the makeup moved 1237 lines of it.
+               The fixture generator (dumpUiOverrides in main.cpp) now sets hooks.makeupOff: the committed file stays byte-identical. A UI data stub, not level evidence.
+T5 latch (Engine.h / .cpp): makeup OFF: the 512 carried rows PASS with ids == B (only LH rows fail, as they must), PT0 64 / 64; ON: hashes, parity == rb, the same 13 presets differ. RS2p PASS.
+T6 LH rows (engine_gates_r2.h, --egr2; 31 rows incl. controls): all PASS, every control FIRED, 0 INVALID. Values in R2.full.txt; INFO lines in r2-info-lines.txt.
+   Against research: LH1 min -2.1 / -2.1 / -2.9, max +1.3 / +1.3 / +1.5 (research -1.3 .. +0.8): research read 7 marks (2, 5, 10, 20, 30, 45, 60 s), the row reads 14 laps from 8 s;
+   the 8 s reading (lap 2) is the lowest on every arm. LH1p -0.6 .. +0.6, LH2 -0.4 / -0.8 at 60 s, LH3 -0.5 .. +0.5, LH4 +1.3, LH8 -0.3 / -0.6: within 1 dB of research.
+   DEVIATIONS (thresholds of LH1 - LH3 unchanged):
+   1 LH7 stimulus: the planned 55 Hz sine under Low Cut 2000 Hz does NOT fade (end -3.2 dB at default grains; -0.7 dB with 500 ms grains and Saturate 0 after a -17 dB first lap):
+     the filter's residue is levelled back and the lane is rewritten as pass-band content. The row uses S0 at stream level -30 dB (a loss the lane cannot escape): end -155.6 dB,
+     capped 100 %; control mkCapOff holds at -1.1 dB. The sine case is INFO LH7i. Hands-on row R2-10 asks.
+   2 LH6 and LH13 use LHB's predicate form (end within -3 / +2, no reading above +2 or under -4): a 2 s loop shows single-lap dips to -3.6 dB, the 96 kHz S0 a first reading of -3.2 dB.
+     Tried and rejected: a rate-independent short-term window (96 kHz first reading -4.0 dB, worse); reverted, not in the tree.
+   3 LH12: the injection lands at sample 480007; LH14: release 5 s; LHF counts frees too (own malloc_logger).
+   4 PT3n (after the trims a makeup-off render of a trimmed preset is not the baseline): PT3 = each of the 13 differs from RB and from its own makeupOff render;
+     PT3n = the same on-vs-off compare on 13 presets outside the set -> bitwise. INFO: under makeupOff 3 of the 13 (the untrimmed) are bitwise RB.
+   LH8i (OS2): latch 6 dB: default -0.3, Tape Halo -0.6, Pre Mix 100 / Size 100 -4.9 dB; 3 dB: -0.3 / -0.3 / -1.4 dB. Shipped value 6 dB (unchanged).
+   LH11 (--egr2-long, 600 s): see lh11.txt.
+T7 full harness, makeup on, before the repair: 539 / 4 = CK1, CK4, CK7n (controls not firing), FP2 (spread 12.74 dB) - exactly PD3's list.
+   CK repair (PD10): step 1 as written (220 / 110 / 55 Hz) makes the makeup cap-limited from 110 Hz down but only CK1's control fires (55 Hz), and CK8 breaks at 110 / 55 Hz
+   (it shares the tape). Used instead, same step's intent (a loss beyond the cap): 440 Hz kept, stream level -30 dB added to ckChain(). On the shipping path:
+   CK1 0.498x (ctrl 8.904x), CK4 0.271x (ctrl 11.324x), CK7 0.801x / 1.068x (ctrl 8.904x / 14.843x); validity clause on each (static render cap-limited 99.9 % of cells, lane -22.3 .. -24.3 dB re pristine).
+   Other ckChain / ckRender users, old -> new: CK2 (INFO) ratio 0.146 -> 0.291, lambdaRampZero -> 0.363x; CK3 (INFO) -> 12.578 / 13.483x. CK8 / CK9 do not use ckChain: CK8 1.046x / 1.330x, CK9 unchanged in verdict.
+   Moved carried rows with the makeup on (moved-rows.diff, old = B): CK1 CK4 CK7 CK7n CK8 CK8n CL1 FA4 FA4p FL1 FL1p FL1s FL1sp FL1spn FL2 FL2p FL2pn FL3p FL7 FP2 FP6n IN1 MS1 MU1 MU1n RS2p UOV2
+   (+ wall-clock CM1 H4 SR1 UCM6b UCM6bn USV2 USV3n). Every one runs a head at Amount > 0 (FL / CK / FA4 / MS1 / MU1 / RS2p / IN1 / UOV2: fb 80 - 100 %; FP2 / FP6n: the bank).
+   No row with feedback 0, the toggle Off or Freeze from load moved. CL1 margin 0.0020 -> 0.0002 (asymptote). FL1s now reaches the clamp (written 0.7000).
+T8 / T9 level table (--preset-level-table): makeup off -> 64 lines 0.00; on -> 51 bitwise, 13 move. First table (rb-levels.txt): 10 level outliers.
+   PD13 sanity check: levels were 0.1 - 1.4 dB above RESEARCH-R2's table (Iron Sky +6.77 vs +5.4). Found: research rendered that table at the prototype's default ceiling X = +6 dB;
+   with kMkCeilX temporarily at +6 dB this build prints +5.40 / +6.69 / +2.89 / +5.49 / +3.03 / +7.19 / +5.75 / +5.37 / +0.42 / +2.51 / +3.08 / +0.26 / +4.79 (research within 0.1 dB).
+   Research's centroid was power-weighted (R1 column reproduced: 96 / 54 / 230 / 579 / 127 / 314 / 120 / 925 / 505 / 247 / 306 / 343 / 2002 Hz); the table prints both weightings.
+T10 trims (sN_level on every enabled stream, one pass): Iron Sky -6.8, Deep Well -7.9, Organ Loft -3.4, Hollow Wind -5.7, Low Orbit -3.6, Tape Halo -8.0, Night Engine -6.5,
+   Feedback Loop -5.5, Slow Tide -3.3, Broken Radio -4.9 dB. After (r2-levels.txt): all ten within 0.16 dB of RB over 0-10 s. Untrimmed: Four Lanes +0.45, Fifth Bloom +2.65, Dotted Echo +0.68.
+   Centroid outliers (either weighting, listening call R2-6): Iron Sky, Deep Well, Organ Loft, Hollow Wind, Low Orbit, Night Engine, Feedback Loop.
+   FP0 - FP6 PASS with controls; FP2 spread 7.00 dB (Ember Field -30.0 .. Fifth Bloom -23.0), max peak 0.560. LHB -0.4 .. -0.0 dB at 60 s, lowest mark -2.8 (Four Lanes s3); LH10 worst 0.548 %.
+   PT0r 51 / 51, PT3 13 / 13, PT3n fires. Two dumps equal -> r2-preset-renders.sha256.
+T11 CPU (alone, r2-cpu.txt; session C25tm 6.66 vs RB 6.63): C25w 28.89 (RB 27.04), C25t 5.80, C25m 29.23 (28.70), C25tm 6.66, C25mPre 30.74 (30.80);
+   --cpu4 64 / 64: T median 4.33, p90 6.56, max 9.20 (Fifth Bloom; RB 8.98), W max 10.40 (RB 10.14).
+   The 13, T RB -> R2: Iron Sky 4.42 -> 4.51, Deep Well 5.93 -> 6.01, Organ Loft 6.56 -> 6.66, Hollow Wind 8.23 -> 8.31, Low Orbit 6.67 -> 6.70, Tape Halo 3.83 -> 3.87, Night Engine 6.15 -> 6.22,
+   Feedback Loop 2.88 -> 3.00, Four Lanes 5.54 -> 5.79, Fifth Bloom 8.98 -> 9.20, Slow Tide 6.06 -> 6.21, Dotted Echo 1.40 -> 1.43, Broken Radio 4.86 -> 5.47.
+T12 final tree: harness, param-dump, VST3, AU, Standalone rc 0, 0 warnings in Source/ (14 in harness headers, all pre-existing files). Full harness 543 PASS / 0 FAIL
+   (512 carried, ids == B, + 31 LH), 0 NOT FIRED, 0 INVALID -> R2.full.txt. Makeup off (R2-makeup-off.full.txt): the carried rows equal B except CK1 CK4 CK7 CK7n (their stimulus now
+   needs the makeup: INVALID under the switch), FP2 and FP6n (the trimmed bank), and the wall-clock rows; the LH rows fail, as they must.
+   Hashes 14 / 14 / 7, ctrl FIRED; parity 168 / 0, PB / PR == rb; param-dump; drift 0 / 13; overrides x2 == committed; frontend ALL PASS, --nc 4 / 4; home unchanged.
+A system sleep interrupted the first full makeup-on run (59 min wall); it finished 542 / 1 (FP2, before the trims) and was superseded by T12's run.
