@@ -236,6 +236,7 @@ About 60 % of the DSP is forked, proven O-Granulator code. The genuinely new wor
 - Factory sources (6–8 licence-clean FLACs, ≤ 8 MB) + factory presets (preset-manager; never set `output_gain`; reset-to-defaults first) (FUNC-08).
 - DAW passes: Logic (AU sidechain Record-in, unrouted case), Live + Reaper (VST3 aux input), Dorico (NE microtonal, COMPAT-02), an MPE controller (Seaboard/LinnStrument or MPE test MIDI).
 - Windows VST3 build + WebView2. i18n (FR, zh-Hans) per the suite lint. pluginval 10 on both formats. CHANGELOG. Fork drift review, recorded in FORK-MANIFEST.md.
+- **Addendum, rework R1 (2026-11-12; CONTEXT-R1 D60–D69, PLAN-R1):** after the first execute + verify (PARTIAL) the hands-on session produced findings F1 and F2, and Stage 4 gained one rework cycle before 1.0.0. R1 makes feedback (Amount, Low Cut, High Cut, Saturate, Diffuse, on / off) and reverb (Mix, Size, Damp, Pre / Post) per stream and removes the 8 global parameters (261 → 293 parameters, 126 → 150 destinations, destination table version 2); Freeze and Reset All stay global. It also re-lays the FX · Feedback page behind an approved v2 mockup (D65, Variant B), copies the 64 presets to the new parameters and re-voices 10 as a per-stream showcase, returns Record-in Arm to Off when a take ends or cannot start (D66, amends D34), and ships the "Select a sidechain input" copy (F1). VERSION stays 1.0.0, no tag, no state migration (nothing was published). The cycle ends with the re-authored `HANDS-ON-SESSION-4.md` and a second verify.
 
 ---
 

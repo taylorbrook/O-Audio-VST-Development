@@ -1,15 +1,15 @@
 ---
 plugin: O-GranulatorInstrument
 stage: 4
-status: stage_4_polish_rework_r1_c6_landed_w6_next
+status: stage_4_rework_r1_execute_complete
 current_phase: 4-polish
-gsd_phase: rework_r1_execute_in_progress
+gsd_phase: rework_r1_execute_complete
 last_updated: 2026-11-12
 complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: /plugin-execute O-GranulatorInstrument 4-polish (rework R1: C6 landed; resume at W6 = T27 build / install / validators, T28; W7 docs drafted uncommitted (T29 / T30), T31 SUMMARY-R1 + C7, T32 hold)
+next_action: /plugin-verify O-GranulatorInstrument 4-polish (rework R1 executed, SUMMARY-R1.md; then HANDS-ON-SESSION-4, 243 run rows; D54 Windows CI at /publish)
 next_stage: 4
 ready_for_implementation: true
 blocked_on: none (fork pin 82406fce, D11)
@@ -29,8 +29,8 @@ contract_checksums:
   brief: sha256:74e7f8f24468ed9658aa8533733f45da24c61ad116d6ae47cd5c2af0e8524722
   requirements: sha256:d2cfc66d0396a4c4b82f8789fd2def70e3d943c701311f18085da71f0c484ad4   # Stage 4 execute: FUNC-08, COMPAT-02 pending -> partial
   parameter_spec_draft: sha256:3c4918748a4375940684a22ed6850a3184bdd96df53d152a8900d5f0e4260796
-  architecture: sha256:8c44e54f86994b1b84e1f8a516a95215d654d552aaa9e4b406eff8a8ed241f79
-  roadmap: sha256:34fe684374ac5167e609f6fa6b9046548fc00e89f6bd52444cf6d1eac5a2867e   # 2.5 split into 2.5a / 2.5b (D26)
+  architecture: sha256:243d0190e53b5c763f045251ff2675f1b4ea811689431c1fa6d73bd2b45510b6   # R1 C7: one R1 addendum paragraph
+  roadmap: sha256:5137142de157eedc3f3f5965dd431e4d2c9f0308b56e9e3df48a88fcf9f5dd65   # R1 C7: one R1 addendum paragraph
 ---
 
 # O-GranulatorInstrument Status
@@ -38,6 +38,8 @@ contract_checksums:
 ## Current Position
 
 **D65 APPROVAL RECORDED — Taylor, 2026-11-12** (T6): (1) **Variant B**; (2) row density OK as shown; (3) destination names OK as shown; (4) **OS1 yes** — edit `forked/ControlGrid.h` in T17 and re-pin its manifest hash; (5) **OS2 default** — `rec_arm` state functions stay untouched (as built in C4), no restore-swallow; (6) **OS3** — French and Chinese destination titles unchanged; (7) the two unplanned mockup choices left to the executor's judgement, taken as: keep the 2 px left-edge bar on vertical segments; **dim the feedback switch with the rest of a disabled stream's column** (apply in T15, both the page and the `fb-off` / stream-off state checks). T15 onward is unblocked.
+
+**Stage 4 rework R1 execute ✓** 2026-11-12 (`stages/4-polish/SUMMARY-R1.md`, C0–C7): per-stream feedback (with on / off) and per-stream reverb (Pre / Post), 293 params (200 / 74 / 19), 150 destinations (table version 2), FX page v2 Variant B, bank copied + 10 showcase re-voices, Record-in Arm auto-clear, F1. **W6 (T27 / T28):** build 0 warnings in `Source/`, installed (`-dev`), auval PASS with exactly the 4 LFO-rate warnings, pluginval 10 VST3 + AU SUCCESS sidechain on / off (one seed each), X2 0, Factory folder rewritten with per-stream keys, Windows gate + 6 controls; final tree: hashes unchanged, harness 512 / 0, parity 168 / 0, PT1 38 / PT2 16, frontend + probe (with `--nc`) ALL PASS, v2 pairs `cmp` clean. **W7 (T29–T31, C7):** CHANGELOG, ARCHITECTURE / ROADMAP addenda (checksums re-pinned), CONTEXT-2.6 note, PLUGINS.md date, HANDS-ON-SESSION-4 re-authored (243 run rows), SUMMARY-R1. Not done: Standalone capture of the FX tab (window boots; tab not clickable from the shell). T32 Windows CI: held (D54 pending `/publish`). REQUIREMENTS.md untouched (verify rewrites DSP-04 / 05 / 06, FUNC-07 / 08, PERF-02). Next: `/plugin-verify O-GranulatorInstrument 4-polish`.
 
 **R1 W5 ✓ (T23–T26, C6)** 2026-11-12 (`evidence-r1/w5-notes.txt`, `r1-cpu.txt`, `B3.full.txt`): T24 run before T23; 22 new rows + 22 controls in `engine_gates_r1.h` PASS, one engine fix (`resetTailHold`: a Reset on a Pre stream no longer writes the old tail, RS2p), three stimulus deviations (FL1p / FL1sp raised, MZ1 second clause); 10 showcase presets re-voiced, no swap, FP2 spread 6.32 dB; harness 512 / 0, hashes unchanged, parity 168 / 0, PT1 38 / PT2 16 (−132.57 dB); CPU C25w 27.84, C25m 29.49, C25mPre 30.93, C25tm 6.70, bank T max 9.19 (Fifth Bloom) / W max 10.29. Last task T26; next T27.
 

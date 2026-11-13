@@ -33,6 +33,7 @@ FUNC-06: file references persist, a missing file relinks without a crash, factor
 - An `rec_arm` Off→On edge goes **Idle → Armed**. After a commit (or a discard), the engine returns to **Idle** and stays there while `rec_arm` is still On. Another capture needs a new Off→On edge.
 - The engine never writes APVTS. Stage 3's UI turns the button off through its relay, which is a user gesture. Host automation can toggle the parameter for repeat takes.
 - An On→Off edge while **Armed** cancels. An On→Off edge while **Recording** stops: a take of ≥ 0.5 s commits, and a shorter one is discarded (ARCH §22).
+- **Amended by D66 (Stage 4 R1):** `rec_arm` no longer stays On after a take. When a take commits, is discarded or cannot start, the processor's message-thread poll timer writes the parameter back to Off as a host-visible gesture, so one click starts the next take. An arm that is still waiting (Threshold, Next Note) is left alone, and a user cancel is not rewritten. The engine still never writes APVTS and the one-shot rule in the audio path is unchanged.
 
 ### D35 — Threshold trigger has a 10 ms pre-roll
 - While Armed in Threshold mode, a preallocated ring of 10 ms at fs runs on the post-`rec_gain` sidechain. The capture starts **10 ms before** the first sample where `|sc·recGain|` exceeds `rec_threshold`. If fewer than 10 ms have passed since arming, it starts at the arm sample.
