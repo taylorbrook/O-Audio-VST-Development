@@ -2,14 +2,15 @@
 plugin: O-ParametricEQ
 stage: 0
 status: complete
-last_updated: 2026-11-12 18:50:00
+last_updated: 2026-11-12 19:48:43
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: invoke_foundation_shell_agent
+next_action: proceed_to_stage_1
 next_stage: 1
 ready_for_implementation: true
-blocked_on: parameter-spec.md (mockup finalization)
+blocked_on: none
+ui_scaffolding_phase_complete: true
 latest_mockup_version: 1
 mockup_finalized: true
 finalized_version: 1
@@ -18,7 +19,7 @@ mockup_version_synced: 1
 brief_update_timestamp: "2026-11-13T02:26:56Z"
 contract_checksums:
   brief: sha256:6fbb1b97c9c64ca3f159a409f807f13c74cb16dab8d6ab14b6a1a13c2e6991ff
-  parameter_spec: sha256:d2e3f4a88cf089fb654852f71005f6692018d72c57a827fcfd54998055798e44
+  parameter_spec: sha256:60e7cf7fc335929259b4930d156a4f0d91cfa3b0a9f26d751ec31c5328c6229f
   architecture: sha256:559de652fde7ef79d8231112913833f86522bcf58cf8ee21e61f8e48f7706fe4
   roadmap: sha256:41be732176b54c37a13036ce9f3f2dd923a161b1220d919f9dc6b760b211b3ad
 ---
@@ -28,10 +29,10 @@ contract_checksums:
 ## Current Position
 
 Stage: 0 of 4 (Ideation / Research and Planning) — complete
-Status: Research and planning complete, ready for implementation once `parameter-spec.md` exists
+Status: Research and planning complete, UI mockup v1 finalized with implementation scaffolding, `parameter-spec.md` written; ready for Stage 1
 Progress: [##..................] 10%
 
-`parameter_spec` checksum above is of `parameter-spec-draft.md`; replace it when mockup finalization writes `parameter-spec.md`.
+`parameter_spec` checksum above is of `parameter-spec.md` (written by mockup finalization, 2026-11-12; 196 host parameters). `parameter-spec-draft.md` is kept for reference and is superseded.
 
 ## Completed So Far
 
@@ -57,11 +58,12 @@ Progress: [##..................] 10%
 
 **UI mockup (Phase A, design iteration):** v1 design approved and finalized 2026-11-12; brief synced
 - `mockups/v1-ui.yaml` + `mockups/v1-ui-test.html` (960 × 600, resizable 800 × 500 – 1600 × 1000, paper ground, dragonfly plate)
-- Not finalized: no Phase B files, `parameter-spec.md` still to be written at finalization
+- Phase B (implementation scaffolding) complete 2026-11-12: `mockups/v1-ui.html`, `v1-i18n.js`, `v1-PluginEditor-TEMPLATE.h/.cpp`, `v1-CMakeLists-SNIPPET.txt`, `v1-integration-checklist.md`; `parameter-spec.md` written (196 host parameters per ARCHITECTURE.md "Parameter Mapping")
+- Stage 3 decisions carried from the mockup's open questions are listed in `mockups/v1-integration-checklist.md`
 
 ## Next Steps
 
-1. Create and finalize the UI mockup: `/start O-ParametricEQ` → option 3. This writes `parameter-spec.md`, which is still required before Stage 1. The mockup must adopt the layout in `research/ARCHITECTURE.md` "Parameter Mapping".
+1. ~~Create and finalize the UI mockup~~ Done 2026-11-12: mockup v1 finalized, implementation scaffolding generated, `parameter-spec.md` written with the layout in `research/ARCHITECTURE.md` "Parameter Mapping".
 2. Answer the items under "Needs the user's call before Stage 1" in `stages/0-ideation/CONTEXT.md` (items 3 and 6 change `parameter-spec.md`).
 3. Stage 1: Foundation — `/implement O-ParametricEQ`
 4. Pause here
@@ -99,3 +101,10 @@ Progress: [##..................] 10%
 - plugins/O-ParametricEQ/.planning/stages/0-ideation/CONTEXT.md
 - plugins/O-ParametricEQ/.planning/mockups/v1-ui.yaml
 - plugins/O-ParametricEQ/.planning/mockups/v1-ui-test.html
+- plugins/O-ParametricEQ/.planning/parameter-spec.md
+- plugins/O-ParametricEQ/.planning/mockups/v1-ui.html
+- plugins/O-ParametricEQ/.planning/mockups/v1-i18n.js
+- plugins/O-ParametricEQ/.planning/mockups/v1-PluginEditor-TEMPLATE.h
+- plugins/O-ParametricEQ/.planning/mockups/v1-PluginEditor-TEMPLATE.cpp
+- plugins/O-ParametricEQ/.planning/mockups/v1-CMakeLists-SNIPPET.txt
+- plugins/O-ParametricEQ/.planning/mockups/v1-integration-checklist.md

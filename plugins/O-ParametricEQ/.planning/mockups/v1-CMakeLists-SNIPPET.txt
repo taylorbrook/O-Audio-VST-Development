@@ -1,0 +1,78 @@
+# ============================================================================
+# O-ParametricEQ - WebView CMake configuration SNIPPET (UI mockup v1)
+# ============================================================================
+# A SNIPPET for gui-agent to merge into plugins/O-ParametricEQ/CMakeLists.txt
+# during Stage 3. It is not a standalone file and declares no plugin target.
+#
+# Target name assumed below: OuariconParametricEQ (the O-AnalogEQ pattern).
+# Substitute the target Stage 1 actually declares.
+#
+# REQUIRED in the plugin declaration itself (Stage 1 writes it; verify here):
+#       NEEDS_WEB_BROWSER TRUE    # VST3 does not appear in hosts without it
+#       NEEDS_WEBVIEW2 TRUE       # links WebView2LoaderStatic + headers on Windows
+# Without NEEDS_WEBVIEW2 and the static-linking define below, Windows silently
+# falls back to the legacy IE control: blank page / "page not found".
+#
+# NOTE for anyone editing this file: do not write the JUCE plugin-declaration
+# command name followed by an opening parenthesis in a comment. A repo script
+# (scripts/resolve-target.sh) greps for that token and mis-resolves the target.
+# ============================================================================
+
+# Shared modules. The helper adds each module's C++ include path and copies its
+# JS into Source/ui/public/modules/ at configure time (that copy is gitignored;
+# the embedded sources below come straight from modules/ instead).
+#   preset-manager 1.1.1   OuariconPresetManager.h + preset-manager.js
+#   vu-meter       1.0.0   VUMeterBridge.h + vu-meter.js
+#   eb-garamond    1.0.0   direct embed, no helper (stylesheet + 3 woff2)
+ouaricon_add_module(OuariconParametricEQ preset-manager)
+ouaricon_add_module(OuariconParametricEQ vu-meter)
+
+# WebView UI resources: ONE binary-data target. NAMESPACE and HEADER_NAME are
+# both distinct from the defaults, so a later preset or sample data target that
+# defaults to BinaryData cannot duplicate-symbol against this one.
+# Never add a second UI binary-data target for the fonts or the modules.
+juce_add_binary_data(OuariconParametricEQ_UIResources
+    NAMESPACE UIBinaryData
+    HEADER_NAME UIBinaryData.h
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/js/i18n.js
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+        ${CMAKE_SOURCE_DIR}/modules/persistence/preset-manager/js/preset-manager.js
+        ${CMAKE_SOURCE_DIR}/modules/metering/vu-meter/js/vu-meter.js
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
+)
+
+# Symbols (the generator flattens paths and STRIPS hyphens from file names):
+#   index.html                  UIBinaryData::index_html
+#   js/i18n.js                  UIBinaryData::i18n_js          embedded AND served, check-i18n rule 8
+#   js/juce/index.js            UIBinaryData::index_js
+#   check_native_interop.js     UIBinaryData::check_native_interop_js
+#   preset-manager.js           UIBinaryData::presetmanager_js   served at /modules/preset-manager.js
+#   vu-meter.js                 UIBinaryData::vumeter_js         served at /modules/vu-meter.js
+#   eb-garamond.css             UIBinaryData::ebgaramond_css     served at /css/eb-garamond.css
+#   EBGaramond-Regular.woff2    UIBinaryData::EBGaramondRegular_woff2   served at /fonts/
+#   EBGaramond-Italic.woff2     UIBinaryData::EBGaramondItalic_woff2
+#   EBGaramond-Bold.woff2       UIBinaryData::EBGaramondBold_woff2
+#
+# Stage 3 adds two image sources when the assets exist, and a getResource
+# branch for each: the paper texture and the dragonfly engraving
+# (Source/ui/public/images/). Keep file names free of hyphens.
+
+target_link_libraries(OuariconParametricEQ
+    PRIVATE
+        OuariconParametricEQ_UIResources
+        juce::juce_gui_extra
+)
+
+target_compile_definitions(OuariconParametricEQ
+    PUBLIC
+        JUCE_VST3_CAN_REPLACE_VST2=0
+        JUCE_WEB_BROWSER=1
+        JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
+        JUCE_USE_CURL=0
+)
