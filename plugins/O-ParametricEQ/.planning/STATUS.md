@@ -1,13 +1,13 @@
 ---
 plugin: O-ParametricEQ
-stage: 1
-phase: verify
-status: stage_1_complete_verified
-last_updated: 2026-11-12 23:55:00
+stage: 2
+phase: discuss
+status: stage_2_discuss_complete
+last_updated: 2026-11-12 23:59:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_2_discuss
+next_action: stage_2_research_phase_2_1
 next_stage: 2
 ready_for_implementation: true
 blocked_on: none
@@ -29,7 +29,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — VERIFIED
+Stage: 2 of 4 (DSP) — discuss ✓ 2026-11-12 (`stages/2-dsp/CONTEXT.md`, D6–D11); next is research for Phase 2.1 / 2.1b. Stage 1 (Foundation): VERIFIED
 Status: 0.1.0 built and installed (VST3 + AU + Standalone); harness 36 PASS / 0 FAIL, pluginval 10 and auval pass (`stages/1-foundation/SUMMARY.md`). Verified 2026-11-12 by an independent re-run on a fresh compile and reinstalled bundles, plus a mutation run (`stages/1-foundation/VERIFICATION.md`); next is Stage 2 discuss
 Progress: [####................] 20%
 
@@ -73,6 +73,12 @@ Progress: [####................] 20%
 | execute | ✓ | 2026-11-12 | |
 | verify | ✓ | 2026-11-12 | |
 
+### Stage 2: DSP
+| Phase | Status | Date | Skipped |
+|-------|--------|------|---------|
+| discuss (stage-wide) | ✓ | 2026-11-12 | |
+| research 2.1 / 2.1b | | | |
+
 ## Next Steps
 
 1. ~~Create and finalize the UI mockup~~ Done 2026-11-12: mockup v1 finalized, implementation scaffolding generated, `parameter-spec.md` written with the layout in `research/ARCHITECTURE.md` "Parameter Mapping".
@@ -81,7 +87,8 @@ Progress: [####................] 20%
 4. ~~Stage 1 plan~~ Done 2026-11-12: `stages/1-foundation/PLAN.md`. Plan decisions to note: an invalid state blob leaves the state unchanged (deviates from ARCHITECTURE "→ defaults"); `uiLanguage` is a root attribute; save always writes `stateVersion="1"`.
 5. ~~Stage 1 execute~~ Done 2026-11-12: `stages/1-foundation/SUMMARY.md`. Gate 0→1 bypassed with `--force` (no CMakeLists before Stage 1). AU channel capabilities `[1, 1] [2, 2]` are now frozen.
 6. ~~Stage 1 verify~~ Done 2026-11-12: `stages/1-foundation/VERIFICATION.md`, VERIFIED. COMPAT-01 complete; DSP-07 partial (state format and layout met; the `Band::dynOffsetDb` hook is Phase 2.2). Carry to Stage 2: RESEARCH pitfall 2 is wrong for JUCE 8.0.15 (a missing parameter already loads at its default through `valueTreeChildAdded`; the default fill is redundant and S5 does not gate it). Hands-on DAW smoke (three items in VERIFICATION) is open and not blocking.
-7. Stage 2 discuss — `/plugin-discuss O-ParametricEQ` (raise the six deferred DSP calls, D3)
+7. ~~Stage 2 discuss~~ Done 2026-11-12: `stages/2-dsp/CONTEXT.md`. The six deferred calls are answered: D6 slope inert on Bell / Notch / Band Pass, D8 tilt ±g/2, D9 Q 1.0 = Butterworth, D10 keep the in-band skirt above Nyquist, D11 listen = the band's region of the input, all as recommended. **D7 departs from the recommendation: the accuracy polish is in v1** (target near the second-order optimum, about 0.15 / 0.30 / 0.70 dB at ±6 / ±12 / ±30 dB at 44.1 kHz, one section per bell; bells and shelves including the weak spots; hybrid with the closed form as seed and fallback). Consequence: a new Phase 2.1b between 2.1 and 2.2; the plan phase amends `ROADMAP.md` and `ARCHITECTURE.md` ("Accuracy backlog (not v1)", G1 tolerance) and refreshes their checksums. Neither contract was edited in discuss.
+8. Stage 2 research, Phase 2.1 / 2.1b — `/plugin-research O-ParametricEQ 2-dsp`
 
 ## Context to Preserve
 
@@ -135,3 +142,4 @@ Progress: [####................] 20%
 - plugins/O-ParametricEQ/tests/golden/params.tsv
 - plugins/O-ParametricEQ/.planning/stages/1-foundation/SUMMARY.md
 - plugins/O-ParametricEQ/.planning/stages/1-foundation/VERIFICATION.md
+- plugins/O-ParametricEQ/.planning/stages/2-dsp/CONTEXT.md
