@@ -1,15 +1,15 @@
 ---
 plugin: O-GranulatorInstrument
 stage: 4
-status: stage_4_rework_r2_verify_partial_human_retest_pending
+status: stage_4_complete
 current_phase: 4-polish
-gsd_phase: rework_r2_verify_partial
+gsd_phase: verify_complete
 last_updated: 2026-11-13
 complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: Taylor runs the 45 retest rows of HANDS-ON-SESSION-4 on the R2 build (Pass 1 30 rows incl. R2-1 - R2-12, Pass 2 14 presets, Pass 3 row 2.4-9; decisions R2-3 / R2-5 / R2-9 / R2-10b taken 2026-11-13), then /plugin-verify O-GranulatorInstrument 4-polish to record it; D54 Windows CI at /publish
+next_action: /install-plugin O-GranulatorInstrument; then /publish (D54 Windows CI arm runs there); COMPAT-02 MPE / Dorico pass -> 1.0.x
 next_stage: 4
 ready_for_implementation: true
 blocked_on: none (fork pin 82406fce, D11)
@@ -27,7 +27,7 @@ contract_checksums:
   parameter_spec: sha256:d56a8f2e2d1276b8e511c48344c55b826dd5e87c3804549a16390fa54e2c2dff   # R1 T16 / C5: addendum C + body rewrite (293 params, dest table 150, version 2, rec_arm auto-clear)
   parameter_spec_body: sha256:91be022dd2aa8ba9e7013c833b9fdd46cd3a73494fa12ff04b41e65152235a95   # R1 T16 / C5: body rewritten once (addendum C)
   brief: sha256:74e7f8f24468ed9658aa8533733f45da24c61ad116d6ae47cd5c2af0e8524722
-  requirements: sha256:c227cd3a60018df9dffe80c2cdacfbf363506b10f96c3ab35b273b771f80de3f   # R2 verify 2026-11-13: DSP-04 / FUNC-08 / PERF-02 evidence lines, PERF-02 -> complete; 20 complete / 5 partial
+  requirements: sha256:96cba6062764ba6de996f0a20bfbcfa386df3bcf817a8cf7e2e6bbf7c9fcd286   # R2 hands-on record 2026-11-13: DSP-04, FUNC-08 -> complete; 22 complete / 3 partial (FUNC-02, UI-01, COMPAT-02 by decision)
   parameter_spec_draft: sha256:3c4918748a4375940684a22ed6850a3184bdd96df53d152a8900d5f0e4260796
   architecture: sha256:40b31e180ee9854798974c9fc33491cc262677e4fa8286a750257381f2d9bb68   # R2 C3: one R2 addendum paragraph (write law with the makeup, latch)
   roadmap: sha256:5137142de157eedc3f3f5965dd431e4d2c9f0308b56e9e3df48a88fcf9f5dd65   # R1 C7: one R1 addendum paragraph
@@ -36,6 +36,8 @@ contract_checksums:
 # O-GranulatorInstrument Status
 
 ## Current Position
+
+**Stage 4 VERIFIED ✓** 2026-11-13 (`stages/4-polish/VERIFICATION-R2.md`). R2 retest recorded: Taylor reported all 45 rows passing; sheet 255 / 255, F3 closed. Decisions: R2-3 keep the 6 dB latch; R2-5, R2-9, R2-10 (b) accepted. Confirmed as design (D45): a preset replaces only the lanes it lists. REQUIREMENTS 22 complete / 3 partial (FUNC-02, UI-01 Windows rows at `/publish`, D54; COMPAT-02 → 1.0.x, D57). No tag. Open housekeeping: USV1 timing flake (VERIFICATION-R2 issue 1). Next: `/install-plugin O-GranulatorInstrument`.
 
 **Stage 4 rework R2 verify: PARTIAL** 2026-11-13 (`stages/4-polish/VERIFICATION-R2.md`). Every automated gate re-run green on `5e0f5b95`: harness 543 / 0, `--egr2` 31 / 0 with 14 controls firing, render goldens and parity unchanged, PT0r 51 / 51, CPU C25m 29.65 / bank T max 8.97, UI chain, install, auval, pluginval 10 ×3 seeds sidechain on / off, X2, Factory folder. Makeup-off run equals the baseline except the expected rows and one timing flake (USV1, 5 / 5 on re-run). REQUIREMENTS: PERF-02 → complete; DSP-04 and FUNC-08 stay partial on the retest (20 complete / 5 partial). **Open: the 45-row human retest.** Decisions taken 2026-11-13 (Taylor): R2-3 keep 6 dB, R2-5 / R2-9 / R2-10 (b) accepted; no source change. Next: run the sheet, then `/plugin-verify O-GranulatorInstrument 4-polish`.
 

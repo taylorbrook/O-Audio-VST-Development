@@ -9,7 +9,7 @@ Follows `VERIFICATION-R1.md` (PARTIAL, finding F3). Every automated check below 
 - The parity reference was re-extracted from the pin (O-Granulator `82406fce`) and rebuilt in a scratch directory.
 - Logic and Live were closed throughout.
 
-No automated result is copied from SUMMARY-R2. The human retest (45 rows of `HANDS-ON-SESSION-4.md`) is **not** self-certified and is open. The Windows CI arm (D54) was not run.
+No automated result is copied from SUMMARY-R2. The human retest (45 rows of `HANDS-ON-SESSION-4.md`) is **not** self-certified; it was run by Taylor and is recorded under Human Verification. The Windows CI arm (D54) was not run.
 
 Not re-done: `--egr2-long` (LH11, 600 s, INFO only); the LH8i INFO comparison of latch thresholds beyond what `--egr2` prints.
 
@@ -59,7 +59,7 @@ Code read in verify (`git diff 4c89247c..HEAD -- Source`):
 | 10. Surface | ✅ Achieved | param-dump == `params.tsv` (293); 7 / 7 contract hashes == STATUS before the REQUIREMENTS edit; fork drift 0 / 13; UI chain green with no file changed; three v2 pairs `cmp` clean. |
 | 11. Validators | ✅ Achieved | See Automated Checks. |
 | 12. Docs / release | ✅ Achieved | One `## [1.0.0] - 2026-11-13` heading with the level-hold sentence; CMake and installed `Info.plist` 1.0.0; PLUGINS.md `🚧 Stage 4 \| 1.0.0 \| 2026-11-13`, no duplicate row; 0 `*GranulatorInstrument*` tags; sheet has section 1e (R2-1 – R2-12) and the reset rows. |
-| Human retest (D51) | ⏳ Pending | 45 rows open on the R2 build. |
+| Human retest (D51) | ✅ Achieved | 45 / 45 reported passing by Taylor, 2026-11-13; sheet 255 / 255. |
 | Windows (D54) | ⚠️ Partial (by decision) | Grep gate PASS. No Windows compile until `/publish`. |
 
 ## Requirements Verification
@@ -68,12 +68,12 @@ Code read in verify (`git diff 4c89247c..HEAD -- Source`):
 
 | Requirement | Priority | Status | Acceptance Criteria |
 |-------------|----------|--------|---------------------|
-| DSP-04: feedback into per-stream working copies | must | ⚠️ Partial | R2 evidence line added (LH rows, lower bound, controls). Automated arm green; closes on the retest of 2.4-1 – 2.4-7, section 1d, R2-1 – R2-12. |
-| FUNC-08: factory content | should | ⚠️ Partial | R2 evidence line added (PT0r / PT3, ten trims, FP2 7.00 dB, Factory folder). Closes on the re-audition of the 14 feedback presets. |
+| DSP-04: feedback into per-stream working copies | must | ✅ Complete (was partial) | R2 evidence line added (LH rows, lower bound, controls); retest rows pass. F3 closed. |
+| FUNC-08: factory content | should | ✅ Complete (was partial) | R2 evidence line added (PT0r / PT3, ten trims, FP2 7.00 dB, Factory folder); the 14 feedback presets re-auditioned. |
 | PERF-02: CPU budget | must | ✅ Complete (was partial) | The `--cpu4` re-measure it waited on is done and inside budget; the Logic CPU row passed on R1 and was not reset for R2. |
 | FUNC-02, UI-01, COMPAT-02 | — | ⚠️ Partial (unchanged) | Windows rows (D54), MPE / Dorico (D57). |
 
-Totals: **20 complete, 5 partial**, 0 pending, 0 failed.
+Totals: **22 complete, 3 partial** (FUNC-02 and UI-01 on their Windows rows, COMPAT-02 on MPE / Dorico; all three open by decision), 0 pending, 0 failed.
 
 ## Automated Checks
 
@@ -101,21 +101,18 @@ Totals: **20 complete, 5 partial**, 0 pending, 0 failed.
 
 ## Human Verification (D51 — `HANDS-ON-SESSION-4.md`)
 
-**Not run.** 255 run rows: 210 ✅ carried from 2026-11-12, **45 to run on the R2 build**.
+**Recorded 2026-11-13.** Taylor ran the retest on the installed R2 build and reported every row passing. The 45 marks were entered in the sheet from that whole-session report, not row by row; the "Note" / "Listening call" blanks (2.4-1, R1-PRE1, R1-MAX1, R1-UI1, R2-6) were not dictated and stay empty.
 
-- [ ] Pass 1: 2.4-1 – 2.4-7, 3.2-10, 3.2-11, 3.2-24, section 1d (8 rows), section 1e R2-1 – R2-12 (30 rows)
-- [ ] Pass 2: the 14 presets with a Feedback Amount above 0 (14 rows)
-- [ ] Pass 3: 2.4-9 (1 row)
+- [x] Pass 1: 2.4-1 – 2.4-7, 3.2-10, 3.2-11, 3.2-24, section 1d (8 rows), section 1e R2-1 – R2-12 — 30 / 30
+- [x] Pass 2: the 14 presets with a Feedback Amount above 0 — 14 / 14
+- [x] Pass 3: 2.4-9 — 1 / 1
+- Pass 5 (7 rows) stays deferred: Windows, MPE hardware, Dorico, Reaper.
 
-Four rows ask for a decision, not only a mark:
-- **R2-3** — latch threshold. 6 dB ships; execute measured −4.9 dB at note-off in Pre / Mix 100 / Size 100 against −1.4 dB at 3 dB.
-- **R2-5** — brightness walk on Dotted Echo, Feedback Loop, Tape Halo, Low Orbit.
-- **R2-9** — a sparse lane becomes a steady cloud.
-- **R2-10 (b)** — a filtered drone no longer fades; it becomes the filter's residue at level.
+Sheet total: 255 / 255 run rows ✅, 0 ❌ open. F3 is closed.
 
-R2-6 is a listening call on the seven presets whose tone moved most.
+**Decisions (Taylor):** R2-3 keep the 6 dB latch threshold; R2-5 brightness walk accepted, cuts not re-voiced; R2-9 accepted; R2-10 (b) accepted. No source change follows.
 
-**Decisions recorded 2026-11-13 (Taylor):** R2-3 keep the 6 dB latch threshold; R2-5 brightness walk accepted, cuts not re-voiced; R2-9 accepted; R2-10 (b) accepted. No source change follows from any of them. These are the decisions only: the ✅ / ❌ marks of the 45 rows are still open.
+**One observation during the session, confirmed as design.** Many presets show one stream enabled with sounds still on the other lanes (example: Live · Freeze Cloud, stream 3 only). Checked: Freeze Cloud is authored that way (Record-in to slot 3, `s1_enable` off, `s3_enable` on), and a preset replaces only the lanes it lists (D45), so lanes from an earlier preset stay visible with their stream off. Taylor: fine as a design choice; no change.
 
 ## Issues Found
 
@@ -132,10 +129,11 @@ None blocking.
 
 ## Stage Verdict
 
-**Status:** ⚠️ PARTIAL. Every automated gate is verified green on the R2 tree and F3 is fixed in the engine; the 45-row human retest has not been run.
+**Status:** ✅ VERIFIED. Every automated gate is green on the R2 tree and the hands-on sheet stands at 255 / 255; F3 is closed.
 
-**Ready for next stage:** No.
+**Ready for next stage:** Yes — Stage 4 is the last stage. Next: `/install-plugin O-GranulatorInstrument`.
 
-**Blockers:**
-- The human retest on the R2 build (45 rows). The four decisions are taken; the marks are not.
-- D54 Windows validate run at `/publish` (unchanged, by decision).
+**Carried, not blockers (by decision):**
+- D54: the Windows validate run happens at `/publish`; FUNC-02 and UI-01 stay partial on their Windows rows until then.
+- D57: COMPAT-02 (MPE hardware, Dorico) → 1.0.x.
+- Issue 1 (USV1 timing flake) is worth hardening before the first CI run.

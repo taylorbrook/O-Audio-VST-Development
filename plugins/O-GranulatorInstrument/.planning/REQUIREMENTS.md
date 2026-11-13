@@ -26,7 +26,7 @@ lastUpdated: 2026-11-13
 | FUNC-05 | Voice modes Poly / Mono / Legato with glide | should | complete | stage-2 |
 | FUNC-06 | File references persist in state; a missing file shows relink without crashing; factory sources resolve from the content folder | must | complete | stage-2 |
 | FUNC-07 | Record-in: capture sidechain input into a target slot (manual / threshold / next-note trigger) | should | complete | stage-2 |
-| FUNC-08 | Small factory source set plus presets that load out of the box | should | partial | stage-4 |
+| FUNC-08 | Small factory source set plus presets that load out of the box | should | complete | stage-4 |
 | FUNC-09 | Scale-quantised pitch spread, degree masks and the custom scale, as O-Granulator | must | complete | stage-2 |
 
 ### DSP (DSP)
@@ -36,7 +36,7 @@ lastUpdated: 2026-11-13
 | DSP-01 | Grain engine parity with O-Granulator streams (size, density, jitter, spray, window morph, reverse, stereo spread, gain rand) on file sources | must | complete | stage-2 |
 | DSP-02 | Per-voice amp ADSR with velocity sensitivity; grains continue during release | must | complete | stage-2 |
 | DSP-03 | Per-grain FX (SVF filter, drive, crush, ring) inherited | must | complete | stage-2 |
-| DSP-04 | Feedback into per-stream working copies, with Freeze and Reset; voice-count-aware runaway guard | must | partial | stage-2 |
+| DSP-04 | Feedback into per-stream working copies, with Freeze and Reset; voice-count-aware runaway guard | must | complete | stage-2 |
 | DSP-05 | Per-stream reverb/diffuser (inherited unit, Pre / Post the feedback loop; R1 D60 / D62) | should | complete | stage-2 |
 | DSP-06 | Mod matrix (16 slots): LFOs (global/per-voice), 2 mod ADSRs, velocity, key, note-random, mod wheel, aftertouch, MPE pressure/slide/bend, 4 macros | must | complete | stage-2 |
 | DSP-07 | Files resampled to the session rate on load; band-limited reads when pitched up | must | complete | stage-2 |
@@ -100,9 +100,10 @@ lastUpdated: 2026-11-13
 - [x] A take records the sidechain into the target slot from each trigger (2.6 verify: engine arm green; Stage 4 R1 verify 2026-11-12: Arm returns to Off after a commit, a discard or an arm that cannot start, written from the message thread and visible to the host — AC1–AC9 with controls; auval and pluginval 10 show no `rec_arm` line on 3 seeds × VST3 / AU × sidechain on / off; the "Select a sidechain input" prompt (F1) ships. Open: HANDS-ON-SESSION-4 Pass 3 / 4 incl. the F1 retests S3.3-L1 – L3, 3.3-15, LV2) — Stage 4 hands-on 2026-11-12: HANDS-ON-SESSION-4 Passes 3 + 4 ✅ (Taylor, reported as a whole-pass result)
 
 ### FUNC-08: Factory content
-- [ ] 8 factory sources and 64 presets load out of the box (Stage 4 verify: FSP1, FP0–FP6; Stage 4 R1 verify 2026-11-12: bank on the per-stream parameters, 10 showcase presets re-voiced, FP0–FP6 green, FP2 spread 6.32 dB, installed Factory folder byte-identical to the build's bank, no bare `reverb_mix` / `feedback` / `output_gain` key. Open: HANDS-ON-SESSION-4 Pass 2 audition)
+- [x] 8 factory sources and 64 presets load out of the box (Stage 4 verify: FSP1, FP0–FP6; Stage 4 R1 verify 2026-11-12: bank on the per-stream parameters, 10 showcase presets re-voiced, FP0–FP6 green, FP2 spread 6.32 dB, installed Factory folder byte-identical to the build's bank, no bare `reverb_mix` / `feedback` / `output_gain` key. Open: HANDS-ON-SESSION-4 Pass 2 audition)
 - Stage 4 hands-on (2026-11-12, Taylor): Pass 2 audition ✅ on the R1 bank. Stays partial: finding F3 (rework R2) changes how every preset with feedback sounds, so those presets are re-auditioned after R2.
 - Stage 4 R2 verify (2026-11-13): 51 presets render bitwise as on R1 (PT0r); the 13 feedback presets change (PT3) and ten of them carry an `sN_level` trim, nothing else (levels within 0.16 dB of R1 over the 10 s audition render). FP0–FP6 green, FP2 spread 7.00 dB ≤ 9; installed Factory folder (64 files, bank hash 1a994b77) byte-identical to the build's bank, no `output_gain` key. Stays partial until the Pass 2 re-audition of the 14 presets with a Feedback Amount above 0 (seven moved in tone: row R2-6).
+- Stage 4 R2 hands-on (2026-11-13, Taylor): the 14 feedback presets re-auditioned ✅ (reported as a whole). Confirmed as design (D45): a preset replaces only the lanes it lists. → complete.
 
 ### FUNC-09: Scales
 - [x] Scale quantisation and degree masks behave identically to O-Granulator — Stage 4 hands-on 2026-11-12: HANDS-ON-SESSION-4 Pass 1 ✅ (Taylor, reported as a whole-pass result)
@@ -122,6 +123,7 @@ lastUpdated: 2026-11-13
 - [x] Reset restores the pristine file; Freeze halts writes (2.4 verify: RS1/RS2 == pristine incl. while frozen, FL3 writes frozen)
 - **Stage 4 hands-on (2026-11-12, Taylor): row 2.4-1 ❌, finding F3.** A lane under feedback is overwritten lap by lap and fades toward silence: the convex write with a return of gain ≤ 1 only loses energy. Both criteria below still hold (bounded, Reset / Freeze), but the requirement is back to partial until rework R2 lets an evolving lane hold its level (route (a), decided by Taylor: fix before 1.0.0).
 - **Stage 4 R2 verify (2026-11-13): F3 fixed in the engine, automated arm green.** A level-hold makeup on the feedback return (`RecordHead::writeCell`, against the pristine level of the latched loop) and a stop-writing latch after note-off. The lane level is now bounded from below: chord held 60 s, lane dB re t = 0 — LH1 (Amount 100 %, Saturate 0 / 20 / 100, Post) min −2.9, max +1.5, margin 0.15 dB against −3 / +2; LH1p (Pre) −0.6 … +0.6; LH2 (Amount 50 / 25 %) −0.8 … +0.2; LH3 (Pre, Mix 100, Size 100) −0.5 … +0.5; LHB (13 feedback presets, 15 streams) −0.4 … 0.0 at 60 s, lowest mark −2.8; LH8 after note-off −0.3 / −0.6 dB. Each control fails with the makeup off (LH1n −275 dB). The upper bound is unchanged: FL1 / FL1p / FL1s / FL1sp, CL1 (knee 1.99504 ≤ 1.99526) and RS1 / RS2 / RS2p pass in the 543; feedback 0, the switch Off and Freeze still write nothing. Stays partial until the human retest of rows 2.4-1 – 2.4-7, section 1d and R2-1 – R2-12 (HANDS-ON-SESSION-4).
+- **Stage 4 R2 hands-on (2026-11-13, Taylor): the retest rows pass (reported as a whole).** Decisions: latch threshold stays 6 dB (R2-3); brightness walk, steady cloud from a sparse lane and the filtered drone's residue accepted (R2-5, R2-9, R2-10 b). F3 closed → complete.
 
 ### DSP-05: Reverb
 - Stage 4 R1 verify (2026-11-12): the output reverb is replaced by one reverb per stream with a Pre / Post switch (8 `reverb-unit` 1.2.0 instances, module unedited). Parity evidence unchanged: 168 / 0, PB / PR residual lines equal to the pre-R1 baseline digit for digit. Per-stream rows: SI1 −185.5 dBFS (reverb before the stream sum), TK1, MZ1, CK8 / CK9; 38 single-stream presets bitwise and 16 multi-stream presets ≤ −132.57 dB vs the one-tank baseline.
