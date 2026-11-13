@@ -1,7 +1,7 @@
 ---
 plugin: O-GranulatorInstrument
 stage: 4
-status: stage_4_complete
+status: installed
 current_phase: 4-polish
 gsd_phase: verify_complete
 last_updated: 2026-11-13
@@ -9,7 +9,7 @@ complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: /install-plugin O-GranulatorInstrument; then /publish (D54 Windows CI arm runs there); COMPAT-02 MPE / Dorico pass -> 1.0.x
+next_action: /publish (D54 Windows CI arm runs there); COMPAT-02 MPE / Dorico pass -> 1.0.x
 next_stage: 4
 ready_for_implementation: true
 blocked_on: none (fork pin 82406fce, D11)
