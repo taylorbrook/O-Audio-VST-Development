@@ -1,6 +1,6 @@
 # O-GranulatorInstrument Changelog
 
-## [1.0.0] - 2026-11-12
+## [1.0.0] - 2026-11-13
 
 The first release: a polyphonic granular instrument that plays four lanes of audio — your files, recordings from the sidechain, or the built-in sources — as up to four grain streams per voice.
 
@@ -10,7 +10,7 @@ The first release: a polyphonic granular instrument that plays four lanes of aud
 - **Record-in.** Record the sidechain into any lane with a Manual, Threshold or Next Note trigger, in seconds or in bars. A take plays at once, and Arm switches off when a take ends, so one click starts the next. Save Recording writes a take as a 24-bit WAV. With no sidechain routed, the status reads "Select a sidechain input".
 - **Play it like an instrument.** Poly, Mono and Legato with glide; key tracking per stream with a root note; MPE and VST3 note expression; velocity, key, note random, mod wheel, pressure, slide and bend as modulation sources.
 - **Modulation.** Four LFOs (global or per voice, free or tempo-synced), two modulation envelopes, four macros and a 16-slot matrix with 150 destinations, each stream's feedback and reverb among them. Drag a source onto any knob to route it.
-- **Feedback and space.** Each stream has its own feedback, which rewrites its lane (Amount, Low Cut, High Cut, Saturate, Diffuse, and an on / off switch), and its own reverb (Mix, Size, Damp), placed before or after the feedback loop. Freeze and Reset All act on all four lanes.
+- **Feedback and space.** Each stream has its own feedback, which rewrites its lane (Amount, Low Cut, High Cut, Saturate, Diffuse, and an on / off switch), and its own reverb (Mix, Size, Damp), placed before or after the feedback loop. A lane keeps its level while its stream's feedback rewrites it: it changes character lap after lap, but it does not fade. With all keys released the lane is left as it is. Freeze and Reset All act on all four lanes.
 - **Scales.** 32 pitch collections plus a custom scale (Scala or `edo N`), with per-stream degree masks for the pitch randomiser.
 - **8 built-in sources** (harmonic, pluck, bell, vowel, noise bed, dust, drone, pulse), generated in-house, pitched at C3.
 - **64 factory presets** in eight groups: Drones, Expressive, Keys, Live, Motion, Pads, Rhythmic, Textures. Presets load their lanes from the built-in sources; the Live templates keep your own lanes and set up Record-in.

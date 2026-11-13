@@ -1,15 +1,15 @@
 ---
 plugin: O-GranulatorInstrument
 stage: 4
-status: stage_4_rework_r2_execute_in_progress
+status: stage_4_rework_r2_execute_complete
 current_phase: 4-polish
-gsd_phase: rework_r2_execute
+gsd_phase: rework_r2_verify_pending
 last_updated: 2026-11-13
 complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: /plugin-execute O-GranulatorInstrument 4-polish (rework R2, PLAN-R2.md: 16 tasks / 5 waves, commits C1-C3; starts at T1 pre-flight); D54 Windows CI at /publish
+next_action: /plugin-verify O-GranulatorInstrument 4-polish (rework R2: re-run per SUMMARY-R2, rewrite REQUIREMENTS DSP-04 / FUNC-08 / PERF-02, human retest of 45 sheet rows); D54 Windows CI at /publish
 next_stage: 4
 ready_for_implementation: true
 blocked_on: none (fork pin 82406fce, D11)
@@ -29,13 +29,15 @@ contract_checksums:
   brief: sha256:74e7f8f24468ed9658aa8533733f45da24c61ad116d6ae47cd5c2af0e8524722
   requirements: sha256:8f19a1999cd8647ce1f66e144d2d453d8c562af4689cac29c5d66bbf7806137c   # hands-on record 2026-11-12: 14 partial -> complete, DSP-04 -> partial (F3); 19 complete / 6 partial
   parameter_spec_draft: sha256:3c4918748a4375940684a22ed6850a3184bdd96df53d152a8900d5f0e4260796
-  architecture: sha256:243d0190e53b5c763f045251ff2675f1b4ea811689431c1fa6d73bd2b45510b6   # R1 C7: one R1 addendum paragraph
+  architecture: sha256:40b31e180ee9854798974c9fc33491cc262677e4fa8286a750257381f2d9bb68   # R2 C3: one R2 addendum paragraph (write law with the makeup, latch)
   roadmap: sha256:5137142de157eedc3f3f5965dd431e4d2c9f0308b56e9e3df48a88fcf9f5dd65   # R1 C7: one R1 addendum paragraph
 ---
 
 # O-GranulatorInstrument Status
 
 ## Current Position
+
+**Stage 4 rework R2 execute ✓** 2026-11-13 (`stages/4-polish/SUMMARY-R2.md`, C1 `16fde35c`, C2 `b7d025f7`, C3): a lane under feedback holds its level (F3). Pristine-energy table on the tape, level-hold makeup in `RecordHead::writeCell` (cap +40 dB · κ, peak 0.7, ceiling +9 dB, gain ≥ 1), stop-writing latch after note-off. Final tree: harness **543 / 0** (512 carried + 31 LH), makeup off == baseline, render goldens and parity unchanged, 51 presets bitwise / 13 move, ten presets level-trimmed (FP2 spread 7.00 dB), CPU C25m 29.23 / bank T max 9.20; installed (`-dev`), auval PASS (4 LFO-rate warnings), pluginval 10 VST3 + AU sidechain on / off, X2 0, UI chain green with no file changed. CHANGELOG, ARCHITECTURE addendum (checksum re-pinned), PLUGINS.md date, HANDS-ON-SESSION-4 re-authored (255 run rows, 45 to run). **For Taylor at verify:** (1) a filtered drone no longer fades, it becomes the filter's residue at level (row R2-10); (2) latch threshold 6 dB shipped, 3 dB measured better on the Pre long tail (row R2-3); (3) LH1's margin is 0.15 dB and LH6 / LH13 use the two-tier band; (4) seven presets moved in tone (row R2-6). REQUIREMENTS.md untouched. Next: `/plugin-verify O-GranulatorInstrument 4-polish`.
 
 **Stage 4 rework R2 execute — progress** 2026-11-13: T1 pre-flight clean (7 / 7 hashes, no source drift, names free); gate 3-gui → 4-polish checks PASSED. **T2 baseline RB** on the unmodified tree: harness 512 / 0 (== R1's B3 apart from 8 wall-clock rows), 64 preset renders dumped twice equal → `$RB` = `build/plugins/O-GranulatorInstrument/r2-b0/` (do not delete `build/`; the RB binaries are in `r2-b0-bin/`), PT0 64 / 64, render hashes / legacy / pinned, parity 168 / 0, param-dump, drift 0 / 13, overrides green; CPU C25w 27.04 / C25m 28.70 / C25tm 6.63 / C25mPre 30.80 / bank T max 8.98 (`stages/4-polish/evidence-r2/`, `rb-notes.txt`). Commit C1 = planning docs + evidence. Last task T2; next T3. **W1 + W2 ✓ (T3–T12, C2)**: pristine-energy table, level-hold makeup in `RecordHead::writeCell`, stop-writing latch; each step proven neutral with the makeup off (512 rows == RB, PT0 64 / 64) and, on, goldens / parity unchanged with exactly the 13 feedback presets moving. LH rows (31 with controls) PASS: lane held −2.9 … +1.5 dB at Amount 100 % (R1 −275), 13 presets −0.4 … 0.0 dB at 60 s, note-off −0.3 / −0.6 dB, 600 s no drift. CK1 / CK4 / CK7 repaired on the shipping path (stream level −30 dB). Ten presets level-trimmed (`sN_level`, within 0.16 dB of RB), FP2 spread 7.00 dB, 51 presets bitwise. CPU C25m 29.23 / C25mPre 30.74 / bank T max 9.20. Final tree: harness 543 / 0. Deviations: LH7 stimulus (a filtered drone does not fade), LH6 / LH13 predicate form, PT3n, the UI overrides fixture kept on the R1 write (`evidence-r2/r2-notes.txt`). Last task T12; next T13.
 
