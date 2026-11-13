@@ -1,0 +1,6 @@
+  [FAIL] CK1 QUAL-01 / D24 freeze edge (fb 100 %, heads stop over 20 ms) vs the same render unfrozen meas kappa ratio 0.773 (subject 0.3655, static 0.4727, window 1.00-2.00 s) | thr <= 2.0x | margin 1.227 | ctrl NOT FIRED (vacuous): freezeHardStop -> 0.774x
+  [FAIL] CK4 QUAL-01 / D24 Reset swap (20 ms dual-read fade) vs a same-motion freeze pulse meas kappa ratio 0.304 (subject 0.1435, static 0.4719, window 1.50-2.50 s) | thr <= 2.0x | margin 1.696 | ctrl NOT FIRED (vacuous): resetHardSwap -> 1.594x
+  [FAIL] FP2 PD14 20 s per preset (note script, 120 bpm): finite, peak <= 4.0, RMS 2-20 s > -60 dBFS, gated spread <= 9 dB meas gated -30.0 (Ember Field) .. -17.7 (Tape Halo), spread 12.29 dB; lowest plain RMS -30.0 (Ember Field); max peak 0.730 | thr > -60, <= 9 dB, <= 4.0 | ctrl -
+  [FAIL] CK7n control: fbOnHardStop (the run ramp steps at the toggle edge) (predicate must FAIL) meas s1 1.824x; s3 0.961x; | thr predicate '<= 2.0x' FAILS | ctrl NOT FIRED (vacuous): CK7n fbOnHardStop -> s1 1.824x; s3 0.961x;
+508 PASS, 4 FAIL
+rc 4

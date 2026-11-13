@@ -1,0 +1,9 @@
+[PresetManager] Factory presets initialized: 64
+st 1 stX 3.98 stRel 0.050
+MK on 1 tau 1.00 cap 40.0 oneSided 1 peakLim 1 slew 0.25 pkRel 0.05 kappa 1
+st 1 stX 3.98 stRel 0.050
+MK on 1 tau 1.00 cap 40.0 oneSided 1 peakLim 1 slew 0.25 pkRel 0.05 kappa 1
+Iron Sky slot 1 lane dB re t0, every 30 s to 600 s: -0.3 -0.2 -0.4 +0.0 -0.4 -0.3 -0.7 -0.1 -0.0 +0.2 -0.4 -0.7 -1.0 -0.3 +0.1 -0.5 -0.4 -0.5 -0.2 -0.6  | min -1.0 max +0.2 | pk 0.499
+Tape Halo slot 1 lane dB re t0, every 30 s to 600 s: -0.1 -0.0 -0.0 -0.0 -0.0 -0.0 -0.0 +0.0 -0.0 +0.0 +0.0 -0.0 -0.0 +0.0 -0.0 -0.0 -0.0 +0.0 -0.0 +0.0  | min -0.1 max +0.0 | pk 0.528
+Fifth Bloom slot 3 lane dB re t0, every 30 s to 600 s: -0.2 -0.3 -0.9 -0.1 +0.0 +0.1 -0.5 -0.3 -0.4 -0.3 +0.2 -0.5 -0.5 -0.3 -0.2 -0.1 -0.6 -0.8 -0.6 -0.1  | min -0.9 max +0.2 | pk 0.284
+Dotted Echo slot 1 lane dB re t0, every 30 s to 600 s: -0.0 -0.2 -0.1 -0.2 -0.0 -0.0 -0.0 -0.1 -0.1 -0.1 -0.1 +0.0 +0.0 +0.0 -0.0 -0.0 -0.0 -0.1 -0.0 -0.0  | min -0.2 max +0.0 | pk 0.675

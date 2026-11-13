@@ -1,0 +1,16 @@
+RB baseline (PLAN-R2 T1 / T2), 2026-11-13, HEAD 8849794e, plugin sources unmodified (last source commit 4c89247c).
+
+T1 pre-flight: branch main; 7 / 7 contract hashes == STATUS; git log 4c89247c..HEAD -- Source tests CMakeLists.txt empty; names egr2 / LH* / LHB / LHF / PT3: 0 hits;
+  Logic and Live not running; real-home listings snapshotted. Quality gate 3-gui -> 4-polish: build PASSED, pluginval 10 PASSED, critics PASSED
+  (the script's rc 1 is its interactive review prompt with no stdin; no check failed).
+Harness binary of the unmodified tree copied to build/plugins/O-GranulatorInstrument/r2-b0-bin/ (harness-rb, param-dump-rb) so every RB run uses it.
+
+Full harness: 512 PASS / 0 FAIL, 0 NOT FIRED, 0 INVALID -> B.ids.txt, B.full.txt (extract: the [PASS] / [FAIL] lines, leading blanks stripped, LC_ALL=C sort).
+  Against R1's B3.full.txt (same sort): 8 rows differ, all wall-clock / count text: CM1 GD1 SR1 UCM6b UCM6bn USV2 USV3 USV3n. A later diff on these is not a move.
+Preset renders: --dump-preset-renders twice -> 64 identical sha256 lines (rb-preset-renders.sha256); raws in build/plugins/O-GranulatorInstrument/r2-b0/ ($RB).
+  --cmp-preset-renders r2-b0 --all-bitwise: PT0 64 / 64.
+Render hashes == renders-2.4.sha256 (14 lines); legacy == renders-2.2.sha256 (14); 7 -pinned lines == renders-2.1.sha256; both print ctrl FIRED.
+Parity (parent re-extracted and rebuilt): 168 PASS / 0 FAIL incl. GV0; the 34 PB / PR lines -> rb-parity.txt.
+param-dump == .planning/params.tsv. Fork drift 0 / 13. --dump-ui-overrides twice identical == committed. Real-home listings unchanged.
+CPU (alone; rb-cpu.txt): C25w 27.04, C25t 5.58; --cpu4: C25m 28.70, C25tm 6.63 (session factor 0.959 vs 6.91), C25mPre 30.80, C26rec 29.20;
+  bank T median 4.26 / p90 6.54 / max 8.98 (Fifth Bloom), W max 10.14; 64 / 64 CP4 PASS.

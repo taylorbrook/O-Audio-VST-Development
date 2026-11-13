@@ -1,0 +1,84 @@
+# RB CPU baseline (PLAN-R2 T2), unmodified tree (sources at 4c89247c), run alone 2026-11-13
+## --cpu25
+INFO bypass (streams disabled): bypass: median 0.78 % (min 0.78, max 0.78), live 0.0, duty min 1.000, calib before 37933875 (0.936 x ref) after 38077250 (1.004 x before)
+INFO C23w@2.4 (fb 0, reverb 0, same session): median 24.79 % (min 24.63, max 24.89), live 243.2, duty min 0.999, calib before 37886583 (0.935 x ref) after 37814000 (0.998 x before)
+[PASS] C25w D25 final worst case: C23w + fb 100 % (diffusion 100) on 4 chains + reverb 100 % / size 100 <= 40 % meas C25w: median 27.04 % (min 26.60, max 27.97), live 243.2, duty min 0.999, calib before 38160000 (0.942 x ref) after 37697583 (0.988 x before), min writes / slot / window 480000 | thr <= 40 %, live >= 240, writes > 0 on 4 slots, witness valid | margin 12.96 points | delta vs C23w@2.4 2.25 points
+[PASS] C25t D25 typical proxy (the 2.3 C23t recipe, fb 0, reverb at its default 0) <= 12 % meas C25t: median 5.58 % (min 5.56, max 5.61), live 72.0, duty min 0.999, calib before 37781750 (0.932 x ref) after 37948459 (1.004 x before) | thr <= 12 %, live in [60, 90], witness valid | margin 6.42 points
+INFO C25r C25w + requestReset (0) every 200 ms: median 28.04 % (min 27.60, max 28.72), live 243.2, duty min 0.998, calib before 37758250 (0.932 x ref) after 37899375 (1.004 x before), xfadesStarted 374, delta vs C25w +1.00 points (the dual-read fade)
+INFO C25s C23w@2.4 24.79 % (scaled 26.52) vs C23w@2.3 26.64 % (scaled 26.20, T2): +0.32 points
+INFO delta C25w - C23w@2.4 = +2.25 points (projection +2..4, C25w ~ 28-30 %)
+INFO C25w96 C25w @ 96 k / 128: median 54.85 % (min 53.99, max 55.85), live 243.2, duty min 0.999, calib before 38089792 (0.940 x ref) after 38122125 (1.001 x before)
+## --cpu4
+INFO C25w: median 27.61 % (min 27.05, max 28.38), live 243.2, duty min 0.998, calib before 37816917 (0.933 x ref) after 37812666 (1.000 x before) (C25w re-run, same session)
+[PASS] C25m D28 final PERF-02 worst case: C25w + 16 per-voice routes (4 PV LFOs + 2 Mod Envs, 16 voices) <= 40 % meas C25m: median 28.70 % (min 28.15, max 29.63), live 243.2, duty min 0.999, calib before 37882500 (0.935 x ref) after 39795833 (1.051 x before) | witnesses: routed PV dests min 16 / tick, quota recomputes 100.0 % of ticks, pair-mode streams min 4 | thr <= 40 %, live >= 240, >= 16, >= 90 %, 4 | margin 11.30 points | delta vs C25w 1.10
+[PASS] C25tm D28 typical proxy + 4 routes (LFO -> position, vel -> level, Mod Env -> size, macro -> cutoff) <= 12 % meas C25tm: median 6.63 % (min 6.60, max 6.76), live 80.2, duty min 0.999, calib before 39193708 (0.967 x ref) after 37951792 (0.968 x before) | thr <= 12 %, live in [60, 90] | margin 5.37 points
+INFO C25t: median 5.68 % (min 5.64, max 5.74), live 72.0, duty min 0.999, calib before 37833292 (0.934 x ref) after 37832292 (1.000 x before), delta C25tm - C25t +0.95 points
+INFO delta C25m - C25w = +1.10 points (projection +2.5..5.5, C25m ~ 29-32 %)
+INFO C26rec: median 29.20 % (min 28.89, max 30.40), live 243.2, duty min 0.999, calib before 37710167 (0.931 x ref) after 37715583 (1.000 x before) (C26rec: C25m with a Manual take in flight, 30 s cap; 1 sessions)
+INFO C25mPre: median 30.80 % (min 30.41, max 31.86), live 243.2, duty min 0.999, calib before 37951000 (0.937 x ref) after 37928500 (0.999 x before) (C25mPre: C25m with sN_reverb_pre = Pre on 4 streams, 8 tanks; delta vs C26rec +1.60 points)
+INFO --cpu4 session factor = this run's C25tm / 6.91 (the 3.3-verify value); C25m / C25tm rows above
+[PASS] CP4 Iron Sky (Drones)                                              meas T 4.42 % (live 49) W 4.43 % (live 49), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Deep Well (Drones)                                             meas T 5.93 % (live 75) W 5.94 % (live 75), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Organ Loft (Drones)                                            meas T 6.56 % (live 85) W 6.50 % (live 85), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Frozen Field (Drones)                                          meas T 3.70 % (live 50) W 3.66 % (live 50), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Hollow Wind (Drones)                                           meas T 8.23 % (live 108) W 8.17 % (live 108), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Low Orbit (Drones)                                             meas T 6.67 % (live 86) W 6.57 % (live 86), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Tape Halo (Drones)                                             meas T 3.83 % (live 48) W 3.80 % (live 48), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Night Engine (Drones)                                          meas T 6.15 % (live 73) W 6.17 % (live 73), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 MPE Breath (Expressive)                                        meas T 3.16 % (live 32) W 3.93 % (live 43), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Slide Glass (Expressive)                                       meas T 2.93 % (live 29) W 3.63 % (live 38), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Press Vowel (Expressive)                                       meas T 3.06 % (live 31) W 3.79 % (live 41), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Bend Choir (Expressive)                                        meas T 4.55 % (live 58) W 5.66 % (live 77), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Mono Lead (Expressive)                                         meas T 1.38 % (live 5) W 1.37 % (live 5), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Glide Bass (Expressive)                                        meas T 1.17 % (live 5) W 1.16 % (live 5), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Wheel Morph (Expressive)                                       meas T 3.54 % (live 35) W 4.97 % (live 55), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Velo Shards (Expressive)                                       meas T 6.09 % (live 84) W 7.85 % (live 112), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Grain Piano (Keys)                                             meas T 3.65 % (live 50) W 4.60 % (live 67), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Celesta (Keys)                                                 meas T 3.39 % (live 45) W 4.19 % (live 60), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Bell (Keys)                                                    meas T 2.52 % (live 29) W 3.08 % (live 38), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Glass Mallet (Keys)                                            meas T 5.79 % (live 71) W 7.34 % (live 94), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Soft Rhodes (Keys)                                             meas T 3.50 % (live 29) W 4.32 % (live 38), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Kalimba (Keys)                                                 meas T 5.65 % (live 72) W 7.29 % (live 96), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Harp Cascade (Keys)                                            meas T 4.84 % (live 64) W 6.07 % (live 86), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Toy Box (Keys)                                                 meas T 4.03 % (live 55) W 5.06 % (live 73), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Init (Live)                                                    meas T 1.05 % (live 6) W 1.22 % (live 8), runs 1 [stand-in lanes] | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Manual Loop (Live)                                             meas T 2.33 % (live 24) W 2.81 % (live 32), runs 1 [stand-in lanes] | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Threshold Catch (Live)                                         meas T 2.04 % (live 18) W 2.39 % (live 24), runs 1 [stand-in lanes] | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Next Note Grab (Live)                                          meas T 2.43 % (live 24) W 2.90 % (live 32), runs 1 [stand-in lanes] | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Tempo Bars (Live)                                              meas T 1.02 % (live 6) W 1.17 % (live 8), runs 1 [stand-in lanes] | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Feedback Loop (Live)                                           meas T 2.88 % (live 27) W 3.38 % (live 36), runs 1 [stand-in lanes] | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Freeze Cloud (Live)                                            meas T 3.34 % (live 42) W 4.17 % (live 56), runs 1 [stand-in lanes] | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Four Lanes (Live)                                              meas T 5.54 % (live 54) W 6.62 % (live 72), runs 1 [stand-in lanes] | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Orbit Lines (Motion)                                           meas T 4.71 % (live 49) W 5.80 % (live 65), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Reverse River (Motion)                                         meas T 7.84 % (live 101) W 10.14 % (live 135), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Loop Weaver (Motion)                                           meas T 4.94 % (live 70) W 6.29 % (live 93), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Ring Spinner (Motion)                                          meas T 5.57 % (live 63) W 7.95 % (live 96), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Crush Tides (Motion)                                           meas T 4.26 % (live 37) W 4.24 % (live 37), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Swarm (Motion)                                                 meas T 7.31 % (live 100) W 7.95 % (live 112), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Phase Garden (Motion)                                          meas T 6.11 % (live 80) W 7.76 % (live 106), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Clockwork (Motion)                                             meas T 2.38 % (live 16) W 2.80 % (live 21), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Warm Choir (Pads)                                              meas T 5.12 % (live 68) W 6.42 % (live 91), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Fifth Bloom (Pads)                                             meas T 8.98 % (live 119) W 8.82 % (live 115), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Pentatonic Mist (Pads)                                         meas T 5.02 % (live 65) W 6.21 % (live 86), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Just Glow (Pads)                                               meas T 5.62 % (live 77) W 7.10 % (live 102), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Nineteen (Pads)                                                meas T 4.88 % (live 62) W 6.09 % (live 82), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Seventeen Glass (Pads)                                         meas T 5.29 % (live 70) W 6.67 % (live 94), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Slow Tide (Pads)                                               meas T 6.06 % (live 74) W 7.42 % (live 99), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Velvet Strings (Pads)                                          meas T 6.21 % (live 72) W 7.83 % (live 96), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Pulse Grid (Rhythmic)                                          meas T 1.31 % (live 6) W 1.44 % (live 8), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Pluck Arp (Rhythmic)                                           meas T 1.23 % (live 3) W 1.33 % (live 4), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Stutter Kit (Rhythmic)                                         meas T 0.98 % (live 6) W 1.11 % (live 8), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Dotted Echo (Rhythmic)                                         meas T 1.40 % (live 2) W 1.46 % (live 3), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Triplet Rain (Rhythmic)                                        meas T 2.00 % (live 11) W 2.23 % (live 14), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Gated Pad (Rhythmic)                                           meas T 1.33 % (live 4) W 1.47 % (live 6), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Broken Beat (Rhythmic)                                         meas T 1.02 % (live 6) W 1.15 % (live 8), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Ratchet (Rhythmic)                                             meas T 2.24 % (live 15) W 2.54 % (live 20), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Rain Glass (Textures)                                          meas T 4.91 % (live 53) W 4.88 % (live 53), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Static Choir (Textures)                                        meas T 3.43 % (live 36) W 3.42 % (live 36), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Sand Drift (Textures)                                          meas T 4.24 % (live 48) W 4.19 % (live 48), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Broken Radio (Textures)                                        meas T 4.86 % (live 41) W 4.97 % (live 41), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Ember Field (Textures)                                         meas T 6.54 % (live 84) W 6.44 % (live 84), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Wind Harp (Textures)                                           meas T 5.56 % (live 64) W 5.54 % (live 64), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Glitter Haze (Textures)                                        meas T 2.36 % (live 20) W 2.35 % (live 20), runs 1 | thr T <= 12, W <= 40 | ctrl -
+[PASS] CP4 Rust Cloud (Textures)                                          meas T 5.68 % (live 46) W 5.60 % (live 46), runs 1 | thr T <= 12, W <= 40 | ctrl -
+INFO CP4 bank: T median 4.26 %, p90 6.54 %, max 8.98 %; W max 10.14 %; top-5 T: Fifth Bloom 8.98; Hollow Wind 8.23; Reverse River 7.84; Swarm 7.31; Low Orbit 6.67; 

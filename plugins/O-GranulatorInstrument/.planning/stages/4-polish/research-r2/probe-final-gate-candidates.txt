@@ -1,0 +1,50 @@
+[PresetManager] Factory presets initialized: 64
+st 1 stX 7.94 stRel 0.050
+MK on 1 tau 1.00 cap 40.0 oneSided 1 peakLim 1 slew 0.25 pkRel 0.05 kappa 1
+st 1 stX 7.94 stRel 0.050
+MK on 1 tau 1.00 cap 40.0 oneSided 1 peakLim 1 slew 0.25 pkRel 0.05 kappa 1
+G noise0.1 fb100 sat0
+   slot 1 lap 4.00 s  lane dB:  -24.8  -25.1  -26.1  -24.1  -24.5  -24.6  -25.5  -25.4  | d60 -0.6 | pk 0.100->0.662 | g mean +16.7 dB max +21.4 cap 0% pkl 0% st 5% | rClamps 4 writes 2879904
+   slot 1 tap dB [5,10] -41.1 [55,60] -41.4 | ret dB -42.2 / -44.5 | out dB [5,10] -30.7 [25,30] -27.5 [55,60] -31.0 | out rmsHz [5,10] 7928 [55,60] 10963
+G noise0.1 fb100 sat20
+   slot 1 lap 4.00 s  lane dB:  -24.8  -25.0  -26.0  -24.1  -24.5  -24.6  -25.5  -25.2  | d60 -0.4 | pk 0.100->0.662 | g mean +16.6 dB max +21.4 cap 0% pkl 0% st 5% | rClamps 3 writes 2879904
+   slot 1 tap dB [5,10] -41.1 [55,60] -40.9 | ret dB -42.2 / -43.5 | out dB [5,10] -30.7 [25,30] -27.5 [55,60] -30.5 | out rmsHz [5,10] 7929 [55,60] 10354
+G noise0.1 fb100 sat100
+   slot 1 lap 4.00 s  lane dB:  -24.8  -24.9  -25.9  -24.0  -24.5  -24.5  -25.0  -25.0  | d60 -0.2 | pk 0.100->0.550 | g mean +16.1 dB max +22.6 cap 0% pkl 0% st 3% | rClamps 0 writes 2879904
+   slot 1 tap dB [5,10] -41.0 [55,60] -40.1 | ret dB -42.2 / -42.2 | out dB [5,10] -30.6 [25,30] -27.2 [55,60] -29.7 | out rmsHz [5,10] 7895 [55,60] 9551
+G noise0.1 fb100 sat0 PRE
+   slot 1 lap 4.00 s  lane dB:  -24.8  -24.2  -24.9  -25.0  -24.9  -24.7  -24.7  -25.2  | d60 -0.4 | pk 0.100->0.288 | g mean +13.0 dB max +22.1 cap 0% pkl 0% st 0% | rClamps 0 writes 2879904
+   slot 1 tap dB [5,10] -38.9 [55,60] -37.9 | ret dB -39.1 / -38.0 | out dB [5,10] -28.5 [25,30] -25.6 [55,60] -27.5 | out rmsHz [5,10] 4136 [55,60] 3098
+G noise0.1 fb100 sat20 PRE
+   slot 1 lap 4.00 s  lane dB:  -24.8  -24.2  -24.9  -25.0  -24.9  -24.7  -24.7  -25.2  | d60 -0.4 | pk 0.100->0.286 | g mean +13.0 dB max +22.1 cap 0% pkl 0% st 0% | rClamps 0 writes 2879904
+   slot 1 tap dB [5,10] -38.9 [55,60] -37.9 | ret dB -39.1 / -37.9 | out dB [5,10] -28.5 [25,30] -25.6 [55,60] -27.5 | out rmsHz [5,10] 4150 [55,60] 3092
+G noise0.1 fb100 sat100 PRE
+   slot 1 lap 4.00 s  lane dB:  -24.8  -24.2  -24.9  -25.0  -24.8  -24.7  -24.7  -25.1  | d60 -0.4 | pk 0.100->0.262 | g mean +13.1 dB max +22.1 cap 0% pkl 0% st 0% | rClamps 0 writes 2879904
+   slot 1 tap dB [5,10] -39.0 [55,60] -37.8 | ret dB -39.2 / -38.0 | out dB [5,10] -28.6 [25,30] -25.5 [55,60] -27.4 | out rmsHz [5,10] 4120 [55,60] 3074
+G noise0.1 fb50 sat20
+   slot 1 lap 4.00 s  lane dB:  -24.8  -24.9  -25.1  -25.0  -24.8  -24.6  -24.8  -25.2  | d60 -0.4 | pk 0.100->0.505 | g mean +19.7 dB max +23.3 cap 0% pkl 4% st 0% | rClamps 654 writes 2879904
+   slot 1 tap dB [5,10] -39.8 [55,60] -38.7 | ret dB -40.9 / -40.2 | out dB [5,10] -29.4 [25,30] -26.8 [55,60] -28.3 | out rmsHz [5,10] 8097 [55,60] 8892
+G noise0.1 fb25 sat20
+   slot 1 lap 4.00 s  lane dB:  -24.8  -25.0  -25.1  -25.3  -25.4  -25.3  -25.5  -25.6  | d60 -0.8 | pk 0.100->0.339 | g mean +23.6 dB max +27.0 cap 0% pkl 33% st 0% | rClamps 4082 writes 2879904
+   slot 1 tap dB [5,10] -39.5 [55,60] -38.8 | ret dB -40.8 / -39.7 | out dB [5,10] -29.1 [25,30] -27.8 [55,60] -28.4 | out rmsHz [5,10] 8377 [55,60] 7570
+G noise0.1 fb10 sat20
+   slot 1 lap 4.00 s  lane dB:  -24.8  -25.0  -25.3  -25.8  -26.5  -27.1  -27.7  -28.0  | d60 -3.2 | pk 0.100->0.276 | g mean +28.7 dB max +36.1 cap 0% pkl 92% st 0% | rClamps 9647 writes 2879904
+   slot 1 tap dB [5,10] -40.7 [55,60] -41.4 | ret dB -42.3 / -42.4 | out dB [5,10] -30.3 [25,30] -30.6 [55,60] -31.0 | out rmsHz [5,10] 8921 [55,60] 7686
+G crossed filters fb100 (lowcut 2000 / highcut 1000)
+   slot 1 lap 4.00 s  lane dB:  -24.8  -25.3  -27.6  -26.0  -25.0  -25.6  -25.5  -26.9  | d60 -2.1 | pk 0.100->0.615 | g mean +35.5 dB max +40.4 cap 3% pkl 1% st 15% | rClamps 0 writes 2879904
+   slot 1 tap dB [5,10] -44.5 [55,60] -40.1 | ret dB -63.6 / -64.1 | out dB [5,10] -34.1 [25,30] -27.8 [55,60] -29.7 | out rmsHz [5,10] 3620 [55,60] 5086
+G zero tape fb100
+   slot 1 lap 4.00 s  lane dB: -300.0 -300.0 -300.0 -300.0 -300.0 -300.0 -300.0 -300.0  | d60 +0.0 | pk 0.000->0.000 | g mean +0.0 dB max +0.0 cap 0% pkl 0% st 0% | rClamps 0 writes 2879904
+   slot 1 tap dB [5,10] -300.0 [55,60] -300.0 | ret dB -300.0 / -300.0 | out dB [5,10] -300.0 [25,30] -300.0 [55,60] -300.0 | out rmsHz [5,10] 0 [55,60] 0
+G floor tape 1e-5 fb100
+   slot 1 lap 4.00 s  lane dB: -104.8 -105.2 -106.3 -103.9 -104.5 -104.6 -105.5 -105.6  | d60 -0.8 | pk 0.000->0.000 | g mean +16.7 dB max +21.4 cap 0% pkl 0% st 5% | rClamps 0 writes 2879904
+   slot 1 tap dB [5,10] -120.7 [55,60] -121.5 | ret dB -121.8 / -124.8 | out dB [5,10] -110.3 [25,30] -107.6 [55,60] -111.1 | out rmsHz [5,10] 7955 [55,60] 11067
+G two-level tape, region = quiet half (0..50 %)
+   slot 1 lap 2.00 s  lane dB:  -38.8  -38.7  -39.0  -38.0  -38.8  -40.1  -38.3  -40.5  | d60 -1.7 | pk 0.020->0.129 | g mean +17.1 dB max +22.2 cap 0% pkl 0% st 8% | rClamps 0 writes 2879904
+   slot 1 tap dB [5,10] -53.0 [55,60] -53.3 | ret dB -54.2 / -55.8 | out dB [5,10] -42.6 [25,30] -43.7 [55,60] -42.9 | out rmsHz [5,10] 8230 [55,60] 10329
+G notes off at 20 s, POST
+   slot 1 lap 4.00 s  lane dB:  -24.8  -25.0  -26.0  -24.1  -24.5  -24.9  -24.9  -24.9  | d60 -0.1 | pk 0.100->0.528 | g mean +16.3 dB max +24.3 cap 0% pkl 0% st 5% | rClamps 0 writes 986624
+   slot 1 tap dB [5,10] -41.1 [55,60] -300.0 | ret dB -42.2 / -300.0 | out dB [5,10] -30.7 [25,30] -300.0 [55,60] -300.0 | out rmsHz [5,10] 7929 [55,60] 0
+G notes off at 20 s, PRE mix100 size100
+   slot 1 lap 4.00 s  lane dB:  -24.8  -23.3  -24.4  -24.7  -25.2  -30.1  -30.1  -30.1  | d60 -5.4 | pk 0.100->0.173 | g mean +5.2 dB max +30.3 cap 0% pkl 0% st 0% | rClamps 0 writes 1162752
+   slot 1 tap dB [5,10] -29.6 [55,60] -202.6 | ret dB -29.7 / -202.7 | out dB [5,10] -19.2 [25,30] -53.6 [55,60] -192.7 | out rmsHz [5,10] 1556 [55,60] 329

@@ -1,15 +1,15 @@
 ---
 plugin: O-GranulatorInstrument
 stage: 4
-status: stage_4_rework_r2_pending_f3_feedback_fade
+status: stage_4_rework_r2_execute_in_progress
 current_phase: 4-polish
-gsd_phase: rework_r2_discuss_pending
-last_updated: 2026-11-12
+gsd_phase: rework_r2_execute
+last_updated: 2026-11-13
 complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: /plugin-discuss O-GranulatorInstrument 4-polish (rework R2, finding F3 - a lane under feedback fades toward silence; fix before 1.0.0); then the R2 retest rows; D54 Windows CI at /publish
+next_action: /plugin-execute O-GranulatorInstrument 4-polish (rework R2, PLAN-R2.md: 16 tasks / 5 waves, commits C1-C3; starts at T1 pre-flight); D54 Windows CI at /publish
 next_stage: 4
 ready_for_implementation: true
 blocked_on: none (fork pin 82406fce, D11)
@@ -36,6 +36,14 @@ contract_checksums:
 # O-GranulatorInstrument Status
 
 ## Current Position
+
+**Stage 4 rework R2 execute — progress** 2026-11-13: T1 pre-flight clean (7 / 7 hashes, no source drift, names free); gate 3-gui → 4-polish checks PASSED. **T2 baseline RB** on the unmodified tree: harness 512 / 0 (== R1's B3 apart from 8 wall-clock rows), 64 preset renders dumped twice equal → `$RB` = `build/plugins/O-GranulatorInstrument/r2-b0/` (do not delete `build/`; the RB binaries are in `r2-b0-bin/`), PT0 64 / 64, render hashes / legacy / pinned, parity 168 / 0, param-dump, drift 0 / 13, overrides green; CPU C25w 27.04 / C25m 28.70 / C25tm 6.63 / C25mPre 30.80 / bank T max 8.98 (`stages/4-polish/evidence-r2/`, `rb-notes.txt`). Commit C1 = planning docs + evidence. Last task T2; next T3.
+
+**Stage 4 rework R2 plan ✓** 2026-11-13 (`stages/4-polish/PLAN-R2.md`, 16 tasks / 5 waves, commits C1–C3): W0 pre-flight + baseline RB on the unmodified tree (`build/.../r2-b0/`, 512 / 0 expected), C1 = planning docs + evidence; W1 pristine-energy table in `buildTape`, the leveller in `RecordHead::writeCell` (cap +40 dB · κ, peak limit 0.7, short-term ceiling +9 dB, gain ≥ 1, fast attack), the stop-writing latch in `updateHeads`, rows LH1–LH14 / LHB / LHF in `engine_gates_r2.h` with controls, CK1 / CK4 / CK7n repaired by a stimulus ladder; W2 level table R1 vs R2, `sN_level` trims on the level outliers, PT0r 51 bitwise / PT3 13 differ, CPU, C2 (W1 + W2 in one commit: FP2 is red in between); W3 build / install / validators; W4 CHANGELOG, ARCHITECTURE addendum (checksum), sheet reworded + retest rows reset + R2-1 – R2-12, SUMMARY-R2, C3. Eight research corrections, the main one: a non-finite return sample poisons the prototype's running means until the head parks (scrub added, row LH12). Parity files stay untouched (makeup off is implied by `chainKnobParity` in the engine). Open sign-offs with defaults taken: OS1 trim every enabled stream of an outlier preset equally; OS2 latch threshold ships at 6 dB, 3 dB measured as INFO; OS3 a sparse lane becomes a steady cloud (hands-on row); OS4 the CK repair ladder ending without firing controls stops T7. Nothing built or run at plan time. Uncommitted until C1. Next: `/plugin-execute O-GranulatorInstrument 4-polish`.
+
+**Stage 4 rework R2 research ✓** 2026-11-13 (`stages/4-polish/RESEARCH-R2.md`, evidence `research-r2/`): measured on a scratch copy with a prototype makeup in the real harness; repo sources untouched. The return sits 9–30 dB under the lane per lap (tap law `1 / (S1 + 1)`, incoherent grains, mean over voices), so D71's "+12 dB" cap does not fix F3; the convex write also needs κ(λ) = √((2−λ)/λ) below Amount 100 %. Prototyped design: feed-forward leveller in `RecordHead::writeCell` against the pristine level of the latched loop (cumulative-energy table built in `buildTape`), cap +40 dB · κ, peak limit at 0.7, short-term ceiling +9 dB, gain ≥ 1, attack inside one cell, plus a stop-writing latch (no gated voice and the levelled return 6 dB short for 50 ms). Results: 13 presets end 60 s within −0.4 / +0.0 dB (R1 −12 … −88), 600 s −1.0 / +0.2; default patch −2.1 / −2.0 / −0.6 dB at Saturate 0 / 20 / 100; note-off ≤ 0.7 dB on presets (R1 −6 … −42). Prototype off = 512 / 0 and 64 preset renders == the R1 binary; on = 508 / 4 (CK1, CK4, CK7n controls stop firing; FP2 spread 12.3 dB), 13 preset renders move, 51 bitwise. Bound rows pass; block 512 / 32 / 1 / variable bitwise; CPU unchanged (C25m 29.1–29.8 %, bank T max 9.14 %). 14 presets carry feedback, not 15 (Frozen Field parked). Limits: dense lanes above about −16 dBFS RMS plateau (lower at low Amounts); presets 0.3–7.2 dB louder and five move their centroid more than 0.5 octave. **Four sign-offs, all APPROVED by Taylor 2026-11-13 as recommended:** cap +40 dB, the stop-writing rule (replaces R1's tail writing), clean peak limit vs clip, D72 threshold (3 dB / 0.5 oct → about 10 of 13 trimmed). Also: `ARCHITECTURE.md` needs an R2 addendum (checksum). Uncommitted. Next: `/plugin-plan O-GranulatorInstrument 4-polish`.
+
+**Stage 4 rework R2 discuss ✓** 2026-11-12 (`stages/4-polish/CONTEXT-R2.md`, D70–D77; from hands-on F3): D70 a lane under feedback holds its level (automatic makeup on the return, no control); D71 loudness held after the whole chain, makeup gain capped (≈ +12 dB, research picks), filtering to nothing still fades; D72 the 15 feedback presets keep their values, before / after renders, outliers re-voiced, all 15 re-auditioned; D73 Amount = write blend unchanged, fb 0 / Off bitwise; D74 hold in Post and Pre; D75 lower-bound gate rows (Amount 100 %, Saturate 0 / 20 / 100 %, 60 s, proposed ±3 dB) with a makeup-off control; D76 293 params / 150 destinations / FX page unchanged; D77 VERSION 1.0.0, CHANGELOG amended. Constraint: `forked/FeedbackChain.h` is VERBATIM, makeup goes in non-forked code. Uncommitted. Next: `/plugin-research O-GranulatorInstrument 4-polish`.
 
 **Stage 4 hands-on recorded — 242 / 243, F3 open → rework R2** 2026-11-12 (`stages/4-polish/HANDS-ON-SESSION-4.md`, `VERIFICATION-R1.md` Human Verification): Taylor ran passes 0–4 on the R1 build, every row passing except 2.4-1. **F3:** with Feedback on, a lane is overwritten lap by lap and fades toward silence. Not a regression: the designed convex write `wc ← (1−λ)·wc + λ·r` with a return of gain ≤ 1 (D7); the gates bound the loop from above only. **Route (a), Taylor: fix before 1.0.0**, as rework cycle R2 from discuss (direction: level-holding makeup on the return; the writer clamp + convex write keep the bound; add a lower-bound gate). REQUIREMENTS: 14 partial → complete, DSP-04 → partial; 19 complete / 6 partial (FUNC-02, FUNC-08, DSP-04, UI-01, PERF-02, COMPAT-02). Marks were entered from a whole-session report; the sheet's note blanks are empty. Stage 4 stays PARTIAL; not for `/install-plugin` as final or `/publish` yet. Next: `/plugin-discuss O-GranulatorInstrument 4-polish`.
 

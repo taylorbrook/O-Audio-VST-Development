@@ -1,0 +1,11 @@
+[PresetManager] Factory presets initialized: 64
+st 1 stX 3.98 stRel 0.050
+MK on 0 tau 1.00 cap 40.0 oneSided 1 peakLim 1 slew 0.25 pkRel 0.05 kappa 1
+st 1 stX 3.98 stRel 0.050
+MK on 0 tau 1.00 cap 40.0 oneSided 1 peakLim 1 slew 0.25 pkRel 0.05 kappa 1
+Iron Sky     slot 1 (release 6000 ms) lane dB re t0 at 10 / 20 / 25 / 30 / 40 / 60 s: -4.4 -9.0 -11.5 -13.5 -13.5 -13.5 | writes 29.6 s
+Deep Well    slot 1 (release 8000 ms) lane dB re t0 at 10 / 20 / 25 / 30 / 40 / 60 s: -6.5 -14.2 -19.3 -22.2 -24.4 -24.4 | writes 32.8 s
+Organ Loft   slot 2 (release 5000 ms) lane dB re t0 at 10 / 20 / 25 / 30 / 40 / 60 s: -3.4 -7.0 -9.0 -10.7 -10.7 -10.7 | writes 30.0 s
+Slow Tide    slot 2 (release 5000 ms) lane dB re t0 at 10 / 20 / 25 / 30 / 40 / 60 s: -3.4 -6.9 -8.9 -10.4 -10.4 -10.4 | writes 29.9 s
+Tape Halo    slot 1 (release 6000 ms) lane dB re t0 at 10 / 20 / 25 / 30 / 40 / 60 s: -13.4 -27.1 -37.1 -42.1 -42.1 -42.1 | writes 29.6 s
+Fifth Bloom  slot 3 (release 4000 ms) lane dB re t0 at 10 / 20 / 25 / 30 / 40 / 60 s: -2.0 -4.0 -4.9 -5.8 -5.8 -5.8 | writes 29.5 s

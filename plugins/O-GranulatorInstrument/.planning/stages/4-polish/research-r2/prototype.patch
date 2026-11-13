@@ -1,0 +1,287 @@
+--- Source/dsp/GiRecordHead.h	2026-11-08 19:04:01
++++ Source/dsp/GiRecordHead.h	2026-11-13 00:10:58
+@@ -59,6 +59,37 @@
+     static_assert (kSettleFrames >= 126 * ((1 << kTapeLevels) - 1) + (2 << kTapeLevels),
+                    "settle span must cover the half-band dependency chain of every level");
+ 
++    // R2 proto: level-hold makeup config (process-global, set by the probe).
++    struct MkCfg
++    {
++        bool   on = true;
++        double tauS = 1.0;        // A / B / C estimator time constant
++        float  capDb = 12.0f;     // cap on g / kappa (lambda)
++        bool   oneSided = true;   // g >= 1
++        bool   peakLim = true;    // g <= kAgcCeil / held return peak
++        float  slewDb = 0.25f;    // max |dg| per cell (dB)
++        double pkRelS = 0.4;      // held-peak release
++        bool   kappa = true;      // cap scales with sqrt ((2 - lam) / lam)
++        float  pkOver = 1.0f;     // linear allowance over the ceiling in the peak limit
++        bool   tailLatch = true;  // no voice + cap-limited for 50 ms -> the tail term is dropped until a voice returns
++        bool   stCeil = true;     // short-term ceiling: return level <= kappa * sqrt (stX * T) on the fast detector
++        float  stX = 4.0f;        // energy ratio (+6 dB)
++        double stRelS = 0.05;     // fast detector release
++    };
++    inline MkCfg gMk;
++
++    struct Makeup
++    {
++        double a = 0, b = 0, c = 0, u = 0;
++        float  g = 1.0f, pk = 0.0f;
++        double cf = 0;   // fast return level (instant attack per cell)
++        std::uint64_t stCells = 0;
++        int capRun = 0;   // consecutive cap-limited cells (tail-lost latch)
++        float  gMin = 1.0f, gMax = 1.0f;   // readouts
++        double gLogSum = 0; std::uint64_t cells = 0, capCells = 0, pkCells = 0;
++        void reset() noexcept { a = b = c = u = 0; g = 1.0f; pk = 0.0f; cf = 0; capRun = 0; }
++    };
++
+     struct RecordHeadFlags
+     {
+         bool rClampOff    = false;   // FL1s control: no writer clamp
+@@ -84,6 +115,7 @@
+         float        returnPk = 0.0f;   // held per-cell return peak (50 ms release)
+         bool         parked = true;     // λ_eff settled at exactly 0 for the cell
+         bool         swapWaiting = false;
++        Makeup       mk;
+ 
+         // Head position for every sample of the cell written at the last tick
+         // (the clamp / scan read it): frame of offset o = cellStart + o, or
+@@ -138,12 +170,69 @@
+             (r[ch][i] = r[n − 32] for frame i of this cell). rlo / rhi: the slot's
+             CURRENT loop region (latched at a wrap). rL / rR: kFbDelay samples. */
+         void writeCell (MipTape<kTapeLevels>& tape, const float* rL, const float* rR, const ExactRamp& fb,
+-                        double rlo, double rhi, int frames, const RecordHeadFlags& f, RecordHeadCounters& c) noexcept
++                        double rlo, double rhi, int frames, const RecordHeadFlags& f, RecordHeadCounters& c,
++                        bool mkOn = false, double refMs = 0.0, double fs = 48000.0) noexcept
+         {
+             float bufL[kCell], bufR[kCell];
+             cellStart = h;
+             wrapOff = -1;
+ 
++            // R2 proto: the cell's makeup target from the statistics through the previous cell.
++            const float gPrev = mk.g;
++            float gNew = 1.0f;
++            if (mkOn && gMk.on)
++            {
++                float cellPk = 0.0f;
++                double cellMs = 0.0;
++                for (int i = 0; i < kCell; ++i)
++                {
++                    cellPk = std::max ({ cellPk, std::abs (rL[i]), std::abs (rR[i]) });
++                    cellMs += static_cast<double> (rL[i]) * rL[i] + static_cast<double> (rR[i]) * rR[i];
++                }
++                cellMs /= 2.0 * kCell;
++                mk.cf = std::max (cellMs, mk.cf * std::exp (-static_cast<double> (kCell) / (gMk.stRelS * fs)));
++                const float pkRel = static_cast<float> (std::exp (-static_cast<double> (kCell) / (gMk.pkRelS * fs)));
++                mk.pk = std::max (cellPk, mk.pk * pkRel);
++
++                const double lam = static_cast<double> (kFbKnob * fb.value (kCell / 2) * run.value (kCell / 2));
++                const double T = refMs * mk.u;
++                const float gLo = gMk.oneSided ? 1.0f : 0.25f;
++                double g = 1.0;
++                bool capped = false, pked = false;
++                if (lam > 1.0e-4 && T > 1.0e-12)
++                {
++                    const double capLin = std::pow (10.0, gMk.capDb / 20.0) * (gMk.kappa ? std::sqrt ((2.0 - lam) / lam) : 1.0);
++                    const double qa = lam * lam * mk.c, qb = 2.0 * lam * (1.0 - lam) * mk.b, qc = (1.0 - lam) * (1.0 - lam) * mk.a - T;
++                    if (qc >= 0.0)
++                        g = gLo;
++                    else if (qa <= 1.0e-30)
++                        g = capLin;
++                    else
++                        g = (-qb + std::sqrt (std::max (0.0, qb * qb - 4.0 * qa * qc))) / (2.0 * qa);
++                    if (g >= capLin) { g = capLin; capped = true; }
++                    if (gMk.peakLim && mk.pk > 0.0f && g > gMk.pkOver * kAgcCeil / mk.pk) { g = gMk.pkOver * kAgcCeil / mk.pk; pked = true; }
++                    if (gMk.stCeil && mk.cf > 1.0e-30)
++                    {
++                        const double gs = std::sqrt (gMk.stX * refMs / mk.cf) * (gMk.kappa ? std::sqrt ((2.0 - lam) / lam) : 1.0);
++                        if (g > gs) { g = gs; ++mk.stCells; }
++                    }
++                    if (g < gLo) g = gLo;
++                }
++                if (! std::isfinite (g)) g = 1.0;
++                const float sl = std::pow (10.0f, gMk.slewDb / 20.0f);
++                gNew = std::min (static_cast<float> (g), gPrev * sl);   // attack (down) within the cell, release slewed
++                mk.g = gNew;
++                mk.gMin = std::min (mk.gMin, gNew); mk.gMax = std::max (mk.gMax, gNew);
++                mk.gLogSum += std::log10 (gNew); ++mk.cells; mk.capCells += capped; mk.pkCells += pked;
++                {
++                    // tail-lost predicate: the levelled return sits more than 6 dB under the (kappa-normalised) target
++                    const double kap2 = lam > 1.0e-4 ? (2.0 - lam) / lam : 1.0;
++                    const bool shortNow = refMs > 1.0e-12 && static_cast<double> (gNew) * gNew * mk.cf < 0.25 * kap2 * refMs;
++                    mk.capRun = shortNow ? mk.capRun + 1 : 0;
++                }
++            }
++            double sa = 0.0, sb = 0.0, sc = 0.0;
++
+             if (h > hi || h < lo)
+             {
+                 // The head ran off its loop (cannot happen while latched; a guard).
+@@ -178,6 +267,8 @@
+                 {
+                     const float wc = tape.levelSample (0, ch, h);
+                     float rw = (ch == 0 ? rL : rR)[i];
++                    sa += static_cast<double> (wc) * wc; sb += static_cast<double> (wc) * rw; sc += static_cast<double> (rw) * rw;
++                    rw *= gPrev + (gNew - gPrev) * (static_cast<float> (i) * kCellInv);
+                     if (! f.rClampOff)
+                     {
+                         if (rw > kAgcCeil || rw < -kAgcCeil)
+@@ -207,6 +298,14 @@
+             }
+             tape.writeRun (runStart, runLen, bufL + runBase, bufR + runBase);
+             c.writes += static_cast<std::uint64_t> (kCell);
++            if (mkOn && gMk.on)
++            {
++                const double al = std::exp (-static_cast<double> (kCell) / (gMk.tauS * fs)), n = 2.0 * kCell;
++                mk.a = al * mk.a + (1.0 - al) * sa / n;
++                mk.b = al * mk.b + (1.0 - al) * sb / n;
++                mk.c = al * mk.c + (1.0 - al) * sc / n;
++                mk.u = al * mk.u + (1.0 - al);
++            }
+         }
+     };
+ } // namespace ogi
+--- Source/dsp/SlotTape.h	2026-11-07 21:27:01
++++ Source/dsp/SlotTape.h	2026-11-12 23:42:00
+@@ -21,6 +21,8 @@
+ 
+ #include <atomic>
+ #include <cstdint>
++#include <vector>
++#include <algorithm>
+ #include "GiConstants.h"
+ #include "MipTape.h"
+ 
+@@ -41,7 +43,33 @@
+         int           frames     = 0;     // F (level-0 frames)
+         int           slot       = 0;     // 0..3
+         std::uint64_t generation = 0;     // loader generation of the SOURCE (a rebuild keeps it)
+-        bool          rebuild    = false; // same source re-rated (SR change): dual-read crossfade on take
++        bool          rebuild    = false;
++        // R2 proto: cumulative pristine energy (L^2 + R^2) per kRefBin frames, built off-thread.
++        static constexpr int kRefBin = 256;
++        std::vector<double> refCum;
++        void buildRef (const float* l, const float* r, int n)
++        {
++            const int bins = (n + kRefBin - 1) / kRefBin;
++            refCum.assign ((size_t) bins + 1, 0.0);
++            double acc = 0.0;
++            for (int b = 0; b < bins; ++b)
++            {
++                const int e = std::min (n, (b + 1) * kRefBin);
++                for (int i = b * kRefBin; i < e; ++i)
++                    acc += (double) l[i] * l[i] + (double) r[i] * r[i];
++                refCum[(size_t) b + 1] = acc;
++            }
++        }
++        /** Mean square per sample and channel of the pristine over [lo, hi) (bin-rounded). */
++        double refMeanSq (std::int64_t lo, std::int64_t hi) const noexcept
++        {
++            const std::int64_t bins = (std::int64_t) refCum.size() - 1;
++            if (bins < 1) return 0.0;
++            std::int64_t b0 = std::clamp<std::int64_t> (lo / kRefBin, 0, bins - 1);
++            std::int64_t b1 = std::clamp<std::int64_t> ((hi + kRefBin - 1) / kRefBin, b0 + 1, bins);
++            const double n = (double) (std::min<std::int64_t> (b1 * kRefBin, frames) - b0 * kRefBin);
++            return n > 0.0 ? (refCum[(size_t) b1] - refCum[(size_t) b0]) / (2.0 * n) : 0.0;
++        } // same source re-rated (SR change): dual-read crossfade on take
+ 
+         SlotTape() noexcept  { liveCount.fetch_add (1, std::memory_order_relaxed); }
+         ~SlotTape()          { liveCount.fetch_sub (1, std::memory_order_relaxed); }
+--- Source/dsp/SlotLoader.cpp	2026-11-12 21:45:50
++++ Source/dsp/SlotLoader.cpp	2026-11-12 23:42:00
+@@ -502,6 +502,7 @@
+         }
+     }
+     tape->tape.flushTail();
++    tape->buildRef (left.data(), right.data(), frames);
+     tape->rate   = fsSession;
+     tape->frames = frames;
+ 
+--- Source/dsp/Engine.cpp	2026-11-12 21:45:50
++++ Source/dsp/Engine.cpp	2026-11-13 00:13:28
+@@ -4009,9 +4009,22 @@
+         // pristine while nothing new is played. Never set for a Post stream.
+         if (voiceTerm)
+             resetTailHold[s] = false;
++        {
++            // R2 proto: with no GATED voice on the stream, a return that the makeup
++            // cannot bring within 6 dB of the target for 50 ms stops the head until
++            // a gated voice drives the stream again (release phases and tails).
++            bool anyGated = false;
++            for (int k = 0; k < kVoiceSlots; ++k)
++                anyGated = anyGated || (voices[k].isCounted() && voices[k].gated);
++            const bool heldTerm = gp.s[s].enable && audibleTarget (s, anySolo) && anyGated;
++            if (heldTerm)
++                mkTailLost[s] = false;
++            else if (gMk.on && gMk.tailLatch && hd.mk.capRun >= 75)
++                mkTailLost[s] = true;
++        }
+         const bool tailTerm = hd.returnPk > 1.0e-5f && ! resetTailHold[s];
+         const bool target = gp.s[s].fbOn && ! gp.freeze && rateOk && ! xfade[s].active && ! pending
+-                         && (voiceTerm || tailTerm);
++                         && (voiceTerm || tailTerm) && ! mkTailLost[s];
+         const float v = target ? 1.0f : 0.0f;
+ 
+         bool fbSnap = false;
+@@ -4056,6 +4069,7 @@
+         {
+             hd.cellStart = hd.h;
+             hd.wrapOff = -1;
++            hd.mk.reset();
+             continue;
+         }
+         const float* rL = fbRet[s][0];
+@@ -4075,7 +4089,13 @@
+        #endif
+         auto& c = headCounters (s);
+         hd.writeCell (tp->tape, rL, rR, fbEff (s),
+-                      region[s].lo, region[s].hi, tp->frames, fl, c);
++                      region[s].lo, region[s].hi, tp->frames, fl, c,
++                     #if OGI_TEST_HOOKS
++                      ! hooks.chainKnobParity,
++                     #else
++                      true,
++                     #endif
++                      tp->refMeanSq (hd.lo, hd.hi), fs);
+         foldOverview (s);   // PLAN-2.6 T11: the evolving overview
+     }
+ }
+--- Source/dsp/Engine.h	2026-11-12 15:41:42
++++ Source/dsp/Engine.h	2026-11-13 00:08:09
+@@ -912,6 +912,7 @@
+         // 2.4 record heads (PLAN-2.4 PD2–PD5): one per slot, λ = 0.95·fbRamp[s]·run.
+         ExactRamp  fbRamp[kGiStreams];           // R1 PD6: per stream
+         RecordHead head[kTapeSlots];
++        bool mkTailLost[kTapeSlots] {};   // R2 proto
+         bool       headRelatch[kTapeSlots] {};
+         bool       prevFreeze = false;
+         float      pkRel = 0.0f;                 // returnPk release per cell (50 ms)
+--- tests/render-harness/main.cpp	2026-11-12 21:45:50
++++ tests/render-harness/main.cpp	2026-11-13 00:00:01
+@@ -1218,6 +1218,7 @@
+ 
+ // PLAN-R1 (Stage 4 R1): Record-in Arm auto-clear rows AC1-AC8 (PD31) + --egr1.
+ #include "engine_gates_r1.h"
++#include "r2probe.h"
+ 
+ //==============================================================================
+ // PLAN-2.6 T10 / PD16: the factory stub generator (--gen-factory <dir> [--force]).
+@@ -1692,6 +1693,7 @@
+ 
+ static int runHarness (int argc, char** argv)
+ {
++    r2p::cfgFromEnv();
+     for (int a = 1; a < argc; ++a)
+     {
+         if (std::strcmp (argv[a], "--gen-factory") == 0 && a + 1 < argc)   // PLAN-4 PD5: the 8 curated sources
+@@ -1826,6 +1828,10 @@
+             std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
+             return juce::jmin (failures, 255);
+         }
++        else if (std::strcmp (argv[a], "--r2probe") == 0)
++            return r2p::run();
++        else if (std::strcmp (argv[a], "--r2inv") == 0)
++            return r2p::inv();
+         else if (std::strcmp (argv[a], "--cpu4") == 0)    // PLAN-4 PD16: run alone, in the background; rc = FAIL count
+             return juce::jmin (pg4::cpu4(), 255);
+         else if (std::strcmp (argv[a], "--dump-factory-presets") == 0 && a + 1 < argc)   // PLAN-4 PD16: early exit, no gate runs

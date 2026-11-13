@@ -1,0 +1,43 @@
+1,3c1,3
+< 178d793b56d5c7384598d6cf9c2815e329156720c1d0aa13018a272041d09c36  Drones__Iron_Sky.f32
+< 676854f07e5575e6c13262b9fbae97c6589472e8789442a03292b640ee74ed2d  Drones__Deep_Well.f32
+< bb7b7830e7735ebaac699937e3a26fd4bc0b711139eca99d8a502ede3ab7a4fb  Drones__Organ_Loft.f32
+---
+> 0a55b3831b4007afc23f525694612dd13cad8b97453bcbda4c7ecce5c6f501d5  Drones__Iron_Sky.f32
+> 53d637888ee89b23dba5c75cd686bae1b2070f6b7ce5a70bdd984d682e358358  Drones__Deep_Well.f32
+> 54969e9d46f127a5f72e37625a29582d369a9858eb462dab68b03544ed8b507a  Drones__Organ_Loft.f32
+5,8c5,8
+< 1cbac29a491f1d78931b9797e84f8cc7d3ae474f02fbd8022cdc5bac8cd05a32  Drones__Hollow_Wind.f32
+< 8126567ead42a14e011b94f8d9b873e68f3c0396603bcf923169f9fae31c45eb  Drones__Low_Orbit.f32
+< d71cd1498671069f49d775d66b6411e2d17f98f041473f8c419400696a0b9fce  Drones__Tape_Halo.f32
+< d1390a668f5e82fd1a582b5110903ba910ea3452a1e562c6514afc57115e8a86  Drones__Night_Engine.f32
+---
+> 1763f32bb949c96fd0ea583f027526e2acd844032d844d14df44724141599bfa  Drones__Hollow_Wind.f32
+> 537eeb29cc5773f25aae042c45ace42041554f79720ba1accaba951f9b6d9197  Drones__Low_Orbit.f32
+> 30fcd1119bd305ea5792d658764eb31b318fc329982047e1c233c54fb56f029d  Drones__Tape_Halo.f32
+> e71a73236f822c9845bea2bd07af2f9d0a8c46d0a6e62153aab13339b2cf8e23  Drones__Night_Engine.f32
+30c30
+< f2624acc55f770af6f23592dae122c242643502aada2d57e22c88ec429b775d4  Live__Feedback_Loop.f32
+---
+> d4a319a391c10d5eff042d5876d3c6ca4b1ae18056756074fcd4b6040ae0b782  Live__Feedback_Loop.f32
+32c32
+< a2a75ac7f3e31056c6cd29ecb048a1206a544d6d38e65dc3927bf25b59d25847  Live__Four_Lanes.f32
+---
+> ac42eae014a9b25cd2745ef8dfb3baf57b138206accd7b47ac91178748c31a0f  Live__Four_Lanes.f32
+42c42
+< 4c701f61552605aebec4e218de3d4cc9233345b29000f5a936ba2df918d5e843  Pads__Fifth_Bloom.f32
+---
+> 9a5cac21fbb6808d9ea7b79babc0e89643caaab9ecaed454db6b49ce118b62a2  Pads__Fifth_Bloom.f32
+47c47
+< 21a8aeeaa3f27c286513cd36cab0a5fb3c5e29ebdd11e81b3ec3ce6313f6f1e6  Pads__Slow_Tide.f32
+---
+> b4cee74093b0c58b72cbf3bbc12a445396d94f8fba24fd78b67634cc1d7f6960  Pads__Slow_Tide.f32
+52c52
+< 5ce1e24b4c18088254c4c1ee67a8703ad518d45d92ce8546491097f5357e20ae  Rhythmic__Dotted_Echo.f32
+---
+> 78a8f6bdabf338bdab3990edfd3f5fc2df608c5f2012a3cf0080c28b4aac39f8  Rhythmic__Dotted_Echo.f32
+60c60
+< bf2ca174230ea752970d7ccec647f1b9a4d446de2de5cc881ad98922f1a87133  Textures__Broken_Radio.f32
+---
+> 9df0d9de2f37579428ae3698a48077f5cd1bb755f81d06bb70440307f8b9a547  Textures__Broken_Radio.f32
+pt-off vs real R1 binary: identical

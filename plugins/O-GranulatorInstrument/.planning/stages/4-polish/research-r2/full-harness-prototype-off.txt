@@ -1,0 +1,2 @@
+512 PASS, 0 FAIL
+rc 0
