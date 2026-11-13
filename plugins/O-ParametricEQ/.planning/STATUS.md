@@ -1,13 +1,13 @@
 ---
 plugin: O-ParametricEQ
 stage: 1
-phase: discuss
-status: stage_1_discuss_complete
-last_updated: 2026-11-12 20:10:00
+phase: research
+status: stage_1_research_complete
+last_updated: 2026-11-12 22:15:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: plugin_research_stage_1
+next_action: plugin_plan_stage_1
 next_stage: 1
 ready_for_implementation: true
 blocked_on: none
@@ -29,8 +29,8 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — discuss complete
-Status: Stage 1 context gathered (`stages/1-foundation/CONTEXT.md`); next is research
+Stage: 1 of 4 (Foundation) — research complete
+Status: Stage 1 researched (`stages/1-foundation/RESEARCH.md`); next is plan
 Progress: [##..................] 10%
 
 `parameter_spec` checksum above is of `parameter-spec.md` (written by mockup finalization, 2026-11-12; 196 host parameters). `parameter-spec-draft.md` is kept for reference and is superseded.
@@ -68,8 +68,8 @@ Progress: [##..................] 10%
 | Phase | Status | Date | Skipped |
 |-------|--------|------|---------|
 | discuss | ✓ | 2026-11-12 | |
-| research | → | | |
-| plan | | | |
+| research | ✓ | 2026-11-12 | |
+| plan | → | | |
 | execute | | | |
 | verify | | | |
 
@@ -77,8 +77,9 @@ Progress: [##..................] 10%
 
 1. ~~Create and finalize the UI mockup~~ Done 2026-11-12: mockup v1 finalized, implementation scaffolding generated, `parameter-spec.md` written with the layout in `research/ARCHITECTURE.md` "Parameter Mapping".
 2. ~~Answer the items under "Needs the user's call before Stage 1"~~ Items 3 and 6 answered 2026-11-12 (196 parameters, `b01_` IDs; no spec change). Items 1, 2, 4, 5, 7, 8 are deferred to Stage 2 discuss.
-3. Stage 1 research — `/plugin-research O-ParametricEQ`
-4. Pause here
+3. ~~Stage 1 research~~ Done 2026-11-12: `stages/1-foundation/RESEARCH.md`. Carry to Stage 2 discuss: skewed raw defaults are 999.99988 Hz and 0.99999976 (normalised 0.5 exactly).
+4. Stage 1 plan — `/plugin-plan O-ParametricEQ`
+5. Pause here
 
 ## Context to Preserve
 
@@ -120,3 +121,5 @@ Progress: [##..................] 10%
 - plugins/O-ParametricEQ/.planning/mockups/v1-PluginEditor-TEMPLATE.cpp
 - plugins/O-ParametricEQ/.planning/mockups/v1-CMakeLists-SNIPPET.txt
 - plugins/O-ParametricEQ/.planning/mockups/v1-integration-checklist.md
+- plugins/O-ParametricEQ/.planning/stages/1-foundation/CONTEXT.md
+- plugins/O-ParametricEQ/.planning/stages/1-foundation/RESEARCH.md
