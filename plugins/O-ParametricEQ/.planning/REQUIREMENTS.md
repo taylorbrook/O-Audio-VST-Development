@@ -4,7 +4,7 @@
 version: 1.0.0
 plugin: O-ParametricEQ
 created: 2026-11-12
-lastUpdated: 2026-11-12
+lastUpdated: 2026-11-13
 ---
 
 ## Overview
@@ -32,7 +32,7 @@ lastUpdated: 2026-11-12
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| DSP-01 | Analog-matched magnitude response for bell and shelf up to Nyquist, without oversampling | must | pending | stage-2 |
+| DSP-01 | Analog-matched magnitude response for bell and shelf up to Nyquist, without oversampling | must | partial | stage-2 |
 | DSP-02 | Zero latency, minimum phase | must | pending | stage-2 |
 | DSP-03 | Slopes of 6, 12, 18, 24, 36, 48, 72 and 96 dB/oct on every type that supports them | must | pending | stage-2 |
 | DSP-04 | Click-free under automation and fast drags of every parameter, including type, slope, placement and enable | must | pending | stage-2 |
@@ -107,6 +107,8 @@ lastUpdated: 2026-11-12
 - [ ] Gain scale 0 % yields a flat response for all gain-bearing bands; 200 % doubles their dB gain
 
 ### DSP-01: Analog-matched response
+
+_Partial 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1b.md`): design side met at the Phase 2.1b G1 tolerance at five rates; criterion 2 and the rendered half of G1 close at Phase 2.2 (G8)._
 
 **Acceptance Criteria:**
 - [ ] At 44.1 kHz, bell and shelf magnitude responses match the analog prototype within a tolerance set in Stage 0, measured up to 20 kHz, for centre frequencies up to 20 kHz
