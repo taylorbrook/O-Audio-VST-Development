@@ -153,3 +153,12 @@ O-ParametricEQ designer harness (Stage 2, Phase 2.1)  golden dir: plugins/O-Para
 
 28 PASS, 0 FAIL, 6 INFO
 ```
+
+## Addendum 2026-11-13 (Phase 2.1b rework)
+
+The closed-form seed changed for shelf / tilt second-order sections that have a pair (zeros or poles) above 0.95 π with Q above 1.5: the pair is designed lower with an effective Q (`detail::recentrePair`, `SUMMARY-2.1b-rework.md`). Nothing else changed.
+
+- `designs.tsv` regenerated: 4800 of 162 855 lines differ, all `gain2` lines of Low Shelf, High Shelf and Tilt (1600 each), every one inside that region and every line of the region; D1 is bit-exact again.
+- T1: the line "Shelf 48 dB/oct, Q 1, 10–20 k" at 44.1 kHz moves from 0.84 / 1.72 / 4.01 to 0.84 / 1.85 / 4.33; the ARCHITECTURE table and the row were amended on Taylor's call. The other ten lines are unchanged.
+- INFO, shelves ≥ 24 dB/oct, Q 1, 10–20 k at 44.1 kHz: 48 dB/oct 0.84 / 1.72 / 4.01 → 0.84 / 1.85 / 4.33; 96 dB/oct 0.87 / 1.77 / 4.91 → 0.87 / 1.77 / 5.04; 24 dB/oct unchanged.
+- G1-bell, G1-sh12, G1-sh6, R1, N1, G2s, CS1, CS2, NB1–NB4 print the same figures as before.

@@ -20,10 +20,25 @@
 /*
   ==============================================================================
 
-    O-ParametricEQ - closed-form section designer (Stage 2, Phase 2.1)
+    O-ParametricEQ - section designer (Stage 2, Phases 2.1 and 2.1b)
 
     Band settings in, up to eight section parameter sets out
     (ARCHITECTURE "Algorithm Details").
+
+    Designer::design is the closed form with every second-order gain section
+    (Bell; the MLR sections of Low Shelf, High Shelf, Tilt) refined by the
+    accuracy polish of Polish.h. Designer::designSeed is the closed form
+    alone: the seed, and the polish's fallback.
+
+    Since the Phase 2.1b rework (RESEARCH-2.1b-continuity):
+      - the closed form designs a shelf / tilt second-order section from its
+        re-centred pairs (Prototype.h, D10), so designSeed differs from the
+        first Phase 2.1 result for those sections and for no others;
+      - every polish step is length-limited (Polish.h);
+      - below polish::minSampleRateHz nothing is polished: design equals
+        designSeed bit for bit, every weight 0. prepare() decides this once
+        per sample rate, so it must run before the first design at every
+        rate change.
 
       MatchedPair          the one primitive: analog pair -> matched digital
                            pair, expm1 forms, pole angle clamped at pi
@@ -55,6 +70,7 @@
 #pragma once
 
 #include "EqTypes.h"
+#include "Polish.h"
 #include "Prototype.h"
 
 #include <cmath>
@@ -378,35 +394,87 @@ inline void invert (SectionParams& p) noexcept
 class Designer
 {
 public:
-    /** Stores the sample rate. (Phase 2.1b also builds the polish grid here.) */
-    void prepare (double sampleRateHz) noexcept             { sampleRate = sampleRateHz; }
+    /** Stores the sample rate, builds the polish match grid for it and
+        decides, once for this rate, whether design() polishes at all. */
+    void prepare (double sampleRateHz) noexcept
+    {
+        sampleRate = sampleRateHz;
+        grid.prepare (sampleRateHz);
+        polishEnabled = sampleRateHz >= polish::minSampleRateHz;
+    }
+
+    /** False below polish::minSampleRateHz: design() is then designSeed(). */
+    bool isPolishEnabled() const noexcept                   { return polishEnabled; }
 
     double getSampleRate() const noexcept                   { return sampleRate; }
 
+    const PolishGrid& getPolishGrid() const noexcept        { return grid; }
+
     /** The closed-form (seed) design of one second-order gain section:
-        analog section in, eight parameters out. The polish of Phase 2.1b
-        starts from this. */
+        analog section in, eight parameters out. The polish starts from this. */
     static SectionParams designSeedSection (const AnalogSection& a) noexcept
     {
         return mlr (a.wz, a.Qz, a.wp, a.Qp, a.c);
     }
 
-    /** Band settings -> section parameter sets. Writes every field of `out`. */
+    /** Band settings -> section parameter sets, polished (Phase 2.1b).
+        Writes every field of `out`. */
     void design (const BandSettings& settings, BandDesign& out) const noexcept
     {
+        designWith<detail::ShippedPolicy> (settings, out);
+    }
+
+    /** The closed form alone: the polish's seed and fallback. Writes every field of `out`; polishWeight is all 0. */
+    void designSeed (const BandSettings& settings, BandDesign& out) const noexcept
+    {
         AnalogBand proto;
+        seedSections (settings, proto, out);
+        finish (settings, proto, out);
+    }
+
+    /** design() with the polish policy as a compile-time parameter. The
+        plugin uses design(); the designer harness uses this to build the
+        variants its rows must reject. */
+    template <typename Policy>
+    void designWith (const BandSettings& settings, BandDesign& out) const noexcept
+    {
+        AnalogBand proto;
+        seedSections (settings, proto, out);
+
+        // The polish sees boost-side sections and the plain shelf section:
+        // the tilt scalar and the inversion come after it.
+        const int numToPolish = polishEnabled ? proto.numSections : 0;
+
+        for (int i = 0; i < numToPolish; ++i)
+        {
+            const auto u = static_cast<std::size_t> (i);
+
+            if (proto.cls[u] == SectionClass::gain2)
+            {
+                PolishInfo info;
+                out.params[u] = detail::polishSectionWith<Policy> (grid, proto.trueSide[u], out.params[u], &info);
+                out.polishWeight[u] = static_cast<float> (info.weight);
+            }
+        }
+
+        finish (settings, proto, out);
+    }
+
+private:
+    /** The closed form of every section, on the boost side. */
+    void seedSections (const BandSettings& settings, AnalogBand& proto, BandDesign& out) const noexcept
+    {
         buildPrototype (settings, sampleRate, proto);
 
-        const bool invertBand = isGainType (settings.type) && settings.gainDbEff < 0.0;
-
         out.numSections = proto.numSections;
-        out.inverted = invertBand;
+        out.inverted = isGainType (settings.type) && settings.gainDbEff < 0.0;
 
         for (int i = 0; i < maxSections; ++i)
         {
             const auto u = static_cast<std::size_t> (i);
             out.cls[u] = proto.cls[u];
             out.trueProto[u] = proto.trueSide[u];
+            out.polishWeight[u] = 0.0f;
 
             if (i >= proto.numSections)
             {
@@ -448,7 +516,11 @@ public:
                     break;
             }
         }
+    }
 
+    /** The tilt scalar, then the inversion for a cut. */
+    static void finish (const BandSettings& settings, const AnalogBand& proto, BandDesign& out) noexcept
+    {
         // D8: the tilt scalar goes into the last section (it always has a one-pole half).
         if (settings.type == Type::tilt && proto.numSections > 0)
         {
@@ -459,13 +531,14 @@ public:
         }
 
         // P3: a cut is the inverse of the boost, section by section.
-        if (invertBand)
+        if (out.inverted)
             for (int i = 0; i < proto.numSections; ++i)
                 invert (out.params[static_cast<std::size_t> (i)]);
     }
 
-private:
     double sampleRate = 48000.0;
+    PolishGrid grid;
+    bool polishEnabled = true;
 };
 
 } // namespace eq

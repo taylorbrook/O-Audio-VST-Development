@@ -114,14 +114,29 @@ struct SectionParams
     re-centre and before the notch / band-pass clamps; for Tilt the scalar
     10^(-g/40) is folded into the last section's c, as it is folded into that
     section's cL and cH. When inverted is true the realised band is the
-    reciprocal of the boost that trueProto describes. */
+    reciprocal of the boost that trueProto describes. polishWeight is the
+    accept weight of the Phase 2.1b polish per section, in [0, 1]: 0 where the
+    closed form was kept (always 0 for a class that is not polished and for
+    Designer::designSeed). */
 struct BandDesign
 {
     int numSections;
     std::array<SectionParams, maxSections> params;
     std::array<SectionClass,  maxSections> cls;
     std::array<AnalogSection, maxSections> trueProto;
+    std::array<float,         maxSections> polishWeight;
     bool inverted;
 };
+
+namespace detail
+{
+    /** Cubic smoothstep on [0, 1]. The one definition: the shelf re-centre
+        (Prototype.h) and the polish weights (Polish.h) both use it. */
+    inline double smoothStep (double x) noexcept
+    {
+        const double c = (x < 0.0) ? 0.0 : ((x > 1.0) ? 1.0 : x);
+        return c * c * (3.0 - 2.0 * c);
+    }
+}
 
 } // namespace eq

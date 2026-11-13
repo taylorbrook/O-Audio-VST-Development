@@ -432,7 +432,7 @@ Maximum |digital − analog| in dB, 10 Hz - 20 kHz, worst case over Q and freque
 | Shelf 6 dB/oct (Vicanek 2019) | 44.1 k | fc 10 Hz - 30 k | 0.17 | 0.31 | 0.49 |
 | Shelf 6 dB/oct (Vicanek 2019) | 96 k | fc 10 Hz - 30 k | 0.10 | 0.19 | 0.29 |
 | Shelf 48 dB/oct, Q 1.0 | 44.1 k | fc ≤ 10 k | 0.03 | 0.06 | 0.16 |
-| Shelf 48 dB/oct, Q 1.0 | 44.1 k | 10 k < fc ≤ 20 k | 0.84 | 1.72 | 4.01 |
+| Shelf 48 dB/oct, Q 1.0 (with the shelf re-centre; 1.72 / 4.01 before it, amended 2026-11-13) | 44.1 k | 10 k < fc ≤ 20 k | 0.84 | 1.85 | 4.33 |
 | Reference: RBJ pre-warped bilinear bell | 44.1 k | fc ≤ 20 k | — | — | 13 - 17 |
 | Reference: Vicanek 2016 section 4.4 bell alone (boost side) | 44.1 k | fc ≤ 20 k | 0.79 | 1.44 | 2.56 |
 | Reference: best single biquad found by a 5-parameter numerical fit (24 sampled settings, Q 0.1 - 10) | 44.1 k | fc 1 k - 20 k | 0.08 | 0.16 | 0.37 |

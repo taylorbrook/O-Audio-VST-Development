@@ -24,8 +24,11 @@ Conventions (PLAN-2.1)
     D8   Tilt = high shelf of gEff times 10^(-gEff/40); the scalar is folded into the LAST
          section's cL, cH.
     D9   Q0 <- Q0 * Qu on cuts, shelves and tilt; Q is not read at 6 dB/oct.
-    D10  Bell re-centred above 0.95 pi; notch clamped at 0.95 pi; band pass at 0.9 pi;
-         everything else designed at the true frequency.
+    D10  Bell re-centred above 0.95 pi; notch clamped at 0.95 pi; band pass at 0.9 pi.
+         Shelf / tilt second-order sections: a pair (zeros or poles) above 0.95 pi is
+         designed lower, toward 0.95 pi, with an effective Q; the move fades in on the
+         pair's Q from 1.5 to 4 (RESEARCH-2.1b-continuity Q4 a). The true prototype is
+         never changed. Everything else is designed at the true frequency.
 
 Section order: second-order sections in Butterworth index order (Q0 first), the
 first-order section last.
@@ -47,6 +50,9 @@ SLOPE_TYPES = ('lowShelf', 'highShelf', 'lowCut', 'highCut', 'tilt')
 BELL_RECENTRE = 0.95        # x pi
 NOTCH_CLAMP = 0.95          # x pi
 BANDPASS_CLAMP = 0.9        # x pi
+SHELF_RECENTRE = 0.95       # x pi
+SHELF_RECENTRE_Q_LO = 1.5   # pair Q at or below which a shelf pair is not moved
+SHELF_RECENTRE_Q_HI = 4.0   # pair Q at or above which it is moved all the way
 QE_MIN, QE_MAX = 0.025, 160.0
 P1_FLOOR = 1e-12
 LP_MATCH = 0.75             # x pi, 3-point matched low-pass
@@ -241,6 +247,40 @@ def bell_design_proto(wc, Qu, gabs):
     return wL, Qe / Ae, wL, Qe * Ae, 1.0
 
 
+def sstep(x):
+    """Cubic smoothstep on [0, 1]."""
+    x = 0.0 if x < 0.0 else (1.0 if x > 1.0 else x)
+    return x * x * (3.0 - 2.0 * x)
+
+
+def recentre_pair(w0, Q):
+    """Design-side image of one pair (w0, Q) of a shelf / tilt second-order section.
+
+        wL = 0.95 pi;  w0 <= wL: unchanged
+        beta = sstep ((ln Q - ln 1.5) / (ln 4 - ln 1.5));  beta <= 0: unchanged
+        wT = exp (ln w0 + beta (ln wL - ln w0)),  x = wT / w0
+        Qe = 1 / sqrt ((1 - x^2)^2 + x^2 / Q^2), clamped to [0.025, 160]
+
+    The pair keeps its DC value and its magnitude at wT. Value-continuous at both early
+    returns (Qe = Q at w0 = wL; no move at beta = 0)."""
+    wL = SHELF_RECENTRE * PI
+    if not (w0 > wL):
+        return w0, Q
+    lo = math.log(SHELF_RECENTRE_Q_LO)
+    hi = math.log(SHELF_RECENTRE_Q_HI)
+    beta = sstep((math.log(Q) - lo) / (hi - lo))
+    if not (beta > 0.0):
+        return w0, Q
+    lw0 = math.log(w0)
+    wT = math.exp(lw0 + beta * (math.log(wL) - lw0))
+    x = wT / w0
+    x2 = x * x
+    P = (1.0 - x2) * (1.0 - x2) + x2 / (Q * Q)
+    Qe = 1.0 / math.sqrt(P)
+    Qe = min(max(Qe, QE_MIN), QE_MAX)
+    return wT, Qe
+
+
 def _sec(cls, params, true, design=None, **extra):
     has_svf = params[0] is not None
     has_one_pole = params[5] is not None
@@ -271,7 +311,8 @@ def type_name(t):
 
 def _shelf_sections(wc, Qu, gabs, N, high):
     """Boost-side shelf of order N (Gl >= 1). Analog tuples are (wz, Qz, wp, Qp, c) with c the
-    DC gain; the first-order section uses (wz, None, wp, None, c) the same way."""
+    DC gain; the first-order section uses (wz, None, wp, None, c) the same way. A second-order
+    section is designed from its re-centred pairs (recentre_pair); its true tuple is kept."""
     Gl = 10.0 ** (gabs / 20.0)
     r = Gl ** (1.0 / (2.0 * N))
     out = []
@@ -281,7 +322,10 @@ def _shelf_sections(wc, Qu, gabs, N, high):
             a = (wc / r, Q, wc * r, Q, 1.0)
         else:
             a = (wc * r, Q, wc / r, Q, Gl ** (2.0 / N))
-        out.append(_sec('gain2', mlr(*a), a))
+        wzd, Qzd = recentre_pair(a[0], a[1])
+        wpd, Qpd = recentre_pair(a[2], a[3])
+        design = (wzd, Qzd, wpd, Qpd, a[4])
+        out.append(_sec('gain2', mlr(*design), a, design))
     if N % 2:
         Gs = Gl ** (1.0 / N)                              # the section's own gain
         G1, cL, cH = vic1_shelf(wc, Gs, high)

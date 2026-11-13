@@ -1,16 +1,15 @@
 ---
 plugin: O-ParametricEQ
 stage: 2
-phase: plan
-status: stage_2_phase_2_1b_rework_planned
-last_updated: 2026-11-13 22:00:00
+phase: execute
+status: stage_2_phase_2_1b_executed
+last_updated: 2026-11-13 23:30:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_2_execute_phase_2_1b_rework
+next_action: stage_2_verify_phase_2_1b
 next_stage: 2
 ready_for_implementation: true
-blocked_on: phase_2_1b_gate_C1_continuity_resonant_shelves
 ui_scaffolding_phase_complete: true
 latest_mockup_version: 1
 mockup_finalized: true
@@ -21,7 +20,7 @@ brief_update_timestamp: "2026-11-13T02:26:56Z"
 contract_checksums:
   brief: sha256:6fbb1b97c9c64ca3f159a409f807f13c74cb16dab8d6ab14b6a1a13c2e6991ff
   parameter_spec: sha256:60e7cf7fc335929259b4930d156a4f0d91cfa3b0a9f26d751ec31c5328c6229f
-  architecture: sha256:6745fb260a09462ab28054eb19635c06bb1e9b9f289f30c6863a7486fde6ff75
+  architecture: sha256:bf70384089e2e8de134a9351e8f46273fff9ad5ce9b9aba333abd327e3cae92e
   roadmap: sha256:c138ad57eaea2128940b6dbdf5b12053bf8bd04a17e108a718d25dba2e3f62fb
 ---
 
@@ -29,7 +28,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — discuss ✓ 2026-11-12 (`stages/2-dsp/CONTEXT.md`, D6–D11); research 2.1 / 2.1b ✓ 2026-11-12 (`stages/2-dsp/RESEARCH-2.1.md`); plan 2.1 / 2.1b ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.1.md`, `PLAN-2.1b.md`); execute 2.1 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.1.md`, designer harness 28 PASS / 0 FAIL / 6 INFO); verify 2.1 ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1.md`, VERIFIED); execute 2.1b **BLOCKED** 2026-11-13 (`stages/2-dsp/SUMMARY-2.1b.md`: harness 47 PASS / 1 FAIL, C1 continuity; uncommitted); research on the C1 failure ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.1b-continuity.md`); plan 2.1b rework ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.1b-rework.md`, 10 tasks); next is execute (2.1b rework). Stage 1 (Foundation): VERIFIED
+Stage: 2 of 4 (DSP) — discuss ✓ 2026-11-12 (`stages/2-dsp/CONTEXT.md`, D6–D11); research 2.1 / 2.1b ✓ 2026-11-12 (`stages/2-dsp/RESEARCH-2.1.md`); plan 2.1 / 2.1b ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.1.md`, `PLAN-2.1b.md`); execute 2.1 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.1.md`, designer harness 28 PASS / 0 FAIL / 6 INFO); verify 2.1 ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1.md`, VERIFIED); execute 2.1b **BLOCKED** 2026-11-13 (`stages/2-dsp/SUMMARY-2.1b.md`: harness 47 PASS / 1 FAIL, C1 continuity; uncommitted); research on the C1 failure ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.1b-continuity.md`); plan 2.1b rework ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.1b-rework.md`, 10 tasks); execute 2.1b rework ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.1b-rework.md`, designer harness 54 PASS / 0 FAIL / 12 INFO); next is verify 2.1b. Stage 1 (Foundation): VERIFIED
 Status: 0.1.0 built and installed (VST3 + AU + Standalone); harness 36 PASS / 0 FAIL, pluginval 10 and auval pass (`stages/1-foundation/SUMMARY.md`). Verified 2026-11-12 by an independent re-run on a fresh compile and reinstalled bundles, plus a mutation run (`stages/1-foundation/VERIFICATION.md`); next is Stage 2 discuss
 Progress: [####................] 20%
 
@@ -84,6 +83,7 @@ Progress: [####................] 20%
 | execute 2.1b | ✗ blocked (C1) | 2026-11-13 | |
 | research 2.1b continuity | ✓ | 2026-11-13 | |
 | plan 2.1b rework | ✓ | 2026-11-13 | |
+| execute 2.1b rework | ✓ | 2026-11-13 | |
 
 ## Next Steps
 
@@ -102,7 +102,8 @@ Progress: [####................] 20%
 13. ~~Decide the fix route, then research~~ Done 2026-11-13 (route 1): `stages/2-dsp/RESEARCH-2.1b-continuity.md`, bench in `stages/2-dsp/research-2.1b/cont_bench.cpp` (bit-identical to `Designer::design` with default knobs). The jump is a diverging fit (ln mB +19.5 in one step), and off the gated grid a polished section can be +54 dB worse than its seed; both live where section Q >= 4 and the upper pair is above 0.9 Nyquist (seed 5-12 dB off). **Recommended: a re-centre rule for shelf sections on the seed side (pair above 0.95 pi designed there with an effective Q, faded in from pair Q 1.5 to 4) plus a smooth limit of 0.35 log units on every polish step.** Bench at 44.1 / 48 kHz: 0 jumps on 5340 lines (shipped 19 on 2700), 0 runaway sections, worst excess over the seed +0.67 dB, gated G1b rows keep their margins, stubborn cell 4.46 -> 0.45 dB. **Calls for the plan:** C1's 2x-of-seed limit (about 1 line in 1000 reads 2.0-2.4x, continuous); polish off below 44.1 kHz (not continuous there with or without the fix); step limit 0.35 or 0.5; the re-centre changes the Phase 2.1 seed (model, 30 MB designs golden, 2.1 rows) unless used as a polish start point only. Nothing in Source, harness, model or goldens was changed; the 2.1b execute files are still uncommitted.
    **Decided by Taylor 2026-11-13 (all four as recommended):** (1) C1's ratio limit becomes 4x of the seed, the shrink test (0.5) stays binding; (2) no polish below 44.1 kHz, decided once per sample rate in `Designer::prepare`; (3) the shelf re-centre is a seed change (Phase 2.1 model, designs golden and 2.1 rows are redone), not a polish start point; (4) step limit 0.35.
 14. ~~Plan the 2.1b rework~~ Done 2026-11-13: `stages/2-dsp/PLAN-2.1b-rework.md` (10 tasks, six waves). Shelf re-centre in the model and `Prototype.h` (designs golden regenerated and audited line by line against the verified one), step limit 0.35 and the 44.1 kHz rate gate in the polish, polished golden regenerated. Harness: C1 at 4x with the shrink test binding on 1101 lines (the first 341 unchanged, nine families), C1-hi at 88.2 / 96 / 192 kHz, NW2 (random full-range never-worse, ceiling +1.0 dB), RA1 (runaway count 0), PR1 (no polish below 44.1 kHz), P1s (re-centre boundaries), and a negative control that rebuilds the first build and must fail NW2, RA1 and C1. **Contracts amended** (`research/ARCHITECTURE.md`: Amendments, shelf / tilt frequency policy, polish limit / rate / Continuity, known limits, G1; `ROADMAP.md`: Phase 2.1b components and criteria); checksums above refreshed. **Plan calls to note:** the NW2 ceiling (+1.0 dB against a measured +0.67) is the plan's number; I-weak stays INFO with WARN ceilings; the blocked execute's files and the rework go in one commit; a red C1 / NW2 / RA1 / G1b with green goldens stops the session, nothing is retuned.
-15. `/plugin-execute O-ParametricEQ 2-dsp` for the 2.1b rework (the 2.1b execute files are still uncommitted in the working tree; the plan starts from them).
+15. ~~Execute the 2.1b rework~~ Done 2026-11-13: `stages/2-dsp/SUMMARY-2.1b-rework.md`. Designer harness 54 PASS / 0 FAIL / 12 INFO. C1 0 violations on 1101 lines (worst 2.17x, 1 line above 2x; the two former failing lines 0.98x and 1.34x), C1-hi 0 of 216, NW2 +0.660 / +0.270 dB at 44.1 / 48 kHz over 2.6 million sections per rate (ceiling +1.0), RA1 0, PR1 and P1s green, D1 bit-exact and D2 4.5e-13 against the regenerated goldens (designs audit: 4800 changed lines, all in the rule's region), every G1b cell in tolerance (72 dB/oct ±30 dB at 44.1 kHz 0.247 against 0.410), `--neg first-build` fires on all three rows. **Plan gap, decided by Taylor in the session:** T1's "Shelf 48 dB/oct, Q 1, 10–20 k" line moved with the seed (0.84 / 1.72 / 4.01 → 0.84 / 1.85 / 4.33); that ARCHITECTURE "Model results" row and the T1 expectation were amended and the `architecture` checksum refreshed. The blocked 2.1b files and the rework are in one commit. No processor code, no binary change, no tag.
+16. `/plugin-verify O-ParametricEQ 2-dsp` for Phase 2.1b: re-verify the seed change (audit, P1s, the amended T1 line) as well as the polish; `VERIFICATION-2.1.md` covers the unchanged lines only. For 2.2: no polish below 44.1 kHz; `Designer::prepare` before the first `design` at every rate change.
 
 ## Context to Preserve
 
@@ -175,3 +176,10 @@ Progress: [####................] 20%
 - plugins/O-ParametricEQ/.planning/stages/2-dsp/RESEARCH-2.1b-continuity.md
 - plugins/O-ParametricEQ/.planning/stages/2-dsp/research-2.1b/cont_bench.cpp
 - plugins/O-ParametricEQ/.planning/stages/2-dsp/PLAN-2.1b-rework.md
+- plugins/O-ParametricEQ/Source/dsp/Polish.h
+- plugins/O-ParametricEQ/Source/dsp/PolishConstants.h
+- plugins/O-ParametricEQ/tests/model/polish_model.py
+- plugins/O-ParametricEQ/tests/model/dump_polish.py
+- plugins/O-ParametricEQ/tests/golden/designs-polished.tsv
+- plugins/O-ParametricEQ/.planning/stages/2-dsp/SUMMARY-2.1b.md
+- plugins/O-ParametricEQ/.planning/stages/2-dsp/SUMMARY-2.1b-rework.md

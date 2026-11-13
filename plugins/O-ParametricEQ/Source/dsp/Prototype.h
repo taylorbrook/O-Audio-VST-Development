@@ -30,14 +30,19 @@
       P3   Every gain-bearing band is built on its boost side, from |gainDbEff|.
            The caller inverts each section for a cut.
       P4   Two analog sections per section: the DESIGN side (after the bell
-           re-centre and the notch / band-pass clamps) and the TRUE side
-           (before them). The true side is the scoring and fitting target.
+           re-centre, the shelf re-centre and the notch / band-pass clamps)
+           and the TRUE side (before them). The true side is the scoring and
+           fitting target.
       D6   Slope is read only by Low Shelf, High Shelf, Low Cut, High Cut, Tilt.
       D8   Tilt = high shelf of the gain times 10^(-gain/40). The scalar is
            returned in tiltScalar; the analog sections here do not carry it.
       D9   Q0 <- Q0 * Qu on cuts, shelves and tilt; Q is not read at 6 dB/oct.
       D10  Bell re-centred above 0.95 pi; notch clamped at 0.95 pi; band pass
-           at 0.9 pi; everything else at the true frequency.
+           at 0.9 pi. Shelf / tilt second-order sections: a pair (zeros or
+           poles) above 0.95 pi is designed lower, toward 0.95 pi, with an
+           effective Q; the move fades in on the pair's Q between the two
+           shelfRecentreQ constants (RESEARCH-2.1b-continuity Q4 a). The true
+           side is never changed. Everything else at the true frequency.
 
     The arithmetic follows tests/model/eqmodel.py operation for operation, and
     every product that feeds a sum sits in its own statement, so a compiler
@@ -61,6 +66,9 @@ namespace eq
 {
 
 inline constexpr double bellRecentre  = 0.95;     // x pi
+inline constexpr double shelfRecentre = 0.95;     // x pi
+inline constexpr double shelfRecentreQLo = 1.5;   // pair Q at or below which a shelf pair is not moved
+inline constexpr double shelfRecentreQHi = 4.0;   // pair Q at or above which it is moved all the way
 inline constexpr double notchClamp    = 0.95;     // x pi
 inline constexpr double bandPassClamp = 0.9;      // x pi
 inline constexpr double recentreQMin  = 0.025;
@@ -88,8 +96,10 @@ struct AnalogBand
 {
     int numSections;
     std::array<SectionClass,  maxSections> cls;
-    std::array<AnalogSection, maxSections> designSide;
-    std::array<AnalogSection, maxSections> trueSide;
+    std::array<AnalogSection, maxSections> designSide;  // what the closed form realises; differs from trueSide
+                                                        // for a re-centred bell, a re-centred shelf / tilt
+                                                        // pair, a clamped notch or band pass
+    std::array<AnalogSection, maxSections> trueSide;    // the prototype itself: scoring and polish target
     std::array<double,        maxSections> shelfGain;   // gain1: the section's own linear gain (>= 1)
     std::array<bool,          maxSections> shelfHigh;   // gain1: high-shelf side
     double wc;                                          // true corner / centre, rad/sample
@@ -152,7 +162,50 @@ namespace detail
         ++out.numSections;
     }
 
-    /** Boost-side shelf of the given order (gain >= 1). */
+    /** Design-side image of one pair (w0, Q) of a shelf / tilt second-order
+        section, in place.
+
+          wL = shelfRecentre pi;  w0 <= wL: unchanged
+          beta = smoothStep ((ln Q - ln QLo) / (ln QHi - ln QLo));  beta <= 0: unchanged
+          wT = exp (ln w0 + beta (ln wL - ln w0)),  x = wT / w0
+          Qe = 1 / sqrt ((1 - x^2)^2 + x^2 / Q^2), clamped to [recentreQMin, recentreQMax]
+
+        The pair keeps its DC value and its magnitude at wT. Both early
+        returns are value-continuous (Qe = Q at w0 = wL; no move at beta = 0),
+        and they keep every pair outside the region bit-identical to the
+        plain closed form. */
+    inline void recentrePair (double& w0, double& Q) noexcept
+    {
+        const double wL = shelfRecentre * pi;
+
+        if (! (w0 > wL))
+            return;
+
+        const double lo = std::log (shelfRecentreQLo);
+        const double hi = std::log (shelfRecentreQHi);
+        const double beta = smoothStep ((std::log (Q) - lo) / (hi - lo));
+
+        if (! (beta > 0.0))
+            return;
+
+        const double lw0 = std::log (w0);
+        const double span = std::log (wL) - lw0;
+        const double move = beta * span;
+        const double wT = std::exp (lw0 + move);
+        const double x = wT / w0;
+        const double x2 = x * x;
+        const double oneMinusX2 = 1.0 - x2;
+        const double oneMinusX2Sq = oneMinusX2 * oneMinusX2;
+        const double x2OverQ2 = x2 / (Q * Q);
+        const double P = oneMinusX2Sq + x2OverQ2;
+        const double Qe = 1.0 / std::sqrt (P);
+
+        w0 = wT;
+        Q = minOf (maxOf (Qe, recentreQMin), recentreQMax);
+    }
+
+    /** Boost-side shelf of the given order (gain >= 1). The second-order
+        sections are designed from their re-centred pairs. */
     inline void shelfSections (AnalogBand& out, double wc, double Qu, double gainDbAbs, int order, bool high) noexcept
     {
         const double orderD = static_cast<double> (order);
@@ -166,7 +219,10 @@ namespace detail
 
             const AnalogSection a = high ? AnalogSection { wc / r, Q, wc * r, Q, 1.0 }
                                          : AnalogSection { wc * r, Q, wc / r, Q, std::pow (Gl, 2.0 / orderD) };
-            addSection (out, SectionClass::gain2, a, a, 1.0, high);
+            AnalogSection d = a;
+            recentrePair (d.wz, d.Qz);
+            recentrePair (d.wp, d.Qp);
+            addSection (out, SectionClass::gain2, d, a, 1.0, high);
         }
 
         if (order % 2 != 0)
