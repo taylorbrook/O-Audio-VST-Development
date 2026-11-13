@@ -1,0 +1,312 @@
+# v1 UI Design Specification
+# Generated: 2026-11-12
+# Plugin: O-ParametricEQ
+# Phase A (design iteration) - awaiting user approval. Companion: v1-ui-test.html
+# Binding parameter layout: research/ARCHITECTURE.md "Parameter Mapping" (196 host parameters).
+
+window:
+  width: 960
+  height: 600
+  resizable: true
+  min: { width: 800, height: 500 }
+  max: { width: 1600, height: 1000 }
+  aspect_locked: false
+  resize_model: flex            # header and band strip keep fixed heights; the response display takes all extra space
+  resize_affordance: corner grip, bottom-right, 13 x 13
+  note: >
+    Deviates from ui-design-rules Rule 4 (fixed frame, or whole-page scale with a locked aspect) by user decision:
+    the layout reflows. Stage 3 needs a hands-on DAW resize check at min, default and max.
+
+aesthetic:
+  template: ouaricon-naturalist-001
+  ground: paper with ink curves (light theme; the display IS the paper)
+  illustration:
+    subject: Emperor dragonfly (Anax imperator), dorsal view, wings spread
+    rationale: >
+      Transparent wings and exact venation for a transparent, exact EQ. The aesthetic maps
+      "precise / technical" to insects with clear structure; O-AnalogEQ already carries a flower.
+    placement: faint plate behind the grid, right 60 % of the display, rotated -21 deg, 30 % opacity sepia hairlines
+    asset: inline procedural SVG placeholder in the test HTML; production needs a real engraving (PNG, transparent ground)
+    legibility: hairlines only (0.4 - 1 px), no fills over the plot; curves, fills and nodes paint above it
+
+colors:
+  paper_light: "#FAF0E6"        # display ground, value wells
+  paper: "#F5E6D3"              # frame ground, top
+  paper_mid: "#EBD9C7"          # frame ground, bottom
+  paper_deep: "#E8D0B8"         # strip, deepest stop
+  rule: "#8B7355"               # borders and grid only, never text
+  frame: "#5C4033"
+  ink: "#3C2F2F"                # primary text, summed curve (11.4:1 on paper_light)
+  ink_2: "#5C4033"              # captions (6.3:1 on paper_deep)
+  ink_3: "#6A5641"              # axis labels, units (6.2:1 on paper_light, 4.68:1 on paper_deep)
+  sage_fill: "#4E6839"          # active toggles / segments; paper text on it 5.10:1
+  sage_ink: "#2C3E10"
+  madder_warn: "#A23B2E"        # bypass-on fill, meter over 0 dB; paper text on it 5.83:1
+  analyzer_graphite: "rgba(72, 66, 62, 0.04 - 0.28)"
+  band_pigments:                # by band index, cycle of 8 repeating x3; paper_light text on each >= 4.5:1
+    - { name: ochre,         hex: "#8F6212", contrast: 4.76 }
+    - { name: madder,        hex: "#A23B2E", contrast: 5.83 }
+    - { name: verdigris,     hex: "#2C7265", contrast: 5.04 }
+    - { name: indigo,        hex: "#34406E", contrast: 8.87 }
+    - { name: sienna,        hex: "#8A4B22", contrast: 6.00 }
+    - { name: sap green,     hex: "#55703E", contrast: 4.95 }
+    - { name: tyrian,        hex: "#7A3F6A", contrast: 6.80 }
+    - { name: prussian blue, hex: "#1F5673", contrast: 7.08 }
+
+typography:
+  header: "'EB Garamond', Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif"
+  body: "'EB Garamond', Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif"
+  features: "lnum, tnum (tabular lining figures on every numeric readout)"
+  size:
+    title: "16px, uppercase, 0.16em"
+    value: "13.5px (strip), 12px (output)"
+    caption: "9.5px, uppercase, 0.1em"
+    axis: "10.5px (canvas)"
+    floor: "9.5px"
+  canvas_text: document.fonts.load() for regular and italic resolves before the first canvas paint
+
+layout:
+  type: custom                  # CSS grid: columns [1fr 124px], rows [40px 1fr 76px]; outer edge 16px
+  sections:
+    - id: header
+      height: 40
+      controls: [title, preset_manager, analyzer_mode, bypass]
+    - id: stage
+      flex: 1
+      controls: [response_display, band_chips, display_range]
+    - id: output
+      width: 124
+      controls: [output_meter, output_gain, gain_scale, auto_gain]
+    - id: strip
+      height: 76
+      controls: [band_id, band_type, band_freq, band_gain, band_q, band_slope, band_placement, band_bypass, band_listen, band_delete, resize_grip]
+  proportions_at_default: display 820 x 440 (73 % of height); 660 x 340 at minimum; 1460 x 840 at maximum
+
+# Positions are measured from the rendered test HTML at the 960 x 600 default (Chrome, device pixels = CSS px).
+controls:
+  - id: bypass
+    type: button
+    label: "Bypass"
+    parameter: "bypass"
+    parameter_type: bool
+    default: false
+    position: { x: 868, y: 6 }
+    size: { width: 76, height: 26 }
+
+  - id: output_gain
+    type: rotary-knob            # seed cross-section knob + typed readout to its right
+    label: "Output gain"
+    parameter: "output_gain"
+    range: [-36.0, 36.0]
+    unit: "dB"
+    default: 0.0
+    decimals: 1
+    position: { x: 848, y: 380 }
+    size: { width: 96, height: 40 }
+
+  - id: gain_scale
+    type: rotary-knob
+    label: "Gain scale"
+    parameter: "gain_scale"
+    range: [0.0, 200.0]
+    unit: "%"
+    default: 100.0
+    decimals: 0
+    position: { x: 848, y: 444 }
+    size: { width: 96, height: 40 }
+
+  - id: auto_gain
+    type: button
+    label: "Auto gain"
+    parameter: "auto_gain"
+    parameter_type: bool
+    default: false
+    position: { x: 848, y: 492 }
+    size: { width: 96, height: 26 }
+
+  # ----- selected-band strip: one set of controls, re-bound to bNN_ of the selected band (NN = 01 ... 24) -----
+  - id: band_type
+    type: combo-box
+    label: "Type"
+    parameter: "bNN_type"
+    parameter_type: choice
+    choices: ["Bell", "Low Shelf", "High Shelf", "Low Cut", "High Cut", "Notch", "Band Pass", "Tilt Shelf"]
+    default: 0
+    position: { x: 83, y: 557 }
+    size: { width: 132, height: 28 }
+    min_width: 124
+    note: shape icon in the band pigment at the left of the select
+
+  - id: band_freq
+    type: value-field            # drag (Shift = fine), wheel, typed entry, double-click reset
+    label: "Frequency"
+    parameter: "bNN_freq"
+    range: [10.0, 30000.0]
+    unit: "Hz"
+    default: 1000.0
+    skew: 0.203214               # setSkewForCentre(1000); the page draws on a true log axis
+    position: { x: 223, y: 557 }
+    size: { width: 96, height: 28 }
+    min_width: 72
+
+  - id: band_gain
+    type: value-field
+    label: "Gain"
+    parameter: "bNN_gain"
+    range: [-30.0, 30.0]
+    unit: "dB"
+    default: 0.0
+    decimals: 1
+    position: { x: 327, y: 557 }
+    size: { width: 96, height: 28 }
+    min_width: 60
+    disabled_for: ["Low Cut", "High Cut", "Notch", "Band Pass"]
+
+  - id: band_q
+    type: value-field
+    label: "Q"
+    parameter: "bNN_q"
+    range: [0.025, 40.0]
+    default: 1.0
+    skew: 0.186652               # setSkewForCentre(1.0)
+    position: { x: 431, y: 557 }
+    size: { width: 96, height: 28 }
+    min_width: 48
+
+  - id: band_slope
+    type: combo-box
+    label: "Slope"
+    parameter: "bNN_slope"
+    parameter_type: choice
+    choices: ["6 dB/oct", "12 dB/oct", "18 dB/oct", "24 dB/oct", "36 dB/oct", "48 dB/oct", "72 dB/oct", "96 dB/oct"]
+    default: 1
+    position: { x: 535, y: 557 }
+    size: { width: 100, height: 28 }
+    min_width: 88
+    disabled_for: ["Bell", "Notch", "Band Pass"]
+
+  - id: band_placement
+    type: segmented              # 5 segments
+    label: "Placement"
+    parameter: "bNN_placement"
+    parameter_type: choice
+    choices: ["Stereo", "Left", "Right", "Mid", "Side"]
+    glyphs: ["LR", "L", "R", "M", "S"]
+    default: 0
+    position: { x: 658, y: 557 }
+    size: { width: 136, height: 28 }
+
+  - id: band_bypass
+    type: button                 # icon button, tooltip + aria-label carry the words
+    label: "Bypass band"
+    parameter: "bNN_bypass"
+    parameter_type: bool
+    default: false
+    position: { x: 842, y: 557 }
+    size: { width: 30, height: 28 }
+
+  - id: band_delete
+    type: button                 # icon button; writes bNN_enabled = false. Delete / Backspace does the same.
+    label: "Delete band"
+    parameter: "bNN_enabled"
+    parameter_type: bool
+    default: false
+    position: { x: 914, y: 557 }
+    size: { width: 30, height: 28 }
+
+ui_state_controls:               # session UI state, NOT host parameters
+  - id: analyzer_mode
+    type: segmented
+    label: "Analyzer"
+    choices: ["Off", "Pre", "Post", "Pre+Post"]
+    default: "Post"
+    position: { x: 684, y: 6 }
+    size: { width: 170, height: 26 }
+  - id: display_range
+    type: segmented
+    label: "Display range"
+    choices: ["±6", "±12", "±30"]
+    unit: "dB"
+    default: "±12"
+    position: { x: 721, y: 494 }
+    size: { width: 94, height: 24 }
+  - id: band_listen
+    type: button
+    label: "Listen"
+    note: visual state only in the mockup (FUNC-08); one band at a time
+    position: { x: 878, y: 557 }
+    size: { width: 30, height: 28 }
+  - id: band_chips
+    type: chip-row               # 24 chips, equal flex columns, 3px gap
+    states: "empty (dotted, walnut numeral) / exists (pigment bar) / bypassed (hollow bar) / selected (pigment fill, paper numeral)"
+    action: click an existing band selects it; click an empty chip enables that band index at its stored values
+    position: { x: 16, y: 494 }
+    size: { width: 695, height: 24 }
+  - id: selected_band
+    type: state
+    default: 2
+  - id: window_size
+    type: state
+    default: [960, 600]
+
+special_elements:
+  - id: response_display
+    type: eq-curve-display
+    position: { x: 16, y: 48 }
+    size: { width: 820, height: 440 }
+    frequency_range: [10, 30000]          # log axis, decades labelled; 2 / 5 multiples labelled when the plot is wider than 520 px
+    gain_range: "±6 / ±12 / ±30 dB (display_range)"
+    axis: gutters (left 38, bottom 22, top 12, right 14) are inside the bordered box and drawn in the same canvas as the plot
+    layers: [paper, dragonfly plate, sepia grid, analyzer wash, per-band pigment wash, per-band pigment line, ink summed curve, nodes, hover readout]
+    node: 20 px pigment disc with the band number; selected = ink ring; bypassed = hollow, dashed; listening = pulsing halo + pigment column
+    placement_badge: "L / R / M / S in a small paper disc at the node's upper right; Stereo carries no badge"
+    interaction:
+      - click empty plot: create the next free band at that frequency / gain (bNN_enabled = true) and keep dragging it
+      - drag node: bNN_freq + bNN_gain (gesture begin / end on both)
+      - scroll on node: bNN_q (Shift = fine)
+      - double-click node: reset bNN_gain
+      - hover / drag: readout box, clamped inside the plot
+    data_source: mockup uses analog-prototype magnitudes; production evaluates the closed form from pushed section parameters (UI-02)
+  - id: output_meter
+    type: level-meter
+    module: vu-meter 1.0.0 (placeholder drawn in the mockup)
+    position: { x: 848, y: 68 }
+    size: { width: 96, height: 288 }
+    range: [-60, 6]
+    orientation: vertical
+    note: ruler sits inside the same bordered box as the bars
+  - id: preset_manager
+    type: module-placeholder
+    module: preset-manager 1.1.1
+    position: { x: 251, y: 6 }
+    size: { width: 330, height: 26 }
+    min_width: 150
+  - id: resize_grip
+    type: resize-affordance
+    position: { x: 945, y: 585 }
+    size: { width: 13, height: 13 }
+
+reserved_not_exposed:
+  - bNN_dyn_range
+  - bNN_dyn_threshold
+  - bNN_dyn_auto
+
+localisation_budget:
+  - strip captions sit above their controls and never share a line with a value; widest French caption (FRÉQUENCE) fits the 72 px minimum cell
+  - band bypass / listen / delete are icon buttons, so the three action labels cost no width in any language
+  - Type select holds 124 px at the minimum window (French "Plateau incliné" is the widest entry to verify)
+  - output captions have the full 96 px column; "ÉCHELLE DE GAIN" is the one to verify
+
+open_questions:
+  - Header controls sit 6 px from the top edge (thin 40 px header by request); the generic 15 px edge-padding rule would cost 16 px of display height.
+  - Summed curve is a single ink line over all placements. With L / R / M / S bands the true response differs per channel; show per-placement summed curves, or one curve for the selected band's placement?
+  - A single click on a value field opens typed entry after the double-click window (240 ms) so that double-click can reset. Acceptable, or move reset to Alt-click?
+  - Stereo uses the glyph LR (not S / St) so that S can mean Side, as in M/S convention.
+  - Dragonfly is a new subject; the image library has no dragonfly plate yet.
+
+notes:
+  - All positions in pixels from top-left (0,0) at the 960 x 600 default
+  - Parameter IDs must match PluginProcessor APVTS; bNN_ expands to b01_ ... b24_
+  - 196 host parameters, none added or renamed by this mockup
+  - Text contrast figures are WCAG 2.x ratios on flat colour; no text is dimmed with opacity
+  - Tooltip element lives outside the plugin root and is clamped to the frame

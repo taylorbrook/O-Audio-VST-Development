@@ -2,7 +2,7 @@
 plugin: O-ParametricEQ
 stage: 0
 status: complete
-last_updated: 2026-11-12 15:30:00
+last_updated: 2026-11-12 18:50:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
@@ -10,6 +10,8 @@ next_action: invoke_foundation_shell_agent
 next_stage: 1
 ready_for_implementation: true
 blocked_on: parameter-spec.md (mockup finalization)
+latest_mockup_version: 1
+mockup_finalized: false
 contract_checksums:
   brief: sha256:8d3242ebdc9a07001f5e25e759969d4d4b84d5798ecfcbff0f6502f0ebbf8edb
   parameter_spec: sha256:d2e3f4a88cf089fb654852f71005f6692018d72c57a827fcfd54998055798e44
@@ -49,6 +51,10 @@ Progress: [##..................] 10%
 - Strategy: staged implementation (Stage 2 in 6 phases, Stage 3 in 3 phases)
 - **Stage 0:** Research & Planning complete - ARCHITECTURE.md and ROADMAP.md documented (Complexity 5.0)
 
+**UI mockup (Phase A, design iteration):** v1 design created, awaiting user approval
+- `mockups/v1-ui.yaml` + `mockups/v1-ui-test.html` (960 × 600, resizable 800 × 500 – 1600 × 1000, paper ground, dragonfly plate)
+- Not finalized: no Phase B files, `parameter-spec.md` still to be written at finalization
+
 ## Next Steps
 
 1. Create and finalize the UI mockup: `/start O-ParametricEQ` → option 3. This writes `parameter-spec.md`, which is still required before Stage 1. The mockup must adopt the layout in `research/ARCHITECTURE.md` "Parameter Mapping".
@@ -87,3 +93,5 @@ Progress: [##..................] 10%
 - plugins/O-ParametricEQ/.planning/research/ARCHITECTURE.md
 - plugins/O-ParametricEQ/.planning/ROADMAP.md
 - plugins/O-ParametricEQ/.planning/stages/0-ideation/CONTEXT.md
+- plugins/O-ParametricEQ/.planning/mockups/v1-ui.yaml
+- plugins/O-ParametricEQ/.planning/mockups/v1-ui-test.html
