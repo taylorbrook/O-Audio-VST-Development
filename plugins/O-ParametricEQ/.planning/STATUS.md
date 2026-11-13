@@ -1,12 +1,13 @@
 ---
 plugin: O-ParametricEQ
-stage: 0
-status: complete
-last_updated: 2026-11-12 19:48:43
+stage: 1
+phase: discuss
+status: stage_1_discuss_complete
+last_updated: 2026-11-12 20:10:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: proceed_to_stage_1
+next_action: plugin_research_stage_1
 next_stage: 1
 ready_for_implementation: true
 blocked_on: none
@@ -28,8 +29,8 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 0 of 4 (Ideation / Research and Planning) — complete
-Status: Research and planning complete, UI mockup v1 finalized with implementation scaffolding, `parameter-spec.md` written; ready for Stage 1
+Stage: 1 of 4 (Foundation) — discuss complete
+Status: Stage 1 context gathered (`stages/1-foundation/CONTEXT.md`); next is research
 Progress: [##..................] 10%
 
 `parameter_spec` checksum above is of `parameter-spec.md` (written by mockup finalization, 2026-11-12; 196 host parameters). `parameter-spec-draft.md` is kept for reference and is superseded.
@@ -61,11 +62,22 @@ Progress: [##..................] 10%
 - Phase B (implementation scaffolding) complete 2026-11-12: `mockups/v1-ui.html`, `v1-i18n.js`, `v1-PluginEditor-TEMPLATE.h/.cpp`, `v1-CMakeLists-SNIPPET.txt`, `v1-integration-checklist.md`; `parameter-spec.md` written (196 host parameters per ARCHITECTURE.md "Parameter Mapping")
 - Stage 3 decisions carried from the mockup's open questions are listed in `mockups/v1-integration-checklist.md`
 
+## Phase Progress
+
+### Stage 1: Foundation
+| Phase | Status | Date | Skipped |
+|-------|--------|------|---------|
+| discuss | ✓ | 2026-11-12 | |
+| research | → | | |
+| plan | | | |
+| execute | | | |
+| verify | | | |
+
 ## Next Steps
 
 1. ~~Create and finalize the UI mockup~~ Done 2026-11-12: mockup v1 finalized, implementation scaffolding generated, `parameter-spec.md` written with the layout in `research/ARCHITECTURE.md` "Parameter Mapping".
-2. Answer the items under "Needs the user's call before Stage 1" in `stages/0-ideation/CONTEXT.md` (items 3 and 6 change `parameter-spec.md`).
-3. Stage 1: Foundation — `/implement O-ParametricEQ`
+2. ~~Answer the items under "Needs the user's call before Stage 1"~~ Items 3 and 6 answered 2026-11-12 (196 parameters, `b01_` IDs; no spec change). Items 1, 2, 4, 5, 7, 8 are deferred to Stage 2 discuss.
+3. Stage 1 research — `/plugin-research O-ParametricEQ`
 4. Pause here
 
 ## Context to Preserve
