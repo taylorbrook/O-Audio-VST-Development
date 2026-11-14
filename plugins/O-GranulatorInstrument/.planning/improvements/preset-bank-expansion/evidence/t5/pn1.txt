@@ -1,0 +1,10 @@
+== O-GranulatorInstrument preset_name_fit (PN1 / PN1n) — 100 names ==
+  FAIL: parsed 100 names from FactoryPresets.h (want 160)
+  PASS: PN1 en: 100 names in .pname b — widest "Expressive · Wheel Morph" 139 / 139 px
+  PASS: PN1 en: 100 names in .pm-item — 0 overflow
+  PASS: PN1 fr: 100 names in .pname b — widest "Expressive · Wheel Morph" 139 / 139 px
+  PASS: PN1 fr: 100 names in .pm-item — 0 overflow
+  PASS: PN1 zh-Hans: 100 names in .pname b — widest "Expressive · Wheel Morph" 139 / 139 px
+  PASS: PN1 zh-Hans: 100 names in .pm-item — 0 overflow
+  PASS: PN1n a 40-character name overflows the box (215 / 152 px) — the gate is live
+1 FAILURE(S)

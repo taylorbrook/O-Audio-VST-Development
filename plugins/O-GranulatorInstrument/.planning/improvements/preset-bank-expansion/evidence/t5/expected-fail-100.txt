@@ -1,0 +1,25 @@
+T5 expected-fail list at the 100-preset bank (Keys / Pads / Drones 20 / 20), 2026-11-14. A strict subset of evidence/t4/expected-fail-88.txt.
+
+--pg4: 36 PASS / 4 FAIL
+  FP0  (8 failing checks of 627):
+       Expressive count 8 (want 20) | Field count 0 (want 12) | Motion count 8 (want 20)
+       | Rhythmic count 8 (want 20) | Textures count 8 (want 20)
+       | bank 100 / 9 categories (want 160 / 9)
+       | Expressive split 4 / 1 / 2 / 2 (want 8 / >= 1 / 6 / 6)
+       | Field sources stream / park / waves / woods / garden 0 / 0 / 0 / 0 / 0 (want 3 / 3 / 2 / 2 / 2)
+       (Drones count no longer fails; Drones freeze / S&H filter still green.)
+  FSU1 27 / 41 sources in >= 2 presets (14 below 2; was 23 / 41: contrabassoon, metal_plate, wind, fire reach 2;
+       waves 0 -> 1): marimba_bar 1; guitar_drift 1; rain_synth 1; waves 1; bubbles, metal_grate, clicks,
+       pulse_triplet, stick_snaps, scissors, stream, park, woods, garden 0
+  FP1c 100 (want 160)
+  FP3c 8 Rhythmic (want 20)
+Outside --pg4:
+  --dump-factory-presets: rc 1 (100 files, want 160)
+  tests/preset_name_fit.js (PN1): 1 FAILURE "parsed 100 names (want 160)"; every fit line passes (widest still "Expressive · Wheel Morph" 139 px)
+
+Now green (was expected-fail at 88): FRT1 13 / 13 off-C3 slots in tune, 5 / 5 sources (contrabassoon added: Sub Pressure s2,
+Bassoon Pedal s1 + s2; sub: Sub Pressure s1).
+Green: FP2 (spread 6.00 dB, -29.0 Grain Piano .. -23.0 Fifth Bloom; max peak 0.568), the 12 new -27.2 .. -27.0 gated;
+FP0 realism-titled 21 (the 19 + Bassoon Pedal, Organ Fifths), none trips P3;
+FP4 500 / 500 (5 x N), FP1 100 / 100, FP3, FP4b, FP5 (100), FP6, FPT1 + FPT1n, FSU1n, FRT1n, FP0wn.
+--cmp-preset-renders ref-1.2.0 --all-bitwise --exclude-revoiced13: PT0v13 64 old / 0 missing / 36 new; PT0 56 / 56 bitwise.
