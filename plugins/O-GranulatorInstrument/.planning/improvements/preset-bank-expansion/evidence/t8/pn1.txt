@@ -1,0 +1,10 @@
+== O-GranulatorInstrument preset_name_fit (PN1 / PN1n) — 136 names ==
+  FAIL: parsed 136 names from FactoryPresets.h (want 160)
+  PASS: PN1 en: 136 names in .pname b — widest "Rhythmic · Marimba Pulse" 143 / 143 px
+  PASS: PN1 en: 136 names in .pm-item — 0 overflow
+  PASS: PN1 fr: 136 names in .pname b — widest "Rhythmic · Marimba Pulse" 143 / 143 px
+  PASS: PN1 fr: 136 names in .pm-item — 0 overflow
+  PASS: PN1 zh-Hans: 136 names in .pname b — widest "Rhythmic · Marimba Pulse" 143 / 143 px
+  PASS: PN1 zh-Hans: 136 names in .pm-item — 0 overflow
+  PASS: PN1n a 40-character name overflows the box (215 / 152 px) — the gate is live
+1 FAILURE(S)

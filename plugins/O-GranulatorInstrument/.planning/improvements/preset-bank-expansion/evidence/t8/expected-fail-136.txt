@@ -1,0 +1,21 @@
+T8 expected-fail list at the 136-preset bank (Keys / Pads / Drones / Textures / Rhythmic / Motion 20 / 20), 2026-11-14. A strict subset of evidence/t7/expected-fail-124.txt.
+
+--pg4: 37 PASS / 3 FAIL
+  FP0  (5 failing checks of 845):
+       Expressive count 8 (want 20) | Field count 0 (want 12)
+       | bank 136 / 9 categories (want 160 / 9)
+       | Expressive split 4 / 1 / 2 / 2 (want 8 / >= 1 / 6 / 6)
+       | Field sources stream / park / waves / woods / garden 0 / 0 / 0 / 0 / 0 (want 3 / 3 / 2 / 2 / 2)
+       (Motion count no longer fails; Motion rule (>= 6 routes, a per-voice LFO) green on all 20; Motion features green.)
+  FSU1 37 / 41 sources in >= 2 presets (4 below 2; was 35 / 41: guitar_drift and waves reach 2):
+       garden 1; stream, park, woods 0
+  FP1c 136 (want 160)
+Outside --pg4:
+  --dump-factory-presets: rc 1 (136 files, want 160)
+  tests/preset_name_fit.js (PN1): 1 FAILURE "parsed 136 names (want 160)"; every fit line passes (widest unchanged "Rhythmic · Marimba Pulse" 143 px)
+
+Green: FP2 (spread 6.00 dB, -29.0 Grain Piano .. -23.0 Fifth Bloom; max peak 0.609, Stick Groove), the 12 new -28.9 .. -27.0 gated;
+FRT1 19 / 19 off-C3 slots, 5 / 5 sources (Drift Warble s1 / s2 guitar_drift, Crystal Phase s1 / s2 crystal added);
+FP0 realism-titled 23 (no new realism titles), none trips P3;
+FP3c (20 Rhythmic), FP4 680 / 680 (5 x N), FP1 136 / 136, FP4b, FP5 (136), FP6, FPT1 + FPT1n, FSU1n, FRT1n, FP0wn.
+--cmp-preset-renders ref-1.2.0 --all-bitwise --exclude-revoiced13: PT0v13 64 old / 0 missing / 72 new; PT0 56 / 56 bitwise.
