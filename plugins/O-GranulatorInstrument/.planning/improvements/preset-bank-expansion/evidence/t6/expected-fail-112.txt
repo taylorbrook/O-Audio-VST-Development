@@ -1,0 +1,22 @@
+T6 expected-fail list at the 112-preset bank (Keys / Pads / Drones / Textures 20 / 20), 2026-11-14. A strict subset of evidence/t5/expected-fail-100.txt.
+
+--pg4: 36 PASS / 4 FAIL
+  FP0  (7 failing checks of 699):
+       Expressive count 8 (want 20) | Field count 0 (want 12) | Motion count 8 (want 20)
+       | Rhythmic count 8 (want 20)
+       | bank 112 / 9 categories (want 160 / 9)
+       | Expressive split 4 / 1 / 2 / 2 (want 8 / >= 1 / 6 / 6)
+       | Field sources stream / park / waves / woods / garden 0 / 0 / 0 / 0 / 0 (want 3 / 3 / 2 / 2 / 2)
+       (Textures count no longer fails; Textures features still green.)
+  FSU1 33 / 41 sources in >= 2 presets (8 below 2; was 27 / 41: rain_synth, bubbles, metal_grate, clicks,
+       stick_snaps, scissors reach 2): marimba_bar 1; guitar_drift 1; waves 1; pulse_triplet, stream, park, woods, garden 0
+  FP1c 112 (want 160)
+  FP3c 8 Rhythmic (want 20)
+Outside --pg4:
+  --dump-factory-presets: rc 1 (112 files, want 160)
+  tests/preset_name_fit.js (PN1): 1 FAILURE "parsed 112 names (want 160)"; every fit line passes (widest still "Expressive · Wheel Morph" 139 px)
+
+Green: FP2 (spread 6.00 dB, -29.0 Grain Piano .. -23.0 Fifth Bloom; max peak 0.568), the 12 new -27.4 .. -27.0 gated;
+FRT1 14 / 14 off-C3 slots, 5 / 5 sources (Crystal Rain s1 crystal added); FP0 realism-titled 21 (no new realism titles), none trips P3;
+FP4 560 / 560 (5 x N), FP1 112 / 112, FP3, FP4b, FP5 (112), FP6, FPT1 + FPT1n, FSU1n, FRT1n, FP0wn.
+--cmp-preset-renders ref-1.2.0 --all-bitwise --exclude-revoiced13: PT0v13 64 old / 0 missing / 48 new; PT0 56 / 56 bitwise.

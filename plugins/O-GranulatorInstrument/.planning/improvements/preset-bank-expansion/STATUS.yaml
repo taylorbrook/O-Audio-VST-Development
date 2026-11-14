@@ -1,6 +1,6 @@
 milestone: preset-bank-expansion
 created: 2026-11-14T15:18:41Z
-lastActivity: 2026-11-14T23:00:00Z
+lastActivity: 2026-11-14T23:30:00Z
 phases:
   discuss:
     status: complete
@@ -17,7 +17,7 @@ phases:
   execute:
     status: in_progress
     startedAt: 2026-11-14T18:00:00Z
-    lastWaveCommitted: T5
+    lastWaveCommitted: T6
     notes: >-
       T0 backup backups/O-GranulatorInstrument/v1.2.0 + 1.2.0 references (harness-120 binary in
       build/plugins/O-GranulatorInstrument/pbe-ref120-bin, 64 renders in evidence/ref-1.2.0, f32 gitignored).
@@ -43,7 +43,7 @@ phases:
       (evidence/t4/expected-fail-88.txt): FP0 9 checks (6 category counts, no Keys / Pads; bank 88/9; Expressive
       split; Field sources); FSU1 23/41; FRT1 9/9 slots, 4/5 sources; FP1c 88; FP3c 8; dump rc 1; PN1 count.
       Density saturates near 150/s at grain_limit 128 (Breath Cloud 200 read the same as 150).
-      T5 commit: SHA line written after the commit; the next wave commits it.
+      T5 commit 75802b14.
       T5 Drones +12 (Sub Pressure, Bassoon Pedal, Organ Fifths, Endless Bow, Saw Monolith, Shimmer Rise, Wind Tunnel,
       Minor Shroud, Plate Gong, Long Exhale, Hearth Glow, Undertow; seeds ...0101000009-...20): FP2 new -27.2 .. -27.0,
       bank spread 6.00 dB, peak 0.568, P4 not fired; PT0 56 / 56 bitwise. Expected-fail list at 100
@@ -51,6 +51,15 @@ phases:
       Expressive split; Field sources); FSU1 27/41; FP1c 100; FP3c 8; dump rc 1; PN1 count. FRT1 now green
       (13/13 slots, 5/5 sources). Feedback-heavy drones calibrate non-linearly (Wind Tunnel: -5.4 dB trim moved
       it -8.4 dB; took 3 passes); bassoon pedal uses key_track 0 + s1_pitch 4.19 to sit on C1.
+      T6 commit: SHA line written after the commit; the next wave commits it.
+      T6 Textures +12 (Gravel Rain, Bubble Drift, Iron Swarm, Scrap Yard, Paper Cuts, Twig Storm, Geiger Dust,
+      Cicada Night, Breath Static, Ice Shards, Crystal Rain, Gale Shimmer; seeds ...0801000009-...20): FP2 new
+      -27.4 .. -27.0, bank spread 6.00 dB, peak 0.568, P4 not fired; PT0 56 / 56 bitwise. Expected-fail list at 112
+      (evidence/t6/expected-fail-112.txt): FP0 7 checks (4 category counts, no Keys / Pads / Drones / Textures; bank
+      112/9; Expressive split; Field sources); FSU1 33/41 (below 2: marimba_bar, guitar_drift, waves 1; pulse_triplet
+      and the 4 field sources 0); FP1c 112; FP3c 8; dump rc 1; PN1 count. FRT1 14/14 slots. Sparse one-shot sources
+      (scissors, stick_snaps, clicks) and breath read 10-17 dB under target at +6: long grains (150-350 ms), drive,
+      vel_to_amp 0-40 and feedback 35-72 lift them; Paper Cuts needed fb 72 + drive 75 (five passes).
   verify:
     status: pending
 versionBump: minor
