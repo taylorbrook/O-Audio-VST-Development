@@ -4,6 +4,7 @@ stage: 4
 status: installed
 current_phase: 4-polish
 gsd_phase: verify_complete
+activeMilestone: factory-sources-expansion
 last_updated: 2026-11-13
 complexity_score: 5.0
 complexity_tier: 6
@@ -36,6 +37,8 @@ contract_checksums:
 # O-GranulatorInstrument Status
 
 ## Current Position
+
+**Improve v1.1.0 — built and installed, DAW check pending** 2026-11-13 (`/improve`): an empty lane reads "Drop a file or Record or Factory"; Factory opens a list of the 8 built-in sources and loads the pick into that lane (Taylor's choice: empty-lane link only; a loaded lane is cleared first). New: `SlotLoader::requestFactoryLoad` (the preset form of `restoreSlots` for one slot), `Processor::loadFactorySource` (refuses "recording" / "unknown" / "badSlot"), natives `getFactorySources` + `loadFactorySlot` (surface 34 → 36), `ogi::factoryDisplayName`, `#factory-list` + `lane-factory-N`, i18n `lane.factory` / `lane-factory` / `aria.factoryList` (fr / zh machine-drafted). No parameter, no state-format change. Gates: harness row FL1 (new) + FSP1 pass, `ui_frontend_check.js` ALL PASS (pins 36 / 22), check-i18n, fr / zh lint 0 findings for this plugin, stub page click / keyboard / dismiss / 3-language fit. auval lists `aumu OuGI OuDv`. Backup `backups/O-GranulatorInstrument/v1.0.0/`. No tag.
 
 **Stage 4 VERIFIED ✓** 2026-11-13 (`stages/4-polish/VERIFICATION-R2.md`). R2 retest recorded: Taylor reported all 45 rows passing; sheet 255 / 255, F3 closed. Decisions: R2-3 keep the 6 dB latch; R2-5, R2-9, R2-10 (b) accepted. Confirmed as design (D45): a preset replaces only the lanes it lists. REQUIREMENTS 22 complete / 3 partial (FUNC-02, UI-01 Windows rows at `/publish`, D54; COMPAT-02 → 1.0.x, D57). No tag. Open housekeeping: USV1 timing flake (VERIFICATION-R2 issue 1). Next: `/install-plugin O-GranulatorInstrument`.
 

@@ -324,6 +324,44 @@ namespace { namespace pg4
             t.join();
     }
 
+    //==========================================================================
+    // FL1 — 1.1.0: a built-in source picked for a lane (loadFactorySource)
+    //==========================================================================
+    void rowFL1()
+    {
+        eg21::Session s (kFsP, eg21::P {}, eg21::kSeed, 512);
+        auto& p = *s.p;
+        const auto e0 = p.loadFactorySource (0, "drone");
+        p.getLoader().waitForIdle (20000);
+        const auto gen0 = p.getSlotInfo (0).generation;
+        const auto gen3 = p.getSlotInfo (3).generation;
+
+        const auto e2 = p.loadFactorySource (2, "noise_bed");
+        p.getLoader().waitForIdle (20000);
+        const auto i0 = p.getSlotInfo (0), i2 = p.getSlotInfo (2);
+        const bool loaded = e0.isEmpty() && e2.isEmpty()
+                         && i0.loaded && i0.source == "factory:drone" && i0.name == "Drone" && i0.contentHash == ogi::kHashDrone
+                         && i2.loaded && i2.source == "factory:noise_bed" && i2.name == "Noise Bed"
+                         && i2.hasHash && i2.contentHash == ogi::kHashNoiseBed && i2.resolvedBy == 4 && ! i2.embed && ! i2.missing;
+        const bool others = i0.generation == gen0 && ! p.getSlotInfo (1).loaded && p.getSlotInfo (1).source.isEmpty();
+
+        const auto eU = p.loadFactorySource (3, "no_such_source");
+        const auto eB = p.loadFactorySource (4, "drone");
+        p.getLoader().waitForIdle (20000);
+        const auto i3 = p.getSlotInfo (3);
+        const bool refused = eU == "unknown" && eB == "badSlot" && i3.generation == gen3 && ! i3.loaded && i3.source.isEmpty();
+
+        bool saved = false;
+        for (const auto& x : p.getLoader().getSavedSlots())
+            saved = saved || (x.index == 2 && x.source == "factory:noise_bed" && x.name == "Noise Bed" && ! x.embed && x.blob.isEmpty());
+
+        row (loaded && others && refused && saved,
+             "FL1 1.1.0 loadFactorySource: lane 3 <- noise_bed (name, hash, rung 4, never embedded), other lanes untouched, unknown id / bad slot refused, saved as factory:<id>",
+             "meas loaded " + juce::String (loaded ? "yes" : "no") + " (\"" + i2.name + "\", rung " + juce::String (i2.resolvedBy)
+                 + "), others untouched " + (others ? "yes" : "no") + ", refusals \"" + eU + "\" / \"" + eB + "\" " + (refused ? "ok" : "BAD")
+                 + ", saved " + (saved ? "yes" : "no") + " | thr all four");
+    }
+
     /** The fixed lane preload of the Live templates (D45: they keep the user's lanes). */
     void preloadLanes (eg21::Session& s)
     {
@@ -1841,6 +1879,7 @@ namespace { namespace pg4
         section ("4  polish: auval drift set, presets, factory sources, D55 (PLAN-4)");
         if (want ("AU1"))  rowsAU1();
         if (want ("FSP1")) rowsFSP1();
+        if (want ("FL1"))  rowFL1();
         if (want ("FP0"))  rowFP0();
         if (want ("FP1"))  rowsFP1();
         if (want ("FP2"))  rowsFP2();

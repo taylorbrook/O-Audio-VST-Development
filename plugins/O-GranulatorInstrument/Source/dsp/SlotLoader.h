@@ -202,6 +202,12 @@ namespace ogi
 
         // Message thread.
         void requestSlotLoad (int slot, const juce::File& file);
+        /** Message thread (1.1.0): loads the built-in source `id` into the slot
+            — the factory rung of a restore (decoded from memory on the worker,
+            never embedded), under factoryDisplayName (id). The other slots are
+            not touched. False = not queued (bad slot, unknown id, shutting
+            down). */
+        bool requestFactoryLoad (int slot, const juce::String& id);
         void requestRebuild (int slot, double rate);
         /** PLAN-2.4 PD6: Reset = an off-thread rebuild of the slot's working copy
             from its pristine at the session rate (slot −1 = all four). Bypasses

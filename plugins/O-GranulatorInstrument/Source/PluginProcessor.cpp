@@ -1675,6 +1675,21 @@ juce::String GranulatorInstrumentProcessor::clearSlot (int slot0)
     return loader->requestClear (slot0) == ogi::SlotLoader::ClearResult::badSlot ? juce::String ("badSlot") : juce::String();
 }
 
+juce::String GranulatorInstrumentProcessor::loadFactorySource (int slot0, const juce::String& id)
+{
+    if (slot0 < 0 || slot0 >= ogi::kTapeSlots)
+        return "badSlot";
+
+    // As clearSlot: the take's commit would land after this load and replace it.
+    const auto& recorder = engine->getRecorder();
+    const auto state = static_cast<ogi::RecState> (recorder.getPackedState() & 0xffu);
+    if ((state == ogi::RecState::Recording || state == ogi::RecState::Committing)
+        && recorder.getTargetSlotTelemetry() == slot0)
+        return "recording";
+
+    return loader->requestFactoryLoad (slot0, id) ? juce::String() : juce::String ("unknown");
+}
+
 bool GranulatorInstrumentProcessor::importDroppedFile (int slot0, const juce::File& tempFile, const juce::String& displayName)
 {
     return loader->requestImport (slot0, tempFile, displayName);

@@ -559,6 +559,23 @@ void SlotLoader::requestSlotLoad (int slot, const juce::File& file)
     pool.addJob (job, true);
 }
 
+bool SlotLoader::requestFactoryLoad (int slot, const juce::String& id)
+{
+    FactoryEntry e;
+    if (! validSlot (slot) || shuttingDown.load (std::memory_order_acquire) || ! findFactory (id, e))
+        return false;
+
+    // One listed slot, nothing else cleared (the preset form of a restore).
+    // Without a hash the identical-source no-op cannot match, so picking the
+    // source a lane already holds reloads it.
+    SavedSlot want;
+    want.index  = slot;
+    want.source = kFactory + id;
+    want.name   = factoryDisplayName (id);
+    restoreSlots ({ want }, false);
+    return true;
+}
+
 void SlotLoader::setSessionRate (double fs)
 {
     if (! (fs > 0.0))

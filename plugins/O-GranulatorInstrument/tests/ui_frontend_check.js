@@ -27,7 +27,7 @@
     Copied from plugins/O-Granulator/tests/ui_frontend_check.js and adapted:
     293 parameters through three editor ID tables (200 / 74 / 19), ten page
     binders (knob, fader, lane handle, root field, choice knob, segment row,
-    <select>, rec_target radio, scale trigger, toggle), 34 native functions
+    <select>, rec_target radio, scale trigger, toggle), 36 native functions
     spread over the page + preset-manager.js + webview-drop-streaming.js, a
     drop-session manager between the relays and the WebView.
 
@@ -37,7 +37,7 @@
       2. TDZ discipline: exactly one top-level init() call, the LAST statement.
       3. Bridge closure: native names used by the page (getNativeFunction,
          callNative, slotAction) + preset-manager.js + webview-drop-streaming.js
-         == withNativeFunction names == 34, both directions, none twice; every
+         == withNativeFunction names == 36 (1.1.0: + getFactorySources, loadFactorySlot), both directions, none twice; every
          async dialog hoists a SafePointer and bare-returns on a dead editor.
       4. The `Juce` ES-module namespace is imported and passed to every binder,
          to the preset manager and to the drop module.
@@ -140,7 +140,7 @@ const overridesPath = path.join(pluginRoot, 'tests', 'ui-stub', 'generic-overrid
 const paramDumpBin  = argVal('--param-dump') || path.join(repoRoot, 'build', 'plugins', PLUGIN,
     `${PLUGIN}-param-dump_artefacts`, 'Release', `${PLUGIN}-param-dump`);
 
-const N_FLOAT = 200, N_CHOICE = 74, N_BOOL = 19, N_PARAMS = 293, N_NATIVE = 34;
+const N_FLOAT = 200, N_CHOICE = 74, N_BOOL = 19, N_PARAMS = 293, N_NATIVE = 36;
 
 // ───────────────────────────────────────────── negative controls (PD18) ──
 if (argv.includes('--negative-controls') || argv.includes('--nc')) {
@@ -274,7 +274,7 @@ console.log('-- [3] native-function bridge closure');
     const regList = [...editorCpp.matchAll(/\.withNativeFunction\s*\(\s*"([A-Za-z]+)"/g)].map((m) => m[1]);
     const reg = new Set(regList);
     const anyReg = (editorCpp.match(/\.withNativeFunction\s*\(/g) || []).length;
-    check(pageNames.size === 20, `[3] page uses 20 native fns (found ${pageNames.size})`);
+    check(pageNames.size === 22, `[3] page uses 22 native fns (found ${pageNames.size})`);
     check(pmNames.size === 10, `[3] preset-manager.js uses 10 native fns (found ${pmNames.size})`);
     check(dropNames.size === 4, `[3] webview-drop-streaming.js uses 4 native fns (found ${dropNames.size})`);
     check(pageNames.size + pmNames.size + dropNames.size === used.size, '[3] the three name sets are disjoint');

@@ -8033,6 +8033,16 @@
         0
       ]
     },
+    "getFactorySources": [
+      { "id": "harmonic", "name": "Harmonic" },
+      { "id": "pluck", "name": "Pluck" },
+      { "id": "bell", "name": "Bell" },
+      { "id": "vowel", "name": "Vowel" },
+      { "id": "noise_bed", "name": "Noise Bed" },
+      { "id": "dust", "name": "Dust" },
+      { "id": "drone", "name": "Drone" },
+      { "id": "pulse", "name": "Pulse" }
+    ],
     "getUiLanguage": "en"
   }
 }

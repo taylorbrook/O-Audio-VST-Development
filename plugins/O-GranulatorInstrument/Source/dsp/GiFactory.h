@@ -134,6 +134,17 @@ namespace ogi
         return {};
     }
 
+    /** The name a lane shows for a factory source picked in the page: the id
+        with underscores as spaces, each word capitalised ("noise_bed" ->
+        "Noise Bed") — the spelling the factory presets carry. */
+    inline juce::String factoryDisplayName (const juce::String& id)
+    {
+        auto words = juce::StringArray::fromTokens (id, "_", "");
+        for (auto& w : words)
+            w = w.substring (0, 1).toUpperCase() + w.substring (1);
+        return words.joinIntoString (" ");
+    }
+
     /** factory:<id> lookup (exact id). False when unknown. No disk access. */
     inline bool findFactory (const juce::String& id, FactoryEntry& out) noexcept
     {

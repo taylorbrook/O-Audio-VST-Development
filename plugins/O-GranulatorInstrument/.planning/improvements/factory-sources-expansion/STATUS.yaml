@@ -1,0 +1,18 @@
+milestone: factory-sources-expansion
+created: 2026-11-13T23:34:03Z
+lastActivity: 2026-11-13T23:34:03Z
+phases:
+  discuss:
+    status: in_progress
+    startedAt: 2026-11-13T23:34:03Z
+  research:
+    status: pending
+  plan:
+    status: pending
+  execute:
+    status: pending
+  verify:
+    status: pending
+versionBump: minor
+baseVersion: 1.1.0
+targetVersion: 1.2.0

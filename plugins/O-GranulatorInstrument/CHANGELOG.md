@@ -1,5 +1,16 @@
 # O-GranulatorInstrument Changelog
 
+## [1.1.0] - 2026-11-13
+
+### Added
+
+- **Pick a built-in source from an empty lane.** An empty lane now reads "Drop a file or Record or Factory". Factory opens a list of the 8 built-in sources (Harmonic, Pluck, Bell, Vowel, Noise Bed, Dust, Drone, Pulse); pick one and it loads into that lane. To change a lane that already holds audio, clear it first. Until now the built-in sources could only arrive with a preset.
+
+### Notes
+
+- No parameter or session-format change: a lane loaded this way is saved exactly like one a factory preset loaded, so sessions and presets from 1.0.0 load unchanged, and a 1.1.0 session opens in 1.0.0.
+- A built-in source cannot be picked for a lane while a recording is running into it.
+
 ## [1.0.0] - 2026-11-13
 
 The first release: a polyphonic granular instrument that plays four lanes of audio — your files, recordings from the sidechain, or the built-in sources — as up to four grain streams per voice.

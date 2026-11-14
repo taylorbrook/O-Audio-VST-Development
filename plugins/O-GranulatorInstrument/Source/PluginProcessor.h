@@ -661,6 +661,11 @@ public:
         later sets the slot's lastError (the slot keeps its tape). Message
         thread. */
     bool importDroppedFile (int slot0, const juce::File& tempFile, const juce::String& displayName);
+    /** 1.1.0, message thread: loads the built-in source `id` (GiFactory.h)
+        into the slot. Answers an error key like clearSlot: empty = queued,
+        "badSlot", "recording" (a take is running or being committed into this
+        slot), "unknown" (no such source). */
+    juce::String loadFactorySource (int slot0, const juce::String& id);
 
     /** The answer of saveRecordingTo. ok → `path` is the written file; else
         `error` is one of cancelled | busy | notRecording | empty | inUse |

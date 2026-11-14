@@ -98,6 +98,7 @@
 
 #include "PluginEditor.h"
 #include "GiUiJson.h"
+#include "dsp/GiFactory.h"
 #include "UIBinaryData.h"   // distinct NAMESPACE + HEADER_NAME (CMakeLists, the UI resources target)
 
 namespace
@@ -945,6 +946,35 @@ GranulatorInstrumentEditor::GranulatorInstrumentEditor (GranulatorInstrumentProc
             const int slot0 = slotArg (args);
             if (slot0 < 0) { complete (makeOk (false, "badSlot")); return; }
             launchSlotChooser (slot0, false, complete);
+        });
+
+    // 1.1.0: the built-in sources an empty lane offers. The list is the
+    // curated table only (never the harness stubs); `name` is the lane name
+    // the load installs.
+    options = options.withNativeFunction ("getFactorySources",
+        [] (auto&, auto complete)
+        {
+            juce::Array<juce::var> list;
+            for (int i = 0; i < juce::jmin (ogi::kCuratedFactoryCount, ogi::factoryCount()); ++i)
+            {
+                const juce::String id (ogi::factoryEntry (i).id);
+                auto* o = new juce::DynamicObject();
+                o->setProperty ("id", id);
+                o->setProperty ("name", ogi::factoryDisplayName (id));
+                list.add (juce::var (o));
+            }
+            complete (juce::var (list));
+        });
+
+    // Only enqueues (the loader's worker decodes from memory). The processor
+    // answers an error key: empty = queued, "recording", "unknown", "badSlot".
+    options = options.withNativeFunction ("loadFactorySlot",
+        [this] (auto& args, auto complete)
+        {
+            const int slot0 = slotArg (args);
+            if (slot0 < 0) { complete (makeOk (false, "badSlot")); return; }
+            const auto error = processorRef.loadFactorySource (slot0, objectArg (args).getProperty ("id", {}).toString());
+            complete (makeOk (error.isEmpty(), error));
         });
 
     options = options.withNativeFunction ("relinkSlot",
