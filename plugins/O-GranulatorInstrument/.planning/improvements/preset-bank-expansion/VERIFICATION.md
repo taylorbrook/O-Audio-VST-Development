@@ -9,7 +9,7 @@
 
 ## Verification Summary
 
-**Status:** PASSED — automated gates. The listening hands-on (SUMMARY.md "For Taylor") is still open.
+**Status:** PASSED — automated gates, and the hands-on recorded 2026-11-14 (Taylor: "everything checked and approved", the whole SUMMARY.md "For Taylor" list including the menu in the real plugin).
 **Version:** 1.2.0 → 1.3.0
 **Tree verified:** `1d616bf7` (plugin paths clean against HEAD before and after the run; only an untracked `stages/3-gui/gate-report.json`, not part of this milestone)
 
@@ -99,7 +99,9 @@ The listening is not verified by any machine, and it stays with Taylor: how the 
 
 ---
 
-## Open — hands-on (Taylor)
+## Hands-on (Taylor) — approved 2026-11-14
+
+Taylor reported the whole list checked and approved. Kept below for the record.
 
 The 15-item listening list in SUMMARY.md, "For Taylor". In priority order:
 

@@ -117,7 +117,7 @@ phases:
   verify:
     status: complete
     completedAt: 2026-11-14T23:59:00Z
-    result: passed (automated); listening hands-on open (SUMMARY "For Taylor")
+    result: passed; hands-on approved by Taylor 2026-11-14 (whole list)
     treeVerified: 1d616bf7
     notes: >-
       Re-run on 1d616bf7: harness 564 / 0; PT0 56 / 56 + cmp 56 identical / 8 differ = the P1 re-voices;

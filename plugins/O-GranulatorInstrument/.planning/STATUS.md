@@ -4,13 +4,13 @@ stage: 4
 status: installed
 version: 1.3.0
 current_phase: 4-polish
-gsd_phase: improve_v1_3_0_verified
+gsd_phase: improve_v1_3_0_hands_on_approved
 last_updated: 2026-11-14
 complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: hands-on listening (preset-bank-expansion SUMMARY "For Taylor"), then /publish O-GranulatorInstrument
+next_action: /publish O-GranulatorInstrument
 next_stage: 4
 ready_for_implementation: true
 blocked_on: none (fork pin 82406fce, D11)
@@ -37,6 +37,8 @@ contract_checksums:
 # O-GranulatorInstrument Status
 
 ## Current Position
+
+**Improve v1.3.0 hands-on recorded: all approved** 2026-11-14 (Taylor, whole-list report; `improvements/preset-bank-expansion/VERIFICATION.md`): the SUMMARY "For Taylor" list (re-voices, Mono drum / mono-glide presets, short-source Keys, Field key track, the two-pane menu in the real plugin en / fr / zh). 1.3.0 verified. No tag. Next: `/publish O-GranulatorInstrument`.
 
 **Improve v1.3.0 (milestone preset-bank-expansion) VERIFIED — automated gates passed; listening hands-on open** 2026-11-14 (`improvements/preset-bank-expansion/VERIFICATION.md`), milestone closed. Re-run on `1d616bf7`: harness **564 / 0**; PT0 56 / 56 bitwise, and a fresh 160-render dump `cmp`'d against the 1.2.0 references: 56 identical, 8 differ = exactly the approved re-voices; independent Python table check (160 = 7 × 20 + 8 + 12, names / seeds, no output_gain, 41 / 41 sources ≥ 2 on enabled streams, off-C3 roots, 24 realism titles no wobble; 3 controls fire); old-64 text diff = 8 re-voices + D7 / D8 / D10 / D11 descriptions only; FP2 gate re-implemented in numpy agrees (median +0.39 dB), spread 6.00 dB, peak 0.673; auval PASS, pluginval 10 VST3 + AU SUCCESS; ui_frontend / preset_menu / factory_picker / name_fit / binding probe, check-i18n, fr / zh lint, check-ui-labels (50 states) green; installed == artefacts, 1.3.0. **For Taylor:** the listening list in SUMMARY.md (Glass Mallet, Mono drum + mono-glide presets, short-source Keys sustain, Field key track, the menu in the real Standalone in en / fr / zh). No tag. Next: hands-on, then `/publish O-GranulatorInstrument`.
 
