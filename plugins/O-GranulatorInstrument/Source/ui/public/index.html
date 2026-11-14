@@ -551,7 +551,30 @@ canvas.scope { position: absolute; }
 #title .sub { display: flex; flex-direction: column; justify-content: center; margin-top: 3px; }
 #title .sub b { font-weight: 400; font-style: italic; font-size: 12px; line-height: 13px; color: var(--ink-2); white-space: nowrap; }
 #title .sub .maker { margin-top: 0; line-height: 13px; }
-#preset, #preset-menu { left: 280px; width: 280px; }
+#preset { left: 280px; width: 280px; }
+/* 1.3.0: the two-pane preset menu — the groups (left, 150 px) beside the active
+   group's presets (right, 310 px). A fixed 452 px box (20 rows of 22 px + the
+   6 px padding), so hovering from Live (8) to Pads (20) never resizes it; only a
+   group past 20 (User) scrolls inside the right pane. Bottom edge 52 + 452 = 504. */
+#preset-menu { left: 280px; width: 460px; height: 452px; max-height: none; overflow: hidden; display: flex; }
+#preset-menu[hidden] { display: none; }
+#preset-menu .pm-left { flex: none; width: 150px; display: flex; flex-direction: column; border-right: 1px solid var(--rule); }
+#preset-menu .pm-right { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+#pm-groups, #pm-presets { outline: none; }
+#preset-menu .pm-g { height: 22px; padding: 0 10px 0 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer;
+  font-size: 12px; font-variant-caps: all-small-caps; letter-spacing: 1.2px; color: var(--ink-2); white-space: nowrap; }
+#preset-menu .pm-g .n { font-size: 10.5px; letter-spacing: 0; font-variant-caps: normal; font-variant-numeric: tabular-nums; color: var(--ink-3); }
+#preset-menu .pm-g:hover, #preset-menu .pm-g.hl, #preset-menu .pm-p:hover, #preset-menu .pm-p.hl { background: rgba(236, 225, 204, 0.065); color: var(--ink); }
+#preset-menu .pm-g.act { color: var(--ink); box-shadow: inset 2px 0 0 var(--accent); }
+#preset-menu .pm-g.act:not(.hl):not(:hover) { background: rgba(236, 225, 204, 0.035); }
+#preset-menu .pm-left .pm-sep { margin-top: auto; }
+#preset-menu .pm-left .pm-file { flex: none; }
+#pm-presets { flex: 1; min-height: 0; overflow-y: auto; }
+#preset-menu .pm-p { height: 22px; line-height: 22px; padding: 0 12px 0 14px; font-size: 12px; color: var(--ink-2); cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#preset-menu .pm-p.sel { color: var(--ink); box-shadow: inset 2px 0 0 var(--accent); }
+#preset-menu .pm-empty { flex: none; height: 22px; line-height: 22px; padding: 0 14px; font-size: 12px; font-style: italic; color: var(--ink-3); white-space: nowrap; overflow: hidden; }   /* fixed height: the CJK line box is 2 px taller and would shrink #pm-presets (check-ui-labels [7]) */
+#preset-menu .pm-empty[hidden] { display: none; }
 #tabs { width: auto; }
 #tabs button { width: auto; }
 #dock { left: 426px; width: 604px; gap: 2px; }
@@ -777,7 +800,7 @@ html:lang(zh-Hans) .vcell .tr.clamp { left: 0; right: 0; font-size: 10px; }   /*
 <div id="ui">
 <div class="abs" id="title"><svg id="title-glyph" width="30" height="30" viewBox="0 0 100 100" aria-hidden="true"></svg><span class="name">O<i>&#183;</i>Granulator</span><span class="sub"><b>Instrument</b><span class="maker">Ouaricon</span></span></div>
 <div class="abs" id="preset"><button type="button" id="preset-prev" data-i18n-aria="aria.prevPreset" aria-label="Previous preset"><svg width="9" height="11" viewBox="0 0 9 11" aria-hidden="true"><path d="M7 1 2 5.5 7 10" stroke-width="1.4"/></svg></button><button type="button" class="pname" id="preset-name" aria-haspopup="listbox" aria-expanded="false" data-i18n-aria="aria.presetMenu" aria-label="Preset list"><b id="preset-name-text">Default</b><span id="preset-kind" data-i18n="label.factory">Factory</span></button><button type="button" id="preset-next" data-i18n-aria="aria.nextPreset" aria-label="Next preset"><svg width="9" height="11" viewBox="0 0 9 11" aria-hidden="true"><path d="M2 1 7 5.5 2 10" stroke-width="1.4"/></svg></button><button type="button" class="save" id="preset-save" data-i18n="label.save">Save</button></div>
-<div id="preset-menu" role="listbox" data-i18n-aria="aria.presetMenu" aria-label="Preset list" hidden></div>
+<div id="preset-menu" role="group" data-i18n-aria="aria.presetMenu" aria-label="Preset list" hidden><div class="pm-left"><div id="pm-groups" role="listbox" tabindex="-1" data-i18n-aria="aria.presetGroups" aria-label="Preset groups"><div class="pm-g" role="option" id="pm-g-drones" data-group="drones" aria-selected="false"><span id="pm-gh-drones" data-i18n="list.pgDrones">Drones</span><span class="n" data-user-text="1"></span></div><div class="pm-g" role="option" id="pm-g-expressive" data-group="expressive" aria-selected="false"><span id="pm-gh-expressive" data-i18n="list.pgExpressive">Expressive</span><span class="n" data-user-text="1"></span></div><div class="pm-g" role="option" id="pm-g-field" data-group="field" aria-selected="false"><span id="pm-gh-field" data-i18n="list.pgField">Field</span><span class="n" data-user-text="1"></span></div><div class="pm-g" role="option" id="pm-g-keys" data-group="keys" aria-selected="false"><span id="pm-gh-keys" data-i18n="list.pgKeys">Keys</span><span class="n" data-user-text="1"></span></div><div class="pm-g" role="option" id="pm-g-live" data-group="live" aria-selected="false"><span id="pm-gh-live" data-i18n="list.pgLive">Live</span><span class="n" data-user-text="1"></span></div><div class="pm-g" role="option" id="pm-g-motion" data-group="motion" aria-selected="false"><span id="pm-gh-motion" data-i18n="list.pgMotion">Motion</span><span class="n" data-user-text="1"></span></div><div class="pm-g" role="option" id="pm-g-pads" data-group="pads" aria-selected="false"><span id="pm-gh-pads" data-i18n="list.pgPads">Pads</span><span class="n" data-user-text="1"></span></div><div class="pm-g" role="option" id="pm-g-rhythmic" data-group="rhythmic" aria-selected="false"><span id="pm-gh-rhythmic" data-i18n="list.pgRhythmic">Rhythmic</span><span class="n" data-user-text="1"></span></div><div class="pm-g" role="option" id="pm-g-textures" data-group="textures" aria-selected="false"><span id="pm-gh-textures" data-i18n="list.pgTextures">Textures</span><span class="n" data-user-text="1"></span></div><div class="pm-g" role="option" id="pm-g-user" data-group="user" aria-selected="false"><span id="pm-gh-user" data-i18n="label.user">User</span><span class="n" data-user-text="1"></span></div></div><div class="pm-sep"></div><button type="button" class="pm-item pm-file" id="pm-file" data-i18n="label.loadFromFile">Load from file&#8230;</button></div><div class="pm-right"><div id="pm-presets" role="listbox" tabindex="-1" aria-labelledby="pm-gh-drones"></div><div class="pm-empty" id="pm-empty" data-i18n="list.pgEmpty" hidden>No saved presets yet</div></div></div>
 <button type="button" class="tog latch" id="toggle-freeze" aria-pressed="false" style="left:572px;top:16px;width:90px;height:32px;--sc:#E2B064"><svg width="14" height="14" viewBox="0 0 14 14" stroke-width="1.1" aria-hidden="true"><path d="M1 7L13 7M4 1.8L10 12.2M4 12.2L10 1.8"/><circle cx="7" cy="7" r="1.6"/></svg><span class="cap" data-i18n="p.freeze">Freeze</span><span class="lamp"></span></button>
 <div class="seg" id="seg-sync_mode" role="group" data-i18n-aria="aria.syncMode" aria-label="Sync mode" style="left:674px;top:16px;width:120px;height:32px"><button type="button" data-index="0" aria-pressed="true" data-i18n="opt.sync.free">Free</button><button type="button" data-index="1" aria-pressed="false" data-i18n="opt.sync.tempo">Tempo</button></div>
 <button type="button" class="abs" id="voice-ind" data-i18n-aria="aria.voiceInd" aria-label="Voice activity, open the Voice page"><span class="t"><span class="k" data-i18n="label.voices">Voices</span><span class="v" id="voice-ind-v" data-i18n="label.voicesIdle" data-i18n-vars='{"n":"8"}'>idle · max 8</span></span><span class="dots"><i id="vdot-0" style="left:1px"></i><i id="vdot-1" style="left:14px"></i><i id="vdot-2" style="left:27px"></i><i id="vdot-3" style="left:40px"></i><i id="vdot-4" style="left:53px"></i><i id="vdot-5" style="left:66px"></i><i id="vdot-6" style="left:79px"></i><i id="vdot-7" style="left:92px"></i><i id="vdot-8" style="left:105px"></i><i id="vdot-9" style="left:118px"></i><i id="vdot-10" style="left:131px"></i><i id="vdot-11" style="left:144px"></i><i id="vdot-12" style="left:157px"></i><i id="vdot-13" style="left:170px"></i><i id="vdot-14" style="left:183px"></i><i id="vdot-15" style="left:196px"></i></span></button>
@@ -2055,6 +2078,7 @@ html:lang(zh-Hans) .vcell .tr.clamp { left: 0; right: 0; font-size: 10px; }   /*
     const scaleUi     = [];           // per stream: { trig, tv, ed, chips, tools, hint }
     const scaleList   = { el: null, n: 0, open: false, items: [], kb: -1 };
     const factoryList = { el: null, n: 0, open: false, items: [], kb: -1, typed: '', typedAt: 0 };   // 1.1.0: built-in sources for an empty lane
+    const presetMenu  = { groups: [], g: 0, gk: 0, pk: -1, pane: 'g', data: {} };   // 1.3.0: the two-pane preset menu
     const scalePop    = { el: null, n: 0, open: false, draft: null, dirty: false, parseTimer: null, parseSeq: 0 };
     const laneCanvases = [null, null, null, null];
     const overviews   = [null, null, null, null];   // per slot: { rev, peaks, dirty } from getSlotOverview
@@ -3812,7 +3836,6 @@ html:lang(zh-Hans) .vcell .tr.clamp { left: 0; right: 0; font-size: 10px; }   /*
                 return;
             }
             if (scalePop.open && e.key === 'Escape') { e.preventDefault(); const n = scalePop.n; closeScalePop(); if (scaleUi[n - 1]) scaleUi[n - 1].ed.focus(); }
-            if (presetMenuOpen && e.key === 'Escape') { e.preventDefault(); closePresetMenu(); }
         });
     }
 
@@ -4833,41 +4856,178 @@ html:lang(zh-Hans) .vcell .tr.clamp { left: 0; right: 0; font-size: 10px; }   /*
     }
 
     // ── Preset bar (shared preset-manager module) ──────────────────────────
-    function closePresetMenu() {
+    // ── Preset menu (1.3.0, preset-bank-expansion R5) ────────────────────
+    //    Two panes in one box: the ten groups (static markup, data-i18n) on the
+    //    left, the active group's presets on the right. The data is the
+    //    plugin-local native getPresetMenu ([{ group, presets: [{ name, short }] }],
+    //    GiUiJson::presetMenuToVar); factory vs user is decided in C++ from the
+    //    Factory folder, so a user "Pads · X" is listed under User. The right
+    //    pane shows the short name; loading goes through the module with the
+    //    full name, and the bar keeps the full name. Each pane is a listbox
+    //    holding focus with aria-activedescendant (the Factory picker pattern).
+    //    Keys: Up / Down within a pane (wrap; on the left the file row follows
+    //    the last group), Left / Right between panes, Home / End, Enter loads
+    //    (on a group: goes right; on the file row: load from file), Escape and
+    //    Tab close and return focus to the preset name. Hover on a group shows it.
+    function initPresetMenu() {
+        const G = document.getElementById('pm-groups'), file = document.getElementById('pm-file');
+        if (!G || !file) return;
+        presetMenu.groups = [...G.querySelectorAll('.pm-g')];
+        presetMenu.groups.forEach((el, k) => {
+            el.addEventListener('pointermove', () => { if (presetMenu.g !== k) pmShowGroup(k); });
+            el.addEventListener('click', () => { pmShowGroup(k); pmFocus('g'); });
+        });
+        file.addEventListener('click', () => pmLoadFile());
+        file.addEventListener('focus', () => { if (presetMenuOpen && presetMenu.pane !== 'f') pmFocus('f'); });
+        document.addEventListener('keydown', onPresetMenuKey, true);
+    }
+
+    function pmRows() { return [...document.querySelectorAll('#pm-presets .pm-p')]; }
+
+    // Show group k in the right pane (the keyboard row of the left pane follows it).
+    function pmShowGroup(k) {
+        const P = document.getElementById('pm-presets'), empty = document.getElementById('pm-empty');
+        const el = presetMenu.groups[k];
+        if (!P || !el) return;
+        presetMenu.g = k;
+        presetMenu.gk = k;
+        presetMenu.groups.forEach((g, j) => { g.classList.toggle('act', j === k); g.setAttribute('aria-selected', j === k ? 'true' : 'false'); });
+        const list = presetMenu.data[el.dataset.group] || [];
+        const cur = presetManager ? presetManager.getCurrentPreset() : '';
+        P.textContent = '';
+        list.forEach((p, j) => {
+            const row = document.createElement('div');
+            row.className = 'pm-p' + (p.name === cur ? ' sel' : '');
+            row.id = `pm-p-${j}`;
+            row.setAttribute('role', 'option');
+            row.setAttribute('aria-selected', p.name === cur ? 'true' : 'false');
+            row.dataset.userText = '1';
+            row.dataset.name = p.name;
+            row.textContent = p.short;                 // the full name stays in the bar
+            row.addEventListener('pointermove', () => { if (presetMenu.pk !== j) pmSetPresetKb(j); });
+            row.addEventListener('click', () => pmLoad(p.name));
+            P.appendChild(row);
+        });
+        P.setAttribute('aria-labelledby', `pm-gh-${el.dataset.group}`);
+        P.scrollTop = 0;
+        if (empty) empty.hidden = list.length > 0;
+        presetMenu.pk = -1;
+        P.removeAttribute('aria-activedescendant');
+        pmSetGroupKb(k);
+    }
+
+    function pmSetGroupKb(k) {
+        const G = document.getElementById('pm-groups'), el = presetMenu.groups[k];
+        presetMenu.gk = k;
+        presetMenu.groups.forEach((g, j) => g.classList.toggle('hl', j === k && presetMenu.pane === 'g'));
+        if (el) G.setAttribute('aria-activedescendant', el.id); else G.removeAttribute('aria-activedescendant');
+    }
+
+    function pmSetPresetKb(j, reveal) {
+        const P = document.getElementById('pm-presets'), rows = pmRows(), row = j >= 0 ? rows[j] : null;
+        presetMenu.pk = row ? j : -1;
+        rows.forEach((r, i) => r.classList.toggle('hl', i === presetMenu.pk));
+        if (row) P.setAttribute('aria-activedescendant', row.id); else P.removeAttribute('aria-activedescendant');
+        if (row && reveal && P.scrollHeight > P.clientHeight) row.scrollIntoView({ block: 'nearest' });
+    }
+
+    // The pane that holds focus: 'g' groups, 'p' presets, 'f' the file row.
+    function pmFocus(pane) {
+        presetMenu.pane = pane;
+        if (pane !== 'p') pmSetPresetKb(-1);
+        pmSetGroupKb(presetMenu.gk);
+        const el = document.getElementById(pane === 'g' ? 'pm-groups' : pane === 'p' ? 'pm-presets' : 'pm-file');
+        if (el && document.activeElement !== el) el.focus({ preventScroll: true });
+    }
+
+    // Into the right pane: on the current preset when the group holds it, else the first row.
+    function pmEnterPresets() {
+        const rows = pmRows();
+        if (!rows.length) return;
+        const cur = presetManager ? presetManager.getCurrentPreset() : '';
+        pmFocus('p');
+        pmSetPresetKb(Math.max(0, rows.findIndex((r) => r.dataset.name === cur)), true);
+    }
+
+    function onPresetMenuKey(e) {
+        if (!presetMenuOpen) return;
+        const take = () => { e.preventDefault(); e.stopPropagation(); };
+        const nG = presetMenu.groups.length, nP = pmRows().length, pane = presetMenu.pane;
+        if (e.key === 'Escape') { take(); closePresetMenu(true); }
+        else if (e.key === 'Tab') closePresetMenu(true);   // back to the name first, so Tab moves on from there
+        else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            take();
+            const d = e.key === 'ArrowDown' ? 1 : -1;
+            if (pane === 'p') { if (nP) pmSetPresetKb(presetMenu.pk < 0 ? (d > 0 ? 0 : nP - 1) : (presetMenu.pk + d + nP) % nP, true); }
+            else {
+                const next = ((pane === 'f' ? nG : presetMenu.gk) + d + nG + 1) % (nG + 1);   // nG = the file row
+                if (next === nG) pmFocus('f'); else { pmShowGroup(next); pmFocus('g'); }
+            }
+        }
+        else if (e.key === 'Home' || e.key === 'End') {
+            take();
+            if (pane === 'p') { if (nP) pmSetPresetKb(e.key === 'Home' ? 0 : nP - 1, true); }
+            else { pmShowGroup(e.key === 'Home' ? 0 : nG - 1); pmFocus('g'); }
+        }
+        else if (e.key === 'ArrowRight') { take(); if (pane === 'g') pmEnterPresets(); }
+        else if (e.key === 'ArrowLeft')  { take(); if (pane === 'p') pmFocus('g'); }
+        else if (e.key === 'Enter') {
+            take();
+            if (pane === 'p') { const rows = pmRows(); if (presetMenu.pk >= 0 && rows[presetMenu.pk]) pmLoad(rows[presetMenu.pk].dataset.name); }
+            else if (pane === 'g') pmEnterPresets();
+            else pmLoadFile();
+        }
+    }
+
+    async function pmLoad(name) {
+        closePresetMenu(true);
+        if (presetManager && name) await presetManager.loadPreset(name);
+    }
+
+    async function pmLoadFile() {
+        closePresetMenu(true);
+        if (presetManager) await presetManager.loadFromFile();
+    }
+
+    function closePresetMenu(refocus) {
         const menu = document.getElementById('preset-menu');
+        const wasOpen = presetMenuOpen;
         if (menu) menu.hidden = true;
         presetMenuOpen = false;
+        ['pm-groups', 'pm-presets'].forEach((id) => { const el = document.getElementById(id); if (el) el.removeAttribute('aria-activedescendant'); });
         const nm = document.getElementById('preset-name');
-        if (nm) nm.setAttribute('aria-expanded', 'false');
+        if (nm) { nm.setAttribute('aria-expanded', 'false'); if (refocus && wasOpen) nm.focus({ preventScroll: true }); }
     }
 
     async function openPresetMenu() {
         const menu = document.getElementById('preset-menu');
-        if (!menu || !presetManager) return;
+        if (!menu || !presetManager || !presetMenu.groups.length) return;
+        closeScalePop(); closeScaleList(); closeFactoryList();
         await presetManager.refresh();
-        const list = presetManager.getPresetList(), cur = presetManager.getCurrentPreset();
-        menu.textContent = '';
-        list.forEach((name) => {
-            const b = document.createElement('button');
-            b.type = 'button';
-            b.className = 'pm-item' + (name === cur ? ' sel' : '');
-            b.dataset.userText = '1';
-            b.textContent = name;                      // a preset name IS its filename (D-02)
-            b.addEventListener('click', async () => { closePresetMenu(); await presetManager.loadPreset(name); });
-            menu.appendChild(b);
-        });
-        const sep = document.createElement('div');
-        sep.className = 'pm-sep';
-        menu.appendChild(sep);
-        const file = document.createElement('button');
-        file.type = 'button';
-        file.className = 'pm-item pm-file';
-        setLabel(file, 'label.loadFromFile');
-        file.addEventListener('click', async () => { closePresetMenu(); await presetManager.loadFromFile(); });
-        menu.appendChild(file);
+        let raw = await callNative('getPresetMenu');
+        if (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch (_) { raw = null; } }
+        const data = {};
+        presetMenu.groups.forEach((el) => { data[el.dataset.group] = []; });
+        if (Array.isArray(raw)) {
+            raw.forEach((grp) => {
+                if (!grp || !Array.isArray(data[grp.group]) || !Array.isArray(grp.presets)) return;
+                data[grp.group] = grp.presets.filter((p) => p && p.name).map((p) => ({ name: String(p.name), short: String(p.short || p.name) }));
+            });
+        } else {
+            // No grouped answer: everything the module lists under User, never guessed into a factory group.
+            data.user = presetManager.getPresetList().map((name) => ({ name, short: name }));
+        }
+        presetMenu.data = data;
+        presetMenu.groups.forEach((el) => { const n = el.querySelector('.n'); if (n) n.textContent = String(data[el.dataset.group].length); });
+        const cur = presetManager.getCurrentPreset();
+        const g = presetMenu.groups.findIndex((el) => data[el.dataset.group].some((p) => p.name === cur));
         menu.hidden = false;
         presetMenuOpen = true;
         document.getElementById('preset-name').setAttribute('aria-expanded', 'true');
+        presetMenu.pane = 'g';
+        pmShowGroup(Math.max(0, g));
+        if (g >= 0) pmEnterPresets();                  // open on the current preset
+        else pmFocus('g');
     }
 
     async function refreshPresetKind() {
@@ -5194,6 +5354,7 @@ function initI18n() {
         initSourceChips();
         initLanes();
         initFactoryList();
+        initPresetMenu();
         pullSlotState();
         applySync();
         applyFreeze();

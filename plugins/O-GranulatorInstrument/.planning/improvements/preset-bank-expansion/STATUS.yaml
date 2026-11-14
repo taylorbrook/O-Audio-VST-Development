@@ -17,7 +17,7 @@ phases:
   execute:
     status: in_progress
     startedAt: 2026-11-14T18:00:00Z
-    lastWaveCommitted: T10
+    lastWaveCommitted: T11
     notes: >-
       T0 backup backups/O-GranulatorInstrument/v1.2.0 + 1.2.0 references (harness-120 binary in
       build/plugins/O-GranulatorInstrument/pbe-ref120-bin, 64 renders in evidence/ref-1.2.0, f32 gitignored).
@@ -89,7 +89,7 @@ phases:
       dump rc 1; PN1 count. FRT1 22/22 slots. Mono presets measure one voice of the dyads: Saw Glide / Deep Slur /
       Drift Slide read -34 at 0 dB and needed density 120-140, longer grains, vel_to_amp 40 (Deep Slur -28.0 at +6).
       Velo Glass (2 s glass) read -40.7 on a forward scan; ping-pong over 0-30 %, density 130, sustain 40 fixed it.
-      T10 commit: SHA line written after the commit; T11 commits it.
+      T10 commit efa1cc54.
       T10 Field +12 (stream: Brook Bank, Rain on Stream, Stream Bed; park: Park Morning, Distant Park, Park Memory;
       waves: Shoreline, Sea Cave; woods: Forest Walk, Campfire; garden: Garden Rain, Garden Dusk; seeds
       ...0901000001-...12), inserted between Expressive and Keys: FP2 new -27.1 .. -26.5 (two passes), bank spread
@@ -97,6 +97,15 @@ phases:
       40 / 0 (66 s), FP0 982 / 982, FSU1 41 / 41, FRT1 22 / 22, FP1c 160, FP4 800 / 800, dump 160 rc 0, PN1 all pass
       (evidence/t10/gates-160.txt). Field sources read far louder than the old one-shots: every preset trimmed down
       (s1 -10.6 .. -0.2), so no density lift was needed; wind as a companion dominates (Distant Park s2 -16.6).
+      T11 commit: SHA line written after the commit; T12 commits it.
+      T11 two-pane preset menu (plugin-local; preset-manager module untouched): GiUiJson::presetMenuToVar + native
+      getPresetMenu (natives 36 -> 37, page 22 -> 23); 460 x 452 px box at (280, 52), groups 150 px | presets 310 px,
+      fixed height (20 rows x 22 px, no scroll; only a group past 20 - User - scrolls inside the right pane), file row
+      at the foot of the left pane; 9 list.pg* keys + list.pgEmpty + aria.presetGroups (User reuses label.user).
+      Gates: harness PM0 / PM0n (--pg4 42 / 0), ui_frontend_check [18] + --nc, ui_preset_menu_check (PM1-PM4 + 5
+      controls), ui_factory_picker_check, ui_binding_probe (ST1 pin 49 -> 50, preset-menu-open appended last), PN1
+      (short names in the right pane, headers, PN1n2), check-i18n, fr / zh lint, check-ui-labels. Standalone open-menu
+      capture left for a hands-on (Taylor was at the machine; posted clicks do not reach a background WKWebView).
   verify:
     status: pending
 versionBump: minor

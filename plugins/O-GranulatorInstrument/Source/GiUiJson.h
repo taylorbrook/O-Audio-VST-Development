@@ -510,4 +510,58 @@ namespace GiUiJson
         }
         return juce::var (list);
     }
+
+    /** The preset menu's groups (1.3.0, preset-bank-expansion R5): the nine
+        factory categories in bank order, then User. `key` is the page's
+        data-group; `prefix` is the "<Cat> · " head of a factory name. */
+    struct PresetMenuGroup { const char* key; const char* prefix; };
+    inline constexpr PresetMenuGroup kPresetMenuGroups[] = {
+        { "drones", "Drones" }, { "expressive", "Expressive" }, { "field", "Field" }, { "keys", "Keys" }, { "live", "Live" },
+        { "motion", "Motion" }, { "pads", "Pads" }, { "rhythmic", "Rhythmic" }, { "textures", "Textures" }, { "user", nullptr } };
+    inline constexpr int kPresetMenuGroupCount = 10;
+
+    /** getPresetMenu (1.3.0): `all` is the preset list as getPresetList()
+        answers it (sorted), `factoryNames` the names whose file is in the
+        Factory folder (the truth isFactoryPreset / loadPreset use). Answers
+        [{ group, presets: [{ name, short }] }] with all ten groups, always in
+        kPresetMenuGroups order (an empty group is still listed). A factory
+        name goes to the group of its "<Cat> · " prefix and `short` drops that
+        prefix; anything else (a user preset, even one named "Pads · X", or a
+        factory name with an unknown prefix) goes to User with short == name.
+        Inside a group the order of `all` is kept. Pure: no WebView type. */
+    inline juce::var presetMenuToVar (const juce::StringArray& all, const juce::StringArray& factoryNames)
+    {
+        const auto& sep = GiParamIds::dot();
+        std::array<juce::Array<juce::var>, kPresetMenuGroupCount> lists;
+        for (const auto& name : all)
+        {
+            int g = kPresetMenuGroupCount - 1;
+            auto shortName = name;
+            const int at = name.indexOf (sep);
+            if (at > 0 && factoryNames.contains (name))
+            {
+                const auto head = name.substring (0, at);
+                for (int k = 0; k < kPresetMenuGroupCount - 1; ++k)
+                    if (head == kPresetMenuGroups[k].prefix)
+                    {
+                        g = k;
+                        shortName = name.substring (at + sep.length());
+                        break;
+                    }
+            }
+            auto* o = new juce::DynamicObject();
+            o->setProperty ("name", name);
+            o->setProperty ("short", shortName);
+            lists[(size_t) g].add (juce::var (o));
+        }
+        juce::Array<juce::var> out;
+        for (int k = 0; k < kPresetMenuGroupCount; ++k)
+        {
+            auto* o = new juce::DynamicObject();
+            o->setProperty ("group", juce::String (kPresetMenuGroups[k].key));
+            o->setProperty ("presets", juce::var (lists[(size_t) k]));
+            out.add (juce::var (o));
+        }
+        return juce::var (out);
+    }
 } // namespace GiUiJson

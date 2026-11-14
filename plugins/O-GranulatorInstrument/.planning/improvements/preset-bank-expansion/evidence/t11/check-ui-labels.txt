@@ -1,0 +1,10 @@
+2526:-- state: preset-menu-open
+2544-   NOTE: [4] 5 label(s) are non-replaced INLINE boxes, which have no content box of their own (clientWidth is 0 by definition). The text-spill check cannot express itself about them and skips them; assertions 5, 6 and 7 still measure their rects: tab.streams, tab.fx, tab.mod, tab.voice, p.grainLimit
+2546-   NOTE: [4] 4 single-line label(s) have a line box taller than their content box. That is a tight line-height, not a wrap, so it is not a failure: p.output 14.0>13.0, lane.drop 14.0>13.0, lane.record 14.0>13.0, lane.factory 14.0>13.0
+2555-   NOTE: [5] 52 label(s) already overhang their offsetParent in ENGLISH — an authored layout, reported not asserted: p.output 8.0px, p.length 5.0px, p.threshold 5.0px, p.gain 5.0px
+2558-   NOTE: [5] 52 label(s) already overhang their offsetParent in ENGLISH — an authored layout, reported not asserted: p.output 8.0px, p.length 5.0px, p.threshold 5.0px, p.gain 5.0px
+  PASS: every requested resource was served
+
+== ALL CHECKS PASSED ==
+rc 0
+(first run: 3 FAIL — #pm-presets dh -2 in zh, fixed by pinning .pm-empty to 22 px; and a blinking #rec-status lamp in rec-wait-note, not reproduced on the rerun)

@@ -27,7 +27,7 @@
     Copied from plugins/O-Granulator/tests/ui_frontend_check.js and adapted:
     293 parameters through three editor ID tables (200 / 74 / 19), ten page
     binders (knob, fader, lane handle, root field, choice knob, segment row,
-    <select>, rec_target radio, scale trigger, toggle), 36 native functions
+    <select>, rec_target radio, scale trigger, toggle), 37 native functions
     spread over the page + preset-manager.js + webview-drop-streaming.js, a
     drop-session manager between the relays and the WebView.
 
@@ -37,7 +37,7 @@
       2. TDZ discipline: exactly one top-level init() call, the LAST statement.
       3. Bridge closure: native names used by the page (getNativeFunction,
          callNative, slotAction) + preset-manager.js + webview-drop-streaming.js
-         == withNativeFunction names == 36 (1.1.0: + getFactorySources, loadFactorySlot), both directions, none twice; every
+         == withNativeFunction names == 37 (1.1.0: + getFactorySources, loadFactorySlot; 1.3.0: + getPresetMenu), both directions, none twice; every
          async dialog hoists a SafePointer and bare-returns on a dead editor.
       4. The `Juce` ES-module namespace is imported and passed to every binder,
          to the preset manager and to the drop module.
@@ -91,6 +91,16 @@
          on a node a page reader writes — the reader-written ids are DERIVED
          from the page (every setLabel target inside the functions reachable
          from the setInterval / requestAnimationFrame roots).
+     17. Factory picker (1.2.0): manifest == stub fixture == markup groups, one encoder.
+     18. Preset menu (1.3.0, preset-bank-expansion T11), static half: #preset-menu
+         is a role="group" holding two focusable listboxes; the left one has the
+         10 group options in menu order (drones ... textures, user), each header a
+         data-i18n key with en / fr / zh-Hans entries (User reuses label.user);
+         the page writes and clears aria-activedescendant on both listboxes;
+         getPresetMenu answers through GiUiJson::presetMenuToVar in the editor and
+         in --dump-ui-overrides, and the stub fixture holds the 10 groups with
+         the bank counts (20 x 7, Field 12, Live 8, User 0), short + prefix ==
+         name. The layout / keyboard half: tests/ui_preset_menu_check.js.
 
     Usage (from anywhere):
       node plugins/O-GranulatorInstrument/tests/ui_frontend_check.js
@@ -140,7 +150,7 @@ const overridesPath = path.join(pluginRoot, 'tests', 'ui-stub', 'generic-overrid
 const paramDumpBin  = argVal('--param-dump') || path.join(repoRoot, 'build', 'plugins', PLUGIN,
     `${PLUGIN}-param-dump_artefacts`, 'Release', `${PLUGIN}-param-dump`);
 
-const N_FLOAT = 200, N_CHOICE = 74, N_BOOL = 19, N_PARAMS = 293, N_NATIVE = 36;
+const N_FLOAT = 200, N_CHOICE = 74, N_BOOL = 19, N_PARAMS = 293, N_NATIVE = 37;
 
 // ───────────────────────────────────────────── negative controls (PD18) ──
 if (argv.includes('--negative-controls') || argv.includes('--nc')) {
@@ -274,7 +284,7 @@ console.log('-- [3] native-function bridge closure');
     const regList = [...editorCpp.matchAll(/\.withNativeFunction\s*\(\s*"([A-Za-z]+)"/g)].map((m) => m[1]);
     const reg = new Set(regList);
     const anyReg = (editorCpp.match(/\.withNativeFunction\s*\(/g) || []).length;
-    check(pageNames.size === 22, `[3] page uses 22 native fns (found ${pageNames.size})`);
+    check(pageNames.size === 23, `[3] page uses 23 native fns (found ${pageNames.size})`);   // 1.3.0: + getPresetMenu
     check(pmNames.size === 10, `[3] preset-manager.js uses 10 native fns (found ${pmNames.size})`);
     check(dropNames.size === 4, `[3] webview-drop-streaming.js uses 4 native fns (found ${dropNames.size})`);
     check(pageNames.size + pmNames.size + dropNames.size === used.size, '[3] the three name sets are disjoint');
@@ -1021,6 +1031,42 @@ console.log('-- [17] Factory picker: manifest == stub fixture == markup groups, 
     check(/inline juce::var factorySourcesToVar\s*\(\)/.test(jsonH) && /"getFactorySources",[\s\S]{0,200}?GiUiJson::factorySourcesToVar\s*\(\)/.test(editorCpp)
           && /setProperty \("getFactorySources", GiUiJson::factorySourcesToVar\s*\(\)\)/.test(harness),
           '[17] getFactorySources answers through GiUiJson::factorySourcesToVar in the editor and in --dump-ui-overrides');
+}
+
+// ───────────────────────── 18. the preset menu (1.3.0), static half ──
+console.log('-- [18] Preset menu: 10 group options in menu order, localized headers, one encoder');
+{
+    const GROUPS = ['drones', 'expressive', 'field', 'keys', 'live', 'motion', 'pads', 'rhythmic', 'textures', 'user'];
+    const PREFIX = { drones: 'Drones', expressive: 'Expressive', field: 'Field', keys: 'Keys', live: 'Live', motion: 'Motion', pads: 'Pads', rhythmic: 'Rhythmic', textures: 'Textures' };
+    const COUNTS = { drones: 20, expressive: 20, field: 12, keys: 20, live: 8, motion: 20, pads: 20, rhythmic: 20, textures: 20, user: 0 };
+    const menu = (html.match(/<div id="preset-menu"[^>]*>[\s\S]*?<\/div><\/div><\/div>/) || [''])[0];
+    check(/^<div id="preset-menu" role="group" data-i18n-aria="aria\.presetMenu"/.test(menu), '[18] #preset-menu is a role="group" labelled by aria.presetMenu');
+    const left = (menu.match(/<div id="pm-groups" role="listbox" tabindex="-1"[\s\S]*?<\/div><\/div>/) || [''])[0];
+    const opts = [...left.matchAll(/<div class="pm-g" role="option" id="pm-g-([a-z]+)" data-group="([a-z]+)"[^>]*><span id="pm-gh-([a-z]+)" data-i18n="([a-zA-Z.]+)">/g)]
+        .map((m) => ({ id: m[1], group: m[2], gh: m[3], key: m[4] }));
+    const order = opts.map((o) => o.group);
+    check(JSON.stringify(order) === JSON.stringify(GROUPS) && opts.every((o) => o.id === o.group && o.gh === o.group),
+          `[18] #pm-groups (listbox, focusable) holds 10 group options in menu order: ${order.join(' ')}`);
+    check(/<div id="pm-presets" role="listbox" tabindex="-1"/.test(menu), '[18] #pm-presets is a focusable listbox');
+    const i18nSrc = fs.readFileSync(path.join(pluginRoot, 'Source', 'ui', 'public', 'js', 'i18n.js'), 'utf8');
+    const entry = (key) => { const at = i18nSrc.indexOf(`    '${key}': {`); return at < 0 ? '' : i18nSrc.slice(at, i18nSrc.indexOf('\n    },', at)); };
+    const keyOk = (o) => (o.group === 'user' ? o.key === 'label.user' : o.key === `list.pg${PREFIX[o.group]}`);
+    const missing = opts.filter((o) => { const e = entry(o.key); return !keyOk(o) || !(/\ben: \{ t: "/.test(e) && /\bfr: \{ t: "/.test(e) && /'zh-Hans': \{ t: "/.test(e)); }).map((o) => o.key);
+    check(opts.length === 10 && missing.length === 0, '[18] each group header is its list.pg* key (User: label.user) with an en / fr / zh-Hans entry' + show(missing));
+    check(/G\.setAttribute\('aria-activedescendant'/.test(moduleSrc) && /G\.removeAttribute\('aria-activedescendant'\)/.test(moduleSrc)
+          && /P\.setAttribute\('aria-activedescendant'/.test(moduleSrc) && /P\.removeAttribute\('aria-activedescendant'\)/.test(moduleSrc),
+          '[18] the page writes and clears aria-activedescendant on both listboxes');
+    check(/inline juce::var presetMenuToVar\s*\(/.test(jsonH) && /"getPresetMenu",[\s\S]{0,600}?GiUiJson::presetMenuToVar\s*\(/.test(editorCpp)
+          && /setProperty \("getPresetMenu", GiUiJson::presetMenuToVar\s*\(/.test(harness),
+          '[18] getPresetMenu answers through GiUiJson::presetMenuToVar in the editor and in --dump-ui-overrides');
+    let fx = null;
+    try { fx = JSON.parse(fs.readFileSync(overridesPath, 'utf8')).natives.getPresetMenu; } catch (_) { /* reported below */ }
+    const fixtureOk = (list) => Array.isArray(list) && list.length === 10 && list.every((g, k) => g.group === GROUPS[k] && Array.isArray(g.presets) && g.presets.length === COUNTS[g.group]
+        && g.presets.every((p) => (g.group === 'user' ? p.short === p.name : p.name === `${PREFIX[g.group]} · ${p.short}`)));
+    check(fixtureOk(fx), `[18] the stub fixture's getPresetMenu (dumped by the harness) holds the 10 groups with the bank counts, short + prefix == name`
+          + (Array.isArray(fx) ? ` (${fx.map((g) => `${g.group} ${g.presets.length}`).join(', ')})` : ' (missing)'));
+    const merged = Array.isArray(fx) ? fx.map((g) => (g.group === 'pads' ? { ...g, presets: g.presets.concat([{ name: 'Pads · Mine', short: 'Pads · Mine' }]) } : g)) : null;
+    check(!fixtureOk(merged) && !fixtureOk(Array.isArray(fx) ? fx.slice(1) : null), '[18] control: a fixture with a user preset merged into Pads, or missing a group, does not match');
 }
 
 console.log(failed === 0 ? '\nALL PASS' : `\n${failed} FAILED`);

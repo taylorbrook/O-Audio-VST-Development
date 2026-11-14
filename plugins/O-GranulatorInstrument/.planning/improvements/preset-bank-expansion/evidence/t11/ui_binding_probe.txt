@@ -1,0 +1,4 @@
+-- mod / voice / meters (VC1–VC3, MV1–MV6, DM1–DM2, MT1, HV1, ST1)
+  PASS: ST1 i18n-states.json replayed in file order: every named target holds at +150 and +450 ms — 50 states replayed in file order, 30 name a target, 30 hold at +150 and +450 ms (>= 13 telemetry polls each); 20 without a named target (clicks, inline asserts)
+ALL PASS (293 / 293 both ways; value entry 15 / 15; lanes 12 / 12; toasts 3 / 3; arm 1 / 1; fb 1 / 1; mod 14 / 14, DM2 census 161 / 161 targets, 149 / 149 destinations)
+rc 0

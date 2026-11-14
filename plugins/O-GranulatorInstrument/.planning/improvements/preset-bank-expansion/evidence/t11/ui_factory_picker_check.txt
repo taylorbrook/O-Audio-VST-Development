@@ -1,0 +1,25 @@
+== O-GranulatorInstrument ui_factory_picker_check — 41 sources ==
+  PASS: FK1 41 items == the manifest's 41, each under its category, reading order column by column
+  PASS: FK1 7 headings in 4 columns: tonal + voice | plucked | texture + drone | rhythmic + field
+  PASS: FK1n control: the list without its first source FAILS the content predicate
+  PASS: FK2 en: lanes 1 - 4, inside the frame, no scroll, 41 items uncovered, names and headings fit — panel 620 x 308 px, scrollHeight 308 / clientHeight 308; widest heading "Plucked / Struck" 110.4 / 124 px
+  PASS: FK2 fr: lanes 1 - 4, inside the frame, no scroll, 41 items uncovered, names and headings fit — panel 620 x 308 px, scrollHeight 308 / clientHeight 308; widest heading "Pincées / Frappées" 116.2 / 124 px
+  PASS: FK2 zh-Hans: lanes 1 - 4, inside the frame, no scroll, 41 items uncovered, names and headings fit — panel 620 x 308 px, scrollHeight 308 / clientHeight 308; widest heading "拨弦 / 敲击" 51.8 / 124 px
+  PASS: FK2n control: a 60-character name overflows its row (the fit predicate is live)
+  PASS: FK2n control: max-height 100 px makes the list scroll (the no-scroll predicate is live)
+  PASS: FK2n control: the panel at top 700 px leaves the frame (the inside predicate is live)
+  PASS: FK3 open: the listbox holds focus, nothing highlighted (focus "factory-list")
+  PASS: FK3 Down x 42: the flat reading order, then wraps to "Harmonic"
+  PASS: FK3 Up from the first wraps to the last; Home; End
+  PASS: FK3 Right from "Reed" -> "FM Bell" (nearest row of column 2), Left returns to column 1 and stops there
+  PASS: FK3 from the deepest row ("Contrabassoon"): Right clamps to the last of column 4 ("Garden"), Left to the last of column 2 ("Guitar Drift"); Right on column 4 stays
+  PASS: FK3 type-ahead: "fm" -> fm_bell, "saw s" -> saw_stack, "c" -> chord_minor, "c" again -> chord_sus, "cc" -> choir, "zq" (no match) stays
+  PASS: FK3 aria-activedescendant names the highlighted item after every move
+  PASS: FK3 Enter on Contrabassoon from lane 3: one loadFactorySlot call [{"slot":3,"id":"contrabassoon"}], the list closes
+  PASS: FK3 Escape closes and returns focus to the lane's link (focus "lane-factory-4")
+  PASS: FK3 the link reads aria-expanded="false" after the close
+  PASS: FK4 a press outside closes the list; the link toggles it
+  PASS: FK4 a click on Kalimba from lane 1: [{"slot":1,"id":"kalimba"}]
+  PASS: no page errors
+ALL PASS
+rc 0

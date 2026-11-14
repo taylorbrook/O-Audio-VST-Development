@@ -1,0 +1,211 @@
+== O-GranulatorInstrument ui_frontend_check ==
+   editor: plugins/O-GranulatorInstrument/Source/PluginEditor.cpp
+   page:   plugins/O-GranulatorInstrument/Source/ui/public/index.html
+-- [1] syntax
+  PASS: [1] index.html has exactly one inline <script type="module">
+  PASS: [1] the inline module parses (node --check)
+-- [2] TDZ discipline
+  PASS: [2] exactly one top-level init() call (found 1)
+  PASS: [2] init() is the LAST statement of the module (last: "init();")
+-- [3] native-function bridge closure
+  PASS: [3] preset-manager.js and webview-drop-streaming.js are embedded SOURCES that exist
+  PASS: [3] callNative / slotAction funnel into Juce.getNativeFunction(name)
+  PASS: [3] no other computed native name in the page
+  PASS: [3] page uses 23 native fns (found 23)
+  PASS: [3] preset-manager.js uses 10 native fns (found 10)
+  PASS: [3] webview-drop-streaming.js uses 4 native fns (found 4)
+  PASS: [3] the three name sets are disjoint
+  PASS: [3] every withNativeFunction registers a LITERAL name (37 of 37)
+  PASS: [3] no native fn registered twice
+  PASS: [3] every page / preset-manager / drop-streaming fn is registered (withNativeFunction)
+  PASS: [3] every registered fn is used by the page, preset-manager.js or webview-drop-streaming.js
+  PASS: [3] surface is exactly 37 = 37 (registered 37, used 37)
+  PASS: [3] 6 launchAsync dialogs: SafePointer hoisted (6) and bare-return on null (6)
+-- [4] Juce namespace
+  PASS: [4] import * as Juce from './js/juce/index.js'
+  PASS: [4] every binder receives the Juce namespace
+  PASS: [4] the preset manager gets Juce.getNativeFunction
+  PASS: [4] the drop module gets the ES-module namespace (juce: Juce)
+  PASS: [4] no raw window.__JUCE__ / postMessage path in the controller
+-- [5] viewport units
+  PASS: [5] no viewport units in index.html
+-- [6] resource closure
+  PASS: [6] 10 UI juce_add_binary_data SOURCES, all on disk (found 10)
+  PASS: [6] no two SOURCES mangle to the same BinaryData symbol
+  PASS: [6] getResource (const juce::String& url) found
+  PASS: [6] 10 resource branches for 10 SOURCES
+  PASS: [6] every branch serves exactly one symbol with its own …Size
+  PASS: [6] every SOURCE is served by exactly ONE branch
+  PASS: [6] every branch serves a SOURCE
+  PASS: [6] each branch url ends in its SOURCE file name
+  PASS: [6] 11 distinct bare-path comparisons ("/" + 10 files; found 11)
+  PASS: [6] every module / stylesheet the page loads has a branch (5)
+  PASS: [6] no hard-coded juce:// or https://juce.backend scheme
+  PASS: [6] withResourceProvider -> getResource
+-- [7] module copies untracked
+  PASS: [7] Source/ui/public/modules/* is not tracked
+-- [8] four-way closure (param-dump == params.tsv == editor tables == page binders), by ID and TYPE
+  PASS: [8] fresh O-GranulatorInstrument-param-dump ran (build/plugins/O-GranulatorInstrument/O-GranulatorInstrument-param-dump_artefacts/Release/O-GranulatorInstrument-param-dump)
+  PASS: [8] fresh param-dump == committed .planning/params.tsv (byte-identical)
+  PASS: [8] APVTS has 293 parameters, no duplicate id (fresh dump: 293)
+  PASS: [8] editor tables 200 / 74 / 19 (found 200 / 74 / 19)
+  PASS: [8] kSliderIds -> WebSliderRelay, kComboIds -> WebComboBoxRelay, kToggleIds -> WebToggleButtonRelay
+  PASS: [8] each table attaches with its own attachment class to its own relay vector
+  PASS: [8] every slider relay is registered with withOptionsFrom
+  PASS: [8] every combo relay is registered with withOptionsFrom
+  PASS: [8] every toggle relay is registered with withOptionsFrom
+  PASS: [8] initMatrix binds mod1..16 source / dest (select) + depth (fader) (MOD_SLOTS 16)
+  PASS: [8] initScaleBand binds s1..s4_scale as ComboBoxStates
+  PASS: [8] init() runs bindRadio(Juce, 'rec_target')
+  PASS: [8] FADER_IDS == mod1..16_depth (the ids initMatrix fader-binds)
+  PASS: [8] SELECT_IDS == ['grain_limit'] and init() select-binds it
+  PASS: [8] init() runs KNOB_IDS -> bindKnob
+  PASS: [8] init() runs CHOICE_KNOB_IDS -> bindChoiceKnob
+  PASS: [8] init() runs HANDLE_IDS -> bindHandle
+  PASS: [8] init() runs FIELD_IDS -> bindField
+  PASS: [8] init() runs TOGGLE_IDS -> bindToggle
+  PASS: [8] init() runs SEGMENT_IDS -> bindSegmented
+  PASS: [8] no binder call besides the 11 accounted for (found 11)
+  PASS: [8] exactly 10 get*State call sites (one per binder: 9 bind* + initScaleBand; found 10)
+   page binders: knob 168, fader 16, handle 8, field 8, choiceKnob 17, segment 19, select 33, radio 1, scale 4, toggle 19
+  PASS: [8] no page id bound twice (293)
+  PASS: [8] no editor id listed twice (293)
+  PASS: [8] float: APVTS == editor (200 / 200)
+  PASS: [8] float: APVTS == page (200 / 200)
+  PASS: [8] float: editor == page (200 / 200)
+  PASS: [8] choice: APVTS == editor (74 / 74)
+  PASS: [8] choice: APVTS == page (74 / 74)
+  PASS: [8] choice: editor == page (74 / 74)
+  PASS: [8] bool: APVTS == editor (19 / 19)
+  PASS: [8] bool: APVTS == page (19 / 19)
+  PASS: [8] bool: editor == page (19 / 19)
+  PASS: [8] kSliderIds is in APVTS registration order
+  PASS: [8] kComboIds is in APVTS registration order
+  PASS: [8] kToggleIds is in APVTS registration order
+  PASS: [8] every bound id has its element exactly once (683 elements)
+  PASS: [8] FORMAT has exactly the 200 float ids (200 keys)
+-- [9] editor member order and WebView lifetime
+  PASS: [9] all nine members declared
+  PASS: [9] header order: relays (slider, combo, toggle) -> dropSessions -> webView -> attachments (slider, combo, toggle) -> webView2RuntimeLink
+  PASS: [9] constructor order: relays x3 -> dropSessions -> options -> webView -> attachments x3 -> runtime link
+  PASS: [9] every withNativeFunction precedes the WebView construction
+  PASS: [9] every webView-> use outside the constructor is null-guarded (1)
+  PASS: [9] never setVisible(false) on the WebView
+  PASS: [9] native integration + keep-page-loaded-when-hidden
+  PASS: [9] destructor = default (members die in reverse order)
+-- [10] Windows WebView2
+  PASS: [10] withBackend (webview2)
+  PASS: [10] withUserDataFolder (app-data/Ouaricon/WebView2/O-GranulatorInstrument, created first; never %TEMP%)
+  PASS: [10] areOptionsSupported probe
+  PASS: [10] CMake: NEEDS_WEB_BROWSER, NEEDS_WEBVIEW2, JUCE_WEB_BROWSER=1, static WebView2 linking
+-- [11] geometry
+  PASS: [11] setResizable (false, false) + setSize (1200, 800)
+  PASS: [11] body is 1200 x 800 px
+  PASS: [11] #plugin is 1200 x 800 px
+-- [12] telemetry keys
+  PASS: [12] the live encoder telemetryToVar (const GranulatorInstrumentProcessor::UiTelemetry& t) is found in GiUiJson.h
+  PASS: [12] the live telemetryToVar emits 14 top-level + 5 lane + 8 rec keys (27 literal setProperty calls + 1 computed modNorm key; 28 in all)
+  PASS: [12] every top-level key the editor emits is read by the page
+  PASS: [12] every lane key the editor emits is read by the page
+  PASS: [12] every rec key the editor emits is read by the page
+  PASS: [12] the getTelemetry native uses the shared builder (GiUiJson::telemetryToVar (processorRef.buildUiTelemetry (now)))
+  PASS: [12] buildUiTelemetry is called exactly once in the editor (1) and no other frame / peak / steal-ring reader exists (0)
+  PASS: [12] PluginProcessor.cpp: frames.read / takeOutPeaks / takeScPeaks / stolenCount.load only inside buildUiTelemetry (inside 1 / 1 / 1 / 2; outside 0 / 0 / 0 / 0)
+  PASS: [12] the stub fixture getTelemetry (generic-overrides.json) has exactly the emitted top-level keys
+-- [13] render harness never sees the editor
+  PASS: [13] render-harness main.cpp does not include PluginEditor
+  PASS: [13] PluginProcessor.cpp includes / creates the editor only under JUCE_WEB_BROWSER
+  PASS: [13] GiUiJson.h has no WebBrowserComponent types
+-- [14] DevLoader removed
+  PASS: [14] no DevLoader / OGI_DEV_LOADER token under Source/ (57 files; ui/public/modules excluded) or CMakeLists.txt
+-- [15] Phase 3.2 closure: emitted and read, live natives, failure toasts
+  PASS: [15] the four encoders are found in GiUiJson.h (live telemetry, frozen 3.1 placeholder, slot, overview)
+  PASS: [15] the live encoder emits 14 top-level + 3 lane (+ lo, hi) + 8 rec keys (found 14 + 5 + 8)
+  PASS: [15] lanes[].lo / .hi are emitted only under lane.hasLoHi (absent otherwise, never 0)
+  PASS: [15] frozen placeholder (13 / 3 / 8) ⊂ live, difference exactly lfoPh (top) and lo, hi (lane) (found +top [lfoPh], +lane [lo,hi], +rec [])
+  PASS: [15] the page functions that read the 3.2 keys are found
+  PASS: [15] emitted and read: fb (lanes[].fb -> drawLane)
+  PASS: [15] emitted and read: rec (lanes[].rec -> drawLane)
+  PASS: [15] emitted and read: voices (voices -> drawLane)
+  PASS: [15] emitted and read: grains (grains -> drawLane)
+  PASS: [15] emitted and read: counts (counts -> updateReadouts)
+  PASS: [15] emitted and read: rec.run (rec.run -> renderRec)
+  PASS: [15] emitted and read: rec.slot (rec.slot -> renderRec)
+  PASS: [15] emitted and read: rec.pos (rec.pos -> renderRec)
+  PASS: [15] emitted and read: rec.len (rec.len -> renderRec)
+  PASS: [15] emitted and read: rec.signal (rec.signal -> renderRec)
+  PASS: [15] emitted and read: rec.capped (rec.capped -> renderRec)
+  PASS: [15] emitted and read: rec.peak (rec.peak -> ingestTelemetry)
+  PASS: [15] emitted and read: dirty (slot) (slots[].dirty -> renderLane)
+  PASS: [15] emitted and read: dirty (overview) (overview dirty[] -> drawLane)
+  PASS: [15] emitted and read: encodedBytes (slots[].encodedBytes -> renderLane)
+  PASS: [15] emitted and read: error (slots[].error -> noteSlotErrors)
+  PASS: [15] emitted and read: wavFailed (slots[].wavFailed -> noteSlotErrors (PLAN-4 D55a))
+  PASS: [15] a grain row is [stream, normPos, pan, env, gain, lengthSec, voice, flags], the order drawLane indexes
+  PASS: [15] the getSlotState native passes the processor's dirty flags (getSlotDirty -> slotStateToVar (revision, infos, dirty))
+  PASS: [15] the overview answer carries its rev and fetchOverview stores the ANSWER's rev (PD8)
+  PASS: [15] no "unavailable" literal left in PluginEditor.cpp
+  PASS: [15] clearSlot / saveRecording / relinkSlot are registered and called with the lane number; the surface is still 37 (37)
+  PASS: [15] toast.loadFailed has en / fr / zh-Hans texts, each with {n}, all different (js/i18n.js)
+  PASS: [15] the page raises toast.loadFailed with { n } under its rule (error changed to non-empty)
+  PASS: [15] toast.wavFailed has en / fr / zh-Hans texts, each with {n}, all different (js/i18n.js)
+  PASS: [15] the page raises toast.wavFailed with { n } under its rule (wavFailed false -> true (PLAN-4 D55a))
+  PASS: [15] toast.saveFailed has en / fr / zh-Hans texts, each with {n}, all different (js/i18n.js)
+  PASS: [15] the page raises toast.saveFailed with { n } under its rule (saveRecording refused, not cancelled)
+-- [16] Phase 3.3 closure: emitted and read, mono rule == UMB1 transcription, LFO dot, state class gate
+  PASS: [16] the live encoder is found
+  PASS: [16] the page functions that read the 3.3 keys are found
+  PASS: [16] emitted and read: newest (drawVoices / drawMenvFigure / drawLfos / drawModSources)
+  PASS: [16] emitted and read: menv (drawAmpFigure (ampSt, column 5) / drawMenvFigure (e1, st1, e2, st2))
+  PASS: [16] emitted and read: sources (drawLfos / drawModSources / updateLiveModulation / drawVoices)
+  PASS: [16] emitted and read: modNorm (modulatedNorm (routed keys only) <- updateLiveModulation (rings) / drawLane (edge tick))
+  PASS: [16] emitted and read: lfoPh (drawLfos)
+  PASS: [16] emitted and read: out (ingestTelemetry ([L, R]))
+  PASS: [16] emitted and read: rec.peak [L, R] (ingestTelemetry ([L, R]))
+  PASS: [16] emitted and read: limit (updateReadouts)
+  PASS: [16] emitted and read: lanes[].lo / .hi (drawLane)
+  PASS: [16] emitted and read: voice row column 8 (wantSt) (drawVoices v[7] (> 48 -> vstate.clamp))
+  PASS: [16] emitted and read: voice states 2 / 3 (drawVoices (vstate.release / vstate.stolen))
+  PASS: [16] emitted and read: grain bit 2 (clamp) (drawLane (warn colour))
+  PASS: [16] not emitted: frozen, modRouted, stale (no page reader)
+  PASS: [16] ui_gates_33.h pageRule found: kPerVoiceSources [5,6,7,8,9,11,12,13], LFO src 1–4, global 1 + streams 2–145 (stride 36, fields >= 28), LFO rate 146–149 (base 145)
+  PASS: [16] PER_VOICE_SOURCES == [5, 6, 7, 8, 9, 11, 12, 13] == pageRule::kPerVoiceSources (page [5,6,7,8,9,11,12,13], harness [5,6,7,8,9,11,12,13])
+  PASS: [16] the page's mono rule == the UMB1 transcription: 40528 / 40528 pairs (17 x 149 x 16 LFO-mode sets; mono-on 5584)
+  PASS: [16] isGlobalDest ranges: 1, 30–37, 66–73, 102–109, 138–145 always; 146–149 only while that LFO is Global (Global: [1,30,31,32,33,34,35,36,37,66,67,68,69,70,71,72,73,102,103,104,105,106,107,108,109,138,139,140,141,142,143,144,145,146,147,148,149]; Per-voice: [1,30,31,32,33,34,35,36,37,66,67,68,69,70,71,72,73,102,103,104,105,106,107,108,109,138,139,140,141,142,143,144,145])
+  PASS: [16] LFO dot: Y = lfoShapeAt(shape, (pp + ph0) % 1), the curve's own phase; X = pp / 2 (PD16)
+  PASS: [16] reader-written ids derived from the page: roots [pollTelemetry, frame] reach 60 functions, 12 id targets (voice-ind-v, menv${e}-ro, vstt-${i}, vtr-${i}, fxcount-s${n}, lane-info-${n}, rec-status-t, rec-prog-s, toast, rootcap-${n}, pb-file-${n}, sp-shared) + 4 id-less (created nodes / row children)
+  PASS: [16] class gate is live: the three 3.2 vacuous states are caught (4 / 4 __setLabel calls)
+  PASS: [16] class gate (D49a): no state in tests/i18n-states.json __setLabel's a reader-written node (50 states, 0 __setLabel call(s))
+-- [17] Factory picker: manifest == stub fixture == markup groups, one encoder
+  PASS: [17] the manifest lists 41 sources (want 41) over the 7 picker categories, none empty
+  PASS: [17] the stub fixture's getFactorySources (dumped by the harness from the table) == the manifest: id, name, category, order (41 / 41)
+  PASS: [17] control: a fixture missing one source, or with one category changed, does not match
+  PASS: [17] #factory-list markup: 4 columns holding tonal + voice | plucked | texture + drone | rhythmic + field + other
+  PASS: [17] 7 group headings, one per category, each with an en / fr / zh-Hans entry
+  PASS: [17] the listbox is focusable and the page writes and clears aria-activedescendant
+  PASS: [17] getFactorySources answers through GiUiJson::factorySourcesToVar in the editor and in --dump-ui-overrides
+-- [18] Preset menu: 10 group options in menu order, localized headers, one encoder
+  PASS: [18] #preset-menu is a role="group" labelled by aria.presetMenu
+  PASS: [18] #pm-groups (listbox, focusable) holds 10 group options in menu order: drones expressive field keys live motion pads rhythmic textures user
+  PASS: [18] #pm-presets is a focusable listbox
+  PASS: [18] each group header is its list.pg* key (User: label.user) with an en / fr / zh-Hans entry
+  PASS: [18] the page writes and clears aria-activedescendant on both listboxes
+  PASS: [18] getPresetMenu answers through GiUiJson::presetMenuToVar in the editor and in --dump-ui-overrides
+  PASS: [18] the stub fixture's getPresetMenu (dumped by the harness) holds the 10 groups with the bank counts, short + prefix == name (drones 20, expressive 20, field 12, keys 20, live 8, motion 20, pads 20, rhythmic 20, textures 20, user 0)
+  PASS: [18] control: a fixture with a user preset merged into Pads, or missing a group, does not match
+
+ALL PASS
+rc 0
+        FAIL: [15] clearSlot / saveRecording / relinkSlot are registered and called with the lane number; the surface is still 37 (36)
+  PASS: NC3 one telemetry key renamed in the live encoder (grains -> grainRows) -> exit 4, targeted check FAILED (as it must)
+        FAIL: [12] every top-level key the editor emits is read by the page — grainRows
+        FAIL: [12] the stub fixture getTelemetry (generic-overrides.json) has exactly the emitted top-level keys — -grainRows, +grains
+        FAIL: [15] frozen placeholder (13 / 3 / 8) ⊂ live, difference exactly lfoPh (top) and lo, hi (lane) (found +top [lfoPh,grainRows], +lane [lo,hi], +rec []; placeholder key
+        FAIL: [15] emitted and read: grains (grains -> drawLane) — NOT emitted by the encoder
+  PASS: NC4 lfoPh removed from the live encoder -> exit 5, targeted check FAILED (as it must)
+        FAIL: [12] the live telemetryToVar emits 13 top-level + 5 lane + 8 rec keys (26 literal setProperty calls + 1 computed modNorm key; 27 in all)
+        FAIL: [12] the stub fixture getTelemetry (generic-overrides.json) has exactly the emitted top-level keys — +lfoPh
+        FAIL: [15] the live encoder emits 14 top-level + 3 lane (+ lo, hi) + 8 rec keys (found 13 + 5 + 8)
+        FAIL: [15] frozen placeholder (13 / 3 / 8) ⊂ live, difference exactly lfoPh (top) and lo, hi (lane) (found +top [], +lane [lo,hi], +rec [])
+negative controls: all 4 copies FAIL the closure — the gate is live
+rc 0

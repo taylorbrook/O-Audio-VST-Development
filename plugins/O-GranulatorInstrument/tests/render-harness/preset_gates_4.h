@@ -1447,6 +1447,59 @@ namespace { namespace pg4
         return r;
     }
 
+    //==========================================================================
+    // PM0 (1.3.0 T11) — the preset menu encoder GiUiJson::presetMenuToVar:
+    // the bank + two user presets (one carrying a factory prefix) -> 10 groups
+    // in kPresetMenuGroups order, the R6 counts, users in User only, short
+    // round-trips to the full name. PM0n: the same input with the prefixed user
+    // name passed as factory lands it in Pads (the predicate must FAIL).
+    struct Pm0 { bool ok = false; juce::String detail; };
+    Pm0 runPm0 (const juce::StringArray& all, const juce::StringArray& factory)
+    {
+        Pm0 r;
+        const auto v = GiUiJson::presetMenuToVar (all, factory);
+        const int want[] = { 20, 20, 12, 20, 8, 20, 20, 20, 20, 2 };
+        bool ok = v.isArray() && v.size() == GiUiJson::kPresetMenuGroupCount;
+        int total = 0;
+        for (int g = 0; ok && g < v.size(); ++g)
+        {
+            const auto grp = v[g];
+            const auto key = grp["group"].toString();
+            const auto ps = grp["presets"];
+            r.detail << " " << key << " " << ps.size();
+            ok = ok && key == GiUiJson::kPresetMenuGroups[g].key && ps.size() == want[g];
+            for (int k = 0; k < ps.size(); ++k)
+            {
+                const auto name = ps[k]["name"].toString(), sh = ps[k]["short"].toString();
+                const bool isUser = g == GiUiJson::kPresetMenuGroupCount - 1;
+                ok = ok && (isUser ? (sh == name && ! factory.contains (name))
+                                   : (factory.contains (name) && name == juce::String (GiUiJson::kPresetMenuGroups[g].prefix) + GiParamIds::dot() + sh));
+                ++total;
+            }
+        }
+        r.ok = ok && total == all.size();
+        return r;
+    }
+
+    void rowsPM0()
+    {
+        juce::StringArray factory, all;
+        for (const auto& s : bank().specs)
+            factory.add (juce::String::fromUTF8 (s.name));
+        all = factory;
+        all.add ("Pads" + GiParamIds::dot() + "Mine");   // a user preset with a factory prefix (D4)
+        all.add ("My Patch");
+        all.sort (true);
+        const auto a = runPm0 (all, factory);
+        row (a.ok, "PM0 1.3.0 getPresetMenu encoder: 10 groups in menu order, 20 x 7 / Field 12 / Live 8 / User 2, users (a user \"Pads <dot> Mine\") in User only, short + prefix == name",
+             "meas" + a.detail + " | thr drones 20 expressive 20 field 12 keys 20 live 8 motion 20 pads 20 rhythmic 20 textures 20 user 2 | ctrl PM0n");
+        auto merged = factory;
+        merged.add ("Pads" + GiParamIds::dot() + "Mine");
+        const auto c = runPm0 (all, merged);
+        row (! c.ok, "PM0n control: the user \"Pads <dot> Mine\" passed as factory -> it lands in Pads, PM0 FAILS (predicate must FAIL)",
+             "meas" + c.detail + " | thr PM0 FAILS | " + ctrl (! c.ok, "PM0 predicate"));
+    }
+
     void rowsFRT1()
     {
         const auto& b = bank();
@@ -2852,6 +2905,7 @@ namespace { namespace pg4
         if (want ("FP0"))  rowFP0();
         if (want ("FSU1")) rowsFSU1();
         if (want ("FRT1")) rowsFRT1();
+        if (want ("PM0"))  rowsPM0();
         if (want ("FP1"))  rowsFP1();
         if (want ("FP2"))  rowsFP2();
         if (want ("FP3"))  rowFP3();

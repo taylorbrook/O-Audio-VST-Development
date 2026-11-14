@@ -148,9 +148,9 @@ Order: **T3 Keys, T4 Pads, T5 Drones, T6 Textures, T7 Rhythmic, T8 Motion, T9 Ex
 - Tests: `ui_frontend_check.js` page natives 22 → 23, `N_NATIVE` 36 → 37, new static check [18]; `preset_name_fit.js` measures short names in the right pane en / fr / zh; `tests/i18n-states.json` appends `preset-menu-open` **last** and `ui_binding_probe.js` state-count pin bumps; new `tests/ui_preset_menu_check.js` (ported from `ui_factory_picker_check.js`): 10 groups, counts 20 × 7 / 8 / 12 / User, keyboard path, ARIA wiring, negative control.
 
 **Verification:**
-- [ ] ui_frontend_check (+ `--nc`), ui_preset_menu_check (+ negative control), ui_factory_picker_check, ui_binding_probe, check-i18n, fr / zh lint, check-ui-labels, PN1 all green
-- [ ] Standalone screenshot of the open menu (en / fr / zh) in evidence; nothing clipped at 1200 px
-- [ ] Path-scoped commit
+- [x] ui_frontend_check (+ `--nc`), ui_preset_menu_check (+ negative control), ui_factory_picker_check, ui_binding_probe, check-i18n, fr / zh lint, check-ui-labels, PN1 all green
+- [x] Screenshot of the open menu (en / fr / zh) in evidence/t11; nothing clipped at 1200 px — served page (Chromium, WebKit checked too); the Standalone was built and booted (evidence/t11/standalone-boot.jpg) but its open-menu capture needs a hands-on click (deviation, carried to T12 / verify)
+- [x] Path-scoped commit
 
 **Dependencies:** Task 10 (menu counts are final only then; the UI code can be written earlier) · **Effort:** Medium
 

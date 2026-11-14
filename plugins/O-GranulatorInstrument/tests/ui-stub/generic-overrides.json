@@ -8240,6 +8240,697 @@
         "category": "field"
       }
     ],
+    "getPresetMenu": [
+      {
+        "group": "drones",
+        "presets": [
+          {
+            "name": "Drones · Bassoon Pedal",
+            "short": "Bassoon Pedal"
+          },
+          {
+            "name": "Drones · Deep Well",
+            "short": "Deep Well"
+          },
+          {
+            "name": "Drones · Endless Bow",
+            "short": "Endless Bow"
+          },
+          {
+            "name": "Drones · Frozen Field",
+            "short": "Frozen Field"
+          },
+          {
+            "name": "Drones · Hearth Glow",
+            "short": "Hearth Glow"
+          },
+          {
+            "name": "Drones · Hollow Wind",
+            "short": "Hollow Wind"
+          },
+          {
+            "name": "Drones · Iron Sky",
+            "short": "Iron Sky"
+          },
+          {
+            "name": "Drones · Long Exhale",
+            "short": "Long Exhale"
+          },
+          {
+            "name": "Drones · Low Orbit",
+            "short": "Low Orbit"
+          },
+          {
+            "name": "Drones · Minor Shroud",
+            "short": "Minor Shroud"
+          },
+          {
+            "name": "Drones · Night Engine",
+            "short": "Night Engine"
+          },
+          {
+            "name": "Drones · Organ Fifths",
+            "short": "Organ Fifths"
+          },
+          {
+            "name": "Drones · Organ Loft",
+            "short": "Organ Loft"
+          },
+          {
+            "name": "Drones · Plate Gong",
+            "short": "Plate Gong"
+          },
+          {
+            "name": "Drones · Saw Monolith",
+            "short": "Saw Monolith"
+          },
+          {
+            "name": "Drones · Shimmer Rise",
+            "short": "Shimmer Rise"
+          },
+          {
+            "name": "Drones · Sub Pressure",
+            "short": "Sub Pressure"
+          },
+          {
+            "name": "Drones · Tape Halo",
+            "short": "Tape Halo"
+          },
+          {
+            "name": "Drones · Undertow",
+            "short": "Undertow"
+          },
+          {
+            "name": "Drones · Wind Tunnel",
+            "short": "Wind Tunnel"
+          }
+        ]
+      },
+      {
+        "group": "expressive",
+        "presets": [
+          {
+            "name": "Expressive · Bend Choir",
+            "short": "Bend Choir"
+          },
+          {
+            "name": "Expressive · Bow Press",
+            "short": "Bow Press"
+          },
+          {
+            "name": "Expressive · Deep Slur",
+            "short": "Deep Slur"
+          },
+          {
+            "name": "Expressive · Drift Slide",
+            "short": "Drift Slide"
+          },
+          {
+            "name": "Expressive · Glide Bass",
+            "short": "Glide Bass"
+          },
+          {
+            "name": "Expressive · Key Breath",
+            "short": "Key Breath"
+          },
+          {
+            "name": "Expressive · Mono Lead",
+            "short": "Mono Lead"
+          },
+          {
+            "name": "Expressive · MPE Breath",
+            "short": "MPE Breath"
+          },
+          {
+            "name": "Expressive · MPE Shimmer",
+            "short": "MPE Shimmer"
+          },
+          {
+            "name": "Expressive · Press Vowel",
+            "short": "Press Vowel"
+          },
+          {
+            "name": "Expressive · Reed Press",
+            "short": "Reed Press"
+          },
+          {
+            "name": "Expressive · Saw Glide",
+            "short": "Saw Glide"
+          },
+          {
+            "name": "Expressive · Slide Glass",
+            "short": "Slide Glass"
+          },
+          {
+            "name": "Expressive · Slide Vox",
+            "short": "Slide Vox"
+          },
+          {
+            "name": "Expressive · Sub Legato",
+            "short": "Sub Legato"
+          },
+          {
+            "name": "Expressive · Velo Glass",
+            "short": "Velo Glass"
+          },
+          {
+            "name": "Expressive · Velo Shards",
+            "short": "Velo Shards"
+          },
+          {
+            "name": "Expressive · Wheel Gust",
+            "short": "Wheel Gust"
+          },
+          {
+            "name": "Expressive · Wheel Morph",
+            "short": "Wheel Morph"
+          },
+          {
+            "name": "Expressive · Wheel Organ",
+            "short": "Wheel Organ"
+          }
+        ]
+      },
+      {
+        "group": "field",
+        "presets": [
+          {
+            "name": "Field · Brook Bank",
+            "short": "Brook Bank"
+          },
+          {
+            "name": "Field · Campfire",
+            "short": "Campfire"
+          },
+          {
+            "name": "Field · Distant Park",
+            "short": "Distant Park"
+          },
+          {
+            "name": "Field · Forest Walk",
+            "short": "Forest Walk"
+          },
+          {
+            "name": "Field · Garden Dusk",
+            "short": "Garden Dusk"
+          },
+          {
+            "name": "Field · Garden Rain",
+            "short": "Garden Rain"
+          },
+          {
+            "name": "Field · Park Memory",
+            "short": "Park Memory"
+          },
+          {
+            "name": "Field · Park Morning",
+            "short": "Park Morning"
+          },
+          {
+            "name": "Field · Rain on Stream",
+            "short": "Rain on Stream"
+          },
+          {
+            "name": "Field · Sea Cave",
+            "short": "Sea Cave"
+          },
+          {
+            "name": "Field · Shoreline",
+            "short": "Shoreline"
+          },
+          {
+            "name": "Field · Stream Bed",
+            "short": "Stream Bed"
+          }
+        ]
+      },
+      {
+        "group": "keys",
+        "presets": [
+          {
+            "name": "Keys · Bell",
+            "short": "Bell"
+          },
+          {
+            "name": "Keys · Bowed Stroke",
+            "short": "Bowed Stroke"
+          },
+          {
+            "name": "Keys · Celesta",
+            "short": "Celesta"
+          },
+          {
+            "name": "Keys · Chapel Organ",
+            "short": "Chapel Organ"
+          },
+          {
+            "name": "Keys · Crystal Bowl",
+            "short": "Crystal Bowl"
+          },
+          {
+            "name": "Keys · Drift Guitar",
+            "short": "Drift Guitar"
+          },
+          {
+            "name": "Keys · FM Tines",
+            "short": "FM Tines"
+          },
+          {
+            "name": "Keys · Gamelan Plate",
+            "short": "Gamelan Plate"
+          },
+          {
+            "name": "Keys · Glass Mallet",
+            "short": "Glass Mallet"
+          },
+          {
+            "name": "Keys · Grain Piano",
+            "short": "Grain Piano"
+          },
+          {
+            "name": "Keys · Guitar Harmonics",
+            "short": "Guitar Harmonics"
+          },
+          {
+            "name": "Keys · Harp Cascade",
+            "short": "Harp Cascade"
+          },
+          {
+            "name": "Keys · Ice Bells",
+            "short": "Ice Bells"
+          },
+          {
+            "name": "Keys · Kalimba",
+            "short": "Kalimba"
+          },
+          {
+            "name": "Keys · Kalimba Hall",
+            "short": "Kalimba Hall"
+          },
+          {
+            "name": "Keys · Marimba",
+            "short": "Marimba"
+          },
+          {
+            "name": "Keys · Poly Saw",
+            "short": "Poly Saw"
+          },
+          {
+            "name": "Keys · Soft Rhodes",
+            "short": "Soft Rhodes"
+          },
+          {
+            "name": "Keys · Sus Chords",
+            "short": "Sus Chords"
+          },
+          {
+            "name": "Keys · Toy Box",
+            "short": "Toy Box"
+          }
+        ]
+      },
+      {
+        "group": "live",
+        "presets": [
+          {
+            "name": "Live · Feedback Loop",
+            "short": "Feedback Loop"
+          },
+          {
+            "name": "Live · Four Lanes",
+            "short": "Four Lanes"
+          },
+          {
+            "name": "Live · Freeze Cloud",
+            "short": "Freeze Cloud"
+          },
+          {
+            "name": "Live · Init",
+            "short": "Init"
+          },
+          {
+            "name": "Live · Manual Loop",
+            "short": "Manual Loop"
+          },
+          {
+            "name": "Live · Next Note Grab",
+            "short": "Next Note Grab"
+          },
+          {
+            "name": "Live · Tempo Bars",
+            "short": "Tempo Bars"
+          },
+          {
+            "name": "Live · Threshold Catch",
+            "short": "Threshold Catch"
+          }
+        ]
+      },
+      {
+        "group": "motion",
+        "presets": [
+          {
+            "name": "Motion · Bell Scatter",
+            "short": "Bell Scatter"
+          },
+          {
+            "name": "Motion · Bubble Orbit",
+            "short": "Bubble Orbit"
+          },
+          {
+            "name": "Motion · Clockwork",
+            "short": "Clockwork"
+          },
+          {
+            "name": "Motion · Crush Tides",
+            "short": "Crush Tides"
+          },
+          {
+            "name": "Motion · Crystal Phase",
+            "short": "Crystal Phase"
+          },
+          {
+            "name": "Motion · Drift Warble",
+            "short": "Drift Warble"
+          },
+          {
+            "name": "Motion · Garden Loops",
+            "short": "Garden Loops"
+          },
+          {
+            "name": "Motion · Loop Weaver",
+            "short": "Loop Weaver"
+          },
+          {
+            "name": "Motion · Orbit Lines",
+            "short": "Orbit Lines"
+          },
+          {
+            "name": "Motion · Phase Garden",
+            "short": "Phase Garden"
+          },
+          {
+            "name": "Motion · Plate Spin",
+            "short": "Plate Spin"
+          },
+          {
+            "name": "Motion · Reed Pulsar",
+            "short": "Reed Pulsar"
+          },
+          {
+            "name": "Motion · Reverse River",
+            "short": "Reverse River"
+          },
+          {
+            "name": "Motion · Ring Spinner",
+            "short": "Ring Spinner"
+          },
+          {
+            "name": "Motion · Saw Sweeper",
+            "short": "Saw Sweeper"
+          },
+          {
+            "name": "Motion · Shimmer Spiral",
+            "short": "Shimmer Spiral"
+          },
+          {
+            "name": "Motion · Sus Carousel",
+            "short": "Sus Carousel"
+          },
+          {
+            "name": "Motion · Swarm",
+            "short": "Swarm"
+          },
+          {
+            "name": "Motion · Tide Machine",
+            "short": "Tide Machine"
+          },
+          {
+            "name": "Motion · Vowel Wander",
+            "short": "Vowel Wander"
+          }
+        ]
+      },
+      {
+        "group": "pads",
+        "presets": [
+          {
+            "name": "Pads · Analog Sweep",
+            "short": "Analog Sweep"
+          },
+          {
+            "name": "Pads · Breath Cloud",
+            "short": "Breath Cloud"
+          },
+          {
+            "name": "Pads · Cathedral Choir",
+            "short": "Cathedral Choir"
+          },
+          {
+            "name": "Pads · Crystal Halo",
+            "short": "Crystal Halo"
+          },
+          {
+            "name": "Pads · Deep Floor",
+            "short": "Deep Floor"
+          },
+          {
+            "name": "Pads · Fifth Bloom",
+            "short": "Fifth Bloom"
+          },
+          {
+            "name": "Pads · Just Glow",
+            "short": "Just Glow"
+          },
+          {
+            "name": "Pads · Low Strings",
+            "short": "Low Strings"
+          },
+          {
+            "name": "Pads · Minor Haze",
+            "short": "Minor Haze"
+          },
+          {
+            "name": "Pads · Nineteen",
+            "short": "Nineteen"
+          },
+          {
+            "name": "Pads · Organ Swell",
+            "short": "Organ Swell"
+          },
+          {
+            "name": "Pads · Overtone Glow",
+            "short": "Overtone Glow"
+          },
+          {
+            "name": "Pads · Pentatonic Mist",
+            "short": "Pentatonic Mist"
+          },
+          {
+            "name": "Pads · Reed Consort",
+            "short": "Reed Consort"
+          },
+          {
+            "name": "Pads · Seventeen Glass",
+            "short": "Seventeen Glass"
+          },
+          {
+            "name": "Pads · Shimmer Veil",
+            "short": "Shimmer Veil"
+          },
+          {
+            "name": "Pads · Slow Tide",
+            "short": "Slow Tide"
+          },
+          {
+            "name": "Pads · Sus Horizon",
+            "short": "Sus Horizon"
+          },
+          {
+            "name": "Pads · Velvet Strings",
+            "short": "Velvet Strings"
+          },
+          {
+            "name": "Pads · Warm Choir",
+            "short": "Warm Choir"
+          }
+        ]
+      },
+      {
+        "group": "rhythmic",
+        "presets": [
+          {
+            "name": "Rhythmic · Bell Dots",
+            "short": "Bell Dots"
+          },
+          {
+            "name": "Rhythmic · Broken Beat",
+            "short": "Broken Beat"
+          },
+          {
+            "name": "Rhythmic · Bubble Seq",
+            "short": "Bubble Seq"
+          },
+          {
+            "name": "Rhythmic · Click Hats",
+            "short": "Click Hats"
+          },
+          {
+            "name": "Rhythmic · Dotted Echo",
+            "short": "Dotted Echo"
+          },
+          {
+            "name": "Rhythmic · Gated Pad",
+            "short": "Gated Pad"
+          },
+          {
+            "name": "Rhythmic · Iron Shaker",
+            "short": "Iron Shaker"
+          },
+          {
+            "name": "Rhythmic · Kalimba Steps",
+            "short": "Kalimba Steps"
+          },
+          {
+            "name": "Rhythmic · Marimba Pulse",
+            "short": "Marimba Pulse"
+          },
+          {
+            "name": "Rhythmic · Minor Chop",
+            "short": "Minor Chop"
+          },
+          {
+            "name": "Rhythmic · Pluck Arp",
+            "short": "Pluck Arp"
+          },
+          {
+            "name": "Rhythmic · Pulse Grid",
+            "short": "Pulse Grid"
+          },
+          {
+            "name": "Rhythmic · Ratchet",
+            "short": "Ratchet"
+          },
+          {
+            "name": "Rhythmic · Shuffle Loop",
+            "short": "Shuffle Loop"
+          },
+          {
+            "name": "Rhythmic · Snip Claps",
+            "short": "Snip Claps"
+          },
+          {
+            "name": "Rhythmic · Stick Groove",
+            "short": "Stick Groove"
+          },
+          {
+            "name": "Rhythmic · Stutter Kit",
+            "short": "Stutter Kit"
+          },
+          {
+            "name": "Rhythmic · Sub Pump",
+            "short": "Sub Pump"
+          },
+          {
+            "name": "Rhythmic · Triplet Chop",
+            "short": "Triplet Chop"
+          },
+          {
+            "name": "Rhythmic · Triplet Rain",
+            "short": "Triplet Rain"
+          }
+        ]
+      },
+      {
+        "group": "textures",
+        "presets": [
+          {
+            "name": "Textures · Breath Static",
+            "short": "Breath Static"
+          },
+          {
+            "name": "Textures · Broken Radio",
+            "short": "Broken Radio"
+          },
+          {
+            "name": "Textures · Bubble Drift",
+            "short": "Bubble Drift"
+          },
+          {
+            "name": "Textures · Cicada Night",
+            "short": "Cicada Night"
+          },
+          {
+            "name": "Textures · Crystal Rain",
+            "short": "Crystal Rain"
+          },
+          {
+            "name": "Textures · Ember Field",
+            "short": "Ember Field"
+          },
+          {
+            "name": "Textures · Gale Shimmer",
+            "short": "Gale Shimmer"
+          },
+          {
+            "name": "Textures · Geiger Dust",
+            "short": "Geiger Dust"
+          },
+          {
+            "name": "Textures · Glitter Haze",
+            "short": "Glitter Haze"
+          },
+          {
+            "name": "Textures · Gravel Rain",
+            "short": "Gravel Rain"
+          },
+          {
+            "name": "Textures · Ice Shards",
+            "short": "Ice Shards"
+          },
+          {
+            "name": "Textures · Iron Swarm",
+            "short": "Iron Swarm"
+          },
+          {
+            "name": "Textures · Paper Cuts",
+            "short": "Paper Cuts"
+          },
+          {
+            "name": "Textures · Rain Glass",
+            "short": "Rain Glass"
+          },
+          {
+            "name": "Textures · Rust Cloud",
+            "short": "Rust Cloud"
+          },
+          {
+            "name": "Textures · Sand Drift",
+            "short": "Sand Drift"
+          },
+          {
+            "name": "Textures · Scrap Yard",
+            "short": "Scrap Yard"
+          },
+          {
+            "name": "Textures · Static Choir",
+            "short": "Static Choir"
+          },
+          {
+            "name": "Textures · Twig Storm",
+            "short": "Twig Storm"
+          },
+          {
+            "name": "Textures · Wind Harp",
+            "short": "Wind Harp"
+          }
+        ]
+      },
+      {
+        "group": "user",
+        "presets": []
+      }
+    ],
     "getUiLanguage": "en"
   }
 }

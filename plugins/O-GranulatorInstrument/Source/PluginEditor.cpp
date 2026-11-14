@@ -1084,6 +1084,17 @@ GranulatorInstrumentEditor::GranulatorInstrumentEditor (GranulatorInstrumentProc
                 arr.add (name);
             complete (juce::var (arr));
         })
+        // 1.3.0: the two-pane preset menu's only data source (plugin-local; the
+        // shared module is untouched). Factory membership comes from the Factory
+        // folder, so a user preset named "Pads · X" lands in User.
+        .withNativeFunction ("getPresetMenu", [this] (const auto&, auto complete)
+        {
+            auto& pm = processorRef.getPresetManager();
+            juce::StringArray factory;
+            for (const auto& f : pm.getFactoryPresetsDirectory().findChildFiles (juce::File::findFiles, false, "*.json"))
+                factory.add (f.getFileNameWithoutExtension());
+            complete (GiUiJson::presetMenuToVar (pm.getPresetList(), factory));
+        })
         .withNativeFunction ("getCurrentPreset", [this] (const auto&, auto complete)
         {
             complete (juce::var (processorRef.getPresetManager().getCurrentPresetName()));

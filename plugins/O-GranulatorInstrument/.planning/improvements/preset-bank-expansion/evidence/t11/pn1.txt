@@ -1,0 +1,14 @@
+== O-GranulatorInstrument preset_name_fit (PN1 / PN1n) — 160 names ==
+  PASS: PN1 en: 160 names in .pname b — widest "Expressive · MPE Shimmer" 144 / 144 px
+  PASS: PN1 en: 160 short names in a #pm-presets .pm-p row — 0 overflow (row 310 px)
+  PASS: PN1 en: 10 group headers + count fit their left-pane row — widest "Expressive" 69.0 px
+  PASS: PN1 fr: 160 names in .pname b — widest "Expressive · MPE Shimmer" 144 / 144 px
+  PASS: PN1 fr: 160 short names in a #pm-presets .pm-p row — 0 overflow (row 310 px)
+  PASS: PN1 fr: 10 group headers + count fit their left-pane row — widest "Utilisateur" 77.6 px
+  PASS: PN1 zh-Hans: 160 names in .pname b — widest "Expressive · MPE Shimmer" 144 / 144 px
+  PASS: PN1 zh-Hans: 160 short names in a #pm-presets .pm-p row — 0 overflow (row 310 px)
+  PASS: PN1 zh-Hans: 10 group headers + count fit their left-pane row — widest "实地录音" 37.5 px
+  PASS: PN1n a 40-character name overflows the box (215 / 152 px) — the gate is live
+  PASS: PN1n2 a 82-character short name overflows its .pm-p row (433 / 310 px) — the menu gate is live
+ALL PASS
+rc 0

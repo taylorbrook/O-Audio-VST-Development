@@ -1542,6 +1542,14 @@ static int dumpUiOverrides (const juce::File& out)
     natives->setProperty ("getWindowCurve", GiUiJson::windowCurveToVar (*p, 0));
     natives->setProperty ("getSlotOverview", GiUiJson::slotOverviewToVar (*p, 0));
     natives->setProperty ("getFactorySources", GiUiJson::factorySourcesToVar());   // 1.2.0: from the table (1.1.0 added the 8 by hand)
+    {
+        // 1.3.0: the factory bank as getPresetList() lists it (sorted, case-insensitive), all factory.
+        juce::StringArray bankNames;
+        for (const auto& s : ogi::factory::factoryPresetSpecs())
+            bankNames.add (juce::String::fromUTF8 (s.name));
+        bankNames.sort (true);
+        natives->setProperty ("getPresetMenu", GiUiJson::presetMenuToVar (bankNames, bankNames));
+    }
     natives->setProperty ("getUiLanguage", "en");
 
     auto* root = new juce::DynamicObject();

@@ -1,0 +1,6 @@
+  PASS: [repo] [16] 1 plugin(s) with a language selector were EXAMINED — each was required to carry exactly one hover-help switch, bound and keyed
+
+ALL CHECKS PASS — 1 localized plugin(s)
+
+CLEAN — exit 0
+GATE PASSED — exit 0. 0 findings across 1 plugin(s).  (467 entries are at reviewed:'mt' — counted, not failed.)

@@ -1218,6 +1218,11 @@ export const LABELS = Object.freeze({
         fr: { t: "Cercle des hauteurs", reviewed: false },
         'zh-Hans': { t: "音高圆", reviewed: 'mt' },
     },
+    'aria.presetGroups': {
+        en: { t: "Preset groups" },
+        fr: { t: "Groupes de préréglages", reviewed: false },
+        'zh-Hans': { t: "预设分组", reviewed: 'mt' },
+    },
     'aria.presetMenu': {
         en: { t: "Preset list" },
         fr: { t: "Liste des préréglages", reviewed: false },
@@ -1742,6 +1747,56 @@ export const LABELS = Object.freeze({
         en: { t: "Modes" },
         fr: { t: "Modes", reviewed: false, sameAsEn: true },
         'zh-Hans': { t: "调式", reviewed: 'mt' },
+    },
+    'list.pgDrones': {
+        en: { t: "Drones" },
+        fr: { t: "Bourdons", reviewed: false },
+        'zh-Hans': { t: "持续音", reviewed: 'mt' },
+    },
+    'list.pgEmpty': {
+        en: { t: "No saved presets yet" },
+        fr: { t: "Aucun préréglage enregistré", reviewed: false },
+        'zh-Hans': { t: "尚无已保存的预设", reviewed: 'mt' },
+    },
+    'list.pgExpressive': {
+        en: { t: "Expressive" },
+        fr: { t: "Expressifs", reviewed: false },
+        'zh-Hans': { t: "表情", reviewed: 'mt' },
+    },
+    'list.pgField': {
+        en: { t: "Field" },
+        fr: { t: "Terrain", reviewed: false },
+        'zh-Hans': { t: "实地录音", reviewed: 'mt' },
+    },
+    'list.pgKeys': {
+        en: { t: "Keys" },
+        fr: { t: "Claviers", reviewed: false },
+        'zh-Hans': { t: "键盘", reviewed: 'mt' },
+    },
+    'list.pgLive': {
+        en: { t: "Live" },
+        fr: { t: "En direct", reviewed: false },
+        'zh-Hans': { t: "现场", reviewed: 'mt' },
+    },
+    'list.pgMotion': {
+        en: { t: "Motion" },
+        fr: { t: "Mouvement", reviewed: false },
+        'zh-Hans': { t: "运动", reviewed: 'mt' },
+    },
+    'list.pgPads': {
+        en: { t: "Pads" },
+        fr: { t: "Nappes", reviewed: false },
+        'zh-Hans': { t: "铺垫", reviewed: 'mt' },
+    },
+    'list.pgRhythmic': {
+        en: { t: "Rhythmic" },
+        fr: { t: "Rythmiques", reviewed: false },
+        'zh-Hans': { t: "节奏", reviewed: 'mt' },
+    },
+    'list.pgTextures': {
+        en: { t: "Textures" },
+        fr: { t: "Textures", reviewed: false, sameAsEn: true },
+        'zh-Hans': { t: "纹理", reviewed: 'mt' },
     },
     'list.srcDrone': {
         en: { t: "Drone" },
