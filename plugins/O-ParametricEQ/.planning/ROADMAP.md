@@ -165,10 +165,10 @@ Suite traps to check here: the first-order `IIR::Filter` default constructor is 
 - `dynOffsetDb` hook (held at 0)
 
 **Test criteria:**
-- [ ] Gate G3, sweep rows, with the hard control reading ≥ 10x (DSP-04)
-- [ ] Gate G5 (DSP-04, DSP-06)
-- [ ] Gate G7 (DSP-05)
-- [ ] Gate G6 under stress (PERF-01)
+- [ ] Gate G3, sweep rows, as amended 2026-11-13: ≤ 4.0x the same-motion per-sample reference, with the interpolation-off and no-smoothing controls reading ≥ 10x (DSP-04)
+- [ ] Gate G5 as amended 2026-11-13 (peak against the static stack; non-finite input does not stick) (DSP-04, DSP-06)
+- [ ] Gate G7 as amended 2026-11-13 (decay 3.42 dB/s, ≤ -270 dBFS in the 60th second) (DSP-05)
+- [ ] Gate G6 under stress (PERF-01); the "analyzer on" half re-runs in 2.6
 - [ ] Parameter events placed on multiples of 2048 samples render bit-identically at block sizes 32, 64, 512, 2048
 
 ---
