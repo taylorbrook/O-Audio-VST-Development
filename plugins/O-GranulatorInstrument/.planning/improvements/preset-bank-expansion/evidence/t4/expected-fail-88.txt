@@ -1,0 +1,23 @@
+T4 expected-fail list at the 88-preset bank (Keys 20 / 20, Pads 20 / 20), 2026-11-14. A strict subset of evidence/t3/expected-fail-76.txt.
+
+--pg4: 35 PASS / 5 FAIL
+  FP0  (9 failing checks of 553):
+       Drones count 8 (want 20) | Expressive count 8 (want 20) | Field count 0 (want 12)
+       | Motion count 8 (want 20) | Rhythmic count 8 (want 20) | Textures count 8 (want 20)
+       | bank 88 / 9 categories (want 160 / 9)
+       | Expressive split 4 / 1 / 2 / 2 (want 8 / >= 1 / 6 / 6)
+       | Field sources stream / park / waves / woods / garden 0 / 0 / 0 / 0 / 0 (want 3 / 3 / 2 / 2 / 2)
+       (Pads count no longer fails; Pads custom / scales still green with custom >= 2.)
+  FSU1 23 / 41 sources in >= 2 presets (18 below 2; was 13 / 41: reed, saw_stack, chord_minor, chord_sus, crystal,
+       choir, guitar_overtones, breath, shimmer, sub reach 2)
+  FRT1 9 / 9 off-C3 slots in tune; 4 / 5 sources (contrabassoon not yet in the bank)
+  FP1c 88 (want 160)
+  FP3c 8 Rhythmic (want 20)
+Outside --pg4:
+  --dump-factory-presets: rc 1 (88 files, want 160)
+  tests/preset_name_fit.js (PN1): 1 FAILURE "parsed 88 names (want 160)"; every fit line passes (widest still "Expressive · Wheel Morph" 139 px)
+
+Green: FP2 (spread 6.00 dB, -29.0 Grain Piano .. -23.0 Fifth Bloom; max peak 0.568), the 12 new -27.1 .. -27.0 gated;
+FP0 realism-titled 19 (the 16 + Cathedral Choir, Low Strings, Organ Swell), none trips P3;
+FP4 440 / 440 (5 x N), FP1 88 / 88, FP3, FP4b, FP5 (88), FP6, FPT1 + FPT1n, FSU1n, FRT1n, FP0wn.
+--cmp-preset-renders ref-1.2.0 --all-bitwise --exclude-revoiced13: PT0v13 64 old / 0 missing / 24 new; PT0 56 / 56 bitwise.

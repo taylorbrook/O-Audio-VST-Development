@@ -1,6 +1,6 @@
 milestone: preset-bank-expansion
 created: 2026-11-14T15:18:41Z
-lastActivity: 2026-11-14T21:00:00Z
+lastActivity: 2026-11-14T22:00:00Z
 phases:
   discuss:
     status: complete
@@ -17,7 +17,7 @@ phases:
   execute:
     status: in_progress
     startedAt: 2026-11-14T18:00:00Z
-    lastWaveCommitted: T3
+    lastWaveCommitted: T4
     notes: >-
       T0 backup backups/O-GranulatorInstrument/v1.2.0 + 1.2.0 references (harness-120 binary in
       build/plugins/O-GranulatorInstrument/pbe-ref120-bin, 64 renders in evidence/ref-1.2.0, f32 gitignored).
@@ -28,6 +28,7 @@ phases:
       Drones/Expressive/Field/Keys/Motion/Pads/Rhythmic/Textures, bank 64/9 want 160/9, Expressive split
       4/1/2/2 want 8/>=1/6/6, Field sources 0/0/0/0/0 want 3/3/2/2/2); FSU1 8/41; FRT1 0 slots 0/5 sources;
       FP1c 64; FP3c 8; --dump-factory-presets rc 1; PN1 count. Each wave shows a shrinking subset; T10 none.
+      T3 commit 3abded8c (SHA line written after the commit; the next wave commits it).
       T3 Keys +12 (Marimba, Kalimba Hall, FM Tines, Ice Bells, Crystal Bowl, Chapel Organ, Gamelan Plate,
       Drift Guitar, Guitar Harmonics, Sus Chords, Poly Saw, Bowed Stroke; seeds ...0301000009-...20): FP2 new
       -28.3 .. -26.4, bank spread 6.00 dB, peak 0.568; PT0 56 / 56 bitwise. Expected-fail list at 76
@@ -35,6 +36,13 @@ phases:
       split; Field sources); FSU1 13/41; FRT1 3/3 slots, 3/5 sources; FP1c 76; FP3c 8; dump rc 1; PN1 count.
       Short percussive sources measure low on the gated FP2 (tails count): sustain 25-50 / ping-pong reads
       / density 200 / vel_to_amp 40-50 bring them to -27 without passing +6.
+      T4 commit: SHA line written after the commit; the next wave commits it.
+      T4 Pads +12 (Cathedral Choir, Low Strings, Organ Swell, Minor Haze, Sus Horizon, Analog Sweep, Shimmer Veil,
+      Reed Consort, Crystal Halo, Breath Cloud, Overtone Glow, Deep Floor; seeds ...0601000009-...20): FP2 new
+      -27.1 .. -27.0, bank spread 6.00 dB, peak 0.568, P4 not fired; PT0 56 / 56 bitwise. Expected-fail list at 88
+      (evidence/t4/expected-fail-88.txt): FP0 9 checks (6 category counts, no Keys / Pads; bank 88/9; Expressive
+      split; Field sources); FSU1 23/41; FRT1 9/9 slots, 4/5 sources; FP1c 88; FP3c 8; dump rc 1; PN1 count.
+      Density saturates near 150/s at grain_limit 128 (Breath Cloud 200 read the same as 150).
   verify:
     status: pending
 versionBump: minor
