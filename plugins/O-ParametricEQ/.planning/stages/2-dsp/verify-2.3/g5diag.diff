@@ -1,0 +1,31 @@
+174c174
+< 
+---
+> #include <cstdlib>
+8685d8684
+<         double wT=0,wRun=0,wNow=0,wPeak=0; int wSize=0; double late=-1e9, lateT=0, lateRun=0; double local=-1e9, localT=0, localMax=0; double bucket[5]={-1e9,-1e9,-1e9,-1e9,-1e9};
+8728d8726
+<         std::vector<std::pair<long long,double>> hist; std::size_t h0 = 0; double lastNow = 0.0;
+8772d8769
+<             if (evalStack) { hist.push_back ({pos, stackNow}); lastNow = stackNow; }
+8804d8800
+<                 if (margin > out.worstMargin) { out.wT = t; out.wRun = runStack; out.wNow = lastNow; out.wSize = size; out.wPeak = margin + runStack; }
+8806,8814d8801
+<                 if (t >= 30.0 && margin > out.late) { out.late = margin; out.lateT = t; out.lateRun = runStack; }
+<                 { const int bk = t < 1.0 ? 0 : (t < 5.0 ? 1 : (t < 30.0 ? 2 : (t < 120.0 ? 3 : 4))); out.bucket[bk] = std::max (out.bucket[bk], margin); }
+<                 if (size == 512)
+<                 {
+<                     while (h0 < hist.size() && hist[h0].first < pos - static_cast<long long> (2.0 * fs)) ++h0;
+<                     double lm = 0.0; for (std::size_t q = h0; q < hist.size(); ++q) lm = std::max (lm, hist[q].second);
+<                     const double m2 = margin + runStack - lm;
+<                     if (m2 > out.local) { out.local = m2; out.localT = t; out.localMax = lm; }
+<                 }
+8924,8929d8910
+<             note (strf ("   DIAG worst margin %+.1f dB at t = %.3f s (block size %d): peak %+.1f dB re input, running stack %.1f dB, stack of that block's targets (last evaluated) %.1f dB",
+<                         rate.worstMargin, rate.wT, rate.wSize, rate.wPeak, rate.wRun, rate.wNow));
+<             note (strf ("   DIAG worst margin by time: <1 s %+.1f | 1-5 s %+.1f | 5-30 s %+.1f | 30-120 s %+.1f | >120 s %+.1f; from 30 s on %+.1f (t = %.2f s, running stack %.1f)",
+<                         rate.bucket[0], rate.bucket[1], rate.bucket[2], rate.bucket[3], rate.bucket[4], rate.late, rate.lateT, rate.lateRun));
+<             note (strf ("   DIAG peak - (largest stack of the trailing 2 s), 512-sample periods only: worst %+.1f dB at t = %.2f s (that local stack %.1f dB)",
+<                         rate.local, rate.localT, rate.localMax));
+9777d9757
+<     if (std::getenv ("G5ONLY") != nullptr) { rowsRmG5 (longRun); return 0; }

@@ -1,13 +1,13 @@
 ---
 plugin: O-ParametricEQ
 stage: 2
-phase: execute
-status: stage_2_phase_2_3_executed
-last_updated: 2026-11-13 23:59:00
+phase: verify
+status: stage_2_phase_2_3_verified
+last_updated: 2026-11-14 10:00:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_2_verify_phase_2_3
+next_action: stage_2_research_phase_2_4
 next_stage: 2
 ready_for_implementation: true
 ui_scaffolding_phase_complete: true
@@ -28,7 +28,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — discuss ✓ 2026-11-12 (`stages/2-dsp/CONTEXT.md`, D6–D11); research 2.1 / 2.1b ✓ 2026-11-12 (`stages/2-dsp/RESEARCH-2.1.md`); plan 2.1 / 2.1b ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.1.md`, `PLAN-2.1b.md`); execute 2.1 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.1.md`, designer harness 28 PASS / 0 FAIL / 6 INFO); verify 2.1 ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1.md`, VERIFIED); execute 2.1b **BLOCKED** 2026-11-13 (`stages/2-dsp/SUMMARY-2.1b.md`: harness 47 PASS / 1 FAIL, C1 continuity; uncommitted); research on the C1 failure ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.1b-continuity.md`); plan 2.1b rework ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.1b-rework.md`, 10 tasks); execute 2.1b rework ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.1b-rework.md`, designer harness 54 PASS / 0 FAIL / 12 INFO); verify 2.1b ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1b.md`, VERIFIED); research 2.2 ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.2.md`); plan 2.2 ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.2.md`, 10 tasks); execute 2.2 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.2.md`, designer harness 67 PASS / 0 FAIL / 12 INFO, render harness 64 PASS / 0 FAIL, 0.2.0 installed); verify 2.2 ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.2.md`, VERIFIED); research 2.3 ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.3.md`); plan 2.3 ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.3.md`, 10 tasks); execute 2.3 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.3.md`, designer harness 88 PASS / 0 FAIL / 14 INFO, render harness 83 PASS / 0 FAIL, default and `--long`, 0.3.0 installed); next is verify for Phase 2.3. Stage 1 (Foundation): VERIFIED
+Stage: 2 of 4 (DSP) — discuss ✓ 2026-11-12 (`stages/2-dsp/CONTEXT.md`, D6–D11); research 2.1 / 2.1b ✓ 2026-11-12 (`stages/2-dsp/RESEARCH-2.1.md`); plan 2.1 / 2.1b ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.1.md`, `PLAN-2.1b.md`); execute 2.1 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.1.md`, designer harness 28 PASS / 0 FAIL / 6 INFO); verify 2.1 ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1.md`, VERIFIED); execute 2.1b **BLOCKED** 2026-11-13 (`stages/2-dsp/SUMMARY-2.1b.md`: harness 47 PASS / 1 FAIL, C1 continuity; uncommitted); research on the C1 failure ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.1b-continuity.md`); plan 2.1b rework ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.1b-rework.md`, 10 tasks); execute 2.1b rework ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.1b-rework.md`, designer harness 54 PASS / 0 FAIL / 12 INFO); verify 2.1b ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1b.md`, VERIFIED); research 2.2 ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.2.md`); plan 2.2 ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.2.md`, 10 tasks); execute 2.2 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.2.md`, designer harness 67 PASS / 0 FAIL / 12 INFO, render harness 64 PASS / 0 FAIL, 0.2.0 installed); verify 2.2 ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.2.md`, VERIFIED); research 2.3 ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.3.md`); plan 2.3 ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.3.md`, 10 tasks); execute 2.3 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.3.md`, designer harness 88 PASS / 0 FAIL / 14 INFO, render harness 83 PASS / 0 FAIL, default and `--long`, 0.3.0 installed); verify 2.3 ✓ 2026-11-14 (`stages/2-dsp/VERIFICATION-2.3.md`, VERIFIED); next is research for Phase 2.4. Stage 1 (Foundation): VERIFIED
 Status: 0.1.0 built and installed (VST3 + AU + Standalone); harness 36 PASS / 0 FAIL, pluginval 10 and auval pass (`stages/1-foundation/SUMMARY.md`). Verified 2026-11-12 by an independent re-run on a fresh compile and reinstalled bundles, plus a mutation run (`stages/1-foundation/VERIFICATION.md`); next is Stage 2 discuss
 Progress: [####................] 20%
 
@@ -92,6 +92,7 @@ Progress: [####................] 20%
 | research 2.3 | ✓ | 2026-11-13 | |
 | plan 2.3 | ✓ | 2026-11-13 | |
 | execute 2.3 | ✓ | 2026-11-13 | |
+| verify 2.3 | ✓ | 2026-11-14 | |
 
 ## Next Steps
 
@@ -119,7 +120,8 @@ Progress: [####................] 20%
 21. ~~Research Phase 2.3~~ Done 2026-11-13: `stages/2-dsp/RESEARCH-2.3.md`, bench in `stages/2-dsp/research-2.3/ramp_bench.cpp` (prototype control grid, ramps and ramping path over the real `Source/dsp` headers, double). The specified smoothing (K 16, 20 ms ramps, per-sample linear interpolation with `a1` by division) reads within 3 % of a per-sample reference on 49 of 52 sweep readings and 1.9x - 2.5x on three (grid kinks on quiet rows; K 8 removes them at twice the design cost). **Three gate clauses do not survive as written:** G3 sweep rows against the held references (3x - 2250x on a 50 Hz tone, 8 of 26 above 2x at 1 kHz, and the per-sample reference reads the same); G5 "peak ≤ +72 dB re input" (+199 to +311 dB over 10 minutes at each of 8 rates, 0 non-finite samples); G7 "≤ -300 dBFS at 60 s" (the +12 dB bell's pole Q is 80: 3.42 dB/s, -280.9 dBFS in the 60th second). G7 noise floor passes: -235.4 dBFS double, -162.4 dBFS float. Time-varying stability: Wishnick DAFx-14 read in full, its proof covers the designer's parameter box (`g` 2.9e-5 - 257, `k` 7.9e-4 - 1256), and the state matrix has norm exactly 1 (derived and checked), provided `a1, a2, a3` come from one interpolated `(g, k)`. CPU: 24 cuts x 96 dB/oct all sweeping 4.35 % (budget 35), 24 shelves x 96 dB/oct all sweeping 23.0 % (INFO line 35); the division costs nothing. Events on multiples of 2048 render bit-identically at blocks 1 / 32 / 64 / 512 / 2048. **Calls for the plan:** C1 - C3 are Taylor's (amend ARCHITECTURE G3: same-motion reference at ≤ 4.0x with two controls; G5: peak ≤ the largest static stack drawn + 12 dB; G7: decay 3.42 dB/s ± 2 %, ≤ -270 dBFS in the 60th second); C4 - C11 are the plan's (interpolation form, ramp semantics, one effective-gain ramp with `dynOffsetDb` after it, canonical gain 0 on cuts / Notch / Band Pass, tick counter on early returns, G5 length, non-finite input guard, row placement incl. the VERIFICATION-2.2 gaps). Nothing in Source, the harnesses, the model or the goldens was changed.
 22. ~~Plan Phase 2.3~~ Done 2026-11-13: `stages/2-dsp/PLAN-2.3.md` (10 tasks, six waves). Taylor's calls: G3 sweep rows scored against a same-motion per-sample reference at ≤ 4.0x (K stays 16 / 32 / 64), G5 peak against the static stack + 12 dB, G7 ring-down 3.42 dB/s and ≤ -270 dBFS in the 60th second, version 0.3.0 with build, install, pluginval 10 and `auval`. Contracts amended (ARCHITECTURE G3, G5, G7, "Parameter smoothing and the control grid", "Denormal Protection"; ROADMAP Phase 2.3 criteria), checksums refreshed. The plan also closes VERIFICATION-2.2 issues 1 – 6 (kept state, `gain_scale` / band bypass, re-prepare, Mid / Side response, comment, canonical gain on cuts).
 23. ~~Execute Phase 2.3~~ Done 2026-11-13: `stages/2-dsp/SUMMARY-2.3.md`. Control grid, `ControlRamp.h`, ramping path, tick clock, non-finite check; version 0.3.0 built and installed. Designer harness 88 PASS / 0 FAIL / 14 INFO, render harness 83 PASS / 0 FAIL, both also with `--long`; G3 worst 2.54x the same-motion reference (double and float), 0 WARN; pluginval 10 (VST3 ×2, AU), `auval`, Standalone pass. Every row passed as specified; no existing check amended. For verify: RM-g5's worst peak − stack is −23 dB (bench −140).
-24. Verify Phase 2.3: `/plugin-verify O-ParametricEQ 2-dsp`.
+24. ~~Verify Phase 2.3~~ Done 2026-11-14: `stages/2-dsp/VERIFICATION-2.3.md`, VERIFIED. Fresh recompile 88 / 0 / 14 and 83 / 0, default and `--long`, figures equal to the SUMMARY; nine `--neg` controls fire; pluginval 10 (VST3, AU) and `auval` pass on the installed 0.3.0; engine headers and processor read in full, no defect; independent probe 37 / 37 (20 ms ramp length, dB / log f / log Q trajectories, restart rule, every placement on the ramping path, bypass mid-move, oversize host blocks, re-prepare); RM-g5's thin margin is the first block of the run (running stack 12.7 dB), every rate at -135 dB or lower after 1 s; mutation run 28 of 35 live mutants caught by the harnesses, six of the seven survivors caught by the probe. REQUIREMENTS: DSP-05 complete, DSP-04 partial. Carried to the 2.4 plan (VERIFICATION-2.3 Issues 1 - 5): rows for the Mid / Side ramping path, a one-pole G3 motion, an oversize host block, a move after a re-prepare, the state rule of a structural change, bypass during a move, the loose G5 peak clause. Artifacts in `stages/2-dsp/verify-2.3/`.
+25. Research Phase 2.4 (structural crossfades and bypass): `/plugin-research O-ParametricEQ 2-dsp`.
 
 ## Context to Preserve
 
@@ -202,6 +204,8 @@ Progress: [####................] 20%
 - plugins/O-ParametricEQ/.planning/stages/2-dsp/VERIFICATION-2.1b.md
 - plugins/O-ParametricEQ/Source/dsp/ControlRamp.h
 - plugins/O-ParametricEQ/.planning/stages/2-dsp/SUMMARY-2.3.md
+- plugins/O-ParametricEQ/.planning/stages/2-dsp/VERIFICATION-2.3.md
+- plugins/O-ParametricEQ/.planning/stages/2-dsp/verify-2.3/
 - plugins/O-ParametricEQ/.planning/stages/2-dsp/RESEARCH-2.2.md
 - plugins/O-ParametricEQ/.planning/stages/2-dsp/research-2.2/engine_bench.cpp
 - plugins/O-ParametricEQ/.planning/stages/2-dsp/PLAN-2.2.md

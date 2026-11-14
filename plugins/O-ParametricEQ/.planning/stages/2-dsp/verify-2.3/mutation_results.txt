@@ -1,0 +1,148 @@
+M0  unmodified control
+   designer: rc 0 | 88 PASS, 0 FAIL, 14 INFO | FAIL: none
+   render:   rc 0 | 83 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 37 PASS, 0 FAIL | 0 rows fail
+C1  ramp length 10 ms
+   designer: rc 1 | 87 PASS, 1 FAIL, 14 INFO | FAIL: RM-g3
+   render:   rc 1 | 82 PASS, 1 FAIL | FAIL: M1
+   probe:    rc 1 | 28 PASS, 9 FAIL | 9 rows fail
+C3  arrival designs from the ramp values, not the target's settings
+   designer: rc 2 | 86 PASS, 2 FAIL, 14 INFO | FAIL: RM-arr, RM-dyn
+   render:   rc 0 | 83 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 37 PASS, 0 FAIL | 0 rows fail
+C4  K = 32 at 48 kHz
+   designer: rc 1 | 87 PASS, 1 FAIL, 14 INFO | FAIL: RM-g3
+   render:   rc 2 | 81 PASS, 2 FAIL | FAIL: M1, TK
+   probe:    rc 0 | 37 PASS, 0 FAIL | 0 rows fail
+C5  gain not ramped (jumps to the target at the first tick)
+   designer: rc 2 | 86 PASS, 2 FAIL, 14 INFO | FAIL: RM-g3, RM-keep
+   render:   rc 2 | 81 PASS, 2 FAIL | FAIL: M1, M6
+   probe:    rc 1 | 26 PASS, 11 FAIL | 11 rows fail
+C6  Q not ramped
+   designer: rc 1 | 87 PASS, 1 FAIL, 14 INFO | FAIL: RM-g3
+   render:   rc 1 | 82 PASS, 1 FAIL | FAIL: M1
+   probe:    rc 1 | 36 PASS, 1 FAIL | 1 rows fail
+C7  frequency not ramped
+   designer: rc 2 | 86 PASS, 2 FAIL, 14 INFO | FAIL: RM-g3, RM-g3k
+   render:   rc 2 | 81 PASS, 2 FAIL | FAIL: M1, M1k
+   probe:    rc 1 | 35 PASS, 2 FAIL | 2 rows fail
+C8  a retarget while running keeps the old counter
+   designer: rc 2 | 86 PASS, 2 FAIL, 14 INFO | FAIL: RM-g3, RM-g3k
+   render:   rc 2 | 81 PASS, 2 FAIL | FAIL: M1, M1k
+   probe:    rc 1 | 33 PASS, 4 FAIL | 4 rows fail
+B3  setDesign clears the state
+   designer: rc 0 | 88 PASS, 0 FAIL, 14 INFO | FAIL: none
+   render:   rc 0 | 83 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 37 PASS, 0 FAIL | 0 rows fail
+B5  tick step 1 keeps the accumulated sum
+   designer: rc 2 | 86 PASS, 2 FAIL, 14 INFO | FAIL: RM-arr, RM-dyn
+   render:   rc 0 | 83 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 37 PASS, 0 FAIL | 0 rows fail
+B6  processPair steps the coefficients twice per sample
+   designer: rc 1 | 87 PASS, 1 FAIL, 14 INFO | FAIL: RM-st
+   render:   rc 1 | 82 PASS, 1 FAIL | FAIL: M2 (ii)
+   probe:    rc 1 | 31 PASS, 6 FAIL | 6 rows fail
+B10  moving flag latched by the last interval
+   designer: rc 2 | 86 PASS, 2 FAIL, 14 INFO | FAIL: RM-arr, RM-dyn
+   render:   rc 0 | 83 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 37 PASS, 0 FAIL | 0 rows fail
+B13  snapToTarget does nothing
+   designer: rc 0 | 88 PASS, 0 FAIL, 14 INFO | FAIL: none
+   render:   rc 0 | 83 PASS, 0 FAIL | FAIL: none
+   probe:    rc 1 | 35 PASS, 2 FAIL | 2 rows fail
+B14  processLane does not step on the ramping path
+   designer: rc 2 | 86 PASS, 2 FAIL, 14 INFO | FAIL: RM-g3, RM-g3k
+   render:   rc 3 | 80 PASS, 3 FAIL | FAIL: M1, M1k, M6
+   probe:    rc 1 | 33 PASS, 4 FAIL | 4 rows fail
+B15  snapTo keeps a pending target
+   designer: rc 1 | 87 PASS, 1 FAIL, 14 INFO | FAIL: RM-g5
+   render:   rc 0 | 83 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 37 PASS, 0 FAIL | 0 rows fail
+B17  setDesign does not cancel an interpolation
+   designer: rc 1 | 87 PASS, 1 FAIL, 14 INFO | FAIL: RM-g5
+   render:   rc 1 | 82 PASS, 1 FAIL | FAIL: S5
+   probe:    rc 1 | 33 PASS, 4 FAIL | 4 rows fail
+B7  Mid loop does not step on the ramping path
+   designer: rc 0 | 88 PASS, 0 FAIL, 14 INFO | FAIL: none
+   render:   rc 0 | 83 PASS, 0 FAIL | FAIL: none
+   probe:    rc 1 | 35 PASS, 2 FAIL | 2 rows fail
+B7s  Side loop does not step on the ramping path
+   designer: rc 0 | 88 PASS, 0 FAIL, 14 INFO | FAIL: none
+   render:   rc 0 | 83 PASS, 0 FAIL | FAIL: none
+   probe:    rc 1 | 34 PASS, 3 FAIL | 3 rows fail
+R7  Mid uses L + R (router and prediction)
+   designer: rc 1 | 87 PASS, 1 FAIL, 14 INFO | FAIL: EN-ms
+   render:   rc 1 | 82 PASS, 1 FAIL | FAIL: M5
+   probe:    rc 1 | 36 PASS, 1 FAIL | 1 rows fail
+SE1  a1, a2 not re-derived while ramping
+   designer: rc 4 | 84 PASS, 4 FAIL, 14 INFO | FAIL: RM-g3, RM-g3k, RM-norm, RM-g5
+   render:   rc 5 | 78 PASS, 5 FAIL | FAIL: M1, M1k, B1, S5, A2
+   probe:    rc 1 | 28 PASS, 9 FAIL | 9 rows fail
+SE2  one-pole Gc held while ramping
+   designer: rc 0 | 88 PASS, 0 FAIL, 14 INFO | FAIL: none
+   render:   rc 0 | 83 PASS, 0 FAIL | FAIL: none
+   probe:    rc 1 | 36 PASS, 1 FAIL | 1 rows fail
+SE3  one-pole mix (cL, cH) not interpolated
+   designer: rc 2 | 86 PASS, 2 FAIL, 14 INFO | FAIL: RM-g3, RM-g3k
+   render:   rc 2 | 81 PASS, 2 FAIL | FAIL: M1, M1k
+   probe:    rc 1 | 35 PASS, 2 FAIL | 2 rows fail
+SE5  SVF mix (mL, mB, mH) not interpolated
+   designer: rc 3 | 85 PASS, 3 FAIL, 14 INFO | FAIL: RM-g3, RM-g3k, RM-keep
+   render:   rc 3 | 80 PASS, 3 FAIL | FAIL: M1, M1k, M6
+   probe:    rc 1 | 32 PASS, 5 FAIL | 5 rows fail
+P3  band bypass ignored
+   designer: rc 1 | 87 PASS, 1 FAIL, 14 INFO | FAIL: SN1
+   render:   rc 1 | 82 PASS, 1 FAIL | FAIL: M3
+   probe:    rc 1 | 36 PASS, 1 FAIL | 1 rows fail
+P5  a type change classified continuous
+   designer: rc 1 | 87 PASS, 1 FAIL, 14 INFO | FAIL: RM-g5
+   render:   rc 0 | 83 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 37 PASS, 0 FAIL | 0 rows fail
+P10  no canonical gain on the gainless types
+   designer: rc 3 | 85 PASS, 3 FAIL, 14 INFO | FAIL: RM-arr, RM-arrn, SN4
+   render:   rc 0 | 83 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 37 PASS, 0 FAIL | 0 rows fail
+X7  gain_scale missing from the change snapshot
+   designer: -
+   render:   rc 2 | 81 PASS, 2 FAIL | FAIL: M2 (i), M2c
+   probe:    rc 1 | 36 PASS, 1 FAIL | 1 rows fail
+X8  prepareToPlay does not invalidate the snapshots
+   designer: -
+   render:   rc 1 | 82 PASS, 1 FAIL | FAIL: M4
+   probe:    rc 1 | 36 PASS, 1 FAIL | 1 rows fail
+X20  processBlockBypassed does not advance the clock
+   designer: -
+   render:   rc 1 | 82 PASS, 1 FAIL | FAIL: TK
+   probe:    rc 0 | 37 PASS, 0 FAIL | 0 rows fail
+X21  the bypass branch does not advance the clock
+   designer: -
+   render:   rc 1 | 82 PASS, 1 FAIL | FAIL: TK
+   probe:    rc 0 | 37 PASS, 0 FAIL | 0 rows fail
+X22  the no-active-band return does not advance the clock
+   designer: -
+   render:   rc 1 | 82 PASS, 1 FAIL | FAIL: TK
+   probe:    rc 0 | 37 PASS, 0 FAIL | 0 rows fail
+X23  non-finite check removed
+   designer: -
+   render:   rc 1 | 82 PASS, 1 FAIL | FAIL: S6
+   probe:    rc 0 | 37 PASS, 0 FAIL | 0 rows fail
+X25  a continuous change snaps (no ramp)
+   designer: -
+   render:   rc 5 | 78 PASS, 5 FAIL | FAIL: M1, M1k, M2 (ii), M6, TK
+   probe:    rc 1 | 18 PASS, 19 FAIL | 19 rows fail
+X26  a structural change keeps the state
+   designer: -
+   render:   rc 0 | 83 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 37 PASS, 0 FAIL | 0 rows fail
+X28  the tick phase restarts at every chunk
+   designer: -
+   render:   rc 0 | 83 PASS, 0 FAIL | FAIL: none
+   probe:    rc 1 | 36 PASS, 1 FAIL | 1 rows fail
+X29  prepareToPlay does not zero the clock
+   designer: -
+   render:   rc 0 | 83 PASS, 0 FAIL | FAIL: none
+   probe:    rc 1 | 36 PASS, 1 FAIL | 1 rows fail
+X35  prepareToPlay does not hand the bands the grid
+   designer: -
+   render:   rc 1 | 82 PASS, 1 FAIL | FAIL: M1k
+   probe:    rc 1 | 36 PASS, 1 FAIL | 1 rows fail

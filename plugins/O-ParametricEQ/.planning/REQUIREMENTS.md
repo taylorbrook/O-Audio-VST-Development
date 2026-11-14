@@ -4,7 +4,7 @@
 version: 1.0.0
 plugin: O-ParametricEQ
 created: 2026-11-12
-lastUpdated: 2026-11-13
+lastUpdated: 2026-11-14
 ---
 
 ## Overview
@@ -35,8 +35,8 @@ lastUpdated: 2026-11-13
 | DSP-01 | Analog-matched magnitude response for bell and shelf up to Nyquist, without oversampling | must | complete | stage-2 |
 | DSP-02 | Zero latency, minimum phase | must | complete | stage-2 |
 | DSP-03 | Slopes of 6, 12, 18, 24, 36, 48, 72 and 96 dB/oct on every type that supports them | must | partial | stage-2 |
-| DSP-04 | Click-free under automation and fast drags of every parameter, including type, slope, placement and enable | must | pending | stage-2 |
-| DSP-05 | Numerically stable and quiet at low frequency / high Q at all supported sample rates | must | pending | stage-2 |
+| DSP-04 | Click-free under automation and fast drags of every parameter, including type, slope, placement and enable | must | partial | stage-2 |
+| DSP-05 | Numerically stable and quiet at low frequency / high Q at all supported sample rates | must | complete | stage-2 |
 | DSP-06 | Parameter ranges: frequency 10 Hz – 30 kHz, gain ±30 dB, Q 0.025 – 40 | must | partial | stage-2 |
 | DSP-07 | Band engine and state format leave room for dynamic EQ without breaking v1 sessions | should | complete | stage-1 |
 
@@ -129,15 +129,17 @@ _Complete 2026-11-13 (`stages/2-dsp/VERIFICATION-2.2.md`): design side at the Ph
 ### DSP-04: Click-free modulation
 
 **Acceptance Criteria:**
-- [ ] Full-range automation sweeps of frequency, gain and Q on a sustained low-frequency sine pass the suite click gate
+- [x] Full-range automation sweeps of frequency, gain and Q on a sustained low-frequency sine pass the suite click gate (G3 sweep rows as amended 2026-11-13; Phase 2.3)
 - [ ] Stepped changes of type, slope, placement and enable pass the same gate
-- [ ] No NaN / Inf and no instability under random parameter stress at all block sizes
+- [ ] No NaN / Inf and no instability under random parameter stress at all block sizes (holds at Phase 2.3: G5, 600 s at 8 rates; re-runs in 2.4 with structural fades)
 
 ### DSP-05: Stability and noise
 
+_Complete 2026-11-14 (`stages/2-dsp/VERIFICATION-2.3.md`): G7 as amended; residual -235.4 dBFS in double and -159.5 dBFS on the float output, ring-down 3.419 dB/s to -280.9 dBFS in the 60th second, silence costs 1.00x the block time with noise._
+
 **Acceptance Criteria:**
-- [ ] A 10 Hz, Q 40 bell at 192 kHz stays stable and its noise floor stays below a threshold set in Stage 0
-- [ ] Silence in gives silence out (no denormal CPU spikes, no residual tone)
+- [x] A 10 Hz, Q 40 bell at 192 kHz stays stable and its noise floor stays below a threshold set in Stage 0
+- [x] Silence in gives silence out (no denormal CPU spikes, no residual tone)
 
 ### DSP-06: Parameter ranges
 
@@ -159,7 +161,7 @@ _Complete 2026-11-13 (`stages/2-dsp/VERIFICATION-2.2.md`): design side at the Ph
 ### PERF-01: Real-time safety
 
 **Acceptance Criteria:**
-- [ ] Allocation gate reports zero allocations in processBlock under parameter stress
+- [x] Allocation gate reports zero allocations in processBlock under parameter stress (Phase 2.3, A2; re-runs with the analyzer on in 2.6, so the requirement stays partial)
 - [x] No locks or file / message-thread calls on the audio thread
 
 ### PERF-02: CPU budget
@@ -214,3 +216,5 @@ _Complete 2026-11-13 (`stages/2-dsp/VERIFICATION-2.2.md`): design side at the Ph
 *Schema: .planning/workflow/schemas/plugin-requirements.schema.json*
 
 *Phase 2.2 verify, 2026-11-13 (`stages/2-dsp/VERIFICATION-2.2.md`): FUNC-03, DSP-01, DSP-02, DSP-07 complete; FUNC-01, FUNC-02, FUNC-04, FUNC-05, DSP-03, DSP-06, PERF-01, QUAL-01 partial (their click-free, modulation, output-stage, UI and listening criteria belong to Phases 2.3 - 2.5 and Stages 3 - 4).*
+
+*Phase 2.3 verify, 2026-11-14 (`stages/2-dsp/VERIFICATION-2.3.md`): DSP-05 complete; DSP-04 partial (sweeps met, structural changes are 2.4); PERF-01 stays partial until G6 re-runs with the analyzer on (2.6).*

@@ -1,0 +1,41 @@
+O-ParametricEQ verify 2.3 probe (independent of the harnesses)
+
+  [PASS] gain 0 -> +12 dB, bell on a 1 kHz tone: 20 ms, linear in dB    44100 Hz: 10 % - 90 % in 16.08 ms (16 expected); level at +5 / +10 / +15 ms 2.98 / 5.94 / 8.92 dB (3 / 6 / 9; a ramp linear in amplitude reads 4.9 / 7.9 / 10.2); before 0.000, at +23 ms 11.999 dB
+  [PASS] gain 0 -> +12 dB, bell on a 1 kHz tone: 20 ms, linear in dB    48000 Hz: 10 % - 90 % in 16.29 ms (16 expected); level at +5 / +10 / +15 ms 3.01 / 5.98 / 8.95 dB (3 / 6 / 9; a ramp linear in amplitude reads 4.9 / 7.9 / 10.2); before -0.000, at +23 ms 11.999 dB
+  [PASS] gain 0 -> +12 dB, bell on a 1 kHz tone: 20 ms, linear in dB    96000 Hz: 10 % - 90 % in 16.30 ms (16 expected); level at +5 / +10 / +15 ms 3.01 / 5.98 / 8.94 dB (3 / 6 / 9; a ramp linear in amplitude reads 4.9 / 7.9 / 10.2); before -0.000, at +23 ms 11.999 dB
+  [PASS] gain 0 -> +12 dB, bell on a 1 kHz tone: 20 ms, linear in dB    192000 Hz: 10 % - 90 % in 16.31 ms (16 expected); level at +5 / +10 / +15 ms 3.01 / 5.98 / 8.94 dB (3 / 6 / 9; a ramp linear in amplitude reads 4.9 / 7.9 / 10.2); before -0.000, at +23 ms 11.999 dB
+  [PASS] gain_scale 100 -> 0 on a +12 dB bell: the same 20 ms ramp      before 12.000 dB, at +10 ms 6.03 dB (6 expected), at +23 ms -0.0000 dB
+  [PASS] notch 100 Hz -> 10 kHz across a 1 kHz tone: deepest at mid-ramp deepest (-23.1 dB) at +10.42 ms; log f passes 1 kHz at 10 ms, linear f at 1.8 ms
+  [PASS] notch 10 kHz -> 100 Hz across a 1 kHz tone: deepest at mid-ramp deepest (-33.9 dB) at +10.25 ms; log f passes 1 kHz at 10 ms, linear f at 18.2 ms
+  [PASS] Q 0.1 -> 10 on a +12 dB bell, tone at 1.5 kHz: the mid-ramp level is that of Q 1 at +10 ms 7.01 dB; static Q 0.1 / 1 / 5.05 / 10: 11.89 / 6.94 / 0.82 / 0.23 dB (log Q passes 1, linear Q 5.05)
+  [PASS] gain 0 -> +12 dB, back to 0 after 10 ms: 20 ms more from where it stood level at +10 / +20 / +28 / +33 ms: 5.85 / 3.01 / 0.60 / -0.000 dB (6 / 3 / 0.6 / 0 expected)
+  [PASS] bell on a 50 Hz tone, gain -30 -> +30 dB: no step in the output largest first difference over the move = 0.92x that of the steady tone at +30 dB (limit of this probe 4x; a 1 dB staircase reads 18x); second difference 15.7x (the ramp's two corners)
+  [PASS] bell on a 50 Hz tone, gain +30 -> -30 dB: no step in the output largest first difference over the move = 1.00x that of the steady tone at +30 dB (limit of this probe 4x; a 1 dB staircase reads 18x); second difference 63.5x (the ramp's two corners)
+  [PASS] control: a type change instead (2.4 work) reads as a click     132x
+  [PASS] Low Shelf 6 dB/oct at 200 Hz, gain -18 -> +18 dB, 100 Hz tone  largest first difference over the move = 1.01x the louder steady tone's (limit of this probe 2x); second difference 17.8x; the level moves 26.8 dB
+  [PASS] Low Shelf 6 dB/oct at 200 Hz, gain +18 -> -18 dB, 100 Hz tone  largest first difference over the move = 1.00x the louder steady tone's (limit of this probe 2x); second difference 16.6x; the level moves 26.8 dB
+  [PASS] High Cut 6 dB/oct, 200 Hz -> 5 kHz, 1 kHz tone                 largest first difference over the move = 1.00x the louder steady tone's (limit of this probe 2x); second difference 1.0x; the level moves 14.0 dB
+  [PASS] High Cut 18 dB/oct, 300 Hz -> 3 kHz, 1 kHz tone                largest first difference over the move = 1.02x the louder steady tone's (limit of this probe 2x); second difference 1.0x; the level moves 31.4 dB
+  [PASS] Low Cut 18 dB/oct, 3 kHz -> 300 Hz, 1 kHz tone                 largest first difference over the move = 1.00x the louder steady tone's (limit of this probe 2x); second difference 1.0x; the level moves 28.6 dB
+  [PASS] High Shelf 18 dB/oct at 500 Hz, gain 0 -> +18 dB, 1 kHz tone   largest first difference over the move = 1.00x the louder steady tone's (limit of this probe 2x); second difference 1.1x; the level moves 17.5 dB
+  [PASS] 8 bands (5 placements), f / gain / Q and gain scale automated per block, 50 Hz block 32: largest first difference = 1.10x that of a steady tone at the output's peak (13.03); limit of this probe 2x; second difference 1.3x
+  [PASS] 8 bands (5 placements), f / gain / Q and gain scale automated per block, 50 Hz block 64: largest first difference = 1.11x that of a steady tone at the output's peak (13.09); limit of this probe 2x; second difference 1.4x
+  [PASS] 8 bands (5 placements), f / gain / Q and gain scale automated per block, 50 Hz block 512: largest first difference = 1.10x that of a steady tone at the output's peak (13.98); limit of this probe 2x; second difference 3.2x
+  [PASS] 8 bands (5 placements), f / gain / Q and gain scale automated per block, 50 Hz block 1024: largest first difference = 1.10x that of a steady tone at the output's peak (14.77); limit of this probe 2x; second difference 25.1x
+  [PASS] control: the same with a type change now and then reads as clicks 26x
+  [PASS] Stereo band, three parameters ramping, L = R in: L = R out, bit for bit first sample that differs from the render without the edit: 8192 (edit at 8192)
+  [PASS] Left band through the same move: L equals the Stereo band's L, R is the input bit for bit, the ramp included
+  [PASS] Right band through the same move: R equals the Stereo band's L, L is the input bit for bit, the ramp included
+  [PASS] Mono layout (placement Stereo and Mid) through the same move: equals the Stereo band's L bit for bit, the ramp included
+  [PASS] Mid band, L = R in, through the same move: both channels equal the Stereo band's L worst difference 0 of the peak over the render, 0 inside the ramp (float rounding is 6e-8)
+  [PASS] Side band, L = -R in, through the same move: L equals the Stereo band's L, R = -L worst difference 0 of the peak; largest |L + R| 0
+  [PASS] global bypass for 3 blocks, 10.7 ms into a 20 ms move: then settled on the target the 8 blocks after it equal a fresh instance at the target, bit for bit
+  [PASS] processBlockBypassed for 3 blocks, mid-move: then settled on the target the 8 blocks after it equal a fresh instance at the target, bit for bit
+  [PASS] both bands' own bypass for 3 blocks, mid-move: then settled on the target the 8 blocks after it equal a fresh instance at the target, bit for bit
+  [PASS] control: nothing clears the state (the move ends on its own): differs from a fresh instance first difference at sample 0 of the tail
+  [PASS] events every 4096 samples: host block 4096 on prepared sizes 512 / 100 / 7, and blocks 512 / 64 bit-identical to prepared 4096, block 4096: 1 1 1 1 1 (the chunk size does not move a tick)
+  [PASS] 44.1 kHz for 44 107 samples, left mid-move, re-prepared at 48 kHz: moves after it bit-identical to a fresh 48 kHz instance through two later moves (blocks of 500)
+  [PASS] gain and gain_scale edits on Low Cut, High Cut, Notch, Band Pass output bit-identical to no edit: 4 of 4
+  [PASS] after a move of f, gain and Q (5 types): steady response equals a static instance's worst difference 0 dB
+
+37 PASS, 0 FAIL
