@@ -27,7 +27,10 @@
     Stage 1 (Foundation): layout, buses, state.
     Stage 2, Phase 2.2: the static 24-band engine.
     Stage 2, Phase 2.3: the global control grid (tick clock, segment loop,
-    non-finite check). See PluginProcessor.h.
+    non-finite check).
+    Stage 2, Phase 2.4: two-slot bands (structural crossfades, latched
+    requests, neutral sleep) and the one soft-bypass path behind both entry
+    points. See PluginProcessor.h.
 
   ==============================================================================
 */
@@ -111,6 +114,15 @@ namespace
     // and auto_gain (3) are cached and read by nothing until Phase 2.5.
     constexpr std::size_t kRawBypass    = 0;
     constexpr std::size_t kRawGainScale = 2;
+
+    // The longest segment the bypass fade mixes against one stack copy of
+    // the dry lanes (PLAN-2.4 P8.6). A segment never runs past a control
+    // tick, so the largest control grid fits; a longer one would only be
+    // split.
+    constexpr int kDryPieceSize = 64;
+
+    static_assert (eq::controlGridSize (1.0e9) <= kDryPieceSize,
+                   "a control interval fits the dry copy of the bypass fade");
 
     /** Every parameter carries version hint 1. Every float range has interval 0
         and is a plain start / end / skew range: the WebView slider frontend
@@ -268,25 +280,27 @@ void OuariconParametricEQAudioProcessor::prepareToPlay (double sampleRate, int s
     for (auto& lane : lanes)
         lane.assign (static_cast<std::size_t> (preparedBlockSize), 0.0);
 
-    // The control grid of this rate, into every band before its first snapTo.
-    // setControlGrid cancels an interpolation left from before the prepare.
+    // The control grid of this rate, the fade table and the sleep length.
     controlGrid = eq::controlGridSize (sampleRate);
     const int rampTicks = eq::rampLengthTicks (sampleRate);
 
-    // Nothing is carried across a prepare: state cleared, the clock at 0, and
-    // every snapshot invalid, so the first block is structural for every
-    // band: an active one is designed at this rate and for this layout from
-    // its current values, with its ramp snapped (snapTo).
+    fadeTable.prepare (sampleRate);
+    sleepTicks = eq::sleepLengthTicks (sampleRate, controlGrid);
+
+    // Nothing is carried across a prepare: both slots of every band at rest
+    // and off, no fade, the clock at 0, every snapshot invalid, and the
+    // engine not started. The next block that gets past the guards is the
+    // first block: every band starts settled on its current values, at this
+    // rate and for this layout, and the bypass state is set without a fade.
     for (auto& band : bands)
-    {
-        band.setControlGrid (controlGrid, rampTicks);
-        band.reset();
-    }
+        band.prepare (controlGrid, rampTicks);
 
     tickClock = 0;
 
     for (auto& slot : slots)
         slot.valid = false;
+
+    started = false;
 
     // The engine adds no delay. This is the only place the reported latency is set.
     setLatencySamples (0);
@@ -303,44 +317,90 @@ bool OuariconParametricEQAudioProcessor::isBusesLayoutSupported (const BusesLayo
 }
 
 //==============================================================================
-// Audio path (Stage 2, Phases 2.2 and 2.3: the engine on the control grid)
+// Audio path (Stage 2, Phases 2.2 - 2.4: two-slot bands on the control grid,
+// behind one soft bypass)
 //
-// Per host block:
-//   0. the tick clock advances by the block's length, before anything can
-//      return. `blockStart` is the clock value of the block's first sample;
-//   1. flush-to-zero on; clear any output channel that has no input;
-//   2. global bypass on: every band's state cleared and its ramp snapped,
-//      buffer untouched, done (a hard switch until the soft bypass of
-//      Phase 2.4);
-//   3. per band, the raw snapshot (eight values + gain_scale) is compared by
-//      bit pattern with the last one. Only on a difference is the canonical
-//      input rebuilt and classified:
-//        identical    nothing (an inert edit: slope on a Bell, Q at 6 dB/oct,
-//                     placement on a mono layout, gain on a cut)
-//        structural   active: designed from the target now, ramp snapped,
-//                     state cleared (a click until Phase 2.4).
-//                     inactive (leaving the list included): state cleared,
-//                     ramp snapped, nothing designed for the target
-//        continuous   active: the target goes to the band and takes effect at
-//                     the next control tick; nothing is designed here.
-//                     inactive: only the stored input is updated
-//   4. no active band: return. The buffer has not been touched;
-//   5. otherwise, in chunks of at most the prepared block size: the lanes an
-//      active band touches go to double; the chunk runs in segments that end
-//      at the next control tick. A segment that starts on a tick first gives
-//      every active band its control tick, in index order; then the active
-//      bands process the segment through the router, in index order;
-//   6. end of each chunk: if the last working sample of a touched lane is
-//      not finite, every band's state is cleared and its ramp snapped. Then
-//      the lanes go back to float, as they are.
+// processBlock and processBlockBypassed both run processAudio. Bypass is
+// WANTED when the `bypass` parameter is on or the block arrived through
+// processBlockBypassed. Per host block (PLAN-2.4 P8):
+//
+//   1. flush-to-zero on. The tick clock advances by the block's length,
+//      before anything can return; `blockStart` is the clock value of the
+//      block's first sample. Any output channel without input is cleared.
+//      Not prepared, or a buffer narrower than the layout: return;
+//   2. the first block after a prepare sets the bypass state from what is
+//      wanted, with no fade. Every later block hands the bypass fade its
+//      request: from a resting state a differing request starts the 20 ms
+//      fade, during a fade it is latched (the fade never reverses);
+//   3. fully bypassed: return. The buffer is not touched, no band parameter
+//      is read, and every snapshot is marked stale;
+//   4. parameters, once per host block.
+//        restart (the first block after a prepare, or this block's request
+//        has just started the fade back from fully bypassed): every band's
+//        snapshot is read and the band starts from rest, settled, on it: no
+//        band fade, no ramp.
+//        otherwise: the raw snapshot (eight values + gain_scale) is compared
+//        by bit pattern with the last one, and on a difference the canonical
+//        input goes to the band as a request. The band decides what it is
+//        (SlotBand.h): nothing, a ramp target, a wake, a crossfade to its
+//        other slot, or a request latched behind the fade in flight.
+//        Parameters keep being read and applied during the fade to bypass;
+//   5. the list: the bands that are running, in index order. Empty: the
+//      bypass state jumps to what is wanted (with nothing running a toggle
+//      is a flag) and the block returns with the buffer untouched;
+//   6. the lanes a listed band may touch before the next block start
+//      (PLAN-2.4 P7: every slot that is not off, and a latched request's
+//      placement) go to double, in chunks of at most the prepared block
+//      size. A chunk runs in segments that end at the next control tick and
+//      at the end of a bypass fade. Per segment, in this order:
+//        - on a tick: the control tick of every listed band, in index order
+//          (ramps, and the sleep count);
+//        - a bypass fade in flight: a stack copy of the segment's converted
+//          lanes, taken before the bands run. That is the dry signal;
+//        - every listed band processes the segment, in index order;
+//        - a bypass fade in flight: each converted lane is mixed with its
+//          dry copy, then the fade moves on by the segment;
+//   7. a segment that ends the fade to bypass: every band goes idle. If a
+//      latched un-bypass then starts the fade back at once, every band
+//      starts from rest, settled, on its latest request before the next
+//      sample, and the list is rebuilt. Otherwise the engine is idle and the
+//      rest of the host block is not processed;
+//   8. end of each chunk: if the last working sample of a converted lane is
+//      not finite, the state of both slots of every band is cleared and
+//      their ramps snapped. Fades in flight carry on;
+//   9. the converted lanes go back to float, as they are.
+//
+// The list and the converted lanes are fixed at the block start, and the
+// bands change under them inside the block. That is covered as follows.
+//   - A listed band that stops running (its fade ends on an off slot, it
+//     goes idle) stays on the list: its control tick and its process call
+//     then do nothing.
+//   - A band that is not running starts only through a request (step 4,
+//     before the list is built) or through the restart of step 7, after
+//     which the list is rebuilt. A band off the list at the block start
+//     holds no latch and realises an off target, so step 7 leaves it off.
+//   - The lanes: with no fade in flight a band's request equals what it
+//     realises, on its current slot's placement. During a fade the request
+//     is either what the incoming slot realises or it is latched. So
+//     everything a listed band can become before the next block start (the
+//     end of its fade, the latched request's fade, the settled start of
+//     step 7) lies on the placements SlotBand::touchesLane reports at the
+//     block start. Step 7 asserts it.
+//   - A lane that was converted is written back for every chunk it was
+//     converted in, also when nothing processed it for part of the block:
+//     exact for normal float samples. The chunks after the engine went idle
+//     are not converted at all.
 //
 // A tick falls on the sample whose clock value is a multiple of K. With
 // phase = blockStart mod K, the block's first tick is at offset 0 when the
-// phase is 0 and at offset K - phase otherwise.
+// phase is 0 and at offset K - phase otherwise. Every other position is a
+// sample count too (a fade's table index, the sleep count in ticks), so an
+// event seen at the same sample renders the same at any host block size.
 //
 // Nothing else sits between the float input and the float output: no output
 // gain, no auto gain (Phase 2.5), no limiter, no stage that hides a
-// non-finite sample.
+// non-finite sample. The bypass mix is the last stage before the conversion
+// to float.
 //==============================================================================
 void OuariconParametricEQAudioProcessor::clearOutputsWithoutInput (juce::AudioBuffer<float>& buffer)
 {
@@ -350,22 +410,6 @@ void OuariconParametricEQAudioProcessor::clearOutputsWithoutInput (juce::AudioBu
 
     for (int channel = getTotalNumInputChannels(); channel < numChannels; ++channel)
         buffer.clear (channel, 0, buffer.getNumSamples());
-}
-
-void OuariconParametricEQAudioProcessor::clearAndSnapAllBands() noexcept
-{
-    for (std::size_t b = 0; b < bands.size(); ++b)
-    {
-        bands[b].reset();
-
-        // Only a band on the active list can be moving: one that left it was
-        // snapped then, and one never designed has nothing to snap. A valid
-        // slot also means the designer is prepared. snapToTarget designs only
-        // if the band is moving, so a run of bypassed blocks costs one design
-        // per moving band, in the first of them.
-        if (slots[b].valid && slots[b].input.active)
-            bands[b].snapToTarget (designer);
-    }
 }
 
 std::uint64_t OuariconParametricEQAudioProcessor::advanceTickClock (int numSamples) noexcept
@@ -401,126 +445,162 @@ double OuariconParametricEQAudioProcessor::getBandDynOffsetDb (int band) const n
     if (band < 0 || band >= kNumBands)
         return 0.0;
 
-    return bands[static_cast<std::size_t> (band)].dynOffsetDb;
+    return bands[static_cast<std::size_t> (band)].getSlot (0).dynOffsetDb;
+}
+
+eq::BandInput OuariconParametricEQAudioProcessor::makeInput (const BandSnapshot& snapshot) const noexcept
+{
+    // The offset argument is 0: each slot reads its own dynamic offset when
+    // it is designed and at each control tick, and sums it after the ramp.
+    eq::BandInput input = eq::makeBandInput (snapshot.raw, snapshot.gainScale, 0.0);
+    input.placement = eq::effectivePlacement (input.placement, stereoLayout);
+    return input;
+}
+
+int OuariconParametricEQAudioProcessor::collectRunningBands (RunningList& list) const noexcept
+{
+    int count = 0;
+
+    for (int b = 0; b < kNumBands; ++b)
+        if (bands[static_cast<std::size_t> (b)].isRunning())
+            list[static_cast<std::size_t> (count++)] = b;
+
+    return count;
 }
 
 void OuariconParametricEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                                        juce::MidiBuffer& midiMessages)
 {
-    juce::ScopedNoDenormals noDenormals;
     juce::ignoreUnused (midiMessages);
+    processAudio (buffer, false);
+}
 
-    // The tick clock first: it advances by this block's length on every path
-    // out of this function. From here on only blockStart is used.
+void OuariconParametricEQAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buffer,
+                                                               juce::MidiBuffer& midiMessages)
+{
+    // The same path, with bypass wanted for this block (PLAN-2.4 P6).
+    juce::ignoreUnused (midiMessages);
+    processAudio (buffer, true);
+}
+
+void OuariconParametricEQAudioProcessor::processAudio (juce::AudioBuffer<float>& buffer, bool viaBypassed)
+{
+    juce::ScopedNoDenormals noDenormals;
+
+    //==========================================================================
+    // 1. The tick clock first: it advances by this block's length on every
+    // path out of this function. From here on only blockStart is used.
     const int numSamples = buffer.getNumSamples();
     const std::uint64_t blockStart = advanceTickClock (numSamples);
 
     clearOutputsWithoutInput (buffer);
 
-    // Hard bypass (until Phase 2.4): buffer untouched, state cleared, ramps
-    // snapped. The snapshots stay valid: a band whose parameters did not move
-    // while bypassed keeps its design and restarts from rest, settled.
-    if (rawValues[kRawBypass]->load() >= 0.5f)
-    {
-        clearAndSnapAllBands();
-        return;
-    }
-
     // Not prepared, or a buffer narrower than the negotiated layout: nothing
-    // can run. The buffer and the bands are left as they are.
+    // can run. The buffer, the bands and the bypass state are left as they
+    // are; a block refused here is not the first block.
     if (preparedBlockSize <= 0 || buffer.getNumChannels() < (stereoLayout ? 2 : 1))
         return;
 
     //==========================================================================
-    // Parameters: read once per host block, at the block start. A structural
-    // change is designed here; a continuous one only hands the band a target.
-    const float gainScaleRaw = rawValues[kRawGainScale]->load();
+    // 2. Bypass: one input per block, from either entry point.
+    const bool wantBypass = viaBypassed || rawValues[kRawBypass]->load() >= 0.5f;
 
-    int activeBands[kNumBands];
-    int numActive = 0;
-    bool touched[2] = { false, false };
+    // restart: every band starts from rest, settled, on its current
+    // parameters. True on the first block after a prepare, and when this
+    // block's request has just started the fade back from fully bypassed.
+    bool restart = false;
+
+    if (! started)
+    {
+        // No fade on the first block: the state is set. A session that opens
+        // bypassed opens idle.
+        bypassFade.start (wantBypass);
+        started = true;
+        restart = true;
+    }
+    else if (bypassFade.request (wantBypass))
+    {
+        // A fade has just started. Toward processed it can only have left
+        // the idle state; toward bypass the bands carry on as they are.
+        restart = (bypassFade.getState() == eq::BypassFade::State::toProcessed);
+    }
+
+    //==========================================================================
+    // 3. Fully bypassed: the engine is idle. The buffer is not touched and no
+    // band parameter is read; whatever changes now is read at un-bypass.
+    if (bypassFade.isBypassed())
+    {
+        for (auto& slot : slots)
+            slot.valid = false;
+
+        return;
+    }
+
+    //==========================================================================
+    // 4. Parameters: read once per host block, at the block start.
+    const float gainScaleRaw = rawValues[kRawGainScale]->load();
 
     for (int b = 0; b < kNumBands; ++b)
     {
         const auto ub = static_cast<std::size_t> (b);
         auto& slot = slots[ub];
-        auto& band = bands[ub];
 
         const BandSnapshot now = readBandSnapshot (b, gainScaleRaw);
 
         // First level: bit pattern. A NaN compares equal to itself, so a
         // change is never missed and never repeated.
-        if (! slot.valid || std::memcmp (&now, &slot.snapshot, sizeof (BandSnapshot)) != 0)
+        const bool changed = ! slot.valid
+                          || std::memcmp (&now, &slot.snapshot, sizeof (BandSnapshot)) != 0;
+
+        if (restart)
         {
-            // Second level: the canonical input, with the placement that
-            // takes effect on this layout. The offset argument is 0: the band
-            // reads its own dynamic offset at snapTo and at each control
-            // tick, and sums it after the ramp.
-            eq::BandInput next = eq::makeBandInput (now.raw, now.gainScale, 0.0);
-            next.placement = eq::effectivePlacement (next.placement, stereoLayout);
-
-            // An invalid snapshot (the first block after a prepare) has
-            // nothing to compare with: the band is designed from scratch.
-            const eq::BandChange change = slot.valid ? eq::classifyBandChange (slot.input, next)
-                                                     : eq::BandChange::structural;
-
-            switch (change)
-            {
-                case eq::BandChange::identical:
-                    break;
-
-                case eq::BandChange::structural:
-                    // Also the way a band enters or leaves the active list:
-                    // either way it starts, or is left, at rest and settled.
-                    if (next.active)
-                    {
-                        // Design from the target, ramp snapped, interpolation
-                        // cancelled; then the state.
-                        band.snapTo (next.settings, designer);
-                        band.reset();
-                    }
-                    else
-                    {
-                        // Leaving the list, or changing while off it: state
-                        // cleared, and a ramp still running is snapped. The
-                        // band's activation designs it from slot.input.
-                        band.reset();
-                        band.snapToTarget (designer);
-                    }
-
-                    break;
-
-                case eq::BandChange::continuous:
-                    // Nothing is designed here. An active band takes the
-                    // target up at its next control tick. An inactive band
-                    // gets nothing: its activation is a structural change
-                    // and designs it then, from the input stored below.
-                    if (next.active)
-                        band.setTarget (next.settings);
-
-                    break;
-            }
-
-            slot.snapshot = now;
-            slot.input = next;
-            slot.valid = true;
+            // From rest on the current values: no band fade, no ramp. On the
+            // first block nothing fades at all; at un-bypass the bypass fade
+            // covers the start.
+            bands[ub].startSettled (makeInput (now), designer);
+        }
+        else if (changed)
+        {
+            // Second level, inside the band: the canonical input against
+            // what the band realises. An inert edit (slope on a Bell, Q at
+            // 6 dB/oct, placement on a mono layout, gain on a cut) compares
+            // as identical there and starts nothing.
+            bands[ub].request (makeInput (now), designer);
         }
 
-        if (slot.input.active)
+        if (restart || changed)
         {
-            activeBands[numActive++] = b;
-            touched[0] = touched[0] || eq::Router::touchesLane (slot.input.placement, 0, stereoLayout);
-            touched[1] = touched[1] || eq::Router::touchesLane (slot.input.placement, 1, stereoLayout);
+            slot.snapshot = now;
+            slot.valid = true;
         }
     }
 
-    // No active band: the buffer has not been read or written.
-    if (numActive == 0)
+    //==========================================================================
+    // 5. The list: the bands that are running, in index order.
+    RunningList listed {};
+    int numListed = collectRunningBands (listed);
+
+    // No running band: the buffer has not been read or written, and a bypass
+    // toggle is a flag. A bypass fade in flight has nothing left to mix.
+    if (numListed == 0)
+    {
+        bypassFade.jump (wantBypass);
         return;
+    }
 
     //==========================================================================
-    // Audio. A lane no active band touches is never converted and never
-    // written back; its pointer stays null and the router does not use it.
+    // 6. Audio. The lanes a listed band may touch before the next block
+    // start (PLAN-2.4 P7). A lane outside that set is never converted and
+    // never written back, and no band reads or writes its working lane.
+    bool touched[2] = { false, false };
+
+    for (int a = 0; a < numListed; ++a)
+    {
+        const auto& band = bands[static_cast<std::size_t> (listed[static_cast<std::size_t> (a)])];
+        touched[0] = touched[0] || band.touchesLane (0, stereoLayout);
+        touched[1] = touched[1] || band.touchesLane (1, stereoLayout);
+    }
+
     float* io[2] = { nullptr, nullptr };
 
     for (int lane = 0; lane < 2; ++lane)
@@ -535,10 +615,14 @@ void OuariconParametricEQAudioProcessor::processBlock (juce::AudioBuffer<float>&
     const int grid = juce::jmax (1, controlGrid);
     int phase = static_cast<int> (blockStart % static_cast<std::uint64_t> (grid));
 
-    // Only the sample range is split; the targets above hold for the whole
+    // Set when the fade to bypass ends with nothing latched behind it: the
+    // engine is idle and the rest of the host block is not processed.
+    bool idle = false;
+
+    // Only the sample range is split; the requests above hold for the whole
     // host block and the ticks sit on the clock, so the chunk size does not
     // change the result.
-    for (int start = 0; start < numSamples; start += preparedBlockSize)
+    for (int start = 0; start < numSamples && ! idle; start += preparedBlockSize)
     {
         const int n = juce::jmin (preparedBlockSize, numSamples - start);
 
@@ -554,21 +638,62 @@ void OuariconParametricEQAudioProcessor::processBlock (juce::AudioBuffer<float>&
                 out[i] = static_cast<double> (in[i]);
         }
 
-        // Segments that end at the next tick. Every pass advances by at
-        // least one sample (phase < grid), so the loop is bounded by n.
-        for (int pos = 0; pos < n;)
+        // Segments that end at the next tick and at the end of a bypass
+        // fade. Every pass advances by at least one sample, so the loop is
+        // bounded by n.
+        for (int pos = 0; pos < n && ! idle;)
         {
+            // On a tick: ramps advance and the sleep count runs, before the
+            // samples of the interval.
             if (phase == 0)
-                for (int a = 0; a < numActive; ++a)
-                    bands[static_cast<std::size_t> (activeBands[a])].controlTick (designer);
+                for (int a = 0; a < numListed; ++a)
+                    bands[static_cast<std::size_t> (listed[static_cast<std::size_t> (a)])].controlTick (designer, sleepTicks);
 
-            const int m = juce::jmin (n - pos, grid - phase);
+            int m = juce::jmin (n - pos, grid - phase);
 
-            for (int a = 0; a < numActive; ++a)
+            // A bypass fade in flight: the segment also ends where the fade
+            // does, and fits the dry copy.
+            const bool bypassFading = bypassFade.isFading();
+
+            if (bypassFading)
+                m = juce::jmax (1, juce::jmin (m, bypassFade.samplesLeft (fadeTable), kDryPieceSize));
+
+            // The dry signal of the bypass mix: the converted lanes as they
+            // are before any band runs.
+            double dry[2][kDryPieceSize];
+
+            if (bypassFading)
             {
-                const auto ub = static_cast<std::size_t> (activeBands[a]);
-                eq::Router::process (bands[ub], slots[ub].input.placement,
-                                     work[0] + pos, work[1] + pos, m, stereoLayout);
+                for (int lane = 0; lane < 2; ++lane)
+                {
+                    if (io[lane] == nullptr)
+                        continue;
+
+                    const double* const in = work[lane] + pos;
+
+                    for (int i = 0; i < m; ++i)
+                        dry[lane][i] = in[i];
+                }
+            }
+
+            // The bands, in index order. A band that stopped running since
+            // the block start does nothing here.
+            for (int a = 0; a < numListed; ++a)
+                bands[static_cast<std::size_t> (listed[static_cast<std::size_t> (a)])]
+                    .process (work[0] + pos, work[1] + pos, m, stereoLayout, fadeTable, designer);
+
+            // The bypass mix, the last stage: once per converted lane, then
+            // the fade moves on once. A converted lane no band has touched
+            // equals its dry copy bit for bit, and the mix leaves it so.
+            eq::BypassFade::End ended = eq::BypassFade::End::none;
+
+            if (bypassFading)
+            {
+                for (int lane = 0; lane < 2; ++lane)
+                    if (io[lane] != nullptr)
+                        bypassFade.mix (work[lane] + pos, dry[lane], m, fadeTable);
+
+                ended = bypassFade.advance (m, fadeTable);
             }
 
             pos += m;
@@ -576,14 +701,63 @@ void OuariconParametricEQAudioProcessor::processBlock (juce::AudioBuffer<float>&
 
             if (phase >= grid)
                 phase = 0;
+
+            // 7. The fade to bypass has ended on this segment's last sample.
+            if (ended == eq::BypassFade::End::toBypass)
+            {
+                for (auto& band : bands)
+                    band.goIdle (designer);
+
+                if (bypassFade.getState() == eq::BypassFade::State::toProcessed)
+                {
+                    // An un-bypass was latched: the fade back starts at the
+                    // next sample, and every band starts from rest, settled,
+                    // on its latest request before it.
+                    for (auto& band : bands)
+                    {
+                        const eq::BandInput latest = band.getDesired();
+                        band.startSettled (latest, designer);
+                    }
+
+                    numListed = collectRunningBands (listed);
+
+                    // Every lane the restarted bands touch was converted at
+                    // the block start (see the comment above this function).
+                    bool covered = true;
+
+                    for (int a = 0; a < numListed; ++a)
+                    {
+                        const auto& band = bands[static_cast<std::size_t> (listed[static_cast<std::size_t> (a)])];
+
+                        for (int lane = 0; lane < 2; ++lane)
+                            if (band.touchesLane (lane, stereoLayout) && io[lane] == nullptr)
+                                covered = false;
+                    }
+
+                    jassert (covered);
+                    juce::ignoreUnused (covered);
+
+                    // As in step 5: with nothing running there is nothing to
+                    // fade back to.
+                    if (numListed == 0)
+                        bypassFade.jump (wantBypass);
+                }
+                else
+                {
+                    // Idle from the next sample. The rest of this chunk goes
+                    // back as it was converted; later chunks are not touched.
+                    idle = true;
+                }
+            }
         }
 
-        // Non-finite check (PLAN-2.3 P9): a non-finite input sample leaves
-        // the state of every band it passed through non-finite for good, and
-        // then the last sample of the chunk is non-finite too. Clearing the
-        // state ends it; the chunk itself is written as it is. A stacked-gain
-        // overflow of the float output does not come through here: the
-        // double lanes are still finite.
+        // 8. Non-finite check (PLAN-2.3 P9): a non-finite input sample
+        // leaves the state of every slot it passed through non-finite for
+        // good, and then the last sample of the chunk is non-finite too.
+        // Clearing the state of both slots of every band ends it; fades in
+        // flight carry on and the chunk itself is written as it is. A
+        // stacked-gain overflow of the float output does not come through
+        // here: the double lanes are still finite.
         bool finite = true;
 
         for (int lane = 0; lane < 2; ++lane)
@@ -591,8 +765,10 @@ void OuariconParametricEQAudioProcessor::processBlock (juce::AudioBuffer<float>&
                 finite = false;
 
         if (! finite)
-            clearAndSnapAllBands();
+            for (auto& band : bands)
+                band.clearState (designer);
 
+        // 9. Write-back of the converted lanes.
         for (int lane = 0; lane < 2; ++lane)
         {
             if (io[lane] == nullptr)
@@ -605,21 +781,6 @@ void OuariconParametricEQAudioProcessor::processBlock (juce::AudioBuffer<float>&
                 out[i] = static_cast<float> (in[i]);
         }
     }
-}
-
-void OuariconParametricEQAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buffer,
-                                                               juce::MidiBuffer& midiMessages)
-{
-    juce::ScopedNoDenormals noDenormals;
-    juce::ignoreUnused (midiMessages);
-
-    // The same hard bypass as the `bypass` parameter: the tick clock advances,
-    // buffer untouched, every band's state cleared and its ramp snapped,
-    // snapshots left valid.
-    juce::ignoreUnused (advanceTickClock (buffer.getNumSamples()));
-
-    clearOutputsWithoutInput (buffer);
-    clearAndSnapAllBands();
 }
 
 //==============================================================================

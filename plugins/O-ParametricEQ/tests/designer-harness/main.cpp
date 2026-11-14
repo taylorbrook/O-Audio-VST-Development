@@ -33,11 +33,12 @@
       O-ParametricEQ-designer-harness --neg <name>         run ONE negative control; exit 0 only
                                                            if the targeted row FAILS. Names:
                                                            rbj, f1, alloc, seed, rbj-b, binary-gate,
-                                                           first-build, engine-alloc, ramp-alloc
-                                                           (the last two: exit 0 only if the
+                                                           first-build, engine-alloc, ramp-alloc,
+                                                           fade-alloc
+                                                           (the last three: exit 0 only if the
                                                            planted allocation is counted)
-      O-ParametricEQ-designer-harness --long               RM-g5 runs the contract's 600 s per
-                                                           rate instead of 60 s
+      O-ParametricEQ-designer-harness --long               RM-g5 and XF-g5 run the contract's 600 s
+                                                           per rate instead of 60 s
 
     Exit code = number of FAIL rows (capped at 255). Last line: "N PASS, M FAIL, K INFO".
 
@@ -48,6 +49,34 @@
 
     Every Phase 2.1 row below runs Designer::designSeed (the closed form). The
     Phase 2.1b rows run Designer::design (polished) unless they say otherwise.
+
+      Phase 2.4 (PLAN-2.4 T4): structural crossfades and bypass in double. The engine is
+      24 eq::SlotBand + one eq::FadeTable + one eq::BypassFade under a harness driver
+      (XfEngine: the per-block list of PLAN-2.4 P8 and the lane rule of P7); the fade
+      reference and the controls are harness renders
+      XF-g3      242 step rows x 2 tones x 2 block sizes: largest second difference <= 2.0x
+                 the louder held render
+      XF-g3k     the same renders, local kappa <= 2.5x held at 1 kHz; 50 Hz INFO
+      XF-g3h     hardStepRender (the 2.3 rule) at block 512 reads >= 10x; void readings printed
+      XF-ref     the engine against fadeRefRender over the first fade of 30 rows, 1e-9
+      XF-refn    the reference started 1 sample late, and with linear weights, exceed 1e-6
+      XF-rest    after a type fade the output is a fresh band started at the fade's first sample
+      XF-lat     latched requests: counts and second difference
+      XF-cont    a continuous change during a fade reaches the incoming slot
+      XF-lane    a placement fade leaves the untouched lane exact outside the fade
+      XF-ident   a gain type at exactly 0 dB designs the identity
+      XF-g4      G4 (d), (e), (f) timing; XF-g4n: without the sleep the output differs
+      XF-slp     sleep and wake click reading; XF-slpc: what must not sleep; XF-wake: the wake rule
+      XF-byp     the bypass latch; XF-bypn: a bypass envelope that reverses reads >= 10x
+      XF-idle    fully bypassed: state zero, requests inert, un-bypass == a fresh engine
+      XF-g2      G2 live: slope changes on a running band
+      XF-blk     structural events on multiples of 2048: block sizes bit-identical; XF-blkn
+      XF-ms      Mid / Side ramping path (VERIFICATION-2.3 issue 1)
+      XF-1p      one-pole sections on the ramping path (issue 2)
+      XF-g5      random stress with structure and bypass, 8 rates
+      XF-nan     a NaN input sample during a fade
+      XF-alloc   no allocation with fades and bypass (malloc_logger)
+      XF-cpu     INFO: cost of a fade
 
       Phase 2.3 (PLAN-2.3 T4): continuous modulation in double. The engine is eq::Band +
       eq::Router under a harness driver (tick clock, segments that end at the next tick);
@@ -160,6 +189,8 @@
 #include "dsp/SectionEngine.h"
 #include "dsp/Band.h"
 #include "dsp/Router.h"
+#include "dsp/Fade.h"
+#include "dsp/SlotBand.h"
 
 #include <algorithm>
 #include <array>
@@ -177,8 +208,10 @@
 #include <functional>
 #include <initializer_list>
 #include <limits>
+#include <memory>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #if defined (__APPLE__)
@@ -9582,6 +9615,3852 @@ namespace
     }
 
     //==========================================================================
+    // Phase 2.4 (PLAN-2.4 T4): structural crossfades and bypass, in double
+    //
+    // The engine side of every row is 24 eq::SlotBand + one eq::FadeTable +
+    // one eq::BypassFade under XfEngine: the per-block list of PLAN-2.4 P8 and
+    // the lane rule of P7 on double lanes, in the order the processor runs
+    // them (Source/PluginProcessor.cpp, processAudio). The fade reference
+    // (fadeRefRender) and the three controls (hardStepRender,
+    // neverSleepRender, reversingBypassRender) are harness renders (P10, P12);
+    // fadeRefRender calls no SlotBand, FadeTable, BypassFade, Band or Router.
+    // Band inputs are canonical and carry the effective placement (xfCanon:
+    // step 5 of eq::makeBandInput), as classifyBandChange requires.
+    //==========================================================================
+    constexpr int kXfBands = kEnMaxBands;
+    constexpr int kXfDryPiece = 64;
+    constexpr int kXfNumSteps = 8;
+    constexpr int kXfNumGroups = 6;
+    constexpr double kXfLead = 0.5;
+    constexpr double kXfStep = 0.100;
+    constexpr double kXfFrom = 0.3;
+    constexpr double kXfFs = 48000.0;
+
+    const char* const kXfGroupNames[kXfNumGroups] = { "type pairs", "slope pairs", "placement pairs", "enable",
+                                                      "global bypass", "enable, 24 bells" };
+    const int kXfSlopeDb[8] = { 6, 12, 18, 24, 36, 48, 72, 96 };
+
+    /** N re-stated from PLAN-2.4 P2 with harness literals: round (0.020 fs), at least 1. */
+    int xfFadeLength (double fs)
+    {
+        return std::max (1, static_cast<int> (std::lround (0.020 * fs)));
+    }
+
+    std::size_t xfSamples (double seconds, double fs)
+    {
+        return static_cast<std::size_t> (std::llround (seconds * fs));
+    }
+
+    /** One band as a row describes it, and the global bypass of that moment. */
+    struct XfCfg
+    {
+        eq::BandSettings s { eq::Type::bell, 1000.0, 0.0, 1.0, 0 };
+        eq::Placement p = eq::Placement::stereo;
+        bool active = true;
+        bool bypass = false;
+    };
+
+    /** The canonical form of eq::makeBandInput step 5, with the effective placement. */
+    eq::BandInput xfCanon (const XfCfg& c, bool stereo)
+    {
+        eq::BandInput in;
+        in.settings = c.s;
+        in.placement = eq::effectivePlacement (c.p, stereo);
+        in.active = c.active;
+
+        if (! eq::usesSlope (in.settings.type))
+            in.settings.slopeIndex = 0;
+        else if (in.settings.slopeIndex == 0)
+            in.settings.q = 1.0;
+
+        if (! eq::isGainType (in.settings.type))
+            in.settings.gainDbEff = 0.0;
+
+        return in;
+    }
+
+    eq::BandInput xfInactive()
+    {
+        XfCfg c;
+        c.active = false;
+        return xfCanon (c, true);
+    }
+
+    //==========================================================================
+    // XfEngine: the P8 per-block list on double lanes
+    //==========================================================================
+    struct XfEngine
+    {
+        double fs = 48000.0;
+        int grid = 16;
+        int rampTicks = 60;
+        int sleepTicks = 150;
+        int maxChunk = 4096;
+        bool stereo = true;
+        bool started = false;
+        bool wantBypass = false;
+        std::uint64_t clock = 0;
+
+        eq::Designer designer;
+        eq::FadeTable table;
+        eq::BypassFade bypass;
+        std::array<eq::SlotBand, kXfBands> bands;
+        std::array<eq::BandInput, kXfBands> requested {};     // the latest inputs the row set (the "parameters")
+        std::array<eq::BandInput, kXfBands> sent {};          // the snapshot last handed to the band
+        std::array<bool, kXfBands> sentValid {};
+        std::vector<double> work[2];
+
+        long long restarts = 0, latchedRestarts = 0, endsToBypass = 0, jumps = 0, idleBlocks = 0;
+        long long bypassMixed = 0, laneViolations = 0, clears = 0, requests = 0;
+
+        /** Once per prepare: no allocation happens in process(). `chunk` is the prepared block size. */
+        void prepare (double sampleRate, bool isStereo, int chunk)
+        {
+            fs = sampleRate;
+            stereo = isStereo;
+            grid = eq::controlGridSize (sampleRate);
+            rampTicks = eq::rampLengthTicks (sampleRate);
+            sleepTicks = eq::sleepLengthTicks (sampleRate, grid);
+            maxChunk = std::max (1, chunk);
+            designer.prepare (sampleRate);
+            table.prepare (sampleRate);
+            bypass = eq::BypassFade();
+
+            for (eq::SlotBand& band : bands)
+                band.prepare (grid, rampTicks);
+
+            requested.fill (xfInactive());
+            sent = requested;
+            sentValid.fill (false);
+
+            for (std::vector<double>& lane : work)
+                lane.assign (ix (maxChunk), 0.0);
+
+            clock = 0;
+            started = false;
+            wantBypass = false;
+            restarts = latchedRestarts = endsToBypass = jumps = idleBlocks = 0;
+            bypassMixed = laneViolations = clears = requests = 0;
+        }
+
+        void set (int index, const XfCfg& c)
+        {
+            requested[ix (index)] = xfCanon (c, stereo);
+        }
+
+        int collect (std::array<int, kXfBands>& list) const
+        {
+            int count = 0;
+
+            for (int b = 0; b < kXfBands; ++b)
+                if (bands[ix (b)].isRunning())
+                    list[ix (count++)] = b;
+
+            return count;
+        }
+
+        /** Lanes a listed band may touch that were not converted: must stay 0 (P7, R4). */
+        void countUncovered (const std::array<int, kXfBands>& list, int count, double* const* io)
+        {
+            for (int a = 0; a < count; ++a)
+                for (int lane = 0; lane < 2; ++lane)
+                    if (io[lane] == nullptr && bands[ix (list[ix (a)])].touchesLane (lane, stereo))
+                        ++laneViolations;
+        }
+
+        /** One host block, in place. lane1 may be null on a mono layout. */
+        void process (double* lane0, double* lane1, int numSamples)
+        {
+            // 1. The clock advances by the block's length on every path.
+            const std::uint64_t blockStart = clock;
+
+            if (numSamples > 0)
+                clock = blockStart + static_cast<std::uint64_t> (numSamples);
+
+            // 2. Bypass: start on the first block, else a request.
+            bool restart = false;
+
+            if (! started)
+            {
+                bypass.start (wantBypass);
+                started = true;
+                restart = true;
+            }
+            else if (bypass.request (wantBypass))
+            {
+                restart = bypass.getState() == eq::BypassFade::State::toProcessed;
+            }
+
+            if (restart)
+                ++restarts;
+
+            // 3. Fully bypassed: the buffer is not touched, no request is made, the snapshots are stale.
+            if (bypass.isBypassed())
+            {
+                sentValid.fill (false);
+                ++idleBlocks;
+                return;
+            }
+
+            // 4. Parameters: startSettled on a restart, else a request on a first-level difference.
+            for (int b = 0; b < kXfBands; ++b)
+            {
+                const std::size_t ub = ix (b);
+                const eq::BandInput now = requested[ub];
+                const bool changed = ! sentValid[ub] || ! enSameFields (now, sent[ub]);
+
+                if (restart)
+                {
+                    bands[ub].startSettled (now, designer);
+                }
+                else if (changed)
+                {
+                    bands[ub].request (now, designer);
+                    ++requests;
+                }
+
+                if (restart || changed)
+                {
+                    sent[ub] = now;
+                    sentValid[ub] = true;
+                }
+            }
+
+            // 5. The list.
+            std::array<int, kXfBands> listed {};
+            int numListed = collect (listed);
+
+            if (numListed == 0)
+            {
+                bypass.jump (wantBypass);
+                ++jumps;
+                return;
+            }
+
+            // 6. The lanes of P7 (touchesLane), and the segments.
+            bool touched[2] = { false, false };
+
+            for (int a = 0; a < numListed; ++a)
+                for (int lane = 0; lane < 2; ++lane)
+                    touched[lane] = touched[lane] || bands[ix (listed[ix (a)])].touchesLane (lane, stereo);
+
+            double* const io[2] = { touched[0] ? lane0 : nullptr, touched[1] ? lane1 : nullptr };
+            double* const wk[2] = { work[0].data(), work[1].data() };
+            const int g = std::max (1, grid);
+            int phase = static_cast<int> (blockStart % static_cast<std::uint64_t> (g));
+            bool idle = false;
+
+            for (int start = 0; start < numSamples && ! idle; start += maxChunk)
+            {
+                const int n = std::min (maxChunk, numSamples - start);
+
+                for (int lane = 0; lane < 2; ++lane)
+                    if (io[lane] != nullptr)
+                        std::memcpy (wk[lane], io[lane] + start, sizeof (double) * ix (n));
+
+                for (int pos = 0; pos < n && ! idle;)
+                {
+                    if (phase == 0)
+                        for (int a = 0; a < numListed; ++a)
+                            bands[ix (listed[ix (a)])].controlTick (designer, sleepTicks);
+
+                    int m = std::min (n - pos, g - phase);
+                    const bool bypassFading = bypass.isFading();
+
+                    if (bypassFading)
+                        m = std::max (1, std::min ({ m, bypass.samplesLeft (table), kXfDryPiece }));
+
+                    const auto runBands = [this, &listed, numListed, &wk, pos, m]
+                    {
+                        for (int a = 0; a < numListed; ++a)
+                            bands[ix (listed[ix (a)])].process (wk[0] + pos, wk[1] + pos, m, stereo, table, designer);
+                    };
+
+                    eq::BypassFade::End ended = eq::BypassFade::End::none;
+
+                    if (bypassFading)
+                    {
+                        // The dry copy of the converted lanes, before the bands run; then the mix, then advance once.
+                        double dry[2][kXfDryPiece];
+
+                        for (int lane = 0; lane < 2; ++lane)
+                            if (io[lane] != nullptr)
+                                std::memcpy (dry[lane], wk[lane] + pos, sizeof (double) * ix (m));
+
+                        runBands();
+
+                        for (int lane = 0; lane < 2; ++lane)
+                            if (io[lane] != nullptr)
+                                bypass.mix (wk[lane] + pos, dry[lane], m, table);
+
+                        bypassMixed += m;
+                        ended = bypass.advance (m, table);
+                    }
+                    else
+                    {
+                        runBands();
+                    }
+
+                    countUncovered (listed, numListed, io);
+
+                    pos += m;
+                    phase += m;
+
+                    if (phase >= g)
+                        phase = 0;
+
+                    // 7. The fade to bypass ended on this segment.
+                    if (ended == eq::BypassFade::End::toBypass)
+                    {
+                        ++endsToBypass;
+
+                        for (eq::SlotBand& band : bands)
+                            band.goIdle (designer);
+
+                        if (bypass.getState() == eq::BypassFade::State::toProcessed)
+                        {
+                            ++latchedRestarts;
+
+                            for (eq::SlotBand& band : bands)
+                            {
+                                const eq::BandInput latest = band.getDesired();
+                                band.startSettled (latest, designer);
+                            }
+
+                            numListed = collect (listed);
+                            countUncovered (listed, numListed, io);
+
+                            if (numListed == 0)
+                                bypass.jump (wantBypass);
+                        }
+                        else
+                        {
+                            idle = true;
+                        }
+                    }
+                }
+
+                // 8. Non-finite check at the chunk end.
+                bool finite = true;
+
+                for (int lane = 0; lane < 2; ++lane)
+                    if (io[lane] != nullptr && ! std::isfinite (wk[lane][n - 1]))
+                        finite = false;
+
+                if (! finite)
+                {
+                    for (eq::SlotBand& band : bands)
+                        band.clearState (designer);
+
+                    ++clears;
+                }
+
+                // 9. Write-back of the converted lanes.
+                for (int lane = 0; lane < 2; ++lane)
+                    if (io[lane] != nullptr)
+                        std::memcpy (io[lane] + start, wk[lane], sizeof (double) * ix (n));
+            }
+        }
+
+        unsigned long fades() const
+        {
+            unsigned long sum = 0;
+
+            for (const eq::SlotBand& band : bands)
+                sum += band.getFadesStarted();
+
+            return sum;
+        }
+
+        unsigned long latched() const
+        {
+            unsigned long sum = 0;
+
+            for (const eq::SlotBand& band : bands)
+                sum += band.getLatchedStarted();
+
+            return sum;
+        }
+
+        unsigned long sleeps() const
+        {
+            unsigned long sum = 0;
+
+            for (const eq::SlotBand& band : bands)
+                sum += band.getSleepCount();
+
+            return sum;
+        }
+
+        unsigned long wakes() const
+        {
+            unsigned long sum = 0;
+
+            for (const eq::SlotBand& band : bands)
+                sum += band.getWakeCount();
+
+            return sum;
+        }
+
+        bool anyRunning() const
+        {
+            for (const eq::SlotBand& band : bands)
+                if (band.isRunning())
+                    return true;
+
+            return false;
+        }
+    };
+
+    std::unique_ptr<XfEngine> xfMakeEngine (double fs, bool stereo, int chunk)
+    {
+        std::unique_ptr<XfEngine> e = std::make_unique<XfEngine>();
+        e->prepare (fs, stereo, chunk);
+        return e;
+    }
+
+    //==========================================================================
+    // Signals and readings
+    //==========================================================================
+    struct XfStereo
+    {
+        std::vector<double> L, R;
+    };
+
+    /** P11: L the tone at -6 dBFS, R the same tone at -10.5 dBFS (0.3), 1.1 rad later. */
+    XfStereo xfToneStimulus (double tone, double fs, std::size_t n)
+    {
+        XfStereo s;
+        s.L.resize (n);
+        s.R.resize (n);
+
+        for (std::size_t i = 0; i < n; ++i)
+        {
+            const double t = static_cast<double> (i) / fs;
+            s.L[i] = 0.5 * std::sin (2.0 * kPi * tone * t);
+            s.R[i] = 0.3 * std::sin (2.0 * kPi * tone * t + 1.1);
+        }
+
+        return s;
+    }
+
+    /** Independent noise on both lanes, +-0.25. */
+    XfStereo xfNoise (std::size_t n, Rng& rng)
+    {
+        XfStereo s;
+        s.L.resize (n);
+        s.R.resize (n);
+
+        for (std::size_t i = 0; i < n; ++i)
+        {
+            s.L[i] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+            s.R[i] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+        }
+
+        return s;
+    }
+
+    /** The largest |y[n] - 2 y[n-1] + y[n-2]| of either lane from `from` on (the bench's maxD2). */
+    double xfMaxD2 (const XfStereo& y, std::size_t from)
+    {
+        double d = 0.0;
+
+        for (std::size_t i = std::max<std::size_t> (from, 1); i + 1 < y.L.size(); ++i)
+        {
+            d = std::max (d, std::fabs (y.L[i + 1] - 2.0 * y.L[i] + y.L[i - 1]));
+            d = std::max (d, std::fabs (y.R[i + 1] - 2.0 * y.R[i] + y.R[i - 1]));
+        }
+
+        return d;
+    }
+
+    /** Local kappa, worst of the two lanes (5 ms frames, frames below -80 dBFS skipped). */
+    double xfKappa2 (const XfStereo& y, double fs, std::size_t from)
+    {
+        return std::max (rmLocalKappa (y.L, fs, from), rmLocalKappa (y.R, fs, from));
+    }
+
+    bool xfFinite (const XfStereo& y)
+    {
+        return rmAllFinite (y.L) && rmAllFinite (y.R);
+    }
+
+    bool xfSameRange (const std::vector<double>& a, const std::vector<double>& b, std::size_t from, std::size_t to)
+    {
+        if (to <= from)
+            return true;
+
+        return std::memcmp (a.data() + from, b.data() + from, sizeof (double) * (to - from)) == 0;
+    }
+
+    /** The engine over a whole stereo buffer: per host block the script fills the band
+        configuration (the same for the first `copies` bands) and the bypass, then the block runs,
+        then the probe sees [blockStart, blockEnd). */
+    template <typename Script, typename Probe>
+    void xfRun (XfEngine& e, XfStereo& y, int block, int copies, Script&& script, Probe&& probe)
+    {
+        const std::size_t n = y.L.size();
+
+        for (std::size_t at = 0; at < n; at += ix (block))
+        {
+            XfCfg c;
+            script (at, c);
+            e.wantBypass = c.bypass;
+
+            for (int k = 0; k < copies; ++k)
+                e.set (k, c);
+
+            const std::size_t m = std::min (ix (block), n - at);
+            e.process (y.L.data() + at, e.stereo ? y.R.data() + at : nullptr, static_cast<int> (m));
+            probe (at, at + m);
+        }
+    }
+
+    //==========================================================================
+    // The step rows (P11): the bench's stepRows, 242 per tone
+    //==========================================================================
+    struct XfRow
+    {
+        std::string name;
+        XfCfg a, b;
+        int copies = 1;
+        int group = 0;
+        bool voidAt1k = false;      // P13 (c): the subject does nothing to a 1 kHz tone
+    };
+
+    /** The bench's deep settings: +18 dB (or `gain`) at or beside the tone; cuts 24 dB/oct at the tone. */
+    XfCfg xfDeep (eq::Type type, double tone, double gain = 18.0)
+    {
+        XfCfg c;
+        c.s.type = type;
+        c.s.gainDbEff = gain;
+        c.s.q = 1.0;
+        c.s.slopeIndex = eq::usesSlope (type) ? 1 : 0;
+
+        switch (type)
+        {
+            case eq::Type::bell:       c.s.freqHz = tone; break;
+            case eq::Type::lowShelf:   c.s.freqHz = 2.0 * tone; break;
+            case eq::Type::highShelf:  c.s.freqHz = 0.5 * tone; break;
+            case eq::Type::lowCut:     c.s.freqHz = tone; c.s.slopeIndex = 3; break;
+            case eq::Type::highCut:    c.s.freqHz = tone; c.s.slopeIndex = 3; break;
+            case eq::Type::notch:      c.s.freqHz = 1.15 * tone; break;
+            case eq::Type::bandPass:   c.s.freqHz = 3.0 * tone; break;
+            case eq::Type::tilt:       c.s.freqHz = 0.25 * tone; c.s.gainDbEff = 2.0 * gain > 60.0 ? 60.0 : 2.0 * gain; break;
+        }
+
+        return c;
+    }
+
+    /** The bench's 15 enable subjects. */
+    std::vector<std::pair<std::string, XfCfg>> xfSubjects (double tone)
+    {
+        std::vector<std::pair<std::string, XfCfg>> s;
+        s.push_back ({ "Bell +18", xfDeep (eq::Type::bell, tone) });
+        s.push_back ({ "Bell -18", xfDeep (eq::Type::bell, tone, -18.0) });
+        { XfCfg c = xfDeep (eq::Type::bell, tone); c.s.q = 40.0; s.push_back ({ "Bell +18 Q 40", c }); }
+        { XfCfg c = xfDeep (eq::Type::bell, tone); c.s.freqHz = 10.0; c.s.q = 40.0; c.s.gainDbEff = 12.0; s.push_back ({ "Bell 10 Hz Q 40 +12", c }); }
+        { XfCfg c = xfDeep (eq::Type::lowCut, tone); c.s.freqHz = 30.0; c.s.slopeIndex = 7; s.push_back ({ "LowCut 96 at 30 Hz", c }); }
+        { XfCfg c = xfDeep (eq::Type::lowCut, tone); c.s.slopeIndex = 7; s.push_back ({ "LowCut 96 at tone", c }); }
+        { XfCfg c = xfDeep (eq::Type::lowCut, tone); c.s.slopeIndex = 7; c.s.freqHz = 0.8 * tone; c.s.q = 4.0; s.push_back ({ "LowCut 96 Q 4 below tone", c }); }
+        { XfCfg c = xfDeep (eq::Type::highCut, tone); c.s.slopeIndex = 7; s.push_back ({ "HighCut 96 at tone", c }); }
+        { XfCfg c = xfDeep (eq::Type::highCut, tone); c.s.slopeIndex = 0; s.push_back ({ "HighCut 6 at tone", c }); }
+        s.push_back ({ "HighShelf 12 +18", xfDeep (eq::Type::highShelf, tone) });
+        { XfCfg c = xfDeep (eq::Type::highShelf, tone); c.s.slopeIndex = 7; s.push_back ({ "HighShelf 96 +18", c }); }
+        s.push_back ({ "LowShelf 12 -18", xfDeep (eq::Type::lowShelf, tone, -18.0) });
+        s.push_back ({ "Notch near tone", xfDeep (eq::Type::notch, tone) });
+        s.push_back ({ "BandPass at 3x tone", xfDeep (eq::Type::bandPass, tone) });
+        s.push_back ({ "Tilt 12 +36", xfDeep (eq::Type::tilt, tone) });
+        return s;
+    }
+
+    std::vector<XfRow> xfStepRows (double tone)
+    {
+        static const eq::Type types[8] = { eq::Type::bell, eq::Type::lowShelf, eq::Type::highShelf, eq::Type::lowCut,
+                                           eq::Type::highCut, eq::Type::notch, eq::Type::bandPass, eq::Type::tilt };
+        std::vector<XfRow> list;
+
+        const auto add = [&list] (const std::string& name, const XfCfg& a, const XfCfg& b, int group, int copies, bool isVoid)
+        {
+            XfRow r;
+            r.name = name;
+            r.a = a;
+            r.b = b;
+            r.group = group;
+            r.copies = copies;
+            r.voidAt1k = isVoid;
+            list.push_back (r);
+        };
+
+        // Type pairs: 28 at +18 dB, 22 with at least one gain type at -18 dB.
+        for (int i = 0; i < 8; ++i)
+            for (int j = i + 1; j < 8; ++j)
+                add (std::string ("type ") + kTypeNames[i] + " <> " + kTypeNames[j],
+                     xfDeep (types[i], tone), xfDeep (types[j], tone), 0, 1, false);
+
+        for (int i = 0; i < 8; ++i)
+            for (int j = i + 1; j < 8; ++j)
+                if (eq::isGainType (types[i]) || eq::isGainType (types[j]))
+                    add (std::string ("type -18 ") + kTypeNames[i] + " <> " + kTypeNames[j],
+                         xfDeep (types[i], tone, -18.0), xfDeep (types[j], tone, -18.0), 0, 1, false);
+
+        // Slope pairs: every pair of the 8 slopes on the five slope types.
+        for (const eq::Type t : { eq::Type::lowCut, eq::Type::highCut, eq::Type::lowShelf, eq::Type::highShelf, eq::Type::tilt })
+            for (int i = 0; i < 8; ++i)
+                for (int j = i + 1; j < 8; ++j)
+                {
+                    XfCfg a = xfDeep (t, tone);
+                    XfCfg b = a;
+                    a.s.slopeIndex = i;
+                    b.s.slopeIndex = j;
+                    add (strf ("slope %s %d <> %d", kTypeNames[static_cast<int> (t)], kXfSlopeDb[i], kXfSlopeDb[j]), a, b, 1, 1, false);
+                }
+
+        // Placement pairs: Bell +18 and Low Cut 96, every pair of the 5 placements.
+        for (int v = 0; v < 2; ++v)
+            for (int i = 0; i < 5; ++i)
+                for (int j = i + 1; j < 5; ++j)
+                {
+                    XfCfg a = v == 0 ? xfDeep (eq::Type::bell, tone) : xfDeep (eq::Type::lowCut, tone);
+
+                    if (v == 1)
+                        a.s.slopeIndex = 7;
+
+                    XfCfg b = a;
+                    a.p = static_cast<eq::Placement> (i);
+                    b.p = static_cast<eq::Placement> (j);
+                    add (strf ("place %s %s <> %s", v == 0 ? "Bell +18" : "LowCut 96", kEnPlacementNames[i], kEnPlacementNames[j]),
+                         a, b, 2, 1, false);
+                }
+
+        // Enable and global bypass: the 15 subjects; then 24 x Bell +1 Q 4.
+        const std::vector<std::pair<std::string, XfCfg>> subjects = xfSubjects (tone);
+
+        for (std::size_t k = 0; k < subjects.size(); ++k)
+        {
+            XfCfg off = subjects[k].second;
+            off.active = false;
+            add ("enable " + subjects[k].first, off, subjects[k].second, 3, 1, k == 3);
+        }
+
+        for (std::size_t k = 0; k < subjects.size(); ++k)
+        {
+            XfCfg byp = subjects[k].second;
+            byp.bypass = true;
+            add ("global bypass, " + subjects[k].first, subjects[k].second, byp, 4, 1, k == 3);
+        }
+
+        {
+            XfCfg c = xfDeep (eq::Type::bell, tone, 1.0);
+            c.s.q = 4.0;
+            XfCfg byp = c;
+            byp.bypass = true;
+            add ("global bypass, 24 x Bell +1 Q 4", c, byp, 4, kXfBands, false);
+
+            XfCfg off = c;
+            off.active = false;
+            add ("enable 24 x Bell +1 Q 4", off, c, 5, kXfBands, false);
+        }
+
+        return list;
+    }
+
+    /** P11 timeline: A, then from 0.5 s B / A alternating every `stepSeconds`, 8 steps, ending at A.
+        motion 0: the steps; 1: held at A; 2: held at B. */
+    int xfStepState (std::size_t at, double fs, int motion, double stepSeconds)
+    {
+        if (motion == 1)
+            return 0;
+
+        if (motion == 2)
+            return 1;
+
+        const double t = static_cast<double> (at) / fs;
+
+        if (t < kXfLead)
+            return 0;
+
+        const int k = static_cast<int> ((t - kXfLead) / stepSeconds);
+        return k < kXfNumSteps ? ((k + 1) & 1) : (kXfNumSteps & 1);
+    }
+
+    std::size_t xfStepLength (double fs, double stepSeconds)
+    {
+        return xfSamples (kXfLead + static_cast<double> (kXfNumSteps) * stepSeconds + 0.3, fs);
+    }
+
+    struct XfCounts
+    {
+        unsigned long fades = 0, latched = 0, sleeps = 0, wakes = 0;
+    };
+
+    /** The engine on a step row. */
+    XfStereo xfStepRender (const XfRow& r, double tone, int block, int motion, double fs, double stepSeconds,
+                           XfCounts* counts = nullptr)
+    {
+        std::unique_ptr<XfEngine> e = xfMakeEngine (fs, true, 4096);
+        XfStereo y = xfToneStimulus (tone, fs, xfStepLength (fs, stepSeconds));
+
+        xfRun (*e, y, block, r.copies,
+               [&r, fs, motion, stepSeconds] (std::size_t at, XfCfg& c) { c = xfStepState (at, fs, motion, stepSeconds) != 0 ? r.b : r.a; },
+               [] (std::size_t, std::size_t) {});
+
+        if (counts != nullptr)
+        {
+            counts->fades = e->fades();
+            counts->latched = e->latched();
+            counts->sleeps = e->sleeps();
+            counts->wakes = e->wakes();
+        }
+
+        return y;
+    }
+
+    /** P10, the hard control: the Phase 2.3 rule on plain eq::Band + eq::Router (RmDriver). A
+        structural change is snapTo + reset at the block start, an inactive band is not processed, a
+        continuous change ramps, and the global bypass is a hard switch (the input passes; every band's
+        state is cleared and its ramp snapped). No SlotBand, FadeTable or BypassFade. Never sleeps: it
+        is also the plain-band reference of XF-slp. */
+    XfStereo hardStepRender (const XfRow& r, double tone, int block, double fs, double stepSeconds)
+    {
+        RmDriver driver;
+        driver.prepare (fs, r.copies);
+
+        XfStereo y = xfToneStimulus (tone, fs, xfStepLength (fs, stepSeconds));
+        const std::size_t n = y.L.size();
+        bool bypassed = false;
+
+        for (std::size_t at = 0; at < n; at += ix (block))
+        {
+            const XfCfg& c = xfStepState (at, fs, 0, stepSeconds) != 0 ? r.b : r.a;
+            const int m = static_cast<int> (std::min (ix (block), n - at));
+
+            if (c.bypass)
+            {
+                if (! bypassed)
+                    for (eq::Band& band : driver.bands)
+                    {
+                        band.reset();
+                        band.snapToTarget (driver.designer);
+                    }
+
+                bypassed = true;
+                driver.clock += static_cast<std::uint64_t> (m);
+                continue;
+            }
+
+            bypassed = false;
+
+            for (int k = 0; k < r.copies; ++k)
+                driver.apply (k, xfCanon (c, true));
+
+            driver.process (y.L.data() + at, y.R.data() + at, m, true);
+        }
+
+        return y;
+    }
+
+    struct XfStepReading
+    {
+        double dEng = 0.0, dA = 0.0, dB = 0.0, dHard = 0.0, kEng = 0.0, kA = 0.0, kB = 0.0;
+        bool finite = true;
+    };
+
+    XfStepReading xfStepMeasure (const XfRow& r, double tone, int block, bool wantHard)
+    {
+        const std::size_t from = xfSamples (kXfFrom, kXfFs);
+
+        const XfStereo yA = xfStepRender (r, tone, block, 1, kXfFs, kXfStep);
+        const XfStereo yB = xfStepRender (r, tone, block, 2, kXfFs, kXfStep);
+        const XfStereo yE = xfStepRender (r, tone, block, 0, kXfFs, kXfStep);
+
+        XfStepReading q;
+        q.dA = xfMaxD2 (yA, from);
+        q.dB = xfMaxD2 (yB, from);
+        q.dEng = xfMaxD2 (yE, from);
+        q.kA = xfKappa2 (yA, kXfFs, from);
+        q.kB = xfKappa2 (yB, kXfFs, from);
+        q.kEng = xfKappa2 (yE, kXfFs, from);
+        q.finite = xfFinite (yA) && xfFinite (yB) && xfFinite (yE);
+
+        if (wantHard)
+        {
+            const XfStereo yX = hardStepRender (r, tone, block, kXfFs, kXfStep);
+            q.dHard = xfMaxD2 (yX, from);
+            q.finite = q.finite && xfFinite (yX);
+        }
+
+        return q;
+    }
+
+    // RESEARCH-2.4 Q1 (fade_bench g3), [tone 50 Hz, 1 kHz][group].
+    const double kXfBenchD2[2][kXfNumGroups]     = { { 1.51, 1.53, 1.48, 1.31, 1.33, 0.81 }, { 1.001, 1.002, 1.001, 1.021, 1.021, 1.000 } };
+    const double kXfBenchKappa[2][kXfNumGroups]  = { { 20.5, 16.1, 6.1, 16.4, 17.1, 2.7 },   { 2.20, 1.92, 1.48, 1.49, 1.65, 1.56 } };
+    const int kXfBenchKappaOver2[2][kXfNumGroups] = { { 75, 84, 21, 10, 10, 2 },             { 8, 0, 0, 0, 0, 0 } };
+    const double kXfBenchHard[2][kXfNumGroups]   = { { 16777.0, 13433.0, 4796.0, 287.0, 274.0, 15269.0 }, { 41.6, 37.1, 18.3, 17.9, 17.9, 50.5 } };
+
+    struct XfG3Task
+    {
+        XfStepReading reading[2];       // block 32, block 512
+    };
+
+    struct XfG3Group
+    {
+        int n = 0, kOver2 = 0, hardCounted = 0, voids = 0;
+        double dWorst = 0.0, kWorst = 0.0, hardLowest = kInf;
+        std::string dWhere, kWhere, hardWhere;
+    };
+
+    /** XF-g3, XF-g3k (+ the 50 Hz INFO line), XF-g3h. */
+    void rowsXfG3()
+    {
+        static const double tones[2] = { 50.0, 1000.0 };
+        static const int blocks[2] = { 32, 512 };
+
+        const std::vector<XfRow> stepRows[2] = { xfStepRows (tones[0]), xfStepRows (tones[1]) };
+        const int perTone = static_cast<int> (stepRows[0].size());
+        std::vector<XfG3Task> tasks (ix (2 * perTone));
+
+        // Tasks: tone-major, then row; each task reads both block sizes.
+        parallelFor (2 * perTone, [&tasks, &stepRows, perTone] (int task)
+        {
+            const int t = task / perTone;
+            const XfRow& r = stepRows[t][ix (task % perTone)];
+
+            for (int b = 0; b < 2; ++b)
+                tasks[ix (task)].reading[b] = xfStepMeasure (r, tones[t], blocks[b], b == 1);
+        });
+
+        XfG3Group groups[2][kXfNumGroups];
+        int dAbove = 0, kAbove1k = 0, k50Over2 = 0, nonFinite = 0, hardBelow = 0, hardCounted = 0, voidCount = 0;
+        double dWorst[2] = { 0.0, 0.0 }, kWorst[2] = { 0.0, 0.0 }, hardLowest[2] = { kInf, kInf };
+        std::string dWhere[2], kWhere[2], hardWhere[2], voidText;
+
+        for (int t = 0; t < 2; ++t)
+            for (int k = 0; k < perTone; ++k)
+            {
+                const XfRow& r = stepRows[t][ix (k)];
+                XfG3Group& grp = groups[t][r.group];
+
+                for (int b = 0; b < 2; ++b)
+                {
+                    const XfStepReading& q = tasks[ix (t * perTone + k)].reading[b];
+                    const double dRatio = rmRatio (q.dEng, std::max (q.dA, q.dB));
+                    const double kRatio = rmRatio (q.kEng, std::max (q.kA, q.kB));
+                    const std::string where = strf ("%s, block %d", r.name.c_str(), blocks[b]);
+                    ++grp.n;
+
+                    if (! q.finite)
+                        ++nonFinite;
+
+                    if (! (dRatio <= 2.0))
+                        ++dAbove;
+
+                    if (! (dRatio <= dWorst[t]))
+                    {
+                        dWorst[t] = dRatio;
+                        dWhere[t] = where;
+                    }
+
+                    if (! (dRatio <= grp.dWorst))
+                    {
+                        grp.dWorst = dRatio;
+                        grp.dWhere = where;
+                    }
+
+                    if (! (kRatio <= kWorst[t]))
+                    {
+                        kWorst[t] = kRatio;
+                        kWhere[t] = where;
+                    }
+
+                    if (! (kRatio <= grp.kWorst))
+                    {
+                        grp.kWorst = kRatio;
+                        grp.kWhere = where;
+                    }
+
+                    if (! (kRatio <= 2.0))
+                    {
+                        ++grp.kOver2;
+
+                        if (t == 0)
+                            ++k50Over2;
+                    }
+
+                    if (t == 1 && ! (kRatio <= 2.5))
+                        ++kAbove1k;
+
+                    if (b == 1)
+                    {
+                        const double hRatio = rmRatio (q.dHard, std::max (q.dA, q.dB));
+
+                        if (t == 1 && r.voidAt1k)
+                        {
+                            ++voidCount;
+                            ++grp.voids;
+                            voidText += strf ("%s%s at 1 kHz %.2fx", voidText.empty() ? "" : "; ", r.name.c_str(), hRatio);
+                        }
+                        else
+                        {
+                            ++hardCounted;
+                            ++grp.hardCounted;
+
+                            if (! (std::isfinite (hRatio) && hRatio >= 10.0))
+                                ++hardBelow;
+
+                            if (! (hRatio >= hardLowest[t]))
+                            {
+                                hardLowest[t] = hRatio;
+                                hardWhere[t] = r.name;
+                            }
+
+                            if (! (hRatio >= grp.hardLowest))
+                            {
+                                grp.hardLowest = hRatio;
+                                grp.hardWhere = r.name;
+                            }
+                        }
+                    }
+                }
+            }
+
+        const int total = 4 * perTone;
+        const bool countOk = perTone == 242;
+
+        //======================================================================
+        // XF-g3: P13 (a)
+        //======================================================================
+        row (dAbove == 0 && nonFinite == 0 && countOk,
+             "XF-g3 step rows (P11): 242 rows x 50 Hz / 1 kHz x blocks 32 / 512, largest second difference <= 2.0x the louder "
+             "held render",
+             strf ("%d of %d readings above 2.0x; worst 50 Hz %.3fx (%s; bench 1.53x), 1 kHz %.3fx (%s; bench 1.02x); "
+                   "%d non-finite; %d rows per tone",
+                   dAbove, total, dWorst[0], dWhere[0].c_str(), dWorst[1], dWhere[1].c_str(), nonFinite, perTone));
+
+        for (int t = 0; t < 2; ++t)
+            for (int g = 0; g < kXfNumGroups; ++g)
+            {
+                const XfG3Group& grp = groups[t][g];
+                note (strf ("%4.0f Hz %-17s %3d readings: maxD2 worst %.3fx (bench %.3f) | kappa worst %.2fx (bench %.2f), above 2.0x: "
+                            "%d (bench %d) | hard lowest at 512 %.1fx (bench %.1f)%s",
+                            tones[t], kXfGroupNames[g], grp.n, grp.dWorst, kXfBenchD2[t][g], grp.kWorst, kXfBenchKappa[t][g],
+                            grp.kOver2, kXfBenchKappaOver2[t][g], grp.hardLowest, kXfBenchHard[t][g],
+                            grp.voids > 0 ? strf ("; %d void", grp.voids).c_str() : ""));
+            }
+
+        //======================================================================
+        // XF-g3k: P13 (b)
+        //======================================================================
+        row (kAbove1k == 0 && nonFinite == 0 && countOk,
+             "XF-g3k step rows, 1 kHz: local kappa <= 2.5x the larger held reference on all 484 readings",
+             strf ("%d of %d above 2.5x; worst %.2fx (%s; bench 2.20x)", kAbove1k, 2 * perTone, kWorst[1], kWhere[1].c_str()));
+
+        info ("XF-g3k 50 Hz local kappa against the larger held reference: printed, not gated (P13 b)",
+              strf ("worst %.2fx (%s; bench 20.5x); %d of %d readings above 2.0x (bench 202)", kWorst[0], kWhere[0].c_str(),
+                    k50Over2, 2 * perTone));
+
+        //======================================================================
+        // XF-g3h: P13 (c)
+        //======================================================================
+        row (hardBelow == 0 && hardCounted == 2 * perTone - 2 && voidCount == 2,
+             "XF-g3h hardStepRender (the 2.3 rule) at block 512: largest second difference >= 10x the louder held render on every "
+             "non-void reading",
+             strf ("%s: %d of %d counted readings >= 10x; lowest 50 Hz %.1fx (%s; bench 274x), 1 kHz %.1fx (%s; bench 17.9x); "
+                   "VOID, printed and not counted: %s",
+                   hardBelow == 0 ? "the control fires" : "the control did NOT fire", hardCounted - hardBelow, hardCounted,
+                   hardLowest[0], hardWhere[0].c_str(), hardLowest[1], hardWhere[1].c_str(), voidText.c_str()));
+    }
+
+    //==========================================================================
+    // fadeRefRender (P12): the specified fade, re-stated in harness code
+    //==========================================================================
+    /** A static chain: Designer::design -> toRuntime, run with svfTick / onePoleTick on harness state. */
+    struct XfRefChain
+    {
+        int count = 0;
+        eq::SectionRuntime sections[eq::maxSections];
+        double ic1[2][eq::maxSections] = {};
+        double ic2[2][eq::maxSections] = {};
+        double s1[2][eq::maxSections] = {};
+        eq::Placement placement = eq::Placement::stereo;
+        bool active = false;
+    };
+
+    void xfRefChainSet (XfRefChain& c, const eq::Designer& designer, const eq::BandInput& in)
+    {
+        c = XfRefChain();
+        c.active = in.active;
+        c.placement = in.placement;
+
+        if (! in.active)
+            return;
+
+        eq::BandDesign d {};
+        designer.design (in.settings, d);
+        c.count = std::min (d.numSections, static_cast<int> (eq::maxSections));
+
+        for (int i = 0; i < c.count; ++i)
+            c.sections[i] = eq::toRuntime (d.params[ix (i)]);
+    }
+
+    double xfRefTick (XfRefChain& c, int lane, double x)
+    {
+        double v = x;
+
+        for (int q = 0; q < c.count; ++q)
+        {
+            const eq::SectionRuntime& sec = c.sections[q];
+
+            if (sec.hasSvf)
+                v = eq::svfTick (sec.svf, c.ic1[lane][q], c.ic2[lane][q], v);
+
+            if (sec.hasOnePole)
+                v = eq::onePoleTick (sec.onePole, c.s1[lane][q], v);
+        }
+
+        return v;
+    }
+
+    /** The placement algebra of ARCHITECTURE "Processing Chain", re-stated (stereo layout). */
+    void xfRefApply (XfRefChain& c, double& l, double& r)
+    {
+        if (! c.active)
+            return;
+
+        switch (c.placement)
+        {
+            case eq::Placement::left:
+                l = xfRefTick (c, 0, l);
+                return;
+
+            case eq::Placement::right:
+                r = xfRefTick (c, 1, r);
+                return;
+
+            case eq::Placement::mid:
+            {
+                const double mid = 0.5 * (l + r);
+                const double d = xfRefTick (c, 0, mid) - mid;
+                l = l + d;
+                r = r + d;
+                return;
+            }
+
+            case eq::Placement::side:
+            {
+                const double side = 0.5 * (l - r);
+                const double d = xfRefTick (c, 0, side) - side;
+                l = l + d;
+                r = r - d;
+                return;
+            }
+
+            case eq::Placement::stereo:
+                break;
+        }
+
+        l = xfRefTick (c, 0, l);
+        r = xfRefTick (c, 1, r);
+    }
+
+    /** P12. The outgoing chain from rest at sample 0, the incoming chain from rest at `fadeStart`
+        (one sample later with `lateStart`: at the fade's first sample its output is the dry input);
+        mixed out = a + w (b - a) over N = round (0.020 fs) samples, w = 0.5 - 0.5 cos (pi (j + 1) / (N + 1))
+        (linear (j + 1) / (N + 1) with `linearWeights`); the incoming chain alone after. Calls no
+        SlotBand, FadeTable, BypassFade, Band or Router. */
+    XfStereo fadeRefRender (double fs, const eq::BandInput& outgoing, const eq::BandInput& incoming, std::size_t fadeStart,
+                            const XfStereo& x, std::size_t length, bool lateStart, bool linearWeights)
+    {
+        eq::Designer designer;
+        designer.prepare (fs);
+
+        const std::size_t fadeLength = ix (std::max (1, static_cast<int> (std::lround (0.020 * fs))));
+
+        XfRefChain a, b;
+        xfRefChainSet (a, designer, outgoing);
+        xfRefChainSet (b, designer, incoming);
+
+        XfStereo y;
+        y.L.assign (length, 0.0);
+        y.R.assign (length, 0.0);
+
+        for (std::size_t n = 0; n < length; ++n)
+        {
+            double al = x.L[n], ar = x.R[n];
+            xfRefApply (a, al, ar);
+
+            if (n < fadeStart)
+            {
+                y.L[n] = al;
+                y.R[n] = ar;
+                continue;
+            }
+
+            double bl = x.L[n], br = x.R[n];
+
+            if (! (lateStart && n == fadeStart))
+                xfRefApply (b, bl, br);
+
+            const std::size_t j = n - fadeStart;
+
+            if (j < fadeLength)
+            {
+                const double x01 = static_cast<double> (j + 1) / static_cast<double> (fadeLength + 1);
+                const double w = linearWeights ? x01 : 0.5 - 0.5 * std::cos (kPi * x01);
+                y.L[n] = al + w * (bl - al);
+                y.R[n] = ar + w * (br - ar);
+            }
+            else
+            {
+                y.L[n] = bl;
+                y.R[n] = br;
+            }
+        }
+
+        return y;
+    }
+
+    //==========================================================================
+    // XF-ref / XF-refn
+    //==========================================================================
+    struct XfPair
+    {
+        std::string name;
+        XfCfg a, b;
+        int group = 0;          // 0 type, 1 slope, 2 placement, 3 enable, 4 disable
+    };
+
+    /** 6 type pairs, 12 slope pairs (6 and 18 dB/oct included), 6 placement pairs, 3 enables, 3 disables. */
+    std::vector<XfPair> xfRefPairs()
+    {
+        const double tone = 1000.0;
+        std::vector<XfPair> v;
+
+        const auto add = [&v] (const std::string& name, const XfCfg& a, const XfCfg& b, int group)
+        {
+            XfPair p;
+            p.name = name;
+            p.a = a;
+            p.b = b;
+            p.group = group;
+            v.push_back (p);
+        };
+
+        static const eq::Type fromType[6] = { eq::Type::bell, eq::Type::lowShelf, eq::Type::highShelf, eq::Type::lowCut, eq::Type::notch, eq::Type::tilt };
+        static const eq::Type toType[6] = { eq::Type::lowShelf, eq::Type::highShelf, eq::Type::lowCut, eq::Type::highCut, eq::Type::bandPass, eq::Type::bell };
+
+        for (int i = 0; i < 6; ++i)
+            add (strf ("type %s -> %s", kTypeNames[static_cast<int> (fromType[i])], kTypeNames[static_cast<int> (toType[i])]),
+                 xfDeep (fromType[i], tone), xfDeep (toType[i], tone), 0);
+
+        struct SlopePair { eq::Type type; int from, to; };
+        static const SlopePair slopes[12] =
+        {
+            { eq::Type::lowCut, 0, 2 },    { eq::Type::lowCut, 2, 7 },    { eq::Type::lowCut, 7, 0 },
+            { eq::Type::highCut, 0, 3 },   { eq::Type::highCut, 2, 5 },   { eq::Type::highCut, 6, 2 },
+            { eq::Type::lowShelf, 0, 2 },  { eq::Type::lowShelf, 2, 4 },  { eq::Type::highShelf, 1, 0 },
+            { eq::Type::highShelf, 2, 7 }, { eq::Type::tilt, 0, 2 },      { eq::Type::tilt, 5, 2 }
+        };
+
+        for (const SlopePair& sp : slopes)
+        {
+            XfCfg a = xfDeep (sp.type, tone);
+            XfCfg b = a;
+            a.s.slopeIndex = sp.from;
+            b.s.slopeIndex = sp.to;
+            add (strf ("slope %s %d -> %d", kTypeNames[static_cast<int> (sp.type)], kXfSlopeDb[sp.from], kXfSlopeDb[sp.to]), a, b, 1);
+        }
+
+        static const int placeFrom[5] = { 0, 1, 2, 3, 4 };
+        static const int placeTo[5] = { 1, 2, 3, 4, 0 };
+
+        for (int i = 0; i < 5; ++i)
+        {
+            XfCfg a = xfDeep (eq::Type::bell, tone);
+            XfCfg b = a;
+            a.p = static_cast<eq::Placement> (placeFrom[i]);
+            b.p = static_cast<eq::Placement> (placeTo[i]);
+            add (strf ("place Bell +18 %s -> %s", kEnPlacementNames[placeFrom[i]], kEnPlacementNames[placeTo[i]]), a, b, 2);
+        }
+
+        {
+            XfCfg a = xfDeep (eq::Type::lowCut, tone);
+            a.s.slopeIndex = 7;
+            XfCfg b = a;
+            b.p = eq::Placement::mid;
+            add ("place LowCut 96 stereo -> mid", a, b, 2);
+        }
+
+        XfCfg lowCut96 = xfDeep (eq::Type::lowCut, tone);
+        lowCut96.s.slopeIndex = 7;
+        XfCfg highShelf96 = xfDeep (eq::Type::highShelf, tone);
+        highShelf96.s.slopeIndex = 7;
+        XfCfg highCut6 = xfDeep (eq::Type::highCut, tone);
+        highCut6.s.slopeIndex = 0;
+
+        const XfCfg onCfg[3] = { xfDeep (eq::Type::bell, tone), lowCut96, highShelf96 };
+        const XfCfg offSrc[3] = { xfDeep (eq::Type::bell, tone), xfDeep (eq::Type::tilt, tone), highCut6 };
+        static const char* const onNames[3] = { "Bell +18", "LowCut 96", "HighShelf 96" };
+        static const char* const offNames[3] = { "Bell +18", "Tilt +36", "HighCut 6" };
+
+        for (int i = 0; i < 3; ++i)
+        {
+            XfCfg off = onCfg[i];
+            off.active = false;
+            add (strf ("enable %s", onNames[i]), off, onCfg[i], 3);
+        }
+
+        for (int i = 0; i < 3; ++i)
+        {
+            XfCfg off = offSrc[i];
+            off.active = false;
+            add (strf ("disable %s", offNames[i]), offSrc[i], off, 4);
+        }
+
+        return v;
+    }
+
+    struct XfRefReading
+    {
+        double engine = 0.0, late = 0.0, linear = 0.0;
+        bool finite = true, incomingActive = true;
+    };
+
+    /** One row at one rate: stereo noise, block 64, the change at the block start nearest 0.2 s;
+        scored from the render start to 50 ms after the fade, re the input peak. */
+    XfRefReading xfRefMeasure (const XfPair& pair, double fs, std::uint64_t seed)
+    {
+        constexpr int block = 64;
+        const std::size_t fadeLength = ix (xfFadeLength (fs));
+        const std::size_t fadeStart = (xfSamples (0.2, fs) / ix (block)) * ix (block);
+        const std::size_t scored = fadeStart + fadeLength + xfSamples (0.050, fs);
+        const std::size_t length = scored + ix (block);
+
+        Rng rng (seed);
+        const XfStereo x = xfNoise (length, rng);
+        XfStereo y = x;
+
+        std::unique_ptr<XfEngine> e = xfMakeEngine (fs, true, 4096);
+        xfRun (*e, y, block, 1, [&pair, fadeStart] (std::size_t at, XfCfg& c) { c = at < fadeStart ? pair.a : pair.b; },
+               [] (std::size_t, std::size_t) {});
+
+        const eq::BandInput a = xfCanon (pair.a, true);
+        const eq::BandInput b = xfCanon (pair.b, true);
+        const XfStereo ref = fadeRefRender (fs, a, b, fadeStart, x, length, false, false);
+        const XfStereo late = fadeRefRender (fs, a, b, fadeStart, x, length, true, false);
+        const XfStereo lin = fadeRefRender (fs, a, b, fadeStart, x, length, false, true);
+
+        double peak = 0.0;
+
+        for (std::size_t i = 0; i < scored; ++i)
+            peak = std::max (peak, std::max (std::fabs (x.L[i]), std::fabs (x.R[i])));
+
+        const auto worst = [&y, scored, peak] (const XfStereo& r) -> double
+        {
+            double d = 0.0;
+
+            for (std::size_t i = 0; i < scored; ++i)
+            {
+                const double e1 = std::fabs (y.L[i] - r.L[i]), e2 = std::fabs (y.R[i] - r.R[i]);
+
+                if (! std::isfinite (e1) || ! std::isfinite (e2))
+                    return kInf;
+
+                d = std::max (d, std::max (e1, e2));
+            }
+
+            return d / std::max (peak, kTiny);
+        };
+
+        XfRefReading q;
+        q.engine = worst (ref);
+        q.late = worst (late);
+        q.linear = worst (lin);
+        q.finite = xfFinite (y);
+        q.incomingActive = b.active;
+        return q;
+    }
+
+    void rowsXfRef()
+    {
+        static const double rates[2] = { 48000.0, 96000.0 };
+        const std::vector<XfPair> pairs = xfRefPairs();
+        const int numPairs = static_cast<int> (pairs.size());
+        std::vector<XfRefReading> readings (ix (2 * numPairs));
+
+        parallelFor (2 * numPairs, [&readings, &pairs, numPairs] (int task)
+        {
+            const int r = task / numPairs;
+            const int k = task % numPairs;
+            readings[ix (task)] = xfRefMeasure (pairs[ix (k)], rates[r], 0x5846524546ull + static_cast<std::uint64_t> (task));
+        });
+
+        static const char* const groupNames[5] = { "type", "slope", "placement", "enable", "disable" };
+        double worst = 0.0, groupWorst[5] = {};
+        int above = 0, nonFinite = 0, linearLow = 0, lateLow = 0, lateCounted = 0, lateVoid = 0;
+        double linearLeast = kInf, lateLeast = kInf;
+        std::string worstWhere;
+
+        for (int task = 0; task < 2 * numPairs; ++task)
+        {
+            const XfRefReading& q = readings[ix (task)];
+            const XfPair& p = pairs[ix (task % numPairs)];
+
+            if (! q.finite)
+                ++nonFinite;
+
+            if (! (q.engine <= 1.0e-9))
+                ++above;
+
+            if (! (q.engine <= worst))
+            {
+                worst = q.engine;
+                worstWhere = strf ("%s at %.0f Hz", p.name.c_str(), rates[task / numPairs]);
+            }
+
+            groupWorst[p.group] = std::max (groupWorst[p.group], q.engine);
+
+            if (! (q.linear > 1.0e-6))
+                ++linearLow;
+
+            linearLeast = std::min (linearLeast, q.linear);
+
+            if (q.incomingActive)
+            {
+                ++lateCounted;
+
+                if (! (q.late > 1.0e-6))
+                    ++lateLow;
+
+                lateLeast = std::min (lateLeast, q.late);
+            }
+            else
+            {
+                ++lateVoid;
+            }
+        }
+
+        const bool countOk = numPairs == 30;
+
+        row (above == 0 && nonFinite == 0 && countOk,
+             "XF-ref engine vs fadeRefRender over the first fade of 30 rows, noise, 48 / 96 kHz: largest |engine - reference| <= "
+             "1e-9 of the input peak, from the render start to 50 ms after the fade",
+             strf ("%d of %d readings above 1e-9; worst %.3g (%s); %d non-finite; per group: type %.2g, slope %.2g, placement %.2g, "
+                   "enable %.2g, disable %.2g",
+                   above, 2 * numPairs, worst, worstWhere.c_str(), nonFinite, groupWorst[0], groupWorst[1], groupWorst[2],
+                   groupWorst[3], groupWorst[4]));
+
+        note (strf ("groups: %s %s %s %s %s (6 / 12 / 6 / 3 / 3 rows); block 64, the change at 0.2 s", groupNames[0], groupNames[1],
+                    groupNames[2], groupNames[3], groupNames[4]));
+
+        row (linearLow == 0 && lateLow == 0 && lateCounted > 0 && countOk,
+             "XF-refn the XF-ref compare with linear weights, and with the incoming chain started 1 sample late, exceeds 1e-6 on "
+             "every reading",
+             strf ("%s: linear weights %d of %d above 1e-6 (least %.3g); late start %d of %d above 1e-6 (least %.3g); VOID for the "
+                   "late start, printed and not counted: the %d disable readings (an off incoming slot has no chain to start late)",
+                   (linearLow == 0 && lateLow == 0) ? "the control fires" : "the control did NOT fire",
+                   2 * numPairs - linearLow, 2 * numPairs, linearLeast, lateCounted - lateLow, lateCounted, lateLeast, lateVoid));
+    }
+
+    //==========================================================================
+    // XF-rest: VERIFICATION-2.3 issue 4, the state rule of a structural change
+    //==========================================================================
+    void rowXfRest()
+    {
+        constexpr int total = 48000, edit = 24000, burst = 480, block = 480;
+        const double fs = 48000.0;
+        const int fadeLength = xfFadeLength (fs);
+
+        std::vector<double> input (ix (total), 0.0);
+
+        for (int i = 0; i < burst; ++i)
+            input[ix (i)] = 0.5 * std::sin (2.0 * kPi * 40.0 * static_cast<double> (i) / fs);
+
+        const eq::BandInput before = rmInput (eq::Type::bell, 40.0, 24.0, 20.0, 1);
+        const eq::BandInput after = rmInput (eq::Type::lowShelf, 40.0, 24.0, 20.0, 1);
+
+        const auto render = [&input, fs] (const eq::BandInput& first, const eq::BandInput& second, unsigned long& fades)
+        {
+            std::unique_ptr<XfEngine> e = xfMakeEngine (fs, false, 4096);
+            std::vector<double> y (input);
+
+            for (int at = 0; at < total; at += block)
+            {
+                e->requested[0] = at < edit ? first : second;
+                e->process (y.data() + at, nullptr, block);
+            }
+
+            fades = e->fades();
+            return y;
+        };
+
+        unsigned long fades = 0, oldFades = 0;
+        const std::vector<double> y = render (before, after, fades);
+        const std::vector<double> yOld = render (before, before, oldFades);
+
+        // A fresh eq::Band of the new settings, from rest at the fade's first sample, fed the same input.
+        eq::Designer designer;
+        designer.prepare (fs);
+        eq::Band fresh;
+        fresh.setControlGrid (eq::controlGridSize (fs), eq::rampLengthTicks (fs));
+        fresh.snapTo (after.settings, designer);
+        fresh.reset();
+
+        std::vector<double> z (ix (total), 0.0);
+        std::copy (input.begin() + edit, input.end(), z.begin() + edit);
+        eq::Router::process (fresh, eq::Placement::stereo, z.data() + edit, nullptr, total - edit, false);
+
+        const std::size_t fadeEnd = ix (edit + fadeLength);
+        const bool equalAfter = xfSameRange (y, z, fadeEnd, ix (total));
+        const bool differsOld = ! xfSameRange (y, yOld, ix (edit), fadeEnd);
+        const bool differsNew = ! xfSameRange (y, z, ix (edit), fadeEnd);
+        int equalSamples = 0;
+        double ringPeak = 0.0;
+
+        for (std::size_t i = ix (edit); i < fadeEnd; ++i)
+        {
+            if (sameBits (y[i], yOld[i]) || sameBits (y[i], z[i]))
+                ++equalSamples;
+
+            ringPeak = std::max (ringPeak, std::fabs (yOld[i]));
+        }
+
+        row (equalAfter && differsOld && differsNew && fades == 1 && oldFades == 0 && ringPeak > 1.0e-6 && rmAllFinite (y),
+             "XF-rest bell 40 Hz Q 20 +24 dB ringing (the RM-keep stimulus), type -> Low Shelf during the ring: from the fade's "
+             "last sample + 1 the output == a fresh eq::Band of the new settings started from rest at the fade's first sample",
+             strf ("after the fade: %s (bit for bit, %d samples); during the fade the output %s the old-settings render and %s the "
+                   "fresh band (%d of %d samples equal to either); fades %lu (expected 1); ring peak at the edit %.3e; 48 kHz, "
+                   "edit at sample %d",
+                   equalAfter ? "memcmp equal" : "DIFFERS", total - edit - fadeLength, differsOld ? "differs from" : "EQUALS",
+                   differsNew ? "differs from" : "EQUALS", equalSamples, fadeLength, fades, ringPeak, edit));
+    }
+
+    //==========================================================================
+    // XF-lat: requests that meet a fade (Q4)
+    //==========================================================================
+    struct XfLatReading
+    {
+        double ratio = 0.0;
+        unsigned long fades = 0, latched = 0;
+        long long rampObs = 0;
+        bool secondOnTime = false, finite = true;
+    };
+
+    /** kind 0: type toggled at every block, 0.5 - 1.2 s; 1: type change 5 ms into a type fade; 2: A -> B -> A
+        inside one fade (requests B, C, B at three block starts); 3: type + frequency + gain in one block;
+        4: enable + gain 0 -> +18 dB in one block. */
+    XfLatReading xfLatRun (int kind, double tone, int block)
+    {
+        const double fs = kXfFs;
+        const std::size_t length = xfSamples (kind == 0 ? 1.6 : 1.5, fs);
+        const std::size_t from = xfSamples (kXfFrom, fs);
+        const std::size_t bs = ix (block);
+        const std::size_t event = ((xfSamples (0.5, fs) + bs - 1) / bs) * bs;
+        const std::size_t late = ((event + xfSamples (0.005, fs) + bs - 1) / bs) * bs;
+        const std::size_t fadeLength = ix (xfFadeLength (fs));
+
+        XfCfg a = xfDeep (eq::Type::bell, tone);
+        XfCfg b = xfDeep (eq::Type::highShelf, tone);
+        const XfCfg c3 = xfDeep (eq::Type::lowCut, tone);
+
+        if (kind == 3)
+        {
+            b.s.freqHz = 4.0 * tone;
+            b.s.gainDbEff = -12.0;
+        }
+
+        if (kind == 4)
+        {
+            a.active = false;
+            a.s.gainDbEff = 0.0;
+            b = xfDeep (eq::Type::bell, tone);
+        }
+
+        const auto script = [kind, a, b, c3, event, late, bs, fs] (std::size_t at, XfCfg& c)
+        {
+            if (kind == 0)
+            {
+                const double t = static_cast<double> (at) / fs;
+                const bool useB = t > 0.5 && t < 1.2 && ((at / bs) & 1u) != 0u;
+                c = useB ? b : a;
+                return;
+            }
+
+            if (at < event)
+            {
+                c = a;
+                return;
+            }
+
+            if (kind == 1)
+            {
+                c = at < late ? c3 : b;
+                return;
+            }
+
+            if (kind == 2)
+            {
+                c = at == event + bs ? c3 : b;
+                return;
+            }
+
+            c = b;
+        };
+
+        XfLatReading q;
+
+        // Held renders: A and the final configuration, each for the whole render.
+        const auto held = [&] (const XfCfg& cfg)
+        {
+            std::unique_ptr<XfEngine> e = xfMakeEngine (fs, true, 4096);
+            XfStereo y = xfToneStimulus (tone, fs, length);
+            xfRun (*e, y, block, 1, [&cfg] (std::size_t, XfCfg& c) { c = cfg; }, [] (std::size_t, std::size_t) {});
+            return y;
+        };
+
+        const XfStereo yA = held (a);
+        const XfStereo yB = held (b);
+
+        std::unique_ptr<XfEngine> e = xfMakeEngine (fs, true, 4096);
+        XfStereo y = xfToneStimulus (tone, fs, length);
+        bool checkedSecond = false;
+        XfEngine& eng = *e;
+
+        xfRun (eng, y, block, 1, script, [&] (std::size_t blockStart, std::size_t blockEnd)
+        {
+            if (blockStart < event)
+                return;
+
+            const eq::SlotBand& band = eng.bands[0];
+
+            for (int s = 0; s < 2; ++s)
+                if (! band.isSlotOff (s) && (band.getSlot (s).isMoving() || band.getSlot (s).isInterpolating()))
+                    ++q.rampObs;
+
+            if (kind == 1 && ! checkedSecond && eng.fades() >= 2)
+            {
+                checkedSecond = true;
+                // >=: when the first fade ends on a block end the second one starts there, at
+                // fade position 0 (SlotBand::process ends a fade at the end of the call).
+                q.secondOnTime = band.isFading() && blockEnd >= event + fadeLength
+                              && static_cast<std::size_t> (band.getFadePosition()) == blockEnd - (event + fadeLength);
+            }
+        });
+
+        q.ratio = rmRatio (xfMaxD2 (y, from), std::max (xfMaxD2 (yA, from), xfMaxD2 (yB, from)));
+        q.fades = eng.fades();
+        q.latched = eng.latched();
+        q.finite = xfFinite (y) && xfFinite (yA) && xfFinite (yB);
+        return q;
+    }
+
+    void rowXfLat()
+    {
+        static const double tones[2] = { 50.0, 1000.0 };
+        static const int blocks[2] = { 32, 512 };
+        static const char* const kindNames[5] = { "(i) type toggled every block", "(ii) type change 5 ms into a type fade",
+                                                  "(iii) A -> B -> A inside one fade", "(iv) type + frequency + gain in one block",
+                                                  "(v) enable + gain 0 -> +18 dB in one block" };
+        static const double benchD2[5][2] = { { 1.17, 1.00 }, { 1.21, 1.00 }, { 0.0, 0.0 }, { 1.06, 1.00 }, { 1.11, 1.00 } };
+
+        std::vector<XfLatReading> readings (20);
+
+        parallelFor (20, [&readings] (int task)
+        {
+            readings[ix (task)] = xfLatRun (task / 4, tones[(task / 2) % 2], blocks[task % 2]);
+        });
+
+        int ratioBad = 0, countBad = 0, nonFinite = 0;
+        double worst = 0.0;
+        std::string firstBad;
+        std::vector<std::string> lines;
+
+        for (int task = 0; task < 20; ++task)
+        {
+            const XfLatReading& q = readings[ix (task)];
+            const int kind = task / 4;
+            const int t = (task / 2) % 2;
+            const int b = task % 2;
+            bool countOk = true;
+            std::string countText;
+
+            switch (kind)
+            {
+                case 0:
+                    countOk = q.fades >= 34 && q.fades <= 38 && q.latched > 0;
+                    countText = strf ("%lu fades (34 - 38), %lu latched", q.fades, q.latched);
+                    break;
+
+                case 1:
+                    countOk = q.fades == 2 && q.secondOnTime;
+                    countText = strf ("%lu fades (2), second on the first one's end sample: %s", q.fades, q.secondOnTime ? "yes" : "NO");
+                    break;
+
+                case 2:
+                    if (b == 0)
+                    {
+                        countOk = q.fades == 1;
+                        countText = strf ("%lu fades (1)", q.fades);
+                    }
+                    else
+                    {
+                        countText = strf ("%lu fades: count VOID at block 512 (only one block start falls inside a 960-sample fade, "
+                                          "so B and the return cannot both arrive inside it); printed, not counted", q.fades);
+                    }
+                    break;
+
+                default:
+                    countOk = q.fades == 1 && q.rampObs == 0;
+                    countText = strf ("%lu fades (1), %lld block ends with a moving or interpolating slot (0)", q.fades, q.rampObs);
+                    break;
+            }
+
+            if (! q.finite)
+                ++nonFinite;
+
+            if (! (q.ratio <= 2.0))
+                ++ratioBad;
+
+            if (! countOk)
+            {
+                ++countBad;
+
+                if (firstBad.empty())
+                    firstBad = strf ("%s, %.0f Hz, block %d: %s", kindNames[kind], tones[t], blocks[b], countText.c_str());
+            }
+
+            worst = std::max (worst, q.ratio);
+            lines.push_back (strf ("%-44s %4.0f Hz block %3d: maxD2 %.3fx held%s; %s%s", kindNames[kind], tones[t], blocks[b], q.ratio,
+                                   kind == 2 ? "" : strf (" (bench %.2f)", benchD2[kind][t]).c_str(), countText.c_str(),
+                                   countOk ? "" : "  OFF"));
+        }
+
+        row (ratioBad == 0 && countBad == 0 && nonFinite == 0,
+             "XF-lat latched requests, five cases x 50 Hz / 1 kHz x blocks 32 / 512: maxD2 <= 2.0x held; fade and latch counts as "
+             "PLAN-2.4 T4 states",
+             strf ("%d of 20 readings above 2.0x (worst %.3fx); %d count checks off%s%s; %d non-finite", ratioBad, worst, countBad,
+                   firstBad.empty() ? "" : "; first: ", firstBad.c_str(), nonFinite));
+
+        for (const std::string& text : lines)
+            note (text);
+    }
+
+    //==========================================================================
+    // XF-cont: a continuous change during a fade reaches the incoming slot
+    //==========================================================================
+    void rowXfCont()
+    {
+        constexpr int block = 32;
+        const double fs = kXfFs;
+        const std::size_t fadeLength = ix (xfFadeLength (fs));
+        const std::size_t event = 24000;
+        const std::size_t edit = ((event + xfSamples (0.005, fs) + ix (block) - 1) / ix (block)) * ix (block);
+        const std::size_t length = event + fadeLength + xfSamples (0.100, fs);
+
+        const XfCfg a = xfDeep (eq::Type::bell, 1000.0);
+        const XfCfg b = xfDeep (eq::Type::highShelf, 1000.0);
+        XfCfg b6 = b;
+        b6.s.gainDbEff = 6.0;
+
+        Rng rng (0x5846434F4Eull);
+        XfStereo y = xfNoise (length, rng);
+        std::unique_ptr<XfEngine> e = xfMakeEngine (fs, true, 4096);
+        XfEngine& eng = *e;
+
+        bool probed = false, outgoingKept = false, incomingMoving = false, realised = false;
+
+        xfRun (eng, y, block, 1,
+               [&] (std::size_t at, XfCfg& c) { c = at < event ? a : (at < edit ? b : b6); },
+               [&] (std::size_t blockStart, std::size_t)
+               {
+                   if (probed || blockStart != edit)
+                       return;
+
+                   probed = true;
+                   const eq::SlotBand& band = eng.bands[0];
+                   const int cur = band.getCurrentSlot();
+                   const eq::Band& outgoing = band.getSlot (cur);
+                   outgoingKept = band.isFading() && rmSameSettings (outgoing.getRamp().getTarget(), xfCanon (a, true).settings)
+                               && ! outgoing.isMoving();
+                   incomingMoving = band.getSlot (1 - cur).isMoving();
+                   realised = rmSameSettings (band.getRealised().settings, xfCanon (b6, true).settings);
+               });
+
+        const eq::SlotBand& band = eng.bands[0];
+        eq::BandDesign target {};
+        eng.designer.design (xfCanon (b6, true).settings, target);
+        const bool settledOk = ! band.isFading() && ! band.getSlot (band.getCurrentSlot()).isMoving()
+                            && rmBandEqualsStatic (band.getSlot (band.getCurrentSlot()), target);
+
+        row (probed && outgoingKept && incomingMoving && realised && settledOk && eng.fades() == 1 && xfFinite (y),
+             "XF-cont a gain edit 5 ms into a type fade reaches the incoming slot; 100 ms after the fade the sections == the static "
+             "design of (new type, new gain), field by field; the outgoing slot's target unchanged",
+             strf ("outgoing slot target %s and at rest; incoming slot %s; realised input %s; 100 ms after the fade: sections %s; "
+                   "%lu fades (1); Bell +18 -> High Shelf +18 at sample %zu, gain +6 at %zu, block 32, 48 kHz",
+                   outgoingKept ? "unchanged" : "CHANGED", incomingMoving ? "ramping to the edit" : "NOT moving",
+                   realised ? "== the edit" : "DIFFERS", settledOk ? "equal" : "DIFFER", eng.fades(), event, edit));
+    }
+
+    //==========================================================================
+    // XF-lane: a fade leaves the untouched lane exact
+    //==========================================================================
+    void rowXfLane()
+    {
+        constexpr int block = 64;
+        const double fs = kXfFs;
+        const std::size_t fadeLength = ix (xfFadeLength (fs));
+        const std::size_t event = 9600;
+        const std::size_t late = ((event + xfSamples (0.005, fs) + ix (block) - 1) / ix (block)) * ix (block);
+        const std::size_t length = event + 2 * fadeLength + xfSamples (0.100, fs);
+
+        const XfCfg bell = xfDeep (eq::Type::bell, 1000.0);
+        const XfCfg shelf = xfDeep (eq::Type::highShelf, 1000.0);
+        long long violations = 0;
+        int bad = 0;
+        std::string text;
+
+        // Cases 0, 1: Left -> Right, Right -> Left. Case 2: a fade on Left, then a latched move to Right.
+        for (int kind = 0; kind < 3; ++kind)
+        {
+            Rng rng (0x584C414E00ull + static_cast<std::uint64_t> (kind));
+            const XfStereo x = xfNoise (length, rng);
+            XfStereo y = x;
+            std::unique_ptr<XfEngine> e = xfMakeEngine (fs, true, 4096);
+
+            XfCfg first = bell, second = bell, third = shelf;
+            first.p = kind == 1 ? eq::Placement::right : eq::Placement::left;
+            second.p = kind == 1 ? eq::Placement::left : eq::Placement::right;
+            third.p = eq::Placement::left;
+            XfCfg fourth = shelf;
+            fourth.p = eq::Placement::right;
+
+            xfRun (*e, y, block, 1, [&] (std::size_t at, XfCfg& c)
+            {
+                if (kind < 2)
+                    c = at < event ? first : second;
+                else
+                    c = at < event ? first : (at < late ? third : fourth);
+            }, [] (std::size_t, std::size_t) {});
+
+            violations += e->laneViolations;
+
+            // The lane the band leaves and the lane it reaches; the fade window.
+            const std::size_t fadeFrom = kind < 2 ? event : event + fadeLength;
+            const std::size_t fadeTo = fadeFrom + fadeLength;
+            const bool startsLeft = kind != 1;
+            const std::vector<double>& farIn = startsLeft ? x.R : x.L;      // untouched before the fade
+            const std::vector<double>& farOut = startsLeft ? y.R : y.L;
+            const std::vector<double>& nearIn = startsLeft ? x.L : x.R;     // untouched after the fade
+            const std::vector<double>& nearOut = startsLeft ? y.L : y.R;
+
+            const bool before = xfSameRange (farIn, farOut, 0, fadeFrom);
+            const bool afterOk = xfSameRange (nearIn, nearOut, fadeTo, length);
+            const bool insideL = ! xfSameRange (x.L, y.L, fadeFrom, fadeTo);
+            const bool insideR = ! xfSameRange (x.R, y.R, fadeFrom, fadeTo);
+            const bool fadesOk = e->fades() == (kind < 2 ? 1u : 2u);
+            const bool ok = before && afterOk && insideL && insideR && fadesOk;
+
+            if (! ok)
+                ++bad;
+
+            static const char* const names[3] = { "Left -> Right", "Right -> Left", "Left fade, latched -> Right" };
+            text += strf ("%s%s: untouched lane before %s, after %s; inside the fade L %s, R %s; %lu fades", kind == 0 ? "" : "; ",
+                          names[kind], before ? "equal" : "DIFFERS", afterOk ? "equal" : "DIFFERS", insideL ? "differs" : "SAME",
+                          insideR ? "differs" : "SAME", e->fades());
+        }
+
+        // Stereo <-> Mid with L = R: the side component.
+        double sideDb = -1.0e9;
+        {
+            Rng rng (0x584C414E4Dull);
+            XfStereo x = xfNoise (length, rng);
+            x.R = x.L;
+            XfStereo y = x;
+            std::unique_ptr<XfEngine> e = xfMakeEngine (fs, true, 4096);
+            XfCfg stereoBand = bell, midBand = bell;
+            midBand.p = eq::Placement::mid;
+            const std::size_t back = event + xfSamples (0.050, fs) / ix (block) * ix (block);
+
+            xfRun (*e, y, block, 1, [&] (std::size_t at, XfCfg& c) { c = (at >= event && at < back) ? midBand : stereoBand; },
+                   [] (std::size_t, std::size_t) {});
+
+            violations += e->laneViolations;
+            double side = 0.0, peak = 0.0;
+
+            for (std::size_t i = 0; i < length; ++i)
+            {
+                side = std::max (side, std::fabs (0.5 * (y.L[i] - y.R[i])));
+                peak = std::max (peak, std::fabs (x.L[i]));
+            }
+
+            sideDb = 20.0 * std::log10 (std::max (side, kTiny) / std::max (peak, kTiny));
+
+            if (! (sideDb <= -250.0) || e->fades() != 2)
+                ++bad;
+        }
+
+        row (bad == 0 && violations == 0,
+             "XF-lane placement fades, noise: the lane the band does not touch is memcmp equal to its input outside the fade, both "
+             "lanes differ inside it; Stereo <-> Mid with L = R: side <= -250 dB",
+             text + strf ("; Stereo -> Mid -> Stereo, L = R: side %.1f dB re input peak; lanes touched but not converted (P7): %lld",
+                          sideDb, violations));
+    }
+
+    //==========================================================================
+    // XF-ident: a gain type at exactly 0 dB designs the identity (Q3)
+    //==========================================================================
+    void rowXfIdent()
+    {
+        static const double rates[5] = { 22050.0, 44100.0, 48000.0, 96000.0, 192000.0 };
+        static const eq::Type gainTypes[4] = { eq::Type::bell, eq::Type::lowShelf, eq::Type::highShelf, eq::Type::tilt };
+
+        struct Out { long long designs = 0, exact = 0, sections = 0; };
+        std::array<Out, 5> outs;
+
+        parallelFor (5, [&outs] (int r)
+        {
+            const double fs = rates[r];
+            eq::Designer designer;
+            designer.prepare (fs);
+            Rng rng (0x5846494400ull + static_cast<std::uint64_t> (r));
+            eq::BandDesign d {};
+            Out& out = outs[ix (r)];
+
+            for (int trial = 0; trial < 20000; ++trial)
+            {
+                eq::BandSettings s;
+                s.type = gainTypes[rng.below (4)];
+                s.slopeIndex = eq::usesSlope (s.type) ? rng.below (8) : 0;
+                const double u = rng.uniform();
+                s.freqHz = u < 0.05 ? 10.0 : (u > 0.95 ? 30000.0 : 10.0 * std::pow (3000.0, rng.uniform()));
+                const double z = rng.uniform();
+                s.q = z < 0.05 ? 0.025 : (z > 0.95 ? 40.0 : 0.025 * std::pow (1600.0, rng.uniform()));
+
+                if (eq::usesSlope (s.type) && s.slopeIndex == 0)
+                    s.q = 1.0;
+
+                s.gainDbEff = 0.0;
+                designer.design (s, d);
+                ++out.designs;
+                bool exact = true;
+
+                for (int i = 0; i < d.numSections; ++i)
+                {
+                    const eq::SectionParams& p = d.params[ix (i)];
+                    ++out.sections;
+
+                    if (p.hasSvf && ! (p.mL == 1.0 && sameBits (p.mB, p.k) && p.mH == 1.0))
+                        exact = false;
+
+                    if (p.hasOnePole && ! (p.cL == 1.0 && p.cH == 1.0))
+                        exact = false;
+                }
+
+                if (exact)
+                    ++out.exact;
+            }
+        });
+
+        bool ok = true;
+        std::string text;
+
+        for (int r = 0; r < 5; ++r)
+        {
+            ok = ok && outs[ix (r)].designs == 20000 && outs[ix (r)].exact == 20000;
+            text += strf ("%s%.2f k %lld / %lld", r == 0 ? "" : " | ", rates[r] / 1000.0, outs[ix (r)].exact, outs[ix (r)].designs);
+        }
+
+        row (ok, "XF-ident 20 000 random Bell / shelf / Tilt settings at exactly 0 dB per rate, five rates: every SVF half "
+                 "(mL, mB, mH) == (1, k, 1), every one-pole half (cL, cH) == (1, 1), exactly",
+             "identity designs per rate: " + text + " (bench: 100 000 of 100 000)");
+    }
+
+    //==========================================================================
+    // XF-g4 / XF-g4n: G4 (d), (e), (f) timing in double (Q3)
+    //==========================================================================
+    /** scenario 0: (d0) 24 bells enabled at exactly 0 dB; 1: (d1) 24 bells 6 dB -> 0; 2: (e) 24 gain-bearing
+        bands at +-12 dB, gain scale 100 % -> 0 %; 3: (f) 24 bands at +-12 dB, bypass on. The bench's bands. */
+    eq::BandInput xfG4Input (int scenario, int b, bool after)
+    {
+        static const eq::Type gainTypes[4] = { eq::Type::bell, eq::Type::lowShelf, eq::Type::highShelf, eq::Type::tilt };
+
+        const eq::Type type = scenario <= 1 ? eq::Type::bell : gainTypes[b % 4];
+        const int slope = eq::usesSlope (type) ? b % 8 : 0;
+        const double freqHz = 40.0 * std::pow (1.3, static_cast<double> (b));
+        const double q = 0.5 + 0.2 * static_cast<double> (b);
+        const double g = (b & 1) != 0 ? 12.0 : -12.0;
+
+        if (scenario == 2)
+            return rmInput (type, freqHz, g, q, slope, eq::Placement::stereo, after ? 0.0f : 100.0f);
+
+        XfCfg c;
+        c.s = mk (type, freqHz, 0.0, q, slope);
+
+        if (scenario == 0)
+            c.active = after;
+        else if (scenario == 1)
+            c.s.gainDbEff = after ? 0.0 : 6.0;
+        else
+            c.s.gainDbEff = g;
+
+        return xfCanon (c, true);
+    }
+
+    struct XfG4Result
+    {
+        long long lastDiff = -1;        // the last sample that differs from the input, -1 if none
+        std::size_t pre = 0, length = 0;
+        bool allOff = false, finite = true, differsLate = false;
+    };
+
+    /** Noise at 0.25 peak; the event at the block start `pre` (about 0.3 s), then 0.45 s. sleepTicks > 0
+        overrides the engine's sleep length. */
+    XfG4Result xfG4Run (double fs, int block, int scenario, int sleepTicks)
+    {
+        std::unique_ptr<XfEngine> e = xfMakeEngine (fs, true, 4096);
+
+        if (sleepTicks > 0)
+            e->sleepTicks = sleepTicks;
+
+        Rng rng (0x5846473400ull + static_cast<std::uint64_t> (scenario));
+        XfG4Result out;
+        const std::size_t bs = ix (block);
+        out.pre = (xfSamples (0.3, fs) / bs) * bs + bs;
+        out.length = out.pre + xfSamples (0.45, fs);
+
+        const XfStereo x = xfNoise (out.length, rng);
+        XfStereo y = x;
+
+        for (std::size_t at = 0; at < out.length; at += bs)
+        {
+            const bool after = at >= out.pre;
+
+            for (int b = 0; b < kXfBands; ++b)
+                e->requested[ix (b)] = xfG4Input (scenario, b, after);
+
+            e->wantBypass = scenario == 3 && after;
+            const std::size_t m = std::min (bs, out.length - at);
+            e->process (y.L.data() + at, y.R.data() + at, static_cast<int> (m));
+        }
+
+        for (std::size_t i = 0; i < out.length; ++i)
+            if (! sameBits (x.L[i], y.L[i]) || ! sameBits (x.R[i], y.R[i]))
+                out.lastDiff = static_cast<long long> (i);
+
+        out.allOff = ! e->anyRunning() && (scenario != 3 || e->bypass.isBypassed());
+        out.finite = xfFinite (y);
+
+        const std::size_t lateFrom = out.pre + xfSamples (0.200, fs);
+        out.differsLate = ! xfSameRange (x.L, y.L, lateFrom, out.length) || ! xfSameRange (x.R, y.R, lateFrom, out.length);
+        return out;
+    }
+
+    /** P10, the control of G4 (d), (e): the same driver with a 0 dB band left on the list (its sleep
+        count is never reached). */
+    XfG4Result neverSleepRender (double fs, int block, int scenario)
+    {
+        return xfG4Run (fs, block, scenario, 1 << 30);
+    }
+
+    void rowsXfG4()
+    {
+        static const double rates[5] = { 22050.0, 44100.0, 48000.0, 96000.0, 192000.0 };
+        static const int blocks[6] = { 1, 16, 64, 512, 1024, 4096 };
+        constexpr int numMain = 5 * 6 * 4;
+        constexpr int numControl = 5 * 6 * 2;
+
+        std::vector<XfG4Result> results (ix (numMain + numControl));
+
+        // Tasks 0 ... 119: rate, block, scenario. Tasks 120 ... 179: the control, rate, block, scenario 1 or 2.
+        parallelFor (numMain + numControl, [&results] (int task)
+        {
+            if (task < numMain)
+            {
+                results[ix (task)] = xfG4Run (rates[task / 24], blocks[(task / 4) % 6], task % 4, 0);
+                return;
+            }
+
+            const int k = task - numMain;
+            results[ix (task)] = neverSleepRender (rates[k / 12], blocks[(k / 2) % 6], 1 + k % 2);
+        });
+
+        int bad = 0;
+        double lo[4] = { kInf, kInf, kInf, kInf }, hi[4] = { 0.0, 0.0, 0.0, 0.0 };
+        std::string first;
+
+        for (int task = 0; task < numMain; ++task)
+        {
+            const XfG4Result& q = results[ix (task)];
+            const int scenario = task % 4;
+            const double fs = rates[task / 24];
+            const int fadeLength = xfFadeLength (fs);
+            bool ok = q.allOff && q.finite;
+            double ms = 0.0;
+
+            if (q.lastDiff >= static_cast<long long> (q.pre))
+                ms = 1000.0 * static_cast<double> (q.lastDiff + 1 - static_cast<long long> (q.pre)) / fs;
+
+            switch (scenario)
+            {
+                case 0:
+                    ok = ok && q.lastDiff < 0;
+                    break;
+
+                case 1:
+                case 2:
+                    ok = ok && q.lastDiff + 2 < static_cast<long long> (q.length) && ms <= 100.0;
+                    break;
+
+                default:
+                    ok = ok && q.lastDiff + 1 == static_cast<long long> (q.pre) + fadeLength;
+                    break;
+            }
+
+            lo[scenario] = std::min (lo[scenario], ms);
+            hi[scenario] = std::max (hi[scenario], ms);
+
+            if (! ok)
+            {
+                ++bad;
+
+                if (first.empty())
+                    first = strf ("scenario %d at %.0f Hz, block %d: last differing sample %lld, event at %zu, N %d%s%s", scenario, fs,
+                                  blocks[(task / 4) % 6], q.lastDiff, q.pre, fadeLength, q.allOff ? "" : ", a band still running",
+                                  q.finite ? "" : ", NON-FINITE");
+            }
+        }
+
+        row (bad == 0,
+             "XF-g4 G4 timing, 5 rates x blocks 1 / 16 / 64 / 512 / 1024 / 4096, 24 bands, noise: output memcmp equal to the input "
+             "(d0) from the first sample, (d1) and (e) within 100 ms, (f) from exactly N samples after the block that sees it; "
+             "every band off the list",
+             strf ("%d of %d renders off%s%s; (d0) on at 0 dB: %.2f ms; (d1) 6 -> 0 dB: %.2f - %.2f ms (bench 85.7 - 88.3); "
+                   "(e) gain scale 0 %%: %.2f - %.2f ms (bench 87.0 - 89.1); (f) bypass: %.2f - %.2f ms (bench 19.95 - 20.00)",
+                   bad, numMain, first.empty() ? "" : "; first: ", first.c_str(), hi[0], lo[1], hi[1], lo[2], hi[2], lo[3], hi[3]));
+
+        int controlBad = 0;
+
+        for (int task = numMain; task < numMain + numControl; ++task)
+            if (! results[ix (task)].differsLate)
+                ++controlBad;
+
+        row (controlBad == 0,
+             "XF-g4n neverSleepRender (a 0 dB band left on the list) for (d1) and (e): the output 200 ms after the event DIFFERS "
+             "from the input at every rate and block size",
+             strf ("%s: %d of %d renders differ (the 0 dB design is the identity to rounding, not bit for bit)",
+                   controlBad == 0 ? "the control fires" : "the control did NOT fire", numControl - controlBad, numControl));
+    }
+
+    //==========================================================================
+    // XF-slp / XF-slpc / XF-wake: neutral sleep and wake
+    //==========================================================================
+    std::vector<std::pair<std::string, XfCfg>> xfSleepShapes (double tone)
+    {
+        std::vector<std::pair<std::string, XfCfg>> s;
+        s.push_back ({ "Bell at tone Q 1", xfDeep (eq::Type::bell, tone) });
+        { XfCfg c = xfDeep (eq::Type::bell, tone); c.s.q = 40.0; s.push_back ({ "Bell at tone Q 40", c }); }
+        { XfCfg c = xfDeep (eq::Type::bell, tone); c.s.freqHz = 10.0; c.s.q = 40.0; s.push_back ({ "Bell 10 Hz Q 40", c }); }
+        s.push_back ({ "HighShelf 12", xfDeep (eq::Type::highShelf, tone) });
+        { XfCfg c = xfDeep (eq::Type::highShelf, tone); c.s.slopeIndex = 7; s.push_back ({ "HighShelf 96", c }); }
+        { XfCfg c = xfDeep (eq::Type::lowShelf, tone); c.s.slopeIndex = 7; c.s.q = 4.0; s.push_back ({ "LowShelf 96 Q 4", c }); }
+        s.push_back ({ "Tilt 12", xfDeep (eq::Type::tilt, tone) });
+        return s;
+    }
+
+    struct XfSlpReading
+    {
+        double ratio = 0.0;
+        unsigned long sleeps = 0, wakes = 0;
+        bool finite = true;
+    };
+
+    void rowXfSlp()
+    {
+        static const double tones[2] = { 50.0, 1000.0 };
+        static const int blocks[2] = { 32, 512 };
+        static const double gains[2] = { 18.0, -18.0 };
+        constexpr double stepSeconds = 0.150;
+        constexpr int numTasks = 2 * 7 * 2 * 2;
+
+        std::vector<XfSlpReading> readings (ix (numTasks));
+
+        // index = ((tone * 7 + shape) * 2 + gain) * 2 + block
+        parallelFor (numTasks, [&readings] (int task)
+        {
+            const int b = task % 2;
+            const int gi = (task / 2) % 2;
+            const int s = (task / 4) % 7;
+            const int t = task / 28;
+            const double tone = tones[t];
+            const std::vector<std::pair<std::string, XfCfg>> shapes = xfSleepShapes (tone);
+
+            XfRow r;
+            r.b = shapes[ix (s)].second;
+            r.b.s.gainDbEff = r.b.s.type == eq::Type::tilt ? 2.0 * gains[gi] : gains[gi];
+            r.a = r.b;
+            r.a.s.gainDbEff = 0.0;
+
+            const std::size_t from = xfSamples (kXfFrom, kXfFs);
+            XfCounts counts;
+            const XfStereo yE = xfStepRender (r, tone, blocks[b], 0, kXfFs, stepSeconds, &counts);
+            const XfStereo yP = hardStepRender (r, tone, blocks[b], kXfFs, stepSeconds);
+
+            XfSlpReading& q = readings[ix (task)];
+            q.ratio = rmRatio (xfKappa2 (yE, kXfFs, from), xfKappa2 (yP, kXfFs, from));
+            q.sleeps = counts.sleeps;
+            q.wakes = counts.wakes;
+            q.finite = xfFinite (yE) && xfFinite (yP);
+        });
+
+        int above = 0, noSleep = 0, nonFinite = 0;
+        double lowest = kInf, highest = 0.0;
+        std::string worstWhere;
+        const std::vector<std::pair<std::string, XfCfg>> names = xfSleepShapes (50.0);
+
+        for (int task = 0; task < numTasks; ++task)
+        {
+            const XfSlpReading& q = readings[ix (task)];
+
+            if (! (q.ratio <= 3.0))
+                ++above;
+
+            if (q.sleeps == 0 || q.wakes == 0)
+                ++noSleep;
+
+            if (! q.finite)
+                ++nonFinite;
+
+            lowest = std::min (lowest, q.ratio);
+
+            if (! (q.ratio <= highest))
+            {
+                highest = q.ratio;
+                worstWhere = strf ("%s %+.0f dB at %.0f Hz, block %d", names[ix ((task / 4) % 7)].first.c_str(), gains[(task / 2) % 2],
+                                   tones[task / 28], blocks[task % 2]);
+            }
+        }
+
+        row (above == 0 && noSleep == 0 && nonFinite == 0,
+             "XF-slp sleep and wake: gain 0 <-> +-18 dB every 150 ms, 7 shapes x 2 tones x blocks 32 / 512: local kappa <= 3.0x the "
+             "same motion on plain eq::Band (never sleeps); sleeps and wakes > 0 in every render",
+             strf ("%d of %d above 3.0x; range %.2f - %.2fx (bench 0.10 - 2.10; worst %s); %d renders without a sleep or a wake; "
+                   "%d non-finite",
+                   above, numTasks, lowest, highest, worstWhere.c_str(), noSleep, nonFinite));
+    }
+
+    void rowXfSlpc()
+    {
+        constexpr int block = 480;
+        const double fs = kXfFs;
+
+        // kind 0: +6 dB, then a per-block ramp through exactly 0 dB (one block) to -6 dB; 1: a bell at 0.0001 dB for 1 s;
+        // 2: a Low Cut for 1 s; 3 (vacuity): +6 dB, then exactly 0 dB held (must sleep once).
+        const auto run = [fs] (int kind, unsigned long& sleeps, bool& everAsleep, bool& hitZero)
+        {
+            const int numBlocks = kind == 0 ? 200 : 100;
+            Rng rng (0x5846534C00ull + static_cast<std::uint64_t> (kind));
+            XfStereo y = xfNoise (ix (numBlocks * block), rng);
+            std::unique_ptr<XfEngine> e = xfMakeEngine (fs, true, 4096);
+            XfEngine& eng = *e;
+            everAsleep = false;
+            hitZero = false;
+
+            xfRun (eng, y, block, 1, [&] (std::size_t at, XfCfg& c)
+            {
+                const int k = static_cast<int> (at / ix (block));
+                c = xfDeep (eq::Type::bell, 1000.0, 6.0);
+
+                if (kind == 0)
+                {
+                    c.s.gainDbEff = k < 20 ? 6.0 : (k < 120 ? 6.0 - 12.0 * static_cast<double> (k - 20) / 100.0 : -6.0);
+
+                    if (c.s.gainDbEff == 0.0)
+                        hitZero = true;
+                }
+                else if (kind == 1)
+                {
+                    c.s.gainDbEff = 0.0001;
+                }
+                else if (kind == 2)
+                {
+                    c = xfDeep (eq::Type::lowCut, 200.0);
+                }
+                else if (k >= 20)
+                {
+                    c.s.gainDbEff = 0.0;
+                }
+            }, [&] (std::size_t, std::size_t)
+            {
+                everAsleep = everAsleep || eng.bands[0].isAsleep();
+            });
+
+            sleeps = eng.sleeps();
+        };
+
+        static const char* const names[3] = { "ramp +6 -> 0 -> -6 dB", "bell at 0.0001 dB, 1 s", "Low Cut, 1 s" };
+        bool ok = true;
+        std::string text;
+
+        for (int kind = 0; kind < 3; ++kind)
+        {
+            unsigned long sleeps = 0;
+            bool asleep = false, zero = false;
+            run (kind, sleeps, asleep, zero);
+            ok = ok && sleeps == 0 && ! asleep && (kind != 0 || zero);
+            text += strf ("%s%s: %lu sleeps%s%s", kind == 0 ? "" : "; ", names[kind], sleeps, asleep ? " (ASLEEP seen)" : "",
+                          kind == 0 ? (zero ? " (one block requests exactly 0 dB)" : " (VOID: no block at exactly 0)") : "");
+        }
+
+        unsigned long controlSleeps = 0;
+        bool controlAsleep = false, unused = false;
+        run (3, controlSleeps, controlAsleep, unused);
+        const bool live = controlSleeps == 1 && controlAsleep;
+
+        row (ok && live,
+             "XF-slpc what must not sleep: a ramp through 0 dB (+6 -> -6), a band at 0.0001 dB for 1 s, a Low Cut for 1 s: 0 sleeps "
+             "each",
+             text + strf ("; vacuity: +6 dB then exactly 0 dB held: %lu sleep%s", controlSleeps, live ? "" : " (VOID: the counter "
+                          "did not see the sleep)"));
+    }
+
+    void rowXfWake()
+    {
+        const double fs = kXfFs;
+        const int grid = eq::controlGridSize (fs);
+        const int rampTicks = eq::rampLengthTicks (fs);
+        const int sleepTicks = eq::sleepLengthTicks (fs, grid);
+
+        eq::Designer designer;
+        designer.prepare (fs);
+        eq::FadeTable table;
+        table.prepare (fs);
+
+        const eq::BandInput zero = rmInput (eq::Type::bell, 1000.0, 0.0, 2.0, 0);
+        const eq::BandInput up = rmInput (eq::Type::bell, 1000.0, 12.0, 2.0, 0);
+        eq::BandDesign design0 {}, design12 {};
+        designer.design (zero.settings, design0);
+        designer.design (up.settings, design12);
+
+        Rng rng (0x5846574B45ull);
+        eq::SlotBand band;
+        band.prepare (grid, rampTicks);
+        double lane[64];
+
+        // One control interval: the tick, then its K samples (mono).
+        const auto interval = [&band, &designer, &table, &rng, &lane, grid, sleepTicks]
+        {
+            band.controlTick (designer, sleepTicks);
+
+            for (int i = 0; i < grid; ++i)
+                lane[i] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+
+            band.process (lane, nullptr, grid, false, table, designer);
+        };
+
+        band.startSettled (zero, designer);
+        const bool sleepingBefore = band.isAsleep() && ! band.isRunning();
+
+        for (int t = 0; t < 20; ++t)
+            interval();
+
+        band.request (up, designer);
+        const int incoming = 1 - band.getCurrentSlot();
+        const bool fadeStarts = band.isFading() && band.getFadePosition() == 0 && band.getWakeCount() == 1 && ! band.isAsleep();
+        const bool zeroDesign = rmBandEqualsStatic (band.getSlot (incoming), design0) && band.getSlot (incoming).isMoving();
+
+        interval();
+        const bool firstBlock = band.getFadePosition() == grid;
+
+        for (int t = 2; t < rampTicks; ++t)
+            interval();
+
+        const bool runningBefore = band.getSlot (incoming).getRamp().isRunning();
+        interval();
+        const bool arrived = ! band.getSlot (incoming).getRamp().isRunning() && band.getSlot (incoming).isInterpolating();
+        band.controlTick (designer, sleepTicks);
+        const bool landed = rmBandEqualsStatic (band.getSlot (incoming), design12) && ! band.getSlot (incoming).isMoving()
+                         && band.getCurrentSlot() == incoming && ! band.isFading();
+
+        // The plan's literals at the eight rates.
+        static const int planFade[8] = { 441, 640, 882, 960, 1764, 1920, 3528, 3840 };
+        static const int planSleep[8] = { 69, 100, 138, 150, 138, 150, 138, 150 };
+        bool literals = true;
+
+        for (int r = 0; r < kEnNumRates8; ++r)
+        {
+            const double rate = kRates8[ix (r)];
+            eq::FadeTable t8;
+            t8.prepare (rate);
+            double lowest = 1.0, highest = 0.0;
+
+            for (int n = 0; n < t8.getLength(); ++n)
+            {
+                lowest = std::min (lowest, t8.weight (n));
+                highest = std::max (highest, t8.weight (n));
+            }
+
+            literals = literals && eq::fadeLengthSamples (rate) == planFade[r] && t8.getLength() == planFade[r]
+                    && eq::sleepLengthTicks (rate, eq::controlGridSize (rate)) == planSleep[r] && lowest > 0.0 && highest < 1.0;
+        }
+
+        row (sleepingBefore && fadeStarts && zeroDesign && firstBlock && runningBefore && arrived && landed && literals,
+             "XF-wake a sleeping bell, gain 0 -> +12 dB: the fade starts on the block that sees it, the slot is the 0 dB design, "
+             "the gain arrives after rampLengthTicks ticks on the static design",
+             strf ("asleep before: %s; fade at position 0 with one wake: %s; incoming slot == the 0 dB design, then moving: %s; "
+                   "first interval mixed: %s; ramp running at tick %d: %s, arrived at tick %d: %s; tick %d: sections == the +12 dB "
+                   "static design, at rest, current slot: %s; N and sleep ticks at 8 rates == the plan's, no weight 0 or 1: %s",
+                   sleepingBefore ? "yes" : "NO", fadeStarts ? "yes" : "NO", zeroDesign ? "yes" : "NO", firstBlock ? "yes" : "NO",
+                   rampTicks - 1, runningBefore ? "yes" : "NO", rampTicks, arrived ? "yes" : "NO", rampTicks + 1,
+                   landed ? "yes" : "NO", literals ? "yes" : "NO"));
+    }
+
+    //==========================================================================
+    // XF-byp / XF-bypn: the bypass latch (Q4)
+    //==========================================================================
+    /** P10, the control of the bypass latch: the processed and the bypassed (dry) held renders mixed
+        with a raised-cosine envelope that runs from `turnFrom` and turns round where it stands at
+        `turnAt`. */
+    XfStereo reversingBypassRender (const XfStereo& processed, const XfStereo& dry, std::size_t turnFrom, std::size_t turnAt,
+                                    int fadeLength)
+    {
+        XfStereo y = processed;
+        const long long forward = static_cast<long long> (turnAt) - static_cast<long long> (turnFrom);
+
+        for (std::size_t n = turnFrom; n < y.L.size(); ++n)
+        {
+            const long long k = static_cast<long long> (n - turnFrom);
+            const long long index = k < forward ? k : (forward - 2) - (k - forward);
+
+            if (index < 0)
+                break;
+
+            const double w = 0.5 - 0.5 * std::cos (kPi * static_cast<double> (index + 1) / static_cast<double> (fadeLength + 1));
+            y.L[n] = processed.L[n] + w * (dry.L[n] - processed.L[n]);
+            y.R[n] = processed.R[n] + w * (dry.R[n] - processed.R[n]);
+        }
+
+        return y;
+    }
+
+    struct XfBypReading
+    {
+        double ratio = 0.0, reverse = 0.0;
+        long long mixed = 0, ends = 0, restartsLatched = 0;
+        bool finite = true;
+    };
+
+    /** kind 0: un-bypass 5 ms into the bypass fade; 1: bypass on for one block; 2: bypass 5 ms into a type fade. */
+    XfBypReading xfBypRun (int kind, double tone, int block, bool withReverse)
+    {
+        const double fs = kXfFs;
+        const std::size_t length = xfSamples (1.5, fs);
+        const std::size_t from = xfSamples (kXfFrom, fs);
+        const std::size_t bs = ix (block);
+        const std::size_t event = ((xfSamples (0.5, fs) + bs - 1) / bs) * bs;
+        const std::size_t late = ((event + xfSamples (0.005, fs) + bs - 1) / bs) * bs;
+
+        const XfCfg bell = xfDeep (eq::Type::bell, tone);
+        const XfCfg shelf = xfDeep (eq::Type::highShelf, tone);
+
+        const auto held = [&] (const XfCfg& cfg, bool bypassed)
+        {
+            std::unique_ptr<XfEngine> e = xfMakeEngine (fs, true, 4096);
+            XfStereo y = xfToneStimulus (tone, fs, length);
+            xfRun (*e, y, block, 1, [&cfg, bypassed] (std::size_t, XfCfg& c) { c = cfg; c.bypass = bypassed; },
+                   [] (std::size_t, std::size_t) {});
+            return y;
+        };
+
+        const XfStereo yA = held (bell, false);
+        const XfStereo yB = kind == 2 ? held (shelf, false) : held (bell, true);
+
+        std::unique_ptr<XfEngine> e = xfMakeEngine (fs, true, 4096);
+        XfStereo y = xfToneStimulus (tone, fs, length);
+
+        xfRun (*e, y, block, 1, [&] (std::size_t at, XfCfg& c)
+        {
+            if (kind == 2)
+            {
+                c = at < event ? bell : shelf;
+                c.bypass = at >= late;
+                return;
+            }
+
+            c = bell;
+            c.bypass = kind == 0 ? (at >= event && at < late) : at == event;
+        }, [] (std::size_t, std::size_t) {});
+
+        XfBypReading q;
+        const double heldD2 = std::max (xfMaxD2 (yA, from), xfMaxD2 (yB, from));
+        q.ratio = rmRatio (xfMaxD2 (y, from), heldD2);
+        q.mixed = e->bypassMixed;
+        q.ends = e->endsToBypass;
+        q.restartsLatched = e->latchedRestarts;
+        q.finite = xfFinite (y) && xfFinite (yA) && xfFinite (yB);
+
+        if (withReverse)
+        {
+            const XfStereo rev = reversingBypassRender (yA, yB, event, late, xfFadeLength (fs));
+            q.reverse = rmRatio (xfMaxD2 (rev, from), heldD2);
+        }
+
+        return q;
+    }
+
+    void rowsXfByp()
+    {
+        static const double tones[2] = { 50.0, 1000.0 };
+        static const int blocks[2] = { 32, 512 };
+        static const char* const kindNames[3] = { "(a) un-bypass 5 ms into the bypass fade", "(b) bypass on for one block",
+                                                  "(c) bypass 5 ms into a type fade" };
+        static const double bench[3][2] = { { 1.07, 1.00 }, { 1.11, 1.00 }, { 1.25, 1.00 } };
+
+        std::vector<XfBypReading> readings (12);
+
+        // index = (kind * 2 + tone) * 2 + block; the reversing control on kind 0 at 50 Hz.
+        parallelFor (12, [&readings] (int task)
+        {
+            const int kind = task / 4;
+            const int t = (task / 2) % 2;
+            readings[ix (task)] = xfBypRun (kind, tones[t], blocks[task % 2], kind == 0 && t == 0);
+        });
+
+        const long long fadeLength = xfFadeLength (kXfFs);
+        int above = 0, countBad = 0, nonFinite = 0;
+        double worst = 0.0;
+        std::vector<std::string> lines;
+
+        for (int task = 0; task < 12; ++task)
+        {
+            const XfBypReading& q = readings[ix (task)];
+            const int kind = task / 4;
+            const int t = (task / 2) % 2;
+
+            if (! (q.ratio <= 2.0))
+                ++above;
+
+            if (! q.finite)
+                ++nonFinite;
+
+            worst = std::max (worst, q.ratio);
+
+            if (kind == 0 && ! (q.mixed == 2 * fadeLength && q.ends == 1 && q.restartsLatched == 1))
+                ++countBad;
+
+            lines.push_back (strf ("%-42s %4.0f Hz block %3d: maxD2 %.3fx held (bench %.2f); %lld samples mixed, %lld fades to idle, "
+                                   "%lld latched restarts", kindNames[kind], tones[t], blocks[task % 2], q.ratio, bench[kind][t],
+                                   q.mixed, q.ends, q.restartsLatched));
+        }
+
+        row (above == 0 && countBad == 0 && nonFinite == 0,
+             "XF-byp bypass latch, three cases x 50 Hz / 1 kHz x blocks 32 / 512: maxD2 <= 2.0x held; case (a) reads the full fade "
+             "to idle, then the full fade back (2 x N samples of mixing)",
+             strf ("%d of 12 above 2.0x (worst %.3fx); case (a) off the 2 x %lld mixed samples / 1 idle / 1 latched restart in %d "
+                   "of 4; %d non-finite", above, worst, fadeLength, countBad, nonFinite));
+
+        for (const std::string& text : lines)
+            note (text);
+
+        const double r32 = readings[0].reverse, r512 = readings[1].reverse;
+        const bool fires = std::isfinite (r32) && std::isfinite (r512) && r32 >= 10.0 && r512 >= 10.0;
+
+        row (fires, "XF-bypn reversingBypassRender on case (a), 50 Hz: a bypass envelope that turns round where it stands reads "
+                    ">= 10x held",
+             strf ("%s: block 32 %.1fx, block 512 %.1fx (bench 48.5x)", fires ? "the control fires" : "the control did NOT fire",
+                   r32, r512));
+    }
+
+    //==========================================================================
+    // XF-idle: fully bypassed
+    //==========================================================================
+    bool xfStateZero (const eq::Band& band)
+    {
+        for (int lane = 0; lane < 2; ++lane)
+        {
+            eq::Band::LaneState st {};
+            band.loadLane (lane, st);
+
+            for (int i = 0; i < eq::maxSections; ++i)
+                if (st.ic1[i] != 0.0 || st.ic2[i] != 0.0 || st.s[i] != 0.0)
+                    return false;
+        }
+
+        return true;
+    }
+
+    /** Off flags, placements, current slot, fade, and every section of both slots, bit for bit. */
+    bool xfSlotsSame (const eq::SlotBand& a, const eq::SlotBand& b)
+    {
+        if (a.getCurrentSlot() != b.getCurrentSlot() || a.isFading() != b.isFading() || a.getFadePosition() != b.getFadePosition())
+            return false;
+
+        for (int s = 0; s < 2; ++s)
+        {
+            const eq::Band& x = a.getSlot (s);
+            const eq::Band& y = b.getSlot (s);
+
+            if (a.isSlotOff (s) != b.isSlotOff (s) || a.getSlotPlacement (s) != b.getSlotPlacement (s)
+                  || x.getNumSections() != y.getNumSections() || xfStateZero (x) != xfStateZero (y))
+                return false;
+
+            for (int i = 0; i < x.getNumSections(); ++i)
+                if (! rmSameRuntime (x.getSection (i), y.getSection (i)))
+                    return false;
+        }
+
+        return true;
+    }
+
+    void rowXfIdle()
+    {
+        constexpr int block = 256;
+        const double fs = kXfFs;
+        const std::size_t bs = ix (block);
+        const std::size_t fadeLength = ix (xfFadeLength (fs));
+        const std::size_t bypassAt = 40 * bs, editAt = bypassAt + 8 * bs, unbypassAt = bypassAt + 16 * bs;
+        const std::size_t length = unbypassAt + 40 * bs;
+
+        XfCfg initial[6], edited[6];
+        initial[0].s = mk (eq::Type::bell, 200.0, 6.0, 1.0, 0);
+        initial[1].s = mk (eq::Type::highShelf, 4000.0, -9.0, 1.0, 7);
+        initial[1].p = eq::Placement::left;
+        initial[2].s = mk (eq::Type::lowCut, 60.0, 0.0, 2.0, 5);
+        initial[2].p = eq::Placement::right;
+        initial[3].s = mk (eq::Type::tilt, 900.0, 4.0, 1.0, 3);
+        initial[3].p = eq::Placement::mid;
+        initial[4].s = mk (eq::Type::notch, 1500.0, 0.0, 3.0, 0);
+        initial[4].p = eq::Placement::side;
+        initial[5].s = mk (eq::Type::bandPass, 300.0, 0.0, 1.0, 0);
+
+        for (int b = 0; b < 6; ++b)
+            edited[b] = initial[b];
+
+        edited[0].s.type = eq::Type::lowShelf;                  // type
+        edited[1].s.slopeIndex = 2;                             // slope
+        edited[2].p = eq::Placement::stereo;                    // placement
+        edited[3].s = mk (eq::Type::tilt, 2500.0, -7.0, 1.0, 3); // frequency, gain
+        edited[4].active = false;                               // enable
+        edited[5].s.q = 6.0;                                    // Q
+
+        Rng rng (0x584649444Cull);
+        const XfStereo x = xfNoise (length, rng);
+        XfStereo y = x;
+        std::unique_ptr<XfEngine> e = xfMakeEngine (fs, true, 4096);
+        XfEngine& eng = *e;
+
+        bool idleState = false, stateZero = false, inert = false;
+        std::vector<eq::SlotBand> before;
+
+        for (std::size_t at = 0; at < length; at += bs)
+        {
+            for (int b = 0; b < 6; ++b)
+                eng.set (b, at >= editAt ? edited[b] : initial[b]);
+
+            eng.wantBypass = at >= bypassAt && at < unbypassAt;
+
+            if (at == editAt)
+            {
+                idleState = eng.bypass.isBypassed() && ! eng.bypass.isFading() && ! eng.anyRunning();
+                stateZero = true;
+
+                for (const eq::SlotBand& band : eng.bands)
+                    stateZero = stateZero && ! band.isFading() && xfStateZero (band.getSlot (0)) && xfStateZero (band.getSlot (1));
+
+                before.assign (eng.bands.begin(), eng.bands.end());
+            }
+
+            eng.process (y.L.data() + at, y.R.data() + at, block);
+
+            if (at == editAt)
+            {
+                inert = true;
+
+                for (int b = 0; b < kXfBands; ++b)
+                    inert = inert && xfSlotsSame (before[ix (b)], eng.bands[ix (b)]) && xfStateZero (eng.bands[ix (b)].getSlot (0))
+                                  && xfStateZero (eng.bands[ix (b)].getSlot (1));
+            }
+        }
+
+        // The buffer is untouched while idle.
+        const bool untouched = xfSameRange (x.L, y.L, bypassAt + fadeLength, unbypassAt) && xfSameRange (x.R, y.R, bypassAt + fadeLength, unbypassAt);
+
+        // A fresh engine on the latest requests, started at the un-bypass sample (same clock phase).
+        std::unique_ptr<XfEngine> f = xfMakeEngine (fs, true, 4096);
+        f->clock = static_cast<std::uint64_t> (unbypassAt);
+        XfStereo z;
+        z.L.assign (x.L.begin() + static_cast<std::ptrdiff_t> (unbypassAt), x.L.end());
+        z.R.assign (x.R.begin() + static_cast<std::ptrdiff_t> (unbypassAt), x.R.end());
+
+        for (std::size_t at = 0; at < z.L.size(); at += bs)
+        {
+            for (int b = 0; b < 6; ++b)
+                f->set (b, edited[b]);
+
+            f->process (z.L.data() + at, z.R.data() + at, static_cast<int> (std::min (bs, z.L.size() - at)));
+        }
+
+        const std::size_t compareFrom = unbypassAt + fadeLength;
+        const bool equal = std::memcmp (y.L.data() + compareFrom, z.L.data() + fadeLength, sizeof (double) * (length - compareFrom)) == 0
+                        && std::memcmp (y.R.data() + compareFrom, z.R.data() + fadeLength, sizeof (double) * (length - compareFrom)) == 0;
+        const bool live = ! xfSameRange (x.L, y.L, compareFrom, length) && eng.latchedRestarts == 0 && eng.restarts == 2;
+
+        row (idleState && stateZero && inert && untouched && equal && live && xfFinite (y),
+             "XF-idle fully bypassed: every slot's state zero, no band running, no fade; a request made while idle changes no slot; "
+             "after un-bypass the output from the fade's end == a fresh engine on the latest requests started at the un-bypass sample",
+             strf ("idle: %s; slot states zero: %s; requests while idle (type, slope, placement, f / gain, enable, Q on 6 bands): "
+                   "slots %s; buffer while idle %s; from un-bypass + N: %s (bit for bit, %zu samples per lane); restarts %lld (2)%s",
+                   idleState ? "yes" : "NO", stateZero ? "yes" : "NO", inert ? "unchanged" : "CHANGED",
+                   untouched ? "untouched" : "TOUCHED", equal ? "memcmp equal" : "DIFFERS", length - compareFrom, eng.restarts,
+                   live ? "" : " (VOID: the render does not differ from the input)"));
+    }
+
+    //==========================================================================
+    // XF-g2: G2 live, slope changes on a running band
+    //==========================================================================
+    /** |H| in dB of an impulse response at `hz` (single-bin DFT; the phasor re-seeded every 1024 samples, as EN-ir). */
+    double xfDftDb (const std::vector<double>& h, double fs, double hz)
+    {
+        const double w = 2.0 * kPi * hz / fs;
+        const double cr = std::cos (w), ci = -std::sin (w);
+        double pr = 1.0, pim = 0.0, ar = 0.0, ai = 0.0;
+
+        for (std::size_t n = 0; n < h.size(); ++n)
+        {
+            if ((n & 1023u) == 0u && n != 0u)
+            {
+                const double angle = w * static_cast<double> (n);
+                pr = std::cos (angle);
+                pim = -std::sin (angle);
+            }
+
+            const double v = h[n];
+            ar += v * pr;
+            ai += v * pim;
+            const double t = pr * cr - pim * ci;
+            pim = pr * ci + pim * cr;
+            pr = t;
+        }
+
+        return 10.0 * std::log10 (std::max (ar * ar + ai * ai, kTiny));
+    }
+
+    /** The G2s crossing search (bisection on log f, 80 steps) on a measured response. */
+    template <typename MagFn>
+    bool xfCrossing (MagFn&& magDb, double fA, double fB, double targetDb, double& fOut)
+    {
+        double la = std::log (fA), lb = std::log (fB);
+        double ea = magDb (std::exp (la)) - targetDb;
+        const double eb = magDb (std::exp (lb)) - targetDb;
+
+        if (! std::isfinite (ea) || ! std::isfinite (eb) || (ea > 0.0) == (eb > 0.0))
+            return false;
+
+        for (int i = 0; i < 80; ++i)
+        {
+            const double lm = 0.5 * (la + lb);
+            const double em = magDb (std::exp (lm)) - targetDb;
+
+            if ((em > 0.0) == (ea > 0.0))
+            {
+                la = lm;
+                ea = em;
+            }
+            else
+            {
+                lb = lm;
+            }
+        }
+
+        fOut = std::exp (0.5 * (la + lb));
+        return true;
+    }
+
+    struct XfG2Case
+    {
+        double cornerErr = kInf, slopeErr = 0.0;
+        int measure = 3;        // 0 slope -20 / -50 dB measured; 1 G2s-short against the prototype; 2 unmeasurable; 3 missing
+        bool sections = false, finite = true;
+    };
+
+    /** A running band (noise), slope `fromSlope` -> `toSlope` at 0.2 s; 100 ms after the fade an impulse.
+        The impulse response is the difference of the renders with and without it (the band is linear and
+        settled there). Mono, 48 kHz, block 64. */
+    XfG2Case xfG2Run (eq::Type type, double fc, int fromSlope, int toSlope, std::uint64_t seed)
+    {
+        constexpr int block = 64;
+        const double fs = kXfFs;
+        const std::size_t fadeLength = ix (xfFadeLength (fs));
+        const std::size_t event = 9600;
+        const std::size_t impulseAt = event + fadeLength + xfSamples (0.100, fs);
+        const std::size_t irLength = xfSamples (0.5, fs);
+        const std::size_t length = impulseAt + irLength;
+
+        const eq::BandInput a = rmInput (type, fc, 0.0, 1.0, fromSlope);
+        const eq::BandInput b = rmInput (type, fc, 0.0, 1.0, toSlope);
+
+        Rng rng (seed);
+        std::vector<double> input (length, 0.0);
+
+        for (std::size_t i = 0; i < impulseAt; ++i)
+            input[i] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+
+        eq::Designer designer;
+        designer.prepare (fs);
+        eq::BandDesign target {};
+        designer.design (b.settings, target);
+
+        XfG2Case out;
+        bool sectionsOk[2] = { false, false };
+
+        const auto render = [&] (int which)
+        {
+            std::vector<double> y (input);
+
+            if (which == 1)
+                y[impulseAt] += 1.0;
+
+            std::unique_ptr<XfEngine> e = xfMakeEngine (fs, false, 4096);
+
+            for (std::size_t at = 0; at < length; at += ix (block))
+            {
+                e->requested[0] = at < event ? a : b;
+                e->process (y.data() + at, nullptr, static_cast<int> (std::min (ix (block), length - at)));
+            }
+
+            const eq::SlotBand& band = e->bands[0];
+            sectionsOk[which] = ! band.isFading() && e->fades() == 1
+                              && rmBandEqualsStatic (band.getSlot (band.getCurrentSlot()), target);
+            return y;
+        };
+
+        const std::vector<double> y0 = render (0);
+        const std::vector<double> y1 = render (1);
+        out.sections = sectionsOk[0] && sectionsOk[1];
+        out.finite = rmAllFinite (y0) && rmAllFinite (y1);
+
+        std::vector<double> h (irLength);
+
+        for (std::size_t k = 0; k < irLength; ++k)
+            h[k] = y1[impulseAt + k] - y0[impulseAt + k];
+
+        const auto mag = [&h, fs] (double hz) { return xfDftDb (h, fs, hz); };
+
+        out.cornerErr = std::fabs (mag (fc) - 10.0 * std::log10 (0.5));
+
+        const double nominal = 20.0 * std::log10 (2.0) * (static_cast<double> (kXfSlopeDb[toSlope]) / 6.0);
+        const bool lowCut = type == eq::Type::lowCut;
+        double f20 = 0.0, f50 = 0.0;
+        const bool measurable = lowCut ? (xfCrossing (mag, fc * 1.0e-3, fc, -20.0, f20) && xfCrossing (mag, fc * 1.0e-3, fc, -50.0, f50))
+                                       : (xfCrossing (mag, fc, 20000.0, -20.0, f20) && xfCrossing (mag, fc, 20000.0, -50.0, f50));
+
+        if (measurable)
+        {
+            out.measure = 0;
+            out.slopeErr = std::fabs (30.0 / std::fabs (std::log2 (f50 / f20)) - nominal);
+        }
+        else if (lowCut)
+        {
+            out.measure = 3;
+        }
+        else
+        {
+            const double fEnd = 20000.0;
+            double fStart = 0.0;
+
+            if (xfCrossing (mag, fc, fEnd, -20.0, fStart) && std::log2 (fEnd / fStart) >= 1.0)
+            {
+                const double octaves = std::log2 (fEnd / fStart);
+                const double digitalSlope = (mag (fStart) - mag (fEnd)) / octaves;
+                const double analogSlope = (eq::analogBandMagDb (target, 2.0 * kPi * fStart / fs)
+                                            - eq::analogBandMagDb (target, 2.0 * kPi * fEnd / fs)) / octaves;
+                out.measure = 1;
+                out.slopeErr = std::fabs (digitalSlope - analogSlope);
+            }
+            else
+            {
+                out.measure = 2;
+            }
+        }
+
+        return out;
+    }
+
+    void rowXfG2()
+    {
+        static const double fcs[3] = { 100.0, 500.0, 2000.0 };
+        static const eq::Type types[2] = { eq::Type::lowCut, eq::Type::highCut };
+        constexpr int perType = 3 * 56;
+        constexpr int numCases = 2 * perType;
+
+        std::vector<XfG2Case> cases (ix (numCases));
+
+        // index = (type * 3 + fc) * 56 + ordered pair (from, to), from != to
+        parallelFor (numCases, [&cases] (int task)
+        {
+            const int pairIndex = task % 56;
+            const int from = pairIndex / 7;
+            const int rest = pairIndex % 7;
+            const int to = rest < from ? rest : rest + 1;
+            cases[ix (task)] = xfG2Run (types[task / perType], fcs[(task / 56) % 3], from, to,
+                                        0x5846473200ull + static_cast<std::uint64_t> (task));
+        });
+
+        int cornerBad = 0, slopeBad = 0, missing = 0, sectionsBad = 0, nonFinite = 0;
+        int counts[4] = { 0, 0, 0, 0 };
+        double worstCorner = 0.0, worstSlope = 0.0, worstShort = 0.0;
+
+        for (const XfG2Case& c : cases)
+        {
+            ++counts[c.measure];
+
+            if (! (c.cornerErr <= 0.10))
+                ++cornerBad;
+
+            worstCorner = std::max (worstCorner, c.cornerErr);
+
+            if (c.measure == 0 || c.measure == 1)
+            {
+                if (! (c.slopeErr <= 1.0))
+                    ++slopeBad;
+
+                if (c.measure == 0)
+                    worstSlope = std::max (worstSlope, c.slopeErr);
+                else
+                    worstShort = std::max (worstShort, c.slopeErr);
+            }
+
+            if (c.measure == 3)
+                ++missing;
+
+            if (! c.sections)
+                ++sectionsBad;
+
+            if (! c.finite)
+                ++nonFinite;
+        }
+
+        row (cornerBad == 0 && slopeBad == 0 && missing == 0 && sectionsBad == 0 && nonFinite == 0 && counts[0] > 0,
+             "XF-g2 G2 live: Low Cut and High Cut at 100 Hz / 500 Hz / 2 kHz, every ordered slope pair on a running band: after the "
+             "fade sections == the static design; impulse 100 ms later: corner -3.01 +- 0.10 dB, slope within 1.0 dB/oct",
+             strf ("%d cases: corner worst %.4f dB (%d off); slope -20 / -50 dB measured on %d, worst %.3f dB/oct; G2s-short against "
+                   "the prototype on %d, worst %.3f; unmeasurable (span under one octave) %d; Low Cuts without both points %d; "
+                   "%d slope readings off; sections differ in %d; %d non-finite",
+                   numCases, worstCorner, cornerBad, counts[0], worstSlope, counts[1], worstShort, counts[2], missing, slopeBad,
+                   sectionsBad, nonFinite));
+    }
+
+    //==========================================================================
+    // XF-blk / XF-blkn: structural events on multiples of 2048 (Q6)
+    //==========================================================================
+    constexpr int kXfBlkBands = 6;
+    constexpr int kXfBlkEvents = 160;
+    constexpr int kXfBlkSpacing = 2048;
+
+    struct XfBlkStep
+    {
+        std::array<eq::BandInput, kXfBlkBands> in {};
+        bool bypass = false;
+    };
+
+    /** The bench's draw: per event and band, type and slope (p 0.5), placement (0.3), enable (0.3),
+        frequency, gain (exactly 0 with p 0.25), Q; the global bypass toggled (0.1). Step e holds from
+        sample 2048 e on. */
+    std::vector<XfBlkStep> xfBlkScript (std::uint64_t seed)
+    {
+        Rng rng (seed);
+        std::array<XfCfg, kXfBlkBands> cur;
+        bool byp = false;
+        std::vector<XfBlkStep> steps (ix (kXfBlkEvents));
+
+        for (int e = 0; e < kXfBlkEvents; ++e)
+        {
+            for (XfCfg& c : cur)
+            {
+                if (rng.uniform() < 0.5)
+                {
+                    c.s.type = static_cast<eq::Type> (rng.below (8));
+                    c.s.slopeIndex = rng.below (8);
+                }
+
+                if (rng.uniform() < 0.3)
+                    c.p = static_cast<eq::Placement> (rng.below (5));
+
+                if (rng.uniform() < 0.3)
+                    c.active = rng.uniform() > 0.3;
+
+                c.s.freqHz = 10.0 * std::pow (3000.0, rng.uniform());
+                c.s.gainDbEff = rng.uniform() < 0.25 ? 0.0 : -30.0 + 60.0 * rng.uniform();
+                c.s.q = 0.025 * std::pow (1600.0, rng.uniform());
+            }
+
+            if (rng.uniform() < 0.1)
+                byp = ! byp;
+
+            for (int b = 0; b < kXfBlkBands; ++b)
+                steps[ix (e)].in[ix (b)] = xfCanon (cur[ix (b)], true);
+
+            steps[ix (e)].bypass = byp;
+        }
+
+        return steps;
+    }
+
+    struct XfBlkOut
+    {
+        std::vector<double> y;          // left, then right
+        unsigned long fades = 0, latched = 0, wakes = 0, sleeps = 0;
+        long long violations = 0;
+        bool finite = true;
+    };
+
+    XfBlkOut xfBlkRender (double fs, int block, bool withEvents, const std::vector<XfBlkStep>& steps, const XfStereo& in)
+    {
+        std::unique_ptr<XfEngine> e = xfMakeEngine (fs, true, 4096);
+        XfStereo y = in;
+        const std::size_t n = y.L.size();
+
+        for (std::size_t at = 0; at < n; at += ix (block))
+        {
+            const std::size_t step = withEvents ? std::min (at / ix (kXfBlkSpacing), steps.size() - 1) : 0;
+
+            for (int b = 0; b < kXfBlkBands; ++b)
+                e->requested[ix (b)] = steps[step].in[ix (b)];
+
+            e->wantBypass = steps[step].bypass;
+            e->process (y.L.data() + at, y.R.data() + at, static_cast<int> (std::min (ix (block), n - at)));
+        }
+
+        XfBlkOut out;
+        out.finite = xfFinite (y);
+        out.fades = e->fades();
+        out.latched = e->latched();
+        out.wakes = e->wakes();
+        out.sleeps = e->sleeps();
+        out.violations = e->laneViolations;
+        out.y = std::move (y.L);
+        out.y.insert (out.y.end(), y.R.begin(), y.R.end());
+        return out;
+    }
+
+    struct XfBlkRate
+    {
+        int mismatches = 0;
+        unsigned long fades = 0, latched = 0, wakes = 0;
+        long long violations = 0;
+        bool finite = true, bite = false;
+    };
+
+    void rowsXfBlk()
+    {
+        static const double rates[4] = { 44100.0, 48000.0, 96000.0, 192000.0 };
+        static const int sizes[5] = { 1, 32, 64, 512, 2048 };
+        std::array<XfBlkRate, 4> results;
+
+        parallelFor (4, [&results] (int r)
+        {
+            const double fs = rates[r];
+            const std::vector<XfBlkStep> steps = xfBlkScript (0x5846424C00ull + static_cast<std::uint64_t> (r));
+            Rng rng (0x5846424C4Eull + static_cast<std::uint64_t> (r));
+            const XfStereo in = xfNoise (ix (kXfBlkEvents * kXfBlkSpacing), rng);
+            XfBlkRate& out = results[ix (r)];
+            XfBlkOut reference;
+
+            for (int k = 0; k < 5; ++k)
+            {
+                XfBlkOut o = xfBlkRender (fs, sizes[k], true, steps, in);
+                out.finite = out.finite && o.finite;
+                out.violations += o.violations;
+
+                if (k == 0)
+                {
+                    reference = std::move (o);
+                    out.fades = reference.fades;
+                    out.latched = reference.latched;
+                    out.wakes = reference.wakes;
+                    continue;
+                }
+
+                if (o.y.size() != reference.y.size()
+                      || std::memcmp (o.y.data(), reference.y.data(), sizeof (double) * o.y.size()) != 0
+                      || o.fades != reference.fades || o.latched != reference.latched || o.wakes != reference.wakes
+                      || o.sleeps != reference.sleeps)
+                    ++out.mismatches;
+            }
+
+            const XfBlkOut quiet = xfBlkRender (fs, kXfBlkSpacing, false, steps, in);
+            out.bite = std::memcmp (quiet.y.data(), reference.y.data(), sizeof (double) * quiet.y.size()) != 0;
+        });
+
+        // Latched requests are gated on the row total (execute-session reading of T4, 2026-11-14): with
+        // events on multiples of 2048 a band can latch only where the fade is longer than 2048 samples
+        // (192 kHz: 3840); at 44.1 / 48 / 96 kHz (882 / 960 / 1920) no request can meet a fade. The bench's
+        // figures are row totals too. Fades and wakes stay gated per rate.
+        bool ok = true, fires = true;
+        unsigned long latchedTotal = 0;
+        std::string text;
+
+        for (int r = 0; r < 4; ++r)
+        {
+            const XfBlkRate& q = results[ix (r)];
+            latchedTotal += q.latched;
+            ok = ok && q.mismatches == 0 && q.finite && q.fades > 0 && q.wakes > 0 && q.violations == 0;
+            fires = fires && q.bite;
+            text += strf ("%s%.1f k: %d of 4 differ, %lu fades, %lu latched, %lu wakes%s%s", r == 0 ? "" : "; ", rates[r] / 1000.0,
+                          q.mismatches, q.fades, q.latched, q.wakes, q.finite ? "" : " (NON-FINITE)",
+                          q.violations == 0 ? "" : strf (" (%lld UNCOVERED LANES)", q.violations).c_str());
+        }
+
+        ok = ok && latchedTotal > 0;
+
+        row (ok, "XF-blk 6 bands, stereo noise, 160 structural + continuous + bypass events on multiples of 2048: blocks 1, 32, 64, "
+                 "512, 2048 bit-identical at 44.1, 48, 96, 192 kHz; fades and wakes > 0 per rate, latched requests > 0 over the row",
+             text + strf ("; latched over the row %lu (against block 1; bench: 8690 fades, 1264 latched, 194 wakes over 28 renders)",
+                          latchedTotal));
+
+        row (fires, "XF-blkn the XF-blk render without the events DIFFERS at every rate",
+             fires ? "the control fires" : "the control did NOT fire");
+    }
+
+    //==========================================================================
+    // XF-ms: VERIFICATION-2.3 issue 1, the Mid / Side ramping path
+    //==========================================================================
+    /** One band, 4800 samples in blocks of 48 at 48 kHz; frequency, gain and Q change at block 20. */
+    XfStereo xfMsRender (eq::Type type, eq::Placement placement, bool move, const XfStereo& input)
+    {
+        constexpr int block = 48, changeBlock = 20;
+        const int slope = eq::usesSlope (type) ? 3 : 0;
+        const eq::BandInput a = rmInput (type, 500.0, 6.0, 0.8, slope, placement);
+        const eq::BandInput b = rmInput (type, 3000.0, -8.0, 5.0, slope, placement);
+
+        std::unique_ptr<XfEngine> e = xfMakeEngine (48000.0, true, 4096);
+        XfStereo y = input;
+        const std::size_t n = y.L.size();
+        int index = 0;
+
+        for (std::size_t at = 0; at < n; at += ix (block), ++index)
+        {
+            e->requested[0] = (move && index >= changeBlock) ? b : a;
+            e->process (y.L.data() + at, y.R.data() + at, static_cast<int> (std::min (ix (block), n - at)));
+        }
+
+        return y;
+    }
+
+    void rowXfMs()
+    {
+        constexpr std::size_t numSamples = 4800;
+        Rng rng (0x58464D53ull);
+        XfStereo same, opposite;
+        same.L.resize (numSamples);
+
+        for (double& v : same.L)
+            v = (rng.uniform() * 2.0 - 1.0) * 0.25;
+
+        same.R = same.L;
+        opposite.L = same.L;
+        opposite.R.resize (numSamples);
+
+        for (std::size_t i = 0; i < numSamples; ++i)
+            opposite.R[i] = -same.L[i];
+
+        int bad = 0, voids = 0;
+        double worst = 0.0;
+
+        for (int typeIndex = 0; typeIndex < 8; ++typeIndex)
+        {
+            const eq::Type type = static_cast<eq::Type> (typeIndex);
+
+            for (int k = 0; k < 2; ++k)
+            {
+                const eq::Placement placement = k == 0 ? eq::Placement::mid : eq::Placement::side;
+                const XfStereo& input = k == 0 ? same : opposite;
+                const XfStereo y = xfMsRender (type, placement, true, input);
+                const XfStereo s = xfMsRender (type, eq::Placement::stereo, true, input);
+                const XfStereo settled = xfMsRender (type, placement, false, input);
+
+                double diff = 0.0, peak = 0.0;
+
+                for (std::size_t i = 0; i < numSamples; ++i)
+                {
+                    diff = std::max (diff, std::max (std::fabs (y.L[i] - s.L[i]), std::fabs (y.R[i] - s.R[i])));
+                    peak = std::max (peak, std::max (std::fabs (s.L[i]), std::fabs (s.R[i])));
+                }
+
+                const double rel = diff / std::max (peak, kTiny);
+                const bool differs = ! xfSameRange (y.L, settled.L, 0, numSamples);
+                worst = std::max (worst, std::isfinite (rel) ? rel : kInf);
+
+                if (! (rel <= 1.0e-12) || ! xfFinite (y))
+                    ++bad;
+
+                if (! differs)
+                    ++voids;
+            }
+        }
+
+        row (bad == 0 && voids == 0,
+             "XF-ms a three-parameter move (f, gain, Q at block 20) on a Mid band with L = R and on a Side band with L = -R: equal to "
+             "the Stereo band's render of the same move within 1e-12 of the peak; differs from the settled render",
+             strf ("8 types x Mid / Side: %d above 1e-12, worst %.3g re the peak; %d equal to the settled render (VOID); 48 kHz, "
+                   "4800 samples in blocks of 48, through XfEngine", bad, worst, voids));
+    }
+
+    //==========================================================================
+    // XF-1p: VERIFICATION-2.3 issue 2, one-pole sections on the ramping path
+    //==========================================================================
+    /** The engine, one band, mono, a per-block script of settings. */
+    std::vector<double> xfScriptRender (double fs, int block, const std::vector<eq::BandSettings>& script,
+                                        const std::vector<double>& input)
+    {
+        std::unique_ptr<XfEngine> e = xfMakeEngine (fs, false, 4096);
+        std::vector<double> out (input);
+        const std::size_t n = out.size();
+
+        for (std::size_t at = 0; at < n; at += ix (block))
+        {
+            eq::BandInput in {};
+            in.settings = script[std::min (at / ix (block), script.size() - 1)];
+            in.placement = eq::Placement::stereo;
+            in.active = true;
+            e->requested[0] = in;
+            e->process (out.data() + at, nullptr, static_cast<int> (std::min (ix (block), n - at)));
+        }
+
+        return out;
+    }
+
+    /** The control of XF-1p: refRender's per-sample trajectory, except that every one-pole half takes
+        its coefficients from the design at the interval's tick and holds them for the interval (Gc held). */
+    std::vector<double> xfGcHeldRender (const eq::Designer& designer, double fs, int block,
+                                        const std::vector<eq::BandSettings>& script, const std::vector<double>& input)
+    {
+        std::vector<double> out (input.size(), 0.0);
+
+        if (script.empty() || block <= 0)
+            return out;
+
+        const std::size_t grid = ix (rmRefGrid (fs));
+        const std::size_t blockSize = ix (block);
+
+        RmTrajectory traj;
+        double ic1[eq::maxSections] = {}, ic2[eq::maxSections] = {}, lp[eq::maxSections] = {};
+        eq::OnePoleCoeffs heldPole[eq::maxSections];
+        double fromLnF = 0.0, fromGain = 0.0, fromLnQ = 0.0;
+        bool moving = false;
+        eq::BandDesign d {};
+
+        for (std::size_t n = 0; n < input.size(); ++n)
+        {
+            if (n % blockSize == 0)
+            {
+                const eq::BandSettings& s = script[std::min (n / blockSize, script.size() - 1)];
+
+                if (n == 0)
+                    rmTrajectoryStart (traj, s, rmRefRampTicks (fs));
+                else
+                    rmTrajectoryOffer (traj, s);
+            }
+
+            const std::size_t j = n % grid;
+
+            if (j == 0)
+            {
+                fromLnF = traj.lnF;
+                fromGain = traj.gain;
+                fromLnQ = traj.lnQ;
+                moving = rmTrajectoryTick (traj);
+            }
+
+            eq::BandSettings now = traj.target;
+            const bool lastOfInterval = j + 1 == grid;
+
+            if (moving && ! (lastOfInterval && traj.left == 0))
+            {
+                if (lastOfInterval)
+                {
+                    now = rmTrajectorySettings (traj, traj.lnF, traj.gain, traj.lnQ);
+                }
+                else
+                {
+                    const double part = static_cast<double> (j + 1) / static_cast<double> (grid);
+                    now = rmTrajectorySettings (traj, fromLnF + (traj.lnF - fromLnF) * part,
+                                                fromGain + (traj.gain - fromGain) * part,
+                                                fromLnQ + (traj.lnQ - fromLnQ) * part);
+                }
+            }
+
+            designer.design (now, d);
+            double v = input[n];
+
+            for (int i = 0; i < d.numSections; ++i)
+            {
+                const eq::SectionRuntime rt = eq::toRuntime (d.params[ix (i)]);
+
+                if (j == 0)
+                    heldPole[i] = rt.onePole;
+
+                if (rt.hasSvf)
+                    v = eq::svfTick (rt.svf, ic1[i], ic2[i], v);
+
+                if (rt.hasOnePole)
+                    v = eq::onePoleTick (heldPole[i], lp[i], v);
+            }
+
+            out[n] = v;
+        }
+
+        return out;
+    }
+
+    void rowXf1p()
+    {
+        static const double tones[2] = { 50.0, 1000.0 };
+        static const int blocks[2] = { 32, 512 };
+        static const int slopes[2] = { 0, 2 };
+
+        struct Reading { double engine = 0.0, control = 0.0, hold = 0.0, dEngine = 0.0, dHeld = 0.0; bool finite = true; };
+        std::array<Reading, 8> readings;
+
+        // index = (slope * 2 + tone) * 2 + block
+        parallelFor (8, [&readings] (int task)
+        {
+            const double fs = kXfFs;
+            RmMotion m = kRmMotions[4];
+            m.type = eq::Type::highCut;
+            m.slopeIndex = slopes[task / 4];
+            const double tone = tones[(task / 2) % 2];
+            const int block = blocks[task % 2];
+
+            eq::Designer designer;
+            designer.prepare (fs);
+            const std::size_t numSamples = ix (static_cast<int> (std::llround (rmSweepSeconds (m) * fs)));
+            const std::size_t from = xfSamples (kXfFrom, fs);
+            std::vector<double> input (numSamples);
+
+            for (std::size_t i = 0; i < numSamples; ++i)
+                input[i] = 0.5 * std::sin (2.0 * kPi * tone * static_cast<double> (i) / fs);
+
+            const std::vector<eq::BandSettings> motion = rmSweepScript (m, tone, fs, block, 0, numSamples);
+            const std::vector<double> yEngine = xfScriptRender (fs, block, motion, input);
+            const std::vector<double> yRef = refRender (designer, fs, block, motion, input);
+            const std::vector<double> yHeld = xfGcHeldRender (designer, fs, block, motion, input);
+            const std::vector<double> yHold = holdRender (designer, fs, block, motion, input);
+
+            const double kRef = rmLocalKappa (yRef, fs, from);
+            Reading& q = readings[ix (task)];
+            q.engine = rmRatio (rmLocalKappa (yEngine, fs, from), kRef);
+            q.control = rmRatio (rmLocalKappa (yHeld, fs, from), kRef);
+            q.hold = rmRatio (rmLocalKappa (yHold, fs, from), kRef);
+            q.finite = rmAllFinite (yEngine) && rmAllFinite (yRef) && rmAllFinite (yHeld) && rmAllFinite (yHold);
+
+            // Sample-domain distance from the reference (INFO): largest |y - yRef| over the scored span.
+            for (std::size_t i = from; i < numSamples; ++i)
+            {
+                q.dEngine = std::max (q.dEngine, std::fabs (yEngine[i] - yRef[i]));
+                q.dHeld = std::max (q.dHeld, std::fabs (yHeld[i] - yRef[i]));
+            }
+        });
+
+        // Taylor's call in the execute session (2026-11-14): on motion 5 local kappa cannot see a held
+        // one-pole coefficient (the Gc-held render and 2.3's holdRender read 3.8x / 5.0x, under the 10x
+        // control floor and, at 6 dB/oct, under the 4.0x verdict). The kappa clause stays as planned; a
+        // sample-domain clause is added: max |engine - refRender| over the scored span <= 1e-3 (tone peak
+        // 0.5) at all 8 readings, and its control, the Gc-held render's distance, >= 10x the engine's at
+        // 50 Hz, block 32. The kappa readings of both controls are printed.
+        constexpr double distanceLimit = 1.0e-3;
+        int above = 0, far = 0, nonFinite = 0;
+        double worst = 0.0, worstDistance = 0.0;
+        bool fires = true;
+        std::string text, controlText;
+
+        for (int task = 0; task < 8; ++task)
+        {
+            const Reading& q = readings[ix (task)];
+
+            if (! (q.engine <= 4.0))
+                ++above;
+
+            if (! (q.dEngine <= distanceLimit))
+                ++far;
+
+            if (! q.finite)
+                ++nonFinite;
+
+            worst = std::max (worst, q.engine);
+            worstDistance = std::max (worstDistance, q.dEngine);
+            text += strf ("%s%d dB/oct %.0f Hz b%d %.2fx / %.2e", task == 0 ? "" : ", ", kXfSlopeDb[slopes[task / 4]],
+                          tones[(task / 2) % 2], blocks[task % 2], q.engine, q.dEngine);
+
+            if ((task / 2) % 2 == 0 && task % 2 == 0)
+            {
+                const double ratio = q.dEngine > 0.0 ? q.dHeld / q.dEngine : std::numeric_limits<double>::infinity();
+                fires = fires && std::isfinite (q.dHeld) && ratio >= 10.0;
+                controlText += strf ("%s%d dB/oct distance %.2e = %.0fx the engine's (kappa: Gc held %.1fx, holdRender %.1fx)",
+                                     controlText.empty() ? "" : ", ", kXfSlopeDb[slopes[task / 4]], q.dHeld, ratio, q.control, q.hold);
+            }
+        }
+
+        row (above == 0 && far == 0 && nonFinite == 0 && fires,
+             "XF-1p G3 sweep motion 5 of PLAN-2.3 (f 10 Hz <-> 30 kHz in 50 ms) on a 6 and an 18 dB/oct High Cut: engine <= 4.0x "
+             "refRender on local kappa and max |engine - refRender| <= 1e-3; the Gc-held control's distance >= 10x the engine's "
+             "at 50 Hz, block 32",
+             strf ("%d of 8 above 4.0x (worst %.2fx), %d of 8 above 1e-3 (worst %.2e); kappa / distance: %s; control (one-pole "
+                   "coefficients held per interval): %s (%s)%s", above, worst, far, worstDistance, text.c_str(), controlText.c_str(),
+                   fires ? "fires" : "did NOT fire", nonFinite == 0 ? "" : "; NON-FINITE"));
+    }
+
+    //==========================================================================
+    // XF-g5: random stress with structure and bypass (P14)
+    //==========================================================================
+    struct XfG5Rate
+    {
+        long long frames = 0, expectedFrames = 0, blocks = 0, nonFinite = 0, checks = 0, overStack = 0, toggles = 0;
+        unsigned long fades = 0, latched = 0;
+        double peak = 0.0, maxStack = 0.0, worstMargin = -1.0e9, offMs = -1.0;
+        bool offEqual = false;
+    };
+
+    /** RM-g5's generator on XfEngine, plus: per band, type / slope / placement / enable / band bypass
+        redrawn with probability 1/50 per block (`everyBlock`: at every block); the global bypass toggled
+        with probability 1/200 per block. The stack (P14, RESEARCH-2.4 C10): per band the peak of its
+        latest request; for a band whose request just changed structurally (a fade, possibly followed by
+        one latched fade) the larger of that and the outgoing request's peak, held for 2 N samples. Then
+        all bands off and bypass off: the first sample from which the output equals the input. */
+    XfG5Rate xfG5Run (int rateIndex, double seconds, bool everyBlock)
+    {
+        constexpr int maxBlock = 4096;
+        constexpr int numPoints = 64;
+        static const int sizes[5] = { 4096, 512, 64, 7, 1 };
+
+        const double fs = kRates8[ix (rateIndex)];
+        const long long total = std::llround (seconds * fs);
+        const long long hold = 2LL * static_cast<long long> (xfFadeLength (fs));
+
+        std::unique_ptr<XfEngine> e = xfMakeEngine (fs, true, maxBlock);
+        Rng seed (0x5846473500ull + static_cast<std::uint64_t> (rateIndex) + (everyBlock ? 0x100ull : 0ull));
+        Rng rng (seed.next());
+
+        double w[numPoints];
+        const double top = 0.4999 * fs;
+
+        for (int p = 0; p < numPoints; ++p)
+            w[p] = 2.0 * kPi * 5.0 * std::pow (top / 5.0, static_cast<double> (p) / static_cast<double> (numPoints - 1)) / fs;
+
+        std::array<eq::RawBand, kXfBands> raws;
+
+        for (eq::RawBand& raw : raws)
+            raw = enRaw (eq::Type::bell, 1000.0, 0.0, 1.0, 1, eq::Placement::stereo);
+
+        std::array<eq::BandInput, kXfBands> last {}, heldIn {};
+        std::array<long long, kXfBands> heldUntil {};
+        heldUntil.fill (-1);
+        bool haveLast = false;
+
+        std::vector<double> lane0 (ix (maxBlock)), lane1 (ix (maxBlock));
+        eq::BandDesign scratch {};
+        XfG5Rate out;
+        out.expectedFrames = total;
+
+        double runStack = 0.0;
+        long long pos = 0;
+        bool byp = false;
+
+        while (pos < total)
+        {
+            const double t = static_cast<double> (pos) / fs;
+            const int size = sizes[static_cast<int> (static_cast<long long> (t / 2.0) % 5)];
+            const int n = static_cast<int> (std::min (static_cast<long long> (size), total - pos));
+            const bool silent = std::fmod (t, 5.0) > 4.0;
+            const bool evalStack = size >= 512;
+
+            const double su = rng.uniform();
+            const float scale = static_cast<float> (su < 0.1 ? 0.0 : (su > 0.9 ? 200.0 : 200.0 * rng.uniform()));
+
+            if (rng.uniform() < 1.0 / 200.0)
+            {
+                byp = ! byp;
+                ++out.toggles;
+            }
+
+            double stackNow = 0.0;
+
+            for (int b = 0; b < kXfBands; ++b)
+            {
+                const std::size_t ub = ix (b);
+                eq::RawBand& raw = raws[ub];
+
+                if (everyBlock || rng.uniform() < 1.0 / 50.0)
+                {
+                    raw.type = static_cast<float> (rng.below (8));
+                    raw.slope = static_cast<float> (rng.below (8));
+                    raw.placement = static_cast<float> (rng.below (5));
+                    raw.enabled = rng.uniform() > 0.10 ? 1.0f : 0.0f;
+                    raw.bypass = rng.uniform() < 0.07 ? 1.0f : 0.0f;
+                }
+
+                const double u = rng.uniform();
+                raw.freq = static_cast<float> (u < 0.1 ? 10.0 : (u > 0.9 ? 30000.0 : 10.0 * std::pow (3000.0, rng.uniform())));
+                const double g = rng.uniform();
+                raw.gain = static_cast<float> (g < 0.1 ? -30.0 : (g > 0.9 ? 30.0 : -30.0 + 60.0 * rng.uniform()));
+                const double z = rng.uniform();
+                raw.q = static_cast<float> (z < 0.1 ? 0.025 : (z > 0.9 ? 40.0 : 0.025 * std::pow (1600.0, rng.uniform())));
+
+                const eq::BandInput in = eq::makeBandInput (raw, scale, 0.0);
+                e->requested[ub] = in;
+
+                if (haveLast && eq::classifyBandChange (last[ub], in) == eq::BandChange::structural)
+                {
+                    heldIn[ub] = last[ub];
+                    heldUntil[ub] = pos + hold;
+                }
+
+                last[ub] = in;
+
+                if (evalStack)
+                {
+                    double term = in.active ? rmBandPeakDb (e->designer, in.settings, fs, w, numPoints, scratch) : 0.0;
+
+                    if (pos < heldUntil[ub] && heldIn[ub].active)
+                        term = std::max (term, rmBandPeakDb (e->designer, heldIn[ub].settings, fs, w, numPoints, scratch));
+
+                    stackNow += term;
+                }
+            }
+
+            haveLast = true;
+            e->wantBypass = byp;
+
+            if (evalStack && stackNow > runStack)
+                runStack = stackNow;
+
+            for (int i = 0; i < n; ++i)
+            {
+                lane0[ix (i)] = silent ? 0.0 : (rng.uniform() * 2.0 - 1.0) * kRmG5InputPeak;
+                lane1[ix (i)] = silent ? 0.0 : (rng.uniform() * 2.0 - 1.0) * kRmG5InputPeak;
+            }
+
+            e->process (lane0.data(), lane1.data(), n);
+
+            double blockPeak = 0.0;
+
+            for (int i = 0; i < n; ++i)
+            {
+                const double a = std::fabs (lane0[ix (i)]), c = std::fabs (lane1[ix (i)]);
+                ++out.frames;
+
+                if (! std::isfinite (a) || ! std::isfinite (c))
+                {
+                    ++out.nonFinite;
+                    continue;
+                }
+
+                blockPeak = std::max (blockPeak, std::max (a, c));
+            }
+
+            out.peak = std::max (out.peak, blockPeak);
+
+            if (blockPeak > 0.0)
+            {
+                const double margin = 20.0 * std::log10 (blockPeak / kRmG5InputPeak) - runStack;
+                ++out.checks;
+                out.worstMargin = std::max (out.worstMargin, margin);
+
+                if (margin > kRmG5MarginDb)
+                    ++out.overStack;
+            }
+
+            pos += n;
+            ++out.blocks;
+        }
+
+        out.maxStack = runStack;
+        out.fades = e->fades();
+        out.latched = e->latched();
+
+        // All bands off, bypass off: from which sample is the output the input?
+        for (int b = 0; b < kXfBands; ++b)
+        {
+            raws[ix (b)].enabled = 0.0f;
+            e->requested[ix (b)] = eq::makeBandInput (raws[ix (b)], kEnScale100, 0.0);
+        }
+
+        e->wantBypass = false;
+        const std::size_t tail = xfSamples (0.3, fs);
+        const XfStereo x = xfNoise (tail, rng);
+        XfStereo y = x;
+
+        for (std::size_t at = 0; at < tail; at += 64)
+            e->process (y.L.data() + at, y.R.data() + at, static_cast<int> (std::min<std::size_t> (64, tail - at)));
+
+        long long lastDiff = -1;
+
+        for (std::size_t i = 0; i < tail; ++i)
+            if (! sameBits (x.L[i], y.L[i]) || ! sameBits (x.R[i], y.R[i]))
+                lastDiff = static_cast<long long> (i);
+
+        out.offMs = 1000.0 * static_cast<double> (lastDiff + 1) / fs;
+        out.offEqual = lastDiff + 2 < static_cast<long long> (tail) && out.offMs <= 100.0;
+        return out;
+    }
+
+    void rowXfG5 (bool longRun)
+    {
+        const double seconds = longRun ? 600.0 : 60.0;
+        const double everySeconds = 10.0;
+        std::array<XfG5Rate, 2 * kEnNumRates8> rates;
+
+        // Tasks 0 ... 7: the 1/50 draw; 8 ... 15: structure redrawn at every block.
+        parallelFor (2 * kEnNumRates8, [&rates, seconds, everySeconds] (int task)
+        {
+            const bool every = task >= kEnNumRates8;
+            rates[ix (task)] = xfG5Run (task % kEnNumRates8, every ? everySeconds : seconds, every);
+        });
+
+        bool ok = true;
+        long long nonFinite = 0, overStack = 0, checks = 0;
+        double worstMargin = -1.0e9, worstOff = 0.0;
+        int offBad = 0, voidRuns = 0;
+
+        for (int task = 0; task < 2 * kEnNumRates8; ++task)
+        {
+            const XfG5Rate& q = rates[ix (task)];
+            const bool live = q.frames == q.expectedFrames && q.checks > 0 && q.fades > 0 && q.latched > 0 && q.maxStack > 0.0
+                           && q.toggles > 0;
+            ok = ok && live && q.nonFinite == 0 && q.overStack == 0 && q.offEqual;
+            nonFinite += q.nonFinite;
+            overStack += q.overStack;
+            checks += q.checks;
+            worstMargin = std::max (worstMargin, q.worstMargin);
+            worstOff = std::max (worstOff, q.offMs);
+
+            if (! q.offEqual)
+                ++offBad;
+
+            if (! live)
+                ++voidRuns;
+        }
+
+        row (ok,
+             "XF-g5 24 bands stereo, every parameter random, structure 1/50 per band per block (and at every block), bypass 1/200, "
+             "8 rates: every sample finite; block peak <= stack + 12 dB; then all bands off -> memcmp equal within 100 ms",
+             strf ("%.0f s per rate%s, every-block run %.0f s per rate; %lld non-finite; %lld of %lld checks above stack + 12 dB, worst "
+                   "peak - stack %+.1f dB; all off -> equal after at most %.2f ms (bench worst 40 ms), %d runs off%s",
+                   seconds, longRun ? " (--long)" : " (default; --long runs 600 s)", everySeconds, nonFinite, overStack, checks,
+                   worstMargin, worstOff, offBad,
+                   voidRuns == 0 ? "" : strf ("; VOID in %d runs (short, no check, no fade, no latch or no toggle)", voidRuns).c_str()));
+
+        for (int task = 0; task < 2 * kEnNumRates8; ++task)
+        {
+            const XfG5Rate& q = rates[ix (task)];
+            const double runSeconds = task >= kEnNumRates8 ? everySeconds : seconds;
+            note (strf ("%6.0f Hz %-11s: %.1f fades/s, %.1f latched/s, %lld bypass toggles; peak %+.1f dB re input, largest stack %.1f dB, "
+                        "peak - stack worst %+.1f dB; all off -> equal after %.2f ms",
+                        kRates8[ix (task % kEnNumRates8)], task >= kEnNumRates8 ? "every block" : "1/50", static_cast<double> (q.fades) / runSeconds,
+                        static_cast<double> (q.latched) / runSeconds, q.toggles,
+                        20.0 * std::log10 (std::max (q.peak, kTiny) / kRmG5InputPeak), q.maxStack, q.worstMargin, q.offMs));
+        }
+    }
+
+    //==========================================================================
+    // XF-nan: a NaN input sample during a fade
+    //==========================================================================
+    void rowXfNan()
+    {
+        constexpr int block = 256;
+        const double fs = kXfFs;
+        const long long fadeLength = xfFadeLength (fs);
+        const std::size_t bs = ix (block);
+        const std::size_t event = 24 * bs, nanAt = event + 100, length = event + 40 * bs;
+        const XfCfg a = xfDeep (eq::Type::bell, 1000.0);
+        const XfCfg b = xfDeep (eq::Type::highShelf, 1000.0);
+
+        struct Out { long long end = -1, clears = 0; XfStereo y; };
+
+        const auto run = [&] (bool withNan)
+        {
+            Out out;
+            Rng rng (0x58464E414Eull);
+            out.y = xfNoise (length, rng);
+
+            if (withNan)
+                out.y.L[nanAt] = std::numeric_limits<double>::quiet_NaN();
+
+            // The prepared block size is the host block: the check runs at the end of every block.
+            std::unique_ptr<XfEngine> e = xfMakeEngine (fs, true, block);
+
+            for (std::size_t at = 0; at < length; at += bs)
+            {
+                e->set (0, at < event ? a : b);
+                const eq::SlotBand& band = e->bands[0];
+                const bool wasFading = band.isFading();
+                const long long position = band.getFadePosition();
+                const unsigned long fadesBefore = e->fades();
+
+                e->process (out.y.L.data() + at, out.y.R.data() + at, block);
+
+                if (out.end < 0 && wasFading && (! band.isFading() || e->fades() > fadesBefore))
+                    out.end = static_cast<long long> (at) + fadeLength - position;
+            }
+
+            out.clears = e->clears;
+            return out;
+        };
+
+        const Out clean = run (false);
+        const Out dirty = run (true);
+
+        const std::size_t nextChunk = (nanAt / bs + 1) * bs;
+        long long nonFiniteAfter = 0;
+
+        for (std::size_t i = nextChunk; i < length; ++i)
+            if (! std::isfinite (dirty.y.L[i]) || ! std::isfinite (dirty.y.R[i]))
+                ++nonFiniteAfter;
+
+        const bool stimulus = ! std::isfinite (dirty.y.L[nanAt]);
+        const long long expectedEnd = static_cast<long long> (event) + fadeLength;
+
+        row (stimulus && nonFiniteAfter == 0 && dirty.end == clean.end && clean.end == expectedEnd && dirty.clears >= 1 && clean.clears == 0,
+             "XF-nan one NaN input sample 100 samples into a type fade, then noise; clearState at the end of the chunk: finite from "
+             "the next chunk; the fade ends on schedule",
+             strf ("%lld non-finite samples from the next chunk (sample %zu) on; fade end: with the NaN %lld, without %lld, expected "
+                   "%lld; chunks cleared %lld (clean render %lld); NaN at sample %zu %s; 48 kHz, block = chunk = 256",
+                   nonFiniteAfter, nextChunk, dirty.end, clean.end, expectedEnd, dirty.clears, clean.clears, nanAt,
+                   stimulus ? "propagated" : "DID NOT reach the output (VOID)"));
+    }
+
+    //==========================================================================
+    // XF-alloc: no allocation with fades and bypass
+    //==========================================================================
+    struct XfAllocExtra
+    {
+        long long blocks = 0, finiteBlocks = 0, endsToBypass = 0, restarts = 0;
+        unsigned long fades = 0, latched = 0;
+    };
+
+    /** 1e4 host blocks of 128 at 48 kHz inside a malloc_logger window on this thread, the first block
+        included: whenever a band's fade has ended it gets a structural request (a type change), and the
+        global bypass toggles every 50 blocks. `plant` puts one deliberate allocation inside the window.
+        The hook, its counters and the vacuity probe are row A1's. */
+    AllocResult runXfAlloc (bool plant, XfAllocExtra* extra)
+    {
+        AllocResult result;
+
+       #if defined (__APPLE__)
+        constexpr int numBlocks = 10000;
+        constexpr int block = 128;
+        constexpr int noiseLength = 4096;
+
+        std::unique_ptr<XfEngine> e = xfMakeEngine (48000.0, true, block);
+        XfEngine& eng = *e;
+
+        std::array<eq::BandInput, kXfBands> configA {}, configB {};
+
+        for (int b = 0; b < kXfBands; ++b)
+        {
+            XfCfg c;
+            c.s = mk (static_cast<eq::Type> (b % 8), 40.0 * std::pow (1.28, static_cast<double> (b)), (b & 1) != 0 ? 6.0 : -6.0,
+                      0.7 + 0.1 * static_cast<double> (b), (b * 3 + 1) % 8);
+            c.p = static_cast<eq::Placement> (b % 5);
+            configA[ix (b)] = xfCanon (c, true);
+            c.s.type = static_cast<eq::Type> ((b + 3) % 8);
+            configB[ix (b)] = xfCanon (c, true);
+        }
+
+        Rng rng (0x5846414C4Cull);
+        std::vector<double> noiseL (ix (noiseLength)), noiseR (ix (noiseLength));
+
+        for (int i = 0; i < noiseLength; ++i)
+        {
+            noiseL[ix (i)] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+            noiseR[ix (i)] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+        }
+
+        std::array<int, kXfBands> which {};
+        double lane0[block], lane1[block];
+        long long finiteBlocks = 0;
+
+        malloc_logger_t* const previous = malloc_logger;
+        allocThread = pthread_self();
+        allocCount = 0;
+        freeCount = 0;
+        malloc_logger = countAllocation;
+
+        // Vacuity: the hook must see a deliberate allocation and its release.
+        allocArmed = true;
+        {
+            void* volatile planted = std::malloc (64);
+            std::free (planted);
+        }
+        allocArmed = false;
+        result.vacuityAllocs = allocCount;
+        result.vacuityFrees = freeCount;
+        allocCount = 0;
+        freeCount = 0;
+
+        allocArmed = true;
+
+        for (int i = 0; i < numBlocks; ++i)
+        {
+            if (i > 0 && i % 50 == 0)
+                eng.wantBypass = ! eng.wantBypass;
+
+            for (int b = 0; b < kXfBands; ++b)
+                if (! eng.bands[ix (b)].isFading())
+                {
+                    which[ix (b)] ^= 1;
+                    eng.requested[ix (b)] = which[ix (b)] != 0 ? configB[ix (b)] : configA[ix (b)];
+                }
+
+            const std::size_t offset = ix ((i * block) % (noiseLength - block));
+            std::memcpy (lane0, noiseL.data() + offset, sizeof (lane0));
+            std::memcpy (lane1, noiseR.data() + offset, sizeof (lane1));
+
+            eng.process (lane0, lane1, block);
+
+            if (std::isfinite (lane0[block - 1]) && std::isfinite (lane1[block - 1]))
+                ++finiteBlocks;
+        }
+
+        if (plant)
+        {
+            void* volatile planted = std::malloc (64);
+            std::free (planted);
+        }
+
+        allocArmed = false;
+        malloc_logger = previous;
+
+        result.available = true;
+        result.allocs = allocCount;
+        result.frees = freeCount;
+        result.checksum = finiteBlocks;
+
+        if (extra != nullptr)
+        {
+            extra->blocks = numBlocks;
+            extra->finiteBlocks = finiteBlocks;
+            extra->endsToBypass = eng.endsToBypass;
+            extra->restarts = eng.restarts;
+            extra->fades = eng.fades();
+            extra->latched = eng.latched();
+        }
+       #else
+        (void) plant;
+        (void) extra;
+       #endif
+
+        return result;
+    }
+
+    void rowXfAlloc()
+    {
+        XfAllocExtra extra;
+        const AllocResult r = runXfAlloc (false, &extra);
+
+        if (! r.available)
+        {
+            info ("XF-alloc allocation gate SKIPPED: no malloc_logger on this platform");
+            return;
+        }
+
+        const bool hookLive = r.vacuityAllocs >= 1 && r.vacuityFrees >= 1;
+        const bool live = extra.blocks == 10000 && extra.fades > 1000 && extra.endsToBypass > 0 && extra.restarts > 1;
+
+        row (hookLive && r.allocs == 0 && r.frees == 0 && live,
+             "XF-alloc 1e4 blocks, a structural request on every band whenever its fade ends, bypass toggled every 50 blocks, first "
+             "block included: 0 allocations, 0 frees (malloc_logger, this thread)",
+             strf ("%d allocations, %d frees; hook %s (planted: %d / %d); %lu fades, %lu latched, %lld fades to idle, %lld restarts%s; "
+                   "%lld of %lld blocks end finite",
+                   r.allocs, r.frees, hookLive ? "live" : "DEAD", r.vacuityAllocs, r.vacuityFrees, extra.fades, extra.latched,
+                   extra.endsToBypass, extra.restarts, live ? "" : " (VOID: too few fades or no bypass cycle)", extra.finiteBlocks,
+                   extra.blocks));
+    }
+
+    //==========================================================================
+    // XF-cpu: INFO (G10 binds in Stage 4)
+    //==========================================================================
+    /** 48 kHz stereo, 512-sample blocks, 20 s of noise, 24 bands; percent of one core. mode 0 settled,
+        1 a new structural request every 21.5 ms (always fading), 2 one per second, 3 gain 0 dB (asleep). */
+    double xfCpuPercent (eq::Type t1, int s1, eq::Type t2, int s2, int mode)
+    {
+        constexpr int block = 512;
+        constexpr int noiseLength = 1 << 16;
+        const double fs = kXfFs;
+        const double seconds = 20.0;
+        const long long total = std::llround (seconds * fs);
+
+        std::unique_ptr<XfEngine> e = xfMakeEngine (fs, true, block);
+        Rng rng (0x5846435055ull);
+        std::vector<double> noiseL (ix (noiseLength)), noiseR (ix (noiseLength));
+
+        for (int i = 0; i < noiseLength; ++i)
+        {
+            noiseL[ix (i)] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+            noiseR[ix (i)] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+        }
+
+        double lane0[block], lane1[block];
+        long long blockIndex = 0;
+        const RmClock::time_point t0 = RmClock::now();
+
+        for (long long pos = 0; pos + block <= total; pos += block, ++blockIndex)
+        {
+            const double t = static_cast<double> (pos) / fs;
+            bool second = false;
+
+            if (mode == 1)
+                second = (static_cast<long long> (t / 0.0215) & 1) != 0;
+
+            if (mode == 2)
+                second = (static_cast<long long> (t) & 1) != 0;
+
+            for (int b = 0; b < kXfBands; ++b)
+            {
+                XfCfg c;
+                c.s = mk (second ? t2 : t1, 40.0 * std::pow (1.28, static_cast<double> (b)), mode == 3 ? 0.0 : 6.0, 1.0, second ? s2 : s1);
+                e->set (b, c);
+            }
+
+            const std::size_t offset = ix (static_cast<int> ((blockIndex * 509) % (noiseLength - block)));
+            std::memcpy (lane0, noiseL.data() + offset, sizeof (lane0));
+            std::memcpy (lane1, noiseR.data() + offset, sizeof (lane1));
+            e->process (lane0, lane1, block);
+        }
+
+        return 100.0 * rmSeconds (t0, RmClock::now()) / seconds;
+    }
+
+    void infoXfCpu()
+    {
+        struct Case { const char* name; eq::Type t1; int s1; eq::Type t2; int s2; double bench[4]; };
+        static const Case cases[4] =
+        {
+            { "24 cuts x 96 dB/oct (Low Cut <> High Cut)",    eq::Type::lowCut,    7, eq::Type::highCut,   7, { 2.65, 5.17, 2.71, -1.0 } },
+            { "24 shelves x 96 dB/oct (High <> Low)",         eq::Type::highShelf, 7, eq::Type::lowShelf,  7, { 4.93, 9.88, 5.06, 0.04 } },
+            { "24 bells <> 12 dB/oct shelves",                eq::Type::bell,      0, eq::Type::highShelf, 1, { 0.67, 1.74, 0.87, 0.04 } },
+            { "24 shelves, 96 <> 72 dB/oct",                  eq::Type::highShelf, 7, eq::Type::highShelf, 6, { 4.97, 8.39, 4.26, 0.04 } }
+        };
+
+        info ("XF-cpu 48 kHz stereo, 512-sample blocks, 20 s, 24 bands, double engine (XfEngine); % of one core: settled, always fading, "
+              "one fade per second, 24 asleep",
+              "beside RESEARCH-2.4 Q8 (fade_bench cpu); G10 binds in Stage 4");
+
+        for (const Case& c : cases)
+        {
+            double pct[4] = {};
+
+            for (int mode = 0; mode < 4; ++mode)
+                pct[mode] = xfCpuPercent (c.t1, c.s1, c.t2, c.s2, mode);
+
+            note (strf ("%-44s settled %5.2f %% (bench %.2f) | always fading %5.2f %% (bench %.2f) | 1 fade / s %5.2f %% (bench %.2f) | "
+                        "asleep %6.3f %% (%s)",
+                        c.name, pct[0], c.bench[0], pct[1], c.bench[1], pct[2], c.bench[2], pct[3],
+                        c.bench[3] < 0.0 ? "cuts do not sleep" : strf ("bench %.2f", c.bench[3]).c_str()));
+        }
+    }
+
+    //==========================================================================
     // --neg
     //==========================================================================
     /** Runs one negative control. Exit code 0 only if the targeted row FAILS. */
@@ -9699,8 +13578,17 @@ namespace
             return fires ? 0 : 1;
         }
 
+        if (which == "fade-alloc")
+        {
+            const AllocResult r = runXfAlloc (true, nullptr);
+            const bool fires = r.available && r.allocs > 0;
+            std::printf ("neg fade-alloc: planted allocation inside the XF-alloc window: %d allocations, %d frees counted: %s\n",
+                         r.allocs, r.frees, fires ? "XF-alloc FAILS - the control fires" : "the control did NOT fire");
+            return fires ? 0 : 1;
+        }
+
         std::fprintf (stderr, "unknown negative control '%s' (rbj, f1, alloc, seed, rbj-b, binary-gate, first-build, engine-alloc, "
-                              "ramp-alloc)\n",
+                              "ramp-alloc, fade-alloc)\n",
                       which.c_str());
         return 255;
     }
@@ -9740,7 +13628,7 @@ int main (int argc, char** argv)
         else
         {
             std::fprintf (stderr, "usage: %s [--golden-dir <dir>] [--long] [--dump-designs] [--dump-polished] "
-                                  "[--neg rbj|f1|alloc|seed|rbj-b|binary-gate|first-build|engine-alloc|ramp-alloc]\n", argv[0]);
+                                  "[--neg rbj|f1|alloc|seed|rbj-b|binary-gate|first-build|engine-alloc|ramp-alloc|fade-alloc]\n", argv[0]);
             return 255;
         }
     }
@@ -9871,6 +13759,32 @@ int main (int argc, char** argv)
     rowRmSn4();
     rowRmAlloc();
     infoRmCpu();
+
+    //==========================================================================
+    // Phase 2.4 (PLAN-2.4 T4): structural crossfades and bypass, eq::SlotBand + eq::FadeTable + eq::BypassFade in double
+    //==========================================================================
+    heading ("2.4 / structural crossfades and bypass (double)");
+    rowsXfG3();
+    rowsXfRef();
+    rowXfRest();
+    rowXfLat();
+    rowXfCont();
+    rowXfLane();
+    rowXfIdent();
+    rowsXfG4();
+    rowXfSlp();
+    rowXfSlpc();
+    rowXfWake();
+    rowsXfByp();
+    rowXfIdle();
+    rowXfG2();
+    rowsXfBlk();
+    rowXfMs();
+    rowXf1p();
+    rowXfG5 (longRun);
+    rowXfNan();
+    rowXfAlloc();
+    infoXfCpu();
 
     std::printf ("\n%d PASS, %d FAIL, %d INFO\n", passes, failures, infos);
     std::fflush (stdout);

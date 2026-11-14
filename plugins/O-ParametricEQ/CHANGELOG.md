@@ -1,5 +1,21 @@
 # O-ParametricEQ Changelog
 
+## [0.4.0] - 2026-11-14
+
+Stage 2, Phase 2.4 (structural crossfades and bypass). Switching things no longer clicks.
+
+### Changed
+- Type, slope, placement, enable and band bypass changes crossfade over 20 ms and no longer click. A change made during a crossfade waits for it to end; the latest one wins.
+- Global `bypass` crossfades to the dry signal over 20 ms, and the engine rests while bypassed. The host's own bypass route takes the same path.
+- A band at exactly 0 dB costs nothing and leaves the signal bit-identical: 50 ms after its gain arrives at 0 dB it drops out of the processing, and with all bands at 0 dB (or `gain_scale` at 0 %) the output equals the input.
+
+### Fixed
+- An edit made while bypassed is in effect, settled, at un-bypass. Before, a frequency, gain or Q edit made during bypass ramped in for 20 ms afterwards.
+
+### Known in this build
+- `output_gain` and `auto_gain` do nothing yet.
+- A steep low cut switched in under sustained bass dips for a few milliseconds.
+
 ## [0.3.0] - 2026-11-13
 
 Stage 2, Phase 2.3 (continuous modulation). Parameter moves are smoothed.

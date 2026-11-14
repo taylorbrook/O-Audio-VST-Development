@@ -49,8 +49,8 @@
 
       - The tick clock: one sample counter, zeroed in prepareToPlay and
         advanced by the length of EVERY block handed to processBlock or
-        processBlockBypassed, whatever that block then does (hard bypass, not
-        prepared, no active band). Control ticks fall where the counter is a
+        processBlockBypassed, whatever that block then does (bypassed, not
+        prepared, no running band). Control ticks fall where the counter is a
         multiple of K (16 / 32 / 64 samples by rate, ControlRamp.h). The grid
         therefore does not depend on the host's block boundaries.
       - A continuous change seen at a block start is handed to the band as a
@@ -65,14 +65,49 @@
         band's state, so a non-finite input does not stick. The chunk's
         output is written as it is.
 
+    Stage 2, Phase 2.4 (structural crossfades and bypass): every band is an
+    eq::SlotBand (SlotBand.h: two eq::Band slots, a 20 ms raised-cosine fade,
+    a latched request, the neutral sleep), and the global bypass is an
+    eq::BypassFade on the same fade table (Fade.h). PLAN-2.4 P6 - P9.
+
+      - A type, slope, placement, enable or band-bypass change is handed to
+        the band as a request at the block start. The band designs its idle
+        slot from the full target, starts it from rest and crossfades to it;
+        a request that arrives during a fade waits for the fade's end. The
+        processor no longer classifies a change: it compares the raw snapshot
+        and, on a difference, passes the canonical input on.
+      - A gain type that has sat at exactly 0 dB for 50 ms leaves the running
+        list. With no running band the buffer is not touched.
+      - One bypass path. Bypass is wanted when the `bypass` parameter is on
+        or the block arrived through processBlockBypassed. A toggle
+        crossfades to the dry input (or back) over the fade table's length,
+        in double, as the last stage before the conversion to float; a
+        toggle during the fade is latched and the fade never reverses. At
+        the end of the fade to bypass every band goes idle (state at rest,
+        fades ended) and from then on the buffer is not touched and no band
+        parameter is read.
+      - Un-bypass reads every band's parameters afresh and starts every band
+        from rest, settled, with no band fade and no ramp; the bypass fade
+        covers the start. An edit made while bypassed is therefore in effect,
+        settled, from the first processed sample.
+      - The first block after a prepare starts every band settled and sets
+        the bypass state without a fade: nothing fades in. A session that
+        opens bypassed opens idle.
+      - Lanes. A lane is converted to double for a host block when a running
+        band may touch it before the next block start: the placement of
+        every slot that is not off and, where a request is latched, of the
+        requested input (SlotBand::touchesLane). A lane that was converted
+        is written back for the chunks it was converted in, also when its
+        last band stopped inside the block.
+      - With no running band a bypass toggle is a flag: no fade, no sample
+        touched.
+
     What this phase does in place of later ones:
 
-      2.4 (crossfades, sleep,     a type / slope / placement / activation
-           soft bypass)           change designs from the target at the block
-                                  start and clears the band's state: a click.
-                                  A 0 dB band is an ordinary active band.
-                                  Global bypass is a hard switch.
-      2.5 (output stage)          output_gain and auto_gain are read by nothing
+      2.5 (output stage)          output_gain and auto_gain are read by
+                                  nothing. The bypass fade is the last stage
+                                  before the float conversion; 2.5 puts its
+                                  stages in front of it
       2.6                         no taps, no display model, no listen
 
     No WebView editor (Stage 3), no presets (Stage 4).
@@ -92,7 +127,9 @@
 
 #include "dsp/ControlRamp.h"
 #include "dsp/Designer.h"
+#include "dsp/Fade.h"
 #include "dsp/Router.h"
+#include "dsp/SlotBand.h"
 
 // vu-meter 1.0.0 compile proof (Stage 1 plan, P6): the header is included so
 // that its first build inside a plugin happens now. No member is declared;
@@ -108,12 +145,14 @@ public:
     static constexpr int kNumBands = 24;
 
     //==========================================================================
-    /** Sets the designer's rate, the layout flag, the working lanes and the
+    /** Sets the designer's rate, the layout flag, the working lanes, the
         control grid (K and the ramp length, from the rate, into every band),
-        zeroes the tick clock, clears every band and invalidates every
-        snapshot, so the first block designs every active band from its
-        current values with its ramp snapped. Reports latency 0. Safe to call
-        repeatedly and at a different rate: nothing is carried across it. */
+        the fade table and the sleep length; zeroes the tick clock, prepares
+        every band (both slots at rest and off, no fade) and invalidates
+        every snapshot. The next block is then the first block: every band
+        starts settled on its current values and the bypass state is set
+        without a fade. Reports latency 0. Safe to call repeatedly and at a
+        different rate: nothing is carried across it. */
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override {}
 
@@ -126,10 +165,14 @@ public:
 
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
-    /** JUCE's own VST3 and AU wrappers never call this while a bypass
-        parameter exists; hosts that do get the hard bypass: the buffer is
-        left untouched, every band's state is cleared and its ramp snapped.
-        The tick clock advances by the block's length. */
+    /** The same path as processBlock, with bypass wanted whatever the
+        `bypass` parameter says: the first such block after processed ones
+        starts the 20 ms fade to the dry input, the blocks after the fade
+        leave the buffer untouched with the engine idle, and the first
+        processBlock call after them fades back in on the current
+        parameters. The tick clock advances by the block's length. JUCE's
+        own VST3 and AU wrappers never call this while a bypass parameter
+        exists; a host built on the graph classes and the render harness do. */
     void processBlockBypassed (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
     /** The `bypass` parameter. */
@@ -222,35 +265,45 @@ private:
     static_assert (sizeof (BandSnapshot) == 9 * sizeof (float),
                    "BandSnapshot is compared by bit pattern: nine floats, no padding");
 
-    /** Per band: the last raw snapshot, the canonical input built from it
-        (with the EFFECTIVE placement and a dynamic offset of 0: the band
-        reads its own offset), and whether the snapshot can be trusted. An
-        invalid snapshot forces the band through makeBandInput and, when
-        active, through the designer. The input is kept current for an
-        inactive band too, so its activation designs from the latest values. */
+    /** Per band: the last raw snapshot and whether it can be trusted. An
+        invalid snapshot sends the band's canonical input to the band again
+        (the band compares it with what it realises, so a repeat costs
+        nothing). The realised input and the latest request live in the
+        band (SlotBand). Snapshots are invalid after a prepare and stale
+        after every fully bypassed block. */
     struct BandSlot
     {
         BandSnapshot snapshot {};
-        eq::BandInput input {};
         bool valid = false;
     };
+
+    /** Band indices, in index order. */
+    using RunningList = std::array<int, static_cast<std::size_t> (kNumBands)>;
+
+    /** The one audio path (PLAN-2.4 P6, P8). processBlock passes false,
+        processBlockBypassed true. */
+    void processAudio (juce::AudioBuffer<float>&, bool viaBypassed);
 
     /** The Stage 1 line: clears any output channel that has no input. */
     void clearOutputsWithoutInput (juce::AudioBuffer<float>&);
 
-    /** Zeroes the filter state of all 24 bands and snaps the ramp of every
-        active one to its latest target (a settled band is not redesigned).
-        Snapshots stay. An inactive band was snapped when it left the active
-        list. For the hard bypass and the non-finite check. */
-    void clearAndSnapAllBands() noexcept;
-
     /** Advances the tick clock by the length of a block and returns the
         clock value at the block's first sample. Called first thing by
-        processBlock and processBlockBypassed, so no return path can skip it. */
+        processAudio, so no return path can skip it. */
     std::uint64_t advanceTickClock (int numSamples) noexcept;
 
     /** Reads the raw values of band `band` and the raw gain_scale. */
     BandSnapshot readBandSnapshot (int band, float gainScaleRaw) const noexcept;
+
+    /** The canonical input of a snapshot, with the placement that takes
+        effect on the negotiated layout and a dynamic offset of 0: the band
+        reads its own offset. */
+    eq::BandInput makeInput (const BandSnapshot&) const noexcept;
+
+    /** Writes the indices of the bands that are running (a fade in flight,
+        or a current slot that is not off) to the front of `list`, in index
+        order, and returns their number. */
+    int collectRunningBands (RunningList& list) const noexcept;
 
     //==========================================================================
     juce::AudioProcessorParameter* bypassParam = nullptr;
@@ -262,8 +315,25 @@ private:
         any design at that rate. */
     eq::Designer designer;
 
-    std::array<eq::Band, static_cast<std::size_t> (kNumBands)> bands;
+    std::array<eq::SlotBand, static_cast<std::size_t> (kNumBands)> bands;
     std::array<BandSlot, static_cast<std::size_t> (kNumBands)> slots;
+
+    /** The one fade table of this engine, built in prepareToPlay from the
+        rate: read by every band's crossfade and by the bypass fade. */
+    eq::FadeTable fadeTable;
+
+    /** The global soft bypass. Audio thread only. */
+    eq::BypassFade bypassFade;
+
+    /** Consecutive control ticks at exactly 0 dB before a gain type falls
+        asleep: 50 ms on the grid of this rate, from prepareToPlay. */
+    int sleepTicks = 1;
+
+    /** False from prepareToPlay until the first block that gets past the
+        guards: that block starts every band settled and sets the bypass
+        state without a fade. Audio thread only (prepareToPlay does not run
+        beside processing). */
+    bool started = false;
 
     /** Double working lanes (0 = L or mono, 1 = R), sized in prepareToPlay to
         the prepared block size. A longer host block runs in chunks. */
@@ -277,7 +347,8 @@ private:
     int preparedBlockSize = 0;
 
     /** The tick clock (PLAN-2.3 P7): samples handed to processBlock or
-        processBlockBypassed since prepareToPlay. Audio thread only. */
+        processBlockBypassed since prepareToPlay, bypassed blocks included.
+        Audio thread only. */
     std::uint64_t tickClock = 0;
 
     /** K: samples between two control ticks, from the rate in prepareToPlay.
