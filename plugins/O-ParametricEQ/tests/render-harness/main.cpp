@@ -36,11 +36,14 @@
       L1   196 parameters; dump == <golden-dir>/params.tsv byte for byte
       L2   version hint 1; automatable; 50 Bool / 72 Choice / 74 Float; 25 groups in order
       L3   none of the 72 reserved dynamic-EQ IDs is registered
-      L4   bypass parameter; latency 0 at 44.1 k and 96 k; tail 0
+      L4   bypass parameter; latency 0 at 44.1 k and 96 k; tail 2.0 (amended in Phase 2.2)
       L5   float defaults: normalised exactly 0.5; linear raw exact; freq / q raw within 2e-4
       B1   bus layouts: (1,1) and (2,2) accepted; (2,1), (1,2), (0,2), (2,0), 5.1 refused
       P1   pass-through, memcmp-equal: mono / stereo x blocks 1, 64, 512, 4096 x
-           bypass Off / On / every parameter random, and through processBlockBypassed
+           bypass Off / On / every parameter random, and through processBlockBypassed.
+           Amended in Phase 2.2: the processBlock "random" variant switches every
+           bNN_enabled off and bypass off after the draw (the engine now acts on
+           an enabled band); the processBlockBypassed rows keep the full draw
       P1n  vacuity guard for P1: one flipped bit fails the comparator; input RMS > -20 dBFS
       S1   state round trip: 196 getValue() bit-equal, UI members, byte-equal re-save
       S2   XML shape
@@ -54,22 +57,79 @@
     S1 is exact by decision (plan P13). If it misses by one ULP on a skewed
     float, the row prints every ID with both values: do not loosen it.
 
+    Stage 2, Phase 2.2 (PLAN-2.2 T7): the engine through the plugin's float
+    output. Every closed-form reference is designed from the raw parameter
+    values (rawOf) through eq::makeBandInput and eq::Designer::design. There is
+    no audio golden: a bit-identity row compares two renders of this binary.
+    A row named "...n" is a negative control and PASSES when the control fires.
+    [INFO] lines are printed and never counted.
+
+      E1   FUNC-01: 24 bells at 48 kHz vs the 24 closed forms; each band disabled in turn
+      E1n  the full render against each 23-band closed form must fail
+      E2   FUNC-02: eight types at 44.1 and 96 kHz, mono and stereo, <= 0.01 dB above -80 dB
+      E2n  the bell against the same bell 1 % higher must fail
+      N1   DSP-06: eight types at 25 and 30 kHz, 44.1 kHz: finite, closed form
+      N2   24 mixed bands at 11 - 30 kHz, 22.05 and 44.1 kHz: finite, peak <= +40 dB
+      T1a  G4 (a): no band enabled, noise + denormal tail: memcmp-equal, 7 block patterns
+      T1b  G4 (b): Left bands leave the right channel memcmp-equal; and the converse
+      T1bn the same bands on Stereo must fail
+      T1c  G4 (c): Mid bands leave the side, Side bands the mid, <= -130 dB re the larger peak
+      T1cn the same bands on Left must fail
+      T1g  G4 (g): block sizes 32, 64, 512, 2048, 1 and a random sequence: bit-identical
+      T1m  mono layout: every placement value equals the Stereo-placement render
+      Z1   G8: latency 0, nothing before the impulse, predicted first-sample gain
+      A1   G6 static: no allocation inside processBlock (malloc_logger, this thread)
+      A1n  a planted allocation inside the window is counted
+      K1   host blocks of 1024 on a 256 prepare == blocks of 256
+      H1   hard bypass: buffer untouched; state cleared
+      U1   a gain edit reaches the new closed form
+      U2   re-enabling a band starts from cleared state
+      U3   inert edits (slope on Bell / Notch / Band Pass, Q at 6 dB/oct, placement on mono)
+      V1   DSP-07 engine half: the dynamic offset reads exactly 0
+      X-cpu  settled CPU readings, INFO
+
   ==============================================================================
 */
 
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 
+#include "dsp/EqTypes.h"
+#include "dsp/BandParams.h"
+#include "dsp/Designer.h"
+#include "dsp/ResponseEval.h"
+#include "dsp/Band.h"
+#include "dsp/Router.h"
+
+#include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
+#include <initializer_list>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
+
+#if defined (__APPLE__)
+ #include <pthread.h>
+
+ // libmalloc's stack-logging hook (what MallocStackLogging / Instruments attach
+ // to). Same declaration as the designer harness (rows A1 / A1n).
+ extern "C"
+ {
+     typedef void (malloc_logger_t) (uint32_t type, uintptr_t arg1, uintptr_t arg2, uintptr_t arg3,
+                                     uintptr_t result, uint32_t numHotFramesToSkip);
+     extern malloc_logger_t* malloc_logger;
+ }
+#endif
 
 #if defined (__clang__)
  #pragma clang diagnostic ignored "-Wfloat-equal"
@@ -228,6 +288,18 @@ namespace
             // round-trip bit-equal. Continuous parameters keep the raw draw.
             r->setValueNotifyingHost (r->isDiscrete() ? r->convertTo0to1 (r->convertFrom0to1 (x)) : x);
         }
+    }
+
+    // "b07_freq" from (7, "freq").
+    juce::String bandId (int band, const char* suffix)
+    {
+        return "b" + juce::String (band).paddedLeft ('0', 2) + "_" + suffix;
+    }
+
+    void disableEveryBand (juce::AudioProcessor& p)
+    {
+        for (int band = 1; band <= Processor::kNumBands; ++band)
+            setNormalised (p, bandId (band, "enabled"), 0.0f);
     }
 
     std::vector<float> valuesOf (juce::AudioProcessor& p)
@@ -603,7 +675,8 @@ namespace
 
             row (latency44 == 0 && latency96 == 0, "L4 latency 0 after prepareToPlay at 44.1 k and 96 k",
                  juce::String (latency44) + " / " + juce::String (latency96));
-            row (p->getTailLengthSeconds() == 0.0, "L4 tail 0", fmtJ (p->getTailLengthSeconds()));
+            // Amended in Phase 2.2 (PLAN-2.2 P9, P10): the engine rings.
+            row (p->getTailLengthSeconds() == 2.0, "L4 tail 2.0", fmtJ (p->getTailLengthSeconds()));
         }
 
         // L5 (a fresh instance: nothing has been written)
@@ -721,8 +794,34 @@ namespace
         return true;
     }
 
+    // What the per-block hook of render() sees, and may change.
+    struct BlockInfo
+    {
+        int index = 0;              // block number, from 0
+        int position = 0;           // index of the block's first sample
+        bool viaBypassed = false;   // entry point for this block; starts at render()'s argument
+    };
+
+    using BlockHook = std::function<void (BlockInfo&)>;
+
+    /** The four trailing arguments are Phase 2.2 additions. Their defaults are
+        the Stage 1 behaviour, bit for bit: 48 kHz, no hook, every block
+        `blockSize` long, prepared at `blockSize`.
+
+        sampleRate         the rate handed to prepareToPlay
+        beforeBlock        called before each block is filled and processed
+                           (mid-render parameter edits; it may switch the
+                           block's entry point)
+        blockSequence      when not empty: the block lengths, cycled, each
+                           limited to 1 ... blockSize
+        preparedBlockSize  when > 0: the size handed to prepareToPlay instead
+                           of blockSize (a host block larger than prepared) */
     juce::AudioBuffer<float> render (juce::AudioProcessor& p, const juce::AudioBuffer<float>& input,
-                                     int blockSize, bool viaBypassed)
+                                     int blockSize, bool viaBypassed,
+                                     double sampleRate = kRenderRate,
+                                     const BlockHook& beforeBlock = {},
+                                     const std::vector<int>& blockSequence = {},
+                                     int preparedBlockSize = 0)
     {
         const int numChannels = input.getNumChannels();
         const int length = input.getNumSamples();
@@ -732,17 +831,31 @@ namespace
         juce::AudioBuffer<float> block (numChannels, blockSize);
         juce::MidiBuffer midi;
 
-        p.prepareToPlay (kRenderRate, blockSize);
+        p.prepareToPlay (sampleRate, preparedBlockSize > 0 ? preparedBlockSize : blockSize);
 
-        for (int position = 0; position < length;)
+        int index = 0;
+
+        for (int position = 0; position < length; ++index)
         {
-            const int n = juce::jmin (blockSize, length - position);
+            const int wanted = blockSequence.empty()
+                                   ? blockSize
+                                   : juce::jlimit (1, blockSize, blockSequence[(size_t) index % blockSequence.size()]);
+            const int n = juce::jmin (wanted, length - position);
+
+            BlockInfo current;
+            current.index = index;
+            current.position = position;
+            current.viaBypassed = viaBypassed;
+
+            if (beforeBlock)
+                beforeBlock (current);
+
             block.setSize (numChannels, n, false, false, true);
 
             for (int channel = 0; channel < numChannels; ++channel)
                 block.copyFrom (channel, 0, input, channel, position, n);
 
-            if (viaBypassed)
+            if (current.viaBypassed)
                 p.processBlockBypassed (block, midi);
             else
                 p.processBlock (block, midi);
@@ -767,6 +880,14 @@ namespace
         const int blockSizes[] = { 1, 64, 512, 4096 };
         const char* const variants[] = { "bypass Off", "bypass On", "all random" };
 
+        // Amended in Phase 2.2 (PLAN-2.2 P10): through processBlock the engine
+        // acts on an enabled band and on the bypass switch, so "random settings
+        // pass through" is no longer a property of the plugin. The variant keeps
+        // the full draw (output_gain and auto_gain included) and then switches
+        // every bNN_enabled off and bypass off. The stimulus guard is unchanged.
+        // The processBlockBypassed rows keep the full draw.
+        const char* const amendedRandom = "all random, every bNN_enabled off, bypass off";
+
         for (const auto& layout : layouts)
         {
             const auto input = makeNoise (layout.channels, 0x0E0A11CE + layout.channels);
@@ -783,9 +904,19 @@ namespace
                         const bool layoutOk = p->setBusesLayout (busLayout (set, set));
 
                         if (variant == 1)
+                        {
                             setNormalised (*p, "bypass", 1.0f);
+                        }
                         else if (variant == 2)
+                        {
                             setAllRandom (*p, 0x5EED0000 + blockSize);
+
+                            if (! viaBypassed)
+                            {
+                                disableEveryBand (*p);
+                                setNormalised (*p, "bypass", 0.0f);
+                            }
+                        }
 
                         const bool stimulusOk = variant == 0 ? countNonDefault (*p) == 0
                                               : variant == 1 ? findParam (*p, "bypass")->getValue() == 1.0f
@@ -794,14 +925,16 @@ namespace
                         const auto output = render (*p, input, blockSize, viaBypassed);
 
                         tally.check (layoutOk && stimulusOk && sameAudio (output, input),
-                                     juce::String (variants[variant]) + " block " + juce::String (blockSize)
+                                     juce::String (variant == 2 && ! viaBypassed ? amendedRandom : variants[variant])
+                                         + " block " + juce::String (blockSize)
                                          + (layoutOk ? "" : " (layout refused)")
                                          + (stimulusOk ? "" : " (stimulus not applied)"));
                     }
 
                 row (tally.bad == 0 && tally.total == 12,
                      juce::String ("P1 ") + layout.name + (viaBypassed ? " processBlockBypassed" : " processBlock")
-                         + ": out memcmp-equal to in (blocks 1/64/512/4096 x Off/On/random)",
+                         + (viaBypassed ? ": out memcmp-equal to in (blocks 1/64/512/4096 x Off/On/random)"
+                                        : ": out memcmp-equal to in (blocks 1/64/512/4096 x Off/On/all random, every bNN_enabled off, bypass off)"),
                      tally.detail());
             }
         }
@@ -1233,6 +1366,1820 @@ namespace
             row (absentOk, "S8 no UI child and no uiLanguage: every UI member unchanged");
         }
     }
+
+    //==========================================================================
+    //==========================================================================
+    // Stage 2, Phase 2.2: the engine through the plugin (PLAN-2.2 T7)
+    //==========================================================================
+    //==========================================================================
+
+    // Printed, never counted: the last line stays "N PASS, M FAIL".
+    void info (const juce::String& text)
+    {
+        std::printf ("  [INFO] %s\n", text.toRawUTF8());
+        std::fflush (stdout);
+    }
+
+    juce::String fmtG (double value, int digits = 3)
+    {
+        char text[64];
+        std::snprintf (text, sizeof (text), "%.*g", digits, value);
+        return juce::String (text);
+    }
+
+    // Choice indices (parameter-spec; eq::Type and eq::Placement carry the same values).
+    constexpr int kBell = 0, kLowShelf = 1, kHighShelf = 2, kLowCut = 3, kHighCut = 4,
+                  kNotch = 5, kBandPass = 6, kTilt = 7;
+    constexpr int kStereo = 0, kLeft = 1, kRight = 2, kMid = 3, kSide = 4;
+
+    const char* const kTypeNames[8] = { "Bell", "Low Shelf", "High Shelf", "Low Cut",
+                                        "High Cut", "Notch", "Band Pass", "Tilt" };
+    const char* const kPlacementNames[5] = { "Stereo", "Left", "Right", "Mid", "Side" };
+
+    constexpr float kNoise12 = 0.25f;       // white noise peak, -12 dBFS
+    constexpr int kNoiseLength = 16384;     // the noise part of "noise+tail"
+    constexpr int kTailLength = 2048;       // the denormal part
+    constexpr int kSequenceMax = 1024;      // largest block of the random block sequence
+
+    //==========================================================================
+    // Band settings
+    //==========================================================================
+    struct BandSpec
+    {
+        int type = 0;
+        float freq = 1000.0f;
+        float gain = 0.0f;
+        float q = 1.0f;
+        int slope = 1;
+        int placement = 0;
+    };
+
+    BandSpec makeSpec (int type, float freq, float gain, float q, int slope, int placement)
+    {
+        BandSpec s;
+        s.type = type;
+        s.freq = freq;
+        s.gain = gain;
+        s.q = q;
+        s.slope = slope;
+        s.placement = placement;
+        return s;
+    }
+
+    // Writes the band's six settings, clears its bypass and enables it.
+    void setBand (juce::AudioProcessor& p, int band, const BandSpec& s)
+    {
+        setRaw (p, bandId (band, "type"), (float) s.type);
+        setRaw (p, bandId (band, "freq"), s.freq);
+        setRaw (p, bandId (band, "gain"), s.gain);
+        setRaw (p, bandId (band, "q"), s.q);
+        setRaw (p, bandId (band, "slope"), (float) s.slope);
+        setRaw (p, bandId (band, "placement"), (float) s.placement);
+        setRaw (p, bandId (band, "bypass"), 0.0f);
+        setRaw (p, bandId (band, "enabled"), 1.0f);
+    }
+
+    bool setLayout (juce::AudioProcessor& p, int channels)
+    {
+        const auto set = channels == 1 ? juce::AudioChannelSet::mono() : juce::AudioChannelSet::stereo();
+        return p.setBusesLayout (busLayout (set, set));
+    }
+
+    // A fresh instance on a mono or stereo layout with bands 1 ... numBands set
+    // from specOf (0 ... numBands - 1).
+    template <typename SpecFn>
+    std::unique_ptr<Processor> makeBands (int channels, int numBands, SpecFn specOf)
+    {
+        auto p = make();
+
+        if (! setLayout (*p, channels))
+            row (false, "harness: layout refused (" + juce::String (channels) + " channels)");
+
+        for (int index = 0; index < numBands; ++index)
+            setBand (*p, index + 1, specOf (index));
+
+        return p;
+    }
+
+    // The 24-band mixed setting of T1g, K1, H1 and V1: every type, every slope,
+    // every placement, gains +-6 dB (PLAN-2.2 P12: bounded). Cuts sit at the
+    // band edges and the band passes are wide, so the output keeps its level.
+    BandSpec mixedSpec (int index)
+    {
+        static const float qs[4] = { 0.7f, 1.0f, 1.4f, 2.0f };
+
+        BandSpec s;
+        s.type = index % 8;
+        s.slope = (index * 3 + 1) % 8;
+        s.placement = index % 5;
+        s.freq = 40.0f * std::pow (400.0f, (float) ((index * 7) % 24) / 23.0f);
+        s.gain = ((index / 2 + index / 8) % 2 == 0) ? 6.0f : -6.0f;
+        s.q = qs[index % 4];
+
+        if (s.type == kLowCut)
+            s.freq = 30.0f + 15.0f * (float) (index / 8);
+
+        if (s.type == kHighCut)
+            s.freq = 12000.0f + 3000.0f * (float) (index / 8);
+
+        if (s.type == kBandPass)
+            s.q = 0.25f;
+
+        return s;
+    }
+
+    // The six bands of T1b / T1bn, on one placement.
+    BandSpec channelBandSpec (int index, int placement)
+    {
+        const BandSpec table[6] =
+        {
+            makeSpec (kBell,      500.0f,   6.0f, 1.5f, 1, kStereo),
+            makeSpec (kLowShelf,  150.0f,   4.0f, 1.0f, 3, kStereo),
+            makeSpec (kHighShelf, 6000.0f, -5.0f, 1.0f, 1, kStereo),
+            makeSpec (kLowCut,    60.0f,    0.0f, 1.0f, 5, kStereo),
+            makeSpec (kNotch,     2000.0f,  0.0f, 4.0f, 1, kStereo),
+            makeSpec (kTilt,      1000.0f,  3.0f, 1.0f, 1, kStereo)
+        };
+
+        BandSpec s = table[index % 6];
+        s.placement = placement;
+        return s;
+    }
+
+    // The bells of T1c / T1cn: Q 1, 40 Hz - 16 kHz log-spaced (one band: 800 Hz).
+    BandSpec msBellSpec (int index, int numBands, float gainDb, int placement)
+    {
+        const float freq = numBands > 1 ? 40.0f * std::pow (400.0f, (float) index / (float) (numBands - 1)) : 800.0f;
+        return makeSpec (kBell, freq, gainDb, 1.0f, 1, placement);
+    }
+
+    //==========================================================================
+    // References: raw values -> makeBandInput -> Designer::design
+    //==========================================================================
+    eq::RawBand rawBandOf (Processor& p, int band)
+    {
+        eq::RawBand raw;
+        raw.enabled   = rawOf (p, bandId (band, "enabled"));
+        raw.bypass    = rawOf (p, bandId (band, "bypass"));
+        raw.type      = rawOf (p, bandId (band, "type"));
+        raw.freq      = rawOf (p, bandId (band, "freq"));
+        raw.gain      = rawOf (p, bandId (band, "gain"));
+        raw.q         = rawOf (p, bandId (band, "q"));
+        raw.slope     = rawOf (p, bandId (band, "slope"));
+        raw.placement = rawOf (p, bandId (band, "placement"));
+        return raw;
+    }
+
+    // band is 1 ... 24. freqFactor scales the raw frequency (E2n only).
+    // getBandDynOffsetDb is read with a 0-based index.
+    eq::BandInput inputOf (Processor& p, int band, float freqFactor = 1.0f)
+    {
+        eq::RawBand raw = rawBandOf (p, band);
+        raw.freq *= freqFactor;
+        return eq::makeBandInput (raw, rawOf (p, "gain_scale"), p.getBandDynOffsetDb (band - 1));
+    }
+
+    int activeBands (Processor& p)
+    {
+        int n = 0;
+
+        for (int band = 1; band <= Processor::kNumBands; ++band)
+            if (inputOf (p, band).active)
+                ++n;
+
+        return n;
+    }
+
+    int enabledBands (Processor& p)
+    {
+        int n = 0;
+
+        for (int band = 1; band <= Processor::kNumBands; ++band)
+            if (rawOf (p, bandId (band, "enabled")) >= 0.5f)
+                ++n;
+
+        return n;
+    }
+
+    // Designer::prepare before the first design at every rate.
+    std::unique_ptr<eq::Designer> designerFor (double rate)
+    {
+        auto designer = std::make_unique<eq::Designer>();
+        designer->prepare (rate);
+        return designer;
+    }
+
+    // PLAN-2.2 P11: 160 log-spaced points, 20 Hz to min (20 kHz, 0.499 fs).
+    std::vector<double> responseGrid (double rate)
+    {
+        constexpr int numPoints = 160;
+        const double top = juce::jmin (20000.0, 0.499 * rate);
+        std::vector<double> hz;
+
+        for (int j = 0; j < numPoints; ++j)
+            hz.push_back (20.0 * std::pow (top / 20.0, (double) j / (double) (numPoints - 1)));
+
+        return hz;
+    }
+
+    // Sum in dB of the closed forms of the active bands (all on one lane: the
+    // rows that use this keep every band on Stereo). excludeBand (1 ... 24)
+    // leaves one band out; 0 leaves none out.
+    std::vector<double> chainRefDb (Processor& p, const eq::Designer& designer, double rate,
+                                    const std::vector<double>& hz, int excludeBand = 0, float freqFactor = 1.0f)
+    {
+        std::vector<double> db (hz.size(), 0.0);
+
+        for (int band = 1; band <= Processor::kNumBands; ++band)
+        {
+            if (band == excludeBand)
+                continue;
+
+            const auto in = inputOf (p, band, freqFactor);
+
+            if (! in.active)
+                continue;
+
+            eq::BandDesign design {};
+            designer.design (in.settings, design);
+
+            for (size_t j = 0; j < hz.size(); ++j)
+                db[j] += eq::bandMagDb (design, 2.0 * eq::pi * hz[j] / rate);
+        }
+
+        return db;
+    }
+
+    //==========================================================================
+    // Impulse response and single-bin DFT (ported from research-2.2 engine_bench modeIr)
+    //==========================================================================
+    struct Impulse
+    {
+        std::vector<std::vector<float>> channels;
+        bool tailReached = false;
+        bool finite = true;
+        double seconds = 0.0;
+
+        bool ok() const     { return tailReached && finite; }
+    };
+
+    /** PLAN-2.2 P11: an impulse on every channel (amplitudes[channel]) at
+        sample 0, rendered in 1 s steps until the last 10 ms is at least
+        tailDb below the peak. Cap 20 s: tailReached stays false there, and
+        the calling row fails. */
+    Impulse renderImpulse (juce::AudioProcessor& p, int numChannels, double rate,
+                           const float* amplitudes, double tailDb = 140.0)
+    {
+        constexpr int blockSize = 512;
+        constexpr int capSeconds = 20;
+        const int step = (int) std::lround (rate);
+        const int tailLength = (int) std::lround (rate * 0.010);
+        const double tailRatio = std::pow (10.0, -tailDb / 20.0);
+
+        Impulse result;
+        result.channels.resize ((size_t) numChannels);
+
+        juce::AudioBuffer<float> block (numChannels, blockSize);
+        juce::MidiBuffer midi;
+
+        p.prepareToPlay (rate, blockSize);
+
+        int position = 0;
+
+        for (int second = 1; second <= capSeconds; ++second)
+        {
+            const int end = second * step;
+
+            while (position < end)
+            {
+                const int n = juce::jmin (blockSize, end - position);
+                block.setSize (numChannels, n, false, false, true);
+                block.clear();
+
+                if (position == 0)
+                    for (int channel = 0; channel < numChannels; ++channel)
+                        block.setSample (channel, 0, amplitudes[channel]);
+
+                p.processBlock (block, midi);
+
+                for (int channel = 0; channel < numChannels; ++channel)
+                {
+                    const float* data = block.getReadPointer (channel);
+                    auto& store = result.channels[(size_t) channel];
+                    store.insert (store.end(), data, data + n);
+                }
+
+                position += n;
+            }
+
+            double peak = 0.0, tail = 0.0;
+
+            for (const auto& channel : result.channels)
+            {
+                const int total = (int) channel.size();
+
+                for (int i = 0; i < total; ++i)
+                {
+                    const double v = std::abs ((double) channel[(size_t) i]);
+
+                    if (! std::isfinite (v))
+                        result.finite = false;
+
+                    peak = juce::jmax (peak, v);
+
+                    if (i >= total - tailLength)
+                        tail = juce::jmax (tail, v);
+                }
+            }
+
+            result.seconds = (double) position / rate;
+
+            if (! result.finite)
+                break;
+
+            if (peak > 0.0 && tail <= peak * tailRatio)
+            {
+                result.tailReached = true;
+                break;
+            }
+        }
+
+        p.releaseResources();
+        return result;
+    }
+
+    juce::String describe (const Impulse& ir)
+    {
+        return fmtG (ir.seconds) + " s rendered" + (ir.tailReached ? "" : ", TAIL NOT REACHED")
+             + (ir.finite ? "" : ", NOT FINITE");
+    }
+
+    bool sameImpulse (const Impulse& a, const Impulse& b)
+    {
+        if (a.channels.size() != b.channels.size())
+            return false;
+
+        for (size_t channel = 0; channel < a.channels.size(); ++channel)
+        {
+            const auto& x = a.channels[channel];
+            const auto& y = b.channels[channel];
+
+            if (x.size() != y.size() || std::memcmp (x.data(), y.data(), sizeof (float) * x.size()) != 0)
+                return false;
+        }
+
+        return true;
+    }
+
+    // Magnitude in dB at each frequency: a running phasor, renormalised every
+    // 4096 samples. `amplitude` is the impulse's.
+    std::vector<double> dftDb (const std::vector<float>& h, double amplitude, double rate, const std::vector<double>& hz)
+    {
+        std::vector<double> db;
+
+        for (const double f : hz)
+        {
+            const double w = 2.0 * eq::pi * f / rate;
+            const double cr = std::cos (w), ci = -std::sin (w);
+            double pr = 1.0, pim = 0.0, ar = 0.0, ai = 0.0;
+
+            for (size_t n = 0; n < h.size(); ++n)
+            {
+                const double v = (double) h[n];
+                ar += v * pr;
+                ai += v * pim;
+
+                const double t = pr * cr - pim * ci;
+                pim = pr * ci + pim * cr;
+                pr = t;
+
+                if ((n & 4095u) == 4095u)
+                {
+                    const double m = std::sqrt (pr * pr + pim * pim);
+                    pr /= m;
+                    pim /= m;
+                }
+            }
+
+            db.push_back (eq::powerToDb ((ar * ar + ai * ai) / (amplitude * amplitude)));
+        }
+
+        return db;
+    }
+
+    std::vector<std::vector<double>> measureImpulse (const Impulse& ir, const float* amplitudes, double rate,
+                                                     const std::vector<double>& hz)
+    {
+        std::vector<std::vector<double>> measured;
+
+        for (size_t channel = 0; channel < ir.channels.size(); ++channel)
+            measured.push_back (dftDb (ir.channels[channel], (double) amplitudes[channel], rate, hz));
+
+        return measured;
+    }
+
+    // Worst |measured - reference| over every channel, where the reference is
+    // above -80 dB.
+    struct Score
+    {
+        double worst = 0.0;
+        int scored = 0;
+        bool invalid = false;
+
+        bool within (double limitDb) const   { return ! invalid && scored > 0 && worst <= limitDb; }
+
+        // For the "...n" rows: a real miss, not an empty or broken comparison.
+        bool misses (double limitDb) const   { return ! invalid && scored > 0 && worst > limitDb; }
+    };
+
+    Score scoreChannels (const std::vector<std::vector<double>>& measured, const std::vector<double>& reference)
+    {
+        Score s;
+
+        if (measured.empty())
+            s.invalid = true;
+
+        for (const auto& channel : measured)
+        {
+            if (channel.size() != reference.size())
+            {
+                s.invalid = true;
+                continue;
+            }
+
+            for (size_t j = 0; j < reference.size(); ++j)
+                if (reference[j] > -80.0)
+                {
+                    const double d = std::abs (channel[j] - reference[j]);
+                    ++s.scored;
+
+                    if (! std::isfinite (d))
+                        s.invalid = true;
+                    else
+                        s.worst = juce::jmax (s.worst, d);
+                }
+        }
+
+        return s;
+    }
+
+    //==========================================================================
+    // Stimuli and comparators
+    //==========================================================================
+    juce::AudioBuffer<float> makeNoiseAt (int numChannels, int length, juce::int64 seed, float amplitude)
+    {
+        juce::AudioBuffer<float> buffer (numChannels, length);
+        juce::Random random (seed);
+
+        for (int channel = 0; channel < numChannels; ++channel)
+        {
+            float* data = buffer.getWritePointer (channel);
+
+            for (int i = 0; i < length; ++i)
+                data[i] = (random.nextFloat() * 2.0f - 1.0f) * amplitude;
+        }
+
+        return buffer;
+    }
+
+    /** "noise+tail": white noise at -12 dBFS, then 2048 samples with magnitudes
+        in 1e-41 ... 1e-39, random sign. The tail is written by bit pattern
+        (a denormal float is bits x 1.4013e-45), so it does not depend on this
+        thread's floating-point mode. */
+    juce::AudioBuffer<float> makeNoiseTail (int numChannels, juce::int64 seed)
+    {
+        constexpr int bitsMin = 7137;       // 1.0001e-41
+        constexpr int bitsMax = 713600;     // 9.9997e-40
+
+        auto buffer = makeNoiseAt (numChannels, kNoiseLength + kTailLength, seed, kNoise12);
+        juce::Random random (seed + 0x7A11);
+
+        for (int channel = 0; channel < numChannels; ++channel)
+        {
+            float* data = buffer.getWritePointer (channel) + kNoiseLength;
+
+            for (int i = 0; i < kTailLength; ++i)
+            {
+                auto bits = (std::uint32_t) (bitsMin + random.nextInt (bitsMax - bitsMin + 1));
+
+                if (random.nextBool())
+                    bits |= 0x80000000u;
+
+                std::memcpy (data + i, &bits, sizeof (bits));
+            }
+        }
+
+        return buffer;
+    }
+
+    // False when this thread flushes denormal results to zero: the stimulus
+    // and the comparisons need it not to.
+    bool keepsDenormals()
+    {
+        volatile float a = 1.0e-30f;
+        volatile float b = 1.0e-10f;
+        const float product = a * b;
+        return product != 0.0f && std::fpclassify (product) == FP_SUBNORMAL;
+    }
+
+    // Every sample of the last 2048 on every channel is a non-zero denormal
+    // float in 1e-41 ... 1e-39.
+    bool hasDenormalTail (const juce::AudioBuffer<float>& buffer)
+    {
+        if (! keepsDenormals() || buffer.getNumSamples() < kTailLength || buffer.getNumChannels() < 1)
+            return false;
+
+        for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
+        {
+            const float* data = buffer.getReadPointer (channel, buffer.getNumSamples() - kTailLength);
+
+            for (int i = 0; i < kTailLength; ++i)
+            {
+                const double magnitude = std::abs ((double) data[i]);
+
+                if (std::fpclassify (data[i]) != FP_SUBNORMAL || magnitude < 1.0e-41 || magnitude > 1.0e-39)
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    bool allFinite (const juce::AudioBuffer<float>& buffer)
+    {
+        for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
+        {
+            const float* data = buffer.getReadPointer (channel);
+
+            for (int i = 0; i < buffer.getNumSamples(); ++i)
+                if (! std::isfinite (data[i]))
+                    return false;
+        }
+
+        return true;
+    }
+
+    bool sameChannel (const juce::AudioBuffer<float>& a, const juce::AudioBuffer<float>& b, int channel)
+    {
+        return a.getNumSamples() == b.getNumSamples()
+            && channel < a.getNumChannels() && channel < b.getNumChannels()
+            && std::memcmp (a.getReadPointer (channel), b.getReadPointer (channel),
+                            sizeof (float) * (size_t) a.getNumSamples()) == 0;
+    }
+
+    // n samples of every channel: a from startA against b from startB.
+    bool sameFrom (const juce::AudioBuffer<float>& a, int startA, const juce::AudioBuffer<float>& b, int startB, int n)
+    {
+        if (a.getNumChannels() != b.getNumChannels() || n <= 0 || startA < 0 || startB < 0
+            || startA + n > a.getNumSamples() || startB + n > b.getNumSamples())
+            return false;
+
+        for (int channel = 0; channel < a.getNumChannels(); ++channel)
+            if (std::memcmp (a.getReadPointer (channel, startA), b.getReadPointer (channel, startB),
+                             sizeof (float) * (size_t) n) != 0)
+                return false;
+
+        return true;
+    }
+
+    juce::AudioBuffer<float> sliceOf (const juce::AudioBuffer<float>& source, int start, int length)
+    {
+        juce::AudioBuffer<float> out (source.getNumChannels(), length);
+
+        for (int channel = 0; channel < source.getNumChannels(); ++channel)
+            out.copyFrom (channel, 0, source, channel, start, length);
+
+        return out;
+    }
+
+    // Seeded block lengths in 1 ... maxSize.
+    std::vector<int> randomBlockSequence (juce::int64 seed, int maxSize)
+    {
+        juce::Random random (seed);
+        std::vector<int> sizes;
+
+        for (int i = 0; i < 97; ++i)
+            sizes.push_back (1 + random.nextInt (maxSize));
+
+        return sizes;
+    }
+
+    // pattern > 0: that block size throughout. pattern == 0: the seeded random
+    // sequence (prepared at its largest block).
+    juce::AudioBuffer<float> renderPattern (juce::AudioProcessor& p, const juce::AudioBuffer<float>& input, int pattern)
+    {
+        if (pattern > 0)
+            return render (p, input, pattern, false);
+
+        return render (p, input, kSequenceMax, false, kRenderRate, {}, randomBlockSequence (0x5E0BE9, kSequenceMax));
+    }
+
+    juce::String patternName (int pattern)
+    {
+        return pattern > 0 ? "block " + juce::String (pattern) : juce::String ("random sequence");
+    }
+
+    //==========================================================================
+    // E. response (FUNC-01, FUNC-02)
+    //==========================================================================
+    void responseRows()
+    {
+        section ("E. engine response through the plugin (Phase 2.2: FUNC-01, FUNC-02)");
+
+        constexpr double limitDb = 0.01;
+        const float amplitudes[2] = { 1.0f, 0.5f };     // distinct, so a channel mix-up shows
+
+        // E1, E1n
+        {
+            const double rate = 48000.0;
+            const auto designer = designerFor (rate);
+            const auto hz = responseGrid (rate);
+
+            auto p = makeBands (2, 24, [] (int index)
+            {
+                return makeSpec (kBell, 40.0f * std::pow (400.0f, (float) index / 23.0f),
+                                 index % 2 == 0 ? 3.0f : -3.0f, 2.0f, 1, kStereo);
+            });
+
+            const auto full = renderImpulse (*p, 2, rate, amplitudes);
+            const auto fullMeasured = measureImpulse (full, amplitudes, rate, hz);
+            const auto fullScore = scoreChannels (fullMeasured, chainRefDb (*p, *designer, rate, hz));
+
+            row (full.ok() && activeBands (*p) == 24 && fullScore.within (limitDb),
+                 "E1 (i) 24 bells +-3 dB, Q 2, 48 kHz stereo: response vs the 24 closed forms <= 0.01 dB above -80 dB",
+                 "worst " + fmtG (fullScore.worst) + " dB over " + juce::String (fullScore.scored) + " points; " + describe (full));
+
+            // E1n: the comparison can see one missing band.
+            Tally control;
+            double smallestMiss = std::numeric_limits<double>::infinity();
+
+            for (int band = 1; band <= Processor::kNumBands; ++band)
+            {
+                const auto s = scoreChannels (fullMeasured, chainRefDb (*p, *designer, rate, hz, band));
+                control.check (s.misses (limitDb), "without band " + juce::String (band) + ": " + fmtG (s.worst) + " dB");
+                smallestMiss = juce::jmin (smallestMiss, s.worst);
+            }
+
+            // E1 (ii): each band disabled in turn.
+            Tally independent;
+            double worstPartial = 0.0;
+
+            for (int band = 1; band <= Processor::kNumBands; ++band)
+            {
+                setRaw (*p, bandId (band, "enabled"), 0.0f);
+
+                const auto partial = renderImpulse (*p, 2, rate, amplitudes);
+                const auto s = scoreChannels (measureImpulse (partial, amplitudes, rate, hz),
+                                              chainRefDb (*p, *designer, rate, hz));
+                const bool differs = ! sameImpulse (partial, full);
+
+                independent.check (partial.ok() && activeBands (*p) == 23 && differs && s.within (limitDb),
+                                   "band " + juce::String (band) + (differs ? "" : " (render unchanged)")
+                                       + ": " + fmtG (s.worst) + " dB, " + describe (partial));
+                worstPartial = juce::jmax (worstPartial, s.worst);
+
+                setRaw (*p, bandId (band, "enabled"), 1.0f);
+            }
+
+            row (independent.bad == 0 && independent.total == 24,
+                 "E1 (ii) each band disabled in turn: render differs from the full one, matches its 23-band closed form <= 0.01 dB",
+                 independent.detail() + "  worst " + fmtG (worstPartial) + " dB");
+
+            row (control.bad == 0 && control.total == 24,
+                 "E1n the full render against each 23-band closed form FAILS the 0.01 dB test (control fires)",
+                 control.detail() + "  smallest miss " + fmtG (smallestMiss) + " dB");
+        }
+
+        // E2, E2n (PLAN-2.2 P11)
+        {
+            struct Case { const char* name; BandSpec spec; };
+
+            const Case cases[] =
+            {
+                { "Bell 1 kHz +12 dB Q 1",              makeSpec (kBell,      1000.0f,  12.0f, 1.0f,  1, kStereo) },
+                { "Low Shelf 200 Hz +9 dB 24 dB/oct",   makeSpec (kLowShelf,  200.0f,    9.0f, 1.0f,  3, kStereo) },
+                { "High Shelf 8 kHz -12 dB 12 dB/oct",  makeSpec (kHighShelf, 8000.0f, -12.0f, 1.0f,  1, kStereo) },
+                { "Low Cut 80 Hz 48 dB/oct",            makeSpec (kLowCut,    80.0f,     0.0f, 1.0f,  5, kStereo) },
+                { "High Cut 6 kHz 96 dB/oct",           makeSpec (kHighCut,   6000.0f,   0.0f, 1.0f,  7, kStereo) },
+                { "Notch 1 kHz Q 10",                   makeSpec (kNotch,     1000.0f,   0.0f, 10.0f, 1, kStereo) },
+                { "Band Pass 500 Hz Q 2",               makeSpec (kBandPass,  500.0f,    0.0f, 2.0f,  1, kStereo) },
+                { "Tilt 1 kHz +6 dB 12 dB/oct",         makeSpec (kTilt,      1000.0f,   6.0f, 1.0f,  1, kStereo) }
+            };
+
+            Tally higher;
+
+            for (const double rate : { 44100.0, 96000.0 })
+            {
+                const auto designer = designerFor (rate);
+                const auto hz = responseGrid (rate);
+
+                for (const int channels : { 1, 2 })
+                {
+                    Tally tally;
+                    double worst = 0.0;
+                    const juce::String where = fmtG (rate / 1000.0, 4) + " kHz " + (channels == 1 ? "mono" : "stereo");
+
+                    for (const auto& c : cases)
+                    {
+                        auto p = makeBands (channels, 1, [&c] (int) { return c.spec; });
+
+                        const auto ir = renderImpulse (*p, channels, rate, amplitudes);
+                        const auto measured = measureImpulse (ir, amplitudes, rate, hz);
+                        const auto s = scoreChannels (measured, chainRefDb (*p, *designer, rate, hz));
+
+                        tally.check (ir.ok() && activeBands (*p) == 1 && s.within (limitDb),
+                                     juce::String (c.name) + ": " + fmtG (s.worst) + " dB, " + describe (ir));
+                        worst = juce::jmax (worst, s.worst);
+
+                        // The figures the summary needs: worst error per type, rate and layout.
+                        std::printf ("      E2 %-16s %-34s worst %-9s dB  (%d points above -80 dB, %s)\n",
+                                     where.toRawUTF8(), c.name, fmtG (s.worst).toRawUTF8(), s.scored,
+                                     describe (ir).toRawUTF8());
+
+                        // E2n: the bell against the same bell 1 % higher in frequency.
+                        if (&c == &cases[0])
+                        {
+                            const auto h = scoreChannels (measured, chainRefDb (*p, *designer, rate, hz, 0, 1.01f));
+                            higher.check (h.misses (limitDb), where + ": " + fmtG (h.worst) + " dB");
+                        }
+                    }
+
+                    row (tally.bad == 0 && tally.total == 8,
+                         "E2 " + where + ": 8 types vs the closed form <= 0.01 dB above -80 dB; tail >= 140 dB down",
+                         tally.detail() + "  worst " + fmtG (worst) + " dB");
+                }
+            }
+
+            row (higher.bad == 0 && higher.total == 4,
+                 "E2n the bell against the same bell 1 % higher in frequency FAILS the 0.01 dB test (control fires)",
+                 higher.detail());
+        }
+    }
+
+    //==========================================================================
+    // N. above Nyquist (DSP-06)
+    //==========================================================================
+    void nyquistRows()
+    {
+        section ("N. above Nyquist (Phase 2.2: DSP-06)");
+
+        // N1
+        {
+            const double rate = 44100.0;
+            const auto designer = designerFor (rate);
+            const auto hz = responseGrid (rate);
+            const float amplitude[1] = { 1.0f };
+
+            Tally tally;
+            double worst = 0.0;
+            int fewestPoints = std::numeric_limits<int>::max();
+
+            for (int type = 0; type < 8; ++type)
+                for (const float freq : { 25000.0f, 30000.0f })
+                    for (const float gain : { 12.0f, -12.0f })
+                    {
+                        const float q = (type == kNotch || type == kBandPass) ? 0.5f : 1.0f;
+                        auto p = makeBands (1, 1, [&] (int) { return makeSpec (type, freq, gain, q, 1, kStereo); });
+
+                        const auto ir = renderImpulse (*p, 1, rate, amplitude);
+                        const auto s = scoreChannels (measureImpulse (ir, amplitude, rate, hz),
+                                                      chainRefDb (*p, *designer, rate, hz));
+
+                        tally.check (ir.ok() && activeBands (*p) == 1 && s.within (0.01),
+                                     juce::String (kTypeNames[type]) + " " + fmtG ((double) freq, 5) + " Hz "
+                                         + fmtG ((double) gain) + " dB: " + fmtG (s.worst) + " dB, "
+                                         + juce::String (s.scored) + " points, " + describe (ir));
+                        worst = juce::jmax (worst, s.worst);
+                        fewestPoints = juce::jmin (fewestPoints, s.scored);
+                    }
+
+            row (tally.bad == 0 && tally.total == 32,
+                 "N1 44.1 kHz mono: 8 types at 25 kHz and 30 kHz, +-12 dB, 12 dB/oct: finite; closed form <= 0.01 dB above -80 dB",
+                 tally.detail() + "  worst " + fmtG (worst) + " dB; fewest points scored " + juce::String (fewestPoints));
+        }
+
+        // N2
+        {
+            Tally tally;
+            juce::String figures;
+
+            for (const double rate : { 22050.0, 44100.0 })
+            {
+                const int length = (int) std::lround (rate * 5.0);
+                auto input = makeNoiseAt (2, length, 0x0E2A0002, kNoise12);
+
+                for (int channel = 0; channel < 2; ++channel)
+                    input.clear (channel, length / 2, length - length / 2);     // noise, then silence
+
+                auto p = makeBands (2, 24, [] (int index)
+                {
+                    return makeSpec (index % 8, 11000.0f * std::pow (30000.0f / 11000.0f, (float) index / 23.0f),
+                                     ((index + index / 8) % 2 == 0) ? 6.0f : -6.0f, 1.0f, (index * 3) % 8, kStereo);
+                });
+
+                const auto output = render (*p, input, 512, false, rate);
+
+                const bool finite = allFinite (output);
+                const double inPeak = (double) input.getMagnitude (0, length);
+                const double outPeak = finite ? (double) output.getMagnitude (0, length) : 0.0;
+                const double peakDb = 20.0 * std::log10 (juce::jmax (outPeak, 1.0e-300) / inPeak);
+                const bool changed = ! sameAudio (output, input);
+
+                tally.check (finite && changed && activeBands (*p) == 24 && peakDb <= 40.0,
+                             fmtG (rate / 1000.0, 5) + " kHz" + (finite ? "" : " NOT FINITE")
+                                 + (changed ? "" : " (output equals input)") + " peak " + fmtG (peakDb, 4) + " dB");
+
+                figures += (figures.isEmpty() ? "" : "; ") + fmtG (rate / 1000.0, 5) + " kHz peak "
+                         + fmtG (peakDb, 4) + " dB re input";
+            }
+
+            row (tally.bad == 0 && tally.total == 2,
+                 "N2 24 mixed bands at 11 - 30 kHz, +-6 dB, 22.05 and 44.1 kHz, 5 s noise then silence: finite; peak <= +40 dB re input",
+                 tally.detail() + "  " + figures);
+        }
+    }
+
+    //==========================================================================
+    // T. transparency (G4 a, b, c, g; mono placement)
+    //==========================================================================
+    struct MsFigures
+    {
+        double untouchedDb = 0.0;   // the component the bands must leave, re the larger peak
+        double touchedDb = 0.0;     // the component they act on, re the larger peak
+        double outPeakDb = 0.0;     // output peak re input peak
+    };
+
+    // sideBands: the bands act on the side, so the mid is the untouched one.
+    MsFigures msFigures (const juce::AudioBuffer<float>& in, const juce::AudioBuffer<float>& out, bool sideBands)
+    {
+        double inPeak = 0.0, outPeak = 0.0, midError = 0.0, sideError = 0.0;
+
+        for (int i = 0; i < in.getNumSamples(); ++i)
+        {
+            const double inL = (double) in.getSample (0, i),   inR = (double) in.getSample (1, i);
+            const double outL = (double) out.getSample (0, i), outR = (double) out.getSample (1, i);
+
+            inPeak = juce::jmax (inPeak, std::abs (inL), std::abs (inR));
+            outPeak = juce::jmax (outPeak, std::abs (outL), std::abs (outR));
+
+            const double mid = std::abs (0.5 * (outL + outR) - 0.5 * (inL + inR));
+            const double side = std::abs (0.5 * (outL - outR) - 0.5 * (inL - inR));
+
+            // A NaN must not be lost in a max.
+            if (! (mid <= midError))
+                midError = mid;
+
+            if (! (side <= sideError))
+                sideError = side;
+        }
+
+        const double reference = juce::jmax (inPeak, outPeak);
+        const double midDb = 20.0 * std::log10 (juce::jmax (midError, 1.0e-300) / reference);
+        const double sideDb = 20.0 * std::log10 (juce::jmax (sideError, 1.0e-300) / reference);
+
+        MsFigures f;
+        f.untouchedDb = std::isnan (midError) || std::isnan (sideError) ? std::numeric_limits<double>::quiet_NaN()
+                                                                        : (sideBands ? midDb : sideDb);
+        f.touchedDb = sideBands ? sideDb : midDb;
+        f.outPeakDb = 20.0 * std::log10 (juce::jmax (outPeak, 1.0e-300) / inPeak);
+        return f;
+    }
+
+    void transparencyRows()
+    {
+        section ("T. transparency (Phase 2.2: G4 a, b, c, g; mono placement)");
+
+        // Block sizes 1, 16, 64, 512, 1024, 4096 and the seeded random sequence (0).
+        const int t1Patterns[] = { 1, 16, 64, 512, 1024, 4096, 0 };
+
+        // T1a
+        for (const int channels : { 1, 2 })
+        {
+            const auto input = makeNoiseTail (channels, 0x71A00000 + channels);
+
+            Tally tally;
+            tally.check (hasDenormalTail (input), "stimulus: the tail is not denormal non-zero, or this thread flushes to zero");
+
+            for (const int pattern : t1Patterns)
+            {
+                auto p = make();
+                const bool layoutOk = setLayout (*p, channels);
+
+                setAllRandom (*p, 0x71A05EED + pattern);
+                disableEveryBand (*p);
+                setNormalised (*p, "bypass", 0.0f);         // the engine path, not the hard bypass
+                setRaw (*p, "output_gain", 0.0f);
+
+                const bool stimulusOk = countNonDefault (*p) > kMinNonDefault && enabledBands (*p) == 0
+                                     && sameBits (rawOf (*p, "output_gain"), 0.0f) && rawOf (*p, "bypass") < 0.5f;
+
+                const auto output = renderPattern (*p, input, pattern);
+
+                tally.check (layoutOk && stimulusOk && sameAudio (output, input),
+                             patternName (pattern) + (layoutOk ? "" : " (layout refused)")
+                                 + (stimulusOk ? "" : " (stimulus not applied)"));
+            }
+
+            row (tally.bad == 0 && tally.total == 8,
+                 juce::String ("T1a ") + (channels == 1 ? "mono" : "stereo")
+                     + ": no band enabled, the rest random, output 0 dB, noise + denormal tail: out memcmp-equal to in (7 block patterns)",
+                 tally.detail());
+        }
+
+        // T1b, T1bn
+        {
+            const auto input = makeNoiseTail (2, 0x71B00002);
+
+            Tally tally, control;
+            tally.check (hasDenormalTail (input), "stimulus: the tail is not denormal non-zero, or this thread flushes to zero");
+
+            for (const int placement : { kLeft, kRight })
+            {
+                const int touched = placement == kLeft ? 0 : 1;
+                const juce::String side = kPlacementNames[placement];
+
+                for (const int pattern : t1Patterns)
+                {
+                    auto p = makeBands (2, 6, [placement] (int index) { return channelBandSpec (index, placement); });
+                    const auto output = renderPattern (*p, input, pattern);
+
+                    const bool untouchedSame = sameChannel (output, input, 1 - touched);
+                    const bool touchedDiffers = ! sameChannel (output, input, touched);
+
+                    tally.check (untouchedSame && touchedDiffers,
+                                 side + " bands, " + patternName (pattern)
+                                     + (untouchedSame ? "" : ": the other channel changed")
+                                     + (touchedDiffers ? "" : ": the band's channel did not change"));
+
+                    // T1bn: the same six bands on Stereo.
+                    auto q = makeBands (2, 6, [] (int index) { return channelBandSpec (index, kStereo); });
+                    const auto both = renderPattern (*q, input, pattern);
+
+                    control.check (! sameChannel (both, input, 1 - touched),
+                                   "Stereo bands, " + patternName (pattern) + ": channel "
+                                       + juce::String (1 - touched) + " still memcmp-equal");
+                }
+            }
+
+            row (tally.bad == 0 && tally.total == 15,
+                 "T1b 6 Left bands, noise + denormal tail: right channel memcmp-equal, left differs; and the converse (7 block patterns)",
+                 tally.detail());
+
+            row (control.bad == 0 && control.total == 14,
+                 "T1bn the same bands on Stereo FAIL the untouched-channel comparison (control fires)",
+                 control.detail());
+        }
+
+        // T1c, T1cn
+        {
+            constexpr int length = 131072;
+            const auto input = makeNoiseAt (2, length, 0x71C00002, kNoise12);
+
+            struct Config { const char* name; int numBands; float gainDb; int placement; };
+
+            const Config configs[] =
+            {
+                { "24 Mid bells +12 dB",  24, 12.0f, kMid },
+                { "1 Mid bell +30 dB",    1,  30.0f, kMid },
+                { "24 Side bells +12 dB", 24, 12.0f, kSide },
+                { "1 Side bell +30 dB",   1,  30.0f, kSide }
+            };
+
+            Tally tally, control;
+
+            for (const auto& c : configs)
+            {
+                const bool sideBands = c.placement == kSide;
+
+                auto p = makeBands (2, c.numBands, [&c] (int index) { return msBellSpec (index, c.numBands, c.gainDb, c.placement); });
+                const auto f = msFigures (input, render (*p, input, 512, false), sideBands);
+
+                tally.check (f.untouchedDb <= -130.0 && f.touchedDb > -40.0,
+                             juce::String (c.name) + ": untouched " + fmtG (f.untouchedDb, 4) + " dB, touched "
+                                 + fmtG (f.touchedDb, 4) + " dB");
+
+                info (juce::String ("T1c ") + c.name + ": " + (sideBands ? "mid" : "side") + " error "
+                          + fmtG (f.untouchedDb, 4) + " dB re the larger peak (limit -130); "
+                          + (sideBands ? "side" : "mid") + " change " + fmtG (f.touchedDb, 4)
+                          + " dB (must exceed -40); output peak " + fmtG (f.outPeakDb, 4) + " dB re input");
+
+                // T1cn: the same bells on Left.
+                auto q = makeBands (2, c.numBands, [&c] (int index) { return msBellSpec (index, c.numBands, c.gainDb, kLeft); });
+                const auto g = msFigures (input, render (*q, input, 512, false), sideBands);
+
+                control.check (g.untouchedDb > -130.0,
+                               juce::String (c.name) + " moved to Left: " + fmtG (g.untouchedDb, 4) + " dB");
+
+                info (juce::String ("T1cn ") + c.name + " moved to Left: " + (sideBands ? "mid" : "side") + " error "
+                          + fmtG (g.untouchedDb, 4) + " dB re the larger peak");
+            }
+
+            row (tally.bad == 0 && tally.total == 4,
+                 "T1c Mid bells leave the side, Side bells leave the mid: <= -130 dB re max (input peak, output peak); touched > -40 dB",
+                 tally.detail());
+
+            row (control.bad == 0 && control.total == 4,
+                 "T1cn the same bells on Left FAIL the untouched-component test (control fires)",
+                 control.detail());
+        }
+
+        // T1g
+        {
+            const int patterns[] = { 32, 64, 512, 2048, 1, 0 };
+            const auto input = makeNoiseAt (2, kNoiseLength + 777, 0x71600002, kNoise12);
+
+            juce::AudioBuffer<float> reference;
+            Tally tally;
+            double peakDb = 0.0;
+
+            for (const int pattern : patterns)
+            {
+                auto p = makeBands (2, 24, mixedSpec);
+                const auto output = renderPattern (*p, input, pattern);
+
+                if (reference.getNumSamples() == 0)
+                {
+                    reference = output;
+
+                    const double outPeak = (double) output.getMagnitude (0, output.getNumSamples());
+                    peakDb = 20.0 * std::log10 (juce::jmax (outPeak, 1.0e-300) / (double) kNoise12);
+
+                    tally.check (allFinite (output) && outPeak > 0.0 && ! sameAudio (output, input) && activeBands (*p) == 24,
+                                 patternName (pattern) + ": the setting does not act on the audio");
+                }
+                else
+                {
+                    tally.check (sameAudio (output, reference), patternName (pattern) + " differs from block 32");
+                }
+            }
+
+            row (tally.bad == 0 && tally.total == 6,
+                 "T1g 24-band mixed setting (all types, slopes, placements; +-6 dB): blocks 32 / 64 / 512 / 2048 / 1 / random sequence bit-identical",
+                 tally.detail() + "  output peak " + fmtG (peakDb, 4) + " dB re the noise peak");
+        }
+
+        // T1m
+        {
+            const auto input = makeNoiseAt (1, kNoiseLength, 0x71D00001, kNoise12);
+
+            juce::AudioBuffer<float> stereoPlacement;
+            Tally tally;
+
+            for (int placement = 0; placement < 5; ++placement)
+            {
+                auto p = makeBands (1, 1, [placement] (int) { return makeSpec (kBell, 1000.0f, 6.0f, 1.0f, 1, placement); });
+                const auto output = render (*p, input, 512, false);
+
+                if (placement == kStereo)
+                    stereoPlacement = output;
+
+                const bool placementSet = sameBits (rawOf (*p, bandId (1, "placement")), (float) placement);
+                const bool differs = ! sameAudio (output, input);
+                const bool sameAsStereo = sameAudio (output, stereoPlacement);
+
+                tally.check (placementSet && differs && sameAsStereo,
+                             juce::String (kPlacementNames[placement]) + (placementSet ? "" : " (placement not applied)")
+                                 + (differs ? "" : " (output equals input)")
+                                 + (sameAsStereo ? "" : " (differs from the Stereo-placement render)"));
+            }
+
+            row (tally.bad == 0 && tally.total == 5,
+                 "T1m mono layout, one band per placement value: output differs from input, memcmp-equal to the Stereo-placement render",
+                 tally.detail());
+        }
+    }
+
+    //==========================================================================
+    // Z. latency and the first sample (G8)
+    //==========================================================================
+    struct Coverage
+    {
+        unsigned types = 0, slopes = 0, placements = 0;
+
+        bool complete() const   { return types == 0xFFu && slopes == 0xFFu && placements == 0x1Fu; }
+    };
+
+    // 1 ... 24 bands on a seeded random subset: every type, slope and placement;
+    // frequency and Q over their full ranges; gains +-12 dB (PLAN-2.2 P12).
+    void applyRandomBands (juce::AudioProcessor& p, juce::int64 seed, Coverage& coverage)
+    {
+        juce::Random random (seed);
+        int order[Processor::kNumBands];
+
+        for (int i = 0; i < Processor::kNumBands; ++i)
+            order[i] = i + 1;
+
+        for (int i = Processor::kNumBands - 1; i > 0; --i)
+            std::swap (order[i], order[random.nextInt (i + 1)]);
+
+        const int numBands = 1 + random.nextInt (Processor::kNumBands);
+
+        for (int k = 0; k < numBands; ++k)
+        {
+            BandSpec s;
+            s.type = random.nextInt (8);
+            s.slope = random.nextInt (8);
+            s.placement = random.nextInt (5);
+            s.freq = 10.0f * std::pow (3000.0f, random.nextFloat());
+            s.q = 0.025f * std::pow (1600.0f, random.nextFloat());
+            s.gain = -12.0f + 24.0f * random.nextFloat();
+            setBand (p, order[k], s);
+
+            coverage.types |= 1u << s.type;
+            coverage.slopes |= 1u << s.slope;
+            coverage.placements |= 1u << s.placement;
+        }
+    }
+
+    constexpr int kImpulseIndex = 37;
+
+    struct FirstSample
+    {
+        int firstNonZero[2] = { -1, -1 };
+        double predicted[2] = { 0.0, 0.0 };
+    };
+
+    /** One Z1 case: an impulse at index 37 (1.0 on L, 0.5 on R), blocks of 16
+        so the impulse is not in the first block. Checks latency 0, exact
+        silence before the impulse, and the output at the impulse index
+        against the predicted first-sample gain: per-band
+        Band::firstSampleGain() scalars with Router::applyFirstSample applied
+        in band index order over the active bands, within 1e-6 relative where
+        the prediction is at least 1e-30 in magnitude. */
+    FirstSample checkFirstSample (Processor& p, const eq::Designer& designer, double rate, int channels, int length,
+                                  const juce::String& label, Tally& tally, int& compared)
+    {
+        const float amplitudes[2] = { 1.0f, 0.5f };
+
+        juce::AudioBuffer<float> input (channels, length);
+        input.clear();
+
+        for (int channel = 0; channel < channels; ++channel)
+            input.setSample (channel, kImpulseIndex, amplitudes[channel]);
+
+        const auto output = render (p, input, 16, false, rate);
+
+        double l = (double) amplitudes[0];
+        double r = (double) amplitudes[1];
+
+        for (int band = 1; band <= Processor::kNumBands; ++band)
+        {
+            const auto in = inputOf (p, band);
+
+            if (! in.active)
+                continue;
+
+            eq::BandDesign design {};
+            designer.design (in.settings, design);
+
+            eq::Band engineBand;
+            engineBand.setDesign (design);
+            eq::Router::applyFirstSample (engineBand.firstSampleGain(), in.placement, channels == 2, l, r);
+        }
+
+        FirstSample result;
+        result.predicted[0] = l;
+        result.predicted[1] = r;
+
+        bool silentBefore = true, gainOk = true;
+        juce::String note;
+
+        for (int channel = 0; channel < channels; ++channel)
+        {
+            const float* y = output.getReadPointer (channel);
+
+            for (int i = 0; i < kImpulseIndex; ++i)
+                if (y[i] != 0.0f)
+                    silentBefore = false;
+
+            for (int i = 0; i < length; ++i)
+                if (y[i] != 0.0f)
+                {
+                    result.firstNonZero[channel] = i;
+                    break;
+                }
+
+            const double predicted = result.predicted[channel];
+
+            if (std::abs (predicted) >= 1.0e-30)
+            {
+                ++compared;
+                const double got = (double) y[kImpulseIndex];
+
+                if (! (std::abs (got - predicted) <= 1.0e-6 * std::abs (predicted)))
+                {
+                    gainOk = false;
+                    note += " ch " + juce::String (channel) + " predicted " + fmtJ (predicted) + " got " + fmtJ (got);
+                }
+            }
+        }
+
+        const int latency = p.getLatencySamples();
+
+        tally.check (latency == 0 && silentBefore && gainOk,
+                     label + (latency == 0 ? juce::String() : " latency " + juce::String (latency))
+                         + (silentBefore ? "" : " output before the impulse") + note);
+
+        return result;
+    }
+
+    void latencyRows()
+    {
+        section ("Z. latency and first sample (Phase 2.2: G8)");
+
+        Tally tally;
+        Coverage coverage;
+        int compared = 0;
+
+        for (const double rate : { 44100.0, 96000.0, 192000.0 })
+        {
+            const auto designer = designerFor (rate);
+
+            for (int config = 0; config < 20; ++config)
+                for (const int channels : { 1, 2 })
+                {
+                    auto p = makeBands (channels, 0, mixedSpec);
+                    applyRandomBands (*p, 0x21000000 + config, coverage);
+
+                    checkFirstSample (*p, *designer, rate, channels, 256,
+                                      "config " + juce::String (config) + " " + fmtG (rate / 1000.0, 4) + " kHz "
+                                          + (channels == 1 ? "mono" : "stereo") + " (" + juce::String (activeBands (*p)) + " bands)",
+                                      tally, compared);
+                }
+        }
+
+        // The three forced cases of RESEARCH-2.2 Q3: the first-sample gain is
+        // below the smallest float (2.0e-47, 1.2e-57) or a float denormal
+        // (1.2e-41), so the float output starts late. Latency and the silence
+        // before the impulse are still checked; the index is INFO.
+        struct Forced { const char* name; float freq; double rate; };
+
+        const Forced forced[] =
+        {
+            { "High Cut 10 Hz 96 dB/oct Q 0.025, 44.1 kHz", 10.0f,  44100.0 },
+            { "High Cut 10 Hz 96 dB/oct Q 0.025, 192 kHz",  10.0f,  192000.0 },
+            { "High Cut 100 Hz 96 dB/oct Q 0.025, 192 kHz", 100.0f, 192000.0 }
+        };
+
+        juce::StringArray forcedLines;
+
+        for (const auto& f : forced)
+        {
+            const auto designer = designerFor (f.rate);
+            juce::String line = juce::String ("Z1 forced, ") + f.name + " (impulse at index "
+                              + juce::String (kImpulseIndex) + "): first non-zero index";
+
+            for (const int channels : { 1, 2 })
+            {
+                auto p = makeBands (channels, 1, [&f] (int) { return makeSpec (kHighCut, f.freq, 0.0f, 0.025f, 7, kStereo); });
+
+                const auto first = checkFirstSample (*p, *designer, f.rate, channels, kImpulseIndex + 1024,
+                                                     juce::String (f.name) + (channels == 1 ? " mono" : " stereo"),
+                                                     tally, compared);
+
+                if (channels == 1)
+                    line += " mono " + juce::String (first.firstNonZero[0]) + " (predicted first-sample gain "
+                          + fmtG (first.predicted[0]) + ");";
+                else
+                    line += " stereo L " + juce::String (first.firstNonZero[0]) + ", R " + juce::String (first.firstNonZero[1]);
+            }
+
+            forcedLines.add (line);
+        }
+
+        row (tally.bad == 0 && tally.total == 126 && compared > 0 && coverage.complete(),
+             "Z1 20 random configurations x 44.1 / 96 / 192 kHz x mono / stereo + 3 forced High Cuts: latency 0, silent before index 37, first-sample gain within 1e-6",
+             tally.detail() + "  " + juce::String (compared) + " gains compared (predicted >= 1e-30)"
+                 + (coverage.complete() ? "" : "  (the draw missed a type, slope or placement)"));
+
+        for (const auto& line : forcedLines)
+            info (line + "  (-1 = no non-zero sample in the render)");
+    }
+
+    //==========================================================================
+    // A. allocation (G6, static parameters)
+    //==========================================================================
+   #if defined (__APPLE__)
+    // volatile: the compiler knows the allocator as a builtin that cannot touch
+    // globals and would otherwise fold "armed = true; ...; armed = false".
+    volatile bool allocArmed = false;
+    volatile int allocCount = 0;
+    volatile int freeCount = 0;
+    pthread_t allocThread;
+
+    void countAllocation (uint32_t type, uintptr_t, uintptr_t, uintptr_t, uintptr_t, uint32_t)
+    {
+        if (! allocArmed || pthread_equal (pthread_self(), allocThread) == 0)
+            return;
+
+        if ((type & 2u) != 0)       // MALLOC_LOG_TYPE_ALLOCATE
+            allocCount = allocCount + 1;
+
+        if ((type & 4u) != 0)       // MALLOC_LOG_TYPE_DEALLOCATE
+            freeCount = freeCount + 1;
+    }
+
+    // 24 bands at 96 dB/oct: the five slope types, every placement, gains +-3 dB.
+    BandSpec allocSpec (int index)
+    {
+        static const int types[5] = { kLowShelf, kHighShelf, kLowCut, kHighCut, kTilt };
+
+        BandSpec s;
+        s.type = types[index % 5];
+        s.slope = 7;
+        s.placement = (index + index / 5) % 5;
+        s.freq = 60.0f * std::pow (200.0f, (float) ((index * 7) % 24) / 23.0f);
+        s.gain = (index % 2 == 0) ? 3.0f : -3.0f;
+        s.q = 1.0f;
+
+        if (s.type == kLowCut)
+            s.freq = 30.0f + 10.0f * (float) (index / 5);
+
+        if (s.type == kHighCut)
+            s.freq = 12000.0f + 1500.0f * (float) (index / 5);
+
+        return s;
+    }
+   #endif
+
+    struct AllocResult
+    {
+        bool available = false;
+        int allocs = 0, frees = 0;
+        int probeAllocs = 0, probeFrees = 0;
+        int blocks = 0;
+        bool audioOk = false;
+    };
+
+    /** The logger counts on this thread (the one that calls processBlock) and
+        only while armed; it is armed around processBlock alone. Every
+        parameter write happens between windows: a write notifies listeners
+        and may allocate legitimately. A separate window with a deliberate
+        allocation proves the hook live. `plant` puts one deliberate
+        allocation inside a processBlock window (A1n). */
+    AllocResult runAllocWindow (bool plant)
+    {
+        AllocResult result;
+
+       #if defined (__APPLE__)
+        constexpr int blockSize = 512;
+
+        auto p = makeBands (2, 24, allocSpec);
+        const auto noise = makeNoiseAt (2, blockSize, 0x0A110C8, kNoise12);
+        juce::AudioBuffer<float> block (2, blockSize);
+        juce::MidiBuffer midi;
+
+        p->prepareToPlay (kRenderRate, blockSize);
+
+        malloc_logger_t* const previous = malloc_logger;
+        allocThread = pthread_self();
+        allocCount = 0;
+        freeCount = 0;
+        malloc_logger = countAllocation;
+
+        // Liveness: the hook must see a deliberate allocation and its release.
+        allocArmed = true;
+        {
+            void* volatile probe = std::malloc (64);
+            std::free (probe);
+        }
+        allocArmed = false;
+        result.probeAllocs = allocCount;
+        result.probeFrees = freeCount;
+        allocCount = 0;
+        freeCount = 0;
+
+        bool plantNext = plant;
+
+        const auto armedBlock = [&]()
+        {
+            for (int channel = 0; channel < 2; ++channel)
+                block.copyFrom (channel, 0, noise, channel, 0, blockSize);      // outside the window
+
+            allocArmed = true;
+            p->processBlock (block, midi);
+
+            if (plantNext)
+            {
+                void* volatile planted = std::malloc (64);
+                std::free (planted);
+            }
+
+            allocArmed = false;
+            plantNext = false;
+            ++result.blocks;
+        };
+
+        // The write is outside the window; the block that acts on it is inside.
+        const auto change = [&] (const juce::String& id, float raw)
+        {
+            setRaw (*p, id, raw);
+            armedBlock();
+        };
+
+        armedBlock();                                   // the first block after prepareToPlay (24 designs)
+        const bool firstActs = ! sameAudio (block, noise);
+
+        for (int i = 0; i < 200; ++i)                   // settled
+            armedBlock();
+
+        change (bandId (1, "gain"), -2.0f);             // continuous
+        change (bandId (1, "freq"), 180.0f);
+        change (bandId (1, "q"), 2.5f);
+        change ("gain_scale", 80.0f);                   // continuous, every band redesigned
+        change (bandId (2, "type"), (float) kBell);     // structural: type
+        change (bandId (6, "slope"), 3.0f);             // structural: slope
+        change (bandId (7, "placement"), (float) kStereo);  // structural: placement
+        change (bandId (3, "enabled"), 0.0f);           // enable off / on
+        change (bandId (3, "enabled"), 1.0f);
+        change (bandId (4, "bypass"), 1.0f);            // band bypass on / off
+        change (bandId (4, "bypass"), 0.0f);
+        change ("bypass", 1.0f);                        // global bypass on / off
+        const bool bypassPasses = sameAudio (block, noise);
+        change ("bypass", 0.0f);
+        const bool resumed = ! sameAudio (block, noise);
+
+        malloc_logger = previous;
+        p->releaseResources();
+
+        result.available = true;
+        result.allocs = allocCount;
+        result.frees = freeCount;
+        result.audioOk = firstActs && bypassPasses && resumed;
+       #else
+        juce::ignoreUnused (plant);
+       #endif
+
+        return result;
+    }
+
+    void allocationRows()
+    {
+        section ("A. allocation (Phase 2.2: G6, static parameters)");
+
+        const AllocResult clean = runAllocWindow (false);
+
+        if (! clean.available)
+        {
+            info ("A1 allocation gate SKIPPED: no malloc_logger on this platform");
+            info ("A1n allocation control SKIPPED: no malloc_logger on this platform");
+            return;
+        }
+
+        const bool hookLive = clean.probeAllocs >= 1 && clean.probeFrees >= 1;
+
+        row (hookLive && clean.audioOk && clean.allocs == 0 && clean.frees == 0,
+             "A1 processBlock, 24 bands x 96 dB/oct: first block, 200 settled, the block after each kind of change: 0 allocations, 0 frees",
+             juce::String (clean.allocs) + " allocations, " + juce::String (clean.frees) + " frees in "
+                 + juce::String (clean.blocks) + " windows (malloc_logger, this thread); hook "
+                 + (hookLive ? "live" : "DEAD") + " (probe: " + juce::String (clean.probeAllocs) + " / "
+                 + juce::String (clean.probeFrees) + ")" + (clean.audioOk ? "" : "; the engine did not act as expected"));
+
+        const AllocResult planted = runAllocWindow (true);
+
+        row (planted.allocs >= 1 && planted.frees >= 1,
+             "A1n a planted allocation inside the processBlock window is counted (control fires)",
+             juce::String (planted.allocs) + " allocations, " + juce::String (planted.frees) + " frees");
+    }
+
+    //==========================================================================
+    // K, H, U, V. host block size and the 2.2 state rules
+    //==========================================================================
+    // Gain in dB of a steady tone over [start, start + length): the output's
+    // single-bin projection over the input's. length must hold whole cycles.
+    double toneGainDb (const juce::AudioBuffer<float>& input, const juce::AudioBuffer<float>& output,
+                       int start, int length, double hz, double rate)
+    {
+        double inRe = 0.0, inIm = 0.0, outRe = 0.0, outIm = 0.0;
+
+        for (int i = 0; i < length; ++i)
+        {
+            const double phase = 2.0 * eq::pi * hz * (double) (start + i) / rate;
+            const double c = std::cos (phase), s = std::sin (phase);
+            const double x = (double) input.getSample (0, start + i);
+            const double y = (double) output.getSample (0, start + i);
+
+            inRe += x * c;
+            inIm -= x * s;
+            outRe += y * c;
+            outIm -= y * s;
+        }
+
+        return eq::powerToDb ((outRe * outRe + outIm * outIm) / (inRe * inRe + inIm * inIm));
+    }
+
+    struct EditResult
+    {
+        bool identical = false;     // the render with the edit equals the render without
+        bool applied = false;       // the raw value did change
+        bool audible = false;       // the band acts on the audio at all
+    };
+
+    // One band; the same input rendered without and with one parameter edit
+    // before block 10 (blocks of 512).
+    EditResult renderWithEdit (int channels, const BandSpec& spec, const char* suffix, float newRaw)
+    {
+        const auto input = makeNoiseAt (channels, 12000, 0x0E3A0000 + channels, kNoise12);
+        const auto id = bandId (1, suffix);
+
+        auto a = makeBands (channels, 1, [&spec] (int) { return spec; });
+        auto b = makeBands (channels, 1, [&spec] (int) { return spec; });
+
+        const auto plain = render (*a, input, 512, false);
+        const auto edited = render (*b, input, 512, false, kRenderRate, [&] (BlockInfo& current)
+        {
+            if (current.index == 10)
+                setRaw (*b, id, newRaw);
+        });
+
+        EditResult result;
+        result.identical = sameAudio (plain, edited);
+        result.applied = ! sameBits (rawOf (*a, id), rawOf (*b, id));
+        result.audible = ! sameAudio (plain, input);
+        return result;
+    }
+
+    void blockAndStateRows()
+    {
+        section ("K / H / U / V. host block size and the 2.2 state rules");
+
+        // K1
+        {
+            const auto input = makeNoiseAt (2, 17000, 0x4B100002, kNoise12);
+
+            auto a = makeBands (2, 24, mixedSpec);
+            auto b = makeBands (2, 24, mixedSpec);
+
+            const auto oversized = render (*a, input, 1024, false, kRenderRate, {}, {}, 256);
+            const auto prepared = render (*b, input, 256, false);
+            const bool acts = ! sameAudio (prepared, input);
+
+            row (acts && sameAudio (oversized, prepared),
+                 "K1 prepare 256, feed 1024-sample blocks, 24-band setting: bit-identical to the same input in 256-sample blocks",
+                 acts ? juce::String() : juce::String ("the setting does not act on the audio"));
+        }
+
+        // H1
+        {
+            constexpr int blockSize = 512, firstBypassed = 10, firstResumed = 20;
+            const auto input = makeNoiseTail (2, 0x48100002);       // 36 blocks of 512
+            const int total = input.getNumSamples();
+            const int bypassAt = firstBypassed * blockSize;
+            const int resumeAt = firstResumed * blockSize;
+
+            auto steady = makeBands (2, 24, mixedSpec);
+            const auto steadyOut = render (*steady, input, blockSize, false);
+
+            // (i) the buffer is untouched
+            Tally untouched;
+            untouched.check (hasDenormalTail (input), "stimulus: the tail is not denormal non-zero, or this thread flushes to zero");
+            untouched.check (! sameAudio (steadyOut, input) && activeBands (*steady) == 24, "control: with bypass off the 24 bands do not act");
+
+            {
+                auto p = makeBands (2, 24, mixedSpec);
+                setNormalised (*p, "bypass", 1.0f);
+                untouched.check (sameAudio (render (*p, input, blockSize, false), input), "bypass on, processBlock");
+
+                auto q = makeBands (2, 24, mixedSpec);
+                untouched.check (sameAudio (render (*q, input, blockSize, true), input), "processBlockBypassed");
+            }
+
+            row (untouched.bad == 0 && untouched.total == 4,
+                 "H1 (i) 24 bands enabled, noise + denormal tail: bypass on via processBlock, and processBlockBypassed: out memcmp-equal to in",
+                 untouched.detail());
+
+            // (ii) the state was cleared
+            auto fresh = makeBands (2, 24, mixedSpec);
+            const auto freshOut = render (*fresh, sliceOf (input, resumeAt, total - resumeAt), blockSize, false);
+
+            Tally resumed;
+            resumed.check (! sameFrom (steadyOut, resumeAt, freshOut, 0, total - resumeAt),
+                           "control: an uninterrupted render equals a fresh one (state does not matter)");
+
+            for (const bool viaParameter : { true, false })
+            {
+                auto p = makeBands (2, 24, mixedSpec);
+
+                const auto output = render (*p, input, blockSize, false, kRenderRate, [&] (BlockInfo& current)
+                {
+                    if (viaParameter)
+                    {
+                        if (current.index == firstBypassed)
+                            setNormalised (*p, "bypass", 1.0f);
+
+                        if (current.index == firstResumed)
+                            setNormalised (*p, "bypass", 0.0f);
+                    }
+                    else
+                    {
+                        current.viaBypassed = current.index >= firstBypassed && current.index < firstResumed;
+                    }
+                });
+
+                const juce::String route = viaParameter ? "bypass parameter" : "processBlockBypassed";
+
+                resumed.check (sameFrom (output, 0, steadyOut, 0, bypassAt), route + ": output before the bypass differs from the steady render");
+                resumed.check (sameFrom (output, bypassAt, input, bypassAt, resumeAt - bypassAt), route + ": bypassed blocks differ from the input");
+                resumed.check (sameFrom (output, resumeAt, freshOut, 0, total - resumeAt), route + ": output after the bypass differs from a fresh instance");
+            }
+
+            row (resumed.bad == 0 && resumed.total == 7,
+                 "H1 (ii) after bypass off, the output from that sample on is memcmp-equal to a fresh instance fed the remaining input",
+                 resumed.detail());
+        }
+
+        // U1
+        {
+            constexpr int blockSize = 512, editBlock = 47, window = 4800;   // 100 cycles of 1 kHz at 48 kHz
+            const double rate = kRenderRate;
+            const int editAt = editBlock * blockSize;
+            const int oneSecond = (int) std::lround (rate);
+            const int total = editAt + oneSecond + window;
+
+            juce::AudioBuffer<float> input (1, total);
+
+            for (int i = 0; i < total; ++i)
+                input.setSample (0, i, kNoise12 * (float) std::sin (2.0 * eq::pi * 1000.0 * (double) i / rate));
+
+            const auto designer = designerFor (rate);
+            const std::vector<double> at { 1000.0 };
+
+            auto p = makeBands (1, 1, [] (int) { return makeSpec (kBell, 1000.0f, 6.0f, 1.0f, 1, kStereo); });
+            const double oldRef = chainRefDb (*p, *designer, rate, at)[0];
+
+            const auto output = render (*p, input, blockSize, false, rate, [&] (BlockInfo& current)
+            {
+                if (current.index == editBlock)
+                    setRaw (*p, bandId (1, "gain"), -9.0f);
+            });
+
+            const double newRef = chainRefDb (*p, *designer, rate, at)[0];
+            const double before = toneGainDb (input, output, editAt - window, window, 1000.0, rate);
+            const double after = toneGainDb (input, output, editAt + oneSecond, window, 1000.0, rate);
+
+            row (std::abs (after - newRef) <= 0.01 && std::abs (before - oldRef) <= 0.01 && std::abs (newRef - oldRef) > 1.0,
+                 "U1 gain edit between blocks on a 1 kHz bell, 1 kHz sine: steady-state gain 1 s later equals the new closed form within 0.01 dB",
+                 "after " + fmtG (after, 6) + " dB (closed form " + fmtG (newRef, 6) + "); before " + fmtG (before, 6)
+                     + " dB (closed form " + fmtG (oldRef, 6) + ")");
+        }
+
+        // U2
+        {
+            constexpr int blockSize = 512, offBlock = 10;
+            const auto input = makeNoiseAt (2, 36 * blockSize, 0x0E2B0002, kNoise12);
+            const int total = input.getNumSamples();
+            const int offAt = offBlock * blockSize;
+            const int resumeAt = offAt + blockSize;
+
+            const auto spec = makeSpec (kLowShelf, 300.0f, 9.0f, 1.0f, 3, kStereo);
+            const auto one = [&spec] (int) { return spec; };
+
+            auto p = makeBands (2, 1, one);
+
+            const auto output = render (*p, input, blockSize, false, kRenderRate, [&] (BlockInfo& current)
+            {
+                if (current.index == offBlock)
+                    setRaw (*p, bandId (1, "enabled"), 0.0f);
+
+                if (current.index == offBlock + 1)
+                    setRaw (*p, bandId (1, "enabled"), 1.0f);
+            });
+
+            auto steady = makeBands (2, 1, one);
+            const auto steadyOut = render (*steady, input, blockSize, false);
+
+            auto fresh = makeBands (2, 1, one);
+            const auto freshOut = render (*fresh, sliceOf (input, resumeAt, total - resumeAt), blockSize, false);
+
+            const bool before = sameFrom (output, 0, steadyOut, 0, offAt);
+            const bool during = sameFrom (output, offAt, input, offAt, blockSize);
+            const bool after = sameFrom (output, resumeAt, freshOut, 0, total - resumeAt);
+            const bool stateMatters = ! sameFrom (steadyOut, resumeAt, freshOut, 0, total - resumeAt);
+
+            row (before && during && after && stateMatters,
+                 "U2 band disabled for one block, then enabled: output from the re-enable on memcmp-equal to a fresh instance fed the remaining input",
+                 juce::String (before ? "" : "output before the edit differs from the steady render; ")
+                     + (during ? "" : "the disabled block is not the input; ")
+                     + (after ? "" : "output after the re-enable differs from a fresh instance; ")
+                     + (stateMatters ? "" : "control: the steady render equals the fresh one"));
+        }
+
+        // U3
+        {
+            struct Edit { const char* name; int channels; BandSpec spec; const char* suffix; float newRaw; };
+
+            const Edit inert[] =
+            {
+                { "slope on a Bell",           2, makeSpec (kBell,     1000.0f, 6.0f, 1.0f, 1, kStereo), "slope",     5.0f },
+                { "slope on a Notch",          2, makeSpec (kNotch,    1000.0f, 0.0f, 4.0f, 1, kStereo), "slope",     6.0f },
+                { "slope on a Band Pass",      2, makeSpec (kBandPass, 500.0f,  0.0f, 2.0f, 1, kStereo), "slope",     3.0f },
+                { "Q on a 6 dB/oct Low Cut",   2, makeSpec (kLowCut,   200.0f,  0.0f, 1.0f, 0, kStereo), "q",         4.0f },
+                { "placement on mono",         1, makeSpec (kBell,     1000.0f, 6.0f, 1.0f, 1, kStereo), "placement", (float) kMid }
+            };
+
+            Tally tally;
+
+            for (const auto& e : inert)
+            {
+                const auto r = renderWithEdit (e.channels, e.spec, e.suffix, e.newRaw);
+                tally.check (r.identical && r.applied && r.audible,
+                             juce::String (e.name) + (r.identical ? "" : " changed the output")
+                                 + (r.applied ? "" : " (edit not applied)") + (r.audible ? "" : " (band does not act)"));
+            }
+
+            // Control: the same edit where it is not inert.
+            const auto live = renderWithEdit (2, makeSpec (kLowCut, 200.0f, 0.0f, 1.0f, 1, kStereo), "slope", 5.0f);
+            tally.check (! live.identical && live.applied && live.audible, "control: a slope edit on a Low Cut left the output unchanged");
+
+            row (tally.bad == 0 && tally.total == 6,
+                 "U3 inert edits mid-render (slope on Bell / Notch / Band Pass, Q at 6 dB/oct, placement on mono): bit-identical; a Low Cut slope edit changes the output",
+                 tally.detail());
+        }
+
+        // V1
+        {
+            Tally tally;
+
+            auto fresh = make();
+
+            for (int band = 0; band < Processor::kNumBands; ++band)
+                tally.check (fresh->getBandDynOffsetDb (band) == 0.0, "fresh instance, band " + juce::String (band + 1));
+
+            auto p = makeBands (2, 24, mixedSpec);
+            const auto input = makeNoiseAt (2, (int) std::lround (kRenderRate), 0x56100002, kNoise12);
+            const auto output = render (*p, input, 512, false);
+
+            for (int band = 0; band < Processor::kNumBands; ++band)
+                tally.check (p->getBandDynOffsetDb (band) == 0.0, "after a 1 s render, band " + juce::String (band + 1));
+
+            const bool acts = ! sameAudio (output, input);
+
+            row (tally.bad == 0 && tally.total == 48 && acts,
+                 "V1 getBandDynOffsetDb reads exactly 0.0 for all 24 bands, fresh and after a 1 s render (arithmetic: designer-harness EN-dyn)",
+                 tally.detail() + (acts ? "" : "  (the render did not act on the audio)"));
+        }
+    }
+
+    //==========================================================================
+    // X. CPU, settled (INFO; PLAN-2.2 P15)
+    //==========================================================================
+    void cpuInfo()
+    {
+        section ("X. CPU, settled (INFO, not gated)");
+
+        constexpr int blockSize = 512;
+        const double rate = 48000.0;
+        const int numBlocks = (int) (20.0 * rate / (double) blockSize);
+        const double audioSeconds = (double) numBlocks * (double) blockSize / rate;
+        const auto noise = makeNoiseAt (2, blockSize, 0x0C9000002, kNoise12);
+
+        struct Config { const char* name; int numBands; int type; int slope; float gain; const char* beside; };
+
+        // Settings as research-2.2 engine_bench modeCpu.
+        const Config configs[] =
+        {
+            { "0 bands",                0,  kBell,      1, 0.0f, "no bench figure" },
+            { "24 cuts x 96 dB/oct",    24, kHighCut,   7, 0.0f, "bench 2.4 sample-major; budget 10" },
+            { "24 shelves x 96 dB/oct", 24, kHighShelf, 7, 6.0f, "bench 4.7 sample-major; budget 14" },
+            { "24 bells",               24, kBell,      1, 6.0f, "bench 0.70 sample-major" },
+            { "1 band",                 1,  kBell,      1, 6.0f, "no bench figure" }
+        };
+
+        for (const auto& c : configs)
+        {
+            auto p = makeBands (2, c.numBands, [&c] (int index)
+            {
+                const float freq = c.type == kHighCut ? 20000.0f - 300.0f * (float) index
+                                 : c.numBands > 1     ? 30.0f * std::pow (500.0f, (float) index / 23.0f)
+                                                      : 1000.0f;
+                return makeSpec (c.type, freq, c.gain, 1.0f, c.slope, kStereo);
+            });
+
+            juce::AudioBuffer<float> block (2, blockSize);
+            juce::MidiBuffer midi;
+            double seconds = 0.0;
+
+            p->prepareToPlay (rate, blockSize);
+
+            for (int k = 0; k < numBlocks; ++k)
+            {
+                for (int channel = 0; channel < 2; ++channel)
+                    block.copyFrom (channel, 0, noise, channel, 0, blockSize);
+
+                const auto t0 = std::chrono::steady_clock::now();
+                p->processBlock (block, midi);
+                const auto t1 = std::chrono::steady_clock::now();
+
+                seconds += std::chrono::duration<double> (t1 - t0).count();
+            }
+
+            p->releaseResources();
+
+            info (juce::String ("X-cpu 48 kHz stereo, 512-sample blocks, 20 s, ") + c.name + ": "
+                      + fmtG (100.0 * seconds / audioSeconds, 3) + " % of one core (" + c.beside + ")"
+                      + (allFinite (block) ? "" : "  OUTPUT NOT FINITE"));
+        }
+    }
 }
 
 //==============================================================================
@@ -1278,6 +3225,15 @@ int main (int argc, char** argv)
     busRows();
     passThroughRows();
     stateRows();
+
+    // Stage 2, Phase 2.2 (PLAN-2.2 T7)
+    responseRows();
+    nyquistRows();
+    transparencyRows();
+    latencyRows();
+    allocationRows();
+    blockAndStateRows();
+    cpuInfo();
 
     std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
     std::fflush (stdout);

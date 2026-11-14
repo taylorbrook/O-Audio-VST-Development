@@ -33,7 +33,8 @@
       O-ParametricEQ-designer-harness --neg <name>         run ONE negative control; exit 0 only
                                                            if the targeted row FAILS. Names:
                                                            rbj, f1, alloc, seed, rbj-b, binary-gate,
-                                                           first-build
+                                                           first-build, engine-alloc (exit 0 only
+                                                           if the planted allocation is counted)
 
     Exit code = number of FAIL rows (capped at 255). Last line: "N PASS, M FAIL, K INFO".
 
@@ -44,6 +45,23 @@
 
     Every Phase 2.1 row below runs Designer::designSeed (the closed form). The
     Phase 2.1b rows run Designer::design (polished) unless they say otherwise.
+
+      Phase 2.2 (PLAN-2.2 T4): the engine in double, eq::Band + eq::Router driven
+      by Designer::design, settings through eq::makeBandInput
+      EN-ir      impulse response vs eq::bandMagDb, eight types x five rates (1e-6 dB above
+                 -80 dB; tail 200 dB down, asserted)
+      EN-irn     the bell against the closed form of the bell 1 % higher must exceed 1e-6 dB
+      EN-ms      Mid / Side bands: the other component within -250 dB re input peak
+      EN-msn     EN-ms with the bands on Left must fail
+      EN-lr      Left / Right bands: the other lane memcmp equal
+      EN-g8      10 000 random configurations + three forced High Cuts: output starts at the
+                 impulse index wherever the prediction is non-zero; y[0] vs the predicted
+                 first-sample gain within 1e-12 of the chain's largest magnitude (G8 as amended)
+      EN-blk     block-size invariance, bit for bit
+      EN-fin     finite output above Nyquist and under random full-range settings
+      EN-alloc   no allocation in setDesign + Router processing (malloc_logger)
+      SN1-SN3    makeBandInput: sanitising, exact gain at scale 100, canonical form
+      EN-dyn     the dynamic offset argument (DSP-07, engine half)
 
       Phase 2.1b (PLAN-2.1b T6)
       D2         C++ design vs designs-polished.tsv (1e-6 / 1e-9 relative, response 1e-6 dB)
@@ -106,6 +124,10 @@
 #include "dsp/Designer.h"
 #include "dsp/Polish.h"
 #include "dsp/PolishConstants.h"
+#include "dsp/BandParams.h"
+#include "dsp/SectionEngine.h"
+#include "dsp/Band.h"
+#include "dsp/Router.h"
 
 #include <algorithm>
 #include <array>
@@ -4936,6 +4958,1763 @@ namespace
     }
 
     //==========================================================================
+    // Phase 2.2 (PLAN-2.2 T4): the engine in double
+    //
+    // Every row drives eq::Band + eq::Router from Designer::design. A setting
+    // goes through eq::makeBandInput, the one raw -> settings function. No
+    // audio golden: a bit-identity row compares two renders of this binary.
+    //==========================================================================
+    constexpr int kEnMaxBands = 24;
+    constexpr int kEnNumRates = 5;
+    constexpr int kEnNumRates8 = 8;
+    constexpr float kEnScale100 = 100.0f;
+
+    static_assert (kRates5.size() == static_cast<std::size_t> (kEnNumRates), "the engine rows index kRates5");
+    static_assert (kRates8.size() == static_cast<std::size_t> (kEnNumRates8), "the engine rows index kRates8");
+
+    const char* const kEnPlacementNames[5] = { "stereo", "left", "right", "mid", "side" };
+
+    /** An enabled, not bypassed band as the parameter atomics would hold it. */
+    eq::RawBand enRaw (eq::Type type, double freqHz, double gainDb, double q, int slopeIndex, eq::Placement placement)
+    {
+        eq::RawBand raw;
+        raw.enabled = 1.0f;
+        raw.bypass = 0.0f;
+        raw.type = static_cast<float> (static_cast<int> (type));
+        raw.freq = static_cast<float> (freqHz);
+        raw.gain = static_cast<float> (gainDb);
+        raw.q = static_cast<float> (q);
+        raw.slope = static_cast<float> (slopeIndex);
+        raw.placement = static_cast<float> (static_cast<int> (placement));
+        return raw;
+    }
+
+    /** Full range: type, slope and placement uniform; fc 10 Hz - 30 kHz log;
+        Q 0.025 - 40 log; gain +-30 dB. Enabled, not bypassed. */
+    eq::RawBand enRandomRaw (Rng& rng)
+    {
+        eq::RawBand raw;
+        raw.enabled = 1.0f;
+        raw.bypass = 0.0f;
+        raw.type = static_cast<float> (rng.below (8));
+        raw.slope = static_cast<float> (rng.below (8));
+        raw.placement = static_cast<float> (rng.below (5));
+        raw.freq = static_cast<float> (10.0 * std::pow (3000.0, rng.uniform()));
+        raw.q = static_cast<float> (0.025 * std::pow (1600.0, rng.uniform()));
+        raw.gain = static_cast<float> (-30.0 + 60.0 * rng.uniform());
+        return raw;
+    }
+
+    /** Independent of eq::sameBandInput on purpose: bit patterns, field by field. */
+    bool enSameFields (const eq::BandInput& a, const eq::BandInput& b)
+    {
+        return a.active == b.active
+            && a.placement == b.placement
+            && a.settings.type == b.settings.type
+            && a.settings.slopeIndex == b.settings.slopeIndex
+            && sameBits (a.settings.freqHz, b.settings.freqHz)
+            && sameBits (a.settings.gainDbEff, b.settings.gainDbEff)
+            && sameBits (a.settings.q, b.settings.q);
+    }
+
+    /** White noise with a -12 dBFS peak (uniform, +-0.25), float-valued as a
+        host buffer is. */
+    void enFillNoise (std::vector<double>& out, Rng& rng)
+    {
+        for (double& v : out)
+            v = static_cast<double> (static_cast<float> ((rng.uniform() * 2.0 - 1.0) * 0.25));
+    }
+
+    /** Up to 24 bands in index order, each at rest when added. */
+    struct EnChain
+    {
+        int count = 0;
+        std::array<eq::Band, kEnMaxBands> bands;
+        std::array<eq::BandInput, kEnMaxBands> inputs {};
+
+        void add (const eq::Designer& designer, const eq::BandInput& in)
+        {
+            if (count >= kEnMaxBands)
+                return;
+
+            eq::BandDesign d {};
+            designer.design (in.settings, d);
+            bands[ix (count)].setDesign (d);
+            bands[ix (count)].reset();
+            inputs[ix (count)] = in;
+            ++count;
+        }
+
+        void process (double* lane0, double* lane1, int numSamples, bool stereo)
+        {
+            for (int b = 0; b < count; ++b)
+                if (inputs[ix (b)].active)
+                    eq::Router::process (bands[ix (b)], inputs[ix (b)].placement, lane0, lane1, numSamples, stereo);
+        }
+    };
+
+    //==========================================================================
+    // EN-ir / EN-irn: rendered impulse response against the closed form
+    //==========================================================================
+    constexpr int kEnNumIrCases = 8;
+
+    struct EnIrCase { const char* name; eq::Type type; double freqHz, gainDb, q; int slopeIndex; };
+
+    /** PLAN-2.2 P11: the eight binding cases. */
+    const EnIrCase kEnIrCaseList[kEnNumIrCases] =
+    {
+        { "Bell 1 kHz +12 dB Q 1",              eq::Type::bell,      1000.0,  12.0,  1.0, 1 },
+        { "Low Shelf 200 Hz +9 dB 24 dB/oct",   eq::Type::lowShelf,   200.0,   9.0,  1.0, 3 },
+        { "High Shelf 8 kHz -12 dB 12 dB/oct",  eq::Type::highShelf, 8000.0, -12.0,  1.0, 1 },
+        { "Low Cut 80 Hz 48 dB/oct",            eq::Type::lowCut,      80.0,   0.0,  1.0, 5 },
+        { "High Cut 6 kHz 96 dB/oct",           eq::Type::highCut,   6000.0,   0.0,  1.0, 7 },
+        { "Notch 1 kHz Q 10",                   eq::Type::notch,     1000.0,   0.0, 10.0, 1 },
+        { "Band Pass 500 Hz Q 2",               eq::Type::bandPass,   500.0,   0.0,  2.0, 1 },
+        { "Tilt 1 kHz +6 dB 12 dB/oct",         eq::Type::tilt,      1000.0,   6.0,  1.0, 1 }
+    };
+
+    eq::BandInput enIrInput (const EnIrCase& c, double freqFactor)
+    {
+        return eq::makeBandInput (enRaw (c.type, c.freqHz * freqFactor, c.gainDb, c.q, c.slopeIndex, eq::Placement::stereo),
+                                  kEnScale100, 0.0);
+    }
+
+    struct EnIrResult
+    {
+        double worstDb = 0.0;       // largest |rendered - closed form| where the closed form is above -80 dB
+        double seconds = 0.0;       // rendered length
+        double tailDb = 0.0;        // the last 10 ms, re the peak
+        int scored = 0;             // DFT points above -80 dB
+        bool tailReached = false;
+        bool finite = true;
+    };
+
+    /** A unit impulse through one band (Router, mono layout). The render is
+        extended in 1 s steps until its last 10 ms is at least 200 dB below
+        the peak; at 20 s it stops and tailReached stays false. Then a
+        single-bin DFT at 160 log-spaced points 20 Hz -> min (20 kHz,
+        0.499 fs), scored against eq::bandMagDb of `reference` where that is
+        above -80 dB. The phasor is re-seeded from cos / sin every 1024
+        samples, so its drift does not reach the result. */
+    EnIrResult enIrMeasure (double fs, const eq::BandDesign& rendered, const eq::BandDesign& reference)
+    {
+        constexpr int numPoints = 160;
+        constexpr int maxSeconds = 20;
+        constexpr double tailRatio = 1.0e-10;       // 200 dB
+
+        EnIrResult result;
+        eq::Band band;
+        band.setDesign (rendered);
+        band.reset();
+
+        const int step = static_cast<int> (std::lround (fs));
+        const int tailLength = std::max (1, static_cast<int> (std::lround (0.01 * fs)));
+        std::vector<double> h;
+        h.reserve (ix (step) * 2);
+        double peak = 0.0;
+
+        for (int second = 0; second < maxSeconds && result.finite && ! result.tailReached; ++second)
+        {
+            const std::size_t start = h.size();
+            h.resize (start + ix (step), 0.0);
+
+            if (second == 0)
+                h[0] = 1.0;
+
+            eq::Router::process (band, eq::Placement::stereo, h.data() + start, nullptr, step, false);
+
+            for (std::size_t i = start; i < h.size(); ++i)
+            {
+                const double a = std::fabs (h[i]);
+
+                if (! std::isfinite (a))
+                    result.finite = false;
+                else if (a > peak)
+                    peak = a;
+            }
+
+            double tail = 0.0;
+
+            for (std::size_t i = h.size() - ix (tailLength); i < h.size(); ++i)
+                tail = std::max (tail, std::fabs (h[i]));
+
+            result.seconds = static_cast<double> (second + 1);
+            result.tailDb = 20.0 * std::log10 (std::max (tail, kTiny) / std::max (peak, kTiny));
+            result.tailReached = result.finite && peak > 0.0 && tail <= peak * tailRatio;
+        }
+
+        if (! result.finite)
+        {
+            result.worstDb = kInf;
+            return result;
+        }
+
+        const double fHi = std::min (20000.0, 0.499 * fs);
+        const std::size_t total = h.size();
+
+        for (int p = 0; p < numPoints; ++p)
+        {
+            const double hz = 20.0 * std::pow (fHi / 20.0, static_cast<double> (p) / static_cast<double> (numPoints - 1));
+            const double w = 2.0 * kPi * hz / fs;
+            const double ref = eq::bandMagDb (reference, w);
+
+            if (! (ref > -80.0))
+                continue;
+
+            const double cr = std::cos (w), ci = -std::sin (w);
+            double pr = 1.0, pim = 0.0, ar = 0.0, ai = 0.0;
+
+            for (std::size_t n = 0; n < total; ++n)
+            {
+                if ((n & 1023u) == 0u && n != 0u)
+                {
+                    const double angle = w * static_cast<double> (n);
+                    pr = std::cos (angle);
+                    pim = -std::sin (angle);
+                }
+
+                const double v = h[n];
+                ar += v * pr;
+                ai += v * pim;
+                const double t = pr * cr - pim * ci;
+                pim = pr * ci + pim * cr;
+                pr = t;
+            }
+
+            const double e = std::fabs (eq::powerToDb (ar * ar + ai * ai) - ref);
+            ++result.scored;
+
+            if (! (e <= result.worstDb))
+                result.worstDb = std::isfinite (e) ? e : kInf;
+        }
+
+        return result;
+    }
+
+    void rowsEnIr()
+    {
+        constexpr int numMain = kEnNumRates * kEnNumIrCases;
+        constexpr double limitDb = 1.0e-6;
+
+        std::vector<EnIrResult> results (ix (numMain));
+        std::vector<EnIrResult> control (ix (kEnNumRates));
+
+        // Tasks 0 ... 39: rate-major, the eight cases. Tasks 40 ... 44: the control, one per rate.
+        parallelFor (numMain + kEnNumRates, [&results, &control] (int task)
+        {
+            const bool isControl = task >= numMain;
+            const int rateIndex = isControl ? task - numMain : task / kEnNumIrCases;
+            const EnIrCase& c = kEnIrCaseList[isControl ? 0 : task % kEnNumIrCases];
+            const double fs = kRates5[ix (rateIndex)];
+
+            eq::Designer designer;
+            designer.prepare (fs);
+            eq::BandDesign rendered {};
+            designer.design (enIrInput (c, 1.0).settings, rendered);
+
+            if (! isControl)
+            {
+                results[ix (task)] = enIrMeasure (fs, rendered, rendered);
+                return;
+            }
+
+            eq::BandDesign higher {};
+            designer.design (enIrInput (c, 1.01).settings, higher);
+            control[ix (rateIndex)] = enIrMeasure (fs, rendered, higher);
+        });
+
+        bool ok = true;
+        double worst = 0.0, longest = 0.0, leastTail = -1.0e9;
+        int scored = 0, tailMissed = 0, nonFinite = 0;
+        std::string worstWhere;
+
+        for (int task = 0; task < numMain; ++task)
+        {
+            const EnIrResult& r = results[ix (task)];
+            ok = ok && r.finite && r.tailReached && r.scored > 0 && r.worstDb <= limitDb;
+            scored += r.scored;
+            longest = std::max (longest, r.seconds);
+            leastTail = std::max (leastTail, r.tailDb);
+
+            if (! r.finite)
+                ++nonFinite;
+            else if (! r.tailReached)
+                ++tailMissed;
+
+            if (! (r.worstDb <= worst))
+            {
+                worst = r.worstDb;
+                worstWhere = strf ("%s at %.0f Hz", kEnIrCaseList[task % kEnNumIrCases].name, kRates5[ix (task / kEnNumIrCases)]);
+            }
+        }
+
+        row (ok, "EN-ir rendered impulse response vs eq::bandMagDb: 8 types x 5 rates, <= 1e-6 dB above -80 dB; tail >= 200 dB down",
+             strf ("worst %.3g dB%s%s; %d points scored; %d of %d renders non-finite, %d stopped at the 20 s cap; longest render %.0f s, "
+                   "least tail %.0f dB re peak (1 s steps, last 10 ms)",
+                   worst, worstWhere.empty() ? "" : " at ", worstWhere.c_str(), scored, nonFinite, numMain, tailMissed, longest,
+                   std::max (leastTail, -999.0)));
+
+        for (int c = 0; c < kEnNumIrCases; ++c)
+        {
+            std::string text = strf ("%-34s", kEnIrCaseList[c].name);
+            double caseSeconds = 0.0, caseTail = -1.0e9;
+            std::string flags;
+
+            for (int r = 0; r < kEnNumRates; ++r)
+            {
+                const EnIrResult& res = results[ix (r * kEnNumIrCases + c)];
+                text += strf ("%s%.1f k %.2e", r == 0 ? " " : " | ", kRates5[ix (r)] / 1000.0, res.worstDb);
+                caseSeconds = std::max (caseSeconds, res.seconds);
+                caseTail = std::max (caseTail, res.tailDb);
+
+                if (! res.finite)
+                    flags += strf ("  NON-FINITE at %.0f Hz", kRates5[ix (r)]);
+                else if (! res.tailReached)
+                    flags += strf ("  TAIL NOT REACHED at %.0f Hz", kRates5[ix (r)]);
+
+                if (res.scored == 0)
+                    flags += strf ("  VOID at %.0f Hz: no point above -80 dB", kRates5[ix (r)]);
+            }
+
+            note (text + strf (" dB; render %.0f s, tail <= %.0f dB re peak", caseSeconds, std::max (caseTail, -999.0)) + flags);
+        }
+
+        // EN-irn: the same code, the bell against the closed form of the bell 1 % higher.
+        bool fires = true;
+        double smallest = kInf;
+        std::string text;
+
+        for (int r = 0; r < kEnNumRates; ++r)
+        {
+            const EnIrResult& res = control[ix (r)];
+            const bool exceeded = res.finite && res.tailReached && res.scored > 0 && res.worstDb > limitDb;
+            fires = fires && exceeded;
+            smallest = std::min (smallest, res.worstDb);
+            text += strf ("%s%.1f k %.3g", r == 0 ? "" : " | ", kRates5[ix (r)] / 1000.0, res.worstDb);
+        }
+
+        row (fires, "EN-irn the EN-ir scorer on the bell vs the closed form of the bell 1 % higher exceeds 1e-6 dB at every rate",
+             strf ("%s; smallest error %.3g dB (limit 1e-6): %s", fires ? "the control fires" : "the control did NOT fire",
+                   smallest, text.c_str()));
+    }
+
+    //==========================================================================
+    // EN-ms / EN-msn: Mid / Side difference injection
+    //==========================================================================
+    struct EnMsConfig { const char* name; int numBands; double gainDb; };
+
+    const EnMsConfig kEnMsConfigs[4] =
+    {
+        { "1 bell +30 dB",   1,  30.0 },
+        { "1 bell -30 dB",   1, -30.0 },
+        { "24 bells +6 dB",  24,  6.0 },
+        { "24 bells +12 dB", 24, 12.0 }
+    };
+
+    struct EnMsResult
+    {
+        double untouchedDb = 0.0;       // largest change of the other component, re input peak
+        double touchedDb = 0.0;         // largest change of the band's own component, re input peak
+        bool finite = true;
+    };
+
+    /** Stereo noise at -12 dBFS, 48 kHz, bells Q 1 (40 Hz - 16 kHz log-spaced,
+        a single bell at 800 Hz). `claimed` (Mid or Side) names the component
+        the row is about; `actual` is the placement the bands are given. */
+    EnMsResult enMsMeasure (const EnMsConfig& config, eq::Placement claimed, eq::Placement actual)
+    {
+        constexpr int numSamples = 1 << 17;
+
+        eq::Designer designer;
+        designer.prepare (48000.0);
+
+        Rng rng (0x454E4D53ull);
+        std::vector<double> inL (ix (numSamples)), inR (ix (numSamples));
+
+        for (int i = 0; i < numSamples; ++i)
+        {
+            inL[ix (i)] = static_cast<double> (static_cast<float> ((rng.uniform() * 2.0 - 1.0) * 0.25));
+            inR[ix (i)] = static_cast<double> (static_cast<float> ((rng.uniform() * 2.0 - 1.0) * 0.25));
+        }
+
+        std::vector<double> outL (inL), outR (inR);
+        EnChain chain;
+
+        for (int b = 0; b < config.numBands; ++b)
+        {
+            const double position = config.numBands > 1 ? static_cast<double> (b) / static_cast<double> (config.numBands - 1) : 0.5;
+            const double fc = 40.0 * std::pow (400.0, position);
+            chain.add (designer, eq::makeBandInput (enRaw (eq::Type::bell, fc, config.gainDb, 1.0, 1, actual), kEnScale100, 0.0));
+        }
+
+        chain.process (outL.data(), outR.data(), numSamples, true);
+
+        const bool side = claimed == eq::Placement::side;
+        double inPeak = 0.0, untouched = 0.0, touched = 0.0;
+        EnMsResult result;
+
+        for (int i = 0; i < numSamples; ++i)
+        {
+            const double il = inL[ix (i)], ir = inR[ix (i)];
+            const double ol = outL[ix (i)], orr = outR[ix (i)];
+
+            if (! std::isfinite (ol) || ! std::isfinite (orr))
+                result.finite = false;
+
+            inPeak = std::max (inPeak, std::max (std::fabs (il), std::fabs (ir)));
+
+            const double midIn = 0.5 * (il + ir), sideIn = 0.5 * (il - ir);
+            const double midOut = 0.5 * (ol + orr), sideOut = 0.5 * (ol - orr);
+            const double untouchedError = side ? std::fabs (midOut - midIn) : std::fabs (sideOut - sideIn);
+            const double touchedChange = side ? std::fabs (sideOut - sideIn) : std::fabs (midOut - midIn);
+            untouched = std::max (untouched, untouchedError);
+            touched = std::max (touched, touchedChange);
+        }
+
+        result.untouchedDb = 20.0 * std::log10 (std::max (untouched, kTiny) / std::max (inPeak, kTiny));
+        result.touchedDb = 20.0 * std::log10 (std::max (touched, kTiny) / std::max (inPeak, kTiny));
+        return result;
+    }
+
+    void rowsEnMs()
+    {
+        constexpr double untouchedLimitDb = -250.0;
+        constexpr double touchedFloorDb = -40.0;
+        static const eq::Placement kinds[2] = { eq::Placement::mid, eq::Placement::side };
+
+        bool ok = true, fires = true;
+        double worstUntouched = -1.0e9, leastTouched = 1.0e9, controlLowest = 1.0e9;
+        std::vector<std::string> lines;
+
+        for (const eq::Placement kind : kinds)
+            for (const EnMsConfig& config : kEnMsConfigs)
+            {
+                const bool side = kind == eq::Placement::side;
+                const EnMsResult r = enMsMeasure (config, kind, kind);
+                const EnMsResult c = enMsMeasure (config, kind, eq::Placement::left);
+
+                const bool cellOk = r.finite && r.untouchedDb <= untouchedLimitDb && r.touchedDb > touchedFloorDb;
+                ok = ok && cellOk;
+                worstUntouched = std::max (worstUntouched, r.untouchedDb);
+                leastTouched = std::min (leastTouched, r.touchedDb);
+
+                // The control fails the EN-ms verdict, and on the untouched-component test itself.
+                const bool controlFails = c.finite && ! (c.untouchedDb <= untouchedLimitDb);
+                fires = fires && controlFails;
+                controlLowest = std::min (controlLowest, c.untouchedDb);
+
+                lines.push_back (strf ("%-4s %-16s: %s %8.1f dB re input peak, %s changes by %+7.1f dB%s | on Left: %s %+7.1f dB%s",
+                                       side ? "Side" : "Mid", config.name, side ? "mid " : "side", r.untouchedDb,
+                                       side ? "side" : "mid ", r.touchedDb, cellOk ? "" : "  OFF",
+                                       side ? "mid " : "side", c.untouchedDb, controlFails ? "" : "  CONTROL DID NOT FIRE"));
+            }
+
+        row (ok, "EN-ms Mid / Side bands, stereo noise -12 dBFS, 48 kHz: the other component <= -250 dB re input peak",
+             strf ("worst %.1f dB (limit %.0f) over 8 settings (1 bell +-30 dB, 24 bells +6 and +12 dB; Mid and Side); "
+                   "the band's own component changes by at least %+.1f dB (vacuity floor %.0f); research: -265 dB or better",
+                   worstUntouched, untouchedLimitDb, leastTouched, touchedFloorDb));
+
+        for (const std::string& text : lines)
+            note (text);
+
+        row (fires, "EN-msn EN-ms with the bands on Left FAILS every one of the 8 settings",
+             strf ("%s; lowest \"untouched\" component change with the bands on Left %+.1f dB re input peak (limit %.0f)",
+                   fires ? "the control fires" : "the control did NOT fire", controlLowest, untouchedLimitDb));
+    }
+
+    //==========================================================================
+    // EN-lr: Left / Right bands leave the other lane alone
+    //==========================================================================
+    void rowEnLr()
+    {
+        constexpr int numSamples = 1 << 16;
+
+        struct LrBand { eq::Type type; double freqHz, gainDb, q; int slopeIndex; };
+        static const LrBand set[6] =
+        {
+            { eq::Type::bell,       1000.0,  9.0, 2.0, 1 },
+            { eq::Type::lowShelf,    150.0, -6.0, 1.0, 3 },
+            { eq::Type::highShelf,  6000.0,  6.0, 0.7, 2 },
+            { eq::Type::lowCut,       60.0,  0.0, 1.0, 4 },
+            { eq::Type::highCut,   14000.0,  0.0, 1.4, 1 },
+            { eq::Type::tilt,        800.0,  4.0, 1.0, 1 }
+        };
+
+        eq::Designer designer;
+        designer.prepare (48000.0);
+
+        Rng rng (0x454E4C52ull);
+        std::vector<double> inL (ix (numSamples)), inR (ix (numSamples));
+        enFillNoise (inL, rng);
+        enFillNoise (inR, rng);
+
+        const std::size_t bytes = sizeof (double) * ix (numSamples);
+        bool ok = true;
+        std::string text;
+
+        for (const eq::Placement placement : { eq::Placement::left, eq::Placement::right })
+        {
+            const bool left = placement == eq::Placement::left;
+            std::vector<double> outL (inL), outR (inR), alone (left ? inL : inR);
+            EnChain chain, chainAlone;
+
+            for (const LrBand& b : set)
+            {
+                const eq::BandInput in = eq::makeBandInput (enRaw (b.type, b.freqHz, b.gainDb, b.q, b.slopeIndex, placement),
+                                                            kEnScale100, 0.0);
+                chain.add (designer, in);
+                chainAlone.add (designer, in);
+            }
+
+            chain.process (outL.data(), outR.data(), numSamples, true);
+
+            // The lane the placement does not touch is not even passed in.
+            chainAlone.process (left ? alone.data() : nullptr, left ? nullptr : alone.data(), numSamples, true);
+
+            const std::vector<double>& touched = left ? outL : outR;
+            const std::vector<double>& touchedIn = left ? inL : inR;
+            const std::vector<double>& other = left ? outR : outL;
+            const std::vector<double>& otherIn = left ? inR : inL;
+
+            const bool otherSame = std::memcmp (other.data(), otherIn.data(), bytes) == 0;
+            const bool aloneSame = std::memcmp (alone.data(), touched.data(), bytes) == 0;
+            int differing = 0;
+            bool finite = true;
+
+            for (int i = 0; i < numSamples; ++i)
+            {
+                if (! sameBits (touched[ix (i)], touchedIn[ix (i)]))
+                    ++differing;
+
+                if (! std::isfinite (touched[ix (i)]))
+                    finite = false;
+            }
+
+            ok = ok && otherSame && aloneSame && finite && differing > numSamples / 2;
+            text += strf ("%s%s bands: %s lane %s, %s lane differs in %d of %d samples%s, null other-lane pointer %s",
+                          text.empty() ? "" : "; ", left ? "Left" : "Right", left ? "right" : "left",
+                          otherSame ? "memcmp equal" : "DIFFERS", left ? "left" : "right", differing, numSamples,
+                          finite ? "" : " (NON-FINITE)", aloneSame ? "gives the same bits" : "gives OTHER bits");
+        }
+
+        const bool lanesOk = eq::Router::touchesLane (eq::Placement::left, 0, true)
+                          && ! eq::Router::touchesLane (eq::Placement::left, 1, true)
+                          && ! eq::Router::touchesLane (eq::Placement::right, 0, true)
+                          && eq::Router::touchesLane (eq::Placement::right, 1, true)
+                          && eq::Router::touchesLane (eq::Placement::mid, 0, true)
+                          && eq::Router::touchesLane (eq::Placement::side, 1, true)
+                          && eq::Router::touchesLane (eq::Placement::right, 0, false)
+                          && ! eq::Router::touchesLane (eq::Placement::right, 1, false);
+
+        row (ok && lanesOk, "EN-lr 6 Left bands (mixed types): right lane memcmp equal, left lane differs; and the converse",
+             text + (lanesOk ? "; touchesLane agrees" : "; touchesLane DISAGREES"));
+    }
+
+    //==========================================================================
+    // EN-g8: the output starts at the impulse index; first-sample gain
+    //==========================================================================
+    constexpr int kEnG8Random = 10000;
+    constexpr int kEnG8Lane = 16;
+    constexpr double kEnG8RelLimit = 1.0e-12;
+
+    struct EnG8Config
+    {
+        int rateIndex = 0;              // into kRates5
+        bool stereo = true;
+        double impulseR = 1.0;          // the right lane's sample at index 0 (the left lane's is 1)
+        float scale = 100.0f;
+        int numBands = 0;
+        std::array<eq::RawBand, kEnMaxBands> raw {};
+    };
+
+    /** Configuration `index` of the random set: its own generator, so the set
+        does not depend on the order or the thread it is drawn in. 1 - 24
+        bands, full range, gain scale 0 - 200 %, one of five rates; one in
+        four on a mono layout; the impulse on both lanes or on the left alone. */
+    EnG8Config enG8Draw (int index)
+    {
+        Rng seed (0x454E473800ull + static_cast<std::uint64_t> (index));
+        Rng rng (seed.next());
+
+        EnG8Config c;
+        c.rateIndex = rng.below (kEnNumRates);
+        c.stereo = rng.below (4) != 0;
+        c.impulseR = rng.below (2) == 0 ? 1.0 : 0.0;
+        c.scale = static_cast<float> (200.0 * rng.uniform());
+        c.numBands = 1 + rng.below (kEnMaxBands);
+
+        for (int b = 0; b < c.numBands; ++b)
+            c.raw[ix (b)] = enRandomRaw (rng);
+
+        return c;
+    }
+
+    struct EnG8Outcome
+    {
+        double predicted[2] = { 0.0, 0.0 };
+        double actual[2] = { 0.0, 0.0 };
+        int firstNonZero[2] = { -1, -1 };       // -1: the lane is zero throughout
+        double rel = 0.0;                       // the larger of the lanes' |actual - predicted| / |predicted|
+        double scaled = 0.0;                    // the larger of the lanes' |actual - predicted| / the chain's largest magnitude
+        bool startOk = true;
+        bool absorbed = false;                  // a lane reads exactly 0 at index 0, and so does the prediction
+    };
+
+    /** A unit impulse at index 0 through the configuration's bands in index
+        order, every band at rest. The prediction is Router::applyFirstSample
+        applied band by band to Band::firstSampleGain().
+
+        Scoring as G8 was amended at the 2.2 execute (Taylor's call, 2026-11-13):
+        the error |actual - predicted| is taken relative to the largest
+        magnitude either lane's prediction reaches anywhere in the chain (at
+        least 1, the impulse), because Mid / Side difference injection and the
+        SVF's high-pass term subtract values of that size, and rounding in
+        them is not relative to a small result. A lane passes the start test
+        when its first non-zero sample is at index 0, or when its predicted
+        first sample is exactly 0 (the same algebra absorbed it, or nothing
+        was put on the lane). The plain relative error is still reported, and
+        still binds the three forced single-band cases. */
+    EnG8Outcome enG8Run (const eq::Designer& designer, const EnG8Config& c, double* lane0, double* lane1, int numSamples)
+    {
+        for (int i = 0; i < numSamples; ++i)
+        {
+            lane0[i] = 0.0;
+            lane1[i] = 0.0;
+        }
+
+        lane0[0] = 1.0;
+        lane1[0] = c.impulseR;
+
+        double l = 1.0, r = c.impulseR;
+        double chainMag = 1.0;
+        eq::BandDesign d {};
+        eq::Band band;
+
+        for (int b = 0; b < c.numBands; ++b)
+        {
+            const eq::BandInput in = eq::makeBandInput (c.raw[ix (b)], c.scale, 0.0);
+            designer.design (in.settings, d);
+            band.setDesign (d);
+            band.reset();
+            eq::Router::applyFirstSample (band.firstSampleGain(), in.placement, c.stereo, l, r);
+            eq::Router::process (band, in.placement, lane0, lane1, numSamples, c.stereo);
+
+            if (std::isfinite (l) && std::isfinite (r))
+                chainMag = std::max (chainMag, std::max (std::fabs (l), c.stereo ? std::fabs (r) : 0.0));
+        }
+
+        EnG8Outcome out;
+        out.predicted[0] = l;
+        out.predicted[1] = r;
+
+        const double* const lanes[2] = { lane0, lane1 };
+        const double impulse[2] = { 1.0, c.impulseR };
+        const int numLanes = c.stereo ? 2 : 1;
+
+        for (int lane = 0; lane < numLanes; ++lane)
+        {
+            const double* const y = lanes[lane];
+            out.actual[lane] = y[0];
+
+            for (int i = 0; i < numSamples; ++i)
+                if (y[i] != 0.0)
+                {
+                    out.firstNonZero[lane] = i;
+                    break;
+                }
+
+            const double p = out.predicted[lane];
+            const double a = out.actual[lane];
+            double laneRel = 0.0;
+
+            if (! std::isfinite (p) || ! std::isfinite (a))
+                laneRel = kInf;
+            else if (p == 0.0)
+                laneRel = (a == 0.0) ? 0.0 : kInf;
+            else
+                laneRel = std::fabs (a - p) / std::fabs (p);
+
+            out.rel = std::max (out.rel, laneRel);
+            out.scaled = std::max (out.scaled, (std::isfinite (p) && std::isfinite (a)) ? std::fabs (a - p) / chainMag : kInf);
+
+            const bool silentLane = impulse[lane] == 0.0 && out.firstNonZero[lane] < 0 && p == 0.0;
+
+            if (out.firstNonZero[lane] != 0 && ! silentLane)
+            {
+                if (p == 0.0 && a == 0.0)
+                    out.absorbed = true;        // the prediction is exactly 0 as well: excused (amended G8)
+                else
+                    out.startOk = false;
+            }
+        }
+
+        return out;
+    }
+
+    /** The whole configuration, band by band, with the running prediction and
+        the running output at index 0: what an escalation needs. */
+    void enG8Describe (const char* label, int index, const EnG8Config& c)
+    {
+        eq::Designer designer;
+        designer.prepare (kRates5[ix (c.rateIndex)]);
+
+        note (strf ("%s: configuration %d, fs %.0f Hz, %s layout, %d bands, gain scale %.9g %%, impulse L 1, R %g", label, index,
+                    kRates5[ix (c.rateIndex)], c.stereo ? "stereo" : "mono", c.numBands, static_cast<double> (c.scale), c.impulseR));
+
+        double lane0[kEnG8Lane] = {}, lane1[kEnG8Lane] = {};
+        lane0[0] = 1.0;
+        lane1[0] = c.impulseR;
+
+        double l = 1.0, r = c.impulseR;
+        eq::BandDesign d {};
+        eq::Band band;
+
+        for (int b = 0; b < c.numBands; ++b)
+        {
+            const eq::BandInput in = eq::makeBandInput (c.raw[ix (b)], c.scale, 0.0);
+            designer.design (in.settings, d);
+            band.setDesign (d);
+            band.reset();
+            const double gain = band.firstSampleGain();
+            eq::Router::applyFirstSample (gain, in.placement, c.stereo, l, r);
+            eq::Router::process (band, in.placement, lane0, lane1, kEnG8Lane, c.stereo);
+
+            note (strf ("  band %2d: %-9s slope-index %d fc %.9g Hz Q %.9g gain %.9g dB %-6s first-sample gain %.17g | "
+                        "predicted L %.17g R %.17g | actual L %.17g R %.17g",
+                        b, kTypeNames[static_cast<int> (in.settings.type)], in.settings.slopeIndex, in.settings.freqHz,
+                        in.settings.q, in.settings.gainDbEff, kEnPlacementNames[static_cast<int> (in.placement)], gain,
+                        l, r, lane0[0], lane1[0]));
+        }
+    }
+
+    void rowEnG8()
+    {
+        constexpr int chunkSize = 100;
+        constexpr int numChunks = kEnG8Random / chunkSize;
+
+        struct Chunk
+        {
+            long long configs = 0, bands = 0, mono = 0, startBad = 0, absorbed = 0, relBad = 0, scaledBad = 0;
+            double worstRel = 0.0, worstScaled = 0.0;
+            int worstIndex = -1, firstStartBad = -1, firstRelBad = -1, worstScaledIndex = -1;
+        };
+
+        std::vector<Chunk> chunks (ix (numChunks));
+
+        // Fixed chunks, per-configuration generators, merged in chunk order.
+        parallelFor (numChunks, [&chunks] (int c)
+        {
+            std::array<eq::Designer, kEnNumRates> designers;      // this worker's own
+
+            for (std::size_t r = 0; r < kRates5.size(); ++r)
+                designers[r].prepare (kRates5[r]);
+
+            Chunk& out = chunks[ix (c)];
+            double lane0[kEnG8Lane], lane1[kEnG8Lane];
+
+            for (int n = c * chunkSize; n < (c + 1) * chunkSize; ++n)
+            {
+                const EnG8Config config = enG8Draw (n);
+                const EnG8Outcome o = enG8Run (designers[ix (config.rateIndex)], config, lane0, lane1, kEnG8Lane);
+                ++out.configs;
+                out.bands += config.numBands;
+
+                if (! config.stereo)
+                    ++out.mono;
+
+                if (o.absorbed)
+                    ++out.absorbed;
+
+                if (! o.startOk)
+                {
+                    ++out.startBad;
+
+                    if (out.firstStartBad < 0)
+                        out.firstStartBad = n;
+                }
+
+                if (! (o.scaled <= kEnG8RelLimit))
+                    ++out.scaledBad;
+
+                if (! (o.scaled <= out.worstScaled))
+                {
+                    out.worstScaled = o.scaled;
+                    out.worstScaledIndex = n;
+                }
+
+                if (! (o.rel <= kEnG8RelLimit))
+                {
+                    ++out.relBad;
+
+                    if (out.firstRelBad < 0)
+                        out.firstRelBad = n;
+                }
+
+                if (o.rel > out.worstRel)
+                {
+                    out.worstRel = o.rel;
+                    out.worstIndex = n;
+                }
+            }
+        });
+
+        Chunk sum;
+
+        for (const Chunk& r : chunks)
+        {
+            sum.configs += r.configs;
+            sum.bands += r.bands;
+            sum.mono += r.mono;
+            sum.startBad += r.startBad;
+            sum.absorbed += r.absorbed;
+            sum.relBad += r.relBad;
+            sum.scaledBad += r.scaledBad;
+
+            if (! (r.worstScaled <= sum.worstScaled))
+            {
+                sum.worstScaled = r.worstScaled;
+                sum.worstScaledIndex = r.worstScaledIndex;
+            }
+
+            if (r.worstRel > sum.worstRel)
+            {
+                sum.worstRel = r.worstRel;
+                sum.worstIndex = r.worstIndex;
+            }
+
+            if (sum.firstStartBad < 0)
+                sum.firstStartBad = r.firstStartBad;
+
+            if (sum.firstRelBad < 0)
+                sum.firstRelBad = r.firstRelBad;
+        }
+
+        // The three forced cases of RESEARCH-2.2 Q3: one High Cut, 96 dB/oct, Q 0.025, mono layout.
+        struct Forced { int rateIndex; double freqHz; const char* research; };
+        static const Forced forced[3] = { { 0, 10.0, "2.0e-47" }, { 4, 10.0, "1.2e-57" }, { 4, 100.0, "1.2e-41" } };
+        constexpr int forcedLength = 4096;
+        std::vector<double> long0 (ix (forcedLength)), long1 (ix (forcedLength));
+        std::vector<std::string> forcedLines;
+        int forcedBad = 0;
+
+        for (const Forced& f : forced)
+        {
+            EnG8Config config;
+            config.rateIndex = f.rateIndex;
+            config.stereo = false;
+            config.impulseR = 0.0;
+            config.scale = kEnScale100;
+            config.numBands = 1;
+            config.raw[0] = enRaw (eq::Type::highCut, f.freqHz, 0.0, 0.025, 7, eq::Placement::stereo);
+
+            eq::Designer designer;
+            designer.prepare (kRates5[ix (f.rateIndex)]);
+            const EnG8Outcome o = enG8Run (designer, config, long0.data(), long1.data(), forcedLength);
+            const bool caseOk = o.startOk && o.rel <= kEnG8RelLimit;
+
+            if (! caseOk)
+                ++forcedBad;
+
+            forcedLines.push_back (strf ("forced High Cut %g Hz, 96 dB/oct, Q 0.025 at %.0f Hz: first non-zero index %d, y[0] %.6e "
+                                         "(predicted %.6e, relative error %.3g; research %s)%s",
+                                         f.freqHz, kRates5[ix (f.rateIndex)], o.firstNonZero[0], o.actual[0], o.predicted[0], o.rel,
+                                         f.research, caseOk ? "" : "  OFF"));
+        }
+
+        // Vacuity: the scaled error must be a live measurement (rounding makes it non-zero somewhere).
+        const bool live = sum.worstScaled > 0.0;
+        const bool ok = sum.configs == kEnG8Random && sum.startBad == 0 && sum.scaledBad == 0 && forcedBad == 0 && live;
+
+        row (ok, "EN-g8 unit impulse, 10 000 random configurations + 3 forced High Cuts: output starts at the impulse index "
+                 "wherever the predicted y[0] is non-zero; |y[0] - predicted| <= 1e-12 x the chain's largest magnitude "
+                 "(G8 as amended at the 2.2 execute); forced cases 1e-12 relative",
+             strf ("%lld random configurations (%lld bands, %lld on a mono layout): %lld do not start at the impulse index with a "
+                   "non-zero prediction; %lld above 1e-12 re the chain's largest magnitude, worst %.3g (configuration %d); "
+                   "forced cases off: %d of 3. Not gated: %lld configurations with y[0] and its prediction both exactly 0 "
+                   "(absorbed by Mid / Side injection), %lld above 1e-12 relative to the prediction itself (cancellation)",
+                   sum.configs, sum.bands, sum.mono, sum.startBad, sum.scaledBad, sum.worstScaled, sum.worstScaledIndex, forcedBad,
+                   sum.absorbed, sum.relBad));
+
+        for (const std::string& text : forcedLines)
+            note (text);
+
+        if (sum.scaledBad > 0 && sum.worstScaledIndex >= 0)
+            enG8Describe ("worst |y[0] - predicted| / chain magnitude", sum.worstScaledIndex, enG8Draw (sum.worstScaledIndex));
+
+        if (sum.firstStartBad >= 0)
+            enG8Describe ("first that does not start at the impulse index", sum.firstStartBad, enG8Draw (sum.firstStartBad));
+    }
+
+    //==========================================================================
+    // EN-blk: block-size invariance
+    //==========================================================================
+    struct EnBlkResult
+    {
+        int mismatches = 0;         // block sizes whose output differs from the block-size-1 render
+        bool changed = false;       // the reference render differs from the input
+        bool finite = true;
+    };
+
+    /** Stereo noise, 48 kHz, 65 536 samples, at block sizes 1, 7, 16, 32, 64,
+        512, 2048, 4096 and one block. Every size against the size-1 render. */
+    EnBlkResult enBlkRun (const std::vector<eq::BandInput>& bandInputs)
+    {
+        constexpr int numSamples = 1 << 16;
+        static const int sizes[9] = { 1, 7, 16, 32, 64, 512, 2048, 4096, numSamples };
+
+        eq::Designer designer;
+        designer.prepare (48000.0);
+
+        Rng rng (0x454E424Cull);
+        std::vector<double> inL (ix (numSamples)), inR (ix (numSamples));
+        enFillNoise (inL, rng);
+        enFillNoise (inR, rng);
+
+        const std::size_t bytes = sizeof (double) * ix (numSamples);
+        std::vector<double> refL, refR;
+        EnBlkResult result;
+
+        for (const int size : sizes)
+        {
+            EnChain chain;
+
+            for (const eq::BandInput& in : bandInputs)
+                chain.add (designer, in);
+
+            std::vector<double> outL (inL), outR (inR);
+
+            for (int pos = 0; pos < numSamples; pos += size)
+            {
+                const int n = std::min (size, numSamples - pos);
+                chain.process (outL.data() + pos, outR.data() + pos, n, true);
+            }
+
+            if (refL.empty())
+            {
+                refL = outL;
+                refR = outR;
+                continue;
+            }
+
+            if (std::memcmp (refL.data(), outL.data(), bytes) != 0 || std::memcmp (refR.data(), outR.data(), bytes) != 0)
+                ++result.mismatches;
+        }
+
+        result.changed = std::memcmp (refL.data(), inL.data(), bytes) != 0 && std::memcmp (refR.data(), inR.data(), bytes) != 0;
+
+        for (int i = 0; i < numSamples; ++i)
+            if (! std::isfinite (refL[ix (i)]) || ! std::isfinite (refR[ix (i)]))
+                result.finite = false;
+
+        return result;
+    }
+
+    void rowEnBlk()
+    {
+        // (a) a 96 dB/oct High Shelf into a 36 dB/oct Low Cut, both Stereo.
+        std::vector<eq::BandInput> pair;
+        pair.push_back (eq::makeBandInput (enRaw (eq::Type::highShelf, 6000.0, 9.0, 2.0, 7, eq::Placement::stereo), kEnScale100, 0.0));
+        pair.push_back (eq::makeBandInput (enRaw (eq::Type::lowCut, 40.0, 0.0, 1.0, 4, eq::Placement::stereo), kEnScale100, 0.0));
+
+        // (b) 24 bands: every type three times, mixed slopes, every placement.
+        std::vector<eq::BandInput> mixed;
+
+        for (int b = 0; b < kEnMaxBands; ++b)
+        {
+            const eq::Type type = static_cast<eq::Type> (b % 8);
+            const eq::Placement placement = static_cast<eq::Placement> (b % 5);
+            const int slopeIndex = (b * 3 + 1) % 8;
+            const double fc = 30.0 * std::pow (600.0, static_cast<double> (b) / 23.0);
+            const double gain = (b % 2 == 0 ? 1.0 : -1.0) * (2.0 + static_cast<double> (b % 4));
+            const double q = 0.5 * std::pow (8.0, static_cast<double> ((b * 7) % 24) / 23.0);
+            mixed.push_back (eq::makeBandInput (enRaw (type, fc, gain, q, slopeIndex, placement), kEnScale100, 0.0));
+        }
+
+        const EnBlkResult a = enBlkRun (pair);
+        const EnBlkResult b = enBlkRun (mixed);
+        const bool ok = a.mismatches == 0 && b.mismatches == 0 && a.changed && b.changed && a.finite && b.finite;
+
+        row (ok, "EN-blk block sizes 1, 7, 16, 32, 64, 512, 2048, 4096, one block: bit-identical (stereo noise, 48 kHz, 65 536 samples)",
+             strf ("High Shelf 96 dB/oct into Low Cut 36 dB/oct: %d of 8 sizes differ from the size-1 render%s%s; "
+                   "24 bands, mixed types / slopes / placements: %d of 8 differ%s%s",
+                   a.mismatches, a.changed ? "" : " (VOID: output == input)", a.finite ? "" : " (NON-FINITE)",
+                   b.mismatches, b.changed ? "" : " (VOID: output == input)", b.finite ? "" : " (NON-FINITE)"));
+    }
+
+    //==========================================================================
+    // EN-fin: every sample finite
+    //==========================================================================
+    struct EnFinAbove
+    {
+        long long configs = 0, samples = 0, nonFinite = 0;
+        std::string first;
+    };
+
+    /** (i) Every type with its frequency at 20, 21 ... 30 kHz at 44.1 kHz:
+        every slope (slope types), Q 0.025 / 1 / 40, gain +-30 dB at scale 100
+        and 200 % (gain types). 2048 samples of noise, then 2048 of silence. */
+    EnFinAbove enFinAboveNyquist()
+    {
+        constexpr int half = 2048;
+        static const double qs[3] = { 0.025, 1.0, 40.0 };
+        static const double gains[2] = { -30.0, 30.0 };
+        static const float scales[2] = { 100.0f, 200.0f };
+
+        const double fs = 44100.0;
+        eq::Designer designer;
+        designer.prepare (fs);
+
+        Rng rng (0x454E4631ull);
+        std::vector<double> noise (ix (half));
+        enFillNoise (noise, rng);
+
+        std::vector<double> lane (ix (2 * half));
+        eq::BandDesign d {};
+        eq::Band band;
+        EnFinAbove out;
+
+        for (int typeIndex = 0; typeIndex < 8; ++typeIndex)
+        {
+            const eq::Type type = static_cast<eq::Type> (typeIndex);
+
+            for (int slopeIndex = 0; slopeIndex < 8; ++slopeIndex)
+            {
+                if (! eq::usesSlope (type) && slopeIndex != 0)
+                    continue;       // the canonical form: one design for every slope
+
+                for (int step = 0; step <= 10; ++step)
+                    for (const double q : qs)
+                        for (int gi = 0; gi < 2; ++gi)
+                            for (int si = 0; si < 2; ++si)
+                            {
+                                if (! eq::isGainType (type) && (gi != 0 || si != 0))
+                                    continue;       // gain is not read
+
+                                const double fc = 20000.0 + 1000.0 * static_cast<double> (step);
+                                const eq::BandInput in = eq::makeBandInput (enRaw (type, fc, gains[gi], q, slopeIndex, eq::Placement::stereo),
+                                                                            scales[si], 0.0);
+                                designer.design (in.settings, d);
+                                band.setDesign (d);
+                                band.reset();
+
+                                std::fill (lane.begin(), lane.end(), 0.0);
+                                std::copy (noise.begin(), noise.end(), lane.begin());
+                                eq::Router::process (band, in.placement, lane.data(), nullptr, 2 * half, false);
+                                ++out.configs;
+
+                                for (const double v : lane)
+                                {
+                                    ++out.samples;
+
+                                    if (! std::isfinite (v))
+                                    {
+                                        ++out.nonFinite;
+
+                                        if (out.first.empty())
+                                            out.first = strf ("%s slope-index %d fc %.0f Hz Q %g gain %g dB (effective), 44100 Hz",
+                                                              kTypeNames[typeIndex], in.settings.slopeIndex, fc, q, in.settings.gainDbEff);
+                                    }
+                                }
+                            }
+            }
+        }
+
+        return out;
+    }
+
+    struct EnFinRate
+    {
+        long long frames = 0, nonFinite = 0, structural = 0, continuous = 0, firstBad = -1;
+        double peak = 0.0;
+    };
+
+    /** (ii) 10 s at one rate, stereo layout, 24 active bands. Every 64 samples
+        every band is re-drawn over the full range and the gain scale over
+        0 - 200 %; half of the re-draws keep the band's type, slope and
+        placement. The 2.2 processor's rule is applied: a structural change
+        clears the band's state, a continuous one keeps it. Noise at -12 dBFS
+        and silence alternate every 0.5 s. Designer::prepare for this rate. */
+    EnFinRate enFinRandom (int rateIndex)
+    {
+        constexpr int block = 64;
+
+        const double fs = kRates8[ix (rateIndex)];
+        const long long total = std::llround (10.0 * fs);
+        const long long segment = std::llround (0.5 * fs);
+
+        eq::Designer designer;
+        designer.prepare (fs);
+
+        Rng seed (0x454E463200ull + static_cast<std::uint64_t> (rateIndex));
+        Rng rng (seed.next());
+
+        std::array<eq::Band, kEnMaxBands> bands;
+        std::array<eq::BandInput, kEnMaxBands> current {};
+        std::array<eq::RawBand, kEnMaxBands> raws {};
+        eq::BandDesign d {};
+        double lane0[block], lane1[block];
+        bool firstBlock = true;
+        EnFinRate out;
+
+        for (long long pos = 0; pos < total; pos += block)
+        {
+            const int n = static_cast<int> (std::min (static_cast<long long> (block), total - pos));
+            const float scale = static_cast<float> (200.0 * rng.uniform());
+
+            for (int b = 0; b < kEnMaxBands; ++b)
+            {
+                eq::RawBand next = enRandomRaw (rng);
+                const bool keepStructure = rng.below (2) == 0;
+
+                if (keepStructure && ! firstBlock)
+                {
+                    next.type = raws[ix (b)].type;
+                    next.slope = raws[ix (b)].slope;
+                    next.placement = raws[ix (b)].placement;
+                }
+
+                raws[ix (b)] = next;
+
+                const eq::BandInput in = eq::makeBandInput (next, scale, 0.0);
+                const eq::BandChange change = firstBlock ? eq::BandChange::structural
+                                                         : eq::classifyBandChange (current[ix (b)], in);
+
+                if (change != eq::BandChange::identical)
+                {
+                    designer.design (in.settings, d);
+                    bands[ix (b)].setDesign (d);
+
+                    if (change == eq::BandChange::structural)
+                    {
+                        bands[ix (b)].reset();
+                        ++out.structural;
+                    }
+                    else
+                    {
+                        ++out.continuous;
+                    }
+                }
+
+                current[ix (b)] = in;
+            }
+
+            firstBlock = false;
+
+            const bool noisy = ((pos / segment) % 2) == 0;
+
+            for (int i = 0; i < n; ++i)
+            {
+                lane0[i] = noisy ? (rng.uniform() * 2.0 - 1.0) * 0.25 : 0.0;
+                lane1[i] = noisy ? (rng.uniform() * 2.0 - 1.0) * 0.25 : 0.0;
+            }
+
+            for (int b = 0; b < kEnMaxBands; ++b)
+                eq::Router::process (bands[ix (b)], current[ix (b)].placement, lane0, lane1, n, true);
+
+            for (int i = 0; i < n; ++i)
+            {
+                ++out.frames;
+
+                if (! std::isfinite (lane0[i]) || ! std::isfinite (lane1[i]))
+                {
+                    ++out.nonFinite;
+
+                    if (out.firstBad < 0)
+                        out.firstBad = pos + i;
+
+                    continue;
+                }
+
+                out.peak = std::max (out.peak, std::max (std::fabs (lane0[i]), std::fabs (lane1[i])));
+            }
+        }
+
+        return out;
+    }
+
+    void rowEnFin()
+    {
+        const EnFinAbove above = enFinAboveNyquist();
+
+        std::array<EnFinRate, kEnNumRates8> rates;
+
+        parallelFor (kEnNumRates8, [&rates] (int r)
+        {
+            rates[ix (r)] = enFinRandom (r);
+        });
+
+        long long frames = 0, nonFinite = 0;
+        bool framesOk = true;
+        std::string first;
+
+        for (int r = 0; r < kEnNumRates8; ++r)
+        {
+            const EnFinRate& rate = rates[ix (r)];
+            frames += rate.frames;
+            nonFinite += rate.nonFinite;
+            framesOk = framesOk && rate.frames == std::llround (10.0 * kRates8[ix (r)]) && rate.structural > 0 && rate.continuous > 0;
+
+            if (first.empty() && rate.firstBad >= 0)
+                first = strf ("%.0f Hz, frame %lld", kRates8[ix (r)], rate.firstBad);
+        }
+
+        row (above.nonFinite == 0 && above.configs > 0 && nonFinite == 0 && framesOk,
+             "EN-fin every sample finite: (i) every type at 20-30 kHz, 44.1 kHz; (ii) random full-range settings re-drawn every "
+             "64 samples, 8 rates x 10 s",
+             strf ("(i) %lld settings, %lld samples, %lld non-finite%s%s; (ii) %lld stereo frames, %lld non-finite%s%s%s",
+                   above.configs, above.samples, above.nonFinite, above.first.empty() ? "" : ", first: ", above.first.c_str(),
+                   frames, nonFinite, first.empty() ? "" : ", first at ", first.c_str(),
+                   framesOk ? "" : " (VOID: a rate is short of 10 s or saw no structural / continuous change)"));
+
+        for (int r = 0; r < kEnNumRates8; ++r)
+        {
+            const EnFinRate& rate = rates[ix (r)];
+            note (strf ("(ii) %6.0f Hz: %lld frames, 24 bands, %lld structural changes (state cleared), %lld continuous (state kept), "
+                        "%lld non-finite, peak %+.1f dB re the noise peak",
+                        kRates8[ix (r)], rate.frames, rate.structural, rate.continuous, rate.nonFinite,
+                        20.0 * std::log10 (std::max (rate.peak, kTiny) / 0.25)));
+        }
+    }
+
+    //==========================================================================
+    // EN-alloc: allocation in the engine
+    //==========================================================================
+    /** 1e4 blocks inside a malloc_logger window on this thread: each block
+        designs one band (Designer::design, Band::setDesign, the state cleared
+        on a structural change) and runs all 24 through the Router on a
+        64-sample stereo block. `plant` puts one deliberate allocation inside
+        the window (the negative control). The hook, its counters and the
+        vacuity probe are row A1's. */
+    AllocResult runEnAlloc (bool plant)
+    {
+        AllocResult result;
+
+       #if defined (__APPLE__)
+        constexpr int numBlocks = 10000;
+        constexpr int blockSize = 64;
+        constexpr int noiseLength = 4096;
+
+        eq::Designer designer;
+        designer.prepare (48000.0);
+
+        Rng rng (0x454E414Cull);
+        std::vector<eq::BandInput> inputs;
+        inputs.reserve (ix (numBlocks));
+
+        for (int i = 0; i < numBlocks; ++i)
+            inputs.push_back (eq::makeBandInput (enRandomRaw (rng), kEnScale100, 0.0));
+
+        std::vector<double> noiseL (ix (noiseLength)), noiseR (ix (noiseLength));
+        enFillNoise (noiseL, rng);
+        enFillNoise (noiseR, rng);
+
+        std::array<eq::Band, kEnMaxBands> bands;
+        std::array<eq::BandInput, kEnMaxBands> current {};
+        eq::BandDesign d {};
+
+        for (int b = 0; b < kEnMaxBands; ++b)
+        {
+            current[ix (b)] = eq::makeBandInput (enRandomRaw (rng), kEnScale100, 0.0);
+            designer.design (current[ix (b)].settings, d);
+            bands[ix (b)].setDesign (d);
+            bands[ix (b)].reset();
+        }
+
+        double lane0[blockSize], lane1[blockSize];
+        long long finiteBlocks = 0;
+
+        malloc_logger_t* const previous = malloc_logger;
+        allocThread = pthread_self();
+        allocCount = 0;
+        freeCount = 0;
+        malloc_logger = countAllocation;
+
+        // Vacuity: the hook must see a deliberate allocation and its release.
+        allocArmed = true;
+        {
+            void* volatile planted = std::malloc (64);
+            std::free (planted);
+        }
+        allocArmed = false;
+        result.vacuityAllocs = allocCount;
+        result.vacuityFrees = freeCount;
+        allocCount = 0;
+        freeCount = 0;
+
+        allocArmed = true;
+
+        for (int i = 0; i < numBlocks; ++i)
+        {
+            const int b = i % kEnMaxBands;
+            const eq::BandInput& in = inputs[ix (i)];
+            designer.design (in.settings, d);
+            bands[ix (b)].setDesign (d);
+
+            if (eq::classifyBandChange (current[ix (b)], in) == eq::BandChange::structural)
+                bands[ix (b)].reset();
+
+            current[ix (b)] = in;
+
+            const std::size_t offset = ix ((i * blockSize) % (noiseLength - blockSize));
+            std::memcpy (lane0, noiseL.data() + offset, sizeof (lane0));
+            std::memcpy (lane1, noiseR.data() + offset, sizeof (lane1));
+
+            for (int k = 0; k < kEnMaxBands; ++k)
+                eq::Router::process (bands[ix (k)], current[ix (k)].placement, lane0, lane1, blockSize, true);
+
+            if (std::isfinite (lane0[blockSize - 1]) && std::isfinite (lane1[blockSize - 1]))
+                ++finiteBlocks;
+        }
+
+        if (plant)
+        {
+            void* volatile planted = std::malloc (64);
+            std::free (planted);
+        }
+
+        allocArmed = false;
+        malloc_logger = previous;
+
+        result.available = true;
+        result.allocs = allocCount;
+        result.frees = freeCount;
+        result.checksum = finiteBlocks;
+       #else
+        (void) plant;
+       #endif
+
+        return result;
+    }
+
+    void rowEnAlloc()
+    {
+        const AllocResult r = runEnAlloc (false);
+
+        if (! r.available)
+        {
+            info ("EN-alloc allocation gate SKIPPED: no malloc_logger on this platform");
+            return;
+        }
+
+        const bool hookLive = r.vacuityAllocs >= 1 && r.vacuityFrees >= 1;
+        row (hookLive && r.allocs == 0 && r.frees == 0,
+             "EN-alloc 1e4 blocks of design + setDesign + Router over 24 bands: 0 allocations, 0 frees (malloc_logger, this thread)",
+             strf ("%d allocations, %d frees; hook %s (planted: %d / %d); %lld of 10000 blocks end finite",
+                   r.allocs, r.frees, hookLive ? "live" : "DEAD", r.vacuityAllocs, r.vacuityFrees, r.checksum));
+    }
+
+    //==========================================================================
+    // SN1 - SN3: makeBandInput (PLAN-2.2 P2)
+    //==========================================================================
+    void rowEnSn1()
+    {
+        int checks = 0, bad = 0;
+        std::string first;
+
+        const auto expect = [&checks, &bad, &first] (bool ok, const char* what)
+        {
+            ++checks;
+
+            if (! ok)
+            {
+                ++bad;
+
+                if (first.empty())
+                    first = what;
+            }
+        };
+
+        const float quietNaN = std::numeric_limits<float>::quiet_NaN();
+        const float infinity = std::numeric_limits<float>::infinity();
+        const float nonFinite[3] = { quietNaN, infinity, -infinity };
+
+        // A Low Shelf, 24 dB/oct, on Right: no canonical rule touches it.
+        const eq::RawBand base = enRaw (eq::Type::lowShelf, 1234.5, 7.25, 2.5, 3, eq::Placement::right);
+
+        {
+            const eq::BandInput in = eq::makeBandInput (base, 100.0f, 0.0);
+            expect (in.settings.type == eq::Type::lowShelf, "base: type");
+            expect (sameBits (in.settings.freqHz, 1234.5), "base: frequency is the widened float");
+            expect (sameBits (in.settings.gainDbEff, 7.25), "base: gain");
+            expect (sameBits (in.settings.q, 2.5), "base: Q");
+            expect (in.settings.slopeIndex == 3, "base: slope index");
+            expect (in.placement == eq::Placement::right, "base: placement");
+            expect (in.active, "base: active");
+        }
+
+        // 1. Non-finite -> the default.
+        for (const float v : nonFinite)
+        {
+            eq::RawBand raw = base;
+            raw.enabled = v;
+            expect (! eq::makeBandInput (raw, 100.0f, 0.0).active, "non-finite enabled reads off");
+
+            raw = base;
+            raw.bypass = v;
+            expect (eq::makeBandInput (raw, 100.0f, 0.0).active, "non-finite bypass reads off");
+
+            raw = base;
+            raw.type = v;
+            expect (eq::makeBandInput (raw, 100.0f, 0.0).settings.type == eq::Type::bell, "non-finite type reads 0 (Bell)");
+
+            raw = base;
+            raw.freq = v;
+            expect (sameBits (eq::makeBandInput (raw, 100.0f, 0.0).settings.freqHz, 1000.0), "non-finite frequency reads 1000 Hz");
+
+            raw = base;
+            raw.gain = v;
+            expect (eq::makeBandInput (raw, 100.0f, 0.0).settings.gainDbEff == 0.0, "non-finite gain reads 0 dB");
+
+            raw = base;
+            raw.q = v;
+            expect (sameBits (eq::makeBandInput (raw, 100.0f, 0.0).settings.q, 1.0), "non-finite Q reads 1");
+
+            raw = base;
+            raw.slope = v;
+            expect (eq::makeBandInput (raw, 100.0f, 0.0).settings.slopeIndex == 1, "non-finite slope reads index 1");
+
+            raw = base;
+            raw.placement = v;
+            expect (eq::makeBandInput (raw, 100.0f, 0.0).placement == eq::Placement::stereo, "non-finite placement reads 0 (Stereo)");
+
+            expect (sameBits (eq::makeBandInput (base, v, 0.0).settings.gainDbEff, 7.25), "non-finite gain scale reads 100 %");
+            expect (sameBits (eq::makeBandInput (base, 100.0f, static_cast<double> (v)).settings.gainDbEff, 7.25),
+                    "non-finite dynamic offset reads 0 dB");
+        }
+
+        {
+            eq::RawBand raw;
+            raw.enabled = quietNaN;  raw.bypass = quietNaN;  raw.type = quietNaN;       raw.freq = quietNaN;
+            raw.gain = quietNaN;     raw.q = quietNaN;       raw.slope = quietNaN;      raw.placement = quietNaN;
+            const eq::BandInput in = eq::makeBandInput (raw, quietNaN, 0.0);
+            expect (! in.active && in.settings.type == eq::Type::bell && sameBits (in.settings.freqHz, 1000.0)
+                      && in.settings.gainDbEff == 0.0 && sameBits (in.settings.q, 1.0) && in.settings.slopeIndex == 0
+                      && in.placement == eq::Placement::stereo,
+                    "all NaN: an inactive default Bell (canonical slope index 0)");
+        }
+
+        // 2. Clamps.
+        {
+            eq::RawBand raw = base;
+            raw.freq = 5.0f;
+            expect (sameBits (eq::makeBandInput (raw, 100.0f, 0.0).settings.freqHz, 10.0), "frequency 5 Hz clamps to 10");
+            raw.freq = 40000.0f;
+            expect (sameBits (eq::makeBandInput (raw, 100.0f, 0.0).settings.freqHz, 30000.0), "frequency 40 kHz clamps to 30 kHz");
+
+            raw = base;
+            raw.gain = 45.0f;
+            expect (sameBits (eq::makeBandInput (raw, 100.0f, 0.0).settings.gainDbEff, 30.0), "gain +45 dB clamps to +30");
+            raw.gain = -45.0f;
+            expect (sameBits (eq::makeBandInput (raw, 100.0f, 0.0).settings.gainDbEff, -30.0), "gain -45 dB clamps to -30");
+
+            raw = base;
+            raw.q = 0.001f;
+            expect (sameBits (eq::makeBandInput (raw, 100.0f, 0.0).settings.q, 0.025), "Q 0.001 clamps to 0.025");
+            raw.q = 100.0f;
+            expect (sameBits (eq::makeBandInput (raw, 100.0f, 0.0).settings.q, 40.0), "Q 100 clamps to 40");
+            raw.q = 0.025f;
+            expect (sameBits (eq::makeBandInput (raw, 100.0f, 0.0).settings.q, static_cast<double> (0.025f)),
+                    "Q 0.025f (in range) is the widened float");
+
+            expect (eq::makeBandInput (base, -10.0f, 0.0).settings.gainDbEff == 0.0, "gain scale -10 % clamps to 0");
+            expect (sameBits (eq::makeBandInput (base, 250.0f, 0.0).settings.gainDbEff, 14.5), "gain scale 250 % clamps to 200");
+        }
+
+        // 2. Choices: clamp to the index range, round to nearest, a half up.
+        {
+            struct Choice { float raw; int expected; };
+            static const Choice types[8] = { { -3.0f, 0 }, { 12.0f, 7 }, { 2.4f, 2 }, { 2.5f, 3 }, { 2.6f, 3 }, { 6.5f, 7 }, { 7.4f, 7 }, { 0.49f, 0 } };
+            static const Choice slopes[7] = { { -1.0f, 0 }, { 99.0f, 7 }, { 3.49f, 3 }, { 3.5f, 4 }, { 0.5f, 1 }, { 6.51f, 7 }, { 7.0f, 7 } };
+            static const Choice placements[7] = { { -2.0f, 0 }, { 9.0f, 4 }, { 1.5f, 2 }, { 0.49f, 0 }, { 3.5f, 4 }, { 2.49f, 2 }, { 4.0f, 4 } };
+
+            for (const Choice& c : types)
+            {
+                eq::RawBand raw = base;
+                raw.type = c.raw;
+                expect (static_cast<int> (eq::makeBandInput (raw, 100.0f, 0.0).settings.type) == c.expected, "type choice rounding / clamp");
+            }
+
+            for (const Choice& c : slopes)
+            {
+                eq::RawBand raw = base;
+                raw.slope = c.raw;
+                expect (eq::makeBandInput (raw, 100.0f, 0.0).settings.slopeIndex == c.expected, "slope choice rounding / clamp");
+            }
+
+            for (const Choice& c : placements)
+            {
+                eq::RawBand raw = base;
+                raw.placement = c.raw;
+                expect (static_cast<int> (eq::makeBandInput (raw, 100.0f, 0.0).placement) == c.expected, "placement choice rounding / clamp");
+            }
+        }
+
+        // 2, 4. Toggles: on from 0.5; active = enabled && ! bypass.
+        {
+            eq::RawBand raw = base;
+            raw.enabled = 0.49f;
+            expect (! eq::makeBandInput (raw, 100.0f, 0.0).active, "enabled 0.49 reads off");
+            raw.enabled = 0.5f;
+            expect (eq::makeBandInput (raw, 100.0f, 0.0).active, "enabled 0.5 reads on");
+
+            raw = base;
+            raw.bypass = 0.49f;
+            expect (eq::makeBandInput (raw, 100.0f, 0.0).active, "bypass 0.49 reads off");
+            raw.bypass = 0.5f;
+            expect (! eq::makeBandInput (raw, 100.0f, 0.0).active, "bypass 0.5 reads on");
+
+            for (int e = 0; e < 2; ++e)
+                for (int b = 0; b < 2; ++b)
+                {
+                    raw = base;
+                    raw.enabled = static_cast<float> (e);
+                    raw.bypass = static_cast<float> (b);
+                    expect (eq::makeBandInput (raw, 100.0f, 0.0).active == (e == 1 && b == 0), "active = enabled && ! bypass");
+                }
+        }
+
+        // 3. Effective gain: scale 0, 100, 200; the +-60 dB clamp.
+        {
+            eq::RawBand raw = base;
+            raw.gain = 7.3f;
+            const double g = static_cast<double> (7.3f);
+            expect (eq::makeBandInput (raw, 0.0f, 0.0).settings.gainDbEff == 0.0, "scale 0 %: 0 dB");
+            expect (sameBits (eq::makeBandInput (raw, 100.0f, 0.0).settings.gainDbEff, g), "scale 100 %: the float gain, bit for bit");
+            expect (sameBits (eq::makeBandInput (raw, 200.0f, 0.0).settings.gainDbEff, 2.0 * g), "scale 200 %: twice the float gain");
+
+            raw.gain = -7.3f;
+            expect (eq::makeBandInput (raw, 0.0f, 0.0).settings.gainDbEff == 0.0, "scale 0 %, negative gain: 0 dB");
+            expect (sameBits (eq::makeBandInput (raw, 200.0f, 0.0).settings.gainDbEff, -2.0 * g), "scale 200 %, negative gain");
+
+            raw.gain = 30.0f;
+            expect (sameBits (eq::makeBandInput (raw, 200.0f, 0.0).settings.gainDbEff, 60.0), "+30 dB at 200 %: +60");
+            expect (sameBits (eq::makeBandInput (raw, 200.0f, 5.0).settings.gainDbEff, 60.0), "+30 dB at 200 % + 5 dB offset clamps to +60");
+            expect (sameBits (eq::makeBandInput (raw, 100.0f, 40.0).settings.gainDbEff, 60.0), "+30 dB + 40 dB offset clamps to +60");
+
+            raw.gain = -30.0f;
+            expect (sameBits (eq::makeBandInput (raw, 200.0f, 0.0).settings.gainDbEff, -60.0), "-30 dB at 200 %: -60");
+            expect (sameBits (eq::makeBandInput (raw, 200.0f, -5.0).settings.gainDbEff, -60.0), "-30 dB at 200 % - 5 dB offset clamps to -60");
+
+            raw.gain = 0.0f;
+            expect (sameBits (eq::makeBandInput (raw, 100.0f, 59.5).settings.gainDbEff, 59.5), "0 dB + 59.5 dB offset: 59.5 (inside the clamp)");
+            expect (sameBits (eq::makeBandInput (raw, 100.0f, -75.0).settings.gainDbEff, -60.0), "0 dB - 75 dB offset clamps to -60");
+        }
+
+        row (bad == 0 && checks >= 80,
+             "SN1 makeBandInput: NaN / +-inf, out-of-range and off-grid values per field; toggles at 0.49 / 0.5; scale 0 / 100 / 200; +-60 clamp",
+             strf ("%d checks, %d off%s%s", checks, bad, first.empty() ? "" : "; first: ", first.c_str()));
+    }
+
+    void rowEnSn2()
+    {
+        constexpr int numGains = 2000000;
+
+        Rng rng (0x534E3200ull);
+        eq::RawBand raw = enRaw (eq::Type::bell, 1000.0, 0.0, 1.0, 1, eq::Placement::stereo);
+        long long bad = 0, nonZero = 0;
+        double firstBad = 0.0;
+
+        const auto check = [&raw, &bad, &firstBad] (float g)
+        {
+            raw.gain = g;
+            const double eff = eq::makeBandInput (raw, kEnScale100, 0.0).settings.gainDbEff;
+
+            if (! sameBits (eff, static_cast<double> (g)))
+            {
+                if (bad == 0)
+                    firstBad = static_cast<double> (g);
+
+                ++bad;
+            }
+        };
+
+        for (int i = 0; i < numGains; ++i)
+        {
+            const float g = static_cast<float> (60.0 * rng.uniform() - 30.0);
+
+            if (g != 0.0f)
+                ++nonZero;
+
+            check (g);
+        }
+
+        for (const float g : { -30.0f, 0.0f, 30.0f })
+            check (g);
+
+        row (bad == 0 && nonZero > numGains / 2,
+             "SN2 2 000 000 random float gains (+-30 dB) at scale 100 %, offset 0: gainDbEff == the float gain, bit for bit",
+             bad == 0 ? strf ("%d gains + the range ends, 0 differ", numGains)
+                      : strf ("%lld of %d differ; first: %.9g dB", bad, numGains, firstBad));
+    }
+
+    void rowEnSn3()
+    {
+        constexpr int numDraws = 2000;
+        static const eq::Type fixedTypes[3] = { eq::Type::bell, eq::Type::notch, eq::Type::bandPass };
+        static const eq::Type slopeTypes[5] = { eq::Type::lowShelf, eq::Type::highShelf, eq::Type::lowCut, eq::Type::highCut, eq::Type::tilt };
+        static const float qValues[5] = { 0.025f, 0.3f, 2.0f, 7.0f, 40.0f };
+
+        Rng rng (0x534E3300ull);
+        long long slopeEdits = 0, slopeBad = 0, qEdits = 0, qBad = 0, controls = 0, controlsFired = 0;
+
+        for (int n = 0; n < numDraws; ++n)
+        {
+            eq::RawBand raw = enRandomRaw (rng);
+            const float scale = static_cast<float> (200.0 * rng.uniform());
+
+            // D6: the slope of a Bell / Notch / Band Pass.
+            raw.type = static_cast<float> (static_cast<int> (fixedTypes[n % 3]));
+            const eq::BandInput a = eq::makeBandInput (raw, scale, 0.0);
+
+            for (int s = 0; s < 8; ++s)
+            {
+                eq::RawBand edited = raw;
+                edited.slope = static_cast<float> (s);
+                const eq::BandInput b = eq::makeBandInput (edited, scale, 0.0);
+                ++slopeEdits;
+
+                if (! (enSameFields (a, b) && b.settings.slopeIndex == 0 && eq::sameBandInput (a, b)
+                         && eq::classifyBandChange (a, b) == eq::BandChange::identical))
+                    ++slopeBad;
+            }
+
+            // D9: Q at 6 dB/oct, the five slope types.
+            raw.type = static_cast<float> (static_cast<int> (slopeTypes[n % 5]));
+            raw.slope = 0.0f;
+            const eq::BandInput c = eq::makeBandInput (raw, scale, 0.0);
+
+            for (const float q : qValues)
+            {
+                eq::RawBand edited = raw;
+                edited.q = q;
+                const eq::BandInput e = eq::makeBandInput (edited, scale, 0.0);
+                ++qEdits;
+
+                if (! (enSameFields (c, e) && sameBits (e.settings.q, 1.0) && eq::sameBandInput (c, e)
+                         && eq::classifyBandChange (c, e) == eq::BandChange::identical))
+                    ++qBad;
+            }
+
+            // Controls: the same edits where they are not inert.
+            {
+                raw.type = static_cast<float> (static_cast<int> (eq::Type::lowCut));
+                raw.slope = 1.0f;
+                eq::RawBand edited = raw;
+                edited.slope = 5.0f;
+                const eq::BandInput before = eq::makeBandInput (raw, scale, 0.0);
+                const eq::BandInput after = eq::makeBandInput (edited, scale, 0.0);
+                ++controls;
+
+                if (! enSameFields (before, after) && ! eq::sameBandInput (before, after)
+                      && eq::classifyBandChange (before, after) == eq::BandChange::structural)
+                    ++controlsFired;
+            }
+
+            {
+                raw.type = static_cast<float> (static_cast<int> (eq::Type::lowShelf));
+                raw.slope = 1.0f;
+                raw.q = 1.0f;
+                eq::RawBand edited = raw;
+                edited.q = 2.0f;
+                const eq::BandInput before = eq::makeBandInput (raw, scale, 0.0);
+                const eq::BandInput after = eq::makeBandInput (edited, scale, 0.0);
+                ++controls;
+
+                if (! enSameFields (before, after) && ! eq::sameBandInput (before, after)
+                      && eq::classifyBandChange (before, after) == eq::BandChange::continuous)
+                    ++controlsFired;
+            }
+        }
+
+        row (slopeBad == 0 && qBad == 0 && slopeEdits > 0 && qEdits > 0 && controlsFired == controls,
+             "SN3 canonical form: slope edits on Bell / Notch / Band Pass and Q edits at 6 dB/oct leave BandInput field-identical",
+             strf ("%lld slope edits, %lld differ; %lld Q edits, %lld differ; controls (Low Cut slope edit -> structural, "
+                   "12 dB/oct shelf Q edit -> continuous): %lld of %lld fire",
+                   slopeEdits, slopeBad, qEdits, qBad, controlsFired, controls));
+    }
+
+    //==========================================================================
+    // EN-dyn: the dynamic offset (DSP-07, engine half)
+    //==========================================================================
+    void rowEnDyn()
+    {
+        constexpr int numSamples = 1 << 15;
+        constexpr int numDraws = 100000;
+
+        eq::Designer designer;
+        designer.prepare (48000.0);
+
+        const eq::RawBand zeroBell = enRaw (eq::Type::bell, 1000.0, 0.0, 1.0, 1, eq::Placement::stereo);
+        const eq::RawBand sixBell = enRaw (eq::Type::bell, 1000.0, 6.0, 1.0, 1, eq::Placement::stereo);
+
+        // The hook is read, never written: Band::dynOffsetDb is 0 on a fresh band.
+        const eq::Band fresh {};
+        const bool hookZero = fresh.dynOffsetDb == 0.0;
+
+        const eq::BandInput viaOffset = eq::makeBandInput (zeroBell, kEnScale100, 6.0);
+        const eq::BandInput viaGain = eq::makeBandInput (sixBell, kEnScale100, 0.0);
+        const eq::BandInput neutral = eq::makeBandInput (zeroBell, kEnScale100, fresh.dynOffsetDb);
+
+        const bool gainSame = sameBits (viaOffset.settings.gainDbEff, viaGain.settings.gainDbEff)
+                           && sameBits (viaGain.settings.gainDbEff, 6.0)
+                           && enSameFields (viaOffset, viaGain);
+        const bool neutralZero = neutral.settings.gainDbEff == 0.0;
+
+        Rng rng (0x454E4459ull);
+        std::vector<double> inL (ix (numSamples)), inR (ix (numSamples));
+        enFillNoise (inL, rng);
+        enFillNoise (inR, rng);
+
+        const std::size_t bytes = sizeof (double) * ix (numSamples);
+        std::vector<double> outL[3], outR[3];
+        const eq::BandInput* const which[3] = { &viaOffset, &viaGain, &neutral };
+
+        for (int k = 0; k < 3; ++k)
+        {
+            outL[k] = inL;
+            outR[k] = inR;
+            EnChain chain;
+            chain.add (designer, *which[k]);
+            chain.process (outL[k].data(), outR[k].data(), numSamples, true);
+        }
+
+        const bool renderSame = std::memcmp (outL[0].data(), outL[1].data(), bytes) == 0
+                             && std::memcmp (outR[0].data(), outR[1].data(), bytes) == 0;
+        const bool renderLive = std::memcmp (outL[0].data(), outL[2].data(), bytes) != 0
+                             && std::memcmp (outL[0].data(), inL.data(), bytes) != 0;
+
+        // Offset 0 (and -0) leaves gainDbEff at clamp (gain * scale / 100, -60, +60).
+        long long unchangedBad = 0;
+        eq::RawBand raw = zeroBell;
+
+        for (int n = 0; n < numDraws; ++n)
+        {
+            raw.gain = static_cast<float> (60.0 * rng.uniform() - 30.0);
+            const float scale = n % 4 == 0 ? kEnScale100 : static_cast<float> (200.0 * rng.uniform());
+
+            const double product = static_cast<double> (raw.gain) * static_cast<double> (scale);
+            const double scaled = product / 100.0;
+            const double expected = scaled < -60.0 ? -60.0 : (scaled > 60.0 ? 60.0 : scaled);
+
+            const double withZero = eq::makeBandInput (raw, scale, 0.0).settings.gainDbEff;
+            const double withMinusZero = eq::makeBandInput (raw, scale, -0.0).settings.gainDbEff;
+            const double withHook = eq::makeBandInput (raw, scale, fresh.dynOffsetDb).settings.gainDbEff;
+
+            if (! (sameBits (withZero, expected) && sameBits (withMinusZero, expected) && sameBits (withHook, expected)))
+                ++unchangedBad;
+        }
+
+        row (hookZero && gainSame && neutralZero && renderSame && renderLive && unchangedBad == 0,
+             "EN-dyn offset +6 dB on a 0 dB bell == a +6 dB bell: gainDbEff and the rendered output bit for bit; offset 0 changes nothing",
+             strf ("gainDbEff %.17g vs %.17g (%s); render %s (stereo noise, 48 kHz, %d samples)%s; Band::dynOffsetDb reads %g on a fresh band; "
+                   "offset 0 / -0 / the hook's value over %d random gains and scales: %lld differ from clamp (gain * scale / 100)",
+                   viaOffset.settings.gainDbEff, viaGain.settings.gainDbEff, gainSame ? "same bits" : "DIFFER",
+                   renderSame ? "memcmp equal" : "DIFFERS", numSamples,
+                   renderLive ? "" : " (VOID: the +6 dB render equals the 0 dB render or the input)",
+                   fresh.dynOffsetDb, numDraws, unchangedBad));
+    }
+
+    //==========================================================================
     // --neg
     //==========================================================================
     /** Runs one negative control. Exit code 0 only if the targeted row FAILS. */
@@ -5035,7 +6814,17 @@ namespace
             return fires ? 0 : 1;
         }
 
-        std::fprintf (stderr, "unknown negative control '%s' (rbj, f1, alloc, seed, rbj-b, binary-gate, first-build)\n", which.c_str());
+        if (which == "engine-alloc")
+        {
+            const AllocResult r = runEnAlloc (true);
+            const bool fires = r.available && r.allocs > 0;
+            std::printf ("neg engine-alloc: planted allocation inside the EN-alloc window: %d allocations, %d frees counted: %s\n",
+                         r.allocs, r.frees, fires ? "EN-alloc FAILS - the control fires" : "the control did NOT fire");
+            return fires ? 0 : 1;
+        }
+
+        std::fprintf (stderr, "unknown negative control '%s' (rbj, f1, alloc, seed, rbj-b, binary-gate, first-build, engine-alloc)\n",
+                      which.c_str());
         return 255;
     }
 }
@@ -5070,7 +6859,7 @@ int main (int argc, char** argv)
         else
         {
             std::fprintf (stderr, "usage: %s [--golden-dir <dir>] [--dump-designs] [--dump-polished] "
-                                  "[--neg rbj|f1|alloc|seed|rbj-b|binary-gate|first-build]\n", argv[0]);
+                                  "[--neg rbj|f1|alloc|seed|rbj-b|binary-gate|first-build|engine-alloc]\n", argv[0]);
             return 255;
         }
     }
@@ -5166,6 +6955,22 @@ int main (int argc, char** argv)
     infoWeak();
     infoNew();
     infoCost();
+
+    //==========================================================================
+    // Phase 2.2 (PLAN-2.2 T4): eq::Band + eq::Router in double
+    //==========================================================================
+    heading ("2.2 / engine (double)");
+    rowsEnIr();
+    rowsEnMs();
+    rowEnLr();
+    rowEnG8();
+    rowEnBlk();
+    rowEnFin();
+    rowEnAlloc();
+    rowEnSn1();
+    rowEnSn2();
+    rowEnSn3();
+    rowEnDyn();
 
     std::printf ("\n%d PASS, %d FAIL, %d INFO\n", passes, failures, infos);
     std::fflush (stdout);

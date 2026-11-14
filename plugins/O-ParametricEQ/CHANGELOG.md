@@ -1,5 +1,20 @@
 # O-ParametricEQ Changelog
 
+## [0.2.0] - 2026-11-13
+
+Stage 2, Phase 2.2 (static engine). The plugin equalises; parameter changes are not smoothed yet.
+
+### Added
+- The 24-band engine: eight types (Bell, Low Shelf, High Shelf, Low Cut, High Cut, Notch, Band Pass, Tilt Shelf), slopes from 6 to 96 dB/oct on cuts, shelves and tilt, five placements (Stereo, Left, Right, Mid, Side), `gain_scale` applied per band. Zero latency.
+- Bit-exact output with no active band. A Left or Right band leaves the other channel bit-exact.
+- 2 s tail reported to the host.
+
+### Known in this build
+- Parameter moves step: a band is redesigned at the next block start, with no ramp.
+- Type, slope, placement and enable changes click: the band restarts from rest.
+- Global `bypass` is a hard switch.
+- `output_gain` and `auto_gain` do nothing yet.
+
 ## [0.1.0] - 2026-11-12
 
 Stage 1 (Foundation). The plugin builds, loads and saves; it does not equalise yet.

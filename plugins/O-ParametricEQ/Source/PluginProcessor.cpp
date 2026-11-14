@@ -24,13 +24,15 @@
     Ouaricon Audio
     Developer: Taylor Brook
 
-    Stage 1 (Foundation). See PluginProcessor.h.
+    Stage 1 (Foundation): layout, buses, state.
+    Stage 2, Phase 2.2: the static 24-band engine. See PluginProcessor.h.
 
   ==============================================================================
 */
 
 #include "PluginProcessor.h"
 
+#include <cstring>
 #include <iterator>
 #include <memory>
 
@@ -81,8 +83,9 @@ namespace
     };
 
     // Groups `band01` ... `band24`, in registration order inside each band.
-    // `slope` is registered on every band whatever its type. Nothing in Stage 1
-    // interprets `type`, `slope`, `q` or `placement`.
+    // `slope` is registered on every band whatever its type. The engine reads
+    // these eight values through eq::makeBandInput and nowhere else; the row
+    // order here is the field order of eq::RawBand.
     const ParamDef kBandDefs[] =
     {
         { "enabled",   "On",        Kind::toggle,  0.0f,   1.0f,     0.0f,    0.0f,    nullptr,           0,                    0 },
@@ -94,6 +97,17 @@ namespace
         { "slope",     "Slope",     Kind::choice,  0.0f,   0.0f,     0.0f,    0.0f,    kSlopeChoices,     kNumSlopeChoices,     1 },
         { "placement", "Placement", Kind::choice,  0.0f,   0.0f,     0.0f,    0.0f,    kPlacementChoices, kNumPlacementChoices, 0 },
     };
+
+    static_assert (std::size (kGlobalDefs) == 4 && std::size (kBandDefs) == 8,
+                   "the raw-value cache is indexed by these two tables");
+
+    static_assert (static_cast<int> (std::size (kBandDefs)) == eq::numRawBandValues,
+                   "one eq::RawBand field per band parameter, in registration order");
+
+    // Indices into the raw-value cache (the kGlobalDefs rows). output_gain (1)
+    // and auto_gain (3) are cached and read by nothing until Phase 2.5.
+    constexpr std::size_t kRawBypass    = 0;
+    constexpr std::size_t kRawGainScale = 2;
 
     /** Every parameter carries version hint 1. Every float range has interval 0
         and is a plain start / end / skew range: the WebView slider frontend
@@ -211,14 +225,55 @@ OuariconParametricEQAudioProcessor::OuariconParametricEQAudioProcessor()
 {
     bypassParam = parameters.getParameter ("bypass");
     jassert (bypassParam != nullptr);
+
+    // The raw values the audio thread reads, cached once, in registration
+    // order. The IDs are built from the same two tables as the layout.
+    for (std::size_t i = 0; i < std::size (kGlobalDefs); ++i)
+    {
+        rawValues[i] = parameters.getRawParameterValue (kGlobalDefs[i].id);
+        jassert (rawValues[i] != nullptr);
+    }
+
+    for (int n = 1; n <= kNumBands; ++n)
+    {
+        const juce::String idPrefix = "b" + juce::String (n).paddedLeft ('0', 2) + "_";
+        const auto base = static_cast<std::size_t> (kNumGlobalParams + (n - 1) * kNumBandParams);
+
+        for (std::size_t f = 0; f < std::size (kBandDefs); ++f)
+        {
+            rawValues[base + f] = parameters.getRawParameterValue (idPrefix + kBandDefs[f].id);
+            jassert (rawValues[base + f] != nullptr);
+        }
+    }
+
+    jassert (rawValues[kRawBypass]    == parameters.getRawParameterValue ("bypass"));
+    jassert (rawValues[kRawGainScale] == parameters.getRawParameterValue ("gain_scale"));
 }
 
 //==============================================================================
 void OuariconParametricEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    juce::ignoreUnused (sampleRate, samplesPerBlock);
+    // The designer first: it decides per rate whether designs are polished,
+    // and nothing may be designed at a rate it was not prepared for.
+    designer.prepare (sampleRate);
 
-    // The shell adds no delay. This is the only place the reported latency is set.
+    // The negotiated layout, not the width of whatever buffer arrives.
+    stereoLayout = getMainBusNumOutputChannels() >= 2;
+
+    preparedBlockSize = juce::jmax (1, samplesPerBlock);
+
+    for (auto& lane : lanes)
+        lane.assign (static_cast<std::size_t> (preparedBlockSize), 0.0);
+
+    // Nothing is carried across a prepare: state cleared, and every snapshot
+    // invalid, so the first block designs every active band at this rate and
+    // for this layout.
+    resetAllBands();
+
+    for (auto& slot : slots)
+        slot.valid = false;
+
+    // The engine adds no delay. This is the only place the reported latency is set.
     setLatencySamples (0);
 }
 
@@ -233,30 +288,230 @@ bool OuariconParametricEQAudioProcessor::isBusesLayoutSupported (const BusesLayo
 }
 
 //==============================================================================
-void OuariconParametricEQAudioProcessor::passThrough (juce::AudioBuffer<float>& buffer)
+// Audio path (Stage 2, Phase 2.2: static engine)
+//
+// Per host block:
+//   1. flush-to-zero on; clear any output channel that has no input;
+//   2. global bypass on: every band's state cleared, buffer untouched, done
+//      (a hard switch until the soft bypass of Phase 2.4);
+//   3. per band, the raw snapshot (eight values + gain_scale) is compared by
+//      bit pattern with the last one. Only on a difference is the canonical
+//      input rebuilt and classified:
+//        identical    nothing (an inert edit: slope on a Bell, Q at 6 dB/oct,
+//                     placement on a mono layout)
+//        structural   design, state cleared (a click until Phase 2.4)
+//        continuous   design, state kept (a step until Phase 2.3)
+//   4. no active band: return. The buffer has not been touched;
+//   5. otherwise, in chunks of at most the prepared block size: the lanes an
+//      active band touches go to double, the active bands run in index order
+//      through the router, and those lanes go back to float.
+//
+// Nothing else sits between the float input and the float output: no output
+// gain, no auto gain (Phase 2.5), no smoothing stage.
+//==============================================================================
+void OuariconParametricEQAudioProcessor::clearOutputsWithoutInput (juce::AudioBuffer<float>& buffer)
 {
-    juce::ScopedNoDenormals noDenormals;
-
     // Clear any output channel that has no input. With the two accepted
-    // layouts there is none, so no sample is touched and no parameter is read.
+    // layouts there is none, so no sample is touched.
     const int numChannels = juce::jmin (getTotalNumOutputChannels(), buffer.getNumChannels());
 
     for (int channel = getTotalNumInputChannels(); channel < numChannels; ++channel)
         buffer.clear (channel, 0, buffer.getNumSamples());
 }
 
+void OuariconParametricEQAudioProcessor::resetAllBands() noexcept
+{
+    for (auto& band : bands)
+        band.reset();
+}
+
+OuariconParametricEQAudioProcessor::BandSnapshot
+OuariconParametricEQAudioProcessor::readBandSnapshot (int band, float gainScaleRaw) const noexcept
+{
+    const auto base = static_cast<std::size_t> (kNumGlobalParams + band * kNumBandParams);
+
+    BandSnapshot s;
+    s.raw.enabled   = rawValues[base + 0]->load();
+    s.raw.bypass    = rawValues[base + 1]->load();
+    s.raw.type      = rawValues[base + 2]->load();
+    s.raw.freq      = rawValues[base + 3]->load();
+    s.raw.gain      = rawValues[base + 4]->load();
+    s.raw.q         = rawValues[base + 5]->load();
+    s.raw.slope     = rawValues[base + 6]->load();
+    s.raw.placement = rawValues[base + 7]->load();
+    s.gainScale     = gainScaleRaw;
+    return s;
+}
+
+double OuariconParametricEQAudioProcessor::getBandDynOffsetDb (int band) const noexcept
+{
+    if (band < 0 || band >= kNumBands)
+        return 0.0;
+
+    return bands[static_cast<std::size_t> (band)].dynOffsetDb;
+}
+
 void OuariconParametricEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                                        juce::MidiBuffer& midiMessages)
 {
+    juce::ScopedNoDenormals noDenormals;
     juce::ignoreUnused (midiMessages);
-    passThrough (buffer);
+
+    clearOutputsWithoutInput (buffer);
+
+    // Hard bypass (until Phase 2.4): buffer untouched, state cleared. The
+    // snapshots stay valid: a band whose parameters did not move while
+    // bypassed keeps its design and restarts from rest.
+    if (rawValues[kRawBypass]->load() >= 0.5f)
+    {
+        resetAllBands();
+        return;
+    }
+
+    // Not prepared, or a buffer narrower than the negotiated layout: nothing
+    // can run. The buffer is left as it is.
+    if (preparedBlockSize <= 0 || buffer.getNumChannels() < (stereoLayout ? 2 : 1))
+        return;
+
+    //==========================================================================
+    // Parameters: read once per host block; designs made here, at the block start.
+    const float gainScaleRaw = rawValues[kRawGainScale]->load();
+
+    int activeBands[kNumBands];
+    int numActive = 0;
+    bool touched[2] = { false, false };
+
+    for (int b = 0; b < kNumBands; ++b)
+    {
+        const auto ub = static_cast<std::size_t> (b);
+        auto& slot = slots[ub];
+        auto& band = bands[ub];
+
+        const BandSnapshot now = readBandSnapshot (b, gainScaleRaw);
+
+        // First level: bit pattern. A NaN compares equal to itself, so a
+        // change is never missed and never repeated.
+        if (! slot.valid || std::memcmp (&now, &slot.snapshot, sizeof (BandSnapshot)) != 0)
+        {
+            // Second level: the canonical input, with the placement that
+            // takes effect on this layout.
+            eq::BandInput next = eq::makeBandInput (now.raw, now.gainScale, band.dynOffsetDb);
+            next.placement = eq::effectivePlacement (next.placement, stereoLayout);
+
+            // An invalid snapshot (the first block after a prepare) has
+            // nothing to compare with: the band is designed from scratch.
+            const eq::BandChange change = slot.valid ? eq::classifyBandChange (slot.input, next)
+                                                     : eq::BandChange::structural;
+
+            switch (change)
+            {
+                case eq::BandChange::identical:
+                    break;
+
+                case eq::BandChange::structural:
+                    // Also the way a band enters or leaves the active list:
+                    // either way it starts, or is left, at rest.
+                    if (next.active)
+                    {
+                        eq::BandDesign design;
+                        designer.design (next.settings, design);
+                        band.setDesign (design);
+                    }
+
+                    band.reset();
+                    break;
+
+                case eq::BandChange::continuous:
+                    // An inactive band is not designed: its activation is a
+                    // structural change and designs it then.
+                    if (next.active)
+                    {
+                        eq::BandDesign design;
+                        designer.design (next.settings, design);
+                        band.setDesign (design);
+                    }
+
+                    break;
+            }
+
+            slot.snapshot = now;
+            slot.input = next;
+            slot.valid = true;
+        }
+
+        if (slot.input.active)
+        {
+            activeBands[numActive++] = b;
+            touched[0] = touched[0] || eq::Router::touchesLane (slot.input.placement, 0, stereoLayout);
+            touched[1] = touched[1] || eq::Router::touchesLane (slot.input.placement, 1, stereoLayout);
+        }
+    }
+
+    // No active band: the buffer has not been read or written.
+    if (numActive == 0)
+        return;
+
+    //==========================================================================
+    // Audio. A lane no active band touches is never converted and never
+    // written back; its pointer stays null and the router does not use it.
+    float* io[2] = { nullptr, nullptr };
+
+    for (int lane = 0; lane < 2; ++lane)
+        if (touched[lane])
+            io[lane] = buffer.getWritePointer (lane);
+
+    double* const work[2] = { lanes[0].data(), lanes[1].data() };
+
+    const int numSamples = buffer.getNumSamples();
+
+    // Only the sample range is split; the designs above hold for the whole
+    // host block, so the chunk size does not change the result.
+    for (int start = 0; start < numSamples; start += preparedBlockSize)
+    {
+        const int n = juce::jmin (preparedBlockSize, numSamples - start);
+
+        for (int lane = 0; lane < 2; ++lane)
+        {
+            if (io[lane] == nullptr)
+                continue;
+
+            const float* const in = io[lane] + start;
+            double* const out = work[lane];
+
+            for (int i = 0; i < n; ++i)
+                out[i] = static_cast<double> (in[i]);
+        }
+
+        for (int a = 0; a < numActive; ++a)
+        {
+            const auto ub = static_cast<std::size_t> (activeBands[a]);
+            eq::Router::process (bands[ub], slots[ub].input.placement, work[0], work[1], n, stereoLayout);
+        }
+
+        for (int lane = 0; lane < 2; ++lane)
+        {
+            if (io[lane] == nullptr)
+                continue;
+
+            const double* const in = work[lane];
+            float* const out = io[lane] + start;
+
+            for (int i = 0; i < n; ++i)
+                out[i] = static_cast<float> (in[i]);
+        }
+    }
 }
 
 void OuariconParametricEQAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buffer,
                                                                juce::MidiBuffer& midiMessages)
 {
+    juce::ScopedNoDenormals noDenormals;
     juce::ignoreUnused (midiMessages);
-    passThrough (buffer);
+
+    // The same hard bypass as the `bypass` parameter: buffer untouched, every
+    // band's state cleared, snapshots left valid.
+    clearOutputsWithoutInput (buffer);
+    resetAllBands();
 }
 
 //==============================================================================
