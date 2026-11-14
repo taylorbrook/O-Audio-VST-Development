@@ -1,0 +1,22 @@
+T3 expected-fail list at the 76-preset bank (Keys 20 / 20), 2026-11-14. A strict subset of evidence/t2/expected-fail-64.txt.
+
+--pg4: 35 PASS / 5 FAIL
+  FP0  (10 failing checks of 478):
+       Drones count 8 (want 20) | Expressive count 8 (want 20) | Field count 0 (want 12)
+       | Motion count 8 (want 20) | Pads count 8 (want 20) | Rhythmic count 8 (want 20) | Textures count 8 (want 20)
+       | bank 76 / 9 categories (want 160 / 9)
+       | Expressive split 4 / 1 / 2 / 2 (want 8 / >= 1 / 6 / 6)
+       | Field sources stream / park / waves / woods / garden 0 / 0 / 0 / 0 / 0 (want 3 / 3 / 2 / 2 / 2)
+       (Keys count no longer fails.)
+  FSU1 13 / 41 sources in >= 2 presets (28 below 2; was 8 / 41: bowed, organ, fm_bell, glass, kalimba reach 2)
+  FRT1 3 / 3 off-C3 slots in tune; 3 / 5 sources (sub, contrabassoon not yet in the bank)
+  FP1c 76 (want 160)
+  FP3c 8 Rhythmic (want 20)
+Outside --pg4:
+  --dump-factory-presets: rc 1 (76 files, want 160)
+  tests/preset_name_fit.js (PN1): 1 FAILURE "parsed 76 names (want 160)"; every fit line passes (widest still "Expressive · Wheel Morph" 139 px)
+
+Green: FP2 (spread 6.00 dB, -29.0 Grain Piano .. -23.0 Fifth Bloom; max peak 0.568), the 12 new -28.3 .. -26.4 gated;
+FP0 realism-titled 16 (the 11 old + Marimba, Kalimba Hall, Chapel Organ, Drift Guitar, Guitar Harmonics), none trips P3;
+FP4 380 / 380 (5 x N), FP1, FP3, FP4b, FP5 (76), FP6, FPT1 + FPT1n, FSU1n, FRT1n, FP0wn.
+--cmp-preset-renders ref-1.2.0 --all-bitwise --exclude-revoiced13: PT0v13 64 old / 0 missing / 12 new; PT0 56 / 56 bitwise.

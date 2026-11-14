@@ -126,6 +126,8 @@ Order: **T3 Keys, T4 Pads, T5 Drones, T6 Textures, T7 Rhythmic, T8 Motion, T9 Ex
 - the category FP0 rule (CONTEXT R1; Field per P7; Expressive per P6); realism titles per P3; never `output_gain`; no settings on disabled streams, no dead routes (the review's no-op list)
 - level-calibrated (P10): author → `OGI_ROWS=FP2 --pg4` → scratch script computes −27 − gated → apply to enabled `sN_level` (clamp −60…+6, 0.1 dB) → re-run once
 
+**Waves done:** [x] T3 Keys · [ ] T4 Pads · [ ] T5 Drones · [ ] T6 Textures · [ ] T7 Rhythmic · [ ] T8 Motion · [ ] T9 Expressive · [ ] T10 Field
+
 **Verification per wave:**
 - [ ] FP0 green except the recorded expected-fail count / coverage lines (Task 2)
 - [ ] FP2 for the wave's 12 within −27 ± 2; bank spread ≤ 9 dB, peak ≤ 4.0
