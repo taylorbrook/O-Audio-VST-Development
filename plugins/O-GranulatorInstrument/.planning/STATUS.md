@@ -3,13 +3,13 @@ plugin: O-GranulatorInstrument
 stage: 4
 status: installed
 current_phase: 4-polish
-gsd_phase: improve_v1_2_0_verified_hands_on_pending
+gsd_phase: improve_v1_2_0_verified
 last_updated: 2026-11-13
 complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: Taylor hands-on for 1.2.0 (improvements/factory-sources-expansion/VERIFICATION.md, "For Taylor"); then /publish (D54 Windows CI arm runs there); COMPAT-02 MPE / Dorico pass -> 1.0.x
+next_action: /publish O-GranulatorInstrument (D54 Windows CI arm runs there); COMPAT-02 MPE / Dorico pass -> 1.0.x
 next_stage: 4
 ready_for_implementation: true
 blocked_on: none (fork pin 82406fce, D11)
@@ -36,6 +36,8 @@ contract_checksums:
 # O-GranulatorInstrument Status
 
 ## Current Position
+
+**Improve v1.2.0 hands-on recorded: all pass** 2026-11-13 (Taylor, whole-list report; `improvements/factory-sources-expansion/VERIFICATION.md`): Contrabassoon at C3 with the lane name and Root readout, the other off-C3 sources, bell / glass and pluck / kalimba, a texture wrap. `breath` −3.8 ct accepted. 1.2.0 verified; open only the Windows arm at `/publish`. No tag. Next: `/publish O-GranulatorInstrument`.
 
 **Improve v1.2.0 (milestone factory-sources-expansion) VERIFIED, passed with notes** 2026-11-13 (`improvements/factory-sources-expansion/VERIFICATION.md`), milestone closed. Re-run on `5296d8a9`: harness **555 / 0**; 64 preset renders bitwise against the 1.1.0 harness binary (65 files by `cmp`, PT0); the 8 old FLACs and their sha256 lines identical to `63ca6a70`; `factory_table.py --check` OK (41 sources, 19 750 021 B, largest 1 364 847 B); auval PASS; pluginval 10 VST3 + AU; `ui_frontend_check.js` + `--nc`, `ui_factory_picker_check.js`, binding probe 293 / 293, `preset_name_fit.js`, check-i18n, fr / zh lint, check-ui-labels (49 states) green; installed binaries equal the build artefacts. Checked by a second method on the FLACs alone: roots (crystal +0.1 ct, guitar_overtones +0.3, guitar_drift −6.2, contrabassoon −1.2, sub 0.0 against the manifest) and the wrap of the seven textures (step ratio ≤ 0.44, no notch at the fold). Notes: PLAN Task 9's last box (lane name and Root fields update in the real plugin) has no automated check; `breath` −3.8 ct against ±3; Windows arm at `/publish`. **For Taylor:** the hands-on list in VERIFICATION.md (Contrabassoon at C3 with the lane name and Root readout, the other off-C3 sources, bell / glass and pluck / kalimba, one texture wrap). No tag. Next: `/publish O-GranulatorInstrument` after the hands-on.
 

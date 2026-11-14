@@ -9,7 +9,7 @@
 
 ## Verification Summary
 
-**Status:** PASSED WITH NOTES
+**Status:** PASSED (hands-on recorded 2026-11-13)
 **Version:** 1.1.0 → 1.2.0
 **Tree verified:** `5296d8a9` (plugin paths clean against HEAD before and after the run)
 
@@ -144,6 +144,12 @@ None.
 
 ---
 
+## Hands-on result
+
+Taylor, 2026-11-13: all four items pass (reported as a whole, "all pass"). This closes note 1 (lane name and Root readout in the real plugin) and the ear check; note 2 (`breath` −3.8 ct) is accepted with it. Open: the Windows arm at `/publish`.
+
+---
+
 ## Verification Checklist
 
 - [x] All requirements from CONTEXT.md verified
@@ -152,13 +158,13 @@ None.
 - [x] UI loads and responds (stub page, browser gates)
 - [x] No regressions in existing features
 - [x] Preset compatibility confirmed
-- [ ] Ear check and live-plugin readout (Taylor)
+- [x] Ear check and live-plugin readout (Taylor, 2026-11-13: all pass)
 
 ---
 
 ## Final Status
 
-### PASSED WITH NOTES ⚠
+### PASSED ✓
 
 All six criteria hold on the committed tree. Version, CHANGELOG, PLUGINS.md and the install were done at execute and are confirmed here. No tag (tags come from `/publish`).
 
