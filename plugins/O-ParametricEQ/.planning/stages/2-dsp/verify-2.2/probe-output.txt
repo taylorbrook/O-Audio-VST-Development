@@ -1,0 +1,32 @@
+O-ParametricEQ independent probe (verify 2.2), 48 kHz unless stated
+
+-- types against analog facts
+  [PASS] Bell 1 kHz +12 dB: gain at centre, L and R                 12.0000 / 12.0000 dB (12)
+  [PASS] Bell: far skirts return to 0 dB (20 Hz, 20 kHz)            0.0065 / 0.0386 dB
+  [PASS] latency 0, tail 2.0                                        0 / 2.0
+  [PASS] Low Shelf 200 Hz +9 dB 12 dB/oct: 10 Hz -> +9, 10 kHz -> 0 8.9999 / 0.0000 dB
+  [INFO] Low Shelf: gain at the corner                              4.5000 dB (half gain = 4.5)
+  [PASS] High Shelf 2 kHz -12 dB 12 dB/oct: 20 Hz -> 0, 20 kHz -> -12 -0.0000 / -11.9985 dB
+  [PASS] Low Cut 1 kHz, 8 slopes: -3.01 dB at fc, Butterworth one octave down 8/8, worst error 0.0049 dB; 500 Hz: -6.98 -12.30 -18.12 -24.10 -36.12 -48.16 -72.25 -96.33 
+  [PASS] High Cut 1 kHz, 8 slopes: -3.01 dB at fc, Butterworth one octave up 8/8, worst error 0.0195 dB; 2 kHz: -7.01 -12.30 -18.15 -24.10 -36.13 -48.17 -72.25 -96.33 
+  [PASS] Notch 1 kHz Q 10: null at centre, 0 dB a decade away       -112.2 / -0.0004 / -0.0004 dB
+  [PASS] Band Pass 500 Hz Q 2: 0 dB at centre, analog skirt a decade away -0.0000 / -25.944 / -25.941 dB (skirt -25.944)
+  [PASS] Tilt 1 kHz +6 dB: -3 dB low, 0 dB at the pivot, +3 dB high -3.0000 / 0.0000 / 3.0000 dB
+
+-- wiring: each band, gain scale, band bypass
+  [PASS] band b alone as a bell of b/2 dB: centre gain = b/2 dB     24/24, worst error 0.000007 dB
+  [PASS] gain_scale 200 / 50 / 0 % on a +12 dB bell: +24 / +6 / 0 dB 24.0000 / 6.0000 / 0.0000000 dB
+  [PASS] bNN_bypass on an enabled band: output memcmp-equal to input; off: differs equal, then differs
+
+-- placement
+  [PASS] Mid bell +12 dB: L = R input gains 12 dB; L = -R input unchanged 12.0000 / 12.0000 ; 0.000000000 / 0.000000000 dB
+  [PASS] Side bell +12 dB: L = -R input gains 12 dB; L = R input unchanged 12.0000 / 12.0000 ; 0.000000000 / 0.000000000 dB
+  [PASS] Left bell: L +12, R exactly 0 dB; Right bell: the converse 12.0000 / 0.0000 ; 0.0000 / 12.0000 dB
+  [PASS] mono layout, placement Side: the channel gains 12 dB       12.0000 dB
+
+-- instance life cycle
+  [PASS] re-prepared 44.1 -> 96 kHz == a fresh instance at 96 kHz (memcmp) equal
+  [PASS] state saved and restored into a fresh instance: same bits  equal
+  [INFO] supportsDoublePrecisionProcessing()                        false (hosts use the float path)
+
+19 PASS, 0 FAIL

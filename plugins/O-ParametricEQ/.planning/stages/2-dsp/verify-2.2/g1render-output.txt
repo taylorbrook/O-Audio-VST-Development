@@ -1,0 +1,41 @@
+Rendered G1 at 44.1 kHz (double engine, impulse, 64 points 20 Hz - 20 kHz, last 200 ms >= 300 dB down)
+
+-- bells, fc 20 Hz - 20 kHz x 40, Q 0.025 - 40 (7 values): rendered vs the TRUE analog prototype, 0.05 + 0.012 |g|
+  [PASS]    +3 dB: 280 bells; rendered vs analog worst 0.0191 dB (tolerance 0.086, 22 % of it); design vs analog 0.0191; rendered vs closed form 6.76e-11 dB; longest render 18.50 s, capped 0
+  [PASS]    -3 dB: 280 bells; rendered vs analog worst 0.0191 dB (tolerance 0.086, 22 % of it); design vs analog 0.0191; rendered vs closed form 6.94e-11 dB; longest render 13.25 s, capped 0
+  [PASS]    +6 dB: 280 bells; rendered vs analog worst 0.0431 dB (tolerance 0.122, 35 % of it); design vs analog 0.0431; rendered vs closed form 6.24e-11 dB; longest render 22.50 s, capped 0
+  [PASS]    -6 dB: 280 bells; rendered vs analog worst 0.0431 dB (tolerance 0.122, 35 % of it); design vs analog 0.0431; rendered vs closed form 7.89e-11 dB; longest render 11.50 s, capped 0
+  [PASS]   +12 dB: 280 bells; rendered vs analog worst 0.0766 dB (tolerance 0.194, 39 % of it); design vs analog 0.0766; rendered vs closed form 3.98e-11 dB; longest render 32.50 s, capped 0
+  [PASS]   -12 dB: 280 bells; rendered vs analog worst 0.0766 dB (tolerance 0.194, 39 % of it); design vs analog 0.0766; rendered vs closed form 7.85e-11 dB; longest render 15.50 s, capped 0
+  [PASS]   +18 dB: 280 bells; rendered vs analog worst 0.1089 dB (tolerance 0.266, 41 % of it); design vs analog 0.1089; rendered vs closed form 1.37e-11 dB; longest render 46.75 s, capped 0
+  [PASS]   -18 dB: 280 bells; rendered vs analog worst 0.1089 dB (tolerance 0.266, 41 % of it); design vs analog 0.1089; rendered vs closed form 5.22e-11 dB; longest render 21.75 s, capped 0
+  [PASS]   +30 dB: 280 bells; rendered vs analog worst 0.1926 dB (tolerance 0.410, 47 % of it); design vs analog 0.1926; rendered vs closed form 2.76e-11 dB; longest render 95.75 s, capped 0
+  [PASS]   -30 dB: 280 bells; rendered vs analog worst 0.1926 dB (tolerance 0.410, 47 % of it); design vs analog 0.1926; rendered vs closed form 7.59e-11 dB; longest render 42.50 s, capped 0
+
+-- shelves, fc 20 Hz - 20 kHz x 40, +-6 / +-12 / +-30 dB: rendered vs the closed form <= 1e-6 dB (rendered vs analog printed)
+  [PASS] Low Shelf   6 dB/oct Q 1: 240 settings; rendered vs closed form 5.93e-13 dB; rendered vs analog worst 0.489 dB (design vs analog 0.489)
+  [PASS] Low Shelf  12 dB/oct Q 1: 240 settings; rendered vs closed form 5.19e-13 dB; rendered vs analog worst 0.132 dB (design vs analog 0.132)
+  [PASS] Low Shelf  18 dB/oct Q 1: 240 settings; rendered vs closed form 8.42e-13 dB; rendered vs analog worst 0.273 dB (design vs analog 0.273)
+  [PASS] Low Shelf  24 dB/oct Q 1: 240 settings; rendered vs closed form 1.35e-12 dB; rendered vs analog worst 0.173 dB (design vs analog 0.173)
+  [PASS] Low Shelf  36 dB/oct Q 1: 240 settings; rendered vs closed form 1.78e-12 dB; rendered vs analog worst 0.126 dB (design vs analog 0.126)
+  [PASS] Low Shelf  48 dB/oct Q 1: 240 settings; rendered vs closed form 2.73e-12 dB; rendered vs analog worst 0.136 dB (design vs analog 0.136)
+  [PASS] Low Shelf  72 dB/oct Q 1: 240 settings; rendered vs closed form 3.44e-12 dB; rendered vs analog worst 0.244 dB (design vs analog 0.244)
+  [PASS] Low Shelf  96 dB/oct Q 1: 240 settings; rendered vs closed form 4.24e-12 dB; rendered vs analog worst 0.159 dB (design vs analog 0.159)
+  [PASS] High Shelf  6 dB/oct Q 1: 240 settings; rendered vs closed form 6.71e-13 dB; rendered vs analog worst 0.489 dB (design vs analog 0.489)
+  [PASS] High Shelf 12 dB/oct Q 1: 240 settings; rendered vs closed form 5.63e-13 dB; rendered vs analog worst 0.127 dB (design vs analog 0.127)
+  [PASS] High Shelf 18 dB/oct Q 1: 240 settings; rendered vs closed form 9.00e-13 dB; rendered vs analog worst 0.282 dB (design vs analog 0.282)
+  [PASS] High Shelf 24 dB/oct Q 1: 240 settings; rendered vs closed form 1.26e-12 dB; rendered vs analog worst 0.173 dB (design vs analog 0.173)
+  [PASS] High Shelf 36 dB/oct Q 1: 240 settings; rendered vs closed form 1.70e-12 dB; rendered vs analog worst 0.130 dB (design vs analog 0.130)
+  [PASS] High Shelf 48 dB/oct Q 1: 240 settings; rendered vs closed form 2.72e-12 dB; rendered vs analog worst 0.142 dB (design vs analog 0.142)
+  [PASS] High Shelf 72 dB/oct Q 1: 240 settings; rendered vs closed form 3.24e-12 dB; rendered vs analog worst 0.229 dB (design vs analog 0.229)
+  [PASS] High Shelf 96 dB/oct Q 1: 240 settings; rendered vs closed form 3.71e-12 dB; rendered vs analog worst 0.160 dB (design vs analog 0.160)
+  [PASS] Tilt        6 dB/oct Q 1: 240 settings; rendered vs closed form 5.31e-13 dB; rendered vs analog worst 0.489 dB (design vs analog 0.489)
+  [PASS] Tilt       12 dB/oct Q 1: 240 settings; rendered vs closed form 5.47e-13 dB; rendered vs analog worst 0.127 dB (design vs analog 0.127)
+  [PASS] Tilt       18 dB/oct Q 1: 240 settings; rendered vs closed form 8.81e-13 dB; rendered vs analog worst 0.282 dB (design vs analog 0.282)
+  [PASS] Tilt       24 dB/oct Q 1: 240 settings; rendered vs closed form 1.26e-12 dB; rendered vs analog worst 0.173 dB (design vs analog 0.173)
+  [PASS] Tilt       36 dB/oct Q 1: 240 settings; rendered vs closed form 1.54e-12 dB; rendered vs analog worst 0.130 dB (design vs analog 0.130)
+  [PASS] Tilt       48 dB/oct Q 1: 240 settings; rendered vs closed form 2.55e-12 dB; rendered vs analog worst 0.142 dB (design vs analog 0.142)
+  [PASS] Tilt       72 dB/oct Q 1: 240 settings; rendered vs closed form 3.03e-12 dB; rendered vs analog worst 0.229 dB (design vs analog 0.229)
+  [PASS] Tilt       96 dB/oct Q 1: 240 settings; rendered vs closed form 3.74e-12 dB; rendered vs analog worst 0.160 dB (design vs analog 0.160)
+
+ALL PASS (0 failing rows)

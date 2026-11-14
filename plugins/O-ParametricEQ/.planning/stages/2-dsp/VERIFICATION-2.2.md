@@ -100,8 +100,8 @@ COMPAT-01 (complete since Stage 1) is confirmed again on 0.2.0.
 | Layout golden, spec | ✅ Pass | `--dump-params` equals `params.tsv`; `OK: 196 params` |
 | Installed bundles | ✅ Pass | Exactly the two `-dev` bundles, version 0.2.0, binaries identical to the build artefacts |
 | pluginval 10, `auval` | ✅ Pass | VST3 `SUCCESS`, AU `SUCCESS`, `AU VALIDATION SUCCEEDED` |
-| Independent processor probe | ✅ Pass | 19 / 19 (`verify-2.2/probe.log`) |
-| Rendered G1 | ✅ Pass | 35 / 35 rows (`verify-2.2/g1render.log`) |
+| Independent processor probe | ✅ Pass | 19 / 19 (`verify-2.2/probe-output.txt`) |
+| Rendered G1 | ✅ Pass | 35 / 35 rows (`verify-2.2/g1render-output.txt`) |
 
 ### Rendered G1 (new in verify)
 
