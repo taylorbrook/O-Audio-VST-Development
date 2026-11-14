@@ -1,0 +1,61 @@
+check-i18n — repo i18n consistency + drift gate
+  repo root: /Users/taylorbrook/Dev/VST-development
+  filter:    --plugin O-GranulatorInstrument
+
+-- O-GranulatorInstrument (Source/ui/public)
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [7] i18n.js has no top-level statement outside export declarations
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [9] i18n.js references no innerHTML
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [9] no string literal in i18n.js contains "<"
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [1] LANGUAGES is exactly en,fr or en,fr,zh-Hans — got ["en","fr","zh-Hans"]
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [1] the table carries copy — 137 I18N + 330 LABELS
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [1] every I18N key has an entry in every declared language (en, fr, zh-Hans)
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [1] every language entry has string t and b
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [2] 481 tip(s) bound
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [2] every TIP_BINDINGS key exists in I18N
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [16] index.html has a language selector and EXACTLY ONE hover-help switch (#help-toggle or #tips-toggle) — found 1: #tips-toggle
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [16] #tips-toggle is named by a TIP_BINDINGS selector — a switch that turns the help layer off while carrying no tip of its own leaves no way back
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [16] the key #tips-toggle binds exists in I18N — got "tips-toggle"
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [4] no fr entry is a straight copy of en without sameAsEn: true
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [5] every I18N entry carries a valid reviewed flag — fr a 'boolean', zh-Hans one of 'mt' | 'bt' | 'native'
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [1] every LABELS key has a string t in every declared language (en, fr, zh-Hans)
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [4] no LABELS fr entry is a straight copy of en without sameAsEn: true
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [5] every LABELS entry carries a valid reviewed flag — fr a 'boolean', zh-Hans one of 'mt' | 'bt' | 'native'
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [3] index.html carries zero data-tip= literals — got 0
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [3] index.html carries zero data-tip-title= literals — got 0
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [3] index.html carries zero data-tooltip= literals — got 0
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [12] every ${CMAKE_SOURCE_DIR}/modules/*.js the build embeds exists on disk — a path the gate cannot open is a file the page runs and nothing scans, and silently scanning the smaller set is the blindness this clause exists to remove
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [12] every .js in juce_add_binary_data's SOURCES resolves on disk — plugin-relative against the plugin root, ${CMAKE_SOURCE_DIR}/ against the repo root; an unresolvable entry is a file the build embeds and the page runs while nothing scans it
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [6] the inline <script type="module"> in index.html carries the canonical i18n.js import line verbatim (or its './js/i18n.js' inline-module form) — canon v2
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [6] the applyI18n/initI18n region matches scripts/i18n-canon.js (canon v2) — on v2
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [6] initI18n() is actually CALLED — a block nobody calls localizes nothing
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [3] the assertion-3 literal data-tip= does not match any data-i18n attribute name
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [3] the assertion-3 literal data-tip-title= does not match any data-i18n attribute name
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [3] the assertion-3 literal data-tooltip= does not match any data-i18n attribute name
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [8] js/i18n.js appears in a juce_add_binary_data SOURCES block
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [8] PluginEditor.cpp serves js/i18n.js from a getResource() branch
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [14] I18N_EXEMPT is an array of [string, reason] or [string, reason, scope] entries
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [14] every I18N_EXEMPT scope is a non-empty string
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [14] every I18N_EXEMPT entry carries a non-empty reason
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [10] every LABEL text node sits inside a [data-i18n] element, or is I18N_EXEMPT
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [14] no UNSCOPED I18N_EXEMPT entry is also keyed on the page — an exemption that collides with a live key cannot distinguish a deliberate skip from a missed label, so it must carry a scope (a tag, .class or #id its occurrences sit inside)
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [11] every aria-label / placeholder / alt carrying prose is keyed or exempt
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [11] zero native title= remain, in the MARKUP AND IN THE JS (contract §4 — a native title renders a second, untranslated OS tooltip competing with the measure-then-pin renderer; a JS-written one is invisible to the markup scan)
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [12] there is shipped page JS to scan — 1 module(s): the inline <script type="module"> in index.html (+2 served module(s) under the §4 title scan: modules/persistence/preset-manager/js/preset-manager.js, modules/core/webview-drop-streaming/js/webview-drop-streaming.js)
+  NOTE: [O-GranulatorInstrument (Source/ui/public)] [12] 2 served module(s) are scanned for native title= (§4) but NOT yet for unkeyed prose — modules/persistence/preset-manager/js/preset-manager.js, modules/core/webview-drop-streaming/js/webview-drop-streaming.js. Keying them is a shared-module rollout (preset-manager.js alone has 19 consumers); see the TODO(wave 4f+) above CMAKE_MODULE_JS_SCOPE.
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [12] no prose string is written to textContent / innerText outside setLabel
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [13] no ternary or conditional plural suffix inside a setLabel argument (contract §6 — French pluralizes zero as singular, so copy is authored around the inflection)
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [13] every setLabel key is a plain string literal — a computed key cannot be checked, and a raw copy string there would ship English
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [15] every data-i18n / setLabel key exists in LABELS or I18N
+  PASS: [O-GranulatorInstrument (Source/ui/public)] [15] every LABELS key is referenced by an element or a setLabel call — a dead key is a translation nobody sees, drifting silently
+
+-- unreviewed French (native-speaker worklist)
+  O-GranulatorInstrument          467 / 467 entries unreviewed   (137 tooltip, 330 label)
+  TOTAL                           467
+
+-- canon
+  canon v2     1  O-GranulatorInstrument
+
+-- [16] language selector -> hover-help switch
+  PASS: [repo] [16] 1 plugin(s) with a language selector were EXAMINED — each was required to carry exactly one hover-help switch, bound and keyed
+
+ALL CHECKS PASS — 1 localized plugin(s)

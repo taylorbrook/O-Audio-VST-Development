@@ -1,6 +1,6 @@
 milestone: preset-bank-expansion
 created: 2026-11-14T15:18:41Z
-lastActivity: 2026-11-14T21:55:00Z
+lastActivity: 2026-11-14T23:59:00Z
 phases:
   discuss:
     status: complete
@@ -115,7 +115,15 @@ phases:
       -> ced2c6c50a602cb9, 64 -> 160 files. ui_frontend_check + ui_preset_menu_check re-run ALL PASS. Real-Standalone menu
       capture skipped (needs focus). Evidence evidence/t12. CHANGELOG, SUMMARY.md, PLUGINS.md, STATUS.md. No tag.
   verify:
-    status: pending
+    status: complete
+    completedAt: 2026-11-14T23:59:00Z
+    result: passed (automated); listening hands-on open (SUMMARY "For Taylor")
+    treeVerified: 1d616bf7
+    notes: >-
+      Re-run on 1d616bf7: harness 564 / 0; PT0 56 / 56 + cmp 56 identical / 8 differ = the P1 re-voices;
+      independent table check (indep.py, 3 controls fire); FP2 gate re-implemented in numpy (median +0.39 dB);
+      auval PASS; pluginval 10 VST3 + AU SUCCESS; UI gates + check-i18n + fr / zh lint + check-ui-labels (50 states)
+      green; installed == artefacts. Evidence evidence/verify.
 versionBump: minor
 baseVersion: 1.2.0
 targetVersion: 1.3.0

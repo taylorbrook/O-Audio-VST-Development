@@ -1,0 +1,20 @@
+i18n-zh-lint — Simplified Chinese typography and terminology
+  plugins: 1   (GATE: exit 2 on any finding; entries at reviewed:'mt' are counted, not failed)
+
+  plugin                       rows   zh   Z1  Z2  Z3  Z4  Z5  Z6  Z7  F1  R1  Z8   total
+  O-GranulatorInstrument        604  467    ·   ·   ·   ·   ·   ·   ·   ·   ·   ·       0
+  ───────────────────────────────────────────────────────────────────────────────────────
+  TOTAL                              467    0   0   0   0   0   0   0   0   0   0       0
+
+-- O-GranulatorInstrument
+  EXEMPT (termNote) label list.srcVoice: "人声" — the sung voice (the vowel and choir sources), not a synth voice (声部)
+  EXEMPT (termNote) label opt.voice.mono: "单音" — voice mode: monophonic playing, not mono audio (单声道)
+
+-- summary
+  zh-Hans entries checked: 467   plugins with findings: 0 / 1
+  straight copies zh === en (info): 20   termNote exemptions (info): 2
+  BELOW SHIP BAR — entries at reviewed:'mt' (machine draft, unchecked): 467
+  Z6 coverage: 3 of 579 glossary terms carry a measured budget; 576 are UNBUDGETED and Z6 is inert on them — Stages 2-4 fill these from the check-ui-labels zh arm
+  codes: Z1 ASCII punctuation  Z2 U+00A0 before punctuation  Z3 Traditional-only  Z4 Latin/CJK spacing  Z5 glossary  Z6 budget  Z7 full-width Latin  F1 forbidden  R1 reviewed enum  Z8 intra-Han space
+
+GATE PASSED — exit 0. 0 findings across 1 plugin(s).  (467 entries are at reviewed:'mt' — counted, not failed.)

@@ -1,0 +1,86 @@
+== O-GranulatorInstrument ui_binding_probe ==
+   params.tsv: 293 ids
+   stub=generic seed=param-dump (293 rows) + overrides
+   served tree: unplaced [tests/fixtures/factory/stub_tone.flac (symbol stub_tone_flac), tests/fixtures/factory/stub_noise.flac (symbol stub_noise_flac)] missing []
+   page: plugins/O-GranulatorInstrument/Source/ui/public/index.html (450577 bytes); value-entry code: present
+  PASS: overrides banner in the page: "param-dump (293 rows) + overrides" (74 combos, natives: getScaleState, getSlotState, getTelemetry, getParameterDefaults, getWindowCurve, getSlotOverview, getFactorySources, getPresetMenu, getUiLanguage)
+  PASS: the stub answers the ten preset functions (preset bar shows "Default"; called at boot: getPresetList, getCurrentPreset, isFactoryPreset)
+   states requested at boot: sliders 200, combos 74, toggles 19; natives the stub had to guess: []; EB Garamond loaded: true; 404s: []
+   binders: knob 168, fader 16, handle 8, field 8, choiceKnob 17, segment 19, select 33, radio 1, scale 4, toggle 19 = 293
+
+   host -> UI 293 / 293, UI -> host 293 / 293
+
+-- value entry (VE1–VE12, VE15)
+  PASS: VE1 Enter applies
+  PASS: VE2 Esc cancels
+  PASS: VE3 outside click applies
+  PASS: VE4 outside press on a choice knob (preventDefault) applies
+  PASS: VE5 unchanged text writes nothing
+  PASS: VE6 exactly one gesture pair per value
+  PASS: VE7 clamp above end
+  PASS: VE8 -inf on a gain
+  PASS: VE9 fCount
+  PASS: VE10 fBend with and without ± / st
+  PASS: VE11 a tempo division
+  PASS: VE12a scan mode typed in French, page in fr
+  PASS: VE12b language switch closes an open field
+  PASS: VE12c Sync twin hidden closes an open field
+   VE15 measured: en 24 pairs, smallest text gap 8.7 px (s1_feedback field 17.0…73.0 vs s1_fb_low_cut "2.00 kHz" 81.7…122.3), smallest readout-box gap 1.0 px; fr 24 pairs, smallest text gap 8.7 px (s1_feedback field 17.0…73.0 vs s1_fb_low_cut "2.00 kHz" 81.7…122.3), smallest readout-box gap 1.0 px
+  PASS: VE15 the field open on a row-4 .n5 cell clears both neighbours' readout text (en, fr)
+
+   value entry 15 / 15 rows
+
+-- lanes (LN1–LN7, PX1–PX5)
+  PASS: LN1 recording class on the target lane only — run 2 slot 2 -> [2], run 2 slot 3 -> [3], run 2 slot 1 -> [1], run 2 slot 4 -> [4], run 1 slot 2 -> [], run 3 slot 2 -> [], run 0 slot 0 -> [], run 2 slot 2 -> [2]
+  PASS: LN2 rec-status class + label for run 0–5 and bus 0, in the page's precedence — 13 states (bus/run/signal/trig class:label) 0/2/1/0 nosc:noSidechain, 0/0/1/0 nosc:noSidechain, 1/2/0/0 recording:recording, 1/3/0/0 recording:committing, 1/1/0/0 armed:armed, 1/1/1/1 armed:waitLevel, 1/1/1/2 armed:waitNote, 1/5/1/0 nosignal:discarded, 1/5/0/0 nosignal:discarded, 1/4/0/0 nosignal:noSignal, 1/0/0/0 nosignal:noSignal, 1/4/1/0 ready:done, 1/0/1/0 ready:ready
+  PASS: LN3 Clear / Save / Relink call their natives with the 1-based slot; Save absent on a file: lane — lane-clear-1 -> clearSlot[{"slot":1}], lane-clear-2 -> clearSlot[{"slot":2}], lane-badge-save-3 -> saveRecording[{"slot":3}], lane-badge-relink-3 -> relinkSlot[{"slot":3}], lane-badge-save-2 (slot 2 as rec:) -> saveRecording[{"slot":2}]; Save hidden on file: lane 2, factory lane 1, empty lane 4
+  PASS: LN4 toast.loadFailed when error turns non-empty, not again while unchanged, not at the first pull — error "" -> "decode failed: a" 1 "Slot 2: the file could not be loaded", unchanged, pulled again 0, unchanged, pulled a third time 0, -> "decode failed: b" (changed) 1 "Slot 2: the file could not be loaded", -> "" (cleared) 0, -> "decode failed: b" (re-armed) 1 "Slot 2: the file could not be loaded"; boot: slot 4 error present, 0 toasts
+  PASS: LN5 toast.saveFailed on timeout, none on cancelled — timeout -> 1 "Slot 3: the recording could not be saved", cancelled -> 0, writeFailed -> 1 "Slot 3: the recording could not be saved", ok -> 0
+  PASS: LN6 fetchOverview refetches when ovRev moves and stores the answer's rev — lane 1 fetches: at rest 0 / 15 pulls; ovRev 2404 -> 2500 with answer rev 2404: 5 in 700 ms; answer rev 2500: 0; no rev in the answer: 0
+  PASS: LN7 scan-mode aria-valuetext is French after a switch to fr — 4 scan-mode knobs at choice 0: en "Free-run" -> fr "Libre" -> en "Free-run"
+   lane canvas 656 x 40 CSS px, backing 656 x 40, devicePixelRatio 1; a pixel differs at >= 6 / 255 (record head: >= 90); x tolerance ± 2 px
+   two frames of the unchanged fixture differ in [0, 0, 0, 0] pixels per lane (must be 0)
+  PASS: PX1 playhead — scan 0.25 -> expected col 164: 46 px, cols 162–166, peak col 164, rows 1–36, peak row 2.5; scan 0.7 -> expected col 459: 48 px, cols 457–461, peak col 459, rows 1–36, peak row 2.5; scan −1: 0 px; lanes 3 / 4 unchanged
+  PASS: PX2 grain dot of stream 1 and of stream 4 — stream 1 row sent as [1,0.22,-0.4,0.35,1,0.2,0,0] -> lane 1 expected (144, 26): 121 px, cols 138–150, peak col 144, rows 20–32, peak row 25; other lanes unchanged || stream 4 row sent as [4,0.72,-1,0.9,1,0.06,0,0] -> lane 4 expected (472, 33): 72 px, cols 468–476, peak col 472, rows 28–37, peak row 32.5; other lanes unchanged
+  PASS: PX3 feedback head — fb 0.5331 -> expected col 350: 48 px, cols 347–353, peak col 350, rows 26–39, peak row 26; fb 0.2 -> expected col 131: 48 px, cols 128–134, peak col 131, rows 26–39, peak row 26; lanes 2–4 unchanged
+  PASS: PX4 record head — rec 0.4 -> expected col 262: 128 px, cols 258–266, peak col 262, rows 0–39, peak row 0 (>= 90); tint + dimmed waveform (>= 6): 13224 px, cols 0–653, peak col 133.5, rows 0–39, peak row 21.5; rec 0.7 -> expected col 459: 118 px, cols 455–463, peak col 459, rows 0–39, peak row 0; lanes 1 / 3 / 4 unchanged
+  PASS: PX5 dirty tick — fixture dirty bins 0–348 -> expected cols 0–348: 554 px, cols 0–348, peak col 18.5, rows 19–21, peak row 21; bin 389 alone -> expected col 389: 4 px, cols 389–389, peak col 389, rows 18–21, peak row 19.5; refetches 1 / 1 / 1
+
+   lanes 12 / 12 rows
+
+-- lane toasts (TC1, TC1n, TW1)
+  PASS: TC1 two lane errors in one pull -> toast.loadFailed {n:2} now, {n:3} at +1600 ms (one toast per lane) — +150 ms {"n":"2"}, +1750 ms {"n":"3"}; log {"n":"2"}@14 {"n":"3"}@1616
+  PASS: TC1n control: __giToastChainOff (the 3.3 loop) -> {n:3} never shown (TC1 must FAIL) — ctrl FIRED: +1750 ms {"n":"2"}; log {"n":"2"}@12
+  PASS: TW1 wavFailed false -> true toasts toast.wavFailed once (lane 3); unchanged pulls and the first pull are silent — false -> true 1, unchanged 0, true -> false 0, false -> true (re-armed) 1; boot 0
+
+   toasts 3 / 3 rows
+
+-- record arm (AC9)
+  PASS: AC9 click lane-arm-2 after a host push of rec_arm = 0: rec_target 1, the Arm toggle pressed — host pushes rec_arm true -> false (pressed true -> false), rec_target 3; click -> rec_target 1 (writes C), rec_arm true (writes T), toggle pressed true
+
+   arm 1 / 1 rows
+
+-- feedback switch (FD1)
+  PASS: FD1 a stream's five feedback cells take .off when its switch goes off and lose it when it comes back — feedback cells .off per stream I / II / III / IV by host push: s1 off 5 / 0 / 0 / 0 -> on 0 / 0 / 0 / 0; s2 off 0 / 5 / 0 / 0 -> on 0 / 0 / 0 / 0; s3 off 0 / 0 / 5 / 0 -> on 0 / 0 / 0 / 0; s4 off 0 / 0 / 0 / 5 -> on 0 / 0 / 0 / 0; by click on stream I's switch: 5 / 5 -> 0 / 5; other cells off 0, switch never .off
+
+   fb 1 / 1 rows
+
+-- mod / voice / meters (VC1–VC3, MV1–MV6, DM1–DM2, MT1, HV1, ST1)
+  PASS: VC1 voice cell / dot classes and vstt keys for states 0–3; .newest only on the newest row — states 1 / 2 / 3 / 0 -> "vcell held newest" vstate.held, "vcell rel" vstate.release, "vcell rel" vstate.stolen, "vcell" null; rows 8–15 na (polyphony 8); newest −1 -> [], newest 1 -> [vcell-1,vdot-1]
+  PASS: VC2 column 8: +50 -> vstate.clamp +48 (.clamp), +12 -> "+12 st" — 50 -> vstate.clamp "+48 st · clamp" .clamp, 12 -> no key "+12 st", -60 -> vstate.clamp "−48 st · clamp" .clamp
+  PASS: VC3 header voicesHeld / voicesState / voicesIdle counts — [1,1] -> voicesHeld "2 held · max 8", [1,1,2] -> voicesState "2 held · 1 fading · max 8", [1,1,2,3] -> voicesState "2 held · 2 fading · max 8", [2] -> voicesState "0 held · 1 fading · max 8", [] -> voicesIdle "idle · max 8"
+  PASS: MV1 chip glow from sources (bipolar mapping), source read-outs and bars, key view newest colour — 36 chips, 36 at their glow (bipolar [1,2,3,4,8,12,13]); read-outs 13 + 6 bars; key view newest 60 -> [226,176,100], then 64 -> [226,176,100]; Key read-out "E4 · −0.60" / "—"
+  PASS: MV2 ring dot at modNorm on a routed knob, base when the key is absent, hidden when unrouted — output_gain (dest 1) routed from LFO 1: 0.64 -> (45.55, 7.67), 0.2 -> (2.33, 24.78), 0.93 -> (53.25, 40.88); key absent -> base 0.667 (48.09, 9.91); unrouted -> opacity 0
+  PASS: MV3 loop shading from lanes[].lo / .hi, loop-edge tick from modNorm (routed only) — lane 1 656 x 40: shading 0/1 -> 0.2/0.6 15811 px, cols 0–655, peak col 327.5, rows 0–39, 0 px inside; edge tick (dest 28) 0.5 -> 0.8: 42 px, cols 327–526, peak col 426.5, rows 33–39; unrouted 0 px
+  PASS: MV4 LFO dot on the drawn curve at lfo1_phase 90° — sine, Global, phase 90°: 0.3 -> (26.5, 34.5) vs (26.6, 34.8); 0.8 -> (64.5, 20.5) vs (64.4, 21.2); 0.05 -> (7.5, 6.5) vs (7.8, 7.1); each on the curve
+  PASS: MV5 mrow-1.mono-on for source x dest x LFO mode — 24 cases (Env 1 / LFO 1 / M1 x output_gain / lfo1_rate / s1 loop start / s1 feedback x Global / Per-voice, the mode switched AFTER the route), 7 mono-on
+  PASS: MV6 menv dot on its envelope figure at the stage position; label.newest vs label.idle — Env 1 A 755 ms S 0.50: stage 1 -> (26, 24) vs (26.7, 24.5) on the curve; stage 3 -> (100, 24) vs (100.7, 24.5) on the curve; stage 4 -> (133, 33.5) vs (133.4, 33.8); read-out "newest 0.70" / "idle"
+  PASS: DM1 drag-to-modulate: 17 dock chips onto a knob and a loop handle by real pointer sequences — 34 / 34 drops (17 dock chips x output_gain knob + s1 loop-start handle) wrote mod1 source = chip, dest = data-dest, depth 40, matrix reset before each
+  PASS: DM2 drop-target census: every .knob-cell[data-dest], .loop-h[data-dest] takes a drop — census 161 == runtime count 161 (shared 9, streams 68, fx 68, mod 8, voice 8); 149 / 149 destinations covered
+  PASS: MT1 meter bar tops for out and rec.peak, L / R independent — out [0.5012,0.1] -> tops [11,24] vs [11.7,24.1]; inp [0.5,0.1] -> tops [12,25] vs [12.1,25.1]; out [0.1,0.5012] -> tops [24,11] vs [24.1,11.7]; inp [0.1,0.5] -> tops [25,12] vs [25.1,12.1]
+  PASS: HV1 #heavy.on at grain_limit 3, off at 2 — 3 -> on (visible), 2 -> off (hidden), 3 -> on (visible), 0 -> off (hidden)
+  PASS: ST1 i18n-states.json replayed in file order: every named target holds at +150 and +450 ms — 50 states replayed in file order, 30 name a target, 30 hold at +150 and +450 ms (>= 13 telemetry polls each); 20 without a named target (clicks, inline asserts)
+
+   mod 14 / 14 rows
+   page errors: 0
+ALL PASS (293 / 293 both ways; value entry 15 / 15; lanes 12 / 12; toasts 3 / 3; arm 1 / 1; fb 1 / 1; mod 14 / 14, DM2 census 161 / 161 targets, 149 / 149 destinations)

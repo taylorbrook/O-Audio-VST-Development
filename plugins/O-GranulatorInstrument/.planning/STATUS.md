@@ -4,13 +4,13 @@ stage: 4
 status: installed
 version: 1.3.0
 current_phase: 4-polish
-gsd_phase: improve_v1_3_0_execute_complete
+gsd_phase: improve_v1_3_0_verified
 last_updated: 2026-11-14
 complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: /improve-milestone O-GranulatorInstrument (preset-bank-expansion verify)
+next_action: hands-on listening (preset-bank-expansion SUMMARY "For Taylor"), then /publish O-GranulatorInstrument
 next_stage: 4
 ready_for_implementation: true
 blocked_on: none (fork pin 82406fce, D11)
@@ -32,12 +32,13 @@ contract_checksums:
   parameter_spec_draft: sha256:3c4918748a4375940684a22ed6850a3184bdd96df53d152a8900d5f0e4260796
   architecture: sha256:40b31e180ee9854798974c9fc33491cc262677e4fa8286a750257381f2d9bb68   # R2 C3: one R2 addendum paragraph (write law with the makeup, latch)
   roadmap: sha256:5137142de157eedc3f3f5965dd431e4d2c9f0308b56e9e3df48a88fcf9f5dd65   # R1 C7: one R1 addendum paragraph
-activeMilestone: preset-bank-expansion
 ---
 
 # O-GranulatorInstrument Status
 
 ## Current Position
+
+**Improve v1.3.0 (milestone preset-bank-expansion) VERIFIED — automated gates passed; listening hands-on open** 2026-11-14 (`improvements/preset-bank-expansion/VERIFICATION.md`), milestone closed. Re-run on `1d616bf7`: harness **564 / 0**; PT0 56 / 56 bitwise, and a fresh 160-render dump `cmp`'d against the 1.2.0 references: 56 identical, 8 differ = exactly the approved re-voices; independent Python table check (160 = 7 × 20 + 8 + 12, names / seeds, no output_gain, 41 / 41 sources ≥ 2 on enabled streams, off-C3 roots, 24 realism titles no wobble; 3 controls fire); old-64 text diff = 8 re-voices + D7 / D8 / D10 / D11 descriptions only; FP2 gate re-implemented in numpy agrees (median +0.39 dB), spread 6.00 dB, peak 0.673; auval PASS, pluginval 10 VST3 + AU SUCCESS; ui_frontend / preset_menu / factory_picker / name_fit / binding probe, check-i18n, fr / zh lint, check-ui-labels (50 states) green; installed == artefacts, 1.3.0. **For Taylor:** the listening list in SUMMARY.md (Glass Mallet, Mono drum + mono-glide presets, short-source Keys sustain, Field key track, the menu in the real Standalone in en / fr / zh). No tag. Next: hands-on, then `/publish O-GranulatorInstrument`.
 
 **Improve v1.3.0 (milestone preset-bank-expansion) — execute complete, built and installed, verify pending** 2026-11-14 (`improvements/preset-bank-expansion/SUMMARY.md`; waves T1–T11 05e46f9c … f313c947, T12 this commit): 96 new factory presets, bank 160 (Drones / Expressive / Keys / Motion / Pads / Rhythmic / Textures 20 each, Live 8, new Field 12); every one of the 41 sources in ≥ 2 presets; 8 approved re-voices + description fixes, the other 56 old presets bitwise vs 1.2.0; two-pane grouped preset menu (plugin-local, User group last). No engine, parameter or state-format change. Gates: harness **564 / 0** (FP0 982 / 982, FSU1 41 / 41, FRT1 22 / 22, PM0, FP4 800 / 800, every control fires); FP2 spread 6.00 dB, peak 0.673; PT0 56 / 56 bitwise, 0 old names missing, 96 new; level table 0 old-preset level outliers; bank stamp moved (64 → 160 files); auval PASS (4 known LFO-rate warnings), pluginval 10 VST3 + AU SUCCESS; installed == artefacts, 1.3.0; Standalone boots. **For Taylor:** the consolidated hands-on list in SUMMARY.md (re-voiced Glass Mallet, sustain on short Keys, Mono drum presets, mono-glide, Field key track, the menu in en / fr / zh in the real Standalone — not captured, it needs focus). Backup `backups/O-GranulatorInstrument/v1.2.0/`. No tag. Next: `/improve-milestone O-GranulatorInstrument` (verify).
 

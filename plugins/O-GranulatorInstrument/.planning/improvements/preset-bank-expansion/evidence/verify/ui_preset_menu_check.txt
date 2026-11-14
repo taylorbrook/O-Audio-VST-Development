@@ -1,0 +1,29 @@
+== O-GranulatorInstrument ui_preset_menu_check — 160 presets in the fixture ==
+  PASS: PM1 10 groups in menu order; rows == the fixture (drones 20, expressive 20, field 12, keys 20, live 8, motion 20, pads 20, rhythmic 20, textures 20, user 0); badges; the empty note on User only
+  PASS: PM1n control: a fixture missing the User group FAILS the content predicate
+  PASS: PM1 user presets in User only, full names shown: User ["My Patch","Pads · Mine"], Pads 20
+  PASS: PM1n control: the user "Pads · Mine" merged into Pads FAILS the content predicate
+  PASS: PM4 open on "Rhythmic · Sub Pump": group pm-g-rhythmic, focus pm-presets, highlighted + .sel + aria-selected ["Rhythmic · Sub Pump"], activedescendant pm-p-17
+  PASS: PM2 en: box 460 x 452 at (280, 52), inside the frame; 10 groups, <= 20 rows without a scrollbar (Pads: 20 rows x 22 px, scrollHeight 440 / clientHeight 440); rows uncovered; widest short name 84.8 / 284 px of text box; widest header "Expressive" 69.0 px; file row "Load from file…" 72.8 px fits
+  PASS: PM2 fr: box 460 x 452 at (280, 52), inside the frame; 10 groups, <= 20 rows without a scrollbar (Pads: 20 rows x 22 px, scrollHeight 440 / clientHeight 440); rows uncovered; widest short name 84.8 / 284 px of text box; widest header "Utilisateur" 77.6 px; file row "Charger un fichier…" 90.1 px fits
+  PASS: PM2 zh-Hans: box 460 x 452 at (280, 52), inside the frame; 10 groups, <= 20 rows without a scrollbar (Pads: 20 rows x 22 px, scrollHeight 440 / clientHeight 440); rows uncovered; widest short name 84.8 / 284 px of text box; widest header "实地录音" 37.5 px; file row "从文件载入…" 69.3 px fits
+  PASS: PM2n control: a 60-character short name overflows its row (the fit predicate is live)
+  PASS: PM2n control: a 100 px pane scrolls (the no-scroll predicate is live)
+  PASS: PM2n control: the box at top 700 px leaves the frame (the inside predicate is live)
+  PASS: PM3 open on a preset outside the bank ("Default"): the groups listbox holds focus on Drones (focus "pm-groups", pm-g-drones), aria-expanded true
+  PASS: PM3 Down x 11: expressive > field > keys > live > motion > pads > rhythmic > textures > user > file > drones (the file row after User, then wraps)
+  PASS: PM3 Up from Drones -> the file row, Up again -> User; Home -> pm-g-drones; End -> pm-g-user
+  PASS: PM3 Right: the presets listbox holds focus on the first row (pm-p-0, "Drones · Bassoon Pedal")
+  PASS: PM3 Down walks the 20 Drones rows and wraps; Up from the first -> the last; Home / End
+  PASS: PM3 Left: back to the groups on Drones, the row highlight cleared (focus "pm-groups")
+  PASS: PM3 Enter on a group goes right (pm-g-expressive, pm-p-0), Down -> pm-p-1
+  PASS: PM3 Enter on a row: one loadPreset("Expressive · Bow Press") with the full name, the menu closes, focus on the preset name
+  PASS: PM3 Enter on the file row: loadPresetFromFile called once (1), the menu closes
+  PASS: PM3 Escape closes and returns focus to the preset name (focus "preset-name")
+  PASS: PM3 Tab closes the menu
+  PASS: PM3 aria-activedescendant names the highlighted option of the focused listbox after every move
+  PASS: PM4 hover on Pads switches the right pane (pm-g-pads, labelled by pm-gh-pads)
+  PASS: PM4 a click on the 4th Pads row loads "Pads · Crystal Halo"; the bar shows the full name "Pads · Crystal Halo"
+  PASS: PM4 a press outside closes the menu; the preset name toggles it
+  PASS: no page errors
+ALL PASS

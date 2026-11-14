@@ -1,0 +1,17 @@
+i18n-fr-lint — French typography and terminology
+  plugins: 1   (any finding exits 2)
+
+  plugin                       rows   T1  T2  T3  T4  T5  T6  T7  G1  C1  F1   total
+  O-GranulatorInstrument        604    ·   ·   ·   ·   ·   ·   ·   ·   ·   ·       0  ✓
+  ──────────────────────────────────────────────────────────────────────────────────
+  TOTAL                                0   0   0   0   0   0   0   0   0   0       0
+
+-- O-GranulatorInstrument
+  EXEMPT (termNote) label vstate.held: "tenue" — voice state (note tenue), not the Sustain stage; « enfoncée » overlaps the voice number in the 67 px cell
+
+-- summary
+  plugins with findings: 0 / 1
+  straight copies fr === en (info): 69, of which 69 are covered (sameAsEn: true, or a title over a translated body)   termNote exemptions (info): 1
+  codes: T1 apostrophe  T2 decimal point  T3 % spacing  T4 colon  T5 ;!?  T6 minus  T7 unit  G1 glossary  C1 casing  F1 forbidden word
+
+CLEAN — exit 0

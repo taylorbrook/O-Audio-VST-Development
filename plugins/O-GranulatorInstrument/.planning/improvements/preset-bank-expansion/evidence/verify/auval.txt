@@ -1,0 +1,5529 @@
+
+    AU Validation Tool
+    Version: 1.10.0 
+    Copyright 2003-2019, Apple Inc. All Rights Reserved.
+    Specify -h (-help) for command options
+
+--------------------------------------------------
+VALIDATING AUDIO UNIT: 'aumu' - 'OuGI' - 'OuDv'
+--------------------------------------------------
+Manufacturer String: Ouaricon Audio Development
+AudioUnit Name: O-GranulatorInstrument-dev
+Component Version: 1.3.0 (0x10300)
+
+* * PASS
+--------------------------------------------------
+TESTING OPEN TIMES:
+COLD:
+Time to open AudioUnit:         30.743 ms
+WARM:
+Time to open AudioUnit:         5.334  ms
+This AudioUnit is a version 2 implementation.
+FIRST TIME:
+Time for initialization:        0.105 ms
+
+* * PASS
+--------------------------------------------------
+VERIFYING DEFAULT SCOPE FORMATS:
+Input Scope Bus Configuration:
+ Default Bus Count:1
+    Bus Name: Sidechain
+    Default Format: AudioStreamBasicDescription:  2 ch,  44100 Hz, Float32, deinterleaved
+    Has Channel Layouts: 0x640001 0x650002 0x660002 0x670002 0x6A0002 0x930000 
+    Default Layout:
+	Tag=0x650002, Num Chan Descs=0
+
+Output Scope Bus Configuration:
+ Default Bus Count:1
+    Bus Name: Output
+    Default Format: AudioStreamBasicDescription:  2 ch,  44100 Hz, Float32, deinterleaved
+    Has Channel Layouts: 0x650002 0x660002 0x670002 0x6A0002 
+    Default Layout:
+	Tag=0x650002, Num Chan Descs=0
+
+* * PASS
+--------------------------------------------------
+VERIFYING REQUIRED PROPERTIES:
+
+* * PASS
+--------------------------------------------------
+VERIFYING RECOMMENDED PROPERTIES:
+  VERIFYING PROPERTY: Latency
+    PASS
+
+* * PASS
+--------------------------------------------------
+VERIFYING OPTIONAL PROPERTIES:
+  VERIFYING PROPERTY: Tail Time
+    PASS
+  VERIFYING PROPERTY: Bypass Effect
+    PASS
+
+* * PASS
+--------------------------------------------------
+VERIFYING SPECIAL PROPERTIES:
+
+VERIFYING CUSTOM UI
+Cocoa Views Available: 1
+  JUCE_AUCocoaViewClass_3c44147ef3c1276f
+    PASS
+
+HAS FACTORY PRESETS
+    ID:   0    Name: Untitled
+
+VERIFYING CLASS INFO
+    PASS
+
+TESTING HOST CALLBACKS
+    PASS
+
+* * PASS
+--------------------------------------------------
+PUBLISHED PARAMETER INFO:
+
+# # # 293 Global Scope Parameters:
+Parameter ID:25777167
+Name: S4 · Reverb Damp
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 50.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:26232112
+Name: S4 · Reverb Size
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 50.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:36577306
+Name: S1 · Filter Res
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 20.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:60694050
+Name: S2 · FB Diffusion
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:60831606
+Name: Mod Env 1 · Attack
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 10.0000038, Maximum = 10000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:73335292
+Name: S4 · Stereo Spread
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 30.0000019, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:77484713
+Name: Mod 14 · Depth
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:92636217
+Name: LFO 3 · Rate Sync
+Parameter Type: Indexed
+Values: Minimum = 1/64 T, Default = 1 bar, Maximum = 8 bars
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 22
+Value: 0,  String: 1/64 T
+Value: 1,  String: 1/64
+Value: 2,  String: 1/64 D
+Value: 3,  String: 1/32 T
+Value: 4,  String: 1/32
+Value: 5,  String: 1/32 D
+Value: 6,  String: 1/16 T
+Value: 7,  String: 1/16
+Value: 8,  String: 1/16 D
+Value: 9,  String: 1/8 T
+Value: 10,  String: 1/8
+Value: 11,  String: 1/8 D
+Value: 12,  String: 1/4 T
+Value: 13,  String: 1/4
+Value: 14,  String: 1/4 D
+Value: 15,  String: 1/2 T
+Value: 16,  String: 1/2
+Value: 17,  String: 1/2 D
+Value: 18,  String: 1 bar
+Value: 19,  String: 2 bars
+Value: 20,  String: 4 bars
+Value: 21,  String: 8 bars
+  -parameter PASS
+
+Parameter ID:98444197
+Name: Glide
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 2000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:100605384
+Name: S4 · Feedback On
+Parameter Type: Boolean
+Values: Minimum = Off, Default = On, Maximum = On
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:103484116
+Name: S1 · FB Saturation
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 20.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:120802247
+Name: S1 · Density
+Parameter Type: Generic
+Values: Minimum = 0.5000000, Default = 10.0000019, Maximum = 200.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:123269828
+Name: S3 · Feedback
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:142613857
+Name: S4 · Enable
+Parameter Type: Boolean
+Values: Minimum = Off, Default = Off, Maximum = On
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:164571513
+Name: Mod 10 · Source
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = Macro 4
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 18
+Value: 0,  String: None
+Value: 1,  String: LFO 1
+Value: 2,  String: LFO 2
+Value: 3,  String: LFO 3
+Value: 4,  String: LFO 4
+Value: 5,  String: Mod Env 1
+Value: 6,  String: Mod Env 2
+Value: 7,  String: Velocity
+Value: 8,  String: Key
+Value: 9,  String: Note Random
+Value: 10,  String: Mod Wheel
+Value: 11,  String: Pressure
+Value: 12,  String: Slide
+Value: 13,  String: Bend
+Value: 14,  String: Macro 1
+Value: 15,  String: Macro 2
+Value: 16,  String: Macro 3
+Value: 17,  String: Macro 4
+  -parameter PASS
+
+Parameter ID:165660025
+Name: S2 · Filter Res
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 20.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:168657131
+Name: Mod 1 · Source
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = Macro 4
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 18
+Value: 0,  String: None
+Value: 1,  String: LFO 1
+Value: 2,  String: LFO 2
+Value: 3,  String: LFO 3
+Value: 4,  String: LFO 4
+Value: 5,  String: Mod Env 1
+Value: 6,  String: Mod Env 2
+Value: 7,  String: Velocity
+Value: 8,  String: Key
+Value: 9,  String: Note Random
+Value: 10,  String: Mod Wheel
+Value: 11,  String: Pressure
+Value: 12,  String: Slide
+Value: 13,  String: Bend
+Value: 14,  String: Macro 1
+Value: 15,  String: Macro 2
+Value: 16,  String: Macro 3
+Value: 17,  String: Macro 4
+  -parameter PASS
+
+Parameter ID:228590878
+Name: S4 · Loop End
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 100.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:243901750
+Name: Polyphony
+Parameter Type: Generic
+Values: Minimum = 1, Default = 8, Maximum = 16
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:253683566
+Name: S4 · Filter Random
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:253766275
+Name: S4 · Filter Type
+Parameter Type: Indexed
+Values: Minimum = Off, Default = Off, Maximum = HP
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 4
+Value: 0,  String: Off
+Value: 1,  String: LP
+Value: 2,  String: BP
+Value: 3,  String: HP
+  -parameter PASS
+
+Parameter ID:258362312
+Name: S1 · Loop Start
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:279986973
+Name: S4 · Crush
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:280899052
+Name: S4 · Drive
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:281725130
+Name: S4 · Jitter
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 20.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:287911910
+Name: S4 · Level
+Parameter Type: Generic
+Values: Minimum = -60.0000000, Default = 0.0000000, Maximum = 6.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:288688596
+Name: Mod 15 · Source
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = Macro 4
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 18
+Value: 0,  String: None
+Value: 1,  String: LFO 1
+Value: 2,  String: LFO 2
+Value: 3,  String: LFO 3
+Value: 4,  String: LFO 4
+Value: 5,  String: Mod Env 1
+Value: 6,  String: Mod Env 2
+Value: 7,  String: Velocity
+Value: 8,  String: Key
+Value: 9,  String: Note Random
+Value: 10,  String: Mod Wheel
+Value: 11,  String: Pressure
+Value: 12,  String: Slide
+Value: 13,  String: Bend
+Value: 14,  String: Macro 1
+Value: 15,  String: Macro 2
+Value: 16,  String: Macro 3
+Value: 17,  String: Macro 4
+  -parameter PASS
+
+Parameter ID:291723170
+Name: S4 · Pitch
+Parameter Type: Generic
+Values: Minimum = -24.0000000, Default = 0.0000000, Maximum = 24.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:292774214
+Name: Mod 6 · Source
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = Macro 4
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 18
+Value: 0,  String: None
+Value: 1,  String: LFO 1
+Value: 2,  String: LFO 2
+Value: 3,  String: LFO 3
+Value: 4,  String: LFO 4
+Value: 5,  String: Mod Env 1
+Value: 6,  String: Mod Env 2
+Value: 7,  String: Velocity
+Value: 8,  String: Key
+Value: 9,  String: Note Random
+Value: 10,  String: Mod Wheel
+Value: 11,  String: Pressure
+Value: 12,  String: Slide
+Value: 13,  String: Bend
+Value: 14,  String: Macro 1
+Value: 15,  String: Macro 2
+Value: 16,  String: Macro 3
+Value: 17,  String: Macro 4
+  -parameter PASS
+
+Parameter ID:294297004
+Name: S4 · Scale
+Parameter Type: Indexed
+Values: Minimum = Off, Default = Off, Maximum = Custom
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 32
+Value: 0,  String: Off
+Value: 1,  String: Chromatic
+Value: 2,  String: Major
+Value: 3,  String: Minor
+Value: 4,  String: Pentatonic
+Value: 5,  String: Whole Tone
+Value: 6,  String: Dorian
+Value: 7,  String: Phrygian
+Value: 8,  String: Lydian
+Value: 9,  String: Mixolydian
+Value: 10,  String: Locrian
+Value: 11,  String: Harmonic Minor
+Value: 12,  String: Melodic Minor
+Value: 13,  String: Minor Pentatonic
+Value: 14,  String: Blues
+Value: 15,  String: Octatonic
+Value: 16,  String: Augmented
+Value: 17,  String: Fifths + Octaves
+Value: 18,  String: Octaves
+Value: 19,  String: 19-EDO
+Value: 20,  String: 22-EDO
+Value: 21,  String: 24-EDO
+Value: 22,  String: 31-EDO
+Value: 23,  String: 53-EDO
+Value: 24,  String: 5-Limit Just
+Value: 25,  String: 7-Limit Just
+Value: 26,  String: Harmonics 8-16
+Value: 27,  String: Bohlen-Pierce
+Value: 28,  String: Slendro
+Value: 29,  String: Pelog
+Value: 30,  String: Maqam Rast
+Value: 31,  String: Custom
+  -parameter PASS
+
+Parameter ID:294700303
+Name: S4 · Spray
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 10.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:294742744
+Name: S3 · Filter Res
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 20.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:300567448
+Name: S3 · Root Fine
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:300811728
+Name: S3 · Root Note
+Parameter Type: Generic
+Values: Minimum = 0, Default = 48, Maximum = 127
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:311545461
+Name: Mod 3 · Depth
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:319180174
+Name: S3 · Reverb Damp
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 50.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:319635119
+Name: S3 · Reverb Size
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 50.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:319783333
+Name: S2 · Feedback
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:323128324
+Name: S1 · Gain Random
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:331172247
+Name: S4 · FB Saturation
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 20.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:337501659
+Name: LFO 4 · Phase
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 360.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:340272129
+Name: LFO 4 · Shape
+Parameter Type: Indexed
+Values: Minimum = Sine, Default = Sine, Maximum = Smooth Random
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 6
+Value: 0,  String: Sine
+Value: 1,  String: Triangle
+Value: 2,  String: Saw
+Value: 3,  String: Square
+Value: 4,  String: S&H
+Value: 5,  String: Smooth Random
+  -parameter PASS
+
+Parameter ID:387445031
+Name: S2 · Loop Start
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:391070483
+Name: S1 · Reverse
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:402959125
+Name: S1 · FB Low Cut
+Parameter Type: Generic
+Values: Minimum = 20.0000000, Default = 79.9999924, Maximum = 2000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:417619793
+Name: S3 · Density Sync
+Parameter Type: Indexed
+Values: Minimum = 1/64 T, Default = 1/16, Maximum = 1 bar
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 19
+Value: 0,  String: 1/64 T
+Value: 1,  String: 1/64
+Value: 2,  String: 1/64 D
+Value: 3,  String: 1/32 T
+Value: 4,  String: 1/32
+Value: 5,  String: 1/32 D
+Value: 6,  String: 1/16 T
+Value: 7,  String: 1/16
+Value: 8,  String: 1/16 D
+Value: 9,  String: 1/8 T
+Value: 10,  String: 1/8
+Value: 11,  String: 1/8 D
+Value: 12,  String: 1/4 T
+Value: 13,  String: 1/4
+Value: 14,  String: 1/4 D
+Value: 15,  String: 1/2 T
+Value: 16,  String: 1/2
+Value: 17,  String: 1/2 D
+Value: 18,  String: 1 bar
+  -parameter PASS
+
+Parameter ID:423825463
+Name: S4 · Filter Res
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 20.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:425104383
+Name: S3 · Loop End
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 100.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:426656908
+Name: Amp Release
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 1499.9998779, Maximum = 20000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:427767589
+Name: Record Length Sync
+Parameter Type: Indexed
+Values: Minimum = 1 bar, Default = 4 bars, Maximum = 32 bars
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 6
+Value: 0,  String: 1 bar
+Value: 1,  String: 2 bars
+Value: 2,  String: 4 bars
+Value: 3,  String: 8 bars
+Value: 4,  String: 16 bars
+Value: 5,  String: 32 bars
+  -parameter PASS
+
+Parameter ID:443168506
+Name: LFO 4 · Rate Sync
+Parameter Type: Indexed
+Values: Minimum = 1/64 T, Default = 1 bar, Maximum = 8 bars
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 22
+Value: 0,  String: 1/64 T
+Value: 1,  String: 1/64
+Value: 2,  String: 1/64 D
+Value: 3,  String: 1/32 T
+Value: 4,  String: 1/32
+Value: 5,  String: 1/32 D
+Value: 6,  String: 1/16 T
+Value: 7,  String: 1/16
+Value: 8,  String: 1/16 D
+Value: 9,  String: 1/8 T
+Value: 10,  String: 1/8
+Value: 11,  String: 1/8 D
+Value: 12,  String: 1/4 T
+Value: 13,  String: 1/4
+Value: 14,  String: 1/4 D
+Value: 15,  String: 1/2 T
+Value: 16,  String: 1/2
+Value: 17,  String: 1/2 D
+Value: 18,  String: 1 bar
+Value: 19,  String: 2 bars
+Value: 20,  String: 4 bars
+Value: 21,  String: 8 bars
+  -parameter PASS
+
+Parameter ID:449960999
+Name: Mod 12 · Depth
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:454096570
+Name: Mod 8 · Depth
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:460831432
+Name: S2 · Density
+Parameter Type: Generic
+Values: Minimum = 0.5000000, Default = 10.0000019, Maximum = 200.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:477634458
+Name: S1 · Mute
+Parameter Type: Boolean
+Values: Minimum = Off, Default = Off, Maximum = On
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:477801858
+Name: S1 · Size
+Parameter Type: Generic
+Values: Minimum = 5.0000000, Default = 100.0000153, Maximum = 2000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:477807200
+Name: S1 · Solo
+Parameter Type: Boolean
+Values: Minimum = Off, Default = Off, Maximum = On
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:485792307
+Name: S1 · Filter Cutoff
+Parameter Type: Generic
+Values: Minimum = 20.0000000, Default = 20000.0000000, Maximum = 20000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:494354631
+Name: Sync Mode
+Parameter Type: Indexed
+Values: Minimum = Free, Default = Free, Maximum = Tempo
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 2
+Value: 0,  String: Free
+Value: 1,  String: Tempo
+  -parameter PASS
+
+Parameter ID:506263609
+Name: S2 · Mute
+Parameter Type: Boolean
+Values: Minimum = Off, Default = Off, Maximum = On
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:506431009
+Name: S2 · Size
+Parameter Type: Generic
+Values: Minimum = 5.0000000, Default = 100.0000153, Maximum = 2000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:506436351
+Name: S2 · Solo
+Parameter Type: Boolean
+Values: Minimum = Off, Default = Off, Maximum = On
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:516296838
+Name: S1 · Feedback
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:516527750
+Name: S3 · Loop Start
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:520299388
+Name: Record Threshold
+Parameter Type: Generic
+Values: Minimum = -60.0000000, Default = -30.0000000, Maximum = 0.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:532041844
+Name: S2 · FB Low Cut
+Parameter Type: Generic
+Values: Minimum = 20.0000000, Default = 79.9999924, Maximum = 2000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:534892760
+Name: S3 · Mute
+Parameter Type: Boolean
+Values: Minimum = Off, Default = Off, Maximum = On
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:535060160
+Name: S3 · Size
+Parameter Type: Generic
+Values: Minimum = 5.0000000, Default = 100.0000153, Maximum = 2000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:535065502
+Name: S3 · Solo
+Parameter Type: Boolean
+Values: Minimum = Off, Default = Off, Maximum = On
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:547086573
+Name: S3 · Filter Random
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:547169282
+Name: S3 · Filter Type
+Parameter Type: Indexed
+Values: Minimum = Off, Default = Off, Maximum = HP
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 4
+Value: 0,  String: Off
+Value: 1,  String: LP
+Value: 2,  String: BP
+Value: 3,  String: HP
+  -parameter PASS
+
+Parameter ID:547287170
+Name: S3 · Enable
+Parameter Type: Boolean
+Values: Minimum = Off, Default = Off, Maximum = On
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:563521911
+Name: S4 · Mute
+Parameter Type: Boolean
+Values: Minimum = Off, Default = Off, Maximum = On
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:563689311
+Name: S4 · Size
+Parameter Type: Generic
+Values: Minimum = 5.0000000, Default = 100.0000153, Maximum = 2000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:563694653
+Name: S4 · Solo
+Parameter Type: Boolean
+Values: Minimum = Off, Default = Off, Maximum = On
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:566252675
+Name: S1 · FB Diffusion
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:612583181
+Name: S2 · Reverb Damp
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 50.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:613038126
+Name: S2 · Reverb Size
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 50.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:621617888
+Name: S2 · Loop End
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 100.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:627732684
+Name: Mod Env 1 · Decay
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 499.9999695, Maximum = 10000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:632422544
+Name: Voice Mode
+Parameter Type: Indexed
+Values: Minimum = Poly, Default = Poly, Maximum = Legato
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 3
+Value: 0,  String: Poly
+Value: 1,  String: Mono
+Value: 2,  String: Legato
+  -parameter PASS
+
+Parameter ID:645610469
+Name: S4 · Loop Start
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:651099737
+Name: S4 · Root Fine
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:651344017
+Name: S4 · Root Note
+Parameter Type: Generic
+Values: Minimum = 0, Default = 48, Maximum = 127
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:652463259
+Name: S2 · Crush
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:653375338
+Name: S2 · Drive
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:653710286
+Name: S4 · Window
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 1.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:660388196
+Name: S2 · Level
+Parameter Type: Generic
+Values: Minimum = -60.0000000, Default = 0.0000000, Maximum = 6.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:661124563
+Name: S3 · FB Low Cut
+Parameter Type: Generic
+Values: Minimum = 20.0000000, Default = 79.9999924, Maximum = 2000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:664199456
+Name: S2 · Pitch
+Parameter Type: Generic
+Values: Minimum = -24.0000000, Default = 0.0000000, Maximum = 24.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:666773290
+Name: S2 · Scale
+Parameter Type: Indexed
+Values: Minimum = Off, Default = Off, Maximum = Custom
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 32
+Value: 0,  String: Off
+Value: 1,  String: Chromatic
+Value: 2,  String: Major
+Value: 3,  String: Minor
+Value: 4,  String: Pentatonic
+Value: 5,  String: Whole Tone
+Value: 6,  String: Dorian
+Value: 7,  String: Phrygian
+Value: 8,  String: Lydian
+Value: 9,  String: Mixolydian
+Value: 10,  String: Locrian
+Value: 11,  String: Harmonic Minor
+Value: 12,  String: Melodic Minor
+Value: 13,  String: Minor Pentatonic
+Value: 14,  String: Blues
+Value: 15,  String: Octatonic
+Value: 16,  String: Augmented
+Value: 17,  String: Fifths + Octaves
+Value: 18,  String: Octaves
+Value: 19,  String: 19-EDO
+Value: 20,  String: 22-EDO
+Value: 21,  String: 24-EDO
+Value: 22,  String: 31-EDO
+Value: 23,  String: 53-EDO
+Value: 24,  String: 5-Limit Just
+Value: 25,  String: 7-Limit Just
+Value: 26,  String: Harmonics 8-16
+Value: 27,  String: Bohlen-Pierce
+Value: 28,  String: Slendro
+Value: 29,  String: Pelog
+Value: 30,  String: Maqam Rast
+Value: 31,  String: Custom
+  -parameter PASS
+
+Parameter ID:667176589
+Name: S2 · Spray
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 10.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:673660613
+Name: S2 · Gain Random
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:684021747
+Name: Mod 1 · Depth
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:686398443
+Name: S3 · Jitter
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 20.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:693361909
+Name: Mod 14 · Source
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = Macro 4
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 18
+Value: 0,  String: None
+Value: 1,  String: LFO 1
+Value: 2,  String: LFO 2
+Value: 3,  String: LFO 3
+Value: 4,  String: LFO 4
+Value: 5,  String: Mod Env 1
+Value: 6,  String: Mod Env 2
+Value: 7,  String: Velocity
+Value: 8,  String: Key
+Value: 9,  String: Note Random
+Value: 10,  String: Mod Wheel
+Value: 11,  String: Pressure
+Value: 12,  String: Slide
+Value: 13,  String: Bend
+Value: 14,  String: Macro 1
+Value: 15,  String: Macro 2
+Value: 16,  String: Macro 3
+Value: 17,  String: Macro 4
+  -parameter PASS
+
+Parameter ID:697447527
+Name: Mod 5 · Source
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = Macro 4
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 18
+Value: 0,  String: None
+Value: 1,  String: LFO 1
+Value: 2,  String: LFO 2
+Value: 3,  String: LFO 3
+Value: 4,  String: LFO 4
+Value: 5,  String: Mod Env 1
+Value: 6,  String: Mod Env 2
+Value: 7,  String: Velocity
+Value: 8,  String: Key
+Value: 9,  String: Note Random
+Value: 10,  String: Mod Wheel
+Value: 11,  String: Pressure
+Value: 12,  String: Slide
+Value: 13,  String: Bend
+Value: 14,  String: Macro 1
+Value: 15,  String: Macro 2
+Value: 16,  String: Macro 3
+Value: 17,  String: Macro 4
+  -parameter PASS
+
+Parameter ID:709246645
+Name: Mod Env 1 · Sustain
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:709977945
+Name: LFO 2 · Phase
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 360.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:712748415
+Name: LFO 2 · Shape
+Parameter Type: Indexed
+Values: Minimum = Sine, Default = Sine, Maximum = Smooth Random
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 6
+Value: 0,  String: Sine
+Value: 1,  String: Triangle
+Value: 2,  String: Saw
+Value: 3,  String: Square
+Value: 4,  String: S&H
+Value: 5,  String: Smooth Random
+  -parameter PASS
+
+Parameter ID:713267131
+Name: S3 · Stereo Spread
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 30.0000019, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:713480438
+Name: S4 · Filter Cutoff
+Parameter Type: Generic
+Values: Minimum = 20.0000000, Default = 20000.0000000, Maximum = 20000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:767868486
+Name: S1 · Ring Freq
+Parameter Type: Generic
+Values: Minimum = 20.0000000, Default = 200.0000000, Maximum = 5000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:768209907
+Name: S1 · Ring Random
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:784075634
+Name: Mod 1 · Destination
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = LFO 4 · Rate
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 150
+Value: 0,  String: None
+Value: 1,  String: Output Gain
+Value: 2,  String: S1 · Level
+Value: 3,  String: S1 · Pan
+Value: 4,  String: S1 · Position
+Value: 5,  String: S1 · Spray
+Value: 6,  String: S1 · Size
+Value: 7,  String: S1 · Size Random
+Value: 8,  String: S1 · Density
+Value: 9,  String: S1 · Jitter
+Value: 10,  String: S1 · Pitch
+Value: 11,  String: S1 · Pitch Random
+Value: 12,  String: S1 · Reverse
+Value: 13,  String: S1 · Window
+Value: 14,  String: S1 · Window Skew
+Value: 15,  String: S1 · Stereo Spread
+Value: 16,  String: S1 · Gain Random
+Value: 17,  String: S1 · Filter Cutoff
+Value: 18,  String: S1 · Filter Random
+Value: 19,  String: S1 · Filter Res
+Value: 20,  String: S1 · Drive
+Value: 21,  String: S1 · Crush
+Value: 22,  String: S1 · Crush Chance
+Value: 23,  String: S1 · Ring Freq
+Value: 24,  String: S1 · Ring Random
+Value: 25,  String: S1 · Ring Mix
+Value: 26,  String: S1 · Scan Rate
+Value: 27,  String: S1 · Loop Start
+Value: 28,  String: S1 · Loop End
+Value: 29,  String: S1 · Key Track
+Value: 30,  String: S1 · Feedback
+Value: 31,  String: S1 · FB Low Cut
+Value: 32,  String: S1 · FB High Cut
+Value: 33,  String: S1 · FB Saturation
+Value: 34,  String: S1 · FB Diffusion
+Value: 35,  String: S1 · Reverb Mix
+Value: 36,  String: S1 · Reverb Size
+Value: 37,  String: S1 · Reverb Damp
+Value: 38,  String: S2 · Level
+Value: 39,  String: S2 · Pan
+Value: 40,  String: S2 · Position
+Value: 41,  String: S2 · Spray
+Value: 42,  String: S2 · Size
+Value: 43,  String: S2 · Size Random
+Value: 44,  String: S2 · Density
+Value: 45,  String: S2 · Jitter
+Value: 46,  String: S2 · Pitch
+Value: 47,  String: S2 · Pitch Random
+Value: 48,  String: S2 · Reverse
+Value: 49,  String: S2 · Window
+Value: 50,  String: S2 · Window Skew
+Value: 51,  String: S2 · Stereo Spread
+Value: 52,  String: S2 · Gain Random
+Value: 53,  String: S2 · Filter Cutoff
+Value: 54,  String: S2 · Filter Random
+Value: 55,  String: S2 · Filter Res
+Value: 56,  String: S2 · Drive
+Value: 57,  String: S2 · Crush
+Value: 58,  String: S2 · Crush Chance
+Value: 59,  String: S2 · Ring Freq
+Value: 60,  String: S2 · Ring Random
+Value: 61,  String: S2 · Ring Mix
+Value: 62,  String: S2 · Scan Rate
+Value: 63,  String: S2 · Loop Start
+Value: 64,  String: S2 · Loop End
+Value: 65,  String: S2 · Key Track
+Value: 66,  String: S2 · Feedback
+Value: 67,  String: S2 · FB Low Cut
+Value: 68,  String: S2 · FB High Cut
+Value: 69,  String: S2 · FB Saturation
+Value: 70,  String: S2 · FB Diffusion
+Value: 71,  String: S2 · Reverb Mix
+Value: 72,  String: S2 · Reverb Size
+Value: 73,  String: S2 · Reverb Damp
+Value: 74,  String: S3 · Level
+Value: 75,  String: S3 · Pan
+Value: 76,  String: S3 · Position
+Value: 77,  String: S3 · Spray
+Value: 78,  String: S3 · Size
+Value: 79,  String: S3 · Size Random
+Value: 80,  String: S3 · Density
+Value: 81,  String: S3 · Jitter
+Value: 82,  String: S3 · Pitch
+Value: 83,  String: S3 · Pitch Random
+Value: 84,  String: S3 · Reverse
+Value: 85,  String: S3 · Window
+Value: 86,  String: S3 · Window Skew
+Value: 87,  String: S3 · Stereo Spread
+Value: 88,  String: S3 · Gain Random
+Value: 89,  String: S3 · Filter Cutoff
+Value: 90,  String: S3 · Filter Random
+Value: 91,  String: S3 · Filter Res
+Value: 92,  String: S3 · Drive
+Value: 93,  String: S3 · Crush
+Value: 94,  String: S3 · Crush Chance
+Value: 95,  String: S3 · Ring Freq
+Value: 96,  String: S3 · Ring Random
+Value: 97,  String: S3 · Ring Mix
+Value: 98,  String: S3 · Scan Rate
+Value: 99,  String: S3 · Loop Start
+Value: 100,  String: S3 · Loop End
+Value: 101,  String: S3 · Key Track
+Value: 102,  String: S3 · Feedback
+Value: 103,  String: S3 · FB Low Cut
+Value: 104,  String: S3 · FB High Cut
+Value: 105,  String: S3 · FB Saturation
+Value: 106,  String: S3 · FB Diffusion
+Value: 107,  String: S3 · Reverb Mix
+Value: 108,  String: S3 · Reverb Size
+Value: 109,  String: S3 · Reverb Damp
+Value: 110,  String: S4 · Level
+Value: 111,  String: S4 · Pan
+Value: 112,  String: S4 · Position
+Value: 113,  String: S4 · Spray
+Value: 114,  String: S4 · Size
+Value: 115,  String: S4 · Size Random
+Value: 116,  String: S4 · Density
+Value: 117,  String: S4 · Jitter
+Value: 118,  String: S4 · Pitch
+Value: 119,  String: S4 · Pitch Random
+Value: 120,  String: S4 · Reverse
+Value: 121,  String: S4 · Window
+Value: 122,  String: S4 · Window Skew
+Value: 123,  String: S4 · Stereo Spread
+Value: 124,  String: S4 · Gain Random
+Value: 125,  String: S4 · Filter Cutoff
+Value: 126,  String: S4 · Filter Random
+Value: 127,  String: S4 · Filter Res
+Value: 128,  String: S4 · Drive
+Value: 129,  String: S4 · Crush
+Value: 130,  String: S4 · Crush Chance
+Value: 131,  String: S4 · Ring Freq
+Value: 132,  String: S4 · Ring Random
+Value: 133,  String: S4 · Ring Mix
+Value: 134,  String: S4 · Scan Rate
+Value: 135,  String: S4 · Loop Start
+Value: 136,  String: S4 · Loop End
+Value: 137,  String: S4 · Key Track
+Value: 138,  String: S4 · Feedback
+Value: 139,  String: S4 · FB Low Cut
+Value: 140,  String: S4 · FB High Cut
+Value: 141,  String: S4 · FB Saturation
+Value: 142,  String: S4 · FB Diffusion
+Value: 143,  String: S4 · Reverb Mix
+Value: 144,  String: S4 · Reverb Size
+Value: 145,  String: S4 · Reverb Damp
+Value: 146,  String: LFO 1 · Rate
+Value: 147,  String: LFO 2 · Rate
+Value: 148,  String: LFO 3 · Rate
+Value: 149,  String: LFO 4 · Rate
+  -parameter PASS
+
+Parameter ID:788933956
+Name: S1 · Scan Mode
+Parameter Type: Indexed
+Values: Minimum = Free-run, Default = Retrigger, Maximum = Ping-pong
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 3
+Value: 0,  String: Free-run
+Value: 1,  String: Retrigger
+Value: 2,  String: Ping-pong
+  -parameter PASS
+
+Parameter ID:789069953
+Name: S1 · Scan Rate
+Parameter Type: Generic
+Values: Minimum = -400.0000000, Default = 0.0000000, Maximum = 400.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:790207282
+Name: S4 · FB Low Cut
+Parameter Type: Generic
+Values: Minimum = 20.0000000, Default = 79.9999924, Maximum = 2000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:791244592
+Name: S1 · Reverb Mix
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:791247735
+Name: S1 · Reverb Position
+Parameter Type: Indexed
+Values: Minimum = Post, Default = Post, Maximum = Pre
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 2
+Value: 0,  String: Post
+Value: 1,  String: Pre
+  -parameter PASS
+
+Parameter ID:800860617
+Name: S3 · Density
+Parameter Type: Generic
+Values: Minimum = 0.5000000, Default = 10.0000019, Maximum = 200.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:812704785
+Name: Mod 2 · Destination
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = LFO 4 · Rate
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 150
+Value: 0,  String: None
+Value: 1,  String: Output Gain
+Value: 2,  String: S1 · Level
+Value: 3,  String: S1 · Pan
+Value: 4,  String: S1 · Position
+Value: 5,  String: S1 · Spray
+Value: 6,  String: S1 · Size
+Value: 7,  String: S1 · Size Random
+Value: 8,  String: S1 · Density
+Value: 9,  String: S1 · Jitter
+Value: 10,  String: S1 · Pitch
+Value: 11,  String: S1 · Pitch Random
+Value: 12,  String: S1 · Reverse
+Value: 13,  String: S1 · Window
+Value: 14,  String: S1 · Window Skew
+Value: 15,  String: S1 · Stereo Spread
+Value: 16,  String: S1 · Gain Random
+Value: 17,  String: S1 · Filter Cutoff
+Value: 18,  String: S1 · Filter Random
+Value: 19,  String: S1 · Filter Res
+Value: 20,  String: S1 · Drive
+Value: 21,  String: S1 · Crush
+Value: 22,  String: S1 · Crush Chance
+Value: 23,  String: S1 · Ring Freq
+Value: 24,  String: S1 · Ring Random
+Value: 25,  String: S1 · Ring Mix
+Value: 26,  String: S1 · Scan Rate
+Value: 27,  String: S1 · Loop Start
+Value: 28,  String: S1 · Loop End
+Value: 29,  String: S1 · Key Track
+Value: 30,  String: S1 · Feedback
+Value: 31,  String: S1 · FB Low Cut
+Value: 32,  String: S1 · FB High Cut
+Value: 33,  String: S1 · FB Saturation
+Value: 34,  String: S1 · FB Diffusion
+Value: 35,  String: S1 · Reverb Mix
+Value: 36,  String: S1 · Reverb Size
+Value: 37,  String: S1 · Reverb Damp
+Value: 38,  String: S2 · Level
+Value: 39,  String: S2 · Pan
+Value: 40,  String: S2 · Position
+Value: 41,  String: S2 · Spray
+Value: 42,  String: S2 · Size
+Value: 43,  String: S2 · Size Random
+Value: 44,  String: S2 · Density
+Value: 45,  String: S2 · Jitter
+Value: 46,  String: S2 · Pitch
+Value: 47,  String: S2 · Pitch Random
+Value: 48,  String: S2 · Reverse
+Value: 49,  String: S2 · Window
+Value: 50,  String: S2 · Window Skew
+Value: 51,  String: S2 · Stereo Spread
+Value: 52,  String: S2 · Gain Random
+Value: 53,  String: S2 · Filter Cutoff
+Value: 54,  String: S2 · Filter Random
+Value: 55,  String: S2 · Filter Res
+Value: 56,  String: S2 · Drive
+Value: 57,  String: S2 · Crush
+Value: 58,  String: S2 · Crush Chance
+Value: 59,  String: S2 · Ring Freq
+Value: 60,  String: S2 · Ring Random
+Value: 61,  String: S2 · Ring Mix
+Value: 62,  String: S2 · Scan Rate
+Value: 63,  String: S2 · Loop Start
+Value: 64,  String: S2 · Loop End
+Value: 65,  String: S2 · Key Track
+Value: 66,  String: S2 · Feedback
+Value: 67,  String: S2 · FB Low Cut
+Value: 68,  String: S2 · FB High Cut
+Value: 69,  String: S2 · FB Saturation
+Value: 70,  String: S2 · FB Diffusion
+Value: 71,  String: S2 · Reverb Mix
+Value: 72,  String: S2 · Reverb Size
+Value: 73,  String: S2 · Reverb Damp
+Value: 74,  String: S3 · Level
+Value: 75,  String: S3 · Pan
+Value: 76,  String: S3 · Position
+Value: 77,  String: S3 · Spray
+Value: 78,  String: S3 · Size
+Value: 79,  String: S3 · Size Random
+Value: 80,  String: S3 · Density
+Value: 81,  String: S3 · Jitter
+Value: 82,  String: S3 · Pitch
+Value: 83,  String: S3 · Pitch Random
+Value: 84,  String: S3 · Reverse
+Value: 85,  String: S3 · Window
+Value: 86,  String: S3 · Window Skew
+Value: 87,  String: S3 · Stereo Spread
+Value: 88,  String: S3 · Gain Random
+Value: 89,  String: S3 · Filter Cutoff
+Value: 90,  String: S3 · Filter Random
+Value: 91,  String: S3 · Filter Res
+Value: 92,  String: S3 · Drive
+Value: 93,  String: S3 · Crush
+Value: 94,  String: S3 · Crush Chance
+Value: 95,  String: S3 · Ring Freq
+Value: 96,  String: S3 · Ring Random
+Value: 97,  String: S3 · Ring Mix
+Value: 98,  String: S3 · Scan Rate
+Value: 99,  String: S3 · Loop Start
+Value: 100,  String: S3 · Loop End
+Value: 101,  String: S3 · Key Track
+Value: 102,  String: S3 · Feedback
+Value: 103,  String: S3 · FB Low Cut
+Value: 104,  String: S3 · FB High Cut
+Value: 105,  String: S3 · FB Saturation
+Value: 106,  String: S3 · FB Diffusion
+Value: 107,  String: S3 · Reverb Mix
+Value: 108,  String: S3 · Reverb Size
+Value: 109,  String: S3 · Reverb Damp
+Value: 110,  String: S4 · Level
+Value: 111,  String: S4 · Pan
+Value: 112,  String: S4 · Position
+Value: 113,  String: S4 · Spray
+Value: 114,  String: S4 · Size
+Value: 115,  String: S4 · Size Random
+Value: 116,  String: S4 · Density
+Value: 117,  String: S4 · Jitter
+Value: 118,  String: S4 · Pitch
+Value: 119,  String: S4 · Pitch Random
+Value: 120,  String: S4 · Reverse
+Value: 121,  String: S4 · Window
+Value: 122,  String: S4 · Window Skew
+Value: 123,  String: S4 · Stereo Spread
+Value: 124,  String: S4 · Gain Random
+Value: 125,  String: S4 · Filter Cutoff
+Value: 126,  String: S4 · Filter Random
+Value: 127,  String: S4 · Filter Res
+Value: 128,  String: S4 · Drive
+Value: 129,  String: S4 · Crush
+Value: 130,  String: S4 · Crush Chance
+Value: 131,  String: S4 · Ring Freq
+Value: 132,  String: S4 · Ring Random
+Value: 133,  String: S4 · Ring Mix
+Value: 134,  String: S4 · Scan Rate
+Value: 135,  String: S4 · Loop Start
+Value: 136,  String: S4 · Loop End
+Value: 137,  String: S4 · Key Track
+Value: 138,  String: S4 · Feedback
+Value: 139,  String: S4 · FB Low Cut
+Value: 140,  String: S4 · FB High Cut
+Value: 141,  String: S4 · FB Saturation
+Value: 142,  String: S4 · FB Diffusion
+Value: 143,  String: S4 · Reverb Mix
+Value: 144,  String: S4 · Reverb Size
+Value: 145,  String: S4 · Reverb Damp
+Value: 146,  String: LFO 1 · Rate
+Value: 147,  String: LFO 2 · Rate
+Value: 148,  String: LFO 3 · Rate
+Value: 149,  String: LFO 4 · Rate
+  -parameter PASS
+
+Parameter ID:818131393
+Name: S1 · Loop End
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 100.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:822437285
+Name: Mod 10 · Depth
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:823234880
+Name: MPE
+Parameter Type: Boolean
+Values: Minimum = Off, Default = Off, Maximum = On
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:826572856
+Name: Mod 6 · Depth
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:840489580
+Name: S2 · Filter Random
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:840572289
+Name: S2 · Filter Type
+Parameter Type: Indexed
+Values: Minimum = Off, Default = Off, Maximum = HP
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 4
+Value: 0,  String: Off
+Value: 1,  String: LP
+Value: 2,  String: BP
+Value: 3,  String: HP
+  -parameter PASS
+
+Parameter ID:841333936
+Name: Mod 3 · Destination
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = LFO 4 · Rate
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 150
+Value: 0,  String: None
+Value: 1,  String: Output Gain
+Value: 2,  String: S1 · Level
+Value: 3,  String: S1 · Pan
+Value: 4,  String: S1 · Position
+Value: 5,  String: S1 · Spray
+Value: 6,  String: S1 · Size
+Value: 7,  String: S1 · Size Random
+Value: 8,  String: S1 · Density
+Value: 9,  String: S1 · Jitter
+Value: 10,  String: S1 · Pitch
+Value: 11,  String: S1 · Pitch Random
+Value: 12,  String: S1 · Reverse
+Value: 13,  String: S1 · Window
+Value: 14,  String: S1 · Window Skew
+Value: 15,  String: S1 · Stereo Spread
+Value: 16,  String: S1 · Gain Random
+Value: 17,  String: S1 · Filter Cutoff
+Value: 18,  String: S1 · Filter Random
+Value: 19,  String: S1 · Filter Res
+Value: 20,  String: S1 · Drive
+Value: 21,  String: S1 · Crush
+Value: 22,  String: S1 · Crush Chance
+Value: 23,  String: S1 · Ring Freq
+Value: 24,  String: S1 · Ring Random
+Value: 25,  String: S1 · Ring Mix
+Value: 26,  String: S1 · Scan Rate
+Value: 27,  String: S1 · Loop Start
+Value: 28,  String: S1 · Loop End
+Value: 29,  String: S1 · Key Track
+Value: 30,  String: S1 · Feedback
+Value: 31,  String: S1 · FB Low Cut
+Value: 32,  String: S1 · FB High Cut
+Value: 33,  String: S1 · FB Saturation
+Value: 34,  String: S1 · FB Diffusion
+Value: 35,  String: S1 · Reverb Mix
+Value: 36,  String: S1 · Reverb Size
+Value: 37,  String: S1 · Reverb Damp
+Value: 38,  String: S2 · Level
+Value: 39,  String: S2 · Pan
+Value: 40,  String: S2 · Position
+Value: 41,  String: S2 · Spray
+Value: 42,  String: S2 · Size
+Value: 43,  String: S2 · Size Random
+Value: 44,  String: S2 · Density
+Value: 45,  String: S2 · Jitter
+Value: 46,  String: S2 · Pitch
+Value: 47,  String: S2 · Pitch Random
+Value: 48,  String: S2 · Reverse
+Value: 49,  String: S2 · Window
+Value: 50,  String: S2 · Window Skew
+Value: 51,  String: S2 · Stereo Spread
+Value: 52,  String: S2 · Gain Random
+Value: 53,  String: S2 · Filter Cutoff
+Value: 54,  String: S2 · Filter Random
+Value: 55,  String: S2 · Filter Res
+Value: 56,  String: S2 · Drive
+Value: 57,  String: S2 · Crush
+Value: 58,  String: S2 · Crush Chance
+Value: 59,  String: S2 · Ring Freq
+Value: 60,  String: S2 · Ring Random
+Value: 61,  String: S2 · Ring Mix
+Value: 62,  String: S2 · Scan Rate
+Value: 63,  String: S2 · Loop Start
+Value: 64,  String: S2 · Loop End
+Value: 65,  String: S2 · Key Track
+Value: 66,  String: S2 · Feedback
+Value: 67,  String: S2 · FB Low Cut
+Value: 68,  String: S2 · FB High Cut
+Value: 69,  String: S2 · FB Saturation
+Value: 70,  String: S2 · FB Diffusion
+Value: 71,  String: S2 · Reverb Mix
+Value: 72,  String: S2 · Reverb Size
+Value: 73,  String: S2 · Reverb Damp
+Value: 74,  String: S3 · Level
+Value: 75,  String: S3 · Pan
+Value: 76,  String: S3 · Position
+Value: 77,  String: S3 · Spray
+Value: 78,  String: S3 · Size
+Value: 79,  String: S3 · Size Random
+Value: 80,  String: S3 · Density
+Value: 81,  String: S3 · Jitter
+Value: 82,  String: S3 · Pitch
+Value: 83,  String: S3 · Pitch Random
+Value: 84,  String: S3 · Reverse
+Value: 85,  String: S3 · Window
+Value: 86,  String: S3 · Window Skew
+Value: 87,  String: S3 · Stereo Spread
+Value: 88,  String: S3 · Gain Random
+Value: 89,  String: S3 · Filter Cutoff
+Value: 90,  String: S3 · Filter Random
+Value: 91,  String: S3 · Filter Res
+Value: 92,  String: S3 · Drive
+Value: 93,  String: S3 · Crush
+Value: 94,  String: S3 · Crush Chance
+Value: 95,  String: S3 · Ring Freq
+Value: 96,  String: S3 · Ring Random
+Value: 97,  String: S3 · Ring Mix
+Value: 98,  String: S3 · Scan Rate
+Value: 99,  String: S3 · Loop Start
+Value: 100,  String: S3 · Loop End
+Value: 101,  String: S3 · Key Track
+Value: 102,  String: S3 · Feedback
+Value: 103,  String: S3 · FB Low Cut
+Value: 104,  String: S3 · FB High Cut
+Value: 105,  String: S3 · FB Saturation
+Value: 106,  String: S3 · FB Diffusion
+Value: 107,  String: S3 · Reverb Mix
+Value: 108,  String: S3 · Reverb Size
+Value: 109,  String: S3 · Reverb Damp
+Value: 110,  String: S4 · Level
+Value: 111,  String: S4 · Pan
+Value: 112,  String: S4 · Position
+Value: 113,  String: S4 · Spray
+Value: 114,  String: S4 · Size
+Value: 115,  String: S4 · Size Random
+Value: 116,  String: S4 · Density
+Value: 117,  String: S4 · Jitter
+Value: 118,  String: S4 · Pitch
+Value: 119,  String: S4 · Pitch Random
+Value: 120,  String: S4 · Reverse
+Value: 121,  String: S4 · Window
+Value: 122,  String: S4 · Window Skew
+Value: 123,  String: S4 · Stereo Spread
+Value: 124,  String: S4 · Gain Random
+Value: 125,  String: S4 · Filter Cutoff
+Value: 126,  String: S4 · Filter Random
+Value: 127,  String: S4 · Filter Res
+Value: 128,  String: S4 · Drive
+Value: 129,  String: S4 · Crush
+Value: 130,  String: S4 · Crush Chance
+Value: 131,  String: S4 · Ring Freq
+Value: 132,  String: S4 · Ring Random
+Value: 133,  String: S4 · Ring Mix
+Value: 134,  String: S4 · Scan Rate
+Value: 135,  String: S4 · Loop Start
+Value: 136,  String: S4 · Loop End
+Value: 137,  String: S4 · Key Track
+Value: 138,  String: S4 · Feedback
+Value: 139,  String: S4 · FB Low Cut
+Value: 140,  String: S4 · FB High Cut
+Value: 141,  String: S4 · FB Saturation
+Value: 142,  String: S4 · FB Diffusion
+Value: 143,  String: S4 · Reverb Mix
+Value: 144,  String: S4 · Reverb Size
+Value: 145,  String: S4 · Reverb Damp
+Value: 146,  String: LFO 1 · Rate
+Value: 147,  String: LFO 2 · Rate
+Value: 148,  String: LFO 3 · Rate
+Value: 149,  String: LFO 4 · Rate
+  -parameter PASS
+
+Parameter ID:866062727
+Name: S4 · Position
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:869963087
+Name: Mod 4 · Destination
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = LFO 4 · Rate
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 150
+Value: 0,  String: None
+Value: 1,  String: Output Gain
+Value: 2,  String: S1 · Level
+Value: 3,  String: S1 · Pan
+Value: 4,  String: S1 · Position
+Value: 5,  String: S1 · Spray
+Value: 6,  String: S1 · Size
+Value: 7,  String: S1 · Size Random
+Value: 8,  String: S1 · Density
+Value: 9,  String: S1 · Jitter
+Value: 10,  String: S1 · Pitch
+Value: 11,  String: S1 · Pitch Random
+Value: 12,  String: S1 · Reverse
+Value: 13,  String: S1 · Window
+Value: 14,  String: S1 · Window Skew
+Value: 15,  String: S1 · Stereo Spread
+Value: 16,  String: S1 · Gain Random
+Value: 17,  String: S1 · Filter Cutoff
+Value: 18,  String: S1 · Filter Random
+Value: 19,  String: S1 · Filter Res
+Value: 20,  String: S1 · Drive
+Value: 21,  String: S1 · Crush
+Value: 22,  String: S1 · Crush Chance
+Value: 23,  String: S1 · Ring Freq
+Value: 24,  String: S1 · Ring Random
+Value: 25,  String: S1 · Ring Mix
+Value: 26,  String: S1 · Scan Rate
+Value: 27,  String: S1 · Loop Start
+Value: 28,  String: S1 · Loop End
+Value: 29,  String: S1 · Key Track
+Value: 30,  String: S1 · Feedback
+Value: 31,  String: S1 · FB Low Cut
+Value: 32,  String: S1 · FB High Cut
+Value: 33,  String: S1 · FB Saturation
+Value: 34,  String: S1 · FB Diffusion
+Value: 35,  String: S1 · Reverb Mix
+Value: 36,  String: S1 · Reverb Size
+Value: 37,  String: S1 · Reverb Damp
+Value: 38,  String: S2 · Level
+Value: 39,  String: S2 · Pan
+Value: 40,  String: S2 · Position
+Value: 41,  String: S2 · Spray
+Value: 42,  String: S2 · Size
+Value: 43,  String: S2 · Size Random
+Value: 44,  String: S2 · Density
+Value: 45,  String: S2 · Jitter
+Value: 46,  String: S2 · Pitch
+Value: 47,  String: S2 · Pitch Random
+Value: 48,  String: S2 · Reverse
+Value: 49,  String: S2 · Window
+Value: 50,  String: S2 · Window Skew
+Value: 51,  String: S2 · Stereo Spread
+Value: 52,  String: S2 · Gain Random
+Value: 53,  String: S2 · Filter Cutoff
+Value: 54,  String: S2 · Filter Random
+Value: 55,  String: S2 · Filter Res
+Value: 56,  String: S2 · Drive
+Value: 57,  String: S2 · Crush
+Value: 58,  String: S2 · Crush Chance
+Value: 59,  String: S2 · Ring Freq
+Value: 60,  String: S2 · Ring Random
+Value: 61,  String: S2 · Ring Mix
+Value: 62,  String: S2 · Scan Rate
+Value: 63,  String: S2 · Loop Start
+Value: 64,  String: S2 · Loop End
+Value: 65,  String: S2 · Key Track
+Value: 66,  String: S2 · Feedback
+Value: 67,  String: S2 · FB Low Cut
+Value: 68,  String: S2 · FB High Cut
+Value: 69,  String: S2 · FB Saturation
+Value: 70,  String: S2 · FB Diffusion
+Value: 71,  String: S2 · Reverb Mix
+Value: 72,  String: S2 · Reverb Size
+Value: 73,  String: S2 · Reverb Damp
+Value: 74,  String: S3 · Level
+Value: 75,  String: S3 · Pan
+Value: 76,  String: S3 · Position
+Value: 77,  String: S3 · Spray
+Value: 78,  String: S3 · Size
+Value: 79,  String: S3 · Size Random
+Value: 80,  String: S3 · Density
+Value: 81,  String: S3 · Jitter
+Value: 82,  String: S3 · Pitch
+Value: 83,  String: S3 · Pitch Random
+Value: 84,  String: S3 · Reverse
+Value: 85,  String: S3 · Window
+Value: 86,  String: S3 · Window Skew
+Value: 87,  String: S3 · Stereo Spread
+Value: 88,  String: S3 · Gain Random
+Value: 89,  String: S3 · Filter Cutoff
+Value: 90,  String: S3 · Filter Random
+Value: 91,  String: S3 · Filter Res
+Value: 92,  String: S3 · Drive
+Value: 93,  String: S3 · Crush
+Value: 94,  String: S3 · Crush Chance
+Value: 95,  String: S3 · Ring Freq
+Value: 96,  String: S3 · Ring Random
+Value: 97,  String: S3 · Ring Mix
+Value: 98,  String: S3 · Scan Rate
+Value: 99,  String: S3 · Loop Start
+Value: 100,  String: S3 · Loop End
+Value: 101,  String: S3 · Key Track
+Value: 102,  String: S3 · Feedback
+Value: 103,  String: S3 · FB Low Cut
+Value: 104,  String: S3 · FB High Cut
+Value: 105,  String: S3 · FB Saturation
+Value: 106,  String: S3 · FB Diffusion
+Value: 107,  String: S3 · Reverb Mix
+Value: 108,  String: S3 · Reverb Size
+Value: 109,  String: S3 · Reverb Damp
+Value: 110,  String: S4 · Level
+Value: 111,  String: S4 · Pan
+Value: 112,  String: S4 · Position
+Value: 113,  String: S4 · Spray
+Value: 114,  String: S4 · Size
+Value: 115,  String: S4 · Size Random
+Value: 116,  String: S4 · Density
+Value: 117,  String: S4 · Jitter
+Value: 118,  String: S4 · Pitch
+Value: 119,  String: S4 · Pitch Random
+Value: 120,  String: S4 · Reverse
+Value: 121,  String: S4 · Window
+Value: 122,  String: S4 · Window Skew
+Value: 123,  String: S4 · Stereo Spread
+Value: 124,  String: S4 · Gain Random
+Value: 125,  String: S4 · Filter Cutoff
+Value: 126,  String: S4 · Filter Random
+Value: 127,  String: S4 · Filter Res
+Value: 128,  String: S4 · Drive
+Value: 129,  String: S4 · Crush
+Value: 130,  String: S4 · Crush Chance
+Value: 131,  String: S4 · Ring Freq
+Value: 132,  String: S4 · Ring Random
+Value: 133,  String: S4 · Ring Mix
+Value: 134,  String: S4 · Scan Rate
+Value: 135,  String: S4 · Loop Start
+Value: 136,  String: S4 · Loop End
+Value: 137,  String: S4 · Key Track
+Value: 138,  String: S4 · Feedback
+Value: 139,  String: S4 · FB Low Cut
+Value: 140,  String: S4 · FB High Cut
+Value: 141,  String: S4 · FB Saturation
+Value: 142,  String: S4 · FB Diffusion
+Value: 143,  String: S4 · Reverb Mix
+Value: 144,  String: S4 · Reverb Size
+Value: 145,  String: S4 · Reverb Damp
+Value: 146,  String: LFO 1 · Rate
+Value: 147,  String: LFO 2 · Rate
+Value: 148,  String: LFO 3 · Rate
+Value: 149,  String: LFO 4 · Rate
+  -parameter PASS
+
+Parameter ID:881080983
+Name: Freeze
+Parameter Type: Boolean
+Values: Minimum = Off, Default = Off, Maximum = On
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:894767487
+Name: Amp Decay
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 300.0000000, Maximum = 10000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:898592238
+Name: Mod 5 · Destination
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = LFO 4 · Rate
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 150
+Value: 0,  String: None
+Value: 1,  String: Output Gain
+Value: 2,  String: S1 · Level
+Value: 3,  String: S1 · Pan
+Value: 4,  String: S1 · Position
+Value: 5,  String: S1 · Spray
+Value: 6,  String: S1 · Size
+Value: 7,  String: S1 · Size Random
+Value: 8,  String: S1 · Density
+Value: 9,  String: S1 · Jitter
+Value: 10,  String: S1 · Pitch
+Value: 11,  String: S1 · Pitch Random
+Value: 12,  String: S1 · Reverse
+Value: 13,  String: S1 · Window
+Value: 14,  String: S1 · Window Skew
+Value: 15,  String: S1 · Stereo Spread
+Value: 16,  String: S1 · Gain Random
+Value: 17,  String: S1 · Filter Cutoff
+Value: 18,  String: S1 · Filter Random
+Value: 19,  String: S1 · Filter Res
+Value: 20,  String: S1 · Drive
+Value: 21,  String: S1 · Crush
+Value: 22,  String: S1 · Crush Chance
+Value: 23,  String: S1 · Ring Freq
+Value: 24,  String: S1 · Ring Random
+Value: 25,  String: S1 · Ring Mix
+Value: 26,  String: S1 · Scan Rate
+Value: 27,  String: S1 · Loop Start
+Value: 28,  String: S1 · Loop End
+Value: 29,  String: S1 · Key Track
+Value: 30,  String: S1 · Feedback
+Value: 31,  String: S1 · FB Low Cut
+Value: 32,  String: S1 · FB High Cut
+Value: 33,  String: S1 · FB Saturation
+Value: 34,  String: S1 · FB Diffusion
+Value: 35,  String: S1 · Reverb Mix
+Value: 36,  String: S1 · Reverb Size
+Value: 37,  String: S1 · Reverb Damp
+Value: 38,  String: S2 · Level
+Value: 39,  String: S2 · Pan
+Value: 40,  String: S2 · Position
+Value: 41,  String: S2 · Spray
+Value: 42,  String: S2 · Size
+Value: 43,  String: S2 · Size Random
+Value: 44,  String: S2 · Density
+Value: 45,  String: S2 · Jitter
+Value: 46,  String: S2 · Pitch
+Value: 47,  String: S2 · Pitch Random
+Value: 48,  String: S2 · Reverse
+Value: 49,  String: S2 · Window
+Value: 50,  String: S2 · Window Skew
+Value: 51,  String: S2 · Stereo Spread
+Value: 52,  String: S2 · Gain Random
+Value: 53,  String: S2 · Filter Cutoff
+Value: 54,  String: S2 · Filter Random
+Value: 55,  String: S2 · Filter Res
+Value: 56,  String: S2 · Drive
+Value: 57,  String: S2 · Crush
+Value: 58,  String: S2 · Crush Chance
+Value: 59,  String: S2 · Ring Freq
+Value: 60,  String: S2 · Ring Random
+Value: 61,  String: S2 · Ring Mix
+Value: 62,  String: S2 · Scan Rate
+Value: 63,  String: S2 · Loop Start
+Value: 64,  String: S2 · Loop End
+Value: 65,  String: S2 · Key Track
+Value: 66,  String: S2 · Feedback
+Value: 67,  String: S2 · FB Low Cut
+Value: 68,  String: S2 · FB High Cut
+Value: 69,  String: S2 · FB Saturation
+Value: 70,  String: S2 · FB Diffusion
+Value: 71,  String: S2 · Reverb Mix
+Value: 72,  String: S2 · Reverb Size
+Value: 73,  String: S2 · Reverb Damp
+Value: 74,  String: S3 · Level
+Value: 75,  String: S3 · Pan
+Value: 76,  String: S3 · Position
+Value: 77,  String: S3 · Spray
+Value: 78,  String: S3 · Size
+Value: 79,  String: S3 · Size Random
+Value: 80,  String: S3 · Density
+Value: 81,  String: S3 · Jitter
+Value: 82,  String: S3 · Pitch
+Value: 83,  String: S3 · Pitch Random
+Value: 84,  String: S3 · Reverse
+Value: 85,  String: S3 · Window
+Value: 86,  String: S3 · Window Skew
+Value: 87,  String: S3 · Stereo Spread
+Value: 88,  String: S3 · Gain Random
+Value: 89,  String: S3 · Filter Cutoff
+Value: 90,  String: S3 · Filter Random
+Value: 91,  String: S3 · Filter Res
+Value: 92,  String: S3 · Drive
+Value: 93,  String: S3 · Crush
+Value: 94,  String: S3 · Crush Chance
+Value: 95,  String: S3 · Ring Freq
+Value: 96,  String: S3 · Ring Random
+Value: 97,  String: S3 · Ring Mix
+Value: 98,  String: S3 · Scan Rate
+Value: 99,  String: S3 · Loop Start
+Value: 100,  String: S3 · Loop End
+Value: 101,  String: S3 · Key Track
+Value: 102,  String: S3 · Feedback
+Value: 103,  String: S3 · FB Low Cut
+Value: 104,  String: S3 · FB High Cut
+Value: 105,  String: S3 · FB Saturation
+Value: 106,  String: S3 · FB Diffusion
+Value: 107,  String: S3 · Reverb Mix
+Value: 108,  String: S3 · Reverb Size
+Value: 109,  String: S3 · Reverb Damp
+Value: 110,  String: S4 · Level
+Value: 111,  String: S4 · Pan
+Value: 112,  String: S4 · Position
+Value: 113,  String: S4 · Spray
+Value: 114,  String: S4 · Size
+Value: 115,  String: S4 · Size Random
+Value: 116,  String: S4 · Density
+Value: 117,  String: S4 · Jitter
+Value: 118,  String: S4 · Pitch
+Value: 119,  String: S4 · Pitch Random
+Value: 120,  String: S4 · Reverse
+Value: 121,  String: S4 · Window
+Value: 122,  String: S4 · Window Skew
+Value: 123,  String: S4 · Stereo Spread
+Value: 124,  String: S4 · Gain Random
+Value: 125,  String: S4 · Filter Cutoff
+Value: 126,  String: S4 · Filter Random
+Value: 127,  String: S4 · Filter Res
+Value: 128,  String: S4 · Drive
+Value: 129,  String: S4 · Crush
+Value: 130,  String: S4 · Crush Chance
+Value: 131,  String: S4 · Ring Freq
+Value: 132,  String: S4 · Ring Random
+Value: 133,  String: S4 · Ring Mix
+Value: 134,  String: S4 · Scan Rate
+Value: 135,  String: S4 · Loop Start
+Value: 136,  String: S4 · Loop End
+Value: 137,  String: S4 · Key Track
+Value: 138,  String: S4 · Feedback
+Value: 139,  String: S4 · FB Low Cut
+Value: 140,  String: S4 · FB High Cut
+Value: 141,  String: S4 · FB Saturation
+Value: 142,  String: S4 · FB Diffusion
+Value: 143,  String: S4 · Reverb Mix
+Value: 144,  String: S4 · Reverb Size
+Value: 145,  String: S4 · Reverb Damp
+Value: 146,  String: LFO 1 · Rate
+Value: 147,  String: LFO 2 · Rate
+Value: 148,  String: LFO 3 · Rate
+Value: 149,  String: LFO 4 · Rate
+  -parameter PASS
+
+Parameter ID:905986188
+Name: S1 · Reverb Damp
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 50.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:906441133
+Name: S1 · Reverb Size
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 50.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:910949083
+Name: S4 · Window Skew
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:920327311
+Name: S2 · Reverb Mix
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:920330454
+Name: S2 · Reverb Position
+Parameter Type: Indexed
+Values: Minimum = Post, Default = Post, Maximum = Pre
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 2
+Value: 0,  String: Post
+Value: 1,  String: Pre
+  -parameter PASS
+
+Parameter ID:923178418
+Name: S2 · Density Sync
+Parameter Type: Indexed
+Values: Minimum = 1/64 T, Default = 1/16, Maximum = 1 bar
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 19
+Value: 0,  String: 1/64 T
+Value: 1,  String: 1/64
+Value: 2,  String: 1/64 D
+Value: 3,  String: 1/32 T
+Value: 4,  String: 1/32
+Value: 5,  String: 1/32 D
+Value: 6,  String: 1/16 T
+Value: 7,  String: 1/16
+Value: 8,  String: 1/16 D
+Value: 9,  String: 1/8 T
+Value: 10,  String: 1/8
+Value: 11,  String: 1/8 D
+Value: 12,  String: 1/4 T
+Value: 13,  String: 1/4
+Value: 14,  String: 1/4 D
+Value: 15,  String: 1/2 T
+Value: 16,  String: 1/2
+Value: 17,  String: 1/2 D
+Value: 18,  String: 1 bar
+  -parameter PASS
+
+Parameter ID:927221389
+Name: Mod 6 · Destination
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = LFO 4 · Rate
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 150
+Value: 0,  String: None
+Value: 1,  String: Output Gain
+Value: 2,  String: S1 · Level
+Value: 3,  String: S1 · Pan
+Value: 4,  String: S1 · Position
+Value: 5,  String: S1 · Spray
+Value: 6,  String: S1 · Size
+Value: 7,  String: S1 · Size Random
+Value: 8,  String: S1 · Density
+Value: 9,  String: S1 · Jitter
+Value: 10,  String: S1 · Pitch
+Value: 11,  String: S1 · Pitch Random
+Value: 12,  String: S1 · Reverse
+Value: 13,  String: S1 · Window
+Value: 14,  String: S1 · Window Skew
+Value: 15,  String: S1 · Stereo Spread
+Value: 16,  String: S1 · Gain Random
+Value: 17,  String: S1 · Filter Cutoff
+Value: 18,  String: S1 · Filter Random
+Value: 19,  String: S1 · Filter Res
+Value: 20,  String: S1 · Drive
+Value: 21,  String: S1 · Crush
+Value: 22,  String: S1 · Crush Chance
+Value: 23,  String: S1 · Ring Freq
+Value: 24,  String: S1 · Ring Random
+Value: 25,  String: S1 · Ring Mix
+Value: 26,  String: S1 · Scan Rate
+Value: 27,  String: S1 · Loop Start
+Value: 28,  String: S1 · Loop End
+Value: 29,  String: S1 · Key Track
+Value: 30,  String: S1 · Feedback
+Value: 31,  String: S1 · FB Low Cut
+Value: 32,  String: S1 · FB High Cut
+Value: 33,  String: S1 · FB Saturation
+Value: 34,  String: S1 · FB Diffusion
+Value: 35,  String: S1 · Reverb Mix
+Value: 36,  String: S1 · Reverb Size
+Value: 37,  String: S1 · Reverb Damp
+Value: 38,  String: S2 · Level
+Value: 39,  String: S2 · Pan
+Value: 40,  String: S2 · Position
+Value: 41,  String: S2 · Spray
+Value: 42,  String: S2 · Size
+Value: 43,  String: S2 · Size Random
+Value: 44,  String: S2 · Density
+Value: 45,  String: S2 · Jitter
+Value: 46,  String: S2 · Pitch
+Value: 47,  String: S2 · Pitch Random
+Value: 48,  String: S2 · Reverse
+Value: 49,  String: S2 · Window
+Value: 50,  String: S2 · Window Skew
+Value: 51,  String: S2 · Stereo Spread
+Value: 52,  String: S2 · Gain Random
+Value: 53,  String: S2 · Filter Cutoff
+Value: 54,  String: S2 · Filter Random
+Value: 55,  String: S2 · Filter Res
+Value: 56,  String: S2 · Drive
+Value: 57,  String: S2 · Crush
+Value: 58,  String: S2 · Crush Chance
+Value: 59,  String: S2 · Ring Freq
+Value: 60,  String: S2 · Ring Random
+Value: 61,  String: S2 · Ring Mix
+Value: 62,  String: S2 · Scan Rate
+Value: 63,  String: S2 · Loop Start
+Value: 64,  String: S2 · Loop End
+Value: 65,  String: S2 · Key Track
+Value: 66,  String: S2 · Feedback
+Value: 67,  String: S2 · FB Low Cut
+Value: 68,  String: S2 · FB High Cut
+Value: 69,  String: S2 · FB Saturation
+Value: 70,  String: S2 · FB Diffusion
+Value: 71,  String: S2 · Reverb Mix
+Value: 72,  String: S2 · Reverb Size
+Value: 73,  String: S2 · Reverb Damp
+Value: 74,  String: S3 · Level
+Value: 75,  String: S3 · Pan
+Value: 76,  String: S3 · Position
+Value: 77,  String: S3 · Spray
+Value: 78,  String: S3 · Size
+Value: 79,  String: S3 · Size Random
+Value: 80,  String: S3 · Density
+Value: 81,  String: S3 · Jitter
+Value: 82,  String: S3 · Pitch
+Value: 83,  String: S3 · Pitch Random
+Value: 84,  String: S3 · Reverse
+Value: 85,  String: S3 · Window
+Value: 86,  String: S3 · Window Skew
+Value: 87,  String: S3 · Stereo Spread
+Value: 88,  String: S3 · Gain Random
+Value: 89,  String: S3 · Filter Cutoff
+Value: 90,  String: S3 · Filter Random
+Value: 91,  String: S3 · Filter Res
+Value: 92,  String: S3 · Drive
+Value: 93,  String: S3 · Crush
+Value: 94,  String: S3 · Crush Chance
+Value: 95,  String: S3 · Ring Freq
+Value: 96,  String: S3 · Ring Random
+Value: 97,  String: S3 · Ring Mix
+Value: 98,  String: S3 · Scan Rate
+Value: 99,  String: S3 · Loop Start
+Value: 100,  String: S3 · Loop End
+Value: 101,  String: S3 · Key Track
+Value: 102,  String: S3 · Feedback
+Value: 103,  String: S3 · FB Low Cut
+Value: 104,  String: S3 · FB High Cut
+Value: 105,  String: S3 · FB Saturation
+Value: 106,  String: S3 · FB Diffusion
+Value: 107,  String: S3 · Reverb Mix
+Value: 108,  String: S3 · Reverb Size
+Value: 109,  String: S3 · Reverb Damp
+Value: 110,  String: S4 · Level
+Value: 111,  String: S4 · Pan
+Value: 112,  String: S4 · Position
+Value: 113,  String: S4 · Spray
+Value: 114,  String: S4 · Size
+Value: 115,  String: S4 · Size Random
+Value: 116,  String: S4 · Density
+Value: 117,  String: S4 · Jitter
+Value: 118,  String: S4 · Pitch
+Value: 119,  String: S4 · Pitch Random
+Value: 120,  String: S4 · Reverse
+Value: 121,  String: S4 · Window
+Value: 122,  String: S4 · Window Skew
+Value: 123,  String: S4 · Stereo Spread
+Value: 124,  String: S4 · Gain Random
+Value: 125,  String: S4 · Filter Cutoff
+Value: 126,  String: S4 · Filter Random
+Value: 127,  String: S4 · Filter Res
+Value: 128,  String: S4 · Drive
+Value: 129,  String: S4 · Crush
+Value: 130,  String: S4 · Crush Chance
+Value: 131,  String: S4 · Ring Freq
+Value: 132,  String: S4 · Ring Random
+Value: 133,  String: S4 · Ring Mix
+Value: 134,  String: S4 · Scan Rate
+Value: 135,  String: S4 · Loop Start
+Value: 136,  String: S4 · Loop End
+Value: 137,  String: S4 · Key Track
+Value: 138,  String: S4 · Feedback
+Value: 139,  String: S4 · FB Low Cut
+Value: 140,  String: S4 · FB High Cut
+Value: 141,  String: S4 · FB Saturation
+Value: 142,  String: S4 · FB Diffusion
+Value: 143,  String: S4 · Reverb Mix
+Value: 144,  String: S4 · Reverb Size
+Value: 145,  String: S4 · Reverb Damp
+Value: 146,  String: LFO 1 · Rate
+Value: 147,  String: LFO 2 · Rate
+Value: 148,  String: LFO 3 · Rate
+Value: 149,  String: LFO 4 · Rate
+  -parameter PASS
+
+Parameter ID:951960483
+Name: S2 · Enable
+Parameter Type: Boolean
+Values: Minimum = Off, Default = Off, Maximum = On
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:955850540
+Name: Mod 7 · Destination
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = LFO 4 · Rate
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 150
+Value: 0,  String: None
+Value: 1,  String: Output Gain
+Value: 2,  String: S1 · Level
+Value: 3,  String: S1 · Pan
+Value: 4,  String: S1 · Position
+Value: 5,  String: S1 · Spray
+Value: 6,  String: S1 · Size
+Value: 7,  String: S1 · Size Random
+Value: 8,  String: S1 · Density
+Value: 9,  String: S1 · Jitter
+Value: 10,  String: S1 · Pitch
+Value: 11,  String: S1 · Pitch Random
+Value: 12,  String: S1 · Reverse
+Value: 13,  String: S1 · Window
+Value: 14,  String: S1 · Window Skew
+Value: 15,  String: S1 · Stereo Spread
+Value: 16,  String: S1 · Gain Random
+Value: 17,  String: S1 · Filter Cutoff
+Value: 18,  String: S1 · Filter Random
+Value: 19,  String: S1 · Filter Res
+Value: 20,  String: S1 · Drive
+Value: 21,  String: S1 · Crush
+Value: 22,  String: S1 · Crush Chance
+Value: 23,  String: S1 · Ring Freq
+Value: 24,  String: S1 · Ring Random
+Value: 25,  String: S1 · Ring Mix
+Value: 26,  String: S1 · Scan Rate
+Value: 27,  String: S1 · Loop Start
+Value: 28,  String: S1 · Loop End
+Value: 29,  String: S1 · Key Track
+Value: 30,  String: S1 · Feedback
+Value: 31,  String: S1 · FB Low Cut
+Value: 32,  String: S1 · FB High Cut
+Value: 33,  String: S1 · FB Saturation
+Value: 34,  String: S1 · FB Diffusion
+Value: 35,  String: S1 · Reverb Mix
+Value: 36,  String: S1 · Reverb Size
+Value: 37,  String: S1 · Reverb Damp
+Value: 38,  String: S2 · Level
+Value: 39,  String: S2 · Pan
+Value: 40,  String: S2 · Position
+Value: 41,  String: S2 · Spray
+Value: 42,  String: S2 · Size
+Value: 43,  String: S2 · Size Random
+Value: 44,  String: S2 · Density
+Value: 45,  String: S2 · Jitter
+Value: 46,  String: S2 · Pitch
+Value: 47,  String: S2 · Pitch Random
+Value: 48,  String: S2 · Reverse
+Value: 49,  String: S2 · Window
+Value: 50,  String: S2 · Window Skew
+Value: 51,  String: S2 · Stereo Spread
+Value: 52,  String: S2 · Gain Random
+Value: 53,  String: S2 · Filter Cutoff
+Value: 54,  String: S2 · Filter Random
+Value: 55,  String: S2 · Filter Res
+Value: 56,  String: S2 · Drive
+Value: 57,  String: S2 · Crush
+Value: 58,  String: S2 · Crush Chance
+Value: 59,  String: S2 · Ring Freq
+Value: 60,  String: S2 · Ring Random
+Value: 61,  String: S2 · Ring Mix
+Value: 62,  String: S2 · Scan Rate
+Value: 63,  String: S2 · Loop Start
+Value: 64,  String: S2 · Loop End
+Value: 65,  String: S2 · Key Track
+Value: 66,  String: S2 · Feedback
+Value: 67,  String: S2 · FB Low Cut
+Value: 68,  String: S2 · FB High Cut
+Value: 69,  String: S2 · FB Saturation
+Value: 70,  String: S2 · FB Diffusion
+Value: 71,  String: S2 · Reverb Mix
+Value: 72,  String: S2 · Reverb Size
+Value: 73,  String: S2 · Reverb Damp
+Value: 74,  String: S3 · Level
+Value: 75,  String: S3 · Pan
+Value: 76,  String: S3 · Position
+Value: 77,  String: S3 · Spray
+Value: 78,  String: S3 · Size
+Value: 79,  String: S3 · Size Random
+Value: 80,  String: S3 · Density
+Value: 81,  String: S3 · Jitter
+Value: 82,  String: S3 · Pitch
+Value: 83,  String: S3 · Pitch Random
+Value: 84,  String: S3 · Reverse
+Value: 85,  String: S3 · Window
+Value: 86,  String: S3 · Window Skew
+Value: 87,  String: S3 · Stereo Spread
+Value: 88,  String: S3 · Gain Random
+Value: 89,  String: S3 · Filter Cutoff
+Value: 90,  String: S3 · Filter Random
+Value: 91,  String: S3 · Filter Res
+Value: 92,  String: S3 · Drive
+Value: 93,  String: S3 · Crush
+Value: 94,  String: S3 · Crush Chance
+Value: 95,  String: S3 · Ring Freq
+Value: 96,  String: S3 · Ring Random
+Value: 97,  String: S3 · Ring Mix
+Value: 98,  String: S3 · Scan Rate
+Value: 99,  String: S3 · Loop Start
+Value: 100,  String: S3 · Loop End
+Value: 101,  String: S3 · Key Track
+Value: 102,  String: S3 · Feedback
+Value: 103,  String: S3 · FB Low Cut
+Value: 104,  String: S3 · FB High Cut
+Value: 105,  String: S3 · FB Saturation
+Value: 106,  String: S3 · FB Diffusion
+Value: 107,  String: S3 · Reverb Mix
+Value: 108,  String: S3 · Reverb Size
+Value: 109,  String: S3 · Reverb Damp
+Value: 110,  String: S4 · Level
+Value: 111,  String: S4 · Pan
+Value: 112,  String: S4 · Position
+Value: 113,  String: S4 · Spray
+Value: 114,  String: S4 · Size
+Value: 115,  String: S4 · Size Random
+Value: 116,  String: S4 · Density
+Value: 117,  String: S4 · Jitter
+Value: 118,  String: S4 · Pitch
+Value: 119,  String: S4 · Pitch Random
+Value: 120,  String: S4 · Reverse
+Value: 121,  String: S4 · Window
+Value: 122,  String: S4 · Window Skew
+Value: 123,  String: S4 · Stereo Spread
+Value: 124,  String: S4 · Gain Random
+Value: 125,  String: S4 · Filter Cutoff
+Value: 126,  String: S4 · Filter Random
+Value: 127,  String: S4 · Filter Res
+Value: 128,  String: S4 · Drive
+Value: 129,  String: S4 · Crush
+Value: 130,  String: S4 · Crush Chance
+Value: 131,  String: S4 · Ring Freq
+Value: 132,  String: S4 · Ring Random
+Value: 133,  String: S4 · Ring Mix
+Value: 134,  String: S4 · Scan Rate
+Value: 135,  String: S4 · Loop Start
+Value: 136,  String: S4 · Loop End
+Value: 137,  String: S4 · Key Track
+Value: 138,  String: S4 · Feedback
+Value: 139,  String: S4 · FB Low Cut
+Value: 140,  String: S4 · FB High Cut
+Value: 141,  String: S4 · FB Saturation
+Value: 142,  String: S4 · FB Diffusion
+Value: 143,  String: S4 · Reverb Mix
+Value: 144,  String: S4 · Reverb Size
+Value: 145,  String: S4 · Reverb Damp
+Value: 146,  String: LFO 1 · Rate
+Value: 147,  String: LFO 2 · Rate
+Value: 148,  String: LFO 3 · Rate
+Value: 149,  String: LFO 4 · Rate
+  -parameter PASS
+
+Parameter ID:963606722
+Name: S1 · Size Random
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:963659576
+Name: S1 · Size Sync
+Parameter Type: Indexed
+Values: Minimum = 1/64 T, Default = 1/16, Maximum = 2 bars
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 20
+Value: 0,  String: 1/64 T
+Value: 1,  String: 1/64
+Value: 2,  String: 1/64 D
+Value: 3,  String: 1/32 T
+Value: 4,  String: 1/32
+Value: 5,  String: 1/32 D
+Value: 6,  String: 1/16 T
+Value: 7,  String: 1/16
+Value: 8,  String: 1/16 D
+Value: 9,  String: 1/8 T
+Value: 10,  String: 1/8
+Value: 11,  String: 1/8 D
+Value: 12,  String: 1/4 T
+Value: 13,  String: 1/4
+Value: 14,  String: 1/4 D
+Value: 15,  String: 1/2 T
+Value: 16,  String: 1/2
+Value: 17,  String: 1/2 D
+Value: 18,  String: 1 bar
+Value: 19,  String: 2 bars
+  -parameter PASS
+
+Parameter ID:964022118
+Name: LFO 1 · Mode
+Parameter Type: Indexed
+Values: Minimum = Global, Default = Global, Maximum = Per-voice
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 2
+Value: 0,  String: Global
+Value: 1,  String: Per-voice
+  -parameter PASS
+
+Parameter ID:964158115
+Name: LFO 1 · Rate
+Parameter Type: Generic
+Values: Minimum = 0.0100000, Default = 0.5000002, Maximum = 20.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+WARNING: retrievedValue = 0.328712 (was 0.328712), Parameter did not retain default value when set
+  -parameter PASS
+
+Parameter ID:964988394
+Name: Mod 15 · Depth
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:969665162
+Name: S1 · Key Track
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 100.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:971104086
+Name: S3 · FB Saturation
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 20.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:984479691
+Name: Mod 8 · Destination
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = LFO 4 · Rate
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 150
+Value: 0,  String: None
+Value: 1,  String: Output Gain
+Value: 2,  String: S1 · Level
+Value: 3,  String: S1 · Pan
+Value: 4,  String: S1 · Position
+Value: 5,  String: S1 · Spray
+Value: 6,  String: S1 · Size
+Value: 7,  String: S1 · Size Random
+Value: 8,  String: S1 · Density
+Value: 9,  String: S1 · Jitter
+Value: 10,  String: S1 · Pitch
+Value: 11,  String: S1 · Pitch Random
+Value: 12,  String: S1 · Reverse
+Value: 13,  String: S1 · Window
+Value: 14,  String: S1 · Window Skew
+Value: 15,  String: S1 · Stereo Spread
+Value: 16,  String: S1 · Gain Random
+Value: 17,  String: S1 · Filter Cutoff
+Value: 18,  String: S1 · Filter Random
+Value: 19,  String: S1 · Filter Res
+Value: 20,  String: S1 · Drive
+Value: 21,  String: S1 · Crush
+Value: 22,  String: S1 · Crush Chance
+Value: 23,  String: S1 · Ring Freq
+Value: 24,  String: S1 · Ring Random
+Value: 25,  String: S1 · Ring Mix
+Value: 26,  String: S1 · Scan Rate
+Value: 27,  String: S1 · Loop Start
+Value: 28,  String: S1 · Loop End
+Value: 29,  String: S1 · Key Track
+Value: 30,  String: S1 · Feedback
+Value: 31,  String: S1 · FB Low Cut
+Value: 32,  String: S1 · FB High Cut
+Value: 33,  String: S1 · FB Saturation
+Value: 34,  String: S1 · FB Diffusion
+Value: 35,  String: S1 · Reverb Mix
+Value: 36,  String: S1 · Reverb Size
+Value: 37,  String: S1 · Reverb Damp
+Value: 38,  String: S2 · Level
+Value: 39,  String: S2 · Pan
+Value: 40,  String: S2 · Position
+Value: 41,  String: S2 · Spray
+Value: 42,  String: S2 · Size
+Value: 43,  String: S2 · Size Random
+Value: 44,  String: S2 · Density
+Value: 45,  String: S2 · Jitter
+Value: 46,  String: S2 · Pitch
+Value: 47,  String: S2 · Pitch Random
+Value: 48,  String: S2 · Reverse
+Value: 49,  String: S2 · Window
+Value: 50,  String: S2 · Window Skew
+Value: 51,  String: S2 · Stereo Spread
+Value: 52,  String: S2 · Gain Random
+Value: 53,  String: S2 · Filter Cutoff
+Value: 54,  String: S2 · Filter Random
+Value: 55,  String: S2 · Filter Res
+Value: 56,  String: S2 · Drive
+Value: 57,  String: S2 · Crush
+Value: 58,  String: S2 · Crush Chance
+Value: 59,  String: S2 · Ring Freq
+Value: 60,  String: S2 · Ring Random
+Value: 61,  String: S2 · Ring Mix
+Value: 62,  String: S2 · Scan Rate
+Value: 63,  String: S2 · Loop Start
+Value: 64,  String: S2 · Loop End
+Value: 65,  String: S2 · Key Track
+Value: 66,  String: S2 · Feedback
+Value: 67,  String: S2 · FB Low Cut
+Value: 68,  String: S2 · FB High Cut
+Value: 69,  String: S2 · FB Saturation
+Value: 70,  String: S2 · FB Diffusion
+Value: 71,  String: S2 · Reverb Mix
+Value: 72,  String: S2 · Reverb Size
+Value: 73,  String: S2 · Reverb Damp
+Value: 74,  String: S3 · Level
+Value: 75,  String: S3 · Pan
+Value: 76,  String: S3 · Position
+Value: 77,  String: S3 · Spray
+Value: 78,  String: S3 · Size
+Value: 79,  String: S3 · Size Random
+Value: 80,  String: S3 · Density
+Value: 81,  String: S3 · Jitter
+Value: 82,  String: S3 · Pitch
+Value: 83,  String: S3 · Pitch Random
+Value: 84,  String: S3 · Reverse
+Value: 85,  String: S3 · Window
+Value: 86,  String: S3 · Window Skew
+Value: 87,  String: S3 · Stereo Spread
+Value: 88,  String: S3 · Gain Random
+Value: 89,  String: S3 · Filter Cutoff
+Value: 90,  String: S3 · Filter Random
+Value: 91,  String: S3 · Filter Res
+Value: 92,  String: S3 · Drive
+Value: 93,  String: S3 · Crush
+Value: 94,  String: S3 · Crush Chance
+Value: 95,  String: S3 · Ring Freq
+Value: 96,  String: S3 · Ring Random
+Value: 97,  String: S3 · Ring Mix
+Value: 98,  String: S3 · Scan Rate
+Value: 99,  String: S3 · Loop Start
+Value: 100,  String: S3 · Loop End
+Value: 101,  String: S3 · Key Track
+Value: 102,  String: S3 · Feedback
+Value: 103,  String: S3 · FB Low Cut
+Value: 104,  String: S3 · FB High Cut
+Value: 105,  String: S3 · FB Saturation
+Value: 106,  String: S3 · FB Diffusion
+Value: 107,  String: S3 · Reverb Mix
+Value: 108,  String: S3 · Reverb Size
+Value: 109,  String: S3 · Reverb Damp
+Value: 110,  String: S4 · Level
+Value: 111,  String: S4 · Pan
+Value: 112,  String: S4 · Position
+Value: 113,  String: S4 · Spray
+Value: 114,  String: S4 · Size
+Value: 115,  String: S4 · Size Random
+Value: 116,  String: S4 · Density
+Value: 117,  String: S4 · Jitter
+Value: 118,  String: S4 · Pitch
+Value: 119,  String: S4 · Pitch Random
+Value: 120,  String: S4 · Reverse
+Value: 121,  String: S4 · Window
+Value: 122,  String: S4 · Window Skew
+Value: 123,  String: S4 · Stereo Spread
+Value: 124,  String: S4 · Gain Random
+Value: 125,  String: S4 · Filter Cutoff
+Value: 126,  String: S4 · Filter Random
+Value: 127,  String: S4 · Filter Res
+Value: 128,  String: S4 · Drive
+Value: 129,  String: S4 · Crush
+Value: 130,  String: S4 · Crush Chance
+Value: 131,  String: S4 · Ring Freq
+Value: 132,  String: S4 · Ring Random
+Value: 133,  String: S4 · Ring Mix
+Value: 134,  String: S4 · Scan Rate
+Value: 135,  String: S4 · Loop Start
+Value: 136,  String: S4 · Loop End
+Value: 137,  String: S4 · Key Track
+Value: 138,  String: S4 · Feedback
+Value: 139,  String: S4 · FB Low Cut
+Value: 140,  String: S4 · FB High Cut
+Value: 141,  String: S4 · FB Saturation
+Value: 142,  String: S4 · FB Diffusion
+Value: 143,  String: S4 · Reverb Mix
+Value: 144,  String: S4 · Reverb Size
+Value: 145,  String: S4 · Reverb Damp
+Value: 146,  String: LFO 1 · Rate
+Value: 147,  String: LFO 2 · Rate
+Value: 148,  String: LFO 3 · Rate
+Value: 149,  String: LFO 4 · Rate
+  -parameter PASS
+
+Parameter ID:992651269
+Name: LFO 2 · Mode
+Parameter Type: Indexed
+Values: Minimum = Global, Default = Global, Maximum = Per-voice
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 2
+Value: 0,  String: Global
+Value: 1,  String: Per-voice
+  -parameter PASS
+
+Parameter ID:992787266
+Name: LFO 2 · Rate
+Parameter Type: Generic
+Values: Minimum = 0.0100000, Default = 0.5000002, Maximum = 20.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+WARNING: retrievedValue = 0.328712 (was 0.328712), Parameter did not retain default value when set
+  -parameter PASS
+
+Parameter ID:1012853034
+Name: S4 · FB High Cut
+Parameter Type: Generic
+Values: Minimum = 1000.0000000, Default = 12000.0009766, Maximum = 20000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1013108842
+Name: Mod 9 · Destination
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = LFO 4 · Rate
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 150
+Value: 0,  String: None
+Value: 1,  String: Output Gain
+Value: 2,  String: S1 · Level
+Value: 3,  String: S1 · Pan
+Value: 4,  String: S1 · Position
+Value: 5,  String: S1 · Spray
+Value: 6,  String: S1 · Size
+Value: 7,  String: S1 · Size Random
+Value: 8,  String: S1 · Density
+Value: 9,  String: S1 · Jitter
+Value: 10,  String: S1 · Pitch
+Value: 11,  String: S1 · Pitch Random
+Value: 12,  String: S1 · Reverse
+Value: 13,  String: S1 · Window
+Value: 14,  String: S1 · Window Skew
+Value: 15,  String: S1 · Stereo Spread
+Value: 16,  String: S1 · Gain Random
+Value: 17,  String: S1 · Filter Cutoff
+Value: 18,  String: S1 · Filter Random
+Value: 19,  String: S1 · Filter Res
+Value: 20,  String: S1 · Drive
+Value: 21,  String: S1 · Crush
+Value: 22,  String: S1 · Crush Chance
+Value: 23,  String: S1 · Ring Freq
+Value: 24,  String: S1 · Ring Random
+Value: 25,  String: S1 · Ring Mix
+Value: 26,  String: S1 · Scan Rate
+Value: 27,  String: S1 · Loop Start
+Value: 28,  String: S1 · Loop End
+Value: 29,  String: S1 · Key Track
+Value: 30,  String: S1 · Feedback
+Value: 31,  String: S1 · FB Low Cut
+Value: 32,  String: S1 · FB High Cut
+Value: 33,  String: S1 · FB Saturation
+Value: 34,  String: S1 · FB Diffusion
+Value: 35,  String: S1 · Reverb Mix
+Value: 36,  String: S1 · Reverb Size
+Value: 37,  String: S1 · Reverb Damp
+Value: 38,  String: S2 · Level
+Value: 39,  String: S2 · Pan
+Value: 40,  String: S2 · Position
+Value: 41,  String: S2 · Spray
+Value: 42,  String: S2 · Size
+Value: 43,  String: S2 · Size Random
+Value: 44,  String: S2 · Density
+Value: 45,  String: S2 · Jitter
+Value: 46,  String: S2 · Pitch
+Value: 47,  String: S2 · Pitch Random
+Value: 48,  String: S2 · Reverse
+Value: 49,  String: S2 · Window
+Value: 50,  String: S2 · Window Skew
+Value: 51,  String: S2 · Stereo Spread
+Value: 52,  String: S2 · Gain Random
+Value: 53,  String: S2 · Filter Cutoff
+Value: 54,  String: S2 · Filter Random
+Value: 55,  String: S2 · Filter Res
+Value: 56,  String: S2 · Drive
+Value: 57,  String: S2 · Crush
+Value: 58,  String: S2 · Crush Chance
+Value: 59,  String: S2 · Ring Freq
+Value: 60,  String: S2 · Ring Random
+Value: 61,  String: S2 · Ring Mix
+Value: 62,  String: S2 · Scan Rate
+Value: 63,  String: S2 · Loop Start
+Value: 64,  String: S2 · Loop End
+Value: 65,  String: S2 · Key Track
+Value: 66,  String: S2 · Feedback
+Value: 67,  String: S2 · FB Low Cut
+Value: 68,  String: S2 · FB High Cut
+Value: 69,  String: S2 · FB Saturation
+Value: 70,  String: S2 · FB Diffusion
+Value: 71,  String: S2 · Reverb Mix
+Value: 72,  String: S2 · Reverb Size
+Value: 73,  String: S2 · Reverb Damp
+Value: 74,  String: S3 · Level
+Value: 75,  String: S3 · Pan
+Value: 76,  String: S3 · Position
+Value: 77,  String: S3 · Spray
+Value: 78,  String: S3 · Size
+Value: 79,  String: S3 · Size Random
+Value: 80,  String: S3 · Density
+Value: 81,  String: S3 · Jitter
+Value: 82,  String: S3 · Pitch
+Value: 83,  String: S3 · Pitch Random
+Value: 84,  String: S3 · Reverse
+Value: 85,  String: S3 · Window
+Value: 86,  String: S3 · Window Skew
+Value: 87,  String: S3 · Stereo Spread
+Value: 88,  String: S3 · Gain Random
+Value: 89,  String: S3 · Filter Cutoff
+Value: 90,  String: S3 · Filter Random
+Value: 91,  String: S3 · Filter Res
+Value: 92,  String: S3 · Drive
+Value: 93,  String: S3 · Crush
+Value: 94,  String: S3 · Crush Chance
+Value: 95,  String: S3 · Ring Freq
+Value: 96,  String: S3 · Ring Random
+Value: 97,  String: S3 · Ring Mix
+Value: 98,  String: S3 · Scan Rate
+Value: 99,  String: S3 · Loop Start
+Value: 100,  String: S3 · Loop End
+Value: 101,  String: S3 · Key Track
+Value: 102,  String: S3 · Feedback
+Value: 103,  String: S3 · FB Low Cut
+Value: 104,  String: S3 · FB High Cut
+Value: 105,  String: S3 · FB Saturation
+Value: 106,  String: S3 · FB Diffusion
+Value: 107,  String: S3 · Reverb Mix
+Value: 108,  String: S3 · Reverb Size
+Value: 109,  String: S3 · Reverb Damp
+Value: 110,  String: S4 · Level
+Value: 111,  String: S4 · Pan
+Value: 112,  String: S4 · Position
+Value: 113,  String: S4 · Spray
+Value: 114,  String: S4 · Size
+Value: 115,  String: S4 · Size Random
+Value: 116,  String: S4 · Density
+Value: 117,  String: S4 · Jitter
+Value: 118,  String: S4 · Pitch
+Value: 119,  String: S4 · Pitch Random
+Value: 120,  String: S4 · Reverse
+Value: 121,  String: S4 · Window
+Value: 122,  String: S4 · Window Skew
+Value: 123,  String: S4 · Stereo Spread
+Value: 124,  String: S4 · Gain Random
+Value: 125,  String: S4 · Filter Cutoff
+Value: 126,  String: S4 · Filter Random
+Value: 127,  String: S4 · Filter Res
+Value: 128,  String: S4 · Drive
+Value: 129,  String: S4 · Crush
+Value: 130,  String: S4 · Crush Chance
+Value: 131,  String: S4 · Ring Freq
+Value: 132,  String: S4 · Ring Random
+Value: 133,  String: S4 · Ring Mix
+Value: 134,  String: S4 · Scan Rate
+Value: 135,  String: S4 · Loop Start
+Value: 136,  String: S4 · Loop End
+Value: 137,  String: S4 · Key Track
+Value: 138,  String: S4 · Feedback
+Value: 139,  String: S4 · FB Low Cut
+Value: 140,  String: S4 · FB High Cut
+Value: 141,  String: S4 · FB Saturation
+Value: 142,  String: S4 · FB Diffusion
+Value: 143,  String: S4 · Reverb Mix
+Value: 144,  String: S4 · Reverb Size
+Value: 145,  String: S4 · Reverb Damp
+Value: 146,  String: LFO 1 · Rate
+Value: 147,  String: LFO 2 · Rate
+Value: 148,  String: LFO 3 · Rate
+Value: 149,  String: LFO 4 · Rate
+  -parameter PASS
+
+Parameter ID:1021280420
+Name: LFO 3 · Mode
+Parameter Type: Indexed
+Values: Minimum = Global, Default = Global, Maximum = Per-voice
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 2
+Value: 0,  String: Global
+Value: 1,  String: Per-voice
+  -parameter PASS
+
+Parameter ID:1021416417
+Name: LFO 3 · Rate
+Parameter Type: Generic
+Values: Minimum = 0.0100000, Default = 0.5000002, Maximum = 20.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+WARNING: retrievedValue = 0.328712 (was 0.328712), Parameter did not retain default value when set
+  -parameter PASS
+
+Parameter ID:1021878256
+Name: S4 · Reverse
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1024192902
+Name: S3 · Gain Random
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1028530219
+Name: S4 · Ring Mix
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1049275830
+Name: Mod Env 2 · Sustain
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1049410030
+Name: S3 · Reverb Mix
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1049413173
+Name: S3 · Reverb Position
+Parameter Type: Indexed
+Values: Minimum = Post, Default = Post, Maximum = Pre
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 2
+Value: 0,  String: Post
+Value: 1,  String: Pre
+  -parameter PASS
+
+Parameter ID:1049909571
+Name: LFO 4 · Mode
+Parameter Type: Indexed
+Values: Minimum = Global, Default = Global, Maximum = Per-voice
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 2
+Value: 0,  String: Global
+Value: 1,  String: Per-voice
+  -parameter PASS
+
+Parameter ID:1050045568
+Name: LFO 4 · Rate
+Parameter Type: Generic
+Values: Minimum = 0.0100000, Default = 0.5000002, Maximum = 20.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+WARNING: retrievedValue = 0.328712 (was 0.328712), Parameter did not retain default value when set
+  -parameter PASS
+
+Parameter ID:1058383599
+Name: S3 · Window
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 1.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1062576232
+Name: S3 · Position
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1065737701
+Name: Macro 1
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1065737702
+Name: Macro 2
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1065737703
+Name: Macro 3
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1065737704
+Name: Macro 4
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1082104365
+Name: Record Arm
+Parameter Type: Boolean
+Values: Minimum = Off, Default = Off, Maximum = On
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1091071756
+Name: S2 · Jitter
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 20.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1098035222
+Name: Mod 13 · Source
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = Macro 4
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 18
+Value: 0,  String: None
+Value: 1,  String: LFO 1
+Value: 2,  String: LFO 2
+Value: 3,  String: LFO 3
+Value: 4,  String: LFO 4
+Value: 5,  String: Mod Env 1
+Value: 6,  String: Mod Env 2
+Value: 7,  String: Velocity
+Value: 8,  String: Key
+Value: 9,  String: Note Random
+Value: 10,  String: Mod Wheel
+Value: 11,  String: Pressure
+Value: 12,  String: Slide
+Value: 13,  String: Bend
+Value: 14,  String: Macro 1
+Value: 15,  String: Macro 2
+Value: 16,  String: Macro 3
+Value: 17,  String: Macro 4
+  -parameter PASS
+
+Parameter ID:1102120840
+Name: Mod 4 · Source
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = Macro 4
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 18
+Value: 0,  String: None
+Value: 1,  String: LFO 1
+Value: 2,  String: LFO 2
+Value: 3,  String: LFO 3
+Value: 4,  String: LFO 4
+Value: 5,  String: Mod Env 1
+Value: 6,  String: Mod Env 2
+Value: 7,  String: Velocity
+Value: 8,  String: Key
+Value: 9,  String: Note Random
+Value: 10,  String: Mod Wheel
+Value: 11,  String: Pressure
+Value: 12,  String: Slide
+Value: 13,  String: Bend
+Value: 14,  String: Macro 1
+Value: 15,  String: Macro 2
+Value: 16,  String: Macro 3
+Value: 17,  String: Macro 4
+  -parameter PASS
+
+Parameter ID:1118400775
+Name: S2 · Ring Freq
+Parameter Type: Generic
+Values: Minimum = 20.0000000, Default = 200.0000000, Maximum = 5000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1118742196
+Name: S2 · Ring Random
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1133892587
+Name: S1 · Filter Random
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1133975296
+Name: S1 · Filter Type
+Parameter Type: Indexed
+Values: Minimum = Off, Default = Off, Maximum = HP
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 4
+Value: 0,  String: Off
+Value: 1,  String: LP
+Value: 2,  String: BP
+Value: 3,  String: HP
+  -parameter PASS
+
+Parameter ID:1139466245
+Name: S2 · Scan Mode
+Parameter Type: Indexed
+Values: Minimum = Free-run, Default = Retrigger, Maximum = Ping-pong
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 3
+Value: 0,  String: Free-run
+Value: 1,  String: Retrigger
+Value: 2,  String: Ping-pong
+  -parameter PASS
+
+Parameter ID:1139602242
+Name: S2 · Scan Rate
+Parameter Type: Generic
+Values: Minimum = -400.0000000, Default = 0.0000000, Maximum = 400.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1140889802
+Name: S4 · Density
+Parameter Type: Generic
+Values: Minimum = 0.5000000, Default = 10.0000019, Maximum = 200.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1178492749
+Name: S4 · Reverb Mix
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1178495892
+Name: S4 · Reverb Position
+Parameter Type: Indexed
+Values: Minimum = Post, Default = Post, Maximum = Pre
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 2
+Value: 0,  String: Post
+Value: 1,  String: Pre
+  -parameter PASS
+
+Parameter ID:1193062140
+Name: S1 · Pan
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1193985661
+Name: S2 · Pan
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1194909182
+Name: S3 · Pan
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1195832703
+Name: S4 · Pan
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1196492165
+Name: S1 · Feedback On
+Parameter Type: Boolean
+Values: Minimum = Off, Default = On, Maximum = On
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1197060448
+Name: S4 · FB Diffusion
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1199049142
+Name: Mod 4 · Depth
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1204352090
+Name: S3 · Window Skew
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1225043724
+Name: S3 · Ring Mix
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1226237923
+Name: Mod 9 · Source
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = Macro 4
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 18
+Value: 0,  String: None
+Value: 1,  String: LFO 1
+Value: 2,  String: LFO 2
+Value: 3,  String: LFO 3
+Value: 4,  String: LFO 4
+Value: 5,  String: Mod Env 1
+Value: 6,  String: Mod Env 2
+Value: 7,  String: Velocity
+Value: 8,  String: Key
+Value: 9,  String: Note Random
+Value: 10,  String: Mod Wheel
+Value: 11,  String: Pressure
+Value: 12,  String: Slide
+Value: 13,  String: Bend
+Value: 14,  String: Macro 1
+Value: 15,  String: Macro 2
+Value: 16,  String: Macro 3
+Value: 17,  String: Macro 4
+  -parameter PASS
+
+Parameter ID:1259089737
+Name: S2 · Position
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1290220165
+Name: S1 · Pitch Random
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 24.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1306256041
+Name: S3 · FB High Cut
+Parameter Type: Generic
+Values: Minimum = 1000.0000000, Default = 12000.0009766, Maximum = 20000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1314139011
+Name: S2 · Size Random
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1314191865
+Name: S2 · Size Sync
+Parameter Type: Indexed
+Values: Minimum = 1/64 T, Default = 1/16, Maximum = 2 bars
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 20
+Value: 0,  String: 1/64 T
+Value: 1,  String: 1/64
+Value: 2,  String: 1/64 D
+Value: 3,  String: 1/32 T
+Value: 4,  String: 1/32
+Value: 5,  String: 1/32 D
+Value: 6,  String: 1/16 T
+Value: 7,  String: 1/16
+Value: 8,  String: 1/16 D
+Value: 9,  String: 1/8 T
+Value: 10,  String: 1/8
+Value: 11,  String: 1/8 D
+Value: 12,  String: 1/4 T
+Value: 13,  String: 1/4
+Value: 14,  String: 1/4 D
+Value: 15,  String: 1/2 T
+Value: 16,  String: 1/2
+Value: 17,  String: 1/2 D
+Value: 18,  String: 1 bar
+Value: 19,  String: 2 bars
+  -parameter PASS
+
+Parameter ID:1320197451
+Name: S2 · Key Track
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 100.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1322673149
+Name: Output Gain
+Parameter Type: Generic
+Values: Minimum = -24.0000000, Default = 0.0000000, Maximum = 12.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1333142990
+Name: Record Gain
+Parameter Type: Generic
+Values: Minimum = -24.0000000, Default = 0.0000000, Maximum = 12.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1337464680
+Name: Mod 13 · Depth
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1341600251
+Name: Mod 9 · Depth
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1353198970
+Name: S2 · Stereo Spread
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 30.0000019, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1353412277
+Name: S3 · Filter Cutoff
+Parameter Type: Generic
+Values: Minimum = 20.0000000, Default = 20000.0000000, Maximum = 20000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1356633796
+Name: S1 · Enable
+Parameter Type: Boolean
+Values: Minimum = Off, Default = On, Maximum = On
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1373147930
+Name: S1 · Crush Chance
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 100.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1374725191
+Name: S4 · Gain Random
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1386947849
+Name: Record Trigger
+Parameter Type: Indexed
+Values: Minimum = Manual, Default = Manual, Maximum = Next Note
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 3
+Value: 0,  String: Manual
+Value: 1,  String: Threshold
+Value: 2,  String: Next Note
+  -parameter PASS
+
+Parameter ID:1397144949
+Name: Record Length
+Parameter Type: Generic
+Values: Minimum = 0.5000000, Default = 4.0000000, Maximum = 30.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1419302884
+Name: S2 · Pitch Random
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 24.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1421557229
+Name: S2 · Ring Mix
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1428737043
+Name: S1 · Density Sync
+Parameter Type: Indexed
+Values: Minimum = 1/64 T, Default = 1/16, Maximum = 1 bar
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 19
+Value: 0,  String: 1/64 T
+Value: 1,  String: 1/64
+Value: 2,  String: 1/64 D
+Value: 3,  String: 1/32 T
+Value: 4,  String: 1/32
+Value: 5,  String: 1/32 D
+Value: 6,  String: 1/16 T
+Value: 7,  String: 1/16
+Value: 8,  String: 1/16 D
+Value: 9,  String: 1/8 T
+Value: 10,  String: 1/8
+Value: 11,  String: 1/8 D
+Value: 12,  String: 1/4 T
+Value: 13,  String: 1/4
+Value: 14,  String: 1/4 D
+Value: 15,  String: 1/2 T
+Value: 16,  String: 1/2
+Value: 17,  String: 1/2 D
+Value: 18,  String: 1 bar
+  -parameter PASS
+
+Parameter ID:1455603242
+Name: S1 · Position
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1463056912
+Name: S2 · Window
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 1.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1468933064
+Name: S3 · Ring Freq
+Parameter Type: Generic
+Values: Minimum = 20.0000000, Default = 200.0000000, Maximum = 5000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1469274485
+Name: S3 · Ring Random
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1481277312
+Name: Mod 10 · Destination
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = LFO 4 · Rate
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 150
+Value: 0,  String: None
+Value: 1,  String: Output Gain
+Value: 2,  String: S1 · Level
+Value: 3,  String: S1 · Pan
+Value: 4,  String: S1 · Position
+Value: 5,  String: S1 · Spray
+Value: 6,  String: S1 · Size
+Value: 7,  String: S1 · Size Random
+Value: 8,  String: S1 · Density
+Value: 9,  String: S1 · Jitter
+Value: 10,  String: S1 · Pitch
+Value: 11,  String: S1 · Pitch Random
+Value: 12,  String: S1 · Reverse
+Value: 13,  String: S1 · Window
+Value: 14,  String: S1 · Window Skew
+Value: 15,  String: S1 · Stereo Spread
+Value: 16,  String: S1 · Gain Random
+Value: 17,  String: S1 · Filter Cutoff
+Value: 18,  String: S1 · Filter Random
+Value: 19,  String: S1 · Filter Res
+Value: 20,  String: S1 · Drive
+Value: 21,  String: S1 · Crush
+Value: 22,  String: S1 · Crush Chance
+Value: 23,  String: S1 · Ring Freq
+Value: 24,  String: S1 · Ring Random
+Value: 25,  String: S1 · Ring Mix
+Value: 26,  String: S1 · Scan Rate
+Value: 27,  String: S1 · Loop Start
+Value: 28,  String: S1 · Loop End
+Value: 29,  String: S1 · Key Track
+Value: 30,  String: S1 · Feedback
+Value: 31,  String: S1 · FB Low Cut
+Value: 32,  String: S1 · FB High Cut
+Value: 33,  String: S1 · FB Saturation
+Value: 34,  String: S1 · FB Diffusion
+Value: 35,  String: S1 · Reverb Mix
+Value: 36,  String: S1 · Reverb Size
+Value: 37,  String: S1 · Reverb Damp
+Value: 38,  String: S2 · Level
+Value: 39,  String: S2 · Pan
+Value: 40,  String: S2 · Position
+Value: 41,  String: S2 · Spray
+Value: 42,  String: S2 · Size
+Value: 43,  String: S2 · Size Random
+Value: 44,  String: S2 · Density
+Value: 45,  String: S2 · Jitter
+Value: 46,  String: S2 · Pitch
+Value: 47,  String: S2 · Pitch Random
+Value: 48,  String: S2 · Reverse
+Value: 49,  String: S2 · Window
+Value: 50,  String: S2 · Window Skew
+Value: 51,  String: S2 · Stereo Spread
+Value: 52,  String: S2 · Gain Random
+Value: 53,  String: S2 · Filter Cutoff
+Value: 54,  String: S2 · Filter Random
+Value: 55,  String: S2 · Filter Res
+Value: 56,  String: S2 · Drive
+Value: 57,  String: S2 · Crush
+Value: 58,  String: S2 · Crush Chance
+Value: 59,  String: S2 · Ring Freq
+Value: 60,  String: S2 · Ring Random
+Value: 61,  String: S2 · Ring Mix
+Value: 62,  String: S2 · Scan Rate
+Value: 63,  String: S2 · Loop Start
+Value: 64,  String: S2 · Loop End
+Value: 65,  String: S2 · Key Track
+Value: 66,  String: S2 · Feedback
+Value: 67,  String: S2 · FB Low Cut
+Value: 68,  String: S2 · FB High Cut
+Value: 69,  String: S2 · FB Saturation
+Value: 70,  String: S2 · FB Diffusion
+Value: 71,  String: S2 · Reverb Mix
+Value: 72,  String: S2 · Reverb Size
+Value: 73,  String: S2 · Reverb Damp
+Value: 74,  String: S3 · Level
+Value: 75,  String: S3 · Pan
+Value: 76,  String: S3 · Position
+Value: 77,  String: S3 · Spray
+Value: 78,  String: S3 · Size
+Value: 79,  String: S3 · Size Random
+Value: 80,  String: S3 · Density
+Value: 81,  String: S3 · Jitter
+Value: 82,  String: S3 · Pitch
+Value: 83,  String: S3 · Pitch Random
+Value: 84,  String: S3 · Reverse
+Value: 85,  String: S3 · Window
+Value: 86,  String: S3 · Window Skew
+Value: 87,  String: S3 · Stereo Spread
+Value: 88,  String: S3 · Gain Random
+Value: 89,  String: S3 · Filter Cutoff
+Value: 90,  String: S3 · Filter Random
+Value: 91,  String: S3 · Filter Res
+Value: 92,  String: S3 · Drive
+Value: 93,  String: S3 · Crush
+Value: 94,  String: S3 · Crush Chance
+Value: 95,  String: S3 · Ring Freq
+Value: 96,  String: S3 · Ring Random
+Value: 97,  String: S3 · Ring Mix
+Value: 98,  String: S3 · Scan Rate
+Value: 99,  String: S3 · Loop Start
+Value: 100,  String: S3 · Loop End
+Value: 101,  String: S3 · Key Track
+Value: 102,  String: S3 · Feedback
+Value: 103,  String: S3 · FB Low Cut
+Value: 104,  String: S3 · FB High Cut
+Value: 105,  String: S3 · FB Saturation
+Value: 106,  String: S3 · FB Diffusion
+Value: 107,  String: S3 · Reverb Mix
+Value: 108,  String: S3 · Reverb Size
+Value: 109,  String: S3 · Reverb Damp
+Value: 110,  String: S4 · Level
+Value: 111,  String: S4 · Pan
+Value: 112,  String: S4 · Position
+Value: 113,  String: S4 · Spray
+Value: 114,  String: S4 · Size
+Value: 115,  String: S4 · Size Random
+Value: 116,  String: S4 · Density
+Value: 117,  String: S4 · Jitter
+Value: 118,  String: S4 · Pitch
+Value: 119,  String: S4 · Pitch Random
+Value: 120,  String: S4 · Reverse
+Value: 121,  String: S4 · Window
+Value: 122,  String: S4 · Window Skew
+Value: 123,  String: S4 · Stereo Spread
+Value: 124,  String: S4 · Gain Random
+Value: 125,  String: S4 · Filter Cutoff
+Value: 126,  String: S4 · Filter Random
+Value: 127,  String: S4 · Filter Res
+Value: 128,  String: S4 · Drive
+Value: 129,  String: S4 · Crush
+Value: 130,  String: S4 · Crush Chance
+Value: 131,  String: S4 · Ring Freq
+Value: 132,  String: S4 · Ring Random
+Value: 133,  String: S4 · Ring Mix
+Value: 134,  String: S4 · Scan Rate
+Value: 135,  String: S4 · Loop Start
+Value: 136,  String: S4 · Loop End
+Value: 137,  String: S4 · Key Track
+Value: 138,  String: S4 · Feedback
+Value: 139,  String: S4 · FB Low Cut
+Value: 140,  String: S4 · FB High Cut
+Value: 141,  String: S4 · FB Saturation
+Value: 142,  String: S4 · FB Diffusion
+Value: 143,  String: S4 · Reverb Mix
+Value: 144,  String: S4 · Reverb Size
+Value: 145,  String: S4 · Reverb Damp
+Value: 146,  String: LFO 1 · Rate
+Value: 147,  String: LFO 2 · Rate
+Value: 148,  String: LFO 3 · Rate
+Value: 149,  String: LFO 4 · Rate
+  -parameter PASS
+
+Parameter ID:1489998534
+Name: S3 · Scan Mode
+Parameter Type: Indexed
+Values: Minimum = Free-run, Default = Retrigger, Maximum = Ping-pong
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 3
+Value: 0,  String: Free-run
+Value: 1,  String: Retrigger
+Value: 2,  String: Ping-pong
+  -parameter PASS
+
+Parameter ID:1490134531
+Name: S3 · Scan Rate
+Parameter Type: Generic
+Values: Minimum = -400.0000000, Default = 0.0000000, Maximum = 400.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1495745069
+Name: S1 · Jitter
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 20.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1497755097
+Name: S2 · Window Skew
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1501813986
+Name: Velocity to Amp
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 70.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1502230649
+Name: S2 · Crush Chance
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 100.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1502708535
+Name: Mod 12 · Source
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = Macro 4
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 18
+Value: 0,  String: None
+Value: 1,  String: LFO 1
+Value: 2,  String: LFO 2
+Value: 3,  String: LFO 3
+Value: 4,  String: LFO 4
+Value: 5,  String: Mod Env 1
+Value: 6,  String: Mod Env 2
+Value: 7,  String: Velocity
+Value: 8,  String: Key
+Value: 9,  String: Note Random
+Value: 10,  String: Mod Wheel
+Value: 11,  String: Pressure
+Value: 12,  String: Slide
+Value: 13,  String: Bend
+Value: 14,  String: Macro 1
+Value: 15,  String: Macro 2
+Value: 16,  String: Macro 3
+Value: 17,  String: Macro 4
+  -parameter PASS
+
+Parameter ID:1504248985
+Name: Mod Env 1 · Release
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 499.9999695, Maximum = 20000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1506794153
+Name: Mod 3 · Source
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = Macro 4
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 18
+Value: 0,  String: None
+Value: 1,  String: LFO 1
+Value: 2,  String: LFO 2
+Value: 3,  String: LFO 3
+Value: 4,  String: LFO 4
+Value: 5,  String: Mod Env 1
+Value: 6,  String: Mod Env 2
+Value: 7,  String: Velocity
+Value: 8,  String: Key
+Value: 9,  String: Note Random
+Value: 10,  String: Mod Wheel
+Value: 11,  String: Pressure
+Value: 12,  String: Slide
+Value: 13,  String: Bend
+Value: 14,  String: Macro 1
+Value: 15,  String: Macro 2
+Value: 16,  String: Macro 3
+Value: 17,  String: Macro 4
+  -parameter PASS
+
+Parameter ID:1509906463
+Name: Mod 11 · Destination
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = LFO 4 · Rate
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 150
+Value: 0,  String: None
+Value: 1,  String: Output Gain
+Value: 2,  String: S1 · Level
+Value: 3,  String: S1 · Pan
+Value: 4,  String: S1 · Position
+Value: 5,  String: S1 · Spray
+Value: 6,  String: S1 · Size
+Value: 7,  String: S1 · Size Random
+Value: 8,  String: S1 · Density
+Value: 9,  String: S1 · Jitter
+Value: 10,  String: S1 · Pitch
+Value: 11,  String: S1 · Pitch Random
+Value: 12,  String: S1 · Reverse
+Value: 13,  String: S1 · Window
+Value: 14,  String: S1 · Window Skew
+Value: 15,  String: S1 · Stereo Spread
+Value: 16,  String: S1 · Gain Random
+Value: 17,  String: S1 · Filter Cutoff
+Value: 18,  String: S1 · Filter Random
+Value: 19,  String: S1 · Filter Res
+Value: 20,  String: S1 · Drive
+Value: 21,  String: S1 · Crush
+Value: 22,  String: S1 · Crush Chance
+Value: 23,  String: S1 · Ring Freq
+Value: 24,  String: S1 · Ring Random
+Value: 25,  String: S1 · Ring Mix
+Value: 26,  String: S1 · Scan Rate
+Value: 27,  String: S1 · Loop Start
+Value: 28,  String: S1 · Loop End
+Value: 29,  String: S1 · Key Track
+Value: 30,  String: S1 · Feedback
+Value: 31,  String: S1 · FB Low Cut
+Value: 32,  String: S1 · FB High Cut
+Value: 33,  String: S1 · FB Saturation
+Value: 34,  String: S1 · FB Diffusion
+Value: 35,  String: S1 · Reverb Mix
+Value: 36,  String: S1 · Reverb Size
+Value: 37,  String: S1 · Reverb Damp
+Value: 38,  String: S2 · Level
+Value: 39,  String: S2 · Pan
+Value: 40,  String: S2 · Position
+Value: 41,  String: S2 · Spray
+Value: 42,  String: S2 · Size
+Value: 43,  String: S2 · Size Random
+Value: 44,  String: S2 · Density
+Value: 45,  String: S2 · Jitter
+Value: 46,  String: S2 · Pitch
+Value: 47,  String: S2 · Pitch Random
+Value: 48,  String: S2 · Reverse
+Value: 49,  String: S2 · Window
+Value: 50,  String: S2 · Window Skew
+Value: 51,  String: S2 · Stereo Spread
+Value: 52,  String: S2 · Gain Random
+Value: 53,  String: S2 · Filter Cutoff
+Value: 54,  String: S2 · Filter Random
+Value: 55,  String: S2 · Filter Res
+Value: 56,  String: S2 · Drive
+Value: 57,  String: S2 · Crush
+Value: 58,  String: S2 · Crush Chance
+Value: 59,  String: S2 · Ring Freq
+Value: 60,  String: S2 · Ring Random
+Value: 61,  String: S2 · Ring Mix
+Value: 62,  String: S2 · Scan Rate
+Value: 63,  String: S2 · Loop Start
+Value: 64,  String: S2 · Loop End
+Value: 65,  String: S2 · Key Track
+Value: 66,  String: S2 · Feedback
+Value: 67,  String: S2 · FB Low Cut
+Value: 68,  String: S2 · FB High Cut
+Value: 69,  String: S2 · FB Saturation
+Value: 70,  String: S2 · FB Diffusion
+Value: 71,  String: S2 · Reverb Mix
+Value: 72,  String: S2 · Reverb Size
+Value: 73,  String: S2 · Reverb Damp
+Value: 74,  String: S3 · Level
+Value: 75,  String: S3 · Pan
+Value: 76,  String: S3 · Position
+Value: 77,  String: S3 · Spray
+Value: 78,  String: S3 · Size
+Value: 79,  String: S3 · Size Random
+Value: 80,  String: S3 · Density
+Value: 81,  String: S3 · Jitter
+Value: 82,  String: S3 · Pitch
+Value: 83,  String: S3 · Pitch Random
+Value: 84,  String: S3 · Reverse
+Value: 85,  String: S3 · Window
+Value: 86,  String: S3 · Window Skew
+Value: 87,  String: S3 · Stereo Spread
+Value: 88,  String: S3 · Gain Random
+Value: 89,  String: S3 · Filter Cutoff
+Value: 90,  String: S3 · Filter Random
+Value: 91,  String: S3 · Filter Res
+Value: 92,  String: S3 · Drive
+Value: 93,  String: S3 · Crush
+Value: 94,  String: S3 · Crush Chance
+Value: 95,  String: S3 · Ring Freq
+Value: 96,  String: S3 · Ring Random
+Value: 97,  String: S3 · Ring Mix
+Value: 98,  String: S3 · Scan Rate
+Value: 99,  String: S3 · Loop Start
+Value: 100,  String: S3 · Loop End
+Value: 101,  String: S3 · Key Track
+Value: 102,  String: S3 · Feedback
+Value: 103,  String: S3 · FB Low Cut
+Value: 104,  String: S3 · FB High Cut
+Value: 105,  String: S3 · FB Saturation
+Value: 106,  String: S3 · FB Diffusion
+Value: 107,  String: S3 · Reverb Mix
+Value: 108,  String: S3 · Reverb Size
+Value: 109,  String: S3 · Reverb Damp
+Value: 110,  String: S4 · Level
+Value: 111,  String: S4 · Pan
+Value: 112,  String: S4 · Position
+Value: 113,  String: S4 · Spray
+Value: 114,  String: S4 · Size
+Value: 115,  String: S4 · Size Random
+Value: 116,  String: S4 · Density
+Value: 117,  String: S4 · Jitter
+Value: 118,  String: S4 · Pitch
+Value: 119,  String: S4 · Pitch Random
+Value: 120,  String: S4 · Reverse
+Value: 121,  String: S4 · Window
+Value: 122,  String: S4 · Window Skew
+Value: 123,  String: S4 · Stereo Spread
+Value: 124,  String: S4 · Gain Random
+Value: 125,  String: S4 · Filter Cutoff
+Value: 126,  String: S4 · Filter Random
+Value: 127,  String: S4 · Filter Res
+Value: 128,  String: S4 · Drive
+Value: 129,  String: S4 · Crush
+Value: 130,  String: S4 · Crush Chance
+Value: 131,  String: S4 · Ring Freq
+Value: 132,  String: S4 · Ring Random
+Value: 133,  String: S4 · Ring Mix
+Value: 134,  String: S4 · Scan Rate
+Value: 135,  String: S4 · Loop Start
+Value: 136,  String: S4 · Loop End
+Value: 137,  String: S4 · Key Track
+Value: 138,  String: S4 · Feedback
+Value: 139,  String: S4 · FB Low Cut
+Value: 140,  String: S4 · FB High Cut
+Value: 141,  String: S4 · FB Saturation
+Value: 142,  String: S4 · FB Diffusion
+Value: 143,  String: S4 · Reverb Mix
+Value: 144,  String: S4 · Reverb Size
+Value: 145,  String: S4 · Reverb Damp
+Value: 146,  String: LFO 1 · Rate
+Value: 147,  String: LFO 2 · Rate
+Value: 148,  String: LFO 3 · Rate
+Value: 149,  String: LFO 4 · Rate
+  -parameter PASS
+
+Parameter ID:1515236365
+Name: Mod Env 2 · Decay
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 499.9999695, Maximum = 10000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1527436881
+Name: S3 · Reverse
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1538535614
+Name: Mod 12 · Destination
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = LFO 4 · Rate
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 150
+Value: 0,  String: None
+Value: 1,  String: Output Gain
+Value: 2,  String: S1 · Level
+Value: 3,  String: S1 · Pan
+Value: 4,  String: S1 · Position
+Value: 5,  String: S1 · Spray
+Value: 6,  String: S1 · Size
+Value: 7,  String: S1 · Size Random
+Value: 8,  String: S1 · Density
+Value: 9,  String: S1 · Jitter
+Value: 10,  String: S1 · Pitch
+Value: 11,  String: S1 · Pitch Random
+Value: 12,  String: S1 · Reverse
+Value: 13,  String: S1 · Window
+Value: 14,  String: S1 · Window Skew
+Value: 15,  String: S1 · Stereo Spread
+Value: 16,  String: S1 · Gain Random
+Value: 17,  String: S1 · Filter Cutoff
+Value: 18,  String: S1 · Filter Random
+Value: 19,  String: S1 · Filter Res
+Value: 20,  String: S1 · Drive
+Value: 21,  String: S1 · Crush
+Value: 22,  String: S1 · Crush Chance
+Value: 23,  String: S1 · Ring Freq
+Value: 24,  String: S1 · Ring Random
+Value: 25,  String: S1 · Ring Mix
+Value: 26,  String: S1 · Scan Rate
+Value: 27,  String: S1 · Loop Start
+Value: 28,  String: S1 · Loop End
+Value: 29,  String: S1 · Key Track
+Value: 30,  String: S1 · Feedback
+Value: 31,  String: S1 · FB Low Cut
+Value: 32,  String: S1 · FB High Cut
+Value: 33,  String: S1 · FB Saturation
+Value: 34,  String: S1 · FB Diffusion
+Value: 35,  String: S1 · Reverb Mix
+Value: 36,  String: S1 · Reverb Size
+Value: 37,  String: S1 · Reverb Damp
+Value: 38,  String: S2 · Level
+Value: 39,  String: S2 · Pan
+Value: 40,  String: S2 · Position
+Value: 41,  String: S2 · Spray
+Value: 42,  String: S2 · Size
+Value: 43,  String: S2 · Size Random
+Value: 44,  String: S2 · Density
+Value: 45,  String: S2 · Jitter
+Value: 46,  String: S2 · Pitch
+Value: 47,  String: S2 · Pitch Random
+Value: 48,  String: S2 · Reverse
+Value: 49,  String: S2 · Window
+Value: 50,  String: S2 · Window Skew
+Value: 51,  String: S2 · Stereo Spread
+Value: 52,  String: S2 · Gain Random
+Value: 53,  String: S2 · Filter Cutoff
+Value: 54,  String: S2 · Filter Random
+Value: 55,  String: S2 · Filter Res
+Value: 56,  String: S2 · Drive
+Value: 57,  String: S2 · Crush
+Value: 58,  String: S2 · Crush Chance
+Value: 59,  String: S2 · Ring Freq
+Value: 60,  String: S2 · Ring Random
+Value: 61,  String: S2 · Ring Mix
+Value: 62,  String: S2 · Scan Rate
+Value: 63,  String: S2 · Loop Start
+Value: 64,  String: S2 · Loop End
+Value: 65,  String: S2 · Key Track
+Value: 66,  String: S2 · Feedback
+Value: 67,  String: S2 · FB Low Cut
+Value: 68,  String: S2 · FB High Cut
+Value: 69,  String: S2 · FB Saturation
+Value: 70,  String: S2 · FB Diffusion
+Value: 71,  String: S2 · Reverb Mix
+Value: 72,  String: S2 · Reverb Size
+Value: 73,  String: S2 · Reverb Damp
+Value: 74,  String: S3 · Level
+Value: 75,  String: S3 · Pan
+Value: 76,  String: S3 · Position
+Value: 77,  String: S3 · Spray
+Value: 78,  String: S3 · Size
+Value: 79,  String: S3 · Size Random
+Value: 80,  String: S3 · Density
+Value: 81,  String: S3 · Jitter
+Value: 82,  String: S3 · Pitch
+Value: 83,  String: S3 · Pitch Random
+Value: 84,  String: S3 · Reverse
+Value: 85,  String: S3 · Window
+Value: 86,  String: S3 · Window Skew
+Value: 87,  String: S3 · Stereo Spread
+Value: 88,  String: S3 · Gain Random
+Value: 89,  String: S3 · Filter Cutoff
+Value: 90,  String: S3 · Filter Random
+Value: 91,  String: S3 · Filter Res
+Value: 92,  String: S3 · Drive
+Value: 93,  String: S3 · Crush
+Value: 94,  String: S3 · Crush Chance
+Value: 95,  String: S3 · Ring Freq
+Value: 96,  String: S3 · Ring Random
+Value: 97,  String: S3 · Ring Mix
+Value: 98,  String: S3 · Scan Rate
+Value: 99,  String: S3 · Loop Start
+Value: 100,  String: S3 · Loop End
+Value: 101,  String: S3 · Key Track
+Value: 102,  String: S3 · Feedback
+Value: 103,  String: S3 · FB Low Cut
+Value: 104,  String: S3 · FB High Cut
+Value: 105,  String: S3 · FB Saturation
+Value: 106,  String: S3 · FB Diffusion
+Value: 107,  String: S3 · Reverb Mix
+Value: 108,  String: S3 · Reverb Size
+Value: 109,  String: S3 · Reverb Damp
+Value: 110,  String: S4 · Level
+Value: 111,  String: S4 · Pan
+Value: 112,  String: S4 · Position
+Value: 113,  String: S4 · Spray
+Value: 114,  String: S4 · Size
+Value: 115,  String: S4 · Size Random
+Value: 116,  String: S4 · Density
+Value: 117,  String: S4 · Jitter
+Value: 118,  String: S4 · Pitch
+Value: 119,  String: S4 · Pitch Random
+Value: 120,  String: S4 · Reverse
+Value: 121,  String: S4 · Window
+Value: 122,  String: S4 · Window Skew
+Value: 123,  String: S4 · Stereo Spread
+Value: 124,  String: S4 · Gain Random
+Value: 125,  String: S4 · Filter Cutoff
+Value: 126,  String: S4 · Filter Random
+Value: 127,  String: S4 · Filter Res
+Value: 128,  String: S4 · Drive
+Value: 129,  String: S4 · Crush
+Value: 130,  String: S4 · Crush Chance
+Value: 131,  String: S4 · Ring Freq
+Value: 132,  String: S4 · Ring Random
+Value: 133,  String: S4 · Ring Mix
+Value: 134,  String: S4 · Scan Rate
+Value: 135,  String: S4 · Loop Start
+Value: 136,  String: S4 · Loop End
+Value: 137,  String: S4 · Key Track
+Value: 138,  String: S4 · Feedback
+Value: 139,  String: S4 · FB Low Cut
+Value: 140,  String: S4 · FB High Cut
+Value: 141,  String: S4 · FB Saturation
+Value: 142,  String: S4 · FB Diffusion
+Value: 143,  String: S4 · Reverb Mix
+Value: 144,  String: S4 · Reverb Size
+Value: 145,  String: S4 · Reverb Damp
+Value: 146,  String: LFO 1 · Rate
+Value: 147,  String: LFO 2 · Rate
+Value: 148,  String: LFO 3 · Rate
+Value: 149,  String: LFO 4 · Rate
+  -parameter PASS
+
+Parameter ID:1539055287
+Name: LFO 1 · Rate Sync
+Parameter Type: Indexed
+Values: Minimum = 1/64 T, Default = 1 bar, Maximum = 8 bars
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 22
+Value: 0,  String: 1/64 T
+Value: 1,  String: 1/64
+Value: 2,  String: 1/64 D
+Value: 3,  String: 1/32 T
+Value: 4,  String: 1/32
+Value: 5,  String: 1/32 D
+Value: 6,  String: 1/16 T
+Value: 7,  String: 1/16
+Value: 8,  String: 1/16 D
+Value: 9,  String: 1/8 T
+Value: 10,  String: 1/8
+Value: 11,  String: 1/8 D
+Value: 12,  String: 1/4 T
+Value: 13,  String: 1/4
+Value: 14,  String: 1/4 D
+Value: 15,  String: 1/2 T
+Value: 16,  String: 1/2
+Value: 17,  String: 1/2 D
+Value: 18,  String: 1 bar
+Value: 19,  String: 2 bars
+Value: 20,  String: 4 bars
+Value: 21,  String: 8 bars
+  -parameter PASS
+
+Parameter ID:1539966940
+Name: S3 · Crush
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1540879019
+Name: S3 · Drive
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1547024454
+Name: S2 · Feedback On
+Parameter Type: Boolean
+Values: Minimum = Off, Default = On, Maximum = On
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1547891877
+Name: S3 · Level
+Parameter Type: Generic
+Values: Minimum = -60.0000000, Default = 0.0000000, Maximum = 6.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1548385603
+Name: S3 · Pitch Random
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 24.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1551703137
+Name: S3 · Pitch
+Parameter Type: Generic
+Values: Minimum = -24.0000000, Default = 0.0000000, Maximum = 24.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1554276971
+Name: S3 · Scale
+Parameter Type: Indexed
+Values: Minimum = Off, Default = Off, Maximum = Custom
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 32
+Value: 0,  String: Off
+Value: 1,  String: Chromatic
+Value: 2,  String: Major
+Value: 3,  String: Minor
+Value: 4,  String: Pentatonic
+Value: 5,  String: Whole Tone
+Value: 6,  String: Dorian
+Value: 7,  String: Phrygian
+Value: 8,  String: Lydian
+Value: 9,  String: Mixolydian
+Value: 10,  String: Locrian
+Value: 11,  String: Harmonic Minor
+Value: 12,  String: Melodic Minor
+Value: 13,  String: Minor Pentatonic
+Value: 14,  String: Blues
+Value: 15,  String: Octatonic
+Value: 16,  String: Augmented
+Value: 17,  String: Fifths + Octaves
+Value: 18,  String: Octaves
+Value: 19,  String: 19-EDO
+Value: 20,  String: 22-EDO
+Value: 21,  String: 24-EDO
+Value: 22,  String: 31-EDO
+Value: 23,  String: 53-EDO
+Value: 24,  String: 5-Limit Just
+Value: 25,  String: 7-Limit Just
+Value: 26,  String: Harmonics 8-16
+Value: 27,  String: Bohlen-Pierce
+Value: 28,  String: Slendro
+Value: 29,  String: Pelog
+Value: 30,  String: Maqam Rast
+Value: 31,  String: Custom
+  -parameter PASS
+
+Parameter ID:1554680270
+Name: S3 · Spray
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 10.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1563354871
+Name: Grain Limit
+Parameter Type: Indexed
+Values: Minimum = 32, Default = 256, Maximum = 256
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 4
+Value: 0,  String: 32
+Value: 1,  String: 64
+Value: 2,  String: 128
+Value: 3,  String: 256
+  -parameter PASS
+
+Parameter ID:1567164765
+Name: Mod 13 · Destination
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = LFO 4 · Rate
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 150
+Value: 0,  String: None
+Value: 1,  String: Output Gain
+Value: 2,  String: S1 · Level
+Value: 3,  String: S1 · Pan
+Value: 4,  String: S1 · Position
+Value: 5,  String: S1 · Spray
+Value: 6,  String: S1 · Size
+Value: 7,  String: S1 · Size Random
+Value: 8,  String: S1 · Density
+Value: 9,  String: S1 · Jitter
+Value: 10,  String: S1 · Pitch
+Value: 11,  String: S1 · Pitch Random
+Value: 12,  String: S1 · Reverse
+Value: 13,  String: S1 · Window
+Value: 14,  String: S1 · Window Skew
+Value: 15,  String: S1 · Stereo Spread
+Value: 16,  String: S1 · Gain Random
+Value: 17,  String: S1 · Filter Cutoff
+Value: 18,  String: S1 · Filter Random
+Value: 19,  String: S1 · Filter Res
+Value: 20,  String: S1 · Drive
+Value: 21,  String: S1 · Crush
+Value: 22,  String: S1 · Crush Chance
+Value: 23,  String: S1 · Ring Freq
+Value: 24,  String: S1 · Ring Random
+Value: 25,  String: S1 · Ring Mix
+Value: 26,  String: S1 · Scan Rate
+Value: 27,  String: S1 · Loop Start
+Value: 28,  String: S1 · Loop End
+Value: 29,  String: S1 · Key Track
+Value: 30,  String: S1 · Feedback
+Value: 31,  String: S1 · FB Low Cut
+Value: 32,  String: S1 · FB High Cut
+Value: 33,  String: S1 · FB Saturation
+Value: 34,  String: S1 · FB Diffusion
+Value: 35,  String: S1 · Reverb Mix
+Value: 36,  String: S1 · Reverb Size
+Value: 37,  String: S1 · Reverb Damp
+Value: 38,  String: S2 · Level
+Value: 39,  String: S2 · Pan
+Value: 40,  String: S2 · Position
+Value: 41,  String: S2 · Spray
+Value: 42,  String: S2 · Size
+Value: 43,  String: S2 · Size Random
+Value: 44,  String: S2 · Density
+Value: 45,  String: S2 · Jitter
+Value: 46,  String: S2 · Pitch
+Value: 47,  String: S2 · Pitch Random
+Value: 48,  String: S2 · Reverse
+Value: 49,  String: S2 · Window
+Value: 50,  String: S2 · Window Skew
+Value: 51,  String: S2 · Stereo Spread
+Value: 52,  String: S2 · Gain Random
+Value: 53,  String: S2 · Filter Cutoff
+Value: 54,  String: S2 · Filter Random
+Value: 55,  String: S2 · Filter Res
+Value: 56,  String: S2 · Drive
+Value: 57,  String: S2 · Crush
+Value: 58,  String: S2 · Crush Chance
+Value: 59,  String: S2 · Ring Freq
+Value: 60,  String: S2 · Ring Random
+Value: 61,  String: S2 · Ring Mix
+Value: 62,  String: S2 · Scan Rate
+Value: 63,  String: S2 · Loop Start
+Value: 64,  String: S2 · Loop End
+Value: 65,  String: S2 · Key Track
+Value: 66,  String: S2 · Feedback
+Value: 67,  String: S2 · FB Low Cut
+Value: 68,  String: S2 · FB High Cut
+Value: 69,  String: S2 · FB Saturation
+Value: 70,  String: S2 · FB Diffusion
+Value: 71,  String: S2 · Reverb Mix
+Value: 72,  String: S2 · Reverb Size
+Value: 73,  String: S2 · Reverb Damp
+Value: 74,  String: S3 · Level
+Value: 75,  String: S3 · Pan
+Value: 76,  String: S3 · Position
+Value: 77,  String: S3 · Spray
+Value: 78,  String: S3 · Size
+Value: 79,  String: S3 · Size Random
+Value: 80,  String: S3 · Density
+Value: 81,  String: S3 · Jitter
+Value: 82,  String: S3 · Pitch
+Value: 83,  String: S3 · Pitch Random
+Value: 84,  String: S3 · Reverse
+Value: 85,  String: S3 · Window
+Value: 86,  String: S3 · Window Skew
+Value: 87,  String: S3 · Stereo Spread
+Value: 88,  String: S3 · Gain Random
+Value: 89,  String: S3 · Filter Cutoff
+Value: 90,  String: S3 · Filter Random
+Value: 91,  String: S3 · Filter Res
+Value: 92,  String: S3 · Drive
+Value: 93,  String: S3 · Crush
+Value: 94,  String: S3 · Crush Chance
+Value: 95,  String: S3 · Ring Freq
+Value: 96,  String: S3 · Ring Random
+Value: 97,  String: S3 · Ring Mix
+Value: 98,  String: S3 · Scan Rate
+Value: 99,  String: S3 · Loop Start
+Value: 100,  String: S3 · Loop End
+Value: 101,  String: S3 · Key Track
+Value: 102,  String: S3 · Feedback
+Value: 103,  String: S3 · FB Low Cut
+Value: 104,  String: S3 · FB High Cut
+Value: 105,  String: S3 · FB Saturation
+Value: 106,  String: S3 · FB Diffusion
+Value: 107,  String: S3 · Reverb Mix
+Value: 108,  String: S3 · Reverb Size
+Value: 109,  String: S3 · Reverb Damp
+Value: 110,  String: S4 · Level
+Value: 111,  String: S4 · Pan
+Value: 112,  String: S4 · Position
+Value: 113,  String: S4 · Spray
+Value: 114,  String: S4 · Size
+Value: 115,  String: S4 · Size Random
+Value: 116,  String: S4 · Density
+Value: 117,  String: S4 · Jitter
+Value: 118,  String: S4 · Pitch
+Value: 119,  String: S4 · Pitch Random
+Value: 120,  String: S4 · Reverse
+Value: 121,  String: S4 · Window
+Value: 122,  String: S4 · Window Skew
+Value: 123,  String: S4 · Stereo Spread
+Value: 124,  String: S4 · Gain Random
+Value: 125,  String: S4 · Filter Cutoff
+Value: 126,  String: S4 · Filter Random
+Value: 127,  String: S4 · Filter Res
+Value: 128,  String: S4 · Drive
+Value: 129,  String: S4 · Crush
+Value: 130,  String: S4 · Crush Chance
+Value: 131,  String: S4 · Ring Freq
+Value: 132,  String: S4 · Ring Random
+Value: 133,  String: S4 · Ring Mix
+Value: 134,  String: S4 · Scan Rate
+Value: 135,  String: S4 · Loop Start
+Value: 136,  String: S4 · Loop End
+Value: 137,  String: S4 · Key Track
+Value: 138,  String: S4 · Feedback
+Value: 139,  String: S4 · FB Low Cut
+Value: 140,  String: S4 · FB High Cut
+Value: 141,  String: S4 · FB Saturation
+Value: 142,  String: S4 · FB Diffusion
+Value: 143,  String: S4 · Reverb Mix
+Value: 144,  String: S4 · Reverb Size
+Value: 145,  String: S4 · Reverb Damp
+Value: 146,  String: LFO 1 · Rate
+Value: 147,  String: LFO 2 · Rate
+Value: 148,  String: LFO 3 · Rate
+Value: 149,  String: LFO 4 · Rate
+  -parameter PASS
+
+Parameter ID:1571525428
+Name: Mod 2 · Depth
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1595793916
+Name: Mod 14 · Destination
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = LFO 4 · Rate
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 150
+Value: 0,  String: None
+Value: 1,  String: Output Gain
+Value: 2,  String: S1 · Level
+Value: 3,  String: S1 · Pan
+Value: 4,  String: S1 · Position
+Value: 5,  String: S1 · Spray
+Value: 6,  String: S1 · Size
+Value: 7,  String: S1 · Size Random
+Value: 8,  String: S1 · Density
+Value: 9,  String: S1 · Jitter
+Value: 10,  String: S1 · Pitch
+Value: 11,  String: S1 · Pitch Random
+Value: 12,  String: S1 · Reverse
+Value: 13,  String: S1 · Window
+Value: 14,  String: S1 · Window Skew
+Value: 15,  String: S1 · Stereo Spread
+Value: 16,  String: S1 · Gain Random
+Value: 17,  String: S1 · Filter Cutoff
+Value: 18,  String: S1 · Filter Random
+Value: 19,  String: S1 · Filter Res
+Value: 20,  String: S1 · Drive
+Value: 21,  String: S1 · Crush
+Value: 22,  String: S1 · Crush Chance
+Value: 23,  String: S1 · Ring Freq
+Value: 24,  String: S1 · Ring Random
+Value: 25,  String: S1 · Ring Mix
+Value: 26,  String: S1 · Scan Rate
+Value: 27,  String: S1 · Loop Start
+Value: 28,  String: S1 · Loop End
+Value: 29,  String: S1 · Key Track
+Value: 30,  String: S1 · Feedback
+Value: 31,  String: S1 · FB Low Cut
+Value: 32,  String: S1 · FB High Cut
+Value: 33,  String: S1 · FB Saturation
+Value: 34,  String: S1 · FB Diffusion
+Value: 35,  String: S1 · Reverb Mix
+Value: 36,  String: S1 · Reverb Size
+Value: 37,  String: S1 · Reverb Damp
+Value: 38,  String: S2 · Level
+Value: 39,  String: S2 · Pan
+Value: 40,  String: S2 · Position
+Value: 41,  String: S2 · Spray
+Value: 42,  String: S2 · Size
+Value: 43,  String: S2 · Size Random
+Value: 44,  String: S2 · Density
+Value: 45,  String: S2 · Jitter
+Value: 46,  String: S2 · Pitch
+Value: 47,  String: S2 · Pitch Random
+Value: 48,  String: S2 · Reverse
+Value: 49,  String: S2 · Window
+Value: 50,  String: S2 · Window Skew
+Value: 51,  String: S2 · Stereo Spread
+Value: 52,  String: S2 · Gain Random
+Value: 53,  String: S2 · Filter Cutoff
+Value: 54,  String: S2 · Filter Random
+Value: 55,  String: S2 · Filter Res
+Value: 56,  String: S2 · Drive
+Value: 57,  String: S2 · Crush
+Value: 58,  String: S2 · Crush Chance
+Value: 59,  String: S2 · Ring Freq
+Value: 60,  String: S2 · Ring Random
+Value: 61,  String: S2 · Ring Mix
+Value: 62,  String: S2 · Scan Rate
+Value: 63,  String: S2 · Loop Start
+Value: 64,  String: S2 · Loop End
+Value: 65,  String: S2 · Key Track
+Value: 66,  String: S2 · Feedback
+Value: 67,  String: S2 · FB Low Cut
+Value: 68,  String: S2 · FB High Cut
+Value: 69,  String: S2 · FB Saturation
+Value: 70,  String: S2 · FB Diffusion
+Value: 71,  String: S2 · Reverb Mix
+Value: 72,  String: S2 · Reverb Size
+Value: 73,  String: S2 · Reverb Damp
+Value: 74,  String: S3 · Level
+Value: 75,  String: S3 · Pan
+Value: 76,  String: S3 · Position
+Value: 77,  String: S3 · Spray
+Value: 78,  String: S3 · Size
+Value: 79,  String: S3 · Size Random
+Value: 80,  String: S3 · Density
+Value: 81,  String: S3 · Jitter
+Value: 82,  String: S3 · Pitch
+Value: 83,  String: S3 · Pitch Random
+Value: 84,  String: S3 · Reverse
+Value: 85,  String: S3 · Window
+Value: 86,  String: S3 · Window Skew
+Value: 87,  String: S3 · Stereo Spread
+Value: 88,  String: S3 · Gain Random
+Value: 89,  String: S3 · Filter Cutoff
+Value: 90,  String: S3 · Filter Random
+Value: 91,  String: S3 · Filter Res
+Value: 92,  String: S3 · Drive
+Value: 93,  String: S3 · Crush
+Value: 94,  String: S3 · Crush Chance
+Value: 95,  String: S3 · Ring Freq
+Value: 96,  String: S3 · Ring Random
+Value: 97,  String: S3 · Ring Mix
+Value: 98,  String: S3 · Scan Rate
+Value: 99,  String: S3 · Loop Start
+Value: 100,  String: S3 · Loop End
+Value: 101,  String: S3 · Key Track
+Value: 102,  String: S3 · Feedback
+Value: 103,  String: S3 · FB Low Cut
+Value: 104,  String: S3 · FB High Cut
+Value: 105,  String: S3 · FB Saturation
+Value: 106,  String: S3 · FB Diffusion
+Value: 107,  String: S3 · Reverb Mix
+Value: 108,  String: S3 · Reverb Size
+Value: 109,  String: S3 · Reverb Damp
+Value: 110,  String: S4 · Level
+Value: 111,  String: S4 · Pan
+Value: 112,  String: S4 · Position
+Value: 113,  String: S4 · Spray
+Value: 114,  String: S4 · Size
+Value: 115,  String: S4 · Size Random
+Value: 116,  String: S4 · Density
+Value: 117,  String: S4 · Jitter
+Value: 118,  String: S4 · Pitch
+Value: 119,  String: S4 · Pitch Random
+Value: 120,  String: S4 · Reverse
+Value: 121,  String: S4 · Window
+Value: 122,  String: S4 · Window Skew
+Value: 123,  String: S4 · Stereo Spread
+Value: 124,  String: S4 · Gain Random
+Value: 125,  String: S4 · Filter Cutoff
+Value: 126,  String: S4 · Filter Random
+Value: 127,  String: S4 · Filter Res
+Value: 128,  String: S4 · Drive
+Value: 129,  String: S4 · Crush
+Value: 130,  String: S4 · Crush Chance
+Value: 131,  String: S4 · Ring Freq
+Value: 132,  String: S4 · Ring Random
+Value: 133,  String: S4 · Ring Mix
+Value: 134,  String: S4 · Scan Rate
+Value: 135,  String: S4 · Loop Start
+Value: 136,  String: S4 · Loop End
+Value: 137,  String: S4 · Key Track
+Value: 138,  String: S4 · Feedback
+Value: 139,  String: S4 · FB Low Cut
+Value: 140,  String: S4 · FB High Cut
+Value: 141,  String: S4 · FB Saturation
+Value: 142,  String: S4 · FB Diffusion
+Value: 143,  String: S4 · Reverb Mix
+Value: 144,  String: S4 · Reverb Size
+Value: 145,  String: S4 · Reverb Damp
+Value: 146,  String: LFO 1 · Rate
+Value: 147,  String: LFO 2 · Rate
+Value: 148,  String: LFO 3 · Rate
+Value: 149,  String: LFO 4 · Rate
+  -parameter PASS
+
+Parameter ID:1597481626
+Name: LFO 3 · Phase
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 360.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1599659048
+Name: S2 · FB High Cut
+Parameter Type: Generic
+Values: Minimum = 1000.0000000, Default = 12000.0009766, Maximum = 20000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1600252096
+Name: LFO 3 · Shape
+Parameter Type: Indexed
+Values: Minimum = Sine, Default = Sine, Maximum = Smooth Random
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 6
+Value: 0,  String: Sine
+Value: 1,  String: Triangle
+Value: 2,  String: Saw
+Value: 3,  String: Square
+Value: 4,  String: S&H
+Value: 5,  String: Smooth Random
+  -parameter PASS
+
+Parameter ID:1611035925
+Name: S2 · FB Saturation
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 20.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1618070734
+Name: S1 · Ring Mix
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1622602784
+Name: Record Target
+Parameter Type: Indexed
+Values: Minimum = Slot 1, Default = Slot 1, Maximum = Slot 4
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 4
+Value: 0,  String: Slot 1
+Value: 1,  String: Slot 2
+Value: 2,  String: Slot 3
+Value: 3,  String: Slot 4
+  -parameter PASS
+
+Parameter ID:1624423067
+Name: Mod 15 · Destination
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = LFO 4 · Rate
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 150
+Value: 0,  String: None
+Value: 1,  String: Output Gain
+Value: 2,  String: S1 · Level
+Value: 3,  String: S1 · Pan
+Value: 4,  String: S1 · Position
+Value: 5,  String: S1 · Spray
+Value: 6,  String: S1 · Size
+Value: 7,  String: S1 · Size Random
+Value: 8,  String: S1 · Density
+Value: 9,  String: S1 · Jitter
+Value: 10,  String: S1 · Pitch
+Value: 11,  String: S1 · Pitch Random
+Value: 12,  String: S1 · Reverse
+Value: 13,  String: S1 · Window
+Value: 14,  String: S1 · Window Skew
+Value: 15,  String: S1 · Stereo Spread
+Value: 16,  String: S1 · Gain Random
+Value: 17,  String: S1 · Filter Cutoff
+Value: 18,  String: S1 · Filter Random
+Value: 19,  String: S1 · Filter Res
+Value: 20,  String: S1 · Drive
+Value: 21,  String: S1 · Crush
+Value: 22,  String: S1 · Crush Chance
+Value: 23,  String: S1 · Ring Freq
+Value: 24,  String: S1 · Ring Random
+Value: 25,  String: S1 · Ring Mix
+Value: 26,  String: S1 · Scan Rate
+Value: 27,  String: S1 · Loop Start
+Value: 28,  String: S1 · Loop End
+Value: 29,  String: S1 · Key Track
+Value: 30,  String: S1 · Feedback
+Value: 31,  String: S1 · FB Low Cut
+Value: 32,  String: S1 · FB High Cut
+Value: 33,  String: S1 · FB Saturation
+Value: 34,  String: S1 · FB Diffusion
+Value: 35,  String: S1 · Reverb Mix
+Value: 36,  String: S1 · Reverb Size
+Value: 37,  String: S1 · Reverb Damp
+Value: 38,  String: S2 · Level
+Value: 39,  String: S2 · Pan
+Value: 40,  String: S2 · Position
+Value: 41,  String: S2 · Spray
+Value: 42,  String: S2 · Size
+Value: 43,  String: S2 · Size Random
+Value: 44,  String: S2 · Density
+Value: 45,  String: S2 · Jitter
+Value: 46,  String: S2 · Pitch
+Value: 47,  String: S2 · Pitch Random
+Value: 48,  String: S2 · Reverse
+Value: 49,  String: S2 · Window
+Value: 50,  String: S2 · Window Skew
+Value: 51,  String: S2 · Stereo Spread
+Value: 52,  String: S2 · Gain Random
+Value: 53,  String: S2 · Filter Cutoff
+Value: 54,  String: S2 · Filter Random
+Value: 55,  String: S2 · Filter Res
+Value: 56,  String: S2 · Drive
+Value: 57,  String: S2 · Crush
+Value: 58,  String: S2 · Crush Chance
+Value: 59,  String: S2 · Ring Freq
+Value: 60,  String: S2 · Ring Random
+Value: 61,  String: S2 · Ring Mix
+Value: 62,  String: S2 · Scan Rate
+Value: 63,  String: S2 · Loop Start
+Value: 64,  String: S2 · Loop End
+Value: 65,  String: S2 · Key Track
+Value: 66,  String: S2 · Feedback
+Value: 67,  String: S2 · FB Low Cut
+Value: 68,  String: S2 · FB High Cut
+Value: 69,  String: S2 · FB Saturation
+Value: 70,  String: S2 · FB Diffusion
+Value: 71,  String: S2 · Reverb Mix
+Value: 72,  String: S2 · Reverb Size
+Value: 73,  String: S2 · Reverb Damp
+Value: 74,  String: S3 · Level
+Value: 75,  String: S3 · Pan
+Value: 76,  String: S3 · Position
+Value: 77,  String: S3 · Spray
+Value: 78,  String: S3 · Size
+Value: 79,  String: S3 · Size Random
+Value: 80,  String: S3 · Density
+Value: 81,  String: S3 · Jitter
+Value: 82,  String: S3 · Pitch
+Value: 83,  String: S3 · Pitch Random
+Value: 84,  String: S3 · Reverse
+Value: 85,  String: S3 · Window
+Value: 86,  String: S3 · Window Skew
+Value: 87,  String: S3 · Stereo Spread
+Value: 88,  String: S3 · Gain Random
+Value: 89,  String: S3 · Filter Cutoff
+Value: 90,  String: S3 · Filter Random
+Value: 91,  String: S3 · Filter Res
+Value: 92,  String: S3 · Drive
+Value: 93,  String: S3 · Crush
+Value: 94,  String: S3 · Crush Chance
+Value: 95,  String: S3 · Ring Freq
+Value: 96,  String: S3 · Ring Random
+Value: 97,  String: S3 · Ring Mix
+Value: 98,  String: S3 · Scan Rate
+Value: 99,  String: S3 · Loop Start
+Value: 100,  String: S3 · Loop End
+Value: 101,  String: S3 · Key Track
+Value: 102,  String: S3 · Feedback
+Value: 103,  String: S3 · FB Low Cut
+Value: 104,  String: S3 · FB High Cut
+Value: 105,  String: S3 · FB Saturation
+Value: 106,  String: S3 · FB Diffusion
+Value: 107,  String: S3 · Reverb Mix
+Value: 108,  String: S3 · Reverb Size
+Value: 109,  String: S3 · Reverb Damp
+Value: 110,  String: S4 · Level
+Value: 111,  String: S4 · Pan
+Value: 112,  String: S4 · Position
+Value: 113,  String: S4 · Spray
+Value: 114,  String: S4 · Size
+Value: 115,  String: S4 · Size Random
+Value: 116,  String: S4 · Density
+Value: 117,  String: S4 · Jitter
+Value: 118,  String: S4 · Pitch
+Value: 119,  String: S4 · Pitch Random
+Value: 120,  String: S4 · Reverse
+Value: 121,  String: S4 · Window
+Value: 122,  String: S4 · Window Skew
+Value: 123,  String: S4 · Stereo Spread
+Value: 124,  String: S4 · Gain Random
+Value: 125,  String: S4 · Filter Cutoff
+Value: 126,  String: S4 · Filter Random
+Value: 127,  String: S4 · Filter Res
+Value: 128,  String: S4 · Drive
+Value: 129,  String: S4 · Crush
+Value: 130,  String: S4 · Crush Chance
+Value: 131,  String: S4 · Ring Freq
+Value: 132,  String: S4 · Ring Random
+Value: 133,  String: S4 · Ring Mix
+Value: 134,  String: S4 · Scan Rate
+Value: 135,  String: S4 · Loop Start
+Value: 136,  String: S4 · Loop End
+Value: 137,  String: S4 · Key Track
+Value: 138,  String: S4 · Feedback
+Value: 139,  String: S4 · FB Low Cut
+Value: 140,  String: S4 · FB High Cut
+Value: 141,  String: S4 · FB Saturation
+Value: 142,  String: S4 · FB Diffusion
+Value: 143,  String: S4 · Reverb Mix
+Value: 144,  String: S4 · Reverb Size
+Value: 145,  String: S4 · Reverb Damp
+Value: 146,  String: LFO 1 · Rate
+Value: 147,  String: LFO 2 · Rate
+Value: 148,  String: LFO 3 · Rate
+Value: 149,  String: LFO 4 · Rate
+  -parameter PASS
+
+Parameter ID:1630911236
+Name: Mod 8 · Source
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = Macro 4
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 18
+Value: 0,  String: None
+Value: 1,  String: LFO 1
+Value: 2,  String: LFO 2
+Value: 3,  String: LFO 3
+Value: 4,  String: LFO 4
+Value: 5,  String: Mod Env 1
+Value: 6,  String: Mod Env 2
+Value: 7,  String: Velocity
+Value: 8,  String: Key
+Value: 9,  String: Note Random
+Value: 10,  String: Mod Wheel
+Value: 11,  String: Pressure
+Value: 12,  String: Slide
+Value: 13,  String: Bend
+Value: 14,  String: Macro 1
+Value: 15,  String: Macro 2
+Value: 16,  String: Macro 3
+Value: 17,  String: Macro 4
+  -parameter PASS
+
+Parameter ID:1631313368
+Name: S3 · Crush Chance
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 100.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1653052218
+Name: Mod 16 · Destination
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = LFO 4 · Rate
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 150
+Value: 0,  String: None
+Value: 1,  String: Output Gain
+Value: 2,  String: S1 · Level
+Value: 3,  String: S1 · Pan
+Value: 4,  String: S1 · Position
+Value: 5,  String: S1 · Spray
+Value: 6,  String: S1 · Size
+Value: 7,  String: S1 · Size Random
+Value: 8,  String: S1 · Density
+Value: 9,  String: S1 · Jitter
+Value: 10,  String: S1 · Pitch
+Value: 11,  String: S1 · Pitch Random
+Value: 12,  String: S1 · Reverse
+Value: 13,  String: S1 · Window
+Value: 14,  String: S1 · Window Skew
+Value: 15,  String: S1 · Stereo Spread
+Value: 16,  String: S1 · Gain Random
+Value: 17,  String: S1 · Filter Cutoff
+Value: 18,  String: S1 · Filter Random
+Value: 19,  String: S1 · Filter Res
+Value: 20,  String: S1 · Drive
+Value: 21,  String: S1 · Crush
+Value: 22,  String: S1 · Crush Chance
+Value: 23,  String: S1 · Ring Freq
+Value: 24,  String: S1 · Ring Random
+Value: 25,  String: S1 · Ring Mix
+Value: 26,  String: S1 · Scan Rate
+Value: 27,  String: S1 · Loop Start
+Value: 28,  String: S1 · Loop End
+Value: 29,  String: S1 · Key Track
+Value: 30,  String: S1 · Feedback
+Value: 31,  String: S1 · FB Low Cut
+Value: 32,  String: S1 · FB High Cut
+Value: 33,  String: S1 · FB Saturation
+Value: 34,  String: S1 · FB Diffusion
+Value: 35,  String: S1 · Reverb Mix
+Value: 36,  String: S1 · Reverb Size
+Value: 37,  String: S1 · Reverb Damp
+Value: 38,  String: S2 · Level
+Value: 39,  String: S2 · Pan
+Value: 40,  String: S2 · Position
+Value: 41,  String: S2 · Spray
+Value: 42,  String: S2 · Size
+Value: 43,  String: S2 · Size Random
+Value: 44,  String: S2 · Density
+Value: 45,  String: S2 · Jitter
+Value: 46,  String: S2 · Pitch
+Value: 47,  String: S2 · Pitch Random
+Value: 48,  String: S2 · Reverse
+Value: 49,  String: S2 · Window
+Value: 50,  String: S2 · Window Skew
+Value: 51,  String: S2 · Stereo Spread
+Value: 52,  String: S2 · Gain Random
+Value: 53,  String: S2 · Filter Cutoff
+Value: 54,  String: S2 · Filter Random
+Value: 55,  String: S2 · Filter Res
+Value: 56,  String: S2 · Drive
+Value: 57,  String: S2 · Crush
+Value: 58,  String: S2 · Crush Chance
+Value: 59,  String: S2 · Ring Freq
+Value: 60,  String: S2 · Ring Random
+Value: 61,  String: S2 · Ring Mix
+Value: 62,  String: S2 · Scan Rate
+Value: 63,  String: S2 · Loop Start
+Value: 64,  String: S2 · Loop End
+Value: 65,  String: S2 · Key Track
+Value: 66,  String: S2 · Feedback
+Value: 67,  String: S2 · FB Low Cut
+Value: 68,  String: S2 · FB High Cut
+Value: 69,  String: S2 · FB Saturation
+Value: 70,  String: S2 · FB Diffusion
+Value: 71,  String: S2 · Reverb Mix
+Value: 72,  String: S2 · Reverb Size
+Value: 73,  String: S2 · Reverb Damp
+Value: 74,  String: S3 · Level
+Value: 75,  String: S3 · Pan
+Value: 76,  String: S3 · Position
+Value: 77,  String: S3 · Spray
+Value: 78,  String: S3 · Size
+Value: 79,  String: S3 · Size Random
+Value: 80,  String: S3 · Density
+Value: 81,  String: S3 · Jitter
+Value: 82,  String: S3 · Pitch
+Value: 83,  String: S3 · Pitch Random
+Value: 84,  String: S3 · Reverse
+Value: 85,  String: S3 · Window
+Value: 86,  String: S3 · Window Skew
+Value: 87,  String: S3 · Stereo Spread
+Value: 88,  String: S3 · Gain Random
+Value: 89,  String: S3 · Filter Cutoff
+Value: 90,  String: S3 · Filter Random
+Value: 91,  String: S3 · Filter Res
+Value: 92,  String: S3 · Drive
+Value: 93,  String: S3 · Crush
+Value: 94,  String: S3 · Crush Chance
+Value: 95,  String: S3 · Ring Freq
+Value: 96,  String: S3 · Ring Random
+Value: 97,  String: S3 · Ring Mix
+Value: 98,  String: S3 · Scan Rate
+Value: 99,  String: S3 · Loop Start
+Value: 100,  String: S3 · Loop End
+Value: 101,  String: S3 · Key Track
+Value: 102,  String: S3 · Feedback
+Value: 103,  String: S3 · FB Low Cut
+Value: 104,  String: S3 · FB High Cut
+Value: 105,  String: S3 · FB Saturation
+Value: 106,  String: S3 · FB Diffusion
+Value: 107,  String: S3 · Reverb Mix
+Value: 108,  String: S3 · Reverb Size
+Value: 109,  String: S3 · Reverb Damp
+Value: 110,  String: S4 · Level
+Value: 111,  String: S4 · Pan
+Value: 112,  String: S4 · Position
+Value: 113,  String: S4 · Spray
+Value: 114,  String: S4 · Size
+Value: 115,  String: S4 · Size Random
+Value: 116,  String: S4 · Density
+Value: 117,  String: S4 · Jitter
+Value: 118,  String: S4 · Pitch
+Value: 119,  String: S4 · Pitch Random
+Value: 120,  String: S4 · Reverse
+Value: 121,  String: S4 · Window
+Value: 122,  String: S4 · Window Skew
+Value: 123,  String: S4 · Stereo Spread
+Value: 124,  String: S4 · Gain Random
+Value: 125,  String: S4 · Filter Cutoff
+Value: 126,  String: S4 · Filter Random
+Value: 127,  String: S4 · Filter Res
+Value: 128,  String: S4 · Drive
+Value: 129,  String: S4 · Crush
+Value: 130,  String: S4 · Crush Chance
+Value: 131,  String: S4 · Ring Freq
+Value: 132,  String: S4 · Ring Random
+Value: 133,  String: S4 · Ring Mix
+Value: 134,  String: S4 · Scan Rate
+Value: 135,  String: S4 · Loop Start
+Value: 136,  String: S4 · Loop End
+Value: 137,  String: S4 · Key Track
+Value: 138,  String: S4 · Feedback
+Value: 139,  String: S4 · FB Low Cut
+Value: 140,  String: S4 · FB High Cut
+Value: 141,  String: S4 · FB Saturation
+Value: 142,  String: S4 · FB Diffusion
+Value: 143,  String: S4 · Reverb Mix
+Value: 144,  String: S4 · Reverb Size
+Value: 145,  String: S4 · Reverb Damp
+Value: 146,  String: LFO 1 · Rate
+Value: 147,  String: LFO 2 · Rate
+Value: 148,  String: LFO 3 · Rate
+Value: 149,  String: LFO 4 · Rate
+  -parameter PASS
+
+Parameter ID:1664671300
+Name: S3 · Size Random
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1664724154
+Name: S3 · Size Sync
+Parameter Type: Indexed
+Values: Minimum = 1/64 T, Default = 1/16, Maximum = 2 bars
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 20
+Value: 0,  String: 1/64 T
+Value: 1,  String: 1/64
+Value: 2,  String: 1/64 D
+Value: 3,  String: 1/32 T
+Value: 4,  String: 1/32
+Value: 5,  String: 1/32 D
+Value: 6,  String: 1/16 T
+Value: 7,  String: 1/16
+Value: 8,  String: 1/16 D
+Value: 9,  String: 1/8 T
+Value: 10,  String: 1/8
+Value: 11,  String: 1/8 D
+Value: 12,  String: 1/4 T
+Value: 13,  String: 1/4
+Value: 14,  String: 1/4 D
+Value: 15,  String: 1/2 T
+Value: 16,  String: 1/2
+Value: 17,  String: 1/2 D
+Value: 18,  String: 1 bar
+Value: 19,  String: 2 bars
+  -parameter PASS
+
+Parameter ID:1670729740
+Name: S3 · Key Track
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 100.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1677468322
+Name: S4 · Pitch Random
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 24.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1702619073
+Name: S3 · FB Diffusion
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1709940966
+Name: Mod 11 · Depth
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1714076537
+Name: Mod 7 · Depth
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1746986518
+Name: S1 · Root Fine
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1747230798
+Name: S1 · Root Note
+Parameter Type: Generic
+Values: Minimum = 0, Default = 48, Maximum = 127
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1760396087
+Name: S4 · Crush Chance
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 100.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1779138216
+Name: Amp Sustain
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 100.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1791158104
+Name: S1 · Window Skew
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1803641941
+Name: Mod Env 2 · Attack
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 10.0000038, Maximum = 10000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1819465353
+Name: S4 · Ring Freq
+Parameter Type: Generic
+Values: Minimum = 20.0000000, Default = 200.0000000, Maximum = 5000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1819806774
+Name: S4 · Ring Random
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1840530823
+Name: S4 · Scan Mode
+Parameter Type: Indexed
+Values: Minimum = Free-run, Default = Retrigger, Maximum = Ping-pong
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 3
+Value: 0,  String: Free-run
+Value: 1,  String: Retrigger
+Value: 2,  String: Ping-pong
+  -parameter PASS
+
+Parameter ID:1840666820
+Name: S4 · Scan Rate
+Parameter Type: Generic
+Values: Minimum = -400.0000000, Default = 0.0000000, Maximum = 400.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1844278170
+Name: Mod Env 2 · Release
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 499.9999695, Maximum = 20000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1852492075
+Name: Mod 16 · Depth
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1867730225
+Name: S1 · Window
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 1.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1889587576
+Name: LFO 2 · Rate Sync
+Parameter Type: Indexed
+Values: Minimum = 1/64 T, Default = 1 bar, Maximum = 8 bars
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 22
+Value: 0,  String: 1/64 T
+Value: 1,  String: 1/64
+Value: 2,  String: 1/64 D
+Value: 3,  String: 1/32 T
+Value: 4,  String: 1/32
+Value: 5,  String: 1/32 D
+Value: 6,  String: 1/16 T
+Value: 7,  String: 1/16
+Value: 8,  String: 1/16 D
+Value: 9,  String: 1/8 T
+Value: 10,  String: 1/8
+Value: 11,  String: 1/8 D
+Value: 12,  String: 1/4 T
+Value: 13,  String: 1/4
+Value: 14,  String: 1/4 D
+Value: 15,  String: 1/2 T
+Value: 16,  String: 1/2
+Value: 17,  String: 1/2 D
+Value: 18,  String: 1 bar
+Value: 19,  String: 2 bars
+Value: 20,  String: 4 bars
+Value: 21,  String: 8 bars
+  -parameter PASS
+
+Parameter ID:1893062055
+Name: S1 · FB High Cut
+Parameter Type: Generic
+Values: Minimum = 1000.0000000, Default = 12000.0009766, Maximum = 20000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1896459555
+Name: Amp Attack
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 19.9999981, Maximum = 10000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1897556743
+Name: S3 · Feedback On
+Parameter Type: Boolean
+Values: Minimum = Off, Default = On, Maximum = On
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1907381848
+Name: Mod 11 · Source
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = Macro 4
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 18
+Value: 0,  String: None
+Value: 1,  String: LFO 1
+Value: 2,  String: LFO 2
+Value: 3,  String: LFO 3
+Value: 4,  String: LFO 4
+Value: 5,  String: Mod Env 1
+Value: 6,  String: Mod Env 2
+Value: 7,  String: Velocity
+Value: 8,  String: Key
+Value: 9,  String: Note Random
+Value: 10,  String: Mod Wheel
+Value: 11,  String: Pressure
+Value: 12,  String: Slide
+Value: 13,  String: Bend
+Value: 14,  String: Macro 1
+Value: 15,  String: Macro 2
+Value: 16,  String: Macro 3
+Value: 17,  String: Macro 4
+  -parameter PASS
+
+Parameter ID:1911467466
+Name: Mod 2 · Source
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = Macro 4
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 18
+Value: 0,  String: None
+Value: 1,  String: LFO 1
+Value: 2,  String: LFO 2
+Value: 3,  String: LFO 3
+Value: 4,  String: LFO 4
+Value: 5,  String: Mod Env 1
+Value: 6,  String: Mod Env 2
+Value: 7,  String: Velocity
+Value: 8,  String: Key
+Value: 9,  String: Note Random
+Value: 10,  String: Mod Wheel
+Value: 11,  String: Pressure
+Value: 12,  String: Slide
+Value: 13,  String: Bend
+Value: 14,  String: Macro 1
+Value: 15,  String: Macro 2
+Value: 16,  String: Macro 3
+Value: 17,  String: Macro 4
+  -parameter PASS
+
+Parameter ID:1912443226
+Name: S1 · Crush
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1913355305
+Name: S1 · Drive
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1920368163
+Name: S1 · Level
+Parameter Type: Generic
+Values: Minimum = -60.0000000, Default = 0.0000000, Maximum = 6.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1924179423
+Name: S1 · Pitch
+Parameter Type: Generic
+Values: Minimum = -24.0000000, Default = 0.0000000, Maximum = 24.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1926753257
+Name: S1 · Scale
+Parameter Type: Indexed
+Values: Minimum = Off, Default = Off, Maximum = Custom
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 32
+Value: 0,  String: Off
+Value: 1,  String: Chromatic
+Value: 2,  String: Major
+Value: 3,  String: Minor
+Value: 4,  String: Pentatonic
+Value: 5,  String: Whole Tone
+Value: 6,  String: Dorian
+Value: 7,  String: Phrygian
+Value: 8,  String: Lydian
+Value: 9,  String: Mixolydian
+Value: 10,  String: Locrian
+Value: 11,  String: Harmonic Minor
+Value: 12,  String: Melodic Minor
+Value: 13,  String: Minor Pentatonic
+Value: 14,  String: Blues
+Value: 15,  String: Octatonic
+Value: 16,  String: Augmented
+Value: 17,  String: Fifths + Octaves
+Value: 18,  String: Octaves
+Value: 19,  String: 19-EDO
+Value: 20,  String: 22-EDO
+Value: 21,  String: 24-EDO
+Value: 22,  String: 31-EDO
+Value: 23,  String: 53-EDO
+Value: 24,  String: 5-Limit Just
+Value: 25,  String: 7-Limit Just
+Value: 26,  String: Harmonics 8-16
+Value: 27,  String: Bohlen-Pierce
+Value: 28,  String: Slendro
+Value: 29,  String: Pelog
+Value: 30,  String: Maqam Rast
+Value: 31,  String: Custom
+  -parameter PASS
+
+Parameter ID:1927156556
+Name: S1 · Spray
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 10.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1969957912
+Name: LFO 1 · Phase
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 360.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1972728382
+Name: LFO 1 · Shape
+Parameter Type: Indexed
+Values: Minimum = Sine, Default = Sine, Maximum = Smooth Random
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 6
+Value: 0,  String: Sine
+Value: 1,  String: Triangle
+Value: 2,  String: Saw
+Value: 3,  String: Square
+Value: 4,  String: S&H
+Value: 5,  String: Smooth Random
+  -parameter PASS
+
+Parameter ID:1993130809
+Name: S1 · Stereo Spread
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 30.0000019, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:1993344116
+Name: S2 · Filter Cutoff
+Parameter Type: Generic
+Values: Minimum = 20.0000000, Default = 20000.0000000, Maximum = 20000.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:2015203589
+Name: S4 · Size Random
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:2015256443
+Name: S4 · Size Sync
+Parameter Type: Indexed
+Values: Minimum = 1/64 T, Default = 1/16, Maximum = 2 bars
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 20
+Value: 0,  String: 1/64 T
+Value: 1,  String: 1/64
+Value: 2,  String: 1/64 D
+Value: 3,  String: 1/32 T
+Value: 4,  String: 1/32
+Value: 5,  String: 1/32 D
+Value: 6,  String: 1/16 T
+Value: 7,  String: 1/16
+Value: 8,  String: 1/16 D
+Value: 9,  String: 1/8 T
+Value: 10,  String: 1/8
+Value: 11,  String: 1/8 D
+Value: 12,  String: 1/4 T
+Value: 13,  String: 1/4
+Value: 14,  String: 1/4 D
+Value: 15,  String: 1/2 T
+Value: 16,  String: 1/2
+Value: 17,  String: 1/2 D
+Value: 18,  String: 1 bar
+Value: 19,  String: 2 bars
+  -parameter PASS
+
+Parameter ID:2021262029
+Name: S4 · Key Track
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 100.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:2031498931
+Name: Mod 16 · Source
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = Macro 4
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 18
+Value: 0,  String: None
+Value: 1,  String: LFO 1
+Value: 2,  String: LFO 2
+Value: 3,  String: LFO 3
+Value: 4,  String: LFO 4
+Value: 5,  String: Mod Env 1
+Value: 6,  String: Mod Env 2
+Value: 7,  String: Velocity
+Value: 8,  String: Key
+Value: 9,  String: Note Random
+Value: 10,  String: Mod Wheel
+Value: 11,  String: Pressure
+Value: 12,  String: Slide
+Value: 13,  String: Bend
+Value: 14,  String: Macro 1
+Value: 15,  String: Macro 2
+Value: 16,  String: Macro 3
+Value: 17,  String: Macro 4
+  -parameter PASS
+
+Parameter ID:2032995506
+Name: S2 · Reverse
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:2035584549
+Name: Mod 7 · Source
+Parameter Type: Indexed
+Values: Minimum = None, Default = None, Maximum = Macro 4
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 18
+Value: 0,  String: None
+Value: 1,  String: LFO 1
+Value: 2,  String: LFO 2
+Value: 3,  String: LFO 3
+Value: 4,  String: LFO 4
+Value: 5,  String: Mod Env 1
+Value: 6,  String: Mod Env 2
+Value: 7,  String: Velocity
+Value: 8,  String: Key
+Value: 9,  String: Note Random
+Value: 10,  String: Mod Wheel
+Value: 11,  String: Pressure
+Value: 12,  String: Slide
+Value: 13,  String: Bend
+Value: 14,  String: Macro 1
+Value: 15,  String: Macro 2
+Value: 16,  String: Macro 3
+Value: 17,  String: Macro 4
+  -parameter PASS
+
+Parameter ID:2036477206
+Name: Pitch Bend Range
+Parameter Type: Generic
+Values: Minimum = 0, Default = 2, Maximum = 48
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:2059544816
+Name: S4 · Density Sync
+Parameter Type: Indexed
+Values: Minimum = 1/64 T, Default = 1/16, Maximum = 1 bar
+Flags: Values Have Strings, High Resolution, Readable, Writable 
+Parameter has Value Strings
+Num Strings = 19
+Value: 0,  String: 1/64 T
+Value: 1,  String: 1/64
+Value: 2,  String: 1/64 D
+Value: 3,  String: 1/32 T
+Value: 4,  String: 1/32
+Value: 5,  String: 1/32 D
+Value: 6,  String: 1/16 T
+Value: 7,  String: 1/16
+Value: 8,  String: 1/16 D
+Value: 9,  String: 1/8 T
+Value: 10,  String: 1/8
+Value: 11,  String: 1/8 D
+Value: 12,  String: 1/4 T
+Value: 13,  String: 1/4
+Value: 14,  String: 1/4 D
+Value: 15,  String: 1/2 T
+Value: 16,  String: 1/2
+Value: 17,  String: 1/2 D
+Value: 18,  String: 1 bar
+  -parameter PASS
+
+Parameter ID:2074239971
+Name: S4 · Feedback
+Parameter Type: Generic
+Values: Minimum = 0.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:2086552823
+Name: Mod 5 · Depth
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:2097518807
+Name: S2 · Root Fine
+Parameter Type: Generic
+Values: Minimum = -100.0000000, Default = 0.0000000, Maximum = 100.0000000
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Parameter ID:2097763087
+Name: S2 · Root Note
+Parameter Type: Generic
+Values: Minimum = 0, Default = 48, Maximum = 127
+Flags: Values Have Strings, High Resolution, Can Ramp, Readable, Writable 
+  -parameter PASS
+
+Testing that parameters retain value across reset and initialization
+  PASS
+
+* * PASS
+--------------------------------------------------
+FORMAT TESTS:
+
+Reported Channel Capabilities (explicit):
+      [1, 2]  [2, 2]  
+
+Input/Output Channel Handling:
+1-1   1-2   1-4   1-5   1-6   1-7   1-8   2-2   2-4   2-5   2-6   2-7   2-8   4-4   4-5   5-5   6-6   7-7   8-8
+      X                                   X                                                                       
+
+# # AudioChannelLayouts (6), Input Scope:
+ChannelLayout is Writable: T
+The Unit publishes the following Channel Layouts:
+  0x640001, 0x650002, 0x660002, 0x670002, 0x6A0002, 0x930000, 
+
+Is Audio Channel Layout Available:
+Mono    Stereo  Binau.  AU_4    Ambi.   AU_5    AU_5_0  AU_6    AU_6_0  AU_7_0  AU_7_0F AU_8    AU_5_1  AU_6_1  AU_7_1  AU_7_1F 
+X       X       X                                                                                                               
+
+Current Format:AudioStreamBasicDescription:  2 ch,  44100 Hz, Float32, deinterleaved
+Current Format Tag = 0x650002, New Format Tag = 0x640001, Success - did not reset format with mis-matched layout
+
+Current Format:AudioStreamBasicDescription:  2 ch,  44100 Hz, Float32, deinterleaved
+Current Format Tag = 0x650002, New Format Tag = 0x650002, Successsful
+
+Current Format:AudioStreamBasicDescription:  2 ch,  44100 Hz, Float32, deinterleaved
+Current Format Tag = 0x650002, New Format Tag = 0x6A0002, Successsful
+
+# # AudioChannelLayouts (4), Output Scope:
+ChannelLayout is Writable: T
+The Unit publishes the following Channel Layouts:
+  0x650002, 0x660002, 0x670002, 0x6A0002, 
+
+Is Audio Channel Layout Available:
+Mono    Stereo  Binau.  AU_4    Ambi.   AU_5    AU_5_0  AU_6    AU_6_0  AU_7_0  AU_7_0F AU_8    AU_5_1  AU_6_1  AU_7_1  AU_7_1F 
+        X       X                                                                                                               
+
+Current Format:AudioStreamBasicDescription:  2 ch,  44100 Hz, Float32, deinterleaved
+Current Format Tag = 0x650002, New Format Tag = 0x650002, Successsful
+
+Current Format:AudioStreamBasicDescription:  2 ch,  44100 Hz, Float32, deinterleaved
+Current Format Tag = 0x650002, New Format Tag = 0x6A0002, Successsful
+
+* * PASS
+--------------------------------------------------
+RENDER TESTS:
+
+Input Format: AudioStreamBasicDescription:  2 ch,  44100 Hz, Float32, deinterleaved
+Output Format: AudioStreamBasicDescription:  2 ch,  44100 Hz, Float32, deinterleaved
+Render Test at 512 frames
+Slicing Render Test at 64 frames
+  PASS
+
+
+Render Test at 64 frames, sample rate: 22050 Hz
+Render Test at 137 frames, sample rate: 96000 Hz
+Render Test at 4096 frames, sample rate: 48000 Hz
+Render Test at 4096 frames, sample rate: 192000 Hz
+Render Test at 4096 frames, sample rate: 11025 Hz
+Render Test at 512 frames, sample rate: 44100 Hz
+  PASS
+
+1 to 2 Channel Render Test at 256 frames
+  PASS
+
+Checking connection semantics:
+Connection format:
+AudioStreamBasicDescription:  2 ch,  44100 Hz, Float32, deinterleaved
+  PASS
+
+Bad Max Frames - Render should fail
+  PASS
+
+Checking parameter setting
+Using AudioUnitSetParameter
+Using AudioUnitScheduleParameter
+  PASS
+
+Checking ramped parameter scheduling
+  PASS
+
+Test MIDI
+  PASS
+
+* * PASS
+--------------------------------------------------
+AU VALIDATION SUCCEEDED.
+--------------------------------------------------
