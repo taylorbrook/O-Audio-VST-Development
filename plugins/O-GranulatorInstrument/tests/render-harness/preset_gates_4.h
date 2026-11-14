@@ -1980,6 +1980,20 @@ namespace { namespace pg4
         return false;
     }
 
+    /** 1.3.0 (preset-bank-expansion P1 / P2): the 8 approved re-voices of the
+        1.2.0 bank leave the comparison by name (`--exclude-revoiced13`). */
+    constexpr const char* kRevoiced13[] = {
+        "Keys \xc2\xb7 Kalimba", "Drones \xc2\xb7 Organ Loft", "Pads \xc2\xb7 Warm Choir", "Pads \xc2\xb7 Velvet Strings",
+        "Textures \xc2\xb7 Ember Field", "Drones \xc2\xb7 Hollow Wind", "Textures \xc2\xb7 Rain Glass", "Keys \xc2\xb7 Glass Mallet" };
+
+    bool isRevoiced13 (const F::FactoryPresetSpec& s)
+    {
+        for (const char* n : kRevoiced13)
+            if (std::strcmp (s.name, n) == 0)
+                return true;
+        return false;
+    }
+
     /** PLAN-R2 PD12: the 13 presets whose render moves with the level-hold
         makeup (a feedback Amount above 0 on a head that runs; Drones · Frozen
         Field has Freeze on and stays bitwise). Short names. */
@@ -2053,7 +2067,7 @@ namespace { namespace pg4
         return n == N && wrote ? 0 : 1;
     }
 
-    int cmpPresetRenders (const juce::File& dir, bool allBitwise, bool excludeShowcase, bool r2 = false)
+    int cmpPresetRenders (const juce::File& dir, bool allBitwise, bool excludeShowcase, bool r2 = false, bool excludeRevoiced13 = false)
     {
         if (! dir.isDirectory())
         {
@@ -2070,6 +2084,7 @@ namespace { namespace pg4
             auto& r = rs[(size_t) i];
             r.streams = ptStreams (s);
             if (excludeShowcase && isShowcase (s)) { r.skip = true; return; }
+            if (excludeRevoiced13 && isRevoiced13 (s)) { r.skip = true; return; }
             juce::MemoryBlock mb;
             const auto f = dir.getChildFile (ptFileOf (s));
             if (! f.existsAsFile() || ! f.loadFileAsData (mb)) return;
@@ -2124,6 +2139,8 @@ namespace { namespace pg4
         }
         if (excludeShowcase)
             std::printf ("  INFO PT excluded (showcase, PD28): %d: %s\n", skipped, excluded.toRawUTF8());
+        if (excludeRevoiced13)
+            std::printf ("  INFO PT excluded (1.3.0 re-voices, P1): %d: %s\n", skipped, excluded.toRawUTF8());
         const juce::String why = firstBad.isEmpty() ? juce::String() : " first: " + firstBad;
         if (r2)
         {

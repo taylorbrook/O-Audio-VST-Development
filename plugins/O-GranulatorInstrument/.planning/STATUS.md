@@ -3,13 +3,13 @@ plugin: O-GranulatorInstrument
 stage: 4
 status: installed
 current_phase: 4-polish
-gsd_phase: improve_v1_2_0_verified
-last_updated: 2026-11-13
+gsd_phase: improve_v1_3_0_plan_complete
+last_updated: 2026-11-14
 complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: /publish O-GranulatorInstrument (D54 Windows CI arm runs there); COMPAT-02 MPE / Dorico pass -> 1.0.x
+next_action: /improve-milestone O-GranulatorInstrument (preset-bank-expansion execute)
 next_stage: 4
 ready_for_implementation: true
 blocked_on: none (fork pin 82406fce, D11)
@@ -31,11 +31,14 @@ contract_checksums:
   parameter_spec_draft: sha256:3c4918748a4375940684a22ed6850a3184bdd96df53d152a8900d5f0e4260796
   architecture: sha256:40b31e180ee9854798974c9fc33491cc262677e4fa8286a750257381f2d9bb68   # R2 C3: one R2 addendum paragraph (write law with the makeup, latch)
   roadmap: sha256:5137142de157eedc3f3f5965dd431e4d2c9f0308b56e9e3df48a88fcf9f5dd65   # R1 C7: one R1 addendum paragraph
+activeMilestone: preset-bank-expansion
 ---
 
 # O-GranulatorInstrument Status
 
 ## Current Position
+
+**Improve v1.3.0 (milestone preset-bank-expansion) — plan ✓** 2026-11-14 (`improvements/preset-bank-expansion/PLAN.md`, T0–T12): 96 new presets (7 × +12 → 20, Live 8, new Field 12; bank 160), every one of the 41 sources in ≥ 2 presets; Taylor approved all 8 re-voices (Kalimba, Organ Loft, Warm Choir, Velvet Strings + D1 detune fix, Ember Field, Hollow Wind, Rain Glass s1, Glass Mallet s1) and description fixes D6–D8 / D10 / D11, the other 56 stay bitwise; wobble gate = preset-added only, widened to realism titles in every category; Fifth Bloom trimmed only if the spread passes 8.5 dB; Expressive split 8 / 6 / 6; Field rule P7; harness `kBankSize` + FSU1 / FRT1 rows with controls; two-pane grouped preset menu plugin-local (`getPresetMenu`). Waves: one category per wave, path-scoped commit each. Uncommitted planning docs. No tag. Next: `/improve-milestone O-GranulatorInstrument` (execute).
 
 **Improve v1.2.0 hands-on recorded: all pass** 2026-11-13 (Taylor, whole-list report; `improvements/factory-sources-expansion/VERIFICATION.md`): Contrabassoon at C3 with the lane name and Root readout, the other off-C3 sources, bell / glass and pluck / kalimba, a texture wrap. `breath` −3.8 ct accepted. 1.2.0 verified; open only the Windows arm at `/publish`. No tag. Next: `/publish O-GranulatorInstrument`.
 

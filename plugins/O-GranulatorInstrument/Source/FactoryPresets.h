@@ -151,16 +151,16 @@ namespace ogi::factory
               { { 0, "factory:drone", "Drone" }, { 1, "factory:noise_bed", "Noise Bed" } } },
 
             { "Drones \xc2\xb7 Organ Loft",
-              "Two harmonic streams an octave apart in a tall room; the lower one feeds its reverb back into its own loop.",
+              "Two organ streams an octave apart in a tall room, read past the key click; the lower one feeds its reverb back into its own loop.",
               0x4F47490101000003ll,
               { { "polyphony", 6.0f }, { "amp_attack", 1200.0f }, { "amp_release", 5000.0f },
-                { "s1_level", -13.0f }, { "s1_key_track", 50.0f }, { "s1_scan_mode", 2.0f }, { "s1_scan_rate", 5.0f }, { "s1_size", 700.0f }, { "s1_density", 10.0f },
-                { "s1_spray", 25.0f },
-                { "s2_enable", 1.0f }, { "s2_level", -12.2f }, { "s2_pitch", -12.0f }, { "s2_key_track", 50.0f }, { "s2_scan_mode", 2.0f },
-                { "s2_scan_rate", 3.0f }, { "s2_size", 900.0f }, { "s2_density", 8.0f }, { "s2_spray", 35.0f },
+                { "s1_level", -14.3f }, { "s1_key_track", 50.0f }, { "s1_scan_mode", 2.0f }, { "s1_scan_rate", 5.0f }, { "s1_size", 700.0f }, { "s1_density", 10.0f },
+                { "s1_spray", 25.0f }, { "s1_loop_start", 2.0f },
+                { "s2_enable", 1.0f }, { "s2_level", -13.5f }, { "s2_pitch", -12.0f }, { "s2_key_track", 50.0f }, { "s2_scan_mode", 2.0f },
+                { "s2_scan_rate", 3.0f }, { "s2_size", 900.0f }, { "s2_density", 8.0f }, { "s2_spray", 35.0f }, { "s2_loop_start", 2.0f },
                 { "s1_reverb_mix", 60.0f }, { "s1_reverb_size", 90.0f },
                 { "s2_feedback", 30.0f }, { "s2_fb_diffusion", 40.0f }, { "s2_reverb_pre", 1.0f }, { "s2_reverb_mix", 60.0f }, { "s2_reverb_size", 90.0f } },
-              { { 0, "factory:harmonic", "Harmonic" }, { 1, "factory:harmonic", "Harmonic" } } },
+              { { 0, "factory:organ", "Organ" }, { 1, "factory:organ", "Organ" } } },
 
             { "Drones \xc2\xb7 Frozen Field",
               "Freeze holds the drone tape; long grains drift over it while the feedback stays parked.",
@@ -172,7 +172,7 @@ namespace ogi::factory
               { { 0, "factory:drone", "Drone" } } },
 
             { "Drones \xc2\xb7 Hollow Wind",
-              "A resonant band-pass on the noise bed, stepped by sample-and-hold, over slow ping-pong reads.",
+              "A resonant band-pass on the wind, stepped by sample-and-hold, over slow ping-pong reads.",
               0x4F47490101000005ll,
               { { "polyphony", 6.0f }, { "amp_attack", 1500.0f }, { "amp_release", 6000.0f },
                 { "s1_level", 0.3f }, { "s1_key_track", 40.0f }, { "s1_scan_mode", 2.0f }, { "s1_scan_rate", 12.0f }, { "s1_size", 600.0f }, { "s1_density", 30.0f },
@@ -181,7 +181,7 @@ namespace ogi::factory
                 { "s*_feedback", 45.0f }, { "s*_fb_diffusion", 55.0f }, { "s*_reverb_mix", 45.0f },
                 { "lfo2_shape", SH }, { "lfo2_rate", 0.3f },
                 { "mod1_source", Lfo2 }, { "mod1_dest", modDest ("s1_filter_cutoff") }, { "mod1_depth", 30.0f } },
-              { { 0, "factory:noise_bed", "Noise Bed" } } },
+              { { 0, "factory:wind", "Wind" } } },
 
             { "Drones \xc2\xb7 Low Orbit",
               "Drone and a harmonic fifth above, panned by a slow sine; the fifth moves at its own pace.",
@@ -347,16 +347,17 @@ namespace ogi::factory
               { { 0, "factory:bell", "Bell" } } },
 
             { "Keys \xc2\xb7 Glass Mallet",
-              "Bell with a pluck an octave above, low-passed for a soft glassy mallet.",
+              "Struck glass, low-passed, read back and forth over its ring so a held note never re-strikes; a bright pluck an octave above.",
               0x4F47490301000004ll,
-              { { "amp_attack", 1.0f }, { "amp_decay", 1500.0f }, { "amp_sustain", 45.0f }, { "amp_release", 700.0f }, { "vel_to_amp", 50.0f },
-                { "s1_scan_rate", 100.0f }, { "s1_size", 60.0f }, { "s1_density", 130.0f }, { "s1_spray", 3.0f }, { "s1_jitter", 8.0f },
-                { "s1_window", 0.55f }, { "s1_window_skew", -40.0f }, { "s1_level", 6.0f },
+              { { "amp_attack", 1.0f }, { "amp_decay", 5000.0f }, { "amp_sustain", 20.0f }, { "amp_release", 700.0f }, { "vel_to_amp", 40.0f },
+                { "s1_scan_mode", 2.0f }, { "s1_scan_rate", 25.0f }, { "s1_loop_end", 25.0f }, { "s1_size", 60.0f }, { "s1_density", 130.0f },
+                { "s1_spray", 3.0f }, { "s1_jitter", 8.0f },
+                { "s1_window", 0.8f }, { "s1_window_skew", -40.0f }, { "s1_level", 6.0f },
                 { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 6000.0f },
-                { "s2_enable", 1.0f }, { "s2_level", -12.0f }, { "s2_pitch", 12.0f }, { "s2_scan_rate", 100.0f }, { "s2_size", 40.0f },
+                { "s2_enable", 1.0f }, { "s2_level", -6.0f }, { "s2_pitch", 12.0f }, { "s2_scan_rate", 100.0f }, { "s2_size", 40.0f },
                 { "s2_density", 100.0f }, { "s2_spray", 3.0f }, { "s2_window", 0.9f },
-                { "s*_reverb_mix", 22.0f } },
-              { { 0, "factory:bell", "Bell" }, { 1, "factory:pluck", "Pluck" } } },
+                { "s*_reverb_mix", 32.0f } },
+              { { 0, "factory:glass", "Glass" }, { 1, "factory:pluck", "Pluck" } } },
 
             { "Keys \xc2\xb7 Soft Rhodes",
               "Harmonic grains through a warm low-pass and a touch of drive; velocity opens it.",
@@ -370,14 +371,14 @@ namespace ogi::factory
               { { 0, "factory:harmonic", "Harmonic" } } },
 
             { "Keys \xc2\xb7 Kalimba",
-              "Short pluck grains under a soft low-pass; a quick, bright decay.",
+              "Short kalimba-tine grains under a soft low-pass; a quick, bright decay.",
               0x4F47490301000006ll,
               { { "amp_attack", 0.0f }, { "amp_decay", 1200.0f }, { "amp_sustain", 55.0f }, { "amp_release", 900.0f }, { "vel_to_amp", 45.0f },
                 { "s1_scan_rate", 120.0f }, { "s1_size", 60.0f }, { "s1_density", 200.0f }, { "s1_spray", 2.0f }, { "s1_jitter", 6.0f },
                 { "s1_window", 0.6f }, { "s1_window_skew", -60.0f }, { "s1_level", 6.0f },
                 { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 4000.0f }, { "s1_filter_res", 10.0f },
                 { "s*_reverb_mix", 15.0f } },
-              { { 0, "factory:pluck", "Pluck" } } },
+              { { 0, "factory:kalimba", "Kalimba" } } },
 
             { "Keys \xc2\xb7 Harp Cascade",
               "Pluck plus its octave, a little sprayed, into a long hall.",
@@ -481,7 +482,7 @@ namespace ogi::factory
             // >= 6 routes each, per-voice LFOs, ring + crush, macros 1–4.
             //==================================================================
             { "Motion \xc2\xb7 Orbit Lines",
-              "Free-run playheads on harmonic and vowel; per-voice LFOs pan and shift the reads; Macro 1 grows the grains.",
+              "Free-run playheads on harmonic and vowel; a per-voice LFO pans, a slow global LFO shifts the vowel read; Macro 1 grows the grains.",
               0x4F47490501000001ll,
               { { "amp_attack", 200.0f }, { "amp_release", 1500.0f },
                 { "s1_scan_mode", 0.0f }, { "s1_scan_rate", 25.0f }, { "s1_size", 220.0f }, { "s1_density", 20.0f }, { "s1_spray", 15.0f },
@@ -549,7 +550,7 @@ namespace ogi::factory
               { { 0, "factory:bell", "Bell" } } },
 
             { "Motion \xc2\xb7 Crush Tides",
-              "Noise bed and pluck in tides of crushed grains; per-voice LFOs move the crush and the read.",
+              "Noise bed and pluck in tides of crushed grains; a per-voice LFO moves the crush, a slow global LFO the read.",
               0x4F47490501000005ll,
               { { "polyphony", 6.0f }, { "amp_attack", 150.0f }, { "amp_release", 1500.0f },
                 { "s1_scan_mode", 0.0f }, { "s1_scan_rate", 20.0f }, { "s1_size", 140.0f }, { "s1_density", 30.0f }, { "s1_spray", 60.0f },
@@ -628,16 +629,16 @@ namespace ogi::factory
             // two with a custom scale + masks.
             //==================================================================
             { "Pads \xc2\xb7 Warm Choir",
-              "The vowel tape and its octave as slow overlapping grains; an LFO walks the vowel.",
+              "The choir tape and its octave as slow overlapping grains; an LFO walks the vowel.",
               0x4F47490601000001ll,
               { { "grain_limit", 2.0f }, { "amp_attack", 900.0f }, { "amp_decay", 2000.0f }, { "amp_sustain", 80.0f }, { "amp_release", 3000.0f },
-                { "s1_position", 30.0f }, { "s1_size", 400.0f }, { "s1_density", 16.0f }, { "s1_spray", 40.0f }, { "s1_level", -5.0f },
-                { "s2_enable", 1.0f }, { "s2_level", -10.0f }, { "s2_pitch", 12.0f }, { "s2_size", 500.0f }, { "s2_density", 10.0f },
+                { "s1_position", 30.0f }, { "s1_size", 400.0f }, { "s1_density", 16.0f }, { "s1_spray", 40.0f }, { "s1_level", -0.5f },
+                { "s2_enable", 1.0f }, { "s2_level", -5.5f }, { "s2_pitch", 12.0f }, { "s2_size", 500.0f }, { "s2_density", 10.0f },
                 { "s2_spray", 50.0f }, { "s2_position", 50.0f },
                 { "s*_reverb_mix", 45.0f }, { "s*_reverb_size", 75.0f },
                 { "lfo1_rate", 0.08f },
                 { "mod1_source", Lfo1 }, { "mod1_dest", modDest ("s1_position") }, { "mod1_depth", 25.0f } },
-              { { 0, "factory:vowel", "Vowel" }, { 1, "factory:vowel", "Vowel" } } },
+              { { 0, "factory:choir", "Choir" }, { 1, "factory:choir", "Choir" } } },
 
             { "Pads \xc2\xb7 Fifth Bloom",
               "Root, fifth and octave-down set near, mid and far in a wide hall; the lowest washes back into its own loop.",
@@ -723,17 +724,17 @@ namespace ogi::factory
               { { 0, "factory:drone", "Drone" }, { 1, "factory:vowel", "Vowel" } } },
 
             { "Pads \xc2\xb7 Velvet Strings",
-              "Two harmonic streams detuned against each other, an octave apart, under a soft low-pass.",
+              "Two bowed streams an octave apart under a soft low-pass, read past the bow's start.",
               0x4F47490601000008ll,
               { { "grain_limit", 2.0f }, { "amp_attack", 700.0f }, { "amp_release", 2500.0f },
-                { "s1_root_fine", -8.0f }, { "s1_size", 250.0f }, { "s1_density", 26.0f }, { "s1_spray", 20.0f }, { "s1_level", -8.1f },
+                { "s1_position", 10.0f }, { "s1_size", 250.0f }, { "s1_density", 26.0f }, { "s1_spray", 20.0f }, { "s1_level", -5.1f },
                 { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 4000.0f },
-                { "s2_enable", 1.0f }, { "s2_level", -9.0f }, { "s2_pitch", 12.0f }, { "s2_root_fine", 8.0f }, { "s2_size", 250.0f },
+                { "s2_enable", 1.0f }, { "s2_level", -6.0f }, { "s2_pitch", 12.0f }, { "s2_position", 10.0f }, { "s2_size", 250.0f },
                 { "s2_density", 22.0f }, { "s2_spray", 20.0f }, { "s2_filter_type", 1.0f }, { "s2_filter_cutoff", 5000.0f },
                 { "s*_reverb_mix", 35.0f }, { "s*_reverb_size", 70.0f },
                 { "lfo1_rate", 0.12f },
                 { "mod1_source", Lfo1 }, { "mod1_dest", modDest ("s1_position") }, { "mod1_depth", 20.0f } },
-              { { 0, "factory:harmonic", "Harmonic" }, { 1, "factory:harmonic", "Harmonic" } } },
+              { { 0, "factory:bowed", "Bowed" }, { 1, "factory:bowed", "Bowed" } } },
 
             //==================================================================
             // Rhythmic — Tempo sync, density / size sync, jitter 0, Retrigger
@@ -791,7 +792,7 @@ namespace ogi::factory
               { { 0, "factory:pluck", "Pluck" }, { 1, "factory:pulse", "Pulse" } } },
 
             { "Rhythmic \xc2\xb7 Gated Pad",
-              "Long pluck grains on 1/8, gated by a synced square LFO on the level.",
+              "Pluck grains on 1/8, gated by a synced square LFO on the level.",
               0x4F47490701000006ll,
               { { "sync_mode", 1.0f }, { "amp_attack", 20.0f }, { "amp_release", 800.0f },
                 { "s1_scan_mode", 1.0f }, { "s1_density_sync", 10.0f }, { "s1_size_sync", 8.0f }, { "s1_jitter", 0.0f }, { "s1_spray", 0.0f },
@@ -827,7 +828,7 @@ namespace ogi::factory
             // gain random, reverse, crush + crush probability, drive.
             //==================================================================
             { "Textures \xc2\xb7 Rain Glass",
-              "Dense dust grains through a randomised band-pass, a noise bed under them.",
+              "Dense rain grains through a randomised band-pass, a noise bed under them.",
               0x4F47490801000001ll,
               { { "polyphony", 4.0f }, { "amp_attack", 300.0f }, { "amp_release", 2000.0f },
                 { "s1_size", 60.0f }, { "s1_density", 120.0f }, { "s1_spray", 100.0f }, { "s1_gain_rand", 50.0f }, { "s1_level", 6.0f },
@@ -835,7 +836,7 @@ namespace ogi::factory
                 { "s2_enable", 1.0f }, { "s2_level", 0.0f }, { "s2_size", 200.0f }, { "s2_density", 30.0f }, { "s2_spray", 100.0f },
                 { "s2_filter_type", 2.0f }, { "s2_filter_cutoff", 1200.0f },
                 { "s*_reverb_mix", 40.0f }, { "s*_reverb_size", 70.0f } },
-              { { 0, "factory:dust", "Dust" }, { 1, "factory:noise_bed", "Noise Bed" } } },
+              { { 0, "factory:rain_synth", "Rain" }, { 1, "factory:noise_bed", "Noise Bed" } } },
 
             { "Textures \xc2\xb7 Static Choir",
               "The vowel in dense, half-reversed, partly crushed grains through a wandering band-pass.",
@@ -872,13 +873,13 @@ namespace ogi::factory
               { { 0, "factory:vowel", "Vowel" }, { 1, "factory:dust", "Dust" } } },
 
             { "Textures \xc2\xb7 Ember Field",
-              "Tiny dust grains, half reversed, wildly varying in level, under a randomised low-pass.",
+              "Fire-crackle grains, half reversed, wildly varying in level, under a randomised low-pass.",
               0x4F47490801000005ll,
               { { "polyphony", 4.0f }, { "amp_attack", 300.0f }, { "amp_release", 2500.0f },
                 { "s1_size", 110.0f }, { "s1_density", 190.0f }, { "s1_spray", 100.0f }, { "s1_reverse_prob", 50.0f }, { "s1_gain_rand", 40.0f },
-                { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 8000.0f }, { "s1_filter_rand", 50.0f }, { "s1_level", 6.0f },
+                { "s1_filter_type", 1.0f }, { "s1_filter_cutoff", 8000.0f }, { "s1_filter_rand", 50.0f }, { "s1_level", -3.5f },
                 { "s*_reverb_mix", 50.0f }, { "s*_reverb_size", 75.0f } },
-              { { 0, "factory:dust", "Dust" } } },
+              { { 0, "factory:fire", "Fire" } } },
 
             { "Textures \xc2\xb7 Wind Harp",
               "A resonant band-pass on the noise bed tracks the keys; the vowel an octave up breathes over it.",
@@ -903,7 +904,7 @@ namespace ogi::factory
               { { 0, "factory:vowel", "Vowel" } } },
 
             { "Textures \xc2\xb7 Rust Cloud",
-              "Noise and dust, driven hard and crushed on every grain, through a wandering low-pass.",
+              "Noise and dust through a wandering low-pass: the noise driven hard and crushed on every grain, the dust driven.",
               0x4F47490801000008ll,
               { { "polyphony", 4.0f }, { "amp_attack", 300.0f }, { "amp_release", 2000.0f },
                 { "s1_size", 120.0f }, { "s1_density", 70.0f }, { "s1_spray", 100.0f }, { "s1_level", -9.3f },

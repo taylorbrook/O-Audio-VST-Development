@@ -1,0 +1,6 @@
+Reference 1.2.0 (T0), 2026-11-14, HEAD 832edfac (plugin tree = 5296d8a9 + docs).
+Harness binary built from the unmodified 1.2.0 tree, copied to build/plugins/O-GranulatorInstrument/pbe-ref120-bin/harness-120
+  sha256 7b20f7d9791eedd467b6a46c0eb3078ba23523f69251503b93af846f8f16d17d
+Backup: backups/O-GranulatorInstrument/v1.2.0/ (Source, tests, Resources, CMakeLists.txt, CHANGELOG.md, NOTES.md; diff -r against HEAD empty).
+--dump-preset-renders: 64 .f32 here (gitignored, 235 MB); preset-renders.sha256 == stages/4-polish/evidence-r2/r2-preset-renders.sha256 (sorted, identical).
+PT0 self-compare 64 / 64. FP2: gated -30.0 (Ember Field) .. -23.0 (Fifth Bloom), spread 7.00 dB, max peak 0.560 (fp2.log). level-table.log: 0 differ.

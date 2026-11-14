@@ -1865,15 +1865,16 @@ static int runHarness (int argc, char** argv)
         else if (std::strcmp (argv[a], "--cmp-preset-renders") == 0 && a + 1 < argc)    // PLAN-R1 PD29: PT0 / PT1 / PT2; 77 = no reference
         {
             const juce::File dir = juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a]));
-            bool allBitwise = false, excludeShowcase = false, r2 = false;
+            bool allBitwise = false, excludeShowcase = false, r2 = false, revoiced13 = false;
             for (; a + 1 < argc; ++a)
             {
                 if (std::strcmp (argv[a + 1], "--all-bitwise") == 0) allBitwise = true;
                 else if (std::strcmp (argv[a + 1], "--exclude-showcase") == 0) excludeShowcase = true;
                 else if (std::strcmp (argv[a + 1], "--r2") == 0) r2 = true;   // PLAN-R2 PD12: PT0r / PT3 / PT3n
+                else if (std::strcmp (argv[a + 1], "--exclude-revoiced13") == 0) revoiced13 = true;   // 1.3.0 P1: the 8 re-voices leave by name
                 else break;
             }
-            return pg4::cmpPresetRenders (dir, allBitwise, excludeShowcase, r2);
+            return pg4::cmpPresetRenders (dir, allBitwise, excludeShowcase, r2, revoiced13);
         }
         else if (std::strcmp (argv[a], "--preset-level-table") == 0 && a + 1 < argc)    // PLAN-R2 PD13: prints, not a row; 77 = no reference
         {
@@ -1895,7 +1896,7 @@ static int runHarness (int argc, char** argv)
             return rh::dump (juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a])), true);
         else
         {
-            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--cpu25a] [--cpu25b] [--cpu26] [--eg24] [--eg25] [--eg25b] [--eg26] [--ug31] [--ug32] [--ug33] [--dump-ui-overrides <file>] [--gen-factory <dir> [--force]] [--pin-factory <dir>] [--gen-factory-stubs <dir> [--force]] [--pg4] [--egr1] [--cpu4] [--dump-factory-presets <dir>] [--dump-preset-renders <dir>] [--cmp-preset-renders <dir> [--all-bitwise] [--exclude-showcase]] [--hm1] [--no-home-redirect] [--calib] [--makeup-off (first)] [--egr2] [--egr2-long] [--preset-level-table <dir>]\n", argv[a], argv[0]);
+            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--cpu25a] [--cpu25b] [--cpu26] [--eg24] [--eg25] [--eg25b] [--eg26] [--ug31] [--ug32] [--ug33] [--dump-ui-overrides <file>] [--gen-factory <dir> [--force]] [--pin-factory <dir>] [--gen-factory-stubs <dir> [--force]] [--pg4] [--egr1] [--cpu4] [--dump-factory-presets <dir>] [--dump-preset-renders <dir>] [--cmp-preset-renders <dir> [--all-bitwise] [--exclude-showcase] [--exclude-revoiced13]] [--hm1] [--no-home-redirect] [--calib] [--makeup-off (first)] [--egr2] [--egr2-long] [--preset-level-table <dir>]\n", argv[a], argv[0]);
             return 255;
         }
     }
