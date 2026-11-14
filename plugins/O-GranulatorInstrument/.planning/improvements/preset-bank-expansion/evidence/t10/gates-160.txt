@@ -1,0 +1,11 @@
+T10 final gates at the 160-preset bank (7 x 20, Live 8, Field 12), 2026-11-14. The T2 expected-fail list is empty.
+
+--pg4: 40 PASS / 0 FAIL (rc 0, 66 s wall)
+  FP0 982 / 982 checks (Field count 12, bank 160 / 9, Field sources 3 / 3 / 2 / 2 / 2, Field rule P7 on all 12; realism-titled 24, none trips P3)
+  FSU1 41 / 41 (+ FSU1n fires); FRT1 22 / 22 slots, 5 / 5 sources (+ FRT1n fires); FP1c 160; FP4 800 / 800
+  FP2 bank -29.0 (Grain Piano) .. -23.0 (Fifth Bloom), spread 6.00 dB, max peak 0.673; P4 not fired
+  Field gated: Brook Bank -26.9, Rain on Stream -27.0, Stream Bed -27.0, Park Morning -27.0, Distant Park -26.5,
+    Park Memory -27.0, Shoreline -27.0, Sea Cave -27.1, Forest Walk -27.0, Campfire -27.0, Garden Rain -26.9, Garden Dusk -27.0
+--cmp-preset-renders ref-1.2.0 --all-bitwise --exclude-revoiced13: PT0v13 64 old / 0 missing / 96 new; PT0 56 / 56 bitwise
+--dump-factory-presets: 160 files, rc 0
+tests/preset_name_fit.js (PN1): ALL PASS, 160 names, widest unchanged (Expressive · MPE Shimmer 144 px)

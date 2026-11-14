@@ -17,7 +17,7 @@ phases:
   execute:
     status: in_progress
     startedAt: 2026-11-14T18:00:00Z
-    lastWaveCommitted: T9
+    lastWaveCommitted: T10
     notes: >-
       T0 backup backups/O-GranulatorInstrument/v1.2.0 + 1.2.0 references (harness-120 binary in
       build/plugins/O-GranulatorInstrument/pbe-ref120-bin, 64 renders in evidence/ref-1.2.0, f32 gitignored).
@@ -80,7 +80,7 @@ phases:
       its title). Level LFO routes calibrate non-linearly (Reed Pulsar: square -> level depth 20 read -17.8 at 0 dB;
       depth 12 + -9 dB); band-passed bubbles stay low at +6 (Bubble Orbit -28.9 after density 150, size 250, res 0,
       drive 40, vel_to_amp 0).
-      T9 commit: SHA line written after the commit; the next wave commits it.
+      T9 commit c574eeb1.
       T9 Expressive +12 (MPE: Reed Press, Bow Press, Slide Vox, MPE Shimmer; mono-glide: Saw Glide, Sub Legato,
       Deep Slur, Drift Slide; played-control: Wheel Organ, Velo Glass, Key Breath, Wheel Gust; seeds
       ...0201000009-...20): FP2 new -28.0 .. -26.9, bank spread 6.00 dB, peak 0.673, P4 not fired; PT0 56 / 56
@@ -89,6 +89,14 @@ phases:
       dump rc 1; PN1 count. FRT1 22/22 slots. Mono presets measure one voice of the dyads: Saw Glide / Deep Slur /
       Drift Slide read -34 at 0 dB and needed density 120-140, longer grains, vel_to_amp 40 (Deep Slur -28.0 at +6).
       Velo Glass (2 s glass) read -40.7 on a forward scan; ping-pong over 0-30 %, density 130, sustain 40 fixed it.
+      T10 commit: SHA line written after the commit; T11 commits it.
+      T10 Field +12 (stream: Brook Bank, Rain on Stream, Stream Bed; park: Park Morning, Distant Park, Park Memory;
+      waves: Shoreline, Sea Cave; woods: Forest Walk, Campfire; garden: Garden Rain, Garden Dusk; seeds
+      ...0901000001-...12), inserted between Expressive and Keys: FP2 new -27.1 .. -26.5 (two passes), bank spread
+      6.00 dB, peak 0.673, P4 not fired; PT0 56 / 56 bitwise, 96 new. Expected-fail list now EMPTY: full --pg4
+      40 / 0 (66 s), FP0 982 / 982, FSU1 41 / 41, FRT1 22 / 22, FP1c 160, FP4 800 / 800, dump 160 rc 0, PN1 all pass
+      (evidence/t10/gates-160.txt). Field sources read far louder than the old one-shots: every preset trimmed down
+      (s1 -10.6 .. -0.2), so no density lift was needed; wind as a companion dominates (Distant Park s2 -16.6).
   verify:
     status: pending
 versionBump: minor
