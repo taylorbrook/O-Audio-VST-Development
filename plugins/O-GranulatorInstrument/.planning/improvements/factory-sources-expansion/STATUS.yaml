@@ -1,10 +1,10 @@
 milestone: factory-sources-expansion
 created: 2026-11-13T23:34:03Z
-lastActivity: 2026-11-13T23:34:03Z
+lastActivity: 2026-11-14T00:47:09Z
 phases:
   discuss:
-    status: in_progress
-    startedAt: 2026-11-13T23:34:03Z
+    status: complete
+    completedAt: 2026-11-14T00:47:09Z
   research:
     status: pending
   plan:
