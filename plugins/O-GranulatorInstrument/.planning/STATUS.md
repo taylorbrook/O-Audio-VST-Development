@@ -3,14 +3,13 @@ plugin: O-GranulatorInstrument
 stage: 4
 status: installed
 current_phase: 4-polish
-gsd_phase: improve_execute_complete
-activeMilestone: factory-sources-expansion
+gsd_phase: improve_v1_2_0_verified_hands_on_pending
 last_updated: 2026-11-13
 complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: /improve-milestone O-GranulatorInstrument (verify phase of factory-sources-expansion, 1.2.0); then /publish (D54 Windows CI arm runs there); COMPAT-02 MPE / Dorico pass -> 1.0.x
+next_action: Taylor hands-on for 1.2.0 (improvements/factory-sources-expansion/VERIFICATION.md, "For Taylor"); then /publish (D54 Windows CI arm runs there); COMPAT-02 MPE / Dorico pass -> 1.0.x
 next_stage: 4
 ready_for_implementation: true
 blocked_on: none (fork pin 82406fce, D11)
@@ -37,6 +36,8 @@ contract_checksums:
 # O-GranulatorInstrument Status
 
 ## Current Position
+
+**Improve v1.2.0 (milestone factory-sources-expansion) VERIFIED, passed with notes** 2026-11-13 (`improvements/factory-sources-expansion/VERIFICATION.md`), milestone closed. Re-run on `5296d8a9`: harness **555 / 0**; 64 preset renders bitwise against the 1.1.0 harness binary (65 files by `cmp`, PT0); the 8 old FLACs and their sha256 lines identical to `63ca6a70`; `factory_table.py --check` OK (41 sources, 19 750 021 B, largest 1 364 847 B); auval PASS; pluginval 10 VST3 + AU; `ui_frontend_check.js` + `--nc`, `ui_factory_picker_check.js`, binding probe 293 / 293, `preset_name_fit.js`, check-i18n, fr / zh lint, check-ui-labels (49 states) green; installed binaries equal the build artefacts. Checked by a second method on the FLACs alone: roots (crystal +0.1 ct, guitar_overtones +0.3, guitar_drift −6.2, contrabassoon −1.2, sub 0.0 against the manifest) and the wrap of the seven textures (step ratio ≤ 0.44, no notch at the fold). Notes: PLAN Task 9's last box (lane name and Root fields update in the real plugin) has no automated check; `breath` −3.8 ct against ±3; Windows arm at `/publish`. **For Taylor:** the hands-on list in VERIFICATION.md (Contrabassoon at C3 with the lane name and Root readout, the other off-C3 sources, bell / glass and pluck / kalimba, one texture wrap). No tag. Next: `/publish O-GranulatorInstrument` after the hands-on.
 
 **Improve v1.2.0 (milestone factory-sources-expansion) — execute complete, built and installed, verify pending** 2026-11-13 (`improvements/factory-sources-expansion/SUMMARY.md`): 41 built-in sources (the 8 of 1.0.0 byte-identical, 14 samples at 16-bit, 19 generated), 19 750 021 B embedded of a 24 MiB budget; one manifest generates the table, the CMake list, the golden sha256 and the harness specs (`tools/factory_table.py --check`); a Factory pick writes `sN_root_note` / `sN_root_fine` (crystal 73 / +17, guitar_overtones 72 / −32, guitar_drift 38 / −10, contrabassoon 20 / −19, sub 24; Guitar Overtones re-cut to its first note on Taylor's call, 4.55 s); the picker is a headed 4-column panel with arrows and type-ahead, 7 category keys in en / fr / zh. No engine, parameter or state-format change. Gates: harness **555 / 0** (544 on 1.1.0 + FR1 / FR1n / FR1r / FR1e / FR2 / FLV1 / FLV1n / FSM1 / FSM1n / FPT1 / FPT1n), 64 preset renders bitwise against the 1.1.0 binary, auval PASS, pluginval 10 VST3 + AU, `ui_frontend_check.js` + new `ui_factory_picker_check.js` + binding probe + check-i18n + fr / zh lint green. **For Taylor:** ear check (Contrabassoon at C3); two pairs read alike (bell / glass, pluck / kalimba); `sub` rendered at C1; `breath` reads −3.8 ct (noise through a resonance); Stick Snaps 0.14 dB above the level floor; the FLV1 peak clause carries one 16-bit step because the frozen `dust` peaks at −0.99985 dBFS. Backup `backups/O-GranulatorInstrument/v1.1.0/`. No tag. Next: `/improve-milestone O-GranulatorInstrument` (verify).
 
