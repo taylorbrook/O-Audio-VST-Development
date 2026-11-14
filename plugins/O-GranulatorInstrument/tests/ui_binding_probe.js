@@ -2281,7 +2281,7 @@ const near = (a, b, rel = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= rel 
             let states = JSON.parse(fs.readFileSync(path.join(pluginRoot, 'tests', 'i18n-states.json'), 'utf8'));
             if (MUT_STATES) states = states.concat([{ name: 'rec-recording (3.2, __setLabel)',
                 eval: "window.__setLabel(document.getElementById('rec-status-t'), 'rec.recording', { n: 'IV' }); ['s2', 's3', 's4'].forEach((s) => document.getElementById('toggle-' + s + '_enable').click());" }]);
-            need(states.length === (MUT_STATES ? 49 : 48), `tests/i18n-states.json has ${states.length} states, expected ${MUT_STATES ? '48 + the control\'s one' : 48} (PLAN-R1 PD25)`);
+            need(states.length === (MUT_STATES ? 50 : 49), `tests/i18n-states.json has ${states.length} states, expected ${MUT_STATES ? '49 + the control\'s one' : 49} (PLAN-R1 PD25; 1.2.0: + factory-list-open)`);
             let named = 0, held = 0, minPolls = Infinity;
             const bad = [];
             for (const st of states) {

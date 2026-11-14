@@ -664,7 +664,9 @@ public:
     /** 1.1.0, message thread: loads the built-in source `id` (GiFactory.h)
         into the slot. Answers an error key like clearSlot: empty = queued,
         "badSlot", "recording" (a take is running or being committed into this
-        slot), "unknown" (no such source). */
+        slot), "unknown" (no such source). 1.2.0: a queued pick also writes
+        the source's root to the lane's stream (sN_root_note, sN_root_fine);
+        a refused one writes nothing. */
     juce::String loadFactorySource (int slot0, const juce::String& id);
 
     /** The answer of saveRecordingTo. ok → `path` is the written file; else
@@ -773,6 +775,7 @@ public:
     /** PLAN-R1 PD31 controls for the AC rows (message thread; set before the
         pump they affect). All default inert. */
     bool testNoArmAutoClear            = false;  // AC1n: the check runs, the write is skipped (Arm stays 1)
+    bool testNoFactoryRootWrite        = false;  // FR1n (1.2.0): a factory pick loads the lane and leaves the root alone
     bool testClearWheneverNotRecording = false;  // AC3n: clears whenever the recorder is not Recording and Arm is On (a waiting arm is cleared)
     bool testNoGenGuard                = false;  // AC5n: the endGen == armGen guard is skipped (a held arm is cancelled)
     bool testClearFromListener         = false;  // AC6n: the TIMER skips the check entirely; the harness calls testRunArmAutoClear() from inside its own APVTS parameterChanged

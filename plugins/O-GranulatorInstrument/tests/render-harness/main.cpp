@@ -1209,6 +1209,7 @@ static void hookRows()
 namespace factorygen
 {
     int run (const juce::File& dir, bool force);
+    int pin (const juce::File& dir);
     std::uint64_t fullPcmHash (const juce::AudioBuffer<float>& pcm);
 }
 
@@ -1540,6 +1541,7 @@ static int dumpUiOverrides (const juce::File& out)
     natives->setProperty ("getParameterDefaults", GiUiJson::parameterDefaultsToVar (*p));
     natives->setProperty ("getWindowCurve", GiUiJson::windowCurveToVar (*p, 0));
     natives->setProperty ("getSlotOverview", GiUiJson::slotOverviewToVar (*p, 0));
+    natives->setProperty ("getFactorySources", GiUiJson::factorySourcesToVar());   // 1.2.0: from the table (1.1.0 added the 8 by hand)
     natives->setProperty ("getUiLanguage", "en");
 
     auto* root = new juce::DynamicObject();
@@ -1710,6 +1712,8 @@ static int runHarness (int argc, char** argv)
             const bool force = a + 1 < argc && std::strcmp (argv[a + 1], "--force") == 0;
             return factorygen::run (dir, force);
         }
+        else if (std::strcmp (argv[a], "--pin-factory") == 0 && a + 1 < argc)   // 1.2.0: the two pins of every .flac in a folder, as JSON lines
+            return factorygen::pin (juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[a + 1])));
         else if (std::strcmp (argv[a], "--gen-factory-stubs") == 0 && a + 1 < argc)   // PLAN-2.6 PD16: the two harness fixtures
         {
             const juce::File dir = juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a]));
@@ -1891,7 +1895,7 @@ static int runHarness (int argc, char** argv)
             return rh::dump (juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a])), true);
         else
         {
-            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--cpu25a] [--cpu25b] [--cpu26] [--eg24] [--eg25] [--eg25b] [--eg26] [--ug31] [--ug32] [--ug33] [--dump-ui-overrides <file>] [--gen-factory <dir> [--force]] [--gen-factory-stubs <dir> [--force]] [--pg4] [--egr1] [--cpu4] [--dump-factory-presets <dir>] [--dump-preset-renders <dir>] [--cmp-preset-renders <dir> [--all-bitwise] [--exclude-showcase]] [--hm1] [--no-home-redirect] [--calib] [--makeup-off (first)] [--egr2] [--egr2-long] [--preset-level-table <dir>]\n", argv[a], argv[0]);
+            std::printf ("unknown argument: %s\nusage: %s [--golden-dir <dir>] [--dump-render-hashes <file>] [--dump-render-hashes-legacy <file>] [--parity <dir> [--rows <prefix>]] [--cpu22] [--cpu23] [--cpu25] [--cpu25a] [--cpu25b] [--cpu26] [--eg24] [--eg25] [--eg25b] [--eg26] [--ug31] [--ug32] [--ug33] [--dump-ui-overrides <file>] [--gen-factory <dir> [--force]] [--pin-factory <dir>] [--gen-factory-stubs <dir> [--force]] [--pg4] [--egr1] [--cpu4] [--dump-factory-presets <dir>] [--dump-preset-renders <dir>] [--cmp-preset-renders <dir> [--all-bitwise] [--exclude-showcase]] [--hm1] [--no-home-redirect] [--calib] [--makeup-off (first)] [--egr2] [--egr2-long] [--preset-level-table <dir>]\n", argv[a], argv[0]);
             return 255;
         }
     }

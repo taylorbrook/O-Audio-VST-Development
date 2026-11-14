@@ -607,10 +607,15 @@ canvas.scope { position: absolute; }
 .lane-empty .lk:focus-visible { outline: 1px dotted var(--sc); outline-offset: 2px; }
 .lane-empty .lk.more::after { content: ""; display: inline-block; margin-left: 5px; vertical-align: 2px; border: 3px solid transparent; border-top: 4px solid currentColor; border-bottom: 0; }
 .lane-empty [hidden] { display: none; }
-#factory-list { position: absolute; z-index: 30; width: 132px; padding: 5px; border-radius: 4px;
+#factory-list { position: absolute; z-index: 30; width: 620px; padding: 4px 12px 12px; border-radius: 4px; max-height: 770px; overflow-y: auto; outline: none;
   background: linear-gradient(#231C16, #1A1510); box-shadow: 0 0 0 1px var(--rule-2), 0 16px 36px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(236, 225, 204, 0.05); }
 #factory-list[hidden] { display: none; }
-#factory-list .it { height: 20px; display: flex; align-items: center; padding: 0 8px 0 10px; border-radius: 2px; font-size: 11.5px; color: var(--ink-2); cursor: pointer; white-space: nowrap; }
+#factory-list .cols { display: flex; gap: 12px; }
+#factory-list .col { width: 140px; flex: none; }
+#factory-list .grp[hidden] { display: none; }
+#factory-list .gh { height: 20px; margin-top: 6px; display: flex; align-items: center; gap: 6px; font-size: 11px; font-variant-caps: all-small-caps; letter-spacing: 1.6px; color: var(--ink-3); white-space: nowrap; }
+#factory-list .gh::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--rule-2), transparent); }
+#factory-list .it { height: 20px; line-height: 20px; padding: 0 6px 0 10px; border-radius: 2px; font-size: 11.5px; color: var(--ink-2); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #factory-list .it:hover, #factory-list .it.hl { background: color-mix(in srgb, var(--sc) 11%, transparent); color: var(--ink); }
 .lane-drop { z-index: 6; display: none; align-items: center; justify-content: center; border-radius: 2px; pointer-events: none;
   border: 1.5px dashed var(--sc); background: color-mix(in srgb, var(--sc) 14%, rgba(10, 8, 6, 0.72)); font-size: 12px; font-style: italic; color: var(--ink); white-space: nowrap; }
@@ -1309,7 +1314,12 @@ html:lang(zh-Hans) .vcell .tr.clamp { left: 0; right: 0; font-size: 10px; }   /*
 <div class="knob-cell choice" id="cell-s4_scan_mode" data-param="s4_scan_mode" data-color="#CB9AD0" data-stream="4" style="left:1120px;top:668px;--sc:#CB9AD0"><div class="knob-label" data-i18n="p.scan">Scan</div><div class="knob-dial"><div class="knob" id="knob-s4_scan_mode" data-param="s4_scan_mode"><div class="knob-stem"></div></div></div><div class="knob-value" id="val-s4_scan_mode">&#8212;</div></div>
 <div class="note-block nowrap" style="left:18px;top:762px;width:1164px;height:14px" data-i18n="note.clamp">Grain pitch = key track × (note − root) + pitch + random + bend, clamped to ±48 st. A voice past the clamp shows it in its cell above.</div>
 </div>
-<div id="factory-list" role="listbox" data-i18n-aria="aria.factoryList" aria-label="Built-in sources" hidden></div>
+<div id="factory-list" role="listbox" tabindex="-1" data-i18n-aria="aria.factoryList" aria-label="Built-in sources" hidden><div class="cols">
+<div class="col"><div class="grp" role="group" aria-labelledby="factory-gh-tonal" data-cat="tonal"><div class="gh"><span id="factory-gh-tonal" data-i18n="list.srcTonal">Tonal</span></div></div><div class="grp" role="group" aria-labelledby="factory-gh-voice" data-cat="voice"><div class="gh"><span id="factory-gh-voice" data-i18n="list.srcVoice">Voice</span></div></div></div>
+<div class="col"><div class="grp" role="group" aria-labelledby="factory-gh-plucked" data-cat="plucked"><div class="gh"><span id="factory-gh-plucked" data-i18n="list.srcPlucked">Plucked / Struck</span></div></div></div>
+<div class="col"><div class="grp" role="group" aria-labelledby="factory-gh-texture" data-cat="texture"><div class="gh"><span id="factory-gh-texture" data-i18n="list.srcTexture">Texture</span></div></div><div class="grp" role="group" aria-labelledby="factory-gh-drone" data-cat="drone"><div class="gh"><span id="factory-gh-drone" data-i18n="list.srcDrone">Drone</span></div></div></div>
+<div class="col"><div class="grp" role="group" aria-labelledby="factory-gh-rhythmic" data-cat="rhythmic"><div class="gh"><span id="factory-gh-rhythmic" data-i18n="list.srcRhythmic">Rhythmic</span></div></div><div class="grp" role="group" aria-labelledby="factory-gh-field" data-cat="field"><div class="gh"><span id="factory-gh-field" data-i18n="list.srcField">Field</span></div></div><div class="grp" role="group" data-cat="other"></div></div>
+</div></div>
 <div id="scale-list" role="listbox" data-i18n-aria="p.scale" aria-label="Scale" hidden>
 <div class="lh"><span class="num" id="scale-list-num">I</span><span class="t" data-i18n="p.scale">Scale</span><span class="m" data-i18n="list.degrees">degrees per period</span></div><div class="cols">
 <div class="col">
@@ -2044,7 +2054,7 @@ html:lang(zh-Hans) .vcell .tr.clamp { left: 0; right: 0; font-size: 10px; }   /*
     const windowTimers = [null, null, null, null];
     const scaleUi     = [];           // per stream: { trig, tv, ed, chips, tools, hint }
     const scaleList   = { el: null, n: 0, open: false, items: [], kb: -1 };
-    const factoryList = { el: null, n: 0, open: false, items: [], kb: -1 };   // 1.1.0: built-in sources for an empty lane
+    const factoryList = { el: null, n: 0, open: false, items: [], kb: -1, typed: '', typedAt: 0 };   // 1.1.0: built-in sources for an empty lane
     const scalePop    = { el: null, n: 0, open: false, draft: null, dirty: false, parseTimer: null, parseSeq: 0 };
     const laneCanvases = [null, null, null, null];
     const overviews   = [null, null, null, null];   // per slot: { rev, peaks, dirty } from getSlotOverview
@@ -3545,7 +3555,7 @@ html:lang(zh-Hans) .vcell .tr.clamp { left: 0; right: 0; font-size: 10px; }   /*
     }
 
     function openScaleList(n) {
-        closeScalePop(); closeScaleList();
+        closeScalePop(); closeScaleList(); closeFactoryList();
         const L = scaleList.el, u = scaleUi[n - 1];
         if (!L || !u) return;
         scaleList.n = n; scaleList.open = true;
@@ -3954,9 +3964,15 @@ html:lang(zh-Hans) .vcell .tr.clamp { left: 0; right: 0; font-size: 10px; }   /*
         document.addEventListener('drop', (e) => e.preventDefault());
     }
 
-    // ── Built-in sources (1.1.0): one shared list, anchored to the empty
-    //    lane's "Factory" link. The names come from the plugin and are the
-    //    lane names the load installs (not localized, like a file name).
+    // ── Built-in sources (1.1.0; 1.2.0: a headed 4-column panel): one shared
+    //    list, anchored to the empty lane's "Factory" link. The names come
+    //    from the plugin and are the lane names the load installs (not
+    //    localized, like a file name); the seven group headings are in the
+    //    markup and localized. An item goes to the group its `category`
+    //    names, in the plugin's order; a group nothing landed in is hidden.
+    //    Keys: Up / Down walk the flat reading order (column by column),
+    //    Left / Right go to the nearest row of the neighbouring column,
+    //    Home / End, type-ahead on the names, Enter picks, Escape closes.
     async function initFactoryList() {
         const L = document.getElementById('factory-list');
         if (!L) return;
@@ -3979,37 +3995,86 @@ html:lang(zh-Hans) .vcell .tr.clamp { left: 0; right: 0; font-size: 10px; }   /*
             const t = e.target;
             if (factoryList.open && !L.contains(t) && !(t.closest && t.closest('.lk.more'))) closeFactoryList();
         }, true);
-        document.addEventListener('keydown', (e) => {
-            if (!factoryList.open) return;
-            const k = factoryList.items.length;
-            if (e.key === 'Escape') { e.preventDefault(); closeFactoryList(true); }
-            else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); setFactoryKb((factoryList.kb + (e.key === 'ArrowDown' ? 1 : k - 1) + (factoryList.kb < 0 && e.key === 'ArrowUp' ? 1 : 0)) % k); }
-            else if (e.key === 'Home' || e.key === 'End') { e.preventDefault(); setFactoryKb(e.key === 'Home' ? 0 : k - 1); }
-            else if (e.key === 'Enter' && factoryList.kb >= 0) { e.preventDefault(); chooseFactory(factoryList.items[factoryList.kb].dataset.id); }
-            else if (e.key === 'Tab') closeFactoryList();
-        }, true);
+        document.addEventListener('keydown', onFactoryKey, true);
 
         const raw = await callNative('getFactorySources');
         const list = typeof raw === 'string' ? JSON.parse(raw) : raw;
-        (Array.isArray(list) ? list : []).forEach((src, k) => {
+        const groups = {};
+        L.querySelectorAll('.grp[data-cat]').forEach((g) => { groups[g.dataset.cat] = g; });
+        (Array.isArray(list) ? list : []).forEach((src) => {
             if (!src || !src.id) return;
+            const g = groups[String(src.category || '')] || groups.other;
+            if (!g) return;
             const it = document.createElement('div');
             it.className = 'it';
+            it.id = `factory-it-${src.id}`;
             it.setAttribute('role', 'option');
             it.dataset.id = String(src.id);
             it.dataset.userText = '1';
             it.textContent = String(src.name || src.id);
+            g.appendChild(it);
+        });
+        L.querySelectorAll('.grp').forEach((g) => { g.hidden = !g.querySelector('.it'); });
+        factoryList.items = [...L.querySelectorAll('.it')];   // DOM order = reading order
+        factoryList.items.forEach((it, k) => {
             it.addEventListener('click', () => chooseFactory(it.dataset.id));
             it.addEventListener('pointermove', () => setFactoryKb(k));
-            L.appendChild(it);
-            factoryList.items.push(it);
         });
         offer(factoryList.items.length > 0);
     }
 
-    function setFactoryKb(k) {
+    function setFactoryKb(k, reveal) {
         factoryList.kb = k;
         factoryList.items.forEach((it, j) => it.classList.toggle('hl', j === k));
+        const L = factoryList.el, cur = k >= 0 ? factoryList.items[k] : null;
+        if (cur) L.setAttribute('aria-activedescendant', cur.id); else L.removeAttribute('aria-activedescendant');
+        if (cur && reveal && L.scrollHeight > L.clientHeight) cur.scrollIntoView({ block: 'nearest' });
+    }
+
+    // The item of the neighbouring column whose row is nearest (a shorter column ends at its last item).
+    function factoryNeighbour(k, dir) {
+        const items = factoryList.items;
+        if (k < 0) return 0;
+        const cols = [...factoryList.el.querySelectorAll('.col')].filter((c) => c.querySelector('.grp:not([hidden]) .it'));
+        const c = cols.indexOf(items[k].closest('.col')) + dir;
+        if (c < 0 || c >= cols.length) return k;
+        const y = items[k].offsetTop;
+        let best = k, d = Infinity;
+        items.forEach((it, j) => {
+            if (it.closest('.col') !== cols[c]) return;
+            const dj = Math.abs(it.offsetTop - y);
+            if (dj < d) { d = dj; best = j; }
+        });
+        return best;
+    }
+
+    // Type-ahead on the names: the typed run within 700 ms; one letter repeated walks its matches.
+    function factoryType(ch) {
+        const items = factoryList.items, k = items.length, now = performance.now();
+        factoryList.typed = (now - factoryList.typedAt < 700 ? factoryList.typed : '') + ch.toLowerCase();
+        factoryList.typedAt = now;
+        const names = items.map((it) => it.textContent.toLowerCase());
+        const find = (q, from) => {
+            for (let j = 0; j < k; j++) { const i = (from + j) % k; if (names[i].startsWith(q)) return i; }
+            return -1;
+        };
+        const q = factoryList.typed, cur = factoryList.kb;
+        let hit = find(q, q.length === 1 ? cur + 1 : Math.max(cur, 0));
+        if (hit < 0 && q.length > 1 && [...q].every((c) => c === q[0])) hit = find(q[0], cur + 1);
+        if (hit >= 0) setFactoryKb(hit, true);
+    }
+
+    function onFactoryKey(e) {
+        if (!factoryList.open) return;
+        const items = factoryList.items, k = items.length, cur = factoryList.kb;
+        const take = () => { e.preventDefault(); e.stopPropagation(); };
+        if (e.key === 'Escape') { take(); closeFactoryList(true); }
+        else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { take(); setFactoryKb(cur < 0 ? (e.key === 'ArrowDown' ? 0 : k - 1) : (cur + (e.key === 'ArrowDown' ? 1 : k - 1)) % k, true); }
+        else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { take(); setFactoryKb(factoryNeighbour(cur, e.key === 'ArrowRight' ? 1 : -1), true); }
+        else if (e.key === 'Home' || e.key === 'End') { take(); setFactoryKb(e.key === 'Home' ? 0 : k - 1, true); }
+        else if (e.key === 'Enter') { take(); if (cur >= 0) chooseFactory(items[cur].dataset.id); }
+        else if (e.key === 'Tab') closeFactoryList(true);   // back to the link first, so Tab moves on from there
+        else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key !== ' ' || factoryList.typed)) { take(); factoryType(e.key); }
     }
 
     function openFactoryList(n) {
@@ -4017,21 +4082,26 @@ html:lang(zh-Hans) .vcell .tr.clamp { left: 0; right: 0; font-size: 10px; }   /*
         if (!L || !t || !factoryList.items.length) return;
         closeScalePop(); closeScaleList(); closeFactoryList();
         factoryList.n = n; factoryList.open = true;
+        factoryList.typed = ''; factoryList.typedAt = 0;
         L.style.setProperty('--sc', STREAM_COLORS[n - 1]);
         L.hidden = false;
+        L.scrollTop = 0;
         const tr = relRect(t), w = L.offsetWidth, h = L.offsetHeight;
         const left = Math.min(Math.max(POP_EDGE, tr.x), FRAME_W - POP_EDGE - w);
         let top = tr.y + tr.height + 5;
-        if (top + h > POP_BOTTOM) top = Math.max(POP_EDGE, tr.y - h - 5);
+        if (top + h > POP_BOTTOM) top = tr.y - h - 5;
+        top = Math.max(POP_EDGE, Math.min(top, POP_BOTTOM - h));
         L.style.left = `${left}px`; L.style.top = `${top}px`;
         t.setAttribute('aria-expanded', 'true');
         setFactoryKb(-1);
+        L.focus({ preventScroll: true });                 // the listbox holds focus while open (aria-activedescendant)
     }
 
     function closeFactoryList(refocus) {
         if (!factoryList.open) return;
         factoryList.open = false;
         factoryList.el.hidden = true;
+        factoryList.el.removeAttribute('aria-activedescendant');
         const t = document.getElementById(`lane-factory-${factoryList.n}`);
         if (t) { t.setAttribute('aria-expanded', 'false'); if (refocus) t.focus(); }
     }

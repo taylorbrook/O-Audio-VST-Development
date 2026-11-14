@@ -58,7 +58,11 @@
 // factory-sources.sha256, factory-stubs.sha256; FLAC encode is not proven
 // identical across architectures, RESEARCH-2.6 Summary 3).
 //
-// The 8 curated sources (render harness --gen-factory, tests/render-harness/
+// The table itself (ids, names, categories, roots, pins, order) is generated
+// from Resources/factory/manifest.json into GiFactoryTable.inc. Entries 0-7
+// are the 1.0.0 set and never move; a preset or session names a source by id.
+//
+// The 1.0.0 set (render harness --gen-factory, tests/render-harness/
 // factory_gen.cpp; 48 kHz, 24-bit; pitched ones at C3 = 130.8128 Hz):
 //   harmonic   mono    8 s  24 additive partials, slow per-partial swells
 //   pluck      mono    3 s  KS-like decaying partials + a noise pick
@@ -68,7 +72,7 @@
 //   dust       stereo  6 s  sparse crackle + band noise (16-bit grid)
 //   drone      stereo 12 s  C2 / G2 / C3 stacks, decorrelated L / R detune
 //   pulse      mono    4 s  120 bpm, 2 bars: sine-drop kick + noise hat
-// Test fixtures (OGI_TEST_HOOKS only, after the 8):
+// Test fixtures (OGI_TEST_HOOKS only, after the curated entries):
 //   stub_tone   mono,   48 kHz, 3.0 s, 220 Hz, harmonics k = 1…8 at 1/k
 //   stub_noise  stereo, 48 kHz, 3.0 s, splitmix noise, one-pole LP
 // ============================================================================
@@ -76,28 +80,28 @@ namespace ogi
 {
     struct FactoryEntry
     {
-        const char*   id    = nullptr;
-        const void*   data  = nullptr;
-        std::size_t   size  = 0;
-        std::uint64_t hash  = 0;   // decoded-PCM content hash (131 072 frames)
-        std::uint64_t full  = 0;   // decoded-PCM hash over every frame (PLAN-4 PD6)
+        const char*   id         = nullptr;
+        const char*   name       = nullptr;   // the lane name; for the 1.0.0 set == factoryDisplayName (id)
+        const char*   category   = nullptr;   // picker group key: tonal / voice / plucked / texture / drone / rhythmic / field
+        int           rootNote   = 48;        // the sounding fundamental (MIDI note), written to sN_root_note by a pick
+        float         rootFineCt = 0.0f;      // ... and its cents, written to sN_root_fine
+        const void*   data       = nullptr;
+        std::size_t   size       = 0;
+        std::uint64_t hash       = 0;   // decoded-PCM content hash (131 072 frames)
+        std::uint64_t full       = 0;   // decoded-PCM hash over every frame (PLAN-4 PD6)
     };
 
-    // Pinned at PLAN-4 T7 (--gen-factory, mac arm64, 2026-11-11).
-    inline constexpr std::uint64_t kHashHarmonic = 0x8d3f53401dd512abull, kFullHarmonic = 0xc66d8c372e1a6466ull;
-    inline constexpr std::uint64_t kHashPluck    = 0xced194ec27e461b4ull, kFullPluck    = 0xd852d9429eaded57ull;
-    inline constexpr std::uint64_t kHashBell     = 0xf0195e2384e5b366ull, kFullBell     = 0x8d3f987172d73125ull;
-    inline constexpr std::uint64_t kHashVowel    = 0x0e61dc5699763d74ull, kFullVowel    = 0xd7725f3426607bf1ull;
-    inline constexpr std::uint64_t kHashNoiseBed = 0x3ab6faaf08e4f577ull, kFullNoiseBed = 0x3859a39daead5356ull;
-    inline constexpr std::uint64_t kHashDust     = 0x77aae6be696b9d35ull, kFullDust     = 0x139ab02c9dab4494ull;
-    inline constexpr std::uint64_t kHashDrone    = 0x428c82363a9af2c5ull, kFullDrone    = 0xa89ce6f4c53fa4b5ull;
-    inline constexpr std::uint64_t kHashPulse    = 0x09cc60d1e810229cull, kFullPulse    = 0x1ee8522dcdb667bbull;
+    // The pins and kCuratedFactoryCount: generated from Resources/factory/
+    // manifest.json (tools/factory_table.py; --check fails on drift). The
+    // 1.0.0 set was pinned at PLAN-4 T7 (--gen-factory, mac arm64,
+    // 2026-11-11); the rest by the harness's --pin-factory.
+   #define OGI_FACTORY_TABLE_PINS 1
+   #include "GiFactoryTable.inc"
+   #undef OGI_FACTORY_TABLE_PINS
 
     // The stubs: pinned at PLAN-2.6 T10 step 3 (unchanged; harness fixtures).
     inline constexpr std::uint64_t kHashTone  = 0x6d117c4cc9d31ec3ull;
     inline constexpr std::uint64_t kHashNoise = 0xe6c6444b102af6b8ull;
-
-    inline constexpr int kCuratedFactoryCount = 8;
 
     inline int factoryCount() noexcept
     {
@@ -114,17 +118,12 @@ namespace ogi
         namespace D = FactorySourceData;
         switch (i)
         {
-            case 0: return { "harmonic",  D::harmonic_flac,  (std::size_t) D::harmonic_flacSize,  kHashHarmonic, kFullHarmonic };
-            case 1: return { "pluck",     D::pluck_flac,     (std::size_t) D::pluck_flacSize,     kHashPluck,    kFullPluck };
-            case 2: return { "bell",      D::bell_flac,      (std::size_t) D::bell_flacSize,      kHashBell,     kFullBell };
-            case 3: return { "vowel",     D::vowel_flac,     (std::size_t) D::vowel_flacSize,     kHashVowel,    kFullVowel };
-            case 4: return { "noise_bed", D::noise_bed_flac, (std::size_t) D::noise_bed_flacSize, kHashNoiseBed, kFullNoiseBed };
-            case 5: return { "dust",      D::dust_flac,      (std::size_t) D::dust_flacSize,      kHashDust,     kFullDust };
-            case 6: return { "drone",     D::drone_flac,     (std::size_t) D::drone_flacSize,     kHashDrone,    kFullDrone };
-            case 7: return { "pulse",     D::pulse_flac,     (std::size_t) D::pulse_flacSize,     kHashPulse,    kFullPulse };
+           #define OGI_FACTORY_TABLE_CASES 1
+           #include "GiFactoryTable.inc"
+           #undef OGI_FACTORY_TABLE_CASES
            #if OGI_HAS_TEST_FACTORY
-            case 8: return { "stub_tone",  TestFactoryData::stub_tone_flac,  (std::size_t) TestFactoryData::stub_tone_flacSize,  kHashTone,  0 };
-            case 9: return { "stub_noise", TestFactoryData::stub_noise_flac, (std::size_t) TestFactoryData::stub_noise_flacSize, kHashNoise, 0 };
+            case kCuratedFactoryCount:     return { "stub_tone",  "Stub Tone",  "", 48, 0.0f, TestFactoryData::stub_tone_flac,  (std::size_t) TestFactoryData::stub_tone_flacSize,  kHashTone,  0 };
+            case kCuratedFactoryCount + 1: return { "stub_noise", "Stub Noise", "", 48, 0.0f, TestFactoryData::stub_noise_flac, (std::size_t) TestFactoryData::stub_noise_flacSize, kHashNoise, 0 };
            #endif
             default: break;
         }
@@ -134,9 +133,11 @@ namespace ogi
         return {};
     }
 
-    /** The name a lane shows for a factory source picked in the page: the id
-        with underscores as spaces, each word capitalised ("noise_bed" ->
-        "Noise Bed") — the spelling the factory presets carry. */
+    /** The id with underscores as spaces, each word capitalised ("noise_bed" ->
+        "Noise Bed"): the spelling the factory presets carry for the 1.0.0 set.
+        A lane takes its name from FactoryEntry::name (they agree for that
+        set, FSP1); later ids need not follow the rule ("fm_bell" is
+        "FM Bell"). */
     inline juce::String factoryDisplayName (const juce::String& id)
     {
         auto words = juce::StringArray::fromTokens (id, "_", "");

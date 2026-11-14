@@ -1687,7 +1687,39 @@ juce::String GranulatorInstrumentProcessor::loadFactorySource (int slot0, const 
         && recorder.getTargetSlotTelemetry() == slot0)
         return "recording";
 
-    return loader->requestFactoryLoad (slot0, id) ? juce::String() : juce::String ("unknown");
+    if (! loader->requestFactoryLoad (slot0, id))
+        return "unknown";
+
+    // 1.2.0: the pick writes the lane's stream root, so the played key sounds
+    // at the key's pitch whatever the source's own pitch is (every source,
+    // every pick; C3 / 0 ct for the ones at C3 and the unpitched ones). Only
+    // here: a preset, a session restore, a drop, Browse and Record leave the
+    // root alone, and a refused pick returned above. Message thread, one
+    // gesture per parameter, and none when the value is already there (an
+    // empty gesture still leaves a touch in a host that is writing automation).
+    ogi::FactoryEntry e;
+    if (! ogi::findFactory (id, e))
+        return {};
+   #if OGI_TEST_HOOKS
+    if (testNoFactoryRootWrite)
+        return {};                                                                  // FR1n
+   #endif
+    const auto write = [this] (const juce::String& paramId, float value)
+    {
+        auto* p = parameters.getParameter (paramId);
+        if (p == nullptr)
+            return;
+        const float n = p->convertTo0to1 (value);
+        if (std::abs (p->getValue() - n) <= 1.0e-6f)
+            return;
+        p->beginChangeGesture();
+        p->setValueNotifyingHost (n);
+        p->endChangeGesture();
+    };
+    const auto stream = "s" + juce::String (slot0 + 1) + "_";
+    write (stream + "root_note", (float) e.rootNote);
+    write (stream + "root_fine", e.rootFineCt);
+    return {};
 }
 
 bool GranulatorInstrumentProcessor::importDroppedFile (int slot0, const juce::File& tempFile, const juce::String& displayName)

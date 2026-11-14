@@ -44,7 +44,7 @@ juce_add_plugin(OuariconGranulatorInstrument
     PLUGIN_CODE OuGI                       # verified unused across plugins/*/CMakeLists.txt (2026-11-07)
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-GranulatorInstrument${OUARICON_DEV_SUFFIX}"
-    VERSION 1.1.0                          # JUCE reads VERSION (PLUGIN_VERSION is ignored)
+    VERSION 1.2.0                          # JUCE reads VERSION (PLUGIN_VERSION is ignored)
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -161,29 +161,28 @@ target_link_libraries(OuariconGranulatorInstrument
 )
 
 # ── Factory sources (Design Sync S10; CONTEXT-2.6 D33, PLAN-2.6 T10) ─────────
-# Embedded BinaryData FLAC, addressed as factory:<id>, budget ≤ 8 MB in total.
+# Embedded BinaryData FLAC, addressed as factory:<id>. Budget: 24 MiB in total
+# (25 165 824 B; 8 MiB until 1.2.0), each source <= 3 MiB (FSP1).
 # A SECOND binary-data target with its OWN namespace and header — sharing the
 # default BinaryData namespace with the UI target is a link-time collision.
 # Resource names keep [A-Za-z0-9_] (hyphens are STRIPPED): ids use
 # underscores. Linked BEFORE the console block so the harness / param-dump
 # inherit it (ParamDump.cmake carries the plugin's non-JUCE link targets).
-# Stage 4 (PLAN-4 PD5 / PD6): the 8 curated, generated sources (render
-# harness --gen-factory; pins in Source/dsp/GiFactory.h + tests/golden/
-# factory-sources.sha256), 3 455 333 B in total, each <= 3 MB (FSP1). The two
-# 2.6 stubs are harness-only fixtures now (OuariconGranulatorInstrument_TestFactory
+# 1.2.0: 41 sources, 19 882 831 B embedded (the 8 of 1.0.0: 3 455 333 B;
+# 19 generated: 9 002 930 B; 14 samples at 16-bit: 7 424 568 B). The largest
+# is stream.flac, 1 364 847 B. The 8 of 1.0.0 are never regenerated (render
+# harness --gen-factory writes only missing files and never those 8); pins in
+# Source/dsp/GiFactoryTable.inc and tests/golden/factory-sources.sha256. The
+# two 2.6 stubs are harness-only fixtures (OuariconGranulatorInstrument_TestFactory
 # below, linked to the render harness only; never shipped).
+# The file list is generated from Resources/factory/manifest.json
+# (tools/factory_table.py; --check fails on drift).
+include(${CMAKE_CURRENT_SOURCE_DIR}/Resources/factory/sources.cmake)
 juce_add_binary_data(OuariconGranulatorInstrument_FactorySources
     NAMESPACE FactorySourceData
     HEADER_NAME FactorySourceData.h
     SOURCES
-        Resources/factory/harmonic.flac
-        Resources/factory/pluck.flac
-        Resources/factory/bell.flac
-        Resources/factory/vowel.flac
-        Resources/factory/noise_bed.flac
-        Resources/factory/dust.flac
-        Resources/factory/drone.flac
-        Resources/factory/pulse.flac
+        ${OGI_FACTORY_SOURCE_FILES}
 )
 target_link_libraries(OuariconGranulatorInstrument PRIVATE OuariconGranulatorInstrument_FactorySources)
 

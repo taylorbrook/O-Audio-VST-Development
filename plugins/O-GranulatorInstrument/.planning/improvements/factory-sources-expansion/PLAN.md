@@ -67,11 +67,11 @@ Name is explicit per entry. For the old 8 it equals `factoryDisplayName (id)`. R
 **Outcome:** `Resources/factory/manifest.json` describes the 8 existing sources (id, name, category, root note, root cents, channels, frames, kind, seam, reference partial, `kHash`, `kFull`). `tools/factory_table.py` generates from it: the table include for `Source/dsp/GiFactory.h`, the CMake source list, and `tests/golden/factory-sources.sha256`. `FactoryEntry` gains `name`, `category`, `rootNote`, `rootFineCt`. `SlotLoader::requestFactoryLoad` takes the name from the entry.
 
 **Verification:**
-- [ ] The generated `factory-sources.sha256` is byte-identical to the committed one.
-- [ ] The 8 pins in the generated table equal today's literals; FSP1 passes unchanged.
-- [ ] `factory_table.py --check` passes on a clean tree and fails when one manifest field or one FLAC byte is changed (run both, report both).
-- [ ] FSP1 asserts `entry.name == factoryDisplayName (id)` for the old 8.
-- [ ] `--pg4` and the preset gates pass with no row changed; 64 presets bitwise.
+- [x] The generated `factory-sources.sha256` is byte-identical to the committed one.
+- [x] The 8 pins in the generated table equal today's literals; FSP1 passes unchanged.
+- [x] `factory_table.py --check` passes on a clean tree and fails when one manifest field or one FLAC byte is changed (run both, report both).
+- [x] FSP1 asserts `entry.name == factoryDisplayName (id)` for the old 8.
+- [x] `--pg4` and the preset gates pass with no row changed; 64 presets bitwise.
 
 **Dependencies:** None
 **Estimated effort:** Medium
@@ -81,8 +81,8 @@ Name is explicit per entry. For the old 8 it equals `factoryDisplayName (id)`. R
 **Outcome:** `--pin-factory <dir>` decodes every FLAC in a folder and prints `kHash` / `kFull` in manifest form. `--gen-factory` writes only ids whose file is missing; `--force` no longer reaches the old 8.
 
 **Verification:**
-- [ ] `--pin-factory Resources/factory` prints the 8 existing pins exactly.
-- [ ] `--gen-factory Resources/factory --force` leaves the 8 files byte-identical (`shasum -c tests/golden/factory-sources.sha256`).
+- [x] `--pin-factory Resources/factory` prints the 8 existing pins exactly.
+- [x] `--gen-factory Resources/factory --force` leaves the 8 files byte-identical (`shasum -c tests/golden/factory-sources.sha256`).
 
 **Dependencies:** Task 1
 **Estimated effort:** Small
@@ -92,9 +92,9 @@ Name is explicit per entry. For the old 8 it equals `factoryDisplayName (id)`. R
 **Outcome:** `tools/factory_ingest.py` (from `research/ingest_proto.py`) reads a window from an original, resamples to 48 kHz, applies the level rule (90th-percentile 400 ms frame at −20 dBFS, peak ≤ −1 dBFS), applies either the 0.5 s equal-power fold (seam sources, no end fades) or 10 ms fades, dithers to 16-bit (TPDF, fixed seed) and writes FLAC. Windows, gains and source paths live in the manifest. The one-shot collections are assembled as in `audition_cut.py`.
 
 **Verification:**
-- [ ] Two runs give byte-identical FLACs.
-- [ ] Output sizes within 1 % of RESEARCH.md table 1.
-- [ ] The script refuses a source path outside the allowed folders listed in CONTEXT.md (plus the one contrabassoon file).
+- [x] Two runs give byte-identical FLACs.
+- [x] Output sizes within 1 % of RESEARCH.md table 1.
+- [x] The script refuses a source path outside the allowed folders listed in CONTEXT.md (plus the one contrabassoon file).
 
 **Dependencies:** None (parallel with Tasks 1–2)
 **Estimated effort:** Medium
@@ -106,8 +106,8 @@ Name is explicit per entry. For the old 8 it equals `factoryDisplayName (id)`. R
 **Outcome:** 14 FLACs in `Resources/factory/`, manifest entries complete except pins.
 
 **Verification:**
-- [ ] Each decodes to 48 kHz at the documented length (seam sources 0.5 s shorter than the BRIEF.md cut).
-- [ ] Sample total ≤ 7.6 MB; largest ≤ 3 MB.
+- [x] Each decodes to 48 kHz at the documented length (seam sources 0.5 s shorter than the BRIEF.md cut).
+- [x] Sample total ≤ 7.6 MB; largest ≤ 3 MB.
 
 **Dependencies:** Task 3
 **Estimated effort:** Small
@@ -117,10 +117,10 @@ Name is explicit per entry. For the old 8 it equals `factoryDisplayName (id)`. R
 **Outcome:** `factory_gen.cpp` generates fm_bell, glass, bowed, reed, organ, choir, sub, saw_stack, chord_minor, chord_sus, kalimba, marimba_bar, metal_plate, wind, rain_synth, breath, shimmer, clicks, pulse_triplet. Recipes per RESEARCH.md §8 (`fm_bell` two-operator FM with a decaying index; `glass` 2 s, partials 2.32 / 4.25 / 6.63, no hum; `kalimba` one strong overtone near 5.4×; `marimba_bar` 4× and 10×, fast decay). Deterministic, fixed seeds.
 
 **Verification:**
-- [ ] Two runs give byte-identical files.
-- [ ] Synthetic total ≤ 11 MB; stereo noise sources ≤ 8 s.
-- [ ] A likeness table in SUMMARY.md (spectral centroid, decay time, strongest three partials) for bell / fm_bell / glass and pluck / kalimba / marimba_bar. Two that read alike are reported to Taylor, not swapped.
-- [ ] Each pitched recipe's measured fundamental is within ±3 ct of its manifest root.
+- [x] Two runs give byte-identical files.
+- [x] Synthetic total ≤ 11 MB; stereo noise sources ≤ 8 s.
+- [x] A likeness table in SUMMARY.md (spectral centroid, decay time, strongest three partials) for bell / fm_bell / glass and pluck / kalimba / marimba_bar. Two that read alike are reported to Taylor, not swapped.
+- [x] Each pitched recipe's measured fundamental is within ±3 ct of its manifest root.
 
 **Dependencies:** Task 2
 **Estimated effort:** Large
@@ -130,11 +130,11 @@ Name is explicit per entry. For the old 8 it equals `factoryDisplayName (id)`. R
 **Outcome:** Build, `--pin-factory`, pins into the manifest, regenerate, rebuild. `kCuratedFactoryCount` is 41. FSP1 covers all 41 with the old 8 pins kept as literals in the row (not read from the generated table), total ≤ 25 165 824 B (24 MiB), each ≤ 3 145 728 B. FSP1n still fails. CMake budget comment updated.
 
 **Verification:**
-- [ ] FSP1 41 / 41, FSP1n fires.
-- [ ] `factory_table.py --check` passes; the first 8 lines of the golden sha256 unchanged.
-- [ ] `ui_gates_31.h`, `ui_gates_32.h`, `engine_gates_26b.h` (stubs by id) pass.
-- [ ] Preset gates: 64 presets bitwise.
-- [ ] Measured embedded total recorded in SUMMARY.md and in the CMake comment.
+- [x] FSP1 41 / 41, FSP1n fires.
+- [x] `factory_table.py --check` passes; the first 8 lines of the golden sha256 unchanged.
+- [x] `ui_gates_31.h`, `ui_gates_32.h`, `engine_gates_26b.h` (stubs by id) pass.
+- [x] Preset gates: 64 presets bitwise.
+- [x] Measured embedded total recorded in SUMMARY.md and in the CMake comment.
 
 **Dependencies:** Tasks 1, 4, 5
 **Estimated effort:** Medium
@@ -146,11 +146,11 @@ Name is explicit per entry. For the old 8 it equals `factoryDisplayName (id)`. R
 **Outcome:** `GranulatorInstrumentProcessor::loadFactorySource` writes `sN_root_note` and `sN_root_fine` for the picked lane's stream after `requestFactoryLoad` returns true: gesture begin / `setValueNotifyingHost (convertTo0to1 (v))` / gesture end, per parameter, only when the value differs. No write on `recording`, `unknown`, `badSlot`. No new native function.
 
 **Verification (new rows in `preset_gates_4.h`):**
-- [ ] **FR1**: for all 41, pick through `loadFactorySource` from a non-default root and read back note exactly and cents within 0.001. Lane 3 writes stream 3 only.
-- [ ] **FR1r**: each refusal leaves both parameters as they were.
-- [ ] **FR1e**: a pick whose root already matches produces zero gestures (listener count).
-- [ ] **FR1n** control: the write removed by a test hook → FR1 fails.
-- [ ] Preset load, session restore and import leave the root alone (one row, three cases).
+- [x] **FR1**: for all 41, pick through `loadFactorySource` from a non-default root and read back note exactly and cents within 0.001. Lane 3 writes stream 3 only.
+- [x] **FR1r**: each refusal leaves both parameters as they were.
+- [x] **FR1e**: a pick whose root already matches produces zero gestures (listener count).
+- [x] **FR1n** control: the write removed by a test hook → FR1 fails.
+- [x] Preset load, session restore and import leave the root alone (one row, three cases).
 
 **Dependencies:** Task 6
 **Estimated effort:** Small
@@ -163,7 +163,7 @@ Name is explicit per entry. For the old 8 it equals `factoryDisplayName (id)`. R
 - **FPT1**: crystal, guitar_overtones, guitar_drift, contrabassoon picked through `loadFactorySource`, C3 played, long grains, no spray; the manifest's reference partial within ±10 ct of k × 130.81 Hz (k = 1, 7, 2, 1; contrabassoon by autocorrelation). Control: root left at C3 fails for all four. Model: `engine_gates_21.h:1189–1244`.
 
 **Verification:**
-- [ ] The three rows pass, the three controls fire, measured values in SUMMARY.md.
+- [x] The three rows pass, the three controls fire, measured values in SUMMARY.md.
 
 **Dependencies:** Tasks 6, 7 (FPT1 needs the root write)
 **Estimated effort:** Medium
@@ -173,10 +173,10 @@ Name is explicit per entry. For the old 8 it equals `factoryDisplayName (id)`. R
 **Outcome:** `getFactorySources` returns id, name and category. `#factory-list` becomes a headed 4-column panel on the `#scale-list` pattern (20 px rows, small-caps group headings with the rule, 140 px columns, 12 px gaps), groups placed as in the table above, `max-height` + `overflow-y: auto` as the guard, clamped inside the window on all four sides. Empty lane only, as in 1.1.0. Keyboard: Up / Down and type-ahead in flat reading order, Left / Right to the same row of the neighbouring column (clamped to its last item), Home / End, Enter picks, Escape closes and returns focus. Type-ahead matches on names. Seven category keys in en / fr / zh; source names not localized.
 
 **Verification:**
-- [ ] `ui_frontend_check.js`: native pins stay 36 / 22; new checks for 41 items, 7 headings, 4 columns, no vertical scroll at 41, panel inside the window when opened from each of the 4 lanes, the keyboard path above, `aria-activedescendant` following the highlight.
-- [ ] check-i18n, fr / zh lint, `tests/i18n-states.json` state for the open picker, three-language fit (the widest heading is the French "Plucked / Struck" key; measured with `nowrap`).
-- [ ] Headless capture of the open panel in en / fr / zh attached to SUMMARY.md, checked against the chosen layout.
-- [ ] Picking a source updates the lane name and the stream's Root fields without reopening anything.
+- [x] `ui_frontend_check.js`: native pins stay 36 / 22; new checks for 41 items, 7 headings, 4 columns, no vertical scroll at 41, panel inside the window when opened from each of the 4 lanes, the keyboard path above, `aria-activedescendant` following the highlight.
+- [x] check-i18n, fr / zh lint, `tests/i18n-states.json` state for the open picker, three-language fit (the widest heading is the French "Plucked / Struck" key; measured with `nowrap`).
+- [x] Headless capture of the open panel in en / fr / zh attached to SUMMARY.md, checked against the chosen layout.
+- [x] Picking a source updates the lane name and the stream's Root fields without reopening anything.
 
 **Dependencies:** Task 6 (categories), Task 7 (Root readout)
 **Estimated effort:** Medium
@@ -186,10 +186,10 @@ Name is explicit per entry. For the old 8 it equals `factoryDisplayName (id)`. R
 **Outcome:** Version 1.2.0 in `CMakeLists.txt`; CHANGELOG `## [1.2.0]` (bracket form) with the note that a 1.2.0 session using a new source shows that lane as missing in 1.1.0 / 1.0.0; PLUGINS.md row; `./scripts/build-and-install.sh O-GranulatorInstrument`; SUMMARY.md.
 
 **Verification:**
-- [ ] Build without warnings; binary-data compile time recorded.
-- [ ] Full harness: every existing mode that passes at 1.1.0 passes (`--pg4`, `--egr1`, `--egr2`, `--eg24` … `--ug33`), same PASS counts plus the new rows.
-- [ ] auval passes; pluginval level 10 on VST3 and AU; Standalone opens and the picker loads Contrabassoon in tune at C3 by ear check left for Taylor.
-- [ ] `check-ui-labels`, repo check-i18n.
+- [x] Build without warnings; binary-data compile time recorded.
+- [x] Full harness: every existing mode that passes at 1.1.0 passes (`--pg4`, `--egr1`, `--egr2`, `--eg24` … `--ug33`), same PASS counts plus the new rows.
+- [x] auval passes; pluginval level 10 on VST3 and AU; Standalone opens and the picker loads Contrabassoon in tune at C3 by ear check left for Taylor.
+- [x] `check-ui-labels`, repo check-i18n.
 
 **Dependencies:** Tasks 7, 8, 9
 **Estimated effort:** Medium
@@ -291,7 +291,7 @@ T3 ──> T4 ─────────┴──> T6 ──> T7 ──┬─�
 
 ## Approval
 
-Running `/improve-milestone O-GranulatorInstrument` for the execute phase approves this plan. Say what to change instead, and the plan is revised first.
+Approved 2026-11-13 by running the execute phase. Executed the same day; deviations D1–D8 are in SUMMARY.md.
 
 ---
 

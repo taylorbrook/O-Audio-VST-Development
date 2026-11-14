@@ -988,5 +988,40 @@ console.log('-- [16] Phase 3.3 closure: emitted and read, mono rule == UMB1 tran
         + `(${Array.isArray(statesJson) ? statesJson.length : 0} states, ${nSet} __setLabel call(s))` + show(v));
 }
 
+// ───────────────────────── 17. the Factory picker (1.2.0), static half ──
+console.log('-- [17] Factory picker: manifest == stub fixture == markup groups, one encoder');
+{
+    // The layout half (41 rows without a scrollbar, inside the frame from each lane, the keyboard path,
+    // aria-activedescendant) needs a layout engine: tests/ui_factory_picker_check.js.
+    const CATS = ['tonal', 'voice', 'plucked', 'texture', 'drone', 'rhythmic', 'field'];
+    const COLS = [['tonal', 'voice'], ['plucked'], ['texture', 'drone'], ['rhythmic', 'field', 'other']];
+    let manifest = null, fixture = null;
+    try { manifest = JSON.parse(fs.readFileSync(path.join(pluginRoot, 'Resources', 'factory', 'manifest.json'), 'utf8')); } catch (_) { /* reported below */ }
+    try { fixture = JSON.parse(fs.readFileSync(overridesPath, 'utf8')).natives.getFactorySources; } catch (_) { /* reported below */ }
+    const src = manifest && Array.isArray(manifest.sources) ? manifest.sources : [];
+    check(src.length === 41 && src.every((s) => CATS.includes(s.category)) && CATS.every((c) => src.some((s) => s.category === c)),
+          `[17] the manifest lists ${src.length} sources (want 41) over the 7 picker categories, none empty`);
+    const fx = Array.isArray(fixture) ? fixture : [];
+    const sameAs = (list) => list.length === src.length && list.every((f, k) => f.id === src[k].id && f.name === src[k].name && f.category === src[k].category);
+    check(sameAs(fx), `[17] the stub fixture's getFactorySources (dumped by the harness from the table) == the manifest: id, name, category, order (${fx.length} / ${src.length})`);
+    check(!sameAs(fx.slice(1)) && !sameAs(fx.map((f, k) => (k === 20 ? { ...f, category: 'x' } : f))), '[17] control: a fixture missing one source, or with one category changed, does not match');
+
+    const list = (html.match(/<div id="factory-list"[\s\S]*?\n<\/div><\/div>/) || [''])[0];
+    const cols = list.split('<div class="col">').slice(1).map((c) => [...c.matchAll(/data-cat="([a-z]*)"/g)].map((m) => m[1]));
+    check(JSON.stringify(cols) === JSON.stringify(COLS), `[17] #factory-list markup: 4 columns holding ${cols.map((c) => c.join(' + ')).join(' | ')}`);
+    const heads = [...list.matchAll(/<span id="factory-gh-([a-z]+)" data-i18n="(list\.src[A-Za-z]+)">/g)].map((m) => ({ cat: m[1], key: m[2] }));
+    const i18nSrc = fs.readFileSync(path.join(pluginRoot, 'Source', 'ui', 'public', 'js', 'i18n.js'), 'utf8');
+    const entry = (key) => { const at = i18nSrc.indexOf(`    '${key}': {`); return at < 0 ? '' : i18nSrc.slice(at, i18nSrc.indexOf('\n    },', at)); };
+    const missing = heads.filter((h) => { const e = entry(h.key); return !(/\ben: \{ t: "/.test(e) && /\bfr: \{ t: "/.test(e) && /'zh-Hans': \{ t: "/.test(e)); }).map((h) => h.key);
+    check(heads.length === 7 && CATS.every((c) => heads.some((h) => h.cat === c)) && missing.length === 0,
+          `[17] 7 group headings, one per category, each with an en / fr / zh-Hans entry` + show(missing));
+    check(/role="listbox" tabindex="-1"/.test(list) && /setAttribute\('aria-activedescendant'/.test(moduleSrc) && /removeAttribute\('aria-activedescendant'\)/.test(moduleSrc),
+          '[17] the listbox is focusable and the page writes and clears aria-activedescendant');
+    // One encoder for the editor and for the stub dump (the 1.1.0 fixture was typed in by hand).
+    check(/inline juce::var factorySourcesToVar\s*\(\)/.test(jsonH) && /"getFactorySources",[\s\S]{0,200}?GiUiJson::factorySourcesToVar\s*\(\)/.test(editorCpp)
+          && /setProperty \("getFactorySources", GiUiJson::factorySourcesToVar\s*\(\)\)/.test(harness),
+          '[17] getFactorySources answers through GiUiJson::factorySourcesToVar in the editor and in --dump-ui-overrides');
+}
+
 console.log(failed === 0 ? '\nALL PASS' : `\n${failed} FAILED`);
 process.exit(Math.min(failed, 250));

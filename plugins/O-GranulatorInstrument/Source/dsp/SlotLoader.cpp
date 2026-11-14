@@ -571,7 +571,7 @@ bool SlotLoader::requestFactoryLoad (int slot, const juce::String& id)
     SavedSlot want;
     want.index  = slot;
     want.source = kFactory + id;
-    want.name   = factoryDisplayName (id);
+    want.name   = e.name != nullptr ? juce::String::fromUTF8 (e.name) : factoryDisplayName (id);
     restoreSlots ({ want }, false);
     return true;
 }

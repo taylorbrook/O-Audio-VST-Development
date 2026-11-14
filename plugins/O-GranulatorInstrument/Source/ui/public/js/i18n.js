@@ -1743,6 +1743,41 @@ export const LABELS = Object.freeze({
         fr: { t: "Modes", reviewed: false, sameAsEn: true },
         'zh-Hans': { t: "调式", reviewed: 'mt' },
     },
+    'list.srcDrone': {
+        en: { t: "Drone" },
+        fr: { t: "Bourdons", reviewed: false },
+        'zh-Hans': { t: "持续音", reviewed: 'mt' },
+    },
+    'list.srcField': {
+        en: { t: "Field" },
+        fr: { t: "Terrain", reviewed: false },
+        'zh-Hans': { t: "实地录音", reviewed: 'mt' },
+    },
+    'list.srcPlucked': {
+        en: { t: "Plucked / Struck" },
+        fr: { t: "Pincées / Frappées", reviewed: false },
+        'zh-Hans': { t: "拨弦 / 敲击", reviewed: 'mt' },
+    },
+    'list.srcRhythmic': {
+        en: { t: "Rhythmic" },
+        fr: { t: "Rythmiques", reviewed: false },
+        'zh-Hans': { t: "节奏", reviewed: 'mt' },
+    },
+    'list.srcTexture': {
+        en: { t: "Texture" },
+        fr: { t: "Textures", reviewed: false },
+        'zh-Hans': { t: "纹理", reviewed: 'mt' },
+    },
+    'list.srcTonal': {
+        en: { t: "Tonal" },
+        fr: { t: "Tonales", reviewed: false },
+        'zh-Hans': { t: "乐音", reviewed: 'mt' },
+    },
+    'list.srcVoice': {
+        en: { t: "Voice" },
+        fr: { t: "Voix", reviewed: false },
+        'zh-Hans': { t: "人声", reviewed: 'mt', termNote: "the sung voice (the vowel and choir sources), not a synth voice (声部)" },
+    },
     'list.symmetric': {
         en: { t: "Symmetric" },
         fr: { t: "Symétriques", reviewed: false },

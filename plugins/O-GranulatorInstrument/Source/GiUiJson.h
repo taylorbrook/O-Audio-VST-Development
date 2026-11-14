@@ -24,6 +24,7 @@
 #include <cmath>
 #include <cstdint>
 #include "PluginProcessor.h"
+#include "dsp/GiFactory.h"
 
 // ============================================================================
 // GiUiJson — the ONE encoder of what the page pulls (PLAN-3.1 PD8 / PD10,
@@ -487,5 +488,26 @@ namespace GiUiJson
         for (const auto v : curve)
             pts.add (static_cast<double> (v));
         return juce::var (pts);
+    }
+    /** getFactorySources (1.1.0; 1.2.0 adds `category`): the curated table in
+        table order, never the harness stubs. `name` is the lane name the load
+        installs; `category` is the picker group key (tonal / voice / plucked
+        / texture / drone / rhythmic / field). The page groups by category
+        and keeps table order inside a group. */
+    inline juce::var factorySourcesToVar()
+    {
+        juce::Array<juce::var> list;
+        for (int i = 0; i < juce::jmin (ogi::kCuratedFactoryCount, ogi::factoryCount()); ++i)
+        {
+            const auto e = ogi::factoryEntry (i);
+            if (e.id == nullptr)
+                continue;
+            auto* o = new juce::DynamicObject();
+            o->setProperty ("id", juce::String (e.id));
+            o->setProperty ("name", e.name != nullptr ? juce::String::fromUTF8 (e.name) : ogi::factoryDisplayName (e.id));
+            o->setProperty ("category", juce::String (e.category != nullptr ? e.category : ""));
+            list.add (juce::var (o));
+        }
+        return juce::var (list);
     }
 } // namespace GiUiJson

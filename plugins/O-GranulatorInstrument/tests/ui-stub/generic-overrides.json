@@ -8034,14 +8034,211 @@
       ]
     },
     "getFactorySources": [
-      { "id": "harmonic", "name": "Harmonic" },
-      { "id": "pluck", "name": "Pluck" },
-      { "id": "bell", "name": "Bell" },
-      { "id": "vowel", "name": "Vowel" },
-      { "id": "noise_bed", "name": "Noise Bed" },
-      { "id": "dust", "name": "Dust" },
-      { "id": "drone", "name": "Drone" },
-      { "id": "pulse", "name": "Pulse" }
+      {
+        "id": "harmonic",
+        "name": "Harmonic",
+        "category": "tonal"
+      },
+      {
+        "id": "pluck",
+        "name": "Pluck",
+        "category": "plucked"
+      },
+      {
+        "id": "bell",
+        "name": "Bell",
+        "category": "plucked"
+      },
+      {
+        "id": "vowel",
+        "name": "Vowel",
+        "category": "voice"
+      },
+      {
+        "id": "noise_bed",
+        "name": "Noise Bed",
+        "category": "texture"
+      },
+      {
+        "id": "dust",
+        "name": "Dust",
+        "category": "texture"
+      },
+      {
+        "id": "drone",
+        "name": "Drone",
+        "category": "drone"
+      },
+      {
+        "id": "pulse",
+        "name": "Pulse",
+        "category": "rhythmic"
+      },
+      {
+        "id": "bowed",
+        "name": "Bowed",
+        "category": "tonal"
+      },
+      {
+        "id": "reed",
+        "name": "Reed",
+        "category": "tonal"
+      },
+      {
+        "id": "organ",
+        "name": "Organ",
+        "category": "tonal"
+      },
+      {
+        "id": "saw_stack",
+        "name": "Saw Stack",
+        "category": "tonal"
+      },
+      {
+        "id": "chord_minor",
+        "name": "Chord Minor",
+        "category": "tonal"
+      },
+      {
+        "id": "chord_sus",
+        "name": "Chord Sus",
+        "category": "tonal"
+      },
+      {
+        "id": "crystal",
+        "name": "Crystal",
+        "category": "tonal"
+      },
+      {
+        "id": "choir",
+        "name": "Choir",
+        "category": "voice"
+      },
+      {
+        "id": "fm_bell",
+        "name": "FM Bell",
+        "category": "plucked"
+      },
+      {
+        "id": "glass",
+        "name": "Glass",
+        "category": "plucked"
+      },
+      {
+        "id": "kalimba",
+        "name": "Kalimba",
+        "category": "plucked"
+      },
+      {
+        "id": "marimba_bar",
+        "name": "Marimba Bar",
+        "category": "plucked"
+      },
+      {
+        "id": "metal_plate",
+        "name": "Metal Plate",
+        "category": "plucked"
+      },
+      {
+        "id": "guitar_overtones",
+        "name": "Guitar Overtones",
+        "category": "plucked"
+      },
+      {
+        "id": "guitar_drift",
+        "name": "Guitar Drift",
+        "category": "plucked"
+      },
+      {
+        "id": "wind",
+        "name": "Wind",
+        "category": "texture"
+      },
+      {
+        "id": "rain_synth",
+        "name": "Rain",
+        "category": "texture"
+      },
+      {
+        "id": "breath",
+        "name": "Breath",
+        "category": "texture"
+      },
+      {
+        "id": "shimmer",
+        "name": "Shimmer",
+        "category": "texture"
+      },
+      {
+        "id": "fire",
+        "name": "Fire",
+        "category": "texture"
+      },
+      {
+        "id": "bubbles",
+        "name": "Bubbles",
+        "category": "texture"
+      },
+      {
+        "id": "metal_grate",
+        "name": "Metal Grate",
+        "category": "texture"
+      },
+      {
+        "id": "sub",
+        "name": "Sub",
+        "category": "drone"
+      },
+      {
+        "id": "contrabassoon",
+        "name": "Contrabassoon",
+        "category": "drone"
+      },
+      {
+        "id": "clicks",
+        "name": "Clicks",
+        "category": "rhythmic"
+      },
+      {
+        "id": "pulse_triplet",
+        "name": "Pulse Triplet",
+        "category": "rhythmic"
+      },
+      {
+        "id": "stick_snaps",
+        "name": "Stick Snaps",
+        "category": "rhythmic"
+      },
+      {
+        "id": "scissors",
+        "name": "Scissors",
+        "category": "rhythmic"
+      },
+      {
+        "id": "stream",
+        "name": "Stream",
+        "category": "field"
+      },
+      {
+        "id": "park",
+        "name": "Park",
+        "category": "field"
+      },
+      {
+        "id": "waves",
+        "name": "Waves",
+        "category": "field"
+      },
+      {
+        "id": "woods",
+        "name": "Woods",
+        "category": "field"
+      },
+      {
+        "id": "garden",
+        "name": "Garden",
+        "category": "field"
+      }
     ],
     "getUiLanguage": "en"
   }

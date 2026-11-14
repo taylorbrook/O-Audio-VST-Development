@@ -3,14 +3,14 @@ plugin: O-GranulatorInstrument
 stage: 4
 status: installed
 current_phase: 4-polish
-gsd_phase: verify_complete
+gsd_phase: improve_execute_complete
 activeMilestone: factory-sources-expansion
 last_updated: 2026-11-13
 complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: /publish (D54 Windows CI arm runs there); COMPAT-02 MPE / Dorico pass -> 1.0.x
+next_action: /improve-milestone O-GranulatorInstrument (verify phase of factory-sources-expansion, 1.2.0); then /publish (D54 Windows CI arm runs there); COMPAT-02 MPE / Dorico pass -> 1.0.x
 next_stage: 4
 ready_for_implementation: true
 blocked_on: none (fork pin 82406fce, D11)
@@ -37,6 +37,8 @@ contract_checksums:
 # O-GranulatorInstrument Status
 
 ## Current Position
+
+**Improve v1.2.0 (milestone factory-sources-expansion) — execute complete, built and installed, verify pending** 2026-11-13 (`improvements/factory-sources-expansion/SUMMARY.md`): 41 built-in sources (the 8 of 1.0.0 byte-identical, 14 samples at 16-bit, 19 generated), 19 882 831 B embedded of a 24 MiB budget; one manifest generates the table, the CMake list, the golden sha256 and the harness specs (`tools/factory_table.py --check`); a Factory pick writes `sN_root_note` / `sN_root_fine` (crystal 73 / +17, guitars 38 / +3 and 38 / −10, contrabassoon 20 / −19, sub 24); the picker is a headed 4-column panel with arrows and type-ahead, 7 category keys in en / fr / zh. No engine, parameter or state-format change. Gates: harness **555 / 0** (544 on 1.1.0 + FR1 / FR1n / FR1r / FR1e / FR2 / FLV1 / FLV1n / FSM1 / FSM1n / FPT1 / FPT1n), 64 preset renders bitwise against the 1.1.0 binary, auval PASS, pluginval 10 VST3 + AU, `ui_frontend_check.js` + new `ui_factory_picker_check.js` + binding probe + check-i18n + fr / zh lint green. **For Taylor:** ear check (Contrabassoon at C3); two pairs read alike (bell / glass, pluck / kalimba); `sub` rendered at C1; `breath` reads −3.8 ct (noise through a resonance); Stick Snaps 0.14 dB above the level floor; the FLV1 peak clause carries one 16-bit step because the frozen `dust` peaks at −0.99985 dBFS. Backup `backups/O-GranulatorInstrument/v1.1.0/`. No tag. Next: `/improve-milestone O-GranulatorInstrument` (verify).
 
 **Improve v1.1.0 — built and installed, DAW check pending** 2026-11-13 (`/improve`): an empty lane reads "Drop a file or Record or Factory"; Factory opens a list of the 8 built-in sources and loads the pick into that lane (Taylor's choice: empty-lane link only; a loaded lane is cleared first). New: `SlotLoader::requestFactoryLoad` (the preset form of `restoreSlots` for one slot), `Processor::loadFactorySource` (refuses "recording" / "unknown" / "badSlot"), natives `getFactorySources` + `loadFactorySlot` (surface 34 → 36), `ogi::factoryDisplayName`, `#factory-list` + `lane-factory-N`, i18n `lane.factory` / `lane-factory` / `aria.factoryList` (fr / zh machine-drafted). No parameter, no state-format change. Gates: harness row FL1 (new) + FSP1 pass, `ui_frontend_check.js` ALL PASS (pins 36 / 22), check-i18n, fr / zh lint 0 findings for this plugin, stub page click / keyboard / dismiss / 3-language fit. auval lists `aumu OuGI OuDv`. Backup `backups/O-GranulatorInstrument/v1.0.0/`. No tag.
 

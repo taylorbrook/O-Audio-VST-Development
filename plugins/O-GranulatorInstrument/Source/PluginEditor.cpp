@@ -950,20 +950,11 @@ GranulatorInstrumentEditor::GranulatorInstrumentEditor (GranulatorInstrumentProc
 
     // 1.1.0: the built-in sources an empty lane offers. The list is the
     // curated table only (never the harness stubs); `name` is the lane name
-    // the load installs.
+    // the load installs. 1.2.0: each entry carries its picker `category`.
     options = options.withNativeFunction ("getFactorySources",
         [] (auto&, auto complete)
         {
-            juce::Array<juce::var> list;
-            for (int i = 0; i < juce::jmin (ogi::kCuratedFactoryCount, ogi::factoryCount()); ++i)
-            {
-                const juce::String id (ogi::factoryEntry (i).id);
-                auto* o = new juce::DynamicObject();
-                o->setProperty ("id", id);
-                o->setProperty ("name", ogi::factoryDisplayName (id));
-                list.add (juce::var (o));
-            }
-            complete (juce::var (list));
+            complete (GiUiJson::factorySourcesToVar());
         });
 
     // Only enqueues (the loader's worker decodes from memory). The processor

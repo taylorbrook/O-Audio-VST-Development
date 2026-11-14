@@ -1,5 +1,25 @@
 # O-GranulatorInstrument Changelog
 
+## [1.2.0] - 2026-11-13
+
+### Added
+
+- **33 more built-in sources, 41 in all.** 14 are recordings: Guitar Overtones, Guitar Drift, Crystal, Contrabassoon, Fire, Bubbles, Metal Grate, Stick Snaps, Scissors, and five field recordings (Stream, Park, Waves, Woods, Garden). 19 are new generated sources: Bowed, Reed, Organ, Saw Stack, Chord Minor, Chord Sus, Choir, FM Bell, Glass, Kalimba, Marimba Bar, Metal Plate, Wind, Rain, Breath, Shimmer, Sub, Clicks and Pulse Triplet.
+- **The Factory list is grouped.** Seven groups in four columns: Tonal, Voice, Plucked / Struck, Texture, Drone, Rhythmic, Field. Arrow keys move through it (Left and Right change column), typing a name jumps to it, Enter picks, Escape closes.
+- **A picked source plays in tune.** Picking a source from the Factory list sets that stream's Root Note and Root Fine to the source's own pitch, so the key you play is the pitch you hear. Most sources sit at C3. Crystal is Db5 +17 cents, the two guitar sources are D2, Contrabassoon is G#0 −19 cents and Sub is C1.
+- **The long textures loop without a gap.** Stream, Park, Waves, Woods, Garden, Fire and Bubbles are cut so that their end runs into their start.
+
+### Changed
+
+- The eight sources from 1.0.0 are unchanged, and so are the 64 factory presets.
+
+### Notes
+
+- Picking a source changes Root Note and Root Fine only on the lane you picked it for. Loading a preset or a session, dropping a file, Browse, Record and Clear do not touch the root.
+- No parameter or session-format change. Sessions and presets from 1.0.0 and 1.1.0 load unchanged.
+- A session or preset saved in 1.2.0 that uses one of the 33 new sources opens in 1.1.0 or 1.0.0 with that lane shown as missing. The rest of the session loads.
+- The plugin is about 16 MB larger.
+
 ## [1.1.0] - 2026-11-13
 
 ### Added

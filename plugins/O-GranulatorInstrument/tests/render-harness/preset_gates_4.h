@@ -14,12 +14,17 @@
              (setValue (default) -> getValue () != default on the REAL
              parameter objects) == { lfo1_rate ... lfo4_rate } exactly
       AU1n   a skew-0.3 range at a drifting default joins the set
-      FSP1   the 8 curated factory sources: each decodes to the recipe's
-             channels / 48 kHz / frames; contentHash == kHash*, full-PCM hash
-             == kFull*; every id resolves; each FLAC <= 3 145 728 B, total
-             <= 8 388 608 B; 8 curated entries (the shipping table) + the 2
-             stubs only under OGI_TEST_HOOKS
+      FSP1   the curated factory sources (8 until 1.2.0, 41 since): each
+             decodes to the manifest's channels / 48 kHz / frames;
+             contentHash == kHash*, full-PCM hash == kFull*; id, name,
+             category and root == the manifest's; each FLAC <= 3 145 728 B,
+             total <= 25 165 824 B; the 1.0.0 set also against hand-written
+             literal pins, shapes and names; the 2 stubs after the curated
+             entries, only under OGI_TEST_HOOKS
       FSP1n  one pin perturbed (kFullDust ^ 1) -> FSP1 FAILS
+      FR1 / FR1n / FR1r / FR1e / FR2, FLV1 / FLV1n, FSM1 / FSM1n, FPT1 /
+             FPT1n: 1.2.0, the factory sources expansion (root write, level
+             spread, seam, pitch); described where they are defined
       FP0    the bank table: 64 presets, 8 per category, unique names / seeds,
              "<Cat> · <Name>" <= 24 chars, no / \ :, validateSpec clean (no
              output_gain / rec_arm, ids, ranges, seed, factory ids, enabled
@@ -77,6 +82,7 @@
 */
 #pragma once
 
+#include <array>
 #include <thread>
 #include <map>
 #include <set>
@@ -169,24 +175,46 @@ namespace { namespace pg4
     }
 
     //==========================================================================
-    // FSP1 / FSP1n — the curated factory sources (PD6)
-    struct SourceSpec { const char* id; int channels; int frames; };
+    // FSP1 / FSP1n — the curated factory sources (PD6; 1.2.0: every source)
+    //
+    // Two independent expectations: kSources is generated from the manifest
+    // (tools/factory_table.py), kOld8 is hand-written and never regenerated.
+    // The 1.0.0 set must match BOTH, so a manifest edit or a regenerated
+    // table cannot move one of its pins, its shape, its index or its name.
+    struct SourceSpec { const char* id; const char* name; const char* category; int channels; int frames; int rootNote; double rootCents; bool seam; bool synthetic; int refPartial; };
     constexpr SourceSpec kSources[] = {
-        { "harmonic", 1, 384000 }, { "pluck", 1, 144000 }, { "bell", 1, 288000 }, { "vowel", 1, 384000 },
-        { "noise_bed", 2, 288000 }, { "dust", 2, 288000 }, { "drone", 2, 576000 }, { "pulse", 1, 192000 },
+       #include "factory_specs.inc"
     };
+    constexpr int kSourceCount = (int) (sizeof (kSources) / sizeof (kSources[0]));
 
-    struct Fsp1 { int good = 0; std::int64_t total = 0, largest = 0; juce::String detail; };
+    struct OldPin { const char* id; int channels; int frames; std::uint64_t hash, full; };
+    constexpr OldPin kOld8[] = {
+        { "harmonic",  1, 384000, 0x8d3f53401dd512abull, 0xc66d8c372e1a6466ull },
+        { "pluck",     1, 144000, 0xced194ec27e461b4ull, 0xd852d9429eaded57ull },
+        { "bell",      1, 288000, 0xf0195e2384e5b366ull, 0x8d3f987172d73125ull },
+        { "vowel",     1, 384000, 0x0e61dc5699763d74ull, 0xd7725f3426607bf1ull },
+        { "noise_bed", 2, 288000, 0x3ab6faaf08e4f577ull, 0x3859a39daead5356ull },
+        { "dust",      2, 288000, 0x77aae6be696b9d35ull, 0x139ab02c9dab4494ull },
+        { "drone",     2, 576000, 0x428c82363a9af2c5ull, 0xa89ce6f4c53fa4b5ull },
+        { "pulse",     1, 192000, 0x09cc60d1e810229cull, 0x1ee8522dcdb667bbull },
+    };
+    constexpr std::int64_t kFactoryBudget = 25165824;   // 24 MiB (1.2.0; was 8 MiB)
+    constexpr std::int64_t kFactoryEach   = 3145728;    // 3 MiB
+
+    struct Fsp1 { int good = 0; int old8 = 0; std::int64_t total = 0, largest = 0; juce::String detail; };
 
     Fsp1 runFsp1 (std::uint64_t perturbDustFull)
     {
         Fsp1 r;
-        for (int k = 0; k < ogi::kCuratedFactoryCount; ++k)
+        for (int k = 0; k < std::min (kSourceCount, ogi::kCuratedFactoryCount); ++k)
         {
             const auto e = ogi::factoryEntry (k);
             const auto& spec = kSources[k];
             ogi::FactoryEntry f;
             const bool found = e.id != nullptr && juce::String (e.id) == spec.id && ogi::findFactory (juce::String (spec.id), f) && f.data == e.data;
+            const bool meta = found && e.name != nullptr && juce::String::fromUTF8 (e.name) == juce::String::fromUTF8 (spec.name)
+                           && e.category != nullptr && juce::String (e.category) == spec.category
+                           && e.rootNote == spec.rootNote && std::abs ((double) e.rootFineCt - spec.rootCents) < 1.0e-4;
             ogi::SlotLoader::Pristine p;
             juce::String err;
             const bool dec = found && ogi::SlotLoader::decodeMemoryFlac (e.data, e.size, e.id, 48000.0, p, err);
@@ -196,13 +224,25 @@ namespace { namespace pg4
             const auto full = dec ? factorygen::fullPcmHash (p.pcm) : 0;
             const auto pinFull = juce::String (spec.id) == "dust" ? (e.full ^ perturbDustFull) : e.full;
             const bool pins = h == e.hash && e.hash != 0 && full == pinFull && pinFull != 0;
-            const bool size = e.size > 0 && e.size <= 3145728;
+            const bool size = e.size > 0 && (std::int64_t) e.size <= kFactoryEach;
+            bool frozen = true;
+            if (k < 8)
+            {
+                const auto& o = kOld8[k];
+                frozen = found && juce::String (e.id) == o.id && shape && p.pcm.getNumChannels() == o.channels && p.pcm.getNumSamples() == o.frames
+                      && h == o.hash && full == o.full && e.hash == o.hash && e.full == o.full
+                      && juce::String::fromUTF8 (e.name) == ogi::factoryDisplayName (o.id)
+                      && e.rootNote == 48 && juce::exactlyEqual (e.rootFineCt, 0.0f);
+                if (frozen)
+                    ++r.old8;
+            }
             r.total += (std::int64_t) e.size;
             r.largest = std::max (r.largest, (std::int64_t) e.size);
-            if (found && shape && pins && size)
+            if (found && meta && shape && pins && size && frozen)
                 ++r.good;
             else
-                r.detail << " " << spec.id << (found ? "" : " not-found") << (shape ? "" : " shape") << (pins ? "" : " PIN") << (size ? "" : " size");
+                r.detail << " " << spec.id << (found ? "" : " not-found") << (meta ? "" : " meta") << (shape ? "" : " shape") << (pins ? "" : " PIN")
+                         << (size ? "" : " size") << (frozen ? "" : " OLD8");
         }
         return r;
     }
@@ -210,18 +250,22 @@ namespace { namespace pg4
     void rowsFSP1()
     {
         const auto a = runFsp1 (0);
+        const int N = kSourceCount;
         const int curated = ogi::factoryCount() - (OGI_HAS_TEST_FACTORY ? 2 : 0);
         ogi::FactoryEntry stub;
-        const bool stubsTail = OGI_HAS_TEST_FACTORY && ogi::findFactory ("stub_tone", stub) && ogi::factoryEntry (8).data == stub.data;
-        const bool ok = a.good == 8 && a.total <= 8388608 && a.largest <= 3145728 && curated == 8 && ogi::kCuratedFactoryCount == 8 && stubsTail;
-        row (ok, "FSP1 PD6 8 curated factory sources: shape, kHash + full-PCM pins, ids, size budget",
-             "meas " + juce::String (a.good) + " / 8 good" + a.detail + ", total " + juce::String (a.total) + " B, largest "
-                 + juce::String (a.largest) + " B, curated " + juce::String (curated) + " + stubs at 8 / 9 " + (stubsTail ? "yes" : "no")
-                 + " | thr 8 / 8, <= 8388608, <= 3145728 | ctrl FSP1n");
+        const bool stubsTail = OGI_HAS_TEST_FACTORY && ogi::findFactory ("stub_tone", stub) && ogi::factoryEntry (N).data == stub.data
+                            && juce::String (ogi::factoryEntry (N + 1).id) == "stub_noise";
+        const bool ok = a.good == N && a.old8 == 8 && a.total <= kFactoryBudget && a.largest <= kFactoryEach && curated == N && ogi::kCuratedFactoryCount == N && stubsTail;
+        row (ok, "FSP1 PD6 " + juce::String (N) + " curated factory sources: shape, kHash + full-PCM pins, ids, names, roots, size budget; the 1.0.0 set against its literals",
+             "meas " + juce::String (a.good) + " / " + juce::String (N) + " good" + a.detail + ", 1.0.0 set " + juce::String (a.old8) + " / 8 on its literal pins and names, total "
+                 + juce::String (a.total) + " B, largest " + juce::String (a.largest) + " B, curated " + juce::String (curated) + " + stubs at "
+                 + juce::String (N) + " / " + juce::String (N + 1) + " " + (stubsTail ? "yes" : "no")
+                 + " | thr " + juce::String (N) + " / " + juce::String (N) + ", 8 / 8, <= " + juce::String (kFactoryBudget) + ", <= " + juce::String (kFactoryEach) + " | ctrl FSP1n");
         const auto b = runFsp1 (1);
-        const bool fired = b.good == 7;
+        const bool fired = b.good == N - 1;
         row (fired, "FSP1n control: kFullDust ^ 1 -> FSP1 FAILS (predicate must FAIL)",
-             "meas " + juce::String (b.good) + " / 8 good" + b.detail + " | thr 7 / 8 | " + ctrl (fired, "FSP1 predicate"));
+             "meas " + juce::String (b.good) + " / " + juce::String (N) + " good" + b.detail + " | thr " + juce::String (N - 1) + " / " + juce::String (N)
+                 + " | " + ctrl (fired, "FSP1 predicate"));
     }
 
     //==========================================================================
@@ -360,6 +404,575 @@ namespace { namespace pg4
              "meas loaded " + juce::String (loaded ? "yes" : "no") + " (\"" + i2.name + "\", rung " + juce::String (i2.resolvedBy)
                  + "), others untouched " + (others ? "yes" : "no") + ", refusals \"" + eU + "\" / \"" + eB + "\" " + (refused ? "ok" : "BAD")
                  + ", saved " + (saved ? "yes" : "no") + " | thr all four");
+    }
+
+    //==========================================================================
+    // 1.2.0 — the factory sources expansion (improve factory-sources-expansion)
+    //
+    //   FR1    every source picked through loadFactorySource from a non-default
+    //          root: the lane's stream reads the source's root (note exactly,
+    //          cents within 0.001), the other three streams keep theirs
+    //   FR1n   testNoFactoryRootWrite -> FR1 FAILS
+    //   FR1r   unknown id / bad slot / a take recording into the lane: refused,
+    //          both parameters as they were
+    //   FR1e   a pick whose root is already there: zero gestures (and the pick
+    //          before it: two, so the listener is live)
+    //   FR2    a session restore, a preset load, a dropped file and Clear leave
+    //          the root alone (the source is contrabassoon, G#0 -19 ct, the
+    //          root 55 / +12: a write would show)
+    //   FLV1   every source: peak <= -1 dBFS (+ one 16-bit step: the 1.0.0
+    //          noise sources were rounded to that grid AFTER the cap), loud
+    //          frame (90th-percentile 400 ms frame of the channel mean) in
+    //          [-33, -18] dBFS;  FLV1n  one source + 12 dB -> FAILS
+    //   FSM1   the seam sources read circularly: centre 100 ms of the fold
+    //          within +-1.5 dB of the mean power of the two segments it mixed
+    //          (tests/fixtures/factory-seam), wrap step <= the 99.9th
+    //          percentile sample step;  FSM1n  the linear-gain fold -> FAILS
+    //   FPT1   crystal / guitar_overtones / guitar_drift / contrabassoon picked,
+    //          C3 played, one long grain: the reference partial within +-10 ct
+    //          of k x 130.81 Hz;  FPT1n  the root left at C3 -> all four FAIL
+    //==========================================================================
+    using eg21::setP;
+    using eg21::rawOf;
+    using eg22::sn;
+
+    juce::String f3 (double v) { return juce::String (v, 3); }
+
+    struct Fr1 { int good = 0, offC3 = 0; juce::String detail; };
+
+    Fr1 runFr1 (bool noWrite)
+    {
+        Fr1 r;
+        eg21::Session s (kFsP, eg21::P {}, eg21::kSeed, 512);
+        auto& p = *s.p;
+        p.testNoFactoryRootWrite = noWrite;
+        for (int k = 0; k < kSourceCount; ++k)
+        {
+            const auto& spec = kSources[k];
+            const int lane = k % 4;
+            float note0[4], fine0[4];
+            for (int n = 1; n <= 4; ++n)   // sentinels no source carries
+            {
+                setP (p, sn (n, "root_note"), (float) (60 + n));
+                setP (p, sn (n, "root_fine"), 30.0f + (float) n);
+                note0[n - 1] = rawOf (p, sn (n, "root_note"));
+                fine0[n - 1] = rawOf (p, sn (n, "root_fine"));
+            }
+            const auto err = p.loadFactorySource (lane, spec.id);
+            p.getLoader().waitForIdle (20000);
+            const float note = rawOf (p, sn (lane + 1, "root_note")), fine = rawOf (p, sn (lane + 1, "root_fine"));
+            bool others = true;
+            for (int n = 1; n <= 4; ++n)
+                if (n != lane + 1)
+                    others = others && eg21::sameF (rawOf (p, sn (n, "root_note")), note0[n - 1]) && eg21::sameF (rawOf (p, sn (n, "root_fine")), fine0[n - 1]);
+            const auto info = p.getSlotInfo (lane);
+            const bool loaded = err.isEmpty() && info.loaded && info.source == "factory:" + juce::String (spec.id) && info.name == juce::String::fromUTF8 (spec.name);
+            const bool root = juce::exactlyEqual (note, (float) spec.rootNote) && std::abs ((double) fine - spec.rootCents) <= 0.001;
+            if (spec.rootNote != 48 || std::abs (spec.rootCents) > 0.0)
+                ++r.offC3;
+            if (loaded && root && others)
+                ++r.good;
+            else if (r.detail.length() < 400)
+                r.detail << " " << spec.id << (loaded ? "" : " not-loaded") << (root ? "" : " root " + juce::String (note, 0) + " / " + f3 (fine))
+                         << (others ? "" : " OTHER-STREAM");
+        }
+        return r;
+    }
+
+    void rowsFR1()
+    {
+        const int N = kSourceCount;
+        const auto a = runFr1 (false);
+        row (a.good == N && a.offC3 >= 5,
+             "FR1 1.2.0 every factory pick writes the lane's stream root (note exact, cents within 0.001), from sentinel roots; the other streams keep theirs",
+             "meas " + juce::String (a.good) + " / " + juce::String (N) + " good" + a.detail + ", " + juce::String (a.offC3)
+                 + " sources off C3 / 0 ct | thr " + juce::String (N) + " / " + juce::String (N) + ", >= 5 off C3 | ctrl FR1n");
+        const auto b = runFr1 (true);
+        row (b.good == 0, "FR1n control: testNoFactoryRootWrite (the lane loads, the write is skipped) -> FR1 FAILS (predicate must FAIL)",
+             "meas " + juce::String (b.good) + " / " + juce::String (N) + " good | thr 0 | " + ctrl (b.good == 0, "FR1 predicate, every source"));
+    }
+
+    void rowFR1r()
+    {
+        using RS = ogi::RecState;
+        const auto sentinels = [] (GranulatorInstrumentProcessor& p)
+        {
+            for (int n = 1; n <= 4; ++n)
+            {
+                setP (p, sn (n, "root_note"), (float) (60 + n));
+                setP (p, sn (n, "root_fine"), 30.0f + (float) n);
+            }
+        };
+        const auto snapshot = [] (GranulatorInstrumentProcessor& p)
+        {
+            std::vector<float> v;
+            for (int n = 1; n <= 4; ++n)
+            {
+                v.push_back (rawOf (p, sn (n, "root_note")));
+                v.push_back (rawOf (p, sn (n, "root_fine")));
+            }
+            return v;
+        };
+        const auto same = [] (const std::vector<float>& a, const std::vector<float>& b)
+        {
+            bool ok = a.size() == b.size();
+            for (size_t i = 0; ok && i < a.size(); ++i)
+                ok = eg21::sameF (a[i], b[i]);
+            return ok;
+        };
+
+        eg21::Session s (kFsP, eg21::P {}, eg21::kSeed, 512);
+        sentinels (*s.p);
+        const auto before = snapshot (*s.p);
+        const auto eU = s.p->loadFactorySource (1, "no_such_source");
+        const auto eB = s.p->loadFactorySource (4, "contrabassoon");
+        const auto eN = s.p->loadFactorySource (-1, "contrabassoon");
+        s.p->getLoader().waitForIdle (20000);
+        const bool keptA = same (before, snapshot (*s.p));
+
+        // A take recording into lane 2 (the ug32 CL1 (b) stimulus).
+        eg21::Session r (kFsP, eg26a::recBase (1, 0, { { "rec_length", 0.6f } }), eg21::kSeed, 512);
+        r.load (1, eg21::noiseBuf (2, 24000, 0.2f, 263), kFsP);
+        eg26a::inject (r, eg26a::ScSig { 0.5f, 265 });
+        r.record = false;
+        sentinels (*r.p);
+        r.run (4096, 512);
+        eg26a::armAt (r, r.pos);
+        r.run (9600, 512);
+        const auto st = eg26a::pr (r).state;
+        const auto beforeR = snapshot (*r.p);
+        const auto eR = r.p->loadFactorySource (1, "contrabassoon");
+        const bool keptR = same (beforeR, snapshot (*r.p));
+        // ... and the same pick on another lane is not refused, and writes.
+        const auto eO = r.p->loadFactorySource (2, "contrabassoon");
+        const bool wroteO = juce::exactlyEqual (rawOf (*r.p, sn (3, "root_note")), 20.0f) && std::abs (rawOf (*r.p, sn (3, "root_fine")) + 19.0f) <= 0.001f;
+        r.run (28800, 512);
+        r.p->commitSync();
+        r.p->getLoader().waitForIdle (20000);
+        r.run (2048, 256);
+
+        const bool ok = eU == "unknown" && eB == "badSlot" && eN == "badSlot" && keptA && st == RS::Recording && eR == "recording" && keptR && eO.isEmpty() && wroteO;
+        row (ok, "FR1r 1.2.0 a refused pick (unknown id, bad slot, a take recording into the lane) leaves both root parameters as they were",
+             "meas refusals \"" + eU + "\" / \"" + eB + "\" / \"" + eN + "\" roots kept " + (keptA ? "yes" : "NO") + "; " + eg26a::stName (st) + " -> \"" + eR
+                 + "\" roots kept " + (keptR ? "yes" : "NO") + " | thr all | " + ctrl (eO.isEmpty() && wroteO, "the same pick on another lane writes 20 / -19"));
+    }
+
+    struct GestureCount : juce::AudioProcessorParameter::Listener
+    {
+        int begins = 0, ends = 0, values = 0;
+        void parameterValueChanged (int, float) override { ++values; }
+        void parameterGestureChanged (int, bool starting) override { ++(starting ? begins : ends); }
+    };
+
+    void rowFR1e()
+    {
+        eg21::Session s (kFsP, eg21::P {}, eg21::kSeed, 512);
+        auto& p = *s.p;
+        auto* note = p.parameters.getParameter (sn (2, "root_note"));
+        auto* fine = p.parameters.getParameter (sn (2, "root_fine"));
+        GestureCount g;
+        note->addListener (&g);
+        fine->addListener (&g);
+        const auto pick = [&] (const char* id)
+        {
+            const GestureCount before = g;
+            p.loadFactorySource (1, id);
+            p.getLoader().waitForIdle (20000);
+            return std::array<int, 3> { g.begins - before.begins, g.ends - before.ends, g.values - before.values };
+        };
+        const auto c3   = pick ("drone");           // a fresh lane is at 48 / 0 and so is drone: nothing to write
+        const auto low  = pick ("contrabassoon");   // 20 / -19: two parameters move
+        const auto same = pick ("contrabassoon");   // already there
+        const auto half = pick ("sub");             // 24 / 0: both move again (the fine back to 0)
+        const auto one  = pick ("drone");           // 48 / 0: only the note moves
+        note->removeListener (&g);
+        fine->removeListener (&g);
+        const bool ok = c3 == std::array<int, 3> { 0, 0, 0 } && same == std::array<int, 3> { 0, 0, 0 }
+                     && low == std::array<int, 3> { 2, 2, 2 } && half == std::array<int, 3> { 2, 2, 2 } && one == std::array<int, 3> { 1, 1, 1 };
+        const auto t = [] (const std::array<int, 3>& a) { return juce::String (a[0]) + " / " + juce::String (a[1]) + " / " + juce::String (a[2]); };
+        row (ok, "FR1e 1.2.0 a pick whose root is already on the stream makes no gesture; one that moves a parameter makes exactly one gesture for it",
+             "meas begins / ends / values: drone on a fresh lane " + t (c3) + ", contrabassoon " + t (low) + ", contrabassoon again " + t (same)
+                 + ", sub " + t (half) + ", drone " + t (one) + " | thr 0 / 0 / 0, 2 / 2 / 2, 0 / 0 / 0, 2 / 2 / 2, 1 / 1 / 1 | "
+                 + ctrl (low[0] == 2, "the listener counts the gestures of a pick that writes"));
+    }
+
+    void rowFR2()
+    {
+        const auto rootIs = [] (GranulatorInstrumentProcessor& p, float n, float f)
+        {
+            return juce::exactlyEqual (rawOf (p, sn (1, "root_note")), n) && std::abs (rawOf (p, sn (1, "root_fine")) - f) <= 0.001f;
+        };
+        const auto holds = [] (GranulatorInstrumentProcessor& p)
+        {
+            const auto i = p.getSlotInfo (0);
+            return i.loaded && i.source == "factory:contrabassoon";
+        };
+
+        // A: the pick writes 20 / -19 (the stimulus), then the user moves the root to 55 / +12.
+        eg21::Session a (kFsP, eg21::P {}, eg21::kSeed, 512);
+        a.p->loadFactorySource (0, "contrabassoon");
+        a.p->getLoader().waitForIdle (20000);
+        const bool wrote = rootIs (*a.p, 20.0f, -19.0f) && holds (*a.p);
+        setP (*a.p, sn (1, "root_note"), 55.0f);
+        setP (*a.p, sn (1, "root_fine"), 12.0f);
+        const auto blob = eg26b::save (a);
+        const auto file = gTmp4.getChildFile ("fr2-preset.json");
+        const bool saved = a.p->getPresetManager().savePresetToFile (file);
+
+        eg21::Session b (kFsP, eg21::P {}, eg21::kSeed, 512);   // session restore
+        eg26b::load (b, blob);
+        eg26b::settle (b);
+        const bool session = holds (*b.p) && rootIs (*b.p, 55.0f, 12.0f);
+
+        eg21::Session c (kFsP, eg21::P {}, eg21::kSeed, 512);   // preset load
+        const bool loadedPreset = saved && c.p->getPresetManager().loadPresetFromFile (file);
+        eg26b::settle (c);
+        const bool preset = loadedPreset && holds (*c.p) && rootIs (*c.p, 55.0f, 12.0f);
+
+        // A dropped file, then Clear, on the lane that holds the factory source.
+        const auto wav = eg26b::writeWav (gTmp4.getChildFile ("fr2-drop.wav"), eg21::noiseBuf (1, 24000, 0.2f, 1201), kFsP, 24);
+        const bool queued = c.p->importDroppedFile (0, wav, "fr2-drop.wav");
+        eg26b::settle (c);
+        const auto ci = c.p->getSlotInfo (0);
+        const bool drop = queued && ci.loaded && ! ci.source.startsWith ("factory:") && rootIs (*c.p, 55.0f, 12.0f);
+        const auto ce = c.p->clearSlot (0);
+        eg26b::settle (c);
+        const bool clear = ce.isEmpty() && ! c.p->getSlotInfo (0).loaded && rootIs (*c.p, 55.0f, 12.0f);
+
+        row (wrote && session && preset && drop && clear,
+             "FR2 1.2.0 a session restore, a preset load, a dropped file and Clear leave the root alone (contrabassoon on the lane, root moved to 55 / +12)",
+             juce::String ("meas session ") + (session ? "55 / +12" : "MOVED") + ", preset " + (preset ? "55 / +12" : "MOVED") + ", drop " + (drop ? "55 / +12" : "MOVED")
+                 + ", clear " + (clear ? "55 / +12" : "MOVED") + " | thr all four | " + ctrl (wrote, "the pick itself wrote 20 / -19 on this lane"));
+    }
+
+    //--------------------------------------------------------------------------
+    // FLV1 / FLV1n — the level spread
+    bool decodeEntry (const char* id, ogi::SlotLoader::Pristine& p)
+    {
+        ogi::FactoryEntry e;
+        juce::String err;
+        return ogi::findFactory (id, e) && ogi::SlotLoader::decodeMemoryFlac (e.data, e.size, e.id, 48000.0, p, err);
+    }
+
+    struct Level { double peakDb = 0.0, loudDb = 0.0; };
+
+    /** Peak over every channel; the loud frame = the 90th percentile (linear
+        interpolation, as numpy) of the level in dB of the 400 ms frames of the
+        channel mean. The measure of tools/factory_ingest.py. */
+    Level levelOf (const juce::AudioBuffer<float>& pcm, double scale)
+    {
+        Level r;
+        const int C = pcm.getNumChannels(), n = pcm.getNumSamples(), hop = 19200, F = n / hop;
+        double pk = 0.0;
+        for (int c = 0; c < C; ++c)
+            for (int i = 0; i < n; ++i)
+                pk = std::max (pk, std::abs ((double) pcm.getSample (c, i)) * scale);
+        r.peakDb = 20.0 * std::log10 (std::max (pk, 1.0e-12));
+        std::vector<double> f;
+        for (int k = 0; k < F; ++k)
+        {
+            double acc = 0.0;
+            for (int i = 0; i < hop; ++i)
+            {
+                double m = 0.0;
+                for (int c = 0; c < C; ++c)
+                    m += (double) pcm.getSample (c, k * hop + i);
+                m *= scale / (double) C;
+                acc += m * m;
+            }
+            f.push_back (10.0 * std::log10 (acc / (double) hop + 1.0e-12));
+        }
+        std::sort (f.begin(), f.end());
+        if (f.empty())
+            return r;
+        const double pos = 0.9 * (double) (f.size() - 1);
+        const size_t lo = (size_t) pos;
+        r.loudDb = lo + 1 < f.size() ? f[lo] + (f[lo + 1] - f[lo]) * (pos - (double) lo) : f[lo];
+        return r;
+    }
+
+    constexpr double kPeakMaxDb = -1.0 + 0.0003;   // -1 dBFS + one 16-bit step at that level (0.00030 dB)
+    bool levelOk (const Level& l) { return l.peakDb <= kPeakMaxDb && l.loudDb >= -33.0 && l.loudDb <= -18.0; }
+
+    void rowsFLV1()
+    {
+        int good = 0;
+        double peakMax = -200.0, loudMin = 0.0, loudMax = -200.0;
+        juce::String detail, loudest, quietest;
+        for (int k = 0; k < kSourceCount; ++k)
+        {
+            ogi::SlotLoader::Pristine p;
+            if (! decodeEntry (kSources[k].id, p))
+            {
+                detail << " " << kSources[k].id << " not-decoded";
+                continue;
+            }
+            const auto l = levelOf (p.pcm, 1.0);
+            peakMax = std::max (peakMax, l.peakDb);
+            if (l.loudDb < loudMin) { loudMin = l.loudDb; quietest = kSources[k].id; }
+            if (l.loudDb > loudMax) { loudMax = l.loudDb; loudest = kSources[k].id; }
+            if (levelOk (l))
+                ++good;
+            else
+                detail << " " << kSources[k].id << " peak " << f3 (l.peakDb) << " loud " << juce::String (l.loudDb, 2);
+        }
+        row (good == kSourceCount, "FLV1 1.2.0 every factory source: peak <= -1 dBFS (+ one 16-bit step), loud frame in [-33, -18] dBFS",
+             "meas " + juce::String (good) + " / " + juce::String (kSourceCount) + " good" + detail + ", peak max " + juce::String (peakMax, 4) + " dBFS, loud frame "
+                 + juce::String (loudMin, 2) + " (" + quietest + ") ... " + juce::String (loudMax, 2) + " (" + loudest + ") | thr peak <= " + juce::String (kPeakMaxDb, 4)
+                 + ", loud in [-33, -18] | margin floor " + juce::String (loudMin + 33.0, 2) + " dB, ceiling " + juce::String (-18.0 - loudMax, 2) + " dB | ctrl FLV1n");
+
+        ogi::SlotLoader::Pristine h;
+        const bool dec = decodeEntry ("harmonic", h);
+        const auto l0 = dec ? levelOf (h.pcm, 1.0) : Level {};
+        const auto l12 = dec ? levelOf (h.pcm, 3.9810717055349722) : Level {};
+        const bool fired = dec && levelOk (l0) && ! levelOk (l12);
+        row (fired, "FLV1n control: harmonic scaled + 12 dB -> FLV1 FAILS (predicate must FAIL)",
+             "meas as shipped peak " + f3 (l0.peakDb) + " loud " + juce::String (l0.loudDb, 2) + " (passes), + 12 dB peak " + f3 (l12.peakDb) + " loud "
+                 + juce::String (l12.loudDb, 2) + " | thr predicate FAILS | " + ctrl (fired, "FLV1 predicate"));
+    }
+
+    //--------------------------------------------------------------------------
+    // FSM1 / FSM1n — the folded seam
+    struct Seam { bool valid = false; double foldDb = 0.0, linDb = 0.0, stepRatio = 0.0; };
+
+    double meanPowerMono (const juce::AudioBuffer<float>& b, int from, int count)
+    {
+        double acc = 0.0;
+        const int C = b.getNumChannels();
+        for (int i = 0; i < count; ++i)
+        {
+            double m = 0.0;
+            for (int c = 0; c < C; ++c)
+                m += (double) b.getSample (c, from + i);
+            m /= (double) C;
+            acc += m * m;
+        }
+        return acc / (double) count;
+    }
+
+    Seam seamOf (const SourceSpec& spec)
+    {
+        Seam r;
+        ogi::SlotLoader::Pristine y, fx;
+        juce::MemoryBlock mb;
+        juce::String err;
+        const auto f = gGoldenDir.getSiblingFile ("fixtures").getChildFile ("factory-seam").getChildFile (juce::String (spec.id) + ".flac");
+        if (! decodeEntry (spec.id, y) || ! f.loadFileAsData (mb) || ! ogi::SlotLoader::decodeMemoryFlac (mb.getData(), mb.getSize(), spec.id, 48000.0, fx, err))
+            return r;
+        const int C = y.pcm.getNumChannels(), N = y.pcm.getNumSamples();
+        if (fx.pcm.getNumChannels() != C || fx.pcm.getNumSamples() != 14400 || N < 96000)
+            return r;
+        // The fold is the first 0.5 s of the shipped file; its centre 100 ms is [9600, 14400).
+        const double ref = 0.5 * (meanPowerMono (fx.pcm, 0, 4800) + meanPowerMono (fx.pcm, 4800, 4800));
+        if (! (ref > 1.0e-10))
+            return r;
+        r.foldDb = 10.0 * std::log10 (meanPowerMono (y.pcm, 9600, 4800) / ref);
+        r.linDb  = 10.0 * std::log10 (meanPowerMono (fx.pcm, 9600, 4800) / ref);
+        // The wrap: last sample -> first sample, against the body's own sample steps.
+        std::vector<float> steps;
+        steps.reserve ((size_t) C * (size_t) (N - 1));
+        double wrap = 0.0;
+        for (int c = 0; c < C; ++c)
+        {
+            const float* d = y.pcm.getReadPointer (c);
+            for (int i = 1; i < N; ++i)
+                steps.push_back (std::abs (d[i] - d[i - 1]));
+            wrap = std::max (wrap, (double) std::abs (d[0] - d[N - 1]));
+        }
+        std::sort (steps.begin(), steps.end());
+        const double pos = 0.999 * (double) (steps.size() - 1);
+        const size_t lo = (size_t) pos;
+        const double p999 = (double) steps[lo] + ((double) steps[std::min (lo + 1, steps.size() - 1)] - (double) steps[lo]) * (pos - (double) lo);
+        r.stepRatio = p999 > 0.0 ? wrap / p999 : 1.0e9;
+        r.valid = true;
+        return r;
+    }
+
+    void rowsFSM1()
+    {
+        constexpr double tol = 1.5;
+        int seams = 0, good = 0, fired = 0;
+        double worstFold = 0.0, nearestLin = 1.0e9, worstStep = 0.0;
+        juce::String detail, ctl;
+        for (int k = 0; k < kSourceCount; ++k)
+        {
+            if (! kSources[k].seam)
+                continue;
+            ++seams;
+            const auto s = seamOf (kSources[k]);
+            const bool ok = s.valid && std::abs (s.foldDb) <= tol && s.stepRatio <= 1.0;
+            good += ok ? 1 : 0;
+            fired += (s.valid && std::abs (s.linDb) > tol) ? 1 : 0;
+            if (s.valid)
+            {
+                worstFold = std::abs (s.foldDb) > std::abs (worstFold) ? s.foldDb : worstFold;
+                nearestLin = std::min (nearestLin, std::abs (s.linDb));
+                worstStep = std::max (worstStep, s.stepRatio);
+            }
+            detail << " " << kSources[k].id << " " << juce::String (s.foldDb, 2) << " dB / " << juce::String (s.stepRatio, 2) << (s.valid ? "" : " INVALID");
+            ctl << " " << kSources[k].id << " " << juce::String (s.linDb, 2);
+        }
+        row (seams == 7 && good == seams, "FSM1 1.2.0 the 7 seam sources wrap cleanly: fold centre within +-1.5 dB of the mean power of the two segments it mixed, wrap step <= the 99.9th-percentile sample step",
+             "meas " + juce::String (good) + " / " + juce::String (seams) + " good (fold centre / wrap step ratio):" + detail + " | thr |dB| <= 1.5, ratio <= 1 | margin "
+                 + juce::String (tol - std::abs (worstFold), 2) + " dB, step " + juce::String (1.0 - worstStep, 2) + " | ctrl FSM1n");
+        row (seams == 7 && fired == seams, "FSM1n control: the same folds made with linear gains (fixture, not shipped) -> the level clause FAILS on all 7 (predicate must FAIL)",
+             "meas fold centre:" + ctl + " dB | thr |dB| > 1.5 on 7 / 7 | margin " + juce::String (nearestLin - tol, 2) + " dB | " + ctrl (fired == seams, "FSM1 level clause"));
+    }
+
+    //--------------------------------------------------------------------------
+    // FPT1 / FPT1n — a pick plays at the key's pitch
+    struct Est { double hz = 0.0, strength = 0.0; bool edge = true; };
+
+    /** The strongest sinusoid within +-span cents of f0 in x [a, b): a
+        Hann-windowed transform on a 1-cent grid, parabolic refinement.
+        strength = its amplitude over the RMS of the window. */
+    Est partialNear (const std::vector<float>& x, juce::int64 a, juce::int64 b, double f0, double fs, int span)
+    {
+        Est r;
+        const int n = (int) (b - a);
+        if (n < 1024 || b > (juce::int64) x.size())
+            return r;
+        std::vector<double> w ((size_t) n), mag ((size_t) (2 * span + 1));
+        double ws = 0.0, sq = 0.0;
+        for (int i = 0; i < n; ++i)
+        {
+            w[(size_t) i] = 0.5 - 0.5 * std::cos (juce::MathConstants<double>::twoPi * ((double) i + 0.5) / (double) n);
+            ws += w[(size_t) i];
+            sq += (double) x[(size_t) (a + i)] * (double) x[(size_t) (a + i)];
+        }
+        for (int c = -span; c <= span; ++c)
+        {
+            const double om = juce::MathConstants<double>::twoPi * f0 * std::exp2 ((double) c / 1200.0) / fs;
+            const double cs = std::cos (om), sn_ = std::sin (om);
+            double re = 0.0, im = 0.0, pr = 1.0, pi = 0.0;
+            for (int i = 0; i < n; ++i)
+            {
+                const double v = w[(size_t) i] * (double) x[(size_t) (a + i)];
+                re += v * pr;
+                im += v * pi;
+                const double t = pr * cs - pi * sn_;
+                pi = pr * sn_ + pi * cs;
+                pr = t;
+            }
+            mag[(size_t) (c + span)] = 2.0 * std::sqrt (re * re + im * im) / ws;
+        }
+        const int j = (int) (std::max_element (mag.begin(), mag.end()) - mag.begin());
+        r.edge = j == 0 || j == 2 * span;
+        double d = 0.0;
+        if (! r.edge)
+        {
+            const double y0 = std::log (mag[(size_t) j - 1] + 1.0e-30), y1 = std::log (mag[(size_t) j] + 1.0e-30), y2 = std::log (mag[(size_t) j + 1] + 1.0e-30);
+            const double den = y0 - 2.0 * y1 + y2;
+            d = std::abs (den) > 1.0e-12 ? 0.5 * (y0 - y2) / den : 0.0;
+        }
+        r.hz = f0 * std::exp2 (((double) (j - span) + d) / 1200.0);
+        const double rms = std::sqrt (sq / (double) n);
+        r.strength = rms > 0.0 ? mag[(size_t) j] / rms : 0.0;
+        return r;
+    }
+
+    /** The period by normalised autocorrelation, lags within +-span cents of
+        fs / f0, parabolic refinement. strength = the correlation at the peak. */
+    Est periodNear (const std::vector<float>& x, juce::int64 a, juce::int64 b, double f0, double fs, int span)
+    {
+        Est r;
+        const int lagLo = (int) std::floor (fs / (f0 * std::exp2 ((double) span / 1200.0))), lagHi = (int) std::ceil (fs / (f0 * std::exp2 (-(double) span / 1200.0)));
+        const int n = (int) (b - a) - lagHi;
+        if (n < 1024 || b > (juce::int64) x.size())
+            return r;
+        std::vector<double> c ((size_t) (lagHi - lagLo + 1));
+        for (int lag = lagLo; lag <= lagHi; ++lag)
+        {
+            double xy = 0.0, xx = 0.0, yy = 0.0;
+            for (int i = 0; i < n; ++i)
+            {
+                const double u = x[(size_t) (a + i)], v = x[(size_t) (a + i + lag)];
+                xy += u * v; xx += u * u; yy += v * v;
+            }
+            c[(size_t) (lag - lagLo)] = xx > 0.0 && yy > 0.0 ? xy / std::sqrt (xx * yy) : 0.0;
+        }
+        const int j = (int) (std::max_element (c.begin(), c.end()) - c.begin());
+        r.edge = j == 0 || j == lagHi - lagLo;
+        double d = 0.0;
+        if (! r.edge)
+        {
+            const double den = c[(size_t) j - 1] - 2.0 * c[(size_t) j] + c[(size_t) j + 1];
+            d = std::abs (den) > 1.0e-12 ? 0.5 * (c[(size_t) j - 1] - c[(size_t) j + 1]) / den : 0.0;
+        }
+        r.hz = fs / ((double) (lagLo + j) + d);
+        r.strength = c[(size_t) j];
+        return r;
+    }
+
+    struct PitchCase { const char* id; bool acf; float sizeMs; float positionPct; };
+    constexpr PitchCase kPitchCases[] = {
+        { "crystal",          false, 2000.0f, 20.0f },
+        { "guitar_overtones", false, 2000.0f,  5.0f },
+        { "guitar_drift",     false, 2000.0f, 20.0f },
+        { "contrabassoon",    true,   600.0f, 20.0f },
+    };
+
+    struct PitchRes { bool valid = false, ok = false; double cents = 0.0, strength = 0.0, rms = 0.0; int k = 0; float note = 0.0f, fine = 0.0f; };
+
+    PitchRes runPitch (const PitchCase& pc, bool noWrite)
+    {
+        PitchRes r;
+        const SourceSpec* spec = nullptr;
+        for (const auto& s : kSources)
+            if (juce::String (s.id) == pc.id)
+                spec = &s;
+        if (spec == nullptr || spec->refPartial < 1)
+            return r;
+        r.k = spec->refPartial;
+        eg21::Session s (kFsP, eg21::with (eg21::base(), { { eg21::s1 ("size"), pc.sizeMs }, { eg21::s1 ("density"), 0.5f }, { eg21::s1 ("position"), pc.positionPct } }));
+        s.p->testNoFactoryRootWrite = noWrite;
+        if (! s.p->loadFactorySource (0, pc.id).isEmpty())
+            return r;
+        eg26b::settle (s);
+        r.note = rawOf (*s.p, sn (1, "root_note"));
+        r.fine = rawOf (*s.p, sn (1, "root_fine"));
+        const juce::int64 t0 = s.pos;
+        s.noteOn (t0, 48);
+        const double sec = (double) pc.sizeMs / 1000.0;
+        s.run ((juce::int64) ((sec + 0.05) * kFsP), 512);
+        // The central half of the one grain.
+        const juce::int64 a = t0 + (juce::int64) (0.25 * sec * kFsP), b = t0 + (juce::int64) (0.75 * sec * kFsP);
+        const double f0 = 130.81278265029931 * (double) r.k;
+        const auto e = pc.acf ? periodNear (s.L, a, b, f0, kFsP, 100) : partialNear (s.L, a, b, f0, kFsP, 100);
+        double sq = 0.0;
+        for (juce::int64 i = a; i < b && i < (juce::int64) s.L.size(); ++i)
+            sq += (double) s.L[(size_t) i] * (double) s.L[(size_t) i];
+        r.rms = std::sqrt (sq / (double) std::max<juce::int64> (1, b - a));
+        r.valid = r.rms > 1.0e-4 && s.p->getSlotInfo (0).loaded;
+        r.cents = e.hz > 0.0 ? 1200.0 * std::log2 (e.hz / f0) : 999.0;
+        r.strength = e.strength;
+        // A partial that IS the reference: inside the window (not its edge), within 10 ct, and a real
+        // component of the sound (>= 0.15 of the RMS; the autocorrelation: >= 0.5).
+        r.ok = r.valid && ! e.edge && std::abs (r.cents) <= 10.0 && e.strength >= (pc.acf ? 0.5 : 0.15);
+        return r;
+    }
+
+    void rowsFPT1()
+    {
+        int good = 0, fired = 0, valid = 0;
+        double worst = 0.0;
+        juce::String detail, ctl;
+        for (const auto& pc : kPitchCases)
+        {
+            const auto a = runPitch (pc, false);
+            const auto n = runPitch (pc, true);
+            good += a.ok ? 1 : 0;
+            valid += (a.valid && n.valid) ? 1 : 0;
+            fired += (n.valid && ! n.ok) ? 1 : 0;
+            worst = std::max (worst, std::abs (a.cents));
+            detail << " " << pc.id << " (root " << juce::String (a.note, 0) << " / " << juce::String (a.fine, 0) << ", k " << a.k << (pc.acf ? ", period" : "") << ") "
+                   << juce::String (a.cents, 1) << " ct, strength " << juce::String (a.strength, 2) << (a.valid ? "" : " INVALID") << ";";
+            ctl << " " << pc.id << " " << juce::String (n.cents, 1) << " ct / " << juce::String (n.strength, 2) << (n.valid ? "" : " INVALID") << ";";
+        }
+        row (good == 4 && valid == 4, "FPT1 1.2.0 the four off-C3 samples picked through loadFactorySource and played at C3: the reference partial within +-10 ct of k x 130.81 Hz",
+             "meas " + juce::String (good) + " / 4:" + detail + " | thr |ct| <= 10, strength >= 0.15 (period: >= 0.5) | margin " + juce::String (10.0 - worst, 1) + " ct | ctrl FPT1n");
+        row (fired == 4 && valid == 4, "FPT1n control: the root left at C3 (testNoFactoryRootWrite) -> FPT1 FAILS on all four (predicate must FAIL)",
+             "meas cents / strength in the same window:" + ctl + " | thr 4 / 4 fail | " + ctrl (fired == 4, "FPT1 predicate"));
     }
 
     /** The fixed lane preload of the Live templates (D45: they keep the user's lanes). */
@@ -1880,6 +2493,13 @@ namespace { namespace pg4
         if (want ("AU1"))  rowsAU1();
         if (want ("FSP1")) rowsFSP1();
         if (want ("FL1"))  rowFL1();
+        if (want ("FR1"))  rowsFR1();
+        if (want ("FR1r")) rowFR1r();
+        if (want ("FR1e")) rowFR1e();
+        if (want ("FR2"))  rowFR2();
+        if (want ("FLV1")) rowsFLV1();
+        if (want ("FSM1")) rowsFSM1();
+        if (want ("FPT1")) rowsFPT1();
         if (want ("FP0"))  rowFP0();
         if (want ("FP1"))  rowsFP1();
         if (want ("FP2"))  rowsFP2();
