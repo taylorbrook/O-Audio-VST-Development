@@ -21,7 +21,7 @@
     { "kalimba", "Kalimba", "plucked", 1, 144000, 48, 0.0, false, true, 0 },
     { "marimba_bar", "Marimba Bar", "plucked", 1, 120000, 48, 0.0, false, true, 0 },
     { "metal_plate", "Metal Plate", "plucked", 1, 288000, 48, 0.0, false, true, 0 },
-    { "guitar_overtones", "Guitar Overtones", "plucked", 1, 475200, 38, 3.0, false, false, 7 },
+    { "guitar_overtones", "Guitar Overtones", "plucked", 1, 218400, 72, -32.0, false, false, 1 },
     { "guitar_drift", "Guitar Drift", "plucked", 1, 465601, 38, -10.0, false, false, 2 },
     { "wind", "Wind", "texture", 2, 384000, 48, 0.0, false, true, 0 },
     { "rain_synth", "Rain", "texture", 2, 384000, 48, 0.0, false, true, 0 },

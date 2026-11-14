@@ -168,8 +168,8 @@ target_link_libraries(OuariconGranulatorInstrument
 # Resource names keep [A-Za-z0-9_] (hyphens are STRIPPED): ids use
 # underscores. Linked BEFORE the console block so the harness / param-dump
 # inherit it (ParamDump.cmake carries the plugin's non-JUCE link targets).
-# 1.2.0: 41 sources, 19 882 831 B embedded (the 8 of 1.0.0: 3 455 333 B;
-# 19 generated: 9 002 930 B; 14 samples at 16-bit: 7 424 568 B). The largest
+# 1.2.0: 41 sources, 19 750 021 B embedded (the 8 of 1.0.0: 3 455 333 B;
+# 19 generated: 9 002 930 B; 14 samples at 16-bit: 7 291 758 B). The largest
 # is stream.flac, 1 364 847 B. The 8 of 1.0.0 are never regenerated (render
 # harness --gen-factory writes only missing files and never those 8); pins in
 # Source/dsp/GiFactoryTable.inc and tests/golden/factory-sources.sha256. The

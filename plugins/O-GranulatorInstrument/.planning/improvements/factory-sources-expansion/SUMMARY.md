@@ -22,7 +22,7 @@
 | Full harness, final tree | **555 PASS / 0 FAIL** (1.1.0 baseline run the same day: 544 / 0; the 11 new rows account for the difference) |
 | 64 preset renders against the 1.1.0 binary | 64 / 64 bitwise (PT0), at Wave 1 and again on the final tree |
 | The 8 old sources | sha256 lines 1–8 unchanged, `shasum -c` 8 / 8 after every generator run, FSP1 8 / 8 on hand-written literal pins |
-| Embedded total | 19 882 831 B of 25 165 824 B (79 %); largest `stream.flac` 1 364 847 B of 3 145 728 B |
+| Embedded total | 19 750 021 B of 25 165 824 B (78 %); largest `stream.flac` 1 364 847 B of 3 145 728 B |
 | auval | PASS (the 4 known LFO-rate warnings) |
 | pluginval level 10 | VST3 SUCCESS, AU SUCCESS |
 | UI gates | `ui_frontend_check.js` ALL PASS (166 lines, natives 36 / 22), `--nc` live; `ui_factory_picker_check.js` ALL PASS (22 lines, 4 controls fire); `ui_binding_probe.js` ALL PASS, `--nc` live; `preset_name_fit.js` ALL PASS; check-i18n, fr lint, zh lint clean; check-ui-labels ALL CHECKS PASSED (49 states) |
@@ -41,6 +41,17 @@
 4. **`breath` reads −3.8 ct, outside the ±3 ct criterion.** It is noise through a resonance; the resonance coefficient is exactly C3, and the band-centroid estimate on 8 s of noise carries a few cents of spread whatever the seed. I did not add a tone or change the seed to move the number. Every other pitched recipe is within ±1.5 ct (table in Task 5).
 5. **Stick Snaps sits 0.14 dB above the level row's floor** (loud frame −32.86 dBFS, floor −33). It passes; the margin is thin. This is the C4 call (ship as cut) showing up in the row.
 6. **French and Chinese category names are machine-drafted** (`reviewed: false` / `'mt'`), like the rest of the table: Tonales, Voix, Pincées / Frappées, Textures, Bourdons, Rythmiques, Terrain; 乐音, 人声, 拨弦 / 敲击, 纹理, 持续音, 节奏, 实地录音.
+
+---
+
+## Change after execute: Guitar Overtones (Taylor, 2026-11-13)
+
+Taylor: the source held two separate notes; trim to the first and check the pitch.
+
+- **Cut.** The take has a note from 6.43 s and a second from 11.38 s (a finger noise at 10.95 s). The window is now 6.3–10.85 s of `Dovertones.wav` (was 6.3–16.2): 4.55 s, 108 632 B (was 9.90 s, 241 442 B). The note has fallen 30 dB by the cut; 10 ms fades as before.
+- **Pitch.** The first note is one natural harmonic, steady at 513.75 Hz = **C5 −32 ct** (four windows read −31.5 … −31.9; its octave partial agrees at −31.4). Nothing sounds below it: 73 Hz and 147 Hz are 86 dB or more under it. So the root is now **C5 (72) −32 ct**, replacing D2 (38) +3 (call C2 at plan), which named the open string, not a pitch anyone hears in this cut. With the old root a C3 key would have sounded near Bb5.
+- **Row.** FPT1 reads this source at k = 1 now: +0.5 ct at C3; its control still fires (−61.7 ct, strength 0.00).
+- Re-pinned, table regenerated, `--check` OK, the 8 old sha256 lines unchanged. CHANGELOG and the CMake size comment updated.
 
 ---
 
@@ -116,9 +127,9 @@ Likeness, first 250 ms:
 
 ### Task 6: Pins and FSP1 over 41 ✓
 
-- **FSP1** 41 / 41, the old 8 on literal pins 8 / 8, total 19 882 831 B, largest 1 364 847 B, stubs at 41 / 42. **FSP1n** fires (40 / 41, `dust PIN`).
+- **FSP1** 41 / 41, the old 8 on literal pins 8 / 8, total 19 750 021 B (after the Guitar Overtones re-cut, below), largest 1 364 847 B, stubs at 41 / 42. **FSP1n** fires (40 / 41, `dust PIN`).
 - `factory_table.py --check` OK; first 8 sha256 lines unchanged; stub rows (`ui_gates_31`, `ui_gates_32`, `engine_gates_26b`) pass in the full run.
-- By kind: old 8 3 455 333 B, generated 9 002 930 B, samples 7 424 568 B. Recorded in the CMake comment.
+- By kind: old 8 3 455 333 B, generated 9 002 930 B, samples 7 291 758 B (7 424 568 B before the Guitar Overtones re-cut). Recorded in the CMake comment.
 
 ### Task 7: Root write ✓
 
@@ -138,7 +149,7 @@ Likeness, first 250 ms:
 |---|---|---|
 | FLV1 | 41 / 41; peak max −0.9999 dBFS; loud frame −32.86 (stick_snaps) … −18.92 (vowel) | FLV1n: harmonic + 12 dB → loud −8.07, fails |
 | FSM1 | 7 / 7; fold centre fire +0.44, bubbles −0.10, stream +0.46, park −1.03, waves +0.14, woods +0.70, garden +0.94 dB; wrap step ratio ≤ 0.44 | FSM1n: linear folds −1.97 … −4.03 dB, 7 / 7 fail; nearest margin 0.47 dB (garden), so ±1.5 is kept |
-| FPT1 | crystal +3.8 ct, guitar_overtones −3.7, guitar_drift −5.7, contrabassoon −1.2 (period); margin 4.3 ct | FPT1n: root left at C3 → 4 / 4 fail |
+| FPT1 | crystal +3.8 ct, guitar_overtones +0.5 (k 1, after the re-cut; −3.7 at k 7 before), guitar_drift −5.7, contrabassoon −1.2 (period); margin 4.3 ct | FPT1n: root left at C3 → 4 / 4 fail |
 
 FPT1n note: crystal fails on the strength clause only (a 0.07 component sits 3.5 ct from 130.81 Hz in the untransposed file; the threshold is 0.15). The other three fail on cents.
 

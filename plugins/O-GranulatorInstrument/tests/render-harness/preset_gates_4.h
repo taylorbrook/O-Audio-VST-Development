@@ -907,7 +907,7 @@ namespace { namespace pg4
     struct PitchCase { const char* id; bool acf; float sizeMs; float positionPct; };
     constexpr PitchCase kPitchCases[] = {
         { "crystal",          false, 2000.0f, 20.0f },
-        { "guitar_overtones", false, 2000.0f,  5.0f },
+        { "guitar_overtones", false, 2000.0f, 20.0f },   // one harmonic note, C5 -32 ct (k 1)
         { "guitar_drift",     false, 2000.0f, 20.0f },
         { "contrabassoon",    true,   600.0f, 20.0f },
     };

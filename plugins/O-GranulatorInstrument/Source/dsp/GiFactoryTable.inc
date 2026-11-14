@@ -23,7 +23,7 @@
     inline constexpr std::uint64_t kHashKalimba         = 0x9e0249866e2806e6ull, kFullKalimba         = 0x6ab2031586da6e44ull;
     inline constexpr std::uint64_t kHashMarimbaBar      = 0xd4f558e192d2204aull, kFullMarimbaBar      = 0xd4f558e192d2204aull;
     inline constexpr std::uint64_t kHashMetalPlate      = 0xecfec53e6c39bd74ull, kFullMetalPlate      = 0x12595e685fab2e73ull;
-    inline constexpr std::uint64_t kHashGuitarOvertones = 0xf1878b7b8c892a42ull, kFullGuitarOvertones = 0xe71798d34944f6f8ull;
+    inline constexpr std::uint64_t kHashGuitarOvertones = 0xfcaea29be368a525ull, kFullGuitarOvertones = 0xaa506097cc4235b0ull;
     inline constexpr std::uint64_t kHashGuitarDrift     = 0x0ee76c67a706b20full, kFullGuitarDrift     = 0xc9603e7a55918f0cull;
     inline constexpr std::uint64_t kHashWind            = 0xb95c5de1577efffeull, kFullWind            = 0x4fdb3d37f2403114ull;
     inline constexpr std::uint64_t kHashRainSynth       = 0xb7cb9dab45cd5e9aull, kFullRainSynth       = 0x50dfc3c1302009f9ull;
@@ -66,7 +66,7 @@
             case 18: return { "kalimba", "Kalimba", "plucked", 48, 0.0f, D::kalimba_flac, (std::size_t) D::kalimba_flacSize, kHashKalimba, kFullKalimba };
             case 19: return { "marimba_bar", "Marimba Bar", "plucked", 48, 0.0f, D::marimba_bar_flac, (std::size_t) D::marimba_bar_flacSize, kHashMarimbaBar, kFullMarimbaBar };
             case 20: return { "metal_plate", "Metal Plate", "plucked", 48, 0.0f, D::metal_plate_flac, (std::size_t) D::metal_plate_flacSize, kHashMetalPlate, kFullMetalPlate };
-            case 21: return { "guitar_overtones", "Guitar Overtones", "plucked", 38, 3.0f, D::guitar_overtones_flac, (std::size_t) D::guitar_overtones_flacSize, kHashGuitarOvertones, kFullGuitarOvertones };
+            case 21: return { "guitar_overtones", "Guitar Overtones", "plucked", 72, -32.0f, D::guitar_overtones_flac, (std::size_t) D::guitar_overtones_flacSize, kHashGuitarOvertones, kFullGuitarOvertones };
             case 22: return { "guitar_drift", "Guitar Drift", "plucked", 38, -10.0f, D::guitar_drift_flac, (std::size_t) D::guitar_drift_flacSize, kHashGuitarDrift, kFullGuitarDrift };
             case 23: return { "wind", "Wind", "texture", 48, 0.0f, D::wind_flac, (std::size_t) D::wind_flacSize, kHashWind, kFullWind };
             case 24: return { "rain_synth", "Rain", "texture", 48, 0.0f, D::rain_synth_flac, (std::size_t) D::rain_synth_flacSize, kHashRainSynth, kFullRainSynth };

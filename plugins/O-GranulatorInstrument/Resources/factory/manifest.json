@@ -315,22 +315,23 @@
    "id": "guitar_overtones",
    "name": "Guitar Overtones",
    "category": "plucked",
-   "root_note": 38,
-   "root_cents": 3,
+   "root_note": 72,
+   "root_cents": -32,
    "channels": 1,
-   "frames": 475200,
+   "frames": 218400,
    "kind": "sample",
    "seam": false,
-   "ref_partial": 7,
-   "kHash": "0xf1878b7b8c892a42",
-   "kFull": "0xe71798d34944f6f8",
+   "ref_partial": 1,
+   "kHash": "0xfcaea29be368a525",
+   "kFull": "0xaa506097cc4235b0",
    "ingest": {
     "source": "TensedComputerImproviser/corpus/Dovertones.wav",
     "window": [
      6.3,
-     16.2
+     10.85
     ],
-    "gain_db": 9.71
+    "gain_db": 8.51,
+    "note": "The first note only (a natural harmonic sounding C5 -32 ct, 513.75 Hz). The second note of the take starts at 11.38 s; a finger noise at 10.95 s is left out too."
    }
   },
   {

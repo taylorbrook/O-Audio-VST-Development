@@ -6,7 +6,7 @@
 
 - **33 more built-in sources, 41 in all.** 14 are recordings: Guitar Overtones, Guitar Drift, Crystal, Contrabassoon, Fire, Bubbles, Metal Grate, Stick Snaps, Scissors, and five field recordings (Stream, Park, Waves, Woods, Garden). 19 are new generated sources: Bowed, Reed, Organ, Saw Stack, Chord Minor, Chord Sus, Choir, FM Bell, Glass, Kalimba, Marimba Bar, Metal Plate, Wind, Rain, Breath, Shimmer, Sub, Clicks and Pulse Triplet.
 - **The Factory list is grouped.** Seven groups in four columns: Tonal, Voice, Plucked / Struck, Texture, Drone, Rhythmic, Field. Arrow keys move through it (Left and Right change column), typing a name jumps to it, Enter picks, Escape closes.
-- **A picked source plays in tune.** Picking a source from the Factory list sets that stream's Root Note and Root Fine to the source's own pitch, so the key you play is the pitch you hear. Most sources sit at C3. Crystal is Db5 +17 cents, the two guitar sources are D2, Contrabassoon is G#0 −19 cents and Sub is C1.
+- **A picked source plays in tune.** Picking a source from the Factory list sets that stream's Root Note and Root Fine to the source's own pitch, so the key you play is the pitch you hear. Most sources sit at C3. Crystal is Db5 +17 cents, Guitar Overtones (one harmonic note) is C5 −32 cents, Guitar Drift is D2 −10 cents, Contrabassoon is G#0 −19 cents and Sub is C1.
 - **The long textures loop without a gap.** Stream, Park, Waves, Woods, Garden, Fire and Bubbles are cut so that their end runs into their start.
 
 ### Changed
