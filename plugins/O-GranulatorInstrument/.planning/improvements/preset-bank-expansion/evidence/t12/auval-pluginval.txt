@@ -1,0 +1,14 @@
+aufx OuGn OuDv  -  Ouaricon Audio Development: O-Granulator-dev
+aumu OuGI OuDv  -  Ouaricon Audio Development: O-GranulatorInstrument-dev
+
+WARNING: retrievedValue = 0.328712 (was 0.328712), Parameter did not retain default value when set
+WARNING: retrievedValue = 0.328712 (was 0.328712), Parameter did not retain default value when set
+WARNING: retrievedValue = 0.328712 (was 0.328712), Parameter did not retain default value when set
+WARNING: retrievedValue = 0.328712 (was 0.328712), Parameter did not retain default value when set
+AU VALIDATION SUCCEEDED.
+
+pluginval 10 VST3:
+SUCCESS
+pluginval 10 AU:
+SUCCESS
+!!! WARNING: Current program is -1... Is this correct?

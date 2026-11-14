@@ -2,14 +2,15 @@
 plugin: O-GranulatorInstrument
 stage: 4
 status: installed
+version: 1.3.0
 current_phase: 4-polish
-gsd_phase: improve_v1_3_0_plan_complete
+gsd_phase: improve_v1_3_0_execute_complete
 last_updated: 2026-11-14
 complexity_score: 5.0
 complexity_tier: 6
 staged_implementation: true
 orchestration_mode: true
-next_action: /improve-milestone O-GranulatorInstrument (preset-bank-expansion execute)
+next_action: /improve-milestone O-GranulatorInstrument (preset-bank-expansion verify)
 next_stage: 4
 ready_for_implementation: true
 blocked_on: none (fork pin 82406fce, D11)
@@ -37,6 +38,8 @@ activeMilestone: preset-bank-expansion
 # O-GranulatorInstrument Status
 
 ## Current Position
+
+**Improve v1.3.0 (milestone preset-bank-expansion) — execute complete, built and installed, verify pending** 2026-11-14 (`improvements/preset-bank-expansion/SUMMARY.md`; waves T1–T11 05e46f9c … f313c947, T12 this commit): 96 new factory presets, bank 160 (Drones / Expressive / Keys / Motion / Pads / Rhythmic / Textures 20 each, Live 8, new Field 12); every one of the 41 sources in ≥ 2 presets; 8 approved re-voices + description fixes, the other 56 old presets bitwise vs 1.2.0; two-pane grouped preset menu (plugin-local, User group last). No engine, parameter or state-format change. Gates: harness **564 / 0** (FP0 982 / 982, FSU1 41 / 41, FRT1 22 / 22, PM0, FP4 800 / 800, every control fires); FP2 spread 6.00 dB, peak 0.673; PT0 56 / 56 bitwise, 0 old names missing, 96 new; level table 0 old-preset level outliers; bank stamp moved (64 → 160 files); auval PASS (4 known LFO-rate warnings), pluginval 10 VST3 + AU SUCCESS; installed == artefacts, 1.3.0; Standalone boots. **For Taylor:** the consolidated hands-on list in SUMMARY.md (re-voiced Glass Mallet, sustain on short Keys, Mono drum presets, mono-glide, Field key track, the menu in en / fr / zh in the real Standalone — not captured, it needs focus). Backup `backups/O-GranulatorInstrument/v1.2.0/`. No tag. Next: `/improve-milestone O-GranulatorInstrument` (verify).
 
 **Improve v1.3.0 (milestone preset-bank-expansion) — plan ✓** 2026-11-14 (`improvements/preset-bank-expansion/PLAN.md`, T0–T12): 96 new presets (7 × +12 → 20, Live 8, new Field 12; bank 160), every one of the 41 sources in ≥ 2 presets; Taylor approved all 8 re-voices (Kalimba, Organ Loft, Warm Choir, Velvet Strings + D1 detune fix, Ember Field, Hollow Wind, Rain Glass s1, Glass Mallet s1) and description fixes D6–D8 / D10 / D11, the other 56 stay bitwise; wobble gate = preset-added only, widened to realism titles in every category; Fifth Bloom trimmed only if the spread passes 8.5 dB; Expressive split 8 / 6 / 6; Field rule P7; harness `kBankSize` + FSU1 / FRT1 rows with controls; two-pane grouped preset menu plugin-local (`getPresetMenu`). Waves: one category per wave, path-scoped commit each. Uncommitted planning docs. No tag. Next: `/improve-milestone O-GranulatorInstrument` (execute).
 

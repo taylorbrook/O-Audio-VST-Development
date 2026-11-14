@@ -161,13 +161,13 @@ Order: **T3 Keys, T4 Pads, T5 Drones, T6 Textures, T7 Rhythmic, T8 Motion, T9 Ex
 **Outcome:** 1.3.0 built, gated and installed.
 
 **Verification:**
-- [ ] Version 1.3.0 in `CMakeLists.txt` (and any version string)
-- [ ] Full harness green (FP4 at 800 pairs in the background), FSU1 / FRT1 / controls fire
-- [ ] `--cmp-preset-renders`: 56 bitwise vs 1.2.0 (55 if P4 fired), 96 new expected-missing, 0 old names missing
-- [ ] `--preset-level-table`: no old-preset outlier; FP2 spread ≤ 9 dB, peak ≤ 4.0
-- [ ] Bank stamp moves; FP5 (factory-file rewrite) green; 1.0.0–1.2.0 sessions / user presets load (existing rows)
-- [ ] `./scripts/build-and-install.sh O-GranulatorInstrument`; auval; pluginval 10 VST3 + AU; Standalone opens
-- [ ] CHANGELOG `## [1.3.0] - <date>`, SUMMARY.md, PLUGINS.md 1.3.0, STATUS.md / STATUS.yaml → execute complete; no tag
+- [x] Version 1.3.0 in `CMakeLists.txt` (and any version string)
+- [x] Full harness green (FP4 at 800 pairs in the background), FSU1 / FRT1 / controls fire
+- [x] `--cmp-preset-renders`: 56 bitwise vs 1.2.0 (55 if P4 fired), 96 new expected-missing, 0 old names missing
+- [x] `--preset-level-table`: no old-preset outlier; FP2 spread ≤ 9 dB, peak ≤ 4.0 (old 64 rows identical to T1, 0 level outliers; exit 77 for the 96 without a reference)
+- [x] Bank stamp moves; FP5 (factory-file rewrite) green; 1.0.0–1.2.0 sessions / user presets load (existing rows)
+- [x] `./scripts/build-and-install.sh O-GranulatorInstrument`; auval; pluginval 10 VST3 + AU; Standalone opens
+- [x] CHANGELOG `## [1.3.0] - <date>`, SUMMARY.md, PLUGINS.md 1.3.0, STATUS.md / STATUS.yaml → execute complete; no tag
 
 **Dependencies:** Task 11 · **Effort:** Medium
 
@@ -185,13 +185,13 @@ The UI code of T11 may be drafted in parallel with T3–T10; its counts and prob
 
 ## Verification Criteria (milestone)
 
-- [ ] 160 presets: 7 × 20, Live 8, Field 12; names / seeds unique; FP0 green with every category rule
-- [ ] Every one of the 41 sources in ≥ 2 presets (FSU1 + FSU1n)
-- [ ] Every off-C3 slot in tune (FRT1 + FRT1n)
-- [ ] FP2 spread ≤ 9 dB, peak ≤ 4.0; new presets within −27 ± 2
-- [ ] Old 64: the 8 approved re-voices + D1 + description fixes only; the other 56 bitwise vs 1.2.0
-- [ ] Two-pane menu works by mouse and keyboard in en / fr / zh; file items reachable; user presets in User only
-- [ ] auval, pluginval 10 VST3 + AU, installed
+- [x] 160 presets: 7 × 20, Live 8, Field 12; names / seeds unique; FP0 green with every category rule
+- [x] Every one of the 41 sources in ≥ 2 presets (FSU1 + FSU1n)
+- [x] Every off-C3 slot in tune (FRT1 + FRT1n)
+- [x] FP2 spread ≤ 9 dB, peak ≤ 4.0; new presets within −27 ± 2
+- [x] Old 64: the 8 approved re-voices + D1 + description fixes only; the other 56 bitwise vs 1.2.0
+- [x] Two-pane menu works by mouse and keyboard in en / fr / zh; file items reachable; user presets in User only (served page: PM1–PM4, PM0; the real-Standalone check is in the hands-on list)
+- [x] auval, pluginval 10 VST3 + AU, installed
 
 ---
 

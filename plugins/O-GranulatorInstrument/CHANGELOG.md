@@ -1,5 +1,35 @@
 # O-GranulatorInstrument Changelog
 
+## [1.3.0] - 2026-11-14
+
+### Added
+
+- **96 new factory presets, 160 in all.** Drones, Expressive, Keys, Motion, Pads, Rhythmic and Textures each gain 12 and now hold 20; Live keeps its 8 templates. Every one of the 41 built-in sources is now played by at least two presets.
+  - Keys: Marimba, Kalimba Hall, FM Tines, Ice Bells, Crystal Bowl, Chapel Organ, Gamelan Plate, Drift Guitar, Guitar Harmonics, Sus Chords, Poly Saw, Bowed Stroke.
+  - Pads: Cathedral Choir, Low Strings, Organ Swell, Minor Haze, Sus Horizon, Analog Sweep, Shimmer Veil, Reed Consort, Crystal Halo, Breath Cloud, Overtone Glow, Deep Floor.
+  - Drones: Sub Pressure, Bassoon Pedal, Organ Fifths, Endless Bow, Saw Monolith, Shimmer Rise, Wind Tunnel, Minor Shroud, Plate Gong, Long Exhale, Hearth Glow, Undertow.
+  - Textures: Gravel Rain, Bubble Drift, Iron Swarm, Scrap Yard, Paper Cuts, Twig Storm, Geiger Dust, Cicada Night, Breath Static, Ice Shards, Crystal Rain, Gale Shimmer.
+  - Rhythmic: Shuffle Loop, Triplet Chop, Click Hats, Stick Groove, Snip Claps, Iron Shaker, Marimba Pulse, Kalimba Steps, Bubble Seq, Sub Pump, Bell Dots, Minor Chop.
+  - Motion: Saw Sweeper, Sus Carousel, Shimmer Spiral, Drift Warble, Reed Pulsar, Bubble Orbit, Plate Spin, Crystal Phase, Vowel Wander, Tide Machine, Garden Loops, Bell Scatter.
+  - Expressive: Reed Press, Bow Press, Slide Vox, MPE Shimmer (MPE); Saw Glide, Sub Legato, Deep Slur, Drift Slide (mono with glide); Wheel Organ, Velo Glass, Key Breath, Wheel Gust (velocity, key and mod wheel).
+- **A new category, Field (12 presets),** built on the five field recordings: Brook Bank, Rain on Stream, Stream Bed, Park Morning, Distant Park, Park Memory, Shoreline, Sea Cave, Forest Walk, Campfire, Garden Rain, Garden Dusk.
+- **A two-pane preset menu.** The groups on the left (Drones, Expressive, Field, Keys, Live, Motion, Pads, Rhythmic, Textures, then User), the presets of the selected group on the right, by short name; the preset bar keeps the full name. Hovering a group shows its presets. Up and Down move within a pane, Left and Right between panes, Home and End jump, Enter loads, Escape or Tab closes. "Load from file…" sits at the foot of the group list. Opening the menu selects the current preset. Group names are in English, French and Chinese.
+- **Your own presets have their own group, User,** listed last. A user preset never lands in a factory group, even when its name starts like one.
+
+### Changed
+
+- **Eight factory presets re-voiced on a better-fitting source:** Keys · Kalimba (now the Kalimba source), Keys · Glass Mallet (Glass, with a lower sustain so a held note does not re-strike), Drones · Organ Loft (Organ), Drones · Hollow Wind (Wind), Pads · Warm Choir (Choir), Pads · Velvet Strings (Bowed, and the two streams no longer detuned against each other), Textures · Ember Field (Fire), Textures · Rain Glass (Rain for the first stream). Their levels were matched to 1.2.0 within 1.4 dB.
+- Descriptions corrected where they did not match the sound: Glass Mallet, Orbit Lines, Crush Tides, Rust Cloud, Gated Pad.
+- The other 56 factory presets from 1.0.0 are unchanged; they render bit for bit as in 1.2.0.
+
+### Notes
+
+- No parameter, range or session-format change. Sessions and presets from 1.0.0, 1.1.0 and 1.2.0 load unchanged.
+- The factory preset files are rewritten once on first launch of 1.3.0 (the bank changed); your own presets are not touched.
+- A preset that uses an off-C3 source (Crystal, Guitar Overtones, Guitar Drift, Contrabassoon, Sub) sets that stream's Root Note and Root Fine itself, so it plays in tune.
+- The bank's loudness spread is 6.0 dB (gated), down from 7.0 dB in 1.2.0; the new presets sit within 2 dB of each other.
+- Preset names are not translated.
+
 ## [1.2.0] - 2026-11-13
 
 ### Added
