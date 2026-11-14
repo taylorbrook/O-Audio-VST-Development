@@ -1,13 +1,13 @@
 ---
 plugin: O-ParametricEQ
 stage: 2
-phase: execute
-status: stage_2_phase_2_2_executed
-last_updated: 2026-11-13 18:05:12
+phase: verify
+status: stage_2_phase_2_2_verified
+last_updated: 2026-11-13 21:05:54
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_2_verify_phase_2_2
+next_action: stage_2_research_phase_2_3
 next_stage: 2
 ready_for_implementation: true
 ui_scaffolding_phase_complete: true
@@ -28,7 +28,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — discuss ✓ 2026-11-12 (`stages/2-dsp/CONTEXT.md`, D6–D11); research 2.1 / 2.1b ✓ 2026-11-12 (`stages/2-dsp/RESEARCH-2.1.md`); plan 2.1 / 2.1b ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.1.md`, `PLAN-2.1b.md`); execute 2.1 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.1.md`, designer harness 28 PASS / 0 FAIL / 6 INFO); verify 2.1 ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1.md`, VERIFIED); execute 2.1b **BLOCKED** 2026-11-13 (`stages/2-dsp/SUMMARY-2.1b.md`: harness 47 PASS / 1 FAIL, C1 continuity; uncommitted); research on the C1 failure ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.1b-continuity.md`); plan 2.1b rework ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.1b-rework.md`, 10 tasks); execute 2.1b rework ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.1b-rework.md`, designer harness 54 PASS / 0 FAIL / 12 INFO); verify 2.1b ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1b.md`, VERIFIED); research 2.2 ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.2.md`); plan 2.2 ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.2.md`, 10 tasks); execute 2.2 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.2.md`, designer harness 67 PASS / 0 FAIL / 12 INFO, render harness 64 PASS / 0 FAIL, 0.2.0 installed); next is verify for Phase 2.2. Stage 1 (Foundation): VERIFIED
+Stage: 2 of 4 (DSP) — discuss ✓ 2026-11-12 (`stages/2-dsp/CONTEXT.md`, D6–D11); research 2.1 / 2.1b ✓ 2026-11-12 (`stages/2-dsp/RESEARCH-2.1.md`); plan 2.1 / 2.1b ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.1.md`, `PLAN-2.1b.md`); execute 2.1 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.1.md`, designer harness 28 PASS / 0 FAIL / 6 INFO); verify 2.1 ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1.md`, VERIFIED); execute 2.1b **BLOCKED** 2026-11-13 (`stages/2-dsp/SUMMARY-2.1b.md`: harness 47 PASS / 1 FAIL, C1 continuity; uncommitted); research on the C1 failure ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.1b-continuity.md`); plan 2.1b rework ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.1b-rework.md`, 10 tasks); execute 2.1b rework ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.1b-rework.md`, designer harness 54 PASS / 0 FAIL / 12 INFO); verify 2.1b ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1b.md`, VERIFIED); research 2.2 ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.2.md`); plan 2.2 ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.2.md`, 10 tasks); execute 2.2 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.2.md`, designer harness 67 PASS / 0 FAIL / 12 INFO, render harness 64 PASS / 0 FAIL, 0.2.0 installed); verify 2.2 ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.2.md`, VERIFIED); next is research for Phase 2.3. Stage 1 (Foundation): VERIFIED
 Status: 0.1.0 built and installed (VST3 + AU + Standalone); harness 36 PASS / 0 FAIL, pluginval 10 and auval pass (`stages/1-foundation/SUMMARY.md`). Verified 2026-11-12 by an independent re-run on a fresh compile and reinstalled bundles, plus a mutation run (`stages/1-foundation/VERIFICATION.md`); next is Stage 2 discuss
 Progress: [####................] 20%
 
@@ -88,6 +88,7 @@ Progress: [####................] 20%
 | research 2.2 | ✓ | 2026-11-13 | |
 | plan 2.2 | ✓ | 2026-11-13 | |
 | execute 2.2 | ✓ | 2026-11-13 | |
+| verify 2.2 | ✓ | 2026-11-13 | |
 
 ## Next Steps
 
@@ -111,7 +112,8 @@ Progress: [####................] 20%
 17. ~~Research for Phase 2.2~~ Done 2026-11-13: `stages/2-dsp/RESEARCH-2.2.md`, bench in `stages/2-dsp/research-2.2/engine_bench.cpp` (prototype engine over the real `Source/dsp` headers). The recurrences realise the closed form: rendered impulse response within 2.8e-8 dB in double and 5.8e-4 dB in float above -80 dB (22 settings, 8 types, 44.1 / 96 kHz). **Three gates do not survive the float output as written:** G4 (c) (-130 dB re input peak reads -120.5 dB with 24 Mid bells at +6 dB; the engine is at -265 dB), G8 (a 96 dB/oct High Cut at 10 Hz has a first sample of 2e-47, below float), and the "float → double → float is exact" premise (false for denormal samples under flush-to-zero: untouched lanes must not be converted). A 0 dB gain band is not bit-transparent without the 2.4 sleep. CPU: PERF-02 case 4.6 % section-major (the model's figure), 2.4 % sample-major; 24 shelves x 96 dB/oct settled 4.7 %; design 4.67 µs per 96 dB/oct shelf band (33.6 % for 24 sweeping, model 46 %). **Calls for the plan:** C1 and C2 are Taylor's (amend ARCHITECTURE G4 (c) and G8); C3–C6 are the plan's (FUNC-02 row scope and render length, tail 2.0 with row L4, sample-major loop, the 2.2 behaviours that 2.3 / 2.4 replace). Nothing in Source, the harnesses, the model or the goldens was changed.
 18. ~~Plan Phase 2.2~~ Done 2026-11-13: `stages/2-dsp/PLAN-2.2.md` (10 tasks, six waves). Taylor's calls: G4 (c) and G8 amended as research C1 / C2; version 0.2.0 with build, install, pluginval 10 and `auval`. Contracts amended (ARCHITECTURE G4 (c), the G4 denormal stimulus, G8, "Float I/O, double engine"; ROADMAP Phase 2.2 criteria: FUNC-02 scope and tail, DSP-07 engine half), checksums refreshed. Plan's calls: four std-only headers (`BandParams.h`, `SectionEngine.h`, `Band.h`, `Router.h`), one raw → settings function, sample-major loop, hard bypass, tail 2.0; engine gated in double by the designer harness (EN / SN rows) and through the plugin by the render harness. Two Stage 1 rows are amended by name: L4 (tail 2.0) and P1 `processBlock` "all random" (bands off). Carried to 2.3 research: G5's peak bound against stacked gain (24 bands at ±60 dB overflow float).
 19. ~~Execute Phase 2.2~~ Done 2026-11-13: `stages/2-dsp/SUMMARY-2.2.md`. Engine is four std-only headers (`BandParams.h`, `SectionEngine.h`, `Band.h`, `Router.h`), processor wired, version 0.2.0 built and installed. Designer harness 67 PASS / 0 FAIL / 12 INFO (EN-ir worst 2.7e-10 dB, EN-ms -264.9 dB), render harness 64 PASS / 0 FAIL (E2 worst 1.35e-3 dB, T1c -146.5 dB, A1 0 allocations, X-cpu 2.44 % / 4.94 %); all controls fire; pluginval 10 VST3 ×2 and AU, `auval`, Standalone pass. **G8 amended during the run (Taylor's call):** the double engine starts at the impulse index wherever the predicted first sample is non-zero, and matches it within 1e-12 of the chain's largest magnitude (EN-g8 as planned failed on rounding in the Mid / Side injection and the SVF high-pass term: 46 late starts with prediction exactly 0, 116 above 1e-12 relative; worst scaled error 2.5e-14). ARCHITECTURE checksum refreshed. Stage 1 rows L4 and P1 amended by name. Carry-forward for 2.3 / 2.4 / 2.5 and verify is in the summary.
-20. Verify Phase 2.2: `/plugin-verify O-ParametricEQ 2-dsp`.
+20. ~~Verify Phase 2.2~~ Done 2026-11-13: `stages/2-dsp/VERIFICATION-2.2.md`, VERIFIED. Fresh recompile 67 / 0 / 12 and 64 / 0, figures equal to the SUMMARY; all controls fire; pluginval 10 (VST3, AU) and `auval` pass on the installed 0.2.0; the four engine headers and the processor were read in full (no defect). Two probes written in verify (`stages/2-dsp/verify-2.2/`): the processor against analog facts, 19 / 19 (all 8 slopes of both cuts Butterworth within 0.02 dB, Mid / Side / Left, gain scale, band bypass, re-prepare, state round trip); the rendered half of G1, 2800 bells within 47 % of the tolerance against the true analog prototype and within 8e-11 dB of the closed form. Mutation run, 35 mutants: 29 of 33 live ones caught. **Gate gaps carried to the 2.3 plan (non-blocking):** no row asserts that a continuous change keeps the filter state (a type change classified continuous also passes); a `gain_scale` edit, band bypass and the Mid / Side response are not measured through the plugin; re-preparing an instance at another rate is not gated (the probe covers the last three). Also for 2.3: canonical gain on cuts / Notch / Band Pass (a gain-scale move redesigns every active cut), G5's peak bound against stacked gain. **Requirements:** FUNC-03, DSP-01, DSP-02, DSP-07 → complete; FUNC-01, FUNC-02, FUNC-04, FUNC-05, DSP-03, DSP-06, PERF-01, QUAL-01 → partial. Hands-on DAW listen open, not blocking.
+21. Research Phase 2.3 (continuous modulation): `/plugin-research O-ParametricEQ 2-dsp`.
 
 ## Context to Preserve
 

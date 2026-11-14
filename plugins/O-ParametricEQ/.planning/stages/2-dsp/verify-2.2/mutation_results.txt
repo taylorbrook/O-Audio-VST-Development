@@ -1,0 +1,108 @@
+M0
+   designer: rc 0 | 67 PASS, 0 FAIL, 12 INFO | FAIL: none
+   render:   rc 0 | 64 PASS, 0 FAIL | FAIL: none
+E4
+   designer: rc 1 | 66 PASS, 1 FAIL, 12 INFO | FAIL: EN-ir
+   render:   rc 8 | 56 PASS, 8 FAIL | FAIL: E1 (i), E1 (ii), E2, E2, E2, E2, N1, U1
+E2
+   designer: rc 1 | 66 PASS, 1 FAIL, 12 INFO | FAIL: EN-ir
+   render:   rc 8 | 56 PASS, 8 FAIL | FAIL: E1 (i), E1 (ii), E2, E2, E2, E2, N1, U1
+E3
+   designer: rc 1 | 66 PASS, 1 FAIL, 12 INFO | FAIL: EN-ir
+   render:   rc 5 | 59 PASS, 5 FAIL | FAIL: E1 (i), E1 (ii), E2, E2, N1
+E1
+   designer: rc 2 | 65 PASS, 2 FAIL, 12 INFO | FAIL: EN-ir, EN-g8
+   render:   rc 10 | 54 PASS, 10 FAIL | FAIL: E1 (i), E1 (ii), E2, E2, E2, E2, N1, N2, Z1, U1
+B1
+   designer: rc 2 | 65 PASS, 2 FAIL, 12 INFO | FAIL: EN-ir, EN-g8
+   render:   rc 10 | 54 PASS, 10 FAIL | FAIL: E1 (i), E1 (ii), E2, E2, E2, E2, N1, Z1, U1, U3
+E5
+   designer: rc 1 | 66 PASS, 1 FAIL, 12 INFO | FAIL: EN-g8
+   render:   rc 1 | 63 PASS, 1 FAIL | FAIL: Z1
+B2
+   designer: rc 1 | 66 PASS, 1 FAIL, 12 INFO | FAIL: EN-g8
+   render:   rc 2 | 62 PASS, 2 FAIL | FAIL: H1 (ii), U2
+B3
+   designer: rc 0 | 67 PASS, 0 FAIL, 12 INFO | FAIL: none
+   render:   rc 0 | 64 PASS, 0 FAIL | FAIL: none
+B4
+   designer: rc 1 | 66 PASS, 1 FAIL, 12 INFO | FAIL: EN-blk
+   render:   rc 5 | 59 PASS, 5 FAIL | FAIL: E1 (i), E1 (ii), E2, E2, T1g
+R1
+   designer: rc 2 | 65 PASS, 2 FAIL, 12 INFO | FAIL: EN-ms, EN-g8
+   render:   rc 2 | 62 PASS, 2 FAIL | FAIL: T1c, Z1
+R4
+   designer: rc 1 | 66 PASS, 1 FAIL, 12 INFO | FAIL: EN-lr
+   render:   rc 1 | 63 PASS, 1 FAIL | FAIL: T1b
+R6
+   designer: rc 2 | 65 PASS, 2 FAIL, 12 INFO | FAIL: EN-ms, EN-g8
+   render:   rc 2 | 62 PASS, 2 FAIL | FAIL: T1c, Z1
+R7
+   designer: rc 1 | 66 PASS, 1 FAIL, 12 INFO | FAIL: EN-ms
+   render:   rc 0 | 64 PASS, 0 FAIL | FAIL: none
+R8
+   designer: rc 2 | 65 PASS, 2 FAIL, 12 INFO | FAIL: EN-ms, EN-g8
+   render:   rc 1 | 63 PASS, 1 FAIL | FAIL: Z1
+P1
+   designer: rc 2 | 65 PASS, 2 FAIL, 12 INFO | FAIL: SN1, SN3
+   render:   rc 1 | 63 PASS, 1 FAIL | FAIL: U3
+P2
+   designer: rc 2 | 65 PASS, 2 FAIL, 12 INFO | FAIL: SN1, EN-dyn
+   render:   rc 0 | 64 PASS, 0 FAIL | FAIL: none
+P3
+   designer: rc 1 | 66 PASS, 1 FAIL, 12 INFO | FAIL: SN1
+   render:   rc 0 | 64 PASS, 0 FAIL | FAIL: none
+P4
+   designer: rc 1 | 66 PASS, 1 FAIL, 12 INFO | FAIL: SN1
+   render:   rc 0 | 64 PASS, 0 FAIL | FAIL: none
+P5
+   designer: rc 0 | 67 PASS, 0 FAIL, 12 INFO | FAIL: none
+   render:   rc 0 | 64 PASS, 0 FAIL | FAIL: none
+P6
+   designer: rc 1 | 66 PASS, 1 FAIL, 12 INFO | FAIL: SN1
+   render:   rc 0 | 64 PASS, 0 FAIL | FAIL: none
+X1
+   designer: -
+   render:   rc 1 | 63 PASS, 1 FAIL | FAIL: H1 (ii)
+X2
+   designer: -
+   render:   rc 1 | 63 PASS, 1 FAIL | FAIL: H1 (ii)
+X4
+   designer: -
+   render:   rc 1 | 63 PASS, 1 FAIL | FAIL: L4
+X5
+   designer: -
+   render:   rc 1 | 63 PASS, 1 FAIL | FAIL: U2
+X6
+   designer: -
+   render:   rc 1 | 63 PASS, 1 FAIL | FAIL: T1b
+X7
+   designer: -
+   render:   rc 0 | 64 PASS, 0 FAIL | FAIL: none
+P7
+   designer: rc 0 | 67 PASS, 0 FAIL, 12 INFO | FAIL: none
+   render:   rc 1 | 63 PASS, 1 FAIL | FAIL: U3
+P8
+   designer: rc 1 | 66 PASS, 1 FAIL, 12 INFO | FAIL: SN3
+   render:   rc 0 | 64 PASS, 0 FAIL | FAIL: none
+P9
+   designer: rc 3 | 64 PASS, 3 FAIL, 12 INFO | FAIL: EN-g8, SN1, EN-dyn
+   render:   rc 0 | 64 PASS, 0 FAIL | FAIL: none
+X8
+   designer: -
+   render:   rc 0 | 64 PASS, 0 FAIL | FAIL: none
+X9
+   designer: -
+   render:   rc 0 | 64 PASS, 0 FAIL | FAIL: none
+X11
+   designer: -
+   render:   rc 2 | 62 PASS, 2 FAIL | FAIL: L4, Z1
+X12
+   designer: -
+   render:   rc 6 | 58 PASS, 6 FAIL | FAIL: E2, E2, E2, E2, N1, Z1
+X17
+   designer: -
+   render:   rc 1 | 63 PASS, 1 FAIL | FAIL: U1
+X18
+   designer: -
+   render:   rc 0 | 64 PASS, 0 FAIL | FAIL: none

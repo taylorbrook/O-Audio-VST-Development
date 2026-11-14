@@ -19,11 +19,11 @@ lastUpdated: 2026-11-13
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| FUNC-01 | Up to 24 independent bands, created and removed on demand | must | pending | stage-2 |
-| FUNC-02 | Eight filter types per band: Bell, Low Shelf, High Shelf, Low Cut, High Cut, Notch, Band Pass, Tilt Shelf | must | pending | stage-2 |
-| FUNC-03 | Per-band placement: Stereo, Left, Right, Mid, Side | must | pending | stage-2 |
-| FUNC-04 | Per-band bypass and global click-free bypass | must | pending | stage-2 |
-| FUNC-05 | Output gain and gain scale | must | pending | stage-2 |
+| FUNC-01 | Up to 24 independent bands, created and removed on demand | must | partial | stage-2 |
+| FUNC-02 | Eight filter types per band: Bell, Low Shelf, High Shelf, Low Cut, High Cut, Notch, Band Pass, Tilt Shelf | must | partial | stage-2 |
+| FUNC-03 | Per-band placement: Stereo, Left, Right, Mid, Side | must | complete | stage-2 |
+| FUNC-04 | Per-band bypass and global click-free bypass | must | partial | stage-2 |
+| FUNC-05 | Output gain and gain scale | must | partial | stage-2 |
 | FUNC-06 | Auto gain compensates the curve's loudness change | should | pending | stage-2 |
 | FUNC-07 | Presets via the suite preset-manager, with a factory set | should | pending | stage-4 |
 | FUNC-08 | Band solo / listen | should | pending | stage-3 |
@@ -32,13 +32,13 @@ lastUpdated: 2026-11-13
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| DSP-01 | Analog-matched magnitude response for bell and shelf up to Nyquist, without oversampling | must | partial | stage-2 |
-| DSP-02 | Zero latency, minimum phase | must | pending | stage-2 |
-| DSP-03 | Slopes of 6, 12, 18, 24, 36, 48, 72 and 96 dB/oct on every type that supports them | must | pending | stage-2 |
+| DSP-01 | Analog-matched magnitude response for bell and shelf up to Nyquist, without oversampling | must | complete | stage-2 |
+| DSP-02 | Zero latency, minimum phase | must | complete | stage-2 |
+| DSP-03 | Slopes of 6, 12, 18, 24, 36, 48, 72 and 96 dB/oct on every type that supports them | must | partial | stage-2 |
 | DSP-04 | Click-free under automation and fast drags of every parameter, including type, slope, placement and enable | must | pending | stage-2 |
 | DSP-05 | Numerically stable and quiet at low frequency / high Q at all supported sample rates | must | pending | stage-2 |
-| DSP-06 | Parameter ranges: frequency 10 Hz – 30 kHz, gain ±30 dB, Q 0.025 – 40 | must | pending | stage-2 |
-| DSP-07 | Band engine and state format leave room for dynamic EQ without breaking v1 sessions | should | partial | stage-1 |
+| DSP-06 | Parameter ranges: frequency 10 Hz – 30 kHz, gain ±30 dB, Q 0.025 – 40 | must | partial | stage-2 |
+| DSP-07 | Band engine and state format leave room for dynamic EQ without breaking v1 sessions | should | complete | stage-1 |
 
 ### UI (UI)
 
@@ -56,7 +56,7 @@ lastUpdated: 2026-11-13
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| PERF-01 | Real-time safe audio processing (no allocations or locks in processBlock) | must | pending | stage-2 |
+| PERF-01 | Real-time safe audio processing (no allocations or locks in processBlock) | must | partial | stage-2 |
 | PERF-02 | 24 bands at 96 dB/oct stay within a CPU budget set in Stage 0; disabled bands cost nothing | must | pending | stage-4 |
 
 ### Compatibility (COMPAT)
@@ -70,60 +70,60 @@ lastUpdated: 2026-11-13
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| QUAL-01 | No audio artifacts at normal parameter ranges; all bands at 0 dB / disabled is bit-transparent | must | pending | stage-2 |
+| QUAL-01 | No audio artifacts at normal parameter ranges; all bands at 0 dB / disabled is bit-transparent | must | partial | stage-2 |
 
 ## Acceptance Criteria Details
 
 ### FUNC-01: 24 on-demand bands
 
 **Acceptance Criteria:**
-- [ ] 24 bands can be enabled simultaneously and each affects the output independently
+- [x] 24 bands can be enabled simultaneously and each affects the output independently
 - [ ] Enabling or removing a band mid-playback produces no click
 - [ ] Band state survives save / reload and preset recall
 
 ### FUNC-02: Filter types
 
 **Acceptance Criteria:**
-- [ ] Each of the eight types renders a measured response matching its design target
+- [x] Each of the eight types renders a measured response matching its design target
 - [ ] Changing type on a live band produces no click or level jump beyond the response change itself
 
 ### FUNC-03: Per-band placement
 
 **Acceptance Criteria:**
-- [ ] A Left band leaves the right channel bit-identical to input (and vice versa)
-- [ ] A Mid band leaves the side signal unchanged (and vice versa), within numerical tolerance
-- [ ] On a mono layout, placement is inert and the band processes the single channel
+- [x] A Left band leaves the right channel bit-identical to input (and vice versa)
+- [x] A Mid band leaves the side signal unchanged (and vice versa), within numerical tolerance
+- [x] On a mono layout, placement is inert and the band processes the single channel
 
 ### FUNC-04: Bypass
 
 **Acceptance Criteria:**
-- [ ] Global bypass output nulls against input
+- [x] Global bypass output nulls against input
 - [ ] Toggling band or global bypass during a sustained tone produces no click
 
 ### FUNC-05: Output gain and gain scale
 
 **Acceptance Criteria:**
 - [ ] Output gain is accurate to ±0.05 dB across its range
-- [ ] Gain scale 0 % yields a flat response for all gain-bearing bands; 200 % doubles their dB gain
+- [x] Gain scale 0 % yields a flat response for all gain-bearing bands; 200 % doubles their dB gain
 
 ### DSP-01: Analog-matched response
 
-_Partial 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1b.md`): design side met at the Phase 2.1b G1 tolerance at five rates; criterion 2 and the rendered half of G1 close at Phase 2.2 (G8)._
+_Complete 2026-11-13 (`stages/2-dsp/VERIFICATION-2.2.md`): design side at the Phase 2.1b G1 tolerance (2.1b); rendered engine equals the closed form and stays inside that tolerance against the analog prototype; latency 0, no oversampling._
 
 **Acceptance Criteria:**
-- [ ] At 44.1 kHz, bell and shelf magnitude responses match the analog prototype within a tolerance set in Stage 0, measured up to 20 kHz, for centre frequencies up to 20 kHz
-- [ ] No oversampling is used and reported latency stays 0
+- [x] At 44.1 kHz, bell and shelf magnitude responses match the analog prototype within a tolerance set in Stage 0, measured up to 20 kHz, for centre frequencies up to 20 kHz
+- [x] No oversampling is used and reported latency stays 0
 
 ### DSP-02: Zero latency, minimum phase
 
 **Acceptance Criteria:**
-- [ ] `getLatencySamples()` returns 0 in every configuration
-- [ ] An impulse through any configuration has no pre-ringing
+- [x] `getLatencySamples()` returns 0 in every configuration
+- [x] An impulse through any configuration has no pre-ringing
 
 ### DSP-03: Slopes
 
 **Acceptance Criteria:**
-- [ ] Each slope setting measures its nominal dB/oct in the stop band for low cut and high cut
+- [x] Each slope setting measures its nominal dB/oct in the stop band for low cut and high cut
 - [ ] Slope changes on a live band are click-free
 
 ### DSP-04: Click-free modulation
@@ -143,7 +143,7 @@ _Partial 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1b.md`): design side met at th
 
 **Acceptance Criteria:**
 - [ ] All ranges reachable from UI, automation and typed entry
-- [ ] Frequencies above Nyquist at low sample rates are handled without instability
+- [x] Frequencies above Nyquist at low sample rates are handled without instability
 
 ### UI-01: Interactive display
 
@@ -160,7 +160,7 @@ _Partial 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1b.md`): design side met at th
 
 **Acceptance Criteria:**
 - [ ] Allocation gate reports zero allocations in processBlock under parameter stress
-- [ ] No locks or file / message-thread calls on the audio thread
+- [x] No locks or file / message-thread calls on the audio thread
 
 ### PERF-02: CPU budget
 
@@ -184,7 +184,7 @@ _Partial 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1b.md`): design side met at th
 ### QUAL-01: Transparency
 
 **Acceptance Criteria:**
-- [ ] With no bands enabled and output gain 0 dB, output is bit-identical to input
+- [x] With no bands enabled and output gain 0 dB, output is bit-identical to input
 - [ ] No audible artifacts in listening tests across factory presets
 
 ---
@@ -193,7 +193,7 @@ _Partial 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1b.md`): design side met at th
 
 | Stage | Requirements Verified |
 |-------|----------------------|
-| stage-1 | COMPAT-01, DSP-07 (state format and layout; the band-engine half is checked in Phase 2.2) |
+| stage-1 | COMPAT-01, DSP-07 (state format and layout; the band-engine half closed at Phase 2.2 verify) |
 | stage-2 | FUNC-01–06, DSP-01–06, PERF-01, QUAL-01 |
 | stage-3 | FUNC-08, UI-01–04, UI-06, UI-07 |
 | stage-4 | FUNC-07, UI-05, PERF-02, COMPAT-02, all remaining |
@@ -212,3 +212,5 @@ _Partial 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1b.md`): design side met at th
 ---
 *Generated from BRIEF.md on 2026-11-12*
 *Schema: .planning/workflow/schemas/plugin-requirements.schema.json*
+
+*Phase 2.2 verify, 2026-11-13 (`stages/2-dsp/VERIFICATION-2.2.md`): FUNC-03, DSP-01, DSP-02, DSP-07 complete; FUNC-01, FUNC-02, FUNC-04, FUNC-05, DSP-03, DSP-06, PERF-01, QUAL-01 partial (their click-free, modulation, output-stage, UI and listening criteria belong to Phases 2.3 - 2.5 and Stages 3 - 4).*
