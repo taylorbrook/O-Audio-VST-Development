@@ -1,6 +1,6 @@
 milestone: preset-bank-expansion
 created: 2026-11-14T15:18:41Z
-lastActivity: 2026-11-14T23:30:00Z
+lastActivity: 2026-11-15T00:30:00Z
 phases:
   discuss:
     status: complete
@@ -17,7 +17,7 @@ phases:
   execute:
     status: in_progress
     startedAt: 2026-11-14T18:00:00Z
-    lastWaveCommitted: T6
+    lastWaveCommitted: T7
     notes: >-
       T0 backup backups/O-GranulatorInstrument/v1.2.0 + 1.2.0 references (harness-120 binary in
       build/plugins/O-GranulatorInstrument/pbe-ref120-bin, 64 renders in evidence/ref-1.2.0, f32 gitignored).
@@ -51,7 +51,7 @@ phases:
       Expressive split; Field sources); FSU1 27/41; FP1c 100; FP3c 8; dump rc 1; PN1 count. FRT1 now green
       (13/13 slots, 5/5 sources). Feedback-heavy drones calibrate non-linearly (Wind Tunnel: -5.4 dB trim moved
       it -8.4 dB; took 3 passes); bassoon pedal uses key_track 0 + s1_pitch 4.19 to sit on C1.
-      T6 commit: SHA line written after the commit; the next wave commits it.
+      T6 commit 3cd7695f.
       T6 Textures +12 (Gravel Rain, Bubble Drift, Iron Swarm, Scrap Yard, Paper Cuts, Twig Storm, Geiger Dust,
       Cicada Night, Breath Static, Ice Shards, Crystal Rain, Gale Shimmer; seeds ...0801000009-...20): FP2 new
       -27.4 .. -27.0, bank spread 6.00 dB, peak 0.568, P4 not fired; PT0 56 / 56 bitwise. Expected-fail list at 112
@@ -60,6 +60,16 @@ phases:
       and the 4 field sources 0); FP1c 112; FP3c 8; dump rc 1; PN1 count. FRT1 14/14 slots. Sparse one-shot sources
       (scissors, stick_snaps, clicks) and breath read 10-17 dB under target at +6: long grains (150-350 ms), drive,
       vel_to_amp 0-40 and feedback 35-72 lift them; Paper Cuts needed fb 72 + drive 75 (five passes).
+      T7 commit: SHA line written after the commit; the next wave commits it.
+      T7 Rhythmic +12 (Shuffle Loop, Triplet Chop, Click Hats, Stick Groove, Snip Claps, Iron Shaker, Marimba Pulse,
+      Kalimba Steps, Bubble Seq, Sub Pump, Bell Dots, Minor Chop; seeds ...0701000009-...20): FP2 new -28.4 .. -26.9,
+      bank spread 6.00 dB, peak 0.609 (Stick Groove), P4 not fired; PT0 56 / 56 bitwise. Expected-fail list at 124
+      (evidence/t7/expected-fail-124.txt): FP0 6 checks (3 category counts Expressive / Field / Motion; bank 124/9;
+      Expressive split; Field sources); FSU1 35/41 (below 2: guitar_drift, waves 1; stream / park / woods / garden 0);
+      FP1c 124; dump rc 1; PN1 count. FP3c now green (20 Rhythmic), FP3 0 off-grid. FRT1 15/15 slots.
+      Drum-hit presets read a fixed transient (scan_rate 0, sN_position on a measured onset) with key_track 0; poly
+      chords stacked identical in-phase hits (peaks 1.1-1.9), so the five hit presets run voice_mode Mono and get their
+      level back from drive 60-85 and vel_to_amp 0 (Snip Claps moved 1/4 -> 1/8: quarters read -31 at +6).
   verify:
     status: pending
 versionBump: minor

@@ -1,0 +1,3 @@
+[PresetManager] Factory presets initialized: 124
+dump-factory-presets: 124 files -> /private/tmp/claude-501/-Users-taylorbrook-Dev-VST-development/ed28fab0-f5c8-4990-bd3f-dcfc6270a48c/scratchpad/t7/fpd7
+rc 1
