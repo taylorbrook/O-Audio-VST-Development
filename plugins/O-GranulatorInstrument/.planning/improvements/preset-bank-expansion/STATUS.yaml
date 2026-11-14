@@ -1,6 +1,6 @@
 milestone: preset-bank-expansion
 created: 2026-11-14T15:18:41Z
-lastActivity: 2026-11-15T02:00:00Z
+lastActivity: 2026-11-15T03:00:00Z
 phases:
   discuss:
     status: complete
@@ -17,7 +17,7 @@ phases:
   execute:
     status: in_progress
     startedAt: 2026-11-14T18:00:00Z
-    lastWaveCommitted: T8
+    lastWaveCommitted: T9
     notes: >-
       T0 backup backups/O-GranulatorInstrument/v1.2.0 + 1.2.0 references (harness-120 binary in
       build/plugins/O-GranulatorInstrument/pbe-ref120-bin, 64 renders in evidence/ref-1.2.0, f32 gitignored).
@@ -70,7 +70,7 @@ phases:
       Drum-hit presets read a fixed transient (scan_rate 0, sN_position on a measured onset) with key_track 0; poly
       chords stacked identical in-phase hits (peaks 1.1-1.9), so the five hit presets run voice_mode Mono and get their
       level back from drive 60-85 and vel_to_amp 0 (Snip Claps moved 1/4 -> 1/8: quarters read -31 at +6).
-      T8 commit: SHA line written after the commit; the next wave commits it.
+      T8 commit 68c2ba4a.
       T8 Motion +12 (Saw Sweeper, Sus Carousel, Shimmer Spiral, Drift Warble, Reed Pulsar, Bubble Orbit, Plate Spin,
       Crystal Phase, Vowel Wander, Tide Machine, Garden Loops, Bell Scatter; seeds ...0501000009-...20): FP2 new
       -28.9 .. -27.0, bank spread 6.00 dB, peak 0.609, P4 not fired; PT0 56 / 56 bitwise. Expected-fail list at 136
@@ -80,6 +80,15 @@ phases:
       its title). Level LFO routes calibrate non-linearly (Reed Pulsar: square -> level depth 20 read -17.8 at 0 dB;
       depth 12 + -9 dB); band-passed bubbles stay low at +6 (Bubble Orbit -28.9 after density 150, size 250, res 0,
       drive 40, vel_to_amp 0).
+      T9 commit: SHA line written after the commit; the next wave commits it.
+      T9 Expressive +12 (MPE: Reed Press, Bow Press, Slide Vox, MPE Shimmer; mono-glide: Saw Glide, Sub Legato,
+      Deep Slur, Drift Slide; played-control: Wheel Organ, Velo Glass, Key Breath, Wheel Gust; seeds
+      ...0201000009-...20): FP2 new -28.0 .. -26.9, bank spread 6.00 dB, peak 0.673, P4 not fired; PT0 56 / 56
+      bitwise. Expressive split now 8 / 2 / 6 / 6 (green). Expected-fail list at 148 (evidence/t9/expected-fail-148.txt):
+      FP0 3 checks (Field count; bank 148/9; Field sources); FSU1 37/41 (garden 1; stream / park / woods 0); FP1c 148;
+      dump rc 1; PN1 count. FRT1 22/22 slots. Mono presets measure one voice of the dyads: Saw Glide / Deep Slur /
+      Drift Slide read -34 at 0 dB and needed density 120-140, longer grains, vel_to_amp 40 (Deep Slur -28.0 at +6).
+      Velo Glass (2 s glass) read -40.7 on a forward scan; ping-pong over 0-30 %, density 130, sustain 40 fixed it.
   verify:
     status: pending
 versionBump: minor

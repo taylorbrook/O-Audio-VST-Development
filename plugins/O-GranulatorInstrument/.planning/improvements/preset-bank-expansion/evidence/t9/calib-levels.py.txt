@@ -1,0 +1,24 @@
+# usage: calib.py fp2.txt [--apply]  -- reads INFO FP2 line, trims enabled sN_level of the T9 Expressive presets toward -27
+import re, sys
+fp2 = open(sys.argv[1]).read()
+line = [l for l in fp2.splitlines() if 'INFO FP2 gated' in l][0]
+gated = {e.strip().split(' ')[0]: float(e.strip().split(' ')[1].split('/')[0]) for e in line.split(':',1)[1].split(';') if e.strip()}
+names = ["Reed Press","Bow Press","Slide Vox","MPE Shimmer","Saw Glide","Sub Legato","Deep Slur","Drift Slide","Wheel Organ","Velo Glass","Key Breath","Wheel Gust"]
+p = '/Users/taylorbrook/Dev/VST-development/plugins/O-GranulatorInstrument/Source/FactoryPresets.h'
+s = open(p, newline='').read()
+apply = '--apply' in sys.argv
+for n in names:
+    g = gated[n.replace(' ', '')]
+    trim = round(-27.0 - g, 1)
+    start = s.index('"Expressive \\xc2\\xb7 ' + n + '"')
+    end = s.index('} } },', start)
+    block = s[start:end]
+    out = []
+    def rep(m):
+        old = float(m.group(2)); new = max(-60.0, min(6.0, round(old + trim, 1)))
+        out.append(f's{m.group(1)} {old:+.1f}->{new:+.1f}' + (' CLAMP' if old + trim > 6.0 else ''))
+        return f'{{ "s{m.group(1)}_level", {new:.1f}f }}'
+    nb = re.sub(r'\{ "s(\d)_level", (-?\d+(?:\.\d+)?)f \}', rep, block)
+    print(f'{n:18s} gated {g:6.1f} trim {trim:+.1f}  ' + ', '.join(out))
+    if apply: s = s[:start] + nb + s[end:]
+if apply: open(p, 'w', newline='').write(s)

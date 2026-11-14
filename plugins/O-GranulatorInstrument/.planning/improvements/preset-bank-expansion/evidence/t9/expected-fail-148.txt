@@ -1,0 +1,20 @@
+T9 expected-fail list at the 148-preset bank (Keys / Pads / Drones / Textures / Rhythmic / Motion / Expressive 20 / 20), 2026-11-14. A strict subset of evidence/t8/expected-fail-136.txt.
+
+--pg4: 37 PASS / 3 FAIL
+  FP0  (3 failing checks of 910):
+       Field count 0 (want 12)
+       | bank 148 / 9 categories (want 160 / 9)
+       | Field sources stream / park / waves / woods / garden 0 / 0 / 0 / 0 / 0 (want 3 / 3 / 2 / 2 / 2)
+       (Expressive count and Expressive split no longer fail: split 8 / 2 / 6 / 6, want 8 / >= 1 / 6 / 6.)
+  FSU1 37 / 41 sources in >= 2 presets (unchanged; the Expressive row's sources were already >= 2):
+       garden 1; stream, park, woods 0
+  FP1c 148 (want 160)
+Outside --pg4:
+  --dump-factory-presets: rc 1 (148 files, want 160)
+  tests/preset_name_fit.js (PN1): 1 FAILURE "parsed 148 names (want 160)"; every fit line passes (widest now "Expressive · MPE Shimmer" 144 px)
+
+Green: FP2 (spread 6.00 dB, -29.0 Grain Piano .. -23.0 Fifth Bloom; max peak 0.673), the 12 new -28.0 .. -26.9 gated;
+FRT1 22 / 22 off-C3 slots, 5 / 5 sources (Sub Legato sub, Deep Slur contrabassoon, Drift Slide guitar_drift added);
+FP0 realism-titled 24 (Wheel Organ added, no wobble), none trips P3;
+FP4 740 / 740 (5 x N), FP1, FP3, FP3c, FP4b, FP5, FP6, FPT1 + FPT1n, FSU1n, FRT1n, FP0wn.
+--cmp-preset-renders ref-1.2.0 --all-bitwise --exclude-revoiced13: PT0v13 64 old / 0 missing / 84 new; PT0 56 / 56 bitwise.
