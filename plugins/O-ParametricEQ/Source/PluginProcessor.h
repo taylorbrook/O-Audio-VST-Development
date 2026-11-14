@@ -44,12 +44,32 @@
         raw values cached at construction. No lock, no listener, no
         allocation in the audio path.
 
+    Stage 2, Phase 2.3 (continuous modulation): frequency, gain, Q and gain
+    scale moves ramp for 20 ms on a global control grid (PLAN-2.3 P7 - P9).
+
+      - The tick clock: one sample counter, zeroed in prepareToPlay and
+        advanced by the length of EVERY block handed to processBlock or
+        processBlockBypassed, whatever that block then does (hard bypass, not
+        prepared, no active band). Control ticks fall where the counter is a
+        multiple of K (16 / 32 / 64 samples by rate, ControlRamp.h). The grid
+        therefore does not depend on the host's block boundaries.
+      - A continuous change seen at a block start is handed to the band as a
+        target; it takes effect at the next tick (at once when the block
+        starts on one). The band ramps, designs once per tick while it moves
+        and interpolates its section parameters per sample (Band.h). A settled
+        band is bit-identical to a static design and does no design work.
+      - A gain or gain-scale edit on a Low Cut, High Cut, Notch or Band Pass
+        compares as identical: no ramp, no design.
+      - Every path that clears a band's filter state also snaps its ramp.
+      - A non-finite sample at the end of a processed chunk clears every
+        band's state, so a non-finite input does not stick. The chunk's
+        output is written as it is.
+
     What this phase does in place of later ones:
 
-      2.3 (ramps, control grid)   a parameter move redesigns the band at the
-                                  next block start, state kept: an audible step
       2.4 (crossfades, sleep,     a type / slope / placement / activation
-           soft bypass)           change clears the band's state: a click.
+           soft bypass)           change designs from the target at the block
+                                  start and clears the band's state: a click.
                                   A 0 dB band is an ordinary active band.
                                   Global bypass is a hard switch.
       2.5 (output stage)          output_gain and auto_gain are read by nothing
@@ -67,8 +87,10 @@
 #include <array>
 #include <atomic>
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
+#include "dsp/ControlRamp.h"
 #include "dsp/Designer.h"
 #include "dsp/Router.h"
 
@@ -86,10 +108,12 @@ public:
     static constexpr int kNumBands = 24;
 
     //==========================================================================
-    /** Sets the designer's rate, the layout flag and the working lanes, clears
-        every band and invalidates every snapshot, so the first block designs
-        every active band. Reports latency 0. Safe to call repeatedly and at a
-        different rate: nothing is carried across it. */
+    /** Sets the designer's rate, the layout flag, the working lanes and the
+        control grid (K and the ramp length, from the rate, into every band),
+        zeroes the tick clock, clears every band and invalidates every
+        snapshot, so the first block designs every active band from its
+        current values with its ramp snapped. Reports latency 0. Safe to call
+        repeatedly and at a different rate: nothing is carried across it. */
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override {}
 
@@ -104,7 +128,8 @@ public:
 
     /** JUCE's own VST3 and AU wrappers never call this while a bypass
         parameter exists; hosts that do get the hard bypass: the buffer is
-        left untouched and every band's state is cleared. */
+        left untouched, every band's state is cleared and its ramp snapped.
+        The tick clock advances by the block's length. */
     void processBlockBypassed (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
     /** The `bypass` parameter. */
@@ -198,9 +223,11 @@ private:
                    "BandSnapshot is compared by bit pattern: nine floats, no padding");
 
     /** Per band: the last raw snapshot, the canonical input built from it
-        (with the EFFECTIVE placement), and whether the snapshot can be
-        trusted. An invalid snapshot forces the band through makeBandInput and,
-        when active, through the designer. */
+        (with the EFFECTIVE placement and a dynamic offset of 0: the band
+        reads its own offset), and whether the snapshot can be trusted. An
+        invalid snapshot forces the band through makeBandInput and, when
+        active, through the designer. The input is kept current for an
+        inactive band too, so its activation designs from the latest values. */
     struct BandSlot
     {
         BandSnapshot snapshot {};
@@ -211,8 +238,16 @@ private:
     /** The Stage 1 line: clears any output channel that has no input. */
     void clearOutputsWithoutInput (juce::AudioBuffer<float>&);
 
-    /** Zeroes the filter state of all 24 bands. Designs and snapshots stay. */
-    void resetAllBands() noexcept;
+    /** Zeroes the filter state of all 24 bands and snaps the ramp of every
+        active one to its latest target (a settled band is not redesigned).
+        Snapshots stay. An inactive band was snapped when it left the active
+        list. For the hard bypass and the non-finite check. */
+    void clearAndSnapAllBands() noexcept;
+
+    /** Advances the tick clock by the length of a block and returns the
+        clock value at the block's first sample. Called first thing by
+        processBlock and processBlockBypassed, so no return path can skip it. */
+    std::uint64_t advanceTickClock (int numSamples) noexcept;
 
     /** Reads the raw values of band `band` and the raw gain_scale. */
     BandSnapshot readBandSnapshot (int band, float gainScaleRaw) const noexcept;
@@ -240,6 +275,14 @@ private:
 
     /** 0 until prepareToPlay has run. */
     int preparedBlockSize = 0;
+
+    /** The tick clock (PLAN-2.3 P7): samples handed to processBlock or
+        processBlockBypassed since prepareToPlay. Audio thread only. */
+    std::uint64_t tickClock = 0;
+
+    /** K: samples between two control ticks, from the rate in prepareToPlay.
+        A tick falls on every sample whose clock value is a multiple of it. */
+    int controlGrid = 16;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OuariconParametricEQAudioProcessor)
 };

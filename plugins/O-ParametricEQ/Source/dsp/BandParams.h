@@ -34,20 +34,30 @@
       2. clamp: freq 10 - 30 000 Hz, gain +-30 dB, Q 0.025 - 40, scale 0 - 200;
          choices round to nearest (a half rounds up) and clamp to their index
          range; a toggle is on when raw >= 0.5;
-      3. gEff = clamp (gain * scale / 100 + dynOffsetDb, -60, +60) in double.
-         At scale 100 and offset 0 this is the float gain, bit for bit;
+      3. gEff = clamp (gain * scale / 100 + dynOffsetDb, -60, +60) in double,
+         the sum and the clamp through offsetGainDb (below). At scale 100 and
+         offset 0 this is the float gain, bit for bit;
       4. active = enabled && ! bypass;
       5. canonical form: slopeIndex = 0 for Bell, Notch, Band Pass (D6);
-         q = 1.0 for a slope type at 6 dB/oct (D9). The designer reads neither
-         value there, so the design is the same; the canonical form is what
-         makes those edits compare as "identical" and cost nothing.
+         q = 1.0 for a slope type at 6 dB/oct (D9); gainDbEff = 0 for Low Cut,
+         High Cut, Notch, Band Pass (PLAN-2.3 P6: the offset is ignored there
+         too). The designer reads none of these values there, so the design is
+         the same; the canonical form is what makes those edits compare as
+         "identical" and cost nothing: no ramp, no design.
+
+    offsetGainDb is the ONE place a dynamic offset is summed into a gain
+    (PLAN-2.3 P5): step 3 above uses it, and so does the band at each control
+    tick, where the offset is added after the control ramp (Band.h). The
+    processor passes makeBandInput (..., 0.0) targets to the band; the band
+    reads its own dynOffsetDb.
 
     Nothing here tests for an exact frequency or Q: the skewed parameter
     defaults are inexact (999.99988 Hz, 0.99999976).
 
     The clamps run in double on the widened float, against double limits. The
-    float nearest 0.025 lies just below it, so the lowest raw Q reads exactly
-    0.025 here.
+    float nearest 0.025 (0.025f) lies just ABOVE it, at about 0.025 + 3.7e-10,
+    so the lower Q clamp does not act on the lowest raw Q: it reads
+    (double) 0.025f here, not 0.025.
 
     classifyBandChange is the second level of the processor's change detection
     (PLAN-2.2 P3): it runs only after a bit-pattern difference in the raw
@@ -168,6 +178,30 @@ namespace detail
 }
 
 //==============================================================================
+// Exact comparison; the offset sum
+//==============================================================================
+
+/** Equality of two finite values, written with the ordering operators so that
+    it is exact and reads as intended; +0 and -0 compare equal. */
+constexpr bool sameValue (double a, double b) noexcept
+{
+    return ! (a < b) && ! (a > b);
+}
+
+/** clamp (gainDb + offsetDb, -60, +60): the one place a dynamic gain offset
+    is summed into a gain (PLAN-2.3 P5). A non-finite offset is read as 0,
+    and an offset of exactly 0 is not added at all, so the result is then the
+    clamped gain, bit for bit. Callers: makeBandInput step 3 and the band's
+    control tick. Not meant for the four gainless types (isGainType false):
+    their gain is canonically 0 and the offset is ignored. */
+inline double offsetGainDb (double gainDb, double offsetDb) noexcept
+{
+    const double offset = std::isfinite (offsetDb) ? offsetDb : 0.0;
+    const double summed = sameValue (offset, 0.0) ? gainDb : gainDb + offset;
+    return detail::clampTo (summed, gainEffMin, gainEffMax);
+}
+
+//==============================================================================
 // Raw -> canonical band input
 //==============================================================================
 
@@ -193,11 +227,9 @@ inline BandInput makeBandInput (const RawBand& raw, float gainScaleRaw, double d
     const double scale = detail::sanitisedValue (gainScaleRaw, rawScaleDefault, rawScaleMin, rawScaleMax);
 
     // 3: effective gain
-    const double offset = std::isfinite (dynOffsetDb) ? dynOffsetDb : 0.0;
     const double product = gainDb * scale;
     const double scaled = product / 100.0;
-    const double summed = (offset == 0.0) ? scaled : scaled + offset;
-    const double gainDbEff = detail::clampTo (summed, gainEffMin, gainEffMax);
+    const double gainDbEff = offsetGainDb (scaled, dynOffsetDb);
 
     BandInput in;
     in.settings.type = static_cast<Type> (typeIndex);
@@ -215,6 +247,9 @@ inline BandInput makeBandInput (const RawBand& raw, float gainScaleRaw, double d
         in.settings.slopeIndex = 0;
     else if (in.settings.slopeIndex == 0)
         in.settings.q = 1.0;
+
+    if (! isGainType (in.settings.type))
+        in.settings.gainDbEff = 0.0;
 
     return in;
 }
@@ -235,13 +270,6 @@ constexpr Placement effectivePlacement (Placement placement, bool stereoLayout) 
 // Change detection, second level (PLAN-2.2 P3)
 //==============================================================================
 
-/** Equality of two finite values, written with the ordering operators so that
-    it is exact and reads as intended; +0 and -0 compare equal. */
-constexpr bool sameValue (double a, double b) noexcept
-{
-    return ! (a < b) && ! (a > b);
-}
-
 /** Field-by-field equality. Every value is finite after makeBandInput, so
     the comparison is exact; +0 and -0 compare equal. */
 inline bool sameBandInput (const BandInput& a, const BandInput& b) noexcept
@@ -258,7 +286,10 @@ inline bool sameBandInput (const BandInput& a, const BandInput& b) noexcept
 /** identical    nothing to do: no design, no state change (D6, D9)
     structural   active, type, slopeIndex or placement differs: design, and
                  the band's state is cleared
-    continuous   anything else (frequency, effective gain, Q): design, state kept */
+    continuous   anything else (frequency, effective gain, Q): state kept; since
+                 Phase 2.3 a 20 ms ramp to the fresh settings (Band::setTarget).
+                 A gain or gain_scale edit on a gainless type never gets here:
+                 it compares as identical (step 5 of makeBandInput) */
 enum class BandChange : int { identical, structural, continuous };
 
 /** Both inputs in canonical form, and both carrying the EFFECTIVE placement

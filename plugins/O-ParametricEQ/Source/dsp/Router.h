@@ -20,7 +20,7 @@
 /*
   ==============================================================================
 
-    O-ParametricEQ - placement router (Stage 2, Phase 2.2)
+    O-ParametricEQ - placement router (Stage 2, Phases 2.2 and 2.3)
 
     Applies one band to the working lanes by placement
     (ARCHITECTURE "Processing Chain"). F is the band, lane 0 is L, lane 1 is R.
@@ -43,6 +43,14 @@
     only the lanes an active band touches (PLAN-2.2 P4), since a float lane
     that is converted and written back loses its denormal samples under
     flush-to-zero.
+
+    Ramping path (2.3, PLAN-2.3 P4). While a band interpolates between two
+    control ticks its coefficients advance once per SAMPLE, whatever the
+    placement: a Stereo band goes through Band::processPair (both lanes in
+    one loop, on the same coefficients), and the Mid and Side loops step the
+    coefficients themselves before each tick. On a settled band every
+    placement runs the statements it ran in 2.2, bit for bit. The placement
+    algebra above is the same on both paths.
 
     The placement passed in is the parameter's; the `stereo` flag (the
     negotiated layout, never the buffer width) decides whether it applies.
@@ -119,8 +127,9 @@ public:
                 break;
         }
 
-        band.processLane (0, lane0, numSamples);
-        band.processLane (1, lane1, numSamples);
+        // Settled: processLane (0) then processLane (1), as before. Ramping:
+        // one loop over both lanes, one coefficient step per sample.
+        band.processPair (lane0, lane1, numSamples);
     }
 
     /** What process() does to the sample at an impulse's index when the band
@@ -182,14 +191,31 @@ private:
         Band::LaneState st;
         band.loadLane (0, st);
 
-        for (int i = 0; i < numSamples; ++i)
+        if (! band.isInterpolating())
         {
-            const double l = left[i];
-            const double r = right[i];
-            const double m = 0.5 * (l + r);
-            const double d = band.tick (st, m) - m;
-            left[i] = l + d;
-            right[i] = r + d;
+            for (int i = 0; i < numSamples; ++i)
+            {
+                const double l = left[i];
+                const double r = right[i];
+                const double m = 0.5 * (l + r);
+                const double d = band.tick (st, m) - m;
+                left[i] = l + d;
+                right[i] = r + d;
+            }
+        }
+        else
+        {
+            for (int i = 0; i < numSamples; ++i)
+            {
+                band.stepCoefficients();
+
+                const double l = left[i];
+                const double r = right[i];
+                const double m = 0.5 * (l + r);
+                const double d = band.tick (st, m) - m;
+                left[i] = l + d;
+                right[i] = r + d;
+            }
         }
 
         band.storeLane (0, st);
@@ -204,14 +230,31 @@ private:
         Band::LaneState st;
         band.loadLane (0, st);
 
-        for (int i = 0; i < numSamples; ++i)
+        if (! band.isInterpolating())
         {
-            const double l = left[i];
-            const double r = right[i];
-            const double s = 0.5 * (l - r);
-            const double d = band.tick (st, s) - s;
-            left[i] = l + d;
-            right[i] = r - d;
+            for (int i = 0; i < numSamples; ++i)
+            {
+                const double l = left[i];
+                const double r = right[i];
+                const double s = 0.5 * (l - r);
+                const double d = band.tick (st, s) - s;
+                left[i] = l + d;
+                right[i] = r - d;
+            }
+        }
+        else
+        {
+            for (int i = 0; i < numSamples; ++i)
+            {
+                band.stepCoefficients();
+
+                const double l = left[i];
+                const double r = right[i];
+                const double s = 0.5 * (l - r);
+                const double d = band.tick (st, s) - s;
+                left[i] = l + d;
+                right[i] = r - d;
+            }
         }
 
         band.storeLane (0, st);

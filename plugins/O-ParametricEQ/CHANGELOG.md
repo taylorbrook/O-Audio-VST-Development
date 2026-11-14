@@ -1,5 +1,22 @@
 # O-ParametricEQ Changelog
 
+## [0.3.0] - 2026-11-13
+
+Stage 2, Phase 2.3 (continuous modulation). Parameter moves are smoothed.
+
+### Changed
+- Frequency, gain, Q and `gain_scale` moves are smoothed over 20 ms and no longer step. The filter keeps ringing through the move; a band that has arrived is bit-identical to one set there directly.
+- The smoothing runs on a fixed grid counted from the start of playback (16, 32 or 64 samples by sample rate), so a move renders the same whatever the host's block size.
+- A gain or `gain_scale` edit on a Low Cut, High Cut, Notch or Band Pass does no work.
+
+### Fixed
+- A non-finite input sample (NaN or infinity) no longer leaves the filters stuck: they are cleared at the end of the block and the output recovers from the next one.
+
+### Known in this build
+- Type, slope, placement and enable changes click: the band restarts from rest.
+- Global `bypass` is a hard switch.
+- `output_gain` and `auto_gain` do nothing yet.
+
 ## [0.2.0] - 2026-11-13
 
 Stage 2, Phase 2.2 (static engine). The plugin equalises; parameter changes are not smoothed yet.

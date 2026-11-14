@@ -25,13 +25,16 @@
     Developer: Taylor Brook
 
     Stage 1 (Foundation): layout, buses, state.
-    Stage 2, Phase 2.2: the static 24-band engine. See PluginProcessor.h.
+    Stage 2, Phase 2.2: the static 24-band engine.
+    Stage 2, Phase 2.3: the global control grid (tick clock, segment loop,
+    non-finite check). See PluginProcessor.h.
 
   ==============================================================================
 */
 
 #include "PluginProcessor.h"
 
+#include <cmath>
 #include <cstring>
 #include <iterator>
 #include <memory>
@@ -265,10 +268,22 @@ void OuariconParametricEQAudioProcessor::prepareToPlay (double sampleRate, int s
     for (auto& lane : lanes)
         lane.assign (static_cast<std::size_t> (preparedBlockSize), 0.0);
 
-    // Nothing is carried across a prepare: state cleared, and every snapshot
-    // invalid, so the first block designs every active band at this rate and
-    // for this layout.
-    resetAllBands();
+    // The control grid of this rate, into every band before its first snapTo.
+    // setControlGrid cancels an interpolation left from before the prepare.
+    controlGrid = eq::controlGridSize (sampleRate);
+    const int rampTicks = eq::rampLengthTicks (sampleRate);
+
+    // Nothing is carried across a prepare: state cleared, the clock at 0, and
+    // every snapshot invalid, so the first block is structural for every
+    // band: an active one is designed at this rate and for this layout from
+    // its current values, with its ramp snapped (snapTo).
+    for (auto& band : bands)
+    {
+        band.setControlGrid (controlGrid, rampTicks);
+        band.reset();
+    }
+
+    tickClock = 0;
 
     for (auto& slot : slots)
         slot.valid = false;
@@ -288,26 +303,44 @@ bool OuariconParametricEQAudioProcessor::isBusesLayoutSupported (const BusesLayo
 }
 
 //==============================================================================
-// Audio path (Stage 2, Phase 2.2: static engine)
+// Audio path (Stage 2, Phases 2.2 and 2.3: the engine on the control grid)
 //
 // Per host block:
+//   0. the tick clock advances by the block's length, before anything can
+//      return. `blockStart` is the clock value of the block's first sample;
 //   1. flush-to-zero on; clear any output channel that has no input;
-//   2. global bypass on: every band's state cleared, buffer untouched, done
-//      (a hard switch until the soft bypass of Phase 2.4);
+//   2. global bypass on: every band's state cleared and its ramp snapped,
+//      buffer untouched, done (a hard switch until the soft bypass of
+//      Phase 2.4);
 //   3. per band, the raw snapshot (eight values + gain_scale) is compared by
 //      bit pattern with the last one. Only on a difference is the canonical
 //      input rebuilt and classified:
 //        identical    nothing (an inert edit: slope on a Bell, Q at 6 dB/oct,
-//                     placement on a mono layout)
-//        structural   design, state cleared (a click until Phase 2.4)
-//        continuous   design, state kept (a step until Phase 2.3)
+//                     placement on a mono layout, gain on a cut)
+//        structural   active: designed from the target now, ramp snapped,
+//                     state cleared (a click until Phase 2.4).
+//                     inactive (leaving the list included): state cleared,
+//                     ramp snapped, nothing designed for the target
+//        continuous   active: the target goes to the band and takes effect at
+//                     the next control tick; nothing is designed here.
+//                     inactive: only the stored input is updated
 //   4. no active band: return. The buffer has not been touched;
 //   5. otherwise, in chunks of at most the prepared block size: the lanes an
-//      active band touches go to double, the active bands run in index order
-//      through the router, and those lanes go back to float.
+//      active band touches go to double; the chunk runs in segments that end
+//      at the next control tick. A segment that starts on a tick first gives
+//      every active band its control tick, in index order; then the active
+//      bands process the segment through the router, in index order;
+//   6. end of each chunk: if the last working sample of a touched lane is
+//      not finite, every band's state is cleared and its ramp snapped. Then
+//      the lanes go back to float, as they are.
+//
+// A tick falls on the sample whose clock value is a multiple of K. With
+// phase = blockStart mod K, the block's first tick is at offset 0 when the
+// phase is 0 and at offset K - phase otherwise.
 //
 // Nothing else sits between the float input and the float output: no output
-// gain, no auto gain (Phase 2.5), no smoothing stage.
+// gain, no auto gain (Phase 2.5), no limiter, no stage that hides a
+// non-finite sample.
 //==============================================================================
 void OuariconParametricEQAudioProcessor::clearOutputsWithoutInput (juce::AudioBuffer<float>& buffer)
 {
@@ -319,10 +352,30 @@ void OuariconParametricEQAudioProcessor::clearOutputsWithoutInput (juce::AudioBu
         buffer.clear (channel, 0, buffer.getNumSamples());
 }
 
-void OuariconParametricEQAudioProcessor::resetAllBands() noexcept
+void OuariconParametricEQAudioProcessor::clearAndSnapAllBands() noexcept
 {
-    for (auto& band : bands)
-        band.reset();
+    for (std::size_t b = 0; b < bands.size(); ++b)
+    {
+        bands[b].reset();
+
+        // Only a band on the active list can be moving: one that left it was
+        // snapped then, and one never designed has nothing to snap. A valid
+        // slot also means the designer is prepared. snapToTarget designs only
+        // if the band is moving, so a run of bypassed blocks costs one design
+        // per moving band, in the first of them.
+        if (slots[b].valid && slots[b].input.active)
+            bands[b].snapToTarget (designer);
+    }
+}
+
+std::uint64_t OuariconParametricEQAudioProcessor::advanceTickClock (int numSamples) noexcept
+{
+    const std::uint64_t blockStart = tickClock;
+
+    if (numSamples > 0)
+        tickClock = blockStart + static_cast<std::uint64_t> (numSamples);
+
+    return blockStart;
 }
 
 OuariconParametricEQAudioProcessor::BandSnapshot
@@ -357,24 +410,30 @@ void OuariconParametricEQAudioProcessor::processBlock (juce::AudioBuffer<float>&
     juce::ScopedNoDenormals noDenormals;
     juce::ignoreUnused (midiMessages);
 
+    // The tick clock first: it advances by this block's length on every path
+    // out of this function. From here on only blockStart is used.
+    const int numSamples = buffer.getNumSamples();
+    const std::uint64_t blockStart = advanceTickClock (numSamples);
+
     clearOutputsWithoutInput (buffer);
 
-    // Hard bypass (until Phase 2.4): buffer untouched, state cleared. The
-    // snapshots stay valid: a band whose parameters did not move while
-    // bypassed keeps its design and restarts from rest.
+    // Hard bypass (until Phase 2.4): buffer untouched, state cleared, ramps
+    // snapped. The snapshots stay valid: a band whose parameters did not move
+    // while bypassed keeps its design and restarts from rest, settled.
     if (rawValues[kRawBypass]->load() >= 0.5f)
     {
-        resetAllBands();
+        clearAndSnapAllBands();
         return;
     }
 
     // Not prepared, or a buffer narrower than the negotiated layout: nothing
-    // can run. The buffer is left as it is.
+    // can run. The buffer and the bands are left as they are.
     if (preparedBlockSize <= 0 || buffer.getNumChannels() < (stereoLayout ? 2 : 1))
         return;
 
     //==========================================================================
-    // Parameters: read once per host block; designs made here, at the block start.
+    // Parameters: read once per host block, at the block start. A structural
+    // change is designed here; a continuous one only hands the band a target.
     const float gainScaleRaw = rawValues[kRawGainScale]->load();
 
     int activeBands[kNumBands];
@@ -394,8 +453,10 @@ void OuariconParametricEQAudioProcessor::processBlock (juce::AudioBuffer<float>&
         if (! slot.valid || std::memcmp (&now, &slot.snapshot, sizeof (BandSnapshot)) != 0)
         {
             // Second level: the canonical input, with the placement that
-            // takes effect on this layout.
-            eq::BandInput next = eq::makeBandInput (now.raw, now.gainScale, band.dynOffsetDb);
+            // takes effect on this layout. The offset argument is 0: the band
+            // reads its own dynamic offset at snapTo and at each control
+            // tick, and sums it after the ramp.
+            eq::BandInput next = eq::makeBandInput (now.raw, now.gainScale, 0.0);
             next.placement = eq::effectivePlacement (next.placement, stereoLayout);
 
             // An invalid snapshot (the first block after a prepare) has
@@ -410,26 +471,32 @@ void OuariconParametricEQAudioProcessor::processBlock (juce::AudioBuffer<float>&
 
                 case eq::BandChange::structural:
                     // Also the way a band enters or leaves the active list:
-                    // either way it starts, or is left, at rest.
+                    // either way it starts, or is left, at rest and settled.
                     if (next.active)
                     {
-                        eq::BandDesign design;
-                        designer.design (next.settings, design);
-                        band.setDesign (design);
+                        // Design from the target, ramp snapped, interpolation
+                        // cancelled; then the state.
+                        band.snapTo (next.settings, designer);
+                        band.reset();
+                    }
+                    else
+                    {
+                        // Leaving the list, or changing while off it: state
+                        // cleared, and a ramp still running is snapped. The
+                        // band's activation designs it from slot.input.
+                        band.reset();
+                        band.snapToTarget (designer);
                     }
 
-                    band.reset();
                     break;
 
                 case eq::BandChange::continuous:
-                    // An inactive band is not designed: its activation is a
-                    // structural change and designs it then.
+                    // Nothing is designed here. An active band takes the
+                    // target up at its next control tick. An inactive band
+                    // gets nothing: its activation is a structural change
+                    // and designs it then, from the input stored below.
                     if (next.active)
-                    {
-                        eq::BandDesign design;
-                        designer.design (next.settings, design);
-                        band.setDesign (design);
-                    }
+                        band.setTarget (next.settings);
 
                     break;
             }
@@ -462,10 +529,15 @@ void OuariconParametricEQAudioProcessor::processBlock (juce::AudioBuffer<float>&
 
     double* const work[2] = { lanes[0].data(), lanes[1].data() };
 
-    const int numSamples = buffer.getNumSamples();
+    // Samples since the last control tick, at the sample about to run. It
+    // follows the clock through the whole block, across chunks: a tick falls
+    // wherever it is 0.
+    const int grid = juce::jmax (1, controlGrid);
+    int phase = static_cast<int> (blockStart % static_cast<std::uint64_t> (grid));
 
-    // Only the sample range is split; the designs above hold for the whole
-    // host block, so the chunk size does not change the result.
+    // Only the sample range is split; the targets above hold for the whole
+    // host block and the ticks sit on the clock, so the chunk size does not
+    // change the result.
     for (int start = 0; start < numSamples; start += preparedBlockSize)
     {
         const int n = juce::jmin (preparedBlockSize, numSamples - start);
@@ -482,11 +554,44 @@ void OuariconParametricEQAudioProcessor::processBlock (juce::AudioBuffer<float>&
                 out[i] = static_cast<double> (in[i]);
         }
 
-        for (int a = 0; a < numActive; ++a)
+        // Segments that end at the next tick. Every pass advances by at
+        // least one sample (phase < grid), so the loop is bounded by n.
+        for (int pos = 0; pos < n;)
         {
-            const auto ub = static_cast<std::size_t> (activeBands[a]);
-            eq::Router::process (bands[ub], slots[ub].input.placement, work[0], work[1], n, stereoLayout);
+            if (phase == 0)
+                for (int a = 0; a < numActive; ++a)
+                    bands[static_cast<std::size_t> (activeBands[a])].controlTick (designer);
+
+            const int m = juce::jmin (n - pos, grid - phase);
+
+            for (int a = 0; a < numActive; ++a)
+            {
+                const auto ub = static_cast<std::size_t> (activeBands[a]);
+                eq::Router::process (bands[ub], slots[ub].input.placement,
+                                     work[0] + pos, work[1] + pos, m, stereoLayout);
+            }
+
+            pos += m;
+            phase += m;
+
+            if (phase >= grid)
+                phase = 0;
         }
+
+        // Non-finite check (PLAN-2.3 P9): a non-finite input sample leaves
+        // the state of every band it passed through non-finite for good, and
+        // then the last sample of the chunk is non-finite too. Clearing the
+        // state ends it; the chunk itself is written as it is. A stacked-gain
+        // overflow of the float output does not come through here: the
+        // double lanes are still finite.
+        bool finite = true;
+
+        for (int lane = 0; lane < 2; ++lane)
+            if (io[lane] != nullptr && ! std::isfinite (work[lane][n - 1]))
+                finite = false;
+
+        if (! finite)
+            clearAndSnapAllBands();
 
         for (int lane = 0; lane < 2; ++lane)
         {
@@ -508,10 +613,13 @@ void OuariconParametricEQAudioProcessor::processBlockBypassed (juce::AudioBuffer
     juce::ScopedNoDenormals noDenormals;
     juce::ignoreUnused (midiMessages);
 
-    // The same hard bypass as the `bypass` parameter: buffer untouched, every
-    // band's state cleared, snapshots left valid.
+    // The same hard bypass as the `bypass` parameter: the tick clock advances,
+    // buffer untouched, every band's state cleared and its ramp snapped,
+    // snapshots left valid.
+    juce::ignoreUnused (advanceTickClock (buffer.getNumSamples()));
+
     clearOutputsWithoutInput (buffer);
-    resetAllBands();
+    clearAndSnapAllBands();
 }
 
 //==============================================================================

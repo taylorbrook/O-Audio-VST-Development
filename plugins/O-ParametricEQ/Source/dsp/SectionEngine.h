@@ -20,7 +20,8 @@
 /*
   ==============================================================================
 
-    O-ParametricEQ - section engine, settled path (Stage 2, Phase 2.2)
+    O-ParametricEQ - section engine, settled and ramping paths
+    (Stage 2, Phases 2.2 and 2.3)
 
     The two recurrences that realise a designed section, exactly as
     ARCHITECTURE "SVF section and one-pole (realisation)" writes them, and the
@@ -39,10 +40,34 @@
         v = (x - s) Gc;  lp = v + s;  s = lp + v
         y = cL lp + cH (x - lp)
 
-    The coefficients are converted once per design (toRuntime); the settled
-    path never divides. A section runs only the halves its flags name, the SVF
-    half first. The ramping path (per-sample interpolation) is Phase 2.3 and
-    is not here.
+    Settled path (2.2). The coefficients are converted once per design
+    (toRuntime); the settled path never divides. A section runs only the
+    halves its flags name, the SVF half first.
+
+    Ramping path (2.3). Between two control ticks the eight section
+    parameters g, k, mL, mB, mH, G, cL, cH move linearly, one increment per
+    sample (sectionIncrements). The ramping tick is, per sample and per
+    section:
+
+        add the increments to g, k, mL, mB, mH, G, cL, cH       (rampSection)
+        a1 = 1 / (1 + g (g + k));  a2 = g a1;  a3 = g a2
+        Gc = G / (1 + G)
+        then the same two recurrences as above                  (svfTick,
+                                                                 onePoleTick)
+
+    The parameters are advanced BEFORE use, so the last sample of an interval
+    runs on (the accumulated sum for) the tick's design. rampSection is the
+    parameter half: it writes the section's runtime coefficients, and every
+    lane of the band then runs the settled recurrences on them. The
+    coefficients therefore advance once per sample, never once per lane
+    (PLAN-2.3 P4).
+
+    a1, a2, a3 are always derived from ONE interpolated (g, k) pair, by
+    division, every sample. That keeps every per-sample state matrix in the
+    family whose Euclidean norm is exactly 1 for g, k > 0, which is what the
+    time-varying stability argument rests on (RESEARCH-2.3 Q2). Linear
+    interpolation between two designs with g, k, G > 0 stays positive. Do not
+    interpolate a1, a2, a3 or Gc themselves.
 
     Both halves have a direct path, so the first output sample of a section at
     rest is its input times a constant: the first-sample gains below (gate G8).
@@ -136,6 +161,77 @@ inline double onePoleTick (const OnePoleCoeffs& c, double& s, double x) noexcept
     const double lp = v + s;
     s = lp + v;
     return c.cL * lp + c.cH * (x - lp);
+}
+
+//==============================================================================
+// Ramping path (Phase 2.3): the parameter half of the ramping tick
+//==============================================================================
+
+/** Per-sample increments of the eight section parameters. */
+struct SectionIncrements
+{
+    double g  = 0.0;
+    double k  = 0.0;
+    double mL = 0.0;
+    double mB = 0.0;
+    double mH = 0.0;
+    double G  = 0.0;
+    double cL = 0.0;
+    double cH = 0.0;
+};
+
+/** (to - from) * perSample for each of the eight parameters; perSample is
+    1 / K for an interval of K samples. A half the section does not have holds
+    the same identity values on both sides, so its increments are 0. */
+inline SectionIncrements sectionIncrements (const SectionParams& from, const SectionParams& to,
+                                            double perSample) noexcept
+{
+    SectionIncrements d;
+    d.g  = (to.g  - from.g)  * perSample;
+    d.k  = (to.k  - from.k)  * perSample;
+    d.mL = (to.mL - from.mL) * perSample;
+    d.mB = (to.mB - from.mB) * perSample;
+    d.mH = (to.mH - from.mH) * perSample;
+    d.G  = (to.G  - from.G)  * perSample;
+    d.cL = (to.cL - from.cL) * perSample;
+    d.cH = (to.cH - from.cH) * perSample;
+    return d;
+}
+
+/** One sample of parameter motion for one section: adds the increments to
+    the parameters of the halves the section has, then derives that half's
+    runtime coefficients from them, in the statements of toRuntime. The flags
+    of `rt` are not written; the caller set them when it took the design.
+    Call once per sample, before the recurrences of every lane. */
+inline void rampSection (SectionParams& p, const SectionIncrements& d, SectionRuntime& rt) noexcept
+{
+    if (p.hasSvf)
+    {
+        p.g  += d.g;
+        p.k  += d.k;
+        p.mL += d.mL;
+        p.mB += d.mB;
+        p.mH += d.mH;
+
+        rt.svf.a1 = 1.0 / (1.0 + p.g * (p.g + p.k));
+        rt.svf.a2 = p.g * rt.svf.a1;
+        rt.svf.a3 = p.g * rt.svf.a2;
+        rt.svf.k = p.k;
+        rt.svf.mL = p.mL;
+        rt.svf.mB = p.mB;
+        rt.svf.mH = p.mH;
+    }
+
+    if (p.hasOnePole)
+    {
+        p.G  += d.G;
+        p.cL += d.cL;
+        p.cH += d.cH;
+
+        rt.onePole.Gc = p.G / (1.0 + p.G);
+        rt.onePole.cL = p.cL;
+        rt.onePole.cH = p.cH;
+    }
 }
 
 //==============================================================================

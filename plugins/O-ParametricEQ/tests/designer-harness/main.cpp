@@ -33,8 +33,11 @@
       O-ParametricEQ-designer-harness --neg <name>         run ONE negative control; exit 0 only
                                                            if the targeted row FAILS. Names:
                                                            rbj, f1, alloc, seed, rbj-b, binary-gate,
-                                                           first-build, engine-alloc (exit 0 only
-                                                           if the planted allocation is counted)
+                                                           first-build, engine-alloc, ramp-alloc
+                                                           (the last two: exit 0 only if the
+                                                           planted allocation is counted)
+      O-ParametricEQ-designer-harness --long               RM-g5 runs the contract's 600 s per
+                                                           rate instead of 60 s
 
     Exit code = number of FAIL rows (capped at 255). Last line: "N PASS, M FAIL, K INFO".
 
@@ -45,6 +48,35 @@
 
     Every Phase 2.1 row below runs Designer::designSeed (the closed form). The
     Phase 2.1b rows run Designer::design (polished) unless they say otherwise.
+
+      Phase 2.3 (PLAN-2.3 T4): continuous modulation in double. The engine is eq::Band +
+      eq::Router under a harness driver (tick clock, segments that end at the next tick);
+      the G3 reference and its controls are harness renders that share no code with the
+      control ramp or the ramping path
+      RM-g3      13 motions x 2 tones x 2 block sizes: local kappa <= 4.0x a same-motion
+                 per-sample reference; first-difference stimulus guard
+      RM-g3i     interpolation off reads >= 10x on the three grid-sensitive readings
+      RM-g3h     no smoothing at block 512 reads >= 10x on 24 readings; two void, printed
+      RM-g3k     motion 8 at 96 and 192 kHz (K 32, 64)
+      RM-g3r     INFO + WARN: the 52 readings against the held references
+      RM-arr     after a ramp the sections equal the static design; 0 designs at rest
+      RM-arrn    one tick before arrival they differ
+      RM-keep    a continuous change keeps the filter state (ring continuity)
+      RM-keepn   state cleared, and the 2.2 step, read >= 100x
+      RM-blk     events on multiples of 2048: blocks 1, 32, 64, 512, 2048 bit-identical
+      RM-blkn    without the events the render differs
+      RM-st      a Stereo band's two lanes run on the same coefficients during a ramp
+      RM-zero    the design is continuous across the gain sign change
+      RM-norm    the SVF state norm never grows on the ramping path
+      RM-g5      random stress, 8 rates: finite, peak <= static stack + 12 dB, no sticky state
+      RM-g5n     the peak clause against the stack minus 200 dB must fail
+      RM-nan     a NaN input sticks without the processor's check
+      RM-g7      noise floor, ring-down slope and level, silence cost (192 kHz)
+      RM-g7n     the slope check against 6.8 dB/s must fail
+      RM-dyn     the dynamic offset is read at the tick, after the ramp
+      SN4        canonical gain on Low Cut / High Cut / Notch / Band Pass
+      RM-alloc   no allocation on the control tick and the ramping path (malloc_logger)
+      RM-cpu     INFO: sweeping cost
 
       Phase 2.2 (PLAN-2.2 T4): the engine in double, eq::Band + eq::Router driven
       by Designer::design, settings through eq::makeBandInput
@@ -6715,6 +6747,2841 @@ namespace
     }
 
     //==========================================================================
+    // Phase 2.3 (PLAN-2.3 T4): continuous modulation, in double
+    //
+    // The engine side of every row is eq::Band + eq::Router under RmDriver
+    // (the processor's tick clock and segment loop, PLAN-2.3 P7, P8). The G3
+    // reference and its two controls (refRender, holdRender, hardRender) are
+    // harness code that shares nothing with the control ramp or the ramping
+    // path (P11): only the trajectory rule is re-stated, in RmTrajectory.
+    // Signals are double throughout; the only floats are the raw parameter
+    // values eq::makeBandInput takes.
+    //==========================================================================
+    using RmClock = std::chrono::steady_clock;
+
+    double rmSeconds (RmClock::time_point a, RmClock::time_point b)
+    {
+        return std::chrono::duration<double> (b - a).count();
+    }
+
+    double rmMedian (std::vector<double>& values)
+    {
+        if (values.empty())
+            return 0.0;
+
+        const std::size_t mid = values.size() / 2;
+        std::nth_element (values.begin(), values.begin() + static_cast<std::ptrdiff_t> (mid), values.end());
+        return values[mid];
+    }
+
+    bool rmAllFinite (const std::vector<double>& values)
+    {
+        for (const double v : values)
+            if (! std::isfinite (v))
+                return false;
+
+        return true;
+    }
+
+    double rmRatio (double a, double b)
+    {
+        return (b > 0.0 && std::isfinite (a) && std::isfinite (b)) ? a / b : kInf;
+    }
+
+    /** A band as the processor hands it to the engine: raw values through
+        eq::makeBandInput, dynamic offset 0. */
+    eq::BandInput rmInput (eq::Type type, double freqHz, double gainDb, double q, int slopeIndex,
+                           eq::Placement placement = eq::Placement::stereo, float scale = kEnScale100)
+    {
+        return eq::makeBandInput (enRaw (type, freqHz, gainDb, q, slopeIndex, placement), scale, 0.0);
+    }
+
+    bool rmSameSettings (const eq::BandSettings& a, const eq::BandSettings& b)
+    {
+        return a.type == b.type && a.slopeIndex == b.slopeIndex
+            && a.freqHz == b.freqHz && a.gainDbEff == b.gainDbEff && a.q == b.q;
+    }
+
+    /** Bit for bit, field by field (the struct has padding, so no memcmp). */
+    bool rmSameRuntime (const eq::SectionRuntime& a, const eq::SectionRuntime& b)
+    {
+        return a.hasSvf == b.hasSvf && a.hasOnePole == b.hasOnePole
+            && sameBits (a.svf.a1, b.svf.a1) && sameBits (a.svf.a2, b.svf.a2) && sameBits (a.svf.a3, b.svf.a3)
+            && sameBits (a.svf.k, b.svf.k) && sameBits (a.svf.mL, b.svf.mL) && sameBits (a.svf.mB, b.svf.mB)
+            && sameBits (a.svf.mH, b.svf.mH)
+            && sameBits (a.onePole.Gc, b.onePole.Gc) && sameBits (a.onePole.cL, b.onePole.cL)
+            && sameBits (a.onePole.cH, b.onePole.cH);
+    }
+
+    /** The band's runtime sections against toRuntime of a static design. */
+    bool rmBandEqualsStatic (const eq::Band& band, const eq::BandDesign& d)
+    {
+        if (band.getNumSections() != d.numSections)
+            return false;
+
+        for (int i = 0; i < d.numSections; ++i)
+            if (! rmSameRuntime (band.getSection (i), eq::toRuntime (d.params[ix (i)])))
+                return false;
+
+        return true;
+    }
+
+    /** Counts the designs a band asks for. */
+    struct RmCountingDesigner
+    {
+        const eq::Designer* inner = nullptr;
+        long long calls = 0;
+
+        void design (const eq::BandSettings& s, eq::BandDesign& out)
+        {
+            ++calls;
+            inner->design (s, out);
+        }
+    };
+
+    /** Up to 64 samples of noise through one band on a mono layout. */
+    void rmRunSamples (eq::Band& band, int count, Rng& rng)
+    {
+        double lane[64];
+        const int n = std::min (count, 64);
+
+        for (int i = 0; i < n; ++i)
+            lane[i] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+
+        eq::Router::process (band, eq::Placement::stereo, lane, nullptr, n, false);
+    }
+
+    /** One control interval of one band: the tick, then its K samples. */
+    template <typename DesignerType>
+    void rmInterval (eq::Band& band, DesignerType& designer, int gridSize, Rng& rng)
+    {
+        band.controlTick (designer);
+        rmRunSamples (band, gridSize, rng);
+    }
+
+    //==========================================================================
+    // The driver: PLAN-2.3 P7 (tick clock) and P8 (per block; segments that end
+    // at the next tick; controlTick for each active band in index order, then
+    // each active band through the Router)
+    //==========================================================================
+    struct RmDriver
+    {
+        double fs = 48000.0;
+        int grid = 16;
+        int rampTicks = 60;
+        std::uint64_t clock = 0;
+        eq::Designer designer;
+        std::vector<eq::Band> bands;
+        std::vector<eq::BandInput> current;
+        std::vector<char> known;
+        long long structural = 0, continuous = 0;
+
+        void prepare (double sampleRate, int numBands)
+        {
+            fs = sampleRate;
+            grid = eq::controlGridSize (sampleRate);
+            rampTicks = eq::rampLengthTicks (sampleRate);
+            clock = 0;
+            structural = 0;
+            continuous = 0;
+            designer.prepare (sampleRate);
+            bands.assign (ix (numBands), eq::Band());
+            current.assign (ix (numBands), eq::BandInput {});
+            known.assign (ix (numBands), 0);
+
+            for (eq::Band& band : bands)
+                band.setControlGrid (grid, rampTicks);
+        }
+
+        /** P8.1, at a block start. Structural (and the first sight of a band):
+            design from the target, ramp snapped, state cleared. Continuous: a
+            target for the next tick. */
+        void apply (int index, const eq::BandInput& next)
+        {
+            const std::size_t b = ix (index);
+            const eq::BandChange change = known[b] != 0 ? eq::classifyBandChange (current[b], next)
+                                                         : eq::BandChange::structural;
+
+            if (change == eq::BandChange::structural)
+            {
+                bands[b].snapTo (next.settings, designer);
+                bands[b].reset();
+                ++structural;
+            }
+            else if (change == eq::BandChange::continuous && next.active)
+            {
+                bands[b].setTarget (next.settings);
+                ++continuous;
+            }
+
+            current[b] = next;
+            known[b] = 1;
+        }
+
+        /** P8.3. The clock advances by numSamples whatever is active. */
+        void process (double* lane0, double* lane1, int numSamples, bool stereo)
+        {
+            int done = 0;
+
+            while (done < numSamples)
+            {
+                const int phase = static_cast<int> (clock % static_cast<std::uint64_t> (grid));
+
+                if (phase == 0)
+                    for (std::size_t b = 0; b < bands.size(); ++b)
+                        if (current[b].active)
+                            bands[b].controlTick (designer);
+
+                const int count = std::min (numSamples - done, grid - phase);
+
+                for (std::size_t b = 0; b < bands.size(); ++b)
+                    if (current[b].active)
+                        eq::Router::process (bands[b], current[b].placement,
+                                             lane0 != nullptr ? lane0 + done : nullptr,
+                                             lane1 != nullptr ? lane1 + done : nullptr, count, stereo);
+
+                clock += static_cast<std::uint64_t> (count);
+                done += count;
+            }
+        }
+
+        unsigned long structureMismatches() const
+        {
+            unsigned long sum = 0;
+
+            for (const eq::Band& band : bands)
+                sum += band.getStructureMismatchCount();
+
+            return sum;
+        }
+    };
+
+    //==========================================================================
+    // Local kappa (gate G3): the largest, over 5 ms frames, of
+    // max |second difference| / frame RMS; frames below -80 dBFS are skipped.
+    //==========================================================================
+    double rmLocalKappa (const std::vector<double>& y, double fs, std::size_t from)
+    {
+        const std::size_t frame = ix (static_cast<int> (std::lround (0.005 * fs)));
+        double worst = 0.0;
+
+        if (frame == 0 || y.size() < 3)
+            return worst;
+
+        for (std::size_t a = std::max<std::size_t> (from, 1); a + frame < y.size() - 1; a += frame)
+        {
+            double energy = 0.0, d2 = 0.0;
+
+            for (std::size_t i = a; i < a + frame; ++i)
+            {
+                energy += y[i] * y[i];
+                d2 = std::max (d2, std::fabs (y[i + 1] - 2.0 * y[i] + y[i - 1]));
+            }
+
+            const double rms = std::sqrt (energy / static_cast<double> (frame));
+
+            if (rms < 1.0e-4)
+                continue;
+
+            if (d2 / rms > worst)
+                worst = d2 / rms;
+        }
+
+        return worst;
+    }
+
+    //==========================================================================
+    // G3 stimuli (PLAN-2.3 P12)
+    //==========================================================================
+    enum class RmFreq { sweep, atTone, twiceTone, halfTone, at30Hz };
+
+    struct RmMotion
+    {
+        const char* name;
+        eq::Type type;
+        int slopeIndex;
+        RmFreq freq;
+        double gainA, gainB, qA, qB, seconds;
+        int pattern;                // 0: A, sweep, hold, back, hold.  1: there and back with no hold, twice
+    };
+
+    constexpr int kRmNumMotions = 13;
+
+    const RmMotion kRmMotions[kRmNumMotions] =
+    {
+        { "Bell +18 dB Q 1, f 10 Hz <-> 30 kHz in 50 ms, p0",        eq::Type::bell,      0, RmFreq::sweep,     18.0, 18.0, 1.0,   1.0,  0.050, 0 },
+        { "Bell +18 dB Q 1, f 10 Hz <-> 30 kHz in 50 ms, p1",        eq::Type::bell,      0, RmFreq::sweep,     18.0, 18.0, 1.0,   1.0,  0.050, 1 },
+        { "Bell at the tone Q 1, gain -30 <-> +30 dB in 20 ms",      eq::Type::bell,      0, RmFreq::atTone,   -30.0, 30.0, 1.0,   1.0,  0.020, 0 },
+        { "Bell +18 dB at 2x the tone, Q 0.025 <-> 40 in 20 ms",     eq::Type::bell,      0, RmFreq::twiceTone, 18.0, 18.0, 0.025, 40.0, 0.020, 0 },
+        { "Low Cut 96 dB/oct Q 1, f 10 Hz <-> 30 kHz in 50 ms, p0",  eq::Type::lowCut,    7, RmFreq::sweep,      0.0,  0.0, 1.0,   1.0,  0.050, 0 },
+        { "Low Cut 96 dB/oct Q 1, f 10 Hz <-> 30 kHz in 50 ms, p1",  eq::Type::lowCut,    7, RmFreq::sweep,      0.0,  0.0, 1.0,   1.0,  0.050, 1 },
+        { "Low Cut 96 dB/oct at 30 Hz, Q 0.025 <-> 40 in 20 ms",     eq::Type::lowCut,    7, RmFreq::at30Hz,     0.0,  0.0, 0.025, 40.0, 0.020, 0 },
+        { "High Shelf 12 dB/oct +18 dB, f 10 Hz <-> 30 kHz, p0",     eq::Type::highShelf, 1, RmFreq::sweep,     18.0, 18.0, 1.0,   1.0,  0.050, 0 },
+        { "High Shelf 12 dB/oct +18 dB, f 10 Hz <-> 30 kHz, p1",     eq::Type::highShelf, 1, RmFreq::sweep,     18.0, 18.0, 1.0,   1.0,  0.050, 1 },
+        { "High Shelf 12 dB/oct at tone / 2, gain -30 <-> +30 dB",   eq::Type::highShelf, 1, RmFreq::halfTone, -30.0, 30.0, 1.0,   1.0,  0.020, 0 },
+        { "High Shelf 12 dB/oct +18 dB at the tone, Q 0.025 <-> 40", eq::Type::highShelf, 1, RmFreq::atTone,    18.0, 18.0, 0.025, 40.0, 0.020, 0 },
+        { "High Shelf 96 dB/oct +18 dB, f 10 Hz <-> 30 kHz, p0",     eq::Type::highShelf, 7, RmFreq::sweep,     18.0, 18.0, 1.0,   1.0,  0.050, 0 },
+        { "High Shelf 96 dB/oct +18 dB, f 10 Hz <-> 30 kHz, p1",     eq::Type::highShelf, 7, RmFreq::sweep,     18.0, 18.0, 1.0,   1.0,  0.050, 1 }
+    };
+
+    // RESEARCH-2.3 Q1 (ramp_bench g3), [tone 50 Hz, 1 kHz][motion][block 32, block 512].
+    const double kRmBenchEngine[2][kRmNumMotions][2] =
+    {
+        { { 1.00, 0.99 }, { 1.00, 1.00 }, { 0.94, 0.98 }, { 0.99, 0.89 }, { 1.00, 1.00 }, { 1.00, 1.00 }, { 2.17, 0.96 },
+          { 2.54, 1.06 }, { 1.01, 1.02 }, { 0.97, 0.96 }, { 1.93, 0.88 }, { 1.00, 1.00 }, { 1.00, 1.00 } },
+        { { 1.00, 1.00 }, { 1.00, 1.00 }, { 0.98, 1.00 }, { 1.00, 1.00 }, { 1.00, 1.03 }, { 1.00, 1.00 }, { 1.00, 1.00 },
+          { 1.00, 1.00 }, { 1.00, 1.00 }, { 0.99, 1.00 }, { 1.00, 1.01 }, { 1.00, 1.00 }, { 1.00, 1.00 } }
+    };
+
+    // hard / reference at block 512, [tone][motion].
+    const double kRmBenchHard[2][kRmNumMotions] =
+    {
+        { 252.0, 343.0, 211.0, 1489.0, 9.2, 17.6, 307.0, 914.0, 1754.0, 395.0, 1624.0, 147.0, 122.0 },
+        { 20.0, 75.0, 192.0, 39.0, 27.0, 119.0, 8.2, 32.0, 33.0, 87.0, 117.0, 34.0, 22.0 }
+    };
+
+    // engine / held, [tone][motion][block 32, block 512].
+    const double kRmBenchHeld[2][kRmNumMotions][2] =
+    {
+        { { 19.2, 17.4 }, { 32.6, 32.5 }, { 41.0, 195.0 }, { 39.0, 60.0 }, { 2251.0, 1534.0 }, { 603.0, 1591.0 }, { 81.0, 199.0 },
+          { 7.7, 9.6 }, { 3.4, 3.5 }, { 159.0, 86.0 }, { 54.0, 99.0 }, { 21.0, 22.1 }, { 45.6, 52.1 } },
+        { { 1.58, 2.48 }, { 1.51, 2.62 }, { 1.90, 1.58 }, { 1.43, 1.45 }, { 6.9, 28.3 }, { 1.35, 9.3 }, { 1.03, 1.02 },
+          { 1.58, 1.54 }, { 1.32, 1.81 }, { 1.77, 1.54 }, { 1.08, 1.10 }, { 2.11, 2.57 }, { 1.23, 2.93 } }
+    };
+
+    double rmSweepSeconds (const RmMotion& m)
+    {
+        return m.pattern == 0 ? 0.5 + m.seconds + 0.4 + m.seconds + 0.4
+                              : 0.5 + 2.0 * (m.seconds + 0.5);
+    }
+
+    /** 0 = at A, 1 = at B. hold: 0 the motion, 1 held at A, 2 held at B. */
+    double rmSweepPosition (const RmMotion& m, double seconds, int hold)
+    {
+        if (hold == 1)
+            return 0.0;
+
+        if (hold == 2)
+            return 1.0;
+
+        const double lead = 0.5;
+        const double sweep = m.seconds;
+
+        if (seconds < lead)
+            return 0.0;
+
+        double t = seconds - lead;
+
+        if (m.pattern == 0)
+        {
+            if (t < sweep)
+                return t / sweep;
+
+            t -= sweep;
+
+            if (t < 0.4)
+                return 1.0;
+
+            t -= 0.4;
+
+            if (t < sweep)
+                return 1.0 - t / sweep;
+
+            return 0.0;
+        }
+
+        t = std::fmod (t, sweep + 0.5);
+
+        if (t < 0.5 * sweep)
+            return t / (0.5 * sweep);
+
+        if (t < sweep)
+            return 2.0 - t / (0.5 * sweep);
+
+        return 0.0;
+    }
+
+    eq::BandSettings rmSweepSettings (const RmMotion& m, double tone, double u)
+    {
+        double freqHz = tone;
+
+        switch (m.freq)
+        {
+            case RmFreq::sweep:      freqHz = std::exp (std::log (10.0) + u * (std::log (30000.0) - std::log (10.0))); break;
+            case RmFreq::atTone:     freqHz = tone; break;
+            case RmFreq::twiceTone:  freqHz = 2.0 * tone; break;
+            case RmFreq::halfTone:   freqHz = 0.5 * tone; break;
+            case RmFreq::at30Hz:     freqHz = 30.0; break;
+        }
+
+        const double gainDb = m.gainA + u * (m.gainB - m.gainA);
+        const double q = (m.qA == m.qB) ? m.qA
+                                        : std::exp (std::log (m.qA) + u * (std::log (m.qB) - std::log (m.qA)));
+
+        return rmInput (m.type, freqHz, gainDb, q, m.slopeIndex).settings;
+    }
+
+    /** The parameter as the host block sees it: read once at each block start. */
+    std::vector<eq::BandSettings> rmSweepScript (const RmMotion& m, double tone, double fs, int block, int hold,
+                                                 std::size_t numSamples)
+    {
+        std::vector<eq::BandSettings> script;
+        script.reserve (numSamples / ix (block) + 1);
+
+        for (std::size_t pos = 0; pos < numSamples; pos += ix (block))
+            script.push_back (rmSweepSettings (m, tone, rmSweepPosition (m, static_cast<double> (pos) / fs, hold)));
+
+        return script;
+    }
+
+    //==========================================================================
+    // The trajectory rule of PLAN-2.3 P2 / P3, re-stated for the reference
+    // (harness literals; nothing here comes from the engine headers):
+    //   - three values on one counter: ln f, gain in dB, ln Q;
+    //   - a fresh target is taken up at the next tick and restarts the move
+    //     from the current value over the full length;
+    //   - one step per tick; the last step lands on the target itself;
+    //   - the value reached at a tick is the END of the interval that starts
+    //     there (the engine interpolates toward it over the K samples).
+    //==========================================================================
+    int rmRefGrid (double fs)
+    {
+        return fs <= 48000.0 ? 16 : (fs <= 96000.0 ? 32 : 64);
+    }
+
+    int rmRefRampTicks (double fs)
+    {
+        return std::max (1, static_cast<int> (std::lround (0.020 * fs / static_cast<double> (rmRefGrid (fs)))));
+    }
+
+    double rmRefClamp (double v, double lo, double hi)
+    {
+        return v < lo ? lo : (v > hi ? hi : v);
+    }
+
+    struct RmTrajectory
+    {
+        eq::BandSettings target {};
+        eq::BandSettings offered {};
+        bool hasOffer = false;
+        double lnF = 0.0, gain = 0.0, lnQ = 0.0;
+        double toLnF = 0.0, toGain = 0.0, toLnQ = 0.0;
+        double stepLnF = 0.0, stepGain = 0.0, stepLnQ = 0.0;
+        int left = 0;
+        int length = 1;
+    };
+
+    void rmTrajectoryAim (RmTrajectory& t, const eq::BandSettings& s)
+    {
+        const eq::BandSettings aim = s;
+        t.target = aim;
+        t.toLnF = std::log (rmRefClamp (aim.freqHz, 10.0, 30000.0));
+        t.toGain = rmRefClamp (aim.gainDbEff, -60.0, 60.0);
+        t.toLnQ = std::log (rmRefClamp (aim.q, 0.025, 40.0));
+    }
+
+    void rmTrajectoryStart (RmTrajectory& t, const eq::BandSettings& s, int lengthTicks)
+    {
+        rmTrajectoryAim (t, s);
+        t.lnF = t.toLnF;
+        t.gain = t.toGain;
+        t.lnQ = t.toLnQ;
+        t.stepLnF = 0.0;
+        t.stepGain = 0.0;
+        t.stepLnQ = 0.0;
+        t.left = 0;
+        t.length = std::max (1, lengthTicks);
+        t.hasOffer = false;
+    }
+
+    /** At a block start. Settings equal to the current target are no change. */
+    void rmTrajectoryOffer (RmTrajectory& t, const eq::BandSettings& s)
+    {
+        if (rmSameSettings (t.target, s))
+        {
+            t.hasOffer = false;
+            return;
+        }
+
+        t.offered = s;
+        t.hasOffer = true;
+    }
+
+    /** At a grid tick. True when the interval that starts here moves. */
+    bool rmTrajectoryTick (RmTrajectory& t)
+    {
+        if (t.hasOffer)
+        {
+            rmTrajectoryAim (t, t.offered);
+            t.hasOffer = false;
+
+            const double n = static_cast<double> (t.length);
+            t.stepLnF = (t.toLnF - t.lnF) / n;
+            t.stepGain = (t.toGain - t.gain) / n;
+            t.stepLnQ = (t.toLnQ - t.lnQ) / n;
+            t.left = t.length;
+        }
+
+        if (t.left <= 0)
+            return false;
+
+        if (t.left > 1)
+        {
+            t.lnF += t.stepLnF;
+            t.gain += t.stepGain;
+            t.lnQ += t.stepLnQ;
+            --t.left;
+        }
+        else
+        {
+            t.lnF = t.toLnF;
+            t.gain = t.toGain;
+            t.lnQ = t.toLnQ;
+            t.left = 0;
+        }
+
+        return true;
+    }
+
+    /** The target's type and slope with the given control values, clamped. */
+    eq::BandSettings rmTrajectorySettings (const RmTrajectory& t, double lnF, double gain, double lnQ)
+    {
+        eq::BandSettings s = t.target;
+        s.freqHz = rmRefClamp (std::exp (lnF), 10.0, 30000.0);
+        s.gainDbEff = rmRefClamp (gain, -60.0, 60.0);
+        s.q = rmRefClamp (std::exp (lnQ), 0.025, 40.0);
+        return s;
+    }
+
+    /** A design held as runtime coefficients, for the two controls. */
+    struct RmHeldDesign
+    {
+        int count = 0;
+        eq::SectionRuntime sections[eq::maxSections];
+    };
+
+    void rmHoldDesign (const eq::Designer& designer, const eq::BandSettings& s, RmHeldDesign& held)
+    {
+        eq::BandDesign d {};
+        designer.design (s, d);
+        held.count = std::min (d.numSections, static_cast<int> (eq::maxSections));
+
+        for (int i = 0; i < held.count; ++i)
+            held.sections[i] = eq::toRuntime (d.params[ix (i)]);
+    }
+
+    /** The same-motion reference (P11): the P2 trajectory, with a design on
+        EVERY sample and the static recurrences. Mono, one band; the parameter
+        is read once per host block, script[blockIndex]. */
+    std::vector<double> refRender (const eq::Designer& designer, double fs, int block,
+                                   const std::vector<eq::BandSettings>& script, const std::vector<double>& input)
+    {
+        std::vector<double> out (input.size(), 0.0);
+
+        if (script.empty() || block <= 0)
+            return out;
+
+        const std::size_t grid = ix (rmRefGrid (fs));
+        const std::size_t blockSize = ix (block);
+
+        RmTrajectory traj;
+        double ic1[eq::maxSections] = {}, ic2[eq::maxSections] = {}, lp[eq::maxSections] = {};
+        double fromLnF = 0.0, fromGain = 0.0, fromLnQ = 0.0;
+        bool moving = false;
+        eq::BandDesign d {};
+
+        for (std::size_t n = 0; n < input.size(); ++n)
+        {
+            if (n % blockSize == 0)
+            {
+                const eq::BandSettings& s = script[std::min (n / blockSize, script.size() - 1)];
+
+                if (n == 0)
+                    rmTrajectoryStart (traj, s, rmRefRampTicks (fs));
+                else
+                    rmTrajectoryOffer (traj, s);
+            }
+
+            const std::size_t j = n % grid;
+
+            if (j == 0)
+            {
+                fromLnF = traj.lnF;
+                fromGain = traj.gain;
+                fromLnQ = traj.lnQ;
+                moving = rmTrajectoryTick (traj);
+            }
+
+            // Sample j of an interval sits (j + 1) / K of the way to the value the tick reached.
+            // The last sample of the landing interval, and every sample at rest, is the target's own settings.
+            eq::BandSettings now = traj.target;
+            const bool lastOfInterval = j + 1 == grid;
+
+            if (moving && ! (lastOfInterval && traj.left == 0))
+            {
+                if (lastOfInterval)
+                {
+                    now = rmTrajectorySettings (traj, traj.lnF, traj.gain, traj.lnQ);
+                }
+                else
+                {
+                    const double part = static_cast<double> (j + 1) / static_cast<double> (grid);
+                    now = rmTrajectorySettings (traj, fromLnF + (traj.lnF - fromLnF) * part,
+                                                fromGain + (traj.gain - fromGain) * part,
+                                                fromLnQ + (traj.lnQ - fromLnQ) * part);
+                }
+            }
+
+            designer.design (now, d);
+
+            double v = input[n];
+
+            for (int i = 0; i < d.numSections; ++i)
+            {
+                const eq::SectionRuntime rt = eq::toRuntime (d.params[ix (i)]);
+
+                if (rt.hasSvf)
+                    v = eq::svfTick (rt.svf, ic1[i], ic2[i], v);
+
+                if (rt.hasOnePole)
+                    v = eq::onePoleTick (rt.onePole, lp[i], v);
+            }
+
+            out[n] = v;
+        }
+
+        return out;
+    }
+
+    /** The interpolation-off control (P11): the same trajectory, one design
+        per grid tick while it moves, applied at once and held for the
+        interval. Static recurrences. */
+    std::vector<double> holdRender (const eq::Designer& designer, double fs, int block,
+                                    const std::vector<eq::BandSettings>& script, const std::vector<double>& input)
+    {
+        std::vector<double> out (input.size(), 0.0);
+
+        if (script.empty() || block <= 0)
+            return out;
+
+        const std::size_t grid = ix (rmRefGrid (fs));
+        const std::size_t blockSize = ix (block);
+
+        RmTrajectory traj;
+        RmHeldDesign held;
+        double ic1[eq::maxSections] = {}, ic2[eq::maxSections] = {}, lp[eq::maxSections] = {};
+
+        for (std::size_t n = 0; n < input.size(); ++n)
+        {
+            if (n % blockSize == 0)
+            {
+                const eq::BandSettings& s = script[std::min (n / blockSize, script.size() - 1)];
+
+                if (n == 0)
+                {
+                    rmTrajectoryStart (traj, s, rmRefRampTicks (fs));
+                    rmHoldDesign (designer, traj.target, held);
+                }
+                else
+                {
+                    rmTrajectoryOffer (traj, s);
+                }
+            }
+
+            if (n % grid == 0 && rmTrajectoryTick (traj))
+                rmHoldDesign (designer,
+                              traj.left == 0 ? traj.target : rmTrajectorySettings (traj, traj.lnF, traj.gain, traj.lnQ),
+                              held);
+
+            double v = input[n];
+
+            for (int i = 0; i < held.count; ++i)
+            {
+                const eq::SectionRuntime& rt = held.sections[i];
+
+                if (rt.hasSvf)
+                    v = eq::svfTick (rt.svf, ic1[i], ic2[i], v);
+
+                if (rt.hasOnePole)
+                    v = eq::onePoleTick (rt.onePole, lp[i], v);
+            }
+
+            out[n] = v;
+        }
+
+        return out;
+    }
+
+    /** The no-smoothing control (P11): the Phase 2.2 rule. The block's
+        settings are designed at the block start and applied at once; the
+        filter state is kept. */
+    std::vector<double> hardRender (const eq::Designer& designer, int block,
+                                    const std::vector<eq::BandSettings>& script, const std::vector<double>& input)
+    {
+        std::vector<double> out (input.size(), 0.0);
+
+        if (script.empty() || block <= 0)
+            return out;
+
+        const std::size_t blockSize = ix (block);
+
+        RmHeldDesign held;
+        double ic1[eq::maxSections] = {}, ic2[eq::maxSections] = {}, lp[eq::maxSections] = {};
+
+        for (std::size_t n = 0; n < input.size(); ++n)
+        {
+            if (n % blockSize == 0)
+                rmHoldDesign (designer, script[std::min (n / blockSize, script.size() - 1)], held);
+
+            double v = input[n];
+
+            for (int i = 0; i < held.count; ++i)
+            {
+                const eq::SectionRuntime& rt = held.sections[i];
+
+                if (rt.hasSvf)
+                    v = eq::svfTick (rt.svf, ic1[i], ic2[i], v);
+
+                if (rt.hasOnePole)
+                    v = eq::onePoleTick (rt.onePole, lp[i], v);
+            }
+
+            out[n] = v;
+        }
+
+        return out;
+    }
+
+    /** The engine: one band, mono, the script through the driver. */
+    std::vector<double> rmEngineRender (double fs, int block, const std::vector<eq::BandSettings>& script,
+                                        const std::vector<double>& input, unsigned long& mismatches)
+    {
+        std::vector<double> out (input);
+        RmDriver driver;
+        driver.prepare (fs, 1);
+
+        const int total = static_cast<int> (input.size());
+
+        for (int pos = 0; pos < total; pos += block)
+        {
+            eq::BandInput in {};
+            in.settings = script[std::min (ix (pos / block), script.size() - 1)];
+            in.placement = eq::Placement::stereo;
+            in.active = true;
+            driver.apply (0, in);
+            driver.process (out.data() + pos, nullptr, std::min (block, total - pos), false);
+        }
+
+        mismatches = driver.structureMismatches();
+        return out;
+    }
+
+    /** The first index below `limit` at which the two renders differ in any bit; -1 if none. */
+    long long rmFirstDifference (const std::vector<double>& a, const std::vector<double>& b, std::size_t limit)
+    {
+        const std::size_t n = std::min (limit, std::min (a.size(), b.size()));
+
+        for (std::size_t i = 0; i < n; ++i)
+            if (! sameBits (a[i], b[i]))
+                return static_cast<long long> (i);
+
+        return -1;
+    }
+
+    struct RmG3Reading
+    {
+        double engine = 0.0, reference = 0.0, hold = 0.0, hard = 0.0, heldA = 0.0, heldB = 0.0;     // local kappa
+        long long firstEngine = -1, firstReference = -1, firstExpected = -1;
+        unsigned long mismatches = 0;
+        bool finite = true;
+    };
+
+    /** One reading: the engine, the reference, the two held renders, and the
+        controls asked for. Sine at -6 dBFS; the first 0.3 s is not scored.
+
+        Stimulus guard (PLAN-2.3 R3): the engine's first sample that differs
+        from its held-at-A render and the reference's first sample that
+        differs from ITS held-at-A render must be the same index, the first
+        grid tick at or after the first block whose parameter moved. A
+        reference whose trajectory lags or leads the engine's by a tick fails
+        here instead of reading as a click ratio. */
+    RmG3Reading rmG3Measure (const RmMotion& m, double tone, int block, double fs, bool wantHold, bool wantHard)
+    {
+        RmG3Reading r;
+
+        eq::Designer designer;
+        designer.prepare (fs);
+
+        const std::size_t numSamples = ix (static_cast<int> (std::llround (rmSweepSeconds (m) * fs)));
+        const std::size_t from = ix (static_cast<int> (std::llround (0.3 * fs)));
+
+        std::vector<double> input (numSamples);
+
+        for (std::size_t i = 0; i < numSamples; ++i)
+            input[i] = 0.5 * std::sin (2.0 * kPi * tone * static_cast<double> (i) / fs);
+
+        const std::vector<eq::BandSettings> motion = rmSweepScript (m, tone, fs, block, 0, numSamples);
+        const std::vector<eq::BandSettings> atA = rmSweepScript (m, tone, fs, block, 1, numSamples);
+        const std::vector<eq::BandSettings> atB = rmSweepScript (m, tone, fs, block, 2, numSamples);
+
+        unsigned long heldMismatches = 0;
+        const std::vector<double> yEngine = rmEngineRender (fs, block, motion, input, r.mismatches);
+        const std::vector<double> yA = rmEngineRender (fs, block, atA, input, heldMismatches);
+        const std::vector<double> yB = rmEngineRender (fs, block, atB, input, heldMismatches);
+        const std::vector<double> yReference = refRender (designer, fs, block, motion, input);
+
+        r.engine = rmLocalKappa (yEngine, fs, from);
+        r.reference = rmLocalKappa (yReference, fs, from);
+        r.heldA = rmLocalKappa (yA, fs, from);
+        r.heldB = rmLocalKappa (yB, fs, from);
+        r.finite = rmAllFinite (yEngine) && rmAllFinite (yReference) && rmAllFinite (yA) && rmAllFinite (yB);
+
+        if (wantHold)
+        {
+            const std::vector<double> yHold = holdRender (designer, fs, block, motion, input);
+            r.hold = rmLocalKappa (yHold, fs, from);
+            r.finite = r.finite && rmAllFinite (yHold);
+        }
+
+        if (wantHard)
+        {
+            const std::vector<double> yHard = hardRender (designer, block, motion, input);
+            r.hard = rmLocalKappa (yHard, fs, from);
+            r.finite = r.finite && rmAllFinite (yHard);
+        }
+
+        std::size_t firstBlock = 0;
+
+        for (std::size_t b = 1; b < motion.size(); ++b)
+            if (! rmSameSettings (motion[b], motion[0]))
+            {
+                firstBlock = b;
+                break;
+            }
+
+        if (firstBlock > 0)
+        {
+            const std::size_t grid = ix (rmRefGrid (fs));
+            const std::size_t pos = firstBlock * ix (block);
+            const std::size_t expected = ((pos + grid - 1) / grid) * grid;
+            const std::size_t limit = std::min (numSamples, expected + 4 * grid);
+
+            const std::vector<double> head (input.begin(), input.begin() + static_cast<std::ptrdiff_t> (limit));
+            const std::vector<double> yReferenceHeld = refRender (designer, fs, block, atA, head);
+
+            r.firstExpected = static_cast<long long> (expected);
+            r.firstEngine = rmFirstDifference (yEngine, yA, limit);
+            r.firstReference = rmFirstDifference (yReference, yReferenceHeld, limit);
+        }
+
+        return r;
+    }
+
+    bool rmG3GuardOk (const RmG3Reading& r)
+    {
+        return r.firstExpected >= 0 && r.firstEngine == r.firstExpected && r.firstReference == r.firstExpected;
+    }
+
+    /** RM-g3, RM-g3i, RM-g3h, RM-g3k, RM-g3r. */
+    void rowsRmG3()
+    {
+        constexpr int perTone = kRmNumMotions * 2;
+        constexpr int numMain = 2 * perTone;                // 52
+        constexpr double limit = 4.0;
+        constexpr double controlFloor = 10.0;
+        constexpr double warnCeiling = 4.0;
+        static const double tones[2] = { 50.0, 1000.0 };
+        static const int blocks[2] = { 32, 512 };
+        static const double otherRates[2] = { 96000.0, 192000.0 };
+        static const int holdMotions[3] = { 6, 7, 10 };     // motions 7, 8, 11
+        static const double holdBench[3] = { 541.0, 143.0, 415.0 };
+
+        std::vector<RmG3Reading> readings (ix (numMain + 2));
+
+        // Tasks 0 ... 51: tone-major, then motion, then block. Tasks 52, 53: motion 8 at 96 and 192 kHz.
+        parallelFor (numMain + 2, [&] (int task)
+        {
+            if (task >= numMain)
+            {
+                readings[ix (task)] = rmG3Measure (kRmMotions[7], 50.0, 32, otherRates[task - numMain], false, false);
+                return;
+            }
+
+            const int toneIndex = task / perTone;
+            const int motion = (task % perTone) / 2;
+            const int blockIndex = task % 2;
+            const bool wantHold = toneIndex == 0 && blockIndex == 0 && (motion == 6 || motion == 7 || motion == 10);
+
+            readings[ix (task)] = rmG3Measure (kRmMotions[motion], tones[toneIndex], blocks[blockIndex], 48000.0,
+                                               wantHold, blockIndex == 1);
+        });
+
+        const auto reading = [&readings] (int toneIndex, int motion, int blockIndex) -> const RmG3Reading&
+        {
+            return readings[ix (toneIndex * perTone + motion * 2 + blockIndex)];
+        };
+
+        // The grid and the ramp length: the engine's and the reference's against the plan's literals (R2).
+        static const int planGrid[8] = { 16, 16, 16, 16, 32, 32, 64, 64 };
+        static const int planTicks[8] = { 28, 40, 55, 60, 55, 60, 55, 60 };
+        bool gridOk = true;
+
+        for (int r = 0; r < kEnNumRates8; ++r)
+        {
+            const double fs = kRates8[ix (r)];
+            gridOk = gridOk && eq::controlGridSize (fs) == planGrid[r] && eq::rampLengthTicks (fs) == planTicks[r]
+                            && rmRefGrid (fs) == planGrid[r] && rmRefRampTicks (fs) == planTicks[r];
+        }
+
+        //======================================================================
+        // RM-g3
+        //======================================================================
+        {
+            int above = 0, guardOff = 0, nonFinite = 0;
+            unsigned long mismatches = 0;
+            double worst = 0.0;
+            std::string worstWhere;
+
+            for (int t = 0; t < 2; ++t)
+                for (int m = 0; m < kRmNumMotions; ++m)
+                    for (int b = 0; b < 2; ++b)
+                    {
+                        const RmG3Reading& r = reading (t, m, b);
+                        const double ratio = rmRatio (r.engine, r.reference);
+                        mismatches += r.mismatches;
+
+                        if (! r.finite)
+                            ++nonFinite;
+
+                        if (! rmG3GuardOk (r))
+                            ++guardOff;
+
+                        if (! (ratio <= limit))
+                            ++above;
+
+                        if (! (ratio <= worst))
+                        {
+                            worst = ratio;
+                            worstWhere = strf ("motion %d, %.0f Hz, block %d", m + 1, tones[t], blocks[b]);
+                        }
+                    }
+
+            row (above == 0 && guardOff == 0 && nonFinite == 0 && mismatches == 0 && gridOk,
+                 "RM-g3 sweeps, engine vs the same-motion per-sample reference: 13 motions x 50 Hz / 1 kHz x blocks 32 / 512, "
+                 "local kappa <= 4.0x (48 kHz, sine -6 dBFS)",
+                 strf ("%d of %d readings above 4.0x; worst %.2fx (%s; bench worst 2.54x); %d non-finite; stimulus guard "
+                       "(first differing sample of engine and of reference == the first tick after the first moved block): "
+                       "%d of %d off; grid and ramp length at 8 rates vs the plan's 16 / 32 / 64 and 28, 40, 55, 60, 55, 60, 55, 60 "
+                       "ticks: %s; %lu structure changes inside a move",
+                       above, numMain, worst, worstWhere.c_str(), nonFinite, guardOff, numMain,
+                       gridOk ? "equal" : "DIFFER", mismatches));
+
+            for (int t = 0; t < 2; ++t)
+                for (int m = 0; m < kRmNumMotions; ++m)
+                {
+                    const RmG3Reading& a = reading (t, m, 0);
+                    const RmG3Reading& b = reading (t, m, 1);
+                    std::string flags;
+
+                    for (int k = 0; k < 2; ++k)
+                    {
+                        const RmG3Reading& r = k == 0 ? a : b;
+
+                        if (! rmG3GuardOk (r))
+                            flags += strf ("  GUARD block %d: first difference engine %lld, reference %lld, expected %lld",
+                                           blocks[k], r.firstEngine, r.firstReference, r.firstExpected);
+
+                        if (! r.finite)
+                            flags += strf ("  NON-FINITE block %d", blocks[k]);
+                    }
+
+                    note (strf ("%4.0f Hz m%-2d %-56s block 32 %6.2fx (bench %.2f) | block 512 %6.2fx (bench %.2f)%s",
+                                tones[t], m + 1, kRmMotions[m].name,
+                                rmRatio (a.engine, a.reference), kRmBenchEngine[t][m][0],
+                                rmRatio (b.engine, b.reference), kRmBenchEngine[t][m][1], flags.c_str()));
+                }
+        }
+
+        //======================================================================
+        // RM-g3i: interpolation off
+        //======================================================================
+        {
+            bool fires = true;
+            std::string text;
+
+            for (int k = 0; k < 3; ++k)
+            {
+                const RmG3Reading& r = reading (0, holdMotions[k], 0);
+                const double ratio = rmRatio (r.hold, r.reference);
+                fires = fires && r.finite && r.reference > 0.0 && std::isfinite (ratio) && ratio >= controlFloor;
+                text += strf ("%smotion %d %.1fx (bench %.0f)", k == 0 ? "" : ", ", holdMotions[k] + 1, ratio, holdBench[k]);
+            }
+
+            row (fires, "RM-g3i interpolation off (holdRender: grid designs applied at once) reads >= 10x the reference on "
+                        "motions 7, 8, 11 at 50 Hz, block 32",
+                 strf ("%s: %s", fires ? "the control fires" : "the control did NOT fire", text.c_str()));
+        }
+
+        //======================================================================
+        // RM-g3h: no smoothing, block 512
+        //======================================================================
+        {
+            int counted = 0, below = 0;
+            double smallest = kInf;
+            std::string smallestWhere, voidText;
+            std::vector<std::string> lines;
+
+            for (int t = 0; t < 2; ++t)
+                for (int m = 0; m < kRmNumMotions; ++m)
+                {
+                    const RmG3Reading& r = reading (t, m, 1);
+                    const double ratio = rmRatio (r.hard, r.reference);
+                    const bool isVoid = (t == 0 && m == 4) || (t == 1 && m == 6);
+                    bool low = false;
+
+                    if (isVoid)
+                    {
+                        voidText += strf ("%smotion %d at %.0f Hz %.1fx (bench %.1f)", voidText.empty() ? "" : ", ",
+                                          m + 1, tones[t], ratio, kRmBenchHard[t][m]);
+                    }
+                    else
+                    {
+                        ++counted;
+                        low = ! (r.finite && r.reference > 0.0 && std::isfinite (ratio) && ratio >= controlFloor);
+
+                        if (low)
+                            ++below;
+
+                        if (ratio < smallest)
+                        {
+                            smallest = ratio;
+                            smallestWhere = strf ("motion %d at %.0f Hz", m + 1, tones[t]);
+                        }
+                    }
+
+                    lines.push_back (strf ("%4.0f Hz m%-2d hard / reference, block 512: %9.1fx (bench %.1f)%s", tones[t], m + 1,
+                                           ratio, kRmBenchHard[t][m],
+                                           isVoid ? "  VOID by construction: printed, not counted" : (low ? "  BELOW 10x" : "")));
+                }
+
+            row (below == 0 && counted == 24,
+                 "RM-g3h no smoothing (hardRender: the 2.2 rule, design at the block start, state kept) at block 512 reads "
+                 ">= 10x the reference on the 24 non-void readings",
+                 strf ("%s: %d of %d counted readings >= 10x, smallest %.1fx (%s); void, not counted: %s",
+                       below == 0 ? "the control fires" : "the control did NOT fire", counted - below, counted, smallest,
+                       smallestWhere.c_str(), voidText.c_str()));
+
+            for (const std::string& text : lines)
+                note (text);
+        }
+
+        //======================================================================
+        // RM-g3k: the other two grids
+        //======================================================================
+        {
+            bool ok = true;
+            std::string text;
+
+            for (int k = 0; k < 2; ++k)
+            {
+                const RmG3Reading& r = readings[ix (numMain + k)];
+                const double ratio = rmRatio (r.engine, r.reference);
+                const bool guard = rmG3GuardOk (r);
+                ok = ok && r.finite && guard && r.mismatches == 0 && ratio <= limit;
+                text += strf ("%s%.0f Hz (K %d, %d ticks): %.2fx%s%s", k == 0 ? "" : "; ", otherRates[k],
+                              eq::controlGridSize (otherRates[k]), eq::rampLengthTicks (otherRates[k]), ratio,
+                              guard ? "" : strf (" (GUARD: first difference engine %lld, reference %lld, expected %lld)",
+                                                 r.firstEngine, r.firstReference, r.firstExpected).c_str(),
+                              r.finite ? "" : " (NON-FINITE)");
+            }
+
+            row (ok, "RM-g3k motion 8 (High Shelf 12 dB/oct frequency sweep, p0) at 50 Hz, block 32, at 96 and 192 kHz: <= 4.0x",
+                 text + "; bench at 48 kHz (K 16): 2.54x");
+        }
+
+        //======================================================================
+        // RM-g3r: against the held references. INFO + WARN, never failing.
+        //======================================================================
+        {
+            int warns = 0;
+            double largestGated = 0.0, largestAll = 0.0;
+            std::vector<std::string> lines;
+
+            for (int t = 0; t < 2; ++t)
+                for (int m = 0; m < kRmNumMotions; ++m)
+                {
+                    double ratio[2] = { 0.0, 0.0 };
+                    bool warn = false;
+
+                    for (int b = 0; b < 2; ++b)
+                    {
+                        const RmG3Reading& r = reading (t, m, b);
+                        ratio[b] = rmRatio (r.engine, std::max (r.heldA, r.heldB));
+
+                        if (std::isfinite (ratio[b]))
+                            largestAll = std::max (largestAll, ratio[b]);
+
+                        if (t == 1 && m != 4 && m != 5)
+                        {
+                            if (std::isfinite (ratio[b]))
+                                largestGated = std::max (largestGated, ratio[b]);
+
+                            if (! (ratio[b] <= warnCeiling))
+                            {
+                                ++warns;
+                                warn = true;
+                            }
+                        }
+                    }
+
+                    lines.push_back (strf ("%4.0f Hz m%-2d engine / held: block 32 %9.2fx (bench %.2f) | block 512 %9.2fx (bench %.2f)%s",
+                                           tones[t], m + 1, ratio[0], kRmBenchHeld[t][m][0], ratio[1], kRmBenchHeld[t][m][1],
+                                           warn ? "  WARN: above 4x" : ""));
+                }
+
+            info ("RM-g3r engine against the held references (the larger of held at A, held at B): 52 readings, not gated",
+                  strf ("%d WARN (above 4x on a 1 kHz reading of a motion other than 5 and 6; 22 readings, largest %.2fx, "
+                        "bench 2.93x); largest of all 52: %.0fx (bench 2251x: a full-range sweep bends a 50 Hz tone inside one cycle)",
+                        warns, largestGated, largestAll));
+
+            for (const std::string& text : lines)
+                note (text);
+        }
+    }
+
+    //==========================================================================
+    // RM-arr / RM-arrn: the ramp lands on the static design and then rests
+    //==========================================================================
+    struct RmArrCase
+    {
+        bool moves = false;             // the edit changes the canonical settings
+        bool settledQuiet = false;      // before the edit: one design (the first), not moving
+        bool differsBefore = false;     // one tick before arrival: sections differ from the static design
+        bool movingBefore = false;
+        bool equalAtLanding = false;    // one interval past arrival
+        bool movingAfter = true;
+        bool equalAfter = false;        // after 100 more ticks
+        long long rampDesigns = -1;     // designs from the retarget to the landing
+        long long laterDesigns = -1;    // designs over the 100 ticks after it
+    };
+
+    /** which: 0 frequency, 1 gain, 2 Q, 3 all three. */
+    RmArrCase rmArrRun (const eq::Designer& designer, double fs, eq::Type type, int which, std::uint64_t seed)
+    {
+        static const int slopes[8] = { 0, 3, 7, 5, 7, 0, 0, 1 };
+
+        const int slope = slopes[static_cast<int> (type)];
+        const bool moveF = which == 0 || which == 3;
+        const bool moveG = which == 1 || which == 3;
+        const bool moveQ = which == 2 || which == 3;
+
+        const eq::BandSettings a = rmInput (type, 800.0, 6.0, 1.2, slope).settings;
+        const eq::BandSettings b = rmInput (type, moveF ? 2500.0 : 800.0, moveG ? -9.0 : 6.0, moveQ ? 4.0 : 1.2, slope).settings;
+
+        const int grid = eq::controlGridSize (fs);
+        const int length = eq::rampLengthTicks (fs);
+
+        eq::BandDesign staticB {};
+        designer.design (b, staticB);
+
+        RmCountingDesigner counting;
+        counting.inner = &designer;
+        Rng rng (seed);
+
+        RmArrCase out;
+        out.moves = ! rmSameSettings (a, b);
+
+        eq::Band band;
+        band.setControlGrid (grid, length);
+        band.snapTo (a, counting);
+        band.reset();
+
+        for (int t = 0; t < 4; ++t)
+            rmInterval (band, counting, grid, rng);
+
+        out.settledQuiet = counting.calls == 1 && ! band.isMoving();
+
+        band.setTarget (b);
+
+        if (! out.moves)
+        {
+            // Canonical gain (P6): a gain edit on a gainless type is no edit. Nothing may start.
+            const bool idle = ! band.isMoving();
+
+            for (int t = 0; t < length + 2; ++t)
+                rmInterval (band, counting, grid, rng);
+
+            out.rampDesigns = 0;
+            out.laterDesigns = counting.calls - 1;
+            out.equalAtLanding = idle && rmBandEqualsStatic (band, staticB);
+            out.equalAfter = out.equalAtLanding;
+            out.movingAfter = band.isMoving();
+            return out;
+        }
+
+        // Ticks 1 ... N - 1 and their intervals.
+        for (int t = 1; t < length; ++t)
+            rmInterval (band, counting, grid, rng);
+
+        out.differsBefore = ! rmBandEqualsStatic (band, staticB);
+        out.movingBefore = band.isMoving();
+
+        // Tick N designs from the target's own settings; tick N + 1 lands.
+        rmInterval (band, counting, grid, rng);
+        band.controlTick (counting);
+
+        out.rampDesigns = counting.calls - 1;
+        out.equalAtLanding = rmBandEqualsStatic (band, staticB);
+        out.movingAfter = band.isMoving();
+
+        rmRunSamples (band, grid, rng);
+
+        const long long before = counting.calls;
+
+        for (int t = 0; t < 100; ++t)
+            rmInterval (band, counting, grid, rng);
+
+        out.laterDesigns = counting.calls - before;
+        out.equalAfter = rmBandEqualsStatic (band, staticB);
+        return out;
+    }
+
+    void rowsRmArr()
+    {
+        constexpr int perRate = 8 * 4;
+        constexpr int numCases = kEnNumRates * perRate;
+        static const char* const whichNames[4] = { "frequency", "gain", "Q", "all three" };
+
+        std::vector<RmArrCase> cases (ix (numCases));
+
+        parallelFor (kEnNumRates, [&] (int r)
+        {
+            const double fs = kRates5[ix (r)];
+            eq::Designer designer;
+            designer.prepare (fs);
+
+            for (int type = 0; type < 8; ++type)
+                for (int which = 0; which < 4; ++which)
+                {
+                    const int index = r * perRate + type * 4 + which;
+                    cases[ix (index)] = rmArrRun (designer, fs, static_cast<eq::Type> (type), which,
+                                                  0x524D415200ull + static_cast<std::uint64_t> (index));
+                }
+        });
+
+        int moving = 0, inert = 0, bad = 0, controlBad = 0, lengthBad = 0, restBad = 0;
+        std::string first;
+
+        for (int index = 0; index < numCases; ++index)
+        {
+            const RmArrCase& c = cases[ix (index)];
+            const int r = index / perRate;
+            const int type = (index % perRate) / 4;
+            const int which = index % 4;
+            const int length = eq::rampLengthTicks (kRates5[ix (r)]);
+            bool ok = c.settledQuiet && c.equalAtLanding && ! c.movingAfter && c.equalAfter;
+
+            if (c.moves)
+            {
+                ++moving;
+
+                if (c.rampDesigns != length)
+                {
+                    ++lengthBad;
+                    ok = false;
+                }
+
+                if (c.laterDesigns != 0)
+                {
+                    ++restBad;
+                    ok = false;
+                }
+
+                if (! (c.differsBefore && c.movingBefore))
+                    ++controlBad;
+            }
+            else
+            {
+                ++inert;
+
+                if (c.laterDesigns != 0)
+                {
+                    ++restBad;
+                    ok = false;
+                }
+            }
+
+            if (! ok)
+            {
+                ++bad;
+
+                if (first.empty())
+                    first = strf ("%s, %s ramp, %.0f Hz: sections %s at landing, %s after 100 ticks, isMoving %s, "
+                                  "%lld designs in the ramp (expected %d), %lld in the 100 ticks after",
+                                  kTypeNames[type], whichNames[which], kRates5[ix (r)],
+                                  c.equalAtLanding ? "equal" : "DIFFER", c.equalAfter ? "equal" : "DIFFER",
+                                  c.movingAfter ? "TRUE" : "false", c.rampDesigns, c.moves ? length : 0, c.laterDesigns);
+            }
+        }
+
+        row (bad == 0 && moving == 140 && inert == 20,
+             "RM-arr after a ramp of frequency, gain, Q, and all three (8 types x 5 rates), one interval past arrival: sections == "
+             "toRuntime of a static design of the target, bit for bit; isMoving() false; 0 designs over the next 100 ticks",
+             strf ("%d moving cases + %d gain-only edits on Low Cut / High Cut / Notch / Band Pass (canonical gain: nothing starts, "
+                   "0 designs): %d off; ramps whose design count is not the ramp length (55 or 60 ticks): %d; cases that design "
+                   "again at rest: %d; compared field by field (SectionRuntime has padding)%s%s",
+                   moving, inert, bad, lengthBad, restBad, first.empty() ? "" : "; first: ", first.c_str()));
+
+        row (controlBad == 0 && moving == 140,
+             "RM-arrn the RM-arr compare taken one tick before arrival DIFFERS in every moving case",
+             strf ("%s: %d of %d moving cases differ from the static design after tick N - 1 and its interval, with isMoving() true",
+                   controlBad == 0 ? "the control fires" : "the control did NOT fire", moving - controlBad, moving));
+    }
+
+    //==========================================================================
+    // RM-keep / RM-keepn: a continuous change keeps the filter state
+    //==========================================================================
+    struct RmKeepResult
+    {
+        double ratio = 0.0, ownD2 = 0.0, afterD2 = 0.0, ringPeak = 0.0;
+        bool finite = true;
+    };
+
+    /** Bell 40 Hz, Q 20, +24 dB at 48 kHz, rung by 10 ms of a 40 Hz sine at
+        -6 dBFS; at sample 24 000 (a block and a tick boundary) the gain goes
+        to +18 dB. variant 0: through the driver (a continuous change).
+        1: the same with the state cleared at the edit. 2: the 2.2 step
+        (setDesign, state kept). */
+    RmKeepResult rmKeepRun (int variant)
+    {
+        constexpr int total = 48000, edit = 24000, burst = 480, before = 2400, after = 960;
+        const double fs = 48000.0;
+
+        std::vector<double> y (ix (total), 0.0);
+
+        for (int i = 0; i < burst; ++i)
+            y[ix (i)] = 0.5 * std::sin (2.0 * kPi * 40.0 * static_cast<double> (i) / fs);
+
+        RmDriver driver;
+        driver.prepare (fs, 1);
+        driver.apply (0, rmInput (eq::Type::bell, 40.0, 24.0, 20.0, 0));
+        driver.process (y.data(), nullptr, edit, false);
+
+        const eq::BandInput next = rmInput (eq::Type::bell, 40.0, 18.0, 20.0, 0);
+
+        if (variant == 1)
+            driver.bands[0].reset();
+
+        if (variant == 2)
+        {
+            eq::BandDesign d {};
+            driver.designer.design (next.settings, d);
+            driver.bands[0].setDesign (d);
+        }
+        else
+        {
+            driver.apply (0, next);
+        }
+
+        driver.process (y.data() + edit, nullptr, total - edit, false);
+
+        RmKeepResult out;
+        out.finite = rmAllFinite (y);
+
+        for (int i = edit - before; i + 1 < edit; ++i)
+        {
+            out.ownD2 = std::max (out.ownD2, std::fabs (y[ix (i + 1)] - 2.0 * y[ix (i)] + y[ix (i - 1)]));
+            out.ringPeak = std::max (out.ringPeak, std::fabs (y[ix (i)]));
+        }
+
+        for (int n = edit; n < edit + after; ++n)
+            out.afterD2 = std::max (out.afterD2, std::fabs (y[ix (n)] - (2.0 * y[ix (n - 1)] - y[ix (n - 2)])));
+
+        out.ratio = rmRatio (out.afterD2, out.ownD2);
+        return out;
+    }
+
+    void rowsRmKeep()
+    {
+        const RmKeepResult kept = rmKeepRun (0);
+        const RmKeepResult cleared = rmKeepRun (1);
+        const RmKeepResult stepped = rmKeepRun (2);
+
+        row (kept.finite && kept.ownD2 > 0.0 && kept.ringPeak > 1.0e-6 && kept.ratio <= 10.0,
+             "RM-keep bell 40 Hz Q 20 +24 dB, ringing; gain -> +18 dB during the ring: |y[n] - (2 y[n-1] - y[n-2])| over the 20 ms "
+             "after the edit <= 10x the ring's largest second difference in the 50 ms before it",
+             strf ("%.2fx (bench 1.7x at the edit sample); ring peak before the edit %.3e, its largest second difference %.3e, "
+                   "largest after %.3e; 48 kHz, edit at sample 24000%s",
+                   kept.ratio, kept.ringPeak, kept.ownD2, kept.afterD2, kept.finite ? "" : " (NON-FINITE)"));
+
+        const bool fires = cleared.finite && stepped.finite && cleared.ownD2 > 0.0 && stepped.ownD2 > 0.0
+                        && std::isfinite (cleared.ratio) && std::isfinite (stepped.ratio)
+                        && cleared.ratio >= 100.0 && stepped.ratio >= 100.0;
+
+        row (fires, "RM-keepn the RM-keep metric with the state cleared at the edit, and with the 2.2 step (setDesign), reads >= 100x each",
+             strf ("%s: state cleared %.0fx (bench 3985x), 2.2 step %.0fx (bench 1353x)",
+                   fires ? "the control fires" : "the control did NOT fire", cleared.ratio, stepped.ratio));
+    }
+
+    //==========================================================================
+    // RM-blk / RM-blkn: block-size identity with moving parameters (P10)
+    //==========================================================================
+    constexpr int kRmBlkBands = 4;
+    constexpr int kRmBlkEvents = 96;
+    constexpr int kRmBlkSpacing = 2048;
+
+    using RmBlkStep = std::array<eq::BandInput, kRmBlkBands>;
+
+    /** Step 0: the four bands as listed. Steps 1 ... 96: frequency, gain and Q
+        of all four redrawn; step e is what the parameters hold from sample
+        2048 e on. */
+    std::vector<RmBlkStep> rmBlkScript (std::uint64_t seed)
+    {
+        struct Fixed { eq::Type type; int slopeIndex; double freqHz, gainDb, q; };
+        static const Fixed fixed[kRmBlkBands] =
+        {
+            { eq::Type::bell,      0,  200.0,  6.0, 1.0 },
+            { eq::Type::highShelf, 7, 4000.0, -9.0, 1.0 },
+            { eq::Type::lowCut,    5,   60.0,  0.0, 2.0 },
+            { eq::Type::tilt,      3,  900.0,  4.0, 1.0 }
+        };
+
+        Rng rng (seed);
+        std::vector<RmBlkStep> steps (ix (kRmBlkEvents + 1));
+
+        for (int b = 0; b < kRmBlkBands; ++b)
+            steps[0][ix (b)] = rmInput (fixed[b].type, fixed[b].freqHz, fixed[b].gainDb, fixed[b].q, fixed[b].slopeIndex);
+
+        for (int e = 1; e <= kRmBlkEvents; ++e)
+            for (int b = 0; b < kRmBlkBands; ++b)
+            {
+                const double freqHz = 10.0 * std::pow (3000.0, rng.uniform());
+                const double gainDb = -30.0 + 60.0 * rng.uniform();
+                const double q = 0.025 * std::pow (1600.0, rng.uniform());
+                steps[ix (e)][ix (b)] = rmInput (fixed[b].type, freqHz, gainDb, q, fixed[b].slopeIndex);
+            }
+
+        return steps;
+    }
+
+    /** Left then right, concatenated. */
+    std::vector<double> rmBlkRender (double fs, int block, bool withEvents, const std::vector<RmBlkStep>& steps,
+                                     const std::vector<double>& inL, const std::vector<double>& inR,
+                                     long long& continuous, unsigned long& mismatches)
+    {
+        RmDriver driver;
+        driver.prepare (fs, kRmBlkBands);
+
+        std::vector<double> left (inL), right (inR);
+        const int total = static_cast<int> (inL.size());
+
+        for (int pos = 0; pos < total; pos += block)
+        {
+            const std::size_t step = withEvents ? std::min (ix (pos / kRmBlkSpacing), steps.size() - 1) : 0;
+
+            for (int b = 0; b < kRmBlkBands; ++b)
+                driver.apply (b, steps[step][ix (b)]);
+
+            driver.process (left.data() + pos, right.data() + pos, std::min (block, total - pos), true);
+        }
+
+        continuous = driver.continuous;
+        mismatches = driver.structureMismatches();
+        left.insert (left.end(), right.begin(), right.end());
+        return left;
+    }
+
+    struct RmBlkRate
+    {
+        int mismatches = 0;             // block sizes whose render differs from the block-1 render
+        bool changed = false, finite = true, bite = false;
+        long long continuous = 0, firstBite = -1;
+        unsigned long structure = 0;
+    };
+
+    void rowsRmBlk()
+    {
+        constexpr int numRates = 4;
+        constexpr int numSizes = 5;
+        static const double rates[numRates] = { 44100.0, 48000.0, 96000.0, 192000.0 };
+        static const int sizes[numSizes] = { 1, 32, 64, 512, 2048 };
+
+        std::array<RmBlkRate, numRates> results;
+
+        parallelFor (numRates, [&] (int r)
+        {
+            constexpr int total = (kRmBlkEvents + 1) * kRmBlkSpacing;
+            const double fs = rates[r];
+            const std::vector<RmBlkStep> steps = rmBlkScript (0x524D424C00ull + static_cast<std::uint64_t> (r));
+
+            Rng rng (0x524D424C4Eull + static_cast<std::uint64_t> (r));
+            std::vector<double> inL (ix (total)), inR (ix (total));
+
+            for (int i = 0; i < total; ++i)
+            {
+                inL[ix (i)] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+                inR[ix (i)] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+            }
+
+            RmBlkRate& out = results[ix (r)];
+            const std::size_t bytes = sizeof (double) * 2 * ix (total);
+            std::vector<double> reference;
+
+            for (const int size : sizes)
+            {
+                long long continuous = 0;
+                unsigned long structure = 0;
+                const std::vector<double> y = rmBlkRender (fs, size, true, steps, inL, inR, continuous, structure);
+                out.structure += structure;
+
+                if (reference.empty())
+                {
+                    reference = y;
+                    out.continuous = continuous;
+                    out.finite = rmAllFinite (y);
+                    out.changed = std::memcmp (y.data(), inL.data(), sizeof (double) * ix (total)) != 0;
+                    continue;
+                }
+
+                if (std::memcmp (reference.data(), y.data(), bytes) != 0 || continuous != out.continuous)
+                    ++out.mismatches;
+            }
+
+            long long quietContinuous = 0;
+            unsigned long quietStructure = 0;
+            const std::vector<double> quiet = rmBlkRender (fs, kRmBlkSpacing, false, steps, inL, inR, quietContinuous, quietStructure);
+            out.bite = std::memcmp (reference.data(), quiet.data(), bytes) != 0 && quietContinuous == 0;
+            out.firstBite = rmFirstDifference (reference, quiet, ix (total));
+        });
+
+        bool ok = true, fires = true;
+        std::string text, biteText;
+
+        for (int r = 0; r < numRates; ++r)
+        {
+            const RmBlkRate& rate = results[ix (r)];
+            const bool rateOk = rate.mismatches == 0 && rate.changed && rate.finite && rate.structure == 0
+                             && rate.continuous == static_cast<long long> (kRmBlkEvents) * kRmBlkBands;
+            ok = ok && rateOk;
+            fires = fires && rate.bite;
+
+            text += strf ("%s%.1f k: %d of 4 sizes differ from the block-1 render, %lld continuous changes%s%s%s", r == 0 ? "" : "; ",
+                          rates[r] / 1000.0, rate.mismatches, rate.continuous, rate.changed ? "" : " (VOID: output == input)",
+                          rate.finite ? "" : " (NON-FINITE)", rate.structure == 0 ? "" : " (STRUCTURE CHANGED IN A MOVE)");
+            biteText += strf ("%s%.1f k: %s, first differing sample %lld", r == 0 ? "" : "; ", rates[r] / 1000.0,
+                              rate.bite ? "differs" : "SAME", rate.firstBite);
+        }
+
+        row (ok, "RM-blk 4 bands (bell, High Shelf 96, Low Cut 48, Tilt 24 dB/oct), stereo noise, f / gain / Q of all four redrawn at "
+                 "96 events on multiples of 2048: blocks 1, 32, 64, 512, 2048 bit-identical at 44.1, 48, 96, 192 kHz",
+             text + strf ("; %d samples per lane, events at 2048 e, e = 1 ... 96 (384 changes expected)",
+                          (kRmBlkEvents + 1) * kRmBlkSpacing));
+
+        row (fires, "RM-blkn the RM-blk render with the events removed DIFFERS from RM-blk's at every rate (the events bite)",
+             strf ("%s: %s (block 2048; first event at sample 2048)", fires ? "the control fires" : "the control did NOT fire",
+                   biteText.c_str()));
+    }
+
+    //==========================================================================
+    // RM-st: one coefficient step per sample, not per lane (P4)
+    //==========================================================================
+    /** One Stereo band, L = R noise, 4800 samples in blocks of 48 (not a
+        multiple of the grid), 48 kHz. mode 0: frequency, gain and Q change at
+        block 20, through the Router. mode 1: no change. mode 2: the change,
+        but with the harness's own loop that runs lane 0 and then lane 1 (the
+        per-lane stepping P4 rules out). */
+    void rmStRender (eq::Type type, int mode, const std::vector<double>& input, std::vector<double>& left,
+                     std::vector<double>& right, long long& continuous)
+    {
+        constexpr int block = 48, changeBlock = 20;
+
+        const int slope = eq::usesSlope (type) ? 3 : 0;
+        const eq::BandInput a = rmInput (type, 500.0, 6.0, 0.8, slope);
+        const eq::BandInput b = rmInput (type, 3000.0, -8.0, 5.0, slope);
+
+        RmDriver driver;
+        driver.prepare (48000.0, 1);
+
+        left = input;
+        right = input;
+        const int total = static_cast<int> (input.size());
+        int index = 0;
+
+        for (int pos = 0; pos < total; pos += block, ++index)
+        {
+            const int n = std::min (block, total - pos);
+            driver.apply (0, (mode != 1 && index >= changeBlock) ? b : a);
+
+            if (mode != 2)
+            {
+                driver.process (left.data() + pos, right.data() + pos, n, true);
+                continue;
+            }
+
+            int done = 0;
+
+            while (done < n)
+            {
+                const int phase = static_cast<int> (driver.clock % static_cast<std::uint64_t> (driver.grid));
+
+                if (phase == 0)
+                    driver.bands[0].controlTick (driver.designer);
+
+                const int count = std::min (n - done, driver.grid - phase);
+                driver.bands[0].processLane (0, left.data() + pos + done, count);
+                driver.bands[0].processLane (1, right.data() + pos + done, count);
+                driver.clock += static_cast<std::uint64_t> (count);
+                done += count;
+            }
+        }
+
+        continuous = driver.continuous;
+    }
+
+    void rowRmSt()
+    {
+        constexpr int numSamples = 4800;
+
+        Rng rng (0x524D5354ull);
+        std::vector<double> input (ix (numSamples));
+
+        for (double& v : input)
+            v = (rng.uniform() * 2.0 - 1.0) * 0.25;
+
+        const std::size_t bytes = sizeof (double) * ix (numSamples);
+        int lanesDiffer = 0, same = 0, nonFinite = 0, noRamp = 0, perLaneDiffers = 0;
+        std::string first;
+
+        for (int typeIndex = 0; typeIndex < 8; ++typeIndex)
+        {
+            const eq::Type type = static_cast<eq::Type> (typeIndex);
+            std::vector<double> l, r, settledL, settledR, laneL, laneR;
+            long long continuous = 0, settledContinuous = 0, laneContinuous = 0;
+
+            rmStRender (type, 0, input, l, r, continuous);
+            rmStRender (type, 1, input, settledL, settledR, settledContinuous);
+            rmStRender (type, 2, input, laneL, laneR, laneContinuous);
+
+            const bool equal = std::memcmp (l.data(), r.data(), bytes) == 0;
+            const bool differs = std::memcmp (l.data(), settledL.data(), bytes) != 0;
+            const bool finite = rmAllFinite (l) && rmAllFinite (r);
+
+            if (! equal)
+            {
+                ++lanesDiffer;
+
+                if (first.empty())
+                    first = strf ("%s: L and R first differ at sample %lld", kTypeNames[typeIndex], rmFirstDifference (l, r, l.size()));
+            }
+
+            if (! differs)
+                ++same;
+
+            if (! finite)
+                ++nonFinite;
+
+            if (continuous != 1 || settledContinuous != 0)
+                ++noRamp;
+
+            if (std::memcmp (laneL.data(), laneR.data(), bytes) != 0)
+                ++perLaneDiffers;
+        }
+
+        row (lanesDiffer == 0 && same == 0 && nonFinite == 0 && noRamp == 0,
+             "RM-st a Stereo band of each type, L = R input, through a three-parameter ramp: L output memcmp equal to R output; "
+             "and differs from the settled render",
+             strf ("8 types, 48 kHz, 4800 samples in blocks of 48: %d with L != R, %d equal to the settled render (VOID), %d non-finite, "
+                   "%d without exactly one continuous change%s%s. Not gated: a harness loop that runs lane 0 then lane 1 on the "
+                   "ramping path gives L != R for %d of 8 types (what the row is there to catch)",
+                   lanesDiffer, same, nonFinite, noRamp, first.empty() ? "" : "; first: ", first.c_str(), perLaneDiffers));
+    }
+
+    //==========================================================================
+    // RM-zero: the design is continuous where the gain changes sign (R2)
+    //==========================================================================
+    double rmRel (double u, double v)
+    {
+        return std::fabs (u - v) / std::max (1.0e-300, std::max (std::fabs (u), std::fabs (v)));
+    }
+
+    /** The largest relative change of any parameter of one section. */
+    double rmSectionChange (const eq::SectionParams& x, const eq::SectionParams& y)
+    {
+        double worst = std::max ({ rmRel (x.g, y.g), rmRel (x.k, y.k), rmRel (x.mL, y.mL), rmRel (x.mB, y.mB), rmRel (x.mH, y.mH) });
+
+        if (x.hasOnePole)
+            worst = std::max ({ worst, rmRel (x.G, y.G), rmRel (x.cL, y.cL), rmRel (x.cH, y.cH) });
+
+        return worst;
+    }
+
+    struct RmZeroRate
+    {
+        double worst = 0.0, worstRatio = 0.0;
+        long long settings = 0, structureOff = 0, nonFinite = 0;
+    };
+
+    /** 200 000 random bell / shelf / tilt settings: the design at +0.0002 dB
+        against the design at -0.0002 dB (across zero), and against the design
+        at +0.0006 dB (a step of the same size on one side). */
+    RmZeroRate rmZeroRun (double fs, std::uint64_t seed)
+    {
+        constexpr int numSettings = 200000;
+        constexpr double eps = 0.0002;
+        static const eq::Type types[4] = { eq::Type::bell, eq::Type::lowShelf, eq::Type::highShelf, eq::Type::tilt };
+
+        eq::Designer designer;
+        designer.prepare (fs);
+
+        Rng rng (seed);
+        eq::BandDesign plus {}, minus {}, side {};
+        RmZeroRate out;
+
+        for (int n = 0; n < numSettings; ++n)
+        {
+            const eq::Type type = types[rng.below (4)];
+            const int drawnSlope = rng.below (8);
+            const int slope = eq::usesSlope (type) ? drawnSlope : 0;
+            const double freqHz = 10.0 * std::pow (3000.0, rng.uniform());
+            const double q = 0.025 * std::pow (1600.0, rng.uniform());
+
+            designer.design (mk (type, freqHz, eps, q, slope), plus);
+            designer.design (mk (type, freqHz, -eps, q, slope), minus);
+            designer.design (mk (type, freqHz, 3.0 * eps, q, slope), side);
+            ++out.settings;
+
+            if (plus.numSections != minus.numSections || plus.numSections != side.numSections)
+            {
+                ++out.structureOff;
+                continue;
+            }
+
+            for (int i = 0; i < plus.numSections; ++i)
+            {
+                const double across = rmSectionChange (plus.params[ix (i)], minus.params[ix (i)]);
+                const double oneSided = rmSectionChange (plus.params[ix (i)], side.params[ix (i)]);
+
+                if (! std::isfinite (across) || ! std::isfinite (oneSided))
+                {
+                    ++out.nonFinite;
+                    continue;
+                }
+
+                out.worst = std::max (out.worst, across);
+
+                if (oneSided > 0.0)
+                    out.worstRatio = std::max (out.worstRatio, across / oneSided);
+            }
+        }
+
+        return out;
+    }
+
+    void rowRmZero()
+    {
+        std::array<RmZeroRate, kEnNumRates> rates;
+
+        parallelFor (kEnNumRates, [&] (int r)
+        {
+            rates[ix (r)] = rmZeroRun (kRates5[ix (r)], 0x524D5A00ull + static_cast<std::uint64_t> (r));
+        });
+
+        bool ok = true;
+        double worst = 0.0, worstRatio = 0.0;
+        std::string text;
+
+        for (int r = 0; r < kEnNumRates; ++r)
+        {
+            const RmZeroRate& rate = rates[ix (r)];
+            ok = ok && rate.settings == 200000 && rate.structureOff == 0 && rate.nonFinite == 0
+                    && rate.worst > 0.0 && rate.worst <= 0.005 && rate.worstRatio <= 3.0;
+            worst = std::max (worst, rate.worst);
+            worstRatio = std::max (worstRatio, rate.worstRatio);
+            text += strf ("%s%.1f k %.4f %% / %.2fx%s%s", r == 0 ? "" : " | ", kRates5[ix (r)] / 1000.0, 100.0 * rate.worst,
+                          rate.worstRatio, rate.structureOff == 0 ? "" : " (SECTION COUNT CHANGED)",
+                          rate.nonFinite == 0 ? "" : " (NON-FINITE)");
+        }
+
+        row (ok, "RM-zero gain sign change, +-0.0002 dB across 0, 200 000 random bell / shelf / tilt settings per rate: largest "
+                 "relative change of any section parameter <= 0.5 % and <= 3x the one-sided step of the same size",
+             strf ("worst %.4f %% (bench 0.075 %%), %.2fx the one-sided step (bench 2.1x); per rate, change / ratio: %s "
+                   "(the bench ran 44.1, 48 and 96 kHz)", 100.0 * worst, worstRatio, text.c_str()));
+    }
+
+    //==========================================================================
+    // RM-norm: the state norm cannot grow on the ramping path (RESEARCH-2.3 Q2)
+    //==========================================================================
+    /** A bell with 10 % of the draws on each range end: 10 Hz - 30 kHz,
+        +-60 dB effective (+-30 dB at scale 200 %), Q 0.025 - 40. */
+    eq::BandSettings rmNormDraw (Rng& rng)
+    {
+        const double u = rng.uniform();
+        const double freqHz = u < 0.1 ? 10.0 : (u > 0.9 ? 30000.0 : 10.0 * std::pow (3000.0, rng.uniform()));
+        const double w = rng.uniform();
+        const double gainDb = w < 0.1 ? -30.0 : (w > 0.9 ? 30.0 : -30.0 + 60.0 * rng.uniform());
+        const double z = rng.uniform();
+        const double q = z < 0.1 ? 0.025 : (z > 0.9 ? 40.0 : 0.025 * std::pow (1600.0, rng.uniform()));
+        return rmInput (eq::Type::bell, freqHz, gainDb, q, 0, eq::Placement::stereo, 200.0f).settings;
+    }
+
+    struct RmNormTrial
+    {
+        double worst = 0.0;             // largest norm / previous norm - 1
+        long long samples = 0, ramping = 0, reseeds = 0, nonFinite = 0;
+    };
+
+    /** One trial: zero input, a random start state, a fresh random target at
+        every tick for 2000 ticks; the Euclidean norm of (ic1, ic2) after every
+        sample. A state that has decayed below 1e-150 is re-seeded (the
+        relative test means nothing near the bottom of the double range). */
+    RmNormTrial rmNormRun (const eq::Designer& designer, std::uint64_t seed)
+    {
+        constexpr int numTicks = 2000;
+        constexpr int grid = 16;
+        constexpr int rampTicks = 60;
+
+        Rng rng (seed);
+        eq::Band band;
+        band.setControlGrid (grid, rampTicks);
+        band.snapTo (rmNormDraw (rng), designer);
+        band.reset();
+
+        eq::Band::LaneState st {};
+
+        const auto seedState = [&band, &rng, &st]
+        {
+            st = eq::Band::LaneState {};
+            st.ic1[0] = rng.uniform() * 2.0 - 1.0;
+            st.ic2[0] = rng.uniform() * 2.0 - 1.0;
+            band.storeLane (0, st);
+            return std::hypot (st.ic1[0], st.ic2[0]);
+        };
+
+        RmNormTrial out;
+        double previous = seedState();
+
+        for (int tick = 0; tick < numTicks; ++tick)
+        {
+            band.setTarget (rmNormDraw (rng));
+            band.controlTick (designer);
+
+            for (int j = 0; j < grid; ++j)
+            {
+                if (band.isInterpolating())
+                    ++out.ramping;
+
+                double x = 0.0;
+                band.processLane (0, &x, 1);
+                band.loadLane (0, st);
+
+                const double norm = std::hypot (st.ic1[0], st.ic2[0]);
+                ++out.samples;
+
+                if (! std::isfinite (norm))
+                {
+                    ++out.nonFinite;
+                    previous = seedState();
+                    continue;
+                }
+
+                if (previous > 0.0)
+                {
+                    const double growth = norm / previous - 1.0;
+
+                    if (growth > out.worst)
+                        out.worst = growth;
+                }
+
+                previous = norm;
+
+                if (norm < 1.0e-150)
+                {
+                    previous = seedState();
+                    ++out.reseeds;
+                }
+            }
+        }
+
+        return out;
+    }
+
+    void rowRmNorm()
+    {
+        constexpr int numTrials = 2000;
+        constexpr double limit = 1.0e-9;
+
+        eq::Designer designer;
+        designer.prepare (48000.0);
+
+        std::vector<RmNormTrial> trials (ix (numTrials));
+
+        parallelFor (numTrials, [&] (int t)
+        {
+            trials[ix (t)] = rmNormRun (designer, 0x524D4E4F00000000ull + static_cast<std::uint64_t> (t));
+        });
+
+        double worst = 0.0;
+        long long samples = 0, ramping = 0, reseeds = 0, nonFinite = 0;
+
+        for (const RmNormTrial& t : trials)
+        {
+            worst = std::max (worst, t.worst);
+            samples += t.samples;
+            ramping += t.ramping;
+            reseeds += t.reseeds;
+            nonFinite += t.nonFinite;
+        }
+
+        const long long expected = static_cast<long long> (numTrials) * 2000 * 16;
+        const bool live = samples == expected && ramping * 1000 >= samples * 999;
+
+        row (worst <= limit && nonFinite == 0 && live,
+             "RM-norm one bell, zero input, random start state; f / gain / Q retargeted at random (range ends included) every tick, "
+             "2000 ticks x 2000 trials: the norm of (ic1, ic2) never exceeds its previous value by more than 1e-9 relative",
+             strf ("largest one-sample growth %.3g relative (limit 1e-9; the matrix norm is exactly 1); %lld samples, %lld of them on "
+                   "the ramping path%s; %lld non-finite; %lld re-seeds of a state that fell below 1e-150; 48 kHz, K 16",
+                   worst, samples, ramping, live ? "" : " (VOID: under 99.9 % or a short run)", nonFinite, reseeds));
+    }
+
+    //==========================================================================
+    // RM-g5 / RM-g5n: random stress in double (P13)
+    //==========================================================================
+    // RESEARCH-2.3 Q2 (ramp_bench g5, 600 s per rate), in the order of kRates8.
+    const double kRmBenchG5Peak[kEnNumRates8]   = { 199.0, 274.0, 238.0, 262.0, 311.0, 295.0, 258.0, 297.0 };
+    const double kRmBenchG5Stack[kEnNumRates8]  = { 482.0, 550.0, 513.0, 588.0, 553.0, 577.0, 623.0, 632.0 };
+    const double kRmBenchG5Margin[kEnNumRates8] = { -140.0, -248.0, -143.0, -206.0, -198.0, -227.0, -242.0, -220.0 };
+
+    constexpr double kRmG5InputPeak = 0.25;         // -12 dBFS
+    constexpr double kRmG5MarginDb = 12.0;
+    constexpr double kRmG5ControlDb = 200.0;
+
+    /** The peak of eq::bandMagDb of the settings' design over the grid and at
+        the band's own frequency; at least 0 dB. */
+    double rmBandPeakDb (const eq::Designer& designer, const eq::BandSettings& s, double fs, const double* w, int numPoints,
+                         eq::BandDesign& scratch)
+    {
+        designer.design (s, scratch);
+        double worst = 0.0;
+
+        for (int p = 0; p < numPoints; ++p)
+        {
+            const double db = eq::bandMagDb (scratch, w[p]);
+
+            if (db > worst)
+                worst = db;
+        }
+
+        const double own = eq::bandMagDb (scratch, 2.0 * kPi * std::min (s.freqHz, 0.4999 * fs) / fs);
+        return own > worst ? own : worst;
+    }
+
+    struct RmG5Rate
+    {
+        long long frames = 0, expectedFrames = 0, blocks = 0, nonFinite = 0, checks = 0, overStack = 0, overControl = 0;
+        long long structural = 0, continuous = 0;
+        unsigned long structureMismatches = 0;
+        double peak = 0.0, maxStack = 0.0, worstMargin = -1.0e9;
+        bool offEqual = false;
+    };
+
+    /** 24 bands, stereo, noise at -12 dBFS with one second of silence in
+        five. Frequency, gain, Q and the gain scale are redrawn at every host
+        block (10 % of the draws on each range end); type, slope, placement,
+        enable and band bypass every 50th block. Block sizes 4096, 512, 64, 7,
+        1, changing every 2 s. The static stack is the sum over the active
+        bands of the peak gain of each band's TARGET design, as a running
+        maximum taken at the blocks of 512 and 4096 samples. */
+    RmG5Rate rmG5Run (int rateIndex, double seconds)
+    {
+        constexpr int maxBlock = 4096;
+        constexpr int numPoints = 64;
+        static const int sizes[5] = { 4096, 512, 64, 7, 1 };
+
+        const double fs = kRates8[ix (rateIndex)];
+        const long long total = std::llround (seconds * fs);
+
+        RmDriver driver;
+        driver.prepare (fs, kEnMaxBands);
+
+        Rng seed (0x524D473500ull + static_cast<std::uint64_t> (rateIndex));
+        Rng rng (seed.next());
+
+        double w[numPoints];
+        const double top = 0.4999 * fs;
+
+        for (int p = 0; p < numPoints; ++p)
+            w[p] = 2.0 * kPi * 5.0 * std::pow (top / 5.0, static_cast<double> (p) / static_cast<double> (numPoints - 1)) / fs;
+
+        std::array<eq::RawBand, kEnMaxBands> raws;
+
+        for (eq::RawBand& raw : raws)
+            raw = enRaw (eq::Type::bell, 1000.0, 0.0, 1.0, 1, eq::Placement::stereo);
+
+        std::vector<double> lane0 (ix (maxBlock)), lane1 (ix (maxBlock));
+        eq::BandDesign scratch {};
+        RmG5Rate out;
+        out.expectedFrames = total;
+
+        double runStack = 0.0;
+        long long pos = 0;
+
+        while (pos < total)
+        {
+            const double t = static_cast<double> (pos) / fs;
+            const int size = sizes[static_cast<int> (static_cast<long long> (t / 2.0) % 5)];
+            const int n = static_cast<int> (std::min (static_cast<long long> (size), total - pos));
+            const bool silent = std::fmod (t, 5.0) > 4.0;
+            const bool restructure = (out.blocks % 50) == 0;
+            const bool evalStack = size >= 512;
+
+            const double su = rng.uniform();
+            const float scale = static_cast<float> (su < 0.1 ? 0.0 : (su > 0.9 ? 200.0 : 200.0 * rng.uniform()));
+            double stackNow = 0.0;
+
+            for (int b = 0; b < kEnMaxBands; ++b)
+            {
+                eq::RawBand& raw = raws[ix (b)];
+
+                if (restructure)
+                {
+                    raw.type = static_cast<float> (rng.below (8));
+                    raw.slope = static_cast<float> (rng.below (8));
+                    raw.placement = static_cast<float> (rng.below (5));
+                    raw.enabled = rng.uniform() > 0.10 ? 1.0f : 0.0f;
+                    raw.bypass = rng.uniform() < 0.07 ? 1.0f : 0.0f;
+                }
+
+                const double u = rng.uniform();
+                raw.freq = static_cast<float> (u < 0.1 ? 10.0 : (u > 0.9 ? 30000.0 : 10.0 * std::pow (3000.0, rng.uniform())));
+                const double g = rng.uniform();
+                raw.gain = static_cast<float> (g < 0.1 ? -30.0 : (g > 0.9 ? 30.0 : -30.0 + 60.0 * rng.uniform()));
+                const double z = rng.uniform();
+                raw.q = static_cast<float> (z < 0.1 ? 0.025 : (z > 0.9 ? 40.0 : 0.025 * std::pow (1600.0, rng.uniform())));
+
+                const eq::BandInput in = eq::makeBandInput (raw, scale, 0.0);
+                driver.apply (b, in);
+
+                if (evalStack && in.active)
+                    stackNow += rmBandPeakDb (driver.designer, in.settings, fs, w, numPoints, scratch);
+            }
+
+            if (evalStack && stackNow > runStack)
+                runStack = stackNow;
+
+            for (int i = 0; i < n; ++i)
+            {
+                lane0[ix (i)] = silent ? 0.0 : (rng.uniform() * 2.0 - 1.0) * kRmG5InputPeak;
+                lane1[ix (i)] = silent ? 0.0 : (rng.uniform() * 2.0 - 1.0) * kRmG5InputPeak;
+            }
+
+            driver.process (lane0.data(), lane1.data(), n, true);
+
+            double blockPeak = 0.0;
+
+            for (int i = 0; i < n; ++i)
+            {
+                const double a = std::fabs (lane0[ix (i)]), c = std::fabs (lane1[ix (i)]);
+                ++out.frames;
+
+                if (! std::isfinite (a) || ! std::isfinite (c))
+                {
+                    ++out.nonFinite;
+                    continue;
+                }
+
+                blockPeak = std::max (blockPeak, std::max (a, c));
+            }
+
+            out.peak = std::max (out.peak, blockPeak);
+
+            if (blockPeak > 0.0)
+            {
+                const double margin = 20.0 * std::log10 (blockPeak / kRmG5InputPeak) - runStack;
+                ++out.checks;
+                out.worstMargin = std::max (out.worstMargin, margin);
+
+                if (margin > kRmG5MarginDb)
+                    ++out.overStack;
+
+                if (margin > kRmG5MarginDb - kRmG5ControlDb)
+                    ++out.overControl;
+            }
+
+            pos += n;
+            ++out.blocks;
+        }
+
+        out.maxStack = runStack;
+        out.structural = driver.structural;
+        out.continuous = driver.continuous;
+        out.structureMismatches = driver.structureMismatches();
+
+        // All bands off: from that block on the lanes are not touched.
+        for (int b = 0; b < kEnMaxBands; ++b)
+        {
+            raws[ix (b)].enabled = 0.0f;
+            driver.apply (b, eq::makeBandInput (raws[ix (b)], kEnScale100, 0.0));
+        }
+
+        out.offEqual = true;
+
+        for (int k = 0; k < 3; ++k)
+        {
+            constexpr int n = 512;
+            double in0[n], in1[n];
+
+            for (int i = 0; i < n; ++i)
+            {
+                in0[i] = (rng.uniform() * 2.0 - 1.0) * kRmG5InputPeak;
+                in1[i] = (rng.uniform() * 2.0 - 1.0) * kRmG5InputPeak;
+                lane0[ix (i)] = in0[i];
+                lane1[ix (i)] = in1[i];
+            }
+
+            driver.process (lane0.data(), lane1.data(), n, true);
+            out.offEqual = out.offEqual && std::memcmp (lane0.data(), in0, sizeof (in0)) == 0
+                                        && std::memcmp (lane1.data(), in1, sizeof (in1)) == 0;
+        }
+
+        return out;
+    }
+
+    void rowsRmG5 (bool longRun)
+    {
+        const double seconds = longRun ? 600.0 : 60.0;
+
+        std::array<RmG5Rate, kEnNumRates8> rates;
+
+        parallelFor (kEnNumRates8, [&] (int r)
+        {
+            rates[ix (r)] = rmG5Run (r, seconds);
+        });
+
+        bool ok = true;
+        long long frames = 0, nonFinite = 0, overStack = 0, overControl = 0, checks = 0;
+        unsigned long structure = 0;
+        int offBad = 0, controlRates = 0, voidRates = 0;
+        double worstMargin = -1.0e9, leastControlMargin = -1.0e9;
+
+        for (int r = 0; r < kEnNumRates8; ++r)
+        {
+            const RmG5Rate& rate = rates[ix (r)];
+            const bool live = rate.frames == rate.expectedFrames && rate.checks > 0 && rate.structural > 0
+                           && rate.continuous > 0 && rate.maxStack > 0.0;
+            ok = ok && live && rate.nonFinite == 0 && rate.overStack == 0 && rate.structureMismatches == 0 && rate.offEqual;
+            frames += rate.frames;
+            nonFinite += rate.nonFinite;
+            overStack += rate.overStack;
+            overControl += rate.overControl;
+            checks += rate.checks;
+            structure += rate.structureMismatches;
+            worstMargin = std::max (worstMargin, rate.worstMargin);
+            leastControlMargin = std::max (leastControlMargin, rate.worstMargin + kRmG5ControlDb);
+
+            if (! rate.offEqual)
+                ++offBad;
+
+            if (rate.overControl > 0)
+                ++controlRates;
+
+            if (! live)
+                ++voidRates;
+        }
+
+        row (ok, "RM-g5 24 bands stereo, every parameter random at every block, 8 rates: every sample finite; block peak re input "
+                 "peak <= static stack + 12 dB at every check; 0 structure changes inside a continuous move; all bands off -> "
+                 "output memcmp equal to input",
+             strf ("%.0f s per rate%s; %lld stereo frames, %lld non-finite; %lld checks, %lld above stack + 12 dB, worst peak - stack "
+                   "%+.1f dB (bench -140 dB or lower); %lu structure changes in a move; all-off blocks that differ from the input at "
+                   "%d of 8 rates%s",
+                   seconds, longRun ? " (--long: the contract's 10 minutes)" : " (default; --long runs 600 s)", frames, nonFinite,
+                   checks, overStack, worstMargin, structure, offBad,
+                   voidRates == 0 ? "" : strf (" (VOID at %d rates: short run, no check, no change or no stack)", voidRates).c_str()));
+
+        for (int r = 0; r < kEnNumRates8; ++r)
+        {
+            const RmG5Rate& rate = rates[ix (r)];
+            note (strf ("%6.0f Hz: %lld frames in %lld blocks; peak %+.1f dB re input (bench %+.0f over 600 s); largest stack %.1f dB "
+                        "(bench %.0f); peak - stack, worst block %+.1f dB (bench %+.0f); %lld structural, %lld continuous changes; "
+                        "%lld checks above (stack - 200 dB) + 12 dB",
+                        kRates8[ix (r)], rate.frames, rate.blocks,
+                        20.0 * std::log10 (std::max (rate.peak, kTiny) / kRmG5InputPeak), kRmBenchG5Peak[r], rate.maxStack,
+                        kRmBenchG5Stack[r], rate.worstMargin, kRmBenchG5Margin[r], rate.structural, rate.continuous,
+                        rate.overControl));
+        }
+
+        row (overControl > 0,
+             "RM-g5n the RM-g5 peak clause against the stack minus 200 dB FAILS (the stack is not a vacuous bound)",
+             strf ("%s: %lld of %lld checks at %d of 8 rates exceed (stack - 200 dB) + 12 dB; the largest excess is %+.1f dB",
+                   overControl > 0 ? "the control fires" : "the control did NOT fire", overControl, checks, controlRates,
+                   leastControlMargin - kRmG5MarginDb));
+    }
+
+    //==========================================================================
+    // RM-nan: a non-finite input sample sticks without the processor's check
+    //==========================================================================
+    void rowRmNan()
+    {
+        constexpr int block = 512;
+        constexpr int numSamples = 48000 + block;
+        constexpr int nanIndex = 100;
+
+        Rng rng (0x524D4E414Eull);
+        std::vector<double> y (ix (numSamples));
+
+        for (double& v : y)
+            v = (rng.uniform() * 2.0 - 1.0) * 0.25;
+
+        y[ix (nanIndex)] = std::numeric_limits<double>::quiet_NaN();
+
+        RmDriver driver;
+        driver.prepare (48000.0, 1);
+        driver.apply (0, rmInput (eq::Type::bell, 1000.0, 6.0, 1.0, 0));
+
+        for (int pos = 0; pos < numSamples; pos += block)
+            driver.process (y.data() + pos, nullptr, std::min (block, numSamples - pos), false);
+
+        long long finiteBefore = 0, finiteAfter = 0;
+
+        for (int i = 0; i < numSamples; ++i)
+            if (std::isfinite (y[ix (i)]))
+            {
+                if (i < nanIndex)
+                    ++finiteBefore;
+                else
+                    ++finiteAfter;
+            }
+
+        const bool sticks = finiteBefore == nanIndex && finiteAfter == 0;
+
+        row (sticks, "RM-nan one bell, one NaN input sample, then 1 s of noise, WITHOUT the processor's end-of-chunk check: the "
+                     "output stays non-finite",
+             strf ("%s: %lld of %d samples from the NaN on are finite (the %d before it: %lld finite); the plugin row S6 is "
+                   "then meaningful",
+                   sticks ? "the stimulus sticks" : "the stimulus does NOT stick", finiteAfter, numSamples - nanIndex, nanIndex,
+                   finiteBefore));
+    }
+
+    //==========================================================================
+    // RM-g7 / RM-g7n: noise floor, ring-down, silence cost (P14)
+    //==========================================================================
+    struct RmG7Result
+    {
+        double residualDb = 0.0, firstDb = 0.0, tenthDb = 0.0, sixtiethDb = 0.0, slope = 0.0;
+        bool monotone = true, finite = true;
+    };
+
+    /** 192 kHz, one bell at 10 Hz, Q 40, +12 dB, static. A 1 kHz sine at
+        -6 dBFS with a 2 s raised-cosine fade-in, 7 s; the 1 kHz component is
+        removed from the last 3 s by least squares. Then the sine stops
+        abruptly: 60 s of silence, RMS in 1 s windows. */
+    RmG7Result rmG7Run()
+    {
+        constexpr int rate = 192000;
+        const double fs = static_cast<double> (rate);
+        const std::size_t length = ix (7 * rate);
+        const std::size_t fitFrom = ix (4 * rate);
+
+        RmDriver driver;
+        driver.prepare (fs, 1);
+        driver.apply (0, rmInput (eq::Type::bell, 10.0, 12.0, 40.0, 0));
+
+        std::vector<double> y (length);
+
+        for (std::size_t i = 0; i < length; ++i)
+        {
+            const double t = static_cast<double> (i) / fs;
+            const double fade = t < 2.0 ? 0.5 - 0.5 * std::cos (kPi * t / 2.0) : 1.0;
+            y[i] = 0.5 * fade * std::sin (2.0 * kPi * 1000.0 * t);
+        }
+
+        driver.process (y.data(), nullptr, static_cast<int> (length), false);
+
+        RmG7Result out;
+        out.finite = rmAllFinite (y);
+
+        double ss = 0.0, cc = 0.0, sc = 0.0, ys = 0.0, yc = 0.0;
+
+        for (std::size_t i = fitFrom; i < length; ++i)
+        {
+            const double t = static_cast<double> (i) / fs;
+            const double sn = std::sin (2.0 * kPi * 1000.0 * t), cs = std::cos (2.0 * kPi * 1000.0 * t);
+            ss += sn * sn;
+            cc += cs * cs;
+            sc += sn * cs;
+            ys += y[i] * sn;
+            yc += y[i] * cs;
+        }
+
+        const double det = ss * cc - sc * sc;
+        const double fitS = (ys * cc - yc * sc) / det;
+        const double fitC = (yc * ss - ys * sc) / det;
+        double r2 = 0.0;
+
+        for (std::size_t i = fitFrom; i < length; ++i)
+        {
+            const double t = static_cast<double> (i) / fs;
+            const double e = y[i] - fitS * std::sin (2.0 * kPi * 1000.0 * t) - fitC * std::cos (2.0 * kPi * 1000.0 * t);
+            r2 += e * e;
+        }
+
+        out.residualDb = 10.0 * std::log10 (std::max (r2 / static_cast<double> (length - fitFrom), kTiny));
+
+        std::vector<double> z (ix (rate));
+        double previous = 1.0e9;
+
+        for (int second = 1; second <= 60; ++second)
+        {
+            std::fill (z.begin(), z.end(), 0.0);
+            driver.process (z.data(), nullptr, rate, false);
+
+            double e2 = 0.0;
+
+            for (const double v : z)
+            {
+                e2 += v * v;
+
+                if (! std::isfinite (v))
+                    out.finite = false;
+            }
+
+            const double db = 10.0 * std::log10 (std::max (e2 / static_cast<double> (rate), kTiny));
+
+            if (db > previous + 1.0e-9)
+                out.monotone = false;
+
+            previous = db;
+
+            if (second == 1)
+                out.firstDb = db;
+
+            if (second == 10)
+                out.tenthDb = db;
+
+            if (second == 60)
+                out.sixtiethDb = db;
+        }
+
+        out.slope = (out.tenthDb - out.sixtiethDb) / 50.0;
+        return out;
+    }
+
+    /** The ring-down slope clause: within 2 % of `centre` dB/s. */
+    bool rmSlopeWithin (double slope, double centre)
+    {
+        return std::isfinite (slope) && std::fabs (slope - centre) <= 0.02 * centre;
+    }
+
+    /** Silence cost, one timing: 24 bells at 10 - 33 Hz, Q 40, +12 dB,
+        192 kHz stereo, blocks of 512. The median block time over the last
+        5 s of a 60 s silence against the median over 5 s of noise before it.
+        Only the engine call is timed. */
+    double rmG7SilenceRatio (std::uint64_t seed)
+    {
+        constexpr int block = 512;
+        constexpr int blocksPerPart = 1875;             // 5 s at 192 kHz
+        constexpr int silenceBlocks = 12 * blocksPerPart;
+
+        RmDriver driver;
+        driver.prepare (192000.0, kEnMaxBands);
+
+        for (int b = 0; b < kEnMaxBands; ++b)
+            driver.apply (b, rmInput (eq::Type::bell, 10.0 + static_cast<double> (b), 12.0, 40.0, 0));
+
+        Rng rng (seed);
+        double lane0[block], lane1[block];
+        std::vector<double> withNoise, inSilence;
+        withNoise.reserve (ix (blocksPerPart));
+        inSilence.reserve (ix (blocksPerPart));
+
+        for (int k = 0; k < blocksPerPart; ++k)
+        {
+            for (int i = 0; i < block; ++i)
+            {
+                lane0[i] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+                lane1[i] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+            }
+
+            const RmClock::time_point t0 = RmClock::now();
+            driver.process (lane0, lane1, block, true);
+            withNoise.push_back (rmSeconds (t0, RmClock::now()));
+        }
+
+        for (int k = 0; k < silenceBlocks; ++k)
+        {
+            for (int i = 0; i < block; ++i)
+            {
+                lane0[i] = 0.0;
+                lane1[i] = 0.0;
+            }
+
+            const RmClock::time_point t0 = RmClock::now();
+            driver.process (lane0, lane1, block, true);
+            const double elapsed = rmSeconds (t0, RmClock::now());
+
+            if (k >= silenceBlocks - blocksPerPart)
+                inSilence.push_back (elapsed);
+        }
+
+        return rmRatio (rmMedian (inSilence), rmMedian (withNoise));
+    }
+
+    void rowsRmG7()
+    {
+        const RmG7Result r = rmG7Run();
+
+        double best = kInf;
+        std::string timings;
+
+        for (int k = 0; k < 3; ++k)
+        {
+            const double ratio = rmG7SilenceRatio (0x524D473700ull + static_cast<std::uint64_t> (k));
+            best = std::min (best, ratio);
+            timings += strf ("%s%.3f", k == 0 ? "" : ", ", ratio);
+        }
+
+        const bool slopeOk = rmSlopeWithin (r.slope, 3.42);
+
+        row (r.finite && r.residualDb <= -180.0 && r.monotone && slopeOk && r.sixtiethDb <= -270.0 && best <= 1.2,
+             "RM-g7 192 kHz, bell 10 Hz Q 40 +12 dB: residual after removing 1 kHz <= -180 dBFS RMS; after an abrupt stop the 1 s "
+             "windows fall monotonically at 3.42 dB/s +- 2 % (10th to 60th second) to <= -270 dBFS in the 60th; silence <= 1.2x signal",
+             strf ("residual %.1f dBFS (bench -235.4); silence 1st s %.1f, 10th %.1f, 60th %.1f dBFS (bench -79.2 / -110.0 / -280.9); "
+                   "%.3f dB/s (bench 3.42; limits 3.352 - 3.488)%s; monotone: %s; median block time in the last 5 s of a 60 s silence "
+                   "/ with noise, 24 bells, best of three: %.3fx (%s; limit 1.2)%s",
+                   r.residualDb, r.firstDb, r.tenthDb, r.sixtiethDb, r.slope, slopeOk ? "" : " OFF", r.monotone ? "yes" : "NO",
+                   best, timings.c_str(), r.finite ? "" : " (NON-FINITE)"));
+
+        const bool fires = ! rmSlopeWithin (r.slope, 6.8);
+
+        row (fires, "RM-g7n the ring-down slope check against 6.8 dB/s +- 2 % (the figure for a pole Q of 40) FAILS",
+             strf ("%s: measured %.3f dB/s against 6.664 - 6.936", fires ? "the control fires" : "the control did NOT fire", r.slope));
+    }
+
+    //==========================================================================
+    // RM-dyn: the dynamic offset is read at the tick, after the ramp (P5)
+    //==========================================================================
+    void rowRmDyn()
+    {
+        const double fs = 48000.0;
+        const int grid = eq::controlGridSize (fs);
+        const int length = eq::rampLengthTicks (fs);
+
+        eq::Designer designer;
+        designer.prepare (fs);
+
+        int checks = 0, bad = 0;
+        std::string first;
+
+        const auto expect = [&checks, &bad, &first] (bool ok, const char* what)
+        {
+            ++checks;
+
+            if (! ok)
+            {
+                ++bad;
+
+                if (first.empty())
+                    first = what;
+            }
+        };
+
+        Rng rng (0x524D44594Eull);
+
+        // (i), (ii): a settled bell, 1 kHz, +3 dB, Q 1.
+        {
+            const eq::RawBand raw = enRaw (eq::Type::bell, 1000.0, 3.0, 1.0, 0, eq::Placement::stereo);
+            const eq::BandSettings plain = eq::makeBandInput (raw, kEnScale100, 0.0).settings;
+            const eq::BandSettings offset = eq::makeBandInput (raw, kEnScale100, 6.0).settings;
+
+            eq::BandDesign staticPlain {}, staticOffset {};
+            designer.design (plain, staticPlain);
+            designer.design (offset, staticOffset);
+
+            RmCountingDesigner counting;
+            counting.inner = &designer;
+
+            eq::Band band;
+            band.setControlGrid (grid, length);
+            band.snapTo (plain, counting);
+            band.reset();
+
+            for (int t = 0; t < 3; ++t)
+                rmInterval (band, counting, grid, rng);
+
+            expect (counting.calls == 1 && ! band.isMoving() && rmBandEqualsStatic (band, staticPlain),
+                    "settled: one design, not moving, sections == the static design");
+            expect (sameBits (offset.gainDbEff, 9.0) && ! rmBandEqualsStatic (band, staticOffset),
+                    "stimulus: the offset design is +9 dB and differs from the plain one");
+
+            // The write falls between two ticks: 5 samples into an interval.
+            band.controlTick (counting);
+            rmRunSamples (band, 5, rng);
+            band.dynOffsetDb = 6.0;
+            expect (band.isMoving() && ! band.isInterpolating() && counting.calls == 1 && rmBandEqualsStatic (band, staticPlain),
+                    "(i) after the write, before the tick: isMoving() true, nothing designed, sections untouched");
+            rmRunSamples (band, grid - 5, rng);
+
+            band.controlTick (counting);
+            expect (counting.calls == 2 && band.isInterpolating() && ! band.getRamp().isRunning(),
+                    "(i) the next tick: one design, the interval interpolates, the 20 ms ramp is NOT started");
+            rmRunSamples (band, grid, rng);
+
+            band.controlTick (counting);
+            expect (counting.calls == 2 && ! band.isMoving() && rmBandEqualsStatic (band, staticOffset),
+                    "(i) one interval later: sections == the static design at gain + offset, not moving, no further design");
+            rmRunSamples (band, grid, rng);
+
+            // (ii) back to 0.
+            band.dynOffsetDb = 0.0;
+            expect (band.isMoving(), "(ii) offset back to 0: isMoving() true");
+            rmInterval (band, counting, grid, rng);
+            expect (counting.calls == 3 && band.isInterpolating(), "(ii) the next tick: one design");
+
+            band.controlTick (counting);
+            expect (counting.calls == 3 && ! band.isMoving() && rmBandEqualsStatic (band, staticPlain),
+                    "(ii) one interval later: sections == the static design of the plain settings");
+            rmRunSamples (band, grid, rng);
+
+            for (int t = 0; t < 100; ++t)
+                rmInterval (band, counting, grid, rng);
+
+            expect (counting.calls == 3 && ! band.isMoving() && rmBandEqualsStatic (band, staticPlain),
+                    "(ii) 100 ticks at rest: 0 designs, sections unchanged (no latched moving flag)");
+        }
+
+        // (iii): the offset on a Low Cut.
+        {
+            const eq::BandSettings cut = rmInput (eq::Type::lowCut, 120.0, 0.0, 1.0, 3).settings;
+            eq::BandDesign staticCut {};
+            designer.design (cut, staticCut);
+
+            RmCountingDesigner counting;
+            counting.inner = &designer;
+
+            eq::Band band;
+            band.setControlGrid (grid, length);
+            band.snapTo (cut, counting);
+            band.reset();
+            rmInterval (band, counting, grid, rng);
+
+            band.dynOffsetDb = 6.0;
+            expect (! band.isMoving(), "(iii) offset on a Low Cut: isMoving() false");
+
+            for (int t = 0; t < 10; ++t)
+                rmInterval (band, counting, grid, rng);
+
+            expect (counting.calls == 1 && ! band.isMoving() && ! band.isInterpolating() && rmBandEqualsStatic (band, staticCut),
+                    "(iii) 10 ticks: no design, sections == the static design");
+        }
+
+        row (bad == 0 && checks == 11,
+             "RM-dyn dynOffsetDb written on a settled bell between ticks: the band moves at the next tick and lands one interval "
+             "later on the static design at gain + offset (no 20 ms ramp); back to 0 -> the plain design; on a Low Cut -> no design",
+             strf ("%d checks, %d off%s%s; 48 kHz, bell 1 kHz +3 dB Q 1, offset +6 dB; sections compared bit for bit, field by field",
+                   checks, bad, first.empty() ? "" : "; first: ", first.c_str()));
+    }
+
+    //==========================================================================
+    // SN4: canonical gain (P6)
+    //==========================================================================
+    void rowRmSn4()
+    {
+        constexpr int numDraws = 2000;
+        static const eq::Type gainless[4] = { eq::Type::lowCut, eq::Type::highCut, eq::Type::notch, eq::Type::bandPass };
+        static const float gainValues[5] = { -30.0f, -7.3f, 0.0f, 0.5f, 30.0f };
+        static const float scaleValues[5] = { 0.0f, 25.0f, 100.0f, 137.5f, 200.0f };
+        static const double offsetValues[3] = { -12.0, 6.0, 40.0 };
+
+        Rng rng (0x534E3400ull);
+        long long gainEdits = 0, gainBad = 0, scaleEdits = 0, scaleBad = 0, offsetEdits = 0, offsetBad = 0, zeroBad = 0;
+        long long controls = 0, controlsFired = 0;
+
+        const auto identical = [] (const eq::BandInput& a, const eq::BandInput& b)
+        {
+            return enSameFields (a, b) && eq::sameBandInput (a, b) && sameBits (b.settings.gainDbEff, 0.0)
+                && eq::classifyBandChange (a, b) == eq::BandChange::identical;
+        };
+
+        for (int n = 0; n < numDraws; ++n)
+        {
+            eq::RawBand raw = enRandomRaw (rng);
+            const float scale = static_cast<float> (200.0 * rng.uniform());
+            raw.type = static_cast<float> (static_cast<int> (gainless[n % 4]));
+
+            const eq::BandInput a = eq::makeBandInput (raw, scale, 0.0);
+
+            if (! sameBits (a.settings.gainDbEff, 0.0))
+                ++zeroBad;
+
+            for (const float g : gainValues)
+            {
+                eq::RawBand edited = raw;
+                edited.gain = g;
+                ++gainEdits;
+
+                if (! identical (a, eq::makeBandInput (edited, scale, 0.0)))
+                    ++gainBad;
+            }
+
+            for (const float s : scaleValues)
+            {
+                ++scaleEdits;
+
+                if (! identical (a, eq::makeBandInput (raw, s, 0.0)))
+                    ++scaleBad;
+            }
+
+            for (const double offset : offsetValues)
+            {
+                ++offsetEdits;
+
+                if (! identical (a, eq::makeBandInput (raw, scale, offset)))
+                    ++offsetBad;
+            }
+
+            // Controls: the same edits on a Bell are continuous changes.
+            {
+                raw.type = static_cast<float> (static_cast<int> (eq::Type::bell));
+                raw.gain = 6.0f;
+                const eq::BandInput before = eq::makeBandInput (raw, 100.0f, 0.0);
+
+                eq::RawBand edited = raw;
+                edited.gain = -3.0f;
+                const eq::BandInput afterGain = eq::makeBandInput (edited, 100.0f, 0.0);
+                const eq::BandInput afterScale = eq::makeBandInput (raw, 50.0f, 0.0);
+                controls += 2;
+
+                if (! enSameFields (before, afterGain) && ! eq::sameBandInput (before, afterGain)
+                      && eq::classifyBandChange (before, afterGain) == eq::BandChange::continuous)
+                    ++controlsFired;
+
+                if (! enSameFields (before, afterScale) && ! eq::sameBandInput (before, afterScale)
+                      && eq::classifyBandChange (before, afterScale) == eq::BandChange::continuous)
+                    ++controlsFired;
+            }
+        }
+
+        row (gainBad == 0 && scaleBad == 0 && offsetBad == 0 && zeroBad == 0 && gainEdits > 0 && scaleEdits > 0
+               && controlsFired == controls,
+             "SN4 canonical gain: gain and gain_scale edits on Low Cut / High Cut / Notch / Band Pass leave BandInput "
+             "field-identical (gainDbEff 0)",
+             strf ("%lld gain edits, %lld differ; %lld gain_scale edits, %lld differ; %lld dynamic-offset values, %lld differ; "
+                   "%lld of %d draws with gainDbEff != 0; controls (the same gain and gain_scale edits on a Bell -> continuous): "
+                   "%lld of %lld fire",
+                   gainEdits, gainBad, scaleEdits, scaleBad, offsetEdits, offsetBad, zeroBad, numDraws, controlsFired, controls));
+    }
+
+    //==========================================================================
+    // RM-alloc: allocation on the control tick and the ramping path
+    //==========================================================================
+    struct RmAllocExtra
+    {
+        long long ticks = 0, continuous = 0, interpolating = 0;
+    };
+
+    /** 1e4 control intervals inside a malloc_logger window on this thread: at
+        every tick each of the 24 bands (mixed types, slopes and placements)
+        gets a fresh frequency, gain and Q, then the interval's samples run
+        through the Router on the ramping path, stereo. `plant` puts one
+        deliberate allocation inside the window (the negative control). The
+        hook, its counters and the vacuity probe are row A1's. */
+    AllocResult runRmAlloc (bool plant, RmAllocExtra* extra)
+    {
+        AllocResult result;
+
+       #if defined (__APPLE__)
+        constexpr int numTicks = 10000;
+        constexpr int noiseLength = 4096;
+        constexpr int maxGrid = 64;
+
+        RmDriver driver;
+        driver.prepare (48000.0, kEnMaxBands);
+
+        Rng rng (0x524D414C4Cull);
+        std::array<eq::RawBand, kEnMaxBands> raws;
+
+        for (int b = 0; b < kEnMaxBands; ++b)
+        {
+            raws[ix (b)] = enRandomRaw (rng);
+            raws[ix (b)].type = static_cast<float> (b % 8);
+            raws[ix (b)].slope = static_cast<float> ((b * 3 + 1) % 8);
+            raws[ix (b)].placement = static_cast<float> (b % 5);
+            driver.apply (b, eq::makeBandInput (raws[ix (b)], kEnScale100, 0.0));
+        }
+
+        std::vector<double> noiseL (ix (noiseLength)), noiseR (ix (noiseLength));
+
+        for (int i = 0; i < noiseLength; ++i)
+        {
+            noiseL[ix (i)] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+            noiseR[ix (i)] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+        }
+
+        const int grid = std::min (driver.grid, maxGrid);
+        double lane0[maxGrid], lane1[maxGrid];
+        long long finiteTicks = 0, interpolating = 0;
+        const long long continuousBefore = driver.continuous;
+
+        malloc_logger_t* const previous = malloc_logger;
+        allocThread = pthread_self();
+        allocCount = 0;
+        freeCount = 0;
+        malloc_logger = countAllocation;
+
+        // Vacuity: the hook must see a deliberate allocation and its release.
+        allocArmed = true;
+        {
+            void* volatile planted = std::malloc (64);
+            std::free (planted);
+        }
+        allocArmed = false;
+        result.vacuityAllocs = allocCount;
+        result.vacuityFrees = freeCount;
+        allocCount = 0;
+        freeCount = 0;
+
+        allocArmed = true;
+
+        for (int i = 0; i < numTicks; ++i)
+        {
+            for (int b = 0; b < kEnMaxBands; ++b)
+            {
+                eq::RawBand& raw = raws[ix (b)];
+                raw.freq = static_cast<float> (10.0 * std::pow (3000.0, rng.uniform()));
+                raw.gain = static_cast<float> (-30.0 + 60.0 * rng.uniform());
+                raw.q = static_cast<float> (0.025 * std::pow (1600.0, rng.uniform()));
+                driver.apply (b, eq::makeBandInput (raw, kEnScale100, 0.0));
+            }
+
+            const std::size_t offset = ix ((i * grid) % (noiseLength - grid));
+            std::memcpy (lane0, noiseL.data() + offset, sizeof (double) * ix (grid));
+            std::memcpy (lane1, noiseR.data() + offset, sizeof (double) * ix (grid));
+
+            driver.process (lane0, lane1, grid, true);
+
+            for (int b = 0; b < kEnMaxBands; ++b)
+                if (driver.bands[ix (b)].isInterpolating())
+                    ++interpolating;
+
+            if (std::isfinite (lane0[grid - 1]) && std::isfinite (lane1[grid - 1]))
+                ++finiteTicks;
+        }
+
+        if (plant)
+        {
+            void* volatile planted = std::malloc (64);
+            std::free (planted);
+        }
+
+        allocArmed = false;
+        malloc_logger = previous;
+
+        result.available = true;
+        result.allocs = allocCount;
+        result.frees = freeCount;
+        result.checksum = finiteTicks;
+
+        if (extra != nullptr)
+        {
+            extra->ticks = numTicks;
+            extra->continuous = driver.continuous - continuousBefore;
+            extra->interpolating = interpolating;
+        }
+       #else
+        (void) plant;
+        (void) extra;
+       #endif
+
+        return result;
+    }
+
+    void rowRmAlloc()
+    {
+        RmAllocExtra extra;
+        const AllocResult r = runRmAlloc (false, &extra);
+
+        if (! r.available)
+        {
+            info ("RM-alloc allocation gate SKIPPED: no malloc_logger on this platform");
+            return;
+        }
+
+        const bool hookLive = r.vacuityAllocs >= 1 && r.vacuityFrees >= 1;
+        const long long expected = extra.ticks * kEnMaxBands;
+        const bool live = extra.ticks == 10000 && extra.continuous == expected && extra.interpolating == expected;
+
+        row (hookLive && r.allocs == 0 && r.frees == 0 && live,
+             "RM-alloc 1e4 ticks with all 24 bands retargeted at each, plus the ramping path through the Router: 0 allocations, "
+             "0 frees (malloc_logger, this thread)",
+             strf ("%d allocations, %d frees; hook %s (planted: %d / %d); %lld continuous changes and %lld interpolating band-intervals "
+                   "of %lld%s; %lld of %lld intervals end finite",
+                   r.allocs, r.frees, hookLive ? "live" : "DEAD", r.vacuityAllocs, r.vacuityFrees, extra.continuous,
+                   extra.interpolating, expected, live ? "" : " (VOID: not every band moved at every tick)", r.checksum, extra.ticks));
+    }
+
+    //==========================================================================
+    // RM-cpu: INFO (G10 binds in Stage 4)
+    //==========================================================================
+    /** 48 kHz stereo, 512-sample blocks, 20 s of noise, 24 bands whose
+        frequency follows a 2 s log triangle 40 Hz - 12 kHz (gain types move
+        their gain as well), so every band designs at every tick. Percent of
+        one core; the parameter hand-over and the engine are timed, the noise
+        is not generated inside the timed part. */
+    double rmCpuPercent (eq::Type type, int slopeIndex, double gainDb)
+    {
+        constexpr int block = 512;
+        constexpr int noiseLength = 1 << 16;
+        const double fs = 48000.0;
+        const double seconds = 20.0;
+        const long long total = std::llround (seconds * fs);
+
+        RmDriver driver;
+        driver.prepare (fs, kEnMaxBands);
+
+        Rng rng (0x524D435055ull);
+        std::vector<double> noiseL (ix (noiseLength)), noiseR (ix (noiseLength));
+
+        for (int i = 0; i < noiseLength; ++i)
+        {
+            noiseL[ix (i)] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+            noiseR[ix (i)] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+        }
+
+        double lane0[block], lane1[block];
+        long long blockIndex = 0;
+        const RmClock::time_point t0 = RmClock::now();
+
+        for (long long pos = 0; pos + block <= total; pos += block, ++blockIndex)
+        {
+            const std::size_t offset = ix (static_cast<int> ((blockIndex * 509) % (noiseLength - block)));
+            std::memcpy (lane0, noiseL.data() + offset, sizeof (lane0));
+            std::memcpy (lane1, noiseR.data() + offset, sizeof (lane1));
+
+            for (int b = 0; b < kEnMaxBands; ++b)
+            {
+                const double phase = std::fmod (static_cast<double> (pos) / fs / 2.0 + static_cast<double> (b) / 24.0, 1.0);
+                const double tri = phase < 0.5 ? 2.0 * phase : 2.0 - 2.0 * phase;
+                driver.apply (b, rmInput (type, 40.0 * std::pow (300.0, tri), gainDb * (0.5 + tri), 1.0, slopeIndex));
+            }
+
+            driver.process (lane0, lane1, block, true);
+        }
+
+        return 100.0 * rmSeconds (t0, RmClock::now()) / seconds;
+    }
+
+    void infoRmCpu()
+    {
+        const double cuts = rmCpuPercent (eq::Type::highCut, 7, 0.0);
+        const double shelves = rmCpuPercent (eq::Type::highShelf, 7, 9.0);
+        const double bells = rmCpuPercent (eq::Type::bell, 0, 9.0);
+
+        info ("RM-cpu 48 kHz stereo, 512-sample blocks, 20 s, 24 bands all sweeping (a design per band per tick), double engine",
+              strf ("24 cuts x 96 dB/oct: %.2f %% of one core (bench 4.35); 24 shelves x 96 dB/oct: %.2f %% (bench 23.0); "
+                    "24 bells: %.2f %% (bench 4.46); the line is 35 %% (G10 binds in Stage 4)", cuts, shelves, bells));
+    }
+
+    //==========================================================================
     // --neg
     //==========================================================================
     /** Runs one negative control. Exit code 0 only if the targeted row FAILS. */
@@ -6823,7 +9690,17 @@ namespace
             return fires ? 0 : 1;
         }
 
-        std::fprintf (stderr, "unknown negative control '%s' (rbj, f1, alloc, seed, rbj-b, binary-gate, first-build, engine-alloc)\n",
+        if (which == "ramp-alloc")
+        {
+            const AllocResult r = runRmAlloc (true, nullptr);
+            const bool fires = r.available && r.allocs > 0;
+            std::printf ("neg ramp-alloc: planted allocation inside the RM-alloc window: %d allocations, %d frees counted: %s\n",
+                         r.allocs, r.frees, fires ? "RM-alloc FAILS - the control fires" : "the control did NOT fire");
+            return fires ? 0 : 1;
+        }
+
+        std::fprintf (stderr, "unknown negative control '%s' (rbj, f1, alloc, seed, rbj-b, binary-gate, first-build, engine-alloc, "
+                              "ramp-alloc)\n",
                       which.c_str());
         return 255;
     }
@@ -6834,7 +9711,7 @@ int main (int argc, char** argv)
 {
     std::string goldenDir = GOLDEN_DIR;
     std::string negative;
-    bool dump = false, dumpPolished = false;
+    bool dump = false, dumpPolished = false, longRun = false;
 
     for (int a = 1; a < argc; ++a)
     {
@@ -6843,6 +9720,10 @@ int main (int argc, char** argv)
         if (arg == "--dump-designs")
         {
             dump = true;
+        }
+        else if (arg == "--long")
+        {
+            longRun = true;
         }
         else if (arg == "--dump-polished")
         {
@@ -6858,8 +9739,8 @@ int main (int argc, char** argv)
         }
         else
         {
-            std::fprintf (stderr, "usage: %s [--golden-dir <dir>] [--dump-designs] [--dump-polished] "
-                                  "[--neg rbj|f1|alloc|seed|rbj-b|binary-gate|first-build|engine-alloc]\n", argv[0]);
+            std::fprintf (stderr, "usage: %s [--golden-dir <dir>] [--long] [--dump-designs] [--dump-polished] "
+                                  "[--neg rbj|f1|alloc|seed|rbj-b|binary-gate|first-build|engine-alloc|ramp-alloc]\n", argv[0]);
             return 255;
         }
     }
@@ -6971,6 +9852,25 @@ int main (int argc, char** argv)
     rowEnSn2();
     rowEnSn3();
     rowEnDyn();
+
+    //==========================================================================
+    // Phase 2.3 (PLAN-2.3 T4): continuous modulation, eq::Band + eq::Router in double
+    //==========================================================================
+    heading ("2.3 / modulation (double)");
+    rowsRmG3();
+    rowsRmArr();
+    rowsRmKeep();
+    rowsRmBlk();
+    rowRmSt();
+    rowRmZero();
+    rowRmNorm();
+    rowsRmG5 (longRun);
+    rowRmNan();
+    rowsRmG7();
+    rowRmDyn();
+    rowRmSn4();
+    rowRmAlloc();
+    infoRmCpu();
 
     std::printf ("\n%d PASS, %d FAIL, %d INFO\n", passes, failures, infos);
     std::fflush (stdout);
