@@ -6,6 +6,8 @@
 **Phase:** Discuss
 **Version:** 1.1.0 → 1.2.0 (MINOR)
 
+**Amended at plan (2026-11-13, Taylor's calls C1–C6, see PLAN.md):** Crystal root Db5 (73) +17 ct; Guitar Overtones root D2 (38) +3 ct; `vinyl` replaced by `breath`; picker is a headed 4-column panel (no scroll at 41); the two one-shot collections ship as cut. PLAN.md wins over the lines below where they differ.
+
 `BRIEF.md` (same folder) holds the sample table with source paths and windows, the measured pitches, and the synthetic list. This file records the decisions; where the two differ, this file wins.
 
 ---
