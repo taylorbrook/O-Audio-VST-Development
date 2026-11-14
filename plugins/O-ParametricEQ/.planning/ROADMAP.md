@@ -183,7 +183,7 @@ Suite traps to check here: the first-order `IIR::Filter` default constructor is 
 - Global soft bypass; `processBlockBypassed` override; state clear when fully bypassed
 
 **Test criteria:**
-- [ ] Gate G3, step rows (DSP-04, FUNC-01, FUNC-04)
+- [ ] Gate G3, step rows, as amended 2026-11-14: largest second difference ≤ 2.0x the louder held render at both tones; local κ ≤ 2.5x held at 1 kHz; hard control ≥ 10x at block 512 with the void rows named (DSP-04, FUNC-01, FUNC-04)
 - [ ] Gate G2 live part: slope changes on a running band (DSP-03)
 - [ ] Gate G4 (d), (e), (f) (QUAL-01, FUNC-04, FUNC-05)
 - [ ] A parameter changed while bypassed is in effect after un-bypass

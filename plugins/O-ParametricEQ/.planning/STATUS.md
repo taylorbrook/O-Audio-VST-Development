@@ -1,13 +1,13 @@
 ---
 plugin: O-ParametricEQ
 stage: 2
-phase: research
-status: stage_2_phase_2_4_researched
-last_updated: 2026-11-14 14:00:00
+phase: plan
+status: stage_2_phase_2_4_planned
+last_updated: 2026-11-14 18:00:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_2_plan_phase_2_4
+next_action: stage_2_execute_phase_2_4
 next_stage: 2
 ready_for_implementation: true
 ui_scaffolding_phase_complete: true
@@ -20,15 +20,15 @@ brief_update_timestamp: "2026-11-13T02:26:56Z"
 contract_checksums:
   brief: sha256:6fbb1b97c9c64ca3f159a409f807f13c74cb16dab8d6ab14b6a1a13c2e6991ff
   parameter_spec: sha256:60e7cf7fc335929259b4930d156a4f0d91cfa3b0a9f26d751ec31c5328c6229f
-  architecture: sha256:75fcc81876f37ee1507c7561fdbbe7210f40b5f9deed47ea18f75e46cfb5fbec
-  roadmap: sha256:6e512cfda9b8f968f281dc39597e185b83901eab5f936cd0e4ba6352bc3a9690
+  architecture: sha256:c8db7342206d2c1537bbe39bee55dc73e90a8859c3cce476c9ece803232c56e8
+  roadmap: sha256:9c3fec4e641e2b1036a582b1876fe657e0737556d21ceaf1e271f3f4cf963b4c
 ---
 
 # O-ParametricEQ Status
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — discuss ✓ 2026-11-12 (`stages/2-dsp/CONTEXT.md`, D6–D11); research 2.1 / 2.1b ✓ 2026-11-12 (`stages/2-dsp/RESEARCH-2.1.md`); plan 2.1 / 2.1b ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.1.md`, `PLAN-2.1b.md`); execute 2.1 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.1.md`, designer harness 28 PASS / 0 FAIL / 6 INFO); verify 2.1 ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1.md`, VERIFIED); execute 2.1b **BLOCKED** 2026-11-13 (`stages/2-dsp/SUMMARY-2.1b.md`: harness 47 PASS / 1 FAIL, C1 continuity; uncommitted); research on the C1 failure ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.1b-continuity.md`); plan 2.1b rework ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.1b-rework.md`, 10 tasks); execute 2.1b rework ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.1b-rework.md`, designer harness 54 PASS / 0 FAIL / 12 INFO); verify 2.1b ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1b.md`, VERIFIED); research 2.2 ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.2.md`); plan 2.2 ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.2.md`, 10 tasks); execute 2.2 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.2.md`, designer harness 67 PASS / 0 FAIL / 12 INFO, render harness 64 PASS / 0 FAIL, 0.2.0 installed); verify 2.2 ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.2.md`, VERIFIED); research 2.3 ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.3.md`); plan 2.3 ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.3.md`, 10 tasks); execute 2.3 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.3.md`, designer harness 88 PASS / 0 FAIL / 14 INFO, render harness 83 PASS / 0 FAIL, default and `--long`, 0.3.0 installed); verify 2.3 ✓ 2026-11-14 (`stages/2-dsp/VERIFICATION-2.3.md`, VERIFIED); research 2.4 ✓ 2026-11-14 (`stages/2-dsp/RESEARCH-2.4.md`); next is the plan for Phase 2.4. Stage 1 (Foundation): VERIFIED
+Stage: 2 of 4 (DSP) — discuss ✓ 2026-11-12 (`stages/2-dsp/CONTEXT.md`, D6–D11); research 2.1 / 2.1b ✓ 2026-11-12 (`stages/2-dsp/RESEARCH-2.1.md`); plan 2.1 / 2.1b ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.1.md`, `PLAN-2.1b.md`); execute 2.1 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.1.md`, designer harness 28 PASS / 0 FAIL / 6 INFO); verify 2.1 ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1.md`, VERIFIED); execute 2.1b **BLOCKED** 2026-11-13 (`stages/2-dsp/SUMMARY-2.1b.md`: harness 47 PASS / 1 FAIL, C1 continuity; uncommitted); research on the C1 failure ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.1b-continuity.md`); plan 2.1b rework ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.1b-rework.md`, 10 tasks); execute 2.1b rework ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.1b-rework.md`, designer harness 54 PASS / 0 FAIL / 12 INFO); verify 2.1b ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1b.md`, VERIFIED); research 2.2 ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.2.md`); plan 2.2 ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.2.md`, 10 tasks); execute 2.2 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.2.md`, designer harness 67 PASS / 0 FAIL / 12 INFO, render harness 64 PASS / 0 FAIL, 0.2.0 installed); verify 2.2 ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.2.md`, VERIFIED); research 2.3 ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.3.md`); plan 2.3 ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.3.md`, 10 tasks); execute 2.3 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.3.md`, designer harness 88 PASS / 0 FAIL / 14 INFO, render harness 83 PASS / 0 FAIL, default and `--long`, 0.3.0 installed); verify 2.3 ✓ 2026-11-14 (`stages/2-dsp/VERIFICATION-2.3.md`, VERIFIED); research 2.4 ✓ 2026-11-14 (`stages/2-dsp/RESEARCH-2.4.md`); plan 2.4 ✓ 2026-11-14 (`stages/2-dsp/PLAN-2.4.md`, 10 tasks); next is execute 2.4. Stage 1 (Foundation): VERIFIED
 Status: 0.1.0 built and installed (VST3 + AU + Standalone); harness 36 PASS / 0 FAIL, pluginval 10 and auval pass (`stages/1-foundation/SUMMARY.md`). Verified 2026-11-12 by an independent re-run on a fresh compile and reinstalled bundles, plus a mutation run (`stages/1-foundation/VERIFICATION.md`); next is Stage 2 discuss
 Progress: [####................] 20%
 
@@ -94,6 +94,7 @@ Progress: [####................] 20%
 | execute 2.3 | ✓ | 2026-11-13 | |
 | verify 2.3 | ✓ | 2026-11-14 | |
 | research 2.4 | ✓ | 2026-11-14 | |
+| plan 2.4 | ✓ | 2026-11-14 | |
 
 ## Next Steps
 
@@ -123,7 +124,8 @@ Progress: [####................] 20%
 23. ~~Execute Phase 2.3~~ Done 2026-11-13: `stages/2-dsp/SUMMARY-2.3.md`. Control grid, `ControlRamp.h`, ramping path, tick clock, non-finite check; version 0.3.0 built and installed. Designer harness 88 PASS / 0 FAIL / 14 INFO, render harness 83 PASS / 0 FAIL, both also with `--long`; G3 worst 2.54x the same-motion reference (double and float), 0 WARN; pluginval 10 (VST3 ×2, AU), `auval`, Standalone pass. Every row passed as specified; no existing check amended. For verify: RM-g5's worst peak − stack is −23 dB (bench −140).
 24. ~~Verify Phase 2.3~~ Done 2026-11-14: `stages/2-dsp/VERIFICATION-2.3.md`, VERIFIED. Fresh recompile 88 / 0 / 14 and 83 / 0, default and `--long`, figures equal to the SUMMARY; nine `--neg` controls fire; pluginval 10 (VST3, AU) and `auval` pass on the installed 0.3.0; engine headers and processor read in full, no defect; independent probe 37 / 37 (20 ms ramp length, dB / log f / log Q trajectories, restart rule, every placement on the ramping path, bypass mid-move, oversize host blocks, re-prepare); RM-g5's thin margin is the first block of the run (running stack 12.7 dB), every rate at -135 dB or lower after 1 s; mutation run 28 of 35 live mutants caught by the harnesses, six of the seven survivors caught by the probe. REQUIREMENTS: DSP-05 complete, DSP-04 partial. Carried to the 2.4 plan (VERIFICATION-2.3 Issues 1 - 5): rows for the Mid / Side ramping path, a one-pole G3 motion, an oversize host block, a move after a re-prepare, the state rule of a structural change, bypass during a move, the loose G5 peak clause. Artifacts in `stages/2-dsp/verify-2.3/`.
 25. ~~Research Phase 2.4~~ Done 2026-11-14: `stages/2-dsp/RESEARCH-2.4.md`, bench in `stages/2-dsp/research-2.4/fade_bench.cpp` (prototype two-slot band from two unmodified `eq::Band` objects, fade, latch, sleep and global bypass over the real `Source/dsp` headers, double). The specified crossfade (20 ms raised cosine, incoming slot from rest) is click-free on an absolute reading: largest second difference at most 1.53x the louder held render at 50 Hz and 1.02x at 1 kHz on 484 step readings per tone (type, slope and placement pairs, enable, global bypass); fades off reads 274x or more at 50 Hz and 18x or more at 1 kHz. **G3's step clause does not survive as written:** "local κ ≤ 2.0x held" fails 202 of 484 readings at 50 Hz, and a warm two-filter crossfade with no engine in it fails 121; at 1 kHz 8 readings sit at 2.05x - 2.20x, the same in the warm reference. The incoming slot's start from rest is a level dip on steep low filters, not a click (Low Cut 96 dB/oct at 30 Hz under a 50 Hz tone: 6 dB below a warm crossfade for about 10 ms more; 13 dB with the corner at the tone); a 40 ms pre-roll removes most of it and delays every structural change by 40 ms. A gain type at exactly 0 dB designs to the exact identity mix (100 000 designs) and is within 6.7e-16 of the input, so the sleep / wake fades are inaudible and the sleep is there for the `memcmp`. G4 (d) / (e) bit-equal after 86 - 89 ms (limit 200), (f) after 20 ms (limit 100), five rates x six block sizes. A bypass change during the bypass fade must be latched (reversing reads 39x - 48x). Structural events on multiples of 2048 are bit-identical at blocks 1 / 32 / 64 / 512 / 2048. G5 with structure and bypass randomised, 10 minutes x 8 rates: 0 non-finite; all bands off is bit-equal within 40 ms. CPU: a fade is the second chain for 20 ms (24 cuts x 96 dB/oct fading without pause 5.2 %, settled 2.65 %). JUCE 8.0.15: the VST3 and AU wrappers never call `processBlockBypassed` for a plugin with a bypass parameter. **Calls for the plan:** C1 and C2 are Taylor's (amend ARCHITECTURE G3 step rows: second difference ≤ 2.0x the louder held render at both tones, local κ ≤ 2.5x held at 1 kHz only, hard control ≥ 10x or void; pre-roll: none, as specified, with a hands-on item); C3 - C12 are the plan's (slot = `eq::Band`, fade table and mix form, latch, sleep / wake, lane write-back, one bypass path, non-finite input, G5 draw, row placement incl. the VERIFICATION-2.3 rows, version 0.4.0). Nothing in Source, the harnesses, the model or the goldens was changed.
-26. Plan Phase 2.4: `/plugin-plan O-ParametricEQ 2-dsp`.
+26. ~~Plan Phase 2.4~~ Done 2026-11-14: `stages/2-dsp/PLAN-2.4.md` (10 tasks, six waves). Taylor's calls: G3 step rows as research C1 (largest second difference ≤ 2.0x the louder held render at both tones; local κ ≤ 2.5x held at 1 kHz, printed at 50 Hz; hard control ≥ 10x at block 512, void rows named), and no pre-roll of the incoming slot (C2; a hands-on item in verify for a steep low cut enabled under bass). Contracts amended (ARCHITECTURE G3 step rows and "Structural changes: two-slot crossfade"; ROADMAP Phase 2.4 criterion), checksums refreshed. The plan: two new std-only headers (`Fade.h`: fade table and bypass fade; `SlotBand.h`: two unmodified `eq::Band` slots, fade, latch, sleep, wake), `Band.h` / `Router.h` not edited; one bypass path for the parameter and `processBlockBypassed`; the first block after a prepare and un-bypass start every band settled from rest; the lane rule for latched placements; six existing render rows amended by name (H1 (ii), M3, U2, A1, S5; M6n retired); rows for VERIFICATION-2.3 Issues 1 - 5; version 0.4.0.
+27. Execute Phase 2.4: `/plugin-execute O-ParametricEQ 2-dsp`.
 
 ## Context to Preserve
 
@@ -216,3 +218,4 @@ Progress: [####................] 20%
 - plugins/O-ParametricEQ/.planning/stages/2-dsp/PLAN-2.3.md
 - plugins/O-ParametricEQ/.planning/stages/2-dsp/RESEARCH-2.4.md
 - plugins/O-ParametricEQ/.planning/stages/2-dsp/research-2.4/fade_bench.cpp
+- plugins/O-ParametricEQ/.planning/stages/2-dsp/PLAN-2.4.md
