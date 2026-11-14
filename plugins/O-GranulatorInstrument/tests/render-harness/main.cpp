@@ -1855,7 +1855,7 @@ static int runHarness (int argc, char** argv)
             const juce::File dir = juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a]));
             const int n = pg4::dumpFactoryPresets (dir);
             std::printf ("dump-factory-presets: %d files -> %s\n", n, dir.getFullPathName().toRawUTF8());
-            return n == 64 ? 0 : 1;
+            return n == ogi::factory::kBankSize ? 0 : 1;   // 1.3.0: F::kBankSize (was 64)
         }
         else if (std::strcmp (argv[a], "--dump-preset-renders") == 0 && a + 1 < argc)   // PLAN-R1 PD29: early exit, no gate runs
         {
@@ -1871,7 +1871,7 @@ static int runHarness (int argc, char** argv)
                 if (std::strcmp (argv[a + 1], "--all-bitwise") == 0) allBitwise = true;
                 else if (std::strcmp (argv[a + 1], "--exclude-showcase") == 0) excludeShowcase = true;
                 else if (std::strcmp (argv[a + 1], "--r2") == 0) r2 = true;   // PLAN-R2 PD12: PT0r / PT3 / PT3n
-                else if (std::strcmp (argv[a + 1], "--exclude-revoiced13") == 0) revoiced13 = true;   // 1.3.0 P1: the 8 re-voices leave by name
+                else if (std::strcmp (argv[a + 1], "--exclude-revoiced13") == 0) revoiced13 = true;   // 1.3.0 P1: the 8 re-voices leave by name; names not in the reference's list are new (PT0v13)
                 else break;
             }
             return pg4::cmpPresetRenders (dir, allBitwise, excludeShowcase, r2, revoiced13);

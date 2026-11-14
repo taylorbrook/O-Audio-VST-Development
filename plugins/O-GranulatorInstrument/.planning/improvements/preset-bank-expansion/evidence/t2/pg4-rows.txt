@@ -1,0 +1,17 @@
+[PresetManager] Factory presets initialized: 64
+
+-- 4  polish: auval drift set, presets, factory sources, D55 (PLAN-4)
+  [FAIL] FP0 PD1 / PD2 bank table: 160 = 7 x 20 + Live 8 + Field 12, names, seeds, validateSpec, per-category coverage, Field rule (P7), realism wobble in every category (P3 / P5) meas 390/401  e.g. Drones count 8 (want 20); Expressive count 8 (want 20); Field count 0 (want 12); Keys count 8 (want 20), realism-titled 11 | thr 0 bad | ctrl FP1n / FP1n2
+  INFO FP0 failing checks (11): Drones count 8 (want 20) | Expressive count 8 (want 20) | Field count 0 (want 12) | Keys count 8 (want 20) | Motion count 8 (want 20) | Pads count 8 (want 20) | Rhythmic count 8 (want 20) | Textures count 8 (want 20) | bank 64 / 9 categories (want 160 / 9) | Expressive split 4 / 1 / 2 / 2 (want 8 / >= 1 / 6 / 6) | Field sources stream / park / waves / woods / garden 0 / 0 / 0 / 0 / 0 (want 3 / 3 / 2 / 2 / 2)
+  [FAIL] FSU1 1.3.0 every one of the 41 factory sources is read by an enabled stream in >= 2 presets meas 8 / 41 below 2: bowed 1; reed 0; organ 1; saw_stack 0; chord_minor 0; chord_sus 0; crystal 0; choir 1; fm_bell 0; glass 1; kalimba 1; marimba_bar 0; metal_plate 0; guitar_overtones 0; guitar_drift 0; wind 1; rain_synth 1; breath 0; shimmer 0; fire 1; bubbles 0; metal_grate 0; sub 0; contrabassoon 0; clicks 0; pulse_triplet 0; stick_snaps 0; scissors 0; stream 0; park 0; waves 0; woods 0; garden 0; | thr 41 / 41 | ctrl FSU1n
+  [PASS] FSU1n control: the bank with every use of its most-used source removed -> FSU1 FAILS on that source (predicate must FAIL) meas dropped harmonic (16 lanes): 7 / 41 | thr FSU1 FAILS, harmonic at 0 | ctrl FIRED: FSU1 predicate
+  [FAIL] FRT1 1.3.0 every preset slot on an off-C3 source: after apply the stream's root_note / root_fine == the manifest root; all 5 off-C3 sources in the bank meas 0 / 0 slots, 0 / 5 sources | thr all, 5 / 5 | ctrl FRT1n
+  [PASS] FRT1n control: the root pair dropped from a copy -> FRT1 FAILS (the same copy with the root passes) meas synthetic Grain Piano -> crystal (no off-C3 slot in the bank yet): with root s1_root 73 / 17.00 (want 73 / 17) ok, dropped s1_root 48 / 0.00 (want 73 / 17) | thr with passes, dropped FAILS | ctrl FIRED: FRT1 predicate
+  [PASS] FP1 PD14 apply from fresh: read-back == table, absent == default (PD8 six exact), output_gain kept, slots factory / pin, fsTouches 0 meas 64 / 64 presets clean | thr 64 / 64 | ctrl FP1n / FP1n2
+  [FAIL] FP1c the bank applied by FP1 has F::kBankSize presets              meas 64 | thr == 160 | ctrl -
+  [PASS] FP1n control: s1_size authored as a linear fraction -> read-back FAILS (predicate must FAIL) meas Grain Piano: s1_size 5.012628 != 60.000000 | thr FP1 FAILS on s1_size | ctrl FIRED: FP1 predicate
+  [PASS] FP1n2 control: a file: slot -> fsTouches > 0 (predicate must FAIL) meas fsTouches 2 | thr > 0 | ctrl FIRED: FP1 no-disk predicate
+  [FAIL] FP3c the Rhythmic presets FP3 runs number F::kCategoryCounts[Rhythmic] meas 8 | thr == 20 | ctrl -
+  [PASS] FP3 PD14 Rhythmic presets lock to the host grid at 120 and 93 bpm (stream 1 onsets <= 1 sample) meas 8 presets x 2 tempi, 504 onsets, 0 off-grid, worst 0.968 smp, empty runs 0 | thr 0 off-grid, 0 empty | ctrl - (TS1n carries the grid control)
+
+6 PASS, 5 FAIL

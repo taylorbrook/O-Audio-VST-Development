@@ -1,6 +1,6 @@
 milestone: preset-bank-expansion
 created: 2026-11-14T15:18:41Z
-lastActivity: 2026-11-14T18:00:00Z
+lastActivity: 2026-11-14T20:00:00Z
 phases:
   discuss:
     status: complete
@@ -17,7 +17,17 @@ phases:
   execute:
     status: in_progress
     startedAt: 2026-11-14T18:00:00Z
-    lastWaveCommitted: none
+    lastWaveCommitted: T2
+    notes: >-
+      T0 backup backups/O-GranulatorInstrument/v1.2.0 + 1.2.0 references (harness-120 binary in
+      build/plugins/O-GranulatorInstrument/pbe-ref120-bin, 64 renders in evidence/ref-1.2.0, f32 gitignored).
+      T1 commit 05e46f9c: 8 re-voices + D1 + D6/D7/D8/D10/D11; FP2 spread 7.00 -> 6.00 dB; 56 bitwise vs 1.2.0.
+      T2 commit: the one that carries this note (see git log "v1.3.0 T2 harness re-scale").
+      Run the 1.3.0 compare as: --cmp-preset-renders <evidence/ref-1.2.0> --all-bitwise --exclude-revoiced13.
+      FP0 expected-fail list at 64 (evidence/t2/expected-fail-64.txt): FP0 11 checks (8 category counts
+      Drones/Expressive/Field/Keys/Motion/Pads/Rhythmic/Textures, bank 64/9 want 160/9, Expressive split
+      4/1/2/2 want 8/>=1/6/6, Field sources 0/0/0/0/0 want 3/3/2/2/2); FSU1 8/41; FRT1 0 slots 0/5 sources;
+      FP1c 64; FP3c 8; --dump-factory-presets rc 1; PN1 count. Each wave shows a shrinking subset; T10 none.
   verify:
     status: pending
 versionBump: minor

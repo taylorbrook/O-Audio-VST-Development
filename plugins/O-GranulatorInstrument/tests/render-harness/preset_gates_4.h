@@ -25,12 +25,22 @@
       FR1 / FR1n / FR1r / FR1e / FR2, FLV1 / FLV1n, FSM1 / FSM1n, FPT1 /
              FPT1n: 1.2.0, the factory sources expansion (root write, level
              spread, seam, pitch); described where they are defined
-      FP0    the bank table: 64 presets, 8 per category, unique names / seeds,
+      FP0    the bank table: F::kBankSize presets (1.3.0: 160 = 7 x 20, Live 8,
+             Field 12; F::kCategoryCounts), unique names / seeds,
              "<Cat> · <Name>" <= 24 chars, no / \ :, validateSpec clean (no
              output_gain / rec_arm, ids, ranges, seed, factory ids, enabled
              stream -> listed slot), per-category feature coverage (R1: the
              feedback / reverb rules read per stream — a range rule holds when
-             at least one ENABLED stream meets it)
+             at least one ENABLED stream meets it); 1.3.0: the Field rule (P7)
+             and the realism wobble rule (P3 / P5) on every realism-titled
+             preset in any category; Pads custom >= 2; Expressive 8 / >= 1 / 6 / 6;
+             an INFO line lists every failing check
+      FP1c / FP3c  the bank size / the Rhythmic count against kCategoryCounts
+      FSU1   every manifest source on an enabled stream's slot in >= 2 presets
+      FSU1n  the bank with the most-used source's uses removed -> FSU1 FAILS
+      FRT1   every slot on an off-C3 source: after apply the stream's
+             root_note / root_fine == the manifest root; all 5 off-C3 sources seen
+      FRT1n  the same apply with that root dropped -> FRT1 FAILS
       FP1    apply from fresh (no disk): engineering read-back == table
              (absent == default, the PD8 six exact 0), output_gain -7 dB kept,
              seed / custom scale, listed slots loaded / resolvedBy 4 / hash ==
@@ -43,12 +53,12 @@
              (<= 1 sample) at 120 and 93 bpm
       FP4    load after dirty: 291 random params + custom scale + 3 masks +
              seed + foreign file: lanes (Live: the fixed preload) -> apply B ==
-             fresh B, 10 s bitwise, 320 ordered pairs A = B + {1,8,13,32,63};
-             the 64 fresh renders pairwise distinct
+             fresh B, 10 s bitwise, 5 x N ordered pairs A = B + {1,8,13,32,63};
+             the N fresh renders pairwise distinct
       FP4b   load after play (A 5 s at feedback 80 % on all four streams, notes off, apply B):
              parameters + seed / custom / masks + listed slots == fresh B;
              listed slots re-resolved (generation moved), not dirty
-      FP5    the real path under the temp HOME: the constructor writes 64
+      FP5    the real path under the temp HOME: the constructor writes N
              files + .factory-version + .bank-hash; loadPreset read-back ==
              table; save as user -> reload on a fresh instance == factory
              apply (params, state, 10 s bitwise); stamp arm: an edited file +
@@ -1075,22 +1085,70 @@ namespace { namespace pg4
 
     //--------------------------------------------------------------------------
     // FP0
+    /** 1.3.0 P7: the field recordings and the companions a Field preset may layer. */
+    const juce::StringArray kFieldSources { "stream", "park", "waves", "woods", "garden" };
+    const juce::StringArray kFieldCompanions { "fire", "bubbles", "rain_synth", "wind", "breath", "shimmer" };
+
+    /** 1.3.0 P5: a realism title as a whole word of the short name. */
+    bool realismTitled (const F::FactoryPresetSpec& s)
+    {
+        juce::StringArray words;
+        words.addTokens (shortOf (s), " ", "");
+        for (const char* w : { "Piano", "Rhodes", "Celesta", "Harp", "Strings", "Choir", "Organ", "Kalimba", "Marimba", "Guitar", "Bassoon" })
+            if (words.contains (w))
+                return true;
+        return false;
+    }
+
+    /** The factory id a stream reads ("" when its slot is not listed). */
+    juce::String slotSourceOf (const F::FactoryPresetSpec& s, int stream)
+    {
+        for (const auto& sl : s.slots)
+            if (sl.index == stream - 1)
+                return juce::String (sl.source).fromFirstOccurrenceOf ("factory:", false, false);
+        return {};
+    }
+
+    /** 1.3.0 P3: the wobble a preset ADDS on an enabled stream (pitch_rand, an
+        LFO / mod-env route to _pitch / _pitch_rand / _fine, root_fine detune
+        between enabled streams reading the same source). Empty = clean.
+        Player-driven routes (sources >= 7) and a source's own baked-in
+        ensemble / vibrato are not wobble. */
+    juce::String addedWobble (const F::FactoryPresetSpec& s)
+    {
+        for (int k = 1; k <= 4; ++k)
+            if (streamOn (s, k) && sval (s, k, "pitch_rand", 0.0f) != 0.0f)
+                return "s" + juce::String (k) + "_pitch_rand";
+        for (const auto& r : routesOf (s))
+            if (r.src >= 1 && r.src <= 6 && (r.dest.endsWith ("_pitch") || r.dest.endsWith ("_pitch_rand") || r.dest.endsWith ("_fine")))
+                return "route " + juce::String (r.src) + " -> " + r.dest;
+        for (int j = 1; j <= 4; ++j)
+            for (int k = j + 1; k <= 4; ++k)
+                if (streamOn (s, j) && streamOn (s, k) && slotSourceOf (s, j).isNotEmpty() && slotSourceOf (s, j) == slotSourceOf (s, k)
+                    && sval (s, j, "root_fine", 0.0f) != sval (s, k, "root_fine", 0.0f))
+                    return "root_fine s" + juce::String (j) + " / s" + juce::String (k) + " on " + slotSourceOf (s, j);
+        return {};
+    }
+
     void rowFP0()
     {
         const auto& b = bank();
         auto p = make();
         Tally t;
+        int nChecks = 0;
+        juce::StringArray allBad;
+        const auto chk = [&t, &nChecks, &allBad] (bool ok, const juce::String& what) { ++nChecks; t.check (ok, what); if (! ok) allBad.add (what); };
         std::set<juce::String> names;
         std::set<std::int64_t> seeds;
         std::map<juce::String, int> perCat;
         for (const auto& s : b.specs)
         {
             const auto n = juce::String::fromUTF8 (s.name);
-            t.check (names.insert (n).second, "dup name " + n);
-            t.check (seeds.insert (s.seed).second, "dup seed " + n);
-            t.check (n.length() <= 24 && ! n.containsAnyOf ("/\\:") && n.contains (juce::String::fromUTF8 (" \xc2\xb7 ")), "name " + n);
+            chk (names.insert (n).second, "dup name " + n);
+            chk (seeds.insert (s.seed).second, "dup seed " + n);
+            chk (n.length() <= 24 && ! n.containsAnyOf ("/\\:") && n.contains (juce::String::fromUTF8 (" \xc2\xb7 ")), "name " + n);
             const auto v = F::validateSpec (s, p->parameters);
-            t.check (v.isEmpty(), v);
+            chk (v.isEmpty(), v);
             ++perCat[catOf (s)];
         }
         // PLAN-R1 PD27: the AUTHORED table (wildcards unexpanded) validates too;
@@ -1099,16 +1157,24 @@ namespace { namespace pg4
         {
             const auto v = F::validateSpec (s, p->parameters);
             if (v.isNotEmpty())
-                t.check (false, "authored: " + v);
+                { t.check (false, "authored: " + v); allBad.add ("authored: " + v); }
         }
-        const juce::StringArray cats { "Drones", "Expressive", "Keys", "Live", "Motion", "Pads", "Rhythmic", "Textures" };
-        for (const auto& c : cats)
-            t.check (perCat[c] == 8, c + " count " + juce::String (perCat[c]));
-        t.check (b.specs.size() == 64 && perCat.size() == 8, "64 / 8 categories");
+        // 1.3.0: the table against F::kBankSize and F::kCategoryCounts (which must agree).
+        int sumCounts = 0, nCats = 0;
+        for (const auto& cc : F::kCategoryCounts)
+        {
+            ++nCats;
+            sumCounts += cc.count;
+            chk (perCat[cc.name] == cc.count, juce::String (cc.name) + " count " + juce::String (perCat[cc.name]) + " (want " + juce::String (cc.count) + ")");
+        }
+        chk (sumCounts == F::kBankSize && (int) b.specs.size() == F::kBankSize && (int) perCat.size() == nCats,
+             "bank " + juce::String ((int) b.specs.size()) + " / " + juce::String ((int) perCat.size()) + " categories (want "
+                 + juce::String (F::kBankSize) + " / " + juce::String (nCats) + ")");
 
         // Coverage (RESEARCH-4 A§Q1 table).
         int padsCustom = 0, padsPenta = 0, padsJust = 0, drFreeze = 0, drShFilter = 0, rhLfo = 0, mpe = 0, mpeBend = 0, monoGlide = 0, playCtl = 0;
-        int txBp = 0, txGain = 0, txRev = 0, txCrush = 0, txDrive = 0;
+        int txBp = 0, txGain = 0, txRev = 0, txCrush = 0, txDrive = 0, realism = 0;
+        std::map<juce::String, int> fieldUse;
         bool moFree = false, moNeg = false, moLoop = false, moRing = false, moCrush = false;
         std::set<int> moMacros;
         std::set<int> liveTrig, liveTarget;
@@ -1118,13 +1184,43 @@ namespace { namespace pg4
             const auto c = catOf (s), n = shortOf (s);
             const auto rs = routesOf (s);
             const auto routed = [&rs] (std::function<bool (const Route&)> f) { return std::any_of (rs.begin(), rs.end(), f); };
+            if (realismTitled (s))
+            {
+                ++realism;
+                const auto w = addedWobble (s);
+                chk (w.isEmpty(), "realism wobble " + n + ": " + w);
+            }
+            if (c == "Field")
+            {
+                // P7: >= 1 enabled stream on a field source with key_track <= 50, size >= 150 ms,
+                // scan_mode != Retrigger; amp_attack >= 100, amp_release >= 2000; the other
+                // enabled streams on a field source or a listed companion.
+                bool lead = false, companions = true;
+                std::set<juce::String> here;
+                for (int k = 1; k <= 4; ++k)
+                {
+                    if (! streamOn (s, k)) continue;
+                    const auto src = slotSourceOf (s, k);
+                    if (kFieldSources.contains (src))
+                    {
+                        here.insert (src);
+                        lead = lead || (sval (s, k, "key_track", 100.0f) <= 50.0f && sval (s, k, "size", 100.0f) >= 150.0f
+                                        && sval (s, k, "scan_mode", 1.0f) != 1.0f);
+                    }
+                    else
+                        companions = companions && kFieldCompanions.contains (src);
+                }
+                for (const auto& f : here)
+                    ++fieldUse[f];
+                chk (lead && companions && val (s, "amp_attack", 20) >= 100 && val (s, "amp_release", 1500) >= 2000, "Field " + n);
+            }
             if (c == "Keys")
             {
                 bool noPitch = true;
                 for (int k = 1; k <= 4; ++k)
                     noPitch = noPitch && val (s, ("s" + juce::String (k) + "_pitch_rand").toRawUTF8(), 0.0f) == 0.0f;
                 noPitch = noPitch && ! routed ([] (const Route& r) { return r.src >= 1 && r.src <= 4 && (r.dest.endsWith ("_pitch") || r.dest.endsWith ("_pitch_rand")); });
-                t.check (noPitch && val (s, "voice_mode", 0) == 0 && val (s, "s1_key_track", 100) == 100 && val (s, "amp_attack", 20) <= 5
+                chk (noPitch && val (s, "voice_mode", 0) == 0 && val (s, "s1_key_track", 100) == 100 && val (s, "amp_attack", 20) <= 5
                              && val (s, "amp_release", 1500) <= 2000 && has (s, "vel_to_amp") && val (s, "s1_window", 0) >= 0.5f
                              && val (s, "s1_spray", 10) <= 10,
                          "Keys " + n);
@@ -1140,7 +1236,7 @@ namespace { namespace pg4
                         interval = interval || pt == 7.0f || pt == 12.0f || pt == -12.0f;
                     }
                 const bool rvOk = anyOnStream (s, [&s] (int k) { const float rv = sval (s, k, "reverb_mix", 0.0f); return rv >= 30 && rv <= 60; });
-                t.check (on >= 2 && interval && val (s, "amp_attack", 20) >= 700 && val (s, "amp_release", 1500) >= 2500 && rvOk
+                chk (on >= 2 && interval && val (s, "amp_attack", 20) >= 700 && val (s, "amp_release", 1500) >= 2500 && rvOk
                              && routed ([] (const Route& r) { return r.src >= 1 && r.src <= 4 && r.dest.endsWith ("_position"); }),
                          "Pads " + n);
                 padsCustom += s.customJson.contains ("\"custom\"") && s.customJson.contains ("\"masks\"") ? 1 : 0;
@@ -1149,7 +1245,7 @@ namespace { namespace pg4
             }
             if (c == "Textures")
             {
-                t.check (val (s, "s1_density", 10) >= 70 && val (s, "s1_spray", 10) == 100, "Textures " + n);
+                chk (val (s, "s1_density", 10) >= 70 && val (s, "s1_spray", 10) == 100, "Textures " + n);
                 txBp += val (s, "s1_filter_type", 0) == 2 && val (s, "s1_filter_rand", 0) > 0 ? 1 : 0;
                 txGain += val (s, "s1_gain_rand", 0) > 0 ? 1 : 0;
                 txRev += val (s, "s1_reverse_prob", 0) > 0 ? 1 : 0;
@@ -1159,7 +1255,7 @@ namespace { namespace pg4
             if (c == "Drones")
             {
                 const bool fbOk = anyOnStream (s, [&s] (int k) { const float fb = sval (s, k, "feedback", 0); return fb >= 30 && fb <= 80 && sval (s, k, "fb_diffusion", 0) > 0; });
-                t.check (val (s, "s1_key_track", 100) <= 50 && val (s, "s1_scan_mode", 1) == 2 && fbOk
+                chk (val (s, "s1_key_track", 100) <= 50 && val (s, "s1_scan_mode", 1) == 2 && fbOk
                              && val (s, "amp_release", 1500) >= 5000,
                          "Drones " + n);
                 drFreeze += val (s, "freeze", 0) == 1 ? 1 : 0;
@@ -1177,7 +1273,7 @@ namespace { namespace pg4
                         grid = grid && val (s, (pre + "jitter").toRawUTF8(), 20) == 0 && val (s, (pre + "scan_mode").toRawUTF8(), 1) == 1
                                     && has (s, (pre + "density_sync").toRawUTF8());
                     }
-                t.check (grid, "Rhythmic " + n);
+                chk (grid, "Rhythmic " + n);
                 rhLfo += routed ([&s] (const Route& r) { return r.src >= 1 && r.src <= 4 && has (s, ("lfo" + juce::String (r.src) + "_rate_sync").toRawUTF8()); }) ? 1 : 0;
             }
             if (c == "Motion")
@@ -1185,7 +1281,7 @@ namespace { namespace pg4
                 bool pv = false;
                 for (const auto& r : rs)
                     pv = pv || (r.src >= 1 && r.src <= 4 && val (s, ("lfo" + juce::String (r.src) + "_mode").toRawUTF8(), 0) == 1);
-                t.check (rs.size() >= 6 && pv, "Motion " + n + " routes " + juce::String ((int) rs.size()));
+                chk (rs.size() >= 6 && pv, "Motion " + n + " routes " + juce::String ((int) rs.size()));
                 for (int k = 1; k <= 4; ++k)
                 {
                     const auto pre = "s" + juce::String (k) + "_";
@@ -1205,7 +1301,7 @@ namespace { namespace pg4
                 if (val (s, "mpe_enable", 0) == 1)
                 {
                     ++mpe;
-                    t.check (routed ([] (const Route& r) { return r.src == 11 || r.src == 12; }), "MPE routes " + n);
+                    chk (routed ([] (const Route& r) { return r.src == 11 || r.src == 12; }), "MPE routes " + n);
                     mpeBend += routed ([] (const Route& r) { return r.src == 13; }) ? 1 : 0;
                 }
                 else if (val (s, "voice_mode", 0) >= 1 && val (s, "glide", 0) > 0)
@@ -1215,7 +1311,7 @@ namespace { namespace pg4
             }
             if (c == "Live")
             {
-                t.check (s.live && s.slots.empty(), "Live has slots " + n);
+                chk (s.live && s.slots.empty(), "Live has slots " + n);
                 liveTrig.insert ((int) val (s, "rec_trigger", 0));
                 liveTarget.insert ((int) val (s, "rec_target", 0));
                 liveSync = liveSync || (val (s, "sync_mode", 0) == 1 && has (s, "rec_length_sync"));
@@ -1225,18 +1321,208 @@ namespace { namespace pg4
                 liveInit = liveInit || (n == "Init" && s.values.empty());
             }
             else
-                t.check (! s.live && ! s.slots.empty(), "not Live but no slots " + n);
+                chk (! s.live && ! s.slots.empty(), "not Live but no slots " + n);
         }
-        t.check (padsCustom == 2 && padsPenta >= 1 && padsJust >= 1, "Pads custom / scales");
-        t.check (txBp >= 1 && txGain >= 1 && txRev >= 1 && txCrush >= 1 && txDrive >= 1, "Textures features");
-        t.check (drFreeze >= 1 && drShFilter >= 1, "Drones freeze / S&H filter");
-        t.check (rhLfo >= 1, "Rhythmic synced LFO");
-        t.check (moFree && moNeg && moLoop && moRing && moCrush && moMacros.size() == 4, "Motion features");
-        t.check (mpe == 4 && mpeBend >= 1 && monoGlide == 2 && playCtl == 2, "Expressive split");
-        t.check (liveTrig.size() == 3 && liveTarget.size() == 4 && liveSync && liveGain && liveFb && liveFreeze && liveInit, "Live features");
-        const int checks = 64 * 4 + 9 + 64 + 7;
-        row (t.bad == 0, "FP0 PD1 / PD2 bank table: 64 = 8 x 8, names, seeds, validateSpec, per-category coverage",
-             "meas " + t.detail (checks) + " | thr 0 bad | ctrl FP1n / FP1n2");
+        chk (padsCustom >= 2 && padsPenta >= 1 && padsJust >= 1, "Pads custom / scales");   // P8: custom >= 2
+        chk (txBp >= 1 && txGain >= 1 && txRev >= 1 && txCrush >= 1 && txDrive >= 1, "Textures features");
+        chk (drFreeze >= 1 && drShFilter >= 1, "Drones freeze / S&H filter");
+        chk (rhLfo >= 1, "Rhythmic synced LFO");
+        chk (moFree && moNeg && moLoop && moRing && moCrush && moMacros.size() == 4, "Motion features");
+        chk (mpe == 8 && mpeBend >= 1 && monoGlide == 6 && playCtl == 6,   // P6: exact 8 / >= 1 / 6 / 6
+             "Expressive split " + juce::String (mpe) + " / " + juce::String (mpeBend) + " / " + juce::String (monoGlide) + " / " + juce::String (playCtl) + " (want 8 / >= 1 / 6 / 6)");
+        chk (fieldUse["stream"] == 3 && fieldUse["park"] == 3 && fieldUse["waves"] == 2 && fieldUse["woods"] == 2 && fieldUse["garden"] == 2,   // P7
+             "Field sources stream / park / waves / woods / garden " + juce::String (fieldUse["stream"]) + " / " + juce::String (fieldUse["park"]) + " / "
+                 + juce::String (fieldUse["waves"]) + " / " + juce::String (fieldUse["woods"]) + " / " + juce::String (fieldUse["garden"]) + " (want 3 / 3 / 2 / 2 / 2)");
+        chk (liveTrig.size() == 3 && liveTarget.size() == 4 && liveSync && liveGain && liveFb && liveFreeze && liveInit, "Live features");
+        row (t.bad == 0, "FP0 PD1 / PD2 bank table: " + juce::String (F::kBankSize) + " = 7 x 20 + Live 8 + Field 12, names, seeds, validateSpec, per-category coverage, Field rule (P7), realism wobble in every category (P3 / P5)",
+             "meas " + t.detail (nChecks) + ", realism-titled " + juce::String (realism) + " | thr 0 bad | ctrl FP1n / FP1n2");
+        std::printf ("  INFO FP0 failing checks (%d): %s\n", allBad.size(), allBad.isEmpty() ? "none" : allBad.joinIntoString (" | ").toRawUTF8());
+
+        // FP0wn (1.3.0 P3): the wobble rule on three doctored copies of Pads ·
+        // Velvet Strings — the 1.2.0 D1 detune (-8 / +8 ct on two streams of one
+        // source), a pitch_rand, an LFO -> s2_pitch route — must each be caught;
+        // the same copy pointed at two different sources with the detune is not.
+        int vk = -1;
+        for (int i = 0; i < (int) b.specs.size(); ++i)
+            if (shortOf (b.specs[(size_t) i]) == "Velvet Strings") vk = i;
+        bool caught = false, otherSrcClean = false;
+        juce::String wn;
+        if (vk >= 0)
+        {
+            auto d1 = b.specs[(size_t) vk];
+            d1.values.push_back ({ "s1_root_fine", -8.0f });
+            d1.values.push_back ({ "s2_root_fine", 8.0f });
+            auto pr = b.specs[(size_t) vk];
+            pr.values.push_back ({ "s2_pitch_rand", 0.5f });
+            auto lf = b.specs[(size_t) vk];
+            lf.values.push_back ({ "mod9_source", 2.0f });
+            lf.values.push_back ({ "mod9_dest", F::modDest ("s2_pitch") });
+            lf.values.push_back ({ "mod9_depth", 5.0f });
+            auto two = d1;
+            two.slots = { { 0, "factory:bowed", "Bowed" }, { 1, "factory:harmonic", "Harmonic" } };
+            const auto w1 = addedWobble (d1), w2 = addedWobble (pr), w3 = addedWobble (lf), w4 = addedWobble (two);
+            caught = realismTitled (d1) && w1.isNotEmpty() && w2.isNotEmpty() && w3.isNotEmpty();
+            otherSrcClean = w4.isEmpty();
+            wn = "D1 detune '" + w1 + "', pitch_rand '" + w2 + "', LFO '" + w3 + "', detune on two sources '" + w4 + "'";
+        }
+        row (caught && otherSrcClean, "FP0wn control: Velvet Strings with the 1.2.0 D1 detune / a pitch_rand / an LFO -> pitch route -> the P3 wobble rule FAILS each (predicate must FAIL)",
+             "meas " + (vk >= 0 ? wn : juce::String ("Velvet Strings not found")) + " | thr 3 / 3 caught, the two-source detune clean | " + ctrl (caught && otherSrcClean, "FP0 P3 wobble predicate"));
+    }
+
+    //--------------------------------------------------------------------------
+    // FSU1 / FSU1n — 1.3.0 R1: every factory source in >= 2 presets
+    struct Fsu1 { int good = 0; juce::String low; };
+
+    /** Presets per source id (a preset counts once per source, on an enabled stream's slot). */
+    Fsu1 runFsu1 (const std::vector<F::FactoryPresetSpec>& specs, const juce::String& drop)
+    {
+        std::map<juce::String, int> uses;
+        for (const auto& s : specs)
+        {
+            std::set<juce::String> here;
+            for (int k = 1; k <= 4; ++k)
+                if (streamOn (s, k))
+                {
+                    const auto src = slotSourceOf (s, k);
+                    if (src.isNotEmpty() && src != drop)
+                        here.insert (src);
+                }
+            for (const auto& x : here)
+                ++uses[x];
+        }
+        Fsu1 r;
+        for (int k = 0; k < kSourceCount; ++k)
+        {
+            const int u = uses[kSources[k].id];
+            if (u >= 2) ++r.good;
+            else r.low << " " << kSources[k].id << " " << u << ";";
+        }
+        return r;
+    }
+
+    void rowsFSU1()
+    {
+        const auto& b = bank();
+        const auto a = runFsu1 (b.specs, {});
+        row (a.good == kSourceCount, "FSU1 1.3.0 every one of the " + juce::String (kSourceCount) + " factory sources is read by an enabled stream in >= 2 presets",
+             "meas " + juce::String (a.good) + " / " + juce::String (kSourceCount) + (a.low.isEmpty() ? juce::String() : " below 2:" + a.low)
+                 + " | thr " + juce::String (kSourceCount) + " / " + juce::String (kSourceCount) + " | ctrl FSU1n");
+        // FSU1n: drop every use of the most-used source -> that source falls below 2.
+        std::map<juce::String, int> uses;
+        for (const auto& s : b.specs)
+            for (int k = 1; k <= 4; ++k)
+                if (streamOn (s, k) && slotSourceOf (s, k).isNotEmpty())
+                    ++uses[slotSourceOf (s, k)];
+        juce::String top; int topN = 0;
+        for (const auto& [id, n] : uses)
+            if (n > topN) { top = id; topN = n; }
+        const auto c = runFsu1 (b.specs, top);
+        const bool fired = top.isNotEmpty() && c.good < kSourceCount && c.low.contains (" " + top + " 0;");
+        row (fired, "FSU1n control: the bank with every use of its most-used source removed -> FSU1 FAILS on that source (predicate must FAIL)",
+             "meas dropped " + top + " (" + juce::String (topN) + " lanes): " + juce::String (c.good) + " / " + juce::String (kSourceCount)
+                 + " | thr FSU1 FAILS, " + top + " at 0 | " + ctrl (fired, "FSU1 predicate"));
+    }
+
+    //--------------------------------------------------------------------------
+    // FRT1 / FRT1n — 1.3.0 R2: a preset on an off-C3 source writes its root
+    struct Frt1 { bool ok = false; juce::String what; };
+
+    /** Applies json on a fresh session; stream `stream`'s root pair == (note, cents). */
+    Frt1 frt1One (const juce::var& json, int stream, int note, double cents)
+    {
+        PSess ps;
+        auto& p = *ps.s->p;
+        p.getPresetManager().applyPresetData (json);
+        p.getLoader().waitForIdle (20000);
+        const auto read = [&p] (const juce::String& id)
+        {
+            auto* rp = p.parameters.getParameter (id);
+            return rp != nullptr ? rp->convertFrom0to1 (rp->getValue()) : -999.0f;
+        };
+        const auto pre = "s" + juce::String (stream) + "_";
+        const float n = read (pre + "root_note"), f = read (pre + "root_fine");
+        Frt1 r;
+        r.ok = std::abs (n - (float) note) < 0.5f && std::abs ((double) f - cents) < 0.01;
+        r.what = pre + "root " + juce::String (n, 0) + " / " + juce::String (f, 2) + " (want " + juce::String (note) + " / " + juce::String (cents, 0) + ")";
+        return r;
+    }
+
+    void rowsFRT1()
+    {
+        const auto& b = bank();
+        const int N = (int) b.specs.size();
+        struct Case { int i; int stream; int note; double cents; juce::String id; };
+        std::vector<Case> cases;
+        for (int i = 0; i < N; ++i)
+            for (const auto& sl : b.specs[(size_t) i].slots)
+            {
+                const auto id = juce::String (sl.source).fromFirstOccurrenceOf ("factory:", false, false);
+                for (int k = 0; k < kSourceCount; ++k)
+                    if (id == kSources[k].id && (kSources[k].rootNote != 48 || kSources[k].rootCents != 0.0))
+                        cases.push_back ({ i, sl.index + 1, kSources[k].rootNote, kSources[k].rootCents, id });
+            }
+        std::set<juce::String> offC3;
+        for (int k = 0; k < kSourceCount; ++k)
+            if (kSources[k].rootNote != 48 || kSources[k].rootCents != 0.0)
+                offC3.insert (kSources[k].id);
+        std::vector<Frt1> rs (cases.size());
+        parallelFor ((int) cases.size(), [&] (int j)
+        {
+            const auto& c = cases[(size_t) j];
+            rs[(size_t) j] = frt1One (F::presetJsonOf (b.defs[(size_t) c.i]), c.stream, c.note, c.cents);
+        });
+        int good = 0; juce::String bad;
+        std::set<juce::String> seen;
+        for (size_t j = 0; j < cases.size(); ++j)
+        {
+            seen.insert (cases[j].id);
+            if (rs[j].ok) ++good;
+            else if (bad.isEmpty()) bad = shortOf (b.specs[(size_t) cases[j].i]) + " " + rs[j].what;
+        }
+        row (! cases.empty() && good == (int) cases.size() && seen.size() == offC3.size(),
+             "FRT1 1.3.0 every preset slot on an off-C3 source: after apply the stream's root_note / root_fine == the manifest root; all " + juce::String ((int) offC3.size()) + " off-C3 sources in the bank",
+             "meas " + juce::String (good) + " / " + juce::String ((int) cases.size()) + " slots, " + juce::String ((int) seen.size()) + " / " + juce::String ((int) offC3.size()) + " sources"
+                 + (bad.isEmpty() ? juce::String() : " first: " + bad) + " | thr all, " + juce::String ((int) offC3.size()) + " / " + juce::String ((int) offC3.size()) + " | ctrl FRT1n");
+
+        // FRT1n: the first real case with its root pair dropped from a deep copy; with no
+        // off-C3 slot in the bank yet, a synthetic one: Keys · Grain Piano's lane 1 pointed
+        // at factory:crystal, once with the root written (must pass) and once without.
+        juce::String how;
+        Frt1 withRoot, dropped;
+        if (! cases.empty())
+        {
+            const auto& c = cases.front();
+            auto j = juce::JSON::parse (juce::JSON::toString (F::presetJsonOf (b.defs[(size_t) c.i])));
+            withRoot = frt1One (j, c.stream, c.note, c.cents);
+            auto* ps = j["parameters"].getDynamicObject();
+            ps->removeProperty ("s" + juce::String (c.stream) + "_root_note");
+            ps->removeProperty ("s" + juce::String (c.stream) + "_root_fine");
+            dropped = frt1One (j, c.stream, c.note, c.cents);
+            how = shortOf (b.specs[(size_t) c.i]) + " (" + c.id + ")";
+        }
+        else
+        {
+            int k = 0;
+            for (int i = 0; i < N; ++i) if (shortOf (b.specs[(size_t) i]) == "Grain Piano") k = i;
+            auto j = juce::JSON::parse (juce::JSON::toString (F::presetJsonOf (b.defs[(size_t) k])));
+            auto cs = j["customState"];
+            cs["slots"][0].getDynamicObject()->setProperty ("source", "factory:crystal");
+            cs["slots"][0].getDynamicObject()->setProperty ("name", "Crystal");
+            int note = 48; double cents = 0.0;
+            for (int q = 0; q < kSourceCount; ++q)
+                if (juce::String (kSources[q].id) == "crystal") { note = kSources[q].rootNote; cents = kSources[q].rootCents; }
+            dropped = frt1One (j, 1, note, cents);
+            auto make2 = make();
+            auto* ps = j["parameters"].getDynamicObject();
+            ps->setProperty ("s1_root_note", make2->parameters.getParameter ("s1_root_note")->convertTo0to1 ((float) note));
+            ps->setProperty ("s1_root_fine", make2->parameters.getParameter ("s1_root_fine")->convertTo0to1 ((float) cents));
+            withRoot = frt1One (j, 1, note, cents);
+            how = "synthetic Grain Piano -> crystal (no off-C3 slot in the bank yet)";
+        }
+        const bool fired = withRoot.ok && ! dropped.ok;
+        row (fired, "FRT1n control: the root pair dropped from a copy -> FRT1 FAILS (the same copy with the root passes)",
+             "meas " + how + ": with root " + withRoot.what + (withRoot.ok ? " ok" : " BAD") + ", dropped " + dropped.what
+                 + " | thr with passes, dropped FAILS | " + ctrl (fired, "FRT1 predicate"));
     }
 
     //--------------------------------------------------------------------------
@@ -1301,9 +1587,13 @@ namespace { namespace pg4
         parallelFor (N, [&] (int i) { rs[(size_t) i] = fp1One (i, F::presetJsonOf (b.defs[(size_t) i]), b.specs[(size_t) i]); });
         int bad = 0; juce::String why;
         for (const auto& r : rs) { bad += r.bad > 0 ? 1 : 0; if (why.isEmpty() && r.bad > 0) why = r.why; }
-        row (bad == 0 && N == 64, "FP1 PD14 apply from fresh: read-back == table, absent == default (PD8 six exact), output_gain kept, slots factory / pin, fsTouches 0",
+        row (bad == 0, "FP1 PD14 apply from fresh: read-back == table, absent == default (PD8 six exact), output_gain kept, slots factory / pin, fsTouches 0",
              "meas " + juce::String (N - bad) + " / " + juce::String (N) + " presets clean" + (why.isEmpty() ? juce::String() : ", first: " + why)
-                 + " | thr 64 / 64 | ctrl FP1n / FP1n2");
+                 + " | thr " + juce::String (N) + " / " + juce::String (N) + " | ctrl FP1n / FP1n2");
+        // 1.3.0: the count leaves FP1's predicate for its own row, so a wave below
+        // kBankSize keeps FP1's content verdict readable.
+        row (N == F::kBankSize, "FP1c the bank applied by FP1 has F::kBankSize presets",
+             "meas " + juce::String (N) + " | thr == " + juce::String (F::kBankSize) + " | ctrl -");
 
         // FP1n: Keys · Grain Piano with s1_size written as a linear fraction (skew 0.3 ignored).
         int k = 0;
@@ -1403,7 +1693,13 @@ namespace { namespace pg4
                 empty += here == 0 ? 1 : 0;
             }
         }
-        row (presets == 8 && bad == 0 && empty == 0 && onsets > 0, "FP3 PD14 Rhythmic presets lock to the host grid at 120 and 93 bpm (stream 1 onsets <= 1 sample)",
+        int wantRh = 0;
+        for (const auto& cc : F::kCategoryCounts)
+            if (juce::String (cc.name) == "Rhythmic")
+                wantRh = cc.count;
+        row (presets == wantRh, "FP3c the Rhythmic presets FP3 runs number F::kCategoryCounts[Rhythmic]",
+             "meas " + juce::String (presets) + " | thr == " + juce::String (wantRh) + " | ctrl -");
+        row (presets > 0 && bad == 0 && empty == 0 && onsets > 0, "FP3 PD14 Rhythmic presets lock to the host grid at 120 and 93 bpm (stream 1 onsets <= 1 sample)",
              "meas " + juce::String (presets) + " presets x 2 tempi, " + juce::String (onsets) + " onsets, " + juce::String (bad) + " off-grid, worst "
                  + juce::String (worst, 3) + " smp, empty runs " + juce::String (empty) + " | thr 0 off-grid, 0 empty | ctrl - (TS1n carries the grid control)");
     }
@@ -1506,10 +1802,11 @@ namespace { namespace pg4
             for (int y = x + 1; y < N; ++y)
                 same += sameBits (fL[(size_t) x], fL[(size_t) y]) && sameBits (fR[(size_t) x], fR[(size_t) y]) ? 1 : 0;
         const int nPairs = (int) ab.size();
-        row (bad.load() == 0 && same == 0 && nPairs == 320,
-             "FP4 PD14 load after dirty (291 random params, scale, masks, seed, foreign lanes) == fresh B, 10 s bitwise, 320 pairs",
+        row (bad.load() == 0 && same == 0 && nPairs == 5 * N,
+             "FP4 PD14 load after dirty (291 random params, scale, masks, seed, foreign lanes) == fresh B, 10 s bitwise, 5 x N = " + juce::String (5 * N) + " pairs",
              "meas " + juce::String (nPairs - bad.load()) + " / " + juce::String (nPairs) + " identical, " + juce::String (same)
-                 + " equal fresh pairs" + (why.isEmpty() ? juce::String() : ", first diff " + why) + " | thr 320 / 320, 0 equal | ctrl non-vacuity (64 distinct)");
+                 + " equal fresh pairs" + (why.isEmpty() ? juce::String() : ", first diff " + why) + " | thr " + juce::String (5 * N) + " / " + juce::String (5 * N)
+                 + ", 0 equal | ctrl non-vacuity (" + juce::String (N) + " distinct)");
     }
 
     juce::var stateSansSlots (GranulatorInstrumentProcessor& p)
@@ -1580,7 +1877,7 @@ namespace { namespace pg4
         for (const auto& w : whyV) if (why.isEmpty() && w.isNotEmpty()) why = w;
         row (bad.load() == 0, "FP4b PD14 load after play (A at feedback 80 %, notes off): params + seed / scale / masks + listed slots == fresh B, re-resolved (engine plays the new generation)",
              "meas " + juce::String (N - bad.load()) + " / " + juce::String (N) + " pairs (A = B + 1)" + (why.isEmpty() ? juce::String() : ", first " + why)
-                 + " | thr 64 / 64 | ctrl - (not bitwise: reverb tail and global LFO phase carry over by design)");
+                 + " | thr " + juce::String (N) + " / " + juce::String (N) + " | ctrl - (not bitwise: reverb tail and global LFO phase carry over by design)");
     }
 
     //--------------------------------------------------------------------------
@@ -1688,7 +1985,7 @@ namespace { namespace pg4
 
         const auto yn = [] (bool x) { return juce::String (x ? "yes" : "NO"); };
         row (named == N && onDisk == N && sentinels && bad == 0 && saved && reloaded && sameState && sameAudio && restored && orphanGone && stampBack && userKept,
-             "FP5 PD3 / PD14 real path (temp HOME): bank 64 + sentinel + stamp; loadPreset read-back; user copy == factory; stamp arm",
+             "FP5 PD3 / PD14 real path (temp HOME): bank " + juce::String (N) + " + sentinel + stamp; loadPreset read-back; user copy == factory; stamp arm",
              "meas " + juce::String (named) + " / " + juce::String (N) + " named (" + juce::String (onDisk) + " .json), sentinels " + yn (sentinels)
                  + ", read-back bad " + juce::String (bad) + (why.isEmpty() ? juce::String() : " (" + why + ")") + ", user copy saved " + yn (saved)
                  + " / reloaded " + yn (reloaded) + " / state " + yn (sameState) + " (not bit-exact: " + (inexactNote.isEmpty() ? juce::String ("none") : inexactNote)
@@ -2076,13 +2373,47 @@ namespace { namespace pg4
         }
         const auto& b = bank();
         const int N = (int) b.specs.size();
-        struct R { bool have = false, skip = false; juce::int64 differ = 0; double nullDb = -400.0, g = 1.0; int streams = 0; };
+        // 1.3.0 (--exclude-revoiced13): the reference's own preset-renders.sha256 is
+        // the old name list. A preset whose file is not on it is NEW (expected to
+        // have no reference); an old file the bank no longer renders FAILS (PT0v13).
+        std::set<juce::String> oldFiles;
+        if (excludeRevoiced13)
+        {
+            juce::StringArray lines;
+            lines.addLines (dir.getChildFile ("preset-renders.sha256").loadFileAsString());
+            for (const auto& l : lines)
+                if (l.trim().isNotEmpty())
+                    oldFiles.insert (l.fromFirstOccurrenceOf ("  ", false, false).trim());
+            if (oldFiles.empty())
+            {
+                std::printf ("cmp-preset-renders: --exclude-revoiced13 needs %s/preset-renders.sha256 (exit 77 = not run)\n", dir.getFullPathName().toRawUTF8());
+                return 77;
+            }
+        }
+        int newNames = 0;
+        juce::String oldMissing;
+        if (excludeRevoiced13)
+        {
+            std::set<juce::String> curFiles;
+            for (const auto& s : b.specs)
+                curFiles.insert (ptFileOf (s));
+            int nOldMissing = 0;
+            for (const auto& f : oldFiles)
+                if (curFiles.count (f) == 0) { ++nOldMissing; oldMissing << f << "; "; }
+            for (const auto& f : curFiles)
+                newNames += oldFiles.count (f) == 0 ? 1 : 0;
+            row (nOldMissing == 0, "PT0v13 every 1.2.0 preset (the reference's name list) is still in the bank; the presets not on it are new (no reference expected)",
+                 "meas " + juce::String ((int) oldFiles.size()) + " old names, " + juce::String (nOldMissing) + " missing" + (oldMissing.isEmpty() ? juce::String() : ": " + oldMissing)
+                     + ", " + juce::String (newNames) + " new | thr 0 missing | ctrl -");
+        }
+        struct R { bool have = false, skip = false, isNew = false; juce::int64 differ = 0; double nullDb = -400.0, g = 1.0; int streams = 0; };
         std::vector<R> rs ((size_t) N);
         parallelFor (N, [&] (int i)
         {
             const auto& s = b.specs[(size_t) i];
             auto& r = rs[(size_t) i];
             r.streams = ptStreams (s);
+            if (excludeRevoiced13 && oldFiles.count (ptFileOf (s)) == 0) { r.isNew = true; return; }
             if (excludeShowcase && isShowcase (s)) { r.skip = true; return; }
             if (excludeRevoiced13 && isRevoiced13 (s)) { r.skip = true; return; }
             juce::MemoryBlock mb;
@@ -2109,6 +2440,7 @@ namespace { namespace pg4
         {
             const auto& s = b.specs[(size_t) i];
             const auto& r = rs[(size_t) i];
+            if (r.isNew) continue;
             if (r.skip) { ++skipped; excluded << shortOf (s) << "; "; continue; }
             if (! r.have) { ++missing; continue; }
             ++counted;
@@ -2140,7 +2472,7 @@ namespace { namespace pg4
         if (excludeShowcase)
             std::printf ("  INFO PT excluded (showcase, PD28): %d: %s\n", skipped, excluded.toRawUTF8());
         if (excludeRevoiced13)
-            std::printf ("  INFO PT excluded (1.3.0 re-voices, P1): %d: %s\n", skipped, excluded.toRawUTF8());
+            std::printf ("  INFO PT excluded (1.3.0 re-voices, P1): %d: %snew presets (no reference, expected): %d\n", skipped, excluded.toRawUTF8(), newNames);
         const juce::String why = firstBad.isEmpty() ? juce::String() : " first: " + firstBad;
         if (r2)
         {
@@ -2518,6 +2850,8 @@ namespace { namespace pg4
         if (want ("FSM1")) rowsFSM1();
         if (want ("FPT1")) rowsFPT1();
         if (want ("FP0"))  rowFP0();
+        if (want ("FSU1")) rowsFSU1();
+        if (want ("FRT1")) rowsFRT1();
         if (want ("FP1"))  rowsFP1();
         if (want ("FP2"))  rowsFP2();
         if (want ("FP3"))  rowFP3();

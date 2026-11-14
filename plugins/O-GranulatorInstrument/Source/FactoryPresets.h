@@ -36,7 +36,10 @@
 // Factory presets (Stage 4, PLAN-4 PD1 – PD3; CONTEXT-4 D53; 1.0.0 bank).
 //
 // 64 presets, 8 per category: Drones, Expressive, Keys, Live, Motion, Pads,
-// Rhythmic, Textures. Named "<Category> · <Name>" (U+00B7, <= 24 characters,
+// Rhythmic, Textures. 1.3.0 (preset-bank-expansion) grows the bank to
+// kBankSize 160: the seven sourced categories to 20 each, Live 8, a new
+// Field category of 12 (kCategoryCounts).
+// Named "<Category> · <Name>" (U+00B7, <= 24 characters,
 // never localized; the preset manager has no categories, so the
 // case-insensitive name sort groups them in a flat menu).
 //
@@ -112,6 +115,16 @@ namespace ogi::factory
     //   24 5-Limit Just, 28 Slendro, 31 Custom.
     // rec_trigger: 0 Manual, 1 Threshold, 2 Next Note. rec_target: 0–3 = Slot 1–4.
     // rec_length_sync: 0 1 bar, 1 2 bars, 2 4 bars, 3 8 bars.
+
+    /** 1.3.0 (preset-bank-expansion): the bank size and the per-category
+        counts FP0 checks the table against (7 x 20, Live 8, Field 12). The
+        table reaches them wave by wave; until then FP0 / FP1c / FP3c / FSU1 /
+        FRT1 / PN1 carry the recorded expected-fail lines. */
+    constexpr int kBankSize = 160;
+    struct CategoryCount { const char* name; int count; };
+    constexpr CategoryCount kCategoryCounts[] = {
+        { "Drones", 20 }, { "Expressive", 20 }, { "Field", 12 }, { "Keys", 20 }, { "Live", 8 },
+        { "Motion", 20 }, { "Pads", 20 }, { "Rhythmic", 20 }, { "Textures", 20 } };
 
     inline std::vector<FactoryPresetSpec> factoryPresetSpecs()
     {

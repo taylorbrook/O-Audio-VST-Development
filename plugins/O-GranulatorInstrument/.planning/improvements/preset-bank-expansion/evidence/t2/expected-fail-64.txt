@@ -1,0 +1,25 @@
+T2 expected-fail list at the 64-preset bank (post-T1, harness re-scaled to F::kBankSize 160), 2026-11-14.
+These are the ONLY failing lines; every wave T3-T9 must show a subset of them (counts moving toward the target), T10 none.
+
+--pg4: 35 PASS / 5 FAIL
+  FP0  (11 failing checks of 401):
+       Drones count 8 (want 20) | Expressive count 8 (want 20) | Field count 0 (want 12) | Keys count 8 (want 20)
+       | Motion count 8 (want 20) | Pads count 8 (want 20) | Rhythmic count 8 (want 20) | Textures count 8 (want 20)
+       | bank 64 / 9 categories (want 160 / 9)        [9 categories: Live is 8 / 8; Field 0 counts as a key]
+       | Expressive split 4 / 1 / 2 / 2 (want 8 / >= 1 / 6 / 6)
+       | Field sources stream / park / waves / woods / garden 0 / 0 / 0 / 0 / 0 (want 3 / 3 / 2 / 2 / 2)
+  FSU1 8 / 41 sources in >= 2 presets (33 below 2)
+  FRT1 0 / 0 off-C3 slots, 0 / 5 sources
+  FP1c 64 (want 160)
+  FP3c 8 Rhythmic (want 20)
+Outside --pg4:
+  --dump-factory-presets: rc 1 (64 files, want 160)
+  tests/preset_name_fit.js (PN1): 1 FAILURE "parsed 64 names (want 160)"; every fit line passes
+
+Controls fire: FSU1n (harmonic dropped -> 7 / 41), FRT1n (synthetic Grain Piano -> crystal: with root 73 / 17 ok, dropped 48 / 0),
+FP0wn (Velvet Strings + D1 detune / pitch_rand / LFO -> s2_pitch all caught; the two-source detune clean).
+Realism-titled presets in the old 64: 11 (Grain Piano, Celesta, Soft Rhodes, Kalimba, Harp Cascade, Organ Loft, Warm Choir,
+Velvet Strings, Bend Choir, Static Choir, Wind Harp) - none trips P3.
+Unchanged and green: FPT1 + FPT1n, FP1 64 / 64, FP2 (spread 6.00 dB), FP3 (504 onsets, 0 off-grid), FP4 320 / 320 (5 x N), FP4b, FP5, FP6, AU1, FSP1, FR*, FLV1, FSM1, PG1, UWF1, USV3.
+--cmp-preset-renders ref-1.2.0 --all-bitwise --exclude-revoiced13: PT0v13 64 old names / 0 missing / 0 new; PT0 56 / 56 bitwise.
+  PT0v13 checked by hand (cmp-neg-oldname.txt): an extra old name in the reference list -> FAIL; an old name removed from the list -> counted as new, PASS.

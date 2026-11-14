@@ -23,7 +23,7 @@
     preset_name_fit.js — PN1 / PN1n (Stage 4, PLAN-4 PD13 / T15; a port of
     O-Granulator's PF1 / PF1n — "PF" is taken in this plugin's harness)
 
-    The 64 factory preset names (parsed from Source/FactoryPresets.h) must fit
+    The factory preset names (160 at 1.3.0; parsed from Source/FactoryPresets.h) must fit
     the preset bar's name box, #preset-name-text (.pname b, nowrap + ellipsis),
     in EN / FR / zh-Hans: scrollWidth <= clientWidth for every name (the
     names are not localised, but the box font can differ per language). Real
@@ -48,7 +48,7 @@ const S = require(path.join(repoRoot, 'scripts', 'serve-ui.js'));
 
 function presetNames() {
     const src = fs.readFileSync(path.join(pluginRoot, 'Source', 'FactoryPresets.h'), 'utf8');
-    const re = /\{ "((?:Drones|Expressive|Keys|Live|Motion|Pads|Rhythmic|Textures) \\xc2\\xb7 [^"]+)",/g;
+    const re = /\{ "((?:Drones|Expressive|Field|Keys|Live|Motion|Pads|Rhythmic|Textures) \\xc2\\xb7 [^"]+)",/g;
     const out = [];
     let m;
     while ((m = re.exec(src)) !== null) out.push(m[1].replace(/\\xc2\\xb7/g, '·'));
@@ -65,7 +65,7 @@ function presetNames() {
     console.log(`== O-GranulatorInstrument preset_name_fit (PN1 / PN1n) — ${names.length} names ==`);
     let failures = 0;
     const fail = (msg) => { ++failures; console.log(`  FAIL: ${msg}`); };
-    if (names.length !== 64) fail(`parsed ${names.length} names from FactoryPresets.h (want 64)`);
+    if (names.length !== 160) fail(`parsed ${names.length} names from FactoryPresets.h (want 160)`);   // 1.3.0: kBankSize
 
     const built = S.buildRoot('O-GranulatorInstrument');
     const srv = await S.serve(built.root);

@@ -1,0 +1,61 @@
+[PresetManager] Factory presets initialized: 64
+  PT Drones · Iron Sky                 streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Drones · Deep Well                streams 2  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Drones · Frozen Field             streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Drones · Low Orbit                streams 2  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Drones · Tape Halo                streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Drones · Night Engine             streams 2  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Expressive · MPE Breath           streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Expressive · Slide Glass          streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Expressive · Press Vowel          streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Expressive · Bend Choir           streams 2  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Expressive · Mono Lead            streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Expressive · Glide Bass           streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Expressive · Wheel Morph          streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Expressive · Velo Shards          streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Keys · Grain Piano                streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Keys · Celesta                    streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Keys · Bell                       streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Keys · Soft Rhodes                streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Keys · Harp Cascade               streams 2  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Keys · Toy Box                    streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Live · Init                       streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Live · Manual Loop                streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Live · Threshold Catch            streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Live · Next Note Grab             streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Live · Tempo Bars                 streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Live · Feedback Loop              streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Live · Freeze Cloud               streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Live · Four Lanes                 streams 4  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Motion · Orbit Lines              streams 2  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Motion · Reverse River            streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Motion · Loop Weaver              streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Motion · Ring Spinner             streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Motion · Crush Tides              streams 2  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Motion · Swarm                    streams 2  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Motion · Phase Garden             streams 2  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Motion · Clockwork                streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Pads · Fifth Bloom                streams 3  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Pads · Pentatonic Mist            streams 2  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Pads · Just Glow                  streams 2  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Pads · Nineteen                   streams 2  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Pads · Seventeen Glass            streams 2  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Pads · Slow Tide                  streams 2  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Rhythmic · Pulse Grid             streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Rhythmic · Pluck Arp              streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Rhythmic · Stutter Kit            streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Rhythmic · Dotted Echo            streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Rhythmic · Triplet Rain           streams 2  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Rhythmic · Gated Pad              streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Rhythmic · Broken Beat            streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Rhythmic · Ratchet                streams 2  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Textures · Static Choir           streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Textures · Sand Drift             streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Textures · Broken Radio           streams 2  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Textures · Wind Harp              streams 2  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Textures · Glitter Haze           streams 1  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  PT Textures · Rust Cloud             streams 2  differ         0  null  -400.00 dB  g-1 +0.000e+00
+  INFO PT excluded (1.3.0 re-voices, P1): 8: Organ Loft; Hollow Wind; Glass Mallet; Kalimba; Warm Choir; Velvet Strings; Rain Glass; Ember Field; 
+  [PASS] PT0 every preset render bitwise equal to the reference (10 s, FP2 script) meas 56 / 56 bitwise | thr all | ctrl -
+
+1 PASS, 0 FAIL

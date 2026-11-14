@@ -1,0 +1,122 @@
+[PresetManager] Factory presets initialized: 64
+
+-- 4  polish: auval drift set, presets, factory sources, D55 (PLAN-4)
+  [PASS] AU1 PD9 auval default round-trip drift set == { lfo1..4_rate } (293 params) meas 293 params, set { lfo1_rate, lfo2_rate, lfo3_rate, lfo4_rate }, PD8 rows exact 0 6 / 6 | thr set == 4 LFO rates, 6 / 6 | ctrl AU1n
+  [PASS] AU1n control: a skew-0.3 range at default 0.5 joins the set -> FAILS (predicate must FAIL) meas set 5 members | thr predicate FAILS | ctrl FIRED: AU1 predicate
+  [PASS] FSP1 PD6 41 curated factory sources: shape, kHash + full-PCM pins, ids, names, roots, size budget; the 1.0.0 set against its literals meas 41 / 41 good, 1.0.0 set 8 / 8 on its literal pins and names, total 19750021 B, largest 1364847 B, curated 41 + stubs at 41 / 42 yes | thr 41 / 41, 8 / 8, <= 25165824, <= 3145728 | ctrl FSP1n
+  [PASS] FSP1n control: kFullDust ^ 1 -> FSP1 FAILS (predicate must FAIL)   meas 40 / 41 good dust PIN | thr 40 / 41 | ctrl FIRED: FSP1 predicate
+  [PASS] FL1 1.1.0 loadFactorySource: lane 3 <- noise_bed (name, hash, rung 4, never embedded), other lanes untouched, unknown id / bad slot refused, saved as factory:<id> meas loaded yes ("Noise Bed", rung 4), others untouched yes, refusals "unknown" / "badSlot" ok, saved yes | thr all four
+  [PASS] FR1 1.2.0 every factory pick writes the lane's stream root (note exact, cents within 0.001), from sentinel roots; the other streams keep theirs meas 41 / 41 good, 5 sources off C3 / 0 ct | thr 41 / 41, >= 5 off C3 | ctrl FR1n
+  [PASS] FR1n control: testNoFactoryRootWrite (the lane loads, the write is skipped) -> FR1 FAILS (predicate must FAIL) meas 0 / 41 good | thr 0 | ctrl FIRED: FR1 predicate, every source
+  [PASS] FR1r 1.2.0 a refused pick (unknown id, bad slot, a take recording into the lane) leaves both root parameters as they were meas refusals "unknown" / "badSlot" / "badSlot" roots kept yes; Recording -> "recording" roots kept yes | thr all | ctrl FIRED: the same pick on another lane writes 20 / -19
+  [PASS] FR1e 1.2.0 a pick whose root is already on the stream makes no gesture; one that moves a parameter makes exactly one gesture for it meas begins / ends / values: drone on a fresh lane 0 / 0 / 0, contrabassoon 2 / 2 / 2, contrabassoon again 0 / 0 / 0, sub 2 / 2 / 2, drone 1 / 1 / 1 | thr 0 / 0 / 0, 2 / 2 / 2, 0 / 0 / 0, 2 / 2 / 2, 1 / 1 / 1 | ctrl FIRED: the listener counts the gestures of a pick that writes
+[PresetManager] Preset saved to file: /var/folders/z3/8kxfht9j7cg1ymgv69stdvwc0000gn/T/O-GranulatorInstrument-render-harness/ogi-pg4-1794671903602/fr2-preset.json
+[PresetManager] Preset loaded from file: /var/folders/z3/8kxfht9j7cg1ymgv69stdvwc0000gn/T/O-GranulatorInstrument-render-harness/ogi-pg4-1794671903602/fr2-preset.json
+  [PASS] FR2 1.2.0 a session restore, a preset load, a dropped file and Clear leave the root alone (contrabassoon on the lane, root moved to 55 / +12) meas session 55 / +12, preset 55 / +12, drop 55 / +12, clear 55 / +12 | thr all four | ctrl FIRED: the pick itself wrote 20 / -19 on this lane
+  [PASS] FLV1 1.2.0 every factory source: peak <= -1 dBFS (+ one 16-bit step), loud frame in [-33, -18] dBFS meas 41 / 41 good, peak max -0.9999 dBFS, loud frame -32.86 (stick_snaps) ... -18.92 (vowel) | thr peak <= -0.9997, loud in [-33, -18] | margin floor 0.14 dB, ceiling 0.92 dB | ctrl FLV1n
+  [PASS] FLV1n control: harmonic scaled + 12 dB -> FLV1 FAILS (predicate must FAIL) meas as shipped peak -12.000 loud -20.07 (passes), + 12 dB peak -0.000 loud -8.07 | thr predicate FAILS | ctrl FIRED: FLV1 predicate
+  [PASS] FSM1 1.2.0 the 7 seam sources wrap cleanly: fold centre within +-1.5 dB of the mean power of the two segments it mixed, wrap step <= the 99.9th-percentile sample step meas 7 / 7 good (fold centre / wrap step ratio): fire 0.44 dB / 0.01 bubbles -0.10 dB / 0.26 stream 0.46 dB / 0.28 park -1.03 dB / 0.26 waves 0.14 dB / 0.07 woods 0.70 dB / 0.07 garden 0.94 dB / 0.44 | thr |dB| <= 1.5, ratio <= 1 | margin 0.47 dB, step 0.56 | ctrl FSM1n
+  [PASS] FSM1n control: the same folds made with linear gains (fixture, not shipped) -> the level clause FAILS on all 7 (predicate must FAIL) meas fold centre: fire -2.55 bubbles -3.10 stream -2.51 park -4.03 waves -2.79 woods -2.25 garden -1.97 dB | thr |dB| > 1.5 on 7 / 7 | margin 0.47 dB | ctrl FIRED: FSM1 level clause
+  [PASS] FPT1 1.2.0 the four off-C3 samples picked through loadFactorySource and played at C3: the reference partial within +-10 ct of k x 130.81 Hz meas 4 / 4: crystal (root 73 / 17, k 1) 3.8 ct, strength 1.22; guitar_overtones (root 72 / -32, k 1) 0.5 ct, strength 1.45; guitar_drift (root 38 / -10, k 2) -5.7 ct, strength 1.47; contrabassoon (root 20 / -19, k 1, period) -1.2 ct, strength 0.92; | thr |ct| <= 10, strength >= 0.15 (period: >= 0.5) | margin 4.3 ct | ctrl FPT1n
+  [PASS] FPT1n control: the root left at C3 (testNoFactoryRootWrite) -> FPT1 FAILS on all four (predicate must FAIL) meas cents / strength in the same window: crystal 3.5 ct / 0.07; guitar_overtones -61.7 ct / 0.00; guitar_drift 61.8 ct / 0.00; contrabassoon -101.1 ct / -0.21; | thr 4 / 4 fail | ctrl FIRED: FPT1 predicate
+  [FAIL] FP0 PD1 / PD2 bank table: 160 = 7 x 20 + Live 8 + Field 12, names, seeds, validateSpec, per-category coverage, Field rule (P7), realism wobble in every category (P3 / P5) meas 390/401  e.g. Drones count 8 (want 20); Expressive count 8 (want 20); Field count 0 (want 12); Keys count 8 (want 20), realism-titled 11 | thr 0 bad | ctrl FP1n / FP1n2
+  INFO FP0 failing checks (11): Drones count 8 (want 20) | Expressive count 8 (want 20) | Field count 0 (want 12) | Keys count 8 (want 20) | Motion count 8 (want 20) | Pads count 8 (want 20) | Rhythmic count 8 (want 20) | Textures count 8 (want 20) | bank 64 / 9 categories (want 160 / 9) | Expressive split 4 / 1 / 2 / 2 (want 8 / >= 1 / 6 / 6) | Field sources stream / park / waves / woods / garden 0 / 0 / 0 / 0 / 0 (want 3 / 3 / 2 / 2 / 2)
+  [PASS] FP0wn control: Velvet Strings with the 1.2.0 D1 detune / a pitch_rand / an LFO -> pitch route -> the P3 wobble rule FAILS each (predicate must FAIL) meas D1 detune 'root_fine s1 / s2 on bowed', pitch_rand 's2_pitch_rand', LFO 'route 2 -> s2_pitch', detune on two sources '' | thr 3 / 3 caught, the two-source detune clean | ctrl FIRED: FP0 P3 wobble predicate
+  [FAIL] FSU1 1.3.0 every one of the 41 factory sources is read by an enabled stream in >= 2 presets meas 8 / 41 below 2: bowed 1; reed 0; organ 1; saw_stack 0; chord_minor 0; chord_sus 0; crystal 0; choir 1; fm_bell 0; glass 1; kalimba 1; marimba_bar 0; metal_plate 0; guitar_overtones 0; guitar_drift 0; wind 1; rain_synth 1; breath 0; shimmer 0; fire 1; bubbles 0; metal_grate 0; sub 0; contrabassoon 0; clicks 0; pulse_triplet 0; stick_snaps 0; scissors 0; stream 0; park 0; waves 0; woods 0; garden 0; | thr 41 / 41 | ctrl FSU1n
+  [PASS] FSU1n control: the bank with every use of its most-used source removed -> FSU1 FAILS on that source (predicate must FAIL) meas dropped harmonic (16 lanes): 7 / 41 | thr FSU1 FAILS, harmonic at 0 | ctrl FIRED: FSU1 predicate
+  [FAIL] FRT1 1.3.0 every preset slot on an off-C3 source: after apply the stream's root_note / root_fine == the manifest root; all 5 off-C3 sources in the bank meas 0 / 0 slots, 0 / 5 sources | thr all, 5 / 5 | ctrl FRT1n
+  [PASS] FRT1n control: the root pair dropped from a copy -> FRT1 FAILS (the same copy with the root passes) meas synthetic Grain Piano -> crystal (no off-C3 slot in the bank yet): with root s1_root 73 / 17.00 (want 73 / 17) ok, dropped s1_root 48 / 0.00 (want 73 / 17) | thr with passes, dropped FAILS | ctrl FIRED: FRT1 predicate
+  [PASS] FP1 PD14 apply from fresh: read-back == table, absent == default (PD8 six exact), output_gain kept, slots factory / pin, fsTouches 0 meas 64 / 64 presets clean | thr 64 / 64 | ctrl FP1n / FP1n2
+  [FAIL] FP1c the bank applied by FP1 has F::kBankSize presets              meas 64 | thr == 160 | ctrl -
+  [PASS] FP1n control: s1_size authored as a linear fraction -> read-back FAILS (predicate must FAIL) meas Grain Piano: s1_size 5.012628 != 60.000000 | thr FP1 FAILS on s1_size | ctrl FIRED: FP1 predicate
+  [PASS] FP1n2 control: a file: slot -> fsTouches > 0 (predicate must FAIL) meas fsTouches 2 | thr > 0 | ctrl FIRED: FP1 no-disk predicate
+  [PASS] FP2 PD14 20 s per preset (note script, 120 bpm): finite, peak <= 4.0, RMS 2-20 s > -60 dBFS, gated spread <= 9 dB meas gated -29.0 (Grain Piano) .. -23.0 (Fifth Bloom), spread 6.00 dB; lowest plain RMS -29.6 (Grain Piano); max peak 0.560 | thr > -60, <= 9 dB, <= 4.0 | ctrl -
+  INFO FP2 gated / plain RMS dBFS / active s (2-20 s): IronSky -25.2/-25.2/17.9s;DeepWell -25.5/-25.5/17.9s;OrganLoft -25.7/-25.7/17.9s;FrozenField -26.5/-26.5/17.9s;HollowWind -27.0/-27.0/17.9s;LowOrbit -26.3/-26.3/17.9s;TapeHalo -25.2/-25.2/17.9s;NightEngine -26.9/-26.9/17.9s;MPEBreath -26.7/-27.2/16.0s;SlideGlass -26.8/-26.8/17.9s;PressVowel -26.6/-27.2/15.8s;BendChoir -25.7/-25.7/17.9s;MonoLead -26.7/-27.3/15.7s;GlideBass -27.0/-28.6/12.4s;WheelMorph -26.5/-27.0/16.1s;VeloShards -28.0/-28.4/16.2s;GrainPiano -29.0/-29.6/15.9s;Celesta -28.2/-28.9/15.5s;Bell -28.7/-28.8/17.6s;GlassMallet -29.0/-29.6/15.9s;SoftRhodes -26.8/-27.3/16.1s;Kalimba -28.7/-29.2/15.8s;HarpCascade -27.1/-27.1/17.9s;ToyBox -28.4/-29.0/15.8s;Init -23.7/-24.7/14.4s;ManualLoop -24.4/-24.9/16.0s;ThresholdCatch -24.7/-25.1/16.4s;NextNoteGrab -25.1/-25.5/16.2s;TempoBars -24.9/-26.0/14.2s;FeedbackLoop -26.6/-27.1/16.2s;FreezeCloud -25.9/-25.9/17.9s;FourLanes -24.4/-24.4/17.9s;OrbitLines -25.2/-25.6/16.2s;ReverseRiver -27.2/-27.6/16.7s;LoopWeaver -26.5/-27.0/16.1s;RingSpinner -27.0/-27.4/16.6s;CrushTides -24.4/-24.8/16.5s;Swarm -28.7/-29.2/16.2s;PhaseGarden -25.7/-25.7/17.9s;Clockwork -26.5/-26.9/16.2s;WarmChoir -27.3/-27.4/17.9s;FifthBloom -23.0/-23.0/17.9s;PentatonicMist -25.8/-25.8/17.9s;JustGlow -26.6/-26.6/17.9s;Nineteen -26.4/-26.4/17.9s;SeventeenGlass -24.3/-24.3/17.9s;SlowTide -24.2/-24.2/17.9s;VelvetStrings -26.1/-26.1/17.9s;PulseGrid -26.4/-27.1/15.6s;PluckArp -26.6/-27.1/15.8s;StutterKit -26.4/-28.1/12.2s;DottedEcho -25.5/-26.0/16.1s;TripletRain -25.5/-25.6/17.7s;GatedPad -25.7/-26.2/16.0s;BrokenBeat -26.2/-27.9/12.2s;Ratchet -27.1/-27.6/15.9s;RainGlass -26.7/-26.7/17.9s;StaticChoir -26.6/-27.0/16.4s;SandDrift -28.3/-28.6/16.6s;BrokenRadio -25.2/-25.9/15.4s;EmberField -28.6/-28.6/17.9s;WindHarp -27.0/-27.3/16.8s;GlitterHaze -26.6/-26.8/17.2s;RustCloud -26.5/-26.6/17.4s;
+  [FAIL] FP3c the Rhythmic presets FP3 runs number F::kCategoryCounts[Rhythmic] meas 8 | thr == 20 | ctrl -
+  [PASS] FP3 PD14 Rhythmic presets lock to the host grid at 120 and 93 bpm (stream 1 onsets <= 1 sample) meas 8 presets x 2 tempi, 504 onsets, 0 off-grid, worst 0.968 smp, empty runs 0 | thr 0 off-grid, 0 empty | ctrl - (TS1n carries the grid control)
+  [PASS] FP4 PD14 load after dirty (291 random params, scale, masks, seed, foreign lanes) == fresh B, 10 s bitwise, 5 x N = 320 pairs meas 320 / 320 identical, 0 equal fresh pairs | thr 320 / 320, 0 equal | ctrl non-vacuity (64 distinct)
+  [PASS] FP4b PD14 load after play (A at feedback 80 %, notes off): params + seed / scale / masks + listed slots == fresh B, re-resolved (engine plays the new generation) meas 64 / 64 pairs (A = B + 1) | thr 64 / 64 | ctrl - (not bitwise: reverb tail and global LFO phase carry over by design)
+[PresetManager] Factory presets initialized: 64
+[PresetManager] Preset loaded: Drones · Deep Well
+[PresetManager] Preset loaded: Drones · Organ Loft
+[PresetManager] Preset loaded: Drones · Iron Sky
+[PresetManager] Preset loaded: Drones · Frozen Field
+[PresetManager] Preset loaded: Expressive · MPE Breath
+[PresetManager] Preset loaded: Drones · Hollow Wind
+[PresetManager] Preset loaded: Expressive · Glide Bass
+[PresetManager] Preset loaded: Expressive · Mono Lead
+[PresetManager] Preset loaded: Expressive · Slide Glass
+[PresetManager] Preset loaded: Expressive · Bend Choir
+[PresetManager] Preset loaded: Expressive · Press Vowel
+[PresetManager] Preset loaded: Drones · Night Engine
+[PresetManager] Preset loaded: Drones · Tape Halo
+[PresetManager] Preset loaded: Drones · Low Orbit
+[PresetManager] Preset loaded: Expressive · Wheel Morph
+[PresetManager] Preset loaded: Expressive · Velo Shards
+[PresetManager] Preset loaded: Keys · Celesta
+[PresetManager] Preset loaded: Keys · Grain Piano
+[PresetManager] Preset loaded: Keys · Glass Mallet
+[PresetManager] Preset loaded: Keys · Bell
+[PresetManager] Preset loaded: Keys · Soft Rhodes
+[PresetManager] Preset loaded: Keys · Kalimba
+[PresetManager] Preset loaded: Keys · Harp Cascade
+[PresetManager] Preset loaded: Keys · Toy Box
+[PresetManager] Preset loaded: Live · Init
+[PresetManager] Preset loaded: Live · Manual Loop
+[PresetManager] Preset loaded: Live · Threshold Catch
+[PresetManager] Preset loaded: Live · Next Note Grab
+[PresetManager] Preset loaded: Live · Tempo Bars
+[PresetManager] Preset loaded: Live · Feedback Loop
+[PresetManager] Preset loaded: Live · Freeze Cloud
+[PresetManager] Preset loaded: Live · Four Lanes
+[PresetManager] Preset loaded: Motion · Orbit Lines
+[PresetManager] Preset loaded: Motion · Reverse River
+[PresetManager] Preset loaded: Motion · Loop Weaver
+[PresetManager] Preset loaded: Motion · Ring Spinner
+[PresetManager] Preset loaded: Motion · Crush Tides
+[PresetManager] Preset loaded: Motion · Swarm
+[PresetManager] Preset loaded: Motion · Phase Garden
+[PresetManager] Preset loaded: Motion · Clockwork
+[PresetManager] Preset loaded: Pads · Warm Choir
+[PresetManager] Preset loaded: Pads · Fifth Bloom
+[PresetManager] Preset loaded: Pads · Pentatonic Mist
+[PresetManager] Preset loaded: Pads · Just Glow
+[PresetManager] Preset loaded: Pads · Seventeen Glass
+[PresetManager] Preset loaded: Pads · Nineteen
+[PresetManager] Preset loaded: Pads · Velvet Strings
+[PresetManager] Preset loaded: Pads · Slow Tide
+[PresetManager] Preset loaded: Rhythmic · Pulse Grid
+[PresetManager] Preset loaded: Rhythmic · Pluck Arp
+[PresetManager] Preset loaded: Rhythmic · Stutter Kit
+[PresetManager] Preset loaded: Rhythmic · Triplet Rain
+[PresetManager] Preset loaded: Rhythmic · Gated Pad
+[PresetManager] Preset loaded: Rhythmic · Dotted Echo
+[PresetManager] Preset loaded: Rhythmic · Broken Beat
+[PresetManager] Preset loaded: Rhythmic · Ratchet
+[PresetManager] Preset loaded: Textures · Rain Glass
+[PresetManager] Preset loaded: Textures · Static Choir
+[PresetManager] Preset loaded: Textures · Sand Drift
+[PresetManager] Preset loaded: Textures · Broken Radio
+[PresetManager] Preset loaded: Textures · Ember Field
+[PresetManager] Preset loaded: Textures · Wind Harp
+[PresetManager] Preset loaded: Textures · Glitter Haze
+[PresetManager] Preset loaded: Textures · Rust Cloud
+[PresetManager] Preset saved: FP5 user copy
+[PresetManager] Preset loaded: FP5 user copy
+[PresetManager] Factory presets initialized: 64
+  [PASS] FP5 PD3 / PD14 real path (temp HOME): bank 64 + sentinel + stamp; loadPreset read-back; user copy == factory; stamp arm meas 64 / 64 named (64 .json), sentinels yes, read-back bad 0, user copy saved yes / reloaded yes / state yes (not bit-exact: lfo1_rate, lfo2_rate, lfo3_rate, lfo4_rate, 1 ulp = the AU1 set) / 10 s bitwise yes; stamp arm: file restored yes, orphan deleted yes, stamp rewritten yes, User/ kept yes | thr all | ctrl - (stamp arm = the stale-bank stimulus)
+[PresetManager] Preset saved to file: /var/folders/z3/8kxfht9j7cg1ymgv69stdvwc0000gn/T/O-GranulatorInstrument-render-harness/ogi-pg4-1794671903602/pg1-elsewhere.json
+  [PASS] PG1 PD4 save guard: a target in / under Presets/Factory is refused, the file unchanged; elsewhere saves meas factory refused yes, file unchanged yes, nested refused yes, outside saved yes | thr all | ctrl PG1n
+[PresetManager] Preset saved to file: /var/folders/z3/8kxfht9j7cg1ymgv69stdvwc0000gn/T/ogi-harness-home-69SkPd/Library/O-GranulatorInstrument/Presets/Factory/Keys · Bell.json
+[PresetManager] Factory presets initialized: 64
+  [PASS] PG1n control: guard off -> the factory file is overwritten (predicate must FAIL) meas overwritten yes, restored after yes | thr overwritten | ctrl FIRED: PG1 predicate
+  [PASS] FP6 PD14 switch presets while a chord sounds (8 pairs): max |d2| [0.9, 1.3] s <= 2.0 x the larger held reference meas worst 0.911x | thr <= 2.0 | ctrl FP6n
+  [PASS] FP6n control: swapKillHard (1-sample cut of the old grains) -> exceeds 2.0x (predicate must FAIL) meas worst 9.66x | thr > 2.0 | ctrl FIRED: FP6 predicate
+  INFO FP6 ratio subject / hard per pair: OrganLoft>TapeHalo 0.26/9.7; Bell>SoftRhodes 0.91/8.4; VelvetStrings>MonoLead 0.89/4.1; MPEBreath>WheelMorph 0.91/3.6; SlowTide>GlideBass 0.59/5.6; GatedPad>WarmChoir 0.81/0.8; TapeHalo>VelvetStrings 0.66/2.4; WarmChoir>OrbitLines 0.54/1.6; 
+  [PASS] UWF1 PD10 D55a a failed take WAV -> slot JSON wavFailed true (slotRev moved); next good take -> false meas takes yes / yes, failed take wavFailed yes (rev moved yes), good take wavFailed no (rev moved yes) | thr true then false, rev moves | ctrl UWF1n
+  [PASS] UWF1n control: wavFailed omitted from the slot JSON -> the page reads nothing (predicate must FAIL) meas field present no | thr UWF1 FAILS | ctrl FIRED: UWF1 predicate
+  [PASS] USV3 PD12 D55c bounded close on a hung WAV write (detached writer, abandon, .part removed) meas take yes, writer held yes (.part yes), dtor 9.2 ms, completions 1 'cancelled', writer exits 1 (+1.5 ms after release), .part after no, target no | thr dtor <= 500 ms, 1 completion 'cancelled', 1 exit < 2 s, no .part | ctrl USV3n
+  [PASS] USV3n control: the 3.2 in-worker write -> the destructor waits for the 3 s hold (predicate must FAIL) meas writer held yes, dtor 3012.7 ms, completions 1 'cancelled' | thr dtor >= 3000 ms, USV3 FAILS | ctrl FIRED: USV3 predicate
+
+35 PASS, 5 FAIL
+$H --pg4  200.95s user 1.00s system 755% cpu 26.744 total

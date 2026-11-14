@@ -108,9 +108,9 @@ Waves T3–T10 each end with a path-scoped commit (`git commit -- plugins/O-Gran
 - `--cmp-preset-renders` mode: names absent from the reference are expected only if not in the 1.2.0 name list (a missing old name FAILS); `kRevoiced13` excluded by name.
 
 **Verification:**
-- [ ] Old 64 (post-T1) pass the widened wobble rule and every unchanged FP0 rule; if any old preset trips P3, stop and report to Taylor (no unapproved old-preset change)
-- [ ] FSU1n, FRT1n fire; FSU1 / FRT1 / counts FAIL at 64 as expected (the only FP0 failures until T10 are the count / coverage lines — record the expected-fail list)
-- [ ] FPT1 unchanged and green
+- [x] Old 64 (post-T1) pass the widened wobble rule and every unchanged FP0 rule; if any old preset trips P3, stop and report to Taylor (no unapproved old-preset change)
+- [x] FSU1n, FRT1n fire; FSU1 / FRT1 / counts FAIL at 64 as expected (the only FP0 failures until T10 are the count / coverage lines — record the expected-fail list)
+- [x] FPT1 unchanged and green
 
 **Dependencies:** Task 1 · **Effort:** Medium
 
