@@ -1,5 +1,14 @@
 # O-Prism Changelog
 
+## [1.30.5] — 2026-11-14
+
+Master Volume now reads in decibels, like the output knob on the other O-* plugins.
+
+### Changed
+
+- **Master Volume readout is in dB** (`-inf dB` to `0.0 dB`, default `-6.0 dB`) instead of 0–100 %. This covers the footer readout, typed value entry (`-12`, `-12 dB` or `-inf`), the knob's screen-reader text, and the value the host shows in automation lanes and generic editors. The tooltip range text is updated in English, French and Chinese.
+- Display only: the parameter is still stored as linear gain 0–1, so sessions, automation, presets and the MasterVol mod-matrix route behave exactly as in 1.30.4. The knob travel is unchanged (−6 dB at half travel).
+
 ## [1.30.4] — 2026-11-03
 
 The tuning engine catches up with scala-tuning-engine 3.3.0 wherever the module was ahead. It stays an O-Prism fork, because O-Prism is ahead of the module in four places that are kept: session persistence of the tuning and .kbm state (WR-17), the 13-degree Bohlen-Pierce preset (IN-07), the atomic pitch-bend range, and the locked `isNoteMapped`. No parameter, range or UI change. Built-in presets, loaded .scl files and well-formed .kbm files sound exactly as in 1.30.3.

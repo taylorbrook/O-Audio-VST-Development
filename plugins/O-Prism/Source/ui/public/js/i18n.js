@@ -1824,20 +1824,20 @@ export const I18N = Object.freeze({
     },
 
     // ── Footer: the two global knobs ────────────────────────────────────────
-    // Both are `pct` :2469 on the 44 px `small` knob variant.
+    // masterVol is `masterDbFmt` (v1.30.5), oscMix `pct`; both on the 44 px `small` knob variant.
 
     'tip.masterVol': {
         en: { t: 'Master Volume',
               b: 'Output level of the whole instrument, after the effects. It is the last thing in '
                + 'the chain, so use it to match the patch to the rest of the session rather than to '
-               + 'balance oscillators. Range 0 to 100 %.' },
+               + 'balance oscillators. Range −inf to 0.0 dB.' },
         fr: { t: 'Volume général',
               b: 'Niveau de sortie de l’instrument entier, après les effets. C’est le dernier maillon '
                + 'de la chaîne : servez-vous-en pour caler le son sur le reste de la session, pas '
-               + 'pour équilibrer les oscillateurs. Plage de 0 à 100 %.',
+               + 'pour équilibrer les oscillateurs. Plage de −inf à 0,0 dB.',
               reviewed: true },
     'zh-Hans': { t: '主音量',
-          b: '整台乐器在效果之后的输出电平。它是链路上的最后一环，所以请用它把这个音色与整个工程的其余部分匹配起来，而不是用它去平衡振荡器。范围 0 到 100%。',
+          b: '整台乐器在效果之后的输出电平。它是链路上的最后一环，所以请用它把这个音色与整个工程的其余部分匹配起来，而不是用它去平衡振荡器。范围 −inf 到 0.0 dB。',
           reviewed: 'bt' },
     },
     'tip.oscMix': {

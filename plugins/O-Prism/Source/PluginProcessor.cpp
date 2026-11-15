@@ -456,9 +456,25 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createGlobalPara
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
+    // v1.30.5: stored as linear gain 0..1 (unchanged, so sessions, automation
+    // and the MasterVol mod route are untouched); shown to the host in dB like
+    // the other O-* outputs. Must match masterDbFmt in index.html.
+    auto masterVolToText = [] (float v, int) -> juce::String
+    {
+        if (v <= 1.0e-7f) return "-inf dB";
+        const float db = juce::Decibels::gainToDecibels (v, -200.0f);
+        return (db > -0.05f ? juce::String ("0.0") : juce::String (db, 1)) + " dB";
+    };
+    auto masterVolFromText = [] (const juce::String& t) -> float
+    {
+        if (t.containsIgnoreCase ("inf")) return 0.0f;
+        return juce::jlimit (0.0f, 1.0f, juce::Decibels::decibelsToGain (t.getFloatValue(), -200.0f));
+    };
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "masterVol", 1 }, "Master Volume",
-        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.501187f));  // -6 dB (quick 261019-gk9)
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.501187f,   // -6 dB (quick 261019-gk9)
+        juce::AudioParameterFloatAttributes().withStringFromValueFunction (masterVolToText)
+                                             .withValueFromStringFunction (masterVolFromText)));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "stereoWidth", 1 }, "Stereo Width",
         juce::NormalisableRange<float> (0.0f, 2.0f, 0.001f), 1.0f));

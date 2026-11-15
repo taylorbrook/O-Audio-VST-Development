@@ -2355,7 +2355,7 @@ html[lang="zh-Hans"] .wt-osc-btn            { padding-left: 9.3px; padding-right
     <div class="footer-param">
         <div class="knob" id="knob-masterVol"><div class="knob-visual small"><svg viewBox="0 0 44 44"><circle class="knob-track" cx="22" cy="22" r="18"/><circle class="knob-vine" id="vine-masterVol" cx="22" cy="22" r="18" stroke-dasharray="84.82" stroke-dashoffset="84.82"/></svg></div></div>
         <span class="footer-label" data-i18n="label.master">Master</span>
-        <span class="footer-value" id="val-masterVol">50%</span>
+        <span class="footer-value" id="val-masterVol">-6.0 dB</span>
     </div>
     <div class="footer-param">
         <div class="knob" id="knob-oscMix"><div class="knob-visual small"><svg viewBox="0 0 44 44"><circle class="knob-track" cx="22" cy="22" r="18"/><circle class="knob-vine" id="vine-oscMix" cx="22" cy="22" r="18" stroke-dasharray="84.82" stroke-dashoffset="84.82"/></svg></div></div>
@@ -3448,6 +3448,14 @@ const dbFmt = (n) => {
     const v = -12 + n * 24;
     return (v > 0 ? '+' : '') + v.toFixed(1) + ' dB';
 };
+// v1.30.5: masterVol stays linear gain 0..1 (sessions, automation and the
+// MasterVol mod route unchanged) but reads in dB like the other O-* outputs.
+// Must match masterVolToText() in PluginProcessor.cpp.
+const masterDbFmt = (n) => {
+    if (n <= 0.0000001) return '-inf dB';
+    const v = 20 * Math.log10(n);
+    return (v > -0.05 ? '0.0' : v.toFixed(1)) + ' dB';
+};
 const coarseFmt = (n) => {
     const v = Math.round(n * 48 - 24);
     return (v > 0 ? '+' : '') + v + ' st';
@@ -3565,6 +3573,11 @@ glideTimeFmt.parse     = parseSeconds;   // 0.001..5 s
 predelayFmt.parse      = parseDirect;
 
 dbFmt.parse            = parseDirect;    // -12..12 dB
+masterDbFmt.parse = (t) => {              // dB text -> linear gain 0..1
+    if (/inf/i.test(String(t))) return 0;
+    const v = numOf(t);
+    return v === null ? null : Math.min(1, Math.pow(10, v / 20));
+};
 coarseFmt.parse        = parseDirect;    // -24..24 st (int)
 fineFmt.parse          = parseDirect;    // -100..100 ct
 unisonFmt.parse        = parseDirect;    // 1..8 (int)
@@ -3766,7 +3779,7 @@ bindLfoSync(4);
 bindLfoFreeRun(4);
 
 // Global (footer)
-bindKnob('masterVol', pct,     0.501187, 'small');
+bindKnob('masterVol', masterDbFmt, 0.501187, 'small');
 bindKnob('oscMix',    pct,     0.5, 'small');
 
 // ─── MOD MATRIX UI ───
