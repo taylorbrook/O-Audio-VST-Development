@@ -1,0 +1,154 @@
+# tap_bench output, Apple M4 Max, clang -O3, 2026-11-15. Modes run separately; concatenated.
+
+== decay [MODEL]: slowest pole of random full-range configurations, seconds to fall 140 dB (1000 draws per rate)
+rate      bands           p50      p90      p99      max    >20 s   share > 20 s
+44100     1..1           0.05     1.87     14.1     55.7        7   0.7 %
+44100     1..8           0.81     7.12     39.8     71.5       30   3.0 %
+44100     1..24          2.47    12.62     45.8     81.5       43   4.3 %
+48000     1..1           0.03     1.25     13.1     60.8        5   0.5 %
+48000     1..8           0.79     6.23     31.5     67.2       27   2.7 %
+48000     1..24          2.54    14.23     42.9     58.9       63   6.3 %
+88200     1..1           0.03     1.18      9.4     41.8        3   0.3 %
+88200     1..8           0.72     6.60     34.9     66.8       24   2.4 %
+88200     1..24          2.58    13.70     52.8     72.1       51   5.1 %
+96000     1..1           0.04     1.56     14.0     32.0        2   0.2 %
+96000     1..8           0.76     6.35     26.5     83.1       18   1.8 %
+96000     1..24          2.80    13.85     49.1     83.8       59   5.9 %
+192000    1..1           0.04     1.75     11.2     35.0        4   0.4 %
+192000    1..8           0.74     6.05     26.0     57.7       16   1.6 %
+192000    1..24          2.98    14.18     40.1     71.4       61   6.1 %
+
+== g9 (a) [BENCH]: closed form (2x2 composition of ResponseEval forms) vs DFT of the float-rounded double-engine IR, unit circle
+   50 random full-range configurations per rate, 1..8 bands, stereo; 96 log points 10 Hz .. min (30 kHz, 0.49 fs); LL / RR / MM / SS where the closed form is above -80 dB
+rate       reached     capped   worst (ok)  worst (cap)      max s
+44100           49          1     5.81e-01     4.25e+00       20.0
+48000           49          1     3.31e-02     2.02e-02       20.0
+88200           49          1     1.14e-01     1.55e-04       20.0
+96000           50          0     1.41e-02     0.00e+00       15.0
+192000          49          1     2.15e-01     6.97e-03       20.0
+
+== g9 (a) [BENCH]: closed form (2x2 composition of ResponseEval forms) vs DFT of the float-rounded double-engine IR, unit circle
+   20 random full-range configurations per rate, 1..24 bands, stereo; 96 log points 10 Hz .. min (30 kHz, 0.49 fs); LL / RR / MM / SS where the closed form is above -80 dB
+rate       reached     capped   worst (ok)  worst (cap)      max s
+44100           19          1     9.09e-02     3.65e-02       20.0
+48000           19          1     2.85e-01     2.39e-02       20.0
+88200           19          1     2.56e-02     7.22e-03       20.0
+96000           20          0     1.64e-01     0.00e+00       19.0
+192000          20          0     1.41e-01     0.00e+00        8.0
+
+== damped (a) [BENCH]: fixed-length IR (2^17 samples) weighted by a^n, a^N = 1e-9; closed form at z = e^{jw}/a; every draw scored
+   same draws as g9; also the planted-defect control: one band's g perturbed by 1e-4 relative in the closed form
+rate         draws       worst dB   control min dB
+44100           50       1.40e-02         1.22e-06
+48000           50       3.32e-02         9.33e-07
+88200           50       3.15e-03         1.05e-07
+96000           50       1.41e-02         4.44e-07
+192000          50       4.83e-03         1.55e-05
+
+== damped (a) [BENCH]: fixed-length IR (2^17 samples) weighted by a^n, a^N = 1e-9; closed form at z = e^{jw}/a; every draw scored
+   same draws as g9; also the planted-defect control: one band's g perturbed by 1e-4 relative in the closed form
+rate         draws       worst dB   control min dB
+44100           20       5.25e-02         4.22e-07
+48000           20       8.98e-03         0.00e+00
+88200           20       3.72e-02         0.00e+00
+96000           20       4.09e-03         0.00e+00
+192000          20       2.57e-03         6.32e-06
+
+== json [BENCH]: every section parameter rounded to 16 significant digits (JUCE JSON) vs exact, drawn responses above -80 dB, 400 draws per rate, 1..24 bands, 512 log points
+rate            worst dB
+44100           1.52e-09
+48000           1.25e-09
+88200           2.52e-10
+96000           1.54e-08
+192000          6.02e-09
+
+== analyzer [BENCH]: -12 dBFS sine (both channels, mono sum 0.5 (L + R) = the sine), window per ARCHITECTURE (4096 / 8192 / 16384), FFT of the window zero-padded x pad,
+   scale 2 / sum (w), 256 display points 10 Hz - 30 kHz (max in span; dB interpolation where a span holds no bin). Reading = largest display value. 8 phases each.
+window              pad | 1 kHz reading at 44.1 / 96 / 192 | sweep 20 Hz - 20 kHz (300 log tones): min .. max, 5 rates
+Hann                  1 |  -12.081  -12.627  -12.627       |  -13.422 ..  -11.999
+Hann                  2 |  -12.081  -12.156  -12.156       |  -12.376 ..  -11.999
+Hann                  4 |  -12.081  -12.039  -12.039       |  -12.107 ..  -11.991
+Blackman-Harris 4     1 |  -12.048  -12.366  -12.366       |  -12.825 ..  -12.000
+Blackman-Harris 4     2 |  -12.048  -12.091  -12.091       |  -12.213 ..  -12.000
+Blackman-Harris 4     4 |  -12.048  -12.023  -12.023       |  -12.054 ..  -12.000
+flat-top              1 |  -11.999  -11.998  -11.998       |  -12.253 ..  -10.772
+flat-top              2 |  -11.999  -11.998  -11.998       |  -12.159 ..  -10.723
+flat-top              4 |  -11.999  -11.998  -11.998       |  -12.135 ..  -10.706
+   -6 dB main-lobe full width (Hz) at 11.7 Hz bin spacing: Hann 2.00 bins = 23 Hz, Blackman-Harris 4 2.72 bins = 32 Hz, flat-top 3.7 bins = 43 Hz (window tables)
+
+== listen [BENCH]: 48 kHz, tone -6 dBFS. Listen on at 0.5 s, off at 1.0 s (off the grid): output = (1 - w) EQ + w listen, w the Fade.h 20 ms raised cosine;
+   the listen filter (one SlotBand, D11 mapping) starts from rest at the start of the fade to listen. (a) = largest |d2y| over the event -50 .. +70 ms / larger of the two held renders' over the same window;
+   (b) 1 kHz local kappa / larger held kappa. HARD = the switch with no fade (control). Limits: (a) 2.0x, (b) 2.5x, HARD >= 10x at (a).
+listened band                | 50 on   50 off  1k on   1k off    | 1k k on 1k k off HARD 50 HARD 1k  
+Bell 1 kHz +12 Q 2           | 1.29    1.12    1.00    1.00      | 1.27    1.25     1880    8        
+Bell 50 Hz -18 Q 4           | 0.94    1.11    1.00    1.00      | 2.16    2.08     133     9        
+Bell 5 kHz +6 Q 40           | 5.49    1.12    1.00    1.00      | 2.21    2.06     1058    8        
+Bell 10 Hz +12 Q 40          | 1.12    1.12    1.00    1.00      | 2.21    2.08     1037    8        
+Low Shelf 200 Hz +12 24 dB   | 1.11    1.09    1.00    1.00      | 2.14    2.25     2403    11       
+High Shelf 8 kHz -12 12 dB   | 1.22    1.12    1.00    1.00      | 2.36    2.22     496     11       
+Low Cut 100 Hz 48 dB         | 1.13    1.12    1.00    1.00      | 2.22    2.22     147     15       
+High Cut 2 kHz 96 dB         | 1.20    1.11    1.00    1.00      | 1.28    1.27     3551    12       
+Notch 50 Hz Q 10             | 0.67    1.12    1.00    1.00      | 2.20    2.08     2       8        
+Band Pass 1 kHz Q 10         | 250.16  1.00    1.00    1.00      | 1.02    1.00     1       1        
+Tilt 1 kHz +12               | 1.32    1.12    1.00    1.00      | 1.02    1.05     640     18       
+   worst (a) 250.16x, worst (b) 2.36x, smallest HARD 1x
+
+   listen band change (the listen SlotBand's own structural crossfade, B from rest), 50 Hz / 1 kHz (a), 1 kHz kappa:
+   Bell 1 kHz +12 Q 2           -> Low Shelf 200 Hz +12 24 dB     1.12  1.00   k  2.30
+   Low Shelf 200 Hz +12 24 dB   -> High Shelf 8 kHz -12 12 dB     1.17  1.00   k  1.17
+   Bell 50 Hz -18 Q 4           -> Band Pass 1 kHz Q 10          22.99  1.00   k  2.17
+   Low Cut 100 Hz 48 dB         -> High Cut 2 kHz 96 dB           1.18  1.00   k  1.80
+   Bell 5 kHz +6 Q 40           -> Tilt 1 kHz +12                76.26  1.17   k  1.71
+   Notch 50 Hz Q 10             -> Bell 1 kHz +12 Q 2            42.05  1.07   k  1.94
+   worst (a) 76.26x, worst (b) 2.30x
+
+== cost [BENCH] (this machine, -O3, scalar): a full DisplayModel push = 24 designs
+   44100   24 bells                      5.8 us per push
+   44100   24 shelves 96 dB/oct         41.1 us per push
+   44100   24 cuts 96 dB/oct             3.9 us per push
+   96000   24 bells                      5.7 us per push
+   96000   24 shelves 96 dB/oct         41.3 us per push
+   96000   24 cuts 96 dB/oct             4.0 us per push
+
+== g9diag [BENCH]: worst |err| dB by closed-form level, 12 draws x 5 rates, 40 log points, 1..8 bands. U = unit circle (fixed 8 s), D = damped 2^17
+   'rel' buckets: level re the largest value of that drawn response over the grid
+   double U  abs: > -40 4.06e+00  -40..-60 4.06e+00  -60..-80 4.96e+00   rel: > -40 4.06e+00  -40..-60 3.15e+00  -60..-80 4.96e+00
+   double D  abs: > -40 5.32e-09  -40..-60 2.07e-08  -60..-80 1.07e-06   rel: > -40 2.07e-08  -40..-60 7.11e-07  -60..-80 1.07e-06
+   float  U  abs: > -40 4.06e+00  -40..-60 4.06e+00  -60..-80 4.96e+00   rel: > -40 4.06e+00  -40..-60 3.15e+00  -60..-80 4.96e+00
+   float  D  abs: > -40 2.27e-04  -40..-60 3.37e-04  -60..-80 2.18e-02   rel: > -40 1.72e-05  -40..-60 9.95e-05  -60..-80 1.21e-03
+
+== listen2 [BENCH]: pre-roll P before the fade to the listen path (filter from rest at the request, weight 0 for P), 48 kHz, 4 phases, (a) both tones / (b) 1 kHz kappa
+   listen on: 20 listened bands; band change: all 20 x 19 ordered pairs as a crossfade between two listen filters, B from rest
+P ms     | listen on: worst (a), (b)  | band change: worst (a), (b), cases > 2.0x
+0        | 29671.75     4.69          | 29670.83    38.76    631 / 3040
+20       |   101.76     2.36          |   152.02     2.38    197 / 3040
+30       |    67.88     2.36          |   111.50     2.35    158 / 3040
+50       |    42.46     2.36          |    59.94     2.35    131 / 3040
+100      |    13.74     2.36          |    13.93     2.35     94 / 3040
+200      |     2.10     2.36          |     2.11     2.35     10 / 3040
+
+== listen3 [BENCH]: the listen filter's INPUT faded in over R (raised cosine) from the request, output weight after pre-roll P, 48 kHz, 4 phases
+   listen on: 20 listened bands; band change: all 20 x 19 ordered pairs as a crossfade between two listen filters, B from rest
+R / P ms     | listen on: worst (a), (b)  | band change: worst (a), (b), cases > 2.0x
+  20 / 0     |    17.64     2.35          |   190.19     2.94    192 / 3040
+  20 / 10    |     8.89     2.41          |    96.08     2.45    121 / 3040
+  20 / 20    |     1.82     2.36          |     1.91     2.41      0 / 3040
+  50 / 0     |     2.87     2.27          |    30.67     2.90     42 / 3040
+  50 / 30    |     2.87     2.36          |    30.69     2.41     42 / 3040
+ 100 / 0     |     1.12     2.22          |     1.12     2.37      0 / 3040
+ 100 / 50    |     1.22     2.37          |     7.86     2.38     20 / 3040
+
+(listen3b: R = P)
+R / P ms     | listen on: worst (a), (b)  | band change: worst (a), (b), cases > 2.0x
+  20 / 20    |     1.82     2.36          |     1.91     2.41      0 / 3040
+  30 / 30    |     1.21     2.36          |     1.35     2.41      0 / 3040
+  50 / 50    |     1.14     2.36          |     1.34     2.41      0 / 3040
+ 100 / 100   |     1.14     2.36          |     1.34     2.41      0 / 3040
+
+== g9unit [BENCH]: unit circle, float IR, draws (1..8 bands) whose slowest pole decays 200 dB within 6 s, length 1.25 x that; 96 points; within 80 dB of the response max
+rate          kept   of drawn     worst dB
+44100           25         30     1.59e-03
+48000           25         30     3.83e-02
+88200           25         29     1.38e-03
+96000           25         35     2.64e-03
+192000          25         30     1.55e-03
