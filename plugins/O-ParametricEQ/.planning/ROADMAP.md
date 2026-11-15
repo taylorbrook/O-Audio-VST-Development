@@ -216,10 +216,11 @@ Suite traps to check here: the first-order `IIR::Filter` default constructor is 
 - `eq::Listen`
 
 **Test criteria:**
-- [ ] Gate G9 (a): closed-form response vs measured response at all five rates, LL / RR / MM / SS (UI-02)
-- [ ] Analyzer: a -12 dBFS 1 kHz sine reads -12 ± 0.5 dB at 1 kHz at 44.1, 96 and 192 kHz; ring overflow drops data without blocking
-- [ ] Gate G6 with the analyzer on and the rings saturated (PERF-01)
-- [ ] Listen on / off and listen band changes pass Gate G3; with listen off the output is bit-identical to the output without the listen code path (FUNC-08 engine half)
+- [ ] Gate G9 (a) as amended 2026-11-15: closed form from the processor's display packets vs the measured response on the damped circle at all five rates, LL / RR / MM / SS, within 80 dB of each response's maximum; confirming unit-circle row on decaying draws; packet = realised design bit for bit; four controls fire (UI-02)
+- [ ] Analyzer (Hann, zero-pad 4x, amended 2026-11-15): a -12 dBFS 1 kHz sine reads -12 ± 0.5 dB at 1 kHz at 44.1, 96 and 192 kHz; ring overflow keeps the newest samples and never blocks; a prepare between drains reaches no transform
+- [ ] Gate G6 with the analyzer on and the rings saturated, listen switching (PERF-01)
+- [ ] Listen on / off and listen band changes pass Gate G3, listen engaging over 30 ms input ramp + 20 ms crossfade (amended 2026-11-15, C2); listen sits after auto gain (C3); with listen off the output is bit-identical to the output of the 0.5.0 processor, which has no listen code path (FUNC-08 engine half)
+- [ ] The five rows owed by VERIFICATION-2.5 (PX17, PX11, PX4, AG3, OS18)
 
 ---
 
