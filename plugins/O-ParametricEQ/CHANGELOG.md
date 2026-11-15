@@ -1,5 +1,19 @@
 # O-ParametricEQ Changelog
 
+## [0.5.0] - 2026-11-14
+
+Stage 2, Phase 2.5 (output stage and auto gain).
+
+### Added
+- `output_gain` (±36 dB) and `auto_gain` work. Both move without clicks, and both are in effect from the first sample of a session and from the first sample after un-bypass. Nothing fades in.
+- Auto gain follows the EQ curve, not the programme: it pulls the level back by the curve's average boost (or cut) over 40 Hz – 16 kHz, within −18 … +12 dB. Renders and null tests repeat exactly, offline or in real time.
+
+### Changed
+- Global bypass now crossfades whenever the output gain or auto gain is doing something, also with no band on.
+
+### Known in this build
+- A steep low cut switched in under sustained bass can thump at a slope change (under listening).
+
 ## [0.4.0] - 2026-11-14
 
 Stage 2, Phase 2.4 (structural crossfades and bypass). Switching things no longer clicks.

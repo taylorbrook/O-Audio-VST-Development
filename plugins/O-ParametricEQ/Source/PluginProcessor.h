@@ -99,16 +99,40 @@
         requested input (SlotBand::touchesLane). A lane that was converted
         is written back for the chunks it was converted in, also when its
         last band stopped inside the block.
-      - With no running band a bypass toggle is a flag: no fade, no sample
-        touched.
+      - With no running band and the output stage idle (2.5) a bypass toggle
+        is a flag: no fade, no sample touched.
+
+    Stage 2, Phase 2.5 (output stage and auto gain): eq::OutputStage
+    (OutputStage.h: two four-pole smoothers, auto gain x output gain, one
+    multiply) between the bands and the bypass mix, and eq::AutoGain
+    (AutoGain.h: the curve's negative pink-weighted mean power gain on 512
+    cell midpoints). PLAN-2.5 P5 - P7.
+
+      - output_gain and auto_gain are read at every processed block start.
+        The output target is handed to its smoother at the next control
+        tick; auto_gain takes effect, and the estimate is refreshed, on
+        refresh ticks (every autoGainRefreshTicks ticks of the clock). The
+        estimate is a pure function of the bands' latest requests, so a
+        skipped refresh is invisible and offline and real-time renders are
+        bit-identical.
+      - The stage is idle for a block when both smoothers are settled at
+        exactly 1.0, the pending output target is 1.0, and auto gain has
+        nothing to change (off and staying off, or on and staying on with
+        no dirty band). Idle, it touches nothing: with no running band the
+        buffer is still not touched, and only the lanes a band touches are
+        converted. Not idle, every lane of the layout is converted and a
+        bypass toggle fades.
+      - Seeded: the first block after a prepare and both un-bypass restarts
+        snap the stage to its targets (every band's estimate at once), so
+        nothing fades in.
+      - A max-hold peak per output channel, updated after every block on
+        every path and read-and-reset by the editor (Stage 3).
 
     What this phase does in place of later ones:
 
-      2.5 (output stage)          output_gain and auto_gain are read by
-                                  nothing. The bypass fade is the last stage
-                                  before the float conversion; 2.5 puts its
-                                  stages in front of it
-      2.6                         no taps, no display model, no listen
+      2.6                         no taps, no display model, no listen. The
+                                  listen path will sit between the bands and
+                                  the output stage
 
     No WebView editor (Stage 3), no presets (Stage 4).
 
@@ -125,9 +149,11 @@
 #include <cstdint>
 #include <vector>
 
+#include "dsp/AutoGain.h"
 #include "dsp/ControlRamp.h"
 #include "dsp/Designer.h"
 #include "dsp/Fade.h"
+#include "dsp/OutputStage.h"
 #include "dsp/Router.h"
 #include "dsp/SlotBand.h"
 
@@ -207,6 +233,22 @@ public:
         gain offset of band `band` (0 ... 23) in dB. 0 in v1; an index out of
         range reads 0. The only engine value the processor exposes. */
     double getBandDynOffsetDb (int band) const noexcept;
+
+    /** The largest |sample| of output channel `ch` (0, or 1 on a stereo
+        layout) since the last call, and resets it to 0. Any thread.
+
+        The audio thread updates it after every block on every path
+        (processed, bypassed, untouched, not prepared) with a load and a
+        store: one writer, so a read that falls between the two keeps that
+        peak for one more read. A NaN sample never stores; an inf stores inf
+        (the meter shows the overflow). An index out of range reads 0. */
+    float readAndResetOutputPeak (int ch) noexcept;
+
+    /** Test accessors (render-harness row XR-blk5): the estimator's band
+        evaluations and refreshes since the last prepare. Audio-thread
+        values, read by the harness between blocks only. */
+    unsigned long getAutoGainEvaluationCount() const noexcept   { return autoGain.getEvaluationCount(); }
+    unsigned long getAutoGainRefreshCount() const noexcept      { return autoGain.getRefreshCount(); }
 
     //==========================================================================
     /** 196 parameters. State tree type "OParametricEQ". */
@@ -305,6 +347,23 @@ private:
         order, and returns their number. */
     int collectRunningBands (RunningList& list) const noexcept;
 
+    /** Every band's latest request, in index order (the estimator's input). */
+    using DesiredList = std::array<const eq::BandInput*, static_cast<std::size_t> (kNumBands)>;
+    DesiredList collectDesired() const noexcept;
+
+    /** PLAN-2.5 P6: the output stage has nothing to do in this block and
+        nothing can change that before the next block start. Computed after
+        the block-start parameter reads, never latched. Steps 5 and 6. */
+    bool stageIdleForBlock() const noexcept;
+
+    /** Seeding (first block, both un-bypass restarts): auto gain takes its
+        wanted state and the stage snaps to its targets, every band's
+        estimate evaluated at once. */
+    void seedOutputStage() noexcept;
+
+    /** After every block, on every path. */
+    void updateOutputPeak (const juce::AudioBuffer<float>&) noexcept;
+
     //==========================================================================
     juce::AudioProcessorParameter* bypassParam = nullptr;
 
@@ -354,6 +413,24 @@ private:
     /** K: samples between two control ticks, from the rate in prepareToPlay.
         A tick falls on every sample whose clock value is a multiple of it. */
     int controlGrid = 16;
+
+    /** Auto gain x output gain, between the bands and the bypass mix. */
+    eq::OutputStage outputStage;
+
+    /** The estimator: about 220 KB of fixed storage, a member of this
+        heap-allocated object. */
+    eq::AutoGain autoGain;
+
+    /** auto_gain as read at the last block start, and as in effect: the
+        second follows the first at the next refresh tick (or at seeding). */
+    bool agWanted = false;
+    bool agOn = false;
+
+    /** Ticks between two auto-gain refreshes, from the rate. */
+    int refreshTicks = 1;
+
+    /** Max-hold output peaks (readAndResetOutputPeak). */
+    std::array<std::atomic<float>, 2> outputPeak { { 0.0f, 0.0f } };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OuariconParametricEQAudioProcessor)
 };

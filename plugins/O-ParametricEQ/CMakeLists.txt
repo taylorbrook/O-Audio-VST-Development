@@ -4,7 +4,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
 # Single source of truth for the version. The test consoles derive
 # JucePlugin_VersionString from the plugin target, so nothing mirrors it.
-set(OPEQ_VERSION 0.4.0)
+set(OPEQ_VERSION 0.5.0)
 
 # Plugin formats: VST3, AU, Standalone. Effect, no MIDI.
 # NOTE: no comment in this file may spell the plugin-declaration command name

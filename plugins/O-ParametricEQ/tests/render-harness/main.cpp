@@ -181,6 +181,61 @@
     gain at half the bench's effective gain, so the effective gains are the
     bench's exactly (Tilt +-36 dB lies outside the raw +-30 dB range).
 
+    Stage 2, Phase 2.5 (PLAN-2.5 T7): output gain and auto gain (eq::OutputStage,
+    eq::AutoGain) through the plugin's float output.
+
+      O-ParametricEQ-render-harness --long              S5 at 600 s per rate (default 60 s);
+                                                        its every-block run is 10 s in both
+
+    Three harness references (PLAN-2.5 P8), none of which uses GainSmoother,
+    OutputStage or AutoGain: gainRefRender (the four-pole recurrence, the
+    tick / refresh schedule and the seeding of P2, P3, P5 re-stated per
+    sample, times the plugin's own float output rendered with the gains
+    neutral, widened, compared in double), hardGainRender (the same output,
+    the gain jumping to its target at the sample the stage would start
+    moving) and agRef (the estimator of P4 re-stated: 512 cell midpoints,
+    Designer::design, sectionMag2 products, lanes, mean, guards, clamp).
+    Gain-row parameters are raw stores, as in 2.3 / 2.4.
+
+      XR-g12o   G12 output gain -36 ... +36 dB, 1 kHz: RMS ratio within 1e-4 dB (limit 0.05 dB)
+      XR-g12s   gain_scale 200 % on +-6 dB bells: +-12 dB within the G1 tolerance
+      XR-g12a   auto gain, +12 dB Low Shelf 200 Hz, band-limited pink: out / in RMS within
+                +-0.5 dB; agRef -6.167 dB +- 0.001
+      XR-g12d   two renders of XR-g12a bit-identical
+      XR-g12n   XR-g12a with auto_gain off reads outside +-0.5 dB (control fires)
+      XR-gstep  G3 step rows: the 20 output-gain pairs and auto_gain toggles (estimates
+                -18 / -6 / +6 / +12 dB), a Bell running, 50 Hz / 1 kHz, blocks 32 / 512:
+                (a) <= 2.0x the louder held render; 1 kHz local kappa <= 2.5x
+      XR-gsteph hardGainRender at block 512 reads >= 10x held (control fires)
+      XR-gret   output-gain reversals (4 cases x 25 / 50 / 75 / 90 %, 8 phases), blocks 32 / 512
+                cut at the edits: <= 2.0x held
+      XR-gsweep output gain -30 -> +30 -> -30 dB in 20 ms against the per-sample automation;
+                auto gain following a bell sweep against gainRefRender on agRef targets: <= 4.0x
+      XR-ref    every XR-gstep / XR-gret render against gainRefRender: <= -120 dB re the peak
+      XR-g4a    G4 (a) with the stage: no band, output 0 dB, auto_gain off and on: memcmp-equal
+      XR-g4an   output +0.001 dB; auto_gain on with one Left +1 dB bell: each differs (control)
+      XR-idle   no band, output 0 -> +6 -> 0 dB: memcmp-equal from 60 ms after the second edit
+      XR-seed   (i) opened at +12 dB, auto on, +12 dB shelf: the settled gain from the first
+                sample; (ii) edits while bypassed in effect from un-bypass + N, both routes
+      XR-seedn  (ii) against the parameters from before the bypass differs (control fires)
+      XR-gbyp   no band, output +12 dB: a bypass toggle fades over exactly N samples, both ways
+      XR-unb    VERIFICATION-2.4 Issue 2: un-bypass latched during the fade to bypass (PX14, PX9)
+      XR-unbn   the pre-edit parameters; the second fade one sample late: each differs (control)
+      XR-blk5   4 bands, band / output_gain / auto_gain events on multiples of 2048: blocks
+                32 / 64 / 512 / 2048 bit-identical at four rates; evaluation counts printed
+      XR-meter  readAndResetOutputPeak: a one-sample +6 dBFS spike between two reads, every path
+      A4        G6 with the stage: no allocation, auto gain refreshing with 24 bands moving
+      A4n       a planted allocation inside the window is counted
+      X-cpu4    CPU with auto gain, INFO, beside X-cpu3
+
+    Existing rows amended in Phase 2.5, by name (PLAN-2.5 P12; a comment at
+    each one's code): S5 also draws output_gain and auto_gain per block, its
+    stack guard is stack + the drawn output gain + 12 dB (execute-session
+    call: no +12 dB peak margin; up to 256 seeds), and after it the output
+    returns to the input within 300 ms. P1's processBlock "all random"
+    variant also sets output_gain to exactly 0 dB and auto_gain off
+    (execute-session call).
+
   ==============================================================================
 */
 
@@ -194,16 +249,20 @@
 #include "dsp/Band.h"
 #include "dsp/Router.h"
 #include "dsp/Fade.h"
+#include "dsp/OutputStage.h"
+#include "dsp/AutoGain.h"
 
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <complex>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <deque>
 #include <functional>
 #include <initializer_list>
 #include <iostream>
@@ -984,7 +1043,13 @@ namespace
         // the full draw (output_gain and auto_gain included) and then switches
         // every bNN_enabled off and bypass off. The stimulus guard is unchanged.
         // The processBlockBypassed rows keep the full draw.
-        const char* const amendedRandom = "all random, every bNN_enabled off, bypass off";
+        //
+        // Extended in Phase 2.5 (PLAN-2.5 P12; execute-session call, Taylor):
+        // output_gain and auto_gain now act on the audio (the output stage),
+        // so after the draw the processBlock variant also sets output_gain to
+        // exactly 0 dB (a raw-value store) and auto_gain off. The stimulus
+        // guard is unchanged; the processBlockBypassed rows keep the full draw.
+        const char* const amendedRandom = "all random, every bNN_enabled off, bypass off, output_gain 0 dB, auto_gain off";
 
         for (const auto& layout : layouts)
         {
@@ -1013,12 +1078,16 @@ namespace
                             {
                                 disableEveryBand (*p);
                                 setNormalised (*p, "bypass", 0.0f);
+                                p->parameters.getRawParameterValue ("output_gain")->store (0.0f);   // PLAN-2.5 P12
+                                setNormalised (*p, "auto_gain", 0.0f);                               // PLAN-2.5 P12
                             }
                         }
 
                         const bool stimulusOk = variant == 0 ? countNonDefault (*p) == 0
                                               : variant == 1 ? findParam (*p, "bypass")->getValue() == 1.0f
-                                                             : countNonDefault (*p) > kMinNonDefault;
+                                                             : countNonDefault (*p) > kMinNonDefault
+                                                                   && (viaBypassed || (sameBits (rawOf (*p, "output_gain"), 0.0f)
+                                                                                       && rawOf (*p, "auto_gain") < 0.5f));
 
                         const auto output = render (*p, input, blockSize, viaBypassed);
 
@@ -1032,7 +1101,7 @@ namespace
                 row (tally.bad == 0 && tally.total == 12,
                      juce::String ("P1 ") + layout.name + (viaBypassed ? " processBlockBypassed" : " processBlock")
                          + (viaBypassed ? ": out memcmp-equal to in (blocks 1/64/512/4096 x Off/On/random)"
-                                        : ": out memcmp-equal to in (blocks 1/64/512/4096 x Off/On/all random, every bNN_enabled off, bypass off)"),
+                                        : ": out memcmp-equal to in (blocks 1/64/512/4096 x Off/On/all random, every bNN_enabled off, bypass off, output_gain 0 dB, auto_gain off)"),
                      tally.detail());
             }
         }
@@ -3345,6 +3414,8 @@ namespace
     {
         std::atomic<float>* bypass = nullptr;
         std::atomic<float>* gainScale = nullptr;
+        std::atomic<float>* outputGain = nullptr;      // Phase 2.5 rows (and the amended S5)
+        std::atomic<float>* autoGain = nullptr;        // Phase 2.5 rows (and the amended S5)
         std::array<BandHandles, (size_t) Processor::kNumBands> band;
     };
 
@@ -3362,6 +3433,8 @@ namespace
 
         h.bypass = fetch ("bypass");
         h.gainScale = fetch ("gain_scale");
+        h.outputGain = fetch ("output_gain");
+        h.autoGain = fetch ("auto_gain");
 
         for (int b = 0; b < Processor::kNumBands; ++b)
         {
@@ -5136,6 +5209,7 @@ namespace
         std::uint64_t seed = 0;
         double largestStackDb = 0.0;    // of the draw in use
         double rejectedStackDb = 0.0;   // the largest stack among the rejected draws
+        double plainStackDb = 0.0;      // Phase 2.5 gain draws: the stack alone (largestStackDb is then the guard)
     };
 
     /** PLAN-2.3 P13: the float output overflows near +770 dB, so the largest
@@ -5293,6 +5367,56 @@ namespace
         return out;
     }
 
+    /** Phase 2.5 (PLAN-2.5 P12, the S5 amendment; T7 A4): output_gain and
+        auto_gain per block, from their own stream, so the P14 band draw is
+        the 2.4 one unchanged. */
+    struct StressGainDraw
+    {
+        Xorshift random;
+        int mode = 0;               // 0: no gain draw (2.4); 1: S5 (2.5); 2: A4
+        float outputDb = 0.0f;
+        bool autoOn = false;
+        int autoToggles = 0;
+        float lowestDb = 0.0f, highestDb = 0.0f;
+
+        void begin (int gainMode, std::uint64_t seed)
+        {
+            mode = gainMode;
+            random.state = seed ^ 0x6A09E667F3BCC909ull;
+
+            if (random.state == 0)
+                random.state = 1;
+
+            outputDb = 0.0f;
+            autoOn = false;
+            autoToggles = 0;
+            lowestDb = highestDb = 0.0f;
+        }
+
+        // output_gain uniform -36 ... +36 dB, each range end with p 0.05;
+        // auto_gain toggled with p 1/100 (mode 1) or on (mode 2).
+        void nextBlock()
+        {
+            if (mode == 0)
+                return;
+
+            const double u = random.uniform();
+            outputDb = (float) (u < 0.05 ? -36.0 : (u > 0.95 ? 36.0 : -36.0 + 72.0 * random.uniform()));
+            lowestDb = juce::jmin (lowestDb, outputDb);
+            highestDb = juce::jmax (highestDb, outputDb);
+
+            if (mode == 2)
+            {
+                autoOn = true;
+            }
+            else if (random.uniform() < 0.01)
+            {
+                autoOn = ! autoOn;
+                ++autoToggles;
+            }
+        }
+    };
+
     struct StressResult
     {
         StressSeed chosen;
@@ -5300,6 +5424,7 @@ namespace
         bool ran = false;
         bool offFinite = true;
         double offEqualFromMs = 0.0;    // after "all bands off": the last block that still differed from its input ends here
+        StressGainDraw gains;           // Phase 2.5: the gain draw's final state
     };
 
     // (Phase 2.4: the 2.3 S5 driver runStress was replaced by runStress24
@@ -5427,7 +5552,24 @@ namespace
     // at that fade's end, its outgoing slot the request then in force. While
     // a fade is in flight the band's term is the larger of the latest request
     // and the outgoing slot.
-    double stressLargestStackDb24 (double rate, double seconds, std::uint64_t seed, int structEvery)
+    //
+    // Phase 2.5 (PLAN-2.5 P12, the S5 amendment; A4): gainMode 0 is the 2.4
+    // guard above, unchanged (A3). gainMode 1 / 2 also replays the gain draw
+    // (StressGainDraw) and the guard at a checked block becomes
+    //   stack + the drawn output gain + 12 dB auto-gain allowance,
+    // the output gain being the largest drawn over the last 100 ms (the
+    // four-pole smoother is exact about 50 ms after a step; the value in
+    // force at the window's start included). *plainStackOut, when given,
+    // receives the largest stack alone. (StressGainDraw is defined above
+    // StressResult.) Execute-session call (Taylor, PLAN-2.5 P12): the first
+    // form also added the +12 dB G5 peak margin, which the render guard never
+    // carried in 2.4; at 600 s it left no seed in 32 attempts at 176.4 and
+    // 192 kHz. The margin is dropped, and S5's gain mode (1) tries up to 256
+    // seeds; every other caller keeps 32.
+    constexpr double kStressAutoGainAllowanceDb = 12.0;    // the +12 dB clamp of auto gain
+
+    double stressLargestStackDb24 (double rate, double seconds, std::uint64_t seed, int structEvery,
+                                   int gainMode = 0, double* plainStackOut = nullptr)
     {
         const auto designer = designerFor (rate);
         const auto total = (std::int64_t) std::llround (seconds * rate);
@@ -5435,6 +5577,12 @@ namespace
 
         StressDraw24 draw;
         draw.random.state = seed;
+
+        StressGainDraw gains;
+        gains.begin (gainMode, seed);
+        std::deque<std::pair<std::int64_t, float>> recentGain;     // (block start, output gain dB)
+        const auto gainWindow = (std::int64_t) std::llround (0.100 * rate);
+        double largestPlain = 0.0;
 
         double largest = 0.0;
         std::int64_t position = 0;
@@ -5450,6 +5598,15 @@ namespace
 
             const StressDraw24 previous = draw;
             draw.nextBlock (structEvery);
+
+            if (gainMode != 0)
+            {
+                gains.nextBlock();
+                recentGain.emplace_back (position, gains.outputDb);
+
+                while (recentGain.size() >= 2 && recentGain[1].first <= position - gainWindow)
+                    recentGain.pop_front();
+            }
 
             for (int b = 0; b < Processor::kNumBands; ++b)
             {
@@ -5487,22 +5644,40 @@ namespace
                     stack += position < fadeEnd[b] ? juce::jmax (now, outgoingPeak[b]) : now;
                 }
 
+                largestPlain = juce::jmax (largestPlain, stack);
+
+                if (gainMode != 0)
+                {
+                    double outputDb = -std::numeric_limits<double>::infinity();
+
+                    for (const auto& entry : recentGain)
+                        outputDb = juce::jmax (outputDb, (double) entry.second);
+
+                    stack += outputDb + kStressAutoGainAllowanceDb;
+                }
+
                 largest = juce::jmax (largest, stack);
             }
 
             position += m;
         }
 
+        if (plainStackOut != nullptr)
+            *plainStackOut = largestPlain;
+
         return largest;
     }
 
     // As chooseStressSeed, on the P14 draw. The every-block run (structEvery
-    // 1) takes its own seeds.
-    StressSeed chooseStressSeed24 (double rate, double seconds, int structEvery)
+    // 1) takes its own seeds. gainMode (Phase 2.5): see stressLargestStackDb24.
+    StressSeed chooseStressSeed24 (double rate, double seconds, int structEvery, int gainMode = 0)
     {
         StressSeed chosen;
 
-        for (int attempt = 0; attempt < 32; ++attempt)
+        // PLAN-2.5 P12, execute-session call: 256 attempts for S5's gain mode only.
+        const int attempts = gainMode == 1 ? 256 : 32;
+
+        for (int attempt = 0; attempt < attempts; ++attempt)
         {
             std::uint64_t seed = ((0x9E3779B97F4A7C15ull ^ (std::uint64_t) rate)
                                   + (std::uint64_t) attempt * 0xD1B54A32D192ED03ull)
@@ -5511,11 +5686,13 @@ namespace
             if (seed == 0)
                 seed = 1;
 
-            const double stack = stressLargestStackDb24 (rate, seconds, seed, structEvery);
+            double plain = 0.0;
+            const double stack = stressLargestStackDb24 (rate, seconds, seed, structEvery, gainMode, &plain);
 
             chosen.attempt = attempt;
             chosen.seed = seed;
             chosen.largestStackDb = stack;
+            chosen.plainStackDb = plain;
 
             if (stack < kStressStackLimitDb)
             {
@@ -5534,14 +5711,34 @@ namespace
         arrives through processBlockBypassed (the bypass parameter then stays
         off) instead of through the parameter. `process (buffer, midi,
         viaBypassed)` runs the block (A3 arms its window there). */
+    /** stressLoop24 with the Phase 2.5 gain draw (gainMode 1: S5, 2: A4;
+        0: none, the 2.4 loop bit for bit). The gain values are stored with
+        the band values before each block; *gainsOut receives the draw's
+        final state (toggle count, range). */
+    template <typename ProcessFn>
+    StressOutcome stressLoopCore (Processor& p, const Handles& h, double rate, double seconds, std::uint64_t seed,
+                                  int structEvery, bool alternateRoute, int gainMode, StressGainDraw* gainsOut,
+                                  ProcessFn&& process);
+
     template <typename ProcessFn>
     StressOutcome stressLoop24 (Processor& p, const Handles& h, double rate, double seconds, std::uint64_t seed,
                                 int structEvery, bool alternateRoute, ProcessFn&& process)
+    {
+        return stressLoopCore (p, h, rate, seconds, seed, structEvery, alternateRoute, 0, nullptr, process);
+    }
+
+    template <typename ProcessFn>
+    StressOutcome stressLoopCore (Processor& p, const Handles& h, double rate, double seconds, std::uint64_t seed,
+                                  int structEvery, bool alternateRoute, int gainMode, StressGainDraw* gainsOut,
+                                  ProcessFn&& process)
     {
         StressOutcome out;
 
         StressDraw24 draw;
         draw.random.state = seed;
+
+        StressGainDraw gains;
+        gains.begin (gainMode, seed);
 
         Xorshift audio;
         audio.state = seed ^ 0xA5A5A5A55A5A5A5Aull;
@@ -5586,6 +5783,13 @@ namespace
                 hb.placement->store (s.placement);
                 hb.enabled->store (s.enabled);
                 hb.bypass->store (s.bypass);
+            }
+
+            if (gainMode != 0)
+            {
+                gains.nextBlock();
+                h.outputGain->store (gains.outputDb);
+                h.autoGain->store (gains.autoOn ? 1.0f : 0.0f);
             }
 
             block.setSize (2, m, false, false, true);
@@ -5633,31 +5837,46 @@ namespace
             ++out.blocks;
         }
 
+        if (gainsOut != nullptr)
+            *gainsOut = gains;
+
         return out;
     }
 
     /** runStress on the P14 draw: the stress, then every band off and the
-        global bypass off, 0.5 s in blocks of 512. */
+        global bypass off, 0.5 s in blocks of 512.
+
+        Amended in Phase 2.5 (PLAN-2.5 P12): the P14 draw plus output_gain
+        (uniform -36 ... +36 dB, each range end with p 0.05) and auto_gain
+        (toggled with p 1/100) per block, from their own stream; the stack
+        guard is stack + the drawn output gain + 12 dB auto-gain allowance
+        (execute-session call: no +12 dB peak margin; up to 256 seeds) (chooseStressSeed24, gain mode 1); afterwards every band
+        off, output gain 0 dB and auto gain off, and the output must be the
+        input again within 300 ms (the auto-gain smoother snaps at about
+        232 ms after its refresh tick). */
     StressResult runStress24 (Processor& p, const Handles& h, double rate, double seconds, int structEvery)
     {
         StressResult result;
-        result.chosen = chooseStressSeed24 (rate, seconds, structEvery);
+        result.chosen = chooseStressSeed24 (rate, seconds, structEvery, 1);
 
         if (! result.chosen.ok)
             return result;
 
-        result.outcome = stressLoop24 (p, h, rate, seconds, result.chosen.seed, structEvery, false,
-                                       [&p] (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages, bool viaBypassed)
-                                       {
-                                           if (viaBypassed)
-                                               p.processBlockBypassed (buffer, midiMessages);
-                                           else
-                                               p.processBlock (buffer, midiMessages);
-                                       });
+        result.outcome = stressLoopCore (p, h, rate, seconds, result.chosen.seed, structEvery, false, 1, &result.gains,
+                                         [&p] (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages, bool viaBypassed)
+                                         {
+                                             if (viaBypassed)
+                                                 p.processBlockBypassed (buffer, midiMessages);
+                                             else
+                                                 p.processBlock (buffer, midiMessages);
+                                         });
         result.ran = true;
 
-        // Every band off and the bypass off: the output must be the input again within 100 ms.
+        // Every band off, the bypass off, output gain 0 dB and auto gain off
+        // (PLAN-2.5 P12): the output must be the input again within 300 ms.
         h.bypass->store (0.0f);
+        h.outputGain->store (0.0f);
+        h.autoGain->store (0.0f);
 
         for (const auto& hb : h.band)
             hb.enabled->store (0.0f);
@@ -5712,9 +5931,24 @@ namespace
         // every-block run (structure redrawn at every block), 10 s per rate in
         // both; the stack guard takes per band the larger peak of its two
         // latest requests. Verdict text unchanged; the tally holds 16 runs.
+        //
+        // Amended in Phase 2.5 (PLAN-2.5 P12): the same, plus output_gain
+        // (uniform -36 ... +36 dB, range ends with p 0.05) and auto_gain
+        // (toggled with p 1/100) per block in both runs; the stack guard is
+        // stack + the drawn output gain + 12 dB auto-gain allowance,
+        // below +600 dB; "all bands off -> memcmp equal within 100 ms" becomes
+        // "all bands off, output gain 0 dB, auto gain off -> memcmp equal
+        // within 300 ms" (the auto-gain smoother snaps at about 232 ms).
+        // Execute-session call (Taylor, PLAN-2.5 P12): the first form added
+        // the +12 dB G5 peak margin to the guard as well (never part of the
+        // render guard in 2.4); at 600 s no seed in 32 attempts held it at
+        // 176.4 and 192 kHz. The margin is dropped and this gain mode tries up
+        // to 256 seeds (A3 and every other caller keep 32).
+        // See runStress24 and chooseStressSeed24 (gain mode 1).
         {
             const double seconds = longRunRequested ? 600.0 : 60.0;
             const double everyBlockSeconds = 10.0;
+            const double offLimitMs = 300.0;
             const double rates[8] = { 22050.0, 32000.0, 44100.0, 48000.0, 88200.0, 96000.0, 176400.0, 192000.0 };
 
             std::vector<std::unique_ptr<Processor>> instances;
@@ -5739,7 +5973,7 @@ namespace
             Tally tally;
             int reseeded = 0;
             double largestPeakDb = -std::numeric_limits<double>::infinity();
-            double largestStackDb = 0.0;
+            double largestStackDb = 0.0, largestGuardDb = 0.0, slowestOffMs = 0.0;
 
             for (size_t r = 0; r < 16; ++r)
             {
@@ -5751,41 +5985,47 @@ namespace
                 if (s.chosen.attempt > 0 || ! s.chosen.ok)
                 {
                     ++reseeded;
-                    info ("S5 STIMULUS at " + where + ": the draw of an earlier seed reached a static stack of "
+                    info ("S5 STIMULUS at " + where + ": the draw of an earlier seed reached a guard (stack + output gain + 12) of "
                               + fmtG (s.chosen.rejectedStackDb, 5) + " dB (limit +600); "
                               + (s.chosen.ok ? "seed changed to attempt " + juce::String (s.chosen.attempt) + " (0x"
                                                    + juce::String::toHexString ((juce::int64) s.chosen.seed) + "), nothing else changed"
-                                             : juce::String ("no seed in 32 attempts stays below it")));
+                                             : juce::String ("no seed in 256 attempts stays below it")));
                 }
 
                 if (! s.chosen.ok || ! s.ran)
                 {
-                    tally.check (false, where + ": STIMULUS FAILURE, the stack guard does not hold (largest static stack "
+                    tally.check (false, where + ": STIMULUS FAILURE, the stack guard does not hold (largest guard "
                                             + fmtG (s.chosen.largestStackDb, 5) + " dB)");
                     continue;
                 }
 
                 const double peakDb = 20.0 * std::log10 (juce::jmax (s.outcome.peak, 1.0e-300) / juce::jmax (s.outcome.inputPeak, 1.0e-300));
                 largestPeakDb = juce::jmax (largestPeakDb, peakDb);
-                largestStackDb = juce::jmax (largestStackDb, s.chosen.largestStackDb);
+                largestStackDb = juce::jmax (largestStackDb, s.chosen.plainStackDb);
+                largestGuardDb = juce::jmax (largestGuardDb, s.chosen.largestStackDb);
+                slowestOffMs = juce::jmax (slowestOffMs, s.offEqualFromMs);
 
-                std::printf ("      S5 %-9s %g s, seed attempt %d: largest static stack %.1f dB (guard: below +600); %lld non-finite samples in %lld blocks (%lld acting); peak %+.1f dB re input peak; all bands off: memcmp-equal to input from %.1f ms\n",
-                             where.toRawUTF8(), runSeconds, s.chosen.attempt, s.chosen.largestStackDb,
+                std::printf ("      S5 %-9s %g s, seed attempt %d: largest static stack %.1f dB, guard (stack + output gain + 12) %.1f dB (below +600); output gain drawn %+.1f ... %+.1f dB, auto gain toggled %d times; %lld non-finite samples in %lld blocks (%lld acting); peak %+.1f dB re input peak; all bands off, output 0 dB, auto off: memcmp-equal to input from %.1f ms\n",
+                             where.toRawUTF8(), runSeconds, s.chosen.attempt, s.chosen.plainStackDb, s.chosen.largestStackDb,
+                             (double) s.gains.lowestDb, (double) s.gains.highestDb, s.gains.autoToggles,
                              (long long) s.outcome.nonFinite, (long long) s.outcome.blocks, (long long) s.outcome.actingBlocks,
                              peakDb, s.offEqualFromMs);
 
-                tally.check (s.outcome.nonFinite == 0 && s.offFinite && s.outcome.actingBlocks > 0 && s.offEqualFromMs <= 100.0,
+                tally.check (s.outcome.nonFinite == 0 && s.offFinite && s.outcome.actingBlocks > 0 && s.offEqualFromMs <= offLimitMs
+                                 && s.gains.autoToggles > 0,
                              where + ": " + juce::String ((juce::int64) s.outcome.nonFinite) + " non-finite samples"
                                  + (s.outcome.actingBlocks > 0 ? "" : "; the bands never act")
+                                 + (s.gains.autoToggles > 0 ? "" : "; auto gain never toggled")
                                  + "; bands off, equal to input from " + fmtG (s.offEqualFromMs, 4) + " ms");
             }
 
             row (tally.bad == 0 && tally.total == 16,
-                 "S5 G5 through processBlock: 24 bands, every parameter redrawn (P13), blocks 4096 / 512 / 64 / 7 / 1, 8 rates: stack guard holds; every sample finite; all bands off -> memcmp-equal to input within 100 ms",
-                 tally.detail() + "  P14 draw (PLAN-2.4): " + fmtG (seconds, 4) + " s per rate" + (longRunRequested ? " (--long)" : "")
+                 "S5 G5 through processBlock: 24 bands, every parameter redrawn (P13), output_gain and auto_gain per block (PLAN-2.5 P12), blocks 4096 / 512 / 64 / 7 / 1, 8 rates: stack guard (stack + output gain + 12 dB) holds; every sample finite; all bands off, output 0 dB, auto off -> memcmp-equal to input within 300 ms",
+                 tally.detail() + "  P14 draw (PLAN-2.4) + gains (PLAN-2.5): " + fmtG (seconds, 4) + " s per rate" + (longRunRequested ? " (--long)" : "")
                      + " + every-block run " + fmtG (everyBlockSeconds, 3) + " s per rate"
                      + "; largest peak " + fmtG (largestPeakDb, 4) + " dB re input peak; largest static stack (fading bands: larger of their two slots) "
-                     + fmtG (largestStackDb, 4) + " dB; seed changed at " + juce::String (reseeded) + " of 16 runs");
+                     + fmtG (largestStackDb, 4) + " dB, largest guard " + fmtG (largestGuardDb, 4) + " dB; slowest return to the input "
+                     + fmtG (slowestOffMs, 4) + " ms; seed changed at " + juce::String (reseeded) + " of 16 runs");
         }
 
         // S6 (PLAN-2.3; not the state-codec row of Stage 1)
@@ -8390,6 +8630,9 @@ namespace
     //==========================================================================
     // X-cpu3. CPU with fades (INFO; PLAN-2.4 P17; fade_bench cpu, RESEARCH-2.4 Q8)
     //==========================================================================
+    // X-cpu3's figures, kept for X-cpu4 (Phase 2.5): [config][mode].
+    double xcpu3Percent[4][4] = {};
+
     void cpuInfoFading()
     {
         section ("X3. CPU with fades (INFO, not gated; G10 binds in Stage 4)");
@@ -8411,6 +8654,7 @@ namespace
         };
 
         const char* const modeNames[4] = { "settled", "always fading", "one fade per second", "24 asleep" };
+        int configIndex = 0;        // Phase 2.5: the figures are kept for X-cpu4
 
         for (const auto& c : configs)
         {
@@ -8471,8 +8715,2561 @@ namespace
 
             info (line + " of one core (bench settled / always fading / one per second / asleep: " + c.bench
                       + " %; compare X-cpu2 settled above)" + (finite ? "" : "  OUTPUT NOT FINITE"));
+
+            for (int mode = 0; mode < 4; ++mode)
+                xcpu3Percent[configIndex][mode] = percent[mode];
+
+            ++configIndex;
         }
     }
+
+    //==========================================================================
+    //==========================================================================
+    // Stage 2, Phase 2.5: output stage and auto gain (PLAN-2.5 T7)
+    //==========================================================================
+    //==========================================================================
+
+    //==========================================================================
+    // The stage re-stated (PLAN-2.5 P2, P3, P5, P8). Harness code: none of
+    // GainSmoother, OutputStage or AutoGain is used by gainTrajectory,
+    // gainRefRender, hardGainRender or agRef. The plan's numbers are typed
+    // here again.
+    //==========================================================================
+    constexpr double kRefPoleX = 13.0622;           // a four-pole step is within 1e-3 of its size at N
+    constexpr double kRefPoleSnap = 1.0e-9;         // all four stages this close: set to the target
+    constexpr double kRefOutputSeconds = 0.020;
+    constexpr double kRefAutoSeconds = 0.100;
+
+    /** N = round (t fs), at least 1. */
+    int refPoleLength (double seconds, double rate)
+    {
+        const double n = std::round (seconds * rate);
+        return n < 1.0 ? 1 : (int) n;
+    }
+
+    /** output_gain raw (dB) to the linear target: non-finite reads 0 dB, the
+        value is clamped to +-36 dB, 10^(dB / 20). */
+    double refOutputTarget (double rawDb)
+    {
+        const double db = std::isfinite (rawDb) ? juce::jlimit (-36.0, 36.0, rawDb) : 0.0;
+        return std::pow (10.0, db / 20.0);
+    }
+
+    /** Ticks between auto-gain refreshes: max (1, round (1024 / 48000 fs / K)). */
+    int refRefreshTicks (double rate)
+    {
+        const double r = std::round (1024.0 / 48000.0 * rate / (double) harnessGrid (rate));
+        return r < 1.0 ? 1 : (int) r;
+    }
+
+    /** One four-pole cascade in amplitude: y1 += a (T - y1); y2 += a (y1 - y2);
+        y3 += a (y2 - y3); y4 += a (y3 - y4); a = 1 - exp (-X / N); all four
+        within 1e-9 of T: all set to T. A cascade sitting on its target stays
+        there exactly (each step adds a * 0). */
+    struct RefPole4
+    {
+        double y[4] = { 1.0, 1.0, 1.0, 1.0 };
+        double target = 1.0;
+        double a = 1.0;
+
+        void prepare (int length)       { a = 1.0 - std::exp (-kRefPoleX / (double) juce::jmax (1, length)); }
+        void snap (double t)            { target = t; y[0] = y[1] = y[2] = y[3] = t; }
+        void retarget (double t)        { target = t; }
+
+        double next()
+        {
+            y[0] += a * (target - y[0]);
+            y[1] += a * (y[0] - y[1]);
+            y[2] += a * (y[1] - y[2]);
+            y[3] += a * (y[2] - y[3]);
+
+            if (std::abs (y[0] - target) <= kRefPoleSnap && std::abs (y[1] - target) <= kRefPoleSnap
+                && std::abs (y[2] - target) <= kRefPoleSnap && std::abs (y[3] - target) <= kRefPoleSnap)
+                y[0] = y[1] = y[2] = y[3] = target;
+
+            return y[3];
+        }
+    };
+
+    /** What the stage reads at each host block start: the sanitised output
+        target (linear), whether auto_gain is wanted, and the estimate of the
+        bands' latest requests (the auto-gain target while on). */
+    struct GainScript
+    {
+        std::vector<int> blockStart;
+        std::vector<double> outputTarget;
+        std::vector<char> autoWanted;
+        std::vector<double> autoEstimate;
+
+        void add (int start, double output, bool wanted, double estimate)
+        {
+            blockStart.push_back (start);
+            outputTarget.push_back (output);
+            autoWanted.push_back ((char) (wanted ? 1 : 0));
+            autoEstimate.push_back (estimate);
+        }
+    };
+
+    /** The per-sample gain of the stage (P3, P5, P6) for a render with no
+        bypass: seeded at sample 0 (both cascades on their targets); at every
+        tick (clock a multiple of K) the output target read at the last block
+        start goes to its cascade; on a refresh tick (tick index a multiple of
+        R) auto gain takes its wanted state and its target, the estimate or
+        1.0. g = auto x output per sample. hard (hardGainRender): each cascade
+        jumps to its target there instead of moving. */
+    std::vector<double> gainTrajectory (const GainScript& script, int length, double rate, bool hard)
+    {
+        const size_t blocks = script.blockStart.size();
+
+        if (blocks == 0 || script.blockStart[0] != 0 || script.outputTarget.size() != blocks
+            || script.autoWanted.size() != blocks || script.autoEstimate.size() != blocks || length <= 0)
+            return {};
+
+        const int grid = harnessGrid (rate);
+        const int refresh = refRefreshTicks (rate);
+
+        RefPole4 og, ag;
+        og.prepare (refPoleLength (kRefOutputSeconds, rate));
+        ag.prepare (refPoleLength (kRefAutoSeconds, rate));
+
+        double pending = script.outputTarget[0];
+        bool wanted = script.autoWanted[0] != 0;
+        double estimate = script.autoEstimate[0];
+
+        og.snap (pending);
+        ag.snap (wanted ? estimate : 1.0);
+
+        std::vector<double> g ((size_t) length, 1.0);
+        size_t k = 0;
+
+        for (int n = 0; n < length; ++n)
+        {
+            while (k + 1 < blocks && script.blockStart[k + 1] <= n)
+            {
+                ++k;
+                pending = script.outputTarget[k];
+                wanted = script.autoWanted[k] != 0;
+                estimate = script.autoEstimate[k];
+            }
+
+            if (n % grid == 0)
+            {
+                if (hard)
+                    og.snap (pending);
+                else
+                    og.retarget (pending);
+
+                if ((n / grid) % refresh == 0)
+                {
+                    const double autoTarget = wanted ? estimate : 1.0;
+
+                    if (hard)
+                        ag.snap (autoTarget);
+                    else
+                        ag.retarget (autoTarget);
+                }
+            }
+
+            const double gA = ag.next();
+            g[(size_t) n] = gA * og.next();
+        }
+
+        return g;
+    }
+
+    /** gainRefRender (hard false) and hardGainRender (hard true): the plugin's
+        float output rendered with the gains neutral (output 0 dB, auto gain
+        off), widened, times the re-stated gain, in double. */
+    std::array<std::vector<double>, 2> gainRefRender (const juce::AudioBuffer<float>& neutral, const GainScript& script,
+                                                      double rate, bool hard)
+    {
+        std::array<std::vector<double>, 2> out;
+        const int length = neutral.getNumSamples();
+        const auto g = gainTrajectory (script, length, rate, hard);
+
+        if (g.size() != (size_t) length)
+            return out;
+
+        for (int channel = 0; channel < juce::jmin (2, neutral.getNumChannels()); ++channel)
+        {
+            auto y = widened (neutral, channel);
+
+            for (size_t i = 0; i < y.size(); ++i)
+                y[i] *= g[i];
+
+            out[(size_t) channel] = std::move (y);
+        }
+
+        return out;
+    }
+
+    /** max |y - ref| over [from, to) re the largest |y| there, in dB. A
+        missing reference or a non-finite sample reads +inf / NaN (fails any
+        "<=" test). */
+    double errorReDb (const juce::AudioBuffer<float>& y, const std::array<std::vector<double>, 2>& ref, int from, int to)
+    {
+        double error = 0.0, peak = 0.0;
+
+        for (int channel = 0; channel < juce::jmin (2, y.getNumChannels()); ++channel)
+        {
+            const auto& r = ref[(size_t) channel];
+
+            if (r.size() != (size_t) y.getNumSamples())
+                return std::numeric_limits<double>::infinity();
+
+            const float* data = y.getReadPointer (channel);
+
+            for (int i = juce::jmax (0, from); i < juce::jmin (to, y.getNumSamples()); ++i)
+            {
+                const double v = (double) data[i];
+                const double d = std::abs (v - r[(size_t) i]);
+
+                if (! (d <= error))
+                    error = d;
+
+                peak = juce::jmax (peak, std::abs (v));
+            }
+        }
+
+        if (! (peak > 0.0))
+            return std::numeric_limits<double>::infinity();
+
+        return 20.0 * std::log10 (juce::jmax (error, 1.0e-300) / peak);
+    }
+
+    /** The largest |y[n + 1] - 2 y[n] + y[n - 1]| for n in [from, to) (gain_bench maxD2). */
+    double maxD2Between (const std::vector<double>& y, size_t from, size_t to)
+    {
+        double d = 0.0;
+        const size_t end = juce::jmin (to, y.size());
+
+        for (size_t i = juce::jmax (from, (size_t) 1); i + 1 < end; ++i)
+        {
+            const double v = std::abs (y[i + 1] - 2.0 * y[i] + y[i - 1]);
+
+            if (! (v <= d))
+                d = v;
+        }
+
+        return d;
+    }
+
+    double maxD2Stereo (const juce::AudioBuffer<float>& y, size_t from, size_t to)
+    {
+        return juce::jmax (maxD2Between (widened (y, 0), from, to), maxD2Between (widened (y, 1), from, to));
+    }
+
+    double maxD2Stereo (const std::array<std::vector<double>, 2>& y, size_t from, size_t to)
+    {
+        return juce::jmax (maxD2Between (y[0], from, to), maxD2Between (y[1], from, to));
+    }
+
+    //==========================================================================
+    // agRef: the auto-gain estimate re-stated (PLAN-2.5 P4; ARCHITECTURE
+    // "Auto gain" as amended by C1). Harness code, no AutoGain.
+    //==========================================================================
+    struct AgRef
+    {
+        double linear = 1.0;
+        double db = 0.0;
+        int contributing = 0;
+    };
+
+    /** 512 cell midpoints f_i = exp (ln 40 + (ln fTop - ln 40)(i + 0.5) / 512),
+        fTop = min (16 kHz, 0.45 fs), t2 = tan^2 (pi f / fs). A band
+        contributes when active, not a gain type at exactly 0 dB, and (stereo)
+        not on Side. Its |H|^2 is the product of sectionMag2 over the sections
+        of Designer::design of its settings, multiplied into L (Stereo, Mid,
+        Left) and R (Stereo, Mid, Right); mono: both. mean = sum of
+        0.5 (L + R) / 512; NaN 0 dB, +inf -18 dB, <= 1e-30 +12 dB, else
+        -10 log10 (mean) clamped to [-18, +12]. None contributing: exactly 1. */
+    AgRef agRef (const std::vector<eq::BandInput>& inputs, bool stereo, double rate, const eq::Designer& designer)
+    {
+        constexpr int points = 512;
+        const double low = 40.0;
+        const double top = juce::jmin (16000.0, 0.45 * rate);
+
+        std::vector<double> t2 ((size_t) points), laneL ((size_t) points, 1.0), laneR ((size_t) points, 1.0);
+
+        for (int i = 0; i < points; ++i)
+        {
+            const double u = ((double) i + 0.5) / (double) points;
+            const double f = std::exp (std::log (low) + (std::log (top) - std::log (low)) * u);
+            const double t = std::tan (eq::pi * f / rate);
+            t2[(size_t) i] = t * t;
+        }
+
+        AgRef result;
+
+        for (const auto& in : inputs)
+        {
+            if (! in.active)
+                continue;
+
+            if (eq::isGainType (in.settings.type) && in.settings.gainDbEff == 0.0)
+                continue;
+
+            if (stereo && in.placement == eq::Placement::side)
+                continue;
+
+            const bool intoL = ! stereo || in.placement == eq::Placement::stereo || in.placement == eq::Placement::mid
+                            || in.placement == eq::Placement::left;
+            const bool intoR = ! stereo || in.placement == eq::Placement::stereo || in.placement == eq::Placement::mid
+                            || in.placement == eq::Placement::right;
+
+            eq::BandDesign design {};
+            designer.design (in.settings, design);
+            ++result.contributing;
+
+            for (int i = 0; i < points; ++i)
+            {
+                double power = 1.0;
+
+                for (int s = 0; s < design.numSections; ++s)
+                    power *= eq::sectionMag2 (t2[(size_t) i], design.params[(size_t) s]);
+
+                if (intoL)
+                    laneL[(size_t) i] *= power;
+
+                if (intoR)
+                    laneR[(size_t) i] *= power;
+            }
+        }
+
+        if (result.contributing == 0)
+            return result;
+
+        double sum = 0.0;
+
+        for (int i = 0; i < points; ++i)
+            sum += 0.5 * (laneL[(size_t) i] + laneR[(size_t) i]);
+
+        const double mean = sum / (double) points;
+
+        if (std::isnan (mean))
+            return result;
+
+        double db = 0.0;
+
+        if (std::isinf (mean))
+            db = -18.0;
+        else if (mean <= 1.0e-30)
+            db = 12.0;
+        else
+            db = juce::jlimit (-18.0, 12.0, -10.0 * std::log10 (mean));
+
+        result.db = db;
+        result.linear = std::pow (10.0, db / 20.0);
+        return result;
+    }
+
+    /** The raw values of a BandSpec (enabled, band bypass off). */
+    eq::RawBand rawBandSpec (const BandSpec& s, bool enabled = true)
+    {
+        eq::RawBand raw;
+        raw.enabled = enabled ? 1.0f : 0.0f;
+        raw.bypass = 0.0f;
+        raw.type = (float) s.type;
+        raw.freq = s.freq;
+        raw.gain = s.gain;
+        raw.q = s.q;
+        raw.slope = (float) s.slope;
+        raw.placement = (float) s.placement;
+        return raw;
+    }
+
+    /** A disabled band at the layout's defaults. */
+    eq::RawBand rawBandOff()
+    {
+        return rawBandSpec (makeSpec (kBell, 1000.0f, 0.0f, 1.0f, 1, kStereo), false);
+    }
+
+    /** What the processor hands its band for these raw values (makeInput). */
+    eq::BandInput rawInput (const eq::RawBand& raw, float gainScale, bool stereo)
+    {
+        eq::BandInput in = eq::makeBandInput (raw, gainScale, 0.0);
+        in.placement = eq::effectivePlacement (in.placement, stereo);
+        return in;
+    }
+
+    //==========================================================================
+    // Band-limited pink noise, FFT-shaped (XR-g12a)
+    //==========================================================================
+    void fftRadix2 (std::vector<std::complex<double>>& a, bool inverse)
+    {
+        const size_t n = a.size();
+
+        for (size_t i = 1, j = 0; i < n; ++i)
+        {
+            size_t bit = n >> 1;
+
+            for (; (j & bit) != 0; bit >>= 1)
+                j ^= bit;
+
+            j ^= bit;
+
+            if (i < j)
+                std::swap (a[i], a[j]);
+        }
+
+        for (size_t len = 2; len <= n; len <<= 1)
+        {
+            const double step = (inverse ? 2.0 : -2.0) * eq::pi / (double) len;
+
+            for (size_t k = 0; k < len / 2; ++k)
+            {
+                const std::complex<double> w (std::cos (step * (double) k), std::sin (step * (double) k));
+
+                for (size_t i = 0; i < n; i += len)
+                {
+                    const std::complex<double> u = a[i + k];
+                    const std::complex<double> v = a[i + k + len / 2] * w;
+                    a[i + k] = u + v;
+                    a[i + k + len / 2] = u - v;
+                }
+            }
+        }
+    }
+
+    /** Per channel: a spectrum of 2^m >= length bins with magnitude 1 / sqrt (f)
+        from 40 Hz to 16 kHz and 0 elsewhere, seeded random phases, inverse
+        FFT; the first `length` samples, scaled to `rms`. */
+    juce::AudioBuffer<float> pinkNoise (int numChannels, int length, double rate, std::uint64_t seed, double rms)
+    {
+        size_t n = 1;
+
+        while (n < (size_t) length)
+            n <<= 1;
+
+        juce::AudioBuffer<float> out (numChannels, length);
+
+        for (int channel = 0; channel < numChannels; ++channel)
+        {
+            Xorshift random;
+            random.state = seed + 0x9E3779B97F4A7C15ull * (std::uint64_t) (channel + 1);
+
+            std::vector<std::complex<double>> spectrum (n);
+
+            for (size_t k = 1; k < n / 2; ++k)
+            {
+                const double f = (double) k * rate / (double) n;
+
+                if (f < 40.0 || f > 16000.0)
+                    continue;
+
+                const double phase = 2.0 * eq::pi * random.uniform();
+                spectrum[k] = std::polar (1.0 / std::sqrt (f), phase);
+                spectrum[n - k] = std::conj (spectrum[k]);
+            }
+
+            fftRadix2 (spectrum, true);
+
+            double energy = 0.0;
+
+            for (int i = 0; i < length; ++i)
+                energy += spectrum[(size_t) i].real() * spectrum[(size_t) i].real();
+
+            const double scale = rms / std::sqrt (energy / (double) length);
+            float* data = out.getWritePointer (channel);
+
+            for (int i = 0; i < length; ++i)
+                data[i] = (float) (spectrum[(size_t) i].real() * scale);
+        }
+
+        return out;
+    }
+
+    /** RMS of y over RMS of x, both channels, over [from, to), in dB. */
+    double rmsRatioDb (const juce::AudioBuffer<float>& x, const juce::AudioBuffer<float>& y, int from, int to)
+    {
+        double sx = 0.0, sy = 0.0;
+
+        for (int channel = 0; channel < x.getNumChannels(); ++channel)
+        {
+            const float* a = x.getReadPointer (channel);
+            const float* b = y.getReadPointer (channel);
+
+            for (int i = from; i < to; ++i)
+            {
+                sx += (double) a[i] * (double) a[i];
+                sy += (double) b[i] * (double) b[i];
+            }
+        }
+
+        return 10.0 * std::log10 (sy / sx);
+    }
+
+    //==========================================================================
+    // XR-g12o, XR-g12s, XR-g12a, XR-g12d, XR-g12n. G12 (FUNC-05, FUNC-06)
+    //==========================================================================
+    void gainG12RowsXr()
+    {
+        section ("XR-g12. G12 through the plugin (Phase 2.5: FUNC-05, FUNC-06; PLAN-2.5 T7)");
+
+        const double rate = 48000.0;
+        const auto blocks512 = [] (int, int) { return 512; };
+
+        // XR-g12o: the edit is seen by the first block starting at 100 ms or
+        // later; the RMS ratio is read from 100 ms after it, whole periods.
+        {
+            const int length = (int) rate;
+            constexpr int editAt = 4800;
+            const auto input = stepStimulus (1000.0, rate, length);
+
+            Tally tally;
+            double worst = 0.0;
+
+            for (const double db : { -36.0, -12.0, 0.0, 12.0, 36.0 })
+            {
+                auto p = makeBands (2, 0, mixedSpec);
+                const Handles h = handlesOf (*p);
+                int fired = -1;
+
+                const auto output = renderWith (*p, input, rate, 512, blocks512, [&h, &fired, db] (BlockInfo& current)
+                {
+                    if (fired < 0 && current.position >= editAt)
+                    {
+                        fired = current.position;
+                        h.outputGain->store ((float) db);
+                    }
+                });
+
+                p->releaseResources();
+
+                const int from = fired + 4800;
+                const int to = from + ((length - from) / 48) * 48;
+
+                for (int channel = 0; channel < 2; ++channel)
+                {
+                    double sx = 0.0, sy = 0.0;
+
+                    for (int i = from; i < to; ++i)
+                    {
+                        sx += (double) input.getSample (channel, i) * (double) input.getSample (channel, i);
+                        sy += (double) output.getSample (channel, i) * (double) output.getSample (channel, i);
+                    }
+
+                    const double error = 10.0 * std::log10 (sy / sx) - db;
+
+                    if (! (std::abs (error) <= worst))
+                        worst = std::abs (error);
+
+                    tally.check (fired >= 0 && std::abs (error) <= 1.0e-4 && std::abs (error) <= 0.05,
+                                 fmtG (db, 3) + " dB, channel " + juce::String (channel) + ": " + fmtG (error, 3) + " dB off");
+                }
+            }
+
+            row (tally.bad == 0 && tally.total == 10,
+                 "XR-g12o G12 output gain -36 / -12 / 0 / +12 / +36 dB, 1 kHz sine, 48 kHz, read from 100 ms after the edit: RMS ratio within 1e-4 dB of the target, both channels (limit +-0.05 dB)",
+                 tally.detail() + "  worst " + fmtG (worst, 3) + " dB");
+        }
+
+        // XR-g12s: the measured gain at the bell's centre against +-12 dB
+        // within the G1 tolerance (Phase 2.1b bell row at 48 kHz:
+        // 0.05 + 0.012 |g|), and the render bit-identical to the raw +-12 dB
+        // bell at 100 %.
+        {
+            const int length = (int) (0.75 * rate);
+            const auto input = stepStimulus (1000.0, rate, length);
+            const double tolerance = 0.05 + 0.012 * 12.0;
+
+            Tally tally;
+            juce::String figures;
+
+            for (const float sign : { 1.0f, -1.0f })
+            {
+                // Raw stores: a normalised write would round the raw gain (6 -> 6.0000005).
+                auto scaled = makeBands (2, 1, mixedSpec);
+                const Handles hs = handlesOf (*scaled);
+                storeRaw (hs.band[0], rawBandSpec (makeSpec (kBell, 1000.0f, 6.0f * sign, 1.0f, 1, kStereo)));
+                hs.gainScale->store (200.0f);
+
+                auto plain = makeBands (2, 1, mixedSpec);
+                storeRaw (handlesOf (*plain).band[0], rawBandSpec (makeSpec (kBell, 1000.0f, 12.0f * sign, 1.0f, 1, kStereo)));
+
+                const auto outScaled = render (*scaled, input, 512, false);
+                const auto outPlain = render (*plain, input, 512, false);
+
+                const double measured = toneGainDb (input, outScaled, 9600, 24000, 1000.0, rate);
+                const double target = 12.0 * (double) sign;
+                const bool same = sameAudio (outScaled, outPlain);
+
+                tally.check (std::abs (measured - target) <= tolerance && same,
+                             fmtG (6.0 * sign, 2) + " dB at 200 %: " + fmtG (measured, 6) + " dB" + (same ? "" : ", differs from the raw +-12 dB bell"));
+
+                figures += (figures.isEmpty() ? "" : ", ") + fmtG (6.0 * sign, 2) + " dB -> " + fmtG (measured, 6) + " dB";
+            }
+
+            row (tally.bad == 0 && tally.total == 2,
+                 "XR-g12s G12 gain scale 200 % on +-6 dB bells (1 kHz, Q 1): the centre gain is +-12 dB within the G1 tolerance (0.05 + 0.012 |g| = 0.194 dB), and the render is memcmp-equal to the raw +-12 dB bell at 100 %",
+                 tally.detail() + "  " + figures);
+        }
+
+        // XR-g12a, XR-g12d, XR-g12n
+        {
+            const int length = (int) (12.0 * rate);
+            const int from = (int) rate;
+            const auto input = pinkNoise (2, length, rate, 0x9125EED5ull, 0.1);
+            const BandSpec shelf = makeSpec (kLowShelf, 200.0f, 12.0f, 1.0f, 1, kStereo);
+
+            std::vector<std::unique_ptr<Processor>> instances;
+
+            for (int k = 0; k < 3; ++k)
+            {
+                instances.push_back (makeBands (2, 1, [&shelf] (int) { return shelf; }));
+                handlesOf (*instances.back()).autoGain->store (k < 2 ? 1.0f : 0.0f);
+            }
+
+            std::vector<juce::AudioBuffer<float>> outputs (3);
+
+            parallelFor (3, [&instances, &outputs, &input, rate, blocks512] (int j)
+            {
+                outputs[(size_t) j] = renderWith (*instances[(size_t) j], input, rate, 512, blocks512, [] (BlockInfo&) {});
+                instances[(size_t) j]->releaseResources();
+            });
+
+            const auto designer = designerFor (rate);
+            const std::vector<eq::BandInput> bands { rawInput (rawBandSpec (shelf), 100.0f, true) };
+            const AgRef estimate = agRef (bands, true, rate, *designer);
+
+            // Printed for information only: the plugin's own estimator on the same input.
+            auto ag = std::make_unique<eq::AutoGain>();
+            ag->prepare (rate);
+            std::vector<eq::BandInput> all ((size_t) Processor::kNumBands, rawInput (rawBandOff(), 100.0f, true));
+            all[0] = bands[0];
+            std::vector<const eq::BandInput*> desired;
+
+            for (const auto& in : all)
+                desired.push_back (&in);
+
+            const double pluginDb = 20.0 * std::log10 (ag->evaluateAll (desired.data(), true, *designer));
+
+            const double onDb = rmsRatioDb (input, outputs[0], from, length);
+            const double offDb = rmsRatioDb (input, outputs[2], from, length);
+            const bool finite = allFinite (outputs[0]) && allFinite (outputs[2]);
+            const bool estimateOk = std::abs (estimate.db - (-6.167)) <= 0.001;
+
+            row (finite && std::abs (onDb) <= 0.5 && estimateOk,
+                 "XR-g12a G12 auto gain: +12 dB Low Shelf 200 Hz 12 dB/oct, auto_gain on, band-limited pink 40 Hz - 16 kHz (FFT-shaped, 12 s, seeded), RMS from 1 s on: output / input within +-0.5 dB; agRef estimate -6.167 dB +- 0.001",
+                 "output / input " + fmtG (onDb, 4) + " dB; agRef " + fmtG (estimate.db, 6) + " dB (eq::AutoGain, printed: "
+                     + fmtG (pluginDb, 6) + " dB)");
+
+            row (sameAudio (outputs[0], outputs[1]) && ! sameAudio (outputs[0], input),
+                 "XR-g12d two renders of XR-g12a (two instances) are bit-identical",
+                 sameAudio (outputs[0], outputs[1]) ? juce::String() : "first differs at sample " + juce::String (firstDifference (outputs[0], outputs[1])));
+
+            row (finite && std::abs (offDb) > 0.5,
+                 "XR-g12n XR-g12a with auto_gain off reads outside +-0.5 dB (control fires)",
+                 "output / input " + fmtG (offDb, 4) + " dB (expected about +6.2)");
+        }
+    }
+
+    //==========================================================================
+    // XR-gstep, XR-gsteph, XR-gret, XR-ref. G3 step rows for the gains
+    //==========================================================================
+    constexpr double kGainRate = 48000.0;
+
+    // The band of every gain row, running so the band path is live: Bell
+    // 3 kHz +6 dB Q 1, Stereo (band 1).
+    BandSpec gainBellSpec()
+    {
+        return makeSpec (kBell, 3000.0f, 6.0f, 1.0f, 1, kStereo);
+    }
+
+    // The auto-gain rows' second band (band 2): a High Shelf at 20 Hz,
+    // 12 dB/oct, Q 1, a near-broadband gain; its raw gain is picked so the
+    // estimate of the two bands is the row's target.
+    BandSpec gainShelfSpec (float gainDb)
+    {
+        return makeSpec (kHighShelf, 20.0f, gainDb, 1.0f, 1, kStereo);
+    }
+
+    struct GainBandSet
+    {
+        double targetDb = 0.0;
+        float shelfGain = 0.0f;
+        double estimateDb = 0.0;
+        double estimateLinear = 1.0;
+    };
+
+    std::vector<eq::BandInput> gainSetInputs (const GainBandSet* set)
+    {
+        std::vector<eq::BandInput> in;
+        in.push_back (rawInput (rawBandSpec (gainBellSpec()), 100.0f, true));
+
+        if (set != nullptr)
+            in.push_back (rawInput (rawBandSpec (gainShelfSpec (set->shelfGain)), 100.0f, true));
+
+        return in;
+    }
+
+    /** Bisection on the shelf's raw gain in [-30, +30] dB (the estimate falls
+        as it rises), then the estimate of the float value picked. */
+    GainBandSet pickGainSet (double targetDb, const eq::Designer& designer)
+    {
+        GainBandSet set;
+        set.targetDb = targetDb;
+        double lo = -30.0, hi = 30.0;
+
+        for (int i = 0; i < 60; ++i)
+        {
+            const double mid = 0.5 * (lo + hi);
+            set.shelfGain = (float) mid;
+
+            if (agRef (gainSetInputs (&set), true, kGainRate, designer).db > targetDb)
+                lo = mid;
+            else
+                hi = mid;
+        }
+
+        set.shelfGain = (float) (0.5 * (lo + hi));
+        const AgRef r = agRef (gainSetInputs (&set), true, kGainRate, designer);
+        set.estimateDb = r.db;
+        set.estimateLinear = r.linear;
+        return set;
+    }
+
+    struct GainStepRow
+    {
+        std::string name;
+        int set = -1;                   // -1: an output-gain row; else the auto-gain band set
+        double ogA = 0.0, ogB = 0.0;    // dB
+        bool agA = false, agB = false;
+    };
+
+    /** The 20 ordered output-gain pairs of -36 / -12 / 0 / +12 / +36 dB, and
+        auto_gain off -> on and on -> off for each of the four band sets. */
+    std::vector<GainStepRow> gainStepRows (const std::vector<GainBandSet>& sets)
+    {
+        std::vector<GainStepRow> rows;
+        const double levels[5] = { -36.0, -12.0, 0.0, 12.0, 36.0 };
+
+        for (const double a : levels)
+            for (const double b : levels)
+                if (a != b)
+                {
+                    GainStepRow r;
+                    r.name = "output gain " + fmtG (a, 3).toStdString() + " -> " + fmtG (b, 3).toStdString() + " dB";
+                    r.ogA = a;
+                    r.ogB = b;
+                    rows.push_back (r);
+                }
+
+        for (size_t s = 0; s < sets.size(); ++s)
+            for (const bool toOn : { true, false })
+            {
+                GainStepRow r;
+                r.name = std::string ("auto gain ") + (toOn ? "off -> on" : "on -> off") + ", estimate "
+                       + fmtG (sets[s].estimateDb, 4).toStdString() + " dB";
+                r.set = (int) s;
+                r.agA = ! toOn;
+                r.agB = toOn;
+                rows.push_back (r);
+            }
+
+        return rows;
+    }
+
+    /** 0: A, 1: B. motion 0: A, then B / A alternating from 0.5 s, every 100 ms
+        for 8 steps (output gain) or every 400 ms for 4 steps (auto gain: the
+        100 ms cascade is exact about 230 ms after its refresh tick); 1: held
+        at A; 2: held at B. */
+    int gainStepState (const GainStepRow& r, int motion, int position, double rate)
+    {
+        if (motion == 2)
+            return 1;
+
+        if (motion == 1)
+            return 0;
+
+        const double stepSeconds = r.set < 0 ? 0.100 : 0.400;
+        const int numSteps = r.set < 0 ? 8 : 4;
+        const double t = (double) position / rate;
+
+        if (t < 0.5)
+            return 0;
+
+        const int k = (int) ((t - 0.5) / stepSeconds);
+        return k < numSteps ? ((k + 1) & 1) : (numSteps & 1);
+    }
+
+    int gainStepLength (bool autoRow, double rate)
+    {
+        return (int) ((autoRow ? 0.5 + 4 * 0.4 + 0.4 : 0.5 + 8 * 0.1 + 0.3) * rate);
+    }
+
+    /** Every parameter a gain row uses. neutral: output 0 dB, auto gain off,
+        the same bands. */
+    void storeGainStep (const Handles& h, const GainStepRow& r, const std::vector<GainBandSet>& sets, int state, bool neutral)
+    {
+        const double og = (neutral || r.set >= 0) ? 0.0 : (state != 0 ? r.ogB : r.ogA);
+        const bool ag = ! neutral && r.set >= 0 && (state != 0 ? r.agB : r.agA);
+
+        h.gainScale->store (100.0f);
+        h.bypass->store (0.0f);
+        h.outputGain->store ((float) og);
+        h.autoGain->store (ag ? 1.0f : 0.0f);
+
+        storeRaw (h.band[0], rawBandSpec (gainBellSpec()));
+        storeRaw (h.band[1], r.set >= 0 ? rawBandSpec (gainShelfSpec (sets[(size_t) r.set].shelfGain)) : rawBandOff());
+
+        for (size_t b = 2; b < h.band.size(); ++b)
+            storeRaw (h.band[b], rawBandOff());
+    }
+
+    juce::AudioBuffer<float> renderGainStep (Processor& p, const Handles& h, const juce::AudioBuffer<float>& input, double rate,
+                                             const GainStepRow& r, const std::vector<GainBandSet>& sets, int motion, int blockSize,
+                                             bool neutral, std::vector<int>* starts)
+    {
+        storeGainStep (h, r, sets, gainStepState (r, motion, 0, rate), neutral);
+
+        return renderWith (p, input, rate, blockSize,
+                           [blockSize] (int, int) { return blockSize; },
+                           [&h, &r, &sets, motion, rate, neutral, starts] (BlockInfo& current)
+                           {
+                               storeGainStep (h, r, sets, gainStepState (r, motion, current.position, rate), neutral);
+
+                               if (starts != nullptr)
+                                   starts->push_back (current.position);
+                           });
+    }
+
+    /** What the stage reads at the recorded block starts of a gain row render. */
+    GainScript gainStepScript (const GainStepRow& r, const std::vector<GainBandSet>& sets, int motion,
+                               const std::vector<int>& starts, double rate)
+    {
+        GainScript script;
+
+        for (const int position : starts)
+        {
+            const int state = gainStepState (r, motion, position, rate);
+            const double og = r.set >= 0 ? 0.0 : (state != 0 ? r.ogB : r.ogA);
+            const bool ag = r.set >= 0 && (state != 0 ? r.agB : r.agA);
+
+            script.add (position, refOutputTarget ((double) (float) og), ag,
+                        r.set >= 0 ? sets[(size_t) r.set].estimateLinear : 1.0);
+        }
+
+        return script;
+    }
+
+    struct GainStepReading
+    {
+        bool valid = false;
+        double dHeld = 0.0, dEng = 0.0, dHard = 0.0;
+        double kHeld = 0.0, kEng = 0.0;         // frames from 0.3 s (the 2.4 step-row reading; printed)
+        double kRatio = 0.0;                    // gated: per change, frames anchored where the stage starts moving
+        double refErrorDb = 0.0;        // the worst of held A, held B and the step render against gainRefRender
+        int refRenders = 0;
+    };
+
+    GainStepReading runGainStepJob (Processor& p, const Handles& h, const GainStepRow& r, const std::vector<GainBandSet>& sets,
+                                    const juce::AudioBuffer<float>& input, int blockSize, bool withHard)
+    {
+        const double rate = kGainRate;
+        const auto from = (size_t) std::lround (0.3 * rate);
+        const int length = input.getNumSamples();
+
+        std::vector<int> startsA, startsB, startsE;
+        const auto heldA = renderGainStep (p, h, input, rate, r, sets, 1, blockSize, false, &startsA);
+        const auto heldB = renderGainStep (p, h, input, rate, r, sets, 2, blockSize, false, &startsB);
+        const auto engine = renderGainStep (p, h, input, rate, r, sets, 0, blockSize, false, &startsE);
+        const auto neutral = renderGainStep (p, h, input, rate, r, sets, 0, blockSize, true, nullptr);
+
+        const StereoReading a = readStereo (heldA, rate, from);
+        const StereoReading b = readStereo (heldB, rate, from);
+        const StereoReading e = readStereo (engine, rate, from);
+
+        GainStepReading q;
+        q.dHeld = juce::jmax (a.d2, b.d2);
+        q.kHeld = juce::jmax (a.kappa, b.kappa);
+        q.dEng = e.d2;
+        q.kEng = e.kappa;
+
+        // Local kappa per change, scored as gain_bench steps scores it: the
+        // 5 ms frames start 50 ms before the sample where the stage starts
+        // moving (the block start that sees an output-gain change, a tick;
+        // the first refresh tick at or after the block start that sees an
+        // auto_gain toggle) and end 50 ms after the cascade's length N; the
+        // same span of both held renders. The ratio is the worst change.
+        {
+            const int grid = harnessGrid (rate);
+            const int refreshSamples = refRefreshTicks (rate) * grid;
+            const int n = refPoleLength (r.set >= 0 ? kRefAutoSeconds : kRefOutputSeconds, rate);
+            const int lead = (int) std::lround (0.050 * rate);
+            int previous = gainStepState (r, 0, 0, rate);
+
+            for (const int position : startsE)
+            {
+                const int state = gainStepState (r, 0, position, rate);
+
+                if (state == previous)
+                    continue;
+
+                previous = state;
+                const int moves = r.set >= 0 ? ((position + refreshSamples - 1) / refreshSamples) * refreshSamples : position;
+                const auto spanFrom = (size_t) juce::jmax (1, moves - lead);
+                const auto spanTo = (size_t) juce::jmin (length, moves + n + lead);
+
+                double kE = 0.0, kH = 0.0;
+
+                for (int channel = 0; channel < 2; ++channel)
+                {
+                    kE = juce::jmax (kE, localKappa (widened (engine, channel), rate, spanFrom, spanTo));
+                    kH = juce::jmax (kH, localKappa (widened (heldA, channel), rate, spanFrom, spanTo),
+                                     localKappa (widened (heldB, channel), rate, spanFrom, spanTo));
+                }
+
+                const double ratio = ratioOf (kE, kH);
+
+                if (! (ratio <= q.kRatio))
+                    q.kRatio = ratio;
+            }
+        }
+
+        bool hardOk = true;
+
+        if (withHard)
+        {
+            const auto hard = gainRefRender (neutral, gainStepScript (r, sets, 0, startsE, rate), rate, true);
+            hardOk = hard[0].size() == (size_t) length && hard[1].size() == (size_t) length;
+
+            if (hardOk)
+                q.dHard = juce::jmax (maxD2Of (hard[0], from), maxD2Of (hard[1], from));
+
+            hardOk = hardOk && std::isfinite (q.dHard);
+        }
+
+        const double errA = errorReDb (heldA, gainRefRender (neutral, gainStepScript (r, sets, 1, startsA, rate), rate, false), 0, length);
+        const double errB = errorReDb (heldB, gainRefRender (neutral, gainStepScript (r, sets, 2, startsB, rate), rate, false), 0, length);
+        const double errE = errorReDb (engine, gainRefRender (neutral, gainStepScript (r, sets, 0, startsE, rate), rate, false), 0, length);
+
+        q.refErrorDb = errA;
+
+        for (const double err : { errB, errE })
+            if (! (err <= q.refErrorDb))
+                q.refErrorDb = err;
+
+        q.refRenders = 3;
+        q.valid = allFinite (heldA) && allFinite (heldB) && allFinite (engine) && allFinite (neutral) && hardOk
+               && q.dHeld > 0.0 && q.kHeld > 0.0 && std::isfinite (q.dEng) && std::isfinite (q.kEng);
+        return q;
+    }
+
+    // The reversal cases of RESEARCH-2.5 Q1 (output gain): a -> b at e1, then
+    // -> c at e1 + 16 round (f N / 16), f = 25 / 50 / 75 / 90 %.
+    struct RetCase { double a, b, c; };
+
+    constexpr RetCase kRetCases[4] = { { 0.0, 36.0, -36.0 }, { 36.0, -36.0, 36.0 }, { 36.0, -36.0, 0.0 }, { 0.0, 12.0, 18.0 } };
+    constexpr double kRetFractions[4] = { 0.25, 0.50, 0.75, 0.90 };
+    constexpr double kRetLevels[5] = { -36.0, 0.0, 12.0, 18.0, 36.0 };
+    constexpr int kRetLength = 41000;
+    constexpr int kRetPhases = 8;
+
+    int retLevelIndex (double db)
+    {
+        for (int i = 0; i < 5; ++i)
+            if (kRetLevels[i] == db)
+                return i;
+
+        return 0;
+    }
+
+    void storeRetLevel (const Handles& h, double og)
+    {
+        h.gainScale->store (100.0f);
+        h.bypass->store (0.0f);
+        h.outputGain->store ((float) og);
+        h.autoGain->store (0.0f);
+        storeRaw (h.band[0], rawBandSpec (gainBellSpec()));
+
+        for (size_t b = 1; b < h.band.size(); ++b)
+            storeRaw (h.band[b], rawBandOff());
+    }
+
+    struct RetJob { int tone, caseIndex, fraction, blockSize, phase; };
+
+    struct RetReading
+    {
+        bool valid = false;
+        double ratio = 0.0;
+        double refErrorDb = 0.0;
+    };
+
+    /** One reversal render. The host blocks are at most blockSize long and are
+        cut at the two edit samples, so each edit is the start of a block (the
+        edits sit on the 16-sample grid, as in the bench). */
+    RetReading runRetJob (Processor& p, const Handles& h, const RetJob& job, const juce::AudioBuffer<float>& input,
+                          const juce::AudioBuffer<float>& neutral, const std::array<juce::AudioBuffer<float>, 5>& held)
+    {
+        const double rate = kGainRate;
+        const int fadeN = refPoleLength (kRefOutputSeconds, rate);
+        const int e1 = 24000 + 16 * job.phase * 37;
+        const int e2 = e1 + 16 * (int) std::lround (kRetFractions[job.fraction] * (double) fadeN / 16.0);
+        const RetCase& c = kRetCases[job.caseIndex];
+        const int blockSize = job.blockSize;
+
+        std::vector<int> starts;
+        storeRetLevel (h, c.a);
+
+        const auto output = renderWith (p, input, rate, blockSize,
+                                        [blockSize, e1, e2] (int, int position)
+                                        {
+                                            if (position >= e2)
+                                                return blockSize;
+
+                                            return juce::jmin (blockSize, (position < e1 ? e1 : e2) - position);
+                                        },
+                                        [&h, &starts, &c, e1, e2] (BlockInfo& current)
+                                        {
+                                            storeRetLevel (h, current.position >= e2 ? c.c : (current.position >= e1 ? c.b : c.a));
+                                            starts.push_back (current.position);
+                                        });
+
+        const auto a = (size_t) (e1 - 2400);
+        const auto b = (size_t) (e1 + 2 * fadeN + 2400);
+
+        double heldD2 = 0.0;
+
+        for (const double level : { c.a, c.b, c.c })
+            heldD2 = juce::jmax (heldD2, maxD2Stereo (held[(size_t) retLevelIndex (level)], a, b));
+
+        GainScript script;
+
+        for (const int position : starts)
+        {
+            const double og = position >= e2 ? c.c : (position >= e1 ? c.b : c.a);
+            script.add (position, refOutputTarget ((double) (float) og), false, 1.0);
+        }
+
+        RetReading q;
+        q.ratio = ratioOf (maxD2Stereo (output, a, b), heldD2);
+        q.refErrorDb = errorReDb (output, gainRefRender (neutral, script, rate, false), 0, output.getNumSamples());
+        q.valid = allFinite (output) && heldD2 > 0.0;
+        return q;
+    }
+
+    void gainStepRowsXr()
+    {
+        section ("XR-gstep / XR-gret / XR-ref. G3 step rows for the gains through the plugin (Phase 2.5: G12 as amended, G3; PLAN-2.5 P8, T7)");
+
+        const auto designer = designerFor (kGainRate);
+        std::vector<GainBandSet> sets;
+
+        for (const double target : { -18.0, -6.0, 6.0, 12.0 })
+        {
+            sets.push_back (pickGainSet (target, *designer));
+            std::printf ("      XR-gstep auto-gain band set %+5.0f dB: Bell 3 kHz +6 dB Q 1 + High Shelf 20 Hz 12 dB/oct Q 1 at %+.4f dB (raw); agRef estimate %+.4f dB\n",
+                         target, (double) sets.back().shelfGain, sets.back().estimateDb);
+        }
+
+        const auto rows = gainStepRows (sets);
+        const double tones[2] = { 50.0, 1000.0 };
+
+        // [tone][0: output-gain length, 1: auto-gain length]
+        const juce::AudioBuffer<float> inputs[2][2] = { { stepStimulus (tones[0], kGainRate, gainStepLength (false, kGainRate)),
+                                                          stepStimulus (tones[0], kGainRate, gainStepLength (true, kGainRate)) },
+                                                        { stepStimulus (tones[1], kGainRate, gainStepLength (false, kGainRate)),
+                                                          stepStimulus (tones[1], kGainRate, gainStepLength (true, kGainRate)) } };
+
+        struct Job { int tone; size_t rowIndex; int blockSize; };
+        std::vector<Job> jobs;
+
+        for (int t = 0; t < 2; ++t)
+            for (size_t i = 0; i < rows.size(); ++i)
+                for (const int blockSize : { 32, 512 })
+                    jobs.push_back ({ t, i, blockSize });
+
+        const int workers = workerCount ((int) jobs.size());
+        std::vector<std::unique_ptr<Processor>> instances;
+        std::vector<Handles> handles;
+
+        for (int w = 0; w < workers; ++w)
+        {
+            instances.push_back (makeBands (2, 0, mixedSpec));
+            handles.push_back (handlesOf (*instances.back()));
+        }
+
+        std::vector<GainStepReading> readings (jobs.size());
+
+        parallelForWorkers ((int) jobs.size(), workers, [&jobs, &instances, &handles, &readings, &rows, &sets, &inputs] (int j, int w)
+        {
+            const Job& job = jobs[(size_t) j];
+            const GainStepRow& r = rows[job.rowIndex];
+            readings[(size_t) j] = runGainStepJob (*instances[(size_t) w], handles[(size_t) w], r, sets,
+                                                   inputs[job.tone][r.set >= 0 ? 1 : 0], job.blockSize, job.blockSize == 512);
+        });
+
+        Tally step, kappa, hard, refTally;
+        double worstD2[2][2] = { { 0.0, 0.0 }, { 0.0, 0.0 } };     // [output / auto][tone]
+        juce::String worstD2At[2][2];
+        double worstK[2] = { 0.0, 0.0 };                           // 1 kHz, [output / auto]
+        double worstK300[2] = { 0.0, 0.0 };                        // the same, frames from 0.3 s (printed)
+        juce::String worstK300At[2];
+        double weakestHard[2][2] = { { std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity() },
+                                     { std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity() } };
+        double worstRef = -std::numeric_limits<double>::infinity();
+        juce::String worstRefAt;
+
+        for (size_t j = 0; j < jobs.size(); ++j)
+        {
+            const Job& job = jobs[j];
+            const GainStepRow& r = rows[job.rowIndex];
+            const GainStepReading& q = readings[j];
+            const int kind = r.set >= 0 ? 1 : 0;
+            const juce::String label = fmtG (tones[job.tone], 4) + " Hz, block " + juce::String (job.blockSize) + ", " + juce::String (r.name);
+
+            const double dRatio = ratioOf (q.dEng, q.dHeld);
+            const double kRatio = q.kRatio;
+            const double kRatioFrom300 = ratioOf (q.kEng, q.kHeld);
+
+            step.check (q.valid && dRatio <= 2.0, label + ": " + fmtG (dRatio, 4) + "x" + (q.valid ? "" : " INVALID"));
+
+            if (! (dRatio <= worstD2[kind][job.tone]))
+            {
+                worstD2[kind][job.tone] = dRatio;
+                worstD2At[kind][job.tone] = juce::String (r.name) + " b" + juce::String (job.blockSize);
+            }
+
+            if (job.tone == 1)
+            {
+                kappa.check (q.valid && kRatio <= 2.5, label + ": kappa " + fmtG (kRatio, 4) + "x");
+
+                if (! (kRatio <= worstK[kind]))
+                    worstK[kind] = kRatio;
+
+                if (! (kRatioFrom300 <= worstK300[kind]))
+                {
+                    worstK300[kind] = kRatioFrom300;
+                    worstK300At[kind] = label;
+                }
+            }
+
+            if (job.blockSize == 512)
+            {
+                const double hRatio = ratioOf (q.dHard, q.dHeld);
+                hard.check (q.valid && hRatio >= 10.0, label + ": hard " + fmtG (hRatio, 4) + "x");
+                weakestHard[kind][job.tone] = juce::jmin (weakestHard[kind][job.tone], hRatio);
+            }
+
+            refTally.check (q.valid && q.refErrorDb <= -120.0, "XR-gstep " + label + ": " + fmtG (q.refErrorDb, 4) + " dB");
+
+            if (! (q.refErrorDb <= worstRef))
+            {
+                worstRef = q.refErrorDb;
+                worstRefAt = "XR-gstep " + label;
+            }
+        }
+
+        const char* const kindNames[2] = { "output gain (20 pairs)", "auto gain toggles (8)" };
+
+        for (int kind = 0; kind < 2; ++kind)
+            for (int t = 0; t < 2; ++t)
+                std::printf ("      XR-gstep %-23s %6.0f Hz | d2 step / louder held worst %6.3f (%s) | hard / held lowest at block 512 %10.1f\n",
+                             kindNames[kind], tones[t], worstD2[kind][t], worstD2At[kind][t].toRawUTF8(), weakestHard[kind][t]);
+
+        info ("XR-gstep 1 kHz local kappa with the frames on the 2.4 step-row grid (from 0.3 s, not anchored at the change; printed, not gated): worst output "
+                  + fmtG (worstK300[0], 4) + "x (" + worstK300At[0] + "), auto " + fmtG (worstK300[1], 4) + "x (" + worstK300At[1] + ")");
+
+        row (step.bad == 0 && step.total == 112 && kappa.bad == 0 && kappa.total == 56,
+             "XR-gstep G3 step rows for the gains through processBlock (P11 stimulus, a Bell +6 dB running): 20 output-gain pairs and 8 auto_gain toggles (estimates -18 / -6 / +6 / +12 dB) x 50 Hz / 1 kHz x blocks 32 / 512: (a) largest second difference <= 2.0x the louder held render; (b) 1 kHz local kappa <= 2.5x (per change, frames from 50 ms before the stage starts moving, as gain_bench)",
+             "(a) " + step.detail() + " worst output " + fmtG (juce::jmax (worstD2[0][0], worstD2[0][1]), 4) + "x, auto "
+                 + fmtG (juce::jmax (worstD2[1][0], worstD2[1][1]), 4) + "x (bench P4 1.56x / 1.00x, AG 1.01x); (b) " + kappa.detail()
+                 + " worst output " + fmtG (worstK[0], 4) + "x, auto " + fmtG (worstK[1], 4) + "x (bench 2.22x)");
+
+        row (hard.bad == 0 && hard.total == 56,
+             "XR-gsteph hardGainRender (the gain-neutral float output, the gain jumping at the sample the stage starts moving) at block 512 reads >= 10x the louder held render on every row (control fires)",
+             hard.detail() + "  weakest output " + fmtG (juce::jmin (weakestHard[0][0], weakestHard[0][1]), 4) + "x, auto "
+                 + fmtG (juce::jmin (weakestHard[1][0], weakestHard[1][1]), 4) + "x (bench 59x at 1 kHz, 23 000x at 50 Hz)");
+
+        // XR-gret
+        {
+            const int retWorkers = workers;
+            const juce::AudioBuffer<float> retInputs[2] = { stepStimulus (tones[0], kGainRate, kRetLength),
+                                                            stepStimulus (tones[1], kGainRate, kRetLength) };
+
+            // The held renders (five levels) and the gain-neutral render, per tone and block size.
+            struct HeldJob { int tone, blockSize, level; };     // level -1: neutral
+            std::vector<HeldJob> heldJobs;
+
+            for (int t = 0; t < 2; ++t)
+                for (const int blockSize : { 32, 512 })
+                    for (int level = -1; level < 5; ++level)
+                        heldJobs.push_back ({ t, blockSize, level });
+
+            std::vector<juce::AudioBuffer<float>> heldOut (heldJobs.size());
+
+            parallelForWorkers ((int) heldJobs.size(), retWorkers, [&heldJobs, &heldOut, &instances, &handles, &retInputs] (int j, int w)
+            {
+                const HeldJob& hj = heldJobs[(size_t) j];
+                const Handles& hw = handles[(size_t) w];
+                const double og = hj.level < 0 ? 0.0 : kRetLevels[hj.level];
+                storeRetLevel (hw, og);
+                heldOut[(size_t) j] = renderWith (*instances[(size_t) w], retInputs[hj.tone], kGainRate, hj.blockSize,
+                                                  [&hj] (int, int) { return hj.blockSize; },
+                                                  [&hw, og] (BlockInfo&) { storeRetLevel (hw, og); });
+            });
+
+            const auto heldIndex = [] (int tone, int blockSize, int level)
+            {
+                return (size_t) ((tone * 2 + (blockSize == 512 ? 1 : 0)) * 6 + level + 1);
+            };
+
+            std::array<std::array<std::array<juce::AudioBuffer<float>, 5>, 2>, 2> held;     // [tone][block][level]
+
+            for (int t = 0; t < 2; ++t)
+                for (int bi = 0; bi < 2; ++bi)
+                    for (int level = 0; level < 5; ++level)
+                        held[(size_t) t][(size_t) bi][(size_t) level] = heldOut[heldIndex (t, bi == 1 ? 512 : 32, level)];
+
+            // The held renders against gainRefRender (a constant script).
+            for (int t = 0; t < 2; ++t)
+                for (int bi = 0; bi < 2; ++bi)
+                    for (int level = 0; level < 5; ++level)
+                    {
+                        GainScript constant;
+                        constant.add (0, refOutputTarget ((double) (float) kRetLevels[level]), false, 1.0);
+                        const auto& neutral = heldOut[heldIndex (t, bi == 1 ? 512 : 32, -1)];
+                        const auto& y = held[(size_t) t][(size_t) bi][(size_t) level];
+                        const double err = errorReDb (y, gainRefRender (neutral, constant, kGainRate, false), 0, y.getNumSamples());
+                        const juce::String label = "XR-gret held " + fmtG (kRetLevels[level], 3) + " dB, " + fmtG (tones[t], 4) + " Hz, block "
+                                                 + juce::String (bi == 1 ? 512 : 32);
+
+                        refTally.check (allFinite (y) && err <= -120.0, label + ": " + fmtG (err, 4) + " dB");
+
+                        if (! (err <= worstRef))
+                        {
+                            worstRef = err;
+                            worstRefAt = label;
+                        }
+                    }
+
+            std::vector<RetJob> retJobs;
+
+            for (int t = 0; t < 2; ++t)
+                for (int c = 0; c < 4; ++c)
+                    for (int f = 0; f < 4; ++f)
+                        for (const int blockSize : { 32, 512 })
+                            for (int ph = 0; ph < kRetPhases; ++ph)
+                                retJobs.push_back ({ t, c, f, blockSize, ph });
+
+            std::vector<RetReading> retReadings (retJobs.size());
+
+            parallelForWorkers ((int) retJobs.size(), retWorkers,
+                                [&retJobs, &retReadings, &instances, &handles, &retInputs, &heldOut, &held, &heldIndex] (int j, int w)
+            {
+                const RetJob& job = retJobs[(size_t) j];
+                const auto& neutral = heldOut[heldIndex (job.tone, job.blockSize, -1)];
+                retReadings[(size_t) j] = runRetJob (*instances[(size_t) w], handles[(size_t) w], job, retInputs[job.tone], neutral,
+                                                     held[(size_t) job.tone][(size_t) (job.blockSize == 512 ? 1 : 0)]);
+            });
+
+            Tally ret;
+            double worstRet[2] = { 0.0, 0.0 };
+            juce::String worstRetAt[2];
+            std::map<std::string, double> perCase;
+
+            for (int t = 0; t < 2; ++t)
+                for (int c = 0; c < 4; ++c)
+                    for (int f = 0; f < 4; ++f)
+                        for (const int blockSize : { 32, 512 })
+                        {
+                            double worst = 0.0;
+                            bool valid = true;
+
+                            for (size_t j = 0; j < retJobs.size(); ++j)
+                            {
+                                const RetJob& job = retJobs[j];
+
+                                if (job.tone != t || job.caseIndex != c || job.fraction != f || job.blockSize != blockSize)
+                                    continue;
+
+                                const RetReading& q = retReadings[j];
+                                valid = valid && q.valid;
+
+                                if (! (q.ratio <= worst))
+                                    worst = q.ratio;
+
+                                const juce::String label = "XR-gret " + fmtG (tones[t], 4) + " Hz, block " + juce::String (blockSize) + ", "
+                                                         + fmtG (kRetCases[c].a, 3) + " > " + fmtG (kRetCases[c].b, 3) + " > " + fmtG (kRetCases[c].c, 3)
+                                                         + " at " + fmtG (100.0 * kRetFractions[f], 3) + " %, phase " + juce::String (job.phase);
+
+                                refTally.check (q.valid && q.refErrorDb <= -120.0, label + ": " + fmtG (q.refErrorDb, 4) + " dB");
+
+                                if (! (q.refErrorDb <= worstRef))
+                                {
+                                    worstRef = q.refErrorDb;
+                                    worstRefAt = label;
+                                }
+                            }
+
+                            const juce::String label = fmtG (tones[t], 4) + " Hz, block " + juce::String (blockSize) + ", "
+                                                     + fmtG (kRetCases[c].a, 3) + " > " + fmtG (kRetCases[c].b, 3) + " > " + fmtG (kRetCases[c].c, 3)
+                                                     + " at " + fmtG (100.0 * kRetFractions[f], 3) + " %";
+
+                            ret.check (valid && worst <= 2.0, label + ": " + fmtG (worst, 4) + "x" + (valid ? "" : " INVALID"));
+
+                            if (! (worst <= worstRet[t]))
+                            {
+                                worstRet[t] = worst;
+                                worstRetAt[t] = label;
+                            }
+
+                            const std::string key = (fmtG (kRetCases[c].a, 3) + " > " + fmtG (kRetCases[c].b, 3) + " > "
+                                                     + fmtG (kRetCases[c].c, 3) + ", " + fmtG (tones[t], 4) + " Hz").toStdString();
+                            perCase[key] = juce::jmax (perCase[key], worst);
+                        }
+
+            for (const auto& entry : perCase)
+                std::printf ("      XR-gret %-28s worst over 4 fractions x 2 block sizes x %d phases: %.3fx\n",
+                             entry.first.c_str(), kRetPhases, entry.second);
+
+            row (ret.bad == 0 && ret.total == 64,
+                 "XR-gret output-gain reversals through processBlock (0 > +36 > -36, +36 > -36 > +36, +36 > -36 > 0, 0 > +12 > +18; second change at 25 / 50 / 75 / 90 % of the 20 ms; 8 phases) x 50 Hz / 1 kHz x blocks 32 / 512 (blocks cut at the edit samples): largest second difference <= 2.0x the louder of the three held renders",
+                 ret.detail() + "  worst 50 Hz " + fmtG (worstRet[0], 4) + "x (" + worstRetAt[0] + "), 1 kHz " + fmtG (worstRet[1], 4)
+                     + "x (bench P4 1.58x)");
+        }
+
+        row (refTally.bad == 0 && refTally.total == 112 + 20 + 512,
+             "XR-ref every XR-gstep render (112 jobs x held A, held B, step) and every XR-gret render (20 held, 512 reversals) against gainRefRender (the four-pole recurrence, tick / refresh schedule and seeding re-stated per sample) x the gain-neutral float output: <= -120 dB re the output peak",
+             refTally.detail() + "  worst " + fmtG (worstRef, 4) + " dB (" + worstRefAt + ")");
+    }
+
+    //==========================================================================
+    // XR-gsweep. G3 sweep form for the gains (RESEARCH-2.5 Q1 "Automation")
+    //==========================================================================
+    // The sweep of gain_bench sweep: low until s1, to high over 20 ms, held
+    // 100 ms, back to low over 20 ms.
+    constexpr int kSweepStart = 24000, kSweepLength = 960, kSweepHold = 4800;
+    constexpr int kSweepBack = kSweepStart + kSweepLength + kSweepHold;
+    constexpr int kSweepEnd = kSweepBack + kSweepLength;
+    constexpr int kSweepTotal = kSweepEnd + 19200;
+
+    double sweepDb (int n, double low, double high)
+    {
+        if (n < kSweepStart)
+            return low;
+
+        if (n < kSweepStart + kSweepLength)
+            return low + (high - low) * (double) (n - kSweepStart) / (double) kSweepLength;
+
+        if (n < kSweepBack)
+            return high;
+
+        if (n < kSweepEnd)
+            return high - (high - low) * (double) (n - kSweepBack) / (double) kSweepLength;
+
+        return low;
+    }
+
+    /** kind 0: output gain -30 -> +30 -> -30 dB, the Bell 3 kHz +6 dB running;
+        kind 1: a Bell 1 kHz Q 1 swept -12 -> +12 -> -12 dB with auto gain on.
+        neutral: output 0 dB, auto gain off, the same band automation. */
+    void storeSweep (const Handles& h, int kind, int position, bool neutral)
+    {
+        h.gainScale->store (100.0f);
+        h.bypass->store (0.0f);
+
+        if (kind == 0)
+        {
+            h.outputGain->store (neutral ? 0.0f : (float) sweepDb (position, -30.0, 30.0));
+            h.autoGain->store (0.0f);
+            storeRaw (h.band[0], rawBandSpec (gainBellSpec()));
+        }
+        else
+        {
+            h.outputGain->store (0.0f);
+            h.autoGain->store (neutral ? 0.0f : 1.0f);
+            storeRaw (h.band[0], rawBandSpec (makeSpec (kBell, 1000.0f, (float) sweepDb (position, -12.0, 12.0), 1.0f, 1, kStereo)));
+        }
+
+        for (size_t b = 1; b < h.band.size(); ++b)
+            storeRaw (h.band[b], rawBandOff());
+    }
+
+    struct SweepGainReading
+    {
+        bool valid = false;
+        double ratio = 0.0;
+        double errorDb = 0.0;       // kind 1: the plugin against its reference (printed)
+    };
+
+    SweepGainReading runSweepGainJob (Processor& p, const Handles& h, int kind, const juce::AudioBuffer<float>& input, int blockSize)
+    {
+        const double rate = kGainRate;
+        std::vector<int> starts;
+
+        storeSweep (h, kind, 0, false);
+        const auto output = renderWith (p, input, rate, blockSize, [blockSize] (int, int) { return blockSize; },
+                                        [&h, &starts, kind] (BlockInfo& current)
+                                        {
+                                            storeSweep (h, kind, current.position, false);
+                                            starts.push_back (current.position);
+                                        });
+
+        storeSweep (h, kind, 0, true);
+        const auto neutral = renderWith (p, input, rate, blockSize, [blockSize] (int, int) { return blockSize; },
+                                         [&h, kind] (BlockInfo& current) { storeSweep (h, kind, current.position, true); });
+
+        std::array<std::vector<double>, 2> reference;
+
+        if (kind == 0)
+        {
+            // The per-sample automation (gain_bench sweep's reference).
+            for (int channel = 0; channel < 2; ++channel)
+            {
+                auto y = widened (neutral, channel);
+
+                for (size_t i = 0; i < y.size(); ++i)
+                    y[i] *= std::pow (10.0, sweepDb ((int) i, -30.0, 30.0) / 20.0);
+
+                reference[(size_t) channel] = std::move (y);
+            }
+        }
+        else
+        {
+            // The same render with the auto-gain trajectory replaced by
+            // gainRefRender on agRef targets: the band's latest request at
+            // each block start, refreshed on the same ticks.
+            const auto designer = designerFor (rate);
+            GainScript script;
+
+            for (const int position : starts)
+            {
+                const auto raw = rawBandSpec (makeSpec (kBell, 1000.0f, (float) sweepDb (position, -12.0, 12.0), 1.0f, 1, kStereo));
+                script.add (position, 1.0, true, agRef ({ rawInput (raw, 100.0f, true) }, true, rate, *designer).linear);
+            }
+
+            reference = gainRefRender (neutral, script, rate, false);
+        }
+
+        const auto from = (size_t) (kSweepStart - 2400);
+        const auto to = (size_t) (kSweepEnd + 9600);
+
+        SweepGainReading q;
+        q.ratio = ratioOf (maxD2Stereo (output, from, to), maxD2Stereo (reference, from, to));
+        q.errorDb = errorReDb (output, reference, 0, output.getNumSamples());
+        q.valid = allFinite (output) && allFinite (neutral) && reference[0].size() == (size_t) output.getNumSamples();
+        return q;
+    }
+
+    void gainSweepRowsXr()
+    {
+        section ("XR-gsweep. G3 sweep form for the gains through the plugin (Phase 2.5: G12 as amended; RESEARCH-2.5 Q1)");
+
+        const double tones[2] = { 50.0, 1000.0 };
+        const juce::AudioBuffer<float> inputs[2] = { stepStimulus (tones[0], kGainRate, kSweepTotal),
+                                                     stepStimulus (tones[1], kGainRate, kSweepTotal) };
+
+        struct Job { int kind, tone, blockSize; };
+        std::vector<Job> jobs;
+
+        for (int kind = 0; kind < 2; ++kind)
+            for (int t = 0; t < 2; ++t)
+                for (const int blockSize : { 32, 512 })
+                    jobs.push_back ({ kind, t, blockSize });
+
+        std::vector<std::unique_ptr<Processor>> instances;
+        std::vector<Handles> handles;
+
+        for (size_t j = 0; j < jobs.size(); ++j)
+        {
+            instances.push_back (makeBands (2, 0, mixedSpec));
+            handles.push_back (handlesOf (*instances.back()));
+        }
+
+        std::vector<SweepGainReading> readings (jobs.size());
+
+        parallelFor ((int) jobs.size(), [&jobs, &instances, &handles, &readings, &inputs] (int j)
+        {
+            const auto slot = (size_t) j;
+            readings[slot] = runSweepGainJob (*instances[slot], handles[slot], jobs[slot].kind, inputs[jobs[slot].tone], jobs[slot].blockSize);
+        });
+
+        Tally tally;
+        juce::String figures[2];
+        double worst[2] = { 0.0, 0.0 }, worstError = -std::numeric_limits<double>::infinity();
+
+        for (size_t j = 0; j < jobs.size(); ++j)
+        {
+            const Job& job = jobs[j];
+            const SweepGainReading& q = readings[j];
+            const juce::String label = juce::String (job.kind == 0 ? "output gain" : "auto gain") + ", " + fmtG (tones[job.tone], 4)
+                                     + " Hz, block " + juce::String (job.blockSize);
+
+            tally.check (q.valid && q.ratio <= 4.0, label + ": " + fmtG (q.ratio, 4) + "x" + (q.valid ? "" : " INVALID"));
+            worst[job.kind] = juce::jmax (worst[job.kind], q.ratio);
+            figures[job.kind] += (figures[job.kind].isEmpty() ? "" : ", ") + fmtG (tones[job.tone], 4) + " Hz / " + juce::String (job.blockSize)
+                               + " " + fmtG (q.ratio, 3) + "x";
+
+            if (job.kind == 1 && ! (q.errorDb <= worstError))
+                worstError = q.errorDb;
+        }
+
+        row (tally.bad == 0 && tally.total == 8,
+             "XR-gsweep output gain -30 -> +30 -> -30 dB in 20 ms each way (automation at block starts) against the per-sample automation of the gain-neutral output; auto gain on while a Bell 1 kHz Q 1 sweeps -12 -> +12 -> -12 dB in 20 ms against the same render with the auto-gain trajectory from gainRefRender on agRef targets; 50 Hz / 1 kHz, blocks 32 / 512: largest second difference <= 4.0x",
+             tally.detail() + "  output gain: " + figures[0] + " (bench 0.03x); auto gain: " + figures[1]
+                 + " (no bench figure); auto-gain render against its reference worst " + fmtG (worstError, 4) + " dB re peak (printed)");
+    }
+
+    //==========================================================================
+    // XR-g4a, XR-g4an, XR-idle. G4 (a) with the stage (QUAL-01; PLAN-2.5 R1)
+    //==========================================================================
+    void stageTransparencyRowsXr()
+    {
+        section ("XR-g4a / XR-idle. G4 (a) with the output stage on the float output (Phase 2.5: QUAL-01; PLAN-2.5 P6, R1)");
+
+        const int patterns[7] = { 1, 16, 64, 512, 1024, 4096, 0 };
+
+        // XR-g4a
+        {
+            Tally tally;
+
+            for (const int channels : { 1, 2 })
+            {
+                const auto input = makeNoiseTail (channels, 0x64A50000 + channels);
+                tally.check (hasDenormalTail (input), "stimulus: the tail is not denormal non-zero, or this thread flushes to zero");
+
+                for (const bool autoOn : { false, true })
+                    for (const int pattern : patterns)
+                    {
+                        auto p = make();
+                        const bool layoutOk = setLayout (*p, channels);
+                        const Handles h = handlesOf (*p);
+                        h.outputGain->store (0.0f);
+                        h.autoGain->store (autoOn ? 1.0f : 0.0f);
+
+                        const auto output = renderPattern (*p, input, pattern);
+
+                        tally.check (layoutOk && enabledBands (*p) == 0 && sameAudio (output, input),
+                                     juce::String (channels == 1 ? "mono" : "stereo") + ", auto_gain " + (autoOn ? "on" : "off") + ", "
+                                         + patternName (pattern) + " differs from the input");
+                    }
+            }
+
+            row (tally.bad == 0 && tally.total == 30,
+                 "XR-g4a G4 (a) with the stage: no band, output gain 0 dB, auto_gain off and on, noise + denormal tail: out memcmp-equal to in (blocks 1 / 16 / 64 / 512 / 1024 / 4096 / random, mono and stereo)",
+                 tally.detail());
+        }
+
+        // XR-g4an
+        {
+            Tally tally;
+
+            for (const int channels : { 1, 2 })
+            {
+                const auto input = makeNoiseTail (channels, 0x64A60000 + channels);
+
+                for (const int pattern : patterns)
+                {
+                    auto p = make();
+                    setLayout (*p, channels);
+                    handlesOf (*p).outputGain->store (0.001f);
+
+                    const auto output = renderPattern (*p, input, pattern);
+                    tally.check (! sameAudio (output, input), juce::String (channels == 1 ? "mono" : "stereo") + ", output +0.001 dB, "
+                                                                  + patternName (pattern) + ": still memcmp-equal");
+                }
+            }
+
+            {
+                const auto input = makeNoiseTail (2, 0x64A70002);
+
+                for (const int pattern : patterns)
+                {
+                    auto p = makeBands (2, 1, [] (int) { return makeSpec (kBell, 1000.0f, 1.0f, 1.0f, 1, kLeft); });
+                    handlesOf (*p).autoGain->store (1.0f);
+
+                    const auto output = renderPattern (*p, input, pattern);
+
+                    // The right lane: no band touches it, the auto gain does.
+                    tally.check (! sameChannel (output, input, 1), "auto_gain on, one Left +1 dB bell, " + patternName (pattern)
+                                                                       + ": the right channel is still memcmp-equal");
+                }
+            }
+
+            row (tally.bad == 0 && tally.total == 21,
+                 "XR-g4an output gain +0.001 dB (mono, stereo), and auto_gain on with one Left-only +1 dB bell (the right channel): each differs from the input (control fires; 7 block patterns)",
+                 tally.detail());
+        }
+
+        // XR-idle: +6 dB at the first block start at or after sample 2048,
+        // back to 0 dB at the first at or after 8192.
+        {
+            Tally tally;
+            juce::String figures;
+            const int after60 = (int) std::lround (0.060 * kRenderRate);
+
+            for (const int channels : { 1, 2 })
+            {
+                const auto input = makeNoiseTail (channels, 0x1D1E0000 + channels);
+
+                for (const int pattern : patterns)
+                {
+                    auto p = make();
+                    setLayout (*p, channels);
+                    const Handles h = handlesOf (*p);
+                    int up = -1, down = -1;
+
+                    const BlockHook hook = [&h, &up, &down] (BlockInfo& current)
+                    {
+                        if (up < 0 && current.position >= 2048)
+                        {
+                            up = current.position;
+                            h.outputGain->store (6.0f);
+                        }
+
+                        if (down < 0 && current.position >= 8192)
+                        {
+                            down = current.position;
+                            h.outputGain->store (0.0f);
+                        }
+                    };
+
+                    const auto output = pattern > 0 ? render (*p, input, pattern, false, kRenderRate, hook)
+                                                    : render (*p, input, kSequenceMax, false, kRenderRate, hook,
+                                                              randomBlockSequence (0x5E0BE9, kSequenceMax));
+
+                    const bool acted = up >= 0 && down > up && ! sameFrom (output, up, input, up, down - up);
+                    const bool before = up > 0 && sameFrom (output, 0, input, 0, up);
+                    const bool equal = down >= 0 && equalFrom (output, input, down + after60);
+                    const int last = lastDifference (output, input);
+
+                    tally.check (acted && before && equal && hasDenormalTail (input),
+                                 juce::String (channels == 1 ? "mono " : "stereo ") + patternName (pattern)
+                                     + (acted ? "" : ": the +6 dB did not act") + (before ? "" : ": differs before the edit")
+                                     + (equal ? "" : ": differs 60 ms after the return to 0 dB"));
+
+                    if (channels == 2)
+                        figures += (figures.isEmpty() ? "" : ", ") + patternName (pattern) + " "
+                                 + fmtG (1000.0 * (double) (last + 1 - down) / kRenderRate, 4) + " ms";
+                }
+            }
+
+            row (tally.bad == 0 && tally.total == 14,
+                 "XR-idle no band, output gain 0 -> +6 -> 0 dB: memcmp-equal to the input from 60 ms after the second edit, denormal tail included (7 block patterns, mono and stereo)",
+                 tally.detail() + "  stereo equal from " + figures + " after the second edit (bench snap 45 - 52 ms)");
+        }
+    }
+
+    //==========================================================================
+    // XR-seed, XR-seedn, XR-gbyp, XR-unb, XR-unbn. Seeding and bypass with
+    // the stage (PLAN-2.5 P6, R3; VERIFICATION-2.4 Issue 2)
+    //==========================================================================
+    /** render() with host blocks of at most blockSize cut at each sample of
+        `cuts` (each then starts a block). Main thread. */
+    juce::AudioBuffer<float> renderCut (juce::AudioProcessor& p, const juce::AudioBuffer<float>& input, int blockSize,
+                                        const std::vector<int>& cuts, const BlockHook& hook)
+    {
+        const int numChannels = input.getNumChannels();
+        const int length = input.getNumSamples();
+
+        juce::AudioBuffer<float> output (numChannels, length);
+        output.clear();
+        juce::AudioBuffer<float> block (numChannels, blockSize);
+        juce::MidiBuffer midi;
+
+        p.prepareToPlay (kRenderRate, blockSize);
+
+        int index = 0;
+
+        for (int position = 0; position < length; ++index)
+        {
+            int n = juce::jmin (blockSize, length - position);
+
+            for (const int cut : cuts)
+                if (cut > position && cut - position < n)
+                    n = cut - position;
+
+            BlockInfo current;
+            current.index = index;
+            current.position = position;
+            current.viaBypassed = false;
+
+            if (hook)
+                hook (current);
+
+            block.setSize (numChannels, n, false, false, true);
+
+            for (int channel = 0; channel < numChannels; ++channel)
+                block.copyFrom (channel, 0, input, channel, position, n);
+
+            if (current.viaBypassed)
+                p.processBlockBypassed (block, midi);
+            else
+                p.processBlock (block, midi);
+
+            for (int channel = 0; channel < numChannels; ++channel)
+                output.copyFrom (channel, position, block, channel, 0, n);
+
+            position += n;
+        }
+
+        p.releaseResources();
+        return output;
+    }
+
+    void stageSeedRowsXr()
+    {
+        section ("XR-seed / XR-gbyp / XR-unb. seeding, bypass with the gain, the latched un-bypass (Phase 2.5: PLAN-2.5 P6, R3; VERIFICATION-2.4 Issue 2)");
+
+        const int fadeN = refFadeLength (kRenderRate);
+
+        // XR-seed (i): the instance opens at +12 dB output, auto gain on, one
+        // +12 dB Low Shelf; from the first sample the output is the render at
+        // 0 dB / auto off times the constant 10^(12/20) agRef.
+        bool seedOk = true;
+        juce::String seedFigures;
+        {
+            const auto input = makeNoiseAt (2, 24000, 0x5EED0002, kNoise12);
+            const BandSpec shelf = makeSpec (kLowShelf, 200.0f, 12.0f, 1.0f, 1, kStereo);
+            const auto designer = designerFor (kRenderRate);
+            const AgRef estimate = agRef ({ rawInput (rawBandSpec (shelf), 100.0f, true) }, true, kRenderRate, *designer);
+            const double g = std::pow (10.0, 12.0 / 20.0) * estimate.linear;
+
+            for (const int blockSize : { 64, 512 })
+            {
+                auto a = makeBands (2, 1, [&shelf] (int) { return shelf; });
+                const Handles ha = handlesOf (*a);
+                ha.outputGain->store (12.0f);
+                ha.autoGain->store (1.0f);
+
+                auto b = makeBands (2, 1, [&shelf] (int) { return shelf; });
+
+                const auto outA = render (*a, input, blockSize, false);
+                const auto outB = render (*b, input, blockSize, false);
+
+                std::array<std::vector<double>, 2> reference { widened (outB, 0), widened (outB, 1) };
+
+                for (auto& lane : reference)
+                    for (auto& v : lane)
+                        v *= g;
+
+                const double err = errorReDb (outA, reference, 0, outA.getNumSamples());
+                const bool ok = err <= -120.0 && ! sameAudio (outA, outB) && allFinite (outA);
+                seedOk = seedOk && ok;
+                seedFigures += (seedFigures.isEmpty() ? "" : ", ") + juce::String ("block ") + juce::String (blockSize) + " " + fmtG (err, 4) + " dB";
+            }
+
+            seedFigures += " (constant " + fmtG (20.0 * std::log10 (g), 6) + " dB: +12 and agRef " + fmtG (estimate.db, 6) + ")";
+        }
+
+        // XR-seed (ii), XR-seedn: one band; bypass on; after the fade the
+        // output gain, auto gain and the band are changed; un-bypass by the
+        // parameter and by processBlockBypassed.
+        Tally seedTally, seedControl;
+        {
+            constexpr int blockSize = 512, bypassBlock = 10, ogBlock = 14, agBlock = 15, bandBlock = 16, resumeBlock = 20;
+            const auto input = makeNoiseAt (2, 36 * blockSize, 0x5EED0012, kNoise12);
+            const int total = input.getNumSamples();
+            const int bypassAt = bypassBlock * blockSize;
+            const int resumeAt = resumeBlock * blockSize;
+            const BandSpec before = makeSpec (kBell, 1000.0f, 6.0f, 1.0f, 1, kStereo);
+            const BandSpec after = makeSpec (kHighShelf, 4000.0f, 8.0f, 1.0f, 1, kStereo);
+
+            for (const bool viaEntry : { false, true })
+            {
+                // Every band value is a raw store (exact), here and in the
+                // fresh instances: a normalised write rounds the raw value.
+                auto p = makeBands (2, 1, mixedSpec);
+                const Handles h = handlesOf (*p);
+                storeRaw (h.band[0], rawBandSpec (before));
+
+                const auto output = render (*p, input, blockSize, false, kRenderRate, [&h, &after, viaEntry] (BlockInfo& current)
+                {
+                    if (current.index == bypassBlock && ! viaEntry)
+                        h.bypass->store (1.0f);
+
+                    if (current.index == ogBlock)
+                        h.outputGain->store (9.0f);
+
+                    if (current.index == agBlock)
+                        h.autoGain->store (1.0f);
+
+                    if (current.index == bandBlock)
+                        storeRaw (h.band[0], rawBandSpec (after));
+
+                    if (current.index == resumeBlock && ! viaEntry)
+                        h.bypass->store (0.0f);
+
+                    if (viaEntry)
+                        current.viaBypassed = current.index >= bypassBlock && current.index < resumeBlock;
+                });
+
+                auto edited = makeBands (2, 1, mixedSpec);
+                const Handles he = handlesOf (*edited);
+                storeRaw (he.band[0], rawBandSpec (after));
+                he.outputGain->store (9.0f);
+                he.autoGain->store (1.0f);
+                const auto editedOut = render (*edited, sliceOf (input, resumeAt, total - resumeAt), blockSize, false);
+
+                auto stale = makeBands (2, 1, mixedSpec);
+                storeRaw (handlesOf (*stale).band[0], rawBandSpec (before));
+                const auto staleOut = render (*stale, sliceOf (input, resumeAt, total - resumeAt), blockSize, false);
+
+                const bool bypassed = sameFrom (output, bypassAt + fadeN, input, bypassAt + fadeN, resumeAt - bypassAt - fadeN);
+                const bool resumed = sameFrom (output, resumeAt + fadeN, editedOut, fadeN, total - resumeAt - fadeN);
+                const bool asBefore = sameFrom (output, resumeAt + fadeN, staleOut, fadeN, total - resumeAt - fadeN);
+                const juce::String route = viaEntry ? "processBlockBypassed" : "bypass parameter";
+
+                seedTally.check (bypassed && resumed,
+                                 route + (bypassed ? "" : ": the bypassed span is not the input")
+                                     + (resumed ? "" : ": from un-bypass + N differs from a fresh instance on the edited parameters (first at "
+                                                       + juce::String (firstDifference (sliceOf (output, resumeAt + fadeN, total - resumeAt - fadeN),
+                                                                                        sliceOf (editedOut, fadeN, total - resumeAt - fadeN)))
+                                                       + " after un-bypass + N)"));
+
+                seedControl.check (! asBefore, route + ": equals a fresh instance on the parameters from before the bypass");
+            }
+        }
+
+        row (seedOk && seedTally.bad == 0 && seedTally.total == 2,
+             "XR-seed (i) opened at output +12 dB, auto_gain on, one +12 dB Low Shelf 200 Hz: from the first sample the output is the 0 dB / auto-off render x 10^(12/20) agRef, <= -120 dB re the peak (blocks 64 / 512); (ii) one band, edits while bypassed (output gain, auto_gain, the band), un-bypass by both routes: from un-bypass + N memcmp-equal to a fresh instance on the edited parameters",
+             "(i) " + seedFigures + "; (ii) " + seedTally.detail() + "  N = " + juce::String (fadeN));
+
+        row (seedControl.bad == 0 && seedControl.total == 2,
+             "XR-seedn (ii) against a fresh instance on the parameters from before the bypass differs (control fires)",
+             seedControl.detail());
+
+        // XR-gbyp: no band, output +12 dB; bypass on at the first block at or
+        // after 9600, off at the first at or after 24000.
+        {
+            const auto input = makeNoiseAt (2, kG4Length, 0x6B9B0002, kNoise12);
+            const int total = input.getNumSamples();
+            const double g = std::pow (10.0, 12.0 / 20.0);
+
+            Tally tally;
+            double worstMix = -std::numeric_limits<double>::infinity();
+
+            for (const bool viaEntry : { false, true })
+                for (const int blockSize : { 64, 512 })
+                {
+                    auto p = make();
+                    setLayout (*p, 2);
+                    const Handles h = handlesOf (*p);
+                    h.outputGain->store (12.0f);
+
+                    int on = -1, off = -1;
+
+                    const auto output = render (*p, input, blockSize, false, kRenderRate, [&h, &on, &off, viaEntry] (BlockInfo& current)
+                    {
+                        if (on < 0 && current.position >= 9600)
+                        {
+                            on = current.position;
+
+                            if (! viaEntry)
+                                h.bypass->store (1.0f);
+                        }
+
+                        if (off < 0 && current.position >= 24000)
+                        {
+                            off = current.position;
+
+                            if (! viaEntry)
+                                h.bypass->store (0.0f);
+                        }
+
+                        if (viaEntry)
+                            current.viaBypassed = on >= 0 && off < 0;
+                    });
+
+                    // The harness mix with the re-stated weights: proc = x g
+                    // (in double), toward bypass proc + w (x - proc), back
+                    // x + w (proc - x).
+                    std::array<std::vector<double>, 2> reference;
+                    bool processed = true, bypassed = true, edges = true;
+
+                    for (int channel = 0; channel < 2; ++channel)
+                    {
+                        const float* x = input.getReadPointer (channel);
+                        const float* y = output.getReadPointer (channel);
+                        auto& r = reference[(size_t) channel];
+                        r.assign ((size_t) total, 0.0);
+
+                        for (int i = 0; i < total; ++i)
+                        {
+                            const double dry = (double) x[i];
+                            const double proc = dry * g;
+                            const auto procFloat = (float) proc;
+
+                            if (i < on || i >= off + fadeN)
+                            {
+                                r[(size_t) i] = proc;
+                                processed = processed && sameBits (y[i], procFloat);
+                            }
+                            else if (i < on + fadeN)
+                            {
+                                r[(size_t) i] = proc + refFadeWeight (i - on, fadeN) * (dry - proc);
+                            }
+                            else if (i < off)
+                            {
+                                r[(size_t) i] = dry;
+                                bypassed = bypassed && sameBits (y[i], x[i]);
+                            }
+                            else
+                            {
+                                r[(size_t) i] = dry + refFadeWeight (i - off, fadeN) * (proc - dry);
+                            }
+                        }
+                    }
+
+                    // Exactly N each way: the last mixed sample is neither end.
+                    edges = on >= 0 && off > on + fadeN
+                         && (! sameBits (output.getSample (0, on + fadeN - 1), input.getSample (0, on + fadeN - 1))
+                             || ! sameBits (output.getSample (1, on + fadeN - 1), input.getSample (1, on + fadeN - 1)))
+                         && (! sameBits (output.getSample (0, off + fadeN - 1), (float) ((double) input.getSample (0, off + fadeN - 1) * g))
+                             || ! sameBits (output.getSample (1, off + fadeN - 1), (float) ((double) input.getSample (1, off + fadeN - 1) * g)));
+
+                    const double errOn = errorReDb (output, reference, on, on + fadeN);
+                    const double errOff = errorReDb (output, reference, off, off + fadeN);
+                    const double err = juce::jmax (errOn, errOff);
+                    worstMix = juce::jmax (worstMix, err);
+
+                    tally.check (processed && bypassed && edges && err <= -120.0,
+                                 juce::String (viaEntry ? "processBlockBypassed" : "parameter") + ", block " + juce::String (blockSize)
+                                     + (processed ? "" : ": the processed spans are not x g") + (bypassed ? "" : ": the bypassed span is not the input")
+                                     + (edges ? "" : ": the mixing is not exactly N samples")
+                                     + (err <= -120.0 ? "" : ": the mix reads " + fmtG (err, 4) + " dB"));
+                }
+
+            row (tally.bad == 0 && tally.total == 4,
+                 "XR-gbyp no band, output +12 dB: bypass on and off by the parameter and by processBlockBypassed (blocks 64 / 512): the toggle fades, exactly N samples of mixing each way equal to the harness mix of x g and x with the re-stated weights (<= -120 dB re peak); memcmp-equal to the input while bypassed and to x g outside",
+                 tally.detail() + "  worst mix " + fmtG (worstMix, 4) + " dB; N = " + juce::String (fadeN));
+        }
+
+        // XR-unb, XR-unbn (VERIFICATION-2.4 Issue 2; P13: one band). Output
+        // +6 dB and auto gain on throughout, so the stage is seeded by the
+        // step-7 restart too (PLAN-2.5 R3). Bypass on at e; a type change at
+        // e + 64 (starts the band's own fade) and a gain change at e + 128
+        // (latched behind it); un-bypass at e + 240 (5 ms into the fade,
+        // latched behind it). Host blocks are cut at the event samples.
+        {
+            constexpr int e = 10240, eType = e + 64, eGain = e + 128, eUn = e + 240;
+            constexpr int length = 24000;
+            const auto input = makeNoiseAt (2, length, 0x0B0B0002, kNoise12);
+            const std::vector<int> cuts { e, eType, eGain, eUn };
+
+            const BandSpec first = makeSpec (kBell, 1000.0f, 9.0f, 1.0f, 1, kStereo);
+            const BandSpec typed = makeSpec (kHighShelf, 2000.0f, 9.0f, 1.0f, 1, kStereo);
+            const BandSpec last = makeSpec (kHighShelf, 2000.0f, -6.0f, 1.0f, 1, kStereo);
+
+            const auto withStage = [] (const BandSpec& spec)
+            {
+                auto p = makeBands (2, 1, mixedSpec);
+                const Handles h = handlesOf (*p);
+                storeRaw (h.band[0], rawBandSpec (spec));      // exact raw values, as the edits are
+                h.outputGain->store (6.0f);
+                h.autoGain->store (1.0f);
+                return p;
+            };
+
+            Tally same, mix, controlSame, controlMix;
+            double worstMix = -std::numeric_limits<double>::infinity(), weakestLate = std::numeric_limits<double>::infinity();
+
+            for (const int blockSize : { 32, 512 })
+                for (const bool viaEntry : { false, true })
+                {
+                    const juce::String where = juce::String (viaEntry ? "processBlockBypassed" : "parameter") + ", block " + juce::String (blockSize);
+
+                    auto u = withStage (first);
+                    const Handles hu = handlesOf (*u);
+
+                    const auto output = renderCut (*u, input, blockSize, cuts, [&hu, &typed, &last, viaEntry] (BlockInfo& current)
+                    {
+                        if (current.position == e && ! viaEntry)
+                            hu.bypass->store (1.0f);
+
+                        if (current.position == eType)
+                            storeRaw (hu.band[0], rawBandSpec (typed));
+
+                        if (current.position == eGain)
+                            storeRaw (hu.band[0], rawBandSpec (last));
+
+                        if (current.position == eUn && ! viaEntry)
+                            hu.bypass->store (0.0f);
+
+                        if (viaEntry)
+                            current.viaBypassed = current.position >= e && current.position < eUn;
+                    });
+
+                    // The held processed render: the same edits, no bypass.
+                    auto pp = withStage (first);
+                    const Handles hp = handlesOf (*pp);
+
+                    const auto processed = renderCut (*pp, input, blockSize, cuts, [&hp, &typed, &last] (BlockInfo& current)
+                    {
+                        if (current.position == eType)
+                            storeRaw (hp.band[0], rawBandSpec (typed));
+
+                        if (current.position == eGain)
+                            storeRaw (hp.band[0], rawBandSpec (last));
+                    });
+
+                    // Fresh instances started at e + N: on the edited parameters, and (control) on the first ones.
+                    const auto tail = sliceOf (input, e + fadeN, length - e - fadeN);
+                    auto q = withStage (last);
+                    const auto fresh = renderCut (*q, tail, blockSize, {}, {});
+                    auto q0 = withStage (first);
+                    const auto freshOld = renderCut (*q0, tail, blockSize, {}, {});
+
+                    // (i) PX14
+                    const int span = length - e - 2 * fadeN;
+                    const bool equal = sameFrom (output, e + 2 * fadeN, fresh, fadeN, span);
+                    same.check (equal, where + ": from e + 2N differs from a fresh instance on the edited parameters started at e + N");
+                    controlSame.check (! sameFrom (output, e + 2 * fadeN, freshOld, fadeN, span),
+                                       where + ": equals a fresh instance on the pre-edit parameters");
+
+                    // (ii) PX9: the harness mix over [0, e + 2N].
+                    const auto mixReference = [&] (int late)
+                    {
+                        std::array<std::vector<double>, 2> r;
+
+                        for (int channel = 0; channel < 2; ++channel)
+                        {
+                            const float* x = input.getReadPointer (channel);
+                            const float* pr = processed.getReadPointer (channel);
+                            const float* fr = fresh.getReadPointer (channel);
+                            auto& lane = r[(size_t) channel];
+                            lane.assign ((size_t) length, 0.0);
+
+                            for (int i = 0; i <= e + 2 * fadeN; ++i)
+                            {
+                                const double dry = (double) x[i];
+
+                                if (i < e)
+                                {
+                                    lane[(size_t) i] = (double) pr[i];
+                                }
+                                else if (i < e + fadeN)
+                                {
+                                    const double proc = (double) pr[i];
+                                    lane[(size_t) i] = proc + refFadeWeight (i - e, fadeN) * (dry - proc);
+                                }
+                                else
+                                {
+                                    const int k = i - e - fadeN - late;
+                                    const double inc = (double) fr[i - e - fadeN];
+
+                                    if (k < 0)
+                                        lane[(size_t) i] = dry;
+                                    else if (k < fadeN)
+                                        lane[(size_t) i] = dry + refFadeWeight (k, fadeN) * (inc - dry);
+                                    else
+                                        lane[(size_t) i] = inc;
+                                }
+                            }
+                        }
+
+                        return r;
+                    };
+
+                    const double err = errorReDb (output, mixReference (0), 0, e + 2 * fadeN + 1);
+                    const double errLate = errorReDb (output, mixReference (1), 0, e + 2 * fadeN + 1);
+                    worstMix = juce::jmax (worstMix, err);
+                    weakestLate = juce::jmin (weakestLate, errLate);
+
+                    mix.check (err <= -120.0 && allFinite (output), where + ": the mix reads " + fmtG (err, 4) + " dB");
+                    controlMix.check (errLate > -120.0, where + ": one sample late reads " + fmtG (errLate, 4) + " dB");
+                }
+
+            row (same.bad == 0 && same.total == 4 && mix.bad == 0 && mix.total == 4,
+                 "XR-unb VERIFICATION-2.4 Issue 2, one band, output +6 dB and auto_gain on: bypass on, a type edit and a gain edit during the fade, un-bypass 5 ms into it; parameter and processBlockBypassed, blocks 32 / 512: (i) from e + 2N memcmp-equal to a fresh instance on the edited parameters started at e + N (PX14); (ii) over [start, e + 2N] the harness mix of the held processed render and the dry input, the second fade from e + N exactly, <= -120 dB re peak (PX9)",
+                 "(i) " + same.detail() + "; (ii) " + mix.detail() + " worst " + fmtG (worstMix, 4) + " dB; N = " + juce::String (fadeN));
+
+            row (controlSame.bad == 0 && controlSame.total == 4 && controlMix.bad == 0 && controlMix.total == 4,
+                 "XR-unbn (i) against a fresh instance on the pre-edit parameters, (ii) with the second fade starting one sample late: each differs (control fires)",
+                 "(i) " + controlSame.detail() + "; (ii) " + controlMix.detail() + " closest " + fmtG (weakestLate, 4) + " dB");
+        }
+    }
+
+    //==========================================================================
+    // XR-blk5. Block identity with gain events (PLAN-2.5 P4 invariant, R2)
+    //==========================================================================
+    struct Blk5Event
+    {
+        BlkBand bands[4];
+        float outputDb = 0.0f;
+        float autoOn = 1.0f;
+    };
+
+    /** 160 events: per band as XR-blk (type and slope p 0.5, placement 0.3,
+        enable 0.3, frequency, gain exactly 0 with p 0.25, Q); output_gain
+        redrawn over -36 ... +36 dB with p 0.3; auto_gain toggled with p 0.1
+        (on at the start). */
+    std::vector<Blk5Event> makeGainEvents()
+    {
+        Xorshift draw;
+        draw.state = 2525;
+
+        Blk5Event current;
+        std::vector<Blk5Event> events;
+
+        for (int e = 0; e < 160; ++e)
+        {
+            for (auto& c : current.bands)
+            {
+                if (draw.uniform() < 0.5)
+                {
+                    c.type = (float) juce::jmin (7, (int) (draw.uniform() * 8.0));
+                    c.slope = (float) juce::jmin (7, (int) (draw.uniform() * 8.0));
+                }
+
+                if (draw.uniform() < 0.3)
+                    c.placement = (float) juce::jmin (4, (int) (draw.uniform() * 5.0));
+
+                if (draw.uniform() < 0.3)
+                    c.enabled = draw.uniform() > 0.3 ? 1.0f : 0.0f;
+
+                c.freq = juce::jlimit (10.0f, 30000.0f, (float) std::exp (std::log (10.0) + draw.uniform() * std::log (3000.0)));
+                c.gain = draw.uniform() < 0.25 ? 0.0f : juce::jlimit (-30.0f, 30.0f, (float) (-30.0 + 60.0 * draw.uniform()));
+                c.q = juce::jlimit (0.025f, 40.0f, (float) std::exp (std::log (0.025) + draw.uniform() * std::log (1600.0)));
+            }
+
+            if (draw.uniform() < 0.3)
+                current.outputDb = (float) (-36.0 + 72.0 * draw.uniform());
+
+            if (draw.uniform() < 0.1)
+                current.autoOn = current.autoOn >= 0.5f ? 0.0f : 1.0f;
+
+            events.push_back (current);
+        }
+
+        return events;
+    }
+
+    void storeGainEvent (const Handles& h, const Blk5Event& e)
+    {
+        h.gainScale->store (100.0f);
+        h.bypass->store (0.0f);
+        h.outputGain->store (e.outputDb);
+        h.autoGain->store (e.autoOn);
+
+        for (size_t b = 0; b < 4; ++b)
+        {
+            const BlkBand& c = e.bands[b];
+            const BandHandles& hb = h.band[b];
+            hb.type->store (c.type);
+            hb.slope->store (c.slope);
+            hb.placement->store (c.placement);
+            hb.enabled->store (c.enabled);
+            hb.bypass->store (0.0f);
+            hb.freq->store (c.freq);
+            hb.gain->store (c.gain);
+            hb.q->store (c.q);
+        }
+    }
+
+    void gainBlockRowsXr()
+    {
+        section ("XR-blk5. block identity with output_gain and auto_gain events (Phase 2.5: PLAN-2.5 P4, P5, R2)");
+
+        constexpr int length = 2048 * 160;
+        const double rates[4] = { 44100.0, 48000.0, 96000.0, 192000.0 };
+        const int sizes[4] = { 32, 64, 512, 2048 };
+        const auto input = makeNoiseAt (2, length, 0x6B150002, kNoise12);
+        const auto events = makeGainEvents();
+
+        struct Job { double rate; int blockSize; bool withEvents; };
+        std::vector<Job> jobs;
+
+        for (const double rate : rates)
+        {
+            for (const int blockSize : sizes)
+                jobs.push_back ({ rate, blockSize, true });
+
+            jobs.push_back ({ rate, 512, false });
+        }
+
+        std::vector<std::unique_ptr<Processor>> instances;
+        std::vector<Handles> handles;
+
+        for (size_t j = 0; j < jobs.size(); ++j)
+        {
+            instances.push_back (makeBands (2, 4, mixedSpec));
+            handles.push_back (handlesOf (*instances.back()));
+        }
+
+        std::vector<juce::AudioBuffer<float>> outputs (jobs.size());
+        std::vector<unsigned long> evaluations (jobs.size()), refreshes (jobs.size());
+
+        parallelFor ((int) jobs.size(), [&instances, &handles, &jobs, &outputs, &evaluations, &refreshes, &input, &events] (int j)
+        {
+            const auto slot = (size_t) j;
+            const Handles& h = handles[slot];
+            const bool withEvents = jobs[slot].withEvents;
+            const int blockSize = jobs[slot].blockSize;
+
+            storeGainEvent (h, events[0]);
+
+            outputs[slot] = renderWith (*instances[slot], input, jobs[slot].rate, blockSize,
+                                        [blockSize] (int, int) { return blockSize; },
+                                        [&h, &events, withEvents] (BlockInfo& current)
+                                        {
+                                            if (current.position % 2048 != 0)
+                                                return;
+
+                                            const auto index = (size_t) (current.position / 2048);
+
+                                            if (index >= events.size() || (! withEvents && index > 0))
+                                                return;
+
+                                            storeGainEvent (h, events[index]);
+                                        });
+
+            evaluations[slot] = instances[slot]->getAutoGainEvaluationCount();
+            refreshes[slot] = instances[slot]->getAutoGainRefreshCount();
+            instances[slot]->releaseResources();
+        });
+
+        Tally tally;
+        int outputEvents = 0, autoEvents = 0;
+
+        for (size_t k = 1; k < events.size(); ++k)
+        {
+            outputEvents += events[k].outputDb != events[k - 1].outputDb ? 1 : 0;
+            autoEvents += events[k].autoOn != events[k - 1].autoOn ? 1 : 0;
+        }
+
+        for (size_t r = 0; r < 4; ++r)
+        {
+            const size_t base = r * 5;
+            const juce::String where = fmtG (rates[r] / 1000.0, 4) + " kHz";
+
+            tally.check (allFinite (outputs[base]) && ! sameAudio (outputs[base], input), where + ": not finite, or the bands do not act");
+
+            for (size_t k = 1; k < 4; ++k)
+                tally.check (sameAudio (outputs[base + k], outputs[base]),
+                             where + ": block " + juce::String (sizes[k]) + " differs from block 32, first at sample "
+                                 + juce::String (firstDifference (outputs[base + k], outputs[base])));
+
+            tally.check (! sameAudio (outputs[base + 4], outputs[base + 2]), where + ": the render without events is the same (the events do not bite)");
+
+            std::printf ("      XR-blk5 %-10s auto-gain band evaluations / refreshes at blocks 32 / 64 / 512 / 2048: %lu / %lu, %lu / %lu, %lu / %lu, %lu / %lu (without events, block 512: %lu / %lu)\n",
+                         where.toRawUTF8(), evaluations[base], refreshes[base], evaluations[base + 1], refreshes[base + 1],
+                         evaluations[base + 2], refreshes[base + 2], evaluations[base + 3], refreshes[base + 3],
+                         evaluations[base + 4], refreshes[base + 4]);
+
+            tally.check (evaluations[base] > 0 && refreshes[base] > 0, where + ": the estimator never ran");
+        }
+
+        row (tally.bad == 0 && tally.total == 24,
+             "XR-blk5 four bands, 160 events on multiples of 2048 (type, slope, placement, enable, f, gain incl. exactly 0, Q, output_gain p 0.3, auto_gain p 0.1), auto-gain refreshes in flight: blocks 32 / 64 / 512 / 2048 bit-identical at 44.1 / 48 / 96 / 192 kHz; differs from the render without events",
+             tally.detail() + "  " + juce::String (outputEvents) + " output-gain and " + juce::String (autoEvents) + " auto-gain changes in the script");
+    }
+
+    //==========================================================================
+    // XR-meter. The max-hold output peaks (PLAN-2.5 P7)
+    //==========================================================================
+    void meterRowsXr()
+    {
+        section ("XR-meter. the max-hold output peak (Phase 2.5: PLAN-2.5 P7)");
+
+        constexpr int blockSize = 32, numBlocks = 50, leadBlocks = 40;
+        const float spike = 2.0f;           // +6 dBFS
+        const float ulp = std::nextafter (spike, 3.0f) - spike;
+
+        struct Path { const char* name; int channels; int kind; };   // kind 0 untouched, 1 bypass parameter, 2 processBlockBypassed, 3 processed (+6 dB), 4 not prepared
+
+        const Path paths[] = { { "stereo, untouched (no band)", 2, 0 }, { "stereo, bypassed by the parameter", 2, 1 },
+                               { "stereo, processBlockBypassed", 2, 2 }, { "stereo, processed (output +6 dB)", 2, 3 },
+                               { "stereo, not prepared", 2, 4 }, { "mono, untouched (no band)", 1, 0 } };
+
+        Tally tally;
+        juce::String figures;
+
+        for (const auto& path : paths)
+        {
+            auto p = make();
+            setLayout (*p, path.channels);
+            const Handles h = handlesOf (*p);
+
+            if (path.kind == 3)
+                h.outputGain->store (6.0f);
+
+            if (path.kind == 1)
+                h.bypass->store (1.0f);
+
+            if (path.kind != 4)
+                p->prepareToPlay (kRenderRate, blockSize);
+
+            auto input = makeNoiseAt (path.channels, (leadBlocks + numBlocks) * blockSize, 0x3E7E0000 + path.channels, 0.1f);
+            input.setSample (0, (leadBlocks + 23) * blockSize + 7, spike);
+
+            juce::AudioBuffer<float> block (path.channels, blockSize);
+            juce::MidiBuffer midi;
+            float harnessPeak[2] = { 0.0f, 0.0f };
+
+            for (int k = 0; k < leadBlocks + numBlocks; ++k)
+            {
+                if (k == leadBlocks)
+                {
+                    p->readAndResetOutputPeak (0);
+                    p->readAndResetOutputPeak (1);
+                }
+
+                for (int channel = 0; channel < path.channels; ++channel)
+                    block.copyFrom (channel, 0, input, channel, k * blockSize, blockSize);
+
+                if (path.kind == 2)
+                    p->processBlockBypassed (block, midi);
+                else
+                    p->processBlock (block, midi);
+
+                if (k >= leadBlocks)
+                    for (int channel = 0; channel < path.channels; ++channel)
+                        harnessPeak[channel] = juce::jmax (harnessPeak[channel], block.getMagnitude (channel, 0, blockSize));
+            }
+
+            const float read0 = p->readAndResetOutputPeak (0);
+            const float read1 = p->readAndResetOutputPeak (1);
+            const float again0 = p->readAndResetOutputPeak (0);
+            const float again1 = p->readAndResetOutputPeak (1);
+
+            if (path.kind != 4)
+                p->releaseResources();
+
+            const bool matches0 = sameBits (read0, harnessPeak[0]);
+            const bool matches1 = path.channels == 2 ? sameBits (read1, harnessPeak[1]) : read1 == 0.0f;
+            const bool spikeOk = path.kind == 3 ? read0 > spike : std::abs (read0 - spike) <= ulp;
+            const bool reset = again0 == 0.0f && again1 == 0.0f;
+
+            tally.check (matches0 && matches1 && spikeOk && reset,
+                         juce::String (path.name) + ": read " + fmtJ (read0) + " / " + fmtJ (read1) + ", harness max " + fmtJ (harnessPeak[0])
+                             + " / " + fmtJ (harnessPeak[1]) + ", after the read " + fmtJ (again0) + " / " + fmtJ (again1));
+
+            figures += (figures.isEmpty() ? "" : "; ") + juce::String (path.name) + " " + fmtJ (read0) + " / " + fmtJ (read1);
+        }
+
+        row (tally.bad == 0 && tally.total == 6,
+             "XR-meter readAndResetOutputPeak: a one-sample +6 dBFS spike in one 32-sample block among 50 between two reads is reported (2.0 within 1 ulp; equal to the largest |output| sample) on the untouched, bypassed (both routes), processed and not-prepared paths; the read resets to 0; mono has channel 0 only",
+             tally.detail() + "  " + figures);
+    }
+
+    //==========================================================================
+    // A4, A4n. G6 with the stage (PERF-01)
+    //==========================================================================
+    struct GainAllocResult
+    {
+        FadeAllocResult fade;
+        unsigned long evaluations = 0, refreshes = 0;
+    };
+
+    /** As A3 (runFadeAllocWindow): the window is processBlock or
+        processBlockBypassed alone, the first block after prepareToPlay
+        included; 20 s at 48 kHz of the P14 every-block draw (24 bands moving
+        at every block, so every refresh is dirty; the bypass toggled by both
+        routes), auto_gain on and output_gain redrawn at every block (gain
+        mode 2). */
+    GainAllocResult runGainAllocWindow (bool plant)
+    {
+        GainAllocResult result;
+
+       #if defined (__APPLE__)
+        const double rate = 48000.0;
+        const double seconds = 20.0;
+
+        const StressSeed chosen = chooseStressSeed24 (rate, seconds, 1, 2);
+        auto p = makeBands (2, 0, mixedSpec);
+        const Handles h = handlesOf (*p);
+
+        malloc_logger_t* const previous = malloc_logger;
+        allocThread = pthread_self();
+        allocCount = 0;
+        freeCount = 0;
+        malloc_logger = countAllocation;
+
+        allocArmed = true;
+        {
+            void* volatile probe = std::malloc (64);
+            std::free (probe);
+        }
+        allocArmed = false;
+        result.fade.base.probeAllocs = allocCount;
+        result.fade.base.probeFrees = freeCount;
+        allocCount = 0;
+        freeCount = 0;
+
+        bool plantNext = plant;
+        int viaEntry = 0;
+
+        const StressOutcome outcome = stressLoopCore (*p, h, rate, seconds, chosen.seed, 1, true, 2, nullptr,
+                                                      [&p, &plantNext, &viaEntry] (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages, bool viaBypassed)
+                                                      {
+                                                          allocArmed = true;
+
+                                                          if (viaBypassed)
+                                                              p->processBlockBypassed (buffer, midiMessages);
+                                                          else
+                                                              p->processBlock (buffer, midiMessages);
+
+                                                          if (plantNext)
+                                                          {
+                                                              void* volatile planted = std::malloc (64);
+                                                              std::free (planted);
+                                                          }
+
+                                                          allocArmed = false;
+                                                          plantNext = false;
+
+                                                          if (viaBypassed)
+                                                              ++viaEntry;
+                                                      });
+
+        malloc_logger = previous;
+        result.evaluations = p->getAutoGainEvaluationCount();
+        result.refreshes = p->getAutoGainRefreshCount();
+        p->releaseResources();
+
+        result.fade.base.available = true;
+        result.fade.base.allocs = allocCount;
+        result.fade.base.frees = freeCount;
+        result.fade.base.blocks = (int) outcome.blocks;
+        result.fade.base.audioOk = chosen.ok && outcome.nonFinite == 0 && outcome.actingBlocks > 0;
+        result.fade.viaEntryBlocks = viaEntry;
+       #else
+        juce::ignoreUnused (plant);
+       #endif
+
+        return result;
+    }
+
+    void gainAllocationRowsXr()
+    {
+        section ("A4. allocation with the output stage and auto gain (Phase 2.5: G6, PERF-01)");
+
+        const GainAllocResult clean = runGainAllocWindow (false);
+
+        if (! clean.fade.base.available)
+        {
+            info ("A4 allocation gate SKIPPED: no malloc_logger on this platform");
+            info ("A4n allocation control SKIPPED: no malloc_logger on this platform");
+            return;
+        }
+
+        const AllocResult& base = clean.fade.base;
+        const bool hookLive = base.probeAllocs >= 1 && base.probeFrees >= 1;
+        const bool refreshing = clean.refreshes > 0 && clean.evaluations > clean.refreshes;
+
+        row (hookLive && base.audioOk && clean.fade.viaEntryBlocks > 0 && refreshing && base.allocs == 0 && base.frees == 0,
+             "A4 processBlock and processBlockBypassed, 20 s at 48 kHz: the P14 every-block draw (24 bands moving at every block, bypass toggled by both routes), auto_gain on, output_gain redrawn per block, first block included: 0 allocations, 0 frees",
+             juce::String (base.allocs) + " allocations, " + juce::String (base.frees) + " frees in " + juce::String (base.blocks) + " windows ("
+                 + juce::String (clean.fade.viaEntryBlocks) + " through processBlockBypassed; " + juce::String ((juce::int64) clean.evaluations)
+                 + " band evaluations in " + juce::String ((juce::int64) clean.refreshes) + " refreshes; malloc_logger, this thread); hook "
+                 + (hookLive ? "live" : "DEAD") + " (probe: " + juce::String (base.probeAllocs) + " / " + juce::String (base.probeFrees) + ")"
+                 + (base.audioOk ? "" : "; the stress did not run as expected (stack guard, non-finite output, or no acting block)"));
+
+        const GainAllocResult planted = runGainAllocWindow (true);
+
+        row (planted.fade.base.allocs >= 1 && planted.fade.base.frees >= 1,
+             "A4n a planted allocation inside the processBlock / processBlockBypassed window is counted (control fires)",
+             juce::String (planted.fade.base.allocs) + " allocations, " + juce::String (planted.fade.base.frees) + " frees");
+    }
+
+    //==========================================================================
+    // X-cpu4. CPU with auto gain (INFO; PLAN-2.5 P11)
+    //==========================================================================
+    void cpuInfoGains()
+    {
+        section ("X4. CPU with the output stage and auto gain (INFO, not gated; G10 binds in Stage 4)");
+
+        constexpr int blockSize = 512;
+        const double rate = 48000.0;
+        const int numBlocks = (int) (20.0 * rate / (double) blockSize);
+        const double audioSeconds = (double) numBlocks * (double) blockSize / rate;
+        const auto noise = makeNoiseAt (2, blockSize, 0x0C9500002, kNoise12);
+
+        struct Config { const char* name; int type; int slope; int type2; int slope2; };
+
+        const Config configs[] =
+        {
+            { "24 cuts x 96 dB/oct (Low Cut <> High Cut)",       kLowCut,    7, kHighCut,   7 },
+            { "24 shelves x 96 dB/oct (High <> Low)",            kHighShelf, 7, kLowShelf,  7 },
+            { "24 bells <> 12 dB/oct shelves",                   kBell,      0, kHighShelf, 1 },
+            { "24 shelves 96 <> 72 dB/oct",                      kHighShelf, 7, kHighShelf, 6 }
+        };
+
+        const char* const modeNames[4] = { "settled", "always fading", "one fade per second", "24 asleep" };
+
+        // mode 4: the 24 shelves of config 1 settled in type, their gain swept at every block.
+        const auto timeRun = [&] (const Config& c, int mode, bool autoOn, bool& finite)
+        {
+            auto p = makeBands (2, 24, [&c, mode] (int index)
+            {
+                return makeSpec (c.type, 40.0f * std::pow (1.28f, (float) index), mode == 3 ? 0.0f : 6.0f, 1.0f, c.slope, kStereo);
+            });
+
+            const Handles h = handlesOf (*p);
+            h.autoGain->store (autoOn ? 1.0f : 0.0f);
+
+            juce::AudioBuffer<float> block (2, blockSize);
+            juce::MidiBuffer midi;
+            double seconds = 0.0;
+
+            p->prepareToPlay (rate, blockSize);
+
+            for (int k = 0; k < numBlocks; ++k)
+            {
+                const double t = (double) (k * blockSize) / rate;
+                bool second = false;
+
+                if (mode == 1)
+                    second = (((long) (t / 0.0215)) & 1) != 0;
+
+                if (mode == 2)
+                    second = (((long) t) & 1) != 0;
+
+                for (size_t b = 0; b < h.band.size(); ++b)
+                {
+                    const BandHandles& hb = h.band[b];
+                    hb.type->store ((float) (second ? c.type2 : c.type));
+                    hb.slope->store ((float) (second ? c.slope2 : c.slope));
+
+                    if (mode == 4)
+                        hb.gain->store ((float) (6.0 * std::sin (2.0 * eq::pi * 0.5 * t + (double) b)));
+                }
+
+                for (int channel = 0; channel < 2; ++channel)
+                    block.copyFrom (channel, 0, noise, channel, 0, blockSize);
+
+                const auto t0 = std::chrono::steady_clock::now();
+                p->processBlock (block, midi);
+                const auto t1 = std::chrono::steady_clock::now();
+
+                seconds += std::chrono::duration<double> (t1 - t0).count();
+            }
+
+            p->releaseResources();
+            finite = finite && allFinite (block);
+            return 100.0 * seconds / audioSeconds;
+        };
+
+        for (size_t ci = 0; ci < 4; ++ci)
+        {
+            const Config& c = configs[ci];
+            bool finite = true;
+            juce::String line = juce::String ("X-cpu4 48 kHz stereo, 512-sample blocks, 20 s, auto_gain on, ") + c.name + ":";
+
+            for (int mode = 0; mode < 4; ++mode)
+            {
+                const double percent = timeRun (c, mode, true, finite);
+                line += juce::String (" ") + modeNames[mode] + " " + fmtG (percent, 3) + " % (X-cpu3 " + fmtG (xcpu3Percent[ci][mode], 3) + " %)"
+                      + (mode < 3 ? ";" : "");
+            }
+
+            info (line + " of one core (bench: auto gain adds about +1.4 % in the worst case)" + (finite ? "" : "  OUTPUT NOT FINITE"));
+        }
+
+        {
+            bool finite = true;
+            const double off = timeRun (configs[1], 4, false, finite);
+            const double on = timeRun (configs[1], 4, true, finite);
+
+            info ("X-cpu4 48 kHz stereo, 512-sample blocks, 20 s, 24 High Shelves x 96 dB/oct, gain swept at every block (every refresh redesigns 24 bands): auto_gain off "
+                  + fmtG (off, 3) + " %, on " + fmtG (on, 3) + " % of one core (difference " + fmtG (on - off, 3) + " %; bench +1.4 %)"
+                  + (finite ? "" : "  OUTPUT NOT FINITE"));
+        }
+    }
+
 }
 
 //==============================================================================
@@ -8550,6 +11347,17 @@ int main (int argc, char** argv)
     structuralBlockRowsXr();
     fadeAllocationRowsXr();
     cpuInfoFading();
+
+    // Stage 2, Phase 2.5 (PLAN-2.5 T7)
+    gainG12RowsXr();
+    gainStepRowsXr();
+    gainSweepRowsXr();
+    stageTransparencyRowsXr();
+    stageSeedRowsXr();
+    gainBlockRowsXr();
+    meterRowsXr();
+    gainAllocationRowsXr();
+    cpuInfoGains();
 
     std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
     std::fflush (stdout);

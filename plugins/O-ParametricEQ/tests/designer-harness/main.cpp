@@ -34,8 +34,8 @@
                                                            if the targeted row FAILS. Names:
                                                            rbj, f1, alloc, seed, rbj-b, binary-gate,
                                                            first-build, engine-alloc, ramp-alloc,
-                                                           fade-alloc
-                                                           (the last three: exit 0 only if the
+                                                           fade-alloc, ag-alloc
+                                                           (the last four: exit 0 only if the
                                                            planted allocation is counted)
       O-ParametricEQ-designer-harness --long               RM-g5 and XF-g5 run the contract's 600 s
                                                            per rate instead of 60 s
@@ -49,6 +49,31 @@
 
     Every Phase 2.1 row below runs Designer::designSeed (the closed form). The
     Phase 2.1b rows run Designer::design (polished) unless they say otherwise.
+
+      Phase 2.5 (PLAN-2.5 T4): output stage and auto gain in double. The subjects are
+      eq::OutputStage (two eq::GainSmoother) and eq::AutoGain; stimuli and scores restate
+      RESEARCH-2.5's gain_bench (48 kHz, tone 0.5, eight phases, edits on the 16-sample grid).
+      gainRefRender, hardGainRender, linearGainRender and agRef are harness code
+      XO-step    output gain 20 pairs, auto gain 8 pairs, 50 Hz / 1 kHz: maxD2 <= 2.0x the
+                 louder held render; 1 kHz kappa <= 2.5x
+      XO-steph   hardGainRender on the same pairs reads >= 10x; linearGainRender printed
+      XO-ret     32 reversal rows (four cases x 25 / 50 / 75 / 90 % x both gains): <= 2.0x
+      XO-ref     OutputStage against gainRefRender over the XO-step / XO-ret renders, 1e-12
+      XO-refn    the reference with X = 12.0 exceeds 1e-9; reversed product in float differs
+      XO-sweep   -30 -> +30 -> -30 dB in 20 ms and 1 s at block starts 32 / 512: <= 4.0x the
+                 per-sample reference, lag <= 0.1 dB
+      XO-stress  200 s random automation: inside the targets' range, never <= 0
+      XO-snap    settle-to-snap, 8 rates: output gain 40 - 60 ms, auto gain 200 - 260 ms, exact
+      XO-unity   outputGainTarget exactness and clamps; a unity stage leaves denormals alone
+      XO-ag      AutoGain against the 40 000-point pink truth, 18 rows x 4 rates
+      XO-agref   AutoGain against agRef, 2000 random configurations x mono / stereo x 5 rates
+      XO-agrip   ripple of a swept narrow bell <= 1.2x the bench; 64-point control >= 0.8 dB
+      XO-agid    the estimate is a pure function of the inputs (1000 edit sequences)
+      XO-agz     no contributing band: exactly 1.0, no design
+      XO-agg     the guards and the clamp ends
+      XO-agsch   autoGainRefreshTicks at eight rates
+      XO-alloc   no allocation with the stage and the estimator refreshing (malloc_logger)
+      XO-cpu     INFO: estimator cost per band and per refresh
 
       Phase 2.4 (PLAN-2.4 T4): structural crossfades and bypass in double. The engine is
       24 eq::SlotBand + one eq::FadeTable + one eq::BypassFade under a harness driver
@@ -191,6 +216,8 @@
 #include "dsp/Router.h"
 #include "dsp/Fade.h"
 #include "dsp/SlotBand.h"
+#include "dsp/OutputStage.h"
+#include "dsp/AutoGain.h"
 
 #include <algorithm>
 #include <array>
@@ -13461,6 +13488,2091 @@ namespace
     }
 
     //==========================================================================
+    // Phase 2.5 (PLAN-2.5 T4): output stage and auto gain, in double
+    //
+    // The subjects are eq::OutputStage (two eq::GainSmoother inside) and
+    // eq::AutoGain. Stimuli and scores restate RESEARCH-2.5's gain_bench: 48
+    // kHz, a tone at 0.5, eight phases, edits on the 16-sample grid, the worst
+    // phase reported; the largest second difference (maxD2) and local kappa
+    // over the bench's window, against the louder held render. The output is
+    // rounded to float for scoring, as the bench (and the plugin) do; XO-ref
+    // compares the double renders.
+    //
+    // References and controls are harness code (PLAN-2.5 P8, P10):
+    // gainRefRender (the P2 recurrence, per sample), hardGainRender,
+    // linearGainRender and agRef (the P4 estimator: grid, Designer::design,
+    // sectionMag2, products, mean, guards, clamp) call no GainSmoother,
+    // OutputStage or AutoGain. The estimator's truth is the band-limited pink
+    // power ratio of the same digital design: a 40 000-point midpoint mean over
+    // 40 Hz - 16 kHz.
+    //==========================================================================
+    constexpr double kXoFs = 48000.0;
+    constexpr std::size_t kXoGrid = 16;
+    constexpr double kXoSettleX = 13.0622;              // PLAN-2.5 P2, harness literal
+    constexpr double kXoSnapTolerance = 1.0e-9;
+    constexpr double kXoOgSeconds = 0.020;
+    constexpr double kXoAgSeconds = 0.100;
+    constexpr int kXoBands = 24;
+    constexpr int kXoAgPoints = 512;
+    constexpr int kXoTruthPoints = 40000;
+    constexpr int kXoPhases = 8;
+
+    using XoInputs = std::array<eq::BandInput, kXoBands>;
+    using XoDesired = std::array<const eq::BandInput*, kXoBands>;
+
+    double xoLin (double db)
+    {
+        return std::pow (10.0, db / 20.0);
+    }
+
+    double xoDb (double g)
+    {
+        return 20.0 * std::log10 (g);
+    }
+
+    /** round (seconds fs), at least 1 (PLAN-2.5 P3, restated). */
+    int xoLength (double seconds, double fs)
+    {
+        return std::max (1, static_cast<int> (std::lround (seconds * fs)));
+    }
+
+    XoDesired xoPointers (const XoInputs& in)
+    {
+        XoDesired p {};
+
+        for (int b = 0; b < kXoBands; ++b)
+            p[ix (b)] = &in[ix (b)];
+
+        return p;
+    }
+
+    eq::BandInput xoOff()
+    {
+        eq::RawBand raw = enRaw (eq::Type::bell, 1000.0, 6.0, 1.0, 1, eq::Placement::stereo);
+        raw.enabled = 0.0f;
+        return eq::makeBandInput (raw, kEnScale100, 0.0);
+    }
+
+    //==========================================================================
+    // Signals and readings (gain_bench restated)
+    //==========================================================================
+    std::vector<double> xoTone (double tone, double phase, std::size_t len)
+    {
+        std::vector<double> x (len);
+
+        for (std::size_t n = 0; n < len; ++n)
+            x[n] = 0.5 * std::sin (2.0 * kPi * tone * static_cast<double> (n) / kXoFs + phase);
+
+        return x;
+    }
+
+    std::vector<double> xoAsFloat (std::vector<double> y)
+    {
+        for (double& v : y)
+            v = static_cast<double> (static_cast<float> (v));
+
+        return y;
+    }
+
+    std::vector<double> xoHeld (double g, const std::vector<double>& x)
+    {
+        std::vector<double> y (x.size());
+
+        for (std::size_t n = 0; n < x.size(); ++n)
+            y[n] = static_cast<double> (static_cast<float> (g * x[n]));
+
+        return y;
+    }
+
+    /** The bench's maxD2 over [a, b). */
+    double xoMaxD2 (const std::vector<double>& y, std::size_t a, std::size_t b)
+    {
+        double m = 0.0;
+        const std::size_t end = std::min (b, y.size());
+
+        for (std::size_t n = std::max<std::size_t> (a, 1); n + 1 < end; ++n)
+            m = std::max (m, std::fabs (y[n + 1] - 2.0 * y[n] + y[n - 1]));
+
+        return m;
+    }
+
+    /** The bench's localKappa over [from, to): 5 ms frames, frames below 1e-4 RMS skipped. */
+    double xoKappa (const std::vector<double>& y, double fs, std::size_t from, std::size_t to)
+    {
+        const std::size_t frame = static_cast<std::size_t> (std::lround (0.005 * fs));
+        double worst = 0.0;
+
+        if (y.size() < 3 || frame == 0)
+            return worst;
+
+        const std::size_t end = std::min (to, y.size() - 1);
+
+        for (std::size_t a = std::max<std::size_t> (from, 1); a + frame < end; a += frame)
+        {
+            double e = 0.0, d2 = 0.0;
+
+            for (std::size_t i = a; i < a + frame; ++i)
+            {
+                e += y[i] * y[i];
+                d2 = std::max (d2, std::fabs (y[i + 1] - 2.0 * y[i] + y[i - 1]));
+            }
+
+            const double rms = std::sqrt (e / static_cast<double> (frame));
+
+            if (rms < 1.0e-4)
+                continue;
+
+            worst = std::max (worst, d2 / rms);
+        }
+
+        return worst;
+    }
+
+    /** The largest |y - ref| / |ref| over the samples; a difference where ref is 0 reads infinite. */
+    double xoRelErr (const std::vector<double>& y, const std::vector<double>& ref)
+    {
+        double worst = 0.0;
+
+        if (y.size() != ref.size())
+            return kInf;
+
+        for (std::size_t n = 0; n < ref.size(); ++n)
+        {
+            const double d = std::fabs (y[n] - ref[n]);
+
+            if (std::isnan (d))
+                return kInf;
+
+            if (! (d > 0.0))
+                continue;
+
+            worst = std::max (worst, ref[n] != 0.0 ? d / std::fabs (ref[n]) : kInf);
+        }
+
+        return worst;
+    }
+
+    bool xoSame (const std::vector<double>& a, const std::vector<double>& b)
+    {
+        return a.size() == b.size() && std::memcmp (a.data(), b.data(), sizeof (double) * a.size()) == 0;
+    }
+
+    //==========================================================================
+    // Renders. An event sits on the control grid; an output-gain event is the
+    // block-start read and the tick hand-over of PLAN-2.5 P5 in one sample
+    // (setOutputPending, applyOutputPending), an auto-gain event a refresh
+    // tick (setAutoTarget).
+    //==========================================================================
+    struct XoEvent
+    {
+        std::size_t at = 0;
+        bool autoGain = false;
+        double target = 1.0;        // linear
+    };
+
+    /** The subject: eq::OutputStage over one lane, snapped to (og0, ag0) at sample 0, run in segments
+        between the events. `gain`: a second lane of ones, i.e. the gain itself. */
+    std::vector<double> xoStageRender (double fs, double og0, double ag0, const std::vector<XoEvent>& events,
+                                       const std::vector<double>& x, std::vector<double>* gain = nullptr)
+    {
+        eq::OutputStage stage;
+        stage.prepare (fs);
+        stage.snap (og0, ag0);
+
+        std::vector<double> y = x;
+
+        if (gain != nullptr)
+            gain->assign (x.size(), 1.0);
+
+        const std::size_t n = x.size();
+        std::size_t pos = 0, e = 0;
+
+        while (pos < n)
+        {
+            for (; e < events.size() && events[e].at <= pos; ++e)
+            {
+                if (events[e].autoGain)
+                {
+                    stage.setAutoTarget (events[e].target);
+                }
+                else
+                {
+                    stage.setOutputPending (events[e].target);
+                    stage.applyOutputPending();
+                }
+            }
+
+            const std::size_t next = e < events.size() ? std::min (events[e].at, n) : n;
+            stage.process (y.data() + pos, gain != nullptr ? gain->data() + pos : nullptr, static_cast<int> (next - pos));
+            pos = next;
+        }
+
+        return y;
+    }
+
+    struct XoRefOptions
+    {
+        double settleX = kXoSettleX;
+        bool reversedProduct = false;
+        bool floatStages = false;
+    };
+
+    /** PLAN-2.5 P2 re-stated: four one-poles in cascade, snapped when all four are within 1e-9. */
+    struct XoRefPoles
+    {
+        double y[4] = { 1.0, 1.0, 1.0, 1.0 };
+        double target = 1.0, a = 1.0;
+        bool settled = true, inFloat = false;
+
+        void start (double t, int length, double settleX, bool asFloat)
+        {
+            a = 1.0 - std::exp (-settleX / static_cast<double> (length));
+            target = t;
+
+            for (double& v : y)
+                v = t;
+
+            settled = true;
+            inFloat = asFloat;
+        }
+
+        void retarget (double t)
+        {
+            target = t;
+            settled = y[0] == t && y[1] == t && y[2] == t && y[3] == t;
+        }
+
+        double step()
+        {
+            if (settled)
+                return target;
+
+            for (int k = 0; k < 4; ++k)
+            {
+                const double input = k == 0 ? target : y[k - 1];
+                const double v = y[k] + a * (input - y[k]);
+                y[k] = inFloat ? static_cast<double> (static_cast<float> (v)) : v;
+            }
+
+            bool near = true;
+
+            for (const double v : y)
+                near = near && std::fabs (v - target) <= kXoSnapTolerance;
+
+            if (near)
+            {
+                for (double& v : y)
+                    v = target;
+
+                settled = true;
+            }
+
+            return y[3];
+        }
+    };
+
+    /** The reference (P8): the specified smoothing per sample, applied to the gain-free input. */
+    std::vector<double> gainRefRender (double fs, double og0, double ag0, const std::vector<XoEvent>& events,
+                                       const std::vector<double>& x, const XoRefOptions& options = XoRefOptions())
+    {
+        XoRefPoles og, ag;
+        og.start (og0, xoLength (kXoOgSeconds, fs), options.settleX, options.floatStages);
+        ag.start (ag0, xoLength (kXoAgSeconds, fs), options.settleX, options.floatStages);
+
+        std::vector<double> y (x.size());
+        std::size_t e = 0;
+
+        for (std::size_t n = 0; n < x.size(); ++n)
+        {
+            for (; e < events.size() && events[e].at <= n; ++e)
+                (events[e].autoGain ? ag : og).retarget (events[e].target);
+
+            const double gA = ag.step();
+            const double gO = og.step();
+            y[n] = x[n] * (options.reversedProduct ? gO * gA : gA * gO);
+        }
+
+        return y;
+    }
+
+    struct XoShape
+    {
+        double cur = 1.0, g0 = 1.0, g1 = 1.0;
+        int i = 0, length = 1;
+        bool running = false;
+
+        void retarget (double t, bool linear)
+        {
+            if (linear)
+            {
+                g0 = cur;
+                g1 = t;
+                i = 0;
+                running = true;
+            }
+            else
+            {
+                cur = t;
+            }
+        }
+
+        double step()
+        {
+            if (running)
+            {
+                ++i;
+                double v = g0 + (g1 - g0) * (static_cast<double> (i) / static_cast<double> (length));
+
+                if (i >= length)
+                {
+                    v = g1;
+                    running = false;
+                }
+
+                cur = v;
+            }
+
+            return cur;
+        }
+    };
+
+    std::vector<double> xoControlRender (bool linear, double fs, double og0, double ag0, const std::vector<XoEvent>& events,
+                                         const std::vector<double>& x)
+    {
+        XoShape og, ag;
+        og.cur = og0;
+        og.length = xoLength (kXoOgSeconds, fs);
+        ag.cur = ag0;
+        ag.length = xoLength (kXoAgSeconds, fs);
+
+        std::vector<double> y (x.size());
+        std::size_t e = 0;
+
+        for (std::size_t n = 0; n < x.size(); ++n)
+        {
+            for (; e < events.size() && events[e].at <= n; ++e)
+                (events[e].autoGain ? ag : og).retarget (events[e].target, linear);
+
+            const double gA = ag.step();
+            const double gO = og.step();
+            y[n] = x[n] * (gA * gO);
+        }
+
+        return y;
+    }
+
+    /** The hard control (P8): the gain jumps to the target at the sample the stage starts moving. */
+    std::vector<double> hardGainRender (double fs, double og0, double ag0, const std::vector<XoEvent>& events,
+                                        const std::vector<double>& x)
+    {
+        return xoControlRender (false, fs, og0, ag0, events, x);
+    }
+
+    /** RESEARCH-2.5 Q1 LIN: a straight line of N samples from the current value (printed, not a control). */
+    std::vector<double> linearGainRender (double fs, double og0, double ag0, const std::vector<XoEvent>& events,
+                                          const std::vector<double>& x)
+    {
+        return xoControlRender (true, fs, og0, ag0, events, x);
+    }
+
+    //==========================================================================
+    // XO-step, XO-steph, XO-ret, XO-ref, XO-refn
+    //==========================================================================
+    struct XoPair
+    {
+        bool autoGain = false;
+        double fromDb = 0.0, toDb = 0.0;
+    };
+
+    /** The 20 ordered output-gain pairs of -36 / -12 / 0 / +12 / +36 dB, then auto gain 0 <-> -18 / -6 / +6 / +12 dB. */
+    std::vector<XoPair> xoStepPairs()
+    {
+        std::vector<XoPair> pairs;
+        const double levels[5] = { -36.0, -12.0, 0.0, 12.0, 36.0 };
+
+        for (const double a : levels)
+            for (const double b : levels)
+                if (a != b)
+                    pairs.push_back ({ false, a, b });
+
+        for (const double b : { -18.0, -6.0, 6.0, 12.0 })
+        {
+            pairs.push_back ({ true, 0.0, b });
+            pairs.push_back ({ true, b, 0.0 });
+        }
+
+        return pairs;
+    }
+
+    struct XoReading
+    {
+        double d2 = 0.0, kappa = 0.0, hard = 0.0, linear = 0.0, refErr = 0.0, refnX = 0.0;
+        bool refnDiffers = false, finite = true;
+    };
+
+    /** One render of the stage and its scores over [a, b): maxD2 against the louder held render of
+        `held` (linear gains), local kappa at 1 kHz against the larger held kappa of the first two,
+        the two control renders, and the stage against gainRefRender and its two controls. */
+    XoReading xoMeasure (double tone, int phase, bool autoGain, double start, const std::vector<XoEvent>& events,
+                         const std::vector<double>& held, std::size_t a, std::size_t b, std::size_t len, bool withControls)
+    {
+        XoReading q;
+        const std::vector<double> x = xoTone (tone, 0.3 + static_cast<double> (phase) * 0.7, len);
+        const double og0 = autoGain ? 1.0 : start;
+        const double ag0 = autoGain ? start : 1.0;
+
+        const std::vector<double> y = xoStageRender (kXoFs, og0, ag0, events, x);
+        const std::vector<double> yF = xoAsFloat (y);
+        const bool at1k = tone > 500.0;
+        double hd = 0.0, hk = 0.0;
+
+        for (std::size_t h = 0; h < held.size(); ++h)
+        {
+            const std::vector<double> yh = xoHeld (held[h], x);
+            hd = std::max (hd, xoMaxD2 (yh, a, b));
+
+            if (at1k && h < 2)
+                hk = std::max (hk, xoKappa (yh, kXoFs, a, b));
+        }
+
+        q.d2 = rmRatio (xoMaxD2 (yF, a, b), hd);
+
+        if (at1k)
+            q.kappa = rmRatio (xoKappa (yF, kXoFs, a, b), hk);
+
+        if (withControls)
+        {
+            q.hard = rmRatio (xoMaxD2 (xoAsFloat (hardGainRender (kXoFs, og0, ag0, events, x)), a, b), hd);
+            q.linear = rmRatio (xoMaxD2 (xoAsFloat (linearGainRender (kXoFs, og0, ag0, events, x)), a, b), hd);
+        }
+
+        q.refErr = xoRelErr (y, gainRefRender (kXoFs, og0, ag0, events, x));
+
+        XoRefOptions x12;
+        x12.settleX = 12.0;
+        q.refnX = xoRelErr (y, gainRefRender (kXoFs, og0, ag0, events, x, x12));
+
+        XoRefOptions reversedFloat;
+        reversedFloat.reversedProduct = true;
+        reversedFloat.floatStages = true;
+        q.refnDiffers = ! xoSame (y, gainRefRender (kXoFs, og0, ag0, events, x, reversedFloat));
+        q.finite = rmAllFinite (y);
+        return q;
+    }
+
+    struct XoRetCase
+    {
+        double a, b, c;
+    };
+
+    // RESEARCH-2.5 Q1 "A second change inside the ramp": the four cases of its table.
+    const XoRetCase kXoRetCases[4] = { { 0.0, 36.0, -36.0 }, { 36.0, -36.0, 36.0 }, { 36.0, -36.0, 0.0 }, { 0.0, 12.0, 18.0 } };
+    const double kXoRetFracs[4] = { 0.25, 0.5, 0.75, 0.9 };
+
+    struct XoRefTally
+    {
+        int renders = 0, refnFired = 0, floatFired = 0;
+        double refWorst = 0.0, refnLowest = kInf;
+    };
+
+    void xoTallyRef (XoRefTally& t, const XoReading& q)
+    {
+        ++t.renders;
+        t.refWorst = std::max (t.refWorst, q.refErr);
+        t.refnLowest = std::min (t.refnLowest, q.refnX);
+
+        if (q.refnX > 1.0e-9)
+            ++t.refnFired;
+
+        if (q.refnDiffers)
+            ++t.floatFired;
+    }
+
+    /** XO-step, XO-steph, XO-ret, XO-ref, XO-refn: 448 step renders and 512 reversal renders, threaded. */
+    void rowsXoStepRet()
+    {
+        static const double tones[2] = { 50.0, 1000.0 };
+        const std::vector<XoPair> pairs = xoStepPairs();
+        const int numPairs = static_cast<int> (pairs.size());
+        const int stepTasks = numPairs * 2 * kXoPhases;
+        const int retTasks = 2 * 4 * 4 * 2 * kXoPhases;
+        std::vector<XoReading> readings (ix (stepTasks + retTasks));
+
+        parallelFor (stepTasks + retTasks, [&readings, &pairs, stepTasks] (int task)
+        {
+            if (task < stepTasks)
+            {
+                const int phase = task % kXoPhases;
+                const int t = (task / kXoPhases) % 2;
+                const XoPair& p = pairs[ix (task / (2 * kXoPhases))];
+                const int length = xoLength (p.autoGain ? kXoAgSeconds : kXoOgSeconds, kXoFs);
+                const std::size_t edit = 24000 + kXoGrid * ix (phase) * 37;
+                const std::size_t len = edit + ix (length) + 9600;
+                const std::vector<XoEvent> events { { edit, p.autoGain, xoLin (p.toDb) } };
+                readings[ix (task)] = xoMeasure (tones[t], phase, p.autoGain, xoLin (p.fromDb), events,
+                                                 { xoLin (p.fromDb), xoLin (p.toDb) }, edit - 2400, edit + ix (length) + 2400, len, true);
+                return;
+            }
+
+            const int r = task - stepTasks;
+            const int phase = r % kXoPhases;
+            const int t = (r / kXoPhases) % 2;
+            const int f = (r / (2 * kXoPhases)) % 4;
+            const int c = (r / (8 * kXoPhases)) % 4;
+            const bool autoGain = r / (32 * kXoPhases) != 0;
+            const XoRetCase& rc = kXoRetCases[c];
+            const int length = xoLength (autoGain ? kXoAgSeconds : kXoOgSeconds, kXoFs);
+            const std::size_t e1 = 24000 + kXoGrid * ix (phase) * 37;
+            const std::size_t e2 = e1 + kXoGrid * static_cast<std::size_t> (std::lround (kXoRetFracs[f] * static_cast<double> (length)
+                                                                                           / static_cast<double> (kXoGrid)));
+            const std::size_t len = e1 + 3 * ix (length) + 9600;
+            const std::vector<XoEvent> events { { e1, autoGain, xoLin (rc.b) }, { e2, autoGain, xoLin (rc.c) } };
+            readings[ix (task)] = xoMeasure (tones[t], phase, autoGain, xoLin (rc.a), events, { xoLin (rc.a), xoLin (rc.b), xoLin (rc.c) },
+                                             e1 - 2400, e1 + 2 * ix (length) + 2400, len, false);
+        });
+
+        XoRefTally ref;
+        int nonFinite = 0;
+
+        //======================================================================
+        // XO-step / XO-steph: per pair and tone, the worst of the eight phases
+        //======================================================================
+        int d2Above = 0, kAbove = 0, hardBelow = 0, hardCounted = 0;
+        double d2Worst[2][2] = {}, kWorst[2] = {}, hardLowest[2][2] = { { kInf, kInf }, { kInf, kInf } }, linWorst[2][2] = {};
+        std::string d2Where[2][2], kWhere[2], hardWhere[2][2];
+
+        for (int pIdx = 0; pIdx < numPairs; ++pIdx)
+            for (int t = 0; t < 2; ++t)
+            {
+                const XoPair& p = pairs[ix (pIdx)];
+                const int g = p.autoGain ? 1 : 0;
+                double d2 = 0.0, k = 0.0, hard = 0.0, lin = 0.0;
+
+                for (int ph = 0; ph < kXoPhases; ++ph)
+                {
+                    const XoReading& q = readings[ix ((pIdx * 2 + t) * kXoPhases + ph)];
+                    d2 = std::max (d2, q.d2);
+                    k = std::max (k, q.kappa);
+                    hard = std::max (hard, q.hard);
+                    lin = std::max (lin, q.linear);
+                    xoTallyRef (ref, q);
+
+                    if (! q.finite)
+                        ++nonFinite;
+                }
+
+                const std::string where = strf ("%s %+.0f -> %+.0f dB", p.autoGain ? "AG" : "OG", p.fromDb, p.toDb);
+
+                if (! (d2 <= 2.0))
+                    ++d2Above;
+
+                if (t == 1 && ! (k <= 2.5))
+                    ++kAbove;
+
+                if (! (d2 <= d2Worst[g][t]))
+                {
+                    d2Worst[g][t] = d2;
+                    d2Where[g][t] = where;
+                }
+
+                if (t == 1 && ! (k <= kWorst[g]))
+                {
+                    kWorst[g] = k;
+                    kWhere[g] = where;
+                }
+
+                ++hardCounted;
+
+                if (! (hard >= 10.0))
+                    ++hardBelow;
+
+                if (! (hard >= hardLowest[g][t]))
+                {
+                    hardLowest[g][t] = hard;
+                    hardWhere[g][t] = where;
+                }
+
+                linWorst[g][t] = std::max (linWorst[g][t], lin);
+            }
+
+        row (d2Above == 0 && kAbove == 0 && nonFinite == 0 && numPairs == 28,
+             "XO-step output gain 20 ms (20 pairs) and auto gain 100 ms (8 pairs), 50 Hz / 1 kHz, 8 phases: maxD2 <= 2.0x the louder "
+             "held render; 1 kHz kappa <= 2.5x",
+             strf ("%d of %d pair readings above 2.0x, %d of %d above 2.5x kappa; %d non-finite", d2Above, 2 * numPairs, kAbove, numPairs,
+                   nonFinite));
+        note (strf ("output gain: 50 Hz %.3fx (%s; bench P4 1.557x) | 1 kHz %.3fx (%s; bench 1.000x) | 1 kHz kappa %.3fx (%s; bench 2.220x)",
+                    d2Worst[0][0], d2Where[0][0].c_str(), d2Worst[0][1], d2Where[0][1].c_str(), kWorst[0], kWhere[0].c_str()));
+        note (strf ("auto gain:   50 Hz %.3fx (%s; bench P4 1.010x) | 1 kHz %.3fx (%s; bench 1.000x) | 1 kHz kappa %.3fx (%s; bench 1.208x)",
+                    d2Worst[1][0], d2Where[1][0].c_str(), d2Worst[1][1], d2Where[1][1].c_str(), kWorst[1], kWhere[1].c_str()));
+
+        row (hardBelow == 0 && hardCounted == 2 * numPairs,
+             "XO-steph hardGainRender on the XO-step pairs: maxD2 >= 10x the louder held render on every pair and tone",
+             strf ("%s: %d of %d >= 10x; lowest OG 50 Hz %.0fx (%s), OG 1 kHz %.1fx (%s), AG 50 Hz %.0fx (%s), AG 1 kHz %.1fx (%s); "
+                   "bench worst 23 175x / 59.4x",
+                   hardBelow == 0 ? "the control fires" : "the control did NOT fire", hardCounted - hardBelow, hardCounted,
+                   hardLowest[0][0], hardWhere[0][0].c_str(), hardLowest[0][1], hardWhere[0][1].c_str(), hardLowest[1][0],
+                   hardWhere[1][0].c_str(), hardLowest[1][1], hardWhere[1][1].c_str()));
+        note (strf ("linearGainRender (printed, not a control): output gain 50 Hz %.2fx (bench LIN 25.1x), 1 kHz %.2fx (bench 1.06x); "
+                    "auto gain 50 Hz %.2fx (bench 5.21x), 1 kHz %.2fx (bench 1.01x)",
+                    linWorst[0][0], linWorst[0][1], linWorst[1][0], linWorst[1][1]));
+
+        //======================================================================
+        // XO-ret: per row (gain, case, fraction) and tone, the worst phase
+        //======================================================================
+        int retAbove = 0, retRows = 0;
+        double retWorst[2][2] = {};
+        std::string retWhere[2][2];
+
+        for (int gi = 0; gi < 2; ++gi)
+            for (int c = 0; c < 4; ++c)
+                for (int f = 0; f < 4; ++f)
+                {
+                    ++retRows;
+
+                    for (int t = 0; t < 2; ++t)
+                    {
+                        double worst = 0.0;
+
+                        for (int ph = 0; ph < kXoPhases; ++ph)
+                        {
+                            const int r = (((gi * 4 + c) * 4 + f) * 2 + t) * kXoPhases + ph;
+                            const XoReading& q = readings[ix (stepTasks + r)];
+                            worst = std::max (worst, q.d2);
+                            xoTallyRef (ref, q);
+
+                            if (! q.finite)
+                                ++nonFinite;
+                        }
+
+                        if (! (worst <= 2.0))
+                            ++retAbove;
+
+                        if (! (worst <= retWorst[gi][t]))
+                        {
+                            retWorst[gi][t] = worst;
+                            retWhere[gi][t] = strf ("%+.0f > %+.0f > %+.0f @ %.2f", kXoRetCases[c].a, kXoRetCases[c].b, kXoRetCases[c].c,
+                                                    kXoRetFracs[f]);
+                        }
+                    }
+                }
+
+        row (retAbove == 0 && retRows == 32 && nonFinite == 0,
+             "XO-ret 32 reversal rows (4 cases x second change at 25 / 50 / 75 / 90 % x both gains), 50 Hz / 1 kHz, 8 phases: maxD2 "
+             "<= 2.0x the loudest held render",
+             strf ("%d of %d readings above 2.0x; output gain 50 Hz %.3fx (%s; bench P4 1.58x), 1 kHz %.3fx (%s; bench 1.00x); "
+                   "auto gain 50 Hz %.3fx (%s), 1 kHz %.3fx (%s)",
+                   retAbove, 2 * retRows, retWorst[0][0], retWhere[0][0].c_str(), retWorst[0][1], retWhere[0][1].c_str(), retWorst[1][0],
+                   retWhere[1][0].c_str(), retWorst[1][1], retWhere[1][1].c_str()));
+
+        //======================================================================
+        // XO-ref / XO-refn
+        //======================================================================
+        const int expectedRenders = stepTasks + retTasks;
+
+        row (ref.renders == expectedRenders && ref.refWorst <= 1.0e-12,
+             "XO-ref OutputStage against gainRefRender over the XO-step and XO-ret renders: <= 1e-12 relative, sample by sample",
+             strf ("%d renders; worst relative difference %.3g", ref.renders, ref.refWorst));
+
+        row (ref.renders == expectedRenders && ref.refnFired == ref.renders && ref.floatFired == ref.renders,
+             "XO-refn gainRefRender with X = 12.0 exceeds 1e-9; with the product order reversed and the stages in float it differs",
+             strf ("%s: X = 12.0 above 1e-9 on %d of %d renders (lowest %.3g); reversed + float differs on %d of %d",
+                   (ref.refnFired == ref.renders && ref.floatFired == ref.renders) ? "both controls fire" : "a control did NOT fire",
+                   ref.refnFired, ref.renders, ref.refnLowest, ref.floatFired, ref.renders));
+    }
+
+    //==========================================================================
+    // XO-sweep: output-gain automation sampled at block starts
+    //==========================================================================
+    void rowXoSweep()
+    {
+        struct Reading
+        {
+            double r50 = 0.0, r1k = 0.0, k1k = 0.0, lag = 0.0, overshoot = 0.0;
+        };
+
+        static const double sweeps[2] = { 0.020, 1.0 };
+        static const int blocks[2] = { 32, 512 };
+        Reading readings[2][2];
+
+        parallelFor (4, [&readings] (int task)
+        {
+            const int s = task / 2, bi = task % 2;
+            const double fs = kXoFs;
+            const std::size_t s1 = 24000, len1 = static_cast<std::size_t> (std::lround (sweeps[s] * fs));
+            const std::size_t hold = 4800, s2 = s1 + len1 + hold, end = s2 + len1;
+            const std::size_t len = end + 19200;
+            const std::size_t block = ix (blocks[bi]);
+
+            auto autoDb = [=] (std::size_t n) -> double
+            {
+                if (n < s1)
+                    return -30.0;
+
+                if (n < s1 + len1)
+                    return -30.0 + 60.0 * static_cast<double> (n - s1) / static_cast<double> (len1);
+
+                if (n < s2)
+                    return 30.0;
+
+                if (n < end)
+                    return 30.0 - 60.0 * static_cast<double> (n - s2) / static_cast<double> (len1);
+
+                return -30.0;
+            };
+
+            Reading& q = readings[s][bi];
+
+            for (const double tone : { 50.0, 1000.0 })
+            {
+                const std::vector<double> x = xoTone (tone, 0.3, len);
+                std::vector<double> ref (len);
+
+                for (std::size_t n = 0; n < len; ++n)
+                    ref[n] = static_cast<double> (static_cast<float> (xoLin (autoDb (n)) * x[n]));
+
+                // The processor's order: read at each block start, handed over at the next tick.
+                eq::OutputStage stage;
+                stage.prepare (fs);
+                stage.snap (xoLin (-30.0), 1.0);
+                std::vector<double> y = x, g (len, 1.0);
+
+                for (std::size_t b0 = 0; b0 < len; b0 += block)
+                {
+                    stage.setOutputPending (xoLin (autoDb (b0)));
+                    const std::size_t bEnd = std::min (b0 + block, len);
+
+                    for (std::size_t pos = b0; pos < bEnd;)
+                    {
+                        if (pos % kXoGrid == 0)
+                            stage.applyOutputPending();
+
+                        const std::size_t next = std::min (bEnd, (pos / kXoGrid + 1) * kXoGrid);
+                        stage.process (y.data() + pos, g.data() + pos, static_cast<int> (next - pos));
+                        pos = next;
+                    }
+                }
+
+                const std::vector<double> yF = xoAsFloat (y);
+                const std::size_t a = s1 - 2400, b = end + 9600;
+                const double r = rmRatio (xoMaxD2 (yF, a, b), xoMaxD2 (ref, a, b));
+
+                if (tone < 500.0)
+                {
+                    q.r50 = r;
+                }
+                else
+                {
+                    q.r1k = r;
+                    q.k1k = rmRatio (xoKappa (yF, fs, a, b), xoKappa (ref, fs, a, b));
+                }
+
+                for (std::size_t n = a; n < b; ++n)
+                {
+                    const double db = xoDb (g[n]);
+                    q.overshoot = std::max (q.overshoot, std::max (db - 30.0, -30.0 - db));
+                }
+
+                q.lag = std::max (q.lag, std::fabs (xoDb (g[s1 + len1 + 960]) - 30.0));
+            }
+        });
+
+        int above = 0, lagAbove = 0;
+
+        for (const auto& perSweep : readings)
+            for (const Reading& q : perSweep)
+            {
+                if (! (q.r50 <= 4.0) || ! (q.r1k <= 4.0))
+                    ++above;
+
+                if (! (q.lag <= 0.1))
+                    ++lagAbove;
+            }
+
+        row (above == 0 && lagAbove == 0,
+             "XO-sweep -30 -> +30 -> -30 dB in 20 ms and in 1 s, sampled at block starts 32 / 512: maxD2 <= 4.0x the per-sample "
+             "reference; lag 20 ms after the sweep <= 0.1 dB",
+             strf ("%d of 8 ratios above 4.0x, %d of 4 lags above 0.1 dB", above, lagAbove));
+
+        static const double bench[2][2][4] = { { { 0.03, 1.00, 1.00, 0.004 }, { 0.03, 1.00, 1.39, 0.031 } },
+                                               { { 0.77, 1.00, 1.00, 0.000 }, { 0.78, 1.00, 1.01, 0.003 } } };
+
+        for (int s = 0; s < 2; ++s)
+            for (int bi = 0; bi < 2; ++bi)
+            {
+                const Reading& q = readings[s][bi];
+                note (strf ("%-5s block %3d: 50 Hz %.2fx (bench %.2f) | 1 kHz %.2fx (bench %.2f) | 1 kHz kappa %.2fx (bench %.2f) | "
+                            "lag %.3f dB (bench %.3f) | overshoot %.3f dB",
+                            s == 0 ? "20 ms" : "1 s", blocks[bi], q.r50, bench[s][bi][0], q.r1k, bench[s][bi][1], q.k1k,
+                            bench[s][bi][2], q.lag, bench[s][bi][3], q.overshoot));
+            }
+    }
+
+    //==========================================================================
+    // XO-stress: 200 s of random automation
+    //==========================================================================
+    void rowXoStress()
+    {
+        const double fs = kXoFs;
+        const std::size_t total = static_cast<std::size_t> (200.0 * fs);
+        const std::size_t refreshTicks = 64;        // PLAN-2.5 P5 at 48 kHz, harness literal
+        Rng rng (0x584F535452455353ull);
+
+        eq::OutputStage stage;
+        stage.prepare (fs);
+
+        double ogLo = 1.0, ogHi = 1.0, agLo = 1.0, agHi = 1.0;
+        double ogMinDb = kInf, ogMaxDb = -kInf, agMinDb = kInf, agMaxDb = -kInf, gMin = kInf;
+        long long outside = 0, nonPositive = 0, blocks = 0, moving = 0, refreshes = 0;
+        std::size_t n = 0;
+
+        while (n < total)
+        {
+            const int block = 1 + rng.below (2048);
+            const double u = rng.uniform();
+            const double currentDb = xoDb (std::max (stage.getOutputSmoother().getCurrent(), 1.0e-9));
+            double targetDb = 0.0;
+
+            if (u < 0.5)
+                targetDb = -36.0 + 72.0 * rng.uniform();
+            else if (u < 0.75)
+                targetDb = rng.uniform() < 0.5 ? -36.0 : 36.0;
+            else
+                targetDb = std::clamp (currentDb + (rng.uniform() - 0.5) * 6.0, -36.0, 36.0);
+
+            const double target = eq::outputGainTarget (targetDb);
+            stage.setOutputPending (target);
+            ogLo = std::min (ogLo, target);
+            ogHi = std::max (ogHi, target);
+            ++blocks;
+
+            for (int i = 0; i < block && n < total; ++i, ++n)
+            {
+                if (n % kXoGrid == 0)
+                {
+                    stage.applyOutputPending();
+
+                    if ((n / kXoGrid) % refreshTicks == 0)
+                    {
+                        const double at = xoLin (-18.0 + 30.0 * rng.uniform());
+                        stage.setAutoTarget (at);
+                        agLo = std::min (agLo, at);
+                        agHi = std::max (agHi, at);
+                        ++refreshes;
+                    }
+                }
+
+                double one = 1.0;
+                stage.process (&one, nullptr, 1);
+                const double og = stage.getOutputSmoother().getCurrent();
+                const double ag = stage.getAutoSmoother().getCurrent();
+
+                if (! stage.getOutputSmoother().isSettled() || ! stage.getAutoSmoother().isSettled())
+                    ++moving;
+
+                if (! (one > 0.0))
+                    ++nonPositive;
+
+                if (! (og >= ogLo && og <= ogHi && ag >= agLo && ag <= agHi && one >= ogLo * agLo && one <= ogHi * agHi))
+                    ++outside;
+
+                gMin = std::min (gMin, one);
+                ogMinDb = std::min (ogMinDb, xoDb (og));
+                ogMaxDb = std::max (ogMaxDb, xoDb (og));
+                agMinDb = std::min (agMinDb, xoDb (ag));
+                agMaxDb = std::max (agMaxDb, xoDb (ag));
+            }
+        }
+
+        row (outside == 0 && nonPositive == 0 && moving > static_cast<long long> (total / 2),
+             "XO-stress 200 s at 48 kHz, output gain redrawn per random block (1 - 2048), auto gain at every refresh tick: each gain "
+             "within [min, max] of its targets at every sample; never <= 0",
+             strf ("%lld samples outside, %lld <= 0 (smallest gain %.3g); output gain %.2f ... %.2f dB (bench P4 -36.00 ... 36.00), "
+                   "auto gain %.2f ... %.2f dB; %lld blocks, %lld refreshes, %lld of %zu samples moving",
+                   outside, nonPositive, gMin, ogMinDb, ogMaxDb, agMinDb, agMaxDb, blocks, refreshes, moving, total));
+    }
+
+    //==========================================================================
+    // XO-snap: settle-to-snap after a step
+    //==========================================================================
+    void rowXoSnap()
+    {
+        const std::vector<XoPair> pairs = xoStepPairs();
+        double lo[2] = { kInf, kInf }, hi[2] = { 0.0, 0.0 };
+        int outOfRange = 0, notExact = 0, runs = 0;
+        std::string first;
+
+        for (const double fs : kRates8)
+            for (const XoPair& p : pairs)
+            {
+                const int g = p.autoGain ? 1 : 0;
+                const double g0 = xoLin (p.fromDb), g1 = xoLin (p.toDb);
+                eq::OutputStage stage;
+                stage.prepare (fs);
+
+                if (p.autoGain)
+                {
+                    stage.snap (1.0, g0);
+                    stage.setAutoTarget (g1);
+                }
+                else
+                {
+                    stage.snap (g0, 1.0);
+                    stage.setOutputPending (g1);
+                    stage.applyOutputPending();
+                }
+
+                const eq::GainSmoother& smoother = p.autoGain ? stage.getAutoSmoother() : stage.getOutputSmoother();
+                const long limit = std::lround (fs);
+                long count = 0;
+                double out = 0.0;
+
+                while (count < limit)
+                {
+                    double one = 1.0;
+                    stage.process (&one, nullptr, 1);
+                    ++count;
+                    out = one;
+
+                    if (smoother.isSettled())
+                        break;
+                }
+
+                // After the snap: the gain is the target exactly, and so is every sample after it.
+                bool exact = out == g1 && smoother.isSettledAt (g1);
+                double buffer[64], input[64];
+
+                for (int i = 0; i < 64; ++i)
+                {
+                    input[i] = 0.37 + 0.001 * static_cast<double> (i);
+                    buffer[i] = input[i];
+                }
+
+                stage.process (buffer, nullptr, 64);
+
+                for (int i = 0; i < 64; ++i)
+                    exact = exact && buffer[i] == input[i] * g1;
+
+                exact = exact && (g1 != 1.0 || stage.isUnity());
+
+                const double ms = 1000.0 * static_cast<double> (count) / fs;
+                const bool inRange = g == 0 ? (ms >= 40.0 && ms <= 60.0) : (ms >= 200.0 && ms <= 260.0);
+                lo[g] = std::min (lo[g], ms);
+                hi[g] = std::max (hi[g], ms);
+                ++runs;
+
+                if (! inRange)
+                    ++outOfRange;
+
+                if (! exact)
+                    ++notExact;
+
+                if ((! inRange || ! exact) && first.empty())
+                    first = strf ("%s %+.0f -> %+.0f at %.0f Hz: %.2f ms%s", p.autoGain ? "AG" : "OG", p.fromDb, p.toDb, fs, ms,
+                                  exact ? "" : ", not exact");
+            }
+
+        row (outOfRange == 0 && notExact == 0 && runs == 8 * 28,
+             "XO-snap settle-to-snap after a step, every pair, 8 rates: output gain 40 - 60 ms, auto gain 200 - 260 ms; then the "
+             "target exactly and isSettledAt",
+             strf ("%d runs; output gain %.2f - %.2f ms (bench 45 - 52), auto gain %.2f - %.2f ms (bench 222 - 232); %d out of range, "
+                   "%d not exact%s%s",
+                   runs, lo[0], hi[0], lo[1], hi[1], outOfRange, notExact, first.empty() ? "" : "; first: ", first.c_str()));
+    }
+
+    //==========================================================================
+    // XO-unity: the target conversion and the idle stage
+    //==========================================================================
+    void rowXoUnity()
+    {
+        int failed = 0, checks = 0;
+        std::string bad;
+
+        auto check = [&failed, &checks, &bad] (bool ok, const std::string& what)
+        {
+            ++checks;
+
+            if (! ok)
+            {
+                ++failed;
+                bad += (bad.empty() ? "" : "; ") + what;
+            }
+        };
+
+        const double nan = std::numeric_limits<double>::quiet_NaN();
+        check (sameBits (eq::outputGainTarget (0.0), 1.0), "0 dB is not 1.0");
+        check (sameBits (eq::outputGainTarget (-0.0), 1.0), "-0 dB is not 1.0");
+
+        for (const double db : { -36.0, -12.0, 12.0, 36.0 })
+            check (sameBits (eq::outputGainTarget (db), std::pow (10.0, db / 20.0)), strf ("%+.0f dB", db));
+
+        check (sameBits (eq::outputGainTarget (36.5), std::pow (10.0, 36.0 / 20.0)), "+36.5 dB does not clamp to +36");
+        check (sameBits (eq::outputGainTarget (1.0e300), std::pow (10.0, 36.0 / 20.0)), "+1e300 dB does not clamp to +36");
+        check (sameBits (eq::outputGainTarget (-36.5), std::pow (10.0, -36.0 / 20.0)), "-36.5 dB does not clamp to -36");
+        check (sameBits (eq::outputGainTarget (-1.0e300), std::pow (10.0, -36.0 / 20.0)), "-1e300 dB does not clamp to -36");
+
+        // PLAN-2.5 P3: a non-finite raw value reads 0 dB.
+        check (sameBits (eq::outputGainTarget (nan), 1.0), "NaN is not 1.0");
+        check (sameBits (eq::outputGainTarget (kInf), 1.0), "+inf is not 1.0");
+        check (sameBits (eq::outputGainTarget (-kInf), 1.0), "-inf is not 1.0");
+
+        // A settled unity stage: a buffer of denormals (and signed zeros) is left bit-identical,
+        // fresh from prepare and after both gains have moved away and back.
+        constexpr int length = 4096;
+        std::vector<double> denormL (ix (length)), denormR (ix (length));
+        Rng rng (0x584F554E495459ull);
+
+        for (int i = 0; i < length; ++i)
+        {
+            const double tiny = std::numeric_limits<double>::denorm_min() * static_cast<double> (1 + rng.below (1 << 20));
+            denormL[ix (i)] = (i % 97 == 0) ? 0.0 : (rng.uniform() < 0.5 ? -tiny : tiny);
+            denormR[ix (i)] = (i % 89 == 0) ? -0.0 : (rng.uniform() < 0.5 ? tiny : -tiny);
+        }
+
+        auto untouched = [&denormL, &denormR] (eq::OutputStage& s)
+        {
+            std::vector<double> l = denormL, r = denormR;
+            s.process (l.data(), r.data(), length);
+            return xoSame (l, denormL) && xoSame (r, denormR);
+        };
+
+        eq::OutputStage stage;
+        stage.prepare (kXoFs);
+        check (stage.isUnity(), "a prepared stage is not unity");
+        check (untouched (stage), "a prepared stage changed a denormal buffer");
+
+        stage.setOutputPending (xoLin (6.0));
+        stage.applyOutputPending();
+        stage.setAutoTarget (xoLin (-6.0));
+        check (! stage.isUnity(), "a moving stage reads unity");
+
+        for (int i = 0; i < 48000; ++i)
+        {
+            double one = 1.0;
+            stage.process (&one, nullptr, 1);
+        }
+
+        stage.setOutputPending (1.0);
+        check (! stage.isUnity(), "a pending output target off unity reads unity");
+        stage.applyOutputPending();
+        stage.setAutoTarget (1.0);
+        int count = 0;
+
+        for (; count < 48000 && ! stage.isUnity(); ++count)
+        {
+            double one = 1.0;
+            stage.process (&one, nullptr, 1);
+        }
+
+        check (stage.isUnity(), "the stage did not return to unity within 1 s");
+        check (untouched (stage), "a stage back at unity changed a denormal buffer");
+
+        row (failed == 0,
+             "XO-unity outputGainTarget: 0 dB = 1.0, +-12 / +-36 dB, the clamp ends, non-finite -> 1.0, bit for bit; a settled unity "
+             "stage leaves denormals bit-identical",
+             strf ("%d of %d checks failed%s%s; back at unity %.1f ms after both gains returned", failed, checks, bad.empty() ? "" : ": ",
+                   bad.c_str(), 1000.0 * static_cast<double> (count) / kXoFs));
+    }
+
+    //==========================================================================
+    // agRef: the P4 estimator re-stated in harness code
+    //==========================================================================
+    /** Midpoint log grid of `points` cells over 40 Hz - min (16 kHz, 0.45 fs): tan^2 (pi f / fs). */
+    std::vector<double> xoAgGrid (double fs, int points)
+    {
+        std::vector<double> t2 (ix (points));
+        const double fTop = std::min (16000.0, 0.45 * fs);
+        const double lnLo = std::log (40.0), lnHi = std::log (fTop);
+
+        for (int i = 0; i < points; ++i)
+        {
+            const double u = (static_cast<double> (i) + 0.5) / static_cast<double> (points);
+            const double f = std::exp (lnLo + (lnHi - lnLo) * u);
+            t2[ix (i)] = eq::tanSquaredHalf (2.0 * kPi * f / fs);
+        }
+
+        return t2;
+    }
+
+    struct XoAgRefResult
+    {
+        double target = 1.0, mean = 1.0;
+        int contributing = 0;
+    };
+
+    /** PLAN-2.5 P4 re-stated: contributing bands (active; not a gain type at exactly 0 dB; not Side
+        on a stereo layout), their target designs multiplied over the grid, lanes L (Stereo, Mid, Left)
+        and R (Stereo, Mid, Right) or every band in both on mono, the mean of the lane average, the
+        guards, -10 log10, the clamp to [-18, +12]. */
+    XoAgRefResult agRef (const eq::Designer& designer, const eq::BandInput* const* desired, bool stereo, const std::vector<double>& t2)
+    {
+        XoAgRefResult r;
+        const std::size_t m = t2.size();
+        std::vector<double> laneL (m, 1.0), laneR (m, 1.0), p (m, 1.0);
+
+        for (int b = 0; b < kXoBands; ++b)
+        {
+            const eq::BandInput& in = *desired[b];
+            const eq::Type type = in.settings.type;
+            const bool gainType = type == eq::Type::bell || type == eq::Type::lowShelf || type == eq::Type::highShelf
+                                  || type == eq::Type::tilt;
+
+            if (! in.active || (gainType && in.settings.gainDbEff == 0.0) || (stereo && in.placement == eq::Placement::side))
+                continue;
+
+            eq::BandDesign d {};
+            designer.design (in.settings, d);
+
+            for (std::size_t i = 0; i < m; ++i)
+            {
+                double mag2 = 1.0;
+
+                for (int s = 0; s < d.numSections; ++s)
+                    mag2 *= eq::sectionMag2 (t2[i], d.params[ix (s)]);
+
+                p[i] = mag2;
+            }
+
+            const eq::Placement pl = in.placement;
+            const bool toL = ! stereo || pl == eq::Placement::stereo || pl == eq::Placement::mid || pl == eq::Placement::left;
+            const bool toR = ! stereo || pl == eq::Placement::stereo || pl == eq::Placement::mid || pl == eq::Placement::right;
+
+            for (std::size_t i = 0; i < m; ++i)
+            {
+                if (toL)
+                    laneL[i] *= p[i];
+
+                if (toR)
+                    laneR[i] *= p[i];
+            }
+
+            ++r.contributing;
+        }
+
+        if (r.contributing == 0)
+            return r;
+
+        double sum = 0.0;
+
+        for (std::size_t i = 0; i < m; ++i)
+            sum += 0.5 * (laneL[i] + laneR[i]);
+
+        r.mean = sum / static_cast<double> (m);
+        double db = 0.0;
+
+        if (std::isnan (r.mean))
+            return r;
+
+        if (std::isinf (r.mean))
+            db = -18.0;
+        else if (r.mean <= 1.0e-30)
+            db = 12.0;
+        else
+            db = std::clamp (-10.0 * std::log10 (r.mean), -18.0, 12.0);
+
+        r.target = std::pow (10.0, db / 20.0);
+        return r;
+    }
+
+    /** The pink truth: 40 000 midpoint cells over 40 Hz - 16 kHz at fs. */
+    std::vector<double> xoTruthGrid (double fs)
+    {
+        std::vector<double> t2 (ix (kXoTruthPoints));
+        const double lo = std::log (40.0), hi = std::log (16000.0);
+
+        for (int i = 0; i < kXoTruthPoints; ++i)
+        {
+            const double u = (static_cast<double> (i) + 0.5) / static_cast<double> (kXoTruthPoints);
+            t2[ix (i)] = eq::tanSquaredHalf (2.0 * kPi * std::exp (lo + (hi - lo) * u) / fs);
+        }
+
+        return t2;
+    }
+
+    /** -10 log10 of the mean power gain of one design over a truth grid (dB, unclamped). */
+    double xoTruthDb (const eq::BandDesign& d, const std::vector<double>& t2)
+    {
+        double sum = 0.0;
+
+        for (const double t : t2)
+        {
+            double mag2 = 1.0;
+
+            for (int s = 0; s < d.numSections; ++s)
+                mag2 *= eq::sectionMag2 (t, d.params[ix (s)]);
+
+            sum += mag2;
+        }
+
+        return -10.0 * std::log10 (sum / static_cast<double> (t2.size()));
+    }
+
+    //==========================================================================
+    // XO-ag: the estimator against the pink truth
+    //==========================================================================
+    void rowXoAg()
+    {
+        struct Case
+        {
+            eq::Type type;
+            double f, gain, q;
+            int slope;
+        };
+
+        // RESEARCH-2.5 Q3 / gain_bench ag: the G12 shelf first.
+        static const Case cases[18] =
+        {
+            { eq::Type::lowShelf, 200, 12, 1, 1 },  { eq::Type::lowShelf, 200, 12, 1, 3 },   { eq::Type::lowShelf, 200, 12, 1, 7 },
+            { eq::Type::lowShelf, 200, -12, 3, 1 }, { eq::Type::highShelf, 8000, 12, 1, 1 }, { eq::Type::highShelf, 8000, -18, 1, 5 },
+            { eq::Type::highShelf, 15000, 12, 4, 7 }, { eq::Type::bell, 1000, 12, 0.5, 0 },  { eq::Type::bell, 1000, 12, 2, 0 },
+            { eq::Type::bell, 1000, 30, 10, 0 },    { eq::Type::bell, 3000, -30, 40, 0 },    { eq::Type::lowCut, 100, 0, 1, 3 },
+            { eq::Type::lowCut, 300, 0, 1, 7 },     { eq::Type::highCut, 5000, 0, 1, 5 },    { eq::Type::notch, 1000, 0, 4, 0 },
+            { eq::Type::bandPass, 1000, 0, 10, 0 }, { eq::Type::tilt, 1000, 12, 1, 1 },      { eq::Type::tilt, 1000, -12, 1, 5 }
+        };
+
+        static const double rates[4] = { 44100.0, 48000.0, 96000.0, 192000.0 };
+        double est[4][18] = {}, truth[4][18] = {}, target[4][18] = {};
+
+        parallelFor (4, [&est, &truth, &target] (int r)
+        {
+            const double fs = rates[r];
+            eq::Designer designer;
+            designer.prepare (fs);
+            std::unique_ptr<eq::AutoGain> autoGain = std::make_unique<eq::AutoGain>();
+            autoGain->prepare (fs);
+            const std::vector<double> t2 = xoTruthGrid (fs);
+            XoInputs in;
+            in.fill (xoOff());
+            const XoDesired desired = xoPointers (in);
+
+            for (int c = 0; c < 18; ++c)
+            {
+                in[0] = rmInput (cases[c].type, cases[c].f, cases[c].gain, cases[c].q, cases[c].slope);
+                target[r][c] = autoGain->estimate (desired.data(), true, designer);
+                est[r][c] = xoDb (target[r][c]);
+                eq::BandDesign d {};
+                designer.design (in[0].settings, d);
+                truth[r][c] = xoTruthDb (d, t2);
+            }
+        });
+
+        const double clampHi = std::pow (10.0, 12.0 / 20.0), clampLo = std::pow (10.0, -18.0 / 20.0);
+        int bad = 0, clamped = 0;
+        double worst = 0.0, g12Worst = 0.0;
+        std::string worstWhere;
+
+        for (int r = 0; r < 4; ++r)
+            for (int c = 0; c < 18; ++c)
+            {
+                const double err = est[r][c] - truth[r][c];
+                const bool atClamp = (truth[r][c] > 12.0 && sameBits (target[r][c], clampHi))
+                                     || (truth[r][c] < -18.0 && sameBits (target[r][c], clampLo));
+
+                if (atClamp)
+                {
+                    ++clamped;
+                    continue;
+                }
+
+                if (! (std::fabs (err) <= 0.06))
+                    ++bad;
+
+                if (! (std::fabs (err) <= worst))
+                {
+                    worst = std::fabs (err);
+                    worstWhere = strf ("%s %.0f Hz %+.0f dB Q %.2g slope %d at %.1f kHz: %+.4f dB", kTypeNames[static_cast<int> (cases[c].type)],
+                                       cases[c].f, cases[c].gain, cases[c].q, cases[c].slope, rates[r] / 1000.0, err);
+                }
+            }
+
+        for (int r = 0; r < 4; ++r)
+            g12Worst = std::max (g12Worst, std::fabs (est[r][0] - (-6.167)));
+
+        row (bad == 0 && g12Worst <= 0.001 && clamped == 4,
+             "XO-ag AutoGain against the 40 000-point pink truth, 18 RESEARCH Q3 rows x 44.1 / 48 / 96 / 192 kHz: G12 shelf within "
+             "0.001 dB of -6.167; every row within 0.06 dB or at its clamp",
+             strf ("%d of %d rows outside; worst %.4f dB (%s; bench 0.055); %d at the clamp (Band Pass Q 10, truth %+.3f dB); G12 shelf "
+                   "%.4f / %.4f / %.4f / %.4f dB (truth %.4f)",
+                   bad, 4 * 18 - clamped, worst, worstWhere.c_str(), clamped, truth[1][15], est[0][0], est[1][0], est[2][0], est[3][0],
+                   truth[1][0]));
+    }
+
+    //==========================================================================
+    // XO-agref: AutoGain against agRef on random configurations
+    //==========================================================================
+    eq::RawBand xoRandomRaw (Rng& rng)
+    {
+        eq::RawBand raw;
+        raw.enabled = 1.0f;
+        raw.bypass = rng.uniform() < 0.05 ? 1.0f : 0.0f;
+        raw.type = static_cast<float> (rng.below (8));
+        raw.freq = static_cast<float> (20.0 * std::pow (1000.0, rng.uniform()));
+        raw.gain = rng.uniform() < 0.1 ? 0.0f : static_cast<float> (-12.0 + 24.0 * rng.uniform());
+        raw.q = static_cast<float> (0.1 * std::pow (400.0, rng.uniform()));
+        raw.slope = static_cast<float> (rng.below (8));
+        raw.placement = static_cast<float> (rng.below (5));
+        return raw;
+    }
+
+    /** 24 bands, each enabled with a per-configuration probability; gain scale 100 % or (p 0.2)
+        0 - 200 %. The placement is the raw one, also on mono (the estimator ignores it there). */
+    void xoRandomConfig (Rng& rng, XoInputs& in)
+    {
+        const double pActive = rng.uniform();
+        const float scale = rng.uniform() < 0.2 ? static_cast<float> (200.0 * rng.uniform()) : kEnScale100;
+
+        for (eq::BandInput& band : in)
+        {
+            eq::RawBand raw = xoRandomRaw (rng);
+            raw.enabled = rng.uniform() < pActive ? 1.0f : 0.0f;
+            band = eq::makeBandInput (raw, scale, 0.0);
+        }
+    }
+
+    void rowXoAgRef()
+    {
+        constexpr int configs = 2000;
+
+        struct Task
+        {
+            double worstDb = 0.0;
+            int compared = 0, clamped = 0, unity = 0, nonFinite = 0;
+            long long placed[5] = {};
+            std::string where;
+        };
+
+        std::array<Task, 10> tasks {};
+
+        parallelFor (10, [&tasks] (int t)
+        {
+            const double fs = kRates5[ix (t / 2)];
+            const bool stereo = (t % 2) != 0;
+            Task& out = tasks[ix (t)];
+            eq::Designer designer;
+            designer.prepare (fs);
+            std::unique_ptr<eq::AutoGain> autoGain = std::make_unique<eq::AutoGain>();
+            autoGain->prepare (fs);
+            const std::vector<double> t2 = xoAgGrid (fs, kXoAgPoints);
+            const double clampHi = std::pow (10.0, 12.0 / 20.0), clampLo = std::pow (10.0, -18.0 / 20.0);
+
+            Rng rng (0x584F4147524546ull);      // the same configurations at every rate and layout
+            XoInputs in;
+            const XoDesired desired = xoPointers (in);
+
+            for (int c = 0; c < configs; ++c)
+            {
+                xoRandomConfig (rng, in);
+
+                for (const eq::BandInput& band : in)
+                    if (band.active)
+                        ++out.placed[static_cast<int> (band.placement)];
+
+                const double a = autoGain->estimate (desired.data(), stereo, designer);
+                const double r = agRef (designer, desired.data(), stereo, t2).target;
+                const double diff = std::fabs (xoDb (a) - xoDb (r));
+                ++out.compared;
+
+                if (! std::isfinite (a) || ! std::isfinite (r))
+                    ++out.nonFinite;
+
+                if (sameBits (a, clampHi) || sameBits (a, clampLo))
+                    ++out.clamped;
+
+                if (sameBits (a, 1.0))
+                    ++out.unity;
+
+                if (! (diff <= out.worstDb))
+                {
+                    out.worstDb = diff;
+                    out.where = strf ("%s %.1f kHz configuration %d", stereo ? "stereo" : "mono", fs / 1000.0, c);
+                }
+            }
+        });
+
+        double worst = 0.0;
+        int compared = 0, clamped = 0, unity = 0, nonFinite = 0;
+        long long placed[5] = {};
+        std::string where = "none";
+
+        for (const Task& t : tasks)
+        {
+            compared += t.compared;
+            clamped += t.clamped;
+            unity += t.unity;
+            nonFinite += t.nonFinite;
+
+            for (int p = 0; p < 5; ++p)
+                placed[p] += t.placed[p];
+
+            if (t.worstDb > worst)
+            {
+                worst = t.worstDb;
+                where = t.where;
+            }
+        }
+
+        row (worst <= 1.0e-12 && nonFinite == 0 && compared == configs * 10,
+             "XO-agref AutoGain against agRef: 2000 random 24-band configurations x mono / stereo x 5 rates: <= 1e-12 dB",
+             strf ("%d estimates; worst %.3g dB (%s); %d at a clamp, %d with no contributing band; active bands placed Stereo %lld, "
+                   "Left %lld, Right %lld, Mid %lld, Side %lld",
+                   compared, worst, where.c_str(), clamped, unity, placed[0], placed[1], placed[2], placed[3], placed[4]));
+    }
+
+    //==========================================================================
+    // XO-agrip: ripple under a frequency sweep
+    //==========================================================================
+    void rowXoAgRip()
+    {
+        struct Bell
+        {
+            double q, gain, bench512, bench64;
+            bool named;
+        };
+
+        // RESEARCH-2.5 Q3 ripple table (48 kHz, midpoint grids), p-p of (estimate - truth) in dB.
+        static const Bell bells[8] =
+        {
+            { 40.0, 30.0, 2.92, 11.857, true }, { 40.0, 12.0, 0.028, 0.875, true }, { 40.0, 6.0, 0.002, 0.186, false },
+            { 20.0, 30.0, 1.122, 10.970, false }, { 10.0, 30.0, 0.12, 8.664, true }, { 10.0, 12.0, 0.000, 0.543, false },
+            { 4.0, 30.0, 0.000, 3.719, false }, { 40.0, -30.0, 0.000, 0.006, false }
+        };
+
+        constexpr int steps = 4000;
+        constexpr int chunks = 40;
+        constexpr int perChunk = steps / chunks;
+        const double fs = kXoFs;
+        const std::vector<double> truthGrid = xoTruthGrid (fs);
+        const std::vector<double> grid64 = xoAgGrid (fs, 64);
+        std::vector<double> err512 (ix (8 * steps)), err64 (ix (8 * steps));
+
+        parallelFor (8 * chunks, [&] (int task)
+        {
+            const int b = task / chunks;
+            const int s0 = (task % chunks) * perChunk;
+            eq::Designer designer;
+            designer.prepare (fs);
+            std::unique_ptr<eq::AutoGain> autoGain = std::make_unique<eq::AutoGain>();
+            autoGain->prepare (fs);
+            XoInputs in;
+            in.fill (xoOff());
+            const XoDesired desired = xoPointers (in);
+
+            for (int s = s0; s < s0 + perChunk; ++s)
+            {
+                const double f = 200.0 * std::pow (40.0, static_cast<double> (s) / 3999.0);
+                in[0] = rmInput (eq::Type::bell, f, bells[b].gain, bells[b].q, 0);
+                eq::BandDesign d {};
+                designer.design (in[0].settings, d);
+                const double truth = xoTruthDb (d, truthGrid);
+                err512[ix (b * steps + s)] = xoDb (autoGain->estimate (desired.data(), true, designer)) - truth;
+                err64[ix (b * steps + s)] = xoDb (agRef (designer, desired.data(), true, grid64).target) - truth;
+            }
+        });
+
+        int above = 0;
+        double pp512[8] = {}, pp64[8] = {};
+
+        for (int b = 0; b < 8; ++b)
+        {
+            double lo = kInf, hi = -kInf, lo64 = kInf, hi64 = -kInf;
+
+            for (int s = 0; s < steps; ++s)
+            {
+                lo = std::min (lo, err512[ix (b * steps + s)]);
+                hi = std::max (hi, err512[ix (b * steps + s)]);
+                lo64 = std::min (lo64, err64[ix (b * steps + s)]);
+                hi64 = std::max (hi64, err64[ix (b * steps + s)]);
+            }
+
+            pp512[b] = hi - lo;
+            pp64[b] = hi64 - lo64;
+
+            // The named figures as the plan states them; the others as printed by the bench, plus
+            // half a unit of its last printed digit.
+            const double limit = 1.2 * (bells[b].named ? bells[b].bench512 : bells[b].bench512 + 0.0005);
+
+            if (! (pp512[b] <= limit))
+                ++above;
+        }
+
+        const bool controlFires = pp64[1] >= 0.8;
+
+        row (above == 0 && controlFires,
+             "XO-agrip bells swept 200 Hz -> 8 kHz in 4000 log steps at 48 kHz: p-p of (estimate - truth) <= 1.2x the bench's 512 "
+             "figures; the 64-point agRef reads >= 0.8 dB on Q 40 +12",
+             strf ("%d of 8 bells above; Q 40 +12: %.4f dB (bench 0.028), Q 10 +30: %.4f (bench 0.12), Q 40 +30: %.4f (bench 2.92); "
+                   "control (64 points) on Q 40 +12: %.3f dB (bench 0.875): %s",
+                   above, pp512[1], pp512[4], pp512[0], pp64[1], controlFires ? "the control fires" : "the control did NOT fire"));
+
+        for (int b = 0; b < 8; ++b)
+            note (strf ("Q %2.0f %+3.0f dB: 512 points %.4f dB p-p (bench %.3f) | 64 points (agRef) %.3f dB (bench %.3f)", bells[b].q,
+                        bells[b].gain, pp512[b], bells[b].bench512, pp64[b], bells[b].bench64));
+    }
+
+    //==========================================================================
+    // XO-agid: the pure-function invariant
+    //==========================================================================
+    void rowXoAgId()
+    {
+        constexpr int sequencesPerTask = 100;
+        constexpr int stepsPerSequence = 30;
+
+        struct Task
+        {
+            long long refreshes = 0, skipped = 0, mismatches = 0, cleanRefreshes = 0, cleanViolations = 0, endMismatches = 0;
+            long long edits = 0, editsWhileOff = 0;
+            int sequences = 0;
+        };
+
+        std::array<Task, 10> tasks {};
+
+        parallelFor (10, [&tasks] (int t)
+        {
+            const double fs = kRates5[ix (t / 2)];
+            const bool stereo = (t % 2) != 0;
+            Task& out = tasks[ix (t)];
+            eq::Designer designer;
+            designer.prepare (fs);
+            std::unique_ptr<eq::AutoGain> subject = std::make_unique<eq::AutoGain>();
+            std::unique_ptr<eq::AutoGain> fresh = std::make_unique<eq::AutoGain>();
+            subject->prepare (fs);
+
+            Rng rng (0x584F41474944ull + static_cast<std::uint64_t> (t));
+            std::array<eq::RawBand, kXoBands> raws {};
+            float scale = kEnScale100;
+            XoInputs in;
+            const XoDesired desired = xoPointers (in);
+            bool haveLast = false;
+            double last = 1.0;
+
+            auto rebuild = [&in, &raws, &scale]
+            {
+                for (int b = 0; b < kXoBands; ++b)
+                    in[ix (b)] = eq::makeBandInput (raws[ix (b)], scale, 0.0);
+            };
+
+            // One refresh of the subject (the cache carries over across sequences), checked against a fresh
+            // evaluateAll; a refresh the subject called clean must return the previous value.
+            auto refresh = [&]
+            {
+                const bool dirty = subject->isDirty (desired.data(), stereo);
+                const double v = subject->estimate (desired.data(), stereo, designer);
+                ++out.refreshes;
+
+                if (! dirty)
+                {
+                    ++out.cleanRefreshes;
+
+                    if (haveLast && ! sameBits (v, last))
+                        ++out.cleanViolations;
+                }
+
+                last = v;
+                haveLast = true;
+                fresh->prepare (fs);
+
+                if (! sameBits (v, fresh->evaluateAll (desired.data(), stereo, designer)))
+                    ++out.mismatches;
+
+                return v;
+            };
+
+            for (int sq = 0; sq < sequencesPerTask; ++sq)
+            {
+                const double pActive = 0.4 + 0.6 * rng.uniform();
+
+                for (eq::RawBand& raw : raws)
+                {
+                    raw = xoRandomRaw (rng);
+                    raw.enabled = rng.uniform() < pActive ? 1.0f : 0.0f;
+                }
+
+                scale = kEnScale100;
+                rebuild();
+
+                for (int st = 0; st < stepsPerSequence; ++st)
+                {
+                    const int edits = 1 + rng.below (3);
+
+                    for (int e = 0; e < edits; ++e)
+                    {
+                        eq::RawBand& raw = raws[ix (rng.below (kXoBands))];
+                        const eq::RawBand drawn = xoRandomRaw (rng);
+                        ++out.edits;
+
+                        if (raw.enabled < 0.5f || raw.bypass >= 0.5f)
+                            ++out.editsWhileOff;
+
+                        switch (rng.below (10))
+                        {
+                            case 0:  raw.freq = static_cast<float> (static_cast<double> (raw.freq) * std::pow (2.0, 2.0 * rng.uniform() - 1.0)); break;
+                            case 1:  raw.gain = drawn.gain; break;
+                            case 2:  raw.gain = 0.0f; break;
+                            case 3:  raw.q = drawn.q; break;
+                            case 4:  raw.type = drawn.type; break;
+                            case 5:  raw.slope = drawn.slope; break;
+                            case 6:  raw.placement = drawn.placement; break;
+                            case 7:  raw.enabled = raw.enabled < 0.5f ? 1.0f : 0.0f; break;
+                            case 8:  raw.bypass = raw.bypass < 0.5f ? 1.0f : 0.0f; break;
+                            default: scale = static_cast<float> (50 * rng.below (5)); break;
+                        }
+                    }
+
+                    rebuild();
+
+                    if (rng.uniform() < 0.5)
+                    {
+                        ++out.skipped;
+                        continue;
+                    }
+
+                    refresh();
+                }
+
+                // The end of the sequence: the subject's estimate, a fresh evaluateAll, and the
+                // subject's own evaluateAll, bit for bit.
+                const double v = refresh();
+                fresh->prepare (fs);
+                const double w = fresh->evaluateAll (desired.data(), stereo, designer);
+                const double w2 = subject->evaluateAll (desired.data(), stereo, designer);
+                last = w2;
+
+                if (! sameBits (v, w) || ! sameBits (v, w2))
+                    ++out.endMismatches;
+
+                ++out.sequences;
+            }
+        });
+
+        Task sum;
+
+        for (const Task& t : tasks)
+        {
+            sum.refreshes += t.refreshes;
+            sum.skipped += t.skipped;
+            sum.mismatches += t.mismatches;
+            sum.cleanRefreshes += t.cleanRefreshes;
+            sum.cleanViolations += t.cleanViolations;
+            sum.endMismatches += t.endMismatches;
+            sum.edits += t.edits;
+            sum.editsWhileOff += t.editsWhileOff;
+            sum.sequences += t.sequences;
+        }
+
+        row (sum.mismatches == 0 && sum.endMismatches == 0 && sum.cleanViolations == 0 && sum.sequences == 1000 && sum.skipped > 0
+                 && sum.cleanRefreshes > 0,
+             "XO-agid pure function: after 1000 random edit sequences (refreshes skipped at random, 5 rates, mono / stereo) the "
+             "estimate equals evaluateAll, bit for bit",
+             strf ("%d sequences, %lld edits (%lld to a band that was off), %lld refreshes, %lld skipped: %lld refreshes and %lld "
+                   "sequence ends differ from evaluateAll; %lld refreshes isDirty called clean, %lld of them moved",
+                   sum.sequences, sum.edits, sum.editsWhileOff, sum.refreshes, sum.skipped, sum.mismatches, sum.endMismatches,
+                   sum.cleanRefreshes, sum.cleanViolations));
+    }
+
+    //==========================================================================
+    // XO-agz: nothing to compensate
+    //==========================================================================
+    void rowXoAgz()
+    {
+        const double fs = kXoFs;
+        eq::Designer designer;
+        designer.prepare (fs);
+        std::unique_ptr<eq::AutoGain> autoGain = std::make_unique<eq::AutoGain>();
+        XoInputs in;
+        const XoDesired desired = xoPointers (in);
+        int failed = 0;
+        std::string bad;
+
+        // Prepared afresh, then estimate and evaluateAll: the value and the designs evaluated.
+        auto run = [&] (bool stereo, double& value, unsigned long& designs)
+        {
+            autoGain->prepare (fs);
+            const unsigned long before = autoGain->getEvaluationCount();
+            value = autoGain->estimate (desired.data(), stereo, designer);
+            const double again = autoGain->evaluateAll (desired.data(), stereo, designer);
+            designs = autoGain->getEvaluationCount() - before;
+            return sameBits (value, again);
+        };
+
+        auto expectNone = [&] (bool stereo, const char* what)
+        {
+            double value = 0.0;
+            unsigned long designs = 0;
+            const bool same = run (stereo, value, designs);
+
+            if (! (same && sameBits (value, 1.0) && designs == 0))
+            {
+                ++failed;
+                bad += strf ("%s%s: %.17g, %lu designs", bad.empty() ? "" : "; ", what, value, designs);
+            }
+        };
+
+        static const eq::Type gainTypes[4] = { eq::Type::bell, eq::Type::lowShelf, eq::Type::highShelf, eq::Type::tilt };
+
+        // All off: disabled, or enabled and bypassed.
+        for (int b = 0; b < kXoBands; ++b)
+        {
+            eq::RawBand raw = enRaw (static_cast<eq::Type> (b % 8), 40.0 * std::pow (1.28, static_cast<double> (b)), 9.0, 2.0, b % 8,
+                                     static_cast<eq::Placement> (b % 5));
+            raw.enabled = (b % 2 == 0) ? 0.0f : 1.0f;
+            raw.bypass = (b % 2 == 0) ? 0.0f : 1.0f;
+            in[ix (b)] = eq::makeBandInput (raw, kEnScale100, 0.0);
+        }
+
+        expectNone (true, "all off, stereo");
+        expectNone (false, "all off, mono");
+
+        // Every gain type at exactly 0 dB: gain 0 at 100 %, and gain +-9 at a 0 % scale.
+        for (const float scale : { kEnScale100, 0.0f })
+        {
+            for (int b = 0; b < kXoBands; ++b)
+                in[ix (b)] = eq::makeBandInput (enRaw (gainTypes[b % 4], 40.0 * std::pow (1.28, static_cast<double> (b)),
+                                                       scale > 0.0f ? 0.0 : ((b & 1) != 0 ? 9.0 : -9.0), 0.7, (b % 7) + 1,
+                                                       static_cast<eq::Placement> (b % 5)),
+                                                scale, 0.0);
+
+            expectNone (true, scale > 0.0f ? "gain types at 0 dB, stereo" : "gain types at a 0 % scale, stereo");
+            expectNone (false, scale > 0.0f ? "gain types at 0 dB, mono" : "gain types at a 0 % scale, mono");
+        }
+
+        // A gain type at 0.0001 dB contributes (one design, below 1.0).
+        in[5] = rmInput (eq::Type::bell, 1000.0, 0.0001, 1.0, 0);
+        {
+            double value = 0.0;
+            unsigned long designs = 0;
+            run (true, value, designs);
+
+            if (! (value < 1.0 && designs == 2))
+            {
+                ++failed;
+                bad += strf ("%sa bell at +0.0001 dB: %.17g, %lu designs (estimate + evaluateAll: 2 expected)", bad.empty() ? "" : "; ",
+                             value, designs);
+            }
+        }
+
+        // Side only, stereo: nothing; the same bands on mono contribute.
+        for (int b = 0; b < kXoBands; ++b)
+            in[ix (b)] = rmInput (static_cast<eq::Type> (b % 8), 40.0 * std::pow (1.28, static_cast<double> (b)), 9.0, 2.0, b % 8,
+                                  eq::Placement::side);
+
+        expectNone (true, "Side only, stereo");
+        {
+            double value = 0.0;
+            unsigned long designs = 0;
+            run (false, value, designs);
+
+            if (! (designs == 2 * kXoBands && ! sameBits (value, 1.0)))
+            {
+                ++failed;
+                bad += strf ("%sSide bands on mono: %.17g, %lu designs (48 expected)", bad.empty() ? "" : "; ", value, designs);
+            }
+        }
+
+        row (failed == 0,
+             "XO-agz no contributing band (all off; every gain type at exactly 0 dB; Side only on stereo): exactly 1.0, 0 designs; a "
+             "gain type at 0.0001 dB contributes",
+             failed == 0 ? std::string ("all cases as stated (estimate and evaluateAll); Side bands on mono contribute")
+                         : strf ("%d cases failed: %s", failed, bad.c_str()));
+    }
+
+    //==========================================================================
+    // XO-agg: the guards and the clamp ends
+    //==========================================================================
+    void rowXoAgg()
+    {
+        const double fs = kXoFs;
+        eq::Designer designer;
+        designer.prepare (fs);
+        std::unique_ptr<eq::AutoGain> autoGain = std::make_unique<eq::AutoGain>();
+        autoGain->prepare (fs);
+        const std::vector<double> t2 = xoAgGrid (fs, kXoAgPoints);
+        XoInputs in;
+        const XoDesired desired = xoPointers (in);
+        const double clampHi = std::pow (10.0, 12.0 / 20.0), clampLo = std::pow (10.0, -18.0 / 20.0);
+
+        // 24 bells at -60 dB (raw -30 dB at a 200 % scale), Q 0.3, spread 40 Hz - 16 kHz.
+        for (int b = 0; b < kXoBands; ++b)
+            in[ix (b)] = rmInput (eq::Type::bell, 40.0 * std::pow (400.0, static_cast<double> (b) / 23.0), -30.0, 0.3, 0,
+                                  eq::Placement::stereo, 200.0f);
+
+        const double cut = autoGain->estimate (desired.data(), true, designer);
+        const XoAgRefResult cutRef = agRef (designer, desired.data(), true, t2);
+
+        // 24 shelves at +60 dB: Low Shelf 20 kHz and High Shelf 20 Hz, alternating.
+        for (int b = 0; b < kXoBands; ++b)
+            in[ix (b)] = rmInput ((b & 1) != 0 ? eq::Type::highShelf : eq::Type::lowShelf, (b & 1) != 0 ? 20.0 : 20000.0, 30.0, 1.0, 1,
+                                  eq::Placement::stereo, 200.0f);
+
+        const double boost = autoGain->estimate (desired.data(), true, designer);
+        const XoAgRefResult boostRef = agRef (designer, desired.data(), true, t2);
+
+        row (sameBits (cut, clampHi) && sameBits (boost, clampLo) && sameBits (cutRef.target, clampHi) && sameBits (boostRef.target, clampLo),
+             "XO-agg guards: 24 x -60 dB bells -> +12 dB, 24 x +60 dB shelves -> -18 dB; the clamp ends exact",
+             strf ("bells %.17g (+12 dB end %.17g; mean %.3g, %s), shelves %.17g (-18 dB end %.17g; mean %.3g)", cut, clampHi, cutRef.mean,
+                   cutRef.mean <= 1.0e-30 ? "the 1e-30 guard" : "the clamp", boost, clampLo, boostRef.mean));
+    }
+
+    //==========================================================================
+    // XO-agsch: the refresh period
+    //==========================================================================
+    void rowXoAgSch()
+    {
+        static const int expected[8] = { 29, 43, 59, 64, 59, 64, 59, 64 };
+        int bad = 0;
+        std::string got;
+
+        for (int r = 0; r < 8; ++r)
+        {
+            const double fs = kRates8[ix (r)];
+            const int ticks = eq::autoGainRefreshTicks (fs, eq::controlGridSize (fs));
+            got += strf ("%s%.4g k %d", r == 0 ? "" : ", ", fs / 1000.0, ticks);
+
+            if (ticks != expected[r])
+                ++bad;
+        }
+
+        row (bad == 0, "XO-agsch autoGainRefreshTicks at the eight rates: 29 / 43 / 59 / 64 / 59 / 64 / 59 / 64 (PLAN-2.5 P5)",
+             strf ("%d wrong: %s", bad, got.c_str()));
+    }
+
+    //==========================================================================
+    // XO-alloc: no allocation with the stage and the estimator refreshing
+    //==========================================================================
+    struct XoAllocExtra
+    {
+        long long blocks = 0, finiteBlocks = 0, movingBlocks = 0;
+        unsigned long refreshes = 0, evaluations = 0;
+    };
+
+    /** 1e4 host blocks of 128 at 48 kHz inside a malloc_logger window on this thread, the first block
+        included: every band's desired input moves at every block (so every band is dirty at every
+        refresh tick), the output target is redrawn per block, and the driver runs the PLAN-2.5 P6
+        order on the stage (block-start read, tick hand-over, refresh tick, process). `plant` puts one
+        deliberate allocation inside the window. The hook, its counters and the vacuity probe are A1's. */
+    AllocResult runXoAlloc (bool plant, XoAllocExtra* extra)
+    {
+        AllocResult result;
+
+       #if defined (__APPLE__)
+        constexpr int numBlocks = 10000;
+        constexpr int block = 128;
+        constexpr int noiseLength = 4096;
+        const double fs = kXoFs;
+        const std::uint64_t grid = static_cast<std::uint64_t> (eq::controlGridSize (fs));
+        const std::uint64_t refreshTicks = static_cast<std::uint64_t> (eq::autoGainRefreshTicks (fs, eq::controlGridSize (fs)));
+
+        eq::Designer designer;
+        designer.prepare (fs);
+        std::unique_ptr<eq::AutoGain> autoGain = std::make_unique<eq::AutoGain>();
+        autoGain->prepare (fs);
+        eq::OutputStage stage;
+        stage.prepare (fs);
+
+        static const eq::Type types[6] = { eq::Type::bell, eq::Type::lowShelf, eq::Type::highShelf, eq::Type::lowCut, eq::Type::highCut,
+                                           eq::Type::tilt };
+        std::array<eq::RawBand, kXoBands> raws {};
+        std::array<double, kXoBands> base {};
+        XoInputs in;
+        const XoDesired desired = xoPointers (in);
+
+        for (int b = 0; b < kXoBands; ++b)
+        {
+            base[ix (b)] = 40.0 * std::pow (1.28, static_cast<double> (b));
+            raws[ix (b)] = enRaw (types[b % 6], base[ix (b)], (b & 1) != 0 ? 6.0 : -6.0, 0.7, 7, static_cast<eq::Placement> (b % 4));
+            in[ix (b)] = eq::makeBandInput (raws[ix (b)], kEnScale100, 0.0);
+        }
+
+        Rng rng (0x584F414C4C4F43ull);
+        std::vector<double> noiseL (ix (noiseLength)), noiseR (ix (noiseLength));
+
+        for (int i = 0; i < noiseLength; ++i)
+        {
+            noiseL[ix (i)] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+            noiseR[ix (i)] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+        }
+
+        double lane0[block], lane1[block];
+        long long finiteBlocks = 0, movingBlocks = 0;
+        std::uint64_t clock = 0;
+
+        malloc_logger_t* const previous = malloc_logger;
+        allocThread = pthread_self();
+        allocCount = 0;
+        freeCount = 0;
+        malloc_logger = countAllocation;
+
+        // Vacuity: the hook must see a deliberate allocation and its release.
+        allocArmed = true;
+        {
+            void* volatile planted = std::malloc (64);
+            std::free (planted);
+        }
+        allocArmed = false;
+        result.vacuityAllocs = allocCount;
+        result.vacuityFrees = freeCount;
+        allocCount = 0;
+        freeCount = 0;
+
+        allocArmed = true;
+
+        for (int i = 0; i < numBlocks; ++i)
+        {
+            // Block start: every band moves, the output target is redrawn.
+            for (int b = 0; b < kXoBands; ++b)
+            {
+                raws[ix (b)].freq = static_cast<float> (base[ix (b)] * (1.0 + 0.25 * std::sin (0.37 * static_cast<double> (i)
+                                                                                                  + static_cast<double> (b))));
+                in[ix (b)] = eq::makeBandInput (raws[ix (b)], kEnScale100, 0.0);
+            }
+
+            stage.setOutputPending (eq::outputGainTarget (-36.0 + 72.0 * rng.uniform()));
+
+            const std::size_t offset = ix ((i * block) % (noiseLength - block));
+            std::memcpy (lane0, noiseL.data() + offset, sizeof (lane0));
+            std::memcpy (lane1, noiseR.data() + offset, sizeof (lane1));
+
+            for (int pos = 0; pos < block;)
+            {
+                const std::uint64_t now = clock + static_cast<std::uint64_t> (pos);
+
+                if (now % grid == 0)
+                {
+                    stage.applyOutputPending();
+
+                    if ((now / grid) % refreshTicks == 0)
+                        stage.setAutoTarget (autoGain->estimate (desired.data(), true, designer));
+                }
+
+                const int next = std::min (block, pos + static_cast<int> (grid - (now % grid)));
+                stage.process (lane0 + pos, lane1 + pos, next - pos);
+                pos = next;
+            }
+
+            clock += static_cast<std::uint64_t> (block);
+
+            if (! stage.getOutputSmoother().isSettled() || ! stage.getAutoSmoother().isSettled())
+                ++movingBlocks;
+
+            if (std::isfinite (lane0[block - 1]) && std::isfinite (lane1[block - 1]))
+                ++finiteBlocks;
+        }
+
+        if (plant)
+        {
+            void* volatile planted = std::malloc (64);
+            std::free (planted);
+        }
+
+        allocArmed = false;
+        malloc_logger = previous;
+
+        result.available = true;
+        result.allocs = allocCount;
+        result.frees = freeCount;
+        result.checksum = finiteBlocks;
+
+        if (extra != nullptr)
+        {
+            extra->blocks = numBlocks;
+            extra->finiteBlocks = finiteBlocks;
+            extra->movingBlocks = movingBlocks;
+            extra->refreshes = autoGain->getRefreshCount();
+            extra->evaluations = autoGain->getEvaluationCount();
+        }
+       #else
+        (void) plant;
+        (void) extra;
+       #endif
+
+        return result;
+    }
+
+    void rowXoAlloc()
+    {
+        XoAllocExtra extra;
+        const AllocResult r = runXoAlloc (false, &extra);
+
+        if (! r.available)
+        {
+            info ("XO-alloc allocation gate SKIPPED: no malloc_logger on this platform");
+            return;
+        }
+
+        const bool hookLive = r.vacuityAllocs >= 1 && r.vacuityFrees >= 1;
+        const bool live = extra.blocks == 10000 && extra.refreshes == 1250 && extra.evaluations == 24ul * extra.refreshes
+                          && extra.movingBlocks > 5000;
+
+        row (hookLive && r.allocs == 0 && r.frees == 0 && live,
+             "XO-alloc 1e4 blocks, the stage with the output target redrawn per block and every band dirty at every refresh tick, "
+             "first block included: 0 allocations, 0 frees (malloc_logger, this thread)",
+             strf ("%d allocations, %d frees; hook %s (planted: %d / %d); %lu refreshes, %lu band designs, %lld blocks moving%s; "
+                   "%lld of %lld blocks end finite",
+                   r.allocs, r.frees, hookLive ? "live" : "DEAD", r.vacuityAllocs, r.vacuityFrees, extra.refreshes, extra.evaluations,
+                   extra.movingBlocks, live ? "" : " (VOID: a refresh without every band dirty, or a stage at rest)", extra.finiteBlocks,
+                   extra.blocks));
+    }
+
+    //==========================================================================
+    // XO-cpu: INFO
+    //==========================================================================
+    void infoXoCpu()
+    {
+        const double fs = kXoFs;
+        eq::Designer designer;
+        designer.prepare (fs);
+        std::unique_ptr<eq::AutoGain> autoGain = std::make_unique<eq::AutoGain>();
+        XoInputs in;
+        const XoDesired desired = xoPointers (in);
+        volatile double sink = 0.0;
+
+        // Per band: 24 bands of one kind, every one changed before each estimate.
+        auto perBand = [&] (eq::Type type, int slope)
+        {
+            constexpr int iterations = 2000;
+            autoGain->prepare (fs);
+            const RmClock::time_point t0 = RmClock::now();
+
+            for (int it = 0; it < iterations; ++it)
+            {
+                for (int b = 0; b < kXoBands; ++b)
+                    in[ix (b)] = rmInput (type, 300.0 + static_cast<double> ((it * kXoBands + b) % 97), 6.0 + static_cast<double> (it % 7),
+                                          1.0, slope);
+
+                sink = sink + autoGain->estimate (desired.data(), true, designer);
+            }
+
+            return 1.0e6 * rmSeconds (t0, RmClock::now()) / static_cast<double> (iterations * kXoBands);
+        };
+
+        const double bell = perBand (eq::Type::bell, 0);
+        const double cut = perBand (eq::Type::lowCut, 7);
+        const double shelf = perBand (eq::Type::lowShelf, 7);
+
+        // Per refresh: 24 contributing bells, nothing dirty (the lane products, the mean, the log).
+        double refresh = 0.0;
+        {
+            constexpr int iterations = 20000;
+
+            for (int b = 0; b < kXoBands; ++b)
+                in[ix (b)] = rmInput (eq::Type::bell, 40.0 * std::pow (1.28, static_cast<double> (b)), 3.0, 1.0, 0,
+                                      static_cast<eq::Placement> (b % 4));
+
+            autoGain->prepare (fs);
+            sink = sink + autoGain->estimate (desired.data(), true, designer);
+            const RmClock::time_point t0 = RmClock::now();
+
+            for (int it = 0; it < iterations; ++it)
+                sink = sink + autoGain->estimate (desired.data(), true, designer);
+
+            refresh = 1.0e6 * rmSeconds (t0, RmClock::now()) / static_cast<double> (iterations);
+        }
+
+        info ("XO-cpu AutoGain at 512 points, 48 kHz: per band evaluation (design + product over the grid) and per refresh",
+              strf ("bell %.2f us (bench 1.5); 96 dB/oct low cut %.2f us (bench 6.1); 96 dB/oct shelf %.2f us (bench 12.1); refresh %.2f "
+                    "us (bench 1.7); per band includes 1/24 of a refresh; G10 binds in Stage 4",
+                    bell, cut, shelf, refresh));
+    }
+
+    //==========================================================================
     // --neg
     //==========================================================================
     /** Runs one negative control. Exit code 0 only if the targeted row FAILS. */
@@ -13587,8 +15699,17 @@ namespace
             return fires ? 0 : 1;
         }
 
+        if (which == "ag-alloc")
+        {
+            const AllocResult r = runXoAlloc (true, nullptr);
+            const bool fires = r.available && r.allocs > 0;
+            std::printf ("neg ag-alloc: planted allocation inside the XO-alloc window: %d allocations, %d frees counted: %s\n",
+                         r.allocs, r.frees, fires ? "XO-alloc FAILS - the control fires" : "the control did NOT fire");
+            return fires ? 0 : 1;
+        }
+
         std::fprintf (stderr, "unknown negative control '%s' (rbj, f1, alloc, seed, rbj-b, binary-gate, first-build, engine-alloc, "
-                              "ramp-alloc, fade-alloc)\n",
+                              "ramp-alloc, fade-alloc, ag-alloc)\n",
                       which.c_str());
         return 255;
     }
@@ -13628,7 +15749,8 @@ int main (int argc, char** argv)
         else
         {
             std::fprintf (stderr, "usage: %s [--golden-dir <dir>] [--long] [--dump-designs] [--dump-polished] "
-                                  "[--neg rbj|f1|alloc|seed|rbj-b|binary-gate|first-build|engine-alloc|ramp-alloc|fade-alloc]\n", argv[0]);
+                                  "[--neg rbj|f1|alloc|seed|rbj-b|binary-gate|first-build|engine-alloc|ramp-alloc|fade-alloc|"
+                                  "ag-alloc]\n", argv[0]);
             return 255;
         }
     }
@@ -13785,6 +15907,25 @@ int main (int argc, char** argv)
     rowXfNan();
     rowXfAlloc();
     infoXfCpu();
+
+    //==========================================================================
+    // Phase 2.5 (PLAN-2.5 T4): output stage and auto gain, eq::OutputStage + eq::AutoGain in double
+    //==========================================================================
+    heading ("2.5 / output stage and auto gain (double)");
+    rowsXoStepRet();
+    rowXoSweep();
+    rowXoStress();
+    rowXoSnap();
+    rowXoUnity();
+    rowXoAg();
+    rowXoAgRef();
+    rowXoAgRip();
+    rowXoAgId();
+    rowXoAgz();
+    rowXoAgg();
+    rowXoAgSch();
+    rowXoAlloc();
+    infoXoCpu();
 
     std::printf ("\n%d PASS, %d FAIL, %d INFO\n", passes, failures, infos);
     std::fflush (stdout);

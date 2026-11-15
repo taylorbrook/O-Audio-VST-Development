@@ -30,7 +30,10 @@
     non-finite check).
     Stage 2, Phase 2.4: two-slot bands (structural crossfades, latched
     requests, neutral sleep) and the one soft-bypass path behind both entry
-    points. See PluginProcessor.h.
+    points.
+    Stage 2, Phase 2.5: the output stage (output gain, auto gain) between
+    the bands and the bypass mix, its seeding, and the output peaks. See
+    PluginProcessor.h.
 
   ==============================================================================
 */
@@ -110,10 +113,13 @@ namespace
     static_assert (static_cast<int> (std::size (kBandDefs)) == eq::numRawBandValues,
                    "one eq::RawBand field per band parameter, in registration order");
 
-    // Indices into the raw-value cache (the kGlobalDefs rows). output_gain (1)
-    // and auto_gain (3) are cached and read by nothing until Phase 2.5.
-    constexpr std::size_t kRawBypass    = 0;
-    constexpr std::size_t kRawGainScale = 2;
+    // Indices into the raw-value cache (the kGlobalDefs rows). All four are
+    // read at every processed block start (output_gain and auto_gain since
+    // Phase 2.5).
+    constexpr std::size_t kRawBypass     = 0;
+    constexpr std::size_t kRawOutputGain = 1;
+    constexpr std::size_t kRawGainScale  = 2;
+    constexpr std::size_t kRawAutoGain   = 3;
 
     // The longest segment the bypass fade mixes against one stack copy of
     // the dry lanes (PLAN-2.4 P8.6). A segment never runs past a control
@@ -263,6 +269,8 @@ OuariconParametricEQAudioProcessor::OuariconParametricEQAudioProcessor()
 
     jassert (rawValues[kRawBypass]    == parameters.getRawParameterValue ("bypass"));
     jassert (rawValues[kRawGainScale] == parameters.getRawParameterValue ("gain_scale"));
+    jassert (rawValues[kRawOutputGain] == parameters.getRawParameterValue ("output_gain"));
+    jassert (rawValues[kRawAutoGain] == parameters.getRawParameterValue ("auto_gain"));
 }
 
 //==============================================================================
@@ -299,6 +307,14 @@ void OuariconParametricEQAudioProcessor::prepareToPlay (double sampleRate, int s
 
     for (auto& slot : slots)
         slot.valid = false;
+
+    // The output stage at unity, the estimator's grid for this rate with no
+    // band evaluated, auto gain off until the first block seeds it.
+    outputStage.prepare (sampleRate);
+    autoGain.prepare (sampleRate);
+    refreshTicks = eq::autoGainRefreshTicks (sampleRate, controlGrid);
+    agWanted = false;
+    agOn = false;
 
     started = false;
 
@@ -344,27 +360,40 @@ bool OuariconParametricEQAudioProcessor::isBusesLayoutSupported (const BusesLayo
 //        input goes to the band as a request. The band decides what it is
 //        (SlotBand.h): nothing, a ramp target, a wake, a crossfade to its
 //        other slot, or a request latched behind the fade in flight.
-//        Parameters keep being read and applied during the fade to bypass;
-//   5. the list: the bands that are running, in index order. Empty: the
-//      bypass state jumps to what is wanted (with nothing running a toggle
-//      is a flag) and the block returns with the buffer untouched;
-//   6. the lanes a listed band may touch before the next block start
-//      (PLAN-2.4 P7: every slot that is not off, and a latched request's
-//      placement) go to double, in chunks of at most the prepared block
+//        Parameters keep being read and applied during the fade to bypass.
+//        output_gain (sanitised, to the pending output target) and auto_gain
+//        (wanted) are read here too. On a restart the output stage is
+//        seeded after the bands: auto gain takes its wanted state, and both
+//        smoothers snap to their targets, every band's estimate at once;
+//   5. the list: the bands that are running, in index order. Empty, and the
+//      output stage idle for the block (stageIdleForBlock): the bypass state
+//      jumps to what is wanted (with nothing running a toggle is a flag) and
+//      the block returns with the buffer untouched. Empty with the stage not
+//      idle: the block runs with an empty list, and a toggle fades;
+//   6. the lanes: with the stage idle, those a listed band may touch before
+//      the next block start (PLAN-2.4 P7: every slot that is not off, and a
+//      latched request's placement); with it not idle, every lane of the
+//      layout. They go to double, in chunks of at most the prepared block
 //      size. A chunk runs in segments that end at the next control tick and
 //      at the end of a bypass fade. Per segment, in this order:
 //        - on a tick: the control tick of every listed band, in index order
-//          (ramps, and the sleep count);
+//          (ramps, and the sleep count); then the pending output target goes
+//          to its smoother; then, on a refresh tick (tick index a multiple of
+//          autoGainRefreshTicks), auto gain takes its wanted state and its
+//          target: the estimate of the bands' latest requests, or 1.0 off;
 //        - a bypass fade in flight: a stack copy of the segment's converted
 //          lanes, taken before the bands run. That is the dry signal;
 //        - every listed band processes the segment, in index order;
+//        - the output stage: auto gain x output gain, one multiply per
+//          converted lane sample; settled at exactly 1.0 it touches nothing;
 //        - a bypass fade in flight: each converted lane is mixed with its
 //          dry copy, then the fade moves on by the segment;
 //   7. a segment that ends the fade to bypass: every band goes idle. If a
 //      latched un-bypass then starts the fade back at once, every band
 //      starts from rest, settled, on its latest request before the next
-//      sample, and the list is rebuilt. Otherwise the engine is idle and the
-//      rest of the host block is not processed;
+//      sample, the output stage is seeded, and the list is rebuilt.
+//      Otherwise the engine is idle and the rest of the host block is not
+//      processed;
 //   8. end of each chunk: if the last working sample of a converted lane is
 //      not finite, the state of both slots of every band is cleared and
 //      their ramps snapped. Fades in flight carry on;
@@ -397,10 +426,22 @@ bool OuariconParametricEQAudioProcessor::isBusesLayoutSupported (const BusesLayo
 // sample count too (a fade's table index, the sleep count in ticks), so an
 // event seen at the same sample renders the same at any host block size.
 //
-// Nothing else sits between the float input and the float output: no output
-// gain, no auto gain (Phase 2.5), no limiter, no stage that hides a
-// non-finite sample. The bypass mix is the last stage before the conversion
-// to float.
+// The output stage is idle for a block when both smoothers are settled at
+// exactly 1.0, the pending output target is exactly 1.0, and auto gain
+// cannot move before the next block start (agOn equals agWanted, and while
+// on no band's latest request differs from what the estimator last saw in
+// a way it could see). Idle, a refresh would return the current target
+// (AutoGain's pure-function invariant), so skipping it changes nothing, and
+// the stage cannot leave unity inside the block. The predicate is computed
+// at the block start, after the parameter reads, and never latched.
+//
+// After processAudio, both entry points update the max-hold output peaks
+// from the float buffer, read-only, on every path.
+//
+// Nothing else sits between the float input and the float output: the
+// bands, the output stage (auto gain x output gain), the bypass mix. No
+// limiter, no stage that hides a non-finite sample. The bypass mix is the
+// last stage before the conversion to float.
 //==============================================================================
 void OuariconParametricEQAudioProcessor::clearOutputsWithoutInput (juce::AudioBuffer<float>& buffer)
 {
@@ -468,11 +509,81 @@ int OuariconParametricEQAudioProcessor::collectRunningBands (RunningList& list) 
     return count;
 }
 
+OuariconParametricEQAudioProcessor::DesiredList OuariconParametricEQAudioProcessor::collectDesired() const noexcept
+{
+    DesiredList desired {};
+
+    for (std::size_t b = 0; b < desired.size(); ++b)
+        desired[b] = &bands[b].getDesired();
+
+    return desired;
+}
+
+bool OuariconParametricEQAudioProcessor::stageIdleForBlock() const noexcept
+{
+    // Settled at exactly 1.0 with the pending output target 1.0, and auto
+    // gain cannot move before the next block start: it is not switching,
+    // and while on no band has changed in a way the estimate could see. A
+    // refresh skipped in an idle block would have returned the current
+    // target (AutoGain's pure-function invariant).
+    if (! outputStage.isUnity() || agOn != agWanted)
+        return false;
+
+    if (! agOn)
+        return true;
+
+    const DesiredList desired = collectDesired();
+    return ! autoGain.isDirty (desired.data(), stereoLayout);
+}
+
+void OuariconParametricEQAudioProcessor::seedOutputStage() noexcept
+{
+    agOn = agWanted;
+
+    double autoTarget = 1.0;
+
+    if (agOn)
+    {
+        const DesiredList desired = collectDesired();
+        autoTarget = autoGain.evaluateAll (desired.data(), stereoLayout, designer);
+    }
+
+    outputStage.snap (outputStage.getPendingOutput(), autoTarget);
+}
+
+void OuariconParametricEQAudioProcessor::updateOutputPeak (const juce::AudioBuffer<float>& buffer) noexcept
+{
+    // Read-only on the buffer. Per output channel of the layout.
+    const int numChannels = juce::jmin (getTotalNumOutputChannels(), buffer.getNumChannels(), 2);
+    const int numSamples = buffer.getNumSamples();
+
+    if (numSamples <= 0)
+        return;
+
+    for (int ch = 0; ch < numChannels; ++ch)
+    {
+        const float peak = buffer.getMagnitude (ch, 0, numSamples);
+        auto& slot = outputPeak[static_cast<std::size_t> (ch)];
+
+        if (peak > slot.load (std::memory_order_relaxed))
+            slot.store (peak, std::memory_order_relaxed);
+    }
+}
+
+float OuariconParametricEQAudioProcessor::readAndResetOutputPeak (int ch) noexcept
+{
+    if (ch < 0 || ch >= static_cast<int> (outputPeak.size()))
+        return 0.0f;
+
+    return outputPeak[static_cast<std::size_t> (ch)].exchange (0.0f);
+}
+
 void OuariconParametricEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                                        juce::MidiBuffer& midiMessages)
 {
     juce::ignoreUnused (midiMessages);
     processAudio (buffer, false);
+    updateOutputPeak (buffer);
 }
 
 void OuariconParametricEQAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buffer,
@@ -481,6 +592,7 @@ void OuariconParametricEQAudioProcessor::processBlockBypassed (juce::AudioBuffer
     // The same path, with bypass wanted for this block (PLAN-2.4 P6).
     juce::ignoreUnused (midiMessages);
     processAudio (buffer, true);
+    updateOutputPeak (buffer);
 }
 
 void OuariconParametricEQAudioProcessor::processAudio (juce::AudioBuffer<float>& buffer, bool viaBypassed)
@@ -537,8 +649,12 @@ void OuariconParametricEQAudioProcessor::processAudio (juce::AudioBuffer<float>&
     }
 
     //==========================================================================
-    // 4. Parameters: read once per host block, at the block start.
+    // 4. Parameters: read once per host block, at the block start. The
+    // output target goes to its smoother at the next tick; auto_gain takes
+    // effect at the next refresh tick (or at the seeding below).
     const float gainScaleRaw = rawValues[kRawGainScale]->load();
+    outputStage.setOutputPending (eq::outputGainTarget (static_cast<double> (rawValues[kRawOutputGain]->load())));
+    agWanted = rawValues[kRawAutoGain]->load() >= 0.5f;
 
     for (int b = 0; b < kNumBands; ++b)
     {
@@ -575,24 +691,40 @@ void OuariconParametricEQAudioProcessor::processAudio (juce::AudioBuffer<float>&
         }
     }
 
+    // Seeding: the output stage starts settled with the bands. Nothing fades
+    // in at session open, and an edit made while bypassed is in effect from
+    // the first processed sample.
+    if (restart)
+        seedOutputStage();
+
     //==========================================================================
     // 5. The list: the bands that are running, in index order.
     RunningList listed {};
     int numListed = collectRunningBands (listed);
 
-    // No running band: the buffer has not been read or written, and a bypass
-    // toggle is a flag. A bypass fade in flight has nothing left to mix.
-    if (numListed == 0)
+    // No running band and the output stage idle: the buffer has not been
+    // read or written, and a bypass toggle is a flag. A bypass fade in
+    // flight has nothing left to mix. With the stage not idle the block
+    // runs with an empty band list.
+    if (numListed == 0 && stageIdleForBlock())
     {
         bypassFade.jump (wantBypass);
         return;
     }
 
     //==========================================================================
-    // 6. Audio. The lanes a listed band may touch before the next block
-    // start (PLAN-2.4 P7). A lane outside that set is never converted and
-    // never written back, and no band reads or writes its working lane.
+    // 6. Audio. The stage idle: the lanes a listed band may touch before the
+    // next block start (PLAN-2.4 P7). A lane outside that set is never
+    // converted and never written back, and no band reads or writes its
+    // working lane. The stage not idle: every lane of the layout. The stage
+    // cannot leave unity inside a block whose start found it idle.
     bool touched[2] = { false, false };
+
+    if (! stageIdleForBlock())
+    {
+        touched[0] = true;
+        touched[1] = stereoLayout;
+    }
 
     for (int a = 0; a < numListed; ++a)
     {
@@ -644,10 +776,34 @@ void OuariconParametricEQAudioProcessor::processAudio (juce::AudioBuffer<float>&
         for (int pos = 0; pos < n && ! idle;)
         {
             // On a tick: ramps advance and the sleep count runs, before the
-            // samples of the interval.
+            // samples of the interval. Then the output target goes to its
+            // smoother, and on a refresh tick auto gain takes its wanted
+            // state and its target (PLAN-2.5 P5).
             if (phase == 0)
+            {
                 for (int a = 0; a < numListed; ++a)
                     bands[static_cast<std::size_t> (listed[static_cast<std::size_t> (a)])].controlTick (designer, sleepTicks);
+
+                outputStage.applyOutputPending();
+
+                const std::uint64_t tickIndex = (blockStart + static_cast<std::uint64_t> (start + pos))
+                                              / static_cast<std::uint64_t> (grid);
+
+                if (tickIndex % static_cast<std::uint64_t> (juce::jmax (1, refreshTicks)) == 0)
+                {
+                    agOn = agWanted;
+
+                    if (agOn)
+                    {
+                        const DesiredList desired = collectDesired();
+                        outputStage.setAutoTarget (autoGain.estimate (desired.data(), stereoLayout, designer));
+                    }
+                    else
+                    {
+                        outputStage.setAutoTarget (1.0);
+                    }
+                }
+            }
 
             int m = juce::jmin (n - pos, grid - phase);
 
@@ -681,6 +837,12 @@ void OuariconParametricEQAudioProcessor::processAudio (juce::AudioBuffer<float>&
             for (int a = 0; a < numListed; ++a)
                 bands[static_cast<std::size_t> (listed[static_cast<std::size_t> (a)])]
                     .process (work[0] + pos, work[1] + pos, m, stereoLayout, fadeTable, designer);
+
+            // Auto gain x output gain over the converted lanes. Idle (both
+            // settled at exactly 1.0) it touches nothing.
+            outputStage.process (io[0] != nullptr ? work[0] + pos : nullptr,
+                                 io[1] != nullptr ? work[1] + pos : nullptr,
+                                 m);
 
             // The bypass mix, the last stage: once per converted lane, then
             // the fade moves on once. A converted lane no band has touched
@@ -719,6 +881,10 @@ void OuariconParametricEQAudioProcessor::processAudio (juce::AudioBuffer<float>&
                         band.startSettled (latest, designer);
                     }
 
+                    // The stage starts settled with them, before the next
+                    // sample (PLAN-2.5 P6, R3).
+                    seedOutputStage();
+
                     numListed = collectRunningBands (listed);
 
                     // Every lane the restarted bands touch was converted at
@@ -737,9 +903,11 @@ void OuariconParametricEQAudioProcessor::processAudio (juce::AudioBuffer<float>&
                     jassert (covered);
                     juce::ignoreUnused (covered);
 
-                    // As in step 5: with nothing running there is nothing to
-                    // fade back to.
-                    if (numListed == 0)
+                    // As in step 5: with nothing running and the stage at
+                    // unity there is nothing to fade back to. (Just seeded,
+                    // the stage is settled with nothing pending, so unity
+                    // here is the step-5 idle test.)
+                    if (numListed == 0 && outputStage.isUnity())
                         bypassFade.jump (wantBypass);
                 }
                 else
